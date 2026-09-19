@@ -1,0 +1,24 @@
+name: Godot headless check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    env:
+      GODOT_VERSION: 4.7.2
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Godot ${{ env.GODOT_VERSION }}
+        run: |
+          curl -sSL -o godot.zip "https://downloads.godotengine.org/?version=${GODOT_VERSION}&flavor=stable&slug=linux.x86_64.zip"
+          unzip -q godot.zip
+          mv Godot_v${GODOT_VERSION}-stable_linux.x86_64 "$RUNNER_TEMP/godot"
+          chmod +x "$RUNNER_TEMP/godot"
+          rm godot.zip
+
+      - name: Import and smoke test
+        run: GODOT="$RUNNER_TEMP/godot" tests/headless_check.sh
