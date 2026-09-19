@@ -31,7 +31,8 @@ ragdoll, traffic, day/night, a real sky. Everything original: no real names, log
   airport with flyable jets (all delivered in builds 46 to 51, see section 6).
 - They report feel problems in plain words ("jump feels floaty", "can't turn"). Fix by tuning the
   `@export` values at the top of the relevant script and say exactly what changed.
-- Tone of replies they like: short, direct, no fluff, tell them what to try.
+- Tone of replies they like: short, direct, no fluff, tell them what to try. **Always attach
+  screenshots in the chat** (owner, 2026-09-19: "so I don't need to do a git fetch every time").
 
 ## 3. Repository map
 

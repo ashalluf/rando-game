@@ -49,6 +49,8 @@ One-time setup already done by the owner: repo Settings > Pages > Source = "GitH
 workflow token cannot create the Pages site itself, so if the deploy job ever fails with "Resource
 not accessible by integration", that setting was lost and the owner has to set it again.
 
+**Always put screenshots in the chat** (web build via the harness below, `SendUserFile`) for
+every visual change, before and after pushing, so the owner never has to fetch just to look.
 Tell the owner the build number or link at the end of every push. A push is not "done" until the
 workflow has published its release; check the Actions run if in doubt.
 

@@ -66,7 +66,9 @@ Build in this order, one milestone per PR or a few PRs.
     Meshy is out for good (owner: the tinted results looked wrong); Poly Haven only.
   - [ ] Push 3: traffic signals, stop signs, palms, beach and pier props. Poly Haven has no
     signal or stop sign, so those stay primitives until a CC0 source turns up.
-  - [ ] Push 4: building facades from real modules and PBR sets; then rooftop props.
+  - [x] Push 3 (build 56): building facades: eleven Poly Haven wall sets picked per building,
+    window reveals and inset shading, grime near the ground and streaks under windows.
+  - [ ] Push 4: rooftop props, storefront awnings and signs as real assets.
   - [ ] Push 5: a Poly Haven HDRI for the Mac build's reflections.
 
 ## Current state
@@ -166,6 +168,15 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Facade pass (owner: everything high quality).** Every building used one ambientCG
+  set per finish; now `Building.WALL_SETS` lists several Poly Haven sets per finish (three
+  bricks, four plasters and painted concretes, three concretes, corrugated iron and factory
+  wall for warehouses) and `_pick_wall_set()` chooses one with the building's rng, so a block
+  no longer repeats one brick. The shader got a `weathering` uniform (grime rising 5 m from the
+  ground plus seeded streaks below windows), a wall "reveal" band around punched and slot
+  windows, and glass that darkens toward its frame with a soft interior gradient so panes read
+  as set into the wall. Screenshots now go into the chat on every visual change (owner's rule).
 
 - **2026-09-19 Trees, lamps, hills and a clearer sky (owner: "everything high quality",
   "do the foliage and landscapes", "the sky is too hazy", and no more Meshy).** Poly Haven

@@ -213,6 +213,8 @@ func _pick_style() -> Dictionary:
 		"lit_ratio": _rng.randf_range(lit_ratio_range.x, lit_ratio_range.y),
 		"pitch": pitch_by_style[window_style],
 		"floor": _rng.randf_range(3.1, 4.0),
+		"wall_set": _pick_wall_set(),
+		"weathering": _rng.randf_range(0.2, 0.9),
 	}
 
 
@@ -244,7 +246,7 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	mat.set_shader_parameter("has_storefront", storefront > 0.0)
 	mat.set_shader_parameter("part_size", size)
 	mat.set_shader_parameter("seed", float(seed % 1000))
-	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE)
+	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
@@ -262,16 +264,36 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	add_child(shape_node)
 
 
-## Wall texture per finish: brick, concrete, or metal plates for warehouses and glass spandrels.
-static func _apply_wall_texture(mat: ShaderMaterial, wall_finish: int, warehouse: bool) -> void:
+## Texture sets each finish can wear (keys in PropFactory.TEXTURE_SETS) and their meters per tile.
+const WALL_SETS := {
+	Finish.BRICK: [["brick_red", 2.6], ["brick_mossy", 2.4], ["brick_factory", 3.0], ["brick", 3.0]],
+	Finish.FLAT: [["plaster_painted", 4.0], ["plaster_beige", 4.0], ["plaster_white", 4.0], ["concrete_painted", 4.0]],
+	Finish.PANELS: [["concrete", 4.0], ["concrete_cracked", 4.0], ["concrete_layers", 3.5]],
+	Finish.GLASS: [["metal", 3.0], ["concrete_layers", 3.5]],
+}
+const WAREHOUSE_SETS := [["metal_corrugated", 2.5], ["metal_factory", 3.0], ["metal", 3.0]]
+
+
+## Picks one of the finish's wall texture sets with the building's rng: [set_key, scale].
+func _pick_wall_set() -> Array:
+	var options: Array = WAREHOUSE_SETS if shape == Shape.WAREHOUSE else WALL_SETS.get(finish, WALL_SETS[Finish.FLAT])
+	return options[_rng.randi() % options.size()]
+
+
+## Wall texture for this part: `wall_set` is [set_key, scale] from _pick_wall_set().
+static func _apply_wall_texture(mat: ShaderMaterial, wall_finish: int, warehouse: bool, wall_set: Array = [], weathering: float = 0.5) -> void:
 	var set_key := "concrete"
 	var scale := 4.0
-	if wall_finish == Finish.BRICK:
+	if wall_set.size() == 2:
+		set_key = wall_set[0]
+		scale = wall_set[1]
+	elif wall_finish == Finish.BRICK:
 		set_key = "brick"
 		scale = 3.0
 	elif warehouse or wall_finish == Finish.GLASS:
 		set_key = "metal"
 		scale = 3.0
+	mat.set_shader_parameter("weathering", weathering)
 	var albedo := PropFactory.texture(set_key, "Color")
 	if albedo == null:
 		return

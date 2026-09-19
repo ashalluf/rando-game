@@ -11,6 +11,11 @@ const TEXTURE_SETS := {
 	"asphalt": "Asphalt033", "brick": "Bricks104", "concrete": "Concrete034", "grass": "Grass004",
 	"sand": "Ground054", "metal": "MetalPlates006", "paving": "PavingStones138", "rock": "Rock064",
 	"hill": "AerialGrassRock", "hill_rock": "RockyTerrain02",
+	# Facade sets (Poly Haven), picked per building by Building._apply_wall_texture().
+	"brick_red": "RedBrick", "brick_mossy": "Brick4", "brick_factory": "RedBrick03",
+	"plaster_painted": "PaintedPlasterWall", "plaster_beige": "BeigeWall001", "plaster_white": "WhitePlaster02",
+	"concrete_painted": "ConcreteWall003", "concrete_cracked": "CrackedConcreteWall", "concrete_layers": "ConcreteLayers02",
+	"metal_corrugated": "CorrugatedIron", "metal_factory": "FactoryWall",
 }
 
 

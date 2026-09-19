@@ -20,6 +20,10 @@ Quaternius). Record every pack here.
 | Rock064 | https://ambientcg.com/a/Rock064 | CC0 1.0 | (kept, no longer on hills) | 2026-09-19 |
 | AerialGrassRock (Poly Haven `aerial_grass_rock`, Diffuse/nor_gl/Rough renamed to Color/NormalGL/Roughness) | https://polyhaven.com/a/aerial_grass_rock | CC0 1.0 | hill ground | 2026-09-19 |
 | RockyTerrain02 (Poly Haven `rocky_terrain_02`) | https://polyhaven.com/a/rocky_terrain_02 | CC0 1.0 | hill slopes | 2026-09-19 |
+| RedBrick, Brick4, RedBrick03 (Poly Haven `red_brick`, `brick_4`, `red_brick_03`) | https://polyhaven.com/a/red_brick etc. | CC0 1.0 | brick facades (one per building) | 2026-09-19 |
+| PaintedPlasterWall, BeigeWall001, WhitePlaster02, ConcreteWall003 (`painted_plaster_wall`, `beige_wall_001`, `white_plaster_02`, `concrete_wall_003`) | https://polyhaven.com/a/painted_plaster_wall etc. | CC0 1.0 | flat facades | 2026-09-19 |
+| CrackedConcreteWall, ConcreteLayers02 (`cracked_concrete_wall`, `concrete_layers_02`) | https://polyhaven.com/a/cracked_concrete_wall etc. | CC0 1.0 | concrete panel facades, glass tower spandrels | 2026-09-19 |
+| CorrugatedIron, FactoryWall (`corrugated_iron`, `factory_wall`) | https://polyhaven.com/a/corrugated_iron etc. | CC0 1.0 | warehouses | 2026-09-19 |
 
 Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
 attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.

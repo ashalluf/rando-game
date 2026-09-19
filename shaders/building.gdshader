@@ -41,6 +41,8 @@ uniform sampler2D wall_roughness : hint_roughness_r, filter_linear_mipmap, repea
 uniform float wall_texture_scale = 4.0;
 uniform bool use_wall_texture = false;
 uniform float wall_normal_depth = 0.7;
+// Grime: darkening near the ground, streaks running down from window sills (0 clean, 1 dirty).
+uniform float weathering = 0.5;
 
 varying vec3 local_pos;
 varying vec3 local_normal;
@@ -131,12 +133,27 @@ void fragment() {
 			glass = abs(fu - 0.5) < 0.16 && abs(fv - 0.5) < 0.40;
 		}
 
+		// Reveal: the wall band right around a punched or slot window (sill, jambs, lintel).
+		bool reveal = false;
+		if (!storefront && (window_style == 0 || window_style == 3)) {
+			float hw = window_style == 0 ? 0.27 : 0.16;
+			float hh = window_style == 0 ? 0.25 : 0.40;
+			float cy = window_style == 0 ? 0.52 : 0.5;
+			reveal = !glass && abs(fu - 0.5) < hw + 0.05 && abs(fv - cy) < hh + 0.05;
+		}
 		if (glass) {
 			float k = hash31(vec3(col, row, face_id * 17.0 + seed));
 			bool lit = k < lit_ratio;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
-			rough = 0.18;
-			metal = 0.55;
+			// Darker toward the frame so the pane reads as set into the wall.
+			float du = abs(fu - 0.5);
+			float dv = abs(fv - (storefront ? 0.45 : 0.52));
+			float inset = smoothstep(0.0, 0.06, max(du - 0.2, dv - 0.18));
+			albedo *= mix(1.0, 0.45, inset * (storefront ? 0.5 : 1.0));
+			// Fake interior: a soft vertical gradient behind the glass.
+			albedo *= 0.85 + 0.3 * fv;
+			rough = 0.12;
+			metal = 0.6;
 			if (lit) {
 				float glow = 0.55 + 0.45 * hash31(vec3(col + 3.0, row + 7.0, face_id + seed));
 				float on = 0.12 + 0.88 * night_factor;
@@ -149,6 +166,9 @@ void fragment() {
 			albedo = accent_color;
 			rough = 0.6;
 			metal = 0.2;
+		} else if (reveal) {
+			albedo = mix(facade_color, accent_color, 0.35) * 0.9;
+			rough = 0.8;
 		} else {
 			// Wall finish.
 			vec2 wuv = vec2(u, v) / wall_texture_scale;
@@ -186,6 +206,12 @@ void fragment() {
 				albedo = facade_color * tex * (use_wall_texture ? 1.3 : 1.0);
 				rough = 0.85 * tex_rough;
 			}
+			// Grime near the ground and streaks below the windows.
+			float ground_dirt = 1.0 - smoothstep(0.0, 5.0, v);
+			float streak = hash21(vec2(floor(u * 3.0), row + face_id) + seed) * (1.0 - fv);
+			float dirt = weathering * (0.45 * ground_dirt + 0.35 * streak * step(0.5, hash21(vec2(col, row + face_id * 3.0) + seed)));
+			albedo *= 1.0 - 0.5 * dirt;
+			rough = min(1.0, rough + 0.1 * dirt);
 		}
 	}
 
