@@ -34,5 +34,8 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 		elif collider is Player:
 			(collider as Player).launch(dir * player_launch_speed * falloff)
 			affected += 1
+		elif collider.has_method("take_hit"):
+			collider.take_hit(result.get("shape", -1), 120.0 * falloff, dir)
+			affected += 1
 	WeaponFX.explosion(node, at, radius)
 	return affected

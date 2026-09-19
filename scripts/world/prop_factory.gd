@@ -132,5 +132,9 @@ static func trash_can_mesh() -> Mesh:
 	return cylinder("trash_can", 0.35, 1.0, Color(0.25, 0.35, 0.3), -1.0, 8)
 
 
+static func unit_box() -> Mesh:
+	return box("unit_box", Vector3.ONE, Color(0.9, 0.9, 0.9))
+
+
 static func planter() -> Mesh:
 	return box("planter", Vector3(2.4, 0.7, 2.4), Color(0.55, 0.5, 0.45))

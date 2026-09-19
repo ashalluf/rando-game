@@ -66,8 +66,11 @@ GODOT=/path/to/godot tests/headless_check.sh
 
 That runs `--import` and then `tests/smoke_test.gd`, which loads the test room, drives the player
 with simulated input (movement, boost, jumps, every weapon), checks buildings, then loads the city
-scene and checks the plan. It fails on any script error in the output. Gotcha: the test script is
-compiled before autoloads exist, so never name a class that uses `PhysicsBudget` as a type there.
+scene and checks streaming, re-centering and destruction persistence. It fails on any script error
+in the output. Gotchas: the test script is compiled before autoloads exist, so never name an
+autoload or a class that uses one (`CityChunk`, `CityStreamer`) as a type there (look them up with
+`root.get_node("/root/WorldState")` and untyped vars); and `root.add_child()` from `_initialize()`
+is deferred, so await a frame before using the scene.
 Download a Linux headless-capable build with:
 
 ```
@@ -125,7 +128,8 @@ tests/                 headless smoke test and check script
   Crates: layer props, mask all three. The camera spring arm collides with `world` only.
 - Node groups: `player` (the player body), `physics_prop` (every rigid prop PhysicsBudget manages),
   `debris` (short-lived props that get freed after a timeout).
-- Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`).
+- Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
+  (`scripts/util/world_state.gd`).
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
   `next_weapon`, `prev_weapon`, `weapon_1..3`, `respawn`, `toggle_mouse`, `toggle_hud`. Add new
@@ -134,11 +138,18 @@ tests/                 headless smoke test and check script
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is
   the crosshair ray (origin, direction, point, normal, collider). Explosions: `Explosion.blast()`.
-- City: `CityPlan` (data: roads, blocks, districts, intersections; `DISTRICTS` holds the parameter
-  ranges) and `CityBuilder` (the node that builds it; main scene `scenes/levels/city.tscn`). Small
-  repeated props go through `MultiMeshBatch` with meshes from `PropFactory`; anything the player
-  should collide with gets a shape on the builder's shared `StreetProps` StaticBody3D. Physics props
-  (trash cans) are `TrashCan` RigidBody3D nodes in the `physics_prop` group.
+- City: `CityPlan` (lazy, endless data: `road_pos()`, `road_width()`, `block()`, `intersection()`,
+  `block_index_at()`, `district_at()`; `DISTRICTS` holds the parameter ranges), `CityStreamer`
+  (scene root of `scenes/levels/city.tscn`: streams chunks, ground follow, origin re-centering) and
+  `CityChunk` (builds one block at FULL or LOD level). Small repeated props go through
+  `MultiMeshBatch` with meshes from `PropFactory`. Breakable props are registered with
+  `CityChunk._add_prop()` (instances + shapes + health); their shapes live on the chunk's
+  `StreetProps` body, which routes `take_hit()` to the chunk. Physics props (trash cans) are
+  `TrashCan` RigidBody3D nodes in the `physics_prop` group.
+- Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
+  `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
+- Anything that must survive origin re-centering has to be a 3D child of the scene root (the
+  streamer shifts every Node3D child). Store true world positions only via `WorldState.to_world()`.
 - Buildings: `Building` (`scripts/world/building.gd`, scene `scenes/props/building.tscn`) is a
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
   generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own

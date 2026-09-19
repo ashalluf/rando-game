@@ -77,7 +77,7 @@ func _run() -> void:
 
 	await _test_weapons(player)
 	_test_buildings()
-	level.queue_free()
+	level.free() # Free now, so the city scene cannot pick up this level's player.
 	await process_frame
 	await _test_city()
 	_finish()
@@ -88,24 +88,28 @@ func _test_city() -> void:
 	_check(packed != null, "city scene loads")
 	if packed == null:
 		return
-	# Untyped on purpose: naming CityBuilder here would compile it before the autoloads exist.
+	# Untyped on purpose: naming CityStreamer here would compile it before the autoloads exist.
 	var city: Node3D = packed.instantiate()
 	root.add_child(city)
 	await _ticks(30)
 	var plan: CityPlan = city.plan
-	_check(plan != null and plan.blocks.size() == (city.blocks_x) * (city.blocks_z), "city has %d blocks" % (plan.blocks.size() if plan else 0))
-	_check(city.building_count >= 40, "city has buildings (%d)" % city.building_count)
+	var lod_r: int = city.lod_radius_blocks
+	var load_r: int = city.load_radius_blocks
+	var counts: Vector2i = city.chunk_counts()
+	_check(counts.x == (2 * load_r + 1) * (2 * load_r + 1), "%d full-detail chunks around the player" % counts.x)
+	_check(counts.y == (2 * lod_r + 1) * (2 * lod_r + 1) - counts.x, "%d far LOD chunks" % counts.y)
+	_check(city.building_count() >= 100, "city has buildings (%d)" % city.building_count())
 	var districts := {}
 	var kinds := {}
-	for block in plan.blocks:
+	var inter_kinds := {}
+	for k in city.chunks:
+		var block := plan.block(k.x, k.y)
 		districts[block.district] = true
 		kinds[block.kind] = true
-	_check(districts.size() >= 3, "city has %d districts" % districts.size())
-	_check(kinds.size() >= 2, "city has parks or plazas as well as buildings (%d kinds)" % kinds.size())
-	var inter_kinds := {}
-	for inter in plan.intersections:
-		inter_kinds[inter.kind] = true
-	_check(inter_kinds.size() >= 2, "city has %d intersection types" % inter_kinds.size())
+		inter_kinds[plan.intersection(k.x + 1, k.y + 1).kind] = true
+	_check(districts.size() >= 3, "loaded area spans %d districts" % districts.size())
+	_check(kinds.size() >= 2, "parks or plazas as well as buildings (%d kinds)" % kinds.size())
+	_check(inter_kinds.size() >= 2, "%d intersection types" % inter_kinds.size())
 	_check(plan.district_at(Vector2.ZERO) == CityPlan.District.DOWNTOWN, "center is downtown")
 	var player := get_first_node_in_group("player") as CharacterBody3D
 	_check(player != null and player.is_on_floor(), "player stands at the center intersection")
@@ -115,15 +119,57 @@ func _test_city() -> void:
 			cans += 1
 	_check(cans > 0, "trash cans are physics props (%d)" % cans)
 
+	# Breaking a lamp: it disappears, drops debris, and is remembered.
+	var home_key: Vector2i = plan.block_index_at(Vector2.ZERO)
+	var home_chunk: Node3D = city.chunks[home_key]
+	var lamp: Dictionary = {}
+	for record in home_chunk.prop_records:
+		if record.kind == "lamp":
+			lamp = record
+			break
+	_check(not lamp.is_empty(), "home chunk has a lamp to break")
+	var lamp_id: String = lamp.get("id", "")
+	if not lamp.is_empty():
+		home_chunk.damage_prop(lamp, 999.0, Vector3.UP)
+		await _ticks(2)
+		_check(lamp.dead and _world_state().is_destroyed(home_chunk.key, lamp_id), "lamp breaks and is recorded as destroyed")
+		_check(get_nodes_in_group("debris").size() >= 3, "broken lamp drops debris")
+
+	# Walk far away: chunks stream, the old home chunk becomes LOD or unloads.
+	var far := Vector3(700.0, 2.0, 0.0)
+	player.global_position = far
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	var far_key: Vector2i = plan.block_index_at(Vector2(far.x, far.z))
+	_check(city.chunks.has(far_key) and city.chunks[far_key].level == 0, "chunk under the player is full detail after moving 700 m")
+	_check(not city.chunks.has(home_key) or city.chunks[home_key].level == 1, "home chunk is no longer full detail")
+
+	# Origin re-centering: the world shifts so the player is back near zero.
+	player.global_position = Vector3(1200.0, 2.0, 0.0)
+	city.recenter()
+	_check(_world_state().world_offset.x > 1100.0 and player.global_position.length() < 5.0, "world re-centered (offset %.0f m)" % _world_state().world_offset.x)
+	_check(city.district_name_at(player.global_position) != "Downtown", "district lookup uses world coordinates after re-centering")
+	city.update_streaming(true)
+	var here: Vector2i = plan.block_index_at(Vector2(_world_state().world_offset.x, 0.0))
+	_check(city.chunks.has(here) and city.chunks[here].level == 0, "chunks stream correctly after re-centering")
+	_check(city.chunks[here].position.is_equal_approx(-_world_state().world_offset), "chunk nodes sit at minus the world offset")
+
+	# Come home: the lamp is still gone.
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	city.update_streaming(true)
+	var home_again: Node3D = city.chunks.get(home_key)
+	_check(home_again != null and home_again.level == 0, "home chunk rebuilt at full detail")
+	if home_again and not lamp_id.is_empty():
+		_check(not home_again.has_prop(lamp_id), "destroyed lamp stays destroyed after the chunk is rebuilt")
+
 	# Same seed, same plan.
 	var a := CityPlan.new()
 	a.seed = 777
-	a.generate()
 	var b := CityPlan.new()
 	b.seed = 777
-	b.generate()
-	_check(a.road_xs == b.road_xs and a.blocks.size() == b.blocks.size() and a.blocks[3].rect == b.blocks[3].rect and a.blocks[3].kind == b.blocks[3].kind, "same seed gives the same city plan")
+	_check(a.road_pos(0, 5) == b.road_pos(0, 5) and a.road_pos(1, -4) == b.road_pos(1, -4) and a.block(3, -2).rect == b.block(3, -2).rect and a.block(3, -2).kind == b.block(3, -2).kind and a.intersection(2, 2).kind == b.intersection(2, 2).kind, "same seed gives the same city plan")
 	city.queue_free()
+	_world_state().reset()
 
 
 func _test_buildings() -> void:
@@ -296,6 +342,11 @@ func _wait_for_floor(player: CharacterBody3D, max_ticks: int) -> void:
 		if player.is_on_floor():
 			await _ticks(5)
 			return
+
+
+## Autoloads are looked up at runtime: naming them here would compile this script too early.
+func _world_state() -> Node:
+	return root.get_node("/root/WorldState")
 
 
 func _ticks(n: int) -> void:

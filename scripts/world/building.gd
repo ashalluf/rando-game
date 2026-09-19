@@ -46,6 +46,8 @@ var footprint: Vector2 = Vector2.ZERO
 var height: float = 0.0
 ## Each part: {"size": Vector3, "center": Vector3} in local space.
 var parts: Array[Dictionary] = []
+## Main wall color, available after plan_only() or generate(). Used by the far LOD boxes.
+var facade_color: Color = Color.GRAY
 
 static var _prop_materials: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
@@ -59,15 +61,23 @@ func _ready() -> void:
 
 
 func generate() -> void:
-	_generated = true
+	var style := plan_only()
 	for child in get_children():
 		child.queue_free()
+	collision_layer = 1
+	collision_mask = 7
+	for part in parts:
+		_build_part(part, style)
+	_build_roof_props()
+
+
+## Picks everything and lays out the parts without creating any nodes. Returns the style.
+func plan_only() -> Dictionary:
+	_generated = true
 	parts.clear()
 	footprint = Vector2.ZERO
 	height = 0.0
 	_rng.seed = seed
-	collision_layer = 1
-	collision_mask = 7
 
 	if force_shape >= 0:
 		shape = force_shape as Shape
@@ -82,9 +92,8 @@ func generate() -> void:
 	window_style = _pick_window_style()
 	_layout_parts()
 	var style := _pick_style()
-	for part in parts:
-		_build_part(part, style)
-	_build_roof_props()
+	facade_color = style.facade
+	return style
 
 
 # --- Layout ------------------------------------------------------------------

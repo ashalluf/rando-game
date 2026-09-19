@@ -41,6 +41,10 @@ func _process(_delta: float) -> void:
 	var city := get_tree().get_first_node_in_group("city")
 	if city and city.has_method("district_name_at"):
 		stats.text += "   district: %s" % city.district_name_at(_player.global_position)
+	if city and city.has_method("chunk_counts"):
+		var counts: Vector2i = city.chunk_counts()
+		var wp: Vector3 = city.world_position(_player.global_position)
+		stats.text += "   chunks %d full / %d far   world pos %d, %d   wrecked %d" % [counts.x, counts.y, int(wp.x), int(wp.z), WorldState.destroyed_count()]
 
 	var manager := _player.weapon_manager
 	if manager and manager.current:

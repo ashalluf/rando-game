@@ -6,15 +6,19 @@ extends RefCounted
 var _batches: Dictionary = {}
 
 
-func add(key: String, mesh: Mesh, xform: Transform3D, color: Color = Color.WHITE) -> void:
+## Returns the instance index within `key`, so callers can hide that instance later.
+func add(key: String, mesh: Mesh, xform: Transform3D, color: Color = Color.WHITE) -> int:
 	if not _batches.has(key):
 		_batches[key] = {"mesh": mesh, "xforms": [], "colors": []}
 	var batch: Dictionary = _batches[key]
 	batch.xforms.append(xform)
 	batch.colors.append(color)
+	return batch.xforms.size() - 1
 
 
-func build(parent: Node3D) -> void:
+## Builds the MultiMeshInstance3D nodes and returns them keyed by batch key.
+func build(parent: Node3D) -> Dictionary:
+	var nodes := {}
 	for key in _batches:
 		var batch: Dictionary = _batches[key]
 		var xforms: Array = batch.xforms
@@ -33,4 +37,12 @@ func build(parent: Node3D) -> void:
 		node.multimesh = mm
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		parent.add_child(node)
+		nodes[key] = node
 	_batches.clear()
+	return nodes
+
+
+## Hides one instance of a built batch (collapses it to nothing far below the world).
+static func hide_instance(node: MultiMeshInstance3D, index: int) -> void:
+	if node and index >= 0 and index < node.multimesh.instance_count:
+		node.multimesh.set_instance_transform(index, Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0.0, -10000.0, 0.0)))

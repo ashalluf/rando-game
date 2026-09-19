@@ -19,6 +19,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 PhysicsBudget="*res://scripts/util/physics_budget.gd"
+WorldState="*res://scripts/util/world_state.gd"
 
 [display]
 

@@ -7,6 +7,8 @@ extends Weapon
 @export var impact_force: float = 12.0
 ## Random cone around the crosshair (degrees).
 @export var spread_deg: float = 1.4
+## Damage per bullet to breakable street props.
+@export var bullet_damage: float = 10.0
 ## Max bullet reach (meters).
 @export var bullet_range: float = 400.0
 @export var tracer_color: Color = Color(1.0, 0.85, 0.4)
@@ -58,6 +60,8 @@ func fire_ray(from: Vector3, dir: Vector3) -> Dictionary:
 		if body:
 			body.sleeping = false
 			body.apply_impulse(dir * impact_force, hit.position - body.global_position)
+		elif hit.collider.has_method("take_hit"):
+			hit.collider.take_hit(hit.get("shape", -1), bullet_damage, dir)
 		WeaponFX.impact(self, hit.position)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color)
 	return hit

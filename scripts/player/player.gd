@@ -129,6 +129,11 @@ func horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
 
 
+## The world was shifted by `offset` (origin re-centering); keep the spawn point in sync.
+func shift_origin(offset: Vector3) -> void:
+	_spawn_transform.origin -= offset
+
+
 ## Adds velocity from an outside force (explosions).
 func launch(delta_velocity: Vector3) -> void:
 	velocity += delta_velocity

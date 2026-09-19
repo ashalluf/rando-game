@@ -23,7 +23,7 @@ Build in this order, one milestone per PR or a few PRs.
   occasional parks and plazas, and districts defined by parameter ranges (downtown tall glass,
   midtown mixed, suburbs low brick, industrial warehouses). Sidewalk props and street trees
   scattered by the same seed.
-- [ ] **5. Chunk streaming.** Generate chunks around the player and free distant ones. Cheap box
+- [x] **5. Chunk streaming.** Generate chunks around the player and free distant ones. Cheap box
   LODs for the far skyline. Persist a list of destroyed objects per chunk so destruction survives
   leaving and returning. Origin re-centering to avoid floating-point jitter far from the origin.
 - [ ] **6. Vehicles.** Drivable cars using VehicleBody3D with bouncy, overpowered arcade handling.
@@ -45,17 +45,30 @@ Build in this order, one milestone per PR or a few PRs.
 
 ## Current state
 
-Milestones 1 to 4 are in. The main scene is now `scenes/levels/city.tscn`; `test_box.tscn` stays
-as the movement/weapons test room. `CityPlan` (`scripts/world/city_plan.gd`) turns a seed into a
-road grid (streets 14 m, avenues 24 m, blocks 70 to 120 m, always an intersection at the origin),
-blocks with a district (downtown, midtown, suburbs by distance from the center, plus an industrial
-quadrant), a block kind (buildings, park, plaza) and intersection types (plain, stop signs, traffic
-signals, roundabout). `CityBuilder` (`scripts/world/city_builder.gd`) builds it: ground, roads with
-dashed or double center lines, crosswalks, signals and stop signs, sidewalk slabs, lots with
-district-driven `Building`s (warehouses in industrial), parks with paths, trees and benches, plazas
-with a fountain, street lamps, trees, hydrants, and trash cans that are physics props. Repeated
-props go through `MultiMeshBatch`; meshes come from `PropFactory`. The HUD shows the district.
+Milestones 1 to 5 are in. The main scene is `scenes/levels/city.tscn`; `test_box.tscn` stays as
+the movement/weapons test room.
 
+The city is endless. `CityPlan` (`scripts/world/city_plan.gd`) answers any road, block or
+intersection index lazily and deterministically from the seed: streets 14 m, avenues 24 m, blocks
+70 to 120 m, an intersection at the origin, districts by distance (downtown < 180 m, midtown
+< 380 m, suburbs beyond, one seeded quadrant industrial past 260 m), block kinds (buildings, park,
+plaza) and intersection kinds (plain, stop signs, signals, roundabout).
+
+`CityStreamer` (`scripts/world/city_streamer.gd`, the scene root) keeps a 5 x 5 block area of
+full-detail `CityChunk`s around the player and a 15 x 15 area of cheap LOD chunks (slabs plus one
+colored box per building part, no props, no collision), building a few chunks per update, freeing
+the rest. It moves the ground plane under the player and re-centers the world when the player is
+1000 m from the origin (`WorldState.world_offset` holds the true offset; chunk nodes sit at minus
+that offset so their children use true world coordinates).
+
+Each chunk owns its block, the road on its +X side, the road on its +Z side and the corner
+intersection. Street props (lamps, hydrants, benches, stop signs, signals) are MultiMesh instances
+with collision shapes on the chunk's `StreetProps` body; each shape carries its prop record.
+Bullets and explosions call `take_hit()`, props have health, and a broken prop hides its instances,
+drops debris, and is recorded in the `WorldState` autoload so it stays broken when the chunk is
+rebuilt. The HUD shows district, chunk counts, world position and how many things are wrecked.
+
+Milestone 4 recap:
 Milestone 3 recap: `shaders/building.gdshader` turns any BoxMesh into a facade: window
 style (punched, ribbon, curtain, narrow), facade finish (flat, brick, panels, glass), colors, floor
 height, storefront on the ground floor, seeded lit windows, gravel roof with a parapet.
@@ -87,6 +100,21 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Chunk = block + its +X road + its +Z road + the corner intersection.** Every road
+  segment and intersection is owned by exactly one chunk, so there is no double drawing and no gap
+  once neighbours are loaded.
+- **2026-09-19 Re-centering shifts every 3D child of the scene root** (chunks, player, rockets,
+  debris) by the player's XZ offset when the player passes `recenter_distance`. Chunks are placed at
+  `-WorldState.world_offset` so chunk-internal coordinates stay true world coordinates. Anything
+  that needs the true position asks `WorldState.to_world()`.
+- **2026-09-19 Destruction is recorded by chunk key and prop id**, where the id is the prop kind
+  plus its generation order in the chunk (deterministic). On rebuild a destroyed id is skipped.
+  Moved-but-not-destroyed props (trash cans) are not persisted; they respawn in place.
+- **2026-09-19 LOD chunks use `Building.plan_only()`**, which runs the same seeded picks and layout
+  as `generate()` without creating nodes, so far boxes match the buildings that appear up close.
+- **2026-09-19 Headless gotcha:** `root.add_child()` from a SceneTree script's `_initialize()` is
+  deferred to the next frame. Await a frame before touching the scene.
 
 - **2026-09-19 City plan is data, city builder is nodes.** `CityPlan` is a RefCounted with roads,
   blocks and intersections; `CityBuilder` builds nodes from it. Milestone 5 will build and free
