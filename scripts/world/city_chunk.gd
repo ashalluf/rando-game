@@ -355,8 +355,11 @@ func _spawn_pedestrians(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		return
 	var existing := 0
 	for n in get_tree().get_nodes_in_group("pedestrian"):
-		if not n.is_queued_for_deletion():
-			existing += 1
+		# A pedestrian inside a chunk that is being freed is not flagged itself; check its chunk.
+		var parent := n.get_parent()
+		if n.is_queued_for_deletion() or (parent and parent.is_queued_for_deletion()):
+			continue
+		existing += 1
 	var cap: int = style.max_pedestrians
 	for i in count:
 		if existing >= cap:
