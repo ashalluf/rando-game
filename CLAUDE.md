@@ -22,9 +22,10 @@ game's characters, logos, or map.
 - They playtest on a Mac by pulling from GitHub and pressing Play. Claude cannot see the game run;
   the owner is the eyes. When they report a feel problem ("jump feels floaty"), fix it by tuning
   values and tell them exactly what changed.
-- Work on a branch and open a pull request per task. Keep PRs small enough that the test steps fit
-  in a couple of sentences. Every PR description has a "How to test" section and lists the tunable
-  values most likely to need changing.
+- **Push directly to `main`, always.** No feature branches, no pull requests (owner's decision,
+  2026-09-19). Keep each push small enough that the test steps fit in a couple of sentences. Put
+  "How to test" steps and the tunable values most likely to need changing in the final chat
+  message, and a short version in the commit body.
 - Before committing, run the headless check (below). Never push a project that fails to load.
 
 ## Opening the project on the Mac
@@ -96,4 +97,5 @@ tests/                 headless smoke test and check script
   `jump`, `sprint`, `look_left/right/up/down` (right stick), `fire`, `alt_fire`, `next_weapon`,
   `prev_weapon`, `weapon_1..3`, `respawn`, `toggle_mouse`, `toggle_hud`. Add new actions there.
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
-- Commit messages: short imperative subject, body explains why. Branch per task, PR per task.
+- Commit messages: short imperative subject, body explains why and how to test. One task per
+  commit (or a few), pushed straight to `main`.

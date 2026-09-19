@@ -69,5 +69,7 @@ already mapped so milestone 2 is script-only.
   until the player gets close again. Accepted for now; chunk streaming (milestone 5) will replace it.
 - **2026-09-19 Extra folders beyond the brief:** `scripts/ui/` for HUD scripts and `tests/` for the
   headless smoke test and check script.
-- **2026-09-19 CI runs the headless check** on every push and PR via GitHub Actions, so a PR that
+- **2026-09-19 CI runs the headless check** on every push via GitHub Actions, so a push that
   fails to load is visible before playtesting.
+- **2026-09-19 Push to main always.** The owner asked for all work to go directly to `main` with no
+  branches or pull requests. Milestone 1 was the only PR (#1); everything after lands on `main`.
