@@ -1,19 +1,24 @@
 extends Control
-## Minimap drawn straight from the CityPlan: roads, blocks colored by district and zone, landmarks,
-## and the player's heading. North is up. Cheap enough to redraw ten times a second.
+## Minimap drawn straight from the CityPlan, in a round frame that rotates so you always face up
+## (the GTA way), with a light street-map palette (the Google Maps way). Cheap: ten redraws a second.
 
 ## Meters from the player to the edge of the map.
-@export var radius_m: float = 320.0
+@export var radius_m: float = 260.0
 @export var refresh_hz: float = 10.0
+## Rotate the map with the camera (heading up). Off = north up.
+@export var rotate_with_player: bool = true
 
 const COLORS := {
-	"downtown": Color(0.55, 0.58, 0.66), "midtown": Color(0.60, 0.60, 0.58), "suburbs": Color(0.62, 0.66, 0.54),
-	"industrial": Color(0.60, 0.54, 0.48), "park": Color(0.40, 0.65, 0.35), "plaza": Color(0.78, 0.72, 0.60),
-	"ocean": Color(0.20, 0.45, 0.72), "beach": Color(0.86, 0.78, 0.55), "hills": Color(0.36, 0.48, 0.28),
-	"airport": Color(0.45, 0.45, 0.47), "port": Color(0.52, 0.52, 0.54), "road": Color(0.22, 0.22, 0.25),
-	"avenue": Color(0.18, 0.18, 0.2), "landmark": Color(1.0, 0.85, 0.3), "player": Color(1.0, 0.45, 0.12),
-	"frame": Color(0.08, 0.08, 0.1, 0.85), "car": Color(0.9, 0.9, 0.95),
+	"land": Color(0.93, 0.92, 0.89), "downtown": Color(0.87, 0.86, 0.85), "midtown": Color(0.91, 0.90, 0.87),
+	"suburbs": Color(0.92, 0.93, 0.87), "industrial": Color(0.89, 0.87, 0.83), "park": Color(0.76, 0.90, 0.74),
+	"plaza": Color(0.96, 0.93, 0.85), "ocean": Color(0.62, 0.79, 0.95), "beach": Color(0.98, 0.94, 0.78),
+	"hills": Color(0.83, 0.89, 0.76), "airport": Color(0.87, 0.87, 0.90), "port": Color(0.86, 0.86, 0.87),
+	"road": Color(1.0, 1.0, 1.0), "road_edge": Color(0.78, 0.78, 0.78), "avenue": Color(0.99, 0.90, 0.60),
+	"avenue_edge": Color(0.90, 0.78, 0.45), "landmark": Color(0.92, 0.25, 0.22), "player": Color(0.25, 0.55, 1.0),
+	"car": Color(0.25, 0.25, 0.3), "frame": Color(0.08, 0.08, 0.1, 0.9), "text": Color(0.2, 0.2, 0.25),
 }
+
+var _yaw: float = 0.0
 
 var _timer: float = 0.0
 var _player: Node3D
@@ -32,7 +37,7 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
-## World XZ (true world coordinates) to a point on the map.
+## World XZ (true world coordinates) to a point on the map (before rotation).
 func world_to_map(wp: Vector2, center_world: Vector2) -> Vector2:
 	var scale := size.x / (radius_m * 2.0)
 	return size * 0.5 + (wp - center_world) * scale
@@ -43,7 +48,7 @@ func _draw() -> void:
 		_player = get_tree().get_first_node_in_group("player") as Node3D
 	if _city == null:
 		_city = get_tree().get_first_node_in_group("city")
-	draw_rect(Rect2(Vector2.ZERO, size), COLORS.frame)
+	draw_rect(Rect2(Vector2.ZERO, size), COLORS.land)
 	if _player == null or _city == null or not _city.has_method("world_position"):
 		return
 	var plan: CityPlan = _city.get("plan")
@@ -53,7 +58,13 @@ func _draw() -> void:
 	var center := Vector2(wp3.x, wp3.z)
 	var scale := size.x / (radius_m * 2.0)
 	var idx := plan.block_index_at(center)
-	var reach := int(ceil(radius_m / plan.block_size_range.x)) + 1
+	var reach := int(ceil(radius_m * 1.5 / plan.block_size_range.x)) + 1
+	var rig: Node3D = _player.get("camera_rig")
+	_yaw = rig.global_rotation.y if rig else 0.0
+	# Everything below is drawn rotated about the center so the camera heading points up.
+	if rotate_with_player:
+		draw_set_transform(size * 0.5, _yaw, Vector2.ONE)
+		draw_set_transform_matrix(Transform2D(_yaw, size * 0.5) * Transform2D(0.0, -size * 0.5))
 
 	# Blocks and zones.
 	for ix in range(idx.x - reach, idx.x + reach + 1):
@@ -92,14 +103,14 @@ func _draw() -> void:
 					color = [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLORS.industrial][block.district]
 			_fill(rect, color, center, scale)
 
-	# Landmarks.
+	# Landmarks as red pins.
 	if plan.macro:
 		for lm in Landmarks.all():
 			var a: Vector2 = lm.anchor
 			if a.distance_to(center) < radius_m * 1.4:
 				var p := world_to_map(a, center)
-				draw_circle(p, 4.0, COLORS.landmark)
-				draw_circle(p, 4.0, Color.BLACK, false, 1.0)
+				draw_circle(p, 5.0, COLORS.landmark)
+				draw_circle(p, 5.0, Color.WHITE, false, 1.5)
 
 	# Cars you can see, as dots.
 	for node in get_tree().get_nodes_in_group("vehicle"):
@@ -108,21 +119,21 @@ func _draw() -> void:
 			continue
 		var cw: Vector3 = _city.world_position(car.global_position)
 		var cp := Vector2(cw.x, cw.z)
-		if cp.distance_to(center) < radius_m:
-			draw_circle(world_to_map(cp, center), 2.0, COLORS.car)
+		if cp.distance_to(center) < radius_m * 1.2:
+			draw_circle(world_to_map(cp, center), 2.5, COLORS.car)
 
-	# Player arrow, pointing where the camera looks.
-	var rig: Node3D = _player.get("camera_rig")
-	var yaw: float = rig.global_rotation.y if rig else 0.0
-	var forward := Vector2(-sin(yaw), -cos(yaw))
+	# North letter rides on the rotating map's rim.
+	var n_pos := size * 0.5 + Vector2(0.0, -size.y * 0.5 + 16.0)
+	draw_string(ThemeDB.fallback_font, n_pos + Vector2(-5.0, 5.0), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 13, COLORS.text)
+
+	# Player arrow: always at the center, always pointing up when rotating.
+	draw_set_transform_matrix(Transform2D())
+	var forward := Vector2(0.0, -1.0) if rotate_with_player else Vector2(-sin(_yaw), -cos(_yaw))
 	var c := size * 0.5
 	var right := Vector2(-forward.y, forward.x)
-	var tri := PackedVector2Array([c + forward * 9.0, c - forward * 6.0 + right * 6.0, c - forward * 6.0 - right * 6.0])
+	var tri := PackedVector2Array([c + forward * 11.0, c - forward * 7.0 + right * 7.0, c - forward * 3.0, c - forward * 7.0 - right * 7.0])
 	draw_colored_polygon(tri, COLORS.player)
-	draw_polyline(PackedVector2Array([tri[0], tri[1], tri[2], tri[0]]), Color.BLACK, 1.0)
-	# North marker and frame.
-	draw_string(ThemeDB.fallback_font, Vector2(size.x * 0.5 - 4.0, 14.0), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 12, Color.WHITE)
-	draw_rect(Rect2(Vector2.ZERO, size), Color(0.0, 0.0, 0.0, 0.9), false, 2.0)
+	draw_polyline(PackedVector2Array([tri[0], tri[1], tri[2], tri[3], tri[0]]), Color.WHITE, 1.5)
 
 
 func _owned_rect(plan: CityPlan, ix: int, iz: int) -> Rect2:
@@ -139,8 +150,13 @@ func _draw_roads(plan: CityPlan, ix: int, iz: int, rect: Rect2, center: Vector2,
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
 	var owned := _owned_rect(plan, ix, iz)
-	_fill(Rect2(rx - wx * 0.5, owned.position.y, wx, owned.size.y), COLORS.avenue if wx > plan.street_width + 1.0 else COLORS.road, center, scale)
-	_fill(Rect2(owned.position.x, rz - wz * 0.5, owned.size.x, wz), COLORS.avenue if wz > plan.street_width + 1.0 else COLORS.road, center, scale)
+	var ax := wx > plan.street_width + 1.0
+	var az := wz > plan.street_width + 1.0
+	var edge := 2.0 / scale
+	_fill(Rect2(rx - wx * 0.5 - edge, owned.position.y, wx + edge * 2.0, owned.size.y), COLORS.avenue_edge if ax else COLORS.road_edge, center, scale)
+	_fill(Rect2(owned.position.x, rz - wz * 0.5 - edge, owned.size.x, wz + edge * 2.0), COLORS.avenue_edge if az else COLORS.road_edge, center, scale)
+	_fill(Rect2(rx - wx * 0.5, owned.position.y, wx, owned.size.y), COLORS.avenue if ax else COLORS.road, center, scale)
+	_fill(Rect2(owned.position.x, rz - wz * 0.5, owned.size.x, wz), COLORS.avenue if az else COLORS.road, center, scale)
 
 
 func _fill(world_rect: Rect2, color: Color, center: Vector2, scale: float) -> void:

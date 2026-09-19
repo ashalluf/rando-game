@@ -1,8 +1,10 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/debug_hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://scripts/ui/crosshair.gd" id="2_crosshair"]
 [ext_resource type="Script" path="res://scripts/ui/minimap.gd" id="3_minimap"]
+[ext_resource type="Script" path="res://scripts/ui/minimap_frame.gd" id="4_frame"]
+[ext_resource type="Script" path="res://scripts/ui/minimap_border.gd" id="5_border"]
 
 [node name="DebugHud" type="CanvasLayer"]
 script = ExtResource("1_hud")
@@ -33,16 +35,39 @@ theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 18
 text = "..."
 
-[node name="Minimap" type="Control" parent="."]
+[node name="MinimapFrame" type="Control" parent="."]
 anchor_left = 1.0
+anchor_top = 1.0
 anchor_right = 1.0
-offset_left = -236.0
-offset_top = 72.0
-offset_right = -14.0
-offset_bottom = 294.0
+anchor_bottom = 1.0
+offset_left = -284.0
+offset_top = -284.0
+offset_right = -24.0
+offset_bottom = -24.0
 grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("4_frame")
+
+[node name="Minimap" type="Control" parent="MinimapFrame"]
+anchor_right = 1.0
+anchor_bottom = 1.0
 mouse_filter = 2
 script = ExtResource("3_minimap")
+
+[node name="MinimapBorder" type="Control" parent="."]
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -284.0
+offset_top = -284.0
+offset_right = -24.0
+offset_bottom = -24.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("5_border")
 
 [node name="Crosshair" type="Control" parent="."]
 anchor_left = 0.5
@@ -54,11 +79,13 @@ script = ExtResource("2_crosshair")
 
 [node name="Hints" type="Label" parent="."]
 anchor_top = 1.0
+anchor_right = 1.0
 anchor_bottom = 1.0
 offset_left = 14.0
-offset_top = -84.0
-offset_right = 1400.0
+offset_top = -110.0
+offset_right = -300.0
 offset_bottom = -10.0
+autowrap_mode = 3
 grow_vertical = 0
 theme_override_colors/font_color = Color(1, 1, 1, 0.85)
 theme_override_colors/font_shadow_color = Color(0, 0, 0, 0.7)

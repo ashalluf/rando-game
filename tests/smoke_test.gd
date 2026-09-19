@@ -289,8 +289,31 @@ func _test_city() -> void:
 				planted += 1
 		_check(turned < -0.15 and car.global_basis.y.y > 0.9, "D turns the car right (%.2f rad) and it stays flat (%d wheels down)" % [turned, planted])
 		await _ticks(30)
+		# Space makes the car jump.
+		await _ticks(30)
+		var car_y0: float = car.global_position.y
+		var top_y: float = car_y0
+		Input.action_press("jump")
+		for i in 40:
+			await get_tree().physics_frame
+			top_y = maxf(top_y, car.global_position.y)
+		Input.action_release("jump")
+		_check(top_y > car_y0 + 1.0, "Space makes the car jump (%.1f m)" % (top_y - car_y0))
+		await _ticks(60)
 		await _press("interact")
 		_check(not player.is_driving() and player.visible and player.global_position.distance_to(car.global_position) < 5.0, "interact gets out next to the car")
+		# Falling through the world lifts you back onto loaded ground where you are.
+		var far_spot := Vector3(2600.0, -20.0, 300.0)
+		player.global_position = _world_state().to_local(far_spot)
+		player.velocity = Vector3(0, -30, 0)
+		await _ticks(40)
+		var back_w: Vector3 = _world_state().to_world(player.global_position)
+		_check(back_w.y > -1.0 and Vector2(back_w.x, back_w.z).distance_to(Vector2(far_spot.x, far_spot.z)) < 20.0, "falling through the world recovers in place (y %.1f)" % back_w.y)
+		await _wait_for_floor(player, 240)
+		_check(player.is_on_floor(), "and lands on solid ground")
+		player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
 
 	# Pedestrians and traffic.
 	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
@@ -366,7 +389,7 @@ func _test_city() -> void:
 					road_textured = true
 	_check(road_textured, "roads and sidewalks use real textures")
 	_check(PropFactory.texture("brick", "Color") != null and PropFactory.texture("rock", "NormalGL") != null, "texture sets load")
-	var minimap: Control = city.get_node("DebugHud/Minimap")
+	var minimap: Control = city.get_node("DebugHud/MinimapFrame/Minimap")
 	_check(minimap != null and minimap.world_to_map(Vector2(0.0, -100.0), Vector2.ZERO).y < minimap.size.y * 0.5, "minimap exists and north is up")
 	minimap.queue_redraw()
 	await _ticks(3)

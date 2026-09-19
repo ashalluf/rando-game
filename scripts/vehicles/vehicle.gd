@@ -21,6 +21,9 @@ const PAINTS := [
 @export var reverse_power: float = 3500.0
 @export var brake_force: float = 80.0
 @export var handbrake_force: float = 40.0
+## Upward speed of a car jump (m/s). Space, only with wheels on the ground.
+@export var jump_speed: float = 9.0
+@export var jump_cooldown: float = 0.6
 ## Max steering angle (radians).
 @export var max_steer: float = 0.5
 ## How fast the wheels turn toward the stick (higher = twitchier).
@@ -66,6 +69,7 @@ var _seat: Node3D
 var _exit_side: float = 1.0
 var _steer_target: float = 0.0
 var _engine_sound: AudioStreamPlayer3D
+var _jump_timer: float = 0.0
 
 
 func setup(type: BodyType, color: Color, extra: Addon) -> void:
@@ -162,8 +166,13 @@ func _physics_process(delta: float) -> void:
 	else:
 		engine_force = 0.0
 		brake = 1.0
-	if Input.is_action_pressed("jump"):
+	if Input.is_action_pressed("alt_fire"):
 		brake = handbrake_force
+	_jump_timer = maxf(_jump_timer - delta, 0.0)
+	if Input.is_action_just_pressed("jump") and _jump_timer <= 0.0 and not is_airborne():
+		_jump_timer = jump_cooldown
+		apply_central_impulse(global_basis.y * jump_speed * mass)
+		Sfx.play("jump", global_position, -2.0, 0.7)
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
 	_steer_target = -input.x * max_steer * steer_factor
 	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))

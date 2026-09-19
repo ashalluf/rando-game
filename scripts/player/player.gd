@@ -58,8 +58,10 @@ const BLAST_MASK := 2 | 4
 @export var push_force: float = 60.0
 ## After firing, the body keeps facing the camera for this long (seconds).
 @export var aim_hold_time: float = 1.5
+## Below this Y you have fallen through the world: you get lifted back onto the ground in place.
+@export var fall_through_y: float = -6.0
 ## Falling below this Y respawns the player at the start position.
-@export var kill_y: float = -60.0
+@export var kill_y: float = -200.0
 ## How close a car has to be to get in (meters).
 @export var enter_range: float = 4.5
 
@@ -106,10 +108,14 @@ func _physics_process(delta: float) -> void:
 		velocity = vehicle.linear_velocity
 		_boosting = Input.is_action_pressed("boost")
 		_boost_fx.emitting = false
-		if global_position.y < kill_y or Input.is_action_just_pressed("respawn"):
+		if vehicle.global_position.y < fall_through_y:
+			_lift_vehicle_onto_ground()
+		if Input.is_action_just_pressed("respawn"):
 			exit_vehicle()
 			respawn()
 		return
+	if global_position.y < fall_through_y and global_position.y > kill_y:
+		recover_from_fall()
 	var on_floor := is_on_floor()
 	if on_floor:
 		_takeoff_y = global_position.y
@@ -147,6 +153,35 @@ func respawn() -> void:
 	global_transform = _spawn_transform
 	velocity = Vector3.ZERO
 	air_jumps_left = max_air_jumps
+	_ensure_ground_under(global_position)
+
+
+## Fell through the world (ground not loaded yet): load it and stand back on it, right here.
+func recover_from_fall() -> void:
+	var city := get_tree().get_first_node_in_group("city")
+	var y := 2.0
+	if city and city.has_method("ensure_loaded_at"):
+		city.ensure_loaded_at(global_position)
+		y = city.ground_height_at(global_position) + 1.5
+	global_position.y = y
+	velocity = Vector3.ZERO
+
+
+func _lift_vehicle_onto_ground() -> void:
+	var city := get_tree().get_first_node_in_group("city")
+	var y := 2.0
+	if city and city.has_method("ensure_loaded_at"):
+		city.ensure_loaded_at(vehicle.global_position)
+		y = city.ground_height_at(vehicle.global_position) + 1.5
+	vehicle.global_position.y = y
+	vehicle.linear_velocity = Vector3.ZERO
+	vehicle.angular_velocity = Vector3.ZERO
+
+
+func _ensure_ground_under(at: Vector3) -> void:
+	var city := get_tree().get_first_node_in_group("city")
+	if city and city.has_method("ensure_loaded_at"):
+		city.ensure_loaded_at(at)
 
 
 func is_boosting() -> bool:
@@ -200,6 +235,7 @@ func exit_vehicle() -> void:
 		weapon_manager.visible = true
 	global_position = car.exit_position()
 	velocity = car.linear_velocity * 0.5
+	_ensure_ground_under(global_position)
 
 
 func is_driving() -> bool:

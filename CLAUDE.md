@@ -139,8 +139,9 @@ tests/                 headless smoke test and check script
 - Day/night: `DayNight` node in the city scene drives the sun, sky and the `night_factor` shader
   global (`[shader_globals]` in project.godot). Shaders that should react to night read it with
   `global uniform float night_factor;`.
-- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the minimap
-  (`scripts/ui/minimap.gd`, drawn from `CityPlan` data, north up). Lighting and post-processing
+- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap
+  (`MinimapFrame/Minimap`, `scripts/ui/minimap.gd`, drawn from `CityPlan` data, rotates with the
+  camera heading, light map palette). Lighting and post-processing
   live in the city scene's Environment (SDFGI, SSAO, SSR, glow, ACES, volumetric fog); keep the
   distance fog too, it is what the web build sees.
 - Pause menu (`scenes/ui/pause_menu.tscn`) owns Esc: pause, mouse release, seed rebuild via
@@ -155,6 +156,8 @@ tests/                 headless smoke test and check script
 - Vehicles: `Vehicle` (`scripts/vehicles/vehicle.gd`), a VehicleBody3D built in code;
   `Vehicle.random_car(rng)` for a seeded one. Handling numbers are exports at the top. The player's
   `enter_vehicle()` / `exit_vehicle()` handle riding; the car reads input while `driver` is set.
+  Space jumps the car, right click is the handbrake. `Player` recovers from falling through the
+  world (below `fall_through_y`) by asking `CityStreamer.ensure_loaded_at()` for the chunk.
 - Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is

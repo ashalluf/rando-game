@@ -13,7 +13,7 @@ func _ready() -> void:
 		hints.text = "Click the game to grab the mouse.\n"
 	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look   E get in / out of a car\n" \
 		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc pause / seed   F1 hide\n" \
-		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space handbrake   in the air W / S flip, A / D roll\n" \
+		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space jump   right click handbrake   in the air W / S flip, A / D roll\n" \
 		+ "Gamepad: left stick move   B boost   A jump   Y car   right stick look   RT fire   LT drop   LB / RB switch   Back respawn"
 
 

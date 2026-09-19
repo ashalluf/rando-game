@@ -60,7 +60,7 @@ from 09:00, moves the sun, tints sky and fog, and sets the `night_factor` shader
 building windows glow (lamp heads are always emissive). `Sfx` autoload synthesizes every sound at
 startup (no audio files): shot, rocket, explosion, grab, launch, jump, land, thud, break, yelp,
 boost loop, engine loop. `PauseMenu` (Esc) pauses, releases the mouse, and has a seed field:
-Rebuild sets `WorldState.pending_seed` and reloads the scene. HUD shows the clock and a minimap (top right). Debug:
+Rebuild sets `WorldState.pending_seed` and reloads the scene. HUD shows the clock and a round rotating minimap (bottom right). Debug:
 `?hour=21` on the web or `-- --hour=21` on desktop.
 
 NPCs: `Pedestrian` (`scripts/npc/pedestrian.gd`) is a CharacterBody3D that wanders between random
@@ -146,6 +146,23 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Fall-through recovery instead of a respawn loop.** The owner got out of a car
+  before the chunk under it existed and fell forever (respawn put him back in the same hole).
+  `Player` now watches its height: below `fall_through_y` (-6 m) it calls
+  `CityStreamer.ensure_loaded_at()` (builds the FULL chunk under that spot right away, replacing
+  any LOD placeholder) and stands back up on `ground_height_at()`. A driven car below that height
+  is lifted the same way, and `exit_vehicle()` / `respawn()` make sure ground exists before
+  placing the player. Streaming also got quicker (update every 0.25 s, 2 full + 8 LOD builds per
+  update) so the hole is rare in the first place.
+- **2026-09-19 Space jumps the car, handbrake moved to right click.** The owner expected the
+  jump key to jump the car. `Vehicle.jump_speed` (9 m/s, `jump_cooldown` 0.6 s) applies an
+  upward impulse along the car's up axis when at least one wheel touches the ground.
+- **2026-09-19 Minimap restyled as Google-Maps-meets-GTA.** Round (a clipped `MinimapFrame`
+  with a `MinimapBorder` ring), bottom right, 260 px, rotates with the camera heading so up is
+  the way you look, an N marker rides the rim. Light street-map palette: pale land, white streets
+  with grey edges, yellow avenues, green parks, sand and water tints, dark building dots, red
+  landmark pins, blue player arrow. `rotate_with_player` and `radius_m` are exports.
 
 - **2026-09-19 Realism step 2: real materials.** Eight CC0 texture sets from ambientCG (1K, Color
   + NormalGL + Roughness only, about 24 MB) live in `assets/textures/` and are credited in

@@ -24,10 +24,10 @@ extends Node3D
 @export var load_radius_blocks: int = 2
 ## Blocks around the player that get cheap LOD boxes (the skyline).
 @export var lod_radius_blocks: int = 7
-@export var update_interval: float = 0.4
-## Chunks built per update, to spread the work out.
-@export var max_full_builds_per_update: int = 1
-@export var max_lod_builds_per_update: int = 6
+@export var update_interval: float = 0.25
+## Chunks built per update, to spread the work out. Must keep up with a car at nitro speed.
+@export var max_full_builds_per_update: int = 2
+@export var max_lod_builds_per_update: int = 8
 ## When the player is this far from the origin, the whole world shifts back to it.
 @export var recenter_distance: float = 1000.0
 @export var ground_size: float = 4000.0
@@ -178,6 +178,30 @@ func district_name_at(local_pos: Vector3) -> String:
 	if zone != MacroMap.Zone.CITY:
 		return MacroMap.zone_name(zone)
 	return CityPlan.district_name(plan.district_at(xz))
+
+
+## Makes sure the chunk under a local position exists at full detail, right now.
+func ensure_loaded_at(local_pos: Vector3) -> void:
+	if plan == null:
+		return
+	var wp := world_position(local_pos)
+	var k := plan.block_index_at(Vector2(wp.x, wp.z))
+	if chunks.has(k):
+		if chunks[k].level == CityChunk.Level.FULL:
+			return
+		for id in chunks[k].built_landmarks:
+			_set_far_landmark_visible(id, true)
+		chunks[k].queue_free()
+		chunks.erase(k)
+	_build_chunk(k, CityChunk.Level.FULL)
+
+
+## Height of solid ground at a local position (terrain, or the sidewalk top in the city).
+func ground_height_at(local_pos: Vector3) -> float:
+	if plan == null:
+		return 0.0
+	var wp := world_position(local_pos)
+	return maxf(plan.height_at(Vector2(wp.x, wp.z)), 0.0) + 0.4
 
 
 func building_count() -> int:
