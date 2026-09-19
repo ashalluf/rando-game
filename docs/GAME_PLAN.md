@@ -49,6 +49,12 @@ Build in this order, one milestone per PR or a few PRs.
     arches and parked planes, and a port zone with container stacks, gantry cranes, a harbor and
     a moored container ship.
 
+- **Realism and character batch** (asked 2026-09-19), all done in builds 42 to 51: real models
+  from Meshy for cars, pedestrians and jets (every prompt ultra-realistic), bigger crowds, a real
+  sky, a GTA-style skyline, hills with roads and estates, the peninsula in a bay, a university
+  campus, a bigger airport with flyable jets, bullets that hurt people. See `docs/HANDOFF.md`
+  for the state after that batch and the suggested next steps.
+
 ## Current state
 
 All eight roadmap milestones are in, plus the west-coast map with its landmarks.

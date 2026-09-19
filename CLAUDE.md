@@ -1,7 +1,9 @@
 # Rando Game — Claude session guide
 
-Read this file and `docs/GAME_PLAN.md` at the start of every session. They are the source of truth.
-Update both whenever a design decision changes. Every session starts with no memory.
+Read this file, `docs/GAME_PLAN.md` and `docs/HANDOFF.md` at the start of every session. The first
+two are the source of truth; the handoff is the narrative (state, workflow, gotchas, next steps)
+for a session on any account. Update all of them whenever a design decision changes. Every
+session starts with no memory.
 
 ## Project summary
 
@@ -48,8 +50,9 @@ not accessible by integration", that setting was lost and the owner has to set i
 Tell the owner the build number or link at the end of every push. A push is not "done" until the
 workflow has published its release; check the Actions run if in doubt.
 
-Claude can see the web build: export it locally, serve `build/web`, load it in headless Chromium
-with Playwright (`--use-angle=swiftshader`), and screenshot it. Use this to sanity-check visuals.
+Claude can see the web build: export it locally, then `tools/webshot/webshot.js` (Playwright,
+headless Chromium with `--use-angle=swiftshader`) serves `build/web` and screenshots it. Use this
+to sanity-check visuals.
 It runs at about 1 FPS there and Godot clamps frame time, so never press movement keys in the
 harness (a 1 ms tap walks the player meters); place the camera with `?spawn=x,z,yaw,pitch` and use
 `?showroom` to line up generated assets. Lighting is flat on the web; judge materials, not light.
@@ -133,6 +136,7 @@ scripts/               player, weapons, world, vehicles, npc, util, ui
 shaders/
 assets/                textures/ (CC0 sets) and models/ (Meshy .glb + .json)
 tests/                 headless smoke test and check script
+tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 ```
 
 ## Conventions
