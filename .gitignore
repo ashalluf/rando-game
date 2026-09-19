@@ -4,7 +4,7 @@
 *.tmp
 
 # Exports and local-only files
-export_presets.cfg
+# export_presets.cfg is committed (no credentials in it)
 /build/
 /exports/
 

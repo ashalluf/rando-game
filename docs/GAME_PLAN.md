@@ -71,5 +71,9 @@ already mapped so milestone 2 is script-only.
   headless smoke test and check script.
 - **2026-09-19 CI runs the headless check** on every push via GitHub Actions, so a push that
   fails to load is visible before playtesting.
+- **2026-09-19 Mac builds come from GitHub Actions.** The owner does not want to use Terminal, so
+  every push to `main` exports a universal macOS app and publishes it as a GitHub Release
+  (`releases/latest`). Ad-hoc signed only; notarization would need a paid Apple developer account,
+  so first launch needs "Open Anyway" in Privacy & Security.
 - **2026-09-19 Push to main always.** The owner asked for all work to go directly to `main` with no
   branches or pull requests. Milestone 1 was the only PR (#1); everything after lands on `main`.

@@ -1,14 +1,17 @@
-name: Godot headless check
+name: Check and build
 
 on:
   push:
   pull_request:
 
+env:
+  GODOT_VERSION: 4.7.2
+
 jobs:
-  check:
+  check-and-build:
     runs-on: ubuntu-latest
-    env:
-      GODOT_VERSION: 4.7.2
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -22,3 +25,52 @@ jobs:
 
       - name: Import and smoke test
         run: GODOT="$RUNNER_TEMP/godot" tests/headless_check.sh
+
+      - name: Cache macOS export template
+        id: template-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.stable
+          key: godot-macos-template-${{ env.GODOT_VERSION }}
+
+      - name: Download macOS export template
+        if: steps.template-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -sSL -o templates.tpz "https://downloads.godotengine.org/?version=${GODOT_VERSION}&flavor=stable&slug=export_templates.tpz"
+          DEST="$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          mkdir -p "$DEST"
+          unzip -oq -j templates.tpz templates/macos.zip templates/version.txt -d "$DEST"
+          rm templates.tpz
+
+      - name: Export macOS app
+        run: |
+          mkdir -p build
+          "$RUNNER_TEMP/godot" --headless --path . --export-release "macOS" build/RandoGame-macOS.zip
+          ls -la build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RandoGame-macOS
+          path: build/RandoGame-macOS.zip
+
+      - name: Publish release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SUBJECT="$(git log -1 --pretty=%s)"
+          cat > notes.md <<NOTES
+          **${SUBJECT}**
+
+          Mac build of commit ${GITHUB_SHA::7}.
+
+          How to play:
+          1. Download **RandoGame-macOS.zip** below and open it. Safari unzips it for you.
+          2. Double-click **Rando Game.app**.
+          3. If macOS refuses to open it, go to System Settings, then Privacy & Security, scroll down and click **Open Anyway**, then open the app again. That is only needed once per download.
+          NOTES
+          gh release create "build-${GITHUB_RUN_NUMBER}" build/RandoGame-macOS.zip \
+            --title "Rando Game build ${GITHUB_RUN_NUMBER}" \
+            --notes-file notes.md \
+            --latest
