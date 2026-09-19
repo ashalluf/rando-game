@@ -60,7 +60,7 @@ from 09:00, moves the sun, tints sky and fog, and sets the `night_factor` shader
 building windows glow (lamp heads are always emissive). `Sfx` autoload synthesizes every sound at
 startup (no audio files): shot, rocket, explosion, grab, launch, jump, land, thud, break, yelp,
 boost loop, engine loop. `PauseMenu` (Esc) pauses, releases the mouse, and has a seed field:
-Rebuild sets `WorldState.pending_seed` and reloads the scene. HUD shows the clock. Debug:
+Rebuild sets `WorldState.pending_seed` and reloads the scene. HUD shows the clock and a minimap (top right). Debug:
 `?hour=21` on the web or `-- --hour=21` on desktop.
 
 NPCs: `Pedestrian` (`scripts/npc/pedestrian.gd`) is a CharacterBody3D that wanders between random
@@ -146,6 +146,16 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Realism step 1: lighting and post.** City environment now has SDFGI (0.4 m cells),
+  SSAO, SSR, glow, ACES tonemapping, volumetric fog, slight contrast and saturation, soft sun
+  shadows (angular distance 0.6, blur 1.5, blended splits, 320 m) and a subtle far depth of field
+  on the player camera. All of it is Forward+ only; the web build ignores what it cannot do.
+  Claude cannot see Forward+ output, so these are conservative starting values for the owner to
+  judge. Next steps in the plan: PBR textures, real models, characters, weather, performance.
+- **2026-09-19 Minimap is drawn from the plan, not rendered.** `scripts/ui/minimap.gd` paints
+  blocks by district and zone, roads, landmarks, nearby cars and a heading arrow from `CityPlan`
+  data within 320 m, north up, ten times a second. Cheap, crisp, works on the web.
 
 - **2026-09-19 Car physics rebuilt after the owner's first drive** ("drives backwards, can't
   turn"). Measured headless: Godot's `engine_force` pushes toward local +Z, our model's tail, so it

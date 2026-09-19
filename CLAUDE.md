@@ -135,6 +135,10 @@ tests/                 headless smoke test and check script
 - Day/night: `DayNight` node in the city scene drives the sun, sky and the `night_factor` shader
   global (`[shader_globals]` in project.godot). Shaders that should react to night read it with
   `global uniform float night_factor;`.
+- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the minimap
+  (`scripts/ui/minimap.gd`, drawn from `CityPlan` data, north up). Lighting and post-processing
+  live in the city scene's Environment (SDFGI, SSAO, SSR, glow, ACES, volumetric fog); keep the
+  distance fog too, it is what the web build sees.
 - Pause menu (`scenes/ui/pause_menu.tscn`) owns Esc: pause, mouse release, seed rebuild via
   `WorldState.pending_seed` + `reload_current_scene()`.
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,

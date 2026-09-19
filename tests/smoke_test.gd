@@ -356,6 +356,12 @@ func _test_city() -> void:
 	_check(day.night_factor < 0.05, "noon clears it")
 	var sfx: Node = get_tree().root.get_node("/root/Sfx")
 	_check(sfx.has("shot") and sfx.has("explosion") and sfx.has("engine_loop"), "sound effects are synthesized")
+	var minimap: Control = city.get_node("DebugHud/Minimap")
+	_check(minimap != null and minimap.world_to_map(Vector2(0.0, -100.0), Vector2.ZERO).y < minimap.size.y * 0.5, "minimap exists and north is up")
+	minimap.queue_redraw()
+	await _ticks(3)
+	var env: Environment = city.get_node("WorldEnvironment").environment
+	_check(env.sdfgi_enabled and env.ssao_enabled and env.glow_enabled and env.tonemap_mode == Environment.TONE_MAPPER_ACES, "environment has GI, AO, glow and ACES")
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")

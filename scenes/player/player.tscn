@@ -1,8 +1,14 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/camera_rig.gd" id="2_camera_rig"]
 [ext_resource type="Script" path="res://scripts/weapons/weapon_manager.gd" id="3_weapons"]
+
+[sub_resource type="CameraAttributesPractical" id="CameraAttributesPractical_cam"]
+dof_blur_far_enabled = true
+dof_blur_far_distance = 260.0
+dof_blur_far_transition = 260.0
+dof_blur_amount = 0.04
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_body"]
 radius = 0.45
@@ -60,6 +66,7 @@ spring_length = 6.5
 margin = 0.3
 
 [node name="Camera3D" type="Camera3D" parent="CameraRig/SpringArm3D"]
+attributes = SubResource("CameraAttributesPractical_cam")
 fov = 75.0
 near = 0.05
 far = 2000.0
