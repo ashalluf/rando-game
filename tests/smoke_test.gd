@@ -76,7 +76,45 @@ func _run() -> void:
 	_check(player.global_position.distance_to(Vector3(0, 1, 0)) < 2.0, "respawn returns to spawn")
 
 	await _test_weapons(player)
+	_test_buildings()
 	_finish()
+
+
+func _test_buildings() -> void:
+	var buildings := get_nodes_in_group("building")
+	_check(buildings.size() >= 8, "city block has buildings (%d)" % buildings.size())
+	var looks := {}
+	var all_solid := true
+	var all_shaded := true
+	for node in buildings:
+		var b := node as Building
+		if b == null:
+			continue
+		looks[[b.shape, b.finish, b.window_style]] = true
+		var shapes := 0
+		var shaded := 0
+		for child in b.get_children():
+			if child is CollisionShape3D:
+				shapes += 1
+			if child is MeshInstance3D and (child as MeshInstance3D).material_override is ShaderMaterial:
+				shaded += 1
+		all_solid = all_solid and shapes > 0
+		all_shaded = all_shaded and shaded > 0
+		_check(b.height >= 4.0 and b.footprint.x > 2.0, "building %d has size %.0f x %.0f x %.0f m (%s)" % [b.seed % 1000, b.footprint.x, b.height, b.footprint.y, Building.Shape.keys()[b.shape]])
+	_check(all_solid, "every building has collision")
+	_check(all_shaded, "every building uses the building shader")
+	_check(looks.size() >= 5, "buildings vary (%d distinct looks)" % looks.size())
+
+	# Same seed, same building.
+	var a := Building.new()
+	a.seed = 4242
+	root.add_child(a)
+	var c := Building.new()
+	c.seed = 4242
+	root.add_child(c)
+	_check(a.footprint == c.footprint and a.height == c.height and a.shape == c.shape, "same seed gives the same building")
+	a.queue_free()
+	c.queue_free()
 
 
 func _test_weapons(player: Player) -> void:

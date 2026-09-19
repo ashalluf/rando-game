@@ -14,7 +14,7 @@ Build in this order, one milestone per PR or a few PRs.
 - [x] **2. Guns.** Weapon system with instant switching and unlimited ammo. Start with three: a
   hitscan rifle that shoves physics objects, a rocket launcher with an explosion that applies radial
   impulse, and a gravity gun that grabs and launches objects. Simple crosshair HUD.
-- [ ] **3. Building shader.** A single shader that makes a plain box look like a building:
+- [x] **3. Building shader.** A single shader that makes a plain box look like a building:
   parameters for window style, window tint, facade finish and color, floor height, and randomly lit
   windows. A `Building` scene that takes a seed and picks a shape style, dimensions, shader
   parameters, and rooftop props (AC units, water towers, antennas, billboards) from small option
@@ -37,7 +37,16 @@ Build in this order, one milestone per PR or a few PRs.
 
 ## Current state
 
-Milestones 1 and 2 are in. Weapons live in `scripts/weapons/`: `Weapon` base class,
+Milestones 1 to 3 are in. `shaders/building.gdshader` turns any BoxMesh into a facade: window
+style (punched, ribbon, curtain, narrow), facade finish (flat, brick, panels, glass), colors, floor
+height, storefront on the ground floor, seeded lit windows, gravel roof with a parapet.
+`scripts/world/building.gd` (`scenes/props/building.tscn`) takes a seed and picks a shape (slab,
+tower, stepped, podium + tower, L-shape), sizes within `lot_size`, a finish and window style, then
+fits the window grid exactly to each box part and adds rooftop props (AC units, stair bulkhead,
+water tower, antenna, billboard) that avoid each other and taller parts. The test level has a demo
+city block of ten buildings 125 m in front of spawn.
+
+Milestone 2 recap: Weapons live in `scripts/weapons/`: `Weapon` base class,
 `AssaultRifle` (AK-47, full-auto hitscan, shoves what it hits), `RocketLauncher` (spawns `Rocket`,
 `Explosion.blast` applies a radial velocity change to props and launches the player for rocket
 jumps), `GravityGun` (grab, float at chest height, hurl). `WeaponManager` sits on the player's hand
@@ -59,6 +68,16 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 One ShaderMaterial per building part.** The web build uses the Compatibility
+  renderer, which has no per-instance shader uniforms, so each box part gets its own material with
+  its exact size, window pitch and floor height baked in. Fine for a block; when the city gets big
+  (milestone 5) far buildings should move to MultiMesh with INSTANCE_CUSTOM data.
+- **2026-09-19 Floors count from world Y, columns from local axes.** Ground is flat, so world Y
+  keeps floors aligned across parts and rotated buildings still get straight window columns.
+- **2026-09-19 Window grid is fitted, never cut.** The Building script rounds the box size to a
+  whole number of columns and floors and passes the exact pitch to the shader, so no window is ever
+  sliced by an edge.
 
 - **2026-09-19 Rifle is an AK-47.** Owner's request. Low-poly silhouette built from primitives
   (wood furniture, curved magazine). Named "AK-47" in the HUD; it is a real-world rifle, not another

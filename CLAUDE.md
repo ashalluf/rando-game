@@ -132,6 +132,10 @@ tests/                 headless smoke test and check script
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is
   the crosshair ray (origin, direction, point, normal, collider). Explosions: `Explosion.blast()`.
+- Buildings: `Building` (`scripts/world/building.gd`, scene `scenes/props/building.tscn`) is a
+  StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
+  generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own
+  ShaderMaterial (see the decisions log for why). Rooftop props are primitives built in code.
 - Physics masks as constants on `Player`: `AIM_MASK` (world + props) and `BLAST_MASK` (player + props).
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
 - Commit messages: short imperative subject, body explains why and how to test. One task per

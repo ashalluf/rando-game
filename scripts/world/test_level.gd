@@ -3,6 +3,7 @@ extends Node3D
 ## the same seed always produces the same layout.
 
 const CRATE_SCENE := preload("res://scenes/props/crate.tscn")
+const BUILDING_SCENE := preload("res://scenes/props/building.tscn")
 
 @export_group("Generation")
 @export var world_seed: int = 1337
@@ -15,6 +16,12 @@ const CRATE_SCENE := preload("res://scenes/props/crate.tscn")
 @export var tall_box_max_height: float = 60.0
 @export var ramp_count: int = 6
 @export var crate_count: int = 100
+## Center of the demo city block (a ring of seeded buildings around a sidewalk slab).
+@export var block_center: Vector3 = Vector3(0.0, 0.0, -125.0)
+@export var block_size: Vector2 = Vector2(150.0, 90.0)
+@export var buildings_per_row: int = 5
+@export var building_min_height: float = 8.0
+@export var building_max_height: float = 70.0
 ## Heights (meters) of the jump gauge boxes in front of spawn.
 @export var jump_gauge_heights: PackedFloat32Array = PackedFloat32Array([4, 8, 12, 16, 20, 24, 30])
 
@@ -22,6 +29,7 @@ const CRATE_SCENE := preload("res://scenes/props/crate.tscn")
 @export var sun_rotation_degrees: Vector3 = Vector3(-52.0, 38.0, 0.0)
 @export var ground_color_a: Color = Color(0.50, 0.55, 0.46)
 @export var ground_color_b: Color = Color(0.38, 0.43, 0.35)
+@export var sidewalk_color: Color = Color(0.72, 0.70, 0.66)
 ## Size of one ground checker cell (meters).
 @export var ground_cell_size: float = 2.0
 @export var box_palette: PackedColorArray = PackedColorArray([
@@ -50,6 +58,7 @@ func generate() -> void:
 	_build_ramps(rng)
 	_build_tall_boxes(rng)
 	_build_crates(rng)
+	_build_city_block(rng)
 
 
 # --- Pieces ------------------------------------------------------------------
@@ -121,6 +130,8 @@ func _build_tall_boxes(rng: RandomNumberGenerator) -> void:
 		var z := rng.randf_range(-half, half)
 		if Vector2(x, z).length() < spawn_clear_radius + 30.0:
 			continue
+		if _block_rect().grow(20.0).has_point(Vector2(x, z)):
+			continue
 		var height := lerpf(tall_box_min_height, tall_box_max_height, pow(rng.randf(), 2.2))
 		var size := Vector3(rng.randf_range(4.0, 14.0), height, rng.randf_range(4.0, 14.0))
 		var color := box_palette[rng.randi() % box_palette.size()]
@@ -166,6 +177,29 @@ func _build_crates(rng: RandomNumberGenerator) -> void:
 			var pos := wall_origin + Vector3(0.0, 0.55 + iy * 1.02, (ix - 3.5) * 1.05)
 			_spawn_crate(pos, rng)
 			spawned += 1
+
+
+func _block_rect() -> Rect2:
+	return Rect2(Vector2(block_center.x, block_center.z) - block_size * 0.5, block_size)
+
+
+## Two rows of seeded buildings on a sidewalk slab, facing a gap in the middle like a street.
+func _build_city_block(rng: RandomNumberGenerator) -> void:
+	_add_static_box(block_center + Vector3(0.0, 0.1, 0.0), Vector3(block_size.x, 0.2, block_size.y), sidewalk_color)
+	var lot_w := block_size.x / buildings_per_row
+	var lot_d := block_size.y * 0.5
+	for row in 2:
+		for i in buildings_per_row:
+			var lot_center := block_center + Vector3(
+				-block_size.x * 0.5 + lot_w * (i + 0.5), 0.2,
+				-block_size.y * 0.5 + lot_d * (row + 0.5))
+			var building := BUILDING_SCENE.instantiate() as Building
+			building.seed = rng.randi()
+			building.lot_size = Vector2(lot_w - 6.0, lot_d - 8.0)
+			building.min_height = building_min_height
+			building.max_height = building_max_height
+			building.position = lot_center
+			add_child(building)
 
 
 # --- Helpers -----------------------------------------------------------------
