@@ -214,6 +214,36 @@ func _test_city() -> void:
 		var deck_y: float = _world_state().to_world(player.global_position).y
 		_check(player.is_on_floor() and deck_y > 5.0, "player stands on the pier deck at %.1f m" % deck_y)
 
+	# Skyline, airport, port.
+	if macro:
+		_check(macro.zone_at(Vector2(-350.0, 800.0)) == MacroMap.Zone.AIRPORT and macro.height_at(Vector2(-350.0, 800.0)) == 0.0, "airport zone is flat")
+		_check(macro.zone_at(Vector2(800.0, 1150.0)) == MacroMap.Zone.PORT and macro.zone_at(Vector2(800.0, 1420.0)) == MacroMap.Zone.OCEAN, "port sits on a harbor")
+		var crown: Vector2 = Landmarks.all()[3].anchor
+		player.global_position = _world_state().to_local(Vector3(crown.x + 40.0, 2.0, crown.y + 40.0))
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
+		var crown_chunk: Node3D = city.chunks.get(plan.block_index_at(crown))
+		_check(crown_chunk != null and crown_chunk.built_landmarks.has("crown_tower"), "downtown chunk built the crown tower")
+		var overlaps := 0
+		if crown_chunk:
+			for child in crown_chunk.get_children():
+				if child is Building:
+					var b := child as Building
+					var foot := Rect2(Vector2(b.position.x, b.position.z) - b.footprint * 0.5, b.footprint)
+					if foot.intersects(Rect2(crown - Vector2(34.0, 34.0), Vector2(68.0, 68.0))):
+						overlaps += 1
+		_check(overlaps == 0, "no seeded building overlaps the crown tower footprint")
+		var runway := Vector2(-300.0, 760.0)
+		player.global_position = _world_state().to_local(Vector3(runway.x, 2.0, runway.y))
+		city.update_streaming(true)
+		var airport_chunk: Node3D = city.chunks.get(plan.block_index_at(runway))
+		_check(airport_chunk != null and airport_chunk.zone == MacroMap.Zone.AIRPORT and airport_chunk.has_node("Runway") and airport_chunk.building_count == 0, "airport chunk has a runway and no buildings")
+		var port := Vector2(800.0, 1150.0)
+		player.global_position = _world_state().to_local(Vector3(port.x, 2.0, port.y))
+		city.update_streaming(true)
+		var port_chunk: Node3D = city.chunks.get(plan.block_index_at(port))
+		_check(port_chunk != null and port_chunk.zone == MacroMap.Zone.PORT and port_chunk.has_node("Batch_container"), "port chunk has container stacks")
+
 	# Same seed, same plan.
 	var a := CityPlan.new()
 	a.seed = 777

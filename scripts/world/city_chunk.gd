@@ -50,6 +50,10 @@ func build() -> void:
 		MacroMap.Zone.BEACH:
 			_build_roads(block)
 			_build_beach(block)
+		MacroMap.Zone.AIRPORT:
+			_build_airport()
+		MacroMap.Zone.PORT:
+			_build_port(block)
 		_:
 			_build_roads(block)
 			_build_block(block)
@@ -69,6 +73,103 @@ func owned_rect() -> Rect2:
 	var z0 := plan.road_pos(CityPlan.AXIS_Z, iz) + plan.road_width(CityPlan.AXIS_Z, iz) * 0.5
 	var z1 := plan.road_pos(CityPlan.AXIS_Z, iz + 1) + plan.road_width(CityPlan.AXIS_Z, iz + 1) * 0.5
 	return Rect2(x0, z0, x1 - x0, z1 - z0)
+
+
+# --- Airport and port ------------------------------------------------------------------
+
+func _build_airport() -> void:
+	var area := owned_rect()
+	var c := area.get_center()
+	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL)
+	var macro: MacroMap = plan.macro
+	for rz in macro.runway_zs:
+		var band := Rect2(area.position.x, rz - macro.runway_width * 0.5, area.size.x, macro.runway_width)
+		var strip := band.intersection(area)
+		if strip.size.y <= 0.0:
+			continue
+		var sc := strip.get_center()
+		var runway := MeshInstance3D.new()
+		runway.name = "Runway"
+		var box := BoxMesh.new()
+		box.size = Vector3(strip.size.x, 0.04, strip.size.y)
+		runway.mesh = box
+		runway.material_override = PropFactory.material(style.runway, 0.95)
+		runway.position = Vector3(sc.x, 0.12, sc.y)
+		add_child(runway)
+		if level != Level.FULL:
+			continue
+		# Center line dashes and edge lines.
+		var x := strip.position.x + 6.0
+		while x < strip.end.x - 6.0:
+			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(1.0, 1.0, 3.0)), Vector3(x, 0.15, rz)))
+			x += 24.0
+		for side: float in [-1.0, 1.0]:
+			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(1.0, 1.0, strip.size.x / 3.0)), Vector3(sc.x, 0.15, rz + side * (macro.runway_width * 0.5 - 1.0))))
+	if level == Level.FULL:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([ix, iz, 5])
+		for i in 3:
+			var p := Vector2(rng.randf_range(area.position.x + 5.0, area.end.x - 5.0), area.position.y + 4.0)
+			if not _on_runway(p):
+				_add_lamp(Vector3(p.x, 0.1, p.y))
+
+
+func _on_runway(p: Vector2) -> bool:
+	for rz in plan.macro.runway_zs:
+		if absf(p.y - rz) < plan.macro.runway_width * 0.5 + 6.0:
+			return true
+	return false
+
+
+func _build_port(block: Dictionary) -> void:
+	var area := owned_rect()
+	var c := area.get_center()
+	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = block.seed
+	# Container stacks in rows, colored per box.
+	var colors := [Color(0.8, 0.25, 0.2), Color(0.2, 0.45, 0.75), Color(0.85, 0.6, 0.15), Color(0.3, 0.6, 0.35), Color(0.6, 0.6, 0.62), Color(0.55, 0.3, 0.55)]
+	var rows := int(area.size.y / 9.0)
+	var cols := int(area.size.x / 14.0)
+	var origin := Vector2(area.position.x + 8.0, area.position.y + 6.0)
+	for r in rows:
+		if rng.randf() < 0.3:
+			continue # an empty lane for trucks
+		for col in cols:
+			if rng.randf() < 0.35:
+				continue
+			var height := rng.randi_range(1, 3)
+			var p := origin + Vector2(col * 14.0, r * 9.0)
+			if p.x + 6.0 > area.end.x - 4.0 or p.y + 1.2 > area.end.y - 4.0:
+				continue
+			for h in height:
+				var col_color: Color = colors[rng.randi() % colors.size()]
+				_batch.add("container", PropFactory.container(), Transform3D(Basis(), Vector3(p.x, 0.2 + 1.3 + h * 2.6, p.y)), col_color)
+			if level == Level.FULL:
+				_add_shape(Vector3(12.0, 2.6 * height, 2.4), Vector3(p.x, 0.2 + 1.3 * height, p.y))
+	# A gantry crane on chunks that touch the harbor.
+	var macro: MacroMap = plan.macro
+	if area.end.y >= macro.harbor_rect.position.y - 2.0 and level == Level.FULL:
+		_build_crane(Vector3(c.x, 0.2, area.end.y - 18.0))
+	if level == Level.FULL:
+		for i in 2:
+			_add_lamp(Vector3(area.position.x + 4.0 + i * (area.size.x - 8.0), 0.2, area.position.y + 4.0))
+
+
+func _build_crane(at: Vector3) -> void:
+	var steel := Color(0.85, 0.45, 0.15)
+	var h := 40.0
+	for dx: float in [-14.0, 14.0]:
+		for dz: float in [-6.0, 6.0]:
+			_add_slab(at + Vector3(dx, h * 0.5, dz), Vector3(1.4, h, 1.4), steel)
+	_add_slab(at + Vector3(0.0, h + 0.5, -6.0), Vector3(30.0, 1.5, 1.5), steel)
+	_add_slab(at + Vector3(0.0, h + 0.5, 6.0), Vector3(30.0, 1.5, 1.5), steel)
+	# Boom out over the water (+Z), and a trolley with a hanging container.
+	_add_slab(at + Vector3(0.0, h + 0.5, 30.0), Vector3(3.0, 2.0, 60.0), steel)
+	_add_slab(at + Vector3(0.0, h - 1.5, 26.0), Vector3(4.0, 1.5, 4.0), Color(0.3, 0.3, 0.32))
+	_add_slab(at + Vector3(0.0, h - 9.0, 26.0), Vector3(0.2, 14.0, 0.2), Color(0.2, 0.2, 0.2), false)
+	_batch.add("container", PropFactory.container(), Transform3D(Basis(Vector3.UP, PI * 0.5), at + Vector3(0.0, h - 17.0, 26.0)), Color(0.2, 0.45, 0.75))
+	_add_slab(at + Vector3(0.0, 4.0, 0.0), Vector3(6.0, 8.0, 5.0), Color(0.3, 0.3, 0.32))
 
 
 # --- Ocean, beach, hills ---------------------------------------------------------------
@@ -256,6 +357,15 @@ func _lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> Array
 	var nz := maxi(1, floori(inner.size.y / lot_d))
 	var cell := Vector2(inner.size.x / nx, inner.size.y / nz)
 	var gap_range: Vector2 = params.gap
+	# Landmarks reserve their footprint; lots there are skipped (after using the rng, so that
+	# FULL and LOD builds stay in step).
+	var blocked: Array[Rect2] = []
+	if plan.macro:
+		for lm in Landmarks.all():
+			var r: float = lm.radius
+			var foot := Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r * 2.0, r * 2.0))
+			if foot.intersects(rect):
+				blocked.append(foot)
 	var lots: Array[Dictionary] = []
 	for lx in nx:
 		for lz in nz:
@@ -267,7 +377,15 @@ func _lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> Array
 			if lot_size.x < 6.0 or lot_size.y < 6.0:
 				continue
 			var lot_center := inner.position + Vector2(cell.x * (lx + 0.5), cell.y * (lz + 0.5))
-			lots.append({"seed": rng.randi(), "size": lot_size, "center": lot_center})
+			var lot_seed := rng.randi()
+			var lot_rect := Rect2(lot_center - lot_size * 0.5, lot_size)
+			var hit := false
+			for b in blocked:
+				if b.intersects(lot_rect):
+					hit = true
+			if hit:
+				continue
+			lots.append({"seed": lot_seed, "size": lot_size, "center": lot_center})
 	return lots
 
 

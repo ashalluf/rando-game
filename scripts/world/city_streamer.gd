@@ -50,6 +50,9 @@ extends Node3D
 @export var sand_color: Color = Color(0.80, 0.72, 0.52)
 @export var hill_grass_color: Color = Color(0.38, 0.47, 0.25)
 @export var hill_rock_color: Color = Color(0.48, 0.43, 0.38)
+@export var tarmac_color: Color = Color(0.32, 0.32, 0.33)
+@export var runway_color: Color = Color(0.42, 0.42, 0.43)
+@export var concrete_color: Color = Color(0.58, 0.57, 0.55)
 
 var plan: CityPlan
 ## Vector2i(ix, iz) -> CityChunk
@@ -232,6 +235,7 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 		"asphalt": asphalt_color, "sidewalk": sidewalk_color, "grass": grass_color, "plaza": plaza_color,
 		"path": path_color, "water": water_color, "ocean": ocean_color, "sand": sand_color,
 		"hill_grass": hill_grass_color, "hill_rock": hill_rock_color,
+		"tarmac": tarmac_color, "runway": runway_color, "concrete": concrete_color,
 		"lamp_spacing": lamp_spacing, "tree_spacing": tree_spacing, "trash_cans_per_block": trash_cans_per_block,
 	}
 	add_child(chunk)

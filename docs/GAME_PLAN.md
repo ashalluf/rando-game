@@ -44,7 +44,10 @@ Build in this order, one milestone per PR or a few PRs.
   - [x] Push 1: macro map with ocean, beach, hills, peninsula, district placement (`MacroMap`).
   - [x] Push 2: the hill sign ("RANDOWOOD"), the pier ("RANDO PIER") with a spinning Ferris wheel,
     a coaster loop, booths and lamps, and the observatory with three domes and a terrace.
-  - [ ] Push 3: landmark skyline downtown, airport by the coast, port in the industrial corner.
+  - [x] Push 3: landmark skyline downtown (Crown Tower, Five Drums hotel, Ziggurat Hall, the
+    Stack), an airport zone with two runways, a terminal, a control tower, a saucer restaurant on
+    arches and parked planes, and a port zone with container stacks, gantry cranes, a harbor and
+    a moored container ship.
 
 ## Current state
 
@@ -57,7 +60,8 @@ south-west, downtown centered at (700, 250), a second mid-rise cluster on the we
 industrial port in the south-east. Chunks ask `plan.zone_at()` and build water, sand, or a terrain
 tile (SurfaceTool mesh colored by height plus a HeightMapShape3D) instead of a city block. The
 spawn stays at the origin, in midtown. Landmarks: the hill sign north of the city, the pier on the
-north-west coast, the observatory on the ridge. Debug: open the web build with `?spawn=x,z` or
+north-west coast, the observatory on the ridge, four skyline towers downtown, the airport terminal
+south-west, the container ship in the harbor south-east. Debug: open the web build with `?spawn=x,z` or
 `?spawn=x,z,yaw,pitch` (yaw 0 = north, 90 = west) or run the desktop build with
 `-- --spawn=x,z,yaw,pitch` to start anywhere. The main scene is `scenes/levels/city.tscn`; `test_box.tscn` stays as
 the movement/weapons test room.
@@ -114,6 +118,16 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Airport and port are zones, landmarks are points.** Big flat areas (runways,
+  container yards, the harbor water) are `MacroMap` rects that every chunk inside builds
+  seamlessly; one-off structures (terminal, ship, towers) are `Landmarks` anchored to a point.
+  `MacroMap.height_at()` returns 0 inside those rects so they stay flat.
+- **2026-09-19 Landmarks reserve lots.** `CityChunk._lots()` drops any lot whose rect touches a
+  landmark's footprint square, after consuming the lot's rng values so FULL and LOD stay in step.
+- **2026-09-19 Skyline towers reuse the building shader** through `Landmarks._facade_box()`, so
+  they get windows and lit floors like everything else; the mirrored drums use a metallic
+  StandardMaterial3D instead because the shader assumes box faces.
 
 - **2026-09-19 Landmarks are fixed, not seeded**, and built by `Landmarks` (`scripts/world/landmarks.gd`)
   from primitives. The chunk containing a landmark's anchor builds the detailed version with

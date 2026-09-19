@@ -5,9 +5,9 @@ extends RefCounted
 ## a big sign on its south face, a hilly peninsula to the south-west, downtown to the east.
 ## Everything here is original geography; nothing is traced from a real map.
 
-enum Zone { CITY, BEACH, OCEAN, HILLS }
+enum Zone { CITY, BEACH, OCEAN, HILLS, AIRPORT, PORT }
 
-const ZONE_NAMES := ["City", "Beach", "Ocean", "Hills"]
+const ZONE_NAMES := ["City", "Beach", "Ocean", "Hills", "Airport", "Port"]
 
 var seed: int = 0
 ## X of the coastline at z = 0. West is negative X.
@@ -28,6 +28,13 @@ var westside_center: Vector2 = Vector2(-350.0, -250.0)
 var westside_radius: float = 320.0
 ## South-east of this corner is the port and industrial district.
 var industrial_corner: Vector2 = Vector2(300.0, 900.0)
+## Flat zones (world XZ rects): the airport by the south-west coast, the port on a harbor.
+var airport_rect: Rect2 = Rect2(-700.0, 700.0, 700.0, 250.0)
+var port_rect: Rect2 = Rect2(450.0, 1000.0, 700.0, 300.0)
+var harbor_rect: Rect2 = Rect2(450.0, 1300.0, 700.0, 260.0)
+## Runway center lines (z) and width inside the airport rect.
+var runway_zs: PackedFloat32Array = PackedFloat32Array([760.0, 890.0])
+var runway_width: float = 45.0
 
 var _noise: FastNoiseLite
 
@@ -51,6 +58,8 @@ func coast_x(z: float) -> float:
 func height_at(pos: Vector2) -> float:
 	if _noise == null:
 		setup()
+	if airport_rect.has_point(pos) or port_rect.has_point(pos) or harbor_rect.has_point(pos):
+		return 0.0
 	var n := _noise.get_noise_2dv(pos)
 	var t := smoothstep(hills_start_z, hills_full_z, pos.y)
 	var h := t * (hills_height * (0.6 + 0.4 * n) + 40.0 * n)
@@ -61,6 +70,12 @@ func height_at(pos: Vector2) -> float:
 
 
 func zone_at(pos: Vector2) -> Zone:
+	if harbor_rect.has_point(pos):
+		return Zone.OCEAN
+	if airport_rect.has_point(pos):
+		return Zone.AIRPORT
+	if port_rect.has_point(pos):
+		return Zone.PORT
 	var cx := coast_x(pos.y)
 	if pos.x < cx:
 		return Zone.OCEAN

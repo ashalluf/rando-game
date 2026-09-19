@@ -146,8 +146,8 @@ tests/                 headless smoke test and check script
   `CityChunk._add_prop()` (instances + shapes + health); their shapes live on the chunk's
   `StreetProps` body, which routes `take_hit()` to the chunk. Physics props (trash cans) are
   `TrashCan` RigidBody3D nodes in the `physics_prop` group.
-- Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills), land
-  height and district for any world XZ. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
+- Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
+  port), land height and district for any world XZ. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
   the plan go through it. Chunks build water, sand or terrain for non-city zones. To start
   somewhere else for testing: web `?spawn=x,z,yaw,pitch`, desktop `-- --spawn=x,z,yaw,pitch`.
 - Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes

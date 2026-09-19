@@ -165,6 +165,10 @@ static func lifeguard_ramp() -> Mesh:
 	return box("lifeguard_ramp", Vector3(1.0, 0.1, 4.2), Color(0.8, 0.78, 0.7))
 
 
+static func container() -> Mesh:
+	return box("container", Vector3(12.0, 2.6, 2.4), Color(0.9, 0.9, 0.9))
+
+
 static func unit_box() -> Mesh:
 	return box("unit_box", Vector3.ONE, Color(0.9, 0.9, 0.9))
 

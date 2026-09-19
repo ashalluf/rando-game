@@ -25,6 +25,12 @@ static func all() -> Array[Dictionary]:
 		{"id": "sign", "anchor": Vector2(0.0, -1180.0), "radius": 400.0},
 		{"id": "pier", "anchor": Vector2(-940.0, -350.0), "radius": 200.0},
 		{"id": "observatory", "anchor": Vector2(260.0, -1320.0), "radius": 60.0},
+		{"id": "crown_tower", "anchor": Vector2(700.0, 250.0), "radius": 34.0},
+		{"id": "five_drums", "anchor": Vector2(590.0, 340.0), "radius": 42.0},
+		{"id": "ziggurat_hall", "anchor": Vector2(810.0, 160.0), "radius": 40.0},
+		{"id": "stack_tower", "anchor": Vector2(640.0, 150.0), "radius": 26.0},
+		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
+		{"id": "cargo_ship", "anchor": Vector2(800.0, 1420.0), "radius": 100.0},
 	]
 
 
@@ -46,6 +52,18 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			_build_pier(lm.anchor, parent, statics, plan, detailed)
 		"observatory":
 			_build_observatory(lm.anchor, parent, statics, plan, detailed)
+		"crown_tower":
+			_build_crown_tower(lm.anchor, parent, statics, detailed)
+		"five_drums":
+			_build_five_drums(lm.anchor, parent, statics, detailed)
+		"ziggurat_hall":
+			_build_ziggurat_hall(lm.anchor, parent, statics, detailed)
+		"stack_tower":
+			_build_stack_tower(lm.anchor, parent, statics, detailed)
+		"terminal":
+			_build_terminal(lm.anchor, parent, statics, detailed)
+		"cargo_ship":
+			_build_cargo_ship(lm.anchor, parent, statics, detailed)
 
 
 # --- Hill sign ------------------------------------------------------------------------------
@@ -248,6 +266,196 @@ static func _build_observatory(anchor: Vector2, parent: Node3D, statics: StaticB
 		scope.rotation.x = -0.3
 
 
+# --- Downtown skyline -----------------------------------------------------------------------
+
+const GLASS_DARK := Color(0.16, 0.24, 0.36)
+const GLASS_GREEN := Color(0.14, 0.30, 0.30)
+const PLINTH := Color(0.62, 0.60, 0.58)
+
+## The tallest tower: square shaft, glass, a lit crown of fins and a spire.
+static func _build_crown_tower(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.25, anchor.y)
+	_facade_box(parent, statics, Vector3(44.0, 14.0, 44.0), base + Vector3(0.0, 7.0, 0.0), PLINTH, Building.Finish.PANELS, Building.WindowStyle.RIBBON, 6.0)
+	_facade_box(parent, statics, Vector3(34.0, 190.0, 34.0), base + Vector3(0.0, 14.0 + 95.0, 0.0), GLASS_DARK, Building.Finish.GLASS, Building.WindowStyle.CURTAIN, 0.0)
+	var top := base.y + 204.0
+	# Crown: a ring of fins and a glowing band.
+	var fins := 16 if detailed else 8
+	for i in fins:
+		var a := TAU * i / fins
+		var fin := _box(parent, null, Vector3(1.2, 14.0, 3.0), Vector3(base.x + cos(a) * 19.0, top + 7.0, base.z + sin(a) * 19.0), Color(0.9, 0.9, 0.92), false)
+		fin.rotation.y = -a
+	var band := _box(parent, null, Vector3(36.0, 1.5, 36.0), Vector3(base.x, top + 14.5, base.z), Color(1.0, 0.85, 0.5), false)
+	band.material_override = WeaponFX.unshaded(Color(1.0, 0.85, 0.5))
+	_cyl(parent, statics, 1.0, 40.0, Vector3(base.x, top + 34.0, base.z), Color(0.8, 0.8, 0.82))
+	if statics:
+		_shape(statics, Vector3(38.0, 16.0, 38.0), Vector3(base.x, top + 8.0, base.z))
+
+
+## Five mirrored glass cylinders on a shared podium.
+static func _build_five_drums(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.25, anchor.y)
+	_facade_box(parent, statics, Vector3(80.0, 18.0, 80.0), base + Vector3(0.0, 9.0, 0.0), PLINTH, Building.Finish.PANELS, Building.WindowStyle.RIBBON, 6.0)
+	var mirror := Color(0.55, 0.65, 0.75)
+	_mirror_cyl(parent, statics, 15.0, 120.0, base + Vector3(0.0, 18.0 + 60.0, 0.0), mirror)
+	for dx: float in [-1.0, 1.0]:
+		for dz: float in [-1.0, 1.0]:
+			_mirror_cyl(parent, statics, 11.0, 88.0, base + Vector3(dx * 26.0, 18.0 + 44.0, dz * 26.0), mirror)
+	if detailed:
+		# Floor rings on the central drum.
+		for i in 6:
+			_cyl(parent, null, 15.6, 0.6, base + Vector3(0.0, 18.0 + 18.0 * (i + 1), 0.0), Color(0.3, 0.32, 0.36))
+
+
+## A civic tower with a stepped pyramid on top.
+static func _build_ziggurat_hall(anchor: Vector2, parent: Node3D, statics: StaticBody3D, _detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.25, anchor.y)
+	var stone := Color(0.85, 0.80, 0.70)
+	_facade_box(parent, statics, Vector3(76.0, 22.0, 60.0), base + Vector3(0.0, 11.0, 0.0), stone, Building.Finish.PANELS, Building.WindowStyle.NARROW, 6.0)
+	_facade_box(parent, statics, Vector3(26.0, 96.0, 26.0), base + Vector3(0.0, 22.0 + 48.0, 0.0), stone, Building.Finish.PANELS, Building.WindowStyle.NARROW, 0.0)
+	var y := base.y + 118.0
+	var w := 26.0
+	for i in 4:
+		w -= 5.0
+		_box(parent, statics, Vector3(w, 5.0, w), Vector3(base.x, y + 2.5, base.z), stone.darkened(0.05 * i), true)
+		y += 5.0
+	_cyl(parent, null, 0.6, 12.0, Vector3(base.x, y + 6.0, base.z), Color(0.8, 0.8, 0.82))
+
+
+## A round tower with overhanging floor discs and a needle.
+static func _build_stack_tower(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.25, anchor.y)
+	var cream := Color(0.92, 0.90, 0.84)
+	var floors := 13
+	var floor_h := 4.6
+	_cyl(parent, statics, 12.0, floors * floor_h, base + Vector3(0.0, floors * floor_h * 0.5, 0.0), Color(0.18, 0.28, 0.36))
+	var discs := floors if detailed else floors / 2
+	for i in discs:
+		var step := floors / float(discs)
+		_cyl(parent, null, 14.5, 0.9, base + Vector3(0.0, (i + 1) * step * floor_h, 0.0), cream)
+	var top := base.y + floors * floor_h
+	_cyl(parent, statics, 5.0, 4.0, base + Vector3(0.0, top - base.y + 2.0, 0.0), cream)
+	_cyl(parent, null, 0.5, 30.0, Vector3(base.x, top + 19.0, base.z), Color(0.85, 0.2, 0.2))
+	var beacon := _box(parent, null, Vector3(1.2, 1.2, 1.2), Vector3(base.x, top + 34.5, base.z), Color(1.0, 0.2, 0.2), false)
+	beacon.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
+
+
+# --- Airport terminal and cargo ship ---------------------------------------------------------
+
+## Terminal hall, control tower, and a saucer-shaped restaurant on crossed arches.
+static func _build_terminal(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.1, anchor.y)
+	_facade_box(parent, statics, Vector3(160.0, 12.0, 40.0), base + Vector3(0.0, 6.0, -60.0), Color(0.80, 0.80, 0.78), Building.Finish.PANELS, Building.WindowStyle.RIBBON, 0.0)
+	# Control tower.
+	_cyl(parent, statics, 4.0, 46.0, base + Vector3(-100.0, 23.0, -60.0), Color(0.85, 0.85, 0.83))
+	_cyl(parent, statics, 9.0, 6.0, base + Vector3(-100.0, 49.0, -60.0), Color(0.25, 0.4, 0.55))
+	_cyl(parent, null, 9.5, 0.8, base + Vector3(-100.0, 52.4, -60.0), Color(0.85, 0.85, 0.83))
+	# Saucer restaurant on four crossed arches.
+	var sc := base + Vector3(0.0, 0.0, -10.0)
+	for i in 4:
+		var a := PI * 0.25 + i * PI * 0.5
+		var leg := _box(parent, null, Vector3(2.0, 34.0, 2.0), sc + Vector3(cos(a) * 12.0, 15.0, sin(a) * 12.0), Color(0.92, 0.92, 0.9), false)
+		leg.rotation.z = -cos(a) * 0.55
+		leg.rotation.x = sin(a) * 0.55
+	_cyl(parent, statics, 2.5, 28.0, sc + Vector3(0.0, 14.0, 0.0), Color(0.6, 0.6, 0.62))
+	_cyl(parent, statics, 14.0, 4.0, sc + Vector3(0.0, 28.0, 0.0), Color(0.92, 0.92, 0.9))
+	_cyl(parent, null, 12.0, 3.0, sc + Vector3(0.0, 31.5, 0.0), Color(0.25, 0.4, 0.55))
+	_dome(parent, null, 4.0, sc + Vector3(0.0, 33.0, 0.0), Color(0.92, 0.92, 0.9))
+	if not detailed:
+		return
+	# Two parked planes at the gates.
+	for i in 2:
+		_build_plane(base + Vector3(-45.0 + i * 70.0, 0.0, -25.0), parent, statics)
+
+
+static func _build_plane(at: Vector3, parent: Node3D, statics: StaticBody3D) -> void:
+	var white := Color(0.95, 0.95, 0.96)
+	var body := _cyl(parent, statics, 2.6, 38.0, at + Vector3(0.0, 3.6, 0.0), white)
+	body.rotation.x = PI * 0.5
+	_dome(parent, null, 2.6, at + Vector3(0.0, 3.6, -19.0), white).rotation.x = -PI * 0.5
+	var wing := _box(parent, statics, Vector3(40.0, 0.5, 6.0), at + Vector3(0.0, 2.8, 2.0), white, true)
+	wing.rotation.y = 0.15
+	_box(parent, null, Vector3(14.0, 0.4, 4.0), at + Vector3(0.0, 4.0, 17.0), white, false)
+	var fin := _box(parent, null, Vector3(0.5, 8.0, 5.0), at + Vector3(0.0, 8.0, 17.5), Color(0.9, 0.3, 0.2), false)
+	fin.rotation.x = 0.4
+	for side: float in [-1.0, 1.0]:
+		var engine := _cyl(parent, null, 1.3, 5.0, at + Vector3(side * 10.0, 1.9, 1.0), Color(0.35, 0.36, 0.4))
+		engine.rotation.x = PI * 0.5
+	for x: float in [0.0, -4.0, 4.0]:
+		_cyl(parent, null, 0.5, 1.2, at + Vector3(x * 0.5, 0.6, -10.0 if x == 0.0 else 4.0), Color(0.15, 0.15, 0.15))
+
+
+## A container ship moored in the harbor, bow pointing west.
+static func _build_cargo_ship(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var at := Vector3(anchor.x, 0.0, anchor.y)
+	var hull := Color(0.55, 0.15, 0.12)
+	_box(parent, statics, Vector3(180.0, 12.0, 30.0), at + Vector3(0.0, 2.0, 0.0), hull, true)
+	var bow := _box(parent, statics, Vector3(24.0, 12.0, 24.0), at + Vector3(-92.0, 2.0, 0.0), hull, true)
+	bow.rotation.y = PI * 0.25
+	_box(parent, statics, Vector3(182.0, 1.0, 32.0), at + Vector3(0.0, 8.5, 0.0), Color(0.3, 0.3, 0.32), true)
+	# Bridge at the stern, funnel, containers on deck.
+	_box(parent, statics, Vector3(14.0, 22.0, 26.0), at + Vector3(78.0, 20.0, 0.0), Color(0.92, 0.92, 0.9), true)
+	_box(parent, null, Vector3(16.0, 3.0, 28.0), at + Vector3(78.0, 32.0, 0.0), Color(0.25, 0.4, 0.55), false)
+	_cyl(parent, statics, 3.0, 10.0, at + Vector3(84.0, 36.0, 0.0), Color(0.85, 0.65, 0.2))
+	var colors := [Color(0.8, 0.25, 0.2), Color(0.2, 0.45, 0.75), Color(0.85, 0.6, 0.15), Color(0.3, 0.6, 0.35)]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4242
+	var stacks := 10 if detailed else 5
+	var stack_step := 14.0 if detailed else 28.0
+	for i in stacks:
+		var x := -70.0 + i * stack_step
+		for row in 3:
+			var z := (row - 1) * 8.0
+			var height := rng.randi_range(2, 4) if detailed else 3
+			for h in height:
+				_box(parent, null, Vector3(12.0, 2.6, 2.4 * 3.0), at + Vector3(x, 9.0 + 1.3 + h * 2.6, z), colors[rng.randi() % colors.size()], false)
+			if statics:
+				_shape(statics, Vector3(12.0, 2.6 * height, 7.2), at + Vector3(x, 9.0 + 1.3 * height, z))
+
+
+# --- Building-shader helpers -----------------------------------------------------------------
+
+## A box that uses the building shader so it gets windows and lit floors.
+static func _facade_box(parent: Node3D, statics: StaticBody3D, size: Vector3, pos: Vector3, facade: Color, finish: int, style: int, storefront: float) -> MeshInstance3D:
+	var mat := ShaderMaterial.new()
+	mat.shader = Building.SHADER
+	mat.set_shader_parameter("facade_color", facade)
+	mat.set_shader_parameter("accent_color", facade.darkened(0.55))
+	mat.set_shader_parameter("facade_finish", finish)
+	mat.set_shader_parameter("window_style", style)
+	mat.set_shader_parameter("window_tint", Color(0.4, 0.55, 0.7))
+	mat.set_shader_parameter("lit_color", Color(1.0, 0.85, 0.55))
+	mat.set_shader_parameter("lit_ratio", 0.45)
+	var pitch := 2.2
+	mat.set_shader_parameter("window_pitch_x", size.x / maxi(1, roundi(size.x / pitch)))
+	mat.set_shader_parameter("window_pitch_z", size.z / maxi(1, roundi(size.z / pitch)))
+	var bottom := pos.y - size.y * 0.5
+	var usable := size.y - storefront
+	mat.set_shader_parameter("floor_height", usable / maxi(1, roundi(usable / 3.6)))
+	mat.set_shader_parameter("ground_floor_height", bottom + storefront)
+	mat.set_shader_parameter("has_storefront", storefront > 0.0)
+	mat.set_shader_parameter("part_size", size)
+	mat.set_shader_parameter("seed", float(int(pos.x + pos.z * 7.0) % 1000))
+	var mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	mesh.mesh = box
+	mesh.material_override = mat
+	mesh.position = pos
+	parent.add_child(mesh)
+	if statics:
+		_shape(statics, size, pos)
+	return mesh
+
+
+static func _mirror_cyl(parent: Node3D, statics: StaticBody3D, radius: float, height: float, pos: Vector3, color: Color) -> void:
+	var mesh := _cyl(parent, statics, radius, height, pos, color)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = color
+	mat.metallic = 0.85
+	mat.roughness = 0.12
+	mesh.material_override = mat
+
+
 # --- Helpers --------------------------------------------------------------------------------
 
 static func _box(parent: Node3D, statics: StaticBody3D, size: Vector3, pos: Vector3, color: Color, collide: bool) -> MeshInstance3D:
@@ -285,7 +493,7 @@ static func _cyl(parent: Node3D, statics: StaticBody3D, radius: float, height: f
 	return mesh
 
 
-static func _dome(parent: Node3D, statics: StaticBody3D, radius: float, pos: Vector3, color: Color) -> void:
+static func _dome(parent: Node3D, statics: StaticBody3D, radius: float, pos: Vector3, color: Color) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = radius
@@ -304,6 +512,7 @@ static func _dome(parent: Node3D, statics: StaticBody3D, radius: float, pos: Vec
 		shape.shape = s
 		shape.position = pos
 		statics.add_child(shape)
+	return mesh
 
 
 static func _shape(statics: StaticBody3D, size: Vector3, pos: Vector3) -> void:
