@@ -1,0 +1,16 @@
+# Godot 4 cache and editor state
+.godot/
+.import/
+*.tmp
+
+# Exports and local-only files
+export_presets.cfg
+/build/
+/exports/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
