@@ -29,6 +29,8 @@ static func all() -> Array[Dictionary]:
 		{"id": "five_drums", "anchor": Vector2(590.0, 340.0), "radius": 42.0},
 		{"id": "ziggurat_hall", "anchor": Vector2(810.0, 160.0), "radius": 40.0},
 		{"id": "stack_tower", "anchor": Vector2(640.0, 150.0), "radius": 26.0},
+		{"id": "needle", "anchor": Vector2(770.0, 330.0), "radius": 30.0},
+		{"id": "twin_glass", "anchor": Vector2(600.0, 210.0), "radius": 46.0},
 		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
 		{"id": "cargo_ship", "anchor": Vector2(800.0, 1420.0), "radius": 100.0},
 	]
@@ -60,6 +62,10 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			_build_ziggurat_hall(lm.anchor, parent, statics, detailed)
 		"stack_tower":
 			_build_stack_tower(lm.anchor, parent, statics, detailed)
+		"needle":
+			_build_needle(lm.anchor, parent, statics, detailed)
+		"twin_glass":
+			_build_twin_glass(lm.anchor, parent, statics, detailed)
 		"terminal":
 			_build_terminal(lm.anchor, parent, statics, detailed)
 		"cargo_ship":
@@ -337,6 +343,52 @@ static func _build_stack_tower(anchor: Vector2, parent: Node3D, statics: StaticB
 	_cyl(parent, null, 0.5, 30.0, Vector3(base.x, top + 19.0, base.z), Color(0.85, 0.2, 0.2))
 	var beacon := _box(parent, null, Vector3(1.2, 1.2, 1.2), Vector3(base.x, top + 34.5, base.z), Color(1.0, 0.2, 0.2), false)
 	beacon.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
+
+
+## The tallest thing in town: a slim tapering glass needle, 320 m plus a 70 m mast.
+static func _build_needle(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.25, anchor.y)
+	_facade_box(parent, statics, Vector3(46.0, 10.0, 46.0), base + Vector3(0.0, 5.0, 0.0), PLINTH, Building.Finish.PANELS, Building.WindowStyle.RIBBON, 6.0)
+	var y := base.y + 10.0
+	var w := 30.0
+	var tiers := [110.0, 90.0, 70.0, 50.0]
+	for i in tiers.size():
+		var h: float = tiers[i]
+		_facade_box(parent, statics, Vector3(w, h, w), Vector3(base.x, y + h * 0.5, base.z), GLASS_GREEN, Building.Finish.GLASS, Building.WindowStyle.CURTAIN, 0.0)
+		y += h
+		w -= 5.0
+	# Crown: lit ring and a mast with a beacon.
+	var ring := _cyl(parent, null, w * 0.5 + 2.0, 1.2, Vector3(base.x, y + 0.6, base.z), Color(1.0, 0.9, 0.6))
+	ring.material_override = WeaponFX.unshaded(Color(1.0, 0.9, 0.6))
+	_cyl(parent, statics, 1.6, 70.0, Vector3(base.x, y + 35.0, base.z), Color(0.82, 0.82, 0.86))
+	var beacon := _box(parent, null, Vector3(1.5, 1.5, 1.5), Vector3(base.x, y + 70.8, base.z), Color(1.0, 0.2, 0.2), false)
+	beacon.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
+	if detailed:
+		for i in 8:
+			var a := TAU * i / 8
+			_box(parent, null, Vector3(0.8, 6.0, 2.0), Vector3(base.x + cos(a) * (w * 0.5 + 1.0), y + 3.5, base.z + sin(a) * (w * 0.5 + 1.0)), Color(0.9, 0.9, 0.92), false).rotation.y = -a
+
+
+## Twin glass towers on a shared podium, joined by a sky bridge near the top.
+static func _build_twin_glass(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.25, anchor.y)
+	_facade_box(parent, statics, Vector3(84.0, 16.0, 50.0), base + Vector3(0.0, 8.0, 0.0), PLINTH, Building.Finish.PANELS, Building.WindowStyle.RIBBON, 6.0)
+	var h := 210.0
+	for dx: float in [-1.0, 1.0]:
+		var cx := base.x + dx * 24.0
+		_facade_box(parent, statics, Vector3(28.0, h, 34.0), Vector3(cx, base.y + 16.0 + h * 0.5, base.z), GLASS_DARK, Building.Finish.GLASS, Building.WindowStyle.CURTAIN, 0.0)
+		# Crown fins and a short spire on each tower.
+		var top := base.y + 16.0 + h
+		_facade_box(parent, statics, Vector3(18.0, 9.0, 22.0), Vector3(cx, top + 4.5, base.z), GLASS_DARK, Building.Finish.GLASS, Building.WindowStyle.CURTAIN, 0.0)
+		_cyl(parent, null, 0.6, 26.0, Vector3(cx, top + 9.0 + 13.0, base.z), Color(0.85, 0.85, 0.88))
+		var tip := _box(parent, null, Vector3(0.8, 0.8, 0.8), Vector3(cx, top + 35.4, base.z), Color(1.0, 0.2, 0.15), false)
+		tip.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
+	# Sky bridge two-thirds up, glowing at night like a lit floor.
+	var bridge_y := base.y + 16.0 + h * 0.68
+	_facade_box(parent, statics, Vector3(22.0, 7.0, 12.0), Vector3(base.x, bridge_y, base.z), Color(0.75, 0.78, 0.82), Building.Finish.GLASS, Building.WindowStyle.RIBBON, 0.0)
+	if detailed:
+		for i in 3:
+			_box(parent, null, Vector3(22.0, 0.5, 0.4), Vector3(base.x, bridge_y - 3.5 + i * 3.4, base.z + 6.2), Color(0.3, 0.32, 0.36), false)
 
 
 # --- Airport terminal and cargo ship ---------------------------------------------------------

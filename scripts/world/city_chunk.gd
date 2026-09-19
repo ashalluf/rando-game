@@ -482,8 +482,10 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 		var building := BUILDING_SCENE.instantiate() as Building
 		building.seed = lot.seed
 		building.lot_size = lot.size
-		building.min_height = heights.x
-		building.max_height = heights.y
+		# Downtown core: the skyline climbs toward the center (supertalls in the middle).
+		var boost := plan.macro.skyline_boost(center) if plan.macro else 0.0
+		building.min_height = lerpf(heights.x, heights.x * 2.0, boost)
+		building.max_height = lerpf(heights.y, heights.y * 2.2, boost)
 		building.lit_ratio_range = params.lit
 		building.shape_options.assign(params.shapes)
 		building.finish_options.assign(params.finishes)

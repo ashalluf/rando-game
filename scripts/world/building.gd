@@ -5,7 +5,7 @@ extends StaticBody3D
 
 const SHADER: Shader = preload("res://shaders/building.gdshader")
 
-enum Shape { SLAB, TOWER, STEPPED, PODIUM_TOWER, L_SHAPE, WAREHOUSE }
+enum Shape { SLAB, TOWER, STEPPED, PODIUM_TOWER, L_SHAPE, SETBACK, CROWN, WAREHOUSE }
 enum WindowStyle { PUNCHED, RIBBON, CURTAIN, NARROW }
 enum Finish { FLAT, BRICK, PANELS, GLASS }
 
@@ -141,6 +141,28 @@ func _layout_parts() -> void:
 		Shape.WAREHOUSE:
 			var size := Vector3(lot.x * _rng.randf_range(0.85, 0.95), _rng.randf_range(h_lo, h_hi), lot.y * _rng.randf_range(0.85, 0.95))
 			_add_part(size, Vector2.ZERO, 0.0)
+		Shape.SETBACK:
+			# Classic setback skyscraper: 4-6 centered tiers, each a little narrower.
+			var tiers := _rng.randi_range(4, 6)
+			var total := _rng.randf_range(maxf(h_lo, 40.0), maxf(h_hi, 42.0))
+			var w := lot.x * _rng.randf_range(0.85, 1.0)
+			var d := lot.y * _rng.randf_range(0.85, 1.0)
+			var bottom := 0.0
+			for i in tiers:
+				var frac := 0.34 if i == 0 else (0.66 / (tiers - 1))
+				var tier_h := maxf(total * frac, 4.0)
+				_add_part(Vector3(w, tier_h, d), Vector2.ZERO, bottom)
+				bottom += tier_h
+				var shrink := _rng.randf_range(0.1, 0.2)
+				w *= 1.0 - shrink
+				d *= 1.0 - shrink
+		Shape.CROWN:
+			# Slim glass tower with a crown box and a spire (added as a roof prop).
+			var w := minf(lot.x, lot.y) * _rng.randf_range(0.55, 0.75)
+			var h := _rng.randf_range(maxf(h_lo, 50.0), maxf(h_hi, 52.0))
+			_add_part(Vector3(w, h, w * _rng.randf_range(0.85, 1.15)), Vector2.ZERO, 0.0)
+			var cw := w * _rng.randf_range(0.5, 0.7)
+			_add_part(Vector3(cw, _rng.randf_range(5.0, 9.0), cw), Vector2.ZERO, h)
 		Shape.L_SHAPE:
 			var h := _rng.randf_range(h_lo, minf(h_hi, 45.0))
 			var arm := _rng.randf_range(0.4, 0.55)
@@ -291,7 +313,9 @@ func _build_roof_props() -> void:
 				wants.append("bulkhead")
 			if _rng.randf() < 0.35 and height > 10.0:
 				wants.append("water_tower")
-			if _rng.randf() < 0.5 and height > 25.0:
+			if shape == Shape.CROWN or (height > 140.0 and _rng.randf() < 0.7):
+				wants.append("spire")
+			elif _rng.randf() < 0.5 and height > 25.0:
 				wants.append("antenna")
 			if _rng.randf() < 0.35 and height < 35.0 and area.x > 8.0:
 				wants.append("billboard")
@@ -315,6 +339,7 @@ func _prop_footprint(kind: String) -> Vector2:
 		"bulkhead": return Vector2(3.6, 3.6)
 		"water_tower": return Vector2(4.2, 4.2)
 		"antenna": return Vector2(1.0, 1.0)
+		"spire": return Vector2(2.0, 2.0)
 		"billboard": return Vector2(7.0, 1.5)
 		"vents": return Vector2(8.0, 1.6)
 	return Vector2.ONE
@@ -360,6 +385,14 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			_prop_cylinder(1.6, 3.0, Color(0.55, 0.38, 0.22), at + Vector3(0.0, 4.5, 0.0))
 			_prop_cylinder(1.75, 1.2, Color(0.4, 0.28, 0.18), at + Vector3(0.0, 6.6, 0.0), null, 0.0)
 			_prop_collision(Vector3(3.2, 7.2, 3.2), at + Vector3(0.0, 3.6, 0.0))
+		"spire":
+			# Skyline spire with a lit tip: base cone, long mast, blinking-red beacon.
+			var h := _rng.randf_range(0.18, 0.3) * maxf(height, 60.0)
+			_prop_cylinder(1.4, 3.0, Color(0.7, 0.7, 0.74), at + Vector3(0.0, 1.5, 0.0), null, 0.5)
+			_prop_cylinder(0.35, h, Color(0.8, 0.8, 0.84), at + Vector3(0.0, 3.0 + h * 0.5, 0.0), null, 0.08)
+			var tip := _prop_box(Vector3(0.6, 0.6, 0.6), Color(1.0, 0.2, 0.15), at + Vector3(0.0, 3.0 + h + 0.3, 0.0))
+			tip.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
+			_prop_collision(Vector3(2.8, 3.0, 2.8), at + Vector3(0.0, 1.5, 0.0))
 		"antenna":
 			var h := _rng.randf_range(6.0, 14.0)
 			_prop_cylinder(0.08, h, Color(0.75, 0.75, 0.78), at + Vector3(0.0, h * 0.5, 0.0))

@@ -86,6 +86,12 @@ func zone_at(pos: Vector2) -> Zone:
 	return Zone.CITY
 
 
+## 1 at the heart of downtown, 0 at its edge: lots there get much taller buildings.
+func skyline_boost(pos: Vector2) -> float:
+	var dd := pos.distance_to(downtown_center)
+	return smoothstep(downtown_radius, downtown_radius * 0.3, dd)
+
+
 func district_at(pos: Vector2) -> CityPlan.District:
 	var dd := pos.distance_to(downtown_center)
 	if dd < downtown_radius:

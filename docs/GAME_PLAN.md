@@ -147,6 +147,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 GTA-style skyline (map-character batch, part 2).** Downtown lots now get a
+  height boost toward the center (`MacroMap.skyline_boost()`: min x2, max x2.2 at the core, so
+  50-140 m becomes 100-300 m in the middle), denser lots (28-46 m, 2-5 m gaps) and mostly glass.
+  Two new `Building.Shape`s: SETBACK (4-6 centered tiers) and CROWN (slim tower + crown box +
+  spire). A "spire" roof prop (mast with a red beacon) goes on CROWN towers and most buildings
+  over 140 m. Two signature landmarks: `needle` (tapering 320 m glass tower, lit crown ring, 70 m
+  mast at (770, 330)) and `twin_glass` (two 210 m towers with a sky bridge at (600, 210)). The
+  spawn override takes an optional fifth value, height, for aerial views.
+
 - **2026-09-19 Picturesque sky (owner's "make the sky gorgeous", part 1 of the map-character
   batch).** `shaders/sky.gdshader` replaces the ProceduralSkyMaterial: zenith-to-horizon
   gradient with haze, a real sun disc and halo from LIGHT0 (the same light is the moon at night,

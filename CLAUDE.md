@@ -192,7 +192,7 @@ tests/                 headless smoke test and check script
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
   port), land height and district for any world XZ. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
   the plan go through it. Chunks build water, sand or terrain for non-city zones. To start
-  somewhere else for testing: web `?spawn=x,z,yaw,pitch`, desktop `-- --spawn=x,z,yaw,pitch`.
+  somewhere else for testing: web `?spawn=x,z,yaw,pitch[,y]`, desktop `-- --spawn=x,z,yaw,pitch[,y]`.
 - Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes
   one, detailed (with a StaticBody3D for shapes) or far (no collision). Add a new one by adding an
   entry and a `_build_<id>()` function. Everything original: no real names, logos or copies.

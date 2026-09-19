@@ -154,6 +154,8 @@ func _apply_spawn_override() -> void:
 	if parts.size() >= 2:
 		wp = Vector2(parts[0].to_float(), parts[1].to_float())
 		var y := plan.height_at(wp) + 2.0
+		if parts.size() >= 5:
+			y = parts[4].to_float() # optional height, for aerial views
 		_player.global_position = Vector3(wp.x, y, wp.y)
 		if _player.has_method("respawn"):
 			_player.set("_spawn_transform", _player.global_transform)

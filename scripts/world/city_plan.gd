@@ -15,9 +15,9 @@ const AXIS_Z := 1
 ## Parameter ranges per district. Heights and lots in meters.
 const DISTRICTS := {
 	District.DOWNTOWN: {
-		"height": Vector2(40.0, 120.0), "lot": Vector2(26.0, 40.0), "gap": Vector2(3.0, 6.0),
-		"shapes": [Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.STEPPED, Building.Shape.SLAB],
-		"finishes": [Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS],
+		"height": Vector2(50.0, 140.0), "lot": Vector2(28.0, 46.0), "gap": Vector2(2.0, 5.0),
+		"shapes": [Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN, Building.Shape.CROWN, Building.Shape.STEPPED],
+		"finishes": [Building.Finish.GLASS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS],
 		"lit": Vector2(0.3, 0.6), "park": 0.05, "plaza": 0.12, "trees": 0.35, "courtyard": 0.5,
 	},
 	District.MIDTOWN: {
