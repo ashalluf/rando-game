@@ -345,6 +345,40 @@ func _build_block(block: Dictionary) -> void:
 			_build_lots(rect, params, rng)
 	if level == Level.FULL:
 		_build_sidewalk_props(rect, params, rng)
+		_park_cars(rect, rng)
+
+
+## Parked cars in the lanes of this chunk's two roads, nose along the road.
+func _park_cars(rect: Rect2, rng: RandomNumberGenerator) -> void:
+	var max_cars: int = style.cars_per_block
+	if max_cars <= 0:
+		return
+	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)
+	var wx := plan.road_width(CityPlan.AXIS_X, ix + 1)
+	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
+	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
+	var spots: Array = []
+	for side: float in [-1.0, 1.0]:
+		var x := rx + side * (wx * 0.5 - 2.2)
+		var t := rect.position.y + 8.0
+		while t < rect.end.y - 8.0:
+			spots.append([Vector3(x, 0.4, t), 0.0, side])
+			t += 8.0
+		var z := rz + side * (wz * 0.5 - 2.2)
+		t = rect.position.x + 8.0
+		while t < rect.end.x - 8.0:
+			spots.append([Vector3(t, 0.4, z), PI * 0.5, side])
+			t += 8.0
+	spots.shuffle()
+	var count := 0
+	for spot in spots:
+		if count >= max_cars or rng.randf() > 0.35 or not PhysicsBudget.can_spawn():
+			continue
+		var car := Vehicle.random_car(rng)
+		car.position = spot[0]
+		car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
+		add_child(car)
+		count += 1
 
 
 ## Lot layout is shared by FULL and LOD so both see the same buildings.

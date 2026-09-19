@@ -132,8 +132,11 @@ tests/                 headless smoke test and check script
   (`scripts/util/world_state.gd`).
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
-  `next_weapon`, `prev_weapon`, `weapon_1..3`, `respawn`, `toggle_mouse`, `toggle_hud`. Add new
-  actions there. There is no sprint; boost replaced it.
+  `next_weapon`, `prev_weapon`, `weapon_1..3`, `interact` (E / gamepad Y), `respawn`,
+  `toggle_mouse`, `toggle_hud`. Add new actions there. There is no sprint; boost replaced it.
+- Vehicles: `Vehicle` (`scripts/vehicles/vehicle.gd`), a VehicleBody3D built in code;
+  `Vehicle.random_car(rng)` for a seeded one. Handling numbers are exports at the top. The player's
+  `enter_vehicle()` / `exit_vehicle()` handle riding; the car reads input while `driver` is set.
 - Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is

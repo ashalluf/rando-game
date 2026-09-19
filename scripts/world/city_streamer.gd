@@ -36,6 +36,8 @@ extends Node3D
 @export var lamp_spacing: float = 24.0
 @export var tree_spacing: float = 12.0
 @export var trash_cans_per_block: int = 2
+## Parked cars per block (physics bodies; count against the PhysicsBudget cap).
+@export var cars_per_block: int = 5
 
 @export_group("Look")
 @export var sun_rotation_degrees: Vector3 = Vector3(-48.0, 35.0, 0.0)
@@ -237,6 +239,7 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 		"hill_grass": hill_grass_color, "hill_rock": hill_rock_color,
 		"tarmac": tarmac_color, "runway": runway_color, "concrete": concrete_color,
 		"lamp_spacing": lamp_spacing, "tree_spacing": tree_spacing, "trash_cans_per_block": trash_cans_per_block,
+		"cars_per_block": cars_per_block,
 	}
 	add_child(chunk)
 	chunk.build()

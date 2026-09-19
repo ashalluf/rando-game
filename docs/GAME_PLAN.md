@@ -26,7 +26,7 @@ Build in this order, one milestone per PR or a few PRs.
 - [x] **5. Chunk streaming.** Generate chunks around the player and free distant ones. Cheap box
   LODs for the far skyline. Persist a list of destroyed objects per chunk so destruction survives
   leaving and returning. Origin re-centering to avoid floating-point jitter far from the origin.
-- [ ] **6. Vehicles.** Drivable cars using VehicleBody3D with bouncy, overpowered arcade handling.
+- [x] **6. Vehicles.** Drivable cars using VehicleBody3D with bouncy, overpowered arcade handling.
   Enter and exit. Modular car variety: a few body types, random paint, small add-ons. Parked cars
   spawned by the city generator.
 - [ ] **7. NPCs and traffic.** Simple wandering pedestrians that ragdoll when hit, basic traffic
@@ -51,7 +51,15 @@ Build in this order, one milestone per PR or a few PRs.
 
 ## Current state
 
-Milestones 1 to 5 are in, plus the first push of the west-coast map.
+Milestones 1 to 6 are in, plus the west-coast map with its landmarks.
+
+Vehicles: `Vehicle` (`scripts/vehicles/vehicle.gd`) is a VehicleBody3D built from boxes in code
+with four body types (sedan, pickup, van, sports), ten paints and three add-ons (roof rack,
+spoiler, light bar). Handling is arcade: 7000 N engine, 2.2x nitro on boost, grippy wheels, soft
+bouncy suspension, steering that tightens at speed, air torque for flips and rolls, and a
+self-righting torque when stuck upside down. Chunks park up to `cars_per_block` cars in the
+lanes. Press interact (E / gamepad Y) near a car to get in; the player rides the seat and the
+camera follows; interact again to get out. Weapons are hidden while driving.
 
 `MacroMap` (`scripts/world/macro_map.gd`) is the big picture: ocean west of a curving coastline
 (x about -900 at the origin), a 70 m beach with palms and lifeguard towers, mountains north of
@@ -118,6 +126,14 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Driving keeps the player node alive in the seat.** On enter the player hides,
+  drops its collision layers and copies the car's seat position every tick, so the camera rig,
+  HUD and re-centering all keep working unchanged. The car reads input directly while it has a
+  driver. Exit places the player beside the car with half its velocity.
+- **2026-09-19 Cars are physics props.** They join `physics_prop`, count against the PhysicsBudget
+  cap and get frozen far away like crates. Cars in unloaded chunks are freed with the chunk; a car
+  you drive out of its chunk stays alive because the chunk is loaded around you.
 
 - **2026-09-19 Airport and port are zones, landmarks are points.** Big flat areas (runways,
   container yards, the harbor water) are `MacroMap` rects that every chunk inside builds

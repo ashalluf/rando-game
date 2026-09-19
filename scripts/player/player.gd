@@ -60,11 +60,15 @@ const BLAST_MASK := 2 | 4
 @export var aim_hold_time: float = 1.5
 ## Falling below this Y respawns the player at the start position.
 @export var kill_y: float = -60.0
+## How close a car has to be to get in (meters).
+@export var enter_range: float = 4.5
 
 ## Height (relative to takeoff) reached by the last jump. Shown on the debug HUD.
 var last_jump_peak: float = 0.0
 ## Remaining mid-air jumps.
 var air_jumps_left: int = 0
+## The car being driven, or null.
+var vehicle: Vehicle
 
 var _coyote_timer: float = 0.0
 var _jump_buffer_timer: float = 0.0
@@ -88,6 +92,21 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if Input.is_action_just_pressed("interact"):
+		if vehicle:
+			exit_vehicle()
+		else:
+			_try_enter_vehicle()
+	if vehicle:
+		# Riding along: the car does the physics, we just sit in the seat.
+		global_position = vehicle.seat_position()
+		velocity = vehicle.linear_velocity
+		_boosting = Input.is_action_pressed("boost")
+		_boost_fx.emitting = false
+		if global_position.y < kill_y or Input.is_action_just_pressed("respawn"):
+			exit_vehicle()
+			respawn()
+		return
 	var on_floor := is_on_floor()
 	if on_floor:
 		_takeoff_y = global_position.y
@@ -127,6 +146,53 @@ func is_boosting() -> bool:
 
 func horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
+
+
+func _try_enter_vehicle() -> void:
+	var best: Vehicle = null
+	var best_d := enter_range
+	for node in get_tree().get_nodes_in_group("vehicle"):
+		var car := node as Vehicle
+		if car == null or car.driver != null:
+			continue
+		var d := car.global_position.distance_to(global_position)
+		if d < best_d:
+			best_d = d
+			best = car
+	if best:
+		enter_vehicle(best)
+
+
+func enter_vehicle(car: Vehicle) -> void:
+	vehicle = car
+	car.driver = self
+	car.freeze = false
+	car.sleeping = false
+	visible = false
+	collision_layer = 0
+	collision_mask = 0
+	if weapon_manager:
+		weapon_manager.visible = false
+	global_position = car.seat_position()
+
+
+func exit_vehicle() -> void:
+	if vehicle == null:
+		return
+	var car := vehicle
+	vehicle = null
+	car.driver = null
+	visible = true
+	collision_layer = 2
+	collision_mask = 5
+	if weapon_manager:
+		weapon_manager.visible = true
+	global_position = car.exit_position()
+	velocity = car.linear_velocity * 0.5
+
+
+func is_driving() -> bool:
+	return vehicle != null
 
 
 ## The world was shifted by `offset` (origin re-centering); keep the spawn point in sync.

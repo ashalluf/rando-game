@@ -244,6 +244,34 @@ func _test_city() -> void:
 		var port_chunk: Node3D = city.chunks.get(plan.block_index_at(port))
 		_check(port_chunk != null and port_chunk.zone == MacroMap.Zone.PORT and port_chunk.has_node("Batch_container"), "port chunk has container stacks")
 
+	# Cars: parked in the streets, drivable.
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	await _ticks(10)
+	var cars := get_nodes_in_group("vehicle")
+	_check(cars.size() >= 5, "parked cars spawned (%d)" % cars.size())
+	if cars.size() > 0:
+		var car: Node3D = cars[0]
+		var types := {}
+		for c in cars:
+			types[c.body_type] = true
+		_check(types.size() >= 2, "cars come in %d body types" % types.size())
+		player.global_position = car.global_position + Vector3(2.5, 0.5, 0.0)
+		player.velocity = Vector3.ZERO
+		await _ticks(5)
+		await _press("interact")
+		_check(player.is_driving() and player.vehicle == car, "interact gets into the nearest car")
+		var start: Vector3 = car.global_position
+		Input.action_press("move_forward")
+		await _ticks(120)
+		Input.action_release("move_forward")
+		var driven: float = car.global_position.distance_to(start)
+		_check(driven > 8.0, "car drives forward %.1f m in 2 s" % driven)
+		await _ticks(30)
+		await _press("interact")
+		_check(not player.is_driving() and player.visible and player.global_position.distance_to(car.global_position) < 5.0, "interact gets out next to the car")
+
 	# Same seed, same plan.
 	var a := CityPlan.new()
 	a.seed = 777

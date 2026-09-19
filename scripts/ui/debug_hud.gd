@@ -11,9 +11,10 @@ var _player: Player
 func _ready() -> void:
 	if OS.has_feature("web"):
 		hints.text = "Click the game to grab the mouse.\n"
-	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look\n" \
+	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look   E get in / out of a car\n" \
 		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc release mouse   F1 hide\n" \
-		+ "Gamepad: left stick move   B boost   A jump   right stick look   RT fire   LT drop   LB / RB switch   Back respawn"
+		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space handbrake   in the air W / S flip, A / D roll\n" \
+		+ "Gamepad: left stick move   B boost   A jump   Y car   right stick look   RT fire   LT drop   LB / RB switch   Back respawn"
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -32,6 +33,8 @@ func _process(_delta: float) -> void:
 	var bodies: int = budget.active_body_count() if budget else 0
 	var frozen: int = budget.frozen_count if budget else 0
 	var state := "on floor" if _player.is_on_floor() else "airborne"
+	if _player.is_driving():
+		state = "driving %s" % _player.vehicle.display_name()
 	if _player.is_boosting():
 		state += "  BOOST"
 	stats.text = "FPS %d   speed %.1f m/s   vertical %+.1f m/s   %s   air jumps %d\n" % [

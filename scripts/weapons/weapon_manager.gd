@@ -39,6 +39,8 @@ func current_index() -> int:
 
 
 func _physics_process(delta: float) -> void:
+	if _player and _player.is_driving():
+		return
 	if Input.is_action_just_pressed("weapon_1"):
 		equip(0)
 	elif Input.is_action_just_pressed("weapon_2"):
