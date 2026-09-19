@@ -46,6 +46,7 @@ func _fire(aim: Dictionary) -> void:
 		dir = dir.rotated(Vector3.UP, randf_range(-spread, spread))
 	fire_ray(aim.origin, dir)
 	WeaponFX.flash(self, muzzle.global_position)
+	Sfx.play("shot", muzzle.global_position, -4.0)
 
 
 ## Fires one hitscan bullet from `from` along `dir`. Public so tests can call it.

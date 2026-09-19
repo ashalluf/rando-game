@@ -32,6 +32,8 @@ uniform bool has_storefront = true;
 // Size of this box part (meters). Needed to find the face edges and the roof parapet.
 uniform vec3 part_size = vec3(10.0, 20.0, 10.0);
 uniform float seed = 0.0;
+// 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
+global uniform float night_factor;
 
 varying vec3 local_pos;
 varying vec3 local_normal;
@@ -128,10 +130,11 @@ void fragment() {
 			metal = 0.55;
 			if (lit) {
 				float glow = 0.55 + 0.45 * hash31(vec3(col + 3.0, row + 7.0, face_id + seed));
-				albedo = mix(albedo, lit_color, 0.7);
-				emission = lit_color * glow * lit_strength;
-				metal = 0.0;
-				rough = 0.5;
+				float on = 0.12 + 0.88 * night_factor;
+				albedo = mix(albedo, lit_color, 0.7 * on);
+				emission = lit_color * glow * lit_strength * on;
+				metal = mix(metal, 0.0, on);
+				rough = mix(rough, 0.5, on);
 			}
 		} else if (frame) {
 			albedo = accent_color;

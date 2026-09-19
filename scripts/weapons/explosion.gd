@@ -44,4 +44,5 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 			collider.take_hit(result.get("shape", -1), 120.0 * falloff, dir)
 			affected += 1
 	WeaponFX.explosion(node, at, radius)
+	Sfx.play("explosion", at, 4.0)
 	return affected

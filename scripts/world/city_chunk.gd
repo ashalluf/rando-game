@@ -353,7 +353,10 @@ func _spawn_pedestrians(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var count: int = style.pedestrians_per_block
 	if count <= 0:
 		return
-	var existing := get_tree().get_nodes_in_group("pedestrian").size()
+	var existing := 0
+	for n in get_tree().get_nodes_in_group("pedestrian"):
+		if not n.is_queued_for_deletion():
+			existing += 1
 	var cap: int = style.max_pedestrians
 	for i in count:
 		if existing >= cap:
@@ -492,6 +495,29 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	for dx: float in [-1.0, 1.0]:
 		for dz: float in [-1.0, 1.0]:
 			_add_lamp(Vector3(center.x + dx * (path_w * 0.5 + 1.0), SIDEWALK_TOP + 0.04, center.y + dz * (path_w * 0.5 + 1.0)))
+	# Bushes and grass.
+	for i in rng.randi_range(6, 14):
+		var p := Vector2(rng.randf_range(inner.position.x + 2.0, inner.end.x - 2.0), rng.randf_range(inner.position.y + 2.0, inner.end.y - 2.0))
+		if absf(p.x - center.x) < path_w + 1.0 or absf(p.y - center.y) < path_w + 1.0:
+			continue
+		_add_bush(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), rng)
+	var blades: int = style.grass_per_park
+	for i in blades:
+		var p := Vector2(rng.randf_range(inner.position.x + 1.0, inner.end.x - 1.0), rng.randf_range(inner.position.y + 1.0, inner.end.y - 1.0))
+		if absf(p.x - center.x) < path_w * 0.5 + 0.3 or absf(p.y - center.y) < path_w * 0.5 + 0.3:
+			continue
+		var sc := rng.randf_range(0.7, 1.5)
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
+		var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
+		_batch.add("grass", PropFactory.grass_blade(), Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
+	_batch.set_no_shadow("grass")
+
+
+func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
+	var sc := rng.randf_range(0.7, 1.6)
+	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.8, 1.3), sc * rng.randf_range(0.7, 1.1), sc))
+	var tint := Color(rng.randf_range(0.8, 1.15), rng.randf_range(0.85, 1.15), rng.randf_range(0.8, 1.0))
+	_batch.add("bush", PropFactory.bush(), Transform3D(basis, at + Vector3(0.0, 0.5 * sc, 0.0)), tint)
 
 
 func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
@@ -549,6 +575,9 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			if rng.randf() < tree_chance and fmod(t, lamp_spacing) > 3.0:
 				var p := a + dir * t + inward * 1.6
 				_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
+			elif rng.randf() < tree_chance * 0.5:
+				var p := a + dir * (t + tree_spacing * 0.4) + inward * 2.2
+				_add_bush(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
 			t += tree_spacing
 		if e == hydrant_edge:
 			var p := a + dir * rng.randf_range(6.0, length - 6.0) + inward
@@ -665,6 +694,7 @@ func break_prop(record: Dictionary, hit_dir: Vector3 = Vector3.UP) -> void:
 		if is_instance_valid(shape):
 			shape.queue_free()
 	WorldState.mark_destroyed(key, record.id)
+	Sfx.play("break", record.position)
 	_spawn_debris(record.position, record.color, hit_dir)
 
 

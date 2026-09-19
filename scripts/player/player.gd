@@ -78,6 +78,7 @@ var _current_peak: float = 0.0
 var _spawn_transform: Transform3D
 var _boosting: bool = false
 var _boost_fx: CPUParticles3D
+var _boost_sound: AudioStreamPlayer3D
 
 @onready var visual: Node3D = $Visual
 @onready var camera_rig: Node3D = $CameraRig
@@ -89,6 +90,8 @@ func _ready() -> void:
 	_spawn_transform = global_transform
 	air_jumps_left = max_air_jumps
 	_build_boost_fx()
+	_boost_sound = Sfx.loop_player("boost_loop", -10.0)
+	add_child(_boost_sound)
 
 
 func _physics_process(delta: float) -> void:
@@ -129,6 +132,12 @@ func _physics_process(delta: float) -> void:
 	_track_jump_peak(on_floor, is_on_floor())
 	_update_visual(delta, move_dir)
 	_boost_fx.emitting = _boosting
+	if _boosting and not _boost_sound.playing:
+		_boost_sound.play()
+	elif not _boosting and _boost_sound.playing:
+		_boost_sound.stop()
+	if is_on_floor() and not on_floor and velocity.length() > 1.0:
+		Sfx.play("land", global_position, -6.0)
 
 	if global_position.y < kill_y or Input.is_action_just_pressed("respawn"):
 		respawn()
@@ -325,6 +334,7 @@ func _handle_jump(on_floor: bool) -> void:
 
 func _do_jump(vertical_speed: float) -> void:
 	velocity.y = vertical_speed
+	Sfx.play("jump", global_position, -8.0)
 	_jump_buffer_timer = 0.0
 	_coyote_timer = 0.0
 

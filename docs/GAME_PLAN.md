@@ -31,7 +31,7 @@ Build in this order, one milestone per PR or a few PRs.
   spawned by the city generator.
 - [x] **7. NPCs and traffic.** Simple wandering pedestrians that ragdoll when hit, basic traffic
   following road lanes. Strict caps on active counts.
-- [ ] **8. Foliage and polish.** Code-generated low-poly trees and bushes with random variation,
+- [x] **8. Foliage and polish.** Code-generated low-poly trees and bushes with random variation,
   MultiMesh grass with a wind shader in parks, day/night cycle, sound effects, pause menu with a
   seed input field.
 
@@ -51,7 +51,17 @@ Build in this order, one milestone per PR or a few PRs.
 
 ## Current state
 
-Milestones 1 to 7 are in, plus the west-coast map with its landmarks.
+All eight roadmap milestones are in, plus the west-coast map with its landmarks.
+
+Polish: parks get `grass_per_park` (2500) grass blades in a MultiMesh with `shaders/grass.gdshader`
+(wind sway from TIME, per-blade phase in INSTANCE_CUSTOM) and bushes; suburbs get bushes along the
+sidewalks. `DayNight` (`scripts/world/day_night.gd`, a node in the city scene) runs a 480 s day
+from 09:00, moves the sun, tints sky and fog, and sets the `night_factor` shader global that makes
+building windows glow (lamp heads are always emissive). `Sfx` autoload synthesizes every sound at
+startup (no audio files): shot, rocket, explosion, grab, launch, jump, land, thud, break, yelp,
+boost loop, engine loop. `PauseMenu` (Esc) pauses, releases the mouse, and has a seed field:
+Rebuild sets `WorldState.pending_seed` and reloads the scene. HUD shows the clock. Debug:
+`?hour=21` on the web or `-- --hour=21` on desktop.
 
 NPCs: `Pedestrian` (`scripts/npc/pedestrian.gd`) is a CharacterBody3D that wanders between random
 points on its block's sidewalk ring; chunks spawn `pedestrians_per_block` up to `max_pedestrians`
@@ -136,6 +146,17 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 The smoke test is a scene, not a script.** Running it with `-s` compiled it before
+  autoloads existed, which broke the moment Player referenced `Sfx`. `tests/smoke_test.tscn` runs
+  as the main scene so every autoload is ready; it has a 300 s watchdog and the check script has a
+  hard timeout, so a broken test fails instead of hanging CI.
+- **2026-09-19 Sounds are synthesized**, not files: AudioStreamWAV data generated from noise,
+  sweeps and sawtooths at startup. Keeps the no-external-assets rule and works on the web.
+- **2026-09-19 Night is a shader global.** `night_factor` (0 day, 1 night) is declared in
+  `[shader_globals]` and read by the building shader, so one number lights the whole city.
+- **2026-09-19 Pedestrian cap counts only live pedestrians**; ones in chunks queued for deletion
+  were blocking new spawns after moving around.
 
 - **2026-09-19 Traffic cars are kinematic and wheel-less until hit.** A VehicleBody3D that is
   frozen (any mode) runs wheel math with zero inverse mass and turns into NaN, which then spreads

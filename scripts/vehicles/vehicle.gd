@@ -56,6 +56,7 @@ var _wheel_visuals: Array[Node3D] = []
 var _seat: Node3D
 var _exit_side: float = 1.0
 var _steer_target: float = 0.0
+var _engine_sound: AudioStreamPlayer3D
 
 
 func setup(type: BodyType, color: Color, extra: Addon) -> void:
@@ -122,7 +123,15 @@ func _physics_process(delta: float) -> void:
 		engine_force = 0.0
 		brake = 2.0
 		steering = lerpf(steering, 0.0, 1.0 - exp(-steer_speed * delta))
+		if _engine_sound and _engine_sound.playing:
+			_engine_sound.stop()
 		return
+	if _engine_sound == null:
+		_engine_sound = Sfx.loop_player("engine_loop", -8.0)
+		add_child(_engine_sound)
+	if not _engine_sound.playing:
+		_engine_sound.play()
+	_engine_sound.pitch_scale = 0.8 + clampf(linear_velocity.length() / top_speed, 0.0, 1.0) * 1.4
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var throttle := -input.y # forward is negative y on the stick
 	var speed := linear_velocity.dot(-global_basis.z)

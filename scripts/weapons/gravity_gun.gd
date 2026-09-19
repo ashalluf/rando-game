@@ -94,6 +94,7 @@ func grab(body: RigidBody3D) -> void:
 	_held.sleeping = false
 	_held.angular_velocity = Vector3.ZERO
 	player.notify_fired()
+	Sfx.play("grab", body.global_position)
 
 
 func drop() -> void:
@@ -111,6 +112,7 @@ func launch() -> void:
 	_held.linear_velocity = aim.direction * launch_speed
 	_held.angular_velocity = Vector3(randf_range(-4, 4), randf_range(-4, 4), randf_range(-4, 4))
 	WeaponFX.tracer(self, muzzle.global_position, _held.global_position, beam_color, 0.1, 0.06)
+	Sfx.play("launch", _held.global_position)
 	_held = null
 	_beam.visible = false
 

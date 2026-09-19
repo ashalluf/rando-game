@@ -20,6 +20,7 @@ config/icon="res://icon.svg"
 
 PhysicsBudget="*res://scripts/util/physics_budget.gd"
 WorldState="*res://scripts/util/world_state.gd"
+Sfx="*res://scripts/util/sfx.gd"
 
 [display]
 
@@ -156,6 +157,13 @@ toggle_hud={
 [physics]
 
 common/physics_ticks_per_second=60
+
+[shader_globals]
+
+night_factor={
+"type": "float",
+"value": 0.0
+}
 
 [rendering]
 

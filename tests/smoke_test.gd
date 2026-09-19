@@ -1,7 +1,8 @@
-extends SceneTree
-## Headless smoke test. Loads the main level, drives the player with simulated
-## input and checks that movement and jumping behave. Exit code 0 = pass.
-## Run:  godot --headless --path . -s res://tests/smoke_test.gd
+extends Node
+## Headless smoke test, run as a scene so every autoload exists before it compiles.
+## Loads the test room and the city, drives the player with simulated input and checks
+## movement, weapons, buildings, streaming, NPCs, cars and polish. Exit code 0 = pass.
+## Run:  godot --headless --path . res://tests/smoke_test.tscn
 
 const LEVEL_PATH := "res://scenes/levels/test_box.tscn"
 
@@ -9,8 +10,13 @@ var _failures: PackedStringArray = []
 var _checks := 0
 
 
-func _initialize() -> void:
-	_run()
+func _ready() -> void:
+	# Watchdog: a broken test must never hang the check.
+	get_tree().create_timer(300.0).timeout.connect(func():
+		printerr("SMOKE TEST TIMED OUT")
+		get_tree().quit(2))
+	# Deferred: the root is still busy adding this scene during _ready().
+	_run.call_deferred()
 
 
 func _run() -> void:
@@ -20,17 +26,17 @@ func _run() -> void:
 		_finish()
 		return
 	var level := packed.instantiate()
-	root.add_child(level)
-	_check(root.get_node_or_null("PhysicsBudget") != null, "PhysicsBudget autoload present")
+	get_tree().root.add_child(level)
+	_check(get_tree().root.get_node_or_null("PhysicsBudget") != null, "PhysicsBudget autoload present")
 
 	await _ticks(30)
-	var player := get_first_node_in_group("player") as CharacterBody3D
+	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
 	_check(player != null, "player found in group 'player'")
 	if player == null:
 		_finish()
 		return
 	_check(player.is_on_floor(), "player stands on the ground after settling")
-	var props := get_nodes_in_group("physics_prop").size()
+	var props := get_tree().get_nodes_in_group("physics_prop").size()
 	_check(props >= 50, "crates spawned (%d)" % props)
 
 	# Walk forward for one second.
@@ -78,7 +84,7 @@ func _run() -> void:
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
-	await process_frame
+	await get_tree().process_frame
 	await _test_city()
 	_finish()
 
@@ -90,7 +96,7 @@ func _test_city() -> void:
 		return
 	# Untyped on purpose: naming CityStreamer here would compile it before the autoloads exist.
 	var city: Node3D = packed.instantiate()
-	root.add_child(city)
+	get_tree().root.add_child(city)
 	await _ticks(30)
 	var plan: CityPlan = city.plan
 	var lod_r: int = city.lod_radius_blocks
@@ -111,10 +117,10 @@ func _test_city() -> void:
 	_check(kinds.size() >= 2, "parks or plazas as well as buildings (%d kinds)" % kinds.size())
 	_check(inter_kinds.size() >= 2, "%d intersection types" % inter_kinds.size())
 	_check(plan.district_at(Vector2.ZERO) == CityPlan.District.MIDTOWN, "spawn is in midtown")
-	var player := get_first_node_in_group("player") as CharacterBody3D
+	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
 	_check(player != null and player.is_on_floor(), "player stands at the center intersection")
 	var cans := 0
-	for node in get_nodes_in_group("physics_prop"):
+	for node in get_tree().get_nodes_in_group("physics_prop"):
 		if node is TrashCan:
 			cans += 1
 	_check(cans > 0, "trash cans are physics props (%d)" % cans)
@@ -133,7 +139,7 @@ func _test_city() -> void:
 		home_chunk.damage_prop(lamp, 999.0, Vector3.UP)
 		await _ticks(2)
 		_check(lamp.dead and _world_state().is_destroyed(home_chunk.key, lamp_id), "lamp breaks and is recorded as destroyed")
-		_check(get_nodes_in_group("debris").size() >= 3, "broken lamp drops debris")
+		_check(get_tree().get_nodes_in_group("debris").size() >= 3, "broken lamp drops debris")
 
 	# Walk far away: chunks stream, the old home chunk becomes LOD or unloads.
 	var far := Vector3(700.0, 2.0, 0.0)
@@ -250,7 +256,7 @@ func _test_city() -> void:
 	city.update_streaming(true)
 	await _ticks(10)
 	var cars: Array = []
-	for c in get_nodes_in_group("vehicle"):
+	for c in get_tree().get_nodes_in_group("vehicle"):
 		if not c.is_traffic():
 			cars.append(c)
 	_check(cars.size() >= 5, "parked cars spawned (%d)" % cars.size())
@@ -280,18 +286,18 @@ func _test_city() -> void:
 	player.velocity = Vector3.ZERO
 	city.update_streaming(true)
 	await _ticks(70)
-	var peds := get_nodes_in_group("pedestrian")
+	var peds := get_tree().get_nodes_in_group("pedestrian")
 	_check(peds.size() >= 10 and peds.size() <= city.max_pedestrians, "pedestrians on the sidewalks (%d)" % peds.size())
 	if peds.size() > 0:
 		var ped: Node3D = peds[0]
 		var before_dolls := 0
-		for n in get_nodes_in_group("debris"):
+		for n in get_tree().get_nodes_in_group("debris"):
 			if n is Ragdoll:
 				before_dolls += 1
 		ped.knock(Vector3(5.0, 8.0, 0.0))
 		await _ticks(3)
 		var dolls := 0
-		for n in get_nodes_in_group("debris"):
+		for n in get_tree().get_nodes_in_group("debris"):
 			if n is Ragdoll:
 				dolls += 1
 		_check(not is_instance_valid(ped) or ped.is_queued_for_deletion(), "knocked pedestrian is removed")
@@ -309,6 +315,49 @@ func _test_city() -> void:
 			await _ticks(2)
 			_check(not tcar.is_traffic() and not tcar.freeze, "a hit traffic car becomes a physics car")
 
+	# Polish: grass in parks, day/night, sounds, pause menu, seed rebuild.
+	var park_chunk: Node3D = null
+	for k in city.chunks:
+		var c: Node3D = city.chunks[k]
+		if c.level == 0 and plan.block(k.x, k.y).kind == CityPlan.BlockKind.PARK and c.zone == MacroMap.Zone.CITY:
+			park_chunk = c
+			break
+	if park_chunk == null:
+		# Walk to any park nearby so one gets built in full detail.
+		for k in city.chunks:
+			var blk := plan.block(k.x, k.y)
+			if blk.kind == CityPlan.BlockKind.PARK and plan.zone_at((blk.rect as Rect2).get_center()) == MacroMap.Zone.CITY:
+				var c2: Vector2 = (blk.rect as Rect2).get_center()
+				player.global_position = _world_state().to_local(Vector3(c2.x, 2.0, c2.y))
+				city.update_streaming(true)
+				park_chunk = city.chunks.get(k)
+				break
+	_check(park_chunk != null and park_chunk.has_node("Batch_grass") and park_chunk.has_node("Batch_bush"), "a park has grass and bushes")
+	var day: Node = city.get_node("DayNight")
+	var h0: float = day.hour
+	await _ticks(30)
+	_check(day.hour > h0, "the clock advances (%s)" % day.clock_text())
+	day.hour = 23.0
+	day._apply()
+	_check(day.night_factor > 0.9, "night raises night_factor (%.2f)" % day.night_factor)
+	day.hour = 12.0
+	day._apply()
+	_check(day.night_factor < 0.05, "noon clears it")
+	var sfx: Node = get_tree().root.get_node("/root/Sfx")
+	_check(sfx.has("shot") and sfx.has("explosion") and sfx.has("engine_loop"), "sound effects are synthesized")
+	var menu: Node = city.get_node("PauseMenu")
+	menu.open()
+	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
+	menu.close()
+	_check(not get_tree().paused, "resume unpauses")
+	_world_state().pending_seed = 4321
+	var city2: Node3D = packed.instantiate()
+	get_tree().root.add_child(city2)
+	await get_tree().process_frame
+	_check(city2.world_seed == 4321 and _world_state().pending_seed == -1, "a pending seed rebuilds the city with that seed")
+	_check(city2.plan.road_pos(0, 3) != plan.road_pos(0, 3), "a different seed gives a different city")
+	city2.queue_free()
+
 	# Same seed, same plan.
 	var a := CityPlan.new()
 	a.seed = 777
@@ -320,7 +369,7 @@ func _test_city() -> void:
 
 
 func _test_buildings() -> void:
-	var buildings := get_nodes_in_group("building")
+	var buildings := get_tree().get_nodes_in_group("building")
 	_check(buildings.size() >= 8, "city block has buildings (%d)" % buildings.size())
 	var looks := {}
 	var all_solid := true
@@ -347,10 +396,10 @@ func _test_buildings() -> void:
 	# Same seed, same building.
 	var a := Building.new()
 	a.seed = 4242
-	root.add_child(a)
+	get_tree().root.add_child(a)
 	var c := Building.new()
 	c.seed = 4242
-	root.add_child(c)
+	get_tree().root.add_child(c)
 	_check(a.footprint == c.footprint and a.height == c.height and a.shape == c.shape, "same seed gives the same building")
 	a.queue_free()
 	c.queue_free()
@@ -424,7 +473,7 @@ func _test_weapons(player: Player) -> void:
 func _nearest_crate(near: Vector3) -> RigidBody3D:
 	var best: RigidBody3D = null
 	var best_dist := INF
-	for node in get_nodes_in_group("physics_prop"):
+	for node in get_tree().get_nodes_in_group("physics_prop"):
 		var body := node as RigidBody3D
 		if body == null:
 			continue
@@ -437,16 +486,16 @@ func _nearest_crate(near: Vector3) -> RigidBody3D:
 
 func _press(action: String) -> void:
 	Input.action_press(action)
-	await physics_frame
-	await physics_frame
+	await get_tree().physics_frame
+	await get_tree().physics_frame
 	Input.action_release(action)
-	await physics_frame
+	await get_tree().physics_frame
 
 
 func _run_and_measure_speed(player: CharacterBody3D, ticks: int) -> float:
 	var top := 0.0
 	for i in ticks:
-		await physics_frame
+		await get_tree().physics_frame
 		top = maxf(top, player.horizontal_speed())
 	return top
 
@@ -455,7 +504,7 @@ func _jump_and_measure(player: CharacterBody3D, ground_y: float) -> float:
 	var peak := 0.0
 	Input.action_press("jump")
 	for i in 240:
-		await physics_frame
+		await get_tree().physics_frame
 		peak = maxf(peak, player.global_position.y - ground_y)
 		if player.velocity.y <= 0.0 and i > 2:
 			break
@@ -467,15 +516,15 @@ func _double_jump_and_measure(player: CharacterBody3D, ground_y: float) -> float
 	var peak := 0.0
 	Input.action_press("jump")
 	for i in 240:
-		await physics_frame
+		await get_tree().physics_frame
 		peak = maxf(peak, player.global_position.y - ground_y)
 		if player.velocity.y <= 0.0 and i > 2:
 			break
 	Input.action_release("jump")
-	await physics_frame
+	await get_tree().physics_frame
 	Input.action_press("jump")
 	for i in 240:
-		await physics_frame
+		await get_tree().physics_frame
 		peak = maxf(peak, player.global_position.y - ground_y)
 		if player.velocity.y <= 0.0 and i > 2:
 			break
@@ -485,7 +534,7 @@ func _double_jump_and_measure(player: CharacterBody3D, ground_y: float) -> float
 
 func _wait_for_floor(player: CharacterBody3D, max_ticks: int) -> void:
 	for i in max_ticks:
-		await physics_frame
+		await get_tree().physics_frame
 		if player.is_on_floor():
 			await _ticks(5)
 			return
@@ -493,17 +542,18 @@ func _wait_for_floor(player: CharacterBody3D, max_ticks: int) -> void:
 
 ## Autoloads are looked up at runtime: naming them here would compile this script too early.
 func _world_state() -> Node:
-	return root.get_node("/root/WorldState")
+	return get_tree().root.get_node("/root/WorldState")
 
 
 func _ticks(n: int) -> void:
 	for i in n:
-		await physics_frame
+		await get_tree().physics_frame
 
 
 func _check(ok: bool, label: String) -> void:
 	_checks += 1
-	print("%s %s" % ["PASS" if ok else "FAIL", label])
+	# printerr: unbuffered, so progress is visible even if the run is killed.
+	printerr("%s %s" % ["PASS" if ok else "FAIL", label])
 	if not ok:
 		_failures.append(label)
 
@@ -511,7 +561,7 @@ func _check(ok: bool, label: String) -> void:
 func _finish() -> void:
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED (%d checks)" % _checks)
-		quit(0)
+		get_tree().quit(0)
 	else:
 		printerr("SMOKE TEST FAILED: %d of %d checks" % [_failures.size(), _checks])
-		quit(1)
+		get_tree().quit(1)

@@ -42,6 +42,7 @@ func _fire(aim: Dictionary) -> void:
 		dir = aim.direction # Aim point is behind or beside the muzzle; just fire straight.
 	launch_rocket(from, dir)
 	WeaponFX.flash(self, from, Color(1.0, 0.6, 0.2), 0.5, 0.08)
+	Sfx.play("rocket", from)
 
 
 ## Spawns a rocket. Public so tests can call it.

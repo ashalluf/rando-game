@@ -158,6 +158,7 @@ func knock(impulse: Vector3) -> void:
 	if _down:
 		return
 	_down = true
+	Sfx.play("yelp", global_position, 0.0, _rng.randf_range(0.8, 1.3))
 	var doll := Ragdoll.new()
 	doll.position = position
 	doll.rotation.y = _visual.rotation.y

@@ -1,8 +1,10 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/city_streamer.gd" id="1_city"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/debug_hud.tscn" id="3_hud"]
+[ext_resource type="Script" path="res://scripts/world/day_night.gd" id="4_daynight"]
+[ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="5_pause"]
 
 [sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
 sky_top_color = Color(0.33, 0.55, 0.92, 1)
@@ -39,4 +41,11 @@ directional_shadow_max_distance = 260.0
 [node name="Player" parent="." instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 
+[node name="DayNight" type="Node" parent="."]
+script = ExtResource("4_daynight")
+sun_path = NodePath("../Sun")
+environment_path = NodePath("../WorldEnvironment")
+
 [node name="DebugHud" parent="." instance=ExtResource("3_hud")]
+
+[node name="PauseMenu" parent="." instance=ExtResource("5_pause")]

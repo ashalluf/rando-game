@@ -39,6 +39,8 @@ extends Node3D
 ## Parked cars per block (physics bodies; count against the PhysicsBudget cap).
 @export var cars_per_block: int = 5
 @export var pedestrians_per_block: int = 4
+## Grass blades per park block (MultiMesh, wind shader).
+@export var grass_per_park: int = 2500
 ## Hard cap on live pedestrians.
 @export var max_pedestrians: int = 70
 ## Cars driving around at once.
@@ -79,6 +81,9 @@ func _ready() -> void:
 	if sun:
 		sun.rotation_degrees = sun_rotation_degrees
 	WorldState.world_offset = Vector3.ZERO
+	if WorldState.pending_seed >= 0:
+		world_seed = WorldState.pending_seed
+		WorldState.pending_seed = -1
 	plan = CityPlan.new()
 	plan.seed = world_seed
 	plan.block_size_range = block_size_range
@@ -250,6 +255,7 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 		"tarmac": tarmac_color, "runway": runway_color, "concrete": concrete_color,
 		"lamp_spacing": lamp_spacing, "tree_spacing": tree_spacing, "trash_cans_per_block": trash_cans_per_block,
 		"cars_per_block": cars_per_block, "pedestrians_per_block": pedestrians_per_block, "max_pedestrians": max_pedestrians,
+		"grass_per_park": grass_per_park,
 	}
 	add_child(chunk)
 	chunk.build()

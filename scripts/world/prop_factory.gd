@@ -71,7 +71,45 @@ static func lamp_pole() -> Mesh:
 
 
 static func lamp_head() -> Mesh:
-	return box("lamp_head", Vector3(0.7, 0.18, 0.3), Color(1.0, 0.95, 0.8))
+	if _cache.has("lamp_head"):
+		return _cache["lamp_head"]
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(0.7, 0.18, 0.3)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.95, 0.8)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.9, 0.6)
+	mat.emission_energy_multiplier = 1.5
+	mat.vertex_color_use_as_albedo = true
+	mesh.material = mat
+	_cache["lamp_head"] = mesh
+	return mesh
+
+
+static func grass_blade() -> Mesh:
+	if _cache.has("grass_blade"):
+		return _cache["grass_blade"]
+	var mesh := QuadMesh.new()
+	mesh.size = Vector2(0.14, 0.55)
+	mesh.center_offset = Vector3(0.0, 0.275, 0.0)
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/grass.gdshader")
+	mesh.material = mat
+	_cache["grass_blade"] = mesh
+	return mesh
+
+
+static func bush() -> Mesh:
+	if _cache.has("bush"):
+		return _cache["bush"]
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.9
+	mesh.height = 1.4
+	mesh.radial_segments = 7
+	mesh.rings = 4
+	mesh.material = material(Color(0.30, 0.52, 0.26))
+	_cache["bush"] = mesh
+	return mesh
 
 
 static func bench() -> Mesh:

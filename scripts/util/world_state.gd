@@ -4,6 +4,8 @@ extends Node
 ## - The world origin offset: local position + world_offset = true world position.
 
 var world_offset: Vector3 = Vector3.ZERO
+## Seed the next city scene should use (set by the pause menu), or -1 for the scene's own.
+var pending_seed: int = -1
 var _destroyed: Dictionary = {}
 
 
@@ -26,6 +28,11 @@ func destroyed_count() -> int:
 
 func reset() -> void:
 	world_offset = Vector3.ZERO
+	pending_seed = -1
+	_destroyed.clear()
+
+
+func reset_destruction() -> void:
 	_destroyed.clear()
 
 

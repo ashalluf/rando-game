@@ -12,7 +12,7 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		hints.text = "Click the game to grab the mouse.\n"
 	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look   E get in / out of a car\n" \
-		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc release mouse   F1 hide\n" \
+		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc pause / seed   F1 hide\n" \
 		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space handbrake   in the air W / S flip, A / D roll\n" \
 		+ "Gamepad: left stick move   B boost   A jump   Y car   right stick look   RT fire   LT drop   LB / RB switch   Back respawn"
 
@@ -44,6 +44,9 @@ func _process(_delta: float) -> void:
 	var city := get_tree().get_first_node_in_group("city")
 	if city and city.has_method("district_name_at"):
 		stats.text += "   district: %s" % city.district_name_at(_player.global_position)
+	var day := get_tree().current_scene.get_node_or_null("DayNight") if get_tree().current_scene else null
+	if day:
+		stats.text += "   %s" % day.clock_text()
 	var peds := get_tree().get_nodes_in_group("pedestrian").size()
 	var traffic := get_tree().get_first_node_in_group("traffic")
 	stats.text += "   people %d" % peds

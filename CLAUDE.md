@@ -64,7 +64,8 @@ with Playwright (`--use-angle=swiftshader`), and screenshot it. Use this to sani
 GODOT=/path/to/godot tests/headless_check.sh
 ```
 
-That runs `--import` and then `tests/smoke_test.gd`, which loads the test room, drives the player
+That runs `--import` and then `tests/smoke_test.tscn` (a scene, so autoloads exist before the
+test script compiles), which loads the test room, drives the player
 with simulated input (movement, boost, jumps, every weapon), checks buildings, then loads the city
 scene and checks streaming, re-centering, destruction persistence, cars, pedestrians and traffic.
 It fails on any script error or NaN warning in the output. Gotchas: the test script is compiled before autoloads exist, so never name an
@@ -129,7 +130,13 @@ tests/                 headless smoke test and check script
 - Node groups: `player` (the player body), `physics_prop` (every rigid prop PhysicsBudget manages),
   `debris` (short-lived props that get freed after a timeout).
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
-  (`scripts/util/world_state.gd`).
+  (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`, synthesized sounds:
+  `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
+- Day/night: `DayNight` node in the city scene drives the sun, sky and the `night_factor` shader
+  global (`[shader_globals]` in project.godot). Shaders that should react to night read it with
+  `global uniform float night_factor;`.
+- Pause menu (`scenes/ui/pause_menu.tscn`) owns Esc: pause, mouse release, seed rebuild via
+  `WorldState.pending_seed` + `reload_current_scene()`.
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
   `next_weapon`, `prev_weapon`, `weapon_1..3`, `interact` (E / gamepad Y), `respawn`,
