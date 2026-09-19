@@ -204,6 +204,22 @@ func ground_height_at(local_pos: Vector3) -> float:
 	return maxf(plan.height_at(Vector2(wp.x, wp.z)), 0.0) + 0.4
 
 
+## Where solid ground really is under a local position: loads the chunk, then raycasts down
+## onto the world layer. Falls back to the analytic height when nothing is hit yet.
+func surface_height_at(local_pos: Vector3) -> float:
+	ensure_loaded_at(local_pos)
+	var analytic := ground_height_at(local_pos)
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return analytic
+	var from := Vector3(local_pos.x, analytic + 80.0, local_pos.z)
+	var to := Vector3(local_pos.x, -10.0, local_pos.z)
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, to, 1))
+	if hit.is_empty():
+		return analytic
+	return hit.position.y
+
+
 func building_count() -> int:
 	var n := 0
 	for chunk in chunks.values():
@@ -320,8 +336,9 @@ func _build_ground() -> void:
 	_ground.add_child(mesh)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
-	box.size = Vector3(ground_size, 2.0, ground_size)
+	# Thick, so nothing that gets pushed into it by an overlapping shape can pop out underneath.
+	box.size = Vector3(ground_size, 40.0, ground_size)
 	shape.shape = box
-	shape.position = Vector3(0.0, -1.0, 0.0)
+	shape.position = Vector3(0.0, -20.0, 0.0)
 	_ground.add_child(shape)
 	add_child(_ground)

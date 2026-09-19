@@ -196,6 +196,20 @@ func _test_city() -> void:
 		await _wait_for_floor(player, 240)
 		var ground_h: float = _world_state().to_world(player.global_position).y
 		_check(player.is_on_floor() and ground_h > 20.0, "player stands on the hills at %.0f m" % ground_h)
+		# Far (LOD) hill chunks keep terrain collision so a fast car cannot drop through them.
+		var lod_hill_with_collision := false
+		for chunk in city.chunks.values():
+			if chunk.zone == MacroMap.Zone.HILLS and chunk.level != chunk.Level.FULL and chunk.has_node("TerrainBody"):
+				lod_hill_with_collision = true
+				break
+		_check(lod_hill_with_collision, "far hill chunks have terrain collision")
+		# Ending up under a hill (any height) lifts you back onto the surface.
+		var under: Vector3 = _world_state().to_local(Vector3(hill.x, 0.5, hill.z))
+		player.global_position = under
+		player.velocity = Vector3.ZERO
+		await _ticks(30)
+		var lifted_y: float = _world_state().to_world(player.global_position).y
+		_check(lifted_y > macro.height_at(Vector2(hill.x, hill.z)) - 3.0, "player under a hill is lifted onto it (y %.0f)" % lifted_y)
 
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:
@@ -302,6 +316,48 @@ func _test_city() -> void:
 		await _ticks(60)
 		await _press("interact")
 		_check(not player.is_driving() and player.visible and player.global_position.distance_to(car.global_position) < 5.0, "interact gets out next to the car")
+		if macro:
+			# A car that ends up under a hill gets lifted onto the surface while you drive it.
+			await _ticks(30)
+			# Stand on the roof: always free, whatever the car parked next to.
+			player.global_position = car.global_position + Vector3.UP * 2.5
+			player.velocity = Vector3.ZERO
+			await _ticks(3)
+			await _press("interact")
+			_check(player.is_driving(), "interact gets back in")
+			var hill_xz := Vector2(0.0, -1400.0)
+			var hill_h: float = macro.height_at(hill_xz)
+			car.global_position = _world_state().to_local(Vector3(hill_xz.x, 0.5, hill_xz.y))
+			car.linear_velocity = Vector3.ZERO
+			await get_tree().physics_frame
+			city.update_streaming(true)
+			var lifted := false
+			for i in 120:
+				await get_tree().physics_frame
+				if _world_state().to_world(car.global_position).y > hill_h - 3.0:
+					lifted = true
+					break
+			var car_w: Vector3 = _world_state().to_world(car.global_position)
+			_check(lifted, "car under a hill is lifted onto it (y %.0f of %.0f)" % [car_w.y, hill_h])
+			# Getting out of a car lying on its side never puts you in the ground.
+			await _ticks(90)
+			var side_t := car.global_transform
+			side_t.basis = Basis(Vector3.FORWARD, PI * 0.5) * side_t.basis
+			side_t.origin.y += 1.0
+			car.global_transform = side_t
+			car.linear_velocity = Vector3.ZERO
+			car.angular_velocity = Vector3.ZERO
+			await _ticks(20)
+			player.exit_vehicle() # the E key itself is covered above; this isolates the placement
+			await _ticks(20)
+			var out_w: Vector3 = _world_state().to_world(player.global_position)
+			var ground_here: float = macro.height_at(Vector2(out_w.x, out_w.z))
+			var apart: float = player.global_position.distance_to(car.global_position)
+			# (Both slide down the slope a bit, so the distance check is loose.)
+			_check(not player.is_driving() and out_w.y > ground_here - 2.0 and apart < 60.0, "getting out of a car on its side lands above ground (y %.0f, hill %.0f, %.0f m from the car, driving %s)" % [out_w.y, ground_here, apart, player.is_driving()])
+			player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
 		# Falling through the world lifts you back onto loaded ground where you are.
 		var far_spot := Vector3(2600.0, -20.0, 300.0)
 		player.global_position = _world_state().to_local(far_spot)

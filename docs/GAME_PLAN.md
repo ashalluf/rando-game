@@ -147,6 +147,29 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 "Stuck under the earth", round two.** Three real causes found with the smoke test.
+  (1) Parked cars were children of their chunk, so driving one a few blocks away freed it under
+  the player, who was left invisible with no collision, falling and being lifted forever. Parked
+  cars now spawn under the city root (chunk children are at world coordinates, root children at
+  local ones, so `WorldState.to_local()`); the chunk remembers them and frees the ones without
+  the `driven` meta when it unloads. Reparenting a driven car was tried first and rejected: a
+  VehicleWheel3D re-entering the tree takes its current animated transform as its mounting
+  point, and even with the wheels reset the car sometimes sank. `Player` also notices a vanished
+  car (`_vehicle_lost()`) and becomes a person again on solid ground. (2) Far (LOD) hill chunks
+  had terrain meshes but no collision, so a fast car outran the detailed chunks and dropped
+  through a hill onto the flat ground follower, and the old "below -6 m" rule never fired. Hill
+  chunks now carry a full-resolution `HeightMapShape3D` at every level on a `TerrainBody` tagged
+  with meta `terrain`, and the player and car check every frame whether such terrain is above
+  them (a ray straight up); if so they are lifted onto the real surface
+  (`CityStreamer.surface_height_at()`, a downward raycast after loading the chunk). World queries
+  are skipped for two physics frames after an origin shift because the broadphase lags a frame
+  and reported the hills above the pier. (3) Far buildings had no collision either, so a car
+  could sit inside a footprint; when the detailed chunk built around it, depenetration shot it
+  down through the 2 m ground follower. LOD building boxes now get box collision on a
+  `LodBuildings` body and the follower is 40 m thick. Getting out of a car tries the door side,
+  the other side, behind, in front and the roof, and takes the first spot where the player
+  capsule overlaps nothing.
+
 - **2026-09-19 Fall-through recovery instead of a respawn loop.** The owner got out of a car
   before the chunk under it existed and fell forever (respawn put him back in the same hole).
   `Player` now watches its height: below `fall_through_y` (-6 m) it calls

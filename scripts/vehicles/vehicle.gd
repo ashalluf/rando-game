@@ -104,6 +104,23 @@ func exit_position() -> Vector3:
 	return global_position + global_basis.x * (2.6 * _exit_side) + Vector3.UP * 0.5
 
 
+## Places to try when getting out, best first: the door side, the other side, behind, in front,
+## and on the roof. Flattened so a car on its side or roof never points "out" into the ground.
+func exit_candidates() -> Array[Vector3]:
+	var side := Vector3(global_basis.x.x, 0.0, global_basis.x.z)
+	side = side.normalized() if side.length() > 0.2 else Vector3.RIGHT
+	var fwd := Vector3(-global_basis.z.x, 0.0, -global_basis.z.z)
+	fwd = fwd.normalized() if fwd.length() > 0.2 else Vector3.FORWARD
+	var base := global_position + Vector3.UP * 0.5
+	return [
+		base + side * (2.6 * _exit_side),
+		base - side * (2.6 * _exit_side),
+		base - fwd * 4.0,
+		base + fwd * 4.0,
+		global_position + Vector3.UP * 2.5,
+	]
+
+
 func is_traffic() -> bool:
 	return not traffic.is_empty()
 

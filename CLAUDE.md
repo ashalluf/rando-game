@@ -156,8 +156,12 @@ tests/                 headless smoke test and check script
 - Vehicles: `Vehicle` (`scripts/vehicles/vehicle.gd`), a VehicleBody3D built in code;
   `Vehicle.random_car(rng)` for a seeded one. Handling numbers are exports at the top. The player's
   `enter_vehicle()` / `exit_vehicle()` handle riding; the car reads input while `driver` is set.
-  Space jumps the car, right click is the handbrake. `Player` recovers from falling through the
-  world (below `fall_through_y`) by asking `CityStreamer.ensure_loaded_at()` for the chunk.
+  Space jumps the car, right click is the handbrake. Parked cars live under the city root (not
+  their chunk) so a driven one survives chunk unloads; never `reparent()` a VehicleBody3D (wheels
+  re-read their animated transform as the mount point and the car sinks). `Player` recovers from
+  falling through the world (below `fall_through_y`) or ending up under hill terrain (a body with
+  meta `terrain` above it) via `CityStreamer.surface_height_at()`; skip world queries for two
+  frames after an origin shift (`_query_hold`), the broadphase lags.
 - Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is

@@ -59,6 +59,7 @@ const BLAST_MASK := 2 | 4
 ## After firing, the body keeps facing the camera for this long (seconds).
 @export var aim_hold_time: float = 1.5
 ## Below this Y you have fallen through the world: you get lifted back onto the ground in place.
+## (Being under a hill is detected separately, whatever the height.)
 @export var fall_through_y: float = -6.0
 ## Falling below this Y respawns the player at the start position.
 @export var kill_y: float = -200.0
@@ -81,6 +82,10 @@ var _spawn_transform: Transform3D
 var _boosting: bool = false
 var _boost_fx: CPUParticles3D
 var _boost_sound: AudioStreamPlayer3D
+## Physics frames to skip world queries after an origin shift (the broadphase lags a frame).
+var _query_hold: int = 0
+## True between enter_vehicle() and exit_vehicle(), even if the car vanished.
+var _driving: bool = false
 
 @onready var visual: Node3D = $Visual
 @onready var camera_rig: Node3D = $CameraRig
@@ -97,6 +102,10 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if _query_hold > 0:
+		_query_hold -= 1
+	if _driving and not is_instance_valid(vehicle):
+		_vehicle_lost()
 	if Input.is_action_just_pressed("interact"):
 		if vehicle:
 			exit_vehicle()
@@ -108,13 +117,13 @@ func _physics_process(delta: float) -> void:
 		velocity = vehicle.linear_velocity
 		_boosting = Input.is_action_pressed("boost")
 		_boost_fx.emitting = false
-		if vehicle.global_position.y < fall_through_y:
+		if vehicle.global_position.y < fall_through_y or _under_terrain(vehicle.global_position + Vector3.UP * 0.5):
 			_lift_vehicle_onto_ground()
 		if Input.is_action_just_pressed("respawn"):
 			exit_vehicle()
 			respawn()
 		return
-	if global_position.y < fall_through_y and global_position.y > kill_y:
+	if (global_position.y < fall_through_y and global_position.y > kill_y) or _under_terrain(global_position):
 		recover_from_fall()
 	var on_floor := is_on_floor()
 	if on_floor:
@@ -156,26 +165,53 @@ func respawn() -> void:
 	_ensure_ground_under(global_position)
 
 
-## Fell through the world (ground not loaded yet): load it and stand back on it, right here.
+## Fell through the world (ground not loaded yet) or ended up under a hill: load the ground and
+## stand back on it, right here.
 func recover_from_fall() -> void:
-	var city := get_tree().get_first_node_in_group("city")
-	var y := 2.0
-	if city and city.has_method("ensure_loaded_at"):
-		city.ensure_loaded_at(global_position)
-		y = city.ground_height_at(global_position) + 1.5
-	global_position.y = y
+	global_position.y = _surface_height_at(global_position) + 0.3
 	velocity = Vector3.ZERO
 
 
 func _lift_vehicle_onto_ground() -> void:
-	var city := get_tree().get_first_node_in_group("city")
-	var y := 2.0
-	if city and city.has_method("ensure_loaded_at"):
-		city.ensure_loaded_at(vehicle.global_position)
-		y = city.ground_height_at(vehicle.global_position) + 1.5
-	vehicle.global_position.y = y
+	vehicle.global_position.y = _surface_height_at(vehicle.global_position) + 1.5
 	vehicle.linear_velocity = Vector3.ZERO
 	vehicle.angular_velocity = Vector3.ZERO
+
+
+## Real ground height under a spot (loads the chunk first). Test-room floor height otherwise.
+func _surface_height_at(at: Vector3) -> float:
+	var city := get_tree().get_first_node_in_group("city")
+	if city and city.has_method("surface_height_at"):
+		return city.surface_height_at(at)
+	return 1.6
+
+
+## True when hill terrain is above this point: a ray straight up hits a body tagged "terrain".
+## Roads and bridges are not tagged, so standing under the pier does not count.
+func _under_terrain(from: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	if space == null or _query_hold > 0:
+		return false
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from + Vector3.UP * 0.3, from + Vector3.UP * 400.0, 1))
+	return not hit.is_empty() and hit.collider is Node and (hit.collider as Node).has_meta("terrain")
+
+
+## First spot around the car where the player capsule does not overlap the world.
+func _find_exit_spot(car: Vehicle) -> Vector3:
+	var shape_node := $CollisionShape3D as CollisionShape3D
+	var space := get_world_3d().direct_space_state
+	var candidates := car.exit_candidates()
+	if space == null or shape_node == null:
+		return candidates[0]
+	var params := PhysicsShapeQueryParameters3D.new()
+	params.shape = shape_node.shape
+	params.collision_mask = 1
+	params.exclude = [car.get_rid()]
+	for c in candidates:
+		params.transform = Transform3D(Basis(), c + shape_node.position)
+		if space.intersect_shape(params, 1).is_empty():
+			return c
+	return car.global_position + Vector3.UP * 3.0
 
 
 func _ensure_ground_under(at: Vector3) -> void:
@@ -210,7 +246,11 @@ func _try_enter_vehicle() -> void:
 
 
 func enter_vehicle(car: Vehicle) -> void:
+	# Parked cars live under the city root; this tag stops their chunk from freeing a car that
+	# has been driven away from home.
+	car.set_meta("driven", true)
 	vehicle = car
+	_driving = true
 	car.driver = self
 	car.freeze = false
 	car.sleeping = false
@@ -227,24 +267,41 @@ func exit_vehicle() -> void:
 		return
 	var car := vehicle
 	vehicle = null
+	_driving = false
 	car.driver = null
 	visible = true
 	collision_layer = 2
 	collision_mask = 5
 	if weapon_manager:
 		weapon_manager.visible = true
-	global_position = car.exit_position()
+	global_position = _find_exit_spot(car)
 	velocity = car.linear_velocity * 0.5
 	_ensure_ground_under(global_position)
+	if _under_terrain(global_position):
+		recover_from_fall()
 
 
 func is_driving() -> bool:
-	return vehicle != null
+	return _driving and is_instance_valid(vehicle)
+
+
+## The car disappeared under us (freed by something): become a person again, on solid ground.
+func _vehicle_lost() -> void:
+	vehicle = null
+	_driving = false
+	visible = true
+	collision_layer = 2
+	collision_mask = 5
+	if weapon_manager:
+		weapon_manager.visible = true
+	velocity = Vector3.ZERO
+	recover_from_fall()
 
 
 ## The world was shifted by `offset` (origin re-centering); keep the spawn point in sync.
 func shift_origin(offset: Vector3) -> void:
 	_spawn_transform.origin -= offset
+	_query_hold = 2
 
 
 ## Adds velocity from an outside force (explosions).

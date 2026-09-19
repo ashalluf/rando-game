@@ -2,7 +2,8 @@ class_name CityChunk
 extends Node3D
 ## One city block plus the road on its +X side, the road on its +Z side, and the intersection at
 ## that corner. FULL level has everything: buildings, props, collision, physics trash cans.
-## LOD level is just slabs and colored boxes with no collision, for the far skyline.
+## LOD level is just slabs and colored boxes for the far skyline, with plain box collision on
+## buildings and full terrain collision so nothing drives into a far building or through a hill.
 ## Children are placed at true world coordinates; the chunk node sits at -WorldState.world_offset.
 
 enum Level { FULL, LOD }
@@ -26,6 +27,9 @@ var prop_records: Array[Dictionary] = []
 ## Landmark ids this chunk built in detail (the streamer hides their far versions meanwhile).
 var built_landmarks: Array[String] = []
 
+## Parked cars this chunk spawned. They live under the city root (a driven car must outlive its
+## chunk), so the chunk frees the ones nobody drove when it unloads.
+var _cars: Array[Node] = []
 var _batch := MultiMeshBatch.new()
 var _mm_nodes: Dictionary = {}
 var _statics: StreetProps
@@ -264,16 +268,32 @@ func _build_terrain() -> void:
 	mesh.mesh = st.commit()
 	mesh.material_override = PropFactory.terrain_material()
 	add_child(mesh)
-	if level == Level.FULL and _statics:
-		var shape := CollisionShape3D.new()
-		var hm := HeightMapShape3D.new()
-		hm.map_width = n + 1
-		hm.map_depth = n + 1
-		hm.map_data = heights
-		shape.shape = hm
-		var c := area.get_center()
-		shape.transform = Transform3D(Basis().scaled(Vector3(area.size.x / n, 1.0, area.size.y / n)), Vector3(c.x, 0.0, c.y))
-		_statics.add_child(shape)
+	# Collision at full resolution on every level, so a fast car never outruns the detailed
+	# chunks and drops through a far hill. The body is tagged so the player can tell "under the
+	# terrain" from "under a bridge".
+	var cn := 14
+	var cheights := heights
+	if n != cn:
+		cheights = PackedFloat32Array()
+		cheights.resize((cn + 1) * (cn + 1))
+		for j in cn + 1:
+			for i in cn + 1:
+				cheights[j * (cn + 1) + i] = plan.height_at(Vector2(area.position.x + area.size.x * i / cn, area.position.y + area.size.y * j / cn))
+	var body := StaticBody3D.new()
+	body.name = "TerrainBody"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.set_meta("terrain", true)
+	var shape := CollisionShape3D.new()
+	var hm := HeightMapShape3D.new()
+	hm.map_width = cn + 1
+	hm.map_depth = cn + 1
+	hm.map_data = cheights
+	shape.shape = hm
+	var c := area.get_center()
+	shape.transform = Transform3D(Basis().scaled(Vector3(area.size.x / cn, 1.0, area.size.y / cn)), Vector3(c.x, 0.0, c.y))
+	body.add_child(shape)
+	add_child(body)
 
 
 func has_prop(id: String) -> bool:
@@ -398,10 +418,19 @@ func _park_cars(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		if count >= max_cars or rng.randf() > 0.35 or not PhysicsBudget.can_spawn():
 			continue
 		var car := Vehicle.random_car(rng)
-		car.position = spot[0]
+		var holder: Node = get_parent() if get_parent() else self
+		car.position = WorldState.to_local(spot[0]) if holder != self else spot[0]
 		car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
-		add_child(car)
+		holder.add_child(car)
+		_cars.append(car)
 		count += 1
+
+
+func _exit_tree() -> void:
+	for car in _cars:
+		if is_instance_valid(car) and not car.has_meta("driven"):
+			car.queue_free()
+	_cars.clear()
 
 
 ## Lot layout is shared by FULL and LOD so both see the same buildings.
@@ -463,15 +492,36 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 			add_child(building)
 			building_count += 1
 		else:
-			# Far away: just the boxes, in the facade color, no props, no collision.
+			# Far away: just the boxes, in the facade color, no props. They do get plain box
+			# collision so a fast car cannot drive into a footprint and get shot through the
+			# floor when the detailed building appears around it.
 			building.plan_only()
 			for part in building.parts:
 				var size: Vector3 = part.size
 				var part_center: Vector3 = part.center
 				var xform := Transform3D(Basis().scaled(size), building.position + part_center)
 				_batch.add("lod_box", PropFactory.unit_box(), xform, building.facade_color)
+				_add_lod_shape(size, building.position + part_center)
 			building.free()
 			building_count += 1
+
+
+var _lod_body: StaticBody3D
+
+
+func _add_lod_shape(size: Vector3, pos: Vector3) -> void:
+	if _lod_body == null:
+		_lod_body = StaticBody3D.new()
+		_lod_body.name = "LodBuildings"
+		_lod_body.collision_layer = 1
+		_lod_body.collision_mask = 0
+		add_child(_lod_body)
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.position = pos
+	_lod_body.add_child(shape)
 
 
 func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
