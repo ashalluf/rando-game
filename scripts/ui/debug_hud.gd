@@ -1,8 +1,9 @@
 extends CanvasLayer
-## Debug overlay: FPS, speed, jump peak, physics body counts, control hints. F1 toggles.
+## Debug overlay: FPS, speed, jump peak, physics body counts, weapon, control hints. F1 toggles.
 
 @onready var stats: Label = $Stats
 @onready var hints: Label = $Hints
+@onready var weapon_label: Label = $Weapon
 
 var _player: Player
 
@@ -10,8 +11,9 @@ var _player: Player
 func _ready() -> void:
 	if OS.has_feature("web"):
 		hints.text = "Click the game to grab the mouse.\n"
-	hints.text += "WASD move   Shift sprint   Space jump (again in air)   Mouse look   R respawn   Esc release mouse   F1 hide\n" \
-		+ "Gamepad: left stick move   L3 sprint   A jump   right stick look   Back respawn"
+	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look\n" \
+		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc release mouse   F1 hide\n" \
+		+ "Gamepad: left stick move   B boost   A jump   right stick look   RT fire   LT drop   LB / RB switch   Back respawn"
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -29,7 +31,18 @@ func _process(_delta: float) -> void:
 	var budget := get_node_or_null("/root/PhysicsBudget")
 	var bodies: int = budget.active_body_count() if budget else 0
 	var frozen: int = budget.frozen_count if budget else 0
+	var state := "on floor" if _player.is_on_floor() else "airborne"
+	if _player.is_boosting():
+		state += "  BOOST"
 	stats.text = "FPS %d   speed %.1f m/s   vertical %+.1f m/s   %s   air jumps %d\n" % [
 		Engine.get_frames_per_second(), _player.horizontal_speed(), _player.velocity.y,
-		"on floor" if _player.is_on_floor() else "airborne", _player.air_jumps_left,
+		state, _player.air_jumps_left,
 	] + "last jump peak %.1f m   physics props %d (frozen %d)" % [_player.last_jump_peak, bodies, frozen]
+
+	var manager := _player.weapon_manager
+	if manager and manager.current:
+		var parts: PackedStringArray = []
+		for i in manager.weapons.size():
+			var name := manager.weapons[i].display_name
+			parts.append("[%d] %s" % [i + 1, name.to_upper() if manager.weapons[i] == manager.current else name])
+		weapon_label.text = "   ".join(parts)

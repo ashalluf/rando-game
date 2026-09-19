@@ -44,14 +44,15 @@ func _run() -> void:
 	_check(absf(walk_speed - player.walk_speed) < 1.0, "walk speed reaches %.1f (target %.1f)" % [walk_speed, player.walk_speed])
 	await _ticks(30)
 
-	# Sprint is faster than walking (run back the other way so nothing is in the path).
+	# Boost is much faster than running (run back the other way so nothing is in the path).
 	Input.action_press("move_back")
-	Input.action_press("sprint")
-	var sprint_speed := await _run_and_measure_speed(player, 60)
-	Input.action_release("sprint")
+	Input.action_press("boost")
+	var boost_speed := await _run_and_measure_speed(player, 90)
+	Input.action_release("boost")
 	Input.action_release("move_back")
-	_check(absf(sprint_speed - player.sprint_speed) < 1.0, "sprint speed reaches %.1f (target %.1f)" % [sprint_speed, player.sprint_speed])
-	await _ticks(40)
+	_check(boost_speed > player.walk_speed + 15.0 and boost_speed <= player.boost_max_speed + 0.5,
+		"boost speed reaches %.1f (cap %.1f)" % [boost_speed, player.boost_max_speed])
+	await _ticks(90)
 
 	# Full jump, holding the button through the apex.
 	var ground_y := player.global_position.y
@@ -74,7 +75,92 @@ func _run() -> void:
 	Input.action_release("respawn")
 	_check(player.global_position.distance_to(Vector3(0, 1, 0)) < 2.0, "respawn returns to spawn")
 
+	await _test_weapons(player)
 	_finish()
+
+
+func _test_weapons(player: Player) -> void:
+	var manager := player.weapon_manager
+	_check(manager != null and manager.weapons.size() == 3, "three weapons loaded")
+	if manager == null:
+		return
+	_check(manager.current is AssaultRifle, "starts with the AK-47")
+	await _press("weapon_2")
+	_check(manager.current is RocketLauncher, "weapon_2 selects the rocket launcher")
+	await _press("weapon_3")
+	_check(manager.current is GravityGun, "weapon_3 selects the gravity gun")
+	await _press("next_weapon")
+	_check(manager.current is AssaultRifle, "next_weapon wraps around to the AK-47")
+
+	# AK-47: shoot the crate wall and see a crate move.
+	var wall_crate := _nearest_crate(Vector3(-14.0, 2.5, -4.0))
+	_check(wall_crate != null, "found a crate in the wall")
+	if wall_crate:
+		var before := wall_crate.global_position
+		player.camera_rig.look_at_point(wall_crate.global_position)
+		await _ticks(2)
+		Input.action_press("fire")
+		await _ticks(45)
+		Input.action_release("fire")
+		await _ticks(30)
+		var moved := wall_crate.global_position.distance_to(before)
+		_check(moved > 0.15, "AK-47 bullets shove crates (crate moved %.2f m)" % moved)
+
+	# Rocket launcher: blast the pyramid and see crates fly.
+	await _press("weapon_2")
+	var pile_crate := _nearest_crate(Vector3(18.0, 2.0, -6.0))
+	if pile_crate:
+		var pile_before := pile_crate.global_position
+		player.camera_rig.look_at_point(pile_crate.global_position)
+		await _ticks(2)
+		await _press("fire")
+		await _ticks(150)
+		var flew := pile_crate.global_position.distance_to(pile_before)
+		_check(flew > 1.0, "rocket explosion scatters the pyramid (crate moved %.2f m)" % flew)
+
+	# Gravity gun: grab a crate, hold it up, launch it.
+	await _press("weapon_3")
+	var gun := manager.current as GravityGun
+	var crate := _nearest_crate(Vector3(-14.0, 1.0, 0.0))
+	if crate and gun:
+		player.global_position = crate.global_position + Vector3(6.0, 0.6, 0.0)
+		player.velocity = Vector3.ZERO
+		await _ticks(5)
+		player.camera_rig.look_at_point(crate.global_position)
+		await _ticks(2)
+		await _press("fire")
+		_check(gun.is_holding(), "gravity gun grabs a crate")
+		player.camera_rig.look_at_point(player.global_position + Vector3(-10.0, 1.6, 0.0))
+		await _ticks(60)
+		var hold_dist := crate.global_position.distance_to(player.global_position)
+		_check(gun.is_holding() and hold_dist < gun.hold_distance + 3.0 and crate.global_position.y > 1.0,
+			"held crate floats near the player (%.1f m away, %.1f m up)" % [hold_dist, crate.global_position.y])
+		await _press("fire")
+		await _ticks(3)
+		_check(not gun.is_holding() and crate.linear_velocity.length() > gun.launch_speed * 0.6,
+			"gravity gun launches the crate at %.1f m/s" % crate.linear_velocity.length())
+
+
+func _nearest_crate(near: Vector3) -> RigidBody3D:
+	var best: RigidBody3D = null
+	var best_dist := INF
+	for node in get_nodes_in_group("physics_prop"):
+		var body := node as RigidBody3D
+		if body == null:
+			continue
+		var d := body.global_position.distance_to(near)
+		if d < best_dist:
+			best_dist = d
+			best = body
+	return best
+
+
+func _press(action: String) -> void:
+	Input.action_press(action)
+	await physics_frame
+	await physics_frame
+	Input.action_release(action)
+	await physics_frame
 
 
 func _run_and_measure_speed(player: CharacterBody3D, ticks: int) -> float:

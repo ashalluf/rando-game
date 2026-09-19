@@ -1,19 +1,31 @@
 class_name Player
 extends CharacterBody3D
-## Overpowered third-person controller: run, sprint, super-high jump, double jump,
-## strong air control, no fall damage. Every feel number is an @export below.
+## Overpowered third-person controller: run, unlimited boost (ground and air), super-high jump,
+## double jump, strong air control, no fall damage. Every feel number is an @export below.
+
+## Physics layers: 1 world, 2 player, 4 props.
+const AIM_MASK := 1 | 4
+const BLAST_MASK := 2 | 4
 
 @export_group("Ground Movement")
-## Top speed while walking (m/s).
+## Top running speed (m/s).
 @export var walk_speed: float = 12.0
-## Top speed while holding sprint (m/s).
-@export var sprint_speed: float = 22.0
 ## How fast we reach top speed on the ground (m/s^2). Higher = snappier.
 @export var ground_acceleration: float = 90.0
 ## How fast we stop on the ground when no input (m/s^2).
 @export var ground_deceleration: float = 70.0
-## How quickly the body turns to face the move direction (higher = faster).
+## How quickly the body turns to face where it is going or aiming (higher = faster).
 @export var turn_speed: float = 14.0
+
+@export_group("Boost")
+## Thrust while holding boost (m/s^2). Works on the ground and in the air.
+@export var boost_acceleration: float = 75.0
+## Speed cap while boosting (m/s).
+@export var boost_max_speed: float = 45.0
+## Gravity is multiplied by this while boosting in the air. Look up and boost to fly.
+@export var boost_gravity_scale: float = 0.25
+## After letting go of boost on the ground, you bleed back to run speed at this rate (m/s^2).
+@export var boost_bleed_off: float = 25.0
 
 @export_group("Air Movement")
 ## Steering strength while airborne (m/s^2). High value = strong air control.
@@ -44,6 +56,8 @@ extends CharacterBody3D
 @export_group("Interaction")
 ## Shove applied to physics props you run into (impulse per second).
 @export var push_force: float = 60.0
+## After firing, the body keeps facing the camera for this long (seconds).
+@export var aim_hold_time: float = 1.5
 ## Falling below this Y respawns the player at the start position.
 @export var kill_y: float = -60.0
 
@@ -54,18 +68,23 @@ var air_jumps_left: int = 0
 
 var _coyote_timer: float = 0.0
 var _jump_buffer_timer: float = 0.0
+var _aim_timer: float = 0.0
 var _takeoff_y: float = 0.0
 var _current_peak: float = 0.0
 var _spawn_transform: Transform3D
-var _sprinting: bool = false
+var _boosting: bool = false
+var _boost_fx: CPUParticles3D
 
 @onready var visual: Node3D = $Visual
 @onready var camera_rig: Node3D = $CameraRig
+@onready var camera: Camera3D = $CameraRig/SpringArm3D/Camera3D
+@onready var weapon_manager: WeaponManager = $Visual/WeaponMount
 
 
 func _ready() -> void:
 	_spawn_transform = global_transform
 	air_jumps_left = max_air_jumps
+	_build_boost_fx()
 
 
 func _physics_process(delta: float) -> void:
@@ -76,17 +95,21 @@ func _physics_process(delta: float) -> void:
 	_update_timers(delta, on_floor)
 
 	var input := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	_sprinting = Input.is_action_pressed("sprint")
+	_boosting = Input.is_action_pressed("boost")
 	var move_dir := _camera_relative_direction(input)
 
 	_apply_gravity(delta, on_floor)
-	_apply_horizontal(delta, on_floor, move_dir)
+	if _boosting:
+		_apply_boost(delta, on_floor, move_dir)
+	else:
+		_apply_horizontal(delta, on_floor, move_dir)
 	_handle_jump(on_floor)
 
 	move_and_slide()
 	_push_props(delta)
 	_track_jump_peak(on_floor, is_on_floor())
 	_update_visual(delta, move_dir)
+	_boost_fx.emitting = _boosting
 
 	if global_position.y < kill_y or Input.is_action_just_pressed("respawn"):
 		respawn()
@@ -98,12 +121,38 @@ func respawn() -> void:
 	air_jumps_left = max_air_jumps
 
 
-func is_sprinting() -> bool:
-	return _sprinting and is_on_floor() and velocity.length() > 1.0
+func is_boosting() -> bool:
+	return _boosting
 
 
 func horizontal_speed() -> float:
 	return Vector2(velocity.x, velocity.z).length()
+
+
+## Adds velocity from an outside force (explosions).
+func launch(delta_velocity: Vector3) -> void:
+	velocity += delta_velocity
+
+
+## Weapons call this when they fire so the body turns to face the camera for a moment.
+func notify_fired() -> void:
+	_aim_timer = aim_hold_time
+
+
+## Where the crosshair points. Ray starts at the head pivot so walls behind the camera are ignored.
+func get_aim() -> Dictionary:
+	var origin: Vector3 = camera_rig.global_position
+	var direction: Vector3 = -camera.global_basis.z
+	var to := origin + direction * 1000.0
+	var query := PhysicsRayQueryParameters3D.create(origin, to, AIM_MASK, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	return {
+		"origin": origin,
+		"direction": direction,
+		"point": hit.position if hit else to,
+		"normal": hit.normal if hit else -direction,
+		"collider": hit.collider if hit else null,
+	}
 
 
 # --- Derived feel values -------------------------------------------------------
@@ -133,6 +182,7 @@ func _update_timers(delta: float, on_floor: bool) -> void:
 		_jump_buffer_timer = jump_buffer_time
 	else:
 		_jump_buffer_timer = maxf(_jump_buffer_timer - delta, 0.0)
+	_aim_timer = maxf(_aim_timer - delta, 0.0)
 
 
 func _camera_relative_direction(input: Vector2) -> Vector3:
@@ -148,23 +198,44 @@ func _apply_gravity(delta: float, on_floor: bool) -> void:
 	if on_floor:
 		return
 	var g := rising_gravity()
-	if velocity.y < 0.0:
+	if _boosting:
+		g *= boost_gravity_scale
+	elif velocity.y < 0.0:
 		g *= fall_gravity_multiplier
 	velocity.y = maxf(velocity.y - g * delta, -max_fall_speed)
 
 
 func _apply_horizontal(delta: float, on_floor: bool, move_dir: Vector3) -> void:
-	var speed := sprint_speed if _sprinting else walk_speed
 	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
-	var target := move_dir * speed
+	var target := move_dir * walk_speed
 	var rate: float
 	if move_dir != Vector3.ZERO:
 		rate = ground_acceleration if on_floor else air_acceleration
+		# Coming out of a boost: keep the momentum, bleed off gently instead of braking.
+		if horizontal.length() > walk_speed + 0.5:
+			rate = boost_bleed_off if on_floor else air_deceleration
 	else:
 		rate = ground_deceleration if on_floor else air_deceleration
 	horizontal = horizontal.move_toward(target, rate * delta)
 	velocity.x = horizontal.x
 	velocity.z = horizontal.z
+
+
+func _apply_boost(delta: float, on_floor: bool, move_dir: Vector3) -> void:
+	var yaw: float = camera_rig.global_rotation.y
+	var pitch: float = camera_rig.rotation.x
+	var flat_dir := move_dir if move_dir != Vector3.ZERO else Basis(Vector3.UP, yaw) * Vector3.FORWARD
+	var dir := flat_dir
+	if not on_floor:
+		# In the air the boost follows the camera pitch, so looking up and boosting is flight.
+		dir = (flat_dir * cos(pitch) + Vector3.UP * sin(pitch)).normalized()
+	velocity += dir * boost_acceleration * delta
+	var horizontal := Vector3(velocity.x, 0.0, velocity.z)
+	if horizontal.length() > boost_max_speed:
+		horizontal = horizontal.normalized() * boost_max_speed
+	velocity.x = horizontal.x
+	velocity.z = horizontal.z
+	velocity.y = clampf(velocity.y, -max_fall_speed, boost_max_speed)
 
 
 func _handle_jump(on_floor: bool) -> void:
@@ -175,7 +246,7 @@ func _handle_jump(on_floor: bool) -> void:
 			air_jumps_left -= 1
 			_do_jump(double_jump_velocity())
 	# Variable jump height: let go early to cut the jump short.
-	if Input.is_action_just_released("jump") and velocity.y > 0.0:
+	if Input.is_action_just_released("jump") and velocity.y > 0.0 and not _boosting:
 		velocity.y *= jump_cut_multiplier
 
 
@@ -206,11 +277,39 @@ func _track_jump_peak(was_on_floor: bool, now_on_floor: bool) -> void:
 
 
 func _update_visual(delta: float, move_dir: Vector3) -> void:
-	var facing := move_dir
-	if facing == Vector3.ZERO:
-		facing = Vector3(velocity.x, 0.0, velocity.z)
-	if facing.length_squared() < 0.25:
-		return
-	var target_yaw := atan2(-facing.x, -facing.z)
+	var target_yaw: float
+	if _aim_timer > 0.0:
+		target_yaw = camera_rig.global_rotation.y
+	else:
+		var facing := move_dir
+		if facing == Vector3.ZERO:
+			facing = Vector3(velocity.x, 0.0, velocity.z)
+		if facing.length_squared() < 0.25:
+			return
+		target_yaw = atan2(-facing.x, -facing.z)
 	var t := 1.0 - exp(-turn_speed * delta)
 	visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, t)
+
+
+func _build_boost_fx() -> void:
+	_boost_fx = CPUParticles3D.new()
+	_boost_fx.emitting = false
+	_boost_fx.amount = 48
+	_boost_fx.lifetime = 0.35
+	_boost_fx.local_coords = false
+	_boost_fx.direction = Vector3(0.0, 0.0, 1.0)
+	_boost_fx.spread = 12.0
+	_boost_fx.initial_velocity_min = 9.0
+	_boost_fx.initial_velocity_max = 14.0
+	_boost_fx.gravity = Vector3.ZERO
+	_boost_fx.scale_amount_min = 0.4
+	_boost_fx.scale_amount_max = 1.0
+	var puff := SphereMesh.new()
+	puff.radius = 0.16
+	puff.height = 0.32
+	puff.radial_segments = 6
+	puff.rings = 3
+	puff.material = WeaponFX.unshaded(Color(0.45, 0.9, 1.0))
+	_boost_fx.mesh = puff
+	_boost_fx.position = Vector3(0.0, 0.8, 0.45)
+	visual.add_child(_boost_fx)

@@ -11,22 +11,25 @@ extends Node3D
 ## Lowest the camera can look (negative = looking down at the player).
 @export_range(-89.0, 0.0) var min_pitch_deg: float = -80.0
 ## Highest the camera can look up.
-@export_range(0.0, 89.0) var max_pitch_deg: float = 55.0
+@export_range(0.0, 89.0) var max_pitch_deg: float = 75.0
 @export var start_pitch_deg: float = -15.0
 
 @export_group("Camera")
 ## Distance from the pivot to the camera (meters). The spring arm shortens it near walls.
 @export var camera_distance: float = 6.5
 @export var camera_fov: float = 75.0
-## Extra field of view while sprinting, for a sense of speed.
-@export var sprint_fov_boost: float = 10.0
+## Extra field of view while boosting, for a sense of speed.
+@export var boost_fov_boost: float = 15.0
 @export var fov_lerp_speed: float = 6.0
+## How fast recoil kicks settle (higher = faster).
+@export var kick_recover_speed: float = 10.0
 
 @onready var spring_arm: SpringArm3D = $SpringArm3D
 @onready var camera: Camera3D = $SpringArm3D/Camera3D
 
 var _yaw: float = 0.0
 var _pitch: float = 0.0
+var _kick_pitch: float = 0.0
 
 
 func _ready() -> void:
@@ -62,16 +65,35 @@ func _process(delta: float) -> void:
 	if look != Vector2.ZERO:
 		_yaw -= look.x * gamepad_look_speed * delta
 		_pitch -= look.y * gamepad_look_speed * delta * (-1.0 if invert_y else 1.0)
-		_apply_rotation()
+	if _kick_pitch != 0.0:
+		_kick_pitch = lerpf(_kick_pitch, 0.0, 1.0 - exp(-kick_recover_speed * delta))
+	_apply_rotation()
 
 	var target_fov := camera_fov
 	var player := get_parent() as Player
-	if player and player.is_sprinting():
-		target_fov += sprint_fov_boost
+	if player and player.is_boosting():
+		target_fov += boost_fov_boost
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-fov_lerp_speed * delta))
+
+
+## Recoil: nudges the view up by `degrees` with a little random sideways wobble.
+func kick(degrees: float) -> void:
+	if degrees == 0.0:
+		return
+	_kick_pitch += deg_to_rad(degrees)
+	_yaw += deg_to_rad(randf_range(-degrees, degrees) * 0.3)
+
+
+## Points the camera from the pivot at a world position. Used by tests and later by cutscenes.
+func look_at_point(point: Vector3) -> void:
+	var dir := (point - global_position).normalized()
+	_yaw = atan2(-dir.x, -dir.z)
+	_pitch = asin(clampf(dir.y, -1.0, 1.0))
+	_kick_pitch = 0.0
+	_apply_rotation()
 
 
 func _apply_rotation() -> void:
 	_pitch = clampf(_pitch, deg_to_rad(min_pitch_deg), deg_to_rad(max_pitch_deg))
 	_yaw = wrapf(_yaw, -PI, PI)
-	rotation = Vector3(_pitch, _yaw, 0.0)
+	rotation = Vector3(_pitch + _kick_pitch, _yaw, 0.0)

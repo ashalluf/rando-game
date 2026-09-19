@@ -11,7 +11,7 @@ Build in this order, one milestone per PR or a few PRs.
   jump, double jump, strong air control, no fall damage. Spring-arm follow camera with mouse look
   that does not clip through walls. Gamepad and keyboard/mouse input mapped. Greybox test level:
   large flat ground, ramps, tall boxes of varied heights, and a pile of RigidBody3D crates.
-- [ ] **2. Guns.** Weapon system with instant switching and unlimited ammo. Start with three: a
+- [x] **2. Guns.** Weapon system with instant switching and unlimited ammo. Start with three: a
   hitscan rifle that shoves physics objects, a rocket launcher with an explosion that applies radial
   impulse, and a gravity gun that grabs and launches objects. Simple crosshair HUD.
 - [ ] **3. Building shader.** A single shader that makes a plain box look like a building:
@@ -37,7 +37,18 @@ Build in this order, one milestone per PR or a few PRs.
 
 ## Current state
 
-Milestone 1 is in. Main scene: `scenes/levels/test_box.tscn`. The level script
+Milestones 1 and 2 are in. Weapons live in `scripts/weapons/`: `Weapon` base class,
+`AssaultRifle` (AK-47, full-auto hitscan, shoves what it hits), `RocketLauncher` (spawns `Rocket`,
+`Explosion.blast` applies a radial velocity change to props and launches the player for rocket
+jumps), `GravityGun` (grab, float at chest height, hurl). `WeaponManager` sits on the player's hand
+(`Visual/WeaponMount`), builds all three from code, switches with 1/2/3, scroll, or bumpers.
+`WeaponFX` makes tracers, flashes, impacts and explosions from unshaded primitives. The HUD shows
+the weapon list and a ring crosshair that turns cyan while holding something.
+
+Boost replaced sprint: hold Shift (gamepad B) for unlimited thrust up to 45 m/s on the ground; in
+the air it follows the camera pitch with gravity cut to a quarter, so looking up and boosting flies.
+
+Milestone 1 recap: Main scene: `scenes/levels/test_box.tscn`. The level script
 (`scripts/world/test_level.gd`) generates a 400 m checkered ground, a jump gauge (boxes of 4 to
 30 m with height labels), six ramps, forty tall boxes (some with a step on top), and ninety-five
 crates (a pyramid and a wall) from `world_seed = 1337`. `PhysicsBudget` autoload caps props at 300,
@@ -48,6 +59,22 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Rifle is an AK-47.** Owner's request. Low-poly silhouette built from primitives
+  (wood furniture, curved magazine). Named "AK-47" in the HUD; it is a real-world rifle, not another
+  game's character or brand.
+- **2026-09-19 Boost replaces sprint.** Owner asked for a Rocket League style unlimited boost. Shift
+  and gamepad B. Ground: thrust along the move direction up to `boost_max_speed`. Air: thrust along
+  the camera pitch with `boost_gravity_scale` gravity, so you can fly. Letting go on the ground bleeds
+  speed off gently (`boost_bleed_off`) instead of braking.
+- **2026-09-19 Weapons are built in code, no weapon scenes.** Each weapon's model is a few boxes and
+  cylinders in `_build_model()`. Adding a weapon = one script, then append it in `WeaponManager`.
+- **2026-09-19 Aim ray starts at the head pivot**, not the camera, so a wall behind the camera can
+  never eat a shot. Shots and tracers still originate at the muzzle.
+- **2026-09-19 The body faces the camera for 1.5 s after firing or while holding something**, and
+  faces the move direction otherwise. The gun tilts with the camera pitch.
+- **2026-09-19 AK impact force is 12** (one bullet adds 6 m/s to a 2 kg crate). The first value, 30,
+  sent a crate 26 m in one burst, which was too much even for this game.
 
 - **2026-09-19 Godot 4.7.2.** Latest stable at project start. `config/features` pins 4.7 and
   Forward Plus.

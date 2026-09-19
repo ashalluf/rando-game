@@ -122,8 +122,14 @@ tests/                 headless smoke test and check script
   `debris` (short-lived props that get freed after a timeout).
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`).
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
-  `jump`, `sprint`, `look_left/right/up/down` (right stick), `fire`, `alt_fire`, `next_weapon`,
-  `prev_weapon`, `weapon_1..3`, `respawn`, `toggle_mouse`, `toggle_hud`. Add new actions there.
+  `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
+  `next_weapon`, `prev_weapon`, `weapon_1..3`, `respawn`, `toggle_mouse`, `toggle_hud`. Add new
+  actions there. There is no sprint; boost replaced it.
+- Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
+  the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
+  `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is
+  the crosshair ray (origin, direction, point, normal, collider). Explosions: `Explosion.blast()`.
+- Physics masks as constants on `Player`: `AIM_MASK` (world + props) and `BLAST_MASK` (player + props).
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
 - Commit messages: short imperative subject, body explains why and how to test. One task per
   commit (or a few), pushed straight to `main`.
