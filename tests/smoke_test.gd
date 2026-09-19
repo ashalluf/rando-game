@@ -173,8 +173,11 @@ func _test_weapons(player: Player) -> void:
 		var hold_dist := crate.global_position.distance_to(player.global_position)
 		_check(gun.is_holding() and hold_dist < gun.hold_distance + 3.0 and crate.global_position.y > 1.0,
 			"held crate floats near the player (%.1f m away, %.1f m up)" % [hold_dist, crate.global_position.y])
+		# Aim up into open sky so the launched crate cannot hit anything before we measure.
+		player.camera_rig.look_at_point(player.global_position + Vector3(0.0, 30.0, -10.0))
+		await _ticks(20)
 		await _press("fire")
-		await _ticks(3)
+		await _ticks(2)
 		_check(not gun.is_holding() and crate.linear_velocity.length() > gun.launch_speed * 0.6,
 			"gravity gun launches the crate at %.1f m/s" % crate.linear_velocity.length())
 
