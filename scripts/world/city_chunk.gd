@@ -80,7 +80,7 @@ func owned_rect() -> Rect2:
 func _build_airport() -> void:
 	var area := owned_rect()
 	var c := area.get_center()
-	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL)
+	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.pbr("asphalt", 8.0, Color(0.9, 0.9, 0.9)))
 	var macro: MacroMap = plan.macro
 	for rz in macro.runway_zs:
 		var band := Rect2(area.position.x, rz - macro.runway_width * 0.5, area.size.x, macro.runway_width)
@@ -124,7 +124,7 @@ func _on_runway(p: Vector2) -> bool:
 func _build_port(block: Dictionary) -> void:
 	var area := owned_rect()
 	var c := area.get_center()
-	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL)
+	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.pbr("concrete", 5.0))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	# Container stacks in rows, colored per box.
@@ -191,7 +191,7 @@ func _build_water() -> void:
 func _build_beach(block: Dictionary) -> void:
 	var rect: Rect2 = block.rect
 	var c := rect.get_center()
-	_add_slab(Vector3(c.x, 0.0, c.y), Vector3(rect.size.x, 0.4, rect.size.y), style.sand, false)
+	_add_slab(Vector3(c.x, 0.0, c.y), Vector3(rect.size.x, 0.4, rect.size.y), style.sand, false, PropFactory.pbr("sand", 5.0, Color(1.0, 0.95, 0.85)))
 	if level != Level.FULL:
 		return
 	var rng := RandomNumberGenerator.new()
@@ -237,8 +237,6 @@ func _build_terrain() -> void:
 	heights.resize((n + 1) * (n + 1))
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var grass: Color = style.hill_grass
-	var rock: Color = style.hill_rock
 	for j in n + 1:
 		for i in n + 1:
 			var x := area.position.x + area.size.x * i / n
@@ -246,7 +244,7 @@ func _build_terrain() -> void:
 			var h := plan.height_at(Vector2(x, z))
 			heights[j * (n + 1) + i] = h
 			var t := clampf((h - 20.0) / 160.0, 0.0, 1.0)
-			st.set_color(grass.lerp(rock, t))
+			st.set_color(Color(t, 0.0, 0.0, 1.0))
 			st.add_vertex(Vector3(x, h, z))
 	for j in n:
 		for i in n:
@@ -264,7 +262,7 @@ func _build_terrain() -> void:
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Terrain"
 	mesh.mesh = st.commit()
-	mesh.material_override = PropFactory.material(Color.WHITE, 0.95)
+	mesh.material_override = PropFactory.terrain_material()
 	add_child(mesh)
 	if level == Level.FULL and _statics:
 		var shape := CollisionShape3D.new()
@@ -291,15 +289,16 @@ func _build_roads(block: Dictionary) -> void:
 	var rect: Rect2 = block.rect
 	var asphalt: Color = style.asphalt
 	# Vertical road on the +X side, spanning this block's Z range.
+	var road_mat := PropFactory.pbr("asphalt", 7.0, Color(0.75, 0.75, 0.78))
 	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)
 	var wx := plan.road_width(CityPlan.AXIS_X, ix + 1)
-	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt)
+	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt, true, road_mat)
 	# Horizontal road on the +Z side, spanning this block's X range.
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
-	_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt)
+	_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt, true, road_mat)
 	# The intersection square at the +X +Z corner.
-	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt)
+	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, road_mat)
 	if level == Level.FULL:
 		_mark_road(true, rx, wx, rect.position.y, rect.end.y)
 		_mark_road(false, rz, wz, rect.position.x, rect.end.x)
@@ -335,7 +334,7 @@ func _build_block(block: Dictionary) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var center := rect.get_center()
-	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk)
+	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.pbr("paving", 3.0, Color(0.95, 0.94, 0.92)))
 	match block.kind:
 		CityPlan.BlockKind.PARK:
 			_build_park(rect, rng)
@@ -478,7 +477,7 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var inner := rect.grow(-2.0)
 	var center := inner.get_center()
-	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false)
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.pbr("grass", 5.0, Color(0.8, 0.95, 0.75)))
 	if level != Level.FULL:
 		return
 	var path_w := 3.0
@@ -526,7 +525,7 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var inner := rect.grow(-2.0)
 	var center := inner.get_center()
-	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.plaza, false)
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.plaza, false, PropFactory.pbr("paving", 2.5, Color(1.0, 0.96, 0.9)))
 	if level != Level.FULL:
 		return
 	var basin_r := minf(inner.size.x, inner.size.y) * 0.12
@@ -759,12 +758,12 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
 
 # --- Helpers ---------------------------------------------------------------------------
 
-func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true) -> void:
+func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, material: Material = null) -> void:
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
 	mesh.mesh = box
-	mesh.material_override = PropFactory.material(color, 0.95)
+	mesh.material_override = material if material else PropFactory.material(color, 0.95)
 	mesh.position = pos
 	add_child(mesh)
 	if collide:

@@ -4,6 +4,62 @@ extends RefCounted
 
 static var _cache: Dictionary = {}
 
+## CC0 texture sets in assets/textures (see docs/ASSETS.md). Map names: Color, NormalGL, Roughness.
+const TEXTURE_SETS := {
+	"asphalt": "Asphalt033", "brick": "Bricks104", "concrete": "Concrete034", "grass": "Grass004",
+	"sand": "Ground054", "metal": "MetalPlates006", "paving": "PavingStones138", "rock": "Rock064",
+}
+
+
+static func texture(set_key: String, map: String) -> Texture2D:
+	var set_name: String = TEXTURE_SETS.get(set_key, set_key)
+	var key := "tex_%s_%s" % [set_name, map]
+	if _cache.has(key):
+		return _cache[key]
+	var path := "res://assets/textures/%s/%s_1K-JPG_%s.jpg" % [set_name, set_name, map]
+	var tex: Texture2D = load(path) if ResourceLoader.exists(path) else null
+	_cache[key] = tex
+	return tex
+
+
+## A textured material projected in world space (triplanar), `scale_m` meters per tile.
+static func pbr(set_key: String, scale_m: float = 4.0, tint: Color = Color.WHITE, roughness_scale: float = 1.0) -> StandardMaterial3D:
+	var key := "pbr_%s_%.2f_%d_%.2f" % [set_key, scale_m, tint.to_rgba32(), roughness_scale]
+	if _cache.has(key):
+		return _cache[key]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = tint
+	mat.albedo_texture = texture(set_key, "Color")
+	var normal := texture(set_key, "NormalGL")
+	if normal:
+		mat.normal_enabled = true
+		mat.normal_texture = normal
+		mat.normal_scale = 0.8
+	var rough := texture(set_key, "Roughness")
+	if rough:
+		mat.roughness_texture = rough
+		mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	mat.roughness = roughness_scale
+	mat.uv1_triplanar = true
+	mat.uv1_world_triplanar = true
+	mat.uv1_scale = Vector3.ONE / scale_m
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_cache[key] = mat
+	return mat
+
+
+static func terrain_material() -> ShaderMaterial:
+	if _cache.has("terrain_mat"):
+		return _cache["terrain_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/terrain.gdshader")
+	mat.set_shader_parameter("grass_albedo", texture("grass", "Color"))
+	mat.set_shader_parameter("grass_normal", texture("grass", "NormalGL"))
+	mat.set_shader_parameter("rock_albedo", texture("rock", "Color"))
+	mat.set_shader_parameter("rock_normal", texture("rock", "NormalGL"))
+	_cache["terrain_mat"] = mat
+	return mat
+
 
 static func material(color: Color, roughness: float = 0.85, unshaded: bool = false) -> StandardMaterial3D:
 	var key := "m%d_%d_%d" % [color.to_rgba32(), int(roughness * 100), int(unshaded)]

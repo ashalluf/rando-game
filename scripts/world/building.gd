@@ -222,6 +222,7 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	mat.set_shader_parameter("has_storefront", storefront > 0.0)
 	mat.set_shader_parameter("part_size", size)
 	mat.set_shader_parameter("seed", float(seed % 1000))
+	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE)
 
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
@@ -237,6 +238,26 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	shape_node.shape = box_shape
 	shape_node.position = center
 	add_child(shape_node)
+
+
+## Wall texture per finish: brick, concrete, or metal plates for warehouses and glass spandrels.
+static func _apply_wall_texture(mat: ShaderMaterial, wall_finish: int, warehouse: bool) -> void:
+	var set_key := "concrete"
+	var scale := 4.0
+	if wall_finish == Finish.BRICK:
+		set_key = "brick"
+		scale = 3.0
+	elif warehouse or wall_finish == Finish.GLASS:
+		set_key = "metal"
+		scale = 3.0
+	var albedo := PropFactory.texture(set_key, "Color")
+	if albedo == null:
+		return
+	mat.set_shader_parameter("wall_albedo", albedo)
+	mat.set_shader_parameter("wall_normal", PropFactory.texture(set_key, "NormalGL"))
+	mat.set_shader_parameter("wall_roughness", PropFactory.texture(set_key, "Roughness"))
+	mat.set_shader_parameter("wall_texture_scale", scale)
+	mat.set_shader_parameter("use_wall_texture", true)
 
 
 # --- Rooftop props ------------------------------------------------------------

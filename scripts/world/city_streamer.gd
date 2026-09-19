@@ -292,7 +292,7 @@ func _build_ground() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(ground_size, ground_size)
 	mesh.mesh = plane
-	mesh.material_override = PropFactory.material(ground_color, 0.95)
+	mesh.material_override = PropFactory.pbr("grass", 6.0, Color(0.85, 0.9, 0.75))
 	_ground.add_child(mesh)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()

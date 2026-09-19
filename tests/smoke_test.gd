@@ -356,6 +356,16 @@ func _test_city() -> void:
 	_check(day.night_factor < 0.05, "noon clears it")
 	var sfx: Node = get_tree().root.get_node("/root/Sfx")
 	_check(sfx.has("shot") and sfx.has("explosion") and sfx.has("engine_loop"), "sound effects are synthesized")
+	var road_textured := false
+	var home_full: Node3D = city.chunks.get(plan.block_index_at(Vector2.ZERO))
+	if home_full:
+		for child in home_full.get_children():
+			if child is MeshInstance3D and (child as MeshInstance3D).material_override is StandardMaterial3D:
+				var m := (child as MeshInstance3D).material_override as StandardMaterial3D
+				if m.albedo_texture != null and m.uv1_triplanar:
+					road_textured = true
+	_check(road_textured, "roads and sidewalks use real textures")
+	_check(PropFactory.texture("brick", "Color") != null and PropFactory.texture("rock", "NormalGL") != null, "texture sets load")
 	var minimap: Control = city.get_node("DebugHud/Minimap")
 	_check(minimap != null and minimap.world_to_map(Vector2(0.0, -100.0), Vector2.ZERO).y < minimap.size.y * 0.5, "minimap exists and north is up")
 	minimap.queue_redraw()

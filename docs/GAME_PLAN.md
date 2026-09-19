@@ -147,6 +147,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 Realism step 2: real materials.** Eight CC0 texture sets from ambientCG (1K, Color
+  + NormalGL + Roughness only, about 24 MB) live in `assets/textures/` and are credited in
+  `docs/ASSETS.md`. `PropFactory.pbr()` builds world-triplanar StandardMaterial3Ds for roads
+  (asphalt), sidewalks and plazas (paving), parks and the ground (grass), beach (sand), the port
+  (concrete) and runways. The building shader samples a wall set in wall space (brick for brick,
+  concrete for flat and panels, metal plates for warehouses and glass spandrels) with normal maps.
+  Hills use `shaders/terrain.gdshader`: grass to rock by slope and height, projected from above.
+  Texture imports are VRAM-compressed with mipmaps (set in the `.import` files, committed).
+
 - **2026-09-19 Realism step 1: lighting and post.** City environment now has SDFGI (0.4 m cells),
   SSAO, SSR, glow, ACES tonemapping, volumetric fog, slight contrast and saturation, soft sun
   shadows (angular distance 0.6, blur 1.5, blended splits, 320 m) and a subtle far depth of field

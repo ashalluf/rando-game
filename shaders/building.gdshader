@@ -34,6 +34,13 @@ uniform vec3 part_size = vec3(10.0, 20.0, 10.0);
 uniform float seed = 0.0;
 // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
 global uniform float night_factor;
+// Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
+uniform sampler2D wall_albedo : source_color, filter_linear_mipmap, repeat_enable;
+uniform sampler2D wall_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform sampler2D wall_roughness : hint_roughness_r, filter_linear_mipmap, repeat_enable;
+uniform float wall_texture_scale = 4.0;
+uniform bool use_wall_texture = false;
+uniform float wall_normal_depth = 0.7;
 
 varying vec3 local_pos;
 varying vec3 local_normal;
@@ -65,6 +72,8 @@ void fragment() {
 	float rough = 0.85;
 	float metal = 0.0;
 	vec3 emission = vec3(0.0);
+	vec3 wall_nm = vec3(0.5, 0.5, 1.0);
+	float wall_nm_weight = 0.0;
 
 	if (abs(n.y) > 0.5) {
 		// Roof: gravel grey with a lighter parapet ring around the edge.
@@ -142,7 +151,18 @@ void fragment() {
 			metal = 0.2;
 		} else {
 			// Wall finish.
-			if (facade_finish == 1) {
+			vec2 wuv = vec2(u, v) / wall_texture_scale;
+			vec3 tex = use_wall_texture ? texture(wall_albedo, wuv).rgb : vec3(1.0);
+			float tex_rough = use_wall_texture ? texture(wall_roughness, wuv).r : 1.0;
+			if (use_wall_texture) {
+				wall_nm = texture(wall_normal, wuv).rgb;
+				wall_nm_weight = 1.0;
+			}
+			if (facade_finish == 1 && use_wall_texture) {
+				// Real brick texture, tinted by the facade color.
+				albedo = tex * facade_color * 1.35;
+				rough = 0.95 * tex_rough;
+			} else if (facade_finish == 1) {
 				float brick_row = floor(v / 0.25);
 				float offset = mod(brick_row, 2.0) * 0.3;
 				float bu = fract((u + offset) / 0.6);
@@ -154,13 +174,17 @@ void fragment() {
 			} else if (facade_finish == 2) {
 				float joint = step(fu, 0.03) + step(fv, 0.04);
 				float shade = 0.9 + 0.2 * hash21(vec2(col, row) + seed);
-				albedo = mix(facade_color * shade, accent_color, clamp(joint, 0.0, 1.0));
-				rough = 0.8;
+				albedo = mix(facade_color * shade * tex * (use_wall_texture ? 1.3 : 1.0), accent_color, clamp(joint, 0.0, 1.0));
+				rough = 0.8 * tex_rough;
 			} else if (facade_finish == 3) {
 				float joint = step(fu, 0.04) + step(fv, 0.05);
-				albedo = mix(facade_color * 0.6, accent_color, clamp(joint, 0.0, 1.0));
+				albedo = mix(facade_color * 0.6 * tex * (use_wall_texture ? 1.3 : 1.0), accent_color, clamp(joint, 0.0, 1.0));
 				rough = 0.35;
 				metal = 0.35;
+				wall_nm_weight *= 0.3;
+			} else {
+				albedo = facade_color * tex * (use_wall_texture ? 1.3 : 1.0);
+				rough = 0.85 * tex_rough;
 			}
 		}
 	}
@@ -169,4 +193,6 @@ void fragment() {
 	ROUGHNESS = rough;
 	METALLIC = metal;
 	EMISSION = emission;
+	NORMAL_MAP = wall_nm;
+	NORMAL_MAP_DEPTH = wall_normal_depth * wall_nm_weight;
 }

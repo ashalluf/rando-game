@@ -435,6 +435,7 @@ static func _facade_box(parent: Node3D, statics: StaticBody3D, size: Vector3, po
 	mat.set_shader_parameter("has_storefront", storefront > 0.0)
 	mat.set_shader_parameter("part_size", size)
 	mat.set_shader_parameter("seed", float(int(pos.x + pos.z * 7.0) % 1000))
+	Building._apply_wall_texture(mat, finish, false)
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
