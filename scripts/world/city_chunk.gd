@@ -346,6 +346,24 @@ func _build_block(block: Dictionary) -> void:
 	if level == Level.FULL:
 		_build_sidewalk_props(rect, params, rng)
 		_park_cars(rect, rng)
+		_spawn_pedestrians(rect, rng)
+
+
+func _spawn_pedestrians(rect: Rect2, rng: RandomNumberGenerator) -> void:
+	var count: int = style.pedestrians_per_block
+	if count <= 0:
+		return
+	var existing := get_tree().get_nodes_in_group("pedestrian").size()
+	var cap: int = style.max_pedestrians
+	for i in count:
+		if existing >= cap:
+			return
+		var ped := Pedestrian.new()
+		ped.setup(rect, plan.sidewalk_width, rng.randi())
+		var start := ped._random_ring_point(plan.sidewalk_width)
+		ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1, start.y)
+		add_child(ped)
+		existing += 1
 
 
 ## Parked cars in the lanes of this chunk's two roads, nose along the road.

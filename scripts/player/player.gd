@@ -155,6 +155,8 @@ func _try_enter_vehicle() -> void:
 		var car := node as Vehicle
 		if car == null or car.driver != null:
 			continue
+		if car.is_traffic():
+			continue
 		var d := car.global_position.distance_to(global_position)
 		if d < best_d:
 			best_d = d

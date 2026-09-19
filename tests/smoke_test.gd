@@ -249,7 +249,10 @@ func _test_city() -> void:
 	player.velocity = Vector3.ZERO
 	city.update_streaming(true)
 	await _ticks(10)
-	var cars := get_nodes_in_group("vehicle")
+	var cars: Array = []
+	for c in get_nodes_in_group("vehicle"):
+		if not c.is_traffic():
+			cars.append(c)
 	_check(cars.size() >= 5, "parked cars spawned (%d)" % cars.size())
 	if cars.size() > 0:
 		var car: Node3D = cars[0]
@@ -271,6 +274,40 @@ func _test_city() -> void:
 		await _ticks(30)
 		await _press("interact")
 		_check(not player.is_driving() and player.visible and player.global_position.distance_to(car.global_position) < 5.0, "interact gets out next to the car")
+
+	# Pedestrians and traffic.
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	await _ticks(70)
+	var peds := get_nodes_in_group("pedestrian")
+	_check(peds.size() >= 10 and peds.size() <= city.max_pedestrians, "pedestrians on the sidewalks (%d)" % peds.size())
+	if peds.size() > 0:
+		var ped: Node3D = peds[0]
+		var before_dolls := 0
+		for n in get_nodes_in_group("debris"):
+			if n is Ragdoll:
+				before_dolls += 1
+		ped.knock(Vector3(5.0, 8.0, 0.0))
+		await _ticks(3)
+		var dolls := 0
+		for n in get_nodes_in_group("debris"):
+			if n is Ragdoll:
+				dolls += 1
+		_check(not is_instance_valid(ped) or ped.is_queued_for_deletion(), "knocked pedestrian is removed")
+		_check(dolls == before_dolls + 1, "a ragdoll takes its place")
+	var traffic_node: Node3D = city.get_node("Traffic")
+	var moving: int = traffic_node.cars.size()
+	_check(moving >= 4, "traffic cars are driving (%d)" % moving)
+	if moving > 0:
+		var tcar: Node3D = traffic_node.cars[0]
+		var p0: Vector3 = tcar.global_position
+		await _ticks(60)
+		_check(is_instance_valid(tcar) and tcar.global_position.distance_to(p0) > 4.0, "traffic car moved %.1f m in 1 s" % (tcar.global_position.distance_to(p0) if is_instance_valid(tcar) else 0.0))
+		if is_instance_valid(tcar):
+			tcar.drop_out_of_traffic(Vector3(0.0, 4000.0, 0.0))
+			await _ticks(2)
+			_check(not tcar.is_traffic() and not tcar.freeze, "a hit traffic car becomes a physics car")
 
 	# Same seed, same plan.
 	var a := CityPlan.new()

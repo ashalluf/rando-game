@@ -44,6 +44,9 @@ func _process(_delta: float) -> void:
 	var city := get_tree().get_first_node_in_group("city")
 	if city and city.has_method("district_name_at"):
 		stats.text += "   district: %s" % city.district_name_at(_player.global_position)
+	var peds := get_tree().get_nodes_in_group("pedestrian").size()
+	var traffic := get_tree().get_first_node_in_group("traffic")
+	stats.text += "   people %d" % peds
 	if city and city.has_method("chunk_counts"):
 		var counts: Vector2i = city.chunk_counts()
 		var wp: Vector3 = city.world_position(_player.global_position)

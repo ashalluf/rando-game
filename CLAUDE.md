@@ -66,8 +66,8 @@ GODOT=/path/to/godot tests/headless_check.sh
 
 That runs `--import` and then `tests/smoke_test.gd`, which loads the test room, drives the player
 with simulated input (movement, boost, jumps, every weapon), checks buildings, then loads the city
-scene and checks streaming, re-centering and destruction persistence. It fails on any script error
-in the output. Gotchas: the test script is compiled before autoloads exist, so never name an
+scene and checks streaming, re-centering, destruction persistence, cars, pedestrians and traffic.
+It fails on any script error or NaN warning in the output. Gotchas: the test script is compiled before autoloads exist, so never name an
 autoload or a class that uses one (`CityChunk`, `CityStreamer`) as a type there (look them up with
 `root.get_node("/root/WorldState")` and untyped vars); and `root.add_child()` from `_initialize()`
 is deferred, so await a frame before using the scene.
@@ -134,6 +134,9 @@ tests/                 headless smoke test and check script
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
   `next_weapon`, `prev_weapon`, `weapon_1..3`, `interact` (E / gamepad Y), `respawn`,
   `toggle_mouse`, `toggle_hud`. Add new actions there. There is no sprint; boost replaced it.
+- NPCs: `Pedestrian` (wanders a block's sidewalk ring, `knock(impulse)` turns it into a `Ragdoll`
+  debris) and `TrafficManager` (kinematic `Vehicle`s with `traffic` state driving the lanes).
+  Never freeze a VehicleBody3D and never give a kinematic one VehicleWheel3D nodes: NaN.
 - Vehicles: `Vehicle` (`scripts/vehicles/vehicle.gd`), a VehicleBody3D built in code;
   `Vehicle.random_car(rng)` for a seeded one. Handling numbers are exports at the top. The player's
   `enter_vehicle()` / `exit_vehicle()` handle riding; the car reads input while `driver` is set.

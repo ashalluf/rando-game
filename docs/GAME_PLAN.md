@@ -29,7 +29,7 @@ Build in this order, one milestone per PR or a few PRs.
 - [x] **6. Vehicles.** Drivable cars using VehicleBody3D with bouncy, overpowered arcade handling.
   Enter and exit. Modular car variety: a few body types, random paint, small add-ons. Parked cars
   spawned by the city generator.
-- [ ] **7. NPCs and traffic.** Simple wandering pedestrians that ragdoll when hit, basic traffic
+- [x] **7. NPCs and traffic.** Simple wandering pedestrians that ragdoll when hit, basic traffic
   following road lanes. Strict caps on active counts.
 - [ ] **8. Foliage and polish.** Code-generated low-poly trees and bushes with random variation,
   MultiMesh grass with a wind shader in parks, day/night cycle, sound effects, pause menu with a
@@ -51,7 +51,17 @@ Build in this order, one milestone per PR or a few PRs.
 
 ## Current state
 
-Milestones 1 to 6 are in, plus the west-coast map with its landmarks.
+Milestones 1 to 7 are in, plus the west-coast map with its landmarks.
+
+NPCs: `Pedestrian` (`scripts/npc/pedestrian.gd`) is a CharacterBody3D that wanders between random
+points on its block's sidewalk ring; chunks spawn `pedestrians_per_block` up to `max_pedestrians`
+(70). It collides with the world only, and an Area3D on it detects anything fast: cars, thrown
+crates, debris, or a boosting player above 14 m/s. Bullets and explosions call `knock()`. Knocked,
+it becomes a `Ragdoll` (six pin-jointed pieces) registered as debris. `TrafficManager`
+(`scripts/npc/traffic.gd`, child of the streamer) keeps `traffic_cars` (14) kinematic Vehicles
+driving the lanes on the right, turning at random at intersections, spawning 120 to 260 m from
+the player and despawning past 380 m or outside city zones. Bumper areas on every car knock
+pedestrians and launch the player. A hit traffic car drops into real physics.
 
 Vehicles: `Vehicle` (`scripts/vehicles/vehicle.gd`) is a VehicleBody3D built from boxes in code
 with four body types (sedan, pickup, van, sports), ten paints and three add-ons (roof rack,
@@ -126,6 +136,14 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Traffic cars are kinematic and wheel-less until hit.** A VehicleBody3D that is
+  frozen (any mode) runs wheel math with zero inverse mass and turns into NaN, which then spreads
+  through anything it touches. Traffic cars use plain wheel meshes and get real VehicleWheel3D
+  nodes only in `drop_out_of_traffic()`. For the same reason PhysicsBudget never freezes vehicles.
+  The headless check now fails on any NaN warning.
+- **2026-09-19 Pedestrians do not collide with props or cars**, so cars never get stuck on them;
+  a hit is detected by an Area3D and a speed check instead.
 
 - **2026-09-19 Driving keeps the player node alive in the seat.** On enter the player hides,
   drops its collision layers and copies the car's seat position every tick, so the camera rig,

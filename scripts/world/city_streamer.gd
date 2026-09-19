@@ -38,6 +38,11 @@ extends Node3D
 @export var trash_cans_per_block: int = 2
 ## Parked cars per block (physics bodies; count against the PhysicsBudget cap).
 @export var cars_per_block: int = 5
+@export var pedestrians_per_block: int = 4
+## Hard cap on live pedestrians.
+@export var max_pedestrians: int = 70
+## Cars driving around at once.
+@export var traffic_cars: int = 14
 
 @export_group("Look")
 @export var sun_rotation_degrees: Vector3 = Vector3(-48.0, 35.0, 0.0)
@@ -88,6 +93,11 @@ func _ready() -> void:
 		plan.macro.setup()
 	_build_ground()
 	_build_far_landmarks()
+	var traffic := TrafficManager.new()
+	traffic.name = "Traffic"
+	traffic.plan = plan
+	traffic.max_cars = traffic_cars
+	add_child(traffic)
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	_apply_spawn_override()
 	update_streaming(true)
@@ -239,7 +249,7 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 		"hill_grass": hill_grass_color, "hill_rock": hill_rock_color,
 		"tarmac": tarmac_color, "runway": runway_color, "concrete": concrete_color,
 		"lamp_spacing": lamp_spacing, "tree_spacing": tree_spacing, "trash_cans_per_block": trash_cans_per_block,
-		"cars_per_block": cars_per_block,
+		"cars_per_block": cars_per_block, "pedestrians_per_block": pedestrians_per_block, "max_pedestrians": max_pedestrians,
 	}
 	add_child(chunk)
 	chunk.build()

@@ -62,6 +62,10 @@ func fire_ray(from: Vector3, dir: Vector3) -> Dictionary:
 			body.apply_impulse(dir * impact_force, hit.position - body.global_position)
 		elif hit.collider.has_method("take_hit"):
 			hit.collider.take_hit(hit.get("shape", -1), bullet_damage, dir)
+		elif hit.collider.has_method("knock"):
+			hit.collider.knock(dir * 14.0 + Vector3.UP * 5.0)
+		if hit.collider is Vehicle:
+			(hit.collider as Vehicle).drop_out_of_traffic(dir * impact_force)
 		WeaponFX.impact(self, hit.position)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color)
 	return hit

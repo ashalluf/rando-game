@@ -12,7 +12,7 @@ set +e
 "$GODOT" --headless --path . -s res://tests/smoke_test.gd 2>&1 | tee "$LOG"
 STATUS=${PIPESTATUS[0]}
 set -e
-if grep -qE "SCRIPT ERROR|Failed to load script|Parse Error" "$LOG"; then
+if grep -qE "SCRIPT ERROR|Failed to load script|Parse Error|is_finite|must be normalized" "$LOG"; then
   echo "== Script errors found in the smoke test output"
   STATUS=1
 fi

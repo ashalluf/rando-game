@@ -24,6 +24,12 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 		var dist := offset.length()
 		var falloff := clampf(1.0 - dist / radius, 0.2, 1.0)
 		var dir := (offset + Vector3.UP * radius * 0.35).normalized() if dist > 0.01 else Vector3.UP
+		if collider is Vehicle:
+			(collider as Vehicle).drop_out_of_traffic()
+		if collider.has_method("knock"):
+			collider.knock(dir * launch_speed * falloff * 1.2)
+			affected += 1
+			continue
 		if collider is RigidBody3D:
 			var body := collider as RigidBody3D
 			body.freeze = false

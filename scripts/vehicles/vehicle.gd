@@ -47,7 +47,12 @@ var addon: Addon = Addon.NONE
 var paint: Color = Color(0.85, 0.15, 0.12)
 ## The Player driving, or null.
 var driver: Node3D
+## Traffic state while driven by the TrafficManager (empty otherwise).
+var traffic: Dictionary = {}
+var traffic_speed: float = 0.0
 var wheels: Array[VehicleWheel3D] = []
+var _wheel_slots: Array = []
+var _wheel_visuals: Array[Node3D] = []
 var _seat: Node3D
 var _exit_side: float = 1.0
 var _steer_target: float = 0.0
@@ -81,6 +86,28 @@ func seat_position() -> Vector3:
 
 func exit_position() -> Vector3:
 	return global_position + global_basis.x * (2.6 * _exit_side) + Vector3.UP * 0.5
+
+
+func is_traffic() -> bool:
+	return not traffic.is_empty()
+
+
+## Something hit a traffic car hard: hand it over to physics.
+func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
+	if not is_traffic():
+		return
+	var v := -global_basis.z * traffic_speed
+	traffic = {}
+	traffic_speed = 0.0
+	for visual in _wheel_visuals:
+		visual.queue_free()
+	_wheel_visuals.clear()
+	_add_real_wheels()
+	freeze = false
+	sleeping = false
+	linear_velocity = v
+	if impulse != Vector3.ZERO:
+		apply_central_impulse(impulse)
 
 
 func is_airborne() -> bool:
@@ -125,6 +152,17 @@ func _physics_process(delta: float) -> void:
 		# Upside down and stuck: roll back onto the wheels.
 		var axis := global_basis.z
 		apply_torque(axis * upright_torque * signf(global_basis.x.y + 0.0001))
+
+
+func _on_bumper_hit(body: Node3D) -> void:
+	var speed := traffic_speed if is_traffic() else linear_velocity.length()
+	if speed < 4.0 or body == driver:
+		return
+	var dir := -global_basis.z if is_traffic() else linear_velocity.normalized()
+	if body is Player and (body as Player).vehicle == null:
+		(body as Player).launch(dir * (8.0 + speed) + Vector3.UP * 9.0)
+	elif body.has_method("knock"):
+		body.knock(dir * (8.0 + speed * 0.6) + Vector3.UP * 6.0)
 
 
 # --- Model -----------------------------------------------------------------------------
@@ -172,10 +210,63 @@ func _build() -> void:
 	_seat = Node3D.new()
 	_seat.position = Vector3(-0.4, base_y + chassis_h + 0.2, cabin.x + cabin.y * 0.4)
 	add_child(_seat)
+	# Bumper zone: fast cars knock pedestrians over and launch the player.
+	var bumper := Area3D.new()
+	bumper.collision_layer = 0
+	bumper.collision_mask = 2
+	var bshape := CollisionShape3D.new()
+	var bbox := BoxShape3D.new()
+	bbox.size = Vector3(width + 0.4, 1.6, length + 0.8)
+	bshape.shape = bbox
+	bshape.position = Vector3(0.0, base_y + 0.6, 0.0)
+	bumper.add_child(bshape)
+	bumper.body_entered.connect(_on_bumper_hit)
+	add_child(bumper)
 	var wheel_z: float = dims.wheel_z
+	_wheel_slots = []
 	for front: bool in [true, false]:
 		for side: float in [-1.0, 1.0]:
-			_add_wheel(Vector3(side * (width * 0.5 - 0.05), base_y - 0.1, (-wheel_z if front else wheel_z)), front)
+			_wheel_slots.append([Vector3(side * (width * 0.5 - 0.05), base_y - 0.1, (-wheel_z if front else wheel_z)), front])
+	if is_traffic():
+		# Kinematic traffic: plain wheel meshes. Real VehicleWheel3D nodes on a frozen body
+		# divide by zero inside the engine, so they are only added when the car goes physical.
+		for slot in _wheel_slots:
+			var visual := _wheel_mesh()
+			visual.position = slot[0] + Vector3(0.0, -0.3, 0.0)
+			add_child(visual)
+			_wheel_visuals.append(visual)
+	else:
+		_add_real_wheels()
+
+
+func _add_real_wheels() -> void:
+	for slot in _wheel_slots:
+		_add_wheel(slot[0], slot[1])
+
+
+func _wheel_mesh() -> Node3D:
+	var holder := Node3D.new()
+	var mesh := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.42
+	cyl.bottom_radius = 0.42
+	cyl.height = 0.3
+	cyl.radial_segments = 10
+	mesh.mesh = cyl
+	mesh.material_override = PropFactory.material(Color(0.1, 0.1, 0.1))
+	mesh.rotation.z = PI * 0.5
+	holder.add_child(mesh)
+	var hub := MeshInstance3D.new()
+	var hub_cyl := CylinderMesh.new()
+	hub_cyl.top_radius = 0.22
+	hub_cyl.bottom_radius = 0.22
+	hub_cyl.height = 0.32
+	hub_cyl.radial_segments = 8
+	hub.mesh = hub_cyl
+	hub.material_override = PropFactory.material(Color(0.75, 0.75, 0.78), 0.4)
+	hub.rotation.z = PI * 0.5
+	holder.add_child(hub)
+	return holder
 
 
 func _dims() -> Dictionary:

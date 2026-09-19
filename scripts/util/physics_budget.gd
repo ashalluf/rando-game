@@ -43,8 +43,8 @@ func can_spawn() -> bool:
 	return active_body_count() < max_active_bodies
 
 
-## Mark a body as short-lived debris and start its lifetime clock.
-func register_debris(body: RigidBody3D) -> void:
+## Mark a body (or a ragdoll root) as short-lived debris and start its lifetime clock.
+func register_debris(body: Node3D) -> void:
 	body.add_to_group(PROP_GROUP)
 	body.add_to_group(DEBRIS_GROUP)
 	body.set_meta("spawn_time", _now())
@@ -71,15 +71,18 @@ func _run_checks() -> void:
 	var wake_radius := simulate_radius * wake_radius_factor
 	frozen_count = 0
 	for node in get_tree().get_nodes_in_group(PROP_GROUP):
-		var body := node as RigidBody3D
-		if body == null or body.is_queued_for_deletion():
+		if node.is_queued_for_deletion():
 			continue
-		if body.is_in_group(DEBRIS_GROUP):
-			var born: float = body.get_meta("spawn_time", now)
+		if node.is_in_group(DEBRIS_GROUP):
+			var born: float = node.get_meta("spawn_time", now)
 			if now - born > debris_lifetime:
-				body.queue_free()
+				node.queue_free()
 				continue
-		if player == null:
+		var body := node as RigidBody3D
+		if body == null or player == null:
+			continue
+		if body is VehicleBody3D:
+			# Never freeze vehicles: frozen wheels divide by zero and poison the body with NaN.
 			continue
 		var dist := body.global_position.distance_to(player.global_position)
 		if body.freeze:
