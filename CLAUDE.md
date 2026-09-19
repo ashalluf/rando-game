@@ -41,6 +41,9 @@ The same workflow also exports a **web build** (single-threaded, Compatibility r
 special headers needed) and, when the repo is public, deploys it to GitHub Pages at
 https://ashalluf.github.io/rando-game/ so the owner can play in a browser with nothing installed.
 While the repo is private the deploy job is skipped and the web build is only a workflow artifact.
+One-time setup already done by the owner: repo Settings > Pages > Source = "GitHub Actions". The
+workflow token cannot create the Pages site itself, so if the deploy job ever fails with "Resource
+not accessible by integration", that setting was lost and the owner has to set it again.
 
 Tell the owner the build number or link at the end of every push. A push is not "done" until the
 workflow has published its release; check the Actions run if in doubt.
