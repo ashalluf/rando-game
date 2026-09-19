@@ -10,7 +10,7 @@ extends Control
 
 const COLORS := {
 	"land": Color(0.93, 0.92, 0.89), "downtown": Color(0.87, 0.86, 0.85), "midtown": Color(0.91, 0.90, 0.87),
-	"suburbs": Color(0.92, 0.93, 0.87), "industrial": Color(0.89, 0.87, 0.83), "park": Color(0.76, 0.90, 0.74),
+	"suburbs": Color(0.92, 0.93, 0.87), "industrial": Color(0.89, 0.87, 0.83), "campus": Color(0.96, 0.91, 0.80), "park": Color(0.76, 0.90, 0.74),
 	"plaza": Color(0.96, 0.93, 0.85), "ocean": Color(0.62, 0.79, 0.95), "beach": Color(0.98, 0.94, 0.78),
 	"hills": Color(0.83, 0.89, 0.76), "airport": Color(0.87, 0.87, 0.90), "port": Color(0.86, 0.86, 0.87),
 	"road": Color(1.0, 1.0, 1.0), "road_edge": Color(0.78, 0.78, 0.78), "avenue": Color(0.99, 0.90, 0.60),
@@ -100,7 +100,7 @@ func _draw() -> void:
 				CityPlan.BlockKind.PLAZA:
 					color = COLORS.plaza
 				_:
-					color = [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLORS.industrial][block.district]
+					color = [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLORS.industrial, COLORS.campus][block.district]
 			_fill(rect, color, center, scale)
 
 	# Hill roads (not on the grid) as white lines.

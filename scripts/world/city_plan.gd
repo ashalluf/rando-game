@@ -4,11 +4,11 @@ extends RefCounted
 ## intersection index can be asked for and always comes back the same.
 ## Pure data, no nodes. CityStreamer builds CityChunks from it around the player.
 
-enum District { DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL }
+enum District { DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS }
 enum BlockKind { BUILDINGS, PARK, PLAZA }
 enum Intersection { PLAIN, STOP_SIGNS, SIGNALS, ROUNDABOUT }
 
-const DISTRICT_NAMES := ["Downtown", "Midtown", "Suburbs", "Industrial"]
+const DISTRICT_NAMES := ["Downtown", "Midtown", "Suburbs", "Industrial", "Campus"]
 const AXIS_X := 0
 const AXIS_Z := 1
 
@@ -31,6 +31,12 @@ const DISTRICTS := {
 		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.L_SHAPE],
 		"finishes": [Building.Finish.BRICK, Building.Finish.FLAT, Building.Finish.BRICK],
 		"lit": Vector2(0.1, 0.35), "park": 0.18, "plaza": 0.02, "trees": 1.0, "courtyard": 0.3,
+	},
+	District.CAMPUS: {
+		"height": Vector2(8.0, 24.0), "lot": Vector2(26.0, 44.0), "gap": Vector2(10.0, 18.0),
+		"shapes": [Building.Shape.SLAB, Building.Shape.L_SHAPE, Building.Shape.STEPPED, Building.Shape.SLAB],
+		"finishes": [Building.Finish.BRICK, Building.Finish.BRICK, Building.Finish.FLAT, Building.Finish.PANELS],
+		"lit": Vector2(0.2, 0.5), "park": 0.30, "plaza": 0.12, "trees": 1.0, "courtyard": 0.6,
 	},
 	District.INDUSTRIAL: {
 		"height": Vector2(6.0, 16.0), "lot": Vector2(34.0, 60.0), "gap": Vector2(6.0, 12.0),

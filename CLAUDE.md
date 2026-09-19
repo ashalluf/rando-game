@@ -182,7 +182,8 @@ tests/                 headless smoke test and check script
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is
   the crosshair ray (origin, direction, point, normal, collider). Explosions: `Explosion.blast()`.
 - City: `CityPlan` (lazy, endless data: `road_pos()`, `road_width()`, `block()`, `intersection()`,
-  `block_index_at()`, `district_at()`; `DISTRICTS` holds the parameter ranges), `CityStreamer`
+  `block_index_at()`, `district_at()`; `DISTRICTS` holds the parameter ranges for DOWNTOWN,
+  MIDTOWN, SUBURBS, INDUSTRIAL and CAMPUS), `CityStreamer`
   (scene root of `scenes/levels/city.tscn`: streams chunks, ground follow, origin re-centering) and
   `CityChunk` (builds one block at FULL or LOD level). Small repeated props go through
   `MultiMeshBatch` with meshes from `PropFactory`. Breakable props are registered with

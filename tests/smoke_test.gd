@@ -231,6 +231,10 @@ func _test_city() -> void:
 		var lifted_y: float = _world_state().to_world(player.global_position).y
 		_check(lifted_y > macro.height_at(Vector2(hill.x, hill.z)) - 3.0, "player under a hill is lifted onto it (y %.0f)" % lifted_y)
 
+	# The campus district and its main hall.
+	if macro:
+		_check(macro.district_at(macro.campus_center) == CityPlan.District.CAMPUS and CityPlan.district_name(CityPlan.District.CAMPUS) == "Campus", "campus district around the university")
+		_check(city.has_node("FarLandmark_campus_hall"), "far version of the campus hall exists")
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:
 		_check(city.has_node("FarLandmark_sign") and city.has_node("FarLandmark_pier") and city.has_node("FarLandmark_observatory"), "far versions of the sign, pier and observatory exist")

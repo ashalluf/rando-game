@@ -29,6 +29,9 @@ var midtown_radius: float = 800.0
 ## A second cluster of mid-rise towers on the west side.
 var westside_center: Vector2 = Vector2(-350.0, -250.0)
 var westside_radius: float = 320.0
+## The university campus: brick halls, quads and a bell tower on the west side.
+var campus_center: Vector2 = Vector2(-620.0, -520.0)
+var campus_radius: float = 250.0
 ## South-east of this corner is the port and industrial district.
 var industrial_corner: Vector2 = Vector2(300.0, 900.0)
 ## Flat zones (world XZ rects): the airport by the south-west coast, the port on a harbor.
@@ -122,6 +125,8 @@ func district_at(pos: Vector2) -> CityPlan.District:
 		return CityPlan.District.DOWNTOWN
 	if pos.x > industrial_corner.x and pos.y > industrial_corner.y:
 		return CityPlan.District.INDUSTRIAL
+	if pos.distance_to(campus_center) < campus_radius:
+		return CityPlan.District.CAMPUS
 	if dd < midtown_radius or pos.distance_to(westside_center) < westside_radius:
 		return CityPlan.District.MIDTOWN
 	return CityPlan.District.SUBURBS

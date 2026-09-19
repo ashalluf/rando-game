@@ -11,6 +11,7 @@ const PIER_NAME := "RANDO PIER"
 ## 5 x 7 block font for the hill sign. Rows top to bottom, '#' is a block.
 const FONT := {
 	"R": ["####.", "#...#", "#...#", "####.", "#.#..", "#..#.", "#...#"],
+	"U": ["#...#", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
 	"A": [".###.", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
 	"N": ["#...#", "##..#", "#.#.#", "#..##", "#...#", "#...#", "#...#"],
 	"D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
@@ -30,6 +31,7 @@ static func all() -> Array[Dictionary]:
 		{"id": "ziggurat_hall", "anchor": Vector2(810.0, 160.0), "radius": 40.0},
 		{"id": "stack_tower", "anchor": Vector2(640.0, 150.0), "radius": 26.0},
 		{"id": "needle", "anchor": Vector2(770.0, 330.0), "radius": 30.0},
+		{"id": "campus_hall", "anchor": Vector2(-620.0, -520.0), "radius": 95.0},
 		{"id": "twin_glass", "anchor": Vector2(600.0, 210.0), "radius": 46.0},
 		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
 		{"id": "cargo_ship", "anchor": Vector2(800.0, 1420.0), "radius": 100.0},
@@ -64,6 +66,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			_build_stack_tower(lm.anchor, parent, statics, detailed)
 		"needle":
 			_build_needle(lm.anchor, parent, statics, detailed)
+		"campus_hall":
+			_build_campus_hall(lm.anchor, parent, statics, detailed)
 		"twin_glass":
 			_build_twin_glass(lm.anchor, parent, statics, detailed)
 		"terminal":
@@ -389,6 +393,131 @@ static func _build_twin_glass(anchor: Vector2, parent: Node3D, statics: StaticBo
 	if detailed:
 		for i in 3:
 			_box(parent, null, Vector3(22.0, 0.5, 0.4), Vector3(base.x, bridge_y - 3.5 + i * 3.4, base.z + 6.2), Color(0.3, 0.32, 0.36), false)
+
+
+# --- University campus ----------------------------------------------------------------------
+
+const BRICK_RED := Color(0.62, 0.32, 0.24)
+const CAMPUS_TEXT := "RANDO U"
+
+## The heart of the campus: a brick main hall with twin towers and a dome, grand steps, a quad
+## with paths and a fountain in front, a bell tower and a lettered sign. Original design.
+static func _build_campus_hall(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.25, anchor.y)
+	var stone := Color(0.86, 0.82, 0.74)
+	# Quad lawn with cross paths (the hall faces +Z, the quad lies in front of it).
+	var lawn := _box(parent, statics, Vector3(120.0, 0.3, 80.0), base + Vector3(0.0, 0.15, 30.0), Color(0.45, 0.62, 0.32), true)
+	lawn.material_override = PropFactory.pbr("grass", 5.0, Color(0.8, 0.95, 0.75))
+	for path_size: Vector3 in [Vector3(6.0, 0.1, 80.0), Vector3(120.0, 0.1, 6.0)]:
+		var path := _box(parent, null, path_size, base + Vector3(0.0, 0.36, 30.0), stone, false)
+		path.material_override = PropFactory.pbr("paving", 3.0, Color(0.95, 0.93, 0.9))
+	# Main hall: brick, punched windows, a stone plinth and steps.
+	_facade_box(parent, statics, Vector3(76.0, 3.0, 34.0), base + Vector3(0.0, 1.5, -40.0), stone, Building.Finish.PANELS, Building.WindowStyle.NARROW, 0.0)
+	_facade_box(parent, statics, Vector3(72.0, 22.0, 30.0), base + Vector3(0.0, 3.0 + 11.0, -40.0), BRICK_RED, Building.Finish.BRICK, Building.WindowStyle.PUNCHED, 0.0)
+	for i in 4:
+		_box(parent, statics, Vector3(24.0 - i * 4.0, 0.7, 6.0 - i * 1.2), base + Vector3(0.0, 0.35 + i * 0.7, -22.0 + i * 1.0), stone, true)
+	# Portico columns.
+	for i in 6:
+		_cyl(parent, statics, 0.9, 14.0, base + Vector3(-15.0 + i * 6.0, 3.0 + 7.0, -23.5), stone)
+	_box(parent, statics, Vector3(36.0, 2.0, 5.0), base + Vector3(0.0, 3.0 + 15.0, -23.5), stone, true)
+	# Twin towers on the front corners with pyramid caps.
+	for dx: float in [-1.0, 1.0]:
+		var tx := base.x + dx * 30.0
+		_facade_box(parent, statics, Vector3(12.0, 40.0, 12.0), Vector3(tx, base.y + 3.0 + 20.0, base.z - 28.0), BRICK_RED, Building.Finish.BRICK, Building.WindowStyle.NARROW, 0.0)
+		_cone(parent, 7.5, 8.0, Vector3(tx, base.y + 43.0 + 4.0, base.z - 28.0), Color(0.35, 0.45, 0.5))
+	# Dome on a drum over the center.
+	_cyl(parent, statics, 11.0, 8.0, base + Vector3(0.0, 25.0 + 4.0, -40.0), stone)
+	var dome := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 11.5
+	sphere.height = 23.0
+	sphere.radial_segments = 24 if detailed else 12
+	sphere.rings = 12 if detailed else 6
+	dome.mesh = sphere
+	dome.material_override = PropFactory.material(Color(0.36, 0.5, 0.48), 0.5)
+	dome.position = base + Vector3(0.0, 33.0, -40.0)
+	parent.add_child(dome)
+	if statics:
+		_shape(statics, Vector3(22.0, 12.0, 22.0), base + Vector3(0.0, 39.0, -40.0))
+	# Bell tower off the north-east corner, lit belfry.
+	var bt := base + Vector3(52.0, 0.0, -10.0)
+	_facade_box(parent, statics, Vector3(9.0, 46.0, 9.0), bt + Vector3(0.0, 23.0, 0.0), BRICK_RED, Building.Finish.BRICK, Building.WindowStyle.NARROW, 0.0)
+	var belfry := _box(parent, statics, Vector3(7.5, 5.0, 7.5), bt + Vector3(0.0, 48.5, 0.0), Color(1.0, 0.9, 0.7), true)
+	belfry.material_override = WeaponFX.unshaded(Color(1.0, 0.88, 0.62))
+	_cone(parent, 6.0, 7.0, bt + Vector3(0.0, 51.0 + 3.5, 0.0), Color(0.35, 0.45, 0.5))
+	# Fountain in the middle of the quad.
+	var fc := base + Vector3(0.0, 0.3, 30.0)
+	_cyl(parent, statics, 7.0, 1.0, fc + Vector3(0.0, 0.5, 0.0), stone)
+	var water := _cyl(parent, null, 6.4, 0.3, fc + Vector3(0.0, 0.95, 0.0), Color(0.3, 0.65, 0.85))
+	var wmat := StandardMaterial3D.new()
+	wmat.albedo_color = Color(0.3, 0.65, 0.85)
+	wmat.roughness = 0.05
+	water.material_override = wmat
+	_cyl(parent, statics, 1.2, 4.0, fc + Vector3(0.0, 2.5, 0.0), stone)
+	_cyl(parent, null, 3.0, 0.4, fc + Vector3(0.0, 4.5, 0.0), stone)
+	# Sign wall at the front of the quad with the letters on it.
+	var sign_at := base + Vector3(0.0, 0.3, 72.0)
+	_box(parent, statics, Vector3(30.0, 2.4, 1.2), sign_at + Vector3(0.0, 1.2, 0.0), stone, true)
+	_text(CAMPUS_TEXT, 0.5, sign_at + Vector3(0.0, 2.8, 0.0), parent, Color(0.2, 0.22, 0.3))
+	if detailed:
+		# Trees along the quad edges.
+		for i in 8:
+			for dz: float in [-1.0, 1.0]:
+				_tree(parent, base + Vector3(-52.0 + i * 15.0, 0.3, 30.0 + dz * 36.0))
+
+
+static func _cone(parent: Node3D, radius: float, height: float, pos: Vector3, color: Color) -> void:
+	var mesh := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.0
+	cyl.bottom_radius = radius
+	cyl.height = height
+	cyl.radial_segments = 4
+	mesh.mesh = cyl
+	mesh.rotation.y = PI * 0.25
+	mesh.material_override = PropFactory.material(color, 0.7)
+	mesh.position = pos
+	parent.add_child(mesh)
+
+
+static func _tree(parent: Node3D, at: Vector3) -> void:
+	_cyl(parent, null, 0.35, 4.0, at + Vector3(0.0, 2.0, 0.0), Color(0.4, 0.28, 0.18))
+	var crown := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 3.2
+	sphere.height = 6.4
+	sphere.radial_segments = 10
+	sphere.rings = 5
+	crown.mesh = sphere
+	crown.material_override = PropFactory.material(Color(0.25, 0.5, 0.22), 0.9)
+	crown.position = at + Vector3(0.0, 6.2, 0.0)
+	parent.add_child(crown)
+
+
+## Block letters from FONT along +X, centered on `center` (which is the bottom-center).
+static func _text(text: String, cell: float, center: Vector3, parent: Node3D, color: Color) -> void:
+	var letter_w := 5 * cell
+	var gap := cell * 1.5
+	var total := text.length() * letter_w + (text.length() - 1) * gap
+	var x := center.x - total * 0.5
+	for ch in text:
+		if ch == " ":
+			x += letter_w + gap
+			continue
+		var rows: Array = FONT.get(ch, FONT["O"])
+		for r in rows.size():
+			var row: String = rows[r]
+			var c := 0
+			while c < row.length():
+				if row[c] != "#":
+					c += 1
+					continue
+				var run := 0
+				while c + run < row.length() and row[c + run] == "#":
+					run += 1
+				_box(parent, null, Vector3(run * cell, cell, 0.3), Vector3(x + (c + run * 0.5) * cell, center.y + (rows.size() - 1 - r + 0.5) * cell, center.z), color, false)
+				c += run
+		x += letter_w + gap
 
 
 # --- Airport terminal and cargo ship ---------------------------------------------------------

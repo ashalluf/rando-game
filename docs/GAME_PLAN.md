@@ -147,6 +147,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 University campus (map-character batch, part 4).** New `CityPlan.District.CAMPUS`
+  (brick and stone halls 8-24 m on big lots with wide gaps, 30 % quads, 12 % plazas, trees
+  everywhere) inside `MacroMap.campus_radius` (250 m) of `campus_center` (-620, -520) on the west
+  side. Landmark `campus_hall` at its center: brick main hall with a stone plinth, portico
+  columns, twin towers with pyramid caps and a dome, grand steps, a 120 x 80 m quad with cross
+  paths and a fountain, a bell tower with a lit belfry, a sign wall lettered "RANDO U" (the block
+  font gained a U) and trees along the quad. Original design, no real campus copied. The minimap
+  paints campus blocks tan; the HUD district reads "Campus".
+
 - **2026-09-19 Hills with roads and estates, peninsula in a bay (map-character batch, part 3).**
   `HillRoads` (`scripts/world/hill_roads.gd`, built by `MacroMap.setup()`) plans a seeded road
   network in the hills: "Sunset Drive" winding along the hill foot from the beach east, four
