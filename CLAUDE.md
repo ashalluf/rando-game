@@ -149,8 +149,10 @@ tests/                 headless smoke test and check script
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`, synthesized sounds:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
-- Day/night: `DayNight` node in the city scene drives the sun, sky and the `night_factor` shader
-  global (`[shader_globals]` in project.godot). Shaders that should react to night read it with
+- Day/night: `DayNight` node in the city scene drives the sun, the sky (`shaders/sky.gdshader`,
+  a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
+  hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in
+  project.godot). Shaders that should react to night read it with
   `global uniform float night_factor;`.
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap
   (`MinimapFrame/Minimap`, `scripts/ui/minimap.gd`, drawn from `CityPlan` data, rotates with the

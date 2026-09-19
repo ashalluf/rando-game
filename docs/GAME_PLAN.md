@@ -147,6 +147,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 Picturesque sky (owner's "make the sky gorgeous", part 1 of the map-character
+  batch).** `shaders/sky.gdshader` replaces the ProceduralSkyMaterial: zenith-to-horizon
+  gradient with haze, a real sun disc and halo from LIGHT0 (the same light is the moon at night,
+  so the disc shrinks and pales with `night_factor`), five-octave FBM clouds on a plane above the
+  camera (coverage, softness, drift speed and lit/shadow tints as uniforms; fbm is stretched from
+  its 0.3..0.75 band to 0..1 so coverage means what it says), twinkling stars at night. DayNight
+  drives every color by hour, with a 1.5 h golden hour (`dusk` = 1 - |elevation| * 2.6) that
+  turns the horizon orange and the clouds peach. Works on the Compatibility renderer. Remaining
+  parts of the batch: GTA-style skyline, hills with roads and mansions plus the peninsula coast,
+  a campus landmark, a bigger airport with flyable jets.
+
 - **2026-09-19 Realism rule for generated assets.** The owner wants every Meshy prompt to ask for
   the most ultra-realistic result possible. `tools/meshy.py` appends that wording to every prompt
   and texture prompt itself and defaults to Meshy's standard model at ~8000 faces (20 + 10

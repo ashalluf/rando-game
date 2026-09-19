@@ -12,11 +12,21 @@ extends Node
 @export var night_sun_color: Color = Color(0.62, 0.72, 1.0)
 @export var day_sun_energy: float = 1.0
 @export var night_sun_energy: float = 0.55
-@export var day_sky_top: Color = Color(0.33, 0.55, 0.92)
-@export var day_horizon: Color = Color(0.78, 0.86, 0.96)
-@export var dusk_horizon: Color = Color(0.95, 0.6, 0.4)
-@export var night_sky_top: Color = Color(0.05, 0.08, 0.18)
-@export var night_horizon: Color = Color(0.16, 0.2, 0.34)
+@export_group("Sky")
+@export var day_sky_top: Color = Color(0.1, 0.3, 0.74)
+@export var day_horizon: Color = Color(0.7, 0.82, 0.95)
+@export var dusk_sky_top: Color = Color(0.16, 0.18, 0.42)
+@export var dusk_horizon: Color = Color(1.0, 0.55, 0.3)
+@export var night_sky_top: Color = Color(0.02, 0.035, 0.09)
+@export var night_horizon: Color = Color(0.07, 0.09, 0.19)
+## Cloud tints by day, at dusk and by night (lit side / shadow side).
+@export var day_cloud: Color = Color(1.0, 1.0, 1.0)
+@export var day_cloud_shadow: Color = Color(0.58, 0.63, 0.74)
+@export var dusk_cloud: Color = Color(1.0, 0.72, 0.5)
+@export var dusk_cloud_shadow: Color = Color(0.45, 0.3, 0.42)
+## Cloud amount 0..1. Changes slowly over the day for variety.
+@export var cloud_coverage: float = 0.42
+@export_group("")
 ## Ambient light color and strength by day and by night (moonlight).
 @export var day_ambient: Color = Color(0.62, 0.7, 0.85)
 @export var night_ambient: Color = Color(0.3, 0.38, 0.6)
@@ -31,7 +41,7 @@ var night_factor: float = 0.0
 
 var _sun: DirectionalLight3D
 var _env: Environment
-var _sky: ProceduralSkyMaterial
+var _sky: ShaderMaterial
 var _paused: bool = false
 
 
@@ -42,7 +52,7 @@ func _ready() -> void:
 	if we:
 		_env = we.environment
 		if _env and _env.sky:
-			_sky = _env.sky.sky_material as ProceduralSkyMaterial
+			_sky = _env.sky.sky_material as ShaderMaterial
 	_apply_override()
 	_apply()
 
@@ -84,7 +94,8 @@ func _apply() -> void:
 	var elevation := sin(t * PI) # negative at night
 	var daylight := clampf(elevation * 3.0, 0.0, 1.0)
 	night_factor = 1.0 - clampf((elevation + 0.05) * 6.0, 0.0, 1.0)
-	var dusk := clampf(1.0 - absf(elevation) * 5.0, 0.0, 1.0) * float(elevation > -0.15)
+	# Golden hour: about 1.5 h either side of sunrise and sunset.
+	var dusk := clampf(1.0 - absf(elevation) * 2.6, 0.0, 1.0) * float(elevation > -0.3)
 	if _sun:
 		# By day the sun tracks the hour; by night the same light is a high, bright moon.
 		var pitch := -elevation * 85.0 if elevation > 0.0 else -55.0
@@ -94,10 +105,15 @@ func _apply() -> void:
 		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight)
 		_sun.shadow_enabled = true
 	if _sky:
-		_sky.sky_top_color = day_sky_top.lerp(night_sky_top, night_factor)
 		var horizon := day_horizon.lerp(dusk_horizon, dusk).lerp(night_horizon, night_factor)
-		_sky.sky_horizon_color = horizon
-		_sky.ground_horizon_color = horizon
+		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk).lerp(night_sky_top, night_factor))
+		_sky.set_shader_parameter("sky_horizon", horizon)
+		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk))
+		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk))
+		_sky.set_shader_parameter("cloud_coverage", cloud_coverage + 0.12 * sin(hour * 0.9))
+		_sky.set_shader_parameter("stars", night_factor)
+		_sky.set_shader_parameter("haze", lerpf(0.55, 0.8, dusk))
+		_sky.set_shader_parameter("sun_glow", lerpf(0.9, 1.6, dusk))
 	if _env:
 		_env.fog_light_color = day_horizon.lerp(night_horizon, night_factor)
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR

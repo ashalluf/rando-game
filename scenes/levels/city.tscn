@@ -1,21 +1,18 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/city_streamer.gd" id="1_city"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="PackedScene" path="res://scenes/ui/debug_hud.tscn" id="3_hud"]
 [ext_resource type="Script" path="res://scripts/world/day_night.gd" id="4_daynight"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="5_pause"]
+[ext_resource type="Shader" path="res://shaders/sky.gdshader" id="6_sky"]
 
-[sub_resource type="ProceduralSkyMaterial" id="ProceduralSkyMaterial_sky"]
-sky_top_color = Color(0.33, 0.55, 0.92, 1)
-sky_horizon_color = Color(0.78, 0.86, 0.96, 1)
-ground_bottom_color = Color(0.22, 0.22, 0.24, 1)
-ground_horizon_color = Color(0.78, 0.86, 0.96, 1)
-sun_angle_max = 30.0
-sun_curve = 0.15
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("6_sky")
 
 [sub_resource type="Sky" id="Sky_sky"]
-sky_material = SubResource("ProceduralSkyMaterial_sky")
+sky_material = SubResource("ShaderMaterial_sky")
+radiance_size = 2
 
 [sub_resource type="Environment" id="Environment_env"]
 background_mode = 2
