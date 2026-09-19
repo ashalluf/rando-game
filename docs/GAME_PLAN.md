@@ -1,7 +1,7 @@
 # Game plan
 
 3D open-world chaos sandbox. Godot 4.7.2, GDScript, Forward+. Overpowered player, unlimited guns,
-seeded low-poly city to wreck. Silly and over the top. See `CLAUDE.md` for working rules.
+seeded realistic city to wreck (high-poly, real assets; no low-poly look, owner's decision 2026-09-19). Silly and over the top. See `CLAUDE.md` for working rules.
 
 ## Roadmap
 
@@ -54,6 +54,16 @@ Build in this order, one milestone per PR or a few PRs.
   sky, a GTA-style skyline, hills with roads and estates, the peninsula in a bay, a university
   campus, a bigger airport with flyable jets, bullets that hurt people. See `docs/HANDOFF.md`
   for the state after that batch and the suggested next steps.
+
+- **High-poly realism** (asked 2026-09-19: "I don't want a low poly look, I want high poly"):
+  replace the primitive props, buildings and foliage with real assets. Sources: Poly Haven and
+  ambientCG (CC0, open APIs, no key) plus Meshy for anything that has to be made to order.
+  - [x] Push 1 (build 54): Poly Haven street props (hydrant, trash can, bench, cafe set, planter,
+    concrete barrier, barrel, tyre) merged into batchable meshes; district clutter.
+  - [ ] Push 2: street lamps, traffic signals and signs as real models; trees (Poly Haven trees
+    are 50 to 200 MB each, need decimation first).
+  - [ ] Push 3: building facades from real modules and PBR sets; then rooftop props.
+  - [ ] Push 4: a Poly Haven HDRI for the Mac build's reflections.
 
 ## Current state
 
@@ -152,6 +162,21 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Real street props from Poly Haven (owner: high-poly, not low-poly).** The style
+  rule flipped from clean low-poly to realistic high-poly. First batch: eight CC0 Poly Haven
+  models packed to single `.glb` files with `tools/pack_gltf.py` (pure Python, embeds the .bin
+  and 1K JPG textures). Poly Haven ships variants side by side in one file (fresh and aged
+  hydrant, clean and rusty can, an unassembled bench kit), so `PropFactory.model_mesh()` picks
+  nodes by name, bakes their transforms plus a variant offset, merges them into one ArrayMesh
+  and runs `ImporterMesh.generate_lods()`; the result goes through `MultiMeshBatch` exactly
+  like the old primitives and is cached per variant. The bench is assembled from the kit in
+  code (seat back rotated 69 degrees onto the back supports) and faces -Z; park benches now
+  face their path. Trash cans (`TrashCan`) and the new barrels and tyres (`PhysicsProp`) are
+  rigid bodies with the model as their mesh. District params got `cafes`, `planters` and
+  `clutter` counts (industrial blocks get barrels, tyre stacks and concrete barriers). The
+  hydrant is 43k triangles per variant; that is fine on desktop with LODs, and the web build
+  grew from 95 to 122 MB. Extracted texture imports use VRAM compression (`compress/mode=2`).
 
 - **2026-09-19 Bullets hurt people (owner: "the AK-47 can't hurt anybody").** Pedestrians sat
   on physics layer 2 (the player layer) and the aim mask only covered world + props, so the

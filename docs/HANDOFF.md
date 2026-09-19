@@ -23,7 +23,8 @@ ragdoll, traffic, day/night, a real sky. Everything original: no real names, log
 - **Push straight to `main`. No branches, no pull requests.** Their explicit decision. Small pushes
   with "How to test" in the commit body and in the chat reply, plus the tunable values most likely
   to need changing. End every push report with the build number (`build-N`, the release tag).
-- Standing rules they gave: the rifle is an AK-47; boost replaced sprint; **every Meshy prompt
+- Standing rules they gave: **high-poly and realistic, never a low-poly look** (2026-09-19, they
+  are aiming at consoles); the rifle is an AK-47; boost replaced sprint; **every Meshy prompt
   asks for the most ultra-realistic result possible**; they want more NPCs, a GTA-5-like skyline,
   a gorgeous sky, hills with roads and estates, a campus, a peninsula in the ocean, a bigger
   airport with flyable jets (all delivered in builds 46 to 51, see section 6).
@@ -45,7 +46,7 @@ scenes/player/player.tscn    CharacterBody3D + camera rig + weapon mount
 scenes/ui/               debug_hud (stats, hints, crosshair, round minimap), pause_menu (Esc, seed)
 scripts/player/          player.gd (movement, boost, jumps, vehicles, fall recovery), camera_rig.gd
 scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket, explosion, gravity_gun, weapon_fx, weapon_manager
-scripts/world/           city_streamer, city_chunk, city_plan, macro_map, hill_roads, landmarks, building, prop_factory, multimesh batch, street_props, trash_can, day_night, ferris_wheel
+scripts/world/           city_streamer, city_chunk, city_plan, macro_map, hill_roads, landmarks, building, prop_factory (primitives + model_* merged Poly Haven models), street_props, trash_can, physics_prop, day_night, ferris_wheel
 scripts/vehicles/        vehicle.gd (cars), aircraft.gd (jets)
 scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd
 scripts/util/            physics_budget.gd, world_state.gd, sfx.gd (autoloads)
@@ -55,6 +56,7 @@ assets/textures/         CC0 PBR sets from ambientCG (1K JPG)
 assets/models/           Meshy .glb models, their .json manifests, extracted textures, .import files, thumbs/
 tools/meshy.py           Meshy API pipeline (generate, texture, rig, animate, download)
 tools/shrink_glb.py      shrinks embedded textures to 1K JPEG, --desaturate for car paint
+tools/pack_gltf.py       packs a Poly Haven .gltf + .bin + textures into one .glb
 tools/webshot/           Playwright screenshot harness for the web build (see section 5)
 tests/                   headless_check.sh + smoke_test.tscn/.gd (126 checks)
 .github/workflows/godot-check.yml  CI: check, export macOS + web, publish release, deploy Pages

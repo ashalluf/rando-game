@@ -1,7 +1,8 @@
 # Assets
 
-External assets: CC0 texture sets (below) and 3D models generated with the owner's Meshy account
-(`tools/meshy.py`). Buildings and the street furniture are still built-in primitives and code.
+External assets: CC0 texture sets (below), CC0 street prop models from Poly Haven, and 3D models
+generated with the owner's Meshy account (`tools/meshy.py`). Buildings, lamps, signs and trees are
+still built-in primitives and code.
 
 When assets are added, only CC0 or free-for-commercial-use packs are allowed (for example Kenney,
 Quaternius). Record every pack here.
@@ -46,3 +47,21 @@ brightened (`tools/shrink_glb.py --desaturate`) so the seeded paint tint gives t
 
 Godot extracts each model's textures next to it on import (`<model>_N.jpg` + `.import`); those
 files are committed like any other import output.
+
+## Street prop models (Poly Haven, CC0)
+
+Downloaded from the open Poly Haven API (`https://api.polyhaven.com/files/<id>`, glTF at 1K) and
+packed into one `.glb` each with `tools/pack_gltf.py`. CC0 1.0, no attribution required; credit to
+Poly Haven and its artists given anyway (https://polyhaven.com). Godot extracts the textures next
+to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are committed too.
+
+| Poly Haven asset | File | Triangles | Used for | Added |
+|---|---|---|---|---|
+| fire_hydrant (fresh + aged) | `assets/models/prop_hydrant.glb` | 43k per variant | sidewalk hydrants | 2026-09-19 |
+| metal_trash_can (clean + rusty) | `prop_trash_can.glb` | 7k per variant | `TrashCan` physics prop | 2026-09-19 |
+| modular_street_seating | `prop_bench_kit.glb` | 25k (kit) | `PropFactory.model_bench()` assembles a bench | 2026-09-19 |
+| concrete_road_barrier | `prop_barrier.glb` | 61k | industrial clutter | 2026-09-19 |
+| Barrel_01 | `prop_barrel.glb` | 2.7k | industrial clutter (physics) | 2026-09-19 |
+| old_tyre | `prop_tyre.glb` | 2.9k | industrial clutter, tyre stacks (physics) | 2026-09-19 |
+| planter_box_01 | `prop_planter.glb` | 8k | sidewalk planters | 2026-09-19 |
+| outdoor_table_chair_set_01 | `prop_cafe_set.glb` | 10k | cafe tables downtown and midtown | 2026-09-19 |

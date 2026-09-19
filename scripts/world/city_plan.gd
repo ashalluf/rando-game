@@ -19,30 +19,35 @@ const DISTRICTS := {
 		"shapes": [Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN, Building.Shape.CROWN, Building.Shape.STEPPED],
 		"finishes": [Building.Finish.GLASS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS],
 		"lit": Vector2(0.3, 0.6), "park": 0.05, "plaza": 0.12, "trees": 0.35, "courtyard": 0.5,
+		"cafes": 2, "planters": 1, "clutter": 0,
 	},
 	District.MIDTOWN: {
 		"height": Vector2(12.0, 45.0), "lot": Vector2(20.0, 32.0), "gap": Vector2(3.0, 8.0),
 		"shapes": [Building.Shape.SLAB, Building.Shape.STEPPED, Building.Shape.L_SHAPE, Building.Shape.PODIUM_TOWER, Building.Shape.TOWER],
 		"finishes": [Building.Finish.FLAT, Building.Finish.BRICK, Building.Finish.PANELS, Building.Finish.GLASS],
 		"lit": Vector2(0.2, 0.5), "park": 0.10, "plaza": 0.06, "trees": 0.7, "courtyard": 0.6,
+		"cafes": 1, "planters": 2, "clutter": 1,
 	},
 	District.SUBURBS: {
 		"height": Vector2(5.0, 14.0), "lot": Vector2(14.0, 22.0), "gap": Vector2(6.0, 14.0),
 		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.L_SHAPE],
 		"finishes": [Building.Finish.BRICK, Building.Finish.FLAT, Building.Finish.BRICK],
 		"lit": Vector2(0.1, 0.35), "park": 0.18, "plaza": 0.02, "trees": 1.0, "courtyard": 0.3,
+		"cafes": 0, "planters": 3, "clutter": 1,
 	},
 	District.CAMPUS: {
 		"height": Vector2(8.0, 24.0), "lot": Vector2(26.0, 44.0), "gap": Vector2(10.0, 18.0),
 		"shapes": [Building.Shape.SLAB, Building.Shape.L_SHAPE, Building.Shape.STEPPED, Building.Shape.SLAB],
 		"finishes": [Building.Finish.BRICK, Building.Finish.BRICK, Building.Finish.FLAT, Building.Finish.PANELS],
 		"lit": Vector2(0.2, 0.5), "park": 0.30, "plaza": 0.12, "trees": 1.0, "courtyard": 0.6,
+		"cafes": 1, "planters": 3, "clutter": 0,
 	},
 	District.INDUSTRIAL: {
 		"height": Vector2(6.0, 16.0), "lot": Vector2(34.0, 60.0), "gap": Vector2(6.0, 12.0),
 		"shapes": [Building.Shape.WAREHOUSE, Building.Shape.WAREHOUSE, Building.Shape.SLAB],
 		"finishes": [Building.Finish.PANELS, Building.Finish.FLAT],
 		"lit": Vector2(0.05, 0.2), "park": 0.02, "plaza": 0.0, "trees": 0.1, "courtyard": 0.0,
+		"cafes": 0, "planters": 0, "clutter": 7,
 	},
 }
 

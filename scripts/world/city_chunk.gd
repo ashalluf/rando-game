@@ -14,7 +14,7 @@ const BUILDING_SCENE := preload("res://scenes/props/building.tscn")
 const TERRAIN_LAYER := 16
 const ROAD_TOP := 0.1
 const SIDEWALK_TOP := 0.25
-const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0}
+const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0}
 
 var plan: CityPlan
 var ix: int = 0
@@ -706,7 +706,7 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		var t := rng.randf_range(-0.4, 0.4)
 		var side := 1.0 if rng.randf() < 0.5 else -1.0
 		var p := center + (Vector2(inner.size.x * t, side * (path_w * 0.5 + 0.6)) if along_x else Vector2(side * (path_w * 0.5 + 0.6), inner.size.y * t))
-		_add_bench(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), 0.0 if along_x else PI * 0.5)
+		_add_bench(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), (0.0 if side > 0.0 else PI) if along_x else side * PI * 0.5)
 	for dx: float in [-1.0, 1.0]:
 		for dz: float in [-1.0, 1.0]:
 			_add_lamp(Vector3(center.x + dx * (path_w * 0.5 + 1.0), SIDEWALK_TOP + 0.04, center.y + dz * (path_w * 0.5 + 1.0)))
@@ -796,15 +796,19 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			t += tree_spacing
 		if e == hydrant_edge:
 			var p := a + dir * rng.randf_range(6.0, length - 6.0) + inward
+			var aged := rng.randf() < 0.4
 			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), [
-				["hydrant", PropFactory.hydrant(), Transform3D(Basis(), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y))],
-			], [[Vector3(0.4, 0.8, 0.4), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
+				["hydrant_aged" if aged else "hydrant", PropFactory.model_hydrant(aged), Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)), Vector3(p.x, SIDEWALK_TOP, p.y))],
+			], [[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
 		if cans_left > 0 and rng.randf() < 0.6 and PhysicsBudget.can_spawn():
 			cans_left -= 1
 			var p := a + dir * rng.randf_range(4.0, length - 4.0) + inward * 1.3
 			var can := TrashCan.new()
+			can.rusty = rng.randf() < 0.35
 			can.position = Vector3(p.x, SIDEWALK_TOP + 0.02, p.y)
+			can.rotation.y = rng.randf_range(0.0, TAU)
 			add_child(can)
+	_build_clutter(rect, edges, params, rng)
 
 
 # --- Intersections ---------------------------------------------------------------------
@@ -950,12 +954,75 @@ func _add_lamp(at: Vector3) -> void:
 	], [[Vector3(0.25, 6.0, 0.25), at + Vector3(0.0, 3.0, 0.0), 0.0]])
 
 
+## `yaw` is the direction the bench faces (forward is -Z).
 func _add_bench(at: Vector3, yaw: float) -> void:
 	var basis := Basis(Vector3.UP, yaw)
 	_add_prop("bench", at, Color(0.5, 0.36, 0.22), [
-		["bench_legs", PropFactory.bench_legs(), Transform3D(basis, at + Vector3(0.0, 0.22, 0.0))],
-		["bench", PropFactory.bench(), Transform3D(basis, at + Vector3(0.0, 0.5, 0.0))],
-	], [[Vector3(1.8, 0.55, 0.5), at + Vector3(0.0, 0.28, 0.0), yaw]])
+		["bench", PropFactory.model_bench(), Transform3D(basis, at)],
+	], [[Vector3(1.9, 0.9, 0.7), at + Vector3(0.0, 0.45, 0.0), yaw]])
+
+
+## District clutter on the sidewalk ring: cafe tables downtown, planters on leafy blocks, barrels,
+## tyres and concrete barriers on industrial blocks. `edges` are [a, b, inward] like the props.
+func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomNumberGenerator) -> void:
+	var cafes: int = params.get("cafes", 0)
+	var planters: int = params.get("planters", 0)
+	var clutter: int = params.get("clutter", 0)
+	for i in cafes:
+		var e: Array = edges[rng.randi() % 4]
+		var yaw := atan2(-e[2].x, -e[2].y)
+		var p: Vector2 = _edge_point(e, rng, 6.0) + e[2] * 2.6
+		_add_prop("cafe", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.25, 0.25, 0.27), [
+			["cafe_set", PropFactory.model_cafe_set(), Transform3D(Basis(Vector3.UP, yaw + PI * 0.5), Vector3(p.x, SIDEWALK_TOP, p.y))],
+		], [[Vector3(0.9, 0.9, 1.7), Vector3(p.x, SIDEWALK_TOP + 0.45, p.y), yaw + PI * 0.5]])
+	for i in planters:
+		var e: Array = edges[rng.randi() % 4]
+		var yaw := atan2(-e[2].x, -e[2].y)
+		var p: Vector2 = _edge_point(e, rng, 5.0) + e[2] * 2.4
+		_add_prop("planter", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.45, 0.32, 0.2), [
+			["planter", PropFactory.model_planter(), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, SIDEWALK_TOP, p.y))],
+		], [[Vector3(0.95, 0.45, 0.45), Vector3(p.x, SIDEWALK_TOP + 0.22, p.y), yaw]])
+	for i in clutter:
+		var e: Array = edges[rng.randi() % 4]
+		var yaw := atan2(-e[2].x, -e[2].y) + rng.randf_range(-0.3, 0.3)
+		var p: Vector2 = _edge_point(e, rng, 5.0) + e[2] * rng.randf_range(1.8, 3.0)
+		var at := Vector3(p.x, SIDEWALK_TOP, p.y)
+		var roll := rng.randf()
+		if roll < 0.3:
+			_add_prop("barrier", at, Color(0.6, 0.6, 0.58), [
+				["barrier", PropFactory.model_barrier(), Transform3D(Basis(Vector3.UP, yaw), at)],
+			], [[Vector3(1.55, 0.83, 0.64), at + Vector3(0.0, 0.42, 0.0), yaw]])
+		elif roll < 0.7:
+			if not PhysicsBudget.can_spawn():
+				continue
+			var barrel := PhysicsProp.new()
+			var cyl := CylinderShape3D.new()
+			cyl.radius = 0.28
+			cyl.height = 0.88
+			barrel.setup(PropFactory.model_barrel(), cyl, Vector3(0.0, 0.44, 0.0), 25.0)
+			barrel.position = at + Vector3(0.0, 0.02, 0.0)
+			barrel.rotation.y = rng.randf_range(0.0, TAU)
+			add_child(barrel)
+		else:
+			var stack := rng.randi_range(1, 3)
+			for k in stack:
+				if not PhysicsBudget.can_spawn():
+					break
+				var tyre := PhysicsProp.new()
+				var disc := CylinderShape3D.new()
+				disc.radius = 0.3
+				disc.height = 0.16
+				tyre.setup(PropFactory.model_tyre(), disc, Vector3(0.0, 0.08, 0.0), 10.0)
+				tyre.position = at + Vector3(rng.randf_range(-0.05, 0.05), 0.02 + k * 0.17, rng.randf_range(-0.05, 0.05))
+				tyre.rotation.y = rng.randf_range(0.0, TAU)
+				add_child(tyre)
+
+
+## A random point along a sidewalk edge, `margin` meters clear of both corners.
+func _edge_point(edge: Array, rng: RandomNumberGenerator, margin: float) -> Vector2:
+	var a: Vector2 = edge[0]
+	var b: Vector2 = edge[1]
+	return a.lerp(b, rng.randf_range(margin, maxf(margin, a.distance_to(b) - margin)) / a.distance_to(b))
 
 
 func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:

@@ -10,7 +10,9 @@ session starts with no memory.
 A 3D open-world chaos sandbox built in **Godot 4.7.2** (GDScript, Forward+ renderer).
 No story, no missions, no economy. The player is overpowered: super-high jumps, fast movement,
 unlimited guns with no ammo, and a big physics playground to wreck. Tone is silly and over the top.
-Visual style is clean low-poly.
+Visual style is **realistic and high-poly** (owner's decision 2026-09-19: no low-poly look, the
+target is console quality). Real models and PBR textures for everything the player gets close to;
+primitives only for far LOD boxes and tiny repeated bits (dashes, stripes, grass).
 
 All characters, names, vehicles, and art are original. Do not reference or imitate any existing
 game's characters, logos, or map.
@@ -99,8 +101,14 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
 - All feel-related numbers (jump height, gravity, speed, air control, camera distance, gun force,
   explosion radius, ...) are `@export` variables grouped at the top of each script with a one-line
   `##` doc comment so they are easy to find and tune.
-- Buildings and street props are built-in primitives and code. Cars and pedestrians use models
-  generated with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
+- Buildings, lamps, signs and trees are still primitives and code (next in line for real assets).
+  Street props are CC0 Poly Haven models: download the 1K glTF from `api.polyhaven.com/files/<id>`,
+  pack it with `python3 tools/pack_gltf.py <id>.gltf assets/models/prop_<name>.glb`, get the mesh
+  through `PropFactory.model_<name>()` (which uses `PropFactory.model_mesh()` to pick the variant
+  nodes, move them to the origin and merge them into one ArrayMesh with LODs, so they batch like
+  primitives), commit the `.glb`, the extracted textures and every `.import`, add a row to
+  `docs/ASSETS.md`. Physics ones use `PhysicsProp` (`scripts/world/physics_prop.gd`).
+  Cars and pedestrians use models generated with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
   `python3 tools/shrink_glb.py assets/models/<name>.glb`, commit the `.glb`, its `.json`, the
   extracted `_N.jpg` textures and all `.import` files, and add a row to `docs/ASSETS.md`.
@@ -108,7 +116,8 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   tool appends that wording itself; never pass `--plain` or ask for cartoon / low-poly looks).
   Rigged models: skeleton in cm under a 0.01 armature, so set `custom_aabb` on the skinned mesh
   (see `Pedestrian._add_model()`); they face +Z. `?showroom` on the web (`-- --showroom` on
-  desktop) lines up every car type and pedestrian model at the spawn.
+  desktop) lines up every car type, pedestrian model and street prop model at the spawn (`&nohud` hides
+  the HUD for screenshots).
   Textures are allowed too (owner asked for the
   realism pass): only CC0 / free-for-commercial-use sources (ambientCG, Poly Haven, Kenney,
   Quaternius), 1K JPG, Color + NormalGL + Roughness only, recorded in `docs/ASSETS.md`. Get

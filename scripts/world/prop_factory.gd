@@ -1,6 +1,8 @@
 class_name PropFactory
 extends RefCounted
-## Meshes for street furniture and trees, built once and shared. All primitives, low-poly.
+## Meshes for street furniture and trees, built once and shared. Primitives for the cheap
+## repeated bits (dashes, stripes, lamps, trees), real CC0 models (Poly Haven, see
+## docs/ASSETS.md) for the things the player gets close to: model_* below.
 
 static var _cache: Dictionary = {}
 
@@ -269,3 +271,149 @@ static func unit_box() -> Mesh:
 
 static func planter() -> Mesh:
 	return box("planter", Vector3(2.4, 0.7, 2.4), Color(0.55, 0.5, 0.45))
+
+
+# --- Real models -----------------------------------------------------------------------------
+# Poly Haven glTF props packed to one .glb each (tools/pack_gltf.py). Several ship two variants
+# side by side (a fresh and an aged hydrant, a clean and a rusty can), so a model is picked by
+# node-name filters, moved to the origin and merged into one ArrayMesh with LODs so it can go
+# through MultiMeshBatch like everything else. Merged once per variant and cached.
+
+const MODEL_DIR := "res://assets/models/"
+
+
+## Merges the MeshInstance3D nodes of the model at `path` whose names contain every string in
+## `include` and none in `exclude` into one mesh. `xform` is applied to everything (used to
+## move a variant to the origin and turn it to face -Z); `overrides` maps a node-name substring
+## to a Transform3D that replaces that node's own transform (kits that ship parts unassembled).
+static func model_mesh(path: String, include: PackedStringArray = [], exclude: PackedStringArray = [], xform: Transform3D = Transform3D.IDENTITY, overrides: Dictionary = {}) -> Mesh:
+	var key := "model_%s_%s_%s_%s" % [path, ",".join(include), ",".join(exclude), var_to_str(xform)]
+	if _cache.has(key):
+		return _cache[key]
+	var mesh: ArrayMesh = ArrayMesh.new()
+	if ResourceLoader.exists(path):
+		var scene: PackedScene = load(path)
+		var root: Node = scene.instantiate()
+		var importer := ImporterMesh.new()
+		_merge_into(root, root, importer, include, exclude, xform, overrides)
+		if importer.get_surface_count() > 0:
+			importer.generate_lods(25.0, 60.0, [])
+			mesh = importer.get_mesh()
+		root.free()
+	else:
+		push_warning("PropFactory: missing model " + path)
+	_cache[key] = mesh
+	return mesh
+
+
+static func _merge_into(node: Node, root: Node, importer: ImporterMesh, include: PackedStringArray, exclude: PackedStringArray, xform: Transform3D, overrides: Dictionary) -> void:
+	if node is MeshInstance3D:
+		var mi := node as MeshInstance3D
+		var lower := mi.name.to_lower()
+		var wanted := true
+		for s in include:
+			if not lower.contains(s):
+				wanted = false
+		for s in exclude:
+			if lower.contains(s):
+				wanted = false
+		if wanted and mi.mesh:
+			var local := mi.transform
+			var parent := mi.get_parent()
+			while parent and parent != root:
+				if parent is Node3D:
+					local = (parent as Node3D).transform * local
+				parent = parent.get_parent()
+			for name in overrides:
+				if lower.contains(name):
+					local = overrides[name]
+			var full := xform * local
+			for s in mi.mesh.get_surface_count():
+				var arrays := _transformed_arrays(mi.mesh.surface_get_arrays(s), full)
+				importer.add_surface(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, mi.get_active_material(s), "%s_%d" % [mi.name, s])
+	for child in node.get_children():
+		_merge_into(child, root, importer, include, exclude, xform, overrides)
+
+
+static func _transformed_arrays(arrays: Array, t: Transform3D) -> Array:
+	var out := arrays.duplicate()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var moved := PackedVector3Array()
+	moved.resize(verts.size())
+	for i in verts.size():
+		moved[i] = t * verts[i]
+	out[Mesh.ARRAY_VERTEX] = moved
+	if arrays[Mesh.ARRAY_NORMAL] != null:
+		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+		var turned := PackedVector3Array()
+		turned.resize(normals.size())
+		for i in normals.size():
+			turned[i] = (t.basis * normals[i]).normalized()
+		out[Mesh.ARRAY_NORMAL] = turned
+	if arrays[Mesh.ARRAY_TANGENT] != null:
+		var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+		var turned_t := PackedFloat32Array()
+		turned_t.resize(tangents.size())
+		for i in tangents.size() / 4:
+			var v := (t.basis * Vector3(tangents[i * 4], tangents[i * 4 + 1], tangents[i * 4 + 2])).normalized()
+			turned_t[i * 4] = v.x
+			turned_t[i * 4 + 1] = v.y
+			turned_t[i * 4 + 2] = v.z
+			turned_t[i * 4 + 3] = tangents[i * 4 + 3]
+		out[Mesh.ARRAY_TANGENT] = turned_t
+	return out
+
+
+static func _shift(offset: Vector3) -> Transform3D:
+	return Transform3D(Basis(), offset)
+
+
+## Fire hydrant, 0.8 m tall, base at the origin. Fresh or aged paint.
+static func model_hydrant(aged: bool) -> Mesh:
+	if aged:
+		return model_mesh(MODEL_DIR + "prop_hydrant.glb", ["aged"], [], _shift(Vector3(-0.3, 0.0, 0.0)))
+	return model_mesh(MODEL_DIR + "prop_hydrant.glb", [], ["aged"], _shift(Vector3(0.3, 0.0, 0.0)))
+
+
+## Metal trash can with a loose lid, 0.91 m tall, base at the origin. Clean or rusty.
+static func model_trash_can(rusty: bool) -> Mesh:
+	if rusty:
+		return model_mesh(MODEL_DIR + "prop_trash_can.glb", ["rust"], [], _shift(Vector3(0.5, 0.0, 0.0)))
+	return model_mesh(MODEL_DIR + "prop_trash_can.glb", [], ["rust"], _shift(Vector3(-0.5, 0.0, 0.0)))
+
+
+## Timber and steel street bench assembled from the Poly Haven seating kit: 1.86 m wide, seat at
+## 0.45 m, back rest leaning back, facing -Z, base at the origin.
+static func model_bench() -> Mesh:
+	var face_minus_z := Transform3D(Basis(Vector3.UP, PI), Vector3.ZERO) * _shift(Vector3(1.16, 0.0, 0.0))
+	var parts: PackedStringArray = ["legs_single", "legs_double", "crossbar", "suspended_support_01", "seat", "back_support", "arm_rest"]
+	var overrides := {"seat_back": Transform3D(Basis(Vector3.RIGHT, deg_to_rad(69.0)), Vector3(-1.16, 0.473, 0.098))}
+	var mesh := model_mesh(MODEL_DIR + "prop_bench_kit.glb", [], ["connector", "seat_bench", "suspended_support_02"], face_minus_z, overrides)
+	if mesh.get_surface_count() > 0:
+		return mesh
+	return bench()
+
+
+## Concrete road barrier, 1.55 x 0.83 x 0.64 m, base at the origin.
+static func model_barrier() -> Mesh:
+	return model_mesh(MODEL_DIR + "prop_barrier.glb")
+
+
+## Red steel drum, 0.56 m across and 0.88 m tall, base at the origin.
+static func model_barrel() -> Mesh:
+	return model_mesh(MODEL_DIR + "prop_barrel.glb")
+
+
+## Old tyre lying flat, 0.6 m across and 0.16 m thick, bottom at the origin.
+static func model_tyre() -> Mesh:
+	return model_mesh(MODEL_DIR + "prop_tyre.glb", [], [], Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0.0, 0.08, 0.0)))
+
+
+## Wooden planter box, 0.91 x 0.42 x 0.41 m, base at the origin.
+static func model_planter() -> Mesh:
+	return model_mesh(MODEL_DIR + "prop_planter.glb")
+
+
+## Folding cafe table with two chairs, 0.79 x 0.86 x 1.71 m, base at the origin.
+static func model_cafe_set() -> Mesh:
+	return model_mesh(MODEL_DIR + "prop_cafe_set.glb")
