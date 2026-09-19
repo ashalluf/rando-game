@@ -60,10 +60,14 @@ Build in this order, one milestone per PR or a few PRs.
   ambientCG (CC0, open APIs, no key) plus Meshy for anything that has to be made to order.
   - [x] Push 1 (build 54): Poly Haven street props (hydrant, trash can, bench, cafe set, planter,
     concrete barrier, barrel, tyre) merged into batchable meshes; district clutter.
-  - [ ] Push 2: street lamps, traffic signals and signs as real models; trees (Poly Haven trees
-    are 50 to 200 MB each, need decimation first).
-  - [ ] Push 3: building facades from real modules and PBR sets; then rooftop props.
-  - [ ] Push 4: a Poly Haven HDRI for the Mac build's reflections.
+  - [x] Push 2 (build 55): street lamps, bushes, manhole covers, real trees (Poly Haven trees
+    reduced from millions of triangles with `tools/decimate_tree.py`), hill landscape (aerial
+    ground textures, boulders, shrubs, dry scrub, grass tufts), clearer sky (less haze and fog).
+    Meshy is out for good (owner: the tinted results looked wrong); Poly Haven only.
+  - [ ] Push 3: traffic signals, stop signs, palms, beach and pier props. Poly Haven has no
+    signal or stop sign, so those stay primitives until a CC0 source turns up.
+  - [ ] Push 4: building facades from real modules and PBR sets; then rooftop props.
+  - [ ] Push 5: a Poly Haven HDRI for the Mac build's reflections.
 
 ## Current state
 
@@ -162,6 +166,22 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Trees, lamps, hills and a clearer sky (owner: "everything high quality",
+  "do the foliage and landscapes", "the sky is too hazy", and no more Meshy).** Poly Haven
+  trees ship at 0.9 to 2 million triangles (every leaf modeled, thousands of twig tubes), so
+  `tools/decimate_tree.py` rebuilds them: trunk and twigs through pymeshlab's texture-keeping
+  quadric decimation (thinnest 65 percent of twigs dropped first, boundaries allowed to
+  collapse), leaves replaced by one textured card per kept leaf (16 percent kept, scaled 2.5x,
+  card UVs = that leaf's atlas region) in the leaf's PCA plane. Result about 40k triangles per
+  tree; leaves render with alpha scissor (`PropFactory.model_tree()`) and take the instance
+  tint. Street lamp is Poly Haven `street_lamp_01` with the bulb and glass surfaces made
+  emissive in code. Bushes are `shrub_02` variants. Hills: terrain shader now samples Poly
+  Haven `aerial_grass_rock` and `rocky_terrain_02`; `CityChunk._scatter_hills()` seeds
+  boulders (with collision, on steep ground), shrubs, dry scrub and grass tuft clusters, kept
+  off hill roads (`_near_hill_road`) and mansion pads. Sky: `DayNight.day_haze` 0.22 (was
+  0.55), fog density 0.00022 (was 0.0006), volumetric fog 0.0025 (was 0.008), deeper sky top.
+  Meshy is retired: 80 credits spent on three aborted jobs this session, none used.
 
 - **2026-09-19 Real street props from Poly Haven (owner: high-poly, not low-poly).** The style
   rule flipped from clean low-poly to realistic high-poly. First batch: eight CC0 Poly Haven

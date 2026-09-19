@@ -7,8 +7,8 @@ uniform sampler2D grass_albedo : source_color, filter_linear_mipmap, repeat_enab
 uniform sampler2D grass_normal : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rock_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D rock_normal : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform float texture_scale = 6.0;
-uniform vec3 grass_tint : source_color = vec3(0.9, 1.0, 0.85);
+uniform float texture_scale = 5.0;
+uniform vec3 grass_tint : source_color = vec3(1.0, 1.0, 0.95);
 uniform vec3 rock_tint : source_color = vec3(1.0, 0.95, 0.9);
 
 varying vec3 world_pos;

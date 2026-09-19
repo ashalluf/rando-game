@@ -13,8 +13,8 @@ extends Node
 @export var day_sun_energy: float = 1.0
 @export var night_sun_energy: float = 0.55
 @export_group("Sky")
-@export var day_sky_top: Color = Color(0.1, 0.3, 0.74)
-@export var day_horizon: Color = Color(0.7, 0.82, 0.95)
+@export var day_sky_top: Color = Color(0.08, 0.28, 0.76)
+@export var day_horizon: Color = Color(0.62, 0.78, 0.95)
 @export var dusk_sky_top: Color = Color(0.16, 0.18, 0.42)
 @export var dusk_horizon: Color = Color(1.0, 0.55, 0.3)
 @export var night_sky_top: Color = Color(0.02, 0.035, 0.09)
@@ -26,6 +26,9 @@ extends Node
 @export var dusk_cloud_shadow: Color = Color(0.45, 0.3, 0.42)
 ## Cloud amount 0..1. Changes slowly over the day for variety.
 @export var cloud_coverage: float = 0.42
+## Horizon haze in the sky shader by day and at dusk (0 clear, 1 milky).
+@export var day_haze: float = 0.22
+@export var dusk_haze: float = 0.5
 @export_group("")
 ## Ambient light color and strength by day and by night (moonlight).
 @export var day_ambient: Color = Color(0.62, 0.7, 0.85)
@@ -112,7 +115,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk))
 		_sky.set_shader_parameter("cloud_coverage", cloud_coverage + 0.12 * sin(hour * 0.9))
 		_sky.set_shader_parameter("stars", night_factor)
-		_sky.set_shader_parameter("haze", lerpf(0.55, 0.8, dusk))
+		_sky.set_shader_parameter("haze", lerpf(day_haze, dusk_haze, dusk))
 		_sky.set_shader_parameter("sun_glow", lerpf(0.9, 1.6, dusk))
 	if _env:
 		_env.fog_light_color = day_horizon.lerp(night_horizon, night_factor)

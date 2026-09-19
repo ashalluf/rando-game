@@ -25,7 +25,7 @@ const server = http.createServer((req,res)=>{ const f = path.join(root, req.url.
   await page.waitForTimeout(1500);
 
   await page.waitForTimeout(3000);
-  await page.screenshot({ path: process.env.SHOT || 'web_shot2.png' });
+  await page.screenshot({ path: process.env.SHOT || 'web_shot2.png', timeout: parseInt(process.env.SHOT_TIMEOUT || '180000') });
   console.log(logs.filter(l => /error|Error|pageerror|warn|shader|Shader/i.test(l)).slice(0, 20).join('\n') || 'no errors/warnings');
   await browser.close(); server.close();
 })().catch(e => { console.error('TEST FAILED', e); process.exit(1); });

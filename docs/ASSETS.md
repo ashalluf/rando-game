@@ -17,10 +17,12 @@ Quaternius). Record every pack here.
 | Ground054 | https://ambientcg.com/a/Ground054 | CC0 1.0 | beach sand | 2026-09-19 |
 | MetalPlates006 | https://ambientcg.com/a/MetalPlates006 | CC0 1.0 | warehouses, glass tower spandrels | 2026-09-19 |
 | PavingStones138 | https://ambientcg.com/a/PavingStones138 | CC0 1.0 | sidewalks, plazas | 2026-09-19 |
-| Rock064 | https://ambientcg.com/a/Rock064 | CC0 1.0 | hill slopes | 2026-09-19 |
+| Rock064 | https://ambientcg.com/a/Rock064 | CC0 1.0 | (kept, no longer on hills) | 2026-09-19 |
+| AerialGrassRock (Poly Haven `aerial_grass_rock`, Diffuse/nor_gl/Rough renamed to Color/NormalGL/Roughness) | https://polyhaven.com/a/aerial_grass_rock | CC0 1.0 | hill ground | 2026-09-19 |
+| RockyTerrain02 (Poly Haven `rocky_terrain_02`) | https://polyhaven.com/a/rocky_terrain_02 | CC0 1.0 | hill slopes | 2026-09-19 |
 
-All texture sets are from ambientCG (CC0 1.0 Universal, no attribution required, attribution given
-anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.
+Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
+attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.
 
 ## Generated 3D models (Meshy)
 
@@ -65,3 +67,19 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | old_tyre | `prop_tyre.glb` | 2.9k | industrial clutter, tyre stacks (physics) | 2026-09-19 |
 | planter_box_01 | `prop_planter.glb` | 8k | sidewalk planters | 2026-09-19 |
 | outdoor_table_chair_set_01 | `prop_cafe_set.glb` | 10k | cafe tables downtown and midtown | 2026-09-19 |
+| street_lamp_01 | `prop_lamp.glb` | 31k | every street lamp (bulb and glass made emissive in code) | 2026-09-19 |
+| shrub_02 (4 variants) | `prop_shrub.glb` | 7k each | sidewalk and park bushes, hill shrubs | 2026-09-19 |
+| water_manhole_cover | `prop_manhole.glb` | 6k | manhole covers in the lanes | 2026-09-19 |
+| concrete_road_barrier_02 | `prop_barrier_b.glb` | 24k | tall barrier variant, industrial clutter | 2026-09-19 |
+| island_tree_01 | `tree_a.glb` | 44k (from 1.6M, `tools/decimate_tree.py`) | street and park trees | 2026-09-19 |
+| island_tree_02 | `tree_b.glb` | 40k (from 890k) | street and park trees | 2026-09-19 |
+| tree_small_02 | `tree_c.glb` | 40k (from 2.0M) | street and park trees | 2026-09-19 |
+| namaqualand_boulder_02 | `rock_a.glb` | 3.5k (from 98k) | hill boulders (flat) | 2026-09-19 |
+| namaqualand_boulder_04 | `rock_b.glb` | 3.5k (from 59k) | hill boulders (tall) | 2026-09-19 |
+| wild_rooibos_bush (5 variants) | `plant_rooibos.glb` | 1k to 13k | dry scrub on the hills | 2026-09-19 |
+| grass_medium_02 (5 variants) | `grass_tuft.glb` | 0.7k to 2.5k | grass tufts on the hills | 2026-09-19 |
+
+Trees and rocks are reduced with `tools/decimate_tree.py` (pymeshlab quadric decimation that keeps
+the UVs for trunks, twigs and rocks; every kept leaf becomes one textured card in its best-fit
+plane, scaled up to keep the canopy full). Poly Haven's `boulder_01` and `searsia_burchellii`
+would not decimate below 40k (UV seams on every edge) and were dropped.

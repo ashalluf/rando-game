@@ -10,6 +10,7 @@ static var _cache: Dictionary = {}
 const TEXTURE_SETS := {
 	"asphalt": "Asphalt033", "brick": "Bricks104", "concrete": "Concrete034", "grass": "Grass004",
 	"sand": "Ground054", "metal": "MetalPlates006", "paving": "PavingStones138", "rock": "Rock064",
+	"hill": "AerialGrassRock", "hill_rock": "RockyTerrain02",
 }
 
 
@@ -55,10 +56,10 @@ static func terrain_material() -> ShaderMaterial:
 		return _cache["terrain_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/terrain.gdshader")
-	mat.set_shader_parameter("grass_albedo", texture("grass", "Color"))
-	mat.set_shader_parameter("grass_normal", texture("grass", "NormalGL"))
-	mat.set_shader_parameter("rock_albedo", texture("rock", "Color"))
-	mat.set_shader_parameter("rock_normal", texture("rock", "NormalGL"))
+	mat.set_shader_parameter("grass_albedo", texture("hill", "Color"))
+	mat.set_shader_parameter("grass_normal", texture("hill", "NormalGL"))
+	mat.set_shader_parameter("rock_albedo", texture("hill_rock", "Color"))
+	mat.set_shader_parameter("rock_normal", texture("hill_rock", "NormalGL"))
 	_cache["terrain_mat"] = mat
 	return mat
 
@@ -417,3 +418,95 @@ static func model_planter() -> Mesh:
 ## Folding cafe table with two chairs, 0.79 x 0.86 x 1.71 m, base at the origin.
 static func model_cafe_set() -> Mesh:
 	return model_mesh(MODEL_DIR + "prop_cafe_set.glb")
+
+
+## Street lamp, 3.87 m tall, base at the origin. The bulb and glass surfaces glow.
+static func model_lamp() -> Mesh:
+	var mesh := model_mesh(MODEL_DIR + "prop_lamp.glb")
+	if not _cache.has("model_lamp_lit"):
+		_cache["model_lamp_lit"] = true
+		for i in mesh.get_surface_count():
+			var mat := mesh.surface_get_material(i)
+			if mat is StandardMaterial3D:
+				var name := (mat as StandardMaterial3D).resource_name.to_lower()
+				if name.contains("bulb") or name.contains("glass"):
+					var lit: StandardMaterial3D = mat.duplicate()
+					lit.emission_enabled = true
+					lit.emission = Color(1.0, 0.9, 0.65)
+					lit.emission_energy_multiplier = 3.0 if name.contains("bulb") else 0.8
+					mesh.surface_set_material(i, lit)
+	return mesh
+
+
+## One of four leafy shrubs (0.9 to 1.7 m), base at the origin. Instance colors tint the leaves.
+static func model_shrub(variant: int) -> Mesh:
+	var offsets: Array[Vector3] = [Vector3(-1.55, -0.01, -0.02), Vector3(0.0, -0.01, -0.02), Vector3(1.56, -0.01, -0.01), Vector3(3.26, 0.0, -0.01)]
+	var v := clampi(variant, 0, 3)
+	var mesh := model_mesh(MODEL_DIR + "prop_shrub.glb", ["shrub_02_" + "abcd"[v]], [], _shift(-offsets[v]))
+	for i in mesh.get_surface_count():
+		var mat := mesh.surface_get_material(i)
+		if mat is StandardMaterial3D:
+			(mat as StandardMaterial3D).vertex_color_use_as_albedo = true
+	return mesh
+
+
+## Round manhole cover with its frame, 0.7 m across, the frame top 0.04 m above the origin.
+static func model_manhole() -> Mesh:
+	return model_mesh(MODEL_DIR + "prop_manhole.glb")
+
+
+## Taller jersey barrier variant, 1.57 x 1.11 x 0.44 m, base at the origin.
+static func model_barrier_tall() -> Mesh:
+	return model_mesh(MODEL_DIR + "prop_barrier_b.glb")
+
+
+## A real tree (Poly Haven, reduced with tools/decimate_tree.py): 0 island tree, 1 second island
+## tree, 2 small tree. About 5 m tall, base at the origin. Leaves use alpha scissor and take the
+## instance color as a tint.
+static func model_tree(variant: int) -> Mesh:
+	var files: PackedStringArray = ["tree_a.glb", "tree_b.glb", "tree_c.glb"]
+	var v := clampi(variant, 0, files.size() - 1)
+	var mesh := model_mesh(MODEL_DIR + files[v])
+	for i in mesh.get_surface_count():
+		var mat := mesh.surface_get_material(i)
+		if mat is StandardMaterial3D:
+			var sm := mat as StandardMaterial3D
+			if sm.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+				sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				sm.alpha_scissor_threshold = 0.45
+				sm.vertex_color_use_as_albedo = true
+			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return mesh
+
+
+## Enables alpha scissor (instead of blending) and instance-color tinting on a plant mesh.
+static func _plant_material(mesh: Mesh) -> Mesh:
+	for i in mesh.get_surface_count():
+		var mat := mesh.surface_get_material(i)
+		if mat is StandardMaterial3D:
+			var sm := mat as StandardMaterial3D
+			if sm.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
+				sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+				sm.alpha_scissor_threshold = 0.45
+			sm.vertex_color_use_as_albedo = true
+			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	return mesh
+
+
+## Hill boulder: 0 is 2.5 x 0.8 m and flat, 1 is 2.5 x 1.9 m and tall. Base at the origin.
+static func model_rock(variant: int) -> Mesh:
+	return model_mesh(MODEL_DIR + ("rock_b.glb" if variant == 1 else "rock_a.glb"))
+
+
+## Dry scrub plant, five sizes from 0.25 to 0.55 m (variant 0 biggest). Base at the origin.
+static func model_scrub(variant: int) -> Mesh:
+	var offsets: Array[float] = [1.6, 1.0, 0.5, 0.1, -0.2]
+	var v := clampi(variant, 0, 4)
+	return _plant_material(model_mesh(MODEL_DIR + "plant_rooibos.glb", ["wild_rooibos_bush_" + "abcde"[v]], [], _shift(Vector3(-offsets[v], 0.0, 0.0))))
+
+
+## Grass tuft, five sizes from 0.15 to 0.4 m (variant 4 biggest). Base at the origin.
+static func model_grass_tuft(variant: int) -> Mesh:
+	var offsets: Array[float] = [0.0, 0.21, 0.49, 0.79, 1.11]
+	var v := clampi(variant, 0, 4)
+	return _plant_material(model_mesh(MODEL_DIR + "grass_tuft.glb", ["grass_medium_02_" + "abcde"[v]], [], _shift(Vector3(-offsets[v], 0.0, 0.0))))

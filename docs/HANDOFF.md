@@ -24,7 +24,8 @@ ragdoll, traffic, day/night, a real sky. Everything original: no real names, log
   with "How to test" in the commit body and in the chat reply, plus the tunable values most likely
   to need changing. End every push report with the build number (`build-N`, the release tag).
 - Standing rules they gave: **high-poly and realistic, never a low-poly look** (2026-09-19, they
-  are aiming at consoles); the rifle is an AK-47; boost replaced sprint; **every Meshy prompt
+  are aiming at consoles); **no more Meshy, Poly Haven only** (2026-09-19: "your Meshy assets
+  suck, you can't color them properly"); the rifle is an AK-47; boost replaced sprint; **every Meshy prompt
   asks for the most ultra-realistic result possible**; they want more NPCs, a GTA-5-like skyline,
   a gorgeous sky, hills with roads and estates, a campus, a peninsula in the ocean, a bigger
   airport with flyable jets (all delivered in builds 46 to 51, see section 6).
@@ -57,6 +58,7 @@ assets/models/           Meshy .glb models, their .json manifests, extracted tex
 tools/meshy.py           Meshy API pipeline (generate, texture, rig, animate, download)
 tools/shrink_glb.py      shrinks embedded textures to 1K JPEG, --desaturate for car paint
 tools/pack_gltf.py       packs a Poly Haven .gltf + .bin + textures into one .glb
+tools/decimate_tree.py   reduces Poly Haven trees, bushes and rocks to game size (needs pymeshlab: pip install pymeshlab, apt-get install libopengl0)
 tools/webshot/           Playwright screenshot harness for the web build (see section 5)
 tests/                   headless_check.sh + smoke_test.tscn/.gd (126 checks)
 .github/workflows/godot-check.yml  CI: check, export macOS + web, publish release, deploy Pages

@@ -108,7 +108,10 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   nodes, move them to the origin and merge them into one ArrayMesh with LODs, so they batch like
   primitives), commit the `.glb`, the extracted textures and every `.import`, add a row to
   `docs/ASSETS.md`. Physics ones use `PhysicsProp` (`scripts/world/physics_prop.gd`).
-  Cars and pedestrians use models generated with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
+  Trees, bushes and rocks come from Poly Haven too but must go through
+  `tools/decimate_tree.py` first (leaf cards, decimated trunks and twigs; see its docstring).
+  **Meshy is retired (owner, 2026-09-19): do not generate new Meshy models.** The existing
+  cars, pedestrians and jets were made with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
   `python3 tools/shrink_glb.py assets/models/<name>.glb`, commit the `.glb`, its `.json`, the
   extracted `_N.jpg` textures and all `.import` files, and add a row to `docs/ASSETS.md`.

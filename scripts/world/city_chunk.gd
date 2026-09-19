@@ -14,6 +14,10 @@ const BUILDING_SCENE := preload("res://scenes/props/building.tscn")
 const TERRAIN_LAYER := 16
 const ROAD_TOP := 0.1
 const SIDEWALK_TOP := 0.25
+## How many scatter attempts a full hill chunk makes (rocks, shrubs, scrub, grass clusters).
+@export var hill_scatter_min: int = 90
+@export var hill_scatter_max: int = 140
+
 const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0}
 
 var plan: CityPlan
@@ -56,6 +60,7 @@ func build() -> void:
 			_build_terrain()
 			_build_hill_roads()
 			_build_mansions()
+			_scatter_hills()
 		MacroMap.Zone.BEACH:
 			_build_roads(block)
 			_build_beach(block)
@@ -332,6 +337,76 @@ func _hill_segments() -> Array[Dictionary]:
 
 
 ## Asphalt strips following the carved road beds, clipped to this chunk.
+## Boulders, shrubs, dry scrub and grass tufts over a hill chunk, kept off the roads and the
+## mansion pads. Rocks prefer steep ground and get collision.
+func _scatter_hills() -> void:
+	if level != Level.FULL:
+		return
+	var area := owned_rect()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([plan.seed, ix, iz, "hills"])
+	var segs := _hill_segments()
+	var pads := plan.macro.hill_roads.mansions_in(area.grow(HillRoads.PAD_RADIUS + 6.0))
+	for i in rng.randi_range(hill_scatter_min, hill_scatter_max):
+		var p := Vector2(rng.randf_range(area.position.x + 1.0, area.end.x - 1.0), rng.randf_range(area.position.y + 1.0, area.end.y - 1.0))
+		if _near_hill_road(p, segs, 2.5) or _near_pad(p, pads, 4.0):
+			continue
+		var h := plan.height_at(p)
+		if h < 1.5:
+			continue
+		var hx := plan.height_at(p + Vector2(1.0, 0.0)) - plan.height_at(p - Vector2(1.0, 0.0))
+		var hz := plan.height_at(p + Vector2(0.0, 1.0)) - plan.height_at(p - Vector2(0.0, 1.0))
+		var slope := Vector2(hx, hz).length() * 0.5
+		var at := Vector3(p.x, h, p.y)
+		var yaw := rng.randf_range(0.0, TAU)
+		var roll := rng.randf()
+		if (slope > 0.35 and roll < 0.45) or roll < 0.08:
+			var v := rng.randi() % 2
+			var sc := rng.randf_range(0.6, 1.7)
+			var tilt := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, rng.randf_range(-0.25, 0.25))
+			_batch.add("rock_%d" % v, PropFactory.model_rock(v), Transform3D(tilt.scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.15 * sc, 0.0)))
+			var size := (Vector3(2.4, 0.8, 1.2) if v == 0 else Vector3(2.4, 1.8, 2.4)) * sc
+			_add_shape(size, at + Vector3(0.0, size.y * 0.5 - 0.15 * sc, 0.0), yaw)
+		elif roll < 0.38:
+			var v := rng.randi() % 4
+			var sc := rng.randf_range(0.6, 1.2)
+			var tint := Color(rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0), rng.randf_range(0.7, 0.9))
+			_batch.add("shrub_%d" % v, PropFactory.model_shrub(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.05, 0.0)), tint)
+		elif roll < 0.62:
+			var v := rng.randi() % 5
+			var sc := rng.randf_range(1.3, 2.4)
+			_batch.add("scrub_%d" % v, PropFactory.model_scrub(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc, sc, sc)), at - Vector3(0.0, 0.03, 0.0)), Color(rng.randf_range(0.9, 1.1), rng.randf_range(0.9, 1.05), rng.randf_range(0.85, 1.0)))
+		else:
+			for k in rng.randi_range(3, 7):
+				var q := p + Vector2(rng.randf_range(-2.5, 2.5), rng.randf_range(-2.5, 2.5))
+				if _near_hill_road(q, segs, 1.5) or _near_pad(q, pads, 3.0):
+					continue
+				var v := rng.randi() % 5
+				var sc := rng.randf_range(1.4, 2.6)
+				var tint := Color(rng.randf_range(0.95, 1.1), rng.randf_range(0.9, 1.05), rng.randf_range(0.7, 0.9))
+				_batch.add("tuft_%d" % v, PropFactory.model_grass_tuft(v), Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc)), Vector3(q.x, plan.height_at(q) - 0.02, q.y)), tint)
+	for v in 5:
+		_batch.set_no_shadow("tuft_%d" % v)
+		_batch.set_no_shadow("scrub_%d" % v)
+
+
+func _near_hill_road(p: Vector2, segs: Array[Dictionary], margin: float) -> bool:
+	for seg in segs:
+		var a: Vector2 = seg.a
+		var b: Vector2 = seg.b
+		var closest := Geometry2D.get_closest_point_to_segment(p, a, b)
+		if p.distance_to(closest) < (seg.width as float) * 0.5 + margin:
+			return true
+	return false
+
+
+func _near_pad(p: Vector2, pads: Array[Dictionary], margin: float) -> bool:
+	for m in pads:
+		if p.distance_to(m.pos) < HillRoads.PAD_RADIUS + margin:
+			return true
+	return false
+
+
 func _build_hill_roads() -> void:
 	var segs := _hill_segments()
 	if segs.is_empty():
@@ -493,6 +568,14 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float) 
 		return
 	var avenue := width >= plan.avenue_width - 0.1
 	var yaw := 0.0 if along_z else PI * 0.5
+	# One or two manhole covers in a lane, seeded by the road position.
+	var mh := RandomNumberGenerator.new()
+	mh.seed = hash([center, a, along_z])
+	for i in mh.randi_range(1, 2):
+		var t := mh.randf_range(a + 4.0, b - 4.0)
+		var lane := (width * 0.25) * (1.0 if mh.randf() < 0.5 else -1.0)
+		var pos := Vector3(center + lane, ROAD_TOP - 0.025, t) if along_z else Vector3(t, ROAD_TOP - 0.025, center + lane)
+		_batch.add("manhole", PropFactory.model_manhole(), Transform3D(Basis(Vector3.UP, mh.randf_range(0.0, TAU)), pos))
 	if avenue:
 		for side: float in [-0.3, 0.3]:
 			var mid := (a + b) * 0.5
@@ -729,10 +812,11 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 
 
 func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
-	var sc := rng.randf_range(0.7, 1.6)
-	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.8, 1.3), sc * rng.randf_range(0.7, 1.1), sc))
-	var tint := Color(rng.randf_range(0.8, 1.15), rng.randf_range(0.85, 1.15), rng.randf_range(0.8, 1.0))
-	_batch.add("bush", PropFactory.bush(), Transform3D(basis, at + Vector3(0.0, 0.5 * sc, 0.0)), tint)
+	var variant := rng.randi() % 4
+	var sc := rng.randf_range(0.7, 1.3)
+	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
+	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
+	_batch.add("shrub_%d" % variant, PropFactory.model_shrub(variant), Transform3D(basis, at), tint)
 
 
 func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
@@ -949,9 +1033,8 @@ func _spawn_debris(at: Vector3, color: Color, hit_dir: Vector3) -> void:
 
 func _add_lamp(at: Vector3) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
-		["lamp_pole", PropFactory.lamp_pole(), Transform3D(Basis(), at + Vector3(0.0, 3.0, 0.0))],
-		["lamp_head", PropFactory.lamp_head(), Transform3D(Basis(), at + Vector3(0.0, 6.05, 0.0))],
-	], [[Vector3(0.25, 6.0, 0.25), at + Vector3(0.0, 3.0, 0.0), 0.0]])
+		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at)],
+	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
 
 
 ## `yaw` is the direction the bench faces (forward is -Z).
@@ -989,9 +1072,14 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 		var at := Vector3(p.x, SIDEWALK_TOP, p.y)
 		var roll := rng.randf()
 		if roll < 0.3:
-			_add_prop("barrier", at, Color(0.6, 0.6, 0.58), [
-				["barrier", PropFactory.model_barrier(), Transform3D(Basis(Vector3.UP, yaw), at)],
-			], [[Vector3(1.55, 0.83, 0.64), at + Vector3(0.0, 0.42, 0.0), yaw]])
+			if rng.randf() < 0.5:
+				_add_prop("barrier", at, Color(0.6, 0.6, 0.58), [
+					["barrier", PropFactory.model_barrier(), Transform3D(Basis(Vector3.UP, yaw), at)],
+				], [[Vector3(1.55, 0.83, 0.64), at + Vector3(0.0, 0.42, 0.0), yaw]])
+			else:
+				_add_prop("barrier", at, Color(0.6, 0.6, 0.58), [
+					["barrier_tall", PropFactory.model_barrier_tall(), Transform3D(Basis(Vector3.UP, yaw), at)],
+				], [[Vector3(1.57, 1.11, 0.44), at + Vector3(0.0, 0.56, 0.0), yaw]])
 		elif roll < 0.7:
 			if not PhysicsBudget.can_spawn():
 				continue
@@ -1026,14 +1114,11 @@ func _edge_point(edge: Array, rng: RandomNumberGenerator, margin: float) -> Vect
 
 
 func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
-	var s := rng.randf_range(0.8, 1.4)
+	var s := rng.randf_range(0.9, 1.6)
 	var yaw := rng.randf_range(0.0, TAU)
-	_batch.add("trunk", PropFactory.trunk(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at + Vector3(0.0, 1.1 * s, 0.0)))
-	var tint := Color(rng.randf_range(0.8, 1.1), rng.randf_range(0.85, 1.15), rng.randf_range(0.8, 1.05))
-	if rng.randf() < 0.7:
-		_batch.add("canopy_round", PropFactory.canopy_round(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s * rng.randf_range(0.9, 1.3), s)), at + Vector3(0.0, 3.4 * s, 0.0)), tint)
-	else:
-		_batch.add("canopy_cone", PropFactory.canopy_cone(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at + Vector3(0.0, 3.8 * s, 0.0)), tint)
+	var variant := rng.randi() % 3
+	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
+	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint)
 
 
 # --- Helpers ---------------------------------------------------------------------------
