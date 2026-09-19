@@ -314,6 +314,20 @@ func _test_city() -> void:
 		for c in cars:
 			types[c.body_type] = true
 		_check(types.size() >= 2, "cars come in %d body types" % types.size())
+		# Put the test car on a known straight road (the +X road of block 0,0, heading -Z) and
+		# clear every other car nearby, so the drive and turn checks never depend on what happened
+		# to be parked ahead. The road is 14+ m wide and runs the whole block length.
+		var road_x: float = plan.road_pos(CityPlan.AXIS_X, 1)
+		var block0: Dictionary = plan.block(0, 0)
+		var road_start := Vector3(road_x, 0.6, (block0.rect as Rect2).end.y - 6.0)
+		for c in get_tree().get_nodes_in_group("vehicle"):
+			if c != car and not c.is_traffic() and c.global_position.distance_to(_world_state().to_local(road_start)) < 140.0:
+				c.queue_free()
+		car.global_position = _world_state().to_local(road_start)
+		car.rotation = Vector3.ZERO
+		car.linear_velocity = Vector3.ZERO
+		car.angular_velocity = Vector3.ZERO
+		await _ticks(20)
 		player.global_position = car.global_position + Vector3(2.5, 0.5, 0.0)
 		player.velocity = Vector3.ZERO
 		await _ticks(5)
