@@ -84,6 +84,14 @@ func kick(degrees: float) -> void:
 	_yaw += deg_to_rad(randf_range(-degrees, degrees) * 0.3)
 
 
+## Sets the view direction directly (degrees). Used by the spawn override.
+func set_look(yaw_deg: float, pitch_deg: float) -> void:
+	_yaw = deg_to_rad(yaw_deg)
+	_pitch = deg_to_rad(pitch_deg)
+	_kick_pitch = 0.0
+	_apply_rotation()
+
+
 ## Points the camera from the pivot at a world position. Used by tests and later by cutscenes.
 func look_at_point(point: Vector3) -> void:
 	var dir := (point - global_position).normalized()

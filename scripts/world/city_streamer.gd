@@ -59,6 +59,8 @@ var recenter_count: int = 0
 var _player: Node3D
 var _ground: StaticBody3D
 var _timer: float = 0.0
+## Far (always loaded) versions of the landmarks, keyed by id.
+var _far_landmarks: Dictionary = {}
 
 
 func _ready() -> void:
@@ -80,13 +82,27 @@ func _ready() -> void:
 		plan.macro.seed = world_seed
 		plan.macro.setup()
 	_build_ground()
+	_build_far_landmarks()
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	_apply_spawn_override()
 	update_streaming(true)
 
 
-## Debug helper: start somewhere else. Web: open the page with ?spawn=x,z
-## Desktop: run with `-- --spawn=x,z` (Godot passes user args after `--`).
+## Cheap versions of every landmark, always present, so the sign and the wheel show from anywhere.
+func _build_far_landmarks() -> void:
+	if plan.macro == null:
+		return
+	for lm in Landmarks.all():
+		var holder := Node3D.new()
+		holder.name = "FarLandmark_" + lm.id
+		holder.position = -WorldState.world_offset
+		add_child(holder)
+		Landmarks.build(lm, holder, null, plan, false)
+		_far_landmarks[lm.id] = holder
+
+
+## Debug helper: start somewhere else. Web: open the page with ?spawn=x,z or ?spawn=x,z,yaw,pitch
+## (degrees; yaw 0 faces north/-Z, 90 faces west). Desktop: run with `-- --spawn=x,z,yaw,pitch`.
 func _apply_spawn_override() -> void:
 	if _player == null:
 		return
@@ -104,13 +120,17 @@ func _apply_spawn_override() -> void:
 	if text.is_empty():
 		return
 	var parts := text.split(",")
-	if parts.size() != 2:
+	if parts.size() < 2:
 		return
 	var wp := Vector2(parts[0].to_float(), parts[1].to_float())
 	var y := plan.height_at(wp) + 2.0
 	_player.global_position = Vector3(wp.x, y, wp.y)
 	if _player.has_method("respawn"):
 		_player.set("_spawn_transform", _player.global_transform)
+	if parts.size() >= 4:
+		var rig: Node3D = _player.get("camera_rig")
+		if rig and rig.has_method("set_look"):
+			rig.set_look(parts[2].to_float(), parts[3].to_float())
 
 
 func _process(delta: float) -> void:
@@ -177,6 +197,8 @@ func update_streaming(immediate: bool) -> void:
 
 	for k in chunks.keys():
 		if not wanted.has(k) or wanted[k] != chunks[k].level:
+			for id in chunks[k].built_landmarks:
+				_set_far_landmark_visible(id, true)
 			chunks[k].queue_free()
 			chunks.erase(k)
 
@@ -215,6 +237,13 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 	add_child(chunk)
 	chunk.build()
 	chunks[k] = chunk
+	for id in chunk.built_landmarks:
+		_set_far_landmark_visible(id, false)
+
+
+func _set_far_landmark_visible(id: String, on: bool) -> void:
+	if _far_landmarks.has(id):
+		(_far_landmarks[id] as Node3D).visible = on
 
 
 ## Shifts every 3D child (chunks, player, rockets, debris) so the player is back near the origin.

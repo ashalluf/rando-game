@@ -23,6 +23,8 @@ var style: Dictionary = {}
 
 var building_count: int = 0
 var prop_records: Array[Dictionary] = []
+## Landmark ids this chunk built in detail (the streamer hides their far versions meanwhile).
+var built_landmarks: Array[String] = []
 
 var _batch := MultiMeshBatch.new()
 var _mm_nodes: Dictionary = {}
@@ -53,6 +55,10 @@ func build() -> void:
 			_build_block(block)
 			if level == Level.FULL:
 				_build_intersection(plan.intersection(ix + 1, iz + 1))
+	if level == Level.FULL and plan.macro:
+		for lm in Landmarks.in_rect(owned_rect()):
+			Landmarks.build(lm, self, _statics, plan, true)
+			built_landmarks.append(lm.id)
 	_mm_nodes = _batch.build(self)
 
 

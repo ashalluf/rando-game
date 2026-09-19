@@ -42,7 +42,8 @@ Build in this order, one milestone per PR or a few PRs.
   legally distinct: original sign text, original pier name, towers inspired by but not copies of
   real ones (the real sign, pier sign and some towers are trademarked).
   - [x] Push 1: macro map with ocean, beach, hills, peninsula, district placement (`MacroMap`).
-  - [ ] Push 2: the hill sign, the pier with a Ferris wheel and coaster, the observatory.
+  - [x] Push 2: the hill sign ("RANDOWOOD"), the pier ("RANDO PIER") with a spinning Ferris wheel,
+    a coaster loop, booths and lamps, and the observatory with three domes and a terrace.
   - [ ] Push 3: landmark skyline downtown, airport by the coast, port in the industrial corner.
 
 ## Current state
@@ -55,8 +56,10 @@ z = -900 rising to about 260 m with noise, a hilly peninsula bulging into the se
 south-west, downtown centered at (700, 250), a second mid-rise cluster on the west side, and the
 industrial port in the south-east. Chunks ask `plan.zone_at()` and build water, sand, or a terrain
 tile (SurfaceTool mesh colored by height plus a HeightMapShape3D) instead of a city block. The
-spawn stays at the origin, in midtown. Debug: open the web build with `?spawn=x,z` or run the
-desktop build with `-- --spawn=x,z` to start anywhere. The main scene is `scenes/levels/city.tscn`; `test_box.tscn` stays as
+spawn stays at the origin, in midtown. Landmarks: the hill sign north of the city, the pier on the
+north-west coast, the observatory on the ridge. Debug: open the web build with `?spawn=x,z` or
+`?spawn=x,z,yaw,pitch` (yaw 0 = north, 90 = west) or run the desktop build with
+`-- --spawn=x,z,yaw,pitch` to start anywhere. The main scene is `scenes/levels/city.tscn`; `test_box.tscn` stays as
 the movement/weapons test room.
 
 The city is endless. `CityPlan` (`scripts/world/city_plan.gd`) answers any road, block or
@@ -111,6 +114,16 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Landmarks are fixed, not seeded**, and built by `Landmarks` (`scripts/world/landmarks.gd`)
+  from primitives. The chunk containing a landmark's anchor builds the detailed version with
+  collision; `CityStreamer` builds a cheap far version of every landmark once and hides it while
+  the detailed one is loaded, so the sign and the wheel are visible from across the city.
+- **2026-09-19 Sign text is "RANDOWOOD" and the pier is "RANDO PIER"**: original, on-brand, and
+  clearly not the trademarked real ones. Letters are a 5 x 7 block font, 6 m per cell, on legs
+  down to the slope; you can climb them.
+- **2026-09-19 Spawn override takes a look direction** (`?spawn=x,z,yaw,pitch`) so screenshots
+  can be aimed. Fog density halved to 0.0006 so the hills read as green, not white.
 
 - **2026-09-19 The map is a function, not data.** `MacroMap` answers coast x, land height, zone and
   district for any world position from a few numbers plus FastNoiseLite, so the endless plan still

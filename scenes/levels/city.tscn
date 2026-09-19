@@ -22,7 +22,7 @@ ambient_light_sky_contribution = 0.45
 tonemap_mode = 2
 fog_enabled = true
 fog_light_color = Color(0.78, 0.86, 0.96, 1)
-fog_density = 0.0012
+fog_density = 0.0006
 fog_sky_affect = 0.2
 
 [node name="City" type="Node3D"]

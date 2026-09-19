@@ -191,6 +191,29 @@ func _test_city() -> void:
 		var ground_h: float = _world_state().to_world(player.global_position).y
 		_check(player.is_on_floor() and ground_h > 20.0, "player stands on the hills at %.0f m" % ground_h)
 
+	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
+	if macro:
+		_check(city.has_node("FarLandmark_sign") and city.has_node("FarLandmark_pier") and city.has_node("FarLandmark_observatory"), "far versions of the sign, pier and observatory exist")
+		var pier_anchor: Vector2 = Landmarks.all()[1].anchor
+		player.global_position = _world_state().to_local(Vector3(pier_anchor.x + 10.0, 3.0, pier_anchor.y))
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
+		var pier_key: Vector2i = plan.block_index_at(pier_anchor)
+		var pier_chunk: Node3D = city.chunks.get(pier_key)
+		_check(pier_chunk != null and pier_chunk.built_landmarks.has("pier"), "pier chunk built the detailed pier")
+		_check(not city.get_node("FarLandmark_pier").visible, "far pier is hidden while the detailed pier is loaded")
+		var wheel_found := false
+		for child in pier_chunk.get_children():
+			if child is FerrisWheel:
+				wheel_found = true
+		_check(wheel_found, "the pier has a Ferris wheel")
+		# Stand on the deck: it is solid.
+		player.global_position = _world_state().to_local(Vector3(pier_anchor.x - 60.0, 9.0, pier_anchor.y))
+		player.velocity = Vector3.ZERO
+		await _wait_for_floor(player, 120)
+		var deck_y: float = _world_state().to_world(player.global_position).y
+		_check(player.is_on_floor() and deck_y > 5.0, "player stands on the pier deck at %.1f m" % deck_y)
+
 	# Same seed, same plan.
 	var a := CityPlan.new()
 	a.seed = 777

@@ -149,7 +149,10 @@ tests/                 headless smoke test and check script
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills), land
   height and district for any world XZ. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
   the plan go through it. Chunks build water, sand or terrain for non-city zones. To start
-  somewhere else for testing: web `?spawn=x,z`, desktop `-- --spawn=x,z`.
+  somewhere else for testing: web `?spawn=x,z,yaw,pitch`, desktop `-- --spawn=x,z,yaw,pitch`.
+- Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes
+  one, detailed (with a StaticBody3D for shapes) or far (no collision). Add a new one by adding an
+  entry and a `_build_<id>()` function. Everything original: no real names, logos or copies.
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the
