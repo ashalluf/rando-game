@@ -75,5 +75,11 @@ already mapped so milestone 2 is script-only.
   every push to `main` exports a universal macOS app and publishes it as a GitHub Release
   (`releases/latest`). Ad-hoc signed only; notarization would need a paid Apple developer account,
   so first launch needs "Open Anyway" in Privacy & Security.
+- **2026-09-19 Web build now, not later.** The owner wants to test in a browser, so the workflow
+  also exports a web build (single-threaded so it runs on GitHub Pages without cross-origin
+  isolation headers) and deploys it to GitHub Pages once the repo is public. Forward+ stays the
+  desktop renderer; web falls back to Compatibility automatically.
+- **2026-09-19 Exposure tuned down** after the first browser screenshot: sun energy 1.0, sky
+  ambient 0.45, darker ground checker. The original values washed the ground out to white.
 - **2026-09-19 Push to main always.** The owner asked for all work to go directly to `main` with no
   branches or pull requests. Milestone 1 was the only PR (#1); everything after lands on `main`.

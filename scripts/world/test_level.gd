@@ -20,8 +20,8 @@ const CRATE_SCENE := preload("res://scenes/props/crate.tscn")
 
 @export_group("Look")
 @export var sun_rotation_degrees: Vector3 = Vector3(-52.0, 38.0, 0.0)
-@export var ground_color_a: Color = Color(0.64, 0.68, 0.60)
-@export var ground_color_b: Color = Color(0.56, 0.60, 0.52)
+@export var ground_color_a: Color = Color(0.50, 0.55, 0.46)
+@export var ground_color_b: Color = Color(0.38, 0.43, 0.35)
 ## Size of one ground checker cell (meters).
 @export var ground_cell_size: float = 2.0
 @export var box_palette: PackedColorArray = PackedColorArray([

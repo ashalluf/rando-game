@@ -37,7 +37,9 @@ func _ready() -> void:
 	if body:
 		spring_arm.add_excluded_object(body.get_rid())
 	_apply_rotation()
-	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	# Browsers only allow grabbing the mouse after a click, so on web we wait for one.
+	if not OS.has_feature("web"):
+		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 
 
 func _unhandled_input(event: InputEvent) -> void:

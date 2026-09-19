@@ -8,7 +8,9 @@ var _player: Player
 
 
 func _ready() -> void:
-	hints.text = "WASD move   Shift sprint   Space jump (again in air)   Mouse look   R respawn   Esc release mouse   F1 hide\n" \
+	if OS.has_feature("web"):
+		hints.text = "Click the game to grab the mouse.\n"
+	hints.text += "WASD move   Shift sprint   Space jump (again in air)   Mouse look   R respawn   Esc release mouse   F1 hide\n" \
 		+ "Gamepad: left stick move   L3 sprint   A jump   right stick look   Back respawn"
 
 

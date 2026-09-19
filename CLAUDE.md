@@ -37,8 +37,16 @@ https://github.com/ashalluf/rando-game/releases/latest and double-clicks `Rando 
 First launch of each download may need System Settings > Privacy & Security > **Open Anyway**.
 The export preset lives in `export_presets.cfg` (committed, contains no credentials).
 
+The same workflow also exports a **web build** (single-threaded, Compatibility renderer, no
+special headers needed) and, when the repo is public, deploys it to GitHub Pages at
+https://ashalluf.github.io/rando-game/ so the owner can play in a browser with nothing installed.
+While the repo is private the deploy job is skipped and the web build is only a workflow artifact.
+
 Tell the owner the build number or link at the end of every push. A push is not "done" until the
 workflow has published its release; check the Actions run if in doubt.
+
+Claude can see the web build: export it locally, serve `build/web`, load it in headless Chromium
+with Playwright (`--use-angle=swiftshader`), and screenshot it. Use this to sanity-check visuals.
 
 ## Opening the project in the editor (optional)
 
@@ -69,8 +77,10 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
 
 ## Technical rules
 
-- Godot 4.7.2, GDScript, Forward+ on desktop. Keep a Compatibility-renderer fallback in mind for a
-  possible web build later, but do not set it up yet.
+- Godot 4.7.2, GDScript, Forward+ on desktop. The web build uses the Compatibility renderer
+  (Godot picks it automatically for web), so any effect must degrade gracefully there: avoid
+  Forward+-only features (SDFGI, volumetric fog, SSR, compute shaders) or gate them on
+  `OS.has_feature("web")`. On web the mouse is only captured after a click.
 - All feel-related numbers (jump height, gravity, speed, air control, camera distance, gun force,
   explosion radius, ...) are `@export` variables grouped at the top of each script with a one-line
   `##` doc comment so they are easy to find and tune.
