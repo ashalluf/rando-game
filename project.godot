@@ -154,9 +154,11 @@ toggle_hud={
 3d_physics/layer_2="player"
 3d_physics/layer_3="props"
 
-[physics]
+[rendering]
 
-common/physics_ticks_per_second=60
+renderer/rendering_method="forward_plus"
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=2
 
 [shader_globals]
 
@@ -164,9 +166,3 @@ night_factor={
 "type": "float",
 "value": 0.0
 }
-
-[rendering]
-
-renderer/rendering_method="forward_plus"
-textures/vram_compression/import_etc2_astc=true
-anti_aliasing/quality/msaa_3d=2
