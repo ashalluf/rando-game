@@ -1,10 +1,10 @@
 {
   "name": "car_pickup",
-  "prompt": "low-poly pickup truck, two-door cab with open cargo bed, simple clean shapes, smooth flat white paint, black tires, dark windows, no text or logos, game asset",
-  "credits": 15,
+  "prompt": "modern full-size pickup truck, double cab, open cargo bed, white paint, black tires with alloy wheels, tinted windows, no text or logos or badges, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 30,
   "tasks": {
-    "preview": "01a0b919-2f56-74f0-94de-11cee70735cf",
-    "refine": "01a0b919-8117-72c1-a36e-11bc28db744f"
+    "preview": "01a0b931-7a77-7146-8b7d-dd6fc6604f23",
+    "refine": "01a0b933-308b-7595-bc83-cf91a9c8fe12"
   },
   "source": "Meshy (generated for this project)"
 }

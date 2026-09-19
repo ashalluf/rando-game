@@ -23,20 +23,24 @@ anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `asse
 
 ## Generated 3D models (Meshy)
 
-Made with the owner's Meshy account through the API (`python3 tools/meshy.py gen ...`), Smart
-Topology (meshy-t2) previews refined with 2K PBR textures, then shrunk to 1K JPEG with
-`tools/shrink_glb.py`. Rights follow the owner's Meshy plan (paid plans: owner owns the output;
+Made with the owner's Meshy account through the API (`python3 tools/meshy.py gen ...`): Meshy's
+latest standard model, ~8000 faces after remesh, refined with 2K PBR textures, then shrunk to 1K
+JPEG with `tools/shrink_glb.py`. Every prompt asks for the most realistic result (owner's rule). Rights follow the owner's Meshy plan (paid plans: owner owns the output;
 free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy task ids and credits.
 
 | Model | Files | Credits | Used for | Added |
 |---|---|---|---|---|
-| Sedan | `assets/models/car_sedan.glb` | 15 | `Vehicle` body, SEDAN | 2026-09-19 |
-| Pickup | `assets/models/car_pickup.glb` | 15 | `Vehicle` body, PICKUP | 2026-09-19 |
-| Van | `assets/models/car_van.glb` | 15 | `Vehicle` body, VAN | 2026-09-19 |
-| Sports | `assets/models/car_sports.glb` | 15 | `Vehicle` body, SPORTS | 2026-09-19 |
-| Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 29 | `Pedestrian` | 2026-09-19 |
-| Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 29 | `Pedestrian` | 2026-09-19 |
-| Pedestrian C (older man, shirt) | `pedestrian_c.glb`, `pedestrian_c_anim.glb` (same clips) | 29 | `Pedestrian` | 2026-09-19 |
+| Sedan | `assets/models/car_sedan.glb` | 30 (+15 for a first low-poly take) | `Vehicle` body, SEDAN | 2026-09-19 |
+| Pickup | `assets/models/car_pickup.glb` | 30 (+15) | `Vehicle` body, PICKUP | 2026-09-19 |
+| Van | `assets/models/car_van.glb` | 30 (+15) | `Vehicle` body, VAN | 2026-09-19 |
+| Sports | `assets/models/car_sports.glb` | 30 (+15) | `Vehicle` body, SPORTS | 2026-09-19 |
+| Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 44 (+29) | `Pedestrian` | 2026-09-19 |
+| Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 44 (+29) | `Pedestrian` | 2026-09-19 |
+| Pedestrian C (older man, shirt) | `pedestrian_c.glb`, `pedestrian_c_anim.glb` (same clips) | 44 (+29) | `Pedestrian` | 2026-09-19 |
+
+All seven were first made as low-poly cartoon models (147 credits) and then regenerated with the
+owner's realism rule on Meshy's standard model (252 credits). Car base colors are greyscaled and
+brightened (`tools/shrink_glb.py --desaturate`) so the seeded paint tint gives the color.
 
 Godot extracts each model's textures next to it on import (`<model>_N.jpg` + `.import`); those
 files are committed like any other import output.

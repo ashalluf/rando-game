@@ -1,10 +1,10 @@
 {
   "name": "car_sedan",
-  "prompt": "low-poly sedan car, four doors, simple clean shapes, smooth flat paint, black tires, dark windows, no text or logos, game asset, facing forward",
-  "credits": 15,
+  "prompt": "modern four-door sedan car, real production car proportions, white paint, black tires with alloy wheels, tinted windows, headlights and taillights, no text or logos or badges, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 30,
   "tasks": {
-    "preview": "01a0b90e-4d81-7084-bcc6-3966b9474015",
-    "refine": "01a0b90e-7d15-7204-9c93-6244bae25ecd"
+    "preview": "01a0b931-7ada-749f-9b5a-bf48bf4e7a91",
+    "refine": "01a0b932-8cc3-7653-abc5-c09e0e5f518c"
   },
   "source": "Meshy (generated for this project)"
 }

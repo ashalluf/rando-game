@@ -50,6 +50,9 @@ workflow has published its release; check the Actions run if in doubt.
 
 Claude can see the web build: export it locally, serve `build/web`, load it in headless Chromium
 with Playwright (`--use-angle=swiftshader`), and screenshot it. Use this to sanity-check visuals.
+It runs at about 1 FPS there and Godot clamps frame time, so never press movement keys in the
+harness (a 1 ms tap walks the player meters); place the camera with `?spawn=x,z,yaw,pitch` and use
+`?showroom` to line up generated assets. Lighting is flat on the web; judge materials, not light.
 
 ## Opening the project in the editor (optional)
 
@@ -98,6 +101,8 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
   `python3 tools/shrink_glb.py assets/models/<name>.glb`, commit the `.glb`, its `.json`, the
   extracted `_N.jpg` textures and all `.import` files, and add a row to `docs/ASSETS.md`.
+  **Owner's rule: every Meshy prompt asks for the most ultra-realistic result possible** (the
+  tool appends that wording itself; never pass `--plain` or ask for cartoon / low-poly looks).
   Rigged models: skeleton in cm under a 0.01 armature, so set `custom_aabb` on the skinned mesh
   (see `Pedestrian._add_model()`); they face +Z. `?showroom` on the web (`-- --showroom` on
   desktop) lines up every car type and pedestrian model at the spawn.

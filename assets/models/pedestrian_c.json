@@ -1,12 +1,12 @@
 {
   "name": "pedestrian_c",
-  "prompt": "low-poly stylized older man pedestrian, business casual: button shirt, slacks, loafers, grey short hair, glasses, clean flat colors, simple friendly cartoon proportions, game character, no text or logos",
-  "credits": 29,
+  "prompt": "older man pedestrian, business casual: button-up shirt, slacks, loafers, grey short hair, glasses, natural face, full body standing in A-pose, no text or logos, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
   "tasks": {
-    "preview": "01a0b919-2efb-7191-9bee-74051f0f0128",
-    "refine": "01a0b919-7980-730f-9d11-5fdb9d3fd5f3",
-    "rig": "01a0b91a-632d-7340-8f73-53ae1faa7391",
-    "animations": "01a0b91b-1699-7461-9019-8b163ebcf1dd"
+    "preview": "01a0b931-7abc-76ae-a991-8a8077fc965a",
+    "refine": "01a0b932-48b1-73d1-9cc5-c433eaca4531",
+    "rig": "01a0b933-3e21-7658-92b3-ad379d50d7ad",
+    "animations": "01a0b933-ce1f-75e2-83a0-cef0bc6f70aa"
   },
   "source": "Meshy (generated for this project)",
   "animations": [

@@ -3,15 +3,18 @@
 
 Usage (the key never goes in the repo; put it in MESHY_API_KEY or a file named by MESHY_KEY_FILE):
 
-    python3 tools/meshy.py gen pedestrian_a "low-poly casual pedestrian..." --polycount 3000 \
+    python3 tools/meshy.py gen pedestrian_a "adult man pedestrian, casual clothes..." \
         --rig 1.75 --anims 0,613,659
-    python3 tools/meshy.py gen sedan "low-poly sedan car, clean flat colors" --polycount 4000
+    python3 tools/meshy.py gen sedan "modern four-door sedan car, white paint"
     python3 tools/meshy.py balance
 
 Each asset gets `assets/models/<name>.glb` (textured, PBR), optionally `<name>_anim.glb` (rigged
 with one animation clip per action id) and `<name>.json` (task ids, credits, prompt) so
 docs/ASSETS.md can credit it. Pipeline: Smart Topology preview (5 credits, clean low-poly at the
 requested face count) -> refine with PBR (10) -> rig (5) -> animations (3 per clip).
+Owner's rule: every prompt asks for the most realistic result possible (REALISM is appended
+automatically; --plain turns it off). Default engine is Meshy's latest standard model (20
+credits per preview); --engine smart is the cheap low-poly option.
 """
 import argparse
 import json
@@ -22,6 +25,10 @@ import urllib.error
 import urllib.request
 
 API = "https://api.meshy.ai"
+# Owner's standing rule (2026-09-19): every prompt asks for the most realistic result possible.
+REALISM = (", ultra realistic, photorealistic, highly detailed, physically accurate materials"
+           " and proportions, real-world scale, no cartoon or stylized look")
+TEXTURE_REALISM = "photorealistic PBR materials, true-to-life colors, fine surface detail, no cartoon look"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "assets", "models")
 
@@ -90,26 +97,28 @@ def cmd_balance(_args) -> None:
 
 
 def cmd_gen(args) -> None:
-    manifest = {"name": args.name, "prompt": args.prompt, "credits": 0, "tasks": {}, "source": "Meshy (generated for this project)"}
-    body = {
-        "mode": "preview",
-        "prompt": args.prompt,
-        "model_type": "smart-topology",
-        "ai_model": "meshy-t2",
-        "target_polycount": args.polycount,
-        "topology": "triangle",
-    }
+    prompt = args.prompt if args.plain else args.prompt + REALISM
+    manifest = {"name": args.name, "prompt": prompt, "credits": 0, "tasks": {}, "source": "Meshy (generated for this project)"}
+    if args.engine == "smart":
+        body = {"mode": "preview", "prompt": prompt, "model_type": "smart-topology", "ai_model": "meshy-t2",
+                "target_polycount": args.polycount, "topology": "triangle"}
+    else:
+        body = {"mode": "preview", "prompt": prompt, "model_type": "standard", "ai_model": "latest",
+                "should_remesh": True, "target_polycount": args.polycount, "topology": "triangle"}
     if args.rig:
         body["pose_mode"] = "a-pose"
-    print(f"[{args.name}] preview: {args.prompt}", flush=True)
+    print(f"[{args.name}] preview ({args.engine}): {prompt}", flush=True)
     preview_id = call("POST", "/openapi/v2/text-to-3d", body)["result"]
     preview = wait("/openapi/v2/text-to-3d", preview_id, "preview")
     manifest["tasks"]["preview"] = preview_id
     manifest["credits"] += preview.get("consumed_credits", 0)
 
     refine_body = {"mode": "refine", "preview_task_id": preview_id, "enable_pbr": True, "texture_resolution": "2k"}
-    if args.texture_prompt:
-        refine_body["texture_prompt"] = args.texture_prompt
+    texture_prompt = args.texture_prompt
+    if not args.plain:
+        texture_prompt = (texture_prompt + ", " if texture_prompt else "") + TEXTURE_REALISM
+    if texture_prompt:
+        refine_body["texture_prompt"] = texture_prompt
     print(f"[{args.name}] refine (textures)", flush=True)
     refine_id = call("POST", "/openapi/v2/text-to-3d", refine_body)["result"]
     refine = wait("/openapi/v2/text-to-3d", refine_id, "refine")
@@ -156,7 +165,10 @@ def main() -> None:
     g = sub.add_parser("gen")
     g.add_argument("name")
     g.add_argument("prompt")
-    g.add_argument("--polycount", type=int, default=4000, help="faces (100-15000)")
+    g.add_argument("--polycount", type=int, default=8000, help="target faces after remesh")
+    g.add_argument("--engine", choices=["standard", "smart"], default="standard",
+                   help="standard = Meshy latest, most detail (20 credits); smart = Smart Topology low-poly (5 credits)")
+    g.add_argument("--plain", action="store_true", help="do not append the realism wording to the prompts")
     g.add_argument("--texture-prompt", default="")
     g.add_argument("--rig", type=float, default=0.0, help="character height in meters; 0 = no rig")
     g.add_argument("--anims", default="", help="comma-separated Meshy action ids (needs --rig)")

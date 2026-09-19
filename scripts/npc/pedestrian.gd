@@ -102,6 +102,14 @@ func _add_model() -> bool:
 	# skinned mesh a generous box in skeleton units instead.
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).custom_aabb = AABB(Vector3(-150.0, -10.0, -150.0), Vector3(300.0, 260.0, 300.0))
+		# Meshy's animated export keeps only the base color and leaves the glTF defaults of
+		# metallic 1 plus a full emission of the same texture: a shiny, self-lit mannequin.
+		# Make it plain skin and cloth. (The resource is shared by every pedestrian of this model.)
+		var mat := (mi as MeshInstance3D).mesh.surface_get_material(0) as StandardMaterial3D
+		if mat and mat.metallic_texture == null:
+			mat.metallic = 0.0
+			mat.roughness = 0.85
+			mat.emission_enabled = false
 	_visual.add_child(inst)
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim:

@@ -147,6 +147,24 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 Realism rule for generated assets.** The owner wants every Meshy prompt to ask for
+  the most ultra-realistic result possible. `tools/meshy.py` appends that wording to every prompt
+  and texture prompt itself and defaults to Meshy's standard model at ~8000 faces (20 + 10
+  credits per model); the seven models were regenerated that way (252 credits). Car paint: the
+  realistic textures came out colored, so `shrink_glb.py --desaturate` greyscales and brightens
+  the base color and the seeded paint tint provides the color. Meshy's animated export drops the
+  metallic/roughness and normal maps and leaves glTF's metallic 1 plus an emissive copy of the
+  base color, which rendered as shiny self-lit mannequins; `Pedestrian._add_model()` sets
+  metallic 0, roughness 0.85 and no emission on that material.
+- **2026-09-19 Bigger crowds.** Pedestrians per block 4 -> 8, cap 70 -> 160, traffic cars 14 -> 24
+  on desktop; the browser build keeps 80 / 14 (`web_max_pedestrians`, `web_traffic_cars`)
+  because WebGL skinning of 8k-triangle characters is the expensive part there.
+- **2026-09-19 Screenshot harness lesson.** The web build runs at ~1 FPS under SwiftShader and
+  Godot clamps frame time, so a 1 ms key tap in Playwright moves the player several meters and
+  timers take many wall seconds. The harness (`scratchpad/pw/webtest4.js`) presses no keys; a
+  spawn query places the camera instead. Two hours were lost to "invisible pedestrians" that
+  were simply behind the camera.
+
 - **2026-09-19 Realism step 3: generated models from Meshy.** The owner has a Meshy account, so
   cars and pedestrians are now real models made through its API (`tools/meshy.py`: Smart
   Topology preview at ~3000 faces, PBR refine, rig + animation clips for characters; then

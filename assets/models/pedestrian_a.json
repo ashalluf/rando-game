@@ -1,12 +1,12 @@
 {
   "name": "pedestrian_a",
-  "prompt": "low-poly stylized adult pedestrian, casual clothes: plain t-shirt, jeans, sneakers, short hair, clean flat colors, simple friendly cartoon proportions, game character, no text or logos",
-  "credits": 29,
+  "prompt": "adult man pedestrian, casual clothes: plain t-shirt, jeans, sneakers, short hair, natural face, full body standing in A-pose, no text or logos, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
   "tasks": {
-    "preview": "01a0b90e-4d57-74a0-bb39-b48f43bf93db",
-    "refine": "01a0b90e-9b9f-7555-bccc-0b49f9faa6e5",
-    "rig": "01a0b90f-8866-7774-b69a-85cefad71de8",
-    "animations": "01a0b910-189b-70c0-a6ad-52c768e29f55"
+    "preview": "01a0b931-7a5a-70b2-8af6-f4473db8ab69",
+    "refine": "01a0b932-6a5c-75b5-ac7d-ff64c5854db6",
+    "rig": "01a0b933-5659-75ed-a3c5-fe90e4e8f9ca",
+    "animations": "01a0b934-09f0-7591-832a-b422dfbeee87"
   },
   "source": "Meshy (generated for this project)",
   "animations": [

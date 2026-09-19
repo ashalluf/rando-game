@@ -1,10 +1,10 @@
 {
   "name": "car_van",
-  "prompt": "low-poly cargo van, tall boxy body, sliding side door, simple clean shapes, smooth flat white paint, black tires, dark windows, no text or logos, game asset",
-  "credits": 15,
+  "prompt": "modern cargo van, tall boxy body, sliding side door, white paint, black tires, tinted windows, no text or logos or badges, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 30,
   "tasks": {
-    "preview": "01a0b919-2f2f-718c-ab98-339e242dc4bf",
-    "refine": "01a0b919-79d2-7342-a118-66cc41f33d68"
+    "preview": "01a0b931-7b0a-713e-978d-4b15152b672d",
+    "refine": "01a0b933-10e8-701b-9bca-26adf943f782"
   },
   "source": "Meshy (generated for this project)"
 }

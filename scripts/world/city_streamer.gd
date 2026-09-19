@@ -38,13 +38,16 @@ extends Node3D
 @export var trash_cans_per_block: int = 2
 ## Parked cars per block (physics bodies; count against the PhysicsBudget cap).
 @export var cars_per_block: int = 5
-@export var pedestrians_per_block: int = 4
+@export var pedestrians_per_block: int = 8
 ## Grass blades per park block (MultiMesh, wind shader).
 @export var grass_per_park: int = 2500
-## Hard cap on live pedestrians.
-@export var max_pedestrians: int = 70
+## Hard cap on live pedestrians (animated characters; the web build is capped lower below).
+@export var max_pedestrians: int = 160
 ## Cars driving around at once.
-@export var traffic_cars: int = 14
+@export var traffic_cars: int = 24
+## The browser build renders with WebGL at a fraction of desktop speed: caps used there instead.
+@export var web_max_pedestrians: int = 80
+@export var web_traffic_cars: int = 14
 
 @export_group("Look")
 @export var sun_rotation_degrees: Vector3 = Vector3(-48.0, 35.0, 0.0)
@@ -77,6 +80,9 @@ var _far_landmarks: Dictionary = {}
 
 func _ready() -> void:
 	add_to_group("city")
+	if OS.has_feature("web"):
+		max_pedestrians = mini(max_pedestrians, web_max_pedestrians)
+		traffic_cars = mini(traffic_cars, web_traffic_cars)
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun:
 		sun.rotation_degrees = sun_rotation_degrees
@@ -163,6 +169,10 @@ func _apply_spawn_override() -> void:
 ## Debug (`?showroom` on the web, `-- --showroom` on desktop): every car type and pedestrian
 ## model lined up in front of the spawn point, to judge generated assets quickly.
 func _build_showroom(at: Vector3, yaw: float) -> void:
+	# No traffic in the showroom: it sits on a road and cars kept flattening the exhibits.
+	for node in get_children():
+		if node is TrafficManager:
+			(node as TrafficManager).max_cars = 0
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var right := forward.cross(Vector3.UP)
 	for i in Vehicle.BodyType.size():
