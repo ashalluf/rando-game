@@ -11,6 +11,8 @@ const TEXTURE_SETS := {
 	"asphalt": "Asphalt033", "brick": "Bricks104", "concrete": "Concrete034", "grass": "Grass004",
 	"sand": "Ground054", "metal": "MetalPlates006", "paving": "PavingStones138", "rock": "Rock064",
 	"hill": "AerialGrassRock", "hill_rock": "RockyTerrain02",
+	# Street surface sets (Poly Haven), picked per road and per block for variety.
+	"asphalt_aerial": "AerialAsphalt01", "pavers": "LargeSquarePattern01", "sidewalk": "GravelConcrete03",
 	# Facade sets (Poly Haven), picked per building by Building._apply_wall_texture().
 	"brick_red": "RedBrick", "brick_mossy": "Brick4", "brick_factory": "RedBrick03",
 	"plaster_painted": "PaintedPlasterWall", "plaster_beige": "BeigeWall001", "plaster_white": "WhitePlaster02",
@@ -188,8 +190,9 @@ static func hydrant() -> Mesh:
 	return cylinder("hydrant", 0.16, 0.8, Color(0.85, 0.15, 0.12), 0.12, 6)
 
 
+## Center-line piece; white so the instance color picks yellow or white.
 static func dash() -> Mesh:
-	return box("dash", Vector3(0.16, 0.02, 3.0), Color(0.95, 0.8, 0.2))
+	return box("dash", Vector3(0.16, 0.02, 3.0), Color(1.0, 1.0, 1.0))
 
 
 static func stripe() -> Mesh:
@@ -440,6 +443,9 @@ static func model_lamp() -> Mesh:
 					lit.emission = Color(1.0, 0.9, 0.65)
 					lit.emission_energy_multiplier = 3.0 if name.contains("bulb") else 0.8
 					mesh.surface_set_material(i, lit)
+				else:
+					# The post takes the instance color (district paint).
+					(mat as StandardMaterial3D).vertex_color_use_as_albedo = true
 	return mesh
 
 

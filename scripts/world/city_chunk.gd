@@ -38,6 +38,9 @@ var built_landmarks: Array[String] = []
 ## chunk), so the chunk frees the ones nobody drove when it unloads.
 var _cars: Array[Node] = []
 var _batch := MultiMeshBatch.new()
+## Per-block surface look (set by _build_block from the district table and the block seed).
+var _tree_bias: int = -1
+var _lamp_tint: Color = Color.WHITE
 var _mm_nodes: Dictionary = {}
 var _statics: StreetProps
 var _prop_counter: int = 0
@@ -554,24 +557,47 @@ func has_prop(id: String) -> bool:
 func _build_roads(block: Dictionary) -> void:
 	var rect: Rect2 = block.rect
 	var asphalt: Color = style.asphalt
-	# Vertical road on the +X side, spanning this block's Z range.
-	var road_mat := PropFactory.pbr("asphalt", 7.0, Color(0.75, 0.75, 0.78))
+	var params: Dictionary = CityPlan.DISTRICTS[block.district]
+	# Vertical road on the +X side, spanning this block's Z range. Each road keeps one look
+	# along its whole length (seeded by axis and index).
+	var look_x := _road_look(CityPlan.AXIS_X, ix + 1, params)
 	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)
 	var wx := plan.road_width(CityPlan.AXIS_X, ix + 1)
-	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt, true, road_mat)
+	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt, true, look_x.material)
 	# Horizontal road on the +Z side, spanning this block's X range.
+	var look_z := _road_look(CityPlan.AXIS_Z, iz + 1, params)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
-	_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt, true, road_mat)
+	_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt, true, look_z.material)
 	# The intersection square at the +X +Z corner.
-	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, road_mat)
+	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, look_x.material)
 	if level == Level.FULL:
-		_mark_road(true, rx, wx, rect.position.y, rect.end.y)
-		_mark_road(false, rz, wz, rect.position.x, rect.end.x)
+		_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
+		_mark_road(false, rz, wz, rect.position.x, rect.end.x, look_z)
+
+
+## Asphalt sets and tints a road can wear; a road keeps one along its length.
+const ROAD_TINTS := [Color(0.75, 0.75, 0.78), Color(0.6, 0.6, 0.63), Color(0.85, 0.83, 0.8), Color(0.7, 0.72, 0.77), Color(0.66, 0.64, 0.62)]
+
+
+## {"material", "line" (color), "solid" (bool)} for one road, seeded by axis and index.
+func _road_look(axis: int, index: int, params: Dictionary) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([plan.seed, "road_look", axis, index])
+	var set_key := "asphalt" if rng.randf() < 0.55 else "asphalt_aerial"
+	var tint: Color = ROAD_TINTS[rng.randi() % ROAD_TINTS.size()]
+	var white := rng.randf() < float(params.get("line_white", 0.4))
+	return {
+		"material": PropFactory.pbr(set_key, 7.0 if set_key == "asphalt" else 9.0, tint),
+		"line": Color(0.95, 0.95, 0.9) if white else Color(0.95, 0.8, 0.2),
+		"solid": rng.randf() < 0.35,
+	}
 
 
 ## Center-line markings along one block: dashed yellow on streets, double solid on avenues.
-func _mark_road(along_z: bool, center: float, width: float, a: float, b: float) -> void:
+func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, look: Dictionary = {}) -> void:
+	var line: Color = look.get("line", Color(0.95, 0.8, 0.2))
+	var solid: bool = look.get("solid", false)
 	a += 3.0
 	b -= 3.0
 	if b - a < 4.0:
@@ -594,13 +620,21 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float) 
 				var piece := minf(4.0, b - t0)
 				var mid := t0 + piece * 0.5
 				var pos := Vector3(center + side, ROAD_TOP + 0.01, mid) if along_z else Vector3(mid, ROAD_TOP + 0.01, center + side)
-				_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, piece / 3.0)), pos))
+				_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, piece / 3.0)), pos), line)
 				t0 += piece
+	elif solid:
+		var t0 := a
+		while t0 < b - 0.5:
+			var piece := minf(4.0, b - t0)
+			var mid := t0 + piece * 0.5
+			var pos := Vector3(center, ROAD_TOP + 0.01, mid) if along_z else Vector3(mid, ROAD_TOP + 0.01, center)
+			_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, piece / 3.0)), pos), line)
+			t0 += piece
 	else:
 		var t := a + 1.5
 		while t < b - 1.5:
 			var pos := Vector3(center, ROAD_TOP + 0.01, t) if along_z else Vector3(t, ROAD_TOP + 0.01, center)
-			_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw), pos))
+			_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw), pos), line)
 			t += 6.0
 
 
@@ -613,7 +647,15 @@ func _build_block(block: Dictionary) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var center := rect.get_center()
-	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.pbr("paving", 3.0, Color(0.95, 0.94, 0.92)))
+	# This block's look: paving set, dominant tree, lamp paint (all from the district table).
+	var pavings: Array = params.get("paving", [["paving", 3.0, Color(0.95, 0.94, 0.92)]])
+	var paving: Array = pavings[rng.randi() % pavings.size()]
+	var paving_tint: Color = (paving[2] as Color).lightened(rng.randf_range(-0.06, 0.06))
+	var weights: Array = params.get("tree_weights", [0.34, 0.33, 0.33])
+	var pick := rng.randf() * (float(weights[0]) + float(weights[1]) + float(weights[2]))
+	_tree_bias = 0 if pick < float(weights[0]) else (1 if pick < float(weights[0]) + float(weights[1]) else 2)
+	_lamp_tint = params.get("lamp_tint", Color.WHITE)
+	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.pbr(paving[0], paving[1], paving_tint))
 	match block.kind:
 		CityPlan.BlockKind.PARK:
 			_build_park(rect, rng)
@@ -747,6 +789,7 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 		building.min_height = lerpf(heights.x, heights.x * 2.0, boost)
 		building.max_height = lerpf(heights.y, heights.y * 2.2, boost)
 		building.lit_ratio_range = params.lit
+		building.weathering_range = params.get("weathering", Vector2(0.2, 0.9))
 		building.shape_options.assign(params.shapes)
 		building.finish_options.assign(params.finishes)
 		var g := _gy(center.x, center.y)
@@ -800,7 +843,9 @@ func _add_lod_shape(size: Vector3, pos: Vector3) -> void:
 func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var inner := rect.grow(-2.0)
 	var center := inner.get_center()
-	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.pbr("grass", 5.0, Color(0.8, 0.95, 0.75)))
+	# Lawns range from lush to summer-dry.
+	var lawn := Color(rng.randf_range(0.78, 0.95), rng.randf_range(0.88, 1.0), rng.randf_range(0.66, 0.8))
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
 	if level != Level.FULL:
 		return
 	var path_w := 3.0
@@ -938,7 +983,7 @@ func _build_intersection(inter: Dictionary) -> void:
 		return
 	if kind == CityPlan.Intersection.PLAIN:
 		return
-	_add_crosswalks(pos, size)
+	_add_crosswalks(pos, size, inter.seed)
 	var corners := [Vector2(1, 1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, -1)]
 	for c: Vector2 in corners:
 		var corner := pos + Vector2(c.x * (size.x * 0.5 + 1.2), c.y * (size.y * 0.5 + 1.2))
@@ -953,18 +998,30 @@ func _build_intersection(inter: Dictionary) -> void:
 			_add_signal(at, c, size)
 
 
-func _add_crosswalks(pos: Vector2, size: Vector2) -> void:
+## Crosswalk styles by intersection seed: 0 zebra, 1 wide continental bars, 2 ladder edges.
+func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
+	var style_id := absi(kind_seed) % 3
+	var step := 1.4 if style_id == 0 else 1.9
+	var bar := Basis().scaled(Vector3(1.0 if style_id == 0 else 1.6, 1.0, 1.0))
 	for side: float in [-1.0, 1.0]:
 		var z := pos.y + side * (size.y * 0.5 + 1.8)
-		var x := pos.x - size.x * 0.5 + 1.2
-		while x < pos.x + size.x * 0.5 - 0.6:
-			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(x, ROAD_TOP + 0.015, z)))
-			x += 1.4
+		if style_id == 2:
+			for edge: float in [-1.4, 1.4]:
+				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis().scaled(Vector3(0.4, 1.0, size.x / 3.0)), Vector3(pos.x, ROAD_TOP + 0.015, z + edge)))
+		else:
+			var x := pos.x - size.x * 0.5 + 1.2
+			while x < pos.x + size.x * 0.5 - 0.6:
+				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5) * bar, Vector3(x, ROAD_TOP + 0.015, z)))
+				x += step
 		var xx := pos.x + side * (size.x * 0.5 + 1.8)
-		var zz := pos.y - size.y * 0.5 + 1.2
-		while zz < pos.y + size.y * 0.5 - 0.6:
-			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(), Vector3(xx, ROAD_TOP + 0.015, zz)))
-			zz += 1.4
+		if style_id == 2:
+			for edge: float in [-1.4, 1.4]:
+				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(0.4, 1.0, size.y / 3.0)), Vector3(xx + edge, ROAD_TOP + 0.015, pos.y)))
+		else:
+			var zz := pos.y - size.y * 0.5 + 1.2
+			while zz < pos.y + size.y * 0.5 - 0.6:
+				_batch.add("stripe", PropFactory.stripe(), Transform3D(bar, Vector3(xx, ROAD_TOP + 0.015, zz)))
+				zz += step
 
 
 func _add_signal(at: Vector3, corner: Vector2, size: Vector2) -> void:
@@ -997,7 +1054,7 @@ func _add_prop(kind: String, at: Vector3, color: Color, instances: Array, shapes
 	var g := _gy(at.x, at.z)
 	var record := {"id": id, "kind": kind, "position": at + Vector3(0.0, g, 0.0), "color": color, "health": PROP_HEALTH.get(kind, 20.0), "instances": [], "shapes": [], "dead": false}
 	for inst in instances:
-		var index := _batch.add(inst[0], inst[1], inst[2])
+		var index := _batch.add(inst[0], inst[1], inst[2], inst[3] if inst.size() > 3 else Color.WHITE)
 		record.instances.append([inst[0], index])
 	for s in shapes:
 		var shape := _add_shape(s[0], s[1] + Vector3(0.0, g, 0.0), s[2])
@@ -1061,7 +1118,7 @@ func _spawn_debris(at: Vector3, color: Color, hit_dir: Vector3) -> void:
 
 func _add_lamp(at: Vector3) -> void:
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
-		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at)],
+		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
 	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
 
 
@@ -1145,7 +1202,8 @@ func _edge_point(edge: Array, rng: RandomNumberGenerator, margin: float) -> Vect
 func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
 	var s := rng.randf_range(0.9, 1.6)
 	var yaw := rng.randf_range(0.0, TAU)
-	var variant := rng.randi() % 3
+	# Most trees on a block are its dominant species; the rest are whatever.
+	var variant := _tree_bias if (_tree_bias >= 0 and rng.randf() < 0.7) else rng.randi() % 3
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint)
 

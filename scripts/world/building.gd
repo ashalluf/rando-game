@@ -27,6 +27,8 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 @export var max_height: float = 60.0
 ## Fraction of windows lit, picked between these two.
 @export var lit_ratio_range: Vector2 = Vector2(0.15, 0.5)
+## Grime range (0 clean, 1 filthy); districts set it.
+@export var weathering_range: Vector2 = Vector2(0.2, 0.9)
 ## Height of the storefront floor on ground-level parts (meters).
 @export var storefront_height: float = 4.5
 ## Force a shape style for tests; -1 = random.
@@ -236,7 +238,7 @@ func _pick_style() -> Dictionary:
 		"pitch": pitch_by_style[window_style],
 		"floor": _rng.randf_range(3.1, 4.0),
 		"wall_set": _pick_wall_set(),
-		"weathering": _rng.randf_range(0.2, 0.9),
+		"weathering": _rng.randf_range(weathering_range.x, weathering_range.y),
 	}
 
 

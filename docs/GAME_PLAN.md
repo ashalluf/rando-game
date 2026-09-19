@@ -58,8 +58,11 @@ Build in this order, one milestone per PR or a few PRs.
 - **World character** (asked 2026-09-19): hills and slopes through the whole city; the
   illusion of uniqueness through cheap seeded surface variation, never hand placement.
   - [x] Push 1 (build 57): rolling relief through the city (`MacroMap.relief_at`).
-  - [ ] Push 2: surface variation per block: asphalt tint, paving set, marking style, tree
-    mix, lamp and bench variants by district; less regular grid (merged blocks, dead ends).
+  - [x] Push 2 (build 58): surface variation: each road keeps one of two asphalt sets and five
+    tints plus a yellow or white, dashed or solid center line; each block picks a paving set
+    and tint from its district, a dominant tree species and a lamp paint; crosswalks come in
+    three styles per intersection; lawns range lush to dry; grime ranges per district.
+  - [ ] Push 3: a less regular grid (merged double blocks, dead ends, a diagonal avenue).
 
 - **High-poly realism** (asked 2026-09-19: "I don't want a low poly look, I want high poly"):
   replace the primitive props, buildings and foliage with real assets. Sources: Poly Haven and
@@ -174,6 +177,19 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 The illusion of uniqueness (owner: "subtly changing things on the surface").**
+  Nothing is hand placed; every choice is seeded. Roads: `CityChunk._road_look()` hashes the
+  road's axis and index so one street keeps its look for its whole length: asphalt set
+  (ambientCG or Poly Haven aerial asphalt), one of five tints, yellow or white center line
+  (district `line_white` odds), dashed or solid. Blocks: `CityPlan.DISTRICTS[...].paving` lists
+  the sidewalk sets a district uses (pavers, plain concrete, paving stones) and the block seed
+  picks one plus a tint; `tree_weights` gives the block a dominant tree species (70 percent of
+  its trees); `lamp_tint` paints the district's lamp posts through the instance color;
+  `weathering` sets the grime range buildings draw from (downtown clean, industrial filthy).
+  Intersections pick one of three crosswalk styles (zebra, wide continental bars, ladder
+  edges) from their seed. Park lawns range lush to summer-dry. Dash meshes are now white and
+  colored per instance.
 
 - **2026-09-19 Hills and slopes through the city (owner: "we need hills and slopes throughout
   the city").** `MacroMap.relief_at()` is a second, gentler noise field (peak `relief_height`
