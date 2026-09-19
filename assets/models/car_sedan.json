@@ -1,0 +1,10 @@
+{
+  "name": "car_sedan",
+  "prompt": "low-poly sedan car, four doors, simple clean shapes, smooth flat paint, black tires, dark windows, no text or logos, game asset, facing forward",
+  "credits": 15,
+  "tasks": {
+    "preview": "01a0b90e-4d81-7084-bcc6-3966b9474015",
+    "refine": "01a0b90e-7d15-7204-9c93-6244bae25ecd"
+  },
+  "source": "Meshy (generated for this project)"
+}

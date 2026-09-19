@@ -1,6 +1,7 @@
 # Assets
 
-No external assets yet. Everything is built-in primitives, CSG, code-generated meshes and materials.
+External assets: CC0 texture sets (below) and 3D models generated with the owner's Meshy account
+(`tools/meshy.py`). Buildings and the street furniture are still built-in primitives and code.
 
 When assets are added, only CC0 or free-for-commercial-use packs are allowed (for example Kenney,
 Quaternius). Record every pack here.
@@ -19,3 +20,15 @@ Quaternius). Record every pack here.
 
 All texture sets are from ambientCG (CC0 1.0 Universal, no attribution required, attribution given
 anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.
+
+## Generated 3D models (Meshy)
+
+Made with the owner's Meshy account through the API (`python3 tools/meshy.py gen ...`), Smart
+Topology (meshy-t2) previews refined with 2K PBR textures, then shrunk to 1K JPEG with
+`tools/shrink_glb.py`. Rights follow the owner's Meshy plan (paid plans: owner owns the output;
+free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy task ids and credits.
+
+| Model | Files | Credits | Used for | Added |
+|---|---|---|---|---|
+| Sedan | `assets/models/car_sedan.glb` | 15 | first real car body (not wired in yet) | 2026-09-19 |
+| Pedestrian A | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 29 | first real pedestrian (not wired in yet) | 2026-09-19 |
