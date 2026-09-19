@@ -183,6 +183,12 @@ func _build_showroom(at: Vector3, yaw: float) -> void:
 		car.position = at + forward * 12.0 + right * (float(i) - 1.5) * 6.0 + Vector3.UP * 1.0
 		car.rotation.y = yaw + PI * 0.5
 		add_child(car)
+	for k in Aircraft.Kind.size():
+		var jet := Aircraft.new()
+		jet.setup_aircraft(k as Aircraft.Kind)
+		jet.position = at + forward * 34.0 + right * (float(k) - 0.5) * 44.0 + Vector3.UP * 1.0
+		jet.rotation.y = yaw + PI * 0.5
+		add_child(jet)
 	for i in Pedestrian.MODELS.size():
 		var ped := Pedestrian.new()
 		var spot := at + forward * 5.0 + right * (float(i) - 1.0) * 2.0

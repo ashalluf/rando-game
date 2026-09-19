@@ -72,6 +72,8 @@ var addon: Addon = Addon.NONE
 var paint: Color = Color(0.85, 0.15, 0.12)
 ## The Player driving, or null.
 var driver: Node3D
+## How close the player has to be to get in (meters from the origin; big for aircraft).
+var enter_radius: float = 4.5
 ## Traffic state while driven by the TrafficManager (empty otherwise).
 var traffic: Dictionary = {}
 var traffic_speed: float = 0.0
@@ -277,7 +279,7 @@ func _build() -> void:
 	# Bumper zone: fast cars knock pedestrians over and launch the player.
 	var bumper := Area3D.new()
 	bumper.collision_layer = 0
-	bumper.collision_mask = 2
+	bumper.collision_mask = 2 | 8
 	var bshape := CollisionShape3D.new()
 	var bbox := BoxShape3D.new()
 	bbox.size = Vector3(width + 0.4, 1.6, length + 0.8)

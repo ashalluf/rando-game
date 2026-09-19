@@ -35,12 +35,15 @@ var campus_radius: float = 250.0
 ## South-east of this corner is the port and industrial district.
 var industrial_corner: Vector2 = Vector2(300.0, 900.0)
 ## Flat zones (world XZ rects): the airport by the south-west coast, the port on a harbor.
-var airport_rect: Rect2 = Rect2(-700.0, 700.0, 700.0, 250.0)
+var airport_rect: Rect2 = Rect2(-880.0, 630.0, 980.0, 350.0)
 var port_rect: Rect2 = Rect2(450.0, 1000.0, 700.0, 300.0)
 var harbor_rect: Rect2 = Rect2(450.0, 1300.0, 700.0, 260.0)
 ## Runway center lines (z) and width inside the airport rect.
-var runway_zs: PackedFloat32Array = PackedFloat32Array([760.0, 890.0])
-var runway_width: float = 45.0
+var runway_zs: PackedFloat32Array = PackedFloat32Array([780.0, 870.0, 960.0])
+var runway_width: float = 55.0
+## Where flyable jets wait on the apron (world XZ, nose toward +X) and what kind each is.
+## Staggered so no jet sits in another's taxi lane.
+var apron_spots: Array = [[Vector2(-440.0, 700.0), 0], [Vector2(-350.0, 730.0), 1], [Vector2(-255.0, 670.0), 0]]
 
 ## Roads and mansion pads carved into the hills (built in setup()).
 var hill_roads: HillRoads

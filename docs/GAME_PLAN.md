@@ -147,6 +147,29 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 Bullets hurt people (owner: "the AK-47 can't hurt anybody").** Pedestrians sat
+  on physics layer 2 (the player layer) and the aim mask only covered world + props, so the
+  hitscan ray passed straight through them. Pedestrians now live on layer 4 (`8`, "npc");
+  `Player.AIM_MASK` and `BLAST_MASK` include it, and the car and jet bumper areas look for it.
+  The smoke test fires the rifle at a pedestrian and expects a ragdoll.
+
+- **2026-09-19 Bigger airport and flyable jets (map-character batch, part 5).** The airport is
+  now 980 x 350 m with three 55 m runways (z 760 / 860 / 960) and reaches into the sea on fill.
+  `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`: a VehicleBody3D with tricycle
+  gear (taxi with the throttle, steer when slow, S brakes) plus an arcade flight model in
+  `_physics_process`: thrust along the nose, lift = airspeed^2 x `lift_coef` (level at ~43 m/s,
+  capped), forward drag, strong sideways and vertical drag so it flies where it points, pitch
+  and roll torques scaled by airspeed, a turn that follows the bank, self-leveling when the stick
+  is centered. Shift = throttle up, right click = throttle down, W / S pitch, A / D roll. Two
+  kinds (PRIVATE 20 m, AIRLINER 38 m) with Meshy models (30 credits each), scaled like the cars.
+  Three jets wait on the apron (`MacroMap.apron_spots`), spawned by the airport chunk under the
+  city root like parked cars; `Vehicle.enter_radius` lets the player board from under a wing.
+  Landmark `hangars` (three barrel-roof hangars, fuel tanks, beacon) at the east end; the
+  terminal got jet bridges and lost its static planes. Hill terrain bodies also carry physics
+  layer 5 (`CityChunk.TERRAIN_LAYER`) so the "terrain above me" ray is not blocked by a mansion
+  pad; the smoke test caught that. The smoke test boards a jet, rolls it down the field and
+  pulls up (125 checks). `?showroom` now includes both jets.
+
 - **2026-09-19 University campus (map-character batch, part 4).** New `CityPlan.District.CAMPUS`
   (brick and stone halls 8-24 m on big lots with wide gaps, 30 % quads, 12 % plazas, trees
   everywhere) inside `MacroMap.campus_radius` (250 m) of `campus_center` (-620, -520) on the west

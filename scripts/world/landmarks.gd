@@ -34,6 +34,7 @@ static func all() -> Array[Dictionary]:
 		{"id": "campus_hall", "anchor": Vector2(-620.0, -520.0), "radius": 95.0},
 		{"id": "twin_glass", "anchor": Vector2(600.0, 210.0), "radius": 46.0},
 		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
+		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
 		{"id": "cargo_ship", "anchor": Vector2(800.0, 1420.0), "radius": 100.0},
 	]
 
@@ -72,6 +73,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			_build_twin_glass(lm.anchor, parent, statics, detailed)
 		"terminal":
 			_build_terminal(lm.anchor, parent, statics, detailed)
+		"hangars":
+			_build_hangars(lm.anchor, parent, statics, detailed)
 		"cargo_ship":
 			_build_cargo_ship(lm.anchor, parent, statics, detailed)
 
@@ -530,8 +533,8 @@ static func _build_terminal(anchor: Vector2, parent: Node3D, statics: StaticBody
 	_cyl(parent, statics, 4.0, 46.0, base + Vector3(-100.0, 23.0, -60.0), Color(0.85, 0.85, 0.83))
 	_cyl(parent, statics, 9.0, 6.0, base + Vector3(-100.0, 49.0, -60.0), Color(0.25, 0.4, 0.55))
 	_cyl(parent, null, 9.5, 0.8, base + Vector3(-100.0, 52.4, -60.0), Color(0.85, 0.85, 0.83))
-	# Saucer restaurant on four crossed arches.
-	var sc := base + Vector3(0.0, 0.0, -10.0)
+	# Saucer restaurant on four crossed arches, beside the hall (clear of the apron taxi lane).
+	var sc := base + Vector3(0.0, 0.0, -34.0)
 	for i in 4:
 		var a := PI * 0.25 + i * PI * 0.5
 		var leg := _box(parent, null, Vector3(2.0, 34.0, 2.0), sc + Vector3(cos(a) * 12.0, 15.0, sin(a) * 12.0), Color(0.92, 0.92, 0.9), false)
@@ -541,28 +544,31 @@ static func _build_terminal(anchor: Vector2, parent: Node3D, statics: StaticBody
 	_cyl(parent, statics, 14.0, 4.0, sc + Vector3(0.0, 28.0, 0.0), Color(0.92, 0.92, 0.9))
 	_cyl(parent, null, 12.0, 3.0, sc + Vector3(0.0, 31.5, 0.0), Color(0.25, 0.4, 0.55))
 	_dome(parent, null, 4.0, sc + Vector3(0.0, 33.0, 0.0), Color(0.92, 0.92, 0.9))
-	if not detailed:
-		return
-	# Two parked planes at the gates.
-	for i in 2:
-		_build_plane(base + Vector3(-45.0 + i * 70.0, 0.0, -25.0), parent, statics)
+	# Jet bridges reaching from the hall toward the apron (the flyable jets park below them).
+	for i in 4:
+		_box(parent, statics, Vector3(3.0, 3.0, 18.0), base + Vector3(-60.0 + i * 40.0, 5.5, -31.0), Color(0.7, 0.72, 0.75), detailed)
+		_box(parent, null, Vector3(2.0, 4.0, 2.0), base + Vector3(-60.0 + i * 40.0, 2.0, -24.0), Color(0.5, 0.5, 0.52), false)
 
 
-static func _build_plane(at: Vector3, parent: Node3D, statics: StaticBody3D) -> void:
-	var white := Color(0.95, 0.95, 0.96)
-	var body := _cyl(parent, statics, 2.6, 38.0, at + Vector3(0.0, 3.6, 0.0), white)
-	body.rotation.x = PI * 0.5
-	_dome(parent, null, 2.6, at + Vector3(0.0, 3.6, -19.0), white).rotation.x = -PI * 0.5
-	var wing := _box(parent, statics, Vector3(40.0, 0.5, 6.0), at + Vector3(0.0, 2.8, 2.0), white, true)
-	wing.rotation.y = 0.15
-	_box(parent, null, Vector3(14.0, 0.4, 4.0), at + Vector3(0.0, 4.0, 17.0), white, false)
-	var fin := _box(parent, null, Vector3(0.5, 8.0, 5.0), at + Vector3(0.0, 8.0, 17.5), Color(0.9, 0.3, 0.2), false)
-	fin.rotation.x = 0.4
-	for side: float in [-1.0, 1.0]:
-		var engine := _cyl(parent, null, 1.3, 5.0, at + Vector3(side * 10.0, 1.9, 1.0), Color(0.35, 0.36, 0.4))
-		engine.rotation.x = PI * 0.5
-	for x: float in [0.0, -4.0, 4.0]:
-		_cyl(parent, null, 0.5, 1.2, at + Vector3(x * 0.5, 0.6, -10.0 if x == 0.0 else 4.0), Color(0.15, 0.15, 0.15))
+## Three hangars with barrel roofs, a fuel farm and a beacon at the east end of the field.
+static func _build_hangars(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
+	var base := Vector3(anchor.x, 0.1, anchor.y)
+	var wall := Color(0.78, 0.78, 0.76)
+	for i in 3:
+		var at := base + Vector3(0.0, 0.0, -60.0 + i * 60.0)
+		_box(parent, statics, Vector3(60.0, 12.0, 44.0), at + Vector3(0.0, 6.0, 0.0), wall, true)
+		var roof := _cyl(parent, statics, 22.0, 60.0, at + Vector3(0.0, 12.0, 0.0), Color(0.6, 0.62, 0.66))
+		roof.rotation.z = PI * 0.5
+		# Big door face on the west side.
+		_box(parent, null, Vector3(0.4, 10.0, 36.0), at + Vector3(-30.1, 5.0, 0.0), Color(0.45, 0.5, 0.58), false)
+	for i in 3:
+		_cyl(parent, statics, 6.0, 9.0, base + Vector3(45.0, 4.5, -30.0 + i * 24.0), Color(0.9, 0.9, 0.92))
+	_cyl(parent, statics, 1.0, 18.0, base + Vector3(45.0, 9.0, 60.0), Color(0.85, 0.85, 0.88))
+	var beacon := _box(parent, null, Vector3(1.4, 1.4, 1.4), base + Vector3(45.0, 18.9, 60.0), Color(1.0, 1.0, 1.0), false)
+	beacon.material_override = WeaponFX.unshaded(Color(1.0, 1.0, 0.9))
+	if detailed:
+		for i in 6:
+			_box(parent, null, Vector3(3.0, 2.2, 1.6), base + Vector3(-40.0 + i * 8.0, 1.2, 75.0), Color(0.85, 0.7, 0.2), false)
 
 
 ## A container ship moored in the harbor, bow pointing west.

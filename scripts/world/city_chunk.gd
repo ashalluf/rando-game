@@ -9,6 +9,9 @@ extends Node3D
 enum Level { FULL, LOD }
 
 const BUILDING_SCENE := preload("res://scenes/props/building.tscn")
+## Extra physics layer bit carried only by hill terrain, so "is terrain above me?" rays
+## are not blocked by a pad, wall or roof on the way up.
+const TERRAIN_LAYER := 16
 const ROAD_TOP := 0.1
 const SIDEWALK_TOP := 0.25
 const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0}
@@ -116,8 +119,28 @@ func _build_airport() -> void:
 		rng.seed = hash([ix, iz, 5])
 		for i in 3:
 			var p := Vector2(rng.randf_range(area.position.x + 5.0, area.end.x - 5.0), area.position.y + 4.0)
-			if not _on_runway(p):
+			if not _on_runway(p) and not _near_apron(p):
 				_add_lamp(Vector3(p.x, 0.1, p.y))
+		# Flyable jets on the apron, owned like parked cars (city root, freed with the chunk
+		# unless someone flew them away).
+		for spot in macro.apron_spots:
+			var sp: Vector2 = spot[0]
+			if not area.has_point(sp):
+				continue
+			var jet := Aircraft.new()
+			jet.setup_aircraft(spot[1] as Aircraft.Kind)
+			var holder: Node = get_parent() if get_parent() else self
+			jet.position = WorldState.to_local(Vector3(sp.x, 1.0, sp.y)) if holder != self else Vector3(sp.x, 1.0, sp.y)
+			jet.rotation.y = -PI * 0.5
+			holder.add_child(jet)
+			_cars.append(jet)
+
+
+func _near_apron(p: Vector2) -> bool:
+	for spot in plan.macro.apron_spots:
+		if (spot[0] as Vector2).distance_to(p) < 45.0:
+			return true
+	return false
 
 
 func _on_runway(p: Vector2) -> bool:
@@ -287,7 +310,7 @@ func _build_terrain() -> void:
 				cheights[j * (cn + 1) + i] = plan.height_at(Vector2(area.position.x + area.size.x * i / cn, area.position.y + area.size.y * j / cn))
 	var body := StaticBody3D.new()
 	body.name = "TerrainBody"
-	body.collision_layer = 1
+	body.collision_layer = 1 | TERRAIN_LAYER
 	body.collision_mask = 0
 	body.set_meta("terrain", true)
 	var shape := CollisionShape3D.new()

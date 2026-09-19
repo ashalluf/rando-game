@@ -423,6 +423,40 @@ func _test_city() -> void:
 		player.velocity = Vector3.ZERO
 		city.update_streaming(true)
 
+	# Jets: taxi down the runway under throttle, then pull up and fly.
+	if macro:
+		var apron: Vector2 = macro.apron_spots[0][0]
+		player.global_position = _world_state().to_local(Vector3(apron.x, 3.0, apron.y + 7.0))
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
+		await _ticks(15)
+		var jet: Node3D = null
+		for node in get_tree().get_nodes_in_group("vehicle"):
+			if node is Aircraft and node.global_position.distance_to(player.global_position) < 40.0:
+				jet = node
+		_check(jet != null, "a jet waits on the apron")
+		if jet:
+			await _press("interact")
+			_check(player.is_driving() and player.vehicle == jet, "interact climbs into the jet (%s)" % jet.display_name())
+			Input.action_press("boost")
+			await _ticks(330)
+			var ground_speed: float = jet.linear_velocity.length()
+			var y_before: float = _world_state().to_world(jet.global_position).y
+			_check(ground_speed > 30.0, "full throttle rolls the jet down the field (%.0f m/s, y %.1f)" % [ground_speed, y_before])
+			Input.action_press("move_back")
+			var top_y := y_before
+			for i in 300:
+				await get_tree().physics_frame
+				top_y = maxf(top_y, _world_state().to_world(jet.global_position).y)
+			Input.action_release("move_back")
+			Input.action_release("boost")
+			_check(top_y > 25.0, "pulling up takes off (peak %.0f m)" % top_y)
+			await _ticks(20)
+			player.exit_vehicle()
+			player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
 	# Pedestrians and traffic.
 	traffic_mgr.max_cars = traffic_cap
 	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
@@ -445,6 +479,18 @@ func _test_city() -> void:
 				dolls += 1
 		_check(not is_instance_valid(ped) or ped.is_queued_for_deletion(), "knocked pedestrian is removed")
 		_check(dolls == before_dolls + 1, "a ragdoll takes its place")
+		# Bullets hurt people: the AK-47 ray must hit the npc layer and knock the target over.
+		if peds.size() > 1 and is_instance_valid(peds[1]):
+			var target: Node3D = peds[1]
+			var rifle: Node = player.weapon_manager.get_node_or_null("AssaultRifle")
+			if rifle == null:
+				for w in player.weapon_manager.get_children():
+					if w is AssaultRifle:
+						rifle = w
+			var from: Vector3 = target.global_position + Vector3(0.0, 1.0, 0.0) + Vector3(-6.0, 0.0, 0.0)
+			var hit: Dictionary = rifle.fire_ray(from, Vector3.RIGHT)
+			await _ticks(3)
+			_check(not hit.is_empty() and (not is_instance_valid(target) or target.is_queued_for_deletion()), "an AK-47 bullet knocks a pedestrian down")
 	var traffic_node: Node3D = city.get_node("Traffic")
 	var moving: int = traffic_node.cars.size()
 	_check(moving >= 4, "traffic cars are driving (%d)" % moving)

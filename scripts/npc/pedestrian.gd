@@ -51,7 +51,7 @@ var _sidewalk: float = 4.0
 
 func _ready() -> void:
 	add_to_group("pedestrian")
-	collision_layer = 2
+	collision_layer = 8 # the npc layer: bullets, blasts and bumpers look for it
 	collision_mask = 1
 	floor_snap_length = 0.4
 	var shape := CollisionShape3D.new()

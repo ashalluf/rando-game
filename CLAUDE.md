@@ -142,7 +142,8 @@ tests/                 headless smoke test and check script
 - Scenes are hand-written `.tscn` text. Prefer building content in code from a seed over placing
   nodes in scene files. Scene files hold structure (lights, environment, player instance), scripts
   hold content.
-- Physics layers: 1 `world` (static), 2 `player`, 3 `props` (rigid bodies). Player mask = world+props.
+- Physics layers: 1 `world` (static), 2 `player`, 3 `props` (rigid bodies), 4 `npc` (pedestrians),
+  5 `terrain` (hill heightmaps, in addition to world). Player mask = world+props.
   Crates: layer props, mask all three. The camera spring arm collides with `world` only.
 - Node groups: `player` (the player body), `physics_prop` (every rigid prop PhysicsBudget manages),
   `debris` (short-lived props that get freed after a timeout).
@@ -164,7 +165,8 @@ tests/                 headless smoke test and check script
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
   `next_weapon`, `prev_weapon`, `weapon_1..3`, `interact` (E / gamepad Y), `respawn`,
-  `toggle_mouse`, `toggle_hud`. Add new actions there. There is no sprint; boost replaced it.
+  `toggle_mouse`, `toggle_hud`. Add new actions there. There is no sprint; boost replaced it. In a
+  jet: boost = throttle up, alt_fire = throttle down, move axes = pitch and roll.
 - NPCs: `Pedestrian` (wanders a block's sidewalk ring, `knock(impulse)` turns it into a `Ragdoll`
   debris) and `TrafficManager` (kinematic `Vehicle`s with `traffic` state driving the lanes).
   Never freeze a VehicleBody3D and never give a kinematic one VehicleWheel3D nodes: NaN.
@@ -177,6 +179,10 @@ tests/                 headless smoke test and check script
   falling through the world (below `fall_through_y`) or ending up under hill terrain (a body with
   meta `terrain` above it) via `CityStreamer.surface_height_at()`; skip world queries for two
   frames after an origin shift (`_query_hold`), the broadphase lags.
+- Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
+  AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
+  `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
+  (bit 5) and the player's under-terrain ray uses only that layer.
 - Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is

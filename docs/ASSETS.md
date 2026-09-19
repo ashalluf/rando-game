@@ -37,6 +37,8 @@ free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy ta
 | Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 44 (+29) | `Pedestrian` | 2026-09-19 |
 | Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 44 (+29) | `Pedestrian` | 2026-09-19 |
 | Pedestrian C (older man, shirt) | `pedestrian_c.glb`, `pedestrian_c_anim.glb` (same clips) | 44 (+29) | `Pedestrian` | 2026-09-19 |
+| Private jet | `assets/models/jet_private.glb` | 30 | `Aircraft` PRIVATE | 2026-09-19 |
+| Airliner | `assets/models/jet_airliner.glb` | 30 | `Aircraft` AIRLINER | 2026-09-19 |
 
 All seven were first made as low-poly cartoon models (147 credits) and then regenerated with the
 owner's realism rule on Meshy's standard model (252 credits). Car base colors are greyscaled and

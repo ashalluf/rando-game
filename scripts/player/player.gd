@@ -3,9 +3,9 @@ extends CharacterBody3D
 ## Overpowered third-person controller: run, unlimited boost (ground and air), super-high jump,
 ## double jump, strong air control, no fall damage. Every feel number is an @export below.
 
-## Physics layers: 1 world, 2 player, 4 props.
-const AIM_MASK := 1 | 4
-const BLAST_MASK := 2 | 4
+## Physics layers: 1 world, 2 player, 4 props, 8 npc (pedestrians).
+const AIM_MASK := 1 | 4 | 8
+const BLAST_MASK := 2 | 4 | 8
 
 @export_group("Ground Movement")
 ## Top running speed (m/s).
@@ -192,7 +192,8 @@ func _under_terrain(from: Vector3) -> bool:
 	var space := get_world_3d().direct_space_state
 	if space == null or _query_hold > 0:
 		return false
-	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from + Vector3.UP * 0.3, from + Vector3.UP * 400.0, 1))
+	# Only the terrain layer (CityChunk.TERRAIN_LAYER): pads, walls and roofs must not block it.
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from + Vector3.UP * 0.3, from + Vector3.UP * 400.0, 16))
 	return not hit.is_empty() and hit.collider is Node and (hit.collider as Node).has_meta("terrain")
 
 
@@ -237,7 +238,7 @@ func _try_enter_vehicle() -> void:
 			continue
 		if car.is_traffic():
 			continue
-		var d := car.global_position.distance_to(global_position)
+		var d := car.global_position.distance_to(global_position) - maxf(car.enter_radius - enter_range, 0.0)
 		if d < best_d:
 			best_d = d
 			best = car
