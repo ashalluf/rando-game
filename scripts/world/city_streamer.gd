@@ -127,30 +127,57 @@ func _apply_spawn_override() -> void:
 	if _player == null:
 		return
 	var text := ""
+	var showroom := false
 	if OS.has_feature("web"):
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
 		if search is String:
 			for part in (search as String).trim_prefix("?").split("&"):
 				if part.begins_with("spawn="):
 					text = part.trim_prefix("spawn=")
+				elif part.begins_with("showroom"):
+					showroom = true
 	else:
 		for arg in OS.get_cmdline_user_args():
 			if arg.begins_with("--spawn="):
 				text = arg.trim_prefix("--spawn=")
-	if text.is_empty():
-		return
+			elif arg.begins_with("--showroom"):
+				showroom = true
+	var wp := Vector2.ZERO
+	var yaw := 0.0
 	var parts := text.split(",")
-	if parts.size() < 2:
-		return
-	var wp := Vector2(parts[0].to_float(), parts[1].to_float())
-	var y := plan.height_at(wp) + 2.0
-	_player.global_position = Vector3(wp.x, y, wp.y)
-	if _player.has_method("respawn"):
-		_player.set("_spawn_transform", _player.global_transform)
-	if parts.size() >= 4:
-		var rig: Node3D = _player.get("camera_rig")
-		if rig and rig.has_method("set_look"):
-			rig.set_look(parts[2].to_float(), parts[3].to_float())
+	if parts.size() >= 2:
+		wp = Vector2(parts[0].to_float(), parts[1].to_float())
+		var y := plan.height_at(wp) + 2.0
+		_player.global_position = Vector3(wp.x, y, wp.y)
+		if _player.has_method("respawn"):
+			_player.set("_spawn_transform", _player.global_transform)
+		if parts.size() >= 4:
+			yaw = parts[2].to_float()
+			var rig: Node3D = _player.get("camera_rig")
+			if rig and rig.has_method("set_look"):
+				rig.set_look(yaw, parts[3].to_float())
+	if showroom:
+		_build_showroom(Vector3(wp.x, plan.height_at(wp), wp.y), deg_to_rad(yaw))
+
+
+## Debug (`?showroom` on the web, `-- --showroom` on desktop): every car type and pedestrian
+## model lined up in front of the spawn point, to judge generated assets quickly.
+func _build_showroom(at: Vector3, yaw: float) -> void:
+	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
+	var right := forward.cross(Vector3.UP)
+	for i in Vehicle.BodyType.size():
+		var car := Vehicle.new()
+		car.setup(i as Vehicle.BodyType, Vehicle.PAINTS[i * 2 % Vehicle.PAINTS.size()], Vehicle.Addon.NONE)
+		car.position = at + forward * 12.0 + right * (float(i) - 1.5) * 6.0 + Vector3.UP * 1.0
+		car.rotation.y = yaw + PI * 0.5
+		add_child(car)
+	for i in Pedestrian.MODELS.size():
+		var ped := Pedestrian.new()
+		var spot := at + forward * 5.0 + right * (float(i) - 1.0) * 2.0
+		ped.setup(Rect2(spot.x - 1.0, spot.z - 1.0, 2.0, 2.0), 1.0, 1000 + i)
+		ped.position = spot + Vector3.UP * 0.5
+		add_child(ped)
+		ped.set_meta("showroom", true)
 
 
 func _process(delta: float) -> void:

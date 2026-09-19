@@ -147,6 +147,22 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 Realism step 3: generated models from Meshy.** The owner has a Meshy account, so
+  cars and pedestrians are now real models made through its API (`tools/meshy.py`: Smart
+  Topology preview at ~3000 faces, PBR refine, rig + animation clips for characters; then
+  `tools/shrink_glb.py` re-encodes the embedded textures to 1K JPEG so a model is ~0.5 MB).
+  Cars: one white model per `Vehicle.BodyType`, scaled to the box car's length, yawed so the
+  nose is -Z (`MODEL_YAW`), tinted by setting `albedo_color` on a duplicated material (so the
+  seeded paint palette still works); the box parts stay as collision only and the wheel
+  cylinders are hidden because the models have wheels. Pedestrians: three rigged characters
+  with Idle / Casual_Walk_inplace / run_fast_3_inplace clips, picked by seed; the walk clip's
+  `speed_scale` follows `walk_speed`. Gotchas: Meshy rigs face +Z (rotate PI) and put the
+  skeleton in centimeters under a 0.01 armature while the mesh bounds stay in meters, so the
+  imported AABB is 2 cm and the renderer culls the character: `custom_aabb` in skeleton units
+  fixes it. The ragdoll is still the box one. Debug `?showroom` (web) / `-- --showroom`
+  (desktop) lines every car type and pedestrian model up in front of the spawn point. Buildings
+  and street props stay procedural; the API key lives only in the session environment.
+
 - **2026-09-19 "Stuck under the earth", round two.** Three real causes found with the smoke test.
   (1) Parked cars were children of their chunk, so driving one a few blocks away freed it under
   the player, who was left invisible with no collision, falling and being lifted forever. Parked

@@ -7,11 +7,24 @@ enum BodyType { SEDAN, PICKUP, VAN, SPORTS }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports"]
+## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
+const BODY_MODELS := {
+	BodyType.SEDAN: "res://assets/models/car_sedan.glb",
+	BodyType.PICKUP: "res://assets/models/car_pickup.glb",
+	BodyType.VAN: "res://assets/models/car_van.glb",
+	BodyType.SPORTS: "res://assets/models/car_sports.glb",
+}
+## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
+const MODEL_YAW := {BodyType.SEDAN: PI * 0.5, BodyType.PICKUP: PI * 0.5, BodyType.VAN: PI * 0.5, BodyType.SPORTS: PI * 0.5}
 const PAINTS := [
 	Color(0.85, 0.15, 0.12), Color(0.15, 0.35, 0.75), Color(0.92, 0.92, 0.9), Color(0.12, 0.12, 0.14),
 	Color(0.95, 0.75, 0.15), Color(0.2, 0.6, 0.35), Color(0.7, 0.7, 0.72), Color(0.9, 0.45, 0.15),
 	Color(0.55, 0.2, 0.6), Color(0.35, 0.7, 0.8),
 ]
+
+@export_group("Model")
+## Where the generated model's tire bottoms sit in body space (meters). Raise if the car floats.
+@export var model_bottom_y: float = -0.27
 
 @export_group("Handling")
 ## Engine force at full throttle (N). Big number = silly acceleration.
@@ -70,6 +83,8 @@ var _exit_side: float = 1.0
 var _steer_target: float = 0.0
 var _engine_sound: AudioStreamPlayer3D
 var _jump_timer: float = 0.0
+## True when a generated body model is used: box parts then only provide collision.
+var _has_model: bool = false
 
 
 func setup(type: BodyType, color: Color, extra: Addon) -> void:
@@ -222,6 +237,7 @@ func _build() -> void:
 	var chassis_h: float = dims.chassis_h
 	var cabin: Vector2 = dims.cabin # x = start z (front negative), y = length, along the car
 	var base_y := 0.55
+	_has_model = _add_body_model(length)
 	var trim := Color(0.12, 0.12, 0.14)
 	var glass := Color(0.35, 0.5, 0.65)
 	# Chassis.
@@ -281,6 +297,7 @@ func _build() -> void:
 		for slot in _wheel_slots:
 			var visual := _wheel_mesh()
 			visual.position = slot[0] + Vector3(0.0, -0.3, 0.0)
+			visual.visible = not _has_model # the generated models have their own wheels
 			add_child(visual)
 			_wheel_visuals.append(visual)
 	else:
@@ -345,6 +362,8 @@ func _add_wheel(pos: Vector3, front: bool) -> void:
 	wheel.wheel_roll_influence = wheel_roll_influence
 	add_child(wheel)
 	wheels.append(wheel)
+	if _has_model:
+		return # the generated models have their own wheels
 	var mesh := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = 0.42
@@ -367,14 +386,54 @@ func _add_wheel(pos: Vector3, front: bool) -> void:
 	wheel.add_child(hub)
 
 
+## Instances the generated body model for this type, scaled to `length` and tinted with the
+## paint (the models are textured white). Returns false when the model file does not exist.
+func _add_body_model(length: float) -> bool:
+	var path: String = BODY_MODELS.get(body_type, "")
+	if path == "" or not ResourceLoader.exists(path):
+		return false
+	var scene: PackedScene = load(path)
+	if scene == null:
+		return false
+	var inst := scene.instantiate() as Node3D
+	var holder := Node3D.new()
+	holder.name = "BodyModel"
+	holder.add_child(inst)
+	var aabb := AABB()
+	var first := true
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		var box := m.mesh.get_aabb()
+		aabb = box if first else aabb.merge(box)
+		first = false
+		var mat := m.mesh.surface_get_material(0)
+		if mat is StandardMaterial3D:
+			var tinted := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
+			tinted.albedo_color = paint
+			m.material_override = tinted
+	if first:
+		return false
+	# Longest horizontal axis is the length; scale so it matches our chassis.
+	var along_x := aabb.size.x >= aabb.size.z
+	var model_len := aabb.size.x if along_x else aabb.size.z
+	var scale_f := length / maxf(model_len, 0.01)
+	inst.scale = Vector3.ONE * scale_f
+	inst.rotation.y = (MODEL_YAW.get(body_type, 0.0) if along_x else 0.0)
+	var center := aabb.get_center()
+	inst.position = -(inst.transform.basis * Vector3(center.x, aabb.position.y, center.z)) + Vector3(0.0, model_bottom_y, 0.0)
+	add_child(holder)
+	return true
+
+
 func _box(size: Vector3, pos: Vector3, color: Color, collide: bool, glow: bool = false) -> void:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.material_override = WeaponFX.unshaded(color) if glow else PropFactory.material(color, 0.45)
-	mesh.position = pos
-	add_child(mesh)
+	if not _has_model:
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = size
+		mesh.mesh = box
+		mesh.material_override = WeaponFX.unshaded(color) if glow else PropFactory.material(color, 0.45)
+		mesh.position = pos
+		add_child(mesh)
 	if collide:
 		var shape := CollisionShape3D.new()
 		var bs := BoxShape3D.new()

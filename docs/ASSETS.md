@@ -30,5 +30,13 @@ free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy ta
 
 | Model | Files | Credits | Used for | Added |
 |---|---|---|---|---|
-| Sedan | `assets/models/car_sedan.glb` | 15 | first real car body (not wired in yet) | 2026-09-19 |
-| Pedestrian A | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 29 | first real pedestrian (not wired in yet) | 2026-09-19 |
+| Sedan | `assets/models/car_sedan.glb` | 15 | `Vehicle` body, SEDAN | 2026-09-19 |
+| Pickup | `assets/models/car_pickup.glb` | 15 | `Vehicle` body, PICKUP | 2026-09-19 |
+| Van | `assets/models/car_van.glb` | 15 | `Vehicle` body, VAN | 2026-09-19 |
+| Sports | `assets/models/car_sports.glb` | 15 | `Vehicle` body, SPORTS | 2026-09-19 |
+| Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 29 | `Pedestrian` | 2026-09-19 |
+| Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 29 | `Pedestrian` | 2026-09-19 |
+| Pedestrian C (older man, shirt) | `pedestrian_c.glb`, `pedestrian_c_anim.glb` (same clips) | 29 | `Pedestrian` | 2026-09-19 |
+
+Godot extracts each model's textures next to it on import (`<model>_N.jpg` + `.import`); those
+files are committed like any other import output.

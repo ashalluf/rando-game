@@ -1,0 +1,10 @@
+{
+  "name": "car_sports",
+  "prompt": "low-poly two-seat sports car, low and wide, sleek coupe body, simple clean shapes, smooth flat white paint, black tires, dark windows, no text or logos, game asset",
+  "credits": 15,
+  "tasks": {
+    "preview": "01a0b919-2f2f-777d-83f4-66a39aac2e46",
+    "refine": "01a0b919-7d82-7075-b325-b29fb4c11987"
+  },
+  "source": "Meshy (generated for this project)"
+}

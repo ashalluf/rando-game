@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_b",
+  "prompt": "low-poly stylized adult woman pedestrian, casual clothes: hoodie, leggings, sneakers, ponytail, clean flat colors, simple friendly cartoon proportions, game character, no text or logos",
+  "credits": 29,
+  "tasks": {
+    "preview": "01a0b919-2ef9-73d9-90d3-436f93c90728",
+    "refine": "01a0b919-7c0e-7114-a3dd-30ca8cbba2d2",
+    "rig": "01a0b91a-66bb-7253-bf44-8523f53aac3b",
+    "animations": "01a0b91a-f666-76ba-8730-35694731cf17"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}

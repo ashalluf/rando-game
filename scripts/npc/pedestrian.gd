@@ -7,6 +7,15 @@ extends CharacterBody3D
 const SHIRTS := [Color(0.9, 0.3, 0.3), Color(0.3, 0.5, 0.9), Color(0.95, 0.85, 0.3), Color(0.4, 0.75, 0.45), Color(0.9, 0.9, 0.9), Color(0.6, 0.35, 0.7), Color(0.95, 0.55, 0.2)]
 const PANTS := [Color(0.2, 0.25, 0.4), Color(0.15, 0.15, 0.17), Color(0.5, 0.4, 0.3), Color(0.35, 0.35, 0.38)]
 const SKINS := [Color(0.95, 0.8, 0.65), Color(0.85, 0.65, 0.5), Color(0.6, 0.42, 0.3), Color(0.4, 0.28, 0.2)]
+## Generated rigged characters (see docs/ASSETS.md). Each has Idle, Casual_Walk_inplace and
+## run_fast_3_inplace clips. Missing files fall back to the box person.
+const MODELS := [
+	"res://assets/models/pedestrian_a_anim.glb",
+	"res://assets/models/pedestrian_b_anim.glb",
+	"res://assets/models/pedestrian_c_anim.glb",
+]
+## Walking speed (m/s) at which the walk clip plays at its natural pace.
+const WALK_CLIP_SPEED := 1.3
 
 @export var walk_speed: float = 1.8
 ## Anything moving faster than this that touches us knocks us over (m/s).
@@ -23,6 +32,7 @@ var _rng := RandomNumberGenerator.new()
 var _visual: Node3D
 var _bob: float = 0.0
 var _down: bool = false
+var _anim: AnimationPlayer
 
 
 func setup(block_rect: Rect2, sidewalk: float, seed_value: int) -> void:
@@ -53,6 +63,9 @@ func _ready() -> void:
 	add_child(shape)
 	_visual = Node3D.new()
 	add_child(_visual)
+	if _add_model():
+		_add_hit_area()
+		return
 	_part(Vector3(0.5, 0.65, 0.3), Vector3(0.0, 1.05, 0.0), shirt)
 	_part(Vector3(0.2, 0.7, 0.2), Vector3(-0.14, 0.38, 0.0), pants)
 	_part(Vector3(0.2, 0.7, 0.2), Vector3(0.14, 0.38, 0.0), pants)
@@ -68,6 +81,39 @@ func _ready() -> void:
 	head.material_override = PropFactory.material(skin, 0.8)
 	head.position = Vector3(0.0, 1.55, 0.0)
 	_visual.add_child(head)
+	_add_hit_area()
+
+
+## Picks one of the generated characters (seeded) and starts its walk cycle. False if none exist.
+func _add_model() -> bool:
+	var available: Array[String] = []
+	for path in MODELS:
+		if ResourceLoader.exists(path):
+			available.append(path)
+	if available.is_empty():
+		return false
+	var scene: PackedScene = load(available[_rng.randi() % available.size()])
+	if scene == null:
+		return false
+	var inst := scene.instantiate() as Node3D
+	inst.rotation.y = PI # Meshy rigs face +Z; our visuals face -Z
+	# The rig's skeleton is in centimeters under a 0.01 armature while the mesh bounds are in
+	# meters, so the imported AABB is 2 cm tall and the renderer culls the character. Give the
+	# skinned mesh a generous box in skeleton units instead.
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).custom_aabb = AABB(Vector3(-150.0, -10.0, -150.0), Vector3(300.0, 260.0, 300.0))
+	_visual.add_child(inst)
+	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if _anim:
+		for clip in _anim.get_animation_list():
+			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+		if _anim.has_animation("Casual_Walk_inplace"):
+			_anim.play("Casual_Walk_inplace")
+			_anim.speed_scale = walk_speed / WALK_CLIP_SPEED
+	return true
+
+
+func _add_hit_area() -> void:
 	# Hit detector: anything fast on the props layer, or a fast player.
 	var area := Area3D.new()
 	area.collision_layer = 0
@@ -109,8 +155,9 @@ func _physics_process(delta: float) -> void:
 		velocity.y = 0.0
 	move_and_slide()
 	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.y), 1.0 - exp(-8.0 * delta))
-	_bob += delta * walk_speed * 4.0
-	_visual.position.y = absf(sin(_bob)) * 0.06
+	if _anim == null:
+		_bob += delta * walk_speed * 4.0
+		_visual.position.y = absf(sin(_bob)) * 0.06
 
 
 ## Ring points are stored relative to the chunk's world offset so re-centering does not matter.

@@ -93,7 +93,15 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
 - All feel-related numbers (jump height, gravity, speed, air control, camera distance, gun force,
   explosion radius, ...) are `@export` variables grouped at the top of each script with a one-line
   `##` doc comment so they are easy to find and tune.
-- Meshes are still built-in primitives and code. Textures are allowed now (owner asked for the
+- Buildings and street props are built-in primitives and code. Cars and pedestrians use models
+  generated with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
+  [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
+  `python3 tools/shrink_glb.py assets/models/<name>.glb`, commit the `.glb`, its `.json`, the
+  extracted `_N.jpg` textures and all `.import` files, and add a row to `docs/ASSETS.md`.
+  Rigged models: skeleton in cm under a 0.01 armature, so set `custom_aabb` on the skinned mesh
+  (see `Pedestrian._add_model()`); they face +Z. `?showroom` on the web (`-- --showroom` on
+  desktop) lines up every car type and pedestrian model at the spawn.
+  Textures are allowed too (owner asked for the
   realism pass): only CC0 / free-for-commercial-use sources (ambientCG, Poly Haven, Kenney,
   Quaternius), 1K JPG, Color + NormalGL + Roughness only, recorded in `docs/ASSETS.md`. Get
   materials through `PropFactory.pbr(set_key, meters_per_tile, tint)` and `PropFactory.texture()`;
@@ -118,7 +126,7 @@ docs/ASSETS.md         asset sources and licenses
 scenes/                player, levels, props, vehicles, ui
 scripts/               player, weapons, world, vehicles, npc, util, ui
 shaders/
-assets/                empty for now
+assets/                textures/ (CC0 sets) and models/ (Meshy .glb + .json)
 tests/                 headless smoke test and check script
 ```
 

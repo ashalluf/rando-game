@@ -1,0 +1,10 @@
+{
+  "name": "car_van",
+  "prompt": "low-poly cargo van, tall boxy body, sliding side door, simple clean shapes, smooth flat white paint, black tires, dark windows, no text or logos, game asset",
+  "credits": 15,
+  "tasks": {
+    "preview": "01a0b919-2f2f-718c-ab98-339e242dc4bf",
+    "refine": "01a0b919-79d2-7342-a118-66cc41f33d68"
+  },
+  "source": "Meshy (generated for this project)"
+}
