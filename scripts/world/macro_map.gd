@@ -50,6 +50,14 @@ var hill_roads: HillRoads
 
 var _noise: FastNoiseLite
 
+## Rolling ground through the city: hills and slopes between the blocks (owner's request,
+## 2026-09-19). Peak height in meters; zero on the beach, in the bay, in the flat zones
+## (airport, port, harbor), on the mountain hills and around every landmark.
+var relief_height: float = 22.0
+var relief_frequency: float = 0.0026
+var _relief: FastNoiseLite
+var _landmarks: Array[Dictionary] = []
+
 
 func setup() -> void:
 	_noise = FastNoiseLite.new()
@@ -57,6 +65,13 @@ func setup() -> void:
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_noise.frequency = 0.0012
 	_noise.fractal_octaves = 4
+	_relief = FastNoiseLite.new()
+	_relief.seed = seed + 7919
+	_relief.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_relief.frequency = relief_frequency
+	_relief.fractal_octaves = 3
+	_relief.fractal_gain = 0.45
+	_landmarks = Landmarks.all()
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
@@ -73,9 +88,46 @@ func coast_x(z: float) -> float:
 ## Land height with hill roads and mansion pads carved in.
 func height_at(pos: Vector2) -> float:
 	var raw := raw_height_at(pos)
+	var h := raw
 	if hill_roads and raw > 0.5:
-		return hill_roads.carve(pos, raw)
-	return raw
+		h = hill_roads.carve(pos, raw)
+	return h + _relief_at(pos, raw)
+
+
+## The city's rolling ground at a world XZ (meters above the flat base). Everything a city
+## chunk builds sits on this; see CityChunk._gy().
+func relief_at(pos: Vector2) -> float:
+	return _relief_at(pos, raw_height_at(pos))
+
+
+func _relief_at(pos: Vector2, raw: float) -> float:
+	if _relief == null:
+		setup()
+	var fade := 1.0 - smoothstep(0.0, 2.5, raw)
+	if fade <= 0.0:
+		return 0.0
+	var cx := coast_x(pos.y)
+	fade *= smoothstep(cx + beach_width + 20.0, cx + beach_width + 220.0, pos.x)
+	# The bay south of bay_z (west of bay_east_x) is water; flatten toward it.
+	fade *= 1.0 - smoothstep(bay_z - 240.0, bay_z, pos.y) * (1.0 - smoothstep(bay_east_x, bay_east_x + 240.0, pos.x))
+	for r: Rect2 in [airport_rect, port_rect, harbor_rect]:
+		fade *= _rect_fade(pos, r, 160.0)
+		if fade <= 0.0:
+			return 0.0
+	for lm in _landmarks:
+		var radius: float = lm.radius
+		fade *= smoothstep(radius + 30.0, radius + 150.0, pos.distance_to(lm.anchor))
+		if fade <= 0.0:
+			return 0.0
+	var n := _relief.get_noise_2dv(pos) * 0.5 + 0.5
+	return relief_height * n * n * fade
+
+
+## 0 inside the rect, rising to 1 at `margin` meters outside it.
+static func _rect_fade(pos: Vector2, r: Rect2, margin: float) -> float:
+	var dx := maxf(maxf(r.position.x - pos.x, pos.x - r.end.x), 0.0)
+	var dy := maxf(maxf(r.position.y - pos.y, pos.y - r.end.y), 0.0)
+	return smoothstep(0.0, margin, Vector2(dx, dy).length())
 
 
 ## Land height from the noise alone (what the roads are laid over).

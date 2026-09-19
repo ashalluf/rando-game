@@ -43,7 +43,15 @@ var _statics: StreetProps
 var _prop_counter: int = 0
 
 
+## The city's rolling ground under a world XZ (MacroMap.relief_at): every slab, prop and node a
+## chunk builds adds this to its flat height. Zero on hills, beaches and flat zones.
+func _gy(x: float, z: float) -> float:
+	return plan.macro.relief_at(Vector2(x, z)) if plan and plan.macro else 0.0
+
+
 func build() -> void:
+	_batch.ground = _gy
+	_batch.tilt_keys = {"dash": true, "stripe": true, "manhole": true}
 	key = "%d,%d" % [ix, iz]
 	name = "Chunk_" + key
 	position = -WorldState.world_offset
@@ -73,6 +81,8 @@ func build() -> void:
 			_build_block(block)
 			if level == Level.FULL:
 				_build_intersection(plan.intersection(ix + 1, iz + 1))
+			else:
+				_add_relief_floor()
 	if level == Level.FULL and plan.macro:
 		for lm in Landmarks.in_rect(owned_rect()):
 			Landmarks.build(lm, self, _statics, plan, true)
@@ -578,9 +588,14 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float) 
 		_batch.add("manhole", PropFactory.model_manhole(), Transform3D(Basis(Vector3.UP, mh.randf_range(0.0, TAU)), pos))
 	if avenue:
 		for side: float in [-0.3, 0.3]:
-			var mid := (a + b) * 0.5
-			var pos := Vector3(center + side, ROAD_TOP + 0.01, mid) if along_z else Vector3(mid, ROAD_TOP + 0.01, center + side)
-			_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, (b - a) / 3.0)), pos))
+			# In pieces so the line follows the relief.
+			var t0 := a
+			while t0 < b - 0.5:
+				var piece := minf(4.0, b - t0)
+				var mid := t0 + piece * 0.5
+				var pos := Vector3(center + side, ROAD_TOP + 0.01, mid) if along_z else Vector3(mid, ROAD_TOP + 0.01, center + side)
+				_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, piece / 3.0)), pos))
+				t0 += piece
 	else:
 		var t := a + 1.5
 		while t < b - 1.5:
@@ -630,7 +645,7 @@ func _spawn_pedestrians(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		var ped := Pedestrian.new()
 		ped.setup(rect, plan.sidewalk_width, rng.randi())
 		var start := ped._random_ring_point(plan.sidewalk_width)
-		ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1, start.y)
+		ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
 		add_child(ped)
 		existing += 1
 
@@ -663,7 +678,8 @@ func _park_cars(rect: Rect2, rng: RandomNumberGenerator) -> void:
 			continue
 		var car := Vehicle.random_car(rng)
 		var holder: Node = get_parent() if get_parent() else self
-		car.position = WorldState.to_local(spot[0]) if holder != self else spot[0]
+		var spot_pos: Vector3 = spot[0] + Vector3(0.0, 0.3 + _gy(spot[0].x, spot[0].z), 0.0)
+		car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
 		car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
 		holder.add_child(car)
 		_cars.append(car)
@@ -733,7 +749,15 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 		building.lit_ratio_range = params.lit
 		building.shape_options.assign(params.shapes)
 		building.finish_options.assign(params.finishes)
-		building.position = Vector3(center.x, SIDEWALK_TOP, center.y)
+		var g := _gy(center.x, center.y)
+		var gmin := g
+		var half: Vector2 = lot.size * 0.5
+		for c: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+			gmin = minf(gmin, _gy(center.x + c.x * half.x, center.y + c.y * half.y))
+		# A concrete plinth reaches from the base down past the lowest sidewalk corner.
+		building.plinth_depth = g - gmin + SIDEWALK_TOP + 0.6
+		var base := Vector3(center.x, SIDEWALK_TOP, center.y)
+		building.position = base + Vector3(0.0, g, 0.0)
 		if level == Level.FULL:
 			add_child(building)
 			building_count += 1
@@ -745,9 +769,12 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 			for part in building.parts:
 				var size: Vector3 = part.size
 				var part_center: Vector3 = part.center
-				var xform := Transform3D(Basis().scaled(size), building.position + part_center)
-				_batch.add("lod_box", PropFactory.unit_box(), xform, building.facade_color)
+				# The batch adds the relief itself; the shape needs it explicitly.
+				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(size), base + part_center), building.facade_color)
 				_add_lod_shape(size, building.position + part_center)
+			var fp: Vector2 = building.footprint
+			if fp.x > 0.0 and building.plinth_depth > 0.05:
+				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66))
 			building.free()
 			building_count += 1
 
@@ -889,7 +916,7 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			var p := a + dir * rng.randf_range(4.0, length - 4.0) + inward * 1.3
 			var can := TrashCan.new()
 			can.rusty = rng.randf() < 0.35
-			can.position = Vector3(p.x, SIDEWALK_TOP + 0.02, p.y)
+			can.position = Vector3(p.x, SIDEWALK_TOP + 0.02 + _gy(p.x, p.y), p.y)
 			can.rotation.y = rng.randf_range(0.0, TAU)
 			add_child(can)
 	_build_clutter(rect, edges, params, rng)
@@ -967,12 +994,13 @@ func _add_prop(kind: String, at: Vector3, color: Color, instances: Array, shapes
 	_prop_counter += 1
 	if WorldState.is_destroyed(key, id):
 		return
-	var record := {"id": id, "kind": kind, "position": at, "color": color, "health": PROP_HEALTH.get(kind, 20.0), "instances": [], "shapes": [], "dead": false}
+	var g := _gy(at.x, at.z)
+	var record := {"id": id, "kind": kind, "position": at + Vector3(0.0, g, 0.0), "color": color, "health": PROP_HEALTH.get(kind, 20.0), "instances": [], "shapes": [], "dead": false}
 	for inst in instances:
 		var index := _batch.add(inst[0], inst[1], inst[2])
 		record.instances.append([inst[0], index])
 	for s in shapes:
-		var shape := _add_shape(s[0], s[1], s[2])
+		var shape := _add_shape(s[0], s[1] + Vector3(0.0, g, 0.0), s[2])
 		if shape:
 			shape.set_meta("prop", record)
 			record.shapes.append(shape)
@@ -1070,6 +1098,7 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 		var yaw := atan2(-e[2].x, -e[2].y) + rng.randf_range(-0.3, 0.3)
 		var p: Vector2 = _edge_point(e, rng, 5.0) + e[2] * rng.randf_range(1.8, 3.0)
 		var at := Vector3(p.x, SIDEWALK_TOP, p.y)
+		var lifted := at + Vector3(0.0, _gy(p.x, p.y), 0.0)
 		var roll := rng.randf()
 		if roll < 0.3:
 			if rng.randf() < 0.5:
@@ -1088,7 +1117,7 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 			cyl.radius = 0.28
 			cyl.height = 0.88
 			barrel.setup(PropFactory.model_barrel(), cyl, Vector3(0.0, 0.44, 0.0), 25.0)
-			barrel.position = at + Vector3(0.0, 0.02, 0.0)
+			barrel.position = lifted + Vector3(0.0, 0.05, 0.0)
 			barrel.rotation.y = rng.randf_range(0.0, TAU)
 			add_child(barrel)
 		else:
@@ -1101,7 +1130,7 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 				disc.radius = 0.3
 				disc.height = 0.16
 				tyre.setup(PropFactory.model_tyre(), disc, Vector3(0.0, 0.08, 0.0), 10.0)
-				tyre.position = at + Vector3(rng.randf_range(-0.05, 0.05), 0.02 + k * 0.17, rng.randf_range(-0.05, 0.05))
+				tyre.position = lifted + Vector3(rng.randf_range(-0.05, 0.05), 0.05 + k * 0.17, rng.randf_range(-0.05, 0.05))
 				tyre.rotation.y = rng.randf_range(0.0, TAU)
 				add_child(tyre)
 
@@ -1124,15 +1153,107 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
 # --- Helpers ---------------------------------------------------------------------------
 
 func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, material: Material = null) -> void:
+	var mat: Material = material if material else PropFactory.material(color, 0.95)
+	if zone == MacroMap.Zone.CITY and size.y <= 0.5 and maxf(size.x, size.z) >= 6.0:
+		# Thin ground slab in the city (road, sidewalk, lawn, plaza): follow the relief.
+		_add_ground_grid(Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), pos.y + size.y * 0.5, size.y + 0.5, mat, collide)
+		return
+	var lifted := pos + Vector3(0.0, _gy(pos.x, pos.z), 0.0)
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
 	mesh.mesh = box
-	mesh.material_override = material if material else PropFactory.material(color, 0.95)
-	mesh.position = pos
+	mesh.material_override = mat
+	mesh.position = lifted
 	add_child(mesh)
 	if collide:
-		_add_shape(size, pos)
+		_add_shape(size, lifted)
+
+
+## A ground surface over `rect` at `top` above the relief, with a skirt hanging `skirt` meters
+## down its edges (the curb face between sidewalk and road). Collision is a trimesh.
+func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, collide: bool) -> void:
+	var nx := clampi(ceili(rect.size.x / 5.0), 1, 48)
+	var nz := clampi(ceili(rect.size.y / 5.0), 1, 48)
+	var pts := PackedVector3Array()
+	pts.resize((nx + 1) * (nz + 1))
+	for j in nz + 1:
+		for i in nx + 1:
+			var x := rect.position.x + rect.size.x * i / nx
+			var z := rect.position.y + rect.size.y * j / nz
+			pts[j * (nx + 1) + i] = Vector3(x, top + _gy(x, z), z)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for j in nz:
+		for i in nx:
+			var a := pts[j * (nx + 1) + i]
+			var b := pts[j * (nx + 1) + i + 1]
+			var c := pts[(j + 1) * (nx + 1) + i]
+			var d := pts[(j + 1) * (nx + 1) + i + 1]
+			_tri(st, a, b, c)
+			_tri(st, b, d, c)
+	# Skirt: both windings so it shows from either side.
+	var down := Vector3(0.0, skirt, 0.0)
+	var ring: Array[Vector3] = []
+	for i in nx + 1:
+		ring.append(pts[i])
+	for j in range(1, nz + 1):
+		ring.append(pts[j * (nx + 1) + nx])
+	for i in range(nx - 1, -1, -1):
+		ring.append(pts[nz * (nx + 1) + i])
+	for j in range(nz - 1, 0, -1):
+		ring.append(pts[j * (nx + 1)])
+	for k in ring.size():
+		var p0 := ring[k]
+		var p1 := ring[(k + 1) % ring.size()]
+		_tri(st, p0, p1, p0 - down)
+		_tri(st, p1, p1 - down, p0 - down)
+		_tri(st, p0, p0 - down, p1)
+		_tri(st, p1, p0 - down, p1 - down)
+	st.generate_normals()
+	var mesh := st.commit()
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	add_child(mi)
+	if collide and _statics:
+		var shape := CollisionShape3D.new()
+		shape.shape = mesh.create_trimesh_shape()
+		_statics.add_child(shape)
+
+
+static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:
+	st.add_vertex(a)
+	st.add_vertex(b)
+	st.add_vertex(c)
+
+
+## Far city chunks: an invisible floor at road height following the relief, so a fast car does
+## not drop to the flat base plane before the detailed chunk arrives.
+func _add_relief_floor() -> void:
+	var area := owned_rect()
+	var n := 6
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var pts := PackedVector3Array()
+	pts.resize((n + 1) * (n + 1))
+	for j in n + 1:
+		for i in n + 1:
+			var x := area.position.x + area.size.x * i / n
+			var z := area.position.y + area.size.y * j / n
+			pts[j * (n + 1) + i] = Vector3(x, ROAD_TOP + _gy(x, z), z)
+	for j in n:
+		for i in n:
+			_tri(st, pts[j * (n + 1) + i], pts[j * (n + 1) + i + 1], pts[(j + 1) * (n + 1) + i])
+			_tri(st, pts[j * (n + 1) + i + 1], pts[(j + 1) * (n + 1) + i + 1], pts[(j + 1) * (n + 1) + i])
+	var body := StaticBody3D.new()
+	body.name = "ReliefFloor"
+	body.collision_layer = 1
+	body.collision_mask = 0
+	var shape := CollisionShape3D.new()
+	shape.shape = st.commit().create_trimesh_shape()
+	body.add_child(shape)
+	add_child(body)
 
 
 func _add_cylinder(pos: Vector3, radius: float, height: float, color: Color, collide: bool = true, unshaded: bool = false) -> void:
@@ -1144,7 +1265,8 @@ func _add_cylinder(pos: Vector3, radius: float, height: float, color: Color, col
 	cyl.radial_segments = 16
 	mesh.mesh = cyl
 	mesh.material_override = PropFactory.material(color, 0.9, unshaded)
-	mesh.position = pos
+	var lifted := pos + Vector3(0.0, _gy(pos.x, pos.z), 0.0)
+	mesh.position = lifted
 	add_child(mesh)
 	if collide and _statics:
 		var shape := CollisionShape3D.new()
@@ -1152,7 +1274,7 @@ func _add_cylinder(pos: Vector3, radius: float, height: float, color: Color, col
 		s.radius = radius
 		s.height = height
 		shape.shape = s
-		shape.position = pos
+		shape.position = lifted
 		_statics.add_child(shape)
 
 

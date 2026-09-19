@@ -48,6 +48,8 @@ var height: float = 0.0
 var parts: Array[Dictionary] = []
 ## Main wall color, available after plan_only() or generate(). Used by the far LOD boxes.
 var facade_color: Color = Color.GRAY
+## Concrete plinth under the building (meters), covering the slope of the sidewalk beneath it.
+var plinth_depth: float = 0.0
 
 static var _prop_materials: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
@@ -68,7 +70,27 @@ func generate() -> void:
 	collision_mask = 7
 	for part in parts:
 		_build_part(part, style)
+	_build_plinth()
 	_build_roof_props()
+
+
+func _build_plinth() -> void:
+	if plinth_depth <= 0.05 or footprint.x <= 0.0:
+		return
+	var size := Vector3(footprint.x + 0.3, plinth_depth, footprint.y + 0.3)
+	var mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = size
+	mesh.mesh = box
+	mesh.material_override = PropFactory.pbr("concrete", 3.0, Color(0.72, 0.72, 0.7))
+	mesh.position = Vector3(0.0, 0.02 - plinth_depth * 0.5, 0.0)
+	add_child(mesh)
+	var shape := CollisionShape3D.new()
+	var box_shape := BoxShape3D.new()
+	box_shape.size = size
+	shape.shape = box_shape
+	shape.position = mesh.position
+	add_child(shape)
 
 
 ## Picks everything and lays out the parts without creating any nodes. Returns the style.
@@ -242,7 +264,9 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	mat.set_shader_parameter("window_pitch_x", size.x / cols_x)
 	mat.set_shader_parameter("window_pitch_z", size.z / cols_z)
 	mat.set_shader_parameter("floor_height", floor_h)
-	mat.set_shader_parameter("ground_floor_height", bottom + storefront)
+	# The shader counts floors from world Y, so the base has to include where this building sits.
+	mat.set_shader_parameter("ground_floor_height", position.y + bottom + storefront)
+	mat.set_shader_parameter("base_y", position.y + bottom)
 	mat.set_shader_parameter("has_storefront", storefront > 0.0)
 	mat.set_shader_parameter("part_size", size)
 	mat.set_shader_parameter("seed", float(seed % 1000))

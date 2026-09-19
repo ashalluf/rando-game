@@ -161,6 +161,9 @@ pedestrian 44, each jet 30. `docs/ASSETS.md` has the table.
 
 ## 8. Hard-won gotchas (the full list is the decisions log)
 
+- The city ground is not flat: `MacroMap.relief_at()` rolls up to 16 m. Chunk code samples it
+  through `_gy()`; the multimesh batch and `_add_slab()` / `_add_prop()` add it for you, nodes
+  you position yourself need it added once. Buildings carry a concrete plinth for the slope.
 - Never `reparent()` a VehicleBody3D; never freeze one; never give a kinematic one wheels.
 - Godot's `engine_force` pushes toward local +Z; the car negates it.
 - Physics queries are stale for a frame after an origin shift (`_query_hold`).

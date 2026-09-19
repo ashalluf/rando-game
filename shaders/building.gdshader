@@ -43,6 +43,8 @@ uniform bool use_wall_texture = false;
 uniform float wall_normal_depth = 0.7;
 // Grime: darkening near the ground, streaks running down from window sills (0 clean, 1 dirty).
 uniform float weathering = 0.5;
+// World Y of the building's base (grime is measured up from here).
+uniform float base_y = 0.0;
 
 varying vec3 local_pos;
 varying vec3 local_normal;
@@ -207,7 +209,7 @@ void fragment() {
 				rough = 0.85 * tex_rough;
 			}
 			// Grime near the ground and streaks below the windows.
-			float ground_dirt = 1.0 - smoothstep(0.0, 5.0, v);
+			float ground_dirt = 1.0 - smoothstep(0.0, 5.0, v - base_y);
 			float streak = hash21(vec2(floor(u * 3.0), row + face_id) + seed) * (1.0 - fv);
 			float dirt = weathering * (0.45 * ground_dirt + 0.35 * streak * step(0.5, hash21(vec2(col, row + face_id * 3.0) + seed)));
 			albedo *= 1.0 - 0.5 * dirt;

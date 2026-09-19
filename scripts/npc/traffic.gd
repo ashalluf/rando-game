@@ -72,7 +72,7 @@ func _spawn_near(pw: Vector3) -> void:
 	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": _rng.randf_range(speed_range.x, speed_range.y)}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	car.position = WorldState.to_local(Vector3(pos2.x, 0.55, pos2.y))
+	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + plan.macro.relief_at(pos2), pos2.y))
 	car.rotation.y = _heading(axis, dir)
 	add_child(car)
 	car.traffic_speed = car.traffic.speed
@@ -123,7 +123,12 @@ func _drive(car: Vehicle, delta: float) -> void:
 			return
 	var lane_pos: float = plan.road_pos(axis, t.index) + t.lane
 	var new_wp := Vector3(lane_pos, wp.y, new_along) if axis == CityPlan.AXIS_X else Vector3(new_along, wp.y, lane_pos)
+	# Follow the city's rolling ground and pitch the nose along the slope ahead.
+	var here := plan.macro.relief_at(Vector2(new_wp.x, new_wp.z))
+	var forward := Vector3(0.0, 0.0, dir) if axis == CityPlan.AXIS_X else Vector3(dir, 0.0, 0.0)
+	var ahead := plan.macro.relief_at(Vector2(new_wp.x + forward.x * 4.0, new_wp.z + forward.z * 4.0))
+	new_wp.y = 0.55 + here
 	car.global_position = WorldState.to_local(new_wp)
 	car.rotation.y = _heading(axis, dir)
-	car.rotation.x = 0.0
+	car.rotation.x = atan2(ahead - here, 4.0)
 	car.rotation.z = 0.0

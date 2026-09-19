@@ -172,7 +172,16 @@ func _test_city() -> void:
 	var macro: MacroMap = plan.macro
 	_check(macro != null, "city uses the macro map")
 	if macro:
-		_check(macro.zone_at(Vector2.ZERO) == MacroMap.Zone.CITY and macro.height_at(Vector2.ZERO) == 0.0, "origin is flat city")
+		_check(macro.zone_at(Vector2.ZERO) == MacroMap.Zone.CITY and macro.raw_height_at(Vector2.ZERO) == 0.0, "origin is city, not mountain")
+		_check(macro.relief_at(Vector2.ZERO) >= 0.0 and macro.relief_at(Vector2.ZERO) <= macro.relief_height and macro.height_at(Vector2.ZERO) == macro.relief_at(Vector2.ZERO), "city relief is bounded and part of height_at")
+		var relief_max := 0.0
+		for x in range(-600, 1100, 100):
+			for z in range(-800, 900, 100):
+				var p := Vector2(x, z)
+				if macro.zone_at(p) == MacroMap.Zone.CITY:
+					relief_max = maxf(relief_max, macro.relief_at(p))
+		_check(relief_max > 4.0, "the city actually rolls (max relief %.1f m)" % relief_max)
+		_check(macro.relief_at(macro.airport_rect.get_center()) == 0.0 and macro.relief_at(Landmarks.all()[3].anchor) == 0.0, "airport and landmarks stay flat")
 		_check(macro.zone_at(Vector2(-2500.0, 0.0)) == MacroMap.Zone.OCEAN, "far west is ocean")
 		_check(macro.zone_at(Vector2(macro.coast_x(0.0) + 30.0, 0.0)) == MacroMap.Zone.BEACH, "just inland of the coast is beach")
 		_check(macro.zone_at(Vector2(0.0, -1600.0)) == MacroMap.Zone.HILLS and macro.height_at(Vector2(0.0, -1600.0)) > 80.0, "far north is hills (%.0f m)" % macro.height_at(Vector2(0.0, -1600.0)))
@@ -467,18 +476,19 @@ func _test_city() -> void:
 	_check(peds.size() >= 10 and peds.size() <= city.max_pedestrians, "pedestrians on the sidewalks (%d)" % peds.size())
 	if peds.size() > 0:
 		var ped: Node3D = peds[0]
-		var before_dolls := 0
+		var before_dolls := {}
 		for n in get_tree().get_nodes_in_group("debris"):
 			if n is Ragdoll:
-				before_dolls += 1
+				before_dolls[n.get_instance_id()] = true
 		ped.knock(Vector3(5.0, 8.0, 0.0))
 		await _ticks(3)
-		var dolls := 0
+		# Other ragdolls come and go (traffic, debris timeouts); look for one that is new.
+		var new_dolls := 0
 		for n in get_tree().get_nodes_in_group("debris"):
-			if n is Ragdoll:
-				dolls += 1
+			if n is Ragdoll and not before_dolls.has(n.get_instance_id()):
+				new_dolls += 1
 		_check(not is_instance_valid(ped) or ped.is_queued_for_deletion(), "knocked pedestrian is removed")
-		_check(dolls == before_dolls + 1, "a ragdoll takes its place")
+		_check(new_dolls >= 1, "a ragdoll takes its place")
 		# Bullets hurt people: the AK-47 ray must hit the npc layer and knock the target over.
 		if peds.size() > 1 and is_instance_valid(peds[1]):
 			var target: Node3D = peds[1]

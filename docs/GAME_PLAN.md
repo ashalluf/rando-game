@@ -55,6 +55,12 @@ Build in this order, one milestone per PR or a few PRs.
   campus, a bigger airport with flyable jets, bullets that hurt people. See `docs/HANDOFF.md`
   for the state after that batch and the suggested next steps.
 
+- **World character** (asked 2026-09-19): hills and slopes through the whole city; the
+  illusion of uniqueness through cheap seeded surface variation, never hand placement.
+  - [x] Push 1 (build 57): rolling relief through the city (`MacroMap.relief_at`).
+  - [ ] Push 2: surface variation per block: asphalt tint, paving set, marking style, tree
+    mix, lamp and bench variants by district; less regular grid (merged blocks, dead ends).
+
 - **High-poly realism** (asked 2026-09-19: "I don't want a low poly look, I want high poly"):
   replace the primitive props, buildings and foliage with real assets. Sources: Poly Haven and
   ambientCG (CC0, open APIs, no key) plus Meshy for anything that has to be made to order.
@@ -168,6 +174,24 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 Hills and slopes through the city (owner: "we need hills and slopes throughout
+  the city").** `MacroMap.relief_at()` is a second, gentler noise field (peak `relief_height`
+  16 m, wavelength about 500 m, squared so flats outnumber ridges) that fades to zero on the
+  beach, toward the bay, inside and 160 m around the airport, port and harbor, on the mountain
+  hills (raw height above 2.5 m) and within 150 m of every landmark. `height_at()` includes
+  it, so spawn, ground recovery and the showroom follow. In `CityChunk` everything samples it
+  through `_gy()`: `MultiMeshBatch.ground` adds it to every instance origin (dashes, stripes,
+  lamps, trees, props, LOD boxes), `_add_slab()` turns thin city ground slabs (roads,
+  sidewalks, lawns, plazas, paths) into relief-following grids with a hanging skirt (the curb
+  face) and trimesh collision, `_add_prop()` lifts the collision shapes, nodes (pedestrians,
+  cans, barrels, parked cars, buildings) are lifted explicitly, avenue center lines are drawn
+  in 6 m pieces, and LOD chunks get an invisible `ReliefFloor` trimesh so fast cars do not
+  drop to the base plane. Buildings sit at the relief under their center and get a concrete
+  `plinth_depth` box reaching below their lowest sidewalk corner; the shader's
+  `ground_floor_height` and new `base_y` include the building's world Y so storefronts and
+  grime stay at street level. Traffic cars sample the relief each frame and pitch along the
+  slope ahead. Hills chunks are untouched (relief is zero there).
 
 - **2026-09-19 Facade pass (owner: everything high quality).** Every building used one ambientCG
   set per finish; now `Building.WALL_SETS` lists several Poly Haven sets per finish (three

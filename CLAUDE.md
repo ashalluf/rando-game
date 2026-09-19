@@ -215,7 +215,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `StreetProps` body, which routes `take_hit()` to the chunk. Physics props (trash cans) are
   `TrashCan` RigidBody3D nodes in the `physics_prop` group.
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
-  port), land height and district for any world XZ. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
+  port), land height and district for any world XZ. The city itself rolls: `relief_at()` is the
+  gentle height field under the blocks (zero on beaches, flat zones, mountain hills and around
+  landmarks) and `height_at()` includes it. In a chunk, sample it only through `_gy()`: the
+  multimesh batch adds it to every instance, `_add_slab()` builds relief-following grids for thin
+  city ground, `_add_prop()` lifts shapes; nodes you add yourself (bodies, buildings) need
+  `+ _gy(x, z)` explicitly. Never add it twice. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
   the plan go through it. `height_at()` is the terrain with hill roads and mansion pads carved in
   (`raw_height_at()` is the noise alone); `MacroMap.hill_roads` (`HillRoads`, seeded polylines
   with grade-limited height profiles, `carve()`, `segments_in()`, `mansions_in()`) is what hill
