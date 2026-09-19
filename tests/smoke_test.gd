@@ -77,7 +77,53 @@ func _run() -> void:
 
 	await _test_weapons(player)
 	_test_buildings()
+	level.queue_free()
+	await process_frame
+	await _test_city()
 	_finish()
+
+
+func _test_city() -> void:
+	var packed: PackedScene = load("res://scenes/levels/city.tscn")
+	_check(packed != null, "city scene loads")
+	if packed == null:
+		return
+	# Untyped on purpose: naming CityBuilder here would compile it before the autoloads exist.
+	var city: Node3D = packed.instantiate()
+	root.add_child(city)
+	await _ticks(30)
+	var plan: CityPlan = city.plan
+	_check(plan != null and plan.blocks.size() == (city.blocks_x) * (city.blocks_z), "city has %d blocks" % (plan.blocks.size() if plan else 0))
+	_check(city.building_count >= 40, "city has buildings (%d)" % city.building_count)
+	var districts := {}
+	var kinds := {}
+	for block in plan.blocks:
+		districts[block.district] = true
+		kinds[block.kind] = true
+	_check(districts.size() >= 3, "city has %d districts" % districts.size())
+	_check(kinds.size() >= 2, "city has parks or plazas as well as buildings (%d kinds)" % kinds.size())
+	var inter_kinds := {}
+	for inter in plan.intersections:
+		inter_kinds[inter.kind] = true
+	_check(inter_kinds.size() >= 2, "city has %d intersection types" % inter_kinds.size())
+	_check(plan.district_at(Vector2.ZERO) == CityPlan.District.DOWNTOWN, "center is downtown")
+	var player := get_first_node_in_group("player") as CharacterBody3D
+	_check(player != null and player.is_on_floor(), "player stands at the center intersection")
+	var cans := 0
+	for node in get_nodes_in_group("physics_prop"):
+		if node is TrashCan:
+			cans += 1
+	_check(cans > 0, "trash cans are physics props (%d)" % cans)
+
+	# Same seed, same plan.
+	var a := CityPlan.new()
+	a.seed = 777
+	a.generate()
+	var b := CityPlan.new()
+	b.seed = 777
+	b.generate()
+	_check(a.road_xs == b.road_xs and a.blocks.size() == b.blocks.size() and a.blocks[3].rect == b.blocks[3].rect and a.blocks[3].kind == b.blocks[3].kind, "same seed gives the same city plan")
+	city.queue_free()
 
 
 func _test_buildings() -> void:

@@ -5,7 +5,7 @@ extends StaticBody3D
 
 const SHADER: Shader = preload("res://shaders/building.gdshader")
 
-enum Shape { SLAB, TOWER, STEPPED, PODIUM_TOWER, L_SHAPE }
+enum Shape { SLAB, TOWER, STEPPED, PODIUM_TOWER, L_SHAPE, WAREHOUSE }
 enum WindowStyle { PUNCHED, RIBBON, CURTAIN, NARROW }
 enum Finish { FLAT, BRICK, PANELS, GLASS }
 
@@ -29,8 +29,13 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 @export var lit_ratio_range: Vector2 = Vector2(0.15, 0.5)
 ## Height of the storefront floor on ground-level parts (meters).
 @export var storefront_height: float = 4.5
-## Force a shape style (0..4) for tests; -1 = random.
+## Force a shape style for tests; -1 = random.
 @export var force_shape: int = -1
+## Districts narrow the choices: allowed shapes / finishes (empty = all).
+@export var shape_options: Array[int] = []
+@export var finish_options: Array[int] = []
+## Ground floor gets a storefront (shops) when tall enough.
+@export var allow_storefront: bool = true
 
 var shape: Shape
 var window_style: WindowStyle
@@ -64,8 +69,16 @@ func generate() -> void:
 	collision_layer = 1
 	collision_mask = 7
 
-	shape = (force_shape if force_shape >= 0 else _rng.randi_range(0, Shape.size() - 1)) as Shape
-	finish = _rng.randi_range(0, Finish.size() - 1) as Finish
+	if force_shape >= 0:
+		shape = force_shape as Shape
+	elif not shape_options.is_empty():
+		shape = shape_options[_rng.randi() % shape_options.size()] as Shape
+	else:
+		shape = _rng.randi_range(0, Shape.size() - 2) as Shape # WAREHOUSE only when asked for
+	if not finish_options.is_empty():
+		finish = finish_options[_rng.randi() % finish_options.size()] as Finish
+	else:
+		finish = _rng.randi_range(0, Finish.size() - 1) as Finish
 	window_style = _pick_window_style()
 	_layout_parts()
 	var style := _pick_style()
@@ -116,6 +129,9 @@ func _layout_parts() -> void:
 			var th := _rng.randf_range(maxf(h_lo, 20.0), maxf(h_hi, 22.0)) - ph
 			var off := Vector2(_rng.randf_range(-(pw - tw), pw - tw), _rng.randf_range(-(pd - td), pd - td)) * 0.5
 			_add_part(Vector3(tw, th, td), off, ph)
+		Shape.WAREHOUSE:
+			var size := Vector3(lot.x * _rng.randf_range(0.85, 0.95), _rng.randf_range(h_lo, h_hi), lot.y * _rng.randf_range(0.85, 0.95))
+			_add_part(size, Vector2.ZERO, 0.0)
 		Shape.L_SHAPE:
 			var h := _rng.randf_range(h_lo, minf(h_hi, 45.0))
 			var arm := _rng.randf_range(0.4, 0.55)
@@ -135,6 +151,8 @@ func _add_part(size: Vector3, offset: Vector2, bottom: float) -> void:
 # --- Facade -------------------------------------------------------------------
 
 func _pick_window_style() -> WindowStyle:
+	if shape == Shape.WAREHOUSE:
+		return WindowStyle.RIBBON if _rng.randf() < 0.7 else WindowStyle.NARROW
 	if finish == Finish.GLASS:
 		return WindowStyle.CURTAIN if _rng.randf() < 0.8 else WindowStyle.RIBBON
 	if finish == Finish.BRICK:
@@ -172,7 +190,7 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	var center: Vector3 = part.center
 	var bottom := center.y - size.y * 0.5
 	var on_ground := bottom < 0.01
-	var storefront := storefront_height if on_ground and size.y > storefront_height + 3.0 else 0.0
+	var storefront := storefront_height if allow_storefront and shape != Shape.WAREHOUSE and on_ground and size.y > storefront_height + 3.0 else 0.0
 	var usable := size.y - storefront
 	var rows := maxi(1, roundi(usable / style.floor))
 	var floor_h := usable / rows
@@ -234,7 +252,11 @@ func _build_roof_props() -> void:
 		var wants: Array[String] = []
 		for k in ac_count:
 			wants.append("ac")
-		if is_top:
+		if is_top and shape == Shape.WAREHOUSE:
+			wants.append("vents")
+			if _rng.randf() < 0.5:
+				wants.append("vents")
+		elif is_top:
 			if _rng.randf() < 0.6:
 				wants.append("bulkhead")
 			if _rng.randf() < 0.35 and height > 10.0:
@@ -264,6 +286,7 @@ func _prop_footprint(kind: String) -> Vector2:
 		"water_tower": return Vector2(4.2, 4.2)
 		"antenna": return Vector2(1.0, 1.0)
 		"billboard": return Vector2(7.0, 1.5)
+		"vents": return Vector2(8.0, 1.6)
 	return Vector2.ONE
 
 
@@ -291,6 +314,10 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			_prop_cylinder(0.45, 0.06, Color(0.2, 0.2, 0.22), at + Vector3(0.0, 0.93, 0.0))
 			_prop_collision(Vector3(1.4, 0.9, 1.4), at + Vector3(0.0, 0.45, 0.0))
 			box.rotation.y = _rng.randf_range(-0.2, 0.2)
+		"vents":
+			for k in 5:
+				_prop_box(Vector3(1.2, 0.8, 1.2), Color(0.6, 0.6, 0.58), at + Vector3(-3.0 + k * 1.5, 0.4, 0.0))
+			_prop_collision(Vector3(7.5, 0.8, 1.2), at + Vector3(0.0, 0.4, 0.0))
 		"bulkhead":
 			_prop_box(Vector3(3.2, 2.6, 3.2), Color(0.55, 0.55, 0.53), at + Vector3(0.0, 1.3, 0.0))
 			_prop_box(Vector3(0.9, 2.0, 0.1), Color(0.25, 0.25, 0.28), at + Vector3(0.6, 1.0, 1.62))

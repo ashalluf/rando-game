@@ -38,6 +38,9 @@ func _process(_delta: float) -> void:
 		Engine.get_frames_per_second(), _player.horizontal_speed(), _player.velocity.y,
 		state, _player.air_jumps_left,
 	] + "last jump peak %.1f m   physics props %d (frozen %d)" % [_player.last_jump_peak, bodies, frozen]
+	var city := get_tree().get_first_node_in_group("city")
+	if city and city.has_method("district_name_at"):
+		stats.text += "   district: %s" % city.district_name_at(_player.global_position)
 
 	var manager := _player.weapon_manager
 	if manager and manager.current:

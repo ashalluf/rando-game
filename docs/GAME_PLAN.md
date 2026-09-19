@@ -19,7 +19,7 @@ Build in this order, one milestone per PR or a few PRs.
   windows. A `Building` scene that takes a seed and picks a shape style, dimensions, shader
   parameters, and rooftop props (AC units, water towers, antennas, billboards) from small option
   lists. Generate one city block to prove variety.
-- [ ] **4. Seeded city generator.** Road grid with varied block sizes, a few intersection types,
+- [x] **4. Seeded city generator.** Road grid with varied block sizes, a few intersection types,
   occasional parks and plazas, and districts defined by parameter ranges (downtown tall glass,
   midtown mixed, suburbs low brick, industrial warehouses). Sidewalk props and street trees
   scattered by the same seed.
@@ -35,9 +35,28 @@ Build in this order, one milestone per PR or a few PRs.
   MultiMesh grass with a wind shader in parks, day/night cycle, sound effects, pause menu with a
   seed input field.
 
+## Owner requests queued
+
+- **Miniature Los Angeles layout** (asked 2026-09-19): a coastline with beach and ocean, a hill with
+  big letters, a pier with a Ferris wheel, a recognisable skyline of specific towers. Do it after
+  milestone 5 (streaming) because the map gets big. Keep everything legally distinct: original sign
+  text, original pier name, towers inspired by but not copies of real ones (the real sign, pier sign
+  and some towers are trademarked). Plan: coast + hills, then pier, then skyline, one push each.
+
 ## Current state
 
-Milestones 1 to 3 are in. `shaders/building.gdshader` turns any BoxMesh into a facade: window
+Milestones 1 to 4 are in. The main scene is now `scenes/levels/city.tscn`; `test_box.tscn` stays
+as the movement/weapons test room. `CityPlan` (`scripts/world/city_plan.gd`) turns a seed into a
+road grid (streets 14 m, avenues 24 m, blocks 70 to 120 m, always an intersection at the origin),
+blocks with a district (downtown, midtown, suburbs by distance from the center, plus an industrial
+quadrant), a block kind (buildings, park, plaza) and intersection types (plain, stop signs, traffic
+signals, roundabout). `CityBuilder` (`scripts/world/city_builder.gd`) builds it: ground, roads with
+dashed or double center lines, crosswalks, signals and stop signs, sidewalk slabs, lots with
+district-driven `Building`s (warehouses in industrial), parks with paths, trees and benches, plazas
+with a fountain, street lamps, trees, hydrants, and trash cans that are physics props. Repeated
+props go through `MultiMeshBatch`; meshes come from `PropFactory`. The HUD shows the district.
+
+Milestone 3 recap: `shaders/building.gdshader` turns any BoxMesh into a facade: window
 style (punched, ribbon, curtain, narrow), facade finish (flat, brick, panels, glass), colors, floor
 height, storefront on the ground floor, seeded lit windows, gravel roof with a parapet.
 `scripts/world/building.gd` (`scenes/props/building.tscn`) takes a seed and picks a shape (slab,
@@ -68,6 +87,23 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 City plan is data, city builder is nodes.** `CityPlan` is a RefCounted with roads,
+  blocks and intersections; `CityBuilder` builds nodes from it. Milestone 5 will build and free
+  blocks from the same plan as the player moves, and a themed macro map (the LA request) can drive
+  `district_at()` instead of the distance rule.
+- **2026-09-19 Districts are parameter ranges** in `CityPlan.DISTRICTS`: height, lot size, gap,
+  allowed shapes and finishes, lit ratio, park/plaza chance, tree density, courtyard chance.
+  Downtown is r < 0.32 of the city radius, midtown r < 0.68, suburbs beyond; one seeded quadrant
+  beyond r > 0.5 is industrial.
+- **2026-09-19 Small repeated props are MultiMeshes** (lamps, trees, dashes, stripes, signs) with
+  box colliders on one shared StaticBody3D. Trees have no collision yet. Trash cans are RigidBody3D
+  props under the PhysicsBudget cap (raised to 500).
+- **2026-09-19 The center intersection is always signals, never a roundabout**, because the player
+  spawns there.
+- **2026-09-19 The smoke test script compiles before autoloads exist**, so it must not name a
+  class that references `PhysicsBudget` at class level (use untyped vars for those). The check
+  script now fails on any "SCRIPT ERROR" in the output so a crashed test cannot pass.
 
 - **2026-09-19 One ShaderMaterial per building part.** The web build uses the Compatibility
   renderer, which has no per-instance shader uniforms, so each box part gets its own material with

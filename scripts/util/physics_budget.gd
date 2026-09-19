@@ -11,7 +11,7 @@ const PLAYER_GROUP := "player"
 
 @export_group("Budget")
 ## Hard cap on props in the "physics_prop" group.
-@export var max_active_bodies: int = 300
+@export var max_active_bodies: int = 500
 ## Debris older than this (seconds) is freed.
 @export var debris_lifetime: float = 12.0
 

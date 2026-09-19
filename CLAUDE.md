@@ -64,8 +64,10 @@ with Playwright (`--use-angle=swiftshader`), and screenshot it. Use this to sani
 GODOT=/path/to/godot tests/headless_check.sh
 ```
 
-That runs `--import` and then `tests/smoke_test.gd`, which loads the main scene, drives the player
-with simulated input and asserts walk speed, sprint speed, jump height, double jump and respawn.
+That runs `--import` and then `tests/smoke_test.gd`, which loads the test room, drives the player
+with simulated input (movement, boost, jumps, every weapon), checks buildings, then loads the city
+scene and checks the plan. It fails on any script error in the output. Gotcha: the test script is
+compiled before autoloads exist, so never name a class that uses `PhysicsBudget` as a type there.
 Download a Linux headless-capable build with:
 
 ```
@@ -132,6 +134,11 @@ tests/                 headless smoke test and check script
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is
   the crosshair ray (origin, direction, point, normal, collider). Explosions: `Explosion.blast()`.
+- City: `CityPlan` (data: roads, blocks, districts, intersections; `DISTRICTS` holds the parameter
+  ranges) and `CityBuilder` (the node that builds it; main scene `scenes/levels/city.tscn`). Small
+  repeated props go through `MultiMeshBatch` with meshes from `PropFactory`; anything the player
+  should collide with gets a shape on the builder's shared `StreetProps` StaticBody3D. Physics props
+  (trash cans) are `TrashCan` RigidBody3D nodes in the `physics_prop` group.
 - Buildings: `Building` (`scripts/world/building.gd`, scene `scenes/props/building.tscn`) is a
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
   generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own
