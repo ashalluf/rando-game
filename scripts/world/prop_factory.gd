@@ -132,6 +132,39 @@ static func trash_can_mesh() -> Mesh:
 	return cylinder("trash_can", 0.35, 1.0, Color(0.25, 0.35, 0.3), -1.0, 8)
 
 
+static func palm_trunk() -> Mesh:
+	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
+
+
+static func palm_frond() -> Mesh:
+	return box("palm_frond", Vector3(0.5, 0.06, 3.2), Color(0.30, 0.62, 0.30))
+
+
+static func coconut() -> Mesh:
+	if _cache.has("coconut"):
+		return _cache["coconut"]
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.5
+	mesh.height = 1.0
+	mesh.radial_segments = 6
+	mesh.rings = 3
+	mesh.material = material(Color(0.45, 0.32, 0.18))
+	_cache["coconut"] = mesh
+	return mesh
+
+
+static func lifeguard_cabin() -> Mesh:
+	return box("lifeguard_cabin", Vector3(3.0, 2.4, 3.0), Color(0.35, 0.65, 0.85))
+
+
+static func lifeguard_leg() -> Mesh:
+	return box("lifeguard_leg", Vector3(0.25, 2.6, 0.25), Color(0.8, 0.78, 0.7))
+
+
+static func lifeguard_ramp() -> Mesh:
+	return box("lifeguard_ramp", Vector3(1.0, 0.1, 4.2), Color(0.8, 0.78, 0.7))
+
+
 static func unit_box() -> Mesh:
 	return box("unit_box", Vector3.ONE, Color(0.9, 0.9, 0.9))
 

@@ -110,7 +110,7 @@ func _test_city() -> void:
 	_check(districts.size() >= 3, "loaded area spans %d districts" % districts.size())
 	_check(kinds.size() >= 2, "parks or plazas as well as buildings (%d kinds)" % kinds.size())
 	_check(inter_kinds.size() >= 2, "%d intersection types" % inter_kinds.size())
-	_check(plan.district_at(Vector2.ZERO) == CityPlan.District.DOWNTOWN, "center is downtown")
+	_check(plan.district_at(Vector2.ZERO) == CityPlan.District.MIDTOWN, "spawn is in midtown")
 	var player := get_first_node_in_group("player") as CharacterBody3D
 	_check(player != null and player.is_on_floor(), "player stands at the center intersection")
 	var cans := 0
@@ -161,6 +161,35 @@ func _test_city() -> void:
 	_check(home_again != null and home_again.level == 0, "home chunk rebuilt at full detail")
 	if home_again and not lamp_id.is_empty():
 		_check(not home_again.has_prop(lamp_id), "destroyed lamp stays destroyed after the chunk is rebuilt")
+
+	# The big-picture map: ocean west, beach at the coast, hills north, flat city at the origin.
+	var macro: MacroMap = plan.macro
+	_check(macro != null, "city uses the macro map")
+	if macro:
+		_check(macro.zone_at(Vector2.ZERO) == MacroMap.Zone.CITY and macro.height_at(Vector2.ZERO) == 0.0, "origin is flat city")
+		_check(macro.zone_at(Vector2(-2500.0, 0.0)) == MacroMap.Zone.OCEAN, "far west is ocean")
+		_check(macro.zone_at(Vector2(macro.coast_x(0.0) + 30.0, 0.0)) == MacroMap.Zone.BEACH, "just inland of the coast is beach")
+		_check(macro.zone_at(Vector2(0.0, -1600.0)) == MacroMap.Zone.HILLS and macro.height_at(Vector2(0.0, -1600.0)) > 80.0, "far north is hills (%.0f m)" % macro.height_at(Vector2(0.0, -1600.0)))
+		_check(macro.district_at(macro.downtown_center) == CityPlan.District.DOWNTOWN, "downtown is where the map says")
+		# Stand on the beach: sand, palms, no buildings.
+		var beach := Vector3(macro.coast_x(0.0) + 30.0, 2.0, 0.0)
+		player.global_position = _world_state().to_local(beach)
+		city.update_streaming(true)
+		var beach_key: Vector2i = plan.block_index_at(Vector2(beach.x, beach.z))
+		var beach_chunk: Node3D = city.chunks.get(beach_key)
+		_check(beach_chunk != null and beach_chunk.zone == MacroMap.Zone.BEACH and beach_chunk.building_count == 0 and beach_chunk.has_node("Batch_palm_trunk"), "beach chunk has palms and no buildings")
+		# Stand in the hills: terrain tile with collision under the player.
+		var hill := Vector3(0.0, 0.0, -1400.0)
+		hill.y = macro.height_at(Vector2(hill.x, hill.z)) + 3.0
+		player.global_position = _world_state().to_local(hill)
+		player.velocity = Vector3.ZERO
+		city.update_streaming(true)
+		var hill_key: Vector2i = plan.block_index_at(Vector2(hill.x, hill.z))
+		var hill_chunk: Node3D = city.chunks.get(hill_key)
+		_check(hill_chunk != null and hill_chunk.zone == MacroMap.Zone.HILLS and hill_chunk.has_node("Terrain"), "hill chunk has a terrain tile")
+		await _wait_for_floor(player, 240)
+		var ground_h: float = _world_state().to_world(player.global_position).y
+		_check(player.is_on_floor() and ground_h > 20.0, "player stands on the hills at %.0f m" % ground_h)
 
 	# Same seed, same plan.
 	var a := CityPlan.new()

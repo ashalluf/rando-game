@@ -38,14 +38,25 @@ Build in this order, one milestone per PR or a few PRs.
 ## Owner requests queued
 
 - **Miniature Los Angeles layout** (asked 2026-09-19): a coastline with beach and ocean, a hill with
-  big letters, a pier with a Ferris wheel, a recognisable skyline of specific towers. Do it after
-  milestone 5 (streaming) because the map gets big. Keep everything legally distinct: original sign
-  text, original pier name, towers inspired by but not copies of real ones (the real sign, pier sign
-  and some towers are trademarked). Plan: coast + hills, then pier, then skyline, one push each.
+  big letters, a pier with a Ferris wheel, a recognisable skyline of specific towers. Keep everything
+  legally distinct: original sign text, original pier name, towers inspired by but not copies of
+  real ones (the real sign, pier sign and some towers are trademarked).
+  - [x] Push 1: macro map with ocean, beach, hills, peninsula, district placement (`MacroMap`).
+  - [ ] Push 2: the hill sign, the pier with a Ferris wheel and coaster, the observatory.
+  - [ ] Push 3: landmark skyline downtown, airport by the coast, port in the industrial corner.
 
 ## Current state
 
-Milestones 1 to 5 are in. The main scene is `scenes/levels/city.tscn`; `test_box.tscn` stays as
+Milestones 1 to 5 are in, plus the first push of the west-coast map.
+
+`MacroMap` (`scripts/world/macro_map.gd`) is the big picture: ocean west of a curving coastline
+(x about -900 at the origin), a 70 m beach with palms and lifeguard towers, mountains north of
+z = -900 rising to about 260 m with noise, a hilly peninsula bulging into the sea to the
+south-west, downtown centered at (700, 250), a second mid-rise cluster on the west side, and the
+industrial port in the south-east. Chunks ask `plan.zone_at()` and build water, sand, or a terrain
+tile (SurfaceTool mesh colored by height plus a HeightMapShape3D) instead of a city block. The
+spawn stays at the origin, in midtown. Debug: open the web build with `?spawn=x,z` or run the
+desktop build with `-- --spawn=x,z` to start anywhere. The main scene is `scenes/levels/city.tscn`; `test_box.tscn` stays as
 the movement/weapons test room.
 
 The city is endless. `CityPlan` (`scripts/world/city_plan.gd`) answers any road, block or
@@ -100,6 +111,15 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-19 The map is a function, not data.** `MacroMap` answers coast x, land height, zone and
+  district for any world position from a few numbers plus FastNoiseLite, so the endless plan still
+  works and chunks stay independent. Roads simply stop at the ocean and at the hills.
+- **2026-09-19 Water is solid.** The ocean is a static slab 0.6 m below sea level, so you can run
+  and boost across it. Silly, and it avoids swimming code for now.
+- **2026-09-19 Terrain tiles are per chunk** (14 x 14 quads at full detail, 6 x 6 for LOD) with a
+  HeightMapShape3D scaled to the chunk. Seams with flat city chunks are accepted; the height
+  function is 0 everywhere the city is, so they are small.
 
 - **2026-09-19 Chunk = block + its +X road + its +Z road + the corner intersection.** Every road
   segment and intersection is owned by exactly one chunk, so there is no double drawing and no gap

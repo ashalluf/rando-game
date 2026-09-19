@@ -14,6 +14,11 @@ extends Node3D
 @export var downtown_radius: float = 180.0
 @export var midtown_radius: float = 380.0
 
+@export_group("Map")
+## Use the big-picture map (ocean west, hills north, peninsula south-west, downtown east).
+## Off = the plain endless grid with districts in rings around the origin.
+@export var use_macro_map: bool = true
+
 @export_group("Streaming")
 ## Blocks around the player that get full detail (2 = a 5 x 5 area).
 @export var load_radius_blocks: int = 2
@@ -41,6 +46,10 @@ extends Node3D
 @export var plaza_color: Color = Color(0.78, 0.74, 0.68)
 @export var path_color: Color = Color(0.80, 0.76, 0.66)
 @export var water_color: Color = Color(0.25, 0.55, 0.80)
+@export var ocean_color: Color = Color(0.12, 0.42, 0.66)
+@export var sand_color: Color = Color(0.80, 0.72, 0.52)
+@export var hill_grass_color: Color = Color(0.38, 0.47, 0.25)
+@export var hill_rock_color: Color = Color(0.48, 0.43, 0.38)
 
 var plan: CityPlan
 ## Vector2i(ix, iz) -> CityChunk
@@ -66,9 +75,42 @@ func _ready() -> void:
 	plan.sidewalk_width = sidewalk_width
 	plan.downtown_radius = downtown_radius
 	plan.midtown_radius = midtown_radius
+	if use_macro_map:
+		plan.macro = MacroMap.new()
+		plan.macro.seed = world_seed
+		plan.macro.setup()
 	_build_ground()
 	_player = get_tree().get_first_node_in_group("player") as Node3D
+	_apply_spawn_override()
 	update_streaming(true)
+
+
+## Debug helper: start somewhere else. Web: open the page with ?spawn=x,z
+## Desktop: run with `-- --spawn=x,z` (Godot passes user args after `--`).
+func _apply_spawn_override() -> void:
+	if _player == null:
+		return
+	var text := ""
+	if OS.has_feature("web"):
+		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
+		if search is String:
+			for part in (search as String).trim_prefix("?").split("&"):
+				if part.begins_with("spawn="):
+					text = part.trim_prefix("spawn=")
+	else:
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--spawn="):
+				text = arg.trim_prefix("--spawn=")
+	if text.is_empty():
+		return
+	var parts := text.split(",")
+	if parts.size() != 2:
+		return
+	var wp := Vector2(parts[0].to_float(), parts[1].to_float())
+	var y := plan.height_at(wp) + 2.0
+	_player.global_position = Vector3(wp.x, y, wp.y)
+	if _player.has_method("respawn"):
+		_player.set("_spawn_transform", _player.global_transform)
 
 
 func _process(delta: float) -> void:
@@ -91,7 +133,11 @@ func district_name_at(local_pos: Vector3) -> String:
 	if plan == null:
 		return ""
 	var wp := world_position(local_pos)
-	return CityPlan.district_name(plan.district_at(Vector2(wp.x, wp.z)))
+	var xz := Vector2(wp.x, wp.z)
+	var zone := plan.zone_at(xz)
+	if zone != MacroMap.Zone.CITY:
+		return MacroMap.zone_name(zone)
+	return CityPlan.district_name(plan.district_at(xz))
 
 
 func building_count() -> int:
@@ -162,8 +208,9 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 	chunk.level = level
 	chunk.style = {
 		"asphalt": asphalt_color, "sidewalk": sidewalk_color, "grass": grass_color, "plaza": plaza_color,
-		"path": path_color, "water": water_color, "lamp_spacing": lamp_spacing, "tree_spacing": tree_spacing,
-		"trash_cans_per_block": trash_cans_per_block,
+		"path": path_color, "water": water_color, "ocean": ocean_color, "sand": sand_color,
+		"hill_grass": hill_grass_color, "hill_rock": hill_rock_color,
+		"lamp_spacing": lamp_spacing, "tree_spacing": tree_spacing, "trash_cans_per_block": trash_cans_per_block,
 	}
 	add_child(chunk)
 	chunk.build()

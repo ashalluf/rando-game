@@ -17,6 +17,7 @@ var ix: int = 0
 var iz: int = 0
 var level: Level = Level.FULL
 var key: String = ""
+var zone: MacroMap.Zone = MacroMap.Zone.CITY
 ## Colors and spacing from the streamer's exports.
 var style: Dictionary = {}
 
@@ -38,11 +39,136 @@ func build() -> void:
 		_statics.chunk = self
 		add_child(_statics)
 	var block := plan.block(ix, iz)
-	_build_roads(block)
-	_build_block(block)
-	if level == Level.FULL:
-		_build_intersection(plan.intersection(ix + 1, iz + 1))
+	zone = plan.zone_at((block.rect as Rect2).get_center())
+	match zone:
+		MacroMap.Zone.OCEAN:
+			_build_water()
+		MacroMap.Zone.HILLS:
+			_build_terrain()
+		MacroMap.Zone.BEACH:
+			_build_roads(block)
+			_build_beach(block)
+		_:
+			_build_roads(block)
+			_build_block(block)
+			if level == Level.FULL:
+				_build_intersection(plan.intersection(ix + 1, iz + 1))
 	_mm_nodes = _batch.build(self)
+
+
+## The whole area this chunk owns: its block plus the roads on its +X and +Z sides.
+func owned_rect() -> Rect2:
+	var x0 := plan.road_pos(CityPlan.AXIS_X, ix) + plan.road_width(CityPlan.AXIS_X, ix) * 0.5
+	var x1 := plan.road_pos(CityPlan.AXIS_X, ix + 1) + plan.road_width(CityPlan.AXIS_X, ix + 1) * 0.5
+	var z0 := plan.road_pos(CityPlan.AXIS_Z, iz) + plan.road_width(CityPlan.AXIS_Z, iz) * 0.5
+	var z1 := plan.road_pos(CityPlan.AXIS_Z, iz + 1) + plan.road_width(CityPlan.AXIS_Z, iz + 1) * 0.5
+	return Rect2(x0, z0, x1 - x0, z1 - z0)
+
+
+# --- Ocean, beach, hills ---------------------------------------------------------------
+
+func _build_water() -> void:
+	var area := owned_rect()
+	var c := area.get_center()
+	var mesh := MeshInstance3D.new()
+	var box := BoxMesh.new()
+	box.size = Vector3(area.size.x, 1.0, area.size.y)
+	mesh.mesh = box
+	mesh.material_override = PropFactory.material(style.ocean, 0.15)
+	mesh.position = Vector3(c.x, -1.1, c.y)
+	add_child(mesh)
+	if level == Level.FULL:
+		_add_shape(box.size, mesh.position)
+
+
+func _build_beach(block: Dictionary) -> void:
+	var rect: Rect2 = block.rect
+	var c := rect.get_center()
+	_add_slab(Vector3(c.x, 0.0, c.y), Vector3(rect.size.x, 0.4, rect.size.y), style.sand, false)
+	if level != Level.FULL:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = block.seed
+	for i in rng.randi_range(6, 14):
+		var p := Vector2(rng.randf_range(rect.position.x + 4.0, rect.end.x - 4.0), rng.randf_range(rect.position.y + 4.0, rect.end.y - 4.0))
+		_add_palm(Vector3(p.x, 0.2, p.y), rng)
+	if rng.randf() < 0.6:
+		var p := Vector2(rng.randf_range(rect.position.x + 8.0, rect.end.x - 8.0), rng.randf_range(rect.position.y + 8.0, rect.end.y - 8.0))
+		_add_lifeguard_tower(Vector3(p.x, 0.2, p.y), rng.randf_range(0.0, TAU))
+
+
+func _add_palm(at: Vector3, rng: RandomNumberGenerator) -> void:
+	var s := rng.randf_range(0.8, 1.3)
+	var lean := Basis(Vector3(cos(rng.randf() * TAU), 0.0, sin(rng.randf() * TAU)).normalized(), rng.randf_range(0.0, 0.12))
+	var top := at + lean * Vector3(0.0, 7.0 * s, 0.0)
+	_batch.add("palm_trunk", PropFactory.palm_trunk(), Transform3D(lean.scaled(Vector3(s, s, s)), at + lean * Vector3(0.0, 3.5 * s, 0.0)))
+	var fronds := rng.randi_range(6, 8)
+	for i in fronds:
+		var yaw := TAU * i / fronds + rng.randf_range(-0.2, 0.2)
+		var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, -0.5 + rng.randf_range(-0.15, 0.15))
+		_batch.add("palm_frond", PropFactory.palm_frond(), Transform3D(basis.scaled(Vector3(s, s, s)), top + basis * Vector3(0.0, 0.0, -1.5 * s)), Color(0.9 + rng.randf() * 0.2, 1.0, 0.9))
+	for i in 3:
+		_batch.add("coconut", PropFactory.coconut(), Transform3D(Basis().scaled(Vector3.ONE * 0.35 * s), top + Vector3(rng.randf_range(-0.3, 0.3), -0.3, rng.randf_range(-0.3, 0.3))))
+	_add_shape(Vector3(0.5, 7.0 * s, 0.5), at + Vector3(0.0, 3.5 * s, 0.0))
+
+
+func _add_lifeguard_tower(at: Vector3, yaw: float) -> void:
+	var basis := Basis(Vector3.UP, yaw)
+	for dx: float in [-1.2, 1.2]:
+		for dz: float in [-1.2, 1.2]:
+			_batch.add("lifeguard_leg", PropFactory.lifeguard_leg(), Transform3D(basis, at + basis * Vector3(dx, 1.3, dz)))
+	_batch.add("lifeguard_cabin", PropFactory.lifeguard_cabin(), Transform3D(basis, at + Vector3(0.0, 3.8, 0.0)))
+	_batch.add("lifeguard_ramp", PropFactory.lifeguard_ramp(), Transform3D(basis * Basis(Vector3.RIGHT, -0.55), at + basis * Vector3(0.0, 1.3, 3.2)))
+	_add_shape(Vector3(3.0, 5.0, 3.0), at + Vector3(0.0, 2.5, 0.0), yaw)
+
+
+## Terrain tile over the whole owned area, colored by height, with heightmap collision.
+func _build_terrain() -> void:
+	var area := owned_rect()
+	var n := 14 if level == Level.FULL else 6
+	var heights := PackedFloat32Array()
+	heights.resize((n + 1) * (n + 1))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var grass: Color = style.hill_grass
+	var rock: Color = style.hill_rock
+	for j in n + 1:
+		for i in n + 1:
+			var x := area.position.x + area.size.x * i / n
+			var z := area.position.y + area.size.y * j / n
+			var h := plan.height_at(Vector2(x, z))
+			heights[j * (n + 1) + i] = h
+			var t := clampf((h - 20.0) / 160.0, 0.0, 1.0)
+			st.set_color(grass.lerp(rock, t))
+			st.add_vertex(Vector3(x, h, z))
+	for j in n:
+		for i in n:
+			var a := j * (n + 1) + i
+			var b := a + 1
+			var c := a + (n + 1)
+			var d := c + 1
+			st.add_index(a)
+			st.add_index(b)
+			st.add_index(c)
+			st.add_index(b)
+			st.add_index(d)
+			st.add_index(c)
+	st.generate_normals()
+	var mesh := MeshInstance3D.new()
+	mesh.name = "Terrain"
+	mesh.mesh = st.commit()
+	mesh.material_override = PropFactory.material(Color.WHITE, 0.95)
+	add_child(mesh)
+	if level == Level.FULL and _statics:
+		var shape := CollisionShape3D.new()
+		var hm := HeightMapShape3D.new()
+		hm.map_width = n + 1
+		hm.map_depth = n + 1
+		hm.map_data = heights
+		shape.shape = hm
+		var c := area.get_center()
+		shape.transform = Transform3D(Basis().scaled(Vector3(area.size.x / n, 1.0, area.size.y / n)), Vector3(c.x, 0.0, c.y))
+		_statics.add_child(shape)
 
 
 func has_prop(id: String) -> bool:

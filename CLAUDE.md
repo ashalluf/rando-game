@@ -146,6 +146,10 @@ tests/                 headless smoke test and check script
   `CityChunk._add_prop()` (instances + shapes + health); their shapes live on the chunk's
   `StreetProps` body, which routes `take_hit()` to the chunk. Physics props (trash cans) are
   `TrashCan` RigidBody3D nodes in the `physics_prop` group.
+- Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills), land
+  height and district for any world XZ. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
+  the plan go through it. Chunks build water, sand or terrain for non-city zones. To start
+  somewhere else for testing: web `?spawn=x,z`, desktop `-- --spawn=x,z`.
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

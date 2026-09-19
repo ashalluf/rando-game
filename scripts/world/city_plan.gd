@@ -53,6 +53,9 @@ var midtown_radius: float = 380.0
 ## Beyond this radius, one seeded quadrant is industrial.
 var industrial_start_radius: float = 260.0
 
+## Optional big-picture map. When set, it decides districts and zones (ocean, beach, hills).
+var macro: MacroMap
+
 var _industrial_quadrant: int = -1
 var _road_pos: Array[Dictionary] = [{0: 0.0}, {0: 0.0}]
 var _road_width: Array[Dictionary] = [{}, {}]
@@ -174,7 +177,17 @@ func intersection(ix: int, iz: int) -> Dictionary:
 	return result
 
 
+func zone_at(pos: Vector2) -> MacroMap.Zone:
+	return macro.zone_at(pos) if macro else MacroMap.Zone.CITY
+
+
+func height_at(pos: Vector2) -> float:
+	return macro.height_at(pos) if macro else 0.0
+
+
 func district_at(pos: Vector2) -> District:
+	if macro:
+		return macro.district_at(pos)
 	var r := pos.length()
 	var quadrant := (0 if pos.x >= 0.0 else 1) + (0 if pos.y >= 0.0 else 2)
 	if quadrant == industrial_quadrant() and r > industrial_start_radius:
