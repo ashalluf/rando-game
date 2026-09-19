@@ -22,7 +22,7 @@ const PAINTS := [
 @export var brake_force: float = 80.0
 @export var handbrake_force: float = 40.0
 ## Max steering angle (radians).
-@export var max_steer: float = 0.55
+@export var max_steer: float = 0.5
 ## How fast the wheels turn toward the stick (higher = twitchier).
 @export var steer_speed: float = 8.0
 ## Steering shrinks at speed so the car does not spin out: full steer below this speed (m/s).
@@ -36,11 +36,20 @@ const PAINTS := [
 @export var upright_torque: float = 25000.0
 
 @export_group("Suspension")
-@export var suspension_travel: float = 0.45
-@export var suspension_stiffness: float = 28.0
-@export var damping_compression: float = 1.2
-@export var damping_relaxation: float = 2.2
-@export var wheel_grip: float = 3.5
+## Soft springs plus a low center of mass keep the car flat and planted. Stiffer bounces.
+@export var suspension_stiffness: float = 60.0
+@export var suspension_rest_length: float = 0.35
+## Must stay smaller than the rest length or the wheels sink into the road.
+@export var suspension_travel: float = 0.2
+@export var suspension_max_force: float = 50000.0
+@export var damping_compression: float = 0.8
+@export var damping_relaxation: float = 1.2
+## Tire grip. Godot's default is 10.5; lower drifts more.
+@export var wheel_grip: float = 10.5
+## How much the tires transfer roll to the body (0 = never rolls over from cornering).
+@export var wheel_roll_influence: float = 0.1
+## Center of mass height above the wheel axles (meters). Low = stable, no wheelies.
+@export var center_of_mass_height: float = 0.1
 
 var body_type: BodyType = BodyType.SEDAN
 var addon: Addon = Addon.NONE
@@ -72,8 +81,10 @@ func _ready() -> void:
 	collision_layer = 4
 	collision_mask = 7
 	mass = 1200.0
-	angular_damp = 1.5
+	angular_damp = 0.5
 	linear_damp = 0.05
+	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
+	center_of_mass = Vector3(0.0, center_of_mass_height, 0.0)
 	_build()
 
 
@@ -137,15 +148,16 @@ func _physics_process(delta: float) -> void:
 	var speed := linear_velocity.dot(-global_basis.z)
 	var boost := nitro_multiplier if Input.is_action_pressed("boost") else 1.0
 	var fade := clampf(1.0 - absf(speed) / top_speed, 0.0, 1.0)
+	# Godot's engine_force pushes toward local +Z, which is the tail of our model, so negate it.
 	if throttle > 0.0:
-		engine_force = throttle * engine_power * boost * (fade if boost == 1.0 else maxf(fade, 0.3))
+		engine_force = -throttle * engine_power * boost * (fade if boost == 1.0 else maxf(fade, 0.3))
 		brake = 0.0
 	elif throttle < 0.0:
 		if speed > 1.0:
 			engine_force = 0.0
 			brake = brake_force
 		else:
-			engine_force = throttle * reverse_power
+			engine_force = -throttle * reverse_power
 			brake = 0.0
 	else:
 		engine_force = 0.0
@@ -156,7 +168,8 @@ func _physics_process(delta: float) -> void:
 	_steer_target = -input.x * max_steer * steer_factor
 	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
 	if is_airborne():
-		apply_torque(global_basis.x * (-input.y) * air_torque + global_basis.z * (-input.x) * air_torque * 0.7)
+		# W = nose down (front flip), S = nose up, A / D = roll.
+		apply_torque(global_basis.x * input.y * air_torque + global_basis.z * (-input.x) * air_torque * 0.7)
 	elif global_basis.y.y < 0.2 and linear_velocity.length() < 3.0:
 		# Upside down and stuck: roll back onto the wheels.
 		var axis := global_basis.z
@@ -296,13 +309,14 @@ func _add_wheel(pos: Vector3, front: bool) -> void:
 	wheel.use_as_traction = true
 	wheel.use_as_steering = front
 	wheel.wheel_radius = 0.42
-	wheel.wheel_rest_length = 0.3
+	wheel.wheel_rest_length = suspension_rest_length
 	wheel.suspension_travel = suspension_travel
 	wheel.suspension_stiffness = suspension_stiffness
+	wheel.suspension_max_force = suspension_max_force
 	wheel.damping_compression = damping_compression
 	wheel.damping_relaxation = damping_relaxation
 	wheel.wheel_friction_slip = wheel_grip
-	wheel.wheel_roll_influence = 0.05
+	wheel.wheel_roll_influence = wheel_roll_influence
 	add_child(wheel)
 	wheels.append(wheel)
 	var mesh := MeshInstance3D.new()

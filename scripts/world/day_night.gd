@@ -9,14 +9,19 @@ extends Node
 @export var sun_rotation_z_degrees: float = 35.0
 @export var day_sun_color: Color = Color(1.0, 0.97, 0.9)
 @export var dusk_sun_color: Color = Color(1.0, 0.6, 0.35)
-@export var night_sun_color: Color = Color(0.45, 0.55, 0.8)
+@export var night_sun_color: Color = Color(0.62, 0.72, 1.0)
 @export var day_sun_energy: float = 1.0
-@export var night_sun_energy: float = 0.12
+@export var night_sun_energy: float = 0.55
 @export var day_sky_top: Color = Color(0.33, 0.55, 0.92)
 @export var day_horizon: Color = Color(0.78, 0.86, 0.96)
 @export var dusk_horizon: Color = Color(0.95, 0.6, 0.4)
-@export var night_sky_top: Color = Color(0.02, 0.03, 0.08)
-@export var night_horizon: Color = Color(0.08, 0.1, 0.18)
+@export var night_sky_top: Color = Color(0.05, 0.08, 0.18)
+@export var night_horizon: Color = Color(0.16, 0.2, 0.34)
+## Ambient light color and strength by day and by night (moonlight).
+@export var day_ambient: Color = Color(0.62, 0.7, 0.85)
+@export var night_ambient: Color = Color(0.3, 0.38, 0.6)
+@export var day_ambient_energy: float = 0.55
+@export var night_ambient_energy: float = 0.55
 @export_node_path("DirectionalLight3D") var sun_path: NodePath
 @export_node_path("WorldEnvironment") var environment_path: NodePath
 
@@ -81,8 +86,10 @@ func _apply() -> void:
 	night_factor = 1.0 - clampf((elevation + 0.05) * 6.0, 0.0, 1.0)
 	var dusk := clampf(1.0 - absf(elevation) * 5.0, 0.0, 1.0) * float(elevation > -0.15)
 	if _sun:
-		var pitch := -elevation * 85.0 if elevation > 0.0 else -8.0
-		_sun.rotation_degrees = Vector3(pitch, 180.0 * t * (1.0 if elevation > 0.0 else 0.0) + sun_rotation_z_degrees, 0.0)
+		# By day the sun tracks the hour; by night the same light is a high, bright moon.
+		var pitch := -elevation * 85.0 if elevation > 0.0 else -55.0
+		var azimuth := 180.0 * t + sun_rotation_z_degrees if elevation > 0.0 else 120.0
+		_sun.rotation_degrees = Vector3(pitch, azimuth, 0.0)
 		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(night_sun_color, night_factor)
 		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight)
 		_sun.shadow_enabled = true
@@ -93,5 +100,7 @@ func _apply() -> void:
 		_sky.ground_horizon_color = horizon
 	if _env:
 		_env.fog_light_color = day_horizon.lerp(night_horizon, night_factor)
-		_env.ambient_light_sky_contribution = lerpf(0.25, 0.45, daylight)
+		_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		_env.ambient_light_color = day_ambient.lerp(night_ambient, night_factor)
+		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, night_factor)
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)

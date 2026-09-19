@@ -272,11 +272,22 @@ func _test_city() -> void:
 		await _press("interact")
 		_check(player.is_driving() and player.vehicle == car, "interact gets into the nearest car")
 		var start: Vector3 = car.global_position
+		var nose: Vector3 = -car.global_basis.z
 		Input.action_press("move_forward")
 		await _ticks(120)
+		var driven: float = (car.global_position - start).dot(nose)
+		_check(driven > 8.0, "car drives toward its headlights %.1f m in 2 s" % driven)
+		var yaw0: float = car.rotation.y
+		Input.action_press("move_right")
+		await _ticks(45)
+		Input.action_release("move_right")
 		Input.action_release("move_forward")
-		var driven: float = car.global_position.distance_to(start)
-		_check(driven > 8.0, "car drives forward %.1f m in 2 s" % driven)
+		var turned: float = wrapf(car.rotation.y - yaw0, -PI, PI)
+		var planted := 0
+		for w in car.wheels:
+			if w.is_in_contact():
+				planted += 1
+		_check(turned < -0.15 and car.global_basis.y.y > 0.9, "D turns the car right (%.2f rad) and it stays flat (%d wheels down)" % [turned, planted])
 		await _ticks(30)
 		await _press("interact")
 		_check(not player.is_driving() and player.visible and player.global_position.distance_to(car.global_position) < 5.0, "interact gets out next to the car")

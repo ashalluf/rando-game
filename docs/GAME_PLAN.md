@@ -147,6 +147,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 Car physics rebuilt after the owner's first drive** ("drives backwards, can't
+  turn"). Measured headless: Godot's `engine_force` pushes toward local +Z, our model's tail, so it
+  is negated. The car also pitched onto its rear wheels under power because the center of mass was
+  high and the suspension collapsed (travel was larger than the rest length). Now: custom center
+  of mass 0.1 m above the axles, springs 60 with rest 0.35 and travel 0.2, max force 50000,
+  damping 0.8 / 1.2, tire grip 10.5, roll influence 0.1, angular damp 0.5. The smoke test asserts
+  the car drives toward its headlights and turns right on D while staying flat.
+- **2026-09-19 Night got moonlight** after "too dark": the same directional light becomes a high
+  blue-white moon at 0.55 energy, the sky and fog stay a deep blue instead of black, and ambient
+  light is a fixed color (not sky-sampled) so streets stay readable.
+
 - **2026-09-19 The smoke test is a scene, not a script.** Running it with `-s` compiled it before
   autoloads existed, which broke the moment Player referenced `Sfx`. `tests/smoke_test.tscn` runs
   as the main scene so every autoload is ready; it has a 300 s watchdog and the check script has a
