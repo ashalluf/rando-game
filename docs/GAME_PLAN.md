@@ -147,6 +147,22 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-19 Hills with roads and estates, peninsula in a bay (map-character batch, part 3).**
+  `HillRoads` (`scripts/world/hill_roads.gd`, built by `MacroMap.setup()`) plans a seeded road
+  network in the hills: "Sunset Drive" winding along the hill foot from the beach east, four
+  canyon roads climbing north (smooth random walks), two estate loops off each canyon, and a rim
+  drive around the peninsula. Each road gets a height profile: raw terrain sampled at its points,
+  smoothed twice, grade-limited to 11 %. `MacroMap.height_at()` now returns `raw_height_at()`
+  carved by the roads (flat across the road width, blending back over a 14 m shoulder, so cut and
+  fill slopes appear by themselves) and by mansion pads (17 m flat discs, 12 m shoulder). Hill
+  chunks with a road use a 28x28 terrain tile and collision, draw asphalt strips on the road
+  beds (clipped to the chunk) and build estates on the pads: paving pad, a low SLAB `Building`
+  villa, pool, low wall, palms; far chunks draw the pad and a house box. 182 lots at seed 0.
+  The peninsula is taller (150 m) with steeper sides, sits in a bay (`in_bay()`: water south of
+  z 1000 and west of x 400 except the peninsula itself) and its low outer ring is beach, not
+  city. Ocean surface moved to y +0.15: it was below the ground follower plane, which showed
+  through as grass over the whole sea. The minimap draws hill roads as white lines.
+
 - **2026-09-19 GTA-style skyline (map-character batch, part 2).** Downtown lots now get a
   height boost toward the center (`MacroMap.skyline_boost()`: min x2, max x2.2 at the core, so
   50-140 m becomes 100-300 m in the middle), denser lots (28-46 m, 2-5 m gaps) and mostly glass.

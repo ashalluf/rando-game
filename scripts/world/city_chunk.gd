@@ -51,6 +51,8 @@ func build() -> void:
 			_build_water()
 		MacroMap.Zone.HILLS:
 			_build_terrain()
+			_build_hill_roads()
+			_build_mansions()
 		MacroMap.Zone.BEACH:
 			_build_roads(block)
 			_build_beach(block)
@@ -186,7 +188,9 @@ func _build_water() -> void:
 	box.size = Vector3(area.size.x, 1.0, area.size.y)
 	mesh.mesh = box
 	mesh.material_override = PropFactory.material(style.ocean, 0.15)
-	mesh.position = Vector3(c.x, -1.1, c.y)
+	# Surface at +0.15 so it sits above the ground follower plane (y = 0), which otherwise
+	# shows through as grass over the whole sea.
+	mesh.position = Vector3(c.x, -0.35, c.y)
 	add_child(mesh)
 	if level == Level.FULL:
 		_add_shape(box.size, mesh.position)
@@ -236,7 +240,9 @@ func _add_lifeguard_tower(at: Vector3, yaw: float) -> void:
 ## Terrain tile over the whole owned area, colored by height, with heightmap collision.
 func _build_terrain() -> void:
 	var area := owned_rect()
-	var n := 14 if level == Level.FULL else 6
+	# Finer tile where a hill road passes, so the carved road bed reads cleanly.
+	var has_road := _hill_segments().size() > 0
+	var n := (28 if has_road else 14) if level == Level.FULL else 6
 	var heights := PackedFloat32Array()
 	heights.resize((n + 1) * (n + 1))
 	var st := SurfaceTool.new()
@@ -271,7 +277,7 @@ func _build_terrain() -> void:
 	# Collision at full resolution on every level, so a fast car never outruns the detailed
 	# chunks and drops through a far hill. The body is tagged so the player can tell "under the
 	# terrain" from "under a bridge".
-	var cn := 14
+	var cn := 28 if (has_road and level == Level.FULL) else 14
 	var cheights := heights
 	if n != cn:
 		cheights = PackedFloat32Array()
@@ -294,6 +300,138 @@ func _build_terrain() -> void:
 	shape.transform = Transform3D(Basis().scaled(Vector3(area.size.x / cn, 1.0, area.size.y / cn)), Vector3(c.x, 0.0, c.y))
 	body.add_child(shape)
 	add_child(body)
+
+
+func _hill_segments() -> Array[Dictionary]:
+	if plan.macro == null or plan.macro.hill_roads == null:
+		return []
+	return plan.macro.hill_roads.segments_in(owned_rect())
+
+
+## Asphalt strips following the carved road beds, clipped to this chunk.
+func _build_hill_roads() -> void:
+	var segs := _hill_segments()
+	if segs.is_empty():
+		return
+	var area := owned_rect()
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var quads := 0
+	for seg in segs:
+		var a: Vector2 = seg.a
+		var b: Vector2 = seg.b
+		var seg_len := a.distance_to(b)
+		if seg_len < 0.5:
+			continue
+		var pieces := maxi(1, ceili(seg_len / 6.0))
+		var dir := (b - a) / seg_len
+		var half: float = seg.width * 0.5
+		var normal := Vector2(-dir.y, dir.x) * half
+		for k in pieces:
+			var t0 := float(k) / pieces
+			var t1 := float(k + 1) / pieces
+			var c0 := a.lerp(b, t0)
+			var c1 := a.lerp(b, t1)
+			if not area.has_point(c0.lerp(c1, 0.5)):
+				continue
+			var h0 := plan.height_at(c0) + 0.12
+			var h1 := plan.height_at(c1) + 0.12
+			var v0 := Vector3(c0.x - normal.x, h0, c0.y - normal.y)
+			var v1 := Vector3(c0.x + normal.x, h0, c0.y + normal.y)
+			var v2 := Vector3(c1.x + normal.x, h1, c1.y + normal.y)
+			var v3 := Vector3(c1.x - normal.x, h1, c1.y - normal.y)
+			for v in [v0, v2, v1, v0, v3, v2]:
+				st.add_vertex(v)
+			quads += 1
+	if quads == 0:
+		return
+	st.generate_normals()
+	var mesh := MeshInstance3D.new()
+	mesh.name = "HillRoad"
+	mesh.mesh = st.commit()
+	mesh.material_override = PropFactory.pbr("asphalt", 7.0, Color(0.7, 0.7, 0.72))
+	add_child(mesh)
+
+
+## Hillside estates: a flat pad cut into the slope with a house, a pool, palms and a low wall.
+func _build_mansions() -> void:
+	if plan.macro == null or plan.macro.hill_roads == null:
+		return
+	for m in plan.macro.hill_roads.mansions_in(owned_rect()):
+		var pos: Vector2 = m.pos
+		var h: float = m.height
+		var yaw: float = m.yaw
+		var rng := RandomNumberGenerator.new()
+		rng.seed = m.seed
+		var basis := Basis(Vector3.UP, yaw)
+		var at := Vector3(pos.x, h, pos.y)
+		# Pad.
+		var pad := MeshInstance3D.new()
+		var pad_box := BoxMesh.new()
+		pad_box.size = Vector3(30.0, 0.4, 26.0)
+		pad.mesh = pad_box
+		pad.material_override = PropFactory.pbr("paving", 4.0, Color(0.9, 0.88, 0.84))
+		pad.position = at + Vector3(0.0, 0.2, 0.0)
+		pad.rotation.y = yaw
+		add_child(pad)
+		if level != Level.FULL:
+			# Far: the pad and a house box in a warm tone.
+			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(basis.scaled(Vector3(18.0, 7.5, 13.0)), at + basis * Vector3(0.0, 4.15, -4.0)), Color(0.92, 0.88, 0.8))
+			continue
+		_add_shape(Vector3(30.0, 0.4, 26.0), at + Vector3(0.0, 0.2, 0.0), yaw)
+		# House: a wide low villa on the back half of the pad.
+		var house := BUILDING_SCENE.instantiate() as Building
+		house.seed = m.seed
+		house.lot_size = Vector2(18.0, 13.0)
+		house.min_height = 6.5
+		house.max_height = 9.5
+		house.force_shape = Building.Shape.SLAB
+		house.finish_options.assign([Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.BRICK])
+		house.allow_storefront = false
+		house.lit_ratio_range = Vector2(0.3, 0.6)
+		house.position = at + basis * Vector3(0.0, 0.4, -4.0)
+		house.rotation.y = yaw
+		add_child(house)
+		building_count += 1
+		# Pool on the front half, with a pale rim.
+		var pool_c := at + basis * Vector3(rng.randf_range(-4.0, 4.0), 0.4, 6.5)
+		var rim := MeshInstance3D.new()
+		var rim_box := BoxMesh.new()
+		rim_box.size = Vector3(9.0, 0.12, 5.6)
+		rim.mesh = rim_box
+		rim.material_override = PropFactory.material(Color(0.93, 0.92, 0.88), 0.8)
+		rim.position = pool_c + Vector3(0.0, 0.06, 0.0)
+		rim.rotation.y = yaw
+		add_child(rim)
+		var water := MeshInstance3D.new()
+		var water_box := BoxMesh.new()
+		water_box.size = Vector3(8.0, 0.1, 4.6)
+		water.mesh = water_box
+		var wmat := StandardMaterial3D.new()
+		wmat.albedo_color = Color(0.25, 0.65, 0.85)
+		wmat.roughness = 0.05
+		wmat.metallic = 0.2
+		water.material_override = wmat
+		water.position = pool_c + Vector3(0.0, 0.13, 0.0)
+		water.rotation.y = yaw
+		add_child(water)
+		# Low wall around the pad and a few palms.
+		for side: Vector3 in [Vector3(0.0, 0.0, 13.0), Vector3(0.0, 0.0, -13.0), Vector3(15.0, 0.0, 0.0), Vector3(-15.0, 0.0, 0.0)]:
+			var along_x := side.z != 0.0
+			var wsize := Vector3(30.0, 1.0, 0.4) if along_x else Vector3(0.4, 1.0, 26.0)
+			var wpos := at + basis * (side + Vector3(0.0, 0.9, 0.0))
+			var wall := MeshInstance3D.new()
+			var wbox := BoxMesh.new()
+			wbox.size = wsize
+			wall.mesh = wbox
+			wall.material_override = PropFactory.material(Color(0.85, 0.82, 0.76), 0.9)
+			wall.position = wpos
+			wall.rotation.y = yaw
+			add_child(wall)
+			_add_shape(wsize, wpos, yaw)
+		for i in rng.randi_range(2, 4):
+			var local := Vector3(rng.randf_range(-13.0, 13.0), 0.4, rng.randf_range(9.0, 12.0) * (1.0 if rng.randf() < 0.7 else -1.0))
+			_add_palm(at + basis * local, rng)
 
 
 func has_prop(id: String) -> bool:

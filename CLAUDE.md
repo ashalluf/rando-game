@@ -191,7 +191,11 @@ tests/                 headless smoke test and check script
   `TrashCan` RigidBody3D nodes in the `physics_prop` group.
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
   port), land height and district for any world XZ. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
-  the plan go through it. Chunks build water, sand or terrain for non-city zones. To start
+  the plan go through it. `height_at()` is the terrain with hill roads and mansion pads carved in
+  (`raw_height_at()` is the noise alone); `MacroMap.hill_roads` (`HillRoads`, seeded polylines
+  with grade-limited height profiles, `carve()`, `segments_in()`, `mansions_in()`) is what hill
+  chunks build asphalt strips and estates from. Chunks build water, sand or terrain for non-city
+  zones; the water surface is at y 0.15 (above the ground follower plane). To start
   somewhere else for testing: web `?spawn=x,z,yaw,pitch[,y]`, desktop `-- --spawn=x,z,yaw,pitch[,y]`.
 - Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes
   one, detailed (with a StaticBody3D for shapes) or far (no collision). Add a new one by adding an

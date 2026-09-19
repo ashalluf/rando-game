@@ -196,6 +196,26 @@ func _test_city() -> void:
 		await _wait_for_floor(player, 240)
 		var ground_h: float = _world_state().to_world(player.global_position).y
 		_check(player.is_on_floor() and ground_h > 20.0, "player stands on the hills at %.0f m" % ground_h)
+		# Hill roads: a boulevard plus canyon roads and estate loops, carved flat into the terrain.
+		var hr = macro.hill_roads
+		_check(hr != null and hr.roads.size() >= 12 and hr.mansions.size() >= 20, "hill roads and mansions planned (%d roads, %d lots)" % [hr.roads.size() if hr else 0, hr.mansions.size() if hr else 0])
+		if hr:
+			var road0: Dictionary = hr.roads[0]
+			var rp: Vector2 = road0.points[6]
+			var rh: float = road0.heights[6]
+			_check(absf(plan.height_at(rp) - rh) < 0.05, "terrain is carved to the road bed (%.1f vs %.1f m)" % [plan.height_at(rp), rh])
+			var road_spot := Vector3(rp.x, rh + 2.0, rp.y)
+			player.global_position = _world_state().to_local(road_spot)
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			var road_chunk: Node3D = city.chunks.get(plan.block_index_at(rp))
+			_check(road_chunk != null and road_chunk.has_node("HillRoad"), "the chunk under Sunset Drive has an asphalt strip")
+			await _wait_for_floor(player, 240)
+			_check(player.is_on_floor() and absf(_world_state().to_world(player.global_position).y - rh) < 1.0, "player stands on the hill road (y %.1f, road %.1f)" % [_world_state().to_world(player.global_position).y, rh])
+			player.global_position = _world_state().to_local(hill)
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
 		# Far (LOD) hill chunks keep terrain collision so a fast car cannot drop through them.
 		var lod_hill_with_collision := false
 		for chunk in city.chunks.values():

@@ -103,6 +103,20 @@ func _draw() -> void:
 					color = [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLORS.industrial][block.district]
 			_fill(rect, color, center, scale)
 
+	# Hill roads (not on the grid) as white lines.
+	if plan.macro and plan.macro.hill_roads:
+		var road_reach := radius_m * 1.5
+		for road in plan.macro.hill_roads.roads:
+			var pts: PackedVector2Array = road.points
+			var w: float = road.width
+			for i in pts.size() - 1:
+				if pts[i].distance_to(center) > road_reach and pts[i + 1].distance_to(center) > road_reach:
+					continue
+				var a := world_to_map(pts[i], center)
+				var b := world_to_map(pts[i + 1], center)
+				draw_line(a, b, COLORS.road_edge, w * scale + 2.0)
+				draw_line(a, b, COLORS.road, w * scale)
+
 	# Landmarks as red pins.
 	if plan.macro:
 		for lm in Landmarks.all():

@@ -19,7 +19,10 @@ var hills_full_z: float = -1500.0
 var hills_height: float = 260.0
 var peninsula_center: Vector2 = Vector2(-700.0, 1500.0)
 var peninsula_radius: float = 550.0
-var peninsula_height: float = 110.0
+var peninsula_height: float = 150.0
+## Water south of this Z and west of this X (except the peninsula) so the peninsula sticks out.
+var bay_z: float = 1000.0
+var bay_east_x: float = 400.0
 var downtown_center: Vector2 = Vector2(700.0, 250.0)
 var downtown_radius: float = 330.0
 var midtown_radius: float = 800.0
@@ -36,6 +39,9 @@ var harbor_rect: Rect2 = Rect2(450.0, 1300.0, 700.0, 260.0)
 var runway_zs: PackedFloat32Array = PackedFloat32Array([760.0, 890.0])
 var runway_width: float = 45.0
 
+## Roads and mansion pads carved into the hills (built in setup()).
+var hill_roads: HillRoads
+
 var _noise: FastNoiseLite
 
 
@@ -45,6 +51,9 @@ func setup() -> void:
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_noise.frequency = 0.0012
 	_noise.fractal_octaves = 4
+	var hr := HillRoads.new()
+	hr.build(self, seed)
+	hill_roads = hr
 
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.
@@ -55,7 +64,16 @@ func coast_x(z: float) -> float:
 	return x - bulge
 
 
+## Land height with hill roads and mansion pads carved in.
 func height_at(pos: Vector2) -> float:
+	var raw := raw_height_at(pos)
+	if hill_roads and raw > 0.5:
+		return hill_roads.carve(pos, raw)
+	return raw
+
+
+## Land height from the noise alone (what the roads are laid over).
+func raw_height_at(pos: Vector2) -> float:
 	if _noise == null:
 		setup()
 	if airport_rect.has_point(pos) or port_rect.has_point(pos) or harbor_rect.has_point(pos):
@@ -64,9 +82,15 @@ func height_at(pos: Vector2) -> float:
 	var t := smoothstep(hills_start_z, hills_full_z, pos.y)
 	var h := t * (hills_height * (0.6 + 0.4 * n) + 40.0 * n)
 	var pd := pos.distance_to(peninsula_center)
-	var pt := smoothstep(peninsula_radius, peninsula_radius * 0.25, pd)
+	# Steep sides: the peninsula rises out of the bay as cliffs.
+	var pt := smoothstep(peninsula_radius, peninsula_radius * 0.5, pd)
 	h += pt * peninsula_height * (0.7 + 0.3 * n)
 	return maxf(h, 0.0)
+
+
+## The bay south of the airport that wraps the peninsula: water unless on the peninsula itself.
+func in_bay(pos: Vector2) -> bool:
+	return pos.y > bay_z and pos.x < bay_east_x and pos.distance_to(peninsula_center) > peninsula_radius * 1.02
 
 
 func zone_at(pos: Vector2) -> Zone:
@@ -77,12 +101,12 @@ func zone_at(pos: Vector2) -> Zone:
 	if port_rect.has_point(pos):
 		return Zone.PORT
 	var cx := coast_x(pos.y)
-	if pos.x < cx:
+	if pos.x < cx or in_bay(pos):
 		return Zone.OCEAN
-	if height_at(pos) > 3.0:
+	if raw_height_at(pos) > 3.0:
 		return Zone.HILLS
-	if pos.x < cx + beach_width:
-		return Zone.BEACH
+	if pos.x < cx + beach_width or pos.distance_to(peninsula_center) <= peninsula_radius * 1.02:
+		return Zone.BEACH # the main shore, and the low ring around the peninsula's cliffs
 	return Zone.CITY
 
 
