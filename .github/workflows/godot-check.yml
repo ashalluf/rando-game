@@ -3,6 +3,7 @@ name: Check and build
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 env:
   GODOT_VERSION: 4.7.2
@@ -92,7 +93,7 @@ jobs:
   deploy-web:
     # GitHub Pages needs a public repo on the free plan; this job is skipped while the repo is private.
     needs: check-and-build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && github.event.repository.private == false
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' && github.event.repository.private == false
     runs-on: ubuntu-latest
     permissions:
       pages: write
