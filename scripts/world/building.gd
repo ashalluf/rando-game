@@ -363,7 +363,13 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var has_balconies := residential and rows >= 3 and _rng.randf() < 0.45
 	var balcony_every := 1 if _rng.randf() < 0.55 else 2
 	var balconies: Array[Transform3D] = []
+	# Fire escapes belong on older brick blocks, on one face only, the way they actually run.
+	var has_escape := finish == Finish.BRICK and shape != Shape.WAREHOUSE and rows >= 3 and _rng.randf() < 0.7
+	var escape_face := _rng.randi() % 4
+	var escapes: Array[Transform3D] = []
+	var face_index := -1
 	for face in faces:
+		face_index += 1
 		var n: Vector3 = face[0]
 		var a: Vector3 = face[1]
 		var size_u: float = face[2]
@@ -385,6 +391,17 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			boxes.append([Transform3D(Basis(a * (size_u + 0.7), Vector3.UP * 0.45, n * 0.35), fc + Vector3(0.0, top - 0.22, 0.0) + n * 0.17), accent])
 		if storefront > 0.0:
 			boxes.append([Transform3D(Basis(a * (size_u + 0.4), Vector3.UP * 0.25, n * 0.22), fc + Vector3(0.0, bottom + storefront + 0.05, 0.0) + n * 0.11), accent])
+		if has_escape and face_index == escape_face and cols >= 2:
+			var bay := 1 + (_rng.randi() % maxi(cols - 1, 1))
+			var eu := -size_u * 0.5 + (float(bay) - 0.5) * pitch
+			var ew: float = minf(pitch * 0.9, 2.6)
+			for row in rows:
+				var ev := bottom + storefront + float(row) * floor_h
+				if ev < bottom + storefront + 0.5 or ev + floor_h > top - 0.5:
+					continue
+				# Flip the bay on alternate floors so the stair runs zigzag down the wall.
+				var flip := 1.0 if row % 2 == 0 else -1.0
+				escapes.append(Transform3D(Basis(a * (ew * flip), Vector3.UP * floor_h, n * 1.35), fc + a * eu + Vector3(0.0, ev, 0.0)))
 		if has_balconies:
 			var depth := _rng.randf_range(1.0, 1.45)
 			var bw: float = minf(pitch * 0.82, 3.0)
@@ -425,6 +442,18 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		# Past this distance the shader's painted frames carry the look on their own.
 		node.visibility_range_end = FRAME_DRAW_DISTANCE
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(node)
+	if not escapes.is_empty():
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = PropFactory.fire_escape()
+		mm.instance_count = escapes.size()
+		for i in escapes.size():
+			mm.set_instance_transform(i, escapes[i])
+		var node := MultiMeshInstance3D.new()
+		node.name = "FireEscape"
+		node.multimesh = mm
+		node.visibility_range_end = FRAME_DRAW_DISTANCE * 2.0
 		add_child(node)
 	if not balconies.is_empty():
 		var mm := MultiMesh.new()

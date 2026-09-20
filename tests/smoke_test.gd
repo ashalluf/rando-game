@@ -807,6 +807,29 @@ func _test_buildings() -> void:
 		if b.has_node("Balconies") and b.get_node("Balconies").multimesh.instance_count > 0:
 			with_balconies += 1
 	_check(with_balconies > 0, "some buildings have balconies (%d)" % with_balconies)
+	# Fire escapes only go on brick blocks, and the handful of buildings in the test room are
+	# rarely brick, so build a deterministic sample rather than sampling whatever is loaded.
+	var escape_scene: PackedScene = load("res://scenes/props/building.tscn")
+	var sample: Array = []
+	for si in range(1, 13):
+		var eb: Building = escape_scene.instantiate()
+		eb.seed = si
+		eb.lot_size = Vector2(30.0, 30.0)
+		eb.min_height = 26.0
+		eb.max_height = 40.0
+		eb.finish_options.assign([Building.Finish.BRICK])
+		# Well away from anything: these are solid bodies, and at the origin they sit exactly
+		# where the city spawns the player.
+		eb.position = Vector3(4000.0 + float(si) * 60.0, 0.0, 4000.0)
+		add_child(eb)
+		sample.append(eb)
+	await _ticks(2)
+	var with_escapes := 0
+	for eb in sample:
+		if eb.has_node("FireEscape") and eb.get_node("FireEscape").multimesh.instance_count > 0:
+			with_escapes += 1
+		eb.free()
+	_check(with_escapes >= 4, "brick blocks get fire escapes (%d of 12)" % with_escapes)
 	_check(frames_fit, "window frames and cornices stay within the building height")
 	_check(looks.size() >= 5, "buildings vary (%d distinct looks)" % looks.size())
 

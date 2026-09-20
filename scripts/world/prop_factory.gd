@@ -487,6 +487,47 @@ static func _box_into(st: SurfaceTool, centre: Vector3, size: Vector3, colour: C
 		_quad(st, p[f[0]], p[f[1]], p[f[2]], p[f[3]], colour)
 
 
+## One floor of a fire escape, built in a unit cube: 1 wide (X), 1 tall (Y, one storey), 1 deep
+## (+Z out of the wall). A platform with a railing, and a stair running down across the bay.
+## Instanced once per floor with the X scale flipped on alternate floors so the stairs zigzag.
+static func fire_escape() -> Mesh:
+	if _cache.has("fire_escape"):
+		return _cache["fire_escape"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var iron := Color(0.17, 0.17, 0.18)
+	var rust := Color(0.26, 0.17, 0.12)
+	# Grated platform.
+	_box_into(st, Vector3(0.0, 0.0, 0.5), Vector3(1.0, 0.04, 1.0), iron)
+	# Railing: top rail, mid rail, uprights, and the two end posts.
+	_box_into(st, Vector3(0.0, 0.44, 0.98), Vector3(1.0, 0.035, 0.035), iron)
+	_box_into(st, Vector3(0.0, 0.24, 0.98), Vector3(1.0, 0.025, 0.025), iron)
+	for i in 8:
+		var x := -0.44 + float(i) * 0.125
+		_box_into(st, Vector3(x, 0.24, 0.98), Vector3(0.018, 0.44, 0.018), iron)
+	for sx: float in [-0.49, 0.49]:
+		_box_into(st, Vector3(sx, 0.24, 0.5), Vector3(0.03, 0.46, 0.9), rust)
+	# Stair down to the floor below, sloped across the bay.
+	var steps := 7
+	for i in steps:
+		var t := float(i) / float(steps - 1)
+		var x := lerpf(-0.36, 0.36, t)
+		var y := lerpf(-0.06, -0.86, t)
+		var z := lerpf(0.85, 0.25, t)
+		_box_into(st, Vector3(x, y, z), Vector3(0.12, 0.025, 0.28), iron)
+	# Stringer under the stair.
+	_box_into(st, Vector3(0.0, -0.47, 0.55), Vector3(0.9, 0.05, 0.05), rust)
+	st.generate_normals()
+	var mesh := st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.85
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh.surface_set_material(0, mat)
+	_cache["fire_escape"] = mesh
+	return mesh
+
+
 static func palm_trunk() -> Mesh:
 	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
 
