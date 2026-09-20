@@ -127,11 +127,12 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 92)
+## 6. Where the game stands (build 93)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 93: a car's five night lights are one mesh, not five nodes.
 - 92: the sea. Real wave normals (it had none, so it was lit as a flat sheet), tight foam, the
   sky mixed in by fresnel with a sun glare path, the sea-floor box dropped below the troughs,
   and the horizon plane sunk away from the camera so it stops z-fighting the water. Plus a
