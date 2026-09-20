@@ -521,3 +521,14 @@ static func model_grass_tuft(variant: int) -> Mesh:
 	var offsets: Array[float] = [0.0, 0.21, 0.49, 0.79, 1.11]
 	var v := clampi(variant, 0, 4)
 	return _plant_material(model_mesh(MODEL_DIR + "grass_tuft.glb", ["grass_medium_02_" + "abcde"[v]], [], _shift(Vector3(-offsets[v], 0.0, 0.0))))
+
+
+## Material for the far building boxes: windows from a fixed grid, lit at night (see
+## shaders/building_lod.gdshader; instance color = facade, custom = style, lit ratio, seed, plain).
+static func building_lod_material() -> ShaderMaterial:
+	if _cache.has("building_lod_mat"):
+		return _cache["building_lod_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/building_lod.gdshader")
+	_cache["building_lod_mat"] = mat
+	return mat

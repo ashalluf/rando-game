@@ -91,6 +91,8 @@ func build() -> void:
 			Landmarks.build(lm, self, _statics, plan, true)
 			built_landmarks.append(lm.id)
 	_mm_nodes = _batch.build(self)
+	if _mm_nodes.has("lod_box"):
+		(_mm_nodes["lod_box"] as MultiMeshInstance3D).material_override = PropFactory.building_lod_material()
 
 
 ## The whole area this chunk owns: its block plus the roads on its +X and +Z sides.
@@ -808,16 +810,18 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 			# Far away: just the boxes, in the facade color, no props. They do get plain box
 			# collision so a fast car cannot drive into a footprint and get shot through the
 			# floor when the detailed building appears around it.
-			building.plan_only()
+			var lod_style := building.plan_only()
+			# Custom data for shaders/building_lod.gdshader: window style, lit ratio, seed, plain flag.
+			var custom := Color(float(building.window_style) / 4.0, lod_style.lit_ratio, float(building.seed % 997) / 997.0, 0.0)
 			for part in building.parts:
 				var size: Vector3 = part.size
 				var part_center: Vector3 = part.center
 				# The batch adds the relief itself; the shape needs it explicitly.
-				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(size), base + part_center), building.facade_color)
+				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(size), base + part_center), building.facade_color, custom)
 				_add_lod_shape(size, building.position + part_center)
 			var fp: Vector2 = building.footprint
 			if fp.x > 0.0 and building.plinth_depth > 0.05:
-				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66))
+				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
 			building.free()
 			building_count += 1
 

@@ -15,7 +15,10 @@ const BODY_MODELS := {
 	BodyType.SPORTS: "res://assets/models/car_sports.glb",
 }
 ## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
-const MODEL_YAW := {BodyType.SEDAN: PI * 0.5, BodyType.PICKUP: PI * 0.5, BodyType.VAN: PI * 0.5, BodyType.SPORTS: PI * 0.5}
+## All four models come out of Meshy with the nose along +X; -PI/2 puts the nose at -Z, which is
+## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
+const MODEL_YAW := {BodyType.SEDAN: -PI * 0.5, BodyType.PICKUP: -PI * 0.5, BodyType.VAN: -PI * 0.5, BodyType.SPORTS: -PI * 0.5}
+const PAINT_SHADER := preload("res://shaders/car_paint.gdshader")
 const PAINTS := [
 	Color(0.85, 0.15, 0.12), Color(0.15, 0.35, 0.75), Color(0.92, 0.92, 0.9), Color(0.12, 0.12, 0.14),
 	Color(0.95, 0.75, 0.15), Color(0.2, 0.6, 0.35), Color(0.7, 0.7, 0.72), Color(0.9, 0.45, 0.15),
@@ -410,9 +413,16 @@ func _add_body_model(length: float) -> bool:
 		first = false
 		var mat := m.mesh.surface_get_material(0)
 		if mat is StandardMaterial3D:
-			var tinted := (mat as StandardMaterial3D).duplicate() as StandardMaterial3D
-			tinted.albedo_color = paint
-			m.material_override = tinted
+			# Car paint shader: bodywork takes the paint, glass and tires stay dark and glossy.
+			var sm := mat as StandardMaterial3D
+			var painted := ShaderMaterial.new()
+			painted.shader = PAINT_SHADER
+			painted.set_shader_parameter("albedo_tex", sm.albedo_texture)
+			painted.set_shader_parameter("paint", paint)
+			if sm.normal_texture:
+				painted.set_shader_parameter("normal_tex", sm.normal_texture)
+				painted.set_shader_parameter("has_normal", true)
+			m.material_override = painted
 	if first:
 		return false
 	# Longest horizontal axis is the length; scale so it matches our chassis.

@@ -169,6 +169,8 @@ pedestrian 44, each jet 30. `docs/ASSETS.md` has the table.
 - Physics queries are stale for a frame after an origin shift (`_query_hold`).
 - Bodies spawned overlapping a static shape get shot through thin floors; far chunks now carry
   collision for buildings and terrain so nothing sits inside a footprint when detail arrives.
+- Every Meshy car model has its nose along +X: `Vehicle.MODEL_YAW` -PI/2 puts it at -Z, the
+  physics forward. Car paint is `shaders/car_paint.gdshader` (luminance split), not a tint.
 - Meshy: rigs have a cm skeleton under a 0.01 armature; animated exports drop PBR maps and set
   metallic 1 + emissive; models come out along +X or -X (`MODEL_YAW` tables); car paint needs the
   base color greyscaled (`shrink_glb.py --desaturate`) so the tint works.

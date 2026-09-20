@@ -55,6 +55,14 @@ Build in this order, one milestone per PR or a few PRs.
   campus, a bigger airport with flyable jets, bullets that hurt people. See `docs/HANDOFF.md`
   for the state after that batch and the suggested next steps.
 
+- **Owner feedback 2026-09-20** (after builds 54 to 58): no more Meshy anywhere, real
+  commercial districts (plazas, big-box stores, groceries, fast food, gas stations), everything
+  ultra realistic (buildings still look like blocks from the air, streets need far more
+  detail), tsunami-size waves, thunderstorms and weather, unlimited jumps, a much better
+  minimap, sounds from Freesound (needs the owner's API key). Queue, in order: cars forward +
+  paint + far windows + minimap + jumps (build 60), streets detail, commercial city, weather and
+  waves, facade geometry and rooftops, Freesound sounds.
+
 - **World character** (asked 2026-09-19): hills and slopes through the whole city; the
   illusion of uniqueness through cheap seeded surface variation, never hand placement.
   - [x] Push 1 (build 57): rolling relief through the city (`MacroMap.relief_at`).
@@ -177,6 +185,19 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-20 Cars face forward, real car paint, far buildings with windows, night minimap,
+  unlimited jumps.** All four Meshy car models have their nose along +X, so `Vehicle.MODEL_YAW`
+  is now -PI/2 for every type (with +PI/2 every car, driven or traffic, moved tail first: owner
+  "a ton of the vehicles drive backwards"). The whole-model tint that made cars "one color,
+  horribly painted" is replaced by `shaders/car_paint.gdshader`: bodywork (bright pixels of the
+  greyscaled base color) takes the paint as glossy metallic, glass and tires (dark pixels) stay
+  dark and glossy. Far LOD boxes use `shaders/building_lod.gdshader` through
+  `PropFactory.building_lod_material()`: a fixed window grid per wall from the instance's
+  scale, style / lit ratio / seed in `INSTANCE_CUSTOM`, lit windows at night, a plain flag for
+  plinths; the skyline no longer reads as blocks from the air. Minimap redrawn dark with relief
+  shading, outlined roads, landmark names, car chips, view cone, driving zoom.
+  `Player.unlimited_air_jumps` is on. The harness takes `VW` / `VH` for big screenshots.
 
 - **2026-09-19 The illusion of uniqueness (owner: "subtly changing things on the surface").**
   Nothing is hand placed; every choice is seeded. Roads: `CityChunk._road_look()` hashes the
