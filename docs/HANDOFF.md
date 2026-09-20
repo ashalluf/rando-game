@@ -127,11 +127,13 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 72)
+## 6. Where the game stands (build 73)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 73: character pass: per-person clothing colour, height and gait, proper skin and cloth
+  shading. Further realism is blocked on a Sketchfab API token (see the decisions log).
 - 72: real generated palm trees and palm-lined streets across the city.
 - 71: cars fly (stabilised air control, boost thrusts along the camera), rebuilt explosions
   (light flash, fireball, smoke, sparks, shockwave, scorch, camera shake), `tools/glshot/fx_shot.gd`.

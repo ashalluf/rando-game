@@ -14,14 +14,14 @@ var _age: float = 0.0
 
 
 ## The real character as one tumbling body. False when the model cannot be loaded.
-func build_from_rig(path: String) -> bool:
+func build_from_rig(path: String, look: int = -1) -> bool:
 	if not ResourceLoader.exists(path):
 		return false
 	var scene: PackedScene = load(path)
 	if scene == null:
 		return false
 	var inst := scene.instantiate() as Node3D
-	Pedestrian.prepare_rig(inst)
+	Pedestrian.prepare_rig(inst, look)
 	inst.rotation.y = PI
 	var body := RigidBody3D.new()
 	body.collision_layer = 4

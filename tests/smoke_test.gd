@@ -602,6 +602,23 @@ func _test_city() -> void:
 	await _ticks(3)
 	_check(city.max_pedestrians < full_cap and get_tree().get_nodes_in_group("pedestrian").size() <= city.max_pedestrians + 2, "lowest quality trims the crowd to %d (was cap %d)" % [city.max_pedestrians, full_cap])
 	quality_node.apply_level(0)
+	# Characters: every rig wears the character shader, and a crowd shows several outfits and
+	# several heights rather than three models copied (owner, 2026-09-20).
+	var shaded := 0
+	var outfits := {}
+	var heights := {}
+	for ped in get_tree().get_nodes_in_group("pedestrian"):
+		for mi in (ped as Node).find_children("*", "MeshInstance3D", true, false):
+			var ov := (mi as MeshInstance3D).material_override
+			if ov is ShaderMaterial:
+				shaded += 1
+				outfits[Vector3(ov.get_shader_parameter("cloth_hue"), ov.get_shader_parameter("cloth_sat"), ov.get_shader_parameter("cloth_strength"))] = true
+		var vis: Node3D = (ped as Node).get("_visual")
+		if vis:
+			heights[snappedf(vis.scale.y, 0.01)] = true
+	_check(shaded > 10, "pedestrians use the character shader (%d)" % shaded)
+	_check(outfits.size() >= 5, "the crowd wears %d different outfits" % outfits.size())
+	_check(heights.size() >= 5, "the crowd has %d different heights" % heights.size())
 	var avatar: Node = player.get_node_or_null("Visual/Avatar")
 	_check(avatar != null and avatar.find_child("AnimationPlayer", true, false) != null and not player.get_node("Visual/Body").visible, "the player wears the animated character, capsule hidden")
 	var traffic_node: Node3D = city.get_node("Traffic")

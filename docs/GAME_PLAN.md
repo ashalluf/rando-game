@@ -186,6 +186,22 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Character pass, and the hard limit on it (owner: "the 3D characters are horrible,
+  I want this almost indistinguishable from reality").** What was wrong is measurable: each
+  pedestrian is 8,300 triangles with a single 1024 colour texture, no normal map and no
+  roughness map, and there are three models for the whole city. Their glTF material also asks
+  for full white emission and double specular, i.e. a shiny self-lit mannequin.
+  Fixed inside those limits: `shaders/character.gdshader` rebuilds surface response (skin vs
+  cloth roughness, subsurface on skin, no emission) and recolours each character's clothes, so
+  three models now read as many people; plus per-character height and width, and a random offset
+  into the walk cycle so the crowd is not in lockstep. Checks: 14 outfits, 21 heights.
+  **Not fixable in code:** 8.3k triangles and a 1K albedo cannot be photoreal, however good the
+  shading. That needs scanned or sculpted humans at 30k+ triangles with normal and roughness
+  maps. Sketchfab's search API works here without credentials and has rigged humans at 25k to
+  130k triangles under CC Attribution (free commercially, credit in `docs/ASSETS.md`), but
+  downloading returns 401 without a token. Mixamo is 403 here. So the owner needs to supply one
+  API token before characters can improve further; everything else is already done.
+
 - **2026-09-20 Real palm trees and palm-lined streets (owner: "need more foliage, more trees,
   it's Cali, put palm trees, make the nature more unique").** The old palm was a cylinder trunk
   with three flat boxes for fronds and lived only on beaches. `PropFactory.palm()` now generates

@@ -298,6 +298,19 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
   generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own
   ShaderMaterial (see the decisions log for why). Rooftop props are primitives built in code.
+- Characters: every rig (pedestrians, ragdolls, the player) renders through
+  `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
+  one flat 1K colour texture and a glTF material with full white emission and double specular,
+  which renders a shiny self-lit mannequin; the shader replaces that with sensible roughness,
+  a little subsurface on skin, and a per-character garment colour so a city built from three
+  models does not read as three people copied a thousand times. Clothing is told from skin by
+  hue distance from a skin hue **and** saturation: hue alone lets grey fabric pass as skin
+  (grey's hue is arbitrary), saturation alone rejects strongly lit or shadowed skin and turns
+  faces pink. Materials are cached per look (`Pedestrian.CHARACTER_LOOKS`), so hundreds of
+  pedestrians share a handful. Pedestrians also get a height and width scale and a random seek
+  into the walk cycle: a crowd stepping in unison is the loudest tell that they are one model.
+  **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
+  back to a blank white material, which looks like a missing texture rather than a broken shader.
 - Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from
   `avatar_model`, one of `Pedestrian.MODELS`): idle / walk / run clips picked by speed, frozen or
   slowed stride in the air, forward lean while boosting. The orange capsule in `player.tscn` is

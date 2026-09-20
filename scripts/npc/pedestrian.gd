@@ -35,6 +35,8 @@ var _down: bool = false
 var _anim: AnimationPlayer
 ## Which rig this pedestrian wears ("" for the box person); the ragdoll keeps the same one.
 var _model_path: String = ""
+## Clothing look index, so the ragdoll that replaces this pedestrian keeps the same outfit.
+var _look: int = 0
 ## Update LOD: far pedestrians move and animate every Nth physics frame (see _update_lod).
 var _lod_stride: int = 1
 var _lod_tick: int = 0
@@ -105,9 +107,13 @@ func _add_model() -> bool:
 		return false
 	var inst := scene.instantiate() as Node3D
 	inst.rotation.y = PI # Meshy rigs face +Z; our visuals face -Z
-	prepare_rig(inst)
+	_look = _rng.randi() % CHARACTER_LOOKS
+	prepare_rig(inst, _look)
 	_visual.add_child(inst)
 	_model_path = path
+	# Build variation: nobody in a crowd is the same height or width as the person next to them.
+	var tall := _rng.randf_range(0.90, 1.10)
+	_visual.scale = Vector3(_rng.randf_range(0.94, 1.07), tall, _rng.randf_range(0.94, 1.07))
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim:
 		for clip in _anim.get_animation_list():
@@ -117,6 +123,9 @@ func _add_model() -> bool:
 		if _anim.has_animation("Casual_Walk_inplace"):
 			_anim.play("Casual_Walk_inplace")
 			_anim.speed_scale = walk_speed / WALK_CLIP_SPEED
+			# Start everyone at a different point in the cycle. A crowd stepping in perfect
+			# unison is the most obvious tell that they are all the same model.
+			_anim.seek(_rng.randf() * _anim.get_animation("Casual_Walk_inplace").length, true)
 	return true
 
 
@@ -127,7 +136,7 @@ func _add_model() -> bool:
 ## only the base color and leaves the glTF defaults of metallic 1 plus a full emission of the
 ## same texture (a shiny, self-lit mannequin): make it plain skin and cloth. The material is
 ## shared by every instance of the model.
-static func prepare_rig(inst: Node3D) -> void:
+static func prepare_rig(inst: Node3D, look: int = -1) -> void:
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).custom_aabb = AABB(Vector3(-150.0, -10.0, -150.0), Vector3(300.0, 260.0, 300.0))
 		var mat := (mi as MeshInstance3D).mesh.surface_get_material(0) as StandardMaterial3D
@@ -135,6 +144,36 @@ static func prepare_rig(inst: Node3D) -> void:
 			mat.metallic = 0.0
 			mat.roughness = 0.85
 			mat.emission_enabled = false
+		if look >= 0 and mat:
+			(mi as MeshInstance3D).material_override = character_material(mat.albedo_texture, look)
+
+
+## Character materials, shared by look so a crowd of hundreds still uses a handful of materials.
+## `look` picks a clothing hue and brightness; see shaders/character.gdshader.
+const CHARACTER_LOOKS := 14
+static var _looks: Dictionary = {}
+
+
+static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
+	if albedo == null:
+		return null
+	var key := "%d_%d" % [albedo.get_instance_id(), look % CHARACTER_LOOKS]
+	if _looks.has(key):
+		return _looks[key]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4200 + (look % CHARACTER_LOOKS)
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/character.gdshader")
+	mat.set_shader_parameter("albedo_tex", albedo)
+	# One look in five keeps the original outfit, so the source clothes still appear.
+	var plain := look % 5 == 0
+	mat.set_shader_parameter("cloth_hue", rng.randf())
+	# Most clothes are muted; a few people wear something bright.
+	mat.set_shader_parameter("cloth_sat", rng.randf_range(0.10, 0.30) if rng.randf() < 0.75 else rng.randf_range(0.35, 0.62))
+	mat.set_shader_parameter("cloth_value", rng.randf_range(0.55, 1.20))
+	mat.set_shader_parameter("cloth_strength", 0.0 if plain else rng.randf_range(0.55, 0.85))
+	_looks[key] = mat
+	return mat
 
 
 func _add_hit_area() -> void:
@@ -260,7 +299,7 @@ func knock(impulse: Vector3) -> void:
 	doll.position = position
 	doll.rotation.y = _visual.rotation.y
 	get_parent().add_child(doll)
-	if _model_path == "" or not doll.build_from_rig(_model_path):
+	if _model_path == "" or not doll.build_from_rig(_model_path, _look):
 		doll.build(shirt, pants, skin)
 	PhysicsBudget.register_debris(doll)
 	doll.fling(impulse)
