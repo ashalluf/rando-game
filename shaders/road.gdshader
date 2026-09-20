@@ -28,7 +28,7 @@ uniform float normal_depth = 0.75;
 // Spacing of expansion joints in metres (0 = none). Pavements are poured in slabs; the grid of
 // joints between them is the single most recognisable thing about a concrete sidewalk.
 uniform float joint_spacing = 0.0;
-uniform float joint_depth = 0.55;
+uniform float joint_depth = 0.26;
 
 global uniform float road_wetness;
 
@@ -98,33 +98,33 @@ void fragment() {
 		float inside = step(abs(local.x), half_w) * step(abs(local.y), half_h);
 		float edge = max(abs(local.x) / half_w, abs(local.y) / half_h);
 		float seam = inside * smoothstep(0.78, 1.0, edge);
-		float shade = 0.72 + 0.44 * hash12(cell + 13.3);
-		base = mix(base, base * shade, inside * 0.85);
-		base *= 1.0 - 0.45 * seam;
+		float shade = 0.84 + 0.26 * hash12(cell + 13.3);
+		base = mix(base, base * shade, inside * 0.5);
+		base *= 1.0 - 0.28 * seam;
 		rough = mix(rough, rough * (0.7 + 0.5 * hash12(cell + 3.3)), inside);
 	}
 
 	// Cracks: fold the noise so it ridges, then keep only the sharpest lines.
 	float ridge = 1.0 - abs(fbm(w * 0.75 + 17.0 + seed) * 2.0 - 1.0);
 	float crack = smoothstep(0.93, 0.999, ridge) * crack_amount;
-	base *= 1.0 - 0.5 * crack;
+	base *= 1.0 - 0.38 * crack;
 	rough = mix(rough, 1.0, crack * 0.6);
 
 	// Oil and rubber: sparse dark blotches, smoother than the surrounding tarmac.
 	// Kept fine and sparse: at a low frequency this reads as wandering tendrils of damp rather
 	// than spots of oil.
 	float stain = smoothstep(0.74, 0.96, fbm(w * 0.38 + 41.0 + seed)) * stain_amount;
-	base *= 1.0 - 0.24 * stain;
+	base *= 1.0 - 0.15 * stain;
 	rough = mix(rough, 0.45, stain * 0.5);
 
 	// Expansion joints, with each slab cast at a slightly different shade.
 	if (joint_spacing > 0.01) {
 		vec2 slab = w / joint_spacing;
 		vec2 edge = abs(fract(slab) - 0.5);
-		float line = smoothstep(0.5, 0.5 - 0.04, max(edge.x, edge.y));
+		float line = smoothstep(0.5, 0.5 - 0.025, max(edge.x, edge.y));
 		base *= mix(1.0, 1.0 - joint_depth, line);
 		rough = mix(rough, 1.0, line * 0.5);
-		base *= 0.93 + 0.14 * hash12(floor(slab) + seed);
+		base *= 0.965 + 0.07 * hash12(floor(slab) + seed);
 	}
 
 	// Wet tarmac goes darker and far glossier.

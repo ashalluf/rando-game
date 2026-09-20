@@ -337,7 +337,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   repeats visibly and never reads as a flat grey plane. Wetness comes from the `road_wetness`
   global that `PropFactory.set_wetness()` sets, not from walking materials one at a time.
   Pavements use the same shader with `joints` (expansion-joint spacing in metres) and a lower
-  `wear`, so they read as poured slabs rather than a grey plane.
+  `wear`, so they read as poured slabs rather than a grey plane. Keep all of it subtle: the first
+  pass used strong patch blends and dark joints and the ground read as a printed pattern rather
+  than a surface.
+  Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
+  window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
+  plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
   `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
   Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.

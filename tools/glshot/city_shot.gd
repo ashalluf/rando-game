@@ -17,8 +17,21 @@ func _initialize() -> void:
 	var f := OS.get_environment("FRAMES")
 	if f != "":
 		frames = int(f)
+	# Hold the requested height: the player falls during the seconds of streaming, so an aerial
+	# shot taken after it lands on the street instead of looking down on the city.
+	var hold := 0.0
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("--spawn="):
+			var parts := arg.trim_prefix("--spawn=").split(",")
+			if parts.size() >= 5:
+				hold = parts[4].to_float()
 	for i in frames:
 		await process_frame
+		if hold > 0.0:
+			var player: Node3D = get_first_node_in_group("player")
+			if player:
+				player.global_position.y = hold
+				player.set("velocity", Vector3.ZERO)
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "city_shot.png"
