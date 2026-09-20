@@ -37,7 +37,16 @@ func _initialize() -> void:
 	var cam := Camera3D.new()
 	root3d.add_child(cam)
 	var h: float = b.height
-	cam.look_at_from_position(Vector3(lot * 2.0, h * 0.9, lot * 3.0), Vector3(0, h * 0.45, 0))
+	# CAM_DIST / CAM_EYE / CAM_TGT frame a close-up (metres): distance out from the corner, eye
+	# height, and the height it looks at. Without them the whole building is framed, which is
+	# useless for judging facade detail.
+	var dist := float(_env_int("CAM_DIST", 0))
+	if dist > 0.0:
+		var eye := float(_env_int("CAM_EYE", 6))
+		var tgt := float(_env_int("CAM_TGT", 10))
+		cam.look_at_from_position(Vector3(dist * 0.45, eye, dist), Vector3(0, tgt, 0))
+	else:
+		cam.look_at_from_position(Vector3(lot * 2.0, h * 0.9, lot * 3.0), Vector3(0, h * 0.45, 0))
 	cam.far = 2000.0
 	cam.current = true
 	for i in 10:

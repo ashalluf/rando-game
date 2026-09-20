@@ -46,8 +46,15 @@ uniform float weathering = 0.5;
 // World Y of the building's base (grime is measured up from here).
 uniform float base_y = 0.0;
 
+// Fake rooms behind the glass. How deep the virtual room is (meters).
+uniform float room_depth = 3.2;
+uniform bool interior_enabled = true;
+
 varying vec3 local_pos;
 varying vec3 local_normal;
+varying vec3 world_pos;
+varying vec3 world_normal;
+varying vec3 world_tangent;
 varying float world_y;
 
 
@@ -66,7 +73,74 @@ float hash31(vec3 p) {
 void vertex() {
 	local_pos = VERTEX;
 	local_normal = NORMAL;
-	world_y = (MODEL_MATRIX * vec4(VERTEX, 1.0)).y;
+	vec4 wp = MODEL_MATRIX * vec4(VERTEX, 1.0);
+	world_y = wp.y;
+	world_pos = wp.xyz;
+	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	// The wall's horizontal axis: local Z on the +-X faces, local X on the +-Z faces.
+	vec3 t_local = abs(NORMAL.x) > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+	world_tangent = normalize((MODEL_MATRIX * vec4(t_local, 0.0)).xyz);
+}
+
+
+// Interior mapping: trace the view ray into a box behind the window and return the colour of
+// whichever inner surface it reaches. A window shaded this way has real parallax - lean left and
+// you see the right-hand wall of the room - which is what stops a tower reading as a painted
+// box. `w` is the position across the window in 0..1, `dir` is the view ray in wall space
+// (x along the wall, y up, z into the building).
+vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float room_seed, out float depth_t) {
+	vec3 ro = vec3(w.x * wide, w.y * high, 0.0);
+	float best = 1e9;
+	int surface = 0; // 0 back wall, 1 side wall, 2 floor, 3 ceiling
+	if (dir.z > 1e-4) {
+		float t = deep / dir.z;
+		if (t > 0.0 && t < best) { best = t; surface = 0; }
+	}
+	if (abs(dir.x) > 1e-4) {
+		float t = ((dir.x > 0.0 ? wide : 0.0) - ro.x) / dir.x;
+		if (t > 0.0 && t < best) { best = t; surface = 1; }
+	}
+	if (abs(dir.y) > 1e-4) {
+		float t = ((dir.y > 0.0 ? high : 0.0) - ro.y) / dir.y;
+		if (t > 0.0 && t < best) { best = t; surface = dir.y > 0.0 ? 3 : 2; }
+	}
+	best = min(best, 1e8);
+	depth_t = clamp(best / max(deep, 0.01), 0.0, 2.0);
+
+	// Each room gets its own paint, and the surfaces differ the way a real room does: the
+	// ceiling catches the most daylight, the floor the least.
+	float tone = 0.62 + 0.45 * hash21(vec2(room_seed, 3.1));
+	// Offices are mostly neutral, but a few rooms are painted; the variety reads at a glance.
+	float tinted = step(0.72, hash21(vec2(room_seed, 17.9)));
+	vec3 paint = mix(vec3(0.76, 0.74, 0.70), vec3(0.44, 0.47, 0.52), hash21(vec2(room_seed, 7.7)) * 0.7);
+	paint = mix(paint, paint * vec3(1.15, 0.92, 0.80), tinted);
+	vec3 col = paint * tone;
+	if (surface == 0) {
+		col *= 0.78;
+	} else if (surface == 1) {
+		col *= 0.62;
+	} else if (surface == 2) {
+		col = mix(vec3(0.24, 0.20, 0.17), vec3(0.34, 0.32, 0.30), hash21(vec2(room_seed, 11.3))) * 0.9;
+	} else {
+		col *= 1.15;
+	}
+	// Light falls off with how far into the room the ray reached.
+	col *= mix(1.0, 0.35, clamp(depth_t, 0.0, 1.0));
+
+	// Blinds, hanging just inside the glass at a height that differs room to room. Nothing says
+	// "occupied building" like a facade where every blind is pulled to a different level.
+	float drop = hash21(vec2(room_seed, 23.7));
+	if (drop > 0.25) {
+		float level = 1.0 - (drop - 0.25) * 1.25;
+		if (w.y > level) {
+			vec3 blind = mix(vec3(0.80, 0.78, 0.72), vec3(0.55, 0.53, 0.50), hash21(vec2(room_seed, 31.1)));
+			// Slats.
+			blind *= 0.88 + 0.12 * step(0.5, fract((w.y - level) * 26.0));
+			col = blind;
+			depth_t = 0.0;
+		}
+	}
+	return col;
 }
 
 
@@ -119,20 +193,32 @@ void fragment() {
 		// Window mask for this style.
 		bool glass = false;
 		bool frame = false;
+		// Window opening in cell units (centre and half size), kept so the fake interior knows
+		// where the hole in the wall is.
+		vec2 win_c = vec2(0.5, 0.52);
+		vec2 win_h = vec2(0.27, 0.25);
 		if (storefront) {
 			glass = fv > 0.12 && fv < 0.78 && abs(fu - 0.5) < 0.44;
 			frame = fv >= 0.78 && fv < 0.90; // awning band
+			win_c = vec2(0.5, 0.45);
+			win_h = vec2(0.44, 0.33);
 		} else if (window_style == 0) {
 			glass = abs(fu - 0.5) < 0.27 && abs(fv - 0.52) < 0.25;
 		} else if (window_style == 1) {
 			glass = abs(fv - 0.55) < 0.27;
 			frame = glass && abs(fu - 0.5) > 0.47;
 			glass = glass && !frame;
+			win_c = vec2(0.5, 0.55);
+			win_h = vec2(0.47, 0.27);
 		} else if (window_style == 2) {
 			frame = fu < 0.05 || fv < 0.06;
 			glass = !frame;
+			win_c = vec2(0.525, 0.53);
+			win_h = vec2(0.475, 0.47);
 		} else {
 			glass = abs(fu - 0.5) < 0.16 && abs(fv - 0.5) < 0.40;
+			win_c = vec2(0.5, 0.5);
+			win_h = vec2(0.16, 0.40);
 		}
 
 		// Reveal: the wall band right around a punched or slot window (sill, jambs, lintel).
@@ -146,14 +232,31 @@ void fragment() {
 		if (glass) {
 			float k = hash31(vec3(col, row, face_id * 17.0 + seed));
 			bool lit = k < lit_ratio;
+			float room_seed = hash31(vec3(col, row, face_id * 17.0 + seed)) * 97.0;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
+
+			if (interior_enabled) {
+				// Where we are inside the opening, and the view ray in wall space.
+				vec2 w = clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
+				vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+				vec3 up = vec3(0.0, 1.0, 0.0);
+				vec3 tan_dir = normalize(world_tangent - world_normal * dot(world_tangent, world_normal));
+				vec3 ray = vec3(dot(to_frag, tan_dir), dot(to_frag, up), -dot(to_frag, world_normal));
+				float wide = max(2.0 * win_h.x * pitch, 0.2);
+				float high = max(2.0 * win_h.y * (storefront ? ground_floor_height : floor_height), 0.2);
+				float depth_t = 0.0;
+				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, depth_t);
+				// The glass still carries its own tint; the room shows through it.
+				albedo = mix(room, albedo, 0.28);
+			} else {
+				// Fallback: a soft vertical gradient behind the glass.
+				albedo *= 0.85 + 0.3 * fv;
+			}
 			// Darker toward the frame so the pane reads as set into the wall.
 			float du = abs(fu - 0.5);
 			float dv = abs(fv - (storefront ? 0.45 : 0.52));
 			float inset = smoothstep(0.0, 0.06, max(du - 0.2, dv - 0.18));
 			albedo *= mix(1.0, 0.45, inset * (storefront ? 0.5 : 1.0));
-			// Fake interior: a soft vertical gradient behind the glass.
-			albedo *= 0.85 + 0.3 * fv;
 			// Tinted glass, not a mirror: with more metal the panes reflect pure sky and whole
 			// curtain-wall towers read as see-through cages from a distance.
 			rough = 0.32;

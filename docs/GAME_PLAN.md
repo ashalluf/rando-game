@@ -186,6 +186,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Interior mapping on every window (owner: "set the bar for visuals extremely
+  high").** Buildings were boxes with windows painted on them, which is what read as cheap up
+  close however good the lighting was. The building shader now traces the view ray into a
+  virtual room behind each pane and shades the inner surface it hits, giving real parallax: move
+  along a facade and you see into each room from a different angle. Each room has its own paint,
+  a floor darker than its ceiling, light falling off with depth, and a blind pulled down to its
+  own height, which is what makes a facade read as occupied. At night the existing lit-window
+  logic tints those rooms warm, so the skyline now has depth as well as brightness.
+  Needed a wall-space frame in the shader (`world_pos`, `world_normal`, `world_tangent`
+  varyings) and the window opening rectangle per style, which was previously implicit in the
+  glass test.
+
 - **2026-09-20 Character pass, and the hard limit on it (owner: "the 3D characters are horrible,
   I want this almost indistinguishable from reality").** What was wrong is measurable: each
   pedestrian is 8,300 triangles with a single 1024 colour texture, no normal map and no

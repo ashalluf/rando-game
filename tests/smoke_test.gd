@@ -762,6 +762,12 @@ func _test_buildings() -> void:
 		_check(b.height >= 4.0 and b.footprint.x > 2.0, "building %d has size %.0f x %.0f x %.0f m (%s)" % [b.seed % 1000, b.footprint.x, b.height, b.footprint.y, Building.Shape.keys()[b.shape]])
 	_check(all_solid, "every building has collision")
 	_check(all_shaded, "every building uses the building shader")
+	# Windows show a traced fake room behind the glass, not a painted gradient. The uniforms
+	# are left at their defaults by Building, so check the shader declares them.
+	var uniforms := {}
+	for u in Building.SHADER.get_shader_uniform_list():
+		uniforms[u.name] = true
+	_check(uniforms.has("room_depth") and uniforms.has("interior_enabled"), "the building shader does interior mapping")
 	var framed := 0
 	var frames_fit := true
 	for b in get_tree().get_nodes_in_group("building"):

@@ -294,6 +294,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the
   streamer shifts every Node3D child). Store true world positions only via `WorldState.to_world()`.
+- Building windows use **interior mapping**: `shaders/building.gdshader` traces the view ray
+  into a virtual room behind each pane and shades whichever inner surface it reaches, so windows
+  have true parallax (lean left, see the room's right wall) instead of glass painted on a wall.
+  Each room gets its own paint, depth falloff and a blind pulled to its own height. This is the
+  single technique that stops a box reading as a box; do not replace it with a gradient.
+  `room_depth` and `interior_enabled` are the knobs.
 - Buildings: `Building` (`scripts/world/building.gd`, scene `scenes/props/building.tscn`) is a
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
   generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own
