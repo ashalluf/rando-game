@@ -17,6 +17,8 @@ uniform float falloff : hint_range(0.5, 6.0) = 2.4;
 void fragment() {
 	float r = clamp(1.0 - length(UV - vec2(0.5)) * 2.0, 0.0, 1.0);
 	float a = pow(r, falloff) * lamp_factor * strength;
-	ALBEDO = tint;
-	ALPHA = a;
+	// COLOR carries the per-part tint, so one mesh can hold a car's white headlights, its red
+	// tail lights and its beam on the road and still be a single draw.
+	ALBEDO = tint * COLOR.rgb;
+	ALPHA = a * COLOR.a;
 }

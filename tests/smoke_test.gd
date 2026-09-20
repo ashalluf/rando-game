@@ -735,13 +735,16 @@ func _test_city() -> void:
 	for n in city.find_children("Batch_lamp_pool", "MultiMeshInstance3D", true, false):
 		pools += (n as MultiMeshInstance3D).multimesh.instance_count
 	_check(pools > 20, "lamps throw a pool of light on the pavement (%d)" % pools)
+	# Every car carries its headlights, tail lights and road beam as one mesh (one draw, not
+	# five - there are up to 150 cars on the road).
 	var car_lights := 0
+	var cars_seen := 0
 	for car in traffic_cars_for_lights(city):
-		for mi in (car as Node).find_children("*", "MeshInstance3D", false, false):
-			var mm := (mi as MeshInstance3D).mesh
-			if mm and mm.surface_get_material(0) is ShaderMaterial:
-				car_lights += 1
-	_check(car_lights >= 5, "cars carry head and tail lights (%d faces)" % car_lights)
+		cars_seen += 1
+		var lights: Node = (car as Node).get_node_or_null("NightLights")
+		if lights and (lights as MeshInstance3D).mesh and (lights as MeshInstance3D).mesh.surface_get_material(0) is ShaderMaterial:
+			car_lights += 1
+	_check(cars_seen > 0 and car_lights == cars_seen, "cars carry head and tail lights (%d of %d)" % [car_lights, cars_seen])
 	day.hour = 12.0
 	day._apply()
 	_check(day.night_factor < 0.05, "noon clears it")

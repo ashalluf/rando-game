@@ -266,10 +266,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `max(night_factor, weather_darken * 0.85)`, published as the `lamp_factor` shader global, so
   the lamps come on in a storm at noon too. Alongside it, and always on, is the
   additive night quad (`shaders/light_pool.gdshader`, which reads `lamp_factor`,
-  `PropFactory.light_pool()` / `lamp_face()`): a pool of light on the pavement under each lamp (in the lamp's batch, so
-  shooting the lamp takes its light with it) and head, tail and beam lights on every `Vehicle`
-  (`_add_night_lights`, needed because `Vehicle._box()` skips every primitive once a generated
-  body model is in use). It reads `night_factor` itself, so it costs nothing by day.
+  `PropFactory.light_pool()` / `lamp_face()` / `vehicle_lights()`): a pool of light on the
+  pavement under each lamp (in the lamp's batch, so shooting the lamp takes its light with it)
+  and head, tail and beam lights on every `Vehicle` (`_add_night_lights`, needed because
+  `Vehicle._box()` skips every primitive once a generated body model is in use). A car's five
+  lights are one mesh with the colours in the vertex colour, so 150 cars cost 150 draws and not
+  750, and they stop drawing past 160 m. The shader reads `lamp_factor` itself, so all of it
+  costs nothing by day.
 - Character arms: the generated walk and idle clips hold the arms out in an A-pose, so everyone
   walked the city like a scarecrow. `Pedestrian.fix_arm_pose()` rotates the shoulder rotation
   keys once on the shared animation resource (so it costs nothing at runtime and fixes every

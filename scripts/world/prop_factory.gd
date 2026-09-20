@@ -661,6 +661,57 @@ static func foliage_textured(src: StandardMaterial3D) -> ShaderMaterial:
 	return mat
 
 
+## Every light on one car in a single mesh: two headlights, two tail lights and the beam they
+## throw on the road ahead, in car-local space (forward is -Z). One mesh, one draw, instead of
+## five MeshInstance3D per car across a hundred and fifty cars. Colours ride in the vertex
+## colour; see shaders/light_pool.gdshader.
+static func vehicle_lights(width: float, length: float, y: float) -> Mesh:
+	var key := "car_lights_%.2f_%.2f_%.2f" % [width, length, y]
+	if _cache.has(key):
+		return _cache[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var head := Color(1.0, 0.95, 0.82, 1.0)
+	var tail := Color(1.0, 0.16, 0.10, 0.78)
+	for side: float in [-1.0, 1.0]:
+		var x := side * (width * 0.5 - 0.26)
+		_light_quad(st, Vector3(x, y, -length * 0.5 - 0.06), Vector3(0.62, 0.0, 0.0), Vector3(0.0, 0.34, 0.0), head)
+		_light_quad(st, Vector3(x, y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail)
+	# The beam on the road: a wide wedge lying flat in front of the car.
+	_light_quad(st, Vector3(0.0, 0.10 - y, -length * 0.5 - 4.2), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 11.0), Color(1.0, 0.94, 0.80, 0.62))
+	var mesh := st.commit()
+	mesh.surface_set_material(0, light_pool_material())
+	_cache[key] = mesh
+	return mesh
+
+
+## One quad centred at `at`, spanning `u` and `v`, with UVs 0..1 so the light shader's radial
+## falloff works, and `c` in the vertex colour.
+static func _light_quad(st: SurfaceTool, at: Vector3, u: Vector3, v: Vector3, c: Color) -> void:
+	var corners := [[-0.5, -0.5, Vector2(0.0, 1.0)], [0.5, -0.5, Vector2(1.0, 1.0)],
+		[0.5, 0.5, Vector2(1.0, 0.0)], [-0.5, 0.5, Vector2(0.0, 0.0)]]
+	var order := [0, 1, 2, 0, 2, 3]
+	for i in order:
+		var corner: Array = corners[i]
+		st.set_color(c)
+		st.set_uv(corner[2])
+		st.set_normal(Vector3(0.0, 0.0, 1.0))
+		st.add_vertex(at + u * corner[0] + v * corner[1])
+
+
+## Shared material for the additive night lights (see shaders/light_pool.gdshader).
+static func light_pool_material() -> ShaderMaterial:
+	if _cache.has("light_pool_mat"):
+		return _cache["light_pool_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/light_pool.gdshader")
+	mat.set_shader_parameter("tint", Color(1.0, 1.0, 1.0))
+	mat.set_shader_parameter("strength", 1.6)
+	mat.set_shader_parameter("falloff", 1.3)
+	_cache["light_pool_mat"] = mat
+	return mat
+
+
 static func palm_trunk() -> Mesh:
 	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
 
