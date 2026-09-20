@@ -1,25 +1,35 @@
 class_name Quality
 extends Node
-## Adaptive graphics quality (owner, 2026-09-20: "it's a little bit laggy"). Watches the frame
-## rate after the city has streamed in and steps the heavy effects down one level at a time
-## until the game runs smoothly: HIGH is everything, MEDIUM drops global illumination and
-## volumetric fog, LOW also drops reflections, ambient occlusion and renders at a lower scale.
-## It never steps back up (that would oscillate). Override with `-- --quality=0|1|2` on desktop
-## or `?quality=N` on the web; the HUD shows the level in use.
+## Adaptive graphics and population quality (owner, 2026-09-20: "it's a little bit laggy",
+## then "still super laggy"). Watches the frame rate after the city has streamed in and steps
+## down one level at a time until the game runs smoothly. Each level cuts render effects AND
+## the crowd / traffic caps, because the populated city is CPU work, not just GPU work:
+##   HIGH    everything on (SDFGI global illumination, volumetric fog, depth of field)
+##   MEDIUM  the desktop default: no SDFGI, no volumetric fog, no depth of field, shorter shadows
+##   LOW     also no SSR, no SSAO, no glow, no MSAA, 0.8 render scale, 60 % of the people and cars
+##   LOWEST  0.65 render scale, 35 % of the people and cars, short shadows, fewer physics props
+## It never steps back up (that would oscillate). Override with `-- --quality=0|1|2|3` on desktop
+## or `?quality=N` on the web; the HUD shows the level in use and a frame-time breakdown.
 
-enum Level { HIGH, MEDIUM, LOW }
+enum Level { HIGH, MEDIUM, LOW, LOWEST }
 
+## Level the desktop build starts at (HIGH only when forced with --quality=0).
+@export var start_level: Level = Level.MEDIUM
 ## Seconds after start before the first measurement (streaming and shader compiling settle).
-@export var warmup: float = 8.0
+@export var warmup: float = 5.0
 ## Length of each measurement window (seconds).
-@export var window: float = 4.0
+@export var window: float = 3.0
 ## Average FPS below which the next level down is picked.
 @export var min_fps: float = 50.0
-## Render scale used at LOW (1.0 = native resolution).
-@export var low_render_scale: float = 0.8
-## Frame-rate cap on desktop (owner, 2026-09-20: the MacBook ran hot; 60 is what consoles do).
-## 0 = uncapped. Not applied in the headless check, where it would slow the test loop.
+## Frame-rate cap on desktop (owner: the MacBook ran hot; 60 is what consoles do). 0 = uncapped.
+## Not applied in the headless check, where it would slow the test loop.
 @export var max_fps: int = 60
+## Render scale per level (1.0 = native resolution).
+@export var render_scale: PackedFloat32Array = PackedFloat32Array([1.0, 1.0, 0.8, 0.65])
+## Fraction of the crowd and traffic caps per level.
+@export var population: PackedFloat32Array = PackedFloat32Array([1.0, 1.0, 0.6, 0.35])
+## Directional shadow reach per level (meters).
+@export var shadow_distance: PackedFloat32Array = PackedFloat32Array([320.0, 200.0, 140.0, 90.0])
 
 var level: Level = Level.HIGH
 var _env: Environment
@@ -27,6 +37,10 @@ var _sun: DirectionalLight3D
 var _time: float = 0.0
 var _frames: int = 0
 var _forced: bool = false
+var _base_pedestrians: int = -1
+var _base_cars: int = -1
+var _base_loop_cars: int = -1
+var _base_props: int = -1
 
 
 func _ready() -> void:
@@ -34,20 +48,23 @@ func _ready() -> void:
 	if world_env:
 		_env = world_env.environment
 	_sun = get_parent().get_node_or_null("Sun") as DirectionalLight3D
-	if not OS.has_feature("web") and DisplayServer.get_name() != "headless":
+	var headless := DisplayServer.get_name() == "headless"
+	if not OS.has_feature("web") and not headless:
 		Engine.max_fps = max_fps
 	var forced := _override()
 	if forced >= 0:
 		_forced = true
-		_apply(mini(forced, Level.LOW) as Level)
-	elif OS.has_feature("web") or DisplayServer.get_name() == "headless":
+		apply_level(clampi(forced, 0, Level.LOWEST) as Level)
+	elif OS.has_feature("web") or headless:
 		# The web build renders with the Compatibility renderer, which has none of these
 		# effects, and the headless check has no frame rate to measure; nothing to adapt.
 		set_process(false)
+	else:
+		apply_level(start_level)
 
 
 func _process(delta: float) -> void:
-	if _forced or level == Level.LOW:
+	if _forced or level == Level.LOWEST:
 		set_process(false)
 		return
 	_time += delta
@@ -60,34 +77,65 @@ func _process(delta: float) -> void:
 	_time = warmup
 	_frames = 0
 	if fps < min_fps:
-		_apply((level + 1) as Level)
+		apply_level((level + 1) as Level)
 
 
 func level_name() -> String:
-	return ["high", "medium", "low"][level]
+	return ["high", "medium", "low", "lowest"][level]
 
 
-func _apply(new_level: Level) -> void:
+## Applies a level: render effects on the environment, sun and camera, then the population caps.
+func apply_level(new_level: Level) -> void:
 	level = new_level
+	_apply_render()
+	_apply_population()
+	print("Quality: ", level_name())
+
+
+func _apply_render() -> void:
 	if _env == null:
 		return
-	match level:
-		Level.HIGH:
-			pass
-		Level.MEDIUM:
-			_env.sdfgi_enabled = false
-			_env.volumetric_fog_enabled = false
-			if _sun:
-				_sun.directional_shadow_max_distance = 220.0
-		Level.LOW:
-			_env.sdfgi_enabled = false
-			_env.volumetric_fog_enabled = false
-			_env.ssr_enabled = false
-			_env.ssao_enabled = false
-			if _sun:
-				_sun.directional_shadow_max_distance = 160.0
-			get_viewport().scaling_3d_scale = low_render_scale
-	print("Quality: ", level_name())
+	var i := int(level)
+	_env.sdfgi_enabled = level == Level.HIGH
+	_env.volumetric_fog_enabled = level == Level.HIGH
+	_env.ssr_enabled = level <= Level.MEDIUM
+	_env.ssao_enabled = level <= Level.MEDIUM
+	_env.glow_enabled = level <= Level.MEDIUM
+	if _sun:
+		_sun.directional_shadow_max_distance = shadow_distance[i]
+		_sun.shadow_blur = 1.0 if level <= Level.MEDIUM else 0.6
+	var viewport := get_viewport()
+	if viewport:
+		viewport.scaling_3d_scale = render_scale[i]
+		viewport.msaa_3d = Viewport.MSAA_2X if level <= Level.MEDIUM else Viewport.MSAA_DISABLED
+		var cam := viewport.get_camera_3d()
+		if cam and cam.attributes is CameraAttributesPractical:
+			(cam.attributes as CameraAttributesPractical).dof_blur_far_enabled = level == Level.HIGH
+
+
+## Scales the crowd, traffic and physics caps and trims what is already there.
+func _apply_population() -> void:
+	var f := population[int(level)]
+	var city := get_parent()
+	if _base_pedestrians < 0 and "max_pedestrians" in city:
+		_base_pedestrians = city.max_pedestrians
+	if _base_pedestrians >= 0:
+		city.max_pedestrians = maxi(20, roundi(_base_pedestrians * f))
+		if city.has_method("trim_pedestrians"):
+			city.trim_pedestrians()
+	var traffic := city.get_node_or_null("Traffic")
+	if traffic:
+		if _base_cars < 0:
+			_base_cars = traffic.max_cars
+			_base_loop_cars = traffic.max_loop_cars
+		traffic.max_cars = maxi(6, roundi(_base_cars * f))
+		traffic.max_loop_cars = maxi(10, roundi(_base_loop_cars * f))
+	if _base_props < 0:
+		_base_props = PhysicsBudget.max_active_bodies
+	PhysicsBudget.max_active_bodies = maxi(120, roundi(_base_props * (1.0 if level <= Level.LOW else 0.5)))
+	# Far pedestrians update less often on the low levels.
+	Pedestrian.lod_mid = 60.0 if level <= Level.MEDIUM else 35.0
+	Pedestrian.lod_far = 140.0 if level <= Level.MEDIUM else 80.0
 
 
 func _override() -> int:

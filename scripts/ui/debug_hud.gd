@@ -9,6 +9,7 @@ var _player: Player
 
 
 func _ready() -> void:
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
 	if OS.has_feature("web"):
 		hints.text = "Click the game to grab the mouse.\n"
 		# ?nohud in the page URL hides the overlay (used by the screenshot harness).
@@ -68,6 +69,16 @@ func _process(_delta: float) -> void:
 	var quality := get_tree().current_scene.get_node_or_null("Quality")
 	if quality and not OS.has_feature("web"):
 		stats.text += "   quality %s" % quality.level_name()
+	# Where the frame time goes (ms): script + engine on the CPU, physics, GPU render, and how
+	# much the renderer draws. Screenshot this line when reporting lag.
+	var cpu_ms := Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+	var phys_ms := Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+	var rid := get_viewport().get_viewport_rid()
+	var gpu_ms := RenderingServer.viewport_get_measured_render_time_gpu(rid)
+	var draws := int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME))
+	var objects := int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME))
+	var tris := int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)) / 1000
+	stats.text += "\nframe: cpu %.1f ms   physics %.1f ms   gpu %.1f ms   draws %d   objects %d   tris %dk" % [cpu_ms, phys_ms, gpu_ms, draws, objects, tris]
 	if city and city.has_method("chunk_counts"):
 		var counts: Vector2i = city.chunk_counts()
 		var wp: Vector3 = city.world_position(_player.global_position)

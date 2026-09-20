@@ -88,6 +88,15 @@ func _maintain() -> void:
 			car.queue_free()
 	var density := density_at(Vector2(pw.x, pw.z))
 	var want := roundi(max_cars * density)
+	# Too many (a lower quality level or a quieter district): shed the farthest ones.
+	if cars.size() > want + 4:
+		cars.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return a.global_position.distance_squared_to(_player.global_position) > b.global_position.distance_squared_to(_player.global_position))
+		while cars.size() > want:
+			var far: Vehicle = cars.pop_front()
+			far.queue_free()
+	while loop_cars.size() > max_loop_cars:
+		var extra: Vehicle = loop_cars.pop_back()
+		extra.queue_free()
 	var tries := 0
 	while cars.size() < want and tries < 12 and PhysicsBudget.can_spawn():
 		tries += 1

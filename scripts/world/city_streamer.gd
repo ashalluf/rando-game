@@ -257,6 +257,19 @@ func ensure_loaded_at(local_pos: Vector3) -> void:
 
 
 ## Height of solid ground at a local position (terrain, or the sidewalk top in the city).
+## Frees the pedestrians farthest from the player until the count is under max_pedestrians
+## (Quality lowers the cap at run time).
+func trim_pedestrians() -> void:
+	var peds := get_tree().get_nodes_in_group("pedestrian")
+	var over := peds.size() - max_pedestrians
+	if over <= 0 or _player == null:
+		return
+	var pp := _player.global_position
+	peds.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_squared_to(pp) > b.global_position.distance_squared_to(pp))
+	for i in over:
+		(peds[i] as Node).queue_free()
+
+
 ## The scene places the player at y 1.5, but the city rolls (relief is 5.5 m at the origin):
 ## lift the start point onto the ground so nobody spawns under the slab. Aerial `?spawn` heights
 ## are left alone.

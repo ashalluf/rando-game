@@ -186,6 +186,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Still laggy after the population pass (owner: "still just like super laggy").**
+  `Quality` became the real performance system: desktop starts at MEDIUM (SDFGI, volumetric fog
+  and depth of field are HIGH-only), steps down after 5 s + 3 s windows under 50 FPS, and the
+  lower levels also cut the crowd and traffic caps (60 %, 35 %), trimming the farthest people
+  and cars right away (`CityStreamer.trim_pedestrians()`, `TrafficManager._maintain()`), raise
+  the pedestrian update throttle, halve the physics prop cap and shorten shadows. The sun uses 2
+  shadow splits instead of 4 (half the shadow draw calls). The HUD's new frame line (cpu,
+  physics, gpu, draws, objects, tris) is what the next lag report should be based on.
+
 - **2026-09-20 Spawn under the ground, MacBook heat (owner: "spawning underneath the ground and
   can't get up over it", "making my macbook hot af").** Since the rolling city (build 59) the
   ground at the origin is 5.5 m up while the scene placed the player at 1.5 m: `CityStreamer.

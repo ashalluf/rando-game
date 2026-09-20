@@ -552,6 +552,13 @@ func _test_city() -> void:
 			var hit: Dictionary = rifle.fire_ray(from, Vector3.RIGHT)
 			await _ticks(3)
 			_check(not hit.is_empty() and (not is_instance_valid(target) or target.is_queued_for_deletion()), "an AK-47 bullet knocks a pedestrian down")
+	# Quality levels scale the population, not just the effects (owner: "still super laggy").
+	var quality_node: Node = city.get_node("Quality")
+	var full_cap: int = city.max_pedestrians
+	quality_node.apply_level(3)
+	await _ticks(3)
+	_check(city.max_pedestrians < full_cap and get_tree().get_nodes_in_group("pedestrian").size() <= city.max_pedestrians + 2, "lowest quality trims the crowd to %d (was cap %d)" % [city.max_pedestrians, full_cap])
+	quality_node.apply_level(0)
 	var avatar: Node = player.get_node_or_null("Visual/Avatar")
 	_check(avatar != null and avatar.find_child("AnimationPlayer", true, false) != null and not player.get_node("Visual/Body").visible, "the player wears the animated character, capsule hidden")
 	var traffic_node: Node3D = city.get_node("Traffic")

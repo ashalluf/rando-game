@@ -264,10 +264,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   for every instantiated rig (AABB, materials). Knocked pedestrians become `Ragdoll`s that keep
   the same rigged model as one tumbling body (`build_from_rig`); far pedestrians move and animate
   every 3rd / 6th physics frame (`Pedestrian.lod_mid` / `lod_far`).
-- Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) measures the frame
-  rate after start-up and steps HIGH -> MEDIUM (no SDFGI, no volumetric fog) -> LOW (no SSR, no
-  SSAO, 0.8 render scale) when it drops under `min_fps`; the HUD shows the level; force one with
-  `-- --quality=N`. Building window frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
+- Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
+  MEDIUM (no SDFGI / volumetric fog / DOF) and steps down to LOW and LOWEST (no SSR / SSAO / glow
+  / MSAA, lower render scale, 60 % then 35 % of the crowd and traffic caps, shorter shadows) when
+  the average FPS drops under `min_fps`; HIGH only with `-- --quality=0`. It also caps the frame
+  rate at 60. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
+  objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
+  frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
   `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
   Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.
