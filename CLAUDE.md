@@ -379,7 +379,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   repeats visibly and never reads as a flat grey plane. Wetness comes from the `road_wetness`
   global that `PropFactory.set_wetness()` sets, not from walking materials one at a time.
   Pavements use the same shader with `joints` (expansion-joint spacing in metres) and a lower
-  `wear`, so they read as poured slabs rather than a grey plane. Keep all of it subtle: the first
+  `wear`, so they read as poured slabs rather than a grey plane. It also kills the visible tile
+  grid, which is the first thing the eye finds on a plaza or a long pavement: it samples the
+  texture a second time, rotated and at a different scale, and cross-fades on slow noise. That
+  second fetch is gated on the `ground_detail` global, which `Quality` clears on web and below
+  MEDIUM. Car parks, port yards and plazas go through `PropFactory.road()` for the same reason. Keep all of it subtle: the first
   pass used strong patch blends and dark joints and the ground read as a printed pattern rather
   than a surface.
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
