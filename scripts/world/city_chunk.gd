@@ -111,7 +111,9 @@ func owned_rect() -> Rect2:
 func _build_airport() -> void:
 	var area := owned_rect()
 	var c := area.get_center()
-	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.pbr("asphalt", 8.0, Color(0.9, 0.9, 0.9)))
+	# Through the wear shader rather than a plain tiled material: a car park is a big flat area
+	# and the tile grid is the first thing the eye finds on one.
+	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.road("asphalt", 8.0, Color(0.44, 0.44, 0.45), hash([plan.seed, ix, iz, "lot"]), 0.0, 0.85))
 	var macro: MacroMap = plan.macro
 	if level == Level.FULL and area.has_point(macro.terminal_curb.get_center()):
 		# The drop-off curb in front of the terminal is packed (owner: "jampacked").
@@ -180,7 +182,7 @@ func _on_runway(p: Vector2) -> bool:
 func _build_port(block: Dictionary) -> void:
 	var area := owned_rect()
 	var c := area.get_center()
-	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.pbr("concrete", 5.0))
+	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, Color(0.78, 0.78, 0.76), hash([plan.seed, ix, iz, "yard"]), 6.0, 0.6))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	# Container stacks in rows, colored per box.
@@ -975,7 +977,7 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var inner := rect.grow(-2.0)
 	var center := inner.get_center()
-	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.plaza, false, PropFactory.pbr("paving", 2.5, Color(1.0, 0.96, 0.9)))
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.plaza, false, PropFactory.road("paving", 2.5, Color(0.92, 0.89, 0.84), hash([plan.seed, ix, iz, "plaza"]), 3.0, 0.35))
 	if level != Level.FULL:
 		return
 	var basin_r := minf(inner.size.x, inner.size.y) * 0.12

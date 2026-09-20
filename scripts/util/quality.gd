@@ -119,6 +119,10 @@ func _apply_render() -> void:
 	if _env and _env.sky and _env.sky.sky_material is ShaderMaterial:
 		var detail := 1.0 if level <= Level.MEDIUM and not OS.has_feature("web") else 0.0
 		(_env.sky.sky_material as ShaderMaterial).set_shader_parameter("cloud_detail", detail)
+	# The road shader's second texture fetch, the one that breaks up the tiling, goes with them:
+	# roads fill the bottom of every outdoor frame.
+	RenderingServer.global_shader_parameter_set("ground_detail",
+		1.0 if level <= Level.MEDIUM and not OS.has_feature("web") else 0.0)
 	# Real street lamps are the first thing to go when frames get tight; the additive pools of
 	# light on the pavement stay, so the street is still readable.
 	var dn := get_parent().get_node_or_null("DayNight")

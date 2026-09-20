@@ -31,6 +31,9 @@ uniform float joint_spacing = 0.0;
 uniform float joint_depth = 0.26;
 
 global uniform float road_wetness;
+// 0 turns off the second texture fetch that breaks up the tiling. Quality clears it on the web
+// and at the low levels, where roads fill the screen and every fetch counts.
+global uniform float ground_detail;
 
 varying vec3 world_pos;
 
@@ -82,9 +85,19 @@ void fragment() {
 	vec3 base = texture(albedo_tex, uv).rgb * tint;
 	float rough = texture(rough_tex, uv).r;
 
+	// Kill the visible repeat. Across a plaza or a long pavement the eye picks the tile grid
+	// out immediately, and no amount of wear on top hides it. Sample the same texture a second
+	// time, rotated and at a different scale, and cross-fade between the two on slow noise:
+	// one extra fetch, and the grid stops existing.
+	if (ground_detail > 0.5) {
+		vec2 uv2 = (mat2(vec2(0.80, -0.60), vec2(0.60, 0.80)) * w) / (tex_scale * 1.37) + vec2(13.7, 4.1);
+		float variant = smoothstep(0.34, 0.66, fbm(w * 0.019 + 91.0 + seed));
+		base = mix(base, texture(albedo_tex, uv2).rgb * tint, variant);
+	}
+
 	// Slow mottling: patches of the road that have aged differently.
 	float mottle = fbm(w * 0.045 + seed);
-	base *= 0.86 + 0.28 * mottle;
+	base *= 0.82 + 0.36 * mottle;
 
 	// Resurfacing patches on a jittered grid. Each patch has its own tone and smoothness, and a
 	// darker seam where the new asphalt meets the old.
