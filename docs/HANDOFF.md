@@ -127,11 +127,14 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 86)
+## 6. Where the game stands (build 88)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 88: the HUD starts clean (F1 cycles clean / stats / hidden), the hills burn gold, the baked
+  horizon map is jittered so sprawl reads as a city.
+- 87: the ground stops tiling visibly; car parks, yards and plazas go through the wear shader.
 - 86: lamps come on in a storm, the horizon plane stops painting grass over the sea and sand,
   seven skin tones across the crowd, six palm variants, chunkier pilasters.
 - 85: shop names on the storefront sign bands, unlit rooms properly dark at night, pilasters

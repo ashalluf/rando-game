@@ -1,9 +1,17 @@
 extends CanvasLayer
-## Debug overlay: FPS, speed, jump peak, physics body counts, weapon, control hints. F1 toggles.
+## The HUD. F1 cycles three modes:
+##   CLEAN   crosshair, minimap and weapon list only. What the game looks like while playing.
+##   FULL    plus the stats line, the frame-time breakdown and the control hints.
+##   HIDDEN  nothing, for screenshots.
+## It starts CLEAN: the debug block is genuinely useful (screenshot the frame line when
+## reporting lag) but it is a wall of developer text across the top of every frame.
 
 @onready var stats: Label = $Stats
 @onready var hints: Label = $Hints
 @onready var weapon_label: Label = $Weapon
+
+enum Mode { CLEAN, FULL, HIDDEN }
+var mode: Mode = Mode.CLEAN
 
 var _player: Player
 
@@ -15,9 +23,12 @@ func _ready() -> void:
 		# ?nohud in the page URL hides the overlay (used by the screenshot harness).
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
 		if search is String and (search as String).contains("nohud"):
-			visible = false
+			mode = Mode.HIDDEN
 	elif "--nohud" in OS.get_cmdline_user_args():
-		visible = false # desktop / tools/glshot: `-- --nohud`
+		mode = Mode.HIDDEN # desktop / tools/glshot: `-- --nohud`
+	elif "--stats" in OS.get_cmdline_user_args():
+		mode = Mode.FULL
+	_apply_mode()
 	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look   E get in / out of a car\n" \
 		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc pause / seed   F1 hide   F11 fullscreen\n" \
 		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space jump   right click handbrake   in the air W / S flip, A / D roll\n" \
@@ -31,11 +42,19 @@ func _unhandled_input(event: InputEvent) -> void:
 		var full := win.mode == Window.MODE_FULLSCREEN or win.mode == Window.MODE_EXCLUSIVE_FULLSCREEN
 		win.mode = Window.MODE_WINDOWED if full else Window.MODE_FULLSCREEN
 	if event.is_action_pressed("toggle_hud"):
-		visible = not visible
+		mode = ((mode + 1) % Mode.size()) as Mode
+		_apply_mode()
+
+
+## Shows and hides the parts that belong to the current mode.
+func _apply_mode() -> void:
+	visible = mode != Mode.HIDDEN
+	stats.visible = mode == Mode.FULL
+	hints.visible = mode == Mode.FULL
 
 
 func _process(_delta: float) -> void:
-	if not visible:
+	if not visible or mode != Mode.FULL:
 		return
 	if _player == null:
 		_player = get_tree().get_first_node_in_group("player") as Player

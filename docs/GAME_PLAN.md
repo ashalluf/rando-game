@@ -186,6 +186,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 The HUD starts clean.** Six lines of developer text across the top and five
+  lines of control hints across the bottom is what the game looked like in every screenshot.
+  F1 now cycles CLEAN (crosshair, minimap, weapons), FULL (everything, including the frame-time
+  line to screenshot when reporting lag) and HIDDEN, and it starts CLEAN. `-- --stats` starts
+  it in FULL, `-- --nohud` in HIDDEN.
+
+- **2026-09-20 The hills were an English meadow.** The source texture is a lush northern green
+  and it covered the whole range. `shaders/terrain.gdshader` now burns broad patches to gold and
+  tan, drier on the high sunny ground and greener in the folds, which is what the hills above
+  this kind of basin look like for most of the year.
+
 - **2026-09-20 The lamps come on in a storm.** The light pools and the lamp lights keyed off
   `night_factor`, so a storm at one in the afternoon - dark enough that the sky goes grey and
   the headlights are on - left the street unlit. There is now a `lamp_factor` shader global,

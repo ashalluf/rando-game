@@ -814,6 +814,19 @@ func _test_city() -> void:
 	# shader tells the sea apart by that.
 	_check(macro_land > 100 and macro_water > 100, "the baked map has land and sea (%d / %d samples)" % [macro_land, macro_water])
 	_check(PropFactory.texture("brick", "Color") != null and PropFactory.texture("rock", "NormalGL") != null, "texture sets load")
+	# The HUD starts clean: crosshair, minimap and weapons, no wall of developer text. F1 cycles
+	# clean -> full -> hidden.
+	var hud: CanvasLayer = city.get_node("DebugHud")
+	_check(hud.visible and not hud.get_node("Stats").visible and not hud.get_node("Hints").visible,
+		"the HUD starts clean (no stats, no hints)")
+	hud.mode = 1
+	hud._apply_mode()
+	_check(hud.visible and hud.get_node("Stats").visible, "F1 brings the stats back")
+	hud.mode = 2
+	hud._apply_mode()
+	_check(not hud.visible, "F1 again hides the HUD")
+	hud.mode = 0
+	hud._apply_mode()
 	var minimap: Control = city.get_node("DebugHud/MinimapFrame/Minimap")
 	_check(minimap != null and minimap.world_to_map(Vector2(0.0, -100.0), Vector2.ZERO).y < minimap.size.y * 0.5, "minimap exists and north is up")
 	# Palms: a real generated tree (trunk, feathered fronds, skirt, coconuts) and palm-lined

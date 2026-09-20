@@ -269,5 +269,11 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 				col.a = 0.0
 			else:
 				col.a = clampf(maxf(h, 0.0) / 400.0, 0.004, 1.0)
+				# Built-up ground is not one flat colour from the air: it is roofs, roads,
+				# yards and trees at a scale far below one texel. Jitter each texel so the
+				# sprawl beyond the loaded chunks reads as a city rather than a painted field.
+				var n := float(absi(hash([px, py, seed])) % 1000) / 1000.0
+				var jitter := 0.86 + 0.30 * n
+				col = Color(col.r * jitter, col.g * jitter, col.b * (jitter * 0.98), col.a)
 			img.set_pixel(px, py, col)
 	return img

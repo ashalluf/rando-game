@@ -427,6 +427,20 @@ func _scatter_hills() -> void:
 		_batch.set_no_shadow("scrub_%d" % v)
 
 
+## A lawn tint, from watered green to burnt tan. The old range was all lush, so from the air
+## every block was the same bright rectangle of astroturf; on a Californian street about a third
+## of the front yards have given up by August.
+func _lawn_color(rng: RandomNumberGenerator) -> Color:
+	var dry := rng.randf()
+	if dry < 0.34:
+		# Burnt off: straw over dust.
+		return Color(rng.randf_range(0.95, 1.12), rng.randf_range(0.82, 0.94), rng.randf_range(0.48, 0.62))
+	if dry < 0.62:
+		# Patchy.
+		return Color(rng.randf_range(0.86, 0.99), rng.randf_range(0.88, 0.98), rng.randf_range(0.58, 0.72))
+	return Color(rng.randf_range(0.74, 0.90), rng.randf_range(0.90, 1.0), rng.randf_range(0.66, 0.80))
+
+
 func _near_hill_road(p: Vector2, segs: Array[Dictionary], margin: float) -> bool:
 	for seg in segs:
 		var a: Vector2 = seg.a
@@ -703,7 +717,7 @@ func _build_block(block: Dictionary) -> void:
 				# Suburbs and campus: lawns between the buildings instead of bare paving.
 				var inner := rect.grow(-plan.sidewalk_width)
 				var ic := inner.get_center()
-				var lawn := Color(rng.randf_range(0.78, 0.95), rng.randf_range(0.88, 1.0), rng.randf_range(0.66, 0.8))
+				var lawn := _lawn_color(rng)
 				_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
 			_build_lots(rect, params, rng)
 	if level == Level.FULL:
@@ -888,7 +902,7 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
 	var center: Vector2 = lot.center
 	var size: Vector2 = lot.size
-	var lawn := Color(rng.randf_range(0.8, 0.95), rng.randf_range(0.9, 1.0), rng.randf_range(0.7, 0.82))
+	var lawn := _lawn_color(rng)
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(size.x, 0.04, size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
 	if level != Level.FULL:
 		return
@@ -924,7 +938,7 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var inner := rect.grow(-2.0)
 	var center := inner.get_center()
 	# Lawns range from lush to summer-dry.
-	var lawn := Color(rng.randf_range(0.78, 0.95), rng.randf_range(0.88, 1.0), rng.randf_range(0.66, 0.8))
+	var lawn := _lawn_color(rng)
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
 	if level != Level.FULL:
 		return

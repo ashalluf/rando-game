@@ -193,7 +193,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   clearcoat lobe with flake (`shaders/car_paint.gdshader`); `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
-- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap
+- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap.
+  F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
+  what the game looks like while playing), FULL (plus the stats line, the frame-time breakdown
+  and the control hints) and HIDDEN. `-- --nohud` starts HIDDEN (the screenshot harness),
+  `-- --stats` starts FULL
   (`MinimapFrame/Minimap`, `scripts/ui/minimap.gd`, drawn from `CityPlan` data, rotates with the
   camera heading, light map palette). Lighting and post-processing
   live in the city scene's Environment (SDFGI, SSAO, SSR, glow, ACES, volumetric fog); keep the
@@ -383,7 +387,8 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   grid, which is the first thing the eye finds on a plaza or a long pavement: it samples the
   texture a second time, rotated and at a different scale, and cross-fades on slow noise. That
   second fetch is gated on the `ground_detail` global, which `Quality` clears on web and below
-  MEDIUM. Car parks, port yards and plazas go through `PropFactory.road()` for the same reason. Keep all of it subtle: the first
+  MEDIUM. Car parks, port yards and plazas go through `PropFactory.road()` for the same reason. The hill terrain shader does the same thing with the same global: its
+  texture has a directional grain, so at a 5 m tile a long slope turned into corduroy. Keep all of it subtle: the first
   pass used strong patch blends and dark joints and the ground read as a printed pattern rather
   than a surface.
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
