@@ -291,7 +291,9 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	_add_facade_details(size, center, bottom, storefront, floor_h, rows, cols_x, cols_z, style)
 
 
-const AWNING_COLORS := [Color(0.7, 0.12, 0.12), Color(0.1, 0.3, 0.55), Color(0.15, 0.4, 0.25), Color(0.85, 0.6, 0.15), Color(0.2, 0.2, 0.22), Color(0.55, 0.15, 0.4)]
+## Shop awnings. Kept to the colours canvas actually comes in: deep reds, greens, navies and
+## sand. Bright magenta and saturated yellow read as plastic toys on a street.
+const AWNING_COLORS := [Color(0.42, 0.10, 0.10), Color(0.09, 0.20, 0.34), Color(0.11, 0.26, 0.17), Color(0.52, 0.42, 0.24), Color(0.17, 0.17, 0.19), Color(0.33, 0.13, 0.15)]
 ## Above this many window cells on a part, frames are left to the shader (supertalls).
 const MAX_FRAME_CELLS := 7000
 ## Window frames are drawn out to this distance (meters); cornices and awnings 1.6x that.
@@ -348,6 +350,12 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var awning_color: Color = AWNING_COLORS[_rng.randi() % AWNING_COLORS.size()]
 	var has_awnings := storefront > 0.0 and shape != Shape.WAREHOUSE and finish != Finish.GLASS and _rng.randf() < 0.7
 	var has_cornice := finish != Finish.GLASS and shape != Shape.WAREHOUSE
+	# Balconies belong on residential-looking blocks, never on a glass curtain-wall tower or a
+	# warehouse. They are the cheapest way to break the flat rhythm of a facade.
+	var residential := finish != Finish.GLASS and shape != Shape.WAREHOUSE and window_style != WindowStyle.CURTAIN
+	var has_balconies := residential and rows >= 3 and _rng.randf() < 0.45
+	var balcony_every := 1 if _rng.randf() < 0.55 else 2
+	var balconies: Array[Transform3D] = []
 	for face in faces:
 		var n: Vector3 = face[0]
 		var a: Vector3 = face[1]
@@ -370,6 +378,23 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			boxes.append([Transform3D(Basis(a * (size_u + 0.7), Vector3.UP * 0.45, n * 0.35), fc + Vector3(0.0, top - 0.22, 0.0) + n * 0.17), accent])
 		if storefront > 0.0:
 			boxes.append([Transform3D(Basis(a * (size_u + 0.4), Vector3.UP * 0.25, n * 0.22), fc + Vector3(0.0, bottom + storefront + 0.05, 0.0) + n * 0.11), accent])
+		if has_balconies:
+			var depth := _rng.randf_range(1.0, 1.45)
+			var bw: float = minf(pitch * 0.82, 3.0)
+			for col in cols:
+				# Skip some bays so the facade is not a perfect grid of balconies.
+				if _rng.randf() < 0.22:
+					continue
+				var u := -size_u * 0.5 + (col + 0.5) * pitch
+				for row in rows:
+					if row % balcony_every != 0:
+						continue
+					var v := bottom + storefront + (row + 0.12) * floor_h
+					if v + 1.2 > top - 0.4 or v < bottom + 2.0:
+						continue
+					# Railing height is about 1.1 m in the real world. Scaling it by a fraction of
+					# the floor height made 2 m railings that stacked into a continuous lattice.
+					balconies.append(Transform3D(Basis(a * bw, Vector3.UP * _rng.randf_range(1.02, 1.18), n * depth), fc + a * u + Vector3(0.0, v, 0.0)))
 		if has_awnings:
 			for col in cols:
 				if col % 2 == 1 or _rng.randf() < 0.3:
@@ -393,6 +418,18 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		# Past this distance the shader's painted frames carry the look on their own.
 		node.visibility_range_end = FRAME_DRAW_DISTANCE
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(node)
+	if not balconies.is_empty():
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = PropFactory.balcony()
+		mm.instance_count = balconies.size()
+		for i in balconies.size():
+			mm.set_instance_transform(i, balconies[i])
+		var node := MultiMeshInstance3D.new()
+		node.name = "Balconies"
+		node.multimesh = mm
+		node.visibility_range_end = FRAME_DRAW_DISTANCE * 2.0
 		add_child(node)
 	if not boxes.is_empty():
 		var mm := MultiMesh.new()

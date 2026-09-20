@@ -794,6 +794,11 @@ func _test_buildings() -> void:
 				if detail_top > b.height + 0.5:
 					frames_fit = false
 	_check(framed > 0, "buildings carry real window frames (%d)" % framed)
+	var with_balconies := 0
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.has_node("Balconies") and b.get_node("Balconies").multimesh.instance_count > 0:
+			with_balconies += 1
+	_check(with_balconies > 0, "some buildings have balconies (%d)" % with_balconies)
 	_check(frames_fit, "window frames and cornices stay within the building height")
 	_check(looks.size() >= 5, "buildings vary (%d distinct looks)" % looks.size())
 

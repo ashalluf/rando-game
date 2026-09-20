@@ -439,6 +439,54 @@ static func _ico(st: SurfaceTool, at: Vector3, r: float, colour: Color) -> void:
 			st.add_vertex(v)
 
 
+## A balcony, built in a unit cube: 1 wide (X), 1 tall (Y), 1 deep (+Z, pointing out of the
+## wall). Instances scale it to the real size, so bars are kept thin in unit space to survive
+## being stretched across a window bay. Slab, top rail, and uprights.
+static func balcony() -> Mesh:
+	if _cache.has("balcony"):
+		return _cache["balcony"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var slab := Color(0.70, 0.69, 0.66)
+	var metal := Color(0.22, 0.22, 0.24)
+	# Floor slab, slightly proud of the wall on both sides.
+	_box_into(st, Vector3(0.0, 0.03, 0.5), Vector3(1.04, 0.06, 1.0), slab)
+	# Top rail and a kick rail.
+	_box_into(st, Vector3(0.0, 0.98, 0.98), Vector3(1.02, 0.045, 0.05), metal)
+	_box_into(st, Vector3(0.0, 0.30, 0.98), Vector3(1.0, 0.025, 0.03), metal)
+	# Returns along the sides.
+	for sx: float in [-0.5, 0.5]:
+		_box_into(st, Vector3(sx, 0.98, 0.5), Vector3(0.04, 0.045, 1.0), metal)
+		_box_into(st, Vector3(sx, 0.55, 0.5), Vector3(0.03, 0.9, 0.03), metal)
+	# Uprights across the front.
+	for i in 9:
+		var x := -0.46 + float(i) * 0.115
+		_box_into(st, Vector3(x, 0.55, 0.98), Vector3(0.014, 0.9, 0.022), metal)
+	st.generate_normals()
+	var mesh := st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.8
+	mesh.surface_set_material(0, mat)
+	_cache["balcony"] = mesh
+	return mesh
+
+
+## Adds a coloured box to a SurfaceTool being built in local space.
+static func _box_into(st: SurfaceTool, centre: Vector3, size: Vector3, colour: Color) -> void:
+	var h := size * 0.5
+	var c := centre
+	var p := [
+		c + Vector3(-h.x, -h.y, -h.z), c + Vector3(h.x, -h.y, -h.z),
+		c + Vector3(h.x, h.y, -h.z), c + Vector3(-h.x, h.y, -h.z),
+		c + Vector3(-h.x, -h.y, h.z), c + Vector3(h.x, -h.y, h.z),
+		c + Vector3(h.x, h.y, h.z), c + Vector3(-h.x, h.y, h.z),
+	]
+	var faces := [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0]]
+	for f: Array in faces:
+		_quad(st, p[f[0]], p[f[1]], p[f[2]], p[f[3]], colour)
+
+
 static func palm_trunk() -> Mesh:
 	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
 
