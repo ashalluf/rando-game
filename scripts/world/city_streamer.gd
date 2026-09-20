@@ -36,6 +36,8 @@ extends Node3D
 ## How many metres across the baked macro map covers, and its resolution. 256 costs about a
 ## quarter of a second once, at load.
 @export var macro_span: float = 16000.0
+## Corner darkening over the whole frame (0 turns it off). See shaders/vignette.gdshader.
+@export var vignette_strength: float = 0.24
 
 @export_group("Street life")
 @export var lamp_spacing: float = 24.0
@@ -115,6 +117,7 @@ func _ready() -> void:
 		plan.macro.seed = world_seed
 		plan.macro.setup()
 	_build_ground()
+	_build_vignette()
 	_build_far_landmarks()
 	var traffic := TrafficManager.new()
 	traffic.name = "Traffic"
@@ -435,6 +438,25 @@ func recenter() -> void:
 
 ## The material the ground follower wears: the baked macro map of the whole basin, plus the
 ## close-up grass texture for the ground right under the player. See shaders/macro_ground.gdshader.
+## A lens vignette over the whole frame, on its own CanvasLayer below the HUD so it survives
+## F1 and shows up in screenshots. Subtle on purpose: see shaders/vignette.gdshader.
+func _build_vignette() -> void:
+	if vignette_strength <= 0.001:
+		return
+	var layer := CanvasLayer.new()
+	layer.name = "Vignette"
+	layer.layer = -1
+	var rect := ColorRect.new()
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/vignette.gdshader")
+	mat.set_shader_parameter("strength", vignette_strength)
+	rect.material = mat
+	layer.add_child(rect)
+	add_child(layer)
+
+
 func _build_ground_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/macro_ground.gdshader")
@@ -469,8 +491,9 @@ func _build_ground() -> void:
 	mesh.material_override = _ground_material
 	# One flat quad 14 km across would z-fight and shade badly at this size; a few subdivisions
 	# cost nothing and keep the interpolated world position honest.
-	plane.subdivide_width = 8
-	plane.subdivide_depth = 8
+	# Enough vertices that the shader's distance-based sink resolves smoothly across 14 km.
+	plane.subdivide_width = 48
+	plane.subdivide_depth = 48
 	mesh.extra_cull_margin = ground_size
 	_ground.add_child(mesh)
 	var shape := CollisionShape3D.new()

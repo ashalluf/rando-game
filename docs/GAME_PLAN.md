@@ -186,6 +186,27 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 The sea was a broken plane, for three separate reasons.** (1) The Gerstner waves
+  moved the vertices but never touched NORMAL, so the surface was lit flat and all you saw was a
+  painted pattern sliding about; the vertex shader now takes the cross product of the wave sum
+  evaluated at two more points. (2) The sea-floor box sat with its top just under the surface,
+  and at wave_scale 1 the swell is already +-1.2 m, so every trough dipped below it and the
+  floor's flat top drew *over* the water in hard-edged grey patches; the visual box is at -14 m
+  now, with the collision left where it was so the sea still holds you up. (3) The horizon plane
+  sits 15 cm under the sea surface and a metre or more ABOVE its troughs, so it drew through the
+  waves in smooth grey patches, and at a kilometre the 15 cm is below depth precision so the two
+  z-fought as well; the plane's vertex shader now drops it 24 m wherever the baked map says
+  water, and only a few metres with distance over land, so the coastline keeps its shape. Any one of these on its own is enough to make
+  water look wrong.
+
+- **2026-09-20 Water is mostly the sky seen in it.** The ocean shader had Gerstner swells, foam
+  and a fresnel term feeding SPECULAR, but nothing actually reflected, so the sea was a flat
+  blue-green field whatever the hour. It now mixes toward a sky gradient by fresnel and adds a
+  glare path along the line to the sun, from two new shader globals `DayNight` publishes -
+  `sky_tint` (the colour the sky meets the horizon with) and `sun_direction`. Globals rather
+  than uniforms because every water chunk owns its own material; this way one write a frame
+  serves all of them, and anything else that needs to reflect the sky can read the same two.
+
 - **2026-09-20 Palms move.** Nothing in the city moved except the grass, and a boulevard of
   palms standing dead still is one of the things that reads as "model" rather than "place".
   `shaders/foliage.gdshader` bends each palm in the vertex shader, growing with the square of

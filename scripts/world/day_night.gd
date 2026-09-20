@@ -53,6 +53,8 @@ var _env: Environment
 var lamp_scale: float = 1.0
 var _lamp_level: float = -1.0
 var _lamp_timer: float = 0.0
+## The sky's horizon colour this frame, published as the `sky_tint` shader global.
+var _horizon_now: Color = Color(0.66, 0.75, 0.88)
 var _sky: ShaderMaterial
 var _paused: bool = false
 
@@ -121,6 +123,7 @@ func _apply() -> void:
 		_sun.shadow_enabled = true
 	if _sky:
 		var horizon := day_horizon.lerp(dusk_horizon, dusk).lerp(night_horizon, night_factor)
+		_horizon_now = horizon
 		var storm_top := Color(0.16, 0.17, 0.2)
 		var storm_horizon := Color(0.3, 0.31, 0.34)
 		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk).lerp(night_sky_top, night_factor).lerp(storm_top, weather_darken * (1.0 - night_factor * 0.6)))
@@ -166,3 +169,9 @@ func _apply() -> void:
 			(light as OmniLight3D).light_energy = want
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)
 	RenderingServer.global_shader_parameter_set("lamp_factor", lamp_factor)
+	# Published for anything that needs to reflect the sky without owning a copy of it (the
+	# ocean, and whatever else wants it): the colour the sky meets the horizon with, and the
+	# direction back toward the sun.
+	RenderingServer.global_shader_parameter_set("sky_tint", _horizon_now)
+	if _sun:
+		RenderingServer.global_shader_parameter_set("sun_direction", _sun.global_transform.basis.z)

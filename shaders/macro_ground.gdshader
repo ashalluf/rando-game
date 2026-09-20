@@ -57,7 +57,22 @@ float vnoise(vec2 p) {
 
 
 void vertex() {
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	vec2 vuv = ((wp.xz + world_offset) - macro_centre) / macro_span + vec2(0.5);
+
+	// Drop the plane right out from under the sea. The water chunks put their surface 15 cm
+	// above it and their troughs a metre or more BELOW it, so this plane kept drawing through
+	// the waves in smooth grey patches, and a kilometre out the 15 cm is below depth precision
+	// and the two z-fight as well. Wherever the baked map says water (alpha exactly zero), the
+	// plane goes 24 m down, which is under the deepest storm trough. Over land it does not
+	// move, so the coast keeps its shape.
+	float wet = 1.0 - step(0.0005, textureLod(macro_tex, vuv, 0.0).a);
+	// And a small sink with distance for the land, which the chunk ground sits only centimetres
+	// above.
+	float d = distance(wp, (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+	float sink = wet * 24.0 + (1.0 - wet) * smoothstep(400.0, 2000.0, d) * 5.0;
+	VERTEX.y -= sink;
+	world_pos = wp - vec3(0.0, sink, 0.0);
 }
 
 

@@ -250,15 +250,20 @@ func _build_water() -> void:
 	mesh.custom_aabb = AABB(Vector3(-area.size.x * 0.5, -40.0, -area.size.y * 0.5), Vector3(area.size.x, 80.0, area.size.y))
 	mesh.name = "Ocean"
 	add_child(mesh)
+	# The sea floor. The visual box has to sit well below the deepest wave trough: at wave_scale
+	# 1 the swell is already +-1.2 m and a storm is six times that, so with its top just under
+	# the surface the trough dipped below it and the floor's flat top drew *over* the water in
+	# hard-edged grey patches, which is what made the sea look like a broken plane. The
+	# collision stays where it was, so the sea still holds you up at the surface.
 	var floor_mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(area.size.x, 1.0, area.size.y)
 	floor_mesh.mesh = box
 	floor_mesh.material_override = PropFactory.material(style.ocean.darkened(0.5), 0.6)
-	floor_mesh.position = Vector3(c.x, -0.6, c.y)
+	floor_mesh.position = Vector3(c.x, -14.0, c.y)
 	add_child(floor_mesh)
 	if level == Level.FULL:
-		_add_shape(box.size, floor_mesh.position)
+		_add_shape(box.size, Vector3(c.x, -0.6, c.y))
 
 
 func _build_beach(block: Dictionary) -> void:

@@ -190,6 +190,15 @@ ground_detail={
 "type": "float",
 "value": 1.0
 }
+
+sky_tint={
+"type": "color",
+"value": Color(0.66, 0.75, 0.88, 1)
+}
+sun_direction={
+"type": "vec3",
+"value": Vector3(0.4, 0.7, 0.3)
+}
 wave_scale={
 "type": "float",
 "value": 1.0

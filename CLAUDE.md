@@ -180,7 +180,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
   lightning (sky `flash` uniform, sun meta `weather_flash`) and thunder. The ocean is
-  `shaders/ocean.gdshader` on a subdivided plane per water chunk. Debug `?weather=storm`.
+  `shaders/ocean.gdshader` on a subdivided plane per water chunk: Gerstner swells in the vertex
+  shader, foam on the crests, and the sky mixed in by fresnel with a glare path to the sun,
+  taken from the `sky_tint` and `sun_direction` shader globals that `DayNight` publishes (water
+  is mostly the sky seen in it, and leaving that to reflections gives nothing on the web). Debug `?weather=storm`.
 - Look (owner, 2026-09-20: "as realistic as possible, like an industry giant made it"). The
   realism settings are deliberate, not defaults: **AgX** filmic tonemapping (not ACES, which
   clips highlights hard), **sky-source ambient** so shadows take the sky's colour instead of a
@@ -193,6 +196,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   clearcoat lobe with flake (`shaders/car_paint.gdshader`); `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
+- Vignette: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a full-rect
+  `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1 and
+  shows up in screenshots. `CityStreamer.vignette_strength` (0 turns it off). Every lens does
+  this; keep it subtle enough that you cannot point at it.
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap.
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
   what the game looks like while playing), FULL (plus the stats line, the frame-time breakdown
@@ -317,7 +324,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   the ground colour per zone and district, alpha is height / 400 m), with relief shading from
   the baked height, a little noise to break up the bilinear smear, the grass texture blended
   back in within ~300 m of the camera, and haze that hands the far land over to the sky.
-  `DayNight` keeps `haze_color` and `sun_dir` in step via `CityStreamer.set_ground_haze()`.
+  `DayNight` keeps `haze_color` and `sun_dir` in step via `CityStreamer.set_ground_haze()`. The plane's
+  vertex shader also drops it 24 m wherever the baked map says water (alpha exactly zero): the
+  water chunks put their surface 15 cm above it and their troughs a metre or more below it, so
+  it kept drawing through the waves in smooth grey patches, and at a kilometre the 15 cm is
+  below depth precision and they z-fight as well. Over land it only sinks a few metres with
+  distance, so the coastline keeps its shape.
   Before this the plane was 4 km of flat green and its own edge was the horizon.
 - Palms (owner, 2026-09-20: "it's Cali, put palm trees"): `PropFactory.palm(variant)` builds a
   whole tree as one vertex-coloured mesh (tall slender curved trunk with ridged bark, a crown of
