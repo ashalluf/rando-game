@@ -115,6 +115,18 @@ camera with `?spawn=x,z,yaw,pitch[,y]` (desktop: `-- --spawn=...`), jump the clo
 lighting is flat: judge geometry, materials and layout, not light. Forward+ effects (SDFGI, SSR,
 volumetric fog, glow) have never been seen by any Claude session; only the owner's Mac shows them.
 
+**Native renders without a browser (added build 64):** the container has Xvfb and Mesa llvmpipe, so
+Godot's real Compatibility renderer runs headless-ish and screenshots in ~20 s instead of the
+web harness' minutes. `tools/glshot/building_shot.gd` renders one generated `Building` (env
+`OUT`, `BSEED`, `FINISH`, `LOT`, `HMIN`, `HMAX`), `tools/glshot/city_shot.gd` renders the city
+scene at a `--spawn` (env `OUT`, `FRAMES`). Both start with
+`LIBGL_ALWAYS_SOFTWARE=1 xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3
+--display-driver x11 --audio-driver Dummy --path . --script tools/glshot/<file> --resolution 960x540`
+(the usage line in each file has the full command). Use the building one to check any facade or
+rooftop change before exporting: the build-64 "cage towers" (window frames at twice the wall
+height, because a face center that already held the part's Y got the absolute row height added
+again) took a whole session of web screenshots to diagnose and one native render to see.
+
 ## 6. Where the game stands (build 51)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes

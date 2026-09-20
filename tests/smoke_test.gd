@@ -646,6 +646,21 @@ func _test_buildings() -> void:
 		_check(b.height >= 4.0 and b.footprint.x > 2.0, "building %d has size %.0f x %.0f x %.0f m (%s)" % [b.seed % 1000, b.footprint.x, b.height, b.footprint.y, Building.Shape.keys()[b.shape]])
 	_check(all_solid, "every building has collision")
 	_check(all_shaded, "every building uses the building shader")
+	var framed := 0
+	var frames_fit := true
+	for b in get_tree().get_nodes_in_group("building"):
+		if b.has_node("Frames") and b.get_node("Frames").multimesh.instance_count > 0:
+			framed += 1
+			# Frames and cornices must sit on the walls, never float above the roof (build 64 bug).
+			var frame_top: float = (b.get_node("Frames").multimesh.get_aabb() as AABB).end.y
+			if frame_top > b.height + 0.5:
+				frames_fit = false
+			if b.has_node("Details"):
+				var detail_top: float = (b.get_node("Details").multimesh.get_aabb() as AABB).end.y
+				if detail_top > b.height + 0.5:
+					frames_fit = false
+	_check(framed > 0, "buildings carry real window frames (%d)" % framed)
+	_check(frames_fit, "window frames and cornices stay within the building height")
 	_check(looks.size() >= 5, "buildings vary (%d distinct looks)" % looks.size())
 
 	# Same seed, same building.

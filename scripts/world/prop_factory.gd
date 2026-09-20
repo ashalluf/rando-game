@@ -762,3 +762,38 @@ static func set_wetness(w: float) -> void:
 			if mat is StandardMaterial3D:
 				(mat as StandardMaterial3D).roughness = lerpf(1.0, 0.25, w)
 				(mat as StandardMaterial3D).metallic_specular = lerpf(0.5, 0.9, w)
+
+
+## Unit window frame in the XY plane (outer edge 1 x 1, bars 7 percent thick, depth 0..1 along
+## +Z, scaled per instance to the window size and 0.1 m). With `sill`, a ledge under it.
+static func window_frame(sill: bool) -> Mesh:
+	var key := "window_frame_sill" if sill else "window_frame"
+	if _cache.has(key):
+		return _cache[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(material(Color.WHITE, 0.55))
+	var t := 0.07
+	var parts := [
+		[Vector3(-0.5 + t * 0.5, 0.0, 0.5), Vector3(t, 1.0, 1.0)],
+		[Vector3(0.5 - t * 0.5, 0.0, 0.5), Vector3(t, 1.0, 1.0)],
+		[Vector3(0.0, 0.5 - t * 0.5, 0.5), Vector3(1.0 - 2.0 * t, t, 1.0)],
+		[Vector3(0.0, -0.5 + t * 0.5, 0.5), Vector3(1.0 - 2.0 * t, t, 1.0)],
+	]
+	if sill:
+		parts.append([Vector3(0.0, -0.54, 0.8), Vector3(1.12, 0.08, 1.6)])
+	for part in parts:
+		var bm := BoxMesh.new()
+		bm.size = part[1]
+		st.append_from(bm, 0, Transform3D(Basis(), part[0]))
+	var mesh := st.commit()
+	_cache[key] = mesh
+	return mesh
+
+
+## Rooftop air conditioning unit (Poly Haven exterior_aircon_unit), 0.8 x 0.93 x 0.4 m, bottom
+## at the origin. Clean or rusted.
+static func model_ac(rusted: bool) -> Mesh:
+	if rusted:
+		return model_mesh(MODEL_DIR + "prop_ac.glb", ["rusted"], [], _shift(Vector3(-0.5, 0.32, 0.0)))
+	return model_mesh(MODEL_DIR + "prop_ac.glb", [], ["rusted"], _shift(Vector3(0.5, 0.32, 0.0)))

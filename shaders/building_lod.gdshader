@@ -61,9 +61,10 @@ void fragment() {
 		float face_id = abs(n.x) > 0.5 ? (n.x > 0.0 ? 1.0 : 2.0) : (n.z > 0.0 ? 3.0 : 4.0);
 		if (glass && v > 1.0 && v < box_size.y - 0.8) {
 			float k = hash21(vec2(col, row) + face_id * 17.0 + custom.b * 100.0);
-			albedo = tint.rgb * 0.35 + vec3(0.05, 0.08, 0.12);
-			rough = 0.25;
-			metal = 0.5;
+			// Dark tinted glass: little metal, so far towers do not mirror the sky and vanish.
+			albedo = tint.rgb * 0.2 + vec3(0.04, 0.06, 0.09);
+			rough = 0.45;
+			metal = 0.15;
 			if (k < custom.g) {
 				float on = 0.1 + 0.9 * night_factor;
 				albedo = mix(albedo, lit_color, 0.7 * on);
@@ -80,6 +81,9 @@ void fragment() {
 	}
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
-	METALLIC = metal;
+	METALLIC = 0.0;
+	// No specular at all on the far boxes: at grazing angles the sky reflection made whole
+	// towers look see-through (a cage of wall strips).
+	SPECULAR = 0.0;
 	EMISSION = emission;
 }

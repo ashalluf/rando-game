@@ -288,6 +288,118 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	shape_node.shape = box_shape
 	shape_node.position = center
 	add_child(shape_node)
+	_add_facade_details(size, center, bottom, storefront, floor_h, rows, cols_x, cols_z, style)
+
+
+const AWNING_COLORS := [Color(0.7, 0.12, 0.12), Color(0.1, 0.3, 0.55), Color(0.15, 0.4, 0.25), Color(0.85, 0.6, 0.15), Color(0.2, 0.2, 0.22), Color(0.55, 0.15, 0.4)]
+## Above this many window cells on a part, frames are left to the shader (supertalls).
+const MAX_FRAME_CELLS := 7000
+
+
+## Real geometry on the facade so the box stops reading as a box: a window frame (and sill) at
+## every window cell the shader draws, a cornice around the roof edge, a string course over the
+## storefront and awnings on the ground floor. Two MultiMeshes per part.
+func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefront: float, floor_h: float, rows: int, cols_x: int, cols_z: int, style: Dictionary) -> void:
+	var faces := [
+		[Vector3(1, 0, 0), Vector3(0, 0, 1), size.z, cols_z],
+		[Vector3(-1, 0, 0), Vector3(0, 0, -1), size.z, cols_z],
+		[Vector3(0, 0, 1), Vector3(-1, 0, 0), size.x, cols_x],
+		[Vector3(0, 0, -1), Vector3(1, 0, 0), size.x, cols_x],
+	]
+	# Window rect per style in cell units (center, half size), matching shaders/building.gdshader.
+	var cx := 0.5
+	var cy := 0.52
+	var hx := 0.27
+	var hy := 0.25
+	var sill := true
+	match window_style:
+		WindowStyle.RIBBON:
+			cy = 0.55
+			hx = 0.47
+			hy = 0.27
+			sill = false
+		WindowStyle.CURTAIN:
+			cx = 0.525
+			cy = 0.53
+			hx = 0.475
+			hy = 0.47
+			sill = false
+		WindowStyle.NARROW:
+			cy = 0.5
+			hx = 0.16
+			hy = 0.40
+	var frame_color := Color(0.25, 0.25, 0.27)
+	match finish:
+		Finish.BRICK:
+			frame_color = Color(0.92, 0.9, 0.86)
+		Finish.PANELS:
+			frame_color = Color(0.2, 0.2, 0.22)
+		Finish.GLASS:
+			frame_color = Color(0.14, 0.15, 0.17)
+	var cells := (2 * cols_x + 2 * cols_z) * rows
+	var frames: Array[Transform3D] = []
+	var boxes: Array = []   # [Transform3D, Color]
+	var top := bottom + size.y
+	var accent: Color = (style.accent as Color).lightened(0.25)
+	var awning_color: Color = AWNING_COLORS[_rng.randi() % AWNING_COLORS.size()]
+	var has_awnings := storefront > 0.0 and shape != Shape.WAREHOUSE and finish != Finish.GLASS and _rng.randf() < 0.7
+	var has_cornice := finish != Finish.GLASS and shape != Shape.WAREHOUSE
+	for face in faces:
+		var n: Vector3 = face[0]
+		var a: Vector3 = face[1]
+		var size_u: float = face[2]
+		var cols: int = face[3]
+		var pitch := size_u / cols
+		# Face center at height 0: the heights below (v, top, storefront) are absolute in building space.
+		var fc := Vector3(center.x, 0.0, center.z) + n * (size.x * 0.5 if absf(n.x) > 0.5 else size.z * 0.5)
+		if cells <= MAX_FRAME_CELLS:
+			var w := 2.0 * hx * pitch
+			var h := 2.0 * hy * floor_h
+			for col in cols:
+				var u := -size_u * 0.5 + (col + cx) * pitch
+				for row in rows:
+					var v := bottom + storefront + (row + cy) * floor_h
+					if v + h * 0.5 > top - 0.3:
+						continue
+					frames.append(Transform3D(Basis(a * w, Vector3.UP * h, n * 0.1), fc + a * u + Vector3(0.0, v, 0.0) + n * 0.02))
+		if has_cornice:
+			boxes.append([Transform3D(Basis(a * (size_u + 0.7), Vector3.UP * 0.45, n * 0.35), fc + Vector3(0.0, top - 0.22, 0.0) + n * 0.17), accent])
+		if storefront > 0.0:
+			boxes.append([Transform3D(Basis(a * (size_u + 0.4), Vector3.UP * 0.25, n * 0.22), fc + Vector3(0.0, bottom + storefront + 0.05, 0.0) + n * 0.11), accent])
+		if has_awnings:
+			for col in cols:
+				if col % 2 == 1 or _rng.randf() < 0.3:
+					continue
+				var u := -size_u * 0.5 + (col + 0.5) * pitch
+				var tilt := Basis(a, -0.35)
+				var basis := tilt * Basis(a * (pitch * 0.9), Vector3.UP * 0.08, n * 1.5)
+				boxes.append([Transform3D(basis, fc + a * u + Vector3(0.0, bottom + storefront * 0.78, 0.0) + n * 0.75), awning_color])
+	if not frames.is_empty():
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = PropFactory.window_frame(sill)
+		mm.instance_count = frames.size()
+		for i in frames.size():
+			mm.set_instance_transform(i, frames[i])
+			mm.set_instance_color(i, frame_color)
+		var node := MultiMeshInstance3D.new()
+		node.name = "Frames"
+		node.multimesh = mm
+		add_child(node)
+	if not boxes.is_empty():
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = PropFactory.unit_box()
+		mm.instance_count = boxes.size()
+		for i in boxes.size():
+			mm.set_instance_transform(i, boxes[i][0])
+			mm.set_instance_color(i, boxes[i][1])
+		var node := MultiMeshInstance3D.new()
+		node.name = "Details"
+		node.multimesh = mm
+		add_child(node)
 
 
 ## Texture sets each finish can wear (keys in PropFactory.TEXTURE_SETS) and their meters per tile.
@@ -413,10 +525,15 @@ func _rect_free(rect: Rect2, placed: Array[Rect2], part_index: int, part_center:
 func _build_prop(kind: String, at: Vector3) -> void:
 	match kind:
 		"ac":
-			var box := _prop_box(Vector3(1.4, 0.9, 1.4), Color(0.72, 0.72, 0.70), at + Vector3(0.0, 0.45, 0.0))
-			_prop_cylinder(0.45, 0.06, Color(0.2, 0.2, 0.22), at + Vector3(0.0, 0.93, 0.0))
-			_prop_collision(Vector3(1.4, 0.9, 1.4), at + Vector3(0.0, 0.45, 0.0))
-			box.rotation.y = _rng.randf_range(-0.2, 0.2)
+			# Real unit (Poly Haven), scaled up to rooftop size, on a concrete pad.
+			var unit := MeshInstance3D.new()
+			unit.mesh = PropFactory.model_ac(_rng.randf() < 0.35)
+			unit.position = at + Vector3(0.0, 0.1, 0.0)
+			unit.scale = Vector3.ONE * 1.7
+			unit.rotation.y = _rng.randf_range(0.0, TAU)
+			add_child(unit)
+			_prop_box(Vector3(1.6, 0.1, 1.6), Color(0.6, 0.6, 0.58), at + Vector3(0.0, 0.05, 0.0))
+			_prop_collision(Vector3(1.4, 1.6, 1.4), at + Vector3(0.0, 0.8, 0.0))
 		"vents":
 			for k in 5:
 				_prop_box(Vector3(1.2, 0.8, 1.2), Color(0.6, 0.6, 0.58), at + Vector3(-3.0 + k * 1.5, 0.4, 0.0))

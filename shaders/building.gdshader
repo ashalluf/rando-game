@@ -154,8 +154,10 @@ void fragment() {
 			albedo *= mix(1.0, 0.45, inset * (storefront ? 0.5 : 1.0));
 			// Fake interior: a soft vertical gradient behind the glass.
 			albedo *= 0.85 + 0.3 * fv;
-			rough = 0.12;
-			metal = 0.6;
+			// Tinted glass, not a mirror: with more metal the panes reflect pure sky and whole
+			// curtain-wall towers read as see-through cages from a distance.
+			rough = 0.32;
+			metal = 0.2;
 			if (lit) {
 				float glow = 0.55 + 0.45 * hash31(vec3(col + 3.0, row + 7.0, face_id + seed));
 				float on = 0.12 + 0.88 * night_factor;
@@ -220,6 +222,8 @@ void fragment() {
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
 	METALLIC = metal;
+	// Tamed dielectric reflection so tall facades do not mirror the sky at grazing angles.
+	SPECULAR = 0.25;
 	EMISSION = emission;
 	NORMAL_MAP = wall_nm;
 	NORMAL_MAP_DEPTH = wall_normal_depth * wall_nm_weight;

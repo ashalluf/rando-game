@@ -61,7 +61,7 @@ Build in this order, one milestone per PR or a few PRs.
   detail), tsunami-size waves, thunderstorms and weather, unlimited jumps, a much better
   minimap, sounds from Freesound (needs the owner's API key). Queue, in order: cars forward +
   paint + far windows + minimap + jumps (build 60), streets detail (build 61), commercial city (build 62),
-  weather and waves (build 63), facade geometry and rooftops, Freesound sounds.
+  weather and waves (build 63), facade geometry and rooftops (build 64), Freesound sounds.
 
 - **World character** (asked 2026-09-19): hills and slopes through the whole city; the
   illusion of uniqueness through cheap seeded surface variation, never hand placement.
@@ -185,6 +185,15 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-20 Facade geometry and real rooftop units (owner: "everything is still polygony",
+  buildings "look like blocks").** `Building._add_facade_details()` puts real geometry on every
+  part at FULL detail: a window frame (with a sill for punched and slot windows) at every cell
+  the shader draws, sized per window style so frame and painted pane line up; a cornice around
+  the roof edge and a string course over the storefront on brick, plaster and panel buildings;
+  tilted awnings over ground-floor storefronts. Two MultiMeshes per part ("Frames", "Details"),
+  frames left to the shader above 7000 cells. Rooftop "ac" props are now the Poly Haven
+  `exterior_aircon_unit` (clean or rusted) on a concrete pad.
 
 - **2026-09-20 Weather and tsunami waves (owner: "extremely realistic waves like tsunami size",
   "crazy ass thunderstorms and crazy weather").** `Weather` node (`scripts/world/weather.gd`,

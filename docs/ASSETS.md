@@ -84,6 +84,7 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | namaqualand_boulder_04 | `rock_b.glb` | 3.5k (from 59k) | hill boulders (tall) | 2026-09-19 |
 | wild_rooibos_bush (5 variants) | `plant_rooibos.glb` | 1k to 13k | dry scrub on the hills | 2026-09-19 |
 | grass_medium_02 (5 variants) | `grass_tuft.glb` | 0.7k to 2.5k | grass tufts on the hills | 2026-09-19 |
+| exterior_aircon_unit (clean + rusted) | `prop_ac.glb` | 9.5k per variant | rooftop air conditioning units | 2026-09-20 |
 
 Trees and rocks are reduced with `tools/decimate_tree.py` (pymeshlab quadric decimation that keeps
 the UVs for trunks, twigs and rocks; every kept leaf becomes one textured card in its best-fit
