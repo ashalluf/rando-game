@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3]
+[gd_scene load_steps=11 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/city_streamer.gd" id="1_city"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/world/day_night.gd" id="4_daynight"]
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="5_pause"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="6_sky"]
+[ext_resource type="Script" path="res://scripts/world/weather.gd" id="7_weather"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("6_sky")
@@ -70,6 +71,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
 script = ExtResource("4_daynight")
 sun_path = NodePath("../Sun")
 environment_path = NodePath("../WorldEnvironment")
+
+[node name="Weather" type="Node" parent="."]
+script = ExtResource("7_weather")
 
 [node name="DebugHud" parent="." instance=ExtResource("3_hud")]
 

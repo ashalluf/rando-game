@@ -224,7 +224,7 @@ static func _strip(chunk: CityChunk, strip: Rect2, h: float, front: Vector2, fas
 		unit_w = minf(unit_w, length - t)
 		var uc := s3 + a3 * (t + unit_w * 0.5)
 		var name: String = ANCHORS[rng.randi() % ANCHORS.size()] if (first and has_anchor) else SHOPS[rng.randi() % SHOPS.size()]
-		_sign_text(chunk, name, uc + Vector3(0.0, TOP + h - 0.7, 0.0) - f3 * 0.3, yaw, 0.55 if (first and has_anchor) else 0.4, Color.WHITE)
+		_sign_text(chunk, name, uc + Vector3(0.0, TOP + h - 0.7, 0.0) - f3 * 0.3, yaw, 0.9 if (first and has_anchor) else 0.55, Color.WHITE)
 		# Storefront glass with a pillar at each unit edge; an awning on some.
 		var gw := unit_w - 1.2
 		_glass(chunk, uc + Vector3(0.0, TOP + 1.6, 0.0) - f3 * 0.05, Vector3(gw, 2.6, 0.1) if absf(front.y) > 0.5 else Vector3(0.1, 2.6, gw))

@@ -21,6 +21,8 @@ uniform vec3 cloud_shadow : source_color = vec3(0.58, 0.63, 0.74);
 /// Extra horizon haze (0..1) and star brightness (night).
 uniform float haze : hint_range(0.0, 1.0) = 0.55;
 uniform float stars : hint_range(0.0, 1.0) = 0.0;
+/// Lightning flash (0..1), set by Weather.
+uniform float flash = 0.0;
 uniform float moon_size : hint_range(0.0, 0.1) = 0.02;
 
 float hash12(vec2 p) {
@@ -101,5 +103,6 @@ void sky() {
 	} else {
 		col = mix(sky_horizon, ground_color, clamp(-up * 6.0, 0.0, 1.0));
 	}
+	col += flash * vec3(0.8, 0.85, 1.0);
 	COLOR = col;
 }

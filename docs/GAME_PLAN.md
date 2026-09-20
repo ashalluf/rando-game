@@ -61,7 +61,7 @@ Build in this order, one milestone per PR or a few PRs.
   detail), tsunami-size waves, thunderstorms and weather, unlimited jumps, a much better
   minimap, sounds from Freesound (needs the owner's API key). Queue, in order: cars forward +
   paint + far windows + minimap + jumps (build 60), streets detail (build 61), commercial city (build 62),
-  weather and waves, facade geometry and rooftops, Freesound sounds.
+  weather and waves (build 63), facade geometry and rooftops, Freesound sounds.
 
 - **World character** (asked 2026-09-19): hills and slopes through the whole city; the
   illusion of uniqueness through cheap seeded surface variation, never hand placement.
@@ -185,6 +185,24 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-20 Weather and tsunami waves (owner: "extremely realistic waves like tsunami size",
+  "crazy ass thunderstorms and crazy weather").** `Weather` node (`scripts/world/weather.gd`,
+  in the city scene) rolls clear / overcast / rain / storm every 70 to 160 s (odds and lengths
+  are exports) and blends between them over 12 s. It drives: `DayNight.cloud_extra` and
+  `weather_darken` (cloud cover, darker sky top and horizon, dimmer sun and ambient, grey fog),
+  fog and volumetric density per state, a CPUParticles3D rain sheet that follows the player
+  (1400 drops, 2600 in a storm, wind offset), wet streets (`PropFactory.set_wetness()` lowers
+  the roughness of every cached road and sidewalk material), grass wind through the
+  `wind_factor` shader global, lightning (random flashes every 3 to 11 s: a `flash` uniform on
+  the sky, the sun's energy spiked through a meta the DayNight node reads, thunder from `Sfx`
+  0.4 to 2.5 s later) and the sea. The ocean is now a subdivided plane per chunk with
+  `shaders/ocean.gdshader`: three Gerstner swells scaled by the `wave_scale` global (1 calm, 6
+  in a storm) plus a 420 m long tsunami wave (`tsunami_scale` global, 30 m tall at full
+  strength) that rolls toward the shore for 40 s every 25 to 60 s during a storm. Foam on the
+  crests, fresnel, a ripple normal. A solid box under the surface still holds the player up.
+  Debug: `?weather=storm` on the web, `-- --weather=storm` on desktop. New synthesized sounds:
+  `rain` loop and `thunder`.
 
 - **2026-09-20 Commercial city (owner: "where's the shopping plazas, the home depots, the
   vons, the in n outs?").** Two new block kinds in `CityPlan` (`MALL`, `BIGBOX`, odds per

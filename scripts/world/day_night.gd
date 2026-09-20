@@ -38,6 +38,10 @@ extends Node
 @export_node_path("DirectionalLight3D") var sun_path: NodePath
 @export_node_path("WorldEnvironment") var environment_path: NodePath
 
+## Weather hooks (set by the Weather node every frame): extra cloud cover and how dark it is.
+var cloud_extra: float = 0.0
+var weather_darken: float = 0.0
+
 ## Hour of the day, 0..24.
 var hour: float = 9.0
 var night_factor: float = 0.0
@@ -105,15 +109,20 @@ func _apply() -> void:
 		var azimuth := 180.0 * t + sun_rotation_z_degrees if elevation > 0.0 else 120.0
 		_sun.rotation_degrees = Vector3(pitch, azimuth, 0.0)
 		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(night_sun_color, night_factor)
-		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight)
+		var flash: float = _sun.get_meta("weather_flash", 0.0)
+		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) + flash * 2.5
+		if flash > 0.0:
+			_sun.light_color = _sun.light_color.lerp(Color(0.85, 0.9, 1.0), clampf(flash, 0.0, 1.0))
 		_sun.shadow_enabled = true
 	if _sky:
 		var horizon := day_horizon.lerp(dusk_horizon, dusk).lerp(night_horizon, night_factor)
-		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk).lerp(night_sky_top, night_factor))
-		_sky.set_shader_parameter("sky_horizon", horizon)
+		var storm_top := Color(0.16, 0.17, 0.2)
+		var storm_horizon := Color(0.3, 0.31, 0.34)
+		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk).lerp(night_sky_top, night_factor).lerp(storm_top, weather_darken * (1.0 - night_factor * 0.6)))
+		_sky.set_shader_parameter("sky_horizon", horizon.lerp(storm_horizon, weather_darken * (1.0 - night_factor * 0.6)))
 		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk))
-		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk))
-		_sky.set_shader_parameter("cloud_coverage", cloud_coverage + 0.12 * sin(hour * 0.9))
+		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra, 0.0, 0.98))
+		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		_sky.set_shader_parameter("stars", night_factor)
 		_sky.set_shader_parameter("haze", lerpf(day_haze, dusk_haze, dusk))
 		_sky.set_shader_parameter("sun_glow", lerpf(0.9, 1.6, dusk))
@@ -121,5 +130,6 @@ func _apply() -> void:
 		_env.fog_light_color = day_horizon.lerp(night_horizon, night_factor)
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 		_env.ambient_light_color = day_ambient.lerp(night_ambient, night_factor)
-		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, night_factor)
+		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, night_factor) * (1.0 - 0.35 * weather_darken)
+		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4), weather_darken)
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)

@@ -166,3 +166,15 @@ night_factor={
 "type": "float",
 "value": 0.0
 }
+wave_scale={
+"type": "float",
+"value": 1.0
+}
+tsunami_scale={
+"type": "float",
+"value": 0.0
+}
+wind_factor={
+"type": "float",
+"value": 1.0
+}

@@ -26,6 +26,8 @@ func _ready() -> void:
 	_streams["click"] = _wav(_sweep(0.05, 1200.0, 900.0, 0.4))
 	_streams["boost_loop"] = _wav(_boost_loop(0.6), true)
 	_streams["engine_loop"] = _wav(_engine_loop(0.4), true)
+	_streams["rain"] = _wav(_rain_loop(1.5), true)
+	_streams["thunder"] = _wav(_thunder(3.2))
 	for i in POOL_SIZE:
 		var p := AudioStreamPlayer3D.new()
 		p.max_distance = 220.0
@@ -152,4 +154,31 @@ func _engine_loop(seconds: float) -> PackedFloat32Array:
 		var t := float(i) / MIX_RATE
 		var saw := fmod(t * 55.0, 1.0) * 2.0 - 1.0
 		out[i] = saw * 0.25 + sin(TAU * 110.0 * t) * 0.2 + sin(TAU * 165.0 * t) * 0.08
+	return out
+
+
+## Steady hiss of rain: low-passed white noise with a slow flutter.
+func _rain_loop(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var last := 0.0
+	for i in n:
+		var t := float(i) / MIX_RATE
+		last = lerpf(last, _rng.randf_range(-1.0, 1.0), 0.45)
+		out[i] = last * 0.35 * (0.85 + 0.15 * sin(TAU * 0.7 * t))
+	return out
+
+
+## Thunder: a deep rumble that cracks first, then rolls off.
+func _thunder(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var last := 0.0
+	for i in n:
+		var t := float(i) / MIX_RATE
+		last = lerpf(last, _rng.randf_range(-1.0, 1.0), 0.02 + 0.2 * exp(-8.0 * t))
+		var env := exp(-1.4 * t) * (1.0 + 0.5 * sin(TAU * 2.3 * t) * exp(-t))
+		out[i] = clampf(last * 6.0 * env, -1.0, 1.0)
 	return out

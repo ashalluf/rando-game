@@ -565,6 +565,25 @@ func _test_city() -> void:
 	_check(day.night_factor < 0.05, "noon clears it")
 	var sfx: Node = get_tree().root.get_node("/root/Sfx")
 	_check(sfx.has("shot") and sfx.has("explosion") and sfx.has("engine_loop"), "sound effects are synthesized")
+	_check(sfx.has("rain") and sfx.has("thunder"), "rain and thunder are synthesized")
+	# Weather: force a storm and watch the waves, wind and rain follow.
+	var weather = city.get_node_or_null("Weather")
+	_check(weather != null, "city has a Weather node")
+	if weather:
+		weather.state = 3
+		weather._previous = 3
+		weather.blend = 1.0
+		for i in 3:
+			weather._process(0.1)
+		_check(weather.wave_scale > 3.0, "a storm raises the ocean's wave scale (%.1f)" % weather.wave_scale)
+		_check(weather._rain.emitting, "a storm turns the rain on")
+		_check(city.get_node("DayNight").weather_darken > 0.5, "a storm darkens the sky")
+		weather.state = 0
+		weather._previous = 0
+		weather.blend = 1.0
+		for i in 3:
+			weather._process(0.1)
+		_check(not weather._rain.emitting, "clear weather turns the rain off")
 	var road_textured := false
 	var home_full: Node3D = city.chunks.get(plan.block_index_at(Vector2.ZERO))
 	if home_full:

@@ -738,3 +738,27 @@ static func gas_pump() -> Mesh:
 	var mesh := st.commit()
 	_cache["gas_pump"] = mesh
 	return mesh
+
+
+static func ocean_material() -> ShaderMaterial:
+	if _cache.has("ocean_mat"):
+		return _cache["ocean_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/ocean.gdshader")
+	_cache["ocean_mat"] = mat
+	return mat
+
+
+## Wet streets: lowers the roughness of every cached road and sidewalk material (0 dry, 1 soaked).
+static var _wetness: float = -1.0
+static func set_wetness(w: float) -> void:
+	if absf(w - _wetness) < 0.01:
+		return
+	_wetness = w
+	for key in _cache:
+		var k: String = key
+		if k.begins_with("pbr_asphalt") or k.begins_with("pbr_paving") or k.begins_with("pbr_sidewalk") or k.begins_with("pbr_pavers") or k.begins_with("pbr_concrete"):
+			var mat = _cache[key]
+			if mat is StandardMaterial3D:
+				(mat as StandardMaterial3D).roughness = lerpf(1.0, 0.25, w)
+				(mat as StandardMaterial3D).metallic_specular = lerpf(0.5, 0.9, w)

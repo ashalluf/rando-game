@@ -173,6 +173,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in
   project.godot). Shaders that should react to night read it with
   `global uniform float night_factor;`.
+- Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
+  rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
+  (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
+  lightning (sky `flash` uniform, sun meta `weather_flash`) and thunder. The ocean is
+  `shaders/ocean.gdshader` on a subdivided plane per water chunk. Debug `?weather=storm`.
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap
   (`MinimapFrame/Minimap`, `scripts/ui/minimap.gd`, drawn from `CityPlan` data, rotates with the
   camera heading, light map palette). Lighting and post-processing

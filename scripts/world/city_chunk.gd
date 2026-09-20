@@ -226,17 +226,30 @@ func _build_crane(at: Vector3) -> void:
 func _build_water() -> void:
 	var area := owned_rect()
 	var c := area.get_center()
+	# Waving surface (shaders/ocean.gdshader, Gerstner waves sized by the Weather node) over a
+	# solid box so the sea still holds you up. Surface at +0.15 so it sits above the ground
+	# follower plane (y = 0), which otherwise shows through as grass over the whole sea.
 	var mesh := MeshInstance3D.new()
+	var plane := PlaneMesh.new()
+	plane.size = Vector2(area.size.x, area.size.y)
+	var n := 40 if level == Level.FULL else 12
+	plane.subdivide_width = n
+	plane.subdivide_depth = n
+	mesh.mesh = plane
+	mesh.material_override = PropFactory.ocean_material()
+	mesh.position = Vector3(c.x, 0.15, c.y)
+	mesh.custom_aabb = AABB(Vector3(-area.size.x * 0.5, -40.0, -area.size.y * 0.5), Vector3(area.size.x, 80.0, area.size.y))
+	mesh.name = "Ocean"
+	add_child(mesh)
+	var floor_mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = Vector3(area.size.x, 1.0, area.size.y)
-	mesh.mesh = box
-	mesh.material_override = PropFactory.material(style.ocean, 0.15)
-	# Surface at +0.15 so it sits above the ground follower plane (y = 0), which otherwise
-	# shows through as grass over the whole sea.
-	mesh.position = Vector3(c.x, -0.35, c.y)
-	add_child(mesh)
+	floor_mesh.mesh = box
+	floor_mesh.material_override = PropFactory.material(style.ocean.darkened(0.5), 0.6)
+	floor_mesh.position = Vector3(c.x, -0.6, c.y)
+	add_child(floor_mesh)
 	if level == Level.FULL:
-		_add_shape(box.size, mesh.position)
+		_add_shape(box.size, floor_mesh.position)
 
 
 func _build_beach(block: Dictionary) -> void:

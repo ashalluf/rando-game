@@ -53,6 +53,9 @@ func _process(_delta: float) -> void:
 	var day := get_tree().current_scene.get_node_or_null("DayNight") if get_tree().current_scene else null
 	if day:
 		stats.text += "   %s" % day.clock_text()
+	var weather := get_tree().current_scene.get_node_or_null("Weather") if get_tree().current_scene else null
+	if weather and weather.has_method("state_name"):
+		stats.text += "   %s" % weather.state_name()
 	var peds := get_tree().get_nodes_in_group("pedestrian").size()
 	var traffic := get_tree().get_first_node_in_group("traffic")
 	stats.text += "   people %d" % peds
