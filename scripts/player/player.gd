@@ -46,6 +46,8 @@ const BLAST_MASK := 2 | 4 | 8
 @export var double_jump_height: float = 9.0
 ## Number of extra jumps allowed while airborne.
 @export var max_air_jumps: int = 1
+## Owner's rule (2026-09-20): jump as many times in the air as you like. Turns max_air_jumps off.
+@export var unlimited_air_jumps: bool = true
 ## Releasing jump early multiplies upward velocity by this (1.0 = fixed-height jumps).
 @export var jump_cut_multiplier: float = 0.45
 ## Grace period to still jump after walking off a ledge (seconds).
@@ -418,8 +420,9 @@ func _handle_jump(on_floor: bool) -> void:
 	if _jump_buffer_timer > 0.0:
 		if on_floor or _coyote_timer > 0.0:
 			_do_jump(jump_velocity())
-		elif air_jumps_left > 0:
-			air_jumps_left -= 1
+		elif unlimited_air_jumps or air_jumps_left > 0:
+			if not unlimited_air_jumps:
+				air_jumps_left -= 1
 			_do_jump(double_jump_velocity())
 	# Variable jump height: let go early to cut the jump short.
 	if Input.is_action_just_released("jump") and velocity.y > 0.0 and not _boosting:

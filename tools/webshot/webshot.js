@@ -14,13 +14,13 @@ const server = http.createServer((req,res)=>{ const f = path.join(root, req.url.
 (async () => {
   await new Promise(r=>server.listen(8123,r));
   const browser = await chromium.launch({ executablePath: process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--use-angle=swiftshader','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--enable-webgl','--no-sandbox'] });
-  const page = await browser.newPage({ viewport: { width: 960, height: 540 } });
+  const page = await browser.newPage({ viewport: { width: parseInt(process.env.VW || '960'), height: parseInt(process.env.VH || '540') } });
   const logs = [];
   page.on('console', m => logs.push(`[${m.type()}] ${m.text()}`));
   page.on('pageerror', e => logs.push(`[pageerror] ${e.message}`));
   await page.goto('http://127.0.0.1:8123/index.html' + (process.env.QS || ''));
   await page.waitForTimeout(parseInt(process.env.WAIT || '25000'));
-  await page.mouse.click(480, 270);
+  await page.mouse.click(parseInt(process.env.VW || '960') / 2, parseInt(process.env.VH || '540') / 2);
 
   await page.waitForTimeout(1500);
 
