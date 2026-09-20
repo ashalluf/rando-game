@@ -193,6 +193,15 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - NPCs: `Pedestrian` (wanders a block's sidewalk ring, `knock(impulse)` turns it into a `Ragdoll`
   debris) and `TrafficManager` (kinematic `Vehicle`s with `traffic` state driving the lanes).
   Never freeze a VehicleBody3D and never give a kinematic one VehicleWheel3D nodes: NaN.
+  Population (owner, 2026-09-20: "an actual very populated city", densest downtown, thinning
+  outward, the airport jam-packed): `"people"` and `"parked"` per block live in
+  `CityPlan.DISTRICTS` (the downtown core doubles people via `skyline_boost`), the caps are
+  `CityStreamer.max_pedestrians` / `traffic_cars` (web values lower). Traffic count and speed
+  follow `TrafficManager.density_at()` (1.0 downtown core, `edge_density` at the edges, 1.0
+  again around the terminal). The airport drop-off is `MacroMap.terminal_curb` (crowd from the
+  airport chunk, `airport_crowd`) plus `MacroMap.terminal_loops`, two closed lane paths that
+  `TrafficManager` fills bumper to bumper (`loop_cars`, `max_loop_cars`) while the player is
+  within `loop_active_distance`; the road itself is built by `Landmarks._build_dropoff()`.
 - Vehicles: `Vehicle` (`scripts/vehicles/vehicle.gd`), a VehicleBody3D built in code;
   `Vehicle.random_car(rng)` for a seeded one. Handling numbers are exports at the top. The player's
   `enter_vehicle()` / `exit_vehicle()` handle riding; the car reads input while `driver` is set.

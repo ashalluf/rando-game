@@ -548,6 +548,40 @@ static func _build_terminal(anchor: Vector2, parent: Node3D, statics: StaticBody
 	for i in 4:
 		_box(parent, statics, Vector3(3.0, 3.0, 18.0), base + Vector3(-60.0 + i * 40.0, 5.5, -31.0), Color(0.7, 0.72, 0.75), detailed)
 		_box(parent, null, Vector3(2.0, 4.0, 2.0), base + Vector3(-60.0 + i * 40.0, 2.0, -24.0), Color(0.5, 0.5, 0.52), false)
+	_build_dropoff(parent, statics, Rect2(anchor.x - 90.0, 624.0, 180.0, 10.0), detailed)
+
+
+## The drop-off loop in front of the terminal: a dark two-way road with a median, lane lines,
+## a raised curb strip along the hall with pillars and "DEPARTURES" signs. Traffic crawls the
+## loop lanes from MacroMap.terminal_loops; the crowd on the curb comes from the airport chunk.
+static func _build_dropoff(parent: Node3D, statics: StaticBody3D, curb: Rect2, detailed: bool) -> void:
+	var y := 0.1 # tarmac top
+	var road := Rect2(-490.0, 594.0, 280.0, 32.0)
+	var rc := road.get_center()
+	var asphalt := _box(parent, null, Vector3(road.size.x, 0.06, road.size.y), Vector3(rc.x, y + 0.03, rc.y), Color(0.5, 0.5, 0.52), false)
+	asphalt.material_override = PropFactory.pbr("asphalt", 7.0, Color(0.55, 0.55, 0.57))
+	# Median and lane lines.
+	_box(parent, null, Vector3(road.size.x - 30.0, 0.16, 1.6), Vector3(rc.x, y + 0.14, 610.0), Color(0.72, 0.72, 0.7), false)
+	for lz: float in [617.5, 602.5]:
+		_box(parent, null, Vector3(road.size.x - 34.0, 0.012, 0.14), Vector3(rc.x, y + 0.068, lz), Color(0.95, 0.95, 0.95), false)
+	for lz: float in [623.6, 596.4]:
+		_box(parent, null, Vector3(road.size.x - 30.0, 0.012, 0.14), Vector3(rc.x, y + 0.068, lz), Color(0.9, 0.9, 0.9), false)
+	# Curb strip along the hall, a step up, with pillars carrying a canopy and the signs.
+	var cc := curb.get_center()
+	var strip := _box(parent, statics, Vector3(curb.size.x + 20.0, 0.24, curb.size.y + 1.0), Vector3(cc.x, y + 0.12, cc.y + 0.5), Color(0.8, 0.79, 0.76), detailed)
+	strip.material_override = PropFactory.pbr("sidewalk", 3.0, Color(0.95, 0.95, 0.95))
+	for i in 7:
+		var px := curb.position.x - 6.0 + i * (curb.size.x + 12.0) / 6.0
+		_box(parent, statics, Vector3(0.7, 6.0, 0.7), Vector3(px, y + 3.2, curb.position.y + 1.2), Color(0.6, 0.62, 0.66), detailed)
+	_box(parent, null, Vector3(curb.size.x + 20.0, 0.5, 9.0), Vector3(cc.x, y + 6.4, curb.position.y + 4.0), Color(0.85, 0.86, 0.88), false)
+	if detailed:
+		for sx: float in [cc.x - 50.0, cc.x, cc.x + 50.0]:
+			var sign := MeshInstance3D.new()
+			sign.mesh = PropFactory.text_mesh("DEPARTURES", 1.1)
+			sign.material_override = PropFactory.material(Color(1.0, 0.85, 0.2), 0.5, true)
+			sign.position = Vector3(sx, y + 5.4, curb.position.y - 0.3)
+			sign.rotation.y = PI # TextMesh reads from +Z; the road is on the -Z side
+			parent.add_child(sign)
 
 
 ## Three hangars with barrel roofs, a fuel farm and a beacon at the east end of the field.

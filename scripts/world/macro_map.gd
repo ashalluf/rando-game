@@ -35,7 +35,15 @@ var campus_radius: float = 250.0
 ## South-east of this corner is the port and industrial district.
 var industrial_corner: Vector2 = Vector2(300.0, 900.0)
 ## Flat zones (world XZ rects): the airport by the south-west coast, the port on a harbor.
-var airport_rect: Rect2 = Rect2(-880.0, 630.0, 980.0, 350.0)
+var airport_rect: Rect2 = Rect2(-880.0, 590.0, 980.0, 390.0)
+## Landside of the terminal (its hall front is at z 635): the sidewalk strip people crowd, and
+## the drop-off loop road in front of it, as the two closed lane paths traffic crawls around
+## (world XZ; each list is a closed polyline, cars drive it in order).
+var terminal_curb: Rect2 = Rect2(-440.0, 624.0, 180.0, 10.0)
+var terminal_loops: Array = [
+	PackedVector2Array([Vector2(-484.0, 620.5), Vector2(-216.0, 620.5), Vector2(-216.0, 599.5), Vector2(-484.0, 599.5)]),
+	PackedVector2Array([Vector2(-474.0, 614.5), Vector2(-226.0, 614.5), Vector2(-226.0, 605.5), Vector2(-474.0, 605.5)]),
+]
 var port_rect: Rect2 = Rect2(450.0, 1000.0, 700.0, 300.0)
 var harbor_rect: Rect2 = Rect2(450.0, 1300.0, 700.0, 260.0)
 ## Runway center lines (z) and width inside the airport rect.

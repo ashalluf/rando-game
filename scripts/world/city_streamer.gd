@@ -37,17 +37,22 @@ extends Node3D
 @export var tree_spacing: float = 12.0
 @export var trash_cans_per_block: int = 2
 ## Parked cars per block (physics bodies; count against the PhysicsBudget cap).
-@export var cars_per_block: int = 5
-@export var pedestrians_per_block: int = 8
+@export var cars_per_block: int = 5 # fallback; districts set "parked"
+@export var pedestrians_per_block: int = 8 # fallback; districts set "people"
 ## Grass blades per park block (MultiMesh, wind shader).
 @export var grass_per_park: int = 2500
 ## Hard cap on live pedestrians (animated characters; the web build is capped lower below).
-@export var max_pedestrians: int = 160
+@export var max_pedestrians: int = 650
 ## Cars driving around at once.
-@export var traffic_cars: int = 24
+@export var traffic_cars: int = 150
 ## The browser build renders with WebGL at a fraction of desktop speed: caps used there instead.
-@export var web_max_pedestrians: int = 80
-@export var web_traffic_cars: int = 14
+@export var web_max_pedestrians: int = 140
+@export var web_traffic_cars: int = 36
+## Cars crawling the airport drop-off loop while the player is near the terminal (web: fewer).
+@export var airport_loop_cars: int = 90
+@export var web_airport_loop_cars: int = 30
+## People packed on the terminal curb.
+@export var airport_crowd: int = 45
 
 @export_group("Look")
 @export var sun_rotation_degrees: Vector3 = Vector3(-48.0, 35.0, 0.0)
@@ -83,6 +88,7 @@ func _ready() -> void:
 	if OS.has_feature("web"):
 		max_pedestrians = mini(max_pedestrians, web_max_pedestrians)
 		traffic_cars = mini(traffic_cars, web_traffic_cars)
+		airport_loop_cars = mini(airport_loop_cars, web_airport_loop_cars)
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun:
 		sun.rotation_degrees = sun_rotation_degrees
@@ -108,6 +114,7 @@ func _ready() -> void:
 	traffic.name = "Traffic"
 	traffic.plan = plan
 	traffic.max_cars = traffic_cars
+	traffic.max_loop_cars = airport_loop_cars
 	add_child(traffic)
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	_apply_spawn_override()
@@ -346,7 +353,7 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 		"hill_grass": hill_grass_color, "hill_rock": hill_rock_color,
 		"tarmac": tarmac_color, "runway": runway_color, "concrete": concrete_color,
 		"lamp_spacing": lamp_spacing, "tree_spacing": tree_spacing, "trash_cans_per_block": trash_cans_per_block,
-		"cars_per_block": cars_per_block, "pedestrians_per_block": pedestrians_per_block, "max_pedestrians": max_pedestrians,
+		"cars_per_block": cars_per_block, "pedestrians_per_block": pedestrians_per_block, "max_pedestrians": max_pedestrians, "airport_crowd": airport_crowd,
 		"grass_per_park": grass_per_park,
 	}
 	add_child(chunk)

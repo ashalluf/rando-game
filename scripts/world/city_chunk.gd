@@ -111,6 +111,11 @@ func _build_airport() -> void:
 	var c := area.get_center()
 	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.pbr("asphalt", 8.0, Color(0.9, 0.9, 0.9)))
 	var macro: MacroMap = plan.macro
+	if level == Level.FULL and area.has_point(macro.terminal_curb.get_center()):
+		# The drop-off curb in front of the terminal is packed (owner: "jampacked").
+		var curb_rng := RandomNumberGenerator.new()
+		curb_rng.seed = plan.seed ^ 0x7e5
+		_spawn_crowd(macro.terminal_curb, 4.0, style.airport_crowd, curb_rng)
 	for rz in macro.runway_zs:
 		var band := Rect2(area.position.x, rz - macro.runway_width * 0.5, area.size.x, macro.runway_width)
 		var strip := band.intersection(area)
@@ -690,12 +695,20 @@ func _build_block(block: Dictionary) -> void:
 			_build_lots(rect, params, rng)
 	if level == Level.FULL:
 		_build_sidewalk_props(rect, params, rng, district)
-		_park_cars(rect, rng)
-		_spawn_pedestrians(rect, rng)
+		_park_cars(rect, rng, params)
+		_spawn_pedestrians(rect, rng, params)
 
 
-func _spawn_pedestrians(rect: Rect2, rng: RandomNumberGenerator) -> void:
-	var count: int = style.pedestrians_per_block
+func _spawn_pedestrians(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> void:
+	var count: int = params.get("people", style.pedestrians_per_block)
+	if plan.macro and not params.is_empty():
+		# The downtown core is the busiest: up to twice the district's count in the middle.
+		count = roundi(count * (1.0 + plan.macro.skyline_boost(rect.get_center())))
+	_spawn_crowd(rect, plan.sidewalk_width, count, rng)
+
+
+## `count` pedestrians wandering the sidewalk ring of `rect` (inset `sidewalk` meters).
+func _spawn_crowd(rect: Rect2, sidewalk: float, count: int, rng: RandomNumberGenerator) -> void:
 	if count <= 0:
 		return
 	var existing := 0
@@ -710,16 +723,16 @@ func _spawn_pedestrians(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		if existing >= cap:
 			return
 		var ped := Pedestrian.new()
-		ped.setup(rect, plan.sidewalk_width, rng.randi())
-		var start := ped._random_ring_point(plan.sidewalk_width)
+		ped.setup(rect, sidewalk, rng.randi())
+		var start := ped._random_ring_point(sidewalk)
 		ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
 		add_child(ped)
 		existing += 1
 
 
 ## Parked cars in the lanes of this chunk's two roads, nose along the road.
-func _park_cars(rect: Rect2, rng: RandomNumberGenerator) -> void:
-	var max_cars: int = style.cars_per_block
+func _park_cars(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> void:
+	var max_cars: int = params.get("parked", style.cars_per_block)
 	if max_cars <= 0:
 		return
 	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)

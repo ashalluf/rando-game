@@ -127,11 +127,22 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 51)
+## 6. Where the game stands (build 66)
 
-Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes
-and the "map character" batch. Recent builds, newest first:
+Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
+the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 66: populated city: people and parked cars per district (downtown core 2x), traffic density by
+  distance from downtown, airport drop-off loop road with 90 crawling cars and a curb crowd.
+- 65: animated main character (`Avatar`), ragdolls keep the real model, first lag pass
+  (`Quality` node, flat window frames with a draw distance, pedestrian update throttle).
+- 64: facade geometry (frames, cornices, awnings), Poly Haven rooftop AC units, `tools/glshot`.
+- 63: weather (overcast / rain / storm, lightning, wet streets) and tsunami-size waves.
+- 62: shopping plazas, big-box stores, fast-food and gas-station pads, lawns, pocket gardens.
+- 61: street detail (stop lines, arrows, street-name signs, poles and cables, bus shelters).
+- 60: cars drive forwards, two-tone paint shader, far-box windows, new minimap, unlimited jumps.
+- 59: city relief (rolling ground under the blocks), seeded surface variation per district.
+- 52 to 58: Poly Haven props, trees, rocks, PBR wall textures, sky haze fix, screenshot rule.
 - 51: bigger airport (3 runways, hangars, jet bridges), flyable jets (`Aircraft`), AK-47 bullets
   now hit pedestrians (they were on the wrong physics layer for months of session time).
 - 49: campus district and the campus hall landmark ("RANDO U").

@@ -312,6 +312,24 @@ func _test_city() -> void:
 		city.update_streaming(true)
 		var airport_chunk: Node3D = city.chunks.get(plan.block_index_at(runway))
 		_check(airport_chunk != null and airport_chunk.zone == MacroMap.Zone.AIRPORT and airport_chunk.has_node("Runway") and airport_chunk.building_count == 0, "airport chunk has a runway and no buildings")
+		# The terminal drop-off: a loop of crawling cars and a crowd on the curb.
+		var curb_c: Vector2 = macro.terminal_curb.get_center()
+		player.global_position = _world_state().to_local(Vector3(curb_c.x, 2.0, curb_c.y + 20.0))
+		city.update_streaming(true)
+		await _ticks(70)
+		var loop_mgr: Node3D = city.get_node("Traffic")
+		_check(loop_mgr.loop_cars.size() >= 20, "airport drop-off loop is jammed (%d cars)" % loop_mgr.loop_cars.size())
+		var curb_people := 0
+		for ped in get_tree().get_nodes_in_group("pedestrian"):
+			var wp: Vector3 = _world_state().to_world(ped.global_position)
+			if macro.terminal_curb.grow(6.0).has_point(Vector2(wp.x, wp.z)):
+				curb_people += 1
+		_check(curb_people >= 15, "crowd on the terminal curb (%d)" % curb_people)
+		if loop_mgr.loop_cars.size() > 0:
+			var lc: Node3D = loop_mgr.loop_cars[0]
+			var lp0: Vector3 = lc.global_position
+			await _ticks(60)
+			_check(is_instance_valid(lc) and lc.global_position.distance_to(lp0) > 1.0, "loop cars crawl forward")
 		var port := Vector2(800.0, 1150.0)
 		player.global_position = _world_state().to_local(Vector3(port.x, 2.0, port.y))
 		city.update_streaming(true)

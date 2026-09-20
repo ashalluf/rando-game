@@ -186,6 +186,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 A populated city (owner: "50x the amount of pedestrians and vehicles", "mostly
+  concentrated in the downtown area and gradually less the further out", "except for the
+  airport, which should be jampacked").** Pedestrians per block are a district parameter
+  (downtown 46, midtown 20, campus 16, suburbs 6, industrial 3, the downtown core up to 2x),
+  cap 650 (web 140); traffic scales with `TrafficManager.density_at()` (150 cars downtown,
+  20 % of that at the edges, slower where dense) with the airport approach jammed too. The
+  airport rect grew north to hold a drop-off loop road in front of the terminal
+  (`Landmarks._build_dropoff()`: two-way road, median, curb strip with canopy pillars and
+  DEPARTURES signs) that 90 cars crawl around bumper to bumper (`MacroMap.terminal_loops`) with
+  45 people on the curb. Not literally 50x: hundreds of animated rigs are what a laptop takes;
+  the far-pedestrian update throttle (build 65) is what makes 650 affordable.
+
 - **2026-09-20 Animated main character, real ragdolls, first lag pass (owner: "GTA style main
   character instead of this orange blob", "they turn into low poly creatures" when hit, "it's a
   little bit laggy").** `Avatar` puts one of the rigged characters on the player (idle / walk /
