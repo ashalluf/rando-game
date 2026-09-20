@@ -120,6 +120,7 @@ func _add_model() -> bool:
 	_visual.scale = Vector3(_rng.randf_range(0.94, 1.07), tall, _rng.randf_range(0.94, 1.07))
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim:
+		fix_arm_pose(_anim, path)
 		for clip in _anim.get_animation_list():
 			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 		# Advanced by hand in _physics_process so far pedestrians can animate less often.
@@ -131,6 +132,48 @@ func _add_model() -> bool:
 			# unison is the most obvious tell that they are all the same model.
 			_anim.seek(_rng.randf() * _anim.get_animation("Casual_Walk_inplace").length, true)
 	return true
+
+
+## The generated walk and idle clips hold the arms out from the body like a scarecrow: the
+## retarget put the shoulders in an A-pose and animated the swing on top of that, so every
+## person in the city walks around with their arms at 45 degrees. The clips animate the
+## shoulders as well, so a pose override would be overwritten every frame; instead the
+## shoulder rotation keys are rotated once, on the shared animation resource, which costs
+## nothing at runtime and fixes every instance of the model at the same time.
+##
+## `ARM_DROP_DEG` is how far the arms come down toward the body, `ARM_TUCK_DEG` how far they
+## come in toward the chest. Both are tuned by eye against a render.
+## Per model, because the two rigs do not share a rest pose: the same correction that puts A's
+## arms by its sides leaves C's still held out. Negative brings the arms down.
+const ARM_DROP := {"pedestrian_a_anim.glb": -46.0, "pedestrian_c_anim.glb": -76.0}
+const ARM_DROP_DEFAULT := -46.0
+const ARM_BONES := ["LeftShoulder", "RightShoulder"]
+static var _arms_fixed: Dictionary = {}
+
+
+static func fix_arm_pose(anim: AnimationPlayer, model_path: String) -> void:
+	if anim == null or _arms_fixed.has(model_path):
+		return
+	_arms_fixed[model_path] = true
+	var drop: float = ARM_DROP.get(model_path.get_file(), ARM_DROP_DEFAULT)
+	var override := OS.get_environment("ARM_DROP_" + model_path.get_file().get_basename())
+	if override != "":
+		drop = float(override)
+	for clip in anim.get_animation_list():
+		var a := anim.get_animation(clip)
+		for t in a.get_track_count():
+			if a.track_get_type(t) != Animation.TYPE_ROTATION_3D:
+				continue
+			var bone := str(a.track_get_path(t)).get_slice(":", 1)
+			var index := ARM_BONES.find(bone)
+			if index < 0:
+				continue
+			# Mirror the correction for the right side.
+			var sign_ := 1.0 if index == 0 else -1.0
+			var fix := Quaternion(Vector3(0.0, 0.0, 1.0), deg_to_rad(drop) * sign_)
+			for k in a.track_get_key_count(t):
+				var q: Quaternion = a.track_get_key_value(t, k)
+				a.track_set_key_value(t, k, (fix * q).normalized())
 
 
 ## Fixes an instantiated rig so it renders right (shared by pedestrians, ragdolls and the

@@ -48,6 +48,11 @@ var night_factor: float = 0.0
 
 var _sun: DirectionalLight3D
 var _env: Environment
+## How bright the street lamps burn at full night. Quality scales this down at the low levels.
+@export var lamp_energy: float = 2.6
+var lamp_scale: float = 1.0
+var _lamp_level: float = -1.0
+var _lamp_timer: float = 0.0
 var _sky: ShaderMaterial
 var _paused: bool = false
 
@@ -146,4 +151,16 @@ func _apply() -> void:
 		_env.ambient_light_color = day_ambient.lerp(night_ambient, night_factor)
 		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, night_factor) * (1.0 - 0.35 * weather_darken)
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4), weather_darken)
+	# Street lamps. Setting hundreds of lights every frame is wasteful, but only refreshing when
+	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
+	# which is why the streets stayed black the first time. Refresh on a slow tick instead, so
+	# newly loaded chunks pick the level up within a third of a second.
+	var want := night_factor * lamp_energy * lamp_scale
+	# _apply() is also called from _ready(), where there is no delta parameter to use.
+	_lamp_timer -= get_process_delta_time()
+	if _lamp_timer <= 0.0 or absf(want - _lamp_level) > 0.04:
+		_lamp_timer = 0.35
+		_lamp_level = want
+		for light in get_tree().get_nodes_in_group("lamp_light"):
+			(light as OmniLight3D).light_energy = want
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)

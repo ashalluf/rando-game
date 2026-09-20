@@ -50,7 +50,9 @@ static func build_bigbox(chunk: CityChunk, rect: Rect2, rng: RandomNumberGenerat
 	var name: String = BIG[rng.randi() % BIG.size()]
 	var big_set: String = ["concrete_painted", "metal_corrugated", "concrete", "plaster_beige"][rng.randi() % 4]
 	var wall := PropFactory.pbr(big_set, 4.0, Color(0.85, 0.85, 0.85))
-	_box_building(chunk, box, h, wall, full)
+	# No face skipped on a big box: the entrance fascia and canopy sit well proud of the wall,
+	# and the long blank stretches either side of the doors are exactly what needs breaking up.
+	_box_building(chunk, box, h, wall, full, true)
 	var front_z := box.position.y
 	var cx := box.get_center().x
 	if full:
@@ -193,18 +195,47 @@ static func _lot_lamps(chunk: CityChunk, area: Rect2, rng: RandomNumberGenerator
 
 
 ## A plain box building with collision (LOD too), roof parapet, plinth-free (sits on the lot).
-static func _box_building(chunk: CityChunk, box: Rect2, h: float, wall: Material, full: bool) -> void:
+## `ribs`: break the blank faces up with pilasters and a base band. `skip_face` is the outward
+## direction of the face that carries the shopfronts, which is left alone.
+static func _box_building(chunk: CityChunk, box: Rect2, h: float, wall: Material, full: bool, ribs_on: bool = false, skip_face: Vector2 = Vector2.ZERO) -> void:
 	var c := box.get_center()
 	chunk._add_slab(Vector3(c.x, TOP + h * 0.5, c.y), Vector3(box.size.x, h, box.size.y), Color(0.8, 0.8, 0.8), true, wall)
-	if full:
-		chunk._add_slab(Vector3(c.x, TOP + h + 0.3, c.y), Vector3(box.size.x + 0.4, 0.6, box.size.y + 0.4), Color(0.5, 0.5, 0.5), false, PropFactory.pbr("concrete", 3.0, Color(0.7, 0.7, 0.7)))
+	chunk._add_slab(Vector3(c.x, TOP + h + 0.3, c.y), Vector3(box.size.x + 0.4, 0.6, box.size.y + 0.4), Color(0.5, 0.5, 0.5), false, PropFactory.pbr("concrete", 3.0, Color(0.7, 0.7, 0.7)))
+	if not ribs_on:
+		return
+	# A big-box side wall is 60 m of nothing, and from the street opposite it is a grey field
+	# filling a third of the screen. Real ones are broken up by structural pilasters every few
+	# bays, a painted base band where the trolleys scuff it, and a shadow line under the
+	# parapet. All flat slabs proud of the wall, so it stays a handful of draws.
+	var band := PropFactory.pbr("concrete", 2.4, Color(0.60, 0.59, 0.57))
+	var rib := PropFactory.pbr("concrete", 2.0, Color(0.80, 0.79, 0.77))
+	for axis in 2:
+		var span: float = box.size.x if axis == 0 else box.size.y
+		var ribs := maxi(int(span / (9.0 if full else 14.0)), 2)
+		var step := span / float(ribs)
+		for side in 2:
+			# Which way this face looks: -Z / +Z for the faces spread along X, -X / +X for the others.
+			var out := Vector2(0.0, -1.0 if side == 0 else 1.0) if axis == 0 else Vector2(-1.0 if side == 0 else 1.0, 0.0)
+			if out.is_equal_approx(skip_face):
+				continue
+			var off: float = (box.position[1 - axis] - 0.12) if side == 0 else (box.end[1 - axis] + 0.12)
+			for i in range(1, ribs):
+				var t := box.position[axis] + step * float(i)
+				var at := Vector3(t, TOP + h * 0.5, off) if axis == 0 else Vector3(off, TOP + h * 0.5, t)
+				var sz := Vector3(0.9, h - 0.4, 0.28) if axis == 0 else Vector3(0.28, h - 0.4, 0.9)
+				chunk._add_slab(at, sz, Color(0.8, 0.8, 0.8), false, rib)
+			# The scuffed base band, run along the whole face.
+			var mid: float = box.position[axis] + span * 0.5
+			var at2 := Vector3(mid, TOP + 0.6, off - 0.02 * signf(off)) if axis == 0 else Vector3(off - 0.02 * signf(off), TOP + 0.6, mid)
+			var sz2 := Vector3(span, 1.2, 0.22) if axis == 0 else Vector3(0.22, 1.2, span)
+			chunk._add_slab(at2, sz2, Color(0.6, 0.6, 0.6), false, band)
 
 
 ## A strip of shop units along one long side of `strip`; `front` is the outward direction.
 static func _strip(chunk: CityChunk, strip: Rect2, h: float, front: Vector2, fascia: Color, wall_set: String, rng: RandomNumberGenerator, full: bool, has_anchor: bool) -> void:
 	if strip.size.x < 8.0 or strip.size.y < 8.0:
 		return
-	_box_building(chunk, strip, h, PropFactory.pbr(wall_set, 3.5, Color(0.9, 0.88, 0.85)), full)
+	_box_building(chunk, strip, h, PropFactory.pbr(wall_set, 3.5, Color(0.9, 0.88, 0.85)), full, true, front)
 	if not full:
 		return
 	var along := Vector2(1.0, 0.0) if absf(front.y) > 0.5 else Vector2(0.0, 1.0)

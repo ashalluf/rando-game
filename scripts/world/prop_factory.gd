@@ -573,6 +573,42 @@ static func fire_escape() -> Mesh:
 	return mesh
 
 
+## The pool of light a lamp throws on the pavement: a unit quad lying flat, additive and
+## unshaded (see shaders/light_pool.gdshader). Instances scale it to the pool's diameter.
+static func light_pool(tint: Color = Color(1.0, 0.84, 0.58), strength: float = 1.0) -> Mesh:
+	var key := "light_pool_%d_%.2f" % [tint.to_rgba32(), strength]
+	if _cache.has(key):
+		return _cache[key]
+	var mesh := QuadMesh.new()
+	mesh.size = Vector2.ONE
+	# The quad faces +Z, so it is laid flat by the instance transform, not here.
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/light_pool.gdshader")
+	mat.set_shader_parameter("tint", tint)
+	mat.set_shader_parameter("strength", strength)
+	mesh.material = mat
+	_cache[key] = mesh
+	return mesh
+
+
+## A glowing lamp face (headlight, tail light, sign light): the same additive night quad as the
+## light pool but with a tight falloff, so it reads as a lamp rather than a smear.
+static func lamp_face(tint: Color, strength: float = 1.6) -> Mesh:
+	var key := "lamp_face_%d_%.2f" % [tint.to_rgba32(), strength]
+	if _cache.has(key):
+		return _cache[key]
+	var mesh := QuadMesh.new()
+	mesh.size = Vector2.ONE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/light_pool.gdshader")
+	mat.set_shader_parameter("tint", tint)
+	mat.set_shader_parameter("strength", strength)
+	mat.set_shader_parameter("falloff", 1.1)
+	mesh.material = mat
+	_cache[key] = mesh
+	return mesh
+
+
 static func palm_trunk() -> Mesh:
 	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
 

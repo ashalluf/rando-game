@@ -89,12 +89,12 @@ func _mat(color: Color, metallic: float = 0.0, roughness: float = 0.7) -> Standa
 	return mat
 
 
-func _box(size: Vector3, color: Color, pos: Vector3, rot_deg: Vector3 = Vector3.ZERO, metallic: float = 0.0) -> MeshInstance3D:
+func _box(size: Vector3, color: Color, pos: Vector3, rot_deg: Vector3 = Vector3.ZERO, metallic: float = 0.0, roughness: float = 0.7) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	var box := BoxMesh.new()
 	box.size = size
 	mesh.mesh = box
-	mesh.material_override = _mat(color, metallic)
+	mesh.material_override = _mat(color, metallic, roughness)
 	mesh.position = pos
 	mesh.rotation_degrees = rot_deg
 	add_child(mesh)
@@ -102,7 +102,7 @@ func _box(size: Vector3, color: Color, pos: Vector3, rot_deg: Vector3 = Vector3.
 
 
 ## Cylinder along local Z (pointing forward, -Z) after rotation.
-func _cylinder(radius: float, length: float, color: Color, pos: Vector3, metallic: float = 0.0, top_radius: float = -1.0) -> MeshInstance3D:
+func _cylinder(radius: float, length: float, color: Color, pos: Vector3, metallic: float = 0.0, top_radius: float = -1.0, roughness: float = 0.7, rot_deg: Vector3 = Vector3(90.0, 0.0, 0.0)) -> MeshInstance3D:
 	var mesh := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
 	cyl.bottom_radius = radius
@@ -110,9 +110,9 @@ func _cylinder(radius: float, length: float, color: Color, pos: Vector3, metalli
 	cyl.height = length
 	cyl.radial_segments = 10
 	mesh.mesh = cyl
-	mesh.material_override = _mat(color, metallic)
+	mesh.material_override = _mat(color, metallic, roughness)
 	mesh.position = pos
-	mesh.rotation_degrees = Vector3(90.0, 0.0, 0.0)
+	mesh.rotation_degrees = rot_deg
 	add_child(mesh)
 	return mesh
 

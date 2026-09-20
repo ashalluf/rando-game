@@ -399,6 +399,42 @@ func _build() -> void:
 			_wheel_visuals.append(visual)
 	else:
 		_add_real_wheels()
+	_add_night_lights(dims)
+
+
+## Headlights, tail lights and the pool of light the beams throw on the road. All of it is the
+## additive night quad (shaders/light_pool.gdshader), so it costs no real lights and it is
+## invisible by day. The generated body models carry no lamps of their own and _box() skips
+## every primitive once a model is in use, so without this a city of cars drives around at
+## midnight completely dark.
+func _add_night_lights(dims: Dictionary) -> void:
+	var length: float = dims.length
+	var width: float = dims.width
+	var y: float = 0.55 + dims.chassis_h * 0.62
+	for side: float in [-1.0, 1.0]:
+		var x := side * (width * 0.5 - 0.26)
+		# Lamp faces, looking the way they shine.
+		var head := MeshInstance3D.new()
+		head.mesh = PropFactory.lamp_face(Color(1.0, 0.95, 0.82), 1.9)
+		head.position = Vector3(x, y, -length * 0.5 - 0.06)
+		head.scale = Vector3(0.62, 0.34, 1.0)
+		head.rotation.y = PI
+		head.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(head)
+		var tail := MeshInstance3D.new()
+		tail.mesh = PropFactory.lamp_face(Color(1.0, 0.16, 0.10), 1.5)
+		tail.position = Vector3(x, y, length * 0.5 + 0.06)
+		tail.scale = Vector3(0.58, 0.30, 1.0)
+		tail.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(tail)
+	# The beams on the road: one wide wedge lying flat ahead of the car.
+	var beam := MeshInstance3D.new()
+	beam.mesh = PropFactory.light_pool(Color(1.0, 0.94, 0.80), 1.15)
+	beam.position = Vector3(0.0, 0.10, -length * 0.5 - 4.2)
+	beam.rotation = Vector3(-PI * 0.5, 0.0, 0.0)
+	beam.scale = Vector3(width * 2.2, 11.0, 1.0)
+	beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(beam)
 
 
 func _add_real_wheels() -> void:

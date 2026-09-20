@@ -186,6 +186,31 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 The city had no lights.** At night the streets were pitch black, because nothing
+  in the world was a light source: the sun, and emissive materials on lit windows, and that was
+  all. Street lamps now carry a real `OmniLight3D` (FULL chunks, distance-faded, no shadows) in
+  the `lamp_light` group, and every lamp and car also carries the additive night quad
+  (`shaders/light_pool.gdshader`), which reads `night_factor` itself and so costs nothing by
+  day: a pool on the pavement under each lamp, headlights, tail lights and a beam on the road
+  in front of every car. Two traps: setting the lights only when the value moves leaves every
+  lamp that streamed in since the last change sitting at zero (refresh on a slow tick instead),
+  and `Vehicle._box()` skips every primitive once a generated body model is in use, which is
+  why the modelled cars had no lamps at all.
+
+- **2026-09-20 Everyone in the city walked like a scarecrow.** The generated walk and idle clips
+  animate the arms, but on top of an A-pose rest, so every pedestrian and the player walked
+  around with their arms out at 45 degrees. Fixed by rotating the shoulder rotation keys once on
+  the shared animation resource (`Pedestrian.fix_arm_pose`), which costs nothing at runtime and
+  fixes every instance of the model at once. A skeleton pose override does not work here: the
+  clips animate the shoulders, so it is overwritten every frame. The correction is per model
+  (-46 degrees for A, -76 for C): the two rigs do not share a rest pose.
+
+- **2026-09-20 The AK-47 was a 1.31 m orange plank.** It is on screen in every single frame of
+  this game and it was eight boxes long enough to be a rifle and a half, in a wood colour that
+  blew out to bright orange in sunlight. Rebuilt at real proportions (880 mm, butt to muzzle)
+  with a receiver and top cover, walnut furniture, gas tube, gas block, front and rear sights,
+  a curved three-segment magazine, trigger and guard, safety lever and charging handle.
+
 - **2026-09-20 The horizon is the ground plane, so the ground plane became the map.** From any
   height, everything outside the streamed chunks was a 4 km flat green plane whose own edge was
   the skyline, with a grey band of sky-below-horizon above it. `MacroMap.bake()` now paints the

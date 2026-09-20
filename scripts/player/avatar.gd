@@ -40,6 +40,7 @@ func load_model(path: String, look: int = 3) -> bool:
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim == null:
 		return false
+	Pedestrian.fix_arm_pose(_anim, path)
 	for clip in _anim.get_animation_list():
 		_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 	_play(IDLE_CLIP, 1.0)

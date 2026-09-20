@@ -1200,10 +1200,37 @@ func _spawn_debris(at: Vector3, color: Color, hit_dir: Vector3) -> void:
 		body.angular_velocity = Vector3(rng.randf_range(-6, 6), rng.randf_range(-6, 6), rng.randf_range(-6, 6))
 
 
+## Diameter of the pool of light a street lamp throws, and how far up the light itself sits.
+const LAMP_POOL_SIZE := 13.0
+const LAMP_LIGHT_HEIGHT := 3.5
+
+
 func _add_lamp(at: Vector3) -> void:
+	# The pool of light on the pavement rides in the same batch as the lamp, so shooting the
+	# lamp out takes its light with it. It is additive and unshaded, and the only thing lighting
+	# the street on the web build.
+	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LAMP_POOL_SIZE, LAMP_POOL_SIZE, 1.0)), at + Vector3(0.0, 0.05, 0.0))
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
+		["lamp_pool", PropFactory.light_pool(), pool],
 	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
+	_batch.set_no_shadow("lamp_pool")
+	if level != Level.FULL:
+		return
+	# A real light as well, so the lamp actually lifts the people and cars under it. DayNight
+	# drives the whole group's energy; Quality turns them off at the low levels.
+	var light := OmniLight3D.new()
+	light.position = at + Vector3(0.0, LAMP_LIGHT_HEIGHT + _gy(at.x, at.z), 0.0)
+	light.omni_range = 11.0
+	light.omni_attenuation = 1.4
+	light.light_color = Color(1.0, 0.86, 0.62)
+	light.light_energy = 0.0
+	light.shadow_enabled = false
+	light.distance_fade_enabled = true
+	light.distance_fade_begin = 45.0
+	light.distance_fade_length = 15.0
+	light.add_to_group("lamp_light")
+	add_child(light)
 
 
 ## `yaw` is the direction the bench faces (forward is -Z).

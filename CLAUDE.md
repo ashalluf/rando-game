@@ -239,6 +239,22 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
   `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
   (bit 5) and the player's under-terrain ray uses only that layer.
+- Night lighting: the city has no real lights except the sun, so at night it was pitch black.
+  Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
+  distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick
+  - not only when the value changes, or lamps that streamed in since the last change stay dark -
+  and `Quality` zeroes `DayNight.lamp_scale` below MEDIUM. Alongside it, and always on, is the
+  additive night quad (`shaders/light_pool.gdshader`, `PropFactory.light_pool()` /
+  `lamp_face()`): a pool of light on the pavement under each lamp (in the lamp's batch, so
+  shooting the lamp takes its light with it) and head, tail and beam lights on every `Vehicle`
+  (`_add_night_lights`, needed because `Vehicle._box()` skips every primitive once a generated
+  body model is in use). It reads `night_factor` itself, so it costs nothing by day.
+- Character arms: the generated walk and idle clips hold the arms out in an A-pose, so everyone
+  walked the city like a scarecrow. `Pedestrian.fix_arm_pose()` rotates the shoulder rotation
+  keys once on the shared animation resource (so it costs nothing at runtime and fixes every
+  instance), by `Pedestrian.ARM_DROP` per model - the two rigs need different corrections. A
+  pose override would not work: the clips animate the shoulders, so it would be overwritten
+  every frame.
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`

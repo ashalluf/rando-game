@@ -127,11 +127,15 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 83)
+## 6. Where the game stands (build 84)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 84: night lighting (street lamps with real lights and pools of light on the pavement, head
+  and tail lights and beams on every car), the characters' arms brought down out of their
+  scarecrow A-pose, a rebuilt AK-47 at real proportions, and pilasters and base bands on the
+  blank walls of big-box stores and strip malls.
 - 83: the horizon. Everything outside the streamed chunks used to be a 4 km flat green plane
   whose own edge was the skyline. It is now 14 km across and shaded from a baked image of the
   whole basin (`MacroMap.bake()`), with relief shading and haze that hands over to the sky.

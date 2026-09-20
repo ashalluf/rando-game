@@ -710,6 +710,31 @@ func _test_city() -> void:
 	day.hour = 23.0
 	day._apply()
 	_check(day.night_factor > 0.9, "night raises night_factor (%.2f)" % day.night_factor)
+	# Night lighting. Before this the streets were pitch black: the city had no light sources at
+	# all except the sun, and the first attempt at lamps left every light that streamed in after
+	# the level last changed sitting at zero energy, so the check forces night and then reads the
+	# lights back rather than trusting that they were set.
+	day.hour = 23.0
+	day._apply()
+	await _ticks(2)
+	day._apply()
+	var lamp_lights := get_tree().get_nodes_in_group("lamp_light")
+	var lit_lamps := 0
+	for l in lamp_lights:
+		if (l as OmniLight3D).light_energy > 0.5:
+			lit_lamps += 1
+	_check(lamp_lights.size() > 20 and lit_lamps == lamp_lights.size(), "street lamps light up at night (%d of %d)" % [lit_lamps, lamp_lights.size()])
+	var pools := 0
+	for n in city.find_children("Batch_lamp_pool", "MultiMeshInstance3D", true, false):
+		pools += (n as MultiMeshInstance3D).multimesh.instance_count
+	_check(pools > 20, "lamps throw a pool of light on the pavement (%d)" % pools)
+	var car_lights := 0
+	for car in traffic_cars_for_lights(city):
+		for mi in (car as Node).find_children("*", "MeshInstance3D", false, false):
+			var mm := (mi as MeshInstance3D).mesh
+			if mm and mm.surface_get_material(0) is ShaderMaterial:
+				car_lights += 1
+	_check(car_lights >= 5, "cars carry head and tail lights (%d faces)" % car_lights)
 	day.hour = 12.0
 	day._apply()
 	_check(day.night_factor < 0.05, "noon clears it")
@@ -1078,6 +1103,17 @@ func _wait_for_floor(player: CharacterBody3D, max_ticks: int) -> void:
 ## Autoloads are looked up at runtime: naming them here would compile this script too early.
 func _world_state() -> Node:
 	return get_tree().root.get_node("/root/WorldState")
+
+
+func traffic_cars_for_lights(city: Node) -> Array:
+	var out: Array = []
+	var traffic: Node = city.get_node_or_null("Traffic")
+	if traffic:
+		for c in traffic.cars:
+			out.append(c)
+			if out.size() >= 3:
+				break
+	return out
 
 
 func _ticks(n: int) -> void:
