@@ -18,13 +18,17 @@ func _ready() -> void:
 	elif "--nohud" in OS.get_cmdline_user_args():
 		visible = false # desktop / tools/glshot: `-- --nohud`
 	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look   E get in / out of a car\n" \
-		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc pause / seed   F1 hide\n" \
+		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc pause / seed   F1 hide   F11 fullscreen\n" \
 		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space jump   right click handbrake   in the air W / S flip, A / D roll\n" \
 		+ "Flying (jets at the airport): Shift throttle up   right click throttle down   S pull up, W nose down   A / D roll   S on the ground brakes\n" \
 		+ "Gamepad: left stick move   B boost   A jump   Y car   right stick look   RT fire   LT drop   LB / RB switch   Back respawn"
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("toggle_fullscreen") and not OS.has_feature("web"):
+		var win := get_window()
+		var full := win.mode == Window.MODE_FULLSCREEN or win.mode == Window.MODE_EXCLUSIVE_FULLSCREEN
+		win.mode = Window.MODE_WINDOWED if full else Window.MODE_FULLSCREEN
 	if event.is_action_pressed("toggle_hud"):
 		visible = not visible
 

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fvg08f0bc70h"
-path="res://.godot/imported/pedestrian_b_0.jpg-9786073c6828e8cf24655af9b05ad24f.ctex"
+path.s3tc="res://.godot/imported/pedestrian_b_0.jpg-9786073c6828e8cf24655af9b05ad24f.s3tc.ctex"
+path.etc2="res://.godot/imported/pedestrian_b_0.jpg-9786073c6828e8cf24655af9b05ad24f.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "2f85763588b2b6fa2b545c2d634e76f0"
@@ -14,11 +16,11 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/pedestrian_b_0.jpg"
-dest_files=["res://.godot/imported/pedestrian_b_0.jpg-9786073c6828e8cf24655af9b05ad24f.ctex"]
+dest_files=["res://.godot/imported/pedestrian_b_0.jpg-9786073c6828e8cf24655af9b05ad24f.s3tc.ctex", "res://.godot/imported/pedestrian_b_0.jpg-9786073c6828e8cf24655af9b05ad24f.etc2.ctex"]
 
 [params]
 
-compress/mode=0
+compress/mode=2
 compress/high_quality=false
 compress/lossy_quality=0.7
 compress/uastc_level=0
@@ -40,4 +42,4 @@ process/normal_map_invert_y=false
 process/hdr_as_srgb=false
 process/hdr_clamp_exposure=false
 process/size_limit=0
-detect_3d/compress_to=1
+detect_3d/compress_to=0
