@@ -127,11 +127,12 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 90)
+## 6. Where the game stands (build 91)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 91: the trees' leaves move too.
 - 90: palms sway in the wind, softer trunk bark.
 - 89: the HUD starts clean (F1 cycles clean / stats / hidden), the hills burn gold, lawns run
   from watered to burnt, the baked horizon map is jittered so sprawl reads as a city. (88 was a
@@ -273,11 +274,9 @@ Rewritten 2026-09-20 after the graphics pass of builds 74 to 90. Most of the old
    judged on the Compatibility renderer under llvmpipe, which has no clearcoat and flat
    lighting. Car paint in particular looks flat and untextured there and should look far better
    on Forward+; that has not been confirmed by a human yet.
-2. **Wind on the trees and bushes.** Palms sway (`shaders/foliage.gdshader`); the Poly Haven
-   trees, shrubs and scrub are still dead still. They carry glTF materials with textures and
-   probably alpha-scissored leaf cards, so this needs a textured variant of the foliage shader
-   wired in through `PropFactory.model_mesh()`, and it can break how the trees render, so it
-   wants a render to check.
+2. **Wind on the bushes and hill scrub.** Palms and the trees' leaves sway
+   (`shaders/foliage.gdshader`, `foliage_tex.gdshader`); `model_shrub()`, `model_scrub()` and
+   the grass tufts on the hills are still dead still and would take the same treatment.
 3. **Shop names at a distance.** Each name is a TextMesh and they stop at 75 m. Rasterising the
    whole name list into one atlas at load and sampling it in the fascia branch of the building
    shader would put a name on every band at any distance, with no geometry at all.

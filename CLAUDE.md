@@ -326,7 +326,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   uses `shaders/foliage.gdshader`: backface culling off (leaflets are single-sided) and a
   vertex-shader wind sway whose bend grows with the square of height above the instance origin,
   phased by world position so a row does not sway in step. Nothing else in the city moved except
-  the grass, and a street of palms standing dead still reads as a model rather than a place. Blocks roll palm-lined streets
+  the grass, and a street of palms standing dead still reads as a model rather than a place. The
+  downloaded trees and bushes use `shaders/foliage_tex.gdshader` on their leaf surfaces only
+  (`PropFactory.foliage_textured()`, applied in `model_tree()`): same sway, plus the leaf
+  textures, UV scale and alpha scissor carried across. Trunks stay opaque and still, which keeps
+  them out of the transparent pass. Blocks roll palm-lined streets
   from the district's `"palms"` odds in `CityPlan.DISTRICTS` (`CityChunk._palm_street`), so palms
   run in runs rather than being sprinkled. Street palms pass `collide = false` to `_add_palm()`:
   street trees have never had collision, and solid trunks along a whole boulevard wall the road

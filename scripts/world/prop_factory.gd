@@ -640,6 +640,27 @@ static func foliage_material() -> ShaderMaterial:
 	return mat
 
 
+## Turns a downloaded plant's leaf material into the swaying one (shaders/foliage_tex.gdshader),
+## carrying its textures and UV scale across. Only the leaf surfaces get this: the trunk stays
+## opaque and still.
+static func foliage_textured(src: StandardMaterial3D) -> ShaderMaterial:
+	var key := "foliage_tex_%d" % src.get_instance_id()
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/foliage_tex.gdshader")
+	mat.set_shader_parameter("albedo_tex", src.albedo_texture)
+	mat.set_shader_parameter("normal_tex", src.normal_texture)
+	mat.set_shader_parameter("rough_tex", src.roughness_texture)
+	mat.set_shader_parameter("has_normal", src.normal_texture != null)
+	mat.set_shader_parameter("has_rough", src.roughness_texture != null)
+	mat.set_shader_parameter("base_color", src.albedo_color)
+	mat.set_shader_parameter("uv_scale", Vector2(src.uv1_scale.x, src.uv1_scale.y))
+	mat.set_shader_parameter("alpha_cut", 0.45)
+	_cache[key] = mat
+	return mat
+
+
 static func palm_trunk() -> Mesh:
 	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
 
@@ -885,10 +906,10 @@ static func model_tree(variant: int) -> Mesh:
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:
 			var sm := mat as StandardMaterial3D
-			if sm.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
-				sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-				sm.alpha_scissor_threshold = 0.45
-				sm.vertex_color_use_as_albedo = true
+			if sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+				# The leaf cards: onto the swaying shader, which does the scissor itself.
+				mesh.surface_set_material(i, foliage_textured(sm))
+				continue
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return mesh
 
