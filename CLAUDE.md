@@ -300,6 +300,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   Each room gets its own paint, depth falloff and a blind pulled to its own height. This is the
   single technique that stops a box reading as a box; do not replace it with a gradient.
   `room_depth` and `interior_enabled` are the knobs.
+  Roofs pick a covering per building (`Building.roof_style` -> the shader's `roof_style`): white
+  single-ply membrane with welded seams and ponding, gravel ballast, or patched bitumen. Roof
+  plant scales with the roof's area rather than a flat count, and includes air-conditioning
+  units, duct runs on legs, tilted solar arrays, skylights and cooling towers. Roofs are most of
+  what the player sees while flying, so they are worth the geometry.
 - Buildings: `Building` (`scripts/world/building.gd`, scene `scenes/props/building.tscn`) is a
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
   generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own

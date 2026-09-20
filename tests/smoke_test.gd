@@ -450,10 +450,18 @@ func _test_city() -> void:
 		Input.action_release("boost")
 		_check(car.global_position.y > fly_y0 + 3.0, "boost flies the car upward (%.1f m gained)" % (car.global_position.y - fly_y0))
 		_check(fly_tilt < 0.45, "the flying car stabilises itself instead of tumbling (tilt %.2f)" % fly_tilt)
-		car.global_position = Vector3(car.global_position.x, car_y0 + 1.0, car.global_position.z)
+		# Put the car back on the known-clear stretch of road it started from. Leaving it
+		# wherever the flight ended means the exit test runs next to whatever happens to be
+		# there, which changes every time the world's seeded layout shifts.
+		car.global_position = _world_state().to_local(road_start)
+		car.rotation = Vector3.ZERO
 		car.linear_velocity = Vector3.ZERO
 		car.angular_velocity = Vector3.ZERO
-		await _ticks(90)
+		for i in 180:
+			await get_tree().physics_frame
+			if not car.is_airborne() and absf(car.linear_velocity.y) < 0.4:
+				break
+		await _ticks(20)
 		await _press("interact")
 		_check(not player.is_driving() and player.visible and player.global_position.distance_to(car.global_position) < 5.0, "interact gets out next to the car")
 		if macro:

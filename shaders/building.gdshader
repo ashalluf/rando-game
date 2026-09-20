@@ -32,6 +32,9 @@ uniform bool has_storefront = true;
 // Size of this box part (meters). Needed to find the face edges and the roof parapet.
 uniform vec3 part_size = vec3(10.0, 20.0, 10.0);
 uniform float seed = 0.0;
+// Roof covering: 0 gravel ballast, 1 white membrane (a cool roof, everywhere in California),
+// 2 dark bitumen. Flat grey roofs are most of what you see from the air.
+uniform int roof_style = 0;
 // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
 global uniform float night_factor;
 // Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
@@ -154,13 +157,32 @@ void fragment() {
 	float wall_nm_weight = 0.0;
 
 	if (abs(n.y) > 0.5) {
-		// Roof: gravel grey with a lighter parapet ring around the edge.
+		// Roof, with a lighter parapet ring around the edge.
 		vec2 edge = part_size.xz * 0.5 - abs(local_pos.xz);
 		float parapet = 1.0 - step(0.7, min(edge.x, edge.y));
-		vec3 gravel = mix(vec3(0.38, 0.37, 0.36), facade_color, 0.25);
-		gravel *= 0.92 + 0.16 * hash21(floor(local_pos.xz * 1.5) + seed);
-		albedo = mix(gravel, facade_color * 0.9, parapet);
-		rough = 0.95;
+		vec3 surface;
+		if (roof_style == 1) {
+			// White single-ply membrane, rolled in strips and welded at the seams, weathered
+			// grey where water sits.
+			surface = vec3(0.78, 0.78, 0.76);
+			float strip = fract(local_pos.x * 0.5 + hash21(vec2(seed, 2.0)));
+			surface *= 1.0 - 0.10 * smoothstep(0.06, 0.0, min(strip, 1.0 - strip));
+			float pond = hash21(floor(local_pos.xz * 0.35) + seed);
+			surface *= 0.86 + 0.18 * pond;
+			rough = 0.82;
+		} else if (roof_style == 2) {
+			// Bitumen: dark, patched, and shinier where it has been resealed.
+			surface = vec3(0.14, 0.135, 0.13);
+			float patch = hash21(floor(local_pos.xz * 0.6) + seed);
+			surface *= 0.8 + 0.5 * patch;
+			rough = mix(0.55, 0.95, patch);
+		} else {
+			vec3 gravel = mix(vec3(0.38, 0.37, 0.36), facade_color, 0.25);
+			gravel *= 0.92 + 0.16 * hash21(floor(local_pos.xz * 1.5) + seed);
+			surface = gravel;
+			rough = 0.95;
+		}
+		albedo = mix(surface, facade_color * 0.9, parapet);
 	} else {
 		// Which wall are we on, and how far along it (u) and up it (v)?
 		float u;

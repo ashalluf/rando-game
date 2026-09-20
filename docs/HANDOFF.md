@@ -127,11 +127,12 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 78)
+## 6. Where the game stands (build 79)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 79: roof coverings (membrane / gravel / bitumen) and much more rooftop plant.
 - 78: far skyline gets parallax windows and floor bands; ground wear toned down; aerial shots
   hold their height in tools/glshot/city_shot.gd.
 - 77: balconies on residential facades; muted awning canvas colours.

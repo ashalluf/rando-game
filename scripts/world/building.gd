@@ -56,6 +56,8 @@ var plinth_depth: float = 0.0
 static var _prop_materials: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 var _generated: bool = false
+## Roof covering for this building (see shaders/building.gdshader `roof_style`).
+var roof_style: int = 0
 
 
 func _ready() -> void:
@@ -114,6 +116,10 @@ func plan_only() -> Dictionary:
 	else:
 		finish = _rng.randi_range(0, Finish.size() - 1) as Finish
 	window_style = _pick_window_style()
+	# Roof covering, picked per building: mostly white membrane on modern blocks, gravel on
+	# older ones, bitumen on the rest.
+	var roof_roll := _rng.randf()
+	roof_style = 1 if roof_roll < 0.42 else (0 if roof_roll < 0.76 else 2)
 	_layout_parts()
 	var style := _pick_style()
 	facade_color = style.facade
@@ -272,6 +278,7 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	mat.set_shader_parameter("has_storefront", storefront > 0.0)
 	mat.set_shader_parameter("part_size", size)
 	mat.set_shader_parameter("seed", float(seed % 1000))
+	mat.set_shader_parameter("roof_style", roof_style)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 
 	var mesh := MeshInstance3D.new()
@@ -505,10 +512,23 @@ func _build_roof_props() -> void:
 			continue
 		var placed: Array[Rect2] = []
 		var tries := 0
-		var ac_count := _rng.randi_range(1, 4) if is_top else _rng.randi_range(0, 2)
+		# Real roofs are crowded. Scale the plant with the roof's area rather than using a flat
+		# count, so a big podium does not get the same two units as a narrow tower.
+		var roof_area := area.x * area.y
+		var ac_count := clampi(roundi(roof_area / 90.0) + _rng.randi_range(1, 3), 1, 9)
+		if not is_top:
+			ac_count = clampi(ac_count / 2, 0, 4)
 		var wants: Array[String] = []
 		for k in ac_count:
 			wants.append("ac")
+		if roof_area > 55.0 and _rng.randf() < 0.55:
+			wants.append("ducts")
+		if is_top and roof_area > 70.0 and _rng.randf() < 0.45:
+			wants.append("solar")
+		if is_top and roof_area > 40.0 and _rng.randf() < 0.4:
+			wants.append("skylight")
+		if is_top and roof_area > 80.0 and _rng.randf() < 0.3:
+			wants.append("cooling_tower")
 		if is_top and shape == Shape.WAREHOUSE:
 			wants.append("vents")
 			if _rng.randf() < 0.5:
@@ -547,6 +567,10 @@ func _prop_footprint(kind: String) -> Vector2:
 		"spire": return Vector2(2.0, 2.0)
 		"billboard": return Vector2(7.0, 1.5)
 		"vents": return Vector2(8.0, 1.6)
+		"ducts": return Vector2(7.0, 1.1)
+		"solar": return Vector2(5.4, 3.6)
+		"skylight": return Vector2(2.6, 2.6)
+		"cooling_tower": return Vector2(3.0, 3.0)
 	return Vector2.ONE
 
 
@@ -582,6 +606,45 @@ func _build_prop(kind: String, at: Vector3) -> void:
 		"vents":
 			for k in 5:
 				_prop_box(Vector3(1.2, 0.8, 1.2), Color(0.6, 0.6, 0.58), at + Vector3(-3.0 + k * 1.5, 0.4, 0.0))
+		"ducts":
+			# A run of insulated duct on short legs, with an elbow turning up at one end.
+			var yaw := _rng.randf_range(0.0, TAU)
+			var dir := Vector3(cos(yaw), 0.0, sin(yaw))
+			var across := Vector3(-dir.z, 0.0, dir.x)
+			var metal := Color(0.63, 0.64, 0.66)
+			for k in 6:
+				var along := dir * (-3.0 + float(k) * 1.2)
+				var duct := _prop_box(Vector3(1.2, 0.55, 0.62), metal, at + along + Vector3(0.0, 0.85, 0.0))
+				duct.rotation.y = yaw
+				# Legs.
+				for side: float in [-0.22, 0.22]:
+					_prop_box(Vector3(0.08, 0.6, 0.08), Color(0.35, 0.35, 0.37), at + along + across * side + Vector3(0.0, 0.3, 0.0))
+			var elbow := _prop_box(Vector3(0.7, 1.4, 0.62), metal, at + dir * 3.5 + Vector3(0.0, 1.2, 0.0))
+			elbow.rotation.y = yaw
+		"solar":
+			# Tilted panel rows on low frames, facing south.
+			var tilt := _rng.randf_range(0.30, 0.48)
+			for rowi in 2:
+				for coli in 3:
+					var p := at + Vector3(-1.8 + float(coli) * 1.8, 0.0, -1.1 + float(rowi) * 2.2)
+					var panel := _prop_box(Vector3(1.65, 0.06, 1.0), Color(0.07, 0.09, 0.16), p + Vector3(0.0, 0.55, 0.0))
+					panel.rotation.x = -tilt
+					_prop_box(Vector3(0.06, 0.4, 0.06), Color(0.5, 0.5, 0.52), p + Vector3(-0.7, 0.2, 0.3))
+					_prop_box(Vector3(0.06, 0.6, 0.06), Color(0.5, 0.5, 0.52), p + Vector3(0.7, 0.3, -0.3))
+		"skylight":
+			# A raised kerb with a pale glazed cap.
+			_prop_box(Vector3(2.4, 0.35, 2.4), Color(0.55, 0.55, 0.57), at + Vector3(0.0, 0.18, 0.0))
+			var glass := _prop_box(Vector3(2.1, 0.12, 2.1), Color(0.62, 0.72, 0.78), at + Vector3(0.0, 0.42, 0.0))
+			var gm := StandardMaterial3D.new()
+			gm.albedo_color = Color(0.62, 0.72, 0.78)
+			gm.roughness = 0.12
+			gm.metallic = 0.1
+			glass.material_override = gm
+		"cooling_tower":
+			_prop_cylinder(1.25, 1.9, Color(0.58, 0.59, 0.60), at + Vector3(0.0, 0.95, 0.0))
+			_prop_cylinder(1.3, 0.18, Color(0.40, 0.41, 0.43), at + Vector3(0.0, 1.95, 0.0))
+			_prop_cylinder(0.9, 0.08, Color(0.25, 0.25, 0.27), at + Vector3(0.0, 2.08, 0.0))
+			_prop_collision(Vector3(2.5, 2.0, 2.5), at + Vector3(0.0, 1.0, 0.0))
 			_prop_collision(Vector3(7.5, 0.8, 1.2), at + Vector3(0.0, 0.4, 0.0))
 		"bulkhead":
 			_prop_box(Vector3(3.2, 2.6, 3.2), Color(0.55, 0.55, 0.53), at + Vector3(0.0, 1.3, 0.0))
