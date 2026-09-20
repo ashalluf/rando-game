@@ -278,6 +278,15 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   chunks build asphalt strips and estates from. Chunks build water, sand or terrain for non-city
   zones; the water surface is at y 0.15 (above the ground follower plane). To start
   somewhere else for testing: web `?spawn=x,z,yaw,pitch[,y]`, desktop `-- --spawn=x,z,yaw,pitch[,y]`.
+- Palms (owner, 2026-09-20: "it's Cali, put palm trees"): `PropFactory.palm(variant)` builds a
+  whole tree as one vertex-coloured mesh (tall slender curved trunk with ridged bark, a crown of
+  feathered fronds whose leaflets are separate pointed blades so daylight shows through, a skirt
+  of dead fronds, coconuts), so a palm-lined boulevard is one MultiMesh draw. The material
+  disables backface culling because leaflets are single-sided. Blocks roll palm-lined streets
+  from the district's `"palms"` odds in `CityPlan.DISTRICTS` (`CityChunk._palm_street`), so palms
+  run in runs rather than being sprinkled. Street palms pass `collide = false` to `_add_palm()`:
+  street trees have never had collision, and solid trunks along a whole boulevard wall the road
+  in and trap cars against the kerb.
 - Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes
   one, detailed (with a StaticBody3D for shapes) or far (no collision). Add a new one by adding an
   entry and a `_build_<id>()` function. Everything original: no real names, logos or copies.

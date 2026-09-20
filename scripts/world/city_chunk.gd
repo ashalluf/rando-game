@@ -40,6 +40,8 @@ var _cars: Array[Node] = []
 var _batch := MultiMeshBatch.new()
 ## Per-block surface look (set by _build_block from the district table and the block seed).
 var _tree_bias: int = -1
+## True when this block's street trees are palms (set per block from the district's "palms" odds).
+var _palm_street: bool = false
 var _lamp_tint: Color = Color.WHITE
 var _mm_nodes: Dictionary = {}
 var _statics: StreetProps
@@ -273,19 +275,19 @@ func _build_beach(block: Dictionary) -> void:
 		_add_lifeguard_tower(Vector3(p.x, 0.2, p.y), rng.randf_range(0.0, TAU))
 
 
-func _add_palm(at: Vector3, rng: RandomNumberGenerator) -> void:
-	var s := rng.randf_range(0.8, 1.3)
-	var lean := Basis(Vector3(cos(rng.randf() * TAU), 0.0, sin(rng.randf() * TAU)).normalized(), rng.randf_range(0.0, 0.12))
-	var top := at + lean * Vector3(0.0, 7.0 * s, 0.0)
-	_batch.add("palm_trunk", PropFactory.palm_trunk(), Transform3D(lean.scaled(Vector3(s, s, s)), at + lean * Vector3(0.0, 3.5 * s, 0.0)))
-	var fronds := rng.randi_range(6, 8)
-	for i in fronds:
-		var yaw := TAU * i / fronds + rng.randf_range(-0.2, 0.2)
-		var basis := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, -0.5 + rng.randf_range(-0.15, 0.15))
-		_batch.add("palm_frond", PropFactory.palm_frond(), Transform3D(basis.scaled(Vector3(s, s, s)), top + basis * Vector3(0.0, 0.0, -1.5 * s)), Color(0.9 + rng.randf() * 0.2, 1.0, 0.9))
-	for i in 3:
-		_batch.add("coconut", PropFactory.coconut(), Transform3D(Basis().scaled(Vector3.ONE * 0.35 * s), top + Vector3(rng.randf_range(-0.3, 0.3), -0.3, rng.randf_range(-0.3, 0.3))))
-	_add_shape(Vector3(0.5, 7.0 * s, 0.5), at + Vector3(0.0, 3.5 * s, 0.0))
+## One whole palm from PropFactory.palm(): trunk, crown, dead-frond skirt and coconuts in a
+## single batched mesh, so a palm-lined boulevard costs one draw call.
+## `collide` is false for palms standing in for street trees: ordinary street trees have never
+## had collision, and giving a whole boulevard of them solid trunks walls the road in and traps
+## cars against the kerb.
+func _add_palm(at: Vector3, rng: RandomNumberGenerator, collide: bool = true) -> void:
+	var s := rng.randf_range(0.78, 1.25)
+	var variant := rng.randi() % PropFactory.PALM_VARIANTS
+	var yaw := rng.randf_range(0.0, TAU)
+	var tint := Color(rng.randf_range(0.88, 1.12), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.08))
+	_batch.add("palm_%d" % variant, PropFactory.palm(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint)
+	if collide:
+		_add_shape(Vector3(0.5, 9.0 * s, 0.5), at + Vector3(0.0, 4.5 * s, 0.0))
 
 
 func _add_lifeguard_tower(at: Vector3, yaw: float) -> void:
@@ -674,6 +676,9 @@ func _build_block(block: Dictionary) -> void:
 	var weights: Array = params.get("tree_weights", [0.34, 0.33, 0.33])
 	var pick := rng.randf() * (float(weights[0]) + float(weights[1]) + float(weights[2]))
 	_tree_bias = 0 if pick < float(weights[0]) else (1 if pick < float(weights[0]) + float(weights[1]) else 2)
+	# Some blocks are palm-lined, the way whole boulevards are in Los Angeles. It is a per-block
+	# roll so palms run in runs rather than being sprinkled one here and one there.
+	_palm_street = rng.randf() < float(params.get("palms", 0.25))
 	_lamp_tint = params.get("lamp_tint", Color.WHITE)
 	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.pbr(paving[0], paving[1], paving_tint))
 	match block.kind:
@@ -1273,6 +1278,9 @@ func _edge_point(edge: Array, rng: RandomNumberGenerator, margin: float) -> Vect
 
 
 func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
+	if _palm_street and rng.randf() < 0.8:
+		_add_palm(at, rng, false)
+		return
 	var s := rng.randf_range(0.9, 1.6)
 	var yaw := rng.randf_range(0.0, TAU)
 	# Most trees on a block are its dominant species; the rest are whatever.

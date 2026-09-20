@@ -186,6 +186,21 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Real palm trees and palm-lined streets (owner: "need more foliage, more trees,
+  it's Cali, put palm trees, make the nature more unique").** The old palm was a cylinder trunk
+  with three flat boxes for fronds and lived only on beaches. `PropFactory.palm()` now generates
+  a whole tree as one mesh: a tall slender curved trunk (Washingtonia proportions, 11-17 m, not
+  the short fat coconut palm the primitive implied) with ridged bark, a crown of fronds whose
+  leaflets are individual pointed blades rather than a continuous strip - a strip renders as a
+  solid green fan, which was the first attempt - plus a skirt of dead brown fronds and coconuts.
+  Palms now line whole blocks in the city, rolled per block from a district `"palms"` odd so
+  they appear in runs the way boulevards do, heaviest in the suburbs and midtown.
+  Two traps: the palm roll consumes a random number inside `_add_tree`, which shifts every
+  block's seeded layout, so anything that depended on the old layout (the smoke test's parked
+  car) moves; and giving street palms collision walls roads in, so they are built non-solid like
+  the trees they replace. Reduced airborne gravity for cars (build 71) also means a car settles
+  more slowly, so the test now waits for its wheels before jumping.
+
 - **2026-09-20 Flying cars and a real explosion (owner: "make the car jump work without the
   front tilting over, I basically want to fly cars around the way I fly the main character",
   "make the explosion graphics a million times better").**

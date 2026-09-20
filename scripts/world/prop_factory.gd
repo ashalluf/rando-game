@@ -283,6 +283,139 @@ static func trash_can_mesh() -> Mesh:
 	return cylinder("trash_can", 0.35, 1.0, Color(0.25, 0.35, 0.3), -1.0, 8)
 
 
+## A whole palm tree as one mesh: a curved tapering trunk with a ridged bark profile, a crown of
+## drooping fronds built from real leaflets, a skirt of dead fronds and a few coconuts. Three
+## seeded variants. Owner, 2026-09-20: "it's Cali, put palm trees" - the old palm was a cylinder
+## with three flat boxes stuck on top, which is the least convincing thing in the game.
+##
+## It is one mesh with vertex colours rather than several, so a street of palms is one MultiMesh
+## draw. Frond leaflets are single-sided quads, so the material disables backface culling.
+const PALM_VARIANTS := 3
+
+
+static func palm(variant: int) -> Mesh:
+	var key := "palm_%d" % variant
+	if _cache.has(key):
+		return _cache[key]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7000 + variant
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+
+	# Tall and slender, like the Washingtonia palms that line Los Angeles streets, rather than
+	# the short fat coconut palm the old primitive suggested.
+	var height := rng.randf_range(11.0, 17.0)
+	# Palms lean, and the lean grows toward the top rather than tilting the whole trunk.
+	var lean_dir := Vector3(cos(rng.randf() * TAU), 0.0, sin(rng.randf() * TAU))
+	var lean := rng.randf_range(0.4, 1.5)
+	var segments := 14
+	var sides := 8
+	var bark := Color(0.44, 0.37, 0.28)
+
+	var centre := func(t: float) -> Vector3:
+		return Vector3(0.0, height * t, 0.0) + lean_dir * (lean * t * t)
+
+	for i in segments:
+		var t0 := float(i) / segments
+		var t1 := float(i + 1) / segments
+		var c0: Vector3 = centre.call(t0)
+		var c1: Vector3 = centre.call(t1)
+		# Taper toward the crown, with a slight swell at the base and a ring ridge per segment.
+		var r0 := lerpf(0.30, 0.13, t0) * (1.0 + 0.30 * exp(-t0 * 9.0)) * (1.0 + (0.045 if i % 2 == 0 else -0.045))
+		var r1 := lerpf(0.30, 0.13, t1) * (1.0 + 0.30 * exp(-t1 * 9.0)) * (1.0 + (0.045 if (i + 1) % 2 == 0 else -0.045))
+		var shade0 := bark * (0.82 + 0.28 * float(i % 3) / 2.0)
+		for k in sides:
+			var a0 := TAU * k / sides
+			var a1 := TAU * (k + 1) / sides
+			var d0 := Vector3(cos(a0), 0.0, sin(a0))
+			var d1 := Vector3(cos(a1), 0.0, sin(a1))
+			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0)
+
+	var top: Vector3 = centre.call(1.0)
+	var fronds := rng.randi_range(11, 15)
+	for f in fronds:
+		var yaw := TAU * f / fronds + rng.randf_range(-0.16, 0.16)
+		_palm_frond(st, top, yaw, rng.randf_range(3.6, 5.4), rng.randf_range(0.1, 0.8), rng, false)
+	# A skirt of dead fronds hanging under the crown.
+	for f in rng.randi_range(3, 6):
+		var yaw := rng.randf_range(0.0, TAU)
+		_palm_frond(st, top + Vector3(0.0, -0.25, 0.0), yaw, rng.randf_range(2.0, 3.0), -1.25, rng, true)
+	# Coconuts clustered under the crown.
+	for c in rng.randi_range(3, 6):
+		var a := rng.randf_range(0.0, TAU)
+		var at := top + Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.15, 0.45) + Vector3(0.0, -0.35, 0.0)
+		_ico(st, at, rng.randf_range(0.14, 0.2), Color(0.40, 0.30, 0.17))
+
+	st.generate_normals()
+	var mesh := st.commit()
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.88
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	mesh.surface_set_material(0, mat)
+	_cache[key] = mesh
+	return mesh
+
+
+## One frond: a rachis arcing out and drooping, with a leaflet on each side at every step.
+## `rise` lifts the frond before it droops; dead fronds hang almost straight down and go brown.
+static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float, rise: float, rng: RandomNumberGenerator, dead: bool) -> void:
+	var out := Vector3(cos(yaw), 0.0, sin(yaw))
+	var side := Vector3(-out.z, 0.0, out.x)
+	var steps := 14
+	var droop := reach * (1.5 if dead else 0.9)
+	var green := Color(0.17, 0.38, 0.12).lerp(Color(0.40, 0.63, 0.20), rng.randf())
+	var colour := Color(0.44, 0.34, 0.17) if dead else green
+	var rachis := func(t: float) -> Vector3:
+		return base + out * (reach * t) + Vector3(0.0, rise * t - droop * t * t, 0.0)
+	for i in steps:
+		var t0 := float(i) / steps
+		var t1 := float(i + 1) / steps
+		var p0: Vector3 = rachis.call(t0)
+		var p1: Vector3 = rachis.call(t1)
+		# Each leaflet is its own pointed blade sweeping back and down off the rib, so the frond
+		# reads as feathered with daylight between the leaves. A continuous strip along both
+		# sides just makes a solid green fan, which is what the first attempt looked like.
+		var span := (sin(t0 * PI) * reach * 0.26 + 0.06) * rng.randf_range(0.82, 1.15)
+		var tone := colour * (0.80 + 0.34 * t0)
+		for dir: float in [1.0, -1.0]:
+			var tip := p0 + side * (span * dir) - out * (span * 0.34) + Vector3(0.0, -span * 0.62, 0.0)
+			st.set_color(tone)
+			st.set_uv(Vector2.ZERO)
+			st.add_vertex(p0)
+			st.set_color(tone)
+			st.set_uv(Vector2.ZERO)
+			st.add_vertex(p1)
+			st.set_color(tone * 0.88)
+			st.set_uv(Vector2.ZERO)
+			st.add_vertex(tip)
+		# The rib itself, so the frond still reads when seen edge-on.
+		_quad(st, p0, p1, p1 + Vector3(0.0, -0.045, 0.0), p0 + Vector3(0.0, -0.045, 0.0), colour * 0.62)
+
+
+static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, colour: Color) -> void:
+	for v: Vector3 in [a, b, c, a, c, d]:
+		st.set_color(colour)
+		st.set_uv(Vector2.ZERO)
+		st.add_vertex(v)
+
+
+## A cheap faceted blob (coconuts, fruit): an octahedron.
+static func _ico(st: SurfaceTool, at: Vector3, r: float, colour: Color) -> void:
+	var px := at + Vector3(r, 0, 0)
+	var nx := at + Vector3(-r, 0, 0)
+	var py := at + Vector3(0, r, 0)
+	var ny := at + Vector3(0, -r, 0)
+	var pz := at + Vector3(0, 0, r)
+	var nz := at + Vector3(0, 0, -r)
+	for tri: Array in [[py, px, pz], [py, pz, nx], [py, nx, nz], [py, nz, px],
+			[ny, pz, px], [ny, nx, pz], [ny, nz, nx], [ny, px, nz]]:
+		for v: Vector3 in tri:
+			st.set_color(colour)
+			st.set_uv(Vector2.ZERO)
+			st.add_vertex(v)
+
+
 static func palm_trunk() -> Mesh:
 	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
 

@@ -216,7 +216,12 @@ func _test_city() -> void:
 		city.update_streaming(true)
 		var beach_key: Vector2i = plan.block_index_at(Vector2(beach.x, beach.z))
 		var beach_chunk: Node3D = city.chunks.get(beach_key)
-		_check(beach_chunk != null and beach_chunk.zone == MacroMap.Zone.BEACH and beach_chunk.building_count == 0 and beach_chunk.has_node("Batch_palm_trunk"), "beach chunk has palms and no buildings")
+		var beach_palms := false
+		if beach_chunk:
+			for child in beach_chunk.get_children():
+				if child.name.begins_with("Batch_palm_"):
+					beach_palms = true
+		_check(beach_chunk != null and beach_chunk.zone == MacroMap.Zone.BEACH and beach_chunk.building_count == 0 and beach_palms, "beach chunk has palms and no buildings")
 		# Stand in the hills: terrain tile with collision under the player.
 		var hill := Vector3(0.0, 0.0, -1400.0)
 		hill.y = macro.height_at(Vector2(hill.x, hill.z)) + 3.0
@@ -409,8 +414,13 @@ func _test_city() -> void:
 				planted += 1
 		_check(turned < -0.15 and car.global_basis.y.y > 0.9, "D turns the car right (%.2f rad) and it stays flat (%d wheels down)" % [turned, planted])
 		await _ticks(30)
-		# Space makes the car jump.
-		await _ticks(30)
+		# Space makes the car jump. Wait for all four wheels to be down first: a car only jumps
+		# from the ground, and after the turn test it is still settling (airborne cars now fall
+		# at reduced gravity, so settling takes longer than it used to).
+		for i in 180:
+			await get_tree().physics_frame
+			if not car.is_airborne() and absf(car.linear_velocity.y) < 0.4:
+				break
 		var car_y0: float = car.global_position.y
 		var top_y: float = car_y0
 		var worst_tilt := 0.0
@@ -668,6 +678,18 @@ func _test_city() -> void:
 	_check(PropFactory.texture("brick", "Color") != null and PropFactory.texture("rock", "NormalGL") != null, "texture sets load")
 	var minimap: Control = city.get_node("DebugHud/MinimapFrame/Minimap")
 	_check(minimap != null and minimap.world_to_map(Vector2(0.0, -100.0), Vector2.ZERO).y < minimap.size.y * 0.5, "minimap exists and north is up")
+	# Palms: a real generated tree (trunk, feathered fronds, skirt, coconuts) and palm-lined
+	# blocks somewhere in the loaded city (owner, 2026-09-20: "it's Cali, put palm trees").
+	var palm_mesh: Mesh = PropFactory.palm(0)
+	var palm_tris: int = (palm_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+	_check(palm_mesh.get_surface_count() == 1 and palm_tris > 400, "the palm is one generated mesh (%d triangles)" % palm_tris)
+	var palm_blocks := 0
+	for k in city.chunks:
+		for child in city.chunks[k].get_children():
+			if child.name.begins_with("Batch_palm_"):
+				palm_blocks += 1
+				break
+	_check(palm_blocks > 0, "palm-lined blocks in the loaded city (%d)" % palm_blocks)
 	minimap.queue_redraw()
 	await _ticks(3)
 	var env: Environment = city.get_node("WorldEnvironment").environment

@@ -13,7 +13,8 @@ const AXIS_X := 0
 const AXIS_Z := 1
 
 ## Parameter ranges per district. Heights and lots in meters. "people" and "parked" are per
-## block (owner, 2026-09-20: a packed downtown thinning toward the edges); the downtown core
+## block (owner, 2026-09-20: a packed downtown thinning toward the edges); "palms" is the
+## chance a block's street trees are palms instead (owner: "it's Cali"); the downtown core
 ## multiplies people by up to 2x again (CityChunk._spawn_pedestrians).
 const DISTRICTS := {
 	District.DOWNTOWN: {
@@ -24,7 +25,7 @@ const DISTRICTS := {
 		"cafes": 2, "planters": 1, "clutter": 0, "weathering": Vector2(0.1, 0.4), "line_white": 0.5,
 		"paving": [["pavers", 2.5, Color(0.9, 0.9, 0.9)], ["sidewalk", 3.0, Color(0.95, 0.95, 0.95)]],
 		"tree_weights": [0.15, 0.25, 0.6], "lamp_tint": Color(1.0, 1.0, 1.0),
-		"mall": 0.0, "bigbox": 0.0, "pads": 0.0, "lawn": false, "people": 46, "parked": 9,
+		"mall": 0.0, "bigbox": 0.0, "pads": 0.0, "lawn": false, "people": 46, "parked": 9, "palms": 0.22,
 	},
 	District.MIDTOWN: {
 		"height": Vector2(12.0, 45.0), "lot": Vector2(20.0, 32.0), "gap": Vector2(3.0, 8.0),
@@ -34,7 +35,7 @@ const DISTRICTS := {
 		"cafes": 1, "planters": 2, "clutter": 1, "weathering": Vector2(0.2, 0.7), "line_white": 0.3,
 		"paving": [["paving", 3.0, Color(0.95, 0.94, 0.92)], ["sidewalk", 3.0, Color(1.0, 1.0, 1.0)], ["pavers", 2.5, Color(0.95, 0.93, 0.9)]],
 		"tree_weights": [0.4, 0.4, 0.2], "lamp_tint": Color(0.8, 0.86, 0.8),
-		"mall": 0.08, "bigbox": 0.03, "pads": 0.12, "lawn": false, "people": 20, "parked": 7,
+		"mall": 0.08, "bigbox": 0.03, "pads": 0.12, "lawn": false, "people": 20, "parked": 7, "palms": 0.34,
 	},
 	District.SUBURBS: {
 		"height": Vector2(5.0, 14.0), "lot": Vector2(14.0, 22.0), "gap": Vector2(6.0, 14.0),
@@ -44,7 +45,7 @@ const DISTRICTS := {
 		"cafes": 0, "planters": 3, "clutter": 1, "weathering": Vector2(0.2, 0.6), "line_white": 0.6,
 		"paving": [["sidewalk", 3.0, Color(1.0, 1.0, 1.0)], ["sidewalk", 3.0, Color(0.9, 0.9, 0.88)]],
 		"tree_weights": [0.5, 0.5, 0.0], "lamp_tint": Color(1.0, 0.9, 0.8),
-		"mall": 0.14, "bigbox": 0.07, "pads": 0.18, "lawn": true, "people": 6, "parked": 4,
+		"mall": 0.14, "bigbox": 0.07, "pads": 0.18, "lawn": true, "people": 6, "parked": 4, "palms": 0.45,
 	},
 	District.CAMPUS: {
 		"height": Vector2(8.0, 24.0), "lot": Vector2(26.0, 44.0), "gap": Vector2(10.0, 18.0),
@@ -54,7 +55,7 @@ const DISTRICTS := {
 		"cafes": 1, "planters": 3, "clutter": 0, "weathering": Vector2(0.15, 0.5), "line_white": 0.2,
 		"paving": [["paving", 3.0, Color(1.0, 0.98, 0.95)], ["pavers", 2.5, Color(0.95, 0.92, 0.88)]],
 		"tree_weights": [0.3, 0.6, 0.1], "lamp_tint": Color(0.8, 0.86, 0.8),
-		"mall": 0.03, "bigbox": 0.0, "pads": 0.05, "lawn": true, "people": 16, "parked": 3,
+		"mall": 0.03, "bigbox": 0.0, "pads": 0.05, "lawn": true, "people": 16, "parked": 3, "palms": 0.3,
 	},
 	District.INDUSTRIAL: {
 		"height": Vector2(6.0, 16.0), "lot": Vector2(34.0, 60.0), "gap": Vector2(6.0, 12.0),
@@ -64,7 +65,7 @@ const DISTRICTS := {
 		"cafes": 0, "planters": 0, "clutter": 7, "weathering": Vector2(0.5, 1.0), "line_white": 0.7,
 		"paving": [["sidewalk", 3.0, Color(0.85, 0.85, 0.85)], ["concrete", 4.0, Color(0.8, 0.8, 0.8)]],
 		"tree_weights": [0.3, 0.3, 0.4], "lamp_tint": Color(0.9, 0.9, 0.9),
-		"mall": 0.04, "bigbox": 0.1, "pads": 0.08, "lawn": false, "people": 3, "parked": 3,
+		"mall": 0.04, "bigbox": 0.1, "pads": 0.08, "lawn": false, "people": 3, "parked": 3, "palms": 0.04,
 	},
 }
 
