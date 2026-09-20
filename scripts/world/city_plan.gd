@@ -228,3 +228,20 @@ func _rng_for(kind: int, a: int, b: int) -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed, kind, a, b])
 	return rng
+
+
+const STREET_NAMES := ["Maple", "Oak", "Cedar", "Pine", "Elm", "Birch", "Willow", "Palm", "Sunset", "Harbor", "Ocean", "Vista", "Canyon", "Ridge", "Mesa", "Laurel", "Olive", "Grand", "Union", "Market", "Main", "Park", "Hill", "Lake", "River", "Spring", "Summit", "Valley", "Meadow", "Orchard", "Bay", "Beacon", "Crest", "Fairview", "Glen", "Highland", "Juniper", "Linden", "Magnolia", "Pacific"]
+const ORDINALS := ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "11th", "12th", "14th", "15th", "16th", "17th", "18th", "19th", "20th", "21st"]
+
+
+## A seeded name for a road: north-south roads (AXIS_X) are avenues and boulevards, east-west
+## roads (AXIS_Z) are streets, a third of them numbered.
+func road_name(axis: int, index: int) -> String:
+	var rng := _rng_for(9, axis, index)
+	var avenue := road_width(axis, index) > street_width + 1.0
+	if axis == AXIS_Z and rng.randf() < 0.35:
+		return ORDINALS[posmod(index, ORDINALS.size())] + " ST"
+	var base: String = STREET_NAMES[rng.randi() % STREET_NAMES.size()]
+	if axis == AXIS_X:
+		return base.to_upper() + (" BLVD" if avenue else " AVE")
+	return base.to_upper() + (" BLVD" if avenue else " ST")

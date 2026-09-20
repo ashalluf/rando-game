@@ -213,7 +213,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `MultiMeshBatch` with meshes from `PropFactory`. Breakable props are registered with
   `CityChunk._add_prop()` (instances + shapes + health); their shapes live on the chunk's
   `StreetProps` body, which routes `take_hit()` to the chunk. Physics props (trash cans) are
-  `TrashCan` RigidBody3D nodes in the `physics_prop` group.
+  `TrashCan` RigidBody3D nodes in the `physics_prop` group. Street furniture and markings live in
+  `StreetDetail` (`scripts/world/street_detail.gd`, static, seeded per block and intersection);
+  street names come from `CityPlan.road_name()`.
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
   port), land height and district for any world XZ. The city itself rolls: `relief_at()` is the
   gentle height field under the blocks (zero on beaches, flat zones, mountain hills and around

@@ -186,6 +186,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Streets detail pass (owner: "the streets need to be way more detailed").**
+  `scripts/world/street_detail.gd` (static, called from the chunk) adds, all seeded: dark
+  gutter strips and storm drain grates along every curb, asphalt patches per road, stop lines
+  and lane arrows (straight and left turn, mirrored by heading) at signal and stop-sign
+  intersections, painted parking stalls where cars park, named street signs on the +X +Z corner
+  of every intersection (`CityPlan.road_name()`: north-south roads are avenues and boulevards,
+  east-west roads are streets, a third numbered; `PropFactory.text_mesh()` caches a TextMesh
+  per name), utility poles with three sagging cables in suburbs and industrial blocks, bus
+  shelters with a glass back and the Poly Haven bench on avenues, tree grates under sidewalk
+  trees, bike racks, news boxes, mailboxes and downtown bollards as breakable props. Flat
+  markings are in `MultiMeshBatch.tilt_keys` so they lie on the relief.
+
 - **2026-09-20 Cars face forward, real car paint, far buildings with windows, night minimap,
   unlimited jumps.** All four Meshy car models have their nose along +X, so `Vehicle.MODEL_YAW`
   is now -PI/2 for every type (with +PI/2 every car, driven or traffic, moved tail first: owner

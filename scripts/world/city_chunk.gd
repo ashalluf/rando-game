@@ -18,7 +18,7 @@ const SIDEWALK_TOP := 0.25
 @export var hill_scatter_min: int = 90
 @export var hill_scatter_max: int = 140
 
-const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0}
+const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0, "rack": 15.0, "newsbox": 10.0, "mailbox": 20.0, "bollard": 40.0, "street_sign": 12.0, "bus_stop": 40.0}
 
 var plan: CityPlan
 var ix: int = 0
@@ -54,7 +54,7 @@ func _gy(x: float, z: float) -> float:
 
 func build() -> void:
 	_batch.ground = _gy
-	_batch.tilt_keys = {"dash": true, "stripe": true, "manhole": true}
+	_batch.tilt_keys = {"dash": true, "stripe": true, "manhole": true, "gutter": true, "grate": true, "stop_line": true, "patch": true, "arrow_straight": true, "arrow_left": true, "pstripe": true, "tree_grate": true}
 	key = "%d,%d" % [ix, iz]
 	name = "Chunk_" + key
 	position = -WorldState.world_offset
@@ -666,7 +666,7 @@ func _build_block(block: Dictionary) -> void:
 		_:
 			_build_lots(rect, params, rng)
 	if level == Level.FULL:
-		_build_sidewalk_props(rect, params, rng)
+		_build_sidewalk_props(rect, params, rng, district)
 		_park_cars(rect, rng)
 		_spawn_pedestrians(rect, rng)
 
@@ -709,11 +709,14 @@ func _park_cars(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		var t := rect.position.y + 8.0
 		while t < rect.end.y - 8.0:
 			spots.append([Vector3(x, 0.4, t), 0.0, side])
+			# Painted stall line between spots.
+			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
 			t += 8.0
 		var z := rz + side * (wz * 0.5 - 2.2)
 		t = rect.position.x + 8.0
 		while t < rect.end.x - 8.0:
 			spots.append([Vector3(t, 0.4, z), PI * 0.5, side])
+			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
 			t += 8.0
 	spots.shuffle()
 	var count := 0
@@ -922,7 +925,7 @@ func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
 			_add_lamp(Vector3(center.x + dx * inner.size.x * 0.3, SIDEWALK_TOP + 0.04, center.y + dz * inner.size.y * 0.3))
 
 
-func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> void:
+func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator, block_district: int = 0) -> void:
 	var tree_chance: float = params.trees
 	var lamp_spacing: float = style.lamp_spacing
 	var tree_spacing: float = style.tree_spacing
@@ -949,6 +952,7 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		while t < length - 4.0:
 			if rng.randf() < tree_chance and fmod(t, lamp_spacing) > 3.0:
 				var p := a + dir * t + inward * 1.6
+				_batch.add("tree_grate", PropFactory.box("tree_grate", Vector3(1.6, 0.03, 1.6), Color(0.12, 0.12, 0.13)), Transform3D(Basis(), Vector3(p.x, SIDEWALK_TOP + 0.005, p.y)))
 				_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
 			elif rng.randf() < tree_chance * 0.5:
 				var p := a + dir * (t + tree_spacing * 0.4) + inward * 2.2
@@ -969,6 +973,7 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			can.rotation.y = rng.randf_range(0.0, TAU)
 			add_child(can)
 	_build_clutter(rect, edges, params, rng)
+	StreetDetail.build_block(self, rect, edges, params, block_district, rng)
 
 
 # --- Intersections ---------------------------------------------------------------------
@@ -985,6 +990,7 @@ func _build_intersection(inter: Dictionary) -> void:
 		_add_cylinder(Vector3(pos.x, ROAD_TOP + 0.31, pos.y), r - 0.8, 0.04, style.grass, false)
 		_add_tree(Vector3(pos.x, ROAD_TOP + 0.3, pos.y), rng)
 		return
+	StreetDetail.build_intersection(self, pos, size, kind, rng)
 	if kind == CityPlan.Intersection.PLAIN:
 		return
 	_add_crosswalks(pos, size, inter.seed)

@@ -532,3 +532,180 @@ static func building_lod_material() -> ShaderMaterial:
 	mat.shader = load("res://shaders/building_lod.gdshader")
 	_cache["building_lod_mat"] = mat
 	return mat
+
+
+# --- Street detail pieces (see scripts/world/street_detail.gd) ----------------------------------
+
+## Dark gutter strip, 4 m along Z, 0.5 m wide.
+static func gutter() -> Mesh:
+	return box("gutter", Vector3(0.5, 0.008, 4.0), Color(0.22, 0.22, 0.23))
+
+
+static func grate() -> Mesh:
+	return box("grate", Vector3(0.5, 0.02, 0.9), Color(0.12, 0.12, 0.13))
+
+
+## White stop line, 1 m along X (scaled to the lane), 0.45 m deep.
+static func stop_line() -> Mesh:
+	return box("stop_line", Vector3(1.0, 0.012, 0.45), Color(0.95, 0.95, 0.92))
+
+
+## Unit asphalt patch (scaled per instance), takes the instance color.
+static func patch() -> Mesh:
+	return box("patch", Vector3(1.0, 0.006, 1.0), Color(0.5, 0.5, 0.52))
+
+
+## Flat painted arrow pointing -Z: shaft plus head, 3.4 m long.
+static func arrow_straight() -> Mesh:
+	return _flat_polygon("arrow_straight", PackedVector2Array([
+		Vector2(-0.18, 1.2), Vector2(0.18, 1.2), Vector2(0.18, -0.6), Vector2(0.6, -0.6), Vector2(0.0, -2.2), Vector2(-0.6, -0.6), Vector2(-0.18, -0.6),
+	]), Color(0.95, 0.95, 0.92))
+
+
+## Flat painted left-turn arrow: shaft forward, head bent to -X.
+static func arrow_left() -> Mesh:
+	return _flat_polygon("arrow_left", PackedVector2Array([
+		Vector2(-0.18, 1.2), Vector2(0.18, 1.2), Vector2(0.18, -0.9), Vector2(-0.5, -0.9), Vector2(-0.5, -0.4), Vector2(-1.6, -1.2), Vector2(-0.5, -2.0), Vector2(-0.5, -1.5), Vector2(-0.18, -1.5),
+	]), Color(0.95, 0.95, 0.92))
+
+
+## A flat, upward-facing polygon mesh from XZ points (a painted road marking).
+static func _flat_polygon(key: String, points: PackedVector2Array, color: Color) -> Mesh:
+	if _cache.has(key):
+		return _cache[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var mat: StandardMaterial3D = material(color, 0.7).duplicate()
+	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	st.set_material(mat)
+	var tris := Geometry2D.triangulate_polygon(points)
+	for i in range(0, tris.size(), 3):
+		# Reverse so the face points up (+Y) with Godot's winding.
+		for j in [i + 2, i + 1, i]:
+			var q := points[tris[j]]
+			st.set_normal(Vector3.UP)
+			st.add_vertex(Vector3(q.x, 0.0, q.y))
+	var mesh := st.commit()
+	_cache[key] = mesh
+	return mesh
+
+
+static func upole() -> Mesh:
+	return cylinder("upole", 0.16, 9.0, Color(0.36, 0.28, 0.2), 0.13, 8)
+
+
+static func crossarm() -> Mesh:
+	return box("crossarm", Vector3(2.0, 0.1, 0.1), Color(0.36, 0.28, 0.2))
+
+
+## Unit cable along Z (scaled per instance).
+static func cable() -> Mesh:
+	return box("cable", Vector3(0.035, 0.035, 1.0), Color(0.08, 0.08, 0.09))
+
+
+static func bike_rack() -> Mesh:
+	if _cache.has("bike_rack"):
+		return _cache["bike_rack"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(material(Color(0.3, 0.3, 0.32), 0.5))
+	# An inverted U from three tubes.
+	for part in [[Vector3(-0.4, 0.45, 0.0), Vector3(0.06, 0.9, 0.06)], [Vector3(0.4, 0.45, 0.0), Vector3(0.06, 0.9, 0.06)], [Vector3(0.0, 0.88, 0.0), Vector3(0.86, 0.06, 0.06)]]:
+		var bm := BoxMesh.new()
+		bm.size = part[1]
+		st.append_from(bm, 0, Transform3D(Basis(), part[0]))
+	var mesh := st.commit()
+	_cache["bike_rack"] = mesh
+	return mesh
+
+
+static func news_box() -> Mesh:
+	return box("news_box", Vector3(0.45, 1.1, 0.45), Color(1.0, 1.0, 1.0))
+
+
+static func mailbox() -> Mesh:
+	if _cache.has("mailbox"):
+		return _cache["mailbox"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(material(Color(0.15, 0.32, 0.26), 0.6))
+	for part in [[Vector3(0.0, 0.95, 0.0), Vector3(0.55, 0.7, 0.45)], [Vector3(-0.18, 0.3, 0.0), Vector3(0.05, 0.6, 0.05)], [Vector3(0.18, 0.3, 0.0), Vector3(0.05, 0.6, 0.05)]]:
+		var bm := BoxMesh.new()
+		bm.size = part[1]
+		st.append_from(bm, 0, Transform3D(Basis(), part[0]))
+	var mesh := st.commit()
+	_cache["mailbox"] = mesh
+	return mesh
+
+
+static func bollard() -> Mesh:
+	return cylinder("bollard", 0.12, 0.9, Color(0.25, 0.25, 0.27), 0.1, 10)
+
+
+static func sign_post() -> Mesh:
+	return cylinder("sign_post", 0.04, 2.8, Color(0.3, 0.3, 0.32), 0.04, 8)
+
+
+## Green street-name plate, 1 m wide along X, takes the instance color.
+static func sign_plate() -> Mesh:
+	return box("sign_plate", Vector3(1.0, 0.24, 0.03), Color(1.0, 1.0, 1.0))
+
+
+static func bus_sign() -> Mesh:
+	if _cache.has("bus_sign"):
+		return _cache["bus_sign"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(material(Color(0.1, 0.35, 0.7), 0.6))
+	var bm := BoxMesh.new()
+	bm.size = Vector3(0.5, 0.5, 0.03)
+	st.append_from(bm, 0, Transform3D())
+	var mesh := st.commit()
+	var tm := text_mesh("BUS", 0.16)
+	var st2 := SurfaceTool.new()
+	st2.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st2.set_material(material(Color.WHITE, 0.6))
+	st2.append_from(tm, 0, Transform3D(Basis(), Vector3(0.0, 0.0, 0.03)))
+	st2.commit(mesh)
+	_cache["bus_sign"] = mesh
+	return mesh
+
+
+static func shelter_post() -> Mesh:
+	return box("shelter_post", Vector3(0.1, 2.5, 0.1), Color(0.25, 0.25, 0.27))
+
+
+static func shelter_roof() -> Mesh:
+	return box("shelter_roof", Vector3(4.2, 0.08, 1.8), Color(0.25, 0.25, 0.27))
+
+
+static func shelter_glass() -> Mesh:
+	if _cache.has("shelter_glass"):
+		return _cache["shelter_glass"]
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(3.8, 2.3, 0.04)
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.6, 0.75, 0.85, 0.35)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.roughness = 0.1
+	mat.metallic = 0.3
+	mesh.material = mat
+	_cache["shelter_glass"] = mesh
+	return mesh
+
+
+## 3D text as a mesh, centered, white, `height` meters tall (cached per text and size).
+static func text_mesh(text: String, height: float = 0.18) -> Mesh:
+	var key := "text_%s_%.2f" % [text, height]
+	if _cache.has(key):
+		return _cache[key]
+	var tm := TextMesh.new()
+	tm.text = text
+	tm.font_size = 48
+	tm.pixel_size = height / 48.0
+	tm.depth = 0.01
+	tm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	tm.material = material(Color.WHITE, 0.6)
+	_cache[key] = tm
+	return tm
