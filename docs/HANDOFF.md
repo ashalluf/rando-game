@@ -127,11 +127,23 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 79)
+## 6. Where the game stands (build 83)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 83: the horizon. Everything outside the streamed chunks used to be a 4 km flat green plane
+  whose own edge was the skyline. It is now 14 km across and shaded from a baked image of the
+  whole basin (`MacroMap.bake()`), with relief shading and haze that hands over to the sky.
+  Clouds are lit by sampling toward the sun (bright shoulders, grey undersides) with a cirrus
+  deck above them; palm trunks carry the frond-base lattice.
+- 82: dark asphalt (road and pavement had measured to the same grey), crack and stain noise at
+  the right scale, real shopfronts (sign band, bulkhead, mullions, doors), feathered palm
+  fronds with smooth normals, and the naked orange pedestrian removed (pedestrian_b came back
+  with no clothes on it; a smoke check now measures this).
+- 81: glass reflects sky and street by fresnel, rooms exposed for daylight, grime that runs from
+  the sills, per-window frame tints, fire-escape ironwork that reads as metal.
+- 80: fire escapes on brick walk-ups.
 - 79: roof coverings (membrane / gravel / bitumen) and much more rooftop plant.
 - 78: far skyline gets parallax windows and floor bands; ground wear toned down; aerial shots
   hold their height in tools/glshot/city_shot.gd.

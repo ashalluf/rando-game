@@ -172,7 +172,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in
   project.godot). Shaders that should react to night read it with
-  `global uniform float night_factor;`.
+  `global uniform float night_factor;`. Clouds are lit by stepping the same noise field toward
+  the sun and darkening where there is more of it in the way, which is what gives them bright
+  shoulders and grey undersides; above them is a sheared cirrus deck. Both cost three extra
+  noise taps, so `Quality` clears `cloud_detail` on the web and below MEDIUM.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
@@ -278,6 +281,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   chunks build asphalt strips and estates from. Chunks build water, sand or terrain for non-city
   zones; the water surface is at y 0.15 (above the ground follower plane). To start
   somewhere else for testing: web `?spawn=x,z,yaw,pitch[,y]`, desktop `-- --spawn=x,z,yaw,pitch[,y]`.
+- The horizon: everything outside the streamed chunks is the ground follower, a single plane
+  14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
+  shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is
+  the ground colour per zone and district, alpha is height / 400 m), with relief shading from
+  the baked height, a little noise to break up the bilinear smear, the grass texture blended
+  back in within ~300 m of the camera, and haze that hands the far land over to the sky.
+  `DayNight` keeps `haze_color` and `sun_dir` in step via `CityStreamer.set_ground_haze()`.
+  Before this the plane was 4 km of flat green and its own edge was the horizon.
 - Palms (owner, 2026-09-20: "it's Cali, put palm trees"): `PropFactory.palm(variant)` builds a
   whole tree as one vertex-coloured mesh (tall slender curved trunk with ridged bark, a crown of
   feathered fronds whose leaflets are separate pointed blades so daylight shows through, a skirt

@@ -331,9 +331,11 @@ static func palm(variant: int) -> Mesh:
 	# Palms lean, and the lean grows toward the top rather than tilting the whole trunk.
 	var lean_dir := Vector3(cos(rng.randf() * TAU), 0.0, sin(rng.randf() * TAU))
 	var lean := rng.randf_range(0.4, 1.5)
-	var segments := 14
-	var sides := 8
-	var bark := Color(0.44, 0.37, 0.28)
+	# Enough rings and sides to carry the diamond pattern below without reading as a checkerboard.
+	var segments := 22
+	var sides := 10
+	# Grey-tan, not chocolate: a Washingtonia trunk is the colour of dry rope.
+	var bark := Color(0.46, 0.41, 0.33)
 
 	var centre := func(t: float) -> Vector3:
 		return Vector3(0.0, height * t, 0.0) + lean_dir * (lean * t * t)
@@ -346,13 +348,19 @@ static func palm(variant: int) -> Mesh:
 		# Taper toward the crown, with a slight swell at the base and a ring ridge per segment.
 		var r0 := lerpf(0.30, 0.13, t0) * (1.0 + 0.30 * exp(-t0 * 9.0)) * (1.0 + (0.045 if i % 2 == 0 else -0.045))
 		var r1 := lerpf(0.30, 0.13, t1) * (1.0 + 0.30 * exp(-t1 * 9.0)) * (1.0 + (0.045 if (i + 1) % 2 == 0 else -0.045))
-		var shade0 := bark * (0.82 + 0.28 * float(i % 3) / 2.0)
+		var shade0 := bark * (0.90 + 0.16 * float(i % 3) / 2.0)
 		for k in sides:
 			var a0 := TAU * k / sides
 			var a1 := TAU * (k + 1) / sides
 			var d0 := Vector3(cos(a0), 0.0, sin(a0))
 			var d1 := Vector3(cos(a1), 0.0, sin(a1))
-			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0, d0, d1)
+			# The criss-cross of old frond bases. A palm trunk is not a smooth pole: it is a
+			# lattice of cut stubs in a diamond lattice, and at street level that pattern is
+			# the thing that tells you which tree you are standing under.
+			var lattice := 1.0 if (i + k) % 2 == 0 else 0.76
+			# The pattern wears away toward the base, where the trunk has gone smooth and grey.
+			lattice = lerpf(1.0, lattice, smoothstep(0.08, 0.35, t0))
+			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0 * lattice, d0, d1)
 
 	var top: Vector3 = centre.call(1.0)
 	var fronds := rng.randi_range(11, 15)

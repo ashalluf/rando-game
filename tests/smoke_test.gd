@@ -755,6 +755,32 @@ func _test_city() -> void:
 					ground_worn = true
 	_check(road_textured, "roads and sidewalks use real textures")
 	_check(ground_worn, "roads and pavements use the wear shader")
+	# Everything outside the streamed chunks is the ground follower, and it has to be painted
+	# from the baked map of the basin, not left as a flat green plane whose edge is the horizon.
+	var follower: Node = city.get_node_or_null("Ground")
+	var macro_ok := false
+	var macro_land := 0
+	var macro_water := 0
+	if follower:
+		for child in follower.get_children():
+			if child is MeshInstance3D and (child as MeshInstance3D).material_override is ShaderMaterial:
+				var gm := (child as MeshInstance3D).material_override as ShaderMaterial
+				var tex: Texture2D = gm.get_shader_parameter("macro_tex")
+				if tex:
+					macro_ok = true
+					var mi := tex.get_image()
+					if mi.is_compressed():
+						mi.decompress()
+					for y in range(0, mi.get_height(), 7):
+						for x in range(0, mi.get_width(), 7):
+							if mi.get_pixel(x, y).a > 0.0005:
+								macro_land += 1
+							else:
+								macro_water += 1
+	_check(macro_ok and city.ground_size >= 10000.0, "the horizon is the baked macro map on a %.0f m plane" % (city.ground_size if follower else 0.0))
+	# Both have to be in there: alpha is exactly zero on water and never zero on land, and the
+	# shader tells the sea apart by that.
+	_check(macro_land > 100 and macro_water > 100, "the baked map has land and sea (%d / %d samples)" % [macro_land, macro_water])
 	_check(PropFactory.texture("brick", "Color") != null and PropFactory.texture("rock", "NormalGL") != null, "texture sets load")
 	var minimap: Control = city.get_node("DebugHud/MinimapFrame/Minimap")
 	_check(minimap != null and minimap.world_to_map(Vector2(0.0, -100.0), Vector2.ZERO).y < minimap.size.y * 0.5, "minimap exists and north is up")

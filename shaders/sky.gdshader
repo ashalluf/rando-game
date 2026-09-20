@@ -16,6 +16,10 @@ uniform vec3 sun_tint : source_color = vec3(1.0, 0.96, 0.88);
 uniform float cloud_coverage : hint_range(0.0, 1.0) = 0.42;
 uniform float cloud_softness : hint_range(0.02, 1.0) = 0.35;
 uniform float cloud_speed = 0.006;
+/// High cirrus deck above the cumulus, and the extra sampling that sculpts the puffs.
+/// Quality turns cloud_detail off on web and at the low levels: it costs three noise taps.
+uniform float cirrus_amount : hint_range(0.0, 1.0) = 0.45;
+uniform float cloud_detail : hint_range(0.0, 1.0) = 1.0;
 uniform vec3 cloud_color : source_color = vec3(1.0, 1.0, 1.0);
 uniform vec3 cloud_shadow : source_color = vec3(0.58, 0.63, 0.74);
 /// Extra horizon haze (0..1) and star brightness (night).
@@ -52,6 +56,19 @@ float fbm(vec2 p) {
 	}
 	return v;
 }
+
+// Three octaves, for the extra taps that only need the cloud's broad shape.
+float fbm3(vec2 p) {
+	float v = 0.0;
+	float amp = 0.5;
+	for (int i = 0; i < 3; i++) {
+		v += amp * vnoise(p);
+		p = p * 2.03 + vec2(17.3, 9.1);
+		amp *= 0.5;
+	}
+	return v * 1.15;
+}
+
 
 void sky() {
 	vec3 dir = EYEDIR;
@@ -95,13 +112,46 @@ void sky() {
 		float density = smoothstep(1.0 - cloud_coverage, 1.0 - cloud_coverage + cloud_softness, shape);
 		density *= smoothstep(0.0, 0.22, up);
 		float thick = clamp((shape - (1.0 - cloud_coverage)) / max(cloud_softness, 0.02), 0.0, 1.0);
-		vec3 cloud = mix(cloud_color, cloud_shadow, thick * 0.8);
+
+		// Shape the puffs by looking toward the sun. A cloud lit as one flat white field is the
+		// thing that gives a sky away: real cumulus are brilliant on the sun side and grey
+		// underneath, because the cloud in front of them is in the way. Step across the same
+		// noise field toward the sun and see how much of it is; where there is more, this part
+		// is in shadow, where there is less, it is a sunlit shoulder.
+		float sunlit = 0.5;
+		if (cloud_detail > 0.5) {
+			vec2 sun_uv = sun_dir.xz / (max(sun_dir.y, 0.08) + 0.12) * 2.2;
+			vec2 to_sun = normalize(sun_uv - uv + vec2(1e-4, 0.0));
+			float near_s = clamp((fbm3(uv + to_sun * 0.30) - 0.3) * 2.2, 0.0, 1.0);
+			float far_s = clamp((fbm3(uv + to_sun * 0.85) - 0.3) * 2.2, 0.0, 1.0);
+			float occ = near_s * 0.62 + far_s * 0.38;
+			sunlit = clamp(0.5 + (shape - occ) * 2.4, 0.0, 1.0);
+		}
+		sunlit = mix(0.5, sunlit, 1.0 - night_factor * 0.8);
+		vec3 cloud = mix(cloud_shadow, cloud_color, sunlit);
+		// The densest cores still go grey whichever way the light comes from.
+		cloud = mix(cloud, cloud * mix(vec3(1.0), cloud_shadow, 0.55), thick * 0.55);
 		float lit = pow(max(cos_sun, 0.0), 3.0) * (1.0 - night_factor * 0.8);
 		cloud += light_col * lit * 0.35;
+		// Silver lining: a thin edge with the sun behind it glows right through.
+		float rim = density * (1.0 - thick) * pow(max(cos_sun, 0.0), 5.0);
+		cloud += light_col * rim * 1.1 * (1.0 - night_factor);
 		cloud = mix(cloud, cloud * 0.12 + vec3(0.02, 0.025, 0.04), night_factor);
 		col = mix(col, cloud, density * 0.92);
+
+		// A high cirrus deck above the cumulus, drifting faster and sheared out by the wind.
+		// It is what stops the upper half of the sky being an empty gradient.
+		if (cloud_detail > 0.5 && cirrus_amount > 0.01) {
+			vec2 cuv = dir.xz / (up + 0.05) * 0.95 + vec2(TIME * cloud_speed * 2.6, 0.0);
+			float cir = clamp((fbm3(vec2(cuv.x * 0.55, cuv.y * 2.7)) - 0.42) * 3.0, 0.0, 1.0);
+			cir *= smoothstep(0.03, 0.34, up) * (1.0 - density) * cirrus_amount * (1.0 - night_factor * 0.85);
+			col = mix(col, cloud_color * 1.04 + light_col * 0.10, cir * 0.55);
+		}
 	} else {
-		col = mix(sky_horizon, ground_color, clamp(-up * 6.0, 0.0, 1.0));
+		// Below the horizon. The ground plane only reaches a few kilometres, so from any height
+		// there is a band of this between the land and the true horizon: it has to read as more
+		// haze, not as a dark grey stripe across the bottom of the sky.
+		col = mix(sky_horizon, ground_color, clamp(-up * 2.2, 0.0, 1.0));
 	}
 	col += flash * vec3(0.8, 0.85, 1.0);
 	COLOR = col;

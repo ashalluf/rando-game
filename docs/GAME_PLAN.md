@@ -186,6 +186,48 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 The horizon is the ground plane, so the ground plane became the map.** From any
+  height, everything outside the streamed chunks was a 4 km flat green plane whose own edge was
+  the skyline, with a grey band of sky-below-horizon above it. `MacroMap.bake()` now paints the
+  whole basin into one 256 px image once at load (about 270 ms): RGB is the ground colour per
+  zone and district, alpha is height / 400 m and exactly zero on water. The plane is 14 km
+  across and wears `shaders/macro_ground.gdshader`, which shades from that image with relief
+  from the baked height, noise to break up the bilinear smear, the grass texture blended back
+  in within ~300 m, water shaded as water (dark, sky in it, a glare path toward the sun) and
+  haze that hands the far land over to the sky. `DayNight` keeps the haze colour and the sun
+  direction in step and now also sets the sky's below-horizon colour, so there is no grey band.
+  Tuning note: the baked colours are albedos, not the finished look. The renderer lights the
+  plane like anything else and brightens them by about half again, so colours picked by eye
+  from a photograph come out washed out.
+
+- **2026-09-20 Clouds are lit by looking toward the sun.** The sky's cumulus were one flat white
+  density field with a `pow(cos_sun)` term on top, which reads as paper. The shader now steps
+  across the same noise field toward the sun and darkens where there is more cloud in the way,
+  which is what gives cumulus bright shoulders and grey undersides, plus a silver lining on
+  thin edges with the sun behind them and a sheared cirrus deck above. It costs three extra
+  noise taps, so `Quality` clears `cloud_detail` on the web and below MEDIUM.
+
+- **2026-09-20 One of the three pedestrian models had no clothes on.** `pedestrian_b`'s texture
+  came back from the generator as bare skin head to foot, so `shaders/character.gdshader`, which
+  only recolours pixels already off the skin hue, had nothing to act on; its rig does not take
+  the walk clip either. A third of the crowd was a naked orange mannequin standing with its arms
+  over its head. It is out of `Pedestrian.MODELS`. The smoke test now measures how much of each
+  character texture sits away from its own average colour (0.31 and 0.71 for the two in use,
+  0.001 for the nude one), because a hue test cannot catch this: brown clothing is a skin hue.
+
+- **2026-09-20 The road and the pavement were the same grey.** Measured off a screenshot, both
+  came out at 110,123,127. Asphalt tints ran 0.60 to 0.85; sun-bleached asphalt is still only
+  about a quarter as bright as a kerb, so they now run 0.31 to 0.49. This is the kind of thing
+  that makes a whole street read as one flat field no matter how much detail is layered on it.
+
+- **2026-09-20 Glass reflects, and rooms are dark.** Windows were pale cards with an evenly lit
+  room behind them. The pane now mixes toward a sky gradient above the horizon and the dark
+  street below it, weighted by a Schlick fresnel, computed in the shader from the reflected ray
+  rather than by raising METALLIC (which is what turned curtain-wall towers into see-through
+  cages in build 60). Rooms are exposed for daylight outside, so they read almost black from the
+  street. Second tuning note: "horizon" for a pane on a wall is the buildings opposite, not the
+  sky at the horizon; a pale sky blue there turned every shop window into milk glass.
+
 - **2026-09-20 Worn road surfaces.** The road fills the bottom third of almost every shot and a
   single tiled texture read as a flat grey plane whatever the lighting did.
   `shaders/road.gdshader` layers what actually makes tarmac look used, all from world position

@@ -113,6 +113,12 @@ func _apply_render() -> void:
 	if _sun:
 		_sun.directional_shadow_max_distance = shadow_distance[i]
 		_sun.shadow_blur = 1.0 if level <= Level.MEDIUM else 0.7
+	# The sky's second cloud layer and its sun-side sampling cost three noise taps per pixel,
+	# and the sky fills a lot of an outdoor frame. Drop them once we are stepping quality down,
+	# and on the web, where the Compatibility renderer is doing all of this on one thread.
+	if _env and _env.sky and _env.sky.sky_material is ShaderMaterial:
+		var detail := 1.0 if level <= Level.MEDIUM and not OS.has_feature("web") else 0.0
+		(_env.sky.sky_material as ShaderMaterial).set_shader_parameter("cloud_detail", detail)
 	var viewport := get_viewport()
 	if viewport:
 		var scale: float = render_scale[i]

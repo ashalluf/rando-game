@@ -126,6 +126,15 @@ func _apply() -> void:
 		_sky.set_shader_parameter("stars", night_factor)
 		_sky.set_shader_parameter("haze", lerpf(day_haze, dusk_haze, dusk))
 		_sky.set_shader_parameter("sun_glow", lerpf(0.9, 1.6, dusk))
+		# Under the horizon is the far haze the ground plane fades into, not a grey floor.
+		_sky.set_shader_parameter("ground_color", horizon.lerp(Color(0.32, 0.34, 0.37), 0.30))
+		# The ground follower's horizon has to wash out into the same colour the sky meets it
+		# with, or the land ends in a hard line however good the haze is.
+		var streamer := get_parent()
+		if streamer and streamer.has_method("set_ground_haze"):
+			var hz: Color = horizon.lerp(storm_horizon, weather_darken * (1.0 - night_factor * 0.6))
+			# A directional light shines along -Z, so +Z points back at the sun.
+			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
 	if _env:
 		_env.fog_light_color = day_horizon.lerp(night_horizon, night_factor)
 		# Ambient comes from the sky cubemap, so shadows take the sky's own colour (blue at

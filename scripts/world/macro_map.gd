@@ -197,3 +197,77 @@ func district_at(pos: Vector2) -> CityPlan.District:
 
 static func zone_name(z: Zone) -> String:
 	return ZONE_NAMES[z]
+
+
+## Colours for the land beyond the loaded chunks. These are the colours the horizon is painted
+## with, so they are the average of what a district looks like from the air, not the colour of
+## any one surface in it.
+const BAKE_OCEAN_DEEP := Color(0.018, 0.042, 0.075)
+const BAKE_OCEAN_SHALLOW := Color(0.04, 0.13, 0.16)
+const BAKE_SAND := Color(0.46, 0.41, 0.31)
+const BAKE_DOWNTOWN := Color(0.19, 0.19, 0.20)
+const BAKE_MIDTOWN := Color(0.22, 0.21, 0.20)
+const BAKE_SUBURB := Color(0.21, 0.26, 0.15)
+const BAKE_INDUSTRIAL := Color(0.23, 0.22, 0.20)
+const BAKE_CAMPUS := Color(0.18, 0.27, 0.14)
+const BAKE_GRASS := Color(0.17, 0.25, 0.11)
+const BAKE_SCRUB := Color(0.27, 0.26, 0.15)
+const BAKE_ROCK := Color(0.29, 0.27, 0.24)
+const BAKE_CONCRETE := Color(0.32, 0.31, 0.30)
+
+
+## Paints the whole basin into one small image, so the ground plane beyond the streamed chunks
+## can show the actual map instead of a flat green table out to the horizon: ocean to the west,
+## the mountains to the north, the airport, the city sprawl. RGB is the ground colour and alpha
+## carries the land height (metres / 400), which the shader turns into relief shading. Alpha is
+## exactly zero on water and never below 0.004 on land, so the shader can tell the sea apart and
+## shade it as water rather than as a very flat blue field.
+##
+## These colours are albedos, not the finished look: the renderer lights the plane like anything
+## else, which brightens them by roughly half again. Picking them by eye from a photograph gives
+## a washed-out map.
+##
+## `span` is how many metres across the image covers, centred on `centre` in world XZ.
+func bake(centre: Vector2, span: float, size: int) -> Image:
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var step := span / float(size)
+	var origin := centre - Vector2(span, span) * 0.5
+	for py in size:
+		for px in size:
+			var pos := origin + Vector2((float(px) + 0.5) * step, (float(py) + 0.5) * step)
+			var h := height_at(pos)
+			var col: Color
+			match zone_at(pos):
+				Zone.OCEAN:
+					# Shoaling water: the shelf near the shore reads much lighter than the deep.
+					var shore := clampf((coast_x(pos.y) - pos.x) / 600.0, 0.0, 1.0)
+					col = BAKE_OCEAN_SHALLOW.lerp(BAKE_OCEAN_DEEP, shore)
+				Zone.BEACH:
+					col = BAKE_SAND
+				Zone.AIRPORT:
+					col = BAKE_CONCRETE
+				Zone.PORT:
+					col = BAKE_CONCRETE.darkened(0.25)
+				Zone.HILLS:
+					# Green on the lower slopes, dry scrub above them, bare rock at the tops.
+					var t := clampf(h / maxf(hills_height, 1.0), 0.0, 1.0)
+					col = BAKE_GRASS.lerp(BAKE_SCRUB, smoothstep(0.10, 0.45, t))
+					col = col.lerp(BAKE_ROCK, smoothstep(0.45, 0.85, t))
+				_:
+					match district_at(pos):
+						CityPlan.District.DOWNTOWN:
+							col = BAKE_DOWNTOWN
+						CityPlan.District.MIDTOWN:
+							col = BAKE_MIDTOWN
+						CityPlan.District.INDUSTRIAL:
+							col = BAKE_INDUSTRIAL
+						CityPlan.District.CAMPUS:
+							col = BAKE_CAMPUS
+						_:
+							col = BAKE_SUBURB
+			if zone_at(pos) == Zone.OCEAN:
+				col.a = 0.0
+			else:
+				col.a = clampf(maxf(h, 0.0) / 400.0, 0.004, 1.0)
+			img.set_pixel(px, py, col)
+	return img

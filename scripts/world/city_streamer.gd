@@ -30,7 +30,12 @@ extends Node3D
 @export var max_lod_builds_per_update: int = 8
 ## When the player is this far from the origin, the whole world shifts back to it.
 @export var recenter_distance: float = 1000.0
-@export var ground_size: float = 4000.0
+## The ground follower is the whole world outside the streamed chunks, so it has to reach past
+## anything the player can see from the air. At 4 km across, its edge WAS the horizon.
+@export var ground_size: float = 14000.0
+## How many metres across the baked macro map covers, and its resolution. 256 costs about a
+## quarter of a second once, at load.
+@export var macro_span: float = 16000.0
 
 @export_group("Street life")
 @export var lamp_spacing: float = 24.0
@@ -78,6 +83,7 @@ var recenter_count: int = 0
 
 var _player: Node3D
 var _ground: StaticBody3D
+var _ground_material: ShaderMaterial
 var _timer: float = 0.0
 ## Far (always loaded) versions of the landmarks, keyed by id.
 var _far_landmarks: Dictionary = {}
@@ -346,6 +352,10 @@ func update_streaming(immediate: bool) -> void:
 			return
 	var local := _player.global_position
 	_ground.position = Vector3(local.x, 0.0, local.z)
+	# The macro map is addressed in true world XZ, so the plane has to know how far the scene's
+	# origin has been shifted from under it.
+	if _ground_material:
+		_ground_material.set_shader_parameter("world_offset", Vector2(WorldState.world_offset.x, WorldState.world_offset.z))
 	var wp := world_position(local)
 	var center := plan.block_index_at(Vector2(wp.x, wp.z))
 
@@ -423,6 +433,29 @@ func recenter() -> void:
 	recenter_count += 1
 
 
+## The material the ground follower wears: the baked macro map of the whole basin, plus the
+## close-up grass texture for the ground right under the player. See shaders/macro_ground.gdshader.
+func _build_ground_material() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/macro_ground.gdshader")
+	var size := 160 if OS.has_feature("web") else 256
+	var img := plan.macro.bake(Vector2.ZERO, macro_span, size)
+	var tex := ImageTexture.create_from_image(img)
+	mat.set_shader_parameter("macro_tex", tex)
+	mat.set_shader_parameter("macro_centre", Vector2.ZERO)
+	mat.set_shader_parameter("macro_span", macro_span)
+	mat.set_shader_parameter("near_albedo", PropFactory.texture("grass", "Color"))
+	mat.set_shader_parameter("near_normal", PropFactory.texture("grass", "NormalGL"))
+	return mat
+
+
+## DayNight keeps the horizon haze in step with the sky it is handing over to.
+func set_ground_haze(color: Color, sun_direction: Vector3) -> void:
+	if _ground_material:
+		_ground_material.set_shader_parameter("haze_color", color)
+		_ground_material.set_shader_parameter("sun_dir", sun_direction)
+
+
 func _build_ground() -> void:
 	_ground = StaticBody3D.new()
 	_ground.name = "Ground"
@@ -432,7 +465,13 @@ func _build_ground() -> void:
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(ground_size, ground_size)
 	mesh.mesh = plane
-	mesh.material_override = PropFactory.pbr("grass", 6.0, Color(0.85, 0.9, 0.75))
+	_ground_material = _build_ground_material()
+	mesh.material_override = _ground_material
+	# One flat quad 14 km across would z-fight and shade badly at this size; a few subdivisions
+	# cost nothing and keep the interpolated world position honest.
+	plane.subdivide_width = 8
+	plane.subdivide_depth = 8
+	mesh.extra_cull_margin = ground_size
 	_ground.add_child(mesh)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
