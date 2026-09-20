@@ -15,6 +15,8 @@ func _ready() -> void:
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
 		if search is String and (search as String).contains("nohud"):
 			visible = false
+	elif "--nohud" in OS.get_cmdline_user_args():
+		visible = false # desktop / tools/glshot: `-- --nohud`
 	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look   E get in / out of a car\n" \
 		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc pause / seed   F1 hide\n" \
 		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space jump   right click handbrake   in the air W / S flip, A / D roll\n" \
@@ -59,6 +61,9 @@ func _process(_delta: float) -> void:
 	var peds := get_tree().get_nodes_in_group("pedestrian").size()
 	var traffic := get_tree().get_first_node_in_group("traffic")
 	stats.text += "   people %d" % peds
+	var quality := get_tree().current_scene.get_node_or_null("Quality")
+	if quality and not OS.has_feature("web"):
+		stats.text += "   quality %s" % quality.level_name()
 	if city and city.has_method("chunk_counts"):
 		var counts: Vector2i = city.chunk_counts()
 		var wp: Vector3 = city.world_position(_player.global_position)

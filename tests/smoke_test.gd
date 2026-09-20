@@ -510,6 +510,12 @@ func _test_city() -> void:
 				new_dolls += 1
 		_check(not is_instance_valid(ped) or ped.is_queued_for_deletion(), "knocked pedestrian is removed")
 		_check(new_dolls >= 1, "a ragdoll takes its place")
+		# The ragdoll is the same rigged character, not a box body (owner, 2026-09-20).
+		var rigged_doll := false
+		for n in get_tree().get_nodes_in_group("debris"):
+			if n is Ragdoll and not before_dolls.has(n.get_instance_id()) and n.find_child("Skeleton3D", true, false) != null:
+				rigged_doll = true
+		_check(rigged_doll, "the ragdoll keeps the pedestrian's real model")
 		# Bullets hurt people: the AK-47 ray must hit the npc layer and knock the target over.
 		if peds.size() > 1 and is_instance_valid(peds[1]):
 			var target: Node3D = peds[1]
@@ -522,6 +528,8 @@ func _test_city() -> void:
 			var hit: Dictionary = rifle.fire_ray(from, Vector3.RIGHT)
 			await _ticks(3)
 			_check(not hit.is_empty() and (not is_instance_valid(target) or target.is_queued_for_deletion()), "an AK-47 bullet knocks a pedestrian down")
+	var avatar: Node = player.get_node_or_null("Visual/Avatar")
+	_check(avatar != null and avatar.find_child("AnimationPlayer", true, false) != null and not player.get_node("Visual/Body").visible, "the player wears the animated character, capsule hidden")
 	var traffic_node: Node3D = city.get_node("Traffic")
 	var moving: int = traffic_node.cars.size()
 	_check(moving >= 4, "traffic cars are driving (%d)" % moving)

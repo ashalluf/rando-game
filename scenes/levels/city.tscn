@@ -1,4 +1,4 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/city_streamer.gd" id="1_city"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -7,6 +7,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ui/pause_menu.tscn" id="5_pause"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="6_sky"]
 [ext_resource type="Script" path="res://scripts/world/weather.gd" id="7_weather"]
+[ext_resource type="Script" path="res://scripts/util/quality.gd" id="8_quality"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("6_sky")
@@ -32,7 +33,7 @@ ssao_radius = 2.0
 ssao_intensity = 1.5
 sdfgi_enabled = true
 sdfgi_use_occlusion = true
-sdfgi_min_cell_size = 0.4
+sdfgi_min_cell_size = 0.8
 sdfgi_energy = 1.1
 glow_enabled = true
 glow_intensity = 0.5
@@ -74,6 +75,9 @@ environment_path = NodePath("../WorldEnvironment")
 
 [node name="Weather" type="Node" parent="."]
 script = ExtResource("7_weather")
+
+[node name="Quality" type="Node" parent="."]
+script = ExtResource("8_quality")
 
 [node name="DebugHud" parent="." instance=ExtResource("3_hud")]
 

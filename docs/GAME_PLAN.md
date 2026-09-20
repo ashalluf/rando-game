@@ -186,6 +186,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Animated main character, real ragdolls, first lag pass (owner: "GTA style main
+  character instead of this orange blob", "they turn into low poly creatures" when hit, "it's a
+  little bit laggy").** `Avatar` puts one of the rigged characters on the player (idle / walk /
+  run by speed, stride frozen in jumps, lean on boost); the capsule is only a fallback. `Ragdoll.
+  build_from_rig()` keeps the pedestrian's own model as one tumbling rigid body that flails its
+  run cycle until it lies still; the six-box body remains for the box-person fallback. Lag:
+  window frames became flat quads (20 tris instead of 60) drawn only within 240 m, SDFGI cells
+  0.4 -> 0.8 m, rain particles trimmed, far pedestrians update every 3rd / 6th frame, and a
+  `Quality` node steps the heavy effects down automatically when the frame rate drops under 42
+  (HUD shows the level). Owner has been asked whether the monitor is 4K: screen-space effects
+  scale with pixels.
+
 - **2026-09-20 Facade geometry and real rooftop units (owner: "everything is still polygony",
   buildings "look like blocks").** `Building._add_facade_details()` puts real geometry on every
   part at FULL detail: a window frame (with a sill for punched and slot windows) at every cell

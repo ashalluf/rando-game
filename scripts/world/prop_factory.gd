@@ -770,22 +770,27 @@ static func window_frame(sill: bool) -> Mesh:
 	var key := "window_frame_sill" if sill else "window_frame"
 	if _cache.has(key):
 		return _cache[key]
+	# Four flat bars (8 triangles) a few centimeters proud of the wall, facing +Z; a thin box
+	# ledge below when a sill is wanted. Flat quads, not boxes: downtown draws hundreds of
+	# thousands of these.
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_material(material(Color.WHITE, 0.55))
 	var t := 0.07
-	var parts := [
-		[Vector3(-0.5 + t * 0.5, 0.0, 0.5), Vector3(t, 1.0, 1.0)],
-		[Vector3(0.5 - t * 0.5, 0.0, 0.5), Vector3(t, 1.0, 1.0)],
-		[Vector3(0.0, 0.5 - t * 0.5, 0.5), Vector3(1.0 - 2.0 * t, t, 1.0)],
-		[Vector3(0.0, -0.5 + t * 0.5, 0.5), Vector3(1.0 - 2.0 * t, t, 1.0)],
+	var bars := [
+		[Vector3(-0.5 + t * 0.5, 0.0, 0.4), Vector2(t, 1.0)],
+		[Vector3(0.5 - t * 0.5, 0.0, 0.4), Vector2(t, 1.0)],
+		[Vector3(0.0, 0.5 - t * 0.5, 0.4), Vector2(1.0 - 2.0 * t, t)],
+		[Vector3(0.0, -0.5 + t * 0.5, 0.4), Vector2(1.0 - 2.0 * t, t)],
 	]
+	for bar in bars:
+		var quad := QuadMesh.new()
+		quad.size = bar[1]
+		st.append_from(quad, 0, Transform3D(Basis(), bar[0]))
 	if sill:
-		parts.append([Vector3(0.0, -0.54, 0.8), Vector3(1.12, 0.08, 1.6)])
-	for part in parts:
 		var bm := BoxMesh.new()
-		bm.size = part[1]
-		st.append_from(bm, 0, Transform3D(Basis(), part[0]))
+		bm.size = Vector3(1.12, 0.08, 1.6)
+		st.append_from(bm, 0, Transform3D(Basis(), Vector3(0.0, -0.54, 0.8)))
 	var mesh := st.commit()
 	_cache[key] = mesh
 	return mesh

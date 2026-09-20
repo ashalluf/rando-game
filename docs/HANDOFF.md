@@ -115,7 +115,7 @@ camera with `?spawn=x,z,yaw,pitch[,y]` (desktop: `-- --spawn=...`), jump the clo
 lighting is flat: judge geometry, materials and layout, not light. Forward+ effects (SDFGI, SSR,
 volumetric fog, glow) have never been seen by any Claude session; only the owner's Mac shows them.
 
-**Native renders without a browser (added build 64):** the container has Xvfb and Mesa llvmpipe, so
+**Native renders without a browser (added build 64, `-- --nohud` hides the overlay):** the container has Xvfb and Mesa llvmpipe, so
 Godot's real Compatibility renderer runs headless-ish and screenshots in ~20 s instead of the
 web harness' minutes. `tools/glshot/building_shot.gd` renders one generated `Building` (env
 `OUT`, `BSEED`, `FINISH`, `LOT`, `HMIN`, `HMAX`), `tools/glshot/city_shot.gd` renders the city

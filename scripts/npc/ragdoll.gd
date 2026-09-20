@@ -1,9 +1,60 @@
 class_name Ragdoll
 extends Node3D
-## A floppy six-piece body (torso, head, two arms, two legs) held together by pin joints.
-## Spawned when a pedestrian gets hit. Registered as debris so PhysicsBudget frees it later.
+## A knocked-over pedestrian. With a rigged model it is that same character tumbling as one
+## rigid body, flailing its run cycle until it comes to rest (build_from_rig); without one it is
+## the floppy six-piece box body held together by pin joints (build). Spawned when a pedestrian
+## gets hit. Registered as debris so PhysicsBudget frees it later.
+
+## Total mass of the box body; fling() scales impulses by piece mass over this.
+const TOTAL_MASS := 23.0
 
 var bodies: Array[RigidBody3D] = []
+var _anim: AnimationPlayer
+var _age: float = 0.0
+
+
+## The real character as one tumbling body. False when the model cannot be loaded.
+func build_from_rig(path: String) -> bool:
+	if not ResourceLoader.exists(path):
+		return false
+	var scene: PackedScene = load(path)
+	if scene == null:
+		return false
+	var inst := scene.instantiate() as Node3D
+	Pedestrian.prepare_rig(inst)
+	inst.rotation.y = PI
+	var body := RigidBody3D.new()
+	body.collision_layer = 4
+	body.collision_mask = 5 # world and props, not other characters
+	body.mass = TOTAL_MASS
+	body.continuous_cd = true
+	body.angular_damp = 0.6
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = Vector3(0.5, 1.7, 0.4)
+	shape.shape = box
+	shape.position = Vector3(0.0, 0.87, 0.0)
+	body.add_child(shape)
+	body.add_child(inst)
+	add_child(body)
+	bodies.append(body)
+	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if _anim and _anim.has_animation("run_fast_3_inplace"):
+		_anim.get_animation("run_fast_3_inplace").loop_mode = Animation.LOOP_LINEAR
+		_anim.play("run_fast_3_inplace")
+		_anim.speed_scale = 2.2
+	return true
+
+
+func _process(delta: float) -> void:
+	if _anim == null or bodies.is_empty():
+		return
+	_age += delta
+	var body: RigidBody3D = bodies[0]
+	# Stop flailing once it lies still.
+	if _age > 0.8 and (body.sleeping or body.linear_velocity.length() < 0.7):
+		_anim.pause()
+		set_process(false)
 
 
 func build(shirt: Color, pants: Color, skin: Color) -> void:
@@ -26,7 +77,7 @@ func _ready() -> void:
 
 func fling(impulse: Vector3) -> void:
 	for b in bodies:
-		b.apply_central_impulse(impulse * b.mass / 23.0)
+		b.apply_central_impulse(impulse * b.mass / TOTAL_MASS)
 		b.angular_velocity = Vector3(randf_range(-6, 6), randf_range(-6, 6), randf_range(-6, 6))
 
 

@@ -294,17 +294,21 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 const AWNING_COLORS := [Color(0.7, 0.12, 0.12), Color(0.1, 0.3, 0.55), Color(0.15, 0.4, 0.25), Color(0.85, 0.6, 0.15), Color(0.2, 0.2, 0.22), Color(0.55, 0.15, 0.4)]
 ## Above this many window cells on a part, frames are left to the shader (supertalls).
 const MAX_FRAME_CELLS := 7000
+## Window frames are drawn out to this distance (meters); cornices and awnings 1.6x that.
+const FRAME_DRAW_DISTANCE := 240.0
 
 
 ## Real geometry on the facade so the box stops reading as a box: a window frame (and sill) at
 ## every window cell the shader draws, a cornice around the roof edge, a string course over the
 ## storefront and awnings on the ground floor. Two MultiMeshes per part.
 func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefront: float, floor_h: float, rows: int, cols_x: int, cols_z: int, style: Dictionary) -> void:
+	# Face normal, along-the-wall axis (UP x normal, so the instance basis stays right-handed
+	# and the flat frame quads face out), wall length, columns.
 	var faces := [
-		[Vector3(1, 0, 0), Vector3(0, 0, 1), size.z, cols_z],
-		[Vector3(-1, 0, 0), Vector3(0, 0, -1), size.z, cols_z],
-		[Vector3(0, 0, 1), Vector3(-1, 0, 0), size.x, cols_x],
-		[Vector3(0, 0, -1), Vector3(1, 0, 0), size.x, cols_x],
+		[Vector3(1, 0, 0), Vector3(0, 0, -1), size.z, cols_z],
+		[Vector3(-1, 0, 0), Vector3(0, 0, 1), size.z, cols_z],
+		[Vector3(0, 0, 1), Vector3(1, 0, 0), size.x, cols_x],
+		[Vector3(0, 0, -1), Vector3(-1, 0, 0), size.x, cols_x],
 	]
 	# Window rect per style in cell units (center, half size), matching shaders/building.gdshader.
 	var cx := 0.5
@@ -386,6 +390,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		var node := MultiMeshInstance3D.new()
 		node.name = "Frames"
 		node.multimesh = mm
+		# Past this distance the shader's painted frames carry the look on their own.
+		node.visibility_range_end = FRAME_DRAW_DISTANCE
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
 	if not boxes.is_empty():
 		var mm := MultiMesh.new()
@@ -399,6 +406,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		var node := MultiMeshInstance3D.new()
 		node.name = "Details"
 		node.multimesh = mm
+		node.visibility_range_end = FRAME_DRAW_DISTANCE * 1.6
 		add_child(node)
 
 

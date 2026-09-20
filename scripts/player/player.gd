@@ -68,6 +68,11 @@ const BLAST_MASK := 2 | 4 | 8
 ## How close a car has to be to get in (meters).
 @export var enter_range: float = 4.5
 
+@export_group("Look")
+## Rigged character used as the player's body (one of Pedestrian.MODELS). Missing file: the
+## orange capsule stays.
+@export var avatar_model: String = "res://assets/models/pedestrian_a_anim.glb"
+
 ## Height (relative to takeoff) reached by the last jump. Shown on the debug HUD.
 var last_jump_peak: float = 0.0
 ## Remaining mid-air jumps.
@@ -93,11 +98,14 @@ var _driving: bool = false
 @onready var camera_rig: Node3D = $CameraRig
 @onready var camera: Camera3D = $CameraRig/SpringArm3D/Camera3D
 @onready var weapon_manager: WeaponManager = $Visual/WeaponMount
+## The animated body (Avatar), or null when the model is missing.
+var avatar: Avatar
 
 
 func _ready() -> void:
 	_spawn_transform = global_transform
 	air_jumps_left = max_air_jumps
+	_build_avatar()
 	_build_boost_fx()
 	_boost_sound = Sfx.loop_player("boost_loop", -10.0)
 	add_child(_boost_sound)
@@ -148,6 +156,8 @@ func _physics_process(delta: float) -> void:
 	_push_props(delta)
 	_track_jump_peak(on_floor, is_on_floor())
 	_update_visual(delta, move_dir)
+	if avatar:
+		avatar.drive(delta, horizontal_speed(), is_on_floor(), velocity.y, _boosting)
 	_boost_fx.emitting = _boosting
 	if _boosting and not _boost_sound.playing:
 		_boost_sound.play()
@@ -469,6 +479,20 @@ func _update_visual(delta: float, move_dir: Vector3) -> void:
 		target_yaw = atan2(-facing.x, -facing.z)
 	var t := 1.0 - exp(-turn_speed * delta)
 	visual.rotation.y = lerp_angle(visual.rotation.y, target_yaw, t)
+
+
+## Swaps the placeholder capsule for the rigged character when its file exists.
+func _build_avatar() -> void:
+	var body := Avatar.new()
+	body.name = "Avatar"
+	visual.add_child(body)
+	if body.load_model(avatar_model):
+		avatar = body
+		for placeholder in ["Body", "Visor"]:
+			if visual.has_node(placeholder):
+				visual.get_node(placeholder).visible = false
+	else:
+		body.queue_free()
 
 
 func _build_boost_fx() -> void:

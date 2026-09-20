@@ -33,6 +33,13 @@ var _visual: Node3D
 var _bob: float = 0.0
 var _down: bool = false
 var _anim: AnimationPlayer
+## Which rig this pedestrian wears ("" for the box person); the ragdoll keeps the same one.
+var _model_path: String = ""
+## Update LOD: far pedestrians move and animate every Nth physics frame (see _update_lod).
+var _lod_stride: int = 1
+var _lod_tick: int = 0
+var _lod_timer: float = 0.0
+static var _player: Node3D
 
 
 func setup(block_rect: Rect2, sidewalk: float, seed_value: int) -> void:
@@ -92,33 +99,42 @@ func _add_model() -> bool:
 			available.append(path)
 	if available.is_empty():
 		return false
-	var scene: PackedScene = load(available[_rng.randi() % available.size()])
+	var path: String = available[_rng.randi() % available.size()]
+	var scene: PackedScene = load(path)
 	if scene == null:
 		return false
 	var inst := scene.instantiate() as Node3D
 	inst.rotation.y = PI # Meshy rigs face +Z; our visuals face -Z
-	# The rig's skeleton is in centimeters under a 0.01 armature while the mesh bounds are in
-	# meters, so the imported AABB is 2 cm tall and the renderer culls the character. Give the
-	# skinned mesh a generous box in skeleton units instead.
+	prepare_rig(inst)
+	_visual.add_child(inst)
+	_model_path = path
+	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
+	if _anim:
+		for clip in _anim.get_animation_list():
+			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
+		# Advanced by hand in _physics_process so far pedestrians can animate less often.
+		_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
+		if _anim.has_animation("Casual_Walk_inplace"):
+			_anim.play("Casual_Walk_inplace")
+			_anim.speed_scale = walk_speed / WALK_CLIP_SPEED
+	return true
+
+
+## Fixes an instantiated rig so it renders right (shared by pedestrians, ragdolls and the
+## player's avatar). The rig's skeleton is in centimeters under a 0.01 armature while the mesh
+## bounds are in meters, so the imported AABB is 2 cm tall and the renderer culls the character:
+## give the skinned mesh a generous box in skeleton units. Meshy's animated export also keeps
+## only the base color and leaves the glTF defaults of metallic 1 plus a full emission of the
+## same texture (a shiny, self-lit mannequin): make it plain skin and cloth. The material is
+## shared by every instance of the model.
+static func prepare_rig(inst: Node3D) -> void:
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		(mi as MeshInstance3D).custom_aabb = AABB(Vector3(-150.0, -10.0, -150.0), Vector3(300.0, 260.0, 300.0))
-		# Meshy's animated export keeps only the base color and leaves the glTF defaults of
-		# metallic 1 plus a full emission of the same texture: a shiny, self-lit mannequin.
-		# Make it plain skin and cloth. (The resource is shared by every pedestrian of this model.)
 		var mat := (mi as MeshInstance3D).mesh.surface_get_material(0) as StandardMaterial3D
 		if mat and mat.metallic_texture == null:
 			mat.metallic = 0.0
 			mat.roughness = 0.85
 			mat.emission_enabled = false
-	_visual.add_child(inst)
-	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
-	if _anim:
-		for clip in _anim.get_animation_list():
-			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
-		if _anim.has_animation("Casual_Walk_inplace"):
-			_anim.play("Casual_Walk_inplace")
-			_anim.speed_scale = walk_speed / WALK_CLIP_SPEED
-	return true
 
 
 func _add_hit_area() -> void:
@@ -149,6 +165,16 @@ func _part(size: Vector3, pos: Vector3, color: Color) -> void:
 func _physics_process(delta: float) -> void:
 	if _down:
 		return
+	_lod_timer += delta
+	if _lod_timer >= 0.5:
+		_lod_timer = 0.0
+		_update_lod()
+	_lod_tick += 1
+	if _lod_stride > 1 and _lod_tick % _lod_stride != 0:
+		return
+	delta *= _lod_stride
+	if _anim:
+		_anim.advance(delta)
 	var here := Vector2(global_position.x, global_position.z) - _ring_origin()
 	var to_target := _target - here
 	if to_target.length() < 1.0:
@@ -166,6 +192,22 @@ func _physics_process(delta: float) -> void:
 	if _anim == null:
 		_bob += delta * walk_speed * 4.0
 		_visual.position.y = absf(sin(_bob)) * 0.06
+
+
+## Far pedestrians move and animate every 3rd (past lod_mid) or 6th (past lod_far) physics
+## frame with a matching delta, so a crowd of hundreds costs what a few dozen used to.
+static var lod_mid: float = 60.0
+static var lod_far: float = 140.0
+
+
+func _update_lod() -> void:
+	if not is_instance_valid(_player):
+		_player = get_tree().get_first_node_in_group("player") as Node3D
+		if _player == null:
+			_lod_stride = 1
+			return
+	var d := global_position.distance_to(_player.global_position)
+	_lod_stride = 1 if d < lod_mid else (3 if d < lod_far else 6)
 
 
 ## Ring points are stored relative to the chunk's world offset so re-centering does not matter.
@@ -218,7 +260,8 @@ func knock(impulse: Vector3) -> void:
 	doll.position = position
 	doll.rotation.y = _visual.rotation.y
 	get_parent().add_child(doll)
-	doll.build(shirt, pants, skin)
+	if _model_path == "" or not doll.build_from_rig(_model_path):
+		doll.build(shirt, pants, skin)
 	PhysicsBudget.register_debris(doll)
 	doll.fling(impulse)
 	queue_free()

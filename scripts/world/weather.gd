@@ -16,8 +16,8 @@ const STATE_NAMES := ["Clear", "Overcast", "Rain", "Storm"]
 ## Seconds to blend between states.
 @export var blend_seconds: float = 12.0
 @export_group("Rain")
-@export var rain_amount: int = 1400
-@export var storm_rain_amount: int = 2600
+@export var rain_amount: int = 1000
+@export var storm_rain_amount: int = 1800
 @export var rain_wind: Vector3 = Vector3(6.0, 0.0, 2.0)
 @export_group("Storm")
 @export var lightning_gap: Vector2 = Vector2(3.0, 11.0)

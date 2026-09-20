@@ -248,6 +248,20 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
   generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own
   ShaderMaterial (see the decisions log for why). Rooftop props are primitives built in code.
+- Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from
+  `avatar_model`, one of `Pedestrian.MODELS`): idle / walk / run clips picked by speed, frozen or
+  slowed stride in the air, forward lean while boosting. The orange capsule in `player.tscn` is
+  only the fallback when the model file is missing. `Pedestrian.prepare_rig()` is the shared fix
+  for every instantiated rig (AABB, materials). Knocked pedestrians become `Ragdoll`s that keep
+  the same rigged model as one tumbling body (`build_from_rig`); far pedestrians move and animate
+  every 3rd / 6th physics frame (`Pedestrian.lod_mid` / `lod_far`).
+- Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) measures the frame
+  rate after start-up and steps HIGH -> MEDIUM (no SDFGI, no volumetric fog) -> LOW (no SSR, no
+  SSAO, 0.8 render scale) when it drops under `min_fps`; the HUD shows the level; force one with
+  `-- --quality=N`. Building window frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
+- Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
+  `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
+  Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.
 - Physics masks as constants on `Player`: `AIM_MASK` (world + props) and `BLAST_MASK` (player + props).
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
 - Commit messages: short imperative subject, body explains why and how to test. One task per
