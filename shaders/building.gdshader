@@ -49,6 +49,17 @@ uniform float weathering = 0.5;
 // World Y of the building's base (grime is measured up from here).
 uniform float base_y = 0.0;
 
+// What the glass reflects. Not the real environment map: see the note in the glass branch.
+uniform vec3 sky_zenith : source_color = vec3(0.26, 0.44, 0.80);
+uniform vec3 sky_horizon : source_color = vec3(0.66, 0.75, 0.88);
+uniform vec3 street_reflect : source_color = vec3(0.09, 0.09, 0.10);
+// 0 no reflection at all, 1 full. Turned down on spandrel panels.
+uniform float reflect_strength = 1.0;
+// How bright the room behind the glass is against full daylight outside. Rooms read almost
+// black from the street in real life; a room lit to the same level as the wall around it is
+// what made every pane look like a beige card taped over the opening.
+uniform float interior_exposure = 0.40;
+
 // Fake rooms behind the glass. How deep the virtual room is (meters).
 uniform float room_depth = 3.2;
 uniform bool interior_enabled = true;
@@ -256,11 +267,11 @@ void fragment() {
 			bool lit = k < lit_ratio;
 			float room_seed = hash31(vec3(col, row, face_id * 17.0 + seed)) * 97.0;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
+			vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
 
 			if (interior_enabled) {
 				// Where we are inside the opening, and the view ray in wall space.
 				vec2 w = clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
-				vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
 				vec3 up = vec3(0.0, 1.0, 0.0);
 				vec3 tan_dir = normalize(world_tangent - world_normal * dot(world_tangent, world_normal));
 				vec3 ray = vec3(dot(to_frag, tan_dir), dot(to_frag, up), -dot(to_frag, world_normal));
@@ -268,8 +279,11 @@ void fragment() {
 				float high = max(2.0 * win_h.y * (storefront ? ground_floor_height : floor_height), 0.2);
 				float depth_t = 0.0;
 				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, depth_t);
+				// Daylight outside is many stops brighter than anything indoors, so the room
+				// arrives dark; at night an unlit room is darker still.
+				room *= interior_exposure * (1.0 - 0.55 * night_factor);
 				// The glass still carries its own tint; the room shows through it.
-				albedo = mix(room, albedo, 0.28);
+				albedo = mix(room, albedo * 0.5, 0.28);
 			} else {
 				// Fallback: a soft vertical gradient behind the glass.
 				albedo *= 0.85 + 0.3 * fv;
@@ -279,6 +293,22 @@ void fragment() {
 			float dv = abs(fv - (storefront ? 0.45 : 0.52));
 			float inset = smoothstep(0.0, 0.06, max(du - 0.2, dv - 0.18));
 			albedo *= mix(1.0, 0.45, inset * (storefront ? 0.5 : 1.0));
+
+			// Glass reflects, and that is most of what a window looks like from outside. In any
+			// photograph the panes are not beige rectangles: above the horizon they mirror the
+			// sky, below it the dark street, and which one you get swings with the angle you
+			// are standing at, so a facade is never two windows the same. Computed here from
+			// the reflected ray rather than by raising METALLIC, because a metallic pane picks
+			// up the real environment map and whole curtain-wall towers turn into
+			// see-through cages.
+			vec3 refl = reflect(to_frag, world_normal);
+			vec3 sky_ref = mix(sky_horizon, sky_zenith, smoothstep(0.0, 0.55, refl.y));
+			sky_ref = mix(street_reflect, sky_ref, smoothstep(-0.22, 0.10, refl.y));
+			// Schlick: nearly transparent head on, a mirror at a glancing angle.
+			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
+			float mirror = mix(0.26, 0.90, fres) * reflect_strength * (1.0 - 0.85 * night_factor);
+			albedo = mix(albedo, sky_ref, mirror);
+
 			// Tinted glass, not a mirror: with more metal the panes reflect pure sky and whole
 			// curtain-wall towers read as see-through cages from a distance.
 			rough = 0.32;
@@ -335,12 +365,37 @@ void fragment() {
 				albedo = facade_color * tex * (use_wall_texture ? 1.3 : 1.0);
 				rough = 0.85 * tex_rough;
 			}
-			// Grime near the ground and streaks below the windows.
-			float ground_dirt = 1.0 - smoothstep(0.0, 5.0, v - base_y);
-			float streak = hash21(vec2(floor(u * 3.0), row + face_id) + seed) * (1.0 - fv);
-			float dirt = weathering * (0.45 * ground_dirt + 0.35 * streak * step(0.5, hash21(vec2(col, row + face_id * 3.0) + seed)));
-			albedo *= 1.0 - 0.5 * dirt;
-			rough = min(1.0, rough + 0.1 * dirt);
+			// --- Weathering ------------------------------------------------------------
+			// Grime is most of what separates a rendered box from a photographed building.
+			// Rain washes dirt off every sill and draws it down the wall in fine vertical
+			// streaks that run past the floor below, and soot collects at street level.
+			// The old version banded the streaks into hard 33 cm blocks that reset at every
+			// floor line, which read as a pattern rather than as dirt.
+			float ground_dirt = 1.0 - smoothstep(0.0, 6.5, v - base_y);
+			ground_dirt *= 0.65 + 0.35 * hash21(vec2(floor(u * 1.7), face_id) + seed);
+
+			// Metres below the nearest sill above this point. Measured on absolute height, so a
+			// streak keeps running across the floor line instead of restarting at it.
+			float sill_y = ground_floor_height + floor((v - ground_floor_height) / floor_height) * floor_height + 0.22 * floor_height;
+			float below = v < sill_y ? sill_y - v : sill_y + floor_height - v;
+			float run = 1.0 - smoothstep(0.0, 2.6, below);
+			run *= smoothstep(0.0, 0.12, below);   // the sill itself stays clean
+
+			// Two octaves of narrow vertical strips: ~8 cm and ~2.5 cm, so the streaking has
+			// fine structure instead of one solid smear.
+			float fine = hash21(vec2(floor(u * 12.0), face_id * 5.0) + seed);
+			fine *= 0.45 + 0.55 * hash21(vec2(floor(u * 40.0), face_id * 11.0) + seed * 3.0);
+			// Dirt leaves a sill under the window, not across the whole bay.
+			float across = 1.0 - smoothstep(0.22, 0.44, abs(fu - 0.5));
+			// Not every window drips: an empty one breaks the rhythm.
+			float drips = step(0.35, hash21(vec2(col, row + face_id * 3.0) + seed));
+			float streak = run * across * drips * fine;
+
+			float dirt = weathering * clamp(0.55 * ground_dirt + 0.75 * streak, 0.0, 1.0);
+			// Grime is a warm grey-brown, so it cools and desaturates the wall rather than
+			// just dimming it.
+			albedo = mix(albedo, albedo * vec3(0.46, 0.44, 0.42), dirt);
+			rough = min(1.0, rough + 0.18 * dirt);
 		}
 	}
 

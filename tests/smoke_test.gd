@@ -788,6 +788,11 @@ func _test_buildings() -> void:
 	for u in Building.SHADER.get_shader_uniform_list():
 		uniforms[u.name] = true
 	_check(uniforms.has("room_depth") and uniforms.has("interior_enabled"), "the building shader does interior mapping")
+	# Glass reflects the sky above the horizon and the street below it, and the room behind it
+	# is dark against daylight. Without both, every pane reads as a beige card over the opening.
+	_check(uniforms.has("sky_zenith") and uniforms.has("street_reflect") and uniforms.has("reflect_strength"),
+		"window glass reflects sky and street")
+	_check(uniforms.has("interior_exposure"), "rooms behind the glass are exposed for daylight outside")
 	var framed := 0
 	var frames_fit := true
 	for b in get_tree().get_nodes_in_group("building"):

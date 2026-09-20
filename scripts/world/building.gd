@@ -344,7 +344,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var frame_color := Color(0.25, 0.25, 0.27)
 	match finish:
 		Finish.BRICK:
-			frame_color = Color(0.92, 0.9, 0.86)
+			# Off-white, not paper white: a pure-white surround blew out against brick and
+			# read as polystyrene stuck on the wall.
+			frame_color = Color(0.80, 0.78, 0.73)
 		Finish.PANELS:
 			frame_color = Color(0.2, 0.2, 0.22)
 		Finish.GLASS:
@@ -433,9 +435,19 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		mm.use_colors = true
 		mm.mesh = PropFactory.window_frame(sill)
 		mm.instance_count = frames.size()
+		# Per-window tint. A wall of identical frames is the loudest "these were stamped out"
+		# tell on a close facade; real frames differ in how they have weathered, and a few have
+		# been repainted. Hashed rather than drawn from _rng so the seeded layout is untouched.
 		for i in frames.size():
 			mm.set_instance_transform(i, frames[i])
-			mm.set_instance_color(i, frame_color)
+			var h := float(absi(hash(i * 2654435761 + seed)) % 1000) / 1000.0
+			var h2 := float(absi(hash(i * 40503 + seed * 7)) % 1000) / 1000.0
+			var c := frame_color.lightened(0.16 * (h * 2.0 - 1.0)) if h > 0.5 else frame_color.darkened(0.30 * (1.0 - h * 2.0))
+			# A little warm/cool drift, and the odd frame gone grubby.
+			c = Color(c.r * (0.97 + 0.06 * h2), c.g, c.b * (1.03 - 0.09 * h2))
+			if h2 < 0.08:
+				c = c.darkened(0.30)
+			mm.set_instance_color(i, c)
 		var node := MultiMeshInstance3D.new()
 		node.name = "Frames"
 		node.multimesh = mm

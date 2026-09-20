@@ -495,10 +495,19 @@ static func fire_escape() -> Mesh:
 		return _cache["fire_escape"]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var iron := Color(0.17, 0.17, 0.18)
-	var rust := Color(0.26, 0.17, 0.12)
-	# Grated platform.
-	_box_into(st, Vector3(0.0, 0.0, 0.5), Vector3(1.0, 0.04, 1.0), iron)
+	# Weathered black ironwork. Not near-black: a solid 0.17 slab in its own shadow reads as a
+	# hole punched in the wall rather than as metal hanging off it.
+	var iron := Color(0.30, 0.30, 0.32)
+	var rust := Color(0.40, 0.27, 0.19)
+	# Grated platform: real fire-escape decks are open bar grating, so the wall and the sky show
+	# through them. A solid slab is the single biggest thing that made this read as a black box.
+	var slats := 11
+	for i in slats:
+		var z := lerpf(0.06, 0.94, float(i) / float(slats - 1))
+		_box_into(st, Vector3(0.0, 0.0, z), Vector3(1.0, 0.035, 0.045), iron)
+	# Two cross bearers under the grating.
+	for bz: float in [0.18, 0.82]:
+		_box_into(st, Vector3(0.0, -0.04, bz), Vector3(1.0, 0.05, 0.05), iron)
 	# Railing: top rail, mid rail, uprights, and the two end posts.
 	_box_into(st, Vector3(0.0, 0.44, 0.98), Vector3(1.0, 0.035, 0.035), iron)
 	_box_into(st, Vector3(0.0, 0.24, 0.98), Vector3(1.0, 0.025, 0.025), iron)
@@ -506,7 +515,12 @@ static func fire_escape() -> Mesh:
 		var x := -0.44 + float(i) * 0.125
 		_box_into(st, Vector3(x, 0.24, 0.98), Vector3(0.018, 0.44, 0.018), iron)
 	for sx: float in [-0.49, 0.49]:
-		_box_into(st, Vector3(sx, 0.24, 0.5), Vector3(0.03, 0.46, 0.9), rust)
+		# End posts are frames, not plates: uprights plus rails, so daylight passes through the
+		# sides too.
+		_box_into(st, Vector3(sx, 0.24, 0.06), Vector3(0.035, 0.46, 0.035), rust)
+		_box_into(st, Vector3(sx, 0.24, 0.94), Vector3(0.035, 0.46, 0.035), rust)
+		_box_into(st, Vector3(sx, 0.44, 0.5), Vector3(0.03, 0.03, 0.9), rust)
+		_box_into(st, Vector3(sx, 0.24, 0.5), Vector3(0.022, 0.022, 0.9), rust)
 	# Stair down to the floor below, sloped across the bay.
 	var steps := 7
 	for i in steps:
@@ -521,7 +535,14 @@ static func fire_escape() -> Mesh:
 	var mesh := st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.85
+	# Half-metal with a broad highlight: painted iron picks up a sheen off the sky along the
+	# rails, which is what tells the eye it is metal and not a silhouette.
+	# Painted ironwork is mostly a dielectric: a high metallic reading killed the diffuse and
+	# put the whole escape back into silhouette. A little metal plus a broad highlight is what
+	# reads as old black paint over steel.
+	mat.metallic = 0.25
+	mat.metallic_specular = 0.65
+	mat.roughness = 0.45
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh.surface_set_material(0, mat)
 	_cache["fire_escape"] = mesh
