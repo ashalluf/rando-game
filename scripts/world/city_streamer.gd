@@ -119,6 +119,7 @@ func _ready() -> void:
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	_apply_spawn_override()
 	update_streaming(true)
+	_settle_player()
 
 
 ## Cheap versions of every landmark, always present, so the sign and the wheel show from anywhere.
@@ -256,6 +257,33 @@ func ensure_loaded_at(local_pos: Vector3) -> void:
 
 
 ## Height of solid ground at a local position (terrain, or the sidewalk top in the city).
+## The scene places the player at y 1.5, but the city rolls (relief is 5.5 m at the origin):
+## lift the start point onto the ground so nobody spawns under the slab. Aerial `?spawn` heights
+## are left alone.
+func _settle_player() -> void:
+	if _player == null:
+		return
+	var ground := ground_height_at(_player.global_position)
+	if _player.global_position.y < ground + 0.2:
+		_player.global_position.y = ground + 0.6
+		if _player.has_method("respawn"):
+			_player.set("_spawn_transform", _player.global_transform)
+
+
+## True when a city-zone position is below the rolling ground it should stand on (the player
+## got under a ground slab). Beaches, water and hills are judged elsewhere.
+func under_city_ground(local_pos: Vector3) -> bool:
+	if plan == null:
+		return false
+	var wp := world_position(local_pos)
+	if plan.zone_at(Vector2(wp.x, wp.z)) != MacroMap.Zone.CITY:
+		return false
+	# City ground sits on the relief alone (CityChunk._gy); height_at() also carries the hill
+	# noise, which can be a couple of meters higher inside the city zone.
+	var ground := plan.macro.relief_at(Vector2(wp.x, wp.z)) if plan.macro else plan.height_at(Vector2(wp.x, wp.z))
+	return local_pos.y < ground - 1.5
+
+
 func ground_height_at(local_pos: Vector3) -> float:
 	if plan == null:
 		return 0.0

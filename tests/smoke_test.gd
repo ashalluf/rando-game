@@ -119,6 +119,9 @@ func _test_city() -> void:
 	_check(plan.district_at(Vector2.ZERO) == CityPlan.District.MIDTOWN, "spawn is in midtown")
 	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
 	_check(player != null and player.is_on_floor(), "player stands at the center intersection")
+	var start_ground: float = city.ground_height_at(player.global_position)
+	_check(player.global_position.y > start_ground - 0.6, "player starts on top of the rolling ground (y %.1f, ground %.1f)" % [player.global_position.y, start_ground])
+	_check(not city.under_city_ground(player.global_position) and city.under_city_ground(player.global_position - Vector3(0.0, 4.0, 0.0)), "under-ground detection works at the spawn")
 	var cans := 0
 	for node in get_tree().get_nodes_in_group("physics_prop"):
 		if node is TrashCan:
@@ -371,7 +374,10 @@ func _test_city() -> void:
 		# to be parked ahead. The road is 14+ m wide and runs the whole block length.
 		var road_x: float = plan.road_pos(CityPlan.AXIS_X, 1)
 		var block0: Dictionary = plan.block(0, 0)
-		var road_start := Vector3(road_x, 0.6, (block0.rect as Rect2).end.y - 6.0)
+		# The road sits on the rolling relief, so ask the city how high it is there (the car used
+		# to be dropped at y 0.6, under the slab, and drove on the ground follower plane).
+		var road_xz := Vector2(road_x, (block0.rect as Rect2).end.y - 6.0)
+		var road_start := Vector3(road_xz.x, city.ground_height_at(_world_state().to_local(Vector3(road_xz.x, 0.0, road_xz.y))) + 0.6, road_xz.y)
 		for c in get_tree().get_nodes_in_group("vehicle"):
 			if c != car and not c.is_traffic() and c.global_position.distance_to(_world_state().to_local(road_start)) < 140.0:
 				c.queue_free()

@@ -133,7 +133,7 @@ func _physics_process(delta: float) -> void:
 			exit_vehicle()
 			respawn()
 		return
-	if (global_position.y < fall_through_y and global_position.y > kill_y) or _under_terrain(global_position):
+	if (global_position.y < fall_through_y and global_position.y > kill_y) or _under_terrain(global_position) or _under_city_ground():
 		recover_from_fall()
 	var on_floor := is_on_floor()
 	if on_floor:
@@ -196,6 +196,17 @@ func _surface_height_at(at: Vector3) -> float:
 	if city and city.has_method("surface_height_at"):
 		return city.surface_height_at(at)
 	return 1.6
+
+
+## Under the rolling city ground (the slab is above us): CityStreamer compares our height with
+## the relief the city stands on. Owner's report 2026-09-20: "spawning underneath the ground".
+func _under_city_ground() -> bool:
+	if _query_hold > 0:
+		return false
+	var city := get_tree().get_first_node_in_group("city")
+	if city and city.has_method("under_city_ground"):
+		return city.under_city_ground(global_position)
+	return false
 
 
 ## True when hill terrain is above this point: a ray straight up hits a body tagged "terrain".

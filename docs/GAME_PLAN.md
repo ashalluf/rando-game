@@ -186,6 +186,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Spawn under the ground, MacBook heat (owner: "spawning underneath the ground and
+  can't get up over it", "making my macbook hot af").** Since the rolling city (build 59) the
+  ground at the origin is 5.5 m up while the scene placed the player at 1.5 m: `CityStreamer.
+  _settle_player()` now lifts the start point onto the ground, and `Player` recovers whenever it
+  is below the relief in a city zone (`CityStreamer.under_city_ground()`, relief only: `height_at`
+  carries hill noise the city ground does not stand on). The smoke test had been dropping its
+  test car at y 0.6 under the same slab for weeks; it now asks the city for the road height.
+  Heat: the desktop build had no frame cap and rendered as fast as the GPU allowed (120 Hz on a
+  ProMotion display); `Quality` caps it at 60 (`max_fps`, off on web and in the headless check)
+  and the adaptive step-down now triggers under 50 FPS instead of 42.
+
 - **2026-09-20 A populated city (owner: "50x the amount of pedestrians and vehicles", "mostly
   concentrated in the downtown area and gradually less the further out", "except for the
   airport, which should be jampacked").** Pedestrians per block are a district parameter

@@ -14,9 +14,12 @@ enum Level { HIGH, MEDIUM, LOW }
 ## Length of each measurement window (seconds).
 @export var window: float = 4.0
 ## Average FPS below which the next level down is picked.
-@export var min_fps: float = 42.0
+@export var min_fps: float = 50.0
 ## Render scale used at LOW (1.0 = native resolution).
 @export var low_render_scale: float = 0.8
+## Frame-rate cap on desktop (owner, 2026-09-20: the MacBook ran hot; 60 is what consoles do).
+## 0 = uncapped. Not applied in the headless check, where it would slow the test loop.
+@export var max_fps: int = 60
 
 var level: Level = Level.HIGH
 var _env: Environment
@@ -31,6 +34,8 @@ func _ready() -> void:
 	if world_env:
 		_env = world_env.environment
 	_sun = get_parent().get_node_or_null("Sun") as DirectionalLight3D
+	if not OS.has_feature("web") and DisplayServer.get_name() != "headless":
+		Engine.max_fps = max_fps
 	var forced := _override()
 	if forced >= 0:
 		_forced = true

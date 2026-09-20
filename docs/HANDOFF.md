@@ -127,11 +127,12 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 66)
+## 6. Where the game stands (build 67)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 67: spawn lifted onto the rolling ground, under-ground recovery in city zones, 60 FPS cap.
 - 66: populated city: people and parked cars per district (downtown core 2x), traffic density by
   distance from downtown, airport drop-off loop road with 90 crawling cars and a curb crowd.
 - 65: animated main character (`Avatar`), ragdolls keep the real model, first lag pass
