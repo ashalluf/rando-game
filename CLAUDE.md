@@ -239,6 +239,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
   `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
   (bit 5) and the player's under-terrain ray uses only that layer.
+- Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
+  make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
+  it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
+  script places line up. One `MeshInstance3D` per name, shadows off, stops drawing past
+  `Building.SIGN_DRAW_DISTANCE`, and skipped entirely on web. Names are in
+  `Building.SHOP_NAMES` and are original, never a real brand. Note the shader measures its `u`
+  the opposite way round the box from the script's `a` on every face, so a run's centre has to
+  be mirrored.
 - Night lighting: the city has no real lights except the sun, so at night it was pitch black.
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick

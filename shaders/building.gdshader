@@ -35,6 +35,10 @@ uniform float seed = 0.0;
 // Roof covering: 0 gravel ballast, 1 white membrane (a cool roof, everywhere in California),
 // 2 dark bitumen. Flat grey roofs are most of what you see from the air.
 uniform int roof_style = 0;
+// How many window bays make one shop at street level, per face (x: +X, y: -X, z: +Z, w: -Z).
+// Building picks these and places the shop signs in the world from the same numbers, so the
+// names line up with the sign bands drawn here.
+uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
 // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
 global uniform float night_factor;
 // Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
@@ -241,7 +245,7 @@ void fragment() {
 		vec2 win_c = vec2(0.5, 0.52);
 		vec2 win_h = vec2(0.27, 0.25);
 		if (storefront) {
-			float span = 2.0 + floor(hash21(vec2(face_id * 3.7, seed)) * 2.99);
+			float span = max(shop_span[int(face_id) - 1], 1.0);
 			float shop_id = floor(col / span);
 			shop_seed = hash21(vec2(shop_id * 1.7, face_id * 13.0) + seed);
 			door_bay = abs(col - (shop_id * span + floor(shop_seed * span))) < 0.5;
@@ -301,7 +305,9 @@ void fragment() {
 				// arrives dark; at night an unlit room is darker still.
 				// A shop is lit inside even in daylight; an office floor is not.
 				float expose = storefront ? interior_exposure * 3.2 : interior_exposure;
-				room *= expose * (1.0 - 0.55 * night_factor);
+				// At night an unlit room is dark, full stop. At 0.45 the pale blinds picked up
+				// the blue night ambient and every window on the block read as a lit panel.
+				room *= expose * (1.0 - 0.88 * night_factor);
 				if (storefront) {
 					room *= vec3(1.10, 1.03, 0.92);
 				}
@@ -370,7 +376,7 @@ void fragment() {
 			// as a row of businesses rather than one long building with a stripe on it.
 			vec3 sign_hue = mix(vec3(0.16, 0.18, 0.22), vec3(0.42, 0.20, 0.16), hash21(vec2(shop_seed, 5.3)));
 			sign_hue = mix(sign_hue, vec3(0.18, 0.30, 0.26), step(0.66, hash21(vec2(shop_seed, 9.1))));
-			sign_hue = mix(sign_hue, vec3(0.74, 0.71, 0.66), step(0.86, hash21(vec2(shop_seed, 2.4))));
+			sign_hue = mix(sign_hue, vec3(0.22, 0.20, 0.26), step(0.86, hash21(vec2(shop_seed, 2.4))));
 			albedo = sign_hue;
 			// A darker lip top and bottom so the band reads as a board fixed to the wall.
 			float lip = step(fv, 0.785) + step(0.918, fv);

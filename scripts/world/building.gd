@@ -9,9 +9,15 @@ enum Shape { SLAB, TOWER, STEPPED, PODIUM_TOWER, L_SHAPE, SETBACK, CROWN, WAREHO
 enum WindowStyle { PUNCHED, RIBBON, CURTAIN, NARROW }
 enum Finish { FLAT, BRICK, PANELS, GLASS }
 
+## Painted and rendered walls. Weighted the way a real street is: mostly warm off-whites,
+## creams, stone and grey, with terracotta and sage as the occasional accent. The old list gave
+## a mauve, a salmon and a sage equal billing with the neutrals, and a block came out looking
+## like a colour picker rather than a city.
 const FLAT_COLORS := [
-	Color(0.72, 0.66, 0.56), Color(0.62, 0.66, 0.70), Color(0.76, 0.58, 0.48),
-	Color(0.58, 0.64, 0.54), Color(0.70, 0.60, 0.70), Color(0.80, 0.76, 0.66),
+	Color(0.80, 0.76, 0.68), Color(0.74, 0.71, 0.64), Color(0.82, 0.80, 0.75),
+	Color(0.68, 0.67, 0.64), Color(0.72, 0.66, 0.56), Color(0.78, 0.74, 0.70),
+	Color(0.66, 0.63, 0.58), Color(0.62, 0.66, 0.70), Color(0.76, 0.62, 0.52),
+	Color(0.61, 0.64, 0.58),
 ]
 const BRICK_COLORS := [Color(0.62, 0.30, 0.22), Color(0.55, 0.28, 0.20), Color(0.72, 0.44, 0.32), Color(0.48, 0.30, 0.28)]
 const PANEL_COLORS := [Color(0.56, 0.56, 0.54), Color(0.68, 0.64, 0.56), Color(0.46, 0.48, 0.52), Color(0.62, 0.60, 0.62)]
@@ -279,6 +285,7 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	mat.set_shader_parameter("part_size", size)
 	mat.set_shader_parameter("seed", float(seed % 1000))
 	mat.set_shader_parameter("roof_style", roof_style)
+	mat.set_shader_parameter("shop_span", _shop_spans())
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 
 	var mesh := MeshInstance3D.new()
@@ -310,9 +317,37 @@ const FRAME_DRAW_DISTANCE := 240.0
 ## Real geometry on the facade so the box stops reading as a box: a window frame (and sill) at
 ## every window cell the shader draws, a cornice around the roof edge, a string course over the
 ## storefront and awnings on the ground floor. Two MultiMeshes per part.
+## Shop names for the storefront signs. Original, never a real brand. Kept here rather than
+## reaching into Commercial, which already depends on this class.
+const SHOP_NAMES := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUOR", "PIZZA",
+	"SUSHI", "TACOS", "COFFEE STOP", "BANK", "DONUT HOLE", "SUB STOP", "PET SHOP", "BARBER",
+	"LAUNDRY", "BOBA", "DENTAL", "TAX PRO", "SMOKE SHOP", "FLOWERS", "RECORDS", "HARDWARE",
+	"BOOKS", "BAKERY", "DELI", "OPTICAL", "SHOE REPAIR", "TATTOO", "THRIFT", "CAMERA"]
+## Cap height of a shop sign, in metres.
+const SIGN_HEIGHT := 0.40
+## How far out from the wall the sign sits, and how far a sign still draws.
+const SIGN_STANDOFF := 0.14
+const SIGN_DRAW_DISTANCE := 75.0
+
+
+## How many bays make one shop on each face, matching shaders/building.gdshader's `shop_span`.
+## Hashed from the seed rather than drawn from _rng: any new call on _rng shifts every block's
+## layout downstream of it.
+func _shop_spans() -> Vector4:
+	var v := Vector4()
+	for i in 4:
+		v[i] = float(2 + absi(hash([seed, "shop_span", i])) % 3)
+	return v
+
+
 func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefront: float, floor_h: float, rows: int, cols_x: int, cols_z: int, style: Dictionary) -> void:
 	# Face normal, along-the-wall axis (UP x normal, so the instance basis stays right-handed
 	# and the flat frame quads face out), wall length, columns.
+	var spans := _shop_spans()
+	# Every face gets its shop names: one face only left three sides of every block blank, and
+	# which side of a lot faces the street is not known here. Each name is a MeshInstance, so
+	# they stop drawing at SIGN_DRAW_DISTANCE and the web build skips them entirely.
+	var signs_on := not OS.has_feature("web")
 	var faces := [
 		[Vector3(1, 0, 0), Vector3(0, 0, -1), size.z, cols_z],
 		[Vector3(-1, 0, 0), Vector3(0, 0, 1), size.z, cols_z],
@@ -404,6 +439,39 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				# Flip the bay on alternate floors so the stair runs zigzag down the wall.
 				var flip := 1.0 if row % 2 == 0 else -1.0
 				escapes.append(Transform3D(Basis(a * (ew * flip), Vector3.UP * floor_h, n * 1.35), fc + a * eu + Vector3(0.0, ev, 0.0)))
+		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
+		# actual name on it, lined up with the same shop runs (`shop_span`). One per face:
+		# every run would be four names on a wall the player can only read one of.
+		if storefront > 0.0 and shape != Shape.WAREHOUSE and signs_on:
+			var span: float = spans[face_index]
+			var runs := int(float(cols) / span)
+			var band_y := 0.845 * (position.y + bottom + storefront) - position.y
+			var last_name := -1
+			for run in runs:
+				var name_i := absi(hash([seed, "sign_name", face_index, run * 7919])) % SHOP_NAMES.size()
+				# Two of the same shop side by side reads as a bug even though real streets do
+				# it; step along the list rather than re-rolling.
+				if name_i == last_name:
+					name_i = (name_i + 1) % SHOP_NAMES.size()
+				last_name = name_i
+				var text: String = SHOP_NAMES[name_i]
+				# The shader measures `u` the opposite way round the box from `a` on every
+				# face, so the run's centre has to be mirrored back.
+				var u_s := (float(run) + 0.5) * span * pitch
+				var sign_mesh := MeshInstance3D.new()
+				sign_mesh.name = "Sign%d" % run
+				sign_mesh.mesh = PropFactory.text_mesh(text, SIGN_HEIGHT)
+				sign_mesh.material_override = PropFactory.sign_material()
+				# Rough advance width for this font, so a long name is shrunk to fit its run
+				# instead of running across the shop next door.
+				var wide := float(text.length()) * SIGN_HEIGHT * 0.62
+				var room := span * pitch * 0.80
+				var fit: float = minf(1.0, room / maxf(wide, 0.01))
+				sign_mesh.transform = Transform3D(Basis(a, Vector3.UP, n).scaled(Vector3(fit, fit, 1.0)),
+					fc + a * (size_u * 0.5 - u_s) + Vector3(0.0, band_y, 0.0) + n * SIGN_STANDOFF)
+				sign_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				sign_mesh.visibility_range_end = SIGN_DRAW_DISTANCE
+				add_child(sign_mesh)
 		if has_balconies:
 			var depth := _rng.randf_range(1.0, 1.45)
 			var bw: float = minf(pitch * 0.82, 3.0)

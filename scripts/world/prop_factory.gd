@@ -609,6 +609,21 @@ static func lamp_face(tint: Color, strength: float = 1.6) -> Mesh:
 	return mesh
 
 
+## Shop sign lettering: cream, a little emissive so the names still read after dark without
+## needing a light on every shopfront.
+static func sign_material() -> StandardMaterial3D:
+	if _cache.has("sign_mat"):
+		return _cache["sign_mat"]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.95, 0.92, 0.85)
+	mat.roughness = 0.6
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.93, 0.78)
+	mat.emission_energy_multiplier = 0.55
+	_cache["sign_mat"] = mat
+	return mat
+
+
 static func palm_trunk() -> Mesh:
 	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
 

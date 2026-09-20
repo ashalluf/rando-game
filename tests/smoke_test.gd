@@ -901,6 +901,18 @@ func _test_buildings() -> void:
 				if detail_top > b.height + 0.5:
 					frames_fit = false
 	_check(framed > 0, "buildings carry real window frames (%d)" % framed)
+	# Shop names on the storefront sign bands, lined up with the shader's shop runs.
+	var named := 0
+	var sign_nodes := 0
+	for b in get_tree().get_nodes_in_group("building"):
+		var found := false
+		for child in (b as Node).get_children():
+			if child is MeshInstance3D and str((child as Node).name).begins_with("Sign"):
+				sign_nodes += 1
+				found = true
+		if found:
+			named += 1
+	_check(named > 3 and sign_nodes > named, "storefronts carry shop names (%d signs on %d buildings)" % [sign_nodes, named])
 	var with_balconies := 0
 	for b in get_tree().get_nodes_in_group("building"):
 		if b.has_node("Balconies") and b.get_node("Balconies").multimesh.instance_count > 0:

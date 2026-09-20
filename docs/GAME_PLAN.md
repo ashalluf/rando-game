@@ -186,6 +186,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Shop signs.** The storefront sign bands were blank stripes of colour, which is
+  what stops a street reading as a street full of businesses. `Building` now decides the shop
+  runs (how many bays make one shop, per face) and passes them to the shader as `shop_span`
+  instead of the shader hashing its own, so the bands and the names line up exactly, and places
+  a `TextMesh` per run. One mesh per name, shadows off, draw distance 75 m, skipped on web.
+  The next step, if the draw count becomes a problem or the names are wanted at distance, is to
+  rasterise the whole name list into one atlas at load and sample it in the fascia branch: no
+  geometry at all, every band named, at any distance.
+
 - **2026-09-20 The city had no lights.** At night the streets were pitch black, because nothing
   in the world was a light source: the sun, and emissive materials on lit windows, and that was
   all. Street lamps now carry a real `OmniLight3D` (FULL chunks, distance-faded, no shadows) in

@@ -235,7 +235,10 @@ static func _box_building(chunk: CityChunk, box: Rect2, h: float, wall: Material
 static func _strip(chunk: CityChunk, strip: Rect2, h: float, front: Vector2, fascia: Color, wall_set: String, rng: RandomNumberGenerator, full: bool, has_anchor: bool) -> void:
 	if strip.size.x < 8.0 or strip.size.y < 8.0:
 		return
-	_box_building(chunk, strip, h, PropFactory.pbr(wall_set, 3.5, Color(0.9, 0.88, 0.85)), full, true, front)
+	# Only skip the shopfront face once the shop units are actually built on it. At LOD level
+	# _strip stops after the box, so skipping it there leaves exactly the thing this is meant to
+	# fix: a long blank wall with nothing on it.
+	_box_building(chunk, strip, h, PropFactory.pbr(wall_set, 3.5, Color(0.9, 0.88, 0.85)), full, true, front if full else Vector2.ZERO)
 	if not full:
 		return
 	var along := Vector2(1.0, 0.0) if absf(front.y) > 0.5 else Vector2(0.0, 1.0)
