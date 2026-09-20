@@ -40,7 +40,7 @@ extends Node3D
 @export var cars_per_block: int = 5 # fallback; districts set "parked"
 @export var pedestrians_per_block: int = 8 # fallback; districts set "people"
 ## Grass blades per park block (MultiMesh, wind shader).
-@export var grass_per_park: int = 2500
+@export var grass_per_park: int = 6500
 ## Hard cap on live pedestrians (animated characters; the web build is capped lower below).
 @export var max_pedestrians: int = 650
 ## Cars driving around at once.

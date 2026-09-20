@@ -186,6 +186,48 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Cinematic realism pass (owner: "make this ish look like an industry giant made
+  it in terms of realism").** Nothing here needs new art; it is all lighting, camera and
+  material physics, which is where the gap between a hobby build and a shipped game actually
+  lives.
+  - **Tonemapping ACES -> AgX.** ACES clips bright highlights to white and skews them; AgX rolls
+    them off and desaturates as it goes, the way film does. Sky, headlights and sun-struck
+    facades stop blowing out. `tonemap_white` 6 -> 8, saturation nudged back up (AgX is flatter
+    by design).
+  - **Sky-coloured ambient.** `DayNight` used to force `AMBIENT_SOURCE_COLOR`, a flat fill that
+    makes every shadow the same dead grey. It now uses `AMBIENT_SOURCE_SKY` at full contribution
+    by day, blending back toward a colour fill at night so the city is not pitch black. Shadows
+    now read blue at noon and warm at dusk. Biggest single win in the pass.
+  - **SSIL** (screen-space indirect light) for local bounce, **SSAO** retuned (smaller radius,
+    less intensity) so it stops double-darkening next to SSIL.
+  - **Aerial perspective + height fog.** `fog_aerial_perspective` 0.85 tints distance haze with
+    the sky in that direction, and `fog_height` 34 m / `fog_height_density` 0.0085 pools haze in
+    the streets so towers rise out of it. This is what makes a city read as huge. Height fog is
+    very easy to overdo: the first attempt used `fog_height` 34 m with density 0.0085 and turned
+    the whole street into blue milk. Street level is only ~6 m up, so anything more than about
+    0.001 of height density swamps the view; keep `fog_height` near 16 m.
+  - **Temporal antialiasing everywhere.** MSAA off (expensive, and useless against shader
+    aliasing, which is what the window grids and foliage suffer from). TAA at native resolution
+    on HIGH/MEDIUM; FSR 2.2 temporal upscaling at 0.75 / 0.6 on LOW/LOWEST, replacing the old
+    bilinear downscale. Better image AND cheaper than before, which is how consoles do it.
+  - **Auto exposure** on the player camera, deliberately narrow (ISO 200-620) so it adapts
+    walking into a shadowed street without pumping.
+  - **Car paint**: metallic basecoat + clearcoat lobe + aluminium flake + per-panel roughness
+    ripple. Palette reweighted to real-world colour distribution (mostly white, black, grey,
+    silver; muted colours; two loud ones). The saturated single-colour cars were the main reason
+    traffic read as toys.
+  - **Grass**: was one upright 14 x 55 cm quad per instance, which looked like green flags. Now
+    a tuft of four tapered blades curving over, with normals bent toward up so the lawn lights
+    as one soft surface, backlight for sun-through-blade glow, per-tuft colour variation, and a
+    70 m draw distance (`MultiMeshBatch.set_draw_distance`). A tuft is far smaller than the old
+    flag, so `grass_per_park` went 2500 -> 6500 or a lawn reads as scattered sprouts.
+  - The sky's radiance cubemap now updates **incrementally** (`Sky.process_mode = 2`) instead of
+    every frame. Ambient light reads from it, so a realtime rebuild at 256 px would have cost
+    more than the ambient upgrade was worth; the day/night cycle is slow enough not to notice.
+  - **Caveat for future sessions:** none of SSIL, SDFGI, SSR, volumetric fog, TAA or FSR exist in
+    the Compatibility renderer, so neither `tools/glshot` nor the web harness can show them. Only
+    the owner's Mac sees the real result. Judge those from the owner's report, not screenshots.
+
 - **2026-09-20 Still laggy after the population pass (owner: "still just like super laggy").**
   `Quality` became the real performance system: desktop starts at MEDIUM (SDFGI, volumetric fog
   and depth of field are HIGH-only), steps down after 5 s + 3 s windows under 50 FPS, and the

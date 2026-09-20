@@ -943,11 +943,14 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		var p := Vector2(rng.randf_range(inner.position.x + 1.0, inner.end.x - 1.0), rng.randf_range(inner.position.y + 1.0, inner.end.y - 1.0))
 		if absf(p.x - center.x) < path_w * 0.5 + 0.3 or absf(p.y - center.y) < path_w * 0.5 + 0.3:
 			continue
-		var sc := rng.randf_range(0.7, 1.5)
-		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
+		# Squash and stretch each tuft independently, so a lawn is not one shape repeated.
+		var sc := rng.randf_range(0.55, 1.6)
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
 		var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 		_batch.add("grass", PropFactory.grass_blade(), Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
 	_batch.set_no_shadow("grass")
+	# Dense blade geometry is only worth drawing close up.
+	_batch.set_draw_distance("grass", 70.0)
 
 
 func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:

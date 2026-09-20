@@ -178,6 +178,18 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
   lightning (sky `flash` uniform, sun meta `weather_flash`) and thunder. The ocean is
   `shaders/ocean.gdshader` on a subdivided plane per water chunk. Debug `?weather=storm`.
+- Look (owner, 2026-09-20: "as realistic as possible, like an industry giant made it"). The
+  realism settings are deliberate, not defaults: **AgX** filmic tonemapping (not ACES, which
+  clips highlights hard), **sky-source ambient** so shadows take the sky's colour instead of a
+  flat grey fill (`DayNight` sets it every frame; never put it back to `AMBIENT_SOURCE_COLOR`),
+  **SSIL** indirect bounce, **aerial-perspective fog** (`fog_aerial_perspective`, which tints
+  distance haze with the sky per direction) plus **height fog** so haze pools in the streets and
+  towers rise out of it, and **auto exposure** on the player camera. Antialiasing is temporal at
+  every level: TAA at native resolution, FSR 2.2 when `Quality` upscales. MSAA stays off (it
+  costs a lot and does nothing for shader aliasing). Car paint is a metallic basecoat under a
+  clearcoat lobe with flake (`shaders/car_paint.gdshader`); `Vehicle.PAINTS` is weighted the way
+  a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
+  normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap
   (`MinimapFrame/Minimap`, `scripts/ui/minimap.gd`, drawn from `CityPlan` data, rotates with the
   camera heading, light map palette). Lighting and post-processing

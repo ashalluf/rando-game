@@ -38,6 +38,13 @@ func set_no_shadow(key: String) -> void:
 		_batches[key].no_shadow = true
 
 
+## Stops drawing this batch past `meters`. Use it for dense detail geometry (grass) that costs
+## real triangles but is invisible at a distance anyway.
+func set_draw_distance(key: String, meters: float) -> void:
+	if _batches.has(key):
+		_batches[key].draw_distance = meters
+
+
 ## Builds the MultiMeshInstance3D nodes and returns them keyed by batch key.
 func build(parent: Node3D) -> Dictionary:
 	var nodes := {}
@@ -60,6 +67,11 @@ func build(parent: Node3D) -> Dictionary:
 		node.name = "Batch_" + key
 		node.multimesh = mm
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if batch.no_shadow else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+		var draw_distance: float = batch.get("draw_distance", 0.0)
+		if draw_distance > 0.0:
+			node.visibility_range_end = draw_distance
+			node.visibility_range_end_margin = draw_distance * 0.12
+			node.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 		parent.add_child(node)
 		nodes[key] = node
 	_batches.clear()

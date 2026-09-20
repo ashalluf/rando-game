@@ -152,15 +152,61 @@ static func lamp_head() -> Mesh:
 	return mesh
 
 
+## A tuft of real grass blades for the lawn MultiMesh. Each blade is a tapered, curved strip
+## (four segments, narrowing to a point, leaning further over toward the tip) rather than the
+## single upright 14 x 55 cm rectangle this used to be, which read as a green flag stuck in the
+## ground. Blades fan out around the tuft centre at different heights and angles.
+##
+## The important trick is the normals: they are bent toward straight up instead of pointing out
+## of each blade's face. Lit per-face, a field of blades turns into a mess of bright and black
+## slivers; lit as if it were one soft surface, it reads as a carpet of grass. Every real-time
+## grass system does this.
+const GRASS_BLADES := 5
+const GRASS_SEGMENTS := 3
+const GRASS_HEIGHT := 0.34
+const GRASS_WIDTH := 0.016
+
+
 static func grass_blade() -> Mesh:
 	if _cache.has("grass_blade"):
 		return _cache["grass_blade"]
-	var mesh := QuadMesh.new()
-	mesh.size = Vector2(0.14, 0.55)
-	mesh.center_offset = Vector3(0.0, 0.275, 0.0)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 90210
+	for b in GRASS_BLADES:
+		var yaw := TAU * (float(b) / GRASS_BLADES) + rng.randf_range(-0.35, 0.35)
+		var dir := Vector3(sin(yaw), 0.0, cos(yaw))
+		var side := Vector3(dir.z, 0.0, -dir.x)
+		var height := GRASS_HEIGHT * rng.randf_range(0.45, 1.3)
+		var width := GRASS_WIDTH * rng.randf_range(0.8, 1.2)
+		# How far the tip leans away from vertical, and where the blade starts.
+		var lean := rng.randf_range(0.28, 0.72) * height
+		var root := dir * rng.randf_range(0.0, 0.05)
+		for seg in GRASS_SEGMENTS:
+			var t0 := float(seg) / GRASS_SEGMENTS
+			var t1 := float(seg + 1) / GRASS_SEGMENTS
+			# Quadratic bend: the blade is upright at the root and arcs over near the tip.
+			var p0 := root + Vector3(0.0, height * t0, 0.0) + dir * (lean * t0 * t0)
+			var p1 := root + Vector3(0.0, height * t1, 0.0) + dir * (lean * t1 * t1)
+			var w0 := width * (1.0 - t0 * 0.85)
+			var w1 := width * (1.0 - t1 * 0.85)
+			# Face normal, then bent toward up so the tuft lights as one soft surface.
+			var along := (p1 - p0).normalized()
+			var face := side.cross(along).normalized()
+			var n := face.lerp(Vector3.UP, 0.65).normalized()
+			var a := p0 - side * w0
+			var b2 := p0 + side * w0
+			var c := p1 + side * w1
+			var d := p1 - side * w1
+			for v: Array in [[a, 0.0, t0], [b2, 1.0, t0], [c, 1.0, t1], [a, 0.0, t0], [c, 1.0, t1], [d, 0.0, t1]]:
+				st.set_normal(n)
+				st.set_uv(Vector2(v[1], v[2]))
+				st.add_vertex(v[0])
+	var mesh := st.commit()
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/grass.gdshader")
-	mesh.material = mat
+	mesh.surface_set_material(0, mat)
 	_cache["grass_blade"] = mesh
 	return mesh
 

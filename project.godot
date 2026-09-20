@@ -164,7 +164,10 @@ toggle_fullscreen={
 
 renderer/rendering_method="forward_plus"
 textures/vram_compression/import_etc2_astc=true
-anti_aliasing/quality/msaa_3d=2
+anti_aliasing/quality/msaa_3d=0
+anti_aliasing/quality/use_debanding=true
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/directional_shadow/size=4096
 
 [shader_globals]
 

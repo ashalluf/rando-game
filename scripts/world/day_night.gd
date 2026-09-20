@@ -128,7 +128,12 @@ func _apply() -> void:
 		_sky.set_shader_parameter("sun_glow", lerpf(0.9, 1.6, dusk))
 	if _env:
 		_env.fog_light_color = day_horizon.lerp(night_horizon, night_factor)
-		_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		# Ambient comes from the sky cubemap, so shadows take the sky's own colour (blue at
+		# midday, warm at dusk) instead of a flat grey fill: the single biggest realism win in
+		# outdoor lighting. At night the sky is nearly black, so we blend back toward a colour
+		# fill so the city does not go pitch dark.
+		_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		_env.ambient_light_sky_contribution = lerpf(1.0, 0.35, night_factor)
 		_env.ambient_light_color = day_ambient.lerp(night_ambient, night_factor)
 		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, night_factor) * (1.0 - 0.35 * weather_darken)
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4), weather_darken)

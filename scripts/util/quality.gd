@@ -6,8 +6,11 @@ extends Node
 ## the crowd / traffic caps, because the populated city is CPU work, not just GPU work:
 ##   HIGH    everything on (SDFGI global illumination, volumetric fog, depth of field)
 ##   MEDIUM  the desktop default: no SDFGI, no volumetric fog, no depth of field, shorter shadows
-##   LOW     also no SSR, no SSAO, no glow, no MSAA, 0.8 render scale, 60 % of the people and cars
-##   LOWEST  0.65 render scale, 35 % of the people and cars, short shadows, fewer physics props
+##   LOW     also no indirect light and no reflections; FSR 2.2 upscaling, 60 % of people and cars
+##   LOWEST  more aggressive upscaling, no ambient occlusion, 35 % of people and cars
+## Antialiasing is temporal at every level: TAA at native resolution on HIGH and MEDIUM, and FSR
+## 2.2 (which does its own temporal pass) when upscaling. That is what consoles do, and it looks
+## far better than the old bilinear downscale while costing less than native plus MSAA.
 ## It never steps back up (that would oscillate). Override with `-- --quality=0|1|2|3` on desktop
 ## or `?quality=N` on the web; the HUD shows the level in use and a frame-time breakdown.
 
@@ -24,8 +27,11 @@ enum Level { HIGH, MEDIUM, LOW, LOWEST }
 ## Frame-rate cap on desktop (owner: the MacBook ran hot; 60 is what consoles do). 0 = uncapped.
 ## Not applied in the headless check, where it would slow the test loop.
 @export var max_fps: int = 60
-## Render scale per level (1.0 = native resolution).
-@export var render_scale: PackedFloat32Array = PackedFloat32Array([1.0, 1.0, 0.8, 0.65])
+## Render scale per level (1.0 = native resolution). Below 1.0 the frame is temporally
+## upscaled with FSR 2.2, so it stays sharp.
+@export var render_scale: PackedFloat32Array = PackedFloat32Array([1.0, 1.0, 0.75, 0.6])
+## Edge sharpening applied by FSR when upscaling (0 = sharpest).
+@export var fsr_sharpness: float = 0.25
 ## Fraction of the crowd and traffic caps per level.
 @export var population: PackedFloat32Array = PackedFloat32Array([1.0, 1.0, 0.6, 0.35])
 ## Directional shadow reach per level (meters).
@@ -98,16 +104,30 @@ func _apply_render() -> void:
 	var i := int(level)
 	_env.sdfgi_enabled = level == Level.HIGH
 	_env.volumetric_fog_enabled = level == Level.HIGH
+	# Screen-space indirect light (bounce) and reflections are the expensive realism effects.
+	_env.ssil_enabled = level <= Level.MEDIUM
 	_env.ssr_enabled = level <= Level.MEDIUM
-	_env.ssao_enabled = level <= Level.MEDIUM
-	_env.glow_enabled = level <= Level.MEDIUM
+	_env.ssao_enabled = level <= Level.LOW
+	# Glow stays on everywhere: it is cheap and it carries most of the filmic look.
+	_env.glow_enabled = true
 	if _sun:
 		_sun.directional_shadow_max_distance = shadow_distance[i]
-		_sun.shadow_blur = 1.0 if level <= Level.MEDIUM else 0.6
+		_sun.shadow_blur = 1.0 if level <= Level.MEDIUM else 0.7
 	var viewport := get_viewport()
 	if viewport:
-		viewport.scaling_3d_scale = render_scale[i]
-		viewport.msaa_3d = Viewport.MSAA_2X if level <= Level.MEDIUM else Viewport.MSAA_DISABLED
+		var scale: float = render_scale[i]
+		viewport.scaling_3d_scale = scale
+		# MSAA is redundant next to a temporal pass and costs a lot at these resolutions.
+		viewport.msaa_3d = Viewport.MSAA_DISABLED
+		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+		viewport.fsr_sharpness = fsr_sharpness
+		if scale < 0.999:
+			# FSR 2.2 reconstructs the frame from previous ones; it supersedes TAA.
+			viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
+			viewport.use_taa = false
+		else:
+			viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+			viewport.use_taa = true
 		var cam := viewport.get_camera_3d()
 		if cam and cam.attributes is CameraAttributesPractical:
 			(cam.attributes as CameraAttributesPractical).dof_blur_far_enabled = level == Level.HIGH

@@ -19,10 +19,24 @@ const BODY_MODELS := {
 ## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
 const MODEL_YAW := {BodyType.SEDAN: -PI * 0.5, BodyType.PICKUP: -PI * 0.5, BodyType.VAN: -PI * 0.5, BodyType.SPORTS: -PI * 0.5}
 const PAINT_SHADER := preload("res://shaders/car_paint.gdshader")
+## Paint colours, weighted the way a real car park looks: about three quarters of the cars on
+## any street are white, black, grey or silver, and the colours that do appear are muted, not
+## primary (owner, 2026-09-20: the bright single-colour cars read as toys). Duplicated entries
+## are the weighting - random_car() picks uniformly from this list.
 const PAINTS := [
-	Color(0.85, 0.15, 0.12), Color(0.15, 0.35, 0.75), Color(0.92, 0.92, 0.9), Color(0.12, 0.12, 0.14),
-	Color(0.95, 0.75, 0.15), Color(0.2, 0.6, 0.35), Color(0.7, 0.7, 0.72), Color(0.9, 0.45, 0.15),
-	Color(0.55, 0.2, 0.6), Color(0.35, 0.7, 0.8),
+	# Whites and off-whites (the most common car colour on earth).
+	Color(0.90, 0.90, 0.89), Color(0.90, 0.90, 0.89), Color(0.84, 0.85, 0.85),
+	# Blacks and near-blacks.
+	Color(0.055, 0.055, 0.062), Color(0.055, 0.055, 0.062), Color(0.10, 0.10, 0.12),
+	# Greys and silvers.
+	Color(0.38, 0.39, 0.41), Color(0.38, 0.39, 0.41), Color(0.58, 0.59, 0.61),
+	Color(0.24, 0.25, 0.27), Color(0.68, 0.69, 0.70),
+	# Muted colours: deep blue, dark red, forest green, beige, dark teal.
+	Color(0.10, 0.16, 0.34), Color(0.14, 0.24, 0.45), Color(0.36, 0.07, 0.08),
+	Color(0.55, 0.10, 0.10), Color(0.12, 0.22, 0.16), Color(0.52, 0.47, 0.40),
+	Color(0.10, 0.22, 0.24),
+	# A couple of loud ones, because a city always has a few.
+	Color(0.72, 0.28, 0.05), Color(0.80, 0.62, 0.10),
 ]
 
 @export_group("Model")

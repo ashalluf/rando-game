@@ -548,10 +548,19 @@ func _test_city() -> void:
 				for w in player.weapon_manager.get_children():
 					if w is AssaultRifle:
 						rifle = w
-			var from: Vector3 = target.global_position + Vector3(0.0, 1.0, 0.0) + Vector3(-6.0, 0.0, 0.0)
+			# Fire from close range and follow whoever the bullet actually hits: the crowd is
+			# dense enough now that a long shot often passes through somebody else first.
+			var from: Vector3 = target.global_position + Vector3(0.0, 1.0, 0.0) + Vector3(-2.5, 0.0, 0.0)
 			var hit: Dictionary = rifle.fire_ray(from, Vector3.RIGHT)
+			var struck: Node = hit.get("collider") as Node
+			while struck != null and not (struck is Pedestrian):
+				struck = struck.get_parent()
+			# Decide what we hit before awaiting: knocking it over frees the node.
+			var hit_a_person := struck is Pedestrian
+			var struck_id: int = struck.get_instance_id() if hit_a_person else 0
 			await _ticks(3)
-			_check(not hit.is_empty() and (not is_instance_valid(target) or target.is_queued_for_deletion()), "an AK-47 bullet knocks a pedestrian down")
+			var gone := not is_instance_valid(instance_from_id(struck_id)) or (instance_from_id(struck_id) as Node).is_queued_for_deletion()
+			_check(hit_a_person and gone, "an AK-47 bullet knocks a pedestrian down")
 	# Quality levels scale the population, not just the effects (owner: "still super laggy").
 	var quality_node: Node = city.get_node("Quality")
 	var full_cap: int = city.max_pedestrians
@@ -638,7 +647,12 @@ func _test_city() -> void:
 	minimap.queue_redraw()
 	await _ticks(3)
 	var env: Environment = city.get_node("WorldEnvironment").environment
-	_check(env.sdfgi_enabled and env.ssao_enabled and env.glow_enabled and env.tonemap_mode == Environment.TONE_MAPPER_ACES, "environment has GI, AO, glow and ACES")
+	_check(env.sdfgi_enabled and env.ssao_enabled and env.glow_enabled and env.tonemap_mode == Environment.TONE_MAPPER_AGX, "environment has GI, AO, glow and AgX filmic tonemapping")
+	# The realism pass: bounce light, sky-coloured ambient and aerial perspective haze.
+	_check(env.ssil_enabled and env.fog_aerial_perspective > 0.5 and env.fog_height_density > 0.0, "environment has indirect light and aerial-perspective haze")
+	var day_node: Node = city.get_node("DayNight")
+	day_node._process(0.0)
+	_check(env.ambient_light_source == Environment.AMBIENT_SOURCE_SKY, "ambient light comes from the sky, not a flat colour")
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
