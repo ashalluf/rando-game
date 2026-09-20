@@ -127,11 +127,13 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 70)
+## 6. Where the game stands (build 71)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 71: cars fly (stabilised air control, boost thrusts along the camera), rebuilt explosions
+  (light flash, fireball, smoke, sparks, shockwave, scorch, camera shake), `tools/glshot/fx_shot.gd`.
 - 70: cinematic realism pass: AgX tonemapping, sky-coloured ambient, SSIL, aerial-perspective
   and height fog, TAA + FSR 2.2, auto exposure, clearcoat car paint with a realistic palette,
   real grass blades.

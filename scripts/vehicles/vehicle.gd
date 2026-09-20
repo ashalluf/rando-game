@@ -63,10 +63,31 @@ const PAINTS := [
 @export var steer_min_factor: float = 0.35
 ## Top speed (m/s); engine force fades to zero here.
 @export var top_speed: float = 55.0
-## Torque applied in the air from the stick (flips and rolls, Rocket League style).
-@export var air_torque: float = 9000.0
-## Self-righting torque when upside down and slow.
+## Self-righting torque when upside down and slow on the ground.
 @export var upright_torque: float = 25000.0
+
+@export_group("Flight")
+## Owner's rule (2026-09-20): a car in the air must fly like the player does, not tumble.
+## Leaving the ground puts the car into a stabilised hover: it holds itself level, the stick
+## aims it, and holding boost thrusts it where the camera is looking.
+## Thrust while holding boost in the air (m/s^2 of acceleration).
+@export var fly_thrust: float = 42.0
+## Speed cap while flying (m/s).
+@export var fly_max_speed: float = 62.0
+## Gravity multiplier while boosting in the air. Low value = hold boost and hover.
+@export var fly_gravity_scale: float = 0.12
+## Gravity multiplier while airborne without boost (a floaty arc, not a brick).
+@export var air_gravity_scale: float = 0.85
+## How fast the car swings to the orientation you are asking for (higher = snappier).
+@export var level_speed: float = 7.0
+## Nose pitch from the stick while airborne (radians; W noses down, S noses up).
+@export var fly_pitch_range: float = 0.75
+## Turn rate from the stick while airborne (radians per second).
+@export var fly_yaw_rate: float = 2.0
+## Fastest the car will rotate while self-levelling (radians per second).
+@export var max_turn_rate: float = 5.0
+## Bank angle the car rolls into while turning in the air (radians).
+@export var fly_bank: float = 0.5
 
 @export_group("Suspension")
 ## Soft springs plus a low center of mass keep the car flat and planted. Stiffer bounces.
@@ -102,6 +123,9 @@ var _exit_side: float = 1.0
 var _steer_target: float = 0.0
 var _engine_sound: AudioStreamPlayer3D
 var _jump_timer: float = 0.0
+## Heading the car holds while flying (radians). Seeded from the car when it leaves the ground.
+var _fly_yaw: float = 0.0
+var _was_airborne: bool = false
 ## True when a generated body model is used: box parts then only provide collision.
 var _has_model: bool = false
 
@@ -186,6 +210,9 @@ func is_airborne() -> bool:
 
 func _physics_process(delta: float) -> void:
 	if driver == null:
+		if _was_airborne:
+			gravity_scale = 1.0
+			_was_airborne = false
 		engine_force = 0.0
 		brake = 2.0
 		steering = lerpf(steering, 0.0, 1.0 - exp(-steer_speed * delta))
@@ -222,18 +249,69 @@ func _physics_process(delta: float) -> void:
 	_jump_timer = maxf(_jump_timer - delta, 0.0)
 	if Input.is_action_just_pressed("jump") and _jump_timer <= 0.0 and not is_airborne():
 		_jump_timer = jump_cooldown
-		apply_central_impulse(global_basis.y * jump_speed * mass)
+		# Straight up in world space, and kill the spin: pushing along the car's own up axis
+		# while the suspension is still unloading is what used to tip the nose over.
+		apply_central_impulse(Vector3.UP * jump_speed * mass)
+		angular_velocity = Vector3.ZERO
 		Sfx.play("jump", global_position, -2.0, 0.7)
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
 	_steer_target = -input.x * max_steer * steer_factor
 	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
 	if is_airborne():
-		# W = nose down (front flip), S = nose up, A / D = roll.
-		apply_torque(global_basis.x * input.y * air_torque + global_basis.z * (-input.x) * air_torque * 0.7)
-	elif global_basis.y.y < 0.2 and linear_velocity.length() < 3.0:
-		# Upside down and stuck: roll back onto the wheels.
-		var axis := global_basis.z
-		apply_torque(axis * upright_torque * signf(global_basis.x.y + 0.0001))
+		_fly(delta, input)
+	else:
+		if _was_airborne:
+			gravity_scale = 1.0
+		_was_airborne = false
+		if global_basis.y.y < 0.2 and linear_velocity.length() < 3.0:
+			# Upside down and stuck: roll back onto the wheels.
+			var axis := global_basis.z
+			apply_torque(axis * upright_torque * signf(global_basis.x.y + 0.0001))
+
+
+## Stabilised flight. The car holds itself level and pointed where you steer instead of
+## tumbling: W / S aim the nose down / up, A / D turn (banking into it), and holding boost
+## thrusts along the camera direction with almost no gravity, exactly like the player's boost.
+func _fly(delta: float, input: Vector2) -> void:
+	if not _was_airborne:
+		# Just left the ground: carry the heading we were driving in.
+		_fly_yaw = global_rotation.y
+		_was_airborne = true
+	var flying := Input.is_action_pressed("boost")
+	gravity_scale = fly_gravity_scale if flying else air_gravity_scale
+
+	# Where the nose should point. Turning is a rate, pitch is a held angle.
+	_fly_yaw = wrapf(_fly_yaw - input.x * fly_yaw_rate * delta, -PI, PI)
+	var pitch := input.y * fly_pitch_range
+	var roll := -input.x * fly_bank
+	if flying and driver != null and driver.get("camera_rig") != null:
+		# Boosting: follow the camera, so the car flies where you look.
+		var rig: Node3D = driver.camera_rig
+		_fly_yaw = rig.global_rotation.y
+		# The rig pitches positive when looking up, and a positive pitch here noses up too.
+		pitch = rig.rotation.x
+	var target := Basis(Vector3.UP, _fly_yaw) * Basis(Vector3.RIGHT, pitch) * Basis(Vector3.BACK, roll)
+
+	# Turn the difference between where we point and where we want to point into an angular
+	# velocity, and ease into it. Torque alone leaves the car wobbling; this holds an attitude.
+	var swing := (target * global_basis.inverse()).orthonormalized()
+	var q := Quaternion(swing)
+	var angle := q.get_angle()
+	if angle > PI:
+		angle -= TAU
+	var want := (q.get_axis() * angle * level_speed) if absf(angle) > 0.0001 else Vector3.ZERO
+	# Cap the correction: a half-turn of error times the gain is a violent spin that overshoots
+	# and oscillates instead of settling.
+	if want.length() > max_turn_rate:
+		want = want.normalized() * max_turn_rate
+	angular_velocity = angular_velocity.lerp(want, 1.0 - exp(-level_speed * delta))
+
+	if flying:
+		# An impulse scaled by the step, not apply_central_force: VehicleBody3D clears the
+		# per-step force accumulator while it solves its wheels, so plain forces do nothing.
+		apply_central_impulse(-target.z * fly_thrust * mass * delta)
+		if linear_velocity.length() > fly_max_speed:
+			linear_velocity = linear_velocity.normalized() * fly_max_speed
 
 
 func _on_bumper_hit(body: Node3D) -> void:

@@ -186,6 +186,29 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Flying cars and a real explosion (owner: "make the car jump work without the
+  front tilting over, I basically want to fly cars around the way I fly the main character",
+  "make the explosion graphics a million times better").**
+  - Cars: the old air control applied flip torque (W = front flip), which is exactly the nose
+    tipping the owner objected to. Airborne cars are now stabilised: `Vehicle._fly()` drives the
+    body toward a target attitude through `angular_velocity` (clamped by `max_turn_rate`, since
+    a half-turn of error times the gain is a violent overshoot), the stick aims it, and boost
+    thrusts along the camera with `fly_gravity_scale` 0.12. Gotcha: `apply_central_force` does
+    nothing on a VehicleBody3D because the wheel solver clears the force accumulator; use
+    `apply_central_impulse(dir * thrust * mass * delta)`.
+  - Explosions went from two unshaded spheres to a layered effect: light flash, white-hot core,
+    fireball, smoke, sparks, shockwave ring, lit debris, scorch decal and camera shake. Three
+    engine traps, each of which silently produced nothing: billboarded particles need
+    `billboard_keep_scale = true` or `scale_amount` is discarded and every puff is one metre; a
+    `Curve` clamps to `max_value` (1.0 by default) so the growth factor did nothing; and a
+    particle system's automatic bounds start empty, so `custom_aabb` has to be set. Fire is
+    alpha-blended, not additive - additive fire only adds brightness and washes out to nothing
+    in daylight - and the puffs are slow and fat so they overlap into one mass instead of
+    scattering into separate dots.
+  - `tools/glshot/fx_shot.gd` screenshots an effect. It slows the clock to ~0.4 % and waits on
+    real elapsed time, because a software-rendered frame takes most of a second and counting
+    frames lands the shot anywhere from the first millisecond to long after the fire has gone.
+
 - **2026-09-20 Cinematic realism pass (owner: "make this ish look like an industry giant made
   it in terms of realism").** Nothing here needs new art; it is all lighting, camera and
   material physics, which is where the gap between a hobby build and a shipped game actually

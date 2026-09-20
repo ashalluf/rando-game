@@ -214,6 +214,15 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   airport chunk, `airport_crowd`) plus `MacroMap.terminal_loops`, two closed lane paths that
   `TrafficManager` fills bumper to bumper (`loop_cars`, `max_loop_cars`) while the player is
   within `loop_active_distance`; the road itself is built by `Landmarks._build_dropoff()`.
+- Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
+  car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
+  level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
+  holding boost thrusts it along the camera direction with almost no gravity, like the player's
+  boost. There is no flip torque any more. A jump pushes straight up in world space and zeroes
+  the spin, because pushing along the car's own up axis while the suspension unloads is what
+  tipped the nose over. Thrust must be an impulse scaled by the step, not `apply_central_force`:
+  VehicleBody3D clears the per-step force accumulator while solving its wheels, so plain forces
+  do nothing.
 - Vehicles: `Vehicle` (`scripts/vehicles/vehicle.gd`), a VehicleBody3D built in code;
   `Vehicle.random_car(rng)` for a seeded one. Handling numbers are exports at the top. The player's
   `enter_vehicle()` / `exit_vehicle()` handle riding; the car reads input while `driver` is set.
@@ -227,6 +236,17 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
   `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
   (bit 5) and the player's under-terrain ray uses only that layer.
+- Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
+  An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
+  puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`
+  (Forward+ only, skipped on web) and a camera shake via `CameraRig.shake()`. Three traps cost a
+  session each, so do not undo them: billboarded particle materials need
+  `billboard_keep_scale = true` or every puff renders exactly one metre whatever `scale_amount`
+  says; a `Curve` clamps its values to `max_value` (default 1.0), so raise it before using a
+  growth factor above 1; and a particle system's automatic bounds start empty, so set
+  `custom_aabb` big enough for the particles' travel or the burst can vanish. Screenshot effects
+  with `tools/glshot/fx_shot.gd`, which slows the clock right down, because a software frame
+  takes most of a second and otherwise every shot lands after the fire has gone.
 - Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is

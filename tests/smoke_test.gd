@@ -413,13 +413,37 @@ func _test_city() -> void:
 		await _ticks(30)
 		var car_y0: float = car.global_position.y
 		var top_y: float = car_y0
+		var worst_tilt := 0.0
 		Input.action_press("jump")
 		for i in 40:
 			await get_tree().physics_frame
 			top_y = maxf(top_y, car.global_position.y)
+			worst_tilt = maxf(worst_tilt, 1.0 - car.global_basis.y.y)
 		Input.action_release("jump")
 		_check(top_y > car_y0 + 1.0, "Space makes the car jump (%.1f m)" % (top_y - car_y0))
-		await _ticks(60)
+		# Owner, 2026-09-20: the nose must not tip over on a jump.
+		_check(worst_tilt < 0.1, "the car stays level through a jump (worst tilt %.3f)" % worst_tilt)
+
+		# Flight: hold boost in the air and the car climbs where the camera looks, staying level.
+		car.global_position += Vector3(0.0, 14.0, 0.0)
+		car.linear_velocity = Vector3.ZERO
+		car.angular_velocity = Vector3(2.0, 1.0, 2.0) # give it a tumble to recover from
+		player.camera_rig.set_look(0.0, 35.0)
+		await _ticks(4)
+		var fly_y0: float = car.global_position.y
+		Input.action_press("boost")
+		var fly_tilt := 0.0
+		for i in 70:
+			await get_tree().physics_frame
+			if i > 25:
+				fly_tilt = maxf(fly_tilt, 1.0 - car.global_basis.y.y)
+		Input.action_release("boost")
+		_check(car.global_position.y > fly_y0 + 3.0, "boost flies the car upward (%.1f m gained)" % (car.global_position.y - fly_y0))
+		_check(fly_tilt < 0.45, "the flying car stabilises itself instead of tumbling (tilt %.2f)" % fly_tilt)
+		car.global_position = Vector3(car.global_position.x, car_y0 + 1.0, car.global_position.z)
+		car.linear_velocity = Vector3.ZERO
+		car.angular_velocity = Vector3.ZERO
+		await _ticks(90)
 		await _press("interact")
 		_check(not player.is_driving() and player.visible and player.global_position.distance_to(car.global_position) < 5.0, "interact gets out next to the car")
 		if macro:
@@ -766,6 +790,15 @@ func _test_weapons(player: Player) -> void:
 		await _ticks(150)
 		var flew := pile_crate.global_position.distance_to(pile_before)
 		_check(flew > 1.0, "rocket explosion scatters the pyramid (crate moved %.2f m)" % flew)
+	# The explosion has to be more than a couple of spheres: a real light flash, layered
+	# billboarded fire / smoke / spark particles and a shockwave ring.
+	var fx_before := _count_fx()
+	WeaponFX.explosion(self, player.global_position + Vector3(0.0, 1.0, 14.0), 8.0)
+	await _ticks(2)
+	var fx_after := _count_fx()
+	_check(fx_after.lights > fx_before.lights, "an explosion lights the scene (%d flash lights)" % fx_after.lights)
+	_check(fx_after.particles - fx_before.particles >= 4, "an explosion has layered particles (%d systems)" % (fx_after.particles - fx_before.particles))
+	_check(player.camera_rig._shake > 0.0, "a nearby explosion shakes the camera")
 
 	# Gravity gun: grab a crate, hold it up, launch it.
 	await _press("weapon_3")
@@ -791,6 +824,18 @@ func _test_weapons(player: Player) -> void:
 		await _ticks(2)
 		_check(not gun.is_holding() and crate.linear_velocity.length() > gun.launch_speed * 0.6,
 			"gravity gun launches the crate at %.1f m/s" % crate.linear_velocity.length())
+
+
+## Counts the explosion effect nodes currently alive in the scene.
+func _count_fx() -> Dictionary:
+	var lights := 0
+	var particles := 0
+	for child in get_tree().current_scene.get_children():
+		if child is OmniLight3D:
+			lights += 1
+		elif child is CPUParticles3D:
+			particles += 1
+	return {"lights": lights, "particles": particles}
 
 
 func _nearest_crate(near: Vector3) -> RigidBody3D:

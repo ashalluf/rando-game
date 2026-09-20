@@ -23,6 +23,10 @@ extends Node3D
 @export var fov_lerp_speed: float = 6.0
 ## How fast recoil kicks settle (higher = faster).
 @export var kick_recover_speed: float = 10.0
+## How fast an explosion shake settles (higher = faster).
+@export var shake_recover_speed: float = 3.2
+## Angular size of a full-strength shake (radians).
+@export var shake_strength: float = 0.05
 
 @onready var spring_arm: SpringArm3D = $SpringArm3D
 @onready var camera: Camera3D = $SpringArm3D/Camera3D
@@ -30,6 +34,8 @@ extends Node3D
 var _yaw: float = 0.0
 var _pitch: float = 0.0
 var _kick_pitch: float = 0.0
+var _shake: float = 0.0
+var _shake_offset: Vector3 = Vector3.ZERO
 
 
 func _ready() -> void:
@@ -62,6 +68,13 @@ func _process(delta: float) -> void:
 		_pitch -= look.y * gamepad_look_speed * delta * (-1.0 if invert_y else 1.0)
 	if _kick_pitch != 0.0:
 		_kick_pitch = lerpf(_kick_pitch, 0.0, 1.0 - exp(-kick_recover_speed * delta))
+	if _shake > 0.001:
+		_shake = lerpf(_shake, 0.0, 1.0 - exp(-shake_recover_speed * delta))
+		var amp := _shake * _shake * shake_strength
+		_shake_offset = Vector3(randf_range(-1.0, 1.0), randf_range(-1.0, 1.0), randf_range(-1.0, 1.0) * 0.6) * amp
+	elif _shake_offset != Vector3.ZERO:
+		_shake = 0.0
+		_shake_offset = Vector3.ZERO
 	_apply_rotation()
 
 	var target_fov := camera_fov
@@ -69,6 +82,11 @@ func _process(delta: float) -> void:
 	if player and player.is_boosting():
 		target_fov += boost_fov_boost
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-fov_lerp_speed * delta))
+
+
+## Rattles the view. `amount` is 0..1; explosions call this scaled by distance.
+func shake(amount: float) -> void:
+	_shake = minf(_shake + amount, 1.0)
 
 
 ## Recoil: nudges the view up by `degrees` with a little random sideways wobble.
@@ -99,4 +117,4 @@ func look_at_point(point: Vector3) -> void:
 func _apply_rotation() -> void:
 	_pitch = clampf(_pitch, deg_to_rad(min_pitch_deg), deg_to_rad(max_pitch_deg))
 	_yaw = wrapf(_yaw, -PI, PI)
-	rotation = Vector3(_pitch + _kick_pitch, _yaw, 0.0)
+	rotation = Vector3(_pitch + _kick_pitch + _shake_offset.x, _yaw + _shake_offset.y, _shake_offset.z)
