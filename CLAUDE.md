@@ -251,9 +251,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick
   - not only when the value changes, or lamps that streamed in since the last change stay dark -
-  and `Quality` zeroes `DayNight.lamp_scale` below MEDIUM. Alongside it, and always on, is the
-  additive night quad (`shaders/light_pool.gdshader`, `PropFactory.light_pool()` /
-  `lamp_face()`): a pool of light on the pavement under each lamp (in the lamp's batch, so
+  and `Quality` zeroes `DayNight.lamp_scale` below MEDIUM. The level is
+  `max(night_factor, weather_darken * 0.85)`, published as the `lamp_factor` shader global, so
+  the lamps come on in a storm at noon too. Alongside it, and always on, is the
+  additive night quad (`shaders/light_pool.gdshader`, which reads `lamp_factor`,
+  `PropFactory.light_pool()` / `lamp_face()`): a pool of light on the pavement under each lamp (in the lamp's batch, so
   shooting the lamp takes its light with it) and head, tail and beam lights on every `Vehicle`
   (`_add_night_lights`, needed because `Vehicle._box()` skips every primitive once a generated
   body model is in use). It reads `night_factor` itself, so it costs nothing by day.

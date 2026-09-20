@@ -313,7 +313,9 @@ static func trash_can_mesh() -> Mesh:
 ##
 ## It is one mesh with vertex colours rather than several, so a street of palms is one MultiMesh
 ## draw. Frond leaflets are single-sided quads, so the material disables backface culling.
-const PALM_VARIANTS := 3
+## Six, not three: a promenade lined with palms at even spacing shows the repeat immediately,
+## and each variant is one cached mesh of about 1.9k triangles.
+const PALM_VARIANTS := 6
 
 
 static func palm(variant: int) -> Mesh:
@@ -327,7 +329,7 @@ static func palm(variant: int) -> Mesh:
 
 	# Tall and slender, like the Washingtonia palms that line Los Angeles streets, rather than
 	# the short fat coconut palm the old primitive suggested.
-	var height := rng.randf_range(11.0, 17.0)
+	var height := rng.randf_range(9.0, 18.5)
 	# Palms lean, and the lean grows toward the top rather than tilting the whole trunk.
 	var lean_dir := Vector3(cos(rng.randf() * TAU), 0.0, sin(rng.randf() * TAU))
 	var lean := rng.randf_range(0.4, 1.5)

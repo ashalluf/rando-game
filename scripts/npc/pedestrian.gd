@@ -197,6 +197,13 @@ static func prepare_rig(inst: Node3D, look: int = -1) -> void:
 
 ## Character materials, shared by look so a crowd of hundreds still uses a handful of materials.
 ## `look` picks a clothing hue and brightness; see shaders/character.gdshader.
+## Skin tones, as multipliers on the model's own complexion (see shaders/character.gdshader).
+## Spread across the looks so a crowd is not three people copied a thousand times.
+const SKIN_TINTS := [
+	Color(1.03, 0.99, 0.95), Color(0.97, 0.91, 0.84), Color(0.88, 0.78, 0.67),
+	Color(0.79, 0.67, 0.56), Color(0.68, 0.56, 0.46), Color(0.56, 0.44, 0.36),
+	Color(0.93, 0.86, 0.79),
+]
 const CHARACTER_LOOKS := 14
 static var _looks: Dictionary = {}
 
@@ -219,6 +226,7 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	mat.set_shader_parameter("cloth_sat", rng.randf_range(0.10, 0.30) if rng.randf() < 0.75 else rng.randf_range(0.35, 0.62))
 	mat.set_shader_parameter("cloth_value", rng.randf_range(0.55, 1.20))
 	mat.set_shader_parameter("cloth_strength", 0.0 if plain else rng.randf_range(0.55, 0.85))
+	mat.set_shader_parameter("skin_tint", SKIN_TINTS[look % SKIN_TINTS.size()])
 	_looks[key] = mat
 	return mat
 

@@ -218,11 +218,13 @@ static func _box_building(chunk: CityChunk, box: Rect2, h: float, wall: Material
 			var out := Vector2(0.0, -1.0 if side == 0 else 1.0) if axis == 0 else Vector2(-1.0 if side == 0 else 1.0, 0.0)
 			if out.is_equal_approx(skip_face):
 				continue
-			var off: float = (box.position[1 - axis] - 0.12) if side == 0 else (box.end[1 - axis] + 0.12)
+			var off: float = (box.position[1 - axis] - 0.19) if side == 0 else (box.end[1 - axis] + 0.19)
 			for i in range(1, ribs):
 				var t := box.position[axis] + step * float(i)
 				var at := Vector3(t, TOP + h * 0.5, off) if axis == 0 else Vector3(off, TOP + h * 0.5, t)
-				var sz := Vector3(0.9, h - 0.4, 0.28) if axis == 0 else Vector3(0.28, h - 0.4, 0.9)
+				# Chunky on purpose: seen along the wall rather than square on, a 28 cm pilaster
+				# is edge-on and does nothing. Real big-box piers are about this deep.
+				var sz := Vector3(1.15, h - 0.4, 0.42) if axis == 0 else Vector3(0.42, h - 0.4, 1.15)
 				chunk._add_slab(at, sz, Color(0.8, 0.8, 0.8), false, rib)
 			# The scuffed base band, run along the whole face.
 			var mid: float = box.position[axis] + span * 0.5

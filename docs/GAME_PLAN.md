@@ -186,6 +186,22 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 The lamps come on in a storm.** The light pools and the lamp lights keyed off
+  `night_factor`, so a storm at one in the afternoon - dark enough that the sky goes grey and
+  the headlights are on - left the street unlit. There is now a `lamp_factor` shader global,
+  `max(night_factor, weather_darken * 0.85)`, which the light-pool shader and the lamp energy
+  both read.
+
+- **2026-09-20 The horizon plane was painting grass over the sea.** `macro_ground.gdshader`
+  blended the grass texture's own colour back in near the camera, so the beach and the water
+  got a green verge. It now takes only the texture's light and shade and leaves the zone colour
+  from the baked map in charge.
+
+- **2026-09-20 Skin tones.** Three character models meant three complexions for the whole city.
+  `shaders/character.gdshader` takes a `skin_tint` multiplier on whatever the source texture
+  has, spread across the looks (`Pedestrian.SKIN_TINTS`). After everyone walking in step, one
+  complexion is the loudest tell that a crowd is three people copied a thousand times.
+
 - **2026-09-20 Shop signs.** The storefront sign bands were blank stripes of colour, which is
   what stops a street reading as a street full of businesses. `Building` now decides the shop
   runs (how many bays make one shop, per face) and passes them to the shader as `shop_span`

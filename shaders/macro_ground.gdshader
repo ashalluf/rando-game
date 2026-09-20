@@ -104,9 +104,12 @@ void fragment() {
 	float near = (1.0 - smoothstep(near_fade_start, near_fade_end, dist)) * (1.0 - water);
 	vec3 nm = vec3(0.5, 0.5, 1.0);
 	if (near > 0.002) {
+		// Use the detail texture for its light and shade only, not its colour: it is a grass
+		// photograph, and letting its green through painted a green verge along the beach and
+		// over the sea. The zone colour from the macro map stays in charge.
 		vec3 detail = texture(near_albedo, w / near_scale).rgb;
-		vec3 tint = m.rgb / max(max(m.r, max(m.g, m.b)), 0.01);
-		col = mix(col, detail * mix(vec3(1.0), tint * 1.2, 0.55), near);
+		float lum = dot(detail, vec3(0.3333));
+		col = mix(col, m.rgb * (0.62 + 1.05 * lum) * shade, near);
 		nm = mix(nm, texture(near_normal, w / near_scale).rgb, near);
 	}
 

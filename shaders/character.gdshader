@@ -29,6 +29,10 @@ uniform float skin_roughness = 0.52;
 uniform float cloth_roughness = 0.88;
 // How much light bleeds through skin. Keeps faces and hands from reading as plastic.
 uniform float skin_subsurface = 0.35;
+// Per-character skin tone, as a multiplier on whatever the source texture has. Three models
+// with one complexion each is the second loudest tell (after everyone walking in step) that a
+// crowd is three people copied a thousand times.
+uniform vec3 skin_tint : source_color = vec3(1.0, 1.0, 1.0);
 
 
 vec3 rgb_to_hsv(vec3 c) {
@@ -73,7 +77,7 @@ void fragment() {
 	// rotating the hue of a desaturated pixel changes nothing, so a rotation left every
 	// character wearing the same clothes.
 	vec3 target = hsv_to_rgb(vec3(cloth_hue, cloth_sat, hsv.z * cloth_value));
-	ALBEDO = mix(base, target, is_cloth * cloth_strength);
+	ALBEDO = mix(base, target, is_cloth * cloth_strength) * mix(vec3(1.0), skin_tint, is_skin);
 
 	ROUGHNESS = mix(cloth_roughness, skin_roughness, is_skin);
 	METALLIC = 0.0;

@@ -155,7 +155,8 @@ func _apply() -> void:
 	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
 	# which is why the streets stayed black the first time. Refresh on a slow tick instead, so
 	# newly loaded chunks pick the level up within a third of a second.
-	var want := night_factor * lamp_energy * lamp_scale
+	var lamp_factor := maxf(night_factor, weather_darken * 0.85)
+	var want := lamp_factor * lamp_energy * lamp_scale
 	# _apply() is also called from _ready(), where there is no delta parameter to use.
 	_lamp_timer -= get_process_delta_time()
 	if _lamp_timer <= 0.0 or absf(want - _lamp_level) > 0.04:
@@ -164,3 +165,4 @@ func _apply() -> void:
 		for light in get_tree().get_nodes_in_group("lamp_light"):
 			(light as OmniLight3D).light_energy = want
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)
+	RenderingServer.global_shader_parameter_set("lamp_factor", lamp_factor)
