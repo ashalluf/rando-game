@@ -171,6 +171,11 @@ lights_and_shadows/directional_shadow/size=4096
 
 [shader_globals]
 
+road_wetness={
+"type": "float",
+"value": 0.0
+}
+
 night_factor={
 "type": "float",
 "value": 0.0

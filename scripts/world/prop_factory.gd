@@ -58,6 +58,24 @@ static func pbr(set_key: String, scale_m: float = 4.0, tint: Color = Color.WHITE
 	return mat
 
 
+## Worn asphalt for road surfaces (see shaders/road.gdshader). Cached per set, scale, tint and
+## seed, so every road in a chunk shares one material.
+static func road(set_key: String, scale_m: float, tint: Color, seed_value: int) -> ShaderMaterial:
+	var key := "road_%s_%.2f_%d_%d" % [set_key, scale_m, tint.to_rgba32(), seed_value]
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/road.gdshader")
+	mat.set_shader_parameter("albedo_tex", texture(set_key, "Color"))
+	mat.set_shader_parameter("normal_tex", texture(set_key, "NormalGL"))
+	mat.set_shader_parameter("rough_tex", texture(set_key, "Roughness"))
+	mat.set_shader_parameter("tint", tint)
+	mat.set_shader_parameter("tex_scale", scale_m)
+	mat.set_shader_parameter("seed", float(seed_value % 997) * 0.37)
+	_cache[key] = mat
+	return mat
+
+
 static func terrain_material() -> ShaderMaterial:
 	if _cache.has("terrain_mat"):
 		return _cache["terrain_mat"]
@@ -934,6 +952,8 @@ static func set_wetness(w: float) -> void:
 	if absf(w - _wetness) < 0.01:
 		return
 	_wetness = w
+	# Road surfaces read it from a global instead of being walked one material at a time.
+	RenderingServer.global_shader_parameter_set("road_wetness", w)
 	for key in _cache:
 		var k: String = key
 		if k.begins_with("pbr_asphalt") or k.begins_with("pbr_paving") or k.begins_with("pbr_sidewalk") or k.begins_with("pbr_pavers") or k.begins_with("pbr_concrete"):

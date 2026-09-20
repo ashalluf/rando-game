@@ -127,11 +127,12 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 74)
+## 6. Where the game stands (build 75)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 75: worn asphalt shader: mottling, resurfacing patches, cracks, oil staining, wet roads.
 - 74: interior mapping on every window: real rooms with blinds behind the glass.
 - 73: character pass: per-person clothing colour, height and gait, proper skin and cloth
   shading. Further realism is blocked on a Sketchfab API token (see the decisions log).

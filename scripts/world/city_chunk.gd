@@ -610,7 +610,7 @@ func _road_look(axis: int, index: int, params: Dictionary) -> Dictionary:
 	var tint: Color = ROAD_TINTS[rng.randi() % ROAD_TINTS.size()]
 	var white := rng.randf() < float(params.get("line_white", 0.4))
 	return {
-		"material": PropFactory.pbr(set_key, 7.0 if set_key == "asphalt" else 9.0, tint),
+		"material": PropFactory.road(set_key, 7.0 if set_key == "asphalt" else 9.0, tint, hash([plan.seed, axis, index])),
 		"line": Color(0.95, 0.95, 0.9) if white else Color(0.95, 0.8, 0.2),
 		"solid": rng.randf() < 0.35,
 	}

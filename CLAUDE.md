@@ -331,6 +331,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   rate at 60. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
   objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
   frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
+- Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in
+  `CityChunk._road_look`): tiled asphalt plus world-space mottling, resurfacing patches on a
+  jittered grid with darker seams, ridged-noise cracks and sparse oil staining, so the road never
+  repeats visibly and never reads as a flat grey plane. Wetness comes from the `road_wetness`
+  global that `PropFactory.set_wetness()` sets, not from walking materials one at a time.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
   `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
   Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.

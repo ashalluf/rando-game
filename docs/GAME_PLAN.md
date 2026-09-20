@@ -186,6 +186,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Worn road surfaces.** The road fills the bottom third of almost every shot and a
+  single tiled texture read as a flat grey plane whatever the lighting did.
+  `shaders/road.gdshader` layers what actually makes tarmac look used, all from world position
+  so it tiles across chunks and never visibly repeats: slow mottling, resurfacing patches on a
+  jittered grid each with its own tone, smoothness and a darker seam, cracks from folded ridged
+  noise, and sparse oil and rubber staining. Wetness moved to a `road_wetness` global so Weather
+  sets one value instead of walking every cached material.
+  Tuning note: crack and stain noise below about 0.4 frequency reads as wandering tendrils of
+  damp rather than cracks in asphalt; keep the frequency high and the threshold narrow.
+
 - **2026-09-20 Interior mapping on every window (owner: "set the bar for visuals extremely
   high").** Buildings were boxes with windows painted on them, which is what read as cheap up
   close however good the lighting was. The building shader now traces the view ray into a
