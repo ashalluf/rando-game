@@ -323,7 +323,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   whole tree as one vertex-coloured mesh (tall slender curved trunk with ridged bark, a crown of
   feathered fronds whose leaflets are separate pointed blades so daylight shows through, a skirt
   of dead fronds, coconuts), so a palm-lined boulevard is one MultiMesh draw. The material
-  disables backface culling because leaflets are single-sided. Blocks roll palm-lined streets
+  uses `shaders/foliage.gdshader`: backface culling off (leaflets are single-sided) and a
+  vertex-shader wind sway whose bend grows with the square of height above the instance origin,
+  phased by world position so a row does not sway in step. Nothing else in the city moved except
+  the grass, and a street of palms standing dead still reads as a model rather than a place. Blocks roll palm-lined streets
   from the district's `"palms"` odds in `CityPlan.DISTRICTS` (`CityChunk._palm_street`), so palms
   run in runs rather than being sprinkled. Street palms pass `collide = false` to `_add_palm()`:
   street trees have never had collision, and solid trunks along a whole boulevard wall the road

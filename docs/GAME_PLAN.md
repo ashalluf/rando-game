@@ -186,6 +186,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-20 Palms move.** Nothing in the city moved except the grass, and a boulevard of
+  palms standing dead still is one of the things that reads as "model" rather than "place".
+  `shaders/foliage.gdshader` bends each palm in the vertex shader, growing with the square of
+  the height above the instance's own origin (so the trunk base is still and the crown swings),
+  phased by world position so a row does not sway in step, with an extra flutter on the parts
+  furthest from the trunk axis - the leaflets. It costs nothing on the CPU and the whole
+  boulevard is still one MultiMesh draw. The Poly Haven trees and shrubs are still static:
+  they carry textured glTF materials and need a textured variant of the same shader.
+
 - **2026-09-20 The HUD starts clean.** Six lines of developer text across the top and five
   lines of control hints across the bottom is what the game looked like in every screenshot.
   F1 now cycles CLEAN (crosshair, minimap, weapons), FULL (everything, including the frame-time

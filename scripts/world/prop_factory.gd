@@ -359,7 +359,12 @@ static func palm(variant: int) -> Mesh:
 			# The criss-cross of old frond bases. A palm trunk is not a smooth pole: it is a
 			# lattice of cut stubs in a diamond lattice, and at street level that pattern is
 			# the thing that tells you which tree you are standing under.
-			var lattice := 1.0 if (i + k) % 2 == 0 else 0.76
+			# Subtle: at 0.76 this read as a chessboard wrapped round the trunk from two metres
+			# away. Real frond scars are a shallow change in tone, not two colours.
+			var lattice := 1.0 if (i + k) % 2 == 0 else 0.91
+			# Break the perfect alternation so it is a lattice, not a checker.
+			if (i * 3 + k * 5) % 7 == 0:
+				lattice = 0.96
 			# The pattern wears away toward the base, where the trunk has gone smooth and grey.
 			lattice = lerpf(1.0, lattice, smoothstep(0.08, 0.35, t0))
 			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0 * lattice, d0, d1)
@@ -384,11 +389,10 @@ static func palm(variant: int) -> Mesh:
 	# mess of bright and black shards. Every part sets its own smooth normal instead, the same
 	# trick the grass blades use.
 	var mesh := st.commit()
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.82
-	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-	mesh.surface_set_material(0, mat)
+	# Wind sway lives in the vertex shader (shaders/foliage.gdshader), so a palm-lined street
+	# moves without any per-tree work on the CPU. Backface culling stays off: leaflets are
+	# single-sided.
+	mesh.surface_set_material(0, foliage_material())
 	_cache[key] = mesh
 	return mesh
 
@@ -623,6 +627,16 @@ static func sign_material() -> StandardMaterial3D:
 	mat.emission = Color(1.0, 0.93, 0.78)
 	mat.emission_energy_multiplier = 0.55
 	_cache["sign_mat"] = mat
+	return mat
+
+
+## Shared vertex-colour foliage material with the wind sway (see shaders/foliage.gdshader).
+static func foliage_material() -> ShaderMaterial:
+	if _cache.has("foliage_mat"):
+		return _cache["foliage_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/foliage.gdshader")
+	_cache["foliage_mat"] = mat
 	return mat
 
 

@@ -127,13 +127,15 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 88)
+## 6. Where the game stands (build 90)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
-- 88: the HUD starts clean (F1 cycles clean / stats / hidden), the hills burn gold, the baked
-  horizon map is jittered so sprawl reads as a city.
+- 90: palms sway in the wind, softer trunk bark.
+- 89: the HUD starts clean (F1 cycles clean / stats / hidden), the hills burn gold, lawns run
+  from watered to burnt, the baked horizon map is jittered so sprawl reads as a city. (88 was a
+  docs-only push; the build number is the workflow run number, so it still burns one.)
 - 87: the ground stops tiling visibly; car parks, yards and plazas go through the wear shader.
 - 86: lamps come on in a storm, the horizon plane stops painting grass over the sea and sand,
   seven skin tones across the crowd, six palm variants, chunkier pilasters.
@@ -264,15 +266,32 @@ pedestrian 44, each jet 30. `docs/ASSETS.md` has the table.
 
 ## 10. Suggested next steps, in order of impact
 
-1. Ask the owner what they saw on the Mac for builds 46 to 51 and tune before adding more.
-2. Building facades: Meshy-generated facade modules (storefront, mid floors, roof) that the city
-   generator stacks, with real brick / glass / concrete PBR. Biggest remaining visual jump.
-3. Real ragdolls from the character mesh (PhysicalBoneSimulator3D on the Meshy skeleton).
-4. Animation blending for pedestrians (idle / walk / run, turning), reactions to cars and gunfire.
-5. Traffic and parked cars on hill roads; pedestrians on the campus and the pier.
-6. Post-processing: motion blur, bloom on lights, film grain, color grading.
-7. Weather (rain with wet-road reflections), streetlights and shop signs at night, headlights.
-8. Meshy-generated trees, benches, hydrants, lamps; more pedestrian variety and clothing.
+Rewritten 2026-09-20 after the graphics pass of builds 74 to 90. Most of the old list is done
+(weather, night lighting, headlights, shop signs, colour grading are all in).
+
+1. **Ask the owner what the Mac build actually looks like.** Everything in this session was
+   judged on the Compatibility renderer under llvmpipe, which has no clearcoat and flat
+   lighting. Car paint in particular looks flat and untextured there and should look far better
+   on Forward+; that has not been confirmed by a human yet.
+2. **Wind on the trees and bushes.** Palms sway (`shaders/foliage.gdshader`); the Poly Haven
+   trees, shrubs and scrub are still dead still. They carry glTF materials with textures and
+   probably alpha-scissored leaf cards, so this needs a textured variant of the foliage shader
+   wired in through `PropFactory.model_mesh()`, and it can break how the trees render, so it
+   wants a render to check.
+3. **Shop names at a distance.** Each name is a TextMesh and they stop at 75 m. Rasterising the
+   whole name list into one atlas at load and sampling it in the fascia branch of the building
+   shader would put a name on every band at any distance, with no geometry at all.
+4. **Better characters.** Still blocked on a source: three rigs, 8,300 triangles, one 1024
+   texture each, no normal or roughness maps. The arms, clothing colours, skin tones, heights
+   and gait are all fixed in code now; what is left needs better models. The owner would have to
+   supply a Sketchfab API token (sketchfab.com > Settings > Password and API).
+5. **Real ragdolls from the character mesh** (PhysicalBoneSimulator3D on the rig) instead of the
+   single tumbling body.
+6. **Animation blending** for pedestrians (idle / walk / run, turning) and reactions to cars and
+   gunfire.
+7. **Traffic and parked cars on the hill roads**; pedestrians on the campus quad and the pier.
+8. **Interiors.** Windows have traced fake rooms; doors and lobbies do not. A handful of enterable
+   ground-floor interiors would be the next big step in making the city feel real.
 
 ## 11. Quick test script to give the owner after any push
 
