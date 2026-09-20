@@ -44,10 +44,16 @@ free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy ta
 | Van | `assets/models/car_van.glb` | 30 (+15) | `Vehicle` body, VAN | 2026-09-19 |
 | Sports | `assets/models/car_sports.glb` | 30 (+15) | `Vehicle` body, SPORTS | 2026-09-19 |
 | Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 44 (+29) | `Pedestrian` | 2026-09-19 |
-| Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 44 (+29) | `Pedestrian` | 2026-09-19 |
+| Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 44 (+29) | **unused** | 2026-09-19 |
 | Pedestrian C (older man, shirt) | `pedestrian_c.glb`, `pedestrian_c_anim.glb` (same clips) | 44 (+29) | `Pedestrian` | 2026-09-19 |
 | Private jet | `assets/models/jet_private.glb` | 30 | `Aircraft` PRIVATE | 2026-09-19 |
 | Airliner | `assets/models/jet_airliner.glb` | 30 | `Aircraft` AIRLINER | 2026-09-19 |
+
+Pedestrian B is not loaded by anything (2026-09-20). Its texture came back as bare skin with no
+clothing anywhere, so the garment recolour in `shaders/character.gdshader` has nothing to act on,
+and its rig does not take the walk clip (it stands with its arms over its head). It walked the
+city as a naked orange mannequin. `Pedestrian.MODELS` lists A and C only; the files stay in the
+repo so the decision is visible.
 
 All seven were first made as low-poly cartoon models (147 credits) and then regenerated with the
 owner's realism rule on Meshy's standard model (252 credits). Car base colors are greyscaled and

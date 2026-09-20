@@ -625,6 +625,49 @@ func _test_city() -> void:
 		if vis:
 			heights[snappedf(vis.scale.y, 0.01)] = true
 	_check(shaded > 10, "pedestrians use the character shader (%d)" % shaded)
+	# Every character model has to arrive wearing something. One of the generated rigs came back
+	# as bare skin from head to foot, and because the garment recolour only touches pixels that
+	# are already off the skin hue, it walked the city as a naked orange mannequin. Measured as
+	# how much of the texture sits away from its own average colour: a clothed character has
+	# hair, shoes and fabric well off its skin tone (0.31 and 0.71 for the two in use), a nude
+	# one is all one tone (0.001). Hue alone will not do it - brown clothing is a skin hue.
+	var dressed := true
+	var worst := 1.0
+	# Loaded by path: naming the class here would pull in a script that uses an autoload.
+	var ped_script: GDScript = load("res://scripts/npc/pedestrian.gd")
+	for path in ped_script.MODELS:
+		var rig: Node = (load(path) as PackedScene).instantiate()
+		var tex: Texture2D = null
+		for mi in rig.find_children("*", "MeshInstance3D", true, false):
+			var m := (mi as MeshInstance3D).mesh.surface_get_material(0) as StandardMaterial3D
+			if m and m.albedo_texture:
+				tex = m.albedo_texture
+				break
+		rig.free()
+		if tex == null:
+			continue
+		var img := tex.get_image()
+		if img.is_compressed():
+			img.decompress()
+		var step := maxi(img.get_width() / 96, 1)
+		var mean := Color(0, 0, 0)
+		var total := 0
+		for y in range(0, img.get_height(), step):
+			for x in range(0, img.get_width(), step):
+				mean += img.get_pixel(x, y)
+				total += 1
+		mean /= maxf(float(total), 1.0)
+		var away := 0
+		for y in range(0, img.get_height(), step):
+			for x in range(0, img.get_width(), step):
+				var c := img.get_pixel(x, y)
+				if Vector3(c.r - mean.r, c.g - mean.g, c.b - mean.b).length() > 0.18:
+					away += 1
+		var ratio := float(away) / maxf(float(total), 1.0)
+		worst = minf(worst, ratio)
+		if ratio < 0.10:
+			dressed = false
+	_check(dressed, "every character model is wearing clothes (plainest is %.0f%% off its own skin tone)" % (worst * 100.0))
 	_check(outfits.size() >= 5, "the crowd wears %d different outfits" % outfits.size())
 	_check(heights.size() >= 5, "the crowd has %d different heights" % heights.size())
 	var avatar: Node = player.get_node_or_null("Visual/Avatar")

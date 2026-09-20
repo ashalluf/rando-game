@@ -9,9 +9,13 @@ const PANTS := [Color(0.2, 0.25, 0.4), Color(0.15, 0.15, 0.17), Color(0.5, 0.4, 
 const SKINS := [Color(0.95, 0.8, 0.65), Color(0.85, 0.65, 0.5), Color(0.6, 0.42, 0.3), Color(0.4, 0.28, 0.2)]
 ## Generated rigged characters (see docs/ASSETS.md). Each has Idle, Casual_Walk_inplace and
 ## run_fast_3_inplace clips. Missing files fall back to the box person.
+## pedestrian_b is deliberately not in this list. Its texture is entirely skin tones - the
+## generator returned an unclothed figure - so the garment recolour below has nothing to work
+## on and it walks the city as a naked orange mannequin, and its rig does not take the walk
+## clip properly either (it stands with its arms over its head). The file is kept so the
+## decision is visible, not because anything loads it.
 const MODELS := [
 	"res://assets/models/pedestrian_a_anim.glb",
-	"res://assets/models/pedestrian_b_anim.glb",
 	"res://assets/models/pedestrian_c_anim.glb",
 ]
 ## Walking speed (m/s) at which the walk clip plays at its natural pace.

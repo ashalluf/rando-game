@@ -51,7 +51,10 @@ uniform float base_y = 0.0;
 
 // What the glass reflects. Not the real environment map: see the note in the glass branch.
 uniform vec3 sky_zenith : source_color = vec3(0.26, 0.44, 0.80);
-uniform vec3 sky_horizon : source_color = vec3(0.66, 0.75, 0.88);
+// "Horizon" here is not the sky at the horizon: a pane on a wall reflects whatever is level
+// with it, which from the street is the buildings opposite, not bright sky. Setting this to a
+// pale sky blue turned every shop window into milk glass.
+uniform vec3 sky_horizon : source_color = vec3(0.42, 0.47, 0.55);
 uniform vec3 street_reflect : source_color = vec3(0.09, 0.09, 0.10);
 // 0 no reflection at all, 1 full. Turned down on spandrel panels.
 uniform float reflect_strength = 1.0;
@@ -102,7 +105,7 @@ void vertex() {
 // you see the right-hand wall of the room - which is what stops a tower reading as a painted
 // box. `w` is the position across the window in 0..1, `dir` is the view ray in wall space
 // (x along the wall, y up, z into the building).
-vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float room_seed, out float depth_t) {
+vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float room_seed, float blind_chance, out float depth_t) {
 	vec3 ro = vec3(w.x * wide, w.y * high, 0.0);
 	float best = 1e9;
 	int surface = 0; // 0 back wall, 1 side wall, 2 floor, 3 ceiling
@@ -144,8 +147,8 @@ vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float r
 	// Blinds, hanging just inside the glass at a height that differs room to room. Nothing says
 	// "occupied building" like a facade where every blind is pulled to a different level.
 	float drop = hash21(vec2(room_seed, 23.7));
-	if (drop > 0.25) {
-		float level = 1.0 - (drop - 0.25) * 1.25;
+	if (drop > 1.0 - blind_chance) {
+		float level = 1.0 - (drop - (1.0 - blind_chance)) * 1.25;
 		if (w.y > level) {
 			vec3 blind = mix(vec3(0.80, 0.78, 0.72), vec3(0.55, 0.53, 0.50), hash21(vec2(room_seed, 31.1)));
 			// Slats.
@@ -226,15 +229,29 @@ void fragment() {
 		// Window mask for this style.
 		bool glass = false;
 		bool frame = false;
+		// Street level is a row of separate businesses, not one continuous glass ribbon. A run
+		// of two to four bays is one shop, and it gets its own sign band, its own bulkhead
+		// colour and one bay turned into a door.
+		bool fascia = false;
+		bool bulkhead = false;
+		bool door_bay = false;
+		float shop_seed = 0.0;
 		// Window opening in cell units (centre and half size), kept so the fake interior knows
 		// where the hole in the wall is.
 		vec2 win_c = vec2(0.5, 0.52);
 		vec2 win_h = vec2(0.27, 0.25);
 		if (storefront) {
-			glass = fv > 0.12 && fv < 0.78 && abs(fu - 0.5) < 0.44;
-			frame = fv >= 0.78 && fv < 0.90; // awning band
-			win_c = vec2(0.5, 0.45);
-			win_h = vec2(0.44, 0.33);
+			float span = 2.0 + floor(hash21(vec2(face_id * 3.7, seed)) * 2.99);
+			float shop_id = floor(col / span);
+			shop_seed = hash21(vec2(shop_id * 1.7, face_id * 13.0) + seed);
+			door_bay = abs(col - (shop_id * span + floor(shop_seed * span))) < 0.5;
+			// The door runs to the pavement; a display window sits on a bulkhead.
+			float low = door_bay ? 0.05 : 0.15;
+			glass = fv > low && fv < 0.74 && abs(fu - 0.5) < 0.44;
+			fascia = fv >= 0.76 && fv < 0.93;
+			bulkhead = fv < low && abs(fu - 0.5) < 0.46;
+			win_c = vec2(0.5, (low + 0.74) * 0.5);
+			win_h = vec2(0.44, (0.74 - low) * 0.5);
 		} else if (window_style == 0) {
 			glass = abs(fu - 0.5) < 0.27 && abs(fv - 0.52) < 0.25;
 		} else if (window_style == 1) {
@@ -278,10 +295,16 @@ void fragment() {
 				float wide = max(2.0 * win_h.x * pitch, 0.2);
 				float high = max(2.0 * win_h.y * (storefront ? ground_floor_height : floor_height), 0.2);
 				float depth_t = 0.0;
-				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, depth_t);
+				// Offices are full of blinds; a shop window with a blind in it is not a shop.
+				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, storefront ? 0.10 : 0.72, depth_t);
 				// Daylight outside is many stops brighter than anything indoors, so the room
 				// arrives dark; at night an unlit room is darker still.
-				room *= interior_exposure * (1.0 - 0.55 * night_factor);
+				// A shop is lit inside even in daylight; an office floor is not.
+				float expose = storefront ? interior_exposure * 3.2 : interior_exposure;
+				room *= expose * (1.0 - 0.55 * night_factor);
+				if (storefront) {
+					room *= vec3(1.10, 1.03, 0.92);
+				}
 				// The glass still carries its own tint; the room shows through it.
 				albedo = mix(room, albedo * 0.5, 0.28);
 			} else {
@@ -307,12 +330,33 @@ void fragment() {
 			// Schlick: nearly transparent head on, a mirror at a glancing angle.
 			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
 			float mirror = mix(0.26, 0.90, fres) * reflect_strength * (1.0 - 0.85 * night_factor);
+			// A lit shop interior competes with the reflection; an empty office does not.
+			if (storefront) {
+				mirror *= 0.66;
+			}
 			albedo = mix(albedo, sky_ref, mirror);
 
 			// Tinted glass, not a mirror: with more metal the panes reflect pure sky and whole
 			// curtain-wall towers read as see-through cages from a distance.
 			rough = 0.32;
 			metal = 0.2;
+			if (storefront) {
+				// Anodised shopfront framing: jambs, a centre mullion, the transom above the
+				// display, and a kick plate at the bottom of the door. A shop window with no
+				// framing in it is the tell that a street was drawn rather than built.
+				float mx = abs(fu - 0.5);
+				float bars = step(mx, 0.028) + step(0.405, mx);
+				bars += step(0.655, fv) * step(fv, 0.705);
+				if (door_bay) {
+					bars += step(fv, 0.13);
+					bars += step(0.40, fv) * step(fv, 0.425);   // push bar
+				}
+				bars = clamp(bars, 0.0, 1.0);
+				vec3 mullion = mix(vec3(0.11, 0.11, 0.12), vec3(0.55, 0.56, 0.58), step(0.6, shop_seed));
+				albedo = mix(albedo, mullion, bars);
+				rough = mix(rough, 0.42, bars);
+				metal = mix(metal, 0.65, bars);
+			}
 			if (lit) {
 				float glow = 0.55 + 0.45 * hash31(vec3(col + 3.0, row + 7.0, face_id + seed));
 				float on = 0.12 + 0.88 * night_factor;
@@ -321,6 +365,27 @@ void fragment() {
 				metal = mix(metal, 0.0, on);
 				rough = mix(rough, 0.5, on);
 			}
+		} else if (fascia) {
+			// Sign band. Each shop paints it its own colour, which is what makes a block read
+			// as a row of businesses rather than one long building with a stripe on it.
+			vec3 sign_hue = mix(vec3(0.16, 0.18, 0.22), vec3(0.42, 0.20, 0.16), hash21(vec2(shop_seed, 5.3)));
+			sign_hue = mix(sign_hue, vec3(0.18, 0.30, 0.26), step(0.66, hash21(vec2(shop_seed, 9.1))));
+			sign_hue = mix(sign_hue, vec3(0.74, 0.71, 0.66), step(0.86, hash21(vec2(shop_seed, 2.4))));
+			albedo = sign_hue;
+			// A darker lip top and bottom so the band reads as a board fixed to the wall.
+			float lip = step(fv, 0.785) + step(0.918, fv);
+			albedo *= mix(1.0, 0.55, clamp(lip, 0.0, 1.0));
+			rough = 0.55;
+			metal = 0.05;
+		} else if (bulkhead) {
+			// The panelled base under a display window: stall risers are always a different
+			// material from the wall, usually tile or painted board.
+			vec3 base_col = mix(vec3(0.20, 0.19, 0.18), vec3(0.42, 0.34, 0.28), hash21(vec2(shop_seed, 13.7)));
+			base_col = mix(base_col, vec3(0.30, 0.33, 0.36), step(0.7, hash21(vec2(shop_seed, 19.3))));
+			// Two recessed panels per bay.
+			float panel = step(0.06, abs(fract(fu * 2.0) - 0.5) * 2.0);
+			albedo = base_col * mix(0.72, 1.0, panel);
+			rough = 0.6;
 		} else if (frame) {
 			albedo = accent_color;
 			rough = 0.6;

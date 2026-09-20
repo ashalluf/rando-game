@@ -104,16 +104,18 @@ void fragment() {
 		rough = mix(rough, rough * (0.7 + 0.5 * hash12(cell + 3.3)), inside);
 	}
 
-	// Cracks: fold the noise so it ridges, then keep only the sharpest lines.
-	float ridge = 1.0 - abs(fbm(w * 0.75 + 17.0 + seed) * 2.0 - 1.0);
-	float crack = smoothstep(0.93, 0.999, ridge) * crack_amount;
-	base *= 1.0 - 0.38 * crack;
+	// Cracks: fold the noise so it ridges, then keep only the sharpest lines. The frequency is
+	// what decides whether this reads as a crack or as a dried-mud pattern: at 0.75 the lines
+	// wandered over several metres and were a hand's width across.
+	float ridge = 1.0 - abs(fbm(w * 1.7 + 17.0 + seed) * 2.0 - 1.0);
+	float crack = smoothstep(0.955, 0.999, ridge) * crack_amount;
+	base *= 1.0 - 0.34 * crack;
 	rough = mix(rough, 1.0, crack * 0.6);
 
-	// Oil and rubber: sparse dark blotches, smoother than the surrounding tarmac.
-	// Kept fine and sparse: at a low frequency this reads as wandering tendrils of damp rather
-	// than spots of oil.
-	float stain = smoothstep(0.74, 0.96, fbm(w * 0.38 + 41.0 + seed)) * stain_amount;
+	// Oil and rubber: sparse dark blotches, smoother than the surrounding tarmac. Same trap as
+	// the cracks - at a low frequency these became metres-long tendrils crawling down the
+	// carriageway, which is the first thing the eye picks out as wrong.
+	float stain = smoothstep(0.82, 0.98, fbm(w * 1.15 + 41.0 + seed)) * stain_amount;
 	base *= 1.0 - 0.15 * stain;
 	rough = mix(rough, 0.45, stain * 0.5);
 

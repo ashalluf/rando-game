@@ -352,7 +352,7 @@ static func palm(variant: int) -> Mesh:
 			var a1 := TAU * (k + 1) / sides
 			var d0 := Vector3(cos(a0), 0.0, sin(a0))
 			var d1 := Vector3(cos(a1), 0.0, sin(a1))
-			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0)
+			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0, d0, d1)
 
 	var top: Vector3 = centre.call(1.0)
 	var fronds := rng.randi_range(11, 15)
@@ -369,11 +369,14 @@ static func palm(variant: int) -> Mesh:
 		var at := top + Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.15, 0.45) + Vector3(0.0, -0.35, 0.0)
 		_ico(st, at, rng.randf_range(0.14, 0.2), Color(0.40, 0.30, 0.17))
 
-	st.generate_normals()
+	# No generate_normals() here. Flat per-triangle normals are what made the crown read as a
+	# folded paper fan: every leaflet caught the light at its own angle, so the canopy was a
+	# mess of bright and black shards. Every part sets its own smooth normal instead, the same
+	# trick the grass blades use.
 	var mesh := st.commit()
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.88
+	mat.roughness = 0.82
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	mesh.surface_set_material(0, mat)
 	_cache[key] = mesh
@@ -385,10 +388,14 @@ static func palm(variant: int) -> Mesh:
 static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float, rise: float, rng: RandomNumberGenerator, dead: bool) -> void:
 	var out := Vector3(cos(yaw), 0.0, sin(yaw))
 	var side := Vector3(-out.z, 0.0, out.x)
-	var steps := 14
+	# Twice as many, half as wide. A real frond carries dozens of narrow segments; at 14 steps
+	# each leaflet was a hand-sized triangle and the frond read as a saw blade.
+	var steps := 26
 	var droop := reach * (1.5 if dead else 0.9)
-	var green := Color(0.17, 0.38, 0.12).lerp(Color(0.40, 0.63, 0.20), rng.randf())
-	var colour := Color(0.44, 0.34, 0.17) if dead else green
+	# Palm fronds are a dusty, yellow-grey green, not the vivid green of a lawn, and the tone
+	# runs from dark near the rachis to bleached at the tips.
+	var green := Color(0.19, 0.30, 0.13).lerp(Color(0.41, 0.49, 0.22), rng.randf())
+	var colour := Color(0.46, 0.37, 0.20) if dead else green
 	var rachis := func(t: float) -> Vector3:
 		return base + out * (reach * t) + Vector3(0.0, rise * t - droop * t * t, 0.0)
 	for i in steps:
@@ -399,28 +406,36 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 		# Each leaflet is its own pointed blade sweeping back and down off the rib, so the frond
 		# reads as feathered with daylight between the leaves. A continuous strip along both
 		# sides just makes a solid green fan, which is what the first attempt looked like.
-		var span := (sin(t0 * PI) * reach * 0.26 + 0.06) * rng.randf_range(0.82, 1.15)
-		var tone := colour * (0.80 + 0.34 * t0)
+		var span := (sin(t0 * PI) * reach * 0.30 + 0.05) * rng.randf_range(0.72, 1.22)
+		# Outer leaflets hang further, the way a Washingtonia's do.
+		var hang := span * (0.48 + 0.75 * t0)
+		var tone := colour * (0.74 + 0.46 * t0) * rng.randf_range(0.92, 1.08)
 		for dir: float in [1.0, -1.0]:
-			var tip := p0 + side * (span * dir) - out * (span * 0.34) + Vector3(0.0, -span * 0.62, 0.0)
-			st.set_color(tone)
-			st.set_uv(Vector2.ZERO)
-			st.add_vertex(p0)
-			st.set_color(tone)
-			st.set_uv(Vector2.ZERO)
-			st.add_vertex(p1)
-			st.set_color(tone * 0.88)
-			st.set_uv(Vector2.ZERO)
-			st.add_vertex(tip)
+			var tip := p0 + side * (span * dir) - out * (span * 0.34) + Vector3(0.0, -hang, 0.0)
+			# One smooth normal for the whole leaflet, leaning up and a little outward, so the
+			# crown lights as one soft mass instead of a pile of lit facets.
+			var nrm := (Vector3.UP * 1.6 + out * 0.5 + side * (dir * 0.35)).normalized()
+			for v: Vector3 in [p0, p1, tip]:
+				st.set_color(tone if v != tip else tone * 0.86)
+				st.set_uv(Vector2.ZERO)
+				st.set_normal(nrm)
+				st.add_vertex(v)
 		# The rib itself, so the frond still reads when seen edge-on.
-		_quad(st, p0, p1, p1 + Vector3(0.0, -0.045, 0.0), p0 + Vector3(0.0, -0.045, 0.0), colour * 0.62)
+		var rib_n := (Vector3.UP + out * 0.3).normalized()
+		_quad(st, p0, p1, p1 + Vector3(0.0, -0.045, 0.0), p0 + Vector3(0.0, -0.045, 0.0), colour * 0.58, rib_n, rib_n)
 
 
-static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, colour: Color) -> void:
-	for v: Vector3 in [a, b, c, a, c, d]:
+## A quad a-b-c-d. `na` / `nb` are the normals for the a,d and b,c edges; leave them at zero to
+## let the caller's generate_normals() work it out (flat shading).
+static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, colour: Color,
+		na: Vector3 = Vector3.ZERO, nb: Vector3 = Vector3.ZERO) -> void:
+	var smooth := na != Vector3.ZERO
+	for pair: Array in [[a, na], [b, nb], [c, nb], [a, na], [c, nb], [d, na]]:
 		st.set_color(colour)
 		st.set_uv(Vector2.ZERO)
-		st.add_vertex(v)
+		if smooth:
+			st.set_normal(pair[1])
+		st.add_vertex(pair[0])
 
 
 ## A cheap faceted blob (coconuts, fruit): an octahedron.
@@ -436,6 +451,7 @@ static func _ico(st: SurfaceTool, at: Vector3, r: float, colour: Color) -> void:
 		for v: Vector3 in tri:
 			st.set_color(colour)
 			st.set_uv(Vector2.ZERO)
+			st.set_normal((v - at).normalized())
 			st.add_vertex(v)
 
 
