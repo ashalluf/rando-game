@@ -181,6 +181,27 @@ func _test_city() -> void:
 				if macro.zone_at(p) == MacroMap.Zone.CITY:
 					relief_max = maxf(relief_max, macro.relief_at(p))
 		_check(relief_max > 4.0, "the city actually rolls (max relief %.1f m)" % relief_max)
+		var malls := 0
+		var bigboxes := 0
+		var mall_block: Dictionary = {}
+		for bx in range(-12, 13):
+			for bz in range(-12, 13):
+				var b := plan.block(bx, bz)
+				if b.kind == CityPlan.BlockKind.MALL:
+					malls += 1
+					if mall_block.is_empty() and plan.zone_at((b.rect as Rect2).get_center()) == MacroMap.Zone.CITY:
+						mall_block = b
+				elif b.kind == CityPlan.BlockKind.BIGBOX:
+					bigboxes += 1
+		_check(malls > 0 and bigboxes > 0, "the plan has shopping plazas (%d) and big-box stores (%d)" % [malls, bigboxes])
+		if not mall_block.is_empty():
+			var mc: Vector2 = (mall_block.rect as Rect2).get_center()
+			player.global_position = _world_state().to_local(Vector3(mc.x, 3.0, mc.y))
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
+			var mall_chunk = city.chunks.get(Vector2i(mall_block.ix, mall_block.iz))
+			_check(mall_chunk != null and mall_chunk.level == 0 and mall_chunk.prop_records.size() > 0, "a shopping plaza chunk builds with its signs and props")
 		_check(macro.relief_at(macro.airport_rect.get_center()) == 0.0 and macro.relief_at(Landmarks.all()[3].anchor) == 0.0, "airport and landmarks stay flat")
 		_check(macro.zone_at(Vector2(-2500.0, 0.0)) == MacroMap.Zone.OCEAN, "far west is ocean")
 		_check(macro.zone_at(Vector2(macro.coast_x(0.0) + 30.0, 0.0)) == MacroMap.Zone.BEACH, "just inland of the coast is beach")

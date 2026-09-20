@@ -709,3 +709,32 @@ static func text_mesh(text: String, height: float = 0.18) -> Mesh:
 	tm.material = material(Color.WHITE, 0.6)
 	_cache[key] = tm
 	return tm
+
+
+## Dark tinted storefront glass (shared).
+static func storefront_glass() -> StandardMaterial3D:
+	if _cache.has("storefront_glass"):
+		return _cache["storefront_glass"]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.25, 0.32, 0.38, 0.75)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.roughness = 0.08
+	mat.metallic = 0.6
+	_cache["storefront_glass"] = mat
+	return mat
+
+
+## Gas pump: a cabinet with a lighter top, centered 0.9 m up. Takes the instance color.
+static func gas_pump() -> Mesh:
+	if _cache.has("gas_pump"):
+		return _cache["gas_pump"]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_material(material(Color(0.9, 0.9, 0.9), 0.5))
+	for part in [[Vector3(0.0, 0.0, 0.0), Vector3(0.55, 1.8, 0.9)], [Vector3(0.0, 0.95, 0.0), Vector3(0.6, 0.1, 0.95)], [Vector3(0.3, 0.2, 0.3), Vector3(0.08, 0.5, 0.12)]]:
+		var bm := BoxMesh.new()
+		bm.size = part[1]
+		st.append_from(bm, 0, Transform3D(Basis(), part[0]))
+	var mesh := st.commit()
+	_cache["gas_pump"] = mesh
+	return mesh

@@ -5,7 +5,7 @@ extends RefCounted
 ## Pure data, no nodes. CityStreamer builds CityChunks from it around the player.
 
 enum District { DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS }
-enum BlockKind { BUILDINGS, PARK, PLAZA }
+enum BlockKind { BUILDINGS, PARK, PLAZA, MALL, BIGBOX }
 enum Intersection { PLAIN, STOP_SIGNS, SIGNALS, ROUNDABOUT }
 
 const DISTRICT_NAMES := ["Downtown", "Midtown", "Suburbs", "Industrial", "Campus"]
@@ -22,6 +22,7 @@ const DISTRICTS := {
 		"cafes": 2, "planters": 1, "clutter": 0, "weathering": Vector2(0.1, 0.4), "line_white": 0.5,
 		"paving": [["pavers", 2.5, Color(0.9, 0.9, 0.9)], ["sidewalk", 3.0, Color(0.95, 0.95, 0.95)]],
 		"tree_weights": [0.15, 0.25, 0.6], "lamp_tint": Color(1.0, 1.0, 1.0),
+		"mall": 0.0, "bigbox": 0.0, "pads": 0.0, "lawn": false,
 	},
 	District.MIDTOWN: {
 		"height": Vector2(12.0, 45.0), "lot": Vector2(20.0, 32.0), "gap": Vector2(3.0, 8.0),
@@ -31,6 +32,7 @@ const DISTRICTS := {
 		"cafes": 1, "planters": 2, "clutter": 1, "weathering": Vector2(0.2, 0.7), "line_white": 0.3,
 		"paving": [["paving", 3.0, Color(0.95, 0.94, 0.92)], ["sidewalk", 3.0, Color(1.0, 1.0, 1.0)], ["pavers", 2.5, Color(0.95, 0.93, 0.9)]],
 		"tree_weights": [0.4, 0.4, 0.2], "lamp_tint": Color(0.8, 0.86, 0.8),
+		"mall": 0.08, "bigbox": 0.03, "pads": 0.12, "lawn": false,
 	},
 	District.SUBURBS: {
 		"height": Vector2(5.0, 14.0), "lot": Vector2(14.0, 22.0), "gap": Vector2(6.0, 14.0),
@@ -40,6 +42,7 @@ const DISTRICTS := {
 		"cafes": 0, "planters": 3, "clutter": 1, "weathering": Vector2(0.2, 0.6), "line_white": 0.6,
 		"paving": [["sidewalk", 3.0, Color(1.0, 1.0, 1.0)], ["sidewalk", 3.0, Color(0.9, 0.9, 0.88)]],
 		"tree_weights": [0.5, 0.5, 0.0], "lamp_tint": Color(1.0, 0.9, 0.8),
+		"mall": 0.14, "bigbox": 0.07, "pads": 0.18, "lawn": true,
 	},
 	District.CAMPUS: {
 		"height": Vector2(8.0, 24.0), "lot": Vector2(26.0, 44.0), "gap": Vector2(10.0, 18.0),
@@ -49,6 +52,7 @@ const DISTRICTS := {
 		"cafes": 1, "planters": 3, "clutter": 0, "weathering": Vector2(0.15, 0.5), "line_white": 0.2,
 		"paving": [["paving", 3.0, Color(1.0, 0.98, 0.95)], ["pavers", 2.5, Color(0.95, 0.92, 0.88)]],
 		"tree_weights": [0.3, 0.6, 0.1], "lamp_tint": Color(0.8, 0.86, 0.8),
+		"mall": 0.03, "bigbox": 0.0, "pads": 0.05, "lawn": true,
 	},
 	District.INDUSTRIAL: {
 		"height": Vector2(6.0, 16.0), "lot": Vector2(34.0, 60.0), "gap": Vector2(6.0, 12.0),
@@ -58,6 +62,7 @@ const DISTRICTS := {
 		"cafes": 0, "planters": 0, "clutter": 7, "weathering": Vector2(0.5, 1.0), "line_white": 0.7,
 		"paving": [["sidewalk", 3.0, Color(0.85, 0.85, 0.85)], ["concrete", 4.0, Color(0.8, 0.8, 0.8)]],
 		"tree_weights": [0.3, 0.3, 0.4], "lamp_tint": Color(0.9, 0.9, 0.9),
+		"mall": 0.04, "bigbox": 0.1, "pads": 0.08, "lawn": false,
 	},
 }
 
@@ -164,10 +169,16 @@ func block(ix: int, iz: int) -> Dictionary:
 	var rng := _rng_for(3, ix, iz)
 	var roll := rng.randf()
 	var kind := BlockKind.BUILDINGS
+	var mall: float = params.get("mall", 0.0)
+	var bigbox: float = params.get("bigbox", 0.0)
 	if roll < params.park:
 		kind = BlockKind.PARK
 	elif roll < params.park + params.plaza:
 		kind = BlockKind.PLAZA
+	elif roll < params.park + params.plaza + mall and rect.size.x > 60.0 and rect.size.y > 60.0:
+		kind = BlockKind.MALL
+	elif roll < params.park + params.plaza + mall + bigbox and rect.size.x > 80.0 and rect.size.y > 80.0:
+		kind = BlockKind.BIGBOX
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
 	_blocks[key] = result
 	return result

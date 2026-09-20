@@ -14,7 +14,7 @@ extends Control
 const COLORS := {
 	"land": Color(0.16, 0.17, 0.19), "downtown": Color(0.27, 0.28, 0.31), "midtown": Color(0.24, 0.25, 0.27),
 	"suburbs": Color(0.22, 0.24, 0.22), "industrial": Color(0.25, 0.23, 0.21), "campus": Color(0.27, 0.25, 0.2),
-	"park": Color(0.2, 0.36, 0.22), "plaza": Color(0.32, 0.3, 0.26), "ocean": Color(0.1, 0.22, 0.36),
+	"park": Color(0.2, 0.36, 0.22), "plaza": Color(0.32, 0.3, 0.26), "commercial": Color(0.36, 0.3, 0.42), "ocean": Color(0.1, 0.22, 0.36),
 	"ocean_deep": Color(0.06, 0.14, 0.26), "shore": Color(0.35, 0.55, 0.7), "beach": Color(0.55, 0.5, 0.36),
 	"hills": Color(0.2, 0.26, 0.18), "airport": Color(0.24, 0.25, 0.28), "port": Color(0.26, 0.26, 0.27),
 	"road": Color(0.82, 0.82, 0.8), "road_edge": Color(0.06, 0.06, 0.07), "avenue": Color(0.95, 0.85, 0.5),
@@ -121,6 +121,8 @@ func _draw() -> void:
 					color = COLORS.park
 				CityPlan.BlockKind.PLAZA:
 					color = COLORS.plaza
+				CityPlan.BlockKind.MALL, CityPlan.BlockKind.BIGBOX:
+					color = COLORS.commercial
 				_:
 					color = [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLORS.industrial, COLORS.campus][block.district]
 			_fill(rect.grow(-1.0), color * Color(shade, shade, shade, 1.0), center, scale)

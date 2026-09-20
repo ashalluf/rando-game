@@ -60,8 +60,8 @@ Build in this order, one milestone per PR or a few PRs.
   ultra realistic (buildings still look like blocks from the air, streets need far more
   detail), tsunami-size waves, thunderstorms and weather, unlimited jumps, a much better
   minimap, sounds from Freesound (needs the owner's API key). Queue, in order: cars forward +
-  paint + far windows + minimap + jumps (build 60), streets detail, commercial city, weather and
-  waves, facade geometry and rooftops, Freesound sounds.
+  paint + far windows + minimap + jumps (build 60), streets detail (build 61), commercial city (build 62),
+  weather and waves, facade geometry and rooftops, Freesound sounds.
 
 - **World character** (asked 2026-09-19): hills and slopes through the whole city; the
   illusion of uniqueness through cheap seeded surface variation, never hand placement.
@@ -185,6 +185,21 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-20 Commercial city (owner: "where's the shopping plazas, the home depots, the
+  vons, the in n outs?").** Two new block kinds in `CityPlan` (`MALL`, `BIGBOX`, odds per
+  district in `DISTRICTS`, only on blocks big enough) and pad lots (`pads` odds: an edge lot of
+  a suburbs or midtown block becomes a fast-food drive-thru or a gas station). All built by
+  `scripts/world/commercial.gd` from boxes, PBR sets, tinted glass, painted lots and 3D text:
+  a shopping plaza is an L-shaped strip of shop units (anchor grocery, fascia band, storefront
+  glass, pillars, awnings, bollards) around a parking lot with stalls, parked cars, lamps and a
+  pylon sign; a big-box store is one huge box with a fascia sign, glass entrance canopy, garden
+  center, cart corrals and a loading dock; a fast-food pad has a red band, glass front,
+  drive-thru window, menu board and pylon; a gas station has a pump canopy, four pumps, a shop
+  and a price pylon. Every name is original ("SUPER MART", "HOME & TOOL", "BURGER BOX",
+  "GAS & GO"): no real brands, per the project rule. Bare blocks fixed too: suburbs and campus
+  blocks get a lawn under the buildings, and skipped inner lots become pocket gardens
+  (`_build_yard`). Minimap paints commercial blocks purple-grey.
 
 - **2026-09-20 Streets detail pass (owner: "the streets need to be way more detailed").**
   `scripts/world/street_detail.gd` (static, called from the chunk) adds, all seeded: dark

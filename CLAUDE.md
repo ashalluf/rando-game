@@ -216,6 +216,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `TrashCan` RigidBody3D nodes in the `physics_prop` group. Street furniture and markings live in
   `StreetDetail` (`scripts/world/street_detail.gd`, static, seeded per block and intersection);
   street names come from `CityPlan.road_name()`.
+  Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
+  (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
+  `CityPlan.DISTRICTS`. Shop names are original, never brands.
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
   port), land height and district for any world XZ. The city itself rolls: `relief_at()` is the
   gentle height field under the blocks (zero on beaches, flat zones, mountain hills and around

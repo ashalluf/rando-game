@@ -663,7 +663,17 @@ func _build_block(block: Dictionary) -> void:
 			_build_park(rect, rng)
 		CityPlan.BlockKind.PLAZA:
 			_build_plaza(rect, rng)
+		CityPlan.BlockKind.MALL:
+			Commercial.build_mall(self, rect, rng)
+		CityPlan.BlockKind.BIGBOX:
+			Commercial.build_bigbox(self, rect, rng)
 		_:
+			if params.get("lawn", false):
+				# Suburbs and campus: lawns between the buildings instead of bare paving.
+				var inner := rect.grow(-plan.sidewalk_width)
+				var ic := inner.get_center()
+				var lawn := Color(rng.randf_range(0.78, 0.95), rng.randf_range(0.88, 1.0), rng.randf_range(0.66, 0.8))
+				_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
 			_build_lots(rect, params, rng)
 	if level == Level.FULL:
 		_build_sidewalk_props(rect, params, rng, district)
@@ -763,8 +773,7 @@ func _lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> Array
 	for lx in nx:
 		for lz in nz:
 			var edge := lx == 0 or lz == 0 or lx == nx - 1 or lz == nz - 1
-			if not edge and rng.randf() < params.courtyard:
-				continue
+			var yard: bool = (not edge) and rng.randf() < float(params.courtyard)
 			var gap := rng.randf_range(gap_range.x, gap_range.y)
 			var lot_size := cell - Vector2(gap, gap)
 			if lot_size.x < 6.0 or lot_size.y < 6.0:
@@ -778,14 +787,21 @@ func _lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> Array
 					hit = true
 			if hit:
 				continue
-			lots.append({"seed": lot_seed, "size": lot_size, "center": lot_center})
+			lots.append({"seed": lot_seed, "size": lot_size, "center": lot_center, "edge": edge, "yard": yard})
 	return lots
 
 
 func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> void:
 	var heights: Vector2 = params.height
+	var pads: float = params.get("pads", 0.0)
 	for lot in _lots(rect, params, rng):
 		var center: Vector2 = lot.center
+		if lot.yard:
+			_build_yard(lot, rng)
+			continue
+		if lot.edge and pads > 0.0 and rng.randf() < pads and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0:
+			Commercial.build_pad(self, lot, rng)
+			continue
 		var building := BUILDING_SCENE.instantiate() as Building
 		building.seed = lot.seed
 		building.lot_size = lot.size
@@ -827,6 +843,24 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
 			building.free()
 			building_count += 1
+
+
+## A skipped inner lot becomes a pocket garden: lawn, a few trees and shrubs, a bench.
+func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
+	var center: Vector2 = lot.center
+	var size: Vector2 = lot.size
+	var lawn := Color(rng.randf_range(0.8, 0.95), rng.randf_range(0.9, 1.0), rng.randf_range(0.7, 0.82))
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(size.x, 0.04, size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
+	if level != Level.FULL:
+		return
+	for i in rng.randi_range(2, 5):
+		var p := center + Vector2(rng.randf_range(-size.x * 0.4, size.x * 0.4), rng.randf_range(-size.y * 0.4, size.y * 0.4))
+		_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
+	for i in rng.randi_range(3, 8):
+		var p := center + Vector2(rng.randf_range(-size.x * 0.45, size.x * 0.45), rng.randf_range(-size.y * 0.45, size.y * 0.45))
+		_add_bush(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
+	if rng.randf() < 0.6:
+		_add_bench(Vector3(center.x, SIDEWALK_TOP + 0.04, center.y + size.y * 0.3), PI)
 
 
 var _lod_body: StaticBody3D
