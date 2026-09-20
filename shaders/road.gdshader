@@ -25,6 +25,10 @@ uniform float patch_amount = 0.30;
 uniform float crack_amount = 0.5;
 uniform float stain_amount = 0.32;
 uniform float normal_depth = 0.75;
+// Spacing of expansion joints in metres (0 = none). Pavements are poured in slabs; the grid of
+// joints between them is the single most recognisable thing about a concrete sidewalk.
+uniform float joint_spacing = 0.0;
+uniform float joint_depth = 0.55;
 
 global uniform float road_wetness;
 
@@ -112,6 +116,16 @@ void fragment() {
 	float stain = smoothstep(0.74, 0.96, fbm(w * 0.38 + 41.0 + seed)) * stain_amount;
 	base *= 1.0 - 0.24 * stain;
 	rough = mix(rough, 0.45, stain * 0.5);
+
+	// Expansion joints, with each slab cast at a slightly different shade.
+	if (joint_spacing > 0.01) {
+		vec2 slab = w / joint_spacing;
+		vec2 edge = abs(fract(slab) - 0.5);
+		float line = smoothstep(0.5, 0.5 - 0.04, max(edge.x, edge.y));
+		base *= mix(1.0, 1.0 - joint_depth, line);
+		rough = mix(rough, 1.0, line * 0.5);
+		base *= 0.93 + 0.14 * hash12(floor(slab) + seed);
+	}
 
 	// Wet tarmac goes darker and far glossier.
 	float wet = clamp(road_wetness, 0.0, 1.0);

@@ -60,8 +60,8 @@ static func pbr(set_key: String, scale_m: float = 4.0, tint: Color = Color.WHITE
 
 ## Worn asphalt for road surfaces (see shaders/road.gdshader). Cached per set, scale, tint and
 ## seed, so every road in a chunk shares one material.
-static func road(set_key: String, scale_m: float, tint: Color, seed_value: int) -> ShaderMaterial:
-	var key := "road_%s_%.2f_%d_%d" % [set_key, scale_m, tint.to_rgba32(), seed_value]
+static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, joints: float = 0.0, wear: float = 1.0) -> ShaderMaterial:
+	var key := "road_%s_%.2f_%d_%d_%.2f_%.2f" % [set_key, scale_m, tint.to_rgba32(), seed_value, joints, wear]
 	if _cache.has(key):
 		return _cache[key]
 	var mat := ShaderMaterial.new()
@@ -72,6 +72,11 @@ static func road(set_key: String, scale_m: float, tint: Color, seed_value: int) 
 	mat.set_shader_parameter("tint", tint)
 	mat.set_shader_parameter("tex_scale", scale_m)
 	mat.set_shader_parameter("seed", float(seed_value % 997) * 0.37)
+	mat.set_shader_parameter("joint_spacing", joints)
+	# Pavements are patched and stained far less than the carriageway.
+	mat.set_shader_parameter("patch_amount", 0.30 * wear)
+	mat.set_shader_parameter("crack_amount", 0.5 * wear)
+	mat.set_shader_parameter("stain_amount", 0.32 * wear)
 	_cache[key] = mat
 	return mat
 

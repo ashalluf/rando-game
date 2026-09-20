@@ -680,7 +680,9 @@ func _build_block(block: Dictionary) -> void:
 	# roll so palms run in runs rather than being sprinkled one here and one there.
 	_palm_street = rng.randf() < float(params.get("palms", 0.25))
 	_lamp_tint = params.get("lamp_tint", Color.WHITE)
-	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.pbr(paving[0], paving[1], paving_tint))
+	# Pavement: the same wear shader as the road, but with expansion joints and far less
+	# patching and staining, so a sidewalk reads as poured slabs rather than a grey plane.
+	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45))
 	match block.kind:
 		CityPlan.BlockKind.PARK:
 			_build_park(rect, rng)

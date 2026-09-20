@@ -683,15 +683,27 @@ func _test_city() -> void:
 		for i in 3:
 			weather._process(0.1)
 		_check(not weather._rain.emitting, "clear weather turns the rain off")
+	# Ground surfaces are textured: either a triplanar PBR material or the road/pavement wear
+	# shader, which carries its own albedo texture.
 	var road_textured := false
+	var ground_worn := false
 	var home_full: Node3D = city.chunks.get(plan.block_index_at(Vector2.ZERO))
 	if home_full:
 		for child in home_full.get_children():
-			if child is MeshInstance3D and (child as MeshInstance3D).material_override is StandardMaterial3D:
-				var m := (child as MeshInstance3D).material_override as StandardMaterial3D
+			if not (child is MeshInstance3D):
+				continue
+			var ov: Material = (child as MeshInstance3D).material_override
+			if ov is StandardMaterial3D:
+				var m := ov as StandardMaterial3D
 				if m.albedo_texture != null and m.uv1_triplanar:
 					road_textured = true
+			elif ov is ShaderMaterial:
+				var sm := ov as ShaderMaterial
+				if sm.get_shader_parameter("albedo_tex") != null:
+					road_textured = true
+					ground_worn = true
 	_check(road_textured, "roads and sidewalks use real textures")
+	_check(ground_worn, "roads and pavements use the wear shader")
 	_check(PropFactory.texture("brick", "Color") != null and PropFactory.texture("rock", "NormalGL") != null, "texture sets load")
 	var minimap: Control = city.get_node("DebugHud/MinimapFrame/Minimap")
 	_check(minimap != null and minimap.world_to_map(Vector2(0.0, -100.0), Vector2.ZERO).y < minimap.size.y * 0.5, "minimap exists and north is up")
