@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b2wt6uvl1jk3f"
-path="res://.godot/imported/tree_jacaranda_trunk_arm.jpg-60426649e3de6a90e2db446d4b0fbfbe.ctex"
+path.s3tc="res://.godot/imported/tree_jacaranda_trunk_arm.jpg-60426649e3de6a90e2db446d4b0fbfbe.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_jacaranda_trunk_arm.jpg-60426649e3de6a90e2db446d4b0fbfbe.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "79921d7039cc66acb4b1619435537f4f"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_jacaranda_trunk_arm.jpg"
-dest_files=["res://.godot/imported/tree_jacaranda_trunk_arm.jpg-60426649e3de6a90e2db446d4b0fbfbe.ctex"]
+dest_files=["res://.godot/imported/tree_jacaranda_trunk_arm.jpg-60426649e3de6a90e2db446d4b0fbfbe.s3tc.ctex", "res://.godot/imported/tree_jacaranda_trunk_arm.jpg-60426649e3de6a90e2db446d4b0fbfbe.etc2.ctex"]
 
 [params]
 

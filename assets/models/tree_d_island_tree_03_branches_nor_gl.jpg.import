@@ -2,21 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cirowvxgs8irm"
-path.s3tc="res://.godot/imported/tree_jacaranda_leaves_nor_gl.jpg-ddf5c640b38784117a2270401db6fc94.s3tc.ctex"
-path.etc2="res://.godot/imported/tree_jacaranda_leaves_nor_gl.jpg-ddf5c640b38784117a2270401db6fc94.etc2.ctex"
+uid="uid://cgxh7nn6n7hyr"
+path="res://.godot/imported/tree_d_island_tree_03_branches_nor_gl.jpg-4eb2eeab86c3289e42cd398854e39145.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
-"md5": "ff54e8aafe4fbfd4521211bcffaaab9b"
+"md5": "ca1f7cea1c8401f6d43c2c63c12f275f"
 }
 
 [deps]
 
-source_file="res://assets/models/tree_jacaranda_leaves_nor_gl.jpg"
-dest_files=["res://.godot/imported/tree_jacaranda_leaves_nor_gl.jpg-ddf5c640b38784117a2270401db6fc94.s3tc.ctex", "res://.godot/imported/tree_jacaranda_leaves_nor_gl.jpg-ddf5c640b38784117a2270401db6fc94.etc2.ctex"]
+source_file="res://assets/models/tree_d_island_tree_03_branches_nor_gl.jpg"
+dest_files=["res://.godot/imported/tree_d_island_tree_03_branches_nor_gl.jpg-4eb2eeab86c3289e42cd398854e39145.ctex"]
 
 [params]
 

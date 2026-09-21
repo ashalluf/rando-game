@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ccp3n50j35wyc"
-path="res://.godot/imported/tree_jacaranda_branches_diff.jpg-0d49822683d78129879cf26aeb082d3e.ctex"
+path.s3tc="res://.godot/imported/tree_jacaranda_branches_diff.jpg-0d49822683d78129879cf26aeb082d3e.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_jacaranda_branches_diff.jpg-0d49822683d78129879cf26aeb082d3e.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "eeffbf085ecd7fd28a2e2764585be2f3"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_jacaranda_branches_diff.jpg"
-dest_files=["res://.godot/imported/tree_jacaranda_branches_diff.jpg-0d49822683d78129879cf26aeb082d3e.ctex"]
+dest_files=["res://.godot/imported/tree_jacaranda_branches_diff.jpg-0d49822683d78129879cf26aeb082d3e.s3tc.ctex", "res://.godot/imported/tree_jacaranda_branches_diff.jpg-0d49822683d78129879cf26aeb082d3e.etc2.ctex"]
 
 [params]
 

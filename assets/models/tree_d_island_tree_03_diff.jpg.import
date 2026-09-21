@@ -2,21 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cirowvxgs8irm"
-path.s3tc="res://.godot/imported/tree_jacaranda_leaves_nor_gl.jpg-ddf5c640b38784117a2270401db6fc94.s3tc.ctex"
-path.etc2="res://.godot/imported/tree_jacaranda_leaves_nor_gl.jpg-ddf5c640b38784117a2270401db6fc94.etc2.ctex"
+uid="uid://byf0f1ldgi5ia"
+path="res://.godot/imported/tree_d_island_tree_03_diff.jpg-0ddd866f3d0deb972cb8da77f7a35a7c.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
-"md5": "ff54e8aafe4fbfd4521211bcffaaab9b"
+"md5": "72026a2c0151d0bb09c38608480f7eb2"
 }
 
 [deps]
 
-source_file="res://assets/models/tree_jacaranda_leaves_nor_gl.jpg"
-dest_files=["res://.godot/imported/tree_jacaranda_leaves_nor_gl.jpg-ddf5c640b38784117a2270401db6fc94.s3tc.ctex", "res://.godot/imported/tree_jacaranda_leaves_nor_gl.jpg-ddf5c640b38784117a2270401db6fc94.etc2.ctex"]
+source_file="res://assets/models/tree_d_island_tree_03_diff.jpg"
+dest_files=["res://.godot/imported/tree_d_island_tree_03_diff.jpg-0ddd866f3d0deb972cb8da77f7a35a7c.ctex"]
 
 [params]
 
@@ -26,7 +24,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
