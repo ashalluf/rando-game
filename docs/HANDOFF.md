@@ -473,6 +473,37 @@ The smoke test guards all of it: the LUT exists, the sun beats the fill by more 
 HIGH shadows reach at least 500 m. The old guard demanded `fog_aerial_perspective > 0.5`, which
 had quietly made the washed-out look a requirement; it now only checks the effect is on.
 
+**Fifteen numbers that live in two files.** An audit fanned out over the repo looking for pairs
+of constants that have to agree across a file boundary with nothing in code connecting them -
+the class of bug where nothing errors and the picture is just wrong. Fifteen survived an
+adversarial second pass. The worst by far: `shaders/ocean.gdshader` carries a hand-transcribed,
+sRGB-decoded copy of `MacroMap`'s sea palette (`BAKE_OCEAN_DEEP/SHALLOW/SURF`, `BAKE_SURF_WIDTH`
+and `bake()`'s `/600.0` shelf ramp), because past `handover_start` the water chunks stop drawing
+their own sea and re-draw the far plane's. Re-tune the bake alone and you get a hard-edged
+rectangle of differently coloured water about 500 m across, locked to the player, following him
+round the bay - which is exactly what that shader's own 25-line header is about.
+
+Two fixes, in this order of preference:
+1. **Remove the coupling.** `coast_wobble` (180), `coast_period` (700) and `peninsula_bulge`
+   (520) were literals inside `coast_x()`, so the shader had to carry its own copies;
+   they are MacroMap fields now and `Weather._push_ocean_shape()` sends them over with the rest.
+2. **Guard what cannot be removed.** `tests/smoke_test.gd` now reads the second copy out of the
+   other file's source (`Shader.code`, `GDScript.get_script_constant_map()`) rather than writing
+   the number a third time, and checks: the ocean shader's sea palette and coastline defaults
+   against MacroMap; `valley_height` against `built_amount()`'s 420 m gate; `Commercial.TOP`
+   against `CityChunk.SIDEWALK_TOP`; and every per-index table against its enum
+   (`MacroMap.ZONE_NAMES`, `Minimap.DISTRICT_COLORS`, `Vehicle.BODY_NAMES/MODELS/ODDS` including
+   the sum-to-1000 rule, `Weather`'s five per-state tables, `Quality`'s three per-level ones).
+   All six guards were checked by breaking each value and watching the right one fail.
+
+The other nine are in the audit and still unguarded, mostly duplicated geometry: the airport
+tarmac top (0.1) is written in four places, the terminal kerb rect and its drop-off lane paths
+are two independent sets of coordinates, `StreetDetail.POLE_HEIGHT` is 9.0 and so is the `upole`
+cylinder in `PropFactory`, and `Building.gd` places shop-name meshes at 0.845 of the storefront
+while `building.gdshader` paints the sign band at 0.76..0.93. **When you add a number that
+something in another file has to know, make it a field and push it, or add the guard in the same
+commit.**
+
 **Land no longer stands in the sea.** `zone_at()` draws the shoreline as a hard line and
 `raw_height_at()` is a noise field that knew nothing about it, so the two disagreed - most
 visibly off the Redondo pier, where the coast bulge (a function of z alone) cut clean across the

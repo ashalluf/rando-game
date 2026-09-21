@@ -157,8 +157,9 @@ func _apply_override() -> void:
 
 ## Hands the ocean shader the shape of the coast, so it knows where to break its waves. It is the
 ## same shoreline MacroMap.coast_x() / in_bay() draw; the shader cannot call into GDScript, so the
-## numbers are copied across once. (coast_wobble and peninsula_bulge are written into coast_x()
-## itself rather than being fields, so the shader carries its own copies of those two.)
+## numbers are copied across once. Everything coast_x() uses is a MacroMap field and is sent here,
+## so the shader's own defaults only matter before this runs (the showroom, a scene with no
+## Weather node); the smoke test checks those defaults still match.
 func _push_ocean_shape() -> void:
 	if _ocean == null:
 		return
@@ -166,6 +167,9 @@ func _push_ocean_shape() -> void:
 	var macro: Variant = plan.get("macro") if plan else null
 	if macro:
 		_ocean.set_shader_parameter("coast_base_x", macro.get("coast_base_x"))
+		_ocean.set_shader_parameter("coast_wobble", macro.get("coast_wobble"))
+		_ocean.set_shader_parameter("coast_period", macro.get("coast_period"))
+		_ocean.set_shader_parameter("peninsula_bulge", macro.get("peninsula_bulge"))
 		_ocean.set_shader_parameter("peninsula_center", macro.get("peninsula_center"))
 		_ocean.set_shader_parameter("peninsula_radius", macro.get("peninsula_radius"))
 		_ocean.set_shader_parameter("bay_z", macro.get("bay_z"))

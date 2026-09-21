@@ -487,6 +487,109 @@ func _test_city() -> void:
 					wet_rects += " %s@z%.0f" % [str(named_rect[0]), z]
 					break
 		_check(wet_rects == "", "no flat zone reaches past the waterline%s" % wet_rects)
+		# --- Numbers that live in two files ---------------------------------------------------
+		# An audit of the project turned up fifteen pairs of constants that have to agree across
+		# a file boundary with nothing in code connecting them. Drift is always silent - no
+		# error, no crash, just a wrong picture - so the ones whose failure would be visible get
+		# a guard here. Read the second copy out of the source rather than writing it a third
+		# time: a guard that repeats the number is one more copy to keep in step.
+		var shader_nums := func(src: String, decl: String) -> PackedFloat32Array:
+			var out := PackedFloat32Array()
+			var at := src.find(decl)
+			if at < 0:
+				return out
+			var end := src.find(";", at)
+			var body := src.substr(at + decl.length(), end - at - decl.length())
+			for part in body.replace("vec3(", "").replace(")", "").split(","):
+				out.append(part.strip_edges().to_float())
+			return out
+		# Past handover_start the ocean chunks stop drawing their own water and RE-DRAW the far
+		# plane's, from their own copy of MacroMap's sea palette decoded to linear. Re-tune the
+		# bake without touching the shader and the streamed water keeps painting the old colour:
+		# a hard-edged rectangle of differently coloured sea about 500 m across, locked to the
+		# player, following him round the bay. That is the exact failure ocean.gdshader's own
+		# header spends twenty-five lines on.
+		var sea_src: String = (load("res://shaders/ocean.gdshader") as Shader).code
+		var sea_why := ""
+		for pair in [["uniform vec3 deep_color =", MacroMap.BAKE_OCEAN_DEEP],
+				["uniform vec3 shelf_color =", MacroMap.BAKE_OCEAN_SHALLOW],
+				["uniform vec3 bake_surf_color =", MacroMap.BAKE_SURF]]:
+			var want: Color = (pair[1] as Color).srgb_to_linear()
+			var got: PackedFloat32Array = shader_nums.call(sea_src, pair[0])
+			if got.size() != 3:
+				sea_why += " %s missing" % str(pair[0])
+				continue
+			for i in 3:
+				var w: float = [want.r, want.g, want.b][i]
+				if absf(got[i] - w) > maxf(0.0002, w * 0.06):
+					sea_why += " %s[%d]=%.5f want %.5f" % [str(pair[0]).substr(13), i, got[i], w]
+		var surf_w: PackedFloat32Array = shader_nums.call(sea_src, "uniform float bake_surf_width =")
+		if surf_w.size() != 1 or absf(surf_w[0] - MacroMap.BAKE_SURF_WIDTH) > 0.5:
+			sea_why += " bake_surf_width"
+		_check(sea_why == "", "the ocean shader still paints MacroMap's baked sea%s" % sea_why)
+		# The coastline the ocean shader draws its shore effects against is MacroMap.coast_x()
+		# written out a second time in GLSL. If they disagree the surf line, the shallow water
+		# and the sand stop being in the same place.
+		var coast_why := ""
+		for pair in [["coast_base_x", macro.coast_base_x], ["coast_wobble", macro.coast_wobble],
+				["coast_period", macro.coast_period], ["peninsula_radius", macro.peninsula_radius],
+				["peninsula_bulge", macro.peninsula_bulge], ["bay_z", macro.bay_z],
+				["bay_east_x", macro.bay_east_x]]:
+			var got: PackedFloat32Array = shader_nums.call(sea_src, "uniform float %s =" % str(pair[0]))
+			if got.size() != 1 or absf(got[0] - float(pair[1])) > 0.5:
+				coast_why += " %s=%s want %.0f" % [str(pair[0]), str(got), float(pair[1])]
+		_check(coast_why == "", "the ocean shader's coastline matches MacroMap's%s" % coast_why)
+		# built_amount() in macro_ground.gdshader stops calling ground "city" above 420 m, so the
+		# inland valley floor the city is built on has to stay well under that or the whole
+		# valley district quietly vanishes from the horizon plane.
+		var ground_src: String = (load("res://shaders/macro_ground.gdshader") as Shader).code
+		_check(ground_src.contains("smoothstep(420.0, 700.0, height_m)") and macro.valley_height < 360.0,
+				"the inland valley stays inside the horizon shader's height gate (%.0f m)" % macro.valley_height)
+		# The pavement top is written out in the chunk that lays it and again in the commercial
+		# blocks that stand on it; a shopfront half a step above its own kerb is the result.
+		var chunk_consts: Dictionary = (load("res://scripts/world/city_chunk.gd") as GDScript).get_script_constant_map()
+		var comm_consts: Dictionary = (load("res://scripts/world/commercial.gd") as GDScript).get_script_constant_map()
+		_check(is_equal_approx(float(chunk_consts["SIDEWALK_TOP"]), float(comm_consts["TOP"])),
+				"shopfronts stand on the same pavement top the chunk lays (%.2f / %.2f)" % [chunk_consts["SIDEWALK_TOP"], comm_consts["TOP"]])
+		# Per-index tables against their enums. This is the shape of bug that shipped as
+		# "Out of bounds get index '5'" when BEACHTOWN joined CityPlan.District: a table one
+		# row short of its enum either crashes or silently reads the wrong row.
+		var table_why := ""
+		if MacroMap.ZONE_NAMES.size() != MacroMap.Zone.size():
+			table_why += " MacroMap.ZONE_NAMES"
+		if Minimap.DISTRICT_COLORS.size() != CityPlan.District.size():
+			table_why += " Minimap.DISTRICT_COLORS"
+		var veh_consts: Dictionary = (load("res://scripts/vehicles/vehicle.gd") as GDScript).get_script_constant_map()
+		var body_types: int = (veh_consts["BodyType"] as Dictionary).size()
+		if (veh_consts["BODY_NAMES"] as Array).size() != body_types:
+			table_why += " Vehicle.BODY_NAMES"
+		if (veh_consts["BODY_MODELS"] as Dictionary).size() != body_types:
+			table_why += " Vehicle.BODY_MODELS"
+		var body_odds: Dictionary = veh_consts["BODY_ODDS"]
+		var odds_sum := 0
+		for k in body_odds:
+			odds_sum += int(body_odds[k])
+		if body_odds.size() != body_types or odds_sum != 1000:
+			table_why += " Vehicle.BODY_ODDS(%d rows, sums %d)" % [body_odds.size(), odds_sum]
+		var wx_consts: Dictionary = (load("res://scripts/world/weather.gd") as GDScript).get_script_constant_map()
+		var wx_states: int = (wx_consts["State"] as Dictionary).size()
+		if (wx_consts["STATE_NAMES"] as Array).size() != wx_states:
+			table_why += " Weather.STATE_NAMES"
+		var wx_node: Node = city.get_node_or_null("Weather")
+		if wx_node:
+			for named in [["odds", wx_node.odds], ["wave_scale_by_state", wx_node.wave_scale_by_state],
+					["fog_by_state", wx_node.fog_by_state], ["volumetric_by_state", wx_node.volumetric_by_state]]:
+				if (named[1] as PackedFloat32Array).size() != wx_states:
+					table_why += " Weather.%s" % str(named[0])
+		var q_consts: Dictionary = (load("res://scripts/util/quality.gd") as GDScript).get_script_constant_map()
+		var q_levels: int = (q_consts["Level"] as Dictionary).size()
+		var q_node: Node = city.get_node_or_null("Quality")
+		if q_node:
+			for named in [["render_scale", q_node.render_scale], ["population", q_node.population],
+					["shadow_distance", q_node.shadow_distance]]:
+				if (named[1] as PackedFloat32Array).size() != q_levels:
+					table_why += " Quality.%s" % str(named[0])
+		_check(table_why == "", "every per-index table has a row per enum member%s" % table_why)
 		_check(city.has_node("FarLandmark_campus_hall"), "far version of the campus hall exists")
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:

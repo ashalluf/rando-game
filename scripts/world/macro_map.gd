@@ -12,6 +12,12 @@ const ZONE_NAMES := ["City", "Beach", "Ocean", "Hills", "Airport", "Port"]
 var seed: int = 0
 ## X of the coastline at z = 0. West is negative X.
 var coast_base_x: float = -900.0
+## The bend in the coastline: metres of east-west wander and the wavelength it wanders over.
+## These were literals inside coast_x() and so had to be hand-copied into ocean.gdshader, which
+## draws the same shoreline in GLSL; as fields, Weather._push_ocean_shape() sends them over with
+## the rest of the coast and there is only one copy to change.
+var coast_wobble: float = 180.0
+var coast_period: float = 700.0
 var beach_width: float = 70.0
 ## North is negative Z. Land starts rising at hills_start_z and is fully mountain at hills_full_z.
 ## This is the front range that walls the basin off on its north side, the one the big sign sits
@@ -64,6 +70,9 @@ const COAST_TOWNS := [
 ## along before it starts: with it at 1500 the towns south of the airport had nowhere to go.
 var peninsula_center: Vector2 = Vector2(-780.0, 1980.0)
 var peninsula_radius: float = 550.0
+## How far west the headland pushes the waterline out around itself, in metres. Also a copy in
+## ocean.gdshader; Weather pushes it.
+var peninsula_bulge: float = 520.0
 ## The headland in the south-west bay: cliffs straight out of the water.
 var peninsula_height: float = 285.0
 ## Water south of this Z and west of this X (except the peninsula) so the peninsula sticks out.
@@ -153,9 +162,9 @@ func setup() -> void:
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.
 func coast_x(z: float) -> float:
-	var x := coast_base_x + 180.0 * sin(z / 700.0)
+	var x := coast_base_x + coast_wobble * sin(z / coast_period)
 	var d := absf(z - peninsula_center.y)
-	var bulge := smoothstep(peninsula_radius * 1.2, 0.0, d) * 520.0
+	var bulge := smoothstep(peninsula_radius * 1.2, 0.0, d) * peninsula_bulge
 	return x - bulge
 
 

@@ -26,6 +26,12 @@ const COLORS := {
 	"car_traffic": Color(0.75, 0.75, 0.8), "text": Color(0.9, 0.9, 0.9),
 }
 
+## The district fill colours, in CityPlan.District order. It was an anonymous literal inline in
+## _draw(); a district added to the enum without a seventh entry here reads off the end of it
+## and the minimap turns that district black. The smoke test checks the length.
+const DISTRICT_COLORS := [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLORS.industrial,
+	COLORS.campus, COLORS.beachtown]
+
 const LANDMARK_NAMES := {
 	"sign": "Randowood Sign", "pier": "Rando Pier", "observatory": "Observatory", "crown_tower": "Crown Tower",
 	"five_drums": "Five Drums", "ziggurat_hall": "Ziggurat Hall", "stack_tower": "The Stack", "needle": "The Needle",
@@ -130,7 +136,7 @@ func _draw() -> void:
 				CityPlan.BlockKind.MALL, CityPlan.BlockKind.BIGBOX:
 					color = COLORS.commercial
 				_:
-					color = [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLORS.industrial, COLORS.campus, COLORS.beachtown][block.district]
+					color = DISTRICT_COLORS[block.district % DISTRICT_COLORS.size()]
 			_fill(rect.grow(-1.0), color * Color(shade, shade, shade, 1.0), center, scale)
 
 	# Shoreline and runways.
