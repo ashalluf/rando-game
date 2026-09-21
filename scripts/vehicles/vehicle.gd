@@ -563,7 +563,7 @@ func _build() -> void:
 	_wheel_slots = []
 	for front: bool in [true, false]:
 		for side: float in [-1.0, 1.0]:
-			_wheel_slots.append([Vector3(side * (width * 0.5 - 0.05), base_y - 0.1, (-wheel_z if front else wheel_z)), front])
+			_wheel_slots.append([Vector3(side * float(dims.get("track", 1.62)) * 0.5, base_y - 0.1, (-wheel_z if front else wheel_z)), front])
 	if is_traffic():
 		# Kinematic traffic: plain wheel meshes. Real VehicleWheel3D nodes on a frozen body
 		# divide by zero inside the engine, so they are only added when the car goes physical.
@@ -670,16 +670,27 @@ func _wheel_mesh() -> Node3D:
 	return holder
 
 
+## Per body type. "track" is the distance between the two wheel CENTRES and "tyre_r" the wheel
+## radius, both in metres, and both used to be one shared value that was simply wrong: wheels
+## were parked at width * 0.5 - 0.05, which on a 2.1 m body is a 2.0 m track, and the radius was
+## a flat 0.42 (an 0.84 m wheel). A real car runs a 1.55-1.75 m track on 0.63-0.72 m wheels, so
+## every body built to fit those wheels had to be flared out past 2.2 m wide and still looked
+## like it was on tractor tyres. "ride" is where the bottom of the body model sits: a van cannot
+## share a saloon's ride height without looking slammed.
 func _dims() -> Dictionary:
 	match body_type:
 		BodyType.PICKUP:
-			return {"length": 5.4, "width": 2.1, "chassis_h": 0.8, "cabin": Vector2(-1.4, 1.8), "cabin_h": 0.75, "wheel_z": 1.75}
+			return {"length": 5.4, "width": 2.0, "chassis_h": 0.8, "cabin": Vector2(-1.4, 1.8), "cabin_h": 0.75, "wheel_z": 1.75, "track": 1.72, "tyre_r": 0.37, "ride": -0.16}
 		BodyType.VAN:
-			return {"length": 5.2, "width": 2.1, "chassis_h": 0.8, "cabin": Vector2(-2.0, 4.4), "cabin_h": 1.2, "wheel_z": 1.65}
+			return {"length": 5.2, "width": 2.0, "chassis_h": 0.8, "cabin": Vector2(-2.0, 4.4), "cabin_h": 1.2, "wheel_z": 1.65, "track": 1.70, "tyre_r": 0.35, "ride": -0.18}
 		BodyType.SPORTS:
-			return {"length": 4.6, "width": 2.0, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45}
+			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
+		BodyType.SUPER, BodyType.SPIDER:
+			return {"length": 4.55, "width": 1.98, "chassis_h": 0.5, "cabin": Vector2(-0.6, 1.6), "cabin_h": 0.5, "wheel_z": 1.32, "track": 1.70, "tyre_r": 0.35, "ride": -0.34}
+		BodyType.HYPER, BodyType.TRACK:
+			return {"length": 4.6, "width": 2.02, "chassis_h": 0.48, "cabin": Vector2(-0.6, 1.5), "cabin_h": 0.48, "wheel_z": 1.35, "track": 1.74, "tyre_r": 0.36, "ride": -0.35}
 		_:
-			return {"length": 4.8, "width": 2.0, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5}
+			return {"length": 4.8, "width": 1.9, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.24}
 
 
 func _add_wheel(pos: Vector3, front: bool) -> void:
@@ -687,7 +698,7 @@ func _add_wheel(pos: Vector3, front: bool) -> void:
 	wheel.position = pos
 	wheel.use_as_traction = true
 	wheel.use_as_steering = front
-	wheel.wheel_radius = 0.42
+	wheel.wheel_radius = float(_dims().get("tyre_r", 0.34))
 	wheel.wheel_rest_length = suspension_rest_length
 	wheel.suspension_travel = suspension_travel
 	wheel.suspension_stiffness = suspension_stiffness
@@ -776,10 +787,11 @@ func _add_body_model(length: float) -> bool:
 		pm.set_shader_parameter("length_is_x", along_x)
 	# inst.position below puts the bottom of the box at model_bottom_y, so the top of the car is
 	# exactly that plus the scaled height of the box. That is where a roof prop goes.
-	_model_top_y = model_bottom_y + aabb.size.y * scale_f
+	var bottom: float = float(_dims().get("ride", model_bottom_y))
+	_model_top_y = bottom + aabb.size.y * scale_f
 	inst.rotation.y = (MODEL_YAW.get(body_type, 0.0) if along_x else 0.0)
 	var center := aabb.get_center()
-	inst.position = -(inst.transform.basis * Vector3(center.x, aabb.position.y, center.z)) + Vector3(0.0, model_bottom_y, 0.0)
+	inst.position = -(inst.transform.basis * Vector3(center.x, aabb.position.y, center.z)) + Vector3(0.0, bottom, 0.0)
 	add_child(holder)
 	return true
 
