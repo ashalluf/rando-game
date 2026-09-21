@@ -271,6 +271,21 @@ func _test_city() -> void:
 				if a < 0.15 or a > 0.45:
 					albedo_why += " %s.%s(%.3f)" % [CityPlan.district_name(d), str(row[0]), a]
 		_check(albedo_why == "", "ground surfaces have a physical albedo%s" % albedo_why)
+		# The airport drop-off: the lane paths the traffic manager drives, the kerb the crowd
+		# stands on and the road Landmarks builds under them were three independent sets of
+		# coordinates. They are one set now (MacroMap.terminal_road / terminal_curb /
+		# terminal_loops), but nothing in code forces the lanes to lie ON the road - so check it,
+		# because a drop-off lane off the edge of its own asphalt is cars driving on tarmac and
+		# nothing errors.
+		var lane_why := ""
+		for loop: PackedVector2Array in macro.terminal_loops:
+			for pt in loop:
+				if not macro.terminal_road.grow(1.0).has_point(pt):
+					lane_why += " (%.0f,%.0f)" % [pt.x, pt.y]
+		if not macro.terminal_road.grow(1.0).encloses(macro.terminal_curb.grow(-4.0)) \
+				and not macro.terminal_road.intersects(macro.terminal_curb):
+			lane_why += " kerb off the road"
+		_check(lane_why == "", "the airport drop-off lanes lie on the drop-off road%s" % lane_why)
 		# Height and zone have to agree on where the water starts. They did not around the
 		# headland - the coast bulge is a function of z alone and the peninsula is a circle - so
 		# the waterline cut across a 100 m cliff and left a sail of hillside hanging over the

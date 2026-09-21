@@ -90,7 +90,7 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 		"twin_glass":
 			_build_twin_glass(lm.anchor, parent, statics, detailed)
 		"terminal":
-			_build_terminal(lm.anchor, parent, statics, detailed)
+			_build_terminal(lm.anchor, parent, statics, plan, detailed)
 		"hangars":
 			_build_hangars(lm.anchor, parent, statics, detailed)
 		"cargo_ship":
@@ -556,8 +556,9 @@ static func _text(text: String, cell: float, center: Vector3, parent: Node3D, co
 # --- Airport terminal and cargo ship ---------------------------------------------------------
 
 ## Terminal hall, control tower, and a saucer-shaped restaurant on crossed arches.
-static func _build_terminal(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
-	var base := Vector3(anchor.x, 0.1, anchor.y)
+static func _build_terminal(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
+	var macro: MacroMap = plan.macro if plan else null
+	var base := Vector3(anchor.x, macro.tarmac_top if macro else 0.1, anchor.y)
 	_facade_box(parent, statics, Vector3(160.0, 12.0, 40.0), base + Vector3(0.0, 6.0, -60.0), Color(0.80, 0.80, 0.78), Building.Finish.PANELS, Building.WindowStyle.RIBBON, 0.0)
 	# Control tower.
 	_cyl(parent, statics, 4.0, 46.0, base + Vector3(-100.0, 23.0, -60.0), Color(0.85, 0.85, 0.83))
@@ -578,20 +579,27 @@ static func _build_terminal(anchor: Vector2, parent: Node3D, statics: StaticBody
 	for i in 4:
 		_box(parent, statics, Vector3(3.0, 3.0, 18.0), base + Vector3(-60.0 + i * 40.0, 5.5, -31.0), Color(0.7, 0.72, 0.75), detailed)
 		_box(parent, null, Vector3(2.0, 4.0, 2.0), base + Vector3(-60.0 + i * 40.0, 2.0, -24.0), Color(0.5, 0.5, 0.52), false)
-	_build_dropoff(parent, statics, Rect2(anchor.x - 90.0, 624.0, 180.0, 10.0), detailed)
+	# The kerb and the road come from MacroMap, which is also where TrafficManager reads the lane
+	# paths that have to sit on them.
+	_build_dropoff(parent, statics, macro, detailed)
 
 
 ## The drop-off loop in front of the terminal: a dark two-way road with a median, lane lines,
 ## a raised curb strip along the hall with pillars and "DEPARTURES" signs. Traffic crawls the
 ## loop lanes from MacroMap.terminal_loops; the crowd on the curb comes from the airport chunk.
-static func _build_dropoff(parent: Node3D, statics: StaticBody3D, curb: Rect2, detailed: bool) -> void:
-	var y := 0.1 # tarmac top
-	var road := Rect2(-490.0, 594.0, 280.0, 32.0)
+static func _build_dropoff(parent: Node3D, statics: StaticBody3D, macro: MacroMap, detailed: bool) -> void:
+	if macro == null:
+		return
+	var curb: Rect2 = macro.terminal_curb
+	var y: float = macro.tarmac_top
+	var road: Rect2 = macro.terminal_road
 	var rc := road.get_center()
-	var asphalt := _box(parent, null, Vector3(road.size.x, 0.06, road.size.y), Vector3(rc.x, y + 0.03, rc.y), Color(0.5, 0.5, 0.52), false)
-	asphalt.material_override = PropFactory.pbr("asphalt", 7.0, Color(0.55, 0.55, 0.57))
+	var asphalt := _box(parent, null, Vector3(road.size.x, macro.dropoff_top - y, road.size.y), Vector3(rc.x, (y + macro.dropoff_top) * 0.5, rc.y), Color(0.5, 0.5, 0.52), false)
+	# 0.79, not 0.55: the tint is sRGB-decoded and multiplies a texture whose own mean is already
+	# asphalt's reflectance, so 0.55 laid this at an albedo of 0.022. See CityChunk.ROAD_TINTS.
+	asphalt.material_override = PropFactory.pbr("asphalt", 7.0, Color(0.79, 0.79, 0.81))
 	# Median and lane lines.
-	_box(parent, null, Vector3(road.size.x - 30.0, 0.16, 1.6), Vector3(rc.x, y + 0.14, 610.0), Color(0.72, 0.72, 0.7), false)
+	_box(parent, null, Vector3(road.size.x - 30.0, 0.16, 1.6), Vector3(rc.x, y + 0.14, rc.y), Color(0.72, 0.72, 0.7), false)
 	for lz: float in [617.5, 602.5]:
 		_box(parent, null, Vector3(road.size.x - 34.0, 0.012, 0.14), Vector3(rc.x, y + 0.068, lz), Color(0.95, 0.95, 0.95), false)
 	for lz: float in [623.6, 596.4]:

@@ -259,7 +259,8 @@ func _maintain_loops(pw: Vector3) -> void:
 
 
 func _spawn_loop_car(loop_index: int, t: float) -> void:
-	var loop: PackedVector2Array = plan.macro.terminal_loops[loop_index]
+	var macro: MacroMap = plan.macro
+	var loop: PackedVector2Array = macro.terminal_loops[loop_index]
 	var at := _loop_point(loop, t)
 	var pos2: Vector2 = at[0]
 	var dir2: Vector2 = at[1]
@@ -267,7 +268,7 @@ func _spawn_loop_car(loop_index: int, t: float) -> void:
 	car.traffic = {"loop": loop_index, "t": t, "speed": loop_speed * _rng.randf_range(0.85, 1.1)}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + 0.16, pos2.y))
+	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y))
 	car.rotation.y = atan2(-dir2.x, -dir2.y)
 	add_child(car)
 	car.traffic_speed = car.traffic.speed
@@ -303,7 +304,7 @@ func _drive_loops(delta: float) -> void:
 			var at := _loop_point(loop, car.traffic.t)
 			var pos2: Vector2 = at[0]
 			var dir2: Vector2 = at[1]
-			car.global_position = WorldState.to_local(Vector3(pos2.x, 0.55 + 0.16, pos2.y))
+			car.global_position = WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y))
 			car.rotation = Vector3(0.0, atan2(-dir2.x, -dir2.y), 0.0)
 
 

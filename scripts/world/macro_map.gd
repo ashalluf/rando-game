@@ -106,6 +106,14 @@ var airport_rect: Rect2 = Rect2(-640.0, 590.0, 740.0, 390.0)
 ## the drop-off loop road in front of it, as the two closed lane paths traffic crawls around
 ## (world XZ; each list is a closed polyline, cars drive it in order).
 var terminal_curb: Rect2 = Rect2(-440.0, 624.0, 180.0, 10.0)
+## The drop-off road those lanes run on, and the two surface heights everything on the apron
+## stands on: the tarmac the chunk lays, and the asphalt Landmarks lays on top of it for the
+## loop road. All three used to be written out a second time inside Landmarks (and the tarmac
+## top a third and fourth time in CityChunk), which is three places to miss when the apron moves
+## and no error when you do - the road just stops being under the cars driving it.
+var terminal_road: Rect2 = Rect2(-490.0, 594.0, 280.0, 32.0)
+var tarmac_top: float = 0.1
+var dropoff_top: float = 0.16
 var terminal_loops: Array = [
 	PackedVector2Array([Vector2(-484.0, 620.5), Vector2(-216.0, 620.5), Vector2(-216.0, 599.5), Vector2(-484.0, 599.5)]),
 	PackedVector2Array([Vector2(-474.0, 614.5), Vector2(-226.0, 614.5), Vector2(-226.0, 605.5), Vector2(-474.0, 605.5)]),
