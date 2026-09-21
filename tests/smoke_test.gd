@@ -333,7 +333,9 @@ func _test_city() -> void:
 					if child is Building and fw.blocks(Vector2(_world_state().to_world(child.global_position).x, _world_state().to_world(child.global_position).z), 0.0):
 						under_count += 1
 				_check(under_count == 0, "no buildings stand under the deck")
-			player.global_position = _world_state().to_local(hill)
+			var back_home := Vector3(0.0, 0.0, 0.0)
+			back_home.y = macro.height_at(Vector2.ZERO) + 3.0
+			player.global_position = _world_state().to_local(back_home)
 			player.velocity = Vector3.ZERO
 			city.update_streaming(true)
 			await _ticks(5)
