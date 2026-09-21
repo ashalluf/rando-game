@@ -20,12 +20,30 @@ const MODELS := [
 ]
 ## Walking speed (m/s) at which the walk clip plays at its natural pace.
 const WALK_CLIP_SPEED := 1.3
+const WALK_CLIP := "Casual_Walk_inplace"
+const IDLE_CLIP := "Idle"
 
 @export var walk_speed: float = 1.8
 ## Anything moving faster than this that touches us knocks us over (m/s).
 @export var knock_speed: float = 4.0
 ## A boosting player has to be at least this fast to tackle us (m/s).
 @export var tackle_speed: float = 14.0
+## Odds that a pedestrian stands still for a while when it reaches a spot instead of turning
+## straight round. A crowd where nobody ever stops reads as a conveyor belt, not a street.
+@export var pause_chance: float = 0.28
+## How long a pause lasts (seconds, min and max).
+@export var pause_seconds: Vector2 = Vector2(1.4, 5.5)
+## Spread of the walk cadence: the clip plays between these multiples of the rate its speed asks
+## for, so two people walking at the same speed do not step in the same rhythm.
+@export var gait_spread: Vector2 = Vector2(0.84, 1.20)
+## How far the torso leans, in degrees. Positive stoops forward. Rolled per character.
+@export var lean_spread: Vector2 = Vector2(-1.5, 4.5)
+## Fraction of the crowd wearing a cap, a beanie or a backpack. Each is one extra draw call and
+## only within `accessory_distance`, and a changed silhouette separates two people far harder
+## than another shirt colour does.
+@export var accessory_chance: float = 0.42
+## Metres past which a pedestrian's accessory stops drawing.
+@export var accessory_distance: float = 60.0
 
 var ring: Rect2
 var shirt: Color
@@ -45,12 +63,20 @@ var _look: int = 0
 var _lod_stride: int = 1
 var _lod_tick: int = 0
 var _lod_timer: float = 0.0
+## Cadence multiplier on the walk clip for this character.
+var _gait: float = 1.0
+## Seconds left standing still; 0 means walking.
+var _pause_left: float = 0.0
+## Everything cosmetic (look, gait, lean, accessory, pauses) rolls on its own stream, so adding
+## or removing one of them never shifts where the crowd walks. Same seed, same city.
+var _style := RandomNumberGenerator.new()
 static var _player: Node3D
 
 
 func setup(block_rect: Rect2, sidewalk: float, seed_value: int) -> void:
 	ring = block_rect
 	_rng.seed = seed_value
+	_style.seed = hash([seed_value, "style"])
 	shirt = SHIRTS[_rng.randi() % SHIRTS.size()]
 	pants = PANTS[_rng.randi() % PANTS.size()]
 	skin = SKINS[_rng.randi() % SKINS.size()]
@@ -105,19 +131,24 @@ func _add_model() -> bool:
 			available.append(path)
 	if available.is_empty():
 		return false
-	var path: String = available[_rng.randi() % available.size()]
+	var path: String = available[_style.randi() % available.size()]
 	var scene: PackedScene = load(path)
 	if scene == null:
 		return false
 	var inst := scene.instantiate() as Node3D
 	inst.rotation.y = PI # Meshy rigs face +Z; our visuals face -Z
-	_look = _rng.randi() % CHARACTER_LOOKS
+	_look = _style.randi() % CHARACTER_LOOKS
 	prepare_rig(inst, _look)
 	_visual.add_child(inst)
 	_model_path = path
 	# Build variation: nobody in a crowd is the same height or width as the person next to them.
-	var tall := _rng.randf_range(0.90, 1.10)
-	_visual.scale = Vector3(_rng.randf_range(0.94, 1.07), tall, _rng.randf_range(0.94, 1.07))
+	var tall := _style.randf_range(0.90, 1.10)
+	_visual.scale = Vector3(_style.randf_range(0.94, 1.07), tall, _style.randf_range(0.94, 1.07))
+	# A fixed stoop or a chest-out posture, held for this character's whole life. Forward is -Z,
+	# so a negative X rotation tips the head forward.
+	_visual.rotation.x = -deg_to_rad(_style.randf_range(lean_spread.x, lean_spread.y))
+	_gait = _style.randf_range(gait_spread.x, gait_spread.y)
+	_add_accessory(inst)
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim:
 		fix_arm_pose(_anim, path)
@@ -125,13 +156,228 @@ func _add_model() -> bool:
 			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 		# Advanced by hand in _physics_process so far pedestrians can animate less often.
 		_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
-		if _anim.has_animation("Casual_Walk_inplace"):
-			_anim.play("Casual_Walk_inplace")
-			_anim.speed_scale = walk_speed / WALK_CLIP_SPEED
+		if _anim.has_animation(WALK_CLIP):
+			_play_walk(0.0)
 			# Start everyone at a different point in the cycle. A crowd stepping in perfect
 			# unison is the most obvious tell that they are all the same model.
-			_anim.seek(_rng.randf() * _anim.get_animation("Casual_Walk_inplace").length, true)
+			_anim.seek(_style.randf() * _anim.get_animation(WALK_CLIP).length, true)
 	return true
+
+
+## Starts (or returns to) the walk cycle at this character's own cadence.
+func _play_walk(blend: float = 0.25) -> void:
+	if _anim == null or not _anim.has_animation(WALK_CLIP):
+		return
+	_anim.play(WALK_CLIP, blend)
+	_anim.speed_scale = walk_speed / WALK_CLIP_SPEED * _gait
+
+
+func _play_idle() -> void:
+	if _anim == null or not _anim.has_animation(IDLE_CLIP):
+		return
+	_anim.play(IDLE_CLIP, 0.3)
+	_anim.speed_scale = _gait
+
+
+## Caps, beanies and backpacks, built in code the way the street props are and hung off the rig's
+## own bones so they ride the head and the back. The mesh is built once per kind and shared, the
+## material is cached per colour, so a wearer costs one draw call, and nothing draws past
+## `accessory_distance`. A changed silhouette separates two people at fifty metres; a fourth
+## shirt colour does not.
+enum Accessory {NONE, CAP, BEANIE, PACK}
+const ACC_BONE := {Accessory.CAP: "Head", Accessory.BEANIE: "Head", Accessory.PACK: "Spine01"}
+## Where the accessory sits relative to that bone's rest position, in metres, in skeleton space
+## (Y up, the rig facing +Z). Measured out from the bone rather than from the model origin, so
+## the same numbers land on both rigs even though their heads sit 2 cm apart.
+const ACC_OFFSET := {
+	Accessory.CAP: Vector3(0.0, 0.0, -0.012),
+	Accessory.BEANIE: Vector3(0.0, 0.0, -0.012),
+	Accessory.PACK: Vector3(0.0, 0.0, 0.0),
+}
+const HAT_COLORS := [
+	Color(0.10, 0.11, 0.14), Color(0.60, 0.15, 0.14), Color(0.14, 0.24, 0.46),
+	Color(0.86, 0.86, 0.83), Color(0.20, 0.36, 0.24), Color(0.56, 0.43, 0.23),
+	Color(0.34, 0.34, 0.37), Color(0.80, 0.55, 0.15),
+]
+const PACK_COLORS := [
+	Color(0.13, 0.14, 0.16), Color(0.19, 0.27, 0.40), Color(0.36, 0.27, 0.18),
+	Color(0.45, 0.16, 0.16), Color(0.22, 0.34, 0.26), Color(0.55, 0.53, 0.50),
+]
+static var _acc_meshes: Dictionary = {}
+
+
+func _add_accessory(inst: Node3D) -> void:
+	if _style.randf() >= accessory_chance:
+		return
+	var roll := _style.randf()
+	var kind: int = Accessory.PACK if roll < 0.38 else (Accessory.BEANIE if roll < 0.60 else Accessory.CAP)
+	var skel := inst.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null:
+		return
+	var bone: String = ACC_BONE[kind]
+	var idx := skel.find_bone(bone)
+	if idx < 0:
+		return
+	# The rig's skeleton works in centimetres under a 0.01 armature, so anything hung off a bone
+	# has to be scaled back up by that chain to be built in metres. Read it off the nodes rather
+	# than hard-coding 100, in case a rig is ever exported at a different scale.
+	var unit := 1.0
+	var node: Node3D = skel
+	while node != null and node != inst:
+		unit *= node.transform.basis.get_scale().y
+		node = node.get_parent() as Node3D
+	unit = 1.0 / maxf(unit, 0.0001)
+	var att := BoneAttachment3D.new()
+	skel.add_child(att)
+	att.bone_name = bone
+	var mi := MeshInstance3D.new()
+	mi.mesh = _accessory_mesh(kind)
+	var palette: Array = PACK_COLORS if kind == Accessory.PACK else HAT_COLORS
+	mi.material_override = PropFactory.material(palette[_style.randi() % palette.size()], 0.72)
+	mi.visibility_range_end = accessory_distance * (0.6 if OS.has_feature("web") else 1.0)
+	var rest := skel.get_bone_global_rest(idx)
+	var at: Vector3 = rest.origin + (ACC_OFFSET[kind] as Vector3) * unit
+	# Built level in skeleton space and then pushed back through the bone's rest pose, so a cap
+	# sits flat on the skull whatever angle the head bone happens to hold in the bind pose (the
+	# two rigs differ by ten degrees there), and still rides the head once it animates.
+	mi.transform = rest.affine_inverse() * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), at)
+	att.add_child(mi)
+
+
+## One shared mesh per accessory kind, in metres, origin at the bone's rest position. Part
+## colours go in the vertex colour and the per-character colour multiplies them, so one mesh
+## covers every colourway.
+static func _accessory_mesh(kind: int) -> Mesh:
+	if _acc_meshes.has(kind):
+		return _acc_meshes[kind]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var white := Color(1.0, 1.0, 1.0)
+	match kind:
+		Accessory.CAP:
+			# A tall band from just above the brow with a shallow dome on top: the skull is
+			# still 10 cm wide two centimetres from its crown (it is carrying hair), so a plain
+			# hemisphere the height of a cap pinches in and lets the head through its sides.
+			st.set_smooth_group(0)
+			_acc_tube(st, 0.095, 0.163, 0.108, 0.124, white, 20)
+			_acc_dome(st, Vector3(0.0, 0.163, 0.0), Vector3(0.108, 0.050, 0.124), white, 20, 4)
+			st.set_smooth_group(0xFFFFFFFF)
+			_acc_brim(st, 0.100, 0.185, 0.104, 0.018, 0.012, Color(0.84, 0.84, 0.84), 12)
+			_acc_box(st, Vector3(0.0, 0.211, 0.0), Vector3(0.022, 0.012, 0.022), Color(0.84, 0.84, 0.84))
+		Accessory.BEANIE:
+			st.set_smooth_group(0)
+			_acc_dome(st, Vector3(0.0, 0.132, 0.0), Vector3(0.110, 0.084, 0.126), white, 20, 5)
+			_acc_tube(st, 0.082, 0.132, 0.112, 0.128, Color(0.82, 0.82, 0.82), 20)
+		Accessory.PACK:
+			# Sunk a centimetre into the back rather than floated off it: the front face is
+			# never seen, and a gap between a pack and a spine is.
+			st.set_smooth_group(0xFFFFFFFF)
+			_acc_box(st, Vector3(0.0, 0.020, -0.218), Vector3(0.290, 0.400, 0.165), white)
+			_acc_box(st, Vector3(0.0, 0.213, -0.226), Vector3(0.275, 0.050, 0.150), Color(0.86, 0.86, 0.86))
+			_acc_box(st, Vector3(0.0, -0.078, -0.305), Vector3(0.190, 0.130, 0.030), Color(0.74, 0.74, 0.74))
+			for side: float in [-1.0, 1.0]:
+				_acc_beam(st, Vector3(side * 0.088, 0.175, -0.150), Vector3(side * 0.105, 0.258, -0.020),
+						0.048, 0.026, Color(0.72, 0.72, 0.72))
+	st.generate_normals()
+	var mesh := st.commit()
+	_acc_meshes[kind] = mesh
+	return mesh
+
+
+## Winding matches the rest of the project: vertices clockwise seen from outside, so
+## generate_normals() points them out of the solid.
+static func _acc_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, colour: Color) -> void:
+	for v: Vector3 in [a, b, c, a, c, d]:
+		st.set_color(colour)
+		st.set_uv(Vector2.ZERO)
+		st.add_vertex(v)
+
+
+static func _acc_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, colour: Color) -> void:
+	for v: Vector3 in [a, b, c]:
+		st.set_color(colour)
+		st.set_uv(Vector2.ZERO)
+		st.add_vertex(v)
+
+
+## A box with its own axes: `ex`, `ey`, `ez` are half-extent vectors and must be right-handed.
+static func _acc_prism(st: SurfaceTool, centre: Vector3, ex: Vector3, ey: Vector3, ez: Vector3, colour: Color) -> void:
+	var p := [
+		centre - ex - ey - ez, centre + ex - ey - ez, centre + ex + ey - ez, centre - ex + ey - ez,
+		centre - ex - ey + ez, centre + ex - ey + ez, centre + ex + ey + ez, centre - ex + ey + ez,
+	]
+	for f: Array in [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0]]:
+		_acc_quad(st, p[f[0]], p[f[1]], p[f[2]], p[f[3]], colour)
+
+
+static func _acc_box(st: SurfaceTool, centre: Vector3, size: Vector3, colour: Color) -> void:
+	_acc_prism(st, centre, Vector3(size.x * 0.5, 0.0, 0.0), Vector3(0.0, size.y * 0.5, 0.0),
+			Vector3(0.0, 0.0, size.z * 0.5), colour)
+
+
+## A strap: a thin box running from `a` to `b`.
+static func _acc_beam(st: SurfaceTool, a: Vector3, b: Vector3, width: float, thick: float, colour: Color) -> void:
+	var axis := b - a
+	var length := axis.length()
+	if length < 0.001:
+		return
+	var forward := axis / length
+	var side := forward.cross(Vector3.UP)
+	if side.length() < 0.001:
+		side = forward.cross(Vector3.FORWARD)
+	side = side.normalized()
+	# Right-handed: ex cross ey has to come out along ez.
+	_acc_prism(st, (a + b) * 0.5, side * (width * 0.5), forward.cross(side) * (thick * 0.5),
+			forward * (length * 0.5), colour)
+
+
+## An open elliptical band (the side wall of a hat). No caps: the head fills one end and the
+## crown the other.
+static func _acc_tube(st: SurfaceTool, y0: float, y1: float, rx: float, rz: float, colour: Color, seg: int) -> void:
+	for s in seg:
+		var u0 := TAU * float(s) / float(seg)
+		var u1 := TAU * float(s + 1) / float(seg)
+		var a := Vector3(sin(u0) * rx, 0.0, cos(u0) * rz)
+		var b := Vector3(sin(u1) * rx, 0.0, cos(u1) * rz)
+		_acc_quad(st, a + Vector3(0.0, y0, 0.0), a + Vector3(0.0, y1, 0.0),
+				b + Vector3(0.0, y1, 0.0), b + Vector3(0.0, y0, 0.0), colour)
+
+
+static func _acc_dome_at(centre: Vector3, r: Vector3, u: float, v: float) -> Vector3:
+	return centre + Vector3(sin(u) * cos(v) * r.x, sin(v) * r.y, cos(u) * cos(v) * r.z)
+
+
+## The top half of an ellipsoid, equator to pole. The last ring is a fan so there are no
+## zero-area triangles at the pole for generate_normals() to choke on.
+static func _acc_dome(st: SurfaceTool, centre: Vector3, r: Vector3, colour: Color, seg: int, rings: int) -> void:
+	var top := centre + Vector3(0.0, r.y, 0.0)
+	for ring in rings:
+		var v0 := PI * 0.5 * float(ring) / float(rings)
+		var v1 := PI * 0.5 * float(ring + 1) / float(rings)
+		for s in seg:
+			var u0 := TAU * float(s) / float(seg)
+			var u1 := TAU * float(s + 1) / float(seg)
+			var p00 := _acc_dome_at(centre, r, u0, v0)
+			var p10 := _acc_dome_at(centre, r, u1, v0)
+			if ring == rings - 1:
+				_acc_tri(st, p00, top, p10, colour)
+			else:
+				_acc_quad(st, p00, _acc_dome_at(centre, r, u0, v1), _acc_dome_at(centre, r, u1, v1), p10, colour)
+
+
+## A cap peak: half an ellipse reaching forward (+Z) from the band, drooping by `drop` at the tip.
+static func _acc_brim(st: SurfaceTool, y: float, reach: float, half_width: float, drop: float,
+		thick: float, colour: Color, seg: int) -> void:
+	var down := Vector3(0.0, -thick, 0.0)
+	var hub := Vector3(0.0, y, 0.0)
+	var pts: Array[Vector3] = []
+	for i in seg + 1:
+		var a := -PI * 0.5 + PI * float(i) / float(seg)
+		pts.append(Vector3(sin(a) * half_width, y - drop * cos(a), cos(a) * reach))
+	for i in seg:
+		_acc_tri(st, hub, pts[i + 1], pts[i], colour)
+		_acc_tri(st, hub + down, pts[i] + down, pts[i + 1] + down, colour)
+		_acc_quad(st, pts[i], pts[i + 1], pts[i + 1] + down, pts[i] + down, colour)
 
 
 ## The generated walk and idle clips hold the arms out from the body like a scarecrow: the
@@ -204,7 +450,17 @@ const SKIN_TINTS := [
 	Color(0.79, 0.67, 0.56), Color(0.68, 0.56, 0.46), Color(0.56, 0.44, 0.36),
 	Color(0.93, 0.86, 0.79),
 ]
-const CHARACTER_LOOKS := 14
+## Hair, beards and eyebrows. Taken outright rather than tinted (see the shader): the source
+## hair is nearly black on every model, so a tint of it stays nearly black and a whole city
+## walks around with the same head. Weighted the way a street looks - mostly dark, a few fair,
+## the odd grey head.
+const HAIR_COLORS := [
+	Color(0.045, 0.038, 0.035), Color(0.075, 0.058, 0.048), Color(0.13, 0.090, 0.060),
+	Color(0.20, 0.135, 0.085), Color(0.30, 0.190, 0.105), Color(0.42, 0.285, 0.145),
+	Color(0.36, 0.150, 0.075), Color(0.55, 0.425, 0.225), Color(0.72, 0.600, 0.380),
+	Color(0.52, 0.505, 0.485), Color(0.78, 0.770, 0.745),
+]
+const CHARACTER_LOOKS := 24
 static var _looks: Dictionary = {}
 
 
@@ -226,6 +482,29 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	mat.set_shader_parameter("cloth_sat", rng.randf_range(0.10, 0.30) if rng.randf() < 0.75 else rng.randf_range(0.35, 0.62))
 	mat.set_shader_parameter("cloth_value", rng.randf_range(0.55, 1.20))
 	mat.set_shader_parameter("cloth_strength", 0.0 if plain else rng.randf_range(0.55, 0.85))
+	# Trousers are rolled apart from the top, and weighted the way a pavement actually looks:
+	# denim, black and grey, khaki, and only occasionally something bright. Matching the top to
+	# the bottom is what made every recoloured character read as wearing a boiler suit.
+	var lower := rng.randf()
+	if lower < 0.40:
+		mat.set_shader_parameter("pants_hue", rng.randf_range(0.55, 0.68)) # denim
+		mat.set_shader_parameter("pants_sat", rng.randf_range(0.10, 0.34))
+		mat.set_shader_parameter("pants_value", rng.randf_range(0.42, 0.85))
+	elif lower < 0.70:
+		mat.set_shader_parameter("pants_hue", rng.randf()) # black through to pale grey
+		mat.set_shader_parameter("pants_sat", rng.randf_range(0.0, 0.07))
+		mat.set_shader_parameter("pants_value", rng.randf_range(0.28, 1.00))
+	elif lower < 0.90:
+		mat.set_shader_parameter("pants_hue", rng.randf_range(0.07, 0.20)) # khaki, sand, olive
+		mat.set_shader_parameter("pants_sat", rng.randf_range(0.12, 0.32))
+		mat.set_shader_parameter("pants_value", rng.randf_range(0.62, 1.15))
+	else:
+		mat.set_shader_parameter("pants_hue", rng.randf())
+		mat.set_shader_parameter("pants_sat", rng.randf_range(0.30, 0.55))
+		mat.set_shader_parameter("pants_value", rng.randf_range(0.55, 1.00))
+	mat.set_shader_parameter("pants_strength", 0.0 if plain else rng.randf_range(0.60, 0.90))
+	mat.set_shader_parameter("hair_color", HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
+	mat.set_shader_parameter("hair_strength", rng.randf_range(0.75, 1.0))
 	mat.set_shader_parameter("skin_tint", SKIN_TINTS[look % SKIN_TINTS.size()])
 	_looks[key] = mat
 	return mat
@@ -269,11 +548,25 @@ func _physics_process(delta: float) -> void:
 	delta *= _lod_stride
 	if _anim:
 		_anim.advance(delta)
+	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
+	# every single person walks without ever stopping reads as a conveyor belt.
+	if _pause_left > 0.0:
+		_pause_left -= delta
+		velocity.x = 0.0
+		velocity.z = 0.0
+		velocity.y = 0.0 if is_on_floor() else velocity.y - 30.0 * delta
+		move_and_slide()
+		if _pause_left <= 0.0:
+			_play_walk()
+		return
 	var here := Vector2(global_position.x, global_position.z) - _ring_origin()
 	var to_target := _target - here
 	if to_target.length() < 1.0:
 		_target = _random_ring_point(_sidewalk)
 		to_target = _target - here
+		if _anim and _anim.has_animation(IDLE_CLIP) and _style.randf() < pause_chance:
+			_pause_left = _style.randf_range(pause_seconds.x, pause_seconds.y)
+			_play_idle()
 	var dir := to_target.normalized()
 	velocity.x = dir.x * walk_speed
 	velocity.z = dir.y * walk_speed

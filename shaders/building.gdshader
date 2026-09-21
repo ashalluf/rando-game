@@ -13,6 +13,18 @@ uniform vec3 accent_color : source_color = vec3(0.30, 0.29, 0.28);
 // 0 flat, 1 brick, 2 concrete panels, 3 glass curtain (spandrel panels)
 uniform int facade_finish = 0;
 
+// --- Base, shaft, crown ---
+// Height in meters above base_y of a stone base course. A facade that changes material at the
+// bottom storey or two is most of what separates a building from an extruded rectangle, and it
+// is the part of the wall the player stands next to. 0 turns it off (Building sets it to 0
+// wherever a shopfront already has the ground floor).
+uniform float base_height = 0.0;
+uniform vec3 base_color : source_color = vec3(0.60, 0.58, 0.54);
+// World Y where the crown floors start, and how much lighter or darker they are. Building puts
+// its crown band at the same height, so the painted change and the moulding read as one cap.
+uniform float crown_start = 100000.0;
+uniform float crown_shade = 1.0;
+
 // --- Windows ---
 // 0 punched, 1 ribbon bands, 2 curtain wall grid, 3 tall narrow slots
 uniform int window_style = 0;
@@ -206,7 +218,17 @@ void fragment() {
 		float u;
 		float pitch;
 		float face_id;
-		if (abs(n.x) > 0.5) {
+		// A cut corner. Its normal points diagonally, so neither axis branch below can measure
+		// along it, and a window grid carried across it would leave half a window either side.
+		// It is built as a solid corner pier instead, which is what a chamfered corner usually
+		// is, so all it needs is somewhere sane to sample the wall texture from.
+		bool chamfer = abs(n.x) > 0.35 && abs(n.z) > 0.35;
+		if (chamfer) {
+			vec2 along = normalize(vec2(-n.z, n.x));
+			u = dot(local_pos.xz, along) + 0.5 * (part_size.x + part_size.z);
+			pitch = window_pitch_x;
+			face_id = 5.0;
+		} else if (abs(n.x) > 0.5) {
 			u = local_pos.z * sign(n.x) + part_size.z * 0.5;
 			pitch = window_pitch_z;
 			face_id = n.x > 0.0 ? 1.0 : 2.0;
@@ -244,7 +266,9 @@ void fragment() {
 		// where the hole in the wall is.
 		vec2 win_c = vec2(0.5, 0.52);
 		vec2 win_h = vec2(0.27, 0.25);
-		if (storefront) {
+		if (chamfer) {
+			// Solid pier: no glass, no shopfront. Falls through to the wall finish below.
+		} else if (storefront) {
 			float span = max(shop_span[int(face_id) - 1], 1.0);
 			float shop_id = floor(col / span);
 			shop_seed = hash21(vec2(shop_id * 1.7, face_id * 13.0) + seed);
@@ -277,7 +301,7 @@ void fragment() {
 
 		// Reveal: the wall band right around a punched or slot window (sill, jambs, lintel).
 		bool reveal = false;
-		if (!storefront && (window_style == 0 || window_style == 3)) {
+		if (!chamfer && !storefront && (window_style == 0 || window_style == 3)) {
 			float hw = window_style == 0 ? 0.27 : 0.16;
 			float hh = window_style == 0 ? 0.25 : 0.40;
 			float cy = window_style == 0 ? 0.52 : 0.5;
@@ -436,6 +460,23 @@ void fragment() {
 				albedo = facade_color * tex * (use_wall_texture ? 1.3 : 1.0);
 				rough = 0.85 * tex_rough;
 			}
+			// --- Base, shaft, crown ----------------------------------------------------
+			// The bottom storeys in a heavier material with deep horizontal joints, and a
+			// shade change over the top ones. Both go in before the grime, so dirt still runs
+			// down over the stone the way it does over the wall above it.
+			float base_up = v - base_y;
+			if (base_height > 0.01 && base_up < base_height) {
+				float course = fract(base_up / 0.92);
+				float block = fract((u + floor(base_up / 0.92) * 0.46) / 1.84);
+				float joint = clamp(step(course, 0.05) + step(block, 0.018), 0.0, 1.0);
+				vec3 stone = base_color * (0.90 + 0.18 * hash21(vec2(floor(base_up / 0.92), floor(u / 1.84)) + seed));
+				albedo = mix(stone, stone * 0.55, joint);
+				rough = 0.9;
+				metal = 0.0;
+				wall_nm_weight *= 0.4;
+			}
+			albedo *= mix(1.0, crown_shade, step(crown_start, v));
+
 			// --- Weathering ------------------------------------------------------------
 			// Grime is most of what separates a rendered box from a photographed building.
 			// Rain washes dirt off every sill and draws it down the wall in fine vertical

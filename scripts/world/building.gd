@@ -68,6 +68,24 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 ## Ground floor gets a storefront (shops) when tall enough.
 @export var allow_storefront: bool = true
 
+@export_group("Facade relief")
+## Real facade relief (bays, piers, bands, cornices) draws out to this distance (meters).
+@export var relief_draw_distance: float = 380.0
+## Chance a residential-looking block gets balconies.
+@export var balcony_chance: float = 0.55
+## Chance a block gets projecting bays (masonry) or mullion fins (glass) up its window columns.
+@export var bay_chance: float = 0.40
+## Chance a block's corners are cut back instead of square; very visible from the air.
+@export var chamfer_chance: float = 0.30
+## Chance a shopfront gets one projecting canopy instead of separate awnings.
+@export var canopy_chance: float = 0.40
+## Floors between string courses (belt bands) on masonry walls; 0 turns them off.
+@export var string_course_every: int = 4
+## How far a roof parapet stands above the roof deck (meters); 0 turns parapets off.
+@export var parapet_height: float = 0.85
+## How far a cornice stands out of the wall (meters); the smaller bands scale off it.
+@export var band_projection: float = 0.30
+
 var shape: Shape
 var window_style: WindowStyle
 var finish: Finish
@@ -87,6 +105,8 @@ var _rng := RandomNumberGenerator.new()
 var _generated: bool = false
 ## Roof covering for this building (see shaders/building.gdshader `roof_style`).
 var roof_style: int = 0
+## True when this building's corners are cut back (see Building._build_part).
+var _chamfered: bool = false
 
 
 func _ready() -> void:
@@ -149,6 +169,10 @@ func plan_only() -> Dictionary:
 	# older ones, bitumen on the rest.
 	var roof_roll := _rng.randf()
 	roof_style = 1 if roof_roll < 0.42 else (0 if roof_roll < 0.76 else 2)
+	# Cut corners, hashed rather than rolled so tuning the odds cannot move the layout. Never on
+	# a warehouse or an L, whose corners are where the two wings meet.
+	_chamfered = shape != Shape.WAREHOUSE and shape != Shape.L_SHAPE \
+		and float(absi(hash([seed, "chamfer"])) % 1000) * 0.001 < chamfer_chance
 	_layout_parts()
 	var style := _pick_style()
 	facade_color = style.facade
@@ -288,6 +312,14 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	var floor_h := usable / rows
 	var cols_x := maxi(1, roundi(size.x / style.pitch))
 	var cols_z := maxi(1, roundi(size.z / style.pitch))
+	# Cut corners. Exactly one window bay comes off each end of each wall, so the grid the
+	# shader draws still lands on whole cells either side of the cut and no half window is left
+	# hanging on a corner. Only on a part wide enough to lose a bay and still read as a wall.
+	var cut_x := 0.0
+	var cut_z := 0.0
+	if _chamfered and cols_x >= 6 and cols_z >= 6 and minf(size.x, size.z) > 10.0:
+		cut_x = size.x / float(cols_x)
+		cut_z = size.z / float(cols_z)
 
 	var mat := ShaderMaterial.new()
 	mat.shader = SHADER
@@ -309,23 +341,41 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	mat.set_shader_parameter("seed", float(seed % 1000))
 	mat.set_shader_parameter("roof_style", roof_style)
 	mat.set_shader_parameter("shop_span", _shop_spans())
+	# Base, shaft, crown. The shader lays a stone base course over the bottom floors and shifts
+	# the tone of the top ones; _add_facade_details caps both with a real band at the same
+	# height, so the two have to be asked for from the same place.
+	var base_h := _base_course_height(size, style, storefront, on_ground)
+	mat.set_shader_parameter("base_height", base_h)
+	if base_h > 0.0:
+		mat.set_shader_parameter("base_color", (style.facade as Color).lerp(Color(0.62, 0.60, 0.56), 0.6).darkened(0.08))
+	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE:
+		mat.set_shader_parameter("crown_start", position.y + bottom + size.y - 1.6 * floor_h)
+		mat.set_shader_parameter("crown_shade", 1.09 if absi(hash([seed, "crown"])) % 2 == 0 else 0.92)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 
 	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
+	if cut_x > 0.0:
+		mesh.mesh = _prism_mesh(size, cut_x, cut_z)
+	else:
+		var box := BoxMesh.new()
+		box.size = size
+		mesh.mesh = box
 	mesh.material_override = mat
 	mesh.position = center
 	add_child(mesh)
 
 	var shape_node := CollisionShape3D.new()
-	var box_shape := BoxShape3D.new()
-	box_shape.size = size
-	shape_node.shape = box_shape
+	if cut_x > 0.0:
+		var convex := ConvexPolygonShape3D.new()
+		convex.points = _prism_points(size, cut_x, cut_z)
+		shape_node.shape = convex
+	else:
+		var box_shape := BoxShape3D.new()
+		box_shape.size = size
+		shape_node.shape = box_shape
 	shape_node.position = center
 	add_child(shape_node)
-	_add_facade_details(size, center, bottom, storefront, floor_h, rows, cols_x, cols_z, style)
+	_add_facade_details(size, center, bottom, storefront, floor_h, rows, cols_x, cols_z, style, cut_x, cut_z)
 
 
 ## Shop awnings. Kept to the colours canvas actually comes in: deep reds, greens, navies and
@@ -368,19 +418,20 @@ func _shop_spans() -> Vector4:
 	return v
 
 
-func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefront: float, floor_h: float, rows: int, cols_x: int, cols_z: int, style: Dictionary) -> void:
+func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefront: float, floor_h: float, rows: int, cols_x: int, cols_z: int, style: Dictionary, cut_x: float = 0.0, cut_z: float = 0.0) -> void:
 	# Face normal, along-the-wall axis (UP x normal, so the instance basis stays right-handed
-	# and the flat frame quads face out), wall length, columns.
+	# and the flat frame quads face out), wall length, columns, and how much a cut corner takes
+	# off each end of this wall.
 	var spans := _shop_spans()
 	# Every face gets its shop names: one face only left three sides of every block blank, and
 	# which side of a lot faces the street is not known here. Each name is a MeshInstance, so
 	# they stop drawing at SIGN_DRAW_DISTANCE and the web build skips them entirely.
 	var signs_on := not OS.has_feature("web")
 	var faces := [
-		[Vector3(1, 0, 0), Vector3(0, 0, -1), size.z, cols_z],
-		[Vector3(-1, 0, 0), Vector3(0, 0, 1), size.z, cols_z],
-		[Vector3(0, 0, 1), Vector3(1, 0, 0), size.x, cols_x],
-		[Vector3(0, 0, -1), Vector3(-1, 0, 0), size.x, cols_x],
+		[Vector3(1, 0, 0), Vector3(0, 0, -1), size.z, cols_z, cut_z],
+		[Vector3(-1, 0, 0), Vector3(0, 0, 1), size.z, cols_z, cut_z],
+		[Vector3(0, 0, 1), Vector3(1, 0, 0), size.x, cols_x, cut_x],
+		[Vector3(0, 0, -1), Vector3(-1, 0, 0), size.x, cols_x, cut_x],
 	]
 	# Window rect per style in cell units (center, half size), matching shaders/building.gdshader.
 	var cx := 0.5
@@ -417,17 +468,83 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var cells := (2 * cols_x + 2 * cols_z) * rows
 	var frames: Array[Transform3D] = []
 	var boxes: Array = []   # [Transform3D, Color]
+	var caps: Array = []    # the same, but standing above the roof deck: its own MultiMesh
+	var fins: Array = []    # [Transform3D, Color], the cheeks of a projecting bay
 	var top := bottom + size.y
 	var accent: Color = (style.accent as Color).lightened(0.25)
+	var masonry := finish != Finish.GLASS and shape != Shape.WAREHOUSE
 	var awning_color: Color = AWNING_COLORS[_rng.randi() % AWNING_COLORS.size()]
-	var has_awnings := storefront > 0.0 and shape != Shape.WAREHOUSE and finish != Finish.GLASS and _rng.randf() < 0.7
-	var has_cornice := finish != Finish.GLASS and shape != Shape.WAREHOUSE
+	var has_canopy := storefront > 0.0 and shape != Shape.WAREHOUSE and _rng.randf() < canopy_chance
+	var has_awnings := storefront > 0.0 and masonry and not has_canopy and _rng.randf() < 0.7
+	var has_cornice := masonry
+
+	# --- Horizontal bands ------------------------------------------------------------------
+	# One list, emitted on all four walls and across every cut corner, so a cornice or a string
+	# course runs right round the part instead of stopping dead at the corners. A band is
+	# [centre height, thickness, how far it stands out of the wall, how far it buries into it,
+	# colour]. Between them they give a wall a base, a shaft and a crown instead of one
+	# uninterrupted run of windows from the pavement to the sky.
+	var bands: Array = []
+	if has_cornice:
+		# A deep cornice with a thinner coping under it. One band on its own reads as a stripe
+		# painted round the top; two with a gap between them read as a moulding.
+		bands.append([top - 0.30, 0.44, band_projection, 0.12, accent])
+		bands.append([top - 0.66, 0.20, band_projection * 0.55, 0.10, accent.darkened(0.15)])
+		if size.y > 22.0:
+			# The crown band, at exactly the height the shader changes the wall tone at.
+			bands.append([top - 1.6 * floor_h, 0.26, band_projection * 0.5, 0.10, accent])
+	if storefront > 0.0:
+		bands.append([bottom + storefront + 0.05, 0.25, 0.22, 0.10, accent])
+	if masonry and string_course_every > 0 and rows >= string_course_every + 3:
+		var f := string_course_every
+		while f < rows - 1:
+			var sy := bottom + storefront + float(f) * floor_h
+			if sy > bottom + 1.5 and sy < top - maxf(2.2, floor_h * 1.8):
+				bands.append([sy, 0.18, band_projection * 0.42, 0.10, accent])
+			f += string_course_every
+	if bottom < 0.01 and masonry:
+		# A plinth at the pavement, and the cap on top of the stone base course, which runs
+		# from the pavement up past the shopfront (see _base_course_height).
+		bands.append([bottom + 0.32, 0.64, 0.15, 0.10, accent.lightened(0.10)])
+		var base_h := _base_course_height(size, style, storefront, true)
+		if base_h > 0.0:
+			bands.append([bottom + base_h, 0.24, band_projection * 0.62, 0.10, accent])
+	if has_canopy:
+		# One flat canopy over the pavement instead of separate awnings, with a fascia lip on
+		# its outer edge so it is not a bare slab.
+		var canopy_y := bottom + storefront - 0.55
+		var reach := 1.40
+		bands.append([canopy_y, 0.16, reach, 0.10, accent.darkened(0.25)])
+		bands.append([canopy_y + 0.13, 0.30, reach + 0.04, -(reach - 0.22), awning_color])
+	# Parapet: a low wall standing on the roof edge. Nothing changes a roofline as much - a box
+	# cut off flat at the top is the oldest tell there is - and it hides the feet of the roof
+	# plant from the street. Its own list, because it is the one detail that is meant to stand
+	# above the part it belongs to.
+	var cap_bands: Array = []
+	if parapet_height > 0.02 and _roof_edge_free(center, size):
+		var ph := parapet_height * (0.7 if finish == Finish.GLASS else 1.0)
+		cap_bands.append([top + ph * 0.5, ph, 0.05, 0.42, (style.facade as Color).lightened(0.06)])
+		cap_bands.append([top + ph + 0.05, 0.12, 0.14, 0.52, accent])
+
 	# Balconies belong on residential-looking blocks, never on a glass curtain-wall tower or a
 	# warehouse. They are the cheapest way to break the flat rhythm of a facade.
-	var residential := finish != Finish.GLASS and shape != Shape.WAREHOUSE and window_style != WindowStyle.CURTAIN
-	var has_balconies := residential and rows >= 3 and _rng.randf() < 0.45
+	var residential := masonry and window_style != WindowStyle.CURTAIN
+	var has_balconies := residential and rows >= 3 and _rng.randf() < balcony_chance
 	var balcony_every := 1 if _rng.randf() < 0.55 else 2
 	var balconies: Array[Transform3D] = []
+	# Projecting bays on a masonry block, mullion fins on a glass one: a pair of cheeks standing
+	# out of the wall up a whole run of floors, closed by a cap and a soffit. One instance per
+	# run, so a forty storey tower costs twelve of them, and the silhouette gets a vertical
+	# rhythm no window grid can give it. A block gets these or balconies, never both.
+	var has_fins := shape != Shape.WAREHOUSE and rows >= 4 and not has_balconies and _rng.randf() < bay_chance
+	var fin_every := 3 if _rng.randf() < 0.6 else 4
+	var fin_slim := finish == Finish.GLASS or window_style == WindowStyle.CURTAIN
+	var fin_depth := _rng.randf_range(0.18, 0.30) if fin_slim else _rng.randf_range(0.38, 0.58)
+	var fin_color: Color = Color(0.60, 0.61, 0.64) if fin_slim else accent.lightened(0.10)
+	var fin_bottom := bottom + storefront + floor_h * 0.08
+	var fin_top := top - (1.05 if has_cornice else 0.35)
+	if fin_top - fin_bottom < floor_h * 2.0:
+		has_fins = false
 	# Fire escapes belong on older brick blocks, on one face only, the way they actually run.
 	var has_escape := finish == Finish.BRICK and shape != Shape.WAREHOUSE and rows >= 3 and _rng.randf() < 0.7
 	var escape_face := _rng.randi() % 4
@@ -439,25 +556,32 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		var a: Vector3 = face[1]
 		var size_u: float = face[2]
 		var cols: int = face[3]
+		var cut: float = face[4]
 		var pitch := size_u / cols
+		# Columns the cut corners took away, one at each end of the wall.
+		var skip := 1 if cut > 0.0 else 0
 		# Face center at height 0: the heights below (v, top, storefront) are absolute in building space.
 		var fc := Vector3(center.x, 0.0, center.z) + n * (size.x * 0.5 if absf(n.x) > 0.5 else size.z * 0.5)
+		# Every band, shortened to the flat part of this wall. A square corner keeps the old
+		# overlap so the two walls' bands meet round it; a cut one is bridged by the corner
+		# pieces below.
+		var band_len := size_u - 2.0 * cut + (0.7 if cut <= 0.0 else 0.12)
+		for b: Array in bands:
+			boxes.append([_band_xform(a, n, fc, band_len, b), b[4]])
+		for b: Array in cap_bands:
+			caps.append([_band_xform(a, n, fc, band_len, b), b[4]])
 		if cells <= MAX_FRAME_CELLS:
 			var w := 2.0 * hx * pitch
 			var h := 2.0 * hy * floor_h
-			for col in cols:
+			for col in range(skip, cols - skip):
 				var u := -size_u * 0.5 + (col + cx) * pitch
 				for row in rows:
 					var v := bottom + storefront + (row + cy) * floor_h
 					if v + h * 0.5 > top - 0.3:
 						continue
 					frames.append(Transform3D(Basis(a * w, Vector3.UP * h, n * 0.1), fc + a * u + Vector3(0.0, v, 0.0) + n * 0.02))
-		if has_cornice:
-			boxes.append([Transform3D(Basis(a * (size_u + 0.7), Vector3.UP * 0.45, n * 0.35), fc + Vector3(0.0, top - 0.22, 0.0) + n * 0.17), accent])
-		if storefront > 0.0:
-			boxes.append([Transform3D(Basis(a * (size_u + 0.4), Vector3.UP * 0.25, n * 0.22), fc + Vector3(0.0, bottom + storefront + 0.05, 0.0) + n * 0.11), accent])
-		if has_escape and face_index == escape_face and cols >= 2:
-			var bay := 1 + (_rng.randi() % maxi(cols - 1, 1))
+		if has_escape and face_index == escape_face and cols - 2 * skip >= 2:
+			var bay := clampi(1 + (_rng.randi() % maxi(cols - 1, 1)), skip, cols - 1 - skip)
 			var eu := -size_u * 0.5 + (float(bay) - 0.5) * pitch
 			var ew: float = minf(pitch * 0.9, 2.6)
 			for row in rows:
@@ -467,6 +591,24 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				# Flip the bay on alternate floors so the stair runs zigzag down the wall.
 				var flip := 1.0 if row % 2 == 0 else -1.0
 				escapes.append(Transform3D(Basis(a * (ew * flip), Vector3.UP * floor_h, n * 1.35), fc + a * eu + Vector3(0.0, ev, 0.0)))
+		if storefront > 0.0 and shape != Shape.WAREHOUSE:
+			# A pier between shops and one at each end of the wall, running the whole height of
+			# the ground floor. The shopfront then reads as glass set back between piers rather
+			# than as a strip wrapped round a box. They stand on the shop runs the shader uses,
+			# which it measures from the other end of the wall (see the sign code below), so a
+			# pier's place along `a` is mirrored the same way.
+			var span: float = spans[face_index]
+			var runs := int(float(cols) / span)
+			var stops: Array[float] = []
+			for k in runs + 2:
+				var pu: float = size_u * 0.5 - minf(float(k) * span, float(cols)) * pitch
+				if absf(pu) > size_u * 0.5 - cut + 0.01:
+					continue
+				if stops.is_empty() or absf(stops[stops.size() - 1] - pu) > 0.05:
+					stops.append(pu)
+			for pu in stops:
+				boxes.append([Transform3D(Basis(a * 0.5, Vector3.UP * (storefront - 0.10), n * 0.5),
+					fc + a * pu + Vector3(0.0, bottom + (storefront - 0.10) * 0.5, 0.0) + n * 0.14), accent.lightened(0.05)])
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
 		# actual name on it, lined up with the same shop runs (`shop_span`). One per face:
 		# every run would be four names on a wall the player can only read one of.
@@ -500,10 +642,23 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				sign_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				sign_mesh.visibility_range_end = SIGN_DRAW_DISTANCE
 				add_child(sign_mesh)
+		if has_fins:
+			var bw: float = minf(pitch * 0.94, 3.2)
+			var run_h := fin_top - fin_bottom
+			var col := skip + ((cols - 2 * skip) % fin_every) / 2
+			while col < cols - skip:
+				var u := -size_u * 0.5 + (float(col) + 0.5) * pitch
+				fins.append([Transform3D(Basis(a * bw, Vector3.UP * run_h, n * fin_depth), fc + a * u + Vector3(0.0, fin_bottom, 0.0)), fin_color])
+				# Cap and soffit, so the run is closed top and bottom instead of two loose fins
+				# standing on nothing.
+				for fy: float in [fin_bottom - 0.08, fin_top + 0.08]:
+					boxes.append([Transform3D(Basis(a * (bw + 0.16), Vector3.UP * 0.16, n * (fin_depth + 0.16)),
+						fc + a * u + Vector3(0.0, fy, 0.0) + n * ((fin_depth + 0.16) * 0.5 - 0.08)), fin_color])
+				col += fin_every
 		if has_balconies:
 			var depth := _rng.randf_range(1.0, 1.45)
 			var bw: float = minf(pitch * 0.82, 3.0)
-			for col in cols:
+			for col in range(skip, cols - skip):
 				# Skip some bays so the facade is not a perfect grid of balconies.
 				if _rng.randf() < 0.22:
 					continue
@@ -518,13 +673,29 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 					# the floor height made 2 m railings that stacked into a continuous lattice.
 					balconies.append(Transform3D(Basis(a * bw, Vector3.UP * _rng.randf_range(1.02, 1.18), n * depth), fc + a * u + Vector3(0.0, v, 0.0)))
 		if has_awnings:
-			for col in cols:
+			for col in range(skip, cols - skip):
 				if col % 2 == 1 or _rng.randf() < 0.3:
 					continue
 				var u := -size_u * 0.5 + (col + 0.5) * pitch
 				var tilt := Basis(a, -0.35)
 				var basis := tilt * Basis(a * (pitch * 0.9), Vector3.UP * 0.08, n * 1.5)
 				boxes.append([Transform3D(basis, fc + a * u + Vector3(0.0, bottom + storefront * 0.78, 0.0) + n * 0.75), awning_color])
+	if cut_x > 0.0:
+		# Carry every band across the cut corners, or a chamfered block gets four gaps in its
+		# cornice and the eye goes straight to them.
+		for sx: float in [1.0, -1.0]:
+			for sz: float in [1.0, -1.0]:
+				var p1 := Vector3(sx * (size.x * 0.5 - cut_x), 0.0, sz * size.z * 0.5)
+				var p2 := Vector3(sx * size.x * 0.5, 0.0, sz * (size.z * 0.5 - cut_z))
+				var dir := p2 - p1
+				var clen := dir.length()
+				dir /= clen
+				var cn := Vector3(sx * cut_z, 0.0, sz * cut_x).normalized()
+				var mid := (p1 + p2) * 0.5 + Vector3(center.x, 0.0, center.z)
+				for b: Array in bands:
+					boxes.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
+				for b: Array in cap_bands:
+					caps.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
 	if not frames.is_empty():
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -575,6 +746,38 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		node.multimesh = mm
 		node.visibility_range_end = FRAME_DRAW_DISTANCE * 2.0
 		add_child(node)
+	if not fins.is_empty():
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = _bay_cheeks()
+		mm.instance_count = fins.size()
+		for i in fins.size():
+			mm.set_instance_transform(i, fins[i][0])
+			# A touch of drift per run, so a row of bays is not one colour stamped four times.
+			var h := float(absi(hash([seed, "fin", i])) % 1000) * 0.001
+			mm.set_instance_color(i, (fins[i][1] as Color).lightened(0.10 * (h - 0.5)))
+		var node := MultiMeshInstance3D.new()
+		node.name = "Bays"
+		node.multimesh = mm
+		node.visibility_range_end = relief_draw_distance
+		add_child(node)
+	if not caps.is_empty():
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = PropFactory.unit_box()
+		mm.instance_count = caps.size()
+		for i in caps.size():
+			mm.set_instance_transform(i, caps[i][0])
+			mm.set_instance_color(i, caps[i][1])
+		var node := MultiMeshInstance3D.new()
+		node.name = "Parapet"
+		node.multimesh = mm
+		# The roofline is silhouette, so it is worth drawing well past the wall detail: it is
+		# eight boxes and it is what the skyline is made of.
+		node.visibility_range_end = relief_draw_distance * 2.0
+		add_child(node)
 	if not boxes.is_empty():
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -587,8 +790,166 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		var node := MultiMeshInstance3D.new()
 		node.name = "Details"
 		node.multimesh = mm
-		node.visibility_range_end = FRAME_DRAW_DISTANCE * 1.6
+		node.visibility_range_end = relief_draw_distance
 		add_child(node)
+
+
+## One piece of a horizontal band: `a` is the direction along the wall, `n` the wall's outward
+## normal, `at` the middle of the wall at height 0, and `b` is
+## [centre height, thickness, projection, how far it buries into the wall, colour].
+static func _band_xform(a: Vector3, n: Vector3, at: Vector3, length: float, b: Array) -> Transform3D:
+	var out_d: float = b[2]
+	var in_d: float = b[3]
+	return Transform3D(Basis(a * length, Vector3.UP * float(b[1]), n * (out_d + in_d)),
+		at + Vector3(0.0, float(b[0]), 0.0) + n * ((out_d - in_d) * 0.5))
+
+
+## Height of the stone base course on a ground-floor part: the shopfront (whose own wall
+## slivers between the shops are part of the base) plus a floor or two of heavier material
+## above it. The shader paints the stone and a band caps it, so the two have to agree - always
+## ask here rather than working the height out again. `allow_storefront` is off on the suburban
+## houses, and a rusticated ashlar base on a bungalow is not a thing.
+func _base_course_height(size: Vector3, style: Dictionary, storefront: float, at_ground: bool) -> float:
+	if not at_ground or not allow_storefront or finish == Finish.GLASS or shape == Shape.WAREHOUSE:
+		return 0.0
+	if size.y < 12.0:
+		return 0.0
+	return minf(storefront + float(style.floor) * (2.0 if size.y > 30.0 else 1.0), size.y * 0.34)
+
+
+## True when this part's roof edge is clear the whole way round: either nothing on the building
+## stands higher, or what does is set in from every edge (a tower on a podium). A parapet along
+## an edge another part sits on would be a ridge running up somebody's wall.
+func _roof_edge_free(center: Vector3, size: Vector3) -> bool:
+	var top := center.y + size.y * 0.5
+	for p in parts:
+		var pc: Vector3 = p.center
+		var ps: Vector3 = p.size
+		if pc.y + ps.y * 0.5 <= top + 0.01:
+			continue
+		if pc.x - ps.x * 0.5 < center.x - size.x * 0.5 + 0.7:
+			return false
+		if pc.x + ps.x * 0.5 > center.x + size.x * 0.5 - 0.7:
+			return false
+		if pc.z - ps.z * 0.5 < center.z - size.z * 0.5 + 0.7:
+			return false
+		if pc.z + ps.z * 0.5 > center.z + size.z * 0.5 - 0.7:
+			return false
+	return true
+
+
+## Footprint of a part with its four corners cut back, going round the box. Shared by the prism
+## mesh and its collision shape so the two cannot drift apart.
+static func _footprint_polygon(size: Vector3, cut_x: float, cut_z: float) -> PackedVector2Array:
+	var hx := size.x * 0.5
+	var hz := size.z * 0.5
+	return PackedVector2Array([
+		Vector2(hx - cut_x, hz), Vector2(-(hx - cut_x), hz),
+		Vector2(-hx, hz - cut_z), Vector2(-hx, -(hz - cut_z)),
+		Vector2(-(hx - cut_x), -hz), Vector2(hx - cut_x, -hz),
+		Vector2(hx, -(hz - cut_z)), Vector2(hx, hz - cut_z),
+	])
+
+
+## A box with its four corners cut off, centred on the origin: eight walls, a flat roof and a
+## flat underside. Built here instead of a BoxMesh so a chamfered part is still one mesh under
+## one building shader (which reads the diagonal walls off their normals). Normals are flat per
+## face and the UVs run in metres, so the wall normal maps still have tangents to work in.
+static func _prism_mesh(size: Vector3, cut_x: float, cut_z: float) -> Mesh:
+	var poly := _footprint_polygon(size, cut_x, cut_z)
+	var hy := size.y * 0.5
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var run := 0.0
+	for i in poly.size():
+		var p0 := poly[i]
+		var p1 := poly[(i + 1) % poly.size()]
+		var e := Vector3(p1.x - p0.x, 0.0, p1.y - p0.y)
+		var wide := e.length()
+		var nrm := Vector3.UP.cross(e).normalized()
+		var a := Vector3(p0.x, -hy, p0.y)
+		var b := Vector3(p1.x, -hy, p1.y)
+		var up := Vector3.UP * size.y
+		_prism_quad(st, nrm, a, b, b + up, a + up,
+			Vector2(run, 0.0), Vector2(run + wide, 0.0), Vector2(run + wide, size.y), Vector2(run, size.y))
+		run += wide
+	# Caps. The roof is most of what the player sees while flying, so it is not optional.
+	for i in range(1, poly.size() - 1):
+		var q0 := poly[0]
+		var q1 := poly[i]
+		var q2 := poly[i + 1]
+		_prism_vertex(st, Vector3.UP, Vector3(q0.x, hy, q0.y), q0)
+		_prism_vertex(st, Vector3.UP, Vector3(q1.x, hy, q1.y), q1)
+		_prism_vertex(st, Vector3.UP, Vector3(q2.x, hy, q2.y), q2)
+		_prism_vertex(st, Vector3.DOWN, Vector3(q0.x, -hy, q0.y), q0)
+		_prism_vertex(st, Vector3.DOWN, Vector3(q2.x, -hy, q2.y), q2)
+		_prism_vertex(st, Vector3.DOWN, Vector3(q1.x, -hy, q1.y), q1)
+	st.generate_tangents()
+	return st.commit()
+
+
+static func _prism_vertex(st: SurfaceTool, n: Vector3, p: Vector3, uv: Vector2) -> void:
+	st.set_normal(n)
+	st.set_uv(uv)
+	st.add_vertex(p)
+
+
+static func _prism_quad(st: SurfaceTool, n: Vector3, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
+		ua: Vector2, ub: Vector2, uc: Vector2, ud: Vector2) -> void:
+	_prism_vertex(st, n, a, ua)
+	_prism_vertex(st, n, b, ub)
+	_prism_vertex(st, n, c, uc)
+	_prism_vertex(st, n, a, ua)
+	_prism_vertex(st, n, c, uc)
+	_prism_vertex(st, n, d, ud)
+
+
+## The eight corner points of a cut-cornered part, for its convex collision shape.
+static func _prism_points(size: Vector3, cut_x: float, cut_z: float) -> PackedVector3Array:
+	var poly := _footprint_polygon(size, cut_x, cut_z)
+	var hy := size.y * 0.5
+	var pts := PackedVector3Array()
+	for p in poly:
+		pts.append(Vector3(p.x, -hy, p.y))
+		pts.append(Vector3(p.x, hy, p.y))
+	return pts
+
+
+static var _bay_mesh: Mesh = null
+
+
+## The two cheeks of a projecting bay, in a unit cube: 1 wide (X), 1 tall (Y), 1 deep (+Z, out
+## of the wall). Cheeks only, because they are vertical and survive being stretched over a run
+## of floors; the cap and the soffit are horizontal and go in with the bands instead, where
+## stretching would have made them thicker on a taller building.
+static func _bay_cheeks() -> Mesh:
+	if _bay_mesh != null:
+		return _bay_mesh
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_smooth_group(-1)
+	for sx: float in [-0.5, 0.5]:
+		_cheek_box(st, Vector3(sx, 0.5, 0.52), Vector3(0.14, 1.0, 0.96))
+	st.generate_normals()
+	var mesh := st.commit()
+	mesh.surface_set_material(0, PropFactory.material(Color.WHITE, 0.72))
+	_bay_mesh = mesh
+	return mesh
+
+
+## A plain box into a SurfaceTool that is having its normals generated: positions only, wound
+## the same way round as every other box in the game.
+static func _cheek_box(st: SurfaceTool, centre: Vector3, size: Vector3) -> void:
+	var h := size * 0.5
+	var p := [
+		centre + Vector3(-h.x, -h.y, -h.z), centre + Vector3(h.x, -h.y, -h.z),
+		centre + Vector3(h.x, h.y, -h.z), centre + Vector3(-h.x, h.y, -h.z),
+		centre + Vector3(-h.x, -h.y, h.z), centre + Vector3(h.x, -h.y, h.z),
+		centre + Vector3(h.x, h.y, h.z), centre + Vector3(-h.x, h.y, h.z),
+	]
+	for f: Array in [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [3, 2, 6, 7], [4, 5, 1, 0]]:
+		for idx: int in [f[0], f[1], f[2], f[0], f[2], f[3]]:
+			st.add_vertex(p[idx])
 
 
 ## Texture sets each finish can wear (keys in PropFactory.TEXTURE_SETS) and their meters per tile.
@@ -643,7 +1004,8 @@ func _build_roof_props() -> void:
 		for j in parts.size():
 			if j != i and parts[j].center.y + parts[j].size.y * 0.5 > top + 0.01:
 				is_top = false
-		var inset := 1.2
+		# Keep the plant off the cut corners as well as off the parapet.
+		var inset := 2.8 if _chamfered else 1.2
 		var area := Vector2(size.x - inset * 2.0, size.z - inset * 2.0)
 		if area.x < 2.0 or area.y < 2.0:
 			continue

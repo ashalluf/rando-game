@@ -5,6 +5,12 @@ extends RefCounted
 ## gas stations with a pump canopy. All names are original (no real brands). Everything is
 ## boxes with PBR sets, glass, painted lots and 3D text, built through the chunk so it follows
 ## the relief. Static: call with the chunk.
+##
+## All of the lit signage - backlit fascia boxes, blade signs, neon tubes, canopy underside
+## lighting and backlit pylons - goes through `Signage` (scripts/world/signage.gd), which drives
+## everything off the `lamp_factor` shader global rather than real lights. Sign variation is
+## hashed from world position and the city seed, never rolled off `rng`: an extra rng call in
+## here would shift every downstream roll and move the city.
 
 const ANCHORS := ["SUPER MART", "FRESH FOODS", "VALUE GROCER", "MEGA MART", "GREEN GROCER"]
 const SHOPS := ["PHARMACY", "NAILS & SPA", "DRY CLEAN", "PHONE FIX", "LIQUOR", "PIZZA", "SUSHI", "TACOS", "COFFEE STOP", "BANK", "DONUT HOLE", "SUB STOP", "PET SHOP", "BARBER", "LAUNDRY", "BOBA", "DENTAL", "TAX PRO", "SMOKE SHOP", "FLOWERS"]
@@ -58,8 +64,19 @@ static func build_bigbox(chunk: CityChunk, rect: Rect2, rng: RandomNumberGenerat
 	if full:
 		# Fascia band with the name, entrance canopy with glass doors, a garden center to one side.
 		chunk._add_slab(Vector3(cx, TOP + h - 1.2, front_z - 0.15), Vector3(w * 0.5, 2.4, 0.3), fascia, false, PropFactory.material(fascia, 0.6))
-		_sign_text(chunk, name, Vector3(cx, TOP + h - 1.2, front_z - 0.32), 0.0, 1.6, Color.WHITE)
+		# Backlit fascia box with channel letters, a glowing pinstripe across the whole
+		# storefront, and the entrance canopy lit from underneath. A big box at night is one
+		# huge sign over a lit soffit; without that it is a black cliff with a lot in front.
+		var store_front := Vector3(cx, 0.0, front_z)
+		var store_color := Signage.sign_color([chunk.plan.seed, name, int(cx * 4.0), int(front_z * 4.0)])
+		Signage.fascia(chunk, store_front, 0.0, TOP + h - 1.2, w * 0.48, 2.0, 0.52, name, 1.5, store_color)
+		# Out past the pilasters (they stand 40 cm proud of the wall) or they would eat it.
+		Signage.stripe(chunk, Vector3(cx, TOP + 5.0, front_z - 0.50), 0.0, w * 0.86, 0.16, store_color, 0.7)
+		Signage.wash(chunk, store_front, 0.0, TOP + 3.0, minf(w * 0.5, 24.0), 3.4, store_color, 6.0, TOP, 0.55)
 		chunk._add_slab(Vector3(cx, TOP + 4.6, front_z - 4.0), Vector3(14.0, 0.5, 8.0), Color(0.3, 0.3, 0.32), true, PropFactory.material(Color(0.3, 0.3, 0.32), 0.6))
+		# 4.80, not 4.35: that canopy slab is thin and wide enough that _add_slab turns it into a
+		# relief-following ground grid whose surface ends up at TOP + 4.85, not a solid box.
+		Signage.canopy(chunk, Vector3(cx, 0.0, front_z - 4.0), Vector2(13.0, 7.0), TOP + 4.80, 3, 2, Signage.COOL, TOP, 0.8)
 		for sx: float in [-6.5, 6.5]:
 			chunk._add_slab(Vector3(cx + sx, TOP + 2.3, front_z - 7.6), Vector3(0.5, 4.6, 0.5), Color(0.3, 0.3, 0.32))
 		_glass(chunk, Vector3(cx, TOP + 2.2, front_z - 0.05), Vector3(12.0, 4.0, 0.1))
@@ -109,11 +126,21 @@ static func _fast_food(chunk: CityChunk, pad: Rect2, rng: RandomNumberGenerator,
 	# Red band around the roof edge, glass front, drive-thru window and menu board on the +X side.
 	chunk._add_slab(Vector3(c.x, TOP + h - 0.5, front_z - 0.12), Vector3(bw, 1.0, 0.25), fascia, false, PropFactory.material(fascia, 0.6))
 	_glass(chunk, Vector3(c.x, TOP + 1.6, front_z - 0.05), Vector3(bw - 2.0, 2.4, 0.1))
-	_sign_text(chunk, name, Vector3(c.x, TOP + h - 0.5, front_z - 0.3), 0.0, 0.7, Color.WHITE)
+	# A drive-thru is all sign: a lit box over the door, a neon line round the roof edge that
+	# carries on down the side wall, a glowing menu board and a lit service window.
+	var salt := [chunk.plan.seed, name, int(c.x * 4.0), int(front_z * 4.0)]
+	var neon: Color = Signage.pick_color(Signage.NEON, salt + ["trim"])
+	var front := Vector3(c.x, 0.0, front_z)
+	Signage.fascia(chunk, front, 0.0, TOP + h - 0.5, bw * 0.7, 0.9, 0.36, name, 0.7, Signage.sign_color(salt))
+	Signage.stripe(chunk, Vector3(c.x, TOP + h - 1.15, front_z - 0.22), 0.0, bw - 0.4, 0.14, neon)
+	Signage.stripe(chunk, Vector3(box.end.x + 0.17, TOP + h - 1.15, c.y), -PI * 0.5, bd - 0.4, 0.14, neon)
+	Signage.wash(chunk, front, 0.0, TOP + 2.9, bw * 0.8, 2.0, neon, 4.0, TOP)
 	var dx := box.end.x + 0.05
 	_glass(chunk, Vector3(dx, TOP + 1.7, c.y), Vector3(0.1, 1.2, 1.6))
+	Signage.wash(chunk, Vector3(dx, 0.0, c.y), -PI * 0.5, TOP + 1.7, 2.4, 1.8, Signage.WARM, 3.0, TOP)
 	chunk._add_slab(Vector3(dx + 3.5, TOP + 1.4, c.y + 5.0), Vector3(0.15, 1.8, 2.2), Color(0.2, 0.2, 0.22), true, PropFactory.material(Color(0.2, 0.2, 0.22), 0.6))
-	_sign_text(chunk, "MENU", Vector3(dx + 3.4, TOP + 1.9, c.y + 5.0), PI * 0.5, 0.3, Color(0.95, 0.9, 0.5))
+	# The menu board is backlit plastic, which is why it is readable from a car at midnight.
+	Signage.fascia(chunk, Vector3(dx + 3.5, 0.0, c.y + 5.0), PI * 0.5, TOP + 1.75, 1.9, 1.5, 0.12, "MENU", 0.3, Signage.WARM)
 	# Drive-thru lane arrows along the +X side.
 	for k in 3:
 		chunk._batch.add("arrow_straight", PropFactory.arrow_straight(), Transform3D(Basis(Vector3.UP, 0.0), Vector3(dx + 2.0, CityChunk.ROAD_TOP + 0.016 + 0.16, c.y + 8.0 - k * 6.0)))
@@ -134,7 +161,16 @@ static func _gas_station(chunk: CityChunk, pad: Rect2, rng: RandomNumberGenerato
 	chunk._add_slab(Vector3(canopy_c.x, TOP + 5.3, canopy_c.y), Vector3(cw, 0.7, cd), Color(0.9, 0.9, 0.9), true, PropFactory.material(Color(0.92, 0.92, 0.92), 0.5))
 	if not full:
 		return
-	chunk._add_slab(Vector3(canopy_c.x, TOP + 5.3, canopy_c.y - cd * 0.5 - 0.1), Vector3(cw, 0.9, 0.2), fascia, false, PropFactory.material(fascia, 0.6))
+	# A forecourt canopy is the brightest object in a night city: a glowing white band all the
+	# way round its edge with the brand stripe under it, a grid of lights recessed into the
+	# soffit, and enough spill on the tarmac that the whole pad reads as lit. It is also the
+	# one thing you can see from three blocks away, so it is worth the quads.
+	# This replaces the old painted band, which was on the front edge only: the two would have
+	# fought for the same 20 cm, and a real canopy carries its fascia the whole way round.
+	var canopy3 := Vector3(canopy_c.x, 0.0, canopy_c.y)
+	Signage.ring(chunk, canopy3, Vector2(cw, cd), TOP + 5.42, 0.46, Signage.COOL)
+	Signage.ring(chunk, canopy3, Vector2(cw, cd), TOP + 5.07, 0.24, fascia)
+	Signage.canopy(chunk, canopy3, Vector2(cw, cd), TOP + 4.93, 3, 2, Signage.WARM, TOP, Signage.CANOPY_GAIN)
 	for sx: float in [-cw * 0.35, cw * 0.35]:
 		for sz: float in [-cd * 0.3, cd * 0.3]:
 			chunk._add_slab(Vector3(canopy_c.x + sx, TOP + 2.5, canopy_c.y + sz), Vector3(0.4, 5.0, 0.4), Color(0.85, 0.85, 0.85))
@@ -143,11 +179,24 @@ static func _gas_station(chunk: CityChunk, pad: Rect2, rng: RandomNumberGenerato
 		var ix := canopy_c.x + (k - 0.5) * cw * 0.4
 		chunk._add_slab(Vector3(ix, TOP + 0.08, canopy_c.y), Vector3(1.2, 0.16, 7.0), Color(0.8, 0.8, 0.8))
 		for pz: float in [-1.8, 1.8]:
-			chunk._add_prop("pump", Vector3(ix, TOP + 0.16, canopy_c.y + pz), Color(0.2, 0.2, 0.22), [
-				["pump", PropFactory.gas_pump(), Transform3D(Basis(), Vector3(ix, TOP + 0.16 + 0.9, canopy_c.y + pz)), fascia],
-			], [[Vector3(0.6, 1.8, 0.9), Vector3(ix, TOP + 1.06, canopy_c.y + pz), 0.0]])
+			# The lit display on each side of the pump rides in the pump's own instance list,
+			# so shooting the pump takes its light with it.
+			var pump_lit := []
+			for side: float in [1.0, -1.0]:
+				var face := -PI * 0.5 if side > 0.0 else PI * 0.5
+				pump_lit.append(Signage.panel(Vector3(ix + side * 0.30, TOP + 1.55, canopy_c.y + pz), Vector3(0.62, 0.36, 0.05), face, Signage.WARM))
+				pump_lit.append(Signage.glow(Vector3(ix + side * 0.38, TOP + 1.55, canopy_c.y + pz), Vector2(0.9, 0.7), face, Color(1.0, 0.93, 0.8, 0.45)))
+			var pump_rows: Array = [["pump", PropFactory.gas_pump(), Transform3D(Basis(), Vector3(ix, TOP + 0.16 + 0.9, canopy_c.y + pz)), fascia]]
+			pump_rows.append_array(pump_lit)
+			chunk._add_prop("pump", Vector3(ix, TOP + 0.16, canopy_c.y + pz), Color(0.2, 0.2, 0.22), pump_rows,
+				[[Vector3(0.6, 1.8, 0.9), Vector3(ix, TOP + 1.06, canopy_c.y + pz), 0.0]])
+			Signage.quiet(chunk, pump_lit)
 	_glass(chunk, Vector3(shop.get_center().x, TOP + 1.7, shop.position.y - 0.05), Vector3(sw - 2.0, 2.4, 0.1))
-	_sign_text(chunk, name, Vector3(shop.get_center().x, TOP + 3.6, shop.position.y - 0.2), 0.0, 0.6, fascia)
+	var shop_front := Vector3(shop.get_center().x, 0.0, shop.position.y)
+	Signage.fascia(chunk, shop_front, 0.0, TOP + 3.5, sw * 0.72, 0.9, 0.26, name, 0.6, fascia)
+	Signage.wash(chunk, shop_front, 0.0, TOP + 2.6, sw * 0.8, 1.7, Signage.WARM, 3.0, TOP)
+	if not OS.has_feature("web"):
+		Signage.window_neon(chunk, shop_front, 0.0, TOP + 2.3, Signage.pick_color(Signage.NEON, [chunk.plan.seed, name, int(shop.position.y * 4.0), "gas"]), "OPEN")
 	_pylon(chunk, Vector2(pad.position.x + 2.5, pad.position.y + 2.5), [name, "4.59  4.79  4.99"], fascia, rng, 8.0)
 
 
@@ -255,20 +304,25 @@ static func _strip(chunk: CityChunk, strip: Rect2, h: float, front: Vector2, fas
 	chunk._add_slab(mid + Vector3(0.0, TOP + h - 0.7, 0.0), Vector3(length if absf(front.y) > 0.5 else 0.25, 1.4, 0.25 if absf(front.y) > 0.5 else length), fascia, false, PropFactory.material(fascia, 0.6))
 	var t := 0.0
 	var first := true
+	var web := OS.has_feature("web")
 	while t < length - 6.0:
 		var unit_w := (minf(28.0, length - t) if (first and has_anchor) else rng.randf_range(8.0, 14.0))
 		unit_w = minf(unit_w, length - t)
 		var uc := s3 + a3 * (t + unit_w * 0.5)
-		var name: String = ANCHORS[rng.randi() % ANCHORS.size()] if (first and has_anchor) else SHOPS[rng.randi() % SHOPS.size()]
-		_sign_text(chunk, name, uc + Vector3(0.0, TOP + h - 0.7, 0.0) - f3 * 0.3, yaw, 0.9 if (first and has_anchor) else 0.55, Color.WHITE)
+		var anchor := first and has_anchor
+		var name: String = ANCHORS[rng.randi() % ANCHORS.size()] if anchor else SHOPS[rng.randi() % SHOPS.size()]
 		# Storefront glass with a pillar at each unit edge; an awning on some.
 		var gw := unit_w - 1.2
 		_glass(chunk, uc + Vector3(0.0, TOP + 1.6, 0.0) - f3 * 0.05, Vector3(gw, 2.6, 0.1) if absf(front.y) > 0.5 else Vector3(0.1, 2.6, gw))
 		var pillar := s3 + a3 * t - f3 * 0.2
 		chunk._add_slab(pillar + Vector3(0.0, TOP + h * 0.5, 0.0), Vector3(0.6, h, 0.6), Color(0.35, 0.35, 0.37))
-		if rng.randf() < 0.5:
+		# Captured, not re-rolled: the blade sign needs to know, and it has to hang where an
+		# awning is not. Same single rng call, same place in the sequence.
+		var awning := rng.randf() < 0.5
+		if awning:
 			var awn := uc + Vector3(0.0, TOP + 3.3, 0.0) - f3 * 1.1
 			chunk._add_slab(awn, Vector3(gw, 0.12, 2.0) if absf(front.y) > 0.5 else Vector3(2.0, 0.12, gw), fascia, false, PropFactory.material(fascia.darkened(0.2), 0.8))
+		_shop_signs(chunk, uc, yaw, unit_w, h, name, anchor, awning, web)
 		t += unit_w
 		first = false
 	# Walkway with bollards in front of the strip.
@@ -277,6 +331,28 @@ static func _strip(chunk: CityChunk, strip: Rect2, h: float, front: Vector2, fas
 		chunk._add_prop("bollard", bp + Vector3(0.0, TOP, 0.0), Color(0.25, 0.25, 0.27), [
 			["bollard", PropFactory.bollard(), Transform3D(Basis(), bp + Vector3(0.0, TOP + 0.45, 0.0))],
 		], [[Vector3(0.3, 0.9, 0.3), bp + Vector3(0.0, TOP + 0.45, 0.0), 0.0]])
+
+
+## Everything lit on one shop unit: the backlit fascia box with its channel letters, the wash
+## of light it throws back on its own wall and down onto the walkway, a projecting blade sign
+## over the pavement where there is no awning in the way, and a neon tube sign in the window.
+## Colour, blade word and window word are hashed from the unit's world position and the city
+## seed, so they never move and never cost an rng roll.
+static func _shop_signs(chunk: CityChunk, uc: Vector3, yaw: float, unit_w: float, h: float,
+		name: String, anchor: bool, awning: bool, web: bool) -> void:
+	var salt := [chunk.plan.seed, name, int(uc.x * 4.0), int(uc.z * 4.0)]
+	var color := Signage.sign_color(salt)
+	Signage.fascia(chunk, uc, yaw, TOP + h - 0.7, unit_w - 0.5, 1.15, 0.36, name,
+		0.9 if anchor else 0.55, color)
+	Signage.wash(chunk, uc, yaw, TOP + 3.4, unit_w * 0.9, 2.2, color, 3.0, TOP)
+	if web:
+		return
+	if not awning and Signage.chance(salt + ["blade"]) < Signage.BLADE_ODDS:
+		Signage.blade(chunk, uc, yaw, TOP + 3.35, Signage.pick_color(Signage.NEON, salt + ["bc"]),
+			Signage.pick_word(Signage.BLADE_WORDS, salt + ["bw"]))
+	if Signage.chance(salt + ["win"]) < Signage.WINDOW_NEON_ODDS:
+		Signage.window_neon(chunk, uc, yaw, TOP + 2.35, Signage.pick_color(Signage.NEON, salt + ["wc"]),
+			Signage.pick_word(Signage.WINDOW_WORDS, salt + ["ww"]))
 
 
 static func _glass(chunk: CityChunk, center: Vector3, size: Vector3) -> void:
@@ -289,12 +365,6 @@ static func _glass(chunk: CityChunk, center: Vector3, size: Vector3) -> void:
 	chunk.add_child(mesh)
 
 
-## `yaw` is the yaw of the wall's outward normal (atan2(-n.x, -n.z)); TextMesh reads from +Z,
-## so the text is turned half a circle from that.
-static func _sign_text(chunk: CityChunk, text: String, at: Vector3, yaw: float, height: float, color: Color) -> void:
-	chunk._batch.add("text_" + text, PropFactory.text_mesh(text, height), Transform3D(Basis(Vector3.UP, yaw + PI), at), color)
-
-
 ## Tall pylon sign at a lot corner: pole plus a panel per name.
 static func _pylon(chunk: CityChunk, at2: Vector2, names: Array, fascia: Color, rng: RandomNumberGenerator, height: float = 11.0) -> void:
 	var at := Vector3(at2.x, TOP, at2.y)
@@ -302,15 +372,20 @@ static func _pylon(chunk: CityChunk, at2: Vector2, names: Array, fascia: Color, 
 		["pylon_pole", PropFactory.cylinder("pylon_pole", 0.25, 1.0, Color(0.3, 0.3, 0.32), 0.25, 10), Transform3D(Basis().scaled(Vector3(1.0, height, 1.0)), at + Vector3(0.0, height * 0.5, 0.0))],
 	]
 	var y := height
+	# Every panel is a backlit face on both sides with its own letters and halo, built as
+	# instance rows so the whole lit sign rides in the pylon's breakable prop: shoot the pole
+	# and the light goes out with it.
+	var lit := []
 	for i in names.size():
 		var nm: String = names[i]
 		var panel_h := 2.2 if i == 0 else 1.2
 		instances.append(["pylon_panel", PropFactory.box("pylon_panel", Vector3(6.0, 1.0, 0.4), Color(1.0, 1.0, 1.0)), Transform3D(Basis().scaled(Vector3(1.0, panel_h, 1.0)), at + Vector3(0.0, y - panel_h * 0.5, 0.0)), fascia if i == 0 else Color(0.95, 0.95, 0.95)])
-		var text_c := Color.WHITE if i == 0 else Color(0.1, 0.1, 0.12)
-		instances.append(["text_" + nm, PropFactory.text_mesh(nm, 0.9 if i == 0 else 0.5), Transform3D(Basis(), at + Vector3(0.0, y - panel_h * 0.5, 0.22)), text_c])
-		instances.append(["text_" + nm, PropFactory.text_mesh(nm, 0.9 if i == 0 else 0.5), Transform3D(Basis(Vector3.UP, PI), at + Vector3(0.0, y - panel_h * 0.5, -0.22)), text_c])
+		var face_color: Color = fascia.lightened(0.12) if i == 0 else Signage.WARM
+		lit.append_array(Signage.pylon_rows(at + Vector3(0.0, y - panel_h * 0.5, 0.0), 6.0, panel_h, nm, face_color, 0.9 if i == 0 else 0.5))
 		y -= panel_h + 0.2
+	instances.append_array(lit)
 	chunk._add_prop("pylon", at, Color(0.3, 0.3, 0.32), instances, [[Vector3(0.6, height, 0.6), at + Vector3(0.0, height * 0.5, 0.0), 0.0]])
+	Signage.quiet(chunk, lit)
 
 
 static func _corral(chunk: CityChunk, at2: Vector2) -> void:
