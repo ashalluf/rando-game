@@ -1403,12 +1403,15 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
 	if _palm_street and rng.randf() < 0.8:
 		_add_palm(at, rng, false)
 		return
-	var s := rng.randf_range(0.9, 1.6)
+	# A target HEIGHT in metres, not a raw multiplier. The models range from 2.6 m to 19.5 m tall,
+	# so one shared multiplier made some of them bushes and the jacaranda a 31 m tree.
+	var target_h := rng.randf_range(6.0, 10.5)
 	var yaw := rng.randf_range(0.0, TAU)
 	# Most trees on a block are its dominant species; the rest are whatever.
 	var variant := _tree_bias if (_tree_bias >= 0 and rng.randf() < 0.7) else rng.randi() % PropFactory.CITY_TREES.size()
 	if _jacaranda_street and rng.randf() < 0.85:
 		variant = PropFactory.CITY_TREES.size() - 1
+	var s := PropFactory.city_tree_scale(variant, target_h)
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint)
 

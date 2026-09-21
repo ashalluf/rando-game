@@ -1003,6 +1003,23 @@ const CITY_TREES := ["tree_a.glb", "tree_b.glb", "tree_c.glb", "tree_d.glb", "tr
 ## coastal basin covered in the same broadleaf street trees as the city below reads as one
 ## texture stretched over everything.
 const HILL_TREES := ["tree_fir.glb", "tree_pine.glb", "tree_quiver.glb", "tree_searsia.glb"]
+## Measured height of each model in metres, so placement can ask for a real-world height instead
+## of a raw multiplier. Without this the city pool spans 2.6 m to 19.5 m and one 0.9-1.6 roll
+## makes tree_d a 2.3 m bush and the jacaranda a 31 m tree with a 40 m canopy, overtopping the
+## buildings it is supposed to line. Re-measure with the bbox if a model is ever replaced.
+const CITY_TREE_HEIGHT := [5.01, 3.40, 4.61, 2.61, 19.47]
+const HILL_TREE_HEIGHT := [14.33, 20.25, 2.72, 3.27]
+
+
+## Uniform scale that makes city tree `variant` stand `target_m` metres tall.
+static func city_tree_scale(variant: int, target_m: float) -> float:
+	var v := clampi(variant, 0, CITY_TREE_HEIGHT.size() - 1)
+	return target_m / maxf(float(CITY_TREE_HEIGHT[v]), 0.1)
+
+
+static func hill_tree_scale(variant: int, target_m: float) -> float:
+	var v := clampi(variant, 0, HILL_TREE_HEIGHT.size() - 1)
+	return target_m / maxf(float(HILL_TREE_HEIGHT[v]), 0.1)
 
 ## Lavender, at 58% of the canopy. The alpha carries the mix amount.
 ## A jacaranda is soft lavender-violet, not electric blue: at 0.40/0.27/0.70 and 80% the trees
