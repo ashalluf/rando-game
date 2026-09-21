@@ -79,6 +79,11 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 @export var chamfer_chance: float = 0.30
 ## Chance a shopfront gets one projecting canopy instead of separate awnings.
 @export var canopy_chance: float = 0.40
+## Where the canopy slab sits up the storefront, as a fraction of it. Must stay under 0.74:
+## that is where the shader stops the shop glass and starts the painted sign band.
+@export var canopy_height_frac: float = 0.62
+## How far the shopfront canopy reaches out over the pavement (meters).
+@export var canopy_reach: float = 1.40
 ## Floors between string courses (belt bands) on masonry walls; 0 turns them off.
 @export var string_course_every: int = 4
 ## How far a roof parapet stands above the roof deck (meters); 0 turns parapets off.
@@ -511,9 +516,14 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			bands.append([bottom + base_h, 0.24, band_projection * 0.62, 0.10, accent])
 	if has_canopy:
 		# One flat canopy over the pavement instead of separate awnings, with a fascia lip on
-		# its outer edge so it is not a bare slab.
-		var canopy_y := bottom + storefront - 0.55
-		var reach := 1.40
+		# its outer edge so it is not a bare slab. Its height has to agree with the shopfront
+		# the shader draws: the painted sign band is fv 0.76..0.93 of the storefront and the
+		# shop-name meshes sit at 0.845 of it, so a slab at `storefront - 0.55` (3.95 m of a
+		# 4.5 m storefront, 1.4 m deep) cut the tops off the letters and split the painted
+		# band in two. Hang it off a fraction of the storefront instead, under the glass -
+		# which the shader stops at fv 0.74 - which is where a real shop canopy goes anyway.
+		var canopy_y := bottom + storefront * canopy_height_frac
+		var reach: float = maxf(canopy_reach, 0.30)
 		bands.append([canopy_y, 0.16, reach, 0.10, accent.darkened(0.25)])
 		bands.append([canopy_y + 0.13, 0.30, reach + 0.04, -(reach - 0.22), awning_color])
 	# Parapet: a low wall standing on the roof edge. Nothing changes a roofline as much - a box
@@ -581,7 +591,16 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 						continue
 					frames.append(Transform3D(Basis(a * w, Vector3.UP * h, n * 0.1), fc + a * u + Vector3(0.0, v, 0.0) + n * 0.02))
 		if has_escape and face_index == escape_face and cols - 2 * skip >= 2:
-			var bay := clampi(1 + (_rng.randi() % maxi(cols - 1, 1)), skip, cols - 1 - skip)
+			# `bay` is 1-based: bay 1 sits on column 0, because `eu` below offsets by bay - 0.5.
+			# A chamfer takes exactly one column off each end of the wall (cut == pitch), so
+			# the escape has to land on a column in [skip, cols - 1 - skip], i.e. on a bay in
+			# [skip + 1, cols - skip]. The old bounds were a bay short at both ends: they let
+			# bay 1 through, which put the whole escape out over the cut corner, standing
+			# 1.35 m proud of a face plane that is no longer there.
+			var low_bay := skip + 1
+			var high_bay := cols - skip
+			# One randi() either way, so the seeded rolls after this are untouched.
+			var bay := low_bay + (_rng.randi() % maxi(high_bay - low_bay + 1, 1))
 			var eu := -size_u * 0.5 + (float(bay) - 0.5) * pitch
 			var ew: float = minf(pitch * 0.9, 2.6)
 			for row in rows:
@@ -691,6 +710,15 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				var clen := dir.length()
 				dir /= clen
 				var cn := Vector3(sx * cut_z, 0.0, sz * cut_x).normalized()
+				# The four flat faces all satisfy `a x UP == n`, which is what keeps
+				# Basis(a, UP, n) right-handed. Walking the footprint runs the chamfer the
+				# other way round on the two corners where sx * sz < 0, so `dir` came out
+				# reversed there and every band instance on them was mirrored - and a
+				# mirrored instance winds backwards, so CULL_BACK threw away the faces that
+				# should have been outward. Cornices, copings, string courses, the plinth and
+				# the parapet were simply missing on two chamfers of every cut block.
+				if dir.cross(Vector3.UP).dot(cn) < 0.0:
+					dir = -dir
 				var mid := (p1 + p2) * 0.5 + Vector3(center.x, 0.0, center.z)
 				for b: Array in bands:
 					boxes.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
