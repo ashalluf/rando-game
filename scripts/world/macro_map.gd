@@ -81,7 +81,11 @@ var campus_radius: float = 250.0
 ## South-east of this corner is the port and industrial district.
 var industrial_corner: Vector2 = Vector2(300.0, 900.0)
 ## Flat zones (world XZ rects): the airport by the south-west coast, the port on a harbor.
-var airport_rect: Rect2 = Rect2(-880.0, 590.0, 980.0, 390.0)
+## The airport. Its west edge is INLAND of the beach: zone_at() checks the flat rects before it
+## checks the coastline, so a rect that reaches past the waterline wins and lays tarmac over the
+## sea. The waterline runs -766 to -723 across this Z range and the sand ends 70 m inland of
+## that, so -640 clears it everywhere with a margin.
+var airport_rect: Rect2 = Rect2(-640.0, 590.0, 740.0, 390.0)
 ## Landside of the terminal (its hall front is at z 635): the sidewalk strip people crowd, and
 ## the drop-off loop road in front of it, as the two closed lane paths traffic crawls around
 ## (world XZ; each list is a closed polyline, cars drive it in order).

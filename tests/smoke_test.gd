@@ -426,6 +426,19 @@ func _test_city() -> void:
 			if not Minimap.LANDMARK_NAMES.has(lm.id):
 				unlabelled += " " + str(lm.id)
 		_check(unlabelled == "", "every landmark has a minimap label%s" % unlabelled)
+		# The flat zones (airport, port, harbour) are checked by zone_at() BEFORE the coastline,
+		# so a rect whose west edge reaches past the waterline wins and lays tarmac out over the
+		# sea. The airport did exactly that for a long time. Walk each rect's seaward edge and
+		# assert it stays inland of the sand.
+		var wet_rects := ""
+		for named_rect in [["airport", macro.airport_rect], ["port", macro.port_rect]]:
+			var r: Rect2 = named_rect[1]
+			for k in 9:
+				var z: float = r.position.y + r.size.y * float(k) / 8.0
+				if r.position.x < macro.coast_x(z) + macro.beach_width:
+					wet_rects += " %s@z%.0f" % [str(named_rect[0]), z]
+					break
+		_check(wet_rects == "", "no flat zone reaches past the waterline%s" % wet_rects)
 		_check(city.has_node("FarLandmark_campus_hall"), "far version of the campus hall exists")
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:
