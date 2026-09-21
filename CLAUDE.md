@@ -166,8 +166,17 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Node groups: `player` (the player body), `physics_prop` (every rigid prop PhysicsBudget manages),
   `debris` (short-lived props that get freed after a timeout).
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
-  (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`, synthesized sounds:
+  (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
+  Sound is **real CC0 recordings** (`assets/audio/`, 32 clips, sources in `docs/ASSETS.md`) with
+  the old synthesis kept as the fallback: `_build_synth()` fills every name first and
+  `_load_samples()` replaces only the names whose files load, so a missing or unimported file
+  degrades to a tone rather than to silence. A name holds several takes and `play()` picks one at
+  random, which is what stops the rifle and the footsteps sounding like one file on repeat. Loop
+  flags are set on the stream **in code**, never in the `.import`: a regenerated `.import` can
+  silently drop the flag, and a non-looping ambience is very hard to diagnose. Only the clips
+  named in `Sfx.SAMPLES` ship - do not leave working downloads in `assets/audio/`, this builds
+  into a macOS app and a web page.
 - Day/night: `DayNight` node in the city scene drives the sun, the sky (`shaders/sky.gdshader`,
   a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in
@@ -393,13 +402,40 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   is 200 so there are vertices to displace, and `CityStreamer` snaps the plane's position to that
   vertex grid **in world space** - without the snap the peaks swim as the follower slides.
   Before this the plane was 4 km of flat green and its own edge was the horizon.
+- Trees and planting: `PropFactory.CITY_TREES` (five broadleaf street trees) and `HILL_TREES`
+  (fir, pine, quiver, searsia) - the hills used to wear the same street trees as the basin, which
+  reads as one texture stretched over everything. A block's dominant species comes from the
+  district's `tree_weights`, which is walked as an array of any length; it used to be indexed
+  `[0]`, `[1]`, `[2]` by hand, so a fourth tree would have been placed only by the fallback roll,
+  silently. `BUSHES`, `PLANTS`, `FLOWERS` and `GRASS_CLUMPS` are the knee-height families, and
+  `CityChunk._scatter_ground_cover()` plants parks and pocket gardens from them: one flowering
+  species dominates a patch, because a mixed sprinkle of seven colours reads as confetti rather
+  than as planting. FULL chunks only, no shadows, 80-95 m draw distance.
+  **The jacaranda blooms in the shader, not in the texture.** Poly Haven's scan is photographed
+  out of bloom, so the leaves are plain green; `shaders/foliage_tex.gdshader` takes each leaf to
+  its own luminance and recolours it (`blossom`, `blossom_mix`, `blossom_patch`, set from
+  `PropFactory.JACARANDA_BLOSSOM`). Multiplying green by violet only gives mud, and scaling by
+  leaf luminance *alone* drags shaded leaves to navy - the constant term in that mix is what keeps
+  a flower in shadow reading as a flower. `blossom_mix` 0 leaves every other tree untouched.
+  `CityChunk._jacaranda_street` biases whole blocks to it, the same idea as the palm streets.
+- Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
+  mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
+  reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and
+  the same `ground_detail`-gated second rotated sample the road shader uses. Keep it subtle: the
+  first pass used `sign()` for the stripes and a 1.6x albedo boost and the lawns came out
+  candy-striped and blown out, which is louder than the flat green it replaced.
 - Palms (owner, 2026-09-20: "it's Cali, put palm trees"): `PropFactory.palm(variant)` builds a
   whole tree as one vertex-coloured mesh (tall slender curved trunk with ridged bark, a crown of
   feathered fronds whose leaflets are separate pointed blades so daylight shows through, a skirt
   of dead fronds, coconuts), so a palm-lined boulevard is one MultiMesh draw. The material
   uses `shaders/foliage.gdshader`: backface culling off (leaflets are single-sided) and a
   vertex-shader wind sway whose bend grows with the square of height above the instance origin,
-  phased by world position so a row does not sway in step. Nothing else in the city moved except
+  phased by world position so a row does not sway in step. The fronds are **folded**: leaflets sit
+  at an angle running from steep at the base of the frond to nearly flat at the tip, jittered per
+  leaflet, and swept *forward* toward the tip the way a feather's barbs lie. Flat leaflets all in
+  one plane overlap into a solid sheet and the crown reads as a paper fan; swept backward they
+  read as a fishbone laid the wrong way round. Both of those were real attempts, in that order.
+  Nothing else in the city moved except
   the grass, and a street of palms standing dead still reads as a model rather than a place. The
   downloaded trees and bushes use `shaders/foliage_tex.gdshader` on their leaf surfaces only
   (`PropFactory.foliage_textured()`, applied in `model_tree()`): same sway, plus the leaf

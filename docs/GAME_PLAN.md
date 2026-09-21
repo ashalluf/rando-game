@@ -186,6 +186,48 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-21 The colour and foliage pass (owner: "we need this city to have more color and be
+  more gta", "PS5 level foliage and trees", "go and scour the internet for the absolute best
+  assets").** Poly Haven turned out to have 521 CC0 models including 20 trees, 57 plants, 9
+  flowers and 4 grasses, so twenty-eight of them were fetched, decimated and packed in parallel
+  (`tools/fetch_polyhaven.py` is new; the pipeline is fetch -> `decimate_tree.py` ->
+  `pack_gltf.py` -> `shrink_glb.py` -> Godot `--import` -> `fix_texture_imports.py`).
+  City trees went from three to five, the hills got four of their own, and four bushes, five
+  tropical plants, seven flowering ground covers and two grass clumps now fill the knee height
+  that used to be bare lawn.
+  Three things are worth remembering from it.
+  (1) *The jacaranda is green.* It is the iconic Los Angeles street tree and the single biggest
+  colour win available, but Poly Haven's scan is photographed out of bloom. It blooms in the
+  shader instead: each leaf is taken to its own luminance and recoloured, per leaf card. It took
+  three passes - electric ultramarine, then navy, then right - because multiplying green by
+  violet gives mud, and scaling by leaf luminance alone drags every shaded leaf to black-blue.
+  (2) *Weighting, not avoidance.* The wall palette had been pulled back to neutrals after an
+  earlier attempt "came out looking like a colour picker". Going all-neutral is the other
+  failure. Neutrals are now repeated three or four times each in `FLAT_COLORS` and each painted
+  stucco once, which gives a street that is mostly stone with a mint or peach block every so
+  often. Same idea for planting: one flowering species dominates a patch.
+  (3) *A real bug, found by adding a fourth tree.* The per-block dominant species was picked by
+  indexing `tree_weights[0]`, `[1]`, `[2]` by hand. Any fourth entry would have been placed only
+  by the 30% fallback roll - no error, no warning, just a tree that almost never appeared.
+
+- **2026-09-21 Real sound.** The game's audio was 100% synthesized at runtime and sounded it.
+  Thirty-two CC0 clips (OpenGameArt and Kenney, every licence checked individually, all CC0 so no
+  attribution obligation falls on the owner) now cover shots, explosions, rockets, breaking,
+  glass, crashes, landings, footsteps, horn, engine and boost loops, rain, wind, city ambience and
+  thunder. `Sfx` keeps its exact public API and keeps the synthesis as a fallback, so a missing
+  file degrades to a tone rather than to silence. Each name holds several takes and `play()` picks
+  one, which is what stops the rifle sounding like one file on repeat. Loop flags are set on the
+  stream in code rather than in the `.import`, because a regenerated `.import` can silently drop
+  the flag.
+
+- **2026-09-21 Global illumination was switched off.** `Quality.start_level` was MEDIUM, which
+  disables SDFGI, volumetric fog and depth of field - the single biggest difference between this
+  and a modern-looking game, simply not running. It starts at HIGH now and the adaptive stepper
+  still falls back on a machine that cannot hold it. That exposed a flaw in the stepper worth
+  keeping fixed: the measurement window is thrown away across an origin re-centering, because the
+  streamer moving every node in the scene by a kilometre is a one-off hitch at any quality level
+  and counting it permanently demoted a machine that was running fine.
+
 - **2026-09-21 Three bugs the screenshots and the new checks caught.** Worth recording because
   each one looked like something it was not.
   (1) *A grey wall round the valley.* The horizon plane's lift faded in with distance, which is
