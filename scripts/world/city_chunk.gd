@@ -1413,7 +1413,16 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
 		variant = PropFactory.CITY_TREES.size() - 1
 	var s := PropFactory.city_tree_scale(variant, target_h)
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
-	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint)
+	# Per-instance variety, read by shaders/foliage_tex.gdshader: leaf count, canopy proportion,
+	# leaf tone, and how far into bloom this one is. Five models become effectively unlimited
+	# trees while staying five meshes and five draw calls - a batch IS a draw call, so making
+	# fifty variant meshes would have cost fifty of them per chunk.
+	var variety := Color(
+		rng.randf_range(0.0, 1.0),
+		rng.randf_range(0.0, 1.0),
+		rng.randf_range(0.0, 1.0),
+		rng.randf_range(0.25, 1.0))
+	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
 
 
 # --- Helpers ---------------------------------------------------------------------------
