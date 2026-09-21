@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://fax278rap32k"
-path="res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_arm.jpg-564c9d3282c2722d81937bf4f6364136.ctex"
+path.s3tc="res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_arm.jpg-564c9d3282c2722d81937bf4f6364136.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_arm.jpg-564c9d3282c2722d81937bf4f6364136.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "02402b1d133b1ed783211cf3aeaecda3"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_hydrant_b_fire_hydrant_aged_arm.jpg"
-dest_files=["res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_arm.jpg-564c9d3282c2722d81937bf4f6364136.ctex"]
+dest_files=["res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_arm.jpg-564c9d3282c2722d81937bf4f6364136.s3tc.ctex", "res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_arm.jpg-564c9d3282c2722d81937bf4f6364136.etc2.ctex"]
 
 [params]
 

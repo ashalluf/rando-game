@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cjndm4u2a7vca"
-path="res://.godot/imported/grass_bermuda_grass_bermuda_01_diff.jpg-0677ae771f93707309d083793b1217ab.ctex"
+path.s3tc="res://.godot/imported/grass_bermuda_grass_bermuda_01_diff.jpg-0677ae771f93707309d083793b1217ab.s3tc.ctex"
+path.etc2="res://.godot/imported/grass_bermuda_grass_bermuda_01_diff.jpg-0677ae771f93707309d083793b1217ab.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ec0778b0fd13b1dbe32ee989154ac40c"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/grass_bermuda_grass_bermuda_01_diff.jpg"
-dest_files=["res://.godot/imported/grass_bermuda_grass_bermuda_01_diff.jpg-0677ae771f93707309d083793b1217ab.ctex"]
+dest_files=["res://.godot/imported/grass_bermuda_grass_bermuda_01_diff.jpg-0677ae771f93707309d083793b1217ab.s3tc.ctex", "res://.godot/imported/grass_bermuda_grass_bermuda_01_diff.jpg-0677ae771f93707309d083793b1217ab.etc2.ctex"]
 
 [params]
 

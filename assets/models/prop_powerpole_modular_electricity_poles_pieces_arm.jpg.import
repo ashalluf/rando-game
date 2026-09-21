@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bhrq5ada8x2je"
-path="res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_arm.jpg-c82ad3a1e34abeb38c5e1a79befb4738.ctex"
+path.s3tc="res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_arm.jpg-c82ad3a1e34abeb38c5e1a79befb4738.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_arm.jpg-c82ad3a1e34abeb38c5e1a79befb4738.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "7bb7b6d4e72727a9b25c2e9608ee74eb"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_powerpole_modular_electricity_poles_pieces_arm.jpg"
-dest_files=["res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_arm.jpg-c82ad3a1e34abeb38c5e1a79befb4738.ctex"]
+dest_files=["res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_arm.jpg-c82ad3a1e34abeb38c5e1a79befb4738.s3tc.ctex", "res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_arm.jpg-c82ad3a1e34abeb38c5e1a79befb4738.etc2.ctex"]
 
 [params]
 

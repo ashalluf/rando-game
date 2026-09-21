@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cb1frxlu3tdqs"
-path="res://.godot/imported/grass_bermuda_grass_bermuda_01_arm.jpg-0bcff35ceb074a792fe1607198f9aa37.ctex"
+path.s3tc="res://.godot/imported/grass_bermuda_grass_bermuda_01_arm.jpg-0bcff35ceb074a792fe1607198f9aa37.s3tc.ctex"
+path.etc2="res://.godot/imported/grass_bermuda_grass_bermuda_01_arm.jpg-0bcff35ceb074a792fe1607198f9aa37.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "060d59d0838f4b209b3daebabb0a5549"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/grass_bermuda_grass_bermuda_01_arm.jpg"
-dest_files=["res://.godot/imported/grass_bermuda_grass_bermuda_01_arm.jpg-0bcff35ceb074a792fe1607198f9aa37.ctex"]
+dest_files=["res://.godot/imported/grass_bermuda_grass_bermuda_01_arm.jpg-0bcff35ceb074a792fe1607198f9aa37.s3tc.ctex", "res://.godot/imported/grass_bermuda_grass_bermuda_01_arm.jpg-0bcff35ceb074a792fe1607198f9aa37.etc2.ctex"]
 
 [params]
 

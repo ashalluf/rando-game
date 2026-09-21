@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bdwph7k1ckllb"
-path="res://.godot/imported/prop_trashbag_trashbag_arm.jpg-b9f7807572aec1a18d0af4f0549bf98e.ctex"
+path.s3tc="res://.godot/imported/prop_trashbag_trashbag_arm.jpg-b9f7807572aec1a18d0af4f0549bf98e.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_trashbag_trashbag_arm.jpg-b9f7807572aec1a18d0af4f0549bf98e.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "4a13427bca58559ea4388b64db1178eb"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_trashbag_trashbag_arm.jpg"
-dest_files=["res://.godot/imported/prop_trashbag_trashbag_arm.jpg-b9f7807572aec1a18d0af4f0549bf98e.ctex"]
+dest_files=["res://.godot/imported/prop_trashbag_trashbag_arm.jpg-b9f7807572aec1a18d0af4f0549bf98e.s3tc.ctex", "res://.godot/imported/prop_trashbag_trashbag_arm.jpg-b9f7807572aec1a18d0af4f0549bf98e.etc2.ctex"]
 
 [params]
 

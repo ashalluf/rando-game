@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d11uykxpnm6l"
-path="res://.godot/imported/flower_celandine_celandine_01_arm.jpg-c33bb26cc305565b33c69d700b69df33.ctex"
+path.s3tc="res://.godot/imported/flower_celandine_celandine_01_arm.jpg-c33bb26cc305565b33c69d700b69df33.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_celandine_celandine_01_arm.jpg-c33bb26cc305565b33c69d700b69df33.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "f8ef5112a8f84cff7786a86bc9f24ffc"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_celandine_celandine_01_arm.jpg"
-dest_files=["res://.godot/imported/flower_celandine_celandine_01_arm.jpg-c33bb26cc305565b33c69d700b69df33.ctex"]
+dest_files=["res://.godot/imported/flower_celandine_celandine_01_arm.jpg-c33bb26cc305565b33c69d700b69df33.s3tc.ctex", "res://.godot/imported/flower_celandine_celandine_01_arm.jpg-c33bb26cc305565b33c69d700b69df33.etc2.ctex"]
 
 [params]
 

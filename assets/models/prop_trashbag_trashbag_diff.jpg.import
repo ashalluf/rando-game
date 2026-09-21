@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://oa4xigh2gidu"
-path="res://.godot/imported/prop_trashbag_trashbag_diff.jpg-878f5e8590d7eb2073f15ed3c41cfc86.ctex"
+path.s3tc="res://.godot/imported/prop_trashbag_trashbag_diff.jpg-878f5e8590d7eb2073f15ed3c41cfc86.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_trashbag_trashbag_diff.jpg-878f5e8590d7eb2073f15ed3c41cfc86.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "3f82c02020a7ead76c529fe81ff54e8b"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_trashbag_trashbag_diff.jpg"
-dest_files=["res://.godot/imported/prop_trashbag_trashbag_diff.jpg-878f5e8590d7eb2073f15ed3c41cfc86.ctex"]
+dest_files=["res://.godot/imported/prop_trashbag_trashbag_diff.jpg-878f5e8590d7eb2073f15ed3c41cfc86.s3tc.ctex", "res://.godot/imported/prop_trashbag_trashbag_diff.jpg-878f5e8590d7eb2073f15ed3c41cfc86.etc2.ctex"]
 
 [params]
 

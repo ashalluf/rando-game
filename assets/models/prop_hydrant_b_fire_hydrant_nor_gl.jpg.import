@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dp8ejj1x6e3uq"
-path="res://.godot/imported/prop_hydrant_b_fire_hydrant_nor_gl.jpg-b4a6fa7f675bb838f38f6c8ad30c753b.ctex"
+path.s3tc="res://.godot/imported/prop_hydrant_b_fire_hydrant_nor_gl.jpg-b4a6fa7f675bb838f38f6c8ad30c753b.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_hydrant_b_fire_hydrant_nor_gl.jpg-b4a6fa7f675bb838f38f6c8ad30c753b.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "428bcdaa2ce383f8820ad8cfb6eebb9c"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_hydrant_b_fire_hydrant_nor_gl.jpg"
-dest_files=["res://.godot/imported/prop_hydrant_b_fire_hydrant_nor_gl.jpg-b4a6fa7f675bb838f38f6c8ad30c753b.ctex"]
+dest_files=["res://.godot/imported/prop_hydrant_b_fire_hydrant_nor_gl.jpg-b4a6fa7f675bb838f38f6c8ad30c753b.s3tc.ctex", "res://.godot/imported/prop_hydrant_b_fire_hydrant_nor_gl.jpg-b4a6fa7f675bb838f38f6c8ad30c753b.etc2.ctex"]
 
 [params]
 

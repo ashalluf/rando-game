@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c6uf8kqhqnq6t"
-path="res://.godot/imported/prop_streetlamp_street_lamp_01_diff_3.jpg-a1587fd9003067c2e4909a8ce4aa3775.ctex"
+path.s3tc="res://.godot/imported/prop_streetlamp_street_lamp_01_diff_3.jpg-a1587fd9003067c2e4909a8ce4aa3775.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_streetlamp_street_lamp_01_diff_3.jpg-a1587fd9003067c2e4909a8ce4aa3775.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "0d2e54be3d769aa933c1db33c81e5df9"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_streetlamp_street_lamp_01_diff_3.jpg"
-dest_files=["res://.godot/imported/prop_streetlamp_street_lamp_01_diff_3.jpg-a1587fd9003067c2e4909a8ce4aa3775.ctex"]
+dest_files=["res://.godot/imported/prop_streetlamp_street_lamp_01_diff_3.jpg-a1587fd9003067c2e4909a8ce4aa3775.s3tc.ctex", "res://.godot/imported/prop_streetlamp_street_lamp_01_diff_3.jpg-a1587fd9003067c2e4909a8ce4aa3775.etc2.ctex"]
 
 [params]
 

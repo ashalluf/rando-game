@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://vim0a25u75ci"
-path="res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_nor_gl.jpg-16c28e90d5ee61db0edb8886060bda70.ctex"
+path.s3tc="res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_nor_gl.jpg-16c28e90d5ee61db0edb8886060bda70.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_nor_gl.jpg-16c28e90d5ee61db0edb8886060bda70.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "2543277765bd8773c488763c3ca01dba"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_powerpole_modular_electricity_poles_pieces_nor_gl.jpg"
-dest_files=["res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_nor_gl.jpg-16c28e90d5ee61db0edb8886060bda70.ctex"]
+dest_files=["res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_nor_gl.jpg-16c28e90d5ee61db0edb8886060bda70.s3tc.ctex", "res://.godot/imported/prop_powerpole_modular_electricity_poles_pieces_nor_gl.jpg-16c28e90d5ee61db0edb8886060bda70.etc2.ctex"]
 
 [params]
 

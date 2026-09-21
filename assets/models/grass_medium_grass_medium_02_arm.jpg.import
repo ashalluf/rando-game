@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dk633uqubixj4"
-path="res://.godot/imported/grass_medium_grass_medium_02_arm.jpg-a63f9d15514347874ea9d93a7682ad9f.ctex"
+path.s3tc="res://.godot/imported/grass_medium_grass_medium_02_arm.jpg-a63f9d15514347874ea9d93a7682ad9f.s3tc.ctex"
+path.etc2="res://.godot/imported/grass_medium_grass_medium_02_arm.jpg-a63f9d15514347874ea9d93a7682ad9f.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b5dc32308a9831673e39e4df049a83e4"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/grass_medium_grass_medium_02_arm.jpg"
-dest_files=["res://.godot/imported/grass_medium_grass_medium_02_arm.jpg-a63f9d15514347874ea9d93a7682ad9f.ctex"]
+dest_files=["res://.godot/imported/grass_medium_grass_medium_02_arm.jpg-a63f9d15514347874ea9d93a7682ad9f.s3tc.ctex", "res://.godot/imported/grass_medium_grass_medium_02_arm.jpg-a63f9d15514347874ea9d93a7682ad9f.etc2.ctex"]
 
 [params]
 

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d4imwoo5ckakt"
-path="res://.godot/imported/flower_purple_leipoldtia_schultzei_diff.jpg-78c9f3627e835ca679e34874e097e435.ctex"
+path.s3tc="res://.godot/imported/flower_purple_leipoldtia_schultzei_diff.jpg-78c9f3627e835ca679e34874e097e435.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_purple_leipoldtia_schultzei_diff.jpg-78c9f3627e835ca679e34874e097e435.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "f88eacb451e56c5698c1f2c5177d3f4e"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_purple_leipoldtia_schultzei_diff.jpg"
-dest_files=["res://.godot/imported/flower_purple_leipoldtia_schultzei_diff.jpg-78c9f3627e835ca679e34874e097e435.ctex"]
+dest_files=["res://.godot/imported/flower_purple_leipoldtia_schultzei_diff.jpg-78c9f3627e835ca679e34874e097e435.s3tc.ctex", "res://.godot/imported/flower_purple_leipoldtia_schultzei_diff.jpg-78c9f3627e835ca679e34874e097e435.etc2.ctex"]
 
 [params]
 

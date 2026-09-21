@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://78i2tnnupt3q"
-path="res://.godot/imported/prop_hydrant_b_fire_hydrant_diff.jpg-50865291b073128d7b8ff5dd8a017581.ctex"
+path.s3tc="res://.godot/imported/prop_hydrant_b_fire_hydrant_diff.jpg-50865291b073128d7b8ff5dd8a017581.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_hydrant_b_fire_hydrant_diff.jpg-50865291b073128d7b8ff5dd8a017581.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "556a91fa981d8b6ca02a607aeea524ad"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_hydrant_b_fire_hydrant_diff.jpg"
-dest_files=["res://.godot/imported/prop_hydrant_b_fire_hydrant_diff.jpg-50865291b073128d7b8ff5dd8a017581.ctex"]
+dest_files=["res://.godot/imported/prop_hydrant_b_fire_hydrant_diff.jpg-50865291b073128d7b8ff5dd8a017581.s3tc.ctex", "res://.godot/imported/prop_hydrant_b_fire_hydrant_diff.jpg-50865291b073128d7b8ff5dd8a017581.etc2.ctex"]
 
 [params]
 

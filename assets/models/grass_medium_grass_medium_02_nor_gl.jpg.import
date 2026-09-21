@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cjjofqynkf0bn"
-path="res://.godot/imported/grass_medium_grass_medium_02_nor_gl.jpg-3b11ace651e9fd486f071de341bd1074.ctex"
+path.s3tc="res://.godot/imported/grass_medium_grass_medium_02_nor_gl.jpg-3b11ace651e9fd486f071de341bd1074.s3tc.ctex"
+path.etc2="res://.godot/imported/grass_medium_grass_medium_02_nor_gl.jpg-3b11ace651e9fd486f071de341bd1074.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "51b79304a2d4c18e86b99999b7757b29"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/grass_medium_grass_medium_02_nor_gl.jpg"
-dest_files=["res://.godot/imported/grass_medium_grass_medium_02_nor_gl.jpg-3b11ace651e9fd486f071de341bd1074.ctex"]
+dest_files=["res://.godot/imported/grass_medium_grass_medium_02_nor_gl.jpg-3b11ace651e9fd486f071de341bd1074.s3tc.ctex", "res://.godot/imported/grass_medium_grass_medium_02_nor_gl.jpg-3b11ace651e9fd486f071de341bd1074.etc2.ctex"]
 
 [params]
 

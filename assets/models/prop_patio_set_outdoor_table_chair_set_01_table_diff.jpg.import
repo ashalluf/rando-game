@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bu0x4tdcwsar6"
-path="res://.godot/imported/prop_patio_set_outdoor_table_chair_set_01_table_diff.jpg-790e8311202dfe3d7e7adf7c8d0afd45.ctex"
+path.s3tc="res://.godot/imported/prop_patio_set_outdoor_table_chair_set_01_table_diff.jpg-790e8311202dfe3d7e7adf7c8d0afd45.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_patio_set_outdoor_table_chair_set_01_table_diff.jpg-790e8311202dfe3d7e7adf7c8d0afd45.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "22aba8620e4f8185da48c91da6f35d7b"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_patio_set_outdoor_table_chair_set_01_table_diff.jpg"
-dest_files=["res://.godot/imported/prop_patio_set_outdoor_table_chair_set_01_table_diff.jpg-790e8311202dfe3d7e7adf7c8d0afd45.ctex"]
+dest_files=["res://.godot/imported/prop_patio_set_outdoor_table_chair_set_01_table_diff.jpg-790e8311202dfe3d7e7adf7c8d0afd45.s3tc.ctex", "res://.godot/imported/prop_patio_set_outdoor_table_chair_set_01_table_diff.jpg-790e8311202dfe3d7e7adf7c8d0afd45.etc2.ctex"]
 
 [params]
 

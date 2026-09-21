@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bi3ff753lwi3s"
-path="res://.godot/imported/flower_dandelion_dandelion_01_nor_gl.jpg-38b524e43f254e742b4e829a8d27ccdc.ctex"
+path.s3tc="res://.godot/imported/flower_dandelion_dandelion_01_nor_gl.jpg-38b524e43f254e742b4e829a8d27ccdc.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_dandelion_dandelion_01_nor_gl.jpg-38b524e43f254e742b4e829a8d27ccdc.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "50b9f228444086a30cc855f0bd6a2ad4"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_dandelion_dandelion_01_nor_gl.jpg"
-dest_files=["res://.godot/imported/flower_dandelion_dandelion_01_nor_gl.jpg-38b524e43f254e742b4e829a8d27ccdc.ctex"]
+dest_files=["res://.godot/imported/flower_dandelion_dandelion_01_nor_gl.jpg-38b524e43f254e742b4e829a8d27ccdc.s3tc.ctex", "res://.godot/imported/flower_dandelion_dandelion_01_nor_gl.jpg-38b524e43f254e742b4e829a8d27ccdc.etc2.ctex"]
 
 [params]
 

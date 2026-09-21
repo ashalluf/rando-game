@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://i222f4iem5ra"
-path="res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_diff.jpg-3ddc47caa601b5a4f366a927bf00107d.ctex"
+path.s3tc="res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_diff.jpg-3ddc47caa601b5a4f366a927bf00107d.s3tc.ctex"
+path.etc2="res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_diff.jpg-3ddc47caa601b5a4f366a927bf00107d.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ced62a39ef4ed01d53b1959995290ddf"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/prop_hydrant_b_fire_hydrant_aged_diff.jpg"
-dest_files=["res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_diff.jpg-3ddc47caa601b5a4f366a927bf00107d.ctex"]
+dest_files=["res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_diff.jpg-3ddc47caa601b5a4f366a927bf00107d.s3tc.ctex", "res://.godot/imported/prop_hydrant_b_fire_hydrant_aged_diff.jpg-3ddc47caa601b5a4f366a927bf00107d.etc2.ctex"]
 
 [params]
 

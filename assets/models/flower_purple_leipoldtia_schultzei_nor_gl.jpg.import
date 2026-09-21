@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cwac2p3cuko76"
-path="res://.godot/imported/flower_purple_leipoldtia_schultzei_nor_gl.jpg-ba6c6977b38bae32bf9eeb96643b0453.ctex"
+path.s3tc="res://.godot/imported/flower_purple_leipoldtia_schultzei_nor_gl.jpg-ba6c6977b38bae32bf9eeb96643b0453.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_purple_leipoldtia_schultzei_nor_gl.jpg-ba6c6977b38bae32bf9eeb96643b0453.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "384bb5189bc7262b77af3dc8280b9c4c"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_purple_leipoldtia_schultzei_nor_gl.jpg"
-dest_files=["res://.godot/imported/flower_purple_leipoldtia_schultzei_nor_gl.jpg-ba6c6977b38bae32bf9eeb96643b0453.ctex"]
+dest_files=["res://.godot/imported/flower_purple_leipoldtia_schultzei_nor_gl.jpg-ba6c6977b38bae32bf9eeb96643b0453.s3tc.ctex", "res://.godot/imported/flower_purple_leipoldtia_schultzei_nor_gl.jpg-ba6c6977b38bae32bf9eeb96643b0453.etc2.ctex"]
 
 [params]
 
