@@ -59,7 +59,10 @@ void fragment() {
 		// Per-leaf-card, so a canopy is flowers among leaves rather than a flat violet blob.
 		float pick = fract(sin(dot(floor(uv * 9.0), vec2(12.9898, 78.233))) * 43758.5453);
 		float on = blossom_mix * step(pick, blossom_patch);
-		albedo = mix(albedo, blossom * (0.55 + lum * 0.95), on);
+		// Brightness matters more than hue here. The leaf texture is dark green, so scaling the
+		// blossom by leaf luminance alone drags it to navy; the constant term is what keeps a
+		// flower in shadow still reading as a flower.
+		albedo = mix(albedo, blossom * (0.95 + lum * 0.85), on);
 	}
 	ALBEDO = albedo;
 	ALPHA = c.a;

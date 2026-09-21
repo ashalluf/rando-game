@@ -1008,7 +1008,7 @@ const HILL_TREES := ["tree_fir.glb", "tree_pine.glb", "tree_quiver.glb", "tree_s
 ## A jacaranda is soft lavender-violet, not electric blue: at 0.40/0.27/0.70 and 80% the trees
 ## came out a vivid ultramarine that read as a bug rather than as blossom. Lighter, less
 ## saturated, and with enough green left showing to look like a tree in flower.
-const JACARANDA_BLOSSOM := Color(0.56, 0.47, 0.80, 0.58)
+const JACARANDA_BLOSSOM := Color(0.64, 0.56, 0.88, 0.62)
 
 static func model_tree(variant: int) -> Mesh:
 	var v := clampi(variant, 0, CITY_TREES.size() - 1)
