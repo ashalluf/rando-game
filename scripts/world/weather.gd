@@ -193,16 +193,22 @@ func _build_rain() -> void:
 	_rain.initial_velocity_min = 14.0
 	_rain.initial_velocity_max = 18.0
 	_rain.emitting = false
+	# A raindrop is a streak, not a dash: long and thin reads as falling water, and a longer
+	# quad also gives the temporal pass a coherent object to track instead of a cloud of small
+	# ones it smears into frosted glass.
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.035, 0.6)
+	quad.size = Vector2(0.03, 0.95)
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.75, 0.82, 0.92, 0.45)
+	mat.albedo_color = Color(0.75, 0.82, 0.92, 0.38)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	quad.material = mat
 	_rain.mesh = quad
+	# A thousand alpha quads in the sun's shadow map painted dark streaks down every wall in the
+	# city and cost a shadow pass for the privilege. Rain does not cast a shadow you can see.
+	_rain.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_rain)
 
 
@@ -247,6 +253,7 @@ func _build_splashes() -> void:
 	plane.material = mat
 	_splash.mesh = plane
 	_splash.emitting = false
+	_splash.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_splash)
 
 
@@ -288,7 +295,9 @@ render_mode unshaded, cull_front, depth_draw_never, blend_mix;
 uniform float strength = 0.0;
 uniform float height = 70.0;
 uniform vec3 tint : source_color = vec3(0.66, 0.72, 0.82);
-uniform float fall = 2.4;
+// Cells per second the streak sheets fall. At 34 cells over a 70 m cylinder this is about
+// 14 m/s, which is roughly what rain does; at the old 2.4 it drifted down at walking pace.
+uniform float fall = 7.0;
 
 varying vec3 local_pos;
 
@@ -308,12 +317,19 @@ void fragment() {
 	float up = clamp(local_pos.y / max(height, 0.01) + 0.5, 0.0, 1.0);
 	float ang = atan(local_pos.x, local_pos.z);
 	// A thin veil, with three sheets of falling streaks laid over it.
-	float v = 0.16;
+	//
+	// The cell frequencies decide how big a streak is, and they used to be far too low: 40
+	// cells around a 565 m circumference is 2.2 m per streak, and 6 up a 70 m cylinder is
+	// 11.7 m, so at the curtain's 90 m radius every "streak" was a soft blob about 18 px wide
+	// and 95 px tall. Hundreds of those over the frame is not rain, it is frosted glass, and it
+	// was the thing making a storm look like a smeared lens. At these numbers a streak is about
+	// 0.35 m by 2 m - three pixels by sixteen at that distance - which is what rain looks like.
+	float v = 0.12;
 	for (int i = 0; i < 3; i++) {
 		float fi = float(i);
 		// PLUS, not minus: a streak sits at a constant cell.y, so up = (const - TIME * fall) / k
 		// and the pattern falls. With a minus the streaks climb, and the rain went up the sky.
-		vec2 cell = vec2(ang * (40.0 + fi * 21.0), up * (6.0 + fi * 3.0) + TIME * (fall + fi * 0.8));
+		vec2 cell = vec2(ang * (260.0 + fi * 140.0), up * (34.0 + fi * 13.0) + TIME * (fall + fi * 0.8));
 		float r = hash12(floor(cell) + fi * 17.3);
 		float column = 1.0 - abs(fract(cell.x) - 0.5) * 2.0;
 		v += smoothstep(0.45, 1.0, r) * column * (0.42 - fi * 0.1);
