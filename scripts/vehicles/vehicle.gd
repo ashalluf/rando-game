@@ -14,9 +14,9 @@ const BODY_MODELS := {
 	BodyType.PICKUP: "res://assets/models/car_pickup.glb",
 	BodyType.VAN: "res://assets/models/car_van.glb",
 	BodyType.SPORTS: "res://assets/models/car_sports.glb",
-	BodyType.SUPER: "res://assets/models/exo_super_coupe.glb",
+	BodyType.SUPER: "res://assets/models/hifi_super_coupe.glb",
 	BodyType.SPIDER: "res://assets/models/exo_super_spider.glb",
-	BodyType.HYPER: "res://assets/models/exo_hyper_a.glb",
+	BodyType.HYPER: "res://assets/models/hifi_hyper_coupe.glb",
 	BodyType.TRACK: "res://assets/models/exo_hyper_b.glb",
 }
 ## How often each body type turns up, in parts per thousand. Exotics are deliberately rare: a
