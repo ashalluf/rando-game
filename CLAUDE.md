@@ -216,8 +216,22 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `-- --stats` starts FULL
   (`MinimapFrame/Minimap`, `scripts/ui/minimap.gd`, drawn from `CityPlan` data, rotates with the
   camera heading, light map palette). Lighting and post-processing
-  live in the city scene's Environment (SDFGI, SSAO, SSR, glow, ACES, volumetric fog); keep the
-  distance fog too, it is what the web build sees.
+  live in the city scene's Environment (SDFGI, SSAO, SSR, glow, AgX, volumetric fog) along with
+  the **look LUT** - a `Gradient` / `GradientTexture1D` pair wired to
+  `adjustment_color_correction`, which Godot runs each channel through after tonemapping. AgX
+  expects a contrast curve on the other side of it and without one every frame comes out as the
+  flat middle of the AgX ramp; that LUT is it, so `adjustment_contrast` stays at 1.0 rather than
+  stacking a second curve on top. `DayNight` drives `tonemap_exposure` (`day_exposure` /
+  `night_exposure`) off `moonlight`, a slower ramp than `night_factor` - night_factor is 1.0
+  three degrees after sunset, which is right for the lamps and wrong for the light. Note the
+  player camera ALSO runs auto exposure (`player.tscn`, `CameraAttributesPractical`, sensitivity
+  200..620), so `tonemap_exposure` stacks on top of an adaptation that is already happening -
+  which is why a night value that looks right at 21:00 can be a stop hot at 18:30. Keep the
+  distance fog too, it is what the web build sees. Judge any of this with
+  `tools/glshot/forward_shot.sh`, never the opengl3 path, and measure it rather than squinting:
+  `python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"`.
+  A midday city frame wants a p5/p50/p95 spread like 87/123/175; 78/103/137 is the washed-out
+  look the grade was added to fix.
 - Pause menu (`scenes/ui/pause_menu.tscn`) owns Esc: pause, mouse release, seed rebuild via
   `WorldState.pending_seed` + `reload_current_scene()`.
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
@@ -488,10 +502,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   the same rigged model as one tumbling body (`build_from_rig`); far pedestrians move and animate
   every 3rd / 6th physics frame (`Pedestrian.lod_mid` / `lod_far`).
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
-  MEDIUM (no SDFGI / volumetric fog / DOF) and steps down to LOW and LOWEST (no SSR / SSAO / glow
-  / MSAA, lower render scale, 60 % then 35 % of the crowd and traffic caps, shorter shadows) when
-  the average FPS drops under `min_fps`; HIGH only with `-- --quality=0`. It also caps the frame
-  rate at 60. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
+  **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
+  biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
+  LOWEST (dropping SDFGI and volumetric fog, then SSR / SSAO / glow, lower render scale, 60 %
+  then 35 % of the crowd and traffic caps, shorter shadows) when the average FPS drops under
+  `min_fps`. Force a level with `-- --quality=0|1|2|3`. It also caps the frame rate at 60. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
   objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
   frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in

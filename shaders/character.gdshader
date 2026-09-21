@@ -179,9 +179,13 @@ void fragment() {
 	// shading of the cloth underneath it, and so cloth_sat / cloth_value / pants_value land where
 	// they were tuned. Against a linear source value the same numbers give a much narrower and
 	// much darker spread, which is what put the whole crowd back in one dark grey outfit.
+	// Clamped, because the value multipliers now run past 2 so that a pale garment is reachable
+	// at all (the source cloth sits at about 0.35), and hsv_to_rgb() of a value over 1 followed
+	// by to_linear() runs away fast. The ceiling is just under white so a shirt keeps a little
+	// of its own shading at the top end.
 	float gz = value_is_linear > 0.5 ? to_gamma(hsv.z) : hsv.z;
-	vec3 top_target = hsv_to_rgb(vec3(cloth_hue, cloth_sat, gz * cloth_value));
-	vec3 low_target = hsv_to_rgb(vec3(pants_hue, pants_sat, gz * pants_value));
+	vec3 top_target = hsv_to_rgb(vec3(cloth_hue, cloth_sat, min(gz * cloth_value, 0.96)));
+	vec3 low_target = hsv_to_rgb(vec3(pants_hue, pants_sat, min(gz * pants_value, 0.96)));
 	vec3 garment = mix(top_target, low_target, lower);
 	if (value_is_linear > 0.5) {
 		garment = to_linear(garment);

@@ -527,10 +527,31 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	mat.set_shader_parameter("albedo_tex", albedo)
 	# One look in five keeps the original outfit, so the source clothes still appear.
 	var plain := look % 5 == 0
+	# The top, rolled as a wardrobe rather than as one range. `cloth_value` multiplies the
+	# SOURCE texture's own brightness, and both rigs' garments sit at a gamma value of about
+	# 0.30-0.40, so a multiplier of 1.0 is a dark garment and the old 0.55..1.20 range could
+	# not reach a light one at all: every pedestrian in the city walked around in black. A pale
+	# shirt needs about 2.2. The shader clamps the product, so the top of each range is a
+	# ceiling rather than a blow-out.
+	var top := rng.randf()
 	mat.set_shader_parameter("cloth_hue", rng.randf())
-	# Most clothes are muted; a few people wear something bright.
-	mat.set_shader_parameter("cloth_sat", rng.randf_range(0.10, 0.30) if rng.randf() < 0.75 else rng.randf_range(0.35, 0.62))
-	mat.set_shader_parameter("cloth_value", rng.randf_range(0.55, 1.20))
+	if top < 0.30:
+		# White, cream, pale grey - the commonest thing anybody actually wears.
+		mat.set_shader_parameter("cloth_sat", rng.randf_range(0.0, 0.09))
+		mat.set_shader_parameter("cloth_value", rng.randf_range(1.9, 2.6))
+	elif top < 0.56:
+		# Mid tones: navy, olive, burgundy, tan.
+		mat.set_shader_parameter("cloth_sat", rng.randf_range(0.18, 0.42))
+		mat.set_shader_parameter("cloth_value", rng.randf_range(1.05, 1.80))
+	elif top < 0.80:
+		# Dark: black, charcoal, deep navy. Still a quarter of the street, just not all of it.
+		mat.set_shader_parameter("cloth_hue", rng.randf_range(0.55, 0.72))
+		mat.set_shader_parameter("cloth_sat", rng.randf_range(0.0, 0.20))
+		mat.set_shader_parameter("cloth_value", rng.randf_range(0.50, 1.05))
+	else:
+		# Something bright.
+		mat.set_shader_parameter("cloth_sat", rng.randf_range(0.45, 0.80))
+		mat.set_shader_parameter("cloth_value", rng.randf_range(1.40, 2.40))
 	mat.set_shader_parameter("cloth_strength", 0.0 if plain else rng.randf_range(0.55, 0.85))
 	# Trousers are rolled apart from the top, and weighted the way a pavement actually looks:
 	# denim, black and grey, khaki, and only occasionally something bright. Matching the top to
@@ -539,19 +560,19 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	if lower < 0.40:
 		mat.set_shader_parameter("pants_hue", rng.randf_range(0.55, 0.68)) # denim
 		mat.set_shader_parameter("pants_sat", rng.randf_range(0.10, 0.34))
-		mat.set_shader_parameter("pants_value", rng.randf_range(0.42, 0.85))
+		mat.set_shader_parameter("pants_value", rng.randf_range(0.80, 1.60))
 	elif lower < 0.70:
 		mat.set_shader_parameter("pants_hue", rng.randf()) # black through to pale grey
 		mat.set_shader_parameter("pants_sat", rng.randf_range(0.0, 0.07))
-		mat.set_shader_parameter("pants_value", rng.randf_range(0.28, 1.00))
+		mat.set_shader_parameter("pants_value", rng.randf_range(0.35, 1.90))
 	elif lower < 0.90:
 		mat.set_shader_parameter("pants_hue", rng.randf_range(0.07, 0.20)) # khaki, sand, olive
 		mat.set_shader_parameter("pants_sat", rng.randf_range(0.12, 0.32))
-		mat.set_shader_parameter("pants_value", rng.randf_range(0.62, 1.15))
+		mat.set_shader_parameter("pants_value", rng.randf_range(1.30, 2.20))
 	else:
 		mat.set_shader_parameter("pants_hue", rng.randf())
 		mat.set_shader_parameter("pants_sat", rng.randf_range(0.30, 0.55))
-		mat.set_shader_parameter("pants_value", rng.randf_range(0.55, 1.00))
+		mat.set_shader_parameter("pants_value", rng.randf_range(1.00, 1.90))
 	mat.set_shader_parameter("pants_strength", 0.0 if plain else rng.randf_range(0.60, 0.90))
 	mat.set_shader_parameter("hair_color", HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
 	mat.set_shader_parameter("hair_strength", rng.randf_range(0.75, 1.0))

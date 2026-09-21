@@ -3,6 +3,9 @@
 #
 #   tools/glshot/shot.sh <name> <cam_x,cam_z> <look_x,look_z> [height] [hour] [frames]
 #
+# Set HUD=1 to keep the HUD in the shot; by default it passes --nohud, which is what you want
+# for anything the owner is going to look at.
+#
 # The camera is placed at cam_x,cam_z (held at `height` metres while the world streams in) and
 # yawed/pitched so that look_x,look_z is in the middle of the frame. Godot's forward is -Z, so
 # yaw = atan2(-dx, -dz) and pitch = -atan2(height - 2, horizontal distance).
@@ -14,6 +17,9 @@ LOOK=$3
 HEIGHT=${4:-3}
 HOUR=${5:-14}
 FRAMES=${6:-60}
+HUD=${HUD:-0}
+NOHUD="--nohud"
+[ "$HUD" = "1" ] && NOHUD=""
 SC=${SC:-$(dirname "$0")/../../build/shots}
 GODOT=${GODOT:-$SC/Godot_v4.7.2-stable_linux.x86_64}
 mkdir -p "$SC"
@@ -36,5 +42,5 @@ OUT=$SC/$NAME.png FRAMES=$FRAMES LIBGL_ALWAYS_SOFTWARE=1 timeout 600 \
 	xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" \
 	--rendering-driver opengl3 --display-driver x11 --audio-driver Dummy --path . \
 	--script tools/glshot/city_shot.gd --resolution 1280x720 \
-	-- "--spawn=$CAM,$YAW,$PITCH,$HEIGHT" "--hour=$HOUR" > /dev/null 2>&1
+	-- "--spawn=$CAM,$YAW,$PITCH,$HEIGHT" "--hour=$HOUR" $NOHUD > /dev/null 2>&1
 [ -f "$SC/$NAME.png" ] && echo "$NAME ok" || echo "$NAME FAILED"
