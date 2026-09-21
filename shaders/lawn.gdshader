@@ -108,8 +108,11 @@ void fragment() {
 	col = mix(col, dirt_tint, wear);
 	rough = mix(rough, 0.95, wear);
 
-	// 1.15, not 1.6: the texture is already mid-grey and the higher boost blew the greens out.
-	ALBEDO = alb * col * 1.15;
+	// No boost. The road shader next to it writes its albedo straight, and a lawn lit 15% hotter
+	// than the road it borders is what made the grass the brightest thing in a night frame: the
+	// camera's auto exposure opens up after dark, and the most saturated surface then dominates.
+	// Real grass is about twice the albedo of asphalt, which the tint already carries.
+	ALBEDO = alb * col;
 	NORMAL_MAP = nrm;
 	NORMAL_MAP_DEPTH = normal_depth * (1.0 - wear * 0.6);
 	ROUGHNESS = clamp(rough, 0.35, 1.0);
