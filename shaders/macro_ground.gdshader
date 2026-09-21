@@ -78,19 +78,27 @@ void vertex() {
 	float wet = 1.0 - step(0.0005, baked);
 	float d = distance(wp, (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
 
-	// Stand the land up. Faded in with distance so the streamed chunks own the ground the
-	// player is actually walking on and this only takes over past them.
-	float lift = baked * macro_height * smoothstep(lift_start, lift_end, d);
+	// Stand the land up, everywhere, not just in the distance. Fading the lift in with distance
+	// works only while the ground the player is on is at sea level: over the inland valley, which
+	// is a city 130 m up, it left this plane down at zero and the valley was ringed by a grey
+	// wall where the plane's surface cut across the hillsides.
+	float lift = baked * macro_height;
 	// Crags. The baked map is one texel per 60 m and bilinear between them, so on its own a
 	// range comes out as a row of smooth domes. Two octaves of ridged noise, scaled by how high
-	// the ground already is, give the skyline an edge without touching the flat basin.
+	// the ground already is, give the skyline an edge without touching the flat basin. Faded in
+	// with distance: near the camera the streamed chunks are the ground and this must stay
+	// smoothly beneath them rather than poking crags through them.
+	float far = smoothstep(lift_start, lift_end, d);
 	float ridge = 1.0 - abs(vnoise(wp.xz * 0.0021) * 2.0 - 1.0);
 	float ridge2 = 1.0 - abs(vnoise(wp.xz * 0.0067 + 31.0) * 2.0 - 1.0);
-	lift *= 1.0 + (ridge * 0.26 + ridge2 * 0.13) * smoothstep(0.02, 0.10, baked);
+	lift *= 1.0 + (ridge * 0.26 + ridge2 * 0.13) * smoothstep(0.02, 0.10, baked) * far;
 
-	// And a small sink with distance for the land, which the chunk ground sits only centimetres
-	// above.
-	float sink = wet * 24.0 + (1.0 - wet) * smoothstep(400.0, 2000.0, d) * 5.0;
+	// Sink. The bake is one texel per 60 m, so close up it can read tens of metres above the
+	// real ground; drop the plane well under the streamed chunks near the camera and ease back
+	// to a few centimetres of clearance out where it is the ground itself. The whole transition
+	// happens inside the streamed radius, so the step never shows.
+	float near = 1.0 - smoothstep(300.0, 900.0, d);
+	float sink = wet * 24.0 + (1.0 - wet) * (near * 30.0 + 5.0);
 	VERTEX.y += lift - sink;
 	world_pos = wp + vec3(0.0, lift - sink, 0.0);
 }
