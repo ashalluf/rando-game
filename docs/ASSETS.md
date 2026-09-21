@@ -69,6 +69,41 @@ brightened (`tools/shrink_glb.py --desaturate`) so the seeded paint tint gives t
 Godot extracts each model's textures next to it on import (`<model>_N.jpg` + `.import`); those
 files are committed like any other import output.
 
+## Procedurally generated cars (our own tools, no external source)
+
+Not downloaded and not Meshy: these are written by Python generators in `tools/` using `bpy`
+(Blender as a module, `pip install bpy`), so the model *is* the script and the `.glb` is build
+output. Original shapes and original marque names throughout - no real manufacturer's design,
+badge or trade dress, which is why a request to copy one is answered with a car in the same
+class instead.
+
+| Generator | Model | Size | Used for | Added |
+| --- | --- | --- | --- | --- |
+| `tools/make_exotic_super.py` | `exo_super_coupe.glb` | 32k tris, 0.8 MB | `BodyType.SUPER` | 2026-09-21 |
+| `tools/make_exotic_super.py` | `exo_super_spider.glb` | 34k tris, 0.8 MB | `BodyType.SPIDER` | 2026-09-21 |
+| `tools/make_exotic_hyper.py` | `exo_hyper_a.glb` | 0.8 MB | `BodyType.HYPER` | 2026-09-21 |
+| `tools/make_exotic_hyper.py` | `exo_hyper_b.glb` | 0.9 MB | `BodyType.TRACK` | 2026-09-21 |
+| `tools/make_hifi_super.py` | `hifi_super_coupe.glb` | 223k tris, 4.9 MB | not wired in yet | 2026-09-21 |
+| `tools/make_hifi_hyper.py` | `hifi_hyper_coupe.glb` | 217k tris, 5.7 MB | not wired in yet | 2026-09-21 |
+
+The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
+carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position
+round the section) with Catmull-Clark subdivision at level 2 on top, so every feature is an
+operation on that grid rather than a shape placed by eye: shut lines are three grid lines 3.2 mm
+apart with the middle one pushed 4.5 mm in; an opening is cut by deleting an (f, g) rectangle,
+extruding the border inward twice, capping it and creasing the cut loop, which is what gives the
+intakes, lamp recesses and vents real inner walls; a wheel arch is the same cut snapped onto the
+arch circle with the skin just outside it pushed 14 mm proud to make a lip.
+
+That last one matters. The `exo_*` bodies have no wheel arches at all - their own critic measured
+the front tyre standing 11.8 cm proud of the bodywork with bare sky above its outer 12 cm, and
+called it "wheels bolted onto the outside of a slab". Anything new should follow the `hifi_*`
+method.
+
+Every car model must expose these six material slots, because `Vehicle._add_body_model()` binds
+by name: `paint`, `glass`, `trim`, `tyre`, `light_front`, `light_rear`. Only bodywork goes in
+`paint` - the per-car colour and the clearcoat shader are applied to that slot alone.
+
 ## Street prop models (Poly Haven, CC0)
 
 Downloaded from the open Poly Haven API (`https://api.polyhaven.com/files/<id>`, glTF at 1K) and
