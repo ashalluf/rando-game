@@ -211,8 +211,17 @@ func _test_city() -> void:
 		# colour alone - low saturation AND low luminance, in linear light. Both halves of that
 		# window live in two files, so brightening a district past it silently stops the city
 		# being drawn on the horizon plane. Re-run the classifier here on every palette entry.
-		var built_ok := true
-		var built_why := ""
+		# The luminance window is read out of the shader rather than written here a second time:
+		# this guard exists precisely because that number and the palette have to move together.
+		var built_src: String = (load("res://shaders/macro_ground.gdshader") as Shader).code
+		var built_win := PackedFloat32Array([0.100, 0.130])
+		var built_re := RegEx.new()
+		built_re.compile("smoothstep\\(([0-9.]+), *([0-9.]+), *lum\\)")
+		var built_m := built_re.search(built_src)
+		if built_m:
+			built_win = PackedFloat32Array([built_m.get_string(1).to_float(), built_m.get_string(2).to_float()])
+		var built_ok := built_m != null
+		var built_why := "" if built_m else " window not found in macro_ground.gdshader"
 		for entry in [["downtown", MacroMap.BAKE_DOWNTOWN, true], ["midtown", MacroMap.BAKE_MIDTOWN, true],
 				["industrial", MacroMap.BAKE_INDUSTRIAL, true], ["suburb", MacroMap.BAKE_SUBURB, true],
 				["campus", MacroMap.BAKE_CAMPUS, true], ["freeway", MacroMap.BAKE_FREEWAY, true],
@@ -225,7 +234,7 @@ func _test_city() -> void:
 			var mn: float = minf(c.r, minf(c.g, c.b))
 			var sat: float = (mx - mn) / maxf(mx, 0.0008)
 			var lum: float = (c.r + c.g + c.b) / 3.0
-			var built: float = (1.0 - smoothstep(0.17, 0.30, sat)) * (1.0 - smoothstep(0.100, 0.130, lum))
+			var built: float = (1.0 - smoothstep(0.17, 0.30, sat)) * (1.0 - smoothstep(built_win[0], built_win[1], lum))
 			var want: bool = entry[2]
 			if (built > 0.5) != want:
 				built_ok = false

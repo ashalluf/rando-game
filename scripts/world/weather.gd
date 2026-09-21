@@ -59,8 +59,20 @@ const SOUND_SPEED := 343.0
 ## Wave scale per state (multiplies the ocean shader's base height).
 @export var wave_scale_by_state: PackedFloat32Array = PackedFloat32Array([1.0, 1.8, 3.2, 6.0])
 @export_group("Fog")
-@export var fog_by_state: PackedFloat32Array = PackedFloat32Array([0.00022, 0.0004, 0.0009, 0.0013])
-@export var volumetric_by_state: PackedFloat32Array = PackedFloat32Array([0.0025, 0.005, 0.012, 0.02])
+## Depth fog per state. Weather SETS these on the Environment every frame, so whatever
+## city.tscn says is only what you see before the first frame - tune here, not there.
+## 0.00022 is about 18 km of Koschmieder visibility, a smoggy day; 0.00012 is 33 km, which is
+## what a clear LA day looks like, and it is the only term in the whole haze stack with a
+## distance gradient in it.
+@export var fog_by_state: PackedFloat32Array = PackedFloat32Array([0.00012, 0.0004, 0.0009, 0.0013])
+## Volumetric fog per state - and this one was the whole aerial haze problem. Godot clamps the
+## froxel lookup at volumetric_fog_length (220 m), so past that distance the volumetric term
+## stops growing and becomes a FLAT curtain carrying no distance information at all. At 0.0025
+## that curtain was 42 % over everything beyond 220 m, out-weighing the depth fog at every range
+## the camera can see and flattening the mountains into silhouettes. At 0.0004 it is an 8 %
+## near-field medium - which is what volumetric fog is for - and the depth fog above does the
+## distance.
+@export var volumetric_by_state: PackedFloat32Array = PackedFloat32Array([0.0004, 0.005, 0.012, 0.02])
 
 var state: State = State.CLEAR
 var blend: float = 0.0        # 0 = previous state fully, 1 = current state fully

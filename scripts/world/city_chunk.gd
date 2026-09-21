@@ -246,7 +246,10 @@ func _build_airport() -> void:
 	var c := area.get_center()
 	# Through the wear shader rather than a plain tiled material: a car park is a big flat area
 	# and the tile grid is the first thing the eye finds on one.
-	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.road("asphalt", 8.0, Color(0.44, 0.44, 0.45), hash([plan.seed, ix, iz, "lot"]), 0.0, 0.85))
+	# An apron is concrete, not a night street. 0.44 tinting an already dark asphalt set put the
+	# whole airport at an albedo of 0.014 - several chunks of continuous flat ground reading as
+	# a void in every wide shot that includes it.
+	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.road("asphalt", 8.0, Color(0.90, 0.90, 0.92), hash([plan.seed, ix, iz, "lot"]), 0.0, 0.85))
 	var macro: MacroMap = plan.macro
 	if level == Level.FULL and area.has_point(macro.terminal_curb.get_center()):
 		# The drop-off curb in front of the terminal is packed (owner: "jampacked").
@@ -524,10 +527,42 @@ func _dry_sand_x(z: float, across: float) -> float:
 ## `collide` is false for palms standing in for street trees: ordinary street trees have never
 ## had collision, and giving a whole boulevard of them solid trunks walls the road in and traps
 ## cars against the kerb.
-func _add_palm(at: Vector3, rng: RandomNumberGenerator, collide: bool = true) -> void:
+## Radius of a palm crown at scale 1, in metres: a Washingtonia frond is about three metres and
+## the fronds sit round a point. Used to keep a crown out of the building next to it.
+const PALM_CROWN_R := 3.2
+
+
+## Distance from `p` to the nearest building footprint this chunk has recorded, 0 inside one.
+## `_build_lots` fills `_lot_rects` before `_build_sidewalk_props` runs, so a street tree can ask
+## how much room it actually has before it decides how big to be.
+func _room_for_canopy(p: Vector2) -> float:
+	var best := 99.0
+	for lot in _lot_rects:
+		var dx := maxf(maxf(lot.position.x - p.x, p.x - lot.end.x), 0.0)
+		var dy := maxf(maxf(lot.position.y - p.y, p.y - lot.end.y), 0.0)
+		best = minf(best, Vector2(dx, dy).length())
+		if best <= 0.0:
+			return 0.0
+	return best
+
+
+## `lean_to`, if given, is the direction the trunk should lean in - the road, for a street palm.
+## Without it a palm planted 2.4 m from a lot line puts a three-metre frond through the building.
+func _add_palm(at: Vector3, rng: RandomNumberGenerator, collide: bool = true, lean_to: Vector2 = Vector2.ZERO) -> void:
 	var s := rng.randf_range(0.78, 1.25)
 	var variant := rng.randi() % PropFactory.PALM_VARIANTS
 	var yaw := rng.randf_range(0.0, TAU)
+	if lean_to != Vector2.ZERO:
+		# Cancel the mesh's own lean yaw, then aim it, with enough jitter that a row of palms
+		# does not lean in lockstep. The jitter is folded out of the yaw we already drew rather
+		# than taken from a fresh randf: a new call on a block's rng shifts every prop placed
+		# after it, and the city for a given seed would quietly become a different city.
+		yaw = atan2(lean_to.x, lean_to.y) - PropFactory.palm_lean(variant) + (yaw / TAU - 0.5) * 1.2
+		# And it can only be as big as the gap it stands in. Downtown lots run to the pavement
+		# line, so a full-size crown two metres off the glass models a frond through the
+		# building - the most obvious kind of wrong there is in a city. Never below 0.55, or
+		# the boulevard turns into a row of shrubs.
+		s = minf(s, maxf(0.55, _room_for_canopy(Vector2(at.x, at.z)) / PALM_CROWN_R))
 	var tint := Color(rng.randf_range(0.88, 1.12), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.08))
 	_batch.add("palm_%d" % variant, PropFactory.palm(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint)
 	if collide:
@@ -1426,9 +1461,11 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		t = tree_spacing * 0.75
 		while t < length - 4.0:
 			if rng.randf() < tree_chance and fmod(t, lamp_spacing) > 3.0:
-				var p := a + dir * t + inward * 1.6
+				# 1.3 rather than 1.6: every 30 cm back toward the kerb is 30 cm of crown that
+				# is over the street instead of inside the building on the lot line.
+				var p := a + dir * t + inward * 1.3
 				_batch.add("tree_grate", PropFactory.box("tree_grate", Vector3(1.6, 0.03, 1.6), Color(0.12, 0.12, 0.13)), Transform3D(Basis(), Vector3(p.x, SIDEWALK_TOP + 0.005, p.y)))
-				_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
+				_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng, -inward)
 			elif rng.randf() < tree_chance * 0.5:
 				var p := a + dir * (t + tree_spacing * 0.4) + inward * 2.2
 				_add_bush(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
@@ -1711,9 +1748,9 @@ func _edge_point(edge: Array, rng: RandomNumberGenerator, margin: float) -> Vect
 	return a.lerp(b, rng.randf_range(margin, maxf(margin, a.distance_to(b) - margin)) / a.distance_to(b))
 
 
-func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
+func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vector2.ZERO) -> void:
 	if _palm_street and rng.randf() < 0.8:
-		_add_palm(at, rng, false)
+		_add_palm(at, rng, false, lean_to)
 		return
 	var yaw := rng.randf_range(0.0, TAU)
 	# Most trees on a block are its dominant species; the rest are whatever.

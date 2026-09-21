@@ -397,10 +397,19 @@ static func zone_name(z: Zone) -> String:
 ## Forward+ aerial at noon measured the whole basin at 73..85 of 255, a near-black sheet with
 ## the city standing on it. A district at 0.20 albedo decodes to 0.033 LINEAR, which is darker
 ## than wet asphalt; LA from three kilometres up is pale - roofs, concrete and dust. The
-## districts are 1.44x what they were, which is 2.3x in linear light, and `built_amount()` in
+## districts are 2.1x what they were, which is 5x in linear light, and `built_amount()` in
 ## macro_ground.gdshader had its luminance window moved up to match. Move one, move the other:
 ## that function tells city from open country by brightness and saturation, so brightening the
-## districts past its window makes the city stop being drawn at all.
+## districts past its window makes the city stop being drawn at all. The smoke test re-runs the
+## classifier over this whole palette and reads that window out of the shader's source, so it
+## catches the mismatch rather than trusting a comment.
+##
+## The second lift (this one) came after the streamed chunks were fixed: their pavements had
+## been running at an albedo of 0.06-0.08, darker than asphalt, because road.gdshader's
+## expansion joints were inverted and two Poly Haven paving sets are very dark. With the near
+## ground correct, the far plane was suddenly a near-black sheet with a hard seam against it.
+## A city block seen from above averages roofs, pavement and road at about 0.13-0.16 linear,
+## which is where these now sit.
 const BAKE_OCEAN_DEEP := Color(0.014, 0.034, 0.062)
 const BAKE_OCEAN_SHALLOW := Color(0.045, 0.125, 0.155)
 ## The surf line. One bright texel along the shore is what makes a coastline read as a coast
@@ -416,17 +425,17 @@ const BAKE_SCRUB := Color(0.36, 0.325, 0.175)
 ## the districts are bright enough to reach this luminance.
 const BAKE_ROCK := Color(0.44, 0.385, 0.305)
 const BAKE_SNOW := Color(0.78, 0.80, 0.84)
-const BAKE_CONCRETE := Color(0.44, 0.434, 0.427)
-const BAKE_PORT := Color(0.42, 0.407, 0.4)
-const BAKE_DOWNTOWN := Color(0.252, 0.255, 0.271)
-const BAKE_MIDTOWN := Color(0.288, 0.294, 0.297)
-const BAKE_INDUSTRIAL := Color(0.324, 0.320, 0.310)
-const BAKE_SUBURB := Color(0.311, 0.324, 0.305)
-const BAKE_CAMPUS := Color(0.298, 0.317, 0.292)
+const BAKE_CONCRETE := Color(0.56, 0.552, 0.544)
+const BAKE_PORT := Color(0.52, 0.504, 0.495)
+const BAKE_DOWNTOWN := Color(0.366, 0.370, 0.393)
+const BAKE_MIDTOWN := Color(0.418, 0.427, 0.431)
+const BAKE_INDUSTRIAL := Color(0.455, 0.449, 0.436)
+const BAKE_SUBURB := Color(0.451, 0.470, 0.442)
+const BAKE_CAMPUS := Color(0.432, 0.460, 0.424)
 ## The freeway decks, drawn into the map as dark threads. Three curved routes crossing the
 ## basin are the most recognisable thing in an aerial view of a city like this one, and at this
 ## resolution they are the only man-made line long enough to survive the bake.
-const BAKE_FREEWAY := Color(0.216, 0.216, 0.228)
+const BAKE_FREEWAY := Color(0.313, 0.313, 0.331)
 ## Metres either side of a route centre line that get painted.
 const BAKE_FREEWAY_MARGIN := 18.0
 ## Metres that alpha 1.0 stands for in the baked map. The horizon plane lifts its vertices by

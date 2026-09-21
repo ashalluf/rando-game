@@ -83,7 +83,11 @@ static func lawn(tint: Color, seed_value: int, dryness: float = 0.35, stripes: f
 ## Worn asphalt for road surfaces (see shaders/road.gdshader). Cached per set, scale, tint and
 ## seed, so every road in a chunk shares one material.
 static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, joints: float = 0.0, wear: float = 1.0) -> ShaderMaterial:
-	var key := "road_%s_%.2f_%d_%d_%.2f_%.2f" % [set_key, scale_m, tint.to_rgba32(), seed_value, joints, wear]
+	# The tint goes into the key as itself, not through to_rgba32(): that clamps each channel to
+	# 0..255, so any two tints above 1.0 collide and the second caller silently gets the first
+	# one's material. Paving tints run above 1.0 (a tint multiplies, so only a tint above 1 can
+	# brighten a dark texture set) and SUBURBS has two "sidewalk" rows that would have merged.
+	var key := "road_%s_%.2f_%s_%d_%.2f_%.2f" % [set_key, scale_m, tint, seed_value, joints, wear]
 	if _cache.has(key):
 		return _cache[key]
 	var mat := ShaderMaterial.new()
@@ -379,6 +383,20 @@ const PALM_DEAD_STEPS := 38
 ## Length segments in one leaflet. A leaflet that is a single quad cannot droop or come to a
 ## point; a frond of flat quads reads as a comb, which is what the old crown did edge-on.
 const PALM_LEAFLET_SEGMENTS := 4
+## Which way each palm variant's trunk leans, as a yaw in radians, filled in by palm() as it
+## builds. A street palm's crown is three metres across and its trunk leans up to another 1.5 m,
+## so on a four-metre pavement with the building on the lot line the crown WILL reach the wall -
+## and a frond modelled through a glass facade is the single most obvious kind of wrong. Instead
+## of shrinking the palms, CityChunk turns each one so its lean points at the road; see
+## palm_lean() and CityChunk._add_palm().
+static var _palm_lean: Dictionary = {}
+
+
+## The baked lean yaw of a palm variant, so a caller can cancel it and aim the lean somewhere.
+static func palm_lean(variant: int) -> float:
+	if not _palm_lean.has(variant):
+		palm(variant)
+	return _palm_lean.get(variant, 0.0)
 
 
 static func palm(variant: int) -> Mesh:
@@ -394,8 +412,11 @@ static func palm(variant: int) -> Mesh:
 	# the short fat coconut palm the old primitive suggested.
 	var height := rng.randf_range(9.0, 18.5)
 	# Palms lean, and the lean grows toward the top rather than tilting the whole trunk.
-	var lean_dir := Vector3(cos(rng.randf() * TAU), 0.0, sin(rng.randf() * TAU))
+	var lean_angle := rng.randf() * TAU
+	var lean_dir := Vector3(cos(lean_angle), 0.0, sin(lean_angle))
 	var lean := rng.randf_range(0.4, 1.5)
+	# Yaw of that lean in the mesh's own space, so an instance can rotate it to point at the road.
+	_palm_lean[variant] = atan2(lean_dir.x, lean_dir.z)
 	var segments := PALM_TRUNK_RINGS
 	var sides := PALM_TRUNK_SIDES
 	# Grey-tan, not chocolate: a Washingtonia trunk is the colour of dry rope.

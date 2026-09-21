@@ -136,7 +136,13 @@ void fragment() {
 	if (joint_spacing > 0.01) {
 		vec2 slab = w / joint_spacing;
 		vec2 edge = abs(fract(slab) - 0.5);
-		float line = smoothstep(0.5, 0.5 - 0.025, max(edge.x, edge.y));
+		// edge is 0 at a slab's centre and 0.5 at its joint, so this has to RISE toward 0.5.
+		// It used to be smoothstep(0.5, 0.5 - 0.025, ...) - edge0 above edge1, a decreasing
+		// ramp - which made `line` 1 over about 95 % of every slab and 0 on the joint. Every
+		// pavement, plaza, car park and port yard in the city was therefore multiplied by
+		// 1 - joint_depth across its whole face and wore a BRIGHT grid where the joints should
+		// be, which is most of why the ground read as a dark sheet from the air.
+		float line = smoothstep(0.5 - 0.025, 0.5, max(edge.x, edge.y));
 		base *= mix(1.0, 1.0 - joint_depth, line);
 		rough = mix(rough, 1.0, line * 0.5);
 		base *= 0.965 + 0.07 * hash12(floor(slab) + seed);

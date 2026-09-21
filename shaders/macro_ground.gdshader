@@ -78,7 +78,10 @@ uniform float pixel_angle = 0.0016;
 // ---- lighting -----------------------------------------------------------------------------
 // Direct sunlight on this plane. It is lit by hand past the near band: see the ALBEDO/EMISSION
 // split at the bottom for why.
-uniform float sun_strength = 1.00;
+// The far plane is EMITTED past near_fade_end * 1.8, so the scene's DirectionalLight never
+// touches it and this IS its sun. Keep it equal to DayNight.day_sun_energy or the land past
+// 600 m runs darker than the streamed chunks it butts against.
+uniform float sun_strength = 1.30;
 // Sky fill, the light a slope facing away from the sun actually gets.
 uniform float ambient_strength = 0.30;
 // Warm light bounced back up off the ground in front of a slope.
@@ -304,12 +307,13 @@ float built_amount(vec3 c, float slope, float height_m) {
 	float mn = min(c.r, min(c.g, c.b));
 	float sat = (mx - mn) / max(mx, 0.0008);
 	float lum = dot(c, vec3(0.3333));
-	// Linear values: a district decodes to 0.062..0.092 with a saturation under 0.13, pale
-	// concrete to 0.16, chaparral to 0.07 at saturation 0.76, bare rock to 0.13 at saturation
-	// 0.31, snow to 0.62. The window used to be 0.055..0.080, for districts half this bright;
-	// if you change MacroMap's BAKE_* district colours, these two numbers move with them.
+	// Linear values: a district decodes to 0.083..0.180 with a saturation under 0.16, pale
+	// concrete to 0.27, port to 0.22, chaparral to 0.07 at saturation 0.76, bare rock to 0.12 at
+	// saturation 0.53, snow to 0.62. The window has moved twice as the districts were lifted out
+	// of near-black; if you change MacroMap's BAKE_* district colours, these two numbers move
+	// with them, and tests/smoke_test.gd reads them straight out of this line to check it.
 	return (1.0 - smoothstep(0.17, 0.30, sat))
-		* (1.0 - smoothstep(0.100, 0.130, lum))
+		* (1.0 - smoothstep(0.175, 0.215, lum))
 		* (1.0 - smoothstep(0.10, 0.30, slope))
 		* (1.0 - smoothstep(420.0, 700.0, height_m));
 }
