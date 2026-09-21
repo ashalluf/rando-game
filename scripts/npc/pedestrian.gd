@@ -148,7 +148,6 @@ func _add_model() -> bool:
 	# so a negative X rotation tips the head forward.
 	_visual.rotation.x = -deg_to_rad(_style.randf_range(lean_spread.x, lean_spread.y))
 	_gait = _style.randf_range(gait_spread.x, gait_spread.y)
-	_add_accessory(inst)
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim:
 		fix_arm_pose(_anim, path)
@@ -158,9 +157,16 @@ func _add_model() -> bool:
 		_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 		if _anim.has_animation(WALK_CLIP):
 			_play_walk(0.0)
-			# Start everyone at a different point in the cycle. A crowd stepping in perfect
-			# unison is the most obvious tell that they are all the same model.
-			_anim.seek(_style.randf() * _anim.get_animation(WALK_CLIP).length, true)
+			# Pose the rig at the top of the walk before hanging anything off its bones. The
+			# clip holds the spine seven degrees off the bind pose the whole way round, so a
+			# backpack lined up against the bind pose rides tilted back and floating off the
+			# spine. Lining it up against a walking frame puts it on the back.
+			_anim.seek(0.0, true)
+	_add_accessory(inst)
+	if _anim and _anim.has_animation(WALK_CLIP):
+		# Start everyone at a different point in the cycle. A crowd stepping in perfect
+		# unison is the most obvious tell that they are all the same model.
+		_anim.seek(_style.randf() * _anim.get_animation(WALK_CLIP).length, true)
 	return true
 
 
@@ -186,9 +192,9 @@ func _play_idle() -> void:
 ## shirt colour does not.
 enum Accessory {NONE, CAP, BEANIE, PACK}
 const ACC_BONE := {Accessory.CAP: "Head", Accessory.BEANIE: "Head", Accessory.PACK: "Spine01"}
-## Where the accessory sits relative to that bone's rest position, in metres, in skeleton space
-## (Y up, the rig facing +Z). Measured out from the bone rather than from the model origin, so
-## the same numbers land on both rigs even though their heads sit 2 cm apart.
+## Where the accessory sits relative to that bone, in metres, in skeleton space (Y up, the rig
+## facing +Z). Measured out from the bone rather than from the model origin, so the same numbers
+## land on both rigs even though their heads sit 2 cm apart.
 const ACC_OFFSET := {
 	Accessory.CAP: Vector3(0.0, 0.0, -0.012),
 	Accessory.BEANIE: Vector3(0.0, 0.0, -0.012),
@@ -235,16 +241,21 @@ func _add_accessory(inst: Node3D) -> void:
 	var palette: Array = PACK_COLORS if kind == Accessory.PACK else HAT_COLORS
 	mi.material_override = PropFactory.material(palette[_style.randi() % palette.size()], 0.72)
 	mi.visibility_range_end = accessory_distance * (0.6 if OS.has_feature("web") else 1.0)
-	var rest := skel.get_bone_global_rest(idx)
-	var at: Vector3 = rest.origin + (ACC_OFFSET[kind] as Vector3) * unit
-	# Built level in skeleton space and then pushed back through the bone's rest pose, so a cap
-	# sits flat on the skull whatever angle the head bone happens to hold in the bind pose (the
-	# two rigs differ by ten degrees there), and still rides the head once it animates.
-	mi.transform = rest.affine_inverse() * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), at)
+	# No shadow pass and no global illumination: a cap's own shadow falls on a head that is
+	# already under it, and paying a second draw call per wearer for that is not worth it.
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	# The bone as it stands in the walk clip, not as it stands in the bind pose (see _add_model).
+	var pose := skel.get_bone_global_pose(idx)
+	var at: Vector3 = pose.origin + (ACC_OFFSET[kind] as Vector3) * unit
+	# Built level in skeleton space and then pushed back through that pose, so a cap sits flat
+	# on the skull whatever angle the head bone happens to hold (the two rigs differ by ten
+	# degrees there), and still rides the head once the clip moves on.
+	mi.transform = pose.affine_inverse() * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), at)
 	att.add_child(mi)
 
 
-## One shared mesh per accessory kind, in metres, origin at the bone's rest position. Part
+## One shared mesh per accessory kind, built in metres about the bone it hangs from. Part
 ## colours go in the vertex colour and the per-character colour multiplies them, so one mesh
 ## covers every colourway.
 static func _accessory_mesh(kind: int) -> Mesh:
@@ -259,8 +270,8 @@ static func _accessory_mesh(kind: int) -> Mesh:
 			# still 10 cm wide two centimetres from its crown (it is carrying hair), so a plain
 			# hemisphere the height of a cap pinches in and lets the head through its sides.
 			st.set_smooth_group(0)
-			_acc_tube(st, 0.095, 0.163, 0.108, 0.124, white, 20)
-			_acc_dome(st, Vector3(0.0, 0.163, 0.0), Vector3(0.108, 0.050, 0.124), white, 20, 4)
+			_acc_tube(st, 0.095, 0.150, 0.108, 0.124, white, 20)
+			_acc_dome(st, Vector3(0.0, 0.150, 0.0), Vector3(0.108, 0.062, 0.124), white, 20, 4)
 			st.set_smooth_group(0xFFFFFFFF)
 			_acc_brim(st, 0.100, 0.185, 0.104, 0.018, 0.012, Color(0.84, 0.84, 0.84), 12)
 			_acc_box(st, Vector3(0.0, 0.211, 0.0), Vector3(0.022, 0.012, 0.022), Color(0.84, 0.84, 0.84))
@@ -272,11 +283,11 @@ static func _accessory_mesh(kind: int) -> Mesh:
 			# Sunk a centimetre into the back rather than floated off it: the front face is
 			# never seen, and a gap between a pack and a spine is.
 			st.set_smooth_group(0xFFFFFFFF)
-			_acc_box(st, Vector3(0.0, 0.020, -0.218), Vector3(0.290, 0.400, 0.165), white)
-			_acc_box(st, Vector3(0.0, 0.213, -0.226), Vector3(0.275, 0.050, 0.150), Color(0.86, 0.86, 0.86))
-			_acc_box(st, Vector3(0.0, -0.078, -0.305), Vector3(0.190, 0.130, 0.030), Color(0.74, 0.74, 0.74))
+			_acc_box(st, Vector3(0.0, -0.020, -0.218), Vector3(0.285, 0.390, 0.160), white)
+			_acc_box(st, Vector3(0.0, 0.168, -0.226), Vector3(0.270, 0.050, 0.146), Color(0.86, 0.86, 0.86))
+			_acc_box(st, Vector3(0.0, -0.112, -0.303), Vector3(0.185, 0.125, 0.030), Color(0.74, 0.74, 0.74))
 			for side: float in [-1.0, 1.0]:
-				_acc_beam(st, Vector3(side * 0.088, 0.175, -0.150), Vector3(side * 0.105, 0.258, -0.020),
+				_acc_beam(st, Vector3(side * 0.086, 0.135, -0.148), Vector3(side * 0.103, 0.222, -0.020),
 						0.048, 0.026, Color(0.72, 0.72, 0.72))
 	st.generate_normals()
 	var mesh := st.commit()
@@ -461,7 +472,46 @@ const HAIR_COLORS := [
 	Color(0.52, 0.505, 0.485), Color(0.78, 0.770, 0.745),
 ]
 const CHARACTER_LOOKS := 24
+## Texture-value bands the character shader splits skin, hair and cloth on, written in gamma
+## (sRGB) space - the numbers you read straight off the texture file in an image viewer.
+## Measured over triangle-interior samples of both rigs: garments and hair top out near value
+## 0.40 and lit skin starts near 0.65, so SKIN_VALUE_BAND sits in the gap with room either side.
+## Brightness is the only test that separates them on pedestrian_c, whose jacket and trousers are
+## the same warm brown as its skin.
+const SKIN_VALUE_BAND := Vector2(0.44, 0.62)
+## Hair is the dark half of the head band, the face the bright half. Hair sits at 0.19-0.40 and a
+## face at 0.65-0.95 on both rigs.
+const HAIR_VALUE_BAND := Vector2(0.32, 0.55)
+## Below the first number a pixel is a seam, a fold or the shadow under a hem: hue means nothing
+## there and recolouring it makes fabric look printed on.
+const CLOTH_VALUE_BAND := Vector2(0.045, 0.13)
+## The source hair's own shading is mapped from this value band onto this brightness range, so a
+## recoloured head still shows strands and roots instead of going flat. Applied in gamma space
+## inside the shader, so unlike the bands above this one is not converted per renderer.
+const HAIR_SHADE_BAND := Vector2(0.18, 0.45)
+const HAIR_SHADE_RANGE := Vector2(0.55, 1.0)
 static var _looks: Dictionary = {}
+
+
+## Moves a texture-value threshold from gamma (sRGB) space into whichever space this renderer
+## hands `source_color` textures back in.
+##
+## Forward+ and Mobile sample such a texture through an sRGB view, so the shader sees a LINEAR
+## value; the Compatibility renderer (the web build) hands back the raw sRGB texels. The picture
+## on screen is the same either way, but the numbers the shader compares against are not, and
+## every threshold in character.gdshader was written against the sRGB ones. On desktop that put
+## every threshold in the wrong place: a garment at sRGB 0.35 arrives as 0.10, its saturation
+## arrives much higher, and the shader called the whole body skin - so no pedestrian's clothes
+## were ever recoloured in the Mac build at all. Verified by rendering a known grey through a
+## source_color sampler under both renderers.
+static func _texture_is_linear() -> bool:
+	return RenderingServer.get_current_rendering_method() != "gl_compatibility"
+
+
+static func _texture_value(v: float) -> float:
+	if not _texture_is_linear():
+		return v
+	return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
 
 
 static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
@@ -506,6 +556,22 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	mat.set_shader_parameter("hair_color", HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
 	mat.set_shader_parameter("hair_strength", rng.randf_range(0.75, 1.0))
 	mat.set_shader_parameter("skin_tint", SKIN_TINTS[look % SKIN_TINTS.size()])
+	# Every threshold the shader compares a texture value against, moved into this renderer's
+	# colour space (see _texture_value). Cheaper than converting the sample per pixel, and the
+	# two renderers then classify identically.
+	mat.set_shader_parameter("skin_value_lo", _texture_value(SKIN_VALUE_BAND.x))
+	mat.set_shader_parameter("skin_value_hi", _texture_value(SKIN_VALUE_BAND.y))
+	mat.set_shader_parameter("hair_value_lo", _texture_value(HAIR_VALUE_BAND.x))
+	mat.set_shader_parameter("hair_value_hi", _texture_value(HAIR_VALUE_BAND.y))
+	mat.set_shader_parameter("cloth_value_lo", _texture_value(CLOTH_VALUE_BAND.x))
+	mat.set_shader_parameter("cloth_value_hi", _texture_value(CLOTH_VALUE_BAND.y))
+	# The garment colours and the hair shading ramp are built in gamma space inside the shader,
+	# so they only need to know which space the texture arrived in.
+	mat.set_shader_parameter("value_is_linear", 1.0 if _texture_is_linear() else 0.0)
+	# Straight-line fit of the hair shading ramp across its band.
+	var shade_gain := (HAIR_SHADE_RANGE.y - HAIR_SHADE_RANGE.x) / maxf(HAIR_SHADE_BAND.y - HAIR_SHADE_BAND.x, 0.0001)
+	mat.set_shader_parameter("hair_shade_gain", shade_gain)
+	mat.set_shader_parameter("hair_shade_bias", HAIR_SHADE_RANGE.x - shade_gain * HAIR_SHADE_BAND.x)
 	_looks[key] = mat
 	return mat
 
