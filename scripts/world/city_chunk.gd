@@ -249,7 +249,7 @@ func _build_airport() -> void:
 	# An apron is concrete, not a night street. 0.44 tinting an already dark asphalt set put the
 	# whole airport at an albedo of 0.014 - several chunks of continuous flat ground reading as
 	# a void in every wide shot that includes it.
-	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.road("asphalt", 8.0, Color(0.90, 0.90, 0.92), hash([plan.seed, ix, iz, "lot"]), 0.0, 0.85))
+	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.road("asphalt", 8.0, Color(1.25, 1.25, 1.27), hash([plan.seed, ix, iz, "lot"]), 0.0, 0.85))
 	var macro: MacroMap = plan.macro
 	if level == Level.FULL and area.has_point(macro.terminal_curb.get_center()):
 		# The drop-off curb in front of the terminal is packed (owner: "jampacked").
@@ -784,7 +784,7 @@ func _build_hill_roads() -> void:
 	var mesh := MeshInstance3D.new()
 	mesh.name = "HillRoad"
 	mesh.mesh = st.commit()
-	mesh.material_override = PropFactory.pbr("asphalt", 7.0, Color(0.7, 0.7, 0.72))
+	mesh.material_override = PropFactory.pbr("asphalt", 7.0, Color(0.79, 0.79, 0.81))
 	add_child(mesh)
 
 
@@ -905,7 +905,14 @@ func _build_roads(block: Dictionary) -> void:
 ## same value as the concrete pavement beside it, so a street photograph of the city read as one
 ## flat grey field with paint on it. Sun-bleached LA asphalt is still only about a quarter as
 ## bright as a kerb.
-const ROAD_TINTS := [Color(0.40, 0.40, 0.42), Color(0.31, 0.31, 0.33), Color(0.49, 0.47, 0.45), Color(0.36, 0.37, 0.40), Color(0.34, 0.33, 0.32)]
+## Road paints. These are TINTS ON A PHOTOGRAPHED TEXTURE, and `uniform vec3 tint : source_color`
+## means Godot sRGB-decodes them: Color(0.40) multiplies by 0.133, not by 0.40. Asphalt033's own
+## mean is already 0.0849 linear - the real reflectance of asphalt - so the old 0.31..0.49 range
+## laid the carriageway at 0.0065..0.0169, five to fifteen times darker than any road on earth,
+## and every street in the city read as a black ribbon. These land at 0.040..0.068 on the
+## Asphalt033 set and 0.061..0.104 on the coarser AerialAsphalt01 one, which is weathered asphalt
+## through to a recently resurfaced street. The smoke test checks the arithmetic.
+const ROAD_TINTS := [Color(0.842, 0.842, 0.884), Color(0.724, 0.724, 0.771), Color(0.920, 0.885, 0.848), Color(0.786, 0.808, 0.873), Color(0.755, 0.733, 0.711)]
 
 
 ## {"material", "line" (color), "solid" (bool)} for one road, seeded by axis and index.
@@ -2046,7 +2053,7 @@ func _build_freeway() -> void:
 	if quads == 0:
 		return
 	add_child(deck_body)
-	_commit_surface(top, "FreewayDeck", PropFactory.road("asphalt_aerial", 9.0, Color(0.37, 0.37, 0.39), hash([plan.seed, "freeway"]), 0.0, 0.7))
+	_commit_surface(top, "FreewayDeck", PropFactory.road("asphalt_aerial", 9.0, Color(0.69, 0.69, 0.71), hash([plan.seed, "freeway"]), 0.0, 0.7))
 	_commit_surface(body, "FreewayStructure", PropFactory.material(Color.WHITE, 0.85))
 	_commit_surface(paint, "FreewayPaint", PropFactory.material(Color.WHITE, 0.7))
 	_build_freeway_ramps()
@@ -2196,5 +2203,5 @@ func _build_freeway_ramps() -> void:
 	if built == 0:
 		return
 	add_child(ramp_body)
-	_commit_surface(deck, "RampDeck", PropFactory.road("asphalt_aerial", 9.0, Color(0.37, 0.37, 0.39), hash([plan.seed, "ramp"]), 0.0, 0.7))
+	_commit_surface(deck, "RampDeck", PropFactory.road("asphalt_aerial", 9.0, Color(0.69, 0.69, 0.71), hash([plan.seed, "ramp"]), 0.0, 0.7))
 	_commit_surface(body, "RampStructure", PropFactory.material(Color.WHITE, 0.85))

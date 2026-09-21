@@ -244,7 +244,7 @@ static func _gas_station(chunk: CityChunk, pad: Rect2, rng: RandomNumberGenerato
 ## Parking lot over `area`: asphalt, stall rows with aisles, some parked cars.
 static func _lot(chunk: CityChunk, area: Rect2, rng: RandomNumberGenerator, full: bool, cars: bool = true) -> void:
 	var c := area.get_center()
-	chunk._add_slab(Vector3(c.x, TOP + 0.01, c.y), Vector3(area.size.x, 0.02, area.size.y), Color(0.4, 0.4, 0.42), false, PropFactory.pbr("asphalt", 7.0, Color(0.62, 0.62, 0.64)))
+	chunk._add_slab(Vector3(c.x, TOP + 0.01, c.y), Vector3(area.size.x, 0.02, area.size.y), Color(0.4, 0.4, 0.42), false, PropFactory.pbr("asphalt", 7.0, Color(0.79, 0.79, 0.81)))
 	if not full:
 		return
 	# Rows of stalls along X, a 7 m aisle between double rows, front half of the lot only.

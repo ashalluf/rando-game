@@ -240,6 +240,37 @@ func _test_city() -> void:
 				built_ok = false
 				built_why += " %s=%.2f" % [entry[0], built]
 		_check(built_ok, "the baked palette still separates city from country%s" % built_why)
+		# Ground albedo. Every ground tint in the project multiplies a PHOTOGRAPHED texture whose
+		# own mean already IS the real reflectance of that material, and both `uniform vec3 tint
+		# : source_color` and StandardMaterial3D.albedo_color are sRGB-decoded by Godot - so
+		# Color(0.40) multiplies by 0.133, not by 0.40. Written as if it were linear, the whole
+		# city laid its roads at 0.0065..0.017 and its pavements at 0.05..0.08: five to fifteen
+		# times darker than anything real, which is what made the basin a dark sheet from the
+		# air. These means are measured off the committed texture files with
+		#   python3 -c "from PIL import Image; import numpy as np; im=np.asarray(Image.open('assets/textures/Asphalt033/Asphalt033_1K-JPG_Color.jpg').convert('RGB')).astype(float)/255; l=np.where(im<=0.04045, im/12.92, ((im+0.055)/1.055)**2.4); print((0.2126*l[:,:,0]+0.7152*l[:,:,1]+0.0722*l[:,:,2]).mean())"
+		# and they only change if the asset changes.
+		var tex_mean := {"asphalt": 0.0849, "asphalt_aerial": 0.1300, "sidewalk": 0.1024,
+				"pavers": 0.1939, "paving": 0.2951, "concrete": 0.4818}
+		var albedo_of := func(set_key: String, tint: Color) -> float:
+			var lum := 0.2126 * tint.r + 0.7152 * tint.g + 0.0722 * tint.b
+			var linear: float = lum / 12.92 if lum <= 0.04045 else pow((lum + 0.055) / 1.055, 2.4)
+			return float(tex_mean.get(set_key, 0.2)) * linear
+		var albedo_why := ""
+		for tint: Color in CityChunk.ROAD_TINTS:
+			# Asphalt is 0.05-0.12 in daylight; the coarser aerial set lands higher for the same
+			# tint, which is a newly surfaced street, so the window has to hold both.
+			var a: float = albedo_of.call("asphalt", tint)
+			var b: float = albedo_of.call("asphalt_aerial", tint)
+			if a < 0.030 or b > 0.140:
+				albedo_why += " road(%.3f,%.3f)" % [a, b]
+		for d in CityPlan.District.size():
+			for row in (CityPlan.DISTRICTS[d] as Dictionary).get("paving", []):
+				var a: float = albedo_of.call(str(row[0]), row[2] as Color)
+				# Concrete pavement is 0.20-0.40. Anything under 0.15 is darker than the road
+				# beside it, which is the tell that a tint was written as if it were linear.
+				if a < 0.15 or a > 0.45:
+					albedo_why += " %s.%s(%.3f)" % [CityPlan.district_name(d), str(row[0]), a]
+		_check(albedo_why == "", "ground surfaces have a physical albedo%s" % albedo_why)
 		# Height and zone have to agree on where the water starts. They did not around the
 		# headland - the coast bulge is a function of z alone and the peninsula is a circle - so
 		# the waterline cut across a 100 m cliff and left a sail of hillside hanging over the
