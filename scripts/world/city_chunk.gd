@@ -1641,13 +1641,19 @@ func _bar(st: SurfaceTool, p0: Vector3, p1: Vector3, wide: Vector2, h: float, co
 		var c0: Vector3 = corners[i]
 		var c1: Vector3 = corners[(i + 1) % 4]
 		_ribbon(st, c0, c1, c1 + up, c0 + up, col)
-	_ribbon(st, corners[0] + up, corners[1] + up, corners[2] + up, corners[3] + up, col.lightened(0.08))
+	# Same winding fix as _bar_flat: the cap is a horizontal quad and has to face up.
+	_ribbon(st, corners[0] + up, corners[1] + up, corners[2] + up, corners[3] + up, col.lightened(0.08), true)
 
 
-## A flat painted strip lying on the deck.
+## A flat painted strip lying on the deck, facing up.
+##
+## `flip` here, not because it is an underside: `_ribbon`'s plain winding faces a horizontal quad
+## DOWN, which is the opposite of the winding the deck top uses, so the lane paint was built
+## back-facing and culled away entirely - a deck with no markings on it at all. The deck top's
+## own order (l0, r1, r0) is the one to match.
 func _bar_flat(st: SurfaceTool, p0: Vector3, p1: Vector3, wide: Vector2, col: Color) -> void:
 	var w := Vector3(wide.x, 0.0, wide.y)
-	_ribbon(st, p0 - w, p0 + w, p1 + w, p1 - w, col)
+	_ribbon(st, p0 - w, p0 + w, p1 + w, p1 - w, col, true)
 
 
 ## A pair of columns and a crossbeam carrying the deck.
