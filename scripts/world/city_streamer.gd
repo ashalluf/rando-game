@@ -38,6 +38,9 @@ extends Node3D
 @export var macro_span: float = 16000.0
 ## Corner darkening over the whole frame (0 turns it off). See shaders/vignette.gdshader.
 @export var vignette_strength: float = 0.24
+## Quads across the ground follower. The plane's world position is snapped to this spacing so
+## its vertices land on fixed world points; without that the lifted mountains swim as you walk.
+const GROUND_SUBDIVISIONS := 200
 
 @export_group("Street life")
 @export var lamp_spacing: float = 24.0
@@ -354,7 +357,13 @@ func update_streaming(immediate: bool) -> void:
 		if _player == null:
 			return
 	var local := _player.global_position
-	_ground.position = Vector3(local.x, 0.0, local.z)
+	# Snapped to the plane's own vertex spacing, in world space, so every vertex stays on the
+	# same world point as the player walks. Unsnapped, the lifted mountains crawl and shimmer.
+	var gstep := ground_size / float(GROUND_SUBDIVISIONS)
+	var off := WorldState.world_offset
+	_ground.position = Vector3(
+		snappedf(local.x + off.x, gstep) - off.x, 0.0,
+		snappedf(local.z + off.z, gstep) - off.z)
 	# The macro map is addressed in true world XZ, so the plane has to know how far the scene's
 	# origin has been shifted from under it.
 	if _ground_material:
@@ -466,6 +475,7 @@ func _build_ground_material() -> ShaderMaterial:
 	mat.set_shader_parameter("macro_tex", tex)
 	mat.set_shader_parameter("macro_centre", Vector2.ZERO)
 	mat.set_shader_parameter("macro_span", macro_span)
+	mat.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)
 	mat.set_shader_parameter("near_albedo", PropFactory.texture("grass", "Color"))
 	mat.set_shader_parameter("near_normal", PropFactory.texture("grass", "NormalGL"))
 	return mat
@@ -491,9 +501,10 @@ func _build_ground() -> void:
 	mesh.material_override = _ground_material
 	# One flat quad 14 km across would z-fight and shade badly at this size; a few subdivisions
 	# cost nothing and keep the interpolated world position honest.
-	# Enough vertices that the shader's distance-based sink resolves smoothly across 14 km.
-	plane.subdivide_width = 48
-	plane.subdivide_depth = 48
+	# Enough vertices to carry a mountain silhouette: 14 km over 200 quads is 70 m a vertex,
+	# which is plenty for a range three kilometres out.
+	plane.subdivide_width = GROUND_SUBDIVISIONS
+	plane.subdivide_depth = GROUND_SUBDIVISIONS
 	mesh.extra_cull_margin = ground_size
 	_ground.add_child(mesh)
 	var shape := CollisionShape3D.new()

@@ -14,12 +14,29 @@ var seed: int = 0
 var coast_base_x: float = -900.0
 var beach_width: float = 70.0
 ## North is negative Z. Land starts rising at hills_start_z and is fully mountain at hills_full_z.
+## This is the front range that walls the basin off on its north side, the one the big sign sits
+## on; 260 m read as a large hill, and a basin like this one is ringed by actual mountains.
 var hills_start_z: float = -900.0
-var hills_full_z: float = -1500.0
-var hills_height: float = 260.0
+var hills_full_z: float = -1600.0
+var hills_height: float = 560.0
+## Behind the front range the ground drops into a wide inland valley - flat enough to build a
+## city on, but 180 m up - and then climbs again into a much higher back range. This is the
+## shape of the real thing: a coastal plain, a ridge, a valley behind it, a wall behind that.
+var valley_from_z: float = -1800.0
+var valley_to_z: float = -2500.0
+var valley_height: float = 180.0
+var back_start_z: float = -3300.0
+var back_full_z: float = -4400.0
+var back_height: float = 1150.0
+## And a range closing the basin off to the east, so the city is a bowl rather than a sprawl
+## that runs to the edge of the world in one direction.
+var east_start_x: float = 1900.0
+var east_full_x: float = 2900.0
+var east_height: float = 540.0
 var peninsula_center: Vector2 = Vector2(-700.0, 1500.0)
 var peninsula_radius: float = 550.0
-var peninsula_height: float = 150.0
+## The headland in the south-west bay: cliffs straight out of the water.
+var peninsula_height: float = 285.0
 ## Water south of this Z and west of this X (except the peninsula) so the peninsula sticks out.
 var bay_z: float = 1000.0
 var bay_east_x: float = 400.0
@@ -55,6 +72,8 @@ var apron_spots: Array = [[Vector2(-440.0, 700.0), 0], [Vector2(-350.0, 730.0), 
 
 ## Roads and mansion pads carved into the hills (built in setup()).
 var hill_roads: HillRoads
+## The freeway system: curved elevated routes across the basin (see scripts/world/freeway.gd).
+var freeway: Freeway
 
 var _noise: FastNoiseLite
 
@@ -83,6 +102,10 @@ func setup() -> void:
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
+	# After the hill roads: the freeway's deck height follows height_at(), which needs them.
+	var fw := Freeway.new()
+	fw.build(self, seed)
+	freeway = fw
 
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.
@@ -111,9 +134,12 @@ func relief_at(pos: Vector2) -> float:
 func _relief_at(pos: Vector2, raw: float) -> float:
 	if _relief == null:
 		setup()
+	# The valley floor is a base elevation, not rolling ground: it does not fade out near the
+	# mountains, or the city built on it would slide back down to sea level at its own edges.
+	var base := plateau_at(pos)
 	var fade := 1.0 - smoothstep(0.0, 2.5, raw)
 	if fade <= 0.0:
-		return 0.0
+		return base
 	var cx := coast_x(pos.y)
 	fade *= smoothstep(cx + beach_width + 20.0, cx + beach_width + 220.0, pos.x)
 	# The bay south of bay_z (west of bay_east_x) is water; flatten toward it.
@@ -121,14 +147,14 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 	for r: Rect2 in [airport_rect, port_rect, harbor_rect]:
 		fade *= _rect_fade(pos, r, 160.0)
 		if fade <= 0.0:
-			return 0.0
+			return base
 	for lm in _landmarks:
 		var radius: float = lm.radius
 		fade *= smoothstep(radius + 30.0, radius + 150.0, pos.distance_to(lm.anchor))
 		if fade <= 0.0:
-			return 0.0
+			return base
 	var n := _relief.get_noise_2dv(pos) * 0.5 + 0.5
-	return relief_height * n * n * fade
+	return base + relief_height * n * n * fade
 
 
 ## 0 inside the rect, rising to 1 at `margin` meters outside it.
@@ -138,20 +164,47 @@ static func _rect_fade(pos: Vector2, r: Rect2, margin: float) -> float:
 	return smoothstep(0.0, margin, Vector2(dx, dy).length())
 
 
-## Land height from the noise alone (what the roads are laid over).
+## The mountains alone: the three ranges and the headland, with nothing else on top. This is
+## what decides whether somewhere is HILLS rather than CITY, and what the hill roads are carved
+## into, so the inland valley floor is deliberately NOT part of it - the valley is a plateau the
+## city is built on, not a mountain.
 func raw_height_at(pos: Vector2) -> float:
 	if _noise == null:
 		setup()
 	if airport_rect.has_point(pos) or port_rect.has_point(pos) or harbor_rect.has_point(pos):
 		return 0.0
 	var n := _noise.get_noise_2dv(pos)
-	var t := smoothstep(hills_start_z, hills_full_z, pos.y)
-	var h := t * (hills_height * (0.6 + 0.4 * n) + 40.0 * n)
+	var n2 := _noise.get_noise_2dv(pos * 2.7 + Vector2(913.0, -457.0))
+	var h := 0.0
+
+	# The front range, walling off the basin, fading out again on its inland side so the valley
+	# behind it is open ground.
+	var front := smoothstep(hills_start_z, hills_full_z, pos.y) * (1.0 - smoothstep(valley_from_z, valley_to_z, pos.y))
+	h = maxf(h, front * (hills_height * (0.62 + 0.38 * n) + 60.0 * n2))
+
+	# The back range beyond the valley: the real wall.
+	var back := smoothstep(back_start_z, back_full_z, pos.y)
+	h = maxf(h, back * (back_height * (0.58 + 0.42 * n) + 110.0 * n2))
+
+	# The eastern range, closing the bowl.
+	var east := smoothstep(east_start_x, east_full_x, pos.x)
+	h = maxf(h, east * (east_height * (0.6 + 0.4 * n) + 55.0 * n2))
+
 	var pd := pos.distance_to(peninsula_center)
 	# Steep sides: the peninsula rises out of the bay as cliffs.
 	var pt := smoothstep(peninsula_radius, peninsula_radius * 0.5, pd)
 	h += pt * peninsula_height * (0.7 + 0.3 * n)
 	return maxf(h, 0.0)
+
+
+## The inland valley floor: a smooth base elevation the city sits on, 0 everywhere in the
+## coastal basin. It is part of `relief_at()` rather than `raw_height_at()` on purpose - city
+## chunks lay their ground on the relief, and `zone_at()` reads the mountains, so this lifts a
+## whole district 180 m without turning it into hillside.
+func plateau_at(pos: Vector2) -> float:
+	if airport_rect.has_point(pos) or port_rect.has_point(pos) or harbor_rect.has_point(pos):
+		return 0.0
+	return valley_height * smoothstep(valley_from_z, valley_to_z, pos.y)
 
 
 ## The bay south of the airport that wraps the peninsula: water unless on the peninsula itself.
@@ -214,12 +267,17 @@ const BAKE_GRASS := Color(0.17, 0.25, 0.11)
 const BAKE_SCRUB := Color(0.27, 0.26, 0.15)
 const BAKE_ROCK := Color(0.29, 0.27, 0.24)
 const BAKE_CONCRETE := Color(0.32, 0.31, 0.30)
+const BAKE_SNOW := Color(0.78, 0.80, 0.84)
+## Metres that alpha 1.0 stands for in the baked map. The horizon plane lifts its vertices by
+## this, so it has to cover the highest peak the back range can throw up.
+const BAKE_HEIGHT_SCALE := 1600.0
 
 
 ## Paints the whole basin into one small image, so the ground plane beyond the streamed chunks
 ## can show the actual map instead of a flat green table out to the horizon: ocean to the west,
 ## the mountains to the north, the airport, the city sprawl. RGB is the ground colour and alpha
-## carries the land height (metres / 400), which the shader turns into relief shading. Alpha is
+## carries the land height (metres / BAKE_HEIGHT_SCALE), which the shader both shades from
+## and lifts its own vertices by, so the mountains have a silhouette and not just a colour. Alpha is
 ## exactly zero on water and never below 0.004 on land, so the shader can tell the sea apart and
 ## shade it as water rather than as a very flat blue field.
 ##
@@ -249,10 +307,12 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 				Zone.PORT:
 					col = BAKE_CONCRETE.darkened(0.25)
 				Zone.HILLS:
-					# Green on the lower slopes, dry scrub above them, bare rock at the tops.
-					var t := clampf(h / maxf(hills_height, 1.0), 0.0, 1.0)
-					col = BAKE_GRASS.lerp(BAKE_SCRUB, smoothstep(0.10, 0.45, t))
-					col = col.lerp(BAKE_ROCK, smoothstep(0.45, 0.85, t))
+					# Green on the lower slopes, dry scrub above them, bare rock higher, and
+					# snow on the back range, which tops out well over a kilometre.
+					var t := clampf(h / 1000.0, 0.0, 1.0)
+					col = BAKE_GRASS.lerp(BAKE_SCRUB, smoothstep(0.06, 0.26, t))
+					col = col.lerp(BAKE_ROCK, smoothstep(0.26, 0.62, t))
+					col = col.lerp(BAKE_SNOW, smoothstep(0.80, 1.0, t))
 				_:
 					match district_at(pos):
 						CityPlan.District.DOWNTOWN:
@@ -268,7 +328,7 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 			if zone_at(pos) == Zone.OCEAN:
 				col.a = 0.0
 			else:
-				col.a = clampf(maxf(h, 0.0) / 400.0, 0.004, 1.0)
+				col.a = clampf(maxf(h, 0.0) / BAKE_HEIGHT_SCALE, 0.004, 1.0)
 				# Built-up ground is not one flat colour from the air: it is roofs, roads,
 				# yards and trees at a scale far below one texel. Jitter each texel so the
 				# sprawl beyond the loaded chunks reads as a city rather than a painted field.

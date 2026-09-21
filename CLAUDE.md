@@ -321,6 +321,32 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   chunks build asphalt strips and estates from. Chunks build water, sand or terrain for non-city
   zones; the water surface is at y 0.15 (above the ground follower plane). To start
   somewhere else for testing: web `?spawn=x,z,yaw,pitch[,y]`, desktop `-- --spawn=x,z,yaw,pitch[,y]`.
+  Mountains (owner, 2026-09-21: "LA is covered by mountains, Palos Verdes, the valley"): the basin
+  is ringed. `raw_height_at()` is mountains only - a front range north of the city that fades out
+  on its inland side, a higher back range behind the valley, an east range, and the peninsula
+  headland south-west - composed with `max()` so ranges meet in ridges rather than adding into a
+  dome. The knobs are the `*_start_z` / `*_full_z` / `*_height` exports at the top of `MacroMap`.
+  The inland valley is a **city floor at altitude**, not a mountain: `plateau_at()` returns its
+  elevation and `_relief_at()` starts from it, so `_gy()` lifts the whole city onto the plateau
+  while `zone_at()` still says CITY. Keep those two separate: `raw_height_at()` drives `zone_at()`
+  and the hill-road carving, `plateau_at()` drives where the blocks sit.
+- Freeways (owner, 2026-09-21: "every street is just straight, there's no highways"): `Freeway`
+  (`scripts/world/freeway.gd`) plans three long **curved** routes across the basin - Coast, Cross
+  and Valley - as seeded polylines with a smoothed, grade-limited deck height, exactly the shape
+  of data `HillRoads` uses (`segments_in()`, `ramps_in()`, `blocks()`, a cell index). The deck
+  rides `DECK_RISE` above the ground on pillars, with barriers, lane paint, overhead sign gantries
+  and off-ramps down to the surface streets. `CityChunk._build_freeway()` builds it in three
+  meshes per chunk (asphalt top, vertex-coloured structure, unshaded paint) plus a `FreewayBody`
+  with one tilted box per segment, and deliberately bypasses `_batch`, because the batch adds the
+  ground relief to every instance and the deck is nine metres above it. A segment is built by the
+  chunk its **midpoint** falls in, so the deck is built exactly once. `_under_freeway()` keeps
+  buildings, trees and lamps out of the corridor - it is checked *after* the pad roll so skipping
+  a lot does not shift the chunk rng for the lots after it. Trap: `PILLAR_SPACING` and
+  `GANTRY_SPACING` are rounded to whole `STEP` segments, so they must be multiples of `STEP`; at
+  32 with a 24 m step the bents landed on every segment and the deck read as a retaining wall.
+  The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
+  blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
+  hill roads are the curved roads. There is no freeway traffic yet.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is
@@ -333,6 +359,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   it kept drawing through the waves in smooth grey patches, and at a kilometre the 15 cm is
   below depth precision and they z-fight as well. Over land it only sinks a few metres with
   distance, so the coastline keeps its shape.
+  Since the mountains went in the plane also **stands up**: the vertex shader lifts it by the
+  baked height (`macro_height`, `MacroMap.BAKE_HEIGHT_SCALE`), faded in with distance between
+  `lift_start` and `lift_end` so the near ground stays flat and meets the streamed chunks, with
+  two octaves of ridged noise breaking the 256 px bake into crags. A flat plane cannot give a
+  silhouette, and the silhouette is the whole point of a ring of mountains. `GROUND_SUBDIVISIONS`
+  is 200 so there are vertices to displace, and `CityStreamer` snaps the plane's position to that
+  vertex grid **in world space** - without the snap the peaks swim as the follower slides.
   Before this the plane was 4 km of flat green and its own edge was the horizon.
 - Palms (owner, 2026-09-20: "it's Cali, put palm trees"): `PropFactory.palm(variant)` builds a
   whole tree as one vertex-coloured mesh (tall slender curved trunk with ridged bark, a crown of

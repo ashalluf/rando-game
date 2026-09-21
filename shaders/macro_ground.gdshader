@@ -8,11 +8,19 @@ render_mode cull_back;
 // city sprawl, with relief shading from the baked height and haze that hands the horizon over
 // to the sky.
 
-// RGB is the ground colour, A is land height / 400 m (exactly 0 on water).
+// RGB is the ground colour, A is land height / macro_height (exactly 0 on water).
 uniform sampler2D macro_tex : filter_linear, source_color;
 // World XZ the baked image is centred on, and how many metres across it covers.
 uniform vec2 macro_centre = vec2(0.0);
 uniform float macro_span = 16000.0;
+// Metres that alpha 1.0 in the baked map stands for (MacroMap.BAKE_HEIGHT_SCALE). The plane
+// lifts its own vertices by this, which is the whole reason the basin reads as a bowl with
+// mountains round it instead of a flat field with mountain-coloured paint on it.
+uniform float macro_height = 1600.0;
+// The lift fades in over this range, so near the player - where the streamed chunks build the
+// real ground - the plane stays flat and out of their way.
+uniform float lift_start = 500.0;
+uniform float lift_end = 1600.0;
 // The scene's origin has been shifted this far; local + offset is the true world position.
 uniform vec2 world_offset = vec2(0.0);
 
@@ -66,13 +74,25 @@ void vertex() {
 	// and the two z-fight as well. Wherever the baked map says water (alpha exactly zero), the
 	// plane goes 24 m down, which is under the deepest storm trough. Over land it does not
 	// move, so the coast keeps its shape.
-	float wet = 1.0 - step(0.0005, textureLod(macro_tex, vuv, 0.0).a);
+	float baked = textureLod(macro_tex, vuv, 0.0).a;
+	float wet = 1.0 - step(0.0005, baked);
+	float d = distance(wp, (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+
+	// Stand the land up. Faded in with distance so the streamed chunks own the ground the
+	// player is actually walking on and this only takes over past them.
+	float lift = baked * macro_height * smoothstep(lift_start, lift_end, d);
+	// Crags. The baked map is one texel per 60 m and bilinear between them, so on its own a
+	// range comes out as a row of smooth domes. Two octaves of ridged noise, scaled by how high
+	// the ground already is, give the skyline an edge without touching the flat basin.
+	float ridge = 1.0 - abs(vnoise(wp.xz * 0.0021) * 2.0 - 1.0);
+	float ridge2 = 1.0 - abs(vnoise(wp.xz * 0.0067 + 31.0) * 2.0 - 1.0);
+	lift *= 1.0 + (ridge * 0.26 + ridge2 * 0.13) * smoothstep(0.02, 0.10, baked);
+
 	// And a small sink with distance for the land, which the chunk ground sits only centimetres
 	// above.
-	float d = distance(wp, (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
 	float sink = wet * 24.0 + (1.0 - wet) * smoothstep(400.0, 2000.0, d) * 5.0;
-	VERTEX.y -= sink;
-	world_pos = wp - vec3(0.0, sink, 0.0);
+	VERTEX.y += lift - sink;
+	world_pos = wp + vec3(0.0, lift - sink, 0.0);
 }
 
 
@@ -87,7 +107,7 @@ void fragment() {
 	float metres_per_texel = macro_span * texel;
 	float hx = texture(macro_tex, uv + vec2(texel, 0.0)).a - texture(macro_tex, uv - vec2(texel, 0.0)).a;
 	float hz = texture(macro_tex, uv + vec2(0.0, texel)).a - texture(macro_tex, uv - vec2(0.0, texel)).a;
-	vec3 n = normalize(vec3(-hx * 400.0 / (2.0 * metres_per_texel), 1.0, -hz * 400.0 / (2.0 * metres_per_texel)));
+	vec3 n = normalize(vec3(-hx * macro_height / (2.0 * metres_per_texel), 1.0, -hz * macro_height / (2.0 * metres_per_texel)));
 	float shade = 0.42 + 0.72 * clamp(dot(n, normalize(sun_dir)), 0.0, 1.0);
 	vec3 col = m.rgb * shade;
 

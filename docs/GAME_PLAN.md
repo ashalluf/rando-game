@@ -186,6 +186,49 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-21 Mountains around the basin and a valley at altitude (owner: "don't forget that LA
+  is covered by mountains in Palos Verdes, the valley").** The map had one low hill range north of
+  the city and flat nothing everywhere else, so the basin had no edges. `MacroMap.raw_height_at()`
+  was rewritten to be *mountains only*: a front range north of the city that fades out on its
+  inland side so it reads as a wall from the city and a slope from behind, a higher back range
+  beyond the valley, an east range, and the peninsula headland, composed with `max()` rather than
+  added - adding ranges gives one smooth dome, `max()` gives ridges where they meet. Two noise
+  octaves on top for crags.
+  The inland valley then had to be a *city floor at altitude*, which height alone cannot express:
+  if the valley is high, `zone_at()` calls it mountain and no blocks build; if it is low, it is
+  not a valley. Split in two: `plateau_at()` is the valley floor elevation and `_relief_at()`
+  starts from it, so `CityChunk._gy()` lifts the whole city - ground, buildings, props, shapes -
+  onto the plateau, while `zone_at()` still reads CITY off `raw_height_at()`.
+  The distant ranges also needed the horizon plane to *displace*, not just be coloured: a flat
+  plane has no silhouette and the silhouette is the entire point of a mountain. `macro_ground.gdshader`
+  now lifts its vertices by the baked height, faded in with distance so the near ground still
+  meets the streamed chunks flush, with ridged noise breaking up the 256 px bake.
+  `GROUND_SUBDIVISIONS` went to 200 to have vertices to move, and the plane is snapped to its own
+  vertex grid in world space - without that the peaks swim as the follower slides under the player.
+  Terrain gained a snowline above the new heights.
+
+- **2026-09-21 Freeways: the first roads that are not on the grid (owner: "every street is just
+  straight, there's no curved streets, there's no highways").** `Freeway`
+  (`scripts/world/freeway.gd`) plans three long curved routes - Coast (north-south, bending with
+  the shoreline), Cross (west-east with a long sweep) and Valley (climbing through a pass into the
+  valley) - as seeded polylines with a smoothed, grade-limited deck height. Same shape of data as
+  `HillRoads`, deliberately, so the chunk code already knew how to consume it.
+  `CityChunk._build_freeway()` builds the deck, underside, fascias, barriers, lane paint, pillars,
+  overhead sign gantries and the off-ramps into three meshes per chunk plus one collision body, so
+  a chunk's worth of freeway is three draws. It bypasses `MultiMeshBatch` on purpose: the batch
+  adds ground relief to every instance origin and the deck is nine metres above the ground.
+  Two traps found while building it. A segment is built by the chunk its **midpoint** falls in, or
+  neighbouring chunks each build the shared segment and it z-fights. And `PILLAR_SPACING` is
+  rounded to whole `STEP` segments: at 32 m with a 24 m step that rounds to 1, a bent landed on
+  every single segment, and from the street the elevated section read as a continuous retaining
+  wall instead of a deck on legs. Both spacings are now multiples of `STEP`.
+  **Honest limit:** the surface street grid is still axis-aligned. `CityPlan.road_pos(axis, index)`
+  is one scalar per axis, and blocks, lots, traffic lanes and the minimap all assume axis-aligned
+  rects, so curving the grid itself is a rewrite of the city plan rather than an addition. The
+  freeways and the hill roads are the curved roads for now. Freeway traffic is not implemented
+  either; `TrafficManager` already follows polylines for the airport loops, but those are closed
+  loops at ground level and the deck is neither.
+
 - **2026-09-20 The sea was a broken plane, for three separate reasons.** (1) The Gerstner waves
   moved the vertices but never touched NORMAL, so the surface was lit flat and all you saw was a
   painted pattern sliding about; the vertex shader now takes the cross product of the wave sum

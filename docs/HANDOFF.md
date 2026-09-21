@@ -127,11 +127,15 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 93)
+## 6. Where the game stands (build 94)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
 
+- 94: the basin is ringed by real mountains (front range, back range, east range, peninsula)
+  with the horizon plane displaced so they have a silhouette; the inland valley is a city built
+  on a plateau; and three long curved **freeways** ride an elevated deck across the city on
+  pillars, with barriers, lane paint, sign gantries and off-ramps.
 - 93: a car's five night lights are one mesh, not five nodes.
 - 92: the sea. Real wave normals (it had none, so it was lit as a flat sheet), tight foam, the
   sky mixed in by fresnel with a sun glare path, the sea-floor box dropped below the troughs,
@@ -259,8 +263,13 @@ pedestrian 44, each jet 30. `docs/ASSETS.md` has the table.
   owner's feedback decides the tuning. Expect requests about brightness, cloud amount, sunset
   length and night darkness (`DayNight` exports).
 - Ragdolls are still six boxes, not the character mesh.
-- Traffic drives only the city grid; hill roads and the airport have no traffic. Parked cars do
-  not spawn on hill roads. Pedestrians do not walk the campus quad paths or the hills.
+- Traffic drives only the city grid; hill roads, the freeways and the airport have no traffic.
+  Parked cars do not spawn on hill roads. Pedestrians do not walk the campus quad paths or the hills.
+- **The surface street grid is still axis-aligned.** The freeways and the hill roads curve; the
+  streets between the blocks do not, and the owner has asked about it. `CityPlan.road_pos()` is
+  one scalar per axis and every consumer (blocks, lots, traffic lanes, the minimap) assumes
+  axis-aligned rects, so this is a rewrite of the city plan, not a tweak. Decide with the owner
+  before starting it.
 - Jet landing has not been exercised beyond the smoke test's takeoff. Gear is tiny and hidden
   under the model; the flight model is arcade and may need tuning (`aircraft.gd` exports).
 - The moon is the sun light re-aimed at night; the sky draws its disc where LIGHT0 points.
@@ -279,22 +288,26 @@ Rewritten 2026-09-20 after the graphics pass of builds 74 to 90. Most of the old
    judged on the Compatibility renderer under llvmpipe, which has no clearcoat and flat
    lighting. Car paint in particular looks flat and untextured there and should look far better
    on Forward+; that has not been confirmed by a human yet.
-2. **Wind on the bushes and hill scrub.** Palms and the trees' leaves sway
+2. **Freeway traffic.** The decks are empty. `TrafficManager` already follows polylines for the
+   airport drop-off loops (`_loop_point`, `_drive_loops`, `_spawn_loop_car`); the freeway routes
+   are open polylines with a height profile rather than flat closed loops, so the adaptation is
+   real but small, and a moving freeway is the single biggest "this is a real city" win left.
+3. **Wind on the bushes and hill scrub.** Palms and the trees' leaves sway
    (`shaders/foliage.gdshader`, `foliage_tex.gdshader`); `model_shrub()`, `model_scrub()` and
    the grass tufts on the hills are still dead still and would take the same treatment.
-3. **Shop names at a distance.** Each name is a TextMesh and they stop at 75 m. Rasterising the
+4. **Shop names at a distance.** Each name is a TextMesh and they stop at 75 m. Rasterising the
    whole name list into one atlas at load and sampling it in the fascia branch of the building
    shader would put a name on every band at any distance, with no geometry at all.
-4. **Better characters.** Still blocked on a source: three rigs, 8,300 triangles, one 1024
+5. **Better characters.** Still blocked on a source: three rigs, 8,300 triangles, one 1024
    texture each, no normal or roughness maps. The arms, clothing colours, skin tones, heights
    and gait are all fixed in code now; what is left needs better models. The owner would have to
    supply a Sketchfab API token (sketchfab.com > Settings > Password and API).
-5. **Real ragdolls from the character mesh** (PhysicalBoneSimulator3D on the rig) instead of the
+6. **Real ragdolls from the character mesh** (PhysicalBoneSimulator3D on the rig) instead of the
    single tumbling body.
-6. **Animation blending** for pedestrians (idle / walk / run, turning) and reactions to cars and
+7. **Animation blending** for pedestrians (idle / walk / run, turning) and reactions to cars and
    gunfire.
-7. **Traffic and parked cars on the hill roads**; pedestrians on the campus quad and the pier.
-8. **Interiors.** Windows have traced fake rooms; doors and lobbies do not. A handful of enterable
+8. **Traffic and parked cars on the hill roads**; pedestrians on the campus quad and the pier.
+9. **Interiors.** Windows have traced fake rooms; doors and lobbies do not. A handful of enterable
    ground-floor interiors would be the next big step in making the city feel real.
 
 ## 11. Quick test script to give the owner after any push

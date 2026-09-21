@@ -269,6 +269,75 @@ func _test_city() -> void:
 		var lifted_y: float = _world_state().to_world(player.global_position).y
 		_check(lifted_y > macro.height_at(Vector2(hill.x, hill.z)) - 3.0, "player under a hill is lifted onto it (y %.0f)" % lifted_y)
 
+	# The basin is ringed by mountains, and the inland valley is a city floor at altitude.
+	if macro:
+		var front_h: float = macro.raw_height_at(Vector2(200.0, macro.hills_full_z))
+		var back_h: float = macro.raw_height_at(Vector2(200.0, macro.back_full_z))
+		var east_h: float = macro.raw_height_at(Vector2(macro.east_full_x, 300.0))
+		_check(front_h > 200.0 and back_h > front_h and east_h > 200.0,
+			"the basin is ringed by mountains (front %.0f, back %.0f, east %.0f m)" % [front_h, back_h, east_h])
+		var valley := Vector2(300.0, (macro.valley_from_z + macro.valley_to_z) * 0.5)
+		var valley_h: float = macro.height_at(valley)
+		_check(macro.zone_at(valley) == MacroMap.Zone.CITY and valley_h > 80.0 and macro.plateau_at(valley) > 80.0,
+			"the inland valley is city built on a plateau at %.0f m" % valley_h)
+		_check(macro.plateau_at(Vector2.ZERO) == 0.0 and macro.plateau_at(macro.airport_rect.get_center()) == 0.0,
+			"the basin floor and the airport stay at sea level")
+
+	# The freeway: long curved routes on an elevated deck, with ramps down to the streets.
+	if macro:
+		var fw = macro.freeway
+		_check(fw != null and fw.routes.size() >= 3 and fw.ramps.size() >= 6,
+			"freeway routes and ramps planned (%d routes, %d ramps)" % [fw.routes.size() if fw else 0, fw.ramps.size() if fw else 0])
+		if fw:
+			# Every route curves: a straight line would have a constant heading.
+			var bends := 0
+			for route: Dictionary in fw.routes:
+				var pts: PackedVector2Array = route.points
+				var h0: float = (pts[1] - pts[0]).angle()
+				var h1: float = (pts[pts.size() - 1] - pts[pts.size() - 2]).angle()
+				if absf(angle_difference(h0, h1)) > 0.12:
+					bends += 1
+			_check(bends == fw.routes.size(), "every freeway route curves (%d of %d)" % [bends, fw.routes.size()])
+			# The deck rides above the ground, on a drivable grade.
+			var route0: Dictionary = fw.routes[0]
+			var pts0: PackedVector2Array = route0.points
+			var hs0: PackedFloat32Array = route0.heights
+			var clear := true
+			var steep := false
+			for i in pts0.size():
+				if hs0[i] - macro.height_at(pts0[i]) < 2.5:
+					clear = false
+				if i > 0 and absf(hs0[i] - hs0[i - 1]) > Freeway.MAX_GRADE * pts0[i].distance_to(pts0[i - 1]) + 0.01:
+					steep = true
+			_check(clear and not steep, "the deck clears the ground the whole way at a drivable grade")
+			# Stand under the deck: the chunk builds it, and nothing is built in its corridor.
+			var deck_i := int(pts0.size() * 0.5)
+			var deck_xz: Vector2 = pts0[deck_i]
+			var deck_spot := Vector3(deck_xz.x, macro.height_at(deck_xz) + 2.0, deck_xz.y)
+			player.global_position = _world_state().to_local(deck_spot)
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
+			var deck_chunk: Node3D = city.chunks.get(plan.block_index_at(deck_xz))
+			var deck_built := false
+			for chunk in city.chunks.values():
+				if chunk.has_node("FreewayDeck") and chunk.has_node("FreewayBody"):
+					deck_built = true
+					break
+			_check(deck_built, "a chunk under the freeway builds the deck and its collision")
+			_check(fw.blocks(deck_xz, 0.0) and not fw.blocks(deck_xz + Vector2(400.0, 400.0), 0.0),
+				"the freeway corridor blocks building only where it flies over")
+			if deck_chunk:
+				var under_count := 0
+				for child in deck_chunk.get_children():
+					if child is Building and fw.blocks(Vector2(_world_state().to_world(child.global_position).x, _world_state().to_world(child.global_position).z), 0.0):
+						under_count += 1
+				_check(under_count == 0, "no buildings stand under the deck")
+			player.global_position = _world_state().to_local(hill)
+			player.velocity = Vector3.ZERO
+			city.update_streaming(true)
+			await _ticks(5)
+
 	# The campus district and its main hall.
 	if macro:
 		_check(macro.district_at(macro.campus_center) == CityPlan.District.CAMPUS and CityPlan.district_name(CityPlan.District.CAMPUS) == "Campus", "campus district around the university")

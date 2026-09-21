@@ -88,6 +88,9 @@ func build() -> void:
 				_build_intersection(plan.intersection(ix + 1, iz + 1))
 			else:
 				_add_relief_floor()
+	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
+	# last so its deck lands on top of whatever the chunk laid down.
+	_build_freeway()
 	if level == Level.FULL and plan.macro:
 		for lm in Landmarks.in_rect(owned_rect()):
 			Landmarks.build(lm, self, _statics, plan, true)
@@ -323,7 +326,9 @@ func _build_terrain() -> void:
 			var z := area.position.y + area.size.y * j / n
 			var h := plan.height_at(Vector2(x, z))
 			heights[j * (n + 1) + i] = h
-			var t := clampf((h - 20.0) / 160.0, 0.0, 1.0)
+			# COLOR.r is the height the terrain shader blends rock and snow from. Rescaled for
+			# the real ranges: 160 m used to be "fully rock", and the back range is 1150.
+			var t := clampf((h - 40.0) / 900.0, 0.0, 1.0)
 			st.set_color(Color(t, 0.0, 0.0, 1.0))
 			st.add_vertex(Vector3(x, h, z))
 	for j in n:
@@ -859,6 +864,10 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 			continue
 		if lot.edge and pads > 0.0 and rng.randf() < pads and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0:
 			Commercial.build_pad(self, lot, rng)
+			continue
+		# Nothing gets built in the corridor the freeway flies over. Checked here, after the
+		# pad roll, so skipping a lot does not shift the chunk rng for the lots after it.
+		if _under_freeway(center, 14.0):
 			continue
 		var building := BUILDING_SCENE.instantiate() as Building
 		building.seed = lot.seed
@@ -1482,3 +1491,267 @@ func _add_shape(size: Vector3, pos: Vector3, yaw: float = 0.0) -> CollisionShape
 	shape.rotation.y = yaw
 	_statics.add_child(shape)
 	return shape
+
+
+# --- Freeway ---------------------------------------------------------------------------------
+
+## True where the freeway deck flies over, plus `margin` metres either side.
+func _under_freeway(pos: Vector2, margin: float) -> bool:
+	if plan.macro == null or plan.macro.freeway == null:
+		return false
+	return plan.macro.freeway.blocks(pos, margin)
+
+
+
+## Deck segments of the freeway crossing this chunk.
+func _freeway_segments() -> Array[Dictionary]:
+	if plan.macro == null or plan.macro.freeway == null:
+		return []
+	return plan.macro.freeway.segments_in(owned_rect())
+
+
+## The elevated freeway: deck, barriers, pillars down to the ground, lane paint, sign gantries
+## and the off-ramps. Built straight into three meshes per chunk (asphalt top, vertex-coloured
+## structure, unshaded paint) rather than through the batch, because the batch adds the ground
+## relief to every instance and the deck is nine metres above it.
+func _build_freeway() -> void:
+	var segs := _freeway_segments()
+	if segs.is_empty():
+		return
+	var area := owned_rect()
+	var top := SurfaceTool.new()
+	top.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var body := SurfaceTool.new()
+	body.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var paint := SurfaceTool.new()
+	paint.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var deck_body := StaticBody3D.new()
+	deck_body.name = "FreewayBody"
+	deck_body.collision_layer = 1
+	deck_body.collision_mask = 0
+	var quads := 0
+
+	for seg in segs:
+		var a: Vector2 = seg.a
+		var b: Vector2 = seg.b
+		var seg_len := a.distance_to(b)
+		if seg_len < 0.5:
+			continue
+		var mid := a.lerp(b, 0.5)
+		# Segments are claimed by the chunk their midpoint falls in, so the deck is built once.
+		if not area.has_point(mid):
+			continue
+		quads += 1
+		var ha: float = seg.ha
+		var hb: float = seg.hb
+		var dir := (b - a) / seg_len
+		var half: float = seg.width * 0.5
+		var nrm := Vector2(-dir.y, dir.x)
+		var edge := nrm * half
+		var t := Freeway.DECK_THICKNESS
+
+		var l0 := Vector3(a.x - edge.x, ha, a.y - edge.y)
+		var r0 := Vector3(a.x + edge.x, ha, a.y + edge.y)
+		var l1 := Vector3(b.x - edge.x, hb, b.y - edge.y)
+		var r1 := Vector3(b.x + edge.x, hb, b.y + edge.y)
+		var down := Vector3(0.0, -t, 0.0)
+		# Deck top.
+		for v: Vector3 in [l0, r1, r0, l0, l1, r1]:
+			top.add_vertex(v)
+		# Underside and the two edge fascias, so it is solid from below and from the street.
+		var concrete := Color(0.62, 0.61, 0.59)
+		_ribbon(body, l0 + down, r0 + down, r1 + down, l1 + down, concrete * 0.82, true)
+		_ribbon(body, l0, l0 + down, l1 + down, l1, concrete)
+		_ribbon(body, r0, r1, r1 + down, r0 + down, concrete)
+		# Barriers along both edges.
+		var bh := 1.05
+		for side: float in [-1.0, 1.0]:
+			var e := nrm * (half - 0.35) * side
+			var p0 := Vector3(a.x + e.x, ha, a.y + e.y)
+			var p1 := Vector3(b.x + e.x, hb, b.y + e.y)
+			_bar(body, p0, p1, nrm * 0.35, bh, Color(0.70, 0.69, 0.67))
+
+		# Lane paint: the median, and a dashed line between the lanes of each carriageway.
+		var lift := Vector3(0.0, 0.035, 0.0)
+		for off: float in [-0.04, 0.04]:
+			var e := nrm * (half * off)
+			_bar_flat(paint, Vector3(a.x + e.x, ha, a.y + e.y) + lift, Vector3(b.x + e.x, hb, b.y + e.y) + lift, nrm * 0.16, Color(0.95, 0.82, 0.22))
+		for off: float in [-0.52, -0.17, 0.17, 0.52]:
+			var e := nrm * (half * off)
+			var p0 := Vector3(a.x + e.x, ha, a.y + e.y) + lift
+			var p1 := Vector3(b.x + e.x, hb, b.y + e.y) + lift
+			# Dashed: three metres of paint in every eight.
+			_bar_flat(paint, p0.lerp(p1, 0.06), p0.lerp(p1, 0.44), nrm * 0.14, Color(0.93, 0.93, 0.90))
+
+		# Pillars, on the segments that land on the spacing.
+		var idx: int = seg.index
+		if idx % int(round(Freeway.PILLAR_SPACING / Freeway.STEP)) == 0:
+			var ground := plan.height_at(a)
+			var cap := ha - t - 0.1
+			if cap - ground > 1.5:
+				_pillar(body, Vector3(a.x, ground - 1.0, a.y), cap, nrm, seg.width)
+
+		# Overhead sign gantry every few hundred metres.
+		if idx % int(round(Freeway.GANTRY_SPACING / Freeway.STEP)) == 0:
+			_gantry(body, paint, Vector3(a.x, ha, a.y), nrm, half)
+
+		# Collision: one box per segment, tilted to the segment's grade.
+		var cs := CollisionShape3D.new()
+		var bx := BoxShape3D.new()
+		bx.size = Vector3(seg.width, t, seg_len + 0.4)
+		cs.shape = bx
+		var fwd := Vector3(b.x - a.x, hb - ha, b.y - a.y).normalized()
+		var right := Vector3(nrm.x, 0.0, nrm.y)
+		var up := right.cross(fwd).normalized()
+		cs.transform = Transform3D(Basis(right, up, -fwd), Vector3(mid.x, (ha + hb) * 0.5 - t * 0.5, mid.y))
+		deck_body.add_child(cs)
+
+	if quads == 0:
+		return
+	add_child(deck_body)
+	_commit_surface(top, "FreewayDeck", PropFactory.road("asphalt_aerial", 9.0, Color(0.37, 0.37, 0.39), hash([plan.seed, "freeway"]), 0.0, 0.7))
+	_commit_surface(body, "FreewayStructure", PropFactory.material(Color.WHITE, 0.85))
+	_commit_surface(paint, "FreewayPaint", PropFactory.material(Color.WHITE, 0.7))
+	_build_freeway_ramps()
+
+
+func _commit_surface(st: SurfaceTool, node_name: String, mat: Material) -> void:
+	st.generate_normals()
+	var mesh := MeshInstance3D.new()
+	mesh.name = node_name
+	mesh.mesh = st.commit()
+	mesh.material_override = mat
+	add_child(mesh)
+
+
+## A flat quad a-b-c-d in one vertex colour; `flip` reverses the winding (for undersides).
+func _ribbon(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, col: Color, flip: bool = false) -> void:
+	var order := [a, c, b, a, d, c] if flip else [a, b, c, a, c, d]
+	for v: Vector3 in order:
+		st.set_color(col)
+		st.add_vertex(v)
+
+
+## A box running from p0 to p1, `wide` across (a world-space half-offset) and `h` tall.
+func _bar(st: SurfaceTool, p0: Vector3, p1: Vector3, wide: Vector2, h: float, col: Color) -> void:
+	var w := Vector3(wide.x, 0.0, wide.y)
+	var up := Vector3(0.0, h, 0.0)
+	var corners := [p0 - w, p0 + w, p1 + w, p1 - w]
+	for i in 4:
+		var c0: Vector3 = corners[i]
+		var c1: Vector3 = corners[(i + 1) % 4]
+		_ribbon(st, c0, c1, c1 + up, c0 + up, col)
+	_ribbon(st, corners[0] + up, corners[1] + up, corners[2] + up, corners[3] + up, col.lightened(0.08))
+
+
+## A flat painted strip lying on the deck.
+func _bar_flat(st: SurfaceTool, p0: Vector3, p1: Vector3, wide: Vector2, col: Color) -> void:
+	var w := Vector3(wide.x, 0.0, wide.y)
+	_ribbon(st, p0 - w, p0 + w, p1 + w, p1 - w, col)
+
+
+## A pair of columns and a crossbeam carrying the deck.
+func _pillar(st: SurfaceTool, base: Vector3, cap_y: float, nrm: Vector2, deck_w: float) -> void:
+	var col := Color(0.58, 0.57, 0.55)
+	for side: float in [-1.0, 1.0]:
+		var e := nrm * (deck_w * 0.26) * side
+		var p := base + Vector3(e.x, 0.0, e.y)
+		_bar(st, p + Vector3(-0.8, 0.0, 0.0), p + Vector3(0.8, 0.0, 0.0), nrm * 0.8, cap_y - base.y, col)
+	# The headstock across the top of the columns.
+	var cap := Vector3(base.x, cap_y - 1.1, base.y)
+	var arm := Vector3(nrm.x, 0.0, nrm.y) * (deck_w * 0.34)
+	_bar(st, cap - arm, cap + arm, nrm.orthogonal() * 1.3, 1.1, col.lightened(0.05))
+
+
+## An overhead sign gantry: two posts, a truss beam and a green sign panel.
+func _gantry(st: SurfaceTool, paint: SurfaceTool, at: Vector3, nrm: Vector2, half: float) -> void:
+	var steel := Color(0.42, 0.43, 0.45)
+	var post_h := 6.6
+	for side: float in [-1.0, 1.0]:
+		var e := nrm * (half - 0.2) * side
+		var p := at + Vector3(e.x, 0.4, e.y)
+		_bar(st, p, p + Vector3(0.0, 0.01, 0.0), nrm.orthogonal() * 0.28, post_h, steel)
+	var beam := Vector3(nrm.x, 0.0, nrm.y) * (half - 0.2)
+	var top := at + Vector3(0.0, 0.4 + post_h, 0.0)
+	_bar(st, top - beam, top + beam, nrm.orthogonal() * 0.30, 0.55, steel)
+	# The sign board itself, hung under the beam on the side traffic reads it from.
+	var board := top + Vector3(0.0, -1.9, 0.0)
+	var bw := Vector3(nrm.x, 0.0, nrm.y) * (half * 0.42)
+	var face := Vector3(nrm.y, 0.0, -nrm.x) * 0.10
+	for s: float in [-1.0, 1.0]:
+		var c := board + Vector3(nrm.x, 0.0, nrm.y) * (half * 0.46) * s
+		_ribbon(paint, c - bw * 0.5 + face, c + bw * 0.5 + face, c + bw * 0.5 + face + Vector3(0.0, 1.7, 0.0), c - bw * 0.5 + face + Vector3(0.0, 1.7, 0.0), Color(0.09, 0.30, 0.16))
+
+
+## Off-ramps: a sloped ribbon peeling off the deck edge and running down to the street, with a
+## barrier on each side. The landing is on the surface grid, so you can drive on and off.
+func _build_freeway_ramps() -> void:
+	if plan.macro == null or plan.macro.freeway == null:
+		return
+	var area := owned_rect()
+	var list := plan.macro.freeway.ramps_in(area)
+	if list.is_empty():
+		return
+	var deck := SurfaceTool.new()
+	deck.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var body := SurfaceTool.new()
+	body.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var ramp_body := StaticBody3D.new()
+	ramp_body.name = "RampBody"
+	ramp_body.collision_layer = 1
+	ramp_body.collision_mask = 0
+	var built := 0
+	for r in list:
+		var start: Vector2 = r.pos
+		var yaw: float = r.yaw
+		var out := Vector2(-sin(yaw), -cos(yaw))
+		var side := Vector2(-out.y, out.x)
+		var top_y: float = r.top
+		var run := 78.0
+		var steps := 13
+		var width := 9.0
+		var prev := start
+		var prev_y := top_y - Freeway.DECK_THICKNESS * 0.5
+		var ground_end := plan.height_at(start + out * run) + 0.12
+		for k in range(1, steps + 1):
+			var t := float(k) / steps
+			# Ease out at both ends so the ramp meets the deck and the street smoothly.
+			var ease := t * t * (3.0 - 2.0 * t)
+			var p: Vector2 = start + out * (run * t) + side * (10.0 * sin(t * PI) * float(r.side))
+			var y := lerpf(top_y - Freeway.DECK_THICKNESS * 0.5, ground_end, ease)
+			var d: Vector2 = p - prev
+			if d.length() < 0.2:
+				continue
+			var n := Vector2(-d.y, d.x).normalized() * (width * 0.5)
+			var l0 := Vector3(prev.x - n.x, prev_y, prev.y - n.y)
+			var r0 := Vector3(prev.x + n.x, prev_y, prev.y + n.y)
+			var l1 := Vector3(p.x - n.x, y, p.y - n.y)
+			var r1 := Vector3(p.x + n.x, y, p.y + n.y)
+			for v: Vector3 in [l0, r1, r0, l0, l1, r1]:
+				deck.add_vertex(v)
+			var drop := Vector3(0.0, -0.7, 0.0)
+			_ribbon(body, l0 + drop, r0 + drop, r1 + drop, l1 + drop, Color(0.5, 0.49, 0.47), true)
+			_ribbon(body, l0, l0 + drop, l1 + drop, l1, Color(0.6, 0.59, 0.57))
+			_ribbon(body, r0, r1, r1 + drop, r0 + drop, Color(0.6, 0.59, 0.57))
+			for s: float in [-1.0, 1.0]:
+				var e := n * 0.92 * s
+				_bar(body, Vector3(prev.x + e.x, prev_y, prev.y + e.y), Vector3(p.x + e.x, y, p.y + e.y), n.normalized() * 0.22, 0.9, Color(0.70, 0.69, 0.67))
+			var cs := CollisionShape3D.new()
+			var bx := BoxShape3D.new()
+			var seg_len: float = d.length()
+			bx.size = Vector3(width, 0.8, seg_len + 0.3)
+			cs.shape = bx
+			var fwd := Vector3(p.x - prev.x, y - prev_y, p.y - prev.y).normalized()
+			var right := Vector3(n.x, 0.0, n.y).normalized()
+			var up := right.cross(fwd).normalized()
+			var mid := Vector3((prev.x + p.x) * 0.5, (prev_y + y) * 0.5 - 0.4, (prev.y + p.y) * 0.5)
+			cs.transform = Transform3D(Basis(right, up, -fwd), mid)
+			ramp_body.add_child(cs)
+			prev = p
+			prev_y = y
+		built += 1
+	if built == 0:
+		return
+	add_child(ramp_body)
+	_commit_surface(deck, "RampDeck", PropFactory.road("asphalt_aerial", 9.0, Color(0.37, 0.37, 0.39), hash([plan.seed, "ramp"]), 0.0, 0.7))
+	_commit_surface(body, "RampStructure", PropFactory.material(Color.WHITE, 0.85))
