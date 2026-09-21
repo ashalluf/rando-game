@@ -10,7 +10,10 @@ extends Node
 @export var day_sun_color: Color = Color(1.0, 0.97, 0.9)
 @export var dusk_sun_color: Color = Color(1.0, 0.6, 0.35)
 @export var night_sun_color: Color = Color(0.62, 0.72, 1.0)
-@export var day_sun_energy: float = 1.0
+## Key light strength by day. The sun has to out-run the ambient fill by a good margin or
+## every shadow turns grey and the frame has no value contrast left - the single thing that
+## made the old aerials read as a pastel model village rather than a city at noon.
+@export var day_sun_energy: float = 1.3
 @export var night_sun_energy: float = 0.55
 ## Sun elevations the golden-hour tint fades out between once the sun is under the horizon
 ## (x fully faded, y still full strength; elevation is the sine of the arc angle, not degrees).
@@ -62,11 +65,28 @@ extends Node
 ## Halo around the moon, and the milky-way band brightness at full night.
 @export var moon_halo: float = 0.8
 @export var milky_way: float = 0.55
+@export_group("Exposure")
+## Camera exposure by day and at full night. AgX rolls a huge range into the screen, so the
+## whole frame sits in a narrow band of grey unless something puts it back: the LUT in the city
+## Environment supplies the contrast, and this supplies the level. Opening up after dark is the
+## cheap version of eye adaptation - without it the night grade crushes a street lit by lamps
+## into mud.
+@export var day_exposure: float = 1.25
+@export var night_exposure: float = 2.1
+@export_group("Distance")
+## Colour of the depth fog by day, at dusk and at night. It is deliberately a touch darker and
+## less blue than the horizon: fog that is exactly the sky colour erases the far half of the
+## frame, which is what "washed out" means when someone says an aerial looks flat.
+@export var day_fog: Color = Color(0.50, 0.62, 0.76)
+@export var dusk_fog: Color = Color(0.72, 0.45, 0.33)
+@export var night_fog: Color = Color(0.05, 0.07, 0.14)
 @export_group("")
 ## Ambient light color and strength by day and by night (moonlight).
 @export var day_ambient: Color = Color(0.62, 0.7, 0.85)
 @export var night_ambient: Color = Color(0.3, 0.38, 0.6)
-@export var day_ambient_energy: float = 0.55
+## Sky fill in the shadows. Kept well under the sun (see day_sun_energy): a real midday shadow
+## is about a fifth as bright as the lit side, not two thirds.
+@export var day_ambient_energy: float = 0.30
 @export var night_ambient_energy: float = 0.55
 @export_node_path("DirectionalLight3D") var sun_path: NodePath
 @export_node_path("WorldEnvironment") var environment_path: NodePath
@@ -238,7 +258,8 @@ func _apply() -> void:
 			# A directional light shines along -Z, so +Z points back at the sun.
 			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
 	if _env:
-		_env.fog_light_color = day_horizon.lerp(night_horizon, night_factor)
+		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, night_factor)
+		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(night_fog, night_factor)
 		# Ambient comes from the sky cubemap, so shadows take the sky's own colour (blue at
 		# midday, warm at dusk) instead of a flat grey fill: the single biggest realism win in
 		# outdoor lighting. At night the sky is nearly black, so we blend back toward a colour

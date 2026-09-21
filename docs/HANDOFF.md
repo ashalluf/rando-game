@@ -1,4 +1,4 @@
-# Handoff: Rando Game (written 2026-09-19; section 9a added 2026-09-21 afternoon with the LA pass)
+# Handoff: Rando Game (written 2026-09-19; section 9a added 2026-09-21 with the LA pass and the grade)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
@@ -434,10 +434,52 @@ four-core box drove the load average to 45 and starved everything else. The sea 
 IS on main (depth-graded water colour, subsurface scattering through crests, gathered foam,
 physically correct fresnel at F0 0.02). **Facades and the colour grade were never started.**
 
-**The colour grade is the biggest thing left.** Look at a Forward+ aerial at 17:00 and it is
-washed out: the fog and the haze flatten the whole frame to pastel and the city loses all value
-contrast. That is a numbers problem in the city Environment and `DayNight`, not a missing
-feature, and it is worth more than anything else on the list.
+**The colour grade: done, and here is what it actually was.** The symptom was right - a Forward+
+aerial was pastel with no value contrast - but the cause was not the fog. Measure a frame instead
+of looking at it:
+
+```
+python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"
+```
+
+The midday downtown aerial came back `[51, 78, 103, 137, 214]`: **the whole city lived between 78
+and 137 of 255**. The same scene through the opengl3 path measured 51 to 185. The difference is
+**AgX**. AgX rolls an enormous range into the screen and, unlike ACES, it is designed to have a
+"look" - a contrast curve - applied after it. There was none, so every frame came out as the flat
+middle of the AgX curve. The fog made it worse but the fog was never the cause; turning the haze
+down alone moved p95 by six levels.
+
+What is on main now:
+- A **look LUT**: a `Gradient` / `GradientTexture1D` pair in `city.tscn` wired to
+  `Environment.adjustment_color_correction`. Godot runs each channel through it separately after
+  tonemapping, so it is a per-channel curve, not a tint: an S with a slope of about 1.6 around a
+  0.45 pivot, cool in the toe and warm in the shoulder. `adjustment_contrast` is back to 1.0 -
+  the LUT owns contrast now, and stacking the two crushes the toe.
+- **Exposure that opens after dark** (`DayNight.day_exposure` 1.25, `night_exposure` 2.1, lerped
+  on `night_factor` onto `Environment.tonemap_exposure`). Eye adaptation for free, and it is what
+  stops the punchier curve from turning a lamplit street into mud.
+- **A key light that out-runs the fill.** `day_sun_energy` 1.0 -> 1.3, `day_ambient_energy`
+  0.55 -> 0.30, `ssil_intensity` 1.0 -> 0.5, `sdfgi_energy` 1.1 -> 0.85. A real midday shadow is
+  a fifth as bright as the lit side; it was two thirds.
+- **Shadows that reach.** `Quality.shadow_distance` was 320 m at HIGH, so everything past three
+  blocks was lit but never shadowed - half of every aerial had no contrast available at all. Now
+  700 m, carried by four PSSM splits and a fade (`city.tscn`) instead of two.
+- **Haze in the distance instead of over everything**: `fog_aerial_perspective` 0.7 -> 0.32,
+  density 0.00012 -> 0.00009, volumetric 0.0025 -> 0.0014, and `DayNight` now owns the fog colour
+  as three tunables (`day_fog`, `dusk_fog`, `night_fog`) so the far distance goes gold at sunset
+  instead of staying blue.
+
+The smoke test guards all of it: the LUT exists, the sun beats the fill by more than 2.5x, and
+HIGH shadows reach at least 500 m. The old guard demanded `fog_aerial_perspective > 0.5`, which
+had quietly made the washed-out look a requirement; it now only checks the effect is on.
+
+**Land no longer stands in the sea.** `zone_at()` draws the shoreline as a hard line and
+`raw_height_at()` is a noise field that knew nothing about it, so the two disagreed - most
+visibly off the Redondo pier, where the coast bulge (a function of z alone) cut clean across the
+headland (a circle) and left a sail of hillside hanging over the water. `MacroMap._shore_mask()`
+now brings the land down to zero across `shore_rise` metres wherever the zone says water, at the
+coastline and around the bay, and the smoke test sweeps the whole coast and the bay for land
+above 4 m.
 
 **Practical note on the fleet.** Cap concurrent agents at two on this box, and do not let agents
 run Forward+ renders - have them use the fast opengl3 loop and sign off the result yourself.

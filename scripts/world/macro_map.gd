@@ -67,6 +67,13 @@ var peninsula_radius: float = 550.0
 ## The headland in the south-west bay: cliffs straight out of the water.
 var peninsula_height: float = 285.0
 ## Water south of this Z and west of this X (except the peninsula) so the peninsula sticks out.
+## How far inland the land takes to climb out of the water, in metres. zone_at() draws the
+## shoreline as a hard line; the height field has to have reached zero on that line or a hill
+## chunk ends in a vertical curtain of terrain exactly where the chunk next door builds sea.
+## That is what used to hang a sail of hillside over the water off the Redondo pier: the coast
+## bulge is a function of z alone and the headland is a circle, so the waterline cut clean
+## across a 100 m cliff.
+var shore_rise: float = 52.0
 var bay_z: float = 1460.0
 var bay_east_x: float = 400.0
 var downtown_center: Vector2 = Vector2(700.0, 250.0)
@@ -257,7 +264,25 @@ func raw_height_at(pos: Vector2) -> float:
 		var rise := smoothstep(0.0, shelf_width, inland)
 		var bench := lerpf(minf(h, shelf_height + 14.0 * n2), h, rise)
 		h = lerpf(h, bench, north)
-	return maxf(h, 0.0)
+	return maxf(h, 0.0) * _shore_mask(pos, pd)
+
+
+## 1 on dry land, 0 wherever zone_at() calls the water, with `shore_rise` metres of ramp in
+## between. Every sea edge on the map is a hard test - west of coast_x(), or inside the bay -
+## and the mountains are a separate noise field that knows nothing about them, so without this
+## the two disagree and the land is left standing in the sea with a cliff for a coastline.
+func _shore_mask(pos: Vector2, pd: float) -> float:
+	var cx := coast_x(pos.y)
+	var coast := smoothstep(cx - 4.0, cx + shore_rise, pos.x)
+	# The bay is the intersection of three half-spaces (south of bay_z, west of bay_east_x, off
+	# the headland), so land is the union of their complements: being clear of any one of them
+	# is enough.
+	var r := peninsula_radius * 1.02
+	var land: float = maxf(maxf(
+			1.0 - smoothstep(bay_z - shore_rise, bay_z, pos.y),
+			smoothstep(bay_east_x - shore_rise, bay_east_x, pos.x)),
+			smoothstep(r, r - shore_rise, pd))
+	return minf(coast, land)
 
 
 ## The inland valley floor: a smooth base elevation the city sits on, 0 everywhere in the
@@ -358,6 +383,15 @@ static func zone_name(z: Zone) -> String:
 ##
 ## These are albedos, not the finished look: the shader lights them, which brightens them by
 ## roughly half again. Picking them by eye from a photograph gives a washed-out map.
+##
+## They were once half this bright, on that reasoning, and it went too far the other way: a
+## Forward+ aerial at noon measured the whole basin at 73..85 of 255, a near-black sheet with
+## the city standing on it. A district at 0.20 albedo decodes to 0.033 LINEAR, which is darker
+## than wet asphalt; LA from three kilometres up is pale - roofs, concrete and dust. The
+## districts are 1.44x what they were, which is 2.3x in linear light, and `built_amount()` in
+## macro_ground.gdshader had its luminance window moved up to match. Move one, move the other:
+## that function tells city from open country by brightness and saturation, so brightening the
+## districts past its window makes the city stop being drawn at all.
 const BAKE_OCEAN_DEEP := Color(0.014, 0.034, 0.062)
 const BAKE_OCEAN_SHALLOW := Color(0.045, 0.125, 0.155)
 ## The surf line. One bright texel along the shore is what makes a coastline read as a coast
@@ -369,19 +403,21 @@ const BAKE_SAND := Color(0.50, 0.44, 0.33)
 ## Southern California, so the open country is parched gold-olive, not a green field.
 const BAKE_GRASS := Color(0.28, 0.275, 0.155)
 const BAKE_SCRUB := Color(0.36, 0.325, 0.175)
-const BAKE_ROCK := Color(0.40, 0.365, 0.315)
+## Warm enough to stay out of built_amount()'s grey window on its saturation alone, now that
+## the districts are bright enough to reach this luminance.
+const BAKE_ROCK := Color(0.44, 0.385, 0.305)
 const BAKE_SNOW := Color(0.78, 0.80, 0.84)
-const BAKE_CONCRETE := Color(0.34, 0.335, 0.33)
-const BAKE_PORT := Color(0.32, 0.31, 0.305)
-const BAKE_DOWNTOWN := Color(0.175, 0.177, 0.188)
-const BAKE_MIDTOWN := Color(0.200, 0.204, 0.206)
-const BAKE_INDUSTRIAL := Color(0.225, 0.222, 0.215)
-const BAKE_SUBURB := Color(0.216, 0.225, 0.212)
-const BAKE_CAMPUS := Color(0.207, 0.220, 0.203)
+const BAKE_CONCRETE := Color(0.44, 0.434, 0.427)
+const BAKE_PORT := Color(0.42, 0.407, 0.4)
+const BAKE_DOWNTOWN := Color(0.252, 0.255, 0.271)
+const BAKE_MIDTOWN := Color(0.288, 0.294, 0.297)
+const BAKE_INDUSTRIAL := Color(0.324, 0.320, 0.310)
+const BAKE_SUBURB := Color(0.311, 0.324, 0.305)
+const BAKE_CAMPUS := Color(0.298, 0.317, 0.292)
 ## The freeway decks, drawn into the map as dark threads. Three curved routes crossing the
 ## basin are the most recognisable thing in an aerial view of a city like this one, and at this
 ## resolution they are the only man-made line long enough to survive the bake.
-const BAKE_FREEWAY := Color(0.150, 0.150, 0.158)
+const BAKE_FREEWAY := Color(0.216, 0.216, 0.228)
 ## Metres either side of a route centre line that get painted.
 const BAKE_FREEWAY_MARGIN := 18.0
 ## Metres that alpha 1.0 stands for in the baked map. The horizon plane lifts its vertices by

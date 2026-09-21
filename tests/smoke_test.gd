@@ -207,6 +207,54 @@ func _test_city() -> void:
 			_check(mall_chunk != null and mall_chunk.level == 0 and mall_chunk.prop_records.size() > 0, "a shopping plaza chunk builds with its signs and props")
 		_check(macro.relief_at(macro.airport_rect.get_center()) == 0.0 and macro.relief_at(Landmarks.all()[3].anchor) == 0.0, "airport and landmarks stay flat")
 		_check(macro.zone_at(Vector2(-2500.0, 0.0)) == MacroMap.Zone.OCEAN, "far west is ocean")
+		# built_amount() in macro_ground.gdshader tells city from open country by the baked
+		# colour alone - low saturation AND low luminance, in linear light. Both halves of that
+		# window live in two files, so brightening a district past it silently stops the city
+		# being drawn on the horizon plane. Re-run the classifier here on every palette entry.
+		var built_ok := true
+		var built_why := ""
+		for entry in [["downtown", MacroMap.BAKE_DOWNTOWN, true], ["midtown", MacroMap.BAKE_MIDTOWN, true],
+				["industrial", MacroMap.BAKE_INDUSTRIAL, true], ["suburb", MacroMap.BAKE_SUBURB, true],
+				["campus", MacroMap.BAKE_CAMPUS, true], ["freeway", MacroMap.BAKE_FREEWAY, true],
+				["concrete", MacroMap.BAKE_CONCRETE, false], ["port", MacroMap.BAKE_PORT, false],
+				["rock", MacroMap.BAKE_ROCK, false], ["scrub", MacroMap.BAKE_SCRUB, false],
+				["grass", MacroMap.BAKE_GRASS, false], ["snow", MacroMap.BAKE_SNOW, false],
+				["sand", MacroMap.BAKE_SAND, false]]:
+			var c: Color = (entry[1] as Color).srgb_to_linear()
+			var mx: float = maxf(c.r, maxf(c.g, c.b))
+			var mn: float = minf(c.r, minf(c.g, c.b))
+			var sat: float = (mx - mn) / maxf(mx, 0.0008)
+			var lum: float = (c.r + c.g + c.b) / 3.0
+			var built: float = (1.0 - smoothstep(0.17, 0.30, sat)) * (1.0 - smoothstep(0.100, 0.130, lum))
+			var want: bool = entry[2]
+			if (built > 0.5) != want:
+				built_ok = false
+				built_why += " %s=%.2f" % [entry[0], built]
+		_check(built_ok, "the baked palette still separates city from country%s" % built_why)
+		# Height and zone have to agree on where the water starts. They did not around the
+		# headland - the coast bulge is a function of z alone and the peninsula is a circle - so
+		# the waterline cut across a 100 m cliff and left a sail of hillside hanging over the
+		# sea off the Redondo pier. Probe the whole coast, and the bay, for land in the water.
+		var offshore_max := 0.0
+		var offshore_at := Vector2.ZERO
+		for zi in range(-30, 40):
+			var pz := float(zi) * 90.0
+			for xi in range(1, 9):
+				var pp := Vector2(macro.coast_x(pz) - float(xi) * 25.0, pz)
+				var ph: float = macro.raw_height_at(pp)
+				if ph > offshore_max:
+					offshore_max = ph
+					offshore_at = pp
+		for zi in range(0, 20):
+			for xi in range(0, 14):
+				var pp := Vector2(-1200.0 + float(xi) * 110.0, macro.bay_z + 60.0 + float(zi) * 90.0)
+				if not macro.in_bay(pp):
+					continue
+				var ph: float = macro.raw_height_at(pp)
+				if ph > offshore_max:
+					offshore_max = ph
+					offshore_at = pp
+		_check(offshore_max < 4.0, "no land stands out of the water (%.1f m at %.0f,%.0f)" % [offshore_max, offshore_at.x, offshore_at.y])
 		_check(macro.zone_at(Vector2(macro.coast_x(0.0) + 30.0, 0.0)) == MacroMap.Zone.BEACH, "just inland of the coast is beach")
 		_check(macro.zone_at(Vector2(0.0, -1600.0)) == MacroMap.Zone.HILLS and macro.height_at(Vector2(0.0, -1600.0)) > 80.0, "far north is hills (%.0f m)" % macro.height_at(Vector2(0.0, -1600.0)))
 		_check(macro.district_at(macro.downtown_center) == CityPlan.District.DOWNTOWN, "downtown is where the map says")
@@ -1015,11 +1063,24 @@ func _test_city() -> void:
 	await _ticks(3)
 	var env: Environment = city.get_node("WorldEnvironment").environment
 	_check(env.sdfgi_enabled and env.ssao_enabled and env.glow_enabled and env.tonemap_mode == Environment.TONE_MAPPER_AGX, "environment has GI, AO, glow and AgX filmic tonemapping")
-	# The realism pass: bounce light, sky-coloured ambient and aerial perspective haze.
-	_check(env.ssil_enabled and env.fog_aerial_perspective > 0.5 and env.fog_height_density > 0.0, "environment has indirect light and aerial-perspective haze")
+	# The realism pass: bounce light, sky-coloured ambient and aerial perspective haze. The
+	# threshold used to be 0.5, which quietly made the washed-out look a requirement: at 0.7 the
+	# far half of every wide shot lerped into flat sky blue. The guard is that the effect is
+	# still THERE, not that it is turned up.
+	_check(env.ssil_enabled and env.fog_aerial_perspective > 0.15 and env.fog_height_density > 0.0, "environment has indirect light and aerial-perspective haze")
+	# The grade. Contrast is what a frame lives on, and all three of these have been lost once:
+	# a LUT the tonemapper runs every pixel through, a key light that out-runs the sky fill by a
+	# real margin, and shadows that reach further than three blocks.
+	_check(env.adjustment_enabled and env.adjustment_color_correction != null, "the frame is graded through a colour LUT")
 	var day_node: Node = city.get_node("DayNight")
 	day_node._process(0.0)
 	_check(env.ambient_light_source == Environment.AMBIENT_SOURCE_SKY, "ambient light comes from the sky, not a flat colour")
+	var key_ratio: float = day_node.day_sun_energy / maxf(day_node.day_ambient_energy, 0.001)
+	_check(key_ratio > 2.5, "the sun out-runs the sky fill (%.1fx)" % key_ratio)
+	var qual: Node = city.get_node_or_null("Quality")
+	if qual:
+		var reach: float = qual.shadow_distance[0]
+		_check(reach >= 500.0, "shadows reach across the city on HIGH (%.0f m)" % reach)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")

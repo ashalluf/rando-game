@@ -40,8 +40,11 @@ enum Level { HIGH, MEDIUM, LOW, LOWEST }
 @export var fsr_sharpness: float = 0.25
 ## Fraction of the crowd and traffic caps per level.
 @export var population: PackedFloat32Array = PackedFloat32Array([1.0, 1.0, 0.6, 0.35])
-## Directional shadow reach per level (meters).
-@export var shadow_distance: PackedFloat32Array = PackedFloat32Array([320.0, 200.0, 140.0, 90.0])
+## Directional shadow reach per level (meters). 320 m used to be the top of the range, which
+## meant everything past three blocks was lit but never shadowed - the far half of a rooftop or
+## aerial shot had no contrast at all. Four PSSM splits (set in city.tscn) carry the longer
+## range without giving up the near detail.
+@export var shadow_distance: PackedFloat32Array = PackedFloat32Array([700.0, 420.0, 220.0, 120.0])
 
 var level: Level = Level.HIGH
 ## Last world offset seen, to drop the measurement window across an origin re-centering.

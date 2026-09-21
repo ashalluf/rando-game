@@ -304,10 +304,12 @@ float built_amount(vec3 c, float slope, float height_m) {
 	float mn = min(c.r, min(c.g, c.b));
 	float sat = (mx - mn) / max(mx, 0.0008);
 	float lum = dot(c, vec3(0.3333));
-	// Linear values: a district decodes to 0.027..0.040 with a saturation under 0.15, pale
-	// concrete to 0.09, chaparral to 0.07 at saturation 0.76, bare rock to 0.11, snow to 0.62.
+	// Linear values: a district decodes to 0.062..0.092 with a saturation under 0.13, pale
+	// concrete to 0.16, chaparral to 0.07 at saturation 0.76, bare rock to 0.13 at saturation
+	// 0.31, snow to 0.62. The window used to be 0.055..0.080, for districts half this bright;
+	// if you change MacroMap's BAKE_* district colours, these two numbers move with them.
 	return (1.0 - smoothstep(0.17, 0.30, sat))
-		* (1.0 - smoothstep(0.055, 0.080, lum))
+		* (1.0 - smoothstep(0.100, 0.130, lum))
 		* (1.0 - smoothstep(0.10, 0.30, slope))
 		* (1.0 - smoothstep(420.0, 700.0, height_m));
 }
