@@ -19,6 +19,16 @@ uniform bool has_rough = false;
 uniform vec4 base_color : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec2 uv_scale = vec2(1.0, 1.0);
 uniform float alpha_cut = 0.45;
+// Blossom. Poly Haven's jacaranda is photographed OUT of bloom, so its leaf texture is plain
+// green - and a jacaranda that is not violet is just another green tree. Multiplying green by
+// violet only gives mud, so instead the leaf is taken to its own luminance and recoloured:
+// `blossom_mix` of the canopy becomes `blossom` tinted by that luminance, which keeps every
+// leaf's own shading and veining while changing its hue completely. The rest stays green, the
+// way a real tree in bloom still carries leaves. 0 turns it off, which is every other tree.
+uniform float blossom_mix : hint_range(0.0, 1.0) = 0.0;
+uniform vec3 blossom : source_color = vec3(0.42, 0.30, 0.68);
+// Which leaves bloom, from a hash of the leaf card's own UV, so it is per-leaf and not a wash.
+uniform float blossom_patch : hint_range(0.0, 1.0) = 0.6;
 
 // Small: leaves move relative to the branches they hang off, they do not swing like a crown.
 uniform float bend_scale = 0.0009;
@@ -43,7 +53,15 @@ void vertex() {
 void fragment() {
 	vec2 uv = UV * uv_scale;
 	vec4 c = texture(albedo_tex, uv) * base_color * COLOR;
-	ALBEDO = c.rgb;
+	vec3 albedo = c.rgb;
+	if (blossom_mix > 0.001) {
+		float lum = dot(albedo, vec3(0.299, 0.587, 0.114));
+		// Per-leaf-card, so a canopy is flowers among leaves rather than a flat violet blob.
+		float pick = fract(sin(dot(floor(uv * 9.0), vec2(12.9898, 78.233))) * 43758.5453);
+		float on = blossom_mix * step(pick, blossom_patch);
+		albedo = mix(albedo, blossom * (0.45 + lum * 1.55), on);
+	}
+	ALBEDO = albedo;
 	ALPHA = c.a;
 	ALPHA_SCISSOR_THRESHOLD = alpha_cut;
 	ROUGHNESS = has_rough ? texture(rough_tex, uv).r : 0.9;
@@ -53,5 +71,5 @@ void fragment() {
 	}
 	SPECULAR = 0.3;
 	// A little light through the leaves, which is most of what makes a canopy read as foliage.
-	BACKLIGHT = vec3(0.12, 0.16, 0.09);
+	BACKLIGHT = mix(vec3(0.12, 0.16, 0.09), blossom * 0.35, blossom_mix);
 }

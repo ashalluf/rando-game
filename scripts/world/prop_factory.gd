@@ -682,8 +682,10 @@ static func foliage_material() -> ShaderMaterial:
 ## Turns a downloaded plant's leaf material into the swaying one (shaders/foliage_tex.gdshader),
 ## carrying its textures and UV scale across. Only the leaf surfaces get this: the trunk stays
 ## opaque and still.
-static func foliage_textured(src: StandardMaterial3D) -> ShaderMaterial:
-	var key := "foliage_tex_%d" % src.get_instance_id()
+## `blossom` recolours the leaf cards to a flower colour (see shaders/foliage_tex.gdshader):
+## used for the jacaranda, whose source scan is out of bloom and therefore plain green.
+static func foliage_textured(src: StandardMaterial3D, blossom: Color = Color.TRANSPARENT) -> ShaderMaterial:
+	var key := "foliage_tex_%d_%d" % [src.get_instance_id(), blossom.to_rgba32()]
 	if _cache.has(key):
 		return _cache[key]
 	var mat := ShaderMaterial.new()
@@ -696,6 +698,9 @@ static func foliage_textured(src: StandardMaterial3D) -> ShaderMaterial:
 	mat.set_shader_parameter("base_color", src.albedo_color)
 	mat.set_shader_parameter("uv_scale", Vector2(src.uv1_scale.x, src.uv1_scale.y))
 	mat.set_shader_parameter("alpha_cut", 0.45)
+	if blossom.a > 0.0:
+		mat.set_shader_parameter("blossom_mix", blossom.a)
+		mat.set_shader_parameter("blossom", Color(blossom.r, blossom.g, blossom.b))
 	_cache[key] = mat
 	return mat
 
@@ -999,10 +1004,13 @@ const CITY_TREES := ["tree_a.glb", "tree_b.glb", "tree_c.glb", "tree_d.glb", "tr
 ## texture stretched over everything.
 const HILL_TREES := ["tree_fir.glb", "tree_pine.glb", "tree_quiver.glb", "tree_searsia.glb"]
 
+## Violet, at 80% of the canopy. The alpha carries the mix amount.
+const JACARANDA_BLOSSOM := Color(0.40, 0.27, 0.70, 0.80)
+
 static func model_tree(variant: int) -> Mesh:
 	var v := clampi(variant, 0, CITY_TREES.size() - 1)
-	var mesh := _tree_mesh(CITY_TREES[v])
-	return mesh
+	var blossom := JACARANDA_BLOSSOM if CITY_TREES[v] == "tree_jacaranda.glb" else Color.TRANSPARENT
+	return _tree_mesh(CITY_TREES[v], blossom)
 
 
 ## One of the hill species; same leaf handling as the city trees.
@@ -1042,7 +1050,7 @@ static func model_grass_clump(variant: int) -> Mesh:
 	return _tree_mesh(GRASS_CLUMPS[clampi(variant, 0, GRASS_CLUMPS.size() - 1)])
 
 
-static func _tree_mesh(file: String) -> Mesh:
+static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT) -> Mesh:
 	var mesh := model_mesh(MODEL_DIR + file)
 	for i in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(i)
@@ -1050,7 +1058,7 @@ static func _tree_mesh(file: String) -> Mesh:
 			var sm := mat as StandardMaterial3D
 			if sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
 				# The leaf cards: onto the swaying shader, which does the scissor itself.
-				mesh.surface_set_material(i, foliage_textured(sm))
+				mesh.surface_set_material(i, foliage_textured(sm, blossom))
 				continue
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return mesh
