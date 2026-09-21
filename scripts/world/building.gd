@@ -9,19 +9,42 @@ enum Shape { SLAB, TOWER, STEPPED, PODIUM_TOWER, L_SHAPE, SETBACK, CROWN, WAREHO
 enum WindowStyle { PUNCHED, RIBBON, CURTAIN, NARROW }
 enum Finish { FLAT, BRICK, PANELS, GLASS }
 
-## Painted and rendered walls. Weighted the way a real street is: mostly warm off-whites,
-## creams, stone and grey, with terracotta and sage as the occasional accent. The old list gave
-## a mauve, a salmon and a sage equal billing with the neutrals, and a block came out looking
-## like a colour picker rather than a city.
+## Painted and rendered walls, WEIGHTED BY REPETITION - the neutrals appear several times each
+## and the colours once, so a street comes out mostly warm off-white and stone with a painted
+## block every so often. That weighting is the whole trick and it is easy to undo by accident:
+## an earlier list gave a mauve, a salmon and a sage equal billing with the neutrals and a block
+## came out looking like a colour picker rather than a city. But going all-neutral is the other
+## failure - a real Los Angeles street has mint, peach, terracotta and butter stucco in it, and
+## without them the city reads grey (owner, 2026-09-21: "we need this city to have more color").
+## Add colours here one entry at a time; add neutrals three or four at a time.
 const FLAT_COLORS := [
-	Color(0.80, 0.76, 0.68), Color(0.74, 0.71, 0.64), Color(0.82, 0.80, 0.75),
-	Color(0.68, 0.67, 0.64), Color(0.72, 0.66, 0.56), Color(0.78, 0.74, 0.70),
-	Color(0.66, 0.63, 0.58), Color(0.62, 0.66, 0.70), Color(0.76, 0.62, 0.52),
-	Color(0.61, 0.64, 0.58),
+	# Neutrals, repeated: warm off-white, cream, stone, grey, sand.
+	Color(0.80, 0.76, 0.68), Color(0.80, 0.76, 0.68), Color(0.80, 0.76, 0.68),
+	Color(0.74, 0.71, 0.64), Color(0.74, 0.71, 0.64), Color(0.74, 0.71, 0.64),
+	Color(0.82, 0.80, 0.75), Color(0.82, 0.80, 0.75), Color(0.82, 0.80, 0.75),
+	Color(0.68, 0.67, 0.64), Color(0.68, 0.67, 0.64),
+	Color(0.72, 0.66, 0.56), Color(0.72, 0.66, 0.56),
+	Color(0.78, 0.74, 0.70), Color(0.78, 0.74, 0.70),
+	Color(0.66, 0.63, 0.58), Color(0.66, 0.63, 0.58),
+	# Painted stucco, one entry each: pale blue, terracotta, sage, mint, peach, butter, coral,
+	# dusty rose, seafoam, ochre.
+	Color(0.62, 0.66, 0.70), Color(0.76, 0.62, 0.52), Color(0.61, 0.64, 0.58),
+	Color(0.63, 0.78, 0.70), Color(0.92, 0.74, 0.58), Color(0.90, 0.84, 0.58),
+	Color(0.88, 0.55, 0.44), Color(0.78, 0.62, 0.62), Color(0.58, 0.76, 0.72),
+	Color(0.80, 0.62, 0.32),
 ]
-const BRICK_COLORS := [Color(0.62, 0.30, 0.22), Color(0.55, 0.28, 0.20), Color(0.72, 0.44, 0.32), Color(0.48, 0.30, 0.28)]
-const PANEL_COLORS := [Color(0.56, 0.56, 0.54), Color(0.68, 0.64, 0.56), Color(0.46, 0.48, 0.52), Color(0.62, 0.60, 0.62)]
-const GLASS_COLORS := [Color(0.18, 0.28, 0.42), Color(0.16, 0.32, 0.32), Color(0.22, 0.22, 0.26), Color(0.30, 0.34, 0.42)]
+const BRICK_COLORS := [Color(0.62, 0.30, 0.22), Color(0.55, 0.28, 0.20), Color(0.72, 0.44, 0.32),
+	Color(0.48, 0.30, 0.28), Color(0.70, 0.36, 0.26), Color(0.58, 0.34, 0.30),
+	Color(0.78, 0.52, 0.38)]
+const PANEL_COLORS := [Color(0.56, 0.56, 0.54), Color(0.68, 0.64, 0.56), Color(0.46, 0.48, 0.52),
+	Color(0.62, 0.60, 0.62), Color(0.74, 0.72, 0.66), Color(0.52, 0.58, 0.60),
+	Color(0.66, 0.58, 0.48)]
+## Curtain-wall glass. Downtown was a wall of identical navy; real towers are bronze, blue-green,
+## silver and near-black as well as blue, and that variety is most of what makes a skyline read.
+const GLASS_COLORS := [Color(0.18, 0.28, 0.42), Color(0.16, 0.32, 0.32), Color(0.22, 0.22, 0.26),
+	Color(0.30, 0.34, 0.42), Color(0.34, 0.26, 0.16), Color(0.14, 0.34, 0.30),
+	Color(0.40, 0.42, 0.44), Color(0.20, 0.36, 0.44), Color(0.28, 0.30, 0.22),
+	Color(0.36, 0.34, 0.30)]
 const WINDOW_TINTS := [Color(0.35, 0.50, 0.65), Color(0.30, 0.55, 0.55), Color(0.45, 0.45, 0.50), Color(0.60, 0.50, 0.35), Color(0.40, 0.60, 0.75)]
 const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85, 0.90, 1.0)]
 
@@ -307,7 +330,12 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 
 ## Shop awnings. Kept to the colours canvas actually comes in: deep reds, greens, navies and
 ## sand. Bright magenta and saturated yellow read as plastic toys on a street.
-const AWNING_COLORS := [Color(0.42, 0.10, 0.10), Color(0.09, 0.20, 0.34), Color(0.11, 0.26, 0.17), Color(0.52, 0.42, 0.24), Color(0.17, 0.17, 0.19), Color(0.33, 0.13, 0.15)]
+## Shop awnings are the one place a street is allowed to be loud, and they are small enough that
+## a bright one reads as signage rather than as a painted building.
+const AWNING_COLORS := [Color(0.42, 0.10, 0.10), Color(0.09, 0.20, 0.34), Color(0.11, 0.26, 0.17),
+	Color(0.52, 0.42, 0.24), Color(0.17, 0.17, 0.19), Color(0.33, 0.13, 0.15),
+	Color(0.72, 0.16, 0.14), Color(0.86, 0.56, 0.10), Color(0.10, 0.36, 0.52),
+	Color(0.14, 0.44, 0.26), Color(0.62, 0.14, 0.38), Color(0.80, 0.70, 0.16)]
 ## Above this many window cells on a part, frames are left to the shader (supertalls).
 const MAX_FRAME_CELLS := 7000
 ## Window frames are drawn out to this distance (meters); cornices and awnings 1.6x that.
