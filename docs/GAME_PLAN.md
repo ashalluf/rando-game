@@ -194,6 +194,12 @@ already mapped so milestone 2 is script-only.
   beyond the valley, an east range, and the peninsula headland, composed with `max()` rather than
   added - adding ranges gives one smooth dome, `max()` gives ridges where they meet. Two noise
   octaves on top for crags.
+  Two things only showed up once the smoke checks went in. The front range's fade-out window and
+  the valley's fade-in window are the same window, so the valley floor is *past* `valley_to_z` -
+  inside the window you are on the range's own flank, which is why the first check read 300 m of
+  mountain where it expected a valley. And with a 560 m ridge in the way the valley was
+  unreachable on the ground, so `pass_center_x` / `pass_width` / `pass_floor` notch a canyon pass
+  through the front range: about 55 m in the pass against 400 m on the flank a kilometre away.
   The inland valley then had to be a *city floor at altitude*, which height alone cannot express:
   if the valley is high, `zone_at()` calls it mountain and no blocks build; if it is low, it is
   not a valley. Split in two: `plateau_at()` is the valley floor elevation and `_relief_at()`
@@ -222,6 +228,16 @@ already mapped so milestone 2 is script-only.
   rounded to whole `STEP` segments: at 32 m with a 24 m step that rounds to 1, a bent landed on
   every single segment, and from the street the elevated section read as a continuous retaining
   wall instead of a deck on legs. Both spacings are now multiples of `STEP`.
+  A third trap, caught by the smoke check rather than by eye: smoothing and grade-limiting a
+  height profile never look at the ground, so where the terrain rose faster than the grade limit
+  allowed, the deck ended up *inside* the hill - one route ran up the peninsula cliffs 128 m
+  under the surface. Fixed in two parts. `_drivable()` trims a drawn route to its longest run
+  over ground below `MAX_GROUND`, so routes end where the basin does instead of trying to scale
+  a range. `_clear_ground()` then builds the lowest profile that clears the ground and still
+  obeys the grade - propagate the needed clearance forwards and backwards, relaxing by
+  `MAX_GRADE` each step - and takes the higher of that and the smoothed profile. The maximum of
+  two grade-feasible profiles is itself grade-feasible, so the result is provably both clear and
+  drivable.
   **Honest limit:** the surface street grid is still axis-aligned. `CityPlan.road_pos(axis, index)`
   is one scalar per axis, and blocks, lots, traffic lanes and the minimap all assume axis-aligned
   rects, so curving the grid itself is a rewrite of the city plan rather than an addition. The

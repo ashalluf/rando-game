@@ -24,8 +24,15 @@ const GANTRY_SPACING := 340.0
 ## Points are this far apart along a route; the deck is built from them directly.
 const STEP := 24.0
 const CELL := 160.0
-## Max change in deck height per metre of run, so the grade is drivable.
-const MAX_GRADE := 0.055
+## Max change in deck height per metre of run, so the grade is drivable. Steep for a freeway,
+## but the valley route has to climb through the pass and real mountain freeways do 6 to 7 %.
+const MAX_GRADE := 0.07
+## The deck never gets closer than this to the ground underneath it.
+const MIN_CLEARANCE := 4.0
+## Ground a freeway can be built over. Routes are drawn as long sweeping curves across the whole
+## basin and are then trimmed to the run that clears this, so no route tries to scale the
+## peninsula cliffs or the east range.
+const MAX_GROUND := 230.0
 
 ## Routes: {"name", "points": PackedVector2Array, "heights": PackedFloat32Array, "width": float}
 var routes: Array[Dictionary] = []
@@ -62,12 +69,17 @@ func build(macro: MacroMap, seed_value: int) -> void:
 		x += STEP
 	_add_route("Cross Freeway", cross, rng)
 
-	# 3. The valley route: climbs out of the basin through a pass in the front range and runs
-	#    north across the inland valley.
+	# 3. The valley route: starts down in the basin, climbs through the pass in the front range
+	#    and runs north across the inland valley. It starts a long way south on purpose - the
+	#    climb to the valley floor is the whole run, and a short route cannot do it at a
+	#    drivable grade.
 	var valley := PackedVector2Array()
-	var vz := -620.0
-	while vz > macro.valley_to_z - 500.0:
-		valley.append(Vector2(760.0 + 260.0 * sin((vz + 620.0) / 900.0), vz))
+	var vz := 500.0
+	var pass_z: float = (macro.hills_full_z + macro.valley_from_z) * 0.5
+	while vz > macro.valley_to_z - 700.0:
+		# Zero at the pass, so the route threads it and curves away either side.
+		var t := (vz - pass_z) / 1100.0
+		valley.append(Vector2(macro.pass_center_x + 210.0 * sin(t * 1.4), vz))
 		vz -= STEP
 	_add_route("Valley Freeway", valley, rng)
 
@@ -77,19 +89,63 @@ func build(macro: MacroMap, seed_value: int) -> void:
 
 ## A route's deck height at one of its points: the ground below it plus the rise, smoothed and
 ## grade-limited so it does not follow every bump in the terrain.
-func _add_route(route_name: String, pts: PackedVector2Array, rng: RandomNumberGenerator) -> int:
-	if pts.size() < 4:
+func _add_route(route_name: String, drawn: PackedVector2Array, rng: RandomNumberGenerator) -> int:
+	var pts := _drivable(drawn)
+	if pts.size() < 24:
 		return -1
 	var raw := PackedFloat32Array()
 	for p in pts:
 		raw.append(_macro.height_at(p) + DECK_RISE)
 	var heights := _smooth(raw)
 	heights = _limit_grade(heights, pts)
+	heights = _clear_ground(heights, pts)
 	routes.append({
 		"name": route_name, "points": pts, "heights": heights,
 		"width": DECK_WIDTH * rng.randf_range(0.94, 1.08),
 	})
 	return routes.size() - 1
+
+
+## The longest run of a drawn route that is over ground a freeway can be built on: below
+## MAX_GROUND and not out at sea. Everything outside it is dropped, so a route ends where the
+## basin does instead of running up a cliff with its deck buried under the hillside.
+func _drivable(pts: PackedVector2Array) -> PackedVector2Array:
+	var best_from := 0
+	var best_len := 0
+	var run_from := -1
+	for i in pts.size():
+		var p := pts[i]
+		if _macro.height_at(p) <= MAX_GROUND and _macro.zone_at(p) != MacroMap.Zone.OCEAN:
+			if run_from < 0:
+				run_from = i
+			if i - run_from + 1 > best_len:
+				best_from = run_from
+				best_len = i - run_from + 1
+		else:
+			run_from = -1
+	return pts.slice(best_from, best_from + best_len)
+
+
+## Raise the deck wherever the grade-limited profile left it buried, without breaking the grade.
+##
+## Smoothing and grade-limiting both ignore the ground, so a rise the limiter cannot follow ends
+## up inside the hill. The fix is to build the *lowest* profile that clears the ground and still
+## obeys the grade - propagate the required clearance forwards and backwards, relaxing by the
+## max grade each step - and then take the higher of the two profiles at every point. The
+## maximum of two grade-feasible profiles is itself grade-feasible (a max of Lipschitz functions
+## keeps the same bound), so the result clears the ground everywhere and is still drivable.
+func _clear_ground(h: PackedFloat32Array, pts: PackedVector2Array) -> PackedFloat32Array:
+	var need := PackedFloat32Array()
+	for p in pts:
+		need.append(_macro.height_at(p) + MIN_CLEARANCE)
+	for i in range(1, need.size()):
+		need[i] = maxf(need[i], need[i - 1] - MAX_GRADE * pts[i].distance_to(pts[i - 1]))
+	for i in range(need.size() - 2, -1, -1):
+		need[i] = maxf(need[i], need[i + 1] - MAX_GRADE * pts[i].distance_to(pts[i + 1]))
+	var out := h.duplicate()
+	for i in out.size():
+		out[i] = maxf(out[i], need[i])
+	return out
 
 
 func _smooth(h: PackedFloat32Array) -> PackedFloat32Array:

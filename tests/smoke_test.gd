@@ -276,10 +276,18 @@ func _test_city() -> void:
 		var east_h: float = macro.raw_height_at(Vector2(macro.east_full_x, 300.0))
 		_check(front_h > 200.0 and back_h > front_h and east_h > 200.0,
 			"the basin is ringed by mountains (front %.0f, back %.0f, east %.0f m)" % [front_h, back_h, east_h])
-		var valley := Vector2(300.0, (macro.valley_from_z + macro.valley_to_z) * 0.5)
+		# The valley floor is past valley_to_z: the window between it and valley_from_z is the
+		# front range's own flank, and sampling there reads the mountain, not the valley.
+		var valley := Vector2(300.0, macro.valley_to_z - 400.0)
 		var valley_h: float = macro.height_at(valley)
-		_check(macro.zone_at(valley) == MacroMap.Zone.CITY and valley_h > 80.0 and macro.plateau_at(valley) > 80.0,
+		_check(macro.zone_at(valley) == MacroMap.Zone.CITY and valley_h > 80.0 and macro.raw_height_at(valley) == 0.0,
 			"the inland valley is city built on a plateau at %.0f m" % valley_h)
+		# The pass: a canyon through the front range, so the valley is reachable on the ground.
+		var pass_z: float = (macro.hills_full_z + macro.valley_from_z) * 0.5
+		var in_pass: float = macro.raw_height_at(Vector2(macro.pass_center_x, pass_z))
+		var on_flank: float = macro.raw_height_at(Vector2(macro.pass_center_x + 1100.0, pass_z))
+		_check(in_pass < 120.0 and on_flank > in_pass * 3.0,
+			"a pass is cut through the front range (%.0f m in it, %.0f m beside it)" % [in_pass, on_flank])
 		_check(macro.plateau_at(Vector2.ZERO) == 0.0 and macro.plateau_at(macro.airport_rect.get_center()) == 0.0,
 			"the basin floor and the airport stay at sea level")
 
@@ -325,8 +333,16 @@ func _test_city() -> void:
 					deck_built = true
 					break
 			_check(deck_built, "a chunk under the freeway builds the deck and its collision")
-			_check(fw.blocks(deck_xz, 0.0) and not fw.blocks(deck_xz + Vector2(400.0, 400.0), 0.0),
-				"the freeway corridor blocks building only where it flies over")
+			# The corridor has to exist and be narrow: a grid over the basin should be mostly clear.
+			var blocked := 0
+			var sampled := 0
+			for gx in range(-12, 13):
+				for gz in range(-12, 13):
+					sampled += 1
+					if fw.blocks(Vector2(gx * 130.0, gz * 130.0), 0.0):
+						blocked += 1
+			_check(fw.blocks(deck_xz, 0.0) and blocked > 0 and blocked * 6 < sampled,
+				"the freeway corridor is narrow (%d of %d samples under a deck)" % [blocked, sampled])
 			if deck_chunk:
 				var under_count := 0
 				for child in deck_chunk.get_children():

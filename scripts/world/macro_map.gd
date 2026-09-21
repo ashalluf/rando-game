@@ -17,14 +17,23 @@ var beach_width: float = 70.0
 ## This is the front range that walls the basin off on its north side, the one the big sign sits
 ## on; 260 m read as a large hill, and a basin like this one is ringed by actual mountains.
 var hills_start_z: float = -900.0
-var hills_full_z: float = -1600.0
+var hills_full_z: float = -1300.0
 var hills_height: float = 560.0
 ## Behind the front range the ground drops into a wide inland valley - flat enough to build a
-## city on, but 180 m up - and then climbs again into a much higher back range. This is the
+## city on, but 130 m up - and then climbs again into a much higher back range. This is the
 ## shape of the real thing: a coastal plain, a ridge, a valley behind it, a wall behind that.
-var valley_from_z: float = -1800.0
-var valley_to_z: float = -2500.0
-var valley_height: float = 180.0
+## The front range's fade-out window and this one are the same window on purpose: the range has
+## to be fully gone before the valley starts, or `zone_at()` calls the valley floor HILLS and no
+## city is ever built on it. Keep `valley_to_z` at or beyond where the front range reaches zero.
+var valley_from_z: float = -1500.0
+var valley_to_z: float = -2100.0
+var valley_height: float = 130.0
+## A canyon pass cut through the front range, so roads, freeways and the player can get from the
+## basin into the valley instead of hitting a 560 m wall. Without it the valley is unreachable
+## on the ground and the freeway that heads for it is buried by the grade limiter.
+var pass_center_x: float = 780.0
+var pass_width: float = 460.0
+var pass_floor: float = 55.0
 var back_start_z: float = -3300.0
 var back_full_z: float = -4400.0
 var back_height: float = 1150.0
@@ -180,7 +189,12 @@ func raw_height_at(pos: Vector2) -> float:
 	# The front range, walling off the basin, fading out again on its inland side so the valley
 	# behind it is open ground.
 	var front := smoothstep(hills_start_z, hills_full_z, pos.y) * (1.0 - smoothstep(valley_from_z, valley_to_z, pos.y))
-	h = maxf(h, front * (hills_height * (0.62 + 0.38 * n) + 60.0 * n2))
+	var front_h := front * (hills_height * (0.62 + 0.38 * n) + 60.0 * n2)
+	# The pass: inside it the front range drops to a canyon floor. Blended with smoothstep and
+	# taken with minf so it only ever cuts the range down, never raises ground outside it.
+	var notch := smoothstep(pass_width, pass_width * 0.3, absf(pos.x - pass_center_x))
+	front_h = lerpf(front_h, minf(front_h, pass_floor + 25.0 * n2), notch)
+	h = maxf(h, front_h)
 
 	# The back range beyond the valley: the real wall.
 	var back := smoothstep(back_start_z, back_full_z, pos.y)

@@ -326,6 +326,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   on its inland side, a higher back range behind the valley, an east range, and the peninsula
   headland south-west - composed with `max()` so ranges meet in ridges rather than adding into a
   dome. The knobs are the `*_start_z` / `*_full_z` / `*_height` exports at the top of `MacroMap`.
+  The front range's fade-out window **is** the valley's fade-in window (`valley_from_z` ..
+  `valley_to_z`) on purpose: the range has to reach zero before the valley starts, or `zone_at()`
+  calls the valley floor HILLS and no city is ever built on it. So the valley floor is past
+  `valley_to_z`; the window itself is the range's own flank, and sampling in it reads the
+  mountain. A **pass** (`pass_center_x`, `pass_width`, `pass_floor`) notches the front range down
+  to a canyon floor so roads, the freeway and the player can get into the valley at all - without
+  it the valley is a 560 m wall away and anything heading for it ends up buried.
   The inland valley is a **city floor at altitude**, not a mountain: `plateau_at()` returns its
   elevation and `_relief_at()` starts from it, so `_gy()` lifts the whole city onto the plateau
   while `zone_at()` still says CITY. Keep those two separate: `raw_height_at()` drives `zone_at()`
@@ -344,6 +351,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   a lot does not shift the chunk rng for the lots after it. Trap: `PILLAR_SPACING` and
   `GANTRY_SPACING` are rounded to whole `STEP` segments, so they must be multiples of `STEP`; at
   32 with a 24 m step the bents landed on every segment and the deck read as a retaining wall.
+  A drawn route is trimmed by `_drivable()` to its longest run over ground below `MAX_GROUND`
+  and not at sea, then `_clear_ground()` lifts the profile out of any hill the grade limiter
+  could not follow: it propagates the required clearance forwards and backwards relaxing by
+  `MAX_GRADE` each step, then takes the higher of that and the smoothed profile. The maximum of
+  two grade-feasible profiles is still grade-feasible, so the deck provably clears the ground
+  everywhere and stays drivable. Smoothing and grade-limiting alone do not - they never look at
+  the ground, so a rise they cannot follow leaves the deck inside the hillside.
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads. There is no freeway traffic yet.
