@@ -35,6 +35,13 @@ uniform float wear_amount : hint_range(0.0, 1.0) = 0.30;
 uniform float normal_depth = 0.7;
 
 global uniform float ground_detail;
+// Night. Roads and pavements are lit by street lamps; open grass is not - it gets skylight only,
+// which is dim and blue. The engine's ambient does not know that, so an untouched lawn stays a
+// vivid green after dark and ends up the brightest thing in the frame, brighter than the lit
+// shopfronts. This darkens and desaturates unlit grass toward what a lawn actually looks like at
+// night. DayNight publishes night_factor; the same value drives the street lamps.
+global uniform float night_factor;
+uniform float night_darken : hint_range(0.0, 1.0) = 0.72;
 
 varying vec3 world_pos;
 
@@ -112,7 +119,12 @@ void fragment() {
 	// than the road it borders is what made the grass the brightest thing in a night frame: the
 	// camera's auto exposure opens up after dark, and the most saturated surface then dominates.
 	// Real grass is about twice the albedo of asphalt, which the tint already carries.
-	ALBEDO = alb * col;
+	vec3 lit = alb * col;
+	// Toward a dim desaturated blue-grey as night comes in.
+	float nf = clamp(night_factor, 0.0, 1.0) * night_darken;
+	float grey = dot(lit, vec3(0.299, 0.587, 0.114));
+	lit = mix(lit, mix(vec3(grey), vec3(grey * 0.78, grey * 0.84, grey * 1.05), 0.7) * 0.30, nf);
+	ALBEDO = lit;
 	NORMAL_MAP = nrm;
 	NORMAL_MAP_DEPTH = normal_depth * (1.0 - wear * 0.6);
 	ROUGHNESS = clamp(rough, 0.35, 1.0);
