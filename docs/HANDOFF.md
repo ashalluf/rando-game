@@ -383,6 +383,39 @@ Rewritten 2026-09-21 at build 130.
 - The Meshy API key the owner pasted in chat during this project should be rotated. Meshy itself
   is retired (owner, 2026-09-19), so nothing needs the new one.
 
+## 9b. Paused mid-flight on 2026-09-21 (read this first if you are picking up)
+
+The session was paused with three agent fleets running. They were stopped, their finished work is
+on `main`, and what was half-written is saved as patches under **`docs/wip/`** with a README
+explaining each one and what is unverified about it. `main` is green at 190 checks with none of
+them applied, so you can ignore them entirely if you would rather start fresh.
+
+**The single highest-value thing available, and it is two lines.** `Vehicle.BODY_MODELS` still
+points `BodyType.SUPER` and `BodyType.HYPER` at `exo_super_coupe.glb` / `exo_hyper_a.glb`. Those
+bodies have **no wheel arches at all** - their own critic measured the front tyre standing 11.8 cm
+proud of the bodywork with bare sky above its outer 12 cm, and called it "wheels bolted onto the
+outside of a slab". The finished replacements are committed and unused:
+`hifi_super_coupe.glb` (223k tris) and `hifi_hyper_coupe.glb` (217k tris), both built the right
+way (see `docs/ASSETS.md`) and both carrying their own wheels. Swap the two lines, run the check,
+look at a showroom render, push.
+
+Order of the rest, hardest-earned first:
+
+1. Finish the wheels patch. The wheel mesh is already on `main` as dead code (see the correction
+   at the end of `docs/GAME_PLAN.md`); only the `Vehicle` wiring is missing. The real insight from
+   that work: the four Meshy bodies are 88% of traffic and each has its wheel modelled into the
+   painted body surface, so it wore the car's paint. Never a missing wheel - a wrong material.
+2. Finish the character PBR maps. `pedestrian_b` was never generated. This one deletes a whole
+   class of bug, not just a symptom.
+3. Finish the signs patch, minding the u/a mirror trap.
+4. Re-run the horizon-ground and road-surface tracks; they died at the spend limit and never
+   produced anything. `docs/wip/` has no patch for them because there was nothing to save.
+
+**Blocked on the owner:** the monthly spend cap was hit mid-session and killed four fleets. And
+nobody has ever measured the frame rate on real hardware - build 135 took the city from 4.65M to
+10.7M triangles at the spawn camera, which is a real jump, and the F1 stats line would settle it
+in one screenshot.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
