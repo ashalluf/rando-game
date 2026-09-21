@@ -63,6 +63,20 @@ Build in this order, one milestone per PR or a few PRs.
   paint + far windows + minimap + jumps (build 60), streets detail (build 61), commercial city (build 62),
   weather and waves (build 63), facade geometry and rooftops (build 64), Freesound sounds.
 
+- **90s cinematic colour grade** (asked 2026-09-21, deferred by the owner the same minute:
+  "we can explore that later tho"): the whole game graded like 90s cinema, Tarantino
+  specifically - Pulp Fiction, Reservoir Dogs. Not a period setting, a *look*. What that
+  actually means, so a later session does not just crank saturation: those films are shot on
+  50 ASA Kodak stock with warm key light and let the blacks go genuinely black and slightly
+  warm rather than crushed-blue; skin stays ruddy, whites go a touch cream, and the saturation
+  lives in a few loud objects (a red car, a yellow sign) against desaturated surroundings, not
+  everywhere at once. There is visible halation around highlights and a fine grain.
+  The implementation is a post ColorCorrection pass, not per-material edits: a 3D LUT on the
+  city Environment (`adjustment_color_correction`, a Texture3D built in code so it needs no
+  editor step), plus tone curve, a slight highlight bloom already present in glow, and a grain
+  term. It must be one global switch so the owner can turn it off, and it must degrade on the
+  Compatibility web build (Environment adjustments do work there).
+
 - **World character** (asked 2026-09-19): hills and slopes through the whole city; the
   illusion of uniqueness through cheap seeded surface variation, never hand placement.
   - [x] Push 1 (build 57): rolling relief through the city (`MacroMap.relief_at`).
