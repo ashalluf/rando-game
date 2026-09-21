@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bqp6dfcnw5nsr"
-path="res://.godot/imported/tree_d_island_tree_03_leaves_nor_gl.jpg-0f3874636334b75333cc615ec13a5ec6.ctex"
+path.s3tc="res://.godot/imported/tree_d_island_tree_03_leaves_nor_gl.jpg-0f3874636334b75333cc615ec13a5ec6.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_d_island_tree_03_leaves_nor_gl.jpg-0f3874636334b75333cc615ec13a5ec6.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "3b133275679a9acb1b0043a4d29cbd5f"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_d_island_tree_03_leaves_nor_gl.jpg"
-dest_files=["res://.godot/imported/tree_d_island_tree_03_leaves_nor_gl.jpg-0f3874636334b75333cc615ec13a5ec6.ctex"]
+dest_files=["res://.godot/imported/tree_d_island_tree_03_leaves_nor_gl.jpg-0f3874636334b75333cc615ec13a5ec6.s3tc.ctex", "res://.godot/imported/tree_d_island_tree_03_leaves_nor_gl.jpg-0f3874636334b75333cc615ec13a5ec6.etc2.ctex"]
 
 [params]
 

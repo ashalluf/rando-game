@@ -2,21 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bcivrte8jh2a0"
-path.s3tc="res://.godot/imported/tree_d_island_tree_03_arm.jpg-8dcc54ef46d62ea52be6a3108501001d.s3tc.ctex"
-path.etc2="res://.godot/imported/tree_d_island_tree_03_arm.jpg-8dcc54ef46d62ea52be6a3108501001d.etc2.ctex"
+uid="uid://cnu8003r1dmj8"
+path="res://.godot/imported/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg-2ac1d0ae66ddc23c299795fb1687fbd3.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
-"md5": "59f85ba6a98ff28957fcf4da2de28f77"
+"md5": "a86302b7deae4ca9649a56074e7072cc"
 }
 
 [deps]
 
-source_file="res://assets/models/tree_d_island_tree_03_arm.jpg"
-dest_files=["res://.godot/imported/tree_d_island_tree_03_arm.jpg-8dcc54ef46d62ea52be6a3108501001d.s3tc.ctex", "res://.godot/imported/tree_d_island_tree_03_arm.jpg-8dcc54ef46d62ea52be6a3108501001d.etc2.ctex"]
+source_file="res://assets/models/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg"
+dest_files=["res://.godot/imported/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg-2ac1d0ae66ddc23c299795fb1687fbd3.ctex"]
 
 [params]
 
@@ -26,7 +24,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

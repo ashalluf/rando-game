@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://3wukcr06vfn6"
-path="res://.godot/imported/tree_d_island_tree_03_leaves_diff.jpg-734771cb7b528b70775513a9d7287bba.ctex"
+path.s3tc="res://.godot/imported/tree_d_island_tree_03_leaves_diff.jpg-734771cb7b528b70775513a9d7287bba.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_d_island_tree_03_leaves_diff.jpg-734771cb7b528b70775513a9d7287bba.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "1a63668894036dc0c5f59ddd3f85de35"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_d_island_tree_03_leaves_diff.jpg"
-dest_files=["res://.godot/imported/tree_d_island_tree_03_leaves_diff.jpg-734771cb7b528b70775513a9d7287bba.ctex"]
+dest_files=["res://.godot/imported/tree_d_island_tree_03_leaves_diff.jpg-734771cb7b528b70775513a9d7287bba.s3tc.ctex", "res://.godot/imported/tree_d_island_tree_03_leaves_diff.jpg-734771cb7b528b70775513a9d7287bba.etc2.ctex"]
 
 [params]
 

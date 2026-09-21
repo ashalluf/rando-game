@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d20tl75m3dnkb"
-path="res://.godot/imported/tree_d_island_tree_03_branches_arm.jpg-e44ae1606cecb032023e485d09534219.ctex"
+path.s3tc="res://.godot/imported/tree_d_island_tree_03_branches_arm.jpg-e44ae1606cecb032023e485d09534219.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_d_island_tree_03_branches_arm.jpg-e44ae1606cecb032023e485d09534219.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "5efc6a3a3efc607cbbacc4f8be743410"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_d_island_tree_03_branches_arm.jpg"
-dest_files=["res://.godot/imported/tree_d_island_tree_03_branches_arm.jpg-e44ae1606cecb032023e485d09534219.ctex"]
+dest_files=["res://.godot/imported/tree_d_island_tree_03_branches_arm.jpg-e44ae1606cecb032023e485d09534219.s3tc.ctex", "res://.godot/imported/tree_d_island_tree_03_branches_arm.jpg-e44ae1606cecb032023e485d09534219.etc2.ctex"]
 
 [params]
 

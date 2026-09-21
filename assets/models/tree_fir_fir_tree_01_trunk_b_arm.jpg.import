@@ -2,21 +2,19 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://blburo51ustnr"
-path.s3tc="res://.godot/imported/tree_d_island_tree_03_branches_diff.jpg-954dd404b66b2fbfaec019a0d97973e0.s3tc.ctex"
-path.etc2="res://.godot/imported/tree_d_island_tree_03_branches_diff.jpg-954dd404b66b2fbfaec019a0d97973e0.etc2.ctex"
+uid="uid://hcm10qfyj8fp"
+path="res://.godot/imported/tree_fir_fir_tree_01_trunk_b_arm.jpg-f4336b484ad592eebcd5d2b405075bdd.ctex"
 metadata={
-"imported_formats": ["s3tc_bptc", "etc2_astc"],
-"vram_texture": true
+"vram_texture": false
 }
 generator_parameters={
-"md5": "9115441b42257cd0ae0877b3e6d7d98b"
+"md5": "b27e1ce884f8811cbdc3513b1e6f85e4"
 }
 
 [deps]
 
-source_file="res://assets/models/tree_d_island_tree_03_branches_diff.jpg"
-dest_files=["res://.godot/imported/tree_d_island_tree_03_branches_diff.jpg-954dd404b66b2fbfaec019a0d97973e0.s3tc.ctex", "res://.godot/imported/tree_d_island_tree_03_branches_diff.jpg-954dd404b66b2fbfaec019a0d97973e0.etc2.ctex"]
+source_file="res://assets/models/tree_fir_fir_tree_01_trunk_b_arm.jpg"
+dest_files=["res://.godot/imported/tree_fir_fir_tree_01_trunk_b_arm.jpg-f4336b484ad592eebcd5d2b405075bdd.ctex"]
 
 [params]
 
