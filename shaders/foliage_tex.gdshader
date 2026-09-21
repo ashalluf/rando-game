@@ -28,7 +28,7 @@ uniform float alpha_cut = 0.45;
 uniform float blossom_mix : hint_range(0.0, 1.0) = 0.0;
 uniform vec3 blossom : source_color = vec3(0.42, 0.30, 0.68);
 // Which leaves bloom, from a hash of the leaf card's own UV, so it is per-leaf and not a wash.
-uniform float blossom_patch : hint_range(0.0, 1.0) = 0.6;
+uniform float blossom_patch : hint_range(0.0, 1.0) = 0.52;
 
 // Small: leaves move relative to the branches they hang off, they do not swing like a crown.
 uniform float bend_scale = 0.0009;
@@ -59,7 +59,7 @@ void fragment() {
 		// Per-leaf-card, so a canopy is flowers among leaves rather than a flat violet blob.
 		float pick = fract(sin(dot(floor(uv * 9.0), vec2(12.9898, 78.233))) * 43758.5453);
 		float on = blossom_mix * step(pick, blossom_patch);
-		albedo = mix(albedo, blossom * (0.45 + lum * 1.55), on);
+		albedo = mix(albedo, blossom * (0.55 + lum * 0.95), on);
 	}
 	ALBEDO = albedo;
 	ALPHA = c.a;

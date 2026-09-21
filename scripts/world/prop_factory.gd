@@ -1004,8 +1004,11 @@ const CITY_TREES := ["tree_a.glb", "tree_b.glb", "tree_c.glb", "tree_d.glb", "tr
 ## texture stretched over everything.
 const HILL_TREES := ["tree_fir.glb", "tree_pine.glb", "tree_quiver.glb", "tree_searsia.glb"]
 
-## Violet, at 80% of the canopy. The alpha carries the mix amount.
-const JACARANDA_BLOSSOM := Color(0.40, 0.27, 0.70, 0.80)
+## Lavender, at 58% of the canopy. The alpha carries the mix amount.
+## A jacaranda is soft lavender-violet, not electric blue: at 0.40/0.27/0.70 and 80% the trees
+## came out a vivid ultramarine that read as a bug rather than as blossom. Lighter, less
+## saturated, and with enough green left showing to look like a tree in flower.
+const JACARANDA_BLOSSOM := Color(0.56, 0.47, 0.80, 0.58)
 
 static func model_tree(variant: int) -> Mesh:
 	var v := clampi(variant, 0, CITY_TREES.size() - 1)
