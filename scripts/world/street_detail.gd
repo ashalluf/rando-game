@@ -48,12 +48,31 @@ const POLE_ODDS := [0.16, 0.62, 1.0, 1.0, 0.38]
 ## Chance a pole carries a transformer can, and a service drop to the buildings behind it.
 const TRANSFORMER_ODDS := 0.34
 const SERVICE_DROP_ODDS := 0.45
+## How far a service drop will reach across the front garden for a wall, in metres. The setback
+## is `CityPlan.sidewalk_width` plus half the district's lot gap, which runs to 18 m in the
+## industrial blocks, so the drop is aimed at a wall that is really standing there rather than at
+## a fixed distance - and is not hung at all when nothing is within this, or it ends in open air.
+const SERVICE_DROP_REACH := 16.0
+## How far past the wall face the drop ends, so it reads as fixed to the building.
+const SERVICE_DROP_BITE := 0.5
+## Height above the pavement that a service drop lands on the wall at.
+const SERVICE_DROP_HEIGHT := 3.8
+## Metres of clearance kept between a pole and the edge of a freeway deck. A pole's tip is
+## POLE_HEIGHT + SIDEWALK_TOP above the ground and the deck's underside is only
+## Freeway.DECK_RISE - Freeway.DECK_THICKNESS above it at best (less wherever the grade limiter
+## could hold no more than MIN_CLEARANCE), so a run that crosses the corridor has to break
+## rather than drive poles, crossarms, cables and a collision box through the slab.
+const FREEWAY_CLEARANCE := 3.0
 ## Draw distances in metres for the line: wires read from far off, the fittings do not.
 const CABLE_DRAW_DISTANCE := 340.0
 const POLE_FITTING_DRAW_DISTANCE := 150.0
 
-## Length of one kerb-paint piece. Short pieces step down the relief without needing to tilt.
-const KERB_PAINT_PIECE := 3.0
+## Length of one kerb-paint piece. `kerb_paint` is not one of the chunk's `tilt_keys`, so
+## `_kerb_run` tilts each piece onto the ground itself; short pieces then keep what the tilt
+## cannot follow - the curvature of the relief across one piece - down in the millimetres,
+## against a kerb face only 15 cm tall. At 3 m and untilted the paint used to float clear of the
+## kerb at one end of a piece and bury itself at the other.
+const KERB_PAINT_PIECE := 1.5
 ## Metres of red kerb at each end of a block face (no stopping near a crossing).
 const KERB_RED_RANGE := Vector2(5.0, 9.5)
 ## Colours of the painted kerb zones.
@@ -120,7 +139,9 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 			var gp := a + dir * along - inward * 0.55
 			batch.add("grate", PropFactory.grate(), Transform3D(Basis(Vector3.UP, yaw), Vector3(gp.x, road_top + 0.006, gp.y)))
 			var ip := a + dir * along - inward * 0.008
-			batch.add("kerb_inlet", _inlet_mesh(), Transform3D(Basis(Vector3.UP, face_yaw), Vector3(ip.x, road_top + 0.075, ip.y)))
+			# Tilted by hand: "kerb_inlet" is not one of the chunk's tilt_keys and the slot has
+			# only 2 cm of margin inside a 15 cm kerb face.
+			batch.add("kerb_inlet", _inlet_mesh(), Transform3D(_ground_tilt(chunk, Basis(Vector3.UP, face_yaw), ip.x, ip.y, 0.5), Vector3(ip.x, road_top + 0.075, ip.y)))
 	batch.set_no_shadow("gutter")
 	batch.set_no_shadow("kerb_inlet")
 	batch.set_draw_distance("kerb_inlet", KERB_DRAW_DISTANCE)
@@ -284,6 +305,8 @@ static func _overhead_lines(chunk: CityChunk, rect: Rect2) -> void:
 		[CityPlan.AXIS_X, chunk.ix, 1], [CityPlan.AXIS_X, chunk.ix + 1, 0],
 		[CityPlan.AXIS_Z, chunk.iz, 1], [CityPlan.AXIS_Z, chunk.iz + 1, 0],
 	]
+	# Gathered once for the whole block: what a service drop is allowed to land on.
+	var walls := _footprints(chunk)
 	for f in faces:
 		var axis: int = f[0]
 		var index: int = f[1]
@@ -292,7 +315,7 @@ static func _overhead_lines(chunk: CityChunk, rect: Rect2) -> void:
 			continue
 		if not _has_poles(plan, chunk.ix, chunk.iz, axis, index):
 			continue
-		_pole_run(chunk, rect, axis, index, side)
+		_pole_run(chunk, rect, axis, index, side, walls)
 
 
 ## True when the block at (bix, biz) hangs the overhead line for road `index` on `axis`. The
@@ -307,7 +330,7 @@ static func _has_poles(plan: CityPlan, bix: int, biz: int, axis: int, index: int
 	return _hash01([plan.seed, "poles", bix, biz, axis, index]) < POLE_ODDS[district]
 
 
-static func _pole_run(chunk: CityChunk, rect: Rect2, axis: int, index: int, side: int) -> void:
+static func _pole_run(chunk: CityChunk, rect: Rect2, axis: int, index: int, side: int, walls: Array[Rect2]) -> void:
 	var plan: CityPlan = chunk.plan
 	var batch: MultiMeshBatch = chunk._batch
 	var top: float = CityChunk.SIDEWALK_TOP
@@ -328,12 +351,24 @@ static func _pole_run(chunk: CityChunk, rect: Rect2, axis: int, index: int, side
 	var arm := Vector3(1.0, 0.0, 0.0) if along_z else Vector3(0.0, 0.0, 1.0)
 	var run_dir := Vector3(0.0, 0.0, 1.0) if along_z else Vector3(1.0, 0.0, 0.0)
 	var into := arm * signf(inset)
-	var drops: bool = plan.block(chunk.ix, chunk.iz).kind == CityPlan.BlockKind.BUILDINGS
+	var drops := not walls.is_empty()
+	# The poles that actually get built, and for each of them whether the slot before it was
+	# skipped. A skipped slot breaks the run: the wire must not carry on across the gap.
 	var points: Array[Vector3] = []
+	var breaks: Array[bool] = []
+	var gap_before := false
 	for k in range(first, last + 1):
 		var u := phase + k * POLE_SPACING
 		var p := Vector3(line, top, u) if along_z else Vector3(u, top, line)
+		# Nothing is driven into the freeway corridor: the deck's underside is below the tip of
+		# a nine-metre pole, so the pole, its crossarms, its wires and its collision box would
+		# all be inside the slab.
+		if _pole_blocked(chunk, p):
+			gap_before = true
+			continue
 		points.append(p)
+		breaks.append(gap_before)
+		gap_before = false
 		batch.add("upole", PropFactory.upole(), Transform3D(Basis(Vector3.UP, yaw), p + Vector3(0.0, POLE_HEIGHT * 0.5, 0.0)))
 		batch.add("crossarm", PropFactory.crossarm(), Transform3D(Basis(Vector3.UP, yaw), p + Vector3(0.0, POWER_ARM_HEIGHT, 0.0)))
 		batch.add("crossarm", PropFactory.crossarm(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(0.62, 1.0, 1.0)), p + Vector3(0.0, TELCO_ARM_HEIGHT, 0.0)))
@@ -343,44 +378,141 @@ static func _pole_run(chunk: CityChunk, rect: Rect2, axis: int, index: int, side
 			batch.add("transformer", _transformer_mesh(), Transform3D(Basis(), p + arm * 0.5 + Vector3(0.0, POWER_ARM_HEIGHT - 1.0, 0.0)))
 		# A pole you can crash a car into. Not breakable: the wires hang off it.
 		chunk._add_shape(Vector3(0.36, POLE_HEIGHT, 0.36), p + Vector3(0.0, POLE_HEIGHT * 0.5 + chunk._gy(p.x, p.z), 0.0), yaw)
-		# Service drop across the pavement to the buildings behind. Only where there are
-		# buildings: over a park it would end in mid-air.
+		# Service drop across the pavement to the wall behind. Aimed at a wall that is really
+		# there: the setback is `CityPlan.sidewalk_width` plus half the district's lot gap, and
+		# that gap runs 6-14 m in the suburbs and 10-18 m industrial, both of which hang poles on
+		# every block, so a fixed 6 m drop ended 0.15-6 m short of every one of those facades and
+		# hung in open air over the front garden. Nothing in reach - an inter-lot gap, a
+		# courtyard lot, a lot skipped for a landmark or for the freeway - means no drop at all.
 		if drops and _hash01([plan.seed, "drop", axis, index, k]) < SERVICE_DROP_ODDS:
-			var end := p + into * 6.0
-			_catenary(batch, _lift(chunk, p, TELCO_ARM_HEIGHT), _lift(chunk, end, 3.8), 0.4)
+			var reach := _facade_reach(walls, p, into)
+			if reach > 0.0:
+				var wall := p + into * (reach + SERVICE_DROP_BITE)
+				_catenary(batch, _lift(chunk, p, TELCO_ARM_HEIGHT), _lift(chunk, wall, SERVICE_DROP_HEIGHT), 0.4)
+	if points.is_empty():
+		return
 	# The wire run: pole to pole, then on across the junction to the first pole of the next
-	# block when that block hangs the same line.
-	var wires: Array = points.duplicate()
+	# block when that block hangs the same line and has a pole standing at that end.
+	var n := points.size()
+	for i in n - 1:
+		if breaks[i + 1]:
+			continue
+		_span(chunk, points[i], points[i + 1], arm)
 	var nbx := chunk.ix if along_z else chunk.ix + 1
 	var nbz := chunk.iz + 1 if along_z else chunk.iz
 	var bridged := false
-	if _has_poles(plan, nbx, nbz, axis, index):
-		var nrect: Rect2 = plan.block(nbx, nbz).rect
-		var nu0: float = nrect.position.y if along_z else nrect.position.x
-		var nfirst := ceili((nu0 + POLE_EDGE_MARGIN - phase) / POLE_SPACING)
-		var nu := phase + nfirst * POLE_SPACING
-		wires.append(Vector3(line, top, nu) if along_z else Vector3(nu, top, line))
-		bridged = true
-	for i in wires.size() - 1:
-		var a: Vector3 = wires[i]
-		var b: Vector3 = wires[i + 1]
-		for k in 3:
-			var o := arm * (k - 1) * 0.72
-			_catenary(batch, _lift(chunk, a + o, POWER_ARM_HEIGHT + 0.2), _lift(chunk, b + o, POWER_ARM_HEIGHT + 0.2), POWER_SAG)
-		for k in 2:
-			var o := arm * (k * 2.0 - 1.0) * 0.44
-			_catenary(batch, _lift(chunk, a + o, TELCO_ARM_HEIGHT + 0.08), _lift(chunk, b + o, TELCO_ARM_HEIGHT + 0.08), TELCO_SAG)
+	if not gap_before:
+		var ahead := _junction_pole(chunk, nbx, nbz, axis, index, along_z, line, phase, false)
+		if not ahead.is_empty():
+			_span(chunk, points[n - 1], ahead[0], arm)
+			bridged = true
 	# Down-guys where the run really ends, so a terminal pole looks anchored instead of cut off.
-	# A pole the block behind us already bridged to is a through pole and gets none.
+	# A pole the block behind us bridged to, or a through pole, gets none. Both blocks decide
+	# this from the same pure functions, so the two sides always agree.
 	var pbx := chunk.ix if along_z else chunk.ix - 1
 	var pbz := chunk.iz - 1 if along_z else chunk.iz
-	if not _has_poles(plan, pbx, pbz, axis, index):
-		_guy(chunk, points[0], -run_dir)
-	if not bridged:
-		_guy(chunk, points[points.size() - 1], run_dir)
+	var behind := _junction_pole(chunk, pbx, pbz, axis, index, along_z, line, phase, true)
+	for i in n:
+		if breaks[i] or (i == 0 and behind.is_empty()):
+			_guy(chunk, points[i], -run_dir)
+		var ends := breaks[i + 1] if i < n - 1 else not bridged
+		if ends:
+			_guy(chunk, points[i], run_dir)
 	batch.set_no_shadow("cable")
 	batch.set_draw_distance("cable", CABLE_DRAW_DISTANCE)
 	batch.set_draw_distance("insulator", POLE_FITTING_DRAW_DISTANCE)
+
+
+## One pole-to-pole span: three power wires on the upper arm, two telecom on the lower.
+static func _span(chunk: CityChunk, a: Vector3, b: Vector3, arm: Vector3) -> void:
+	var batch: MultiMeshBatch = chunk._batch
+	for k in 3:
+		var o := arm * (k - 1) * 0.72
+		_catenary(batch, _lift(chunk, a + o, POWER_ARM_HEIGHT + 0.2), _lift(chunk, b + o, POWER_ARM_HEIGHT + 0.2), POWER_SAG)
+	for k in 2:
+		var o := arm * (k * 2.0 - 1.0) * 0.44
+		_catenary(batch, _lift(chunk, a + o, TELCO_ARM_HEIGHT + 0.08), _lift(chunk, b + o, TELCO_ARM_HEIGHT + 0.08), TELCO_SAG)
+
+
+## True where a pole would stand inside a freeway corridor. `Freeway._clear_ground()` only
+## guarantees MIN_CLEARANCE (4 m) over the ground, well under a pole's 9.25 m tip, so a pole in
+## the corridor is through the deck - along with the solid box a car can hit.
+static func _pole_blocked(chunk: CityChunk, p: Vector3) -> bool:
+	return chunk._under_freeway(Vector2(p.x, p.z), FREEWAY_CLEARANCE)
+
+
+## The pole of the neighbouring block that a wire would meet across the junction, as a one-entry
+## array, or empty when that block hangs no line, has no pole at that end, or its end pole stands
+## in a freeway corridor. `low_end` asks for the neighbour before us on the run instead of after.
+## Pure: both blocks facing a junction evaluate it identically, so a span is drawn exactly once
+## and a guy wire goes exactly where a span does not.
+static func _junction_pole(chunk: CityChunk, bx: int, bz: int, axis: int, index: int, along_z: bool, line: float, phase: float, low_end: bool) -> Array:
+	var plan: CityPlan = chunk.plan
+	if not _has_poles(plan, bx, bz, axis, index):
+		return []
+	var nrect: Rect2 = plan.block(bx, bz).rect
+	var nu0: float = nrect.position.y if along_z else nrect.position.x
+	var nu1: float = nrect.end.y if along_z else nrect.end.x
+	var nfirst := ceili((nu0 + POLE_EDGE_MARGIN - phase) / POLE_SPACING)
+	var nlast := floori((nu1 - POLE_EDGE_MARGIN - phase) / POLE_SPACING)
+	if nlast < nfirst:
+		return []
+	var u := phase + (nlast if low_end else nfirst) * POLE_SPACING
+	var p := Vector3(line, CityChunk.SIDEWALK_TOP, u) if along_z else Vector3(u, CityChunk.SIDEWALK_TOP, line)
+	if _pole_blocked(chunk, p):
+		return []
+	return [p]
+
+
+## The ground-storey walls of this block, in the same plan coordinates the pole run works in.
+## Read off the `Building` nodes the lot builder has already added as children of the chunk:
+## `CityStreamer` adds a chunk to the tree before calling `build()`, so every `add_child()` has
+## run that building's `_ready()` and its parts are final by the time the sidewalk props go in.
+## A lot that became a courtyard garden, or was skipped for a landmark or for the freeway
+## corridor, never made a node, so it is absent here without a second copy of any of those rules.
+##
+## `Building.parts` rather than `Building.footprint`, because the footprint is the symmetric
+## bounding extent: on an L-shaped building it covers the notch, and a drop aimed into the notch
+## would end in mid air again. The parts are axis-aligned boxes, and only the ones standing on
+## the base are walls a service head can be fixed to - an upper setback is metres above it and
+## is not over the garden anyway.
+static func _footprints(chunk: CityChunk) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for c in chunk.get_children():
+		var b := c as Building
+		if b == null:
+			continue
+		var o := Vector2(b.position.x, b.position.z)
+		for part in b.parts:
+			var size: Vector3 = part.size
+			var mid: Vector3 = part.center
+			if mid.y - size.y * 0.5 > 0.05:
+				continue
+			out.append(Rect2(o + Vector2(mid.x, mid.z) - Vector2(size.x, size.z) * 0.5, Vector2(size.x, size.z)))
+	return out
+
+
+## Distance from `p` along `into` to the nearest wall in `walls`, or -1 when nothing stands
+## within SERVICE_DROP_REACH. `into` is axis-aligned and the footprints are axis-aligned rects,
+## so this is a couple of compares per building and the list is one block long.
+static func _facade_reach(walls: Array[Rect2], p: Vector3, into: Vector3) -> float:
+	var along_x := absf(into.x) > 0.5
+	var s := into.x if along_x else into.z
+	var o := p.x if along_x else p.z
+	var cross := p.z if along_x else p.x
+	var best := -1.0
+	for r: Rect2 in walls:
+		var lo: float = r.position.y if along_x else r.position.x
+		var hi: float = r.end.y if along_x else r.end.x
+		if cross < lo or cross > hi:
+			continue
+		var near: float = (r.position.x if along_x else r.position.y) if s > 0.0 else (r.end.x if along_x else r.end.y)
+		var d := (near - o) * s
+		if d <= 0.5 or d > SERVICE_DROP_REACH:
+			continue
+		if best < 0.0 or d < best:
+			best = d
+	return best
 
 
 ## A guy wire from near the top of a terminal pole down to an anchor in the pavement.
@@ -434,26 +566,59 @@ static func _kerb_paint(chunk: CityChunk, edges: Array, district: int) -> void:
 		var rng := _rng_for([chunk.plan.seed, "kerb", chunk.ix, chunk.iz, i])
 		var red_a := rng.randf_range(KERB_RED_RANGE.x, KERB_RED_RANGE.y)
 		var red_b := rng.randf_range(KERB_RED_RANGE.x, KERB_RED_RANGE.y)
-		_kerb_run(batch, a, dir, yaw, 0.5, red_a, KERB_RED)
-		_kerb_run(batch, a, dir, yaw, length - 0.5 - red_b, red_b, KERB_RED)
+		_kerb_run(chunk, a, dir, yaw, 0.5, red_a, KERB_RED)
+		_kerb_run(chunk, a, dir, yaw, length - 0.5 - red_b, red_b, KERB_RED)
 		if rng.randf() < LOADING_ODDS[district]:
 			var run := rng.randf_range(7.0, 14.0)
 			var lo := red_a + 4.0
 			var hi := length - red_b - run - 4.0
 			if hi > lo:
 				var color := KERB_YELLOW if rng.randf() < 0.7 else KERB_WHITE
-				_kerb_run(batch, a, dir, yaw, rng.randf_range(lo, hi), run, color)
+				_kerb_run(chunk, a, dir, yaw, rng.randf_range(lo, hi), run, color)
 	batch.set_no_shadow("kerb_paint")
 	batch.set_draw_distance("kerb_paint", KERB_DRAW_DISTANCE)
 
 
-static func _kerb_run(batch: MultiMeshBatch, a: Vector2, dir: Vector2, yaw: float, from_t: float, run: float, color: Color) -> void:
+## One painted run along a kerb. The paint mesh wraps a kerb face only 15 cm tall, so it has to
+## follow the ground the way the kerb does - and "kerb_paint" is not one of the keys listed in
+## `CityChunk.build()`'s `tilt_keys`, so the batch gives it the relief height and no tilt at all.
+## An untilted 3 m piece on the grades these blocks are built for (a metre or so of relief across
+## one 20-30 m lot, which is what `Building.plinth_depth` is computed for) is 6 cm out at each
+## end of a 15 cm face: asphalt shows under the paint at the uphill end and the paint is buried
+## at the downhill one. So each piece is tilted here, with the same maths the batch applies to
+## its own tilt keys, and KERB_PAINT_PIECE is short enough that the curvature a flat piece cannot
+## follow stays in the millimetres.
+##
+## What is left over is that the kerb face is the sidewalk slab's skirt, and that slab is a grid
+## of about 5 m quads, so the kerb is a chord between grid vertices while the paint sits on the
+## smooth relief. That gap is a few millimetres at these curvatures and the mesh carries enough
+## margin above and below the face to swallow it - see `_kerb_paint_mesh()`. Matching the chord
+## exactly would mean hard-coding `CityChunk`'s grid step in this file, which is a worse trade.
+static func _kerb_run(chunk: CityChunk, a: Vector2, dir: Vector2, yaw: float, from_t: float, run: float, color: Color) -> void:
+	var batch: MultiMeshBatch = chunk._batch
 	var t := 0.0
 	while t < run - 0.05:
 		var piece := minf(KERB_PAINT_PIECE, run - t)
 		var p := a + dir * (from_t + t + piece * 0.5)
-		batch.add("kerb_paint", _kerb_paint_mesh(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(piece, 1.0, 1.0)), Vector3(p.x, CityChunk.ROAD_TOP, p.y)), color)
+		var basis := _ground_tilt(chunk, Basis(Vector3.UP, yaw), p.x, p.y, piece * 0.45).scaled_local(Vector3(piece, 1.0, 1.0))
+		batch.add("kerb_paint", _kerb_paint_mesh(), Transform3D(basis, Vector3(p.x, CityChunk.ROAD_TOP, p.y)), color)
 		t += piece
+
+
+## `basis` rotated onto the ground slope at (x, z), sampled `half` either side so a piece takes
+## its own slope rather than an average over its neighbours. Same maths as the tilt
+## `MultiMeshBatch.add()` applies to its `tilt_keys`, applied on the same side of the basis, so a
+## piece lands exactly where a tilted batch key would. The keys handled here are not in
+## `CityChunk.build()`'s `tilt_keys` and that file is not this one to grow.
+static func _ground_tilt(chunk: CityChunk, basis: Basis, x: float, z: float, half: float) -> Basis:
+	var e := clampf(half, 0.1, 0.6)
+	var gx := (chunk._gy(x + e, z) - chunk._gy(x - e, z)) / (2.0 * e)
+	var gz := (chunk._gy(x, z + e) - chunk._gy(x, z - e)) / (2.0 * e)
+	var normal := Vector3(-gx, 1.0, -gz).normalized()
+	var axis := Vector3.UP.cross(normal)
+	if axis.length_squared() < 1e-8:
+		return basis
+	return Basis(axis.normalized(), Vector3.UP.angle_to(normal)) * basis
 
 
 ## Parking meters along the two kerbs this block owns, downtown and midtown only. Breakable,
@@ -631,14 +796,20 @@ static func _merged(key: String, color: Color, roughness: float, parts: Array) -
 ## Kerb paint: one metre of it, long along local X, with local -Z pointing into the block.
 ## The face strip sits just proud of the kerb face and the lip wraps over the top of the kerb,
 ## because kerb paint is painted over the edge and it is the top you see from a car.
+##
+## Built exactly to the 15 cm face, the mesh had 2 mm of total slack, which nothing that follows
+## a relief field can hold. So the strip runs 5.5 cm below the face - the sidewalk slab's skirt
+## hangs 75 cm, so everything under the road surface is buried rather than floating - and 8 mm
+## above it, where the lip covers it. The lip is thick enough that a centimetre either way still
+## leaves paint on the kerb top instead of a grey rim.
 static func _kerb_paint_mesh() -> Mesh:
 	var face := BoxMesh.new()
-	face.size = Vector3(1.0, 0.152, 0.014)
+	face.size = Vector3(1.0, 0.213, 0.014)
 	var lip := BoxMesh.new()
-	lip.size = Vector3(1.0, 0.012, 0.16)
+	lip.size = Vector3(1.0, 0.026, 0.16)
 	return _merged("kerb_paint", Color(1.0, 1.0, 1.0), 0.75, [
-		[face, Transform3D(Basis(), Vector3(0.0, 0.076, 0.005))],
-		[lip, Transform3D(Basis(), Vector3(0.0, 0.148, -0.07))],
+		[face, Transform3D(Basis(), Vector3(0.0, 0.0515, 0.005))],
+		[lip, Transform3D(Basis(), Vector3(0.0, 0.149, -0.07))],
 	])
 
 
