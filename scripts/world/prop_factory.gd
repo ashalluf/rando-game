@@ -412,8 +412,12 @@ static func palm(variant: int) -> Mesh:
 static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float, rise: float, rng: RandomNumberGenerator, dead: bool) -> void:
 	var out := Vector3(cos(yaw), 0.0, sin(yaw))
 	var side := Vector3(-out.z, 0.0, out.x)
-	var steps := 30
-	var droop := reach * (1.5 if dead else 0.95)
+	# Dense: a real frond carries fifty-odd leaflets a side, close enough at the rib that the
+	# frond reads as one feathered blade. At thirty they are separate spikes and it reads as a
+	# fishbone.
+	var steps := 48
+	# Each frond droops by its own amount, or the crown is a set of identical arcs.
+	var droop := reach * (1.5 if dead else rng.randf_range(0.55, 1.25))
 	# Palm fronds are a dusty, yellow-grey green, not the vivid green of a lawn, and the tone
 	# runs from dark near the rachis to bleached at the tips.
 	var green := Color(0.17, 0.26, 0.11).lerp(Color(0.36, 0.43, 0.19), rng.randf())
@@ -431,19 +435,22 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 		var along := p1 - p0
 		# Longest a third of the way out, short at the crown and short again at the tip, so the
 		# frond has a leaf shape instead of a rectangular comb.
-		var blade := reach * 0.40 * (0.22 + 0.78 * sin(pow(t0, 0.72) * PI))
+		var blade := reach * 0.30 * (0.22 + 0.78 * sin(pow(t0, 0.72) * PI))
 		var tone := colour * (0.78 + 0.42 * t0) * rng.randf_range(0.90, 1.10)
 		for dir: float in [1.0, -1.0]:
 			# The fold, jittered per leaflet: neighbours at slightly different angles are what
 			# let the light through instead of shingling into a sheet.
 			var ang := lerpf(fold_base, fold_tip, t0) * rng.randf_range(0.72, 1.28)
-			var blade_dir := (side * dir * cos(ang) - Vector3.UP * sin(ang) - out * 0.26).normalized()
+			# Swept FORWARD, toward the tip of the frond, the way a feather's barbs lie. Swept
+			# back - which is what this did - points every leaflet at the trunk and the frond
+			# reads as a fishbone laid the wrong way round.
+			var blade_dir := (side * dir * cos(ang) - Vector3.UP * sin(ang) + out * 0.58).normalized()
 			# Tips curl further down the further out along the frond they sit.
 			var tip := p0 + blade_dir * blade + Vector3(0.0, -blade * 0.34 * t0, 0.0)
 			# One smooth normal per leaflet, leaning hard toward up, so the crown lights as one
 			# soft mass rather than a pile of lit facets catching the sun at their own angles.
 			var nrm := (Vector3.UP * 1.7 + blade_dir * 0.45).normalized()
-			_quad(st, p0, p1, tip + along * 0.16, tip, tone, nrm, nrm)
+			_quad(st, p0, p1, tip + along * 0.06, tip, tone, nrm, nrm)
 		# The rib itself, so the frond still reads when seen edge-on.
 		var rib_n := (Vector3.UP + out * 0.3).normalized()
 		_quad(st, p0, p1, p1 + Vector3(0.0, -0.045, 0.0), p0 + Vector3(0.0, -0.045, 0.0), colour * 0.58, rib_n, rib_n)
