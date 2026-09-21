@@ -1,4 +1,4 @@
-# Handoff: Rando Game (written 2026-09-19, sections 6, 9 and 10 rewritten 2026-09-21, build list current to 139)
+# Handoff: Rando Game (written 2026-09-19; section 9a added 2026-09-21 afternoon with the LA pass)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
@@ -382,6 +382,65 @@ Rewritten 2026-09-21 at build 130.
 - The web build carries all the models and runs slowly on weak machines; caps are lower there.
 - The Meshy API key the owner pasted in chat during this project should be rotated. Meshy itself
   is retired (owner, 2026-09-19), so nothing needs the new one.
+
+## 9a. The LA pass, 2026-09-21 afternoon (newest work)
+
+The owner asked for the map to be a miniature of the real Los Angeles, naming PCH, Palos Verdes,
+Redondo and Manhattan piers, Santa Monica, Venice, Malibu, Del Amo, Urth Caffe, a masjid, USC and
+the 405 / 110 / 105. The basin already had LA's shape; what it had no version of was the coast
+road, the chain of beach towns, or any of the named places.
+
+Delivered, all green and on main:
+- **Pacific Coast Highway**, from the northern cliffs to the far side of the headland, held 46 m
+  in from the waterline so it inherits the shore's own bends. It needed a **coastal shelf** in
+  `MacroMap.raw_height_at()` first: up north the front range runs into the water, so the road
+  would have been a cutting in a 560 m mountainside. The shelf cuts a 300 m bench at 26 m along
+  the shore north of z -700 - mountain, bench, road, sea - fading out southward and never
+  touching the headland, whose cliffs into the water are the point of it.
+- **Eight named beach towns** (Malibu, Santa Monica, Venice, Playa, El Segundo, Manhattan,
+  Hermosa, Redondo) plus Palos Verdes, surfaced through `MacroMap.place_name()`, which the HUD
+  prefers over the zone and district names. A **BEACHTOWN district**: denser than the suburbs
+  and much lower, heavy weathering, metered kerbs, the palmiest district on the map.
+- The headland moved from z 1500 to **1980**, because at 1500 it started exactly where Manhattan,
+  Hermosa and Redondo needed coastline.
+- A fourth freeway (**110**, downtown to the port) and real numbers on the other three.
+- **Six landmarks** built by an agent fleet, each a self-contained `scripts/world/landmark_*.gd`
+  wired into `Landmarks`: Venice boardwalk, Manhattan pier, Redondo pier, South Bay Mall,
+  Verde Cafe, Masjid Al Noor.
+- **The beach follows the shoreline** instead of being a chunk-sized slab, with a two-slope
+  profile that breaks at the waterline, and is laid by whichever chunk the waterline crosses
+  (`_owns_shoreline()`) regardless of that chunk's zone.
+
+**Naming rule applied, and worth keeping.** Geography and route names are used as-is: Malibu,
+Santa Monica, Venice, Manhattan Beach, Redondo, Palos Verdes, PCH, 405, 110, 105. Business and
+institution trademarks are not: Del Amo became South Bay Mall, Urth became Verde Cafe, and the
+mosque is an original design named Masjid Al Noor rather than a model of a real one. Same rule
+the project already used for RANDOWOOD and the exotic marques.
+
+**Two silent errors, both fixed, both had been passing the gate.** `tests/headless_check.sh` only
+tripped on "SCRIPT ERROR", and Godot prints engine errors as plain "ERROR", so a run reporting
+195 passes was logging 310 of them: the beach generated tangents with no UVs (so its normal map
+did nothing) and freeway traffic was positioned before being added to the tree (253 a run, every
+car placed against no parent transform). The gate now catches both. **If you add a system, check
+the log for bare ERROR lines - a green run is not proof.**
+
+**Depth of field now opens with altitude** (`CameraRig._update_focus`). It was fixed at 260 m,
+which reads as a lens on the street and is simply wrong in the air, where the owner spends much
+of their time: every pixel past that distance went soft, so aerials looked like watercolours.
+
+**The render pass is half done.** An agent fleet was raising four subsystems - sea, foliage,
+facades, colour grade - and was stopped partway because four concurrent Forward+ renders on a
+four-core box drove the load average to 45 and starved everything else. The sea and foliage work
+IS on main (depth-graded water colour, subsurface scattering through crests, gathered foam,
+physically correct fresnel at F0 0.02). **Facades and the colour grade were never started.**
+
+**The colour grade is the biggest thing left.** Look at a Forward+ aerial at 17:00 and it is
+washed out: the fog and the haze flatten the whole frame to pastel and the city loses all value
+contrast. That is a numbers problem in the city Environment and `DayNight`, not a missing
+feature, and it is worth more than anything else on the list.
+
+**Practical note on the fleet.** Cap concurrent agents at two on this box, and do not let agents
+run Forward+ renders - have them use the fast opengl3 loop and sign off the result yourself.
 
 ## 9b. Paused mid-flight on 2026-09-21 (read this first if you are picking up)
 
