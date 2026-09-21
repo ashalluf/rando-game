@@ -26,6 +26,42 @@ const BODY_ODDS := {
 	BodyType.SEDAN: 300, BodyType.PICKUP: 190, BodyType.VAN: 175, BodyType.SPORTS: 215,
 	BodyType.SUPER: 45, BodyType.SPIDER: 25, BodyType.HYPER: 30, BodyType.TRACK: 20,
 }
+## Where a generated wheel sits in body space, per body type: `x` half-track, `front` / `rear`
+## the axle positions along the car, `y` the hub height, `r` the tyre radius and `w` the section
+## width (`rw` for the rear when the car runs a staggered set).
+##
+## These are deliberately NOT _dims()'s `track` and `wheel_z`, which are where the VehicleWheel3D
+## physics wheels go. A generated wheel has to sit in the ARCH of the body model and cover the
+## wheel baked into it, and the two are not the same place: on the pickup the modelled rear axle
+## is 44 cm forward of the physics one (tools/wheel_probe.py measures the contact patches, which
+## is what pins x and z down). `y` is the number that has to be eyeballed - it is the model's own
+## ride height, and a centimetre out reads as a flat tyre or a floating car - so change it from a
+## --spawn shot of a parked car, not from arithmetic.
+const WHEEL_POSE := {
+	BodyType.SEDAN: {"x": 0.786, "front": -1.503, "rear": 1.378, "y": 0.093, "r": 0.330, "w": 0.230, "cut": true, "cut_r": 0.342},
+	BodyType.PICKUP: {"x": 0.847, "front": -1.788, "rear": 1.306, "y": 0.225, "r": 0.390, "w": 0.260, "cut": true, "cut_r": 0.402},
+	BodyType.VAN: {"x": 0.816, "front": -1.656, "rear": 1.539, "y": 0.175, "r": 0.360, "w": 0.230, "cut": true, "cut_r": 0.372},
+	BodyType.SPORTS: {"x": 0.803, "front": -1.400, "rear": 1.307, "y": 0.066, "r": 0.330, "w": 0.245, "cut": true, "cut_r": 0.344},
+	BodyType.SUPER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
+	BodyType.SPIDER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
+	BodyType.HYPER: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
+	BodyType.TRACK: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
+}
+## The sizes above deliberately land on six distinct (radius, section width) pairs across the
+## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
+## LODs sitting in PropFactory's cache, and a near wheel is not a small mesh.
+##
+## Body types whose own model carries a proper wheel, so nothing is generated over it. The
+## hi-fi pair are built that way: their `tyre` surface is 12,960 and 5,760 triangles under its
+## own material. Everything else needs the generated wheel for one of two reasons - the four
+## Meshy bodies model the wheel INTO the single painted surface, so it wears the car's paint and
+## clearcoat, and the exo pair spend 454 triangles on a whole tyre.
+##
+## This is not a preference, it is a fit: `tools/wheel_probe.py` measures the hi-fi tyres at
+## 0.377 m (SUPER) and 0.360 m (HYPER) in radius, and the generated wheel is 0.355. Drawing one
+## over them would leave the model's own tyre standing proud of the new one all the way round.
+const MODEL_OWN_WHEELS := [BodyType.SUPER, BodyType.HYPER]
+
 ## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
 ## All four models come out of Meshy with the nose along +X; -PI/2 puts the nose at -Z, which is
 ## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
@@ -184,6 +220,21 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 ## It is one draw call per car and at that range it is a couple of pixels.
 @export var livery_prop_distance: float = 140.0
 
+@export_group("Wheels")
+## Past this many meters the generated wheels drop to the far mesh: about 1.4k triangles
+## instead of 11k-13k, same silhouette, no tread pattern, no brake slots, no lug nuts. Under it
+## you are close enough to count the spokes.
+@export var wheel_lod_distance: float = 30.0
+## Past this they stop drawing at all and the wheel baked into the body model shows through
+## instead, shrunk into the hub so that it is hidden behind the brake disc up close. That is the
+## far LOD and it costs nothing: it is triangles in the body's own surface, so a car past this
+## distance is the same one draw call it was before the wheels existed. A hundred and fifty
+## traffic cars times four wheels is why this number is not bigger.
+@export var wheel_draw_distance: float = 85.0
+## Past this the brake calipers stop drawing. A caliper is a hundred triangles and at thirty
+## meters it is two pixels behind a spoke.
+@export var caliper_distance: float = 26.0
+
 @export_group("Handling")
 ## Engine force at full throttle (N). Big number = silly acceleration.
 @export var engine_power: float = 7000.0
@@ -270,8 +321,35 @@ var enter_radius: float = 4.5
 var traffic: Dictionary = {}
 var traffic_speed: float = 0.0
 var wheels: Array[VehicleWheel3D] = []
+## Spoke pattern (PropFactory.WHEEL_FACES) and finish (PropFactory.WHEEL_KITS). -1 means "work
+## it out from the car" in _build(); random_car() sets them from its look seed instead, so a
+## given seeded car always comes back on the same wheels.
+var wheel_style: int = -1
+var wheel_kit: int = -1
 var _wheel_slots: Array = []
-var _wheel_visuals: Array[Node3D] = []
+## One entry per wheel: [steer node, wheel mesh, caliper mesh, flip basis, is front, rest y].
+var _wheel_rigs: Array = []
+var _wheel_radius: float = 0.35
+var _wheel_spin: float = 0.0
+var _wheel_near: bool = true
+var _wheel_far_end: float = 85.0
+var _wheel_meshes: Array = []
+## Hub height in body space at rest, per wheel, once the car has settled on its springs. The
+## generated wheel's WHEEL_POSE y was eyeballed from a PARKED car, so the visible wheel has to
+## follow the physics hub's travel AROUND that, not its absolute height - and what the engine
+## settles at depends on the car's mass and spring rate, so it is measured rather than derived.
+## NAN until measured; traffic cars have no VehicleWheel3D and keep it that way.
+var _susp_rest: PackedFloat32Array = PackedFloat32Array()
+var _susp_settled: int = 0
+var _last_yaw: float = 0.0
+## The camera position, looked up once per physics frame and shared by every car: a hundred and
+## fifty cars each asking the viewport for it is a hundred and fifty lookups for one answer.
+static var _focus: Vector3 = Vector3.ZERO
+static var _focus_frame: int = -1
+## Turns the generated wheels off fleet-wide, leaving the wheels baked into the body models.
+## Only tools/glshot/city_stats.gd sets it, to measure what the wheels cost in draw calls and
+## triangles at the same camera. Nothing in the game touches it.
+static var wheels_enabled: bool = true
 var _seat: Node3D
 var _exit_side: float = 1.0
 var _steer_target: float = 0.0
@@ -359,9 +437,7 @@ func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
 	var v := -global_basis.z * traffic_speed
 	traffic = {}
 	traffic_speed = 0.0
-	for visual in _wheel_visuals:
-		visual.queue_free()
-	_wheel_visuals.clear()
+	# The generated wheels stay: they were never children of the physics wheels.
 	_add_real_wheels()
 	freeze = false
 	sleeping = false
@@ -378,6 +454,7 @@ func is_airborne() -> bool:
 
 
 func _physics_process(delta: float) -> void:
+	_update_wheels(delta)
 	if driver == null:
 		if _was_airborne:
 			gravity_scale = 1.0
@@ -564,17 +641,17 @@ func _build() -> void:
 	for front: bool in [true, false]:
 		for side: float in [-1.0, 1.0]:
 			_wheel_slots.append([Vector3(side * float(dims.get("track", 1.62)) * 0.5, base_y - 0.1, (-wheel_z if front else wheel_z)), front])
-	if is_traffic():
-		# Kinematic traffic: plain wheel meshes. Real VehicleWheel3D nodes on a frozen body
-		# divide by zero inside the engine, so they are only added when the car goes physical.
-		for slot in _wheel_slots:
-			var visual := _wheel_mesh()
-			visual.position = slot[0] + Vector3(0.0, -0.3, 0.0)
-			visual.visible = not _has_model # the generated models have their own wheels
-			add_child(visual)
-			_wheel_visuals.append(visual)
-	else:
+	# Real VehicleWheel3D nodes on a frozen body divide by zero inside the engine, so a
+	# kinematic traffic car gets none until it goes physical (CLAUDE.md). The VISIBLE wheels are
+	# the same either way: they are plain nodes this script drives, so traffic and driven cars
+	# roll on exactly the same geometry.
+	if not is_traffic():
 		_add_real_wheels()
+	# A body whose model has its own wheel gets nothing generated over it. Without the _has_model
+	# term a missing .glb would leave that car on bare axles, since the primitive fallback body
+	# has no wheels of its own either.
+	if wheels_enabled and not (_has_model and MODEL_OWN_WHEELS.has(body_type)):
+		_add_generated_wheels()
 	_add_night_lights(dims)
 	_add_livery_props(dims)
 
@@ -645,29 +722,172 @@ func _add_real_wheels() -> void:
 		_add_wheel(slot[0], slot[1])
 
 
-func _wheel_mesh() -> Node3D:
-	var holder := Node3D.new()
-	var mesh := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.42
-	cyl.bottom_radius = 0.42
-	cyl.height = 0.3
-	cyl.radial_segments = 10
-	mesh.mesh = cyl
-	mesh.material_override = PropFactory.material(Color(0.1, 0.1, 0.1))
-	mesh.rotation.z = PI * 0.5
-	holder.add_child(mesh)
-	var hub := MeshInstance3D.new()
-	var hub_cyl := CylinderMesh.new()
-	hub_cyl.top_radius = 0.22
-	hub_cyl.bottom_radius = 0.22
-	hub_cyl.height = 0.32
-	hub_cyl.radial_segments = 8
-	hub.mesh = hub_cyl
-	hub.material_override = PropFactory.material(Color(0.75, 0.75, 0.78), 0.4)
-	hub.rotation.z = PI * 0.5
-	holder.add_child(hub)
-	return holder
+## Four real wheels: tyre with a sidewall bulge and tread, rim with a lip, spokes and a dish,
+## and a brake disc and caliper behind them (PropFactory.car_wheel). They are plain nodes rather
+## than children of the VehicleWheel3D nodes for three reasons: a kinematic traffic car has no
+## VehicleWheel3D at all and still needs wheels that turn; the generated wheel goes where the
+## body model's ARCH is, which is not where the physics wheel is; and _update_wheels() can then
+## drive traffic and driven cars down one path.
+func _add_generated_wheels() -> void:
+	var pose := _wheel_pose()
+	if wheel_style < 0:
+		wheel_style = absi(hash([body_type, paint.to_rgba32(), 41])) % PropFactory.WHEEL_FACES.size()
+	if wheel_kit < 0:
+		wheel_kit = absi(hash([body_type, paint.to_rgba32(), 43])) % PropFactory.WHEEL_KITS.size()
+	var mat := PropFactory.wheel_material(wheel_kit)
+	_wheel_radius = float(pose.r)
+	# A body with a wheel baked into it hands over to that wheel past wheel_draw_distance - it
+	# is shrunk into the hub rather than cut out (PropFactory.tuck_body_wheels), so it is part of
+	# the body's own surface and costs no draw call at all. The exotics have no wheel in the
+	# model to hand over to - their arches were simply empty before this - so theirs have to keep
+	# drawing, and the far mesh is cheap enough that letting the rarest eighth of the fleet run
+	# to two and a half times the distance costs a handful of draws.
+	_wheel_far_end = wheel_draw_distance if bool(pose.get("cut", false)) else wheel_draw_distance * 2.6
+	_wheel_meshes = []
+	for front: bool in [true, false]:
+		var w: float = float(pose.w) if front else float(pose.get("rw", pose.w))
+		_wheel_meshes.append([
+			PropFactory.car_wheel(wheel_style, float(pose.r), w, true),
+			PropFactory.car_wheel(wheel_style, float(pose.r), w, false),
+			PropFactory.car_caliper(wheel_style, float(pose.r), w),
+		])
+	for front: bool in [true, false]:
+		var kit: Array = _wheel_meshes[0 if front else 1]
+		for side: float in [-1.0, 1.0]:
+			var steer := Node3D.new()
+			steer.name = "Wheel%s%s" % ["F" if front else "R", "L" if side < 0.0 else "R"]
+			steer.position = Vector3(side * float(pose.x), float(pose.y),
+					float(pose.front) if front else float(pose.rear))
+			add_child(steer)
+			# The mesh is built with its outboard face toward +X, so the left-hand wheels are
+			# turned right round rather than mirrored with a negative scale: a negative scale
+			# flips the winding and every triangle on the wheel would be culled.
+			var flip := Basis(Vector3.UP, 0.0 if side > 0.0 else PI)
+			var mi := MeshInstance3D.new()
+			mi.mesh = kit[0]
+			mi.material_override = mat
+			mi.basis = flip
+			mi.visibility_range_end = _wheel_far_end
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			steer.add_child(mi)
+			# The caliper is bolted to the upright, so it steers but must NOT spin. Its own node
+			# is what buys that, and it is the detail that stops the whole assembly reading as
+			# one turned cylinder.
+			var cal := MeshInstance3D.new()
+			cal.mesh = kit[2]
+			cal.material_override = mat
+			cal.basis = flip
+			cal.visibility_range_end = caliper_distance
+			cal.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			steer.add_child(cal)
+			_wheel_rigs.append([steer, mi, cal, flip, front, float(pose.y)])
+	_susp_rest = PackedFloat32Array()
+	_susp_rest.resize(_wheel_rigs.size())
+	_susp_rest.fill(NAN)
+	# Seeded now, or the first frame a traffic car comes into range reads its whole heading as
+	# one frame's turn and slams the front wheels onto full lock for that frame.
+	_last_yaw = rotation.y
+
+
+## Where this car's generated wheels go. WHEEL_POSE when the body is a model (the arch is in a
+## fixed place in that model); derived from _dims() for the primitive box car, which has no
+## arches and whose wheels have always simply sat on the physics slots.
+func _wheel_pose() -> Dictionary:
+	if _has_model and WHEEL_POSE.has(body_type):
+		return WHEEL_POSE[body_type]
+	var d := _dims()
+	var r := float(d.get("tyre_r", 0.34))
+	return {
+		"x": float(d.get("track", 1.62)) * 0.5,
+		"front": -float(d.wheel_z), "rear": float(d.wheel_z),
+		# The physics slot is at base_y - 0.1 and the suspension hangs the hub below it; at rest
+		# it sits at roughly seven tenths of the rest length, which is where the wheel centre is.
+		"y": 0.55 - 0.1 - suspension_rest_length * 0.7, "r": r, "w": r * 0.66,
+	}
+
+
+## Rolls the wheels, steers the front pair and swaps the LOD mesh. One pass for traffic and
+## driven cars alike: the spin comes from the car's own speed, not from the physics wheels,
+## because a kinematic traffic car does not have any.
+func _update_wheels(delta: float) -> void:
+	if _wheel_rigs.is_empty():
+		return
+	# Before the range test, not after it: this is the only place it is updated, and a traffic
+	# car that spent ten seconds out of range would come back reading all of that heading change
+	# as one frame's turn and slam its front wheels onto full lock for a frame.
+	var yaw_now := rotation.y
+	var yaw_rate := wrapf(yaw_now - _last_yaw, -PI, PI) / maxf(delta, 0.0001)
+	_last_yaw = yaw_now
+	var focus := _focus_point()
+	var dist := global_position.distance_to(focus)
+	if dist > _wheel_far_end:
+		return
+	var near := _wheel_near
+	if dist < wheel_lod_distance * 0.9:
+		near = true
+	elif dist > wheel_lod_distance * 1.1:
+		near = false
+	if near != _wheel_near:
+		_wheel_near = near
+		for rig: Array in _wheel_rigs:
+			var mi := rig[1] as MeshInstance3D
+			mi.mesh = _wheel_meshes[0 if rig[4] else 1][0 if near else 1]
+			# The far wheel drops its shadow as well as its triangles: a shadow pass is a second
+			# draw call per wheel, and a wheel's own shadow at forty metres is under the car.
+			mi.cast_shadow = (GeometryInstance3D.SHADOW_CASTING_SETTING_ON if near
+					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF)
+	var speed := traffic_speed if is_traffic() else linear_velocity.dot(-global_basis.z)
+	_wheel_spin = fposmod(_wheel_spin - speed / maxf(_wheel_radius, 0.05) * delta, TAU)
+	var steer := steering
+	if is_traffic():
+		# No steering input on a kinematic car, so read it back off the turn it is making.
+		steer = clampf(yaw_rate * 2.7 / maxf(absf(speed), 2.5), -0.55, 0.55)
+	var spun := Basis(Vector3.RIGHT, _wheel_spin)
+	# Suspension travel. VehicleBody3D writes each VehicleWheel3D node's own position every
+	# physics step - that is the hub, moving with the spring - so the visible wheel only has to
+	# copy the offset from where that hub sits at rest. Without this the wheels are welded to
+	# the body at a fixed height, and in a game built around landing a car from two hundred
+	# metres every landing drives the tyres straight through the road.
+	var travel := wheels.size() == _wheel_rigs.size() and _susp_rest.size() == wheels.size()
+	if travel and _susp_settled < 30 and is_nan(_susp_rest[0]):
+		# "At rest" is measured, not taken from the first contact: a car usually spawns above
+		# the road and its first frame of contact is the bottom of a bounce. It is measured ONCE
+		# and then kept - re-measuring it after every landing moves the reference the travel is
+		# drawn around, and the wheels step a couple of centimetres each time the car settles.
+		var down := true
+		for w in wheels:
+			if not w.is_in_contact():
+				down = false
+				break
+		# Creeping counts, not just stopped: a car the player drives away the moment it streams
+		# in would otherwise never measure a baseline and would never get any travel at all.
+		_susp_settled = _susp_settled + 1 if down and linear_velocity.length_squared() < 4.0 else 0
+		if _susp_settled >= 30:
+			for i in wheels.size():
+				_susp_rest[i] = wheels[i].position.y
+	var limit := suspension_travel + suspension_rest_length * 0.5
+	for i in _wheel_rigs.size():
+		var rig: Array = _wheel_rigs[i]
+		var node := rig[0] as Node3D
+		node.rotation.y = steer if rig[4] else 0.0
+		if travel and not is_nan(_susp_rest[i]):
+			node.position.y = rig[5] + clampf(wheels[i].position.y - _susp_rest[i], -limit, limit)
+		(rig[1] as MeshInstance3D).basis = spun * (rig[3] as Basis)
+
+
+## The camera, once per physics frame for the whole fleet.
+static func _focus_point_from(node: Node3D) -> Vector3:
+	var frame := Engine.get_physics_frames()
+	if _focus_frame != int(frame):
+		_focus_frame = int(frame)
+		var cam := node.get_viewport().get_camera_3d()
+		if cam:
+			_focus = cam.global_position
+	return _focus
+
+
+func _focus_point() -> Vector3:
+	return _focus_point_from(self)
 
 
 ## Per body type. "track" is the distance between the two wheel CENTRES and "tyre_r" the wheel
@@ -709,28 +929,8 @@ func _add_wheel(pos: Vector3, front: bool) -> void:
 	wheel.wheel_roll_influence = wheel_roll_influence
 	add_child(wheel)
 	wheels.append(wheel)
-	if _has_model:
-		return # the generated models have their own wheels
-	var mesh := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.42
-	cyl.bottom_radius = 0.42
-	cyl.height = 0.3
-	cyl.radial_segments = 10
-	mesh.mesh = cyl
-	mesh.material_override = PropFactory.material(Color(0.1, 0.1, 0.1))
-	mesh.rotation.z = PI * 0.5
-	wheel.add_child(mesh)
-	var hub := MeshInstance3D.new()
-	var hub_cyl := CylinderMesh.new()
-	hub_cyl.top_radius = 0.22
-	hub_cyl.bottom_radius = 0.22
-	hub_cyl.height = 0.32
-	hub_cyl.radial_segments = 8
-	hub.mesh = hub_cyl
-	hub.material_override = PropFactory.material(Color(0.75, 0.75, 0.78), 0.4)
-	hub.rotation.z = PI * 0.5
-	wheel.add_child(hub)
+	# No mesh here any more: the visible wheel is a generated one placed in the body model's
+	# arch by _add_generated_wheels(), which is a different place from this physics slot.
 
 
 ## Instances the generated body model for this type, scaled to `length` and tinted with the
@@ -792,8 +992,66 @@ func _add_body_model(length: float) -> bool:
 	inst.rotation.y = (MODEL_YAW.get(body_type, 0.0) if along_x else 0.0)
 	var center := aabb.get_center()
 	inst.position = -(inst.transform.basis * Vector3(center.x, aabb.position.y, center.z)) + Vector3(0.0, bottom, 0.0)
+	# Only now that the model is placed can the baked wheels be found, because WHEEL_POSE is in
+	# body space. This has to stay a second pass: the AABB above is measured on the WHOLE model,
+	# wheels and all, and taking them out first would move the bottom of the box and change the
+	# car's scale and ride height.
+	_tuck_model_wheels(inst)
 	add_child(holder)
 	return true
+
+
+## Shrinks the wheels baked into the body model down inside the generated wheel that is drawn
+## over them. See PropFactory.tuck_body_wheels() for why they cannot just be covered up, and
+## for why they are not cut out into a second mesh. Only the types that need it: the exotics'
+## own wheels sit far enough inboard that the generated wheel hides them, and reshaping a model
+## is not something to do speculatively.
+func _tuck_model_wheels(inst: Node3D) -> void:
+	var pose: Dictionary = WHEEL_POSE.get(body_type, {})
+	if not wheels_enabled or not bool(pose.get("cut", false)):
+		return
+	var r := float(pose.get("cut_r", float(pose.r) * 0.99))
+	var hw := float(pose.get("cut_w", 0.16))
+	var cuts: Array = []
+	for front: bool in [true, false]:
+		for side: float in [-1.0, 1.0]:
+			var z: float = float(pose.front) if front else float(pose.rear)
+			var hub := Vector3(side * float(pose.x), float(pose.y), z)
+			cuts.append([hub, r, hw, hw])
+			# A second, narrower cylinder reaching further OUTBOARD only. The modelled wheel's
+			# face and hub cap stand proud of the tyre's own section, so the wide cylinder alone
+			# left a button of bodywork sitting in the middle of the new rim. It cannot simply
+			# be one wider cut: at the full tyre radius that would start eating the sill and the
+			# door bottom fore and aft of the wheel. It must not reach inboard either - when it
+			# did, it took a slice out of the pickup's step panel under the front arch.
+			cuts.append([hub, r * 0.62, hw * 0.10, hw + 0.10])
+	# Where the shrunken wheel has to end up: inside the generated brake disc, which is a solid
+	# plate out to 0.76 of the rim radius and sits just inboard of the wheel's centre plane. The
+	# rim ratio is per spoke pattern, so take the smallest one - the tuck has to hide under the
+	# smallest disc any of them builds.
+	var ratio := 1.0
+	for f: Dictionary in PropFactory.WHEEL_FACES:
+		ratio = minf(ratio, float(f.rim_ratio))
+	var disc_r := float(pose.r) * ratio * 0.76
+	var gen_hw := float(pose.w) * 0.5
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh == null:
+			continue
+		var to_body := inst.transform
+		var local := Transform3D.IDENTITY
+		var node: Node = m
+		while node and node != inst:
+			if node is Node3D:
+				local = (node as Node3D).transform * local
+			node = node.get_parent()
+		to_body = to_body * local
+		var key := "body_tuck_%d_%s" % [body_type, m.mesh.get_rid()]
+		# Radially inside the brake disc, and far enough INBOARD to sit behind the dust shield
+		# as well (_wheel_face puts that at 0.52 half-widths in), so there is no line of sight to
+		# it through the spokes from any angle the player can stand at.
+		m.mesh = PropFactory.tuck_body_wheels(m.mesh, key, to_body, cuts,
+				minf(disc_r * 0.88 / maxf(r, 0.01), 0.45), 0.15, gen_hw * 0.90)
 
 
 ## One car's paint: the base colour, the finish's uniform set and the livery graphic. Every car
@@ -918,6 +1176,9 @@ static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 			livery = Livery.TWO_TONE
 	car.setup(type, color, extra)
 	car.setup_look(fin, livery, trim)
+	# Off the look seed, so it costs no rng call and cannot move anything else in the city.
+	car.wheel_style = absi(hash([look, 31])) % PropFactory.WHEEL_FACES.size()
+	car.wheel_kit = absi(hash([look, 33])) % PropFactory.WHEEL_KITS.size()
 	return car
 
 

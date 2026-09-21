@@ -38,9 +38,9 @@ CARS = [
     ("PICKUP", "car_pickup.glb", 5.40, -0.16, -math.pi / 2),
     ("VAN", "car_van.glb", 5.20, -0.18, -math.pi / 2),
     ("SPORTS", "car_sports.glb", 4.60, -0.30, -math.pi / 2),
-    ("SUPER", "exo_super_coupe.glb", 4.55, -0.34, 0.0),
+    ("SUPER", "hifi_super_coupe.glb", 4.55, -0.34, 0.0),
     ("SPIDER", "exo_super_spider.glb", 4.55, -0.34, 0.0),
-    ("HYPER", "exo_hyper_a.glb", 4.60, -0.35, 0.0),
+    ("HYPER", "hifi_hyper_coupe.glb", 4.60, -0.35, 0.0),
     ("TRACK", "exo_hyper_b.glb", 4.60, -0.35, 0.0),
 ]
 
