@@ -19,29 +19,158 @@ const BODY_MODELS := {
 ## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
 const MODEL_YAW := {BodyType.SEDAN: -PI * 0.5, BodyType.PICKUP: -PI * 0.5, BodyType.VAN: -PI * 0.5, BodyType.SPORTS: -PI * 0.5}
 const PAINT_SHADER := preload("res://shaders/car_paint.gdshader")
-## Paint colours, weighted the way a real car park looks: about three quarters of the cars on
-## any street are white, black, grey or silver, and the colours that do appear are muted, not
-## primary (owner, 2026-09-20: the bright single-colour cars read as toys). Duplicated entries
-## are the weighting - random_car() picks uniformly from this list.
+
+## How the paint is built, not what colour it is. The clearcoat shader can express all of these
+## for free, they are just different uniform sets, and a street where every car is the same
+## metallic basecoat reads as one car repeated whatever the colours are.
+enum Finish {
+	GLOSS,    ## Solid non-metallic lacquer: fleet white, taxi yellow, safety orange.
+	METALLIC, ## The ordinary modern car: aluminium flake under clear.
+	PEARL,    ## Flake plus a second coat that only shows at grazing angles (the pearl flip).
+	DEEP,     ## Deep candy metallic: dark, very glossy, coarse flake. Reads as an expensive car.
+	MATTE,    ## Satin wrap: no lacquer at all, high roughness. Rare, and very distinctive.
+}
+## The graphic painted on top of the base colour, in body space (see car_paint.gdshader).
+enum Livery {
+	NONE,
+	RACING,   ## Twin stripes over the nose, roof and tail.
+	TWO_TONE, ## Lower body in a second colour.
+	TAXI,     ## Yellow, checker band along the doors, lit roof sign.
+	DELIVERY, ## Fleet colour with a belt band and a roof vent pod (vans).
+	SERVICE,  ## Municipal white/orange with a belt band and an amber beacon (pickups).
+}
+
+## Paint colours. The weighting IS the duplication - random_car() picks uniformly from this list,
+## so an entry twice is twice as common. Keep the shape of it: about half the cars neutral
+## (white / black / grey / silver), a sixth muted, and a real saturated third, because that is
+## the balance the owner asked for on 2026-09-21 ("more color and more gta") against the earlier
+## all-neutral car park. Flattening this into one colour per entry, or letting the saturated
+## block grow past the neutrals, turns the traffic into a bag of sweets.
 const PAINTS := [
-	# Whites and off-whites (the most common car colour on earth).
+	# Whites and off-whites: the most common car colour on earth, and mostly solid gloss.
 	Color(0.90, 0.90, 0.89), Color(0.90, 0.90, 0.89), Color(0.84, 0.85, 0.85),
+	Color(0.93, 0.92, 0.87), Color(0.88, 0.89, 0.92),
 	# Blacks and near-blacks.
 	Color(0.055, 0.055, 0.062), Color(0.055, 0.055, 0.062), Color(0.10, 0.10, 0.12),
+	Color(0.075, 0.080, 0.090), Color(0.120, 0.115, 0.105),
 	# Greys and silvers.
 	Color(0.38, 0.39, 0.41), Color(0.38, 0.39, 0.41), Color(0.58, 0.59, 0.61),
-	Color(0.24, 0.25, 0.27), Color(0.68, 0.69, 0.70),
-	# Muted colours: deep blue, dark red, forest green, beige, dark teal.
-	Color(0.10, 0.16, 0.34), Color(0.14, 0.24, 0.45), Color(0.36, 0.07, 0.08),
-	Color(0.55, 0.10, 0.10), Color(0.12, 0.22, 0.16), Color(0.52, 0.47, 0.40),
-	Color(0.10, 0.22, 0.24),
-	# A couple of loud ones, because a city always has a few.
-	Color(0.72, 0.28, 0.05), Color(0.80, 0.62, 0.10),
+	Color(0.24, 0.25, 0.27), Color(0.68, 0.69, 0.70), Color(0.45, 0.47, 0.50),
+	Color(0.30, 0.32, 0.36), Color(0.62, 0.60, 0.57), Color(0.50, 0.51, 0.53),
+	Color(0.20, 0.21, 0.24),
+	# Muted colours: deep navy, dark red, forest green, beige, dark teal.
+	Color(0.10, 0.16, 0.34), Color(0.36, 0.07, 0.08), Color(0.12, 0.22, 0.16),
+	Color(0.52, 0.47, 0.40), Color(0.10, 0.22, 0.24),
+	# Saturated: the minority, but a real one. These are the cars you actually notice.
+	Color(0.72, 0.04, 0.05), Color(0.88, 0.12, 0.06), Color(0.05, 0.20, 0.72),
+	Color(0.08, 0.40, 0.85), Color(0.95, 0.76, 0.04), Color(0.93, 0.36, 0.02),
+	Color(0.03, 0.46, 0.18), Color(0.46, 0.74, 0.08), Color(0.32, 0.06, 0.55),
+	Color(0.82, 0.10, 0.42), Color(0.03, 0.55, 0.60), Color(0.75, 0.56, 0.10),
+	Color(0.56, 0.26, 0.08), Color(0.32, 0.74, 0.56),
 ]
+## Finish per entry of PAINTS: same order, same grouping, same line breaks, so the two blocks
+## can be read side by side. If you add a colour, add its finish on the matching line.
+const PAINT_FINISH := [
+	# Whites.
+	Finish.GLOSS, Finish.GLOSS, Finish.METALLIC,
+	Finish.PEARL, Finish.GLOSS,
+	# Blacks.
+	Finish.DEEP, Finish.METALLIC, Finish.METALLIC,
+	Finish.DEEP, Finish.MATTE,
+	# Greys and silvers.
+	Finish.METALLIC, Finish.METALLIC, Finish.METALLIC,
+	Finish.DEEP, Finish.METALLIC, Finish.DEEP,
+	Finish.DEEP, Finish.PEARL, Finish.MATTE,
+	Finish.METALLIC,
+	# Muted.
+	Finish.DEEP, Finish.DEEP, Finish.METALLIC,
+	Finish.METALLIC, Finish.METALLIC,
+	# Saturated.
+	Finish.DEEP, Finish.GLOSS, Finish.DEEP,
+	Finish.METALLIC, Finish.GLOSS, Finish.GLOSS,
+	Finish.DEEP, Finish.GLOSS, Finish.PEARL,
+	Finish.PEARL, Finish.METALLIC, Finish.METALLIC,
+	Finish.DEEP, Finish.PEARL,
+]
+
+## Shader uniforms per finish. These are the knobs the clearcoat shader already had and nothing
+## was using: flake density and grain, how sharp the lacquer is, and how metallic the basecoat
+## is under it. "flake_fade" is how far away the sparkle is still worth resolving.
+const FINISHES := {
+	Finish.GLOSS: {
+		"metallic": 0.20, "roughness": 0.28, "clearcoat": 0.95, "cc_rough": 0.045,
+		"flake": 0.0, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
+	},
+	Finish.METALLIC: {
+		"metallic": 0.70, "roughness": 0.22, "clearcoat": 0.85, "cc_rough": 0.035,
+		"flake": 0.055, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
+	},
+	Finish.PEARL: {
+		"metallic": 0.45, "roughness": 0.16, "clearcoat": 1.00, "cc_rough": 0.018,
+		"flake": 0.085, "flake_scale": 300.0, "flake_fade": 11.0, "pearl": 0.35,
+	},
+	Finish.DEEP: {
+		"metallic": 0.88, "roughness": 0.13, "clearcoat": 1.00, "cc_rough": 0.015,
+		"flake": 0.110, "flake_scale": 120.0, "flake_fade": 13.0, "pearl": 0.0,
+	},
+	Finish.MATTE: {
+		"metallic": 0.15, "roughness": 0.62, "clearcoat": 0.0, "cc_rough": 0.30,
+		"flake": 0.0, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
+	},
+}
+
+## Shader uniforms per livery graphic. "mode" is the stripe_mode the shader switches on; widths
+## and heights are fractions of the car's own bounding box, so one table fits every body type.
+const LIVERY_GRAPHIC := {
+	Livery.RACING: {"mode": 1, "width": 0.032, "gap": 0.058},
+	Livery.TWO_TONE: {"mode": 2, "width": 0.010, "height": 0.40},
+	Livery.DELIVERY: {"mode": 3, "width": 0.075, "height": 0.46},
+	Livery.SERVICE: {"mode": 3, "width": 0.090, "height": 0.42},
+	Livery.TAXI: {"mode": 4, "width": 0.060, "height": 0.40},
+}
+
+## Share of each body type that goes out as a working vehicle instead of private paint. Vans are
+## mostly commercial in a real city, which is why that one is high; taxis and city trucks are a
+## visible minority. These do more for the "real city" read than paint variety does, so they are
+## the first numbers to raise if the streets still feel like a car park.
+const TAXI_SHARE := 0.16
+const DELIVERY_SHARE := 0.45
+const SERVICE_SHARE := 0.20
+## Share of private cars wearing a graphic. Sports cars get stripes far more often than anything
+## else; two-tone is a truck and van thing and never goes on a sports car.
+const RACING_SHARE_SPORTS := 0.26
+const RACING_SHARE_OTHER := 0.05
+const TWO_TONE_SHARE := 0.12
+
+## Fleet colours for delivery vans, with the belt band that goes with each. Flat solid gloss, the
+## way a real fleet is painted, and deliberately not in PAINTS: a livery is not private taste.
+## All invented - no real courier's colours, no logos anywhere.
+const FLEET_PAINTS := [
+	Color(0.90, 0.90, 0.88), Color(0.90, 0.90, 0.88), Color(0.36, 0.20, 0.10),
+	Color(0.06, 0.18, 0.46), Color(0.68, 0.10, 0.10), Color(0.08, 0.36, 0.22),
+]
+const FLEET_BANDS := [
+	Color(0.80, 0.10, 0.12), Color(0.10, 0.28, 0.66), Color(0.94, 0.72, 0.10),
+	Color(0.92, 0.92, 0.90), Color(0.94, 0.92, 0.88), Color(0.95, 0.80, 0.10),
+]
+## City service trucks: utility white, highways orange, water-department blue.
+const SERVICE_PAINTS := [
+	Color(0.92, 0.92, 0.90), Color(0.94, 0.48, 0.03),
+	Color(0.92, 0.92, 0.90), Color(0.15, 0.30, 0.58),
+]
+const SERVICE_BANDS := [
+	Color(0.94, 0.48, 0.03), Color(0.10, 0.10, 0.12),
+	Color(0.12, 0.34, 0.66), Color(0.94, 0.72, 0.10),
+]
+const TAXI_PAINT := Color(0.96, 0.73, 0.03)
+const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 
 @export_group("Model")
 ## Where the generated model's tire bottoms sit in body space (meters). Raise if the car floats.
 @export var model_bottom_y: float = -0.27
+## Past this many meters a livery's roof prop (taxi sign, van vent, amber beacon) stops drawing.
+## It is one draw call per car and at that range it is a couple of pixels.
+@export var livery_prop_distance: float = 140.0
 
 @export_group("Handling")
 ## Engine force at full throttle (N). Big number = silly acceleration.
@@ -51,9 +180,17 @@ const PAINTS := [
 @export var reverse_power: float = 3500.0
 @export var brake_force: float = 80.0
 @export var handbrake_force: float = 40.0
-## Upward speed of a car jump (m/s). Space, only with wheels on the ground.
+## Upward speed of a car jump (m/s). Space.
 @export var jump_speed: float = 9.0
-@export var jump_cooldown: float = 0.6
+@export var jump_cooldown: float = 0.22
+## Jump in mid-air too, as many times as you like (owner, 2026-09-21: "unlimited jumping in the
+## cars so i can fly around nonstop"). The car already goes into stabilised flight the moment it
+## leaves the ground, so an air jump is a second thrust in the same regime rather than a new
+## mode - it just keeps you up. Set false for a car that can only jump off the ground.
+@export var air_jump: bool = true
+## An air jump is worth this much of a ground jump. Under 1.0 so a held-down space bar climbs at
+## a controllable rate instead of firing you into orbit.
+@export var air_jump_factor: float = 0.72
 ## Max steering angle (radians).
 @export var max_steer: float = 0.5
 ## How fast the wheels turn toward the stick (higher = twitchier).
@@ -108,6 +245,11 @@ const PAINTS := [
 var body_type: BodyType = BodyType.SEDAN
 var addon: Addon = Addon.NONE
 var paint: Color = Color(0.85, 0.15, 0.12)
+## How the paint is built (see Finish) and what is painted on top of it (see Livery).
+var finish: Finish = Finish.METALLIC
+var livery: Livery = Livery.NONE
+## Second colour: racing stripes, the two-tone lower body, a fleet band, the taxi checker.
+var trim_color: Color = Color(0.92, 0.92, 0.93)
 ## The Player driving, or null.
 var driver: Node3D
 ## How close the player has to be to get in (meters from the origin; big for aircraft).
@@ -128,12 +270,27 @@ var _fly_yaw: float = 0.0
 var _was_airborne: bool = false
 ## True when a generated body model is used: box parts then only provide collision.
 var _has_model: bool = false
+## Top of the generated model in body space, measured from its own bounding box, so a roof prop
+## sits on the actual roof instead of on a guess. Only valid once _add_body_model() has run.
+var _model_top_y: float = 1.6
+## Livery roof props are one shared mesh per kind, so a hundred and fifty cars cost a hundred
+## and fifty draws, not a hundred and fifty meshes.
+static var _livery_meshes: Dictionary = {}
 
 
 func setup(type: BodyType, color: Color, extra: Addon) -> void:
 	body_type = type
 	paint = color
 	addon = extra
+
+
+## The optional second half of setup(): the finish, the livery graphic and its colour. A car set
+## up without it is a plain metallic in the body colour, which is what every old caller gets.
+## Call it before adding the car to the tree - _build() runs in _ready().
+func setup_look(paint_finish: Finish, car_livery: Livery = Livery.NONE, trim: Color = Color(0.92, 0.92, 0.93)) -> void:
+	finish = paint_finish
+	livery = car_livery
+	trim_color = trim
 
 
 func _ready() -> void:
@@ -247,11 +404,18 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_pressed("alt_fire"):
 		brake = handbrake_force
 	_jump_timer = maxf(_jump_timer - delta, 0.0)
-	if Input.is_action_just_pressed("jump") and _jump_timer <= 0.0 and not is_airborne():
+	var airborne := is_airborne()
+	if Input.is_action_just_pressed("jump") and _jump_timer <= 0.0 and (not airborne or air_jump):
 		_jump_timer = jump_cooldown
 		# Straight up in world space, and kill the spin: pushing along the car's own up axis
-		# while the suspension is still unloading is what used to tip the nose over.
-		apply_central_impulse(Vector3.UP * jump_speed * mass)
+		# while the suspension is still unloading is what used to tip the nose over. In the air
+		# the same impulse is a hop, scaled down so a held space bar climbs steadily.
+		var boost_up := jump_speed * (air_jump_factor if airborne else 1.0)
+		# In the air, cancel any existing fall first, so a jump always gains height instead of
+		# being eaten by the speed you had picked up on the way down.
+		if airborne and linear_velocity.y < 0.0:
+			apply_central_impulse(Vector3.UP * -linear_velocity.y * mass)
+		apply_central_impulse(Vector3.UP * boost_up * mass)
 		angular_velocity = Vector3.ZERO
 		Sfx.play("jump", global_position, -2.0, 0.7)
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
@@ -400,6 +564,51 @@ func _build() -> void:
 	else:
 		_add_real_wheels()
 	_add_night_lights(dims)
+	_add_livery_props(dims)
+
+
+## The one piece of geometry a livery needs: a lit taxi sign, a van's roof vent pod, a service
+## truck's amber beacon. One box each, one shared mesh per kind, no shadow, and it stops drawing
+## at livery_prop_distance. Everything else about a livery is paint, so it costs nothing.
+## The height comes from the model's own bounding box (_model_top_y), and the position along the
+## car is kept close to the middle on purpose: that is inside the roof of every one of the four
+## models whichever way round the mesh was authored.
+func _add_livery_props(dims: Dictionary) -> void:
+	if livery != Livery.TAXI and livery != Livery.DELIVERY and livery != Livery.SERVICE:
+		return
+	var top := _model_top_y
+	if not _has_model:
+		top = 0.55 + float(dims.chassis_h) + float(dims.cabin_h)
+	var length: float = dims.length
+	var node := MeshInstance3D.new()
+	node.name = "LiveryProp"
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	node.visibility_range_end = livery_prop_distance
+	match livery:
+		Livery.TAXI:
+			node.mesh = _shared_box(&"taxi_sign", Vector3(0.62, 0.20, 0.30),
+					WeaponFX.unshaded(Color(0.99, 0.84, 0.30)))
+			node.position = Vector3(0.0, top + 0.08, length * 0.06)
+		Livery.DELIVERY:
+			node.mesh = _shared_box(&"van_vent", Vector3(0.60, 0.18, 0.78),
+					PropFactory.material(Color(0.62, 0.63, 0.64), 0.55))
+			node.position = Vector3(0.0, top + 0.07, length * 0.12)
+		Livery.SERVICE:
+			node.mesh = _shared_box(&"beacon", Vector3(0.95, 0.15, 0.22),
+					WeaponFX.unshaded(Color(1.0, 0.55, 0.06)))
+			node.position = Vector3(0.0, top + 0.06, 0.0)
+	add_child(node)
+
+
+## A BoxMesh carrying its own material, built once and shared by every car that wants it.
+static func _shared_box(key: StringName, size: Vector3, mat: Material) -> BoxMesh:
+	if _livery_meshes.has(key):
+		return _livery_meshes[key]
+	var box := BoxMesh.new()
+	box.size = size
+	box.material = mat
+	_livery_meshes[key] = box
+	return box
 
 
 ## Headlights, tail lights and the pool of light the beams throw on the road. All of it is the
@@ -516,6 +725,7 @@ func _add_body_model(length: float) -> bool:
 	holder.add_child(inst)
 	var aabb := AABB()
 	var first := true
+	var painted_mats: Array[ShaderMaterial] = []
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		var box := m.mesh.get_aabb()
@@ -525,13 +735,8 @@ func _add_body_model(length: float) -> bool:
 		if mat is StandardMaterial3D:
 			# Car paint shader: bodywork takes the paint, glass and tires stay dark and glossy.
 			var sm := mat as StandardMaterial3D
-			var painted := ShaderMaterial.new()
-			painted.shader = PAINT_SHADER
-			painted.set_shader_parameter("albedo_tex", sm.albedo_texture)
-			painted.set_shader_parameter("paint", paint)
-			if sm.normal_texture:
-				painted.set_shader_parameter("normal_tex", sm.normal_texture)
-				painted.set_shader_parameter("has_normal", true)
+			var painted := _paint_material(sm.albedo_texture, sm.normal_texture)
+			painted_mats.append(painted)
 			m.material_override = painted
 	if first:
 		return false
@@ -540,11 +745,58 @@ func _add_body_model(length: float) -> bool:
 	var model_len := aabb.size.x if along_x else aabb.size.z
 	var scale_f := length / maxf(model_len, 0.01)
 	inst.scale = Vector3.ONE * scale_f
+	# The livery is painted in the mesh's own space, so the shader needs the box it lives in and
+	# which way round it was authored. Set after the loop, because the box is only complete once
+	# every surface has been merged into it.
+	for pm in painted_mats:
+		pm.set_shader_parameter("body_min", aabb.position)
+		pm.set_shader_parameter("body_size", aabb.size)
+		pm.set_shader_parameter("length_is_x", along_x)
+	# inst.position below puts the bottom of the box at model_bottom_y, so the top of the car is
+	# exactly that plus the scaled height of the box. That is where a roof prop goes.
+	_model_top_y = model_bottom_y + aabb.size.y * scale_f
 	inst.rotation.y = (MODEL_YAW.get(body_type, 0.0) if along_x else 0.0)
 	var center := aabb.get_center()
 	inst.position = -(inst.transform.basis * Vector3(center.x, aabb.position.y, center.z)) + Vector3(0.0, model_bottom_y, 0.0)
 	add_child(holder)
 	return true
+
+
+## One car's paint: the base colour, the finish's uniform set and the livery graphic. Every car
+## gets its own ShaderMaterial (they differ per car), but they all share the one shader.
+func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = PAINT_SHADER
+	mat.set_shader_parameter("albedo_tex", albedo)
+	mat.set_shader_parameter("paint", paint)
+	if normal:
+		mat.set_shader_parameter("normal_tex", normal)
+		mat.set_shader_parameter("has_normal", true)
+	var f: Dictionary = FINISHES.get(finish, FINISHES[Finish.METALLIC])
+	mat.set_shader_parameter("paint_metallic", f.metallic)
+	mat.set_shader_parameter("paint_roughness", f.roughness)
+	mat.set_shader_parameter("clearcoat_amount", f.clearcoat)
+	mat.set_shader_parameter("clearcoat_roughness_value", f.cc_rough)
+	mat.set_shader_parameter("flake_strength", f.flake)
+	mat.set_shader_parameter("flake_scale", f.flake_scale)
+	mat.set_shader_parameter("flake_fade_distance", f.flake_fade)
+	if float(f.pearl) > 0.0:
+		mat.set_shader_parameter("pearl_amount", f.pearl)
+		mat.set_shader_parameter("pearl_color", _pearl_tint(paint))
+	var g: Dictionary = LIVERY_GRAPHIC.get(livery, {})
+	if not g.is_empty():
+		mat.set_shader_parameter("stripe_mode", g.mode)
+		mat.set_shader_parameter("stripe_color", trim_color)
+		mat.set_shader_parameter("stripe_width", g.width)
+		mat.set_shader_parameter("stripe_gap", g.get("gap", 0.058))
+		mat.set_shader_parameter("stripe_height", g.get("height", 0.42))
+	return mat
+
+
+## The colour a pearl coat flips to at grazing angles: the paint's own hue nudged round, washed
+## out and lifted. On a white pearl that is the faint warm glow round the edge of the panel.
+static func _pearl_tint(base: Color) -> Color:
+	return Color.from_hsv(fposmod(base.h + 0.10, 1.0), minf(base.s * 0.5, 0.55), minf(base.v * 1.5 + 0.30, 1.0))
 
 
 func _box(size: Vector3, pos: Vector3, color: Color, collide: bool, glow: bool = false) -> void:
@@ -565,12 +817,70 @@ func _box(size: Vector3, pos: Vector3, color: Color, collide: bool, glow: bool =
 		add_child(shape)
 
 
-## A seeded random car.
+## A seeded random car: body type, add-on, paint, finish and livery.
 static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 	var car := Vehicle.new()
+	# The look seed is read off the generator's state rather than drawn from it. Reading does not
+	# advance the stream, so the whole finish / livery pass below costs zero rng calls: one extra
+	# call here would shift every later roll in the caller's stream and move the parked cars,
+	# props and lots that the city has already been generated with (CLAUDE.md).
+	var look := hash([rng.state, 7717])
 	var type := rng.randi_range(0, BodyType.size() - 1) as BodyType
 	var extra := Addon.NONE
 	if rng.randf() < 0.35:
 		extra = rng.randi_range(1, Addon.size() - 1) as Addon
-	car.setup(type, PAINTS[rng.randi() % PAINTS.size()], extra)
+	var index := rng.randi() % PAINTS.size()
+	var color: Color = PAINTS[index]
+	var fin: Finish = Finish.METALLIC
+	if index < PAINT_FINISH.size():
+		fin = PAINT_FINISH[index]
+	var livery := Livery.NONE
+	var trim := _contrast_trim(color)
+	# Working vehicles first: they replace the private paint entirely, and they are what makes a
+	# street read as a city rather than a car park.
+	var job := _roll(look, 11)
+	match type:
+		BodyType.SEDAN:
+			if job < TAXI_SHARE:
+				livery = Livery.TAXI
+				color = TAXI_PAINT
+				trim = TAXI_TRIM
+				fin = Finish.GLOSS
+				extra = Addon.NONE
+		BodyType.VAN:
+			if job < DELIVERY_SHARE:
+				livery = Livery.DELIVERY
+				var fleet := absi(hash([look, 12])) % FLEET_PAINTS.size()
+				color = FLEET_PAINTS[fleet]
+				trim = FLEET_BANDS[fleet]
+				fin = Finish.GLOSS
+				extra = Addon.NONE
+		BodyType.PICKUP:
+			if job < SERVICE_SHARE:
+				livery = Livery.SERVICE
+				var kind := absi(hash([look, 13])) % SERVICE_PAINTS.size()
+				color = SERVICE_PAINTS[kind]
+				trim = SERVICE_BANDS[kind]
+				fin = Finish.GLOSS
+				extra = Addon.NONE
+	if livery == Livery.NONE:
+		var graphic := _roll(look, 21)
+		var racing := RACING_SHARE_SPORTS if type == BodyType.SPORTS else RACING_SHARE_OTHER
+		if graphic < racing:
+			livery = Livery.RACING
+		elif type != BodyType.SPORTS and graphic < racing + TWO_TONE_SHARE:
+			livery = Livery.TWO_TONE
+	car.setup(type, color, extra)
+	car.setup_look(fin, livery, trim)
 	return car
+
+
+## A 0..1 roll from a look seed. Deterministic and free: it never touches a RandomNumberGenerator,
+## so adding one of these to a generation path cannot move anything else in the world.
+static func _roll(look: int, salt: int) -> float:
+	return float(absi(hash([look, salt])) % 100000) / 100000.0
+
+
+## Stripes and bands have to read against the paint under them, so they flip with its brightness.
+static func _contrast_trim(base: Color) -> Color:
+	return Color(0.07, 0.07, 0.08) if base.get_luminance() > 0.30 else Color(0.93, 0.93, 0.92)
