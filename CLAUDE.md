@@ -511,6 +511,20 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
   window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
   plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.
+- **Two measurement traps, each of which has already cost a session.** Both fail by reporting
+  success, which is the worst way to fail.
+  1. **Godot serves a CACHED import of a `.glb`.** Rebuild a model, render it, and you are
+     looking at the *old* file. Run `godot --headless --path . --import` between writing the
+     `.glb` and rendering it, every time. A shot script that prints the model's AABB catches it:
+     if that does not match what the generator just printed, the render is stale.
+  2. **`--headless` is the dummy rendering server**, where every `Performance` monitor reads
+     exactly zero - `RENDER_TOTAL_PRIMITIVES_IN_FRAME`, draw calls, objects, all of them. A
+     geometry change of any size measures as no change at all. `MultiMesh.get_instance_transform()`
+     is the same trap: it returns identity under `--headless`, so a check that reads instance
+     transforms back out measures nothing and reports a clean bill of health.
+  `tools/geo_count.gd` counts triangles, draw calls and objects for one frame and has the working
+  invocation in its header: it must run under `--rendering-driver opengl3` with Xvfb, never
+  `--headless`. Measure a geometry change before and after with it rather than arguing about it.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
   `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
   Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.
