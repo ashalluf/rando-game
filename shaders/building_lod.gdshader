@@ -406,7 +406,11 @@ void fragment() {
 			// Blinds: a pale panel over the top of some rooms. At distance the only thing that
 			// survives of an interior is that some panes are pale and most are not.
 			float blind = step(0.68, hash31(vec3(row, col, bseed * 19.0)));
-			room = mix(room, vec3(0.30, 0.29, 0.27) * glass_interior * 2.6, blind * step(0.42, fv));
+			// Halved and faded on the same schedule as everything else. At 2.6 a blind was a
+			// five-fold value step against the room behind it, on a third of the bays, and it
+			// was the one feature in this shader with no detail() gate - so it ran at full
+			// contrast out to where a bay is two pixels wide and the tower turned into noise.
+			room = mix(room, vec3(0.30, 0.29, 0.27) * glass_interior * 1.3, blind * step(0.42, fv) * detail(bay, mpp));
 
 			// The sky in the glass, computed from the reflected ray rather than by raising
 			// METALLIC: a metallic pane picks up the real environment map and whole
@@ -433,7 +437,9 @@ void fragment() {
 				// Lit rooms. Whole floors light up as well as single rooms, which is what an
 				// office tower at dusk looks like - but only after dark: by day that read as a
 				// handful of floors glowing under full sun.
-				float on = 0.10 + 0.90 * night_factor;
+				// See building.gdshader: no daytime floor, or every tower a few hundred metres
+				// out keeps the gold-and-black checkerboard after the near one loses it.
+				float on = night_factor;
 				float whole = step(hash21(vec2(row, bseed * 77.0)), 0.10) * night_factor;
 				on = min(1.0, on * (1.0 + whole));
 				float glow = 0.55 + 0.45 * hash31(vec3(row + 7.0, col + 3.0, bseed));

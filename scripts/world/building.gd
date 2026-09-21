@@ -299,7 +299,11 @@ func _pick_style() -> Dictionary:
 		"tint": WINDOW_TINTS[_rng.randi() % WINDOW_TINTS.size()],
 		"lit": LIT_COLORS[_rng.randi() % LIT_COLORS.size()],
 		"lit_ratio": _rng.randf_range(lit_ratio_range.x, lit_ratio_range.y),
-		"pitch": pitch_by_style[window_style],
+		# Jittered per building: the four style pitches alone put the same column rhythm on two
+		# thirds of downtown, and a street of towers sharing a grid reads as one texture
+		# stretched over all of them. Hashed rather than rolled off _rng, like every other
+		# late addition in this file - a new _rng call shifts every block downstream of it.
+		"pitch": pitch_by_style[window_style] * (0.86 + 0.34 * float(absi(hash([seed, "pitch"])) % 1000) * 0.001),
 		"floor": _rng.randf_range(3.1, 4.0),
 		"wall_set": _pick_wall_set(),
 		"weathering": _rng.randf_range(weathering_range.x, weathering_range.y),
@@ -469,7 +473,10 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		Finish.PANELS:
 			frame_color = Color(0.2, 0.2, 0.22)
 		Finish.GLASS:
-			frame_color = Color(0.14, 0.15, 0.17)
+			# Anodised aluminium, not a dark line. At 0.14 the frames were darker than the
+			# panes they surround, so the grid a curtain-wall tower is made of was drawn and
+			# then invisible - and a mullion catching the sun is most of what says "glass".
+			frame_color = Color(0.58, 0.59, 0.62)
 	var cells := (2 * cols_x + 2 * cols_z) * rows
 	var frames: Array[Transform3D] = []
 	var boxes: Array = []   # [Transform3D, Color]

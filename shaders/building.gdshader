@@ -341,10 +341,14 @@ void fragment() {
 				// Fallback: a soft vertical gradient behind the glass.
 				albedo *= 0.85 + 0.3 * fv;
 			}
-			// Darker toward the frame so the pane reads as set into the wall.
-			float du = abs(fu - 0.5);
-			float dv = abs(fv - (storefront ? 0.45 : 0.52));
-			float inset = smoothstep(0.0, 0.06, max(du - 0.2, dv - 0.18));
+			// Darker toward the frame so the pane reads as set into the wall. Measured against
+			// the opening THIS style declared, not against the punched window's constants:
+			// 0.2 / 0.18 is exactly win_h - 0.07 for style 0 and for nothing else, so on a
+			// curtain wall (win_h 0.475 / 0.47) it darkened 86 % of the pane by 45 % and every
+			// bay read as a dark rectangle with a lighter card floating inside it.
+			float du = abs(fu - win_c.x);
+			float dv = abs(fv - win_c.y);
+			float inset = smoothstep(0.0, 0.06, max(du - (win_h.x - 0.07), dv - (win_h.y - 0.07)));
 			albedo *= mix(1.0, 0.45, inset * (storefront ? 0.5 : 1.0));
 
 			// Glass reflects, and that is most of what a window looks like from outside. In any
@@ -389,7 +393,13 @@ void fragment() {
 			}
 			if (lit) {
 				float glow = 0.55 + 0.45 * hash31(vec3(col + 3.0, row + 7.0, face_id + seed));
-				float on = 0.12 + 0.88 * night_factor;
+				// No daytime floor. It used to be 0.12 + 0.88 * night_factor, so at ten in the
+				// morning every window the lit roll picked still carried a warm emission and an
+				// 8 % pull toward lit_color - and lit_ratio runs to half the bays, so a whole
+				// downtown facade read as a random checkerboard of gold and black rectangles
+				// with none of the interior mapping or the sky reflection visible through it.
+				// A real office window shows nothing from the street in daylight.
+				float on = night_factor;
 				albedo = mix(albedo, lit_color, 0.7 * on);
 				emission = lit_color * glow * lit_strength * on;
 				metal = mix(metal, 0.0, on);
