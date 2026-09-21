@@ -29,6 +29,10 @@ const CELL := 160.0
 const MAX_GRADE := 0.07
 ## The deck never gets closer than this to the ground underneath it.
 const MIN_CLEARANCE := 4.0
+## Vertical gap between two decks where routes cross. Without this they simply intersect: the
+## Coast and Cross freeways met with 1.2 m between two 34 m wide decks, which is one passing
+## through the other. A real interchange puts one clearly over the top.
+const DECK_SEPARATION := 7.5
 ## Ground a freeway can be built over. Routes are drawn as long sweeping curves across the whole
 ## basin and are then trimmed to the run that clears this, so no route tries to scale the
 ## peninsula cliffs or the east range.
@@ -87,6 +91,7 @@ func build(macro: MacroMap, seed_value: int) -> void:
 		vz -= STEP
 	_add_route("Valley Freeway", valley, rng)
 
+	_separate_crossings()
 	_place_ramps(rng)
 	_index()
 
@@ -150,6 +155,65 @@ func _clear_ground(h: PackedFloat32Array, pts: PackedVector2Array) -> PackedFloa
 	for i in out.size():
 		out[i] = maxf(out[i], need[i])
 	return out
+
+
+## Where two routes cross in plan, lift the later one clear over the earlier one.
+##
+## Nothing in the routing stops two decks meeting at the same height, and two 34 m wide decks at
+## the same height are one passing through the other. Raising is deliberately the only move -
+## lowering the second route instead would drive it into the ground it is already only
+## MIN_CLEARANCE above.
+##
+## The lift uses the same relaxation as `_clear_ground()`: propagate the required height
+## forwards and backwards along the route, easing by MAX_GRADE each step, then take the higher
+## of that and the existing profile. The maximum of two grade-feasible profiles is itself
+## grade-feasible, so the flyover is drivable and rises gradually instead of stepping up.
+func _separate_crossings() -> void:
+	for b in routes.size():
+		var pb: PackedVector2Array = routes[b].points
+		var hb: PackedFloat32Array = routes[b].heights
+		var need := PackedFloat32Array()
+		need.resize(pb.size())
+		for i in need.size():
+			need[i] = -1e9
+		var lifted := false
+		for a in b:
+			var pa: PackedVector2Array = routes[a].points
+			var ha: PackedFloat32Array = routes[a].heights
+			for j in pb.size() - 1:
+				for i in pa.size() - 1:
+					var t := _segments_cross(pa[i], pa[i + 1], pb[j], pb[j + 1])
+					if t < 0.0:
+						continue
+					var over: float = maxf(ha[i], ha[i + 1]) + DECK_SEPARATION
+					if over > need[j]:
+						need[j] = over
+						need[j + 1] = maxf(need[j + 1], over)
+						lifted = true
+		if not lifted:
+			continue
+		for i in range(1, need.size()):
+			need[i] = maxf(need[i], need[i - 1] - MAX_GRADE * pb[i].distance_to(pb[i - 1]))
+		for i in range(need.size() - 2, -1, -1):
+			need[i] = maxf(need[i], need[i + 1] - MAX_GRADE * pb[i].distance_to(pb[i + 1]))
+		var out := hb.duplicate()
+		for i in out.size():
+			out[i] = maxf(out[i], need[i])
+		routes[b].heights = out
+
+
+## Where segment a0-a1 crosses b0-b1, as the fraction along b, or -1 if they do not cross.
+static func _segments_cross(a0: Vector2, a1: Vector2, b0: Vector2, b1: Vector2) -> float:
+	var r := a1 - a0
+	var sv := b1 - b0
+	var denom := r.cross(sv)
+	if absf(denom) < 0.000001:
+		return -1.0
+	var t := (b0 - a0).cross(sv) / denom
+	var u := (b0 - a0).cross(r) / denom
+	if t < 0.0 or t > 1.0 or u < 0.0 or u > 1.0:
+		return -1.0
+	return u
 
 
 func _smooth(h: PackedFloat32Array) -> PackedFloat32Array:
