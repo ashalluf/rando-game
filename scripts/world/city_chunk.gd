@@ -15,8 +15,52 @@ const TERRAIN_LAYER := 16
 const ROAD_TOP := 0.1
 const SIDEWALK_TOP := 0.25
 ## How many scatter attempts a full hill chunk makes (rocks, shrubs, scrub, grass clusters).
-@export var hill_scatter_min: int = 90
-@export var hill_scatter_max: int = 140
+## A bare slope is the loudest thing in a wide shot and the hills were the emptiest part of the
+## map (2.9 M triangles against downtown's 8 M), so they carry half as much again.
+@export var hill_scatter_min: int = 150
+@export var hill_scatter_max: int = 230
+
+@export_group("Geometry budget")
+## Quads across a hill chunk's terrain tile: one for a chunk a hill road crosses (the carved
+## road bed and the mansion pads are the sharpest features in the height field), one for plain
+## slopes, one for the far LOD tiles. Terrain is a single mesh per chunk, so subdividing it is
+## nearly free in draw calls; what it costs is height samples (about 6 us each) at build time.
+@export var terrain_subdiv_road: int = 48
+@export var terrain_subdiv: int = 32
+## The far tiles were 6 quads across against the near tiles' 28, and the swap popped. Collision
+## now reuses this same grid instead of re-sampling its own, so the extra detail is nearly free.
+@export var terrain_subdiv_lod: int = 20
+## Metres per quad in the city's ground grids (roads, pavements, lawns, plazas). The relief
+## under the blocks rolls over tens of metres, so at 5 m a street was a visibly faceted plane.
+@export var ground_grid_step: float = 2.2
+## Metres per quad of the *collision* grid under those same surfaces, kept coarse on purpose:
+## the trimesh is what physics walks on and it gains nothing from the visual resolution.
+@export var ground_collision_step: float = 5.0
+## Grass tufts per square metre of lawn, and the cap for one patch. A tuft is 160 triangles
+## (ten creased blades) and covers about a third of a metre, so a lawn costs roughly 300
+## triangles a square metre - a tenth of what the same ground costs in tree canopy overhead,
+## for the surface the player is actually standing on. A lawn without it is a green plane
+## wearing a texture, and the texture stops convincing at about three metres.
+@export var grass_per_sqm: float = 1.9
+@export var grass_max_per_patch: int = 22000
+## How far blade grass, flowering ground cover and grass clumps keep drawing (metres). Grass
+## used to stop at 70 m, which left a bald ring around the player wherever there was lawn.
+@export var grass_distance: float = 115.0
+@export var flower_distance: float = 150.0
+@export var clump_distance: float = 135.0
+## Ground-cover plants per square metre of planting, and the triangles one square metre of it
+## may spend. The downloaded plants run from 941 triangles (bermuda grass) to 54 764 (a
+## dandelion), a factor of fifty, so a flat instance count plants either a handful of dandelions
+## or a thin sprinkle of everything else; the budget turns it into as many as the species costs.
+@export var cover_per_sqm: float = 0.35
+@export var cover_tris_per_sqm: float = 150.0
+## Street trees stand closer together than they did. A real boulevard plants them about every
+## ten metres; the streamer's `tree_spacing` is multiplied by this.
+@export var street_tree_spacing: float = 0.85
+## Quads across one chunk of sea, near and far. The waves are vertex displacement, so this is
+## what decides whether a swell is a curve or a crease.
+@export var ocean_subdiv: int = 72
+@export var ocean_subdiv_lod: int = 32
 
 const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0, "rack": 15.0, "newsbox": 10.0, "mailbox": 20.0, "bollard": 40.0, "street_sign": 12.0, "bus_stop": 40.0}
 
@@ -46,13 +90,81 @@ var _jacaranda_street: bool = false
 var _lamp_tint: Color = Color.WHITE
 var _mm_nodes: Dictionary = {}
 var _statics: StreetProps
+## Footprints of the lots this chunk built on, so lawn grass can keep out of the houses.
+var _lot_rects: Array[Rect2] = []
 var _prop_counter: int = 0
 
 
+## Lattice spacing of the relief cache below, in metres.
+const RELIEF_STEP := 3.0
+## Cached MacroMap.relief_at samples on a fixed world lattice, keyed Vector2i(x, z) / RELIEF_STEP.
+var _relief_lattice: Dictionary = {}
+
 ## The city's rolling ground under a world XZ (MacroMap.relief_at): every slab, prop and node a
 ## chunk builds adds this to its flat height. Zero on hills, beaches and flat zones.
+##
+## Sampled on a 3 m world lattice and bilinearly interpolated in between, because one true
+## sample costs about 6 microseconds (two four-octave noise fields, a landmark loop and three
+## rect fades) and a chunk asks for thousands of them: every ground-grid vertex, every batched
+## instance, every prop. The field itself is smooth - its shortest wavelength is around 50 m,
+## so the interpolation is within a couple of centimetres - and the lattice is shared by every
+## slab and batch in the chunk, which is what pays for the finer ground grids and the much
+## denser scatter below: they build FASTER than the coarse ones used to.
 func _gy(x: float, z: float) -> float:
-	return plan.macro.relief_at(Vector2(x, z)) if plan and plan.macro else 0.0
+	if plan == null or plan.macro == null:
+		return 0.0
+	var fx := x / RELIEF_STEP
+	var fz := z / RELIEF_STEP
+	var i := floori(fx)
+	var j := floori(fz)
+	var tx := fx - float(i)
+	var tz := fz - float(j)
+	return lerpf(
+		lerpf(_relief_sample(i, j), _relief_sample(i + 1, j), tx),
+		lerpf(_relief_sample(i, j + 1), _relief_sample(i + 1, j + 1), tx), tz)
+
+
+func _relief_sample(i: int, j: int) -> float:
+	var key := Vector2i(i, j)
+	var cached: Variant = _relief_lattice.get(key)
+	if cached != null:
+		return cached
+	var h := plan.macro.relief_at(Vector2(i * RELIEF_STEP, j * RELIEF_STEP))
+	_relief_lattice[key] = h
+	return h
+
+
+static var _detail_cache: float = -1.0
+
+## 1 on desktop, a fraction of it in the browser build (WebGL, one thread). Everything dense in
+## this file is scaled by it, so the web build stays playable while the desktop build spends.
+static func _detail() -> float:
+	if _detail_cache < 0.0:
+		_detail_cache = 0.35 if OS.has_feature("web") else 1.0
+	return _detail_cache
+
+
+static var _tri_cache: Dictionary = {}
+
+## Triangles in a mesh, measured once and cached per mesh (PropFactory hands out the same
+## instance every time). This is what lets a scatter spend a triangle budget instead of an
+## instance count - see `_scatter_ground_cover`.
+static func _mesh_tris(mesh: Mesh) -> int:
+	if mesh == null:
+		return 1
+	var id := mesh.get_instance_id()
+	if _tri_cache.has(id):
+		return _tri_cache[id]
+	var n := 0
+	for surface in mesh.get_surface_count():
+		var arrays := mesh.surface_get_arrays(surface)
+		var indices: Variant = arrays[Mesh.ARRAY_INDEX]
+		if indices != null:
+			n += (indices as PackedInt32Array).size() / 3
+		else:
+			n += (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+	_tri_cache[id] = maxi(n, 1)
+	return _tri_cache[id]
 
 
 func build() -> void:
@@ -99,6 +211,9 @@ func build() -> void:
 	_mm_nodes = _batch.build(self)
 	if _mm_nodes.has("lod_box"):
 		(_mm_nodes["lod_box"] as MultiMeshInstance3D).material_override = PropFactory.building_lod_material()
+	# Nothing asks for the ground again once the chunk is built, and a thousand cached samples
+	# per chunk across two hundred chunks is memory for nothing.
+	_relief_lattice.clear()
 
 
 ## The whole area this chunk owns: its block plus the roads on its +X and +Z sides.
@@ -245,7 +360,10 @@ func _build_water() -> void:
 	var mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(area.size.x, area.size.y)
-	var n := 40 if level == Level.FULL else 12
+	# The swell is Gerstner displacement in the vertex shader, so this subdivision IS the wave
+	# shape: at 12 quads a far chunk had 8 m quads and the sea read as folded paper next to
+	# the near chunks. One mesh per chunk either way - it costs triangles, not draw calls.
+	var n := ocean_subdiv if level == Level.FULL else ocean_subdiv_lod
 	plane.subdivide_width = n
 	plane.subdivide_depth = n
 	mesh.mesh = plane
@@ -314,9 +432,11 @@ func _add_lifeguard_tower(at: Vector3, yaw: float) -> void:
 ## Terrain tile over the whole owned area, colored by height, with heightmap collision.
 func _build_terrain() -> void:
 	var area := owned_rect()
-	# Finer tile where a hill road passes, so the carved road bed reads cleanly.
+	# Finer tile where a hill road passes, so the carved road bed reads cleanly. The whole grid
+	# is several times what it was: a ridge is read as a silhouette against the sky and an
+	# eight-metre quad gives a mountain a faceted, folded-paper edge no shading can hide.
 	var has_road := _hill_segments().size() > 0
-	var n := (28 if has_road else 14) if level == Level.FULL else 6
+	var n := (terrain_subdiv_road if has_road else terrain_subdiv) if level == Level.FULL else terrain_subdiv_lod
 	var heights := PackedFloat32Array()
 	heights.resize((n + 1) * (n + 1))
 	var st := SurfaceTool.new()
@@ -350,10 +470,12 @@ func _build_terrain() -> void:
 	mesh.mesh = st.commit()
 	mesh.material_override = PropFactory.terrain_material()
 	add_child(mesh)
-	# Collision at full resolution on every level, so a fast car never outruns the detailed
-	# chunks and drops through a far hill. The body is tagged so the player can tell "under the
-	# terrain" from "under a bridge".
-	var cn := 28 if (has_road and level == Level.FULL) else 14
+	# Collision on the same grid as the mesh, so a fast car never outruns the detailed chunks
+	# and drops through a far hill, and so the ground it hits is the ground it sees. Sharing
+	# the grid is also what makes the finer terrain affordable: the heights are already
+	# sampled, and a HeightMapShape3D is a flat array, not a BVH. The body is tagged so the
+	# player can tell "under the terrain" from "under a bridge".
+	var cn := n
 	var cheights := heights
 	if n != cn:
 		cheights = PackedFloat32Array()
@@ -738,13 +860,20 @@ func _build_block(block: Dictionary) -> void:
 		CityPlan.BlockKind.BIGBOX:
 			Commercial.build_bigbox(self, rect, rng)
 		_:
+			var lawn_rect := Rect2()
 			if params.get("lawn", false):
 				# Suburbs and campus: lawns between the buildings instead of bare paving.
 				var inner := rect.grow(-plan.sidewalk_width)
 				var ic := inner.get_center()
 				var lawn := _lawn_color(rng)
 				_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
+				lawn_rect = inner
 			_build_lots(rect, params, rng)
+			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
+			# whole block, so the footprints `_build_lots` just recorded are what the grass
+			# has to stay out of; a suburb whose lawns are flat green paint is the tell.
+			if lawn_rect.size.x > 1.0:
+				_add_grass(lawn_rect, 0.85, 0.0, _lot_rects)
 	if level == Level.FULL:
 		_build_sidewalk_props(rect, params, rng, district)
 		_park_cars(rect, rng, params)
@@ -877,11 +1006,15 @@ func _lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> Array
 func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> void:
 	var heights: Vector2 = params.height
 	var pads: float = params.get("pads", 0.0)
+	_lot_rects.clear()
 	for lot in _lots(rect, params, rng):
 		var center: Vector2 = lot.center
 		if lot.yard:
 			_build_yard(lot, rng)
 			continue
+		# What stands on this lot (a house, a pad, or the freeway corridor above it): the
+		# suburban lawn grass keeps out of these.
+		_lot_rects.append(Rect2(center - (lot.size as Vector2) * 0.5 - Vector2(0.4, 0.4), (lot.size as Vector2) + Vector2(0.8, 0.8)))
 		if lot.edge and pads > 0.0 and rng.randf() < pads and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0:
 			Commercial.build_pad(self, lot, rng)
 			continue
@@ -940,14 +1073,15 @@ func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(size.x, 0.04, size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
 	if level != Level.FULL:
 		return
-	for i in rng.randi_range(2, 5):
+	for i in rng.randi_range(3, 7):
 		var p := center + Vector2(rng.randf_range(-size.x * 0.4, size.x * 0.4), rng.randf_range(-size.y * 0.4, size.y * 0.4))
 		_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
-	for i in rng.randi_range(3, 8):
+	for i in rng.randi_range(6, 14):
 		var p := center + Vector2(rng.randf_range(-size.x * 0.45, size.x * 0.45), rng.randf_range(-size.y * 0.45, size.y * 0.45))
 		_add_bush(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
 	# A pocket garden is a garden: planted beds, not mown grass with three bushes on it.
 	_scatter_ground_cover(Rect2(center - size * 0.45, size * 0.9), rng, 1.35)
+	_add_grass(Rect2(center - size * 0.46, size * 0.92), 1.0)
 	if rng.randf() < 0.6:
 		_add_bench(Vector3(center.x, SIDEWALK_TOP + 0.04, center.y + size.y * 0.3), PI)
 
@@ -981,7 +1115,7 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var path_w := 3.0
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.04, center.y), Vector3(inner.size.x, 0.02, path_w), style.path, false)
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.04, center.y), Vector3(path_w, 0.02, inner.size.y), style.path, false)
-	for i in rng.randi_range(10, 24):
+	for i in rng.randi_range(16, 34):
 		var p := Vector2(rng.randf_range(inner.position.x + 3.0, inner.end.x - 3.0), rng.randf_range(inner.position.y + 3.0, inner.end.y - 3.0))
 		if absf(p.x - center.x) < path_w or absf(p.y - center.y) < path_w:
 			continue
@@ -996,26 +1130,14 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		for dz: float in [-1.0, 1.0]:
 			_add_lamp(Vector3(center.x + dx * (path_w * 0.5 + 1.0), SIDEWALK_TOP + 0.04, center.y + dz * (path_w * 0.5 + 1.0)))
 	# Bushes and grass.
-	for i in rng.randi_range(6, 14):
+	for i in rng.randi_range(12, 26):
 		var p := Vector2(rng.randf_range(inner.position.x + 2.0, inner.end.x - 2.0), rng.randf_range(inner.position.y + 2.0, inner.end.y - 2.0))
 		if absf(p.x - center.x) < path_w + 1.0 or absf(p.y - center.y) < path_w + 1.0:
 			continue
 		_add_bush(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), rng)
 	# Flowering ground cover over the whole park: this is where a park stops being bare grass.
 	_scatter_ground_cover(inner.grow(-2.0), rng, 1.0)
-	var blades: int = style.grass_per_park
-	for i in blades:
-		var p := Vector2(rng.randf_range(inner.position.x + 1.0, inner.end.x - 1.0), rng.randf_range(inner.position.y + 1.0, inner.end.y - 1.0))
-		if absf(p.x - center.x) < path_w * 0.5 + 0.3 or absf(p.y - center.y) < path_w * 0.5 + 0.3:
-			continue
-		# Squash and stretch each tuft independently, so a lawn is not one shape repeated.
-		var sc := rng.randf_range(0.55, 1.6)
-		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
-		var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
-		_batch.add("grass", PropFactory.grass_blade(), Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
-	_batch.set_no_shadow("grass")
-	# Dense blade geometry is only worth drawing close up.
-	_batch.set_draw_distance("grass", 70.0)
+	_add_grass(inner.grow(-1.0), 1.0, path_w * 0.5 + 0.3)
 
 
 func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
@@ -1032,6 +1154,57 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 		_batch.add("bush_%d" % b, PropFactory.model_bush(b), Transform3D(basis, at), tint)
 
 
+## Blade grass over a lawn: PropFactory.grass_blade() tufts in the shared "grass" batch, which
+## is one draw call however many of them there are - a lawn is one draw whether it has a hundred
+## tufts on it or twenty thousand, which is what makes real grass affordable at all.
+##
+## `blockers` are rects the grass has to keep out of (the house footprints on a suburban block,
+## which the lawn slab runs underneath). They are rasterised into an occupancy grid first,
+## because testing twenty rects for each of twenty thousand blades costs more than the grass.
+## Its own seeded rng, so adding grass never shifts the block's sequence and moves a building.
+func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blockers: Array[Rect2] = []) -> void:
+	if level != Level.FULL or rect.size.x < 2.0 or rect.size.y < 2.0:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([plan.seed, ix, iz, "grass", int(rect.position.x), int(rect.position.y)])
+	var area := rect.size.x * rect.size.y
+	var count := int(clampf(area * grass_per_sqm * density * _detail(), 0.0, float(grass_max_per_patch)))
+	if count <= 0:
+		return
+	var cell := 2.0
+	var gx := maxi(1, ceili(rect.size.x / cell))
+	var gz := maxi(1, ceili(rect.size.y / cell))
+	var blocked := PackedByteArray()
+	if not blockers.is_empty():
+		blocked.resize(gx * gz)
+		for b in blockers:
+			var i0 := clampi(floori((b.position.x - rect.position.x) / cell), 0, gx - 1)
+			var i1 := clampi(ceili((b.end.x - rect.position.x) / cell), 0, gx - 1)
+			var j0 := clampi(floori((b.position.y - rect.position.y) / cell), 0, gz - 1)
+			var j1 := clampi(ceili((b.end.y - rect.position.y) / cell), 0, gz - 1)
+			for j in range(j0, j1 + 1):
+				for i in range(i0, i1 + 1):
+					blocked[j * gx + i] = 1
+	var center := rect.get_center()
+	var blade := PropFactory.grass_blade()
+	for k in count:
+		var p := Vector2(rng.randf_range(rect.position.x, rect.end.x), rng.randf_range(rect.position.y, rect.end.y))
+		if keep_out > 0.0 and (absf(p.x - center.x) < keep_out or absf(p.y - center.y) < keep_out):
+			continue
+		if not blocked.is_empty():
+			var ci := clampi(int((p.x - rect.position.x) / cell), 0, gx - 1)
+			var cj := clampi(int((p.y - rect.position.y) / cell), 0, gz - 1)
+			if blocked[cj * gx + ci] == 1:
+				continue
+		# Squash and stretch each tuft independently, so a lawn is not one shape repeated.
+		var sc := rng.randf_range(0.55, 1.6)
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
+		var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
+		_batch.add("grass", blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
+	_batch.set_no_shadow("grass")
+	_batch.set_draw_distance("grass", grass_distance)
+
+
 ## Flowering ground cover and grass clumps scattered over a patch of lawn. This is where the
 ## city's colour at ground level comes from: before it, a park was bare grass between a tree and
 ## a bench. Kept to the FULL level and given a short draw distance - they are small enough that
@@ -1040,7 +1213,6 @@ func _scatter_ground_cover(rect: Rect2, rng: RandomNumberGenerator, density: flo
 	if level != Level.FULL:
 		return
 	var area := rect.size.x * rect.size.y
-	var count := int(clampf(area * 0.055 * density, 0.0, 90.0))
 	# One flowering species dominates a patch, the way a planted bed or a wildflower verge does;
 	# a mixed sprinkle of seven colours reads as confetti.
 	# TWO flowering species per patch, not seven. Every distinct species is a separate batch key
@@ -1050,6 +1222,18 @@ func _scatter_ground_cover(rect: Rect2, rng: RandomNumberGenerator, density: flo
 	var lead := rng.randi() % PropFactory.FLOWERS.size()
 	var second := (lead + 1 + rng.randi() % maxi(PropFactory.FLOWERS.size() - 1, 1)) % PropFactory.FLOWERS.size()
 	var clump := rng.randi() % PropFactory.GRASS_CLUMPS.size()
+	# How many plants a patch gets is a TRIANGLE budget, not a flat count. These are scanned
+	# models and they differ by a factor of fifty - 941 triangles for a clump of bermuda
+	# grass, 54 764 for one dandelion - so the old flat 90 either planted a thin sprinkle
+	# that left the lawn bare or spent 2.8 million triangles on fifty dandelions nobody can
+	# see the seed heads of. Costing the mix means a cheap species carpets the bed and an
+	# expensive one is planted as the specimen it is, for the same money either way.
+	var avg := 0.42 * float(_mesh_tris(PropFactory.model_grass_clump(clump)))
+	avg += 0.58 * 0.72 * float(_mesh_tris(PropFactory.model_flower(lead)))
+	avg += 0.58 * 0.28 * float(_mesh_tris(PropFactory.model_flower(second)))
+	var wanted := area * cover_per_sqm * density
+	var afforded := area * cover_tris_per_sqm / maxf(avg, 1.0)
+	var count := clampi(int(minf(wanted, afforded) * _detail()), 0, 3000)
 	for i in count:
 		var p := Vector2(
 			rng.randf_range(rect.position.x, rect.end.x),
@@ -1064,9 +1248,9 @@ func _scatter_ground_cover(rect: Rect2, rng: RandomNumberGenerator, density: flo
 			var f: int = lead if rng.randf() < 0.72 else second
 			_batch.add("flower_%d" % f, PropFactory.model_flower(f), Transform3D(basis, at), tint)
 	for f: int in [lead, second]:
-		_batch.set_draw_distance("flower_%d" % f, 95.0)
+		_batch.set_draw_distance("flower_%d" % f, flower_distance)
 		_batch.set_no_shadow("flower_%d" % f)
-	_batch.set_draw_distance("gclump_%d" % clump, 80.0)
+	_batch.set_draw_distance("gclump_%d" % clump, clump_distance)
 	_batch.set_no_shadow("gclump_%d" % clump)
 
 
@@ -1100,7 +1284,8 @@ func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
 func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator, block_district: int = 0) -> void:
 	var tree_chance: float = params.trees
 	var lamp_spacing: float = style.lamp_spacing
-	var tree_spacing: float = style.tree_spacing
+	# A real boulevard plants its street trees about every ten metres, not every twelve.
+	var tree_spacing: float = style.tree_spacing * street_tree_spacing
 	var edges := [
 		[Vector2(rect.position.x, rect.position.y), Vector2(rect.end.x, rect.position.y), Vector2(0.0, 1.0)],
 		[Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y), Vector2(0.0, -1.0)],
@@ -1455,10 +1640,33 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 
 
 ## A ground surface over `rect` at `top` above the relief, with a skirt hanging `skirt` meters
-## down its edges (the curb face between sidewalk and road). Collision is a trimesh.
+## down its edges (the curb face between sidewalk and road).
+##
+## The drawn grid is fine (`ground_grid_step`) and the collision trimesh is built separately on
+## a coarse one (`ground_collision_step`): the streets are what the player looks along for a
+## hundred metres, and five-metre quads gave the relief a folded look, but physics walks on the
+## shape and would only pay for the detail. Both come from the cached relief, so the fine grid
+## costs about what the old coarse one did.
 func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, collide: bool) -> void:
-	var nx := clampi(ceili(rect.size.x / 5.0), 1, 48)
-	var nz := clampi(ceili(rect.size.y / 5.0), 1, 48)
+	var step := ground_grid_step if _detail() >= 1.0 else ground_grid_step * 2.0
+	var nx := clampi(ceili(rect.size.x / step), 1, 120)
+	var nz := clampi(ceili(rect.size.y / step), 1, 120)
+	var mesh := _grid_mesh(rect, top, skirt, nx, nz)
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.material_override = mat
+	add_child(mi)
+	if not (collide and _statics):
+		return
+	var cx := clampi(ceili(rect.size.x / ground_collision_step), 1, 48)
+	var cz := clampi(ceili(rect.size.y / ground_collision_step), 1, 48)
+	var shape := CollisionShape3D.new()
+	shape.shape = (mesh if (cx == nx and cz == nz) else _grid_mesh(rect, top, skirt, cx, cz)).create_trimesh_shape()
+	_statics.add_child(shape)
+
+
+## One grid of `nx` by `nz` quads over `rect`, following the relief, with the skirt around it.
+func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int) -> ArrayMesh:
 	var pts := PackedVector3Array()
 	pts.resize((nx + 1) * (nz + 1))
 	for j in nz + 1:
@@ -1495,15 +1703,7 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 		_tri(st, p0, p0 - down, p1)
 		_tri(st, p1, p0 - down, p1 - down)
 	st.generate_normals()
-	var mesh := st.commit()
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = mat
-	add_child(mi)
-	if collide and _statics:
-		var shape := CollisionShape3D.new()
-		shape.shape = mesh.create_trimesh_shape()
-		_statics.add_child(shape)
+	return st.commit()
 
 
 static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:

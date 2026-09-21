@@ -140,7 +140,10 @@ static func box(key: String, size: Vector3, color: Color) -> Mesh:
 	return mesh
 
 
-static func cylinder(key: String, radius: float, height: float, color: Color, top_radius: float = -1.0, segments: int = 8) -> Mesh:
+## A capped cylinder. `segments` defaults to 16, not 8: every pole, bollard and hydrant in
+## this city is one of these, the player walks right past them, and a six-sided pole in the
+## foreground is a six-sided pole. Sixteen sides on a lamp post is about 60 triangles.
+static func cylinder(key: String, radius: float, height: float, color: Color, top_radius: float = -1.0, segments: int = 16) -> Mesh:
 	if _cache.has(key):
 		return _cache[key]
 	var mesh := CylinderMesh.new()
@@ -157,7 +160,7 @@ static func cylinder(key: String, radius: float, height: float, color: Color, to
 # --- Ready-made pieces (origin at the base, Y up) ---------------------------------
 
 static func trunk() -> Mesh:
-	return cylinder("trunk", 0.18, 2.2, Color(0.42, 0.30, 0.18), 0.14, 6)
+	return cylinder("trunk", 0.18, 2.2, Color(0.42, 0.30, 0.18), 0.14, 14)
 
 
 static func canopy_round() -> Mesh:
@@ -166,19 +169,19 @@ static func canopy_round() -> Mesh:
 	var mesh := SphereMesh.new()
 	mesh.radius = 1.6
 	mesh.height = 3.2
-	mesh.radial_segments = 8
-	mesh.rings = 5
+	mesh.radial_segments = 18
+	mesh.rings = 12
 	mesh.material = material(Color(0.32, 0.58, 0.28))
 	_cache["canopy_round"] = mesh
 	return mesh
 
 
 static func canopy_cone() -> Mesh:
-	return cylinder("canopy_cone", 1.5, 4.0, Color(0.20, 0.45, 0.24), 0.0, 7)
+	return cylinder("canopy_cone", 1.5, 4.0, Color(0.20, 0.45, 0.24), 0.0, 16)
 
 
 static func lamp_pole() -> Mesh:
-	return cylinder("lamp_pole", 0.09, 6.0, Color(0.28, 0.29, 0.32), 0.07, 6)
+	return cylinder("lamp_pole", 0.09, 6.0, Color(0.28, 0.29, 0.32), 0.07, 14)
 
 
 static func lamp_head() -> Mesh:
@@ -206,10 +209,17 @@ static func lamp_head() -> Mesh:
 ## of each blade's face. Lit per-face, a field of blades turns into a mess of bright and black
 ## slivers; lit as if it were one soft surface, it reads as a carpet of grass. Every real-time
 ## grass system does this.
-const GRASS_BLADES := 5
-const GRASS_SEGMENTS := 3
+## Ten blades of four segments, each split down a midrib, is 160 triangles a tuft against the
+## 30 it used to be. A tuft is one mesh in the "grass" MultiMesh batch, so this costs no extra
+## draw call at all - a lawn is still one draw whatever a blade is made of.
+const GRASS_BLADES := 10
+const GRASS_SEGMENTS := 4
 const GRASS_HEIGHT := 0.34
-const GRASS_WIDTH := 0.016
+const GRASS_WIDTH := 0.018
+## How far the midrib stands out of the chord between the blade's two edges, as a fraction of
+## the half-width. A grass blade is a folded V in section, not a ribbon, and it is the two
+## halves catching the light at different angles that stops close-up grass reading as plastic.
+const GRASS_CREASE := 0.6
 
 
 static func grass_blade() -> Mesh:
@@ -220,34 +230,40 @@ static func grass_blade() -> Mesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 90210
 	for b in GRASS_BLADES:
-		var yaw := TAU * (float(b) / GRASS_BLADES) + rng.randf_range(-0.35, 0.35)
+		var yaw := TAU * (float(b) / GRASS_BLADES) + rng.randf_range(-0.30, 0.30)
 		var dir := Vector3(sin(yaw), 0.0, cos(yaw))
 		var side := Vector3(dir.z, 0.0, -dir.x)
-		var height := GRASS_HEIGHT * rng.randf_range(0.45, 1.3)
+		var height := GRASS_HEIGHT * rng.randf_range(0.42, 1.35)
 		var width := GRASS_WIDTH * rng.randf_range(0.8, 1.2)
 		# How far the tip leans away from vertical, and where the blade starts.
-		var lean := rng.randf_range(0.28, 0.72) * height
-		var root := dir * rng.randf_range(0.0, 0.05)
+		var lean := rng.randf_range(0.24, 0.78) * height
+		var root := dir * rng.randf_range(0.0, 0.055)
+		# A little twist along the length, so the two halves of the blade do not present the
+		# same face to the sun all the way up.
+		var twist := rng.randf_range(-0.55, 0.55)
 		for seg in GRASS_SEGMENTS:
 			var t0 := float(seg) / GRASS_SEGMENTS
 			var t1 := float(seg + 1) / GRASS_SEGMENTS
 			# Quadratic bend: the blade is upright at the root and arcs over near the tip.
 			var p0 := root + Vector3(0.0, height * t0, 0.0) + dir * (lean * t0 * t0)
 			var p1 := root + Vector3(0.0, height * t1, 0.0) + dir * (lean * t1 * t1)
-			var w0 := width * (1.0 - t0 * 0.85)
-			var w1 := width * (1.0 - t1 * 0.85)
-			# Face normal, then bent toward up so the tuft lights as one soft surface.
+			# Widest just above the sheath, running out to a real point rather than stopping
+			# at 15 per cent of the width the way a three-segment strip had to.
+			var w0 := width * (1.0 - pow(t0, 1.3) * 0.96)
+			var w1 := width * (1.0 - pow(t1, 1.3) * 0.96)
 			var along := (p1 - p0).normalized()
 			var face := side.cross(along).normalized()
-			var n := face.lerp(Vector3.UP, 0.65).normalized()
-			var a := p0 - side * w0
-			var b2 := p0 + side * w0
-			var c := p1 + side * w1
-			var d := p1 - side * w1
-			for v: Array in [[a, 0.0, t0], [b2, 1.0, t0], [c, 1.0, t1], [a, 0.0, t0], [c, 1.0, t1], [d, 0.0, t1]]:
-				st.set_normal(n)
-				st.set_uv(Vector2(v[1], v[2]))
-				st.add_vertex(v[0])
+			var s0 := side.rotated(along, twist * t0)
+			var s1 := side.rotated(along, twist * t1)
+			# The midrib, proud of the chord between the edges.
+			var c0 := p0 + face * (w0 * GRASS_CREASE)
+			var c1 := p1 + face * (w1 * GRASS_CREASE)
+			# One normal per half, tilted toward that half's edge and then bent hard toward up
+			# so the tuft still lights as one soft surface instead of a pile of lit slivers.
+			var nl := face.lerp(-s0, 0.34).normalized().lerp(Vector3.UP, 0.6).normalized()
+			var nr := face.lerp(s0, 0.34).normalized().lerp(Vector3.UP, 0.6).normalized()
+			_grass_quad(st, p0 - s0 * w0, c0, c1, p1 - s1 * w1, nl, t0, t1)
+			_grass_quad(st, c0, p0 + s0 * w0, p1 + s1 * w1, c1, nr, t0, t1)
 	var mesh := st.commit()
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/grass.gdshader")
@@ -256,14 +272,24 @@ static func grass_blade() -> Mesh:
 	return mesh
 
 
+## One half of a creased grass blade: a-b sit at `t0` up the blade, c-d at `t1`, sharing one
+## smooth normal. UV.y is the height the grass shader shades from, so it has to be the blade's
+## own fraction and not the tuft's.
+static func _grass_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, n: Vector3, t0: float, t1: float) -> void:
+	for v: Array in [[a, t0], [b, t0], [c, t1], [a, t0], [c, t1], [d, t1]]:
+		st.set_normal(n)
+		st.set_uv(Vector2(0.5, v[1]))
+		st.add_vertex(v[0])
+
+
 static func bush() -> Mesh:
 	if _cache.has("bush"):
 		return _cache["bush"]
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.9
 	mesh.height = 1.4
-	mesh.radial_segments = 7
-	mesh.rings = 4
+	mesh.radial_segments = 16
+	mesh.rings = 10
 	mesh.material = material(Color(0.30, 0.52, 0.26))
 	_cache["bush"] = mesh
 	return mesh
@@ -278,7 +304,7 @@ static func bench_legs() -> Mesh:
 
 
 static func hydrant() -> Mesh:
-	return cylinder("hydrant", 0.16, 0.8, Color(0.85, 0.15, 0.12), 0.12, 6)
+	return cylinder("hydrant", 0.16, 0.8, Color(0.85, 0.15, 0.12), 0.12, 16)
 
 
 ## Center-line piece; white so the instance color picks yellow or white.
@@ -291,7 +317,7 @@ static func stripe() -> Mesh:
 
 
 static func sign_pole() -> Mesh:
-	return cylinder("sign_pole", 0.05, 2.6, Color(0.5, 0.5, 0.52), -1.0, 6)
+	return cylinder("sign_pole", 0.05, 2.6, Color(0.5, 0.5, 0.52), -1.0, 12)
 
 
 static func stop_sign() -> Mesh:
@@ -299,7 +325,7 @@ static func stop_sign() -> Mesh:
 
 
 static func signal_pole() -> Mesh:
-	return cylinder("signal_pole", 0.12, 6.5, Color(0.2, 0.2, 0.22), 0.1, 6)
+	return cylinder("signal_pole", 0.12, 6.5, Color(0.2, 0.2, 0.22), 0.1, 16)
 
 
 static func signal_arm() -> Mesh:
@@ -317,15 +343,15 @@ static func signal_light(color: Color) -> Mesh:
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.12
 	mesh.height = 0.24
-	mesh.radial_segments = 6
-	mesh.rings = 3
+	mesh.radial_segments = 14
+	mesh.rings = 9
 	mesh.material = material(color, 0.5, true)
 	_cache[key] = mesh
 	return mesh
 
 
 static func trash_can_mesh() -> Mesh:
-	return cylinder("trash_can", 0.35, 1.0, Color(0.25, 0.35, 0.3), -1.0, 8)
+	return cylinder("trash_can", 0.35, 1.0, Color(0.25, 0.35, 0.3), -1.0, 20)
 
 
 ## A whole palm tree as one mesh: a curved tapering trunk with a ridged bark profile, a crown of
@@ -335,9 +361,24 @@ static func trash_can_mesh() -> Mesh:
 ##
 ## It is one mesh with vertex colours rather than several, so a street of palms is one MultiMesh
 ## draw. Frond leaflets are single-sided quads, so the material disables backface culling.
-## Six, not three: a promenade lined with palms at even spacing shows the repeat immediately,
-## and each variant is one cached mesh of about 1.9k triangles.
+## Six, not three: a promenade lined with palms at even spacing shows the repeat immediately.
+##
+## Each variant is one cached mesh of about 24k triangles, up from 5.6k. That is deliberate and
+## it is the cheapest realism in the game: the mesh is shared by every palm on the street through
+## one MultiMesh, so a boulevard of two hundred of them is still ONE draw call whatever the mesh
+## costs, and a palm crown is pure silhouette against the sky - the one place the eye finds a
+## straight edge or a missing leaflet instantly.
 const PALM_VARIANTS := 6
+## Trunk tessellation. 40 x 18 instead of 22 x 10: at street level the old trunk showed ten flat
+## facets round its circumference, and a ten-sided pole in the foreground is a ten-sided pole.
+const PALM_TRUNK_RINGS := 40
+const PALM_TRUNK_SIDES := 18
+## Leaflet pairs along one frond. A real Washingtonia frond carries fifty-odd a side.
+const PALM_FROND_STEPS := 60
+const PALM_DEAD_STEPS := 38
+## Length segments in one leaflet. A leaflet that is a single quad cannot droop or come to a
+## point; a frond of flat quads reads as a comb, which is what the old crown did edge-on.
+const PALM_LEAFLET_SEGMENTS := 4
 
 
 static func palm(variant: int) -> Mesh:
@@ -355,59 +396,115 @@ static func palm(variant: int) -> Mesh:
 	# Palms lean, and the lean grows toward the top rather than tilting the whole trunk.
 	var lean_dir := Vector3(cos(rng.randf() * TAU), 0.0, sin(rng.randf() * TAU))
 	var lean := rng.randf_range(0.4, 1.5)
-	# Enough rings and sides to carry the diamond pattern below without reading as a checkerboard.
-	var segments := 22
-	var sides := 10
+	var segments := PALM_TRUNK_RINGS
+	var sides := PALM_TRUNK_SIDES
 	# Grey-tan, not chocolate: a Washingtonia trunk is the colour of dry rope.
 	var bark := Color(0.46, 0.41, 0.33)
 
 	var centre := func(t: float) -> Vector3:
 		return Vector3(0.0, height * t, 0.0) + lean_dir * (lean * t * t)
+	# Taper toward the crown, a swell at the root, and a ring ridge per old frond scar. Kept as
+	# a function so the boots and the crownshaft sit on the trunk instead of near it.
+	var radius := func(t: float, ring: int) -> float:
+		return lerpf(0.30, 0.13, t) * (1.0 + 0.38 * exp(-t * 8.0)) * (1.0 + (0.030 if ring % 2 == 0 else -0.030))
 
 	for i in segments:
 		var t0 := float(i) / segments
 		var t1 := float(i + 1) / segments
 		var c0: Vector3 = centre.call(t0)
 		var c1: Vector3 = centre.call(t1)
-		# Taper toward the crown, with a slight swell at the base and a ring ridge per segment.
-		var r0 := lerpf(0.30, 0.13, t0) * (1.0 + 0.30 * exp(-t0 * 9.0)) * (1.0 + (0.045 if i % 2 == 0 else -0.045))
-		var r1 := lerpf(0.30, 0.13, t1) * (1.0 + 0.30 * exp(-t1 * 9.0)) * (1.0 + (0.045 if (i + 1) % 2 == 0 else -0.045))
+		var r0: float = radius.call(t0, i)
+		var r1: float = radius.call(t1, i + 1)
 		var shade0 := bark * (0.90 + 0.16 * float(i % 3) / 2.0)
+		# The criss-cross of old frond bases. A palm trunk is not a smooth pole: it is a
+		# lattice of cut stubs in a diamond lattice, and at street level that pattern is
+		# the thing that tells you which tree you are standing under.
+		# Subtle: at 0.76 this read as a chessboard wrapped round the trunk from two metres
+		# away. Real frond scars are a shallow change in tone, not two colours.
+		#
+		# The lattice indices are scaled back to the 22 x 10 grid it was tuned on. Alternating
+		# per quad at 40 x 18 would put the diamonds below a pixel at any distance and shimmer.
+		var li := int(float(i) * 22.0 / float(segments))
 		for k in sides:
 			var a0 := TAU * k / sides
 			var a1 := TAU * (k + 1) / sides
 			var d0 := Vector3(cos(a0), 0.0, sin(a0))
 			var d1 := Vector3(cos(a1), 0.0, sin(a1))
-			# The criss-cross of old frond bases. A palm trunk is not a smooth pole: it is a
-			# lattice of cut stubs in a diamond lattice, and at street level that pattern is
-			# the thing that tells you which tree you are standing under.
-			# Subtle: at 0.76 this read as a chessboard wrapped round the trunk from two metres
-			# away. Real frond scars are a shallow change in tone, not two colours.
-			var lattice := 1.0 if (i + k) % 2 == 0 else 0.91
+			var lk := int(float(k) * 10.0 / float(sides))
+			var lattice := 1.0 if (li + lk) % 2 == 0 else 0.91
 			# Break the perfect alternation so it is a lattice, not a checker.
-			if (i * 3 + k * 5) % 7 == 0:
+			if (li * 3 + lk * 5) % 7 == 0:
 				lattice = 0.96
 			# The pattern wears away toward the base, where the trunk has gone smooth and grey.
 			lattice = lerpf(1.0, lattice, smoothstep(0.08, 0.35, t0))
 			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0 * lattice, d0, d1)
 
+	# The boots: the sawn-off stubs of old fronds, as real geometry on the upper trunk rather
+	# than only as a change of tone. Standing under a palm these are the whole difference
+	# between a grey pole and a tree, and they break the trunk's outline against the sky.
+	for ring in 6:
+		var bt: float = lerpf(0.58, 0.962, float(ring) / 5.0)
+		var bc: Vector3 = centre.call(bt)
+		var br: float = radius.call(bt, ring * 2)
+		var boots := 9
+		for k in boots:
+			var ba := TAU * (float(k) + 0.5 * float(ring % 2)) / float(boots)
+			var bd := Vector3(cos(ba), 0.0, sin(ba))
+			var bs := Vector3(-bd.z, 0.0, bd.x)
+			var bw := bs * (br * 0.62)
+			var bl := bd * (br * rng.randf_range(0.55, 0.95))
+			var bh := Vector3(0.0, -0.085 * (height / 14.0), 0.0)
+			var e0 := bc + bd * (br * 0.94) - bw
+			var e1 := bc + bd * (br * 0.94) + bw
+			var tip0 := e0 + bl + bh
+			var tip1 := e1 + bl + bh
+			var boot := bark * rng.randf_range(0.76, 1.02)
+			var nt := (Vector3.UP * 0.85 + bd).normalized()
+			_quad(st, e0, e1, tip1, tip0, boot, nt, nt)
+			var under := Vector3(0.0, -0.045 * (height / 14.0), 0.0)
+			_quad(st, tip0 + under, tip1 + under, e1 + under, e0 + under, boot * 0.66, -nt, -nt)
+
 	var top: Vector3 = centre.call(1.0)
-	var fronds := rng.randi_range(12, 16)
+	# The crownshaft: the smooth green column the fronds actually grow out of. Without it the
+	# fronds sprout straight off the flat top of a pipe, which is what the old crown did.
+	var r_top: float = radius.call(1.0, segments)
+	var shaft_h := maxf(0.38, height * 0.038)
+	var shaft := Color(0.33, 0.36, 0.23)
+	var shaft_rings := 7
+	for i in shaft_rings:
+		var u0 := float(i) / shaft_rings
+		var u1 := float(i + 1) / shaft_rings
+		var c0 := top + Vector3(0.0, shaft_h * u0, 0.0) + lean_dir * (lean * 0.07 * u0)
+		var c1 := top + Vector3(0.0, shaft_h * u1, 0.0) + lean_dir * (lean * 0.07 * u1)
+		var r0 := lerpf(r_top * 1.06, r_top * 0.45, u0 * u0)
+		var r1 := lerpf(r_top * 1.06, r_top * 0.45, u1 * u1)
+		var tone := bark.lerp(shaft, smoothstep(0.0, 0.8, u0))
+		for k in sides:
+			var a0 := TAU * k / sides
+			var a1 := TAU * (k + 1) / sides
+			var d0 := Vector3(cos(a0), 0.0, sin(a0))
+			var d1 := Vector3(cos(a1), 0.0, sin(a1))
+			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, tone, d0, d1)
+
+	var crown := top + Vector3(0.0, shaft_h * 0.72, 0.0)
+	var fronds := rng.randi_range(14, 19)
 	for f in fronds:
 		# Uneven spacing and a wide spread of length and lift, or the crown is a perfect disc
 		# and every palm on the street is the same tree. Real crowns carry fronds of several
 		# ages at once: new ones held up, old ones nearly horizontal.
 		var yaw := TAU * f / fronds + rng.randf_range(-0.30, 0.30)
-		_palm_frond(st, top, yaw, rng.randf_range(3.1, 6.1), rng.randf_range(-0.35, 1.05), rng, false)
+		_palm_frond(st, crown, yaw, rng.randf_range(3.1, 6.1), rng.randf_range(-0.35, 1.05), rng, false)
 	# A skirt of dead fronds hanging under the crown.
-	for f in rng.randi_range(3, 6):
+	for f in rng.randi_range(4, 7):
 		var yaw := rng.randf_range(0.0, TAU)
 		_palm_frond(st, top + Vector3(0.0, -0.25, 0.0), yaw, rng.randf_range(2.0, 3.0), -1.25, rng, true)
-	# Coconuts clustered under the crown.
-	for c in rng.randi_range(3, 6):
+	# Coconuts clustered under the crown. Round ones: an eight-triangle octahedron at arm's
+	# length is a cut gemstone, not a fruit.
+	for c in rng.randi_range(4, 8):
 		var a := rng.randf_range(0.0, TAU)
 		var at := top + Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.15, 0.45) + Vector3(0.0, -0.35, 0.0)
-		_ico(st, at, rng.randf_range(0.14, 0.2), Color(0.40, 0.30, 0.17))
+		var cr := rng.randf_range(0.13, 0.19)
+		_sphere_into(st, at, Vector3(cr, cr * 1.18, cr), Color(0.40, 0.30, 0.17) * rng.randf_range(0.85, 1.12))
 
 	# No generate_normals() here. Flat per-triangle normals are what made the crown read as a
 	# folded paper fan: every leaflet caught the light at its own angle, so the canopy was a
@@ -437,7 +534,7 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 	# Dense: a real frond carries fifty-odd leaflets a side, close enough at the rib that the
 	# frond reads as one feathered blade. At thirty they are separate spikes and it reads as a
 	# fishbone.
-	var steps := 48
+	var steps := PALM_DEAD_STEPS if dead else PALM_FROND_STEPS
 	# Each frond droops by its own amount, or the crown is a set of identical arcs.
 	var droop := reach * (1.5 if dead else rng.randf_range(0.55, 1.25))
 	# Palm fronds are a dusty, yellow-grey green, not the vivid green of a lawn, and the tone
@@ -467,15 +564,50 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 			# back - which is what this did - points every leaflet at the trunk and the frond
 			# reads as a fishbone laid the wrong way round.
 			var blade_dir := (side * dir * cos(ang) - Vector3.UP * sin(ang) + out * 0.58).normalized()
-			# Tips curl further down the further out along the frond they sit.
-			var tip := p0 + blade_dir * blade + Vector3(0.0, -blade * 0.34 * t0, 0.0)
 			# One smooth normal per leaflet, leaning hard toward up, so the crown lights as one
 			# soft mass rather than a pile of lit facets catching the sun at their own angles.
 			var nrm := (Vector3.UP * 1.7 + blade_dir * 0.45).normalized()
-			_quad(st, p0, p1, tip + along * 0.06, tip, tone, nrm, nrm)
-		# The rib itself, so the frond still reads when seen edge-on.
+			# Tips curl further down the further out along the frond they sit.
+			_palm_leaflet(st, p0, p1 + along * 0.06, blade_dir, blade, blade * (0.16 + 0.42 * t0), tone, nrm)
+		# The rachis itself, as a shallow V in section rather than a flat ribbon, so the frond
+		# still reads when the light is edge-on to it.
 		var rib_n := (Vector3.UP + out * 0.3).normalized()
-		_quad(st, p0, p1, p1 + Vector3(0.0, -0.045, 0.0), p0 + Vector3(0.0, -0.045, 0.0), colour * 0.58, rib_n, rib_n)
+		var rib_w := side * (0.030 * (1.0 - t0 * 0.55))
+		var keel := Vector3(0.0, -0.05 * (1.0 - t0 * 0.5), 0.0)
+		_quad(st, p0 - rib_w, p1 - rib_w, p1 + keel, p0 + keel, colour * 0.58, rib_n, rib_n)
+		_quad(st, p0 + keel, p1 + keel, p1 + rib_w, p0 + rib_w, colour * 0.52, rib_n, rib_n)
+
+
+## One leaflet of a frond: a tapered blade leaving the rachis between `a` and `b`, running
+## `length` out along `dir`, narrowing to a real point and curling `curl` metres down at the
+## tip. Built in PALM_LEAFLET_SEGMENTS pieces rather than as one quad, because a quad cannot
+## bend: a frond of straight quads is a comb, and the droop of the outer leaflets is most of
+## what gives a palm crown its shape against the sky.
+static func _palm_leaflet(st: SurfaceTool, a: Vector3, b: Vector3, dir: Vector3, length: float,
+		curl: float, colour: Color, nrm: Vector3) -> void:
+	var mid := (a + b) * 0.5
+	var half := (b - a) * 0.5
+	var prev_a := a
+	var prev_b := b
+	for seg in PALM_LEAFLET_SEGMENTS:
+		var u := float(seg + 1) / float(PALM_LEAFLET_SEGMENTS)
+		# Width runs out to nothing at the tip; the drop is the leaflet's own droop.
+		var w := 1.0 - pow(u, 0.8)
+		var c := mid + dir * (length * u) + Vector3(0.0, -curl * u * u, 0.0)
+		var tone := colour * (1.0 - 0.12 * u)
+		var na := c - half * w
+		var nb := c + half * w
+		if seg == PALM_LEAFLET_SEGMENTS - 1:
+			# The tip: one triangle closing on the point.
+			for v: Vector3 in [prev_a, prev_b, c]:
+				st.set_color(tone)
+				st.set_uv(Vector2.ZERO)
+				st.set_normal(nrm)
+				st.add_vertex(v)
+		else:
+			_quad(st, prev_a, prev_b, nb, na, tone, nrm, nrm)
+		prev_a = na
+		prev_b = nb
 
 
 ## A quad a-b-c-d. `na` / `nb` are the normals for the a,d and b,c edges; leave them at zero to
@@ -491,21 +623,31 @@ static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector
 		st.add_vertex(pair[0])
 
 
-## A cheap faceted blob (coconuts, fruit): an octahedron.
+## A smooth-shaded ellipsoid (coconuts, fruit, berries), `r` being the radius on each axis so
+## fruit can be slightly oblate the way real fruit is. 140 triangles at the default detail: an
+## eight-triangle octahedron at arm's length reads as a cut gemstone, not as something grown.
+static func _sphere_into(st: SurfaceTool, at: Vector3, r: Vector3, colour: Color, sectors: int = 10, rings: int = 7) -> void:
+	var on := func(u: float, v: float) -> Vector3:
+		return Vector3(sin(v) * cos(u), cos(v), sin(v) * sin(u))
+	for i in rings:
+		var v0 := PI * float(i) / float(rings)
+		var v1 := PI * float(i + 1) / float(rings)
+		for j in sectors:
+			var u0 := TAU * float(j) / float(sectors)
+			var u1 := TAU * float(j + 1) / float(sectors)
+			var p00: Vector3 = on.call(u0, v0)
+			var p10: Vector3 = on.call(u1, v0)
+			var p11: Vector3 = on.call(u1, v1)
+			var p01: Vector3 = on.call(u0, v1)
+			# The normal of an ellipsoid is the direction divided by the radii, not the
+			# direction itself, or a squashed coconut lights like a round one.
+			_quad(st, at + p00 * r, at + p10 * r, at + p11 * r, at + p01 * r, colour,
+				(p00 / r).normalized(), (p10 / r).normalized())
+
+
+## A cheap faceted blob, kept for callers that want the coarse version.
 static func _ico(st: SurfaceTool, at: Vector3, r: float, colour: Color) -> void:
-	var px := at + Vector3(r, 0, 0)
-	var nx := at + Vector3(-r, 0, 0)
-	var py := at + Vector3(0, r, 0)
-	var ny := at + Vector3(0, -r, 0)
-	var pz := at + Vector3(0, 0, r)
-	var nz := at + Vector3(0, 0, -r)
-	for tri: Array in [[py, px, pz], [py, pz, nx], [py, nx, nz], [py, nz, px],
-			[ny, pz, px], [ny, nx, pz], [ny, nz, nx], [ny, px, nz]]:
-		for v: Vector3 in tri:
-			st.set_color(colour)
-			st.set_uv(Vector2.ZERO)
-			st.set_normal((v - at).normalized())
-			st.add_vertex(v)
+	_sphere_into(st, at, Vector3(r, r, r), colour, 6, 4)
 
 
 ## A balcony, built in a unit cube: 1 wide (X), 1 tall (Y), 1 deep (+Z, pointing out of the
@@ -520,17 +662,24 @@ static func balcony() -> Mesh:
 	var metal := Color(0.22, 0.22, 0.24)
 	# Floor slab, slightly proud of the wall on both sides.
 	_box_into(st, Vector3(0.0, 0.03, 0.5), Vector3(1.04, 0.06, 1.0), slab)
-	# Top rail and a kick rail.
+	# Top rail, a mid rail and a kick rail: three horizontals is what a real guard rail has,
+	# and the gaps between them are the pattern the eye reads from the street.
 	_box_into(st, Vector3(0.0, 0.98, 0.98), Vector3(1.02, 0.045, 0.05), metal)
+	_box_into(st, Vector3(0.0, 0.64, 0.98), Vector3(1.0, 0.022, 0.026), metal)
 	_box_into(st, Vector3(0.0, 0.30, 0.98), Vector3(1.0, 0.025, 0.03), metal)
+	_box_into(st, Vector3(0.0, 0.10, 0.98), Vector3(1.0, 0.022, 0.026), metal)
 	# Returns along the sides.
 	for sx: float in [-0.5, 0.5]:
 		_box_into(st, Vector3(sx, 0.98, 0.5), Vector3(0.04, 0.045, 1.0), metal)
 		_box_into(st, Vector3(sx, 0.55, 0.5), Vector3(0.03, 0.9, 0.03), metal)
-	# Uprights across the front.
-	for i in 9:
-		var x := -0.46 + float(i) * 0.115
-		_box_into(st, Vector3(x, 0.55, 0.98), Vector3(0.014, 0.9, 0.022), metal)
+	# Uprights across the front, and along the returns so the balcony is not open at the sides.
+	for i in 15:
+		var x := -0.465 + float(i) * 0.0664
+		_box_into(st, Vector3(x, 0.55, 0.98), Vector3(0.013, 0.9, 0.020), metal)
+	for sx: float in [-0.5, 0.5]:
+		for i in 5:
+			var z := 0.16 + float(i) * 0.19
+			_box_into(st, Vector3(sx, 0.55, z), Vector3(0.020, 0.9, 0.013), metal)
 	st.generate_normals()
 	var mesh := st.commit()
 	var mat := StandardMaterial3D.new()
@@ -570,7 +719,7 @@ static func fire_escape() -> Mesh:
 	var rust := Color(0.40, 0.27, 0.19)
 	# Grated platform: real fire-escape decks are open bar grating, so the wall and the sky show
 	# through them. A solid slab is the single biggest thing that made this read as a black box.
-	var slats := 11
+	var slats := 17
 	for i in slats:
 		var z := lerpf(0.06, 0.94, float(i) / float(slats - 1))
 		_box_into(st, Vector3(0.0, 0.0, z), Vector3(1.0, 0.035, 0.045), iron)
@@ -580,9 +729,9 @@ static func fire_escape() -> Mesh:
 	# Railing: top rail, mid rail, uprights, and the two end posts.
 	_box_into(st, Vector3(0.0, 0.44, 0.98), Vector3(1.0, 0.035, 0.035), iron)
 	_box_into(st, Vector3(0.0, 0.24, 0.98), Vector3(1.0, 0.025, 0.025), iron)
-	for i in 8:
-		var x := -0.44 + float(i) * 0.125
-		_box_into(st, Vector3(x, 0.24, 0.98), Vector3(0.018, 0.44, 0.018), iron)
+	for i in 13:
+		var x := -0.45 + float(i) * 0.075
+		_box_into(st, Vector3(x, 0.24, 0.98), Vector3(0.016, 0.44, 0.016), iron)
 	for sx: float in [-0.49, 0.49]:
 		# End posts are frames, not plates: uprights plus rails, so daylight passes through the
 		# sides too.
@@ -591,7 +740,7 @@ static func fire_escape() -> Mesh:
 		_box_into(st, Vector3(sx, 0.44, 0.5), Vector3(0.03, 0.03, 0.9), rust)
 		_box_into(st, Vector3(sx, 0.24, 0.5), Vector3(0.022, 0.022, 0.9), rust)
 	# Stair down to the floor below, sloped across the bay.
-	var steps := 7
+	var steps := 11
 	for i in steps:
 		var t := float(i) / float(steps - 1)
 		var x := lerpf(-0.36, 0.36, t)
@@ -757,7 +906,7 @@ static func light_pool_material() -> ShaderMaterial:
 
 
 static func palm_trunk() -> Mesh:
-	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 7)
+	return cylinder("palm_trunk", 0.22, 7.0, Color(0.55, 0.42, 0.28), 0.14, 16)
 
 
 static func palm_frond() -> Mesh:
@@ -770,8 +919,8 @@ static func coconut() -> Mesh:
 	var mesh := SphereMesh.new()
 	mesh.radius = 0.5
 	mesh.height = 1.0
-	mesh.radial_segments = 6
-	mesh.rings = 3
+	mesh.radial_segments = 14
+	mesh.rings = 9
 	mesh.material = material(Color(0.45, 0.32, 0.18))
 	_cache["coconut"] = mesh
 	return mesh
@@ -1208,7 +1357,7 @@ static func _flat_polygon(key: String, points: PackedVector2Array, color: Color)
 
 
 static func upole() -> Mesh:
-	return cylinder("upole", 0.16, 9.0, Color(0.36, 0.28, 0.2), 0.13, 8)
+	return cylinder("upole", 0.16, 9.0, Color(0.36, 0.28, 0.2), 0.13, 14)
 
 
 static func crossarm() -> Mesh:
@@ -1220,20 +1369,57 @@ static func cable() -> Mesh:
 	return box("cable", Vector3(0.035, 0.035, 1.0), Color(0.08, 0.08, 0.09))
 
 
+## The classic inverted-U bike hoop, as one bent round tube rather than three square boxes
+## butted together. It stands at the kerb where the player walks past it, and square corners on
+## something that is obviously bent pipe is the kind of tell that makes a street read as a
+## greybox. 22 points along the bend at 9 sides is under 400 triangles.
 static func bike_rack() -> Mesh:
 	if _cache.has("bike_rack"):
 		return _cache["bike_rack"]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_material(material(Color(0.3, 0.3, 0.32), 0.5))
-	# An inverted U from three tubes.
-	for part in [[Vector3(-0.4, 0.45, 0.0), Vector3(0.06, 0.9, 0.06)], [Vector3(0.4, 0.45, 0.0), Vector3(0.06, 0.9, 0.06)], [Vector3(0.0, 0.88, 0.0), Vector3(0.86, 0.06, 0.06)]]:
-		var bm := BoxMesh.new()
-		bm.size = part[1]
-		st.append_from(bm, 0, Transform3D(Basis(), part[0]))
+	var path := PackedVector3Array()
+	# Up the left leg, round the bend, down the right leg.
+	path.append(Vector3(-0.4, 0.0, 0.0))
+	path.append(Vector3(-0.4, 0.28, 0.0))
+	path.append(Vector3(-0.4, 0.56, 0.0))
+	for i in range(0, 13):
+		var a: float = PI * float(i) / 12.0
+		path.append(Vector3(-0.4 * cos(a), 0.66 + 0.26 * sin(a), 0.0))
+	path.append(Vector3(0.4, 0.56, 0.0))
+	path.append(Vector3(0.4, 0.28, 0.0))
+	path.append(Vector3(0.4, 0.0, 0.0))
+	# White in the vertex colour: material() already carries the grey in albedo_color and
+	# multiplies the vertex colour into it, so tinting here as well would double the darkness.
+	_tube_into(st, path, 0.032, Color.WHITE, 9)
 	var mesh := st.commit()
 	_cache["bike_rack"] = mesh
 	return mesh
+
+
+## Sweeps a round tube of radius `r` along a polyline. Used for bent pipework (bike hoops,
+## handrails) where a box chain shows its corners.
+static func _tube_into(st: SurfaceTool, path: PackedVector3Array, r: float, colour: Color, sides: int = 9) -> void:
+	if path.size() < 2:
+		return
+	var up := Vector3.UP
+	for i in path.size() - 1:
+		var a := path[i]
+		var b := path[i + 1]
+		var along := (b - a)
+		if along.length_squared() < 1e-9:
+			continue
+		along = along.normalized()
+		var ref := up if absf(along.dot(up)) < 0.95 else Vector3.RIGHT
+		var u := along.cross(ref).normalized()
+		var v := along.cross(u).normalized()
+		for k in sides:
+			var t0 := TAU * float(k) / float(sides)
+			var t1 := TAU * float(k + 1) / float(sides)
+			var d0 := u * cos(t0) + v * sin(t0)
+			var d1 := u * cos(t1) + v * sin(t1)
+			_quad(st, a + d0 * r, a + d1 * r, b + d1 * r, b + d0 * r, colour, d0, d1)
 
 
 static func news_box() -> Mesh:
@@ -1256,11 +1442,11 @@ static func mailbox() -> Mesh:
 
 
 static func bollard() -> Mesh:
-	return cylinder("bollard", 0.12, 0.9, Color(0.25, 0.25, 0.27), 0.1, 10)
+	return cylinder("bollard", 0.12, 0.9, Color(0.25, 0.25, 0.27), 0.1, 18)
 
 
 static func sign_post() -> Mesh:
-	return cylinder("sign_post", 0.04, 2.8, Color(0.3, 0.3, 0.32), 0.04, 8)
+	return cylinder("sign_post", 0.04, 2.8, Color(0.3, 0.3, 0.32), 0.04, 12)
 
 
 ## Green street-name plate, 1 m wide along X, takes the instance color.
@@ -1421,3 +1607,568 @@ static func model_ac(rusted: bool) -> Mesh:
 	if rusted:
 		return model_mesh(MODEL_DIR + "prop_ac.glb", ["rusted"], [], _shift(Vector3(-0.5, 0.32, 0.0)))
 	return model_mesh(MODEL_DIR + "prop_ac.glb", [], ["rusted"], _shift(Vector3(0.5, 0.32, 0.0)))
+
+
+# --- Car wheels --------------------------------------------------------------------------
+#
+# A wheel is the highest realism-per-triangle part of a car: it is round, so the silhouette is
+# unforgiving; it is always in frame; and it is the part a viewer has seen ten thousand times
+# in real life, so any error in it is instantly legible. Everything here is generated from
+# parameters and cached per style and size, so a car park of a hundred and fifty cars shares a
+# handful of meshes.
+
+## The material classes one wheel mesh uses. The class travels in the vertex UV
+## (u = (slot + 0.5) / WHEEL_SLOTS, v = 0.5) and is read back out of two WHEEL_SLOTS x 1 lookup
+## textures - albedo in one, metallic in the other's red and roughness in its green - so rubber,
+## polished rim, steel disc and painted caliper each get their own metallic and roughness while
+## the whole wheel stays ONE surface and ONE draw call. The obvious alternative, one surface of
+## rubber and one of metal, doubles the draw calls of every car in the city for nothing, and at
+## the caps in CityStreamer that is hundreds of calls. Vertex colour is left free for shading
+## (the dark inside the barrel, the bright crest of a spoke), which is what stops the wheel
+## reading as flat-shaded plastic.
+enum WheelSlot {RUBBER, LETTER, FACE, BARREL, DISC, CALIPER, CAP, DARK}
+const WHEEL_SLOTS := 8
+
+## Rim finish + caliper colour. Weighted by repetition the way Vehicle.PAINTS is: a real car
+## park is mostly silver and dark alloys, with the odd polished, bronze or gloss-black set.
+const WHEEL_KITS := [
+	{"face": Color(0.72, 0.73, 0.75), "metal": 1.0, "rough": 0.28, "cal": Color(0.25, 0.26, 0.28), "cal_metal": 0.55, "cal_rough": 0.50},
+	{"face": Color(0.72, 0.73, 0.75), "metal": 1.0, "rough": 0.28, "cal": Color(0.25, 0.26, 0.28), "cal_metal": 0.55, "cal_rough": 0.50},
+	{"face": Color(0.33, 0.34, 0.36), "metal": 1.0, "rough": 0.36, "cal": Color(0.20, 0.21, 0.22), "cal_metal": 0.50, "cal_rough": 0.52},
+	{"face": Color(0.33, 0.34, 0.36), "metal": 1.0, "rough": 0.36, "cal": Color(0.52, 0.10, 0.08), "cal_metal": 0.12, "cal_rough": 0.34},
+	{"face": Color(0.88, 0.89, 0.90), "metal": 1.0, "rough": 0.15, "cal": Color(0.20, 0.21, 0.22), "cal_metal": 0.50, "cal_rough": 0.52},
+	{"face": Color(0.09, 0.09, 0.10), "metal": 1.0, "rough": 0.22, "cal": Color(0.62, 0.43, 0.05), "cal_metal": 0.15, "cal_rough": 0.32},
+	{"face": Color(0.45, 0.32, 0.15), "metal": 1.0, "rough": 0.33, "cal": Color(0.20, 0.21, 0.22), "cal_metal": 0.50, "cal_rough": 0.52},
+]
+
+## Spoke patterns, one per WheelStyle. `n` is the spoke count; `hub` / `mid` / `rim` are the
+## spoke's angular half-width at the hub, the waist and the rim as fractions of the half-pitch
+## (1.0 would touch its neighbour, so `hub` near 1 is what melts the spokes into a hub disc);
+## `twist` sweeps the spoke round as it goes out (a turbine); `ring` lays a concentric band over
+## the spokes at that fraction of the rim radius (a mesh wheel); `dish` is how far the hub sits
+## behind the rim edge, in half-widths - this is the number that makes the rim a dish rather
+## than a plate; `rim_ratio` is the rim diameter over the tyre diameter (a 225/45R18 is 0.71).
+const WHEEL_FACES := [
+	{"n": 5, "hub": 0.94, "mid": 0.40, "rim": 0.72, "twist": 0.00, "ring": 0.0, "dish": 0.46, "rim_ratio": 0.700},
+	{"n": 10, "hub": 0.88, "mid": 0.34, "rim": 0.58, "twist": 0.00, "ring": 0.0, "dish": 0.40, "rim_ratio": 0.720},
+	{"n": 12, "hub": 0.78, "mid": 0.28, "rim": 0.60, "twist": 0.12, "ring": 0.62, "dish": 0.48, "rim_ratio": 0.690},
+	{"n": 6, "hub": 0.97, "mid": 0.80, "rim": 0.93, "twist": 0.00, "ring": 0.0, "dish": 0.26, "rim_ratio": 0.640},
+	{"n": 9, "hub": 0.90, "mid": 0.42, "rim": 0.66, "twist": 0.30, "ring": 0.0, "dish": 0.44, "rim_ratio": 0.710},
+]
+
+
+## The shared material for one wheel kit. Set it as `material_override` on the wheel and the
+## caliper: the meshes are cached per size and style and shared between cars, so the finish
+## cannot live on the mesh.
+static func wheel_material(kit: int) -> StandardMaterial3D:
+	var key := "wheel_mat_%d" % kit
+	if _cache.has(key):
+		return _cache[key]
+	var k: Dictionary = WHEEL_KITS[posmod(kit, WHEEL_KITS.size())]
+	var face: Color = k.face
+	var cal: Color = k.cal
+	# Albedo per slot. Rubber is 0.05, not 0.0: a real tyre is the darkest thing on a car but it
+	# is not black, and at 0.0 it takes no bounce light at all and reads as a hole.
+	var albedo := [
+		Color(0.052, 0.052, 0.056), Color(0.115, 0.115, 0.120), face, face * 0.60,
+		Color(0.42, 0.41, 0.40), cal, face.lerp(Color.WHITE, 0.10), Color(0.055, 0.055, 0.060),
+	]
+	# x = metallic, y = roughness.
+	var mr := [
+		Vector2(0.0, 0.95), Vector2(0.0, 0.62), Vector2(k.metal, k.rough),
+		Vector2(k.metal, minf(float(k.rough) + 0.26, 1.0)), Vector2(0.85, 0.40),
+		Vector2(k.cal_metal, k.cal_rough), Vector2(k.metal, float(k.rough) * 0.75),
+		Vector2(0.25, 0.80),
+	]
+	var mat := StandardMaterial3D.new()
+	mat.albedo_texture = _wheel_lut(key + "_a", albedo)
+	var mr_tex := _wheel_lut(key + "_m", mr)
+	mat.metallic_texture = mr_tex
+	mat.metallic_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
+	mat.roughness_texture = mr_tex
+	mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
+	mat.metallic = 1.0
+	mat.roughness = 1.0
+	# Vertex colour is the shading term, so albedo = lookup * vertex colour.
+	mat.vertex_color_use_as_albedo = true
+	# Nearest, and no mipmaps on the lookup: a filtered slot boundary would blend rubber into
+	# chrome, and one wrong texel on an 8 x 1 strip is an eighth of the wheel.
+	mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_NEAREST
+	_cache[key] = mat
+	return mat
+
+
+## An 8 x 1 lookup strip. Takes Colors (albedo) or Vector2s (metallic in red, roughness in green).
+static func _wheel_lut(key: String, values: Array) -> ImageTexture:
+	if _cache.has(key):
+		return _cache[key]
+	var bytes := PackedByteArray()
+	bytes.resize(WHEEL_SLOTS * 3)
+	for i in WHEEL_SLOTS:
+		var v: Variant = values[i] if i < values.size() else Color.BLACK
+		var c := Color.BLACK
+		if v is Color:
+			c = v
+		elif v is Vector2:
+			c = Color((v as Vector2).x, (v as Vector2).y, 0.0)
+		bytes[i * 3] = clampi(int(c.r * 255.0), 0, 255)
+		bytes[i * 3 + 1] = clampi(int(c.g * 255.0), 0, 255)
+		bytes[i * 3 + 2] = clampi(int(c.b * 255.0), 0, 255)
+	var img := Image.create_from_data(WHEEL_SLOTS, 1, false, Image.FORMAT_RGB8, bytes)
+	var tex := ImageTexture.create_from_image(img)
+	_cache[key] = tex
+	return tex
+
+
+## One vertex of a wheel: position, normal, shading colour and material slot.
+static func _wv(st: SurfaceTool, p: Vector3, n: Vector3, shade: float, slot: int) -> void:
+	st.set_color(Color(shade, shade, shade))
+	st.set_uv(Vector2((float(slot) + 0.5) / float(WHEEL_SLOTS), 0.5))
+	st.set_normal(n)
+	st.add_vertex(p)
+
+
+## A quad with per-corner normals, wound so that it faces the way its normals point. Godot culls
+## back faces, and a quad wound the wrong way round simply is not there - which looks exactly
+## like a missing mesh and is the trap the freeway deck fell into twice. Letting the normal pick
+## the winding removes the whole class of bug from geometry this fiddly.
+static func _wq(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
+		na: Vector3, nb: Vector3, nc: Vector3, nd: Vector3, shade: float, slot: int) -> void:
+	var order: Array = [[a, na], [b, nb], [c, nc], [a, na], [c, nc], [d, nd]]
+	if (b - a).cross(c - a).dot(na + nb + nc + nd) < 0.0:
+		order = [[a, na], [d, nd], [c, nc], [a, na], [c, nc], [b, nb]]
+	for pair: Array in order:
+		_wv(st, pair[0], pair[1], shade, slot)
+
+
+## A flat-shaded quad. `hint` is roughly which way the face should look; the corners decide the
+## exact normal, so a tread block or a spoke flank lights by its own angle.
+static func _wqf(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3,
+		hint: Vector3, shade: float, slot: int) -> void:
+	var n := (b - a).cross(c - a)
+	if n.length_squared() < 1e-14:
+		n = (c - a).cross(d - a)
+	if n.length_squared() < 1e-14:
+		return
+	n = n.normalized()
+	if n.dot(hint) < 0.0:
+		n = -n
+	_wq(st, a, b, c, d, n, n, n, n, shade, slot)
+
+
+## A point on a surface of revolution about X: `x` along the axle, `r` out from it.
+static func _wp(x: float, r: float, a: float) -> Vector3:
+	return Vector3(x, r * cos(a), r * sin(a))
+
+
+## The outward normal of a revolved band, from the profile step (dx, dr).
+static func _wn2(dx: float, dr: float) -> Vector2:
+	var n := Vector2(dr, -dx)
+	return n.normalized() if n.length_squared() > 1e-14 else Vector2(0.0, 1.0)
+
+
+## The tread pattern: how far a profile row's radius is pulled in at circumferential step `j`.
+## `mod` 0 is a plain band, 1 is a shoulder lug (deep, one in four, so the shoulder scallops -
+## the single most legible tread cue in silhouette) and 10 + k is crown rib k, staggered by rib
+## so the lateral grooves do not line up into one ladder all the way across the tread.
+static func _wheel_tread(mod: int, j: int, r: float) -> float:
+	if mod <= 0:
+		return 0.0
+	if mod == 1:
+		return -r * 0.055 if (j + 1) % 4 == 0 else 0.0
+	return -r * 0.030 if (j + (mod - 10)) % 4 == 3 else 0.0
+
+
+## Revolves a profile about the X axis. `prof` rows are [x, r, slot, shade] with an optional
+## fifth tread-pattern entry (see _wheel_tread). The profile is walked in order and the winding
+## derived from it, so a sidewall that bulges outboard and a crown that runs inboard both come
+## out facing the right way. `inward` turns the surface inside out, which is how the inside of
+## the rim barrel - the part you see through the spokes - is built without a second shell.
+static func _wheel_revolve(st: SurfaceTool, prof: Array, seg: int, inward: bool = false) -> void:
+	var rows := prof.size() - 1
+	if rows < 1:
+		return
+	var n2 := PackedVector2Array()
+	n2.resize(rows)
+	for k in rows:
+		n2[k] = _wn2(float(prof[k + 1][0]) - float(prof[k][0]), float(prof[k + 1][1]) - float(prof[k][1]))
+	# Smooth along the profile except across a crease: a groove wall meeting the tread at ninety
+	# degrees has to stay hard or the tread melts into a ripple.
+	var na := n2.duplicate()
+	var nb := n2.duplicate()
+	for k in rows:
+		if k > 0 and n2[k].dot(n2[k - 1]) > 0.55:
+			na[k] = (n2[k] + n2[k - 1]).normalized()
+		if k < rows - 1 and n2[k].dot(n2[k + 1]) > 0.55:
+			nb[k] = (n2[k] + n2[k + 1]).normalized()
+	var flip := -1.0 if inward else 1.0
+	for k in rows:
+		var x0 := float(prof[k][0])
+		var r0 := float(prof[k][1])
+		var x1 := float(prof[k + 1][0])
+		var r1 := float(prof[k + 1][1])
+		var slot := int(prof[k][2])
+		var shade := (float(prof[k][3]) + float(prof[k + 1][3])) * 0.5
+		var m0 := int(prof[k][4]) if prof[k].size() > 4 else 0
+		var m1 := int(prof[k + 1][4]) if prof[k + 1].size() > 4 else 0
+		for j in seg:
+			var a0 := TAU * float(j) / float(seg)
+			var a1 := TAU * float(j + 1) / float(seg)
+			var d0j := _wheel_tread(m0, j, r0)
+			var d0k := _wheel_tread(m0, j + 1, r0)
+			var d1j := _wheel_tread(m1, j, r1)
+			var d1k := _wheel_tread(m1, j + 1, r1)
+			var p00 := _wp(x0, r0 + d0j, a0)
+			var p10 := _wp(x1, r1 + d1j, a0)
+			var p11 := _wp(x1, r1 + d1k, a1)
+			var p01 := _wp(x0, r0 + d0k, a1)
+			if m0 != 0 or m1 != 0:
+				# A tread block face has to light by its own angle, so let the corners set the
+				# normal; the profile normal knows nothing about the step out of the groove.
+				_wqf(st, p00, p10, p11, p01, _wp(0.0, 1.0, a0) * flip, shade, slot)
+				continue
+			var m00 := Vector3(na[k].x, na[k].y * cos(a0), na[k].y * sin(a0)) * flip
+			var m01 := Vector3(na[k].x, na[k].y * cos(a1), na[k].y * sin(a1)) * flip
+			var m10 := Vector3(nb[k].x, nb[k].y * cos(a0), nb[k].y * sin(a0)) * flip
+			var m11 := Vector3(nb[k].x, nb[k].y * cos(a1), nb[k].y * sin(a1)) * flip
+			_wq(st, p00, p10, p11, p01, m00, m10, m11, m01, shade, slot)
+
+
+## One car wheel, axle along X, outboard face toward +X, centred on the hub. `radius` is the
+## overall tyre radius and `width` the widest point of the tyre (the sidewall bulge, not the
+## tread). `near` builds the close-up mesh; false builds the far LOD, which Vehicle swaps in
+## past wheel_lod_distance - the city runs a hundred and fifty traffic cars and the far mesh is
+## what makes that affordable.
+static func car_wheel(style: int, radius: float, width: float, near: bool) -> Mesh:
+	var key := "cw_%d_%d_%d_%d" % [style, roundi(radius * 500.0), roundi(width * 500.0), int(near)]
+	if _cache.has(key):
+		return _cache[key]
+	var face: Dictionary = WHEEL_FACES[posmod(style, WHEEL_FACES.size())]
+	var rim_r := radius * float(face.rim_ratio)
+	var hw := width * 0.5
+	# 72 is not vanity: a tyre is a circle seen from the side at two metres, and the lateral
+	# tread pattern runs on a four-segment period, so the count has to divide by four as well or
+	# the pattern does not close round the ring.
+	var seg := 72 if near else 20
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	_wheel_tyre(st, radius, rim_r, hw, seg, near)
+	_wheel_barrel(st, rim_r, hw, seg, near)
+	_wheel_brake(st, rim_r, hw, near)
+	_wheel_face(st, face, rim_r, hw, near)
+	var mesh := st.commit()
+	_cache[key] = mesh
+	return mesh
+
+
+## The brake caliper, as its own mesh. It is separate because it must NOT spin with the wheel:
+## a caliper is bolted to the upright, and one going round with the rim is the tell that the
+## whole assembly is a single spinning cylinder. It is also tiny and only drawn up close, so it
+## costs almost nothing. Same material as the wheel.
+static func car_caliper(style: int, radius: float, width: float) -> Mesh:
+	var key := "ccal_%d_%d_%d" % [style, roundi(radius * 500.0), roundi(width * 500.0)]
+	if _cache.has(key):
+		return _cache[key]
+	var face: Dictionary = WHEEL_FACES[posmod(style, WHEEL_FACES.size())]
+	var rim_r := radius * float(face.rim_ratio)
+	var hw := width * 0.5
+	var br := rim_r * 0.76
+	var thick := rim_r * 0.105
+	var x_out := -hw * 0.02 + thick * 0.85
+	var x_in := -hw * 0.02 - thick * 1.85
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	# A block straddling the disc at the top. The top is deliberate: the wheel mesh is turned
+	# round by PI for the left-hand side of the car, so anything off-centre would sit at the
+	# front on one side and the back on the other. At top dead centre it mirrors correctly.
+	var span := 0.50
+	var steps := 9
+	var r_in := br * 0.68
+	var r_out := br + rim_r * 0.055
+	var prev: Array = []
+	for i in steps + 1:
+		var a := -span + 2.0 * span * float(i) / float(steps)
+		# The body swells in the middle, where the pistons are.
+		var bulge := 1.0 + 0.10 * sin(PI * float(i) / float(steps))
+		var ro := r_out * bulge
+		var ring: Array = [
+			_wp(x_out, ro, a), _wp(x_out, r_in, a), _wp(x_in, r_in, a), _wp(x_in, ro, a),
+		]
+		if not prev.is_empty():
+			var mid := _wp(0.0, 1.0, a)
+			_wqf(st, prev[0], ring[0], ring[3], prev[3], mid, 1.0, WheelSlot.CALIPER)          # outer
+			_wqf(st, prev[1], ring[1], ring[2], prev[2], -mid, 0.42, WheelSlot.DARK)           # inner
+			_wqf(st, prev[0], ring[0], ring[1], prev[1], Vector3.RIGHT, 0.86, WheelSlot.CALIPER)  # outboard cheek
+			_wqf(st, prev[3], ring[3], ring[2], prev[2], Vector3.LEFT, 0.62, WheelSlot.CALIPER)   # inboard cheek
+		else:
+			_wqf(st, ring[0], ring[1], ring[2], ring[3], _wp(0.0, 1.0, a).cross(Vector3.RIGHT), 0.70, WheelSlot.CALIPER)
+		prev = ring
+	_wqf(st, prev[0], prev[1], prev[2], prev[3], _wp(0.0, 1.0, span).cross(Vector3.LEFT), 0.70, WheelSlot.CALIPER)
+	# Two mounting bosses on the inboard cheek: a caliper is a casting with lugs, and the pair
+	# of bumps is what stops the block reading as a box someone left on the disc.
+	for s: float in [-0.30, 0.30]:
+		var a := s
+		var c := _wp(x_in - thick * 0.45, (r_in + r_out) * 0.5, a)
+		_box_wheel(st, c, Vector3(thick * 0.9, rim_r * 0.10, rim_r * 0.10), a, 0.55, WheelSlot.CALIPER)
+	var mesh := st.commit()
+	_cache[key] = mesh
+	return mesh
+
+
+## A little box lying along the axle at angle `a` round the wheel, used for caliper lugs and
+## lug nuts. `size` is (along X, radial, tangential).
+static func _box_wheel(st: SurfaceTool, centre: Vector3, size: Vector3, a: float, shade: float, slot: int) -> void:
+	var rad := _wp(0.0, 1.0, a)
+	var tan := Vector3(0.0, -sin(a), cos(a))
+	var ax := Vector3.RIGHT
+	var corners: Array = []
+	for sx: float in [1.0, -1.0]:
+		for sr: float in [1.0, -1.0]:
+			for stn: float in [1.0, -1.0]:
+				corners.append(centre + ax * (sx * size.x * 0.5) + rad * (sr * size.y * 0.5) + tan * (stn * size.z * 0.5))
+	# corners: 0 +x+r+t 1 +x+r-t 2 +x-r+t 3 +x-r-t 4 -x+r+t 5 -x+r-t 6 -x-r+t 7 -x-r-t
+	_wqf(st, corners[0], corners[1], corners[3], corners[2], ax, shade, slot)
+	_wqf(st, corners[4], corners[5], corners[7], corners[6], -ax, shade * 0.8, slot)
+	_wqf(st, corners[0], corners[1], corners[5], corners[4], rad, shade * 1.05, slot)
+	_wqf(st, corners[2], corners[3], corners[7], corners[6], -rad, shade * 0.7, slot)
+	_wqf(st, corners[0], corners[2], corners[6], corners[4], tan, shade * 0.9, slot)
+	_wqf(st, corners[1], corners[3], corners[7], corners[5], -tan, shade * 0.9, slot)
+
+
+## The tyre. A tyre is NOT a cylinder, which is exactly what made the old wheel read as a disc:
+## it swells where it leaves the rim (the widest point of a car's wheel is the sidewall, not the
+## tread), rounds over at the shoulder, and only then runs flat across the crown. On top of that
+## it carries four circumferential grooves cut into the profile and, at `detail`, a lateral
+## block pattern driven off the tread modulation in _wheel_revolve.
+##
+## Geometry, not a normal map, for the grooves: the grooves are in the profile, so they cost
+## three extra rows out of thirty-odd and NOTHING per car (the mesh is shared), where a tread
+## normal map costs a texture fetch on every wheel pixel in the city plus a tangent per vertex,
+## and still leaves the shoulder silhouette smooth. Measured on the near mesh the whole tread
+## pattern - grooves, ribs and shoulder lugs - is about 2.4k of the 12k triangles.
+static func _wheel_tyre(st: SurfaceTool, r_out: float, rim_r: float, hw: float, seg: int, detail: bool) -> void:
+	var sw := r_out - rim_r                     # sidewall height
+	var bead := rim_r + r_out * 0.055
+	var crown_x := 0.652
+	var crown := func(xf: float) -> float:
+		# The tread is crowned, not flat: a tyre stands on the middle of its tread.
+		return r_out - r_out * 0.012 * pow(absf(xf) / crown_x, 2.0)
+	# [x in half-widths, radius, slot, shade, tread pattern]
+	var prof: Array = [
+		[0.885, bead, WheelSlot.RUBBER, 0.58, 0],
+		[0.945, rim_r + sw * 0.17, WheelSlot.RUBBER, 0.76, 0],
+		[1.000, rim_r + sw * 0.36, WheelSlot.RUBBER, 0.98, 0],   # the sidewall bulge
+		[0.975, rim_r + sw * 0.52, WheelSlot.LETTER, 1.00, 0],   # moulded lettering band
+		[0.930, rim_r + sw * 0.68, WheelSlot.LETTER, 0.90, 0],
+		[0.875, rim_r + sw * 0.84, WheelSlot.RUBBER, 0.82, 0],
+		[0.800, r_out * 0.966, WheelSlot.RUBBER, 0.74, 1],       # shoulder, scalloped by lugs
+		[0.725, r_out * 0.991, WheelSlot.RUBBER, 0.84, 1],
+		[crown_x, crown.call(crown_x), WheelSlot.RUBBER, 0.94, 10],
+	]
+	if detail:
+		var gd := r_out * 0.028
+		var gw := 0.075
+		var rib := 0
+		for g: float in [0.46, 0.155, -0.155, -0.46]:
+			prof.append([g + gw, crown.call(g + gw), WheelSlot.RUBBER, 0.94, 10 + rib])
+			prof.append([g + gw * 0.55, crown.call(g) - gd, WheelSlot.RUBBER, 0.40, 0])
+			prof.append([g - gw * 0.55, crown.call(g) - gd, WheelSlot.RUBBER, 0.40, 0])
+			rib += 1
+			prof.append([g - gw, crown.call(g - gw), WheelSlot.RUBBER, 0.94, 10 + rib])
+		prof.append([-crown_x, crown.call(-crown_x), WheelSlot.RUBBER, 0.94, 10 + rib])
+	else:
+		prof.append([-crown_x, crown.call(-crown_x), WheelSlot.RUBBER, 0.94, 0])
+	# The inboard half mirrors the outboard one. No lettering on the inside: nobody ever sees it
+	# and it would only cost a slot change.
+	for i in range(7, -1, -1):
+		var e: Array = prof[i]
+		var slot: int = e[2]
+		prof.append([-float(e[0]), e[1], WheelSlot.RUBBER if slot == WheelSlot.LETTER else slot, e[3], e[4]])
+	for row: Array in prof:
+		row[0] = float(row[0]) * hw
+	_wheel_revolve(st, prof, seg)
+
+
+## The rim barrel: a real lip at each edge, a bead seat, a drop centre and the inside of the
+## well, which is what you actually look at through the spokes. Only the flange rings get an
+## outer skin - everything between them is under the tyre and would be paying for geometry
+## nobody can see.
+static func _wheel_barrel(st: SurfaceTool, rim_r: float, hw: float, seg: int, detail: bool) -> void:
+	var lip := rim_r * 0.105
+	var well := rim_r * 0.20
+	var shell := rim_r * 0.038
+	# [x in half-widths, radius]
+	var outline: Array = [
+		[0.900, rim_r + lip], [0.845, rim_r + lip], [0.815, rim_r + rim_r * 0.010],
+		[0.560, rim_r - rim_r * 0.028], [0.120, rim_r - well],
+		[-0.380, rim_r - rim_r * 0.045], [-0.800, rim_r + rim_r * 0.010], [-0.870, rim_r + lip],
+	]
+	if not detail:
+		outline = [[0.900, rim_r + lip], [0.120, rim_r - well * 0.6], [-0.870, rim_r + lip]]
+	var inner: Array = []
+	for i in outline.size():
+		var row: Array = outline[i]
+		# Deeper in the well is darker: it is a cavity, and a cavity that lights as brightly as
+		# the face is the thing that makes a modelled rim look like a printed disc.
+		var t := float(i) / float(maxf(outline.size() - 1, 1))
+		var dark := 0.62 - 0.26 * sin(PI * t)
+		inner.append([float(row[0]) * hw, float(row[1]) - shell, WheelSlot.BARREL, dark])
+	_wheel_revolve(st, inner, seg, true)
+	# Outer skin of the two flanges only.
+	var lip_out: Array = [
+		[float(outline[0][0]) * hw, float(outline[0][1]), WheelSlot.FACE, 1.0],
+		[float(outline[1][0]) * hw, float(outline[1][1]), WheelSlot.FACE, 0.92],
+		[float(outline[2][0]) * hw, float(outline[2][1]), WheelSlot.FACE, 0.70],
+	]
+	if detail:
+		_wheel_revolve(st, lip_out, seg)
+		var n := outline.size()
+		_wheel_revolve(st, [
+			[float(outline[n - 3][0]) * hw, float(outline[n - 3][1]), WheelSlot.BARREL, 0.55],
+			[float(outline[n - 2][0]) * hw, float(outline[n - 2][1]), WheelSlot.BARREL, 0.62],
+			[float(outline[n - 1][0]) * hw, float(outline[n - 1][1]), WheelSlot.FACE, 0.80],
+		], seg)
+	else:
+		_wheel_revolve(st, lip_out, seg)
+	# The edge of each flange, so the lip has thickness instead of being a knife.
+	for i: int in [0, outline.size() - 1]:
+		var x := float(outline[i][0]) * hw
+		var r := float(outline[i][1])
+		# inward flips the normal, and the outboard flange edge is the one that has to look
+		# back at the camera along +X.
+		_wheel_revolve(st, [[x, r, WheelSlot.FACE, 0.95], [x, r - shell, WheelSlot.FACE, 0.75]],
+				seg, i == 0)
+
+
+## The brake disc, seen through the spokes. This is the detail that most separates a modelled
+## wheel from a toy one and it is nearly free: a ring, an edge and a bell. At `detail` the
+## friction band also carries slots - every third segment stepped in by a millimetre - which is
+## what makes it read as a disc rather than a grey washer.
+static func _wheel_brake(st: SurfaceTool, rim_r: float, hw: float, detail: bool) -> void:
+	var seg := 44 if detail else 14
+	var br := rim_r * 0.76
+	var hat_r := rim_r * 0.30
+	var thick := rim_r * 0.105
+	var x0 := -hw * 0.02
+	var x1 := x0 - thick
+	var band := br * 0.78
+	# Outboard face: the bell, then the friction band, then a lip at the outside edge.
+	var slot_depth := thick * 0.10 if detail else 0.0
+	for j in seg:
+		var a0 := TAU * float(j) / float(seg)
+		var a1 := TAU * float(j + 1) / float(seg)
+		var cut := slot_depth if j % 3 == 0 else 0.0
+		var rings: Array = [
+			[hat_r, x0 + thick * 0.55, 0.42], [hat_r * 1.22, x0, 0.50],
+			[band, x0 - cut, 0.92], [br, x0 - cut, 0.86],
+		]
+		for k in rings.size() - 1:
+			var ra: float = rings[k][0]
+			var rb: float = rings[k + 1][0]
+			var xa: float = rings[k][1]
+			var xb: float = rings[k + 1][1]
+			var shade := (float(rings[k][2]) + float(rings[k + 1][2])) * 0.5
+			_wqf(st, _wp(xa, ra, a0), _wp(xb, rb, a0), _wp(xb, rb, a1), _wp(xa, ra, a1),
+					Vector3.RIGHT, shade, WheelSlot.DISC)
+	# Edge and inboard face.
+	_wheel_revolve(st, [[x0, br, WheelSlot.DISC, 0.80], [x1, br, WheelSlot.DISC, 0.66]], seg)
+	_wheel_revolve(st, [[x1, br, WheelSlot.DISC, 0.60], [x1, hat_r, WheelSlot.DISC, 0.36]], seg)
+	# The bell, closing the centre of the wheel so you cannot see straight through the hub.
+	_wheel_revolve(st, [[x0 + thick * 0.55, hat_r, WheelSlot.DARK, 0.40],
+			[hw * 0.30, hat_r * 0.92, WheelSlot.DARK, 0.30]], seg)
+
+
+## The rim face: the spokes, the dish they sit in, the centre cap and the lug nuts. A rim is a
+## dish, not a plate - the hub sits `dish` half-widths behind the rim edge and the spokes sweep
+## out and forward to meet the barrel, so there is real depth between the face and the lip and
+## real shadow between the spokes. A flat face is the other half of why the old wheel read as a
+## disc.
+static func _wheel_face(st: SurfaceTool, face: Dictionary, rim_r: float, hw: float, detail: bool) -> void:
+	var n: int = int(face.n)
+	var hp := PI / float(n)
+	var hub_r := rim_r * 0.30
+	var x_rim := hw * 0.66
+	var x_hub := x_rim - hw * float(face.dish)
+	var stations := 14 if detail else 4
+	var across := 4 if detail else 1
+	var crown := hw * 0.055
+	var twist := float(face.twist)
+	var at := func(t: float) -> Vector4:
+		# x, radius, half-angle, depth
+		var r := lerpf(hub_r, rim_r + rim_r * 0.02, t)
+		var x := x_hub + (x_rim - x_hub) * smoothstep(0.0, 1.0, t)
+		var h := hp * (float(face.mid) + (float(face.hub) - float(face.mid)) * pow(1.0 - t, 2.4)
+				+ (float(face.rim) - float(face.mid)) * pow(t, 3.2))
+		return Vector4(x, r, h, hw * lerpf(0.34, 0.14, t))
+	var point := func(t: float, u: float, base: float) -> Vector3:
+		var s: Vector4 = at.call(t)
+		return _wp(s.x - crown * u * u, s.y, base + twist * t + s.z * u)
+	for i in n:
+		var base := TAU * float(i) / float(n)
+		for k in stations:
+			var t0 := float(k) / float(stations)
+			var t1 := float(k + 1) / float(stations)
+			var s0: Vector4 = at.call(t0)
+			var s1: Vector4 = at.call(t1)
+			for c in across:
+				var u0 := -1.0 + 2.0 * float(c) / float(across)
+				var u1 := -1.0 + 2.0 * float(c + 1) / float(across)
+				var p00: Vector3 = point.call(t0, u0, base)
+				var p10: Vector3 = point.call(t1, u0, base)
+				var p11: Vector3 = point.call(t1, u1, base)
+				var p01: Vector3 = point.call(t0, u1, base)
+				# Brighter along the crest of the spoke, darker at its edges: that gradient is
+				# what gives a spoke its roundness without a normal map.
+				var lit := 1.0 - 0.14 * absf((u0 + u1) * 0.5)
+				_wqf(st, p00, p10, p11, p01, Vector3.RIGHT, lit, WheelSlot.FACE)
+			# Flanks, which is where the dish's shadow lives, and a back so the spoke is solid
+			# when you look at the wheel from an angle.
+			for side: float in [-1.0, 1.0]:
+				var f0: Vector3 = point.call(t0, side, base)
+				var f1: Vector3 = point.call(t1, side, base)
+				var b0 := f0 - Vector3(s0.w, 0.0, 0.0)
+				var b1 := f1 - Vector3(s1.w, 0.0, 0.0)
+				# The flank looks sideways round the wheel, which is the radial direction
+				# turned a quarter turn about the axle.
+				var out := Vector3(0.0, f0.y, f0.z).cross(Vector3.RIGHT).normalized() * side
+				_wqf(st, f0, f1, b1, b0, out, 0.56, WheelSlot.FACE)
+			if detail:
+				var g0: Vector3 = point.call(t0, -1.0, base) - Vector3(s0.w, 0.0, 0.0)
+				var g1: Vector3 = point.call(t1, -1.0, base) - Vector3(s1.w, 0.0, 0.0)
+				var h0: Vector3 = point.call(t0, 1.0, base) - Vector3(s0.w, 0.0, 0.0)
+				var h1: Vector3 = point.call(t1, 1.0, base) - Vector3(s1.w, 0.0, 0.0)
+				_wqf(st, g0, g1, h1, h0, Vector3.LEFT, 0.34, WheelSlot.DARK)
+	var seg := 36 if detail else 12
+	# A concentric band laid over the spokes turns a spoke set into a mesh wheel.
+	if float(face.ring) > 0.0:
+		var rr := rim_r * float(face.ring)
+		var t_ring := clampf((rr - hub_r) / maxf(rim_r * 1.02 - hub_r, 0.001), 0.0, 1.0)
+		var s: Vector4 = at.call(t_ring)
+		var xr := s.x + hw * 0.035
+		var w := rim_r * 0.055
+		_wheel_revolve(st, [
+			[xr, rr - w, WheelSlot.FACE, 0.88], [xr, rr + w, WheelSlot.FACE, 0.94],
+			[xr - hw * 0.10, rr + w, WheelSlot.FACE, 0.70],
+			[xr - hw * 0.10, rr - w, WheelSlot.FACE, 0.60],
+			[xr, rr - w, WheelSlot.FACE, 0.88],
+		], seg)
+	# Centre cap: a shallow dome standing proud of the hub, with a skirt down to the face.
+	var cap_r := hub_r * 0.72
+	var cap_x := x_hub + hw * 0.16
+	var dome: Array = []
+	var rings := 5 if detail else 2
+	for i in rings + 1:
+		var t := float(i) / float(rings)
+		dome.append([cap_x - hw * 0.20 * t * t, cap_r * t, WheelSlot.CAP, 1.0 - 0.10 * t])
+	dome.append([x_hub, cap_r, WheelSlot.CAP, 0.66])
+	_wheel_revolve(st, dome, seg)
+	if not detail:
+		return
+	# Lug nuts on a bolt circle. Five small hexagonal bosses, and they read from further away
+	# than anything else this size because everyone knows how many a wheel has.
+	var lug_t := clampf((hub_r * 1.30 - hub_r) / maxf(rim_r * 1.02 - hub_r, 0.001), 0.06, 0.4)
+	var ls: Vector4 = at.call(lug_t)
+	for i in 5:
+		var a := TAU * (float(i) + 0.5) / 5.0
+		var c := _wp(ls.x + hw * 0.05, hub_r * 1.34, a)
+		_box_wheel(st, c, Vector3(hw * 0.11, rim_r * 0.075, rim_r * 0.075), a, 0.80, WheelSlot.CAP)
