@@ -3,16 +3,28 @@ extends VehicleBody3D
 ## Arcade car: bouncy, grippy, overpowered, with a nitro. Built from boxes in code with a body
 ## type, a paint color and an optional add-on. Press interact next to it to drive.
 
-enum BodyType { SEDAN, PICKUP, VAN, SPORTS }
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
-const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports"]
+## Original names. Nothing here is or imitates a real manufacturer's model.
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/car_sedan.glb",
 	BodyType.PICKUP: "res://assets/models/car_pickup.glb",
 	BodyType.VAN: "res://assets/models/car_van.glb",
 	BodyType.SPORTS: "res://assets/models/car_sports.glb",
+	BodyType.SUPER: "res://assets/models/exo_super_coupe.glb",
+	BodyType.SPIDER: "res://assets/models/exo_super_spider.glb",
+	BodyType.HYPER: "res://assets/models/exo_hyper_a.glb",
+	BodyType.TRACK: "res://assets/models/exo_hyper_b.glb",
+}
+## How often each body type turns up, in parts per thousand. Exotics are deliberately rare: a
+## street where every fourth car is a hypercar reads as a toy box, and the whole reason they land
+## is that they are unusual. Must sum to 1000.
+const BODY_ODDS := {
+	BodyType.SEDAN: 300, BodyType.PICKUP: 190, BodyType.VAN: 175, BodyType.SPORTS: 215,
+	BodyType.SUPER: 45, BodyType.SPIDER: 25, BodyType.HYPER: 30, BodyType.TRACK: 20,
 }
 ## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
 ## All four models come out of Meshy with the nose along +X; -PI/2 puts the nose at -Z, which is
@@ -731,13 +743,23 @@ func _add_body_model(length: float) -> bool:
 		var box := m.mesh.get_aabb()
 		aabb = box if first else aabb.merge(box)
 		first = false
-		var mat := m.mesh.surface_get_material(0)
-		if mat is StandardMaterial3D:
-			# Car paint shader: bodywork takes the paint, glass and tires stay dark and glossy.
+		# Per SURFACE, not material_override. The Meshy bodies are one surface with the paint
+		# baked into the albedo, so overriding the whole instance was right for them. The
+		# generated bodies carry six named slots - paint, glass, trim, tyre, light_front,
+		# light_rear - and material_override would have painted the windows, the tyres and the
+		# headlights in body colour, which is exactly the problem the slots exist to solve.
+		for si in m.mesh.get_surface_count():
+			var mat := m.mesh.surface_get_material(si)
+			if not (mat is StandardMaterial3D):
+				continue
 			var sm := mat as StandardMaterial3D
+			# A multi-slot body paints only the slot called "paint"; a single-slot body is a
+			# Meshy car and the one surface IS the bodywork.
+			if m.mesh.get_surface_count() > 1 and not String(sm.resource_name).begins_with("paint"):
+				continue
 			var painted := _paint_material(sm.albedo_texture, sm.normal_texture)
 			painted_mats.append(painted)
-			m.material_override = painted
+			m.set_surface_override_material(si, painted)
 	if first:
 		return false
 	# Longest horizontal axis is the length; scale so it matches our chassis.
@@ -818,6 +840,16 @@ func _box(size: Vector3, pos: Vector3, color: Color, collide: bool, glow: bool =
 
 
 ## A seeded random car: body type, add-on, paint, finish and livery.
+## Maps a 0-999 roll onto a body type through BODY_ODDS.
+static func _body_for_roll(roll: int) -> BodyType:
+	var run := 0
+	for t: int in BODY_ODDS:
+		run += int(BODY_ODDS[t])
+		if roll < run:
+			return t as BodyType
+	return BodyType.SEDAN
+
+
 static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 	var car := Vehicle.new()
 	# The look seed is read off the generator's state rather than drawn from it. Reading does not
@@ -825,7 +857,9 @@ static func random_car(rng: RandomNumberGenerator) -> Vehicle:
 	# call here would shift every later roll in the caller's stream and move the parked cars,
 	# props and lots that the city has already been generated with (CLAUDE.md).
 	var look := hash([rng.state, 7717])
-	var type := rng.randi_range(0, BodyType.size() - 1) as BodyType
+	# ONE rng call, as before - the range widens but the stream advances identically, so every
+	# later roll in the caller's stream is untouched and the city does not move (CLAUDE.md).
+	var type := _body_for_roll(rng.randi_range(0, 999))
 	var extra := Addon.NONE
 	if rng.randf() < 0.35:
 		extra = rng.randi_range(1, Addon.size() - 1) as Addon
