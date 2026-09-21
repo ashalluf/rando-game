@@ -87,7 +87,9 @@ func _add_road(road_name: String, pts: PackedVector2Array, width: float, mansion
 		return -1
 	var raw := PackedFloat32Array()
 	for p in pts:
-		raw.append(_macro.raw_height_at(p))
+		# The relief runs up the lower slopes now, so a road profile taken from the bare mountain
+		# would sit below its own hillside. Profile against the surface, relief included.
+		raw.append(_macro.raw_height_at(p) + _macro.relief_at(p))
 	var heights := _smooth(raw)
 	heights = _limit_grade(heights, pts)
 	roads.append({"name": road_name, "points": pts, "heights": heights, "width": width, "mansions": mansions_allowed})

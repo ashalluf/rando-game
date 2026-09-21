@@ -90,6 +90,9 @@ var _noise: FastNoiseLite
 ## 2026-09-19). Peak height in meters; zero on the beach, in the bay, in the flat zones
 ## (airport, port, harbor), on the mountain hills and around every landmark.
 var relief_height: float = 22.0
+## How far up a mountain the city's rolling relief takes to fade out. Wide on purpose: see
+## `_relief_at()`.
+var relief_fade_height: float = 60.0
 var relief_frequency: float = 0.0026
 var _relief: FastNoiseLite
 var _landmarks: Array[Dictionary] = []
@@ -128,10 +131,13 @@ func coast_x(z: float) -> float:
 ## Land height with hill roads and mansion pads carved in.
 func height_at(pos: Vector2) -> float:
 	var raw := raw_height_at(pos)
-	var h := raw
+	# Relief first, then carve: the roads have to be cut into the surface the player actually
+	# walks on. Carving the bare mountain and adding relief afterwards lifts every road off its
+	# own bed by whatever the relief happens to be there.
+	var h := raw + _relief_at(pos, raw)
 	if hill_roads and raw > 0.5:
-		h = hill_roads.carve(pos, raw)
-	return h + _relief_at(pos, raw)
+		h = hill_roads.carve(pos, h)
+	return h
 
 
 ## The city's rolling ground at a world XZ (meters above the flat base). Everything a city
@@ -146,7 +152,13 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 	# The valley floor is a base elevation, not rolling ground: it does not fade out near the
 	# mountains, or the city built on it would slide back down to sea level at its own edges.
 	var base := plateau_at(pos)
-	var fade := 1.0 - smoothstep(0.0, 2.5, raw)
+	# Fade the rolling relief out over the first `relief_fade_height` metres of mountain, not the
+	# first 2.5. At the foot of a range raw climbs from 0 to 3 m in about twenty metres of ground,
+	# so a narrow window switched the relief off in one step and left a metres-high wall along the
+	# whole city/hills seam - a grey band right round the valley. Hill roads are carved into the
+	# surface *including* relief (see `height_at`), so letting it run up the lower slopes costs
+	# nothing.
+	var fade := 1.0 - smoothstep(0.0, relief_fade_height, raw)
 	if fade <= 0.0:
 		return base
 	var cx := coast_x(pos.y)
