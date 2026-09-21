@@ -215,7 +215,7 @@ func _build_showroom(at: Vector3, yaw: float) -> void:
 		jet.position = at + forward * 34.0 + right * (float(k) - 0.5) * 44.0 + Vector3.UP * 1.0
 		jet.rotation.y = yaw + PI * 0.5
 		add_child(jet)
-	var props: Array[Mesh] = [PropFactory.model_hydrant(false), PropFactory.model_hydrant(true), PropFactory.model_trash_can(false), PropFactory.model_trash_can(true), PropFactory.model_bench(), PropFactory.model_barrier(), PropFactory.model_barrel(), PropFactory.model_tyre(), PropFactory.model_planter(), PropFactory.model_cafe_set(), PropFactory.model_lamp(), PropFactory.model_shrub(0), PropFactory.model_shrub(2), PropFactory.model_manhole(), PropFactory.model_barrier_tall(), PropFactory.model_tree(0), PropFactory.model_tree(1), PropFactory.model_tree(2)]
+	var props: Array[Mesh] = [PropFactory.model_hydrant(false), PropFactory.model_hydrant(true), PropFactory.model_trash_can(false), PropFactory.model_trash_can(true), PropFactory.model_bench(), PropFactory.model_barrier(), PropFactory.model_barrel(), PropFactory.model_tyre(), PropFactory.model_planter(), PropFactory.model_cafe_set(), PropFactory.model_lamp(), PropFactory.model_shrub(0), PropFactory.model_shrub(2), PropFactory.model_manhole(), PropFactory.model_barrier_tall(), PropFactory.model_tree(0), PropFactory.model_tree(1), PropFactory.model_tree(2), PropFactory.model_tree(3), PropFactory.model_tree(4), PropFactory.model_hill_tree(0), PropFactory.model_hill_tree(1), PropFactory.model_hill_tree(2), PropFactory.model_hill_tree(3)]
 	for i in props.size():
 		var mi := MeshInstance3D.new()
 		mi.mesh = props[i]

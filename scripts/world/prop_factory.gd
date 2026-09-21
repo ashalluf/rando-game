@@ -985,13 +985,34 @@ static func model_barrier_tall() -> Mesh:
 	return model_mesh(MODEL_DIR + "prop_barrier_b.glb")
 
 
-## A real tree (Poly Haven, reduced with tools/decimate_tree.py): 0 island tree, 1 second island
-## tree, 2 small tree. About 5 m tall, base at the origin. Leaves use alpha scissor and take the
-## instance color as a tint.
+## City trees (Poly Haven, CC0, reduced with tools/decimate_tree.py): 0-2 the original island
+## and small trees, 3 a fourth broadleaf, 4 the jacaranda. About 5 m tall, base at the origin.
+## Leaves use alpha scissor and take the instance color as a tint.
+##
+## The jacaranda is the one that carries colour. Its canopy is violet rather than green, which
+## is why whole blocks can be biased to it (CityChunk._jacaranda_street): a jacaranda boulevard
+## in bloom is the most recognisable thing on a Los Angeles street and the strongest single
+## splash of colour the city has.
+const CITY_TREES := ["tree_a.glb", "tree_b.glb", "tree_c.glb", "tree_d.glb", "tree_jacaranda.glb"]
+## Hill trees: conifers up the slopes, dry desert species on the bare ground. A range above a
+## coastal basin covered in the same broadleaf street trees as the city below reads as one
+## texture stretched over everything.
+const HILL_TREES := ["tree_fir.glb", "tree_pine.glb", "tree_quiver.glb", "tree_searsia.glb"]
+
 static func model_tree(variant: int) -> Mesh:
-	var files: PackedStringArray = ["tree_a.glb", "tree_b.glb", "tree_c.glb"]
-	var v := clampi(variant, 0, files.size() - 1)
-	var mesh := model_mesh(MODEL_DIR + files[v])
+	var v := clampi(variant, 0, CITY_TREES.size() - 1)
+	var mesh := _tree_mesh(CITY_TREES[v])
+	return mesh
+
+
+## One of the hill species; same leaf handling as the city trees.
+static func model_hill_tree(variant: int) -> Mesh:
+	var v := clampi(variant, 0, HILL_TREES.size() - 1)
+	return _tree_mesh(HILL_TREES[v])
+
+
+static func _tree_mesh(file: String) -> Mesh:
+	var mesh := model_mesh(MODEL_DIR + file)
 	for i in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:

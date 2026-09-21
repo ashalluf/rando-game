@@ -42,6 +42,7 @@ var _batch := MultiMeshBatch.new()
 var _tree_bias: int = -1
 ## True when this block's street trees are palms (set per block from the district's "palms" odds).
 var _palm_street: bool = false
+var _jacaranda_street: bool = false
 var _lamp_tint: Color = Color.WHITE
 var _mm_nodes: Dictionary = {}
 var _statics: StreetProps
@@ -703,12 +704,26 @@ func _build_block(block: Dictionary) -> void:
 	var pavings: Array = params.get("paving", [["paving", 3.0, Color(0.95, 0.94, 0.92)]])
 	var paving: Array = pavings[rng.randi() % pavings.size()]
 	var paving_tint: Color = (paving[2] as Color).lightened(rng.randf_range(-0.06, 0.06))
+	# Any number of species: the old form indexed weights[0..2] by hand, which silently ignored
+	# every tree added after the third.
 	var weights: Array = params.get("tree_weights", [0.34, 0.33, 0.33])
-	var pick := rng.randf() * (float(weights[0]) + float(weights[1]) + float(weights[2]))
-	_tree_bias = 0 if pick < float(weights[0]) else (1 if pick < float(weights[0]) + float(weights[1]) else 2)
+	var total := 0.0
+	for w in weights:
+		total += float(w)
+	var pick := rng.randf() * maxf(total, 0.0001)
+	_tree_bias = weights.size() - 1
+	var run := 0.0
+	for i in weights.size():
+		run += float(weights[i])
+		if pick < run:
+			_tree_bias = i
+			break
 	# Some blocks are palm-lined, the way whole boulevards are in Los Angeles. It is a per-block
 	# roll so palms run in runs rather than being sprinkled one here and one there.
 	_palm_street = rng.randf() < float(params.get("palms", 0.25))
+	# And some are jacaranda-lined, the same idea: a whole street of one flowering species is
+	# how Los Angeles actually looks in spring, and it is the strongest colour the city has.
+	_jacaranda_street = not _palm_street and rng.randf() < float(params.get("jacarandas", 0.14))
 	_lamp_tint = params.get("lamp_tint", Color.WHITE)
 	# Pavement: the same wear shader as the road, but with expansion joints and far less
 	# patching and staining, so a sidewalk reads as poured slabs rather than a grey plane.
@@ -1347,7 +1362,9 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
 	var s := rng.randf_range(0.9, 1.6)
 	var yaw := rng.randf_range(0.0, TAU)
 	# Most trees on a block are its dominant species; the rest are whatever.
-	var variant := _tree_bias if (_tree_bias >= 0 and rng.randf() < 0.7) else rng.randi() % 3
+	var variant := _tree_bias if (_tree_bias >= 0 and rng.randf() < 0.7) else rng.randi() % PropFactory.CITY_TREES.size()
+	if _jacaranda_street and rng.randf() < 0.85:
+		variant = PropFactory.CITY_TREES.size() - 1
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint)
 
