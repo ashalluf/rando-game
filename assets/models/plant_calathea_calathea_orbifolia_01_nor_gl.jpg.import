@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b4g4olcoat0px"
-path="res://.godot/imported/plant_calathea_calathea_orbifolia_01_nor_gl.jpg-7938897d5b71202f79d4905b8f15a382.ctex"
+path.s3tc="res://.godot/imported/plant_calathea_calathea_orbifolia_01_nor_gl.jpg-7938897d5b71202f79d4905b8f15a382.s3tc.ctex"
+path.etc2="res://.godot/imported/plant_calathea_calathea_orbifolia_01_nor_gl.jpg-7938897d5b71202f79d4905b8f15a382.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "d54d35d07ed1c33a41157c1f36487d16"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/plant_calathea_calathea_orbifolia_01_nor_gl.jpg"
-dest_files=["res://.godot/imported/plant_calathea_calathea_orbifolia_01_nor_gl.jpg-7938897d5b71202f79d4905b8f15a382.ctex"]
+dest_files=["res://.godot/imported/plant_calathea_calathea_orbifolia_01_nor_gl.jpg-7938897d5b71202f79d4905b8f15a382.s3tc.ctex", "res://.godot/imported/plant_calathea_calathea_orbifolia_01_nor_gl.jpg-7938897d5b71202f79d4905b8f15a382.etc2.ctex"]
 
 [params]
 

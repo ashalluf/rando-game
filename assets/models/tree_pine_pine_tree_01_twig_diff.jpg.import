@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b445jh540fcva"
-path="res://.godot/imported/tree_pine_pine_tree_01_twig_diff.jpg-a2eb42982d351a80012e8b0c22ff4596.ctex"
+path.s3tc="res://.godot/imported/tree_pine_pine_tree_01_twig_diff.jpg-a2eb42982d351a80012e8b0c22ff4596.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_pine_pine_tree_01_twig_diff.jpg-a2eb42982d351a80012e8b0c22ff4596.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "863de035d2a16ad75eb56ee1a75d6583"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_pine_pine_tree_01_twig_diff.jpg"
-dest_files=["res://.godot/imported/tree_pine_pine_tree_01_twig_diff.jpg-a2eb42982d351a80012e8b0c22ff4596.ctex"]
+dest_files=["res://.godot/imported/tree_pine_pine_tree_01_twig_diff.jpg-a2eb42982d351a80012e8b0c22ff4596.s3tc.ctex", "res://.godot/imported/tree_pine_pine_tree_01_twig_diff.jpg-a2eb42982d351a80012e8b0c22ff4596.etc2.ctex"]
 
 [params]
 

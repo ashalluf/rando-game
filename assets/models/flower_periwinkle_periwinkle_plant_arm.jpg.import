@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b5fvq4kpxvi56"
-path="res://.godot/imported/flower_periwinkle_periwinkle_plant_arm.jpg-2d5d6eda8b4204b9838277d8c08e37d2.ctex"
+path.s3tc="res://.godot/imported/flower_periwinkle_periwinkle_plant_arm.jpg-2d5d6eda8b4204b9838277d8c08e37d2.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_periwinkle_periwinkle_plant_arm.jpg-2d5d6eda8b4204b9838277d8c08e37d2.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b3bac58cd0054cf115d6c350d31713c0"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_periwinkle_periwinkle_plant_arm.jpg"
-dest_files=["res://.godot/imported/flower_periwinkle_periwinkle_plant_arm.jpg-2d5d6eda8b4204b9838277d8c08e37d2.ctex"]
+dest_files=["res://.godot/imported/flower_periwinkle_periwinkle_plant_arm.jpg-2d5d6eda8b4204b9838277d8c08e37d2.s3tc.ctex", "res://.godot/imported/flower_periwinkle_periwinkle_plant_arm.jpg-2d5d6eda8b4204b9838277d8c08e37d2.etc2.ctex"]
 
 [params]
 

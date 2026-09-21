@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://clfalvc21sjc6"
-path="res://.godot/imported/plant_fern_fern_02_nor_gl.jpg-118bc3953ba0ae36796290f136b93de2.ctex"
+path.s3tc="res://.godot/imported/plant_fern_fern_02_nor_gl.jpg-118bc3953ba0ae36796290f136b93de2.s3tc.ctex"
+path.etc2="res://.godot/imported/plant_fern_fern_02_nor_gl.jpg-118bc3953ba0ae36796290f136b93de2.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "9f7fa700ab9f9439e4fc9afe492c3eb0"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/plant_fern_fern_02_nor_gl.jpg"
-dest_files=["res://.godot/imported/plant_fern_fern_02_nor_gl.jpg-118bc3953ba0ae36796290f136b93de2.ctex"]
+dest_files=["res://.godot/imported/plant_fern_fern_02_nor_gl.jpg-118bc3953ba0ae36796290f136b93de2.s3tc.ctex", "res://.godot/imported/plant_fern_fern_02_nor_gl.jpg-118bc3953ba0ae36796290f136b93de2.etc2.ctex"]
 
 [params]
 

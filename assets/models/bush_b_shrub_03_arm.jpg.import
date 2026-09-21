@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cj1oxeussf0h1"
-path="res://.godot/imported/bush_b_shrub_03_arm.jpg-00affe65f50880766ec790bea38d9109.ctex"
+path.s3tc="res://.godot/imported/bush_b_shrub_03_arm.jpg-00affe65f50880766ec790bea38d9109.s3tc.ctex"
+path.etc2="res://.godot/imported/bush_b_shrub_03_arm.jpg-00affe65f50880766ec790bea38d9109.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "2785e39f88be7a24e504bc89b660cd84"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/bush_b_shrub_03_arm.jpg"
-dest_files=["res://.godot/imported/bush_b_shrub_03_arm.jpg-00affe65f50880766ec790bea38d9109.ctex"]
+dest_files=["res://.godot/imported/bush_b_shrub_03_arm.jpg-00affe65f50880766ec790bea38d9109.s3tc.ctex", "res://.godot/imported/bush_b_shrub_03_arm.jpg-00affe65f50880766ec790bea38d9109.etc2.ctex"]
 
 [params]
 

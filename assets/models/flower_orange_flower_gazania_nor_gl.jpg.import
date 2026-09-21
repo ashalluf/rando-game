@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bn8tbr86a44i6"
-path="res://.godot/imported/flower_orange_flower_gazania_nor_gl.jpg-91cb156b66762c68b5595634681035c5.ctex"
+path.s3tc="res://.godot/imported/flower_orange_flower_gazania_nor_gl.jpg-91cb156b66762c68b5595634681035c5.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_orange_flower_gazania_nor_gl.jpg-91cb156b66762c68b5595634681035c5.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "695d405aa5fd1a62ac694bc80ce8d9e8"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_orange_flower_gazania_nor_gl.jpg"
-dest_files=["res://.godot/imported/flower_orange_flower_gazania_nor_gl.jpg-91cb156b66762c68b5595634681035c5.ctex"]
+dest_files=["res://.godot/imported/flower_orange_flower_gazania_nor_gl.jpg-91cb156b66762c68b5595634681035c5.s3tc.ctex", "res://.godot/imported/flower_orange_flower_gazania_nor_gl.jpg-91cb156b66762c68b5595634681035c5.etc2.ctex"]
 
 [params]
 

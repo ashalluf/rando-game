@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://doljmcsueqm51"
-path="res://.godot/imported/tree_searsia_burchellii_diff_3.jpg-1a13f107ab24c71235e2b090ff492ad8.ctex"
+path.s3tc="res://.godot/imported/tree_searsia_burchellii_diff_3.jpg-1a13f107ab24c71235e2b090ff492ad8.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_searsia_burchellii_diff_3.jpg-1a13f107ab24c71235e2b090ff492ad8.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "7963eaf5eee4e9334557e681d2b0917c"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_searsia_burchellii_diff_3.jpg"
-dest_files=["res://.godot/imported/tree_searsia_burchellii_diff_3.jpg-1a13f107ab24c71235e2b090ff492ad8.ctex"]
+dest_files=["res://.godot/imported/tree_searsia_burchellii_diff_3.jpg-1a13f107ab24c71235e2b090ff492ad8.s3tc.ctex", "res://.godot/imported/tree_searsia_burchellii_diff_3.jpg-1a13f107ab24c71235e2b090ff492ad8.etc2.ctex"]
 
 [params]
 

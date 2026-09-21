@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://73ngv4kwo1kp"
-path="res://.godot/imported/tree_quiver_quiver_tree_01_leaf_arm.jpg-f5e2e705781ef2ca2d2a1a81feea6b32.ctex"
+path.s3tc="res://.godot/imported/tree_quiver_quiver_tree_01_leaf_arm.jpg-f5e2e705781ef2ca2d2a1a81feea6b32.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_quiver_quiver_tree_01_leaf_arm.jpg-f5e2e705781ef2ca2d2a1a81feea6b32.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "63b67c4cadabb0fa55c4aa5275807c8c"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_quiver_quiver_tree_01_leaf_arm.jpg"
-dest_files=["res://.godot/imported/tree_quiver_quiver_tree_01_leaf_arm.jpg-f5e2e705781ef2ca2d2a1a81feea6b32.ctex"]
+dest_files=["res://.godot/imported/tree_quiver_quiver_tree_01_leaf_arm.jpg-f5e2e705781ef2ca2d2a1a81feea6b32.s3tc.ctex", "res://.godot/imported/tree_quiver_quiver_tree_01_leaf_arm.jpg-f5e2e705781ef2ca2d2a1a81feea6b32.etc2.ctex"]
 
 [params]
 

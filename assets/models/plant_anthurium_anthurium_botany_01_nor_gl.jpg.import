@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://87kgwb7krpg6"
-path="res://.godot/imported/plant_anthurium_anthurium_botany_01_nor_gl.jpg-44f774a8f1f64818496f41c1d9b7dcf7.ctex"
+path.s3tc="res://.godot/imported/plant_anthurium_anthurium_botany_01_nor_gl.jpg-44f774a8f1f64818496f41c1d9b7dcf7.s3tc.ctex"
+path.etc2="res://.godot/imported/plant_anthurium_anthurium_botany_01_nor_gl.jpg-44f774a8f1f64818496f41c1d9b7dcf7.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "6b3eab7450a87b463be35d709793b551"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/plant_anthurium_anthurium_botany_01_nor_gl.jpg"
-dest_files=["res://.godot/imported/plant_anthurium_anthurium_botany_01_nor_gl.jpg-44f774a8f1f64818496f41c1d9b7dcf7.ctex"]
+dest_files=["res://.godot/imported/plant_anthurium_anthurium_botany_01_nor_gl.jpg-44f774a8f1f64818496f41c1d9b7dcf7.s3tc.ctex", "res://.godot/imported/plant_anthurium_anthurium_botany_01_nor_gl.jpg-44f774a8f1f64818496f41c1d9b7dcf7.etc2.ctex"]
 
 [params]
 

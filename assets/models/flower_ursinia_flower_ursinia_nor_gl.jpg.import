@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b58dijsm2rxlv"
-path="res://.godot/imported/flower_ursinia_flower_ursinia_nor_gl.jpg-6643b21d8528d12897d421ed7e10acfc.ctex"
+path.s3tc="res://.godot/imported/flower_ursinia_flower_ursinia_nor_gl.jpg-6643b21d8528d12897d421ed7e10acfc.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_ursinia_flower_ursinia_nor_gl.jpg-6643b21d8528d12897d421ed7e10acfc.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "155a20791cc6ed53f766c9957e2d7ec1"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_ursinia_flower_ursinia_nor_gl.jpg"
-dest_files=["res://.godot/imported/flower_ursinia_flower_ursinia_nor_gl.jpg-6643b21d8528d12897d421ed7e10acfc.ctex"]
+dest_files=["res://.godot/imported/flower_ursinia_flower_ursinia_nor_gl.jpg-6643b21d8528d12897d421ed7e10acfc.s3tc.ctex", "res://.godot/imported/flower_ursinia_flower_ursinia_nor_gl.jpg-6643b21d8528d12897d421ed7e10acfc.etc2.ctex"]
 
 [params]
 

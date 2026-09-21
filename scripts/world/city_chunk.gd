@@ -941,6 +941,8 @@ func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
 	for i in rng.randi_range(3, 8):
 		var p := center + Vector2(rng.randf_range(-size.x * 0.45, size.x * 0.45), rng.randf_range(-size.y * 0.45, size.y * 0.45))
 		_add_bush(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
+	# A pocket garden is a garden: planted beds, not mown grass with three bushes on it.
+	_scatter_ground_cover(Rect2(center - size * 0.45, size * 0.9), rng, 1.35)
 	if rng.randf() < 0.6:
 		_add_bench(Vector3(center.x, SIDEWALK_TOP + 0.04, center.y + size.y * 0.3), PI)
 
@@ -994,6 +996,8 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 		if absf(p.x - center.x) < path_w + 1.0 or absf(p.y - center.y) < path_w + 1.0:
 			continue
 		_add_bush(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), rng)
+	# Flowering ground cover over the whole park: this is where a park stops being bare grass.
+	_scatter_ground_cover(inner.grow(-2.0), rng, 1.0)
 	var blades: int = style.grass_per_park
 	for i in blades:
 		var p := Vector2(rng.randf_range(inner.position.x + 1.0, inner.end.x - 1.0), rng.randf_range(inner.position.y + 1.0, inner.end.y - 1.0))
@@ -1010,11 +1014,51 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 
 
 func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
-	var variant := rng.randi() % 4
 	var sc := rng.randf_range(0.7, 1.3)
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
-	_batch.add("shrub_%d" % variant, PropFactory.model_shrub(variant), Transform3D(basis, at), tint)
+	# Eight species now: the four original shrub_02 variants plus four downloaded bushes. One
+	# roll decides which family, so the seeded sequence stays the same length either way.
+	if rng.randf() < 0.5:
+		var v := rng.randi() % 4
+		_batch.add("shrub_%d" % v, PropFactory.model_shrub(v), Transform3D(basis, at), tint)
+	else:
+		var b := rng.randi() % PropFactory.BUSHES.size()
+		_batch.add("bush_%d" % b, PropFactory.model_bush(b), Transform3D(basis, at), tint)
+
+
+## Flowering ground cover and grass clumps scattered over a patch of lawn. This is where the
+## city's colour at ground level comes from: before it, a park was bare grass between a tree and
+## a bench. Kept to the FULL level and given a short draw distance - they are small enough that
+## they are a few pixels at any range, and there are a lot of them.
+func _scatter_ground_cover(rect: Rect2, rng: RandomNumberGenerator, density: float = 1.0) -> void:
+	if level != Level.FULL:
+		return
+	var area := rect.size.x * rect.size.y
+	var count := int(clampf(area * 0.055 * density, 0.0, 90.0))
+	# One flowering species dominates a patch, the way a planted bed or a wildflower verge does;
+	# a mixed sprinkle of seven colours reads as confetti.
+	var lead := rng.randi() % PropFactory.FLOWERS.size()
+	for i in count:
+		var p := Vector2(
+			rng.randf_range(rect.position.x, rect.end.x),
+			rng.randf_range(rect.position.y, rect.end.y))
+		var sc := rng.randf_range(0.7, 1.45)
+		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
+		var tint := Color(rng.randf_range(0.88, 1.12), rng.randf_range(0.9, 1.1), rng.randf_range(0.88, 1.1))
+		var at := Vector3(p.x, SIDEWALK_TOP + 0.02, p.y)
+		if rng.randf() < 0.42:
+			var g := rng.randi() % PropFactory.GRASS_CLUMPS.size()
+			_batch.add("gclump_%d" % g, PropFactory.model_grass_clump(g), Transform3D(basis, at), tint)
+		else:
+			var f: int = lead if rng.randf() < 0.72 else rng.randi() % PropFactory.FLOWERS.size()
+			_batch.add("flower_%d" % f, PropFactory.model_flower(f), Transform3D(basis, at), tint)
+	for f in PropFactory.FLOWERS.size():
+		_batch.set_draw_distance("flower_%d" % f, 95.0)
+		_batch.set_no_shadow("flower_%d" % f)
+	for g in PropFactory.GRASS_CLUMPS.size():
+		_batch.set_draw_distance("gclump_%d" % g, 80.0)
+		_batch.set_no_shadow("gclump_%d" % g)
 
 
 func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:

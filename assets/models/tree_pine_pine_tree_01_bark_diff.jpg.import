@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://btcjg0as44c10"
-path="res://.godot/imported/tree_pine_pine_tree_01_bark_diff.jpg-6172b6137c1bfe66873748d2c03fd45c.ctex"
+path.s3tc="res://.godot/imported/tree_pine_pine_tree_01_bark_diff.jpg-6172b6137c1bfe66873748d2c03fd45c.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_pine_pine_tree_01_bark_diff.jpg-6172b6137c1bfe66873748d2c03fd45c.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "daadd6f5d10393fd0edc8c8953f4fc9c"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_pine_pine_tree_01_bark_diff.jpg"
-dest_files=["res://.godot/imported/tree_pine_pine_tree_01_bark_diff.jpg-6172b6137c1bfe66873748d2c03fd45c.ctex"]
+dest_files=["res://.godot/imported/tree_pine_pine_tree_01_bark_diff.jpg-6172b6137c1bfe66873748d2c03fd45c.s3tc.ctex", "res://.godot/imported/tree_pine_pine_tree_01_bark_diff.jpg-6172b6137c1bfe66873748d2c03fd45c.etc2.ctex"]
 
 [params]
 

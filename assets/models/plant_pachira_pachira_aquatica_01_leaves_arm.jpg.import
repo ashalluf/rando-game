@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://irrvfec8xirb"
-path="res://.godot/imported/plant_pachira_pachira_aquatica_01_leaves_arm.jpg-e371be551f56cadcf9e63501440a31bb.ctex"
+path.s3tc="res://.godot/imported/plant_pachira_pachira_aquatica_01_leaves_arm.jpg-e371be551f56cadcf9e63501440a31bb.s3tc.ctex"
+path.etc2="res://.godot/imported/plant_pachira_pachira_aquatica_01_leaves_arm.jpg-e371be551f56cadcf9e63501440a31bb.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "9256eb9293af100ac99032e821194f80"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/plant_pachira_pachira_aquatica_01_leaves_arm.jpg"
-dest_files=["res://.godot/imported/plant_pachira_pachira_aquatica_01_leaves_arm.jpg-e371be551f56cadcf9e63501440a31bb.ctex"]
+dest_files=["res://.godot/imported/plant_pachira_pachira_aquatica_01_leaves_arm.jpg-e371be551f56cadcf9e63501440a31bb.s3tc.ctex", "res://.godot/imported/plant_pachira_pachira_aquatica_01_leaves_arm.jpg-e371be551f56cadcf9e63501440a31bb.etc2.ctex"]
 
 [params]
 

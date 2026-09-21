@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cu7088myuy073"
-path="res://.godot/imported/flower_yellow_flower_empodium_diff.jpg-df30c3bfdfaec7b4c98610309f35bba5.ctex"
+path.s3tc="res://.godot/imported/flower_yellow_flower_empodium_diff.jpg-df30c3bfdfaec7b4c98610309f35bba5.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_yellow_flower_empodium_diff.jpg-df30c3bfdfaec7b4c98610309f35bba5.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b8b9619e0634ec107555384fc62319fa"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_yellow_flower_empodium_diff.jpg"
-dest_files=["res://.godot/imported/flower_yellow_flower_empodium_diff.jpg-df30c3bfdfaec7b4c98610309f35bba5.ctex"]
+dest_files=["res://.godot/imported/flower_yellow_flower_empodium_diff.jpg-df30c3bfdfaec7b4c98610309f35bba5.s3tc.ctex", "res://.godot/imported/flower_yellow_flower_empodium_diff.jpg-df30c3bfdfaec7b4c98610309f35bba5.etc2.ctex"]
 
 [params]
 

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://c15ip1yuv4egi"
-path="res://.godot/imported/tree_pine_pine_tree_01_bark_arm.jpg-f6848062fae3adc0dc532815f78a80c2.ctex"
+path.s3tc="res://.godot/imported/tree_pine_pine_tree_01_bark_arm.jpg-f6848062fae3adc0dc532815f78a80c2.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_pine_pine_tree_01_bark_arm.jpg-f6848062fae3adc0dc532815f78a80c2.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ebf235e896f4980d7029635615b33d7b"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_pine_pine_tree_01_bark_arm.jpg"
-dest_files=["res://.godot/imported/tree_pine_pine_tree_01_bark_arm.jpg-f6848062fae3adc0dc532815f78a80c2.ctex"]
+dest_files=["res://.godot/imported/tree_pine_pine_tree_01_bark_arm.jpg-f6848062fae3adc0dc532815f78a80c2.s3tc.ctex", "res://.godot/imported/tree_pine_pine_tree_01_bark_arm.jpg-f6848062fae3adc0dc532815f78a80c2.etc2.ctex"]
 
 [params]
 

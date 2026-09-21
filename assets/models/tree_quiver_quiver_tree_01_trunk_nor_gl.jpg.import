@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://csmp3a81wdrkl"
-path="res://.godot/imported/tree_quiver_quiver_tree_01_trunk_nor_gl.jpg-4c97951cb37e62cdcc94118ce3950f54.ctex"
+path.s3tc="res://.godot/imported/tree_quiver_quiver_tree_01_trunk_nor_gl.jpg-4c97951cb37e62cdcc94118ce3950f54.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_quiver_quiver_tree_01_trunk_nor_gl.jpg-4c97951cb37e62cdcc94118ce3950f54.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "5aa936eea377554b2ec92026937fd196"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_quiver_quiver_tree_01_trunk_nor_gl.jpg"
-dest_files=["res://.godot/imported/tree_quiver_quiver_tree_01_trunk_nor_gl.jpg-4c97951cb37e62cdcc94118ce3950f54.ctex"]
+dest_files=["res://.godot/imported/tree_quiver_quiver_tree_01_trunk_nor_gl.jpg-4c97951cb37e62cdcc94118ce3950f54.s3tc.ctex", "res://.godot/imported/tree_quiver_quiver_tree_01_trunk_nor_gl.jpg-4c97951cb37e62cdcc94118ce3950f54.etc2.ctex"]
 
 [params]
 

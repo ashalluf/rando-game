@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://3yio417crsxt"
-path="res://.godot/imported/flower_ursinia_flower_ursinia_diff.jpg-1800cbea18a619df1a38ee4461fd3a96.ctex"
+path.s3tc="res://.godot/imported/flower_ursinia_flower_ursinia_diff.jpg-1800cbea18a619df1a38ee4461fd3a96.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_ursinia_flower_ursinia_diff.jpg-1800cbea18a619df1a38ee4461fd3a96.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "080e8c0f7a283614e644cda18b5307e0"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_ursinia_flower_ursinia_diff.jpg"
-dest_files=["res://.godot/imported/flower_ursinia_flower_ursinia_diff.jpg-1800cbea18a619df1a38ee4461fd3a96.ctex"]
+dest_files=["res://.godot/imported/flower_ursinia_flower_ursinia_diff.jpg-1800cbea18a619df1a38ee4461fd3a96.s3tc.ctex", "res://.godot/imported/flower_ursinia_flower_ursinia_diff.jpg-1800cbea18a619df1a38ee4461fd3a96.etc2.ctex"]
 
 [params]
 

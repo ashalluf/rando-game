@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bdm4bk2wmnflv"
-path="res://.godot/imported/bush_sorrel_shrub_sorrel_01_nor_gl.jpg-5e28c7d5e8b6ac7fd70ac883233d7a7a.ctex"
+path.s3tc="res://.godot/imported/bush_sorrel_shrub_sorrel_01_nor_gl.jpg-5e28c7d5e8b6ac7fd70ac883233d7a7a.s3tc.ctex"
+path.etc2="res://.godot/imported/bush_sorrel_shrub_sorrel_01_nor_gl.jpg-5e28c7d5e8b6ac7fd70ac883233d7a7a.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "ae70d83ac409c6551c3934f8b25ffbca"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/bush_sorrel_shrub_sorrel_01_nor_gl.jpg"
-dest_files=["res://.godot/imported/bush_sorrel_shrub_sorrel_01_nor_gl.jpg-5e28c7d5e8b6ac7fd70ac883233d7a7a.ctex"]
+dest_files=["res://.godot/imported/bush_sorrel_shrub_sorrel_01_nor_gl.jpg-5e28c7d5e8b6ac7fd70ac883233d7a7a.s3tc.ctex", "res://.godot/imported/bush_sorrel_shrub_sorrel_01_nor_gl.jpg-5e28c7d5e8b6ac7fd70ac883233d7a7a.etc2.ctex"]
 
 [params]
 

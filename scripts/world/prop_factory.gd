@@ -1011,6 +1011,37 @@ static func model_hill_tree(variant: int) -> Mesh:
 	return _tree_mesh(HILL_TREES[v])
 
 
+## Bushes, tropical plants, flowering ground cover and grass clumps - all CC0 Poly Haven, all
+## through the same leaf handling as the trees (alpha-scissor leaves onto the swaying foliage
+## shader, everything else double-sided). These exist to put colour and variation at knee height,
+## where the city was previously bare lawn between a tree and a building.
+const BUSHES := ["bush_a.glb", "bush_b.glb", "bush_c.glb", "bush_sorrel.glb"]
+## Tropical foliage: the planting a warm coastal city actually uses in courtyards and by doors.
+const PLANTS := ["plant_fern.glb", "plant_pachira.glb", "plant_anthurium.glb",
+	"plant_calathea.glb", "plant_nettle.glb"]
+## Flowering ground cover, which is where most of the colour comes from: orange gazania and
+## ursinia, yellow empodium, purple leipoldtia, periwinkle, dandelion, celandine.
+const FLOWERS := ["flower_orange.glb", "flower_ursinia.glb", "flower_yellow.glb",
+	"flower_purple.glb", "flower_periwinkle.glb", "flower_dandelion.glb", "flower_celandine.glb"]
+const GRASS_CLUMPS := ["grass_bermuda.glb", "grass_medium.glb"]
+
+
+static func model_bush(variant: int) -> Mesh:
+	return _tree_mesh(BUSHES[clampi(variant, 0, BUSHES.size() - 1)])
+
+
+static func model_plant(variant: int) -> Mesh:
+	return _tree_mesh(PLANTS[clampi(variant, 0, PLANTS.size() - 1)])
+
+
+static func model_flower(variant: int) -> Mesh:
+	return _tree_mesh(FLOWERS[clampi(variant, 0, FLOWERS.size() - 1)])
+
+
+static func model_grass_clump(variant: int) -> Mesh:
+	return _tree_mesh(GRASS_CLUMPS[clampi(variant, 0, GRASS_CLUMPS.size() - 1)])
+
+
 static func _tree_mesh(file: String) -> Mesh:
 	var mesh := model_mesh(MODEL_DIR + file)
 	for i in mesh.get_surface_count():

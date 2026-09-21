@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bugabamskio5x"
-path="res://.godot/imported/flower_yellow_flower_empodium_nor_gl.jpg-f7ba3a57cd0818c63f3b7ba6551cce07.ctex"
+path.s3tc="res://.godot/imported/flower_yellow_flower_empodium_nor_gl.jpg-f7ba3a57cd0818c63f3b7ba6551cce07.s3tc.ctex"
+path.etc2="res://.godot/imported/flower_yellow_flower_empodium_nor_gl.jpg-f7ba3a57cd0818c63f3b7ba6551cce07.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a08d8eb566e6b2034434f429df384151"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/flower_yellow_flower_empodium_nor_gl.jpg"
-dest_files=["res://.godot/imported/flower_yellow_flower_empodium_nor_gl.jpg-f7ba3a57cd0818c63f3b7ba6551cce07.ctex"]
+dest_files=["res://.godot/imported/flower_yellow_flower_empodium_nor_gl.jpg-f7ba3a57cd0818c63f3b7ba6551cce07.s3tc.ctex", "res://.godot/imported/flower_yellow_flower_empodium_nor_gl.jpg-f7ba3a57cd0818c63f3b7ba6551cce07.etc2.ctex"]
 
 [params]
 

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://2l7js3ks4tco"
-path="res://.godot/imported/bush_sorrel_shrub_sorrel_01_diff.jpg-a3592cee9240dbf287ecaef567fdc3bc.ctex"
+path.s3tc="res://.godot/imported/bush_sorrel_shrub_sorrel_01_diff.jpg-a3592cee9240dbf287ecaef567fdc3bc.s3tc.ctex"
+path.etc2="res://.godot/imported/bush_sorrel_shrub_sorrel_01_diff.jpg-a3592cee9240dbf287ecaef567fdc3bc.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "fd1b2f6de47c9c03764574255a7832f6"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/bush_sorrel_shrub_sorrel_01_diff.jpg"
-dest_files=["res://.godot/imported/bush_sorrel_shrub_sorrel_01_diff.jpg-a3592cee9240dbf287ecaef567fdc3bc.ctex"]
+dest_files=["res://.godot/imported/bush_sorrel_shrub_sorrel_01_diff.jpg-a3592cee9240dbf287ecaef567fdc3bc.s3tc.ctex", "res://.godot/imported/bush_sorrel_shrub_sorrel_01_diff.jpg-a3592cee9240dbf287ecaef567fdc3bc.etc2.ctex"]
 
 [params]
 

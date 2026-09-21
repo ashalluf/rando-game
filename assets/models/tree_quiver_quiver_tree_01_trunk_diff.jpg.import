@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://dev0pyuuutx4n"
-path="res://.godot/imported/tree_quiver_quiver_tree_01_trunk_diff.jpg-d519fdc626e4ae0df1302a0665361ae3.ctex"
+path.s3tc="res://.godot/imported/tree_quiver_quiver_tree_01_trunk_diff.jpg-d519fdc626e4ae0df1302a0665361ae3.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_quiver_quiver_tree_01_trunk_diff.jpg-d519fdc626e4ae0df1302a0665361ae3.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "06c119e01b588a36359d9ea7e05cf113"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_quiver_quiver_tree_01_trunk_diff.jpg"
-dest_files=["res://.godot/imported/tree_quiver_quiver_tree_01_trunk_diff.jpg-d519fdc626e4ae0df1302a0665361ae3.ctex"]
+dest_files=["res://.godot/imported/tree_quiver_quiver_tree_01_trunk_diff.jpg-d519fdc626e4ae0df1302a0665361ae3.s3tc.ctex", "res://.godot/imported/tree_quiver_quiver_tree_01_trunk_diff.jpg-d519fdc626e4ae0df1302a0665361ae3.etc2.ctex"]
 
 [params]
 
