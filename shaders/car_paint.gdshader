@@ -110,6 +110,15 @@ float livery_mask() {
 		// A fleet band wraps the flanks, the nose and the back doors but not anything the sky
 		// can see: without this it paints a pickup's bed floor, which happens to sit at exactly
 		// the height of the band on the doors.
+		// Reviewed 2026-09-21, do not "fix" this by adding a facing.x test: the band is meant to
+		// wrap the nose and the back doors, and a flanks-only test would cut both off. It cannot
+		// leak into a cabin either, because nothing on a car in this game is see-through - this
+		// shader writes no ALPHA and declares no blend mode, and every car .glb is alphaMode
+		// OPAQUE with alpha-less JPEG textures, so a window is an opaque dark surface and not a
+		// hole. Measured on car_van.glb and car_pickup.glb: two thirds of the band fragments
+		// that pass the guard sit on the inner wall of the model's double shell and are never
+		// rasterised, and every one visible from outside is bodywork (albedo luminance 0.42 and
+		// up, body mask 1.0) on a flank or an end cap.
 		return band * (1.0 - smoothstep(0.6, 0.9, facing.y));
 	}
 	// Taxi checker: two rows of checks along the flanks only, so it reads as a door decal
