@@ -1,4 +1,4 @@
-# Handoff: Rando Game (written 2026-09-19, sections 6, 9 and 10 rewritten 2026-09-21 at build 130)
+# Handoff: Rando Game (written 2026-09-19, sections 6, 9 and 10 rewritten 2026-09-21, build list current to 139)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
@@ -127,12 +127,44 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 130)
+## 6. Where the game stands (build 139)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
 the "map character" batch, the 2026-09-20 owner batch and the 2026-09-21 PS5 push. Recent builds,
 newest first:
 
+- 139: the two finished hi-fi car bodies (222k and 217k triangles) plus their generators.
+  **Committed but NOT wired in**: `Vehicle.BODY_MODELS` still points SUPER and HYPER at the old
+  `exo_*` pair. Flipping those two lines is the next thing anyone should do, because the `exo_*`
+  bodies have no wheel arches at all - their own critic measured the front tyre standing 11.8 cm
+  proud of the bodywork with bare sky above its outer 12 cm.
+- 138: `docs/ASSETS.md` gains a section for the cars we generate ourselves - neither downloaded
+  nor Meshy, so they had fallen through the documentation entirely. Records the six material
+  slots every car must expose (`paint`, `glass`, `trim`, `tyre`, `light_front`, `light_rear`),
+  because `Vehicle._add_body_model()` binds by name.
+- 137: two measurement traps written into CLAUDE.md. Both report success, which is the worst way
+  to fail, and both cost real time this session. See section 9.
+- 136: `tools/geo_count.gd`, the triangle/draw/object counter the geometry work was measured with.
+- 135: the geometry budget. 4.65M -> 10.7M triangles at the spawn camera for **twelve** extra draw
+  calls: denser grass blades with a crease, palms rebuilt at real density (40 trunk rings, 60
+  frond steps, 4 segments a leaflet), and per-surface subdivision numbers for terrain, ground
+  grids and the ocean. Every number is an @export in a "Geometry budget" group on `CityChunk`.
+  Nobody has measured the frame rate on real hardware - that needs the owner and the F1 stats line.
+- 134: surf and shoaling on the ocean, and three fixed defects: the rain curtain fell UPWARD
+  (sign error), the lens rain slid UP the glass (`SCREEN_UV.y` runs downward in a canvas_item
+  shader), and the five coast uniforms were never pushed at all, because a child's `_ready()` runs
+  before its parent's and `CityStreamer._ready()` is what creates `plan`. That last one only
+  looked correct because the shader's hardcoded defaults happen to match `MacroMap` exactly.
+- 133: bullets know what they hit. Surface-aware impacts, plus two fixes: every shot at the ground
+  was classified METAL (the chunk's `StreetProps` body carries every road, pavement, plaza and car
+  park as well as the props - measured 400/400 rays METAL before, 400/400 CONCRETE after), and
+  warehouse walls rained glass. `tools/classify_probe.gd` aims rays at each case.
+- 132: neon anchored to the buildings it hangs on (blade signs were rendering MIRRORED, and neon
+  lifted per-instance by the relief while its structure was lifted once came apart on slopes);
+  power lines that reach an actual wall instead of stopping in mid-air; poles no longer driven
+  through the freeway deck; twilight that ramps instead of snapping 0 -> 0.22 in one frame twice a
+  day; god rays that still point at the sun after twenty minutes of play.
+- 131: docs only.
 - 130: four measured defects, each found by an agent that went looking rather than by play.
   **Pedestrian clothing had never worked on the Mac build at all**: Forward+ and Mobile hand a
   `source_color` texture back LINEARISED and the Compatibility renderer hands back raw sRGB, and
@@ -307,6 +339,22 @@ pedestrian 44, each jet 30. `docs/ASSETS.md` has the table.
 
 Rewritten 2026-09-21 at build 130.
 
+- **Two measurement traps that report success.** Both are in CLAUDE.md; both cost time this
+  session. (1) Godot serves a CACHED import of a `.glb` or a texture, so a render taken after
+  rebuilding a model shows the OLD file - run `--import` in between, and print the model's AABB
+  in the shot script to catch it. (2) `--headless` is the dummy rendering server: every
+  `Performance` monitor reads exactly zero and `MultiMesh.get_instance_transform()` returns
+  identity, so a geometry change of any size measures as no change and an instance-transform
+  check measures nothing while reporting a clean bill of health. Use `tools/geo_count.gd` under
+  opengl3 with Xvfb.
+- **Agent work is not finished work.** Most of what landed in builds 130-139 came from fleets,
+  and roughly half of what they produced was wrong in a way only a render or a probe would show:
+  rain falling upward, blade signs mirrored, every ground shot classified metal, shut lines that
+  measured as cut and were sub-pixel, wheels that were actually the arch lining. The pattern that
+  worked was build -> adversarial review -> repair, with the reviewer rendering independently.
+  The pattern that failed was trusting a summary. Also: a critic saying `ok: false` means do not
+  ship it, and a reviewer's claim you cannot reproduce means do not "fix" it - one seam fix was
+  made for a seam that was never there.
 - **A human has still never confirmed what the Mac build looks like.** Build 128 made Forward+
   screenshots possible from this container (`tools/glshot/forward_shot.sh`), which closes the
   worst of the gap, but lavapipe is not a GPU and the owner's eyes are still the only real test.
