@@ -191,6 +191,12 @@ func _apply() -> void:
 		* smoothstep(dusk_fade_elevation.x, dusk_fade_elevation.y, elevation)
 	# How far past the horizon the sun is, 0 on it and 1 in deep twilight.
 	var deep := clampf(-elevation * 7.0, 0.0, 1.0)
+	# How far into real night the LIGHT is. `night_factor` is 1 the moment the sun is three
+	# degrees under the horizon, which is right for switching the street lamps and the windows
+	# on and wrong for the light itself: civil twilight is still bright and still warm. Driving
+	# the sun's colour, the ambient and the exposure off night_factor washed the whole city
+	# lavender at 18:30 and over-exposed it by most of a stop - a blue moon lighting a pink sky.
+	var moonlight := smoothstep(0.02, -0.34, elevation)
 	# Where the sun and the moon actually are. The sky shader needs the sun's direction even
 	# after it has set (the twilight bands are anchored to it), so it is never special-cased.
 	var sun_basis := _arc_basis(t)
@@ -210,7 +216,7 @@ func _apply() -> void:
 			var to_moon := _look_basis(lit).get_rotation_quaternion()
 			light_basis = Basis(sun_basis.get_rotation_quaternion().slerp(to_moon, moon_mix))
 		_sun.basis = light_basis
-		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(night_sun_color, night_factor)
+		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(night_sun_color, moonlight)
 		var flash: float = _sun.get_meta("weather_flash", 0.0)
 		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) + flash * 2.5
 		if flash > 0.0:
@@ -258,16 +264,16 @@ func _apply() -> void:
 			# A directional light shines along -Z, so +Z points back at the sun.
 			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
 	if _env:
-		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, night_factor)
-		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(night_fog, night_factor)
+		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, moonlight)
+		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(night_fog, moonlight)
 		# Ambient comes from the sky cubemap, so shadows take the sky's own colour (blue at
 		# midday, warm at dusk) instead of a flat grey fill: the single biggest realism win in
 		# outdoor lighting. At night the sky is nearly black, so we blend back toward a colour
 		# fill so the city does not go pitch dark.
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-		_env.ambient_light_sky_contribution = lerpf(1.0, 0.35, night_factor)
-		_env.ambient_light_color = day_ambient.lerp(night_ambient, night_factor)
-		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, night_factor) * (1.0 - 0.35 * weather_darken)
+		_env.ambient_light_sky_contribution = lerpf(1.0, 0.35, moonlight)
+		_env.ambient_light_color = day_ambient.lerp(night_ambient, moonlight)
+		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, moonlight) * (1.0 - 0.35 * weather_darken)
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4), weather_darken)
 	# Street lamps. Setting hundreds of lights every frame is wasteful, but only refreshing when
 	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
