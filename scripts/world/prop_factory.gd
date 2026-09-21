@@ -58,6 +58,28 @@ static func pbr(set_key: String, scale_m: float = 4.0, tint: Color = Color.WHITE
 	return mat
 
 
+## Lawns and park grass (see shaders/lawn.gdshader). A tiled grass texture mips down to one
+## flat green rectangle from any height, and the grass-blade multimesh only reaches a few dozen
+## metres, so past that the ground itself has to carry the detail: dry patches, mower stripes and
+## worn dirt, all from world position. Cached per tint, seed and dryness like the road material.
+static func lawn(tint: Color, seed_value: int, dryness: float = 0.35, stripes: float = 3.4) -> ShaderMaterial:
+	var key := "lawn_%d_%d_%.2f_%.2f" % [tint.to_rgba32(), seed_value, dryness, stripes]
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/lawn.gdshader")
+	mat.set_shader_parameter("albedo_tex", texture("grass", "Color"))
+	mat.set_shader_parameter("normal_tex", texture("grass", "NormalGL"))
+	mat.set_shader_parameter("rough_tex", texture("grass", "Roughness"))
+	mat.set_shader_parameter("tint", tint)
+	mat.set_shader_parameter("tex_scale", 5.0)
+	mat.set_shader_parameter("seed", float(seed_value % 997) * 0.37)
+	mat.set_shader_parameter("dryness", dryness)
+	mat.set_shader_parameter("stripe_width", stripes)
+	_cache[key] = mat
+	return mat
+
+
 ## Worn asphalt for road surfaces (see shaders/road.gdshader). Cached per set, scale, tint and
 ## seed, so every road in a chunk shares one material.
 static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, joints: float = 0.0, wear: float = 1.0) -> ShaderMaterial:

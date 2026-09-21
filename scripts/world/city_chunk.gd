@@ -728,7 +728,7 @@ func _build_block(block: Dictionary) -> void:
 				var inner := rect.grow(-plan.sidewalk_width)
 				var ic := inner.get_center()
 				var lawn := _lawn_color(rng)
-				_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
+				_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
 			_build_lots(rect, params, rng)
 	if level == Level.FULL:
 		_build_sidewalk_props(rect, params, rng, district)
@@ -917,7 +917,7 @@ func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
 	var center: Vector2 = lot.center
 	var size: Vector2 = lot.size
 	var lawn := _lawn_color(rng)
-	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(size.x, 0.04, size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(size.x, 0.04, size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
 	if level != Level.FULL:
 		return
 	for i in rng.randi_range(2, 5):
@@ -953,7 +953,7 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	var center := inner.get_center()
 	# Lawns range from lush to summer-dry.
 	var lawn := _lawn_color(rng)
-	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.pbr("grass", 5.0, lawn))
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
 	if level != Level.FULL:
 		return
 	var path_w := 3.0
