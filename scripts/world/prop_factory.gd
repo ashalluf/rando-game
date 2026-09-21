@@ -370,10 +370,13 @@ static func palm(variant: int) -> Mesh:
 			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0 * lattice, d0, d1)
 
 	var top: Vector3 = centre.call(1.0)
-	var fronds := rng.randi_range(11, 15)
+	var fronds := rng.randi_range(12, 16)
 	for f in fronds:
-		var yaw := TAU * f / fronds + rng.randf_range(-0.16, 0.16)
-		_palm_frond(st, top, yaw, rng.randf_range(3.6, 5.4), rng.randf_range(0.1, 0.8), rng, false)
+		# Uneven spacing and a wide spread of length and lift, or the crown is a perfect disc
+		# and every palm on the street is the same tree. Real crowns carry fronds of several
+		# ages at once: new ones held up, old ones nearly horizontal.
+		var yaw := TAU * f / fronds + rng.randf_range(-0.30, 0.30)
+		_palm_frond(st, top, yaw, rng.randf_range(3.1, 6.1), rng.randf_range(-0.35, 1.05), rng, false)
 	# A skirt of dead fronds hanging under the crown.
 	for f in rng.randi_range(3, 6):
 		var yaw := rng.randf_range(0.0, TAU)
@@ -397,19 +400,27 @@ static func palm(variant: int) -> Mesh:
 	return mesh
 
 
-## One frond: a rachis arcing out and drooping, with a leaflet on each side at every step.
+## One frond: a rachis arcing out and drooping, carrying a folded rank of narrow leaflets.
 ## `rise` lifts the frond before it droops; dead fronds hang almost straight down and go brown.
+##
+## The shape that matters is the FOLD. A palm frond is not flat: it is creased along its rib
+## like a paper fan stood on edge, steeply folded where it leaves the crown and opening out
+## toward the tip. Laying the leaflets flat in one plane - which is what this did first - makes
+## each one overlap its neighbours into a solid sheet, and the crown reads as a green paper fan
+## rather than a tree. Folding them, and jittering the fold per leaflet, is what opens daylight
+## between the blades and gives the canopy its depth.
 static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float, rise: float, rng: RandomNumberGenerator, dead: bool) -> void:
 	var out := Vector3(cos(yaw), 0.0, sin(yaw))
 	var side := Vector3(-out.z, 0.0, out.x)
-	# Twice as many, half as wide. A real frond carries dozens of narrow segments; at 14 steps
-	# each leaflet was a hand-sized triangle and the frond read as a saw blade.
-	var steps := 26
-	var droop := reach * (1.5 if dead else 0.9)
+	var steps := 30
+	var droop := reach * (1.5 if dead else 0.95)
 	# Palm fronds are a dusty, yellow-grey green, not the vivid green of a lawn, and the tone
 	# runs from dark near the rachis to bleached at the tips.
-	var green := Color(0.19, 0.30, 0.13).lerp(Color(0.41, 0.49, 0.22), rng.randf())
+	var green := Color(0.17, 0.26, 0.11).lerp(Color(0.36, 0.43, 0.19), rng.randf())
 	var colour := Color(0.46, 0.37, 0.20) if dead else green
+	# Fold angle down from horizontal: steep at the base of the frond, nearly flat at the tip.
+	var fold_base := rng.randf_range(0.55, 1.00)
+	var fold_tip := rng.randf_range(0.08, 0.34)
 	var rachis := func(t: float) -> Vector3:
 		return base + out * (reach * t) + Vector3(0.0, rise * t - droop * t * t, 0.0)
 	for i in steps:
@@ -417,23 +428,22 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 		var t1 := float(i + 1) / steps
 		var p0: Vector3 = rachis.call(t0)
 		var p1: Vector3 = rachis.call(t1)
-		# Each leaflet is its own pointed blade sweeping back and down off the rib, so the frond
-		# reads as feathered with daylight between the leaves. A continuous strip along both
-		# sides just makes a solid green fan, which is what the first attempt looked like.
-		var span := (sin(t0 * PI) * reach * 0.30 + 0.05) * rng.randf_range(0.72, 1.22)
-		# Outer leaflets hang further, the way a Washingtonia's do.
-		var hang := span * (0.48 + 0.75 * t0)
-		var tone := colour * (0.74 + 0.46 * t0) * rng.randf_range(0.92, 1.08)
+		var along := p1 - p0
+		# Longest a third of the way out, short at the crown and short again at the tip, so the
+		# frond has a leaf shape instead of a rectangular comb.
+		var blade := reach * 0.40 * (0.22 + 0.78 * sin(pow(t0, 0.72) * PI))
+		var tone := colour * (0.78 + 0.42 * t0) * rng.randf_range(0.90, 1.10)
 		for dir: float in [1.0, -1.0]:
-			var tip := p0 + side * (span * dir) - out * (span * 0.34) + Vector3(0.0, -hang, 0.0)
-			# One smooth normal for the whole leaflet, leaning up and a little outward, so the
-			# crown lights as one soft mass instead of a pile of lit facets.
-			var nrm := (Vector3.UP * 1.6 + out * 0.5 + side * (dir * 0.35)).normalized()
-			for v: Vector3 in [p0, p1, tip]:
-				st.set_color(tone if v != tip else tone * 0.86)
-				st.set_uv(Vector2.ZERO)
-				st.set_normal(nrm)
-				st.add_vertex(v)
+			# The fold, jittered per leaflet: neighbours at slightly different angles are what
+			# let the light through instead of shingling into a sheet.
+			var ang := lerpf(fold_base, fold_tip, t0) * rng.randf_range(0.72, 1.28)
+			var blade_dir := (side * dir * cos(ang) - Vector3.UP * sin(ang) - out * 0.26).normalized()
+			# Tips curl further down the further out along the frond they sit.
+			var tip := p0 + blade_dir * blade + Vector3(0.0, -blade * 0.34 * t0, 0.0)
+			# One smooth normal per leaflet, leaning hard toward up, so the crown lights as one
+			# soft mass rather than a pile of lit facets catching the sun at their own angles.
+			var nrm := (Vector3.UP * 1.7 + blade_dir * 0.45).normalized()
+			_quad(st, p0, p1, tip + along * 0.16, tip, tone, nrm, nrm)
 		# The rib itself, so the frond still reads when seen edge-on.
 		var rib_n := (Vector3.UP + out * 0.3).normalized()
 		_quad(st, p0, p1, p1 + Vector3(0.0, -0.045, 0.0), p0 + Vector3(0.0, -0.045, 0.0), colour * 0.58, rib_n, rib_n)
