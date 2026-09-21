@@ -27,10 +27,10 @@ uniform vec3 dirt_tint : source_color = vec3(0.34, 0.28, 0.20);
 uniform float tex_scale = 5.0;
 uniform float seed = 0.0;
 // How parched this lawn is overall: 0 a watered green, 1 mostly straw.
-uniform float dryness : hint_range(0.0, 1.0) = 0.35;
+uniform float dryness : hint_range(0.0, 1.0) = 0.30;
 // Mower stripe width in metres, and how strongly they show. 0 width turns them off.
 uniform float stripe_width = 3.4;
-uniform float stripe_amount : hint_range(0.0, 1.0) = 0.20;
+uniform float stripe_amount : hint_range(0.0, 1.0) = 0.075;
 uniform float wear_amount : hint_range(0.0, 1.0) = 0.30;
 uniform float normal_depth = 0.7;
 
@@ -86,18 +86,21 @@ void fragment() {
 		rough = mix(rough, texture(rough_tex, rot).r, blend);
 	}
 
-	// Watered vs parched, in patches a few metres across.
-	float dry = clamp(fbm(wp * 0.055 + seed * 1.7) * 1.5 - 0.25 + (dryness - 0.5) * 1.3, 0.0, 1.0);
+	// Watered vs parched, in patches a few metres across. Kept gentle: at full contrast whole
+	// blocks came out solid straw, which is just the flat-rectangle problem in another colour.
+	float dry = clamp(fbm(wp * 0.055 + seed * 1.7) * 0.9 + (dryness - 0.5) * 0.8, 0.0, 1.0);
 	vec3 col = mix(tint, dry_tint, dry);
 
 	// Mower stripes. Angled per lawn off the seed so neighbouring lawns are not cut the same way.
+	// The whole band is one smooth sine, NOT sign() with a soft edge: sign() steps between two
+	// tones and the lawn comes out candy-striped, which is louder than the flat green it
+	// replaced. This is a change of sheen you notice only once you look for it.
 	if (stripe_width > 0.01) {
 		float a = seed * 0.9;
 		vec2 dir = vec2(cos(a), sin(a));
 		float band = sin(dot(wp, dir) * 3.14159 / stripe_width);
-		// Softened, so it is a change of sheen rather than painted lines.
-		col *= 1.0 + sign(band) * smoothstep(0.0, 0.7, abs(band)) * stripe_amount * 0.5;
-		rough *= 1.0 - sign(band) * 0.10;
+		col *= 1.0 + band * stripe_amount;
+		rough *= 1.0 - band * 0.06;
 	}
 
 	// Worn dirt: sparse bald patches where the grass has been walked off.
@@ -105,7 +108,8 @@ void fragment() {
 	col = mix(col, dirt_tint, wear);
 	rough = mix(rough, 0.95, wear);
 
-	ALBEDO = alb * col * 1.6;
+	// 1.15, not 1.6: the texture is already mid-grey and the higher boost blew the greens out.
+	ALBEDO = alb * col * 1.15;
 	NORMAL_MAP = nrm;
 	NORMAL_MAP_DEPTH = normal_depth * (1.0 - wear * 0.6);
 	ROUGHNESS = clamp(rough, 0.35, 1.0);
