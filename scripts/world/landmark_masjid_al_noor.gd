@@ -29,10 +29,17 @@ const SEED_SALT := 0x4E4F4F52
 
 # --- Site -------------------------------------------------------------------------------------
 
-## How far the podium top sits above the ground sampled at the anchor, in metres.
-const PODIUM_LIFT := 0.24
-## Thickness of the podium slab, so it still meets the pavement on a mild slope, in metres.
-const PODIUM_T := 0.55
+## How far the podium top sits above the ground sampled at the anchor, in metres. Note what
+## that sample is: plan.height_at() is the TERRAIN, and a city block lays its pavement, paving
+## and lawn on top of that, at CityChunk.SIDEWALK_TOP (0.25) and a little over. At 0.24 the
+## podium was a few centimetres UNDER the block it stands on, so the block's lawn slab covered
+## the courtyard and its grass grew up through the carpet of the prayer hall. A blade reaches
+## about 1.29 m at its tallest, so the plinth clears that and the whole lawn passes under it -
+## which is also the right look: the site stands on a platform and you climb to the gate.
+const PODIUM_LIFT := 1.30
+## Thickness of the podium slab, in metres. It has to reach from PODIUM_LIFT down past the
+## block surface, or daylight shows under the plinth.
+const PODIUM_T := 1.60
 ## Half the width of the walled site (the site is 2 x this across), in metres.
 const SITE_X := 18.0
 ## Half the width of the square prayer hall, in metres: the hall is 28 x 28.
@@ -45,6 +52,14 @@ const PORCH_Z0 := HALL_HALF
 const PORCH_Z1 := HALL_HALF + PORCH_D
 ## South edge of the forecourt, where the gate wall stands, in metres.
 const COURT_Z1 := 42.0
+## Top of a city block's own ground - CityChunk.SIDEWALK_TOP plus the paving or lawn slab it
+## lays on top - above the terrain height this site is levelled from, in metres.
+const BLOCK_TOP := 0.29
+## Steps in the flight down from the gate to that pavement, with the rise derived so the flight
+## lands on it exactly however PODIUM_LIFT is tuned, and the going of one step in metres.
+const GATE_STEPS := 5
+const STEP_RISE := (PODIUM_LIFT - BLOCK_TOP) / float(GATE_STEPS)
+const STEP_RUN := 0.9
 ## North edge of the site behind the qibla wall, in metres (negative: it is north of the anchor).
 ## It has to clear the mihrab bay, which pushes about 2.8 m out of that wall.
 const SITE_Z0 := -20.0
@@ -70,6 +85,29 @@ const DOOR_SPRING := 4.4
 const PARAPET_H := 0.9
 ## Half the square opening left in the roof and the transition block under the dome, in metres.
 const OCULUS_HALF := 9.0
+## Where the four piers that carry the crown stand, in metres from the anchor on both axes.
+## They have to line up with the corners of the OCULUS_HALF opening: inboard of it they stand
+## under the hole and hold up nothing, which is what the eye reads first from the carpet.
+const PIER_GRID := 9.65
+## Side of one of those piers, in metres.
+const PIER_SIDE := 1.3
+
+# --- Mihrab -------------------------------------------------------------------------------------
+
+## Clear width of the mihrab niche cut through the qibla wall, in metres. It cannot be wider
+## than the flat of the bay behind it (2 * MIHRAB_A * tan 22.5 deg), or its back is open air.
+const MIHRAB_W := 1.6
+## Springing height of the niche arch, in metres.
+const MIHRAB_SPRING := 3.0
+## Height of the rectangular hole left in the qibla wall for the niche, in metres. It has to
+## clear the apex of the niche arch, which the spandrel boxes then fill in to.
+const MIHRAB_H := 4.4
+## Apothem of the octagonal bay pushed out of the qibla wall behind the niche, in metres. Its
+## inner flat lands on the OUTER face of that wall, so the niche is one wall thickness deep and
+## its back is the inside of the bay; push the bay any further in and it bulges into the hall.
+const MIHRAB_A := 2.0
+## Height of that bay, in metres, under its cornice and cap dome.
+const MIHRAB_BAY_H := 6.0
 
 # --- Parapet and tile band --------------------------------------------------------------------
 
@@ -116,6 +154,11 @@ const DOME_BASE := DRUM_TOP + CORNICE_T
 const DOME_R := 9.4
 ## Crown of the dome, where the finial stands, in metres above the podium.
 const DOME_APEX := DOME_BASE + DOME_R
+## Tiers of collision panels wrapped round the dome, and their thickness in metres. The dome
+## needs a shell and not the solid SphereShape3D Landmarks._dome() would give it: see
+## _dome_shell() for why.
+const DOME_TIERS := 3
+const DOME_SHELL_T := 0.6
 ## Clear width of one clerestory lantern in a drum panel, in metres.
 const LANTERN_W := 1.7
 ## Height of the straight part of a clerestory lantern below its arch, in metres.
@@ -310,6 +353,35 @@ static func _soffit() -> Material:
 	return _soffit_mat
 
 
+## Boxes of one material accumulated into a single mesh. An arch is fourteen voussoirs and a
+## parapet run is thirty-six merlon blocks; as a MeshInstance3D each that is fifty draw calls
+## for six hundred triangles, and this building is mostly arches and merlons. Positions and
+## normals are all that is carried, which is all the materials here read: the stucco and stone
+## are triplanar (world-space UVs, so UV1 is ignored) and the rest are flat colours.
+class BoxBatch extends RefCounted:
+	var _st: SurfaceTool = null
+
+	## Adds one box. `basis` has to stay a pure rotation: SurfaceTool puts normals through the
+	## basis as given, so a scale in there would leave them unnormalised and break the lighting.
+	func add(size: Vector3, pos: Vector3, basis: Basis = Basis.IDENTITY) -> void:
+		if _st == null:
+			_st = SurfaceTool.new()
+			_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var box := BoxMesh.new()
+		box.size = size
+		_st.append_from(box, 0, Transform3D(basis, pos))
+
+	## Everything added so far, as one MeshInstance3D under `parent`. A no-op if nothing was.
+	func commit(parent: Node3D, mat: Material) -> void:
+		if _st == null:
+			return
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = _st.commit()
+		mesh.material_override = mat
+		parent.add_child(mesh)
+		_st = null
+
+
 # --- Primitive helpers ---------------------------------------------------------------------------
 
 ## An axis-aligned box with a material instead of a flat colour.
@@ -370,6 +442,38 @@ static func _ring(parent: Node3D, statics: StaticBody3D, apothem: float, height:
 		_rbox(parent, statics, Vector3(panel_w, height, thickness), pos + Vector3(sin(th), 0.0, cos(th)) * apothem, th, mat, collide)
 
 
+## One collision box placed with a yaw and a tilt, with no mesh of its own: the only way to
+## wrap a curved surface that already has its mesh, since Landmarks._shape() is axis-aligned.
+static func _shell_shape(statics: StaticBody3D, size: Vector3, pos: Vector3, yaw: float, tilt: float) -> void:
+	var cs := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	cs.shape = box
+	cs.transform = Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, -tilt), pos)
+	statics.add_child(cs)
+
+
+## Collision for the dome, as DOME_TIERS rings of eight tilted panels. Landmarks._dome() gives a
+## dome a solid SphereShape3D, which is right when the dome caps something solid and wrong here:
+## the lower half of that sphere would hang in the open volume of the prayer hall, so anyone who
+## jumped inside would hit an invisible ceiling eight metres up, under a dome they can see
+## twenty-six metres up. A shell is solid to stand on from outside and hollow from within.
+static func _dome_shell(statics: StaticBody3D, centre: Vector3, radius: float) -> void:
+	if statics == null:
+		return
+	var span := PI * 0.5 / float(DOME_TIERS)
+	# Half a panel's sagitta out, so the flat panels average out on the curve they stand in for.
+	var r := radius + radius * (1.0 - cos(span * 0.5)) * 0.5 - DOME_SHELL_T * 0.5
+	for t in DOME_TIERS:
+		var phi := (float(t) + 0.5) * span
+		var w := 2.0 * cos(phi) * r * tan(PI / 8.0) * 1.2
+		var h := r * span * 1.15
+		for i in 8:
+			var th := float(i) * PI * 0.25
+			var at := centre + Vector3(cos(phi) * sin(th), sin(phi), cos(phi) * cos(th)) * r
+			_shell_shape(statics, Vector3(maxf(w, 0.4), h, DOME_SHELL_T), at, th, phi)
+
+
 ## A small sphere for finial knops. 8 x 4 segments, 64 triangles.
 static func _ball(parent: Node3D, radius: float, pos: Vector3, mat: Material) -> void:
 	var mesh := MeshInstance3D.new()
@@ -417,7 +521,8 @@ static func _arch_half_width(span: float, y: float) -> float:
 ## metres along local X centred on x = 0, springs from local y = `spring`, is `band` metres deep
 ## in the radial direction and `depth` metres thick through the wall. Returns the apex height in
 ## the pivot's local frame so the caller can stack a lintel or a spandrel on top of it.
-static func _arch(pivot: Node3D, span: float, spring: float, band: float, depth: float, segs: int, mat: Material) -> float:
+static func _arch(pivot: Node3D, span: float, spring: float, band: float, depth: float, segs: int, mat: Material, batch: BoxBatch = null) -> float:
+	var into: BoxBatch = batch if batch != null else BoxBatch.new()
 	var a := span * 0.5
 	var d := a * ARCH_POINT
 	var r := a + d
@@ -430,16 +535,18 @@ static func _arch(pivot: Node3D, span: float, spring: float, band: float, depth:
 			var point := Vector2((r * cos(th) - d) * side, r * sin(th))
 			var seg := point - prev
 			var mid := (prev + point) * 0.5
-			var piece := _box(pivot, null, Vector3(seg.length() * 1.08, band, depth), Vector3(mid.x, spring + mid.y, 0.0), mat, false)
-			piece.rotation.z = atan2(seg.y, seg.x)
+			into.add(Vector3(seg.length() * 1.08, band, depth), Vector3(mid.x, spring + mid.y, 0.0), Basis(Vector3.BACK, atan2(seg.y, seg.x)))
 			prev = point
+	if batch == null:
+		into.commit(pivot, mat)
 	return spring + apex
 
 
 ## Glass filling an arched opening: a plain pane up to the springing line, then three strips that
 ## step in with the curve of the head.
-static func _arch_glass(pivot: Node3D, span: float, spring: float, below: float, depth: float, mat: Material) -> void:
-	_box(pivot, null, Vector3(span, below, depth), Vector3(0.0, spring - below * 0.5, 0.0), mat, false)
+static func _arch_glass(pivot: Node3D, span: float, spring: float, below: float, depth: float, mat: Material, batch: BoxBatch = null) -> void:
+	var into: BoxBatch = batch if batch != null else BoxBatch.new()
+	into.add(Vector3(span, below, depth), Vector3(0.0, spring - below * 0.5, 0.0))
 	var rise := _arch_rise(span)
 	for i in 3:
 		var y0 := rise * float(i) / 3.0
@@ -447,13 +554,16 @@ static func _arch_glass(pivot: Node3D, span: float, spring: float, below: float,
 		var w := _arch_half_width(span, (y0 + y1) * 0.5) * 2.0
 		if w < 0.08:
 			continue
-		_box(pivot, null, Vector3(w, y1 - y0, depth), Vector3(0.0, spring + (y0 + y1) * 0.5, 0.0), mat, false)
+		into.add(Vector3(w, y1 - y0, depth), Vector3(0.0, spring + (y0 + y1) * 0.5, 0.0))
+	if batch == null:
+		into.commit(pivot, mat)
 
 
 ## Fills the two corners between a pointed opening and the rectangular hole that was actually
 ## left in the wall, so a doorway or a gateway reads as an arch from both sides. `out_half` is
 ## half the width of the hole and `top` its head, both measured in the pivot's local frame.
 static func _spandrel(pivot: Node3D, span: float, spring: float, out_half: float, top: float, depth: float, mat: Material) -> void:
+	var into := BoxBatch.new()
 	var rise := _arch_rise(span)
 	var strips := 5
 	for i in strips:
@@ -463,9 +573,10 @@ static func _spandrel(pivot: Node3D, span: float, spring: float, out_half: float
 		var w := out_half - half
 		if w > 0.02:
 			for side: float in [-1.0, 1.0]:
-				_box(pivot, null, Vector3(w, y1 - y0, depth), Vector3(side * (half + w * 0.5), spring + (y0 + y1) * 0.5, 0.0), mat, false)
+				into.add(Vector3(w, y1 - y0, depth), Vector3(side * (half + w * 0.5), spring + (y0 + y1) * 0.5, 0.0))
 	if top > spring + rise + 0.02:
-		_box(pivot, null, Vector3(out_half * 2.0, top - spring - rise, depth), Vector3(0.0, (top + spring + rise) * 0.5, 0.0), mat, false)
+		into.add(Vector3(out_half * 2.0, top - spring - rise, depth), Vector3(0.0, (top + spring + rise) * 0.5, 0.0))
+	into.commit(pivot, mat)
 
 
 ## A run of stepped merlons along one straight parapet edge, standing on `y`. `axis_x` true means
@@ -479,11 +590,13 @@ static func _merlons(parent: Node3D, base: Vector3, axis_x: bool, from_s: float,
 	var start := minf(from_s, to_s)
 	var low := Vector3(MERLON_W, MERLON_H, MERLON_T) if axis_x else Vector3(MERLON_T, MERLON_H, MERLON_W)
 	var high := Vector3(MERLON_W * 0.5, MERLON_H * 0.55, MERLON_T) if axis_x else Vector3(MERLON_T, MERLON_H * 0.55, MERLON_W * 0.5)
+	var into := BoxBatch.new()
 	for i in count:
 		var s := start + (float(i) + 0.5) * step
 		var at := base + (Vector3(s, y, fixed) if axis_x else Vector3(fixed, y, s))
-		_box(parent, null, low, at + Vector3(0.0, MERLON_H * 0.5, 0.0), mat, false)
-		_box(parent, null, high, at + Vector3(0.0, MERLON_H * 1.275, 0.0), mat, false)
+		into.add(low, at + Vector3(0.0, MERLON_H * 0.5, 0.0))
+		into.add(high, at + Vector3(0.0, MERLON_H * 1.275, 0.0))
+	into.commit(parent, mat)
 
 
 ## The band of tilework under the eaves of one elevation, with diamonds picked out along it in
@@ -498,21 +611,26 @@ static func _tile_band(parent: Node3D, base: Vector3, axis_x: bool, from_s: floa
 	var step := length / float(count)
 	var start := minf(from_s, to_s)
 	var d := TILE_DIAMOND
+	var turn := Basis(Vector3.BACK, PI * 0.25) if axis_x else Basis(Vector3.RIGHT, PI * 0.25)
+	var gem := Vector3(d, d, 0.08) if axis_x else Vector3(0.08, d, d)
+	var blue := BoxBatch.new()
+	var pale := BoxBatch.new()
 	for i in count:
 		var s := start + (float(i) + 0.5) * step
 		var at := base + (Vector3(s, y, fixed + out * 0.14) if axis_x else Vector3(fixed + out * 0.14, y, s))
-		var mat: Material = _tile2() if i % 2 == 0 else _stone()
-		var gem := _box(parent, null, Vector3(d, d, 0.08) if axis_x else Vector3(0.08, d, d), at, mat, false)
-		if axis_x:
-			gem.rotation.z = PI * 0.25
+		if i % 2 == 0:
+			blue.add(gem, at, turn)
 		else:
-			gem.rotation.x = PI * 0.25
+			pale.add(gem, at, turn)
+	blue.commit(parent, _tile2())
+	pale.commit(parent, _stone())
 
 
 ## A crescent finial: an arc of boxes in the local XY plane of a pivot, widest at the bottom and
 ## tapering to a point at each horn, with the opening facing up. 14 boxes, 168 triangles.
 static func _crescent(parent: Node3D, pos: Vector3, yaw: float, radius: float, band: float, depth: float, mat: Material) -> void:
 	var pivot := _pivot(parent, pos, yaw)
+	var into := BoxBatch.new()
 	var a0 := deg_to_rad(125.0)
 	var a1 := deg_to_rad(415.0)
 	for i in CRESCENT_SEGS:
@@ -523,8 +641,8 @@ static func _crescent(parent: Node3D, pos: Vector3, yaw: float, radius: float, b
 		var seg := p1 - p0
 		var mid := (p0 + p1) * 0.5
 		var width := maxf(band * sin(PI * (t0 + t1) * 0.5), 0.05)
-		var piece := _box(pivot, null, Vector3(seg.length() * 1.15, width, depth), Vector3(mid.x, mid.y, 0.0), mat, false)
-		piece.rotation.z = atan2(seg.y, seg.x)
+		into.add(Vector3(seg.length() * 1.15, width, depth), Vector3(mid.x, mid.y, 0.0), Basis(Vector3.BACK, atan2(seg.y, seg.x)))
+	into.commit(pivot, mat)
 
 
 ## Stem, knop and crescent: the finial that tops the dome, the minaret cap and the fountain.
@@ -537,15 +655,23 @@ static func _finial(parent: Node3D, at: Vector3, scale_m: float) -> void:
 
 ## One arched window: pane, glazing bars, sill, jambs and a pointed arch band. `at` sits on the
 ## wall face at sill level and the pivot's local +Z is the outward normal.
-static func _window(parent: Node3D, at: Vector3, yaw: float, span: float, below: float) -> void:
+## `through` is the wall thickness to reach back through; pass it and the same pane is repeated
+## on the inside face, so the window is not blind from the room behind it.
+static func _window(parent: Node3D, at: Vector3, yaw: float, span: float, below: float, through: float = 0.0) -> void:
 	var pivot := _pivot(parent, at, yaw)
 	var stone := _stone()
+	var trim := BoxBatch.new()
 	_arch_glass(pivot, span, below, below, 0.1, _glass())
-	_box(pivot, null, Vector3(0.16, below, 0.22), Vector3(-(span + 0.16) * 0.5, below * 0.5, 0.06), stone, false)
-	_box(pivot, null, Vector3(0.16, below, 0.22), Vector3((span + 0.16) * 0.5, below * 0.5, 0.06), stone, false)
-	_box(pivot, null, Vector3(span + 0.6, 0.18, 0.34), Vector3(0.0, -0.09, 0.08), stone, false)
-	_box(pivot, null, Vector3(0.08, below, 0.12), Vector3(0.0, below * 0.5, 0.05), stone, false)
-	_arch(pivot, span + 0.32, below, 0.34, 0.24, ARCH_SEGS, stone)
+	for side: float in [-1.0, 1.0]:
+		trim.add(Vector3(0.16, below, 0.22), Vector3(side * (span + 0.16) * 0.5, below * 0.5, 0.06))
+	trim.add(Vector3(span + 0.6, 0.18, 0.34), Vector3(0.0, -0.09, 0.08))
+	trim.add(Vector3(0.08, below, 0.12), Vector3(0.0, below * 0.5, 0.05))
+	_arch(pivot, span + 0.32, below, 0.34, 0.24, ARCH_SEGS, stone, trim)
+	trim.commit(pivot, stone)
+	if through > 0.0:
+		var back := _pivot(parent, at - Vector3(sin(yaw), 0.0, cos(yaw)) * through, yaw)
+		_arch_glass(back, span, below, below, 0.1, _glass())
+		_arch(back, span + 0.32, below, 0.3, 0.12, ARCH_SEGS, stone)
 
 
 # --- Entry points --------------------------------------------------------------------------------
@@ -602,10 +728,10 @@ static func _podium(parent: Node3D, statics: StaticBody3D, base: Vector3, rng: R
 	var court_tone := _court_paving()
 	var court := _box(parent, null, Vector3(SITE_X * 2.0 - 0.2, 0.08, COURT_Z1 - PORCH_Z1 - 0.2), base + Vector3(0.0, 0.04, (PORCH_Z1 + COURT_Z1) * 0.5), court_tone, false)
 	court.position.x += rng.randf_range(-0.05, 0.05)
-	# Three entrance steps outside the gate, and the same at the porch lip.
-	for i in 3:
+	# The flight up to the gate: enough steps to reach the block surface, widening as it falls.
+	for i in GATE_STEPS:
 		var t := float(i)
-		_box(parent, statics, Vector3(GATE_PYLON_W + 2.4 + t * 1.2, 0.2, 0.9), base + Vector3(0.0, -0.1 - t * 0.2, COURT_Z1 + COURT_WALL_T + 0.45 + t * 0.9), _stone(), true)
+		_box(parent, statics, Vector3(GATE_PYLON_W + 2.4 + t * 1.2, STEP_RISE, STEP_RUN), base + Vector3(0.0, -STEP_RISE * 0.5 - t * STEP_RISE, COURT_Z1 + COURT_WALL_T + STEP_RUN * 0.5 + t * STEP_RUN), _stone(), true)
 
 
 # --- Prayer hall ----------------------------------------------------------------------------------
@@ -614,8 +740,15 @@ static func _hall(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
 	var stucco := _stucco()
 	var stone := _stone()
 	var inner := HALL_HALF - WALL_T * 0.5
-	# Four walls. The south wall is split around the doorway.
-	_box(parent, statics, Vector3(HALL_HALF * 2.0, WALL_TOP, WALL_T), base + Vector3(0.0, WALL_TOP * 0.5, -inner), stucco, true)
+	# Four walls. The south wall is split around the doorway, the qibla wall around the mihrab
+	# niche: left solid, the niche and its tilework would be buried behind 600 mm of stucco.
+	var mjamb := (HALL_HALF * 2.0 - MIHRAB_W) * 0.5
+	for side: float in [-1.0, 1.0]:
+		_box(parent, statics, Vector3(mjamb, WALL_TOP, WALL_T), base + Vector3(side * (MIHRAB_W + mjamb) * 0.5, WALL_TOP * 0.5, -inner), stucco, true)
+	_box(parent, statics, Vector3(MIHRAB_W, WALL_TOP - MIHRAB_H, WALL_T), base + Vector3(0.0, (WALL_TOP + MIHRAB_H) * 0.5, -inner), stucco, true)
+	for out: float in [1.0, -1.0]:
+		var mfill := _pivot(parent, base + Vector3(0.0, 0.0, -inner + out * WALL_T * 0.5), _facing(0.0, out))
+		_spandrel(mfill, MIHRAB_W, MIHRAB_SPRING, MIHRAB_W * 0.5, MIHRAB_H, WALL_T * 1.05, stucco)
 	_box(parent, statics, Vector3(WALL_T, WALL_TOP, HALL_HALF * 2.0 - WALL_T * 2.0), base + Vector3(-inner, WALL_TOP * 0.5, 0.0), stucco, true)
 	_box(parent, statics, Vector3(WALL_T, WALL_TOP, HALL_HALF * 2.0 - WALL_T * 2.0), base + Vector3(inner, WALL_TOP * 0.5, 0.0), stucco, true)
 	var jamb := (HALL_HALF * 2.0 - DOOR_W) * 0.5
@@ -643,9 +776,9 @@ static func _hall(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
 	# Arched windows: three down each flank, two flanking the mihrab on the qibla wall.
 	for side: float in [-1.0, 1.0]:
 		for z: float in [-8.0, 0.0, 8.0]:
-			_window(parent, base + Vector3(side * (HALL_HALF + 0.02), 3.2, z), _facing(side, 0.0), 1.8, 3.4)
+			_window(parent, base + Vector3(side * (HALL_HALF + 0.02), 3.2, z), _facing(side, 0.0), 1.8, 3.4, WALL_T + 0.06)
 	for x: float in [-6.6, 6.6]:
-		_window(parent, base + Vector3(x, 3.2, -HALL_HALF - 0.02), _facing(0.0, -1.0), 1.8, 3.4)
+		_window(parent, base + Vector3(x, 3.2, -HALL_HALF - 0.02), _facing(0.0, -1.0), 1.8, 3.4, WALL_T + 0.06)
 	_mihrab_bay(parent, statics, base)
 	_portal(parent, statics, base)
 
@@ -653,12 +786,12 @@ static func _hall(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
 ## The mihrab reads outside as a faceted bay pushed out of the qibla wall, capped by a little
 ## dome. Half of the prism is buried in the wall.
 static func _mihrab_bay(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
-	var at := Vector3(0.0, 0.0, -HALL_HALF - 1.2)
-	_poly(parent, statics, 2.6, 7.2, 8, base + at + Vector3(0.0, 3.6, 0.0), _stucco(), true)
-	_poly(parent, null, 2.85, 0.4, 8, base + at + Vector3(0.0, 7.4, 0.0), _stone(), false)
-	var cap := Landmarks._dome(parent, null, 2.85, base + at + Vector3(0.0, 7.6, 0.0), TILE)
+	var at := Vector3(0.0, 0.0, -HALL_HALF - MIHRAB_A)
+	_poly(parent, statics, MIHRAB_A, MIHRAB_BAY_H, 8, base + at + Vector3(0.0, MIHRAB_BAY_H * 0.5, 0.0), _stucco(), true)
+	_poly(parent, null, MIHRAB_A + 0.25, 0.4, 8, base + at + Vector3(0.0, MIHRAB_BAY_H + 0.2, 0.0), _stone(), false)
+	var cap := Landmarks._dome(parent, null, MIHRAB_A + 0.25, base + at + Vector3(0.0, MIHRAB_BAY_H + 0.4, 0.0), TILE)
 	cap.material_override = _dome_mat()
-	_poly(parent, null, 2.64, TILE_BAND_H, 8, base + at + Vector3(0.0, 6.5, 0.0), _tile(), false)
+	_poly(parent, null, MIHRAB_A + 0.04, TILE_BAND_H, 8, base + at + Vector3(0.0, MIHRAB_BAY_H - 0.7, 0.0), _tile(), false)
 
 
 ## The doorway: a raised frame of two jambs and a head band, a pointed opening filled in to the
@@ -675,7 +808,9 @@ static func _portal(parent: Node3D, statics: StaticBody3D, base: Vector3) -> voi
 	_box(parent, statics, Vector3(frame_w, frame_h - DOOR_H, 0.6), base + Vector3(0.0, (frame_h + DOOR_H) * 0.5, face), stone, true)
 	# Turn the rectangular hole into a pointed one, from both sides of the wall.
 	for out: float in [1.0, -1.0]:
-		var fill := _pivot(parent, base + Vector3(0.0, 0.0, HALL_HALF * out), _facing(0.0, out))
+		# Both faces of the SOUTH wall: HALL_HALF * out would put the inner one at z -14, in
+		# the middle of the qibla wall at the far end of the hall, where there is no doorway.
+		var fill := _pivot(parent, base + Vector3(0.0, 0.0, HALL_HALF - WALL_T * 0.5 + out * WALL_T * 0.5), _facing(0.0, out))
 		_spandrel(fill, DOOR_W, DOOR_SPRING, DOOR_W * 0.5, DOOR_H, WALL_T * 1.05, _stucco())
 	var pivot := _pivot(parent, base + Vector3(0.0, 0.0, face + 0.32), 0.0)
 	_arch(pivot, DOOR_W + 0.44, DOOR_SPRING, 0.42, 0.24, ARCH_SEGS, _tile())
@@ -701,14 +836,16 @@ static func _interior(parent: Node3D, statics: StaticBody3D, base: Vector3) -> v
 	# Four piers carrying the transition block, one under each corner of the opening.
 	for sx: float in [-1.0, 1.0]:
 		for sz: float in [-1.0, 1.0]:
-			_box(parent, statics, Vector3(1.3, WALL_TOP, 1.3), base + Vector3(sx * 6.6, WALL_TOP * 0.5, sz * 6.6), _stucco(), true)
-			_box(parent, null, Vector3(1.7, 0.3, 1.7), base + Vector3(sx * 6.6, WALL_TOP - 0.15, sz * 6.6), stone, false)
-	# The mihrab niche in the qibla wall: tilework in a pointed recess, nothing figurative.
+			_box(parent, statics, Vector3(PIER_SIDE, WALL_TOP, PIER_SIDE), base + Vector3(sx * PIER_GRID, WALL_TOP * 0.5, sz * PIER_GRID), _stucco(), true)
+			_box(parent, null, Vector3(PIER_SIDE + 0.4, 0.3, PIER_SIDE + 0.4), base + Vector3(sx * PIER_GRID, WALL_TOP - 0.15, sz * PIER_GRID), stone, false)
+	# The mihrab: tilework across the back of the recess, a pointed frame and two colonnettes
+	# around its mouth on the wall face. Geometry and colour only, nothing figurative.
+	var back := _pivot(parent, base + Vector3(0.0, 0.0, -HALL_HALF + 0.04), 0.0)
+	_arch_glass(back, MIHRAB_W, MIHRAB_SPRING, MIHRAB_SPRING, 0.06, _tile2())
 	var niche := _pivot(parent, base + Vector3(0.0, 0.0, -inner + 0.06), 0.0)
-	_arch_glass(niche, 3.2, 4.2, 4.2, 0.16, _tile2())
-	_arch(niche, 3.6, 4.2, 0.36, 0.2, ARCH_SEGS, stone)
-	_box(niche, null, Vector3(0.24, 4.2, 0.24), Vector3(-1.72, 2.1, 0.06), stone, false)
-	_box(niche, null, Vector3(0.24, 4.2, 0.24), Vector3(1.72, 2.1, 0.06), stone, false)
+	_arch(niche, MIHRAB_W + 0.4, MIHRAB_SPRING, 0.36, 0.2, ARCH_SEGS, stone)
+	for side: float in [-1.0, 1.0]:
+		_box(niche, null, Vector3(0.24, MIHRAB_SPRING, 0.24), Vector3(side * (MIHRAB_W * 0.5 + 0.12), MIHRAB_SPRING * 0.5, 0.06), stone, false)
 	_minbar(parent, base)
 	# The underside of the dome, turned inside out so it reads from the carpet.
 	var soffit := Landmarks._dome(parent, null, DOME_R - 0.35, base + Vector3(0.0, DOME_BASE, 0.0), TILE)
@@ -770,12 +907,18 @@ static func _crown(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void
 		_arch_glass(lamp, LANTERN_W, LANTERN_H, LANTERN_H, 0.2, _glass())
 		_arch(lamp, LANTERN_W + 0.3, LANTERN_H, 0.3, 0.2, 5, stone)
 		_box(lamp, null, Vector3(LANTERN_W + 0.7, 0.16, 0.3), Vector3(0.0, -0.08, 0.06), stone, false)
+		# The same lantern on the inner face. The drum panel between them is solid, so without
+		# this the clerestory is blind from the carpet - and the light is the whole point.
+		var lamp_in := _pivot(parent, base + out * (DRUM_A - DRUM_T * 0.5 - 0.06) + Vector3(0.0, sill, 0.0), th)
+		_arch_glass(lamp_in, LANTERN_W, LANTERN_H, LANTERN_H, 0.12, _glass())
+		_arch(lamp_in, LANTERN_W + 0.3, LANTERN_H, 0.26, 0.12, 5, stone)
 	# Tiled band under the drum cornice, then the cornice itself.
 	_ring(parent, null, DRUM_A + 0.35, TILE_BAND_H, 0.3, base + Vector3(0.0, DRUM_TOP - 0.55, 0.0), _tile(), false)
 	_ring(parent, statics, CORNICE_A, CORNICE_T, 1.5, base + Vector3(0.0, DRUM_TOP + CORNICE_T * 0.5, 0.0), stone, true)
 	# The dome, and the crescent that finishes it.
-	var dome := Landmarks._dome(parent, statics, DOME_R, base + Vector3(0.0, DOME_BASE, 0.0), TILE)
+	var dome := Landmarks._dome(parent, null, DOME_R, base + Vector3(0.0, DOME_BASE, 0.0), TILE)
 	dome.material_override = _dome_mat()
+	_dome_shell(statics, base + Vector3(0.0, DOME_BASE, 0.0), DOME_R)
 	_ring(parent, null, DOME_R * 0.99, 0.5, 0.7, base + Vector3(0.0, DOME_BASE + 0.15, 0.0), _tile(), false)
 	_finial(parent, base + Vector3(0.0, DOME_APEX, 0.0), 1.6)
 

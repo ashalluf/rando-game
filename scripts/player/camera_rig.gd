@@ -2,6 +2,16 @@ extends Node3D
 ## Third-person follow camera. Sits on the player, yaw/pitch from mouse or right stick,
 ## SpringArm3D keeps the camera out of walls. Feel numbers are @exports below.
 
+@export_group("Focus")
+## Depth-of-field far distance with the camera at ground level (metres).
+@export var dof_ground_distance: float = 260.0
+## Extra far distance per metre of altitude. At 150 m up this puts the focus beyond the far
+## side of the basin, which is what an aerial shot needs.
+@export var dof_altitude_gain: float = 14.0
+## How quickly the focus follows a change in altitude. Slow on purpose: a focus that snaps as
+## you clear a rooftop is more distracting than the blur it is fixing.
+@export var dof_lerp_speed: float = 1.6
+
 @export_group("Look")
 ## Radians per pixel of mouse movement.
 @export var mouse_sensitivity: float = 0.0025
@@ -82,6 +92,27 @@ func _process(delta: float) -> void:
 	if player and player.is_boosting():
 		target_fov += boost_fov_boost
 	camera.fov = lerpf(camera.fov, target_fov, 1.0 - exp(-fov_lerp_speed * delta))
+	_update_focus(delta)
+
+
+## Pushes the depth-of-field focus out with altitude. On the ground a far blur past
+## `dof_ground_distance` reads as a lens and gives the street depth. In the air it is simply
+## wrong: the player flies, and from a few hundred metres up EVERYTHING in frame is past that
+## distance, so the whole city goes soft and an aerial shot looks like a watercolour. The focus
+## therefore opens out in proportion to how high the camera is above the ground under it, which
+## is the one number that distinguishes the two cases.
+func _update_focus(delta: float) -> void:
+	var attrs := camera.attributes as CameraAttributesPractical
+	if attrs == null or not attrs.dof_blur_far_enabled:
+		return
+	var ground := 0.0
+	var city := get_tree().get_first_node_in_group("city")
+	if city and city.has_method("ground_height_at"):
+		ground = city.ground_height_at(camera.global_position)
+	var altitude := maxf(camera.global_position.y - ground, 0.0)
+	var want := dof_ground_distance + altitude * dof_altitude_gain
+	attrs.dof_blur_far_distance = lerpf(attrs.dof_blur_far_distance, want, 1.0 - exp(-dof_lerp_speed * delta))
+	attrs.dof_blur_far_transition = attrs.dof_blur_far_distance
 
 
 ## Rattles the view. `amount` is 0..1; explosions call this scaled by distance.

@@ -399,8 +399,11 @@ func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 	}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	_place_freeway_car(car, fw)
+	# Into the tree FIRST: _place_freeway_car() writes global_position, and a node outside the
+	# tree has no parent transform to resolve that against, so Godot logged an error 253 times a
+	# run and the car was placed relative to nothing.
 	add_child(car)
+	_place_freeway_car(car, fw)
 	car.traffic_speed = car.traffic.speed
 	freeway_cars.append(car)
 

@@ -182,6 +182,12 @@ func build() -> void:
 	match zone:
 		MacroMap.Zone.OCEAN:
 			_build_water()
+			# The waterline does not respect the zone grid: a chunk whose centre is out to sea
+			# can still have the shore running through its landward edge, and before this those
+			# bands showed as dark gaps between one beach and the next.
+			if _owns_shoreline():
+				_build_beach(block)
+				_build_hill_roads()
 		MacroMap.Zone.HILLS:
 			_build_terrain()
 			_build_hill_roads()
@@ -189,7 +195,8 @@ func build() -> void:
 			_scatter_hills()
 		MacroMap.Zone.BEACH:
 			_build_roads(block)
-			_build_beach(block)
+			if _owns_shoreline():
+				_build_beach(block)
 			# The coast highway runs the length of the sand on the land side of it, so a beach
 			# chunk has to lay road as well; without this PCH simply stops at every beach town
 			# and picks up again where the cliffs start.
@@ -199,6 +206,9 @@ func build() -> void:
 		MacroMap.Zone.PORT:
 			_build_port(block)
 		_:
+			if _owns_shoreline():
+				_build_beach(block)
+				_build_hill_roads()
 			_build_roads(block)
 			_build_block(block)
 			if level == Level.FULL:
@@ -407,6 +417,9 @@ const SAND_LIP := 22.0
 ## very visible - a single ramp from below the waves to the town crosses the sea surface (which
 ## sits at 0.15) most of the way up the beach, and drowns it.
 ## SAND_EDGE is where the sand meets the water, and must stay ABOVE 0.15.
+## UV units per metre of sand. The material is world-triplanar, so this only has to be
+## consistent and roughly the right scale for the tangent basis the normal map needs.
+const SAND_UV_SCALE := 0.2
 const SAND_LOW := -0.75
 const SAND_EDGE := 0.22
 const SAND_HIGH := 0.5
@@ -417,8 +430,34 @@ const SAND_HIGH := 0.5
 ## chunk, gaps of bare ground between one beach and the next. This walks the chunk's Z range,
 ## asks MacroMap where the water is at each step, and lays a continuous ramp from under the
 ## waves up to the town.
+## True when this chunk is the one the waterline runs through at its own Z. Exactly one chunk per
+## Z band answers yes, so the sand is laid once and never double-drawn by a neighbour.
+func _owns_shoreline() -> bool:
+	if plan.macro == null:
+		return false
+	var rect := owned_rect()
+	var cx := plan.macro.coast_x(rect.get_center().y)
+	return cx >= rect.position.x and cx < rect.end.x
+
+
 func _build_beach(block: Dictionary) -> void:
-	var rect: Rect2 = block.rect
+	_build_sand(block.rect)
+	if level != Level.FULL:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = block.seed
+	# Scattered across the DRY sand, which is a band that moves with the shoreline rather than
+	# the chunk's rectangle: dropping them in the rectangle put palms in the surf.
+	for i in rng.randi_range(6, 14):
+		var z := rng.randf_range(block.rect.position.y + 4.0, block.rect.end.y - 4.0)
+		var x := _dry_sand_x(z, rng.randf_range(0.18, 0.95))
+		_add_palm(Vector3(x, SAND_EDGE, z), rng)
+	if rng.randf() < 0.6:
+		var z := rng.randf_range(block.rect.position.y + 8.0, block.rect.end.y - 8.0)
+		_add_lifeguard_tower(Vector3(_dry_sand_x(z, rng.randf_range(0.1, 0.5)), SAND_EDGE, z), rng.randf_range(0.0, TAU))
+
+
+func _build_sand(rect: Rect2) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var macro: MacroMap = plan.macro
@@ -439,10 +478,14 @@ func _build_beach(block: Dictionary) -> void:
 		var hi := Vector3(inland_x, SAND_HIGH, z)
 		if i > 0:
 			# Two strips: the wet face from under the water up to the waterline, then the dry
-			# sand from there to the town.
+			# sand from there to the town. UVs come from world XZ so the grain runs continuously
+			# from one chunk into the next; without them generate_tangents() fails outright and
+			# the sand gets no tangent basis, which silently kills its normal map.
 			for v in [prev_lo, prev_edge, edge, prev_lo, edge, lo]:
+				st.set_uv(Vector2(v.x, v.z) * SAND_UV_SCALE)
 				st.add_vertex(v)
 			for v in [prev_edge, prev_hi, hi, prev_edge, hi, edge]:
+				st.set_uv(Vector2(v.x, v.z) * SAND_UV_SCALE)
 				st.add_vertex(v)
 			quads += 2
 		prev_lo = lo
@@ -467,17 +510,6 @@ func _build_beach(block: Dictionary) -> void:
 		dry_centre = macro.coast_x(c.y) + macro.beach_width * 0.5
 		dry_width = macro.beach_width + SAND_LIP
 	_add_shape(Vector3(dry_width, 0.4, rect.size.y), Vector3(dry_centre, SAND_EDGE - 0.1, c.y))
-	var rng := RandomNumberGenerator.new()
-	rng.seed = block.seed
-	# Scattered across the DRY sand, which is a band that moves with the shoreline rather than
-	# the chunk's rectangle: dropping them in the rectangle put palms in the surf.
-	for i in rng.randi_range(6, 14):
-		var z := rng.randf_range(rect.position.y + 4.0, rect.end.y - 4.0)
-		var x := _dry_sand_x(z, rng.randf_range(0.18, 0.95))
-		_add_palm(Vector3(x, SAND_EDGE, z), rng)
-	if rng.randf() < 0.6:
-		var z := rng.randf_range(rect.position.y + 8.0, rect.end.y - 8.0)
-		_add_lifeguard_tower(Vector3(_dry_sand_x(z, rng.randf_range(0.1, 0.5)), SAND_EDGE, z), rng.randf_range(0.0, TAU))
 
 
 ## X of a point on the dry sand at Z, `across` running 0 at the waterline to 1 at the town.

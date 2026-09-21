@@ -3,21 +3,31 @@ extends RefCounted
 ## Verde Cafe: a single-storey corner coffee house on the Westside, roughly 16 x 12 m, with an
 ## L-shaped sidewalk patio wrapped around its glazed corner. The player meets this one on foot,
 ## so the detail budget goes into the shopfront (sill, mullions, transoms, a glazed door) and the
-## patio (bistro tables, chairs, parasols, planters, railing, menu board) rather than into the
-## box itself, which is a plain stucco shell with a deep awning.
+## patio (bistro tables with cups left on them, chairs, parasols, planters, railing, menu board,
+## bike rack) rather than into the box itself, which is a plain stucco shell with a deep awning.
+##
+## Orientation is FIXED and the parent cannot rotate it: children are added at true world
+## coordinates. The glazed corner is +X / +Z, so the shopfront faces +Z and the side elevation
+## faces +X, and the anchor wants a corner lot with streets on its south and east sides. The
+## ground is a single sample at the anchor, so the lot wants to be flat too: the 0.36 m slab
+## hides about +/-0.18 m of relief and anything steeper will float.
 ##
 ## Nothing here is a real business. The name, the green trim and the sign band are original.
 ##
 ## Night: no lights. The windows, the pavement under the awning and the wash on the door are
 ## additive quads on shaders/light_pool.gdshader (through PropFactory.lamp_face() and
-## light_pool()), and the sign letters use the small shader in _sign_material(). All of them
-## are driven by the `lamp_factor` shader global, which DayNight sets to
+## light_pool()); the sign letters and the bulbs strung under the awning edge share
+## shaders/sign_letters.gdshader, the same one the city's shop fascias use. All of them are
+## driven by the `lamp_factor` shader global, which DayNight sets to
 ## max(night_factor, weather_darken * 0.85), so the cafe costs nothing at noon, lights itself
 ## at dusk and lights itself in a storm too, without a single OmniLight.
 ##
-## Triangles, measured: 34,170 detailed (14.4k of that is the two real shrub models in the door
-## planters, 11.1k the 12-sided cylinders of the railings, tables, posts and poles, and 3.9k the
-## two TextMesh sign words) and 72 for the far copy. 368 nodes and 24 collision shapes.
+## Triangles, measured headless: 12,576 detailed, 413 nodes, 24 collision shapes; 72 triangles
+## and 6 nodes for the far copy. The two heaviest things left are the TextMesh sign words (~1.9k)
+## and the eighteen foliage balls (~2.2k). Cylinders go through _tube() and spheres through
+## _leaf_mesh(), both cached and both built at the segment count the part actually needs -
+## Landmarks._cyl() is fixed at 12 segments with the default ring count and a fresh mesh per
+## call, which on its own was 11k triangles of railing posts and table legs.
 
 # --- Site ---------------------------------------------------------------------------------
 # Local coordinates: +X east, +Z south, the origin on the anchor. The shell sits at the back
@@ -122,6 +132,11 @@ const SIGN_BAND_H := 0.68
 const SIGN_BAND_W := 7.4
 ## Cap height of the channel letters standing off the band.
 const SIGN_LETTER_H := 0.5
+## How coarsely TextMesh approximates the letter outlines, in font pixels. Raise it if the sign
+## is still the most expensive thing here; drop it toward 0.5 if the curves ever look faceted.
+const SIGN_CURVE_STEP := 2.5
+## How hard the letters and the patio bulbs burn once the street lamps are on.
+const SIGN_GLOW := 1.35
 
 # --- Patio --------------------------------------------------------------------------------
 
@@ -154,7 +169,7 @@ const PLANTER_H := 0.55
 const PLANTER_D := 0.7
 ## Shrubs per planter, and the range of their radius in metres.
 const PLANTER_SHRUBS := 3
-const SHRUB_R := Vector2(0.40, 0.56)
+const SHRUB_R := Vector2(0.32, 0.44)
 ## Spacing of the bulbs on the string lights under the awning edge.
 const BULB_GAP := 1.0
 ## Height, depth and spacing of the two bike hoops by the gate.
@@ -203,6 +218,38 @@ const SEED_SALT := 0x5EDECAFE
 
 ## The shared sign-letter material, built on first use (see _sign_material()).
 static var _sign_mat: ShaderMaterial = null
+## The shared foliage ball (see _leaf_mesh()).
+static var _leaf: SphereMesh = null
+
+
+# --- Shared primitives ----------------------------------------------------------------------
+
+## A cached cylinder. Landmarks._cyl() leaves CylinderMesh.rings at its default and builds a new
+## mesh per call, which is 144 triangles and a fresh resource for every one of the twenty-odd
+## railing posts. PropFactory.cylinder() builds with rings = 1 - the same silhouette for half the
+## triangles - and caches by key, so one mesh serves the whole run. Keys here are all "cafe_".
+static func _tube(parent: Node3D, key: String, radius: float, height: float, pos: Vector3,
+		color: Color, segments: int) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = PropFactory.cylinder(key, radius, height, color, -1.0, segments)
+	mi.position = pos
+	parent.add_child(mi)
+	return mi
+
+
+## A cached foliage ball of unit radius 0.9, scaled by the caller. PropFactory.bush() is a
+## 16 x 10 sphere at 352 triangles, which is a lot to spend eighteen times on shrubs 0.4 m across
+## and crown lobes seen from across the road; 10 x 6 is 120 and the silhouette is the same at
+## these sizes. It is a true sphere, unlike bush(), so the caller's Y scale means what it says.
+static func _leaf_mesh() -> SphereMesh:
+	if _leaf != null:
+		return _leaf
+	_leaf = SphereMesh.new()
+	_leaf.radius = 0.9
+	_leaf.height = 1.8
+	_leaf.radial_segments = 10
+	_leaf.rings = 6
+	return _leaf
 
 
 # --- Entry point --------------------------------------------------------------------------
@@ -228,7 +275,9 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	_street(parent, base, anchor, plan, rng)
 
 
-## The far copy: the silhouette only, and no collision. About 110 triangles.
+## The far copy: the silhouette only, 72 triangles in six boxes. It keeps collision on the
+## slab, the shell and the roof, so a player who flies out here lands on it instead of through
+## it; everything else is decoration and is dropped.
 static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
 	var w := SHELL_X1 - SHELL_X0
 	var d := SHELL_Z1 - SHELL_Z0
@@ -433,7 +482,8 @@ static func _awning(parent: Node3D, base: Vector3, axis_x: bool, plane: float, a
 			raf.rotation.x = slope
 		else:
 			raf.rotation.z = -slope
-		Landmarks._cyl(parent, null, POST_R, edge_y - VALANCE_H, base + _run_pos(axis_x, plane, s, (edge_y - VALANCE_H) * 0.5, reach - 0.12), METAL)
+		_tube(parent, "cafe_awning_post", POST_R, edge_y - VALANCE_H,
+				base + _run_pos(axis_x, plane, s, (edge_y - VALANCE_H) * 0.5, reach - 0.12), METAL, 6)
 
 
 # --- Signs --------------------------------------------------------------------------------
@@ -452,38 +502,22 @@ static func _signs(parent: Node3D, base: Vector3) -> void:
 	_letters(parent, CAFE_WORD, base + Vector3(SHELL_X1 + 0.22, band_y, side_z), PI * 0.5)
 
 
-## Channel letters: cream paint by day, warm glow once `lamp_factor` comes up, which is what
-## DayNight sets to max(night_factor, weather * 0.85). Signage does this with
-## shaders/neon_sign.gdshader, but that path drags CityChunk (and so the WorldState autoload)
-## into this file's compile, which the headless --check-only cannot resolve, so the same few
-## lines live here instead. Built once and shared by both bands.
+## Channel letters: matte cream paint by day, warm once `lamp_factor` comes up, which is what
+## DayNight sets to max(night_factor, weather_darken * 0.85).
+##
+## This is shaders/sign_letters.gdshader, the same shader the city puts on every shop fascia, so
+## the cafe's name brightens with the street rather than on its own curve. It is loaded by path
+## rather than through Signage.text_mesh(): naming `Signage` pulls in `CityChunk`, which pulls in
+## the `WorldState` autoload, and `--check-only` cannot resolve an autoload, so the file would
+## stop compiling on its own. A resource path has no such dependency. Built once and shared by
+## both bands.
 static func _sign_material() -> ShaderMaterial:
 	if _sign_mat != null:
 		return _sign_mat
-	var shader := Shader.new()
-	# Shader files use // comments; a # line here is a syntax error and Godot falls back to a
-	# blank white material.
-	shader.code = """shader_type spatial;
-render_mode cull_disabled;
-
-// Driven by the same global DayNight publishes for every street lamp and shop sign.
-global uniform float lamp_factor;
-
-uniform vec3 paint : source_color = vec3(0.93, 0.90, 0.82);
-uniform vec3 lit_color : source_color = vec3(1.00, 0.86, 0.60);
-uniform float night_emission : hint_range(0.0, 16.0) = 4.2;
-uniform float day_emission : hint_range(0.0, 2.0) = 0.12;
-
-void fragment() {
-	float on = clamp(lamp_factor, 0.0, 1.0);
-	ALBEDO = paint * (1.0 + 0.35 * on);
-	ROUGHNESS = 0.4;
-	METALLIC = 0.0;
-	EMISSION = lit_color * (day_emission + night_emission * on);
-}
-"""
 	_sign_mat = ShaderMaterial.new()
-	_sign_mat.shader = shader
+	_sign_mat.shader = load("res://shaders/sign_letters.gdshader")
+	_sign_mat.set_shader_parameter("ink", Color(0.94, 0.92, 0.86))
+	_sign_mat.set_shader_parameter("glow", SIGN_GLOW)
 	return _sign_mat
 
 
@@ -494,6 +528,9 @@ static func _letters(parent: Node3D, txt: String, at: Vector3, yaw: float) -> vo
 	tm.pixel_size = SIGN_LETTER_H / 48.0
 	# Real channel letters stand off the band, so give them depth rather than making a decal.
 	tm.depth = 0.07
+	# Default 0.5 px is font-editor precision. At 0.5 m cap height on a fascia read from the
+	# pavement it buys nothing and costs about 2k triangles across the two words.
+	tm.curve_step = SIGN_CURVE_STEP
 	tm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	tm.material = _sign_material()
@@ -551,7 +588,7 @@ static func _rail(parent: Node3D, statics: StaticBody3D, base: Vector3, from_v: 
 	for i in posts:
 		var t := float(i) / float(posts - 1)
 		var p := from_v.lerp(to_v, t)
-		Landmarks._cyl(parent, null, RAIL_R, RAIL_H, base + Vector3(p.x, RAIL_H * 0.5, p.y), METAL)
+		_tube(parent, "cafe_rail_post", RAIL_R, RAIL_H, base + Vector3(p.x, RAIL_H * 0.5, p.y), METAL, 6)
 	for ry: float in [RAIL_H - 0.03, RAIL_H * 0.5]:
 		var bar := Landmarks._box(parent, null, Vector3(length, 0.06, 0.05) if axis_x else Vector3(0.05, 0.06, length),
 				base + Vector3(mid.x, ry, mid.y), METAL, false)
@@ -573,7 +610,7 @@ static func _bistro(parent: Node3D, statics: StaticBody3D, base: Vector3, at: Ve
 	# The pole has to clear the canopy apex (PARASOL_H + 0.45 with _cone centred on its own
 	# midpoint) or the finial sits inside the shade where nobody can see it.
 	var pole_h := PARASOL_H + 0.55
-	Landmarks._cyl(parent, null, 0.04, pole_h, base + Vector3(at.x, pole_h * 0.5, at.y), Color(0.75, 0.72, 0.66))
+	_tube(parent, "cafe_parasol_pole", 0.04, pole_h, base + Vector3(at.x, pole_h * 0.5, at.y), Color(0.75, 0.72, 0.66), 6)
 	var shade := CANVAS if rng.randf() < 0.5 else TRIM_LIGHT
 	Landmarks._cone(parent, PARASOL_R, 0.45, base + Vector3(at.x, PARASOL_H + 0.22, at.y), shade)
 	Landmarks._box(parent, null, Vector3(0.09, 0.16, 0.09), base + Vector3(at.x, pole_h, at.y), METAL, false)
@@ -581,11 +618,11 @@ static func _bistro(parent: Node3D, statics: StaticBody3D, base: Vector3, at: Ve
 
 
 static func _table(parent: Node3D, statics: StaticBody3D, base: Vector3, at: Vector2, yaw: float) -> void:
-	var top := Landmarks._cyl(parent, null, TABLE_R, 0.05, base + Vector3(at.x, TABLE_H, at.y), Color(0.86, 0.84, 0.79))
+	var top := _tube(parent, "cafe_table_top", TABLE_R, 0.05, base + Vector3(at.x, TABLE_H, at.y), Color(0.86, 0.84, 0.79), 14)
 	top.material_override = PropFactory.material(Color(0.86, 0.84, 0.79), 0.35)
 	top.rotation.y = yaw
-	Landmarks._cyl(parent, null, 0.05, TABLE_H, base + Vector3(at.x, TABLE_H * 0.5, at.y), METAL)
-	Landmarks._cyl(parent, null, 0.28, 0.04, base + Vector3(at.x, 0.02, at.y), METAL)
+	_tube(parent, "cafe_table_stem", 0.05, TABLE_H, base + Vector3(at.x, TABLE_H * 0.5, at.y), METAL, 8)
+	_tube(parent, "cafe_table_foot", 0.28, 0.04, base + Vector3(at.x, 0.02, at.y), METAL, 10)
 	if statics:
 		Landmarks._shape(statics, Vector3(TABLE_R * 1.9, TABLE_H, TABLE_R * 1.9), base + Vector3(at.x, TABLE_H * 0.5, at.y))
 
@@ -627,11 +664,11 @@ static func _planter(parent: Node3D, statics: StaticBody3D, base: Vector3, at: V
 		var t := (float(i) / float(PLANTER_SHRUBS - 1) - 0.5) * run
 		var off := Vector3(t, 0.0, 0.0) if axis_x else Vector3(0.0, 0.0, t)
 		var bush := MeshInstance3D.new()
-		bush.mesh = PropFactory.bush()
-		# bush() is a 0.9 m sphere, so the scale is the radius we want over 0.9; squashed a little
-		# on Y because a clipped shrub is wider than it is tall.
+		bush.mesh = _leaf_mesh()
+		# The ball is unit radius 0.9, so the scale is the radius we want over 0.9; squashed on Y
+		# because a clipped shrub is wider than it is tall.
 		var r := rng.randf_range(SHRUB_R.x, SHRUB_R.y)
-		var sc := Vector3(r, r * 0.82, r) / 0.9
+		var sc := Vector3(r, r * 0.68, r) / 0.9
 		bush.transform = Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(sc), base + Vector3(at.x, PLANTER_H + r * 0.42, at.y) + off)
 		bush.material_override = PropFactory.material(Color(0.24, 0.44, 0.22).lightened(rng.randf_range(0.0, 0.18)), 0.9)
 		parent.add_child(bush)
@@ -762,8 +799,8 @@ static func _street_tree(parent: Node3D, at: Vector3, rng: RandomNumberGenerator
 		var a := lean + TAU * float(i) / 3.0
 		var off := Vector3(cos(a), rng.randf_range(-0.12, 0.3), sin(a)) * TREE_CROWN_R * 0.45
 		var lobe := MeshInstance3D.new()
-		lobe.mesh = PropFactory.bush()
-		lobe.transform = Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(r, r * 0.86, r) / 0.9),
+		lobe.mesh = _leaf_mesh()
+		lobe.transform = Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(r, r * 0.7, r) / 0.9),
 				at + Vector3(0.0, TREE_CLEAR + 0.75, 0.0) + off)
 		lobe.material_override = PropFactory.material(Color(0.23, 0.42, 0.21).lightened(rng.randf_range(0.0, 0.14)), 0.95)
 		parent.add_child(lobe)

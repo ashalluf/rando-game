@@ -1,15 +1,43 @@
 shader_type spatial;
 render_mode cull_disabled, depth_draw_opaque;
 
-// Ocean: Gerstner swells in the vertex shader (three swells plus one long tsunami-scale wave),
-// shoaling and a breaking surf line where the water meets the sand, foam on the crests,
-// wind-blown spray in a storm, sub-surface glow through backlit wave faces, and the sky mixed
-// in by fresnel. Runs on the web renderer too (no depth texture, no screen texture, no SSR).
+// Ocean: Gerstner swells in the vertex shader (five wind swells in wave groups, plus one
+// tsunami-scale wave), shoaling and a breaking surf line where the water meets the sand, foam
+// where the surface folds, sub-surface glow through backlit wave faces, a fresnel sky reflection
+// and a broken glitter path to the sun. Runs on the web renderer too (no depth texture, no
+// screen texture, no SSR).
+//
+// ---------------------------------------------------------------------------------------------
+// THE HAND-OVER TO THE FAR SEA - read this before touching any colour in here.
+//
+// The streamed ocean chunks only reach about 500-800 m from the player. Past that the whole sea
+// is one thing: the ground follower, shaded by `shaders/macro_ground.gdshader` from MacroMap's
+// baked image. So this shader draws a square of water in the middle of a much larger sea drawn
+// by somebody else, and any difference between the two is a hard-edged RECTANGLE around the
+// player. It was a glaring one, and for two separate reasons:
+//
+//   1. Colour space. The bake is an RGBA8 image sampled through `source_color`, so MacroMap's
+//      BAKE_OCEAN_DEEP = (0.014, 0.034, 0.062) reaches the far shader DECODED from sRGB, as
+//      linear (0.0011, 0.0026, 0.0051) - near black, which is what deep water looked down on
+//      actually is. A `source_color` uniform DEFAULT written in shader source gets no such
+//      decode: it is used verbatim as linear (verified with
+//      RenderingServer.shader_get_parameter_default). The old deep_color = (0.008, 0.042, 0.080)
+//      was therefore seven to sixteen times brighter than the same colour on the far plane. The
+//      colours below are written in LINEAR and the source_color hints are gone, so what is
+//      written is what is used.
+//   2. Lighting mode. Beyond `near_fade_end * 1.8` the far plane stops being a surface and is
+//      EMITTED at face value, so the renderer's sun and ambient do not touch it. This shader's
+//      water went through ALBEDO and was lit. Same colour, two different exposures.
+//
+// So past `handover_start` this shader cross-fades to the far plane's own water formula and to
+// its ALBEDO/EMISSION split, and is fully painted by `handover_end` - which has to stay inside
+// the nearest possible chunk edge (7 blocks of 70 m plus roads, so about 570 m).
+// ---------------------------------------------------------------------------------------------
 //
 // wave_scale is a shader global the Weather node drives (1 calm, 6 storm); tsunami_scale is a
 // second global for the big one (0 off, 1 a 30 m wall); wind_factor is the same wind the grass
 // and the palms bend to, and it drives the chop and the spray; ground_detail is the one Quality
-// clears on the web and below MEDIUM, and it gates the second noise fetch.
+// clears on the web and below MEDIUM, and it gates the extra noise fetches.
 global uniform float wave_scale;
 global uniform float tsunami_scale;
 global uniform float wind_factor;
@@ -20,31 +48,53 @@ global uniform float ground_detail;
 global uniform vec4 sky_tint;
 global uniform vec3 sun_direction;
 global uniform float night_factor;
-uniform vec3 deep_color : source_color = vec3(0.008, 0.042, 0.080);
-uniform vec3 shallow_color : source_color = vec3(0.035, 0.165, 0.215);
-// The shallows over the sand: sunlight reaches the bottom and comes back green.
-uniform vec3 shore_color : source_color = vec3(0.13, 0.36, 0.37);
-uniform vec3 foam_color : source_color = vec3(0.92, 0.96, 0.98);
+
+// --- Colour (LINEAR, not sRGB - see the hand-over note above) --------------------------------
+// The open sea, and the shelf. These two are MacroMap.BAKE_OCEAN_DEEP and BAKE_OCEAN_SHALLOW
+// decoded from sRGB, so this shader and the far plane agree on the water by construction.
+uniform vec3 deep_color = vec3(0.00108, 0.00263, 0.00511);
+uniform vec3 shelf_color = vec3(0.00350, 0.01436, 0.02078);
+// MacroMap.BAKE_SURF, likewise decoded: the broken water the bake paints over its last 95 m.
+uniform vec3 bake_surf_color = vec3(0.0947, 0.1627, 0.1707);
+// The last few tens of metres, over pale sand: sunlight reaches the bottom and comes back green.
+// This is the one colour in here with no counterpart on the far plane, because at 62 m a texel
+// the bake cannot resolve a shelf this narrow - and it is the colour that makes a coastline read
+// as a coastline.
+uniform vec3 shore_color = vec3(0.030, 0.076, 0.068);
+// How far out the sand still tints the water.
+uniform float shore_reach = 105.0;
+uniform vec3 foam_color = vec3(0.72, 0.78, 0.82);
 // Light that has travelled through a thin wave face. Water is a filter, not a mirror: this is
 // what makes a swell glow when the sun is behind it.
-uniform vec3 sss_color : source_color = vec3(0.09, 0.40, 0.33);
-uniform float base_height = 1.2;
-uniform float tsunami_height = 30.0;
-uniform float tsunami_length = 420.0;
-uniform vec2 tsunami_dir = vec2(1.0, 0.15);
-uniform float speed = 1.0;
+uniform vec3 sss_color = vec3(0.016, 0.115, 0.082);
+// The horizon colour a full storm brings the sky down to: DayNight's own storm_horizon
+// Color(0.30, 0.31, 0.34), decoded from sRGB so it matches the one the sky and the far plane use.
+uniform vec3 storm_horizon = vec3(0.0732, 0.0782, 0.0953);
 // How dark the weather is (0 clear, 1 storm), pushed in by Weather. DayNight publishes the
 // *clear* horizon colour as sky_tint whatever the weather, so without this the sea went on
 // reflecting a bright blue sky from under a black storm, which is the loudest possible tell
 // that water is painted rather than lit.
 uniform float weather_dark : hint_range(0.0, 1.0) = 0.0;
-// The horizon colour a full storm brings the sky down to (DayNight's own storm_horizon).
-uniform vec3 storm_horizon : source_color = vec3(0.30, 0.31, 0.34);
-// How much of the far water is handed back to the sky. The sea is thousands of metres across
-// here, and without it the same bright colour ran all the way to the horizon.
-uniform float horizon_blend : hint_range(0.0, 1.0) = 0.25;
 
-// --- The shoreline -------------------------------------------------------------------------
+// --- Waves -----------------------------------------------------------------------------------
+uniform float base_height = 1.2;
+// Metres across the longest wind swell. The other four are this over 1.59, 2.62, 4.51 and 7.89 -
+// deliberately not whole-number ratios, so the five of them do not come back into step inside
+// any distance you can see from the air. That, and the wave groups below, is what stops the open
+// sea reading as one tile repeated.
+uniform float swell_length = 97.0;
+// Wave groups: the long, slow swell in the swell that makes crests arrive in sets of three or
+// four with flat water between them. A real sea has them and a sum of sines does not, and from
+// the air it is the single loudest difference. Metres across one group, and how deeply the
+// groups cut the wave height (0 off, 1 the flat water between sets goes glassy).
+uniform float group_length = 310.0;
+uniform float group_depth : hint_range(0.0, 1.0) = 0.55;
+uniform float speed = 1.0;
+uniform float tsunami_height = 30.0;
+uniform float tsunami_length = 420.0;
+uniform vec2 tsunami_dir = vec2(1.0, 0.15);
+
+// --- The shoreline ---------------------------------------------------------------------------
 // The shader has to know where the sand is to break waves on it, so Weather copies MacroMap's
 // coast numbers in every time they change (Weather._push_ocean_shape()); the defaults here are
 // MacroMap's own, so the surf lands in the right place even if nothing sets them. world_offset
@@ -54,10 +104,10 @@ uniform vec2 world_offset = vec2(0.0);
 uniform float coast_base_x = -900.0;
 uniform float coast_wobble = 180.0;
 uniform float coast_period = 700.0;
-uniform vec2 peninsula_center = vec2(-700.0, 1500.0);
+uniform vec2 peninsula_center = vec2(-780.0, 1980.0);
 uniform float peninsula_radius = 550.0;
 uniform float peninsula_bulge = 520.0;
-uniform float bay_z = 1000.0;
+uniform float bay_z = 1460.0;
 uniform float bay_east_x = 400.0;
 // Width of the surf zone: how far out a swell starts to feel the bottom and stand up.
 uniform float surf_width = 72.0;
@@ -67,9 +117,78 @@ uniform float swash_period = 9.0;
 // Wind direction on the water (Weather sets it from its own rain wind).
 uniform vec2 wind_dir = vec2(1.0, 0.3);
 
+// --- Surface response --------------------------------------------------------------------
+// Reflectance of water at normal incidence. 0.02 is the real number; everything above it is
+// fresnel, which is why water is nearly black underfoot and a mirror at the horizon.
+uniform float water_f0 = 0.02;
+// Ceiling on the fresnel mix. The far plane clamps its own to 0.92; matching it keeps the
+// horizon from being two different mirrors either side of the hand-over.
+uniform float fresnel_cap : hint_range(0.0, 1.0) = 0.92;
+// Brightness of the glitter path to the sun, and how tight one sparkle is. High exponents plus
+// the fine chop below are what break the path into separate points of light instead of one
+// smooth blob of bloom.
+uniform float glitter = 1.6;
+uniform float glitter_sharp = 620.0;
+// Fine chop folded into the shading normal: the centimetre-scale ripple the mesh is far too
+// coarse to carry. Without it the faces of the big swells are flat sheets of sky colour, and the
+// fresnel at a grazing angle runs to 1 over the whole sea at once. Faded out with distance,
+// where it turned the sea into crumpled foil.
+// From eye level you are ALWAYS looking along the water at a few degrees, so the only thing
+// that keeps the sea from being a mirror down there is a surface slope of the same order as the
+// view angle. At 0.55 there was not one: the sea from the sand was a flat sheet of sky with the
+// horizon painted on it.
+uniform float chop_strength = 1.5;
+uniform float chop_fade = 260.0;
+// Metres across the coarse ripple, and the height of the coarse and the fine one. These are
+// NOISE, not crossed sines: sines lay a perfectly regular lattice of highlights over the water
+// and from a few metres up that lattice was the loudest "this is one tile" tell in the frame.
+uniform float ripple_size = 2.6;
+uniform float ripple_height = 0.30;
+uniform float ripple_fine_height = 0.055;
+// Ripple LOD, in metres from the camera. A wave that is a pixel across cannot be drawn, only
+// aliased: past this the short swells are faded out of the GEOMETRY, which is the only place the
+// shimmer can be cured, and the long ones carry the shape on alone. It is also what the far
+// plane does with its own swell normal, so the two agree about how smooth the sea gets.
+uniform vec2 fine_fade = vec2(170.0, 480.0);
+// Foam. `fold` is how hard the Gerstner displacement is pinching the surface together - the
+// crest of a wave about to break - which is where foam is actually made. Below `foam_fold_lo`
+// there is none; by `foam_fold_hi` the crest is white.
+uniform float foam_fold_lo : hint_range(0.0, 1.0) = 0.16;
+uniform float foam_fold_hi : hint_range(0.0, 1.0) = 0.52;
+
+// --- The hand-over to the far sea --------------------------------------------------------
+// Where this shader starts turning into `macro_ground.gdshader`'s water, and where it has
+// finished. handover_end must stay below the nearest possible streamed chunk edge (about 570 m)
+// or there is a ring of un-handed-over water left at the seam.
+uniform float handover_start = 230.0;
+uniform float handover_end = 470.0;
+// The far plane's own numbers, so the two agree: the shelf-to-deep ramp of the bake
+// (MacroMap.bake(), offshore / 600), its surf band (BAKE_SURF_WIDTH), and macro_ground's
+// sea_glitter and its ROUGHNESS / SPECULAR over water.
+uniform float bake_deep_reach = 600.0;
+uniform float bake_surf_width = 95.0;
+uniform float far_glitter = 1.6;
+uniform float far_roughness = 0.415;
+uniform float far_specular = 0.55;
+// macro_ground's sea_swell, its pixel_angle, and its cloud-shadow numbers. The far sea's
+// sparkle is a noise normal at this scale faded out as one swell drops under a pixel, and its
+// brightness is cut where a cloud is over it. Reproducing all of it exactly - same noise, same
+// world coordinates, same phase - is the only way the speckle field runs across the seam
+// unbroken; approximating it leaves the rectangle there in texture instead of in colour.
+uniform float far_swell = 46.0;
+uniform float far_pixel_angle = 0.0016;
+uniform float cloud_shadow_strength : hint_range(0.0, 1.0) = 0.55;
+uniform float cloud_scale = 1500.0;
+uniform float cloud_cover : hint_range(0.0, 1.0) = 0.52;
+uniform float cloud_height = 900.0;
+uniform float cloud_speed = 7.0;
+
 varying float crest;
+varying float fold;
 varying float shore;
+varying float offshore;
 varying vec3 world_pos;
+varying vec3 world_normal;
 
 
 float hash12(vec2 p) {
@@ -91,16 +210,50 @@ float vnoise(vec2 p) {
 }
 
 
-// Metres of water between a true-world XZ and the nearest land, from the same shapes
-// MacroMap.coast_x() / in_bay() use: the bay curve of the main shore, the bulge around the
-// peninsula, and the peninsula's own circle. Enclosed water (the harbour and port basins, which
+// Value noise with analytic derivatives, and the cloud shadow over a point: both exactly as
+// macro_ground.gdshader has them, because the far sea's surface and its shading are built out
+// of them and the two have to agree across the hand-over.
+vec3 noised(vec2 x) {
+	vec2 i = floor(x);
+	vec2 f = x - i;
+	vec2 u = f * f * (3.0 - 2.0 * f);
+	vec2 du = 6.0 * f * (1.0 - f);
+	float a = hash12(i);
+	float b = hash12(i + vec2(1.0, 0.0));
+	float c = hash12(i + vec2(0.0, 1.0));
+	float d = hash12(i + vec2(1.0, 1.0));
+	float k1 = b - a;
+	float k2 = c - a;
+	float k3 = a - b - c + d;
+	return vec3(a + k1 * u.x + k2 * u.y + k3 * u.x * u.y,
+		du.x * (k1 + k3 * u.y),
+		du.y * (k2 + k3 * u.x));
+}
+
+
+float cloud_shade(vec2 w, vec3 L) {
+	vec2 p = w + (L.xz / max(L.y, 0.20)) * cloud_height;
+	p += vec2(1.0, 0.35) * (TIME * cloud_speed * clamp(wind_factor, 0.2, 3.0));
+	float c = vnoise(p / cloud_scale) * 0.65 + vnoise(p / (cloud_scale * 0.37) + 19.0) * 0.35;
+	return 1.0 - cloud_shadow_strength * smoothstep(cloud_cover, cloud_cover + 0.22, c);
+}
+
+
+// Metres of water between a true-world XZ and the nearest land (x), and metres west of the main
+// shoreline (y, clamped at zero). Both come from the same shapes MacroMap.coast_x() / in_bay()
+// use: the bay curve of the main shore, the bulge around the peninsula, and the peninsula's own
+// circle. The second one is what MacroMap.bake() colours its water by, so it is what the far
+// plane's colour has to be reproduced from. Enclosed water (the harbour and port basins, which
 // sit east of the shoreline) gets a fixed offshore distance instead, so no surf line is drawn
 // across a dock.
-float shore_distance(vec2 p) {
+vec2 shore_distance(vec2 p) {
 	float away = abs(p.y - peninsula_center.y);
 	float bulge = (1.0 - smoothstep(0.0, peninsula_radius * 1.2, away)) * peninsula_bulge;
 	float cx = coast_base_x + coast_wobble * sin(p.y / coast_period) - bulge;
 	float d = cx - p.x;
+	// Signed, and kept signed: the bake only paints its surf band where this is positive, so
+	// enclosed water east of the shoreline (the harbour, the bay) gets none either.
+	float off = d;
 	if (p.y > bay_z && p.x < bay_east_x && p.x > cx) {
 		// Inside the bay the land is east and north of the water, not the main shoreline.
 		d = min(bay_east_x - p.x, p.y - bay_z);
@@ -109,120 +262,214 @@ float shore_distance(vec2 p) {
 		d = 300.0;
 	}
 	float pen = distance(p, peninsula_center) - peninsula_radius * 1.02;
-	return min(d, max(pen, 0.0));
+	return vec2(min(d, max(pen, 0.0)), off);
 }
 
 
-// One Gerstner wave: moves the vertex in place, returns the height it added.
-vec3 gerstner(vec2 p, vec2 dir, float length, float amp, float steep, float t, inout float h_sum) {
-	float k = 6.28318 / length;
+// One Gerstner wave. Adds its displacement to `disp` and the partial derivatives of that
+// displacement along world x and z to `ddx` / `ddz`, so the surface normal and the fold come out
+// of the same evaluation instead of costing two more whole wave sums.
+//
+// `lean` is how far the crest is dragged forward, AS A FRACTION OF THE WAVE'S OWN HEIGHT: 0 is a
+// sine wave, 1 a sharp Gerstner peak. It used to be a fraction of the wavelength instead, which
+// meant a 1 m swell on a 97 m wavelength was sheared sideways by four metres - a mush of rolling
+// nothing when the sea was calm - and that the shape of the wave changed character as the
+// weather raised the amplitude. Above about 1.4 the surface folds through itself.
+void gerstner(vec2 p, vec2 dir, float len, float amp, float lean, float t,
+		inout vec3 disp, inout vec3 ddx, inout vec3 ddz) {
+	float k = TAU / len;
+	// Deep-water phase speed. Long swells outrun short chop, which is most of why a real sea
+	// never looks like a fixed pattern sliding along.
 	float c = sqrt(9.8 / k);
 	float f = k * (dot(dir, p) - c * t);
-	float a = amp;
-	float q = steep / (k * a + 0.001);
-	h_sum += a * cos(f);
-	return vec3(q * a * dir.x * sin(f) * -1.0, a * cos(f), q * a * dir.y * sin(f) * -1.0);
-}
-
-
-// The whole wave sum at one point: the offset to add, and the height it contributed. The wind
-// swells are tapered by the shoaling factor; the tsunami is not, because the whole point of it
-// is to run up the beach.
-vec3 wave_sum(vec2 p, float t, float amp, float tsu, out float h) {
-	h = 0.0;
-	vec3 d = vec3(0.0);
-	d += gerstner(p, normalize(vec2(1.0, 0.3)), 38.0, amp * 0.55, 0.35, t, h);
-	d += gerstner(p, normalize(vec2(0.7, -0.6)), 23.0, amp * 0.3, 0.3, t, h);
-	d += gerstner(p, normalize(vec2(-0.2, 1.0)), 11.0, amp * 0.15, 0.25, t, h);
-	if (tsu > 0.001) {
-		d += gerstner(p, normalize(tsunami_dir), tsunami_length, tsunami_height * tsu, 0.6, t * 0.9, h);
-	}
-	return d;
+	float sf = sin(f);
+	float cf = cos(f);
+	disp += vec3(-lean * amp * dir.x * sf, amp * cf, -lean * amp * dir.y * sf);
+	float la = lean * amp * k;
+	ddx += vec3(-la * dir.x * dir.x * cf, -amp * k * dir.x * sf, -la * dir.y * dir.x * cf);
+	ddz += vec3(-la * dir.x * dir.y * cf, -amp * k * dir.y * sf, -la * dir.y * dir.y * cf);
 }
 
 
 void vertex() {
 	vec3 wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	vec2 p = wp.xz;
-	vec2 tp = p + world_offset;
+	// Waves are built in TRUE world coordinates, not scene-local ones: the streamer re-centres
+	// the origin every few hundred metres, and a wave field built in local space jumps by the
+	// whole shift when it does.
+	vec2 p = wp.xz + world_offset;
 	float t = TIME * speed;
-	float sd = shore_distance(tp);
+	vec2 sd = shore_distance(p);
 	// Shoaling. A swell feels the bottom, stands up, and dies where it has already broken.
 	// Without the taper a storm's seven-metre swell simply cut through the beach and the
 	// waterline was a straight seam between blue and sand.
-	float reach = smoothstep(swash_width * 0.3, surf_width, sd);
+	float reach = smoothstep(swash_width * 0.3, surf_width, sd.x);
 	float shoal = reach * (1.0 + 1.6 * reach * (1.0 - reach));
+	// Wave groups, drifting slowly across the swell direction. Deliberately a very low
+	// frequency: what it has to do is leave wide patches of the sea calmer than their
+	// neighbours, so that from the air the surface has a scale bigger than one wave.
+	float grp = vnoise(p / group_length + vec2(t * 0.006, -t * 0.004));
+	float group = 1.0 - group_depth * (1.0 - grp);
 	float open = base_height * max(wave_scale, 0.05);
-	float amp = open * shoal;
-	float h = 0.0;
-	vec3 d = wave_sum(p, t, amp, tsunami_scale, h);
-	VERTEX += d;
+	float amp = open * shoal * group;
 
-	// The normal, from the displaced surface itself. Without this the sea moved but was lit as
-	// a flat sheet, so all you saw was a painted pattern sliding about on a pale plane - which
-	// is exactly what it looked like.
-	float e = 1.6;
-	float hx = 0.0;
-	float hz = 0.0;
-	vec3 dx = wave_sum(p + vec2(e, 0.0), t, amp, tsunami_scale, hx);
-	vec3 dz = wave_sum(p + vec2(0.0, e), t, amp, tsunami_scale, hz);
-	vec3 p0 = vec3(p.x, 0.0, p.y) + d;
-	vec3 px = vec3(p.x + e, 0.0, p.y) + dx;
-	vec3 pz = vec3(p.x, 0.0, p.y + e) + dz;
-	NORMAL = normalize(cross(pz - p0, px - p0));
+	// Ripple LOD: what is left past `fine_fade` is the two long swells, which is all the far sea
+	// can resolve anyway.
+	float fine = 1.0 - smoothstep(fine_fade.x, fine_fade.y, distance(wp, INV_VIEW_MATRIX[3].xyz));
+	vec3 disp = vec3(0.0);
+	vec3 ddx = vec3(0.0);
+	vec3 ddz = vec3(0.0);
+	float l0 = max(swell_length, 8.0);
+	// A Gerstner wave folds through itself once lean * amp * k passes 1, and the five below add
+	// up. `lean` is a fraction of the wave's own height, so a storm raising the height six times
+	// would take the whole sum past that: pull the lean back as the sea gets big and the crests
+	// stay crests instead of turning inside out.
+	float lean_k = clamp(1.6 / max(open, 0.1), 0.35, 1.0);
+	gerstner(p, normalize(vec2(1.00, 0.22)), l0, amp * 0.34, 0.75 * lean_k, t, disp, ddx, ddz);
+	gerstner(p, normalize(vec2(0.86, -0.51)), l0 / 1.59, amp * 0.26, 0.85 * lean_k, t, disp, ddx, ddz);
+	gerstner(p, normalize(vec2(0.62, 0.78)), l0 / 2.62, amp * 0.19 * mix(0.45, 1.0, fine), 0.95 * lean_k, t, disp, ddx, ddz);
+	gerstner(p, normalize(vec2(0.97, -0.24)), l0 / 4.51, amp * 0.13 * fine, 1.05 * lean_k, t, disp, ddx, ddz);
+	gerstner(p, normalize(vec2(0.34, 0.94)), l0 / 7.89, amp * 0.08 * fine * fine, 1.10 * lean_k, t, disp, ddx, ddz);
+	if (tsunami_scale > 0.001) {
+		// Not tapered by the shoaling: the whole point of this one is to run up the beach.
+		gerstner(p, normalize(tsunami_dir), tsunami_length, tsunami_height * tsunami_scale,
+			1.20 * lean_k, t * 0.9, disp, ddx, ddz);
+	}
+	VERTEX += disp;
 
+	// The normal, out of the same derivatives. Without a real normal the sea moved but was lit
+	// as a flat sheet, so all you saw was a painted pattern sliding about on a pale plane -
+	// which is exactly what it looked like.
+	vec3 tx = vec3(1.0, 0.0, 0.0) + ddx;
+	vec3 tz = vec3(0.0, 0.0, 1.0) + ddz;
+	vec3 n = normalize(cross(tz, tx));
+	NORMAL = n;
+	world_normal = n;
+
+	// How hard the horizontal displacement is pinching the surface together. The determinant of
+	// the horizontal Jacobian is 1 on undisturbed water and drops toward 0 where the crest is
+	// gathering itself up to break - which is exactly where foam belongs, and is why the foam
+	// below is keyed off this rather than off height.
+	float jac = (1.0 + ddx.x) * (1.0 + ddz.z) - ddx.z * ddz.x;
+	fold = clamp(1.0 - jac, 0.0, 1.0);
 	// Measured against the open-water swell, not against the tapered one, so the flattened
 	// water in the surf zone reads as flat instead of as a field of tiny crests.
-	crest = clamp(h / max(open + tsunami_height * tsunami_scale * 0.6, 0.2), -1.0, 1.0);
-	shore = sd;
-	world_pos = wp + d;
+	crest = clamp(disp.y / max(open + tsunami_height * tsunami_scale * 0.6, 0.2), -1.0, 1.0);
+	shore = sd.x;
+	offshore = sd.y;
+	world_pos = wp + disp;
 }
 
 
 void fragment() {
-	vec3 n = normalize(NORMAL);
-	float fres = pow(1.0 - clamp(dot(n, VIEW), 0.0, 1.0), 3.0);
 	vec3 eye = INV_VIEW_MATRIX[3].xyz;
 	vec3 view_dir = normalize(world_pos - eye);
 	float dist = length(world_pos - eye);
+	vec2 w = world_pos.xz + world_offset;
 	// How much sea is running, how much of a storm it is, and how hard the wind blows.
 	float sea = clamp(wave_scale / 3.0, 0.0, 1.0);
 	float storm = smoothstep(3.2, 5.6, wave_scale);
 	float wind = clamp((wind_factor - 1.0) / 4.0, 0.0, 1.0);
-	// Far water: the fine detail is dropped (it aliases into tinfoil) and the colour is handed
-	// over to the sky.
-	float far = smoothstep(340.0, 820.0, dist);
+	bool rich = ground_detail > 0.5;
+	// How far through the hand-over to the far plane this fragment is. Everything fine - chop,
+	// foam, sub-surface - is faded out on the way, so what is left at the far end is the same
+	// smooth painted water the ground follower draws beyond the chunk edge.
+	float painted = smoothstep(handover_start, handover_end, dist);
+	float detail = 1.0 - painted;
 
-	// Colour by depth. There is no bathymetry under the sea - the floor is one flat box - so
-	// the distance to the sand stands in for it, which is what it is a proxy for anyway.
-	// The ranges are short on purpose: the streamed sea is only about 800 m wide before the
-	// ground follower takes over, so the deep colour has to be reached well inside that or the
-	// whole visible sea stays the pale green of the shallows and there is a colour seam at the
-	// hand-over. deep_color is the macro map's own BAKE_OCEAN_DEEP, so the seam does not show.
-	vec3 water = mix(shore_color, shallow_color, smoothstep(6.0, 70.0, shore));
-	water = mix(water, deep_color, smoothstep(70.0, 420.0, shore));
-	// The sky the water is actually under, weather and all.
-	vec3 sky_now = mix(sky_tint.rgb, storm_horizon, weather_dark);
+	// The sky this water is under, weather and all. Same expression DayNight hands the ground
+	// follower as its haze_color (horizon lerped toward the storm horizon), so the far sea and
+	// this one wash out into the same colour.
+	vec3 haze = mix(sky_tint.rgb, storm_horizon, weather_dark * (1.0 - night_factor * 0.6));
+	vec3 sun_n = normalize(sun_direction);
+	float dim = mix(1.0, 0.16, night_factor);
+
+	// ---- the shading normal ------------------------------------------------------------
+	// The mesh carries the swell; the ripple between the vertices has to be added here or the
+	// big wave faces are flat sheets and the fresnel goes to 1 over the whole sea at once.
+	// Two octaves of noise, taken as a gradient and folded straight into the normal (rather
+	// than through NORMAL_MAP, which would need the mesh's tangents to mean something).
+	float chop = chop_strength * (0.55 + 0.75 * wind) * (1.0 - smoothstep(chop_fade * 0.35, chop_fade, dist));
+	// The fine octave is a sub-metre ripple, under a pixel well before the coarse one is, so it
+	// fades out over a third of the distance rather than alongside it.
+	float chop_fine = chop * (1.0 - smoothstep(chop_fade * 0.10, chop_fade * 0.38, dist));
+	vec2 grad = vec2(0.0);
+	// Past `chop_fade` this is zero anyway, and the far sea is most of an aerial frame: do not
+	// pay two noise fetches a pixel out there to multiply them by nothing.
+	if (chop > 0.001) {
+		float rs = 1.0 / max(ripple_size, 0.05);
+		vec2 rp = w * rs + vec2(TIME * 0.13, TIME * -0.10);
+		vec3 r1 = noised(rp);
+		grad = r1.yz * (rs * ripple_height * chop);
+		if (rich && chop_fine > 0.001) {
+			vec3 r2 = noised(rp * 2.9 + vec2(17.0, 5.0) - vec2(TIME * 0.21, TIME * 0.17));
+			grad += r2.yz * (rs * 2.9 * ripple_fine_height * chop_fine);
+		}
+	}
+	vec3 n = normalize(world_normal + vec3(-grad.x, 0.0, -grad.y));
+
+	// ---- colour by depth ----------------------------------------------------------------
+	// There is no bathymetry under the sea - the floor is one flat box - so the distance to the
+	// sand stands in for it, which is what it is a proxy for anyway. The shelf-to-deep ramp is
+	// the bake's own (offshore / 600), so this shader and the far plane agree on the colour of
+	// the open sea at every distance and not just at the deep end. The green shelf over the
+	// sand goes on top of it, inside a distance the 62 m bake cannot resolve at all.
+	vec3 water = mix(shelf_color, deep_color, clamp(max(offshore, 0.0) / bake_deep_reach, 0.0, 1.0));
+	water = mix(water, shore_color, (1.0 - smoothstep(0.0, shore_reach, shore)) * detail);
 	// The sea is lit by the sky above it, so it darkens with the weather and the hour exactly
 	// as the sky does. Without this a storm sea stayed a bright holiday turquoise under a
 	// slate-grey sky, which is the single loudest tell that water is painted on.
-	float sky_lum = dot(sky_now, vec3(0.299, 0.587, 0.114));
-	water *= mix(0.45, 1.1, clamp(sky_lum, 0.0, 1.0));
+	float sky_lum = dot(haze, vec3(0.299, 0.587, 0.114));
+	water *= mix(0.55, 1.15, clamp(sky_lum * 3.0, 0.0, 1.0));
 	// A trough has more water along the line of sight than a crest, so it is darker.
 	vec3 col = water * (0.84 + 0.28 * clamp(0.5 + 0.5 * crest, 0.0, 1.0));
 
-	// Foam only on the real crests, and only when there is a sea running. `crest` is a
-	// per-vertex varying on a coarse plane, so a wide threshold turned whole facets white and
-	// the sea read as a cartoon; the noise breaks the facet up.
-	float fn = vnoise(world_pos.xz * 0.32 + vec2(TIME * 0.11, TIME * -0.08));
-	float foam = smoothstep(0.82, 1.0, crest * (0.8 + 0.4 * fn)) * sea * 0.62;
-	// Ripple detail: two moving noise-ish sines so calm water is not flat-shaded.
-	float rip = sin(world_pos.x * 1.7 + TIME * 1.3) * sin(world_pos.z * 1.3 - TIME * 0.9);
-	foam += 0.05 * smoothstep(0.78, 1.0, rip) * sea;
-	// Slow shimmer across the surface, in fragment space, so calm water still lives even where
-	// the mesh is too coarse to carry a wave.
-	float shimmer = sin(world_pos.x * 0.33 + TIME * 0.6) * sin(world_pos.z * 0.26 - TIME * 0.45);
-	col *= 0.93 + 0.14 * (0.5 + 0.5 * shimmer);
+	// Sub-surface: a wave face with the sun behind it glows green where the water is thin.
+	float sss = pow(max(dot(view_dir, sun_n), 0.0), 3.0) * clamp(crest, 0.0, 1.0) * sea;
+	col += sss_color * sss * (1.0 - night_factor) * detail;
+
+	// ---- the sky in the water ------------------------------------------------------------
+	// Schlick, against the real normal. Water reflects two per cent of what is above it head on
+	// and nearly all of it at a grazing angle, and that one curve is the whole difference
+	// between "dark and see-through at your feet, a mirror at the horizon" and the flat pale
+	// blue sheet this used to be. It used to be capped at 0.44 because with a FLAT normal a
+	// grazing view turns the whole sea into sky - the chop above is what makes the full curve
+	// safe.
+	float fres = water_f0 + (1.0 - water_f0) * pow(1.0 - clamp(dot(n, -view_dir), 0.0, 1.0), 5.0);
+	fres = clamp(fres, 0.0, fresnel_cap);
+	vec3 refl = reflect(view_dir, n);
+	// What the water is looking at: the horizon colour along the horizon, a deeper blue as the
+	// reflection tips up toward the zenith, and the sea's own colour where a steep wave face
+	// reflects something below the horizon.
+	vec3 sky_ref = mix(haze, haze * vec3(0.55, 0.72, 1.00), smoothstep(0.0, 0.55, refl.y));
+	sky_ref = mix(water * 2.0, sky_ref, smoothstep(-0.12, 0.02, refl.y));
+	col = mix(col, sky_ref, fres);
+
+	// ---- the sun path ---------------------------------------------------------------------
+	// A broad glare lobe with sparkles inside it. The sparkles come from the chop in the normal,
+	// so they sit on real ripples; the noise gate thins them out into a broken path of separate
+	// points rather than one smooth blob, which is what a sun path actually looks like.
+	vec3 half_v = normalize(sun_n - view_dir);
+	float ndh = max(dot(n, half_v), 0.0);
+	float glare = pow(ndh, 90.0);
+	float spark = pow(ndh, glitter_sharp);
+	float broken = 1.0;
+	if (rich && detail > 0.01) {
+		broken = 0.25 + 1.5 * smoothstep(0.42, 0.92, vnoise(w * 0.85 + vec2(TIME * 0.4, TIME * -0.3)));
+	}
+	col += vec3(1.0, 0.95, 0.84) * (glare * 0.5 + spark * 3.0 * broken)
+		* glitter * (1.0 - night_factor) * (1.0 - weather_dark) * detail;
+
+	// ---- foam --------------------------------------------------------------------------
+	// Where the surface is folding, not wherever it happens to be high: a threshold on height
+	// turned whole facets of the coarse mesh white and the sea read as a cartoon. All of it is
+	// skipped once `detail` has faded it out - the far plane paints its own white water.
+	float foam = 0.0;
+	if (detail > 0.01) {
+	float fn = vnoise(w * 0.32 + vec2(TIME * 0.11, TIME * -0.08));
+	foam = smoothstep(foam_fold_lo, foam_fold_hi, fold * (0.75 + 0.5 * fn)) * sea;
+	// And a thinner wash over the tops themselves, gated by the same noise, so a crest that is
+	// not steep enough to break can still be flecked.
+	foam = max(foam, smoothstep(0.55, 1.0, crest) * sea * 0.35 * smoothstep(0.35, 0.8, fn));
 
 	// The shore break. Two or three lines of white riding in toward the sand (the phase runs
 	// with +shore, so the bands travel toward the beach), plus the wash sliding up and back
@@ -230,55 +477,79 @@ void fragment() {
 	// that stops at a straight line.
 	float breaker = pow(max(sin(shore * 0.085 + TIME * 1.05), 0.0), 8.0);
 	breaker *= 1.0 - smoothstep(surf_width * 0.2, surf_width * 1.1, shore);
-	float edge = swash_width * (0.55 + 0.45 * sin(TIME * 6.28318 / swash_period));
+	float edge = swash_width * (0.55 + 0.45 * sin(TIME * TAU / swash_period));
 	float wash = 1.0 - smoothstep(edge * 0.35, edge + 8.0, shore);
 	float surf = breaker * (0.5 + 0.6 * sea) + wash * (0.7 + 0.3 * sea);
-	// Broken up, so the surf is not a drawn stripe.
-	surf *= 0.5 + 0.8 * vnoise(world_pos.xz * 0.55 + vec2(0.0, TIME * 0.8));
-	foam = max(foam, clamp(surf, 0.0, 1.0));
+	if (surf > 0.001) {
+		// Broken up along the shore, so the surf is not a drawn stripe: a real break arrives in
+		// sections, with gaps where the bottom is deeper. Two noise fetches, inside the `if`
+		// because the surf zone is a few per cent of the water on screen and the open sea has
+		// no business paying for them.
+		surf *= 0.35 + 0.95 * vnoise(vec2(w.y * 0.035, w.x * 0.12 + TIME * 0.35));
+		surf *= 0.5 + 0.8 * vnoise(w * 0.55 + vec2(0.0, TIME * 0.8));
+		foam = max(foam, clamp(surf, 0.0, 1.0));
+	}
 
 	// Spray: in a storm the wind tears the tops off the crests and lays foam out downwind in
 	// streaks. One extra noise fetch, so it is gated on the same detail global the ground uses.
-	if (ground_detail > 0.5 && storm > 0.01) {
-		vec2 w = normalize(wind_dir + vec2(0.0001, 0.0));
-		vec2 sp = vec2(dot(world_pos.xz, w), dot(world_pos.xz, vec2(-w.y, w.x)));
+	if (rich && storm > 0.01) {
+		vec2 wv = normalize(wind_dir + vec2(0.0001, 0.0));
+		vec2 sp = vec2(dot(w, wv), dot(w, vec2(-wv.y, wv.x)));
 		float streak = vnoise(vec2(sp.x * 0.03 - TIME * (1.2 + 2.0 * wind), sp.y * 0.24));
 		streak = smoothstep(0.5, 0.95, streak) * smoothstep(0.3, 0.8, crest);
-		foam = max(foam, streak * storm * 0.35 * (1.0 - far));
+		foam = max(foam, streak * storm * 0.35);
 	}
-	foam *= 1.0 - 0.6 * far;
+	}
+	foam = clamp(foam, 0.0, 1.0) * detail;
+	// Foam is a rough white surface lit by the sky, not a light source: it goes darker at night
+	// and under a storm along with everything else.
+	col = mix(col, foam_color * mix(0.35, 1.0, clamp(sky_lum * 3.0, 0.0, 1.0)), foam);
 
-	// Sub-surface: a wave face with the sun behind it glows green where the water is thin.
-	vec3 sun_n = normalize(sun_direction);
-	float sss = pow(max(dot(view_dir, sun_n), 0.0), 3.0) * clamp(crest, 0.0, 1.0) * sea;
-	col += sss_color * sss * 0.6 * (1.0 - night_factor);
+	// ---- the far plane's own water, for the hand-over ----------------------------------
+	// macro_ground.gdshader, water branch, reproduced: its swell normal faded out as one wave
+	// drops under a pixel, MacroMap.bake()'s shelf-to-deep ramp with its surf band, the same
+	// view-only fresnel toward the same haze, and the same glare, glint and cloud shadow.
+	// Reproduced rather than approximated, because anything else is a rectangle - the first
+	// attempt matched the COLOUR and left the far sea covered in sparkles that stopped dead at
+	// the chunk edge.
+	vec3 shade_n = n;
+	if (painted > 0.001) {
+		float graze = sqrt(clamp(1.0 / max(abs(view_dir.y), 0.06), 1.0, 12.0));
+		float fp = max(dist * far_pixel_angle * graze, 0.02);
+		float fwl = max(fp / far_swell, 0.0001);
+		float fchop = clamp(1.0 - fwl * 1.6, 0.0, 1.0);
+		vec2 sp = w / far_swell + vec2(TIME * 0.09, TIME * 0.05);
+		vec3 s1 = noised(sp);
+		vec3 s2 = noised(sp * 2.7 + 11.0);
+		vec2 sg = (s1.yz * 0.75 + s2.yz * 0.30) * fchop * 0.55;
+		vec3 far_n = normalize(vec3(-sg.x, 1.0, -sg.y));
+		float rdl = max(dot(reflect(view_dir, far_n), sun_n), 0.0);
+		vec3 fb = mix(shelf_color, deep_color, clamp(max(offshore, 0.0) / bake_deep_reach, 0.0, 1.0));
+		if (offshore >= 0.0) {
+			fb = mix(fb, bake_surf_color, (1.0 - smoothstep(0.0, bake_surf_width, offshore)) * 0.85);
+		}
+		float ffres = pow(1.0 - clamp(-view_dir.y, 0.0, 1.0), 5.0);
+		fb = mix(fb, haze, clamp(0.10 + 0.78 * ffres, 0.0, 0.92));
+		fb += vec3(1.0, 0.94, 0.82)
+			* (pow(rdl, 70.0) * far_glitter + pow(rdl, 900.0) * fchop * far_glitter * 6.0)
+			* (1.0 - night_factor) * cloud_shade(w, sun_n);
+		col = mix(col, fb, painted);
+		// The far plane shades its sea with THAT normal, so whatever specular the renderer adds
+		// on top of the painted colour matches on both sides of the seam.
+		shade_n = normalize(mix(n, far_n, painted));
+	}
 
-	// The sky in the water, and the glare path to the sun. Computed here rather than left to
-	// reflections, so it reads the same on the web renderer as it does on desktop.
-	vec3 world_n = normalize((INV_VIEW_MATRIX * vec4(n, 0.0)).xyz);
-	vec3 refl = reflect(view_dir, world_n);
-	vec3 sky_ref = mix(sky_now * 0.38, sky_now * 1.05, smoothstep(-0.10, 0.42, refl.y));
-	// Capped well short of a mirror: at a grazing angle with a flat normal the fresnel runs to
-	// one, and at 0.93 the whole sea turned into pale sky.
-	float mirror = clamp(0.07 + 0.42 * fres, 0.0, 0.44) * (1.0 - 0.72 * night_factor);
-	col = mix(col, sky_ref, mirror);
-	float glint = pow(max(dot(refl, sun_n), 0.0), 180.0);
-	col += vec3(1.0, 0.95, 0.84) * glint * 2.4 * (1.0 - night_factor) * (1.0 - weather_dark);
-
-	col = mix(col, foam_color, clamp(foam, 0.0, 1.0));
-	// Aerial perspective on the water itself. The streamed sea runs for kilometres and the
-	// web build has no aerial fog to do this for it.
-	col = mix(col, sky_now * (0.72 + 0.3 * (1.0 - night_factor)), far * horizon_blend);
-	ALBEDO = col;
-	ROUGHNESS = mix(0.28, 0.65, clamp(foam, 0.0, 1.0));
+	col *= dim;
+	// The far plane is EMITTED at face value past its own near band, so the renderer's sun and
+	// ambient never touch it. Hand this water over to the same deal at the same rate: lit while
+	// it is near, painted once it is far, and nothing anywhere for the lighting to make differ.
+	ALBEDO = col * (1.0 - painted);
+	EMISSION = col * painted;
+	ROUGHNESS = mix(mix(0.18, 0.72, foam), far_roughness, painted);
 	METALLIC = 0.0;
-	SPECULAR = (0.35 + 0.25 * fres) * (1.0 - 0.45 * weather_dark);
-	// Fine chop on top of the real wave normal, at two scales: without it the faces of the big
-	// swells that happen to point away from you are a flat sheet of sky colour. It grows with
-	// the wind and is dropped in the distance, where it turned the sea into crumpled foil.
-	float chop = (0.45 + 0.6 * wind) * (1.0 - far);
-	float nx = 0.10 * sin(world_pos.x * 2.1 + TIME * 1.7) + 0.06 * sin(world_pos.x * 7.3 - world_pos.z * 3.1 + TIME * 2.9);
-	float nz = 0.10 * cos(world_pos.z * 1.9 - TIME * 1.2) + 0.06 * cos(world_pos.z * 6.7 + world_pos.x * 2.7 - TIME * 2.3);
-	NORMAL_MAP = vec3(0.5 + nx * chop, 0.5 + nz * chop, 1.0);
-	NORMAL_MAP_DEPTH = 0.85;
+	// Low while the water is near: the sky reflection is already in ALBEDO by fresnel above, and
+	// letting the renderer add its own on top of that counted it twice and turned the sea from
+	// the beach brighter than the sky over it. The far end has to match the plane's 0.55.
+	SPECULAR = mix(0.12, far_specular, painted);
+	NORMAL = normalize((VIEW_MATRIX * vec4(shade_n, 0.0)).xyz);
 }

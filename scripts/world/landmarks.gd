@@ -48,7 +48,12 @@ static func all() -> Array[Dictionary]:
 		# under it. At 150 the west half of the parking structure had blocks growing through it.
 		{"id": "south_bay_mall", "anchor": Vector2(-250.0, 1250.0), "radius": 215.0},
 		{"id": "verde_cafe", "anchor": Vector2(-900.0, -430.0), "radius": 22.0},
-		{"id": "masjid_al_noor", "anchor": Vector2(-180.0, 120.0), "radius": 60.0},
+		# The mosque sits on one suburban parcel, not on a crossroads: (-180, 120) put the
+		# prayer hall on the intersection of the road at x -177 and the road at z 118, with
+		# the forecourt straddling the carriageway. This anchor is the middle of the block
+		# bounded by those two roads, set so the gate steps stop just short of the south
+		# pavement. Radius 52 covers the 45 m from the hall centre to the gate steps.
+		{"id": "masjid_al_noor", "anchor": Vector2(-235.7, 165.2), "radius": 52.0},
 	]
 
 

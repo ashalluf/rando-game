@@ -19,11 +19,16 @@ extends RefCounted
 ## height Landmarks._build_pier() uses, so all three piers of the map agree; the piles run from
 ## PILE_FOOT, well under the water, up to the underside of the deck.
 ##
+## The Redondo root has to meet the land as well as the sea: its car park stands on the median
+## ground behind the anchor (never more than RD_PARK_FILL above the lowest corner under it), and
+## a link - flat onto the upper parking deck, a ramp otherwise - always ties that back to the
+## deck, so the pier stays walkable wherever the shore behind it is not at sea level.
+##
 ## Names: the towns are geography (fine). Every business on the Redondo pier is invented - the
 ## big rooftop sign reads ROUNDWOOD, which is nobody. No real trade dress, no copied building.
 ##
-## Triangles, measured: Manhattan 6,588 detailed (88 nodes, 6 collision shapes) and 856 far;
-## Redondo 18,632 detailed (701 nodes, 67 collision shapes) and 1,060 far. The money on Redondo
+## Triangles, measured: Manhattan 6,960 detailed (122 nodes, 6 collision shapes) and 856 far;
+## Redondo 18,098 detailed (582 nodes, 65 collision shapes) and 1,212 far. The money on Redondo
 ## goes on the deck planks, the piles and braces, the fishing rails, the twenty-odd shops, the
 ## car park and the ROUNDWOOD block letters; drop RD_PLANK_STEP, RD_RAIL_POST_STEP or
 ## RD_ARC_STEPS to claw any of it back.
@@ -89,8 +94,9 @@ const RD_DECK_W := 16.0
 const RD_ARC_STEPS := 14
 ## Segments one straight leg is cut into for the detailed build.
 const RD_STRAIGHT_STEPS := 10
-## Segments the bend is cut into for the far build.
-const RD_FAR_ARC_STEPS := 6
+## Segments the bend is cut into for the far build. Eight, not six: the bend is the whole
+## silhouette of this pier from the shore, and six reads as a hexagon.
+const RD_FAR_ARC_STEPS := 8
 ## Segments one straight leg is cut into for the far build.
 const RD_FAR_STRAIGHT_STEPS := 3
 ## Radius of one timber pile, in metres.
@@ -113,6 +119,9 @@ const RD_SHOP_H2 := 3.4
 const RD_ROOF_RISE := 2.2
 ## Chance a deck segment is left as open promenade instead of getting a shop.
 const RD_SHOP_GAP_CHANCE := 0.24
+## Chance a shop is a single storey rather than two. A pier of identical two-storey blocks reads
+## as one long ribbon; the real thing has its roofline stepping up and down all the way out.
+const RD_SHOP_SINGLE_CHANCE := 0.38
 ## Height of the lower fishing deck above sea level, in metres.
 const RD_LOWER_Y := 2.9
 ## Width of the lower fishing deck out from the pier's outer edge, in metres.
@@ -127,6 +136,12 @@ const RD_PARK_D := 64.0
 const RD_PARK_W := 70.0
 ## Headroom needed under the upper parking deck before it is worth building, in metres.
 const RD_PARK_CLEAR := 4.2
+## The most the car park's surface is allowed to stand above the lowest ground under it, in
+## metres: a lot on a slope is cut into the high side and filled on the low one, never perched.
+const RD_PARK_FILL := 3.0
+## Width of the ramp up to the upper parking deck, in metres. The deck leaves a slot this wide
+## along its seaward edge so the ramp comes out ON the deck instead of under it.
+const RD_RAMP_W := 7.0
 ## Width of one painted parking bay, in metres.
 const RD_BAY := 2.6
 ## Cell size of the ROUNDWOOD block letters, in metres (letters are 5 x 7 cells).
@@ -151,6 +166,9 @@ const GLASS := Color(0.16, 0.22, 0.26)
 const TILE_RED := Color(0.62, 0.26, 0.18)
 const TILE_RIDGE := Color(0.71, 0.34, 0.24)
 const LAMP_WARM := Color(1.0, 0.94, 0.78)
+## Diameter of the pool of light a pier lamp throws on the deck, in metres. The street lamps use
+## 13; a pier lamp is lower and closer together than a street one.
+const LAMP_POOL := 9.0
 const PAINT_WHITE := Color(0.90, 0.89, 0.85)
 ## Shop colours, picked per shop from the seeded rng.
 const SHOP_COLORS: Array[Color] = [
@@ -194,6 +212,7 @@ static func build_manhattan(anchor: Vector2, parent: Node3D, statics: StaticBody
 	_mh_rails(parent, batch, anchor, head, straight, deck_top, 16, true)
 	_mh_lamps(batch, anchor, straight, deck_top)
 	_mh_benches(parent, anchor, straight, deck_top)
+	_mh_head_benches(parent, head, deck_top)
 	_mh_sign(parent, statics, anchor, deck_top)
 	batch.build(parent)
 
@@ -217,9 +236,12 @@ static func build_redondo(anchor: Vector2, parent: Node3D, statics: StaticBody3D
 		batch.build(parent)
 		return
 	var flags := _rd_shop_flags(pts.size() - 1, rng)
+	# The deck segment the stair down to the lower deck lands on: the first one past the apex of
+	# the bend. Both the rails and the lower deck take it, so the railing opens exactly there.
+	var stair_seg: int = mini(pts.size() / 2, pts.size() - 2)
 	_rd_shops(parent, statics, pts, flags, deck_top, rng)
-	_rd_rails(parent, batch, pts, flags, deck_top)
-	_rd_lower_deck(parent, statics, batch, pts, deck_top)
+	_rd_rails(parent, batch, pts, flags, deck_top, stair_seg)
+	_rd_lower_deck(parent, statics, batch, pts, deck_top, stair_seg)
 	_rd_lamps(batch, pts, deck_top)
 	_rd_entrance(parent, statics, anchor, deck_top)
 	_rd_sign(parent, pts, deck_top)
@@ -291,7 +313,8 @@ static func _mh_rails(parent: Node3D, batch: MultiMeshBatch, anchor: Vector2, he
 ## Globe lamps down both sides of the deck.
 static func _mh_lamps(batch: MultiMeshBatch, anchor: Vector2, straight: float, deck_top: float) -> void:
 	var pole := _cyl_mesh(0.1, MH_LAMP_H, 6, PropFactory.material(RAIL_BLUE, 0.6))
-	var globe := _sphere_mesh(0.34, WeaponFX.unshaded(LAMP_WARM))
+	var globe := _sphere_mesh(0.34, _lamp_glow())
+	var pool := PropFactory.light_pool()
 	var n := int(straight / MH_LAMP_STEP)
 	for i in n:
 		var x := anchor.x - 14.0 - i * MH_LAMP_STEP
@@ -299,6 +322,8 @@ static func _mh_lamps(batch: MultiMeshBatch, anchor: Vector2, straight: float, d
 			var z := anchor.y + side * (MH_WIDTH * 0.5 - 0.7)
 			batch.add("mh_pole", pole, _xform(Vector3(x, deck_top + MH_LAMP_H * 0.5, z), 0.0))
 			batch.add("mh_globe", globe, _xform(Vector3(x, deck_top + MH_LAMP_H + 0.3, z), 0.0))
+			batch.add("mh_pool", pool, _pool_xform(Vector3(x, deck_top + 0.06, z), LAMP_POOL))
+	batch.set_no_shadow("mh_pool")
 
 
 ## Benches, alternating sides, facing the water.
@@ -308,6 +333,16 @@ static func _mh_benches(parent: Node3D, anchor: Vector2, straight: float, deck_t
 		var x := anchor.x - 26.0 - i * MH_BENCH_STEP
 		var side := 1.0 if i % 2 == 0 else -1.0
 		_bench(parent, Vector3(x, deck_top, anchor.y + side * (MH_WIDTH * 0.5 - 1.3)), side)
+
+
+## Benches round the roundhouse on the pier head, backs to the building and faces to the water,
+## one to each face of the octagon except the landward one with the door in it. The head is
+## where everybody ends up standing, and bare it reads as an empty concrete disc.
+static func _mh_head_benches(parent: Node3D, head: Vector3, deck_top: float) -> void:
+	for j in range(1, 8):
+		var a := TAU * j / 8.0
+		var at := Vector3(head.x + cos(a) * 8.8, deck_top, head.z + sin(a) * 8.8)
+		_bench(parent, at, -1.0, _yaw(Vector2(-sin(a), cos(a))))
 
 
 ## The name board on the two entrance posts at the shore end.
@@ -374,6 +409,16 @@ static func _rd_path(anchor: Vector2, arc_steps: int, straight_steps: int) -> Pa
 	return pts
 
 
+## How far a deck segment must run past path point `i` for the outside of the turn to stay solid:
+## half the deck width times the tangent of half the turn angle, plus a little overlap.
+static func _rd_joint_ext(pts: PackedVector2Array, i: int) -> float:
+	if i <= 0 or i >= pts.size() - 1:
+		return 0.35
+	var d0 := (pts[i] - pts[i - 1]).normalized()
+	var d1 := (pts[i + 1] - pts[i]).normalized()
+	return 0.35 + RD_DECK_W * 0.5 * tan(absf(d0.angle_to(d1)) * 0.5)
+
+
 ## Deck segments along the path, the cross deck that ties the two legs together at the root, and
 ## the planking gaps. Local axes inside a segment pivot: +X runs along the path, +Z is the OUTER
 ## side of the horseshoe, -Z the lagoon side.
@@ -383,8 +428,13 @@ static func _rd_deck(parent: Node3D, statics: StaticBody3D, pts: PackedVector2Ar
 		var a := pts[i]
 		var b := pts[i + 1]
 		var d := (b - a).normalized()
-		var length := a.distance_to(b) + 0.7
-		var mid := (a + b) * 0.5
+		# Each end runs past its path point by half the turn there: without that, every joint on
+		# the OUTSIDE of the bend leaves a wedge-shaped hole in the deck (and in its collision)
+		# wide enough to drop a player into the sea.
+		var ext_a := _rd_joint_ext(pts, i)
+		var ext_b := _rd_joint_ext(pts, i + 1)
+		var length := a.distance_to(b) + ext_a + ext_b
+		var mid := (a + b) * 0.5 + d * ((ext_b - ext_a) * 0.5)
 		var yaw := _yaw(d)
 		_obox(parent, statics, Vector3(length, DECK_T, RD_DECK_W), Vector3(mid.x, DECK_Y, mid.y), Vector3(0.0, yaw, 0.0), timber, true)
 		if not detailed:
@@ -439,7 +489,8 @@ static func _rd_shop_flags(segments: int, rng: RandomNumberGenerator) -> Array[b
 	return flags
 
 
-## Two-storey shops along the lagoon side of the deck.
+## Shops along the lagoon side of the deck, one or two storeys apiece. The three under the
+## ROUNDWOOD hoarding are always two, because that is what its legs stand on.
 static func _rd_shops(parent: Node3D, statics: StaticBody3D, pts: PackedVector2Array, flags: Array[bool], deck_top: float, rng: RandomNumberGenerator) -> void:
 	for i in flags.size():
 		if not flags[i]:
@@ -451,27 +502,31 @@ static func _rd_shops(parent: Node3D, statics: StaticBody3D, pts: PackedVector2A
 		var inner := Vector2(d.y, -d.x)
 		var off := RD_DECK_W * 0.5 - RD_SHOP_D * 0.5
 		var at := mid + inner * off
-		_rd_shop(parent, statics, Vector3(at.x, deck_top, at.y), _yaw(d), a.distance_to(b) - 1.6, rng)
+		var tall := absi(i - RD_SIGN_SEGMENT) <= 1 or rng.randf() > RD_SHOP_SINGLE_CHANCE
+		_rd_shop(parent, statics, Vector3(at.x, deck_top, at.y), _yaw(d), a.distance_to(b) - 1.6, rng, tall)
 
 
 ## One shop block. Built inside a yawed pivot so every part is in easy local coordinates: +X along
 ## the pier, +Z toward the promenade (the shopfront side), -Z toward the lagoon edge.
-static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: float, length: float, rng: RandomNumberGenerator) -> void:
+static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: float, length: float, rng: RandomNumberGenerator, tall: bool) -> void:
 	var wall := PropFactory.material(SHOP_COLORS[rng.randi() % SHOP_COLORS.size()], 0.9)
 	var trim := TRIM_COLORS[rng.randi() % TRIM_COLORS.size()]
 	var pivot := _pivot(parent, at, yaw)
 	var front := RD_SHOP_D * 0.5
 	var glass := PropFactory.material(GLASS, 0.2)
 	var dark := PropFactory.material(TIMBER_DARK, 0.9)
-	# Two storeys and the pitched roof (one PrismMesh: eight triangles for the whole thing).
+	var upper: float = RD_SHOP_H2 if tall else 0.0
+	var eave := RD_SHOP_H1 + upper
+	# The storeys and the pitched roof (one PrismMesh: eight triangles for the whole thing).
 	_obox(pivot, null, Vector3(length, RD_SHOP_H1, RD_SHOP_D), Vector3(0.0, RD_SHOP_H1 * 0.5, 0.0), Vector3.ZERO, wall, false)
-	_obox(pivot, null, Vector3(length - 0.5, RD_SHOP_H2, RD_SHOP_D - 0.7), Vector3(0.0, RD_SHOP_H1 + RD_SHOP_H2 * 0.5, 0.0), Vector3.ZERO, wall, false)
+	if tall:
+		_obox(pivot, null, Vector3(length - 0.5, upper, RD_SHOP_D - 0.7), Vector3(0.0, RD_SHOP_H1 + upper * 0.5, 0.0), Vector3.ZERO, wall, false)
 	var roof := PrismMesh.new()
-	roof.size = Vector3(RD_SHOP_D + 0.5, RD_ROOF_RISE, length + 0.4)
+	roof.size = Vector3((RD_SHOP_D + 0.5) if tall else (RD_SHOP_D + 0.9), RD_ROOF_RISE, length + 0.4)
 	roof.material = PropFactory.material(TIMBER_DARK, 0.85)
 	var roof_node := MeshInstance3D.new()
 	roof_node.mesh = roof
-	roof_node.position = Vector3(0.0, RD_SHOP_H1 + RD_SHOP_H2 + RD_ROOF_RISE * 0.5, 0.0)
+	roof_node.position = Vector3(0.0, eave + RD_ROOF_RISE * 0.5, 0.0)
 	roof_node.rotation.y = PI * 0.5
 	pivot.add_child(roof_node)
 	# Shopfront, sign band, awning and its posts.
@@ -481,25 +536,26 @@ static func _rd_shop(parent: Node3D, statics: StaticBody3D, at: Vector3, yaw: fl
 	awning.rotation.x = 0.16
 	for sx: float in [-0.5, 0.5]:
 		_cyl_node(pivot, 0.07, RD_SHOP_H1 - 1.5, 5, Vector3(sx * (length - 1.4), (RD_SHOP_H1 - 1.5) * 0.5, front + 2.0), dark)
-	# Upper windows and a narrow balcony rail.
-	var bays := maxi(2, int(length / 3.4))
-	for k in bays:
-		var bx := (float(k) + 0.5) / bays - 0.5
-		_obox(pivot, null, Vector3(1.3, 1.7, 0.25), Vector3(bx * (length - 1.2), RD_SHOP_H1 + RD_SHOP_H2 * 0.55, front - 0.2), Vector3.ZERO, glass, false)
-	_obox(pivot, null, Vector3(length - 0.5, 0.12, 1.2), Vector3(0.0, RD_SHOP_H1 + 0.06, front + 0.2), Vector3.ZERO, dark, false)
-	_obox(pivot, null, Vector3(length - 0.5, 0.1, 0.1), Vector3(0.0, RD_SHOP_H1 + 0.95, front + 0.75), Vector3.ZERO, dark, false)
+	# Upper windows and the narrow balcony rail in front of them, on the two-storey ones.
+	if tall:
+		var bays := maxi(2, int(length / 3.4))
+		for k in bays:
+			var bx := (float(k) + 0.5) / bays - 0.5
+			_obox(pivot, null, Vector3(1.3, 1.7, 0.25), Vector3(bx * (length - 1.2), RD_SHOP_H1 + upper * 0.55, front - 0.2), Vector3.ZERO, glass, false)
+		_obox(pivot, null, Vector3(length - 0.5, 0.12, 1.2), Vector3(0.0, RD_SHOP_H1 + 0.06, front + 0.2), Vector3.ZERO, dark, false)
+		_obox(pivot, null, Vector3(length - 0.5, 0.1, 0.1), Vector3(0.0, RD_SHOP_H1 + 0.95, front + 0.75), Vector3.ZERO, dark, false)
 	# Roughly a third of them get a hoarding standing on the roof.
 	if rng.randf() < 0.36:
-		_obox(pivot, null, Vector3(length * 0.7, 2.4, 0.22), Vector3(0.0, RD_SHOP_H1 + RD_SHOP_H2 + RD_ROOF_RISE + 1.2, 0.3), Vector3.ZERO, WeaponFX.unshaded(trim.lightened(0.15)), false)
+		_obox(pivot, null, Vector3(length * 0.7, 2.4, 0.22), Vector3(0.0, eave + RD_ROOF_RISE + 1.2, 0.3), Vector3.ZERO, WeaponFX.unshaded(trim.lightened(0.15)), false)
 		for sx: float in [-0.34, 0.34]:
-			_obox(pivot, null, Vector3(0.16, RD_ROOF_RISE + 1.0, 0.16), Vector3(sx * length, RD_SHOP_H1 + RD_SHOP_H2 + RD_ROOF_RISE * 0.5 + 0.2, 0.3), Vector3.ZERO, dark, false)
+			_obox(pivot, null, Vector3(0.16, RD_ROOF_RISE + 1.0, 0.16), Vector3(sx * length, eave + RD_ROOF_RISE * 0.5 + 0.2, 0.3), Vector3.ZERO, dark, false)
 	# One rotated collision box for the whole block.
 	if statics != null:
 		var shape := CollisionShape3D.new()
 		var s := BoxShape3D.new()
-		s.size = Vector3(length, RD_SHOP_H1 + RD_SHOP_H2, RD_SHOP_D)
+		s.size = Vector3(length, eave, RD_SHOP_D)
 		shape.shape = s
-		shape.position = at + Vector3(0.0, (RD_SHOP_H1 + RD_SHOP_H2) * 0.5, 0.0)
+		shape.position = at + Vector3(0.0, eave * 0.5, 0.0)
 		shape.rotation.y = yaw
 		statics.add_child(shape)
 
@@ -521,9 +577,9 @@ static func _rd_far_shops(parent: Node3D, pts: PackedVector2Array, deck_top: flo
 		_obox(parent, null, Vector3(length, 0.9, RD_SHOP_D + 0.5), Vector3(at.x, deck_top + RD_SHOP_H1 + RD_SHOP_H2 + 0.45, at.y), Vector3(0.0, yaw, 0.0), roof, false)
 
 
-## Fishing rails: the full run on the outer edge, and the lagoon edge wherever a shop does not
-## already close it off.
-static func _rd_rails(parent: Node3D, batch: MultiMeshBatch, pts: PackedVector2Array, flags: Array[bool], deck_top: float) -> void:
+## Fishing rails: the outer edge everywhere except the segment the stair drops through, and the
+## lagoon edge wherever a shop does not already close it off.
+static func _rd_rails(parent: Node3D, batch: MultiMeshBatch, pts: PackedVector2Array, flags: Array[bool], deck_top: float, stair_seg: int) -> void:
 	var mat := PropFactory.material(TIMBER_PALE, 0.9)
 	var post := _box_mesh(Vector3(0.14, RD_RAIL_H, 0.14), mat)
 	for i in pts.size() - 1:
@@ -534,7 +590,9 @@ static func _rd_rails(parent: Node3D, batch: MultiMeshBatch, pts: PackedVector2A
 		var length := a.distance_to(b)
 		var mid := (a + b) * 0.5
 		var yaw := _yaw(d)
-		var sides: Array[float] = [1.0]
+		var sides: Array[float] = []
+		if i != stair_seg:
+			sides.append(1.0)
 		if not flags[i]:
 			sides.append(-1.0)
 		for side: float in sides:
@@ -550,8 +608,8 @@ static func _rd_rails(parent: Node3D, batch: MultiMeshBatch, pts: PackedVector2A
 
 ## The lower fishing deck hung off the outer edge at the apex of the bend, with its own piles,
 ## a railing and a flight of stairs down from the main deck.
-static func _rd_lower_deck(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, pts: PackedVector2Array, deck_top: float) -> void:
-	var i := pts.size() / 2
+static func _rd_lower_deck(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, pts: PackedVector2Array, deck_top: float, stair_seg: int) -> void:
+	var i := stair_seg
 	var p := pts[i]
 	var d := (pts[i] - pts[i - 1]).normalized()
 	var n := Vector2(-d.y, d.x)
@@ -574,34 +632,50 @@ static func _rd_lower_deck(parent: Node3D, statics: StaticBody3D, batch: MultiMe
 		for sz: float in [-0.32, 0.32]:
 			var q := at + d * (bx * RD_LOWER_LEN) + n * (sz * RD_LOWER_W)
 			batch.add("rd_pile", pile, _xform(Vector3(q.x, PILE_FOOT + h * 0.5, q.y), 0.0))
-	# Stair down from the main deck's outer edge onto the lower deck. The treads live in the
-	# pivot (local coordinates), so their collision cannot go through _obox - `statics` is in
-	# world space - and the whole flight gets one rotated ramp shape instead.
+	# Stair down from the main deck's outer edge onto the lower deck. It gets a frame of its own
+	# on the deck segment it lands on: the bend curves away from this platform's tangent, so a
+	# stair head hung off THIS pivot would finish up to two metres clear of the deck edge, in
+	# mid air. _rd_rails() leaves the outer railing of `stair_seg` open for it.
 	var drop := deck_top - (RD_LOWER_Y + DECK_T * 0.35)
-	var edge := -(RD_DECK_W * 0.5 + RD_LOWER_W * 0.5 - 1.0) + RD_DECK_W * 0.5
 	var run := 7.0
 	var steps := 10
+	var sa := pts[stair_seg]
+	var sb := pts[stair_seg + 1]
+	var sd := (sb - sa).normalized()
+	var sn := Vector2(-sd.y, sd.x)
+	var syaw := _yaw(sd)
+	var head := (sa + sb) * 0.5 + sn * (RD_DECK_W * 0.5 - 0.6)
+	var stair := _pivot(parent, Vector3(head.x, deck_top, head.y), syaw)
 	for k in steps:
-		var t := float(k) / float(steps)
-		_obox(pivot, null, Vector3(1.6, 0.16, run / steps + 0.1),
-				Vector3(RD_LOWER_LEN * 0.5 - 1.4, drop * (1.0 - t) + 0.25, edge + 0.1 + t * run),
-				Vector3.ZERO, dark, false)
+		var t := (float(k) + 0.5) / float(steps)
+		_obox(stair, null, Vector3(1.8, 0.18, run / steps + 0.12),
+				Vector3(0.0, -drop * t + 0.09, t * run), Vector3.ZERO, dark, false)
+	# Hand rails down both sides of the flight, so the gap in the fishing rail reads as a stair
+	# head and not as a hole someone forgot to fence.
+	for sx: float in [-1.0, 1.0]:
+		var hand := _obox(stair, null, Vector3(0.1, 0.1, sqrt(drop * drop + run * run)),
+				Vector3(sx * 1.05, RD_RAIL_H - drop * 0.5, run * 0.5), Vector3.ZERO, timber, false)
+		hand.rotation.x = atan2(drop, run)
+		for k in 4:
+			var t := (float(k) + 0.5) / 4.0
+			_obox(stair, null, Vector3(0.1, RD_RAIL_H, 0.1),
+					Vector3(sx * 1.05, RD_RAIL_H * 0.5 - drop * t, t * run), Vector3.ZERO, timber, false)
 	if statics != null:
 		var flight := CollisionShape3D.new()
 		var fs := BoxShape3D.new()
-		fs.size = Vector3(1.6, 0.3, sqrt(drop * drop + run * run))
+		fs.size = Vector3(1.8, 0.35, sqrt(drop * drop + run * run))
 		flight.shape = fs
-		var mid_local := Vector3(RD_LOWER_LEN * 0.5 - 1.4, drop * 0.5 + 0.25, edge + 0.1 + run * 0.5)
-		flight.position = pivot.position + Vector3(d.x, 0.0, d.y) * mid_local.x \
-				+ Vector3(n.x, 0.0, n.y) * mid_local.z + Vector3(0.0, mid_local.y, 0.0)
-		flight.basis = Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, atan2(drop, run))
+		var mid := head + sn * (run * 0.5)
+		flight.position = Vector3(mid.x, deck_top - drop * 0.5 + 0.05, mid.y)
+		flight.basis = Basis(Vector3.UP, syaw) * Basis(Vector3.RIGHT, atan2(drop, run))
 		statics.add_child(flight)
 
 
 ## Lamp posts down the promenade side, spaced by segment.
 static func _rd_lamps(batch: MultiMeshBatch, pts: PackedVector2Array, deck_top: float) -> void:
 	var pole := _cyl_mesh(0.11, 5.0, 6, PropFactory.material(TIMBER_DARK, 0.8))
-	var globe := _sphere_mesh(0.36, WeaponFX.unshaded(LAMP_WARM))
+	var globe := _sphere_mesh(0.36, _lamp_glow())
+	var pool := PropFactory.light_pool()
 	for i in pts.size() - 1:
 		if i % 2 != 0:
 			continue
@@ -612,6 +686,8 @@ static func _rd_lamps(batch: MultiMeshBatch, pts: PackedVector2Array, deck_top: 
 		var at := (a + b) * 0.5 + n * (RD_DECK_W * 0.5 - 1.2)
 		batch.add("rd_pole", pole, _xform(Vector3(at.x, deck_top + 2.5, at.y), 0.0))
 		batch.add("rd_globe", globe, _xform(Vector3(at.x, deck_top + 5.3, at.y), 0.0))
+		batch.add("rd_pool", pool, _pool_xform(Vector3(at.x, deck_top + 0.06, at.y), LAMP_POOL))
+	batch.set_no_shadow("rd_pool")
 
 
 ## Entrance gate over the approach spur.
@@ -659,41 +735,76 @@ static func _rd_sign(parent: Node3D, pts: PackedVector2Array, deck_top: float) -
 ## level with the pier whenever the ground leaves enough headroom underneath.
 static func _rd_car_park(parent: Node3D, statics: StaticBody3D, anchor: Vector2, plan: CityPlan, detailed: bool) -> void:
 	var ground := 0.1
+	var low := 0.1
 	if plan != null:
-		ground = plan.height_at(anchor + Vector2(RD_PARK_GAP + RD_PARK_D * 0.5, 0.0))
-		for c: Vector2 in [Vector2(RD_PARK_GAP, -RD_PARK_W * 0.5), Vector2(RD_PARK_GAP, RD_PARK_W * 0.5),
+		var hs: Array[float] = []
+		for c: Vector2 in [Vector2(RD_PARK_GAP + RD_PARK_D * 0.5, 0.0),
+				Vector2(RD_PARK_GAP, -RD_PARK_W * 0.5), Vector2(RD_PARK_GAP, RD_PARK_W * 0.5),
 				Vector2(RD_PARK_GAP + RD_PARK_D, -RD_PARK_W * 0.5), Vector2(RD_PARK_GAP + RD_PARK_D, RD_PARK_W * 0.5)]:
-			ground = maxf(ground, plan.height_at(anchor + c))
+			hs.append(plan.height_at(anchor + c))
+		hs.sort()
+		low = hs[0]
+		# The median of the five samples, and never more than a storey of fill above the lowest
+		# of them. Taking the highest corner (which is what this did) put the whole lot on a
+		# twenty-metre podium wherever the shore behind the pier climbs into a headland.
+		ground = minf(hs[hs.size() / 2], low + RD_PARK_FILL)
 	var cx := anchor.x + RD_PARK_GAP + RD_PARK_D * 0.5
 	var asphalt := PropFactory.pbr("asphalt", 8.0, Color(0.42, 0.42, 0.44))
 	var concrete := _concrete()
 	_obox(parent, statics, Vector3(RD_PARK_D, 1.2, RD_PARK_W), Vector3(cx, ground - 0.6, anchor.y), Vector3.ZERO, asphalt, true)
+	# The lot is flat but the shore behind a pier rarely is: where the ground falls away under it,
+	# stand it on a retaining podium rather than leaving a slab hanging in the air.
+	if ground - low > 0.6:
+		var wall_h := ground - low - 0.2
+		_obox(parent, statics, Vector3(RD_PARK_D - 0.6, wall_h, RD_PARK_W - 0.6),
+				Vector3(cx, ground - 1.2 - wall_h * 0.5, anchor.y), Vector3.ZERO, concrete, true)
 	var two_level := DECK_Y - ground >= RD_PARK_CLEAR
 	if two_level:
-		# Columns, then the upper deck at the pier's own level so the two meet flush.
-		if detailed:
-			var col := _cyl_mesh(0.42, DECK_Y - ground, 8, concrete)
-			var batch := MultiMeshBatch.new()
-			for ix in 5:
-				for iz in 7:
-					var p := Vector3(cx - RD_PARK_D * 0.42 + ix * RD_PARK_D * 0.21,
-							ground + (DECK_Y - ground) * 0.5,
-							anchor.y - RD_PARK_W * 0.42 + iz * RD_PARK_W * 0.14)
-					batch.add("rd_col", col, _xform(p, 0.0))
-			batch.build(parent)
-		_obox(parent, statics, Vector3(RD_PARK_D, DECK_T, RD_PARK_W), Vector3(cx, DECK_Y, anchor.y), Vector3.ZERO, concrete, true)
-		# Spandrel band round the upper deck, open at the pier side.
-		for side: float in [-1.0, 1.0]:
-			_obox(parent, statics, Vector3(RD_PARK_D, 1.1, 0.5), Vector3(cx, DECK_Y + 1.0, anchor.y + side * RD_PARK_W * 0.5), Vector3.ZERO, concrete, false)
-		_obox(parent, statics, Vector3(0.5, 1.1, RD_PARK_W), Vector3(cx + RD_PARK_D * 0.5, DECK_Y + 1.0, anchor.y), Vector3.ZERO, concrete, false)
-		# Ramp from the surface lot up to the deck, along the inland edge.
+		# Columns, then the upper deck at the pier's own level so the two meet flush. The deck
+		# stops short of the seaward edge: that strip is the ramp's slot, left open so a car can
+		# actually drive out onto the deck instead of into its underside.
 		var rise := DECK_Y - ground
 		var run := RD_PARK_D * 0.6
-		_obox(parent, statics, Vector3(sqrt(rise * rise + run * run), DECK_T, 7.0),
-				Vector3(cx + RD_PARK_D * 0.1, ground + rise * 0.5, anchor.y - RD_PARK_W * 0.5 + 5.0), Vector3(0.0, 0.0, atan2(rise, run)), concrete, true)
-		# Link from the deck to the pier root.
+		var ramp_len := sqrt(rise * rise + run * run)
+		var ramp_z := anchor.y - RD_PARK_W * 0.5 + 0.5 + RD_RAMP_W * 0.5
+		var gate_x := cx + RD_PARK_D * 0.1 + ramp_len * 0.5
+		var deck_w := RD_PARK_W - RD_RAMP_W - 0.5
+		var deck_z := anchor.y + RD_PARK_W * 0.5 - deck_w * 0.5
+		if detailed:
+			var col := _cyl_mesh(0.42, rise, 8, concrete)
+			var batch := MultiMeshBatch.new()
+			for ix in 5:
+				for iz in 6:
+					var p := Vector3(cx - RD_PARK_D * 0.42 + ix * RD_PARK_D * 0.21,
+							ground + rise * 0.5,
+							deck_z - deck_w * 0.4 + iz * deck_w * 0.16)
+					batch.add("rd_col", col, _xform(p, 0.0))
+			batch.build(parent)
+		_obox(parent, statics, Vector3(RD_PARK_D, DECK_T, deck_w), Vector3(cx, DECK_Y, deck_z), Vector3.ZERO, concrete, true)
+		# Spandrel band round the upper deck: open at the pier side, and open at the head of the
+		# ramp so the last twelve metres of the climb have somewhere to turn out.
+		_obox(parent, statics, Vector3(RD_PARK_D, 1.1, 0.5), Vector3(cx, DECK_Y + 1.0, deck_z + deck_w * 0.5), Vector3.ZERO, concrete, false)
+		_obox(parent, statics, Vector3(0.5, 1.1, deck_w), Vector3(cx + RD_PARK_D * 0.5, DECK_Y + 1.0, deck_z), Vector3.ZERO, concrete, false)
+		var band_end := gate_x - 12.0
+		var band_start := cx - RD_PARK_D * 0.5
+		if band_end - band_start > 4.0:
+			_obox(parent, statics, Vector3(band_end - band_start, 1.1, 0.5),
+					Vector3((band_end + band_start) * 0.5, DECK_Y + 1.0, deck_z - deck_w * 0.5), Vector3.ZERO, concrete, false)
+		# Ramp from the surface lot up to the deck, in its slot along the seaward edge.
+		_obox(parent, statics, Vector3(ramp_len, DECK_T, RD_RAMP_W),
+				Vector3(cx + RD_PARK_D * 0.1, ground + rise * 0.5, ramp_z), Vector3(0.0, 0.0, atan2(rise, run)), concrete, true)
+		# Link from the deck to the pier root: both are at DECK_Y, so it is flat.
 		_obox(parent, statics, Vector3(RD_PARK_GAP + 2.0, DECK_T, RD_DECK_W + 4.0),
 				Vector3(anchor.x + RD_PARK_GAP * 0.5, DECK_Y, anchor.y), Vector3.ZERO, concrete, true)
+	else:
+		# No upper deck, so the pier has to meet the ground itself: a ramp from the deck down to
+		# the lot (or up to it, where the shore behind the pier is higher than the deck). Without
+		# this the whole pier is cut off from the land the moment the shore is not at sea level.
+		var climb := ground - DECK_Y
+		var reach := maxf(RD_PARK_GAP + 8.0, absf(climb) * 4.0)
+		_obox(parent, statics, Vector3(sqrt(climb * climb + reach * reach), DECK_T, RD_DECK_W + 4.0),
+				Vector3(anchor.x - 2.0 + reach * 0.5, DECK_Y + climb * 0.5, anchor.y),
+				Vector3(0.0, 0.0, atan2(climb, reach)), concrete, true)
 	if not detailed:
 		return
 	# Painted bays on the surface lot and a few light poles.
@@ -706,28 +817,33 @@ static func _rd_car_park(parent: Node3D, statics: StaticBody3D, anchor: Vector2,
 		for c in 2:
 			batch2.add("rd_bay", line, _xform(Vector3(cx - RD_PARK_D * 0.25 + c * RD_PARK_D * 0.5, ground + 0.04, z), 0.0))
 	var pole := _cyl_mesh(0.16, 9.0, 6, PropFactory.material(CONCRETE_DARK))
+	# On the top deck when there is one: a nine metre pole standing on the lot underneath it goes
+	# straight up through the slab.
+	var pole_y := (DECK_Y + DECK_T * 0.5 + 4.5) if two_level else (ground + 4.5)
 	for ix in 2:
 		for iz in 3:
-			batch2.add("rd_lightpole", pole, _xform(Vector3(cx - RD_PARK_D * 0.25 + ix * RD_PARK_D * 0.5, ground + 4.5, anchor.y - RD_PARK_W * 0.33 + iz * RD_PARK_W * 0.33), 0.0))
+			batch2.add("rd_lightpole", pole, _xform(Vector3(cx - RD_PARK_D * 0.25 + ix * RD_PARK_D * 0.5, pole_y, anchor.y - RD_PARK_W * 0.33 + iz * RD_PARK_W * 0.33), 0.0))
 	batch2.build(parent)
 
 
 # --- Small shared pieces ------------------------------------------------------------------------
 
-## A slatted bench facing the water. `face` is +1 or -1: which way the backrest looks.
-static func _bench(parent: Node3D, at: Vector3, face: float) -> void:
+## A slatted bench facing the water. `face` is +1 or -1: which way the backrest looks (along
+## local -Z or +Z). `yaw` turns the whole bench, so it can also sit round the curve of the head.
+static func _bench(parent: Node3D, at: Vector3, face: float, yaw: float = 0.0) -> void:
 	var wood := PropFactory.material(TIMBER_PALE, 0.9)
 	var metal := PropFactory.material(CONCRETE_DARK)
-	_obox(parent, null, Vector3(2.2, 0.12, 0.6), at + Vector3(0.0, 0.48, 0.0), Vector3.ZERO, wood, false)
-	_obox(parent, null, Vector3(2.2, 0.55, 0.1), at + Vector3(0.0, 0.8, -face * 0.28), Vector3.ZERO, wood, false)
+	var pivot := _pivot(parent, at, yaw)
+	_obox(pivot, null, Vector3(2.2, 0.12, 0.6), Vector3(0.0, 0.48, 0.0), Vector3.ZERO, wood, false)
+	_obox(pivot, null, Vector3(2.2, 0.55, 0.1), Vector3(0.0, 0.8, -face * 0.28), Vector3.ZERO, wood, false)
 	for sx: float in [-0.85, 0.85]:
-		_obox(parent, null, Vector3(0.1, 0.45, 0.55), at + Vector3(sx, 0.22, 0.0), Vector3.ZERO, metal, false)
+		_obox(pivot, null, Vector3(0.1, 0.45, 0.55), Vector3(sx, 0.22, 0.0), Vector3.ZERO, metal, false)
 
 
 # --- Helpers ------------------------------------------------------------------------------------
 # Landmarks._box() / _cyl() only take a plain Colour and an axis-aligned collision box, so these
-# two wrap the same idea with a Material and a rotation. Everything else (Landmarks._text(),
-# Landmarks._shape()) is used directly.
+# two wrap the same idea with a Material and a rotation. Landmarks._text(), the block-letter
+# font, is used directly.
 
 ## One box mesh with euler rotation, an explicit material, and optional rotated collision.
 ## `pos` is in `parent`'s space but a collision shape goes on `statics`, which is in world space:
@@ -827,6 +943,25 @@ static func _sphere_mesh(radius: float, mat: Material) -> SphereMesh:
 	m.rings = 4
 	m.material = mat
 	return m
+
+
+## The glowing part of a lamp: warm, lit like everything else by day, a little emissive so it
+## still reads after dark. Unshaded white would be a flat dot at noon and no help at midnight.
+static func _lamp_glow() -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = LAMP_WARM
+	mat.roughness = 0.4
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.9, 0.6)
+	mat.emission_energy_multiplier = 1.5
+	return mat
+
+
+## Lays one of PropFactory's additive light-pool quads flat on the deck, `size` metres across.
+## This is what the street lamps do, and it is the only thing that lights anything at night on
+## the web build, so a pier without it is the one dark strip in a lit city.
+static func _pool_xform(pos: Vector3, size: float) -> Transform3D:
+	return Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, size, 1.0)), pos)
 
 
 static func _concrete() -> StandardMaterial3D:
