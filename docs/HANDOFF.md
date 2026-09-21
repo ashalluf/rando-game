@@ -1,4 +1,4 @@
-# Handoff: Rando Game (written 2026-09-19, after build 51)
+# Handoff: Rando Game (written 2026-09-19, sections 6, 9 and 10 rewritten 2026-09-21 at build 130)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
@@ -127,11 +127,53 @@ rooftop change before exporting: the build-64 "cage towers" (window frames at tw
 height, because a face center that already held the part's Y got the absolute row height added
 again) took a whole session of web screenshots to diagnose and one native render to see.
 
-## 6. Where the game stands (build 99)
+## 6. Where the game stands (build 130)
 
 Everything in the roadmap is done (milestones 1 to 8) plus the LA-style map, the realism passes,
-the "map character" batch and the 2026-09-20 owner batch. Recent builds, newest first:
+the "map character" batch, the 2026-09-20 owner batch and the 2026-09-21 PS5 push. Recent builds,
+newest first:
 
+- 130: four measured defects, each found by an agent that went looking rather than by play.
+  **Pedestrian clothing had never worked on the Mac build at all**: Forward+ and Mobile hand a
+  `source_color` texture back LINEARISED and the Compatibility renderer hands back raw sRGB, and
+  every threshold in `character.gdshader` was written against the sRGB numbers, so on desktop the
+  shader called every garment skin and recoloured nothing. `Pedestrian._texture_value()` now moves
+  the thresholds into the current renderer's space at material build time. Hair recolouring was
+  also a no-op (0.8% of head pixels reached it; hair is the dark half of the head, so it is found
+  by darkness now) and `pedestrian_c` got no garment split at all, because its jacket and trousers
+  are the same warm brown as its skin - skin now has to be bright as well as warm. Plus: chamfered
+  buildings were missing cornices, copings, string courses, plinths and parapets on two of every
+  four cut corners (a left-handed Basis on those corners meant CULL_BACK threw away exactly the
+  outward faces); one loudness reference for every sound plus a hard limiter on the master bus
+  (peak-normalised recordings are not equally loud - three takes of the rifle were 9.3 dB apart).
+- 129: freeways fly over each other instead of through each other. Nothing in the routing ever
+  looked at the other routes, so the Coast and Cross decks met with 1.2 m between two 34 m wide
+  carriageways. `Freeway._separate_crossings()` lifts the later route 7.5 m clear, easing in and
+  out at `MAX_GRADE` so the flyover is drivable.
+- 128: Forward+ headless rendering with no GPU. `tools/glshot/forward_shot.sh` runs Godot through
+  lavapipe (Mesa's software Vulkan driver), so SDFGI, SSR, TAA, AgX and volumetric fog can all be
+  screenshotted from this container. **This matters more than it sounds**: every visual judgement
+  in this project's history before build 128 was made on the Compatibility renderer, which has
+  none of those, and that is not the build the owner plays. Six minutes a frame, so use
+  `city_shot.gd` on opengl3 to iterate and this to sign off.
+- 127: real wheels - correct track, radius and per-type ride height (they were all on a 2.0 m
+  track with 0.84 m wheels).
+- 126: exotics on the street: supercars, spiders and hypercars, as original marques. The owner
+  asked for Ferraris, Bugattis and Rolls-Royces; copying their trade dress is not something this
+  project will do, so these are cars in the same classes with their own shapes and names.
+- 122 to 125: car jumping is unlimited so cars can be flown continuously; kerbside parking fixed;
+  lawns stop glowing at night (twice - the albedo boost, then the missing `night_factor` term,
+  because roads are lamp-lit and grass is not); facade relief, neon signage and street clutter.
+- 112 to 121: the foliage and colour pass. Five city tree species and four hill species at their
+  own measured heights (a shared 6-10.5 m target was stretching a 2.61 m model 3x, which is why
+  trees read as bare branches), per-instance leaf thinning, hue and shape variation through
+  `INSTANCE_CUSTOM` so fifty apparent variants cost zero extra draw calls, jacaranda boulevards
+  that actually bloom lavender, flowers and ground cover at knee height, and lawns that read as
+  ground rather than green rectangles.
+- 104 to 111: real recorded CC0 sound instead of synthesized tones, and the CC0 audio sources
+  recorded in `docs/ASSETS.md`.
+- 100 to 103: palm fronds folded and swept forward; more colour on the streets;
+  `tools/fetch_polyhaven.py`.
 - 99: lane paint on the freeway decks (it was being built face-down and culled).
 - 98: traffic on the freeways, both carriageways, riding the deck's height profile.
 - 97: the horizon map's mountains match the terrain shader, so ranges have no tide-line.
@@ -263,52 +305,68 @@ pedestrian 44, each jet 30. `docs/ASSETS.md` has the table.
 
 ## 9. Known gaps and things nobody has verified
 
-- Nobody has seen the Forward+ (Mac) rendering of the sky, skyline haze, hills or estates. The
-  owner's feedback decides the tuning. Expect requests about brightness, cloud amount, sunset
-  length and night darkness (`DayNight` exports).
-- Ragdolls are still six boxes, not the character mesh.
-- Traffic drives only the city grid and the freeways; hill roads and the airport have none.
-  Parked cars do not spawn on hill roads. Pedestrians do not walk the campus quad paths or the hills.
+Rewritten 2026-09-21 at build 130.
+
+- **A human has still never confirmed what the Mac build looks like.** Build 128 made Forward+
+  screenshots possible from this container (`tools/glshot/forward_shot.sh`), which closes the
+  worst of the gap, but lavapipe is not a GPU and the owner's eyes are still the only real test.
+  Build 130's crowd fix is the cautionary tale: a whole subsystem had been broken on desktop only,
+  invisibly, because every screenshot taken of it for weeks was the web renderer.
+- **Characters are the weakest thing in the game and are blocked on a source.** Three rigs, 8,300
+  triangles, one 1024 texture each, no normal or roughness maps. Everything reachable in code -
+  arms, clothing colour, skin tone, height, gait, accessories - has now been done, twice. What is
+  left needs better models. Poly Haven's "rigged" category is articulated props (clocks, tools),
+  not humans. The owner would have to supply a Sketchfab API token
+  (sketchfab.com > Settings > Password and API).
 - **The surface street grid is still axis-aligned.** The freeways and the hill roads curve; the
-  streets between the blocks do not, and the owner has asked about it. `CityPlan.road_pos()` is
-  one scalar per axis and every consumer (blocks, lots, traffic lanes, the minimap) assumes
-  axis-aligned rects, so this is a rewrite of the city plan, not a tweak. Decide with the owner
-  before starting it.
+  streets between the blocks do not, and the owner has asked about it directly.
+  `CityPlan.road_pos()` is one scalar per axis and every consumer (blocks, lots, traffic lanes,
+  the minimap) assumes axis-aligned rects, so this is a rewrite of the city plan, not a tweak.
+  Decide with the owner before starting it - it is days of work and it moves every seed.
+- Ragdolls are one tumbling rigged body, not a simulated skeleton (PhysicalBoneSimulator3D).
+- Traffic drives the city grid and the freeways; hill roads and the airport aprons have none.
+  Parked cars do not spawn on hill roads. Pedestrians do not walk the campus quad or the hills.
 - Jet landing has not been exercised beyond the smoke test's takeoff. Gear is tiny and hidden
   under the model; the flight model is arcade and may need tuning (`aircraft.gd` exports).
 - The moon is the sun light re-aimed at night; the sky draws its disc where LIGHT0 points.
 - LOD terrain (6 subdivisions) vs FULL (14 or 28) can pop at the swap; hill road cut walls are
   steep where the road profile drops well below the raw terrain.
 - The web build carries all the models and runs slowly on weak machines; caps are lower there.
-- The Meshy API key the owner pasted in chat during this project should be rotated; the new one
-  goes in the Claude Code environment as `MESHY_API_KEY`.
+- The Meshy API key the owner pasted in chat during this project should be rotated. Meshy itself
+  is retired (owner, 2026-09-19), so nothing needs the new one.
 
 ## 10. Suggested next steps, in order of impact
 
-Rewritten 2026-09-20 after the graphics pass of builds 74 to 90. Most of the old list is done
-(weather, night lighting, headlights, shop signs, colour grading are all in).
+Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
+recorded as blocked above.
 
-1. **Ask the owner what the Mac build actually looks like.** Everything in this session was
-   judged on the Compatibility renderer under llvmpipe, which has no clearcoat and flat
-   lighting. Car paint in particular looks flat and untextured there and should look far better
-   on Forward+; that has not been confirmed by a human yet.
-2. **Wind on the bushes and hill scrub.** Palms and the trees' leaves sway
-   (`shaders/foliage.gdshader`, `foliage_tex.gdshader`); `model_shrub()`, `model_scrub()` and
-   the grass tufts on the hills are still dead still and would take the same treatment.
-3. **Shop names at a distance.** Each name is a TextMesh and they stop at 75 m. Rasterising the
+1. **The 90s cinematic colour grade.** The owner asked for it on 2026-09-21 and deferred it the
+   same minute ("we can explore that later tho"), so it is queued rather than started. The spec
+   is in `docs/GAME_PLAN.md` under "Owner requests queued" - read it before starting, because the
+   obvious implementation (crank saturation and contrast) is the wrong one. It is a post pass: a
+   Texture3D LUT built in code on the city Environment's `adjustment_color_correction`, so no
+   editor step and one switch to turn it off.
+2. **Judge everything on Forward+ from now on.** `tools/glshot/forward_shot.sh`. This is a
+   working practice, not a task, and it is first among them because the alternative has already
+   cost this project one entirely broken subsystem (see build 130).
+3. **The distance.** Beyond the streamed chunks the whole world is one plane wearing
+   `shaders/macro_ground.gdshader`, shaded from a 256 px bake - 55 metres per texel. In any shot
+   from the air, which is most of how the owner plays, it is dead flat grey-brown over a third of
+   the frame. Far buildings (`shaders/building_lod.gdshader`) are the same story: coloured boxes
+   with a window grid printed on them, no facade typology, no glazing specular, so a skyline has
+   no value contrast. Both are shader work on geometry that already exists.
+4. **Interiors.** Windows have traced fake rooms; doors and lobbies do not. A handful of enterable
+   ground-floor interiors would be the biggest single step left in making the city feel real, and
+   it is the one thing on this list that changes how the game plays rather than how it looks.
+5. **Traffic and parked cars on the hill roads**; pedestrians on the campus quad and the pier.
+6. **Wind on the bushes and hill scrub.** Palms and tree leaves sway
+   (`shaders/foliage.gdshader`, `foliage_tex.gdshader`); `model_shrub()`, `model_scrub()` and the
+   hill grass tufts are still dead still and would take the same treatment.
+7. **Shop names at a distance.** Each name is a TextMesh and they stop at 75 m. Rasterising the
    whole name list into one atlas at load and sampling it in the fascia branch of the building
    shader would put a name on every band at any distance, with no geometry at all.
-4. **Better characters.** Still blocked on a source: three rigs, 8,300 triangles, one 1024
-   texture each, no normal or roughness maps. The arms, clothing colours, skin tones, heights
-   and gait are all fixed in code now; what is left needs better models. The owner would have to
-   supply a Sketchfab API token (sketchfab.com > Settings > Password and API).
-5. **Real ragdolls from the character mesh** (PhysicalBoneSimulator3D on the rig) instead of the
-   single tumbling body.
-6. **Animation blending** for pedestrians (idle / walk / run, turning) and reactions to cars and
+8. **Animation blending** for pedestrians (idle / walk / run, turning) and reactions to cars and
    gunfire.
-7. **Traffic and parked cars on the hill roads**; pedestrians on the campus quad and the pier.
-8. **Interiors.** Windows have traced fake rooms; doors and lobbies do not. A handful of enterable
-   ground-floor interiors would be the next big step in making the city feel real.
 
 ## 11. Quick test script to give the owner after any push
 
