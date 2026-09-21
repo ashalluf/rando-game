@@ -315,7 +315,9 @@ func district_at(pos: Vector2) -> CityPlan.District:
 ## The name of the place at a world position, or "" when it has none and the district name
 ## should be used instead. Only the coast is named: that is where the towns are.
 func place_name(pos: Vector2) -> String:
-	if pos.distance_to(peninsula_center) < peninsula_radius:
+	# 0.85 rather than the full radius: the headland's low northern fringe is where the last
+	# beach town sits, and calling that Palos Verdes takes the town's name off its own pier.
+	if pos.distance_to(peninsula_center) < peninsula_radius * 0.85:
 		return "Palos Verdes"
 	if airport_rect.has_point(pos):
 		return ""

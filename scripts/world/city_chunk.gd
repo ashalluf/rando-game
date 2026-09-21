@@ -392,20 +392,88 @@ func _build_water() -> void:
 		_add_shape(box.size, Vector3(c.x, -0.6, c.y))
 
 
+## Sand steps along the shore, in metres. Short enough that the coastline's curve reads as a
+## curve: the shore bends by up to 180 m over its length, and at chunk size that came out as a
+## row of rectangles with the corners cut off each other.
+const SAND_STEP := 9.0
+## How far the sand runs out UNDER the water, and how far inland past the beach zone it reaches.
+## Both are overlaps on purpose - the wet strip has to start below the waterline or the waves
+## break onto an edge, and the inland lip has to pass under the first row of buildings or a
+## hairline of ground shows through between the sand and the town.
+const SAND_WET := 26.0
+const SAND_LIP := 22.0
+## Height of the sand at the waterline and at its inland edge. The slope between them is what
+## makes a beach look like a beach from the air rather than a flat sheet.
+const SAND_LOW := -0.55
+const SAND_HIGH := 0.42
+
+
+## The beach: a strip that follows the shoreline itself rather than a chunk-sized slab. The
+## coast is a curve, so slabs left visible rectangular seams and, where the curve ran out of a
+## chunk, gaps of bare ground between one beach and the next. This walks the chunk's Z range,
+## asks MacroMap where the water is at each step, and lays a continuous ramp from under the
+## waves up to the town.
 func _build_beach(block: Dictionary) -> void:
 	var rect: Rect2 = block.rect
-	var c := rect.get_center()
-	_add_slab(Vector3(c.x, 0.0, c.y), Vector3(rect.size.x, 0.4, rect.size.y), style.sand, false, PropFactory.pbr("sand", 5.0, Color(1.0, 0.95, 0.85)))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var macro: MacroMap = plan.macro
+	var steps := maxi(2, ceili(rect.size.y / SAND_STEP))
+	var quads := 0
+	var prev_lo := Vector3.ZERO
+	var prev_hi := Vector3.ZERO
+	for i in steps + 1:
+		var z: float = rect.position.y + rect.size.y * float(i) / steps
+		var water_x := rect.position.x
+		var inland_x := rect.end.x
+		if macro:
+			water_x = macro.coast_x(z)
+			inland_x = water_x + macro.beach_width + SAND_LIP
+		var lo := Vector3(water_x - SAND_WET, SAND_LOW, z)
+		var hi := Vector3(inland_x, SAND_HIGH, z)
+		if i > 0:
+			for v in [prev_lo, hi, prev_hi, prev_lo, lo, hi]:
+				st.add_vertex(v)
+			quads += 1
+		prev_lo = lo
+		prev_hi = hi
+	if quads > 0:
+		st.generate_normals()
+		st.generate_tangents()
+		var mesh := MeshInstance3D.new()
+		mesh.name = "Sand"
+		mesh.mesh = st.commit()
+		mesh.material_override = PropFactory.pbr("sand", 5.0, Color(1.0, 0.95, 0.85))
+		add_child(mesh)
 	if level != Level.FULL:
 		return
+	# One flat collider under the dry part. The ramp itself is thin geometry and the player only
+	# ever walks the dry sand, so a box is both cheaper and steadier than a mesh collider.
+	var c := rect.get_center()
+	var dry_centre := c.x
+	var dry_width := rect.size.x
+	if macro:
+		dry_centre = macro.coast_x(c.y) + macro.beach_width * 0.5
+		dry_width = macro.beach_width + SAND_LIP
+	_add_shape(Vector3(dry_width, 0.4, rect.size.y), Vector3(dry_centre, SAND_HIGH - 0.2, c.y))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
+	# Scattered across the DRY sand, which is a band that moves with the shoreline rather than
+	# the chunk's rectangle: dropping them in the rectangle put palms in the surf.
 	for i in rng.randi_range(6, 14):
-		var p := Vector2(rng.randf_range(rect.position.x + 4.0, rect.end.x - 4.0), rng.randf_range(rect.position.y + 4.0, rect.end.y - 4.0))
-		_add_palm(Vector3(p.x, 0.2, p.y), rng)
+		var z := rng.randf_range(rect.position.y + 4.0, rect.end.y - 4.0)
+		var x := _dry_sand_x(z, rng.randf_range(0.18, 0.95))
+		_add_palm(Vector3(x, SAND_HIGH - 0.2, z), rng)
 	if rng.randf() < 0.6:
-		var p := Vector2(rng.randf_range(rect.position.x + 8.0, rect.end.x - 8.0), rng.randf_range(rect.position.y + 8.0, rect.end.y - 8.0))
-		_add_lifeguard_tower(Vector3(p.x, 0.2, p.y), rng.randf_range(0.0, TAU))
+		var z := rng.randf_range(rect.position.y + 8.0, rect.end.y - 8.0)
+		_add_lifeguard_tower(Vector3(_dry_sand_x(z, rng.randf_range(0.1, 0.5)), SAND_HIGH - 0.2, z), rng.randf_range(0.0, TAU))
+
+
+## X of a point on the dry sand at Z, `across` running 0 at the waterline to 1 at the town.
+func _dry_sand_x(z: float, across: float) -> float:
+	if plan.macro == null:
+		return owned_rect().get_center().x
+	return plan.macro.coast_x(z) + plan.macro.beach_width * across
 
 
 ## One whole palm from PropFactory.palm(): trunk, crown, dead-frond skirt and coconuts in a

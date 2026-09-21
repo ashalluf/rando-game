@@ -36,6 +36,19 @@ static func all() -> Array[Dictionary]:
 		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
 		{"id": "cargo_ship", "anchor": Vector2(800.0, 1420.0), "radius": 100.0},
+		# The LA set. Anchors are placed the way the real chain runs: the boardwalk on the sand
+		# at Venice, a straight pier off Manhattan Beach, the timber horseshoe at Redondo where
+		# the coast meets the headland, the enclosed mall inland behind them, a corner coffee
+		# house on the Westside and a neighbourhood mosque in the city.
+		{"id": "venice_boardwalk", "anchor": Vector2(-949.0, -340.0), "radius": 230.0},
+		{"id": "manhattan_pier", "anchor": Vector2(-690.0, 1100.0), "radius": 210.0},
+		{"id": "redondo_pier", "anchor": Vector2(-765.0, 1450.0), "radius": 210.0},
+		# 215, not 150: the mall grades and paves a site 210 m out in X and 187 m to the south,
+		# and radius is what stops city lots being planted in it and keeps the relief flat
+		# under it. At 150 the west half of the parking structure had blocks growing through it.
+		{"id": "south_bay_mall", "anchor": Vector2(-250.0, 1250.0), "radius": 215.0},
+		{"id": "verde_cafe", "anchor": Vector2(-900.0, -430.0), "radius": 22.0},
+		{"id": "masjid_al_noor", "anchor": Vector2(-180.0, 120.0), "radius": 60.0},
 	]
 
 
@@ -77,6 +90,18 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			_build_hangars(lm.anchor, parent, statics, detailed)
 		"cargo_ship":
 			_build_cargo_ship(lm.anchor, parent, statics, detailed)
+		"venice_boardwalk":
+			LandmarkVeniceBoardwalk.build(lm.anchor, parent, statics, plan, detailed)
+		"manhattan_pier":
+			LandmarkBeachPiers.build_manhattan(lm.anchor, parent, statics, plan, detailed)
+		"redondo_pier":
+			LandmarkBeachPiers.build_redondo(lm.anchor, parent, statics, plan, detailed)
+		"south_bay_mall":
+			LandmarkSouthBayMall.build(lm.anchor, parent, statics, plan, detailed)
+		"verde_cafe":
+			LandmarkVerdeCafe.build(lm.anchor, parent, statics, plan, detailed)
+		"masjid_al_noor":
+			LandmarkMasjidAlNoor.build(lm.anchor, parent, statics, plan, detailed)
 
 
 # --- Hill sign ------------------------------------------------------------------------------
