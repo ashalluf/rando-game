@@ -1407,15 +1407,15 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator) -> void:
 	if _palm_street and rng.randf() < 0.8:
 		_add_palm(at, rng, false)
 		return
-	# A target HEIGHT in metres, not a raw multiplier. The models range from 2.6 m to 19.5 m tall,
-	# so one shared multiplier made some of them bushes and the jacaranda a 31 m tree.
-	var target_h := rng.randf_range(6.0, 10.5)
 	var yaw := rng.randf_range(0.0, TAU)
 	# Most trees on a block are its dominant species; the rest are whatever.
 	var variant := _tree_bias if (_tree_bias >= 0 and rng.randf() < 0.7) else rng.randi() % PropFactory.CITY_TREES.size()
 	if _jacaranda_street and rng.randf() < 0.85:
 		variant = PropFactory.CITY_TREES.size() - 1
-	var s := PropFactory.city_tree_scale(variant, target_h)
+	# A target HEIGHT in metres, from that species' own range. One shared range does not work:
+	# the models run from 2.6 m to 19.5 m native, and stretching one much past 1.5x leaves a
+	# sparse, skeletal canopy because its leaf cards were never built to fill that volume.
+	var s := PropFactory.city_tree_scale(variant, PropFactory.city_tree_height(variant, rng))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 	# Per-instance variety, read by shaders/foliage_tex.gdshader: leaf count, canopy proportion,
 	# leaf tone, and how far into bloom this one is. Five models become effectively unlimited

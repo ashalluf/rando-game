@@ -45,7 +45,7 @@ uniform float blossom_patch : hint_range(0.0, 1.0) = 0.52;
 varying vec4 inst;
 varying float thin_seed;
 // How much of the canopy the thinning can take at most, at x = 1.
-uniform float thin_max : hint_range(0.0, 0.8) = 0.45;
+uniform float thin_max : hint_range(0.0, 0.8) = 0.26;
 uniform float shape_amount : hint_range(0.0, 0.6) = 0.30;
 uniform float hue_amount : hint_range(0.0, 0.6) = 0.22;
 

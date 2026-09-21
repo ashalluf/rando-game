@@ -1009,6 +1009,29 @@ const HILL_TREES := ["tree_fir.glb", "tree_pine.glb", "tree_quiver.glb", "tree_s
 ## buildings it is supposed to line. Re-measure with the bbox if a model is ever replaced.
 const CITY_TREE_HEIGHT := [5.01, 3.40, 4.61, 2.61, 19.47]
 const HILL_TREE_HEIGHT := [14.33, 20.25, 2.72, 3.27]
+## Target height range in metres PER SPECIES, not one range shared by all of them. A model
+## stretched much past about 1.5x its native size goes sparse and skeletal - the leaf cards are
+## spread over a canopy they were never built to fill - so a small ornamental is kept small and
+## the jacaranda, which is scanned at 19.5 m, is brought DOWN to the 10-13 m a real one stands.
+## The variety in the street comes from the species being genuinely different sizes, which is how
+## a real street looks, rather than from stretching one model across the whole range.
+const CITY_TREE_TARGET := [
+	Vector2(4.5, 7.0), Vector2(3.2, 5.0), Vector2(4.2, 6.5), Vector2(2.6, 4.0), Vector2(9.0, 13.0),
+]
+const HILL_TREE_TARGET := [
+	Vector2(11.0, 17.0), Vector2(14.0, 22.0), Vector2(2.4, 4.0), Vector2(2.8, 4.6),
+]
+
+
+## A sensible random height in metres for one city tree species.
+static func city_tree_height(variant: int, rng: RandomNumberGenerator) -> float:
+	var r: Vector2 = CITY_TREE_TARGET[clampi(variant, 0, CITY_TREE_TARGET.size() - 1)]
+	return rng.randf_range(r.x, r.y)
+
+
+static func hill_tree_height(variant: int, rng: RandomNumberGenerator) -> float:
+	var r: Vector2 = HILL_TREE_TARGET[clampi(variant, 0, HILL_TREE_TARGET.size() - 1)]
+	return rng.randf_range(r.x, r.y)
 
 
 ## Uniform scale that makes city tree `variant` stand `target_m` metres tall.
