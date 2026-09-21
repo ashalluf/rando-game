@@ -27,9 +27,15 @@ The body shell is one structured quad grid, indexed by (f, g):
 Because the grid is structured and the feature tables choose where its lines fall, EVERY feature
 is the same operation on index ranges:
 
-  * a SHUT LINE is three grid lines ~3 mm apart with the middle one pushed 4.5 mm in. Under
-    subdivision, tight loop spacing = tight radius, so that is a real 7 mm panel gap with a crisp
-    edge and not a painted stripe.
+  * a SHUT LINE is FOUR grid lines - outer lip, floor, floor, outer lip - with the two middle
+    ones pushed 5 mm in, the floor faces between them given the dark TRIM slot, and all four
+    loops carrying a full EDGE CREASE. All three parts matter. The first version of this file
+    used three lines, no crease and no material change, and shipped a car with literally zero
+    visible panel gaps: Catmull-Clark averaged the 4.8 mm dip down to about 2 mm of soft ripple,
+    3 mm of it was sub-pixel at any distance a player sees a car from, and a reviewer measuring
+    the export found 90 concave sharp edges on 187,000 - all of them vent lips. The crease is
+    what keeps the walls vertical, the trim floor is what makes the gap a line you can see, and
+    5.6 mm of dark floor is the narrowest that survives a screen pixel.
   * an OPENING (intakes, grille, lamps, glass, deck louvres) is "delete the faces in this (f, g)
     rectangle, extrude the border inward twice, cap it". That gives a real mouth with visible
     inner walls. The cut loop carries an edge CREASE so the rim does not melt under subdivision.
@@ -51,6 +57,22 @@ swept from the deck; the splitter is a swept plate with upswept edges, fences an
 the diffuser is a curved expansion ramp with real strakes; the roof scoop is a duct with a rim
 and inner walls you can see down. They are built from foil/sweep/plate primitives, not boxes.
 
+And the WHEELS, which the first version of this file did not have AT ALL. Not a crude wheel -
+none: the only geometry wearing the `tyre` slot was the lining of the arch wells, which is how a
+reviewer came to measure "the wheel" as an out-of-round 0.83-0.90 m egg. It was measuring the
+arch. That matters beyond the render, because Vehicle._add_wheel() ends with
+`if _has_model: return  # the generated models have their own wheels` - a body model that does
+not carry wheels puts a car on the street with nothing under the arches. build_wheels() now
+makes four: a tyre with a bulged sidewall and rounded shoulders, an alloy with a flange lip and
+a barrel, ten dished spokes with gaps you can see through, a centre-lock nut, a cross-drilled
+vented disc with real holes bridged front to back, and a caliper. Every radius comes off TYRE_R,
+so the wheel is exactly 0.720 m and exactly round, and its contact patch is the lowest point of
+the whole model - which is also what stopped the splitter and skirts sitting 43 mm underground.
+
+WHEEL POSE, if this model is ever wired into Vehicle.BODY_MODELS: half-track 0.821 front /
+0.796 rear (the outer sidewall is at 0.972 either side), axles at y +/-1.350, hub height 0.360,
+tyre radius 0.360, section width 0.302 front and 0.352 rear.
+
 CONVENTIONS THE GAME DEPENDS ON
 -------------------------------
 Authored X = lateral, Y = longitudinal with the NOSE AT +Y, Z = up, ground at Z = 0. glTF's Y-up
@@ -62,7 +84,19 @@ the rear wing's trailing edge both land on |y| = 2.300: they are the two extreme
 box, so putting them at equal distances is what keeps the wheels centred in their own arches.
 
 Material slots are a contract: index 0 is "paint" and the game tints ONLY that slot. Nothing that
-is not bodywork may be merged into it.
+is not bodywork may be merged into it. The six are paint / glass / trim / tyre / light_front /
+light_rear and nothing else. `trim` carries a lot: lacquered carbon aero, intake interiors, the
+arch linings, the alloys, the brake iron and the floors of the shut lines - which is why it is a
+dark satin semi-metal rather than the dead matte black it started as, because an alloy wheel that
+never catches a highlight reads as painted plastic whatever shape it is.
+
+Everything is exported single-sided (glTF doubleSided=false): the shell is closed, and two-sided
+materials both waste fill rate and let you see interior backfaces through the intakes. Glass is
+alphaMode BLEND with transmission, not the opaque near-black slab it used to be - which is why
+build_interior() exists, because transparent glass over an empty shell shows you the road through
+the far door. And the mesh carries a UV set; without one, Godot's meshes/ensure_tangents=true
+invents tangents from nothing and every normal map, dirt map, livery or decal is broken before it
+starts.
 
 ORIGINALITY
 -----------
@@ -105,7 +139,7 @@ SLOTS = [
     # Trim is carbon fibre, dark anodised alloy and brake iron all at once. It used to be a dead
     # matte dielectric; a touch of metal and a tighter roughness is what lets a wheel rim read as
     # metal instead of as painted plastic, and carbon under lacquer is semi-gloss anyway.
-    ("trim",        (0.026, 0.026, 0.029), 0.32, 0.30, 1.0),
+    ("trim",        (0.038, 0.038, 0.043), 0.26, 0.48, 1.0),
     ("tyre",        (0.016, 0.016, 0.018), 0.00, 0.90, 1.0),
     ("light_front", (0.46, 0.50, 0.56), 0.10, 0.05, 1.0),
     ("light_rear",  (0.44, 0.030, 0.028), 0.00, 0.09, 1.0),
@@ -119,10 +153,10 @@ PAINT, GLASS, TRIM, TYRE, LIGHT_F, LIGHT_R = range(6)
 TYRE_R = 0.360           # wheel radius: a 0.720 m wheel, exactly the spec
 HUB_Z = TYRE_R           # wheel centre height, so the contact patch lands on z = 0
 AXLE = 1.350             # arch centres, symmetric about the bbox centre (wheelbase 2.70)
-ARCH_R = 0.408           # arch opening radius: 4.8 cm of gap over the 0.36 m tyre
+ARCH_R = 0.395           # arch opening radius: 3.5 cm of gap over the 0.36 m tyre
 RIM_R = 0.262            # alloy outer diameter 0.524 m - a 21 inch wheel under a 0.72 m tyre
 TYRE_W = (0.302, 0.352)  # tread width, front and rear. The rear is wider; it always is.
-TYRE_OUT = 0.934         # outer sidewall x. The arch lip is at ~1.00, so the tyre fills the arch
+TYRE_OUT = 0.972         # outer sidewall x. The arch lip is at ~1.00, so the tyre fills the arch
                          # instead of hiding under it, which is what "the wheels are buried" meant.
 NOSE_F = 2.150           # front-most loft station (the splitter reaches further)
 TAIL_F = -2.180          # rear-most loft station (the wing reaches further)
@@ -131,14 +165,14 @@ BBOX_F = 2.300           # splitter tip and wing trailing edge: the actual 4.60 
 # --- cage density ---------------------------------------------------------------------------
 # The feature lines below already put a lot of loops in; these only fill the gaps between them.
 # They are the two knobs for the triangle budget - see the count printed at the end.
-BASE_F_STEP = 0.950      # metres between filler stations
-BASE_H_STEP = 12.00       # section-parameter units between filler ring samples
-STATION_GAP = 0.052      # closest two FILLER stations may get, in metres
-RING_GAP = 0.90          # closest two FILLER ring lines may get, in parameter units
+BASE_F_STEP = 1.250      # metres between filler stations
+BASE_H_STEP = 16.00       # section-parameter units between filler ring samples
+STATION_GAP = 0.084      # closest two FILLER stations may get, in metres
+RING_GAP = 1.55          # closest two FILLER ring lines may get, in parameter units
 # Opening edges and section keys are structure, not filler, so they get their own (much smaller)
 # spacing floor - they have to land where the feature is, not where the grid happens to be.
-STRUCT_GAP_F = 0.026
-STRUCT_GAP_G = 0.42
+STRUCT_GAP_F = 0.056
+STRUCT_GAP_G = 0.74
 SUBDIV = 2               # Catmull-Clark levels on the shell. This is the whole point of the file.
 
 # --- shut lines ------------------------------------------------------------------------------
@@ -148,13 +182,17 @@ SUBDIV = 2               # Catmull-Clark levels on the shell. This is the whole 
 # Catmull-Clark keeps the walls vertical instead of relaxing the whole thing into a soft dimple.
 # That relaxation is why the previous pass shipped a car with literally zero visible panel gaps:
 # the geometry was there, subdivision averaged it down to a 2 mm ripple, and nothing showed.
-GROOVE_WO_F = 0.0042     # outer (skin) line offset from the seam centre, metres
-GROOVE_WI_F = 0.0016     # inner (floor) line offset from the seam centre, metres
+GROOVE_WO_F = 0.0062     # outer (skin) line offset from the seam centre, metres
+GROOVE_WI_F = 0.0028     # inner (floor) line offset from the seam centre, metres
 GROOVE_HOLD_F = 0.0135   # holding loop each side, so the surrounding panel stays flat
-GROOVE_WO_G = 0.088      # the same three, in section-parameter units (1 unit is about 50 mm)
-GROOVE_WI_G = 0.034
+GROOVE_WO_G = 0.128      # the same three, in section-parameter units (1 unit is about 65 mm)
+GROOVE_WI_G = 0.058
 GROOVE_HOLD_G = 0.270
-GROOVE_DEPTH = 0.0040    # how deep a panel gap cuts
+GROOVE_DEPTH = 0.0050    # how deep a panel gap cuts
+# A 3 mm gap on a 4.6 m car is a third of a pixel at any distance the player ever sees it from,
+# and a detail nobody can resolve is a detail that is not there. 5.6 mm of dark floor inside a
+# 12 mm slot is the smallest that survives a screen pixel, and at arm's length it still reads as
+# a panel gap rather than a painted stripe.
 GROOVE_CREASE = 1.0
 RIM_CREASE = 0.85        # crease on an opening's cut loop, instead of a holding loop each side
 
@@ -379,8 +417,12 @@ OPENINGS = [
          steps=[(0.013, 0.995), (0.135, 0.80)], mat=TRIM),
     dict(name="intake_fnt",  f=(2.020, 2.142), g=(8.6, 13.6), mirror=True,
          steps=[(0.012, 0.995), (0.115, 0.78)], mat=TRIM),
-    dict(name="lamp_front",  f=(1.800, 2.020), g=(14.2, 17.8), g2=(15.0, 18.6), mirror=True,
-         steps=[(0.010, 0.995), (0.060, 0.94)], mat=TRIM),
+    # Bigger than it was. 552 triangles over 0.05 m2 is a scratch, not a lamp unit, and from
+    # the front it read as a bright smear with no structure in it. The aperture now runs from
+    # just clear of the arch cut (f 1.745 + a margin) up onto the fascia, and it is deep
+    # enough to hold three projector barrels with reflector bowls behind a cover lens.
+    dict(name="lamp_front",  f=(1.775, 2.030), g=(12.9, 17.7), g2=(13.7, 18.5), mirror=True,
+         steps=[(0.010, 0.995), (0.072, 0.93)], mat=TRIM),
     # the outlet in the dished bonnet: hot air from the radiators leaves through the top, and a
     # bonnet with a hole in it is the cheapest way to say the nose is doing work
     dict(name="bonnet_vent", f=(1.440, 1.740), g=(29.4, 34.6),
@@ -1195,7 +1237,11 @@ def carve_arches(bm, nrm, fg, crease):
             k = ARCH_R / d.length
             v.co.y = fa + d.y * k
             v.co.z = HUB_Z + d.z * k
-        carve(bm, sel, nrm, [(0.018, 0.995), (0.225, 0.90)], TYRE, crease, RIM_CREASE)
+        # TRIM, not TYRE. The well lining is an inner wing, and while it wore the tyre slot
+        # it was the ONLY thing in the file wearing it - which is how a reviewer came to measure
+        # "the wheel" as a 0.83-0.90 m object that was 63 mm out of round. It was measuring the
+        # arch. With the lining on trim, `tyre` means the four tyres and nothing else.
+        carve(bm, sel, nrm, [(0.018, 0.995), (0.235, 0.90)], TRIM, crease, RIM_CREASE)
 
 
 def build_shell(body, mats):
@@ -1215,12 +1261,33 @@ def build_shell(body, mats):
 # =============================================================================================
 # Glass and lamp lenses
 # =============================================================================================
-def panel(body, bm, f_rng, g_rng, inset, mat, nu=26, nv=18, shrink=0.012, g_end=None):
+def panel(body, bm, f_rng, g_rng, inset, mat, nu=26, nv=18, shrink=0.012, g_end=None,
+          crown=0.0, frit=None):
     """A pane conformed to the skin and set `inset` below it, so glass sits in a frame instead of
-    lying flush on the body. `g_end` gives it the same taper as its aperture."""
+    lying flush on the body. `g_end` gives it the same taper as its aperture.
+
+    `crown` bulges the middle of the pane back out toward the skin. A windscreen is a doubly
+    curved shell; the first version of this panel simply followed the (locally almost flat) skin
+    and dropped five millimetres across half a metre, which is why it read as a grey quadrilateral
+    dropped into a rectangular hole.
+
+    `frit` = (rings, material, edge_depth) reproduces the black ceramic frit band every bonded
+    screen has: the outer `rings` of cells are given that material and lifted to `edge_depth`
+    below the skin, so the pane's edge climbs into its aperture and meets the bodywork in a
+    visible seal instead of floating at the bottom of a slot."""
     fa, fb = f_rng
     f0, f1 = fa, fb
     fa, fb = fa + (fb - fa) * shrink, fb - (fb - fa) * shrink
+    f_rings, f_mat, f_depth = frit if frit else (0, mat, inset)
+
+    def depth_at(i, j):
+        bump = math.sin(math.pi * i / nu) * math.sin(math.pi * j / nv)
+        core = inset - crown * bump
+        if not f_rings:
+            return core
+        d = min(i, nu - i, j, nv - j)
+        t = smoothstep(min(d / float(f_rings), 1.0))
+        return f_depth + (core - f_depth) * t
     grid = []
     for i in range(nu + 1):
         f = fa + (fb - fa) * i / nu
@@ -1236,12 +1303,13 @@ def panel(body, bm, f_rng, g_rng, inset, mat, nu=26, nv=18, shrink=0.012, g_end=
         for j in range(nv + 1):
             g = ga2 + span2 * j / nv
             p, n = body.surface(f, g)
-            row.append(bm.verts.new(p - n * inset))
+            row.append(bm.verts.new(p - n * depth_at(i, j)))
         grid.append(row)
     for i in range(nu):
         for j in range(nv):
             f = bm.faces.new((grid[i][j], grid[i + 1][j], grid[i + 1][j + 1], grid[i][j + 1]))
-            f.material_index = mat
+            d = min(i, nu - 1 - i, j, nv - 1 - j)
+            f.material_index = f_mat if (f_rings and d < f_rings) else mat
     return grid
 
 
@@ -1250,38 +1318,85 @@ def build_glass(body, mats):
     it belongs in. Negative shrink: the pane overhangs its hole, because a pane cut to the exact
     aperture leaves a sliver of dark frame showing at every edge, which reads as a gap."""
     bm = bmesh.new()
-    for name, inset, nu, nv in (("windscreen", 0.026, 22, 16), ("glass_side", 0.022, 16, 10)):
+    for name, inset, nu, nv, crown in (("windscreen", 0.030, 26, 20, 0.030),
+                                       ("glass_side", 0.024, 18, 12, 0.012)):
         op = OPEN_BY_NAME[name]
         for m in ([False, True] if op.get("mirror") else [False]):
             panel(body, bm, op["f"], op_range_at(op, 0.0, m), inset, GLASS, nu, nv,
-                  shrink=-0.010, g_end=op_range_at(op, 1.0, m) if "g2" in op else None)
+                  shrink=-0.010, g_end=op_range_at(op, 1.0, m) if "g2" in op else None,
+                  crown=crown, frit=(2, TRIM, 0.008))
     ob = new_object(PREFIX + "glass", bm, mats)
     bpy.context.view_layer.objects.active = ob
     solidify(ob, 0.006)
     return ob
 
 
-def build_lenses(body, mats):
-    """Lamp lenses down inside their recesses, with brighter blades in front of them. No
-    manufacturer's light signature: three plain elements front, one bar rear."""
+def build_interior(body, mats):
+    """A liner inside the greenhouse. It exists because the glass is transparent now: with a
+    backface-culled shell there is nothing behind a window but the road on the far side, and a
+    car you can see straight through is worse than one with black plastic windows. Sampling the
+    body's own surface 5.5 cm in gives a headliner that follows the roof and the pillars exactly
+    and costs a few hundred quads."""
     bm = bmesh.new()
-    for name, mat, inset, blades in (("lamp_front", LIGHT_F, 0.030, 3),
-                                     ("lamp_rear", LIGHT_R, 0.028, 1)):
+    panel(body, bm, (-0.560, 0.980), (17.0, 47.0), 0.055, TRIM, 22, 26, shrink=0.0)
+    return new_object(PREFIX + "interior", bm, mats)
+
+
+def cone(bm, base, axis, profile, mat, segs=16):
+    """An oriented tube: `profile` is [(distance along axis, radius), ...] from the base outward.
+    Used for the projector barrels and reflector bowls inside the lamps - the parts that make a
+    headlight a unit with depth rather than a bright rectangle painted at the bottom of a slot."""
+    ax = Vector(axis).normalized()
+    up = Vector((0.0, 0.0, 1.0)) if abs(ax.z) < 0.9 else Vector((1.0, 0.0, 0.0))
+    u = ax.cross(up).normalized()
+    v = ax.cross(u).normalized()
+    rings = [super_ring(bm, Vector(base) + ax * d, u, v, r, r, 2.0, segs) for (d, r) in profile]
+    loft_rings(bm, rings, mat)
+
+
+def build_lenses(body, mats):
+    """Lamp UNITS, not lamp lenses. The old pass put one flat coloured quad and three flat blades
+    at the bottom of each recess - 552 triangles of headlight over five hundred square
+    centimetres, which from the front is a bright smear with no structure in it. Each lamp now
+    has a dark housing plate, projector barrels with reflector bowls and domed lenses, a raised
+    signature blade, and a clear cover lens across the aperture, all built off the surface normal
+    so they sit square in the hole. No manufacturer's light signature: a plain three-element
+    front and a single full-width rear bar."""
+    bm = bmesh.new()
+    for name, mat, inset in (("lamp_front", LIGHT_F, 0.034), ("lamp_rear", LIGHT_R, 0.032)):
         op = OPEN_BY_NAME[name]
         fa, fb = op["f"]
+        front = name == "lamp_front"
         for m in (False, True):
             g0 = op_range_at(op, 0.0, m)
             g1 = op_range_at(op, 1.0, m) if "g2" in op else g0
-            panel(body, bm, op["f"], g0, inset, mat, 12, 7, shrink=0.05, g_end=g1)
 
             def lerp(r, u):
                 return r[0] + ((r[1] - r[0]) % 64.0) * u
-            for k in range(blades):
-                c = (k + 0.5) / blades
-                w = 0.30 / blades
-                panel(body, bm, (fa + (fb - fa) * 0.10, fb - (fb - fa) * 0.10),
-                      (lerp(g0, c - w), lerp(g0, c + w)), inset - 0.014, mat, 6, 3,
-                      shrink=0.02, g_end=(lerp(g1, c - w), lerp(g1, c + w)))
+            # dark backing plate right at the bottom of the recess
+            panel(body, bm, op["f"], g0, inset + 0.020, TRIM, 10, 6, shrink=0.02, g_end=g1)
+            # projectors: a reflector bowl opening forward with a domed lens in its mouth
+            nproj = 3 if front else 2
+            for k in range(nproj):
+                c = (k + 0.5) / nproj
+                gg0 = lerp(g0, c)
+                gg1 = lerp(g1, c)
+                ff = fa + (fb - fa) * 0.5
+                gg = gg0 + (gg1 - gg0) * 0.5
+                p, n = body.surface(ff, gg)
+                base = p - n * (inset + 0.018)
+                rr = 0.030 if front else 0.026
+                cone(bm, base, n, [(0.0, rr * 0.30), (0.008, rr * 0.86), (0.019, rr)],
+                     TRIM, 18)
+                cone(bm, base + n * 0.019, n, [(0.0, rr), (0.006, rr * 0.97),
+                                               (0.012, rr * 0.80), (0.015, rr * 0.42)], mat, 18)
+            # the signature blade, standing proud of the projectors
+            panel(body, bm, (fa + (fb - fa) * 0.08, fb - (fb - fa) * 0.08),
+                  (lerp(g0, 0.06), lerp(g0, 0.94)), inset - 0.012, mat, 10, 3,
+                  shrink=0.02, g_end=(lerp(g1, 0.06), lerp(g1, 0.94)))
+            # clear cover lens across the whole aperture, crowned so it catches a highlight
+            panel(body, bm, op["f"], g0, inset - 0.024, mat, 12, 7, shrink=0.0, g_end=g1,
+                  crown=0.010, frit=(1, TRIM, 0.004))
     return new_object(PREFIX + "lens", bm, mats)
 
 
@@ -1558,32 +1673,59 @@ def build_aero(body, mats):
     bm = bmesh.new()
 
     # ---- front splitter -------------------------------------------------------------------
-    # A swept plate that reaches BBOX_F at the centreline, sweeps back at the corners and turns
-    # its outer edges up. Flat rectangles read as a skateboard bolted to the nose.
+    # The rear half-width used to be a flat 0.885, but the body at that station is only about
+    # 0.62 across the floor pan, so the plate stuck out a QUARTER OF A METRE either side and
+    # rendered as a white shelf bolted under the nose - the single loudest wrong thing in the
+    # last render. A splitter is a lip: it follows the car's own lower edge with a constant
+    # overhang and only becomes a blade where it runs out ahead of the fascia.
+    OVERHANG = 0.052
+
+    def splitter_half(y):
+        base = abs(body.pos(min(y, NOSE_F - 0.004), 5.2).x) + OVERHANG
+        t = smoothstep(min(max((y - 1.955) / 0.330, 0.0), 1.0))
+        return base + (0.408 - base) * t
+
     def splitter(u, v):
         s = 2.0 * u - 1.0
         a = abs(s)
-        half = 0.470 + 0.415 * (1.0 - v) ** 0.80
-        y_fr = BBOX_F - 0.235 * a ** 1.6
-        y_bk = 1.690 + 0.070 * a
+        y_fr = BBOX_F - 0.0010 - 0.250 * a ** 1.7   # the bevel is what reaches BBOX_F
+        y_bk = 1.606 + 0.062 * a
         y = y_bk + (y_fr - y_bk) * v
-        z = 0.070 + 0.050 * a ** 2.4 + 0.014 * (1.0 - v) ** 1.5
-        return Vector((s * half, y, z))
-    bm_plate(bm, 30, 10, splitter, 0.021, TRIM)
+        # Upswept outer edges and a raised leading lip, so it catches light as a curved blade
+        # rather than as one flat facet aimed at the sky.
+        z = 0.074 + 0.052 * a ** 1.7 + 0.018 * (1.0 - v) ** 1.4 + 0.014 * v ** 3.0
+        return Vector((s * splitter_half(y), y, z))
+    bm_plate(bm, 30, 12, splitter, 0.020, TRIM)
 
-    # splitter fences underneath, and a pair of turning vanes each side
+    # Splitter fences. They used to be three loose boxes hanging in space under the nose and
+    # they read exactly like that. Each is now a swept plate whose TOP edge lies on the splitter
+    # surface itself and whose bottom edge is a raked curve, so it grows out of the plate instead
+    # of being parked near it, and its ends are chamfered rather than square.
     for sgn in (-1.0, 1.0):
-        for (px, ln, yc) in ((0.270, 0.28, 2.030), (0.470, 0.25, 1.975), (0.660, 0.20, 1.905)):
-            bm_box(bm, (sgn * px, yc, 0.062), (0.012, ln, 0.036), TRIM)
+        for (px, y0, y1, drop) in ((0.244, 1.900, 2.168, 0.050),
+                                   (0.408, 1.858, 2.096, 0.044),
+                                   (0.556, 1.812, 2.004, 0.036)):
+            def fence(u, v, sgn=sgn, px=px, y0=y0, y1=y1, drop=drop):
+                y = y0 + (y1 - y0) * v
+                a = px / 0.72
+                top = 0.0745 + 0.052 * a ** 1.7
+                taper = math.sin(math.pi * min(max(v, 0.02), 0.98)) ** 0.45
+                return Vector((sgn * (px + 0.006 * u), y, top - (drop * taper + 0.004) * u))
+            bm_plate(bm, 4, 9, fence, 0.011, TRIM, thick_dir=(1.0, 0.0, 0.0))
     # ---- dive planes (canards) on the front corners ----------------------------------------
+    # They used to be two flat rectangles standing off the corner, ends square, and they read as
+    # loose plates parked next to the car. Now the root is buried 4 cm inside the skin, the chord
+    # tapers to the tip, the planform sweeps back and the tip lifts - so each one is a wing
+    # growing out of the wing, which is what a dive plane is.
     for sgn in (-1.0, 1.0):
-        for (zc, sp, ch, ang) in ((0.386, 0.112, 0.168, -0.30), (0.512, 0.094, 0.142, -0.24)):
+        for (zc, sp, ch, ang) in ((0.372, 0.190, 0.196, -0.34), (0.502, 0.166, 0.162, -0.27)):
             def canard(u, v, sgn=sgn, zc=zc, sp=sp, ch=ch, ang=ang):
-                x = sgn * (0.846 + (sp + 0.056) * u)
-                y = 2.006 - ch * v - 0.050 * u
-                z = zc + math.sin(ang) * (ch * v) + 0.040 * u * u
+                chord = ch * (1.0 - 0.42 * u * u)
+                x = sgn * (0.798 + sp * u)
+                y = 2.018 - 0.104 * u ** 1.7 - chord * v
+                z = zc + math.sin(ang) * (chord * v) + 0.052 * u ** 2.2
                 return Vector((x, y, z))
-            bm_plate(bm, 8, 10, canard, 0.010, TRIM)
+            bm_plate(bm, 9, 10, canard, 0.011, TRIM)
 
     # ---- rear diffuser ---------------------------------------------------------------------
     DIF_Y0, DIF_Y1 = -1.480, -2.240
@@ -1612,19 +1754,39 @@ def build_aero(body, mats):
     # up. The trailing edge lands on BBOX_F so the wing is the rear extreme of the bounding box
     # and the splitter tip is the front one - that symmetry is what keeps the game's single
     # wheel_z centred in both arches.
-    WING_LE_Y, WING_LE_Z = -1.967, 1.068
-    WING_AOA = math.radians(12.0)
-    WING_SPAN, WING_N = 1.000, 20
+    # PLANFORM, not a plank. The first pass tapered the chord by twelve per cent over the span
+    # and from behind it read as a broomstick across the tail. This one holds the trailing edge
+    # dead straight on BBOX_F (which is also what keeps the bounding box symmetric) and sweeps
+    # the LEADING edge back, so the chord goes 0.392 at the root to 0.214 at the tip - a 45 per
+    # cent taper, a visible planform, and a wing you can tell is a wing in silhouette. The
+    # section changes with it: thicker and more cambered at the root, thin and flat at the tip,
+    # with two degrees of washout. A constant section is the other half of "plank".
+    WING_TE_Y, WING_LE_Z = BBOX_F * -1.0, 1.062
+    WING_SPAN, WING_N = 0.952, 22
+
+    def wing_geom(x):
+        a = abs(x) / WING_SPAN
+        chord = 0.392 - 0.178 * a ** 1.35
+        aoa = math.radians(12.5 - 2.0 * a * a)
+        le_z = WING_LE_Z + 0.046 * a ** 2.8            # tips curled up
+        le_y = WING_TE_Y + chord * math.cos(aoa)
+        return chord, aoa, le_y, le_z
 
     def wing_ring(x):
         a = abs(x) / WING_SPAN
-        chord = 0.340 - 0.040 * a ** 1.8
-        le_y = WING_LE_Y - 0.026 * a ** 1.6
-        le_z = WING_LE_Z + 0.028 * a ** 2.6
+        chord, aoa, le_y, le_z = wing_geom(x)
         return foil_ring(bm, Vector((x, le_y, le_z)), (0.0, -1.0, 0.0), (0.0, 0.0, 1.0),
-                         chord, 0.112, -0.052, WING_AOA, n=15)
+                         chord, 0.135 - 0.038 * a, -0.062 + 0.020 * a, aoa, n=15)
     rings = [wing_ring(-WING_SPAN + 2.0 * WING_SPAN * k / WING_N) for k in range(WING_N + 1)]
     loft_rings(bm, rings, TRIM)
+    # Gurney flap: a 14 mm lip standing up off the trailing edge, right across the span. It is
+    # the one detail that says "this wing was designed by somebody" rather than extruded.
+    def gurney(u, v, sp=WING_SPAN):
+        x = -sp + 2.0 * sp * u
+        chord, aoa, le_y, le_z = wing_geom(x)
+        te_z = le_z + chord * math.sin(aoa) - 0.062 * chord * 0.0
+        return Vector((x, WING_TE_Y + 0.004 * v, te_z + 0.016 * v))
+    bm_plate(bm, 22, 3, gurney, 0.009, TRIM, thick_dir=(0.0, -1.0, 0.0))
 
     # ---- endplates ---------------------------------------------------------------------------
     # u runs leading edge -> trailing edge, v bottom -> top. The outline is raked down at the
@@ -1632,18 +1794,18 @@ def build_aero(body, mats):
     # a grey slab bolted to the tail.
     for sgn in (-1.0, 1.0):
         def plate(u, v, sgn=sgn):
-            y = -1.845 - 0.455 * u
-            lo = 0.992 + 0.082 * smoothstep(min(u * 1.7, 1.0))
-            hi = 1.112 + 0.084 * smoothstep(min(u * 1.3, 1.0))
-            return Vector((sgn * (1.006 + 0.026 * u * (1.0 - u)), y, lo + (hi - lo) * v))
-        bm_plate(bm, 16, 8, plate, 0.014, TRIM, thick_dir=(1.0, 0.0, 0.0))
+            y = -2.012 - 0.288 * u
+            lo = 1.034 + 0.046 * smoothstep(min(u * 1.8, 1.0))
+            hi = 1.156 + 0.070 * smoothstep(min(u * 1.2, 1.0))
+            return Vector((sgn * (0.956 + 0.022 * u * (1.0 - u)), y, lo + (hi - lo) * v))
+        bm_plate(bm, 14, 8, plate, 0.013, TRIM, thick_dir=(1.0, 0.0, 0.0))
 
     # ---- swan-neck struts --------------------------------------------------------------------
     # They arch over the leading edge and come down onto the wing's UPPER surface, which is what
     # a swan neck is: the low-pressure side stays clean. Each is a blade swept along a Bezier.
     for sgn in (-1.0, 1.0):
-        P = [Vector((0.0, -1.790, 0.930)), Vector((0.0, -2.150, 1.020)),
-             Vector((0.0, -2.225, 1.222)), Vector((0.0, -2.075, 1.118))]
+        P = [Vector((0.0, -1.800, 0.926)), Vector((0.0, -2.170, 1.010)),
+             Vector((0.0, -2.250, 1.218)), Vector((0.0, -2.078, 1.104))]
         steps = 13
         srings = []
         for k in range(steps + 1):
@@ -1684,10 +1846,10 @@ def build_aero(body, mats):
 # with a flange lip and a barrel, ten dished spokes with gaps you can see the brake through, a
 # centre-lock nut, a cross-drilled vented disc with real holes through it, and a caliper. Every
 # radius comes off TYRE_R, so the thing is exactly 0.720 m across and exactly round.
-WHEEL_SEG = 56           # segments round the tyre: a 40 mm facet before subdivision, smooth-shaded
+WHEEL_SEG = 48           # segments round the tyre: a 40 mm facet before subdivision, smooth-shaded
 SPOKES = 10
 DISC_R = 0.246           # brake disc: fills the alloy, which is what a hypercar's brakes do
-DISC_SEG = 40
+DISC_SEG = 32
 
 
 def lathe(bm, centre, axis_x, profile, mat, segs=WHEEL_SEG, closed=True):
@@ -1781,20 +1943,21 @@ def build_wheel(bm, side, front, mats_unused=None):
     cy = AXLE if front else -AXLE
     cz = HUB_Z
     axis = side                                # +1 points outboard
-    bead = RIM_R + 0.004
+    bead = RIM_R - 0.010
     hb = hw * 0.80
     # --- tyre: bead -> sidewall bulge -> shoulder -> tread -> and back, then a closing wall
     prof = [(hb, RIM_R - 0.014), (hb, bead), (hw * 1.00, 0.288), (hw * 1.045, 0.316),
-            (hw * 0.995, 0.3455), (hw * 0.915, TYRE_R - 0.005), (hw * 0.78, TYRE_R),
-            (0.0, TYRE_R + 0.0015), (-hw * 0.78, TYRE_R), (-hw * 0.915, TYRE_R - 0.005),
+            (hw * 0.995, 0.3455), (hw * 0.915, TYRE_R - 0.0062), (hw * 0.78, TYRE_R - 0.0016),
+            (0.0, TYRE_R), (-hw * 0.78, TYRE_R - 0.0016), (-hw * 0.915, TYRE_R - 0.0062),
             (-hw * 0.995, 0.3455), (-hw * 1.045, 0.316), (-hw * 1.00, 0.288),
             (-hb, bead), (-hb, RIM_R - 0.014)]
     lathe(bm, (cx, cy, cz), axis, prof, TYRE, closed=True)
     # --- alloy: outer flange lip, barrel, inner flange. One closed lathe.
-    rim = [(hb * 1.02, RIM_R - 0.016), (hb * 1.02, RIM_R), (hb * 0.94, RIM_R + 0.004),
-           (hb * 0.86, RIM_R - 0.006), (hb * 0.40, RIM_R - 0.030), (-hb * 0.30, RIM_R - 0.034),
-           (-hb * 0.86, RIM_R - 0.008), (-hb * 0.96, RIM_R + 0.002), (-hb * 1.02, RIM_R),
-           (-hb * 1.02, RIM_R - 0.016)]
+    rim = [(hb * 1.10, RIM_R - 0.022), (hb * 1.12, RIM_R - 0.004), (hb * 1.10, RIM_R + 0.010),
+           (hb * 0.98, RIM_R + 0.012), (hb * 0.88, RIM_R - 0.004), (hb * 0.40, RIM_R - 0.030),
+           (-hb * 0.30, RIM_R - 0.034), (-hb * 0.88, RIM_R - 0.006),
+           (-hb * 1.02, RIM_R + 0.008), (-hb * 1.10, RIM_R - 0.004),
+           (-hb * 1.10, RIM_R - 0.022)]
     lathe(bm, (cx, cy, cz), axis, rim, TRIM, closed=True)
     # --- spokes. Dished: the hub end sits 6 cm inboard of the rim end, which is what makes a
     #     wheel look like a wheel from three-quarters instead of like a printed disc.
@@ -1804,19 +1967,19 @@ def build_wheel(bm, side, front, mats_unused=None):
     for s in range(SPOKES):
         a0 = 2.0 * math.pi * (s + 0.5) / SPOKES
         rings = []
-        nr = 6
+        nr = 5
         for i in range(nr + 1):
             t = i / nr
             r = r0 + (r1 - r0) * t
             a = a0 + 0.13 * (1.0 - t) ** 1.3           # a little sweep, so it is not a spoke wheel
             x = x_hub + (x_rim - x_hub) * (t ** 0.75)
-            hu = 0.030 + 0.030 * t ** 1.4              # tangential half width, widening outward
-            hv = 0.019 - 0.008 * t                     # axial half thickness, thinning outward
+            hu = 0.019 + 0.020 * t ** 1.5              # tangential half width, widening outward
+            hv = 0.021 - 0.009 * t                     # axial half thickness, thinning outward
             ca, sa = math.cos(a), math.sin(a)
             tang = Vector((0.0, -sa, ca))              # tangential in the wheel plane
             axl = Vector((1.0, 0.0, 0.0))
             rings.append(super_ring(bm, (cx + axis * x, cy + ca * r, cz + sa * r),
-                                    tang, axl, hu, hv, 3.2, 12))
+                                    tang, axl, hu, hv, 3.2, 10))
         loft_rings(bm, rings, TRIM)
     # --- hub face and centre-lock nut
     lathe(bm, (cx, cy, cz), axis, [(x_hub - 0.004, 0.030), (x_hub + 0.020, 0.040),
@@ -1826,12 +1989,12 @@ def build_wheel(bm, side, front, mats_unused=None):
                                    (x_hub + 0.030, 0.038), (x_hub + 0.006, 0.038),
                                    (x_hub + 0.006, 0.004)], TRIM, segs=6, closed=True)
     # --- brake disc and caliper, behind the spokes
-    brake_disc(bm, (cx - axis * 0.046, cy, cz), axis, TRIM)
+    brake_disc(bm, (cx - axis * 0.018, cy, cz), axis, TRIM)
     a_cal = math.radians(118.0 if front else 62.0)
     def caliper(u, v, a_cal=a_cal, cx=cx, cy=cy, cz=cz, axis=axis):
         a = a_cal + (v - 0.5) * 1.05
-        r = 0.176 + 0.096 * u
-        return Vector((cx - axis * 0.046 + 0.040, cy + math.cos(a) * r, cz + math.sin(a) * r))
+        r = 0.176 + 0.090 * u
+        return Vector((cx - axis * 0.018 + 0.040, cy + math.cos(a) * r, cz + math.sin(a) * r))
     bm_plate(bm, 5, 10, caliper, 0.080, TRIM, thick_dir=(1.0 * axis, 0.0, 0.0))
 
 
@@ -1918,7 +2081,7 @@ def build_details(body, mats):
     # --- mirrors on proper stalks, anchored on the skin at the door top -------------------
     for sgn in (-1.0, 1.0):
         root, _ = on(0.840, 20.4 if sgn > 0 else 43.6, 0.006)
-        tip = Vector((sgn * 1.036, root.y - 0.046, root.z + 0.050))
+        tip = Vector((sgn * 0.998, root.y - 0.046, root.z + 0.052))
         mid = root * 0.42 + tip * 0.58
         # A round blob on a hairline arm read as an egg floating over the wing. A real door
         # mirror is a flattened shell on a visible strut, so: a chunky tapered stalk and a
@@ -1949,8 +2112,9 @@ def build_details(body, mats):
     #     Bigger and further proud than the first pass, where they read as two drawn-on rings.
     for sgn in (-1.0, 1.0):
         for dx in (-0.082, 0.082):
-            bm_tube(bm, (sgn * 0.250 + dx, -2.116, 0.512), 0.062, 0.047, 0.215, TRIM, 18)
-            bm_tube(bm, (sgn * 0.250 + dx, -2.150, 0.512), 0.072, 0.064, 0.058, TRIM, 18)
+            bm_tube(bm, (sgn * 0.250 + dx, -2.150, 0.508), 0.064, 0.048, 0.260, TRIM, 20)
+            bm_tube(bm, (sgn * 0.250 + dx, -2.258, 0.508), 0.076, 0.062, 0.030, TRIM, 20)
+            bm_tube(bm, (sgn * 0.250 + dx, -2.272, 0.508), 0.070, 0.050, 0.016, TRIM, 20)
 
     # --- rear light bar. The tail is a Kamm cut, and a flat red panel with two slashes at the
     #     corners is what it looked like without this: one lit band across the whole width is
@@ -1989,18 +2153,43 @@ def build():
     mats = make_materials()
     body = Body(Loft(KEYS))
     shell, nS, nR, cage = build_shell(body, mats)
-    parts = [shell, build_glass(body, mats), build_lenses(body, mats),
-             build_scoop(body, mats), build_aero(body, mats), build_details(body, mats),
+    scoop = build_scoop(body, mats)
+    aero = build_aero(body, mats)
+    parts = [shell, build_glass(body, mats), build_interior(body, mats),
+             build_lenses(body, mats), scoop, aero, build_details(body, mats),
              build_wheels(mats)]
-    for p in parts[3:5]:
+    for p in (scoop, aero):
         bmesh_recalc(p)
-    bevel(parts[4], 0.0040, segments=2, angle=30.0)
+    bevel(aero, 0.0040, segments=2, angle=30.0)
     ob = join(parts)
     ob.name = PREFIX + "coupe"
     ob.data.name = ob.name
     shade(ob)
+    body_uv(ob)
     print("  cage %d quads, %d stations x %d ring, subdiv %d" % (cage, nS, nR, SUBDIV))
     return ob
+
+
+def body_uv(ob, v_scale=0.21, axis_z=0.46):
+    """A UV set. The old file exported POSITION and NORMAL only, so Godot's
+    meshes/ensure_tangents=true fabricated tangents from nothing and any normal map, dirt map,
+    livery or decal on this body was broken before it started.
+
+    Cylindrical about the car's own long axis: u is the angle round the section, v is the
+    distance along the car. Two reasons it is not the obvious per-face triplanar box projection:
+    a car body IS a tube, so this is close to how one is really unwrapped; and because the UV
+    depends only on the VERTEX position, every loop of a vertex gets the same UV and the
+    exporter splits nothing. A per-face projection flips its axis all over a curved panel and
+    would have shipped a mesh with thousands of UV seams in the middle of the bodywork."""
+    me = ob.data
+    uvl = me.uv_layers.new(name="UVMap")
+    co = [v.co for v in me.vertices]
+    loops = me.loops
+    data = uvl.data
+    inv = 1.0 / (2.0 * math.pi)
+    uvs = [(math.atan2(p[0], p[2] - axis_z) * inv + 0.5, p[1] * v_scale + 0.5) for p in co]
+    for li in range(len(loops)):
+        data[li].uv = uvs[loops[li].vertex_index]
 
 
 def export(ob, name):
@@ -2011,7 +2200,7 @@ def export(ob, name):
     bpy.ops.export_scene.gltf(
         filepath=path, export_format='GLB', use_selection=True,
         export_apply=True, export_materials='EXPORT', export_yup=True,
-        export_normals=True, export_texcoords=False, export_tangents=False,
+        export_normals=True, export_texcoords=True, export_tangents=False,
         export_skins=False, export_animations=False, export_cameras=False,
         export_lights=False,
     )
