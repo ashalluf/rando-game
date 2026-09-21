@@ -90,6 +90,20 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | shrub_02 (4 variants) | `prop_shrub.glb` | 7k each | sidewalk and park bushes, hill shrubs | 2026-09-19 |
 | water_manhole_cover | `prop_manhole.glb` | 6k | manhole covers in the lanes | 2026-09-19 |
 | concrete_road_barrier_02 | `prop_barrier_b.glb` | 24k | tall barrier variant, industrial clutter | 2026-09-19 |
+| Gunshots (kurt) | https://opengameart.org/content/gunshots | CC0 1.0 | `assets/audio/shot_0..2` | 2026-09-21 |
+| Chunky Explosion (Joth) | https://opengameart.org/content/chunky-explosion | CC0 1.0 | `assets/audio/explosion_0` | 2026-09-21 |
+| Explosion (TinyWorlds) | https://opengameart.org/content/explosion-0 | CC0 1.0 | `assets/audio/explosion_1` | 2026-09-21 |
+| Rocket Engine (theMinesAreShakin) | https://opengameart.org/content/rocket-engine | CC0 1.0 | `assets/audio/rocket_0, boost_loop_0` | 2026-09-21 |
+| 75 CC0 breaking/falling/hit SFX (rubberduck) | https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx | CC0 1.0 | `assets/audio/break_0..2, glass_0..2` | 2026-09-21 |
+| Crash collision (qubodup) | https://opengameart.org/content/crash-collision | CC0 1.0 | `assets/audio/crash_0` | 2026-09-21 |
+| Impact Sounds (Kenney) | https://kenney.nl/assets/impact-sounds | CC0 1.0 | `assets/audio/crash_1..2` | 2026-09-21 |
+| 37 hits/punches (qubodup) | https://opengameart.org/content/37-hitspunches | CC0 1.0 | `assets/audio/land_0..1, thud_0..1` | 2026-09-21 |
+| Fantozzi's Footsteps (qubodup) | https://opengameart.org/content/fantozzis-footsteps-grasssand-stone | CC0 1.0 | `assets/audio/footstep_0..5` | 2026-09-21 |
+| Car sound effects pack (GGBotNet) | https://opengameart.org/content/car-sound-effects-pack-low-quality | CC0 1.0 | `assets/audio/horn_0, engine_loop_0` | 2026-09-21 |
+| Rain loop (Kresiek The Furry) | https://opengameart.org/content/amb-rain-loop-1 | CC0 1.0 | `assets/audio/rain_0` | 2026-09-21 |
+| Mild wind background noise (Bashar3A) | https://opengameart.org/content/mild-wind-background-noise | CC0 1.0 | `assets/audio/wind_0` | 2026-09-21 |
+| High traffic road sounds (IgnasD) | https://opengameart.org/content/high-traffic-road-sounds | CC0 1.0 | `assets/audio/ambience_city_0` | 2026-09-21 |
+| Rain long thunder (WuxiaScrub) | https://opengameart.org/content/rain-long-thunder | CC0 1.0 | `assets/audio/thunder_0` | 2026-09-21 |
 | jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
 | island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
 | fir_tree_01 | `tree_fir.glb` | 54k tris, 5.2 MB | hill conifers | 2026-09-21 |
