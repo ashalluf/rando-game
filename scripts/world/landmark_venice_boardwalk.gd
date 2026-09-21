@@ -40,11 +40,16 @@ extends RefCounted
 ##
 ## Muscle Beach and the bowl are where the triangles went, as asked.
 ##
-## Triangles, measured by walking the built tree at two anchors: 37,800 - 38,900 detailed
-## (about 880 nodes and 220 collision shapes) and about 2,700 far (40 nodes, no collision). The big line items detailed are the palms
-## (three MultiMeshes), the weights area, the shop strip, the bowl and snake run, the walk and
-## its inlay, the stalls and the two courts. PALM_FRONDS, PALM_SPACING, BOWL_SEGMENTS and
+## Triangles, measured by walking the built tree: about 48,400 detailed (700 nodes and 226
+## collision shapes) and 4,100 far (49 nodes, no collision). For scale, the mall is 44,000 over
+## a 215 m radius and the beach chunk next door spends 150,000 - 350,000 on its palms alone.
+## The big line items detailed are the palms (about 16,000 across four MultiMeshes), the
+## weights area, the shop strip, the bowl and snake run, the walk and its inlay, the stalls and
+## the two courts. PALM_FRONDS, PALM_SPACING, SKIRT_BLADES, BOWL_SEGMENTS and
 ## COURT_ARC_SEGMENTS are the dials that move it most.
+##
+## The footprint reaches 220 m from the anchor (the inland corner of the shop strip), inside
+## the 230 m radius `Landmarks.all()` declares for it.
 ##
 ## Names: Venice is geography, which is fine. Every business here is invented - the shop signs
 ## are abstract colour blocks with no letters at all, the art wall reads ONWARD and the weights
@@ -282,8 +287,8 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	batch.build(parent)
 
 
-## The far copy: one long slab, half the palms with four fronds each, and the shop boxes.
-## About 2,600 triangles.
+## The far copy: the walk slab in eight pieces, half the palms with four fronds and no dead
+## skirt, and the shop boxes. About 4,100 triangles.
 static func _far(anchor: Vector2, parent: Node3D, plan: CityPlan, batch: MultiMeshBatch) -> void:
 	# Pieces, not one 400 m box: the walk follows the coast now, and a single straight slab
 	# would be forty metres off it at the ends.
@@ -353,12 +358,20 @@ static func _palm_rows(anchor: Vector2, parent: Node3D, plan: CityPlan, batch: M
 			var yaw := rng.randf_range(0.0, TAU)
 			var lean := rng.randf_range(-0.05, 0.05)
 			var jitter := rng.randf_range(-0.8, 0.8)
+			# Each palm's own crown detail draws from its own stream. Sharing the row's stream
+			# means the far copy - fewer fronds, no skirt, every other palm skipped - leaves it
+			# somewhere else, and every palm after the first comes out a different height and a
+			# metre down the row from its detailed twin. The swap is visible: the streamer
+			# hides the far copy the moment the chunk builds the detailed one.
+			var detail_seed := rng.randi()
 			if not detailed and i % 2 == 1:
 				continue
 			var z := -LENGTH * 0.5 + (float(i) + 0.5 + float(row) * 0.5) * PALM_SPACING + jitter
 			if absf(z) > LENGTH * 0.5:
 				continue
-			_palm(batch, _at(anchor, plan, x, z, 0.0), h, yaw, lean, fronds, trunk, crown, frond, skirt, rng)
+			var prng := RandomNumberGenerator.new()
+			prng.seed = detail_seed
+			_palm(batch, _at(anchor, plan, x, z, 0.0), h, yaw, lean, fronds, trunk, crown, frond, skirt, prng)
 
 
 ## One palm: a tapered 7-sided trunk, a crown, a ring of two-piece fronds that leave the crown

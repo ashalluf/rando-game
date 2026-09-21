@@ -474,6 +474,26 @@ static func _dome_shell(statics: StaticBody3D, centre: Vector3, radius: float) -
 			_shell_shape(statics, Vector3(maxf(w, 0.4), h, DOME_SHELL_T), at, th, phi)
 
 
+## A true hemisphere. Landmarks._dome() passes height = radius * 2 with is_hemisphere set, and
+## in Godot that height is the whole rise of the half-dome, so what comes back is a bullet twice
+## as tall as a dome of that radius: a 9.4 m dome standing 18.8 m, and every finial placed at
+## springing + radius buried half way inside it. Every dome here wants the real thing.
+## 16 x 8 segments, 288 triangles.
+static func _hemi(parent: Node3D, radius: float, pos: Vector3, mat: Material) -> MeshInstance3D:
+	var mesh := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = radius
+	sphere.height = radius
+	sphere.is_hemisphere = true
+	sphere.radial_segments = 16
+	sphere.rings = 8
+	mesh.mesh = sphere
+	mesh.material_override = mat
+	mesh.position = pos
+	parent.add_child(mesh)
+	return mesh
+
+
 ## A small sphere for finial knops. 8 x 4 segments, 64 triangles.
 static func _ball(parent: Node3D, radius: float, pos: Vector3, mat: Material) -> void:
 	var mesh := MeshInstance3D.new()
@@ -705,16 +725,14 @@ static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
 	_box(parent, statics, Vector3(TRANS_HALF * 2.0, TRANS_H, TRANS_HALF * 2.0), base + Vector3(0.0, WALL_H + TRANS_H * 0.5, 0.0), stucco, true)
 	_poly(parent, statics, DRUM_A, DRUM_H, 8, base + Vector3(0.0, TRANS_TOP + DRUM_H * 0.5, 0.0), stucco, true)
 	_poly(parent, null, CORNICE_A, CORNICE_T, 8, base + Vector3(0.0, DRUM_TOP + CORNICE_T * 0.5, 0.0), stone, false)
-	var dome := Landmarks._dome(parent, statics, DOME_R, base + Vector3(0.0, DOME_BASE, 0.0), TILE)
-	dome.material_override = _dome_mat()
+	_hemi(parent, DOME_R, base + Vector3(0.0, DOME_BASE, 0.0), _dome_mat())
 	var min_at := Vector3(MIN_X, 0.0, MIN_Z)
 	_box(parent, statics, Vector3(MIN_BASE, MIN_BASE_H, MIN_BASE), base + min_at + Vector3(0.0, MIN_BASE_H * 0.5, 0.0), stucco, true)
 	_poly(parent, statics, MIN_A, MIN_SHAFT_TOP - MIN_BASE_H, 8, base + min_at + Vector3(0.0, (MIN_SHAFT_TOP + MIN_BASE_H) * 0.5, 0.0), stucco, true)
 	_poly(parent, statics, BALC_A, BALC_T, 8, base + min_at + Vector3(0.0, MIN_SHAFT_TOP + BALC_T * 0.5, 0.0), stone, true)
 	var upper := MIN_SHAFT_TOP + BALC_T
 	_poly(parent, statics, MIN_TOP_A, MIN_TOP_H, 8, base + min_at + Vector3(0.0, upper + MIN_TOP_H * 0.5, 0.0), stucco, true)
-	var cap := Landmarks._dome(parent, null, MIN_CAP_R, base + min_at + Vector3(0.0, upper + MIN_TOP_H, 0.0), TILE)
-	cap.material_override = _dome_mat()
+	_hemi(parent, MIN_CAP_R, base + min_at + Vector3(0.0, upper + MIN_TOP_H, 0.0), _dome_mat())
 
 
 # --- Podium --------------------------------------------------------------------------------------
@@ -789,8 +807,7 @@ static func _mihrab_bay(parent: Node3D, statics: StaticBody3D, base: Vector3) ->
 	var at := Vector3(0.0, 0.0, -HALL_HALF - MIHRAB_A)
 	_poly(parent, statics, MIHRAB_A, MIHRAB_BAY_H, 8, base + at + Vector3(0.0, MIHRAB_BAY_H * 0.5, 0.0), _stucco(), true)
 	_poly(parent, null, MIHRAB_A + 0.25, 0.4, 8, base + at + Vector3(0.0, MIHRAB_BAY_H + 0.2, 0.0), _stone(), false)
-	var cap := Landmarks._dome(parent, null, MIHRAB_A + 0.25, base + at + Vector3(0.0, MIHRAB_BAY_H + 0.4, 0.0), TILE)
-	cap.material_override = _dome_mat()
+	_hemi(parent, MIHRAB_A + 0.25, base + at + Vector3(0.0, MIHRAB_BAY_H + 0.4, 0.0), _dome_mat())
 	_poly(parent, null, MIHRAB_A + 0.04, TILE_BAND_H, 8, base + at + Vector3(0.0, MIHRAB_BAY_H - 0.7, 0.0), _tile(), false)
 
 
@@ -848,8 +865,7 @@ static func _interior(parent: Node3D, statics: StaticBody3D, base: Vector3) -> v
 		_box(niche, null, Vector3(0.24, MIHRAB_SPRING, 0.24), Vector3(side * (MIHRAB_W * 0.5 + 0.12), MIHRAB_SPRING * 0.5, 0.06), stone, false)
 	_minbar(parent, base)
 	# The underside of the dome, turned inside out so it reads from the carpet.
-	var soffit := Landmarks._dome(parent, null, DOME_R - 0.35, base + Vector3(0.0, DOME_BASE, 0.0), TILE)
-	soffit.material_override = _soffit()
+	_hemi(parent, DOME_R - 0.35, base + Vector3(0.0, DOME_BASE, 0.0), _soffit())
 	# Four hanging lamps on brass stems, level with the tops of the piers.
 	for sx: float in [-1.0, 1.0]:
 		for sz: float in [-1.0, 1.0]:
@@ -916,8 +932,7 @@ static func _crown(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void
 	_ring(parent, null, DRUM_A + 0.35, TILE_BAND_H, 0.3, base + Vector3(0.0, DRUM_TOP - 0.55, 0.0), _tile(), false)
 	_ring(parent, statics, CORNICE_A, CORNICE_T, 1.5, base + Vector3(0.0, DRUM_TOP + CORNICE_T * 0.5, 0.0), stone, true)
 	# The dome, and the crescent that finishes it.
-	var dome := Landmarks._dome(parent, null, DOME_R, base + Vector3(0.0, DOME_BASE, 0.0), TILE)
-	dome.material_override = _dome_mat()
+	_hemi(parent, DOME_R, base + Vector3(0.0, DOME_BASE, 0.0), _dome_mat())
 	_dome_shell(statics, base + Vector3(0.0, DOME_BASE, 0.0), DOME_R)
 	_ring(parent, null, DOME_R * 0.99, 0.5, 0.7, base + Vector3(0.0, DOME_BASE + 0.15, 0.0), _tile(), false)
 	_finial(parent, base + Vector3(0.0, DOME_APEX, 0.0), 1.6)
@@ -997,8 +1012,7 @@ static func _minaret(parent: Node3D, statics: StaticBody3D, base: Vector3) -> vo
 		_arch(slot, 0.88, 1.2, 0.18, 0.14, 4, stone)
 	var cap_y := deck + MIN_TOP_H
 	_poly(parent, null, MIN_TOP_A + 0.5, 0.35, 8, base + at + Vector3(0.0, cap_y + 0.175, 0.0), stone, false)
-	var cap := Landmarks._dome(parent, null, MIN_CAP_R, base + at + Vector3(0.0, cap_y + 0.35, 0.0), TILE)
-	cap.material_override = _dome_mat()
+	_hemi(parent, MIN_CAP_R, base + at + Vector3(0.0, cap_y + 0.35, 0.0), _dome_mat())
 	_finial(parent, base + at + Vector3(0.0, cap_y + 0.35 + MIN_CAP_R, 0.0), 0.75)
 
 
@@ -1109,8 +1123,7 @@ static func _fountain(parent: Node3D, statics: StaticBody3D, base: Vector3) -> v
 	_poly(parent, statics, 0.6, 1.4, 8, base + at + Vector3(0.0, 0.9, 0.0), stone, true)
 	_poly(parent, null, 1.2, 0.24, 8, base + at + Vector3(0.0, 1.72, 0.0), stone, false)
 	_poly(parent, null, 0.5, 0.5, 8, base + at + Vector3(0.0, 2.09, 0.0), stone, false)
-	var cap := Landmarks._dome(parent, null, 0.8, base + at + Vector3(0.0, 2.34, 0.0), TILE)
-	cap.material_override = _dome_mat()
+	_hemi(parent, 0.8, base + at + Vector3(0.0, 2.34, 0.0), _dome_mat())
 	_finial(parent, base + at + Vector3(0.0, 3.14, 0.0), 0.34)
 	# Low seats around the basin, turned to face it.
 	for i in 8:
