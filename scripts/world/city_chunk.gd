@@ -1038,7 +1038,13 @@ func _scatter_ground_cover(rect: Rect2, rng: RandomNumberGenerator, density: flo
 	var count := int(clampf(area * 0.055 * density, 0.0, 90.0))
 	# One flowering species dominates a patch, the way a planted bed or a wildflower verge does;
 	# a mixed sprinkle of seven colours reads as confetti.
+	# TWO flowering species per patch, not seven. Every distinct species is a separate batch key
+	# and a batch key is a draw call, so letting the 28% "other" roll reach all seven put nine new
+	# draws on every FULL chunk - about 225 across the streamed city, for plants that are a few
+	# pixels across. Two species also looks more like planting than seven does.
 	var lead := rng.randi() % PropFactory.FLOWERS.size()
+	var second := (lead + 1 + rng.randi() % maxi(PropFactory.FLOWERS.size() - 1, 1)) % PropFactory.FLOWERS.size()
+	var clump := rng.randi() % PropFactory.GRASS_CLUMPS.size()
 	for i in count:
 		var p := Vector2(
 			rng.randf_range(rect.position.x, rect.end.x),
@@ -1048,17 +1054,15 @@ func _scatter_ground_cover(rect: Rect2, rng: RandomNumberGenerator, density: flo
 		var tint := Color(rng.randf_range(0.88, 1.12), rng.randf_range(0.9, 1.1), rng.randf_range(0.88, 1.1))
 		var at := Vector3(p.x, SIDEWALK_TOP + 0.02, p.y)
 		if rng.randf() < 0.42:
-			var g := rng.randi() % PropFactory.GRASS_CLUMPS.size()
-			_batch.add("gclump_%d" % g, PropFactory.model_grass_clump(g), Transform3D(basis, at), tint)
+			_batch.add("gclump_%d" % clump, PropFactory.model_grass_clump(clump), Transform3D(basis, at), tint)
 		else:
-			var f: int = lead if rng.randf() < 0.72 else rng.randi() % PropFactory.FLOWERS.size()
+			var f: int = lead if rng.randf() < 0.72 else second
 			_batch.add("flower_%d" % f, PropFactory.model_flower(f), Transform3D(basis, at), tint)
-	for f in PropFactory.FLOWERS.size():
+	for f: int in [lead, second]:
 		_batch.set_draw_distance("flower_%d" % f, 95.0)
 		_batch.set_no_shadow("flower_%d" % f)
-	for g in PropFactory.GRASS_CLUMPS.size():
-		_batch.set_draw_distance("gclump_%d" % g, 80.0)
-		_batch.set_no_shadow("gclump_%d" % g)
+	_batch.set_draw_distance("gclump_%d" % clump, 80.0)
+	_batch.set_no_shadow("gclump_%d" % clump)
 
 
 func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
