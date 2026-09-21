@@ -5,7 +5,7 @@ extends Node
 ## down one level at a time until the game runs smoothly. Each level cuts render effects AND
 ## the crowd / traffic caps, because the populated city is CPU work, not just GPU work:
 ##   HIGH    everything on (SDFGI global illumination, volumetric fog, depth of field)
-##   MEDIUM  the desktop default: no SDFGI, no volumetric fog, no depth of field, shorter shadows
+##   MEDIUM  no SDFGI, no volumetric fog, no depth of field, shorter shadows
 ##   LOW     also no indirect light and no reflections; FSR 2.2 upscaling, 60 % of people and cars
 ##   LOWEST  more aggressive upscaling, no ambient occlusion, 35 % of people and cars
 ## Antialiasing is temporal at every level: TAA at native resolution on HIGH and MEDIUM, and FSR
@@ -16,8 +16,14 @@ extends Node
 
 enum Level { HIGH, MEDIUM, LOW, LOWEST }
 
-## Level the desktop build starts at (HIGH only when forced with --quality=0).
-@export var start_level: Level = Level.MEDIUM
+## Level the desktop build starts at.
+##
+## HIGH (owner, 2026-09-21: "I need it PS5 level graphics"). Global illumination is the single
+## biggest difference between this and a modern-looking game, and it was simply switched off.
+## Starting here and letting the stepper fall back costs at most a few seconds of the old
+## behaviour on a machine that cannot hold it, and gives every machine that can a far better
+## picture. The HUD's quality line (F1 twice) says which level is actually in use.
+@export var start_level: Level = Level.HIGH
 ## Seconds after start before the first measurement (streaming and shader compiling settle).
 @export var warmup: float = 5.0
 ## Length of each measurement window (seconds).
@@ -38,6 +44,8 @@ enum Level { HIGH, MEDIUM, LOW, LOWEST }
 @export var shadow_distance: PackedFloat32Array = PackedFloat32Array([320.0, 200.0, 140.0, 90.0])
 
 var level: Level = Level.HIGH
+## Last world offset seen, to drop the measurement window across an origin re-centering.
+var _last_offset: Vector3 = Vector3.ZERO
 var _env: Environment
 var _sun: DirectionalLight3D
 var _time: float = 0.0
@@ -76,6 +84,16 @@ func _process(delta: float) -> void:
 		return
 	_time += delta
 	if _time < warmup:
+		return
+	# Throw the window away across an origin re-centering. The streamer moves every node in the
+	# scene by a kilometre, which is a one-off hitch at any quality level - SDFGI re-bakes its
+	# cascades, the broadphase rebuilds - and it has nothing to do with whether this machine can
+	# hold the level. Counted, it drags the average under min_fps and permanently demotes a
+	# machine that was running fine.
+	if WorldState.world_offset != _last_offset:
+		_last_offset = WorldState.world_offset
+		_time = warmup
+		_frames = 0
 		return
 	_frames += 1
 	if _time < warmup + window:
