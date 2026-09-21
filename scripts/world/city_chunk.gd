@@ -190,6 +190,10 @@ func build() -> void:
 		MacroMap.Zone.BEACH:
 			_build_roads(block)
 			_build_beach(block)
+			# The coast highway runs the length of the sand on the land side of it, so a beach
+			# chunk has to lay road as well; without this PCH simply stops at every beach town
+			# and picks up again where the cliffs start.
+			_build_hill_roads()
 		MacroMap.Zone.AIRPORT:
 			_build_airport()
 		MacroMap.Zone.PORT:
@@ -616,8 +620,11 @@ func _build_hill_roads() -> void:
 			var c1 := a.lerp(b, t1)
 			if not area.has_point(c0.lerp(c1, 0.5)):
 				continue
-			var h0 := plan.height_at(c0) + 0.12
-			var h1 := plan.height_at(c1) + 0.12
+			# 0.26 rather than a hair over the ground: the beach lays a 0.4 m sand slab centred
+			# on zero, so its surface is at 0.2, and the coast highway crossing a beach town
+			# would otherwise be buried in it for the length of the sand.
+			var h0 := plan.height_at(c0) + 0.26
+			var h1 := plan.height_at(c1) + 0.26
 			var v0 := Vector3(c0.x - normal.x, h0, c0.y - normal.y)
 			var v1 := Vector3(c0.x + normal.x, h0, c0.y + normal.y)
 			var v2 := Vector3(c1.x + normal.x, h1, c1.y + normal.y)

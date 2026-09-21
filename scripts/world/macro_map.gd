@@ -42,6 +42,13 @@ var back_height: float = 1150.0
 var east_start_x: float = 1900.0
 var east_full_x: float = 2900.0
 var east_height: float = 540.0
+## Where the northern coastal shelf starts and is fully cut (Z; north is negative), how far
+## inland it reaches before the mountainside takes over again, and how high its bench sits.
+## This is the ledge the coast highway runs along under the cliffs.
+var shelf_from_z: float = -700.0
+var shelf_full_z: float = -1020.0
+var shelf_width: float = 300.0
+var shelf_height: float = 26.0
 var peninsula_center: Vector2 = Vector2(-700.0, 1500.0)
 var peninsula_radius: float = 550.0
 ## The headland in the south-west bay: cliffs straight out of the water.
@@ -220,6 +227,19 @@ func raw_height_at(pos: Vector2) -> float:
 	# Steep sides: the peninsula rises out of the bay as cliffs.
 	var pt := smoothstep(peninsula_radius, peninsula_radius * 0.5, pd)
 	h += pt * peninsula_height * (0.7 + 0.3 * n)
+
+	# The northern coastal shelf. Up there the front range comes all the way down to the water,
+	# and on a coast like that the mountains stop at a narrow bench a few hundred metres wide
+	# with the road and a ribbon of houses on it, then the sea. Without the bench the coast
+	# highway would be a cutting in a 560 m mountainside and the grade limiter would bury it.
+	# Only in the north: further south the basin is already flat, and on the headland the cliffs
+	# dropping straight into the water are the whole character of the place.
+	var north := smoothstep(shelf_from_z, shelf_full_z, pos.y)
+	if north > 0.0:
+		var inland := pos.x - coast_x(pos.y)
+		var rise := smoothstep(0.0, shelf_width, inland)
+		var bench := lerpf(minf(h, shelf_height + 14.0 * n2), h, rise)
+		h = lerpf(h, bench, north)
 	return maxf(h, 0.0)
 
 

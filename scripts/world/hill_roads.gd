@@ -8,6 +8,19 @@ extends RefCounted
 
 ## Max road grade (rise per meter of run).
 const MAX_GRADE := 0.11
+## The coast highway: the one road that runs the whole length of the shore, from the cliffs in
+## the north, down across the flat beach towns, and up onto the headland in the south. It is the
+## most recognisable road on a coast like this, so it is laid out along the shoreline itself
+## rather than by the random walk the canyon roads use - holding a fixed distance in from the
+## water is what makes it read as a coast road from the air.
+const COAST_WIDTH := 17.0
+## How far inland of the waterline it sits. MacroMap.beach_width is the sand, so this keeps the
+## whole carriageway on the land side of it without letting it wander into the city grid, whose
+## streets it would otherwise cross at a random angle every block.
+const COAST_INSET := 46.0
+## Sampling step along the shore. Short enough that the bends read as curves rather than as a
+## chain of straights, which on the northern cliffs is the entire character of the road.
+const COAST_STEP := 26.0
 ## Shoulder width on each side of a road where terrain blends back to its natural height.
 const SHOULDER := 14.0
 const PAD_RADIUS := 17.0
@@ -61,7 +74,26 @@ func build(macro: MacroMap, seed_value: int) -> void:
 	rim.append(rim[0])
 	var ri := _add_road("Rim Drive", rim, 12.0, true)
 	_place_mansions(ri, rng)
+	# 4. The coast highway, last so that its height profile is smoothed against a shoreline the
+	#    other roads have already settled against.
+	_add_coast_highway(macro)
 	_index()
+
+
+## The coast highway, from the cliffs in the north to the headland in the south, holding
+## COAST_INSET in from the waterline the whole way. Its shape is the shoreline's: MacroMap
+## bends the coast with a long sine and bulges it around the headland, and the road inherits
+## both, which is why it comes out curving rather than straight.
+func _add_coast_highway(macro: MacroMap) -> void:
+	var pts := PackedVector2Array()
+	# Start up in the northern cliffs, where the shelf carries it, and run to the far side of
+	# the headland so the whole coast has one road along it.
+	var z := macro.shelf_full_z - 420.0
+	var end_z := macro.peninsula_center.y + macro.peninsula_radius * 0.72
+	while z < end_z:
+		pts.append(Vector2(macro.coast_x(z) + COAST_INSET, z))
+		z += COAST_STEP
+	_add_road("Pacific Coast Highway", pts, COAST_WIDTH, false)
 
 
 func _boulevard_z(x: float) -> float:

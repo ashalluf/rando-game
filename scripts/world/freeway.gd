@@ -66,7 +66,7 @@ func build(macro: MacroMap, seed_value: int) -> void:
 		var cx := macro.coast_x(z) + 330.0 + 120.0 * sin(z / 620.0) + 55.0 * sin(z / 197.0 + 2.1)
 		coast.append(Vector2(cx, z))
 		z += STEP
-	_add_route("Coast Freeway", coast, rng)
+	_add_route("405 Coast Freeway", coast, rng)
 
 	# 2. The cross route: west to east through the middle of the basin, south of downtown, with
 	#    a long sweeping curve in it.
@@ -75,7 +75,7 @@ func build(macro: MacroMap, seed_value: int) -> void:
 	while x < macro.east_start_x + 300.0:
 		cross.append(Vector2(x, 520.0 + 190.0 * sin(x / 780.0 + 0.6) + 60.0 * sin(x / 210.0)))
 		x += STEP
-	_add_route("Cross Freeway", cross, rng)
+	_add_route("105 Century Freeway", cross, rng)
 
 	# 3. The valley route: starts down in the basin, climbs through the pass in the front range
 	#    and runs north across the inland valley. It starts a long way south on purpose - the
@@ -89,7 +89,19 @@ func build(macro: MacroMap, seed_value: int) -> void:
 		var t := (vz - pass_z) / 1100.0
 		valley.append(Vector2(macro.pass_center_x + 210.0 * sin(t * 1.4), vz))
 		vz -= STEP
-	_add_route("Valley Freeway", valley, rng)
+	_add_route("5 Valley Freeway", valley, rng)
+
+	# 4. The harbour route: down out of downtown to the port, the short stubby one. A basin like
+	#    this has a spur that exists only to move containers off the docks, and it is the reason
+	#    downtown and the port feel like one place rather than two.
+	var harbour := PackedVector2Array()
+	var hz := macro.downtown_center.y - 180.0
+	var port_x: float = macro.port_rect.position.x + macro.port_rect.size.x * 0.45
+	while hz < macro.port_rect.position.y + 120.0:
+		var t := (hz - macro.downtown_center.y) / 900.0
+		harbour.append(Vector2(lerpf(macro.downtown_center.x + 40.0, port_x, clampf(t, 0.0, 1.0)) + 70.0 * sin(hz / 430.0), hz))
+		hz += STEP
+	_add_route("110 Harbour Freeway", harbour, rng)
 
 	_separate_crossings()
 	_place_ramps(rng)
