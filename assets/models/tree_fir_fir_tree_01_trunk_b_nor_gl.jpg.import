@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cnu8003r1dmj8"
-path="res://.godot/imported/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg-2ac1d0ae66ddc23c299795fb1687fbd3.ctex"
+path.s3tc="res://.godot/imported/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg-2ac1d0ae66ddc23c299795fb1687fbd3.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg-2ac1d0ae66ddc23c299795fb1687fbd3.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "a86302b7deae4ca9649a56074e7072cc"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg"
-dest_files=["res://.godot/imported/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg-2ac1d0ae66ddc23c299795fb1687fbd3.ctex"]
+dest_files=["res://.godot/imported/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg-2ac1d0ae66ddc23c299795fb1687fbd3.s3tc.ctex", "res://.godot/imported/tree_fir_fir_tree_01_trunk_b_nor_gl.jpg-2ac1d0ae66ddc23c299795fb1687fbd3.etc2.ctex"]
 
 [params]
 

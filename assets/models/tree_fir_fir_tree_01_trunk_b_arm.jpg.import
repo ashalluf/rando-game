@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://hcm10qfyj8fp"
-path="res://.godot/imported/tree_fir_fir_tree_01_trunk_b_arm.jpg-f4336b484ad592eebcd5d2b405075bdd.ctex"
+path.s3tc="res://.godot/imported/tree_fir_fir_tree_01_trunk_b_arm.jpg-f4336b484ad592eebcd5d2b405075bdd.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_fir_fir_tree_01_trunk_b_arm.jpg-f4336b484ad592eebcd5d2b405075bdd.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "b27e1ce884f8811cbdc3513b1e6f85e4"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_fir_fir_tree_01_trunk_b_arm.jpg"
-dest_files=["res://.godot/imported/tree_fir_fir_tree_01_trunk_b_arm.jpg-f4336b484ad592eebcd5d2b405075bdd.ctex"]
+dest_files=["res://.godot/imported/tree_fir_fir_tree_01_trunk_b_arm.jpg-f4336b484ad592eebcd5d2b405075bdd.s3tc.ctex", "res://.godot/imported/tree_fir_fir_tree_01_trunk_b_arm.jpg-f4336b484ad592eebcd5d2b405075bdd.etc2.ctex"]
 
 [params]
 

@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bew6jmucxmw3e"
-path="res://.godot/imported/tree_fir_fir_tree_01_twig_diff.jpg-a5c1aacd962e077e4bf2ce2a9908e3e1.ctex"
+path.s3tc="res://.godot/imported/tree_fir_fir_tree_01_twig_diff.jpg-a5c1aacd962e077e4bf2ce2a9908e3e1.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_fir_fir_tree_01_twig_diff.jpg-a5c1aacd962e077e4bf2ce2a9908e3e1.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "f81f43b70292d197f77226edc569fd29"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_fir_fir_tree_01_twig_diff.jpg"
-dest_files=["res://.godot/imported/tree_fir_fir_tree_01_twig_diff.jpg-a5c1aacd962e077e4bf2ce2a9908e3e1.ctex"]
+dest_files=["res://.godot/imported/tree_fir_fir_tree_01_twig_diff.jpg-a5c1aacd962e077e4bf2ce2a9908e3e1.s3tc.ctex", "res://.godot/imported/tree_fir_fir_tree_01_twig_diff.jpg-a5c1aacd962e077e4bf2ce2a9908e3e1.etc2.ctex"]
 
 [params]
 

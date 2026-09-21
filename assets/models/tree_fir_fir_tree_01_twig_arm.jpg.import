@@ -3,9 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ungu21w4du8y"
-path="res://.godot/imported/tree_fir_fir_tree_01_twig_arm.jpg-60b1f7861bac1e7318316ecc7e9801b6.ctex"
+path.s3tc="res://.godot/imported/tree_fir_fir_tree_01_twig_arm.jpg-60b1f7861bac1e7318316ecc7e9801b6.s3tc.ctex"
+path.etc2="res://.godot/imported/tree_fir_fir_tree_01_twig_arm.jpg-60b1f7861bac1e7318316ecc7e9801b6.etc2.ctex"
 metadata={
-"vram_texture": false
+"imported_formats": ["s3tc_bptc", "etc2_astc"],
+"vram_texture": true
 }
 generator_parameters={
 "md5": "c39311eeebc0f27efe072b30da826eaf"
@@ -14,7 +16,7 @@ generator_parameters={
 [deps]
 
 source_file="res://assets/models/tree_fir_fir_tree_01_twig_arm.jpg"
-dest_files=["res://.godot/imported/tree_fir_fir_tree_01_twig_arm.jpg-60b1f7861bac1e7318316ecc7e9801b6.ctex"]
+dest_files=["res://.godot/imported/tree_fir_fir_tree_01_twig_arm.jpg-60b1f7861bac1e7318316ecc7e9801b6.s3tc.ctex", "res://.godot/imported/tree_fir_fir_tree_01_twig_arm.jpg-60b1f7861bac1e7318316ecc7e9801b6.etc2.ctex"]
 
 [params]
 
