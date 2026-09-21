@@ -30,15 +30,20 @@ uniform sampler2D albedo_tex : source_color, filter_linear_mipmap_anisotropic;
 // The upper garment (shirt, jacket) for this character, as hue in turns and saturation.
 uniform float cloth_hue = 0.0;
 uniform float cloth_sat = 0.35;
-// Brightness multiplier for clothing, so the same shirt reads as a lighter or darker garment.
-uniform float cloth_value = 1.0;
+// TARGET brightness for the upper garment, 0 black to 1 white, in gamma space. It used to be a
+// multiplier on the source texture's own value, which cannot work: the source garments are dark
+// (0.30-0.40, and the trousers nearer 0.10), so a multiplier can darken a garment but can never
+// lift one to a white shirt, and the whole city walked around in black. The source's brightness
+// is kept as SHADING around this target instead - see the `shade` term in fragment().
+uniform float cloth_value = 0.45;
 // How strongly the garment takes the new colour. 0 leaves the original outfit alone.
 uniform float cloth_strength = 0.7;
-// The lower garment (trousers, skirt), the same three knobs again. Rolled independently of the
-// top, and weighted toward denim, black and khaki the way a street actually looks.
+// The lower garment (trousers, skirt), the same three knobs again - pants_value is a target
+// brightness too. Rolled independently of the top, and weighted toward denim, black and khaki
+// the way a street actually looks.
 uniform float pants_hue = 0.60;
 uniform float pants_sat = 0.22;
-uniform float pants_value = 0.70;
+uniform float pants_value = 0.22;
 uniform float pants_strength = 0.7;
 // Hair, taken outright rather than tinted: the source hair is nearly black, so a tint of it
 // stays nearly black and every pedestrian keeps the same head.
@@ -175,17 +180,19 @@ void fragment() {
 	// rotating the hue of a desaturated pixel changes nothing, so a rotation left every
 	// character wearing the same clothes.
 	//
-	// Built from the source's brightness in gamma space, so the garment keeps the folds and the
-	// shading of the cloth underneath it, and so cloth_sat / cloth_value / pants_value land where
-	// they were tuned. Against a linear source value the same numbers give a much narrower and
-	// much darker spread, which is what put the whole crowd back in one dark grey outfit.
-	// Clamped, because the value multipliers now run past 2 so that a pale garment is reachable
-	// at all (the source cloth sits at about 0.35), and hsv_to_rgb() of a value over 1 followed
-	// by to_linear() runs away fast. The ceiling is just under white so a shirt keeps a little
-	// of its own shading at the top end.
+	// Worked in gamma space, so the shading term below behaves the same on both renderers: the
+	// Compatibility one hands back raw sRGB texels and Forward+ linearises them, and a fold that
+	// is a 20 % dip in gamma is a 45 % dip in linear.
+	// cloth_value / pants_value are the garment's own brightness, not a multiplier on the
+	// source's. The source's value becomes SHADING around it: `shade` is 1.0 where the texture
+	// sits at its garment value (~0.35) and falls toward 0.55 in the folds and the shadow under
+	// a hem, so the cloth keeps its creases while the colour is genuinely chosen here. A
+	// multiplier could not do that - the trousers on these rigs are nearly black in the texture,
+	// so no multiplier reaches a pale chino, and every pedestrian in the city wore black.
 	float gz = value_is_linear > 0.5 ? to_gamma(hsv.z) : hsv.z;
-	vec3 top_target = hsv_to_rgb(vec3(cloth_hue, cloth_sat, min(gz * cloth_value, 0.96)));
-	vec3 low_target = hsv_to_rgb(vec3(pants_hue, pants_sat, min(gz * pants_value, 0.96)));
+	float shade = clamp(0.55 + 1.30 * gz, 0.35, 1.35);
+	vec3 top_target = hsv_to_rgb(vec3(cloth_hue, cloth_sat, min(cloth_value * shade, 0.96)));
+	vec3 low_target = hsv_to_rgb(vec3(pants_hue, pants_sat, min(pants_value * shade, 0.96)));
 	vec3 garment = mix(top_target, low_target, lower);
 	if (value_is_linear > 0.5) {
 		garment = to_linear(garment);
