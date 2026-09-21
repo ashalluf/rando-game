@@ -26,7 +26,7 @@ const DISTRICTS := {
 		"paving": [["pavers", 2.5, Color(0.9, 0.9, 0.9)], ["sidewalk", 3.0, Color(0.95, 0.95, 0.95)]],
 		"tree_weights": [0.16, 0.24, 0.44, 0.12, 0.04], "jacarandas": 0.05,
 		"lamp_tint": Color(1.0, 1.0, 1.0),
-		"mall": 0.0, "bigbox": 0.0, "pads": 0.0, "lawn": false, "people": 46, "parked": 9, "palms": 0.22,
+		"mall": 0.0, "bigbox": 0.0, "pads": 0.0, "lawn": false, "people": 46, "parked": 15, "palms": 0.22,
 	},
 	District.MIDTOWN: {
 		"height": Vector2(12.0, 45.0), "lot": Vector2(20.0, 32.0), "gap": Vector2(3.0, 8.0),
@@ -37,7 +37,7 @@ const DISTRICTS := {
 		"paving": [["paving", 3.0, Color(0.95, 0.94, 0.92)], ["sidewalk", 3.0, Color(1.0, 1.0, 1.0)], ["pavers", 2.5, Color(0.95, 0.93, 0.9)]],
 		"tree_weights": [0.32, 0.30, 0.15, 0.18, 0.05], "jacarandas": 0.08,
 		"lamp_tint": Color(0.8, 0.86, 0.8),
-		"mall": 0.08, "bigbox": 0.03, "pads": 0.12, "lawn": false, "people": 20, "parked": 7, "palms": 0.34,
+		"mall": 0.08, "bigbox": 0.03, "pads": 0.12, "lawn": false, "people": 20, "parked": 12, "palms": 0.34,
 	},
 	District.SUBURBS: {
 		"height": Vector2(5.0, 14.0), "lot": Vector2(14.0, 22.0), "gap": Vector2(6.0, 14.0),
@@ -48,7 +48,7 @@ const DISTRICTS := {
 		"paving": [["sidewalk", 3.0, Color(1.0, 1.0, 1.0)], ["sidewalk", 3.0, Color(0.9, 0.9, 0.88)]],
 		"tree_weights": [0.36, 0.32, 0.0, 0.24, 0.08], "jacarandas": 0.11,
 		"lamp_tint": Color(1.0, 0.9, 0.8),
-		"mall": 0.14, "bigbox": 0.07, "pads": 0.18, "lawn": true, "people": 6, "parked": 4, "palms": 0.45,
+		"mall": 0.14, "bigbox": 0.07, "pads": 0.18, "lawn": true, "people": 6, "parked": 8, "palms": 0.45,
 	},
 	District.CAMPUS: {
 		"height": Vector2(8.0, 24.0), "lot": Vector2(26.0, 44.0), "gap": Vector2(10.0, 18.0),
@@ -59,7 +59,7 @@ const DISTRICTS := {
 		"paving": [["paving", 3.0, Color(1.0, 0.98, 0.95)], ["pavers", 2.5, Color(0.95, 0.92, 0.88)]],
 		"tree_weights": [0.24, 0.42, 0.09, 0.18, 0.07], "jacarandas": 0.09,
 		"lamp_tint": Color(0.8, 0.86, 0.8),
-		"mall": 0.03, "bigbox": 0.0, "pads": 0.05, "lawn": true, "people": 16, "parked": 3, "palms": 0.3,
+		"mall": 0.03, "bigbox": 0.0, "pads": 0.05, "lawn": true, "people": 16, "parked": 6, "palms": 0.3,
 	},
 	District.INDUSTRIAL: {
 		"height": Vector2(6.0, 16.0), "lot": Vector2(34.0, 60.0), "gap": Vector2(6.0, 12.0),
@@ -70,7 +70,7 @@ const DISTRICTS := {
 		"paving": [["sidewalk", 3.0, Color(0.85, 0.85, 0.85)], ["concrete", 4.0, Color(0.8, 0.8, 0.8)]],
 		"tree_weights": [0.27, 0.27, 0.31, 0.13, 0.02], "jacarandas": 0.02,
 		"lamp_tint": Color(0.9, 0.9, 0.9),
-		"mall": 0.04, "bigbox": 0.1, "pads": 0.08, "lawn": false, "people": 3, "parked": 3, "palms": 0.04,
+		"mall": 0.04, "bigbox": 0.1, "pads": 0.08, "lawn": false, "people": 3, "parked": 5, "palms": 0.04,
 	},
 }
 

@@ -809,7 +809,12 @@ func _park_cars(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}
 	spots.shuffle()
 	var count := 0
 	for spot in spots:
-		if count >= max_cars or rng.randf() > 0.35 or not PhysicsBudget.can_spawn():
+		# 0.55, not 0.35: at a third the kerbs read as a city on a quiet Sunday. Parked cars are
+		# live rigid bodies - CLAUDE.md is explicit that a Vehicle must never be frozen, because
+		# frozen wheels divide by zero and poison the body with NaN - but an undisturbed one
+		# sleeps, so the cost of a parked car nobody touches is close to nothing. PhysicsBudget
+		# still caps the total, and Quality halves that cap below its top level.
+		if count >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 			continue
 		var car := Vehicle.random_car(rng)
 		var holder: Node = get_parent() if get_parent() else self
