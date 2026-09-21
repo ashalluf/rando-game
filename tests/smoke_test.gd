@@ -349,6 +349,31 @@ func _test_city() -> void:
 					if child is Building and fw.blocks(Vector2(_world_state().to_world(child.global_position).x, _world_state().to_world(child.global_position).z), 0.0):
 						under_count += 1
 				_check(under_count == 0, "no buildings stand under the deck")
+			# Traffic on the deck: stand on the freeway and cars should appear, on it and moving.
+			var traffic = city.get_node_or_null("Traffic")
+			if traffic:
+				var on_deck := Vector3(deck_xz.x, fw.point_at(0, pts0.size() * 0.5 * 24.0)[0].y + 2.0, deck_xz.y)
+				var t_mid: float = fw.length_of(0) * 0.5
+				var mid_pt: Vector3 = fw.point_at(0, t_mid)[0]
+				on_deck = Vector3(mid_pt.x, mid_pt.y + 2.0, mid_pt.z)
+				player.global_position = _world_state().to_local(on_deck)
+				player.velocity = Vector3.ZERO
+				city.update_streaming(true)
+				await _ticks(70)
+				_check(traffic.freeway_cars.size() > 0, "cars cruise the freeway deck (%d)" % traffic.freeway_cars.size())
+				var on_the_deck := 0
+				var both_ways := {}
+				for car in traffic.freeway_cars:
+					var cw: Vector3 = _world_state().to_world(car.global_position)
+					var near: Array = fw.nearest_on(car.traffic.fw, Vector2(cw.x, cw.z))
+					var deck: Vector3 = fw.point_at(car.traffic.fw, float(near[0]))[0]
+					if float(near[1]) < fw.routes[car.traffic.fw].width * 0.5 and absf(cw.y - deck.y) < 3.0:
+						on_the_deck += 1
+					both_ways[int(car.traffic.dir)] = true
+				_check(on_the_deck == traffic.freeway_cars.size(),
+					"every freeway car is on the deck, not beside or under it (%d of %d)"
+						% [on_the_deck, traffic.freeway_cars.size()])
+				_check(both_ways.size() == 2, "the freeway runs both ways (%d directions)" % both_ways.size())
 			var back_home := Vector3(0.0, 0.0, 0.0)
 			back_home.y = macro.height_at(Vector2.ZERO) + 3.0
 			player.global_position = _world_state().to_local(back_home)

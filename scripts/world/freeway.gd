@@ -41,6 +41,10 @@ var ramps: Array[Dictionary] = []
 
 var _macro: MacroMap
 var _cells: Dictionary = {}
+## Cumulative distance to each point of each route, so traffic can be driven by distance along
+## the deck rather than by point index - the points are a fixed step along the *drawn* curve,
+## which is not a fixed step along the ground once the curve bends.
+var _runs: Array[PackedFloat32Array] = []
 
 
 func build(macro: MacroMap, seed_value: int) -> void:
@@ -200,6 +204,15 @@ func _place_ramps(rng: RandomNumberGenerator) -> void:
 
 func _index() -> void:
 	_cells.clear()
+	_runs.clear()
+	for ri in routes.size():
+		var pts: PackedVector2Array = routes[ri].points
+		var run := PackedFloat32Array()
+		run.resize(pts.size())
+		run[0] = 0.0
+		for i in range(1, pts.size()):
+			run[i] = run[i - 1] + pts[i].distance_to(pts[i - 1])
+		_runs.append(run)
 	for ri in routes.size():
 		var pts: PackedVector2Array = routes[ri].points
 		var reach: float = routes[ri].width * 0.5 + 24.0
@@ -264,3 +277,55 @@ func blocks(pos: Vector2, margin: float) -> bool:
 		if pos.distance_to(a + ab * t) < route.width * 0.5 + margin:
 			return true
 	return false
+
+
+## How long a route is, end to end, along the ground.
+func length_of(route_index: int) -> float:
+	if route_index < 0 or route_index >= _runs.size():
+		return 0.0
+	var run: PackedFloat32Array = _runs[route_index]
+	return run[run.size() - 1]
+
+
+## Where `t` metres along a route puts you: [Vector3 deck point, Vector2 heading]. The Y is the
+## top of the deck, so a car sits at this plus its own ride height. `t` is clamped to the route.
+func point_at(route_index: int, t: float) -> Array:
+	var route: Dictionary = routes[route_index]
+	var pts: PackedVector2Array = route.points
+	var heights: PackedFloat32Array = route.heights
+	var run: PackedFloat32Array = _runs[route_index]
+	var last := pts.size() - 1
+	t = clampf(t, 0.0, run[last])
+	# Binary search for the segment holding t.
+	var lo := 0
+	var hi := last
+	while hi - lo > 1:
+		var mid := (lo + hi) / 2
+		if run[mid] <= t:
+			lo = mid
+		else:
+			hi = mid
+	var seg := run[hi] - run[lo]
+	var f: float = 0.0 if seg <= 0.0 else (t - run[lo]) / seg
+	var p := pts[lo].lerp(pts[hi], f)
+	var y := lerpf(heights[lo], heights[hi], f)
+	var d := pts[hi] - pts[lo]
+	return [Vector3(p.x, y, p.y), (d / maxf(d.length(), 0.001))]
+
+
+## How far along a route the nearest point to `pos` is, and how far away it is:
+## [t, distance]. Used to spawn traffic in a window around the player rather than everywhere.
+func nearest_on(route_index: int, pos: Vector2) -> Array:
+	var pts: PackedVector2Array = routes[route_index].points
+	var run: PackedFloat32Array = _runs[route_index]
+	var best_t := 0.0
+	var best_d := INF
+	for i in pts.size() - 1:
+		var a := pts[i]
+		var ab := pts[i + 1] - a
+		var f := clampf((pos - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+		var d := pos.distance_to(a + ab * f)
+		if d < best_d:
+			best_d = d
+			best_t = run[i] + (run[i + 1] - run[i]) * f
+	return [best_t, best_d]

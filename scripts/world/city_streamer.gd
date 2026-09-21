@@ -60,6 +60,9 @@ const GROUND_SUBDIVISIONS := 200
 @export var web_traffic_cars: int = 36
 ## Cars crawling the airport drop-off loop while the player is near the terminal (web: fewer).
 @export var airport_loop_cars: int = 90
+## Cars cruising the freeway decks near the player (web: fewer).
+@export var freeway_cars: int = 70
+@export var web_freeway_cars: int = 20
 @export var web_airport_loop_cars: int = 30
 ## People packed on the terminal curb.
 @export var airport_crowd: int = 45
@@ -100,6 +103,7 @@ func _ready() -> void:
 		max_pedestrians = mini(max_pedestrians, web_max_pedestrians)
 		traffic_cars = mini(traffic_cars, web_traffic_cars)
 		airport_loop_cars = mini(airport_loop_cars, web_airport_loop_cars)
+		freeway_cars = mini(freeway_cars, web_freeway_cars)
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	if sun:
 		sun.rotation_degrees = sun_rotation_degrees
@@ -127,6 +131,7 @@ func _ready() -> void:
 	traffic.plan = plan
 	traffic.max_cars = traffic_cars
 	traffic.max_loop_cars = airport_loop_cars
+	traffic.max_freeway_cars = freeway_cars
 	add_child(traffic)
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	_apply_spawn_override()
@@ -195,6 +200,7 @@ func _build_showroom(at: Vector3, yaw: float) -> void:
 	for node in get_children():
 		if node is TrafficManager:
 			(node as TrafficManager).max_cars = 0
+			(node as TrafficManager).max_freeway_cars = 0
 	var forward := Vector3(-sin(yaw), 0.0, -cos(yaw))
 	var right := forward.cross(Vector3.UP)
 	for i in Vehicle.BodyType.size():

@@ -46,6 +46,7 @@ var _forced: bool = false
 var _base_pedestrians: int = -1
 var _base_cars: int = -1
 var _base_loop_cars: int = -1
+var _base_freeway_cars: int = -1
 var _base_props: int = -1
 
 
@@ -163,8 +164,10 @@ func _apply_population() -> void:
 		if _base_cars < 0:
 			_base_cars = traffic.max_cars
 			_base_loop_cars = traffic.max_loop_cars
+			_base_freeway_cars = traffic.max_freeway_cars
 		traffic.max_cars = maxi(6, roundi(_base_cars * f))
 		traffic.max_loop_cars = maxi(10, roundi(_base_loop_cars * f))
+		traffic.max_freeway_cars = maxi(8, roundi(_base_freeway_cars * f))
 	if _base_props < 0:
 		_base_props = PhysicsBudget.max_active_bodies
 	PhysicsBudget.max_active_bodies = maxi(120, roundi(_base_props * (1.0 if level <= Level.LOW else 0.5)))

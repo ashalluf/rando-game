@@ -27,11 +27,21 @@ extends Node3D
 @export var despawn_distance: float = 380.0
 @export var speed_range: Vector2 = Vector2(9.0, 15.0)
 @export var turn_chance: float = 0.35
+## Cars on the freeway decks, in total across every route near the player.
+@export var max_freeway_cars: int = 70
+## Front-to-front spacing of freeway traffic (meters). Freeway traffic is fast and spread out.
+@export var freeway_gap: float = 34.0
+## Freeway cruising speed (m/s) with a clear deck ahead. 26 m/s is about 60 mph.
+@export var freeway_speed: float = 26.0
+## Freeway traffic is only kept within this distance of the player, along the route (meters).
+@export var freeway_range: float = 620.0
 
 var plan: CityPlan
 var cars: Array[Vehicle] = []
 ## Cars on the airport drop-off loop (traffic dict holds "loop" and "t").
 var loop_cars: Array[Vehicle] = []
+## Cars on the freeway decks (traffic dict holds "fw", "t", "dir" and "lane").
+var freeway_cars: Array[Vehicle] = []
 var _player: Node3D
 var _rng := RandomNumberGenerator.new()
 var _timer: float = 0.0
@@ -53,12 +63,14 @@ func _physics_process(delta: float) -> void:
 	if _timer >= 0.5:
 		_timer = 0.0
 		_maintain()
+		_maintain_freeway()
 	for car in cars.duplicate():
 		if not is_instance_valid(car) or not car.is_traffic():
 			cars.erase(car)
 			continue
 		_drive(car, delta)
 	_drive_loops(delta)
+	_drive_freeway(delta)
 
 
 ## How busy the streets are here, 0..1: the downtown core is 1.0, the far edges edge_density,
@@ -293,3 +305,149 @@ func _drive_loops(delta: float) -> void:
 			var dir2: Vector2 = at[1]
 			car.global_position = WorldState.to_local(Vector3(pos2.x, 0.55 + 0.16, pos2.y))
 			car.rotation = Vector3(0.0, atan2(-dir2.x, -dir2.y), 0.0)
+
+
+# --- Freeway traffic ------------------------------------------------------------------------
+#
+# The decks are open polylines with a height profile, not the flat closed loops the airport
+# drop-off uses, so cars carry a signed direction and are recycled when they reach an end
+# rather than wrapping. Everything is driven by distance along the route (Freeway.point_at),
+# because the route's points are a fixed step along the drawn curve and not along the ground.
+
+## Middle of each lane, as a fraction of the deck half-width, per direction. Two lanes each way
+## with the median between them.
+const FW_LANES := [0.28, 0.62]
+
+
+func _freeway() -> Freeway:
+	if plan == null or plan.macro == null:
+		return null
+	return plan.macro.freeway
+
+
+func _maintain_freeway() -> void:
+	var fw := _freeway()
+	if fw == null or fw.routes.is_empty():
+		return
+	var pw := WorldState.to_world(_player.global_position)
+	var here := Vector2(pw.x, pw.z)
+	for car in freeway_cars.duplicate():
+		if not is_instance_valid(car) or not car.is_traffic():
+			freeway_cars.erase(car)
+			continue
+		# Off the end of its route, or the player has left it behind.
+		var ri: int = car.traffic.fw
+		var t: float = car.traffic.t
+		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - _fw_anchor(ri, here)) > freeway_range * 1.35:
+			freeway_cars.erase(car)
+			car.queue_free()
+	if freeway_cars.size() >= max_freeway_cars or not PhysicsBudget.can_spawn():
+		return
+	# Which routes are close enough to bother with, and where along each the player is.
+	var live: Array[Vector2i] = []
+	for ri in fw.routes.size():
+		var near: Array = fw.nearest_on(ri, here)
+		if float(near[1]) < freeway_range:
+			live.append(Vector2i(ri, int(near[0])))
+	if live.is_empty():
+		return
+	var per_route := maxi(1, max_freeway_cars / live.size())
+	var added := 0
+	for entry in live:
+		var ri: int = entry.x
+		var anchor := float(entry.y)
+		var total := fw.length_of(ri)
+		var on_route := 0
+		var taken := {}
+		for car in freeway_cars:
+			if car.traffic.fw == ri:
+				on_route += 1
+				taken[Vector2i(int(car.traffic.t / freeway_gap), int(car.traffic.dir))] = true
+		var lo := maxf(0.0, anchor - freeway_range)
+		var hi := minf(total, anchor + freeway_range)
+		var slot := int(lo / freeway_gap)
+		while on_route < per_route and added < 10 and float(slot) * freeway_gap < hi:
+			var t := float(slot) * freeway_gap
+			for dir: int in [1, -1]:
+				if on_route >= per_route or added >= 10:
+					break
+				var key := Vector2i(slot, dir)
+				if taken.has(key) or _rng.randf() < 0.35:
+					continue
+				_spawn_freeway_car(ri, t, dir)
+				taken[key] = true
+				on_route += 1
+				added += 1
+			slot += 1
+
+
+## Where along route `ri` the player is, in metres. Cheap enough at the 0.5 s maintenance tick.
+func _fw_anchor(ri: int, here: Vector2) -> float:
+	var fw := _freeway()
+	if fw == null:
+		return 0.0
+	return float(fw.nearest_on(ri, here)[0])
+
+
+func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
+	var fw := _freeway()
+	var lane: float = FW_LANES[_rng.randi() % FW_LANES.size()] * float(dir)
+	var car := Vehicle.random_car(_rng)
+	car.traffic = {
+		"fw": ri, "t": t, "dir": dir, "lane": lane,
+		"speed": freeway_speed * _rng.randf_range(0.88, 1.12),
+	}
+	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	car.freeze = true
+	_place_freeway_car(car, fw)
+	add_child(car)
+	car.traffic_speed = car.traffic.speed
+	freeway_cars.append(car)
+
+
+## Put a car where its own (route, t, lane, dir) say it should be, on top of the deck.
+func _place_freeway_car(car: Vehicle, fw: Freeway) -> void:
+	var at: Array = fw.point_at(car.traffic.fw, car.traffic.t)
+	var p: Vector3 = at[0]
+	var d: Vector2 = at[1]
+	var half: float = float(fw.routes[car.traffic.fw].width) * 0.5
+	var nrm := Vector2(-d.y, d.x) * (float(car.traffic.lane) * half)
+	var heading: Vector2 = d * float(car.traffic.dir)
+	car.global_position = WorldState.to_local(
+		Vector3(p.x + nrm.x, p.y + 0.71, p.z + nrm.y))
+	car.rotation = Vector3(0.0, atan2(-heading.x, -heading.y), 0.0)
+
+
+## Cruise, closing up on whatever is ahead in the same lane and direction.
+func _drive_freeway(delta: float) -> void:
+	if freeway_cars.is_empty():
+		return
+	var fw := _freeway()
+	if fw == null:
+		return
+	# Group by route, direction and lane, so a car only follows the one actually in front of it.
+	var groups := {}
+	for car in freeway_cars.duplicate():
+		if not is_instance_valid(car) or not car.is_traffic():
+			freeway_cars.erase(car)
+			continue
+		var key := Vector3(float(car.traffic.fw), float(car.traffic.dir), float(car.traffic.lane))
+		if not groups.has(key):
+			groups[key] = []
+		(groups[key] as Array).append(car)
+	for key in groups:
+		var group: Array = groups[key]
+		var dir: int = int((key as Vector3).y)
+		# Sort by how far along each car is in its own direction of travel.
+		group.sort_custom(func(a: Vehicle, b: Vehicle) -> bool:
+			return (a.traffic.t < b.traffic.t) if dir > 0 else (a.traffic.t > b.traffic.t))
+		for k in group.size():
+			var car: Vehicle = group[k]
+			var speed: float = car.traffic.speed
+			if k + 1 < group.size():
+				var ahead: Vehicle = group[k + 1]
+				var gap: float = absf(float(ahead.traffic.t) - float(car.traffic.t))
+				speed = minf(speed, maxf(0.0, (gap - freeway_gap * 0.6) * 1.4))
+			car.traffic.t = float(car.traffic.t) + float(dir) * speed * delta
+			car.traffic_speed = speed
+			_place_freeway_car(car, fw)
