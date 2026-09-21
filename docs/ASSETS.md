@@ -1,8 +1,15 @@
 # Assets
 
-External assets: CC0 texture sets (below), CC0 street prop models from Poly Haven, and 3D models
-generated with the owner's Meshy account (`tools/meshy.py`). Buildings, lamps, signs and trees are
-still built-in primitives and code.
+External assets: CC0 texture sets (below), CC0 models from Poly Haven (trees, plants, flowers,
+grass, rocks and street props), and 3D models generated with the owner's Meshy account
+(`tools/meshy.py`, retired 2026-09-19). Buildings, lamps and signs are still primitives and code.
+
+Everything on Poly Haven is CC0. Fetch one with `python3 tools/fetch_polyhaven.py <id> <dir>`,
+reduce trees and bushes with `tools/decimate_tree.py`, pack with `tools/pack_gltf.py`, shrink
+textures with `tools/shrink_glb.py`, then run Godot's `--import` and
+`python3 tools/fix_texture_imports.py assets/models` before committing - Godot writes every new
+texture .import with `compress/mode=0` and `detect_3d/compress_to=1`, and the second of those
+makes the editor silently rewrite the file the first time the texture is used in 3D.
 
 When assets are added, only CC0 or free-for-commercial-use packs are allowed (for example Kenney,
 Quaternius). Record every pack here.
@@ -83,6 +90,33 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | shrub_02 (4 variants) | `prop_shrub.glb` | 7k each | sidewalk and park bushes, hill shrubs | 2026-09-19 |
 | water_manhole_cover | `prop_manhole.glb` | 6k | manhole covers in the lanes | 2026-09-19 |
 | concrete_road_barrier_02 | `prop_barrier_b.glb` | 24k | tall barrier variant, industrial clutter | 2026-09-19 |
+| jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
+| island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
+| fir_tree_01 | `tree_fir.glb` | 54k tris, 5.2 MB | hill conifers | 2026-09-21 |
+| pine_tree_01 | `tree_pine.glb` | 48k tris, 3.5 MB | hill conifers | 2026-09-21 |
+| quiver_tree_01 | `tree_quiver.glb` | 42k tris, 2.5 MB | dry hill trees | 2026-09-21 |
+| searsia_burchellii | `tree_searsia.glb` | 16k tris, 1.8 MB | dry hill scrub | 2026-09-21 |
+| shrub_01 | `bush_a.glb` | 16k tris, 1.1 MB | street and park bushes | 2026-09-21 |
+| shrub_03 | `bush_b.glb` | 8k tris, 0.6 MB | street and park bushes | 2026-09-21 |
+| shrub_04 | `bush_c.glb` | 27k tris, 1.1 MB | street and park bushes | 2026-09-21 |
+| shrub_sorrel_01 | `bush_sorrel.glb` | 3k tris, 0.4 MB | street and park bushes | 2026-09-21 |
+| fern_02 | `plant_fern.glb` | 6k tris, 0.4 MB | courtyard and doorway planting | 2026-09-21 |
+| pachira_aquatica_01 | `plant_pachira.glb` | 77k tris, 2.8 MB | courtyard and doorway planting | 2026-09-21 |
+| anthurium_botany_01 | `plant_anthurium.glb` | 67k tris, 2.1 MB | courtyard and doorway planting | 2026-09-21 |
+| calathea_orbifolia_01 | `plant_calathea.glb` | 17k tris, 0.8 MB | courtyard and doorway planting | 2026-09-21 |
+| nettle_plant | `plant_nettle.glb` | 31k tris, 1.4 MB | rough ground planting | 2026-09-21 |
+| flower_gazania | `flower_orange.glb` | 14k tris, 1.4 MB | flowering ground cover in parks and gardens | 2026-09-21 |
+| flower_ursinia | `flower_ursinia.glb` | 25k tris, 1.1 MB | flowering ground cover in parks and gardens | 2026-09-21 |
+| flower_empodium | `flower_yellow.glb` | 3k tris, 0.3 MB | flowering ground cover in parks and gardens | 2026-09-21 |
+| leipoldtia_schultzei | `flower_purple.glb` | 7k tris, 0.5 MB | flowering ground cover in parks and gardens | 2026-09-21 |
+| periwinkle_plant | `flower_periwinkle.glb` | 34k tris, 2.1 MB | flowering ground cover in parks and gardens | 2026-09-21 |
+| dandelion_01 | `flower_dandelion.glb` | 55k tris, 2.1 MB | flowering ground cover in parks and gardens | 2026-09-21 |
+| celandine_01 | `flower_celandine.glb` | 9k tris, 0.6 MB | flowering ground cover in parks and gardens | 2026-09-21 |
+| grass_bermuda_01 | `grass_bermuda.glb` | 941 tris, 0.4 MB | grass clumps in parks and gardens | 2026-09-21 |
+| grass_medium_02 | `grass_medium.glb` | 8k tris, 0.4 MB | grass clumps in parks and gardens | 2026-09-21 |
+| street_lamp_01 | `prop_streetlamp.glb` | 31k tris, 1.2 MB | street lamps | 2026-09-21 |
+| trashbag | `prop_trashbag.glb` | 4k tris, 0.5 MB | street clutter | 2026-09-21 |
+| outdoor_table_chair_set_01 | `prop_patio_set.glb` | 10k tris, 1.2 MB | cafe and patio seating | 2026-09-21 |
 | island_tree_01 | `tree_a.glb` | 44k (from 1.6M, `tools/decimate_tree.py`) | street and park trees | 2026-09-19 |
 | island_tree_02 | `tree_b.glb` | 40k (from 890k) | street and park trees | 2026-09-19 |
 | tree_small_02 | `tree_c.glb` | 40k (from 2.0M) | street and park trees | 2026-09-19 |
