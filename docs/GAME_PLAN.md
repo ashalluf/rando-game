@@ -1089,3 +1089,26 @@ already mapped so milestone 2 is script-only.
   ambient 0.45, darker ground checker. The original values washed the ground out to white.
 - **2026-09-19 Push to main always.** The owner asked for all work to go directly to `main` with no
   branches or pull requests. Milestone 1 was the only PR (#1); everything after lands on `main`.
+
+## Correction: what build 135 (0ce833f) actually contained
+
+That commit's subject says "denser grass, real palm fronds, finer ground". It also shipped a
+complete generated wheel system into `PropFactory` - `car_wheel()`, `car_caliper()`,
+`wheel_material()`, `_wheel_tyre()`, `_wheel_barrel()`, `_wheel_brake()`, `_wheel_face()`,
+`_wheel_tread()`, `WHEEL_KITS`, `WHEEL_FACES`, `WHEEL_SLOTS` and the `WheelSlot` enum - and the
+message does not mention any of it.
+
+The cause is worth recording because it is cheap to repeat: the commit picked up 1,091 lines of
+orphaned work from a fleet whose agents were all killed mid-build, and the diff was surveyed with
+a `grep ... | head -30`. The wheel constants sat past the cut, so they were never read. **Survey a
+large inherited diff with no truncation, or do not claim to know what is in it.**
+
+Two things that follow, both checked rather than assumed:
+
+- The "4.65M -> 10.7M triangles for twelve extra draw calls" measurement in that commit is still
+  correct and is still attributable to the grass, palms and subdivision. `car_wheel()` was called
+  from nowhere at that commit - the mesh shipped as dead code, so it could not have contributed a
+  triangle.
+- A wheels fleet was then launched to build a wheel that already existed. Its reviewer caught
+  this independently. The mesh was the half that existed; `Vehicle` wiring it up was the half that
+  was actually missing.
