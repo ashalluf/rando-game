@@ -33,8 +33,11 @@ static func texture(set_key: String, map: String) -> Texture2D:
 
 
 ## A textured material projected in world space (triplanar), `scale_m` meters per tile.
-static func pbr(set_key: String, scale_m: float = 4.0, tint: Color = Color.WHITE, roughness_scale: float = 1.0) -> StandardMaterial3D:
-	var key := "pbr_%s_%.2f_%d_%.2f" % [set_key, scale_m, tint.to_rgba32(), roughness_scale]
+## `vertex_color` turns on vertex_color_use_as_albedo, for a surface that carries large-scale
+## tone the texture cannot - the beach's wet/dry banding, which a 5 m tile mips away by forty
+## metres. It is part of the cache key, so it never leaks into anything else's material.
+static func pbr(set_key: String, scale_m: float = 4.0, tint: Color = Color.WHITE, roughness_scale: float = 1.0, vertex_color: bool = false) -> StandardMaterial3D:
+	var key := "pbr_%s_%.2f_%s_%.2f_%s" % [set_key, scale_m, tint, roughness_scale, vertex_color]
 	if _cache.has(key):
 		return _cache[key]
 	var mat := StandardMaterial3D.new()
@@ -50,6 +53,7 @@ static func pbr(set_key: String, scale_m: float = 4.0, tint: Color = Color.WHITE
 		mat.roughness_texture = rough
 		mat.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_RED
 	mat.roughness = roughness_scale
+	mat.vertex_color_use_as_albedo = vertex_color
 	mat.uv1_triplanar = true
 	mat.uv1_world_triplanar = true
 	mat.uv1_scale = Vector3.ONE / scale_m

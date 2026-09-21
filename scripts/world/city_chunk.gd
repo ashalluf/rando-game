@@ -423,6 +423,33 @@ const SAND_LIP := 22.0
 ## UV units per metre of sand. The material is world-triplanar, so this only has to be
 ## consistent and roughly the right scale for the tangent basis the normal map needs.
 const SAND_UV_SCALE := 0.2
+## The berm and the swash. A beach is not one ramp: the swash piles a crest up about half way
+## across the dry sand and the backshore falls away again behind it. That crest is the whole
+## reason a beach has a shape from standing height - the plane this used to be ran at a constant
+## 0.3 per cent over 92 m, so it had ONE normal across its whole width and shaded as one flat
+## colour whatever texture was on it (measured: luminance sigma 1.2 of 255 across the sand in a
+## ground-level frame, against 25 for the water beside it).
+## SAND_BERM_AT is where the crest sits as a fraction of beach_width, SAND_CREST how high it
+## stands above the waterline, SAND_SWASH how far up the beach the sea still washes, SAND_CUSP
+## how much the crest rises and falls along the shore. Keep SAND_CUSP small: the collider
+## follows this profile in bands and the player stands on the collider, not on the mesh.
+const SAND_SWASH := 13.0
+const SAND_BERM_AT := 0.46
+const SAND_CREST := 0.95
+const SAND_CUSP := 0.12
+## The tonal bands across the shore, seaward to landward, one per point in a _build_sand() row:
+## under water, the waterline, the swash, the berm, the backshore. Sand the sea has just been
+## over is a third darker and much less warm than dry sand, and the line where it dries out is
+## the strongest single cue that a beach is a beach. No texture can carry it - a 5 m tile mips
+## to one flat colour by forty metres, the same thing PropFactory.lawn() was written to fix for
+## grass - so it rides the vertex colour. These multiply into the albedo: 1.0 is exactly the
+## sand that was there before and every other value only darkens it.
+const SAND_TONES: Array[Color] = [
+	Color(0.44, 0.48, 0.52), Color(0.54, 0.56, 0.59), Color(0.84, 0.81, 0.75),
+	Color(1.0, 1.0, 1.0), Color(0.90, 0.90, 0.88),
+]
+## Bands across the profile the dry sand's collider is cut into.
+const SAND_COLLIDER_BANDS := 5
 const SAND_LOW := -0.75
 const SAND_EDGE := 0.22
 const SAND_HIGH := 0.5
@@ -453,11 +480,23 @@ func _build_beach(block: Dictionary) -> void:
 	# the chunk's rectangle: dropping them in the rectangle put palms in the surf.
 	for i in rng.randi_range(6, 14):
 		var z := rng.randf_range(block.rect.position.y + 4.0, block.rect.end.y - 4.0)
-		var x := _dry_sand_x(z, rng.randf_range(0.18, 0.95))
-		_add_palm(Vector3(x, SAND_EDGE, z), rng)
+		var across := rng.randf_range(0.18, 0.95)
+		_add_palm(Vector3(_dry_sand_x(z, across), _sand_y(z, across), z), rng)
 	if rng.randf() < 0.6:
 		var z := rng.randf_range(block.rect.position.y + 8.0, block.rect.end.y - 8.0)
-		_add_lifeguard_tower(Vector3(_dry_sand_x(z, rng.randf_range(0.1, 0.5)), SAND_EDGE, z), rng.randf_range(0.0, TAU))
+		var across := rng.randf_range(0.1, 0.5)
+		_add_lifeguard_tower(Vector3(_dry_sand_x(z, across), _sand_y(z, across), z), rng.randf_range(0.0, TAU))
+
+
+## Height of the sand at `across` (0 at the waterline, 1 at the town) for a given Z. The berm
+## wanders along the shore, which is what cusps are; it is a smooth function of z so it carries
+## across a chunk boundary without a step.
+func _sand_y(z: float, across: float) -> float:
+	var crest := SAND_CREST + SAND_CUSP * sin(z * 0.11) * cos(z * 0.047)
+	if across <= SAND_BERM_AT:
+		return lerpf(SAND_EDGE, SAND_EDGE + crest, across / maxf(SAND_BERM_AT, 0.001))
+	var t := (across - SAND_BERM_AT) / maxf(1.0 - SAND_BERM_AT, 0.001)
+	return lerpf(SAND_EDGE + crest, SAND_HIGH, t * t * (3.0 - 2.0 * t))
 
 
 func _build_sand(rect: Rect2) -> void:
@@ -466,53 +505,68 @@ func _build_sand(rect: Rect2) -> void:
 	var macro: MacroMap = plan.macro
 	var steps := maxi(2, ceili(rect.size.y / SAND_STEP))
 	var quads := 0
-	var prev_lo := Vector3.ZERO
-	var prev_edge := Vector3.ZERO
-	var prev_hi := Vector3.ZERO
+	var prev: Array[Vector3] = []
 	for i in steps + 1:
 		var z: float = rect.position.y + rect.size.y * float(i) / steps
 		var water_x := rect.position.x
 		var inland_x := rect.end.x
+		var width := inland_x - water_x
 		if macro:
 			water_x = macro.coast_x(z)
-			inland_x = water_x + macro.beach_width + SAND_LIP
-		var lo := Vector3(water_x - SAND_WET, SAND_LOW, z)
-		var edge := Vector3(water_x, SAND_EDGE, z)
-		var hi := Vector3(inland_x, SAND_HIGH, z)
+			width = macro.beach_width
+			inland_x = water_x + width + SAND_LIP
+		# Seaward to landward: the bar under the water, the waterline, the swash the sea still
+		# reaches, the berm crest, and the backshore falling away behind it.
+		var row: Array[Vector3] = [
+			Vector3(water_x - SAND_WET, SAND_LOW, z),
+			Vector3(water_x, SAND_EDGE, z),
+			Vector3(water_x + SAND_SWASH, _sand_y(z, SAND_SWASH / maxf(width, 1.0)), z),
+			Vector3(water_x + width * SAND_BERM_AT, _sand_y(z, SAND_BERM_AT), z),
+			Vector3(inland_x, SAND_HIGH, z),
+		]
 		if i > 0:
-			# Two strips: the wet face from under the water up to the waterline, then the dry
-			# sand from there to the town. UVs come from world XZ so the grain runs continuously
-			# from one chunk into the next; without them generate_tangents() fails outright and
-			# the sand gets no tangent basis, which silently kills its normal map.
-			for v in [prev_lo, prev_edge, edge, prev_lo, edge, lo]:
-				st.set_uv(Vector2(v.x, v.z) * SAND_UV_SCALE)
-				st.add_vertex(v)
-			for v in [prev_edge, prev_hi, hi, prev_edge, hi, edge]:
-				st.set_uv(Vector2(v.x, v.z) * SAND_UV_SCALE)
-				st.add_vertex(v)
-			quads += 2
-		prev_lo = lo
-		prev_edge = edge
-		prev_hi = hi
+			# One strip per band. UVs come from world XZ so the grain runs continuously from one
+			# chunk into the next; without them generate_tangents() fails outright and the sand
+			# gets no tangent basis, which silently kills its normal map.
+			for k in row.size() - 1:
+				var a: Vector3 = prev[k]
+				var b: Vector3 = prev[k + 1]
+				var c: Vector3 = row[k + 1]
+				var d: Vector3 = row[k]
+				for pair in [[a, SAND_TONES[k]], [b, SAND_TONES[k + 1]], [c, SAND_TONES[k + 1]],
+						[a, SAND_TONES[k]], [c, SAND_TONES[k + 1]], [d, SAND_TONES[k]]]:
+					var v: Vector3 = pair[0]
+					st.set_color(pair[1] as Color)
+					st.set_uv(Vector2(v.x, v.z) * SAND_UV_SCALE)
+					st.add_vertex(v)
+				quads += 1
+		prev = row
 	if quads > 0:
 		st.generate_normals()
 		st.generate_tangents()
 		var mesh := MeshInstance3D.new()
 		mesh.name = "Sand"
 		mesh.mesh = st.commit()
-		mesh.material_override = PropFactory.pbr("sand", 5.0, Color(1.0, 0.95, 0.85))
+		# vertex_color_use_as_albedo, or the wet/dry banding above is computed and thrown away.
+		mesh.material_override = PropFactory.pbr("sand", 5.0, Color(1.0, 0.95, 0.85), 1.0, true)
 		add_child(mesh)
 	if level != Level.FULL:
 		return
-	# One flat collider under the dry part. The ramp itself is thin geometry and the player only
-	# ever walks the dry sand, so a box is both cheaper and steadier than a mesh collider.
+	# The collider follows the berm in bands rather than being one flat box under the whole
+	# beach: with a metre of crest in the middle, a flat box leaves the player walking through
+	# the sand on the way up and a foot above it on the way down. Five boxes, not a mesh shape -
+	# the player only ever walks the dry sand and a box stack is cheaper and steadier.
 	var c := rect.get_center()
-	var dry_centre := c.x
-	var dry_width := rect.size.x
-	if macro:
-		dry_centre = macro.coast_x(c.y) + macro.beach_width * 0.5
-		dry_width = macro.beach_width + SAND_LIP
-	_add_shape(Vector3(dry_width, 0.4, rect.size.y), Vector3(dry_centre, SAND_EDGE - 0.1, c.y))
+	if macro == null:
+		_add_shape(Vector3(rect.size.x, 0.4, rect.size.y), Vector3(c.x, SAND_EDGE - 0.1, c.y))
+		return
+	var width: float = macro.beach_width + SAND_LIP
+	var band := width / float(SAND_COLLIDER_BANDS)
+	for k in SAND_COLLIDER_BANDS:
+		var across := (float(k) + 0.5) / float(SAND_COLLIDER_BANDS)
+		var x := macro.coast_x(c.y) + width * across
+		var y := _sand_y(c.y, across)
+		_add_shape(Vector3(band + 0.2, 0.4, rect.size.y), Vector3(x, y - 0.2, c.y))
 
 
 ## X of a point on the dry sand at Z, `across` running 0 at the waterline to 1 at the town.
