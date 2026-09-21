@@ -200,6 +200,76 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-21 The frame had no contrast, and it was not the fog.** Every wide shot read as
+  pastel. The instinct was to blame the haze; measuring the frame said otherwise. A midday
+  downtown aerial through the real Forward+ pipeline had a luminance p5/p50/p95 of 78/103/137 -
+  **the whole city inside 59 of the 255 available levels** - while the same scene through the
+  opengl3 path measured 51 to 185. The difference is the tonemapper. **AgX rolls an enormous
+  range into the screen and, unlike ACES, expects a "look" - a contrast curve - to be applied
+  after it.** There was none, so every frame came out as the flat middle of the AgX ramp.
+  The fix is a look LUT: a `Gradient` / `GradientTexture1D` pair in `city.tscn` wired to
+  `Environment.adjustment_color_correction`, which Godot runs each channel through separately
+  after tonemapping - so it is a per-channel curve, not a tint. An S with a slope of about 1.6
+  about a 0.45 pivot, cool in the toe and warm in the shoulder. `adjustment_contrast` went back
+  to 1.0: stacking a second curve on the LUT crushes the toe.
+  Four things went with it. `tonemap_exposure` is now driven by `DayNight` (1.25 by day, 2.1 at
+  night) so the punchier curve does not turn a lamplit street into mud - note the player camera
+  *also* runs auto exposure underneath that, which is why a night value that looks right at
+  21:00 is a stop hot at 18:30. The key light was made to out-run the fill (sun 1.0 -> 1.3,
+  ambient 0.55 -> 0.30, SSIL 1.0 -> 0.5): a real midday shadow is a fifth as bright as the lit
+  side, not two thirds. Shadows reach 700 m on HIGH instead of 320, so the far half of an aerial
+  has contrast available at all. And the haze was pulled back into the distance rather than
+  sitting over everything.
+  Same frame afterwards: 87/123/175. **Measure the frame; do not squint at it.**
+  `python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"`
+
+- **2026-09-21 Twilight is not midnight.** `night_factor` reaches 1.0 the moment the sun is three
+  degrees under the horizon. That is right for switching the street lamps and the lit windows on
+  and wrong for the light itself: at 18:30 the sky is still bright and still warm, but the sun's
+  colour, the ambient and the new exposure were all driven straight off it, so the city was lit
+  by a blue moon under a pink sky. `DayNight._apply()` now computes a second, slower ramp
+  (`moonlight`, smoothstep 0.02 -> -0.34 on sun elevation) for the light, and keeps
+  `night_factor` for the lamps, the windows and the shader global.
+
+- **2026-09-21 Downtown was pixel art, and one line did it.** Every tower rendered as a random
+  checkerboard of gold and black rectangles, one per window bay, with no glass in it - no
+  highlight, no sky in the panes, no mullion. All the machinery was already there (interior
+  mapping into a virtual room, a Schlick fresnel sky reflection, spandrel panels). Four things
+  were burying it, found by a three-agent diagnostic fleet:
+  `float on = 0.12 + 0.88 * night_factor` in the `lit` branch gave every window the lit roll
+  picked a warm emission at ten in the morning, and `lit_ratio` runs to half the bays - **that is
+  the checkerboard**, half of every facade glowing gold in full sun, painted over the interior
+  and the reflection. The inset shadow that sets a pane back into the wall was measured against
+  `max(du - 0.2, dv - 0.18)` whatever the style, and those two numbers are exactly `win_h - 0.07`
+  for the punched window and for nothing else, so a curtain wall got 86 % of the pane darkened by
+  45 %. Curtain-wall `frame_color` was 0.14, darker than the panes it frames, so the grid a glass
+  tower is made of was drawn and then invisible. And window pitch took exactly four values, with
+  two thirds of downtown sharing 1.8 m.
+
+- **2026-09-21 Everyone in the city was wearing black, and it took two goes.** The first attempt
+  widened the wardrobe ranges and kept the mechanism; the mechanism was the bug. `cloth_value`
+  multiplied the SOURCE texture's own brightness, and `pedestrian_a`'s garments measure 0.21-0.32
+  with its trousers lower still - **there is no multiple of near-black that is a white shirt.**
+  `cloth_value` / `pants_value` are the garment's own brightness now, 0 to 1, with the source's
+  value kept as *shading* around it. `CLOTH_VALUE_BAND` also moved to 0.030..0.075, because the
+  rigs' trousers at about 0.10 sat halfway up the old band and so took barely half the recolour -
+  colour above the waist, black below it. Both were found by reading a number out of the ASSET
+  rather than out of the source.
+
+- **2026-09-21 Numbers that live in two files.** An audit fanned out over the repo for pairs of
+  constants that have to agree across a file boundary with nothing in code connecting them - the
+  class of bug where nothing errors and the picture is just wrong. Fifteen survived an adversarial
+  second pass. The worst: `shaders/ocean.gdshader` carries a hand-transcribed, sRGB-decoded copy
+  of `MacroMap`'s sea palette, because past `handover_start` the water chunks stop drawing their
+  own sea and re-draw the far plane's; re-tune the bake alone and a hard-edged rectangle of
+  differently coloured water follows the player around the bay. Three were removed by making the
+  number a field (`coast_wobble`, `coast_period`, `peninsula_bulge`, all pushed to the shader by
+  `Weather`); six are guarded in `tests/smoke_test.gd`, which reads the second copy out of the
+  other file's source (`Shader.code`, `GDScript.get_script_constant_map()`) rather than writing
+  the number a third time. Every guard was proved by breaking the value and watching the right
+  one fail. **When you add a number another file has to know, make it a field and push it, or add
+  the guard in the same commit.**
+
 - **2026-09-21 The colour and foliage pass (owner: "we need this city to have more color and be
   more gta", "PS5 level foliage and trees", "go and scour the internet for the absolute best
   assets").** Poly Haven turned out to have 521 CC0 models including 20 trees, 57 plants, 9
