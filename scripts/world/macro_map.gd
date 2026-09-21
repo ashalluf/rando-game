@@ -281,64 +281,111 @@ static func zone_name(z: Zone) -> String:
 ## Colours for the land beyond the loaded chunks. These are the colours the horizon is painted
 ## with, so they are the average of what a district looks like from the air, not the colour of
 ## any one surface in it.
-const BAKE_OCEAN_DEEP := Color(0.018, 0.042, 0.075)
-const BAKE_OCEAN_SHALLOW := Color(0.04, 0.13, 0.16)
-const BAKE_SAND := Color(0.46, 0.41, 0.31)
-const BAKE_DOWNTOWN := Color(0.19, 0.19, 0.20)
-const BAKE_MIDTOWN := Color(0.22, 0.21, 0.20)
-const BAKE_SUBURB := Color(0.21, 0.26, 0.15)
-const BAKE_INDUSTRIAL := Color(0.23, 0.22, 0.20)
-const BAKE_CAMPUS := Color(0.18, 0.27, 0.14)
-const BAKE_GRASS := Color(0.17, 0.25, 0.11)
-const BAKE_SCRUB := Color(0.38, 0.34, 0.18)
-const BAKE_ROCK := Color(0.40, 0.36, 0.30)
-const BAKE_CONCRETE := Color(0.32, 0.31, 0.30)
+##
+## They also carry one bit of information the horizon shader cannot get any other way.
+## `built_amount()` in shaders/macro_ground.gdshader tells built-up ground from open country by
+## SATURATION: everything people build - roofs, asphalt, concrete, dust - averages out to a
+## near-neutral grey from three kilometres up, and every natural cover in this basin (parched
+## grass, chaparral, rock, sand) has real chroma in it. So every district colour below is
+## deliberately near enough to grey and every natural one deliberately is not. Those tests run
+## on the LINEAR values the sampler decodes these to, which are about a quarter of what is
+## written here: a district lands at 0.027..0.040 with saturation under 0.15, chaparral at 0.07
+## with saturation 0.76, bare rock at 0.11, pale concrete at 0.09, snow at 0.62.
+## and the shader puts blocks, streets, roof variation and tree canopy on the first and rock,
+## scree, scrub and drainage on the second. How much greener than red a district is sets how
+## leafy the shader makes it, which is why campus is the greenest and industrial is not green
+## at all. Change one of these and check `built_amount()` still separates them.
+##
+## These are albedos, not the finished look: the shader lights them, which brightens them by
+## roughly half again. Picking them by eye from a photograph gives a washed-out map.
+const BAKE_OCEAN_DEEP := Color(0.014, 0.034, 0.062)
+const BAKE_OCEAN_SHALLOW := Color(0.045, 0.125, 0.155)
+## The surf line. One bright texel along the shore is what makes a coastline read as a coast
+## from ten kilometres up instead of as the edge of a blue shape.
+const BAKE_SURF := Color(0.34, 0.44, 0.45)
+## Metres offshore the surf fades out over.
+const BAKE_SURF_WIDTH := 95.0
+const BAKE_SAND := Color(0.50, 0.44, 0.33)
+## Southern California, so the open country is parched gold-olive, not a green field.
+const BAKE_GRASS := Color(0.28, 0.275, 0.155)
+const BAKE_SCRUB := Color(0.36, 0.325, 0.175)
+const BAKE_ROCK := Color(0.40, 0.365, 0.315)
 const BAKE_SNOW := Color(0.78, 0.80, 0.84)
+const BAKE_CONCRETE := Color(0.34, 0.335, 0.33)
+const BAKE_PORT := Color(0.32, 0.31, 0.305)
+const BAKE_DOWNTOWN := Color(0.175, 0.177, 0.188)
+const BAKE_MIDTOWN := Color(0.200, 0.204, 0.206)
+const BAKE_INDUSTRIAL := Color(0.225, 0.222, 0.215)
+const BAKE_SUBURB := Color(0.216, 0.225, 0.212)
+const BAKE_CAMPUS := Color(0.207, 0.220, 0.203)
+## The freeway decks, drawn into the map as dark threads. Three curved routes crossing the
+## basin are the most recognisable thing in an aerial view of a city like this one, and at this
+## resolution they are the only man-made line long enough to survive the bake.
+const BAKE_FREEWAY := Color(0.150, 0.150, 0.158)
+## Metres either side of a route centre line that get painted.
+const BAKE_FREEWAY_MARGIN := 18.0
 ## Metres that alpha 1.0 stands for in the baked map. The horizon plane lifts its vertices by
 ## this, so it has to cover the highest peak the back range can throw up.
 const BAKE_HEIGHT_SCALE := 1600.0
+## The bake is rendered this many times finer than the caller asks for. 256 px across 16 km is
+## 62 metres a texel - a whole city block - and the coastline, the airport fence, the freeways
+## and the edge of the city all come out as a smear that no amount of shader detail can undo,
+## because the shader can invent what a hillside looks like but not where the hillside is.
+## Measured on CI hardware: 0.24 s at 160, 0.8 s at 256, 1.9 s at 384, 3.0 s at 512, once, at
+## load. The web build is left alone: GDScript under WASM is several times slower and the whole
+## point of that build is that it starts fast.
+const BAKE_UPSCALE := 2
+## ...but never past this, because the cost is quadratic and the image is uploaded as a texture.
+const BAKE_MAX_SIZE := 512
+## Per-texel brightness jitter. It used to be +/- 15 %, which at 62 m a texel was the only
+## variation the horizon had; now the shader synthesizes block-scale detail itself and this only
+## has to keep neighbourhoods from all being the same value. Applied to every channel equally,
+## so it cannot disturb the saturation the shader classifies on.
+const BAKE_JITTER := 0.07
 
 
 ## Paints the whole basin into one small image, so the ground plane beyond the streamed chunks
 ## can show the actual map instead of a flat green table out to the horizon: ocean to the west,
-## the mountains to the north, the airport, the city sprawl. RGB is the ground colour and alpha
-## carries the land height (metres / BAKE_HEIGHT_SCALE), which the shader both shades from
-## and lifts its own vertices by, so the mountains have a silhouette and not just a colour. Alpha is
-## exactly zero on water and never below 0.004 on land, so the shader can tell the sea apart and
-## shade it as water rather than as a very flat blue field.
+## the mountains to the north, the airport, the city sprawl, the freeways. RGB is the ground
+## colour and alpha carries the land height (metres / BAKE_HEIGHT_SCALE), which the shader both
+## shades from and lifts its own vertices by, so the mountains have a silhouette and not just a
+## colour. Alpha is exactly zero on water and never below 0.004 on land, so the shader can tell
+## the sea apart and shade it as water rather than as a very flat blue field.
 ##
-## These colours are albedos, not the finished look: the renderer lights the plane like anything
-## else, which brightens them by roughly half again. Picking them by eye from a photograph gives
-## a washed-out map.
-##
-## `span` is how many metres across the image covers, centred on `centre` in world XZ.
+## `span` is how many metres across the image covers, centred on `centre` in world XZ; `size` is
+## what the caller thinks it wants, and BAKE_UPSCALE is how much finer it actually gets.
 func bake(centre: Vector2, span: float, size: int) -> Image:
-	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	var step := span / float(size)
+	var res := size if OS.has_feature("web") else mini(size * BAKE_UPSCALE, BAKE_MAX_SIZE)
+	var img := Image.create(res, res, false, Image.FORMAT_RGBA8)
+	var step := span / float(res)
 	var origin := centre - Vector2(span, span) * 0.5
-	for py in size:
-		for px in size:
+	for py in res:
+		for px in res:
 			var pos := origin + Vector2((float(px) + 0.5) * step, (float(py) + 0.5) * step)
 			var h := height_at(pos)
+			var zone := zone_at(pos)
 			var col: Color
-			match zone_at(pos):
+			match zone:
 				Zone.OCEAN:
-					# Shoaling water: the shelf near the shore reads much lighter than the deep.
-					var shore := clampf((coast_x(pos.y) - pos.x) / 600.0, 0.0, 1.0)
+					# Shoaling water: the shelf near the shore reads much lighter than the deep,
+					# and the last hundred metres of it are breaking.
+					var offshore := coast_x(pos.y) - pos.x
+					var shore := clampf(offshore / 600.0, 0.0, 1.0)
 					col = BAKE_OCEAN_SHALLOW.lerp(BAKE_OCEAN_DEEP, shore)
+					if offshore >= 0.0:
+						col = col.lerp(BAKE_SURF, (1.0 - smoothstep(0.0, BAKE_SURF_WIDTH, offshore)) * 0.85)
 				Zone.BEACH:
 					col = BAKE_SAND
 				Zone.AIRPORT:
 					col = BAKE_CONCRETE
 				Zone.PORT:
-					col = BAKE_CONCRETE.darkened(0.25)
+					col = BAKE_PORT
 				Zone.HILLS:
-					# Green on the lower slopes, dry scrub above them, bare rock higher, and
-					# snow on the back range, which tops out well over a kilometre.
+					# Parched grass on the lower slopes, chaparral above it, bare rock higher,
+					# and snow on the back range, which tops out well over a kilometre.
 					# The bands have to line up with what `terrain.gdshader` does on the streamed
-					# chunks, or every mountain gets a tide-line where the two meet: dry gold
-					# chaparral over most of the height (the shader's `dry_tint` covers the whole
-					# front range), rock only on the high back range, snow above that.
+					# chunks and with what `macro_ground.gdshader` synthesizes beyond them, or
+					# every mountain gets a tide-line where the two meet.
 					var t := clampf(h / 1000.0, 0.0, 1.0)
 					col = BAKE_GRASS.lerp(BAKE_SCRUB, smoothstep(0.03, 0.14, t))
 					col = col.lerp(BAKE_ROCK, smoothstep(0.45, 0.85, t))
@@ -355,15 +402,19 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 							col = BAKE_CAMPUS
 						_:
 							col = BAKE_SUBURB
-			if zone_at(pos) == Zone.OCEAN:
+			if zone == Zone.OCEAN:
 				col.a = 0.0
 			else:
 				col.a = clampf(maxf(h, 0.0) / BAKE_HEIGHT_SCALE, 0.004, 1.0)
-				# Built-up ground is not one flat colour from the air: it is roofs, roads,
-				# yards and trees at a scale far below one texel. Jitter each texel so the
-				# sprawl beyond the loaded chunks reads as a city rather than a painted field.
+				# The freeways, drawn last so they cross districts and hills alike.
+				if freeway and freeway.blocks(pos, BAKE_FREEWAY_MARGIN):
+					col = Color(BAKE_FREEWAY.r, BAKE_FREEWAY.g, BAKE_FREEWAY.b, col.a)
+				# Built-up ground is not one flat value from the air. The shader draws the blocks
+				# and the roofs; this only keeps one neighbourhood from reading exactly like the
+				# next. Every channel is scaled together, so the saturation the shader classifies
+				# on is untouched.
 				var n := float(absi(hash([px, py, seed])) % 1000) / 1000.0
-				var jitter := 0.86 + 0.30 * n
-				col = Color(col.r * jitter, col.g * jitter, col.b * (jitter * 0.98), col.a)
+				var jitter := 1.0 + (n - 0.5) * 2.0 * BAKE_JITTER
+				col = Color(col.r * jitter, col.g * jitter, col.b * jitter, col.a)
 			img.set_pixel(px, py, col)
 	return img
