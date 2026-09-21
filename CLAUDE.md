@@ -514,6 +514,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
   `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
   Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.
+  **Those are the Compatibility renderer**, though - no SDFGI, no SSR, no TAA, no volumetric fog,
+  flat lighting - so they are NOT what the owner's Mac draws, and judging a lighting or material
+  change on one is judging the wrong renderer. `tools/glshot/forward_shot.sh` runs the real
+  **Forward+** pipeline headless with no GPU, via lavapipe (Mesa's software Vulkan driver,
+  `apt-get install mesa-vulkan-drivers`, which puts `lvp_icd.json` in `/usr/share/vulkan/icd.d/`);
+  Godot then accepts `--rendering-driver vulkan` and everything in the Environment actually
+  applies. It costs about six minutes for one 960x540 shot, so use it to check a finished change
+  and keep `city_shot.gd` for the fast loop.
 - Physics masks as constants on `Player`: `AIM_MASK` (world + props) and `BLAST_MASK` (player + props).
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
 - Commit messages: short imperative subject, body explains why and how to test. One task per
