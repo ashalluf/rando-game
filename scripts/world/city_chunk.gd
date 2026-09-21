@@ -402,10 +402,14 @@ const SAND_STEP := 9.0
 ## hairline of ground shows through between the sand and the town.
 const SAND_WET := 26.0
 const SAND_LIP := 22.0
-## Height of the sand at the waterline and at its inland edge. The slope between them is what
-## makes a beach look like a beach from the air rather than a flat sheet.
-const SAND_LOW := -0.55
-const SAND_HIGH := 0.42
+## The sand's profile, in metres of height. A beach is two slopes, not one: a steep wet face
+## that runs down under the water and a long gentle dry rise behind it. Getting this wrong is
+## very visible - a single ramp from below the waves to the town crosses the sea surface (which
+## sits at 0.15) most of the way up the beach, and drowns it.
+## SAND_EDGE is where the sand meets the water, and must stay ABOVE 0.15.
+const SAND_LOW := -0.75
+const SAND_EDGE := 0.22
+const SAND_HIGH := 0.5
 
 
 ## The beach: a strip that follows the shoreline itself rather than a chunk-sized slab. The
@@ -421,6 +425,7 @@ func _build_beach(block: Dictionary) -> void:
 	var steps := maxi(2, ceili(rect.size.y / SAND_STEP))
 	var quads := 0
 	var prev_lo := Vector3.ZERO
+	var prev_edge := Vector3.ZERO
 	var prev_hi := Vector3.ZERO
 	for i in steps + 1:
 		var z: float = rect.position.y + rect.size.y * float(i) / steps
@@ -430,12 +435,18 @@ func _build_beach(block: Dictionary) -> void:
 			water_x = macro.coast_x(z)
 			inland_x = water_x + macro.beach_width + SAND_LIP
 		var lo := Vector3(water_x - SAND_WET, SAND_LOW, z)
+		var edge := Vector3(water_x, SAND_EDGE, z)
 		var hi := Vector3(inland_x, SAND_HIGH, z)
 		if i > 0:
-			for v in [prev_lo, hi, prev_hi, prev_lo, lo, hi]:
+			# Two strips: the wet face from under the water up to the waterline, then the dry
+			# sand from there to the town.
+			for v in [prev_lo, prev_edge, edge, prev_lo, edge, lo]:
 				st.add_vertex(v)
-			quads += 1
+			for v in [prev_edge, prev_hi, hi, prev_edge, hi, edge]:
+				st.add_vertex(v)
+			quads += 2
 		prev_lo = lo
+		prev_edge = edge
 		prev_hi = hi
 	if quads > 0:
 		st.generate_normals()
@@ -455,7 +466,7 @@ func _build_beach(block: Dictionary) -> void:
 	if macro:
 		dry_centre = macro.coast_x(c.y) + macro.beach_width * 0.5
 		dry_width = macro.beach_width + SAND_LIP
-	_add_shape(Vector3(dry_width, 0.4, rect.size.y), Vector3(dry_centre, SAND_HIGH - 0.2, c.y))
+	_add_shape(Vector3(dry_width, 0.4, rect.size.y), Vector3(dry_centre, SAND_EDGE - 0.1, c.y))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	# Scattered across the DRY sand, which is a band that moves with the shoreline rather than
@@ -463,10 +474,10 @@ func _build_beach(block: Dictionary) -> void:
 	for i in rng.randi_range(6, 14):
 		var z := rng.randf_range(rect.position.y + 4.0, rect.end.y - 4.0)
 		var x := _dry_sand_x(z, rng.randf_range(0.18, 0.95))
-		_add_palm(Vector3(x, SAND_HIGH - 0.2, z), rng)
+		_add_palm(Vector3(x, SAND_EDGE, z), rng)
 	if rng.randf() < 0.6:
 		var z := rng.randf_range(rect.position.y + 8.0, rect.end.y - 8.0)
-		_add_lifeguard_tower(Vector3(_dry_sand_x(z, rng.randf_range(0.1, 0.5)), SAND_HIGH - 0.2, z), rng.randf_range(0.0, TAU))
+		_add_lifeguard_tower(Vector3(_dry_sand_x(z, rng.randf_range(0.1, 0.5)), SAND_EDGE, z), rng.randf_range(0.0, TAU))
 
 
 ## X of a point on the dry sand at Z, `across` running 0 at the waterline to 1 at the town.

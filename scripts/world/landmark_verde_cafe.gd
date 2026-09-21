@@ -41,6 +41,11 @@ const PATIO_Z1 := 5.6
 const DECK_LIFT := 0.18
 ## Total thickness of the paving slab, so it still meets the pavement on a mild slope.
 const PAD_T := 0.36
+## West and north edge of the paving slab. The back and west walls stand OUTSIDE the shell
+## planes by their own thickness, so the slab has to reach past them; cut to SHELL_X0 / SHELL_Z0
+## the wall foot hangs over a 0.36 m drop and you can see daylight under the building.
+const PAD_X0 := SHELL_X0 - WALL_T
+const PAD_Z0 := SHELL_Z0 - WALL_T
 
 # --- Shell --------------------------------------------------------------------------------
 
@@ -79,6 +84,12 @@ const DOOR_W := 1.15
 const DOOR_H := 2.3
 ## Which bay of the front run is the entrance (0 is the west end); -1 for none.
 const DOOR_BAY := 4
+## How many whole bays the front run divides into. _glazed_run() derives the same number from the
+## run length and BAY_W; this const is what the gate and the pool of light on the pavement line
+## up with, so if BAY_W or the shell width moves, check the two still agree.
+const FRONT_BAYS := 5
+## Local X of the middle of the door bay.
+const DOOR_X := SHELL_X0 + (DOOR_BAY + 0.5) * ((SHELL_X1 - CORNER_PIER - SHELL_X0) / FRONT_BAYS)
 
 # --- Awning -------------------------------------------------------------------------------
 
@@ -120,9 +131,11 @@ const RAIL_H := 0.95
 const RAIL_POST_GAP := 1.55
 ## Radius of a railing post.
 const RAIL_R := 0.045
-## West and east edge of the gap left in the front railing for the patio entrance.
-const GATE_X0 := 1.6
-const GATE_X1 := 3.6
+## Half-width of the gap left in the front railing for the patio entrance. The gap is centred on
+## DOOR_X, so you step off the pavement and straight at the door rather than at a rail post.
+const GATE_HALF := 1.0
+const GATE_X0 := DOOR_X - GATE_HALF
+const GATE_X1 := DOOR_X + GATE_HALF
 ## Radius of a bistro table top.
 const TABLE_R := 0.42
 ## Height of a bistro table top.
@@ -139,6 +152,27 @@ const PARASOL_H := 2.3
 const PLANTER_W := 1.7
 const PLANTER_H := 0.55
 const PLANTER_D := 0.7
+## Shrubs per planter, and the range of their radius in metres.
+const PLANTER_SHRUBS := 3
+const SHRUB_R := Vector2(0.40, 0.56)
+## Spacing of the bulbs on the string lights under the awning edge.
+const BULB_GAP := 1.0
+## Height, depth and spacing of the two bike hoops by the gate.
+const RACK_H := 0.78
+const RACK_W := 0.62
+const RACK_GAP := 0.8
+
+# --- Street trees ---------------------------------------------------------------------------
+# Landmarks._tree() plants a 4 m trunk under a 6.4 m sphere. That is sized for the observatory
+# and the campus quad; in front of a single-storey shopfront it reads as a lollipop and swallows
+# the sign, so the two pavement trees here are built locally and kept under the parapet.
+
+## Radius of one crown lobe.
+const TREE_CROWN_R := 1.75
+## Height of the underside of the canopy: the trunk is clear below this.
+const TREE_CLEAR := 2.8
+## Radius of the trunk at the ground; it tapers to 70% of this at the crown.
+const TREE_TRUNK_R := 0.17
 
 # --- Night --------------------------------------------------------------------------------
 
@@ -191,7 +225,7 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	_signs(parent, base)
 	_patio(parent, statics, base, rng)
 	_night(parent, base)
-	_street(parent, base, anchor, plan)
+	_street(parent, base, anchor, plan, rng)
 
 
 ## The far copy: the silhouette only, and no collision. About 110 triangles.
@@ -200,8 +234,8 @@ static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
 	var d := SHELL_Z1 - SHELL_Z0
 	var cx := (SHELL_X0 + SHELL_X1) * 0.5
 	var cz := (SHELL_Z0 + SHELL_Z1) * 0.5
-	Landmarks._box(parent, statics, Vector3(PATIO_X1 - SHELL_X0, PAD_T, PATIO_Z1 - SHELL_Z0),
-			base + Vector3((SHELL_X0 + PATIO_X1) * 0.5, -PAD_T * 0.5, (SHELL_Z0 + PATIO_Z1) * 0.5), Color(0.78, 0.77, 0.74), true)
+	Landmarks._box(parent, statics, Vector3(PATIO_X1 - PAD_X0, PAD_T, PATIO_Z1 - PAD_Z0),
+			base + Vector3((PAD_X0 + PATIO_X1) * 0.5, -PAD_T * 0.5, (PAD_Z0 + PATIO_Z1) * 0.5), Color(0.78, 0.77, 0.74), true)
 	Landmarks._box(parent, statics, Vector3(w, WALL_H, d), base + Vector3(cx, WALL_H * 0.5, cz), STUCCO, true)
 	Landmarks._box(parent, statics, Vector3(w + ROOF_OVERHANG * 2.0, ROOF_T, d + ROOF_OVERHANG * 2.0),
 			base + Vector3(cx, WALL_H + ROOF_T * 0.5, cz), STUCCO.darkened(0.15), true)
@@ -218,8 +252,8 @@ static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
 
 static func _pad(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
 	# One slab under the shell and the L of patio, so the cafe reads as a single raised corner.
-	var pad := Landmarks._box(parent, statics, Vector3(PATIO_X1 - SHELL_X0, PAD_T, PATIO_Z1 - SHELL_Z0),
-			base + Vector3((SHELL_X0 + PATIO_X1) * 0.5, -PAD_T * 0.5, (SHELL_Z0 + PATIO_Z1) * 0.5), Color(0.8, 0.79, 0.76), true)
+	var pad := Landmarks._box(parent, statics, Vector3(PATIO_X1 - PAD_X0, PAD_T, PATIO_Z1 - PAD_Z0),
+			base + Vector3((PAD_X0 + PATIO_X1) * 0.5, -PAD_T * 0.5, (PAD_Z0 + PATIO_Z1) * 0.5), Color(0.8, 0.79, 0.76), true)
 	pad.material_override = PropFactory.pbr("paving", 2.4, Color(0.92, 0.9, 0.86))
 	# Timber floor inside the shop, just proud of the paving.
 	var floor_mi := Landmarks._box(parent, null, Vector3(SHELL_X1 - SHELL_X0, 0.06, SHELL_Z1 - SHELL_Z0),
@@ -319,8 +353,11 @@ static func _glazed_run(parent: Node3D, statics: StaticBody3D, base: Vector3, ax
 		t.material_override = frame
 	# Fascia over the head, flush with the wall face, and the collision that stops the player
 	# walking through the glass.
-	var fascia := Landmarks._box(parent, null, _run_size(axis_x, length + CORNER_PIER, WALL_H - HEAD_H, WALL_T),
-			base + _run_pos(axis_x, plane, mid + CORNER_PIER * 0.5, (HEAD_H + WALL_H) * 0.5, -WALL_T * 0.5), STUCCO, false)
+	# Stops at the corner pier rather than running through it: the pier is solid to the roof, so
+	# extending both fascias over the corner put two coplanar faces in the same 0.5 m patch and
+	# the corner flickered.
+	var fascia := Landmarks._box(parent, null, _run_size(axis_x, length, WALL_H - HEAD_H, WALL_T),
+			base + _run_pos(axis_x, plane, mid, (HEAD_H + WALL_H) * 0.5, -WALL_T * 0.5), STUCCO, false)
 	fascia.material_override = stucco
 	if statics:
 		Landmarks._shape(statics, _run_size(axis_x, length, WALL_H, 0.25), base + _run_pos(axis_x, plane, mid, WALL_H * 0.5, 0.0))
@@ -477,8 +514,10 @@ static func _patio(parent: Node3D, statics: StaticBody3D, base: Vector3, rng: Ra
 	_rail(parent, statics, base, Vector2(PATIO_X1, SHELL_Z0), Vector2(PATIO_X1, PATIO_Z1))
 	_rail(parent, statics, base, Vector2(SHELL_X1, SHELL_Z0), Vector2(PATIO_X1, SHELL_Z0))
 	# Tables: a row under the awning, a row out in the sun with parasols, two on the side patio.
+	# The east end of both rows stops short of DOOR_X, so the gate opens onto a clear walk in to
+	# the door instead of onto the back of a chair.
 	var shaded: Array[Vector2] = [Vector2(-6.6, 2.55), Vector2(-3.9, 2.55), Vector2(-1.2, 2.55)]
-	var sunny: Array[Vector2] = [Vector2(-5.4, 4.55), Vector2(-2.5, 4.55), Vector2(0.4, 4.55)]
+	var sunny: Array[Vector2] = [Vector2(-6.2, 4.55), Vector2(-3.3, 4.55), Vector2(-0.4, 4.55)]
 	var side: Array[Vector2] = [Vector2(5.7, -3.9), Vector2(5.7, -1.0)]
 	for at: Vector2 in shaded:
 		_bistro(parent, statics, base, at, rng.randf_range(-0.25, 0.25), false, rng)
@@ -486,12 +525,17 @@ static func _patio(parent: Node3D, statics: StaticBody3D, base: Vector3, rng: Ra
 		_bistro(parent, statics, base, at, rng.randf_range(-0.25, 0.25), true, rng)
 	for i in side.size():
 		_bistro(parent, statics, base, side[i], PI * 0.5 + rng.randf_range(-0.25, 0.25), i == 0, rng)
-	# Planters along the rails; the two by the door carry a real shrub model.
-	_planter(parent, statics, base, Vector2(-7.0, 5.05), true, true, rng)
-	_planter(parent, statics, base, Vector2(2.5, 5.05), true, true, rng)
-	_planter(parent, statics, base, Vector2(6.35, -5.0), false, false, rng)
-	_planter(parent, statics, base, Vector2(6.35, 3.0), false, false, rng)
+	# Planters along the rails. The east one used to sit at x 2.5, which put a 1.7 m box with
+	# collision on it squarely across the gate: the patio could not be walked into at all.
+	_planter(parent, statics, base, Vector2(-7.0, 5.05), true, rng)
+	_planter(parent, statics, base, Vector2(5.6, 5.05), true, rng)
+	_planter(parent, statics, base, Vector2(6.35, -5.0), false, rng)
+	_planter(parent, statics, base, Vector2(6.35, 3.0), false, rng)
 	_menu_board(parent, base, Vector2(2.6, 2.3), -0.5)
+	_bike_rack(parent, base, Vector2(GATE_X1 + 1.4, PATIO_Z1 - 0.75))
+	# Bulbs on the outer edge of both awnings, the patio's own light after dark.
+	_string_lights(parent, base, true, SHELL_Z1, SHELL_X0, SHELL_X1, AWNING_REACH)
+	_string_lights(parent, base, false, SHELL_X1, SHELL_Z0, SHELL_Z1, AWNING_REACH_SIDE)
 
 
 ## A straight railing run: posts on RAIL_POST_GAP centres, a top rail and a mid rail, and one
@@ -526,10 +570,14 @@ static func _bistro(parent: Node3D, statics: StaticBody3D, base: Vector3, at: Ve
 	_chair(parent, base, at - dir, yaw)
 	if not parasol:
 		return
-	Landmarks._cyl(parent, null, 0.04, PARASOL_H + 0.3, base + Vector3(at.x, (PARASOL_H + 0.3) * 0.5, at.y), Color(0.75, 0.72, 0.66))
+	# The pole has to clear the canopy apex (PARASOL_H + 0.45 with _cone centred on its own
+	# midpoint) or the finial sits inside the shade where nobody can see it.
+	var pole_h := PARASOL_H + 0.55
+	Landmarks._cyl(parent, null, 0.04, pole_h, base + Vector3(at.x, pole_h * 0.5, at.y), Color(0.75, 0.72, 0.66))
 	var shade := CANVAS if rng.randf() < 0.5 else TRIM_LIGHT
 	Landmarks._cone(parent, PARASOL_R, 0.45, base + Vector3(at.x, PARASOL_H + 0.22, at.y), shade)
-	Landmarks._box(parent, null, Vector3(0.1, 0.16, 0.1), base + Vector3(at.x, PARASOL_H + 0.5, at.y), METAL, false)
+	Landmarks._box(parent, null, Vector3(0.09, 0.16, 0.09), base + Vector3(at.x, pole_h, at.y), METAL, false)
+	_cups(parent, base, at, rng)
 
 
 static func _table(parent: Node3D, statics: StaticBody3D, base: Vector3, at: Vector2, yaw: float) -> void:
@@ -559,30 +607,86 @@ static func _chair(parent: Node3D, base: Vector3, at: Vector2, yaw: float) -> vo
 		slat.rotation.x = -0.1
 
 
-## A timber planter box with clipped shrubs. `real` uses the CC0 shrub model (about 6k
-## triangles each) for the two the player walks past at the door; the rest are cheap bushes.
+## A timber planter box with clipped shrubs.
+##
+## The shrubs are scaled copies of PropFactory.bush(), a 352-triangle sphere, not
+## PropFactory.model_shrub(). The model is a scanned garden shrub: 5-9k triangles of sparse bare
+## branches that read as a dead twig at the 1.5 m a planter box is seen from, and two of them
+## were 40% of this landmark's whole budget. Three overlapping spheres cost a fifteenth of that
+## and read as the clipped box hedge a shopfront planter actually holds.
 static func _planter(parent: Node3D, statics: StaticBody3D, base: Vector3, at: Vector2, axis_x: bool,
-		real: bool, rng: RandomNumberGenerator) -> void:
+		rng: RandomNumberGenerator) -> void:
 	var size := Vector3(PLANTER_W, PLANTER_H, PLANTER_D) if axis_x else Vector3(PLANTER_D, PLANTER_H, PLANTER_W)
 	var box := Landmarks._box(parent, statics, size, base + Vector3(at.x, PLANTER_H * 0.5, at.y), WOOD, true)
 	box.material_override = PropFactory.material(WOOD, 0.75)
 	var band := Landmarks._box(parent, null, size * Vector3(1.04, 0.12, 1.04), base + Vector3(at.x, PLANTER_H - 0.06, at.y), TRIM_LIGHT, false)
 	band.material_override = PropFactory.material(TRIM_LIGHT, 0.6)
 	Landmarks._box(parent, null, size * Vector3(0.9, 0.1, 0.9), base + Vector3(at.x, PLANTER_H - 0.01, at.y), Color(0.24, 0.2, 0.16), false)
-	if real:
-		var mi := MeshInstance3D.new()
-		mi.mesh = PropFactory.model_shrub(rng.randi_range(0, 3))
-		mi.transform = Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3.ONE * 0.75), base + Vector3(at.x, PLANTER_H, at.y))
-		parent.add_child(mi)
-		return
-	for i in 2:
-		var off := Vector3(-0.45 + i * 0.9, 0.0, 0.0) if axis_x else Vector3(0.0, 0.0, -0.45 + i * 0.9)
+	var run := PLANTER_W - 0.6
+	for i in PLANTER_SHRUBS:
+		var t := (float(i) / float(PLANTER_SHRUBS - 1) - 0.5) * run
+		var off := Vector3(t, 0.0, 0.0) if axis_x else Vector3(0.0, 0.0, t)
 		var bush := MeshInstance3D.new()
 		bush.mesh = PropFactory.bush()
-		var s := rng.randf_range(0.5, 0.68)
-		bush.transform = Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(s, s * 1.1, s)), base + Vector3(at.x, PLANTER_H + 0.24, at.y) + off)
-		bush.material_override = PropFactory.material(Color(0.24, 0.44, 0.22).lightened(rng.randf_range(0.0, 0.16)), 0.9)
+		# bush() is a 0.9 m sphere, so the scale is the radius we want over 0.9; squashed a little
+		# on Y because a clipped shrub is wider than it is tall.
+		var r := rng.randf_range(SHRUB_R.x, SHRUB_R.y)
+		var sc := Vector3(r, r * 0.82, r) / 0.9
+		bush.transform = Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(sc), base + Vector3(at.x, PLANTER_H + r * 0.42, at.y) + off)
+		bush.material_override = PropFactory.material(Color(0.24, 0.44, 0.22).lightened(rng.randf_range(0.0, 0.18)), 0.9)
 		parent.add_child(bush)
+
+
+## Nought to two cups and saucers left on a table. Empty tables read as a showroom; this is the
+## cheapest thing on the whole build that says somebody was just sitting here. Both meshes are
+## cached by PropFactory.cylinder(), so all ten tables share two 8-sided primitives.
+static func _cups(parent: Node3D, base: Vector3, at: Vector2, rng: RandomNumberGenerator) -> void:
+	for i in rng.randi_range(0, 2):
+		var a := rng.randf_range(0.0, TAU)
+		var d := rng.randf_range(0.10, TABLE_R - 0.14)
+		var p := base + Vector3(at.x + cos(a) * d, TABLE_H + 0.035, at.y + sin(a) * d)
+		var saucer := MeshInstance3D.new()
+		saucer.mesh = PropFactory.cylinder("cafe_saucer", 0.075, 0.014, Color(0.93, 0.92, 0.89), -1.0, 8)
+		saucer.position = p
+		parent.add_child(saucer)
+		var cup := MeshInstance3D.new()
+		cup.mesh = PropFactory.cylinder("cafe_cup", 0.036, 0.085, Color(0.95, 0.94, 0.92), 0.043, 8)
+		cup.position = p + Vector3(0.0, 0.05, 0.0)
+		parent.add_child(cup)
+
+
+## Two hoop stands by the gate. Five pieces, and a pavement without one does not read as the
+## Westside.
+static func _bike_rack(parent: Node3D, base: Vector3, at: Vector2) -> void:
+	var hoop := PropFactory.cylinder("cafe_rack_leg", 0.028, RACK_H, Color(0.3, 0.31, 0.32), -1.0, 6)
+	for i in 2:
+		var x := at.x + (i - 0.5) * RACK_GAP
+		for dz: float in [-1.0, 1.0]:
+			var leg := MeshInstance3D.new()
+			leg.mesh = hoop
+			leg.position = base + Vector3(x, RACK_H * 0.5, at.y + dz * RACK_W * 0.5)
+			parent.add_child(leg)
+		var top := Landmarks._box(parent, null, Vector3(0.05, 0.05, RACK_W), base + Vector3(x, RACK_H, at.y), METAL, false)
+		top.material_override = PropFactory.material(METAL, 0.45)
+
+
+## A string of bulbs slung along the outer edge of an awning. The bulbs share _sign_material(),
+## so they are cream beads by day and come up warm with the street lamps, which gives the patio
+## a light of its own after dark for about 130 triangles a run and no OmniLight.
+static func _string_lights(parent: Node3D, base: Vector3, axis_x: bool, plane: float, a: float,
+		b: float, reach: float) -> void:
+	var length := b - a
+	var mid := (a + b) * 0.5
+	var y := AWNING_Y - AWNING_DROP - VALANCE_H - 0.05
+	var wire := Landmarks._box(parent, null, _run_size(axis_x, length, 0.025, 0.025),
+			base + _run_pos(axis_x, plane, mid, y, reach - 0.05), Color(0.12, 0.12, 0.13), false)
+	wire.material_override = PropFactory.material(Color(0.12, 0.12, 0.13), 0.6)
+	var lamps: int = maxi(2, int(round(length / BULB_GAP)))
+	for i in lamps:
+		var t := a + (i + 0.5) * (length / float(lamps))
+		var bulb := Landmarks._box(parent, null, Vector3(0.075, 0.105, 0.075),
+				base + _run_pos(axis_x, plane, t, y - 0.085, reach - 0.05), CANVAS, false)
+		bulb.material_override = _sign_material()
 
 
 ## The A-frame chalk board by the door.
@@ -629,16 +733,37 @@ static func _night(parent: Node3D, base: Vector3) -> void:
 	_glow(parent, base + Vector3(SHELL_X1 + AWNING_REACH_SIDE * 0.45, 0.05, side_z), Vector2(AWNING_REACH_SIDE * 1.6, side_len + 2.0), 0.0, -PI * 0.5, PATIO_POOL, false)
 	# A tighter halo behind the sign band and a little wash on the door.
 	_glow(parent, base + Vector3(front_x, (HEAD_H + WALL_H) * 0.5, SHELL_Z1 + 0.18), Vector2(SIGN_BAND_W + 1.2, SIGN_BAND_H + 0.9), 0.0, 0.0, 0.7, true)
-	var door_x := SHELL_X0 + (float(DOOR_BAY) + 0.5) * ((SHELL_X1 - CORNER_PIER - SHELL_X0) / 5.0)
-	_glow(parent, base + Vector3(door_x, 0.05, SHELL_Z1 + 1.1), Vector2(3.0, 3.0), 0.0, -PI * 0.5, 0.8, false)
+	_glow(parent, base + Vector3(DOOR_X, 0.05, SHELL_Z1 + 1.1), Vector2(3.0, 3.0), 0.0, -PI * 0.5, 0.8, false)
 
 
 # --- Street -------------------------------------------------------------------------------
 
 ## Two street trees on the kerb. They stand on the real pavement, not on the cafe's slab, so
 ## they take their own ground sample.
-static func _street(parent: Node3D, base: Vector3, anchor: Vector2, plan: CityPlan) -> void:
-	for spot: Vector2 in [Vector2(-5.2, 6.9), Vector2(8.5, -1.4)]:
+static func _street(parent: Node3D, base: Vector3, anchor: Vector2, plan: CityPlan, rng: RandomNumberGenerator) -> void:
+	for spot: Vector2 in [Vector2(-5.2, 6.6), Vector2(7.8, -1.4)]:
 		var world := anchor + spot
 		var y: float = plan.height_at(world) if plan != null else base.y - DECK_LIFT
-		Landmarks._tree(parent, Vector3(world.x, y, world.y))
+		_street_tree(parent, Vector3(world.x, y, world.y), rng)
+
+
+## One pavement tree: a tapered trunk and three overlapping crowns, about 5 m to the top, which
+## keeps it under the parapet and off the sign. Three scaled copies of the shared bush sphere
+## cost roughly 1.1k triangles and read as a canopy where one big sphere reads as a lollipop.
+static func _street_tree(parent: Node3D, at: Vector3, rng: RandomNumberGenerator) -> void:
+	var trunk := MeshInstance3D.new()
+	trunk.mesh = PropFactory.cylinder("cafe_tree_trunk", TREE_TRUNK_R, TREE_CLEAR + 0.7,
+			Color(0.37, 0.29, 0.22), TREE_TRUNK_R * 0.7, 8)
+	trunk.position = at + Vector3(0.0, (TREE_CLEAR + 0.7) * 0.5, 0.0)
+	parent.add_child(trunk)
+	var lean := rng.randf_range(0.0, TAU)
+	for i in 3:
+		var r := TREE_CROWN_R * rng.randf_range(0.74, 1.0)
+		var a := lean + TAU * float(i) / 3.0
+		var off := Vector3(cos(a), rng.randf_range(-0.12, 0.3), sin(a)) * TREE_CROWN_R * 0.45
+		var lobe := MeshInstance3D.new()
+		lobe.mesh = PropFactory.bush()
+		lobe.transform = Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(r, r * 0.86, r) / 0.9),
+				at + Vector3(0.0, TREE_CLEAR + 0.75, 0.0) + off)
+		lobe.material_override = PropFactory.material(Color(0.23, 0.42, 0.21).lightened(rng.randf_range(0.0, 0.14)), 0.95)
+		parent.add_child(lobe)

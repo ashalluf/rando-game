@@ -413,6 +413,19 @@ func _test_city() -> void:
 			var probe := Vector2(macro.coast_x(float(town[0]) + 40.0) + 90.0, float(town[0]) + 40.0)
 			town_names[macro.place_name(probe)] = true
 		_check(town_names.size() >= 6, "the coast is a chain of named towns (%d distinct)" % town_names.size())
+		# The beach must be ABOVE the sea, not under it. The sand is a ramp from below the waves
+		# up to the town, and if its waterline height drops under the sea surface the whole
+		# beach floods - which looks, from the air, exactly like a beach at high tide, so it is
+		# the kind of defect that survives a screenshot.
+		_check(CityChunk.SAND_EDGE > 0.16 and CityChunk.SAND_HIGH > CityChunk.SAND_EDGE and CityChunk.SAND_LOW < 0.0,
+				"the sand rises out of the water (low %.2f, edge %.2f, high %.2f)" % [CityChunk.SAND_LOW, CityChunk.SAND_EDGE, CityChunk.SAND_HIGH])
+		# And every landmark the map lists has a label on the minimap: the fallback prints the
+		# raw id, so a missing one ships as "venice_boardwalk" written across the map.
+		var unlabelled := ""
+		for lm in Landmarks.all():
+			if not Minimap.LANDMARK_NAMES.has(lm.id):
+				unlabelled += " " + str(lm.id)
+		_check(unlabelled == "", "every landmark has a minimap label%s" % unlabelled)
 		_check(city.has_node("FarLandmark_campus_hall"), "far version of the campus hall exists")
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:

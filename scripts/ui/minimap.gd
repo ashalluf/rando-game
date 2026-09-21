@@ -1,3 +1,4 @@
+class_name Minimap
 extends Control
 ## Minimap drawn straight from the CityPlan, in a round frame that rotates so you always face up.
 ## Night-mode street map: dark blocks, bright roads with outlines, terrain shading from the
@@ -29,6 +30,10 @@ const LANDMARK_NAMES := {
 	"sign": "Randowood Sign", "pier": "Rando Pier", "observatory": "Observatory", "crown_tower": "Crown Tower",
 	"five_drums": "Five Drums", "ziggurat_hall": "Ziggurat Hall", "stack_tower": "The Stack", "needle": "The Needle",
 	"terminal": "Airport", "hangars": "Hangars", "port": "Port", "campus_hall": "Rando U",
+	"venice_boardwalk": "Venice Boardwalk", "manhattan_pier": "Manhattan Pier",
+	"redondo_pier": "Redondo Pier", "south_bay_mall": "South Bay Mall",
+	"verde_cafe": "Verde Cafe", "masjid_al_noor": "Masjid Al Noor",
+	"twin_glass": "Twin Towers", "cargo_ship": "Container Ship",
 }
 
 var _yaw: float = 0.0
