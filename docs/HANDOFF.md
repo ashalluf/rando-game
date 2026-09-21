@@ -504,6 +504,38 @@ while `building.gdshader` paints the sign band at 0.76..0.93. **When you add a n
 something in another file has to know, make it a field and push it, or add the guard in the same
 commit.**
 
+**Facades: the whole downtown was pixel art, and it was one line.** A Forward+ street render at
+10:00 showed every tower as a random checkerboard of gold and black rectangles, one per window
+bay, with no glass in it - no highlight, no sky in the panes, no mullion. `building.gdshader`
+already had interior mapping, a Schlick fresnel sky reflection and spandrel panels; four things
+were burying all of it, and a three-agent diagnostic fleet found them:
+- `float on = 0.12 + 0.88 * night_factor` in the `lit` branch. A window the lit roll picked
+  still carried a warm emission at ten in the morning, and `lit_ratio` runs to half the bays.
+  **That is the checkerboard.** Same daytime floor in `building_lod.gdshader`, so the distant
+  towers did it too.
+- The inset shadow that sets a pane back into the wall used `max(du - 0.2, dv - 0.18)` whatever
+  the window style. Those two numbers are exactly `win_h - 0.07` for style 0 (PUNCHED) and for
+  nothing else, so on a curtain wall (win_h 0.475/0.47) it darkened 86 % of the pane by 45 %:
+  every bay a dark rectangle with a lighter card floating in it.
+- `frame_color` for GLASS was 0.14, darker than the panes it frames, so the grid a curtain-wall
+  tower is made of was drawn and then invisible.
+- Window pitch took exactly four values and two thirds of downtown shared 1.8 m.
+
+**The whole city was dressed in black, and it took two goes.** First attempt widened the ranges
+and kept the mechanism; the mechanism was the bug. `cloth_value` multiplied the SOURCE texture's
+own brightness, and pedestrian_a's garments measure 0.21-0.32 with its trousers lower still -
+there is no multiple of near-black that is a white shirt. `cloth_value` / `pants_value` are the
+garment's own brightness now, 0 to 1, with the source's value kept as *shading* around it.
+`CLOTH_VALUE_BAND` also moved to 0.030..0.075: the rigs' trousers sit at about 0.10, which put
+them halfway up the old 0.045..0.13 band, so trousers took barely half the recolour however they
+were rolled - colour above the waist, black below it.
+
+**Measure the texture, not the code.** Both of those were found by reading a number out of the
+asset rather than out of the source:
+```
+python3 -c "from PIL import Image; import numpy as np; im=np.asarray(Image.open('assets/models/pedestrian_a_0.jpg').convert('RGB')).astype(float)/255; v=im.max(axis=2); print([round(float(np.percentile(v,p)),3) for p in (10,25,50,75,90)])"
+```
+
 **Land no longer stands in the sea.** `zone_at()` draws the shoreline as a hard line and
 `raw_height_at()` is a noise field that knew nothing about it, so the two disagreed - most
 visibly off the Redondo pier, where the coast bulge (a function of z alone) cut clean across the

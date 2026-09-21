@@ -540,7 +540,7 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	if top < 0.30:
 		# White, cream, pale grey - the commonest thing anybody actually wears.
 		mat.set_shader_parameter("cloth_sat", rng.randf_range(0.0, 0.09))
-		mat.set_shader_parameter("cloth_value", rng.randf_range(0.68, 0.90))
+		mat.set_shader_parameter("cloth_value", rng.randf_range(0.80, 0.96))
 	elif top < 0.56:
 		# Mid tones: navy, olive, burgundy, tan.
 		mat.set_shader_parameter("cloth_sat", rng.randf_range(0.18, 0.42))
@@ -554,7 +554,9 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 		# Something bright.
 		mat.set_shader_parameter("cloth_sat", rng.randf_range(0.45, 0.80))
 		mat.set_shader_parameter("cloth_value", rng.randf_range(0.45, 0.78))
-	mat.set_shader_parameter("cloth_strength", 0.0 if plain else rng.randf_range(0.55, 0.85))
+	# High, because what it mixes AWAY from is the source garment, which is near-black: at 0.7
+	# a white shirt still came out mid-grey once Forward+ had linearised the base underneath it.
+	mat.set_shader_parameter("cloth_strength", 0.0 if plain else rng.randf_range(0.80, 0.95))
 	# Trousers are rolled apart from the top, and weighted the way a pavement actually looks:
 	# denim, black and grey, khaki, and only occasionally something bright. Matching the top to
 	# the bottom is what made every recoloured character read as wearing a boiler suit.
@@ -575,7 +577,7 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 		mat.set_shader_parameter("pants_hue", rng.randf())
 		mat.set_shader_parameter("pants_sat", rng.randf_range(0.30, 0.55))
 		mat.set_shader_parameter("pants_value", rng.randf_range(0.28, 0.58))
-	mat.set_shader_parameter("pants_strength", 0.0 if plain else rng.randf_range(0.60, 0.90))
+	mat.set_shader_parameter("pants_strength", 0.0 if plain else rng.randf_range(0.82, 0.96))
 	mat.set_shader_parameter("hair_color", HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
 	mat.set_shader_parameter("hair_strength", rng.randf_range(0.75, 1.0))
 	mat.set_shader_parameter("skin_tint", SKIN_TINTS[look % SKIN_TINTS.size()])
