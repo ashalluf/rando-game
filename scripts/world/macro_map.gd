@@ -49,12 +49,25 @@ var shelf_from_z: float = -700.0
 var shelf_full_z: float = -1020.0
 var shelf_width: float = 300.0
 var shelf_height: float = 26.0
-var peninsula_center: Vector2 = Vector2(-700.0, 1500.0)
+## How far inland the beach towns run before the ordinary grid takes over.
+var beach_town_depth: float = 340.0
+## The towns down the coast, north to south, each entry the Z at which that town begins. A real
+## coast like this one is a chain of small separate towns rather than one seafront, and naming
+## them is most of what makes it read that way: the HUD place name changes as you drive the
+## highway. Bands are keyed to Z only, because the coast is a ribbon.
+const COAST_TOWNS := [
+	[-99999.0, "Malibu"], [-950.0, "Santa Monica"], [-520.0, "Venice"], [-160.0, "Playa"],
+	[250.0, "El Segundo"], [1010.0, "Manhattan Beach"], [1240.0, "Hermosa Beach"],
+	[1420.0, "Redondo Beach"],
+]
+## The headland. It sits far enough south that the chain of beach towns has coastline to run
+## along before it starts: with it at 1500 the towns south of the airport had nowhere to go.
+var peninsula_center: Vector2 = Vector2(-780.0, 1980.0)
 var peninsula_radius: float = 550.0
 ## The headland in the south-west bay: cliffs straight out of the water.
 var peninsula_height: float = 285.0
 ## Water south of this Z and west of this X (except the peninsula) so the peninsula sticks out.
-var bay_z: float = 1000.0
+var bay_z: float = 1460.0
 var bay_east_x: float = 400.0
 var downtown_center: Vector2 = Vector2(700.0, 250.0)
 var downtown_radius: float = 330.0
@@ -289,9 +302,30 @@ func district_at(pos: Vector2) -> CityPlan.District:
 		return CityPlan.District.INDUSTRIAL
 	if pos.distance_to(campus_center) < campus_radius:
 		return CityPlan.District.CAMPUS
+	# The strip behind the sand, for as far inland as the towns run. Checked after the named
+	# centres so that a campus or a downtown placed near the water still wins, and gated on the
+	# ground being low so the headland and the northern cliffs stay hillside rather than town.
+	if pos.x - coast_x(pos.y) < beach_town_depth and raw_height_at(pos) < 12.0:
+		return CityPlan.District.BEACHTOWN
 	if dd < midtown_radius or pos.distance_to(westside_center) < westside_radius:
 		return CityPlan.District.MIDTOWN
 	return CityPlan.District.SUBURBS
+
+
+## The name of the place at a world position, or "" when it has none and the district name
+## should be used instead. Only the coast is named: that is where the towns are.
+func place_name(pos: Vector2) -> String:
+	if pos.distance_to(peninsula_center) < peninsula_radius:
+		return "Palos Verdes"
+	if airport_rect.has_point(pos):
+		return ""
+	if pos.x - coast_x(pos.y) > beach_town_depth + 260.0:
+		return ""
+	var found := ""
+	for town in COAST_TOWNS:
+		if pos.y >= float(town[0]):
+			found = str(town[1])
+	return found
 
 
 static func zone_name(z: Zone) -> String:

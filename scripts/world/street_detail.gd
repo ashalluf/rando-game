@@ -44,7 +44,7 @@ const POWER_SAG := 1.1
 const TELCO_SAG := 1.7
 ## Chance a block hangs the overhead line on its side of a street, in CityPlan.District order
 ## (downtown, midtown, suburbs, industrial, campus). Downtown mostly buries its cables.
-const POLE_ODDS := [0.16, 0.62, 1.0, 1.0, 0.38]
+const POLE_ODDS := [0.16, 0.62, 1.0, 1.0, 0.38, 0.88]
 ## Chance a pole carries a transformer can, and a service drop to the buildings behind it.
 const TRANSFORMER_ODDS := 0.34
 const SERVICE_DROP_ODDS := 0.45
@@ -81,13 +81,13 @@ const KERB_YELLOW := Color(0.85, 0.66, 0.08)
 const KERB_WHITE := Color(0.92, 0.92, 0.9)
 const KERB_DRAW_DISTANCE := 210.0
 ## Chance of a mid-block loading (yellow) or passenger (white) zone, per district.
-const LOADING_ODDS := [0.55, 0.38, 0.08, 0.6, 0.14]
+const LOADING_ODDS := [0.55, 0.38, 0.08, 0.6, 0.14, 0.22]
 
 ## Metres between parking meters along a metered kerb, and how far in from the kerb they stand.
 const METER_SPACING := 10.0
 const METER_INSET := 0.7
 ## Chance a downtown / midtown block face is metered.
-const METER_ODDS := [0.75, 0.4, 0.0, 0.0, 0.0]
+const METER_ODDS := [0.75, 0.4, 0.0, 0.0, 0.0, 0.8]
 const METER_DRAW_DISTANCE := 140.0
 
 ## Polished wheel tracks: piece length, wheel gauge, strip width, and how much lighter than a

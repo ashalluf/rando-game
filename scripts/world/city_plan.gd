@@ -4,11 +4,11 @@ extends RefCounted
 ## intersection index can be asked for and always comes back the same.
 ## Pure data, no nodes. CityStreamer builds CityChunks from it around the player.
 
-enum District { DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS }
+enum District { DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS, BEACHTOWN }
 enum BlockKind { BUILDINGS, PARK, PLAZA, MALL, BIGBOX }
 enum Intersection { PLAIN, STOP_SIGNS, SIGNALS, ROUNDABOUT }
 
-const DISTRICT_NAMES := ["Downtown", "Midtown", "Suburbs", "Industrial", "Campus"]
+const DISTRICT_NAMES := ["Downtown", "Midtown", "Suburbs", "Industrial", "Campus", "Beach Town"]
 const AXIS_X := 0
 const AXIS_Z := 1
 
@@ -49,6 +49,21 @@ const DISTRICTS := {
 		"tree_weights": [0.36, 0.32, 0.0, 0.24, 0.08], "jacarandas": 0.11,
 		"lamp_tint": Color(1.0, 0.9, 0.8),
 		"mall": 0.14, "bigbox": 0.07, "pads": 0.18, "lawn": true, "people": 6, "parked": 8, "palms": 0.45,
+	},
+	## The strip behind the sand. A beach town is not the ordinary grid shrunk down: the lots are
+	## small and the setbacks nearly nothing, so it is DENSER than the suburbs while being much
+	## lower, and that combination is what makes one read as a beach town from the street. Salt
+	## air means heavy weathering, and it is the palmiest district on the map.
+	District.BEACHTOWN: {
+		"height": Vector2(6.0, 18.0), "lot": Vector2(13.0, 24.0), "gap": Vector2(2.0, 6.0),
+		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.L_SHAPE, Building.Shape.STEPPED],
+		"finishes": [Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.PANELS, Building.Finish.BRICK],
+		"lit": Vector2(0.25, 0.55), "park": 0.07, "plaza": 0.09, "trees": 0.8, "courtyard": 0.3,
+		"cafes": 3, "planters": 3, "clutter": 2, "weathering": Vector2(0.35, 0.85), "line_white": 0.45,
+		"paving": [["sidewalk", 3.0, Color(1.0, 0.99, 0.95)], ["pavers", 2.5, Color(0.97, 0.94, 0.88)]],
+		"tree_weights": [0.2, 0.22, 0.06, 0.34, 0.18], "jacarandas": 0.07,
+		"lamp_tint": Color(1.0, 0.94, 0.82),
+		"mall": 0.0, "bigbox": 0.0, "pads": 0.06, "lawn": false, "people": 32, "parked": 16, "palms": 0.9,
 	},
 	District.CAMPUS: {
 		"height": Vector2(8.0, 24.0), "lot": Vector2(26.0, 44.0), "gap": Vector2(10.0, 18.0),

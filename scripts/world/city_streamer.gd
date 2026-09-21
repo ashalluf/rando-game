@@ -253,6 +253,13 @@ func district_name_at(local_pos: Vector3) -> String:
 	var wp := world_position(local_pos)
 	var xz := Vector2(wp.x, wp.z)
 	var zone := plan.zone_at(xz)
+	# A named place beats both the zone and the district: driving the coast highway should read
+	# "Santa Monica" and then "Venice", not "Beach" for twenty blocks. It is deliberately checked
+	# ahead of the zone, so the sand and the hillside of a named town carry its name too.
+	if plan.macro:
+		var place := plan.macro.place_name(xz)
+		if place != "":
+			return place
 	if zone != MacroMap.Zone.CITY:
 		return MacroMap.zone_name(zone)
 	return CityPlan.district_name(plan.district_at(xz))

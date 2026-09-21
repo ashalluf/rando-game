@@ -384,6 +384,35 @@ func _test_city() -> void:
 	# The campus district and its main hall.
 	if macro:
 		_check(macro.district_at(macro.campus_center) == CityPlan.District.CAMPUS and CityPlan.district_name(CityPlan.District.CAMPUS) == "Campus", "campus district around the university")
+		# Every table that is indexed by district must have an entry for every district. Adding a
+		# district and missing one of these is an out-of-bounds read on a code path that only
+		# runs when the player happens to stand in the new district, which is exactly the kind
+		# of defect that reaches a build.
+		var per_district := {
+			"CityPlan.DISTRICTS": CityPlan.DISTRICTS.size(),
+			"DISTRICT_NAMES": CityPlan.DISTRICT_NAMES.size(),
+			"StreetDetail.POLE_ODDS": StreetDetail.POLE_ODDS.size(),
+			"StreetDetail.LOADING_ODDS": StreetDetail.LOADING_ODDS.size(),
+			"StreetDetail.METER_ODDS": StreetDetail.METER_ODDS.size(),
+		}
+		var short_tables := ""
+		for table_name in per_district:
+			if int(per_district[table_name]) != CityPlan.District.size():
+				short_tables += " %s=%d" % [table_name, int(per_district[table_name])]
+		_check(short_tables == "", "every per-district table covers all %d districts%s" % [CityPlan.District.size(), short_tables])
+		# And every district really does produce a block: DISTRICTS is keyed by the enum, so a
+		# missing key is a silent failure rather than a crash.
+		var missing_district := ""
+		for d in CityPlan.District.size():
+			if not CityPlan.DISTRICTS.has(d):
+				missing_district += " %d" % d
+		_check(missing_district == "", "every district has generation parameters%s" % missing_district)
+		# The coast towns: the place readout has to change as you drive the highway.
+		var town_names := {}
+		for town in MacroMap.COAST_TOWNS:
+			var probe := Vector2(macro.coast_x(float(town[0]) + 40.0) + 90.0, float(town[0]) + 40.0)
+			town_names[macro.place_name(probe)] = true
+		_check(town_names.size() >= 6, "the coast is a chain of named towns (%d distinct)" % town_names.size())
 		_check(city.has_node("FarLandmark_campus_hall"), "far version of the campus hall exists")
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:
