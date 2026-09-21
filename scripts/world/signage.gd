@@ -79,6 +79,10 @@ const K_GLOW := "sign_glow"
 const K_POOL := "sign_pool"
 const K_ARM := "sign_arm"
 
+## "Not bolted to anything": the rows keep the per-instance ground lift, which is what
+## something standing on the ground wants. See `_anchor()`.
+const FREE := Vector2.INF
+
 ## How lettering is rendered. LIT is a channel letter that glows (bright letters on a coloured
 ## box); PRINT is opaque paint that stays dark while the box behind it lights up, which is what
 ## a white backlit lightbox actually looks like; TUBE is bare neon.
@@ -121,7 +125,13 @@ static func forward(yaw: float) -> Vector3:
 	return Vector3(-sin(yaw), 0.0, -cos(yaw))
 
 
-## The direction along the wall for a face at `yaw` (its local +X once placed).
+## The direction along the wall for a face at `yaw`, in world terms (+X when `yaw` is 0).
+##
+## It is NOT the local +X of `_face(yaw, ...)`. That basis is built from Basis(UP, yaw + PI),
+## whose local +X works out as -along(yaw). To step sideways across a sign's own face - to put
+## one word on each side of a double-sided panel - use `forward(yaw + PI * 0.5)`, which is that
+## face's outward normal by definition. Reading this the other way round is what rendered every
+## blade sign's lettering mirrored.
 static func along(yaw: float) -> Vector3:
 	return Vector3(cos(yaw), 0.0, -sin(yaw))
 
@@ -283,6 +293,30 @@ static func emit(chunk: CityChunk, rows: Array) -> void:
 		chunk._batch.set_no_shadow(row[0])
 
 
+## Re-bases `rows` onto the single ground sample at `anchor`, cancelling the per-instance lift.
+##
+## MultiMeshBatch.add() raises every instance by the city relief at that instance's own XZ.
+## That is right for anything standing on the ground - a pool of light on the tarmac, a lamp -
+## and wrong for anything bolted to a structure: CityChunk._add_slab() lifts a solid box by ONE
+## sample, at its centre, so a wall or a forecourt canopy is dead flat while the signage screwed
+## to it follows the slope underneath and tears off it. MacroMap.relief_height is 22 m, so the
+## gap is centimetres over a shopfront and a metre-plus across a big box: a 20 m canopy ring
+## came apart into four bars at four heights, and the soffit panels (2 cm of clearance) sank
+## into the slab on the uphill side.
+##
+## `anchor` is the XZ the structure itself was placed at; `FREE` leaves the rows alone. Rows are
+## built fresh by each composed sign and Arrays are references, so this edits them in place.
+static func _anchor(chunk: CityChunk, rows: Array, anchor: Vector2) -> Array:
+	if anchor == FREE:
+		return rows
+	var base: float = chunk._gy(anchor.x, anchor.y)
+	for row: Array in rows:
+		var xform: Transform3D = row[2]
+		xform.origin.y += base - chunk._gy(xform.origin.x, xform.origin.z)
+		row[2] = xform
+	return rows
+
+
 ## Marks rows that were added some other way (inside a breakable prop) as shadowless.
 static func quiet(chunk: CityChunk, rows: Array) -> void:
 	for row: Array in rows:
@@ -295,7 +329,8 @@ static func quiet(chunk: CityChunk, rows: Array) -> void:
 ## halo around them. `base` is the point on the wall face at ground level, `yaw` the yaw of the
 ## wall's outward normal, `stand` how far the box sits proud of the wall.
 static func fascia(chunk: CityChunk, base: Vector3, yaw: float, band_y: float, width: float,
-		box_h: float, stand: float, txt: String, text_h: float, color: Color) -> void:
+		box_h: float, stand: float, txt: String, text_h: float, color: Color,
+		anchor: Vector2 = FREE) -> void:
 	var f := forward(yaw)
 	var at := base + Vector3(0.0, band_y, 0.0)
 	# A white lightbox carries its name in opaque dark paint and glows around it; a coloured box
@@ -303,24 +338,24 @@ static func fascia(chunk: CityChunk, base: Vector3, yaw: float, band_y: float, w
 	var warm := color.r > 0.85 and color.g > 0.85
 	var letters := Color(0.14, 0.14, 0.18) if warm else Color(1.0, 0.97, 0.92)
 	var letter_glow := color if not warm else Color(1.0, 0.9, 0.7)
-	emit(chunk, [
+	emit(chunk, _anchor(chunk, [
 		panel(at + f * stand, Vector3(width, box_h, 0.14), yaw, color),
 		text(txt, text_h, at + f * (stand + 0.12), yaw, letters, width * 0.86,
 			Letters.PRINT if warm else Letters.LIT),
 		glow(at + f * (stand + 0.24), Vector2(width * 1.1, box_h * 2.3), yaw,
 			Color(letter_glow.r, letter_glow.g, letter_glow.b, 0.55)),
-	])
+	], anchor))
 
 
 ## A thin glowing accent line: a fascia pinstripe, a roofline band, a kerb light.
 static func stripe(chunk: CityChunk, at: Vector3, yaw: float, length: float, height: float,
-		color: Color, halo: float = 1.0) -> void:
+		color: Color, halo: float = 1.0, anchor: Vector2 = FREE) -> void:
 	var f := forward(yaw)
-	emit(chunk, [
+	emit(chunk, _anchor(chunk, [
 		tube(at, Vector3(length, height, 0.10), yaw, color),
 		glow(at + f * 0.14, Vector2(length, maxf(height * 5.0, 0.6)), yaw,
 			Color(color.r, color.g, color.b, 0.45 * halo)),
-	])
+	], anchor))
 
 
 ## The light a lit shopfront throws back onto its own wall and down onto the pavement. Cheap,
@@ -330,24 +365,34 @@ static func stripe(chunk: CityChunk, at: Vector3, yaw: float, length: float, hei
 ## and a wash behind them is a wash the pilasters eat.
 static func wash(chunk: CityChunk, base: Vector3, yaw: float, y: float, width: float,
 		height: float, color: Color, walkway: float = 0.0, ground_y: float = 0.0,
-		stand: float = 0.18) -> void:
+		stand: float = 0.18, anchor: Vector2 = FREE) -> void:
 	var f := forward(yaw)
-	var rows := [glow(base + f * stand + Vector3(0.0, y, 0.0), Vector2(width, height), yaw,
-		Color(color.r, color.g, color.b, 0.32))]
-	if walkway > 0.0:
-		# Centred well out from the wall: a pool centred on the wall would spend half of itself
-		# inside the building, where the depth test throws it away.
-		rows.append(pool(base + f * (walkway * 0.75) + Vector3(0.0, ground_y + 0.10, 0.0),
-			Vector2(width * 1.1, walkway * 1.5), Color(color.r, color.g, color.b, 0.5)))
-	emit(chunk, rows)
+	# The wall glow is bolted to the wall, so it takes the wall's own ground sample; the pool is
+	# painted on the pavement, which follows the relief per vertex, so it keeps its own.
+	emit(chunk, _anchor(chunk, [glow(base + f * stand + Vector3(0.0, y, 0.0),
+		Vector2(width, height), yaw, Color(color.r, color.g, color.b, 0.32))], anchor))
+	if walkway <= 0.0:
+		return
+	# Centred well out from the wall: a pool centred on the wall would spend half of itself
+	# inside the building, where the depth test throws it away.
+	emit(chunk, [pool(base + f * (walkway * 0.75) + Vector3(0.0, ground_y + 0.10, 0.0),
+		Vector2(width * 1.1, walkway * 1.5), Color(color.r, color.g, color.b, 0.5))])
 
 
 ## A projecting blade sign: a double-sided panel on a bracket out over the pavement, lit on
 ## both faces. This is the silhouette that reads as "shops" from down the street.
-static func blade(chunk: CityChunk, base: Vector3, yaw: float, y: float, color: Color, txt: String) -> void:
+static func blade(chunk: CityChunk, base: Vector3, yaw: float, y: float, color: Color, txt: String,
+		anchor: Vector2 = FREE) -> void:
 	var f := forward(yaw)
-	var a := along(yaw)
 	var side := yaw + PI * 0.5
+	# The panel's own outward normal, which is the axis its two faces are offset along. NOT
+	# along(yaw): _face() builds its basis from Basis(UP, yaw + PI), whose local +X is
+	# -along(yaw), so offsetting by along() put each word on the far side of the panel from the
+	# face it was turned to. One side showed the extruded back of the glyphs - the word read
+	# mirrored - and the other sat behind the opaque panel and was depth-rejected, so both sides
+	# of every blade sign were wrong. pylon_rows() does the same job with explicit +-Z offsets
+	# and matching yaws, which is why it has always been right.
+	var n := forward(side)
 	var at := base + f * 0.95 + Vector3(0.0, y, 0.0)
 	var warm := color.r > 0.85 and color.g > 0.85
 	var letters := Color(0.14, 0.14, 0.18) if warm else Color(1.0, 0.97, 0.92)
@@ -358,28 +403,32 @@ static func blade(chunk: CityChunk, base: Vector3, yaw: float, y: float, color: 
 	]
 	for s: float in [1.0, -1.0]:
 		var face_yaw := side if s > 0.0 else side + PI
-		rows.append(text(txt, 0.32, at + a * (s * 0.10), face_yaw, letters, 1.1,
+		rows.append(text(txt, 0.32, at + n * (s * 0.10), face_yaw, letters, 1.1,
 			Letters.PRINT if warm else Letters.LIT))
-		rows.append(glow(at + a * (s * 0.20), Vector2(1.7, 1.9), face_yaw,
+		rows.append(glow(at + n * (s * 0.20), Vector2(1.7, 1.9), face_yaw,
 			Color(color.r, color.g, color.b, 0.5)))
-	emit(chunk, rows)
+	emit(chunk, _anchor(chunk, rows, anchor))
 
 
 ## A small neon tube sign in a shop window, with its halo on the glass.
-static func window_neon(chunk: CityChunk, base: Vector3, yaw: float, y: float, color: Color, txt: String) -> void:
+static func window_neon(chunk: CityChunk, base: Vector3, yaw: float, y: float, color: Color,
+		txt: String, anchor: Vector2 = FREE) -> void:
 	var f := forward(yaw)
 	var at := base + f * 0.16 + Vector3(0.0, y, 0.0)
-	emit(chunk, [
+	emit(chunk, _anchor(chunk, [
 		text(txt, 0.30, at, yaw, color, 2.2, Letters.TUBE),
 		glow(at + f * 0.06, Vector2(maxf(float(txt.length()) * 0.24, 1.0), 0.95), yaw,
 			Color(color.r, color.g, color.b, 0.6)),
-	])
+	], anchor))
 
 
 ## A glowing band around all four edges of a canopy or a roofline. `size` is the canopy's
 ## footprint; the band sits just outside it at `y`.
+## `anchor` matters more here than anywhere else: the four bars sit 6 to 10 m from the centre
+## of a 20 x 12 m canopy, so without it they are lifted by four different ground samples and the
+## band steps at every corner instead of running round the fascia.
 static func ring(chunk: CityChunk, center: Vector3, size: Vector2, y: float, height: float,
-		color: Color, out: float = 0.07) -> void:
+		color: Color, out: float = 0.07, anchor: Vector2 = FREE) -> void:
 	var half := size * 0.5
 	var edges := [
 		[0.0, Vector3(center.x, y, center.z - half.y - out), size.x + out * 3.0],
@@ -395,15 +444,16 @@ static func ring(chunk: CityChunk, center: Vector3, size: Vector2, y: float, hei
 		rows.append(tube(at, Vector3(length, height, 0.12), yaw, color))
 		rows.append(glow(at + forward(yaw) * 0.16, Vector2(length, height * 4.5), yaw,
 			Color(color.r, color.g, color.b, 0.4)))
-	emit(chunk, rows)
+	emit(chunk, _anchor(chunk, rows, anchor))
 
 
 ## The underside of a canopy: a grid of recessed light panels, the glow hanging under each and
 ## broad pools on the ground below. A petrol station canopy is the brightest thing in any night
 ## city, which is exactly why it is worth this many quads.
 static func canopy(chunk: CityChunk, center: Vector3, size: Vector2, under_y: float,
-		cols: int, rows_n: int, color: Color, ground_y: float, gain: float = 1.0) -> void:
-	var rows := []
+		cols: int, rows_n: int, color: Color, ground_y: float, gain: float = 1.0,
+		anchor: Vector2 = FREE) -> void:
+	var soffit := []
 	for i in cols:
 		for j in rows_n:
 			var x: float = center.x + size.x * ((i + 0.5) / float(cols) - 0.5) * 0.78
@@ -411,17 +461,21 @@ static func canopy(chunk: CityChunk, center: Vector3, size: Vector2, under_y: fl
 			var pw: float = size.x * 0.66 / float(cols)
 			var pd: float = size.y * 0.55 / float(rows_n)
 			# The lit panel itself, facing down, recessed into the soffit.
-			rows.append(tube(Vector3(x, under_y - 0.03, z), Vector3(pw, 0.06, pd), 0.0, color))
+			soffit.append(tube(Vector3(x, under_y - 0.03, z), Vector3(pw, 0.06, pd), 0.0, color))
 			# The glow hanging under it: this is what the eye reads as a lit canopy.
-			rows.append(glow(Vector3(x, under_y - 0.20, z), Vector2(pw * 1.9, pd * 1.9), 0.0,
+			soffit.append(glow(Vector3(x, under_y - 0.20, z), Vector2(pw * 1.9, pd * 1.9), 0.0,
 				Color(color.r, color.g, color.b, 0.55 * gain), PI * 0.5))
+	# The panels are recessed into the slab with about 2 cm to spare, so they have to ride the
+	# slab's own ground sample; the pools are on the tarmac and ride the tarmac's.
+	emit(chunk, _anchor(chunk, soffit, anchor))
 	# Two broad pools on the forecourt. Wide falloff, so the tarmac lifts rather than getting a
 	# hard disc painted on it.
+	var pools := []
 	for j in 2:
 		var z: float = center.z + size.y * ((j + 0.5) * 0.5 - 0.5) * 0.9
-		rows.append(pool(Vector3(center.x, ground_y + 0.10, z), Vector2(size.x * 1.25, size.y * 0.85),
+		pools.append(pool(Vector3(center.x, ground_y + 0.10, z), Vector2(size.x * 1.25, size.y * 0.85),
 			Color(color.r, color.g, color.b, 0.55 * gain)))
-	emit(chunk, rows)
+	emit(chunk, pools)
 
 
 ## The lit half of a pylon sign: a backlit face on each side of the panel, neon letters and the
