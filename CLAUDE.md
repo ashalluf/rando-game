@@ -358,9 +358,21 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   two grade-feasible profiles is still grade-feasible, so the deck provably clears the ground
   everywhere and stays drivable. Smoothing and grade-limiting alone do not - they never look at
   the ground, so a rise they cannot follow leaves the deck inside the hillside.
+  **Winding trap:** `CityChunk._ribbon()`'s plain vertex order makes a *horizontal* quad face
+  DOWN. The deck top is built with its own order (`l0, r1, r0`) and faces up; anything flat laid
+  on it - `_bar_flat()`'s lane paint, the cap on `_bar()`'s barriers - has to pass `flip = true`
+  to match, or it is back-facing and culled and you get a deck with no markings at all. That
+  looks exactly like a missing mesh or a z-fight, and is neither.
+  Traffic: `TrafficManager` drives the decks from `Freeway.point_at()` / `length_of()` /
+  `nearest_on()`, which are distance-parameterised (the route's points are a fixed step along
+  the *drawn* curve, not along the ground). Cars carry a signed direction and are recycled at
+  the route ends rather than wrapping, are grouped by route + direction + lane so each follows
+  only the car actually in front of it, and are kept within `freeway_range` of the player so a
+  three-kilometre deck costs what a short one does. Caps: `CityStreamer.freeway_cars` /
+  `web_freeway_cars`, scaled by `Quality` like the rest of the traffic.
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
-  hill roads are the curved roads. There is no freeway traffic yet.
+  hill roads are the curved roads.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is

@@ -186,6 +186,38 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-21 Three bugs the screenshots and the new checks caught.** Worth recording because
+  each one looked like something it was not.
+  (1) *A grey wall round the valley.* The horizon plane's lift faded in with distance, which is
+  correct only while the ground the player stands on is at sea level; over a city 130 m up the
+  plane stayed at zero and cut across the hillsides. The lift now applies everywhere and it is
+  the crag detail that fades in, which is what actually needed keeping off the streamed chunks.
+  (2) *A wall along every city/hills seam.* The city's rolling relief faded out over the first
+  2.5 m of mountain, and at the foot of a range the height climbs 0 to 3 m in twenty metres of
+  ground, so it switched off in one step and left four to six metres of cliff. The fade runs
+  over 60 m of mountain now. That put relief on the lower slopes, so `height_at()` adds relief
+  and *then* carves the hill roads (the other order lifts every road off its own bed), and
+  `HillRoads` profiles against the surface including relief.
+  (3) *A freeway with no lane markings.* Not z-fighting and not a missing mesh:
+  `CityChunk._ribbon()`'s plain vertex order makes a horizontal quad face DOWN, so every lane
+  line and barrier cap was built back-facing and culled. The deck top happened to use the
+  opposite order, which is why it drew and nothing lying on it did. Flat things on the deck pass
+  `flip = true` now.
+  Also in this batch: the baked horizon map's mountain bands were retimed to match what
+  `terrain.gdshader` does on the streamed chunks (dry gold over most of the height, rock only on
+  the high back range), because the two disagreed and put a tide-line across every range.
+
+- **2026-09-21 Traffic on the freeways.** Empty decks read as scenery rather than road.
+  `TrafficManager` drives them the way it drives the airport drop-off loops, with the three
+  differences the routes force: they are open polylines, so a car carries a signed direction and
+  is recycled at the ends instead of wrapping; they have a height profile, so cars ride the deck;
+  and there are two carriageways, so cars are grouped by route, direction and lane and follow
+  only the car actually in front of them. All of it is driven by distance along the route rather
+  than point index - the points are a fixed step along the *drawn* curve, which is not a fixed
+  step along the ground once the curve bends - so `Freeway` gained a cumulative-length table
+  behind `point_at()`, `length_of()` and `nearest_on()`. Cars only exist within `freeway_range`
+  of the player, so a three-kilometre deck costs what a short one does.
+
 - **2026-09-21 Mountains around the basin and a valley at altitude (owner: "don't forget that LA
   is covered by mountains in Palos Verdes, the valley").** The map had one low hill range north of
   the city and flat nothing everywhere else, so the basin had no edges. `MacroMap.raw_height_at()`
