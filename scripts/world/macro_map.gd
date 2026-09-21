@@ -290,8 +290,8 @@ const BAKE_SUBURB := Color(0.21, 0.26, 0.15)
 const BAKE_INDUSTRIAL := Color(0.23, 0.22, 0.20)
 const BAKE_CAMPUS := Color(0.18, 0.27, 0.14)
 const BAKE_GRASS := Color(0.17, 0.25, 0.11)
-const BAKE_SCRUB := Color(0.27, 0.26, 0.15)
-const BAKE_ROCK := Color(0.29, 0.27, 0.24)
+const BAKE_SCRUB := Color(0.38, 0.34, 0.18)
+const BAKE_ROCK := Color(0.40, 0.36, 0.30)
 const BAKE_CONCRETE := Color(0.32, 0.31, 0.30)
 const BAKE_SNOW := Color(0.78, 0.80, 0.84)
 ## Metres that alpha 1.0 stands for in the baked map. The horizon plane lifts its vertices by
@@ -335,10 +335,14 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 				Zone.HILLS:
 					# Green on the lower slopes, dry scrub above them, bare rock higher, and
 					# snow on the back range, which tops out well over a kilometre.
+					# The bands have to line up with what `terrain.gdshader` does on the streamed
+					# chunks, or every mountain gets a tide-line where the two meet: dry gold
+					# chaparral over most of the height (the shader's `dry_tint` covers the whole
+					# front range), rock only on the high back range, snow above that.
 					var t := clampf(h / 1000.0, 0.0, 1.0)
-					col = BAKE_GRASS.lerp(BAKE_SCRUB, smoothstep(0.06, 0.26, t))
-					col = col.lerp(BAKE_ROCK, smoothstep(0.26, 0.62, t))
-					col = col.lerp(BAKE_SNOW, smoothstep(0.80, 1.0, t))
+					col = BAKE_GRASS.lerp(BAKE_SCRUB, smoothstep(0.03, 0.14, t))
+					col = col.lerp(BAKE_ROCK, smoothstep(0.45, 0.85, t))
+					col = col.lerp(BAKE_SNOW, smoothstep(0.84, 1.0, t))
 				_:
 					match district_at(pos):
 						CityPlan.District.DOWNTOWN:
