@@ -551,6 +551,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   Godot then accepts `--rendering-driver vulkan` and everything in the Environment actually
   applies. It costs about six minutes for one 960x540 shot, so use it to check a finished change
   and keep `city_shot.gd` for the fast loop.
+  **One thing forward_shot.sh lies about: particles.** It renders at about one frame a second
+  and Godot clamps frame time, so a raindrop jumps metres between frames and TAA - which is on
+  at every quality level - cannot track it, so rain and smoke come out as soft ghosted blobs
+  that are far worse than anything the owner's Mac draws at 60 fps. If a particle effect looks
+  smeared in a Forward+ still, render the same frame through `city_shot.gd` on opengl3 first:
+  that path has no temporal pass, so anything still wrong there is real geometry and anything
+  that clears up was the harness. That is how the rain curtain's 2.2 m streaks were told apart
+  from TAA ghosting.
 - Physics masks as constants on `Player`: `AIM_MASK` (world + props) and `BLAST_MASK` (player + props).
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
 - Commit messages: short imperative subject, body explains why and how to test. One task per

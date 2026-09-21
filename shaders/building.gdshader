@@ -308,8 +308,20 @@ void fragment() {
 			reveal = !glass && abs(fu - 0.5) < hw + 0.05 && abs(fv - cy) < hh + 0.05;
 		}
 		if (glass) {
-			float k = hash31(vec3(col, row, face_id * 17.0 + seed));
-			bool lit = k < lit_ratio;
+			// Offices, not bays. A tower after dark does not light up as a checkerboard of
+			// single windows: a tenancy takes a run of three or four bays and leaves them all
+			// on, some floors go dark altogether, and a few are lit end to end because somebody
+			// is cleaning them. Per-bay noise alone is the tell that the lights were rolled
+			// rather than occupied. The far shader already lights whole floors (see the `whole`
+			// term in building_lod.gdshader); this is the near version of the same idea.
+			float floor_k = hash21(vec2(row, seed * 13.0));
+			// 0 on a dark floor, about double on a busy one, 1 on an ordinary one.
+			float floor_mul = floor_k < 0.20 ? 0.0 : (floor_k > 0.88 ? 2.3 : 1.0);
+			float ratio = clamp(lit_ratio * floor_mul, 0.0, 1.0);
+			float run_k = hash31(vec3(floor(col / 3.0), row, face_id * 17.0 + seed));
+			float k = hash31(vec3(col, row, face_id * 31.0 + seed));
+			// The whole office, plus the odd single window inside a dark one.
+			bool lit = run_k < ratio || k < ratio * 0.16;
 			float room_seed = hash31(vec3(col, row, face_id * 17.0 + seed)) * 97.0;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
 			vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
