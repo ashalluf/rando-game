@@ -71,7 +71,7 @@ func trim(center: Vector2i, keep: int) -> void:
 func build_tile(t: Vector2i) -> bool:
 	if _tiles.has(t) or _plan == null:
 		return false
-	var macro := _plan.macro
+	var macro: MacroMap = _plan.macro
 	var xforms: Array[Transform3D] = []
 	var colors: PackedColorArray = PackedColorArray()
 	var customs: PackedColorArray = PackedColorArray()
@@ -115,12 +115,12 @@ func build_tile(t: Vector2i) -> bool:
 	return true
 
 
-func _add_block(ix: int, iz: int, macro, xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray) -> void:
+func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray) -> void:
 	var b := _plan.block(ix, iz)
 	var rect: Rect2 = b.rect
 	if rect.size.x < 8.0 or rect.size.y < 8.0:
 		return
-	var center := rect.get_center()
+	var center: Vector2 = rect.get_center()
 	if macro and macro.zone_at(center) != MacroMap.Zone.CITY:
 		return
 	# Parks and plazas have no massing; leaving them out is what gives the far city its gaps.
@@ -132,12 +132,12 @@ func _add_block(ix: int, iz: int, macro, xforms: Array[Transform3D], colors: Pac
 	# The same massing curve CityChunk._build_lots uses, so the far skyline has the same shape of
 	# height distribution - a lot of infill and a few towers - rather than a uniform draw, which
 	# has no tail and reads as one flat line.
-	var h_low := lerpf(heights.x, heights.x * 1.45, boost)
-	var h_top := lerpf(heights.y, heights.y * 2.3, boost)
-	var curve := 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
-	var ground := macro.height_at(center) if macro else 0.0
-	var inner := rect.grow(-_plan.sidewalk_width)
-	var cell := inner.size / float(CELLS)
+	var h_low: float = lerpf(heights.x, heights.x * 1.45, boost)
+	var h_top: float = lerpf(heights.y, heights.y * 2.3, boost)
+	var curve: float = 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
+	var ground: float = macro.height_at(center) if macro else 0.0
+	var inner: Rect2 = rect.grow(-_plan.sidewalk_width)
+	var cell: Vector2 = inner.size / float(CELLS)
 	for cx in CELLS:
 		for cz in CELLS:
 			var hs := hash([_plan.seed, "sky", ix, iz, cx, cz])
@@ -145,9 +145,9 @@ func _add_block(ix: int, iz: int, macro, xforms: Array[Transform3D], colors: Pac
 			if absi(hs) % 100 < 26:
 				continue
 			var u := float(absi(hash([hs, "h"])) % 100003) / 100003.0
-			var h := lerpf(h_low, h_top, pow(u, curve))
-			var foot := cell * lerpf(0.62, 0.9, float(absi(hash([hs, "f"])) % 1000) / 1000.0)
-			var c := inner.position + Vector2(cell.x * (cx + 0.5), cell.y * (cz + 0.5))
+			var h: float = lerpf(h_low, h_top, pow(u, curve))
+			var foot: Vector2 = cell * lerpf(0.62, 0.9, float(absi(hash([hs, "f"])) % 1000) / 1000.0)
+			var c: Vector2 = inner.position + Vector2(cell.x * (cx + 0.5), cell.y * (cz + 0.5))
 			xforms.append(Transform3D(
 				Basis().scaled(Vector3(foot.x, h, foot.y)),
 				Vector3(c.x, ground + h * 0.5, c.y)))
