@@ -19,7 +19,7 @@ process_mode = 2
 
 [sub_resource type="Gradient" id="Gradient_grade"]
 offsets = PackedFloat32Array(0, 0.14, 0.28, 0.45, 0.62, 0.78, 0.9, 1)
-colors = PackedColorArray(0, 0.004, 0.016, 1, 0.055, 0.063, 0.082, 1, 0.182, 0.19, 0.208, 1, 0.45, 0.448, 0.444, 1, 0.722, 0.712, 0.694, 1, 0.886, 0.874, 0.852, 1, 0.955, 0.946, 0.928, 1, 1, 0.996, 0.986, 1)
+colors = PackedColorArray(0.024, 0.024, 0.027, 1, 0.14, 0.139, 0.139, 1, 0.282, 0.278, 0.271, 1, 0.444, 0.435, 0.419, 1, 0.608, 0.593, 0.566, 1, 0.755, 0.735, 0.698, 1, 0.864, 0.842, 0.8, 1, 0.955, 0.934, 0.892, 1)
 
 [sub_resource type="GradientTexture1D" id="GradientTexture1D_grade"]
 gradient = SubResource("Gradient_grade")
@@ -43,11 +43,11 @@ ssr_max_steps = 56
 ssr_fade_in = 0.15
 ssr_fade_out = 2.0
 ssao_enabled = true
-ssao_radius = 1.4
-ssao_intensity = 1.7
-ssao_power = 2.2
+ssao_radius = 2.1
+ssao_intensity = 2.0
+ssao_power = 1.9
 ssao_detail = 0.6
-ssao_light_affect = 0.2
+ssao_light_affect = 0.22
 ssil_enabled = true
 ssil_radius = 4.0
 ssil_intensity = 0.5
@@ -90,9 +90,9 @@ environment = SubResource("Environment_env")
 
 [node name="Sun" type="DirectionalLight3D" parent="."]
 light_energy = 1.0
-light_angular_distance = 0.6
+light_angular_distance = 0.9
 shadow_enabled = true
-shadow_blur = 0.75
+shadow_blur = 0.9
 directional_shadow_mode = 2
 directional_shadow_split_1 = 0.055
 directional_shadow_split_2 = 0.16

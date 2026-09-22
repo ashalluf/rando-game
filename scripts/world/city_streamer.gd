@@ -512,6 +512,14 @@ func _update_skyline(here: Vector2i, immediate: bool) -> void:
 func _start_loading_screen() -> void:
 	if not show_loading_screen or OS.has_feature("web") or DisplayServer.get_name() == "headless":
 		return
+	# The screenshot harnesses (tools/glshot/*, tools/webshot) drive the game with `--nohud` and
+	# grab a frame after a fixed number of frames. With the loading screen up they photograph
+	# the loading screen - a flat 14/15/19 rectangle - which is exactly what happened the first
+	# time this shipped, and screenshots are the only way anyone on this project can see the
+	# game at all. `--noload` skips it explicitly; `--nohud` implies it.
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--noload" or arg == "--nohud":
+			return
 	var screen := LoadingScreen.new()
 	screen.name = "LoadingScreen"
 	add_child(screen)
