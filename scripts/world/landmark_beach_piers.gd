@@ -961,7 +961,9 @@ static func _lamp_glow() -> StandardMaterial3D:
 ## This is what the street lamps do, and it is the only thing that lights anything at night on
 ## the web build, so a pier without it is the one dark strip in a lit city.
 static func _pool_xform(pos: Vector3, size: float) -> Transform3D:
-	return Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, size, 1.0)), pos)
+	# Basis.scaled() scales in world axes after the rotation (see CityChunk._add_lamp), so the
+	# flat quad's two extents are x and z; the y factor lands on its normal and does nothing.
+	return Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), pos)
 
 
 static func _concrete() -> StandardMaterial3D:

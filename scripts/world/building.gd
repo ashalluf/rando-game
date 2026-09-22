@@ -663,7 +663,11 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				var wide := float(text.length()) * SIGN_HEIGHT * 0.62
 				var room := span * pitch * 0.80
 				var fit: float = minf(1.0, room / maxf(wide, 0.01))
-				sign_mesh.transform = Transform3D(Basis(a, Vector3.UP, n).scaled(Vector3(fit, fit, 1.0)),
+				# Scale the basis COLUMNS, not Basis.scaled(), which multiplies the rows and so
+				# scales in world axes. On the two faces whose `a` runs along world Z that put
+				# the horizontal fit on the vertical axis: the name kept its full width and ran
+				# into the shop next door, and was squashed vertically for good measure.
+				sign_mesh.transform = Transform3D(Basis(a * fit, Vector3.UP * fit, n),
 					fc + a * (size_u * 0.5 - u_s) + Vector3(0.0, band_y, 0.0) + n * SIGN_STANDOFF)
 				sign_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				sign_mesh.visibility_range_end = SIGN_DRAW_DISTANCE

@@ -519,6 +519,10 @@ func _build_ground() -> void:
 	plane.subdivide_width = GROUND_SUBDIVISIONS
 	plane.subdivide_depth = GROUND_SUBDIVISIONS
 	mesh.extra_cull_margin = ground_size
+	# It never casts. It is a 14 km plane under everything, so the only thing it could shadow is
+	# itself - but at 200 x 200 quads it is 80,000 triangles, and it was being drawn into all
+	# four shadow cascades every frame for nothing. It still RECEIVES, which is what matters.
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()

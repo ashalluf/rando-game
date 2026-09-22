@@ -275,10 +275,17 @@ func _build_airport() -> void:
 		# Center line dashes and edge lines.
 		var x := strip.position.x + 6.0
 		while x < strip.end.x - 6.0:
-			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(1.0, 1.0, 3.0)), Vector3(x, 0.15, rz)))
+			# The stripe mesh is 0.6 m across by 3 m long in ITS OWN Z, and the yaw turns that
+			# length onto world X. Basis.scaled() then scales the WORLD axes, so the 3x
+			# lengthening goes in x. Written (1, 1, 3) it landed on world Z instead and every
+			# centre-line dash came out 3 m long and 1.8 m wide - stubby blocks, not a runway.
+			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(3.0, 1.0, 1.0)), Vector3(x, 0.15, rz)))
 			x += 24.0
 		for side: float in [-1.0, 1.0]:
-			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(1.0, 1.0, strip.size.x / 3.0)), Vector3(sc.x, 0.15, rz + side * (macro.runway_width * 0.5 - 1.0))))
+			# Same again, and much worse: the runway-length factor was landing on the stripe's
+			# 0.6 m width, so each edge line was a white slab a couple of hundred metres across
+			# the runway and three metres along it, instead of a thin line down its whole length.
+			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(strip.size.x / 3.0, 1.0, 1.0)), Vector3(sc.x, 0.15, rz + side * (macro.runway_width * 0.5 - 1.0))))
 	if level == Level.FULL:
 		var rng := RandomNumberGenerator.new()
 		rng.seed = hash([ix, iz, 5])
@@ -1589,8 +1596,13 @@ func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
 	for side: float in [-1.0, 1.0]:
 		var z := pos.y + side * (size.y * 0.5 + 1.8)
 		if style_id == 2:
+			# A ladder's two rails run ACROSS the crossing, so on the z sides they run along x,
+			# size.x long and 0.24 m wide. The yaw puts the stripe's length on world x and
+			# Basis.scaled() scales world axes, so the length factor goes in x and the width
+			# factor in z. The two branches of this function had each other's basis: these
+			# rails ran along z instead, and the ones below came out a hundred metres wide.
 			for edge: float in [-1.4, 1.4]:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis().scaled(Vector3(0.4, 1.0, size.x / 3.0)), Vector3(pos.x, ROAD_TOP + 0.015, z + edge)))
+				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(size.x / 3.0, 1.0, 0.4)), Vector3(pos.x, ROAD_TOP + 0.015, z + edge)))
 		else:
 			var x := pos.x - size.x * 0.5 + 1.2
 			while x < pos.x + size.x * 0.5 - 0.6:
@@ -1598,8 +1610,10 @@ func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
 				x += step
 		var xx := pos.x + side * (size.x * 0.5 + 1.8)
 		if style_id == 2:
+			# On the x sides the rails run along z, which is the stripe's own length axis, so
+			# no yaw and the factors are already in the right places.
 			for edge: float in [-1.4, 1.4]:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(0.4, 1.0, size.y / 3.0)), Vector3(xx + edge, ROAD_TOP + 0.015, pos.y)))
+				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis().scaled(Vector3(0.4, 1.0, size.y / 3.0)), Vector3(xx + edge, ROAD_TOP + 0.015, pos.y)))
 		else:
 			var zz := pos.y - size.y * 0.5 + 1.2
 			while zz < pos.y + size.y * 0.5 - 0.6:
@@ -1708,7 +1722,12 @@ func _add_lamp(at: Vector3) -> void:
 	# The pool of light on the pavement rides in the same batch as the lamp, so shooting the
 	# lamp out takes its light with it. It is additive and unshaded, and the only thing lighting
 	# the street on the web build.
-	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LAMP_POOL_SIZE, LAMP_POOL_SIZE, 1.0)), at + Vector3(0.0, 0.05, 0.0))
+	# Basis.scaled() is a LEFT multiply - Godot scales the basis ROWS - so the factors land on
+	# the WORLD axes, after the rotation, not on the quad's own. Laid flat the quad spans world
+	# X and Z, so the size goes in x and z and the 1.0 goes in y (the normal). Written the
+	# obvious way round, (SIZE, SIZE, 1.0), the second SIZE was spent on the normal of an
+	# unshaded shader and every lamp in the city threw a 13 x 1 m bar instead of a 13 m disc.
+	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LAMP_POOL_SIZE, 1.0, LAMP_POOL_SIZE)), at + Vector3(0.0, 0.05, 0.0))
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
 		["lamp_pool", PropFactory.light_pool(), pool],

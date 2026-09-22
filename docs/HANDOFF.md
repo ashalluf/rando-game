@@ -580,6 +580,125 @@ nobody has ever measured the frame rate on real hardware - build 135 took the ci
 10.7M triangles at the spawn camera, which is a real jump, and the F1 stats line would settle it
 in one screenshot.
 
+## 9c. Session of 2026-09-22 (read this first if you are picking up)
+
+This session was handed over so the owner could move to another account. Everything below is on
+`main` and green. Nothing is half-applied and there is no `docs/wip/` to reconcile this time.
+
+### What shipped
+
+**The colour grade (builds 155-168).** AgX filmic tonemapping expects a contrast curve applied
+*after* it, and there wasn't one, so every frame was the flat middle of the AgX ramp. That curve
+is now a Gradient / GradientTexture1D pair on the city Environment's `adjustment_color_correction`
+(`scenes/levels/city.tscn`). `adjustment_contrast` deliberately stays at 1.0 - the LUT is the
+curve, and stacking a second one on top is what the first attempt got wrong.
+
+`DayNight.moonlight` was added alongside `night_factor` because `night_factor` reaches 1.0 three
+degrees after sunset, which is right for switching the lamps on and wrong for the light: driving
+exposure and the sun's colour off it washed the whole city lavender at 18:30. `moonlight` is the
+slower ramp; `night_factor` still drives lamps, windows and the shader global.
+
+**The volumetric haze (build 169).** The fog volume was 220 m, which is shorter than the first
+block of buildings past the camera. Godot clamps the froxel lookup at `volumetric_fog_length`, so
+*everything* beyond it got one flat, distance-free curtain - the mountains and the tower two
+streets away hazed by the same amount, which is the opposite of aerial perspective. It is 900 m
+now with the density cut to match (0.00014 clear), forward anisotropy 0.45, and ambient/sky
+injection at zero so the volume is lit by the sun rather than by a flat fill.
+`DayNight.haze_gain` scales that density by the sun's height - full on the horizon, a third of it
+overhead - because haze is forward scattering through a long path of lit air, which is most of
+what a hazy sunset looks like and almost none of what a hazy noon looks like.
+**Trap:** `Weather._process()` overwrites `volumetric_fog_density` every frame from
+`volumetric_by_state`, so tuning that value in `city.tscn` does nothing at all. That cost an hour.
+
+**Seven geometry and colour-space bugs (final build of the session).** Three of them are the same
+mistake, and it is worth internalising because the code makes it easy to make:
+
+> `Basis.scaled()` is a **left** multiply - Godot scales the basis *rows* - so its factors land on
+> the **world** axes *after* any rotation, not on the mesh's own axes.
+
+`scripts/world/street_detail.gd:17` documents the rule and `scripts/world/signage.gd:139` has a
+`_scale_basis()` helper that avoids it, and three call sites still got it wrong. A probe under
+`--headless` settles any instance of this in seconds; what it printed:
+
+```
+tipped.scaled(13, 13, 1) -> quad spans 13.0 x 1.0    every street and pier lamp threw a
+tipped.scaled(13, 1, 13) -> quad spans 13.0 x 13.0   13 x 1 m BAR, not a 13 m disc of light
+yaw.scaled(1, 1, 3)      -> the 3x landed on the stripe's 0.6 m WIDTH, not its 3 m length
+sign basis, fit 0.5      -> old: along 1.0, up 0.5   the horizontal fit was on the VERTICAL axis
+                            new: along 0.5, up 0.5
+```
+
+So: every lamp in the city lit a bar; runway centreline dashes were 3 m long and 1.8 m wide and
+the edge lines were white slabs roughly 200 m *across* the runway; and on the two faces of every
+building whose along-vector runs down world Z, the shop name kept its full width - running into
+the shop next door - while being squashed vertically. The two ladder-crosswalk branches had each
+other's basis. All fixed, and `tests/smoke_test.gd` now *measures* the lamp pool's real world
+extents rather than trusting the argument order, so it cannot silently revert.
+
+The other two:
+
+- `shaders/terrain.gdshader` `dry_tint` was hinted `source_color`, which Godot sRGB-decodes. It is
+  a **multiplier** on sampled grass, so fully-dry hillside rendered at luminance 0.096 - *darker*
+  than the live grass beside it at 0.126, and rust rather than gold. This is the same mistake
+  commit `890ad3d` fixed in nine places on the ground; check any new tint against which side of
+  the decode it is on.
+- The 14 km ground follower had `cast_shadow` at its default. At 200 x 200 quads that is 80,000
+  triangles drawn into all four shadow cascades every frame, to shadow nothing (it is the plane
+  *under* everything). It still receives, which is what matters.
+
+### The one thing still open, and where the evidence points
+
+**A midday aerial reads washed out: p5/p50/p95 went from 49/137/174 to 107/209/227 - a uniform
+lift across sky, mountains, far basin, city blocks and near ground alike.** Ruled out, each by
+experiment rather than by argument:
+
+- **Volumetric fog.** Disabling it entirely gave a byte-identical histogram. Exonerated.
+- **The day/night clock and the camera exposure multiplier.** `tools/glshot/city_shot.gd` now
+  prints both with every render; it reported `clock 13:11, night_factor 0.00, exposure multiplier
+  1.000, auto true`.
+- **Quality stepping.** Every render log says `Quality: high`.
+
+A lift that is uniform across the *sky as well as* the ground is exposure or tone curve, not haze.
+The live hypothesis, untested when this session ended: **`tonemap_exposure` is 1.25 and the AgX
+look curve lives in `adjustment_color_correction`. If the Compatibility renderer does not apply
+`adjustment_*` but does apply `tonemap_exposure`, then every measurement taken on the fast
+`city_shot.gd` / opengl3 path is +1/3 of a stop with the contrast curve missing** - which is
+exactly a uniform lift with the blacks gone. CLAUDE.md already warns that path is not the owner's
+renderer.
+
+Settle it with three renders at one camera, not by tuning anything:
+
+1. HEAD on opengl3 (the baseline, 107/209/227).
+2. HEAD on opengl3 with `adjustment_enabled = false`. If this is *identical* to (1), Compatibility
+   is ignoring the grade and the washout is a harness artifact - there is no bug in the game.
+3. HEAD through `tools/glshot/forward_shot.sh` (real Forward+ via lavapipe, ~6-10 min). A midday
+   city frame should land near p5/p50/p95 of 87/123/175; 78/103/137 is the washed-out look the
+   grade was added to fix.
+
+Measure, do not squint:
+`python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"`
+
+### Practical notes for the next session
+
+- **The container restarts.** It did twice here, killing four agent fleets and a render batch
+  mid-flight. The repo and the Godot binary in the scratchpad survived both times. Commit often.
+- **The smoke test is now 210 checks and takes most of the 420 s timeout in
+  `tests/headless_check.sh` on an idle box.** Under load from a large fleet it *times out* at
+  around 150 checks with zero failures, which looks alarming and is not a failure. Do not run a
+  big fan-out and the gate at the same time, and do not read exit code 124 as a pass.
+- Four visual dimensions were queued and never completed: character PBR normal maps (the shader
+  may not sample the maps committed in `4264e47`, and their `.import` flags may be wrong), the
+  skyline height distribution (the downtown core reportedly lands in a narrow 140-290 m band, so
+  tallest/median is about 1.44 where a real downtown is strongly power-law), ocean foam coverage
+  (about 0.34% in clear weather, which is no whitecaps at all), and three Poly Haven leaf atlases
+  possibly flagged OPAQUE despite being shot on black. Each is stated as an unverified lead -
+  re-derive the number before acting on any of them.
+- The owner's four reference images are analysed in `docs/GAME_PLAN.md` under "Graphics references
+  (owner, 2026-09-21)": a Horizon Zero Dawn forest, a skyline above a cloud sea at sunrise, the
+  GTA V Los Angeles overlook, and Miami Ocean Drive at sunset with neon. The unstarted items drawn
+  from them are neon signage as a light source, wet-road reflections, layered undergrowth, and a
+  bigger, softer sun.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

@@ -1258,6 +1258,23 @@ func _test_city() -> void:
 	var b := CityPlan.new()
 	b.seed = 777
 	_check(a.road_pos(0, 5) == b.road_pos(0, 5) and a.road_pos(1, -4) == b.road_pos(1, -4) and a.block(3, -2).rect == b.block(3, -2).rect and a.block(3, -2).kind == b.block(3, -2).kind and a.intersection(2, 2).kind == b.intersection(2, 2).kind, "same seed gives the same city plan")
+	# Basis.scaled() is a LEFT multiply, so its factors land on the WORLD axes after the
+	# rotation, not on the mesh's own. Every flat additive quad in the game (lamp pools, pier
+	# pools) is a +Z QuadMesh tipped -90 degrees about X, and written the obvious way round -
+	# .scaled(SIZE, SIZE, 1) - the second SIZE is spent on the normal and the pool comes out a
+	# one-metre-deep bar. Measure the transform's real world extents rather than trust the
+	# argument order. Uses the live constants so a retune moves the assertion with it.
+	var cc: GDScript = load("res://scripts/world/city_chunk.gd")
+	var pool_size: float = cc.get_script_constant_map().get("LAMP_POOL_SIZE", 0.0)
+	var pool_basis := Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(pool_size, 1.0, pool_size))
+	# A unit QuadMesh spans local X and Y; its world footprint is what has to be square.
+	var span_a := pool_basis * Vector3(1.0, 0.0, 0.0)
+	var span_b := pool_basis * Vector3(0.0, 1.0, 0.0)
+	var normal := pool_basis * Vector3(0.0, 0.0, 1.0)
+	_check(pool_size > 1.0 and absf(span_a.length() - pool_size) < 0.01 and absf(span_b.length() - pool_size) < 0.01,
+		"lamp light pool is square in world space (%.1f x %.1f m, wants %.1f)" % [span_a.length(), span_b.length(), pool_size])
+	_check(absf(normal.length() - 1.0) < 0.01 and absf(normal.y) > 0.99, "lamp light pool lies flat with a unit normal")
+
 	city.queue_free()
 	_world_state().reset()
 

@@ -11,7 +11,11 @@ uniform float texture_scale = 5.0;
 /// Summer-dry patches. The hills above a California basin are gold and tan by August with
 /// darker green only in the gullies, and the source texture is a lush northern green; without
 /// this the whole range reads as an English meadow.
-uniform vec3 dry_tint : source_color = vec3(0.86, 0.74, 0.44);
+/// NOT source_color: this multiplies the sampled grass, so it is already linear. Hinted
+/// source_color (as it was) Godot sRGB-decoded it to (0.708, 0.513, 0.164) and fully-dry
+/// hillside came out at luminance 0.096 - DARKER than the live grass beside it at 0.126, and
+/// rust-red rather than gold. Same mistake commit 890ad3d fixed in nine places on the ground.
+uniform vec3 dry_tint = vec3(0.86, 0.74, 0.44);
 uniform float dry_amount : hint_range(0.0, 1.0) = 0.62;
 uniform vec3 grass_tint : source_color = vec3(1.0, 1.0, 0.95);
 uniform vec3 rock_tint : source_color = vec3(1.0, 0.95, 0.9);
