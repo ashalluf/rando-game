@@ -659,21 +659,43 @@ experiment rather than by argument:
 - **Quality stepping.** Every render log says `Quality: high`.
 
 A lift that is uniform across the *sky as well as* the ground is exposure or tone curve, not haze.
-The live hypothesis, untested when this session ended: **`tonemap_exposure` is 1.25 and the AgX
-look curve lives in `adjustment_color_correction`. If the Compatibility renderer does not apply
-`adjustment_*` but does apply `tonemap_exposure`, then every measurement taken on the fast
-`city_shot.gd` / opengl3 path is +1/3 of a stop with the contrast curve missing** - which is
-exactly a uniform lift with the blacks gone. CLAUDE.md already warns that path is not the owner's
-renderer.
+Two measurements at the end of the session narrowed it to a specific answer, and both refuted a
+guess worth not repeating.
 
-Settle it with three renders at one camera, not by tuning anything:
+**The guess that was wrong:** that the Compatibility renderer ignores `adjustment_*`, making the
+whole washout a harness artifact. It does not ignore it. Same camera, one toggle:
 
-1. HEAD on opengl3 (the baseline, 107/209/227).
-2. HEAD on opengl3 with `adjustment_enabled = false`. If this is *identical* to (1), Compatibility
-   is ignoring the grade and the washout is a harness artifact - there is no bug in the game.
-3. HEAD through `tools/glshot/forward_shot.sh` (real Forward+ via lavapipe, ~6-10 min). A midday
-   city frame should land near p5/p50/p95 of 87/123/175; 78/103/137 is the washed-out look the
-   grade was added to fix.
+```
+grade ON   p1/p5/p50/p95/p99   8  12  185  231  242
+grade OFF                      18  27  165  212  230
+```
+
+**So the grade is most of the lift, and it is doing exactly what it was written to do**: the LUT
+deepens shadows (27 -> 12) and raises everything above its pivot (165 -> 185, 212 -> 231). On a
+bright midday frame nearly every pixel sits above that pivot, so the net result is a lift with the
+midtones pushed up. The curve's upper half is simply tuned too hot for a noon frame. The knob is
+the `Gradient_grade` sub-resource in `scenes/levels/city.tscn`; pulling the 0.62 and 0.78 stops
+down toward the identity line (they currently map to 0.722 and 0.886) is the change to try, and
+`adjustment_contrast` must stay at 1.0 - the LUT *is* the curve.
+
+**The second finding, and it invalidates every brightness number taken on the fast path.** The
+opengl3 render log says, in plain text:
+
+```
+WARNING: Auto-exposure is only available when using the Forward+ renderer.
+    at: camera_attributes_set_auto_exposure ... [0] _apply_render (res://scripts/util/quality.gd:167)
+```
+
+The player camera runs auto exposure at sensitivity 200..620 (`scenes/player/player.tscn`), and on
+the owner's Mac that adaptation pulls a bright frame back down. `city_shot.gd` silently drops it.
+So a noon frame measured on opengl3 is *brighter than the game* by whatever auto exposure would
+have taken off, and no amount of tuning against that path converges. **Judge the grade only on
+`tools/glshot/forward_shot.sh`** (real Forward+ via lavapipe, ~6-10 min a frame).
+
+The one render still not done: HEAD through `forward_shot.sh` at a midday camera. A midday city
+frame wants p5/p50/p95 near 87/123/175; 78/103/137 is the washed-out look the grade was added to
+fix. Take that number *before* touching the gradient stops, because the gap between it and the
+opengl3 numbers above is the size of the auto-exposure correction and nobody has ever measured it.
 
 Measure, do not squint:
 `python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"`
