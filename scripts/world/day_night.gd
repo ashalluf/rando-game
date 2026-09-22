@@ -98,6 +98,12 @@ var weather_darken: float = 0.0
 ## Hour of the day, 0..24.
 var hour: float = 9.0
 var night_factor: float = 0.0
+## How strongly the volumetric haze should read this frame, 1 with the sun on the horizon and a
+## third of that with it overhead. Haze is forward scattering through a long path of lit air:
+## it is most of what a hazy sunset looks like and almost none of what a hazy noon looks like.
+## Weather multiplies the volumetric density by this, so the 900 m volume can carry the basin
+## at golden hour without laying a lit white veil over noon.
+var haze_gain: float = 1.0
 ## Directions toward the sun and the moon this frame (the sun's is continuous, so it really sets).
 var sun_dir: Vector3 = Vector3.UP
 var moon_dir: Vector3 = Vector3.UP
@@ -197,6 +203,7 @@ func _apply() -> void:
 	# the sun's colour, the ambient and the exposure off night_factor washed the whole city
 	# lavender at 18:30 and over-exposed it by most of a stop - a blue moon lighting a pink sky.
 	var moonlight := smoothstep(0.02, -0.34, elevation)
+	haze_gain = lerpf(1.0, 0.30, clampf(elevation, 0.0, 1.0))
 	# Where the sun and the moon actually are. The sky shader needs the sun's direction even
 	# after it has set (the twilight bands are anchored to it), so it is never special-cased.
 	var sun_basis := _arc_basis(t)

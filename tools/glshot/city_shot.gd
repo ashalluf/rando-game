@@ -32,6 +32,19 @@ func _initialize() -> void:
 			if player:
 				player.global_position.y = hold
 				player.set("velocity", Vector3.ZERO)
+	# What the frame was ACTUALLY rendered at. DayNight advances its own clock in _process, and a
+	# software frame takes seconds, so a shot asked for at --hour=13 can land somewhere else
+	# entirely; the camera's auto exposure is still converging too. A uniform brightness shift
+	# between two shots of the same camera is almost always one of these two rather than anything
+	# in the scene, and guessing at it costs a render every time.
+	var dn := get_first_node_in_group("player")
+	var city := get_root().get_child(get_root().get_child_count() - 1)
+	var day := city.get_node_or_null("DayNight") if city else null
+	if day:
+		print("clock ", day.clock_text(), "  night_factor %.2f" % day.night_factor)
+	var cam := get_root().get_camera_3d()
+	if cam and cam.attributes:
+		print("exposure multiplier %.3f  auto %s" % [cam.attributes.exposure_multiplier, str(cam.attributes.auto_exposure_enabled)])
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "city_shot.png"

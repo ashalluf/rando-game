@@ -1182,3 +1182,31 @@ Two things that follow, both checked rather than assumed:
 - A wheels fleet was then launched to build a wheel that already existed. Its reviewer caught
   this independently. The mesh was the half that existed; `Vehicle` wiring it up was the half that
   was actually missing.
+
+## Graphics references (owner, 2026-09-21)
+
+Four images the owner sent as the target. What each one actually asks for, so a later session
+tunes toward something specific rather than "make it prettier":
+
+**1. Horizon Zero Dawn, forest floor.** Visible light shafts through the canopy; ground cover in
+three or four layers (fern, grass, shrub, litter) all the way to the camera; warm bounce under a
+strong back sun; every surface carrying texture at every scale. The ask: *volumetric light* and
+*layered undergrowth*, not just more trees.
+
+**2. A skyline above a cloud sea at sunrise.** Towers as flat silhouettes against a huge soft sun
+and a warm gradient filling the whole sky. The ask: *a sun that is an event in the frame* - disc,
+halo, bloom - rather than a bright dot.
+
+**3. GTA V, the Los Angeles overlook. This is the closest to what this game is.** Read the value
+structure: dark dry-gold foreground hillside with scrub, rock and a dirt path; the whole basin in
+a STRATIFIED warm-blue smog layer the towers rise out of; mountains receding in separate blue
+layers behind it; the sun a soft bloom on the right. Note what it is NOT: it is not uniformly
+hazy - the haze has a top, and the air above it is clear. Our fog was one flat curtain, then it
+was cut back to almost nothing; neither is this. The ask: *height fog with a defined top*,
+*aerial perspective in layers*, and *a foreground that is darker than the distance*.
+
+**4. Miami, Ocean Drive at sunset.** Neon on every frontage, reflected in a wet road; a structured
+pink-and-orange cloud sky; palms lit from below; dense crowds and headlights. The ask: *neon
+signage as a light source*, *wet road reflections*, and *sky with cloud STRUCTURE at sunset* -
+this project has shaders/neon_sign.gdshader and a `road_wetness` global already and uses almost
+none of either.

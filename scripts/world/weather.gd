@@ -65,14 +65,18 @@ const SOUND_SPEED := 343.0
 ## what a clear LA day looks like, and it is the only term in the whole haze stack with a
 ## distance gradient in it.
 @export var fog_by_state: PackedFloat32Array = PackedFloat32Array([0.00012, 0.0004, 0.0009, 0.0013])
-## Volumetric fog per state - and this one was the whole aerial haze problem. Godot clamps the
-## froxel lookup at volumetric_fog_length (220 m), so past that distance the volumetric term
-## stops growing and becomes a FLAT curtain carrying no distance information at all. At 0.0025
-## that curtain was 42 % over everything beyond 220 m, out-weighing the depth fog at every range
-## the camera can see and flattening the mountains into silhouettes. At 0.0004 it is an 8 %
-## near-field medium - which is what volumetric fog is for - and the depth fog above does the
-## distance.
-@export var volumetric_by_state: PackedFloat32Array = PackedFloat32Array([0.0004, 0.005, 0.012, 0.02])
+## Volumetric fog per state. Godot clamps the froxel lookup at volumetric_fog_length, so past
+## that distance the term stops growing and becomes a FLAT curtain carrying no distance at all.
+## At the old 0.0025 over a 220 m volume that curtain was 42 % over everything beyond 220 m,
+## out-weighing the depth fog at every range the camera can see and flattening the mountains
+## into silhouettes.
+##
+## The volume is 900 m now (city.tscn), which is most of what the camera can see, so this term
+## carries real distance AND is lit by the sun - which is the whole point of volumetric rather
+## than depth fog, and what puts a halo round a low sun and shafts between the towers. At 0.0004
+## it reaches 30 % at 900 m and 8 % at 200 m: the basin gets the warm-blue layer a city sits in
+## and the street in front of you stays clear.
+@export var volumetric_by_state: PackedFloat32Array = PackedFloat32Array([0.00014, 0.004, 0.010, 0.018])
 
 var state: State = State.CLEAR
 var blend: float = 0.0        # 0 = previous state fully, 1 = current state fully
@@ -459,7 +463,10 @@ func _process(delta: float) -> void:
 		_daynight.set("weather_darken", dark)
 	if _env:
 		_env.fog_density = fog
-		_env.volumetric_fog_density = vol
+		# Scaled by the sun's height (see DayNight.haze_gain): the volume is 900 m long so that
+		# it can carry the whole basin with a low sun, and at noon that same volume lit from
+		# overhead is a white veil over everything.
+		_env.volumetric_fog_density = vol * (_daynight.get("haze_gain") if _daynight else 1.0)
 	wave_scale = waves
 	rain_level = rain
 	RenderingServer.global_shader_parameter_set("wave_scale", waves)
