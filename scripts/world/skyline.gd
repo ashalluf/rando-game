@@ -1,0 +1,172 @@
+class_name Skyline
+extends Node3D
+## The city seen from miles away (owner, 2026-09-22: "how come i cant see far away stuff? ...
+## the closer i go an entire city appears. it should look the way things do in real life").
+##
+## Before this there were two tiers and then nothing: FULL chunks to about two blocks, LOD boxes
+## to seven, and beyond roughly 700 m the world was bare shaded ground. So the city had an edge,
+## and walking toward it made a city materialise. A real skyline is visible from the far side of
+## the basin.
+##
+## This is the coarse tier that fills that gap, the way an open-world game's furthest LOD does:
+## one MultiMesh per TILE of `TILE_BLOCKS` x `TILE_BLOCKS` city blocks, a handful of boxes per
+## block, no roads, no props, no collision, no per-building nodes. A tile is ONE draw call, so
+## three kilometres of city costs about a hundred draws instead of the thousands the LOD tier
+## would need.
+##
+## It deliberately does NOT try to reproduce the exact buildings the LOD tier builds. It cannot:
+## `CityChunk` derives its lots from a single stateful rng threaded through the whole chunk build
+## (palm roll, jacaranda roll, paving roll, then _build_lots), so matching it from outside would
+## mean replaying every earlier call and would break the moment anything is inserted. Instead the
+## massing is drawn from the same DISTRICT height band and the same skyline_boost, hashed per
+## cell, so the silhouette is right even though individual buildings are not the same ones.
+## Nothing ever sees both: each tile only draws BEYOND `draw_from` metres, which is where the LOD
+## chunks stop, and Godot dithers it in over `fade_margin`.
+
+## Blocks per tile edge. Bigger means fewer draw calls and coarser culling granularity.
+const TILE_BLOCKS := 6
+## Cells a block is cut into per axis to make its massing. 3 x 3 reads as a city at a kilometre
+## without pretending to be the real lot layout.
+const CELLS := 3
+## Below this the tile is not drawn at all - the LOD chunks own that ground. Set from
+## CityStreamer so the two always meet.
+var draw_from: float = 700.0
+## Distance over which the tile dithers in, so it does not appear in one frame.
+var fade_margin: float = 120.0
+
+var _plan: CityPlan
+var _tiles: Dictionary = {}
+
+
+func setup(plan: CityPlan, from: float, margin: float) -> void:
+	_plan = plan
+	draw_from = from
+	fade_margin = margin
+	# Tile instances are placed at TRUE world coordinates, exactly like a CityChunk's children,
+	# so this node carries the origin shift for all of them. CityStreamer.recenter() moves every
+	# direct Node3D child of the scene root, which keeps this at -world_offset from here on.
+	position = -WorldState.world_offset
+
+
+func has_tile(t: Vector2i) -> bool:
+	return _tiles.has(t)
+
+
+func tile_count() -> int:
+	return _tiles.size()
+
+
+## Frees every tile outside `keep` tiles of `center`.
+func trim(center: Vector2i, keep: int) -> void:
+	for t in _tiles.keys():
+		if maxi(absi(t.x - center.x), absi(t.y - center.y)) > keep:
+			var node = _tiles[t]
+			if node != null:
+				(node as Node).queue_free()
+			_tiles.erase(t)
+
+
+## Builds one tile. Returns false if it held no city at all, which is most of the map - ocean,
+## hills and the basin's empty ground all produce nothing and cost one block scan.
+func build_tile(t: Vector2i) -> bool:
+	if _tiles.has(t) or _plan == null:
+		return false
+	var macro := _plan.macro
+	var xforms: Array[Transform3D] = []
+	var colors: PackedColorArray = PackedColorArray()
+	var customs: PackedColorArray = PackedColorArray()
+	for bx in TILE_BLOCKS:
+		for bz in TILE_BLOCKS:
+			var ix := t.x * TILE_BLOCKS + bx
+			var iz := t.y * TILE_BLOCKS + bz
+			_add_block(ix, iz, macro, xforms, colors, customs)
+	if xforms.is_empty():
+		# Remember the emptiness too, or an ocean tile is rescanned every single update. Stored
+		# as a plain marker rather than a node: most of the map is water, hills and empty basin,
+		# and an empty Node3D each would be thousands of nodes for nothing.
+		_tiles[t] = null
+		return false
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	mm.mesh = PropFactory.unit_box()
+	mm.instance_count = xforms.size()
+	for i in xforms.size():
+		mm.set_instance_transform(i, xforms[i])
+		mm.set_instance_color(i, colors[i])
+		mm.set_instance_custom_data(i, customs[i])
+	var node := MultiMeshInstance3D.new()
+	node.name = "Sky_%d_%d" % [t.x, t.y]
+	node.multimesh = mm
+	# The same shader the LOD boxes use, so the far skyline carries the facade typology and the
+	# glazing response rather than reading as flat grey slabs.
+	node.material_override = PropFactory.building_lod_material()
+	# Never casts: it is kilometres away, well past any shadow cascade, and it would only cost
+	# cascade fill.
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# This is what stops the coarse tier ever being seen next to the real one: it only draws
+	# once the camera is further away than the LOD chunks reach.
+	node.visibility_range_begin = draw_from
+	node.visibility_range_begin_margin = fade_margin
+	node.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	add_child(node)
+	_tiles[t] = node
+	return true
+
+
+func _add_block(ix: int, iz: int, macro, xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray) -> void:
+	var b := _plan.block(ix, iz)
+	var rect: Rect2 = b.rect
+	if rect.size.x < 8.0 or rect.size.y < 8.0:
+		return
+	var center := rect.get_center()
+	if macro and macro.zone_at(center) != MacroMap.Zone.CITY:
+		return
+	# Parks and plazas have no massing; leaving them out is what gives the far city its gaps.
+	if b.kind == CityPlan.BlockKind.PARK or b.kind == CityPlan.BlockKind.PLAZA:
+		return
+	var params: Dictionary = CityPlan.DISTRICTS[b.district]
+	var heights: Vector2 = params.height
+	var boost: float = macro.skyline_boost(center) if macro else 0.0
+	# The same massing curve CityChunk._build_lots uses, so the far skyline has the same shape of
+	# height distribution - a lot of infill and a few towers - rather than a uniform draw, which
+	# has no tail and reads as one flat line.
+	var h_low := lerpf(heights.x, heights.x * 1.45, boost)
+	var h_top := lerpf(heights.y, heights.y * 2.3, boost)
+	var curve := 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
+	var ground := macro.height_at(center) if macro else 0.0
+	var inner := rect.grow(-_plan.sidewalk_width)
+	var cell := inner.size / float(CELLS)
+	for cx in CELLS:
+		for cz in CELLS:
+			var hs := hash([_plan.seed, "sky", ix, iz, cx, cz])
+			# A third of the cells stay empty so the far city has streets and yards in it.
+			if absi(hs) % 100 < 26:
+				continue
+			var u := float(absi(hash([hs, "h"])) % 100003) / 100003.0
+			var h := lerpf(h_low, h_top, pow(u, curve))
+			var foot := cell * lerpf(0.62, 0.9, float(absi(hash([hs, "f"])) % 1000) / 1000.0)
+			var c := inner.position + Vector2(cell.x * (cx + 0.5), cell.y * (cz + 0.5))
+			xforms.append(Transform3D(
+				Basis().scaled(Vector3(foot.x, h, foot.y)),
+				Vector3(c.x, ground + h * 0.5, c.y)))
+			colors.append(_facade(hs))
+			# (window style / 4, lit ratio, seed, plain flag) - what building_lod.gdshader reads.
+			customs.append(Color(float(absi(hash([hs, "w"])) % 4) / 4.0, 0.0,
+				float(absi(hs) % 997) / 997.0, 0.0))
+
+
+## Facade colour by the same logic the LOD tier uses: the palette IS the typology signal, so a
+## far skyline has to carry the same spread of glass, brick, panel and flat or it reads as one
+## material.
+func _facade(hs: int) -> Color:
+	var r := absi(hash([hs, "c"])) % 100
+	var v := float(absi(hash([hs, "v"])) % 1000) / 1000.0
+	if r < 34:
+		return Color(0.20, 0.24, 0.30).lerp(Color(0.34, 0.42, 0.50), v)      # glass
+	if r < 58:
+		return Color(0.46, 0.30, 0.24).lerp(Color(0.62, 0.44, 0.34), v)      # brick
+	if r < 82:
+		return Color(0.48, 0.48, 0.50).lerp(Color(0.68, 0.68, 0.70), v)      # panel
+	return Color(0.72, 0.70, 0.66).lerp(0.92 * Color(1.0, 0.99, 0.96), v)    # flat

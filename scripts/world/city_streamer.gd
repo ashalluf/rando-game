@@ -58,6 +58,13 @@ extends Node3D
 ## same place. This is the last of the swap: build-before-free stopped the block going missing,
 ## and this stops it changing in a single frame. 0 turns it off and swaps instantly.
 @export var lod_fade_time: float = 0.45
+## Tiles of coarse far city kept around the player (see scripts/world/skyline.gd). 5 reaches
+## about three kilometres at six blocks a tile, which is what makes the skyline visible from
+## across the basin instead of the world ending seven blocks out. Each tile is ONE draw call.
+@export var skyline_tiles: int = 5
+## Far tiles built per update. They are cheap next to a FULL chunk (no nodes, no collision, no
+## props) but a tile still scans 36 blocks, so it is budgeted like everything else.
+@export var max_skyline_builds_per_update: int = 2
 ## When the player is this far from the origin, the whole world shifts back to it.
 @export var recenter_distance: float = 1000.0
 ## The ground follower is the whole world outside the streamed chunks, so it has to reach past
@@ -123,6 +130,7 @@ var _player: Node3D
 var _ground: StaticBody3D
 ## Where the streaming window was last centred; chunks read it to size their collision.
 var _center_block: Vector2i = Vector2i.ZERO
+var _skyline: Skyline
 var _ground_material: ShaderMaterial
 var _timer: float = 0.0
 ## Far (always loaded) versions of the landmarks, keyed by id.
@@ -156,6 +164,7 @@ func _ready() -> void:
 		plan.macro.seed = world_seed
 		plan.macro.setup()
 	_build_ground()
+	_build_skyline()
 	_build_vignette()
 	_build_far_landmarks()
 	var traffic := TrafficManager.new()
@@ -465,6 +474,41 @@ func update_streaming(immediate: bool) -> void:
 				continue
 			lod_budget -= 1
 		_replace_chunk(k, level)
+	_update_skyline(here, immediate)
+
+
+## Keeps the coarse far city around the player: build the nearest missing tiles, drop the ones
+## that have fallen out of range. Cheap enough to run every update - a tile that holds no city
+## (ocean, hills, empty basin) is remembered as empty and never rescanned.
+func _update_skyline(here: Vector2i, immediate: bool) -> void:
+	if _skyline == null:
+		return
+	var t := Vector2i(floori(float(here.x) / float(Skyline.TILE_BLOCKS)), floori(float(here.y) / float(Skyline.TILE_BLOCKS)))
+	_skyline.trim(t, skyline_tiles + 1)
+	var budget := max_skyline_builds_per_update if not immediate else 1000000
+	# Nearest ring first, so the gap the player is looking at closes before the far corners.
+	for ring in range(0, skyline_tiles + 1):
+		for dx in range(-ring, ring + 1):
+			for dz in range(-ring, ring + 1):
+				if maxi(absi(dx), absi(dz)) != ring:
+					continue
+				var k := Vector2i(t.x + dx, t.y + dz)
+				if _skyline.has_tile(k):
+					continue
+				_skyline.build_tile(k)
+				budget -= 1
+				if budget <= 0:
+					return
+
+
+func _build_skyline() -> void:
+	_skyline = Skyline.new()
+	_skyline.name = "Skyline"
+	# Where the LOD chunks stop is where this starts. Derived from the ring count rather than
+	# hard-coded so the two can never drift apart when the radius is tuned.
+	var reach := float(lod_radius_blocks) * plan.block_size_range.y
+	_skyline.setup(plan, reach, reach * 0.18)
+	add_child(_skyline)
 
 
 ## How soon a chunk gets built: by whichever it sits closer to, the led focus or the player.
