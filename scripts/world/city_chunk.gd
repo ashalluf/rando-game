@@ -92,6 +92,14 @@ var _mm_nodes: Dictionary = {}
 var _statics: StreetProps
 ## Footprints of the lots this chunk built on, so lawn grass can keep out of the houses.
 var _lot_rects: Array[Rect2] = []
+
+## Dissolve state, driven by CityStreamer when this chunk is being replaced by a detailed one.
+## Block index the streaming window was centred on when this chunk was built. Only used to
+## decide whether far LOD buildings are worth giving collision to.
+var center_block: Vector2i = Vector2i.ZERO
+var _fade_left: float = 0.0
+var _fade_total: float = 0.0
+var _fade_mat: ShaderMaterial
 var _prop_counter: int = 0
 
 
@@ -1353,7 +1361,26 @@ func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
 var _lod_body: StaticBody3D
 
 
+## Rings of LOD chunks beyond this get NO building collision. A LOD chunk starts seven blocks
+## out; the player cannot touch a building until the chunk is FULL (two blocks) and has real
+## collision, and the streaming window now leads their velocity, so the upgrade lands before
+## they arrive even in a jet. The outer rings were paying the broadphase for 984 box shapes
+## nobody can reach. Nothing is drawn differently - this is collision only.
+const LOD_COLLISION_RINGS := 4
+
+
+func _lod_collision_wanted() -> bool:
+	if level == Level.FULL:
+		return true
+	# The chunk's RING is its distance from the player, so this is safe by construction: a chunk
+	# at ring 5 is four hundred metres away, and it is rebuilt as FULL - with real collision -
+	# long before they can reach it.
+	return maxi(absi(ix - center_block.x), absi(iz - center_block.y)) <= LOD_COLLISION_RINGS
+
+
 func _add_lod_shape(size: Vector3, pos: Vector3) -> void:
+	if not _lod_collision_wanted():
+		return
 	if _lod_body == null:
 		_lod_body = StaticBody3D.new()
 		_lod_body.name = "LodBuildings"
@@ -2321,3 +2348,45 @@ func _build_freeway_ramps() -> void:
 	add_child(ramp_body)
 	_commit_surface(deck, "RampDeck", PropFactory.road("asphalt_aerial", 9.0, Color(0.69, 0.69, 0.71), hash([plan.seed, "ramp"]), 0.0, 0.7))
 	_commit_surface(body, "RampStructure", PropFactory.material(Color.WHITE, 0.85))
+
+
+## Starts this chunk dissolving instead of vanishing, and frees it when it has gone. Called on
+## the OLD chunk once its replacement is already standing in the same place, so what the player
+## sees is a coarse block thinning out over a detailed one rather than a block changing identity
+## between two frames.
+##
+## Three things have to happen at once or the dissolve is worse than the pop it replaces:
+##  - the LOD boxes get their OWN material. PropFactory caches one for every LOD chunk in the
+##    city, so setting `fade` on the shared one would dissolve the whole skyline at once.
+##  - everything else this chunk drew is hidden NOW. Its road and pavement slabs sit at exactly
+##    the same height as the new chunk's, and two coincident surfaces z-fight, which is far more
+##    visible than the swap.
+##  - its collision stops. The boxes are on their way out; walking into a building that is
+##    visibly dissolving, or having a car hit one, is the giveaway.
+func begin_fade_out(seconds: float) -> void:
+	var node := _mm_nodes.get("lod_box") as MultiMeshInstance3D
+	if node == null or seconds <= 0.0:
+		queue_free()
+		return
+	_fade_total = seconds
+	_fade_left = seconds
+	_fade_mat = PropFactory.building_lod_material().duplicate() as ShaderMaterial
+	node.material_override = _fade_mat
+	for child in get_children():
+		if child != node and child is Node3D:
+			(child as Node3D).visible = false
+		if child is CollisionObject3D:
+			(child as CollisionObject3D).collision_layer = 0
+			(child as CollisionObject3D).collision_mask = 0
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	if _fade_left <= 0.0:
+		return
+	_fade_left -= delta
+	if _fade_left <= 0.0:
+		queue_free()
+		return
+	if _fade_mat:
+		_fade_mat.set_shader_parameter("chunk_fade", clampf(_fade_left / _fade_total, 0.0, 1.0))

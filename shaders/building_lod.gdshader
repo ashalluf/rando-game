@@ -15,6 +15,15 @@ render_mode cull_back;
 // The facade colour is also the typology signal: Building picks it from a palette per finish
 // (GLASS_COLORS are dark, BRICK_COLORS warm, PANEL_COLORS mid grey, FLAT_COLORS bright), so the
 // finish can be recovered from the colour plus the window style without any extra instance data.
+// Per-chunk dissolve, driven by CityChunk.begin_fade_out(). 1.0 is solid, 0.0 is gone.
+// A hash dither + discard rather than alpha: this keeps the boxes in the OPAQUE pass, so a
+// dissolving chunk costs no sorting and cannot draw through the detailed buildings behind it.
+// That is how a LOD swap is hidden in a big open-world game - the coarse version thins out
+// over a few frames instead of vanishing between two.
+// NOTE the material carrying this is shared by every LOD chunk (PropFactory caches it), so a
+// chunk that is fading gets its OWN duplicate - see CityChunk.begin_fade_out().
+uniform float chunk_fade : hint_range(0.0, 1.0) = 1.0;
+
 global uniform float night_factor;
 // Points TOWARDS the sun (DayNight publishes the sun's +Z). Drives the glare lobe on glazing
 // and the direction rooftop plant throws its shadow.
@@ -155,6 +164,18 @@ void vertex() {
 
 
 void fragment() {
+	// NOTE: named chunk_fade, not fade - this shader already uses a local `fade` for the
+	// close-up detail blend further down, and a second one silently killed the WHOLE shader
+	// compile ("Redefinition of 'fade'"), which falls back to blank white on every far
+	// building. The headless gate passed 210/210 while that was true.
+	if (chunk_fade < 0.999) {
+		// Interleaved-gradient noise: cheap, stable per pixel, and it breaks into a fine grain
+		// rather than the banding a plain ordered matrix gives on a big flat facade.
+		float d = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
+		if (chunk_fade < d) {
+			discard;
+		}
+	}
 	vec3 n = normalize(local_normal);
 	vec3 c = tint.rgb;
 	float bseed = custom.b;

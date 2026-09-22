@@ -24,10 +24,16 @@ extends Node3D
 @export var load_radius_blocks: int = 2
 ## Blocks around the player that get cheap LOD boxes (the skyline).
 @export var lod_radius_blocks: int = 7
-@export var update_interval: float = 0.25
+## How often the window is re-evaluated. Halved (was 0.25) together with the per-tick build
+## budgets below, which keeps the THROUGHPUT identical - 8 full chunks a second either way -
+## while halving the work any single frame can be asked to do. A chunk is generated
+## synchronously, so two of them landing in one frame is a visible hitch; one is half of one.
+## Nothing is built at lower detail and nothing is drawn differently: the same city arrives at
+## the same rate, in smaller pieces.
+@export var update_interval: float = 0.125
 ## Chunks built per update, to spread the work out. Must keep up with a car at nitro speed.
-@export var max_full_builds_per_update: int = 2
-@export var max_lod_builds_per_update: int = 8
+@export var max_full_builds_per_update: int = 1
+@export var max_lod_builds_per_update: int = 4
 ## Seconds of travel the streaming window is pushed ahead of the player by. The window used to
 ## be centred on where they were standing, which is always behind where they are going: at boost
 ## or nitro speed the builder was still starting the block they had already reached. Leading it
@@ -37,15 +43,21 @@ extends Node3D
 ## the basin and starve the blocks it is actually flying over.
 @export var stream_lookahead_max: float = 300.0
 ## Blocks a chunk is kept for after it drops out of the wanted window. Bigger than
-## `lod_radius_blocks` on purpose: without the gap, a chunk sitting exactly on the edge is freed
-## and rebuilt every time the player drifts across the boundary. Set it equal to
-## `lod_radius_blocks` for the old behaviour. First thing to lower if memory gets tight.
-@export var keep_radius_blocks: int = 8
+## `lod_radius_blocks` would avoid re-building a chunk that sits exactly on the edge, but it is
+## NOT worth it: every kept chunk is about fourteen draw-producing nodes, so one extra ring cost
+## ~560 draw calls on a frame that already submits over three thousand - to save rebuilding
+## boxes. Kept equal to `lod_radius_blocks`, i.e. no hysteresis, which is the cheap answer.
+## Raise it by 1 only if profiling ever shows edge rebuilds costing more than the draws do.
+@export var keep_radius_blocks: int = 7
 ## Blocks around the player that stay full detail no matter where the lead is pointing (1 = the
 ## 3 x 3 around them). This is the cost of leading the window: the full-detail set is the union
 ## of the led one and this one, so it is a few more chunks than the old centred window built.
 ## Drop it to 0 to pay for nothing but the block underfoot.
 @export var min_full_radius_blocks: int = 1
+## Seconds a coarse LOD chunk spends dissolving once its detailed replacement is standing in the
+## same place. This is the last of the swap: build-before-free stopped the block going missing,
+## and this stops it changing in a single frame. 0 turns it off and swaps instantly.
+@export var lod_fade_time: float = 0.45
 ## When the player is this far from the origin, the whole world shifts back to it.
 @export var recenter_distance: float = 1000.0
 ## The ground follower is the whole world outside the streamed chunks, so it has to reach past
@@ -109,6 +121,8 @@ var recenter_count: int = 0
 
 var _player: Node3D
 var _ground: StaticBody3D
+## Where the streaming window was last centred; chunks read it to size their collision.
+var _center_block: Vector2i = Vector2i.ZERO
 var _ground_material: ShaderMaterial
 var _timer: float = 0.0
 ## Far (always loaded) versions of the landmarks, keyed by id.
@@ -396,6 +410,7 @@ func update_streaming(immediate: bool) -> void:
 		_ground_material.set_shader_parameter("world_offset", Vector2(WorldState.world_offset.x, WorldState.world_offset.z))
 	var wp := world_position(local)
 	var here := plan.block_index_at(Vector2(wp.x, wp.z))
+	_center_block = here
 	# Stream towards where the player is GOING, not where they are standing. `velocity` is kept
 	# in step with the car or the jet while riding one (see Player._physics_process), so this one
 	# read covers walking, boosting, driving and flying alike.
@@ -473,6 +488,12 @@ func _replace_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 	for id in old_chunk.built_landmarks:
 		if not (chunks[k] as CityChunk).built_landmarks.has(id):
 			_set_far_landmark_visible(id, true)
+	# Coming INTO detail is the swap the player is looking at, so dissolve the boxes over the
+	# new buildings instead of cutting. Going the other way happens behind them, at the far edge
+	# of the window, where a cut costs nothing and a second set of boxes would cost draws.
+	if lod_fade_time > 0.0 and old_chunk.level == CityChunk.Level.LOD and level == CityChunk.Level.FULL:
+		old_chunk.begin_fade_out(lod_fade_time)
+		return
 	remove_child(old_chunk)
 	old_chunk.queue_free()
 
@@ -483,6 +504,7 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 	chunk.ix = k.x
 	chunk.iz = k.y
 	chunk.level = level
+	chunk.center_block = _center_block
 	chunk.style = {
 		"asphalt": asphalt_color, "sidewalk": sidewalk_color, "grass": grass_color, "plaza": plaza_color,
 		"path": path_color, "water": water_color, "ocean": ocean_color, "sand": sand_color,
