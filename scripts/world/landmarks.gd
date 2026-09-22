@@ -137,9 +137,17 @@ static func _build_sign(anchor: Vector2, parent: Node3D, statics: StaticBody3D, 
 	var total := float(n) * letter_w + float(n - 1) * gap
 	var x := anchor.x - total * 0.5
 	var white := Color(0.96, 0.96, 0.94)
+	# ONE level line for the whole name, taken from the highest ground under it. Each letter
+	# used to sit on the ground beneath itself, which on an uneven ridge sank whichever letters
+	# landed in a fold - the S of SHALLUFERWOOD vanished into the hillside entirely and the name
+	# read HALLUFERWOOD. A hill sign is built level on legs of different lengths, which is what
+	# the leg loop below already draws; the letters just were not using it.
+	var base_y := -1e20
+	for i in n:
+		base_y = maxf(base_y, plan.height_at(Vector2(x + (float(i) + 0.5) * (letter_w + gap), anchor.y)))
+	base_y += 2.0
 	for ch in SIGN_TEXT:
 		var rows: Array = FONT.get(ch, FONT["O"])
-		var base_y := plan.height_at(Vector2(x + letter_w * 0.5, anchor.y)) + 2.0
 		for r in rows.size():
 			var row: String = rows[r]
 			var c := 0

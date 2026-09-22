@@ -263,7 +263,10 @@ func _add_wild(zone: int, rect: Rect2, center: Vector2, ground: float, macro: Ma
 				# metres above sea level, 400+ up here - NOT a building size. Reading it as one
 				# stood a four-hundred-metre white spike on every lot and turned the range into
 				# a bed of nails. The house gets its own storey count; `height` places it.
-				var pad_y: float = float(m.height)
+				# The ACTUAL ground, not the road deck height: height_at() already includes the
+				# pad carved for this lot, and using the deck elevation instead left houses
+				# floating above hillsides wherever the two differ.
+				var pad_y: float = macro.height_at(pos)
 				var h: float = 6.0 + float(absi(hash([m.seed, "h"])) % 6)
 				var w: float = 16.0 + float(absi(hash([m.seed, "w"])) % 10)
 				var d: float = 12.0 + float(absi(hash([m.seed, "d"])) % 9)
