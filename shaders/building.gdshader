@@ -594,10 +594,14 @@ void fragment() {
 	// patchiness. Deliberately small - +/- 6% and 3% - because the failure here is a loud one:
 	// push it and every wall turns to camouflage.
 	{
-		vec2 mp = local_pos.xz * 0.11 + vec2(local_pos.y * 0.07, face_id * 3.7);
+		// local_pos is the varying and is in scope here; `face_id` is NOT - it is declared
+		// inside the facade branch above, which is what broke this shader's compile the first
+		// time. The world position alone separates the faces anyway: opposite walls of the same
+		// building differ in x or z, so they sample different cells without needing the id.
+		vec2 mp = local_pos.xz * 0.11 + vec2(local_pos.y * 0.07, 0.0);
 		float broad = hash21(floor(mp) + seed);
 		broad = mix(broad, hash21(floor(mp + vec2(0.5)) + seed), 0.5);
-		float fine_v = hash21(floor(local_pos.xz * 0.38 + vec2(local_pos.y * 0.24, face_id)) + seed * 2.0);
+		float fine_v = hash21(floor(local_pos.xz * 0.38 + vec2(local_pos.y * 0.24, 0.0)) + seed * 2.0);
 		float macro = 1.0 + (broad - 0.5) * 0.12 + (fine_v - 0.5) * 0.06;
 		albedo *= macro;
 		// Where it is lighter it is also a touch chalkier: sun-bleached render is rougher than
