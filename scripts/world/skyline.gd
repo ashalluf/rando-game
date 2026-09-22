@@ -34,6 +34,8 @@ const CELLS := 4
 ## Percent of cells left empty, for streets and yards. Low on purpose: gaps are what made it
 ## look abandoned from the air.
 const SKIP_PERCENT := 12
+## Vegetation clumps on a hill block at full cover, falling to zero at the rock line.
+const HILL_CLUMPS := 10
 ## Below this the tile is not drawn at all - the LOD chunks own that ground. Set from
 ## CityStreamer so the two always meet.
 var draw_from: float = 700.0
@@ -127,10 +129,25 @@ func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], c
 	if rect.size.x < 8.0 or rect.size.y < 8.0:
 		return
 	var center: Vector2 = rect.get_center()
-	if macro and macro.zone_at(center) != MacroMap.Zone.CITY:
+	var zone: int = macro.zone_at(center) if macro else MacroMap.Zone.CITY
+	if zone == MacroMap.Zone.OCEAN:
 		return
-	# Parks and plazas have no massing; leaving them out is what gives the far city its gaps.
+	var ground_here: float = macro.height_at(center) if macro else 0.0
+	# Everything that is NOT plain city blocks gets handled first. Measured over the basin from
+	# an aerial camera, the far tier was drawing 17.6% of the blocks in view, and the single
+	# biggest hole was the HILLS at 44.8% of the area - which carry roads and mansions up close
+	# and drew as bare ground from the air. That gap IS the "closer i go, more stuff appears".
+	if zone != MacroMap.Zone.CITY:
+		_add_wild(zone, rect, center, ground_here, macro, xforms, colors, customs)
+		return
+	# Parks and plazas carry no buildings, but they are still GROUND - grass and paving, not
+	# bare dirt. Skipping them entirely left holes in the middle of the far city.
 	if b.kind == CityPlan.BlockKind.PARK or b.kind == CityPlan.BlockKind.PLAZA:
+		xforms.append(Transform3D(
+			Basis().scaled(Vector3(rect.size.x, 0.4, rect.size.y)),
+			Vector3(center.x, ground_here + 0.2, center.y)))
+		colors.append(Color(0.24, 0.32, 0.20) if b.kind == CityPlan.BlockKind.PARK else Color(0.44, 0.44, 0.43))
+		customs.append(Color(0.0, 0.0, 0.0, 1.0))
 		return
 	var params: Dictionary = CityPlan.DISTRICTS[b.district]
 	var heights: Vector2 = params.height
@@ -141,7 +158,7 @@ func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], c
 	var h_low: float = lerpf(heights.x, heights.x * 1.45, boost)
 	var h_top: float = lerpf(heights.y, heights.y * 2.3, boost)
 	var curve: float = 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
-	var ground: float = macro.height_at(center) if macro else 0.0
+	var ground: float = ground_here
 	var inner: Rect2 = rect.grow(-_plan.sidewalk_width)
 	var cell: Vector2 = inner.size / float(CELLS)
 	# A flat plate over the whole block first. From the air, most of a city is not building - it
@@ -157,7 +174,7 @@ func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], c
 	for cx in CELLS:
 		for cz in CELLS:
 			var hs := hash([_plan.seed, "sky", ix, iz, cx, cz])
-			# A third of the cells stay empty so the far city has streets and yards in it.
+			# A few cells stay empty so the far city has streets and yards in it.
 			if absi(hs) % 100 < SKIP_PERCENT:
 				continue
 			var u := float(absi(hash([hs, "h"])) % 100003) / 100003.0
@@ -202,3 +219,127 @@ func _facade(hs: int) -> Color:
 	if r < 82:
 		return Color(0.48, 0.48, 0.50).lerp(Color(0.68, 0.68, 0.70), v)      # panel
 	return Color(0.72, 0.70, 0.66).lerp(0.92 * Color(1.0, 0.99, 0.96), v)    # flat
+
+
+## The basin is mostly NOT city blocks, and from the air all of it is inhabited or textured.
+## Hills carry the mansions HillRoads already places, the port has its yards, the airport its
+## aprons, and a beach town its low buildings. Each is a handful of instances in the same
+## MultiMesh, so none of it adds a draw call.
+func _add_wild(zone: int, rect: Rect2, center: Vector2, ground: float, macro: MacroMap,
+		xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray) -> void:
+	match zone:
+		MacroMap.Zone.HILLS:
+			# Vegetation first, and it is the bulk of it. The hills are 45% of an aerial and the
+			# mansions alone left them nearly bare, because HillRoads only places houses along
+			# its roads. A real hillside at two kilometres is chaparral and tree cover with
+			# houses threaded through it, and the cover is what stops it reading as bare dirt.
+			#
+			# Density falls with elevation the way the planting actually does - scrub on the
+			# lower slopes, thinning through the tree line, bare rock on the tops - which is
+			# both what it should look like and cheaper than blanketing every peak.
+			var elev: float = ground
+			var cover: float = clampf(1.0 - (elev - 60.0) / 520.0, 0.0, 1.0)
+			var clumps: int = int(round(cover * float(HILL_CLUMPS)))
+			for i in clumps:
+				var hs := hash([_plan.seed, "veg", int(center.x), int(center.y), i])
+				var p := _spot(rect, hs)
+				var gy: float = macro.height_at(p) if macro else ground
+				# Wide and low: a canopy clump, not a post. At this distance the silhouette is
+				# all that survives, and a tall thin box reads as a pole.
+				var r: float = 7.0 + float(absi(hash([hs, "r"])) % 9)
+				var th: float = 4.0 + float(absi(hash([hs, "t"])) % 6)
+				xforms.append(Transform3D(
+					Basis(Vector3.UP, float(absi(hs) % 628) * 0.01).scaled(Vector3(r, th, r * 0.85)),
+					Vector3(p.x, gy + th * 0.45, p.y)))
+				colors.append(_scrub(hs, cover))
+				customs.append(Color(0.0, 0.0, 0.0, 1.0))
+			# The houses that are actually up there. No plate: a hillside is landscape, and a
+			# flat slab laid over a slope would cut into it.
+			if macro == null or macro.hill_roads == null:
+				return
+			for m in macro.hill_roads.mansions_in(rect):
+				var pos: Vector2 = m.pos
+				# `height` on a mansion lot is the ROAD DECK ELEVATION the pad was cut at -
+				# metres above sea level, 400+ up here - NOT a building size. Reading it as one
+				# stood a four-hundred-metre white spike on every lot and turned the range into
+				# a bed of nails. The house gets its own storey count; `height` places it.
+				var pad_y: float = float(m.height)
+				var h: float = 6.0 + float(absi(hash([m.seed, "h"])) % 6)
+				var w: float = 16.0 + float(absi(hash([m.seed, "w"])) % 10)
+				var d: float = 12.0 + float(absi(hash([m.seed, "d"])) % 9)
+				xforms.append(Transform3D(
+					Basis(Vector3.UP, float(m.yaw)).scaled(Vector3(w, h, d)),
+					Vector3(pos.x, pad_y + h * 0.5, pos.y)))
+				colors.append(Color(0.70, 0.67, 0.62).lerp(Color(0.84, 0.82, 0.78),
+					float(absi(hash([m.seed, "c"])) % 1000) / 1000.0))
+				customs.append(Color(0.25, 0.0, float(absi(m.seed) % 997) / 997.0, 0.0))
+		MacroMap.Zone.PORT:
+			# Yard, then stacks of containers on it.
+			_plate(rect, center, ground, Color(0.34, 0.335, 0.33), xforms, colors, customs)
+			# A container yard is PACKED - that is what a port looks like from the air, and 14
+			# stacks on a block left the harbour reading as a blank concrete slab in the middle
+			# of the city, which is the emptiest thing in the whole aerial.
+			for i in 55:
+				var hs := hash([_plan.seed, "port", int(center.x), int(center.y), i])
+				var p := _spot(rect, hs)
+				var h: float = 5.0 + float(absi(hash([hs, "h"])) % 8)
+				xforms.append(Transform3D(Basis().scaled(Vector3(12.0, h, 5.0)),
+					Vector3(p.x, ground + h * 0.5, p.y)))
+				colors.append(_container(hs))
+				customs.append(Color(0.0, 0.0, 0.0, 1.0))
+		MacroMap.Zone.AIRPORT:
+			# Apron, plus the odd hangar. Mostly it should read as a huge flat pale surface,
+			# which is exactly what an airport looks like from above.
+			_plate(rect, center, ground, Color(0.50, 0.50, 0.49), xforms, colors, customs)
+			for i in 5:
+				var hs := hash([_plan.seed, "apt", int(center.x), int(center.y), i])
+				if absi(hs) % 100 < 45:
+					continue
+				var p := _spot(rect, hs)
+				xforms.append(Transform3D(Basis().scaled(Vector3(46.0, 14.0, 34.0)),
+					Vector3(p.x, ground + 7.0, p.y)))
+				colors.append(Color(0.78, 0.79, 0.80))
+				customs.append(Color(0.0, 0.0, 0.0, 1.0))
+		MacroMap.Zone.BEACH:
+			# Sand reads on its own; the beach towns are what is missing from the air.
+			for i in 5:
+				var hs := hash([_plan.seed, "bch", int(center.x), int(center.y), i])
+				if absi(hs) % 100 < 45:
+					continue
+				var p := _spot(rect, hs)
+				var h: float = 6.0 + float(absi(hash([hs, "h"])) % 7)
+				xforms.append(Transform3D(Basis().scaled(Vector3(14.0, h, 12.0)),
+					Vector3(p.x, ground + h * 0.5, p.y)))
+				colors.append(Color(0.86, 0.84, 0.80))
+				customs.append(Color(0.25, 0.0, float(absi(hs) % 997) / 997.0, 0.0))
+
+
+func _plate(rect: Rect2, center: Vector2, ground: float, col: Color,
+		xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray) -> void:
+	xforms.append(Transform3D(
+		Basis().scaled(Vector3(rect.size.x, 0.4, rect.size.y)),
+		Vector3(center.x, ground + 0.2, center.y)))
+	colors.append(col)
+	customs.append(Color(0.0, 0.0, 0.0, 1.0))
+
+
+func _spot(rect: Rect2, hs: int) -> Vector2:
+	return rect.position + Vector2(
+		rect.size.x * float(absi(hash([hs, "x"])) % 1000) / 1000.0,
+		rect.size.y * float(absi(hash([hs, "z"])) % 1000) / 1000.0)
+
+
+## Hill planting, matching the bands the terrain and macro-ground shaders already use: olive
+## chaparral low down, greyer sage as it dries out with height, so the far hills do not read as
+## one flat green.
+func _scrub(hs: int, cover: float) -> Color:
+	var v: float = float(absi(hash([hs, "v"])) % 1000) / 1000.0
+	var lush := Color(0.155, 0.205, 0.105).lerp(Color(0.225, 0.255, 0.130), v)
+	var dry := Color(0.235, 0.230, 0.145).lerp(Color(0.285, 0.275, 0.185), v)
+	return dry.lerp(lush, clampf(cover, 0.0, 1.0))
+
+
+func _container(hs: int) -> Color:
+	var pal := [Color(0.42, 0.20, 0.17), Color(0.17, 0.28, 0.40), Color(0.28, 0.36, 0.22),
+		Color(0.55, 0.45, 0.16), Color(0.40, 0.40, 0.42)]
+	return pal[absi(hash([hs, "p"])) % pal.size()]
