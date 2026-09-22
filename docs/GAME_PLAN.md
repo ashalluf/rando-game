@@ -200,6 +200,27 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-22 New people, and arms rebuilt from the rig instead of guessed (owner: "the
+  characters look stupid, their arms are floppy", then "we need entirely new assets for the
+  humans").** Meshy is un-retired for characters only - there is no CC0 source of realistic
+  rigged humans (Poly Haven has none, Quaternius' are stylised). Nine new rigs, d to l, at
+  `--polycount 16000` (the first three were 8000 and looked it); a, b and c are no longer
+  loaded. The player's body is now pedestrian_d.
+  The arms were the real problem and new models alone would not have fixed them: the clips
+  assume a straight-armed rest pose, each rig is bound in the pose its mesh came out in, and
+  the new ones came out in a palms-up shrug, so with the old fixed shoulder correction they
+  walked with their hands up by their ears. `Pedestrian.fix_arm_pose()` now rebuilds the arm
+  keys from each rig's own rest pose (hang, spread, swing opposite the same-side thigh, forward
+  elbow bend, palms to the thighs, in the chest's frame) and needs no per-model numbers; it
+  is right on all eleven rigs (a, c and d to l), walk, run and idle, front and side.
+  **Generator trap:** `tools/meshy.py` sent a generic texture prompt with no subject in it, and
+  the refine pass paints from the texture prompt alone - so a "Black man in a grey hoodie" and a
+  "worker in an orange hi-vis vest" came back pale and in grey. The tool now carries the subject
+  into the texture prompt when `--texture-prompt` is not given; j, k and l were made after the
+  fix and came back as asked. With nine real models the outfit recolour now leaves half the
+  crowd in its own clothes and the skin tints are within a few percent (they used to go to
+  0.56, which turns a pale face grey rather than making anyone darker).
+
 - **2026-09-21 The frame had no contrast, and it was not the fog.** Every wide shot read as
   pastel. The instinct was to blame the haze; measuring the frame said otherwise. A midday
   downtown aerial through the real Forward+ pipeline had a luminance p5/p50/p95 of 78/103/137 -

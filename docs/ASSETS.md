@@ -53,14 +53,34 @@ free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy ta
 | Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 44 (+29) | `Pedestrian` | 2026-09-19 |
 | Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 44 (+29) | **unused** | 2026-09-19 |
 | Pedestrian C (older man, shirt) | `pedestrian_c.glb`, `pedestrian_c_anim.glb` (same clips) | 44 (+29) | `Pedestrian` | 2026-09-19 |
+| Pedestrian D (young man, vest, white sneakers) | `pedestrian_d_anim.glb` (rigged, same clips, 16k faces) | 44 | `Pedestrian`, the player's body | 2026-09-22 |
+| Pedestrian E (woman, denim jacket) | `pedestrian_e_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
+| Pedestrian F (older man, grey suit) | `pedestrian_f_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
+| Pedestrian G (woman, white top, ponytail) | `pedestrian_g_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
+| Pedestrian H (older man, jacket, khakis) | `pedestrian_h_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
+| Pedestrian I (young man, cap) | `pedestrian_i_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
+| Pedestrian J (Black man, grey hoodie, jeans) | `pedestrian_j_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
+| Pedestrian K (Black woman, yellow blazer) | `pedestrian_k_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
+| Pedestrian L (Latino man, navy shirt, cargo trousers) | `pedestrian_l_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
 | Private jet | `assets/models/jet_private.glb` | 30 | `Aircraft` PRIVATE | 2026-09-19 |
 | Airliner | `assets/models/jet_airliner.glb` | 30 | `Aircraft` AIRLINER | 2026-09-19 |
 
 Pedestrian B is not loaded by anything (2026-09-20). Its texture came back as bare skin with no
 clothing anywhere, so the garment recolour in `shaders/character.gdshader` has nothing to act on,
 and its rig does not take the walk clip (it stands with its arms over its head). It walked the
-city as a naked orange mannequin. `Pedestrian.MODELS` lists A and C only; the files stay in the
-repo so the decision is visible.
+city as a naked orange mannequin. The files stay in the repo so the decision is visible.
+
+**The second generation of people (2026-09-22).** Meshy is retired for everything except
+characters (owner: "we need entirely new assets for the humans"); there is no CC0 source of
+realistic rigged humans. D to L replace A and C in `Pedestrian.MODELS`: they are made at
+`--polycount 16000` where the first set was 8000, and next to them A and C looked like a lower
+tier of model. Only the rigged `_anim.glb` is committed for these - nothing loads the unrigged
+`.glb`, and every file in the project ships in the app. Each has a baked
+`pedestrian_X_nrm.png` from `tools/make_character_maps.py` (the `_mask.png` it also writes is
+not loaded at runtime and is not committed). The rest pose is a palms-up shrug, which is why
+`Pedestrian.fix_arm_pose()` rebuilds the arm keys from the rig rather than rotating them.
+D to I followed their prompts poorly on skin tone and clothing colour, which traced to the tool
+sending a subject-free texture prompt; J, K and L were made after the fix and match theirs.
 
 All seven were first made as low-poly cartoon models (147 credits) and then regenerated with the
 owner's realism rule on Meshy's standard model (252 credits). Car base colors are greyscaled and

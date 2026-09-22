@@ -270,7 +270,7 @@ func _build_showroom(at: Vector3, yaw: float) -> void:
 		add_child(mi)
 	for i in Pedestrian.MODELS.size():
 		var ped := Pedestrian.new()
-		var spot := at + forward * 5.0 + right * (float(i) - 1.0) * 2.0
+		var spot := at + forward * 5.0 + right * (float(i) - float(Pedestrian.MODELS.size() - 1) * 0.5) * 1.6
 		ped.setup(Rect2(spot.x - 1.0, spot.z - 1.0, 2.0, 2.0), 1.0, 1000 + i)
 		ped.position = spot + Vector3.UP * 0.5
 		add_child(ped)

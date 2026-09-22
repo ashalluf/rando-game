@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_f",
+  "prompt": "Latino man in his 40s, business attire: navy suit jacket, white shirt with an open collar, grey trousers, brown leather shoes, short neat hair, natural face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0caae-107b-76b7-ac77-c8af68ab8d6d",
+    "refine": "01a0caaf-0286-77bc-a9a9-8411882aff6a",
+    "rig": "01a0caaf-f586-7486-9f37-338abe93a5b0",
+    "animations": "01a0cab0-d8eb-7436-affd-60922efd8672"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}

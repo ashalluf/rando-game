@@ -112,7 +112,12 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   `docs/ASSETS.md`. Physics ones use `PhysicsProp` (`scripts/world/physics_prop.gd`).
   Trees, bushes and rocks come from Poly Haven too but must go through
   `tools/decimate_tree.py` first (leaf cards, decimated trunks and twigs; see its docstring).
-  **Meshy is retired (owner, 2026-09-19): do not generate new Meshy models.** The existing
+  **Meshy is retired (owner, 2026-09-19) EXCEPT for characters (owner, 2026-09-22: "we need
+  entirely new assets for the humans").** Cars, jets, props and scenery stay Poly Haven / code.
+  People are the one exception because no CC0 source has realistic rigged humans: Poly Haven
+  has none and Quaternius' are stylised low-poly, which breaks the realism rule. Generate
+  characters at `--polycount 16000` - the default 8000 is what made the first three look
+  blocky - with a `--texture-prompt` for skin and fabric. The existing
   cars, pedestrians and jets were made with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
   `python3 tools/shrink_glb.py assets/models/<name>.glb`, commit the `.glb`, its `.json`, the
@@ -296,12 +301,17 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   lights are one mesh with the colours in the vertex colour, so 150 cars cost 150 draws and not
   750, and they stop drawing past 160 m. The shader reads `lamp_factor` itself, so all of it
   costs nothing by day.
-- Character arms: the generated walk and idle clips hold the arms out in an A-pose, so everyone
-  walked the city like a scarecrow. `Pedestrian.fix_arm_pose()` rotates the shoulder rotation
-  keys once on the shared animation resource (so it costs nothing at runtime and fixes every
-  instance), by `Pedestrian.ARM_DROP` per model - the two rigs need different corrections. A
-  pose override would not work: the clips animate the shoulders, so it would be overwritten
-  every frame.
+- Character arms: the generated clips were authored for arms that hang straight, but each
+  generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
+  with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
+  so everyone walked like a scarecrow or with their hands up by their ears.
+  `Pedestrian.fix_arm_pose()` rebuilds the upper-arm, forearm and hand keys once, on the shared
+  animation resource, from the rig's own rest pose: arms hang with `ARM_GAIT` spread, swing
+  opposite the same-side thigh (phase read from the clip's own legs), elbows bend forward,
+  palms turn to the thighs (`FOREARM_TWIST` + `WRIST_TWIST`), all in the chest's frame. It
+  needs no per-model numbers (`ARM_SPREAD` is there for a bulky jacket). Do not go back to
+  rotating fixed amounts off the keys: that is what the old `ARM_DROP` did and every rig
+  needed its own guess. Judge it with `tools/glshot/character_shot.gd`, front AND side.
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`
@@ -485,8 +495,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,
   which renders a shiny self-lit mannequin; the shader replaces that with sensible roughness,
-  a little subsurface on skin, and a per-character garment colour so a city built from three
-  models does not read as three people copied a thousand times. Clothing is told from skin by
+  a little subsurface on skin, and a per-character garment colour on half the looks (the other
+  half keep the model's own clothes; with nine real models a photographed jacket beats a
+  repainted one) so two copies of a model do not dress alike. Clothing is told from skin by
   hue distance from a skin hue **and** saturation: hue alone lets grey fabric pass as skin
   (grey's hue is arbitrary), saturation alone rejects strongly lit or shadowed skin and turns
   faces pink. Materials are cached per look (`Pedestrian.CHARACTER_LOOKS`), so hundreds of

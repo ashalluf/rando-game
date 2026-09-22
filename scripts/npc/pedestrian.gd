@@ -9,14 +9,21 @@ const PANTS := [Color(0.2, 0.25, 0.4), Color(0.15, 0.15, 0.17), Color(0.5, 0.4, 
 const SKINS := [Color(0.95, 0.8, 0.65), Color(0.85, 0.65, 0.5), Color(0.6, 0.42, 0.3), Color(0.4, 0.28, 0.2)]
 ## Generated rigged characters (see docs/ASSETS.md). Each has Idle, Casual_Walk_inplace and
 ## run_fast_3_inplace clips. Missing files fall back to the box person.
-## pedestrian_b is deliberately not in this list. Its texture is entirely skin tones - the
-## generator returned an unclothed figure - so the garment recolour below has nothing to work
-## on and it walks the city as a naked orange mannequin, and its rig does not take the walk
-## clip properly either (it stands with its arms over its head). The file is kept so the
-## decision is visible, not because anything loads it.
+## These are the second generation (2026-09-22, owner: "we need entirely new assets for the
+## humans"), made at twice the first set's polycount. The first set - a, b and c - is no longer
+## loaded: b came back unclothed, and a and c are visibly lower-detail than the people walking
+## next to them, which reads worse in a crowd than having fewer faces. Their files stay so the
+## decision is visible.
 const MODELS := [
-	"res://assets/models/pedestrian_a_anim.glb",
-	"res://assets/models/pedestrian_c_anim.glb",
+	"res://assets/models/pedestrian_d_anim.glb",
+	"res://assets/models/pedestrian_e_anim.glb",
+	"res://assets/models/pedestrian_f_anim.glb",
+	"res://assets/models/pedestrian_g_anim.glb",
+	"res://assets/models/pedestrian_h_anim.glb",
+	"res://assets/models/pedestrian_i_anim.glb",
+	"res://assets/models/pedestrian_j_anim.glb",
+	"res://assets/models/pedestrian_k_anim.glb",
+	"res://assets/models/pedestrian_l_anim.glb",
 ]
 ## Walking speed (m/s) at which the walk clip plays at its natural pace.
 const WALK_CLIP_SPEED := 1.3
@@ -391,46 +398,171 @@ static func _acc_brim(st: SurfaceTool, y: float, reach: float, half_width: float
 		_acc_quad(st, pts[i], pts[i + 1], pts[i + 1] + down, pts[i] + down, colour)
 
 
-## The generated walk and idle clips hold the arms out from the body like a scarecrow: the
-## retarget put the shoulders in an A-pose and animated the swing on top of that, so every
-## person in the city walks around with their arms at 45 degrees. The clips animate the
-## shoulders as well, so a pose override would be overwritten every frame; instead the
-## shoulder rotation keys are rotated once, on the shared animation resource, which costs
-## nothing at runtime and fixes every instance of the model at the same time.
+## Arm retarget. The generated clips were authored for a skeleton whose arms hang straight, but
+## every generated rig is bound in whatever pose its mesh came out in - an A-pose for the first
+## two, a palms-up shrug with the forearms raised for the newer ones - and the clips drive the
+## arm bones as if that rest pose were the canonical one. So the arms came out held out like a
+## scarecrow, or with the hands up by the ears. Rotating fixed amounts off the keys (the old
+## ARM_DROP) had to be tuned per rig by eye and still left the forearms and wrists wrong.
 ##
-## `ARM_DROP_DEG` is how far the arms come down toward the body, `ARM_TUCK_DEG` how far they
-## come in toward the chest. Both are tuned by eye against a render.
-## Per model, because the two rigs do not share a rest pose: the same correction that puts A's
-## arms by its sides leaves C's still held out. Negative brings the arms down.
-const ARM_DROP := {"pedestrian_a_anim.glb": -46.0, "pedestrian_c_anim.glb": -76.0}
-const ARM_DROP_DEFAULT := -46.0
-const ARM_BONES := ["LeftShoulder", "RightShoulder"]
+## Instead the arm keys are rebuilt from the rig's own rest pose: the upper arm hangs from the
+## shoulder with a little spread, swings opposite the same-side thigh (the phase is read from
+## the clip's own legs, so the arms stay in step with the feet), the elbow bends forward and
+## bends more as the arm comes forward, the forearm and wrist turn the palm to face the thigh,
+## and the wrist is straightened. All of it is in the chest's frame, so the shoulders' twist
+## and the torso's lean carry the arms with them. The clips animate these bones, so a pose
+## override would be overwritten every frame; this runs once per model on the shared animation
+## resource, so it costs nothing at runtime and fixes every instance at the same time.
+## Judge a change with tools/glshot/character_shot.gd, front AND side.
+##
+## Per clip kind (matched against the clip name): swing amplitude, forward bias of the swing,
+## elbow bend, extra elbow bend at the front of the swing, spread from the body. Degrees.
+const ARM_GAIT := {
+	"run": [34.0, 8.0, 78.0, 14.0, 13.0],
+	"walk": [15.0, 2.0, 12.0, 16.0, 10.0],
+	"idle": [0.0, 1.0, 9.0, 0.0, 9.0],
+}
+## Extra spread per model file (degrees), for a bulky jacket the arms would pass through.
+const ARM_SPREAD := {}
+## Palm turn (degrees) carried by the forearm and by the wrist. Split, because linear skinning
+## puts all of a single bone's twist at one joint and a whole quarter turn there pinches it.
+const FOREARM_TWIST := 45.0
+const WRIST_TWIST := 40.0
 static var _arms_fixed: Dictionary = {}
 
 
 static func fix_arm_pose(anim: AnimationPlayer, model_path: String) -> void:
 	if anim == null or _arms_fixed.has(model_path):
 		return
+	var root := anim.get_node_or_null(anim.root_node)
+	if root == null:
+		return
+	var found := root.find_children("*", "Skeleton3D", true, false)
+	if found.is_empty():
+		return
+	var skel: Skeleton3D = found[0]
 	_arms_fixed[model_path] = true
-	var drop: float = ARM_DROP.get(model_path.get_file(), ARM_DROP_DEFAULT)
-	var override := OS.get_environment("ARM_DROP_" + model_path.get_file().get_basename())
-	if override != "":
-		drop = float(override)
+	var spread_extra: float = ARM_SPREAD.get(model_path.get_file(), 0.0)
 	for clip in anim.get_animation_list():
 		var a := anim.get_animation(clip)
+		var gait: Array = ARM_GAIT["idle"]
+		for kind in ARM_GAIT:
+			if String(clip).to_lower().contains(kind):
+				gait = ARM_GAIT[kind]
+				break
+		var tracks := {}
 		for t in a.get_track_count():
-			if a.track_get_type(t) != Animation.TYPE_ROTATION_3D:
-				continue
-			var bone := str(a.track_get_path(t)).get_slice(":", 1)
-			var index := ARM_BONES.find(bone)
-			if index < 0:
-				continue
-			# Mirror the correction for the right side.
-			var sign_ := 1.0 if index == 0 else -1.0
-			var fix := Quaternion(Vector3(0.0, 0.0, 1.0), deg_to_rad(drop) * sign_)
-			for k in a.track_get_key_count(t):
-				var q: Quaternion = a.track_get_key_value(t, k)
-				a.track_set_key_value(t, k, (fix * q).normalized())
+			if a.track_get_type(t) == Animation.TYPE_ROTATION_3D:
+				var bi := skel.find_bone(String(a.track_get_path(t).get_concatenated_subnames()))
+				if bi >= 0:
+					tracks[bi] = t
+		_retarget_arm(a, skel, tracks, 1.0, gait, spread_extra)
+		_retarget_arm(a, skel, tracks, -1.0, gait, spread_extra)
+
+
+## Rebuilds one arm's keys in `a`. `side` is +1 for the left arm (the rigs face +Z, so their
+## left is +X) and -1 for the right.
+static func _retarget_arm(a: Animation, skel: Skeleton3D, tracks: Dictionary, side: float,
+		gait: Array, spread_extra: float) -> void:
+	var pre := "Left" if side > 0.0 else "Right"
+	var arm := skel.find_bone(pre + "Arm")
+	var fore := skel.find_bone(pre + "ForeArm")
+	var hand := skel.find_bone(pre + "Hand")
+	if arm < 0 or fore < 0 or hand < 0 or not tracks.has(arm) or not tracks.has(fore):
+		return
+	var shoulder := skel.get_bone_parent(arm)
+	var chest := skel.get_bone_parent(shoulder)
+	var arm_rest := _rest_rot(skel, arm)
+	var fore_rest := _rest_rot(skel, fore)
+	var chest_rest_inv := _rest_rot(skel, chest).inverse()
+	# The rest pose's upper arm and forearm directions and the elbow's hinge axis between them.
+	var u0 := (arm_rest * skel.get_bone_rest(fore).origin).normalized()
+	var f0 := (fore_rest * skel.get_bone_rest(hand).origin).normalized()
+	var h0 := u0.cross(f0)
+	if h0.length() < 0.1:
+		h0 = u0.cross(Vector3.BACK)
+	h0 = h0.normalized()
+	var rest_u := Basis(u0, h0, u0.cross(h0)).transposed()
+	var rest_f := Basis(f0, h0, f0.cross(h0)).transposed()
+
+	# Arm swing phase from the same-side thigh: the arm is forward while that leg is back.
+	var thigh := skel.find_bone(pre + "UpLeg")
+	var knee := skel.find_bone(pre + "Leg")
+	var leg_mid := 0.0
+	var leg_amp := 0.0
+	if thigh >= 0 and knee >= 0 and gait[0] > 0.0:
+		var lo := INF
+		var hi := -INF
+		for i in 48:
+			var ang := _thigh_angle(a, skel, tracks, thigh, knee, a.length * float(i) / 48.0)
+			lo = minf(lo, ang)
+			hi = maxf(hi, ang)
+		leg_mid = (lo + hi) * 0.5
+		leg_amp = (hi - lo) * 0.5
+	var spread := deg_to_rad(gait[4] + spread_extra) * side
+
+	var target := func(time: float) -> Array:
+		var swing := 0.0
+		if leg_amp > deg_to_rad(2.0):
+			swing = -(_thigh_angle(a, skel, tracks, thigh, knee, time) - leg_mid) / leg_amp
+		var elbow := deg_to_rad(gait[2] + gait[3] * clampf(swing, 0.0, 1.0))
+		# Hanging straight down with the elbow hinge along -X, then spread out from the body,
+		# swung about the shoulders' lateral axis, then carried by the chest.
+		var chest_now := _pose_rot(a, skel, tracks, chest, time) * chest_rest_inv
+		var frame := chest_now * Quaternion(Vector3.LEFT, deg_to_rad(gait[1] + gait[0] * swing)) \
+				* Quaternion(Vector3.BACK, spread)
+		var u1 := frame * Vector3.DOWN
+		var h1 := frame * Vector3.LEFT
+		var f1 := Quaternion(h1, elbow) * u1
+		var g_arm := Quaternion(Basis(u1, h1, u1.cross(h1)) * rest_u) * arm_rest
+		var g_fore := Quaternion(f1, deg_to_rad(FOREARM_TWIST) * side) \
+				* Quaternion(Basis(f1, h1, f1.cross(h1)) * rest_f) * fore_rest
+		return [g_arm.normalized(), g_fore.normalized()]
+
+	var t_arm: int = tracks[arm]
+	for k in a.track_get_key_count(t_arm):
+		var time := a.track_get_key_time(t_arm, k)
+		var g: Array = target.call(time)
+		var parent := _pose_rot(a, skel, tracks, shoulder, time)
+		a.track_set_key_value(t_arm, k, (parent.inverse() * (g[0] as Quaternion)).normalized())
+	var t_fore: int = tracks[fore]
+	for k in a.track_get_key_count(t_fore):
+		var g: Array = target.call(a.track_get_key_time(t_fore, k))
+		a.track_set_key_value(t_fore, k, ((g[0] as Quaternion).inverse() * (g[1] as Quaternion)).normalized())
+	# The wrist: straightened onto the forearm's axis, then the rest of the palm turn.
+	if tracks.has(hand):
+		var hand_rest := skel.get_bone_rest(hand).basis.get_rotation_quaternion()
+		var axis := skel.get_bone_rest(hand).origin.normalized()
+		var q := Quaternion(axis, deg_to_rad(WRIST_TWIST) * side) * Quaternion(hand_rest * Vector3.UP, axis) * hand_rest
+		var t_hand: int = tracks[hand]
+		for k in a.track_get_key_count(t_hand):
+			a.track_set_key_value(t_hand, k, q.normalized())
+
+
+static func _rest_rot(skel: Skeleton3D, bone: int) -> Quaternion:
+	return skel.get_bone_global_rest(bone).basis.get_rotation_quaternion()
+
+
+## A bone's skeleton-space rotation at `time` in `a`, walking up the chain from the clip's keys
+## (the rest rotation where a bone has no track).
+static func _pose_rot(a: Animation, skel: Skeleton3D, tracks: Dictionary, bone: int, time: float) -> Quaternion:
+	var q := Quaternion.IDENTITY
+	var b := bone
+	while b >= 0:
+		var local: Quaternion
+		if tracks.has(b):
+			local = a.rotation_track_interpolate(tracks[b], time)
+		else:
+			local = skel.get_bone_rest(b).basis.get_rotation_quaternion()
+		q = local * q
+		b = skel.get_bone_parent(b)
+	return q
+
+
+## Forward pitch of the thigh at `time` (radians, positive is the knee forward).
+static func _thigh_angle(a: Animation, skel: Skeleton3D, tracks: Dictionary, thigh: int, knee: int, time: float) -> float:
+	var d := _pose_rot(a, skel, tracks, thigh, time) * skel.get_bone_rest(knee).origin
+	return atan2(d.z, -d.y)
 
 
 ## Fixes an instantiated rig so it renders right (shared by pedestrians, ragdolls and the
@@ -455,11 +587,14 @@ static func prepare_rig(inst: Node3D, look: int = -1) -> void:
 ## Character materials, shared by look so a crowd of hundreds still uses a handful of materials.
 ## `look` picks a clothing hue and brightness; see shaders/character.gdshader.
 ## Skin tones, as multipliers on the model's own complexion (see shaders/character.gdshader).
-## Spread across the looks so a crowd is not three people copied a thousand times.
+## Small on purpose. With two models these went down to 0.56, to stand in for a range of
+## complexions the models did not have - and multiplying a pale face that far gives grey mud,
+## not a darker person. The range of people now comes from the models themselves; this only
+## keeps two copies of one model from being the same colour.
 const SKIN_TINTS := [
-	Color(1.03, 0.99, 0.95), Color(0.97, 0.91, 0.84), Color(0.88, 0.78, 0.67),
-	Color(0.79, 0.67, 0.56), Color(0.68, 0.56, 0.46), Color(0.56, 0.44, 0.36),
-	Color(0.93, 0.86, 0.79),
+	Color(1.02, 0.99, 0.96), Color(0.97, 0.93, 0.88), Color(1.0, 1.0, 1.0),
+	Color(0.93, 0.88, 0.82), Color(1.03, 1.0, 0.98), Color(0.95, 0.91, 0.86),
+	Color(0.99, 0.95, 0.91),
 ]
 ## Hair, beards and eyebrows. Taken outright rather than tinted (see the shader): the source
 ## hair is nearly black on every model, so a tint of it stays nearly black and a whole city
@@ -552,8 +687,10 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	if nrm != null:
 		mat.set_shader_parameter("normal_tex", nrm)
 		mat.set_shader_parameter("normal_strength", NORMAL_STRENGTH)
-	# One look in five keeps the original outfit, so the source clothes still appear.
-	var plain := look % 5 == 0
+	# Half the looks keep the model's own outfit. The recolour was the only source of variety
+	# when there were two models; with a real wardrobe of them, a photographed jacket beats a
+	# repainted one, so it now only has to stop two copies of a model dressing alike.
+	var plain := look % 2 == 0
 	# The top, rolled as a wardrobe rather than as one range. `cloth_value` is the garment's own
 	# brightness, 0 black to 1 white; the shader keeps the source texture's value as shading
 	# around it. It used to be a multiplier on that source value, which is why the whole city

@@ -1,0 +1,17 @@
+{
+  "name": "pedestrian_e",
+  "prompt": "East Asian woman in her late 20s, casual: light denim jacket over a white t-shirt, black straight jeans, brown ankle boots, shoulder-length black hair, natural face, full body standing, ultra realistic, photorealistic, highly detailed, physically accurate materials and proportions, real-world scale, no cartoon or stylized look",
+  "credits": 44,
+  "tasks": {
+    "preview": "01a0caae-1074-770a-9e90-e46a139ad170",
+    "refine": "01a0caae-fff2-76e0-a660-3e18c4087a6b",
+    "rig": "01a0caaf-d504-75a0-8145-516ac05c91a9",
+    "animations": "01a0cab0-90e9-712b-8586-6d5db350c086"
+  },
+  "source": "Meshy (generated for this project)",
+  "animations": [
+    0,
+    613,
+    659
+  ]
+}

@@ -730,6 +730,28 @@ Measure, do not squint:
   from them are neon signage as a light source, wet-road reflections, layered undergrowth, and a
   bigger, softer sun.
 
+## 9d. The people, 2026-09-22 evening
+
+The owner said the characters "look stupid, their arms are floppy", then "we need entirely new
+assets for the humans", and un-retired Meshy for characters only (their key lives outside the
+repo; `MESHY_KEY_FILE`). What shipped:
+
+- **New rigs d to l** (`Pedestrian.MODELS`), 16k faces, only the `_anim.glb` committed, each with
+  a baked `_nrm.png`. a, b and c stay on disk, unloaded. The player's body is d.
+- **The arm fix is now a retarget, not a guess.** Every Meshy rig is bound in whatever pose its
+  mesh came out in and the clips assume straight arms, so a fixed shoulder rotation (the old
+  `ARM_DROP`) put the new rigs' hands up by their ears. `Pedestrian.fix_arm_pose()` rebuilds
+  the arm keys from the rig's rest pose and needs no per-model numbers. Check any new rig with
+  `tools/glshot/character_shot.gd` (`MODEL=... YAW=0` and `YAW=90`, `CLIP=run_fast_3_inplace`
+  and `CLIP=Idle` too) before adding it to `MODELS`.
+- **`tools/meshy.py` was throwing the subject away at the texturing step** (a subject-free
+  texture prompt), which is why the people asked for as Black, Latino, and in an orange vest
+  came back pale and grey. Fixed; j, k and l were made after it and follow their prompts.
+- Known flaws in the set: e's jacket sleeves are painted skin-coloured from the elbow down (a
+  texture defect from the generator). The outfit recolour now leaves half the crowd in the
+  model's own clothes and the skin tints are small: with nine real models the variety comes
+  from them, and darkening a pale face with a multiplier gave grey mud, not a darker person.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

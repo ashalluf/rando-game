@@ -114,7 +114,12 @@ def cmd_gen(args) -> None:
     manifest["credits"] += preview.get("consumed_credits", 0)
 
     refine_body = {"mode": "refine", "preview_task_id": preview_id, "enable_pbr": True, "texture_resolution": "2k"}
-    texture_prompt = args.texture_prompt
+    # The refine pass paints the textures from texture_prompt ALONE when one is given, so a
+    # texture prompt that does not describe the subject throws the description away: a Black man
+    # in a grey hoodie, a Latino man in navy and a worker in an orange vest all came back pale
+    # and in grey, because all the refine pass was told was "photorealistic PBR materials".
+    # Without --texture-prompt the subject is carried.
+    texture_prompt = args.texture_prompt or args.prompt
     if not args.plain:
         texture_prompt = (texture_prompt + ", " if texture_prompt else "") + TEXTURE_REALISM
     if texture_prompt:

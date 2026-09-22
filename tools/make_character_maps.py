@@ -702,13 +702,16 @@ def preview(rig, c, colour, path, lit_by_normal=False):
 RIGS = [
     ("a", "assets/models/pedestrian_a_anim.glb", "assets/models/pedestrian_a_anim_texture_0.jpg"),
     ("c", "assets/models/pedestrian_c_anim.glb", "assets/models/pedestrian_c_anim_texture_0.jpg"),
+] + [
+    (n, "assets/models/pedestrian_%s_anim.glb" % n, "assets/models/pedestrian_%s_anim_texture_0.jpg" % n)
+    for n in "defghijkl"
 ]
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--debug", default="", help="directory for classification previews")
-    ap.add_argument("--only", default="", help="bake one rig (a or c)")
+    ap.add_argument("--only", default="", help="bake one rig (a, c, d .. l)")
     args = ap.parse_args()
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     for name, glb, tex in RIGS:

@@ -71,7 +71,10 @@ const BLAST_MASK := 2 | 4 | 8
 @export_group("Look")
 ## Rigged character used as the player's body (one of Pedestrian.MODELS). Missing file: the
 ## orange capsule stays.
-@export var avatar_model: String = "res://assets/models/pedestrian_a_anim.glb"
+@export var avatar_model: String = "res://assets/models/pedestrian_d_anim.glb"
+## Outfit look for the player's body (Pedestrian.character_material). Even numbers keep the
+## model's own clothes; odd ones are the crowd's recoloured outfits.
+@export var avatar_look: int = 0
 
 ## Height (relative to takeoff) reached by the last jump. Shown on the debug HUD.
 var last_jump_peak: float = 0.0
@@ -497,7 +500,7 @@ func _build_avatar() -> void:
 	var body := Avatar.new()
 	body.name = "Avatar"
 	visual.add_child(body)
-	if body.load_model(avatar_model):
+	if body.load_model(avatar_model, avatar_look):
 		avatar = body
 		for placeholder in ["Body", "Visor"]:
 			if visual.has_node(placeholder):
