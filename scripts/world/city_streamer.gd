@@ -62,6 +62,10 @@ extends Node3D
 ## about three kilometres at six blocks a tile, which is what makes the skyline visible from
 ## across the basin instead of the world ending seven blocks out. Each tile is ONE draw call.
 @export var skyline_tiles: int = 7
+## Show the loading screen at startup: compiles every shader and pre-builds a wide area, so the
+## stalls that would otherwise land mid-play (first explosion, first rain, first unseen car
+## paint) are paid once, up front. See scripts/ui/loading_screen.gd.
+@export var show_loading_screen: bool = true
 ## Far tiles built per update. They are cheap next to a FULL chunk (no nodes, no collision, no
 ## props) but a tile still scans 36 blocks, so it is budgeted like everything else.
 @export var max_skyline_builds_per_update: int = 3
@@ -165,6 +169,7 @@ func _ready() -> void:
 		plan.macro.setup()
 	_build_ground()
 	_build_skyline()
+	_start_loading_screen()
 	_build_vignette()
 	_build_far_landmarks()
 	var traffic := TrafficManager.new()
@@ -499,6 +504,18 @@ func _update_skyline(here: Vector2i, immediate: bool) -> void:
 				budget -= 1
 				if budget <= 0:
 					return
+
+
+## Puts the loading screen up and lets it drive the warm-up. Deferred so the rest of _ready()
+## finishes first - it needs the player, the camera and the plan to exist before it can build
+## anything or draw a shader in front of anything.
+func _start_loading_screen() -> void:
+	if not show_loading_screen or OS.has_feature("web") or DisplayServer.get_name() == "headless":
+		return
+	var screen := LoadingScreen.new()
+	screen.name = "LoadingScreen"
+	add_child(screen)
+	screen.call_deferred("run", self)
 
 
 func _build_skyline() -> void:
