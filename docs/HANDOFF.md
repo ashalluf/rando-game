@@ -708,13 +708,22 @@ Measure, do not squint:
   `tests/headless_check.sh` on an idle box.** Under load from a large fleet it *times out* at
   around 150 checks with zero failures, which looks alarming and is not a failure. Do not run a
   big fan-out and the gate at the same time, and do not read exit code 124 as a pass.
-- Four visual dimensions were queued and never completed: character PBR normal maps (the shader
-  may not sample the maps committed in `4264e47`, and their `.import` flags may be wrong), the
-  skyline height distribution (the downtown core reportedly lands in a narrow 140-290 m band, so
-  tallest/median is about 1.44 where a real downtown is strongly power-law), ocean foam coverage
-  (about 0.34% in clear weather, which is no whitecaps at all), and three Poly Haven leaf atlases
-  possibly flagged OPAQUE despite being shot on black. Each is stated as an unverified lead -
-  re-derive the number before acting on any of them.
+- **The eight-dimension sweep did finish** (56 agents, no errors) and its 26 verified patches are
+  on `main` in `2638fec`. Every lead listed above was real: the whitecap threshold was not rare
+  but *unreachable*, so the sea had zero foam at every weather state; far buildings were 2.4-7.9x
+  brighter than near ones from an un-decoded MultiMesh instance colour; two leaf materials were
+  flagged OPAQUE so their black photo background drew solid; ocean chunks and the sea-floor box
+  cast shadows from under opaque water; storefront bands never emitted unless the block was
+  Commercial. All fixed.
+- **One thing the sweep got wrong, and it is the failure mode to watch for in this pattern.** Its
+  adversarial verifier approved the patch that *declares* the character normal-map uniforms and
+  rejected the two that sample and bind them. Applied as returned, that ships `normal_tex` and
+  `normal_strength` as uniforms nothing ever reads: it compiles, it passes the check, and it looks
+  from the outside exactly like the feature is in. The wiring was finished by hand
+  (`NORMAL_MAP` in the fragment, `Pedestrian._normal_map_for()`, and `pedestrian_c_nrm.png.import`
+  which the sweep fixed on `_a` only). **Read a fan-out's patches as a set and ask what is missing,
+  not just whether each one is individually correct** - per-finding verification cannot see a hole
+  between findings.
 - The owner's four reference images are analysed in `docs/GAME_PLAN.md` under "Graphics references
   (owner, 2026-09-21)": a Horizon Zero Dawn forest, a skyline above a cloud sea at sunrise, the
   GTA V Los Angeles overlook, and Miami Ocean Drive at sunset with neon. The unstarted items drawn
