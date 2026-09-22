@@ -267,6 +267,72 @@ static func district_name(d: District) -> String:
 	return DISTRICT_NAMES[d]
 
 
+## Lots on a block, and the height each one's building reaches. DETERMINISTIC from
+## (seed, ix, iz) alone.
+##
+## This used to live in CityChunk and draw from the chunk's own rng - the one already part-spent
+## on the palm roll, the jacaranda roll and the paving roll - so the lots a block would get could
+## not be known without replaying that whole sequence. That is why the far skyline drew INVENTED
+## massing and changed as you approached it: it could not see the real buildings. Seeded here,
+## off `_rng_for`, the coarse tier and the detailed city ask the same question and get the same
+## answer, so the skyline you see from the air is the skyline you land in.
+##
+## Not cached: it is pure arithmetic, a chunk asks once, and a cache across the thousands of
+## blocks the far tier walks would cost more memory than the work it saves.
+func lots(ix: int, iz: int) -> Array[Dictionary]:
+	var b := block(ix, iz)
+	var rect: Rect2 = b.rect
+	var params: Dictionary = DISTRICTS[b.district]
+	var rng := _rng_for(11, ix, iz)
+	var inner := rect.grow(-sidewalk_width)
+	var lot_range: Vector2 = params.lot
+	var lot_w := rng.randf_range(lot_range.x, lot_range.y)
+	var lot_d := rng.randf_range(lot_range.x, lot_range.y)
+	var nx := maxi(1, floori(inner.size.x / lot_w))
+	var nz := maxi(1, floori(inner.size.y / lot_d))
+	var cell := Vector2(inner.size.x / nx, inner.size.y / nz)
+	var gap_range: Vector2 = params.gap
+	var blocked: Array[Rect2] = []
+	if macro:
+		for lm in Landmarks.all():
+			var r: float = lm.radius
+			var foot := Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r * 2.0, r * 2.0))
+			if foot.intersects(rect):
+				blocked.append(foot)
+	var out: Array[Dictionary] = []
+	for lx in nx:
+		for lz in nz:
+			var edge := lx == 0 or lz == 0 or lx == nx - 1 or lz == nz - 1
+			var yard: bool = (not edge) and rng.randf() < float(params.courtyard)
+			var gap := rng.randf_range(gap_range.x, gap_range.y)
+			var lot_size := cell - Vector2(gap, gap)
+			if lot_size.x < 6.0 or lot_size.y < 6.0:
+				continue
+			var lot_center := inner.position + Vector2(cell.x * (lx + 0.5), cell.y * (lz + 0.5))
+			var lot_seed := rng.randi()
+			var lot_rect := Rect2(lot_center - lot_size * 0.5, lot_size)
+			var hit := false
+			for bl in blocked:
+				if bl.intersects(lot_rect):
+					hit = true
+			if hit:
+				continue
+			out.append({"seed": lot_seed, "size": lot_size, "center": lot_center, "edge": edge, "yard": yard})
+	return out
+
+
+## The height a lot's building reaches. The band is rolled ONCE per lot and bent by pow(u, curve)
+## so most lots land near the bottom and a handful reach the top - a uniform draw has no tail and
+## makes the top of the city one flat line. Shared, so the far tier's silhouette IS the city's.
+func lot_height(lot_seed: int, district: int, boost: float) -> float:
+	var params: Dictionary = DISTRICTS[district]
+	var heights: Vector2 = params.height
+	var h_low: float = lerpf(heights.x, heights.x * 1.45, boost)
+	var h_top: float = lerpf(heights.y, heights.y * 2.3, boost)
+	var curve: float = 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
+	return lerpf(h_low, h_top, pow(float(absi(hash([lot_seed, "massing"])) % 100003) / 100003.0, curve))
+
+
 func _rng_for(kind: int, a: int, b: int) -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed, kind, a, b])

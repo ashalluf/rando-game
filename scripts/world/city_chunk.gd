@@ -1218,51 +1218,15 @@ func _exit_tree() -> void:
 
 
 ## Lot layout is shared by FULL and LOD so both see the same buildings.
-func _lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> Array[Dictionary]:
-	var inner := rect.grow(-plan.sidewalk_width)
-	var lot_range: Vector2 = params.lot
-	var lot_w := rng.randf_range(lot_range.x, lot_range.y)
-	var lot_d := rng.randf_range(lot_range.x, lot_range.y)
-	var nx := maxi(1, floori(inner.size.x / lot_w))
-	var nz := maxi(1, floori(inner.size.y / lot_d))
-	var cell := Vector2(inner.size.x / nx, inner.size.y / nz)
-	var gap_range: Vector2 = params.gap
-	# Landmarks reserve their footprint; lots there are skipped (after using the rng, so that
-	# FULL and LOD builds stay in step).
-	var blocked: Array[Rect2] = []
-	if plan.macro:
-		for lm in Landmarks.all():
-			var r: float = lm.radius
-			var foot := Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r * 2.0, r * 2.0))
-			if foot.intersects(rect):
-				blocked.append(foot)
-	var lots: Array[Dictionary] = []
-	for lx in nx:
-		for lz in nz:
-			var edge := lx == 0 or lz == 0 or lx == nx - 1 or lz == nz - 1
-			var yard: bool = (not edge) and rng.randf() < float(params.courtyard)
-			var gap := rng.randf_range(gap_range.x, gap_range.y)
-			var lot_size := cell - Vector2(gap, gap)
-			if lot_size.x < 6.0 or lot_size.y < 6.0:
-				continue
-			var lot_center := inner.position + Vector2(cell.x * (lx + 0.5), cell.y * (lz + 0.5))
-			var lot_seed := rng.randi()
-			var lot_rect := Rect2(lot_center - lot_size * 0.5, lot_size)
-			var hit := false
-			for b in blocked:
-				if b.intersects(lot_rect):
-					hit = true
-			if hit:
-				continue
-			lots.append({"seed": lot_seed, "size": lot_size, "center": lot_center, "edge": edge, "yard": yard})
-	return lots
-
-
 func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> void:
 	var heights: Vector2 = params.height
 	var pads: float = params.get("pads", 0.0)
+	# The district this block sits in, for the shared massing curve. block() is cached.
+	var district: int = plan.block(ix, iz).district
 	_lot_rects.clear()
-	for lot in _lots(rect, params, rng):
+	# Lots come from the PLAN now, seeded per block, so the far skyline can ask for exactly
+	# the same buildings. See CityPlan.lots().
+	for lot in plan.lots(ix, iz):
 		var center: Vector2 = lot.center
 		if lot.yard:
 			_build_yard(lot, rng)
@@ -1295,10 +1259,7 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 		# the band's ratio - so the downtown core's 72..322 m (4.4x) bends at 2.08 and lands its
 		# median at 132 m, while the suburbs' 5..14 m (2.8x) only reaches 1.74 and still reads as
 		# a street of houses (median 7.7 m).
-		var curve := 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
-		# Hashed off the lot seed, never rolled on `rng`: a new rng call here would shift every
-		# lot placed after it in the chunk.
-		var target := lerpf(h_low, h_top, pow(float(absi(hash([lot.seed, "massing"])) % 100003) / 100003.0, curve))
+		var target := plan.lot_height(lot.seed, district, boost)
 		building.min_height = target * 0.88
 		building.max_height = target
 		building.lit_ratio_range = params.lit

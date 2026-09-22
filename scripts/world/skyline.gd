@@ -25,15 +25,6 @@ extends Node3D
 
 ## Blocks per tile edge. Bigger means fewer draw calls and coarser culling granularity.
 const TILE_BLOCKS := 6
-## Cells a block is cut into per axis to make its massing. A tile is ONE MultiMesh, so extra
-## instances cost no extra draw call - density here is nearly free, and density is the whole
-## point: at 3 x 3 with a quarter of them skipped the far city read as scattered blocks on bare
-## ground, which is what "it still looks super empty" meant. 4 x 4 with far fewer gaps reads as
-## continuous city.
-const CELLS := 4
-## Percent of cells left empty, for streets and yards. Low on purpose: gaps are what made it
-## look abandoned from the air.
-const SKIP_PERCENT := 12
 ## Vegetation clumps on a hill block at full cover, falling to zero at the rock line.
 const HILL_CLUMPS := 10
 ## Below this the tile is not drawn at all - the LOD chunks own that ground. Set from
@@ -149,45 +140,32 @@ func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], c
 		colors.append(Color(0.24, 0.32, 0.20) if b.kind == CityPlan.BlockKind.PARK else Color(0.44, 0.44, 0.43))
 		customs.append(Color(0.0, 0.0, 0.0, 1.0))
 		return
-	var params: Dictionary = CityPlan.DISTRICTS[b.district]
-	var heights: Vector2 = params.height
 	var boost: float = macro.skyline_boost(center) if macro else 0.0
-	# The same massing curve CityChunk._build_lots uses, so the far skyline has the same shape of
-	# height distribution - a lot of infill and a few towers - rather than a uniform draw, which
-	# has no tail and reads as one flat line.
-	var h_low: float = lerpf(heights.x, heights.x * 1.45, boost)
-	var h_top: float = lerpf(heights.y, heights.y * 2.3, boost)
-	var curve: float = 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
 	var ground: float = ground_here
-	var inner: Rect2 = rect.grow(-_plan.sidewalk_width)
-	var cell: Vector2 = inner.size / float(CELLS)
-	# A flat plate over the whole block first. From the air, most of a city is not building - it
-	# is roof, yard, car park and service ground BETWEEN the buildings, and leaving it out let
-	# the bare macro ground show through every gap, which is what made the distance read as
-	# empty land with blocks dropped on it. One instance per block, in the same MultiMesh, so it
-	# costs nothing: a plate 40 cm thick sitting on the ground.
+	# A flat plate over the whole block first. From the air most of a city is not building - it
+	# is roof, yard, car park and service ground BETWEEN the buildings, and without it the bare
+	# macro ground showed through every gap.
 	xforms.append(Transform3D(
 		Basis().scaled(Vector3(rect.size.x, 0.4, rect.size.y)),
 		Vector3(center.x, ground + 0.2, center.y)))
 	colors.append(_ground_plate(b.district))
-	customs.append(Color(0.0, 0.0, 0.0, 1.0))   # plain flag: no windows on a plate
-	for cx in CELLS:
-		for cz in CELLS:
-			var hs := hash([_plan.seed, "sky", ix, iz, cx, cz])
-			# A few cells stay empty so the far city has streets and yards in it.
-			if absi(hs) % 100 < SKIP_PERCENT:
-				continue
-			var u := float(absi(hash([hs, "h"])) % 100003) / 100003.0
-			var h: float = lerpf(h_low, h_top, pow(u, curve))
-			var foot: Vector2 = cell * lerpf(0.72, 0.96, float(absi(hash([hs, "f"])) % 1000) / 1000.0)
-			var c: Vector2 = inner.position + Vector2(cell.x * (cx + 0.5), cell.y * (cz + 0.5))
-			xforms.append(Transform3D(
-				Basis().scaled(Vector3(foot.x, h, foot.y)),
-				Vector3(c.x, ground + h * 0.5, c.y)))
-			colors.append(_facade(hs))
-			# (window style / 4, lit ratio, seed, plain flag) - what building_lod.gdshader reads.
-			customs.append(Color(float(absi(hash([hs, "w"])) % 4) / 4.0, 0.0,
-				float(absi(hs) % 997) / 997.0, 0.0))
+	customs.append(Color(0.0, 0.0, 0.0, 1.0))
+	# THE REAL BUILDINGS. Same lots, same massing height, same seeds as the detailed city builds
+	# from - so approaching the skyline resolves it into detail instead of replacing it with a
+	# different city. This is what "the skyline is fake and fades away" meant: the far tier used
+	# to invent its own massing because it could not see these.
+	for lot in _plan.lots(ix, iz):
+		var lot_size: Vector2 = lot.size
+		var lot_centre: Vector2 = lot.center
+		var hs: int = int(lot.seed)
+		var h: float = _plan.lot_height(hs, b.district, boost)
+		xforms.append(Transform3D(
+			Basis().scaled(Vector3(lot_size.x, h, lot_size.y)),
+			Vector3(lot_centre.x, ground + h * 0.5, lot_centre.y)))
+		colors.append(_facade(hs))
+		# (window style / 4, lit ratio, seed, plain flag) - what building_lod.gdshader reads.
+		customs.append(Color(float(absi(hash([hs, "w"])) % 4) / 4.0, 0.0,
+			float(absi(hs) % 997) / 997.0, 0.0))
 
 
 ## The ground a block sits on, seen from above: asphalt and concrete, darker downtown where the
