@@ -583,6 +583,29 @@ void fragment() {
 		}
 	}
 
+	// ---- Macro breakup -------------------------------------------------------------------
+	// A real wall is never one tone across twenty metres. Sun bleaches the south face unevenly,
+	// panels come from different batches, sections get cleaned or repaired at different times,
+	// render patches and cures blotchy. Without any of that a facade reads as flat paint, which
+	// is most of why the city looked uniform at close range even with the grime in place.
+	//
+	// Two octaves in WORLD space so it does not tile with the window grid and does not swim when
+	// the origin shifts: one broad (~9 m) for panel-to-panel drift, one finer (~2.6 m) for
+	// patchiness. Deliberately small - +/- 6% and 3% - because the failure here is a loud one:
+	// push it and every wall turns to camouflage.
+	{
+		vec2 mp = local_pos.xz * 0.11 + vec2(local_pos.y * 0.07, face_id * 3.7);
+		float broad = hash21(floor(mp) + seed);
+		broad = mix(broad, hash21(floor(mp + vec2(0.5)) + seed), 0.5);
+		float fine_v = hash21(floor(local_pos.xz * 0.38 + vec2(local_pos.y * 0.24, face_id)) + seed * 2.0);
+		float macro = 1.0 + (broad - 0.5) * 0.12 + (fine_v - 0.5) * 0.06;
+		albedo *= macro;
+		// Where it is lighter it is also a touch chalkier: sun-bleached render is rougher than
+		// the paint beside it, and tying the two makes the variation read as weathering rather
+		// than as a brightness wobble.
+		rough = clamp(rough + (macro - 1.0) * 0.55, 0.0, 1.0);
+	}
+
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
 	METALLIC = metal;
