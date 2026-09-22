@@ -1336,6 +1336,20 @@ static func model_grass_tuft(variant: int) -> Mesh:
 
 ## Material for the far building boxes: windows from a fixed grid, lit at night (see
 ## shaders/building_lod.gdshader; instance color = facade, custom = style, lit ratio, seed, plain).
+## The one material every far chunk's merged ground wears. Vertex colour carries what each
+## surface used to get from its own shader; at LOD range that base colour is all that survived
+## anyway. Cached, so two hundred far chunks share one material and one draw each.
+static func far_ground_material() -> StandardMaterial3D:
+	if _cache.has("far_ground_mat"):
+		return _cache["far_ground_mat"]
+	var mat := StandardMaterial3D.new()
+	mat.vertex_color_use_as_albedo = true
+	mat.roughness = 0.95
+	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	_cache["far_ground_mat"] = mat
+	return mat
+
+
 static func building_lod_material() -> ShaderMaterial:
 	if _cache.has("building_lod_mat"):
 		return _cache["building_lod_mat"]

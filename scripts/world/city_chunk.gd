@@ -240,6 +240,7 @@ func build() -> void:
 	# `flat_key`, not `key`: `key` is this chunk's own "ix,iz" member.
 	for flat_key: String in _batch.tilt_keys:
 		_batch.set_no_shadow(flat_key)
+	_commit_far_ground()
 	_mm_nodes = _batch.build(self)
 	if _mm_nodes.has("lod_box"):
 		(_mm_nodes["lod_box"] as MultiMeshInstance3D).material_override = PropFactory.building_lod_material()
@@ -1319,6 +1320,9 @@ func _build_yard(lot: Dictionary, rng: RandomNumberGenerator) -> void:
 		_add_bench(Vector3(center.x, SIDEWALK_TOP + 0.04, center.y + size.y * 0.3), PI)
 
 
+## Far chunks merge all their ground into ONE vertex-coloured mesh. See _add_ground_grid().
+var _far_ground: SurfaceTool
+var _far_ground_any: bool = false
 var _lod_body: StaticBody3D
 
 
@@ -1891,7 +1895,7 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 	var mat: Material = material if material else PropFactory.material(color, 0.95)
 	if zone == MacroMap.Zone.CITY and size.y <= 0.5 and maxf(size.x, size.z) >= 6.0:
 		# Thin ground slab in the city (road, sidewalk, lawn, plaza): follow the relief.
-		_add_ground_grid(Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), pos.y + size.y * 0.5, size.y + 0.5, mat, collide)
+		_add_ground_grid(Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), pos.y + size.y * 0.5, size.y + 0.5, mat, collide, color)
 		return
 	var lifted := pos + Vector3(0.0, _gy(pos.x, pos.z), 0.0)
 	var mesh := MeshInstance3D.new()
@@ -1913,15 +1917,30 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 ## hundred metres, and five-metre quads gave the relief a folded look, but physics walks on the
 ## shape and would only pay for the detail. Both come from the cached relief, so the fine grid
 ## costs about what the old coarse one did.
-func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, collide: bool) -> void:
+func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, collide: bool, tint: Color = Color.WHITE) -> void:
 	var step := ground_grid_step if _detail() >= 1.0 else ground_grid_step * 2.0
 	var nx := clampi(ceili(rect.size.x / step), 1, 120)
 	var nz := clampi(ceili(rect.size.y / step), 1, 120)
 	var mesh := _grid_mesh(rect, top, skirt, nx, nz)
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = mat
-	add_child(mi)
+	if level != Level.FULL:
+		# FAR CHUNKS: one mesh for all of it. Each ground surface used to be its own
+		# MeshInstance with its own material, and at about seven a chunk across two hundred LOD
+		# chunks that was ~1377 draw calls - 45% of everything the streamed city submits - for
+		# flat ground a quarter of a kilometre away. Merged into a single vertex-coloured mesh
+		# it is ONE. The per-surface shaders (road wear, lawn stripes, paving joints) are all
+		# sub-pixel at this range; their base colour is the whole of what survives, and that is
+		# exactly what the vertex colour carries. Full-detail chunks are untouched.
+		if _far_ground == null:
+			_far_ground = SurfaceTool.new()
+			_far_ground.begin(Mesh.PRIMITIVE_TRIANGLES)
+		_far_ground.set_color(tint)
+		_far_ground.append_from(mesh, 0, Transform3D.IDENTITY)
+		_far_ground_any = true
+	else:
+		var mi := MeshInstance3D.new()
+		mi.mesh = mesh
+		mi.material_override = mat
+		add_child(mi)
 	if not (collide and _statics):
 		return
 	var cx := clampi(ceili(rect.size.x / ground_collision_step), 1, 48)
@@ -2351,3 +2370,23 @@ func _process(delta: float) -> void:
 		return
 	if _fade_mat:
 		_fade_mat.set_shader_parameter("chunk_fade", clampf(_fade_left / _fade_total, 0.0, 1.0))
+
+
+## Commits the far chunk's merged ground as one MeshInstance. `append_from` carried each surface
+## in with the colour set before it, so a single vertex-coloured material paints road, pavement,
+## lawn and plaza in one draw instead of one draw apiece.
+func _commit_far_ground() -> void:
+	if not _far_ground_any or _far_ground == null:
+		return
+	var mesh := _far_ground.commit()
+	_far_ground = null
+	if mesh == null or mesh.get_surface_count() == 0:
+		return
+	var mi := MeshInstance3D.new()
+	mi.name = "FarGround"
+	mi.mesh = mesh
+	mi.material_override = PropFactory.far_ground_material()
+	# It is ground: it receives, and shadowing anything from a quarter kilometre out is cascade
+	# fill for nothing.
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(mi)
