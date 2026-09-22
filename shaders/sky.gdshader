@@ -139,6 +139,14 @@ void sky() {
 	// switching off the instant it crosses the horizon.
 	float sun_up = smoothstep(-0.16, 0.03, sdir.y);
 	float moon_vis = smoothstep(0.02, 0.28, night_factor) * smoothstep(-0.02, 0.07, mdir.y);
+	// How far into night the SKY is, which is not `night_factor`. That global is 0.70 with the
+	// sun still exactly on the horizon and 1.0 four degrees under it - right for the lamps and
+	// the windows, and far too fast for anything up here: it was drawing the golden-hour deck at
+	// 0.384 of its lit value and stars over a sunset. Taken off the sun's own elevation instead:
+	// 0.011 with the sun on the horizon, 0.26 at five degrees down, 0.66 at ten, 1.0 at 17.5,
+	// which is the far end of astronomical twilight and when the last colour really does leave
+	// a cloud.
+	float sky_night = 1.0 - smoothstep(-0.30, 0.02, sdir.y);
 	vec3 sun_light = sun_color * sun_tint;
 
 	// Base gradient: zenith to horizon with haze piling up low down, handing over below the
@@ -181,6 +189,14 @@ void sky() {
 	float horizon_cut = smoothstep(-0.11, -0.005, up);
 	float glow = pow(max(cos_sun, 0.0), 48.0) * 0.8 + pow(max(cos_sun, 0.0), 6.0) * 0.18;
 	col += glow * sun_glow * sun_up * horizon_cut * sun_light;
+	// The aureole, which neither of those lobes is: pow(cos, 48) is still at half strength 9.7
+	// degrees out and pow(cos, 6) at 27.0, so between the limb (sun_size 0.014 rad, 0.80 deg) and
+	// five degrees the combined profile only falls from 0.996 to 0.859 of peak - dead flat exactly
+	// where a real sun is steepest. Real circumsolar scatter lives inside three degrees, so add an
+	// exponential on a one-degree scale: 0.46 of its peak at the limb, 0.14 at two degrees and
+	// 0.008 by five. It goes in before the disc is mixed over the top, so the inner half of the
+	// lobe is hidden by the disc and what is left is a halo hugging its edge.
+	col += sun_light * exp(-ang / 0.018) * 1.8 * sun_glow * sun_up * horizon_cut;
 	float disc = 1.0 - smoothstep(sun_size * 0.82, sun_size * 1.02, ang);
 	// Limb darkening: the edge of the disc is dimmer than the middle, which is most of why a
 	// real sun reads as a sphere and a painted circle does not.
@@ -218,7 +234,13 @@ void sky() {
 
 	// --- Stars and the milky way -------------------------------------------------------------
 	if (!AT_CUBEMAP_PASS && stars > 0.002 && up > 0.0) {
-		float fade = smoothstep(0.0, 0.25, up) * stars;
+		// `stars` arrives as night_factor, which is 0.70 with the sun exactly on the horizon and
+		// already non-zero with it ten degrees up, so stars were drawn over a sunset: about 0.7
+		// linear against a dusk zenith of sRGB (0.062, 0.079, 0.189), linear (0.005, 0.007,
+		// 0.030), a hundred times brighter than the sky they sit in. Gate them on the sun's own
+		// elevation too - sun_up is 0.933 with the sun on the horizon and 0 nine degrees under -
+		// so they fade in through twilight instead of the instant the sun touches the horizon.
+		float fade = smoothstep(0.0, 0.25, up) * stars * (1.0 - sun_up);
 		vec3 cell = floor(dir * 340.0);
 		float h = hash12(cell.xz * 1.7 + cell.y * 13.1);
 		float twinkle = 0.7 + 0.3 * sin(TIME * 2.0 + h * 40.0);
@@ -295,6 +317,20 @@ void sky() {
 		}
 		sunlit = mix(0.5, sunlit, sun_up);
 
+		// Aerial perspective on the deck. For a layer at one altitude the slant distance goes as
+		// 1/sin(elevation): a puff three degrees up is 19.1 deck-heights away against 1.16 for one
+		// at sixty, sixteen and a half times further - and nothing below this line used to depend
+		// on `up` at all, so both were painted the same white and the deck read as a ceiling.
+		// Transmittance over that path is exp(-k / sin), and k = 0.11 leaves 11 % haze on a cloud
+		// at sixty degrees and 32 % on one at the 12.7 degrees where `density` fades the deck out.
+		float deck_haze = 1.0 - exp(-0.11 / (up + 0.06));
+		// The lit air in front of it: the horizon colour, warmed toward the sun. The far end of a
+		// sunrise deck goes brighter and warmer, not merely fainter, which is the whole look of a
+		// cloud sea; after dark the same air is what little the sky has left.
+		vec3 airlight = sky_horizon * (1.0 + 0.6 * haze)
+			+ sun_light * pow(max(cos_sun, 0.0), 3.0) * sun_up * 0.5;
+		airlight = mix(airlight, vec3(0.02, 0.025, 0.04), night_factor);
+
 		vec3 cloud = mix(cloud_shadow, cloud_color, sunlit);
 		// The densest cores still go grey whichever way the light comes from.
 		cloud = mix(cloud, cloud * mix(vec3(1.0), cloud_shadow, 0.55), thick * 0.55);
@@ -306,6 +342,7 @@ void sky() {
 		float mlit = pow(max(dot(dir, mdir), 0.0), 4.0) * moon_vis;
 		vec3 night_cloud = cloud * 0.12 + vec3(0.02, 0.025, 0.04) + moon_tint * mlit * 0.12;
 		cloud = mix(cloud, night_cloud, night_factor);
+		cloud = mix(cloud, airlight, deck_haze);
 
 		// Painted high deck first, so the decks really overlap instead of faking it: cirrus,
 		// then the mid sheet, then the rays in the air under them, then the cumulus in front.

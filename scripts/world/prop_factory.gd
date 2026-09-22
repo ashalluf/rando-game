@@ -1273,7 +1273,15 @@ static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT) -> Mesh
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:
 			var sm := mat as StandardMaterial3D
-			if sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+			# Two of the models flag their leaf material OPAQUE in the glTF although the atlas is
+			# photographed on black, and Godot imports OPAQUE as TRANSPARENCY_DISABLED, so this test
+			# used to skip them: 33% of flower_orange's triangle UV samples and 49% of
+			# grass_bermuda's land on texels under 0.07 brightness, and those were drawn as solid
+			# black cards. Every other OPAQUE surface across the 26 foliage models measures 0.2% or
+			# less - the pine twig and the pachira leaves are OPAQUE too and measure 0.000, their
+			# UVs never touch the padding - so this is a two-name exception and not a rule.
+			var mislabelled := sm.resource_name == "flower_gazania" or sm.resource_name == "grass_bermuda_01"
+			if sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or mislabelled:
 				# The leaf cards: onto the swaying shader, which does the scissor itself.
 				mesh.surface_set_material(i, foliage_textured(sm, blossom))
 				continue
@@ -1281,15 +1289,27 @@ static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT) -> Mesh
 	return mesh
 
 
-## Enables alpha scissor (instead of blending) and instance-color tinting on a plant mesh.
+## Leaf surfaces of a scanned plant onto the swaying cut-out shader (shaders/foliage_tex.gdshader);
+## instance-color tinting and double-siding on the woody rest.
+## This used to test `transparency == TRANSPARENCY_ALPHA` (enum 1) and flip it to ALPHA_SCISSOR,
+## and that test never once fired: Godot imports a glTF BLEND material as
+## TRANSPARENCY_ALPHA_DEPTH_PRE_PASS (enum 4), which is what grass_medium_02 and both
+## wild_rooibos_bush_twigs and wild_rooibos_bush_leaves carry in the imported scene. So they stayed
+## alpha-BLENDED, and their atlases are JPEG with no alpha channel, so every texel came out at
+## ALPHA 1.0 and the black background they were photographed on was drawn solid: by triangle area
+## 18% of a grass tuft, 35% of the rooibos twigs and 72% of the rooibos leaves sit under 0.07
+## brightness, and those two models are most of what covers the hills.
+## foliage_tex.gdshader is the only thing here that recovers the cut-out from brightness, so route
+## them through it; it multiplies by COLOR.rgb itself, so the instance tint survives, and it also
+## gets them the wind sway and the backlight the rest of the planting has.
 static func _plant_material(mesh: Mesh) -> Mesh:
 	for i in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:
 			var sm := mat as StandardMaterial3D
-			if sm.transparency == BaseMaterial3D.TRANSPARENCY_ALPHA:
-				sm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-				sm.alpha_scissor_threshold = 0.45
+			if sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+				mesh.surface_set_material(i, foliage_textured(sm))
+				continue
 			sm.vertex_color_use_as_albedo = true
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
 	return mesh

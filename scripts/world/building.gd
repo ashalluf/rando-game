@@ -1007,6 +1007,31 @@ func _pick_wall_set() -> Array:
 	return options[_rng.randi() % options.size()]
 
 
+## Mean value of each wall texture's Color map: LINEAR first (what Forward+ and Mobile hand the
+## shader) and raw sRGB second (what the Compatibility renderer, i.e. the web build, hands it).
+## shaders/building.gdshader divides its sample by this, so a photographed wall stops being a
+## second albedo multiplied into facade_color and goes back to being detail. Measured off the
+## committed 1K JPGs with, in this order,
+##   python3 -c "from PIL import Image; import numpy as np; im=np.asarray(Image.open(PATH).convert('RGB')).astype(float)/255; print(np.where(im<=0.04045, im/12.92, ((im+0.055)/1.055)**2.4).reshape(-1,3).mean(0), im.reshape(-1,3).mean(0))"
+## and they only change if the asset changes.
+const WALL_TEXTURE_MEAN := {
+	"brick_red": [Color(0.277, 0.138, 0.086), Color(0.557, 0.403, 0.315)],
+	"brick_mossy": [Color(0.319, 0.176, 0.096), Color(0.588, 0.435, 0.314)],
+	"brick_factory": [Color(0.155, 0.100, 0.083), Color(0.417, 0.327, 0.295)],
+	"brick": [Color(0.406, 0.253, 0.200), Color(0.652, 0.472, 0.391)],
+	"plaster_painted": [Color(0.407, 0.366, 0.351), Color(0.670, 0.638, 0.626)],
+	"plaster_beige": [Color(0.340, 0.262, 0.188), Color(0.618, 0.549, 0.471)],
+	"plaster_white": [Color(0.272, 0.246, 0.199), Color(0.556, 0.531, 0.480)],
+	"concrete_painted": [Color(0.634, 0.499, 0.358), Color(0.807, 0.722, 0.616)],
+	"concrete_cracked": [Color(0.514, 0.444, 0.347), Color(0.733, 0.684, 0.606)],
+	"concrete_layers": [Color(0.207, 0.196, 0.177), Color(0.491, 0.479, 0.456)],
+	"concrete": [Color(0.482, 0.482, 0.482), Color(0.723, 0.723, 0.723)],
+	"metal": [Color(0.061, 0.068, 0.070), Color(0.271, 0.286, 0.290)],
+	"metal_corrugated": [Color(0.403, 0.451, 0.428), Color(0.666, 0.701, 0.684)],
+	"metal_factory": [Color(0.124, 0.185, 0.075), Color(0.382, 0.464, 0.293)],
+}
+
+
 ## Wall texture for this part: `wall_set` is [set_key, scale] from _pick_wall_set().
 static func _apply_wall_texture(mat: ShaderMaterial, wall_finish: int, warehouse: bool, wall_set: Array = [], weathering: float = 0.5) -> void:
 	var set_key := "concrete"

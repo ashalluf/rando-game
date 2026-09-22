@@ -517,6 +517,23 @@ static func _texture_value(v: float) -> float:
 	return v / 12.92 if v <= 0.04045 else pow((v + 0.055) / 1.055, 2.4)
 
 
+## How hard the baked relief reads. The maps carry a tangent slope of about 8 degrees, which is
+## fabric weave and skin, not armour plate, so this wants to stay near 1.
+const NORMAL_STRENGTH := 1.0
+
+
+## The relief map that goes with a rig's colour texture, or null if that rig has none.
+static func _normal_map_for(albedo: Texture2D) -> Texture2D:
+	var path := albedo.resource_path
+	var cut := path.find("_anim_texture")
+	if cut < 0:
+		return null
+	var nrm := path.substr(0, cut) + "_nrm.png"
+	if not ResourceLoader.exists(nrm):
+		return null
+	return load(nrm) as Texture2D
+
+
 static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	if albedo == null:
 		return null
@@ -528,6 +545,13 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/character.gdshader")
 	mat.set_shader_parameter("albedo_tex", albedo)
+	# The rig's baked relief map, named after the rig the albedo came from
+	# (pedestrian_a_anim_texture_0.jpg -> pedestrian_a_nrm.png). Rigs without one keep
+	# normal_strength at the shader's 0.0 and render off the mesh normal exactly as before.
+	var nrm := _normal_map_for(albedo)
+	if nrm != null:
+		mat.set_shader_parameter("normal_tex", nrm)
+		mat.set_shader_parameter("normal_strength", NORMAL_STRENGTH)
 	# One look in five keeps the original outfit, so the source clothes still appear.
 	var plain := look % 5 == 0
 	# The top, rolled as a wardrobe rather than as one range. `cloth_value` is the garment's own

@@ -60,7 +60,17 @@ uniform vec3 bake_surf_color = vec3(0.0947, 0.1627, 0.1707);
 // This is the one colour in here with no counterpart on the far plane, because at 62 m a texel
 // the bake cannot resolve a shelf this narrow - and it is the colour that makes a coastline read
 // as a coastline.
-uniform vec3 shore_color = vec3(0.030, 0.076, 0.068);
+// sRGB (0.26, 0.43, 0.40). The old (0.030, 0.076, 0.068) was sRGB (0.19, 0.31, 0.29), 2-3x under
+// bake_surf_color above - and that is this shader's own colour for very nearly the same water.
+// The far branch paints it over the last bake_surf_width = 95 m offshore against this one's
+// shore_reach = 105 m, and because detail is 1.0 - painted the two cross-fade in the SAME pixel
+// across handover_start..handover_end: at the waterline the far branch's water term reaches
+// (0.081, 0.140, 0.148) while the near one was (0.030, 0.076, 0.068), so the shore band changed
+// colour as the camera backed away from it. It was dark against the sand it laps too - Ground054
+// is linear (0.333, 0.259, 0.156) mean, times the pbr tint (1.0, 0.888, 0.687) and the wet
+// SAND_TONES[1] 0.56 that is green 0.129 against the water's 0.076. Red stays the lowest channel,
+// which is the absorption that makes shallow water read turquoise rather than blue.
+uniform vec3 shore_color = vec3(0.055, 0.155, 0.132);
 // How far out the sand still tints the water.
 uniform float shore_reach = 105.0;
 uniform vec3 foam_color = vec3(0.72, 0.78, 0.82);
@@ -153,8 +163,20 @@ uniform vec2 fine_fade = vec2(170.0, 480.0);
 // Foam. `fold` is how hard the Gerstner displacement is pinching the surface together - the
 // crest of a wave about to break - which is where foam is actually made. Below `foam_fold_lo`
 // there is none; by `foam_fold_hi` the crest is white.
-uniform float foam_fold_lo : hint_range(0.0, 1.0) = 0.16;
-uniform float foam_fold_hi : hint_range(0.0, 1.0) = 0.52;
+// These thresholds are derived, not picked. For one Gerstner wave the horizontal Jacobian
+// collapses exactly - jac = 1 - lean*amp*k*cos(phase) - so `fold` is the sum of the five waves'
+// lean*amp*k, and those five coefficients add to 0.1548 per metre of `amp`. `lean_k` above is
+// 1.6/open, which cancels `open`, so lean_k*amp is pinned at 1.2 m when it is clear and at
+// 1.6 m from overcast right through to rain: `fold` cannot pass 0.186 / 0.248, and only the
+// 2.52 m of a storm takes it to 0.390. Sampled over 1.2 km of open sea its 99th percentile is
+// 0.107 clear, 0.142 overcast and rain, 0.224 in a storm, so at the old 0.16 floor the
+// smoothstep never left zero: peak foam alpha was 0.01 when it was clear, and coverage above a
+// quarter opacity was 0.00% at every state except the storm, where it was 0.2%. The sea had no
+// whitecaps at all. 0.05 / 0.20 sits on that measured distribution instead: 1.3% of the open
+// sea foams when it is clear (never past 0.33 alpha there, because `foam` is multiplied by
+// `sea`), 7.8% overcast, 10% raining and 21% in a storm, half of that fully white.
+uniform float foam_fold_lo : hint_range(0.0, 1.0) = 0.05;
+uniform float foam_fold_hi : hint_range(0.0, 1.0) = 0.20;
 
 // --- The hand-over to the far sea --------------------------------------------------------
 // Where this shader starts turning into `macro_ground.gdshader`'s water, and where it has
@@ -302,8 +324,15 @@ void vertex() {
 	// Shoaling. A swell feels the bottom, stands up, and dies where it has already broken.
 	// Without the taper a storm's seven-metre swell simply cut through the beach and the
 	// waterline was a straight seam between blue and sand.
+	// The coefficient is what decides how much it stands UP, and it has to be much bigger than it
+	// looks. r + c*r^2*(1-r) peaks at 1.0296 for c = 1.6 - a three per cent gain - so the old
+	// curve was a taper and nothing else, and swells walked into the sand the height they were a
+	// kilometre out. c = 5.0 peaks at 1.4533 at r = 0.755, which smoothstep(4.2, 72) puts 50 m
+	// offshore, and it still falls to zero at r = 0 so the waterline itself does not move.
+	// Measured at that band in clear weather the crest fold goes from 0.15 to 0.22, which is the
+	// difference between sitting under foam_fold_lo (0.16) and breaking white.
 	float reach = smoothstep(swash_width * 0.3, surf_width, sd.x);
-	float shoal = reach * (1.0 + 1.6 * reach * (1.0 - reach));
+	float shoal = reach * (1.0 + 5.0 * reach * (1.0 - reach));
 	// Wave groups, drifting slowly across the swell direction. Deliberately a very low
 	// frequency: what it has to do is leave wide patches of the sea calmer than their
 	// neighbours, so that from the air the surface has a scale bigger than one wave.
@@ -323,7 +352,18 @@ void vertex() {
 	// up. `lean` is a fraction of the wave's own height, so a storm raising the height six times
 	// would take the whole sum past that: pull the lean back as the sea gets big and the crests
 	// stay crests instead of turning inside out.
-	float lean_k = clamp(1.6 / max(open, 0.1), 0.35, 1.0);
+	// The numerator has to be big enough that the pull-back only bites near the top of the range.
+	// At 1.6 it bit from wave_scale 1.33 (open = 1.2 * wave_scale) all the way up, and in that
+	// whole unclamped band lean_k was exactly 1.6 / open - so the product open * lean_k, which is
+	// what every wave's steepness lean * amp * k is proportional to, sat pinned at exactly 1.6
+	// from wave_scale 1.33 to 3.81. Overcast (1.8) and rain (3.2) both fall inside that, so the
+	// two had bit-identical crests: the sea got 1.8x taller between them and not one bit steeper.
+	// 3.6 / 0.55 gives products 1.20, 2.16, 3.60, 3.96 across clear, overcast, rain and storm -
+	// monotonic. Worst case measured on open water in a storm is a fold of 0.52, and 0.91 with a
+	// full tsunami running at the same time, both still clear of the 1.0 where the surface
+	// inverts. Raise either number again and check that tsunami case, it is the binding one.
+	float lean_k = clamp(3.6 / max(open, 0.1), 0.55, 1.0);
+
 	gerstner(p, normalize(vec2(1.00, 0.22)), l0, amp * 0.34, 0.75 * lean_k, t, disp, ddx, ddz);
 	gerstner(p, normalize(vec2(0.86, -0.51)), l0 / 1.59, amp * 0.26, 0.85 * lean_k, t, disp, ddx, ddz);
 	gerstner(p, normalize(vec2(0.62, 0.78)), l0 / 2.62, amp * 0.19 * mix(0.45, 1.0, fine), 0.95 * lean_k, t, disp, ddx, ddz);

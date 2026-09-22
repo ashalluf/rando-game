@@ -99,6 +99,14 @@ uniform float cloth_roughness = 0.88;
 uniform float hair_roughness = 0.58;
 // How much light bleeds through skin. Keeps faces and hands from reading as plastic.
 uniform float skin_subsurface = 0.35;
+// Baked tangent-space surface detail for this rig (tools/make_character_maps.py): cloth weave
+// and seams, skin pores and the brow, hair strands. The source models ship one flat 1K colour
+// photo and nothing else, so with no normal map a whole crowd reflects light like billiard
+// balls. The committed maps carry a tangent slope of std 0.146, about 8 degrees, which is the
+// difference between knit and vinyl.
+uniform sampler2D normal_tex : hint_normal, filter_linear_mipmap_anisotropic;
+// 0 keeps the mesh normal, which is what a rig with no baked map gets. Set from pedestrian.gd.
+uniform float normal_strength = 0.0;
 // Per-character skin tone, as a multiplier on whatever the source texture has. Three models
 // with one complexion each is the second loudest tell (after everyone walking in step) that a
 // crowd is three people copied a thousand times.
@@ -209,7 +217,19 @@ void fragment() {
 
 	ROUGHNESS = mix(mix(cloth_roughness, skin_roughness, is_skin), hair_roughness, is_hair * hair_strength);
 	METALLIC = 0.0;
-	SPECULAR = mix(0.45, 0.32, is_skin);
+	// Godot builds a dielectric's F0 as 0.16 * SPECULAR^2, so the old 0.45 / 0.32 meant F0 0.032
+	// for cloth and 0.016 for skin - skin reflected less than water does (0.020), which is what
+	// left faces reading as matte cardboard. Measured F0 is 0.040 for a generic dielectric
+	// (IOR 1.5) and 0.028 for skin (IOR 1.4); those are SPECULAR 0.50 and 0.42. Skin stays the
+	// lower of the two, as it should be - it was just far too low.
+	SPECULAR = mix(0.50, 0.42, is_skin);
+	// The baked relief. normal_strength is 0 for any rig with no map, and at 0 Godot blends
+	// straight back to the geometric normal, so an unbound sampler here is harmless rather
+	// than a white wall of noise. Declaring these two uniforms without ever sampling them -
+	// which is how this landed the first time - renders exactly the flat mannequin it was
+	// meant to fix, and looks from the outside like the feature is in.
+	NORMAL_MAP = texture(normal_tex, UV).rgb;
+	NORMAL_MAP_DEPTH = normal_strength;
 	// Thin extremities catch light from behind the way real skin does.
 	BACKLIGHT = vec3(skin_subsurface * is_skin * 0.5);
 }

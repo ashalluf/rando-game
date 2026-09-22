@@ -172,6 +172,18 @@ vec2 _vnoise2(vec2 p) {
 
 void vertex() {
 	inst = INSTANCE_CUSTOM;
+	// MultiMeshBatch.add()'s custom argument defaults to Color.BLACK, and CityChunk._add_tree is
+	// the only caller that ever passes a real one: the bush, flower and grass-clump batches do
+	// not, so those instances arrive here as (0,0,0,1). Zero is not neutral for any of the three
+	// fields. Shape works out as (0.0 - 0.5) * 2.0 * 0.30 = -0.30, which multiplies VERTEX.y by
+	// 0.70 and stands every bush and flower in the city 30% shorter than its model, and hue works
+	// out as -0.22, which multiplies the leaf by (0.879, 0.974, 1.099) and gives all of them the
+	// same cool cast. So centre an all-zero custom: no thinning, no reshaping, no tone shift.
+	// A tree's variety is three independent randf() draws and never lands on exact zeros in all
+	// three.
+	if (max(max(inst.x, inst.y), inst.z) < 0.0001) {
+		inst = vec4(0.0, 0.5, 0.5, 0.0);
+	}
 	// Canopy shape: stretch up and pull in, or squash down and spread. Scaled by height above the
 	// instance origin so the trunk foot stays put and only the crown changes proportion.
 	if (shape_amount > 0.001) {

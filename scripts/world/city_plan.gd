@@ -18,8 +18,17 @@ const AXIS_Z := 1
 ## multiplies people by up to 2x again (CityChunk._spawn_pedestrians).
 const DISTRICTS := {
 	District.DOWNTOWN: {
-		"height": Vector2(50.0, 140.0), "lot": Vector2(28.0, 46.0), "gap": Vector2(2.0, 5.0),
-		"shapes": [Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN, Building.Shape.CROWN, Building.Shape.STEPPED],
+		# 18 m at the bottom, not 50: a 50 m floor meant downtown had no low-rise in it at all
+		# (the measured minimum was 50.0 m, the area-weighted 25th percentile 101.9 m), and a
+		# skyline is the gap between the infill and the towers. 160 at the top because the core
+		# lerps the top by 2.2x (city_chunk._build_lots), so the nominal ceiling there is 352 m.
+		"height": Vector2(18.0, 160.0), "lot": Vector2(28.0, 46.0), "gap": Vector2(2.0, 5.0),
+		# SLAB twice, for the infill. Every other shape here has a floor baked into
+		# Building._layout_parts - a CROWN is never under 50 m, a SETBACK never under 40, a TOWER
+		# never under 30, STEPPED never under 15 - so without a shape that has none the 18 m
+		# bottom is unreachable. SLAB also caps itself at 40 m, which is the infill tier.
+		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN, Building.Shape.CROWN, Building.Shape.STEPPED],
+
 		"finishes": [Building.Finish.GLASS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS],
 		"lit": Vector2(0.3, 0.6), "park": 0.05, "plaza": 0.12, "trees": 0.35, "courtyard": 0.5,
 		"cafes": 2, "planters": 1, "clutter": 0, "weathering": Vector2(0.1, 0.4), "line_white": 0.5,

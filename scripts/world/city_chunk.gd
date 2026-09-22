@@ -222,6 +222,16 @@ func build() -> void:
 		for lm in Landmarks.in_rect(owned_rect()):
 			Landmarks.build(lm, self, _statics, plan, true)
 			built_landmarks.append(lm.id)
+	# Paint and wear never cast. `tilt_keys` is exactly the set of batches that lie flat on the
+	# ground, and the tallest of them - a 2 cm crosswalk stripe at ROAD_TOP + 0.015, so 0.025 m
+	# proud of the asphalt - throws an 0.022 m shadow with the sun at its default 48 degrees,
+	# against the 0.059 m one near-cascade texel covers (2048 texels over the 120 m bounding
+	# sphere of the first split at the 700 m reach Quality sets at HIGH). StreetDetail already
+	# opts "gutter" and "patch" out by hand; this covers the other nine, up to nine shadow draw
+	# calls a chunk across the 25 full chunks load_radius_blocks keeps, drawing nothing.
+	# `flat_key`, not `key`: `key` is this chunk's own "ix,iz" member.
+	for flat_key: String in _batch.tilt_keys:
+		_batch.set_no_shadow(flat_key)
 	_mm_nodes = _batch.build(self)
 	if _mm_nodes.has("lod_box"):
 		(_mm_nodes["lod_box"] as MultiMeshInstance3D).material_override = PropFactory.building_lod_material()
@@ -395,6 +405,16 @@ func _build_water() -> void:
 	mesh.position = Vector3(c.x, 0.15, c.y)
 	mesh.custom_aabb = AABB(Vector3(-area.size.x * 0.5, -40.0, -area.size.y * 0.5), Vector3(area.size.x, 80.0, area.size.y))
 	mesh.name = "Ocean"
+	# It never casts. The sea at y 0.15 is the lowest drawn surface in the world and it is fully
+	# opaque (depth_draw_opaque, no ALPHA path), so nothing under it is visible and the only
+	# thing it could shadow is itself. At subdivide 72 this plane is 73 x 73 quads = 10,658
+	# triangles, 2,178 at the LOD's 32, and a coastal view has 25 FULL chunks plus the LOD ring
+	# inside directional_shadow_max_distance 400, so a six-figure triangle count - every vertex
+	# of it running five Gerstner swells plus the tsunami - went into the cascades every frame.
+	# What that bought was self-shadowing between crests, and the swell is gentle enough for the
+	# sun's default 2.0 normal bias and 0.75 shadow blur to eat most of it. It still RECEIVES,
+	# which is what piers, boats and the freeway deck need.
+	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(mesh)
 	# The sea floor. The visual box has to sit well below the deepest wave trough: at wave_scale
 	# 1 the swell is already +-1.2 m and a storm is six times that, so with its top just under
@@ -407,6 +427,12 @@ func _build_water() -> void:
 	floor_mesh.mesh = box
 	floor_mesh.material_override = PropFactory.material(style.ocean.darkened(0.5), 0.6)
 	floor_mesh.position = Vector3(c.x, -14.0, c.y)
+	# Fourteen metres under opaque water, and the only thing below it is the ground follower,
+	# which its own vertex shader sinks another ten wherever the bake says water. Nothing its
+	# shadow could darken is ever drawn, and it was one more shadow draw call per water chunk
+	# per cascade - 225 chunks are streamed at once and the 700 m shadow distance reaches all
+	# of them, so out at sea that is every one of them casting into nothing.
+	floor_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(floor_mesh)
 	if level == Level.FULL:
 		_add_shape(box.size, Vector3(c.x, -0.6, c.y))
@@ -1248,8 +1274,25 @@ func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 		building.lot_size = lot.size
 		# Downtown core: the skyline climbs toward the center (supertalls in the middle).
 		var boost := plan.macro.skyline_boost(center) if plan.macro else 0.0
-		building.min_height = lerpf(heights.x, heights.x * 2.0, boost)
-		building.max_height = lerpf(heights.y, heights.y * 2.2, boost)
+		# Handing the whole district band to each building made every lot an independent uniform
+		# draw between the two heights, and a uniform draw has no tail: downtown's 50..140 lerped
+		# to 100..308 in the core came out with a median of 134 m and the twelve tallest towers
+		# inside 65 m of each other, so the top of the city read as one flat line rather than as
+		# a skyline. So the band is rolled ONCE per lot into a target height and the building gets
+		# a narrow band around that, with the roll bent by pow(u, curve): most lots land near the
+		# bottom of the band and a handful reach the top.
+		var h_low := lerpf(heights.x, heights.x * 1.45, boost)
+		var h_top := lerpf(heights.y, heights.y * 2.3, boost)
+		# How hard to bend it is set by how much room the district actually has - log base 4 of
+		# the band's ratio - so the downtown core's 72..322 m (4.4x) bends at 2.08 and lands its
+		# median at 132 m, while the suburbs' 5..14 m (2.8x) only reaches 1.74 and still reads as
+		# a street of houses (median 7.7 m).
+		var curve := 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
+		# Hashed off the lot seed, never rolled on `rng`: a new rng call here would shift every
+		# lot placed after it in the chunk.
+		var target := lerpf(h_low, h_top, pow(float(absi(hash([lot.seed, "massing"])) % 100003) / 100003.0, curve))
+		building.min_height = target * 0.88
+		building.max_height = target
 		building.lit_ratio_range = params.lit
 		building.weathering_range = params.get("weathering", Vector2(0.2, 0.9))
 		building.shape_options.assign(params.shapes)

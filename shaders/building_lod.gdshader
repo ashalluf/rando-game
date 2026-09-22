@@ -21,6 +21,22 @@ global uniform float night_factor;
 global uniform vec3 sun_direction;
 // The sky colour DayNight is currently showing. What the glazing mirrors.
 global uniform vec4 sky_tint;
+// Whether this renderer needs the instance colour decoded from sRGB. PropFactory sets it from
+// has_reflections(): true on Forward+ and Mobile, false on Compatibility (web, opengl3 shots).
+// Godot sRGB-decodes a `source_color` uniform but NOT a MultiMesh instance colour - the repo's
+// own two-renderer probe (header of shaders/foliage_tex.gdshader) found COLOR arriving identical
+// in both renderers, which is what proves it skips the decode. So on Forward+ this shader is
+// handed the palette entry raw while shaders/building.gdshader gets the same entry decoded, and
+// the two paint the same wall apart by the palette's own ratio: FLAT_COLORS' 0.80/0.76/0.68
+// arrives here at luminance 0.763 against the decoded 0.544 (1.4x), PANEL 1.5x, BRICK 2.6x and
+// GLASS_COLORS' 0.18/0.28/0.42 4.3x, because the decode bites hardest on dark colours. On
+// Compatibility neither shader decodes, they already agree, and decoding here would break that -
+// hence the flag rather than an unconditional convert.
+// Apply it where `c` is used as albedo, NOT before the typology test below: that test's
+// thresholds (maxc 0.44 - 0.56, lum > 0.60) are tuned to the raw palette numbers, and decoded
+// first, BRICK_COLORS' 0.62/0.30/0.22 has maxc 0.342 and every brick low-rise classifies as a
+// curtain-wall tower.
+uniform bool instance_color_is_srgb = false;
 
 // --- Facade grid ---
 // Storey height in metres. Floors are measured up from the part's own bottom.
@@ -444,7 +460,15 @@ void fragment() {
 				on = min(1.0, on * (1.0 + whole));
 				float glow = 0.55 + 0.45 * hash31(vec3(row + 7.0, col + 3.0, bseed));
 				albedo = mix(albedo, lit_color, 0.70 * on);
-				emission += lit_color * on * glow * 1.15;
+				// 2.9, not 1.15. This lit_color is a source_color uniform too: (1.0, 0.85, 0.55)
+				// decodes to (1.000, 0.692, 0.263), and on and glow both peak at 1.0, so a lit
+				// window peaked at exactly 1.15 - under the Environment's glow_hdr_threshold of
+				// 1.3 (glow_hdr_scale 2.0), so smoothstep(1.3, 3.3, 1.15) is 0 and the whole far
+				// skyline only ever got the 0.06 glow_bloom floor, never the bloom.
+				// This has to stay level with building.gdshader's lit_strength, whose lit_color
+				// peaks at 1.0 after the decode for every entry in Building.LIT_COLORS: if the
+				// two drift apart, a tower steps brightness the moment it crosses the LOD line.
+				emission += lit_color * on * glow * 2.9;
 				rough = 0.45;
 			}
 			spec = 0.42;

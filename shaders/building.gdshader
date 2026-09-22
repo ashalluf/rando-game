@@ -53,12 +53,31 @@ uniform int roof_style = 0;
 uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
 // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
 global uniform float night_factor;
+// The sky colour DayNight publishes, exactly as it writes it. Godot stores both an sRGB and a
+// linear copy of a `color` global, but the index a material hands the shader is always the sRGB
+// one - the compiler never offsets it by the hint (material_storage.cpp), and the GLES3 backend
+// does not even fill the linear copy. So this arrives VERBATIM: project.godot's
+// Color(0.66, 0.75, 0.88) and DayNight's per-hour horizon, the same numbers
+// shaders/building_lod.gdshader already mirrors in its glazing.
+global uniform vec4 sky_tint;
 // Wall texture set (albedo, normal, roughness), sampled in wall space: meters per tile.
 uniform sampler2D wall_albedo : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D wall_normal : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform sampler2D wall_roughness : hint_roughness_r, filter_linear_mipmap, repeat_enable;
 uniform float wall_texture_scale = 4.0;
+// Mean of wall_albedo's own texels, in LINEAR - the sampler carries `source_color`, so the
+// texture arrives decoded and the mean has to be measured in the same space.
+// Building.WALL_TEXTURE_MEAN sets it per set. A wall texture is a photograph of a real material,
+// so its mean already IS that material's reflectance - RedBrick averages (0.277, 0.138, 0.086),
+// a luminance of 0.164, which is where brick sits. facade_color is a SECOND albedo, and one
+// Godot sRGB-decodes, so multiplying the two darkened the wall twice and squared its hue.
+// Dividing the sample by this mean turns the texture back into pure detail. NOT source_color:
+// it is a measured mean, not a colour, and has to arrive verbatim. The default is about the
+// middle of the fourteen wall sets, whose linear means run 0.067 (MetalPlates006) to 0.517
+// (ConcreteWall003), median 0.26.
+uniform vec3 wall_texture_mean = vec3(0.30);
 uniform bool use_wall_texture = false;
+
 uniform float wall_normal_depth = 0.7;
 // Grime: darkening near the ground, streaks running down from window sills (0 clean, 1 dirty).
 uniform float weathering = 0.5;
@@ -321,7 +340,12 @@ void fragment() {
 			float run_k = hash31(vec3(floor(col / 3.0), row, face_id * 17.0 + seed));
 			float k = hash31(vec3(col, row, face_id * 31.0 + seed));
 			// The whole office, plus the odd single window inside a dark one.
-			bool lit = run_k < ratio || k < ratio * 0.16;
+			// A shop is not rolled bay by bay. lit_ratio runs 0.15..0.5 and a shop is 2-4 bays, so
+			// a restaurant came out with one of its windows lit and the rest black, which reads as
+			// a bug rather than as an open shop. The whole unit is open or closed off one hash of
+			// shop_seed - about 55 % open - and shop_seed already carries face_id and the seed, so
+			// it costs no rng roll and nothing downstream moves.
+			bool lit = storefront ? hash21(vec2(shop_seed, 41.3)) > 0.45 : (run_k < ratio || k < ratio * 0.16);
 			float room_seed = hash31(vec3(col, row, face_id * 17.0 + seed)) * 97.0;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
 			vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
@@ -341,9 +365,14 @@ void fragment() {
 				// arrives dark; at night an unlit room is darker still.
 				// A shop is lit inside even in daylight; an office floor is not.
 				float expose = storefront ? interior_exposure * 3.2 : interior_exposure;
-				// At night an unlit room is dark, full stop. At 0.45 the pale blinds picked up
-				// the blue night ambient and every window on the block read as a lit panel.
-				room *= expose * (1.0 - 0.88 * night_factor);
+				// At night an unlit OFFICE room is dark, full stop. At 0.45 the pale blinds picked
+				// up the blue night ambient and every window on the block read as a lit panel.
+				// An open shop is the other way round: it is lit inside after dark and is the
+				// brightest thing at street level, so it keeps its interior instead of losing 88 %
+				// of it. expose is already 0.40 * 3.2 for a storefront - the shader knew this three
+				// lines up and then threw it away, so a lit shopfront was a flat warm rectangle
+				// with a black void behind the glass.
+				room *= expose * (1.0 - 0.88 * night_factor * ((lit && storefront) ? 0.0 : 1.0));
 				if (storefront) {
 					room *= vec3(1.10, 1.03, 0.92);
 				}
@@ -426,9 +455,30 @@ void fragment() {
 			albedo = sign_hue;
 			// A darker lip top and bottom so the band reads as a board fixed to the wall.
 			float lip = step(fv, 0.785) + step(0.918, fv);
-			albedo *= mix(1.0, 0.55, clamp(lip, 0.0, 1.0));
+			float face = 1.0 - clamp(lip, 0.0, 1.0);
+			albedo *= mix(0.55, 1.0, face);
 			rough = 0.55;
 			metal = 0.05;
+			// After dark the band is a backlit lightbox, not a painted board. Nothing else on an
+			// ordinary building emits: `emission` is assigned in exactly one other place in this
+			// shader, the lit-window branch above, and Signage (scripts/world/signage.gd) is only
+			// ever called from commercial.gd - plazas, big boxes, fast food and gas stations -
+			// and from one landmark. So every downtown and midtown shopfront in the city was a
+			// black board at night and the only light on the street was the lamps.
+			// The painted hues top out at 0.42 in any channel, so normalise to the brightest one
+			// first: multiplied straight, even a 2.4 gain peaks at 0.42 * 2.4 = 1.01, under the
+			// Environment's glow_hdr_threshold of 1.3, and the band would light up without ever
+			// blooming.
+			vec3 box = sign_hue / max(max(sign_hue.r, max(sign_hue.g, sign_hue.b)), 0.001);
+			// A third of them are white plastic rather than colour, the way a real parade is.
+			box = mix(box, vec3(1.0, 0.93, 0.80), step(0.66, hash21(vec2(shop_seed, 41.7))));
+			// 1.8 at the dim end, 3.0 at the bright end: the dim ones sit just on the 1.3..3.3
+			// bleed curve and the bright ones near the top of it, which is the spread that reads
+			// as a row of separate businesses rather than as one lit stripe.
+			float band = face * (0.75 + 0.5 * hash21(vec2(shop_seed, 29.3)));
+			emission = box * 2.4 * night_factor * band;
+			albedo = mix(albedo, box, 0.55 * night_factor * face);
+
 		} else if (bulkhead) {
 			// The panelled base under a display window: stall risers are always a different
 			// material from the wall, usually tile or painted board.
