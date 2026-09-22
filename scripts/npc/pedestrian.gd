@@ -416,18 +416,24 @@ static func _acc_brim(st: SurfaceTool, y: float, reach: float, half_width: float
 ## Judge a change with tools/glshot/character_shot.gd, front AND side.
 ##
 ## Per clip kind (matched against the clip name): swing amplitude, forward bias of the swing,
-## elbow bend, extra elbow bend at the front of the swing, spread from the body. Degrees.
+## elbow bend, extra elbow bend at the front of the swing, spread of the upper arm from the
+## body, and how far the forearm comes back in from that spread. Degrees.
+## The last two are a pair: the upper arm has to clear the ribs and the jacket, but carried on
+## down the forearm the same angle leaves the hand a hand's width off the thigh, and a crowd of
+## people walking with their hands held out from their sides reads as gunslingers.
 const ARM_GAIT := {
-	"run": [34.0, 8.0, 78.0, 14.0, 13.0],
-	"walk": [15.0, 2.0, 12.0, 16.0, 10.0],
-	"idle": [0.0, 1.0, 9.0, 0.0, 9.0],
+	"run": [34.0, 8.0, 78.0, 14.0, 12.0, 4.0],
+	"walk": [15.0, 4.0, 15.0, 15.0, 9.0, 7.0],
+	"idle": [0.0, 3.0, 12.0, 0.0, 8.0, 7.0],
 }
 ## Extra spread per model file (degrees), for a bulky jacket the arms would pass through.
 const ARM_SPREAD := {}
 ## Palm turn (degrees) carried by the forearm and by the wrist. Split, because linear skinning
 ## puts all of a single bone's twist at one joint and a whole quarter turn there pinches it.
-const FOREARM_TWIST := 45.0
-const WRIST_TWIST := 40.0
+## Measured, not assumed: 60 in total puts the palm on the thigh with the hand edge-on from the
+## front; 85 left the hands as open fans, and past that the palms turn to face forward.
+const FOREARM_TWIST := 32.0
+const WRIST_TWIST := 28.0
 static var _arms_fixed: Dictionary = {}
 
 
@@ -472,6 +478,21 @@ static func _retarget_arm(a: Animation, skel: Skeleton3D, tracks: Dictionary, si
 		return
 	var shoulder := skel.get_bone_parent(arm)
 	var chest := skel.get_bone_parent(shoulder)
+	# The collarbone first, because the arm keys are written relative to it. The clips hold it
+	# 8 to 20 degrees below level the whole way round - the same retarget mismatch as the arms -
+	# which slumps the shoulders and squares them off. Every rig's own rest collarbone is level,
+	# so the keys are turned until their average lies on it: the shoulders' bob through the
+	# stride stays, the slump goes.
+	if tracks.has(shoulder):
+		var t_sh: int = tracks[shoulder]
+		var reach := skel.get_bone_rest(arm).origin.normalized()
+		var mean := Vector3.ZERO
+		for k in a.track_get_key_count(t_sh):
+			mean += (a.track_get_key_value(t_sh, k) as Quaternion) * reach
+		if mean.length() > 0.001:
+			var level := Quaternion(mean.normalized(), skel.get_bone_rest(shoulder).basis.get_rotation_quaternion() * reach)
+			for k in a.track_get_key_count(t_sh):
+				a.track_set_key_value(t_sh, k, (level * (a.track_get_key_value(t_sh, k) as Quaternion)).normalized())
 	var arm_rest := _rest_rot(skel, arm)
 	var fore_rest := _rest_rot(skel, fore)
 	var chest_rest_inv := _rest_rot(skel, chest).inverse()
@@ -507,16 +528,20 @@ static func _retarget_arm(a: Animation, skel: Skeleton3D, tracks: Dictionary, si
 			swing = -(_thigh_angle(a, skel, tracks, thigh, knee, time) - leg_mid) / leg_amp
 		var elbow := deg_to_rad(gait[2] + gait[3] * clampf(swing, 0.0, 1.0))
 		# Hanging straight down with the elbow hinge along -X, then spread out from the body,
-		# swung about the shoulders' lateral axis, then carried by the chest.
-		var chest_now := _pose_rot(a, skel, tracks, chest, time) * chest_rest_inv
-		var frame := chest_now * Quaternion(Vector3.LEFT, deg_to_rad(gait[1] + gait[0] * swing)) \
+		# swung about the shoulders' lateral axis, then turned with the chest. Only its turn,
+		# not its lean: the clips tip the torso about seven degrees forward, and arms carried
+		# by that pitch trail behind the body instead of hanging under gravity.
+		var chest_fwd := (_pose_rot(a, skel, tracks, chest, time) * chest_rest_inv) * Vector3.BACK
+		var turn := Quaternion(Vector3.UP, atan2(chest_fwd.x, chest_fwd.z))
+		var frame := turn * Quaternion(Vector3.LEFT, deg_to_rad(gait[1] + gait[0] * swing)) \
 				* Quaternion(Vector3.BACK, spread)
 		var u1 := frame * Vector3.DOWN
 		var h1 := frame * Vector3.LEFT
-		var f1 := Quaternion(h1, elbow) * u1
+		var f1 := Quaternion(turn * Vector3.BACK, -deg_to_rad(gait[5]) * side) * (Quaternion(h1, elbow) * u1)
+		var hf := (h1 - f1 * h1.dot(f1)).normalized()
 		var g_arm := Quaternion(Basis(u1, h1, u1.cross(h1)) * rest_u) * arm_rest
 		var g_fore := Quaternion(f1, deg_to_rad(FOREARM_TWIST) * side) \
-				* Quaternion(Basis(f1, h1, f1.cross(h1)) * rest_f) * fore_rest
+				* Quaternion(Basis(f1, hf, f1.cross(hf)) * rest_f) * fore_rest
 		return [g_arm.normalized(), g_fore.normalized()]
 
 	var t_arm: int = tracks[arm]

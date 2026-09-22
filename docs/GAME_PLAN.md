@@ -200,6 +200,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-22 The first arm rebuild was measured and was still wrong in three ways (owner:
+  "why are their arms weird?").** Sampling the rebuilt pose bone by bone: the clips hold the
+  collarbones 8-20 degrees below level (slumped, squared shoulders); the arms rode the chest's
+  seven-degree forward lean, so the swing ran -25 to +5 and they trailed behind the body; and
+  the forearm carried the upper arm's spread, leaving the hands a hand's width off the thighs.
+  Now the collarbone keys are turned until their average is the rig's own (level) rest, the
+  arms take only the chest's turn, and the forearm comes back in by `ARM_GAIT`'s last value.
+  The palm turn was A/B'd at 60, 85, 120 and 150 degrees: more than 60 turns the palms to
+  face forward, which is the open-fan hand that was showing.
+
 - **2026-09-22 New people, and arms rebuilt from the rig instead of guessed (owner: "the
   characters look stupid, their arms are floppy", then "we need entirely new assets for the
   humans").** Meshy is un-retired for characters only - there is no CC0 source of realistic

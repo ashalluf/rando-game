@@ -306,10 +306,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
   so everyone walked like a scarecrow or with their hands up by their ears.
   `Pedestrian.fix_arm_pose()` rebuilds the upper-arm, forearm and hand keys once, on the shared
-  animation resource, from the rig's own rest pose: arms hang with `ARM_GAIT` spread, swing
-  opposite the same-side thigh (phase read from the clip's own legs), elbows bend forward,
-  palms turn to the thighs (`FOREARM_TWIST` + `WRIST_TWIST`), all in the chest's frame. It
-  needs no per-model numbers (`ARM_SPREAD` is there for a bulky jacket). Do not go back to
+  animation resource, from the rig's own rest pose: collarbones re-centred on level (the clips
+  slump them 8-20 degrees), upper arms hang with `ARM_GAIT` spread and the forearms come back
+  in so the hands sit by the thighs, swing opposite the same-side thigh (phase read from the
+  clip's own legs), elbows bend forward, palms turn to the thighs (`FOREARM_TWIST` +
+  `WRIST_TWIST`, 60 in total - more turns them forward). The arms follow the chest's turn but
+  NOT its lean: the clips tip the torso forward and arms carried by that pitch trail behind.
+  It needs no per-model numbers (`ARM_SPREAD` is there for a bulky jacket). Do not go back to
   rotating fixed amounts off the keys: that is what the old `ARM_DROP` did and every rig
   needed its own guess. Judge it with `tools/glshot/character_shot.gd`, front AND side.
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).

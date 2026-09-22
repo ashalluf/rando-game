@@ -743,7 +743,9 @@ repo; `MESHY_KEY_FILE`). What shipped:
   `ARM_DROP`) put the new rigs' hands up by their ears. `Pedestrian.fix_arm_pose()` rebuilds
   the arm keys from the rig's rest pose and needs no per-model numbers. Check any new rig with
   `tools/glshot/character_shot.gd` (`MODEL=... YAW=0` and `YAW=90`, `CLIP=run_fast_3_inplace`
-  and `CLIP=Idle` too) before adding it to `MODELS`.
+  and `CLIP=Idle` too) before adding it to `MODELS`. Measure, too: the first version of it
+  looked fine in stills and was still wrong (slumped collarbones, arms trailing the torso's
+  lean, hands held off the thighs), which only a bone-by-bone sample over the clip showed.
 - **`tools/meshy.py` was throwing the subject away at the texturing step** (a subject-free
   texture prompt), which is why the people asked for as Black, Latino, and in an orange vest
   came back pale and grey. Fixed; j, k and l were made after it and follow their prompts.
