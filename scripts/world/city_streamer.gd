@@ -28,6 +28,24 @@ extends Node3D
 ## Chunks built per update, to spread the work out. Must keep up with a car at nitro speed.
 @export var max_full_builds_per_update: int = 2
 @export var max_lod_builds_per_update: int = 8
+## Seconds of travel the streaming window is pushed ahead of the player by. The window used to
+## be centred on where they were standing, which is always behind where they are going: at boost
+## or nitro speed the builder was still starting the block they had already reached. Leading it
+## is what every open-world streamer does, and this player is faster than most.
+@export var stream_lookahead: float = 1.5
+## Ceiling on that lead, in metres, so a jet at full throttle does not ask for the far side of
+## the basin and starve the blocks it is actually flying over.
+@export var stream_lookahead_max: float = 300.0
+## Blocks a chunk is kept for after it drops out of the wanted window. Bigger than
+## `lod_radius_blocks` on purpose: without the gap, a chunk sitting exactly on the edge is freed
+## and rebuilt every time the player drifts across the boundary. Set it equal to
+## `lod_radius_blocks` for the old behaviour. First thing to lower if memory gets tight.
+@export var keep_radius_blocks: int = 8
+## Blocks around the player that stay full detail no matter where the lead is pointing (1 = the
+## 3 x 3 around them). This is the cost of leading the window: the full-detail set is the union
+## of the led one and this one, so it is a few more chunks than the old centred window built.
+## Drop it to 0 to pay for nothing but the block underfoot.
+@export var min_full_radius_blocks: int = 1
 ## When the player is this far from the origin, the whole world shifts back to it.
 @export var recenter_distance: float = 1000.0
 ## The ground follower is the whole world outside the streamed chunks, so it has to reach past
@@ -271,14 +289,9 @@ func ensure_loaded_at(local_pos: Vector3) -> void:
 		return
 	var wp := world_position(local_pos)
 	var k := plan.block_index_at(Vector2(wp.x, wp.z))
-	if chunks.has(k):
-		if chunks[k].level == CityChunk.Level.FULL:
-			return
-		for id in chunks[k].built_landmarks:
-			_set_far_landmark_visible(id, true)
-		chunks[k].queue_free()
-		chunks.erase(k)
-	_build_chunk(k, CityChunk.Level.FULL)
+	if chunks.has(k) and chunks[k].level == CityChunk.Level.FULL:
+		return
+	_replace_chunk(k, CityChunk.Level.FULL)
 
 
 ## Height of solid ground at a local position (terrain, or the sidewalk top in the city).
@@ -382,16 +395,38 @@ func update_streaming(immediate: bool) -> void:
 	if _ground_material:
 		_ground_material.set_shader_parameter("world_offset", Vector2(WorldState.world_offset.x, WorldState.world_offset.z))
 	var wp := world_position(local)
-	var center := plan.block_index_at(Vector2(wp.x, wp.z))
+	var here := plan.block_index_at(Vector2(wp.x, wp.z))
+	# Stream towards where the player is GOING, not where they are standing. `velocity` is kept
+	# in step with the car or the jet while riding one (see Player._physics_process), so this one
+	# read covers walking, boosting, driving and flying alike.
+	var focus := Vector2(wp.x, wp.z)
+	var vel: Variant = _player.get("velocity")
+	if vel is Vector3:
+		var v: Vector3 = vel
+		focus += (Vector2(v.x, v.z) * stream_lookahead).limit_length(stream_lookahead_max)
+	var center := plan.block_index_at(focus)
 
 	var wanted := {}
 	for dx in range(-lod_radius_blocks, lod_radius_blocks + 1):
 		for dz in range(-lod_radius_blocks, lod_radius_blocks + 1):
 			var ring := maxi(absi(dx), absi(dz))
 			wanted[Vector2i(center.x + dx, center.y + dz)] = CityChunk.Level.FULL if ring <= load_radius_blocks else CityChunk.Level.LOD
+	# Whatever the lead asks for, the ground actually under the player is always full detail.
+	# Leading the window alone would let a hard turn or a fast stop downgrade the block they are
+	# standing on, which is the one block that can never be a box.
+	for dx in range(-min_full_radius_blocks, min_full_radius_blocks + 1):
+		for dz in range(-min_full_radius_blocks, min_full_radius_blocks + 1):
+			wanted[Vector2i(here.x + dx, here.y + dz)] = CityChunk.Level.FULL
 
+	# Free only what has left the keep radius, measured from the player rather than from the led
+	# focus so nothing behind them is dropped the instant they face away.
+	# A chunk whose LEVEL merely changed is deliberately NOT freed here. It used to be, and its
+	# replacement then had to wait its turn behind `max_full_builds_per_update`, so a block that
+	# was about to become detailed spent one or more ticks as NOTHING - not a crude version, an
+	# absent one. That is the hole in the world you see when moving fast. Upgrades and downgrades
+	# now go through _replace_chunk(), which builds first and removes afterwards.
 	for k in chunks.keys():
-		if not wanted.has(k) or wanted[k] != chunks[k].level:
+		if maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
 			for id in chunks[k].built_landmarks:
 				_set_far_landmark_visible(id, true)
 			chunks[k].queue_free()
@@ -399,9 +434,9 @@ func update_streaming(immediate: bool) -> void:
 
 	var todo: Array = []
 	for k in wanted:
-		if not chunks.has(k):
+		if not chunks.has(k) or chunks[k].level != wanted[k]:
 			todo.append(k)
-	todo.sort_custom(func(a, b): return (a - center).length_squared() < (b - center).length_squared())
+	todo.sort_custom(func(a, b): return _build_priority(a, center, here) < _build_priority(b, center, here))
 	var full_budget := max_full_builds_per_update if not immediate else 1000000
 	var lod_budget := max_lod_builds_per_update if not immediate else 1000000
 	for k in todo:
@@ -414,7 +449,32 @@ func update_streaming(immediate: bool) -> void:
 			if lod_budget <= 0:
 				continue
 			lod_budget -= 1
-		_build_chunk(k, level)
+		_replace_chunk(k, level)
+
+
+## How soon a chunk gets built: by whichever it sits closer to, the led focus or the player.
+## Sorting by the focus alone starves the blocks beside the player the moment they turn hard,
+## because everything between them and the lead sorts ahead of it.
+func _build_priority(k: Vector2i, center: Vector2i, here: Vector2i) -> int:
+	return mini((k - center).length_squared(), (k - here).length_squared())
+
+
+## Builds a chunk and only then takes down whatever was standing in its place. The two never
+## coexist for a frame and the block is never empty for one either: the old chunk is still being
+## drawn while the new one is generated, and leaves the tree in the same frame the new one
+## enters it. This is the whole reason a level change no longer shows as a hole.
+func _replace_chunk(k: Vector2i, level: CityChunk.Level) -> void:
+	var old_chunk: CityChunk = chunks.get(k)
+	_build_chunk(k, level)
+	if old_chunk == null:
+		return
+	# Landmarks the old chunk owned and the new one does not have to go back to being far
+	# versions; the ones both build stay hidden, because _build_chunk has already hidden them.
+	for id in old_chunk.built_landmarks:
+		if not (chunks[k] as CityChunk).built_landmarks.has(id):
+			_set_far_landmark_visible(id, true)
+	remove_child(old_chunk)
+	old_chunk.queue_free()
 
 
 func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
