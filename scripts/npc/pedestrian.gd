@@ -740,7 +740,10 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 		mat.set_shader_parameter("pants_value", rng.randf_range(0.28, 0.58))
 	mat.set_shader_parameter("pants_strength", 0.0 if plain else rng.randf_range(0.82, 0.96))
 	mat.set_shader_parameter("hair_color", HAIR_COLORS[rng.randi() % HAIR_COLORS.size()])
-	mat.set_shader_parameter("hair_strength", rng.randf_range(0.75, 1.0))
+	# A look that keeps the model's own clothes keeps its own hair too. The hair swap was rolled
+	# for every look, so a Black woman in her own blazer came out blonde and a grey-haired man
+	# came out black-haired - a recolour on a photographed person reads as a wig.
+	mat.set_shader_parameter("hair_strength", 0.0 if plain else rng.randf_range(0.75, 1.0))
 	mat.set_shader_parameter("skin_tint", SKIN_TINTS[look % SKIN_TINTS.size()])
 	# Every threshold the shader compares a texture value against, moved into this renderer's
 	# colour space (see _texture_value). Cheaper than converting the sample per pixel, and the
