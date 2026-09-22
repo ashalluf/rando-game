@@ -5,7 +5,12 @@ extends RefCounted
 ## that contains the anchor builds the detailed version, and CityStreamer keeps a far version
 ## of every landmark alive so the skyline never loses them. All names and designs are original.
 
-const SIGN_TEXT := "RANDOWOOD"
+const SIGN_TEXT := "SHALLUFERWOOD"
+## The second hill sign, on the affluent slope below the first.
+const HILLS_SIGN_TEXT := "SHALLUFER HILLS"
+## Metres the hill sign spans, whatever the text says. The letters are scaled to fit it, so a
+## longer name does not run off the ridge or through the lots the landmark radius reserves.
+const SIGN_SPAN := 342.0
 const PIER_NAME := "RANDO PIER"
 
 ## 5 x 7 block font for the hill sign. Rows top to bottom, '#' is a block.
@@ -17,6 +22,13 @@ const FONT := {
 	"D": ["####.", "#...#", "#...#", "#...#", "#...#", "#...#", "####."],
 	"O": [".###.", "#...#", "#...#", "#...#", "#...#", "#...#", ".###."],
 	"W": ["#...#", "#...#", "#...#", "#.#.#", "#.#.#", "##.##", "#...#"],
+	"S": [".####", "#....", "#....", ".###.", "....#", "....#", "####."],
+	"H": ["#...#", "#...#", "#...#", "#####", "#...#", "#...#", "#...#"],
+	"L": ["#....", "#....", "#....", "#....", "#....", "#....", "#####"],
+	"F": ["#####", "#....", "#....", "####.", "#....", "#....", "#...."],
+	"E": ["#####", "#....", "#....", "####.", "#....", "#....", "#####"],
+	"I": [".###.", "..#..", "..#..", "..#..", "..#..", "..#..", ".###."],
+	" ": [".....", ".....", ".....", ".....", ".....", ".....", "....."],
 }
 
 
@@ -24,6 +36,7 @@ const FONT := {
 static func all() -> Array[Dictionary]:
 	return [
 		{"id": "sign", "anchor": Vector2(0.0, -1180.0), "radius": 400.0},
+		{"id": "hills_sign", "anchor": Vector2(480.0, -960.0), "radius": 70.0},
 		{"id": "pier", "anchor": Vector2(-940.0, -350.0), "radius": 200.0},
 		{"id": "observatory", "anchor": Vector2(260.0, -1320.0), "radius": 60.0},
 		{"id": "crown_tower", "anchor": Vector2(700.0, 250.0), "radius": 34.0},
@@ -71,6 +84,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 	match lm.id:
 		"sign":
 			_build_sign(lm.anchor, parent, statics, plan, detailed)
+		"hills_sign":
+			_build_hills_sign(lm.anchor, parent, statics, plan, detailed)
 		"pier":
 			_build_pier(lm.anchor, parent, statics, plan, detailed)
 		"observatory":
@@ -112,10 +127,14 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 # --- Hill sign ------------------------------------------------------------------------------
 
 static func _build_sign(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
-	var cell := 6.0
-	var letter_w := 5 * cell
+	# Fit the name to the ridge rather than fixing the letter size: SHALLUFERWOOD is thirteen
+	# characters where RANDOWOOD was nine, and at the old fixed 6 m cell it would have run half
+	# a kilometre across the hill and straight through the lots the landmark radius reserves.
+	var n := SIGN_TEXT.length()
+	var cell: float = SIGN_SPAN / (float(n) * 5.0 + float(n - 1) * 1.5)
+	var letter_w := 5.0 * cell
 	var gap := cell * 1.5
-	var total := SIGN_TEXT.length() * letter_w + (SIGN_TEXT.length() - 1) * gap
+	var total := float(n) * letter_w + float(n - 1) * gap
 	var x := anchor.x - total * 0.5
 	var white := Color(0.96, 0.96, 0.94)
 	for ch in SIGN_TEXT:
@@ -135,12 +154,59 @@ static func _build_sign(anchor: Vector2, parent: Node3D, statics: StaticBody3D, 
 				var pos := Vector3(x + (c + run * 0.5) * cell, base_y + (rows.size() - 1 - r + 0.5) * cell, anchor.y)
 				_box(parent, statics, size, pos, white, detailed)
 				c += run
-		if detailed:
+		if detailed and ch != " ":
 			# Legs down to the slope.
 			for lx: float in [0.5, letter_w - 0.5]:
 				var ground := plan.height_at(Vector2(x + lx, anchor.y + 1.5))
 				var h := maxf(base_y - ground + 1.0, 1.0)
 				_cyl(parent, null, 0.35, h, Vector3(x + lx, ground + h * 0.5, anchor.y + 1.5), Color(0.35, 0.35, 0.36))
+		x += letter_w + gap
+
+
+# --- Shallufer Hills sign -------------------------------------------------------------------
+
+## The civic sign on the slope below the ridge letters: a low landscaped bank with the name
+## standing on it, a clipped hedge behind, and a stone kerb in front. Original design - it is a
+## name on a planted bank, not a copy of any real municipality's badge.
+##
+## Much smaller lettering than the ridge sign (this one is read from the road, not from across
+## the basin), so it uses its own cell size rather than SIGN_SPAN.
+static func _build_hills_sign(anchor_xz: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
+	var cell := 1.15
+	var n := HILLS_SIGN_TEXT.length()
+	var letter_w := 5.0 * cell
+	var gap := cell * 1.5
+	var total := float(n) * letter_w + float(n - 1) * gap
+	var ground := plan.height_at(anchor_xz)
+	var cream := Color(0.94, 0.92, 0.86)
+	var hedge := Color(0.15, 0.24, 0.13)
+	var stone := Color(0.72, 0.70, 0.65)
+	var lawn := Color(0.24, 0.34, 0.18)
+	# The bank the name sits on, then a clipped hedge behind it so the cream letters have
+	# something dark to read against - which is the whole trick of this kind of sign.
+	_box(parent, statics, Vector3(total + 10.0, 1.6, 7.0), Vector3(anchor_xz.x, ground + 0.8, anchor_xz.y), lawn, detailed)
+	_box(parent, statics, Vector3(total + 8.0, 3.2, 1.6), Vector3(anchor_xz.x, ground + 3.2, anchor_xz.y - 2.4), hedge, detailed)
+	# Stone kerb along the front.
+	_box(parent, statics, Vector3(total + 10.0, 0.5, 0.7), Vector3(anchor_xz.x, ground + 1.8, anchor_xz.y + 3.2), stone, detailed)
+	var x := anchor_xz.x - total * 0.5
+	var base_y := ground + 1.7
+	for ch in HILLS_SIGN_TEXT:
+		var rows: Array = FONT.get(ch, FONT["O"])
+		for r in rows.size():
+			var row: String = rows[r]
+			var c := 0
+			while c < row.length():
+				if row[c] != "#":
+					c += 1
+					continue
+				var run := 0
+				while c + run < row.length() and row[c + run] == "#":
+					run += 1
+				_box(parent, null,
+					Vector3(run * cell, cell, 0.45),
+					Vector3(x + (c + run * 0.5) * cell, base_y + (rows.size() - 1 - r + 0.5) * cell, anchor_xz.y),
+					cream, false)
+				c += run
 		x += letter_w + gap
 
 

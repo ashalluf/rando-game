@@ -33,7 +33,7 @@ const DISTRICT_COLORS := [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLOR
 	COLORS.campus, COLORS.beachtown]
 
 const LANDMARK_NAMES := {
-	"sign": "Randowood Sign", "pier": "Rando Pier", "observatory": "Observatory", "crown_tower": "Crown Tower",
+	"sign": "Shalluferwood Sign", "hills_sign": "Shallufer Hills", "pier": "Rando Pier", "observatory": "Observatory", "crown_tower": "Crown Tower",
 	"five_drums": "Five Drums", "ziggurat_hall": "Ziggurat Hall", "stack_tower": "The Stack", "needle": "The Needle",
 	"terminal": "Airport", "hangars": "Hangars", "port": "Port", "campus_hall": "Rando U",
 	"venice_boardwalk": "Venice Boardwalk", "manhattan_pier": "Manhattan Pier",

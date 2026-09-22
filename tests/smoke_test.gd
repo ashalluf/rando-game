@@ -649,7 +649,7 @@ func _test_city() -> void:
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:
 		_check(city.has_node("FarLandmark_sign") and city.has_node("FarLandmark_pier") and city.has_node("FarLandmark_observatory"), "far versions of the sign, pier and observatory exist")
-		var pier_anchor: Vector2 = Landmarks.all()[1].anchor
+		var pier_anchor: Vector2 = _landmark_anchor("pier")
 		player.global_position = _world_state().to_local(Vector3(pier_anchor.x + 10.0, 3.0, pier_anchor.y))
 		player.velocity = Vector3.ZERO
 		city.update_streaming(true)
@@ -673,7 +673,7 @@ func _test_city() -> void:
 	if macro:
 		_check(macro.zone_at(Vector2(-350.0, 800.0)) == MacroMap.Zone.AIRPORT and macro.height_at(Vector2(-350.0, 800.0)) == 0.0, "airport zone is flat")
 		_check(macro.zone_at(Vector2(800.0, 1150.0)) == MacroMap.Zone.PORT and macro.zone_at(Vector2(800.0, 1420.0)) == MacroMap.Zone.OCEAN, "port sits on a harbor")
-		var crown: Vector2 = Landmarks.all()[3].anchor
+		var crown: Vector2 = _landmark_anchor("crown_tower")
 		player.global_position = _world_state().to_local(Vector3(crown.x + 40.0, 2.0, crown.y + 40.0))
 		player.velocity = Vector3.ZERO
 		city.update_streaming(true)
@@ -1574,3 +1574,15 @@ func _finish() -> void:
 	else:
 		printerr("SMOKE TEST FAILED: %d of %d checks" % [_failures.size(), _checks])
 		get_tree().quit(1)
+
+
+## A landmark's anchor BY ID. This used to be Landmarks.all()[1] and [3], which quietly tied the
+## test to the order of that array: adding a landmark anywhere but the end shifted the indices
+## and the test then teleported the player to the wrong place and reported that the pier and the
+## crown tower had not been built. The landmark it means is the one it names.
+func _landmark_anchor(id: String) -> Vector2:
+	for lm in Landmarks.all():
+		if lm.id == id:
+			return lm.anchor
+	_check(false, "landmark '%s' exists" % id)
+	return Vector2.ZERO
