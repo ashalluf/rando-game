@@ -25,9 +25,15 @@ extends Node3D
 
 ## Blocks per tile edge. Bigger means fewer draw calls and coarser culling granularity.
 const TILE_BLOCKS := 6
-## Cells a block is cut into per axis to make its massing. 3 x 3 reads as a city at a kilometre
-## without pretending to be the real lot layout.
-const CELLS := 3
+## Cells a block is cut into per axis to make its massing. A tile is ONE MultiMesh, so extra
+## instances cost no extra draw call - density here is nearly free, and density is the whole
+## point: at 3 x 3 with a quarter of them skipped the far city read as scattered blocks on bare
+## ground, which is what "it still looks super empty" meant. 4 x 4 with far fewer gaps reads as
+## continuous city.
+const CELLS := 4
+## Percent of cells left empty, for streets and yards. Low on purpose: gaps are what made it
+## look abandoned from the air.
+const SKIP_PERCENT := 12
 ## Below this the tile is not drawn at all - the LOD chunks own that ground. Set from
 ## CityStreamer so the two always meet.
 var draw_from: float = 700.0
@@ -138,15 +144,25 @@ func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], c
 	var ground: float = macro.height_at(center) if macro else 0.0
 	var inner: Rect2 = rect.grow(-_plan.sidewalk_width)
 	var cell: Vector2 = inner.size / float(CELLS)
+	# A flat plate over the whole block first. From the air, most of a city is not building - it
+	# is roof, yard, car park and service ground BETWEEN the buildings, and leaving it out let
+	# the bare macro ground show through every gap, which is what made the distance read as
+	# empty land with blocks dropped on it. One instance per block, in the same MultiMesh, so it
+	# costs nothing: a plate 40 cm thick sitting on the ground.
+	xforms.append(Transform3D(
+		Basis().scaled(Vector3(rect.size.x, 0.4, rect.size.y)),
+		Vector3(center.x, ground + 0.2, center.y)))
+	colors.append(_ground_plate(b.district))
+	customs.append(Color(0.0, 0.0, 0.0, 1.0))   # plain flag: no windows on a plate
 	for cx in CELLS:
 		for cz in CELLS:
 			var hs := hash([_plan.seed, "sky", ix, iz, cx, cz])
 			# A third of the cells stay empty so the far city has streets and yards in it.
-			if absi(hs) % 100 < 26:
+			if absi(hs) % 100 < SKIP_PERCENT:
 				continue
 			var u := float(absi(hash([hs, "h"])) % 100003) / 100003.0
 			var h: float = lerpf(h_low, h_top, pow(u, curve))
-			var foot: Vector2 = cell * lerpf(0.62, 0.9, float(absi(hash([hs, "f"])) % 1000) / 1000.0)
+			var foot: Vector2 = cell * lerpf(0.72, 0.96, float(absi(hash([hs, "f"])) % 1000) / 1000.0)
 			var c: Vector2 = inner.position + Vector2(cell.x * (cx + 0.5), cell.y * (cz + 0.5))
 			xforms.append(Transform3D(
 				Basis().scaled(Vector3(foot.x, h, foot.y)),
@@ -155,6 +171,22 @@ func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], c
 			# (window style / 4, lit ratio, seed, plain flag) - what building_lod.gdshader reads.
 			customs.append(Color(float(absi(hash([hs, "w"])) % 4) / 4.0, 0.0,
 				float(absi(hs) % 997) / 997.0, 0.0))
+
+
+## The ground a block sits on, seen from above: asphalt and concrete, darker downtown where the
+## streets are in shadow most of the day and there is more of them.
+func _ground_plate(district: int) -> Color:
+	match district:
+		CityPlan.District.DOWNTOWN:
+			return Color(0.30, 0.305, 0.325)
+		CityPlan.District.INDUSTRIAL:
+			return Color(0.38, 0.375, 0.365)
+		CityPlan.District.CAMPUS:
+			return Color(0.33, 0.375, 0.315)
+		CityPlan.District.SUBURBS:
+			return Color(0.34, 0.375, 0.315)
+		_:
+			return Color(0.345, 0.35, 0.355)
 
 
 ## Facade colour by the same logic the LOD tier uses: the palette IS the typology signal, so a

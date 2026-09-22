@@ -61,10 +61,10 @@ extends Node3D
 ## Tiles of coarse far city kept around the player (see scripts/world/skyline.gd). 5 reaches
 ## about three kilometres at six blocks a tile, which is what makes the skyline visible from
 ## across the basin instead of the world ending seven blocks out. Each tile is ONE draw call.
-@export var skyline_tiles: int = 5
+@export var skyline_tiles: int = 7
 ## Far tiles built per update. They are cheap next to a FULL chunk (no nodes, no collision, no
 ## props) but a tile still scans 36 blocks, so it is budgeted like everything else.
-@export var max_skyline_builds_per_update: int = 2
+@export var max_skyline_builds_per_update: int = 3
 ## When the player is this far from the origin, the whole world shifts back to it.
 @export var recenter_distance: float = 1000.0
 ## The ground follower is the whole world outside the streamed chunks, so it has to reach past
