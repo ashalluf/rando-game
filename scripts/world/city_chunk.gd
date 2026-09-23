@@ -1296,25 +1296,44 @@ var _crowd_room: int = 0
 
 
 func _count_crowd_room() -> void:
+	var streamer := get_parent()
+	if streamer and streamer.has_method("take_crowd_room"):
+		return
+	_crowd_room = count_crowd_room(get_tree(), int(style.max_pedestrians))
+
+
+## The cap minus the pedestrians that will still be here next frame.
+static func count_crowd_room(tree: SceneTree, cap: int) -> int:
 	var existing := 0
-	for n in get_tree().get_nodes_in_group("pedestrian"):
+	for n in tree.get_nodes_in_group("pedestrian"):
 		# A pedestrian inside a chunk that is being freed is not flagged itself; check its chunk.
 		var parent := n.get_parent()
 		if n.is_queued_for_deletion() or (parent and parent.is_queued_for_deletion()):
 			continue
 		existing += 1
-	_crowd_room = int(style.max_pedestrians) - existing
+	return cap - existing
+
+
+## One walker's worth of room: from the streamer's city-wide count when there is a streamer
+## (see CityStreamer.take_crowd_room()), else from this chunk's own count.
+func _take_crowd_room() -> bool:
+	var streamer := get_parent()
+	if streamer and streamer.has_method("take_crowd_room"):
+		return streamer.take_crowd_room()
+	if _crowd_room <= 0:
+		return false
+	_crowd_room -= 1
+	return true
 
 
 func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> void:
-	if _crowd_room <= 0:
+	if not _take_crowd_room():
 		return
 	var ped := Pedestrian.new()
 	ped.setup(rect, sidewalk, rng.randi())
 	var start := ped._random_ring_point(sidewalk)
 	ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
 	add_child(ped)
-	_crowd_room -= 1
 
 
 ## The stall line mesh is shared with the car parks' 4.4 m bays (Commercial); a kerb bay is

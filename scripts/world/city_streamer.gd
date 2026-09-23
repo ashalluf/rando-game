@@ -366,6 +366,7 @@ func _cancel_build(k: Vector2i) -> void:
 	if chunk:
 		remove_child(chunk)
 		chunk.queue_free()
+		_crowd_frame = -1
 
 
 func _physics_process(_delta: float) -> void:
@@ -421,6 +422,28 @@ func trim_pedestrians() -> void:
 	peds.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_squared_to(pp) > b.global_position.distance_squared_to(pp))
 	for i in over:
 		(peds[i] as Node).queue_free()
+	_crowd_frame = -1
+
+
+## How many more pedestrians fit under max_pedestrians this frame (see take_crowd_room).
+var _crowd_left := 0
+## The frame _crowd_left was counted in; -1 forces a recount (the cap moved, a crowd left).
+var _crowd_frame := -1
+
+
+## Spends one pedestrian's worth of the city-wide cap, for a chunk spawning a walker. One count a
+## frame, shared by every chunk: building in steps, each chunk used to count its own room when its
+## crowd began and keep that number for frames, so it went on filling a cap Quality had lowered
+## in the meantime, and two chunks building side by side both spent the same room.
+func take_crowd_room() -> bool:
+	var frame := Engine.get_process_frames()
+	if frame != _crowd_frame:
+		_crowd_frame = frame
+		_crowd_left = CityChunk.count_crowd_room(get_tree(), max_pedestrians)
+	if _crowd_left <= 0:
+		return false
+	_crowd_left -= 1
+	return true
 
 
 ## The scene places the player at y 1.5, but the city rolls (relief is 5.5 m at the origin):
@@ -557,6 +580,7 @@ func update_streaming(immediate: bool) -> void:
 				_set_far_landmark_visible(id, true)
 			chunks[k].queue_free()
 			chunks.erase(k)
+			_crowd_frame = -1
 	for k in _pending.keys():
 		if maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
 			_cancel_build(k)
@@ -714,6 +738,7 @@ func _install_chunk(k: Vector2i, chunk: CityChunk) -> void:
 		return
 	remove_child(old_chunk)
 	old_chunk.queue_free()
+	_crowd_frame = -1
 
 
 func _new_chunk(k: Vector2i, level: CityChunk.Level) -> CityChunk:

@@ -271,7 +271,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `builds_per_frame` a frame: the half-second upkeep queues its spawns (streets, loop, freeway,
   served in turn) and cars that drive out of range go to a pool (`pool_size`) to be reused
   rather than freed and rebuilt. The upkeep used to build up to 34 in one tick. Parked cars
-  are one chunk build step each for the same reason.
+  are one chunk build step each for the same reason. Walkers spend the crowd cap through
+  `CityStreamer.take_crowd_room()`, one city-wide count a frame (redone whenever the cap
+  moves or a chunk leaves): a chunk that counted its own room when its crowd began kept that
+  number for frames, so it went on filling a cap `Quality` had lowered in the meantime.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -326,7 +329,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `Vehicle._box()` skips every primitive once a generated body model is in use). A car's five
   lights are one mesh with the colours in the vertex colour, so 150 cars cost 150 draws and not
   750, and they stop drawing past 160 m. The shader reads `lamp_factor` itself, so all of it
-  costs nothing by day.
+  costs nothing by day. The headlight beam quads carry UVs shifted by 2 (`_light_quad()`'s
+  `uv_shift`), and `UV.y > 1.5` is how the shader knows to draw a fan that widens and fades
+  along the road instead of a round pool; drawn as a pool, a beam laid flat on the street read
+  as a long white smear.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
@@ -354,6 +360,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   drawn in its sorted place it painted the fire-less street over the fireball and smoke - every
   explosion was sparks and a ring around nothing. Its material has `render_priority` MIN so it
   draws first and the fire lands on top; anything else that reads the screen needs the same.
+  Fire and smoke share `WeaponFX.puff_texture()`, a 128 px billow made once from FBM noise
+  with its edge pushed in and out by the noise (a smooth radial disc read as a glowing ball),
+  and the fireball's colour ramp is HDR - white-hot 4.2 fading through orange to soot - so the
+  core blooms and the edges go dark instead of the whole thing sitting at flat orange.
   Screenshot effects with `tools/glshot/fx_shot.gd` (and store stills with
   `tools/glshot/still_shot.gd`): Godot caps a frame at eight physics ticks (0.133 s) however
   long a software frame really takes, so they count the effect's own elapsed time, never the
@@ -529,7 +539,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   from the district's `"palms"` odds in `CityPlan.DISTRICTS` (`CityChunk._palm_street`), so palms
   run in runs rather than being sprinkled. Street palms pass `collide = false` to `_add_palm()`:
   street trees have never had collision, and solid trunks along a whole boulevard wall the road
-  in and trap cars against the kerb.
+  in and trap cars against the kerb. Landmarks plant palms through `PropFactory.palm()` too
+  (the boardwalk batches them as `palm_<variant>`); their old hand-built stick-and-frond palms
+  are kept only for the far version, where they read as a silhouette and nothing more. Up close
+  they looked like spiders.
 - Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes
   one, detailed (with a StaticBody3D for shapes) or far (no collision). Add a new one by adding an
   entry and a `_build_<id>()` function. Everything original: no real names, logos or copies.
@@ -542,7 +555,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   have true parallax (lean left, see the room's right wall) instead of glass painted on a wall.
   Each room gets its own paint, depth falloff and a blind pulled to its own height. This is the
   single technique that stops a box reading as a box; do not replace it with a gradient.
-  `room_depth` and `interior_enabled` are the knobs.
+  `room_depth` and `interior_enabled` are the knobs. At night a lit office is the same room
+  lit from inside (`room_interior()` also returns where the ray landed and how much light
+  falls there): a grid of ceiling panels, walls brighter toward the ceiling, a dim floor and
+  a desk or partition silhouette in half the rooms, all emitted - not a flat yellow pane, which
+  from the air turned every tower into a lit spreadsheet.
   Roofs pick a covering per building (`Building.roof_style` -> the shader's `roof_style`): white
   single-ply membrane with welded seams and ponding, gravel ballast, or patched bitumen. Roof
   plant scales with the roof's area rather than a flat count, and includes air-conditioning
