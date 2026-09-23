@@ -988,6 +988,23 @@ const MODEL_DIR := "res://assets/models/"
 ## `include` and none in `exclude` into one mesh. `xform` is applied to everything (used to
 ## move a variant to the origin and turn it to face -Z); `overrides` maps a node-name substring
 ## to a Transform3D that replaces that node's own transform (kits that ship parts unassembled).
+## Most triangles a street prop's full-detail mesh may have, by model file. The Poly Haven scans
+## are film assets: a street lamp came in at 30,610 triangles, a hydrant at 43,158 and a concrete
+## road barrier at 60,928 - a whole generated car is about thirty thousand. Street props go
+## through MultiMesh batches, and a batch picks ONE mesh LOD for all its instances from its
+## nearest point, so every lamp on a block the player is standing on drew at full detail, and
+## again into the shadow cascades: on a downtown street the lamps alone were eleven million
+## triangles across the streamed blocks. Over budget, model_mesh() makes the LOD nearest the
+## budget the new base mesh (and rebuilds the coarser ones under it). Hard-surface props only:
+## foliage LODs collapse leaf cards, so trees and bushes are not listed.
+const TRI_BUDGET := {
+	"prop_lamp.glb": 3000, "prop_hydrant.glb": 9000, "prop_bench_kit.glb": 4000,
+	"prop_cafe_set.glb": 3500, "prop_planter.glb": 1500, "prop_trash_can.glb": 2500,
+	"prop_manhole.glb": 400, "prop_barrier.glb": 2000, "prop_barrier_b.glb": 2000,
+	"prop_tyre.glb": 1500, "prop_ac.glb": 3000,
+}
+
+
 static func model_mesh(path: String, include: PackedStringArray = [], exclude: PackedStringArray = [], xform: Transform3D = Transform3D.IDENTITY, overrides: Dictionary = {}) -> Mesh:
 	var key := "model_%s_%s_%s_%s" % [path, ",".join(include), ",".join(exclude), var_to_str(xform)]
 	if _cache.has(key):
@@ -1000,12 +1017,44 @@ static func model_mesh(path: String, include: PackedStringArray = [], exclude: P
 		_merge_into(root, root, importer, include, exclude, xform, overrides)
 		if importer.get_surface_count() > 0:
 			importer.generate_lods(25.0, 60.0, [])
+			var budget: int = TRI_BUDGET.get(path.get_file(), 0)
+			if budget > 0:
+				importer = _within_budget(importer, budget)
 			mesh = importer.get_mesh()
 		root.free()
 	else:
 		push_warning("PropFactory: missing model " + path)
 	_cache[key] = mesh
 	return mesh
+
+
+## `src` rebuilt with each surface's base indices swapped for its coarsest generated LOD that
+## still keeps its share of `budget` triangles, then LODs regenerated below that. Unchanged if it
+## is already under budget or no LOD is coarse enough to help.
+static func _within_budget(src: ImporterMesh, budget: int) -> ImporterMesh:
+	var total := 0
+	for s in src.get_surface_count():
+		var idx = src.get_surface_arrays(s)[Mesh.ARRAY_INDEX]
+		if idx != null:
+			total += (idx as PackedInt32Array).size() / 3
+	if total <= budget:
+		return src
+	var share := float(budget) / float(total)
+	var out := ImporterMesh.new()
+	for s in src.get_surface_count():
+		var arrays := src.get_surface_arrays(s)
+		var base = arrays[Mesh.ARRAY_INDEX]
+		if base != null:
+			var want := int(ceil(float((base as PackedInt32Array).size() / 3) * share))
+			var best: PackedInt32Array = base
+			for l in src.get_surface_lod_count(s):
+				var lod := src.get_surface_lod_indices(s, l)
+				if lod.size() / 3 >= want and lod.size() < best.size():
+					best = lod
+			arrays[Mesh.ARRAY_INDEX] = best
+		out.add_surface(src.get_surface_primitive_type(s), arrays, [], {}, src.get_surface_material(s), src.get_surface_name(s))
+	out.generate_lods(25.0, 60.0, [])
+	return out
 
 
 static func _merge_into(node: Node, root: Node, importer: ImporterMesh, include: PackedStringArray, exclude: PackedStringArray, xform: Transform3D, overrides: Dictionary) -> void:

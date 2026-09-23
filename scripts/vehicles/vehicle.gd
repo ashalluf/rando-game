@@ -231,6 +231,12 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 ## distance is the same one draw call it was before the wheels existed. A hundred and fifty
 ## traffic cars times four wheels is why this number is not bigger.
 @export var wheel_draw_distance: float = 85.0
+## The body casts a shadow only inside this range (metres), and drops to coarser mesh LODs past
+## it (BODY_LOD_BIAS). Measured on a downtown street, the cars were 3.6 of 12.4 million triangles
+## a frame: four hundred and fifty generated bodies, every one drawn again into the shadow
+## cascades out to half a kilometre. A parked car's shadow at a hundred metres is a few pixels
+## under a building's.
+@export var body_shadow_distance: float = 70.0
 ## Past this the brake calipers stop drawing. A caliper is a hundred triangles and at thirty
 ## meters it is two pixels behind a spoke.
 @export var caliper_distance: float = 26.0
@@ -809,8 +815,29 @@ func _wheel_pose() -> Dictionary:
 ## Rolls the wheels, steers the front pair and swaps the LOD mesh. One pass for traffic and
 ## driven cars alike: the spin comes from the car's own speed, not from the physics wheels,
 ## because a kinematic traffic car does not have any.
+## Mesh LOD bias for the body per tier (inside body_shadow_distance, out to 180 m, beyond).
+const BODY_LOD_BIAS := [1.0, 0.5, 0.25]
+var _body_meshes: Array[MeshInstance3D] = []
+var _body_tier: int = -1
+
+
+## Shadow and LOD tier for the body, from its distance to the camera's focus.
+func _update_body_tier(dist: float) -> void:
+	var tier := 0 if dist < body_shadow_distance else (1 if dist < 180.0 else 2)
+	if tier == _body_tier:
+		return
+	_body_tier = tier
+	for m in _body_meshes:
+		if is_instance_valid(m):
+			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 \
+				else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			m.lod_bias = BODY_LOD_BIAS[tier]
+
+
 func _update_wheels(delta: float) -> void:
 	if _wheel_rigs.is_empty():
+		if not _body_meshes.is_empty():
+			_update_body_tier(global_position.distance_to(_focus_point()))
 		return
 	# Before the range test, not after it: this is the only place it is updated, and a traffic
 	# car that spent ten seconds out of range would come back reading all of that heading change
@@ -820,6 +847,7 @@ func _update_wheels(delta: float) -> void:
 	_last_yaw = yaw_now
 	var focus := _focus_point()
 	var dist := global_position.distance_to(focus)
+	_update_body_tier(dist)
 	if dist > _wheel_far_end:
 		return
 	var near := _wheel_near
@@ -951,6 +979,7 @@ func _add_body_model(length: float) -> bool:
 	var painted_mats: Array[ShaderMaterial] = []
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
+		_body_meshes.append(m)
 		var box := m.mesh.get_aabb()
 		aabb = box if first else aabb.merge(box)
 		first = false

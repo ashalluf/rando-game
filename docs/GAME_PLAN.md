@@ -251,6 +251,14 @@ already mapped so milestone 2 is script-only.
   measured 800 draws and a million triangles. Still heavy and next: about 5,000 draws a frame,
   mostly buildings built from many separate parts. GPU time itself cannot be measured here
   (lavapipe); the owner's F1 stats line, or a Mac runner (G1), is what would.
+  Second pass the same day: the Poly Haven street props were film assets - a lamp 30,610
+  triangles, a hydrant 43,158, a concrete barrier 60,928 - and a MultiMesh batch draws all its
+  instances at the LOD of its nearest point. `PropFactory.TRI_BUDGET` now makes a generated LOD
+  the base mesh when a prop is over budget (lamp 3.8k, hydrant 10.8k, barrier 3.8k; checked
+  close up against the originals): the lamps across the streamed blocks went from 11.0 to 1.4
+  million triangles. Cars got the pedestrians' treatment (`Vehicle.body_shadow_distance` 70 m,
+  `BODY_LOD_BIAS`): 3.6 -> 1.7 million triangles on the street. Trees (about 47k each, with
+  leaf cards that a simplifier would collapse) are the largest thing left.
 
 - **2026-09-23 A warmer grade, measured in Forward+ (owner: "fix the grade").** Six gameplay
   frames measured before touching anything: contrast was fine on the street at noon (p5/p50/p95

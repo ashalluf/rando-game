@@ -538,7 +538,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   2.2 scales it to the window. The HUD's quality line shows the 3D resolution in use.
   Pedestrians cast shadows only inside `Pedestrian.shadow_range` (45 m) and drop to coarser
   mesh LODs with distance (`LOD_BIAS`): on a downtown street the crowd was 6.4 of 15.7 million
-  triangles a frame, most of it shadow passes of 16k-triangle rigs; now 2.4. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
+  triangles a frame, most of it shadow passes of 16k-triangle rigs; now 2.4. Cars do the same
+  (`Vehicle.body_shadow_distance`, `BODY_LOD_BIAS`). Street props have a per-model triangle
+  budget, `PropFactory.TRI_BUDGET`: the Poly Haven scans are film assets (a lamp was 30k
+  triangles, a barrier 61k) and a MultiMesh batch draws every instance at the LOD of its nearest
+  point, so over budget `model_mesh()` makes a generated LOD the base mesh. Add new hard-surface
+  props to it; not foliage, whose leaf cards a simplifier collapses. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
   objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
   frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in
