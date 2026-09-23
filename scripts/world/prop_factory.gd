@@ -896,7 +896,9 @@ static func vehicle_lights(width: float, length: float, y: float) -> Mesh:
 		_light_quad(st, Vector3(x, y, -length * 0.5 - 0.06), Vector3(0.62, 0.0, 0.0), Vector3(0.0, 0.34, 0.0), head)
 		_light_quad(st, Vector3(x, y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail)
 	# The beam on the road: a wide wedge lying flat in front of the car.
-	_light_quad(st, Vector3(0.0, 0.10 - y, -length * 0.5 - 4.2), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 11.0), Color(1.0, 0.94, 0.80, 0.62))
+	# Its UVs sit in 2..3 instead of 0..1, which is how light_pool.gdshader tells it from a
+	# round lamp pool and draws a fan instead of a blob.
+	_light_quad(st, Vector3(0.0, 0.10 - y, -length * 0.5 - 4.2), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 11.0), Color(1.0, 0.94, 0.80, 0.62), 2.0)
 	var mesh := st.commit()
 	mesh.surface_set_material(0, light_pool_material())
 	_cache[key] = mesh
@@ -905,14 +907,14 @@ static func vehicle_lights(width: float, length: float, y: float) -> Mesh:
 
 ## One quad centred at `at`, spanning `u` and `v`, with UVs 0..1 so the light shader's radial
 ## falloff works, and `c` in the vertex colour.
-static func _light_quad(st: SurfaceTool, at: Vector3, u: Vector3, v: Vector3, c: Color) -> void:
+static func _light_quad(st: SurfaceTool, at: Vector3, u: Vector3, v: Vector3, c: Color, uv_shift: float = 0.0) -> void:
 	var corners := [[-0.5, -0.5, Vector2(0.0, 1.0)], [0.5, -0.5, Vector2(1.0, 1.0)],
 		[0.5, 0.5, Vector2(1.0, 0.0)], [-0.5, 0.5, Vector2(0.0, 0.0)]]
 	var order := [0, 1, 2, 0, 2, 3]
 	for i in order:
 		var corner: Array = corners[i]
 		st.set_color(c)
-		st.set_uv(corner[2])
+		st.set_uv(corner[2] + Vector2(0.0, uv_shift))
 		st.set_normal(Vector3(0.0, 0.0, 1.0))
 		st.add_vertex(at + u * corner[0] + v * corner[1])
 

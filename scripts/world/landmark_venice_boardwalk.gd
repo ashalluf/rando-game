@@ -371,7 +371,18 @@ static func _palm_rows(anchor: Vector2, parent: Node3D, plan: CityPlan, batch: M
 				continue
 			var prng := RandomNumberGenerator.new()
 			prng.seed = detail_seed
-			_palm(batch, _at(anchor, plan, x, z, 0.0), h, yaw, lean, fronds, trunk, crown, frond, skirt, prng)
+			if detailed:
+				# Up close, the city's own palm (PropFactory.palm(): a real trunk and feathered,
+				# folded fronds that sway). The box-and-cylinder palm below is fine as a speck
+				# on the horizon, but in the owner's first store still the boardwalk rows read
+				# as black spiders against the sunset next to the street palms beside them.
+				# Same batch key as the street palms, so it costs no extra draw call.
+				var variant := prng.randi() % PropFactory.PALM_VARIANTS
+				var ps := clampf(h / 14.0, 0.8, 1.4)
+				batch.add("palm_%d" % variant, PropFactory.palm(variant),
+					Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(ps, ps, ps)), _at(anchor, plan, x, z, 0.0)))
+			else:
+				_palm(batch, _at(anchor, plan, x, z, 0.0), h, yaw, lean, fronds, trunk, crown, frond, skirt, prng)
 
 
 ## One palm: a tapered 7-sided trunk, a crown, a ring of two-piece fronds that leave the crown

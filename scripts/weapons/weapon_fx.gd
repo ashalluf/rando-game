@@ -219,17 +219,37 @@ static var _puff_cache: Texture2D
 static func puff_texture() -> Texture2D:
 	if _puff_cache != null:
 		return _puff_cache
-	var gradient := Gradient.new()
-	gradient.set_color(0, Color(1.0, 1.0, 1.0, 1.0))
-	gradient.set_color(1, Color(1.0, 1.0, 1.0, 0.0))
-	gradient.add_point(0.45, Color(1.0, 1.0, 1.0, 0.85))
-	var tex := GradientTexture2D.new()
-	tex.gradient = gradient
-	tex.width = 64
-	tex.height = 64
-	tex.fill = GradientTexture2D.FILL_RADIAL
-	tex.fill_from = Vector2(0.5, 0.5)
-	tex.fill_to = Vector2(1.0, 0.5)
+	# A billow, not a disc. The puffs used to be a smooth radial gradient, so a fireball of forty
+	# of them read as one soft blob and smoke as fog: nothing in it caught the eye as fire. Here
+	# the edge is pushed in and out by fractal noise and the inside carries lumps and folds, and
+	# every particle is spun to its own angle, so a burst is rolling, lumpy and never the same
+	# twice. Built once (a few ms) and cached; the loading screen pays for it.
+	var size := 128
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	var noise := FastNoiseLite.new()
+	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	noise.seed = 71
+	noise.frequency = 0.035
+	noise.fractal_type = FastNoiseLite.FRACTAL_FBM
+	noise.fractal_octaves = 4
+	var detail := FastNoiseLite.new()
+	detail.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	detail.seed = 13
+	detail.frequency = 0.11
+	for y in size:
+		for x in size:
+			var dx := (float(x) + 0.5) / float(size) * 2.0 - 1.0
+			var dy := (float(y) + 0.5) / float(size) * 2.0 - 1.0
+			var r := sqrt(dx * dx + dy * dy)
+			var n := noise.get_noise_2d(float(x), float(y)) * 0.5 + 0.5
+			var d := detail.get_noise_2d(float(x), float(y)) * 0.5 + 0.5
+			var edge := 0.58 + 0.42 * n
+			var a := 1.0 - smoothstep(edge * 0.45, edge, r)
+			a *= 0.75 + 0.25 * d
+			var shade := 0.58 + 0.30 * n + 0.12 * d
+			img.set_pixel(x, y, Color(shade, shade, shade, clampf(a, 0.0, 1.0)))
+	img.generate_mipmaps()
+	var tex := ImageTexture.create_from_image(img)
 	_puff_cache = tex
 	return tex
 
@@ -895,8 +915,11 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	# Slow and fat, not fast and small: a fireball is one rolling mass of overlapping puffs.
 	# Throwing them outward at the blast speed just scatters them into separate dots.
 	_puff_layer(parent, at, _count(38), radius * 0.52, 0.95, radius * 0.18, radius * 0.7, 2.5,
-		_ramp([Color(1.6, 1.45, 1.0, 1.0), Color(1.25, 0.66, 0.16, 1.0),
-			Color(0.62, 0.18, 0.04, 0.85), Color(0.13, 0.10, 0.09, 0.0)]), false, 180.0, 1.6)
+		# HDR on purpose: a fireball's core is many times brighter than a sunlit street, and
+		# at 1.6 it tonemapped to pale orange, barely brighter than the sky, and never reached
+		# the glow pass. Now the first third blooms white-yellow and it cools through orange.
+		_ramp([Color(4.2, 3.3, 1.9, 1.0), Color(3.0, 1.45, 0.34, 1.0),
+			Color(0.9, 0.26, 0.05, 0.9), Color(0.13, 0.10, 0.09, 0.0)]), false, 180.0, 1.6)
 
 	# 4. Smoke: slower, bigger, lingers and drifts up after the fire is gone.
 	_puff_layer(parent, at + Vector3.UP * radius * 0.3, _count(26), radius * 0.62, 2.8,

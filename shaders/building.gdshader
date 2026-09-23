@@ -143,7 +143,11 @@ void vertex() {
 // you see the right-hand wall of the room - which is what stops a tower reading as a painted
 // box. `w` is the position across the window in 0..1, `dir` is the view ray in wall space
 // (x along the wall, y up, z into the building).
-vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float room_seed, float blind_chance, out float depth_t) {
+// `lamp` comes back as how strongly the room's own ceiling lights light the point the ray hit, for
+// a room that is lit after dark: the ceiling panels themselves, the walls brighter toward the
+// ceiling, the floor dimmest, a blind glowing from behind, and desks and partitions as dark
+// shapes against it. A lit window is that room, not a flat warm tile.
+vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float room_seed, float blind_chance, out float depth_t, out float lamp) {
 	vec3 ro = vec3(w.x * wide, w.y * high, 0.0);
 	float best = 1e9;
 	int surface = 0; // 0 back wall, 1 side wall, 2 floor, 3 ceiling
@@ -161,6 +165,21 @@ vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float r
 	}
 	best = min(best, 1e8);
 	depth_t = clamp(best / max(deep, 0.01), 0.0, 2.0);
+	vec3 hit = ro + dir * best;
+	float up_k = clamp(hit.y / max(high, 0.01), 0.0, 1.0);
+	if (surface == 3) {
+		// Recessed panels on a grid, offset per room so a floor of offices is not one pattern.
+		vec2 g = hit.xz / vec2(1.8, 1.5) + vec2(hash21(vec2(room_seed, 5.5)), hash21(vec2(room_seed, 6.5)));
+		vec2 f = abs(fract(g) - 0.5);
+		float panel = (1.0 - smoothstep(0.20, 0.26, f.x)) * (1.0 - smoothstep(0.30, 0.36, f.y));
+		lamp = 0.55 + 2.6 * panel;
+	} else if (surface == 0) {
+		lamp = 0.45 + 0.55 * up_k;
+	} else if (surface == 1) {
+		lamp = 0.35 + 0.45 * up_k;
+	} else {
+		lamp = 0.30;
+	}
 
 	// Each room gets its own paint, and the surfaces differ the way a real room does: the
 	// ceiling catches the most daylight, the floor the least.
@@ -182,6 +201,21 @@ vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float r
 	// Light falls off with how far into the room the ray reached.
 	col *= mix(1.0, 0.35, clamp(depth_t, 0.0, 1.0));
 
+	// Desks and partitions, in half the rooms: a slab across the room at desk height, which a
+	// lit office shows as a dark band with the glow above it - the silhouette that says someone
+	// works there. Only where the ray meets it before the far surface.
+	if (hash21(vec2(room_seed, 41.7)) > 0.5 && dir.z > 1e-4) {
+		float z0 = deep * mix(0.35, 0.6, hash21(vec2(room_seed, 43.1)));
+		float t0 = z0 / dir.z;
+		vec3 q = ro + dir * t0;
+		float top = high * mix(0.30, 0.42, hash21(vec2(room_seed, 44.9)));
+		if (t0 < best && q.y < top && q.y > 0.0) {
+			col = vec3(0.10, 0.10, 0.11);
+			lamp = 0.18 + 0.25 * (q.y / top);
+			depth_t = clamp(t0 / max(deep, 0.01), 0.0, 2.0);
+		}
+	}
+
 	// Blinds, hanging just inside the glass at a height that differs room to room. Nothing says
 	// "occupied building" like a facade where every blind is pulled to a different level.
 	float drop = hash21(vec2(room_seed, 23.7));
@@ -193,6 +227,8 @@ vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float r
 			blind *= 0.88 + 0.12 * step(0.5, fract((w.y - level) * 26.0));
 			col = blind;
 			depth_t = 0.0;
+			// Lit from behind, a blind is a warm translucent panel, brighter than the room.
+			lamp = 1.05;
 		}
 	}
 	return col;
@@ -330,6 +366,10 @@ void fragment() {
 			reveal = !glass && abs(fu - 0.5) < hw + 0.05 && abs(fv - cy) < hh + 0.05;
 		}
 		if (glass) {
+			// The room behind the glass as traced, before the daylight exposure, and how its
+			// own lights fall on it (room_interior). Used to light an occupied room after dark.
+			vec3 room_raw = vec3(0.0);
+			float room_lamp = -1.0;
 			// Offices, not bays. A tower after dark does not light up as a checkerboard of
 			// single windows: a tenancy takes a run of three or four bays and leaves them all
 			// on, some floors go dark altogether, and a few are lit end to end because somebody
@@ -363,7 +403,8 @@ void fragment() {
 				float high = max(2.0 * win_h.y * (storefront ? ground_floor_height : floor_height), 0.2);
 				float depth_t = 0.0;
 				// Offices are full of blinds; a shop window with a blind in it is not a shop.
-				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, storefront ? 0.10 : 0.72, depth_t);
+				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, storefront ? 0.10 : 0.72, depth_t, room_lamp);
+				room_raw = room;
 				// Daylight outside is many stops brighter than anything indoors, so the room
 				// arrives dark; at night an unlit room is darker still.
 				// A shop is lit inside even in daylight; an office floor is not.
@@ -444,8 +485,17 @@ void fragment() {
 				// with none of the interior mapping or the sky reflection visible through it.
 				// A real office window shows nothing from the street in daylight.
 				float on = night_factor;
-				albedo = mix(albedo, lit_color, 0.7 * on);
-				emission = lit_color * glow * lit_strength * on;
+				if (room_lamp >= 0.0 && !storefront) {
+					// The room itself, lit by its own ceiling: panels, a bright upper wall, a
+					// dim floor, a glowing blind, a dark desk line. It used to be one flat
+					// lit_color tile, and a tower after dark read as a checkerboard of them.
+					vec3 lit_room = room_raw * lit_color * room_lamp * glow;
+					albedo = mix(albedo, albedo * 0.35, on);
+					emission = lit_room * lit_strength * 2.0 * on;
+				} else {
+					albedo = mix(albedo, lit_color, 0.7 * on);
+					emission = lit_color * glow * lit_strength * on;
+				}
 				metal = mix(metal, 0.0, on);
 				rough = mix(rough, 0.5, on);
 			}
