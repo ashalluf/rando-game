@@ -79,6 +79,12 @@ uniform float beltline = 0.56;
 // Slope band that counts as glass: the up-component of the body-space normal.
 uniform float glass_slope_min = 0.10;
 uniform float glass_slope_max = 0.86;
+// How much of the lacquer's reflection survives where it would see the city rather than the sky:
+// reflected rays within `canyon_rise` of level. The radiance map is the open sky in every
+// direction, but a car door in a street reflects the buildings opposite, which are far darker
+// than the pale horizon - with the whole coat there, every car side took a pale-blue sheen.
+uniform float canyon_reflect = 0.4;
+uniform float canyon_rise = 0.45;
 
 varying vec3 world_pos;
 // x = along the car, y = up, z = across, all 0..1 over the body's bounding box.
@@ -208,6 +214,10 @@ void fragment() {
 	// Matte paint drops its own coat to zero but the glass keeps one.
 	// Glass keeps a lacquer-sharp reflection but not a full one: at grazing angles a full coat
 	// turned every window into a sheet of sky the same pale blue as the paint around it.
-	CLEARCOAT = max(clearcoat_amount * body, glass_clearcoat * glass * mix(1.0, 0.6, shape_glass));
+	vec3 w_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	vec3 w_view = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
+	float rise = reflect(-w_view, w_normal).y;
+	float open_sky = mix(canyon_reflect, 1.0, smoothstep(0.0, canyon_rise, rise));
+	CLEARCOAT = max(clearcoat_amount * body, glass_clearcoat * glass * mix(1.0, 0.6, shape_glass)) * open_sky;
 	CLEARCOAT_ROUGHNESS = clearcoat_roughness_value;
 }
