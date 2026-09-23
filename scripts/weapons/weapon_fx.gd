@@ -1061,6 +1061,12 @@ void fragment() {
 	mat.shader = _shimmer_shader
 	mat.set_shader_parameter("strength", shimmer_strength)
 	mat.set_shader_parameter("fade", 1.0)
+	# Drawn FIRST among the transparent things. The screen texture it reads is captured before
+	# any of them are drawn, so drawn in its sorted place - in front of the fireball it sits in -
+	# it painted the street as it looked without the fire straight over the fireball and the
+	# smoke, and every explosion in the game was sparks and a ring around nothing. Drawn first,
+	# it bends the street behind the blast and the fire goes on top, which is what heat does.
+	mat.render_priority = Material.RENDER_PRIORITY_MIN
 	var mesh := MeshInstance3D.new()
 	var sphere := SphereMesh.new()
 	sphere.radius = 0.5

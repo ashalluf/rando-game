@@ -13,9 +13,8 @@ extends SceneTree
 ## FX_RADIUS blast radius, FX_TIME how many seconds into the effect to photograph (0.35 catches
 ## the fireball at full size, 1.8 catches the smoke), TIME_SCALE the slow-motion factor.
 ##
-## Do not count frames here: a frame takes most of a second under llvmpipe and the length varies,
-## so "wait five frames" lands anywhere from the first millisecond of the blast to well after it.
-## Slowing the clock and then waiting on real elapsed time puts the shot where it was asked for.
+## The wait counts the effect's own elapsed time (the sum of frame deltas), because Godot caps
+## each frame at eight physics ticks however long the software frame really took.
 func _initialize() -> void:
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	for i in _env_int("FRAMES", 70):
@@ -29,17 +28,19 @@ func _initialize() -> void:
 	var forward := -cam.global_basis.z
 	var at := cam.global_position + forward * float(_env_int("FX_AT", 14))
 	at.y = player.global_position.y
-	# Keep this tiny. Each software-rendered frame takes most of a second, so even a modest time
-	# scale advances the effect past the fireball in one or two frames and every shot lands on an
-	# empty street. 0.004 gives roughly a frame per 4 ms of effect time.
-	var scale := float(OS.get_environment("TIME_SCALE")) if OS.get_environment("TIME_SCALE") != "" else 0.004
+	# Godot caps a frame at eight physics ticks (0.133 s) however long it really took, so the
+	# effect advances 0.133 s x TIME_SCALE per frame: the default 0.375 is 0.05 s a frame.
+	var scale := float(OS.get_environment("TIME_SCALE")) if OS.get_environment("TIME_SCALE") != "" else 0.375
 	var want := float(OS.get_environment("FX_TIME")) if OS.get_environment("FX_TIME") != "" else 0.35
 	Engine.time_scale = scale
 	WeaponFX.explosion(player, at, float(_env_int("FX_RADIUS", 9)))
-	# Game time runs at `scale` of real time, so wait out want/scale seconds of wall clock.
-	var started := Time.get_ticks_msec()
-	while (Time.get_ticks_msec() - started) * 0.001 * scale < want:
+	# Count the effect's own time, not the wall clock: that cap means game time does NOT run at
+	# `scale` of real time, and waiting on the wall clock stopped every shot in the first few
+	# milliseconds of the blast, before the fireball had grown.
+	var elapsed := 0.0
+	while elapsed < want:
 		await process_frame
+		elapsed += get_root().get_process_delta_time()
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "fx_shot.png"
