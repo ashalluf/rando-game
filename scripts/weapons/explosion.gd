@@ -67,4 +67,6 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 	# debris further, so the picture and the physics agree instead of every blast looking alike.
 	WeaponFX.explosion(node, at, radius, launch_speed / maxf(reference_launch, 1.0))
 	Sfx.play("explosion", at, 4.0)
+	# Everyone for a block around runs; the ones nearest scream.
+	Pedestrian.alarm(node.get_tree(), at, maxf(55.0, radius * 6.0), 5, true)
 	return affected

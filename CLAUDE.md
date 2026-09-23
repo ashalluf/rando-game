@@ -184,7 +184,7 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
-  Sound is **real CC0 recordings** (`assets/audio/`, 32 clips, sources in `docs/ASSETS.md`) with
+  Sound is **real CC0 recordings** (`assets/audio/`, 58 clips, sources in `docs/ASSETS.md`) with
   the old synthesis kept as the fallback: `_build_synth()` fills every name first and
   `_load_samples()` replaces only the names whose files load, so a missing or unimported file
   degrades to a tone rather than to silence. A name holds several takes and `play()` picks one at
@@ -265,6 +265,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - NPCs: `Pedestrian` (wanders a block's sidewalk ring, `knock(impulse)` turns it into a `Ragdoll`
   debris) and `TrafficManager` (kinematic `Vehicle`s with `traffic` state driving the lanes).
   Never freeze a VehicleBody3D and never give a kinematic one VehicleWheel3D nodes: NaN.
+  Panic (owner, 2026-09-23: "when you shoot there should be NPCs screaming"):
+  `Pedestrian.alarm(tree, at, radius, screams)` scares everyone in range - they run
+  (`run_speed`, the avatar's run clip) along their pavement ring away from the threat for
+  `panic_seconds`, and the nearest few of the newly scared scream (Sfx `scream`, 12 real takes,
+  spaced across the crowd by `scream_gap_ms`). `Weapon.tick()` raises it at `alarm_radius` from
+  the shooter (0 for the gravity gun), `Explosion.blast()` at six blast radii. One pass over the
+  crowd group per alarm, rate-limited per spot, so an automatic rifle costs nothing extra.
   Population (owner, 2026-09-20: "an actual very populated city", densest downtown, thinning
   outward, the airport jam-packed): `"people"` and `"parked"` per block live in
   `CityPlan.DISTRICTS` (the downtown core doubles people via `skyline_boost`), the caps are

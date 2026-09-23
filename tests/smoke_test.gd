@@ -1015,6 +1015,18 @@ func _test_city() -> void:
 			await _ticks(3)
 			var gone := hit_a_person and (not is_instance_valid(instance_from_id(struck_id)) or (instance_from_id(struck_id) as Node).is_queued_for_deletion())
 			_check(hit_a_person and gone, "an AK-47 bullet knocks a pedestrian down")
+		# Gunfire scares people (owner, 2026-09-23: "NPCs screaming"): the ones near it run.
+		var runner: Node3D = null
+		for p in get_tree().get_nodes_in_group("pedestrian"):
+			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down"):
+				if runner == null or (p as Node3D).global_position.distance_to(player.global_position) < runner.global_position.distance_to(player.global_position):
+					runner = p
+		if runner != null:
+			Pedestrian.alarm(get_tree(), runner.global_position + Vector3(3.0, 0.0, 0.0), 15.0, 2, true)
+			await _ticks(12)
+			var flat_speed := Vector2(runner.velocity.x, runner.velocity.z).length() if is_instance_valid(runner) else 0.0
+			_check(is_instance_valid(runner) and float(runner.get("_panic_left")) > 0.0 and flat_speed > float(runner.get("walk_speed")) * 1.5,
+				"a gunshot sends the people near it running (%.1f m/s)" % flat_speed)
 	# Quality levels scale the population, not just the effects (owner: "still super laggy").
 	var quality_node: Node = city.get_node("Quality")
 	var full_cap: int = city.max_pedestrians

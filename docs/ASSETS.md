@@ -159,6 +159,13 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | Mild wind background noise (Bashar3A) | https://opengameart.org/content/mild-wind-background-noise | CC0 1.0 | `assets/audio/wind_0` | 2026-09-21 |
 | High traffic road sounds (IgnasD) | https://opengameart.org/content/high-traffic-road-sounds | CC0 1.0 | `assets/audio/ambience_city_0` | 2026-09-21 |
 | Rain long thunder (WuxiaScrub) | https://opengameart.org/content/rain-long-thunder | CC0 1.0 | `assets/audio/thunder_0` | 2026-09-21 |
+| Female high-pitched scream SFX | https://opengameart.org/content/female-high-pitched-scream-sfx | CC0 1.0 | `assets/audio/scream_0..3` (the four takes, cut apart) | 2026-09-23 |
+| Female Scream 1 (AuraVoice) | https://opengameart.org/content/female-scream-1 | CC0 1.0 | `assets/audio/scream_4` | 2026-09-23 |
+| Male grunt/yelling sounds | https://opengameart.org/content/male-gruntyelling-sounds | CC0 1.0 (dual CC0 / OGA-BY) | `assets/audio/scream_5..11` (yell11, yell2, 3yell13, 3yell1, 3yell14, 2yell5, 1yell4) | 2026-09-23 |
+| Grunts: male death and pain | https://opengameart.org/content/grunts-male-death-and-pain | CC0 1.0 | `assets/audio/yelp_0..3` | 2026-09-23 |
+| Man hurt sounds | https://opengameart.org/content/man-hurt-sounds | CC0 1.0 | `assets/audio/yelp_4..6` | 2026-09-23 |
+| Fleshy bone break/snap SFX | https://opengameart.org/content/fleshy-bone-breaksnap-sfx | CC0 1.0 | `assets/audio/gore_0..4` (Wet Break 1, 3, 5, 7, 9) | 2026-09-23 |
+| 8 wet squish, slurp impacts | https://opengameart.org/content/8-wet-squish-slurp-impacts | CC0 1.0 | `assets/audio/gore_5..6` | 2026-09-23 |
 | jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
 | island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
 | fir_tree_01 | `tree_fir.glb` | 54k tris, 5.2 MB | hill conifers | 2026-09-21 |

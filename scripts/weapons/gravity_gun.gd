@@ -31,6 +31,8 @@ func _init() -> void:
 	display_name = "Gravity Gun"
 	fire_rate = 4.0
 	automatic = false
+	# A tractor beam hums; nobody runs from it (the crate it throws is another matter).
+	alarm_radius = 0.0
 	kick_distance = 0.15
 	camera_kick_deg = 0.0
 

@@ -16,6 +16,10 @@ extends Node3D
 @export var kick_recover_speed: float = 14.0
 ## Camera pitch kick per shot (degrees).
 @export var camera_kick_deg: float = 0.5
+## People within this many metres of the shooter panic and run when it fires (0 = a quiet gun).
+@export var alarm_radius: float = 45.0
+## How many of the newly frightened scream per shot.
+@export var alarm_screams: int = 3
 
 var player: Player
 ## Where shots and effects start. Set by _build_model().
@@ -48,6 +52,7 @@ func tick(delta: float) -> void:
 		_fire(aim)
 		player.camera_rig.kick(camera_kick_deg)
 		player.notify_fired()
+		Pedestrian.alarm(get_tree(), player.global_position, alarm_radius, alarm_screams)
 	if Input.is_action_just_pressed("alt_fire"):
 		_alt_fire(player.get_aim())
 	_update(delta)

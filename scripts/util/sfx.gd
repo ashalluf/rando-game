@@ -67,6 +67,16 @@ const SAMPLES := {
 	"wind": ["wind_0.ogg"],
 	"ambience_city": ["ambience_city_0.ogg"],
 	"thunder": ["thunder_0.ogg"],
+	# People. Screams are five female takes and seven male yells from four different voices, so
+	# a panicking street is a crowd and not one person on a loop; yelp is the pain grunt of
+	# someone knocked down; gore is the wet crack of a limb coming off.
+	"scream": ["scream_0.ogg", "scream_1.ogg", "scream_2.ogg", "scream_3.ogg", "scream_4.ogg",
+		"scream_5.ogg", "scream_6.ogg", "scream_7.ogg", "scream_8.ogg", "scream_9.ogg",
+		"scream_10.ogg", "scream_11.ogg"],
+	"yelp": ["yelp_0.ogg", "yelp_1.ogg", "yelp_2.ogg", "yelp_3.ogg", "yelp_4.ogg", "yelp_5.ogg",
+		"yelp_6.ogg"],
+	"gore": ["gore_0.ogg", "gore_1.ogg", "gore_2.ogg", "gore_3.ogg", "gore_4.ogg", "gore_5.ogg",
+		"gore_6.ogg"],
 }
 
 ## Loudest-50 ms level of every take above, in dB, in the same order, measured off the committed
@@ -90,6 +100,10 @@ const SAMPLE_LOUDNESS_DB := {
 	"wind": [-16.11],
 	"ambience_city": [-18.05],
 	"thunder": [-10.47],
+	"scream": [-14.30, -13.93, -13.99, -14.16, -13.98, -14.02, -14.10, -14.14, -14.00, -14.01,
+		-13.95, -13.96],
+	"yelp": [-13.93, -13.96, -13.96, -14.10, -14.21, -14.11, -14.01],
+	"gore": [-11.97, -13.00, -13.86, -12.48, -14.75, -12.11, -11.95],
 }
 
 ## Sample names that have to loop. Set on the stream in code rather than in the .import file, so
@@ -252,6 +266,8 @@ func _build_synth() -> void:
 	_put("crash", _noise_burst(0.45, 8.0, 1.0, 0.15))
 	_put("horn", _horn(0.5))
 	_put("yelp", _yelp(0.4))
+	_put("scream", _yelp(1.1))
+	_put("gore", _noise_burst(0.3, 16.0, 0.8, 0.05))
 	_put("click", _sweep(0.05, 1200.0, 900.0, 0.4))
 	_put("boost_loop", _boost_loop(0.6), true)
 	_put("engine_loop", _engine_loop(0.4), true)

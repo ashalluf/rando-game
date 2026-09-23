@@ -29,6 +29,9 @@ const MODELS := [
 const WALK_CLIP_SPEED := 1.3
 const WALK_CLIP := "Casual_Walk_inplace"
 const IDLE_CLIP := "Idle"
+## The run cycle the player's avatar uses too, and the speed it plays at its natural pace.
+const RUN_CLIP := "run_fast_3_inplace"
+const RUN_CLIP_SPEED := 5.0
 
 @export var walk_speed: float = 1.8
 ## Anything moving faster than this that touches us knocks us over (m/s).
@@ -51,6 +54,26 @@ const IDLE_CLIP := "Idle"
 @export var accessory_chance: float = 0.42
 ## Metres past which a pedestrian's accessory stops drawing.
 @export var accessory_distance: float = 60.0
+## Running pace when frightened (m/s).
+@export var run_speed: float = 5.2
+## How long a scare lasts (seconds, min and max). Another shot while running starts it again.
+@export var panic_seconds: Vector2 = Vector2(7.0, 12.0)
+
+## Seconds of panic left; above zero the pedestrian runs away from `_threat` and never pauses.
+var _panic_left: float = 0.0
+## Where the scare came from (the same XZ space as `ring`).
+var _threat := Vector2.ZERO
+## Counts down to this pedestrian's scream; below zero, no scream is due.
+var _scream_in: float = -1.0
+## When and where the last alarm went off, so an automatic rifle does not re-scan the crowd ten
+## times a second from the same spot.
+static var _last_alarm_ms: int = -100000
+static var _last_alarm_at := Vector3.INF
+## When the last scream started. Screams are spaced out across the whole crowd: a hundred people
+## screaming in the same frame is one loud noise, a few overlapping voices is a panicking street.
+static var _last_scream_ms: int = -100000
+## Shortest gap between two screams anywhere (milliseconds).
+static var scream_gap_ms: int = 140
 
 var ring: Rect2
 var shirt: Color
@@ -834,6 +857,17 @@ func _physics_process(delta: float) -> void:
 	delta *= _lod_stride
 	if _anim:
 		_anim.advance(delta)
+	var panicking := _panic_left > 0.0
+	if panicking:
+		_panic_left -= delta
+		if _scream_in >= 0.0:
+			_scream_in -= delta
+			if _scream_in < 0.0:
+				_scream()
+		if _panic_left <= 0.0:
+			_scream_in = -1.0
+			_target = _random_ring_point(_sidewalk)
+			_play_walk()
 	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
 	# every single person walks without ever stopping reads as a conveyor belt.
 	if _pause_left > 0.0:
@@ -851,14 +885,18 @@ func _physics_process(delta: float) -> void:
 	var here := Vector2(global_position.x, global_position.z) - _ring_origin()
 	var to_target := _target - here
 	if to_target.length() < 1.0:
-		_target = _random_ring_point(_sidewalk)
+		if panicking:
+			_target = _flee_point()
+		else:
+			_target = _random_ring_point(_sidewalk)
 		to_target = _target - here
-		if _anim and _anim.has_animation(IDLE_CLIP) and _style.randf() < pause_chance:
+		if not panicking and _anim and _anim.has_animation(IDLE_CLIP) and _style.randf() < pause_chance:
 			_pause_left = _style.randf_range(pause_seconds.x, pause_seconds.y)
 			_play_idle()
 	var dir := to_target.normalized()
-	velocity.x = dir.x * walk_speed
-	velocity.z = dir.y * walk_speed
+	var speed := run_speed if panicking else walk_speed
+	velocity.x = dir.x * speed
+	velocity.z = dir.y * speed
 	if _kinematic:
 		# Out of reach of the player: walk the pavement directly, on the chunk's own ground
 		# height, with no collision solve. The ring is open pavement, so the path is the same
@@ -872,9 +910,9 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.y = 0.0
 		move_and_slide()
-	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.y), 1.0 - exp(-8.0 * delta))
+	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.y), 1.0 - exp(-(14.0 if panicking else 8.0) * delta))
 	if _anim == null:
-		_bob += delta * walk_speed * 4.0
+		_bob += delta * speed * 4.0
 		_visual.position.y = absf(sin(_bob)) * 0.06
 
 
@@ -984,6 +1022,79 @@ func _on_body_entered(body: Node3D) -> void:
 			return
 	if speed >= knock_speed:
 		knock(dir * (8.0 + speed * 0.6) + Vector3.UP * 6.0)
+
+
+## Frightens everyone within `radius` of `at` (a gunshot, a blast): they run from it, and the
+## `screams` nearest of the ones who were calm scream, each after their own short delay.
+## One pass over the crowd group, and at most one pass per quarter second per spot.
+## `force` skips the rate limit (a blast is bigger news than the shot that caused it).
+static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, force: bool = false) -> void:
+	if tree == null or radius <= 0.0:
+		return
+	var now := Time.get_ticks_msec()
+	if not force and now - _last_alarm_ms < 250 and at.distance_to(_last_alarm_at) < 10.0:
+		return
+	_last_alarm_ms = now
+	_last_alarm_at = at
+	var r2 := radius * radius
+	var fresh: Array = []
+	for n in tree.get_nodes_in_group("pedestrian"):
+		var p := n as Pedestrian
+		if p == null or p._down or not p.is_inside_tree():
+			continue
+		var d2 := p.global_position.distance_squared_to(at)
+		if d2 > r2:
+			continue
+		if p._panic_left <= 0.0:
+			fresh.append([d2, p])
+		p._scare(at)
+	fresh.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	for i in mini(screams, fresh.size()):
+		var p: Pedestrian = fresh[i][1]
+		p._scream_in = p._rng.randf_range(0.05, 0.45) + 0.25 * float(i)
+
+
+func _scare(at: Vector3) -> void:
+	var calm := _panic_left <= 0.0
+	_panic_left = _rng.randf_range(panic_seconds.x, panic_seconds.y)
+	_threat = Vector2(at.x, at.z)
+	_pause_left = 0.0
+	if calm:
+		_target = _flee_point()
+		_play_run()
+
+
+## The spot on this block's pavement ring farthest from the threat, out of a handful: fleeing
+## along the pavement keeps them out of the traffic, and away from it is all a scare needs.
+func _flee_point() -> Vector2:
+	var best := _random_ring_point(_sidewalk)
+	for i in 5:
+		var p := _random_ring_point(_sidewalk)
+		if p.distance_squared_to(_threat) > best.distance_squared_to(_threat):
+			best = p
+	return best
+
+
+func _play_run() -> void:
+	if _anim == null:
+		return
+	if _anim.has_animation(RUN_CLIP):
+		_anim.play(RUN_CLIP, 0.2)
+		_anim.speed_scale = run_speed / RUN_CLIP_SPEED * _gait
+	elif _anim.has_animation(WALK_CLIP):
+		_anim.play(WALK_CLIP, 0.2)
+		_anim.speed_scale = run_speed / WALK_CLIP_SPEED * _gait
+
+
+## Screams now if nobody else in the crowd has just started one, else a moment later.
+func _scream() -> void:
+	var now := Time.get_ticks_msec()
+	if now - _last_scream_ms < scream_gap_ms:
+		_scream_in = _rng.randf_range(0.08, 0.3)
+		return
+	_last_scream_ms = now
+	_scream_in = -1.0
+	Sfx.play("scream", global_position + Vector3.UP * 1.6, 0.0, _rng.randf_range(0.94, 1.08))
 
 
 ## Turns into a ragdoll flung by `impulse`.
