@@ -463,6 +463,15 @@ func _test_city() -> void:
 				player.velocity = Vector3.ZERO
 				city.update_streaming(true)
 				await _ticks(70)
+				# One new car a frame (TrafficManager.builds_per_frame): wait, bounded, for both
+				# directions to have arrived.
+				for i in 30:
+					var dirs := {}
+					for car in traffic.freeway_cars:
+						dirs[int(car.traffic.dir)] = true
+					if dirs.size() >= 2:
+						break
+					await _ticks(10)
 				_check(traffic.freeway_cars.size() > 0, "cars cruise the freeway deck (%d)" % traffic.freeway_cars.size())
 				var on_the_deck := 0
 				var both_ways := {}
@@ -697,8 +706,13 @@ func _test_city() -> void:
 		var curb_c: Vector2 = macro.terminal_curb.get_center()
 		player.global_position = _world_state().to_local(Vector3(curb_c.x, 2.0, curb_c.y + 20.0))
 		city.update_streaming(true)
-		await _ticks(70)
 		var loop_mgr: Node3D = city.get_node("Traffic")
+		# Traffic builds at most one new car a frame (TrafficManager.builds_per_frame), so the jam
+		# forms over a few frames rather than in one; give it a bounded while to get there.
+		for i in 40:
+			await _ticks(10)
+			if loop_mgr.loop_cars.size() >= 20:
+				break
 		_check(loop_mgr.loop_cars.size() >= 20, "airport drop-off loop is jammed (%d cars)" % loop_mgr.loop_cars.size())
 		var curb_people := 0
 		for ped in get_tree().get_nodes_in_group("pedestrian"):

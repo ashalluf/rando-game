@@ -143,7 +143,14 @@ var chunks: Dictionary = {}
 var recenter_count: int = 0
 
 var _player: Node3D
-var _ground: StaticBody3D
+## The ground follower: the drawn plane, which slides with the player (see update_streaming).
+var _ground: Node3D
+## Its collision, a separate body that stays where it is. Moving a static body wakes every body
+## touching it - Godot Physics calls wakeup_neighbours() on any transform set, even to the same
+## value - and this box touches everything in the city: every parked car, trash can and prop.
+## It used to BE the sliding plane, re-placed eight times a second, so nothing in the city could
+## ever stay asleep. Now it moves only when the player is `ground_body_reach` from its centre.
+var _ground_body: StaticBody3D
 ## Where the streaming window was last centred; chunks read it to size their collision.
 var _center_block: Vector2i = Vector2i.ZERO
 ## The block the led streaming window is centred on (update_streaming), for build priority.
@@ -495,9 +502,13 @@ func update_streaming(immediate: bool) -> void:
 	# same world point as the player walks. Unsnapped, the lifted mountains crawl and shimmer.
 	var gstep := ground_step()
 	var off := WorldState.world_offset
-	_ground.position = Vector3(
+	var gpos := Vector3(
 		snappedf(local.x + off.x, gstep) - off.x, 0.0,
 		snappedf(local.z + off.z, gstep) - off.z)
+	if not gpos.is_equal_approx(_ground.position):
+		_ground.position = gpos
+	if Vector2(local.x - _ground_body.position.x, local.z - _ground_body.position.z).length() > ground_size * GROUND_BODY_REACH:
+		_ground_body.position = Vector3(local.x, 0.0, local.z)
 	# The macro map is addressed in true world XZ, so the plane has to know how far the scene's
 	# origin has been shifted from under it.
 	var offset_xz := Vector2(WorldState.world_offset.x, WorldState.world_offset.z)
@@ -800,11 +811,14 @@ func set_ground_haze(color: Color, sun_direction: Vector3) -> void:
 		_ground_material.set_shader_parameter("sun_dir", sun_direction)
 
 
+## How far (as a fraction of ground_size) the player may get from the ground's collision box
+## before it is moved under them again. A quarter of 14 km leaves 3.5 km of box on every side.
+const GROUND_BODY_REACH := 0.25
+
+
 func _build_ground() -> void:
-	_ground = StaticBody3D.new()
+	_ground = Node3D.new()
 	_ground.name = "Ground"
-	_ground.collision_layer = 1
-	_ground.collision_mask = 0 # static never detects; a mask here only makes useless pairs (CLAUDE.md)
 	var mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(ground_size, ground_size)
@@ -823,11 +837,16 @@ func _build_ground() -> void:
 	# four shadow cascades every frame for nothing. It still RECEIVES, which is what matters.
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)
+	add_child(_ground)
+	_ground_body = StaticBody3D.new()
+	_ground_body.name = "GroundBody"
+	_ground_body.collision_layer = 1
+	_ground_body.collision_mask = 0 # static never detects; a mask here only makes useless pairs (CLAUDE.md)
 	var shape := CollisionShape3D.new()
 	var box := BoxShape3D.new()
 	# Thick, so nothing that gets pushed into it by an overlapping shape can pop out underneath.
 	box.size = Vector3(ground_size, 40.0, ground_size)
 	shape.shape = box
 	shape.position = Vector3(0.0, -20.0, 0.0)
-	_ground.add_child(shape)
-	add_child(_ground)
+	_ground_body.add_child(shape)
+	add_child(_ground_body)

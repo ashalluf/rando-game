@@ -269,6 +269,13 @@ already mapped so milestone 2 is script-only.
   4.4 m wide, so traffic plowed through them and flung them; now a 2.6 m bay
   (`CityPlan.PARKING_LANE`) and lanes laid out in what is left. Standing 1552/1668 -> 1210/1245
   ms per game second, flying 1791/1635 -> 1361/1342: about half of this morning's figures.
+  Third pass: the cars still woke in the release build, all 293 at once - the ground follower's
+  collision box was re-placed eight times a second, and moving a static body wakes everything
+  touching it. Split into a sliding drawn plane and a still collision box. Then the hitches:
+  a block's parked cars were one build step (up to 590 ms) and the traffic upkeep built up to 34
+  cars in one tick; now one car per step, at most one traffic build per frame, and a pool of
+  retired traffic cars. Standing 1214/1256 -> 1003/1010 (real time on this machine, worst frame
+  530-591 -> 66-69 ms), flying 1488/1476 -> 1057/1030 (worst frame 659-770 -> 355-370 ms).
 
 - **2026-09-23 Why the game was slow (owner: "why is the game so slow").** Measured rather than
   guessed. (1) Resolution: the window opens maximised and Godot draws every physical Retina

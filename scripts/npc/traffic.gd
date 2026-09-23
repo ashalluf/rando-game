@@ -35,6 +35,16 @@ extends Node3D
 @export var freeway_speed: float = 26.0
 ## Freeway traffic is only kept within this distance of the player, along the route (meters).
 @export var freeway_range: float = 620.0
+## New cars a spawn may BUILD per rendered frame (not per physics tick: a slow frame runs several
+## ticks, and a per-tick cap let it build one in each). Building one is about 35 ms on a slow machine
+## (body model, paint, wheels, lights), and the half-second upkeep used to build up to thirty-four
+## in one tick - street, freeway and airport loop together - which was the worst hitch left in
+## the game. Spawns now queue and run at most this many builds a frame; reusing a retired car from
+## the pool is nearly free and does not count.
+@export var builds_per_frame: int = 1
+## Traffic cars that drive out of range are kept (out of the tree) for the next spawn instead of
+## being freed and rebuilt. Same random cars, none of the building.
+@export var pool_size: int = 60
 
 var plan: CityPlan
 var cars: Array[Vehicle] = []
@@ -46,6 +56,14 @@ var _player: Node3D
 var _rng := RandomNumberGenerator.new()
 var _timer: float = 0.0
 var _loop_lengths: PackedFloat32Array = PackedFloat32Array()
+var _pool: Array[Vehicle] = []
+## Spawns waiting to run (see builds_per_frame): streets, airport loop, freeway. Rebuilt at every
+## upkeep from the cars that exist then, so a queued spawn never fills a slot twice, and served in
+## turn, so a street deficit cannot starve the freeway.
+var _spawn_queues: Array = [[], [], []]
+var _next_queue: int = 0
+var _built_this_frame: int = 0
+var _build_frame: int = -1
 
 
 func _ready() -> void:
@@ -62,8 +80,11 @@ func _physics_process(delta: float) -> void:
 	_timer += delta
 	if _timer >= 0.5:
 		_timer = 0.0
+		for q: Array in _spawn_queues:
+			q.clear()
 		_maintain()
 		_maintain_freeway()
+	_run_spawns()
 	for car in cars.duplicate():
 		if not is_instance_valid(car) or not car.is_traffic():
 			cars.erase(car)
@@ -71,6 +92,59 @@ func _physics_process(delta: float) -> void:
 		_drive(car, delta)
 	_drive_loops(delta)
 	_drive_freeway(delta)
+
+
+func _run_spawns() -> void:
+	if Engine.get_process_frames() != _build_frame:
+		_build_frame = Engine.get_process_frames()
+		_built_this_frame = 0
+	var waiting := 0
+	for q: Array in _spawn_queues:
+		waiting += q.size()
+	if waiting == 0 or _built_this_frame >= builds_per_frame:
+		return
+	if not PhysicsBudget.can_spawn():
+		for q: Array in _spawn_queues:
+			q.clear()
+		return
+	var ran := 0
+	while waiting > 0 and _built_this_frame < builds_per_frame and ran < 8:
+		var q: Array = _spawn_queues[_next_queue]
+		_next_queue = (_next_queue + 1) % _spawn_queues.size()
+		if q.is_empty():
+			continue
+		(q.pop_front() as Callable).call()
+		waiting -= 1
+		ran += 1
+
+
+## A car for a spawn: a retired one from the pool when there is one, else a new build (counted
+## against builds_per_frame).
+func _new_car() -> Vehicle:
+	while not _pool.is_empty():
+		var car: Vehicle = _pool.pop_back()
+		if is_instance_valid(car):
+			return car
+	_built_this_frame += 1
+	return Vehicle.random_car(_rng)
+
+
+## Takes a traffic car off the road: into the pool if there is room, freed otherwise.
+func _retire(car: Vehicle) -> void:
+	if not is_instance_valid(car):
+		return
+	if car.is_traffic() and car.get_parent() == self and _pool.size() < pool_size:
+		remove_child(car)
+		_pool.append(car)
+	else:
+		car.queue_free()
+
+
+func _exit_tree() -> void:
+	for car in _pool:
+		if is_instance_valid(car):
+			car.free()
+	_pool.clear()
 
 
 ## How busy the streets are here, 0..1: the downtown core is 1.0, the far edges edge_density,
@@ -97,7 +171,7 @@ func _maintain() -> void:
 		var zone := plan.zone_at(Vector2(wp.x, wp.z))
 		if wp.distance_to(pw) > despawn_distance or (zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.BEACH):
 			cars.erase(car)
-			car.queue_free()
+			_retire(car)
 	var density := density_at(Vector2(pw.x, pw.z))
 	var want := roundi(max_cars * density)
 	# Too many (a lower quality level or a quieter district): shed the farthest ones.
@@ -105,14 +179,12 @@ func _maintain() -> void:
 		cars.sort_custom(func(a: Vehicle, b: Vehicle) -> bool: return a.global_position.distance_squared_to(_player.global_position) > b.global_position.distance_squared_to(_player.global_position))
 		while cars.size() > want:
 			var far: Vehicle = cars.pop_front()
-			far.queue_free()
+			_retire(far)
 	while loop_cars.size() > max_loop_cars:
 		var extra: Vehicle = loop_cars.pop_back()
-		extra.queue_free()
-	var tries := 0
-	while cars.size() < want and tries < 12 and PhysicsBudget.can_spawn():
-		tries += 1
-		_spawn_near(pw, density)
+		_retire(extra)
+	for i in mini(want - cars.size(), 12):
+		_spawn_queues[0].append(_spawn_near.bind(pw, density))
 	_maintain_loops(pw)
 
 
@@ -128,7 +200,7 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
 	if plan.zone_at(pos2) != MacroMap.Zone.CITY:
 		return
-	var car := Vehicle.random_car(_rng)
+	var car := _new_car()
 	var speed := _rng.randf_range(speed_range.x, speed_range.y) * lerpf(1.0, dense_speed_factor, density)
 	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
@@ -263,7 +335,7 @@ func _maintain_loops(pw: Vector3) -> void:
 	var near := Vector2(pw.x, pw.z).distance_to(curb.get_center()) < loop_active_distance
 	if not near:
 		for car in loop_cars:
-			car.queue_free()
+			_retire(car)
 		loop_cars.clear()
 		return
 	if loop_cars.size() >= max_loop_cars or not PhysicsBudget.can_spawn():
@@ -287,7 +359,7 @@ func _maintain_loops(pw: Vector3) -> void:
 				break
 			if taken.has(slot):
 				continue
-			_spawn_loop_car(i, slot * loop_gap)
+			_spawn_queues[1].append(_spawn_loop_car.bind(i, slot * loop_gap))
 			taken[slot] = true
 			added += 1
 
@@ -298,7 +370,7 @@ func _spawn_loop_car(loop_index: int, t: float) -> void:
 	var at := _loop_point(loop, t)
 	var pos2: Vector2 = at[0]
 	var dir2: Vector2 = at[1]
-	var car := Vehicle.random_car(_rng)
+	var car := _new_car()
 	car.traffic = {"loop": loop_index, "t": t, "speed": loop_speed * _rng.randf_range(0.85, 1.1)}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
@@ -374,7 +446,7 @@ func _maintain_freeway() -> void:
 		var t: float = car.traffic.t
 		if t <= 0.0 or t >= fw.length_of(ri) or absf(t - _fw_anchor(ri, here)) > freeway_range * 1.35:
 			freeway_cars.erase(car)
-			car.queue_free()
+			_retire(car)
 	if freeway_cars.size() >= max_freeway_cars or not PhysicsBudget.can_spawn():
 		return
 	# Which routes are close enough to bother with, and where along each the player is.
@@ -408,7 +480,7 @@ func _maintain_freeway() -> void:
 				var key := Vector2i(slot, dir)
 				if taken.has(key) or _rng.randf() < 0.35:
 					continue
-				_spawn_freeway_car(ri, t, dir)
+				_spawn_queues[2].append(_spawn_freeway_car.bind(ri, t, dir))
 				taken[key] = true
 				on_route += 1
 				added += 1
@@ -426,7 +498,7 @@ func _fw_anchor(ri: int, here: Vector2) -> float:
 func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 	var fw := _freeway()
 	var lane: float = FW_LANES[_rng.randi() % FW_LANES.size()] * float(dir)
-	var car := Vehicle.random_car(_rng)
+	var car := _new_car()
 	car.traffic = {
 		"fw": ri, "t": t, "dir": dir, "lane": lane,
 		"speed": freeway_speed * _rng.randf_range(0.88, 1.12),

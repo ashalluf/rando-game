@@ -267,6 +267,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   airport chunk, `airport_crowd`) plus `MacroMap.terminal_loops`, two closed lane paths that
   `TrafficManager` fills bumper to bumper (`loop_cars`, `max_loop_cars`) while the player is
   within `loop_active_distance`; the road itself is built by `Landmarks._build_dropoff()`.
+  Building a car is ~35 ms on a slow machine, so `TrafficManager` never builds more than
+  `builds_per_frame` a frame: the half-second upkeep queues its spawns (streets, loop, freeway,
+  served in turn) and cars that drive out of range go to a pool (`pool_size`) to be reused
+  rather than freed and rebuilt. The upkeep used to build up to 34 in one tick. Parked cars
+  are one chunk build step each for the same reason.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -470,6 +475,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   crags move it tens of metres, so the real height is not the height that is drawn.
   `built_amount()` stays in `macro_ground.gdshader`: the smoke test reads its thresholds from it.
   Before this the plane was 4 km of flat green and its own edge was the horizon.
+  **The plane and its collision are separate nodes** (`Ground`, drawn, slides with the player;
+  `GroundBody`, a 14 km box, moved only when the player is `GROUND_BODY_REACH` of it from its
+  centre). Moving a static body makes Godot Physics wake every body touching it - on any
+  transform set, even to the same value - and that box touches every parked car, trash can and
+  prop in the city. When it was the sliding plane, re-placed eight times a second, nothing in
+  the city could stay asleep. Never move a big static body per frame.
 - Trees and planting: `PropFactory.CITY_TREES` (five broadleaf street trees) and `HILL_TREES`
   (fir, pine, quiver, searsia) - the hills used to wear the same street trees as the basin, which
   reads as one texture stretched over everything. A block's dominant species comes from the

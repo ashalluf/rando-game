@@ -1214,7 +1214,7 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
-		steps.append(_park_cars.bind(rect, rng, params))
+		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params))
 	return steps
 
@@ -1323,10 +1323,15 @@ const STALL_SCALE := CityPlan.PARKING_LANE / 4.4
 
 
 ## Parked cars in the lanes of this chunk's two roads, nose along the road.
-func _park_cars(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> void:
+## One build step per parking spot. A car is the most expensive single thing a chunk makes
+## (about 35 ms on a slow machine: the body model, paint, wheels, lights), and a block's worth
+## built in one step was the worst hitch left while flying - up to 590 ms. The stall lines are
+## laid now; the rolls happen in the steps, in the same order as when this was one loop.
+func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> Array[Callable]:
+	var steps: Array[Callable] = []
 	var max_cars: int = params.get("parked", style.cars_per_block)
 	if max_cars <= 0:
-		return
+		return steps
 	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)
 	var wx := plan.road_width(CityPlan.AXIS_X, ix + 1)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
@@ -1347,26 +1352,31 @@ func _park_cars(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}
 			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
 			t += 8.0
 	spots.shuffle()
-	var count := 0
+	var count := [0]
 	for spot in spots:
-		# 0.55, not 0.35: at a third the kerbs read as a city on a quiet Sunday. Parked cars are
-		# live rigid bodies - CLAUDE.md is explicit that a Vehicle must never be frozen, because
-		# frozen wheels divide by zero and poison the body with NaN - but an undisturbed one
-		# sleeps, so the cost of a parked car nobody touches is close to nothing. PhysicsBudget
-		# still caps the total, and Quality halves that cap below its top level.
-		if count >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
-			continue
-		var car := Vehicle.random_car(rng)
-		var holder: Node = get_parent() if get_parent() else self
-		var spot_pos: Vector3 = spot[0] + Vector3(0.0, 0.3 + _gy(spot[0].x, spot[0].z), 0.0)
-		car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
-		car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
-		holder.add_child(car)
-		# A chunk still being built is hidden until it is finished (CityStreamer), and its cars
-		# live under the city root rather than under it, so they are hidden with it by hand.
-		car.visible = visible
-		_cars.append(car)
-		count += 1
+		steps.append(_park_car.bind(spot, rng, max_cars, count))
+	return steps
+
+
+func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Array) -> void:
+	# 0.55, not 0.35: at a third the kerbs read as a city on a quiet Sunday. Parked cars are
+	# live rigid bodies - CLAUDE.md is explicit that a Vehicle must never be frozen, because
+	# frozen wheels divide by zero and poison the body with NaN - but an undisturbed one
+	# sleeps (Vehicle.settle()), so a parked car nobody touches costs close to nothing.
+	# PhysicsBudget still caps the total, and Quality halves that cap below its top level.
+	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
+		return
+	var car := Vehicle.random_car(rng)
+	var holder: Node = get_parent() if get_parent() else self
+	var spot_pos: Vector3 = spot[0] + Vector3(0.0, 0.3 + _gy(spot[0].x, spot[0].z), 0.0)
+	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
+	car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
+	holder.add_child(car)
+	# A chunk still being built is hidden until it is finished (CityStreamer), and its cars
+	# live under the city root rather than under it, so they are hidden with it by hand.
+	car.visible = visible
+	_cars.append(car)
+	count[0] += 1
 
 
 ## Shows a chunk that was built hidden over several frames, and the parked cars it placed.
