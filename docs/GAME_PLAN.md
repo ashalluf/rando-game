@@ -259,6 +259,16 @@ already mapped so milestone 2 is script-only.
   sticks out; on/off shots identical except for moving traffic and people), and streaming in
   slices - a chunk is now a list of build steps run inside `build_budget_ms` a frame and swapped
   in when complete, where it used to be ~100 ms built inside a single frame.
+  Second pass the same day, from a perf profile of a symbol-carrying release build: 16 % of all
+  CPU was parked cars' suspension rays. Godot Physics cannot sleep a VehicleBody3D (its state
+  callback's `apply_impulse` wakes it right after the step sleeps it, while `sleeping` reads
+  true), so every parked car was simulated every step. `Vehicle.settle()` from PhysicsBudget's
+  physics tick fixes it: 290 of 293 parked cars truly asleep, from about none. Two real bugs
+  under it: empty cars held a brake of 2.0 and rolled down every slope (91 rolling after a
+  minute), and the kerb traffic lane ran 13 cm from the parked cars because the parking lane was
+  4.4 m wide, so traffic plowed through them and flung them; now a 2.6 m bay
+  (`CityPlan.PARKING_LANE`) and lanes laid out in what is left. Standing 1552/1668 -> 1210/1245
+  ms per game second, flying 1791/1635 -> 1361/1342: about half of this morning's figures.
 
 - **2026-09-23 Why the game was slow (owner: "why is the game so slow").** Measured rather than
   guessed. (1) Resolution: the window opens maximised and Godot draws every physical Retina

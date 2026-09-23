@@ -144,10 +144,9 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 func _lane_offset(axis: int, index: int, dir: int) -> float:
 	var width := plan.road_width(axis, index)
 	var lanes := 2 if width > plan.street_width + 1.0 else 1
-	var lane_w := width * 0.5 / (lanes + 0.5)
 	var n := _rng.randi_range(1, lanes)
 	var side := -dir if axis == CityPlan.AXIS_X else dir
-	return side * lane_w * n
+	return side * CityPlan.lane_center(width, lanes, n - 1)
 
 
 func _heading(axis: int, dir: int) -> float:

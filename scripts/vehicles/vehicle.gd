@@ -249,6 +249,18 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 @export var reverse_power: float = 3500.0
 @export var brake_force: float = 80.0
 @export var handbrake_force: float = 40.0
+## Brake an empty car holds once it is down to `parking_speed`. The city rolls, and the old 2.0 -
+## a tenth of what Godot's docs call hard braking for a car this heavy - let parked cars on any
+## slope steeper than about 2 % creep off down the street: a minute after loading downtown, 91 of
+## them were rolling, some at 8 m/s. A rolling car also never sleeps, and an awake car casts four
+## suspension rays every physics step through the whole city's collision tree - measured, that
+## was 16 % of all the CPU the game used.
+@export var parking_brake: float = 40.0
+## Below this speed (m/s) an empty car holds the parking brake; above it, it coasts, so bailing
+## out of a moving car still sends it rolling on.
+@export var parking_speed: float = 1.5
+## An empty car on all four wheels slower than this (m/s) is put to sleep (see settle()).
+@export var settle_speed: float = 0.2
 ## Upward speed of a car jump (m/s). Space.
 @export var jump_speed: float = 9.0
 @export var jump_cooldown: float = 0.22
@@ -475,7 +487,7 @@ func _physics_process(delta: float) -> void:
 			gravity_scale = 1.0
 			_was_airborne = false
 		engine_force = 0.0
-		brake = 2.0
+		brake = parking_brake if linear_velocity.length() < parking_speed else 2.0
 		steering = lerpf(steering, 0.0, 1.0 - exp(-steer_speed * delta))
 		if _engine_sound and _engine_sound.playing:
 			_engine_sound.stop()
@@ -736,6 +748,9 @@ func _add_night_lights(dims: Dictionary) -> void:
 func _add_real_wheels() -> void:
 	for slot in _wheel_slots:
 		_add_wheel(slot[0], slot[1])
+	# VehicleBody3D hands its brake to the wheels it has when it is set, not to ones added later.
+	if driver == null:
+		brake = parking_brake
 
 
 ## Four real wheels: tyre with a sidewall bulge and tread, rim with a lip, spokes and a dish,
@@ -831,6 +846,28 @@ var _body_meshes: Array[MeshInstance3D] = []
 var _body_tier: int = -1
 
 
+## Puts an empty car that has come to rest on its wheels to sleep (PhysicsBudget asks four times
+## a second, from its physics tick). Godot Physics can NOT put a VehicleBody3D to sleep by itself:
+## the body is sent to sleep inside the step, but its state callback still runs after that step,
+## and VehicleBody3D's suspension calls apply_impulse on every wheel, which wakes it again. So
+## every parked car in the city was simulated every step - four suspension rays each through the
+## whole city's collision tree, 16 % of all the CPU the game used - while its `sleeping` flag read
+## true, which is why this ignores the flag. Sent to sleep here, between the callbacks and the
+## next step, the body is not integrated, so no callback comes and it stays asleep until
+## something touches it, exactly like any other sleeping body.
+func settle() -> void:
+	if freeze or driver != null or is_traffic():
+		return
+	if linear_velocity.length() > settle_speed or angular_velocity.length() > 0.25:
+		return
+	if wheels.is_empty():
+		return
+	for w in wheels:
+		if not w.is_in_contact():
+			return
+	sleeping = true
+
+
 ## Switches this car's own per-step script on or off (PhysicsBudget does it by distance). Off, the
 ## body stays in the physics world and behaves exactly as before; only the wheel spin, the
 ## suspension offsets on the visible wheels and the LOD bookkeeping stop, which is why the body
@@ -840,6 +877,10 @@ func set_script_active(on: bool) -> void:
 		return
 	if not on:
 		_update_body_tier(INF)
+		# Nobody is near enough to see it stop, and with the script off nothing would ever set
+		# the brake again: a car left coasting would roll on down any hill for good.
+		if driver == null:
+			brake = parking_brake
 	set_physics_process(on)
 
 

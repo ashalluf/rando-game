@@ -285,6 +285,16 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   falling through the world (below `fall_through_y`) or ending up under hill terrain (a body with
   meta `terrain` above it) via `CityStreamer.surface_height_at()`; skip world queries for two
   frames after an origin shift (`_query_hold`), the broadphase lags.
+  **A VehicleBody3D never sleeps on its own in Godot Physics**: it is sent to sleep inside the
+  step, then its state callback runs and the suspension's `apply_impulse` wakes it again, while
+  its `sleeping` flag reads true. So every parked car was simulated every step, four wheel rays
+  each (16 % of all CPU). `Vehicle.settle()`, called from PhysicsBudget's *physics* tick (between
+  the callbacks and the next step, the only place it sticks), sleeps an empty car at rest on its
+  wheels; check `PhysicsServer3D.body_get_state(rid, BODY_STATE_SLEEPING)`, never the flag. Empty
+  cars hold `parking_brake` below `parking_speed` - the old 2.0 let them roll down every slope.
+  Parking and traffic lanes come from `CityPlan.parking_offset()` / `lane_center()`: the parking
+  lane was 4.4 m wide and the kerb-side traffic lane ran 13 cm from the parked cars, so traffic
+  plowed through them.
 - Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
   `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`

@@ -34,7 +34,9 @@ var frozen_count: int = 0
 var _timer: float = 0.0
 
 
-func _process(delta: float) -> void:
+## A physics tick, not a frame: Vehicle.settle() only sticks when it runs between the physics
+## callbacks and the next step (see there).
+func _physics_process(delta: float) -> void:
 	_timer += delta
 	if _timer < check_interval:
 		return
@@ -93,6 +95,8 @@ func _run_checks() -> void:
 			if player and body.has_method("set_script_active"):
 				var near := body.global_position.distance_to(player.global_position) < vehicle_script_radius
 				body.set_script_active(near or body.get("driver") != null)
+			if body.has_method("settle"):
+				body.settle()
 			continue
 		var dist := body.global_position.distance_to(player.global_position)
 		if body.freeze:

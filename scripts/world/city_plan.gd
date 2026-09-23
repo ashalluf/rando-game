@@ -165,6 +165,24 @@ func road_width(axis: int, i: int) -> float:
 	return w
 
 
+## Width of the parking lane along each kerb (metres). It was 4.4, nearly twice a real one, and it
+## pushed the kerb-side traffic lane straight through the parked cars: on a 14 m street the lane
+## centre and the parked cars were 13 cm apart, so every passing car shoved or launched them.
+const PARKING_LANE := 2.6
+
+
+## Where parked cars stand, from the road's centre line: in the parking lane, against the kerb.
+static func parking_offset(width: float) -> float:
+	return width * 0.5 - PARKING_LANE * 0.5
+
+
+## Centre of travel lane `n` (0 = beside the centre line) of `lanes`, from the centre line. The
+## lanes share what is left between the centre line and the parking lane, so traffic, the lane
+## arrows and the parked cars can never overlap.
+static func lane_center(width: float, lanes: int, n: int) -> float:
+	return (width * 0.5 - PARKING_LANE - 0.2) / float(lanes) * (float(n) + 0.5)
+
+
 ## Size of the block between road `i` and road `i + 1` on an axis.
 func _block_size(axis: int, i: int) -> float:
 	return _rng_for(4 + axis, i, 0).randf_range(block_size_range.x, block_size_range.y)

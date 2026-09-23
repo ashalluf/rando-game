@@ -1317,6 +1317,11 @@ func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> 
 	_crowd_room -= 1
 
 
+## The stall line mesh is shared with the car parks' 4.4 m bays (Commercial); a kerb bay is
+## CityPlan.PARKING_LANE across, so the street's lines are the same mesh scaled down.
+const STALL_SCALE := CityPlan.PARKING_LANE / 4.4
+
+
 ## Parked cars in the lanes of this chunk's two roads, nose along the road.
 func _park_cars(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> void:
 	var max_cars: int = params.get("parked", style.cars_per_block)
@@ -1328,18 +1333,18 @@ func _park_cars(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
 	var spots: Array = []
 	for side: float in [-1.0, 1.0]:
-		var x := rx + side * (wx * 0.5 - 2.2)
+		var x := rx + side * CityPlan.parking_offset(wx)
 		var t := rect.position.y + 8.0
 		while t < rect.end.y - 8.0:
 			spots.append([Vector3(x, 0.4, t), 0.0, side])
 			# Painted stall line between spots.
-			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
+			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis().scaled(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
 			t += 8.0
-		var z := rz + side * (wz * 0.5 - 2.2)
+		var z := rz + side * CityPlan.parking_offset(wz)
 		t = rect.position.x + 8.0
 		while t < rect.end.x - 8.0:
 			spots.append([Vector3(t, 0.4, z), PI * 0.5, side])
-			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
+			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
 			t += 8.0
 	spots.shuffle()
 	var count := 0

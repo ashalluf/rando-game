@@ -258,9 +258,9 @@ static func build_intersection(chunk: CityChunk, pos: Vector2, size: Vector2, ki
 		# Lane arrows on avenues (two lanes: straight in the outer, left turn in the inner).
 		if road_w > plan.street_width + 1.0:
 			var lanes := 2
-			var lane_w := half_w / lanes
 			for l in lanes:
-				var lc: Vector2 = pos + d * (along_w * 0.5 + 9.0) + perp * inbound_side * (lane_w * (l + 0.5))
+				# The same lane centres the traffic drives (CityPlan.lane_center).
+				var lc: Vector2 = pos + d * (along_w * 0.5 + 9.0) + perp * inbound_side * CityPlan.lane_center(road_w, lanes, l)
 				var mesh := PropFactory.arrow_left() if l == lanes - 1 else PropFactory.arrow_straight()
 				var flip := Basis(Vector3.UP, yaw + PI)
 				# The left-turn arrow bends to mesh -X; mirror it when that lands on the driver's
