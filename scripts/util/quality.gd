@@ -54,6 +54,12 @@ enum Level { HIGH, MEDIUM, LOW, LOWEST }
 ## 700 -> 450 took 800 draw calls and a million triangles out of every frame (the last cascade
 ## redraws every building out to its edge), and past five blocks the far tiers carry the city.
 @export var shadow_distance: PackedFloat32Array = PackedFloat32Array([500.0, 380.0, 220.0, 120.0])
+## Pixels of simplification error each level lets a mesh LOD have on screen before the renderer
+## switches to a finer one (Godot's default is 1). On a downtown street 1.5 takes 7 % of the
+## frame's triangles, 2 takes 13 % and 3 takes 20 %, and nobody can see a pixel and a half of
+## silhouette error under TAA - so a stepped-down level drops that before it drops an effect.
+## HIGH keeps the exact default.
+@export var lod_threshold: PackedFloat32Array = PackedFloat32Array([1.0, 1.5, 2.5, 4.0])
 
 var level: Level = Level.HIGH
 ## The 3D resolution actually in use (window size times the scale), shown on the HUD.
@@ -163,6 +169,7 @@ func _apply_render() -> void:
 		dn.lamp_scale = 1.0 if level <= Level.MEDIUM else 0.0
 	var viewport := get_viewport()
 	if viewport:
+		viewport.mesh_lod_threshold = lod_threshold[i]
 		if not viewport.size_changed.is_connected(_apply_scale):
 			viewport.size_changed.connect(_apply_scale)
 		_apply_scale()

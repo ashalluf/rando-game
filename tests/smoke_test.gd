@@ -650,7 +650,8 @@ func _test_city() -> void:
 		var q_node: Node = city.get_node_or_null("Quality")
 		if q_node:
 			for named in [["render_scale", q_node.render_scale], ["population", q_node.population],
-					["shadow_distance", q_node.shadow_distance]]:
+					["shadow_distance", q_node.shadow_distance], ["lod_threshold", q_node.lod_threshold],
+					["pixel_budget", q_node.pixel_budget]]:
 				if (named[1] as PackedFloat32Array).size() != q_levels:
 					table_why += " Quality.%s" % str(named[0])
 		_check(table_why == "", "every per-index table has a row per enum member%s" % table_why)

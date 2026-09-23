@@ -240,6 +240,24 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-23 A 48-minute day (owner: "the day/night cycle is too fast it should be
+  slower").** `DayNight.day_length_seconds` 480 -> 2880: two real seconds per game minute, the
+  pace the big open-world games use, so a sunset lasts minutes instead of seconds.
+
+- **2026-09-23 The GPU side: shadows from lighter twins (owner: "playable ... without taking away
+  from graphics at all").** Per-pass GPU profile (`tools/gpu_profile.gd`) showed the frame is
+  triangle-bound - opaque, depth pre-pass and sun shadows ~90 % - not effect-bound; per-category
+  measurement (`tools/tri_split.gd`) showed the planting's shadows were the largest single cost.
+  Foliage, imported props and car bodies now cast their shadows from coarse twins, palms got LODs
+  and lettering stopped casting: 9.4 M -> 7.7 M triangles on a downtown street with matching
+  before/after renders. Quality's lower levels also loosen the LOD error threshold
+  (`Quality.lod_threshold`, 1.5 / 2.5 / 4 px) before they drop effects; HIGH keeps 1 px.
+
+- **2026-09-23 Rainy nights and fire (store stills).** Streets start as wet as the weather,
+  soaked roads are near-mirrors with puddles, the lens rain is a few drops at the edges instead
+  of 1,800 over the frame; the fireball drops fast from white-hot to deep orange (AgX washes
+  anything bright to beige), smoke draws behind the fire, puffs vary in age and heat.
+
 - **2026-09-23 Explosions had lost their fireball.** Found while framing store stills (owner:
   "the sickest screenshots ... gameplay stills in steam"). The heat shimmer is a sphere that
   reads the screen, and Godot copies the screen before drawing transparent things; sorted in

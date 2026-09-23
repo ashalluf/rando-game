@@ -3,8 +3,10 @@ extends Node
 ## Day/night cycle: moves the sun and the moon, tints the sky and fog, and drives the
 ## `night_factor` global shader parameter that makes windows and lamps glow after dark.
 
-## Real seconds for a full day.
-@export var day_length_seconds: float = 480.0
+## Real seconds for a full day. 2880 is 48 minutes, two real seconds per game minute - the pace
+## the big open-world games settled on. At 480 (owner, 2026-09-23: "the day/night cycle is too
+## fast") a sunset was over in under a minute and a whole day in eight.
+@export var day_length_seconds: float = 2880.0
 @export var start_hour: float = 9.0
 @export var sun_rotation_z_degrees: float = 35.0
 @export var day_sun_color: Color = Color(1.0, 0.94, 0.82)
