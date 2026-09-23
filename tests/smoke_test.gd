@@ -1246,7 +1246,8 @@ func _test_city() -> void:
 	# Palms: a real generated tree (trunk, feathered fronds, skirt, coconuts) and palm-lined
 	# blocks somewhere in the loaded city (owner, 2026-09-20: "it's Cali, put palm trees").
 	var palm_mesh: Mesh = PropFactory.palm(0)
-	var palm_tris: int = (palm_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
+	var palm_idx = palm_mesh.surface_get_arrays(0)[Mesh.ARRAY_INDEX]
+	var palm_tris: int = (palm_idx as PackedInt32Array).size() / 3 if palm_idx != null else (palm_mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX] as PackedVector3Array).size() / 3
 	_check(palm_mesh.get_surface_count() == 1 and palm_tris > 400, "the palm is one generated mesh (%d triangles)" % palm_tris)
 	var palm_blocks := 0
 	for k in city.chunks:

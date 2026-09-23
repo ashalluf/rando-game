@@ -620,7 +620,24 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   budget, `PropFactory.TRI_BUDGET`: the Poly Haven scans are film assets (a lamp was 30k
   triangles, a barrier 61k) and a MultiMesh batch draws every instance at the LOD of its nearest
   point, so over budget `model_mesh()` makes a generated LOD the base mesh. Add new hard-surface
-  props to it; not foliage, whose leaf cards a simplifier collapses. Occlusion culling is on
+  props to it; not foliage, whose leaf cards a simplifier collapses.
+  **Shadows come from lighter twins.** `tools/gpu_profile.gd` (Godot's `--gpu-profile` per-pass
+  timings under lavapipe) put the opaque pass, the depth pre-pass and the directional shadows at
+  ~90 % of a frame, so it is triangles, not effects; `tools/tri_split.gd` then showed trees were
+  the biggest single cost, 2.4 of their 3.2 M triangles in the shadow cascades - a batch takes
+  one LOD for every instance from its nearest point (and distance 0 whenever the camera's plane
+  crosses its box), so every tree in the blocks around the player went into all four cascades
+  at full detail. Now every imported model and the palms get `PropFactory.shadow_proxy()` - the
+  coarsest generated LOD that keeps 45 % of a leaf surface or 25 % of anything else, with the
+  same materials so cut-out and sway still match - and `MultiMeshBatch.build()` draws it as a
+  SHADOWS_ONLY twin (`BatchShadow_<key>`, sharing the instance buffer; `hide_instance()` hides
+  both) while the batch itself casts nothing. Godot's own `shadow_mesh` cannot do this: it only
+  serves materials with no cut-out and no vertex motion. Car bodies do the same with a twin of
+  the body mesh at `Vehicle.BODY_SHADOW_LOD_BIAS` (a car's box is small, so plain LOD bias
+  works there). Palms had no LODs at all until this (22.6k triangles at any range). Lettering
+  (`text_` batches) casts nothing. Street frame 9.4 M -> 7.7 M triangles with no visible change
+  (before/after renders in the handoff). Never run two lavapipe renders at once: each city is
+  6-7 GB of RAM and the box has 16. Occlusion culling is on
   (`rendering/occlusion_culling/use_occlusion_culling`): one `OccluderInstance3D` per chunk made
   of its building boxes (`CityChunk._build_occluder()`), inset by `OCCLUDER_INSET` so it never
   sticks out past a wall - an occluder bigger than what it stands for culls things in plain

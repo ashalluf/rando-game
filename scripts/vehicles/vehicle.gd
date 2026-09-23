@@ -842,7 +842,14 @@ func _wheel_pose() -> Dictionary:
 ## because a kinematic traffic car does not have any.
 ## Mesh LOD bias for the body per tier (inside body_shadow_distance, out to 180 m, beyond).
 const BODY_LOD_BIAS := [1.0, 0.5, 0.25]
+## LOD bias of the body's shadow. The shadow is cast by a twin of each body mesh drawn into the
+## shadow maps only, so it can take a coarser LOD of the same model than the one you are looking
+## at: the car you see keeps every triangle, its shadow - a dark shape on the tarmac under it -
+## gets a fraction. The cars within body_shadow_distance were 0.6 million triangles of shadow a
+## frame on a downtown street.
+const BODY_SHADOW_LOD_BIAS := 0.3
 var _body_meshes: Array[MeshInstance3D] = []
+var _body_shadows: Array[MeshInstance3D] = []
 var _body_tier: int = -1
 
 
@@ -890,11 +897,36 @@ func _update_body_tier(dist: float) -> void:
 	if tier == _body_tier:
 		return
 	_body_tier = tier
+	if _body_shadows.is_empty():
+		_make_body_shadows()
 	for m in _body_meshes:
 		if is_instance_valid(m):
-			m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 \
-				else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			m.lod_bias = BODY_LOD_BIAS[tier]
+	for twin in _body_shadows:
+		if is_instance_valid(twin):
+			twin.visible = tier == 0
+
+
+## The shadow twins (see BODY_SHADOW_LOD_BIAS): made on the first tier update, after the wheel
+## tuck has swapped the body's mesh for its final one, with the body's own per-surface paint and
+## glass so the windows still let the light through. Children of the body mesh, so they follow it.
+func _make_body_shadows() -> void:
+	for m in _body_meshes:
+		if not is_instance_valid(m) or m.mesh == null:
+			continue
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var twin := MeshInstance3D.new()
+		twin.name = "Shadow"
+		twin.mesh = m.mesh
+		for si in m.mesh.get_surface_count():
+			twin.set_surface_override_material(si, m.get_surface_override_material(si))
+		twin.material_override = m.material_override
+		twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		twin.lod_bias = BODY_SHADOW_LOD_BIAS
+		twin.custom_aabb = m.custom_aabb
+		m.add_child(twin)
+		_body_shadows.append(twin)
 
 
 func _update_wheels(delta: float) -> void:

@@ -290,6 +290,12 @@ func _finish_build() -> void:
 	# `flat_key`, not `key`: `key` is this chunk's own "ix,iz" member.
 	for flat_key: String in _batch.tilt_keys:
 		_batch.set_no_shadow(flat_key)
+	# Lettering on street-name plates and shop boards: a few centimetres proud of the plate, so
+	# its shadow falls on the plate it is printed on. A single street's signs were 70k triangles
+	# of it in every cascade.
+	for text_key: String in _batch.keys():
+		if text_key.begins_with("text_"):
+			_batch.set_no_shadow(text_key)
 	_commit_far_ground()
 	_mm_nodes = _batch.build(self)
 	if _mm_nodes.has("lod_box"):

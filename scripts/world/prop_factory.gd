@@ -535,11 +535,21 @@ static func palm(variant: int) -> Mesh:
 	# folded paper fan: every leaflet caught the light at its own angle, so the canopy was a
 	# mess of bright and black shards. Every part sets its own smooth normal instead, the same
 	# trick the grass blades use.
-	var mesh := st.commit()
+	# Indexed and given LODs like every imported model. It had none: 22,600 triangles per palm
+	# at any distance, in the view and in every shadow cascade, down a whole boulevard of them.
+	# The renderer only switches LOD below a pixel of error, so up close nothing changes.
+	st.index()
+	var im := ImporterMesh.new()
 	# Wind sway lives in the vertex shader (shaders/foliage.gdshader), so a palm-lined street
 	# moves without any per-tree work on the CPU. Backface culling stays off: leaflets are
 	# single-sided.
-	mesh.surface_set_material(0, foliage_material())
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays(), [], {}, foliage_material())
+	im.generate_lods(25.0, 60.0, [])
+	var mesh := im.get_mesh()
+	_build_shadow_proxy(im, mesh, 0.45, 0.45)
+	var proxy := shadow_proxy(mesh)
+	if proxy:
+		proxy.surface_set_material(0, foliage_material())
 	_cache[key] = mesh
 	return mesh
 
@@ -1009,7 +1019,7 @@ const TRI_BUDGET := {
 }
 
 
-static func model_mesh(path: String, include: PackedStringArray = [], exclude: PackedStringArray = [], xform: Transform3D = Transform3D.IDENTITY, overrides: Dictionary = {}) -> Mesh:
+static func model_mesh(path: String, include: PackedStringArray = [], exclude: PackedStringArray = [], xform: Transform3D = Transform3D.IDENTITY, overrides: Dictionary = {}, proxy: bool = true) -> Mesh:
 	var key := "model_%s_%s_%s_%s" % [path, ",".join(include), ",".join(exclude), var_to_str(xform)]
 	if _cache.has(key):
 		return _cache[key]
@@ -1025,11 +1035,64 @@ static func model_mesh(path: String, include: PackedStringArray = [], exclude: P
 			if budget > 0:
 				importer = _within_budget(importer, budget)
 			mesh = importer.get_mesh()
+			if proxy:
+				_build_shadow_proxy(importer, mesh)
 		root.free()
 	else:
 		push_warning("PropFactory: missing model " + path)
 	_cache[key] = mesh
 	return mesh
+
+
+## Shadow-only stand-ins for foliage meshes, keyed by the mesh they stand in for.
+static var _shadow_proxies: Dictionary = {}
+
+
+## The lighter mesh a batch casts its shadow with, or null (MultiMeshBatch.build()). Every
+## imported model gets one (model_mesh()), and the palms; the street props' shadows were most of
+## what was left in the shadow pass once the trees had theirs, 0.6 million triangles of lamp
+## posts and hydrants that a shadow map shows as a few dark texels.
+## Trees were the biggest single cost in a frame, and most of it was their shadows: a batch
+## picks one LOD for all its instances from its nearest point, so every tree in the blocks
+## around the player went into all four shadow cascades at full detail - 2.4 of the 3.2 million
+## triangles the planting cost at a downtown street. A shadow map cannot show a twig or a leaf
+## card's edge anyway, so the shadow comes from a quarter of the triangles instead. Godot's own
+## shadow_mesh cannot do this: it only serves materials with no cut-out and no vertex motion,
+## and the leaves have both.
+static func shadow_proxy(mesh: Mesh) -> Mesh:
+	return _shadow_proxies.get(mesh)
+
+
+## Builds `mesh`'s shadow stand-in from the LODs `im` generated: per surface, the coarsest LOD
+## that keeps `leaf_share` of a leaf surface's triangles (leaf cards thin out fast, and a sparse
+## canopy casts a sparse shadow) or `wood_share` of a trunk's or twigs'. It shares the vertex
+## layout and, via _tree_mesh(), the materials, so the cut-out and the sway match the tree.
+static func _build_shadow_proxy(im: ImporterMesh, mesh: Mesh, leaf_share: float = 0.45, wood_share: float = 0.25) -> void:
+	var out := ImporterMesh.new()
+	var total := 0
+	var kept := 0
+	for s in im.get_surface_count():
+		var arrays := im.get_surface_arrays(s)
+		var base = arrays[Mesh.ARRAY_INDEX]
+		if base == null:
+			return
+		var mat := im.get_surface_material(s)
+		var leaf := mat is BaseMaterial3D and (mat as BaseMaterial3D).transparency != BaseMaterial3D.TRANSPARENCY_DISABLED
+		var want := int(ceil(float((base as PackedInt32Array).size() / 3) * (leaf_share if leaf else wood_share)))
+		var best: PackedInt32Array = base
+		for l in im.get_surface_lod_count(s):
+			var lod := im.get_surface_lod_indices(s, l)
+			if lod.size() / 3 >= want and lod.size() < best.size():
+				best = lod
+		total += (base as PackedInt32Array).size() / 3
+		kept += best.size() / 3
+		arrays[Mesh.ARRAY_INDEX] = best
+		out.add_surface(im.get_surface_primitive_type(s), arrays, [], {}, mat, im.get_surface_name(s))
+	# Not worth a second node for a small saving.
+	if kept > total * 0.8:
+		return
+	out.generate_lods(25.0, 60.0, [])
+	_shadow_proxies[mesh] = out.get_mesh()
 
 
 ## `src` rebuilt with each surface's base indices swapped for its coarsest generated LOD that
@@ -1321,7 +1384,7 @@ static func model_grass_clump(variant: int) -> Mesh:
 
 
 static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT) -> Mesh:
-	var mesh := model_mesh(MODEL_DIR + file)
+	var mesh := model_mesh(MODEL_DIR + file, [], [], Transform3D.IDENTITY, {}, true)
 	for i in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:
@@ -1339,6 +1402,10 @@ static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT) -> Mesh
 				mesh.surface_set_material(i, foliage_textured(sm, blossom))
 				continue
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var proxy := shadow_proxy(mesh)
+	if proxy:
+		for i in mesh.get_surface_count():
+			proxy.surface_set_material(i, mesh.surface_get_material(i))
 	return mesh
 
 
