@@ -406,6 +406,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   sorted puff by puff, grey smoke rising through the fireball veiled it - and the smoke only
   thickens once the fire is past its peak. Puffs are soft particles (proximity fade, desktop
   only), or the road cuts the fireball along a ruler-straight line.
+  The fireball's puffs have their own shader (`shaders/fire_puff.gdshader`, via
+  `WeaponFX._fire_material()`, desktop only): the billow's density is its temperature, so dense
+  lumps burn yellow-white (HDR, blooms) and thin edges cool to red and soot, and the soft-particle
+  fade runs over 2.6 m - at 1.2 the road still cut the fireball along a straight line. With every
+  part of a puff the same colour, forty of them were one flat orange cloud that read as dust.
+  Blast debris is small dark wedges (`_chip_layer` uses a PrismMesh): 18 cm brown cubes read as
+  cardboard boxes in a still.
   Screenshot effects with `tools/glshot/fx_shot.gd` (and store stills with
   `tools/glshot/still_shot.gd`): Godot caps a frame at eight physics ticks (0.133 s) however
   long a software frame really takes, so they count the effect's own elapsed time, never the
@@ -601,7 +608,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (`reflect_emit`, `reflect_energy`, scaled by the `sky_tint` global), not mixed into the albedo:
   a reflection does not depend on the light falling on the pane, and carried in the albedo a glass
   tower on the shaded side of a street was lit like paint and came out black (16/255 against 111
-  for the asphalt in the same shadow). At night a lit office is the same room
+  for the asphalt in the same shadow). What the glass mirrors is a fake city, not one flat
+  colour: two rows of blocks keyed on the reflected ray's heading (rooflines, window rows faded
+  out under a pixel, sky above them; `reflect_city`), and each pane's reflection knocked a little
+  off true (`pane_bow`), because coplanar mirrors across a whole facade read as one sheet of
+  plastic. At night a lit office is the same room
   lit from inside (`room_interior()` also returns where the ray landed and how much light
   falls there): a grid of ceiling panels, walls brighter toward the ceiling, a dim floor and
   a desk or partition silhouette in half the rooms, all emitted - not a flat yellow pane, which

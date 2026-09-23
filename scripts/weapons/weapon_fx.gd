@@ -347,6 +347,23 @@ static var _mat_behind: StandardMaterial3D
 ## Material for a billboarded particle sprite. `additive` for fire and sparks (they add light),
 ## plain alpha for smoke and dust (they block it). Cached: two materials serve every burst in
 ## the game, so a hundred impacts do not build a hundred shader variants.
+static var _mat_fire: Material
+
+
+## The fireball's puffs: hot in their dense cores and sooty at their thin edges, and soft where
+## they meet the road (shaders/fire_puff.gdshader). It reads the depth buffer, so the web keeps
+## the plain puff material.
+static func _fire_material() -> Material:
+	if _web():
+		return _puff_material(false)
+	if _mat_fire == null:
+		var mat := ShaderMaterial.new()
+		mat.shader = preload("res://shaders/fire_puff.gdshader")
+		mat.set_shader_parameter("puff_tex", puff_texture())
+		_mat_fire = mat
+	return _mat_fire
+
+
 static func _puff_material(additive: bool, behind: bool = false) -> StandardMaterial3D:
 	if additive and _mat_add != null:
 		return _mat_add
@@ -394,7 +411,7 @@ static func _puff_layer(parent: Node, at: Vector3, count: int, size: float, life
 		speed_min: float, speed_max: float, gravity: float, ramp: Gradient, additive: bool,
 		spread: float = 180.0, grow: float = 2.2, aim: Basis = Basis(), flatness: float = 0.0,
 		life_rand: float = 0.0, damp: float = 1.0, behind: bool = false,
-		variety: Gradient = null) -> CPUParticles3D:
+		variety: Gradient = null, material: Material = null) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.explosiveness = 1.0
@@ -432,7 +449,7 @@ static func _puff_layer(parent: Node, at: Vector3, count: int, size: float, life
 	p.angle_max = 180.0
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
-	quad.material = _puff_material(additive, behind)
+	quad.material = material if material else _puff_material(additive, behind)
 	p.mesh = quad
 	parent.add_child(p)
 	p.global_transform = Transform3D(aim, at)
@@ -470,8 +487,11 @@ static func _chip_layer(parent: Node, at: Vector3, count: int, chip_size: float,
 	p.angular_velocity_max = 900.0
 	p.scale_amount_min = 0.5
 	p.scale_amount_max = 1.4
-	var box := BoxMesh.new()
-	box.size = Vector3(chip_size, chip_size * 0.6, chip_size)
+	# A lopsided wedge rather than a box: spinning, a cube reads as a cube however small it is,
+	# and rubble is never square.
+	var box := PrismMesh.new()
+	box.size = Vector3(chip_size, chip_size * 0.55, chip_size * 0.8)
+	box.left_to_right = 0.25
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = color
 	mat.roughness = 0.85
@@ -903,7 +923,7 @@ static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface,
 ## The particle materials every blast and wound draws with, for the loading screen to compile
 ## ahead of time (see LoadingScreen._warm_shaders()).
 static func warm_materials() -> Array:
-	return [_puff_material(false), _puff_material(true), _puff_material(false, true)]
+	return [_puff_material(false), _puff_material(true), _puff_material(false, true), _fire_material()]
 
 
 ## The same for what draws through plain meshes: the additive billboard flare of a muzzle flash
@@ -1016,7 +1036,7 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 		# white-hot and some have already gone dark red: all the same age, forty overlapping
 		# puffs were one flat orange cloud and the billows in the texture vanished.
 		Basis(), 0.0, 0.45, 1.0, false,
-		_ramp([Color(1.5, 1.35, 1.1), Color(1.0, 1.0, 1.0), Color(0.45, 0.33, 0.28)]))
+		_ramp([Color(1.5, 1.35, 1.1), Color(1.0, 1.0, 1.0), Color(0.45, 0.33, 0.28)]), _fire_material())
 
 	# 4. Smoke: slower, bigger, lingers and drifts up after the fire is gone.
 	_puff_layer(parent, at + Vector3.UP * radius * 0.3, _count(26), radius * 0.62, 2.8,
@@ -1061,9 +1081,10 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	rt.parallel().tween_property(ring_mat, "albedo_color:a", 0.0, 0.3).set_ease(Tween.EASE_OUT)
 	rt.tween_callback(ring.queue_free)
 
-	# 8. Debris: lit chunks, so they sit in the scene's lighting rather than glowing flat.
-	_chip_layer(parent, at, _count(26), 0.18, 1.6, radius * 1.4 * push, radius * 3.0 * push,
-		Color(0.29, 0.26, 0.24), Basis(), 170.0, -32.0)
+	# 8. Debris: lit chunks, so they sit in the scene's lighting rather than glowing flat. Small,
+	# dark and many: at 18 cm and a mid brown, a still showed a dozen cardboard boxes in the air.
+	_chip_layer(parent, at, _count(34), 0.11, 1.6, radius * 1.4 * push, radius * 3.0 * push,
+		Color(0.16, 0.15, 0.14), Basis(), 170.0, -32.0)
 
 	# 9. Dust off the ground and off whatever walls are close enough to be scoured.
 	_blast_dust(node, parent, at, radius, push)

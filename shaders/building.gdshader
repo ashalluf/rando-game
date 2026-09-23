@@ -100,6 +100,10 @@ uniform float reflect_strength = 1.0;
 // that emitted reflection is against the scene's lighting.
 uniform float reflect_emit = 0.7;
 uniform float reflect_energy = 1.6;
+// How much of the city opposite the glass mirrors (0 = the old sky gradient only), and how far
+// each pane's reflection is knocked off true (see the glass branch).
+uniform float reflect_city = 1.0;
+uniform float pane_bow = 0.035;
 // How bright the room behind the glass is against full daylight outside. Rooms read almost
 // black from the street in real life; a room lit to the same level as the wall around it is
 // what made every pane look like a beige card taped over the opening.
@@ -449,7 +453,37 @@ void fragment() {
 			// up the real environment map and whole curtain-wall towers turn into
 			// see-through cages.
 			vec3 refl = reflect(to_frag, world_normal);
+			// No pane is truly flat: each is bowed a little and set a hair off true, so the
+			// reflection breaks from pane to pane. Coplanar mirrors across a whole facade read
+			// as one sheet of plastic.
+			vec2 bow = vec2(hash31(vec3(col, row, face_id + seed * 3.1)), hash31(vec3(row, col, face_id * 7.0 + seed))) - 0.5;
+			refl = normalize(refl + vec3(bow.x, bow.y * 0.6, -bow.x) * pane_bow);
 			vec3 sky_ref = mix(sky_horizon, sky_zenith, smoothstep(0.0, 0.55, refl.y));
+			if (reflect_city > 0.0) {
+				// The city opposite, mirrored. A pane reflecting one colour of "buildings" is
+				// what made every shopfront milk glass and every tower a gradient: real glass
+				// shows rooflines, window rows and the sky above them. Two rows of blocks keyed
+				// on the reflected ray's heading - near ones, then taller, hazier towers behind -
+				// fixed in the world, so facades facing the same way mirror the same skyline.
+				float heading = atan(refl.x, refl.z) * 0.159155;
+				float near_slot = heading * 26.0;
+				float far_slot = heading * 70.0;
+				float near_roof = mix(0.05, 0.42, hash21(vec2(floor(near_slot), 3.7)));
+				float far_roof = mix(0.10, 0.70, hash21(vec2(floor(far_slot), 8.3))) * step(0.55, hash21(vec2(floor(far_slot), 1.9)));
+				float soft = 0.012;
+				float in_near = 1.0 - smoothstep(near_roof - soft, near_roof + soft, refl.y);
+				float in_far = (1.0 - smoothstep(far_roof - soft, far_roof + soft, refl.y)) * (1.0 - in_near);
+				// Their windows: rows by elevation, bays by heading, faded out once finer than a pixel.
+				float rows_f = refl.y * 30.0;
+				float bays_f = near_slot * 5.0;
+				float fine = 1.0 - smoothstep(0.25, 0.7, max(fwidth(rows_f), fwidth(bays_f)));
+				float panes = step(0.42, fract(rows_f)) * step(0.30, fract(bays_f));
+				vec3 near_wall = mix(vec3(0.16, 0.15, 0.14), vec3(0.09, 0.10, 0.12), hash21(vec2(floor(near_slot), 9.1)));
+				near_wall = mix(near_wall, near_wall * 0.5 + sky_horizon * 0.12, panes * fine * 0.85);
+				vec3 far_wall = mix(sky_horizon * 0.55, near_wall, 0.35);
+				sky_ref = mix(sky_ref, far_wall, in_far * reflect_city);
+				sky_ref = mix(sky_ref, near_wall, in_near * reflect_city);
+			}
 			sky_ref = mix(street_reflect, sky_ref, smoothstep(-0.22, 0.10, refl.y));
 			// Schlick: nearly transparent head on, a mirror at a glancing angle.
 			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
