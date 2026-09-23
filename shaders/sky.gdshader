@@ -13,6 +13,12 @@ uniform vec3 sky_horizon : source_color = vec3(0.70, 0.82, 0.95);
 uniform vec3 ground_color : source_color = vec3(0.30, 0.32, 0.36);
 /// Extra horizon haze (0 clear, 1 milky).
 uniform float haze : hint_range(0.0, 1.0) = 0.55;
+/// Clouds after dark: how much of their lit colour they keep, and the light every cloud base and
+/// the air under it carry of their own (linear). A clear night is moonlight and a blue glow; an
+/// overcast one is the city's sodium light on the cloud base, which DayNight sets from the
+/// weather. At a fixed blue-grey, a rainy night's 88 % cloud came out as a pale grey dusk.
+uniform float night_cloud_light = 0.12;
+uniform vec3 night_glow = vec3(0.02, 0.025, 0.04);
 /// What reflections see below the horizon (the street), as a fraction of the horizon's own
 /// brightness, and how far under the horizon it takes over (see the end of fragment()).
 uniform vec3 reflect_ground = vec3(0.34, 0.32, 0.30);
@@ -333,7 +339,7 @@ void sky() {
 		// cloud sea; after dark the same air is what little the sky has left.
 		vec3 airlight = sky_horizon * (1.0 + 0.6 * haze)
 			+ sun_light * pow(max(cos_sun, 0.0), 3.0) * sun_up * 0.5;
-		airlight = mix(airlight, vec3(0.02, 0.025, 0.04), night_factor);
+		airlight = mix(airlight, night_glow, night_factor);
 
 		vec3 cloud = mix(cloud_shadow, cloud_color, sunlit);
 		// The densest cores still go grey whichever way the light comes from.
@@ -344,7 +350,7 @@ void sky() {
 		cloud += sun_light * rim * 1.1 * sun_up;
 		// At night the moon relights them, far dimmer and cooler.
 		float mlit = pow(max(dot(dir, mdir), 0.0), 4.0) * moon_vis;
-		vec3 night_cloud = cloud * 0.12 + vec3(0.02, 0.025, 0.04) + moon_tint * mlit * 0.12;
+		vec3 night_cloud = cloud * night_cloud_light + night_glow + moon_tint * mlit * 0.12;
 		cloud = mix(cloud, night_cloud, night_factor);
 		cloud = mix(cloud, airlight, deck_haze);
 
@@ -368,7 +374,7 @@ void sky() {
 			float mth = 1.0 - cloud_coverage * 0.75;
 			float mden = smoothstep(mth, mth + 0.28, mv) * mid_amount * smoothstep(0.04, 0.34, up);
 			vec3 mcol = mix(cloud_shadow * 1.08, cloud_color * 0.98, 0.45 + 0.55 * sunlit);
-			mcol = mix(mcol, mcol * 0.14 + vec3(0.02, 0.025, 0.04), night_factor);
+			mcol = mix(mcol, mcol * night_cloud_light * 1.15 + night_glow, night_factor);
 			col = mix(col, mcol, mden * 0.70);
 		}
 		col += sun_light * shaft * 0.38;

@@ -215,7 +215,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   because at 0.18 SSR only gave a smear and the lit windows standing in the street are the
   whole look; drops are lit (with a faint glow of their own) and fade out within 5 m of the
   lens, splashes are lit like the road, and the lens rain is a few dozen drops at the frame
-  edges - at 1,800 evenly spread it read as television static over the picture.
+  edges - at 1,800 evenly spread it read as television static over the picture. An overcast
+  night is the city's sodium light on the cloud base, not a grey sky: `DayNight` blends the
+  storm colours, the rain haze (`night_storm_fog`) and the sky shader's `night_glow` /
+  `night_cloud_light` to warm, dark values by `moonlight`, and turns the moon's
+  `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
+  times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
+  cloud the sky IS the clouds, so the night cloud colour is what decides it.
 - Look (owner, 2026-09-20: "as realistic as possible, like an industry giant made it"). The
   realism settings are deliberate, not defaults: **AgX** filmic tonemapping (not ACES, which
   clips highlights hard), **sky-source ambient** so shadows take the sky's colour instead of a
@@ -366,11 +372,16 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   lights are one mesh with the colours in the vertex colour, so 150 cars cost 150 draws and not
   750, and they stop drawing past 160 m. Far (LOD) chunks build no lamps, so their streets glow
   instead (`shaders/street_glow.gdshaderinc`, used by `far_ground.gdshader` and, past
-  `street_glow_near`, by `road.gdshader`, whose road materials carry `lamp_axis`): a run of
-  sodium light down each carriageway with a pool every `street_glow_spacing` metres, so a night
-  flight shows the orange grid a real city is from the air instead of lit towers in a void.
-  The far chunks' merged ground marks its carriageways in the vertex colour's alpha (which way
-  each runs, from the slab's shape). **Trap:** `SurfaceTool.append_from()` ignores `set_color()`
+  `street_glow_near`, by `road.gdshader`, whose road materials carry `lamp_axis`): pools of
+  sodium light at both kerbs, staggered, every `street_glow_spacing` metres, over a faint run
+  down the carriageway, ramped in as `lamp_factor` cubed (a lamp is invisible from the air until
+  it is properly dark), so a night flight shows the double rows of orange dots a real city is
+  from the air instead of lit towers in a void. A pool the width of the road read as orange
+  tiles. The far chunks' merged ground marks its carriageways in the vertex colour's alpha (which
+  way each runs, from the slab's shape), and every city ground grid carries a 0..1 UV across its
+  rect so the shader knows where the kerbs are. Far ground colour is the tint at 0.6 for
+  anything textured up close (only asphalt is taken at its tint): at the bare tint the far
+  pavements were twice as bright as the near ones. **Trap:** `SurfaceTool.append_from()` ignores `set_color()`
   - the colour has to be in the appended mesh (`_grid_mesh(..., colored, color)`). Until that
   was found the far city's ground had no colour at all and was black by day as well as night. The shader reads `lamp_factor` itself, so all of it
   costs nothing by day. The headlight beam quads carry UVs shifted by 2 (`_light_quad()`'s

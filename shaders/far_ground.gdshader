@@ -13,12 +13,14 @@ render_mode specular_disabled;
 #include "res://shaders/street_glow.gdshaderinc"
 
 varying vec2 plan_pos;
+varying vec2 slab_uv;
 
 
 void vertex() {
 	// Object space is plan space: the chunk's vertices are laid out in plan coordinates and the
 	// streamer moves the holder, so this does not jump when the origin is re-centred.
 	plan_pos = VERTEX.xz;
+	slab_uv = UV;
 }
 
 
@@ -29,10 +31,10 @@ void fragment() {
 	if (a > 0.1 && lamp_factor > 0.001) {
 		if (a > 0.35) {
 			int axis = a > 0.9 ? 1 : (a > 0.6 ? 2 : 0);
-			EMISSION = street_glow(plan_pos, axis) * lamp_factor;
+			EMISSION = street_glow(plan_pos, slab_uv, axis) * street_glow_level();
 		} else {
 			// A pavement: the lamps stand on it, so it catches their spill.
-			EMISSION = street_glow(plan_pos, 0) * lamp_factor * 0.35;
+			EMISSION = street_glow(plan_pos, slab_uv, 0) * street_glow_level() * 0.25;
 		}
 	}
 }

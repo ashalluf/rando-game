@@ -27,6 +27,13 @@ extends Node
 @export var dusk_horizon: Color = Color(1.0, 0.55, 0.3)
 @export var night_sky_top: Color = Color(0.02, 0.035, 0.09)
 @export var night_horizon: Color = Color(0.07, 0.09, 0.19)
+## An overcast night over the city (rain, storm): cloud base overhead, the horizon, and the rain
+## haze, all lit from below by the streets rather than by the sky.
+@export var night_storm_top: Color = Color(0.045, 0.042, 0.045)
+@export var night_storm_horizon: Color = Color(0.14, 0.105, 0.08)
+@export var night_storm_fog: Color = Color(0.11, 0.09, 0.075)
+## The light an overcast night's cloud base carries (linear, the sky shader's `night_glow`).
+@export var night_storm_glow: Vector3 = Vector3(0.042, 0.030, 0.021)
 ## Cloud tints by day, at dusk and by night (lit side / shadow side).
 @export var day_cloud: Color = Color(1.0, 1.0, 1.0)
 @export var day_cloud_shadow: Color = Color(0.58, 0.63, 0.74)
@@ -232,19 +239,30 @@ func _apply() -> void:
 		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(night_sun_color, moonlight)
 		var flash: float = _sun.get_meta("weather_flash", 0.0)
 		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) + flash * 2.5
+		# A rainy night's haze is lit by the street lamps, not by a moon behind the cloud. Rain
+		# thickens the volumetric fog seventy-fold, and lit by the moonlight fill it hung over
+		# the whole street as a pale grey veil, so a rainy night read as a grey dusk.
+		_sun.light_volumetric_fog_energy = lerpf(1.0, 0.12, moonlight * clampf(weather_darken * 1.6, 0.0, 1.0))
 		if flash > 0.0:
 			_sun.light_color = _sun.light_color.lerp(Color(0.85, 0.9, 1.0), clampf(flash, 0.0, 1.0))
 		_sun.shadow_enabled = true
 	if _sky:
 		var horizon := day_horizon.lerp(dusk_horizon, dusk).lerp(night_horizon, night_factor)
 		_horizon_now = horizon
-		var storm_top := Color(0.16, 0.17, 0.2)
-		var storm_horizon := Color(0.3, 0.31, 0.34)
-		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk).lerp(night_sky_top, night_factor).lerp(storm_top, weather_darken * (1.0 - night_factor * 0.6)))
-		_sky.set_shader_parameter("sky_horizon", horizon.lerp(storm_horizon, weather_darken * (1.0 - night_factor * 0.6)))
+		# Overcast by day is grey; overcast over a city at night is the city's own sodium light
+		# on the cloud base - dark, and warm low down. The storm colours used to be the daytime
+		# grey at every hour, so a rainy night had a pale grey sky and read as dusk.
+		var storm_top := Color(0.16, 0.17, 0.2).lerp(night_storm_top, moonlight)
+		var storm_horizon := Color(0.3, 0.31, 0.34).lerp(night_storm_horizon, moonlight)
+		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk).lerp(night_sky_top, night_factor).lerp(storm_top, weather_darken))
+		_sky.set_shader_parameter("sky_horizon", horizon.lerp(storm_horizon, weather_darken))
 		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk))
 		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra, 0.0, 0.98))
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
+		# After dark: moonlit cloud on a clear night, the city's own light on an overcast one.
+		var overcast := clampf(weather_darken * 1.6, 0.0, 1.0)
+		_sky.set_shader_parameter("night_cloud_light", lerpf(0.12, 0.025, overcast))
+		_sky.set_shader_parameter("night_glow", Vector3(0.02, 0.025, 0.04).lerp(night_storm_glow, overcast))
 		_sky.set_shader_parameter("mid_amount", clampf(mid_cloud + cloud_extra * 0.6, 0.0, 1.0))
 		# Stars on the slow ramp, squared: night_factor is already 1.0 three degrees after sunset,
 		# which had a full star field out over a still-lit dusk sky at 18:24.
@@ -275,7 +293,7 @@ func _apply() -> void:
 		# with, or the land ends in a hard line however good the haze is.
 		var streamer := get_parent()
 		if streamer and streamer.has_method("set_ground_haze"):
-			var hz: Color = horizon.lerp(storm_horizon, weather_darken * (1.0 - night_factor * 0.6))
+			var hz: Color = horizon.lerp(storm_horizon, weather_darken)
 			# A directional light shines along -Z, so +Z points back at the sun.
 			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
 	if _env:
@@ -289,7 +307,8 @@ func _apply() -> void:
 		_env.ambient_light_sky_contribution = lerpf(1.0, 0.35, moonlight)
 		_env.ambient_light_color = day_ambient.lerp(night_ambient, moonlight)
 		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, moonlight) * (1.0 - 0.35 * weather_darken)
-		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4), weather_darken)
+		# Rain haze is grey by day and, like the cloud above it, lit by the streets at night.
+		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4).lerp(night_storm_fog, moonlight), weather_darken)
 	# Street lamps. Setting hundreds of lights every frame is wasteful, but only refreshing when
 	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
 	# which is why the streets stayed black the first time. Refresh on a slow tick instead, so

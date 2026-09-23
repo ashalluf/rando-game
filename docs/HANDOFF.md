@@ -856,10 +856,22 @@ taking away from graphics at all". What shipped, newest last:
   mirroring the sky's lower hemisphere, which was pale haze for 27 degrees under the horizon;
   the cubemap pass now puts the street there. Same shot: glass towers in shade went from 16/255
   to ~75 once their reflection became emission instead of albedo.
-- Store stills: `tools/glshot/still_shot.gd` (FX_AT / FX_SIDE / FX_TIME for explosions). The
-  good ones so far are the skyline at 17:45, the boardwalk at 17:50, the freeway at 18:00 and
-  downtown rain at 21:20. Dusk aerials and the hills are weak: the far city is boxes (next
-  steps item 3).
+- **Builds 216-220, same evening** (owner: "the sickest screenshots ... gameplay stills in
+  steam"). Each of these was found by looking at a still and measuring it, not by guessing:
+  reflections see the street (cars), glass reflection is emitted (black towers in shade), glass
+  mirrors a fake skyline with bowed panes, the fireball has its own hot-core shader, debris is
+  small wedges, crosswalk wear is speckled, the far chunks' ground has its colour back (it was
+  black in every aerial - `append_from()` drops `set_color()`), far streets glow at night, sand
+  is tiled at 2 m (footprints were half a metre), and rainy nights are dark and warm instead of
+  daytime grey.
+  Harness notes: edit a batch script only when nothing is running it - bash reads a script
+  from disk as it goes, and inserting a line mid-run broke one after its last shot. Copy it
+  and run the copy.
+- Store stills: `tools/glshot/still_shot.gd` (FX_AT / FX_SIDE / FX_TIME for explosions,
+  `FX_AT_PED=1 FX_PED_PLACE=1` for limbs). The good ones: the gore shot downtown at 17:25
+  (`--spawn=734.9,330,0,-5 --hour=17.4`, FX_AT=13 FX_RADIUS=9 FX_TIME=0.32), the skyline at
+  17:45, the boardwalk at 17:50, the freeway at 18:00 and downtown rain at 21:20. The hills are
+  still weak (next steps item 3).
 
 ## 10. Suggested next steps, in order of impact
 

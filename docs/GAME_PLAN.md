@@ -240,6 +240,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-23 Rainy nights are dark and warm; sand at its real scale.** An overcast night over a
+  city is its own sodium light on the cloud base: the rain night used the daytime storm grey and
+  a moonlit grey fog veil and read as dusk (sky 133/134/136, now 129/118/110 with the frame's
+  median 74). Far streets' lamp pools sit at the kerbs, staggered. The beach sand is tiled at 2 m
+  - its scan is trodden sand, and at 5 m the footprints were half a metre and read as ripples.
+
 - **2026-09-23 The far city has ground, and lit streets at night.** The far chunks' merged
   ground lost its colour in `SurfaceTool.append_from()`, so every street, pavement and lawn past
   the near blocks was black in every aerial ever rendered. It now carries a linear vertex

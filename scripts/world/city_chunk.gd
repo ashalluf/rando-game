@@ -713,7 +713,10 @@ func _build_sand(rect: Rect2) -> void:
 		mesh.name = "Sand"
 		mesh.mesh = st.commit()
 		# vertex_color_use_as_albedo, or the wet/dry banding above is computed and thrown away.
-		mesh.material_override = PropFactory.pbr("sand", 5.0, Color(1.0, 0.95, 0.85), 1.0, true)
+		# 2 m a tile: the set is trodden sand, footprints and all, photographed over about that.
+		# At 5 m every footprint was half a metre across, and under a low sun the beach read as
+		# rippling water.
+		mesh.material_override = PropFactory.pbr("sand", 2.0, Color(1.0, 0.95, 0.85), 1.0, true)
 		add_child(mesh)
 	if level != Level.FULL:
 		return
@@ -2178,7 +2181,10 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 			lamp = 1.0 if rect.size.y > rect.size.x * 1.5 else (0.75 if rect.size.x > rect.size.y * 1.5 else 0.5)
 		elif tint == style.sidewalk:
 			lamp = 0.25
-		var lin := tint.srgb_to_linear()
+		# Everything but the asphalt is a textured surface up close, and a texture averages well
+		# under its tint (paving, lawn and concrete sets sit about 0.6 of it): at the bare tint
+		# the far pavements were twice as bright as the near ones and lit up like snow at night.
+		var lin := tint.srgb_to_linear() * (1.0 if tint == style.asphalt else 0.6)
 		vcolor = Color(lin.r, lin.g, lin.b, lamp)
 	var mesh := _grid_mesh(rect, top, skirt, nx, nz, far, vcolor)
 	if far:
@@ -2226,14 +2232,22 @@ func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int, colored
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	if colored:
 		st.set_color(color)
+	# UV runs 0..1 across the rect, so a road knows where its kerbs are (street_glow.gdshaderinc
+	# puts the lamp pools along them). Nothing else on the city ground reads UV: those shaders
+	# all work in world space.
+	var inv := Vector2(1.0 / maxf(rect.size.x, 0.01), 1.0 / maxf(rect.size.y, 0.01))
 	for j in nz:
 		for i in nx:
 			var a := pts[j * (nx + 1) + i]
 			var b := pts[j * (nx + 1) + i + 1]
 			var c := pts[(j + 1) * (nx + 1) + i]
 			var d := pts[(j + 1) * (nx + 1) + i + 1]
-			_tri(st, a, b, c)
-			_tri(st, b, d, c)
+			_uv_vert(st, a, rect.position, inv)
+			_uv_vert(st, b, rect.position, inv)
+			_uv_vert(st, c, rect.position, inv)
+			_uv_vert(st, b, rect.position, inv)
+			_uv_vert(st, d, rect.position, inv)
+			_uv_vert(st, c, rect.position, inv)
 	# Skirt: both windings so it shows from either side.
 	var down := Vector3(0.0, skirt, 0.0)
 	var ring: Array[Vector3] = []
@@ -2254,6 +2268,11 @@ func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int, colored
 		_tri(st, p1, p0 - down, p1 - down)
 	st.generate_normals()
 	return st.commit()
+
+
+static func _uv_vert(st: SurfaceTool, v: Vector3, origin: Vector2, inv: Vector2) -> void:
+	st.set_uv(Vector2(v.x - origin.x, v.z - origin.y) * inv)
+	st.add_vertex(v)
 
 
 static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3) -> void:

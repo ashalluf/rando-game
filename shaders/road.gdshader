@@ -37,6 +37,7 @@ global uniform float ground_detail;
 
 varying vec3 world_pos;
 varying vec2 plan_pos;
+varying vec2 slab_uv;
 
 #include "res://shaders/street_glow.gdshaderinc"
 // Which way this road's lamps run (CityChunk._road_look): 0 no glow, 1 along Z, 2 along X. Seen
@@ -88,6 +89,7 @@ void vertex() {
 	// City ground is laid out in plan coordinates in its chunk, so object space does not move
 	// when the origin is re-centred (only the lamp pattern reads it).
 	plan_pos = VERTEX.xz;
+	slab_uv = UV;
 }
 
 
@@ -186,7 +188,7 @@ void fragment() {
 	if (lamp_axis > 0 && lamp_factor > 0.001) {
 		float far = smoothstep(street_glow_near, street_glow_far, length(VERTEX));
 		if (far > 0.0) {
-			EMISSION = street_glow(plan_pos, lamp_axis) * lamp_factor * far;
+			EMISSION = street_glow(plan_pos, slab_uv, lamp_axis) * street_glow_level() * far;
 		}
 	}
 }
