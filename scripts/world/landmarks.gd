@@ -70,6 +70,16 @@ static func all() -> Array[Dictionary]:
 	]
 
 
+## True when world XZ `p` (grown by `pad` metres) is inside a landmark building that stands on
+## city ground the street grid does not know about, so street things must not be put there.
+static func covers(plan: CityPlan, p: Vector2, pad: float) -> bool:
+	for lm in all():
+		if lm.id == "venice_boardwalk" and p.distance_to(lm.anchor) < float(lm.radius) + pad:
+			if LandmarkVeniceBoardwalk.covers(lm.anchor, plan, p, pad):
+				return true
+	return false
+
+
 static func in_rect(rect: Rect2) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for lm in all():

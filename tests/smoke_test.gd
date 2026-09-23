@@ -658,6 +658,12 @@ func _test_city() -> void:
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:
 		_check(city.has_node("FarLandmark_sign") and city.has_node("FarLandmark_pier") and city.has_node("FarLandmark_observatory"), "far versions of the sign, pier and observatory exist")
+		# The boardwalk's shop strip follows the shore across the ends of straight streets, and
+		# cars parked there spawned inside a shop and were pushed out onto its roof.
+		var bw: Vector2 = _landmark_anchor("venice_boardwalk")
+		var shop_mid: Vector3 = LandmarkVeniceBoardwalk._at(bw, plan, LandmarkVeniceBoardwalk.SHOP_FRONT_X + LandmarkVeniceBoardwalk.SHOP_DEPTH * 0.5, 150.0, 0.0)
+		var walk_mid: Vector3 = LandmarkVeniceBoardwalk._at(bw, plan, 0.0, 150.0, 0.0)
+		_check(Landmarks.covers(plan, Vector2(shop_mid.x, shop_mid.z), 0.0) and not Landmarks.covers(plan, Vector2(walk_mid.x, walk_mid.z), 0.0), "street parking keeps out of the boardwalk shops")
 		var pier_anchor: Vector2 = _landmark_anchor("pier")
 		player.global_position = _world_state().to_local(Vector3(pier_anchor.x + 10.0, 3.0, pier_anchor.y))
 		player.velocity = Vector3.ZERO
@@ -949,7 +955,13 @@ func _test_city() -> void:
 	var peds := get_tree().get_nodes_in_group("pedestrian")
 	_check(peds.size() >= 10 and peds.size() <= city.max_pedestrians, "pedestrians on the sidewalks (%d)" % peds.size())
 	if peds.size() > 0:
+		# The nearest one, not peds[0]: the ragdoll lives in the pedestrian's chunk, and the first
+		# in the group can be in a chunk at the edge of the window that is swapped for its far
+		# version a tick later, taking the ragdoll with it.
 		var ped: Node3D = peds[0]
+		for p: Node3D in peds:
+			if not p.is_queued_for_deletion() and p.global_position.distance_to(player.global_position) < ped.global_position.distance_to(player.global_position):
+				ped = p
 		var before_dolls := {}
 		for n in get_tree().get_nodes_in_group("debris"):
 			if n is Ragdoll:
@@ -970,8 +982,13 @@ func _test_city() -> void:
 				rigged_doll = true
 		_check(rigged_doll, "the ragdoll keeps the pedestrian's real model")
 		# Bullets hurt people: the AK-47 ray must hit the npc layer and knock the target over.
-		if peds.size() > 1 and is_instance_valid(peds[1]):
-			var target: Node3D = peds[1]
+		# Also the nearest: past Pedestrian.physics_range a pedestrian's hit zone is switched off.
+		var target: Node3D = null
+		for p in peds:
+			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion():
+				if target == null or (p as Node3D).global_position.distance_to(player.global_position) < target.global_position.distance_to(player.global_position):
+					target = p
+		if target != null:
 			var rifle: Node = player.weapon_manager.get_node_or_null("AssaultRifle")
 			if rifle == null:
 				for w in player.weapon_manager.get_children():

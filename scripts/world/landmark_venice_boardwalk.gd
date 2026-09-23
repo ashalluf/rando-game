@@ -1009,6 +1009,22 @@ static func _at(anchor: Vector2, plan: CityPlan, x: float, z: float, y: float) -
 	return Vector3(p.x, ground + y, p.y)
 
 
+## True when world XZ `p` is under the shop strip, grown by `pad` metres. The strip follows the
+## curving shore while the streets behind it are straight, so it stands across the ends of some
+## of them; a car parked there spawned inside a shop and the physics pushed it out onto the roof.
+## Inverts `_at()` by fixed-point iteration (the strip only turns about 13 degrees).
+static func covers(anchor: Vector2, plan: CityPlan, p: Vector2, pad: float) -> bool:
+	var x := 0.0
+	var world_z := p.y
+	for i in 3:
+		var yaw := _shore_yaw(plan, world_z)
+		var base_x := anchor.x + WALK_SHIFT_X + _shore_dx(anchor, plan, world_z)
+		x = (p.x - base_x) / cos(yaw)
+		world_z = p.y + x * sin(yaw)
+	var z := world_z - anchor.y
+	return x > SHOP_FRONT_X - pad and x < SHOP_FRONT_X + SHOP_DEPTH + pad and z > SHOP_Z_FROM - pad and z < SHOP_Z_TO + pad
+
+
 ## How far the shoreline has moved in X at `world_z`, relative to the shoreline at the anchor.
 static func _shore_dx(anchor: Vector2, plan: CityPlan, world_z: float) -> float:
 	if plan == null or plan.macro == null:

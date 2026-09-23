@@ -1386,6 +1386,10 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 		return
 	var car := Vehicle.random_car(rng)
+	if plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0):
+		# After the rolls, so the chunk rng runs the same whether or not the spot is used.
+		car.free()
+		return
 	var holder: Node = get_parent() if get_parent() else self
 	var spot_pos: Vector3 = spot[0] + Vector3(0.0, 0.3 + _gy(spot[0].x, spot[0].z), 0.0)
 	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
