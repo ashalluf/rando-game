@@ -200,6 +200,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-23 Far hill trees floated above every ridge.** Seen in the first Forward+ gameplay
+  shots: a swarm of dark dots over each mountain skyline, like birds. Skyline placed its
+  planting at `MacroMap.height_at()`, but past the streamed chunks the visible ground is the
+  ground follower - a 62 m bake plus synthesized crags - which on a ridge runs tens of metres
+  below the real height. Fixed by moving the plane's height code into
+  `shaders/macro_relief.gdshaderinc` and giving the planting its own MultiMesh on
+  `shaders/far_canopy.gdshader`, which seats each clump on that exact surface, following the
+  plane's own triangles (seating on the smooth function alone still left a few clumps standing
+  clear of ridges, because the drawn ridge is a 70 m chord). One more draw per hill tile. The
+  same look turned up an off-by-one in the ground snap: PlaneMesh's 200 subdivisions are 201
+  quads, so the 70 m snap slid the mountain vertices 35 cm a step.
+
 - **2026-09-22 The first arm rebuild was measured and was still wrong in three ways (owner:
   "why are their arms weird?").** Sampling the rebuilt pose bone by bone: the clips hold the
   collarbones 8-20 degrees below level (slumped, squared shoulders); the arms rode the chest's

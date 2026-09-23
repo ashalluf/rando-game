@@ -35,10 +35,15 @@ var fade_margin: float = 120.0
 
 var _plan: CityPlan
 var _tiles: Dictionary = {}
+## shaders/far_canopy.gdshader, sharing the ground follower's height uniforms (CityStreamer sets
+## both). The hill planting draws with it, in its own MultiMesh per tile, because it has to stand
+## on the ground the far plane actually draws rather than on MacroMap.height_at() - see the shader.
+var _canopy: ShaderMaterial
 
 
-func setup(plan: CityPlan, from: float, margin: float) -> void:
+func setup(plan: CityPlan, from: float, margin: float, canopy: ShaderMaterial = null) -> void:
 	_plan = plan
+	_canopy = canopy
 	draw_from = from
 	fade_margin = margin
 	# Tile instances are placed at TRUE world coordinates, exactly like a CityChunk's children,
@@ -74,17 +79,34 @@ func build_tile(t: Vector2i) -> bool:
 	var xforms: Array[Transform3D] = []
 	var colors: PackedColorArray = PackedColorArray()
 	var customs: PackedColorArray = PackedColorArray()
+	var veg: Array[Transform3D] = []
+	var veg_colors: PackedColorArray = PackedColorArray()
 	for bx in TILE_BLOCKS:
 		for bz in TILE_BLOCKS:
 			var ix := t.x * TILE_BLOCKS + bx
 			var iz := t.y * TILE_BLOCKS + bz
-			_add_block(ix, iz, macro, xforms, colors, customs)
-	if xforms.is_empty():
+			_add_block(ix, iz, macro, xforms, colors, customs, veg, veg_colors)
+	if xforms.is_empty() and veg.is_empty():
 		# Remember the emptiness too, or an ocean tile is rescanned every single update. Stored
 		# as a plain marker rather than a node: most of the map is water, hills and empty basin,
 		# and an empty Node3D each would be thousands of nodes for nothing.
 		_tiles[t] = null
 		return false
+	var node := _tile_node(t, xforms, colors, customs)
+	var planting := _planting_node(t, veg, veg_colors)
+	if node == null:
+		node = planting
+	elif planting != null:
+		node.add_child(planting)
+	add_child(node)
+	_tiles[t] = node
+	return true
+
+
+## The tile's buildings, plates, containers and houses: one MultiMesh on the LOD box shader.
+func _tile_node(t: Vector2i, xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray) -> MultiMeshInstance3D:
+	if xforms.is_empty():
+		return null
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
@@ -109,12 +131,39 @@ func build_tile(t: Vector2i) -> bool:
 	node.visibility_range_begin = draw_from
 	node.visibility_range_begin_margin = fade_margin
 	node.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
-	add_child(node)
-	_tiles[t] = node
-	return true
+	return node
 
 
-func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray) -> void:
+## The tile's hill planting, on the canopy shader, which seats every clump on the far ground.
+## One more draw per hill tile; the city tiles have none.
+func _planting_node(t: Vector2i, veg: Array[Transform3D], veg_colors: PackedColorArray) -> MultiMeshInstance3D:
+	if veg.is_empty() or _canopy == null:
+		return null
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.mesh = PropFactory.unit_box()
+	mm.instance_count = veg.size()
+	for i in veg.size():
+		mm.set_instance_transform(i, veg[i])
+		mm.set_instance_color(i, veg_colors[i])
+	var node := MultiMeshInstance3D.new()
+	node.name = "Planting_%d_%d" % [t.x, t.y]
+	node.multimesh = mm
+	node.material_override = _canopy
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The shader moves every clump by up to tens of metres, so the MultiMesh's own bounds (built
+	# from the CPU positions) can be off by that much; pad them rather than have a clump culled
+	# while it is still on screen.
+	node.extra_cull_margin = 120.0
+	node.visibility_range_begin = draw_from
+	node.visibility_range_begin_margin = fade_margin
+	node.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
+	return node
+
+
+func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray,
+		veg: Array[Transform3D], veg_colors: PackedColorArray) -> void:
 	var b := _plan.block(ix, iz)
 	var rect: Rect2 = b.rect
 	if rect.size.x < 8.0 or rect.size.y < 8.0:
@@ -129,7 +178,7 @@ func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], c
 	# biggest hole was the HILLS at 44.8% of the area - which carry roads and mansions up close
 	# and drew as bare ground from the air. That gap IS the "closer i go, more stuff appears".
 	if zone != MacroMap.Zone.CITY:
-		_add_wild(zone, rect, center, ground_here, macro, xforms, colors, customs)
+		_add_wild(zone, rect, center, ground_here, macro, xforms, colors, customs, veg, veg_colors)
 		return
 	# Parks and plazas carry no buildings, but they are still GROUND - grass and paving, not
 	# bare dirt. Skipping them entirely left holes in the middle of the far city.
@@ -204,7 +253,8 @@ func _facade(hs: int) -> Color:
 ## aprons, and a beach town its low buildings. Each is a handful of instances in the same
 ## MultiMesh, so none of it adds a draw call.
 func _add_wild(zone: int, rect: Rect2, center: Vector2, ground: float, macro: MacroMap,
-		xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray) -> void:
+		xforms: Array[Transform3D], colors: PackedColorArray, customs: PackedColorArray,
+		veg: Array[Transform3D], veg_colors: PackedColorArray) -> void:
 	match zone:
 		MacroMap.Zone.HILLS:
 			# Vegetation first, and it is the bulk of it. The hills are 45% of an aerial and the
@@ -221,16 +271,19 @@ func _add_wild(zone: int, rect: Rect2, center: Vector2, ground: float, macro: Ma
 			for i in clumps:
 				var hs := hash([_plan.seed, "veg", int(center.x), int(center.y), i])
 				var p := _spot(rect, hs)
+				# Only a first guess at the height: far_canopy.gdshader moves the clump onto the
+				# ground the far plane really draws here, which on a ridge is tens of metres
+				# lower than height_at(). At the real height, every clump along a skyline ridge
+				# hung in the air above it.
 				var gy: float = macro.height_at(p) if macro else ground
 				# Wide and low: a canopy clump, not a post. At this distance the silhouette is
 				# all that survives, and a tall thin box reads as a pole.
 				var r: float = 7.0 + float(absi(hash([hs, "r"])) % 9)
 				var th: float = 4.0 + float(absi(hash([hs, "t"])) % 6)
-				xforms.append(Transform3D(
+				veg.append(Transform3D(
 					Basis(Vector3.UP, float(absi(hs) % 628) * 0.01).scaled(Vector3(r, th, r * 0.85)),
 					Vector3(p.x, gy + th * 0.45, p.y)))
-				colors.append(_scrub(hs, cover))
-				customs.append(Color(0.0, 0.0, 0.0, 1.0))
+				veg_colors.append(_scrub(hs, cover))
 			# The houses that are actually up there. No plate: a hillside is landscape, and a
 			# flat slab laid over a slope would cut into it.
 			if macro == null or macro.hill_roads == null:

@@ -428,6 +428,15 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   silhouette, and the silhouette is the whole point of a ring of mountains. `GROUND_SUBDIVISIONS`
   is 200 so there are vertices to displace, and `CityStreamer` snaps the plane's position to that
   vertex grid **in world space** - without the snap the peaks swim as the follower slides.
+  That grid is `CityStreamer.ground_step()`, `ground_size / (GROUND_SUBDIVISIONS + 1)`: a
+  PlaneMesh with N subdivisions has N + 1 quads, and snapping by `/ N` slid every vertex 35 cm
+  per step. The plane's height code (bake sample, crags, sink) lives in
+  `shaders/macro_relief.gdshaderinc` so anything that must stand on the far ground computes
+  the same surface: `shaders/far_canopy.gdshader` (Skyline's hill planting) seats each clump on
+  it, interpolating across the plane's own 70 m triangles. Placed at `MacroMap.height_at()`
+  instead, the clumps hung in the sky above every ridge - the bake averages a ridge down and the
+  crags move it tens of metres, so the real height is not the height that is drawn.
+  `built_amount()` stays in `macro_ground.gdshader`: the smoke test reads its thresholds from it.
   Before this the plane was 4 km of flat green and its own edge was the horizon.
 - Trees and planting: `PropFactory.CITY_TREES` (five broadleaf street trees) and `HILL_TREES`
   (fir, pine, quiver, searsia) - the hills used to wear the same street trees as the basin, which

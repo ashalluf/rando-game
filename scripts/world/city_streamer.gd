@@ -79,8 +79,9 @@ extends Node3D
 @export var macro_span: float = 16000.0
 ## Corner darkening over the whole frame (0 turns it off). See shaders/vignette.gdshader.
 @export var vignette_strength: float = 0.24
-## Quads across the ground follower. The plane's world position is snapped to this spacing so
-## its vertices land on fixed world points; without that the lifted mountains swim as you walk.
+## Subdivisions of the ground follower (PlaneMesh.subdivide_*). The plane's world position is
+## snapped to its vertex spacing so its vertices land on fixed world points; without that the
+## lifted mountains swim as you walk. N subdivisions make N + 1 quads - see ground_step().
 const GROUND_SUBDIVISIONS := 200
 
 @export_group("Street life")
@@ -136,6 +137,9 @@ var _ground: StaticBody3D
 var _center_block: Vector2i = Vector2i.ZERO
 var _skyline: Skyline
 var _ground_material: ShaderMaterial
+## The far hill planting's material (shaders/far_canopy.gdshader). It computes the ground
+## follower's height itself, so every uniform that height reads is set on both materials.
+var _canopy_material: ShaderMaterial
 var _timer: float = 0.0
 ## Far (always loaded) versions of the landmarks, keyed by id.
 var _far_landmarks: Dictionary = {}
@@ -413,15 +417,19 @@ func update_streaming(immediate: bool) -> void:
 	var local := _player.global_position
 	# Snapped to the plane's own vertex spacing, in world space, so every vertex stays on the
 	# same world point as the player walks. Unsnapped, the lifted mountains crawl and shimmer.
-	var gstep := ground_size / float(GROUND_SUBDIVISIONS)
+	var gstep := ground_step()
 	var off := WorldState.world_offset
 	_ground.position = Vector3(
 		snappedf(local.x + off.x, gstep) - off.x, 0.0,
 		snappedf(local.z + off.z, gstep) - off.z)
 	# The macro map is addressed in true world XZ, so the plane has to know how far the scene's
 	# origin has been shifted from under it.
-	if _ground_material:
-		_ground_material.set_shader_parameter("world_offset", Vector2(WorldState.world_offset.x, WorldState.world_offset.z))
+	for mat in [_ground_material, _canopy_material]:
+		if mat:
+			(mat as ShaderMaterial).set_shader_parameter("world_offset", Vector2(WorldState.world_offset.x, WorldState.world_offset.z))
+	# The far planting follows the plane's actual triangles, so it needs to know where they are.
+	if _canopy_material:
+		_canopy_material.set_shader_parameter("plane_origin", Vector2(_ground.position.x, _ground.position.z))
 	var wp := world_position(local)
 	var here := plan.block_index_at(Vector2(wp.x, wp.z))
 	_center_block = here
@@ -532,7 +540,7 @@ func _build_skyline() -> void:
 	# Where the LOD chunks stop is where this starts. Derived from the ring count rather than
 	# hard-coded so the two can never drift apart when the radius is tuned.
 	var reach := float(lod_radius_blocks) * plan.block_size_range.y
-	_skyline.setup(plan, reach, reach * 0.18)
+	_skyline.setup(plan, reach, reach * 0.18, _canopy_material)
 	add_child(_skyline)
 
 
@@ -636,13 +644,25 @@ func _build_ground_material() -> ShaderMaterial:
 	var size := 160 if OS.has_feature("web") else 256
 	var img := plan.macro.bake(Vector2.ZERO, macro_span, size)
 	var tex := ImageTexture.create_from_image(img)
-	mat.set_shader_parameter("macro_tex", tex)
-	mat.set_shader_parameter("macro_centre", Vector2.ZERO)
-	mat.set_shader_parameter("macro_span", macro_span)
-	mat.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)
+	_canopy_material = ShaderMaterial.new()
+	_canopy_material.shader = load("res://shaders/far_canopy.gdshader")
+	for m in [mat, _canopy_material]:
+		m.set_shader_parameter("macro_tex", tex)
+		m.set_shader_parameter("macro_centre", Vector2.ZERO)
+		m.set_shader_parameter("macro_span", macro_span)
+		m.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)
+	_canopy_material.set_shader_parameter("plane_half", ground_size * 0.5)
+	_canopy_material.set_shader_parameter("plane_step", ground_step())
 	mat.set_shader_parameter("near_albedo", PropFactory.texture("grass", "Color"))
 	mat.set_shader_parameter("near_normal", PropFactory.texture("grass", "NormalGL"))
 	return mat
+
+
+## Metres between the ground follower's vertices. PlaneMesh puts N subdivisions as N + 1 quads,
+## so this is ground_size / 201, not / 200: snapping by the latter slid every vertex 35 cm per
+## step against the world, which is the very swim the snap is there to stop.
+func ground_step() -> float:
+	return ground_size / float(GROUND_SUBDIVISIONS + 1)
 
 
 ## DayNight keeps the horizon haze in step with the sky it is handing over to.

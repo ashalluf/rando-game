@@ -754,6 +754,12 @@ repo; `MESHY_KEY_FILE`). What shipped:
   model's own clothes and the skin tints are small: with nine real models the variety comes
   from them, and darkening a pale face with a multiplier gave grey mud, not a darker person.
 
+**Far ground, 2026-09-23.** Anything placed on the ground follower (beyond ~700 m) must go
+through `shaders/macro_relief.gdshaderinc`, not `MacroMap.height_at()`: the drawn surface is a
+coarse bake plus crags, tens of metres off the real terrain on ridges. `far_canopy.gdshader` is
+the worked example. Skyline's hill *houses* still use `height_at()` on the LOD box shader; they
+have not been seen floating, but they would be the next thing to move if they are.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
