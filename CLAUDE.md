@@ -364,7 +364,15 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   and head, tail and beam lights on every `Vehicle` (`_add_night_lights`, needed because
   `Vehicle._box()` skips every primitive once a generated body model is in use). A car's five
   lights are one mesh with the colours in the vertex colour, so 150 cars cost 150 draws and not
-  750, and they stop drawing past 160 m. The shader reads `lamp_factor` itself, so all of it
+  750, and they stop drawing past 160 m. Far (LOD) chunks build no lamps, so their streets glow
+  instead (`shaders/street_glow.gdshaderinc`, used by `far_ground.gdshader` and, past
+  `street_glow_near`, by `road.gdshader`, whose road materials carry `lamp_axis`): a run of
+  sodium light down each carriageway with a pool every `street_glow_spacing` metres, so a night
+  flight shows the orange grid a real city is from the air instead of lit towers in a void.
+  The far chunks' merged ground marks its carriageways in the vertex colour's alpha (which way
+  each runs, from the slab's shape). **Trap:** `SurfaceTool.append_from()` ignores `set_color()`
+  - the colour has to be in the appended mesh (`_grid_mesh(..., colored, color)`). Until that
+  was found the far city's ground had no colour at all and was black by day as well as night. The shader reads `lamp_factor` itself, so all of it
   costs nothing by day. The headlight beam quads carry UVs shifted by 2 (`_light_quad()`'s
   `uv_shift`), and `UV.y > 1.5` is how the shader knows to draw a fan that widens and fades
   along the road instead of a round pool; drawn as a pool, a beam laid flat on the street read

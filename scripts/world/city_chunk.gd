@@ -1141,8 +1141,12 @@ func _road_look(axis: int, index: int, params: Dictionary) -> Dictionary:
 	var set_key := "asphalt" if rng.randf() < 0.55 else "asphalt_aerial"
 	var tint: Color = ROAD_TINTS[rng.randi() % ROAD_TINTS.size()]
 	var white := rng.randf() < float(params.get("line_white", 0.4))
+	var material := PropFactory.road(set_key, 7.0 if set_key == "asphalt" else 9.0, tint, hash([plan.seed, axis, index]))
+	# Which way its street lamps run, for the glow the road wears seen from afar at night
+	# (road.gdshader): an AXIS_X road stands at an x and runs along Z.
+	material.set_shader_parameter("lamp_axis", 1 if axis == CityPlan.AXIS_X else 2)
 	return {
-		"material": PropFactory.road(set_key, 7.0 if set_key == "asphalt" else 9.0, tint, hash([plan.seed, axis, index])),
+		"material": material,
 		"line": Color(0.95, 0.95, 0.9) if white else Color(0.95, 0.8, 0.2),
 		"solid": rng.randf() < 0.35,
 	}
@@ -2161,8 +2165,23 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 	var step := ground_grid_step if _detail() >= 1.0 else ground_grid_step * 2.0
 	var nx := clampi(ceili(rect.size.x / step), 1, 120)
 	var nz := clampi(ceili(rect.size.y / step), 1, 120)
-	var mesh := _grid_mesh(rect, top, skirt, nx, nz)
-	if level != Level.FULL:
+	# Far chunks carry the surface's colour in the mesh itself (see below). Linear, because a
+	# vertex colour reaches the shader verbatim where a material's albedo_color is decoded from
+	# sRGB. Alpha marks the carriageway and which way it runs, for the street lamp glow far chunks
+	# get instead of lamps (far_ground.gdshader): 1.0 along Z, 0.75 along X, 0.5 a junction, 0.25
+	# a pavement, 0 anything else. A road slab is long and thin, a junction square.
+	var far := level != Level.FULL
+	var vcolor := Color(0.0, 0.0, 0.0, 0.0)
+	if far:
+		var lamp := 0.0
+		if tint == style.asphalt:
+			lamp = 1.0 if rect.size.y > rect.size.x * 1.5 else (0.75 if rect.size.x > rect.size.y * 1.5 else 0.5)
+		elif tint == style.sidewalk:
+			lamp = 0.25
+		var lin := tint.srgb_to_linear()
+		vcolor = Color(lin.r, lin.g, lin.b, lamp)
+	var mesh := _grid_mesh(rect, top, skirt, nx, nz, far, vcolor)
+	if far:
 		# FAR CHUNKS: one mesh for all of it. Each ground surface used to be its own
 		# MeshInstance with its own material, and at about seven a chunk across two hundred LOD
 		# chunks that was ~1377 draw calls - 45% of everything the streamed city submits - for
@@ -2173,7 +2192,10 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 		if _far_ground == null:
 			_far_ground = SurfaceTool.new()
 			_far_ground.begin(Mesh.PRIMITIVE_TRIANGLES)
-		_far_ground.set_color(tint)
+		# The colour has to be IN the appended mesh: append_from() copies the source's own
+		# vertices and ignores set_color(), so the merged ground used to come out with no colour
+		# at all - black - and every street, pavement and lawn in the far city was a black void
+		# by day as well as by night.
 		_far_ground.append_from(mesh, 0, Transform3D.IDENTITY)
 		_far_ground_any = true
 	else:
@@ -2191,7 +2213,8 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 
 
 ## One grid of `nx` by `nz` quads over `rect`, following the relief, with the skirt around it.
-func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int) -> ArrayMesh:
+## `colored` gives every vertex `color` (the far chunks' merged ground).
+func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int, colored: bool = false, color: Color = Color.WHITE) -> ArrayMesh:
 	var pts := PackedVector3Array()
 	pts.resize((nx + 1) * (nz + 1))
 	for j in nz + 1:
@@ -2201,6 +2224,8 @@ func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int) -> Arra
 			pts[j * (nx + 1) + i] = Vector3(x, top + _gy(x, z), z)
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	if colored:
+		st.set_color(color)
 	for j in nz:
 		for i in nx:
 			var a := pts[j * (nx + 1) + i]

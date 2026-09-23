@@ -1469,13 +1469,13 @@ static func model_grass_tuft(variant: int) -> Mesh:
 ## The one material every far chunk's merged ground wears. Vertex colour carries what each
 ## surface used to get from its own shader; at LOD range that base colour is all that survived
 ## anyway. Cached, so two hundred far chunks share one material and one draw each.
-static func far_ground_material() -> StandardMaterial3D:
+## The merged ground of a far chunk: vertex colour for albedo, and its alpha for how much street
+## lamp glow the surface gets after dark (shaders/far_ground.gdshader).
+static func far_ground_material() -> ShaderMaterial:
 	if _cache.has("far_ground_mat"):
 		return _cache["far_ground_mat"]
-	var mat := StandardMaterial3D.new()
-	mat.vertex_color_use_as_albedo = true
-	mat.roughness = 0.95
-	mat.specular_mode = BaseMaterial3D.SPECULAR_DISABLED
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/far_ground.gdshader")
 	_cache["far_ground_mat"] = mat
 	return mat
 

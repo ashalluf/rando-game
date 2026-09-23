@@ -240,6 +240,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-23 The far city has ground, and lit streets at night.** The far chunks' merged
+  ground lost its colour in `SurfaceTool.append_from()`, so every street, pavement and lawn past
+  the near blocks was black in every aerial ever rendered. It now carries a linear vertex
+  colour, and its carriageways glow with sodium light after dark (the near chunks' roads do the
+  same past 90-200 m, where their real lamps stop reading), so a night flight is an orange grid.
+
 - **2026-09-23 Reflections see the street, not more sky; glass reflections are emitted.** White,
   silver - and dark red and navy - cars all read as pale-blue ice in Forward+ because the sky's
   lower hemisphere was pale haze for 27 degrees, and that is what a car door mirrors. The cubemap

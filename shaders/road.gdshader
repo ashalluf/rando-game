@@ -36,6 +36,15 @@ global uniform float road_wetness;
 global uniform float ground_detail;
 
 varying vec3 world_pos;
+varying vec2 plan_pos;
+
+#include "res://shaders/street_glow.gdshaderinc"
+// Which way this road's lamps run (CityChunk._road_look): 0 no glow, 1 along Z, 2 along X. Seen
+// from past `street_glow_near` metres the road wears the same lamp glow the far chunks do
+// (far_ground.gdshader); closer in, the real lamps and their light pools take over.
+uniform int lamp_axis = 0;
+uniform float street_glow_near = 90.0;
+uniform float street_glow_far = 200.0;
 
 
 float hash12(vec2 p) {
@@ -76,6 +85,9 @@ float fbm(vec2 p) {
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	// City ground is laid out in plan coordinates in its chunk, so object space does not move
+	// when the origin is re-centred (only the lamp pattern reads it).
+	plan_pos = VERTEX.xz;
 }
 
 
@@ -171,4 +183,10 @@ void fragment() {
 	SPECULAR = mix(0.5, 0.85, wet);
 	NORMAL_MAP = texture(normal_tex, uv).rgb;
 	NORMAL_MAP_DEPTH = normal_depth * (1.0 - 0.6 * wet) * (1.0 - puddle);
+	if (lamp_axis > 0 && lamp_factor > 0.001) {
+		float far = smoothstep(street_glow_near, street_glow_far, length(VERTEX));
+		if (far > 0.0) {
+			EMISSION = street_glow(plan_pos, lamp_axis) * lamp_factor * far;
+		}
+	}
 }
