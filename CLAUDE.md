@@ -272,6 +272,18 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   spaced across the crowd by `scream_gap_ms`). `Weapon.tick()` raises it at `alarm_radius` from
   the shooter (0 for the gravity gun), `Explosion.blast()` at six blast radii. One pass over the
   crowd group per alarm, rate-limited per spot, so an automatic rifle costs nothing extra.
+  Dismemberment (owner, same day: "body parts limbs flying off ... from the rocket launcher"):
+  `Explosion.blast()` passes `gibs` (up to 3 inside `gib_reach` of the radius) to
+  `Pedestrian.knock()`, and `Ragdoll.dismember()` collapses each lost limb with a `LimbHider`
+  (a SkeletonModifier3D - the clips key scale, so a plain bone scale is overwritten), adds a
+  stump, and throws the limb as a static mesh cut from the character (`_limb_mesh()`, cached per
+  model and limb). Three traps, each found the hard way: a skinned vertex must be taken through
+  its bones' bind poses (`skin.get_bind_pose()`) - read raw, these rigs put the limb a hundredth
+  of its size at the feet; a limb must not collide with the body it spawns inside, or with the
+  ground it overlaps (the depenetration fired legs up at 45 m/s); and cutting needs mesh data,
+  which the headless dummy renderer does not keep, so the smoke test cannot see limbs - judge
+  them with `still_shot.gd` (`FX_AT_PED=1 FX_PED_PLACE=1`). `WeaponFX.blood()` is the spray,
+  mist and ground splat (splats capped at `blood_splat_max`).
   Population (owner, 2026-09-20: "an actual very populated city", densest downtown, thinning
   outward, the airport jam-packed): `"people"` and `"parked"` per block live in
   `CityPlan.DISTRICTS` (the downtown core doubles people via `skyline_boost`), the caps are

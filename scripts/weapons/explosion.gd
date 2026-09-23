@@ -21,6 +21,8 @@ static var min_falloff: float = 0.2
 ## Blast strength that counts as "normal" (a rocket) when scaling how hard the effect throws
 ## its sparks and debris. Bigger launch speeds throw faster fire.
 static var reference_launch: float = 30.0
+## Fraction of the blast radius inside which people lose limbs (more of them nearer the centre).
+static var gib_reach: float = 0.6
 
 
 ## `launch_speed` is the velocity change at the center for props (scaled by falloff, not mass).
@@ -46,6 +48,14 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 		var dir := (offset + Vector3.UP * radius * up_bias).normalized() if dist > 0.01 else Vector3.UP
 		if collider is Vehicle:
 			(collider as Vehicle).drop_out_of_traffic()
+		if collider is Pedestrian:
+			# Close to the blast people come apart: up to three limbs at the centre, one at the
+			# edge of `gib_reach`, none past it (owner, 2026-09-23: "limbs flying off").
+			var near := 1.0 - dist / maxf(radius * gib_reach, 0.01)
+			var gibs := 0 if near <= 0.0 else clampi(int(ceil(near * 3.0)), 1, 3)
+			(collider as Pedestrian).knock(dir * launch_speed * falloff * knock_scale, gibs)
+			affected += 1
+			continue
 		if collider.has_method("knock"):
 			collider.knock(dir * launch_speed * falloff * knock_scale)
 			affected += 1

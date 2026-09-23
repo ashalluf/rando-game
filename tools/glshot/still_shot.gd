@@ -14,7 +14,10 @@ extends SceneTree
 ## at its biggest); then SETTLE frames (default 6) with the clock all but frozen (TIME_SCALE,
 ## default 0.0005): a software frame takes seconds, and at normal speed every moving thing -
 ## people, traffic, leaves, fire - smears under TAA. Held still, it resolves as crisply as it
-## does on the Mac.
+## does on the Mac. FX_AT_PED=1 centres the explosion on the nearest pedestrian at least FX_AT
+## metres ahead instead (people come apart close to a blast); FX_PED_PLACE=1 also stands that
+## pedestrian in the road exactly FX_AT metres ahead first. Debris is kept alive for the shot:
+## its lifetime is wall-clock seconds, and a software frame takes seconds.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -38,6 +41,10 @@ func _initialize() -> void:
 		var traffic := scene.get_node_or_null("Traffic")
 		if traffic:
 			traffic.set("builds_per_frame", 40)
+		# Autoloads exist by now (not in _initialize).
+		var budget := root.get_node_or_null("/root/PhysicsBudget")
+		if budget:
+			budget.set("debris_lifetime", 1.0e6)
 		if player == null:
 			player = get_first_node_in_group("player") as Node3D
 			if player:
@@ -56,6 +63,29 @@ func _initialize() -> void:
 		var side := float(OS.get_environment("FX_SIDE")) if OS.get_environment("FX_SIDE") != "" else 0.0
 		at += cam.global_basis.x.normalized() * side
 		at.y = player.global_position.y + 0.5
+		if OS.get_environment("FX_AT_PED") == "1":
+			var best: Node3D = null
+			for p in get_nodes_in_group("pedestrian"):
+				var to: Vector3 = (p as Node3D).global_position - cam.global_position
+				var ahead := to.dot(forward.normalized())
+				var placing := OS.get_environment("FX_PED_PLACE") == "1"
+				if not placing and (ahead < fx_at or absf(to.dot(cam.global_basis.x.normalized())) > ahead * 0.6):
+					continue
+				if best == null or to.length() < (best.global_position - cam.global_position).length():
+					best = p
+			print("fx target pedestrian: ", best.name if best else "none")
+			if best and OS.get_environment("FX_PED_PLACE") == "1":
+				# Stand them in the road FX_AT metres ahead, so the shot frames them cleanly.
+				best.global_position = Vector3(at.x, player.global_position.y, at.z)
+				best.set("velocity", Vector3.ZERO)
+				best.set("_pause_left", 30.0)
+				at = best.global_position + Vector3(0.5, 0.4, 0.3)
+				# The blast is a physics query, and the broadphase only learns where a moved body
+				# is on the next step: blasted at once, the pedestrian was never hit.
+				for i in 2:
+					await physics_frame
+			elif best:
+				at = best.global_position + Vector3(0.6, 0.4, 0.0)
 		var radius := float(_env_int("FX_RADIUS", 9))
 		# Godot caps a frame at eight physics ticks (0.133 s), whatever the wall clock says, so
 		# a scale of 0.375 steps the effect 0.05 s a frame - fine enough to stop where asked.
@@ -63,7 +93,10 @@ func _initialize() -> void:
 		# Loaded, not named: this script compiles before the autoloads exist, and Explosion
 		# uses one (Sfx), so naming the class here fails the whole script.
 		load("res://scripts/weapons/weapon_fx.gd").explosion(player, at, radius)
-		load("res://scripts/weapons/explosion.gd").blast(player, at, radius, 26.0, 0.0)
+		var hit: int = load("res://scripts/weapons/explosion.gd").blast(player, at, radius, 26.0, 0.0)
+		print("fx blast at %s hit %d bodies; gibs now %d, target down %s" % [at, hit, get_nodes_in_group("gib").size(), "?"])
+		for d in get_nodes_in_group("debris"):
+			print("  debris ", d.name, " ", d.get_script().get_global_name() if d.get_script() else d.get_class(), " at ", (d as Node3D).global_position)
 		var want := float(OS.get_environment("FX_TIME")) if OS.get_environment("FX_TIME") != "" else 0.25
 		var elapsed := 0.0
 		while elapsed < want:
@@ -77,6 +110,10 @@ func _initialize() -> void:
 	for i in _env_int("SETTLE", 6):
 		await process_frame
 		_pose(player, anchor, hold, boost, fov)
+	var gib_cam := get_root().get_camera_3d()
+	for g in get_nodes_in_group("gib"):
+		var gp: Vector3 = (g as Node3D).global_position
+		print("gib at %s, on screen %s" % [gp, gib_cam.unproject_position(gp) if gib_cam and not gib_cam.is_position_behind(gp) else "behind"])
 	var day := current_scene.get_node_or_null("DayNight") if current_scene else null
 	if day:
 		print("clock ", day.clock_text())

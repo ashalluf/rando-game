@@ -1097,8 +1097,8 @@ func _scream() -> void:
 	Sfx.play("scream", global_position + Vector3.UP * 1.6, 0.0, _rng.randf_range(0.94, 1.08))
 
 
-## Turns into a ragdoll flung by `impulse`.
-func knock(impulse: Vector3) -> void:
+## Turns into a ragdoll flung by `impulse`, with `gibs` limbs torn off (a close blast).
+func knock(impulse: Vector3, gibs: int = 0) -> void:
 	if _down:
 		return
 	_down = true
@@ -1111,4 +1111,6 @@ func knock(impulse: Vector3) -> void:
 		doll.build(shirt, pants, skin)
 	PhysicsBudget.register_debris(doll)
 	doll.fling(impulse)
+	if gibs > 0:
+		doll.dismember(gibs, impulse)
 	queue_free()

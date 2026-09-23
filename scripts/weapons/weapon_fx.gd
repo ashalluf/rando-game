@@ -900,6 +900,57 @@ static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface,
 ## shimmer, a ground dust skirt, dust kicked off the walls around it, a shockwave ring, lit
 ## debris and a scorch mark, plus a camera shake that falls off with distance.
 ## `power` scales how hard the fast layers are thrown (1.0 is a rocket).
+## Most blood splats on the ground at once; the oldest goes when a new one would pass it.
+static var blood_splat_max: int = 24
+static var _splats: Array = []
+
+
+## A wound opening: a spray of droplets thrown along `dir` that falls under gravity, a thin red
+## mist, and a dark splat on whatever is below (desktop only; decals are Forward+). `amount`
+## scales the spray. Used when a limb comes off (Ragdoll.dismember()).
+static func blood(node: Node, at: Vector3, dir: Vector3, amount: float = 1.0) -> void:
+	var parent := fx_parent(node)
+	var drops := _ramp([Color(0.42, 0.02, 0.02, 1.0), Color(0.30, 0.01, 0.01, 0.95), Color(0.18, 0.0, 0.0, 0.0)])
+	_puff_layer(parent, at, _count(int(28 * amount)), 0.07, 0.9, 2.5, 8.0, -18.0, drops, false,
+		40.0, 1.3, _basis_up(dir), 0.0, 0.5)
+	var mist := _ramp([Color(0.35, 0.02, 0.02, 0.0), Color(0.30, 0.02, 0.02, 0.35), Color(0.22, 0.01, 0.01, 0.0)])
+	_puff_layer(parent, at, _count(int(6 * amount)), 0.45, 0.7, 0.6, 2.0, -1.0, mist, false,
+		70.0, 2.0, _basis_up(dir))
+	if _web():
+		return
+	var space := _space(node)
+	if space == null:
+		return
+	var down := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.3, at + Vector3.DOWN * 4.0, 1)
+	var hit := space.intersect_ray(down)
+	if hit.is_empty():
+		return
+	var decal := Decal.new()
+	decal.texture_albedo = puff_texture()
+	decal.modulate = Color(0.22, 0.01, 0.01)
+	decal.albedo_mix = 0.9
+	var w := randf_range(1.0, 1.8) * amount
+	decal.size = Vector3(w, 1.2, w)
+	decal.upper_fade = 0.5
+	decal.lower_fade = 0.5
+	decal.normal_fade = 0.5
+	decal.distance_fade_enabled = true
+	decal.distance_fade_begin = 45.0
+	decal.distance_fade_length = 15.0
+	parent.add_child(decal)
+	decal.global_position = (hit.position as Vector3) + dir.normalized() * randf_range(0.3, 1.2) * Vector3(1, 0, 1)
+	decal.rotation.y = randf_range(0.0, TAU)
+	_splats.append(decal)
+	while _splats.size() > blood_splat_max:
+		var old = _splats.pop_front()
+		if is_instance_valid(old):
+			(old as Node).queue_free()
+	var t := decal.create_tween()
+	t.tween_interval(30.0)
+	t.tween_property(decal, "modulate:a", 0.0, 4.0)
+	t.tween_callback(decal.queue_free)
+
+
 static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0) -> void:
 	var parent := fx_parent(node)
 	var push := clampf(power, 0.5, 2.0)
