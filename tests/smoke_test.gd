@@ -982,18 +982,22 @@ func _test_city() -> void:
 				rigged_doll = true
 		_check(rigged_doll, "the ragdoll keeps the pedestrian's real model")
 		# Bullets hurt people: the AK-47 ray must hit the npc layer and knock the target over.
-		# Also the nearest: past Pedestrian.physics_range a pedestrian's hit zone is switched off.
-		var target: Node3D = null
+		# The nearest ones: past Pedestrian.physics_range a pedestrian's hit zone is switched off.
+		# A lamp post, a car or a bin between the muzzle and the target takes the bullet instead,
+		# so try the nearest few until one shot lands on somebody.
+		var targets: Array = []
 		for p in peds:
 			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion():
-				if target == null or (p as Node3D).global_position.distance_to(player.global_position) < target.global_position.distance_to(player.global_position):
-					target = p
-		if target != null:
-			var rifle: Node = player.weapon_manager.get_node_or_null("AssaultRifle")
-			if rifle == null:
-				for w in player.weapon_manager.get_children():
-					if w is AssaultRifle:
-						rifle = w
+				targets.append(p)
+		targets.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
+		var rifle: Node = player.weapon_manager.get_node_or_null("AssaultRifle")
+		if rifle == null:
+			for w in player.weapon_manager.get_children():
+				if w is AssaultRifle:
+					rifle = w
+		var hit_a_person := false
+		var struck_id: int = 0
+		for target: Node3D in targets.slice(0, 5):
 			# Fire from close range and follow whoever the bullet actually hits: the crowd is
 			# dense enough now that a long shot often passes through somebody else first.
 			var from: Vector3 = target.global_position + Vector3(0.0, 1.0, 0.0) + Vector3(-2.5, 0.0, 0.0)
@@ -1002,10 +1006,13 @@ func _test_city() -> void:
 			while struck != null and not (struck is Pedestrian):
 				struck = struck.get_parent()
 			# Decide what we hit before awaiting: knocking it over frees the node.
-			var hit_a_person := struck is Pedestrian
-			var struck_id: int = struck.get_instance_id() if hit_a_person else 0
+			if struck is Pedestrian:
+				hit_a_person = true
+				struck_id = struck.get_instance_id()
+				break
+		if not targets.is_empty():
 			await _ticks(3)
-			var gone := not is_instance_valid(instance_from_id(struck_id)) or (instance_from_id(struck_id) as Node).is_queued_for_deletion()
+			var gone := hit_a_person and (not is_instance_valid(instance_from_id(struck_id)) or (instance_from_id(struck_id) as Node).is_queued_for_deletion())
 			_check(hit_a_person and gone, "an AK-47 bullet knocks a pedestrian down")
 	# Quality levels scale the population, not just the effects (owner: "still super laggy").
 	var quality_node: Node = city.get_node("Quality")

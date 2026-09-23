@@ -522,7 +522,13 @@ func _place_freeway_car(car: Vehicle, fw: Freeway) -> void:
 	var half: float = float(fw.routes[car.traffic.fw].width) * 0.5
 	var nrm := Vector2(-d.y, d.x) * (float(car.traffic.lane) * half)
 	var heading: Vector2 = d * float(car.traffic.dir)
-	_place(car, WorldState.to_local(Vector3(p.x + nrm.x, p.y + 0.71, p.z + nrm.y)), atan2(-heading.x, -heading.y), 0.0)
+	# Nose up the grade. Placed level, a car on a sloped deck sank its front or back wheels into
+	# it, and its headlight beam - flat in the car's own frame - cut into the asphalt along a
+	# hard line a few metres ahead.
+	var step := 2.5 * float(car.traffic.dir)
+	var ahead: float = (fw.point_at(car.traffic.fw, car.traffic.t + step)[0] as Vector3).y
+	var behind: float = (fw.point_at(car.traffic.fw, car.traffic.t - step)[0] as Vector3).y
+	_place(car, WorldState.to_local(Vector3(p.x + nrm.x, p.y + 0.71, p.z + nrm.y)), atan2(-heading.x, -heading.y), atan2(ahead - behind, 5.0))
 
 
 ## Cruise, closing up on whatever is ahead in the same lane and direction.

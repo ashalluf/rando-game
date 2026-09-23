@@ -148,14 +148,27 @@ void fragment() {
 		base *= 0.965 + 0.07 * hash12(floor(slab) + seed);
 	}
 
-	// Wet tarmac goes darker and far glossier.
+	// Wet tarmac goes darker and far glossier, and water stands in the low spots. The puddles
+	// are what make a rainy street at night read: mirror-flat, they hold the lit windows and
+	// the lamps, where evenly glossy tarmac only ever gives a smeared sheen. They spread as the
+	// street soaks, and pavements, which drain, get fewer.
 	float wet = clamp(road_wetness, 0.0, 1.0);
+	float puddle = 0.0;
+	if (wet > 0.01) {
+		float pn = fbm(w * 0.075 + 57.0 + seed) + 0.25 * value_noise(w * 0.9 + 3.0);
+		float cover = mix(0.80, 0.52, wet) + (joint_spacing > 0.01 ? 0.08 : 0.0);
+		puddle = smoothstep(cover, cover + 0.05, pn) * wet;
+	}
 	base *= mix(1.0, 0.62, wet);
+	base *= 1.0 - 0.35 * puddle;
 
 	ALBEDO = base;
-	ROUGHNESS = clamp(mix(rough, 0.18, wet), 0.05, 1.0);
+	// 0.07, not 0.18: at 0.18 the screen-space reflections blur into a warm smear, and a soaked
+	// street at night is nearly a mirror - the lit windows and tail lights standing in it are
+	// the whole look.
+	ROUGHNESS = clamp(mix(mix(rough, 0.07, wet), 0.02, puddle), 0.02, 1.0);
 	METALLIC = 0.0;
 	SPECULAR = mix(0.5, 0.85, wet);
 	NORMAL_MAP = texture(normal_tex, uv).rgb;
-	NORMAL_MAP_DEPTH = normal_depth * (1.0 - 0.6 * wet);
+	NORMAL_MAP_DEPTH = normal_depth * (1.0 - 0.6 * wet) * (1.0 - puddle);
 }

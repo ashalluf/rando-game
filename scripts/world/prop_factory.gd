@@ -898,7 +898,9 @@ static func vehicle_lights(width: float, length: float, y: float) -> Mesh:
 	# The beam on the road: a wide wedge lying flat in front of the car.
 	# Its UVs sit in 2..3 instead of 0..1, which is how light_pool.gdshader tells it from a
 	# round lamp pool and draws a fan instead of a blob.
-	_light_quad(st, Vector3(0.0, 0.10 - y, -length * 0.5 - 4.2), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 11.0), Color(1.0, 0.94, 0.80, 0.62), 2.0)
+	# Nine metres, not eleven: the further the flat quad reaches, the more a change of grade
+	# ahead of the car puts its far end under the road, where it is cut off along a hard line.
+	_light_quad(st, Vector3(0.0, 0.12 - y, -length * 0.5 - 3.4), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 9.0), Color(1.0, 0.94, 0.80, 0.62), 2.0)
 	var mesh := st.commit()
 	mesh.surface_set_material(0, light_pool_material())
 	_cache[key] = mesh

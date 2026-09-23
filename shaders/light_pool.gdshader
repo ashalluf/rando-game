@@ -24,8 +24,8 @@ void fragment() {
 		vec2 b = vec2(UV.x, UV.y - 2.0); // x across the beam, y from the car (0) to its end (1)
 		float half_w = 0.16 + 0.34 * b.y;
 		float across = 1.0 - smoothstep(half_w * 0.45, half_w, abs(b.x - 0.5));
-		float along = smoothstep(0.10, 0.22, b.y) * pow(1.0 - b.y, 1.7);
-		a = across * along * lamp_factor * strength * 0.45;
+		float along = smoothstep(0.06, 0.30, b.y) * pow(1.0 - b.y, 2.0);
+		a = across * along * lamp_factor * strength * 0.30;
 	}
 	// COLOR carries the per-part tint, so one mesh can hold a car's white headlights, its red
 	// tail lights and its beam on the road and still be a single draw.

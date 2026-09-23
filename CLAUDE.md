@@ -209,6 +209,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   shader, foam on the crests, and the sky mixed in by fresnel with a glare path to the sun,
   taken from the `sky_tint` and `sun_direction` shader globals that `DayNight` publishes (water
   is mostly the sky seen in it, and leaving that to reflections gives nothing on the web). Debug `?weather=storm`.
+  Rain at night is judged by the wet street, so: `Weather` starts as wet as the weather it
+  starts in (soaking from dry spent the first 16 s on dry tarmac under a downpour); a soaked
+  road is roughness 0.07 with mirror puddles at 0.02 (`road.gdshader`, spreading as it soaks),
+  because at 0.18 SSR only gave a smear and the lit windows standing in the street are the
+  whole look; drops are lit (with a faint glow of their own) and fade out within 5 m of the
+  lens, splashes are lit like the road, and the lens rain is a few dozen drops at the frame
+  edges - at 1,800 evenly spread it read as television static over the picture.
 - Look (owner, 2026-09-20: "as realistic as possible, like an industry giant made it"). The
   realism settings are deliberate, not defaults: **AgX** filmic tonemapping (not ACES, which
   clips highlights hard), **sky-source ambient** so shadows take the sky's colour instead of a

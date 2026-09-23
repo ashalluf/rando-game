@@ -151,6 +151,9 @@ func _ready() -> void:
 	_apply_override()
 	_timer = _rng.randf_range(state_length.x, state_length.y)
 	blend = 1.0
+	# Start as wet as the weather we start in. Soaking from dry took soak_seconds, so a game that
+	# opened in rain spent its first quarter-minute on dry tarmac under a downpour.
+	wetness = clampf(_rain_level(state) * 1.2, 0.0, 1.0)
 
 
 func _apply_override() -> void:
@@ -214,13 +217,24 @@ func _build_rain() -> void:
 	# quad also gives the temporal pass a coherent object to track instead of a cloud of small
 	# ones it smears into frosted glass.
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.03, 0.95)
+	quad.size = Vector2(0.025, 0.95)
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.75, 0.82, 0.92, 0.38)
+	mat.albedo_color = Color(0.75, 0.82, 0.92, 0.5)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# A faint glow of its own, so a downpour still shows where no lamp reaches it.
+	mat.emission_enabled = true
+	mat.emission = Color(0.55, 0.6, 0.68)
+	mat.emission_energy_multiplier = 0.18
+	# Lit, not unshaded: rain is only visible where there is light to catch it. Unshaded, every
+	# drop glowed the same pale blue at midnight, and the street looked like television static.
+	mat.roughness = 0.25
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_FIXED_Y
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	# Drops right in front of the lens fade out: a metre-long streak half a metre away is a
+	# white pole across the screen, not rain.
+	mat.distance_fade_mode = BaseMaterial3D.DISTANCE_FADE_PIXEL_ALPHA
+	mat.distance_fade_min_distance = 0.8
+	mat.distance_fade_max_distance = 5.0
 	quad.material = mat
 	_rain.mesh = quad
 	# A thousand alpha quads in the sun's shadow map painted dark streaks down every wall in the
@@ -256,15 +270,18 @@ func _build_splashes() -> void:
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(1.0, 1.0, 1.0, 0.0))
 	ramp.set_color(1, Color(1.0, 1.0, 1.0, 0.0))
-	ramp.add_point(0.2, Color(1.0, 1.0, 1.0, 0.75))
+	ramp.add_point(0.2, Color(1.0, 1.0, 1.0, 0.4))
 	_splash.color_ramp = ramp
 	var plane := PlaneMesh.new()   # PlaneMesh lies flat in XZ, which a QuadMesh does not
-	plane.size = Vector2(0.55, 0.55)
+	plane.size = Vector2(0.38, 0.38)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_texture = _ring_texture()
 	mat.albedo_color = Color(0.86, 0.92, 1.0)
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	# Lit like the wet road it ripples, so it catches the lamps and the sky and is dark where
+	# they are not. Unshaded, the street at night was covered in bright white hoops.
+	mat.roughness = 0.15
+	mat.metallic_specular = 0.9
 	mat.vertex_color_use_as_albedo = true
 	mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 	plane.material = mat
@@ -389,23 +406,27 @@ float hash12(vec2 p) {
 void fragment() {
 	vec2 uv = SCREEN_UV;
 	float a = 0.0;
-	for (int i = 0; i < 3; i++) {
+	// A few dozen drops, not a field of them. At 58 x 34 cells and up, with one cell in seven
+	// holding a drop, there were about 1,800 on screen at once, evenly spread, and the whole
+	// frame read as television static laid over the rain rather than water on a lens.
+	for (int i = 0; i < 2; i++) {
 		float fi = float(i);
-		vec2 c = uv * vec2(58.0 + fi * 26.0, 34.0 + fi * 15.0);
+		vec2 c = uv * vec2(18.0 + fi * 10.0, 10.0 + fi * 6.0);
 		// MINUS, not plus: SCREEN_UV.y runs downward in a canvas_item shader, so subtracting
 		// time walks a drop toward the bottom of the frame. Adding it slid them up the glass.
-		c.y -= TIME * (0.8 + fi * 0.7);
+		c.y -= TIME * (0.25 + fi * 0.3);
 		float r = hash12(floor(c) + fi * 23.1);
-		if (r < 0.86) {
+		if (r < 0.9) {
 			continue;
 		}
-		vec2 f = fract(c) - vec2(0.5);
-		f.y *= 0.45;   // stretched into a streak running down the glass
-		a = max(a, (1.0 - smoothstep(0.1, 0.4, length(f))) * (0.45 + 0.55 * r));
+		vec2 f = fract(c) - vec2(0.5) + (vec2(hash12(floor(c) + 7.7), hash12(floor(c) + 3.1)) - 0.5) * 0.4;
+		f.y *= 0.6;   // a little longer than wide, running down the glass
+		a = max(a, (1.0 - smoothstep(0.06, 0.24, length(f))) * (0.5 + 0.5 * r));
 	}
-	// Heavier toward the edges of the frame, the way a real lens catches it.
-	float edge = 0.5 + 0.95 * length(uv - vec2(0.5));
-	COLOR = vec4(tint, clamp(a * edge, 0.0, 1.0) * strength * 0.18);
+	// Only toward the edges of the frame, the way a lens catches it: the middle of the picture,
+	// where the player is looking, stays clear.
+	float edge = smoothstep(0.28, 0.72, length((uv - vec2(0.5)) * vec2(1.3, 1.0)));
+	COLOR = vec4(tint, clamp(a * edge, 0.0, 1.0) * strength * 0.3);
 }
 """
 	_lens_mat.shader = shader

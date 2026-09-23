@@ -9,11 +9,12 @@ extends SceneTree
 ##
 ## Env: OUT png path; FRAMES frames at normal speed first (streaming, exposure, GI; default 30);
 ## FOV camera field of view; BOOST=1 poses the player mid-boost (held in place); FX_AT=metres
-## puts an explosion that far ahead of the camera, which really launches what it hits, and FX_TIME
-## seconds into it is when the shot is taken (0.25 = fireball at its biggest); then SETTLE frames
-## (default 6) with the clock all but frozen (TIME_SCALE, default 0.0005): a software frame takes
-## seconds, and at normal speed every moving thing - people, traffic, leaves, fire - smears under
-## TAA. Held still, it resolves as crisply as it does on the Mac.
+## puts an explosion that far ahead of the camera (FX_SIDE metres to the right), which really
+## launches what it hits, and FX_TIME seconds into it is when the shot is taken (0.25 = fireball
+## at its biggest); then SETTLE frames (default 6) with the clock all but frozen (TIME_SCALE,
+## default 0.0005): a software frame takes seconds, and at normal speed every moving thing -
+## people, traffic, leaves, fire - smears under TAA. Held still, it resolves as crisply as it
+## does on the Mac.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -51,6 +52,9 @@ func _initialize() -> void:
 		var forward := -cam.global_basis.z
 		forward.y = 0.0
 		var at := cam.global_position + forward.normalized() * fx_at
+		# FX_SIDE metres to the right of the view, so the player is not standing in front of it.
+		var side := float(OS.get_environment("FX_SIDE")) if OS.get_environment("FX_SIDE") != "" else 0.0
+		at += cam.global_basis.x.normalized() * side
 		at.y = player.global_position.y + 0.5
 		var radius := float(_env_int("FX_RADIUS", 9))
 		# Godot caps a frame at eight physics ticks (0.133 s), whatever the wall clock says, so
