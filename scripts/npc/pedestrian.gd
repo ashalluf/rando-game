@@ -147,6 +147,8 @@ func _add_model() -> bool:
 	_look = _style.randi() % CHARACTER_LOOKS
 	prepare_rig(inst, _look)
 	_visual.add_child(inst)
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		_meshes.append(mi as MeshInstance3D)
 	_model_path = path
 	# Build variation: nobody in a crowd is the same height or width as the person next to them.
 	var tall := _style.randf_range(0.90, 1.10)
@@ -865,6 +867,17 @@ func _physics_process(delta: float) -> void:
 ## frame with a matching delta, so a crowd of hundreds costs what a few dozen used to.
 static var lod_mid: float = 60.0
 static var lod_far: float = 140.0
+## Pedestrians cast shadows only inside this range (metres). Measured on a downtown street, the
+## crowd was 6.4 of the frame's 15.7 million triangles, because all 650 of them - 16k-triangle
+## rigs since 2026-09-22 - were drawn once for the camera and again into up to four shadow
+## cascades. A person's shadow past this is a few pixels, and the one cast by the building behind
+## them is what the eye reads anyway.
+static var shadow_range: float = 45.0
+## Mesh LOD bias per distance tier (near, mid, far): below 1 the renderer drops to the coarser
+## generated LODs sooner. Nobody can see 16k triangles on a figure forty pixels tall.
+const LOD_BIAS := [1.0, 0.45, 0.2]
+var _meshes: Array[MeshInstance3D] = []
+var _draw_tier: int = -1
 
 
 func _update_lod() -> void:
@@ -875,6 +888,14 @@ func _update_lod() -> void:
 			return
 	var d := global_position.distance_to(_player.global_position)
 	_lod_stride = 1 if d < lod_mid else (3 if d < lod_far else 6)
+	var tier := 0 if d < shadow_range else (1 if d < lod_far else 2)
+	if tier != _draw_tier:
+		_draw_tier = tier
+		for mi in _meshes:
+			if is_instance_valid(mi):
+				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 \
+					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+				mi.lod_bias = LOD_BIAS[tier]
 
 
 ## Ring points are stored relative to the chunk's world offset so re-centering does not matter.

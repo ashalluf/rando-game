@@ -88,6 +88,8 @@ func _process(_delta: float) -> void:
 	var quality := get_tree().current_scene.get_node_or_null("Quality")
 	if quality and not OS.has_feature("web"):
 		stats.text += "   quality %s" % quality.level_name()
+		if quality.render_pixels.x > 0:
+			stats.text += " (3D %dx%d)" % [quality.render_pixels.x, quality.render_pixels.y]
 	# Where the frame time goes (ms): script + engine on the CPU, physics, GPU render, and how
 	# much the renderer draws. Screenshot this line when reporting lag.
 	var cpu_ms := Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0

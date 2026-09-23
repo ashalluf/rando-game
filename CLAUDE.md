@@ -531,7 +531,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and
   LOWEST (dropping SDFGI and volumetric fog, then SSR / SSAO / glow, lower render scale, 60 %
   then 35 % of the crowd and traffic caps, shorter shadows) when the average FPS drops under
-  `min_fps`. Force a level with `-- --quality=0|1|2|3`. It also caps the frame rate at 60. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
+  `min_fps`. Force a level with `-- --quality=0|1|2|3`. It also caps the frame rate at 60.
+  Every level also has a **pixel budget** (`Quality.pixel_budget`, 2.6 MP at HIGH): the game
+  opens maximised, and on a Retina Mac "native" was 3456 x 2234 - 7.7 million pixels through
+  SDFGI, SSR, SSIL and volumetric fog - so the 3D scene now renders at most the budget and FSR
+  2.2 scales it to the window. The HUD's quality line shows the 3D resolution in use.
+  Pedestrians cast shadows only inside `Pedestrian.shadow_range` (45 m) and drop to coarser
+  mesh LODs with distance (`LOD_BIAS`): on a downtown street the crowd was 6.4 of 15.7 million
+  triangles a frame, most of it shadow passes of 16k-triangle rigs; now 2.4. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
   objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
   frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in

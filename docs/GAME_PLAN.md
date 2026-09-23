@@ -240,6 +240,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-23 Why the game was slow (owner: "why is the game so slow").** Measured rather than
+  guessed. (1) Resolution: the window opens maximised and Godot draws every physical Retina
+  pixel - 7.7 million on a 16-inch MacBook, through SDFGI, SSR, SSIL and volumetric fog - and
+  `Quality` left HIGH and MEDIUM at native. Now each level has a pixel budget (2.6 MP at HIGH)
+  and FSR 2.2 scales up to the window. (2) The crowd: on a downtown street 650 pedestrians were
+  6.4 of 15.7 million triangles and 891 draws a frame - the 16k-triangle rigs of 2026-09-22,
+  drawn again into every shadow cascade. Shadows now only inside 45 m and coarser LODs with
+  distance: 2.4 million and 343 draws. (3) Shadow reach at HIGH 700 -> 500 m: 700 -> 450 had
+  measured 800 draws and a million triangles. Still heavy and next: about 5,000 draws a frame,
+  mostly buildings built from many separate parts. GPU time itself cannot be measured here
+  (lavapipe); the owner's F1 stats line, or a Mac runner (G1), is what would.
+
 - **2026-09-23 A warmer grade, measured in Forward+ (owner: "fix the grade").** Six gameplay
   frames measured before touching anything: contrast was fine on the street at noon (p5/p50/p95
   29/128/190) but the colour was nearly grey (median saturation 20 of 255), the aerial and

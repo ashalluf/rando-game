@@ -36,6 +36,13 @@ enum Level { HIGH, MEDIUM, LOW, LOWEST }
 ## Render scale per level (1.0 = native resolution). Below 1.0 the frame is temporally
 ## upscaled with FSR 2.2, so it stays sharp.
 @export var render_scale: PackedFloat32Array = PackedFloat32Array([1.0, 1.0, 0.75, 0.6])
+## Most pixels the 3D scene renders per level, whatever the window is; FSR 2.2 scales the frame
+## up to the window from there. The game opens maximised, and on a Retina Mac Godot draws every
+## physical pixel - 3456 x 2234 on a 16-inch MacBook, 7.7 million, three and a half 1080p frames
+## - through SDFGI, SSR, SSIL and volumetric fog, all of them per pixel. So "native" was the most
+## expensive thing in the game and the stepper never touched it until LOW. 2.6 million is about
+## 2150 x 1210: sharper than 1080p, and on a Retina panel the upscale is invisible.
+@export var pixel_budget: PackedFloat32Array = PackedFloat32Array([2600000.0, 2200000.0, 1600000.0, 1100000.0])
 ## Edge sharpening applied by FSR when upscaling (0 = sharpest).
 @export var fsr_sharpness: float = 0.25
 ## Fraction of the crowd and traffic caps per level.
@@ -43,10 +50,14 @@ enum Level { HIGH, MEDIUM, LOW, LOWEST }
 ## Directional shadow reach per level (meters). 320 m used to be the top of the range, which
 ## meant everything past three blocks was lit but never shadowed - the far half of a rooftop or
 ## aerial shot had no contrast at all. Four PSSM splits (set in city.tscn) carry the longer
-## range without giving up the near detail.
-@export var shadow_distance: PackedFloat32Array = PackedFloat32Array([700.0, 420.0, 220.0, 120.0])
+## range without giving up the near detail. HIGH is 500, not 700: measured on a downtown street,
+## 700 -> 450 took 800 draw calls and a million triangles out of every frame (the last cascade
+## redraws every building out to its edge), and past five blocks the far tiers carry the city.
+@export var shadow_distance: PackedFloat32Array = PackedFloat32Array([500.0, 380.0, 220.0, 120.0])
 
 var level: Level = Level.HIGH
+## The 3D resolution actually in use (window size times the scale), shown on the HUD.
+var render_pixels: Vector2i = Vector2i.ZERO
 ## Last world offset seen, to drop the measurement window across an origin re-centering.
 var _last_offset: Vector3 = Vector3.ZERO
 var _env: Environment
@@ -152,22 +163,39 @@ func _apply_render() -> void:
 		dn.lamp_scale = 1.0 if level <= Level.MEDIUM else 0.0
 	var viewport := get_viewport()
 	if viewport:
-		var scale: float = render_scale[i]
-		viewport.scaling_3d_scale = scale
-		# MSAA is redundant next to a temporal pass and costs a lot at these resolutions.
-		viewport.msaa_3d = Viewport.MSAA_DISABLED
-		viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
-		viewport.fsr_sharpness = fsr_sharpness
-		if scale < 0.999:
-			# FSR 2.2 reconstructs the frame from previous ones; it supersedes TAA.
-			viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
-			viewport.use_taa = false
-		else:
-			viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-			viewport.use_taa = true
+		if not viewport.size_changed.is_connected(_apply_scale):
+			viewport.size_changed.connect(_apply_scale)
+		_apply_scale()
 		var cam := viewport.get_camera_3d()
 		if cam and cam.attributes is CameraAttributesPractical:
 			(cam.attributes as CameraAttributesPractical).dof_blur_far_enabled = level == Level.HIGH
+
+
+## Resolution the 3D scene renders at: this level's render_scale, capped by its pixel_budget.
+## Re-run whenever the window changes size, because the cap depends on it.
+func _apply_scale() -> void:
+	var viewport := get_viewport()
+	if viewport == null:
+		return
+	var i := int(level)
+	var window_px := float(viewport.size.x) * float(viewport.size.y)
+	var scale: float = render_scale[i]
+	if window_px > 0.0:
+		scale = minf(scale, sqrt(pixel_budget[i] / window_px))
+	scale = clampf(scale, 0.25, 1.0)
+	render_pixels = Vector2i(roundi(viewport.size.x * scale), roundi(viewport.size.y * scale))
+	viewport.scaling_3d_scale = scale
+	# MSAA is redundant next to a temporal pass and costs a lot at these resolutions.
+	viewport.msaa_3d = Viewport.MSAA_DISABLED
+	viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_DISABLED
+	viewport.fsr_sharpness = fsr_sharpness
+	if scale < 0.999:
+		# FSR 2.2 reconstructs the frame from previous ones; it supersedes TAA.
+		viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2
+		viewport.use_taa = false
+	else:
+		viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
+		viewport.use_taa = true
 
 
 ## Scales the crowd, traffic and physics caps and trims what is already there.
@@ -195,6 +223,7 @@ func _apply_population() -> void:
 	# Far pedestrians update less often on the low levels.
 	Pedestrian.lod_mid = 60.0 if level <= Level.MEDIUM else 35.0
 	Pedestrian.lod_far = 140.0 if level <= Level.MEDIUM else 80.0
+	Pedestrian.shadow_range = 45.0 if level <= Level.MEDIUM else 20.0
 
 
 func _override() -> int:
