@@ -18,6 +18,8 @@ extends SceneTree
 ## metres ahead instead (people come apart close to a blast); FX_PED_PLACE=1 also stands that
 ## pedestrian in the road exactly FX_AT metres ahead first. Debris is kept alive for the shot:
 ## its lifetime is wall-clock seconds, and a software frame takes seconds.
+## CAR_PARAM=name=value sets one car paint uniform on every car (A/B tests); CAR_REPORT=1 prints
+## each car on screen with its paint.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -103,6 +105,16 @@ func _initialize() -> void:
 			await process_frame
 			elapsed += get_root().get_process_delta_time()
 			_pose(player, anchor, hold, boost, fov)
+	# CAR_PARAM=name=value overrides one car paint uniform on every car (A/B tests).
+	var car_param := OS.get_environment("CAR_PARAM")
+	if car_param.contains("="):
+		var kv := car_param.split("=")
+		for car in current_scene.find_children("*", "VehicleBody3D", true, false):
+			for mi in car.find_children("*", "MeshInstance3D", true, false):
+				for si in (mi as MeshInstance3D).get_surface_override_material_count():
+					var m := (mi as MeshInstance3D).get_surface_override_material(si) as ShaderMaterial
+					if m:
+						m.set_shader_parameter(kv[0], kv[1].to_float())
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.
@@ -114,6 +126,18 @@ func _initialize() -> void:
 	for g in get_nodes_in_group("gib"):
 		var gp: Vector3 = (g as Node3D).global_position
 		print("gib at %s, on screen %s" % [gp, gib_cam.unproject_position(gp) if gib_cam and not gib_cam.is_position_behind(gp) else "behind"])
+	# CAR_REPORT=1 prints every car on screen with its paint, finish and pixel position, so a car
+	# that looks the wrong colour can be told apart from one that IS that colour.
+	if OS.get_environment("CAR_REPORT") == "1" and gib_cam:
+		for car in current_scene.find_children("*", "VehicleBody3D", true, false):
+			var cp: Vector3 = (car as Node3D).global_position
+			if gib_cam.is_position_behind(cp) or cp.distance_to(gib_cam.global_position) > 90.0:
+				continue
+			for mi in car.find_children("*", "MeshInstance3D", true, false):
+				var m := (mi as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial if (mi as MeshInstance3D).get_surface_override_material_count() > 0 else null
+				if m and m.get_shader_parameter("paint") != null:
+					print("car %s at %s px %s paint %s metal %.2f geo_glass %s" % [car.name, cp.round(), gib_cam.unproject_position(cp).round(), m.get_shader_parameter("paint"), m.get_shader_parameter("paint_metallic"), m.get_shader_parameter("geo_glass")])
+					break
 	var day := current_scene.get_node_or_null("DayNight") if current_scene else null
 	if day:
 		print("clock ", day.clock_text())

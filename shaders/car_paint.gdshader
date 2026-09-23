@@ -175,7 +175,7 @@ void fragment() {
 	ALBEDO = mix(dark, painted, body);
 
 	float glass = max(1.0 - smoothstep(0.02, dark_below, lum), shape_glass);
-	ALBEDO = mix(ALBEDO, vec3(0.025, 0.028, 0.03), shape_glass);
+	ALBEDO = mix(ALBEDO, vec3(0.018, 0.02, 0.022), shape_glass);
 	float rough = mix(mix(0.6, 0.06, glass), paint_roughness, body);
 	// Glass is not a metal: what it shows is its own specular and the lacquer lobe. At 0.5 metal
 	// every dark trim piece mirrored the sky too.
@@ -206,6 +206,8 @@ void fragment() {
 
 	// The lacquer: a second, much sharper specular lobe over everything painted, and over glass.
 	// Matte paint drops its own coat to zero but the glass keeps one.
-	CLEARCOAT = max(clearcoat_amount * body, glass_clearcoat * glass);
+	// Glass keeps a lacquer-sharp reflection but not a full one: at grazing angles a full coat
+	// turned every window into a sheet of sky the same pale blue as the paint around it.
+	CLEARCOAT = max(clearcoat_amount * body, glass_clearcoat * glass * mix(1.0, 0.6, shape_glass));
 	CLEARCOAT_ROUGHNESS = clearcoat_roughness_value;
 }

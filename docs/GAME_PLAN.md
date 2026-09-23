@@ -240,6 +240,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-23 Reflections see the street, not more sky; glass reflections are emitted.** White,
+  silver - and dark red and navy - cars all read as pale-blue ice in Forward+ because the sky's
+  lower hemisphere was pale haze for 27 degrees, and that is what a car door mirrors. The cubemap
+  pass now puts a warm street grey under the horizon (the visible sky is untouched). Glass
+  towers in shade were black because their reflection was mixed into the albedo and lit like
+  paint; most of it is now emission that follows the sky's brightness. Crosswalk wear is
+  speckled instead of smudged. Parking order is seeded, so the same seed parks the same cars.
+
 - **2026-09-23 A 48-minute day (owner: "the day/night cycle is too fast it should be
   slower").** `DayNight.day_length_seconds` 480 -> 2880: two real seconds per game minute, the
   pace the big open-world games use, so a sunset lasts minutes instead of seconds.

@@ -1383,7 +1383,16 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 			spots.append([Vector3(t, 0.4, z), PI * 0.5, side])
 			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
 			t += 8.0
-	spots.shuffle()
+	# Seeded from the block, not the global generator: `Array.shuffle()` put different cars in
+	# different spots every run, which broke "same seed, same city" (and made every A/B render
+	# compare two different streets). Its own generator, so the block's rng stream is untouched.
+	var order := RandomNumberGenerator.new()
+	order.seed = hash([plan.seed, ix, iz, 7331])
+	for i in range(spots.size() - 1, 0, -1):
+		var j := order.randi_range(0, i)
+		var tmp = spots[i]
+		spots[i] = spots[j]
+		spots[j] = tmp
 	var count := [0]
 	for spot in spots:
 		steps.append(_park_car.bind(spot, rng, max_cars, count))

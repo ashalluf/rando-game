@@ -13,6 +13,10 @@ uniform vec3 sky_horizon : source_color = vec3(0.70, 0.82, 0.95);
 uniform vec3 ground_color : source_color = vec3(0.30, 0.32, 0.36);
 /// Extra horizon haze (0 clear, 1 milky).
 uniform float haze : hint_range(0.0, 1.0) = 0.55;
+/// What reflections see below the horizon (the street), as a fraction of the horizon's own
+/// brightness, and how far under the horizon it takes over (see the end of fragment()).
+uniform vec3 reflect_ground = vec3(0.34, 0.32, 0.30);
+uniform float reflect_ground_fade = 0.08;
 
 // --- Sun --------------------------------------------------------------------------------------
 /// Direction toward the sun. DayNight keeps it continuous through the night, so the sun really
@@ -371,6 +375,17 @@ void sky() {
 		// Thin edges stay translucent and the cores go nearly opaque, which is what makes a
 		// cumulus read as a volume instead of as a patch of fog.
 		col = mix(col, cloud, density * mix(0.84, 0.99, thick));
+	}
+	// What reflections and the sky ambient see below the horizon. The drawn sky fades into haze
+	// over 27 degrees under it, because from the air that band is far land seen through air. But
+	// the radiance map is also what every car door, shop window and puddle mirrors, and what they
+	// face below the horizon is the street a few metres away: a warm grey, darker than the sky
+	// and not blue. Left as haze, every car side mirrored the pale-blue horizon, and white,
+	// silver and even navy cars all read as ice - with the lacquer turned off, the same pale-blue
+	// sedan is navy. The band follows the horizon's brightness, so it dims at dusk and at night.
+	if (AT_CUBEMAP_PASS) {
+		float street = smoothstep(0.0, -reflect_ground_fade, up);
+		col = mix(col, reflect_ground * dot(sky_horizon, vec3(0.299, 0.587, 0.114)), street);
 	}
 	col += flash * vec3(0.8, 0.85, 1.0);
 	COLOR = col;

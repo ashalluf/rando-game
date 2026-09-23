@@ -228,7 +228,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   clearcoat lobe with flake (`shaders/car_paint.gdshader`). The single-texture bodies mark
   glass by a dark texel, but the sedan, pickup and van textures do not (the van's darkest 5 %
   is 0.49), so those find glass by shape - above `Vehicle.GEO_GLASS_BELTLINE`, tilted between
-  roof and door skin - or every white car was one pale ice-sculpture shape. `Vehicle.PAINTS` is weighted the way
+  roof and door skin - or every white car was one pale ice-sculpture shape. That was only half of
+  it: the other half was the sky. The radiance map is what every lacquer, window and puddle
+  mirrors, and the drawn sky fades to haze over 27 degrees below the horizon, so every car door
+  (which faces a little downward) mirrored pale-blue sky - a dark red pickup read as ice-blue,
+  and with the clearcoat off the same car was dark red. `sky.gdshader` now puts the street
+  (`reflect_ground`, a warm grey following the horizon's brightness) under the horizon in the
+  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The basecoat metallic is
+  kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
 - Vignette: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a full-rect
@@ -590,7 +597,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   have true parallax (lean left, see the room's right wall) instead of glass painted on a wall.
   Each room gets its own paint, depth falloff and a blind pulled to its own height. This is the
   single technique that stops a box reading as a box; do not replace it with a gradient.
-  `room_depth` and `interior_enabled` are the knobs. At night a lit office is the same room
+  `room_depth` and `interior_enabled` are the knobs. Most of the glass's mirror is EMITTED
+  (`reflect_emit`, `reflect_energy`, scaled by the `sky_tint` global), not mixed into the albedo:
+  a reflection does not depend on the light falling on the pane, and carried in the albedo a glass
+  tower on the shaded side of a street was lit like paint and came out black (16/255 against 111
+  for the asphalt in the same shadow). At night a lit office is the same room
   lit from inside (`room_interior()` also returns where the ray landed and how much light
   falls there): a grid of ceiling panels, walls brighter toward the ceiling, a dim floor and
   a desk or partition silhouette in half the rooms, all emitted - not a flat yellow pane, which
@@ -688,8 +699,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   than a surface.
   Road paint (the `CityChunk.PAINT_KEYS` batches: dashes, centre lines, crosswalk bars, stop
   lines, arrows, stalls) wears `shaders/road_paint.gdshader`: worn through to the asphalt in
-  patches (a discard - the boxes sit on the road, so a hole shows the road), grit, dirt toward
-  the wear, and a wet sheen from `road_wetness`. Flat perfect white was the most CG thing in
+  patches (a discard - the boxes sit on the road, so a hole shows the road), speckled where it
+  is thinning (the aggregate poking through, faded out once a speck is under a pixel; a smooth
+  grey blend there read as dirt smudges), grit, dirt toward the wear, and a wet sheen from
+  `road_wetness`. Flat perfect white was the most CG thing in
   any street shot. Limbs are cut and the effect materials compiled during the loading screen
   (`Ragdoll.warm_limbs()`, `WeaponFX.warm_materials()`), so the first rocket does not stall.
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the

@@ -66,11 +66,18 @@ void fragment() {
 	// Cut straight to holes, the wear read as camouflage printed on the stripe.
 	float v = patches + grain * 0.22;
 	float edge = 0.78 - wear * 0.45;
-	if (v > edge + 0.03) {
+	float thin = smoothstep(edge - 0.16, edge + 0.03, v);
+	// Worn thermoplastic goes speckled before it goes: the stones in the asphalt poke through
+	// it one by one. Blended to grey instead, the thinning read as smudges of dirt on the paint.
+	// The specks are a couple of centimetres, so once they are smaller than a pixel they only
+	// shimmer: past that the thinning falls back to the blend.
+	float px = length(fwidth(w));
+	float speck_ok = 1.0 - smoothstep(0.012, 0.03, px);
+	float stones = 0.6 * value_noise(w * 48.0) + 0.4 * hash12(floor(w * 90.0));
+	if (v > edge + 0.03 || stones < thin * 0.9 * speck_ok) {
 		discard;
 	}
-	float thin = smoothstep(edge - 0.16, edge + 0.03, v);
-	vec3 col = mix(paint * COLOR.rgb, asphalt, thin * 0.85);
+	vec3 col = mix(paint * COLOR.rgb, asphalt, thin * mix(0.85, 0.3, speck_ok));
 	// Dirt collects toward the worn patches, and grit speckles all of it.
 	float dirty = smoothstep(0.35, 0.72 - wear * 0.45, patches);
 	col *= mix(1.0, 0.72, dirty * grime * 2.0);

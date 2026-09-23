@@ -839,6 +839,23 @@ taking away from graphics at all". What shipped, newest last:
   even `ps` hangs. One render at a time. And `pkill -f` with a pattern that also appears later
   in the same shell command kills that shell - use a script file or a `[x]yz` pattern that the
   command line itself cannot match.
+- **Later the same day (builds 210-215)**, owner: "the day/night cycle is too fast", "NPCs
+  screaming ... limbs flying off from the rocket launcher", "graphics ... while ensuring the game
+  is always still playable". Shipped: a 48-minute day; `Pedestrian.alarm()` panic with 12 real
+  scream takes; rocket dismemberment (`Ragdoll.dismember()`, `LimbHider`, blood); worn road
+  paint; shape-found glass on the sedan / pickup / van (their textures do not darken the
+  windows, which is what made white cars look like ice); far pedestrians on welded bodies
+  (6.6 M triangles on the street, from 9.4 M in the morning); limbs, far bodies and effect
+  materials all prepared during the loading screen so the first rocket does not hitch. The
+  `--nohud` flag skips the loading screen, so harness runs pay those costs on first use - do not
+  mistake that for a regression. Debris lifetime is wall-clock, so in a 1 fps software render
+  limbs vanish after a few frames; `still_shot.gd` raises it.
+  Then the "ice-blue cars": with parking seeded (it used the global rng, so no two renders parked
+  the same cars) an A/B with `CAR_PARAM=clearcoat_amount=0` showed the pale-blue pickup is dark
+  red and the pale-blue sedan grey (`CAR_REPORT=1` prints every car's paint). The lacquer was
+  mirroring the sky's lower hemisphere, which was pale haze for 27 degrees under the horizon;
+  the cubemap pass now puts the street there. Same shot: glass towers in shade went from 16/255
+  to ~75 once their reflection became emission instead of albedo.
 - Store stills: `tools/glshot/still_shot.gd` (FX_AT / FX_SIDE / FX_TIME for explosions). The
   good ones so far are the skyline at 17:45, the boardwalk at 17:50, the freeway at 18:00 and
   downtown rain at 21:20. Dusk aerials and the hills are weak: the far city is boxes (next

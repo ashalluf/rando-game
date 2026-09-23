@@ -96,6 +96,10 @@ uniform vec3 sky_horizon : source_color = vec3(0.42, 0.47, 0.55);
 uniform vec3 street_reflect : source_color = vec3(0.09, 0.09, 0.10);
 // 0 no reflection at all, 1 full. Turned down on spandrel panels.
 uniform float reflect_strength = 1.0;
+// Share of the reflection that is emitted rather than lit (see the glass branch), and how bright
+// that emitted reflection is against the scene's lighting.
+uniform float reflect_emit = 0.7;
+uniform float reflect_energy = 1.6;
 // How bright the room behind the glass is against full daylight outside. Rooms read almost
 // black from the street in real life; a room lit to the same level as the wall around it is
 // what made every pane look like a beige card taped over the opening.
@@ -366,6 +370,7 @@ void fragment() {
 			reveal = !glass && abs(fu - 0.5) < hw + 0.05 && abs(fv - cy) < hh + 0.05;
 		}
 		if (glass) {
+			vec3 reflected = vec3(0.0);
 			// The room behind the glass as traced, before the daylight exposure, and how its
 			// own lights fall on it (room_interior). Used to light an occupied room after dark.
 			vec3 room_raw = vec3(0.0);
@@ -453,7 +458,15 @@ void fragment() {
 			if (storefront) {
 				mirror *= 0.66;
 			}
-			albedo = mix(albedo, sky_ref, mirror);
+			// Most of the mirror is EMITTED, not painted on. What a pane reflects does not
+			// depend on the light falling on the pane: a window in the shade still shows the sky
+			// and the sunlit facades opposite. Carried in the albedo alone it was lit like paint,
+			// and every glass tower on the shaded side of a street came out black - 16/255 in a
+			// Forward+ still, against 111 for the asphalt in the same shadow. The emitted part
+			// follows the sky DayNight publishes, so it dims at dusk and in a storm by itself.
+			albedo = mix(albedo, sky_ref, mirror * (1.0 - reflect_emit));
+			float sky_now = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
+			reflected = sky_ref * mirror * reflect_emit * reflect_energy * sky_now;
 
 			// Tinted glass, not a mirror: with more metal the panes reflect pure sky and whole
 			// curtain-wall towers read as see-through cages from a distance.
@@ -473,6 +486,7 @@ void fragment() {
 				bars = clamp(bars, 0.0, 1.0);
 				vec3 mullion = mix(vec3(0.11, 0.11, 0.12), vec3(0.55, 0.56, 0.58), step(0.6, shop_seed));
 				albedo = mix(albedo, mullion, bars);
+				reflected *= 1.0 - bars;
 				rough = mix(rough, 0.42, bars);
 				metal = mix(metal, 0.65, bars);
 			}
@@ -499,6 +513,7 @@ void fragment() {
 				metal = mix(metal, 0.0, on);
 				rough = mix(rough, 0.5, on);
 			}
+			emission += reflected;
 		} else if (fascia) {
 			// Sign band. Each shop paints it its own colour, which is what makes a block read
 			// as a row of businesses rather than one long building with a stripe on it.

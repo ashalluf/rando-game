@@ -144,28 +144,32 @@ const PAINT_FINISH := [
 	Finish.DEEP, Finish.PEARL,
 ]
 
-## Shader uniforms per finish. These are the knobs the clearcoat shader already had and nothing
-## was using: flake density and grain, how sharp the lacquer is, and how metallic the basecoat
-## is under it. "flake_fade" is how far away the sparkle is still worth resolving.
+## Shader uniforms per finish: flake density and grain, how sharp the lacquer is, and how
+## metallic the basecoat is under it. "flake_fade" is how far away the sparkle is still worth
+## resolving. The basecoat metallic is kept low on purpose: real metallic paint is aluminium
+## flake in a COLOURED basecoat under a clear lacquer, so it keeps a broad body colour and the
+## mirror is the lacquer's job. At 0.7 / 0.88 metal the basecoat had almost no diffuse left, and
+## in a shaded street a white or silver car showed only a reflection of dark buildings and blue
+## sky - a white van measured darker than the asphalt beside it, and bluer. Gloss is solid paint.
 const FINISHES := {
 	Finish.GLOSS: {
-		"metallic": 0.20, "roughness": 0.28, "clearcoat": 0.95, "cc_rough": 0.045,
+		"metallic": 0.0, "roughness": 0.34, "clearcoat": 0.95, "cc_rough": 0.045,
 		"flake": 0.0, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
 	},
 	Finish.METALLIC: {
-		"metallic": 0.70, "roughness": 0.22, "clearcoat": 0.85, "cc_rough": 0.035,
+		"metallic": 0.38, "roughness": 0.34, "clearcoat": 0.85, "cc_rough": 0.035,
 		"flake": 0.055, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
 	},
 	Finish.PEARL: {
-		"metallic": 0.45, "roughness": 0.16, "clearcoat": 1.00, "cc_rough": 0.018,
+		"metallic": 0.30, "roughness": 0.28, "clearcoat": 1.00, "cc_rough": 0.018,
 		"flake": 0.085, "flake_scale": 300.0, "flake_fade": 11.0, "pearl": 0.35,
 	},
 	Finish.DEEP: {
-		"metallic": 0.88, "roughness": 0.13, "clearcoat": 1.00, "cc_rough": 0.015,
+		"metallic": 0.55, "roughness": 0.24, "clearcoat": 1.00, "cc_rough": 0.015,
 		"flake": 0.110, "flake_scale": 120.0, "flake_fade": 13.0, "pearl": 0.0,
 	},
 	Finish.MATTE: {
-		"metallic": 0.15, "roughness": 0.62, "clearcoat": 0.0, "cc_rough": 0.30,
+		"metallic": 0.10, "roughness": 0.62, "clearcoat": 0.0, "cc_rough": 0.30,
 		"flake": 0.0, "flake_scale": 190.0, "flake_fade": 9.0, "pearl": 0.0,
 	},
 }
