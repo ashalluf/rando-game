@@ -757,8 +757,12 @@ repo; `MESHY_KEY_FILE`). What shipped:
 **Far ground, 2026-09-23.** Anything placed on the ground follower (beyond ~700 m) must go
 through `shaders/macro_relief.gdshaderinc`, not `MacroMap.height_at()`: the drawn surface is a
 coarse bake plus crags, tens of metres off the real terrain on ridges. `far_canopy.gdshader` is
-the worked example. Skyline's hill *houses* still use `height_at()` on the LOD box shader; they
-have not been seen floating, but they would be the next thing to move if they are.
+the worked example: Skyline's hill planting and hill houses go through it, and so does the far
+ridge sign (its rigid mode moves the whole name by one amount so it stays level). Other far
+landmarks on slopes (the observatory, the hills sign) still stand at `height_at()`; they are
+small or low enough that nothing has shown, but they are the next thing to move if it does.
+`HIDE=Planting_*,Sky_*` on `tools/glshot/city_shot.gd` hides named nodes, which is how the
+floating houses were told apart from the floating trees.
 
 ## 10. Suggested next steps, in order of impact
 

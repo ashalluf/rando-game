@@ -27,6 +27,16 @@ uniform float plane_step = 69.65;
 // How far into the ground a clump's base goes, as a fraction of its height, so a clump on a
 // slope does not show daylight under its downhill side.
 uniform float bury = 0.25;
+// Rigid seating, for a thing that has to stay level however the drawn ground undulates under
+// it - the far ridge sign. The whole object moves by one amount: the highest drawn ground at
+// seven points from seat_a to seat_b (TRUE world XZ) minus seat_ground, the real ground it was
+// built level with. The ridge sign is built on the highest real ground under its letters, and
+// from across the basin the drawn ridge is lower, so the name hung in the sky beside the peak.
+uniform bool rigid = false;
+uniform vec2 seat_a = vec2(0.0);
+uniform vec2 seat_b = vec2(0.0);
+uniform float seat_ground = 0.0;
+uniform vec3 rigid_color : source_color = vec3(0.96, 0.96, 0.94);
 
 varying vec3 tint;
 varying float shade;
@@ -63,16 +73,28 @@ float plane_height(vec2 xz, vec3 cam) {
 
 
 void vertex() {
-	vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-	float h = length(MODEL_MATRIX[1].xyz);
 	vec3 cam = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-	float ground = plane_y + plane_height(origin.xz, cam);
-	// The unit box is centred on its origin, so its base is half its height below it.
-	float shift = ground - (origin.y - 0.5 * h) - bury * h;
-	tint = COLOR.rgb;
-	// A canopy is darker low down and on its flanks than on top. Read before the move below,
-	// while VERTEX is still the unit box's own -0.5 .. 0.5.
-	shade = mix(0.72, 1.0, clamp(VERTEX.y + 0.5, 0.0, 1.0)) * mix(0.85, 1.0, max(NORMAL.y, 0.0));
+	float shift;
+	if (rigid) {
+		float top = -1e9;
+		for (int k = 0; k < 7; k++) {
+			vec2 p = mix(seat_a, seat_b, float(k) / 6.0) - world_offset;
+			top = max(top, plane_height(p, cam));
+		}
+		tint = rigid_color;
+		shade = 1.0;
+		shift = plane_y + top - seat_ground;
+	} else {
+		vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+		float h = length(MODEL_MATRIX[1].xyz);
+		float ground = plane_y + plane_height(origin.xz, cam);
+		// The unit box is centred on its origin, so its base is half its height below it.
+		shift = ground - (origin.y - 0.5 * h) - bury * h;
+		tint = COLOR.rgb;
+		// A canopy is darker low down and on its flanks than on top. Read before the move below,
+		// while VERTEX is still the unit box's own -0.5 .. 0.5.
+		shade = mix(0.72, 1.0, clamp(VERTEX.y + 0.5, 0.0, 1.0)) * mix(0.85, 1.0, max(NORMAL.y, 0.0));
+	}
 	VERTEX += inverse(mat3(MODEL_MATRIX)) * vec3(0.0, shift, 0.0);
 }
 

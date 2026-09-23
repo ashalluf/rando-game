@@ -7,8 +7,9 @@ extends SceneTree
 ##     --audio-driver Dummy --path . --script tools/glshot/city_shot.gd --resolution 960x540 \
 ##     -- --spawn=300,300,45,-8 --hour=11
 ##
-## The `--spawn` / `--hour` after `--` are what CityStreamer and DayNight read; OUT and FRAMES
-## (frames to wait for streaming before the shot) are read here. It is the Compatibility renderer,
+## The `--spawn` / `--hour` after `--` are what CityStreamer and DayNight read; OUT, FRAMES
+## (frames to wait for streaming before the shot) and HIDE (node name patterns to hide) are read
+## here. It is the Compatibility renderer,
 ## so lighting is flatter than the Mac build; judge geometry and materials. A shot takes a minute or
 ## two on llvmpipe.
 func _initialize() -> void:
@@ -25,8 +26,18 @@ func _initialize() -> void:
 			var parts := arg.trim_prefix("--spawn=").split(",")
 			if parts.size() >= 5:
 				hold = parts[4].to_float()
+	# HIDE=Planting_*,FarLandmark_* hides every node under the scene matching those name patterns
+	# (find_children wildcards), re-applied each frame because chunks and tiles keep streaming in.
+	# For telling apart which of several overlapping things a stray pixel belongs to.
+	var hide := OS.get_environment("HIDE").split(",", false)
 	for i in frames:
 		await process_frame
+		if not hide.is_empty() and get_root().get_child_count() > 0:
+			var scene := get_root().get_child(get_root().get_child_count() - 1)
+			for pattern in hide:
+				for n in scene.find_children(pattern, "", true, false):
+					if n is Node3D:
+						(n as Node3D).visible = false
 		if hold > 0.0:
 			var player: Node3D = get_first_node_in_group("player")
 			if player:

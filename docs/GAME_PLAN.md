@@ -210,7 +210,10 @@ already mapped so milestone 2 is script-only.
   plane's own triangles (seating on the smooth function alone still left a few clumps standing
   clear of ridges, because the drawn ridge is a 70 m chord). One more draw per hill tile. The
   same look turned up an off-by-one in the ground snap: PlaneMesh's 200 subdivisions are 201
-  quads, so the 70 m snap slid the mountain vertices 35 cm a step.
+  quads, so the 70 m snap slid the mountain vertices 35 cm a step. A second pass, hiding node
+  groups one at a time in `city_shot.gd`, found the same fault in the far hill houses and in the
+  far SHALLUFERWOOD sign, which hung in the sky beside the peak from the beach; both are seated
+  by the same shader now (the sign in one piece, so it stays level).
 
 - **2026-09-22 The first arm rebuild was measured and was still wrong in three ways (owner:
   "why are their arms weird?").** Sampling the rebuilt pose bone by bone: the clips hold the

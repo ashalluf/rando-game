@@ -134,8 +134,8 @@ func _tile_node(t: Vector2i, xforms: Array[Transform3D], colors: PackedColorArra
 	return node
 
 
-## The tile's hill planting, on the canopy shader, which seats every clump on the far ground.
-## One more draw per hill tile; the city tiles have none.
+## The tile's hill planting and hill houses, on the canopy shader, which seats every one of them
+## on the far ground. One more draw per hill tile; the city tiles have none.
 func _planting_node(t: Vector2i, veg: Array[Transform3D], veg_colors: PackedColorArray) -> MultiMeshInstance3D:
 	if veg.is_empty() or _canopy == null:
 		return null
@@ -296,17 +296,19 @@ func _add_wild(zone: int, rect: Rect2, center: Vector2, ground: float, macro: Ma
 				# a bed of nails. The house gets its own storey count; `height` places it.
 				# The ACTUAL ground, not the road deck height: height_at() already includes the
 				# pad carved for this lot, and using the deck elevation instead left houses
-				# floating above hillsides wherever the two differ.
+				# floating above hillsides wherever the two differ. Even that is only a first
+				# guess out here, for the same reason as the planting: the drawn far ground is
+				# not height_at(), and at it the houses stood in the sky over the ridges. So they
+				# go in with the planting and far_canopy.gdshader seats them.
 				var pad_y: float = macro.height_at(pos)
 				var h: float = 6.0 + float(absi(hash([m.seed, "h"])) % 6)
 				var w: float = 16.0 + float(absi(hash([m.seed, "w"])) % 10)
 				var d: float = 12.0 + float(absi(hash([m.seed, "d"])) % 9)
-				xforms.append(Transform3D(
+				veg.append(Transform3D(
 					Basis(Vector3.UP, float(m.yaw)).scaled(Vector3(w, h, d)),
 					Vector3(pos.x, pad_y + h * 0.5, pos.y)))
-				colors.append(Color(0.70, 0.67, 0.62).lerp(Color(0.84, 0.82, 0.78),
+				veg_colors.append(Color(0.70, 0.67, 0.62).lerp(Color(0.84, 0.82, 0.78),
 					float(absi(hash([m.seed, "c"])) % 1000) / 1000.0))
-				customs.append(Color(0.25, 0.0, float(absi(m.seed) % 997) / 997.0, 0.0))
 		MacroMap.Zone.PORT:
 			# Yard, then stacks of containers on it.
 			_plate(rect, center, ground, Color(0.34, 0.335, 0.33), xforms, colors, customs)

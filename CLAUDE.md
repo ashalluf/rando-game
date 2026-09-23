@@ -433,7 +433,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   per step. The plane's height code (bake sample, crags, sink) lives in
   `shaders/macro_relief.gdshaderinc` so anything that must stand on the far ground computes
   the same surface: `shaders/far_canopy.gdshader` (Skyline's hill planting) seats each clump on
-  it, interpolating across the plane's own 70 m triangles. Placed at `MacroMap.height_at()`
+  it, interpolating across the plane's own 70 m triangles; the far hill houses ride in the same
+  MultiMesh, and the far ridge sign uses its `rigid` mode (one shift for the whole name, from
+  `Landmarks.sign_line()`, so it stays level). Placed at `MacroMap.height_at()`
   instead, the clumps hung in the sky above every ridge - the bake averages a ridge down and the
   crags move it tens of metres, so the real height is not the height that is drawn.
   `built_amount()` stays in `macro_ground.gdshader`: the smoke test reads its thresholds from it.

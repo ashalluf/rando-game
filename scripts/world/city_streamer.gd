@@ -140,6 +140,9 @@ var _ground_material: ShaderMaterial
 ## The far hill planting's material (shaders/far_canopy.gdshader). It computes the ground
 ## follower's height itself, so every uniform that height reads is set on both materials.
 var _canopy_material: ShaderMaterial
+## Every material that computes the far ground's height (the canopy and anything seated with it),
+## so the uniforms that height reads are kept in step on all of them.
+var _far_ground_materials: Array[ShaderMaterial] = []
 var _timer: float = 0.0
 ## Far (always loaded) versions of the landmarks, keyed by id.
 var _far_landmarks: Dictionary = {}
@@ -200,6 +203,28 @@ func _build_far_landmarks() -> void:
 		add_child(holder)
 		Landmarks.build(lm, holder, null, plan, false)
 		_far_landmarks[lm.id] = holder
+		if lm.id == "sign":
+			_seat_far_sign(holder, lm.anchor)
+
+
+## The far ridge sign stands on the far ground, not the real one. It is built level with the
+## highest real ground under its letters, and from across the basin the drawn ridge is lower, so
+## the name hung in the sky beside the peak. far_canopy.gdshader's rigid mode moves the whole
+## thing onto the drawn ridge in one piece, so it stays level.
+func _seat_far_sign(holder: Node3D, anchor: Vector2) -> void:
+	if _canopy_material == null:
+		return
+	var line := Landmarks.sign_line(anchor, plan)
+	var mat := _canopy_material.duplicate() as ShaderMaterial
+	mat.set_shader_parameter("rigid", true)
+	mat.set_shader_parameter("seat_a", line.a)
+	mat.set_shader_parameter("seat_b", line.b)
+	mat.set_shader_parameter("seat_ground", line.ground)
+	_far_ground_materials.append(mat)
+	for mi in holder.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).material_override = mat
+		# Moved by up to tens of metres in the shader, past the bounds the renderer culls on.
+		(mi as MeshInstance3D).extra_cull_margin = 120.0
 
 
 ## Debug helper: start somewhere else. Web: open the page with ?spawn=x,z or ?spawn=x,z,yaw,pitch
@@ -424,12 +449,13 @@ func update_streaming(immediate: bool) -> void:
 		snappedf(local.z + off.z, gstep) - off.z)
 	# The macro map is addressed in true world XZ, so the plane has to know how far the scene's
 	# origin has been shifted from under it.
-	for mat in [_ground_material, _canopy_material]:
-		if mat:
-			(mat as ShaderMaterial).set_shader_parameter("world_offset", Vector2(WorldState.world_offset.x, WorldState.world_offset.z))
+	var offset_xz := Vector2(WorldState.world_offset.x, WorldState.world_offset.z)
+	if _ground_material:
+		_ground_material.set_shader_parameter("world_offset", offset_xz)
 	# The far planting follows the plane's actual triangles, so it needs to know where they are.
-	if _canopy_material:
-		_canopy_material.set_shader_parameter("plane_origin", Vector2(_ground.position.x, _ground.position.z))
+	for mat in _far_ground_materials:
+		mat.set_shader_parameter("world_offset", offset_xz)
+		mat.set_shader_parameter("plane_origin", Vector2(_ground.position.x, _ground.position.z))
 	var wp := world_position(local)
 	var here := plan.block_index_at(Vector2(wp.x, wp.z))
 	_center_block = here
@@ -653,6 +679,7 @@ func _build_ground_material() -> ShaderMaterial:
 		m.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)
 	_canopy_material.set_shader_parameter("plane_half", ground_size * 0.5)
 	_canopy_material.set_shader_parameter("plane_step", ground_step())
+	_far_ground_materials = [_canopy_material]
 	mat.set_shader_parameter("near_albedo", PropFactory.texture("grass", "Color"))
 	mat.set_shader_parameter("near_normal", PropFactory.texture("grass", "NormalGL"))
 	return mat

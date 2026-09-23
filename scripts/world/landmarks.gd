@@ -126,6 +126,26 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 
 # --- Hill sign ------------------------------------------------------------------------------
 
+## The ridge sign's letter line in world XZ - the first and last letter centres - and the real
+## ground its letters are levelled on, the highest under any of them. The far version stands on
+## the far ground rather than the real one and is seated from these by far_canopy.gdshader.
+static func sign_line(anchor: Vector2, plan: CityPlan) -> Dictionary:
+	var n := SIGN_TEXT.length()
+	var cell: float = SIGN_SPAN / (float(n) * 5.0 + float(n - 1) * 1.5)
+	var letter_w := 5.0 * cell
+	var gap := cell * 1.5
+	var total := float(n) * letter_w + float(n - 1) * gap
+	var x := anchor.x - total * 0.5
+	var ground := -1e20
+	for i in n:
+		ground = maxf(ground, plan.height_at(Vector2(x + (float(i) + 0.5) * (letter_w + gap), anchor.y)))
+	return {
+		"a": Vector2(x + 0.5 * letter_w, anchor.y),
+		"b": Vector2(x + total - 0.5 * letter_w, anchor.y),
+		"ground": ground,
+	}
+
+
 static func _build_sign(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
 	# Fit the name to the ridge rather than fixing the letter size: SHALLUFERWOOD is thirteen
 	# characters where RANDOWOOD was nine, and at the old fixed 6 m cell it would have run half
@@ -142,10 +162,7 @@ static func _build_sign(anchor: Vector2, parent: Node3D, statics: StaticBody3D, 
 	# landed in a fold - the S of SHALLUFERWOOD vanished into the hillside entirely and the name
 	# read HALLUFERWOOD. A hill sign is built level on legs of different lengths, which is what
 	# the leg loop below already draws; the letters just were not using it.
-	var base_y := -1e20
-	for i in n:
-		base_y = maxf(base_y, plan.height_at(Vector2(x + (float(i) + 0.5) * (letter_w + gap), anchor.y)))
-	base_y += 2.0
+	var base_y: float = sign_line(anchor, plan).ground + 2.0
 	for ch in SIGN_TEXT:
 		var rows: Array = FONT.get(ch, FONT["O"])
 		for r in rows.size():
