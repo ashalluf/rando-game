@@ -787,6 +787,22 @@ date). What a next session needs to know:
   this comes back.
 - **Chunk builds are steps** (CLAUDE.md, City): anything new in a chunk build goes in as a step
   or inside one; a big self-seeded job goes through `_run_or_defer()`.
+- **Sleep is the single biggest lever and the easiest to lose.** Three separate things had kept
+  every parked car in the city simulated every step: VehicleBody3D waking itself in its own
+  state callback (`Vehicle.settle()` from PhysicsBudget's *physics* tick is the fix), a weak
+  brake letting cars roll, and the ground's collision box being re-placed eight times a second
+  (moving a static body wakes all its neighbours). Check the TRUE state with
+  `PhysicsServer3D.body_get_state(rid, BODY_STATE_SLEEPING)` - the node's `sleeping` flag reads
+  true on a car that is awake - and check it in the release build, where it first showed.
+- Driving the release template for perf: it ignores `-s` and refuses `--path` / `--main-pack`,
+  but it loads `<binary>.pck` beside itself and honours an `override.cfg` there, so an autoload
+  added in `override.cfg` (an absolute path to a scratch script) drives it. Set
+  `application/run/flush_stdout_on_print=true` there too, or its prints never arrive. Use
+  `perf report --no-inline`: without it, report stalls for many minutes on addr2line.
+- After all of that the release build runs at real time on this slow test box, standing and
+  flying, and the profile is flat (scripts ~15 %, broadphase updates ~7 %, then animation and
+  transform propagation). GPU cost on the Mac is still unmeasured here; the owner's F1 stats
+  line is the next evidence to ask for if it still stutters.
 
 ## 10. Suggested next steps, in order of impact
 
