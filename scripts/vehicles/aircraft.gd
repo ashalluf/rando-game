@@ -101,6 +101,7 @@ func _build() -> void:
 	var bumper := Area3D.new()
 	bumper.collision_layer = 0
 	bumper.collision_mask = 2 | 8
+	bumper.monitorable = false
 	var bshape := CollisionShape3D.new()
 	var bbox := BoxShape3D.new()
 	bbox.size = Vector3(wingspan, 3.0, length)

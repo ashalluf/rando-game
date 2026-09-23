@@ -179,20 +179,55 @@ func _drive(car: Vehicle, delta: float) -> void:
 			var road := plan.road_pos(cross_axis, cross_index)
 			# Rebuild the world position on the new road, keeping the intersection's coordinate.
 			var pos2 := Vector2(wp.x, road + lane) if cross_axis == CityPlan.AXIS_Z else Vector2(road + lane, wp.z)
-			car.global_position = WorldState.to_local(Vector3(pos2.x, wp.y, pos2.y))
-			car.rotation.y = _heading(cross_axis, new_dir)
+			_place(car, WorldState.to_local(Vector3(pos2.x, wp.y, pos2.y)), _heading(cross_axis, new_dir), 0.0)
 			return
 	var lane_pos: float = plan.road_pos(axis, t.index) + t.lane
 	var new_wp := Vector3(lane_pos, wp.y, new_along) if axis == CityPlan.AXIS_X else Vector3(new_along, wp.y, lane_pos)
 	# Follow the city's rolling ground and pitch the nose along the slope ahead.
-	var here := plan.macro.relief_at(Vector2(new_wp.x, new_wp.z))
+	var here := _relief(Vector2(new_wp.x, new_wp.z))
 	var forward := Vector3(0.0, 0.0, dir) if axis == CityPlan.AXIS_X else Vector3(dir, 0.0, 0.0)
-	var ahead := plan.macro.relief_at(Vector2(new_wp.x + forward.x * 4.0, new_wp.z + forward.z * 4.0))
+	var ahead := _relief(Vector2(new_wp.x + forward.x * 4.0, new_wp.z + forward.z * 4.0))
 	new_wp.y = 0.55 + here
-	car.global_position = WorldState.to_local(new_wp)
-	car.rotation.y = _heading(axis, dir)
-	car.rotation.x = atan2(ahead - here, 4.0)
-	car.rotation.z = 0.0
+	_place(car, WorldState.to_local(new_wp), _heading(axis, dir), atan2(ahead - here, 4.0))
+
+
+## MacroMap.relief_at through the same lattice and bilinear blend CityChunk._gy() lays the roads
+## with, so a car sits on the asphalt that is actually drawn - and reads cached samples instead of
+## evaluating the mountain noise twice per car per step, which was most of the traffic's cost.
+var _relief_cache: Dictionary = {}
+
+
+func _relief(p: Vector2) -> float:
+	var fx := p.x / CityChunk.RELIEF_STEP
+	var fz := p.y / CityChunk.RELIEF_STEP
+	var i := floori(fx)
+	var j := floori(fz)
+	var tx := fx - float(i)
+	var tz := fz - float(j)
+	return lerpf(
+		lerpf(_relief_sample(i, j), _relief_sample(i + 1, j), tx),
+		lerpf(_relief_sample(i, j + 1), _relief_sample(i + 1, j + 1), tx), tz)
+
+
+func _relief_sample(i: int, j: int) -> float:
+	var key := Vector2i(i, j)
+	var cached: Variant = _relief_cache.get(key)
+	if cached != null:
+		return cached
+	# Lanes are fixed lines, so this stays small; the cap only stops a long drive growing it.
+	if _relief_cache.size() > 40000:
+		_relief_cache.clear()
+	var h := plan.macro.relief_at(Vector2(i * CityChunk.RELIEF_STEP, j * CityChunk.RELIEF_STEP))
+	_relief_cache[key] = h
+	return h
+
+
+## Puts a traffic car at `pos` facing `yaw`, nose pitched by `pitch`, in ONE transform write.
+## Setting the position and then each rotation separately was four writes a car a step, and each
+## one pushes a transform change down every child the car has - body, glass, lights, twelve wheel
+## and caliper meshes - to the renderer and the physics server. Same result, a quarter of the work.
+func _place(car: Vehicle, pos: Vector3, yaw: float, pitch: float) -> void:
+	car.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), pos)
 
 
 # --- Airport drop-off loop -----------------------------------------------------------------
@@ -304,8 +339,7 @@ func _drive_loops(delta: float) -> void:
 			var at := _loop_point(loop, car.traffic.t)
 			var pos2: Vector2 = at[0]
 			var dir2: Vector2 = at[1]
-			car.global_position = WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y))
-			car.rotation = Vector3(0.0, atan2(-dir2.x, -dir2.y), 0.0)
+			_place(car, WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y)), atan2(-dir2.x, -dir2.y), 0.0)
 
 
 # --- Freeway traffic ------------------------------------------------------------------------
@@ -417,9 +451,7 @@ func _place_freeway_car(car: Vehicle, fw: Freeway) -> void:
 	var half: float = float(fw.routes[car.traffic.fw].width) * 0.5
 	var nrm := Vector2(-d.y, d.x) * (float(car.traffic.lane) * half)
 	var heading: Vector2 = d * float(car.traffic.dir)
-	car.global_position = WorldState.to_local(
-		Vector3(p.x + nrm.x, p.y + 0.71, p.z + nrm.y))
-	car.rotation = Vector3(0.0, atan2(-heading.x, -heading.y), 0.0)
+	_place(car, WorldState.to_local(Vector3(p.x + nrm.x, p.y + 0.71, p.z + nrm.y)), atan2(-heading.x, -heading.y), 0.0)
 
 
 ## Cruise, closing up on whatever is ahead in the same lane and direction.

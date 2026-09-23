@@ -31,9 +31,20 @@ extends Node3D
 ## Nothing is built at lower detail and nothing is drawn differently: the same city arrives at
 ## the same rate, in smaller pieces.
 @export var update_interval: float = 0.125
-## Chunks built per update, to spread the work out. Must keep up with a car at nitro speed.
+## Chunks STARTED per update, to spread the work out. Must keep up with a car at nitro speed.
 @export var max_full_builds_per_update: int = 1
 @export var max_lod_builds_per_update: int = 4
+## Milliseconds of chunk building allowed per frame while playing. A chunk is built in steps
+## (CityChunk.build_step(): the roads, then each building, each pedestrian...) and as many run
+## each frame as fit, at least one. It used to be built whole inside one frame: a detailed block
+## is about a hundred milliseconds of work on a slow machine, and the physics then ran up to
+## eight catch-up steps in the next frame to make up for the stall, so flying over the city
+## stuttered every few blocks. Same city, same order; it just arrives a slice a frame, and the
+## block it replaces stays up until it is complete.
+@export var build_budget_ms: float = 4.0
+## Chunks that may be under construction at once. Starting more does not build them any faster -
+## the budget is per frame - it only leaves more half-built blocks in the tree.
+@export var max_pending_builds: int = 6
 ## Seconds of travel the streaming window is pushed ahead of the player by. The window used to
 ## be centred on where they were standing, which is always behind where they are going: at boost
 ## or nitro speed the builder was still starting the block they had already reached. Leading it
@@ -135,6 +146,8 @@ var _player: Node3D
 var _ground: StaticBody3D
 ## Where the streaming window was last centred; chunks read it to size their collision.
 var _center_block: Vector2i = Vector2i.ZERO
+## The block the led streaming window is centred on (update_streaming), for build priority.
+var _focus_block: Vector2i = Vector2i.ZERO
 var _skyline: Skyline
 var _ground_material: ShaderMaterial
 ## The far hill planting's material (shaders/far_canopy.gdshader). It computes the ground
@@ -144,6 +157,8 @@ var _canopy_material: ShaderMaterial
 ## so the uniforms that height reads are kept in step on all of them.
 var _far_ground_materials: Array[ShaderMaterial] = []
 var _timer: float = 0.0
+## Chunks being built over several frames, by block, hidden until finished (see _advance_builds).
+var _pending: Dictionary = {}
 ## Far (always loaded) versions of the landmarks, keyed by id.
 var _far_landmarks: Dictionary = {}
 
@@ -311,6 +326,39 @@ func _process(delta: float) -> void:
 	if _timer >= update_interval:
 		_timer = 0.0
 		update_streaming(false)
+	_advance_builds()
+
+
+## Runs build steps for the chunks in progress, nearest first, until this frame's budget is spent.
+## Always at least one step, so a slow machine still gets its city, just in more frames.
+func _advance_builds() -> void:
+	if _pending.is_empty():
+		return
+	var start := Time.get_ticks_usec()
+	var budget := int(build_budget_ms * 1000.0)
+	var keys: Array = _pending.keys()
+	var here := _center_block
+	keys.sort_custom(func(a, b): return _build_priority(a, _focus_block, here) < _build_priority(b, _focus_block, here))
+	for k: Vector2i in keys:
+		var chunk: CityChunk = _pending[k]
+		while true:
+			if chunk.build_step():
+				_pending.erase(k)
+				_install_chunk(k, chunk)
+				break
+			if Time.get_ticks_usec() - start >= budget:
+				return
+		if Time.get_ticks_usec() - start >= budget:
+			return
+
+
+## Drops a chunk that is still being built (it left the window, or it is wanted at another level).
+func _cancel_build(k: Vector2i) -> void:
+	var chunk: CityChunk = _pending.get(k)
+	_pending.erase(k)
+	if chunk:
+		remove_child(chunk)
+		chunk.queue_free()
 
 
 func _physics_process(_delta: float) -> void:
@@ -347,6 +395,9 @@ func ensure_loaded_at(local_pos: Vector3) -> void:
 	var wp := world_position(local_pos)
 	var k := plan.block_index_at(Vector2(wp.x, wp.z))
 	if chunks.has(k) and chunks[k].level == CityChunk.Level.FULL:
+		return
+	if _pending.has(k) and _pending[k].level == CityChunk.Level.FULL:
+		_finish_now(k)
 		return
 	_replace_chunk(k, CityChunk.Level.FULL)
 
@@ -468,6 +519,7 @@ func update_streaming(immediate: bool) -> void:
 		var v: Vector3 = vel
 		focus += (Vector2(v.x, v.z) * stream_lookahead).limit_length(stream_lookahead_max)
 	var center := plan.block_index_at(focus)
+	_focus_block = center
 
 	var wanted := {}
 	for dx in range(-lod_radius_blocks, lod_radius_blocks + 1):
@@ -494,15 +546,30 @@ func update_streaming(immediate: bool) -> void:
 				_set_far_landmark_visible(id, true)
 			chunks[k].queue_free()
 			chunks.erase(k)
+	for k in _pending.keys():
+		if maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
+			_cancel_build(k)
 
 	var todo: Array = []
 	for k in wanted:
 		if not chunks.has(k) or chunks[k].level != wanted[k]:
+			# Already on its way: let it finish, even at the other level - a hard turn would
+			# otherwise throw away a half-built block and start it again. When everything is
+			# wanted NOW, finish it here, or start over if it is the wrong level.
+			if _pending.has(k):
+				if not immediate:
+					continue
+				if _pending[k].level == wanted[k]:
+					_finish_now(k)
+					continue
+				_cancel_build(k)
 			todo.append(k)
 	todo.sort_custom(func(a, b): return _build_priority(a, center, here) < _build_priority(b, center, here))
 	var full_budget := max_full_builds_per_update if not immediate else 1000000
 	var lod_budget := max_lod_builds_per_update if not immediate else 1000000
 	for k in todo:
+		if not immediate and _pending.size() >= max_pending_builds:
+			break
 		var level: CityChunk.Level = wanted[k]
 		if level == CityChunk.Level.FULL:
 			if full_budget <= 0:
@@ -512,7 +579,10 @@ func update_streaming(immediate: bool) -> void:
 			if lod_budget <= 0:
 				continue
 			lod_budget -= 1
-		_replace_chunk(k, level)
+		if immediate:
+			_replace_chunk(k, level)
+		else:
+			_start_build(k, level)
 	_update_skyline(here, immediate)
 
 
@@ -582,26 +652,60 @@ func _build_priority(k: Vector2i, center: Vector2i, here: Vector2i) -> int:
 ## drawn while the new one is generated, and leaves the tree in the same frame the new one
 ## enters it. This is the whole reason a level change no longer shows as a hole.
 func _replace_chunk(k: Vector2i, level: CityChunk.Level) -> void:
+	if _pending.has(k):
+		_cancel_build(k)
+	var chunk := _new_chunk(k, level)
+	chunk.build()
+	_install_chunk(k, chunk)
+
+
+## Starts building a chunk over the next few frames (see _advance_builds). It stays hidden, and
+## whatever stands in its place stays up, until it is complete.
+func _start_build(k: Vector2i, level: CityChunk.Level) -> void:
+	if _pending.has(k):
+		_cancel_build(k)
+	var chunk := _new_chunk(k, level)
+	chunk.visible = false
+	chunk.begin_build()
+	_pending[k] = chunk
+
+
+## Completes a chunk that is being built over several frames, right now.
+func _finish_now(k: Vector2i) -> void:
+	var chunk: CityChunk = _pending.get(k)
+	if chunk == null:
+		return
+	_pending.erase(k)
+	while not chunk.build_step():
+		pass
+	_install_chunk(k, chunk)
+
+
+## Puts a finished chunk in the window and takes down whatever stood in its place.
+func _install_chunk(k: Vector2i, chunk: CityChunk) -> void:
 	var old_chunk: CityChunk = chunks.get(k)
-	_build_chunk(k, level)
-	if old_chunk == null:
+	chunk.reveal()
+	chunks[k] = chunk
+	for id in chunk.built_landmarks:
+		_set_far_landmark_visible(id, false)
+	if old_chunk == null or old_chunk == chunk:
 		return
 	# Landmarks the old chunk owned and the new one does not have to go back to being far
-	# versions; the ones both build stay hidden, because _build_chunk has already hidden them.
+	# versions; the ones both build stay hidden, because the loop above has just hidden them.
 	for id in old_chunk.built_landmarks:
-		if not (chunks[k] as CityChunk).built_landmarks.has(id):
+		if not chunk.built_landmarks.has(id):
 			_set_far_landmark_visible(id, true)
 	# Coming INTO detail is the swap the player is looking at, so dissolve the boxes over the
 	# new buildings instead of cutting. Going the other way happens behind them, at the far edge
 	# of the window, where a cut costs nothing and a second set of boxes would cost draws.
-	if lod_fade_time > 0.0 and old_chunk.level == CityChunk.Level.LOD and level == CityChunk.Level.FULL:
+	if lod_fade_time > 0.0 and old_chunk.level == CityChunk.Level.LOD and chunk.level == CityChunk.Level.FULL:
 		old_chunk.begin_fade_out(lod_fade_time)
 		return
 	remove_child(old_chunk)
 	old_chunk.queue_free()
 
 
-func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
+func _new_chunk(k: Vector2i, level: CityChunk.Level) -> CityChunk:
 	var chunk := CityChunk.new()
 	chunk.plan = plan
 	chunk.ix = k.x
@@ -618,10 +722,7 @@ func _build_chunk(k: Vector2i, level: CityChunk.Level) -> void:
 		"grass_per_park": grass_per_park,
 	}
 	add_child(chunk)
-	chunk.build()
-	chunks[k] = chunk
-	for id in chunk.built_landmarks:
-		_set_far_landmark_visible(id, false)
+	return chunk
 
 
 func _set_far_landmark_visible(id: String, on: bool) -> void:
@@ -703,7 +804,7 @@ func _build_ground() -> void:
 	_ground = StaticBody3D.new()
 	_ground.name = "Ground"
 	_ground.collision_layer = 1
-	_ground.collision_mask = 7
+	_ground.collision_mask = 0 # static never detects; a mask here only makes useless pairs (CLAUDE.md)
 	var mesh := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(ground_size, ground_size)

@@ -82,7 +82,7 @@ var built_landmarks: Array[String] = []
 ## chunk), so the chunk frees the ones nobody drove when it unloads.
 var _cars: Array[Node] = []
 var _batch := MultiMeshBatch.new()
-## Per-block surface look (set by _build_block from the district table and the block seed).
+## Per-block surface look (set by _block_surface from the district table and the block seed).
 var _tree_bias: int = -1
 ## True when this block's street trees are palms (set per block from the district's "palms" odds).
 var _palm_street: bool = false
@@ -118,6 +118,11 @@ var _relief_lattice: Dictionary = {}
 ## so the interpolation is within a couple of centimetres - and the lattice is shared by every
 ## slab and batch in the chunk, which is what pays for the finer ground grids and the much
 ## denser scatter below: they build FASTER than the coarse ones used to.
+## The pavement height at (x, z) in this chunk's space: what a pedestrian walks on.
+func ground_y(x: float, z: float) -> float:
+	return SIDEWALK_TOP + _gy(x, z)
+
+
 func _gy(x: float, z: float) -> float:
 	if plan == null or plan.macro == null:
 		return 0.0
@@ -175,7 +180,45 @@ static func _mesh_tris(mesh: Mesh) -> int:
 	return _tri_cache[id]
 
 
+## The whole build at once: the loading screen, teleports and the smoke test use this.
 func build() -> void:
+	begin_build()
+	while not build_step():
+		pass
+
+
+## Runs the next step of the build; true once the chunk is finished. CityStreamer calls this a
+## few times a frame, inside a time budget, so a detailed block arriving while the player flies
+## is spread over a few frames instead of all landing in one - and it is the same city either
+## way, because the steps run in the same order with the same random rolls as build().
+func build_step() -> bool:
+	if _step < _steps.size():
+		# A step that returns false has more to do and runs again next time (see _run_or_defer).
+		if _steps[_step].call() != false:
+			_step += 1
+	return _step >= _steps.size()
+
+
+## Runs `work` (a step that returns true once it is finished) as build steps of its own, just
+## before the finish, when a build is under way; right here, to completion, otherwise. For big
+## self-contained jobs with their own random stream - grass - so moving them later changes
+## nothing about what they make.
+func _run_or_defer(work: Callable) -> void:
+	if _step < _steps.size() - 1:
+		_steps.insert(_steps.size() - 1, work)
+		return
+	while work.call() != true:
+		pass
+
+
+## The steps a build is made of: roads, the block's pavement, then each building, the street
+## furniture, the parked cars, each pedestrian, the crossing, the freeway, and the finish. Each
+## is small next to the old all-in-one build, which was a hundred milliseconds on a slow machine.
+var _steps: Array[Callable] = []
+var _step: int = 0
+
+
+func begin_build() -> void:
 	_batch.ground = _gy
 	_batch.tilt_keys = {"dash": true, "stripe": true, "manhole": true, "gutter": true, "grate": true, "stop_line": true, "patch": true, "arrow_straight": true, "arrow_left": true, "pstripe": true, "tree_grate": true}
 	key = "%d,%d" % [ix, iz]
@@ -187,49 +230,56 @@ func build() -> void:
 		add_child(_statics)
 	var block := plan.block(ix, iz)
 	zone = plan.zone_at((block.rect as Rect2).get_center())
+	_steps.clear()
+	_step = 0
 	match zone:
 		MacroMap.Zone.OCEAN:
-			_build_water()
+			_steps.append(_build_water)
 			# The waterline does not respect the zone grid: a chunk whose centre is out to sea
 			# can still have the shore running through its landward edge, and before this those
 			# bands showed as dark gaps between one beach and the next.
 			if _owns_shoreline():
-				_build_beach(block)
-				_build_hill_roads()
+				_steps.append(_build_beach.bind(block))
+				_steps.append(_build_hill_roads)
 		MacroMap.Zone.HILLS:
-			_build_terrain()
-			_build_hill_roads()
-			_build_mansions()
-			_scatter_hills()
+			_steps.append_array([_build_terrain, _build_hill_roads, _build_mansions, _scatter_hills])
 		MacroMap.Zone.BEACH:
-			_build_roads(block)
+			_steps.append(_build_roads.bind(block))
 			if _owns_shoreline():
-				_build_beach(block)
+				_steps.append(_build_beach.bind(block))
 			# The coast highway runs the length of the sand on the land side of it, so a beach
 			# chunk has to lay road as well; without this PCH simply stops at every beach town
 			# and picks up again where the cliffs start.
-			_build_hill_roads()
+			_steps.append(_build_hill_roads)
 		MacroMap.Zone.AIRPORT:
-			_build_airport()
+			_steps.append(_build_airport)
 		MacroMap.Zone.PORT:
-			_build_port(block)
+			_steps.append(_build_port.bind(block))
 		_:
 			if _owns_shoreline():
-				_build_beach(block)
-				_build_hill_roads()
-			_build_roads(block)
-			_build_block(block)
+				_steps.append(_build_beach.bind(block))
+				_steps.append(_build_hill_roads)
+			_steps.append(_build_roads.bind(block))
+			_steps.append_array(_block_steps(block))
 			if level == Level.FULL:
-				_build_intersection(plan.intersection(ix + 1, iz + 1))
+				_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
 			else:
-				_add_relief_floor()
+				_steps.append(_add_relief_floor)
 	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
 	# last so its deck lands on top of whatever the chunk laid down.
-	_build_freeway()
+	_steps.append(_build_freeway)
 	if level == Level.FULL and plan.macro:
-		for lm in Landmarks.in_rect(owned_rect()):
-			Landmarks.build(lm, self, _statics, plan, true)
-			built_landmarks.append(lm.id)
+		_steps.append(_build_landmarks)
+	_steps.append(_finish_build)
+
+
+func _build_landmarks() -> void:
+	for lm in Landmarks.in_rect(owned_rect()):
+		Landmarks.build(lm, self, _statics, plan, true)
+		built_landmarks.append(lm.id)
+
+
+func _finish_build() -> void:
 	# Paint and wear never cast. `tilt_keys` is exactly the set of batches that lie flat on the
 	# ground, and the tallest of them - a 2 cm crosswalk stripe at ROAD_TOP + 0.015, so 0.025 m
 	# proud of the asphalt - throws an 0.022 m shadow with the sun at its default 48 degrees,
@@ -244,9 +294,69 @@ func build() -> void:
 	_mm_nodes = _batch.build(self)
 	if _mm_nodes.has("lod_box"):
 		(_mm_nodes["lod_box"] as MultiMeshInstance3D).material_override = PropFactory.building_lod_material()
-	# Nothing asks for the ground again once the chunk is built, and a thousand cached samples
-	# per chunk across two hundred chunks is memory for nothing.
+	_build_occluder()
+	# The build's own samples go; pedestrians walking the pavement (Pedestrian._ground_y) fill
+	# back only the few cells along their ring.
 	_relief_lattice.clear()
+
+
+## Building boxes (building transform, part centre, part size) for this chunk's occluder: the
+## LOD branch collects its own as it lays the boxes; FULL buildings are read back off the
+## Building nodes in _build_occluder().
+var _occluder_boxes: Array = []
+## Metres each occluder box is pulled in from its building on every side, and down from its
+## roof. An occluder must never stick out past what it stands for, or whatever is behind the
+## sliver gets culled while it is in plain sight. 1.75 m clears the cut corners Building gives a
+## wide part (one window bay off each end, and a box inset by half a cut on both axes is
+## exactly inside the chamfer); the roof comes down a metre for parapets and plant.
+const OCCLUDER_INSET := 1.75
+const OCCLUDER_ROOF_DROP := 1.0
+
+
+## One OccluderInstance3D per chunk, made of its building boxes, for Godot's occlusion culling.
+## At street level the buildings either side hide most of the city, and until this every
+## building, tree, car and person behind them was still sent to the GPU every frame. It removes
+## nothing that is visible: only what is behind a wall. Needs
+## rendering/occlusion_culling/use_occlusion_culling (project.godot); a no-op on the web, where
+## the rasteriser it uses is not built.
+func _build_occluder() -> void:
+	for child in get_children():
+		if child is Building:
+			var b := child as Building
+			# The building's whole transform: hill mansions are turned to face their road.
+			for part in b.parts:
+				_occluder_boxes.append([b.transform, part.center, part.size])
+	var verts := PackedVector3Array()
+	var idx := PackedInt32Array()
+	for box: Array in _occluder_boxes:
+		var xf: Transform3D = box[0]
+		var c: Vector3 = box[1]
+		var sz: Vector3 = box[2]
+		var hx := sz.x * 0.5 - minf(OCCLUDER_INSET, sz.x * 0.2)
+		var hz := sz.z * 0.5 - minf(OCCLUDER_INSET, sz.z * 0.2)
+		var bottom := c.y - sz.y * 0.5
+		var top := c.y + sz.y * 0.5 - OCCLUDER_ROOF_DROP
+		# Small boxes cost the rasteriser more than they hide.
+		if hx < 1.5 or hz < 1.5 or top - bottom < 4.0:
+			continue
+		var o := verts.size()
+		for y: float in [bottom, top]:
+			verts.append(xf * Vector3(c.x - hx, y, c.z - hz))
+			verts.append(xf * Vector3(c.x + hx, y, c.z - hz))
+			verts.append(xf * Vector3(c.x + hx, y, c.z + hz))
+			verts.append(xf * Vector3(c.x - hx, y, c.z + hz))
+		# Four walls and the roof; nothing sees a building's underside.
+		for f: Array in [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [4, 5, 6, 7]]:
+			idx.append_array(PackedInt32Array([o + f[0], o + f[1], o + f[2], o + f[0], o + f[2], o + f[3]]))
+	_occluder_boxes.clear()
+	if idx.is_empty():
+		return
+	var occ := ArrayOccluder3D.new()
+	occ.set_arrays(verts, idx)
+	var node := OccluderInstance3D.new()
+	node.name = "Occluder"
+	node.occluder = occ
+	add_child(node)
 
 
 ## The whole area this chunk owns: its block plus the roads on its +X and +Z sides.
@@ -629,7 +739,7 @@ const PALM_CROWN_R := 3.2
 
 
 ## Distance from `p` to the nearest building footprint this chunk has recorded, 0 inside one.
-## `_build_lots` fills `_lot_rects` before `_build_sidewalk_props` runs, so a street tree can ask
+## The lot steps fill `_lot_rects` before `_build_sidewalk_props` runs, so a street tree can ask
 ## how much room it actually has before it decides how big to be.
 func _room_for_canopy(p: Vector2) -> float:
 	var best := 99.0
@@ -1071,12 +1181,60 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 
 # --- Block -----------------------------------------------------------------------------
 
-func _build_block(block: Dictionary) -> void:
+## A city block as build steps: the pavement, then what stands on it one building at a time, then
+## (FULL) the furniture, the parked cars and each pedestrian. One random stream runs through all
+## of it in that order, exactly as it did when this was a single function - the far skyline
+## replays the same rolls (see Skyline), so the order is load-bearing.
+func _block_steps(block: Dictionary) -> Array[Callable]:
 	var rect: Rect2 = block.rect
 	var district: CityPlan.District = block.district
 	var params: Dictionary = CityPlan.DISTRICTS[district]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
+	var steps: Array[Callable] = [_block_surface.bind(block, params, rng)]
+	match block.kind:
+		CityPlan.BlockKind.PARK:
+			steps.append(_build_park.bind(rect, rng))
+		CityPlan.BlockKind.PLAZA:
+			steps.append(_build_plaza.bind(rect, rng))
+		CityPlan.BlockKind.MALL:
+			steps.append(func() -> void: Commercial.build_mall(self, rect, rng))
+		CityPlan.BlockKind.BIGBOX:
+			steps.append(func() -> void: Commercial.build_bigbox(self, rect, rng))
+		_:
+			_lawn_rect = Rect2()
+			if params.get("lawn", false):
+				steps.append(_block_lawn.bind(rect, rng))
+			steps.append_array(_lot_steps(rect, params, rng))
+			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
+			# whole block, so the footprints the lots just recorded are what the grass has to
+			# stay out of; a suburb whose lawns are flat green paint is the tell.
+			steps.append(func() -> void:
+				if _lawn_rect.size.x > 1.0:
+					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
+	if level == Level.FULL:
+		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		steps.append(_park_cars.bind(rect, rng, params))
+		steps.append_array(_pedestrian_steps(rect, rng, params))
+	return steps
+
+
+## Where the block's lawn is (set by _block_lawn, read once the lots are down).
+var _lawn_rect := Rect2()
+
+
+## Suburbs and campus: lawns between the buildings instead of bare paving.
+func _block_lawn(rect: Rect2, rng: RandomNumberGenerator) -> void:
+	var inner := rect.grow(-plan.sidewalk_width)
+	var ic := inner.get_center()
+	var lawn := _lawn_color(rng)
+	_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
+	_lawn_rect = inner
+
+
+## The block's look (paving, dominant tree, palm or jacaranda street, lamp paint) and its pavement.
+func _block_surface(block: Dictionary, params: Dictionary, rng: RandomNumberGenerator) -> void:
+	var rect: Rect2 = block.rect
 	var center := rect.get_center()
 	# This block's look: paving set, dominant tree, lamp paint (all from the district table).
 	var pavings: Array = params.get("paving", [["paving", 3.0, Color(0.95, 0.94, 0.92)]])
@@ -1106,48 +1264,38 @@ func _build_block(block: Dictionary) -> void:
 	# Pavement: the same wear shader as the road, but with expansion joints and far less
 	# patching and staining, so a sidewalk reads as poured slabs rather than a grey plane.
 	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45))
-	match block.kind:
-		CityPlan.BlockKind.PARK:
-			_build_park(rect, rng)
-		CityPlan.BlockKind.PLAZA:
-			_build_plaza(rect, rng)
-		CityPlan.BlockKind.MALL:
-			Commercial.build_mall(self, rect, rng)
-		CityPlan.BlockKind.BIGBOX:
-			Commercial.build_bigbox(self, rect, rng)
-		_:
-			var lawn_rect := Rect2()
-			if params.get("lawn", false):
-				# Suburbs and campus: lawns between the buildings instead of bare paving.
-				var inner := rect.grow(-plan.sidewalk_width)
-				var ic := inner.get_center()
-				var lawn := _lawn_color(rng)
-				_add_slab(Vector3(ic.x, SIDEWALK_TOP + 0.02, ic.y), Vector3(inner.size.x, 0.04, inner.size.y), style.grass, false, PropFactory.lawn(lawn, hash([plan.seed, ix, iz, "lawn"])))
-				lawn_rect = inner
-			_build_lots(rect, params, rng)
-			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
-			# whole block, so the footprints `_build_lots` just recorded are what the grass
-			# has to stay out of; a suburb whose lawns are flat green paint is the tell.
-			if lawn_rect.size.x > 1.0:
-				_add_grass(lawn_rect, 0.85, 0.0, _lot_rects)
-	if level == Level.FULL:
-		_build_sidewalk_props(rect, params, rng, district)
-		_park_cars(rect, rng, params)
-		_spawn_pedestrians(rect, rng, params)
 
 
-func _spawn_pedestrians(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> void:
+func _pedestrian_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> Array[Callable]:
 	var count: int = params.get("people", style.pedestrians_per_block)
 	if plan.macro and not params.is_empty():
 		# The downtown core is the busiest: up to twice the district's count in the middle.
 		count = roundi(count * (1.0 + plan.macro.skyline_boost(rect.get_center())))
-	_spawn_crowd(rect, plan.sidewalk_width, count, rng)
+	return _crowd_steps(rect, plan.sidewalk_width, count, rng)
 
 
 ## `count` pedestrians wandering the sidewalk ring of `rect` (inset `sidewalk` meters).
 func _spawn_crowd(rect: Rect2, sidewalk: float, count: int, rng: RandomNumberGenerator) -> void:
+	for step in _crowd_steps(rect, sidewalk, count, rng):
+		step.call()
+
+
+## The same crowd as build steps: count the room under the cap once, then one person a step.
+func _crowd_steps(rect: Rect2, sidewalk: float, count: int, rng: RandomNumberGenerator) -> Array[Callable]:
+	var steps: Array[Callable] = []
 	if count <= 0:
-		return
+		return steps
+	steps.append(_count_crowd_room)
+	for i in count:
+		steps.append(_spawn_walker.bind(rect, sidewalk, rng))
+	return steps
+
+
+## How many more pedestrians the city's cap allows (set by _count_crowd_room).
+var _crowd_room: int = 0
+
+
+func _count_crowd_room() -> void:
 	var existing := 0
 	for n in get_tree().get_nodes_in_group("pedestrian"):
 		# A pedestrian inside a chunk that is being freed is not flagged itself; check its chunk.
@@ -1155,16 +1303,18 @@ func _spawn_crowd(rect: Rect2, sidewalk: float, count: int, rng: RandomNumberGen
 		if n.is_queued_for_deletion() or (parent and parent.is_queued_for_deletion()):
 			continue
 		existing += 1
-	var cap: int = style.max_pedestrians
-	for i in count:
-		if existing >= cap:
-			return
-		var ped := Pedestrian.new()
-		ped.setup(rect, sidewalk, rng.randi())
-		var start := ped._random_ring_point(sidewalk)
-		ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
-		add_child(ped)
-		existing += 1
+	_crowd_room = int(style.max_pedestrians) - existing
+
+
+func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> void:
+	if _crowd_room <= 0:
+		return
+	var ped := Pedestrian.new()
+	ped.setup(rect, sidewalk, rng.randi())
+	var start := ped._random_ring_point(sidewalk)
+	ped.position = Vector3(start.x, SIDEWALK_TOP + 0.1 + _gy(start.x, start.y), start.y)
+	add_child(ped)
+	_crowd_room -= 1
 
 
 ## Parked cars in the lanes of this chunk's two roads, nose along the road.
@@ -1207,8 +1357,19 @@ func _park_cars(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}
 		car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
 		car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
 		holder.add_child(car)
+		# A chunk still being built is hidden until it is finished (CityStreamer), and its cars
+		# live under the city root rather than under it, so they are hidden with it by hand.
+		car.visible = visible
 		_cars.append(car)
 		count += 1
+
+
+## Shows a chunk that was built hidden over several frames, and the parked cars it placed.
+func reveal() -> void:
+	visible = true
+	for car in _cars:
+		if is_instance_valid(car):
+			(car as Node3D).visible = true
 
 
 func _exit_tree() -> void:
@@ -1219,84 +1380,90 @@ func _exit_tree() -> void:
 
 
 ## Lot layout is shared by FULL and LOD so both see the same buildings.
-func _build_lots(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> void:
+## Lots come from the PLAN, seeded per block, so the far skyline can ask for exactly the same
+## buildings (see CityPlan.lots()). One build step per lot.
+func _lot_steps(_rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> Array[Callable]:
+	var steps: Array[Callable] = [func() -> void: _lot_rects.clear()]
+	for lot in plan.lots(ix, iz):
+		steps.append(_build_lot.bind(lot, params, rng))
+	return steps
+
+
+func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator) -> void:
 	var heights: Vector2 = params.height
 	var pads: float = params.get("pads", 0.0)
 	# The district this block sits in, for the shared massing curve. block() is cached.
 	var district: int = plan.block(ix, iz).district
-	_lot_rects.clear()
-	# Lots come from the PLAN now, seeded per block, so the far skyline can ask for exactly
-	# the same buildings. See CityPlan.lots().
-	for lot in plan.lots(ix, iz):
-		var center: Vector2 = lot.center
-		if lot.yard:
-			_build_yard(lot, rng)
-			continue
-		# What stands on this lot (a house, a pad, or the freeway corridor above it): the
-		# suburban lawn grass keeps out of these.
-		_lot_rects.append(Rect2(center - (lot.size as Vector2) * 0.5 - Vector2(0.4, 0.4), (lot.size as Vector2) + Vector2(0.8, 0.8)))
-		if lot.edge and pads > 0.0 and rng.randf() < pads and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0:
-			Commercial.build_pad(self, lot, rng)
-			continue
-		# Nothing gets built in the corridor the freeway flies over. Checked here, after the
-		# pad roll, so skipping a lot does not shift the chunk rng for the lots after it.
-		if _under_freeway(center, 14.0):
-			continue
-		var building := BUILDING_SCENE.instantiate() as Building
-		building.seed = lot.seed
-		building.lot_size = lot.size
-		# Downtown core: the skyline climbs toward the center (supertalls in the middle).
-		var boost := plan.macro.skyline_boost(center) if plan.macro else 0.0
-		# Handing the whole district band to each building made every lot an independent uniform
-		# draw between the two heights, and a uniform draw has no tail: downtown's 50..140 lerped
-		# to 100..308 in the core came out with a median of 134 m and the twelve tallest towers
-		# inside 65 m of each other, so the top of the city read as one flat line rather than as
-		# a skyline. So the band is rolled ONCE per lot into a target height and the building gets
-		# a narrow band around that, with the roll bent by pow(u, curve): most lots land near the
-		# bottom of the band and a handful reach the top.
-		var h_low := lerpf(heights.x, heights.x * 1.45, boost)
-		var h_top := lerpf(heights.y, heights.y * 2.3, boost)
-		# How hard to bend it is set by how much room the district actually has - log base 4 of
-		# the band's ratio - so the downtown core's 72..322 m (4.4x) bends at 2.08 and lands its
-		# median at 132 m, while the suburbs' 5..14 m (2.8x) only reaches 1.74 and still reads as
-		# a street of houses (median 7.7 m).
-		var target := plan.lot_height(lot.seed, district, boost)
-		building.min_height = target * 0.88
-		building.max_height = target
-		building.lit_ratio_range = params.lit
-		building.weathering_range = params.get("weathering", Vector2(0.2, 0.9))
-		building.shape_options.assign(params.shapes)
-		building.finish_options.assign(params.finishes)
-		var g := _gy(center.x, center.y)
-		var gmin := g
-		var half: Vector2 = lot.size * 0.5
-		for c: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
-			gmin = minf(gmin, _gy(center.x + c.x * half.x, center.y + c.y * half.y))
-		# A concrete plinth reaches from the base down past the lowest sidewalk corner.
-		building.plinth_depth = g - gmin + SIDEWALK_TOP + 0.6
-		var base := Vector3(center.x, SIDEWALK_TOP, center.y)
-		building.position = base + Vector3(0.0, g, 0.0)
-		if level == Level.FULL:
-			add_child(building)
-			building_count += 1
-		else:
-			# Far away: just the boxes, in the facade color, no props. They do get plain box
-			# collision so a fast car cannot drive into a footprint and get shot through the
-			# floor when the detailed building appears around it.
-			var lod_style := building.plan_only()
-			# Custom data for shaders/building_lod.gdshader: window style, lit ratio, seed, plain flag.
-			var custom := Color(float(building.window_style) / 4.0, lod_style.lit_ratio, float(building.seed % 997) / 997.0, 0.0)
-			for part in building.parts:
-				var size: Vector3 = part.size
-				var part_center: Vector3 = part.center
-				# The batch adds the relief itself; the shape needs it explicitly.
-				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(size), base + part_center), building.facade_color, custom)
-				_add_lod_shape(size, building.position + part_center)
-			var fp: Vector2 = building.footprint
-			if fp.x > 0.0 and building.plinth_depth > 0.05:
-				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
-			building.free()
-			building_count += 1
+	var center: Vector2 = lot.center
+	if lot.yard:
+		_build_yard(lot, rng)
+		return
+	# What stands on this lot (a house, a pad, or the freeway corridor above it): the
+	# suburban lawn grass keeps out of these.
+	_lot_rects.append(Rect2(center - (lot.size as Vector2) * 0.5 - Vector2(0.4, 0.4), (lot.size as Vector2) + Vector2(0.8, 0.8)))
+	if lot.edge and pads > 0.0 and rng.randf() < pads and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0:
+		Commercial.build_pad(self, lot, rng)
+		return
+	# Nothing gets built in the corridor the freeway flies over. Checked here, after the
+	# pad roll, so skipping a lot does not shift the chunk rng for the lots after it.
+	if _under_freeway(center, 14.0):
+		return
+	var building := BUILDING_SCENE.instantiate() as Building
+	building.seed = lot.seed
+	building.lot_size = lot.size
+	# Downtown core: the skyline climbs toward the center (supertalls in the middle).
+	var boost := plan.macro.skyline_boost(center) if plan.macro else 0.0
+	# Handing the whole district band to each building made every lot an independent uniform
+	# draw between the two heights, and a uniform draw has no tail: downtown's 50..140 lerped
+	# to 100..308 in the core came out with a median of 134 m and the twelve tallest towers
+	# inside 65 m of each other, so the top of the city read as one flat line rather than as
+	# a skyline. So the band is rolled ONCE per lot into a target height and the building gets
+	# a narrow band around that, with the roll bent by pow(u, curve): most lots land near the
+	# bottom of the band and a handful reach the top.
+	var h_low := lerpf(heights.x, heights.x * 1.45, boost)
+	var h_top := lerpf(heights.y, heights.y * 2.3, boost)
+	# How hard to bend it is set by how much room the district actually has - log base 4 of
+	# the band's ratio - so the downtown core's 72..322 m (4.4x) bends at 2.08 and lands its
+	# median at 132 m, while the suburbs' 5..14 m (2.8x) only reaches 1.74 and still reads as
+	# a street of houses (median 7.7 m).
+	var target := plan.lot_height(lot.seed, district, boost)
+	building.min_height = target * 0.88
+	building.max_height = target
+	building.lit_ratio_range = params.lit
+	building.weathering_range = params.get("weathering", Vector2(0.2, 0.9))
+	building.shape_options.assign(params.shapes)
+	building.finish_options.assign(params.finishes)
+	var g := _gy(center.x, center.y)
+	var gmin := g
+	var half: Vector2 = lot.size * 0.5
+	for c: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(-1, 1), Vector2(1, 1)]:
+		gmin = minf(gmin, _gy(center.x + c.x * half.x, center.y + c.y * half.y))
+	# A concrete plinth reaches from the base down past the lowest sidewalk corner.
+	building.plinth_depth = g - gmin + SIDEWALK_TOP + 0.6
+	var base := Vector3(center.x, SIDEWALK_TOP, center.y)
+	building.position = base + Vector3(0.0, g, 0.0)
+	if level == Level.FULL:
+		add_child(building)
+		building_count += 1
+	else:
+		# Far away: just the boxes, in the facade color, no props. They do get plain box
+		# collision so a fast car cannot drive into a footprint and get shot through the
+		# floor when the detailed building appears around it.
+		var lod_style := building.plan_only()
+		# Custom data for shaders/building_lod.gdshader: window style, lit ratio, seed, plain flag.
+		var custom := Color(float(building.window_style) / 4.0, lod_style.lit_ratio, float(building.seed % 997) / 997.0, 0.0)
+		for part in building.parts:
+			var size: Vector3 = part.size
+			var part_center: Vector3 = part.center
+			# The batch adds the relief itself; the shape needs it explicitly.
+			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(size), base + part_center), building.facade_color, custom)
+			_add_lod_shape(size, building.position + part_center)
+			_occluder_boxes.append([Transform3D(Basis(), building.position), part_center, size])
+		var fp: Vector2 = building.footprint
+		if fp.x > 0.0 and building.plinth_depth > 0.05:
+			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
+		building.free()
+		building_count += 1
 
 
 ## A skipped inner lot becomes a pocket garden: lawn, a few trees and shrubs, a bench.
@@ -1443,22 +1610,35 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 					blocked[j * gx + i] = 1
 	var center := rect.get_center()
 	var blade := PropFactory.grass_blade()
-	for k in count:
-		var p := Vector2(rng.randf_range(rect.position.x, rect.end.x), rng.randf_range(rect.position.y, rect.end.y))
-		if keep_out > 0.0 and (absf(p.x - center.x) < keep_out or absf(p.y - center.y) < keep_out):
-			continue
-		if not blocked.is_empty():
-			var ci := clampi(int((p.x - rect.position.x) / cell), 0, gx - 1)
-			var cj := clampi(int((p.y - rect.position.y) / cell), 0, gz - 1)
-			if blocked[cj * gx + ci] == 1:
+	# A big lawn is twenty thousand tufts, so it is planted GRASS_SLICE at a time as build steps
+	# of its own. Its random stream is its own too, so the lawn comes out identical either way.
+	var done := [0]
+	_run_or_defer(func() -> bool:
+		var stop := mini(count, done[0] + GRASS_SLICE)
+		for k in range(done[0], stop):
+			var p := Vector2(rng.randf_range(rect.position.x, rect.end.x), rng.randf_range(rect.position.y, rect.end.y))
+			if keep_out > 0.0 and (absf(p.x - center.x) < keep_out or absf(p.y - center.y) < keep_out):
 				continue
-		# Squash and stretch each tuft independently, so a lawn is not one shape repeated.
-		var sc := rng.randf_range(0.55, 1.6)
-		var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
-		var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
-		_batch.add("grass", blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
-	_batch.set_no_shadow("grass")
-	_batch.set_draw_distance("grass", grass_distance)
+			if not blocked.is_empty():
+				var ci := clampi(int((p.x - rect.position.x) / cell), 0, gx - 1)
+				var cj := clampi(int((p.y - rect.position.y) / cell), 0, gz - 1)
+				if blocked[cj * gx + ci] == 1:
+					continue
+			# Squash and stretch each tuft independently, so a lawn is not one shape repeated.
+			var sc := rng.randf_range(0.55, 1.6)
+			var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
+			var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
+			_batch.add("grass", blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
+		done[0] = stop
+		if stop < count:
+			return false
+		_batch.set_no_shadow("grass")
+		_batch.set_draw_distance("grass", grass_distance)
+		return true)
+
+
+## Grass tufts planted per build step (see _add_grass).
+const GRASS_SLICE := 800
 
 
 ## Flowering ground cover and grass clumps scattered over a patch of lawn. This is where the

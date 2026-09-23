@@ -240,6 +240,26 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-23 Playable without losing anything (owner: "I need the game to be playable and not
+  slow without taking away from graphics or quality at all").** The frame was CPU-bound in the
+  physics step, not the GPU: headless, the simulation needed 2.3-2.9 s of wall time per game
+  second on this (slow, shared) test machine, so every frame ran Godot's cap of eight catch-up
+  physics steps - the spiral that makes a game feel like it is wading. Three causes, fixed without
+  touching anything you can see: (1) useless collision pairs. GodotPhysics pairs two objects
+  when EITHER mask has the other's layer, and a moving body is re-paired against everything its
+  bounds cross; static bodies had mask 7, detector areas were monitorable, and far pedestrians
+  and traffic cars carried masks they never use. Pairs 3,600 -> 1,200-1,500. (2) Far crowd:
+  past 35 m a pedestrian walks the pavement by position on the chunk's own ground height, at a
+  stride of 2/4/8 steps with distance, with no collision solve and no hit zone. (3) Parked cars
+  past 100 m stop their per-step script (the body is untouched), traffic cars are placed in one
+  transform write and read ground height from the road lattice instead of the mountain noise.
+  Result, two rounds each against the previous commit: standing 2287/2445 -> 1524/1658 ms per
+  game second, flying 2874/2847 -> 1808/1570, worst frame while flying 1230/1344 -> 604/611 ms.
+  Also: occlusion culling (one occluder per chunk from its building boxes, inset so it never
+  sticks out; on/off shots identical except for moving traffic and people), and streaming in
+  slices - a chunk is now a list of build steps run inside `build_budget_ms` a frame and swapped
+  in when complete, where it used to be ~100 ms built inside a single frame.
+
 - **2026-09-23 Why the game was slow (owner: "why is the game so slow").** Measured rather than
   guessed. (1) Resolution: the window opens maximised and Godot draws every physical Retina
   pixel - 7.7 million on a 16-inch MacBook, through SDFGI, SSR, SSIL and volumetric fog - and

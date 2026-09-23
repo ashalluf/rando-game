@@ -9,7 +9,7 @@ var chunk: Node3D
 func _init() -> void:
 	name = "StreetProps"
 	collision_layer = 1
-	collision_mask = 7
+	collision_mask = 0 # static never detects; a mask here only makes useless pairs (CLAUDE.md)
 
 
 func take_hit(shape_index: int, damage: float, hit_dir: Vector3 = Vector3.UP) -> void:

@@ -8,8 +8,8 @@ extends SceneTree
 ##     -- --spawn=300,300,45,-8 --hour=11
 ##
 ## The `--spawn` / `--hour` after `--` are what CityStreamer and DayNight read; OUT, FRAMES
-## (frames to wait for streaming before the shot) and HIDE (node name patterns to hide) are read
-## here. It is the Compatibility renderer,
+## (frames to wait for streaming before the shot), HIDE (node name patterns to hide) and OCCLUSION=0
+## (occlusion culling off) are read here. It is the Compatibility renderer,
 ## so lighting is flatter than the Mac build; judge geometry and materials. A shot takes a minute or
 ## two on llvmpipe.
 func _initialize() -> void:
@@ -30,6 +30,10 @@ func _initialize() -> void:
 	# (find_children wildcards), re-applied each frame because chunks and tiles keep streaming in.
 	# For telling apart which of several overlapping things a stray pixel belongs to.
 	var hide := OS.get_environment("HIDE").split(",", false)
+	# OCCLUSION=0 renders without occlusion culling, to diff against a normal shot: anything that
+	# is in one and not the other was culled while in plain sight, i.e. an occluder is too big.
+	if OS.get_environment("OCCLUSION") == "0":
+		get_root().use_occlusion_culling = false
 	for i in frames:
 		await process_frame
 		if not hide.is_empty() and get_root().get_child_count() > 0:

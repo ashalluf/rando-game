@@ -168,6 +168,17 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Physics layers: 1 `world` (static), 2 `player`, 3 `props` (rigid bodies), 4 `npc` (pedestrians),
   5 `terrain` (hill heightmaps, in addition to world). Player mask = world+props.
   Crates: layer props, mask all three. The camera spring arm collides with `world` only.
+  **Masks are what the physics engine pairs on, so they cost CPU.** GodotPhysics makes a pair
+  for every two overlapping objects where either one's mask has the other's layer, and re-pairs
+  a moving body against everything its bounds cross, whether or not the pair can ever collide.
+  So: static bodies (buildings, street props, the ground) have mask **0** - a static body never
+  detects anything, and every moving body that must hit the world already has world in its own
+  mask. Detector `Area3D`s (car bumpers, pedestrian hit zones) are `monitorable = false`, which
+  moves them to the broadphase's static tree so moving one is not tested against the whole
+  city. Kinematic bodies that are placed rather than simulated drop their mask: traffic cars
+  (`Vehicle._mask()`, restored when one drops out of traffic) and pedestrians past
+  `Pedestrian.physics_range` (whose hit zone also leaves the broadphase). Queries - bullets,
+  blasts, bumpers - test layers, not masks, so none of this changes what can be hit.
 - Node groups: `player` (the player body), `physics_prop` (every rigid prop PhysicsBudget manages),
   `debris` (short-lived props that get freed after a timeout).
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
@@ -334,7 +345,16 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `block_index_at()`, `district_at()`; `DISTRICTS` holds the parameter ranges for DOWNTOWN,
   MIDTOWN, SUBURBS, INDUSTRIAL and CAMPUS), `CityStreamer`
   (scene root of `scenes/levels/city.tscn`: streams chunks, ground follow, origin re-centering) and
-  `CityChunk` (builds one block at FULL or LOD level). Small repeated props go through
+  `CityChunk` (builds one block at FULL or LOD level). A chunk's build is a **list of steps**
+  (`begin_build()` then `build_step()` until it returns true; `build()` runs them all at once for
+  the loading screen, teleports and the smoke test). While playing, `CityStreamer` builds chunks
+  hidden, `build_budget_ms` of steps a frame, and swaps each in only when it is complete - one
+  whole chunk in one frame was ~100 ms on a slow machine and the physics then ran up to eight
+  catch-up steps behind it, which is what made flying stutter. Two rules: steps run in the
+  one-shot order and share the block's rng, so **the order is load-bearing** (the far skyline
+  replays the same rolls); and a big job with its own rng (grass) goes through
+  `_run_or_defer()`, which re-queues it before the finish step as a step that returns false
+  until it is done. Small repeated props go through
   `MultiMeshBatch` with meshes from `PropFactory`. Breakable props are registered with
   `CityChunk._add_prop()` (instances + shapes + health); their shapes live on the chunk's
   `StreetProps` body, which routes `take_hit()` to the chunk. Physics props (trash cans) are
@@ -543,7 +563,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   budget, `PropFactory.TRI_BUDGET`: the Poly Haven scans are film assets (a lamp was 30k
   triangles, a barrier 61k) and a MultiMesh batch draws every instance at the LOD of its nearest
   point, so over budget `model_mesh()` makes a generated LOD the base mesh. Add new hard-surface
-  props to it; not foliage, whose leaf cards a simplifier collapses. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
+  props to it; not foliage, whose leaf cards a simplifier collapses. Occlusion culling is on
+  (`rendering/occlusion_culling/use_occlusion_culling`): one `OccluderInstance3D` per chunk made
+  of its building boxes (`CityChunk._build_occluder()`), inset by `OCCLUDER_INSET` so it never
+  sticks out past a wall - an occluder bigger than what it stands for culls things in plain
+  sight. Diff a shot against `OCCLUSION=0` on `tools/glshot/city_shot.gd` after changing it.
+  CPU: parked cars past `PhysicsBudget.vehicle_script_radius` stop their own per-step script
+  (the physics body is untouched), and see the physics-layers note on masks. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
   objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
   frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in

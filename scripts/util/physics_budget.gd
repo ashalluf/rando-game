@@ -22,6 +22,13 @@ const PLAYER_GROUP := "player"
 @export var wake_radius_factor: float = 0.85
 ## How often the guardrails run (seconds).
 @export var check_interval: float = 0.25
+## Past this distance from the player (metres) a car nobody is driving stops running its own
+## per-step script (Vehicle.set_script_active). Its physics body is untouched - VehicleBody3D's
+## suspension runs in the physics server, not in the script - so a parked car still sits, rolls
+## and gets blown up exactly as before. What stops is wheel spin and LOD bookkeeping that nobody
+## can see at this range. Measured headless on a downtown block, the 451 cars' scripts were 12 of
+## 67 ms of every physics step.
+@export var vehicle_script_radius: float = 100.0
 
 var frozen_count: int = 0
 var _timer: float = 0.0
@@ -83,6 +90,9 @@ func _run_checks() -> void:
 			continue
 		if body is VehicleBody3D:
 			# Never freeze vehicles: frozen wheels divide by zero and poison the body with NaN.
+			if player and body.has_method("set_script_active"):
+				var near := body.global_position.distance_to(player.global_position) < vehicle_script_radius
+				body.set_script_active(near or body.get("driver") != null)
 			continue
 		var dist := body.global_position.distance_to(player.global_position)
 		if body.freeze:

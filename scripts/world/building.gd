@@ -125,7 +125,7 @@ func generate() -> void:
 	for child in get_children():
 		child.queue_free()
 	collision_layer = 1
-	collision_mask = 7
+	collision_mask = 0 # static never detects; a mask here only makes useless pairs (CLAUDE.md)
 	for part in parts:
 		_build_part(part, style)
 	_build_plinth()

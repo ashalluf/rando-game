@@ -764,6 +764,30 @@ small or low enough that nothing has shown, but they are the next thing to move 
 `HIDE=Planting_*,Sky_*` on `tools/glshot/city_shot.gd` hides named nodes, which is how the
 floating houses were told apart from the floating trees.
 
+## 9e. Making it run, 2026-09-23
+
+The owner: "I need the game to be playable and not slow without taking away from graphics or
+quality at all." What the measurements said and what shipped is in the decisions log (same
+date). What a next session needs to know:
+
+- **Measure CPU with a throughput bench, not `Performance.TIME_PHYSICS_PROCESS`.** That monitor is
+  the max over the last second of the whole per-frame physics block (all its steps), so it moves
+  with how many catch-up steps ran. Wall-clock ms per game second, standing and flying, headless,
+  A/B against a `git worktree` of the previous commit, two rounds each: this machine's noise is
+  +-10 %, so one run proves nothing.
+- **A symbol-carrying Godot for perf** takes 34 minutes: the 4.7.2 source tarball from the GitHub
+  release, `scons platform=linuxbsd target=template_release debug_symbols=yes -j4`. Release
+  templates refuse `--path` and the working directory (`disable_path_overrides`), so either
+  rebuild with `disable_path_overrides=no` or export a pck with the editor binary and pass
+  `--main-pack`. `perf` is `apt-get install linux-tools-generic` and then the versioned binary
+  under `/usr/lib/linux-tools/*/perf` (the wrapper refuses this kernel); only software events
+  (`-e cpu-clock`) exist in this VM.
+- **Collision masks cost CPU** (CLAUDE.md, physics layers): static bodies mask 0, detector areas
+  not monitorable, placed kinematic bodies without masks. Adding a body with a wide mask is how
+  this comes back.
+- **Chunk builds are steps** (CLAUDE.md, City): anything new in a chunk build goes in as a step
+  or inside one; a big self-seeded job goes through `_run_or_defer()`.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

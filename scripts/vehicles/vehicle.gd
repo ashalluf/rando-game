@@ -394,7 +394,7 @@ func _ready() -> void:
 	add_to_group("physics_prop")
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
 	collision_layer = 4
-	collision_mask = 7
+	collision_mask = _mask()
 	mass = 1200.0
 	angular_damp = 0.5
 	linear_damp = 0.05
@@ -436,6 +436,14 @@ func is_traffic() -> bool:
 	return not traffic.is_empty()
 
 
+## World, player and props for a physics car. A traffic car is kinematic - the TrafficManager
+## places it - so it needs no mask at all: it still pushes the player, props and parked cars,
+## whose own masks pair them with it, but it stops being paired with every road slab, kerb and
+## wall it drives past, which can never collide with a kinematic body anyway.
+func _mask() -> int:
+	return 0 if is_traffic() else 7
+
+
 ## Something hit a traffic car hard: hand it over to physics.
 func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
 	if not is_traffic():
@@ -443,6 +451,7 @@ func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
 	var v := -global_basis.z * traffic_speed
 	traffic = {}
 	traffic_speed = 0.0
+	collision_mask = _mask()
 	# The generated wheels stay: they were never children of the physics wheels.
 	_add_real_wheels()
 	freeze = false
@@ -634,6 +643,7 @@ func _build() -> void:
 	var bumper := Area3D.new()
 	bumper.collision_layer = 0
 	bumper.collision_mask = 2 | 8
+	bumper.monitorable = false # nothing looks for it; see Pedestrian._add_hit_area()
 	var bshape := CollisionShape3D.new()
 	var bbox := BoxShape3D.new()
 	bbox.size = Vector3(width + 0.4, 1.6, length + 0.8)
@@ -819,6 +829,18 @@ func _wheel_pose() -> Dictionary:
 const BODY_LOD_BIAS := [1.0, 0.5, 0.25]
 var _body_meshes: Array[MeshInstance3D] = []
 var _body_tier: int = -1
+
+
+## Switches this car's own per-step script on or off (PhysicsBudget does it by distance). Off, the
+## body stays in the physics world and behaves exactly as before; only the wheel spin, the
+## suspension offsets on the visible wheels and the LOD bookkeeping stop, which is why the body
+## is put on its far tier first.
+func set_script_active(on: bool) -> void:
+	if on == is_physics_processing():
+		return
+	if not on:
+		_update_body_tier(INF)
+	set_physics_process(on)
 
 
 ## Shadow and LOD tier for the body, from its distance to the camera's focus.

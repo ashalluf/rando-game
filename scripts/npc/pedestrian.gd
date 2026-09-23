@@ -797,7 +797,11 @@ func _add_hit_area() -> void:
 	var area := Area3D.new()
 	area.collision_layer = 0
 	area.collision_mask = 2 | 4
+	# Nothing looks for this zone, and a monitorable area sits in the broadphase's dynamic tree,
+	# where every step it moves it is tested against the whole city's static geometry.
+	area.monitorable = false
 	var ashape := CollisionShape3D.new()
+	_hit_shape = ashape
 	var abox := BoxShape3D.new()
 	abox.size = Vector3(1.0, 1.8, 1.0)
 	ashape.shape = abox
@@ -836,8 +840,11 @@ func _physics_process(delta: float) -> void:
 		_pause_left -= delta
 		velocity.x = 0.0
 		velocity.z = 0.0
-		velocity.y = 0.0 if is_on_floor() else velocity.y - 30.0 * delta
-		move_and_slide()
+		# Someone standing on the pavement does not need a collision solve every step: only a
+		# body that is still falling (just spawned, or knocked off a kerb) does.
+		if not _kinematic and not is_on_floor():
+			velocity.y -= 30.0 * delta
+			move_and_slide()
 		if _pause_left <= 0.0:
 			_play_walk()
 		return
@@ -852,19 +859,28 @@ func _physics_process(delta: float) -> void:
 	var dir := to_target.normalized()
 	velocity.x = dir.x * walk_speed
 	velocity.z = dir.y * walk_speed
-	if not is_on_floor():
-		velocity.y -= 30.0 * delta
+	if _kinematic:
+		# Out of reach of the player: walk the pavement directly, on the chunk's own ground
+		# height, with no collision solve. The ring is open pavement, so the path is the same
+		# one move_and_slide would have taken.
+		var at := position + Vector3(velocity.x, 0.0, velocity.z) * delta
+		at.y = _ground_y(at.x, at.z, position.y)
+		position = at
 	else:
-		velocity.y = 0.0
-	move_and_slide()
+		if not is_on_floor():
+			velocity.y -= 30.0 * delta
+		else:
+			velocity.y = 0.0
+		move_and_slide()
 	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.y), 1.0 - exp(-8.0 * delta))
 	if _anim == null:
 		_bob += delta * walk_speed * 4.0
 		_visual.position.y = absf(sin(_bob)) * 0.06
 
 
-## Far pedestrians move and animate every 3rd (past lod_mid) or 6th (past lod_far) physics
-## frame with a matching delta, so a crowd of hundreds costs what a few dozen used to.
+## Far pedestrians move and animate every 2nd (past physics_range), 4th (past lod_mid) or 8th
+## (past lod_far) physics frame with a matching delta, so a crowd of hundreds costs what a few
+## dozen used to.
 static var lod_mid: float = 60.0
 static var lod_far: float = 140.0
 ## Pedestrians cast shadows only inside this range (metres). Measured on a downtown street, the
@@ -878,6 +894,14 @@ static var shadow_range: float = 45.0
 const LOD_BIAS := [1.0, 0.45, 0.2]
 var _meshes: Array[MeshInstance3D] = []
 var _draw_tier: int = -1
+## Past this distance from the player (metres) a pedestrian walks without physics: no
+## move_and_slide, no hit detector. Measured headless on a downtown block, the 625-strong crowd was
+## 46 of 101 ms of physics a frame - a collision solve and an overlap test per person per step, to
+## walk along flat pavement. Inside it everything is as before, so the ones you can reach still
+## stumble, get knocked flying and stand on what they stand on.
+static var physics_range: float = 35.0
+var _kinematic: bool = false
+var _hit_shape: CollisionShape3D
 
 
 func _update_lod() -> void:
@@ -887,7 +911,22 @@ func _update_lod() -> void:
 			_lod_stride = 1
 			return
 	var d := global_position.distance_to(_player.global_position)
-	_lod_stride = 1 if d < lod_mid else (3 if d < lod_far else 6)
+	# Every step only inside physics_range, where they can be touched; then 30, 15 and 7.5 Hz.
+	# A figure forty metres off moves 6 cm between updates at walking pace, which nobody can see,
+	# and the crowd's scripts were 12 ms of every physics step at every-step-to-60-metres.
+	_lod_stride = 1 if d < physics_range else (2 if d < lod_mid else (4 if d < lod_far else 8))
+	var kinematic := d > physics_range and not _down
+	if kinematic != _kinematic:
+		_kinematic = kinematic
+		# Out of range the body keeps its layer (bullets, blasts and car bumpers still find it)
+		# but drops its mask, and the hit zone leaves the broadphase: otherwise each of several
+		# hundred walkers is paired with every kerb, slab and wall it passes, and re-paired every
+		# time it moves, for collisions that can never happen.
+		collision_mask = 0 if kinematic else 1
+		if _hit_shape:
+			_hit_shape.disabled = kinematic
+		if kinematic:
+			velocity = Vector3.ZERO
 	var tier := 0 if d < shadow_range else (1 if d < lod_far else 2)
 	if tier != _draw_tier:
 		_draw_tier = tier
@@ -896,6 +935,15 @@ func _update_lod() -> void:
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 \
 					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				mi.lod_bias = LOD_BIAS[tier]
+
+
+## Where the pavement is under (x, z) in the parent's space: the chunk's own ground height (the
+## same one it placed this pedestrian with). `fallback` when the parent is not a chunk.
+func _ground_y(x: float, z: float, fallback: float) -> float:
+	var chunk := get_parent()
+	if chunk and chunk.has_method("ground_y"):
+		return chunk.ground_y(x, z) + 0.1
+	return fallback
 
 
 ## Ring points are stored relative to the chunk's world offset so re-centering does not matter.
