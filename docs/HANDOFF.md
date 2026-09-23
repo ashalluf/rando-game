@@ -804,6 +804,46 @@ date). What a next session needs to know:
   transform propagation). GPU cost on the Mac is still unmeasured here; the owner's F1 stats
   line is the next evidence to ask for if it still stutters.
 
+## 9f. Stills, rain, fire and the GPU side, 2026-09-23 afternoon (builds 203-208)
+
+The owner asked for Steam-quality gameplay stills and, again, for it to run well "without
+taking away from graphics at all". What shipped, newest last:
+
+- **CI had been red for two builds** on "lowest quality trims the crowd": staged chunk builds
+  counted crowd room once and kept spawning into a cap Quality had lowered. Walkers now go
+  through `CityStreamer.take_crowd_room()`. Two more smoke checks were flaky for the same
+  reason - picking `peds[0]` / `peds[1]`, which can be in a chunk that is about to swap - and
+  now pick the nearest pedestrians. Check the Actions run after every push; a red run publishes
+  nothing and the owner silently keeps the old build.
+- **Parked cars on the boardwalk shop roofs**: the shop strip follows the shore across the ends
+  of straight streets. `Landmarks.covers()` keeps parking out of it.
+- **Explosions** read as fire now (deep orange after one white-hot instant, smoke drawn behind
+  the fire, soft particles, per-puff age and tint so it is not one flat cloud). Judge them only
+  in Forward+: the Compatibility preview clamps and flattens all of it.
+- **Rainy nights**: streets start wet, glossy tarmac with mirror puddles (SSR does the rest -
+  check `raintest` style renders with the whole road forced to a mirror if you doubt it works),
+  lit drops that fade near the lens, and the lens rain cut from ~1,800 drops to a few dozen at
+  the edges. Freeway traffic pitches with the deck.
+- **GPU**: `tools/gpu_profile.gd` + `tools/gpu_profile.py` (per-pass timings) and
+  `tools/tri_split.gd` (per-category triangles, with and without shadows) are the measuring
+  kit. The frame is triangle-bound: opaque, depth pre-pass and sun shadows are ~90 %. Note the
+  depth pre-pass is disabled by Godot itself on Apple GPUs (`disable_for_vendors`), so on the
+  owner's Mac the opaque and shadow passes are what count. Foliage, props and car bodies now
+  cast shadows from lighter twins (CLAUDE.md, Performance): 9.4 M -> 7.7 M triangles on a
+  downtown street, with before/after renders of the boardwalk's palm shadows matching.
+  What is left, by the same measure: pedestrians 2.4 M (already LOD-biased and shadowless past
+  45 m - the next lever is the crowd's own LOD chain), trees' main pass ~1 M (a batch per chunk
+  is LOD0 whenever the camera's plane crosses it; smaller tree cells would fix it but cost draw
+  calls), street props 0.9 M, cars 1.2 M.
+- **Memory**: a city under lavapipe is 6-7 GB; two renders at once thrash the 16 GB box until
+  even `ps` hangs. One render at a time. And `pkill -f` with a pattern that also appears later
+  in the same shell command kills that shell - use a script file or a `[x]yz` pattern that the
+  command line itself cannot match.
+- Store stills: `tools/glshot/still_shot.gd` (FX_AT / FX_SIDE / FX_TIME for explosions). The
+  good ones so far are the skyline at 17:45, the boardwalk at 17:50, the freeway at 18:00 and
+  downtown rain at 21:20. Dusk aerials and the hills are weak: the far city is boxes (next
+  steps item 3).
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

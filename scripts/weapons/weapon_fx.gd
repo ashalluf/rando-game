@@ -246,7 +246,7 @@ static func puff_texture() -> Texture2D:
 			var edge := 0.58 + 0.42 * n
 			var a := 1.0 - smoothstep(edge * 0.45, edge, r)
 			a *= 0.75 + 0.25 * d
-			var shade := 0.58 + 0.30 * n + 0.12 * d
+			var shade := 0.40 + 0.45 * n + 0.15 * d
 			img.set_pixel(x, y, Color(shade, shade, shade, clampf(a, 0.0, 1.0)))
 	img.generate_mipmaps()
 	var tex := ImageTexture.create_from_image(img)
@@ -940,8 +940,11 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 		# for its first third, the whole fireball tonemapped to a pale beige.
 		_ramp([Color(5.0, 4.0, 2.6, 1.0), Color(2.4, 0.95, 0.20, 1.0), Color(1.1, 0.32, 0.06, 0.95),
 			Color(0.35, 0.10, 0.03, 0.7), Color(0.08, 0.06, 0.05, 0.0)]), false, 180.0, 1.6,
-		Basis(), 0.0, 0.0, 1.0, false,
-		_ramp([Color(1.3, 1.2, 1.05), Color(1.0, 1.0, 1.0), Color(0.62, 0.55, 0.5)]))
+		# Lifetimes spread and a wide per-puff tint, so at any instant some puffs are still
+		# white-hot and some have already gone dark red: all the same age, forty overlapping
+		# puffs were one flat orange cloud and the billows in the texture vanished.
+		Basis(), 0.0, 0.45, 1.0, false,
+		_ramp([Color(1.5, 1.35, 1.1), Color(1.0, 1.0, 1.0), Color(0.45, 0.33, 0.28)]))
 
 	# 4. Smoke: slower, bigger, lingers and drifts up after the fire is gone.
 	_puff_layer(parent, at + Vector3.UP * radius * 0.3, _count(26), radius * 0.62, 2.8,
@@ -973,7 +976,8 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	torus.rings = 32
 	torus.ring_segments = 6
 	ring.mesh = torus
-	var ring_mat := unshaded(Color(1.8, 1.3, 0.7), 0.7)
+	# Faint and quick: bright and slow, it was a thin glowing line drawn across the whole street.
+	var ring_mat := unshaded(Color(1.2, 0.92, 0.6), 0.42)
 	ring_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	ring.material_override = ring_mat
 	ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -981,8 +985,8 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	ring.global_position = at + Vector3.UP * 0.25
 	ring.scale = Vector3(radius * 0.25, radius * 0.06, radius * 0.25)
 	var rt := ring.create_tween()
-	rt.tween_property(ring, "scale", Vector3(radius * 1.5, radius * 0.05, radius * 1.5), 0.42).set_ease(Tween.EASE_OUT)
-	rt.parallel().tween_property(ring_mat, "albedo_color:a", 0.0, 0.42)
+	rt.tween_property(ring, "scale", Vector3(radius * 1.3, radius * 0.05, radius * 1.3), 0.3).set_ease(Tween.EASE_OUT)
+	rt.parallel().tween_property(ring_mat, "albedo_color:a", 0.0, 0.3).set_ease(Tween.EASE_OUT)
 	rt.tween_callback(ring.queue_free)
 
 	# 8. Debris: lit chunks, so they sit in the scene's lighting rather than glowing flat.
