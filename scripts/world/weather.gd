@@ -63,8 +63,9 @@ const SOUND_SPEED := 343.0
 ## city.tscn says is only what you see before the first frame - tune here, not there.
 ## 0.00022 is about 18 km of Koschmieder visibility, a smoggy day; 0.00012 is 33 km, which is
 ## what a clear LA day looks like, and it is the only term in the whole haze stack with a
-## distance gradient in it.
-@export var fog_by_state: PackedFloat32Array = PackedFloat32Array([0.00012, 0.0004, 0.0009, 0.0013])
+## distance gradient in it. Clear is 0.0001 (about 39 km): at 0.00012 the Forward+ beach frame
+## had its darkest 5 % lifted to 57 of 255, the milky look, with the aerial perspective on top.
+@export var fog_by_state: PackedFloat32Array = PackedFloat32Array([0.0001, 0.0004, 0.0009, 0.0013])
 ## Volumetric fog per state. Godot clamps the froxel lookup at volumetric_fog_length, so past
 ## that distance the term stops growing and becomes a FLAT curtain carrying no distance at all.
 ## At the old 0.0025 over a 220 m volume that curtain was 42 % over everything beyond 220 m,

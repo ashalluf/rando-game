@@ -7,7 +7,7 @@ extends Node
 @export var day_length_seconds: float = 480.0
 @export var start_hour: float = 9.0
 @export var sun_rotation_z_degrees: float = 35.0
-@export var day_sun_color: Color = Color(1.0, 0.97, 0.9)
+@export var day_sun_color: Color = Color(1.0, 0.94, 0.82)
 @export var dusk_sun_color: Color = Color(1.0, 0.6, 0.35)
 @export var night_sun_color: Color = Color(0.62, 0.72, 1.0)
 ## Key light strength by day. The sun has to out-run the ambient fill by a good margin or
@@ -36,7 +36,7 @@ extends Node
 ## which is most of what makes a sky read as weather rather than as one field of cotton wool.
 @export var mid_cloud: float = 0.5
 ## Horizon haze in the sky shader by day and at dusk (0 clear, 1 milky).
-@export var day_haze: float = 0.22
+@export var day_haze: float = 0.16
 @export var dusk_haze: float = 0.5
 @export_group("Twilight")
 ## The warm band on the horizon and the cool band above it, at sunrise and at sunset. Sunrise is
@@ -77,7 +77,11 @@ extends Node
 ## Colour of the depth fog by day, at dusk and at night. It is deliberately a touch darker and
 ## less blue than the horizon: fog that is exactly the sky colour erases the far half of the
 ## frame, which is what "washed out" means when someone says an aerial looks flat.
-@export var day_fog: Color = Color(0.50, 0.62, 0.76)
+## The day value is a warm grey, not a blue. It was (0.50, 0.62, 0.76), and every distant pixel
+## in a wide shot took that cast - measured, a beach frame averaged 112/127/140 RGB - which read
+## as a cold, milky film over the city. Basin haze over a dry coastal city is dust and smog
+## lit by the sun; it goes beige, and the sky above it stays the blue.
+@export var day_fog: Color = Color(0.63, 0.62, 0.57)
 @export var dusk_fog: Color = Color(0.72, 0.45, 0.33)
 @export var night_fog: Color = Color(0.05, 0.07, 0.14)
 @export_group("")
@@ -240,7 +244,9 @@ func _apply() -> void:
 		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra, 0.0, 0.98))
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		_sky.set_shader_parameter("mid_amount", clampf(mid_cloud + cloud_extra * 0.6, 0.0, 1.0))
-		_sky.set_shader_parameter("stars", night_factor)
+		# Stars on the slow ramp, squared: night_factor is already 1.0 three degrees after sunset,
+		# which had a full star field out over a still-lit dusk sky at 18:24.
+		_sky.set_shader_parameter("stars", moonlight * moonlight)
 		_sky.set_shader_parameter("milky_way", milky_way * (1.0 - weather_darken))
 		_sky.set_shader_parameter("haze", lerpf(day_haze, dusk_haze, dusk))
 		_sky.set_shader_parameter("sun_glow", lerpf(0.9, 1.6, dusk))

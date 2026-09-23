@@ -489,7 +489,9 @@ void fragment() {
 				// This has to stay level with building.gdshader's lit_strength, whose lit_color
 				// peaks at 1.0 after the decode for every entry in Building.LIT_COLORS: if the
 				// two drift apart, a tower steps brightness the moment it crosses the LOD line.
-				emission += lit_color * on * glow * 2.9;
+				// Scaled with building.gdshader's lit_strength (1.2 -> 0.8): 2.9 -> 1.9, still over the
+				// 1.3 glow threshold so the far skyline keeps its bloom.
+				emission += lit_color * on * glow * 1.9;
 				rough = 0.45;
 			}
 			spec = 0.42;

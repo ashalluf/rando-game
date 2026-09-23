@@ -35,6 +35,46 @@ Build in this order, one milestone per PR or a few PRs.
   MultiMesh grass with a wind shader in parks, day/night cycle, sound effects, pause menu with a
   seed input field.
 
+## Road to GTA-level graphics (owner, 2026-09-23)
+
+The owner asked what it will take to reach GTA-level graphics, "exactly step by step", with no
+limit on time or tokens. This is the plan every session works from. The honest framing: the
+gap is mostly CONTENT, not rendering tech - AgX, SSIL, SDFGI, volumetric fog and TAA are
+roughly where GTA V's PC renderer was. The target is **GTA V (PS5 version) at a glance** in a
+showcase slice (downtown, the beach, the hills); GTA VI level (ray tracing, strand hair,
+film faces) is past Godot 4 today, and would mean Unreal 5, which breaks the phone-only
+text-file workflow. About a year of steady work for the slice; the whole map takes longer.
+
+What only the owner can supply, and why each one multiplies everything below:
+- **A real GPU in the loop.** Claude sees one lavapipe frame every 6-10 minutes and never a real
+  frame rate. A self-hosted GitHub Actions runner on the owner's Mac (one-time setup) would
+  render Metal screenshots and an FPS benchmark on every push.
+- **An asset budget.** Two or three professional city kits licensed for any engine skip months
+  of generating buildings and props from nothing; CC0 alone cannot fill a GTA-dense city.
+- **Playtesting.** Every build or two: what reads as fake.
+
+- [ ] **G1. Feedback loop and targets (1-2 weeks).** Mac runner; ten fixed reference cameras
+  (street noon, night, sunset, aerial, beach, hills) matched to GTA V compositions; every push
+  measured against them (luminance spread, saturation, FPS), not judged by eye.
+- [ ] **G2. Buildings (2-4 months; the biggest gap).** Real facade geometry instead of shaded
+  boxes: recessed windows and frames, sills, ledges, cornices, balconies, storefronts with glass
+  and interiors, awnings, fire escapes, roof clutter. About eight LA styles (stucco apartments,
+  art deco, glass towers, strip malls, bungalows, warehouses...) as kits from Blender scripts,
+  like the car generators, assembled from the seed. Then grime, streaks and edge wear, and a
+  LOD chain down to impostors.
+- [ ] **G3. Streets and ground (1-2 months).** Curbs, gutters, cracked and patched asphalt,
+  puddles, decals, tyre marks, dense street clutter, alleys, car parks, better trees and weeds.
+- [ ] **G4. Lighting art direction (1-2 months, alongside).** Reflection probes per block, wet
+  roads, volumetric clouds, neon and storefronts that light the street, headlights that cast
+  light, and a grade tuned per hour against the G1 references.
+- [ ] **G5. People (2-4 months).** Properly rigged humans with finger and face bones, a real
+  animation library (about fifty clips: idles, turns, phone, talking, waiting to cross), foot
+  placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
+- [ ] **G6. Cars (1-2 months).** Interiors, real glass, damage, lights; extend tools/make_*.
+- [ ] **G7. Performance, throughout.** Generated occluders, far-building impostors, texture
+  streaming, profiled on the owner's Mac every push: the look at 60 fps, not 15.
+- [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
+
 ## Owner requests queued
 
 - **Miniature Los Angeles layout** (asked 2026-09-19): a coastline with beach and ocean, a hill with
@@ -199,6 +239,20 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-23 A warmer grade, measured in Forward+ (owner: "fix the grade").** Six gameplay
+  frames measured before touching anything: contrast was fine on the street at noon (p5/p50/p95
+  29/128/190) but the colour was nearly grey (median saturation 20 of 255), the aerial and
+  beach frames carried a blue cast (mean B 14 over R), and at night the lit bays were a flat
+  220 - solid glowing panels. A first pass that only moved the fog colour and density changed
+  almost nothing measurable, which is the lesson: on a street frame the haze is a small term.
+  What moved it was the light and the curve: `day_sun_color` (1.0, 0.94, 0.82), a warmer look
+  LUT through the mids with a slightly cool toe (luminance held per stop so exposure does not
+  shift), `adjustment_saturation` 1.32, `day_haze` 0.16. Street saturation 20 -> 33 at the
+  same spread. The day fog is a warm grey now rather than blue, clear-weather depth fog 0.0001,
+  aerial perspective 0.22. Lit windows 1.2 -> 0.8 (and the LOD term 2.9 -> 1.9, in step):
+  night p95 219 -> 209, p5 35 -> 26. Stars follow `moonlight` squared, not `night_factor`,
+  which had a full star field over a lit dusk sky at 18:24.
 
 - **2026-09-23 Far hill trees floated above every ridge.** Seen in the first Forward+ gameplay
   shots: a swarm of dark dots over each mountain skyline, like birds. Skyline placed its

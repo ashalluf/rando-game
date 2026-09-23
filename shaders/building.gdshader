@@ -32,8 +32,11 @@ uniform vec3 window_tint : source_color = vec3(0.35, 0.50, 0.65);
 uniform vec3 lit_color : source_color = vec3(1.0, 0.82, 0.50);
 // Fraction of windows that are lit (0..1).
 uniform float lit_ratio = 0.3;
-// How bright lit windows glow.
-uniform float lit_strength = 1.2;
+// How bright lit windows glow. 0.8, down from 1.2: under the night exposure a lit bay went to a
+// flat 220 of 255 - solid glowing panels with nothing of the room behind them. Keep in step
+// with the LOD shader's lit window term (building_lod.gdshader), or towers step brightness at
+// the LOD line.
+uniform float lit_strength = 0.8;
 // Column spacing for faces whose normal is +-Z (columns run along local X), and +-X.
 uniform float window_pitch_x = 2.5;
 uniform float window_pitch_z = 2.5;
