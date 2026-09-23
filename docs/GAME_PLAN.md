@@ -240,6 +240,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-23 Explosions had lost their fireball.** Found while framing store stills (owner:
+  "the sickest screenshots ... gameplay stills in steam"). The heat shimmer is a sphere that
+  reads the screen, and Godot copies the screen before drawing transparent things; sorted in
+  front of the fireball it sat in, it painted the street as it looked before the fire over the
+  fire and the smoke. Before: a small brown smoke puff; after: a rolling orange fireball.
+  Fixed with the shimmer material's `render_priority` at minimum, so it bends what is behind
+  the blast and the fire draws on top.
+
 - **2026-09-23 Playable without losing anything (owner: "I need the game to be playable and not
   slow without taking away from graphics or quality at all").** The frame was CPU-bound in the
   physics step, not the GPU: headless, the simulation needed 2.3-2.9 s of wall time per game

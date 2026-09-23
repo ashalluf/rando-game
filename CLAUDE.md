@@ -349,9 +349,15 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `billboard_keep_scale = true` or every puff renders exactly one metre whatever `scale_amount`
   says; a `Curve` clamps its values to `max_value` (default 1.0), so raise it before using a
   growth factor above 1; and a particle system's automatic bounds start empty, so set
-  `custom_aabb` big enough for the particles' travel or the burst can vanish. Screenshot effects
-  with `tools/glshot/fx_shot.gd`, which slows the clock right down, because a software frame
-  takes most of a second and otherwise every shot lands after the fire has gone.
+  `custom_aabb` big enough for the particles' travel or the burst can vanish. A fourth: the heat
+  shimmer reads the screen texture, which Godot captures BEFORE transparent things are drawn, so
+  drawn in its sorted place it painted the fire-less street over the fireball and smoke - every
+  explosion was sparks and a ring around nothing. Its material has `render_priority` MIN so it
+  draws first and the fire lands on top; anything else that reads the screen needs the same.
+  Screenshot effects with `tools/glshot/fx_shot.gd` (and store stills with
+  `tools/glshot/still_shot.gd`): Godot caps a frame at eight physics ticks (0.133 s) however
+  long a software frame really takes, so they count the effect's own elapsed time, never the
+  wall clock - the wall-clock version stopped every shot in the first milliseconds.
 - Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is
