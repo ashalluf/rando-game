@@ -95,6 +95,7 @@ func run(city: Node3D) -> void:
 		_step("Preparing people (%d/%d)" % [i + 1, models.size()], 0.9 + 0.1 * float(i) / float(maxi(models.size(), 1)))
 		await _frames(1)
 		Ragdoll.warm_limbs(models[i], self)
+		Pedestrian.warm_far_mesh(models[i], self)
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()
@@ -156,6 +157,13 @@ func _warm_shaders() -> void:
 		mmi.position = Vector3(0.0, 0.0, -0.3)
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		holder.add_child(mmi)
+	for mat: Material in WeaponFX.warm_mesh_materials():
+		var mi := MeshInstance3D.new()
+		mi.mesh = quad
+		mi.material_override = mat
+		mi.position = Vector3(0.0, 0.0, -0.3)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		holder.add_child(mi)
 	_step("Compiling effects", 0.5)
 	await _frames(warm_frames)
 	await _frames(1)

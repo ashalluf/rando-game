@@ -930,6 +930,13 @@ static var shadow_range: float = 45.0
 ## Mesh LOD bias per distance tier (near, mid, far): below 1 the renderer drops to the coarser
 ## generated LODs sooner. Nobody can see 16k triangles on a figure forty pixels tall.
 const LOD_BIAS := [1.0, 0.45, 0.2]
+## Most triangles a far body (past lod_far) may have. The models' own LODs stop at about 4,150
+## of their 16,600: they are unwelded - nearly every triangle is its own UV island - and the
+## importer will not simplify across a seam. So a crowd past 140 m, a third or more of it,
+## still cost 4k triangles a figure eleven pixels tall.
+static var far_triangles: int = 1100
+## Far bodies, keyed by the model mesh they stand in for (see far_mesh()).
+static var _far_meshes: Dictionary = {}
 var _meshes: Array[MeshInstance3D] = []
 var _draw_tier: int = -1
 ## Past this distance from the player (metres) a pedestrian walks without physics: no
@@ -973,6 +980,101 @@ func _update_lod() -> void:
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 \
 					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				mi.lod_bias = LOD_BIAS[tier]
+				if mi.skin:
+					if not mi.has_meta("near_mesh"):
+						mi.set_meta("near_mesh", mi.mesh)
+					var near: Mesh = mi.get_meta("near_mesh")
+					mi.mesh = far_mesh(near) if tier == 2 else near
+
+
+## A coarse body for people past lod_far: the model welded to one vertex per position, so the
+## simplifier can go all the way down, capped at far_triangles with its own LODs below that.
+## Welding smears the texture across the seams, which at eleven pixels tall nobody can see.
+## Built once per model (the loading screen does all nine); the original mesh when there is no
+## mesh data to weld (the headless check).
+static func far_mesh(mesh: Mesh) -> Mesh:
+	if mesh == null:
+		return mesh
+	if _far_meshes.has(mesh):
+		return _far_meshes[mesh]
+	_far_meshes[mesh] = mesh
+	var arrays := mesh.surface_get_arrays(0)
+	if arrays.is_empty() or arrays[Mesh.ARRAY_INDEX] == null or arrays[Mesh.ARRAY_BONES] == null:
+		return mesh
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	if verts.is_empty():
+		return mesh
+	var per: int = (arrays[Mesh.ARRAY_BONES] as PackedInt32Array).size() / verts.size()
+	var first := {}
+	var order := PackedInt32Array()
+	var weld := PackedInt32Array()
+	weld.resize(verts.size())
+	for v in verts.size():
+		var key := Vector3i(roundi(verts[v].x * 2000.0), roundi(verts[v].y * 2000.0), roundi(verts[v].z * 2000.0))
+		if not first.has(key):
+			first[key] = order.size()
+			order.append(v)
+		weld[v] = first[key]
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	for a in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV]:
+		if arrays[a] == null:
+			continue
+		var src = arrays[a]
+		var dst = src.duplicate()
+		dst.resize(order.size())
+		for i in order.size():
+			dst[i] = src[order[i]]
+		out[a] = dst
+	for a in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS]:
+		if arrays[a] == null:
+			continue
+		var n := 4 if a == Mesh.ARRAY_TANGENT else per
+		var src = arrays[a]
+		var dst = src.duplicate()
+		dst.resize(order.size() * n)
+		for i in order.size():
+			for k in n:
+				dst[i * n + k] = src[order[i] * n + k]
+		out[a] = dst
+	var idx := PackedInt32Array()
+	idx.resize(index.size())
+	for i in index.size():
+		idx[i] = weld[index[i]]
+	out[Mesh.ARRAY_INDEX] = idx
+	var material := mesh.surface_get_material(0)
+	var im := ImporterMesh.new()
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, out, [], {}, material)
+	im.generate_lods(25.0, 60.0, [])
+	var base: PackedInt32Array = idx
+	for l in im.get_surface_lod_count(0):
+		var lod := im.get_surface_lod_indices(0, l)
+		if lod.size() / 3 <= far_triangles:
+			base = lod
+			break
+	out[Mesh.ARRAY_INDEX] = base
+	var far := ImporterMesh.new()
+	far.add_surface(Mesh.PRIMITIVE_TRIANGLES, out, [], {}, material)
+	far.generate_lods(25.0, 60.0, [])
+	var result: Mesh = far.get_mesh()
+	if result == null:
+		return mesh
+	_far_meshes[mesh] = result
+	return result
+
+
+## Makes the far body of a model now (the loading screen), so no pedestrian walking out past
+## lod_far stalls the frame building it.
+static func warm_far_mesh(path: String, host: Node) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var inst := (load(path) as PackedScene).instantiate() as Node3D
+	host.add_child(inst)
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		if (mi as MeshInstance3D).skin:
+			far_mesh((mi as MeshInstance3D).mesh)
+	inst.queue_free()
 
 
 ## Where the pavement is under (x, z) in the parent's space: the chunk's own ground height (the

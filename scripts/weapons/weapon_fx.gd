@@ -906,6 +906,21 @@ static func warm_materials() -> Array:
 	return [_puff_material(false), _puff_material(true), _puff_material(false, true)]
 
 
+## The same for what draws through plain meshes: the additive billboard flare of a muzzle flash
+## and a tracer head, and the additive glow of a tracer beam, a blast core and its ring. The
+## first rifle shot compiled these.
+static func warm_mesh_materials() -> Array:
+	var flare := unshaded(Color(2.0, 1.6, 1.0), 0.9)
+	flare.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	flare.albedo_texture = flare_texture()
+	flare.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	flare.billboard_keep_scale = true
+	var glow := unshaded(Color(2.0, 1.6, 1.0), 0.9)
+	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	glow.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	return [flare, glow]
+
+
 ## Most blood splats on the ground at once; the oldest goes when a new one would pass it.
 static var blood_splat_max: int = 24
 static var _splats: Array = []

@@ -10,11 +10,13 @@ render_mode cull_back;
 
 uniform vec3 paint : source_color = vec3(0.95, 0.95, 0.92);
 // How much of the paint is worn through to the asphalt (0 = pristine).
-uniform float wear = 0.22;
+uniform float wear = 0.18;
 // Metres across a typical worn patch.
-uniform float wear_scale = 0.9;
+uniform float wear_scale = 0.45;
 // Road grit and grime in the paint (0 = clean).
-uniform float grime = 0.28;
+uniform float grime = 0.34;
+// What thinned-out paint fades toward before it wears through: the asphalt showing under it.
+uniform vec3 asphalt : source_color = vec3(0.30, 0.30, 0.31);
 
 global uniform float road_wetness;
 
@@ -60,11 +62,15 @@ void fragment() {
 	float grain = value_noise(w * 11.0);
 	// Worn through: cut out, so the asphalt below shows. The box sits on the road, so its back
 	// faces are culled and there is nothing behind a hole but the road itself.
-	float through = smoothstep(0.72 - wear * 0.45, 0.80 - wear * 0.45, patches + grain * 0.18);
-	if (through > 0.5) {
+	// Paint thins before it goes: a soft band where the asphalt shows through it, then a hole.
+	// Cut straight to holes, the wear read as camouflage printed on the stripe.
+	float v = patches + grain * 0.22;
+	float edge = 0.78 - wear * 0.45;
+	if (v > edge + 0.03) {
 		discard;
 	}
-	vec3 col = paint * COLOR.rgb;
+	float thin = smoothstep(edge - 0.16, edge + 0.03, v);
+	vec3 col = mix(paint * COLOR.rgb, asphalt, thin * 0.85);
 	// Dirt collects toward the worn patches, and grit speckles all of it.
 	float dirty = smoothstep(0.35, 0.72 - wear * 0.45, patches);
 	col *= mix(1.0, 0.72, dirty * grime * 2.0);

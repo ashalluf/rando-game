@@ -632,6 +632,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   opens maximised, and on a Retina Mac "native" was 3456 x 2234 - 7.7 million pixels through
   SDFGI, SSR, SSIL and volumetric fog - so the 3D scene now renders at most the budget and FSR
   2.2 scales it to the window. The HUD's quality line shows the 3D resolution in use.
+  Past `lod_far` (140 m) a pedestrian swaps to a welded far body (`Pedestrian.far_mesh()`, at
+  most `far_triangles`, built during loading): the models are unwelded, so the importer's LODs
+  stop at ~4,150 of 16,600 triangles and a figure eleven pixels tall still cost 4k; welded,
+  the simplifier goes down to a few hundred. Street frame 7.7 M -> 6.6 M.
   Pedestrians cast shadows only inside `Pedestrian.shadow_range` (45 m) and drop to coarser
   mesh LODs with distance (`LOD_BIAS`): on a downtown street the crowd was 6.4 of 15.7 million
   triangles a frame, most of it shadow passes of 16k-triangle rigs; now 2.4. Cars do the same
@@ -679,6 +683,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   texture has a directional grain, so at a 5 m tile a long slope turned into corduroy. Keep all of it subtle: the first
   pass used strong patch blends and dark joints and the ground read as a printed pattern rather
   than a surface.
+  Road paint (the `CityChunk.PAINT_KEYS` batches: dashes, centre lines, crosswalk bars, stop
+  lines, arrows, stalls) wears `shaders/road_paint.gdshader`: worn through to the asphalt in
+  patches (a discard - the boxes sit on the road, so a hole shows the road), grit, dirt toward
+  the wear, and a wet sheen from `road_wetness`. Flat perfect white was the most CG thing in
+  any street shot. Limbs are cut and the effect materials compiled during the loading screen
+  (`Ragdoll.warm_limbs()`, `WeaponFX.warm_materials()`), so the first rocket does not stall.
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
   window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
   plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.
