@@ -195,30 +195,60 @@ func _throw_limb(piece: Array, limb: String, material: Material, impulse: Vector
 	PhysicsBudget.register_debris(body)
 
 
+## Cuts every limb of a character model into the cache now (the loading screen does this), so
+## the first blast that takes one off does not stall for it. `host` is any node in the tree.
+static func warm_limbs(path: String, host: Node) -> void:
+	if not ResourceLoader.exists(path):
+		return
+	var inst := (load(path) as PackedScene).instantiate() as Node3D
+	host.add_child(inst)
+	var skel := inst.find_child("Skeleton3D", true, false) as Skeleton3D
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if skel and m.skin and m.mesh:
+			_limb_mesh(m, skel, "head")
+			break
+	inst.queue_free()
+
+
 ## The piece of the character's skin that belongs to `limb`, as a static mesh in the model's
-## own space, re-centred: [mesh, centre, size, joint end]. A triangle goes to the limb when all
-## three corners are weighted mostly to its bones. Cut once per model and limb, then shared.
+## own space, re-centred: [mesh, centre, size, joint end]. A triangle goes to a limb when all
+## three corners are weighted mostly to its bones. The first ask for a model cuts all five limbs
+## in one pass over its skin (reading a mesh back and walking 18k vertices is the expensive
+## part, and it was being paid once per limb), then every later one is a lookup.
 static func _limb_mesh(source: MeshInstance3D, skel: Skeleton3D, limb: String) -> Array:
-	var key := "%s|%s|%s" % [source.mesh.resource_path, source.mesh.get_rid(), limb]
-	if _limb_cache.has(key):
-		return _limb_cache[key]
-	var result: Array = []
+	var model := "%s|%s" % [source.mesh.resource_path, source.mesh.get_rid()]
+	if not _limb_cache.has(model + "|" + limb):
+		_cut_limbs(source, skel, model)
+	return _limb_cache.get(model + "|" + limb, [])
+
+
+static func _cut_limbs(source: MeshInstance3D, skel: Skeleton3D, model: String) -> void:
+	var limbs: Array = LIMBS.keys()
+	for limb: String in limbs:
+		_limb_cache[model + "|" + limb] = []
 	var arrays := source.mesh.surface_get_arrays(0)
+	if arrays.is_empty() or source.skin == null:
+		return
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
 	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX] if arrays[Mesh.ARRAY_INDEX] != null else PackedInt32Array()
-	if verts.is_empty() or bones.is_empty() or index.is_empty() or source.skin == null:
-		_limb_cache[key] = result
-		return result
+	if verts.is_empty() or bones.is_empty() or index.is_empty():
+		return
 	var per := bones.size() / verts.size()
-	var wanted := {}
-	for bn: String in LIMBS[limb]:
-		for i in source.skin.get_bind_count():
-			if String(source.skin.get_bind_name(i)) == bn:
-				wanted[i] = true
-	var mine := PackedByteArray()
-	mine.resize(verts.size())
+	# Which limb each skin bind belongs to (-1 = the body).
+	var bind_limb := PackedInt32Array()
+	bind_limb.resize(source.skin.get_bind_count())
+	bind_limb.fill(-1)
+	for li in limbs.size():
+		for bn: String in LIMBS[limbs[li]]:
+			for i in source.skin.get_bind_count():
+				if String(source.skin.get_bind_name(i)) == bn:
+					bind_limb[i] = li
+	# Each vertex's limb, from its heaviest bone.
+	var vert_limb := PackedInt32Array()
+	vert_limb.resize(verts.size())
 	for v in verts.size():
 		var best := 0
 		var best_w := -1.0
@@ -227,7 +257,7 @@ static func _limb_mesh(source: MeshInstance3D, skel: Skeleton3D, limb: String) -
 			if w > best_w:
 				best_w = w
 				best = bones[v * per + k]
-		mine[v] = 1 if wanted.has(best) else 0
+		vert_limb[v] = bind_limb[best] if best >= 0 and best < bind_limb.size() else -1
 	# Rest-pose positions in the model's space. A skinned vertex is NOT stored in the skeleton's
 	# space: it is taken there by its bones' bind poses, exactly as the GPU does it, and on these
 	# rigs the two differ by the centimetre scale - read raw, a limb came out a hundredth of its
@@ -243,69 +273,75 @@ static func _limb_mesh(source: MeshInstance3D, skel: Skeleton3D, limb: String) -
 	# Tangents too: the character shader is normal-mapped, and without them a limb lights as if
 	# its surface pointed nowhere.
 	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT] if arrays[Mesh.ARRAY_TANGENT] != null else PackedFloat32Array()
-	var remap := {}
-	var out_v := PackedVector3Array()
-	var out_n := PackedVector3Array()
-	var out_t := PackedFloat32Array()
-	var out_uv := PackedVector2Array()
-	var out_i := PackedInt32Array()
+	var has_t := tangents.size() == verts.size() * 4
+	# One pass sorts the triangles by limb. Plain Arrays, because they are shared by reference:
+	# a Packed array taken out of a container is a copy, and appending to it builds nothing.
+	var tris: Array = []
+	for li in limbs.size():
+		tris.append([])
 	for t in index.size() / 3:
-		var a := index[t * 3]
-		var b := index[t * 3 + 1]
-		var c := index[t * 3 + 2]
-		if mine[a] == 0 or mine[b] == 0 or mine[c] == 0:
+		var li := vert_limb[index[t * 3]]
+		if li >= 0 and vert_limb[index[t * 3 + 1]] == li and vert_limb[index[t * 3 + 2]] == li:
+			(tris[li] as Array).append(t)
+	var rig_xf := _rig_space_of_skel(skel)
+	for li in limbs.size():
+		var list: Array = tris[li]
+		if list.size() < 10:
 			continue
-		for v in [a, b, c]:
-			if not remap.has(v):
-				remap[v] = out_v.size()
-				var pos := Vector3.ZERO
-				var basis := Basis()
-				var total := 0.0
-				for k in per:
-					var w := weights[v * per + k]
-					var bi := bones[v * per + k]
-					if w <= 0.0 or bi < 0 or bi >= bind_xf.size():
-						continue
-					pos += bind_xf[bi] * verts[v] * w
-					total += w
-					if k == 0 or w > 0.5:
-						basis = bind_xf[bi].basis
-				out_v.append(pos / maxf(total, 0.0001))
-				if not normals.is_empty():
-					out_n.append((basis * normals[v]).normalized())
-				if not uvs.is_empty():
-					out_uv.append(uvs[v])
-				if tangents.size() == verts.size() * 4:
-					var tv := (basis * Vector3(tangents[v * 4], tangents[v * 4 + 1], tangents[v * 4 + 2])).normalized()
-					out_t.append_array(PackedFloat32Array([tv.x, tv.y, tv.z, tangents[v * 4 + 3]]))
-			out_i.append(remap[v])
-	if out_i.size() < 30:
-		_limb_cache[key] = result
-		return result
-	var box := AABB(out_v[0], Vector3.ZERO)
-	for p in out_v:
-		box = box.expand(p)
-	var centre := box.get_center()
-	for i in out_v.size():
-		out_v[i] -= centre
-	var mesh_arrays := []
-	mesh_arrays.resize(Mesh.ARRAY_MAX)
-	mesh_arrays[Mesh.ARRAY_VERTEX] = out_v
-	if not out_n.is_empty():
-		mesh_arrays[Mesh.ARRAY_NORMAL] = out_n
-	if not out_uv.is_empty():
-		mesh_arrays[Mesh.ARRAY_TEX_UV] = out_uv
-	if out_t.size() == out_v.size() * 4:
-		mesh_arrays[Mesh.ARRAY_TANGENT] = out_t
-	mesh_arrays[Mesh.ARRAY_INDEX] = out_i
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_arrays)
-	# The torn end: the limb's root joint, in the re-centred space.
-	var root_bone := skel.find_bone(LIMBS[limb][0])
-	var joint := _rig_space_of_skel(skel) * skel.get_bone_global_rest(root_bone).origin - centre
-	result = [mesh, centre, box.size, joint]
-	_limb_cache[key] = result
-	return result
+		var remap := {}
+		var out_v := PackedVector3Array()
+		var out_n := PackedVector3Array()
+		var out_t := PackedFloat32Array()
+		var out_uv := PackedVector2Array()
+		var out_i := PackedInt32Array()
+		for t: int in list:
+			for c in 3:
+				var v := index[t * 3 + c]
+				if not remap.has(v):
+					remap[v] = out_v.size()
+					var pos := Vector3.ZERO
+					var basis := Basis()
+					var total := 0.0
+					for k in per:
+						var w := weights[v * per + k]
+						var bi := bones[v * per + k]
+						if w <= 0.0 or bi < 0 or bi >= bind_xf.size():
+							continue
+						pos += bind_xf[bi] * verts[v] * w
+						total += w
+						if k == 0 or w > 0.5:
+							basis = bind_xf[bi].basis
+					out_v.append(pos / maxf(total, 0.0001))
+					if not normals.is_empty():
+						out_n.append((basis * normals[v]).normalized())
+					if not uvs.is_empty():
+						out_uv.append(uvs[v])
+					if has_t:
+						var tv := (basis * Vector3(tangents[v * 4], tangents[v * 4 + 1], tangents[v * 4 + 2])).normalized()
+						out_t.append_array(PackedFloat32Array([tv.x, tv.y, tv.z, tangents[v * 4 + 3]]))
+				out_i.append(remap[v])
+		var box := AABB(out_v[0], Vector3.ZERO)
+		for p in out_v:
+			box = box.expand(p)
+		var centre := box.get_center()
+		for i in out_v.size():
+			out_v[i] -= centre
+		var mesh_arrays := []
+		mesh_arrays.resize(Mesh.ARRAY_MAX)
+		mesh_arrays[Mesh.ARRAY_VERTEX] = out_v
+		if not out_n.is_empty():
+			mesh_arrays[Mesh.ARRAY_NORMAL] = out_n
+		if not out_uv.is_empty():
+			mesh_arrays[Mesh.ARRAY_TEX_UV] = out_uv
+		if has_t:
+			mesh_arrays[Mesh.ARRAY_TANGENT] = out_t
+		mesh_arrays[Mesh.ARRAY_INDEX] = out_i
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mesh_arrays)
+		# The torn end: the limb's root joint, in the re-centred space.
+		var root_bone := skel.find_bone(LIMBS[limbs[li]][0])
+		var joint := rig_xf * skel.get_bone_global_rest(root_bone).origin - centre
+		_limb_cache[model + "|" + limbs[li]] = [mesh, centre, box.size, joint]
 
 
 ## From a skinned mesh's vertex space (the skeleton's, in rest pose) to the model root's space.
@@ -314,9 +350,11 @@ static func _rig_space(_source: MeshInstance3D, skel: Skeleton3D) -> Transform3D
 
 
 static func _rig_space_of_skel(skel: Skeleton3D) -> Transform3D:
+	# Up to, not including, the model's own scene root (the instanced .glb): its transform is
+	# where the model is placed, not part of the model.
 	var xf := Transform3D.IDENTITY
 	var n: Node = skel
-	while n != null and n.get_parent() != null and not (n.get_parent() is Ragdoll) and not (n.get_parent() is RigidBody3D):
+	while n != null and n.scene_file_path == "":
 		if n is Node3D:
 			xf = (n as Node3D).transform * xf
 		n = n.get_parent()
@@ -325,6 +363,10 @@ static func _rig_space_of_skel(skel: Skeleton3D) -> Transform3D:
 
 static var _wound_mat: StandardMaterial3D
 static var _cap_mesh: SphereMesh
+
+
+static func wound_material() -> StandardMaterial3D:
+	return _wound_material()
 
 
 static func _wound_material() -> StandardMaterial3D:

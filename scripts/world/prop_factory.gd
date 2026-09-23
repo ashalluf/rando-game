@@ -320,6 +320,16 @@ static func dash() -> Mesh:
 	return box("dash", Vector3(0.16, 0.02, 3.0), Color(1.0, 1.0, 1.0))
 
 
+## Shared worn-paint material for every road marking batch (shaders/road_paint.gdshader).
+static func road_paint_material() -> ShaderMaterial:
+	if _cache.has("road_paint_mat"):
+		return _cache["road_paint_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/road_paint.gdshader")
+	_cache["road_paint_mat"] = mat
+	return mat
+
+
 static func stripe() -> Mesh:
 	return box("stripe", Vector3(0.6, 0.02, 3.0), Color(0.95, 0.95, 0.92))
 

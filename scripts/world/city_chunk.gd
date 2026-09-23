@@ -279,6 +279,10 @@ func _build_landmarks() -> void:
 		built_landmarks.append(lm.id)
 
 
+## Batches that are paint on the road (shaders/road_paint.gdshader wears them).
+const PAINT_KEYS := ["dash", "stripe", "stop_line", "arrow_straight", "arrow_left", "pstripe"]
+
+
 func _finish_build() -> void:
 	# Paint and wear never cast. `tilt_keys` is exactly the set of batches that lie flat on the
 	# ground, and the tallest of them - a 2 cm crosswalk stripe at ROAD_TOP + 0.015, so 0.025 m
@@ -298,6 +302,9 @@ func _finish_build() -> void:
 			_batch.set_no_shadow(text_key)
 	_commit_far_ground()
 	_mm_nodes = _batch.build(self)
+	for paint_key: String in PAINT_KEYS:
+		if _mm_nodes.has(paint_key):
+			(_mm_nodes[paint_key] as MultiMeshInstance3D).material_override = PropFactory.road_paint_material()
 	if _mm_nodes.has("lod_box"):
 		(_mm_nodes["lod_box"] as MultiMeshInstance3D).material_override = PropFactory.building_lod_material()
 	_build_occluder()

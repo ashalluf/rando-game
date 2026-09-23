@@ -900,6 +900,12 @@ static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface,
 ## shimmer, a ground dust skirt, dust kicked off the walls around it, a shockwave ring, lit
 ## debris and a scorch mark, plus a camera shake that falls off with distance.
 ## `power` scales how hard the fast layers are thrown (1.0 is a rocket).
+## The particle materials every blast and wound draws with, for the loading screen to compile
+## ahead of time (see LoadingScreen._warm_shaders()).
+static func warm_materials() -> Array:
+	return [_puff_material(false), _puff_material(true), _puff_material(false, true)]
+
+
 ## Most blood splats on the ground at once; the oldest goes when a new one would pass it.
 static var blood_splat_max: int = 24
 static var _splats: Array = []

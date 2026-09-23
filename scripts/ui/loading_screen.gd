@@ -88,6 +88,13 @@ func run(city: Node3D) -> void:
 	await _frames(1)
 	_preload_world(city)
 	await _frames(2)
+	# Cutting a character's limbs apart takes tens of milliseconds the first time for each
+	# model, which is a hitch on the first rocket into a crowd; here it is part of the wait.
+	var models: Array = Pedestrian.MODELS
+	for i in models.size():
+		_step("Preparing people (%d/%d)" % [i + 1, models.size()], 0.9 + 0.1 * float(i) / float(maxi(models.size(), 1)))
+		await _frames(1)
+		Ragdoll.warm_limbs(models[i], self)
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()
@@ -129,6 +136,28 @@ func _warm_shaders() -> void:
 		i += 1
 		_step("Compiling shaders (%d/%d)" % [i, files.size()], 0.05 + 0.45 * float(i) / float(maxi(files.size(), 1)))
 		await _frames(warm_frames)
+	# The effect materials are StandardMaterial3D, not .gdshader files, so the loop above never
+	# drew them, and a particle system draws through a MultiMesh - its own pipeline variant. The
+	# first rocket used to compile all of it mid-blast. Drawn here once as a one-instance
+	# MultiMesh laid out the way CPUParticles3D lays its buffer out.
+	var effects: Array = WeaponFX.warm_materials()
+	effects.append(Ragdoll.wound_material())
+	for mat: Material in effects:
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.use_custom_data = true
+		mm.mesh = quad
+		mm.instance_count = 1
+		mm.set_instance_transform(0, Transform3D.IDENTITY)
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		mmi.material_override = mat
+		mmi.position = Vector3(0.0, 0.0, -0.3)
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		holder.add_child(mmi)
+	_step("Compiling effects", 0.5)
+	await _frames(warm_frames)
 	await _frames(1)
 	holder.queue_free()
 
