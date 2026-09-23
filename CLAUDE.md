@@ -225,7 +225,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   towers rise out of it, and **auto exposure** on the player camera. Antialiasing is temporal at
   every level: TAA at native resolution, FSR 2.2 when `Quality` upscales. MSAA stays off (it
   costs a lot and does nothing for shader aliasing). Car paint is a metallic basecoat under a
-  clearcoat lobe with flake (`shaders/car_paint.gdshader`); `Vehicle.PAINTS` is weighted the way
+  clearcoat lobe with flake (`shaders/car_paint.gdshader`). The single-texture bodies mark
+  glass by a dark texel, but the sedan, pickup and van textures do not (the van's darkest 5 %
+  is 0.49), so those find glass by shape - above `Vehicle.GEO_GLASS_BELTLINE`, tilted between
+  roof and door skin - or every white car was one pale ice-sculpture shape. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
 - Vignette: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a full-rect

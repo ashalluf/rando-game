@@ -66,11 +66,27 @@ uniform vec3 body_min = vec3(-1.0);
 uniform vec3 body_size = vec3(2.0);
 uniform bool length_is_x = true;
 
+// Glass found from the shape, for models whose texture does not mark it. On three of the four
+// everyday car models the windows are as light as the doors in the greyscaled texture (the
+// pickup's darkest 5 % of texels is 0.33, the van's 0.49), so the paint covered the glass and
+// every white car on the street was one pale shape - an ice sculpture. Car glass sits above the
+// belt line and is tilted (the screens steeply, the side glass a little inward), where the roof
+// and the bonnet face straight up and the door skins stand vertical, so height plus slope finds
+// it. `geo_glass` is off for the models with real glass slots or a texture that marks it.
+uniform bool geo_glass = false;
+// Height of the belt line (the bottom of the side glass) as a fraction of the body's height.
+uniform float beltline = 0.56;
+// Slope band that counts as glass: the up-component of the body-space normal.
+uniform float glass_slope_min = 0.10;
+uniform float glass_slope_max = 0.86;
+
 varying vec3 world_pos;
 // x = along the car, y = up, z = across, all 0..1 over the body's bounding box.
 varying vec3 body_uv;
 // x = 1 on the flanks, 0 on the roof, nose and tail. y = 1 on horizontal surfaces.
 varying vec2 facing;
+// The up-component of the body-space normal (signed: 1 roof, 0 door skin, -1 underside).
+varying float body_ny;
 
 
 float hash13(vec3 p) {
@@ -86,6 +102,7 @@ void vertex() {
 	vec3 nrm = normalize(NORMAL);
 	body_uv = length_is_x ? n : vec3(n.z, n.y, n.x);
 	facing = vec2(length_is_x ? abs(nrm.z) : abs(nrm.x), abs(nrm.y));
+	body_ny = nrm.y;
 }
 
 
@@ -134,6 +151,17 @@ void fragment() {
 	vec4 base = texture(albedo_tex, UV);
 	float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
 	float body = smoothstep(dark_below, body_above, lum);
+	float shape_glass = 0.0;
+	if (geo_glass) {
+		shape_glass = smoothstep(beltline - 0.02, beltline + 0.02, body_uv.y)
+			* smoothstep(glass_slope_min - 0.04, glass_slope_min + 0.04, body_ny)
+			* (1.0 - smoothstep(glass_slope_max - 0.04, glass_slope_max + 0.04, body_ny))
+			// Not the top of the roof pillars' own panels: the last few percent is roof.
+			* (1.0 - smoothstep(0.93, 0.97, body_uv.y));
+		body *= 1.0 - shape_glass;
+		// Tinted glass reads as dark from outside in daylight, whatever the texture said.
+		lum = mix(lum, 0.02, shape_glass);
+	}
 
 	float livery = livery_mask();
 	vec3 coat = mix(paint, stripe_color, livery);
@@ -146,9 +174,12 @@ void fragment() {
 	vec3 dark = base.rgb * 0.6;
 	ALBEDO = mix(dark, painted, body);
 
-	float glass = 1.0 - smoothstep(0.02, dark_below, lum);
-	float rough = mix(mix(0.6, 0.08, glass), paint_roughness, body);
-	float metal = mix(mix(0.1, 0.5, glass), paint_metallic, body);
+	float glass = max(1.0 - smoothstep(0.02, dark_below, lum), shape_glass);
+	ALBEDO = mix(ALBEDO, vec3(0.025, 0.028, 0.03), shape_glass);
+	float rough = mix(mix(0.6, 0.06, glass), paint_roughness, body);
+	// Glass is not a metal: what it shows is its own specular and the lacquer lobe. At 0.5 metal
+	// every dark trim piece mirrored the sky too.
+	float metal = mix(mix(0.1, 0.0, glass), paint_metallic, body);
 	rough *= mix(1.0, stripe_roughness_mul, livery * body);
 
 	// Panels are never perfectly uniform: a slow ripple in roughness reads as real sheet metal
