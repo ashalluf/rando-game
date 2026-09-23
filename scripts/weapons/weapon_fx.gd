@@ -341,15 +341,18 @@ static func crack_texture() -> Texture2D:
 
 static var _mat_add: StandardMaterial3D
 static var _mat_mix: StandardMaterial3D
+static var _mat_behind: StandardMaterial3D
 
 
 ## Material for a billboarded particle sprite. `additive` for fire and sparks (they add light),
 ## plain alpha for smoke and dust (they block it). Cached: two materials serve every burst in
 ## the game, so a hundred impacts do not build a hundred shader variants.
-static func _puff_material(additive: bool) -> StandardMaterial3D:
+static func _puff_material(additive: bool, behind: bool = false) -> StandardMaterial3D:
 	if additive and _mat_add != null:
 		return _mat_add
-	if not additive and _mat_mix != null:
+	if behind and not additive and _mat_behind != null:
+		return _mat_behind
+	if not behind and not additive and _mat_mix != null:
 		return _mat_mix
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -364,8 +367,20 @@ static func _puff_material(additive: bool) -> StandardMaterial3D:
 	mat.vertex_color_use_as_albedo = true
 	mat.albedo_texture = puff_texture()
 	mat.disable_receive_shadows = true
+	# Soft particles: a puff fades out where it meets the road or a wall instead of being cut
+	# along it, which drew the fireball with a ruler-straight bottom edge. Reads the depth
+	# buffer, so desktop only.
+	if not _web():
+		mat.proximity_fade_enabled = true
+		mat.proximity_fade_distance = 1.2
 	if additive:
 		_mat_add = mat
+	elif behind:
+		# Smoke and dust draw before the fire whatever their depth. Sorted puff by puff, the
+		# grey smoke rising through the fireball veiled it, and the fire came out a pale beige
+		# ball behind a grey one.
+		mat.render_priority = -1
+		_mat_behind = mat
 	else:
 		_mat_mix = mat
 	return mat
@@ -378,7 +393,8 @@ static func _puff_material(additive: bool) -> StandardMaterial3D:
 static func _puff_layer(parent: Node, at: Vector3, count: int, size: float, life: float,
 		speed_min: float, speed_max: float, gravity: float, ramp: Gradient, additive: bool,
 		spread: float = 180.0, grow: float = 2.2, aim: Basis = Basis(), flatness: float = 0.0,
-		life_rand: float = 0.0, damp: float = 1.0) -> CPUParticles3D:
+		life_rand: float = 0.0, damp: float = 1.0, behind: bool = false,
+		variety: Gradient = null) -> CPUParticles3D:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.explosiveness = 1.0
@@ -409,11 +425,14 @@ static func _puff_layer(parent: Node, at: Vector3, count: int, size: float, life
 	curve.add_point(Vector2(1.0, grow))
 	p.scale_amount_curve = curve
 	p.color_ramp = ramp
+	# Per-puff tint multiplied into the ramp, so one burst has hotter and cooler lumps in it.
+	if variety:
+		p.color_initial_ramp = variety
 	p.angle_min = -180.0
 	p.angle_max = 180.0
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
-	quad.material = _puff_material(additive)
+	quad.material = _puff_material(additive, behind)
 	p.mesh = quad
 	parent.add_child(p)
 	p.global_transform = Transform3D(aim, at)
@@ -915,17 +934,23 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 	# Slow and fat, not fast and small: a fireball is one rolling mass of overlapping puffs.
 	# Throwing them outward at the blast speed just scatters them into separate dots.
 	_puff_layer(parent, at, _count(38), radius * 0.52, 0.95, radius * 0.18, radius * 0.7, 2.5,
-		# HDR on purpose: a fireball's core is many times brighter than a sunlit street, and
-		# at 1.6 it tonemapped to pale orange, barely brighter than the sky, and never reached
-		# the glow pass. Now the first third blooms white-yellow and it cools through orange.
-		_ramp([Color(4.2, 3.3, 1.9, 1.0), Color(3.0, 1.45, 0.34, 1.0),
-			Color(0.9, 0.26, 0.05, 0.9), Color(0.13, 0.10, 0.09, 0.0)]), false, 180.0, 1.6)
+		# HDR on purpose, but only at the very start: a fireball's core is many times brighter
+		# than a sunlit street, so the first instant blooms white. After that it has to drop
+		# fast to a deep orange, because AgX takes anything bright toward white - held at 3.0
+		# for its first third, the whole fireball tonemapped to a pale beige.
+		_ramp([Color(5.0, 4.0, 2.6, 1.0), Color(2.4, 0.95, 0.20, 1.0), Color(1.1, 0.32, 0.06, 0.95),
+			Color(0.35, 0.10, 0.03, 0.7), Color(0.08, 0.06, 0.05, 0.0)]), false, 180.0, 1.6,
+		Basis(), 0.0, 0.0, 1.0, false,
+		_ramp([Color(1.3, 1.2, 1.05), Color(1.0, 1.0, 1.0), Color(0.62, 0.55, 0.5)]))
 
 	# 4. Smoke: slower, bigger, lingers and drifts up after the fire is gone.
 	_puff_layer(parent, at + Vector3.UP * radius * 0.3, _count(26), radius * 0.62, 2.8,
 		radius * 0.12, radius * 0.42, 1.4,
-		_ramp([Color(0.35, 0.32, 0.30, 0.0), Color(0.22, 0.20, 0.19, 0.75),
-			Color(0.16, 0.15, 0.14, 0.45), Color(0.12, 0.11, 0.10, 0.0)]), false, 180.0, 2.6)
+		# Sooty, and it only thickens once the fire is past its peak: smoke that is already
+		# there at the fireball's biggest just greys it over.
+		_ramp([Color(0.16, 0.14, 0.13, 0.0), Color(0.15, 0.13, 0.12, 0.06), Color(0.12, 0.11, 0.10, 0.72),
+			Color(0.10, 0.09, 0.09, 0.42), Color(0.08, 0.08, 0.08, 0.0)]), false, 180.0, 2.6,
+		Basis(), 0.0, 0.0, 1.0, true)
 
 	# 5. Sparks: small, fast, thrown wide, falling under gravity.
 	_puff_layer(parent, at, _count(34), radius * 0.038, 1.1, radius * 2.6 * push, radius * 4.4 * push,
@@ -998,8 +1023,9 @@ static func _blast_dust(node: Node, parent: Node, at: Vector3, radius: float, pu
 	var space := _space(node)
 	if space == null:
 		return
-	var dust_ramp := _ramp([Color(0.66, 0.62, 0.56, 0.0), Color(0.58, 0.55, 0.50, 0.8),
-		Color(0.45, 0.43, 0.39, 0.45), Color(0.33, 0.32, 0.29, 0.0)])
+	# Street dust, not snow: at 0.6 unshaded the skirt glowed white against a dusk street.
+	var dust_ramp := _ramp([Color(0.42, 0.38, 0.33, 0.0), Color(0.36, 0.33, 0.29, 0.58),
+		Color(0.30, 0.28, 0.25, 0.32), Color(0.23, 0.22, 0.20, 0.0)])
 
 	# Ground skirt. Only when there is actually ground within reach - an air burst has none.
 	var down := PhysicsRayQueryParameters3D.create(at + Vector3.UP * radius * 0.4,
@@ -1011,7 +1037,7 @@ static func _blast_dust(node: Node, parent: Node, at: Vector3, radius: float, pu
 		# 180 degree spread aimed up becomes a flat ring running out along the ground.
 		_puff_layer(parent, ground + Vector3.UP * 0.15, _count(22), radius * 0.45, 1.9,
 			radius * 1.1 * push, radius * 2.2 * push, 1.2, dust_ramp, false, 180.0, 3.0,
-			_basis_up(floor_hit.normal), 1.0, 0.35, 1.6)
+			_basis_up(floor_hit.normal), 1.0, 0.35, 1.6, true)
 
 	if _web():
 		return
@@ -1036,7 +1062,7 @@ static func _blast_dust(node: Node, parent: Node, at: Vector3, radius: float, pu
 		made += 1
 		var spot: Vector3 = hit.position
 		_puff_layer(parent, spot + n * 0.1, _count(8), radius * 0.3, 1.4,
-			radius * 0.3, radius * 0.9, -1.6, dust_ramp, false, 70.0, 2.6, _basis_up(n), 0.0, 0.4)
+			radius * 0.3, radius * 0.9, -1.6, dust_ramp, false, 70.0, 2.6, _basis_up(n), 0.0, 0.4, 1.0, true)
 
 
 static var _shimmer_shader: Shader

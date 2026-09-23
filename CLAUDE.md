@@ -362,8 +362,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   draws first and the fire lands on top; anything else that reads the screen needs the same.
   Fire and smoke share `WeaponFX.puff_texture()`, a 128 px billow made once from FBM noise
   with its edge pushed in and out by the noise (a smooth radial disc read as a glowing ball),
-  and the fireball's colour ramp is HDR - white-hot 4.2 fading through orange to soot - so the
-  core blooms and the edges go dark instead of the whole thing sitting at flat orange.
+  and the fireball's colour ramp is HDR only for its first instant (white-hot 5.0), then drops
+  fast to a deep orange (2.4, 0.95, 0.2): AgX takes anything bright toward white, and a ramp
+  held at 3.0 for its first third tonemapped the whole fireball to pale beige. A per-puff tint
+  (`color_initial_ramp`) gives it hotter and cooler lumps. Smoke and dust use a second puff
+  material with `render_priority` -1 so they draw before the fire whatever their depth -
+  sorted puff by puff, grey smoke rising through the fireball veiled it - and the smoke only
+  thickens once the fire is past its peak. Puffs are soft particles (proximity fade, desktop
+  only), or the road cuts the fireball along a ruler-straight line.
   Screenshot effects with `tools/glshot/fx_shot.gd` (and store stills with
   `tools/glshot/still_shot.gd`): Godot caps a frame at eight physics ticks (0.133 s) however
   long a software frame really takes, so they count the effect's own elapsed time, never the
