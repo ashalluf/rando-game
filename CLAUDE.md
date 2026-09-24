@@ -869,7 +869,8 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   marks, the walkway / seat wall / verge / fence / bluff face and beach stairs, the roundabout
   and the beach car park, the backfill ground, the furniture (`ReplicaSigns`: cobra lamps,
   parking plates, roundabout diamond and chevrons, stops, name posts, speed plates, bus stops),
-  each house (`ReplicaHouses`), the parked cars, one commit. Ownership: a path segment by its
+  each house (`ReplicaHouses`), the parked cars, the people (`ReplicaWalker`, a Pedestrian
+  that strolls along a pavement instead of a block's ring), one commit. Ownership: a path segment by its
   midpoint, a lot by its centre (in the chunk's owned rect), a feature by its centre. Heights: the
   road and everything along it at the profile (`top`, = terrace + ROAD_TOP); batch instances
   through `rel()` (the batch adds `_gy`). Houses are real geometry - walls cut round every

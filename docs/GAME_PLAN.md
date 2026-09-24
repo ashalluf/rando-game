@@ -113,8 +113,8 @@ What only the owner can supply, and why each one multiplies everything below:
   - [x] The Redondo Beach Esplanade to Palos Verdes, from the owner's Street View shots
     (`ReplicaAreas.ESPLANADE`; the road, bluff and beach, the frontage, the roundabout and car
     park, its traffic, the Palos Verdes skyline).
-  - [ ] Its gaps: grid traffic cannot turn onto it yet (it turns round at the corridor), no
-    pedestrians on its pavements, the pier plaza at its north end is the seeded landmark's.
+  - [ ] Its gaps: grid traffic cannot turn onto it yet (it turns round at the corridor), nobody
+    walks the backfill blocks, the pier plaza at its north end is the seeded landmark's.
   - [ ] Downtown LA at 1:1 (the skyline and civic/arena passes first, other branches).
 
 - **Realism and character batch** (asked 2026-09-19), all done in builds 42 to 51: real models

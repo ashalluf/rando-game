@@ -1277,8 +1277,10 @@ the table is `ReplicaAreas.ESPLANADE`. What a next session needs to know:
   while the player is within 250 m of the route; lane changes happen only where two lanes merge
   into one. Grid cars U-turn when they would drive into the corridor; they cannot turn onto the
   Esplanade yet.
-- **Not done / not verified.** No pedestrians on the replica's pavements (Pedestrian wanders a
-  block's rect ring; a path-following walker is the next piece). The Knob Hill end is a kerb and
+- **People.** `ReplicaWalker` (a Pedestrian that strolls along the walkway or the inland
+  pavement rather than round a block's ring) fills most 26 m slots of each pavement a replica
+  chunk owns, inside the crowd cap; the backfill blocks carry nobody yet.
+- **Not done / not verified.** The Knob Hill end is a kerb and
   a pavement (the grid's streets run past it); north of it the pier plaza is the seeded
   landmark's. The roundabout's inside (west) corner, where the ocean-side lines of a right turn
   fold, is covered by the ring's planting rather than modelled. The car park's sea wall is ~5 m
