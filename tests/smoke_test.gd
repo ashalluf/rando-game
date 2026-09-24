@@ -14,7 +14,10 @@ func _ready() -> void:
 	# Watchdog: a broken test must never hang the check. Game time, and under the 420 s wall-clock
 	# timeout in headless_check.sh; the police checks added about 30 s to a run that was already
 	# close to the old 300.
-	get_tree().create_timer(390.0).timeout.connect(func():
+	# SMOKE_WATCHDOG=seconds raises it for a run on a box shared with other heavy jobs, where the
+	# same checks take longer in wall time (the gate's own timeout has to be raised with it).
+	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 390.0
+	get_tree().create_timer(watchdog).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
 	# Deferred: the root is still busy adding this scene during _ready().
@@ -1049,9 +1052,18 @@ func _test_city() -> void:
 			_check(hit_a_person and int(WeaponFX.blood_stats.splats) > int(blood_before.splats),
 				"the spray lands as blood splats (%d)" % (int(WeaponFX.blood_stats.splats) - int(blood_before.splats)))
 		# Gunfire scares people (owner, 2026-09-23: "NPCs screaming"): the ones near it run.
+		# Not anybody standing where the body just shot is flying: a ragdoll that reaches them
+		# knocks them over (their hit zone), and a body on the ground has no speed to measure.
+		var flying: Array = []
+		for n in get_tree().get_nodes_in_group("debris"):
+			if n is Ragdoll:
+				flying.append((n as Node3D).global_position)
 		var runner: Node3D = null
 		for p in get_tree().get_nodes_in_group("pedestrian"):
-			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down"):
+			var in_path := false
+			for at: Vector3 in flying:
+				in_path = in_path or (p as Node3D).global_position.distance_to(at) < 10.0
+			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down") and not in_path:
 				if runner == null or (p as Node3D).global_position.distance_to(player.global_position) < runner.global_position.distance_to(player.global_position):
 					runner = p
 		if runner != null:
@@ -1242,9 +1254,19 @@ func _test_city() -> void:
 			if car and car.is_inside_tree() and (tcar == null or car.global_position.distance_to(player.global_position) < tcar.global_position.distance_to(player.global_position)):
 				tcar = car
 		var p0: Vector3 = tcar.global_position
+		# Every car's start, not just the nearest one's: since the signals went in, the nearest
+		# car can simply be waiting at a red for the whole second.
+		var starts := {}
+		for c in traffic_node.cars:
+			if is_instance_valid(c) and (c as Node3D).is_inside_tree():
+				starts[c] = (c as Node3D).global_position
 		await _ticks(60)
 		var live := is_instance_valid(tcar) and tcar.is_inside_tree()
-		_check(live and tcar.global_position.distance_to(p0) > 4.0, "traffic car moved %.1f m in 1 s" % (tcar.global_position.distance_to(p0) if live else 0.0))
+		var farthest := 0.0
+		for c in starts:
+			if is_instance_valid(c) and (c as Node3D).is_inside_tree():
+				farthest = maxf(farthest, (c as Node3D).global_position.distance_to(starts[c]))
+		_check(farthest > 4.0, "traffic cars drive (the farthest moved %.1f m in 1 s, %d cars)" % [farthest, starts.size()])
 		if live:
 			tcar.drop_out_of_traffic(Vector3(0.0, 4000.0, 0.0))
 			await _ticks(2)
@@ -1426,6 +1448,13 @@ func _test_city() -> void:
 		var reach: float = qual.shadow_distance[0]
 		_check(reach >= 500.0, "shadows reach across the city on HIGH (%.0f m)" % reach)
 	await _test_police(city, player)
+	# Street life (signals, queues, crosswalks, the police's street routes): its own file, like
+	# the air traffic's, so it compiles after the autoloads (tests/street_life_checks.gd). Here,
+	# before the seed-rebuild check below: the second city it builds resets the shared
+	# WorldState.world_offset to zero under this one, which is still shifted from the
+	# re-centring check, and every position test after that point is in a frame that disagrees
+	# with the nodes.
+	await load("res://tests/street_life_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
