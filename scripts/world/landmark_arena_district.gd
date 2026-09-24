@@ -61,9 +61,9 @@ const WHITE_PANEL := Color(0.90, 0.90, 0.88)
 const STEEL_DARK := Color(0.20, 0.21, 0.23)
 
 
-static func build(id: String, anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
-	var site := Landmarks.site_rect(plan, anchor)
-	var y0 := ground(plan, site)
+## Builds one landmark under `parent` in its OWN frame: `site` is the ground it may use, centred on
+## the origin, and `parent` is the pivot CivicSites.build() placed and turned at the real site.
+static func build(id: String, site: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
 	match id:
 		"arena":
 			_arena(site, y0, parent, statics, detailed)
@@ -84,9 +84,9 @@ static func ground(plan: CityPlan, site: Rect2) -> float:
 	return CityChunk.SIDEWALK_TOP + h
 
 
-## Crowds for the chunk to spawn: [[rect, sidewalk, count], ...] (see Landmarks.crowds()).
-static func crowds(id: String, anchor: Vector2, plan: CityPlan) -> Array:
-	var s := Landmarks.site_rect(plan, anchor)
+## Crowds for the chunk to spawn, in the landmark's own frame: [[rect, sidewalk, count], ...]
+## (CivicSites.crowds() takes them to the world).
+static func crowds(id: String, s: Rect2) -> Array:
 	match id:
 		"arena":
 			var c := _arena_centre(s)
@@ -331,7 +331,7 @@ static func _live_plaza(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 	var batch := MultiMeshBatch.new()
 	var p := _plaza_open(s)
 	var dark_panel := LandmarkMats.facade("live_dark", "metal_painted", 3.0,
-		{"tint": Color(0.30, 0.31, 0.34), "roughness": 0.45, "metallic": 0.5, "joint_spacing": Vector2(1.5, 3.0), "joint_width": 0.03, "joint_dark": 0.35, "grime": 0.1, "base_y": y0,
+		{"tint": Color(0.22, 0.22, 0.24), "roughness": 0.55, "metallic": 0.1, "texture_contrast": 0.5, "joint_spacing": Vector2(1.5, 3.0), "joint_width": 0.03, "joint_dark": 0.35, "grime": 0.1, "base_y": y0,
 		"flood_strength": 0.5, "flood_base_y": y0, "flood_reach": 10.0, "flood_color": Color(0.8, 0.7, 1.0), "flood_spacing": 5.0})
 	var cream := LandmarkMats.facade("live_stucco", "plaster_white", 3.5,
 		{"tint": Color(0.86, 0.83, 0.78), "roughness": 0.85, "grime": 0.3, "base_y": y0, "win_pitch": Vector2(3.2, 4.0), "win_size": Vector2(0.6, 0.55),
@@ -412,11 +412,13 @@ static func _live_plaza(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 static func _plaza_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, p: Rect2, nb: Rect2, eb: Rect2, y0: float, statics: StaticBody3D) -> void:
 	g.use("paving", LandmarkMats.paving("paving", 2.2, Color(0.62, 0.60, 0.60), 5521, 2.4, 0.2))
 	g.cap("paving", LandmarkGeo.ccw(_rect_poly(Rect2(p.position, p.size + Vector2(0.0, 0.0)))), y0 + 0.03)
-	# Bright inlaid bands across the plaza, the lines the eye runs along to the screens.
-	g.use("inlay", LandmarkMats.plain("live_inlay", Color(0.82, 0.8, 0.76), 0.35, 0.3))
-	for i in 5:
-		var z := p.position.y + 4.0 + float(i) * (p.size.y - 8.0) / 4.0
-		g.box("inlay", Vector3(p.get_center().x, y0 + 0.05, z), Vector3(p.size.x - 2.0, 0.04, 0.35))
+	# Dark polished granite bands inlaid across the paving, the lines the eye runs along to the
+	# screens. Dark and wide: thin bright ones read as the paint of a car park.
+	g.use("inlay", LandmarkMats.plain("live_inlay", Color(0.62, 0.6, 0.58), 0.35, 0.0))
+	g.use("granite", LandmarkMats.plain("live_granite", Color(0.14, 0.14, 0.15), 0.18, 0.0))
+	for i in 3:
+		var z := p.position.y + 7.0 + float(i) * (p.size.y - 14.0) / 2.0
+		g.box("granite", Vector3(p.get_center().x, y0 + 0.04, z), Vector3(p.size.x - 6.0, 0.03, 1.6))
 	# Neon over each restaurant along the cinema block and on the east strip.
 	var neon := Signage.NEON
 	var units := maxi(2, int(nb.size.x / 11.0))
@@ -737,7 +739,7 @@ static func _occluder(parent: Node3D, boxes: Array) -> void:
 			verts.append(Vector3(c.x - hx, y, c.z + hz))
 		for f: Array in [[0, 1, 5, 4], [1, 2, 6, 5], [2, 3, 7, 6], [3, 0, 4, 7], [4, 5, 6, 7]]:
 			idx.append_array(PackedInt32Array([o + f[0], o + f[1], o + f[2], o + f[0], o + f[2], o + f[3]]))
-	if idx.is_empty() or not (parent is CityChunk):
+	if idx.is_empty() or not CivicSites.ctx.get("detailed", false):
 		return
 	var occ := ArrayOccluder3D.new()
 	occ.set_arrays(verts, idx)

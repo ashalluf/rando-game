@@ -41,6 +41,20 @@ func run(t: Node, city: Node3D) -> void:
 		if not city.has_node("FarLandmark_" + id):
 			far += " " + id
 	t._check(claims == "", "each civic landmark has its block to itself: no lots, no park or plaza roll%s" % claims)
+	# The one table: every landmark in it, quarter-turn yaws, a real position for each, and the
+	# real layout's arrangement (the arena south-west of the concert hall by about 2 km, the
+	# station east of city hall) - so a 1:1 re-layout starts from sane numbers.
+	var table := ""
+	for id: String in IDS:
+		var row: Dictionary = CivicSites.SITES.get(id, {})
+		if row.is_empty() or int(row.yaw) % 90 != 0 or (row.footprint as Vector2).x <= 0.0 or not row.has("latlon"):
+			table += " " + id
+	var arena_real := CivicSites.real_metres("arena")
+	var hall_real := CivicSites.real_metres("ziggurat_hall")
+	var station_real := CivicSites.real_metres("pueblo_station")
+	if not (arena_real.x < hall_real.x and arena_real.y > hall_real.y and station_real.x > hall_real.x and arena_real.distance_to(hall_real) > 1500.0):
+		table += " real-layout(arena %s, hall %s, station %s)" % [arena_real, hall_real, station_real]
+	t._check(table == "", "the civic table has a turn, a footprint and a real position for every landmark%s" % table)
 	t._check(freeway == "", "no freeway deck crosses a civic landmark's site%s" % freeway)
 	t._check(far == "", "every civic landmark has a far version%s" % far)
 
@@ -77,7 +91,7 @@ func run(t: Node, city: Node3D) -> void:
 			first = false
 		if first or not block_rect.grow(3.0).encloses(bounds):
 			outside += " %s%s" % [id, "" if first else str(bounds)]
-		if body.get_child_count() == 0:
+		if holder.find_children("*", "CollisionShape3D", true, false).is_empty():
 			solid += " " + id
 	t._check(outside == "", "every civic landmark stays inside its own block, off the roads%s" % outside)
 	t._check(solid == "", "every civic landmark has collision%s" % solid)
@@ -109,30 +123,64 @@ func run(t: Node, city: Node3D) -> void:
 				for j in 4:
 					var p := rect.position + rect.size * Vector2((float(i) + 0.5) / 4.0, (float(j) + 0.5) / 4.0)
 					var pq := PhysicsPointQueryParameters3D.new()
-					pq.position = Vector3(p.x, LandmarkArenaDistrict.ground(plan, site) + 1.0, p.y) - off
+					pq.position = Vector3(p.x, float(CivicSites.site(plan, id).y0) + 1.0, p.y) - off
 					pq.collision_mask = 1
 					var inside := space.intersect_point(pq, 4)
 					for h in inside:
-						if (h.collider as Node).get_parent() in holders and not crowd_bad.contains(id):
+						var ours := false
+						for hd in holders:
+							if hd.is_ancestor_of(h.collider as Node):
+								ours = true
+						if ours and not crowd_bad.contains(id):
 							crowd_bad += " %s(walks into a wall at %s)" % [id, str(p)]
 	t._check(crowd_bad == "", "every civic crowd walks open ground inside its site%s" % crowd_bad)
 	for h in holders:
 		h.queue_free()
 	await t.get_tree().process_frame
+	# The table's yaw really turns a landmark: the station a quarter turn, still inside its
+	# block, its crowd still inside its site.
+	CivicSites.yaw_override["pueblo_station"] = 90
+	var turned := Node3D.new()
+	turned.position = -off
+	city.add_child(turned)
+	var tbody := StaticBody3D.new()
+	turned.add_child(tbody)
+	Landmarks.build(entries.pueblo_station, turned, tbody, plan, true)
+	var pivot := turned.get_node_or_null("Civic_pueblo_station") as Node3D
+	var tb := Rect2()
+	var tfirst := true
+	for mi in turned.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if m.mesh:
+			var ab := m.global_transform * m.mesh.get_aabb()
+			var r := Rect2(Vector2(ab.position.x, ab.position.z) + Vector2(off.x, off.z), Vector2(ab.size.x, ab.size.z))
+			tb = r if tfirst else tb.merge(r)
+			tfirst = false
+	var sidx := plan.block_index_at(entries.pueblo_station.anchor)
+	var srect: Rect2 = plan.block(sidx.x, sidx.y).rect
+	var tcrowd: Array = Landmarks.crowds(entries.pueblo_station, plan)
+	var tsite := Landmarks.site_rect(plan, entries.pueblo_station.anchor)
+	CivicSites.yaw_override.clear()
+	t._check(pivot != null and absf(pivot.rotation.y - PI * 0.5) < 0.01 and not tfirst and srect.grow(3.0).encloses(tb)
+		and not tcrowd.is_empty() and tsite.grow(0.5).encloses(tcrowd[0][0]),
+		"a civic landmark turned a quarter by its table yaw stays in its block (%s in %s)" % [tb, srect])
+	turned.queue_free()
+	await t.get_tree().process_frame
 
 
-## [id, world xz, lowest acceptable hit height] for the roofs worth landing on.
-func _roofs(plan: CityPlan, entries: Dictionary) -> Array:
+## [id, world xz, lowest acceptable hit height] for the roofs worth landing on. Points are taken
+## in each landmark's own frame and through CivicSites, so a turned landmark is probed right.
+func _roofs(plan: CityPlan, _entries: Dictionary) -> Array:
 	var out := []
-	var s := Landmarks.site_rect(plan, entries.arena.anchor)
-	var y0 := LandmarkArenaDistrict.ground(plan, s)
-	out.append(["arena", LandmarkArenaDistrict._arena_centre(s), y0 + LandmarkArenaDistrict.DRUM_TOP])
-	var hall := Landmarks.site_rect(plan, entries.ziggurat_hall.anchor)
-	out.append(["ziggurat_hall", hall.get_center() + Vector2(0.0, 6.0), y0 + 110.0])
-	var hotel := Landmarks.site_rect(plan, entries.live_hotel.anchor)
-	out.append(["live_hotel", hotel.get_center() + Vector2(-4.0, -2.0), y0 + 150.0])
-	var station := Landmarks.site_rect(plan, entries.pueblo_station.anchor)
-	out.append(["pueblo_station", station.position + Vector2(LandmarkCivicCenter._station_court(station) + 15.0, 12.0), y0 + 10.0])
-	var concert := Landmarks.site_rect(plan, entries.concert_hall.anchor)
-	out.append(["concert_hall", concert.get_center() + Vector2(4.0, -4.0), y0 + 12.0])
+	var a := CivicSites.site(plan, "arena")
+	out.append(["arena", CivicSites.to_world(a, LandmarkArenaDistrict._arena_centre(a.local)), float(a.y0) + LandmarkArenaDistrict.DRUM_TOP])
+	var hall := CivicSites.site(plan, "ziggurat_hall")
+	out.append(["ziggurat_hall", CivicSites.to_world(hall, Vector2(0.0, 6.0)), float(hall.y0) + 110.0])
+	var hotel := CivicSites.site(plan, "live_hotel")
+	out.append(["live_hotel", CivicSites.to_world(hotel, Vector2(-4.0, -2.0)), float(hotel.y0) + 150.0])
+	var st := CivicSites.site(plan, "pueblo_station")
+	var sl: Rect2 = st.local
+	out.append(["pueblo_station", CivicSites.to_world(st, sl.position + Vector2(LandmarkCivicCenter._station_court(sl) + 15.0, 12.0)), float(st.y0) + 10.0])
+	var ch := CivicSites.site(plan, "concert_hall")
+	out.append(["concert_hall", CivicSites.to_world(ch, Vector2(4.0, -4.0)), float(ch.y0) + 12.0])
 	return out

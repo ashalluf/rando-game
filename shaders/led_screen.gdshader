@@ -75,13 +75,17 @@ void fragment() {
 	c2 = mix(c2, vec3(1.0), 0.25);
 	int style = int(mod(float(k) * 7.0 + seed * 3.0, 6.0));
 	vec3 col = background(style, cuv, clock, c1, c2);
-	// The name, drawn in whole LEDs from the atlas.
+	// The name, drawn in whole LEDs from the atlas. On a portrait screen (a column on a corner)
+	// it runs up the screen instead, the way a tall LED pylon reads.
 	float tw = slide_w[k];
-	if (tw > 0.5) {
-		float s = max(1.0, floor(min(0.86 * cells.x / tw, 0.55 * cells.y / 7.0)));
+	bool tall = cells.y > cells.x * 1.2;
+	vec2 tcells = tall ? cells.yx : cells;
+	vec2 tcell = tall ? vec2(cells.y - 1.0 - cell.y, cell.x) : cell;
+	if (tw > 0.5 && tw <= tcells.x * 0.98) {
+		float s = max(1.0, floor(min(0.86 * tcells.x / tw, 0.55 * tcells.y / 7.0)));
 		vec2 box = vec2(tw, 7.0) * s;
-		vec2 o = floor((cells - box) * 0.5);
-		vec2 tp = floor((cell - o) / s);
+		vec2 o = floor((tcells - box) * 0.5);
+		vec2 tp = floor((tcell - o) / s);
 		if (tp.x >= 0.0 && tp.y >= 0.0 && tp.x < tw && tp.y < 7.0) {
 			float atlas_x = floor((atlas_w - tw) * 0.5) + tp.x;
 			float atlas_y = float(k) * slide_h + 2.0 + tp.y;

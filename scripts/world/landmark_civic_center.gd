@@ -29,7 +29,10 @@ const PARK_NAME := "CIVIC PARK"
 const MUSEUM_NAME := "THE LATTICE"
 const STATION_NAME := "PUEBLO STATION"
 
-const HALL_STONE := Color(0.92, 0.90, 0.85)
+## City hall's stone: a warm off-white granite and terracotta, a little darker on the recessed
+## wall than on the piers standing proud of it, so the vertical lines read at any distance.
+const HALL_STONE := Color(0.86, 0.83, 0.76)
+const HALL_WALL := Color(0.80, 0.77, 0.70)
 ## Grand-park pink: every bench and chair in the park.
 const PARK_PINK := Color(0.93, 0.16, 0.52)
 const STUCCO := Color(0.94, 0.90, 0.81)
@@ -38,9 +41,9 @@ const STUCCO := Color(0.94, 0.90, 0.81)
 const CONCERT_HALL_MODEL := "res://assets/models/concert_hall.glb"
 
 
-static func build(id: String, anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
-	var site := Landmarks.site_rect(plan, anchor)
-	var y0 := LandmarkArenaDistrict.ground(plan, site)
+## Builds one landmark under `parent` in its OWN frame: `site` is the ground it may use, centred on
+## the origin, and `parent` is the pivot CivicSites.build() placed and turned at the real site.
+static func build(id: String, site: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
 	match id:
 		"ziggurat_hall":
 			_city_hall(site, y0, parent, statics, detailed)
@@ -54,8 +57,8 @@ static func build(id: String, anchor: Vector2, parent: Node3D, statics: StaticBo
 			_station(site, y0, parent, statics, detailed)
 
 
-static func crowds(id: String, anchor: Vector2, plan: CityPlan) -> Array:
-	var s := Landmarks.site_rect(plan, anchor)
+## Crowds in the landmark's own frame (CivicSites.crowds() takes them to the world).
+static func crowds(id: String, s: Rect2) -> Array:
 	match id:
 		"civic_park":
 			var loop := _park_loop(s)
@@ -84,17 +87,17 @@ static func _city_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3
 		"win_band": Vector2(y0 + 3.4, y0 + 30.0), "lit_ratio": 0.3, "grime": 0.25, "base_y": y0,
 		"flood_strength": 0.9, "flood_base_y": y0 + 2.2, "flood_reach": 14.0, "flood_floor": 0.25, "flood_spacing": 4.8, "seed": 3.0})
 	var tower := LandmarkMats.facade("hall_tower", stone_tex, 3.0,
-		{"tint": HALL_STONE, "roughness": 0.78, "texture_contrast": 0.6, "win_pitch": Vector2(2.4, 3.6), "win_size": Vector2(0.40, 0.60), "win_sill": 0.2,
+		{"tint": HALL_WALL, "roughness": 0.78, "texture_contrast": 0.6, "win_pitch": Vector2(2.4, 3.6), "win_size": Vector2(0.38, 0.74), "win_sill": 0.13,
 		"win_band": Vector2(y0 + 36.0, y0 + 106.0), "lit_ratio": 0.28, "grime": 0.0,
 		"flood_strength": 1.15, "flood_base_y": y0 + 30.0, "flood_reach": 45.0, "flood_floor": 0.35, "flood_spacing": 4.8,
 		"flood_top_y": y0 + 118.0, "flood_top_reach": 9.0, "seed": 7.0})
 	var crown := LandmarkMats.facade("hall_crown", stone_tex, 3.0,
-		{"tint": Color(0.95, 0.93, 0.88), "roughness": 0.7, "texture_contrast": 0.5,
+		{"tint": Color(0.90, 0.88, 0.83), "roughness": 0.7, "texture_contrast": 0.5,
 		"flood_strength": 1.4, "flood_base_y": y0 + 106.0, "flood_reach": 14.0, "flood_floor": 0.4, "flood_spacing": 3.0})
-	var trim := LandmarkMats.facade("hall_trim", stone_tex, 3.0, {"tint": Color(0.88, 0.86, 0.80), "roughness": 0.75, "texture_contrast": 0.5,
+	var trim := LandmarkMats.facade("hall_trim", stone_tex, 3.0, {"tint": Color(0.83, 0.80, 0.73), "roughness": 0.75, "texture_contrast": 0.5,
 		"flood_strength": 0.9, "flood_base_y": y0 + 2.2, "flood_reach": 20.0, "flood_floor": 0.3})
 	var pier := LandmarkMats.facade("hall_pier", stone_tex, 3.0,
-		{"tint": Color(0.96, 0.95, 0.91), "roughness": 0.74, "texture_contrast": 0.6,
+		{"tint": Color(0.90, 0.88, 0.82), "roughness": 0.74, "texture_contrast": 0.6,
 		"flood_strength": 1.15, "flood_base_y": y0 + 30.0, "flood_reach": 45.0, "flood_floor": 0.35, "flood_spacing": 4.8})
 	g.use("hall", hall)
 	g.use("tower", tower)
@@ -335,8 +338,10 @@ static func _park_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 55173
 	# Grass on the great lawn, from the chunk's own grass (the same blades as every park).
-	if parent is CityChunk:
-		(parent as CityChunk)._add_grass(lawn.grow(-0.5), 0.9)
+	# (It lives in the chunk, in the world frame, so the lawn is taken there.)
+	var chunk: CityChunk = CivicSites.ctx.get("chunk")
+	if chunk:
+		chunk._add_grass(CivicSites.rect_to_world(CivicSites.ctx.info, lawn.grow(-0.5)), 0.9)
 	# Raised planters down both sides, planted with flowering beds, grasses and jacarandas.
 	var bed_w := clampf(s.size.x * 0.12, 6.0, 10.0)
 	for side: float in [0.0, 1.0]:

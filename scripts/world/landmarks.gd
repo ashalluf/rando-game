@@ -69,27 +69,18 @@ static func all() -> Array[Dictionary]:
 		# --- Downtown LA civic set (owner, 2026-09-24: "downtown must match real downtown LA,
 		# we need staple center we need all day"). Real FORMS in their real places relative to
 		# the core; every NAME is invented (LandmarkArenaDistrict, LandmarkCivicCenter).
-		# "site": "block" means the landmark takes the whole city block its anchor falls in
-		# (Landmarks.claims()): no lots, no park or plaza of the block's own, and the landmark is
-		# laid out inside that block's pavement, so it never sits on a road whatever the seed.
-		# Anchors are the block centres for the default seed (1337). Radius only flattens the
-		# relief and is kept inside the block so it takes no lots from the neighbours.
-		# South-west of the core, the way the real ones sit at the edge of downtown by the
-		# freeway: the entertainment plaza north of the arena across the street, its hotel
-		# tower on the next block east (nearest the core), the convention centre south.
-		{"id": "arena", "anchor": Vector2(352.2, 474.55), "radius": 44.0, "site": "block"},
-		{"id": "live_plaza", "anchor": Vector2(352.2, 377.7), "radius": 28.0, "site": "block"},
-		{"id": "live_hotel", "anchor": Vector2(456.1, 377.7), "radius": 28.0, "site": "block"},
-		{"id": "convention_center", "anchor": Vector2(352.2, 595.65), "radius": 42.0, "site": "block"},
-		# The civic centre, north-east of the core between the 110 and the 5: city hall, the
-		# park running north from its main steps, the concert hall at the park's far end with
-		# the museum beside it, and the railway station across the 5 to the north-east.
-		# City hall used to stand at (810, 160), across the road at x 824 and under the 110 deck.
-		{"id": "ziggurat_hall", "anchor": Vector2(875.9, 170.75), "radius": 40.0, "site": "block"},
-		{"id": "civic_park", "anchor": Vector2(875.9, 59.05), "radius": 40.0, "site": "block"},
-		{"id": "concert_hall", "anchor": Vector2(875.9, -49.55), "radius": 38.0, "site": "block"},
-		{"id": "lattice_museum", "anchor": Vector2(782.05, -49.55), "radius": 30.0, "site": "block"},
-		{"id": "pueblo_station", "anchor": Vector2(1091.15, -49.55), "radius": 33.0, "site": "block"},
+		# Position, footprint and orientation of each - and the real building's position in
+		# metres from a downtown origin - live in ONE table, CivicSites.SITES, so re-laying
+		# downtown only has to change that table. Each is a block site ("site": "block"): it
+		# takes the whole block its anchor falls in (Landmarks.claims()) and is laid out inside
+		# that block's pavement, so it never sits on a road whatever the seed.
+		# South-west of the core: the arena, its entertainment plaza north across the street,
+		# the plaza's hotel tower on the next block east, the convention centre south.
+		# North-east: city hall (it used to stand across the road at x 824, under the 110 deck),
+		# the park north of its steps, the concert hall and the museum, the station past the 5.
+		CivicSites.entry("arena"), CivicSites.entry("live_plaza"), CivicSites.entry("live_hotel"),
+		CivicSites.entry("convention_center"), CivicSites.entry("ziggurat_hall"), CivicSites.entry("civic_park"),
+		CivicSites.entry("concert_hall"), CivicSites.entry("lattice_museum"), CivicSites.entry("pueblo_station"),
 	]
 
 
@@ -128,11 +119,8 @@ static func site_rect(plan: CityPlan, anchor: Vector2) -> Rect2:
 ## spawns them as ordinary pedestrians (the ring they wander is `rect` inset by `sidewalk`, and a
 ## `sidewalk` of half the rect's size lets them mill about the whole of it).
 static func crowds(lm: Dictionary, plan: CityPlan) -> Array:
-	match lm.id:
-		"arena", "live_plaza", "convention_center":
-			return LandmarkArenaDistrict.crowds(lm.id, lm.anchor, plan)
-		"civic_park", "ziggurat_hall", "pueblo_station", "concert_hall", "lattice_museum":
-			return LandmarkCivicCenter.crowds(lm.id, lm.anchor, plan)
+	if CivicSites.SITES.has(lm.id):
+		return CivicSites.crowds(lm.id, plan)
 	return []
 
 
@@ -196,11 +184,9 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			LandmarkVerdeCafe.build(lm.anchor, parent, statics, plan, detailed)
 		"masjid_al_noor":
 			LandmarkMasjidAlNoor.build(lm.anchor, parent, statics, plan, detailed)
-		# Downtown LA civic set (see all()).
-		"arena", "live_plaza", "live_hotel", "convention_center":
-			LandmarkArenaDistrict.build(lm.id, lm.anchor, parent, statics, plan, detailed)
-		"ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
-			LandmarkCivicCenter.build(lm.id, lm.anchor, parent, statics, plan, detailed)
+		# Downtown LA civic set (see all() and CivicSites).
+		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
+			CivicSites.build(lm.id, parent, statics, plan, detailed)
 
 
 # --- Hill sign ------------------------------------------------------------------------------
