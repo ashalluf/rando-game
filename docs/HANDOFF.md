@@ -47,7 +47,7 @@ scenes/levels/test_box.tscn  greybox test room used by the smoke test
 scenes/player/player.tscn    CharacterBody3D + camera rig + weapon mount
 scenes/ui/               debug_hud (stats, hints, crosshair, round minimap), pause_menu (Esc, seed)
 scripts/player/          player.gd (movement, boost, jumps, vehicles, fall recovery), camera_rig.gd
-scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket, explosion, gravity_gun, weapon_fx, weapon_manager
+scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket, explosion, shotgun, weapon_fx, weapon_manager (models: assets/models/weapon_*.glb from tools/make_weapons.py)
 scripts/world/           city_streamer, city_chunk, city_plan, macro_map, hill_roads, landmarks, building, prop_factory (primitives + model_* merged Poly Haven models), street_props, trash_can, physics_prop, day_night, ferris_wheel
 scripts/vehicles/        vehicle.gd (cars), aircraft.gd (jets)
 scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd
@@ -883,7 +883,26 @@ taking away from graphics at all". What shipped, newest last:
   17:45, the boardwalk at 17:50, the freeway at 18:00 and downtown rain at 21:20. The hills are
   still weak (next steps item 3).
 
-## 9g. Police and the wanted level, 2026-09-24 (agent branch)
+## 9g. The guns, 2026-09-24
+
+The owner called the box guns "horrible assets" and asked for RDR2, then swapped the gravity gun
+for a shotgun. All three guns are now models from `tools/make_weapons.py` (Blender 4.2, run
+headless with two threads; the CLAUDE.md Weapons bullet has the command and the node-name
+contract). A full build is one to three minutes a gun, almost all of it the mask bake (a Bevel
+node edge mask and local AO, 16 samples); `--nobake` exports flat colours in a second for shape
+work. Look at a gun with `tools/glshot/weapon_shot.gd` (`WEAPON=0/1/2`, `YAW`, `PITCH`, `ZOOM`,
+`FOCUS`; it lights with the city's own AgX, sun and fill numbers, so a finish judged there holds
+in the street) and in the hands with `hero_shot.gd` (`DEBUG=1`). Only the opengl3 path was used.
+On a machine shared with other agents, wrap Blender and every Godot render in `flock` on one lock
+file; two lavapipe renders at once get OOM-killed.
+
+Open: the rigs have no finger bones, so the hands sit flat on the grips rather than curling round
+them (the wrist targets are right; the pose is the limit). The rocket that leaves the launcher is
+still `rocket.gd`'s red primitive cylinder, not the olive warhead the model shows in its muzzle.
+The shotgun's fire rate and knock numbers are first guesses (`fire_rate` 1.25, nine pellets of
+9 impulse, `knock_base` 12 + 5 a pellet).
+
+## 9h. Police and the wanted level, 2026-09-24 (agent branch)
 
 The owner asked for "a police and star system", GTA-style but original. What is in, and what a
 next session needs to know (the rules are the Police note in CLAUDE.md):
@@ -915,7 +934,6 @@ next session needs to know (the rules are the Police note in CLAUDE.md):
 - **Screenshots:** `STARS=3 POLICE=standoff|pursuit` on `tools/glshot/still_shot.gd` stages the
   units in front of the camera (`Police.stage_for_shot()`), because a software frame takes
   seconds and waiting for cruisers to drive in would take hundreds of them. opengl3 only.
-
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
