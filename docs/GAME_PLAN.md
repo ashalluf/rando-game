@@ -92,7 +92,9 @@ What only the owner can supply, and why each one multiplies everything below:
 - **Miniature Los Angeles layout** (asked 2026-09-19): a coastline with beach and ocean, a hill with
   big letters, a pier with a Ferris wheel, a recognisable skyline of specific towers. Keep everything
   legally distinct: original sign text, original pier name, towers inspired by but not copies of
-  real ones (the real sign, pier sign and some towers are trademarked).
+  real ones (the real sign, pier sign and some towers are trademarked). Amended 2026-09-24 by the
+  owner for downtown only: its skyline follows the real towers' massing, names and logos stay
+  original (see the decisions log).
   - [x] Push 1: macro map with ocean, beach, hills, peninsula, district placement (`MacroMap`).
   - [x] Push 2: the hill sign ("RANDOWOOD"), the pier ("RANDO PIER") with a spinning Ferris wheel,
     a coaster loop, booths and lamps, and the observatory with three domes and a terrace.
@@ -254,6 +256,56 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-24 Downtown is the real downtown's skyline, with original names (owner: "the
+  downtown skyline [must] become a 1:1 match of DTLA skyline ... It needs more buildings").**
+  What is matched is the massing: which towers, where they stand relative to each other, their
+  heights in real metres, their silhouettes, crowns and facade character. What is not: names and
+  logos - every tower has an invented name and no crown carries lettering. The rule "nothing
+  copied" in the landmarks note is amended for downtown only. Nineteen towers (the 335 m sail
+  with its spire on the west edge; the 310 m round tower with the crenellated, lit glass crown;
+  the 262 m white granite slab; the 229 m blue elliptical crown and the 229 m rounded crown with
+  its 176 m sister; the 224 m bronze slab; the 221 m curved white tower; the 220 m / 192 m red
+  granite pair with angled tops; the 218 m stepped glass pyramid; the 213 m black twins; the
+  191 m smoked glass tower; the 163 m pyramid and spire; the five mirrored drums; four slender
+  South Park towers with twisting and staggered balconies and an unfinished cluster with its
+  crane still up). Heights 1:1, plan at about 2/3 (one real block to one game block), footprints
+  near real, so the towers stand a little closer together than in life. The downtown street
+  grid is now pinned for every seed (the default seed's own, so that city did not move) because
+  the towers are fixed; the blocks between them are a denser, taller core (40-205 m infill that
+  never out-tops a named tower). Every tower is one mesh on the building shader's new outline
+  mode, so round and curved towers get the same windows, rooms and lit offices as the boxes,
+  with lit crowns and red obstruction lights at night; the far copy that makes the skyline from
+  the beach and the hills is the same mesh.
+
+- **2026-09-24 Replica areas (owner: "we are basically picking like certain 1:1 replica areas
+  and then filling them in between with whatever").** The map becomes real places at true
+  scale, joined by seeded filler, and it must stay geographically sound (the Esplanade is south
+  of the airport and the piers, and so on). Replica areas are authored from real references -
+  street layout, widths, heights, what you see from the road - as data tables, never
+  hand-placed nodes; everything between them stays seeded. Business names and logos stay
+  original (trademarks); public street names may appear. First areas: the Redondo Beach
+  Esplanade curving up into Palos Verdes with the real view of the PV hills (from the owner's
+  Street View shots), and the whole of downtown LA at 1:1 - the skyline and civic/arena passes
+  first at the current scale, then one re-layout at real block sizes and distances.
+
+- **2026-09-24 The city sounds like a city (owner: "the city should SOUND like a real city,
+  AAA-style").** The game had gunfire, engines and rain and otherwise silence: two ambience
+  recordings had shipped for months and nothing played them. Now an `Ambience` node layers real
+  CC0 recordings by where you are, the hour and the weather: the city's roar downtown by day and,
+  after dark, real late-night traffic recorded in downtown Los Angeles; the freeway from the deck
+  you are near (a real recording of the 134 in Burbank); surf from the direction of the water,
+  gulls by day; birds by day and crickets and coyotes at night in the hills; the airfield's
+  rumble; ship horns and crane clanks at the port; rain on the street, on a roof overhead and on
+  the car roof when you are in a car; wind that takes over as you climb. Horns, far sirens, dogs
+  and bus air brakes are dropped round you at real distances. The nearest moving cars carry a
+  tyre-roll voice with Doppler, and a car that passes close gets a recorded pass-by timed to the
+  moment it goes by. The mix now has buses: a street-canyon reverb on everything the world makes,
+  the city low-passed inside a car, ducked under gunfire by a side-chained compressor, dipped and
+  muffled while the weapon wheel slows time and for a moment after a rocket lands close (ringing
+  ears). Crowd screams are untouched; the crowd's chatter drops while it panics. Chosen over
+  per-object sounds everywhere because nothing in it scans the city: a few maths samples, nine
+  rays and one sphere query twice a second. About 5 MB of audio. Nobody has heard it yet.
 
 - **2026-09-24 A living sky (owner: "helicopters, police choppers, news choppers, private jets
   flying thru the sky, commercial jets taking off and landing at LAX").** `AirTraffic` flies
