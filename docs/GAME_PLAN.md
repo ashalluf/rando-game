@@ -278,6 +278,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 Wrap-up: five branches merged, the hero pass held back.** The owner ended the
+  session ("wrap it up and create a handoff"). The Esplanade replica, street life, MacArthur
+  Park with the encampments (park off), the 1:1 downtown research (data only) and the distance
+  tiers went to main after one combined headless check. The hero's AAA pass did not: a still of
+  its final build still showed jagged shards round the open collar, which the owner would see
+  behind the camera all the time, where main's closed collar is clean. It is kept on branch
+  `claude/optimistic-babbage-w2047x` with its pipeline, shaders and fitted hands (HANDOFF 0).
+  Two checks that pass alone and failed in the merged suite were made to set up their own
+  conditions (the helicopter sighting stands the player in the open; the cruiser's kerb window
+  is 40 s because it now waits at red lights), and the suite's watchdog / timeout are 840 / 900 s.
+
 - **2026-09-24 The Esplanade, the first replica area.** Built from the owner's three Street
   View captures (1718 Esplanade looking south, kerb lane and centre; 1799 Esplanade at the south
   curve) as the `ESPLANADE` table in `scripts/world/replica_areas.gd`: Knob Hill down the
