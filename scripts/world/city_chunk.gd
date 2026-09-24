@@ -1457,7 +1457,6 @@ func _lot_steps(_rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 
 
 func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator) -> void:
-	var heights: Vector2 = params.height
 	var pads: float = params.get("pads", 0.0)
 	# The district this block sits in, for the shared massing curve. block() is cached.
 	var district: int = plan.block(ix, iz).district
@@ -1486,19 +1485,18 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# inside 65 m of each other, so the top of the city read as one flat line rather than as
 	# a skyline. So the band is rolled ONCE per lot into a target height and the building gets
 	# a narrow band around that, with the roll bent by pow(u, curve): most lots land near the
-	# bottom of the band and a handful reach the top.
-	var h_low := lerpf(heights.x, heights.x * 1.45, boost)
-	var h_top := lerpf(heights.y, heights.y * 2.3, boost)
-	# How hard to bend it is set by how much room the district actually has - log base 4 of
-	# the band's ratio - so the downtown core's 72..322 m (4.4x) bends at 2.08 and lands its
-	# median at 132 m, while the suburbs' 5..14 m (2.8x) only reaches 1.74 and still reads as
-	# a street of houses (median 7.7 m).
+	# bottom of the band and a handful reach the top (CityPlan.lot_height(), shared with the far
+	# tier). How hard to bend it is set by how much room the district actually has - log base 4
+	# of the band's ratio - so the suburbs' 5..14 m (2.8x) only reaches 1.74 and still reads as
+	# a street of houses (median 7.7 m); the downtown core has its own band and a flatter curve
+	# (DISTRICTS DOWNTOWN core_height / core_curve), a field of 80-200 m towers under the
+	# landmark ones.
 	var target := plan.lot_height(lot.seed, district, boost)
 	building.min_height = target * 0.88
 	building.max_height = target
 	building.lit_ratio_range = params.lit
 	building.weathering_range = params.get("weathering", Vector2(0.2, 0.9))
-	building.shape_options.assign(params.shapes)
+	building.shape_options.assign(CityPlan.lot_shapes(district, boost))
 	building.finish_options.assign(params.finishes)
 	var g := _gy(center.x, center.y)
 	var gmin := g
