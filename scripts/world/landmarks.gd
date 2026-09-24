@@ -95,6 +95,13 @@ static func _list() -> Array[Dictionary]:
 	# and nothing here.
 	list.append_array(LandmarkDowntown.entries())
 	# --- end of the downtown skyline ------------------------------------------------------------
+	# --- Westlake: MacArthur Park (replica area) ------------------------------------------------
+	# The whole data table - real lat/long, the real offset from downtown, size, heading, and
+	# where it stands on today's map - is LandmarkMacArthurPark.SITE. Its entry carries a `site`:
+	# CityPlan snaps that to whole blocks and closes the roads through it but Wilshire.
+	if LandmarkMacArthurPark.enabled:
+		list.append(LandmarkMacArthurPark.entry())
+	# --- end of Westlake ------------------------------------------------------------------------
 	return list
 
 
@@ -148,6 +155,16 @@ static func covers(plan: CityPlan, p: Vector2, pad: float) -> bool:
 	return false
 
 
+## The build steps for a chunk standing on a landmark's site (CityPlan.sites()): the part of that
+## landmark inside the chunk's own rect.
+static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
+	match site_id:
+		"macarthur_park":
+			return LandmarkMacArthurPark.site_steps(chunk)
+	var none: Array[Callable] = []
+	return none
+
+
 static func in_rect(rect: Rect2) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for lm in all():
@@ -188,6 +205,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			LandmarkVerdeCafe.build(lm.anchor, parent, statics, plan, detailed)
 		"masjid_al_noor":
 			LandmarkMasjidAlNoor.build(lm.anchor, parent, statics, plan, detailed)
+		"macarthur_park":
+			LandmarkMacArthurPark.build(lm.anchor, parent, statics, plan, detailed)
 		# Downtown LA civic set (see all() and CivicSites).
 		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
 			CivicSites.build(lm.id, parent, statics, plan, detailed)

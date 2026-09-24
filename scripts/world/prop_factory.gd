@@ -22,6 +22,10 @@ const TEXTURE_SETS := {
 	"fabric": "Fabric036", "metal_painted": "Metal016", "planks": "Planks023A",
 	# Clay barrel tiles (Poly Haven), the Esplanade replica's pitched roofs.
 	"roof_clay": "ClayRoofTiles02",
+	# Encampment kit (ambientCG): tent nylon, woven poly tarp, torn cardboard, mattress ticking,
+	# wool blanket, trash-bag plastic.
+	"camp_nylon": "Fabric048", "camp_tarp": "Fabric015", "camp_cardboard": "Cardboard001",
+	"camp_ticking": "Fabric040", "camp_wool": "Fabric031", "camp_plastic": "Plastic006",
 }
 
 
@@ -1043,6 +1047,17 @@ const TRI_BUDGET := {
 	"facade_kit.glb:kit_fe_bottom": 2000, "facade_kit.glb:kit_water_tank": 2400,
 	"facade_kit.glb:kit_vent_mushroom": 400, "facade_kit.glb:kit_vent_turbine": 500,
 	"facade_kit.glb:kit_hvac": 2000,
+	# Encampment kit (tools/encampment_kit.py), keyed file:node like the facade kit: guards at
+	# about each piece's modelled count. A camp is a few dozen instances a chunk, so the cart and
+	# the bike - wire and spokes - are the ones that matter.
+	"encampment_kit.glb:camp_tent_dome": 3000, "encampment_kit.glb:camp_tent_pop": 3000,
+	"encampment_kit.glb:camp_tarp_canopy": 2200, "encampment_kit.glb:camp_tarp_mound": 2400,
+	"encampment_kit.glb:camp_cart": 6000, "encampment_kit.glb:camp_bag_trash": 900,
+	"encampment_kit.glb:camp_bag_duffel": 700, "encampment_kit.glb:camp_bags_pile": 2800,
+	"encampment_kit.glb:camp_mattress": 1800, "encampment_kit.glb:camp_bedding": 2400,
+	"encampment_kit.glb:camp_cardboard": 700, "encampment_kit.glb:camp_box": 400,
+	"encampment_kit.glb:camp_chair": 1800, "encampment_kit.glb:camp_bicycle": 5200,
+	"encampment_kit.glb:camp_bike_wheel": 1800, "encampment_kit.glb:camp_bike_frame": 3400,
 }
 
 
@@ -1759,6 +1774,104 @@ static func ocean_material() -> ShaderMaterial:
 	mat.shader = load("res://shaders/ocean.gdshader")
 	_cache["ocean_mat"] = mat
 	return mat
+
+
+## --- Encampment kit ------------------------------------------------------------------------
+## The tents, tarps, carts and belongings of a sidewalk encampment, modelled in Blender by
+## tools/encampment_kit.py (one node per piece in encampment_kit.glb, placed by Encampment). How
+## they are built is in that script's header; how they wear (bleach, grime, stains) is in
+## shaders/encampment.gdshaderinc.
+const ENCAMPMENT_KIT := MODEL_DIR + "encampment_kit.glb"
+## Per kit material (the Blender material name): texture set ("" for none), metres per tile,
+## where the colour comes from (0 the instance colour, 1 `base`), `mul` (a darker panel of the
+## instance colour), roughness, metallic, how much of the texture shows, ground grime, stains,
+## sun bleaching, and whether it is a sheet seen from both sides. The texture means are the
+## linear and raw sRGB luminance of each set's Color map, so the texture is detail only and the
+## tint is the colour.
+const CAMP_MATERIALS := {
+	"camp_nylon": {"set": "camp_nylon", "tile": 0.35, "tint": 0, "rough": 0.62, "detail": 1.0, "grime": 0.5, "stains": 0.35, "bleach": 0.6, "two_side": true},
+	"camp_door": {"set": "camp_nylon", "tile": 0.35, "tint": 0, "mul": 0.72, "rough": 0.62, "detail": 1.0, "grime": 0.5, "stains": 0.3, "bleach": 0.6, "two_side": true},
+	"camp_tub": {"set": "", "tint": 1, "base": Color(0.10, 0.10, 0.11), "rough": 0.55, "grime": 0.35, "two_side": true},
+	"camp_pole": {"set": "", "tint": 1, "base": Color(0.46, 0.47, 0.49), "rough": 0.35, "metal": 0.85, "grime": 0.2},
+	"camp_tarp": {"set": "camp_tarp", "tile": 0.5, "tint": 0, "rough": 0.5, "detail": 0.8, "grime": 0.45, "stains": 0.4, "bleach": 0.5, "two_side": true},
+	"camp_rope": {"set": "", "tint": 1, "base": Color(0.55, 0.50, 0.40), "rough": 0.9, "grime": 0.3},
+	"camp_stick": {"set": "", "tint": 1, "base": Color(0.40, 0.30, 0.19), "rough": 0.8, "grime": 0.4},
+	"camp_chrome": {"set": "", "tint": 1, "base": Color(0.62, 0.63, 0.64), "rough": 0.32, "metal": 0.95, "grime": 0.3, "stains": 0.25},
+	"camp_plastic": {"set": "", "tint": 1, "base": Color(0.52, 0.09, 0.07), "rough": 0.5, "grime": 0.3},
+	"camp_rubber": {"set": "", "tint": 1, "base": Color(0.045, 0.045, 0.048), "rough": 0.85, "grime": 0.25},
+	"camp_bag": {"set": "camp_plastic", "tile": 0.6, "tint": 0, "rough": 0.26, "detail": 0.25, "grime": 0.35, "stains": 0.15, "bleach": 0.1, "two_side": true},
+	"camp_canvas": {"set": "camp_nylon", "tile": 0.3, "tint": 0, "rough": 0.85, "detail": 0.8, "grime": 0.55, "stains": 0.4, "bleach": 0.35},
+	"camp_mattress": {"set": "camp_ticking", "tile": 0.45, "tint": 0, "rough": 0.9, "detail": 0.9, "grime": 0.6, "stains": 0.7, "bleach": 0.2},
+	"camp_cardboard": {"set": "camp_cardboard", "tile": 0.9, "tint": 1, "base": Color(0.50, 0.38, 0.24), "rough": 0.9, "detail": 1.0, "grime": 0.55, "stains": 0.6, "two_side": true},
+	"camp_quilt": {"set": "camp_wool", "tile": 0.4, "tint": 0, "rough": 0.92, "detail": 0.9, "grime": 0.45, "stains": 0.45, "bleach": 0.3, "two_side": true},
+	"camp_frame": {"set": "", "tint": 0, "rough": 0.4, "metal": 0.35, "grime": 0.35, "stains": 0.3, "bleach": 0.4},
+	"camp_saddle": {"set": "", "tint": 1, "base": Color(0.05, 0.05, 0.05), "rough": 0.6, "grime": 0.2},
+}
+const CAMP_TEXTURE_MEAN := {
+	"camp_nylon": [0.905, 0.956], "camp_tarp": [0.219, 0.362], "camp_cardboard": [0.301, 0.571],
+	"camp_ticking": [0.108, 0.327], "camp_wool": [0.171, 0.449], "camp_plastic": [0.002, 0.030],
+}
+## Every kit piece, for the loading screen to warm and the smoke test to check.
+const CAMP_PIECES := ["tent_dome", "tent_pop", "tarp_canopy", "tarp_mound", "cart", "bag_trash",
+	"bag_duffel", "bags_pile", "mattress", "bedding", "cardboard", "box", "chair", "bicycle",
+	"bike_wheel", "bike_frame"]
+
+
+## One encampment piece ("tent_dome", "cart", "bicycle"...) as a mesh wearing the camp materials,
+## through model_mesh() (LODs, its TRI_BUDGET, and a shadow proxy: the camp shader moves no
+## vertices, so a proxy's shadow is the piece's own).
+static func encampment(piece: String) -> Mesh:
+	var key := "encampment_" + piece
+	if _cache.has(key):
+		return _cache[key]
+	var mesh := model_mesh(ENCAMPMENT_KIT, PackedStringArray(["camp_" + piece]), [], Transform3D.IDENTITY, {}, true)
+	for s in mesh.get_surface_count():
+		var src := mesh.surface_get_material(s)
+		var mat_name := src.resource_name if src else ""
+		mesh.surface_set_material(s, camp_material(mat_name if CAMP_MATERIALS.has(mat_name) else "camp_nylon"))
+	_cache[key] = mesh
+	return mesh
+
+
+static func camp_material(mat_name: String) -> ShaderMaterial:
+	var key := "camp_mat_" + mat_name
+	if _cache.has(key):
+		return _cache[key]
+	var spec: Dictionary = CAMP_MATERIALS[mat_name]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/encampment_2side.gdshader" if spec.get("two_side", false) else "res://shaders/encampment.gdshader")
+	var set_key: String = spec.set
+	var albedo := texture(set_key, "Color") if set_key != "" else null
+	mat.set_shader_parameter("use_textures", albedo != null)
+	if albedo:
+		mat.set_shader_parameter("albedo_tex", albedo)
+		mat.set_shader_parameter("normal_tex", texture(set_key, "NormalGL"))
+		mat.set_shader_parameter("rough_tex", texture(set_key, "Roughness"))
+		var mean: Array = CAMP_TEXTURE_MEAN.get(set_key, [0.25, 0.5])
+		mat.set_shader_parameter("tex_mean_linear", mean[0])
+		mat.set_shader_parameter("tex_mean_srgb", mean[1])
+		mat.set_shader_parameter("tile_m", spec.get("tile", 0.6))
+	mat.set_shader_parameter("tint_source", spec.tint)
+	mat.set_shader_parameter("base_tint", spec.get("base", Color(0.5, 0.5, 0.5)))
+	mat.set_shader_parameter("tint_mul", spec.get("mul", 1.0))
+	mat.set_shader_parameter("roughness", spec.rough)
+	mat.set_shader_parameter("metallic", spec.get("metal", 0.0))
+	mat.set_shader_parameter("detail", spec.get("detail", 0.8))
+	mat.set_shader_parameter("grime", spec.get("grime", 0.4))
+	mat.set_shader_parameter("stains", spec.get("stains", 0.0))
+	mat.set_shader_parameter("bleach", spec.get("bleach", 0.0))
+	_cache[key] = mat
+	return mat
+
+
+## Every camp piece and material, for the loading screen to warm.
+static func camp_materials() -> Array:
+	for piece: String in CAMP_PIECES:
+		encampment(piece)
+	var out: Array = []
+	for mat_name: String in CAMP_MATERIALS:
+		out.append(camp_material(mat_name))
+	return out
 
 
 ## Wet streets: lowers the roughness of every cached road and sidewalk material (0 dry, 1 soaked).

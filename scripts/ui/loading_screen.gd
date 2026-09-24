@@ -147,6 +147,8 @@ func _warm_shaders() -> void:
 	# variant of its shaders; and the pieces are loaded here, not by the first building to use one.
 	if Building.kit_enabled:
 		effects.append_array(PropFactory.kit_materials())
+	# The encampment kit, likewise (Encampment; only ever drawn through the chunks' batches).
+	effects.append_array(PropFactory.camp_materials())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

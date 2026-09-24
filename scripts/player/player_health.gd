@@ -230,7 +230,7 @@ func _respawn_on_street() -> void:
 			# Onto the pavement at the corner, not the middle of the crossing.
 			var off := Vector2(plan.road_width(CityPlan.AXIS_X, ix) * 0.5 + 2.0, plan.road_width(CityPlan.AXIS_Z, iz) * 0.5 + 2.0)
 			corner += Vector2(off.x * signf(here.x - corner.x + 0.01), off.y * signf(here.y - corner.y + 0.01))
-			if plan.zone_at(corner) != MacroMap.Zone.CITY:
+			if plan.zone_at(corner) != MacroMap.Zone.CITY or plan.in_site(corner):
 				continue
 			var d := corner.distance_to(here)
 			if d < respawn_clearance:

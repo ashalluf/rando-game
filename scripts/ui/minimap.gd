@@ -51,6 +51,7 @@ const LANDMARK_NAMES := {
 	"ziggurat_hall": "City Hall", "arena": "Rando Arena", "live_plaza": "Starlight Plaza", "live_hotel": "Hotel Altair",
 	"convention_center": "Convention Center", "civic_park": "Civic Park",
 	"concert_hall": "Symphony Hall", "lattice_museum": "The Lattice", "pueblo_station": "Pueblo Station",
+	"macarthur_park": "MacArthur Park",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.
@@ -140,6 +141,11 @@ func _draw() -> void:
 				MacroMap.Zone.PORT:
 					_fill(owned, COLORS.port, center, scale)
 					continue
+			if block.has("site"):
+				# A landmark's own ground (MacArthur Park): parkland, and only the roads it keeps.
+				_fill(owned, COLORS.park, center, scale)
+				_draw_roads(plan, ix, iz, center, scale, true)
+				continue
 			_draw_roads(plan, ix, iz, center, scale)
 			var color: Color
 			match block.kind:
@@ -153,6 +159,14 @@ func _draw() -> void:
 					color = DISTRICT_COLORS[block.district % DISTRICT_COLORS.size()]
 			_fill(rect.grow(-1.0), color * Color(shade, shade, shade, 1.0), center, scale)
 
+	# MacArthur Park's lake.
+	if plan.macro:
+		var park := LandmarkMacArthurPark.layout(plan)
+		if not park.is_empty() and (park.lake_bounds as Rect2).grow(radius * 1.5).has_point(center):
+			var lake := PackedVector2Array()
+			for p: Vector2 in park.lake:
+				lake.append(world_to_map(p, center))
+			draw_colored_polygon(lake, COLORS.ocean)
 	# Shoreline and runways.
 	if plan.macro:
 		var macro: MacroMap = plan.macro
@@ -306,7 +320,8 @@ func _owned_rect(plan: CityPlan, ix: int, iz: int) -> Rect2:
 
 
 ## The two roads on this block's +X and +Z sides, as outlined antialiased lines.
-func _draw_roads(plan: CityPlan, ix: int, iz: int, center: Vector2, scale: float) -> void:
+## `open_only` skips a road where it is closed through a landmark's site (CityPlan.road_open).
+func _draw_roads(plan: CityPlan, ix: int, iz: int, center: Vector2, scale: float, open_only: bool = false) -> void:
 	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)
 	var wx := plan.road_width(CityPlan.AXIS_X, ix + 1)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
@@ -314,14 +329,16 @@ func _draw_roads(plan: CityPlan, ix: int, iz: int, center: Vector2, scale: float
 	var owned := _owned_rect(plan, ix, iz)
 	var ax := wx > plan.street_width + 1.0
 	var az := wz > plan.street_width + 1.0
-	var a := world_to_map(Vector2(rx, owned.position.y), center)
-	var b := world_to_map(Vector2(rx, owned.end.y), center)
-	draw_line(a, b, COLORS.avenue_edge if ax else COLORS.road_edge, wx * scale + 2.0, true)
-	draw_line(a, b, COLORS.avenue if ax else COLORS.road, wx * scale, true)
-	a = world_to_map(Vector2(owned.position.x, rz), center)
-	b = world_to_map(Vector2(owned.end.x, rz), center)
-	draw_line(a, b, COLORS.avenue_edge if az else COLORS.road_edge, wz * scale + 2.0, true)
-	draw_line(a, b, COLORS.avenue if az else COLORS.road, wz * scale, true)
+	if not open_only or plan.road_open(CityPlan.AXIS_X, ix + 1, owned.get_center().y):
+		var a := world_to_map(Vector2(rx, owned.position.y), center)
+		var b := world_to_map(Vector2(rx, owned.end.y), center)
+		draw_line(a, b, COLORS.avenue_edge if ax else COLORS.road_edge, wx * scale + 2.0, true)
+		draw_line(a, b, COLORS.avenue if ax else COLORS.road, wx * scale, true)
+	if not open_only or plan.road_open(CityPlan.AXIS_Z, iz + 1, owned.get_center().x):
+		var a := world_to_map(Vector2(owned.position.x, rz), center)
+		var b := world_to_map(Vector2(owned.end.x, rz), center)
+		draw_line(a, b, COLORS.avenue_edge if az else COLORS.road_edge, wz * scale + 2.0, true)
+		draw_line(a, b, COLORS.avenue if az else COLORS.road, wz * scale, true)
 
 
 func _fill(world_rect: Rect2, color: Color, center: Vector2, scale: float) -> void:

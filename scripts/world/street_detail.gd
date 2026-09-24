@@ -324,7 +324,8 @@ static func _overhead_lines(chunk: CityChunk, rect: Rect2) -> void:
 static func _has_poles(plan: CityPlan, bix: int, biz: int, axis: int, index: int) -> bool:
 	var block: Dictionary = plan.block(bix, biz)
 	var centre: Vector2 = (block.rect as Rect2).get_center()
-	if plan.zone_at(centre) != MacroMap.Zone.CITY:
+	# A landmark's site (a park) hangs no line, and the road beside it may be closed.
+	if plan.zone_at(centre) != MacroMap.Zone.CITY or block.has("site") or not plan.road_open(axis, index, centre.y if axis == CityPlan.AXIS_X else centre.x):
 		return false
 	var district: int = plan.district_at(centre)
 	return _hash01([plan.seed, "poles", bix, biz, axis, index]) < POLE_ODDS[district]

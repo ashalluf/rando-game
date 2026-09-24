@@ -286,8 +286,150 @@ func block(ix: int, iz: int) -> Dictionary:
 	if macro and Landmarks.claims(rect):
 		kind = BlockKind.BUILDINGS
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
+	# Ground a landmark owns outright (a replica area's site): the chunk builds that instead.
+	var site := site_at_block(ix, iz)
+	if not site.is_empty():
+		result["site"] = site.id
 	_blocks[key] = result
 	return result
+
+
+# --- Landmark sites ----------------------------------------------------------------------------
+# A landmark entry with a "site" (Landmarks.all(); LandmarkMacArthurPark is the first) owns whole
+# blocks outright: its desired edges are snapped to the nearest roads, every road between those
+# four is CLOSED except the ones it keeps (MacArthur Park keeps Wilshire), and its chunks build the
+# landmark's ground instead of a block. Closing rather than removing the roads keeps every road
+# index and position - and so every block seed in the city - exactly where it was.
+
+var _sites: Array = []
+var _sites_ready: bool = false
+
+
+## The snapped sites: {id, ix0, ix1, iz0, iz1 (the four boundary roads), keep_z (kept road
+## indices), rect (kerb to kerb), halves (the rects between the kept roads, north to south),
+## keep_rects (the kept roads' carriageways across the site)}. Only with a macro map: a bare
+## plan (the test room, unit checks) has no replica areas.
+func sites() -> Array:
+	if _sites_ready or macro == null:
+		return _sites
+	_sites_ready = true
+	for lm in Landmarks.all():
+		# A replica area's site is a table (LandmarkMacArthurPark); the civic set's "block" sites
+		# (Landmarks.claims()) are a different thing and handled there.
+		if lm.get("area") is Dictionary:
+			var s := _snap_site(lm.id, lm.area)
+			if not s.is_empty():
+				_sites.append(s)
+	return _sites
+
+
+func site_by_id(id: String) -> Dictionary:
+	for s: Dictionary in sites():
+		if s.id == id:
+			return s
+	return {}
+
+
+func _nearest_road(axis: int, coord: float) -> int:
+	var i := _index_at(axis, coord)
+	return i + 1 if absf(road_pos(axis, i + 1) - coord) < absf(road_pos(axis, i) - coord) else i
+
+
+func _snap_site(id: String, spec: Dictionary) -> Dictionary:
+	var ix0 := _nearest_road(AXIS_X, spec.west_x)
+	var ix1 := _nearest_road(AXIS_X, spec.east_x)
+	var iz0 := _nearest_road(AXIS_Z, spec.north_z)
+	var iz1 := _nearest_road(AXIS_Z, spec.south_z)
+	if ix1 - ix0 < 1 or iz1 - iz0 < 1:
+		return {}
+	var keep: Array[int] = []
+	for kz in spec.get("keep_z", []):
+		var k := _nearest_road(AXIS_Z, kz)
+		if k > iz0 and k < iz1 and not keep.has(k):
+			keep.append(k)
+	keep.sort()
+	var x0 := road_pos(AXIS_X, ix0) + road_width(AXIS_X, ix0) * 0.5
+	var x1 := road_pos(AXIS_X, ix1) - road_width(AXIS_X, ix1) * 0.5
+	var z0 := road_pos(AXIS_Z, iz0) + road_width(AXIS_Z, iz0) * 0.5
+	var z1 := road_pos(AXIS_Z, iz1) - road_width(AXIS_Z, iz1) * 0.5
+	var halves: Array[Rect2] = []
+	var keep_rects: Array[Rect2] = []
+	var top := z0
+	for k in keep:
+		var kz0 := road_pos(AXIS_Z, k) - road_width(AXIS_Z, k) * 0.5
+		var kz1 := road_pos(AXIS_Z, k) + road_width(AXIS_Z, k) * 0.5
+		halves.append(Rect2(x0, top, x1 - x0, kz0 - top))
+		keep_rects.append(Rect2(x0, kz0, x1 - x0, kz1 - kz0))
+		top = kz1
+	halves.append(Rect2(x0, top, x1 - x0, z1 - top))
+	return {"id": id, "ix0": ix0, "ix1": ix1, "iz0": iz0, "iz1": iz1, "keep_z": keep,
+		"rect": Rect2(x0, z0, x1 - x0, z1 - z0), "halves": halves, "keep_rects": keep_rects,
+		"streets": spec.get("streets", {})}
+
+
+## The site whose blocks include block (ix, iz), or {}.
+func site_at_block(ix: int, iz: int) -> Dictionary:
+	for s: Dictionary in sites():
+		if ix >= s.ix0 and ix < s.ix1 and iz >= s.iz0 and iz < s.iz1:
+			return s
+	return {}
+
+
+## False where road `index` on `axis` runs through a site's ground at `along` (the coordinate
+## along the road): no traffic, parking, crossings or street furniture there. The perimeter roads,
+## the kept roads and a closed road's crossing of a kept one stay open.
+func road_open(axis: int, index: int, along: float) -> bool:
+	for s: Dictionary in sites():
+		if axis == AXIS_X:
+			if index <= s.ix0 or index >= s.ix1:
+				continue
+			if along <= road_pos(AXIS_Z, s.iz0) + road_width(AXIS_Z, s.iz0) * 0.5 or along >= road_pos(AXIS_Z, s.iz1) - road_width(AXIS_Z, s.iz1) * 0.5:
+				continue
+			var on_kept := false
+			for k: int in s.keep_z:
+				if absf(along - road_pos(AXIS_Z, k)) < road_width(AXIS_Z, k) * 0.5:
+					on_kept = true
+			if not on_kept:
+				return false
+		else:
+			if index <= s.iz0 or index >= s.iz1 or (s.keep_z as Array).has(index):
+				continue
+			if along <= road_pos(AXIS_X, s.ix0) + road_width(AXIS_X, s.ix0) * 0.5 or along >= road_pos(AXIS_X, s.ix1) - road_width(AXIS_X, s.ix1) * 0.5:
+				continue
+			return false
+	return true
+
+
+## The road on `axis` whose centre line is nearest `coord`, open at `along`? (For callers that
+## know a position rather than an index.)
+func road_open_at(axis: int, coord: float, along: float) -> bool:
+	return road_open(axis, _nearest_road(axis, coord), along)
+
+
+## True where world XZ `p` is on a site's own ground (not on one of the roads it keeps open).
+func in_site(p: Vector2) -> bool:
+	for s: Dictionary in sites():
+		var r: Rect2 = s.rect
+		if not r.has_point(p):
+			continue
+		for k: Rect2 in s.keep_rects:
+			if k.has_point(p):
+				return false
+		return true
+	return false
+
+
+## True when any of the four roads meeting at intersection (ix, iz) is closed on the arm leaving
+## it (a T where a closed road meets a site's edge), so no crossing, signal or sign is built there.
+func junction_closed(ix: int, iz: int) -> bool:
+	if sites().is_empty():
+		return false
+	var x := road_pos(AXIS_X, ix)
+	var z := road_pos(AXIS_Z, iz)
+	var wx := road_width(AXIS_X, ix)
+	var wz := road_width(AXIS_Z, iz)
+	return not (road_open(AXIS_X, ix, z - wz * 0.5 - 2.0) and road_open(AXIS_X, ix, z + wz * 0.5 + 2.0)
+		and road_open(AXIS_Z, iz, x - wx * 0.5 - 2.0) and road_open(AXIS_Z, iz, x + wx * 0.5 + 2.0))
 
 
 ## {"pos": Vector2, "kind": Intersection, "size": Vector2 (road widths x, z), "seed"}
@@ -364,6 +506,9 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 			typed.assign(replica_lots)
 			return typed
 	var b := block(ix, iz)
+	# A landmark's site builds its own ground; nothing of the block's is built there.
+	if b.has("site"):
+		return []
 	var rect: Rect2 = b.rect
 	# The whole block is a landmark's site (see Landmarks.claims()): nothing else is built on it,
 	# near or far, so the far skyline and the streamed block agree.
@@ -386,6 +531,9 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 	var blocked: Array[Rect2] = []
 	if macro:
 		for lm in Landmarks.all():
+			# A replica area's own blocks are handled above; its radius is for the relief and the map.
+			if lm.get("area") is Dictionary:
+				continue
 			var r: float = lm.radius
 			var foot := Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r * 2.0, r * 2.0))
 			if foot.intersects(rect):
@@ -461,6 +609,21 @@ const ORDINALS := ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"
 ## A seeded name for a road: north-south roads (AXIS_X) are avenues and boulevards, east-west
 ## roads (AXIS_Z) are streets, a third of them numbered.
 func road_name(axis: int, index: int) -> String:
+	# A replica area's real street names (public names are fair game; CLAUDE.md).
+	for s: Dictionary in sites():
+		var streets: Dictionary = s.streets
+		if streets.is_empty():
+			continue
+		if axis == AXIS_X and index == int(s.ix0) and streets.has("west"):
+			return streets.west
+		if axis == AXIS_X and index == int(s.ix1) and streets.has("east"):
+			return streets.east
+		if axis == AXIS_Z and index == int(s.iz0) and streets.has("north"):
+			return streets.north
+		if axis == AXIS_Z and index == int(s.iz1) and streets.has("south"):
+			return streets.south
+		if axis == AXIS_Z and (s.keep_z as Array).has(index) and streets.has("middle"):
+			return streets.middle
 	var rng := _rng_for(9, axis, index)
 	var avenue := road_width(axis, index) > street_width + 1.0
 	if axis == AXIS_Z and rng.randf() < 0.35:

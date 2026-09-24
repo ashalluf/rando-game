@@ -200,14 +200,19 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	var dir := 1 if _rng.randf() < 0.5 else -1
 	var lane := _lane_offset(axis, index, dir)
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
-	if plan.zone_at(pos2) != MacroMap.Zone.CITY or _replica_blocks(pos2, 6.0):
+	# Open where it stands AND just ahead: a car put down inside a crossing, past its centre, next
+	# checks the crossing after, and drove straight on into a road closed by a landmark's site.
+	if plan.zone_at(pos2) != MacroMap.Zone.CITY or _replica_blocks(pos2, 6.0) or not plan.road_open(axis, index, along) or not plan.road_open(axis, index, along + dir * 15.0):
 		return
 	var car := _new_car()
 	var speed := _rng.randf_range(speed_range.x, speed_range.y) * lerpf(1.0, dense_speed_factor, density)
 	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + plan.macro.relief_at(pos2), pos2.y))
+	# Relative to this node, which the streamer shifts with everything else on a re-centre: set as
+	# if this node sat at the origin, every car spawned after the first re-centre was put down the
+	# whole offset away along its road (into the ocean, or down a road a landmark closes).
+	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + plan.macro.relief_at(pos2), pos2.y)) - position
 	car.rotation.y = _heading(axis, dir)
 	add_child(car)
 	car.traffic_speed = car.traffic.speed
@@ -267,19 +272,39 @@ func _drive(car: Vehicle, delta: float) -> void:
 	var cross_pos := plan.road_pos(cross_axis, cross_index)
 	var new_along := along + dir * speed * delta
 	if (dir > 0 and new_along >= cross_pos) or (dir < 0 and new_along <= cross_pos):
-		# Reached an intersection center: maybe turn.
-		if _rng.randf() < turn_chance:
+		# Reached an intersection center: maybe turn. Where the road ahead is closed (a
+		# landmark's site, CityPlan.road_open) the car has to turn, onto an arm that is open.
+		# Each arm is looked at just past the other road's carriageway: inside the crossing it
+		# always reads open.
+		var lane_here: float = plan.road_pos(axis, t.index)
+		var past_cross := plan.road_width(cross_axis, cross_index) * 0.5 + 3.0
+		var past_here := plan.road_width(axis, t.index) * 0.5 + 3.0
+		var ahead_open := plan.road_open(axis, t.index, cross_pos + dir * past_cross)
+		if not ahead_open or _rng.randf() < turn_chance:
 			var new_dir := 1 if _rng.randf() < 0.5 else -1
-			var lane := _lane_offset(cross_axis, cross_index, new_dir)
-			t.axis = cross_axis
-			t.index = cross_index
-			t.dir = new_dir
-			t.lane = lane
-			var road := plan.road_pos(cross_axis, cross_index)
-			# Rebuild the world position on the new road, keeping the intersection's coordinate.
-			var pos2 := Vector2(wp.x, road + lane) if cross_axis == CityPlan.AXIS_Z else Vector2(road + lane, wp.z)
-			_place(car, WorldState.to_local(Vector3(pos2.x, wp.y, pos2.y)), _heading(cross_axis, new_dir), 0.0)
-			return
+			if not plan.road_open(cross_axis, cross_index, lane_here + new_dir * past_here):
+				new_dir = -new_dir
+			var can_turn := plan.road_open(cross_axis, cross_index, lane_here + new_dir * past_here)
+			if not can_turn and not ahead_open:
+				# A dead end both ways: turn back the way it came, on the other carriageway, a
+				# little short of the crossing so it is not reached again at once.
+				t.dir = -dir
+				t.lane = _lane_offset(axis, t.index, -dir)
+				var at := cross_pos - dir * 0.5
+				var back := Vector2(plan.road_pos(axis, t.index) + t.lane, at) if axis == CityPlan.AXIS_X else Vector2(at, plan.road_pos(axis, t.index) + t.lane)
+				_place(car, WorldState.to_local(Vector3(back.x, wp.y, back.y)), _heading(axis, -dir), 0.0)
+				return
+			if can_turn:
+				var lane := _lane_offset(cross_axis, cross_index, new_dir)
+				t.axis = cross_axis
+				t.index = cross_index
+				t.dir = new_dir
+				t.lane = lane
+				var road := plan.road_pos(cross_axis, cross_index)
+				# Rebuild the world position on the new road, keeping the intersection's coordinate.
+				var pos2 := Vector2(wp.x, road + lane) if cross_axis == CityPlan.AXIS_Z else Vector2(road + lane, wp.z)
+				_place(car, WorldState.to_local(Vector3(pos2.x, wp.y, pos2.y)), _heading(cross_axis, new_dir), 0.0)
+				return
 	var lane_pos: float = plan.road_pos(axis, t.index) + t.lane
 	var new_wp := Vector3(lane_pos, wp.y, new_along) if axis == CityPlan.AXIS_X else Vector3(new_along, wp.y, lane_pos)
 	# Follow the city's rolling ground and pitch the nose along the slope ahead.
@@ -402,7 +427,7 @@ func _spawn_loop_car(loop_index: int, t: float) -> void:
 	car.traffic = {"loop": loop_index, "t": t, "speed": loop_speed * _rng.randf_range(0.85, 1.1)}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y))
+	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y)) - position
 	car.rotation.y = atan2(-dir2.x, -dir2.y)
 	add_child(car)
 	car.traffic_speed = car.traffic.speed

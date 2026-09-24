@@ -905,7 +905,7 @@ func _dispatch() -> void:
 		var along := along0 + (-1.0 if _rng.randf() < 0.5 else 1.0) * _rng.randf_range(spawn_min, spawn_max)
 		var road := plan.road_pos(axis, index)
 		var p2 := Vector2(road, along) if axis == CityPlan.AXIS_X else Vector2(along, road)
-		if plan.zone_at(p2) != MacroMap.Zone.CITY:
+		if plan.zone_at(p2) != MacroMap.Zone.CITY or not plan.road_open(axis, index, along):
 			continue
 		var local := WorldState.to_local(Vector3(p2.x, pw.y, p2.y))
 		if attempt < 8 and cam and cam.is_position_in_frustum(local) and cam.global_position.distance_to(local) < 400.0:
@@ -955,7 +955,7 @@ func _place_roadblock() -> void:
 	var travel := signf(flat.y if axis == CityPlan.AXIS_X else flat.x)
 	var along := (pw.z if axis == CityPlan.AXIS_X else pw.x) + travel * roadblock_distance
 	var mid := Vector2(road, along) if axis == CityPlan.AXIS_X else Vector2(along, road)
-	if plan.zone_at(mid) != MacroMap.Zone.CITY:
+	if plan.zone_at(mid) != MacroMap.Zone.CITY or not plan.road_open(axis, index, along):
 		return
 	# Across the road: the cars' length runs across the carriageway.
 	var yaw := PI * 0.5 if axis == CityPlan.AXIS_X else 0.0

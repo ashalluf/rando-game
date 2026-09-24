@@ -975,10 +975,55 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   sharing `landmark_common.gdshaderinc`. Far versions are the same builders at low detail (a few
   draws each). Checks: `tests/civic_checks.gd`. Frame them with `tools/glshot/landmark_shot.gd`
   (free camera: `CAM`, `LOOK`, `FOV`).
+- Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
+  streets in downtown and people slumped over"): the first **replica area** on the street grid.
+  **The park is OFF by default** (`LandmarkMacArthurPark.enabled`; docs/HANDOFF.md 9p says why and
+  what is left); the encampments are on. Its entry's table is `"area"` (the civic set's
+  `"site": "block"` is a different thing).
+  `LandmarkMacArthurPark` (`scripts/world/landmark_macarthur_park.gd`) keeps everything real in
+  ONE table, `SITE` (lat/long, the real offset from Pershing Square, real size, Wilshire's real
+  heading, the lake outline in the south half's 0..1 frame) plus today's compressed placement
+  (`anchor`, desired edges). Its `Landmarks.all()` entry carries a `site`, which
+  `CityPlan.sites()` snaps to whole blocks: `block()` gets `"site"`, `lots()` is empty, and
+  `road_open(axis, index, along)` / `road_open_at()` / `junction_closed()` close every road
+  inside the four boundary roads except Wilshire. Everything that puts things on roads asks it:
+  `CityChunk._build_roads` / `_build_intersection`, `StreetDetail._has_poles`, `TrafficManager`
+  (spawns, and turns forced at a closed arm - a dead end U-turns short of the crossing),
+  `PoliceCar._drivable`, police dispatch and roadblocks, the respawn corner and the minimap (park
+  colour, lake). A site chunk builds its own part of the park (`Landmarks.site_steps()` ->
+  ground, water, walks, planting, furniture, features, crowd), so a 430 m park streams with the
+  city; only the fountain and the boathouse are the anchored landmark with a far version. The
+  lake is `shaders/lake.gdshader` (local = world space inside a chunk) on a basin with coping and
+  wall collision; its floor (`FLOOR_Y`, -1.2) is BELOW CityStreamer's GroundBody (top 0), so the
+  lake-shaped `LakeSplash` Area3D adds a collision exception between each player/props body in
+  it and the GroundBody (`_sink`), removed on exit or when the chunk unloads. Keep `FLOOR_Y`
+  above `under_city_ground()`'s 1.5 m or the player standing in the lake is lifted out.
+  Encampments: `Encampment` (`scripts/world/encampment.gd`, static, a step after
+  `_build_sidewalk_props`) on DOWNTOWN `BUILDINGS` blocks only, some streets far more than
+  others (`CAMP_STREET_SHARE`, `FACE_ODDS*`), runs laid along the building line (walls from
+  `StreetDetail._footprints()`) with doorway gaps, corner and prop clearance and a kerb-side
+  `PATH_KEEP` the block's walkers keep to. **Every roll is a hash of seed, block and face,
+  never the chunk rng.** Pieces are `PropFactory.encampment(piece)` from
+  `assets/models/encampment_kit.glb` (`tools/encampment_kit.py`, Blender), batched as
+  `camp_<piece>` with colour and a per-instance sun-bleach in the instance custom
+  (`shaders/encampment*.gdshader`); each knockable piece is an `EncampmentItem` static body
+  (props + npc layers, mask 0: bullets, blasts and bumpers hit it) that turns into a
+  `PhysicsProp` debris copy when hit and stays gone (WorldState). Caps `MAX_ITEMS` 34 /
+  `MAX_SLEEPERS` 6 a chunk, FULL chunks only, `DRAW_DISTANCE` 190 / 120 m. The people are
+  `RoughSleeper` (`scripts/npc/rough_sleeper.gd`, extends Pedestrian, so shot, knocked, bled and
+  ragdolled like anyone, and counted in the crowd cap through `take_crowd_room()`): poses SIT,
+  LIE and SLUMP held by overriding bone poses over a paused idle clip, solved per rig from its
+  own rest pose (aim a bone's child direction, like `fix_arm_pose()`), with breathing and sway;
+  gunfire makes the sitting and lying get up and FLEE (then RETURN and settle) and the slumped
+  COWER in place. Worn clothes are `RoughSleeper.worn_material()` - the character shader's
+  `grime` uniform (dirt low on the body, never on skin). Depict it as the street, never as a joke.
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the
   streamer shifts every Node3D child). Store true world positions only via `WorldState.to_world()`.
+  A node under one of those shifted children is placed relative to its parent, not as if the
+  parent sat at the origin: TrafficManager's spawns set `WorldState.to_local(p) - position`
+  (before that, every car spawned after the first re-centre landed the whole offset away).
 - Building windows use **interior mapping**: `shaders/building.gdshader` traces the view ray
   into a virtual room behind each pane and shades whichever inner surface it reaches, so windows
   have true parallax (lean left, see the room's right wall) instead of glass painted on a wall.

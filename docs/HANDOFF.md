@@ -1454,6 +1454,106 @@ session needs to know:
   Names on the LED slides and signs are invented, but nobody has read every slide for an
   accidental real brand - worth a look.
 
+## 9p. Westlake: MacArthur Park and the encampments, 2026-09-24 (agent branch)
+
+Owner: "you should also have MacArthur Park and a bunch of homeless tents up on random streets in
+downtown and people slumped over". The rules are the Westlake bullet in CLAUDE.md. It is depicted
+as the street a realistic LA game shows, never as a joke; the code's words are neutral
+(`encampment`, `rough_sleeper`, `slumped`). What a next session needs to know:
+
+- **STATE: the encampments are ON; MacArthur Park is OFF** (`LandmarkMacArthurPark.enabled`,
+  a static var, default false: no landmark entry, no site, every road open, the city exactly as
+  before). It is off because the last full smoke run on the merged tree still found traffic cars
+  on the park's closed roads (cars on the inner street z ~0 through the lake), which the
+  isolated check did not reproduce; that has to be found before it goes on. To work on it, set
+  `LandmarkMacArthurPark.enabled = true` before the city scene loads (Landmarks.all() is built
+  once) - the westlake checks then run the park's half too. The table rides under the entry's
+  `"area"` key: the civic set uses `"site": "block"` for something else (Landmarks.claims()).
+
+- **Where the park is, and why it moves later.** `LandmarkMacArthurPark.SITE` holds the real
+  place (34.05861 N, 118.27750 W: 2,300 m west and 1,158 m north of Pershing Square, 460 x 310 m,
+  35 acres, Wilshire through the middle at a real heading of 297 degrees, the lake about 4.3 m
+  deep) and, separately, where it stands on today's compressed map: west-north-west of the
+  downtown core between Park View (x 87), Alvarado (x 517), 6th (z -214) and 7th (z 86), Wilshire
+  at z -104. The 1:1 downtown re-lay moves it by editing that table; the grid is not turned to
+  Wilshire's real heading (every block is still axis-aligned), `yaw_deg` is there for the day it is.
+- **It is ON the grid, not over it.** CityPlan snaps the site to whole blocks and closes every
+  road inside the four edges except Wilshire (`road_open()`). Nothing is removed from the plan,
+  so road indices, block seeds and every block round the park are exactly what they were. Any
+  new system that puts things on roads must ask `road_open()`: the ones that do today are listed
+  in the CLAUDE.md bullet. The trap that bit twice: a road always reads open inside the crossing
+  road's own width, so probe an arm past `road_width() / 2` (traffic turns and the police's
+  `_drivable` both first looked 3-5 m out and turned cars into the park).
+- **Per-chunk park.** Each site chunk builds its own part (`site_steps()`); only the fountain jet
+  and the boathouse are the landmark proper, built by the chunk holding the anchor, with a far
+  copy. Two halves: the north one lawns, the 7-a-side pitch and the bandshell; the south one
+  the lake, promenade, palm ring and boathouse on the north shore. Walkers use the park's own
+  crowd rects.
+- **The lake is below the city's ground box.** CityStreamer's GroundBody is a 14 km box with its
+  top at 0; the lake floor is at -1.2. The lake-shaped `LakeSplash` area adds a collision
+  exception between the GroundBody and each player or props body in it (`_sink`) and takes it
+  away on exit or when the chunk unloads. Wheel rays and ray queries ignore exceptions, so a
+  car that lands in the lake rides on the box, chassis awash, and a test ray has to exclude the
+  GroundBody by hand (`tests/westlake_checks.gd` shows how). `under_city_ground()` lifts the
+  player out below -1.5, so keep `FLOOR_Y` above that.
+- **Encampments.** Hash-seeded only (seed, road, block, face): about a third of downtown's
+  streets carry most of the camps. A camp is a run of "units" (tent, tent under a tarp, tarp
+  mound, cart, bed, sitter, bags, bike, parts, slump) laid along the ground-storey walls
+  (`StreetDetail._footprints()`), keeping doorways, 9 m at the corners, 1.3 m round every lamp,
+  hydrant, meter, shelter and trash can, and a 2.3 m kerb-side strip that the block's walkers
+  are narrowed to. The people are spawned BEFORE the block's walkers (steps right after the camp
+  step), or downtown's crowd had used the cap and the camps were empty.
+- **The poses.** The rigs only have idle, walk and run, so `RoughSleeper` writes bone rotations
+  over a paused idle clip: each pose is a table of segment directions in rig space, solved per
+  rig from the idle frame (the fix_arm_pose lesson: no per-model numbers). SIT has two variants
+  (knees up, legs out), LIE lies on its side on a mattress or cardboard, SLUMP stands folded
+  forward at the hips with the head hanging, swaying. Gunfire: sitting and lying people get up
+  and flee, then walk back and settle; slumped people cower in place. Judge poses with
+  `tools/glshot/camp_shot.gd` (every pose on a row of rigs against a wall, `SEED` for other rigs,
+  `COWER=1`).
+- **The kit.** `tools/encampment_kit.py` (Blender 4.2 headless, `-- --no-bake` for the fast shape
+  loop) writes `assets/models/encampment_kit.glb`; 68-2,772 triangles a piece, all under their
+  `TRI_BUDGET`. Colour and sun-bleach come per instance (MultiMesh colour and custom), so one
+  batch per piece kind per chunk draws every tent colour.
+- **Numbers to tune** (consts at the top of `Encampment`, `LandmarkMacArthurPark`, exports on
+  `RoughSleeper`): `CAMP_STREET_SHARE` 0.34, `FACE_ODDS_CAMP_STREET` 0.72, `FACE_ODDS` 0.12,
+  `MAX_CAMPS` 3 a block, `MAX_ITEMS` 34 / `MAX_SLEEPERS` 6 a chunk, `UNITS` weights (slump 7 of
+  107, plus 14 % of tents without a chair), `DRAW_DISTANCE` 190 / `SMALL_DRAW_DISTANCE` 120 m;
+  `breath_period` 4.6 s, `sway_depth` 3.5 degrees, `breathe_range` 45 m; the park's
+  `PALM_RING_STEP` 12.5 m, `FOUNTAIN_HEIGHT` 22 m, `CROWD_NORTH` 14 / `CROWD_SOUTH` 16,
+  `WATER_Y` -0.28, `FLOOR_Y` -1.2.
+- **Traffic after a re-centre (a main bug this branch fixed).** TrafficManager is shifted with
+  everything else on an origin re-centre, but `_spawn_near` and the airport loop placed new cars
+  as if it sat at the origin, so after the first re-centre every new car was put down the whole
+  offset away along its road. That is what put cars inside the park; it will also have put them
+  in the sea and on the wrong streets for anyone who travelled far. Spawns are now relative to
+  the node, and a spawn just past a crossing's centre is checked open ahead.
+- **NOT DONE, and how to continue.**
+  1. **No stills and no frame-cost numbers.** The shared render lock never came free for this
+     branch this session, so nothing here has been looked at in a render: not the park, not the
+     lake shader, not the kit, not the poses. First job for whoever picks this up: these stills
+     (opengl3, under the render lock) - `tools/glshot/camp_shot.gd` (poses and kit
+     against a wall; `YAW=38 DIST=6` for the side), and `tools/glshot/city_shot.gd` with
+     `HIDE=Visual` at `--spawn=480,70,63,-10,22 --hour=11` (the lake from the south-east),
+     `--spawn=300,210,0,-35,120` (the whole park from the south), `--spawn=724,-30,10,-6` at
+     `--hour=10.5` and `--hour=22` (a camp street, block 7,-1's east face), and
+     `--spawn=461,242,-135,-12 --hour=16` (a camp with four people, block 4,2's north face). Then
+     `tools/geo_count.gd` at the same cameras against the branch point (`8dd0269`) for the
+     frame cost. Expect to tune: the poses (solved blind from rig data), the lake's colours, the
+     kit's bleach and grime, the tent sizes against the pavement.
+  2. **The kit glb in the repo is the no-bake build** (UV2 is zero, so no baked AO in the
+     shader). Rebuild it with the bake: `blender -b -t 2 --factory-startup --python
+     tools/encampment_kit.py`, then `godot --headless --path . --import`, and commit the `.glb`.
+  3. Nobody has seen it move: the breathing, the sway, fleeing and settling back are checked by
+     the smoke test's numbers only. No swimming (the lake is a wading depth). The site is
+     axis-aligned (the real Wilshire runs at 297 degrees). The boathouse and bandshell are code
+     massing on the building shader, not Blender models. The police can still dispatch a
+     cruiser that starts inside a crossing next to the park and heads into a closed arm (their
+     spawn has no look-ahead; traffic's does).
+- **The smoke test** (`tests/westlake_checks.gd`, ~30-60 s on a busy box) re-centres the origin
+  on every teleport and waits idle frames before a physics query, for the two reasons in its
+  `_go()`; copy that pattern for any check that teleports far and then casts rays.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and

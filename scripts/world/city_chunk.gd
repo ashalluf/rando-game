@@ -268,6 +268,18 @@ func begin_build() -> void:
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
 				_steps.append(_build_hill_roads)
+			if block.has("site"):
+				# A landmark owns this ground (CityPlan.sites()): the roads it keeps open, and its
+				# own part of the landmark instead of a block.
+				_steps.append(_build_roads.bind(block))
+				_steps.append_array(Landmarks.site_steps(block.site, self))
+				if level == Level.FULL:
+					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
+				_steps.append(_build_freeway)
+				if level == Level.FULL and plan.macro:
+					_steps.append(_build_landmarks)
+				_steps.append(_finish_build)
+				return
 			if replica_role == 0:
 				_steps.append(_build_roads.bind(block))
 				_steps.append_array(_block_steps(block))
@@ -1144,17 +1156,26 @@ func _build_roads(block: Dictionary) -> void:
 	var look_x := _road_look(CityPlan.AXIS_X, ix + 1, params)
 	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)
 	var wx := plan.road_width(CityPlan.AXIS_X, ix + 1)
-	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt, true, look_x.material)
+	# A road through a landmark's site is closed there (CityPlan.road_open): the landmark's own
+	# ground covers it. A closed segment is closed along the whole block.
+	var open_x := plan.road_open(CityPlan.AXIS_X, ix + 1, rect.get_center().y)
+	if open_x:
+		_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt, true, look_x.material)
 	# Horizontal road on the +Z side, spanning this block's X range.
 	var look_z := _road_look(CityPlan.AXIS_Z, iz + 1, params)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
-	_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt, true, look_z.material)
+	var open_z := plan.road_open(CityPlan.AXIS_Z, iz + 1, rect.get_center().x)
+	if open_z:
+		_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt, true, look_z.material)
 	# The intersection square at the +X +Z corner.
-	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, look_x.material)
+	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
+		_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, look_x.material)
 	if level == Level.FULL:
-		_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
-		_mark_road(false, rz, wz, rect.position.x, rect.end.x, look_z)
+		if open_x:
+			_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
+		if open_z:
+			_mark_road(false, rz, wz, rect.position.x, rect.end.x, look_z)
 
 
 ## Asphalt sets and tints a road can wear; a road keeps one along its length.
@@ -1269,9 +1290,28 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		# Downtown encampments (Encampment), after the furniture they keep clear of. Its own
+		# hash-seeded rolls: the block's rng is untouched, so the cars and the crowd are unmoved.
+		var camps: bool = block.kind == CityPlan.BlockKind.BUILDINGS and Encampment.block_has_camps(plan, ix, iz)
+		if camps:
+			var sleepers: Array = []
+			steps.append(func() -> void: Encampment.build_block(self, rect, _sidewalk_edges(rect), sleepers))
+			# The people at the camps, one a step, before the block's walkers take the crowd cap.
+			for i in Encampment.MAX_SLEEPERS:
+				steps.append(func() -> void: Encampment.spawn_sleeper(self, rect, sleepers, i))
 		steps.append_array(_park_car_steps(rect, rng, params))
-		steps.append_array(_pedestrian_steps(rect, rng, params))
+		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps else -1.0))
 	return steps
+
+
+## The four pavement edges of a block as [a, b, inward] (the order _build_sidewalk_props uses).
+static func _sidewalk_edges(rect: Rect2) -> Array:
+	return [
+		[Vector2(rect.position.x, rect.position.y), Vector2(rect.end.x, rect.position.y), Vector2(0.0, 1.0)],
+		[Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y), Vector2(0.0, -1.0)],
+		[Vector2(rect.position.x, rect.position.y), Vector2(rect.position.x, rect.end.y), Vector2(1.0, 0.0)],
+		[Vector2(rect.end.x, rect.position.y), Vector2(rect.end.x, rect.end.y), Vector2(-1.0, 0.0)],
+	]
 
 
 ## Where the block's lawn is (set by _block_lawn, read once the lots are down).
@@ -1321,12 +1361,14 @@ func _block_surface(block: Dictionary, params: Dictionary, rng: RandomNumberGene
 	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45))
 
 
-func _pedestrian_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> Array[Callable]:
+## `sidewalk` narrows the strip the walkers keep to (a block with encampments along its walls);
+## below zero it is the plan's pavement width.
+func _pedestrian_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}, sidewalk: float = -1.0) -> Array[Callable]:
 	var count: int = params.get("people", style.pedestrians_per_block)
 	if plan.macro and not params.is_empty():
 		# The downtown core is the busiest: up to twice the district's count in the middle.
 		count = roundi(count * (1.0 + plan.macro.skyline_boost(rect.get_center())))
-	return _crowd_steps(rect, plan.sidewalk_width, count, rng)
+	return _crowd_steps(rect, plan.sidewalk_width if sidewalk < 0.0 else sidewalk, count, rng)
 
 
 ## `count` pedestrians wandering the sidewalk ring of `rect` (inset `sidewalk` meters).
@@ -1874,6 +1916,10 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 # --- Intersections ---------------------------------------------------------------------
 
 func _build_intersection(inter: Dictionary) -> void:
+	# A T where a road closed by a landmark's site meets its edge: no crossings, signals or signs
+	# for an arm that is not there.
+	if plan.junction_closed(ix + 1, iz + 1):
+		return
 	var pos: Vector2 = inter.pos
 	var size: Vector2 = inter.size
 	var kind: CityPlan.Intersection = inter.kind
