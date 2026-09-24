@@ -92,7 +92,9 @@ What only the owner can supply, and why each one multiplies everything below:
 - **Miniature Los Angeles layout** (asked 2026-09-19): a coastline with beach and ocean, a hill with
   big letters, a pier with a Ferris wheel, a recognisable skyline of specific towers. Keep everything
   legally distinct: original sign text, original pier name, towers inspired by but not copies of
-  real ones (the real sign, pier sign and some towers are trademarked).
+  real ones (the real sign, pier sign and some towers are trademarked). Amended 2026-09-24 by the
+  owner for downtown only: its skyline follows the real towers' massing, names and logos stay
+  original (see the decisions log).
   - [x] Push 1: macro map with ocean, beach, hills, peninsula, district placement (`MacroMap`).
   - [x] Push 2: the hill sign ("RANDOWOOD"), the pier ("RANDO PIER") with a spinning Ferris wheel,
     a coaster loop, booths and lamps, and the observatory with three domes and a terrace.
@@ -100,6 +102,11 @@ What only the owner can supply, and why each one multiplies everything below:
     Stack), an airport zone with two runways, a terminal, a control tower, a saucer restaurant on
     arches and parked planes, and a port zone with container stacks, gantry cranes, a harbor and
     a moored container ship.
+  - [x] Push 4 (2026-09-24, owner: "downtown must match real downtown LA, we need staple
+    center"): the civic set - the arena, its entertainment plaza and hotel tower and the
+    convention centre south-west of the core; city hall (rebuilt faithfully), the park, the steel
+    concert hall, the lattice museum and the mission-revival station north-east. Real forms in
+    their real places, invented names (see the decisions log).
 
 - **Replica areas at 1:1** (asked 2026-09-24; see the decisions log): real places at true scale
   from real references, seeded filler between them.
@@ -284,6 +291,27 @@ already mapped so milestone 2 is script-only.
   other one), grid traffic turns round at its edge and its own traffic drives it. Everything
   real is data; nothing is placed by hand.
 
+- **2026-09-24 Downtown is the real downtown's skyline, with original names (owner: "the
+  downtown skyline [must] become a 1:1 match of DTLA skyline ... It needs more buildings").**
+  What is matched is the massing: which towers, where they stand relative to each other, their
+  heights in real metres, their silhouettes, crowns and facade character. What is not: names and
+  logos - every tower has an invented name and no crown carries lettering. The rule "nothing
+  copied" in the landmarks note is amended for downtown only. Nineteen towers (the 335 m sail
+  with its spire on the west edge; the 310 m round tower with the crenellated, lit glass crown;
+  the 262 m white granite slab; the 229 m blue elliptical crown and the 229 m rounded crown with
+  its 176 m sister; the 224 m bronze slab; the 221 m curved white tower; the 220 m / 192 m red
+  granite pair with angled tops; the 218 m stepped glass pyramid; the 213 m black twins; the
+  191 m smoked glass tower; the 163 m pyramid and spire; the five mirrored drums; four slender
+  South Park towers with twisting and staggered balconies and an unfinished cluster with its
+  crane still up). Heights 1:1, plan at about 2/3 (one real block to one game block), footprints
+  near real, so the towers stand a little closer together than in life. The downtown street
+  grid is now pinned for every seed (the default seed's own, so that city did not move) because
+  the towers are fixed; the blocks between them are a denser, taller core (40-205 m infill that
+  never out-tops a named tower). Every tower is one mesh on the building shader's new outline
+  mode, so round and curved towers get the same windows, rooms and lit offices as the boxes,
+  with lit crowns and red obstruction lights at night; the far copy that makes the skyline from
+  the beach and the hills is the same mesh.
+
 - **2026-09-24 Replica areas (owner: "we are basically picking like certain 1:1 replica areas
   and then filling them in between with whatever").** The map becomes real places at true
   scale, joined by seeded filler, and it must stay geographically sound (the Esplanade is south
@@ -294,6 +322,36 @@ already mapped so milestone 2 is script-only.
   Esplanade curving up into Palos Verdes with the real view of the PV hills (from the owner's
   Street View shots), and the whole of downtown LA at 1:1 - the skyline and civic/arena passes
   first at the current scale, then one re-layout at real block sizes and distances.
+
+- **2026-09-24 Downtown's civic set: real forms, invented names (owner: "downtown must match
+  real downtown LA, we need staple center we need all day").** The decision for this project:
+  match the real buildings' FORM and where they sit relative to downtown; keep every name and
+  logo original, because the real ones are trademarks. So the arena is RANDO ARENA, its plaza
+  STARLIGHT PLAZA with the STARLIGHT THEATER, the hotel HOTEL ALTAIR, the concert hall SYMPHONY
+  HALL, the museum THE LATTICE, the station PUEBLO STATION, the park CIVIC PARK, and every brand
+  on the LED screens is made up. South-west of the core, the way the real ones sit at the edge
+  of downtown: the plaza north of the arena across the street, the hotel tower on the next block
+  toward the towers, the convention centre south. North-east: city hall, the park running north
+  from its steps, the concert hall at the park's far end with the museum beside it, the station
+  across the 5 freeway. Two decisions forced by the map. (1) Scale: the whole of downtown is
+  compressed four or five times (its radius is 330 m), and a block is 70-120 m, so each landmark
+  is sized to one block - the arena bowl is about 80 m across rather than 200 - and still reads
+  as itself next to 300 m towers. (2) Sites are whole blocks, not points: `"site": "block"`
+  makes the block the anchor falls in the landmark's (no lots, no park or plaza roll of its own -
+  overridden after the roll, so no seed moves) and every builder lays itself out inside that
+  block's pavement ring, so a landmark never stands on a road whatever the seed. The first
+  version of city hall, at a fixed point, had its base across the road at x 824 and the 110 deck
+  running through it; the other downtown towers still stand at fixed points (another branch's).
+  Everything is real geometry from one small toolkit (`LandmarkGeo`: one mesh per building, a
+  surface per material, UVs in metres) on six new shaders, each glass and steel surface mirroring
+  the sky mostly by EMISSION like the towers' glass, and all of it lit at night: floodlit stone,
+  lit concourses, glowing screens and clocks, neon, masts with real lights.
+  Later the same day the owner set the long-term goal: the WHOLE of downtown as a 1:1 replica
+  (real block sizes, street layout, distances), to be re-laid by a later pass. So every civic
+  landmark's anchor, footprint and turn now lives in ONE table, `CivicSites.SITES`, next to the
+  real building's approximate lat/long, size and facing (`CivicSites.real_en()` gives metres
+  east and north of the skyline table's own origin, so towers and civic buildings share one frame); the builders work in their own frame and a pivot puts
+  them in the world, so the re-layout changes numbers in the table and nothing else.
 
 - **2026-09-24 The city sounds like a city (owner: "the city should SOUND like a real city,
   AAA-style").** The game had gunfire, engines and rain and otherwise silence: two ambience

@@ -33,14 +33,28 @@ const DISTRICT_COLORS := [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLOR
 	COLORS.campus, COLORS.beachtown]
 
 const LANDMARK_NAMES := {
-	"sign": "Shalluferwood Sign", "hills_sign": "Shallufer Hills", "pier": "Rando Pier", "observatory": "Observatory", "crown_tower": "Crown Tower",
-	"five_drums": "Five Drums", "ziggurat_hall": "Ziggurat Hall", "stack_tower": "The Stack", "needle": "The Needle",
+	"sign": "Shalluferwood Sign", "hills_sign": "Shallufer Hills", "pier": "Rando Pier", "observatory": "Observatory",
 	"terminal": "Airport", "hangars": "Hangars", "port": "Port", "campus_hall": "Rando U",
 	"venice_boardwalk": "Venice Boardwalk", "manhattan_pier": "Manhattan Pier",
 	"redondo_pier": "Redondo Pier", "south_bay_mall": "South Bay Mall",
 	"verde_cafe": "Verde Cafe", "masjid_al_noor": "Masjid Al Noor",
-	"twin_glass": "Twin Towers", "cargo_ship": "Container Ship",
+	"cargo_ship": "Container Ship",
+	# The downtown skyline (LandmarkDowntown): original names, never the real towers'.
+	"dt_sail_tower": "Sail Tower", "dt_crown_cylinder": "Crown Tower", "dt_granite_slab": "White Granite Tower",
+	"dt_ellipse_crown": "Blue Flame Tower", "dt_round_crown": "Hilltop Plaza Two", "dt_plaza_one": "Hilltop Plaza One",
+	"dt_faceted_twins": "Red Granite Pair", "dt_bronze_slab": "Bronze Tower", "dt_dark_glass": "Smoked Glass Tower",
+	"dt_five_drums": "Five Drums Hotel", "dt_black_twins": "Black Twins", "dt_pyramid_crown": "Pyramid Tower",
+	"dt_spire_pyramid": "Spire Tower", "dt_curved_white": "Curve Tower", "dt_park_a": "Twist Residences",
+	"dt_park_b": "South Park Terraces", "dt_park_c": "South Park Fins", "dt_park_d": "South Park Cubes",
+	"dt_unfinished": "Unfinished Towers",
+	# Downtown LA civic set (Landmarks.all()); every name invented.
+	"ziggurat_hall": "City Hall", "arena": "Rando Arena", "live_plaza": "Starlight Plaza", "live_hotel": "Hotel Altair",
+	"convention_center": "Convention Center", "civic_park": "Civic Park",
+	"concert_hall": "Symphony Hall", "lattice_museum": "The Lattice", "pueblo_station": "Pueblo Station",
 }
+
+## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.
+const LABEL_ROOM := 34.0
 
 var _yaw: float = 0.0
 var _timer: float = 0.0
@@ -191,8 +205,11 @@ func _draw() -> void:
 
 	_draw_police(center, scale)
 
-	# Landmarks: pins with names (names stay upright).
+	# Landmarks: pins with names (names stay upright). Downtown has a tower in every block, so a
+	# name is only written where it has room: a pin closer than LABEL_ROOM pixels to one that was
+	# already labelled keeps its pin and loses its text, or the core is one smudge of letters.
 	if plan.macro:
+		var labelled: Array[Vector2] = []
 		for lm in Landmarks.all():
 			var a: Vector2 = lm.anchor
 			if a.distance_to(center) < radius * 1.4:
@@ -200,6 +217,14 @@ func _draw() -> void:
 				draw_circle(p, 6.0, COLORS.road_edge)
 				draw_circle(p, 4.5, COLORS.landmark)
 				draw_circle(p, 1.6, Color.WHITE)
+				var crowded := false
+				for q in labelled:
+					if q.distance_to(p) < LABEL_ROOM:
+						crowded = true
+						break
+				if crowded:
+					continue
+				labelled.append(p)
 				var label: String = LANDMARK_NAMES.get(lm.id, lm.id)
 				draw_set_transform_matrix(Transform2D(_yaw if rotate_with_player else 0.0, size * 0.5) * Transform2D(0.0, -size * 0.5) * Transform2D(0.0, p) * Transform2D(-_yaw if rotate_with_player else 0.0, Vector2.ZERO))
 				draw_string_outline(ThemeDB.fallback_font, Vector2(7.0, 4.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, 3, COLORS.road_edge)

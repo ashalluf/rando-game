@@ -99,6 +99,13 @@ var bay_z: float = 6300.0
 var bay_east_x: float = 1600.0
 var downtown_center: Vector2 = Vector2(700.0, 250.0)
 var downtown_radius: float = 330.0
+## The financial core: the blocks the downtown's landmark towers stand in (LandmarkDowntown) -
+## the hill and the avenues from the first street south, then South Park, which stops east of
+## the first avenue so the ground south-west of the core stays open. Inside these the skyline
+## boost is 1 and the infill climbs with the towers; it fades out over `core_margin`, and the
+## district is DOWNTOWN out to that margin as well as inside the old radius.
+var downtown_core: Array[Rect2] = [Rect2(410.0, 236.0, 425.0, 414.0), Rect2(515.0, 650.0, 320.0, 172.0)]
+var core_margin: float = 75.0
 var midtown_radius: float = 800.0
 ## A second cluster of mid-rise towers on the west side.
 var westside_center: Vector2 = Vector2(-350.0, -250.0)
@@ -329,7 +336,12 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 			return base
 	for lm in _landmarks:
 		var radius: float = lm.radius
-		fade *= smoothstep(radius + 30.0, radius + 150.0, pos.distance_to(lm.anchor))
+		var a: Vector2 = lm.anchor
+		# A cheap box test first: this runs for every ground sample in the city (and the whole
+		# baked map at load), and downtown alone is twenty landmarks.
+		if absf(pos.x - a.x) > radius + 150.0 or absf(pos.y - a.y) > radius + 150.0:
+			continue
+		fade *= smoothstep(radius + 30.0, radius + 150.0, pos.distance_to(a))
 		if fade <= 0.0:
 			return base
 	var n := _relief.get_noise_2dv(pos) * 0.5 + 0.5
@@ -513,15 +525,27 @@ func zone_at(pos: Vector2) -> Zone:
 	return Zone.CITY
 
 
-## 1 at the heart of downtown, 0 at its edge: lots there get much taller buildings.
+## 1 at the heart of downtown, 0 at its edge: lots there get much taller buildings. The heart
+## is the radial old centre and, taller and wider, the financial core the landmark towers stand in.
 func skyline_boost(pos: Vector2) -> float:
 	var dd := pos.distance_to(downtown_center)
-	return smoothstep(downtown_radius, downtown_radius * 0.3, dd)
+	var radial := smoothstep(downtown_radius, downtown_radius * 0.3, dd)
+	return maxf(radial, smoothstep(core_margin, 0.0, core_distance(pos)))
+
+
+## Metres from `pos` to the nearest core rect (0 inside one).
+func core_distance(pos: Vector2) -> float:
+	var best := 1e20
+	for r: Rect2 in downtown_core:
+		var dx := maxf(maxf(r.position.x - pos.x, pos.x - r.end.x), 0.0)
+		var dy := maxf(maxf(r.position.y - pos.y, pos.y - r.end.y), 0.0)
+		best = minf(best, Vector2(dx, dy).length())
+	return best
 
 
 func district_at(pos: Vector2) -> CityPlan.District:
 	var dd := pos.distance_to(downtown_center)
-	if dd < downtown_radius:
+	if dd < downtown_radius or core_distance(pos) < core_margin:
 		return CityPlan.District.DOWNTOWN
 	if pos.x > industrial_corner.x and pos.y > industrial_corner.y:
 		return CityPlan.District.INDUSTRIAL
