@@ -37,6 +37,12 @@ func keys() -> Array:
 	return _batches.keys()
 
 
+## The collected instances, key -> {"mesh", "xforms", "colors", "custom"}, without building any
+## nodes: the far city reads a capture chunk's batches this way (CityChunk.capturing).
+func data() -> Dictionary:
+	return _batches
+
+
 func set_no_shadow(key: String) -> void:
 	if _batches.has(key):
 		_batches[key].no_shadow = true
@@ -112,6 +118,8 @@ static func hide_instance(node: MultiMeshInstance3D, index: int) -> void:
 	if node and index >= 0 and index < node.multimesh.instance_count:
 		var gone := Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0.0, -10000.0, 0.0))
 		node.multimesh.set_instance_transform(index, gone)
-		var twin := node.get_meta("shadow_twin", null) as MultiMeshInstance3D
+		# has_meta first: get_meta(key, null) is an error when the key is missing (CLAUDE.md), and
+		# batches that cast no shadow (lamps' light pools, lettering) have no twin.
+		var twin := node.get_meta("shadow_twin") as MultiMeshInstance3D if node.has_meta("shadow_twin") else null
 		if twin and is_instance_valid(twin) and index < twin.multimesh.instance_count:
 			twin.multimesh.set_instance_transform(index, gone)

@@ -84,7 +84,10 @@ What only the owner can supply, and why each one multiplies everything below:
   placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
 - [ ] **G6. Cars (1-2 months).** Interiors, real glass, damage, lights; extend tools/make_*.
 - [ ] **G7. Performance, throughout.** Generated occluders, far-building impostors, texture
-  streaming, profiled on the owner's Mac every push: the look at 60 fps, not 15.
+  streaming, profiled on the owner's Mac every push: the look at 60 fps, not 15. (Done
+  2026-09-24: the level-of-detail hierarchy - FULL, LOD, a whole-basin far city handed over per
+  block, the horizon - with view-weighted streaming; see the decisions log. Still to do: real
+  impostors for the far city's towers instead of shaded boxes.)
 - [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
 
 ## Owner requests queued
@@ -107,6 +110,15 @@ What only the owner can supply, and why each one multiplies everything below:
     convention centre south-west of the core; city hall (rebuilt faithfully), the park, the steel
     concert hall, the lattice museum and the mission-revival station north-east. Real forms in
     their real places, invented names (see the decisions log).
+
+- **Replica areas at 1:1** (asked 2026-09-24; see the decisions log): real places at true scale
+  from real references, seeded filler between them.
+  - [x] The Redondo Beach Esplanade to Palos Verdes, from the owner's Street View shots
+    (`ReplicaAreas.ESPLANADE`; the road, bluff and beach, the frontage, the roundabout and car
+    park, its traffic, the Palos Verdes skyline).
+  - [ ] Its gaps: grid traffic cannot turn onto it yet (it turns round at the corridor), nobody
+    walks the backfill blocks, the pier plaza at its north end is the seeded landmark's.
+  - [ ] Downtown LA at 1:1 (the skyline and civic/arena passes first, other branches).
 
 - **Realism and character batch** (asked 2026-09-19), all done in builds 42 to 51: real models
   from Meshy for cars, pedestrians and jets (every prompt ultra-realistic), bigger crowds, a real
@@ -155,7 +167,9 @@ What only the owner can supply, and why each one multiplies everything below:
     ground textures, boulders, shrubs, dry scrub, grass tufts), clearer sky (less haze and fog).
     Meshy is out for good (owner: the tinted results looked wrong); Poly Haven only.
   - [ ] Push 3: traffic signals, stop signs, palms, beach and pier props. Poly Haven has no
-    signal or stop sign, so those stay primitives until a CC0 source turns up.
+    signal or stop sign, so those stay primitives until a CC0 source turns up. (Signals done
+    2026-09-24, modelled in Blender by `tools/make_signals.py` and working; stop signs are
+    still a cylinder on a pole.)
   - [x] Push 3 (build 56): building facades: eleven Poly Haven wall sets picked per building,
     window reveals and inset shading, grime near the ground and streaks under windows.
   - [ ] Push 4: rooftop props, storefront awnings and signs as real assets.
@@ -217,7 +231,9 @@ full-detail `CityChunk`s around the player and a 15 x 15 area of cheap LOD chunk
 colored box per building part, no props, no collision), building a few chunks per update, freeing
 the rest. It moves the ground plane under the player and re-centers the world when the player is
 1000 m from the origin (`WorldState.world_offset` holds the true offset; chunk nodes sit at minus
-that offset so their children use true world coordinates).
+that offset so their children use true world coordinates). Beyond the chunks the far city
+(`Skyline`, 2026-09-24) draws every block of the basin from the LOD build's own data, handed
+over per block as chunks arrive and leave, and the camera draws to 12 km.
 
 Each chunk owns its block, the road on its +X side, the road on its +Z side and the corner
 intersection. Street props (lamps, hydrants, benches, stop signs, signals) are MultiMesh instances
@@ -262,6 +278,131 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 Wrap-up: five branches merged, the hero pass held back.** The owner ended the
+  session ("wrap it up and create a handoff"). The Esplanade replica, street life, MacArthur
+  Park with the encampments (park off), the 1:1 downtown research (data only) and the distance
+  tiers went to main after one combined headless check. The hero's AAA pass did not: a still of
+  its final build still showed jagged shards round the open collar, which the owner would see
+  behind the camera all the time, where main's closed collar is clean. It is kept on branch
+  `claude/optimistic-babbage-w2047x` with its pipeline, shaders and fitted hands (HANDOFF 0).
+  Two checks that pass alone and failed in the merged suite were made to set up their own
+  conditions (the helicopter sighting stands the player in the open; the cruiser's kerb window
+  is 40 s because it now waits at red lights), and the suite's watchdog / timeout are 840 / 900 s.
+
+- **2026-09-24 The Esplanade, the first replica area.** Built from the owner's three Street
+  View captures (1718 Esplanade looking south, kerb lane and centre; 1799 Esplanade at the south
+  curve) as the `ESPLANADE` table in `scripts/world/replica_areas.gd`: Knob Hill down the
+  Redondo Esplanade (1880 m straight on a 173 degree bearing along a 12-16 m bluff), the south
+  curve past the Avenue I beach car park, the Avenue I roundabout, Paseo de la Playa along the
+  Torrance bluff (compressed to 0.8 km, the one compression) and Palos Verdes Blvd / Dr N
+  climbing the peninsula's north face. At 1:1: two 3.5 m lanes each way either side of a painted
+  median between double yellows, 2.6 m parallel parking with T marks on both kerbs, 3.5 m
+  pavements, the ocean side's walkway, seat wall, scrub verge, bluff fence, bluff face and five
+  sets of beach stairs, cobra lamps every 45 m, a continuous frontage of stucco houses on
+  10-16 m lots with garages, garden walls, balconies and tile or flat roofs, palms in the front
+  yards, the long green-glass condominium on the Paseo. Geography moved to fit it: the coast
+  from the Redondo pier to Malaga Cove is the replica's own waterline, the Palos Verdes headland
+  became an ellipse south of it whose crest is fitted to the photos' skyline, the bay moved
+  south of the peninsula; the piers and the airport stayed where they were. Seeded inside it:
+  which house looks how, and the backfill on the rest of each replica block. The grid meets it
+  exactly (streets cut round the corridor, mouths into the frontage, all-way stops at every
+  other one), grid traffic turns round at its edge and its own traffic drives it. Everything
+  real is data; nothing is placed by hand.
+
+- **2026-09-24 Westlake: MacArthur Park and the downtown encampments (owner: "you should also
+  have MacArthur Park and a bunch of homeless tents up on random streets in downtown and people
+  slumped over").** Two things, both depicted as the street a realistic LA game would show, never
+  as a joke, with neutral names in the code (`encampment`, `rough_sleeper`, `slumped`).
+  MacArthur Park is the first replica area ON the street grid: the real place in one data table
+  (`LandmarkMacArthurPark.SITE`: lat/long, 2.3 km west and 1.16 km north of Pershing Square,
+  460 x 310 m, Wilshire through the middle at a real heading of 297 degrees, the lake outline),
+  placed on today's compressed map west-north-west of the downtown core between Park View,
+  Alvarado, 6th and 7th, with Wilshire kept open through it. The plan snaps it to whole blocks and
+  CLOSES the roads inside rather than overlaying the grid, so road indices, block seeds and every
+  block round it stay exactly as they were; each chunk builds its own part (lawns, paths, palms
+  ringing the lake and the streets, trees, beds, lamps, benches, the 7-a-side pitch, the
+  bandshell, a crowd), and the fountain jet and the two-storey boathouse on its veranda over the
+  water are the anchored landmark. The lake is a real basin: coping, walls, a floor 1.2 m down
+  you can land on (the city's ground box is let through inside the lake), a splash. Encampments:
+  a hash of seed, street and face decides which downtown block faces have camps (a third of the
+  streets carry most of them); a camp is a run of tents, tarps, carts, bags, mattresses,
+  cardboard, chairs and bikes along the building line with doorways, corners and street furniture
+  kept clear, modelled in Blender with CC0 fabric textures, one batch per piece kind per chunk,
+  every piece knockable (bullets, blasts, cars) into debris that stays gone. The people there sit
+  against the wall, lie on their bedding or stand folded forward, breathing, in worn dirty
+  clothes; gunfire sends them running (the slumped cower where they stand); they bleed, ragdoll
+  and count against the crowd cap like anyone. FULL chunks only, capped per chunk.
+- **2026-09-24 Downtown at 1:1: the real grid fitted, the re-lay prepared, not yet landed
+  (owner: "I want the whole downtown landscape to become a 1:1 replica ... geographically
+  sound", "you should also have macarthur park").** The real street grid was fitted from
+  OpenStreetMap (93 cached Nominatim queries: landmark points and street centre-line points,
+  ODbL): the avenues run 37.86 degrees east of north (RMS 2.0 m over 115 points, square to 0.07),
+  blocks are ~125 m between avenues and ~200 m between numbered streets, city hall to the arena
+  2.53 km. It is `DowntownReal` (`scripts/world/downtown_real.gd`), data only: the plan is to turn
+  the real grid onto the game's axes (avenues north-south) at true scale, pin every real street
+  in CityPlan, and put every tower and civic building at its geocoded point on its real block.
+  Decided: at 1:1 downtown (2.3 x 3.8 km) is as big as the old basin, so the basin grows rather
+  than downtown shrinking - Pershing Square at (2800, 102.7) with 5th St on z 0, the east range
+  out to x 5000, the mountains north of the civic centre stepped back 1.25 km into low hills (the
+  real range ends at the Cahuenga Pass), the port moved south of downtown to the foot of the 110,
+  the freeways on their real alignments round it (110 west, 101 north, 10 south; the 105 moved
+  south of the airport), MacArthur Park on Wilshire 1.9 km west of Figueroa. Real street names
+  are used; business names stay invented. The re-lay is written and probed but was not gated
+  before the session ended: `tools/downtown_relay/relay.patch`, landing steps in docs/HANDOFF.md
+  section 9p.
+- **2026-09-24 The distance: four tiers that always cover the world (owner: "it's glaringly
+  obvious that certain areas of the map aren't loading properly at a distance ... do whatever
+  GTA does").** Diagnosed first, by counting rather than looking: over the city blocks within
+  6 km of eight vantage points (downtown roof and street, midtown, the hills, the beach, the
+  airport, the valley, 900 m up), 65-80 % of the map was simply past the camera's 2 km far
+  plane; up to 142 blocks were drawn twice (a LOD chunk with the old far tier over it - from
+  the air every detailed block wore a coarse box over it); a few blocks a vantage were holes,
+  in the 500-1000 m ring where the old tier's 36-block tiles decided visibility by their
+  centre's distance; malls, big boxes, pads, yards and the freeway corridor were drawn as
+  buildings the chunks never build; the horizon plane lifted itself 42 m over the far city and
+  buried the suburbs; the LOD chunks planted no trees; and at jet speed the LOD ring could not
+  be rebuilt fast enough (a 90 m/s flight ended with 3 of 200 LOD chunks standing), because a
+  LOD chunk's ground was laid on the near chunks' 2.2 m grid. What GTA V and RDR2 do, and what
+  this now does: a hierarchy in which a coarser tier ALWAYS stands in until the finer one is
+  built. FULL and LOD chunks as before, then the far city (`Skyline`, a super-LOD of every block
+  within 7 km, i.e. the whole basin), then the horizon plane and the mountains. The handoff is
+  per block and dissolved, never by distance: a chunk installed on a block hides the far city
+  there, a chunk leaving is kept until the far city has dissolved back in over it. The far city
+  IS the LOD chunk's own city - the LOD block build run in capture mode, same rolls, so a far
+  tower is the tower that streams in, and whatever anyone adds to the block build (a downtown
+  table, a new district) shows at distance by itself; landmarks keep their far versions. Plus:
+  the camera draws to 12 km, chunks and far tiles are built in view- and travel-weighted order,
+  far chunks' ground is on an 8 m grid (LOD builds 40 -> 7.6 ms), far buildings decode their
+  colour on Forward+ like the near ones (a half-finished fix since 2026-09-22), and street and
+  park trees stand in the far city. Measured after: 0 holes, 0 doubles, 0 past the far plane
+  from every vantage.
+
+- **2026-09-24 Street life: working signals, queues, people crossing, police that drive the
+  streets (owner: "GTA-level street life").** Four things, one idea: nothing per signal ticks.
+  Every junction shares one clock with a seeded offset (`TrafficSignals`), so the lens shader,
+  the cars and the crowd all work the same light out from the same numbers and can never
+  disagree. (1) The signals are a modelled kit from a Blender script (`tools/make_signals.py`):
+  galvanised mast-arm poles on bolted bases, arms that reach over every lane of their approach,
+  three-lamp heads with tunnel visors and yellow-bordered backplates, side-mount heads, original
+  hand / walking-figure pedestrian heads with countdowns, push buttons, a controller cabinet -
+  laid out the US way (each corner serves the approach it is the far right of). The lamps are
+  LED arrays in HDR from the shader; a junction is a handful of MultiMesh draws. (2) Street
+  traffic used to drive through itself: cars had a speed and no idea of each other. They now
+  follow the car in front (the Intelligent Driver Model) and treat the stop line at a red, a
+  stop sign, a crosswalk with somebody on it and the player's car as one more car ahead,
+  stopped, with a hard clamp so no nose ever passes what is in front of it. Amber is run only
+  when stopping would be too hard; turns slow down; cars pull over for a siren. (3) A share of
+  the crowd crosses: they walk round their block to the corner (they used to cut straight
+  through the buildings), wait at the kerb for the walking figure, cross on it and carry on
+  round the next block. Cars yield to anyone on the crosswalk; panic still wins. (4) Police
+  cruisers route along the street grid (A* over the intersections) to the kerb nearest the
+  player and pull up there; under physics they steer along the route's lanes and only aim
+  straight at a car they are ramming at close range with a clear line. Before, a player on a
+  roof got a cruiser nosing into the wall below him. Two bugs found on the way: pedestrians
+  steered by their scene position but walked in their chunk's space, so every origin shift sent
+  the whole crowd walking off toward targets a kilometre away; and a lowered traffic cap with
+  spawns still queued overshot and shed every car, the ones a test had just placed included
+  (`TrafficManager.staged`).
 - **2026-09-24 Downtown is the real downtown's skyline, with original names (owner: "the
   downtown skyline [must] become a 1:1 match of DTLA skyline ... It needs more buildings").**
   What is matched is the massing: which towers, where they stand relative to each other, their

@@ -20,6 +20,12 @@ const TEXTURE_SETS := {
 	"metal_corrugated": "CorrugatedIron", "metal_factory": "FactoryWall",
 	# Facade detail kit (ambientCG): awning canvas, painted steel, weathered tank staves.
 	"fabric": "Fabric036", "metal_painted": "Metal016", "planks": "Planks023A",
+	# Clay barrel tiles (Poly Haven), the Esplanade replica's pitched roofs.
+	"roof_clay": "ClayRoofTiles02",
+	# Encampment kit (ambientCG): tent nylon, woven poly tarp, torn cardboard, mattress ticking,
+	# wool blanket, trash-bag plastic.
+	"camp_nylon": "Fabric048", "camp_tarp": "Fabric015", "camp_cardboard": "Cardboard001",
+	"camp_ticking": "Fabric040", "camp_wool": "Fabric031", "camp_plastic": "Plastic006",
 }
 
 
@@ -86,6 +92,32 @@ static func lawn(tint: Color, seed_value: int, dryness: float = 0.35, stripes: f
 	return mat
 
 
+## The linear mean albedo of a texture set's colour map, measured from the 1K JPG (numpy over
+## every texel, sRGB decoded). Only for what is seen from so far that it is one colour - the far
+## city's plates under an airport apron or a port yard, which the chunks draw with road() and a
+## tint well above 1. Add a set here when a non-city zone lays its ground with it.
+const TEXTURE_MEAN := {
+	"asphalt": Color(0.0936, 0.0844, 0.0645), "concrete": Color(0.4818, 0.4818, 0.4818),
+	"asphalt_aerial": Color(0.1382, 0.1265, 0.1408), "sidewalk": Color(0.1042, 0.1034, 0.0877),
+}
+
+
+## The colour (LINEAR) a surface drawn with `mat` averages to from a long way off: a road()
+## material is its texture's mean times its tint, a plain material its albedo; anything else is
+## `fallback`. The far city uses it so a plate matches the ground the LOD chunk actually drew.
+static func far_albedo(mat: Material, fallback: Color) -> Color:
+	if mat is ShaderMaterial and mat.has_meta("texture_set"):
+		var mean: Color = TEXTURE_MEAN.get(str(mat.get_meta("texture_set")), Color(-1.0, 0.0, 0.0))
+		var tint = (mat as ShaderMaterial).get_shader_parameter("tint")
+		if mean.r >= 0.0 and tint is Color:
+			var t: Color = (tint as Color).srgb_to_linear()
+			return Color(mean.r * t.r, mean.g * t.g, mean.b * t.b, 1.0)
+	elif mat is StandardMaterial3D and (mat as StandardMaterial3D).albedo_texture == null:
+		var c := (mat as StandardMaterial3D).albedo_color.srgb_to_linear()
+		return Color(c.r, c.g, c.b, 1.0)
+	return fallback
+
+
 ## Worn asphalt for road surfaces (see shaders/road.gdshader). Cached per set, scale, tint and
 ## seed, so every road in a chunk shares one material.
 static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, joints: float = 0.0, wear: float = 1.0) -> ShaderMaterial:
@@ -109,6 +141,7 @@ static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, 
 	mat.set_shader_parameter("patch_amount", 0.30 * wear)
 	mat.set_shader_parameter("crack_amount", 0.5 * wear)
 	mat.set_shader_parameter("stain_amount", 0.32 * wear)
+	mat.set_meta("texture_set", set_key)
 	_cache[key] = mat
 	return mat
 
@@ -997,6 +1030,21 @@ static func unit_box() -> Mesh:
 	return box("unit_box", Vector3.ONE, Color(0.9, 0.9, 0.9))
 
 
+## A unit ellipsoid of 24 triangles, -0.5..0.5 on every axis like unit_box(): the far city's tree
+## and scrub canopies (Skyline). A box read as a crate from the LOD ring in; this reads as foliage
+## from there out. 24, not 48: a tree 300 m off is a dozen pixels, and there are tens of thousands.
+static func canopy_blob() -> Mesh:
+	if _cache.has("canopy_blob"):
+		return _cache["canopy_blob"]
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.5
+	mesh.height = 1.0
+	mesh.radial_segments = 6
+	mesh.rings = 2
+	_cache["canopy_blob"] = mesh
+	return mesh
+
+
 static func planter() -> Mesh:
 	return box("planter", Vector3(2.4, 0.7, 2.4), Color(0.55, 0.5, 0.45))
 
@@ -1041,6 +1089,23 @@ const TRI_BUDGET := {
 	"facade_kit.glb:kit_fe_bottom": 2000, "facade_kit.glb:kit_water_tank": 2400,
 	"facade_kit.glb:kit_vent_mushroom": 400, "facade_kit.glb:kit_vent_turbine": 500,
 	"facade_kit.glb:kit_hvac": 2000,
+	# Encampment kit (tools/encampment_kit.py), keyed file:node like the facade kit: guards at
+	# about each piece's modelled count. A camp is a few dozen instances a chunk, so the cart and
+	# the bike - wire and spokes - are the ones that matter.
+	"encampment_kit.glb:camp_tent_dome": 3000, "encampment_kit.glb:camp_tent_pop": 3000,
+	"encampment_kit.glb:camp_tarp_canopy": 2200, "encampment_kit.glb:camp_tarp_mound": 2400,
+	"encampment_kit.glb:camp_cart": 6000, "encampment_kit.glb:camp_bag_trash": 900,
+	"encampment_kit.glb:camp_bag_duffel": 700, "encampment_kit.glb:camp_bags_pile": 2800,
+	"encampment_kit.glb:camp_mattress": 1800, "encampment_kit.glb:camp_bedding": 2400,
+	"encampment_kit.glb:camp_cardboard": 700, "encampment_kit.glb:camp_box": 400,
+	"encampment_kit.glb:camp_chair": 1800, "encampment_kit.glb:camp_bicycle": 5200,
+	"encampment_kit.glb:camp_bike_wheel": 1800, "encampment_kit.glb:camp_bike_frame": 3400,
+	# Traffic signal hardware (tools/make_signals.py). Guards, like the kit's: a head is the most
+	# repeated piece (up to a dozen an intersection), so it is the one that matters.
+	"traffic_signal.glb:sig_pole": 1500, "traffic_signal.glb:sig_arm": 450,
+	"traffic_signal.glb:sig_head": 2200, "traffic_signal.glb:sig_bracket": 150,
+	"traffic_signal.glb:sig_ped": 1000, "traffic_signal.glb:sig_button": 350,
+	"traffic_signal.glb:sig_cabinet": 800,
 }
 
 
@@ -1503,6 +1568,10 @@ static func building_lod_material() -> ShaderMaterial:
 		return _cache["building_lod_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/building_lod.gdshader")
+	# Forward+ decodes the near buildings' source_color facade but never a MultiMesh instance
+	# colour, so the far boxes have to decode theirs or they are drawn up to four times brighter
+	# than the same building up close (see the shader). Compatibility decodes neither.
+	mat.set_shader_parameter("instance_color_is_srgb", has_reflections())
 	_cache["building_lod_mat"] = mat
 	return mat
 
@@ -1759,6 +1828,104 @@ static func ocean_material() -> ShaderMaterial:
 	return mat
 
 
+## --- Encampment kit ------------------------------------------------------------------------
+## The tents, tarps, carts and belongings of a sidewalk encampment, modelled in Blender by
+## tools/encampment_kit.py (one node per piece in encampment_kit.glb, placed by Encampment). How
+## they are built is in that script's header; how they wear (bleach, grime, stains) is in
+## shaders/encampment.gdshaderinc.
+const ENCAMPMENT_KIT := MODEL_DIR + "encampment_kit.glb"
+## Per kit material (the Blender material name): texture set ("" for none), metres per tile,
+## where the colour comes from (0 the instance colour, 1 `base`), `mul` (a darker panel of the
+## instance colour), roughness, metallic, how much of the texture shows, ground grime, stains,
+## sun bleaching, and whether it is a sheet seen from both sides. The texture means are the
+## linear and raw sRGB luminance of each set's Color map, so the texture is detail only and the
+## tint is the colour.
+const CAMP_MATERIALS := {
+	"camp_nylon": {"set": "camp_nylon", "tile": 0.35, "tint": 0, "rough": 0.62, "detail": 1.0, "grime": 0.5, "stains": 0.35, "bleach": 0.6, "two_side": true},
+	"camp_door": {"set": "camp_nylon", "tile": 0.35, "tint": 0, "mul": 0.72, "rough": 0.62, "detail": 1.0, "grime": 0.5, "stains": 0.3, "bleach": 0.6, "two_side": true},
+	"camp_tub": {"set": "", "tint": 1, "base": Color(0.10, 0.10, 0.11), "rough": 0.55, "grime": 0.35, "two_side": true},
+	"camp_pole": {"set": "", "tint": 1, "base": Color(0.46, 0.47, 0.49), "rough": 0.35, "metal": 0.85, "grime": 0.2},
+	"camp_tarp": {"set": "camp_tarp", "tile": 0.5, "tint": 0, "rough": 0.5, "detail": 0.8, "grime": 0.45, "stains": 0.4, "bleach": 0.5, "two_side": true},
+	"camp_rope": {"set": "", "tint": 1, "base": Color(0.55, 0.50, 0.40), "rough": 0.9, "grime": 0.3},
+	"camp_stick": {"set": "", "tint": 1, "base": Color(0.40, 0.30, 0.19), "rough": 0.8, "grime": 0.4},
+	"camp_chrome": {"set": "", "tint": 1, "base": Color(0.62, 0.63, 0.64), "rough": 0.32, "metal": 0.95, "grime": 0.3, "stains": 0.25},
+	"camp_plastic": {"set": "", "tint": 1, "base": Color(0.52, 0.09, 0.07), "rough": 0.5, "grime": 0.3},
+	"camp_rubber": {"set": "", "tint": 1, "base": Color(0.045, 0.045, 0.048), "rough": 0.85, "grime": 0.25},
+	"camp_bag": {"set": "camp_plastic", "tile": 0.6, "tint": 0, "rough": 0.26, "detail": 0.25, "grime": 0.35, "stains": 0.15, "bleach": 0.1, "two_side": true},
+	"camp_canvas": {"set": "camp_nylon", "tile": 0.3, "tint": 0, "rough": 0.85, "detail": 0.8, "grime": 0.55, "stains": 0.4, "bleach": 0.35},
+	"camp_mattress": {"set": "camp_ticking", "tile": 0.45, "tint": 0, "rough": 0.9, "detail": 0.9, "grime": 0.6, "stains": 0.7, "bleach": 0.2},
+	"camp_cardboard": {"set": "camp_cardboard", "tile": 0.9, "tint": 1, "base": Color(0.50, 0.38, 0.24), "rough": 0.9, "detail": 1.0, "grime": 0.55, "stains": 0.6, "two_side": true},
+	"camp_quilt": {"set": "camp_wool", "tile": 0.4, "tint": 0, "rough": 0.92, "detail": 0.9, "grime": 0.45, "stains": 0.45, "bleach": 0.3, "two_side": true},
+	"camp_frame": {"set": "", "tint": 0, "rough": 0.4, "metal": 0.35, "grime": 0.35, "stains": 0.3, "bleach": 0.4},
+	"camp_saddle": {"set": "", "tint": 1, "base": Color(0.05, 0.05, 0.05), "rough": 0.6, "grime": 0.2},
+}
+const CAMP_TEXTURE_MEAN := {
+	"camp_nylon": [0.905, 0.956], "camp_tarp": [0.219, 0.362], "camp_cardboard": [0.301, 0.571],
+	"camp_ticking": [0.108, 0.327], "camp_wool": [0.171, 0.449], "camp_plastic": [0.002, 0.030],
+}
+## Every kit piece, for the loading screen to warm and the smoke test to check.
+const CAMP_PIECES := ["tent_dome", "tent_pop", "tarp_canopy", "tarp_mound", "cart", "bag_trash",
+	"bag_duffel", "bags_pile", "mattress", "bedding", "cardboard", "box", "chair", "bicycle",
+	"bike_wheel", "bike_frame"]
+
+
+## One encampment piece ("tent_dome", "cart", "bicycle"...) as a mesh wearing the camp materials,
+## through model_mesh() (LODs, its TRI_BUDGET, and a shadow proxy: the camp shader moves no
+## vertices, so a proxy's shadow is the piece's own).
+static func encampment(piece: String) -> Mesh:
+	var key := "encampment_" + piece
+	if _cache.has(key):
+		return _cache[key]
+	var mesh := model_mesh(ENCAMPMENT_KIT, PackedStringArray(["camp_" + piece]), [], Transform3D.IDENTITY, {}, true)
+	for s in mesh.get_surface_count():
+		var src := mesh.surface_get_material(s)
+		var mat_name := src.resource_name if src else ""
+		mesh.surface_set_material(s, camp_material(mat_name if CAMP_MATERIALS.has(mat_name) else "camp_nylon"))
+	_cache[key] = mesh
+	return mesh
+
+
+static func camp_material(mat_name: String) -> ShaderMaterial:
+	var key := "camp_mat_" + mat_name
+	if _cache.has(key):
+		return _cache[key]
+	var spec: Dictionary = CAMP_MATERIALS[mat_name]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/encampment_2side.gdshader" if spec.get("two_side", false) else "res://shaders/encampment.gdshader")
+	var set_key: String = spec.set
+	var albedo := texture(set_key, "Color") if set_key != "" else null
+	mat.set_shader_parameter("use_textures", albedo != null)
+	if albedo:
+		mat.set_shader_parameter("albedo_tex", albedo)
+		mat.set_shader_parameter("normal_tex", texture(set_key, "NormalGL"))
+		mat.set_shader_parameter("rough_tex", texture(set_key, "Roughness"))
+		var mean: Array = CAMP_TEXTURE_MEAN.get(set_key, [0.25, 0.5])
+		mat.set_shader_parameter("tex_mean_linear", mean[0])
+		mat.set_shader_parameter("tex_mean_srgb", mean[1])
+		mat.set_shader_parameter("tile_m", spec.get("tile", 0.6))
+	mat.set_shader_parameter("tint_source", spec.tint)
+	mat.set_shader_parameter("base_tint", spec.get("base", Color(0.5, 0.5, 0.5)))
+	mat.set_shader_parameter("tint_mul", spec.get("mul", 1.0))
+	mat.set_shader_parameter("roughness", spec.rough)
+	mat.set_shader_parameter("metallic", spec.get("metal", 0.0))
+	mat.set_shader_parameter("detail", spec.get("detail", 0.8))
+	mat.set_shader_parameter("grime", spec.get("grime", 0.4))
+	mat.set_shader_parameter("stains", spec.get("stains", 0.0))
+	mat.set_shader_parameter("bleach", spec.get("bleach", 0.0))
+	_cache[key] = mat
+	return mat
+
+
+## Every camp piece and material, for the loading screen to warm.
+static func camp_materials() -> Array:
+	for piece: String in CAMP_PIECES:
+		encampment(piece)
+	var out: Array = []
+	for mat_name: String in CAMP_MATERIALS:
+		out.append(camp_material(mat_name))
+	return out
+
+
 ## Wet streets: lowers the roughness of every cached road and sidewalk material (0 dry, 1 soaked).
 static var _wetness: float = -1.0
 static func set_wetness(w: float) -> void:
@@ -1900,6 +2067,87 @@ static func kit_material(mat_name: String) -> ShaderMaterial:
 	mat.set_shader_parameter("slice", not spec.get("mitre", false))
 	mat.set_shader_parameter("stripes", spec.get("stripes", false))
 	_cache[key] = mat
+	return mat
+
+
+## --- Traffic signals -------------------------------------------------------------------------
+## Mast-arm poles, arms, vehicle and pedestrian heads, push buttons and the controller cabinet,
+## modelled by tools/make_signals.py (one node per piece in traffic_signal.glb, dimensions in its
+## header) and placed by CityChunk._add_signal_corner(). The lenses are one shared material on
+## shaders/traffic_signal.gdshader, which lights each lamp from its instance's custom data and
+## the `signal_clock` global (TrafficSignals), so every head in the city is a MultiMesh instance
+## and nothing ticks per signal.
+const SIGNAL_MODEL := MODEL_DIR + "traffic_signal.glb"
+## Per signal material (the Blender name): texture set (triplanar, metres per tile) or none, the
+## colour it is tinted to, roughness and metallic.
+const SIGNAL_MATERIALS := {
+	"sig_steel": {"set": "metal_painted", "tile": 0.7, "color": Color(0.64, 0.65, 0.66), "rough": 0.55, "metal": 0.45},
+	"sig_steel_dark": {"set": "metal_painted", "tile": 0.5, "color": Color(0.21, 0.21, 0.22), "rough": 0.5, "metal": 0.4},
+	"sig_housing": {"set": "metal_painted", "tile": 0.45, "color": Color(0.045, 0.047, 0.044), "rough": 0.42, "metal": 0.0},
+	"sig_reflect": {"set": "", "color": Color(0.92, 0.68, 0.05), "rough": 0.42, "metal": 0.0},
+	"sig_sign": {"set": "", "color": Color(0.86, 0.86, 0.84), "rough": 0.5, "metal": 0.0},
+	"sig_cabinet": {"set": "metal_painted", "tile": 0.8, "color": Color(0.70, 0.72, 0.67), "rough": 0.5, "metal": 0.25},
+	"sig_concrete": {"set": "concrete", "tile": 1.6, "color": Color(1.2, 1.18, 1.12), "rough": 1.0, "metal": 0.0},
+}
+## The model's dimensions the placing code builds on (tools/make_signals.py; the smoke test
+## checks them against the loaded meshes' bounds): the arm collar's height on the pole, the arm's
+## unscaled length, how far a side-mount bracket reaches, the pole's height.
+const SIGNAL_ARM_Y := 6.55
+const SIGNAL_ARM_LENGTH := 8.0
+const SIGNAL_BRACKET_REACH := 0.55
+const SIGNAL_POLE_HEIGHT := 7.6
+
+
+## One signal piece ("sig_pole", "sig_head"...) wearing the signal materials, or an empty mesh
+## when the model is missing (CityChunk then builds the old primitive signal).
+static func signal_part(piece: String) -> Mesh:
+	var key := "signal_part_" + piece
+	if _cache.has(key):
+		return _cache[key]
+	var mesh := model_mesh(SIGNAL_MODEL, PackedStringArray([piece]), [], Transform3D.IDENTITY, {}, true)
+	for s in mesh.get_surface_count():
+		var src := mesh.surface_get_material(s)
+		mesh.surface_set_material(s, signal_material(src.resource_name if src else ""))
+	_cache[key] = mesh
+	return mesh
+
+
+static func signal_material(mat_name: String) -> Material:
+	if mat_name == "sig_lens":
+		return signal_lens_material()
+	var key := "signal_mat_" + mat_name
+	if _cache.has(key):
+		return _cache[key]
+	var spec: Dictionary = SIGNAL_MATERIALS.get(mat_name, SIGNAL_MATERIALS["sig_steel"])
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = spec.color
+	mat.roughness = spec.rough
+	mat.metallic = spec.metal
+	var set_key: String = spec.set
+	if set_key != "":
+		mat.albedo_texture = texture(set_key, "Color")
+		var normal := texture(set_key, "NormalGL")
+		if normal:
+			mat.normal_enabled = true
+			mat.normal_texture = normal
+			mat.normal_scale = 0.5
+		mat.uv1_triplanar = true
+		mat.uv1_world_triplanar = true
+		mat.uv1_scale = Vector3.ONE / float(spec.tile)
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_cache[key] = mat
+	return mat
+
+
+## The lens material every head shares. The cycle's four numbers come from TrafficSignals here,
+## so the shader never carries a copy of its own.
+static func signal_lens_material() -> ShaderMaterial:
+	if _cache.has("signal_lens_mat"):
+		return _cache["signal_lens_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/traffic_signal.gdshader")
+	mat.set_shader_parameter("timing", Vector4(TrafficSignals.GREEN, TrafficSignals.AMBER, TrafficSignals.ALL_RED, TrafficSignals.WALK_TIME))
+	_cache["signal_lens_mat"] = mat
 	return mat
 
 

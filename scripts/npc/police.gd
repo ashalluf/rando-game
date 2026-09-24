@@ -645,9 +645,7 @@ func spawn_cruiser(world_pos: Vector3, yaw: float, kind: String = "parked", is_h
 	car.police = self
 	car._plan = plan
 	car.goal = Vector2(world_pos.x, world_pos.z)
-	if car.get_parent() == null:
-		add_child(car)
-	car.global_transform = Transform3D(Basis(Vector3.UP, yaw), WorldState.to_local(world_pos))
+	_enter_at(car, Transform3D(Basis(Vector3.UP, yaw), WorldState.to_local(world_pos)))
 	car.traffic_speed = 0.0
 	car.go_physical()
 	cruisers.append(car)
@@ -905,7 +903,7 @@ func _dispatch() -> void:
 		var along := along0 + (-1.0 if _rng.randf() < 0.5 else 1.0) * _rng.randf_range(spawn_min, spawn_max)
 		var road := plan.road_pos(axis, index)
 		var p2 := Vector2(road, along) if axis == CityPlan.AXIS_X else Vector2(along, road)
-		if plan.zone_at(p2) != MacroMap.Zone.CITY:
+		if plan.zone_at(p2) != MacroMap.Zone.CITY or not plan.road_open(axis, index, along):
 			continue
 		var local := WorldState.to_local(Vector3(p2.x, pw.y, p2.y))
 		if attempt < 8 and cam and cam.is_position_in_frustum(local) and cam.global_position.distance_to(local) < 400.0:
@@ -925,12 +923,22 @@ func _dispatch() -> void:
 		p.x += lane
 	else:
 		p.y += lane
-	if car.get_parent() == null:
-		add_child(car)
 	var h := traffic._relief(p) if traffic else (plan.macro.relief_at(p) if plan.macro else 0.0)
-	car.global_transform = Transform3D(Basis(Vector3.UP, car._heading(pick[0], pick[2])), WorldState.to_local(Vector3(p.x, 0.55 + h, p.y)))
+	_enter_at(car, Transform3D(Basis(Vector3.UP, car._heading(pick[0], pick[2])), WorldState.to_local(Vector3(p.x, 0.55 + h, p.y))))
 	cruisers.append(car)
 	dispatched += 1
+
+
+## Puts a cruiser at scene transform `xf`: written in this node's space before a new or pooled
+## car enters the tree, so it never enters at the origin and jumps (a kinematic body takes that
+## jump as its velocity for a step - the aircraft trap in CLAUDE.md), and set directly on one
+## that is already in it.
+func _enter_at(car: PoliceCar, xf: Transform3D) -> void:
+	if car.get_parent() == null:
+		car.transform = global_transform.affine_inverse() * xf
+		add_child(car)
+	else:
+		car.global_transform = xf
 
 
 ## Two cruisers parked across the street ahead of a player driving along it, crews out behind.
@@ -955,7 +963,7 @@ func _place_roadblock() -> void:
 	var travel := signf(flat.y if axis == CityPlan.AXIS_X else flat.x)
 	var along := (pw.z if axis == CityPlan.AXIS_X else pw.x) + travel * roadblock_distance
 	var mid := Vector2(road, along) if axis == CityPlan.AXIS_X else Vector2(along, road)
-	if plan.zone_at(mid) != MacroMap.Zone.CITY:
+	if plan.zone_at(mid) != MacroMap.Zone.CITY or not plan.road_open(axis, index, along):
 		return
 	# Across the road: the cars' length runs across the carriageway.
 	var yaw := PI * 0.5 if axis == CityPlan.AXIS_X else 0.0

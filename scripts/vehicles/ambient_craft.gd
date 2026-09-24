@@ -204,10 +204,12 @@ func _fall(dt: float) -> void:
 		_explode(WorldState.to_local(world_pos))
 
 
-func _ground_between(from: Vector3, to: Vector3) -> Dictionary:
+func _ground_between(from: Vector3, to: Vector3, exclude: Array[RID] = []) -> Dictionary:
 	if not is_inside_tree() or from.is_equal_approx(to):
 		return {}
-	var q := PhysicsRayQueryParameters3D.create(from, to, GROUND_MASK, [get_rid()])
+	var skip: Array[RID] = [get_rid()]
+	skip.append_array(exclude)
+	var q := PhysicsRayQueryParameters3D.create(from, to, GROUND_MASK, skip)
 	return get_world_3d().direct_space_state.intersect_ray(q)
 
 

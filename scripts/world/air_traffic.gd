@@ -426,7 +426,7 @@ func _lots(ix: int, iz: int) -> Array:
 		for lot in plan.lots(ix, iz):
 			var centre: Vector2 = lot.center
 			var size: Vector2 = lot.size
-			var h := plan.lot_height(int(lot.seed), int(b.district), macro.skyline_boost(centre))
+			var h: float = float(lot.height) if lot.has("height") else plan.lot_height(int(lot.seed), int(b.district), macro.skyline_boost(centre))
 			out.append([Rect2(centre - size * 0.5, size), macro.height_at(centre) + h + ROOF_ALLOWANCE])
 	_block_lots[key] = out
 	return out

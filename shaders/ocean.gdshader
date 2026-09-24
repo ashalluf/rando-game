@@ -114,11 +114,22 @@ uniform vec2 world_offset = vec2(0.0);
 uniform float coast_base_x = -900.0;
 uniform float coast_wobble = 180.0;
 uniform float coast_period = 700.0;
-uniform vec2 peninsula_center = vec2(-780.0, 1980.0);
-uniform float peninsula_radius = 550.0;
-uniform float peninsula_bulge = 520.0;
-uniform float bay_z = 1460.0;
-uniform float bay_east_x = 400.0;
+// The Palos Verdes headland, an ellipse (MacroMap.peninsula_*): centre, semi-axes, and the
+// compass bearing of its major axis in degrees.
+uniform vec2 peninsula_center = vec2(-100.0, 5700.0);
+uniform float peninsula_axis_a = 2800.0;
+uniform float peninsula_axis_b = 1250.0;
+uniform float peninsula_bearing = 100.0;
+uniform float bay_z = 6300.0;
+uniform float bay_east_x = 1600.0;
+// The replica's authored waterline (ReplicaAreas.waterline_table(), Redondo pier to Malaga
+// Cove): COAST_TABLE samples of x from coast_table_z0, coast_table_dz apart, eased onto the
+// basin's sine over coast_table_blend metres north of it. coast_table_dz 0 means no table.
+const int COAST_TABLE = 64;
+uniform float coast_table[64];
+uniform float coast_table_z0 = 0.0;
+uniform float coast_table_dz = 0.0;
+uniform float coast_table_blend = 300.0;
 // Width of the surf zone: how far out a swell starts to feel the bottom and stand up.
 uniform float surf_width = 72.0;
 // How far up the sand the wash runs, and how fast it goes up and back.
@@ -268,10 +279,66 @@ float cloud_shade(vec2 w, vec3 L) {
 // plane's colour has to be reproduced from. Enclosed water (the harbour and port basins, which
 // sit east of the shoreline) gets a fixed offshore distance instead, so no surf line is drawn
 // across a dock.
+// MacroMap._main_coast_x(): the basin's sine, eased onto the replica's waterline table.
+float main_coast_x(float z) {
+	float x = coast_base_x + coast_wobble * sin(z / coast_period);
+	if (coast_table_dz > 0.0) {
+		float z1 = coast_table_z0 + coast_table_dz * float(COAST_TABLE - 1);
+		float t = smoothstep(coast_table_z0 - coast_table_blend, coast_table_z0, z);
+		if (t > 0.0) {
+			float f = (clamp(z, coast_table_z0, z1) - coast_table_z0) / coast_table_dz;
+			int j = clamp(int(floor(f)), 0, COAST_TABLE - 1);
+			int j1 = min(j + 1, COAST_TABLE - 1);
+			x = mix(x, mix(coast_table[j], coast_table[j1], clamp(f - float(j), 0.0, 1.0)), t);
+		}
+	}
+	return x;
+}
+
+
+// The headland's axes (MacroMap._headland_axes()).
+void headland_axes(out vec2 u, out vec2 v) {
+	float b = radians(peninsula_bearing);
+	u = vec2(sin(b), -cos(b));
+	v = vec2(-u.y, u.x);
+}
+
+
+// MacroMap.headland_west_x(): the headland's west shore at z, or a huge number off it.
+float headland_west_x(float z) {
+	vec2 u;
+	vec2 v;
+	headland_axes(u, v);
+	float aa = peninsula_axis_a * peninsula_axis_a;
+	float bb = peninsula_axis_b * peninsula_axis_b;
+	float zz = z - peninsula_center.y;
+	float al = u.x * u.x / aa + v.x * v.x / bb;
+	float be = u.x * u.y / aa + v.x * v.y / bb;
+	float ga = u.y * u.y / aa + v.y * v.y / bb;
+	float disc = be * be * zz * zz - al * (ga * zz * zz - 1.0);
+	if (disc < 0.0) {
+		return 1e9;
+	}
+	return peninsula_center.x + (-be * zz - sqrt(disc)) / al;
+}
+
+
+// MacroMap.headland_dist(): metres outside the headland's shore, negative inside.
+float headland_dist(vec2 p) {
+	vec2 u;
+	vec2 v;
+	headland_axes(u, v);
+	vec2 q = p - peninsula_center;
+	vec2 ax = vec2(peninsula_axis_a, peninsula_axis_b);
+	vec2 l = vec2(dot(q, u), dot(q, v));
+	float k0 = length(l / ax);
+	float k1 = length(l / (ax * ax));
+	return k1 < 0.000001 ? -min(ax.x, ax.y) : k0 * (k0 - 1.0) / k1;
+}
+
+
 vec2 shore_distance(vec2 p) {
-	float away = abs(p.y - peninsula_center.y);
-	float bulge = (1.0 - smoothstep(0.0, peninsula_radius * 1.2, away)) * peninsula_bulge;
-	float cx = coast_base_x + coast_wobble * sin(p.y / coast_period) - bulge;
+	float cx = min(main_coast_x(p.y), headland_west_x(p.y));
 	float d = cx - p.x;
 	// Signed, and kept signed: the bake only paints its surf band where this is positive, so
 	// enclosed water east of the shoreline (the harbour, the bay) gets none either.
@@ -283,7 +350,7 @@ vec2 shore_distance(vec2 p) {
 	if (d < 0.0) {
 		d = 300.0;
 	}
-	float pen = distance(p, peninsula_center) - peninsula_radius * 1.02;
+	float pen = headland_dist(p) - 2.0;
 	return vec2(min(d, max(pen, 0.0)), off);
 }
 

@@ -483,7 +483,17 @@ func has_eyes_on(target_world: Vector3, cone_deg: float = 6.0) -> bool:
 		return false
 	if (-gear.global_basis.z).angle_to(to) > deg_to_rad(cone_deg):
 		return false
-	return _ground_between(from, at).is_empty()
+	# Street furniture (lamps, signal mast arms) is a few centimetres thick and does not hide a man
+	# from a searchlight; the chunk's StreetProps body carries all of it, so look past that body.
+	var skip: Array[RID] = []
+	for i in 3:
+		var hit := _ground_between(from, at, skip)
+		if hit.is_empty():
+			return true
+		if not hit.collider is StreetProps:
+			return false
+		skip.append(hit.rid)
+	return false
 
 
 ## Points the gear at its target at once (stills: a software frame is too slow to swing it).

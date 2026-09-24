@@ -32,6 +32,9 @@ global uniform vec3 sun_direction;
 global uniform vec4 sky_tint;
 // Whether this renderer needs the instance colour decoded from sRGB. PropFactory sets it from
 // has_reflections(): true on Forward+ and Mobile, false on Compatibility (web, opengl3 shots).
+// (It was declared for months and never set or read - the far city was drawn 1.4-4.3x brighter
+// than the same buildings up close on the Mac, and changed value as each block crossed the LOD
+// line. Set and applied since the distance pass, 2026-09-24.)
 // Godot sRGB-decodes a `source_color` uniform but NOT a MultiMesh instance colour - the repo's
 // own two-renderer probe (header of shaders/foliage_tex.gdshader) found COLOR arriving identical
 // in both renderers, which is what proves it skips the decode. So on Forward+ this shader is
@@ -127,6 +130,20 @@ uniform float clutter_shadow = 0.22;
 uniform float detail_px_min = 1.2;
 uniform float detail_px_full = 3.2;
 
+// --- Ground: the far city's block plates and freeway decks (scripts/world/skyline.gd) ---
+// INSTANCE_CUSTOM.a 2 is a block plate: one box over the area a chunk owns, its top in the block's
+// average far-ground colour, with the chunk's two roads - on its +X and +Z sides, widths in
+// .r and .g - painted on here. 3 is a freeway deck (.r its width): an asphalt carriageway.
+// These are LINEAR, like the instance colours the plates carry (CityChunk.far_tint(), the same
+// numbers the LOD chunks' merged ground is drawn in), so no source_color hint.
+uniform vec3 plate_road_color = vec3(0.033, 0.033, 0.040);
+// Where the horizon plane hands over to the sky (macro_ground.gdshader edge_start / edge_end,
+// set by CityStreamer): the far city goes with it, or its last blocks stand on nothing.
+uniform float edge_start = 5040.0;
+uniform float edge_end = 6860.0;
+uniform vec3 deck_road_color = vec3(0.040, 0.040, 0.044);
+#include "res://shaders/street_glow.gdshaderinc"
+
 varying vec3 local_pos;
 varying vec3 local_normal;
 varying vec3 box_size;
@@ -156,6 +173,13 @@ float detail(float period, float mpp) {
 
 
 void vertex() {
+	// Per-instance dissolve. The far city (Skyline) writes each block's visibility into its
+	// instances' colour alpha while a chunk takes the block over or hands it back; the LOD chunks'
+	// own boxes always carry 1. At zero the box collapses to a point, so a block that a chunk is
+	// standing on costs no fragments at all.
+	if (COLOR.a < 0.004) {
+		VERTEX = vec3(0.0);
+	}
 	local_pos = VERTEX;
 	local_normal = NORMAL;
 	box_size = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
@@ -174,16 +198,24 @@ void fragment() {
 	// close-up detail blend further down, and a second one silently killed the WHOLE shader
 	// compile ("Redefinition of 'fade'"), which falls back to blank white on every far
 	// building. The headless gate passed 210/210 while that was true.
-	if (chunk_fade < 0.999) {
+	float dissolve = chunk_fade * tint.a;
+	if (dissolve < 0.999) {
 		// Interleaved-gradient noise: cheap, stable per pixel, and it breaks into a fine grain
 		// rather than the banding a plain ordered matrix gives on a big flat facade.
 		float d = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
-		if (chunk_fade < d) {
+		if (dissolve < d) {
 			discard;
 		}
 	}
 	vec3 n = normalize(local_normal);
-	vec3 c = tint.rgb;
+	// The palette entry as Building picked it (the typology test below is tuned to these numbers),
+	// and the same colour in the space this renderer lights in - see instance_color_is_srgb. The
+	// far city's ground plates already carry linear colours (CityChunk.far_tint), like the LOD
+	// chunks' merged ground, and are left alone.
+	vec3 c_raw = tint.rgb;
+	vec3 c = (instance_color_is_srgb && custom.a < 1.5)
+		? mix(c_raw / 12.92, pow((c_raw + vec3(0.055)) / 1.055, vec3(2.4)), step(vec3(0.04045), c_raw))
+		: c_raw;
 	float bseed = custom.b;
 	vec3 albedo = c;
 	float rough = 0.85;
@@ -202,7 +234,57 @@ void fragment() {
 	vec3 sun_n = normalize(sun_direction);
 	float day = 1.0 - night_factor;
 
-	if (abs(n.y) > 0.5) {
+	if (custom.a > 1.5) {
+		// --------------------------------------------------- Ground: plate / freeway deck ---
+		// Far enough away that this is all there is of the streets: a dark carriageway line
+		// between the blocks and, after dark, the sodium glow down it (the same pattern and level
+		// the LOD chunks' ground and the near roads use, street_glow.gdshaderinc, averaged to its
+		// mean once a lamp pool is under a pixel or two, or the far grid sparkles).
+		bool deck = custom.a > 2.5;
+		float aa = max(mpp * 1.2, 0.05);
+		float glow_detail = detail(street_glow_spacing * 0.5, mpp);
+		vec3 glow_mean = street_glow_color * (street_glow_base + street_glow_pool * 0.18);
+		if (n.y < 0.5) {
+			// Kerb face, earth under a plate on a slope, the deck's fascia.
+			albedo = c * (deck ? 0.92 : 0.55);
+			rough = 0.95;
+		} else if (deck) {
+			// Asphalt, the median and the two outer shoulders a shade lighter, which is what
+			// draws the carriageway's lines from the air.
+			float x = abs(local_pos.x) * box_size.x;
+			float half_w = 0.5 * box_size.x;
+			float line = (1.0 - smoothstep(0.35, 0.35 + aa, x)) + smoothstep(half_w - 1.6 - aa, half_w - 1.6, x);
+			albedo = mix(deck_road_color, deck_road_color * 3.2, clamp(line, 0.0, 1.0) * 0.5);
+			rough = 0.9;
+			if (lamp_factor > 0.001) {
+				vec3 g = street_glow(vec2(0.0, (local_pos.z + 0.5) * box_size.z), vec2(local_pos.x + 0.5), 1);
+				emission += mix(glow_mean, g, glow_detail) * street_glow_level();
+			}
+		} else {
+			// Metres from the plate's -X,-Z corner; the roads run along its +X and +Z edges.
+			vec2 p = (local_pos.xz + 0.5) * box_size.xz;
+			float rx = custom.r;
+			float rz = custom.g;
+			float in_x = rx > 0.01 ? smoothstep(box_size.x - rx - aa, box_size.x - rx + aa, p.x) : 0.0;
+			float in_z = rz > 0.01 ? smoothstep(box_size.z - rz - aa, box_size.z - rz + aa, p.y) : 0.0;
+			float road = max(in_x, in_z);
+			// A faint kerb line where pavement meets carriageway, the edge the eye finds first.
+			float kerb_x = rx > 0.01 ? 1.0 - smoothstep(0.0, 0.6 + aa, abs(p.x - (box_size.x - rx))) : 0.0;
+			float kerb_z = rz > 0.01 ? 1.0 - smoothstep(0.0, 0.6 + aa, abs(p.y - (box_size.z - rz))) : 0.0;
+			vec3 ground = c * (0.94 + 0.12 * hash21(floor(p / 9.0) + bseed));
+			albedo = mix(ground, plate_road_color, road);
+			albedo = mix(albedo, c * 1.25, max(kerb_x, kerb_z) * 0.35 * detail(1.2, mpp));
+			rough = 0.95;
+			if (lamp_factor > 0.001 && road > 0.01) {
+				// A junction square is lit evenly, a road along its own length.
+				int axis = (in_x > 0.5 && in_z > 0.5) ? 0 : (in_x > in_z ? 1 : 2);
+				float across = axis == 1 ? (p.x - (box_size.x - rx)) / max(rx, 0.01) : (p.y - (box_size.z - rz)) / max(rz, 0.01);
+				vec3 g = street_glow(p, vec2(across), axis);
+				emission += mix(glow_mean, g, glow_detail) * street_glow_level() * road;
+			}
+		}
+		spec = 0.12;
+	} else if (abs(n.y) > 0.5) {
 		// ---------------------------------------------------------------- Roof ------------
 		// Metres from the roof centre, and how far in from the nearest edge.
 		vec2 p = local_pos.xz * box_size.xz;
@@ -289,10 +371,10 @@ void fragment() {
 	} else {
 		// ------------------------------------------------------------- Facade ------------
 		float style = custom.r * 4.0;
-		float maxc = max(c.r, max(c.g, c.b));
-		float minc = min(c.r, min(c.g, c.b));
-		float lum = dot(c, vec3(0.299, 0.587, 0.114));
-		float warm = c.r - c.b;
+		float maxc = max(c_raw.r, max(c_raw.g, c_raw.b));
+		float minc = min(c_raw.r, min(c_raw.g, c_raw.b));
+		float lum = dot(c_raw, vec3(0.299, 0.587, 0.114));
+		float warm = c_raw.r - c_raw.b;
 		float sat = maxc - minc;
 
 		// Typology. 0 curtain wall, 1 precast panel, 2 stone / stucco punched, 3 brick.
@@ -641,6 +723,9 @@ void fragment() {
 		emission += refl_emit * mix(glaze_frac, glass, mix(0.30, 1.0, band_fade));
 	}
 
+	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xz));
+	albedo *= 1.0 - rim;
+	emission = mix(emission, sky_tint.rgb, rim);
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
 	METALLIC = 0.0;

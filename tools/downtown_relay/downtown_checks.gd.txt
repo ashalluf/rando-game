@@ -1,0 +1,196 @@
+extends RefCounted
+## Checks for downtown at 1:1 (DowntownReal), run from tests/smoke_test.gd after the skyline's
+## own checks. Loaded at run time so it compiles after the autoloads. Pure maths on the plan,
+## the tables and the macro map: nothing here streams the city.
+##
+## What it pins down: the real streets are roads on every seed, in the real order, at the real
+## block spacing; the towers and civic buildings stand at their geocoded positions (to within the
+## few metres a block's pavement clamps them by); a few real distances survive the turn onto the
+## game's axes; and the frame round the area is the real one - the 110 down the west edge, the
+## 101 across the north, the 10 to the south, the hills behind the civic centre, the airport to
+## the south-west.
+
+var _t: Node
+
+
+func run(t: Node, city: Node3D) -> void:
+	_t = t
+	var plan: CityPlan = city.get("plan")
+	if plan == null or plan.macro == null:
+		return
+	var macro: MacroMap = plan.macro
+	var other := CityPlan.new()
+	other.seed = 4242
+	other.block_size_range = plan.block_size_range
+	other.street_width = plan.street_width
+	other.avenue_width = plan.avenue_width
+	other.sidewalk_width = plan.sidewalk_width
+
+	# Every real street is a road, at its fitted position and width, named, on two seeds.
+	var missing := ""
+	for axis in 2:
+		for pin: Array in DowntownReal.pins()[axis]:
+			for p: CityPlan in [plan, other]:
+				var i := p._index_at(axis, float(pin[0]) + 0.01)
+				if absf(p.road_pos(axis, i) - float(pin[0])) > 0.01 or absf(p.road_width(axis, i) - float(pin[1])) > 0.01 \
+						or p.road_name(axis, i) != str(pin[2]):
+					missing += " %s(seed %d)" % [pin[2], p.seed]
+	_check(missing == "", "every real downtown street is a road on this seed and another, named%s" % missing)
+
+	# The real order: consecutive roads, west to east and north to south, with no seeded road
+	# between two real ones.
+	var order := ""
+	var avenues := ["GEORGIA ST", "FIGUEROA ST", "FLOWER ST", "HOPE ST", "GRAND AVE", "OLIVE ST", "HILL ST",
+		"BROADWAY", "SPRING ST", "MAIN ST", "ALAMEDA ST", "VIGNES ST"]
+	var streets := ["CESAR CHAVEZ AVE", "ARCADIA ST", "TEMPLE ST", "1ST ST", "2ND ST", "3RD ST", "4TH ST", "5TH ST",
+		"6TH ST", "WILSHIRE BLVD", "7TH ST", "8TH ST", "9TH ST", "OLYMPIC BLVD", "11TH ST", "PICO BLVD", "VENICE BLVD"]
+	for pair: Array in [[CityPlan.AXIS_X, avenues], [CityPlan.AXIS_Z, streets]]:
+		var axis: int = pair[0]
+		var names: Array = pair[1]
+		var first := plan._index_at(axis, _pin_pos(axis, names[0]) + 0.01)
+		for k in names.size():
+			if plan.road_name(axis, first + k) != names[k]:
+				order += " %s at %d is %s" % [names[k], first + k, plan.road_name(axis, first + k)]
+				break
+	_check(order == "", "the real streets run in the real order, one block apart%s" % order)
+
+	# True block spacing (centre line to centre line), from the fit: the avenues 120-130 m apart,
+	# the numbered streets 200 m, and a few exact ones.
+	var spacing := ""
+	for probe: Array in [[CityPlan.AXIS_X, "FIGUEROA ST", "FLOWER ST", 125.9], [CityPlan.AXIS_X, "HILL ST", "BROADWAY", 126.6],
+			[CityPlan.AXIS_X, "BROADWAY", "SPRING ST", 122.0], [CityPlan.AXIS_Z, "1ST ST", "2ND ST", 164.0],
+			[CityPlan.AXIS_Z, "4TH ST", "5TH ST", 202.5], [CityPlan.AXIS_Z, "5TH ST", "6TH ST", 200.2],
+			[CityPlan.AXIS_Z, "7TH ST", "8TH ST", 200.4], [CityPlan.AXIS_Z, "9TH ST", "OLYMPIC BLVD", 198.9]]:
+		var d := _pin_pos(probe[0], probe[2]) - _pin_pos(probe[0], probe[1])
+		if absf(d - float(probe[3])) > 0.6:
+			spacing += " %s-%s %.1f/%.1f" % [probe[1], probe[2], d, probe[3]]
+	for i in range(1, 8):
+		var d := _pin_pos(CityPlan.AXIS_X, avenues[i + 1]) - _pin_pos(CityPlan.AXIS_X, avenues[i])
+		if d < 118.0 or d > 132.0:
+			spacing += " %s-%s %.1f" % [avenues[i], avenues[i + 1], d]
+	for pair: Array in [["2ND ST", "3RD ST"], ["3RD ST", "4TH ST"], ["6TH ST", "7TH ST"], ["8TH ST", "9TH ST"], ["OLYMPIC BLVD", "11TH ST"]]:
+		var d := _pin_pos(CityPlan.AXIS_Z, pair[1]) - _pin_pos(CityPlan.AXIS_Z, pair[0])
+		if d < 195.0 or d > 212.0:
+			spacing += " %s-%s %.1f" % [pair[0], pair[1], d]
+	_check(spacing == "", "downtown's blocks are the real size: avenues ~125 m apart, numbered streets ~200 m%s" % spacing)
+
+	# Each tower stands at its geocoded point, clamped into its block by no more than a few metres.
+	var off_real := ""
+	var worst := 0.0
+	for id: String in LandmarkDowntown.TOWERS:
+		var d := LandmarkDowntown.anchor(id).distance_to(LandmarkDowntown.real_xz(id))
+		worst = maxf(worst, d)
+		if d > 30.0:
+			off_real += " %s %.0f m" % [id, d]
+	_check(off_real == "", "every downtown tower stands at its real position (worst %.1f m off)%s" % [worst, off_real])
+	var civic_off := ""
+	for id: String in CivicSites.ORDER:
+		var info := CivicSites.site(plan, id)
+		var d := (info.centre as Vector2).distance_to(CivicSites.real_xz(id))
+		if d > float(CivicSites.SITES[id].get("tolerance", 60.0)):
+			civic_off += " %s %.0f m" % [id, d]
+	_check(civic_off == "", "every civic building's site is centred on its real position%s" % civic_off)
+
+	# Real distances survive the turn: the game distance between two landmarks is the real one.
+	var dist := ""
+	var hall := CivicSites.real_xz("ziggurat_hall")
+	var arena := CivicSites.real_xz("arena")
+	var real_ha := DowntownReal.real_distance("200_n_spring", "1111_s_figueroa")
+	if absf(hall.distance_to(arena) - real_ha) > 1.0 or absf(real_ha - 2530.0) > 60.0:
+		dist += " hall-arena %.0f/%.0f" % [hall.distance_to(arena), real_ha]
+	for pair: Array in [["dt_sail_tower", "dt_crown_cylinder", "900_wilshire", "633_w_5th"],
+			["dt_five_drums", "dt_ellipse_crown", "404_s_figueroa", "555_w_5th"]]:
+		var g := LandmarkDowntown.anchor(pair[0]).distance_to(LandmarkDowntown.anchor(pair[1]))
+		var r := DowntownReal.real_distance(pair[2], pair[3])
+		if absf(g - r) > 30.0:
+			dist += " %s-%s %.0f/%.0f" % [pair[0], pair[1], g, r]
+	var station := CivicSites.real_xz("pueblo_station")
+	if absf(hall.distance_to(station) - DowntownReal.real_distance("200_n_spring", "800_n_alameda")) > 1.0:
+		dist += " hall-station"
+	_check(dist == "", "real distances survive the turn onto the grid (city hall to the arena %.0f m)%s" % [real_ha, dist])
+
+	# The frame: the civic centre north-east of the airport with the hills behind it, the arena
+	# south-west of city hall, the 110 down the west edge, the 101 across the north, the 10 below.
+	var frame := ""
+	var airport := macro.airport_rect
+	if not (hall.x > airport.end.x and hall.y < airport.position.y):
+		frame += " city hall not north-east of the airport"
+	if macro.raw_height_at(hall) > 0.5 or macro.raw_height_at(hall + Vector2(0.0, -1600.0)) < 80.0:
+		frame += " no hills north of the civic centre (%.0f m)" % macro.raw_height_at(hall + Vector2(0.0, -1600.0))
+	if macro.district_at(hall) != CityPlan.District.DOWNTOWN or macro.district_at(arena) != CityPlan.District.DOWNTOWN:
+		frame += " civic centre or arena not downtown"
+	if not (arena.x < hall.x and arena.y > hall.y):
+		frame += " arena not south-west of city hall"
+	var fw: Freeway = macro.freeway
+	var fig := _pin_pos(CityPlan.AXIS_X, "FIGUEROA ST")
+	var geo := _pin_pos(CityPlan.AXIS_X, "GEORGIA ST")
+	for street: String in ["5TH ST", "8TH ST", "OLYMPIC BLVD", "PICO BLVD"]:
+		var z := _pin_pos(CityPlan.AXIS_Z, street)
+		var hit := false
+		for x in range(int(geo) - 320, int(fig), 4):
+			if _route_blocks(fw, "110", Vector2(float(x), z)):
+				hit = true
+				break
+		if not hit:
+			frame += " no 110 west of Figueroa at %s" % street
+	var temple := _pin_pos(CityPlan.AXIS_Z, "TEMPLE ST")
+	var chavez := _pin_pos(CityPlan.AXIS_Z, "CESAR CHAVEZ AVE")
+	var spring := _pin_pos(CityPlan.AXIS_X, "SPRING ST")
+	var north := false
+	for z in range(int(chavez), int(temple), 4):
+		if _route_blocks(fw, "101", Vector2(spring, float(z))):
+			north = true
+	if not north:
+		frame += " no 101 north of Temple at Spring"
+	var venice := _pin_pos(CityPlan.AXIS_Z, "VENICE BLVD")
+	var south := false
+	for z in range(int(venice), int(venice) + 1200, 4):
+		if _route_blocks(fw, "10", Vector2(_pin_pos(CityPlan.AXIS_X, "BROADWAY"), float(z))):
+			south = true
+	if not south:
+		frame += " no 10 south of Venice at Broadway"
+	# No freeway deck runs through the core: the old cross route cut the Financial District.
+	for r: Rect2 in macro.downtown_core:
+		for i in 12:
+			for j in 12:
+				var p := r.position + r.size * Vector2((float(i) + 0.5) / 12.0, (float(j) + 0.5) / 12.0)
+				if fw.blocks(p, 0.0) and not frame.contains("core"):
+					frame += " a deck crosses the core at %s" % p
+	_check(frame == "", "downtown sits in its real frame: freeways round it, hills behind, the airport south-west%s" % frame)
+
+	# MacArthur Park's ground: its two sides are real roads, Wilshire runs between them, and it is
+	# at its real distance along Wilshire from Figueroa.
+	var mac: Dictionary = DowntownReal.MACARTHUR
+	var west := DowntownReal.to_game(Vector2(mac.west_u, 0.0)).x
+	var east := DowntownReal.to_game(Vector2(mac.east_u, 0.0)).x
+	var mac_ok := not DowntownReal.pin_at(CityPlan.AXIS_X, west).is_empty() and not DowntownReal.pin_at(CityPlan.AXIS_X, east).is_empty()
+	var along := fig - (west + east) * 0.5
+	var real_along := DowntownReal.grid_uv(DowntownReal.real_en(DowntownReal.POINTS.macarthur_park)).x
+	mac_ok = mac_ok and absf(along - (DowntownReal.AVENUES[3].u - real_along)) < 40.0
+	_check(mac_ok, "MacArthur Park's sides are real roads, %.0f m west of Figueroa along Wilshire" % along)
+
+
+func _pin_pos(axis: int, road_name: String) -> float:
+	for pin: Array in DowntownReal.pins()[axis]:
+		if str(pin[2]) == road_name:
+			return float(pin[0])
+	return NAN
+
+
+## True when the named freeway (its name starts with `number`) blocks `pos`.
+func _route_blocks(fw: Freeway, number: String, pos: Vector2) -> bool:
+	for route: Dictionary in fw.routes:
+		if not str(route.name).begins_with(number + " "):
+			continue
+		var pts: PackedVector2Array = route.points
+		for i in pts.size() - 1:
+			var a := pts[i]
+			var ab := pts[i + 1] - a
+			var f := clampf((pos - a).dot(ab) / maxf(ab.length_squared(), 0.001), 0.0, 1.0)
+			if pos.distance_to(a + ab * f) < float(route.width) * 0.5:
+				return true
+	return false
+
+
+func _check(ok: bool, label: String) -> void:
+	_t._check(ok, label)

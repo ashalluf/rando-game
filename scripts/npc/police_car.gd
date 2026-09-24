@@ -44,6 +44,23 @@ enum Mode { DISPATCH, PURSUE, STOPPED, PARKED, LEAVING }
 ## Siren loudness (dB) and how far it carries (m). A siren is meant to be heard blocks away.
 @export var siren_volume_db: float = -3.0
 @export var siren_distance: float = 420.0
+@export_group("Routing")
+## The route (StreetRoute) is worked out again this often (s), or at once when the goal moves
+## more than `route_moved` metres.
+@export var route_interval: float = 0.5
+@export var route_moved: float = 10.0
+## Under physics, a cruiser rams a player's car straight on only inside this range with a clear
+## line; further out it drives the streets like everyone else (m).
+@export var ram_range: float = 35.0
+## Speed through a right-angle turn and through a U-turn under physics, and how hard it brakes
+## for them (m/s, m/s squared).
+@export var corner_speed: float = 9.0
+@export var u_turn_speed: float = 4.0
+@export var route_brake: float = 7.0
+## How far ahead along the route a physics cruiser aims (m, at walking pace and at full chase).
+@export var look_ahead: Vector2 = Vector2(6.0, 16.0)
+## Pulling up at the kerb: the last this-many metres ease over from the lane (m).
+@export var kerb_approach: float = 26.0
 
 ## Paint: gloss black with white doors and roof.
 const POLICE_BLACK := Color(0.030, 0.031, 0.036)
@@ -84,6 +101,17 @@ var _day: Node
 var _light_timer: float = 0.0
 var _night: float = 0.0
 static var _bar_mesh: Mesh
+## The route: where to pull up (StreetRoute.kerb_stop), the junctions on the way from the next
+## one (ending at the stretch the stop is on), and under physics the lane polyline steered along.
+var _dest: Dictionary = {}
+var _nodes: Array[Vector2i] = []
+var _path_pts: PackedVector2Array = PackedVector2Array()
+var _path_i: int = 0
+var _route_t: float = 0.0
+var _route_goal := Vector2.INF
+## Where the route is going and whether the car should stop there (a kerb by a player on foot)
+## or only pass through (a search point, a player in a car).
+var _stop_at_dest: bool = false
 
 
 ## A new cruiser, set up but not yet in the tree. `rng` picks the phase of its lights so a row of
@@ -255,6 +283,11 @@ func _lights_on() -> bool:
 	return police != null and (police.stars > 0 or mode != Mode.LEAVING) and crew_alive > 0 or _stolen
 
 
+## True while the siren is going (TrafficManager pulls cars over for it).
+func siren_running() -> bool:
+	return _siren_on()
+
+
 func _siren_on() -> bool:
 	return police != null and police.stars > 0 and driver == null and crew_alive > 0 \
 			and (mode == Mode.DISPATCH or mode == Mode.PURSUE) and not roadblock
@@ -320,6 +353,18 @@ func begin_dispatch(plan: CityPlan, axis: int, index: int, dir: int, speed: floa
 	freeze = true
 	collision_mask = _mask()
 	mode = Mode.DISPATCH
+	_clear_route()
+
+
+## Forgets the route (a new dispatch, a trip back to the pool).
+func _clear_route() -> void:
+	_dest = {}
+	_nodes.clear()
+	_path_pts = PackedVector2Array()
+	_path_i = 0
+	_route_t = 0.0
+	_route_goal = Vector2.INF
+	_stop_at_dest = false
 
 
 ## The inside lane on the right-hand side of the road (the lane nearest the centre line).
@@ -335,28 +380,61 @@ func _heading(axis: int, dir: int) -> float:
 	return atan2(-d.x, -d.z)
 
 
-## Lane driving, the same geometry as TrafficManager._drive(), with the turn at each crossing
-## chosen toward `goal` instead of at random. Near a player the police can see, it engages.
+## Lane driving, the same geometry as the traffic's (TrafficManager._drive_street()), with the
+## turn at each crossing taken from the route (StreetRoute) to `goal`, running every red with the
+## siren going. A player in a car close enough is engaged under physics; for a player on foot the
+## cruiser stays on the lanes to the kerb nearest them and pulls up there.
 func _drive_lane(delta: float) -> void:
 	if _plan == null:
 		return
 	var t: Dictionary = traffic
 	var axis: int = t.axis
 	var dir: int = t.dir
-	traffic_speed = move_toward(traffic_speed, dispatch_speed * (0.6 if mode == Mode.LEAVING else 1.0), 10.0 * delta)
+	var index: int = t.index
 	var wp := WorldState.to_world(global_position)
-	if police and mode == Mode.DISPATCH and police.player_known():
+	if police and mode == Mode.DISPATCH and police.player_known() and police.player_driving():
 		var pp: Vector3 = police.player_world()
 		if Vector2(pp.x - wp.x, pp.z - wp.z).length() < engage_range:
 			go_physical()
 			return
 	var along := wp.z if axis == CityPlan.AXIS_X else wp.x
+	var known := police != null and police.player_known()
+	var on_foot := police != null and not police.player_driving()
+	_route_update(goal, [axis, index, dir], along, delta, mode == Mode.DISPATCH and known and on_foot)
+	var cruise := dispatch_speed * (0.6 if mode == Mode.LEAVING else 1.0)
+	var lateral: float = t.lane
+	# On the stretch the stop is on and short of it: slow, ease over to the kerb, pull up.
+	var to_stop := INF
+	if _stop_at_dest and _on_dest(axis, index, dir):
+		to_stop = (float(_dest.along) - along) * float(dir)
+		# Kept on the lanes all the way to the kerb point, and only handed to physics there
+		# (_pull_up()). Handing over on the last straight instead was tried: in a city already
+		# strewn with wrecks and bodies the physics approach got knocked off the road and stuck
+		# 60 m short, where the lanes cannot be.
+		if to_stop > -2.0 and to_stop < 150.0:
+			cruise = minf(cruise, sqrt(2.0 * route_brake * 0.75 * maxf(to_stop, 0.0)) + 0.4)
+			var ease := clampf(1.0 - to_stop / kerb_approach, 0.0, 1.0)
+			lateral = lerpf(float(t.lane), float(_dest.lateral), smoothstep(0.0, 1.0, ease))
+			if to_stop < 0.6:
+				_pull_up()
+				return
+		else:
+			to_stop = INF
+	traffic_speed = move_toward(traffic_speed, cruise, (10.0 if cruise > traffic_speed else 16.0) * delta)
 	var cross_axis := CityPlan.AXIS_Z if axis == CityPlan.AXIS_X else CityPlan.AXIS_X
 	var cross_index := _plan._index_at(cross_axis, along) + (1 if dir > 0 else 0)
 	var cross_pos := _plan.road_pos(cross_axis, cross_index)
-	var new_along := along + dir * traffic_speed * delta
+	var step := traffic_speed * delta
+	if to_stop < INF:
+		step = minf(step, maxf(to_stop, 0.0) + 0.02)
+	var new_along := along + dir * step
 	if (dir > 0 and new_along >= cross_pos) or (dir < 0 and new_along <= cross_pos):
-		var turn := _choose_turn(axis, int(t.index), dir, cross_axis, cross_index, wp)
+		var node := Vector2i(index, cross_index) if axis == CityPlan.AXIS_X else Vector2i(cross_index, index)
+		var turn := _route_turn(axis, index, dir, node)
+		if turn.is_empty():
+			turn = _choose_turn(axis, index, dir, cross_axis, cross_index, wp)
+		elif int(turn[0]) == axis and int(turn[1]) == index and int(turn[2]) == dir:
+			turn = []
 		if not turn.is_empty():
 			var n_axis: int = turn[0]
 			var n_index: int = turn[1]
@@ -376,12 +454,70 @@ func _drive_lane(delta: float) -> void:
 				at = Vector2(road + lane, wp.z) if n_axis == CityPlan.AXIS_X else Vector2(wp.x, road + lane)
 			_place(Vector3(at.x, 0.55 + _relief(at), at.y), _heading(n_axis, n_dir), 0.0)
 			return
-	var lane_pos: float = _plan.road_pos(axis, int(t.index)) + float(t.lane)
+	var lane_pos: float = _plan.road_pos(axis, index) + lateral
 	var p2 := Vector2(lane_pos, new_along) if axis == CityPlan.AXIS_X else Vector2(new_along, lane_pos)
 	var forward := Vector2(0.0, dir) if axis == CityPlan.AXIS_X else Vector2(dir, 0.0)
 	var here := _relief(p2)
 	var ahead := _relief(p2 + forward * 4.0)
 	_place(Vector3(p2.x, 0.55 + here, p2.y), _heading(axis, dir), atan2(ahead - here, 4.0))
+
+
+## Arrived at the kerb by the player: off the lanes into physics, braked, and the crew gets out
+## (STOPPED, then PARKED and Police.deploy_crew()).
+func _pull_up() -> void:
+	traffic_speed = 0.0
+	go_physical()
+	stop_here()
+
+
+## True when (axis, index, dir) is the carriageway the route ends on.
+func _on_dest(axis: int, index: int, dir: int) -> bool:
+	return not _dest.is_empty() and axis == int(_dest.axis) and index == int(_dest.index) and dir == int(_dest.dir)
+
+
+## Works the route out again (StreetRoute) when it is due or the goal has moved: where to pull up
+## for `goal2` (true world XZ), and the junctions from the next one on `road` ([axis, index, dir],
+## the car at `along`). `stop` says whether to pull up there or only pass through.
+func _route_update(goal2: Vector2, road: Array, along: float, delta: float, stop: bool) -> void:
+	_route_t -= delta
+	if _route_t > 0.0 and stop == _stop_at_dest and goal2.distance_to(_route_goal) < route_moved:
+		return
+	_route_t = route_interval
+	_route_goal = goal2
+	_stop_at_dest = stop
+	_dest = StreetRoute.kerb_stop(_plan, goal2, stop_distance if stop else 0.0)
+	_nodes.clear()
+	_path_pts = PackedVector2Array()
+	_path_i = 0
+	if _dest.is_empty():
+		return
+	if _on_dest(int(road[0]), int(road[1]), int(road[2])) and (float(_dest.along) - along) * float(road[2]) > 0.0:
+		# Already on the stretch's road, heading for it: straight on.
+		var ahead := StreetRoute.next_node(_plan, int(road[0]), int(road[1]), int(road[2]), along)
+		var exit_along := _plan.road_pos(CityPlan.AXIS_Z if int(road[0]) == CityPlan.AXIS_X else CityPlan.AXIS_X, ahead.y if int(road[0]) == CityPlan.AXIS_X else ahead.x)
+		if (exit_along - float(_dest.along)) * float(road[2]) > 0.0:
+			return
+	var start := StreetRoute.next_node(_plan, int(road[0]), int(road[1]), int(road[2]), along)
+	_nodes = StreetRoute.path(_plan, start, _dest.entry, road, [_dest.axis, _dest.index, _dest.dir])
+
+
+## At junction `node`: [axis, index, dir] of the road the route takes on from it, or [] when
+## there is no route to follow (the caller falls back to _choose_turn()).
+func _route_turn(axis: int, index: int, dir: int, node: Vector2i) -> Array:
+	if _dest.is_empty():
+		return []
+	var node_along := _plan.road_pos(CityPlan.AXIS_Z if axis == CityPlan.AXIS_X else CityPlan.AXIS_X, node.y if axis == CityPlan.AXIS_X else node.x)
+	if _on_dest(axis, index, dir) and (float(_dest.along) - node_along) * float(dir) > 0.0:
+		return [axis, index, dir]
+	if node == _dest.entry:
+		return [int(_dest.axis), int(_dest.index), int(_dest.dir)]
+	var k := _nodes.find(node)
+	if k < 0 or k + 1 >= _nodes.size():
+		_nodes = StreetRoute.path(_plan, node, _dest.entry, [axis, index, dir], [_dest.axis, _dest.index, _dest.dir])
+		k = 0
+		if _nodes.size() < 2:
+			return []
+	return StreetRoute.edge(node, _nodes[k + 1])
 
 
 ## At a crossing: [axis, index, dir] of the road to take, or [] to carry straight on. Turns onto
@@ -416,7 +552,11 @@ func _drivable(node: Vector2, axis: int, dir: int) -> bool:
 		var z := _plan.zone_at(node + step * d)
 		if z != MacroMap.Zone.CITY and z != MacroMap.Zone.BEACH:
 			return false
-	return true
+	# Not into a landmark's site, where the road is closed (CityPlan.road_open). Looked at past
+	# the crossing road's own width: inside it the road always reads open.
+	var coord := node.x if axis == CityPlan.AXIS_X else node.y
+	var along := (node.y if axis == CityPlan.AXIS_X else node.x) + float(dir) * 18.0
+	return _plan.road_open_at(axis, coord, along)
 
 
 func _place(world: Vector3, yaw: float, pitch: float) -> void:
@@ -448,6 +588,8 @@ func go_physical() -> void:
 	mode = Mode.PURSUE
 	_stuck_t = 0.0
 	_stuck_count = 0
+	_path_pts = PackedVector2Array()
+	_route_t = 0.0
 
 
 ## Shot or blasted on its way in: physics takes it, and it carries on the chase from there.
@@ -458,12 +600,17 @@ func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
 		mode = Mode.PURSUE
 
 
-## Driving at the target under physics.
+## Driving under physics: along the streets (StreetRoute) to the kerb nearest a player on foot, to
+## the search area, or after a player's car - straight at that car only once it is inside
+## `ram_range` with nothing in the way. The route is a lane polyline; the cruiser steers at a
+## point `look_ahead` along it and slows for the turns and for the stop. With no route (off the
+## grid) it falls back to steering straight at the target, as it always did.
 func _pursue(delta: float) -> void:
 	if police == null:
 		mode = Mode.PARKED
 		return
 	var in_car: bool = police.player_driving()
+	var known: bool = police.player_known()
 	var target: Vector3 = police.pursuit_target(self)
 	var to := target - global_position
 	to.y = 0.0
@@ -471,8 +618,6 @@ func _pursue(delta: float) -> void:
 	var fwd := -global_basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
-	var dir := to / maxf(dist, 0.01)
-	var ang := atan2(fwd.cross(dir).y, fwd.dot(dir))
 	var speed := linear_velocity.dot(-global_basis.z)
 	# Upside down or on its side for a while: the crew bails out where it lies.
 	if global_basis.y.y < 0.35:
@@ -482,28 +627,62 @@ func _pursue(delta: float) -> void:
 			return
 	else:
 		_flip_t = 0.0
+	var aim := target
+	var want := pursuit_speed
+	var routed := false
+	var direct := in_car and known and mode != Mode.LEAVING and dist < ram_range and police._clear_line(global_position + Vector3.UP, target)
+	if not direct and _plan != null:
+		var wp := WorldState.to_world(global_position)
+		var here := Vector2(wp.x, wp.z)
+		var road := StreetRoute.locate(_plan, here, Vector2(fwd.x, fwd.z))
+		if not road.is_empty():
+			var tw := WorldState.to_world(target)
+			var stop := mode != Mode.LEAVING and (not in_car or not known)
+			_route_update(Vector2(tw.x, tw.z), [road.axis, road.index, road.dir], float(road.along), delta, stop)
+			if _path_pts.is_empty() and not _dest.is_empty():
+				_path_pts = StreetRoute.polyline(_plan, here, [road.axis, road.index, road.dir], _nodes, _dest, PATH_LANE)
+				_path_i = 0
+		if _path_pts.size() >= 2:
+			var look := lerpf(look_ahead.x, look_ahead.y, clampf(absf(speed) / pursuit_speed, 0.0, 1.0))
+			var pt := _path_target(here, look)
+			var p2: Vector2 = pt[0]
+			aim = WorldState.to_local(Vector3(p2.x, wp.y, p2.y))
+			var turn: float = pt[2]
+			var v_turn := u_turn_speed if turn > 2.4 else lerpf(pursuit_speed, corner_speed, clampf(turn / (PI * 0.5), 0.0, 1.0))
+			want = minf(want, sqrt(v_turn * v_turn + 2.0 * route_brake * float(pt[1])))
+			if _stop_at_dest:
+				var to_end: float = pt[3]
+				want = minf(want, sqrt(2.0 * route_brake * 0.7 * maxf(to_end - 0.5, 0.0)))
+				if to_end < 1.6 and absf(speed) < 3.0:
+					stop_here()
+					return
+			routed = true
+	if not routed and (not in_car or mode == Mode.LEAVING or not known):
+		# No route: pull up short of the target and let the crew out, as before.
+		var stop_at := stop_distance if known else 6.0
+		want = clampf((dist - stop_at) * 1.1, 0.0, pursuit_speed)
+		if dist < stop_at + 3.0 and absf(speed) < 4.0:
+			stop_here()
+			return
+	var to_aim := aim - global_position
+	to_aim.y = 0.0
+	var aim_d := to_aim.length()
+	var dir := to_aim / maxf(aim_d, 0.01)
+	var ang := atan2(fwd.cross(dir).y, fwd.dot(dir))
 	if _reverse_t > 0.0:
 		_reverse_t -= delta
 		engine_force = reverse_power
 		brake = 0.0
 		steering = lerpf(steering, -signf(ang) * max_steer, 1.0 - exp(-steer_speed * delta))
 		return
-	var want := pursuit_speed
-	if not in_car or mode == Mode.LEAVING or not police.player_known():
-		# On foot (or hunting a last sighting): pull up short and let the crew out.
-		var stop_at := stop_distance if police.player_known() else 6.0
-		want = clampf((dist - stop_at) * 1.1, 0.0, pursuit_speed)
-		if dist < stop_at + 3.0 and absf(speed) < 4.0:
-			stop_here()
-			return
-	# Behind it and close: back round rather than circle.
-	if absf(ang) > 2.0 and dist < 22.0 and absf(speed) < 6.0:
+	# Pointing the wrong way and slow: back round rather than circle.
+	if absf(ang) > 2.0 and absf(speed) < 6.0 and (routed or aim_d < 22.0):
 		_reverse_t = reverse_seconds
 		return
 	steering = lerpf(steering, clampf(ang * steer_gain, -max_steer, max_steer), 1.0 - exp(-steer_speed * delta))
 	if speed < want:
 		var push := clampf((want - speed) / 6.0, 0.25, 1.0)
-		var nitro := nitro_multiplier if dist > 45.0 and absf(ang) < 0.3 else 1.0
+		var nitro := nitro_multiplier if dist > 45.0 and absf(ang) < 0.3 and not routed else 1.0
 		engine_force = -engine_power * push * nitro
 		brake = 0.0
 	else:
@@ -520,6 +699,57 @@ func _pursue(delta: float) -> void:
 				stop_here()
 	else:
 		_stuck_t = maxf(_stuck_t - delta, 0.0)
+
+
+## How far out from the centre line a physics cruiser's route runs (m): about the inside lane.
+const PATH_LANE := 2.1
+
+
+## Along the route polyline from the car at `here`: [the point `look` metres on, metres to the
+## next turn, how sharp that turn is (radians), metres to the end].
+func _path_target(here: Vector2, look: float) -> Array:
+	var pts := _path_pts
+	var n := pts.size()
+	var best_i := clampi(_path_i, 0, n - 2)
+	var best_t := 0.0
+	var best_d := INF
+	for i in range(best_i, mini(best_i + 4, n - 1)):
+		var ab := pts[i + 1] - pts[i]
+		var l2 := ab.length_squared()
+		var tt := clampf((here - pts[i]).dot(ab) / l2, 0.0, 1.0) if l2 > 1e-4 else 0.0
+		var d := here.distance_squared_to(pts[i] + ab * tt)
+		if d < best_d:
+			best_d = d
+			best_i = i
+			best_t = tt
+	_path_i = best_i
+	var pos := pts[best_i].lerp(pts[best_i + 1], best_t)
+	# The point `look` on.
+	var aim := pos
+	var left := look
+	var i := best_i
+	var from := pos
+	while i < n - 1:
+		var seg := from.distance_to(pts[i + 1])
+		if seg >= left:
+			aim = from.move_toward(pts[i + 1], left)
+			break
+		left -= seg
+		from = pts[i + 1]
+		aim = from
+		i += 1
+	# The next corner: the next vertex that is not the end, and its turn.
+	var to_turn := INF
+	var turn := 0.0
+	if best_i + 2 < n:
+		to_turn = pos.distance_to(pts[best_i + 1])
+		var a := (pts[best_i + 1] - pts[best_i]).normalized()
+		var b := (pts[best_i + 2] - pts[best_i + 1]).normalized()
+		turn = acos(clampf(a.dot(b), -1.0, 1.0))
+	var to_end := pos.distance_to(pts[best_i + 1])
+	for k in range(best_i + 1, n - 1):
+		to_end += pts[k].distance_to(pts[k + 1])
+	return [aim, to_turn, turn, to_end]
 
 
 ## Brakes hard; once it has stopped the Police node lets the crew out.
@@ -547,6 +777,8 @@ func resume_pursuit() -> void:
 	_stuck_count = 0
 	_reverse_t = 0.0
 	sleeping = false
+	_path_pts = PackedVector2Array()
+	_route_t = 0.0
 	mode = Mode.PURSUE if not is_traffic() else Mode.DISPATCH
 
 
@@ -586,4 +818,5 @@ func strip_for_pool() -> void:
 	_stolen = false
 	_stuck_count = 0
 	_reverse_t = 0.0
+	_clear_route()
 	mode = Mode.DISPATCH

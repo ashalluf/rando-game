@@ -189,11 +189,21 @@ func _push_ocean_shape() -> void:
 		_ocean.set_shader_parameter("coast_base_x", macro.get("coast_base_x"))
 		_ocean.set_shader_parameter("coast_wobble", macro.get("coast_wobble"))
 		_ocean.set_shader_parameter("coast_period", macro.get("coast_period"))
-		_ocean.set_shader_parameter("peninsula_bulge", macro.get("peninsula_bulge"))
 		_ocean.set_shader_parameter("peninsula_center", macro.get("peninsula_center"))
-		_ocean.set_shader_parameter("peninsula_radius", macro.get("peninsula_radius"))
+		var axes: Vector2 = macro.get("peninsula_axes")
+		_ocean.set_shader_parameter("peninsula_axis_a", axes.x)
+		_ocean.set_shader_parameter("peninsula_axis_b", axes.y)
+		_ocean.set_shader_parameter("peninsula_bearing", macro.get("peninsula_axis_bearing"))
 		_ocean.set_shader_parameter("bay_z", macro.get("bay_z"))
 		_ocean.set_shader_parameter("bay_east_x", macro.get("bay_east_x"))
+		# The replica's waterline, as the table the shader's main_coast_x() reads.
+		var rep: Variant = macro.get("replica")
+		if rep:
+			var table: Array = rep.waterline_table(64)
+			_ocean.set_shader_parameter("coast_table", table[2])
+			_ocean.set_shader_parameter("coast_table_z0", table[0])
+			_ocean.set_shader_parameter("coast_table_dz", table[1])
+			_ocean.set_shader_parameter("coast_table_blend", macro.get("replica_coast_blend"))
 	var wind := Vector2(rain_wind.x, rain_wind.z)
 	if wind.length() < 0.01:
 		wind = Vector2(1.0, 0.3)

@@ -34,6 +34,10 @@ extends SceneTree
 ## officer firing once, so the tracers and muzzle flashes are in the frame. HUD=1 (with --nohud,
 ## which skips the loading screen) puts the HUD back for the shot: the stars, the health bar and
 ## the police on the minimap.
+## STREET=queue|crossing stages the signalised junction ahead of the camera: a queue waiting at
+## its red, and for `crossing` people out on the crosswalk in front of it (see _stage_street for
+## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES). With --hour=21 it is the lit heads
+## at night.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -206,6 +210,14 @@ func _initialize() -> void:
 				_pose(player, anchor, hold, boost, fov)
 		else:
 			print("AIR: no AirTraffic in the scene")
+	# STREET=queue|crossing: a signalised junction ahead of the camera, a queue at its red, and
+	# for `crossing` people out on the crosswalk in front of it (see _stage_street).
+	var street_env := OS.get_environment("STREET")
+	if street_env != "" and current_scene:
+		_stage_street(street_env)
+		for i in _env_int("STREET_FRAMES", 8):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.
@@ -330,6 +342,105 @@ func _nearest_doll_body(near: Vector3) -> RigidBody3D:
 	return best
 
 
+## STREET=queue|crossing: the signalised junction nearest the point STREET_AHEAD metres ahead of
+## the camera (default 38) gets a red for the road the camera looks along, and STREET_CARS cars
+## (default 6) wait at its line in every lane of that approach, noses to the stop line; the
+## traffic stops placing its own there (TrafficManager.staged). `crossing` also puts STREET_PEDS
+## walkers (default 10) out on the crosswalk in front of the queue on their walking figure, from
+## both kerbs, at seeded points of the way over. Loaded, not named: this script compiles before
+## the autoloads exist.
+func _stage_street(kind: String) -> void:
+	var scene := current_scene
+	var plan: Variant = scene.get("plan")
+	var traffic := scene.get_node_or_null("Traffic")
+	var cam := get_root().get_camera_3d()
+	if plan == null or traffic == null or cam == null:
+		print("STREET: nothing to stage with")
+		return
+	var ws := root.get_node("/root/WorldState")
+	var signals: GDScript = load("res://scripts/world/traffic_signals.gd")
+	var cp: Vector3 = ws.to_world(cam.global_position)
+	var fwd := -cam.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized()
+	var ahead := Vector2(cp.x, cp.z) + Vector2(fwd.x, fwd.z) * _env_float("STREET_AHEAD", 38.0)
+	var bi: Vector2i = plan.block_index_at(ahead)
+	var node := Vector2i.ZERO
+	var best := INF
+	for dx in [0, 1]:
+		for dz in [0, 1]:
+			var n: Vector2i = bi + Vector2i(dx, dz)
+			if not signals.is_signal(plan, n.x, n.y):
+				continue
+			var d: float = (plan.intersection(n.x, n.y).pos as Vector2).distance_to(ahead)
+			if d < best:
+				best = d
+				node = n
+	if best == INF:
+		print("STREET: no signalised junction near ", ahead)
+		return
+	# The approach the camera looks along, driving away from it into the junction.
+	var axis := 0 if absf(fwd.z) >= absf(fwd.x) else 1
+	var dir := (1 if fwd.z > 0.0 else -1) if axis == 0 else (1 if fwd.x > 0.0 else -1)
+	var index: int = node.x if axis == 0 else node.y
+	var cross_axis := 1 - axis
+	var cross_index: int = node.y if axis == 0 else node.x
+	var cross_pos: float = plan.road_pos(cross_axis, cross_index)
+	var cw: float = plan.road_width(cross_axis, cross_index)
+	# Red for this approach, three seconds in: the cross street is a moment into its green, so the
+	# walking figure is up for anyone crossing in front of the queue.
+	signals.force(plan, node.x, node.y, axis, 2, 3.0)
+	traffic.set("staged", true)
+	var cars: Array = traffic.get("cars")
+	for c in cars.duplicate():
+		if is_instance_valid(c) and int(c.traffic.get("axis", -1)) == axis and int(c.traffic.get("index", -99999)) == index:
+			cars.erase(c)
+			traffic.call("_retire", c)
+	var line: float = cross_pos - float(dir) * (cw * 0.5 + float(traffic.get("stop_line_back")))
+	var width: float = plan.road_width(axis, index)
+	var lanes := 2 if width > float(plan.street_width) + 1.0 else 1
+	var per := int(ceil(float(_env_int("STREET_CARS", 6)) / float(lanes)))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([node, "street_shot"])
+	for n in lanes:
+		var nose := line - float(dir) * (0.6 + 2.5 * float(n))
+		for k in per:
+			var car: Node = traffic.call("place_car", axis, index, dir, n, line, 10.0, false)
+			car.traffic.v = 0.0
+			car.set("traffic_speed", 0.0)
+			var half: float = car.traffic.half
+			var along := nose - float(dir) * half
+			var lane: float = car.traffic.lane
+			var p2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == 0 else Vector2(along, plan.road_pos(axis, index) + lane)
+			var h: float = traffic.call("_relief", p2)
+			(car as Node3D).global_position = ws.to_local(Vector3(p2.x, 0.55 + h, p2.y))
+			nose = along - float(dir) * (half + float(traffic.get("min_gap")) + rng.randf_range(0.1, 1.4))
+	var placed := 0
+	if kind == "crossing":
+		# The crosswalk across this road on the near side of the junction, from both kerbs.
+		var pos: Vector2 = plan.intersection(node.x, node.y).pos
+		var side := -dir
+		for k in _env_int("STREET_PEDS", 10):
+			var q := 1 if k % 2 == 0 else -1
+			var qx := q if axis == 0 else side
+			var qz := side if axis == 0 else q
+			var b := Vector2i(node.x + (0 if qx > 0 else -1), node.y + (0 if qz > 0 else -1))
+			var chunk: Node3D = scene.get("chunks").get(b)
+			if chunk == null:
+				continue
+			var rect: Rect2 = plan.block(b.x, b.y).rect
+			var at := Vector2(rect.position.x + 2.0 if qx > 0 else rect.end.x - 2.0, rect.position.y + 2.5 if qz > 0 else rect.end.y - 2.5)
+			var ped: Node3D = load("res://scripts/npc/pedestrian.gd").new()
+			ped.call("setup", rect, float(plan.sidewalk_width), rng.randi())
+			ped.set("cross_chance", 0.0)
+			ped.position = Vector3(at.x, chunk.call("ground_y", at.x, at.y) + 0.1, at.y)
+			chunk.add_child(ped)
+			if ped.call("plan_crossing", axis):
+				ped.call("cross_now", rng.randf_range(0.08, 0.85))
+				placed += 1
+	print("STREET %s at junction %s: %d lanes, %d walkers on the crosswalk, light %d" % [kind, node, lanes, placed, signals.light(plan, node.x, node.y, axis)])
+
+
 static func _env_float(key: String, fallback: float) -> float:
 	var v := OS.get_environment(key)
 	return float(v) if v != "" else fallback
@@ -340,6 +451,7 @@ static func _env_float(key: String, fallback: float) -> float:
 func _pose(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
 	if player == null:
 		return
+	_eye(player, fov)
 	if boost:
 		Input.action_press("boost")
 	if hold != Vector3.INF:
@@ -354,6 +466,39 @@ func _pose(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: flo
 		if rig:
 			rig.set("camera_fov", fov)
 			rig.set("boost_fov_boost", 0.0)
+
+
+## EYE=x,y,z,yaw,pitch: a free camera at that TRUE world point (yaw 0 looks north, 90 west, as
+## --spawn does), the player hidden - for matching a reference photograph from a fixed viewpoint
+## (a Street View car's lens is about 2.5 m above the road). FOV is the vertical field of view.
+var _eye_cam: Camera3D
+
+
+func _eye(player: Node3D, fov: float) -> void:
+	var env := OS.get_environment("EYE")
+	if env == "":
+		return
+	var p := env.split(",")
+	if p.size() < 5:
+		return
+	var world_state := root.get_node_or_null("/root/WorldState")
+	var offset: Vector3 = world_state.get("world_offset") if world_state else Vector3.ZERO
+	var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float()) - offset
+	var player_cam := get_root().get_camera_3d() if _eye_cam == null else null
+	if _eye_cam == null:
+		_eye_cam = Camera3D.new()
+		_eye_cam.name = "EyeCamera"
+		root.add_child(_eye_cam)
+		if player_cam:
+			_eye_cam.attributes = player_cam.attributes
+			_eye_cam.far = player_cam.far
+			_eye_cam.near = player_cam.near
+		_eye_cam.make_current()
+	_eye_cam.fov = fov if fov > 0.0 else 45.0
+	_eye_cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
+	player.visible = false
+	# Keep the streaming centred where the camera is.
+	player.global_position = Vector3(at.x, player.global_position.y, at.z)
 
 
 static func _env_int(key: String, fallback: int) -> int:

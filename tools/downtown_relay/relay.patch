@@ -1,0 +1,1209 @@
+diff --git a/scripts/npc/traffic.gd b/scripts/npc/traffic.gd
+index cc1ad3d..0a0aa8b 100644
+--- a/scripts/npc/traffic.gd
++++ b/scripts/npc/traffic.gd
+@@ -153,8 +153,9 @@ func density_at(pos: Vector2) -> float:
+ 	var macro: MacroMap = plan.macro
+ 	if macro == null:
+ 		return 1.0
+-	var dd := pos.distance_to(macro.downtown_center)
+-	var d := lerpf(edge_density, 1.0, smoothstep(macro.midtown_radius * 1.6, macro.downtown_radius * 0.5, dd))
++	# Busiest across all of downtown (the 1:1 replica is 3.8 km from north to south), thinning
++	# over midtown round it.
++	var d := lerpf(edge_density, 1.0, smoothstep(macro.midtown_radius, 0.0, macro.downtown_distance(pos)))
+ 	var curb: Rect2 = macro.terminal_curb
+ 	var to_curb := (pos - pos.clamp(curb.position, curb.end)).length()
+ 	d = maxf(d, lerpf(1.0, edge_density, smoothstep(140.0, 480.0, to_curb)))
+diff --git a/scripts/world/air_traffic.gd b/scripts/world/air_traffic.gd
+index c75244a..5cff59b 100644
+--- a/scripts/world/air_traffic.gd
++++ b/scripts/world/air_traffic.gd
+@@ -48,7 +48,9 @@ extends Node3D
+ @export var glide_slope_deg: float = 3.0
+ @export var aim_inset: float = 190.0
+ ## The downwind leg runs north up this line (world x) and turns onto final with this radius.
+-@export var downwind_x: float = 1950.0
++## 1250, over Westlake: at 1950 the final turned in over downtown's south-west corner, among
++## 150-330 m towers, since downtown went in at 1:1 (DowntownReal).
++@export var downwind_x: float = 1250.0
+ @export var final_turn_radius: float = 750.0
+ ## Height kept over the city under the final: near the fence and from 2.5 km out (m).
+ @export var approach_clearance: Vector2 = Vector2(6.0, 80.0)
+diff --git a/scripts/world/city_plan.gd b/scripts/world/city_plan.gd
+index 3422849..6ba6ca2 100644
+--- a/scripts/world/city_plan.gd
++++ b/scripts/world/city_plan.gd
+@@ -18,25 +18,24 @@ const AXIS_Z := 1
+ ## multiplies people by up to 2x again (CityChunk._spawn_pedestrians).
+ const DISTRICTS := {
+ 	District.DOWNTOWN: {
+-		# 18 m at the bottom, not 50: a 50 m floor meant downtown had no low-rise in it at all
+-		# (the measured minimum was 50.0 m, the area-weighted 25th percentile 101.9 m), and a
+-		# skyline is the gap between the infill and the towers. 160 at the top at the district's
+-		# edge; toward the core the band lerps to core_height below (it used to lerp the top by
+-		# 2.3x, to 368 m - generic towers over the landmark ones).
+-		"height": Vector2(18.0, 160.0), "lot": Vector2(28.0, 46.0), "gap": Vector2(2.0, 5.0),
+-		# SLAB twice, for the infill. Every other shape here has a floor baked into
+-		# Building._layout_parts - a CROWN is never under 50 m, a SETBACK never under 40, a TOWER
+-		# never under 30, STEPPED never under 15 - so without a shape that has none the 18 m
+-		# bottom is unreachable. SLAB also caps itself at 40 m, which is the infill tier.
+-		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN, Building.Shape.CROWN, Building.Shape.STEPPED],
+-		# The financial core between the landmark towers (MacroMap.downtown_core, skyline_boost
+-		# 1): a field of 80-200 m towers, not low-rise with the odd spike. The band is what
+-		# lot_height() lerps to as the boost rises; the flatter curve moves the median up to
+-		# ~105 m where the district curve would leave it at 70; the top stops at 205 so the
+-		# named towers (163-335 m) keep the skyline's peaks to themselves. SLAB never goes over
+-		# 40 m (Building._layout_parts), so the core draws from shapes that can reach the height
+-		# the far tier (Skyline) draws for the lot.
+-		"core_height": Vector2(40.0, 205.0), "core_curve": 1.35,
++		# 14-80 m outside the core: at 1:1 (DowntownReal) the district is the whole real downtown,
++		# and the historic core, the civic centre, Little Tokyo and the east side are 12-storey city
++		# at the most (the 150-foot limit held until 1957); toward the core the band lerps to
++		# core_height below. (It was 18-160 for the old radial downtown; a skyline is the gap
++		# between the infill and the towers.)
++		"height": Vector2(14.0, 80.0), "lot": Vector2(30.0, 50.0), "gap": Vector2(2.0, 5.0),
++		# Mostly SLAB and STEPPED: every other shape has a floor baked into Building._layout_parts - a
++		# CROWN is never under 50 m, a SETBACK never under 40, a TOWER never under 30, STEPPED never
++		# under 15 - and would lift the historic core past its real height. SLAB caps itself at 40 m.
++		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.STEPPED, Building.Shape.SLAB, Building.Shape.PODIUM_TOWER, Building.Shape.STEPPED],
++		# The financial core and South Park between the landmark towers (MacroMap.downtown_core,
++		# skyline_boost 1). The band is what lot_height() lerps to as the boost rises. At 1:1 a core
++		# block is 125 x 200 m, three of the old ones, and a real one holds a few big buildings:
++		# bigger lots ("core_lot", lerped in by the boost like the heights), a median near 75 m and
++		# a top of 190 m, so the named towers (163-335 m) keep the skyline's peaks. SLAB never goes
++		# over 40 m (Building._layout_parts), so the core draws from shapes that can reach the
++		# height the far tier (Skyline) draws for the lot.
++		"core_height": Vector2(30.0, 190.0), "core_curve": 1.8, "core_lot": Vector2(40.0, 62.0),
+ 		"core_shapes": [Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN,
+ 			Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.STEPPED],
+ 		# Fewer pocket gardens between the towers of the core: 0.5 at the edge, 0.15 inside.
+@@ -45,7 +44,8 @@ const DISTRICTS := {
+ 		# glass towers around the named ones read as one dark mass in every wide shot.
+ 		"core_finishes": [Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.PANELS],
+ 
+-		"finishes": [Building.Finish.GLASS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS],
++		# Stone, brick and render outside the core, as the historic core is.
++		"finishes": [Building.Finish.PANELS, Building.Finish.BRICK, Building.Finish.FLAT, Building.Finish.PANELS, Building.Finish.GLASS],
+ 		"lit": Vector2(0.3, 0.6), "park": 0.05, "plaza": 0.12, "trees": 0.35, "courtyard": 0.5,
+ 		"cafes": 2, "planters": 1, "clutter": 0, "weathering": Vector2(0.1, 0.4), "line_white": 0.5,
+ 		"paving": [["pavers", 2.5, Color(1.07, 1.07, 1.07)], ["sidewalk", 3.0, Color(1.52, 1.52, 1.52)]],
+@@ -130,19 +130,15 @@ var industrial_start_radius: float = 260.0
+ ## Optional big-picture map. When set, it decides districts and zones (ocean, beach, hills).
+ var macro: MacroMap
+ 
+-## The downtown street grid, the same for every seed: [position, width] per road, per axis
+-## (AXIS_X: the north-south avenues, AXIS_Z: the east-west streets). The downtown towers are
+-## fixed landmarks (LandmarkDowntown) and each stands in a particular block, so the blocks have
+-## to be where the towers are whatever the seed - on any other seed an unpinned grid ran roads
+-## straight through them. These are the default seed's own roads, to the last bit, so that city
+-## does not move by a millimetre; on other seeds the seeded blocks either side stretch or split
+-## to meet them (_next_road).
+-const PINNED_ROADS := [
+-	[[409.37879180908203, 14.0], [507.7798385620117, 24.0], [589.1617813110352, 24.0], [660.7405776977539, 24.0],
+-		[734.894157409668, 24.0], [824.2449493408203, 14.0], [932.5944137573242, 24.0]],
+-	[[228.40353, 24.0], [337.9709, 14.0], [417.44156, 14.0], [536.65106, 24.0],
+-		[654.6276397705078, 24.0], [730.2834, 14.0], [837.092414855957, 24.0], [907.1332855224609, 14.0]],
+-]
++## The downtown street grid, the same for every seed: the real downtown's streets at 1:1
++## (DowntownReal.pins(): [position, width, name, run] per road, per axis - AXIS_X the avenues,
++## AXIS_Z the streets). The towers and the civic buildings are fixed landmarks on their real
++## blocks, so the blocks have to be the real ones whatever the seed. Consecutive real roads of one
++## run are adjacent (no seeded road between them, however long the real block); up to the first
++## and past the last of a run the seeded blocks stretch or split to meet them (_next_road,
++## _prev_road). A pinned road runs the whole length of the map, as the real ones mostly do.
++static func pinned_roads() -> Array:
++	return DowntownReal.pins()
+ 
+ var _industrial_quadrant: int = -1
+ var _road_pos: Array[Dictionary] = [{0: 0.0}, {0: 0.0}]
+@@ -180,7 +176,7 @@ func road_pos(axis: int, i: int) -> float:
+ 	var pos: float = cache[j]
+ 	while j > i:
+ 		j -= 1
+-		pos -= _block_size(axis, j)
++		pos = _prev_road(axis, j, pos)
+ 		cache[j] = pos
+ 	return pos
+ 
+@@ -190,10 +186,14 @@ func road_pos(axis: int, i: int) -> float:
+ ## (or, when the gap is more than a block and a half, a road halfway to it first).
+ func _next_road(axis: int, j: int, pos: float) -> float:
+ 	var step := _block_size(axis, j)
+-	for pin: Array in PINNED_ROADS[axis]:
++	var here := DowntownReal.pin_at(axis, pos)
++	for pin: Array in DowntownReal.pins()[axis]:
+ 		var at: float = pin[0]
+ 		if at <= pos + 1.0:
+ 			continue
++		# Inside a run of real streets the next real one is the next road, however far.
++		if not here.is_empty() and int(here[3]) == int(pin[3]):
++			return at
+ 		if pos + step > at - block_size_range.x:
+ 			var gap := at - pos
+ 			return pos + gap * 0.5 if gap > block_size_range.y + 10.0 else at
+@@ -201,15 +201,36 @@ func _next_road(axis: int, j: int, pos: float) -> float:
+ 	return pos + step
+ 
+ 
++## The same going DOWN the axis from road j + 1 at `pos` to road `j` (the block between them is
++## _block_size(axis, j), as it always was): the real streets below 0 (downtown's north, grid
++## north of 5th St) are met exactly as _next_road meets the ones above.
++func _prev_road(axis: int, j: int, pos: float) -> float:
++	var step := _block_size(axis, j)
++	var here := DowntownReal.pin_at(axis, pos)
++	var list: Array = DowntownReal.pins()[axis]
++	for k in range(list.size() - 1, -1, -1):
++		var pin: Array = list[k]
++		var at: float = pin[0]
++		if at >= pos - 1.0:
++			continue
++		if not here.is_empty() and int(here[3]) == int(pin[3]):
++			return at
++		if pos - step < at + block_size_range.x:
++			var gap := pos - at
++			return pos - gap * 0.5 if gap > block_size_range.y + 10.0 else at
++		return pos - step
++	return pos - step
++
++
+ func road_width(axis: int, i: int) -> float:
+ 	var cache: Dictionary = _road_width[axis]
+ 	if cache.has(i):
+ 		return cache[i]
+ 	var at := road_pos(axis, i)
+-	for pin: Array in PINNED_ROADS[axis]:
+-		if absf(float(pin[0]) - at) < 0.01:
+-			cache[i] = float(pin[1])
+-			return cache[i]
++	var pin := DowntownReal.pin_at(axis, at)
++	if not pin.is_empty():
++		cache[i] = float(pin[1])
++		return cache[i]
+ 	var is_avenue := posmod(i, avenue_every) == avenue_every - 1 or _rng_for(2 + axis, i, 0).randf() < 0.15
+ 	var w := avenue_width if is_avenue else street_width
+ 	cache[i] = w
+@@ -280,6 +301,16 @@ func block(ix: int, iz: int) -> Dictionary:
+ 		kind = BlockKind.MALL
+ 	elif roll < params.park + params.plaza + mall + bigbox and rect.size.x > 80.0 and rect.size.y > 80.0:
+ 		kind = BlockKind.BIGBOX
++	# Downtown at 1:1 is the real downtown: its real parks and plazas where they are, buildings on
++	# every other block (no seeded park in the middle of the Financial District). Also AFTER the roll.
++	if macro and DowntownReal.in_extent(rect.get_center()):
++		match DowntownReal.block_kind(rect.get_center()):
++			"plaza":
++				kind = BlockKind.PLAZA
++			"park":
++				kind = BlockKind.PARK
++			_:
++				kind = BlockKind.BUILDINGS
+ 	# A block a landmark stands on (the arena, city hall...) is that landmark's site: no park,
+ 	# plaza or mall of its own under it. Overridden AFTER the roll so the block's rng stream, and
+ 	# with it the block seed and everything built from it, is the same as it always was.
+@@ -310,6 +341,9 @@ func intersection(ix: int, iz: int) -> Dictionary:
+ 		kind = Intersection.SIGNALS if roll < 0.7 else Intersection.STOP_SIGNS
+ 	else:
+ 		kind = Intersection.STOP_SIGNS if roll < 0.6 else Intersection.PLAIN
++	# Downtown's real crossings are all signalled: no roundabout at Figueroa and Wilshire.
++	if macro and DowntownReal.in_extent(Vector2(road_pos(AXIS_X, ix), road_pos(AXIS_Z, iz))):
++		kind = Intersection.SIGNALS
+ 	var result := {"pos": Vector2(road_pos(AXIS_X, ix), road_pos(AXIS_Z, iz)), "kind": kind, "size": Vector2(wx, wz), "seed": rng.randi()}
+ 	_intersections[key] = result
+ 	return result
+@@ -364,6 +398,8 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
+ 	var rng := _rng_for(11, ix, iz)
+ 	var inner := rect.grow(-sidewalk_width)
+ 	var lot_range: Vector2 = params.lot
++	if macro and params.has("core_lot"):
++		lot_range = lot_range.lerp(params.core_lot, macro.skyline_boost(rect.get_center()))
+ 	var lot_w := rng.randf_range(lot_range.x, lot_range.y)
+ 	var lot_d := rng.randf_range(lot_range.x, lot_range.y)
+ 	var nx := maxi(1, floori(inner.size.x / lot_w))
+@@ -452,10 +488,17 @@ const ORDINALS := ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th"
+ ## A seeded name for a road: north-south roads (AXIS_X) are avenues and boulevards, east-west
+ ## roads (AXIS_Z) are streets, a third of them numbered.
+ func road_name(axis: int, index: int) -> String:
++	# Downtown's real streets carry their real (public) names.
++	var pin := DowntownReal.pin_at(axis, road_pos(axis, index))
++	if not pin.is_empty():
++		return str(pin[2])
+ 	var rng := _rng_for(9, axis, index)
+ 	var avenue := road_width(axis, index) > street_width + 1.0
+ 	if axis == AXIS_Z and rng.randf() < 0.35:
+-		return ORDINALS[posmod(index, ORDINALS.size())] + " ST"
++		var ordinal: String = ORDINALS[posmod(index, ORDINALS.size())] + " ST"
++		# Not a second 6th Street a kilometre from downtown's own.
++		if DowntownReal.named(axis, ordinal).is_empty():
++			return ordinal
+ 	var base: String = STREET_NAMES[rng.randi() % STREET_NAMES.size()]
+ 	if axis == AXIS_X:
+ 		return base.to_upper() + (" BLVD" if avenue else " AVE")
+diff --git a/scripts/world/city_streamer.gd b/scripts/world/city_streamer.gd
+index afcaf09..ab8698a 100644
+--- a/scripts/world/city_streamer.gd
++++ b/scripts/world/city_streamer.gd
+@@ -560,10 +560,17 @@ func update_streaming(immediate: bool) -> void:
+ 	_focus_block = center
+ 
+ 	var wanted := {}
++	# The LOD ring also stops where the far skyline starts (Skyline.draw_from, in metres): downtown's
++	# real blocks are up to 440 m long, so seven of them ran twice as far as the skyline tier's
++	# start and both drew the same city there.
++	var lod_reach := float(lod_radius_blocks) * plan.block_size_range.y
+ 	for dx in range(-lod_radius_blocks, lod_radius_blocks + 1):
+ 		for dz in range(-lod_radius_blocks, lod_radius_blocks + 1):
+ 			var ring := maxi(absi(dx), absi(dz))
+-			wanted[Vector2i(center.x + dx, center.y + dz)] = CityChunk.Level.FULL if ring <= load_radius_blocks else CityChunk.Level.LOD
++			var k := Vector2i(center.x + dx, center.y + dz)
++			if ring > load_radius_blocks and _block_distance(k, focus) > lod_reach:
++				continue
++			wanted[k] = CityChunk.Level.FULL if ring <= load_radius_blocks else CityChunk.Level.LOD
+ 	# Whatever the lead asks for, the ground actually under the player is always full detail.
+ 	# Leading the window alone would let a hard turn or a fast stop downgrade the block they are
+ 	# standing on, which is the one block that can never be a box.
+@@ -579,7 +586,12 @@ func update_streaming(immediate: bool) -> void:
+ 	# absent one. That is the hole in the world you see when moving fast. Upgrades and downgrades
+ 	# now go through _replace_chunk(), which builds first and removes afterwards.
+ 	for k in chunks.keys():
+-		if maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
++		# ... and a LOD chunk left behind past the skyline's start goes too (with 150 m of slack so
++		# one does not flicker in and out on the line), or it drew over the far tier all the way
++		# out to the keep radius - which in downtown's long blocks is 1.4 km.
++		var stale: bool = chunks[k].level == CityChunk.Level.LOD and not wanted.has(k) \
++				and _block_distance(k, Vector2(wp.x, wp.z)) > lod_reach + 150.0
++		if stale or maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
+ 			for id in chunks[k].built_landmarks:
+ 				_set_far_landmark_visible(id, true)
+ 			chunks[k].queue_free()
+@@ -679,6 +691,15 @@ func _build_skyline() -> void:
+ 	add_child(_skyline)
+ 
+ 
++## Metres from world XZ `p` to block `k`'s rect (0 inside it).
++func _block_distance(k: Vector2i, p: Vector2) -> float:
++	var x0 := plan.road_pos(CityPlan.AXIS_X, k.x)
++	var x1 := plan.road_pos(CityPlan.AXIS_X, k.x + 1)
++	var z0 := plan.road_pos(CityPlan.AXIS_Z, k.y)
++	var z1 := plan.road_pos(CityPlan.AXIS_Z, k.y + 1)
++	return Vector2(maxf(maxf(x0 - p.x, p.x - x1), 0.0), maxf(maxf(z0 - p.y, p.y - z1), 0.0)).length()
++
++
+ ## How soon a chunk gets built: by whichever it sits closer to, the led focus or the player.
+ ## Sorting by the focus alone starves the blocks beside the player the moment they turn hard,
+ ## because everything between them and the lead sorts ahead of it.
+diff --git a/scripts/world/civic_sites.gd b/scripts/world/civic_sites.gd
+index 9033034..fee7fd7 100644
+--- a/scripts/world/civic_sites.gd
++++ b/scripts/world/civic_sites.gd
+@@ -6,61 +6,64 @@ extends RefCounted
+ ## goal: real block sizes, real street layout, true distances) only has to change this table.
+ ##
+ ## Per landmark:
+-##   anchor     game world XZ that picks the block (the block centre for the default seed, 1337).
++##   real       the geocoded point it stands on (a key of DowntownReal.POINTS: OSM via Nominatim,
++##              by street address or place name); `latlon` is that point's latitude / longitude.
++##   at         optional: where to put the site instead, in DowntownReal grid metres (u, v) - for
++##              two sites sharing one block (the hotel takes the corner of Olympic and Georgia,
++##              the plaza the rest), where a geocoded point is a POI inside a complex.
+ ##   radius     flattens the city relief round it (MacroMap); kept inside the block.
+ ##   footprint  the most ground the builder may use, metres, in the landmark's OWN frame (x = its
+-##              width, z = its depth; the block's pavement ring always clips it further). Today
+-##              every one is bigger than its block, so the block decides; at 1:1 set the real
+-##              footprint and give it a block that size.
++##              width, z = its depth); the block's pavement ring always clips it further.
+ ##   yaw        degrees the as-built layout is turned about the site centre, in quarter turns
+ ##              only (0, 90, 180, 270; counter-clockwise seen from above, the Godot sense). At 0
+-##              each faces the way `faces` says.
+-##   faces      where its main front looks at yaw 0 (a note, for whoever re-lays it).
+-##   latlon     the real building's approximate latitude / longitude (degrees).
++##              each faces the way `faces` says; the table's yaw turns it to face its real street
++##              (`real_faces` less DowntownReal.GRID_BEARING_DEG, the grid's turn onto the axes).
++##   faces      where its main front looks at yaw 0 (a note).
+ ##   real_size  the real building's approximate footprint (metres) and height.
+ ##   real_faces compass bearing its real main front looks toward (degrees from true north).
+-## The real position in metres shares the skyline table's frame (LandmarkDowntown.TOWERS
+-## `real`), so one re-layout can place towers and civic buildings together: `real_en(id)` is
+-## metres east (x) and NORTH (y) of LandmarkDowntown.REAL_ORIGIN, exactly like a tower's `real`;
+-## `real_metres(id)` is the same point in the game's own sense (x east, z SOUTH: north is -Z);
+-## `real_grid(id)` turns it onto the real street grid (LandmarkDowntown.GRID_BEARING_DEG), which
+-## is what the game's axis-aligned grid wants.
+-##
+-## Everything here is approximate - read off public maps, not surveyed - and every NAME the game
+-## shows is invented (Minimap.LANDMARK_NAMES, the builders' *_NAME consts).
+-
+-const METRES_PER_DEG_LAT := 110574.0
+-## At the origin's latitude (111 320 x cos 34.05 degrees).
+-const METRES_PER_DEG_LON := 92240.0
++##   tolerance  metres the site's centre may sit from its real point (the checks): the block
++##              clamps it, and a few real points are POIs inside a complex.
++## Where one stands is `anchor(id)`: its real point (or `at`) through DowntownReal, at 1:1 on the
++## real grid; `site()` then puts the footprint there, as far as the block lets it. Every NAME the
++## game shows is invented (Minimap.LANDMARK_NAMES, the builders' *_NAME consts).
+ 
+ const SITES := {
+-	"arena": {"anchor": Vector2(352.2, 474.55), "radius": 44.0, "footprint": Vector2(240.0, 200.0), "yaw": 0,
++	"arena": {"real": "1111_s_figueroa", "latlon": Vector2(34.0429979, -118.2671352), "radius": 44.0,
++		"footprint": Vector2(240.0, 200.0), "yaw": 0, "tolerance": 60.0,
+ 		"faces": "north-east: the marquee corner and the main doors; glass north, east and west, service side south",
+-		"latlon": Vector2(34.0430, -118.2673), "real_size": Vector3(200.0, 45.0, 170.0), "real_faces": 45.0},
+-	"live_plaza": {"anchor": Vector2(352.2, 377.7), "radius": 28.0, "footprint": Vector2(300.0, 200.0), "yaw": 0,
++		"real_size": Vector3(200.0, 45.0, 170.0), "real_faces": 45.0},
++	"live_plaza": {"real": "800_w_olympic", "latlon": Vector2(34.0451075, -118.2664377), "at": Vector2(-655.0, 1004.0),
++		"radius": 28.0, "footprint": Vector2(145.0, 200.0), "yaw": 0, "tolerance": 115.0,
+ 		"faces": "south: the plaza opens to the street and the arena; theatre west, screen wall north",
+-		"latlon": Vector2(34.0446, -118.2665), "real_size": Vector3(280.0, 30.0, 180.0), "real_faces": 216.0},
+-	"live_hotel": {"anchor": Vector2(456.1, 377.7), "radius": 28.0, "footprint": Vector2(90.0, 70.0), "yaw": 0,
++		"real_size": Vector3(280.0, 30.0, 180.0), "real_faces": 216.0},
++	"live_hotel": {"real": "900_w_olympic", "latlon": Vector2(34.0452979, -118.2664820), "at": Vector2(-800.0, 940.0),
++		"radius": 28.0, "footprint": Vector2(90.0, 70.0), "yaw": 0, "tolerance": 90.0,
+ 		"faces": "long faces north and south; porte-cochere east",
+-		"latlon": Vector2(34.0452, -118.2657), "real_size": Vector3(70.0, 203.0, 35.0), "real_faces": 126.0},
+-	"convention_center": {"anchor": Vector2(352.2, 595.65), "radius": 42.0, "footprint": Vector2(600.0, 300.0), "yaw": 0,
++		"real_size": Vector3(70.0, 203.0, 35.0), "real_faces": 126.0},
++	"convention_center": {"real": "1201_s_figueroa", "latlon": Vector2(34.0414677, -118.2689803), "radius": 42.0,
++		"footprint": Vector2(600.0, 180.0), "yaw": 0, "tolerance": 60.0,
+ 		"faces": "north: the pavilions and the entrance plaza face the arena",
+-		"latlon": Vector2(34.0400, -118.2685), "real_size": Vector3(330.0, 25.0, 170.0), "real_faces": 36.0},
+-	"ziggurat_hall": {"anchor": Vector2(875.9, 170.75), "radius": 40.0, "footprint": Vector2(140.0, 110.0), "yaw": 0,
+-		"faces": "north: the portico and the steps face the park",
+-		"latlon": Vector2(34.0537, -118.2427), "real_size": Vector3(140.0, 138.0, 110.0), "real_faces": 306.0},
+-	"civic_park": {"anchor": Vector2(875.9, 59.05), "radius": 40.0, "footprint": Vector2(110.0, 500.0), "yaw": 0,
++		"real_size": Vector3(330.0, 25.0, 170.0), "real_faces": 36.0},
++	"ziggurat_hall": {"real": "200_n_spring", "latlon": Vector2(34.0536961, -118.2429212), "radius": 40.0,
++		"footprint": Vector2(140.0, 110.0), "yaw": 90, "tolerance": 20.0,
++		"faces": "north: the portico and the steps face the park (turned west, to Spring St and the park)",
++		"real_size": Vector3(140.0, 138.0, 110.0), "real_faces": 306.0},
++	"civic_park": {"real": "grand_park", "latlon": Vector2(34.0555008, -118.2456965), "radius": 40.0,
++		"footprint": Vector2(110.0, 500.0), "yaw": 0, "tolerance": 60.0,
+ 		"faces": "runs north-south: the fountain terrace at the north end, city hall off its south end",
+-		"latlon": Vector2(34.0560, -118.2460), "real_size": Vector3(500.0, 0.0, 110.0), "real_faces": 306.0},
+-	"concert_hall": {"anchor": Vector2(875.9, -49.55), "radius": 38.0, "footprint": Vector2(140.0, 110.0), "yaw": 0,
+-		"faces": "south-west: the entrance sails open over the corner facing the park and downtown",
+-		"latlon": Vector2(34.0553, -118.2498), "real_size": Vector3(110.0, 40.0, 90.0), "real_faces": 351.0},
+-	"lattice_museum": {"anchor": Vector2(782.05, -49.55), "radius": 30.0, "footprint": Vector2(80.0, 90.0), "yaw": 0,
++		"real_size": Vector3(500.0, 0.0, 110.0), "real_faces": 306.0},
++	"concert_hall": {"real": "111_s_grand", "latlon": Vector2(34.0554291, -118.2499126), "radius": 38.0,
++		"footprint": Vector2(140.0, 110.0), "yaw": 180, "tolerance": 20.0,
++		"faces": "south-west: the entrance sails open over the corner (turned north-east, to 1st and Grand)",
++		"real_size": Vector3(110.0, 40.0, 90.0), "real_faces": 351.0},
++	"lattice_museum": {"real": "221_s_grand", "latlon": Vector2(34.0544584, -118.2505943), "radius": 30.0,
++		"footprint": Vector2(80.0, 90.0), "yaw": 0, "tolerance": 25.0,
+ 		"faces": "south: the plaza and its grove; the dimple faces east, toward the concert hall",
+-		"latlon": Vector2(34.0544, -118.2502), "real_size": Vector3(70.0, 36.0, 60.0), "real_faces": 126.0},
+-	"pueblo_station": {"anchor": Vector2(1091.15, -49.55), "radius": 33.0, "footprint": Vector2(400.0, 250.0), "yaw": 0,
++		"real_size": Vector3(70.0, 36.0, 60.0), "real_faces": 126.0},
++	"pueblo_station": {"real": "800_n_alameda", "latlon": Vector2(34.0560576, -118.2358962), "radius": 33.0,
++		"footprint": Vector2(400.0, 250.0), "yaw": 0, "tolerance": 90.0,
+ 		"faces": "west: the forecourt, the arch and the clock tower; the platforms behind to the east",
+-		"latlon": Vector2(34.0562, -118.2365), "real_size": Vector3(260.0, 38.0, 70.0), "real_faces": 270.0},
++		"real_size": Vector3(260.0, 38.0, 70.0), "real_faces": 270.0},
+ }
+ 
+ ## Yaw by id, in degrees, overriding the table (the smoke test turns a landmark to prove the turn
+@@ -75,15 +78,25 @@ const ORDER := ["arena", "live_plaza", "live_hotel", "convention_center",
+ ## The Landmarks.all() entry for one site.
+ static func entry(id: String) -> Dictionary:
+ 	var s: Dictionary = SITES[id]
+-	return {"id": id, "anchor": s.anchor, "radius": s.radius, "site": "block"}
++	return {"id": id, "anchor": anchor(id), "radius": s.radius, "site": "block"}
++
++
++## Where a landmark is placed, world XZ: its real point through DowntownReal (or its `at`).
++static func anchor(id: String) -> Vector2:
++	var s: Dictionary = SITES[id]
++	if s.has("at"):
++		return DowntownReal.to_game(s.at)
++	return real_xz(id)
++
+ 
++## The real building's position in world XZ: its geocoded point, turned onto the grid at 1:1.
++static func real_xz(id: String) -> Vector2:
++	return DowntownReal.game_xz(SITES[id].latlon)
+ 
+-## The real building's position in metres east (x) and north (y) of the skyline's
+-## REAL_ORIGIN - the same frame as a tower's `real` in LandmarkDowntown.TOWERS.
++
++## The real building's position in metres east (x) and north (y) of DowntownReal.REAL_ORIGIN.
+ static func real_en(id: String) -> Vector2:
+-	var ll: Vector2 = SITES[id].latlon
+-	var o: Vector2 = LandmarkDowntown.REAL_ORIGIN
+-	return Vector2((ll.y - o.y) * METRES_PER_DEG_LON, (ll.x - o.x) * METRES_PER_DEG_LAT)
++	return DowntownReal.real_en(SITES[id].latlon)
+ 
+ 
+ ## The same point in the game's sense: x east, z south.
+@@ -92,28 +105,28 @@ static func real_metres(id: String) -> Vector2:
+ 	return Vector2(en.x, -en.y)
+ 
+ 
+-## The real position turned onto the real street grid, in the game's sense (x along the
+-## grid's "east", z along its "south"), exactly as LandmarkDowntown.real_grid() turns a tower's.
++## The real position turned onto the real street grid (x grid east, z grid south): DowntownReal.
+ static func real_grid(id: String) -> Vector2:
+-	var en := real_en(id)
+-	var b := deg_to_rad(LandmarkDowntown.GRID_BEARING_DEG)
+-	var grid_north := Vector2(sin(b), cos(b))
+-	var grid_east := Vector2(cos(b), -sin(b))
+-	return Vector2(en.dot(grid_east), -en.dot(grid_north))
++	return DowntownReal.grid_uv(real_en(id))
+ 
+ 
+ ## Where one landmark is built: {"world": the ground it may use in world XZ (axis-aligned),
+ ## "local": the same in its own frame, centred on the origin, "centre": world XZ, "yaw": radians,
+-## "y0": pavement height}. The block its anchor falls in, inside the pavement, clipped to the
+-## table's footprint.
++## "y0": pavement height}. The block its anchor falls in, inside the pavement; the footprint is
++## centred on the anchor as far as that block lets it (clamped in), and clipped to the block.
+ static func site(plan: CityPlan, id: String) -> Dictionary:
+ 	var s: Dictionary = SITES[id]
+-	var block := Landmarks.site_rect(plan, s.anchor)
++	var block := Landmarks.site_rect(plan, anchor(id))
+ 	var quarter := posmod(int(round(float(yaw_override.get(id, s.yaw)) / 90.0)), 4)
+ 	var fp: Vector2 = s.footprint
+ 	# The footprint is in the landmark's own frame; a quarter turn swaps it onto the map.
+ 	var fp_world := Vector2(fp.y, fp.x) if quarter % 2 == 1 else fp
+-	var c := block.get_center()
++	var c := anchor(id)
++	for axis in 2:
++		if fp_world[axis] >= block.size[axis]:
++			c[axis] = block.get_center()[axis]
++		else:
++			c[axis] = clampf(c[axis], block.position[axis] + fp_world[axis] * 0.5, block.end[axis] - fp_world[axis] * 0.5)
+ 	var world := block.intersection(Rect2(c - fp_world * 0.5, fp_world))
+ 	c = world.get_center()
+ 	var local_size := Vector2(world.size.y, world.size.x) if quarter % 2 == 1 else world.size
+diff --git a/scripts/world/freeway.gd b/scripts/world/freeway.gd
+index 9ce3d4c..4118304 100644
+--- a/scripts/world/freeway.gd
++++ b/scripts/world/freeway.gd
+@@ -68,46 +68,85 @@ func build(macro: MacroMap, seed_value: int) -> void:
+ 		z += STEP
+ 	_add_route("405 Coast Freeway", coast, rng)
+ 
+-	# 2. The cross route: west to east through the middle of the basin, south of downtown, with
+-	#    a long sweeping curve in it.
+-	var cross := PackedVector2Array()
+-	var x := macro.coast_x(560.0) + 60.0
+-	while x < macro.east_start_x + 300.0:
+-		cross.append(Vector2(x, 520.0 + 190.0 * sin(x / 780.0 + 0.6) + 60.0 * sin(x / 210.0)))
+-		x += STEP
++	# 2. The cross route (the 105): in from the coast just south of the airport and its runway
++	#    protection zone, across the basin, then round the south-west corner of downtown to cross
++	#    the 110 south of the 10 - where the real one crosses it, well below downtown - and on
++	#    east. It used to run through the middle of the basin at z 500, which at 1:1 (DowntownReal)
++	#    is straight through MacArthur Park and the Financial District.
++	var cz := macro.runway_clear_zone().end.y + 70.0
++	var cross := _spline(PackedVector2Array([
++		Vector2(macro.coast_x(cz) + 60.0, cz), Vector2(300.0, cz + 15.0), Vector2(1000.0, cz + 60.0),
++		Vector2(1420.0, cz + 420.0), Vector2(1640.0, 2240.0), Vector2(2150.0, macro.port_rect.position.y - 190.0),
++		Vector2(3100.0, macro.port_rect.position.y - 110.0), Vector2(macro.east_start_x - 200.0, macro.port_rect.position.y - 130.0)]))
+ 	_add_route("105 Century Freeway", cross, rng)
+ 
+-	# 3. The valley route: starts down in the basin, climbs through the pass in the front range
+-	#    and runs north across the inland valley. It starts a long way south on purpose - the
+-	#    climb to the valley floor is the whole run, and a short route cannot do it at a
+-	#    drivable grade.
+-	var valley := PackedVector2Array()
+-	var vz := 500.0
++	# 3. The valley route (the 101): along the north edge of downtown past the civic centre on
++	#    its real alignment (DowntownReal.FREEWAY_101) to the four-level interchange, west-south-
++	#    west from there - its real heading, which runs it into the pass - and north through the
++	#    pass in the front range and across the inland valley. The climb to the valley floor is
++	#    the whole northern run, and a short route could not make it at a drivable grade.
++	var valley := DowntownReal.freeway(DowntownReal.FREEWAY_101)
++	# The real line runs on west past the pass mouth; the route turns north into the pass instead.
++	valley.remove_at(valley.size() - 1)
++	valley.append(Vector2(1150.0, -1325.0))
++	valley.append(Vector2(macro.pass_center_x + 70.0, -1420.0))
+ 	var pass_z: float = (macro.hills_full_z + macro.valley_from_z) * 0.5
++	var vz := -1560.0
+ 	while vz > macro.valley_to_z - 700.0:
+ 		# Zero at the pass, so the route threads it and curves away either side.
+ 		var t := (vz - pass_z) / 1100.0
+ 		valley.append(Vector2(macro.pass_center_x + 210.0 * sin(t * 1.4), vz))
+-		vz -= STEP
+-	_add_route("5 Valley Freeway", valley, rng)
++		vz -= STEP * 6.0
++	_add_route("101 Hollywood Freeway", _spline(valley), rng)
+ 
+-	# 4. The harbour route: down out of downtown to the port, the short stubby one. A basin like
+-	#    this has a spur that exists only to move containers off the docks, and it is the reason
++	# 4. The harbour route (the 110): down the west edge of downtown on its real alignment
++	#    (DowntownReal.FREEWAY_110), from the four-level interchange past the arena to the 10,
++	#    and on south into the port - the spur that moves containers off the docks, and the reason
+ 	#    downtown and the port feel like one place rather than two.
+-	var harbour := PackedVector2Array()
+-	var hz := macro.downtown_center.y - 180.0
+-	var port_x: float = macro.port_rect.position.x + macro.port_rect.size.x * 0.45
+-	while hz < macro.port_rect.position.y + 120.0:
+-		var t := (hz - macro.downtown_center.y) / 900.0
+-		harbour.append(Vector2(lerpf(macro.downtown_center.x + 40.0, port_x, clampf(t, 0.0, 1.0)) + 70.0 * sin(hz / 430.0), hz))
+-		hz += STEP
+-	_add_route("110 Harbour Freeway", harbour, rng)
++	var harbour := DowntownReal.freeway(DowntownReal.FREEWAY_110)
++	harbour.append(Vector2(macro.port_rect.get_center().x, macro.port_rect.position.y + 120.0))
++	_add_route("110 Harbor Freeway", _spline(harbour), rng)
++
++	# 5. The 10: from the 110 east along the south of downtown (DowntownReal.FREEWAY_10) toward
++	#    the east range, whose grade trims it.
++	_add_route("10 Santa Monica Freeway", _spline(DowntownReal.freeway(DowntownReal.FREEWAY_10)), rng)
+ 
+ 	_separate_crossings()
+ 	_place_ramps(rng)
+ 	_index()
+ 
+ 
++## A smooth route through control points (a Catmull-Rom spline), resampled to one point every
++## STEP metres along the curve: the deck, the traffic and the bake all assume STEP.
++static func _spline(ctrl: PackedVector2Array) -> PackedVector2Array:
++	var fine := PackedVector2Array()
++	for i in ctrl.size() - 1:
++		var p0 := ctrl[maxi(i - 1, 0)]
++		var p1 := ctrl[i]
++		var p2 := ctrl[i + 1]
++		var p3 := ctrl[mini(i + 2, ctrl.size() - 1)]
++		var n := maxi(4, int(p1.distance_to(p2) / 4.0))
++		for k in n:
++			var t := float(k) / float(n)
++			var t2 := t * t
++			var t3 := t2 * t
++			fine.append(0.5 * ((2.0 * p1) + (p2 - p0) * t + (2.0 * p0 - 5.0 * p1 + 4.0 * p2 - p3) * t2
++				+ (3.0 * p1 - p0 - 3.0 * p2 + p3) * t3))
++	fine.append(ctrl[ctrl.size() - 1])
++	var out := PackedVector2Array([fine[0]])
++	var carry := 0.0
++	for i in range(1, fine.size()):
++		var a := fine[i - 1]
++		var seg := a.distance_to(fine[i])
++		while carry + seg >= STEP:
++			a = a.lerp(fine[i], (STEP - carry) / seg)
++			seg = a.distance_to(fine[i])
++			out.append(a)
++			carry = 0.0
++		carry += seg
++	return out
++
++
+ ## A route's deck height at one of its points: the ground below it plus the rise, smoothed and
+ ## grade-limited so it does not follow every bump in the terrain.
+ func _add_route(route_name: String, drawn: PackedVector2Array, rng: RandomNumberGenerator) -> int:
+@@ -192,6 +231,8 @@ func _separate_crossings() -> void:
+ 		for a in b:
+ 			var pa: PackedVector2Array = routes[a].points
+ 			var ha: PackedFloat32Array = routes[a].heights
++			if not _bounds(pa).intersects(_bounds(pb)):
++				continue
+ 			for j in pb.size() - 1:
+ 				for i in pa.size() - 1:
+ 					var t := _segments_cross(pa[i], pa[i + 1], pb[j], pb[j + 1])
+@@ -214,6 +255,13 @@ func _separate_crossings() -> void:
+ 		routes[b].heights = out
+ 
+ 
++static func _bounds(pts: PackedVector2Array) -> Rect2:
++	var r := Rect2(pts[0], Vector2.ZERO)
++	for p in pts:
++		r = r.expand(p)
++	return r.grow(2.0)
++
++
+ ## Where segment a0-a1 crosses b0-b1, as the fraction along b, or -1 if they do not cross.
+ static func _segments_cross(a0: Vector2, a1: Vector2, b0: Vector2, b1: Vector2) -> float:
+ 	var r := a1 - a0
+diff --git a/scripts/world/landmark_downtown.gd b/scripts/world/landmark_downtown.gd
+index 46421c6..e48864a 100644
+--- a/scripts/world/landmark_downtown.gd
++++ b/scripts/world/landmark_downtown.gd
+@@ -13,19 +13,13 @@ extends RefCounted
+ ## towers of South Park beside the frame of an unfinished cluster. What is NOT copied: names and
+ ## logos. Every name here and on the minimap is original, and there is no lettering on any crown.
+ ##
+-## Scale. Heights are REAL metres, 1:1 - the player jumps hundreds of metres, and a skyline is
+-## the ratio of its heights. The plan is the real street grid laid onto the game's own downtown
+-## streets one real block to one game block (about 2/3 scale; the game's blocks are 70-110 m
+-## where the real ones are 110-180), with each tower in the block it really stands on relative
+-## to its neighbours: west of the first avenue, the sail; the next avenue's blocks, the drums, the
+-## black twins, the pyramid and the curved tower; then the dark glass, bronze and white slabs;
+-## the round tower and the red pair up the hill; the blue crown and the rounded pair to the east.
+-## Footprints are close to real (0.8-1.0) so the towers keep their bulk, which leaves them a
+-## little closer together than in life - the way every skyline in a game is.
+-##
+-## The grid those blocks come from is the default seed's own, and CityPlan pins it for every
+-## seed (CityPlan.PINNED_ROADS), because these anchors are fixed and would otherwise stand in the
+-## road on any other seed.
++## Scale: 1:1, heights and plan (DowntownReal). Each tower stands at its geocoded position on the
++## real street grid turned onto the game's axes - the sail on Wilshire at Figueroa, the drums on
++## Figueroa at 4th, the black twins on Flower between 5th and 6th, the round tower on 5th between
++## Grand and Hope, the rounded pair and the red pair up Grand on Bunker Hill, the blue crown on
++## 5th at Olive, South Park's towers south of Olympic - at true distances from one another, on
++## real footprints (the pairs at their real spacing). CityPlan pins the real grid for every
++## seed (CityPlan.pinned_roads()), so the blocks are the real blocks whatever the seed.
+ ##
+ ## Construction: TowerMesh. Each tower is one ArrayMesh (facade surfaces on the building shader's
+ ## outline mode, a metal surface, a lit crown surface), a billboard mesh of aviation lights, an
+@@ -37,103 +31,94 @@ extends RefCounted
+ const BASE_Y := 0.25
+ 
+ ## THE downtown table: one row per tower, and the only place a tower's placement lives.
+-##   anchor     game world XZ of the plan's centre, in its block of the pinned grid (the current,
+-##              about-2/3-scale layout: one real block to one game block)
++##   real       the geocoded point(s) it stands on: keys of DowntownReal.POINTS (a street
++##              address or place, OSM via Nominatim); two keys for a pair of towers, whose
++##              midpoint the pair is built round. park_a..d are real South Park residential
++##              towers standing in for the district's slender towers, not copies of them.
+ ##   radius     half-extent the landmark reserves (lots, relief) - covers `plan`
+ ##   height     metres to the highest point, REAL (1:1); the smoke test checks the geometry
+-##   plan       metres, the extent of the plan as built (x, z), podium included
++##   plan       metres, the extent of the plan as built (x, z), podium included - real
++##              footprints, the pairs at their real spacing
+ ##   crown      what stands on top, in words
+-##   real       APPROXIMATE real position, metres east (x) and north (y) of REAL_ORIGIN, from the
+-##              tower's rough latitude / longitude (public maps, from memory: good to about
+-##              +/-50 m, check before a 1:1 re-lay). park_a..d are representative South Park
+-##              spots, not particular buildings.
+-##   real_plan  APPROXIMATE real footprint (m), for a 1:1 re-lay
+-## The builders below make each tower in its own local metres round (0, 0), so moving a tower
+-## is changing its anchor; nothing else knows where it stands.
++## Where a tower stands in the game is `anchor(id)`: its real point through DowntownReal's turn
++## and anchor, clamped into its block less the pavement (by a few metres at most - the smoke test
++## holds it under 30). The builders below make each tower in its own local metres round (0, 0),
++## +X grid east (along the streets), +Z grid south (down the avenues).
+ const TOWERS := {
+-	"dt_sail_tower": {"anchor": Vector2(456.1, 595.65), "radius": 43.0, "height": 335.0, "plan": Vector2(70.0, 84.0),
+-		"crown": "sloping glass sail rising east to a 35 m spire, on a stone hotel podium",
+-		"real": Vector2(-470.0, 11.0), "real_plan": Vector2(75.0, 45.0)},
+-	"dt_five_drums": {"anchor": Vector2(548.5, 377.7), "radius": 29.0, "height": 112.0, "plan": Vector2(49.0, 57.0),
+-		"crown": "flat tops; lit restaurant band near the top of the middle drum; glass lifts outside",
+-		"real": Vector2(-148.0, 300.0), "real_plan": Vector2(110.0, 110.0)},
+-	"dt_black_twins": {"anchor": Vector2(548.5, 474.55), "radius": 46.0, "height": 213.0, "plan": Vector2(42.0, 91.2),
+-		"crown": "flat; two identical black towers across a plaza",
+-		"real": Vector2(-171.0, 172.0), "real_plan": Vector2(48.0, 48.0)},
+-	"dt_pyramid_crown": {"anchor": Vector2(548.5, 590.0), "radius": 22.0, "height": 218.0, "plan": Vector2(42.0, 42.0),
+-		"crown": "stepped glass pyramid, lit green",
+-		"real": Vector2(-350.0, -55.0), "real_plan": Vector2(45.0, 45.0)},
+-	"dt_spire_pyramid": {"anchor": Vector2(548.5, 694.95), "radius": 19.0, "height": 163.0, "plan": Vector2(36.0, 36.0),
+-		"crown": "dark glass pyramid roof and a spire",
+-		"real": Vector2(-443.0, -155.0), "real_plan": Vector2(42.0, 42.0)},
+-	"dt_curved_white": {"anchor": Vector2(548.5, 781.2), "radius": 25.0, "height": 221.0, "plan": Vector2(48.0, 43.0),
+-		"crown": "three curved setbacks and a lit band",
+-		"real": Vector2(-516.0, -266.0), "real_plan": Vector2(55.0, 45.0)},
+-	"dt_bronze_slab": {"anchor": Vector2(624.95, 285.7), "radius": 27.0, "height": 224.0, "plan": Vector2(38.0, 52.0),
+-		"crown": "flat, corners cut",
+-		"real": Vector2(-28.0, 411.0), "real_plan": Vector2(60.0, 45.0)},
+-	"dt_dark_glass": {"anchor": Vector2(624.95, 377.7), "radius": 22.0, "height": 191.0, "plan": Vector2(38.0, 42.0),
+-		"crown": "two notched setbacks",
+-		"real": Vector2(-55.0, 311.0), "real_plan": Vector2(45.0, 45.0)},
+-	"dt_granite_slab": {"anchor": Vector2(624.95, 595.65), "radius": 30.0, "height": 262.0, "plan": Vector2(38.2, 58.2),
+-		"crown": "flat; dark mechanical band with one lit line",
+-		"real": Vector2(-184.0, -33.0), "real_plan": Vector2(61.0, 40.0)},
+-	"dt_park_a": {"anchor": Vector2(624.95, 694.95), "radius": 23.0, "height": 190.0, "plan": Vector2(38.0, 44.0),
+-		"crown": "violet lit top; balconies winding round the tower",
+-		"real": Vector2(-553.0, -555.0), "real_plan": Vector2(32.0, 32.0)},
+-	"dt_park_c": {"anchor": Vector2(624.95, 790.0), "radius": 15.0, "height": 160.0, "plan": Vector2(29.2, 29.2),
+-		"crown": "warm lit top; vertical fins",
+-		"real": Vector2(-323.0, -499.0), "real_plan": Vector2(30.0, 30.0)},
+-	"dt_faceted_twins": {"anchor": Vector2(697.8, 285.7), "radius": 40.0, "height": 220.0, "plan": Vector2(38.0, 78.0),
+-		"crown": "sloping glass tops facing apart (220 m and 192 m)",
+-		"real": Vector2(185.0, 283.0), "real_plan": Vector2(45.0, 45.0)},
+-	"dt_crown_cylinder": {"anchor": Vector2(697.8, 377.7), "radius": 22.0, "height": 310.0, "plan": Vector2(42.0, 42.0),
+-		"crown": "crenellated glass lantern, lit, and a helipad; wings step back in a spiral",
+-		"real": Vector2(74.0, 111.0), "real_plan": Vector2(50.0, 50.0)},
+-	"dt_park_b": {"anchor": Vector2(697.8, 767.0), "radius": 17.0, "height": 175.0, "plan": Vector2(31.2, 33.2),
+-		"crown": "ice-white lit top; staggered balconies",
+-		"real": Vector2(-369.0, -666.0), "real_plan": Vector2(30.0, 30.0)},
+-	"dt_plaza_one": {"anchor": Vector2(774.0, 267.0), "radius": 18.0, "height": 176.0, "plan": Vector2(35.0, 33.0),
+-		"crown": "flat, granite penthouse",
+-		"real": Vector2(415.0, 344.0), "real_plan": Vector2(40.0, 40.0)},
+-	"dt_round_crown": {"anchor": Vector2(789.0, 305.0), "radius": 20.0, "height": 229.0, "plan": Vector2(40.0, 38.0),
+-		"crown": "rounded glass barrel vault, lit warm, and a finial",
+-		"real": Vector2(378.0, 288.0), "real_plan": Vector2(45.0, 45.0)},
+-	"dt_ellipse_crown": {"anchor": Vector2(782.05, 458.0), "radius": 25.0, "height": 229.0, "plan": Vector2(47.0, 35.0),
+-		"crown": "elliptical blue glass crown, lit blue",
+-		"real": Vector2(184.0, 0.0), "real_plan": Vector2(55.0, 40.0)},
+-	"dt_park_d": {"anchor": Vector2(782.05, 694.95), "radius": 17.0, "height": 145.0, "plan": Vector2(33.4, 33.4),
+-		"crown": "blue lit top; boxed-out balconies",
+-		"real": Vector2(-231.0, -754.0), "real_plan": Vector2(30.0, 30.0)},
+-	"dt_unfinished": {"anchor": Vector2(782.05, 781.2), "radius": 40.0, "height": 190.0, "plan": Vector2(62.3, 78.0),
+-		"crown": "bare concrete frames on three towers, a tower crane on the tallest",
+-		"real": Vector2(-812.0, -810.0), "real_plan": Vector2(120.0, 100.0)},
++	"dt_sail_tower": {"real": ["900_wilshire"], "radius": 36.0, "height": 335.0, "plan": Vector2(70.0, 58.0),
++		"crown": "sloping glass sail rising east to a 35 m spire, on a stone hotel podium"},
++	"dt_five_drums": {"real": ["404_s_figueroa"], "radius": 47.0, "height": 112.0, "plan": Vector2(78.4, 91.2),
++		"crown": "flat tops; lit restaurant band near the top of the middle drum; glass lifts outside"},
++	"dt_black_twins": {"real": ["515_s_flower", "555_s_flower"], "radius": 72.0, "height": 213.0, "plan": Vector2(42.0, 143.7),
++		"crown": "flat; two identical black towers across a plaza"},
++	"dt_pyramid_crown": {"real": ["601_s_figueroa"], "radius": 22.0, "height": 218.0, "plan": Vector2(42.0, 42.0),
++		"crown": "stepped glass pyramid, lit green"},
++	"dt_spire_pyramid": {"real": ["725_s_figueroa"], "radius": 19.0, "height": 163.0, "plan": Vector2(36.0, 36.0),
++		"crown": "dark glass pyramid roof and a spire"},
++	"dt_curved_white": {"real": ["777_s_figueroa"], "radius": 25.0, "height": 221.0, "plan": Vector2(48.0, 43.0),
++		"crown": "three curved setbacks and a lit band"},
++	"dt_bronze_slab": {"real": ["333_s_hope"], "radius": 27.0, "height": 224.0, "plan": Vector2(38.0, 52.0),
++		"crown": "flat, corners cut"},
++	"dt_dark_glass": {"real": ["444_s_flower"], "radius": 22.0, "height": 191.0, "plan": Vector2(38.0, 42.0),
++		"crown": "two notched setbacks"},
++	"dt_granite_slab": {"real": ["707_wilshire"], "radius": 30.0, "height": 262.0, "plan": Vector2(38.2, 58.2),
++		"crown": "flat; dark mechanical band with one lit line"},
++	"dt_park_a": {"real": ["francisco_st_tower"], "radius": 23.0, "height": 190.0, "plan": Vector2(38.0, 44.0),
++		"crown": "violet lit top; balconies winding round the tower"},
++	"dt_park_c": {"real": ["1120_s_grand"], "radius": 15.0, "height": 160.0, "plan": Vector2(29.2, 29.2),
++		"crown": "warm lit top; vertical fins"},
++	"dt_faceted_twins": {"real": ["333_s_grand", "355_s_grand"], "radius": 67.0, "height": 220.0, "plan": Vector2(38.0, 132.1),
++		"crown": "sloping glass tops facing apart (220 m and 192 m)"},
++	"dt_crown_cylinder": {"real": ["633_w_5th"], "radius": 22.0, "height": 310.0, "plan": Vector2(42.0, 42.0),
++		"crown": "crenellated glass lantern, lit, and a helipad; wings step back in a spiral"},
++	"dt_park_b": {"real": ["1200_s_figueroa"], "radius": 17.0, "height": 175.0, "plan": Vector2(31.2, 33.2),
++		"crown": "ice-white lit top; staggered balconies"},
++	"dt_plaza_one": {"real": ["300_s_grand"], "radius": 18.0, "height": 176.0, "plan": Vector2(35.0, 33.0),
++		"crown": "flat, granite penthouse"},
++	"dt_round_crown": {"real": ["350_s_grand"], "radius": 20.0, "height": 229.0, "plan": Vector2(40.0, 38.0),
++		"crown": "rounded glass barrel vault, lit warm, and a finial"},
++	"dt_ellipse_crown": {"real": ["555_w_5th"], "radius": 25.0, "height": 229.0, "plan": Vector2(47.0, 35.0),
++		"crown": "elliptical blue glass crown, lit blue"},
++	"dt_park_d": {"real": ["770_s_grand"], "radius": 17.0, "height": 145.0, "plan": Vector2(33.4, 33.4),
++		"crown": "blue lit top; boxed-out balconies"},
++	"dt_unfinished": {"real": ["1101_s_flower"], "radius": 55.0, "height": 190.0, "plan": Vector2(86.8, 109.2),
++		"crown": "bare concrete frames on three towers, a tower crane on the tallest"},
+ }
+ 
+-## Where `real` is measured from: latitude, longitude (a point just north-west of the central
+-## square), and the bearing of the real street grid's "north" (the avenues run from about 45
+-## degrees east of true north). real_grid() turns `real` into grid-aligned metres, which is what
+-## an axis-aligned game grid wants.
+-const REAL_ORIGIN := Vector2(34.0500, -118.2550)
+-const GRID_BEARING_DEG := 45.0
++
++## World XZ of a tower's real point (the midpoint of a pair), before any clamp.
++static func real_xz(id: String) -> Vector2:
++	var keys: Array = TOWERS[id].real
++	var sum := Vector2.ZERO
++	for k: String in keys:
++		sum += DowntownReal.point(k)
++	return sum / float(keys.size())
++
++
++static var _anchors: Dictionary = {}
+ 
+ 
+-## A tower's approximate real position in the real grid's frame: x metres along the numbered
+-## streets (toward the old commercial core), y metres along the avenues toward the higher street
+-## numbers (so +y is "grid south", like the game's +Z).
+-static func real_grid(id: String) -> Vector2:
+-	var en: Vector2 = TOWERS[id].real
+-	var b := deg_to_rad(GRID_BEARING_DEG)
+-	var grid_north := Vector2(sin(b), cos(b))
+-	var grid_east := Vector2(cos(b), -sin(b))
+-	return Vector2(en.dot(grid_east), -en.dot(grid_north))
++## Where a tower stands: its real point, clamped so the plan stays inside its block less the
++## pavement (the pinned grid is the same on every seed, so this needs no plan).
++static func anchor(id: String) -> Vector2:
++	if _anchors.has(id):
++		return _anchors[id]
++	var at := real_xz(id)
++	var half: Vector2 = (TOWERS[id].plan as Vector2) * 0.5 + Vector2(0.5, 0.5)
++	var inner := DowntownReal.block_inner(at, 4.0)
++	if inner.size.x > 0.0:
++		at.x = clampf(at.x, inner.position.x + half.x, maxf(inner.end.x - half.x, inner.position.x + half.x))
++	if inner.size.y > 0.0:
++		at.y = clampf(at.y, inner.position.y + half.y, maxf(inner.end.y - half.y, inner.position.y + half.y))
++	_anchors[id] = at
++	return at
+ 
+ 
+ ## The landmark rows for Landmarks.all(), in the table's order.
+ static func entries() -> Array[Dictionary]:
+ 	var out: Array[Dictionary] = []
+ 	for id: String in TOWERS:
+-		out.append({"id": id, "anchor": TOWERS[id].anchor, "radius": TOWERS[id].radius})
++		out.append({"id": id, "anchor": anchor(id), "radius": TOWERS[id].radius})
+ 	return out
+ 
+ 
+@@ -391,7 +376,8 @@ static func _sail_tower(tm: TowerMesh, detail: TowerMesh) -> void:
+ 	tm.add_facade("podium", _facade("sail_podium", Building.Finish.PANELS, Building.WindowStyle.RIBBON,
+ 		Color(0.72, 0.70, 0.66), Color(0.28, 0.38, 0.46), Color(0.42, 0.41, 0.39), 0.55, 4.5, 1.8, 6.5))
+ 	tm.glow_material = _glow_material("sail", Color(0.30, 0.42, 0.52), 1, 1.5, 3.4, 0.4, 32.0)
+-	tm.prism(TowerMesh.chamfered(70.0, 84.0, 6.0), 0.0, 15.0, "podium")
++	# The podium fills the block between Wilshire and 7th (58 m of it inside the pavements).
++	tm.prism(TowerMesh.chamfered(70.0, 58.0, 6.0), 0.0, 15.0, "podium")
+ 	var plan := PackedVector2Array([Vector2(-26.0, -17.0), Vector2(26.0, -17.0), Vector2(31.0, 0.0),
+ 		Vector2(26.0, 17.0), Vector2(-26.0, 17.0), Vector2(-31.0, 0.0)])
+ 	tm.prism(plan, 15.0, 204.0, "glass", false, false)
+@@ -413,9 +399,9 @@ static func _sail_tower(tm: TowerMesh, detail: TowerMesh) -> void:
+ 	for z: float in [-8.0, 8.0]:
+ 		detail.box("metal", Vector3(36.8, 3.4, z), Vector3(0.3, 6.8, 0.3), DARK_STEEL)
+ 	# Pool deck and planters on the podium roof.
+-	detail.box("metal", Vector3(-18.0, 16.3, 28.0), Vector3(18.0, 0.4, 10.0), Color(0.20, 0.42, 0.52))
++	detail.box("metal", Vector3(-18.0, 16.3, 21.0), Vector3(18.0, 0.4, 7.0), Color(0.20, 0.42, 0.52))
+ 	for x: float in [-30.0, -10.0, 10.0]:
+-		detail.box("metal", Vector3(x, 16.6, -36.0), Vector3(6.0, 1.0, 2.0), Color(0.24, 0.36, 0.20))
++		detail.box("metal", Vector3(x, 16.6, -24.0), Vector3(6.0, 1.0, 2.0), Color(0.24, 0.36, 0.20))
+ 
+ 
+ ## 310 m. A granite cylinder with four square wings that end one after another as it climbs (a
+@@ -549,8 +535,9 @@ static func _faceted_twins(tm: TowerMesh, detail: TowerMesh) -> void:
+ 	tm.add_facade("granite", _facade("facet_granite", Building.Finish.PANELS, Building.WindowStyle.RIBBON,
+ 		Color(0.52, 0.31, 0.25), Color(0.30, 0.24, 0.18), Color(0.30, 0.18, 0.15), 0.4, 4.0, 1.5, 6.0))
+ 	tm.glow_material = _glow_material("facet", Color(0.30, 0.25, 0.20), 2, 2.0, 2.6, 0.35, 12.0)
+-	var north := Vector2(0.0, -20.5)
+-	var south := Vector2(0.0, 20.5)
++	# 95 m apart down Grand, as the geocoded pair stand (the table's plan follows).
++	var north := Vector2(0.0, -47.55)
++	var south := Vector2(0.0, 47.55)
+ 	tm.prism(TowerMesh.moved(TowerMesh.chamfered(38.0, 38.0, 10.0), north), 0.0, 196.0, "granite", false, false)
+ 	var nd := Vector2(-0.707, -0.707) * 0.33
+ 	tm.sloped(TowerMesh.moved(TowerMesh.chamfered(34.0, 34.0, 9.0), north), 196.0, 214.0, nd, north, "granite", Color(WARM.r, WARM.g, WARM.b, 0.8))
+@@ -597,21 +584,23 @@ static func _five_drums(tm: TowerMesh, detail: TowerMesh) -> void:
+ 	tm.add_facade("podium", _facade("drums_podium", Building.Finish.PANELS, Building.WindowStyle.RIBBON,
+ 		Color(0.60, 0.58, 0.55), Color(0.25, 0.28, 0.30), Color(0.40, 0.39, 0.37), 0.4, 5.0, 2.4))
+ 	tm.glow_material = _glow_material("drums", Color(0.36, 0.30, 0.22), 1, 1.4, 3.0, 0.4, 4.0)
+-	tm.prism(TowerMesh.chamfered(49.0, 57.0, 2.0), 0.0, 10.0, "podium", true)
+-	tm.prism(TowerMesh.circle(12.5, 44), 10.0, 110.9, "mirror")
++	# Real size (DowntownReal, 1:1): a 40 m middle drum and four of 28 m round it on a podium
++	# that fills most of the block from Figueroa to Flower - 1.6 times the old two-thirds plan.
++	tm.prism(TowerMesh.chamfered(78.4, 91.2, 3.2), 0.0, 10.0, "podium", true)
++	tm.prism(TowerMesh.circle(20.0, 56), 10.0, 110.9, "mirror")
+ 	for s: Vector2 in [Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)]:
+-		var c := Vector2(s.x * 15.0, s.y * 19.5)
+-		tm.prism(TowerMesh.moved(TowerMesh.circle(8.8, 36), c), 10.0, 102.9, "mirror")
++		var c := Vector2(s.x * 24.0, s.y * 31.2)
++		tm.prism(TowerMesh.moved(TowerMesh.circle(14.08, 44), c), 10.0, 102.9, "mirror")
+ 		tm.light(Vector3(c.x, 104.3, c.y), RED, 1.6, 0)
+-	tm.loft("glow", TowerMesh.circle(12.68, 44), 97.0, TowerMesh.circle(12.68, 44), 100.6, WARM, 1.0, false, false)
++	tm.loft("glow", TowerMesh.circle(20.29, 56), 97.0, TowerMesh.circle(20.29, 56), 100.6, WARM, 1.0, false, false)
+ 	# The lifts: glass shafts on the middle drum facing east and west, the cars lit inside.
+ 	for side: float in [-1.0, 1.0]:
+-		var x := side * 13.0
++		var x := side * 20.5
+ 		tm.box("glow", Vector3(x, 56.0, 0.0), Vector3(1.0, 90.0, 2.4), ICE, 0.0, 0.25)
+ 		for car in 3:
+ 			tm.box("glow", Vector3(x + side * 0.1, 22.0 + float(car) * 27.0 + side * 6.0, 0.0), Vector3(1.0, 3.0, 2.0), WARM, 0.0, 1.0)
+ 	tm.light(Vector3(0.0, 112.4, 0.0), RED, 2.0, 2)
+-	detail.box("metal", Vector3(0.0, 4.5, -29.0), Vector3(20.0, 0.4, 3.0), DARK_STEEL)
++	detail.box("metal", Vector3(0.0, 4.5, -46.4), Vector3(32.0, 0.4, 3.0), DARK_STEEL)
+ 
+ 
+ ## 213 m, twice. Two identical towers of black granite and near-black glass, flat topped, side by
+@@ -619,7 +608,8 @@ static func _five_drums(tm: TowerMesh, detail: TowerMesh) -> void:
+ static func _black_twins(tm: TowerMesh, detail: TowerMesh) -> void:
+ 	tm.add_facade("black", _facade("twin_black", Building.Finish.PANELS, Building.WindowStyle.NARROW,
+ 		Color(0.055, 0.055, 0.06), Color(0.07, 0.08, 0.09), Color(0.03, 0.03, 0.035), 0.36, 4.0, 1.3, 0.0, 8.0))
+-	for z: float in [-25.6, 25.6]:
++	# 104 m apart along Flower, as the geocoded pair stand.
++	for z: float in [-51.85, 51.85]:
+ 		var plan := TowerMesh.moved(TowerMesh.rect(42.0, 40.0), Vector2(0.0, z))
+ 		tm.prism(plan, 0.0, 211.9, "black")
+ 		_roof_lights(tm, plan, 213.3)
+@@ -766,28 +756,30 @@ static func _unfinished(tm: TowerMesh, _detail: TowerMesh) -> void:
+ 		Color(0.22, 0.30, 0.36), Color(0.28, 0.40, 0.48), Color(0.45, 0.47, 0.48), 0.0, 3.3, 1.5))
+ 	tm.add_facade("podium", _facade("unfinished_podium", Building.Finish.PANELS, Building.WindowStyle.RIBBON,
+ 		Color(0.56, 0.55, 0.52), Color(0.16, 0.18, 0.20), Color(0.36, 0.36, 0.35), 0.0, 5.0, 2.4))
+-	tm.prism(TowerMesh.rect(62.0, 78.0), 0.0, 16.0, "podium", true)
++	# Real size (1:1): the podium fills the block from Figueroa to Flower, the three towers 28 m
++	# square - 1.4 times the old two-thirds plan.
++	tm.prism(TowerMesh.rect(86.8, 109.2), 0.0, 16.0, "podium", true)
+ 	# [centre, glass top, frame top]
+-	var towers := [[Vector2(-17.0, -21.0), 104.0, 150.0], [Vector2(17.0, -21.0), 98.0, 140.0], [Vector2(0.0, 19.0), 118.0, 165.0]]
++	var towers := [[Vector2(-23.8, -29.4), 104.0, 150.0], [Vector2(23.8, -29.4), 98.0, 140.0], [Vector2(0.0, 26.6), 118.0, 165.0]]
+ 	for t: Array in towers:
+ 		var c: Vector2 = t[0]
+ 		var glass_top: float = t[1]
+ 		var frame_top: float = t[2]
+-		tm.prism(TowerMesh.moved(TowerMesh.rect(20.0, 20.0), c), 16.0, glass_top, "glass", false, false)
++		tm.prism(TowerMesh.moved(TowerMesh.rect(28.0, 28.0), c), 16.0, glass_top, "glass", false, false)
+ 		# The frame: a slab every floor, columns on a grid round the edge, a core up the middle.
+ 		var y := glass_top
+ 		while y <= frame_top + 0.1:
+-			tm.box("metal", Vector3(c.x, y + 0.18, c.y), Vector3(20.0, 0.36, 20.0), CONCRETE, 0.0, 0.0, false)
++			tm.box("metal", Vector3(c.x, y + 0.18, c.y), Vector3(28.0, 0.36, 28.0), CONCRETE, 0.0, 0.0, false)
+ 			y += 3.3
+ 		for i in 5:
+ 			for j in 5:
+ 				if i != 0 and i != 4 and j != 0 and j != 4:
+ 					continue
+-				var p := c + Vector2(-9.5 + float(i) * 4.75, -9.5 + float(j) * 4.75)
++				var p := c + Vector2(-13.3 + float(i) * 6.65, -13.3 + float(j) * 6.65)
+ 				tm.box("metal", Vector3(p.x, (glass_top + frame_top) * 0.5, p.y), Vector3(0.8, frame_top - glass_top, 0.8), CONCRETE)
+-		tm.box("metal", Vector3(c.x, (glass_top + frame_top) * 0.5 + 2.0, c.y), Vector3(6.0, frame_top - glass_top + 4.0, 6.0), CONCRETE, 0.0, 0.0, true)
++		tm.box("metal", Vector3(c.x, (glass_top + frame_top) * 0.5 + 2.0, c.y), Vector3(8.4, frame_top - glass_top + 4.0, 8.4), CONCRETE, 0.0, 0.0, true)
+ 	# The crane on the tallest: mast, jib, counter-jib, cab.
+-	var cc := Vector2(0.0, 19.0)
++	var cc := Vector2(0.0, 26.6)
+ 	tm.box("metal", Vector3(cc.x + 7.5, 177.0, cc.y), Vector3(2.0, 24.0, 2.0), CRANE)
+ 	tm.box("metal", Vector3(cc.x + 7.5 - 15.0, 189.2, cc.y), Vector3(42.0, 1.6, 1.6), CRANE)
+ 	tm.box("metal", Vector3(cc.x + 7.5 + 12.0, 189.2, cc.y), Vector3(14.0, 1.4, 1.4), CRANE)
+diff --git a/scripts/world/landmarks.gd b/scripts/world/landmarks.gd
+index 891d6fd..ff682f6 100644
+--- a/scripts/world/landmarks.gd
++++ b/scripts/world/landmarks.gd
+@@ -53,7 +53,8 @@ static func _list() -> Array[Dictionary]:
+ 		{"id": "campus_hall", "anchor": Vector2(-620.0, -520.0), "radius": 95.0},
+ 		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
+ 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
+-		{"id": "cargo_ship", "anchor": Vector2(800.0, 1420.0), "radius": 100.0},
++		# In the harbour basin, which moved south with the port when downtown went in at 1:1.
++		{"id": "cargo_ship", "anchor": Vector2(2400.0, 3420.0), "radius": 100.0},
+ 		# The LA set. Anchors are placed the way the real chain runs: the boardwalk on the sand
+ 		# at Venice, a straight pier off Manhattan Beach, the timber horseshoe at Redondo where
+ 		# the coast meets the headland, the enclosed mall inland behind them, a corner coffee
+@@ -71,7 +72,10 @@ static func _list() -> Array[Dictionary]:
+ 		# the forecourt straddling the carriageway. This anchor is the middle of the block
+ 		# bounded by those two roads, set so the gate steps stop just short of the south
+ 		# pavement. Radius 52 covers the 45 m from the hall centre to the gate steps.
+-		{"id": "masjid_al_noor", "anchor": Vector2(-235.7, 165.2), "radius": 52.0},
++		# z 139, not 165.2: 6th Street (downtown's, pinned across the map at z 200) now bounds this
++		# block on the south, and the steps stop short of its pavement as they stopped short of the
++		# old road's.
++		{"id": "masjid_al_noor", "anchor": Vector2(-235.7, 139.0), "radius": 52.0},
+ 		# --- Downtown LA civic set (owner, 2026-09-24: "downtown must match real downtown LA,
+ 		# we need staple center we need all day"). Real FORMS in their real places relative to
+ 		# the core; every NAME is invented (LandmarkArenaDistrict, LandmarkCivicCenter).
+diff --git a/scripts/world/macro_map.gd b/scripts/world/macro_map.gd
+index 7f7d3b8..9567dbc 100644
+--- a/scripts/world/macro_map.gd
++++ b/scripts/world/macro_map.gd
+@@ -44,9 +44,22 @@ var back_start_z: float = -3300.0
+ var back_full_z: float = -4400.0
+ var back_height: float = 1150.0
+ ## And a range closing the basin off to the east, so the city is a bowl rather than a sprawl
+-## that runs to the edge of the world in one direction.
+-var east_start_x: float = 1900.0
+-var east_full_x: float = 2900.0
++## that runs to the edge of the world in one direction. Pushed out 3.1 km when downtown went in
++## at 1:1 (DowntownReal): the real downtown alone is 2.3 km across from the 110 to Vignes, and
++## east of it runs the Arts District and Boyle Heights before anything like a hill.
++var east_start_x: float = 5000.0
++var east_full_x: float = 6000.0
++## The bay in the mountains above downtown. East of the pass the real range ends (the Cahuenga
++## Pass is where the mountains with the sign stop) and north of the civic centre stand only the
++## low Elysian hills, with the river's gap into the valley beyond. So over this X window the whole
++## north - front range, valley floor and back range - steps back `embay_depth` metres and the front
++## range drops to `embay_scale` of its height: without it the 1:1 downtown's north edge (Union
++## Station, Cesar Chavez Ave) would stand on the flank of a 560 m mountain. The window's ramps are
++## (x, y) in and (z, w) out; the west ramp starts inside the pass so no spur of mountain is left
++## standing between the pass and the bay for the 101 to climb over.
++var embay_depth: float = 1250.0
++var embay_x: Vector4 = Vector4(800.0, 1450.0, 4100.0, 4700.0)
++var embay_scale: float = 0.4
+ var east_height: float = 540.0
+ ## Where the northern coastal shelf starts and is fully cut (Z; north is negative), how far
+ ## inland it reaches before the mountainside takes over again, and how high its bench sits.
+@@ -85,24 +98,31 @@ var peninsula_height: float = 285.0
+ var shore_rise: float = 52.0
+ var bay_z: float = 1460.0
+ var bay_east_x: float = 400.0
+-var downtown_center: Vector2 = Vector2(700.0, 250.0)
+-var downtown_radius: float = 330.0
+-## The financial core: the blocks the downtown's landmark towers stand in (LandmarkDowntown) -
+-## the hill and the avenues from the first street south, then South Park, which stops east of
+-## the first avenue so the ground south-west of the core stays open. Inside these the skyline
+-## boost is 1 and the infill climbs with the towers; it fades out over `core_margin`, and the
+-## district is DOWNTOWN out to that margin as well as inside the old radius.
+-var downtown_core: Array[Rect2] = [Rect2(410.0, 236.0, 425.0, 414.0), Rect2(515.0, 650.0, 320.0, 172.0)]
++## Downtown is the real one at 1:1 (DowntownReal): its centre is Pershing Square, its district
++## the replica's extent (the 110 to Vignes, Cesar Chavez to Venice) out to `core_margin`. The
++## radius is only a scale for the systems that want one number (the news helicopter's beat).
++var downtown_center: Vector2 = DowntownReal.GAME_ANCHOR
++var downtown_radius: float = 900.0
++## The financial core and South Park, where the towers are (DowntownReal.CORE): inside these the
++## skyline boost is 1 and the infill climbs with the towers; it fades out over `core_margin`.
++## The historic core, the civic centre and the east side keep the district's lower band.
++var downtown_core: Array[Rect2] = DowntownReal.game_core()
+ var core_margin: float = 75.0
+-var midtown_radius: float = 800.0
++## Metres out from downtown's edge that stay midtown (Westlake and Koreatown to MacArthur Park
++## and beyond, Chinatown, the ring round it).
++var midtown_radius: float = 1700.0
++## East of downtown, between Vignes and the east range: the Arts District's warehouses and the
++## rail yards (industrial), from this far north of Pershing Square to this far south.
++var arts_district_z: Vector2 = Vector2(-1750.0, 2700.0)
+ ## A second cluster of mid-rise towers on the west side.
+ var westside_center: Vector2 = Vector2(-350.0, -250.0)
+ var westside_radius: float = 320.0
+ ## The university campus: brick halls, quads and a bell tower on the west side.
+ var campus_center: Vector2 = Vector2(-620.0, -520.0)
+ var campus_radius: float = 250.0
+-## South-east of this corner is the port and industrial district.
+-var industrial_corner: Vector2 = Vector2(300.0, 900.0)
++## South-east of this corner is the port and industrial district: below the 10, round the
++## port, the way the real Harbor Freeway runs down through warehouses to the docks.
++var industrial_corner: Vector2 = Vector2(1100.0, 2300.0)
+ ## Flat zones (world XZ rects): the airport by the south-west coast, the port on a harbor.
+ ## The airport. Its west edge is INLAND of the beach: zone_at() checks the flat rects before it
+ ## checks the coastline, so a rect that reaches past the waterline wins and lays tarmac over the
+@@ -125,8 +145,11 @@ var terminal_loops: Array = [
+ 	PackedVector2Array([Vector2(-484.0, 620.5), Vector2(-216.0, 620.5), Vector2(-216.0, 599.5), Vector2(-484.0, 599.5)]),
+ 	PackedVector2Array([Vector2(-474.0, 614.5), Vector2(-226.0, 614.5), Vector2(-226.0, 605.5), Vector2(-474.0, 605.5)]),
+ ]
+-var port_rect: Rect2 = Rect2(450.0, 1000.0, 700.0, 300.0)
+-var harbor_rect: Rect2 = Rect2(450.0, 1300.0, 700.0, 260.0)
++## The port, due south of downtown at the foot of the 110 (it stood 750 m south of the old,
++## two-thirds-scale downtown; at 1:1 that ground is the arena district). The harbour is its
++## enclosed basin.
++var port_rect: Rect2 = Rect2(2050.0, 3000.0, 700.0, 300.0)
++var harbor_rect: Rect2 = Rect2(2050.0, 3300.0, 700.0, 260.0)
+ ## Runway center lines (z) and width inside the airport rect.
+ var runway_zs: PackedFloat32Array = PackedFloat32Array([780.0, 870.0, 960.0])
+ var runway_width: float = 55.0
+@@ -136,7 +159,8 @@ var runway_width: float = 55.0
+ ## midtown block puts twenty-metre buildings under it. The south runway, because the hangars
+ ## stand across the east ends of the other two.
+ var arrival_runway: int = 2
+-var approach_clear_length: float = 700.0
++## 1150, not 700: the final now turns in over Westlake (AirTraffic.downwind_x), west of downtown.
++var approach_clear_length: float = 1150.0
+ var approach_clear_half_width: float = 45.0
+ ## Where flyable jets wait on the apron (world XZ, nose toward +X) and what kind each is.
+ ## Staggered so no jet sits in another's taxi lane.
+@@ -232,6 +256,11 @@ func _relief_at(pos: Vector2, raw: float) -> float:
+ 		return base
+ 	var cx := coast_x(pos.y)
+ 	fade *= smoothstep(cx + beach_width + 20.0, cx + beach_width + 220.0, pos.x)
++	# Downtown at 1:1 lies flat: the rolling relief would put twenty-metre swells across a real
++	# street grid (and the towers flatten it round themselves anyway, in patches).
++	fade *= smoothstep(40.0, 320.0, downtown_distance(pos))
++	if fade <= 0.0:
++		return base
+ 	# The bay south of bay_z (west of bay_east_x) is water; flatten toward it.
+ 	fade *= 1.0 - smoothstep(bay_z - 240.0, bay_z, pos.y) * (1.0 - smoothstep(bay_east_x, bay_east_x + 240.0, pos.x))
+ 	for r: Rect2 in [airport_rect, port_rect, harbor_rect]:
+@@ -271,11 +300,14 @@ func raw_height_at(pos: Vector2) -> float:
+ 	var n := _noise.get_noise_2dv(pos)
+ 	var n2 := _noise.get_noise_2dv(pos * 2.7 + Vector2(913.0, -457.0))
+ 	var h := 0.0
++	# Above downtown the whole north stands `embay_depth` further back (see embay_at()).
++	var emb := embay_at(pos.x)
++	var zs := pos.y + embay_depth * emb
+ 
+ 	# The front range, walling off the basin, fading out again on its inland side so the valley
+ 	# behind it is open ground.
+-	var front := smoothstep(hills_start_z, hills_full_z, pos.y) * (1.0 - smoothstep(valley_from_z, valley_to_z, pos.y))
+-	var front_h := front * (hills_height * (0.62 + 0.38 * n) + 60.0 * n2)
++	var front := smoothstep(hills_start_z, hills_full_z, zs) * (1.0 - smoothstep(valley_from_z, valley_to_z, zs))
++	var front_h := front * (hills_height * lerpf(1.0, embay_scale, emb) * (0.62 + 0.38 * n) + 60.0 * n2)
+ 	# The pass: inside it the front range drops to a canyon floor. Blended with smoothstep and
+ 	# taken with minf so it only ever cuts the range down, never raises ground outside it.
+ 	var notch := smoothstep(pass_width, pass_width * 0.3, absf(pos.x - pass_center_x))
+@@ -283,7 +315,7 @@ func raw_height_at(pos: Vector2) -> float:
+ 	h = maxf(h, front_h)
+ 
+ 	# The back range beyond the valley: the real wall.
+-	var back := smoothstep(back_start_z, back_full_z, pos.y)
++	var back := smoothstep(back_start_z, back_full_z, zs)
+ 	h = maxf(h, back * (back_height * (0.58 + 0.42 * n) + 110.0 * n2))
+ 
+ 	# The eastern range, closing the bowl.
+@@ -335,7 +367,12 @@ func _shore_mask(pos: Vector2, pd: float) -> float:
+ func plateau_at(pos: Vector2) -> float:
+ 	if airport_rect.has_point(pos) or port_rect.has_point(pos) or harbor_rect.has_point(pos):
+ 		return 0.0
+-	return valley_height * smoothstep(valley_from_z, valley_to_z, pos.y)
++	return valley_height * smoothstep(valley_from_z, valley_to_z, pos.y + embay_depth * embay_at(pos.x))
++
++
++## 1 over the X window where the north steps back above downtown, 0 outside it.
++func embay_at(x: float) -> float:
++	return smoothstep(embay_x.x, embay_x.y, x) * (1.0 - smoothstep(embay_x.z, embay_x.w, x))
+ 
+ 
+ ## The bay south of the airport that wraps the peninsula: water unless on the peninsula itself.
+@@ -363,9 +400,7 @@ func zone_at(pos: Vector2) -> Zone:
+ ## 1 at the heart of downtown, 0 at its edge: lots there get much taller buildings. The heart
+ ## is the radial old centre and, taller and wider, the financial core the landmark towers stand in.
+ func skyline_boost(pos: Vector2) -> float:
+-	var dd := pos.distance_to(downtown_center)
+-	var radial := smoothstep(downtown_radius, downtown_radius * 0.3, dd)
+-	return maxf(radial, smoothstep(core_margin, 0.0, core_distance(pos)))
++	return smoothstep(core_margin, 0.0, core_distance(pos))
+ 
+ 
+ ## Metres from `pos` to the nearest core rect (0 inside one).
+@@ -378,12 +413,23 @@ func core_distance(pos: Vector2) -> float:
+ 	return best
+ 
+ 
++## Metres from `pos` to downtown's extent (0 inside it).
++func downtown_distance(pos: Vector2) -> float:
++	var r := DowntownReal.game_extent()
++	var dx := maxf(maxf(r.position.x - pos.x, pos.x - r.end.x), 0.0)
++	var dy := maxf(maxf(r.position.y - pos.y, pos.y - r.end.y), 0.0)
++	return Vector2(dx, dy).length()
++
++
+ func district_at(pos: Vector2) -> CityPlan.District:
+-	var dd := pos.distance_to(downtown_center)
+-	if dd < downtown_radius or core_distance(pos) < core_margin:
++	var dd := downtown_distance(pos)
++	if dd < core_margin or core_distance(pos) < core_margin:
+ 		return CityPlan.District.DOWNTOWN
+ 	if pos.x > industrial_corner.x and pos.y > industrial_corner.y:
+ 		return CityPlan.District.INDUSTRIAL
++	var ext := DowntownReal.game_extent()
++	if pos.x > ext.end.x and pos.y > downtown_center.y + arts_district_z.x and pos.y < downtown_center.y + arts_district_z.y:
++		return CityPlan.District.INDUSTRIAL
+ 	if pos.distance_to(campus_center) < campus_radius:
+ 		return CityPlan.District.CAMPUS
+ 	# The strip behind the sand, for as far inland as the towns run. Checked after the named
+diff --git a/tests/smoke_test.gd b/tests/smoke_test.gd
+index 80a10e7..ff24a42 100644
+--- a/tests/smoke_test.gd
++++ b/tests/smoke_test.gd
+@@ -414,7 +414,8 @@ func _test_city() -> void:
+ 		# The pass: a canyon through the front range, so the valley is reachable on the ground.
+ 		var pass_z: float = (macro.hills_full_z + macro.valley_from_z) * 0.5
+ 		var in_pass: float = macro.raw_height_at(Vector2(macro.pass_center_x, pass_z))
+-		var on_flank: float = macro.raw_height_at(Vector2(macro.pass_center_x + 1100.0, pass_z))
++		# The west flank: east of the pass the range steps back above downtown (MacroMap.embay_at).
++		var on_flank: float = macro.raw_height_at(Vector2(macro.pass_center_x - 1100.0, pass_z))
+ 		_check(in_pass < 120.0 and on_flank > in_pass * 3.0,
+ 			"a pass is cut through the front range (%.0f m in it, %.0f m beside it)" % [in_pass, on_flank])
+ 		_check(macro.plateau_at(Vector2.ZERO) == 0.0 and macro.plateau_at(macro.airport_rect.get_center()) == 0.0,
+@@ -714,8 +715,10 @@ func _test_city() -> void:
+ 	# Skyline, airport, port.
+ 	if macro:
+ 		_check(macro.zone_at(Vector2(-350.0, 800.0)) == MacroMap.Zone.AIRPORT and macro.height_at(Vector2(-350.0, 800.0)) == 0.0, "airport zone is flat")
+-		_check(macro.zone_at(Vector2(800.0, 1150.0)) == MacroMap.Zone.PORT and macro.zone_at(Vector2(800.0, 1420.0)) == MacroMap.Zone.OCEAN, "port sits on a harbor")
++		_check(macro.zone_at(macro.port_rect.get_center()) == MacroMap.Zone.PORT and macro.zone_at(macro.harbor_rect.get_center()) == MacroMap.Zone.OCEAN, "port sits on a harbor")
+ 		await _test_downtown(city, plan, player)
++		# Downtown at 1:1 (DowntownReal): the real grid, the real distances, the real frame.
++		await load("res://tests/downtown_checks.gd").new().run(self, city)
+ 		var runway := Vector2(-300.0, 760.0)
+ 		player.global_position = _world_state().to_local(Vector3(runway.x, 2.0, runway.y))
+ 		city.update_streaming(true)
+@@ -744,7 +747,7 @@ func _test_city() -> void:
+ 			var lp0: Vector3 = lc.global_position
+ 			await _ticks(60)
+ 			_check(is_instance_valid(lc) and lc.global_position.distance_to(lp0) > 1.0, "loop cars crawl forward")
+-		var port := Vector2(800.0, 1150.0)
++		var port := macro.port_rect.get_center()
+ 		player.global_position = _world_state().to_local(Vector3(port.x, 2.0, port.y))
+ 		city.update_streaming(true)
+ 		var port_chunk: Node3D = city.chunks.get(plan.block_index_at(port))
+@@ -1517,7 +1520,7 @@ func _test_downtown(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> vo
+ 	# The pinned grid: another seed has the same downtown roads, with the same widths.
+ 	var pins_ok := true
+ 	for axis in 2:
+-		for pin: Array in CityPlan.PINNED_ROADS[axis]:
++		for pin: Array in CityPlan.pinned_roads()[axis]:
+ 			var i := other._index_at(axis, float(pin[0]) + 0.01)
+ 			if absf(other.road_pos(axis, i) - float(pin[0])) > 0.01 or absf(other.road_width(axis, i) - float(pin[1])) > 0.01:
+ 				pins_ok = false
+@@ -1526,8 +1529,17 @@ func _test_downtown(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> vo
+ 	var macro: MacroMap = plan.macro
+ 	var tall := 0
+ 	var top_infill := 0.0
+-	for ix in range(4, 10):
+-		for iz in range(2, 8):
++	var core_blocks := {}
++	for r: Rect2 in macro.downtown_core:
++		var lo := plan.block_index_at(r.position)
++		var hi := plan.block_index_at(r.end)
++		for ix in range(lo.x, hi.x + 1):
++			for iz in range(lo.y, hi.y + 1):
++				core_blocks[Vector2i(ix, iz)] = true
++	for key: Vector2i in core_blocks:
++		var ix := key.x
++		var iz := key.y
++		if true:
+ 			var b := plan.block(ix, iz)
+ 			for lot in plan.lots(ix, iz):
+ 				var h := plan.lot_height(lot.seed, b.district, macro.skyline_boost(lot.center))

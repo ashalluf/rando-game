@@ -36,6 +36,16 @@ uniform float relief_erosion : hint_range(0.0, 4.0) = 1.4;
 uniform float flats_amplitude = 6.0;
 // Octaves finer than this many screen pixels fade out instead of aliasing.
 uniform float detail_lod : hint_range(0.5, 8.0) = 2.0;
+// Where the crags are held down: an ellipse (centre, semi-axes, unit major axis) inside which
+// only `calm_keep` of the crag amplitude is drawn, easing back to all of it over `calm_fade` of
+// its size. A replica area's hills are shaped to a photograph's skyline (the Palos Verdes crest,
+// MacroMap.peninsula_crest), and seventy metres of noise on top put jagged crags where the photo
+// has a smooth rolling ridge. Semi-axes of zero turn it off.
+uniform vec2 calm_centre = vec2(0.0);
+uniform vec2 calm_axes = vec2(0.0);
+uniform vec2 calm_dir = vec2(1.0, 0.0);
+uniform float calm_keep : hint_range(0.0, 1.0) = 0.2;
+uniform float calm_fade = 0.35;
 
 
 const int MAX_OCTAVES = 10;
@@ -153,15 +163,27 @@ vec2 macro_uv(vec2 w) {
 }
 
 
+// 1 outside the calm ellipse, calm_keep inside it (see the uniforms).
+float crag_calm(vec2 w) {
+	if (calm_axes.x <= 0.0 || calm_axes.y <= 0.0) {
+		return 1.0;
+	}
+	vec2 q = w - calm_centre;
+	vec2 minor = vec2(-calm_dir.y, calm_dir.x);
+	float r = length(vec2(dot(q, calm_dir) / calm_axes.x, dot(q, minor) / calm_axes.y));
+	return mix(calm_keep, 1.0, smoothstep(1.0, 1.0 + calm_fade, r));
+}
+
+
 // How much synthesized relief belongs at this point, in metres: crags on the mountains, a few
 // metres of undulation out on the flat. It keys off the SLOPE of the baked map, never off how
 // high the ground is: the inland valley is a city floor 130 metres up, so anything that reads
 // height as mountain puts fifty metres of rock lumps through the middle of it - and through the
 // normal, which then tells `built_amount` the blocks are on a hillside and the city stops being
 // drawn at all. Steepness is also simply what tells a range from a plain at this resolution.
-float relief_scale(float baked, vec2 macro_grad) {
+float relief_scale(vec2 w, float baked, vec2 macro_grad) {
 	float sm = length(macro_grad) * macro_height;
-	return flats_amplitude + relief_amplitude * smoothstep(0.05, 0.28, sm);
+	return flats_amplitude + relief_amplitude * smoothstep(0.05, 0.28, sm) * crag_calm(w);
 }
 
 
@@ -198,7 +220,7 @@ float far_ground_lift(vec3 wp, vec3 cam, out vec4 m, out vec2 mg, out float wet,
 	if (far > 0.002) {
 		// Zero-mean, or the crags would also RAISE every range by half their amplitude, and the
 		// step from flat to cragged would put a sixty-metre cliff along the foot of each one.
-		lift += relief_scale(baked, mg) * (relief_fbm(w, 4, 150.0).x - 0.5) * far * (1.0 - wet);
+		lift += relief_scale(w, baked, mg) * (relief_fbm(w, 4, 150.0).x - 0.5) * far * (1.0 - wet);
 	}
 	return lift;
 }

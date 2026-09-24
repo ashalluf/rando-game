@@ -8,8 +8,10 @@ the day-to-day work goes, what is fragile, what to do next. Read all three befor
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
 Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
-day's work, newest first, is in 9o (civic set), 9n (skyline), 9m (sound), 9l (how the day ran),
-9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the index.
+day's work is in 9t (distance), 9s (1:1 downtown research), 9r (MacArthur Park, encampments),
+9q (street life), 9p (the Esplanade), 9o (civic set), 9n (skyline), 9m (sound), 9l (how the
+day ran), 9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the
+index.
 
 **Main at wrap-up** is green on CI; the release page has the newest build. Merged on
 2026-09-24 (about 100 commits): window recesses; the Blender-built hero with real finger bones
@@ -35,17 +37,43 @@ do whatever GTA does". Always send screenshots. No commercial-readiness audit fo
 
 **In flight at wrap-up** (agent branches; what happened to each is recorded here):
 
-- AAA pass on the hero (branch `worktree-agent-a21610dd7a24d00b8`): skin, hair, collar, hands.
-- Street life (`worktree-agent-a24169908f67381c9`): traffic signals, crosswalks, cars queueing
-  at red, police routing by road.
-- Redondo Esplanade into Palos Verdes at 1:1 (`worktree-agent-ac988801941b3dc26`): a replica-area
-  framework (`scripts/world/replica_areas.gd`), the esplanade, clay-tile houses, PV hills.
-- MacArthur Park and street encampments (`worktree-agent-ac9773ce9fd50b578`).
-- Distance LOD tiers and streaming (`worktree-agent-a7ca467ec2cbe1961`): the far city filled in
-  to the horizon (before/after panoramas were sent to the owner).
-- 1:1 downtown research (`worktree-agent-ab2c6ac22ca7e5a19`): geocoded anchors and the fitted grid.
+All six agent branches came back at wrap-up. Five are merged to main; one is kept on a
+branch. (Four agents each wrote a "9p"; the sections were renumbered at merge, so a "see 9p"
+inside one of them means its own section - the headers below are the authority.)
 
-STATUS: being merged at wrap-up; this list is updated with the outcome of each.
+- **Merged: the Redondo Esplanade into Palos Verdes, 1:1** (section 9p). 4.57 km at true scale,
+  one data table (`scripts/world/replica_areas.gd`), its own builders, traffic and walkers;
+  `-- --no-replica` turns it off. The first preview stills were taken at wrap-up (they read as
+  the owner's Street View captures); nothing on Forward+, frame cost not measured.
+- **Merged: street life** (9q). Blender-built traffic signals on a shared clock, pedestrians on
+  the walking figure, cars queueing at red and yielding, police routed by road to the kerb.
+  At merge the police helicopter's sighting ray was made to look past `StreetProps` (the new
+  signal mast arms hid the player at the spawn junction - the one failing check on the branch).
+- **Merged: MacArthur Park and street encampments** (9r). The encampments are ON (downtown
+  building blocks only, knockable pieces, rough sleepers who breathe, cower and ragdoll). The
+  park is built but OFF (`LandmarkMacArthurPark.enabled`, a static var) until a traffic leak onto
+  its closed roads is found. At merge its closed-road turning rules were ported into street
+  life's new car-following model in `traffic.gd` (a closed road ahead forces a turn, or a U-turn
+  at a dead end: `t.turn == 2`) - untested with the park on.
+- **Merged: the 1:1 downtown research, data only** (9s). `scripts/world/downtown_real.gd`
+  (geocoded anchors, the fitted grid: avenues 37.86 degrees east of north, 2.0 m RMS), the full
+  re-lay as `tools/downtown_relay/relay.patch` (never smoke-tested), its checks as a text file.
+  Nothing calls the data yet. Landing the re-lay is item 2 of section 10.
+- **Merged: the distance** (9t). Four tiers that always cover the view to 12 km: near chunks,
+  far chunks, the far city (every block within 7 km, recorded from the far chunk's own build)
+  and the horizon plane; per-block dissolve handoff. At merge the far-city capture was made to
+  skip replica and landmark-site blocks, which never build the seeded block.
+- **NOT merged: the AAA pass on the hero.** Pushed as branch `claude/optimistic-babbage-w2047x`
+  (head 835b2af; it is the hero agent's branch, merged with main as of that afternoon). What it
+  has: a reproducible Blender pipeline (`tools/hero/setup.sh`, `build.sh`, ~15 min, byte-for-byte),
+  new skin / hair / cloth shaders (`HeroLook`), and hands fitted to every gun by
+  `tools/grip_fit.gd` (three real bugs fixed: the idle clip's 75-degree shoulder swing, the gun
+  placed from the wrong shoulder, a hip carry that could not reach the handguard). Why it is
+  not on main: a preview still of its final build (AK aimed, side on) still shows jagged dark
+  shards round the open collar, where main's closed collar is clean. Main's hands are worse
+  (left fingers splay off the handguard). Next step: fix the collar on that branch, take
+  `hero_shot.gd` stills (`CLIP=Idle SEEK=1.0 CAM_AT=head`, `WEAPON=0 AIM=1 YAW=90`), merge.
+  Its own handoff section is 9u.
 
 **How the box was run** (9l has the detail): agents in git worktrees under
 `.claude/worktrees/`, one branch each, merged by the main session after its own headless check;
@@ -101,7 +129,7 @@ scripts/player/          player.gd (movement, boost, jumps, vehicles, fall recov
 scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket, explosion, shotgun, weapon_fx, weapon_manager (models: assets/models/weapon_*.glb from tools/make_weapons.py)
 scripts/world/           city_streamer, city_chunk, city_plan, macro_map, hill_roads, landmarks, building, prop_factory (primitives + model_* merged Poly Haven models), street_props, trash_can, physics_prop, day_night, ferris_wheel
 scripts/vehicles/        vehicle.gd (cars), aircraft.gd (jets)
-scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd
+scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd, police*.gd, street_route.gd (the police's street routes)
 scripts/util/            physics_budget.gd, world_state.gd, sfx.gd (autoloads; sfx.gd also builds the audio buses), ambience.gd (the city's sound, a node in city.tscn)
 scripts/ui/              debug_hud, minimap, minimap_frame, minimap_border, crosshair
 shaders/                 building, grass, terrain, sky
@@ -1055,7 +1083,9 @@ next session needs to know (the rules are the Police note in CLAUDE.md):
   player a star. And the first officers fired 54 rounds without one reaching the player, because
   every one went into the cruiser they were crouched behind (`_line_of_fire()` and the sideways
   step are the fix; `PoliceOfficer.rounds_fired` / `rounds_hit` are there to measure it again).
-- **Known gaps.** Cruisers under physics steer straight at their target with no path finding, so
+- **Known gaps.** (Fixed the same day, section 9o: cruisers now route along the streets and pull
+  up at the kerb nearest the player; the next sentence is how it was.) Cruisers under physics
+  steered straight at their target with no path finding, so
   a player on a roof or deep inside a block gets a cruiser that noses up to the nearest wall,
   backs off three times and lets its crew out there. There is no ground response off the street
   grid (hills, airport, port): the stars still decay normally, and the helicopter is what covers
@@ -1147,6 +1177,109 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   a Multimesh` errors and one `get_meta ... 'shadow_twin'` from `multimesh_batch.gd` (the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
+
+## 9q. Street life, 2026-09-24 (owner: "GTA-level street life")
+
+Signals that work, traffic that queues at them, people who cross on the walking figure, and
+police who drive the streets. Built on an agent worktree; the rules are the Street life bullet in
+CLAUDE.md. What a next session needs to know:
+
+- **Nothing per signal ticks.** One clock (`TrafficSignals.clock`, advanced by `TrafficManager`,
+  pushed as the `signal_clock` shader global) plus a seeded offset per junction. The lens shader
+  lights a head from its MultiMesh custom data (offset, axis) and the lamp id baked in UV2; the
+  cars ask `TrafficSignals.light()`, the crowd `walk()`. Change the cycle in `TrafficSignals`
+  only: `PropFactory.signal_lens_material()` pushes it to the shader and the smoke test checks
+  the copy. To stage a light for a test or a still, `TrafficSignals.force()` moves the shared
+  clock (so every junction moves with it - fine for one junction at a time).
+- **The hardware** is `tools/make_signals.py` (Blender 4.2 headless: `blender -b
+  --factory-startup --python tools/make_signals.py`, then `godot --headless --path . --import`,
+  commit the `.glb` and its `.import`). Every piece is bevelled with face-area weighted normals.
+  Triangles: pole 1,376, arm 404, vehicle head 2,132, bracket 128, pedestrian head 980, button
+  328, cabinet 740 (guards in `PropFactory.TRI_BUDGET`). The dimensions the placing code uses are
+  `PropFactory.SIGNAL_*`; `tests/street_life_checks.gd` checks them against the loaded bounds.
+- **Layout** (`CityChunk._add_signal_corner()`): the far-right pole of each approach carries
+  its mast arm, scaled along its length to reach the innermost lane (6.6 m on a 14 m street,
+  11.4 m on a 24 m avenue), one head per lane plus a side-mount head at 4.6 m, two pedestrian
+  heads at 2.7 m facing back across the two crosswalks ending at that corner, and two buttons.
+  One controller cabinet per junction. Each pole is one breakable prop. Draw distances: heads
+  420 m (a lit lens is what reads a junction from blocks away), pedestrian heads and the cabinet
+  160 m, buttons 70 m.
+- **Measured** (`tools/geo_count.gd` `AB=Batch_sig_*,BatchShadow_sig_*`, opengl3, 800x600, the
+  spawn camera, one frozen frame with and without): not taken yet - the shared render lock was
+  queued for hours. Take it before the next geometry change here.
+- **Traffic**: `TrafficManager._drive_streets()` - IDM car following per lane group, the stop
+  line / stop sign / busy crosswalk / player's car as stationary cars ahead, a hard no-overlap
+  clamp, stand-still once closed up (the IDM alone creeps forever), turns slowed and skipped when
+  the target lane is occupied, pull-over for a siren. Tunables at the top of `traffic.gd`, group
+  "Street driving": `accel` 2.4, `brake_comfort` 3.6, `brake_max` 9, `min_gap` 2.2, `time_gap`
+  1.1, `stop_line_back` 3.7, `turn_speed` 6.5, `stop_sign_wait` 1.0, `amber_margin` 1.25,
+  `siren_yield_distance` 40, `siren_shift` 1.2, `player_brake` 6. Signal cycle in
+  `TrafficSignals`: `GREEN` 16, `AMBER` 3.5, `ALL_RED` 1.5, `WALK_TIME` 7 (42 s a cycle).
+- **Pedestrians**: `cross_chance` 0.3, `cross_pace` 1.2, `kerb_wait` 0.7, `kerb_spread` 1.1,
+  `stop_sign_patience` 0.8-2.6 s. They now walk round their ring by its corners
+  (`_ring_route()`); straight lines between two sides of a block went through the buildings.
+  **A real bug fixed on the way:** the walk steered by `global_position` (scene space) toward
+  targets in the chunk's space (true world), so after the first origin shift - flying 1 km out -
+  the whole crowd walked off toward points a kilometre away. It reads `position` now; `_scare()`
+  converts the threat into the same space.
+- **Police**: `StreetRoute` (A* over the intersection grid, `kerb_stop()`, `polyline()`), used
+  by both of the cruiser's driving modes. Tunables on `PoliceCar`, group "Routing":
+  `route_interval` 0.5 s, `route_moved` 10 m, `ram_range` 35 m, `corner_speed` 9,
+  `u_turn_speed` 4, `route_brake` 7, `look_ahead` 6-16 m, `kerb_approach` 26 m. A dispatched
+  cruiser stays on the lanes to the kerb point and only then goes onto physics to stop
+  (`_pull_up()`). Handing it to physics on the last straight inside `engage_range` was tried and
+  reverted: in the full smoke run, after the police and car checks had left wrecks about, the
+  physics approach was knocked off the road and stuck 61 m short (175 of 934 samples off the
+  carriageway); the lanes cannot be. Probed headless: dispatched 132 m out to a player mid-block,
+  0 of 453 samples off a carriageway, parked 0.6 m from the kerb point; to a player at a
+  junction centre from 168 m, parked in 10.9 s (the smoke test's engage window is 25 s since
+  main raised it); a physics cruiser spawned 127 m out got there by road in 17 s, 0 of 1,060
+  samples off - but that follower is the part to watch in a cluttered street (it has no idea of
+  obstacles beyond backing off when stuck).
+- **Checks** (`tests/street_life_checks.gd`, 16 of them, about 35 s of game time): the model and
+  its placing numbers, the shader's copy of the cycle, heads on every signalised full-detail
+  junction, the cycle's logic (never both green, an all-red, walking only across a red), live
+  traffic never overlapping, a queue of three plus a fast fourth at a red (stops at the line,
+  nobody over it, no overlap) and going on green, a car on green waiting for somebody on its
+  crosswalk, a walker waiting through the steady hand, stepping out on the walking figure and
+  joining the next block, and the cruiser to a mid-block player by road. The old "traffic car
+  moved in 1 s" check now takes the farthest any car moved: the nearest car can simply be
+  waiting at a red.
+- **Stills**: `STREET=queue|crossing` on `tools/glshot/still_shot.gd` (opengl3 only for this
+  work). Only two were rendered before the session ended - the render lock was queued for hours:
+  `street_look1.png` (the spawn junction at noon, `--spawn=16,22,40,8 --hour=12`: signal heads,
+  mast arms and walkers in the frame) and `street_queue_red.png` (`STREET=queue --spawn=14,50,8,4
+  --hour=11.5`, framed badly: the camera is on the pavement and the queue is small in the
+  distance). Still to take, commands ready: the queue from behind it, `FOV=50 STREET=queue
+  --spawn=-0.8,50,-4,-3 --hour=11.5`; the same camera at `--hour=21.5` for the lit heads at
+  night; people on the crosswalk, `STREET=crossing STREET_PEDS=10 --spawn=34,9.5,84,2
+  --hour=16.5`. None has been seen in Forward+.
+- **Bugs found on the way, all fixed:** a new street car was placed from `to_local()` under the
+  already-shifted `TrafficManager` after an origin re-centre, so it appeared a whole shift away
+  (cars now get their local transform before `add_child()`, which also avoids the kinematic
+  velocity trap; loop, freeway and police spawns too); an officer could think once about a
+  cruiser `Police.clear()` had already pooled (`is_inside_tree` errors); the smoke test's panic
+  check picked the walker standing where the body it had just shot was flying, and the ragdoll
+  knocked them down before their speed was read (it now skips anybody within 10 m of a fresh
+  ragdoll). The smoke test's seed-rebuild check resets `WorldState.world_offset` under the live,
+  still-shifted city, so the street checks run before it; anything positional after that point
+  (the air traffic checks) is in a frame that disagrees with the nodes. The street checks put the
+  player back where they found him, or the air checks' rocket leaves from a mid-block pavement
+  and hits a building.
+- **Not done / not verified**: nothing of it has been seen in Forward+ (HDR lamps, glow and the
+  lens specular are tuned on opengl3 stills). Turning cars do not cross oncoming traffic with
+  any care (a left turn is instant at the junction centre, as before), and cross traffic does not
+  yield to a cruiser in the box. Stop-sign junctions stop everyone and then let them go without
+  taking turns. Walkers still spawn and live on the ring of the chunk that built them; crossed
+  to another block they vanish with their original chunk. Lamps throw no light on the street at
+  night (the lenses glow; there is no OmniLight per head, deliberately). A physics cruiser that
+  meets a traffic car head on is blocked by it (kinematic cars are immovable to physics) and
+  backs off and tries again; traffic only pulls over for a siren on the lanes behind it.
+  The geometry cost of the signals (`AB=Batch_sig_*,BatchShadow_sig_*` on geo_count) is not
+  measured. **To continue:** take the three stills above and the geo_count A/B, then judge the
+  lamps in Forward+ (`forward_shot.sh` at the queue camera, day and night) - the lens `energy`
+  (3.2) and `ped_energy` (2.4) in `shaders/traffic_signal.gdshader` are the numbers most likely
+  to need a change once glow is on.
 
 ## 9n. The downtown skyline, 2026-09-24 (owner: "a 1:1 match of DTLA skyline ... more buildings")
 
@@ -1291,6 +1424,78 @@ session needs to know:
   no interiors). The crowd walla is one Hawaiian shopping street; a second take would help. The
   near "traffic" bed is still the old IgnasD highway recording.
 
+## 9p. The Esplanade, the first 1:1 replica area, 2026-09-24 (agent branch)
+
+Owner: "we are basically picking certain 1:1 replica areas and then filling them in between with
+whatever". The rules are the replica bullets in CLAUDE.md (technical rules and conventions);
+the table is `ReplicaAreas.ESPLANADE`. What a next session needs to know:
+
+- **What it is.** Knob Hill down the Redondo Esplanade (1880 m straight, bearing 173, on a 12-16 m
+  bluff), the south curve past the Avenue I car park, the Avenue I roundabout, Paseo de la Playa
+  (the one compression: 0.8 km for 1.6), Palos Verdes Blvd / Dr N up the peninsula's north face.
+  4.57 km in all, 2.9 km of it town. The owner's three Street View captures are the reference; the
+  camera spots that reproduce them are under "How to take the stills" below (EYE= values on
+  `tools/glshot/still_shot.gd`, a Street View lens ~2.5 m up, vertical FOV ~75 on the portrait
+  shots).
+- **The map moved to fit it.** The coast between the Redondo pier and Malaga Cove is the
+  replica's waterline table; north of it the basin's sine eases onto it over
+  `MacroMap.replica_coast_blend`; the Palos Verdes headland is an ellipse (`peninsula_center`,
+  `peninsula_axes`, `peninsula_axis_bearing`) whose crest (`peninsula_crest`) was fitted to the
+  photos' skyline seen from 1718 Esplanade (mean error a quarter of a degree, probe in the
+  session's scratchpad: sample the ridge's elevation angle against azimuth from the camera and
+  compare to the traced photo ridge); the bay is south of it. The ocean shader carries the same
+  shapes (`ocean.gdshader` main_coast_x / headland_*), pushed by `Weather._push_ocean_shape()`,
+  and the smoke test guards the shader defaults. The piers and the airport did not move.
+- **Build path.** `CityChunk.begin_build()` asks `block_role()`; role 1 skips the seeded block and
+  `ReplicaBuilder.attach()` adds the replica's steps (see CLAUDE.md for the list and the ownership
+  rules). Every chunk near the route that is not role 1 (ocean, hills, the blocks beside it) still
+  gets the steps for whatever path segments, lots or features it owns.
+- **Houses.** `ReplicaHouses`: walls are cut round every opening, reveals, frames, glass on
+  `house_glass.gdshader`, garages with panel grooves, hip/gable clay roofs (`roof_clay`, UV along
+  the eave and up the slope - triplanar would run the barrels the wrong way on two of four
+  hips), coped parapets, balconies (steel or glass), garden walls, planting. The footprint is
+  `ReplicaAreas.house_frame(lot)`, used by the kerb parking (no car across a driveway) and by the
+  frontage's own overlap test (on the inside of the curve the lots fan in; a house that would hit
+  its neighbour is left out). Far chunks draw each house as a `lod_box` plus a roof prism.
+- **Traffic.** `ReplicaTraffic` keeps `cars_per_direction` a side within `spawn_max` of the player
+  while the player is within 250 m of the route; lane changes happen only where two lanes merge
+  into one. Grid cars U-turn when they would drive into the corridor; they cannot turn onto the
+  Esplanade yet.
+- **People.** `ReplicaWalker` (a Pedestrian that strolls along the walkway or the inland
+  pavement rather than round a block's ring) fills most 26 m slots of each pavement a replica
+  chunk owns, inside the crowd cap; the backfill blocks carry nobody yet.
+- **Verified so far - maths and meshes, NOT pictures.** `tests/replica_checks.gd` (24 checks,
+  in the smoke test) and top-down rasters of the built chunk meshes (every surface drawn from
+  above by a scratch probe: road, kerbs, mouths, frontage, car park, roundabout, condo, the
+  town's end) are all that has looked at it. **No rendered still of it exists yet**: the three
+  framing stills and the geo_count before/after were queued on the shared render lock behind a
+  dozen jobs and the session ended first. That is the first thing to do next, then compare
+  side by side with the owner's three Street View captures and fix what reads wrong.
+  The last full headless check on the branch passed 364 of 365. The one failure was "replica
+  traffic spawns a car": late in the run the physics budget is full and `_spawn()` quietly
+  built nothing. The check now spawns with `force` (0569b16). The replica checks pass 24/24
+  against a stand-in city after the fix, but the full check has NOT been re-run since. The
+  thousands of "Cannot set a buffer on a Multimesh" lines in that log come from main's shadow
+  twins (`MultiMeshBatch.build()`, `twin_mm.buffer = mm.buffer`) under the dummy renderer.
+  They were there before this branch and are not on the check's tripwire list.
+- **How to take the stills** (opengl3, `tools/glshot/still_shot.gd`, `FRAMES=50`, `--hour=12
+  --nohud --quality=0 --weather=clear`, under the render lock):
+  1718 Esplanade inner northbound lane, portrait: `EYE=-449.26,14.42,3375.82,-173,-5 FOV=75`
+  `--resolution 540x1170 -- --spawn=-449.3,3375.8,-173,-5`; outer lane: `EYE=-446.98,14.42,
+  3375.54,-173,-5` (`--spawn=-447.0,3375.5,-173,-5`); 1799 Esplanade at the curve, landscape:
+  `EYE=-441.66,9.94,3534.58,-178,-1.5 FOV=44 --resolution 1400x646 -- --spawn=-441.7,3534.6,
+  -178,-1.5`. EYE is a true world point and yaw/pitch in degrees (yaw 0 north, 90 west) for a
+  free camera; heights are the road top + 2.5 m (a Street View lens), recomputed if the profile
+  changes. Frame cost: `tools/geo_count.gd` at `--spawn=-449.3,3375.8,-173,-5` with and without
+  `-- --no-replica` (MacroMap then builds the seeded city in its place).
+- **Not done / not verified.** The Knob Hill end is a kerb and
+  a pavement (the grid's streets run past it); north of it the pier plaza is the seeded
+  landmark's. The roundabout's inside (west) corner, where the ocean-side lines of a right turn
+  fold, is covered by the ring's planting rather than modelled. The car park's sea wall is ~5 m
+  because the sand is flat at 0.5 m; a raised backshore would make it the real 2-3 m. The Palos
+  Verdes hills carry HillRoads' rim road and estates and Skyline's scrub, not the photo's dense
+  house cover. Nobody has driven it on a Mac.
+
 ## 9o. Downtown's civic set, 2026-09-24 (agent branch)
 
 Owner: "downtown must match real downtown LA, we need staple center we need all day". The
@@ -1380,7 +1585,328 @@ session needs to know:
   Names on the LED slides and signs are invented, but nobody has read every slide for an
   accidental real brand - worth a look.
 
-## 9p. The hero, AAA pass, 2026-09-24 (agent branch)
+## 9r. Westlake: MacArthur Park and the encampments, 2026-09-24 (agent branch)
+
+Owner: "you should also have MacArthur Park and a bunch of homeless tents up on random streets in
+downtown and people slumped over". The rules are the Westlake bullet in CLAUDE.md. It is depicted
+as the street a realistic LA game shows, never as a joke; the code's words are neutral
+(`encampment`, `rough_sleeper`, `slumped`). What a next session needs to know:
+
+- **STATE: the encampments are ON; MacArthur Park is OFF** (`LandmarkMacArthurPark.enabled`,
+  a static var, default false: no landmark entry, no site, every road open, the city exactly as
+  before). It is off because the last full smoke run on the merged tree still found traffic cars
+  on the park's closed roads (cars on the inner street z ~0 through the lake), which the
+  isolated check did not reproduce; that has to be found before it goes on. To work on it, set
+  `LandmarkMacArthurPark.enabled = true` before the city scene loads (Landmarks.all() is built
+  once) - the westlake checks then run the park's half too. The table rides under the entry's
+  `"area"` key: the civic set uses `"site": "block"` for something else (Landmarks.claims()).
+
+- **Where the park is, and why it moves later.** `LandmarkMacArthurPark.SITE` holds the real
+  place (34.05861 N, 118.27750 W: 2,300 m west and 1,158 m north of Pershing Square, 460 x 310 m,
+  35 acres, Wilshire through the middle at a real heading of 297 degrees, the lake about 4.3 m
+  deep) and, separately, where it stands on today's compressed map: west-north-west of the
+  downtown core between Park View (x 87), Alvarado (x 517), 6th (z -214) and 7th (z 86), Wilshire
+  at z -104. The 1:1 downtown re-lay moves it by editing that table; the grid is not turned to
+  Wilshire's real heading (every block is still axis-aligned), `yaw_deg` is there for the day it is.
+- **It is ON the grid, not over it.** CityPlan snaps the site to whole blocks and closes every
+  road inside the four edges except Wilshire (`road_open()`). Nothing is removed from the plan,
+  so road indices, block seeds and every block round the park are exactly what they were. Any
+  new system that puts things on roads must ask `road_open()`: the ones that do today are listed
+  in the CLAUDE.md bullet. The trap that bit twice: a road always reads open inside the crossing
+  road's own width, so probe an arm past `road_width() / 2` (traffic turns and the police's
+  `_drivable` both first looked 3-5 m out and turned cars into the park).
+- **Per-chunk park.** Each site chunk builds its own part (`site_steps()`); only the fountain jet
+  and the boathouse are the landmark proper, built by the chunk holding the anchor, with a far
+  copy. Two halves: the north one lawns, the 7-a-side pitch and the bandshell; the south one
+  the lake, promenade, palm ring and boathouse on the north shore. Walkers use the park's own
+  crowd rects.
+- **The lake is below the city's ground box.** CityStreamer's GroundBody is a 14 km box with its
+  top at 0; the lake floor is at -1.2. The lake-shaped `LakeSplash` area adds a collision
+  exception between the GroundBody and each player or props body in it (`_sink`) and takes it
+  away on exit or when the chunk unloads. Wheel rays and ray queries ignore exceptions, so a
+  car that lands in the lake rides on the box, chassis awash, and a test ray has to exclude the
+  GroundBody by hand (`tests/westlake_checks.gd` shows how). `under_city_ground()` lifts the
+  player out below -1.5, so keep `FLOOR_Y` above that.
+- **Encampments.** Hash-seeded only (seed, road, block, face): about a third of downtown's
+  streets carry most of the camps. A camp is a run of "units" (tent, tent under a tarp, tarp
+  mound, cart, bed, sitter, bags, bike, parts, slump) laid along the ground-storey walls
+  (`StreetDetail._footprints()`), keeping doorways, 9 m at the corners, 1.3 m round every lamp,
+  hydrant, meter, shelter and trash can, and a 2.3 m kerb-side strip that the block's walkers
+  are narrowed to. The people are spawned BEFORE the block's walkers (steps right after the camp
+  step), or downtown's crowd had used the cap and the camps were empty.
+- **The poses.** The rigs only have idle, walk and run, so `RoughSleeper` writes bone rotations
+  over a paused idle clip: each pose is a table of segment directions in rig space, solved per
+  rig from the idle frame (the fix_arm_pose lesson: no per-model numbers). SIT has two variants
+  (knees up, legs out), LIE lies on its side on a mattress or cardboard, SLUMP stands folded
+  forward at the hips with the head hanging, swaying. Gunfire: sitting and lying people get up
+  and flee, then walk back and settle; slumped people cower in place. Judge poses with
+  `tools/glshot/camp_shot.gd` (every pose on a row of rigs against a wall, `SEED` for other rigs,
+  `COWER=1`).
+- **The kit.** `tools/encampment_kit.py` (Blender 4.2 headless, `-- --no-bake` for the fast shape
+  loop) writes `assets/models/encampment_kit.glb`; 68-2,772 triangles a piece, all under their
+  `TRI_BUDGET`. Colour and sun-bleach come per instance (MultiMesh colour and custom), so one
+  batch per piece kind per chunk draws every tent colour.
+- **Numbers to tune** (consts at the top of `Encampment`, `LandmarkMacArthurPark`, exports on
+  `RoughSleeper`): `CAMP_STREET_SHARE` 0.34, `FACE_ODDS_CAMP_STREET` 0.72, `FACE_ODDS` 0.12,
+  `MAX_CAMPS` 3 a block, `MAX_ITEMS` 34 / `MAX_SLEEPERS` 6 a chunk, `UNITS` weights (slump 7 of
+  107, plus 14 % of tents without a chair), `DRAW_DISTANCE` 190 / `SMALL_DRAW_DISTANCE` 120 m;
+  `breath_period` 4.6 s, `sway_depth` 3.5 degrees, `breathe_range` 45 m; the park's
+  `PALM_RING_STEP` 12.5 m, `FOUNTAIN_HEIGHT` 22 m, `CROWD_NORTH` 14 / `CROWD_SOUTH` 16,
+  `WATER_Y` -0.28, `FLOOR_Y` -1.2.
+- **Traffic after a re-centre (a main bug this branch fixed).** TrafficManager is shifted with
+  everything else on an origin re-centre, but `_spawn_near` and the airport loop placed new cars
+  as if it sat at the origin, so after the first re-centre every new car was put down the whole
+  offset away along its road. That is what put cars inside the park; it will also have put them
+  in the sea and on the wrong streets for anyone who travelled far. Spawns are now relative to
+  the node, and a spawn just past a crossing's centre is checked open ahead.
+- **NOT DONE, and how to continue.**
+  1. **No stills and no frame-cost numbers.** The shared render lock never came free for this
+     branch this session, so nothing here has been looked at in a render: not the park, not the
+     lake shader, not the kit, not the poses. First job for whoever picks this up: these stills
+     (opengl3, under the render lock) - `tools/glshot/camp_shot.gd` (poses and kit
+     against a wall; `YAW=38 DIST=6` for the side), and `tools/glshot/city_shot.gd` with
+     `HIDE=Visual` at `--spawn=480,70,63,-10,22 --hour=11` (the lake from the south-east),
+     `--spawn=300,210,0,-35,120` (the whole park from the south), `--spawn=724,-30,10,-6` at
+     `--hour=10.5` and `--hour=22` (a camp street, block 7,-1's east face), and
+     `--spawn=461,242,-135,-12 --hour=16` (a camp with four people, block 4,2's north face). Then
+     `tools/geo_count.gd` at the same cameras against the branch point (`8dd0269`) for the
+     frame cost. Expect to tune: the poses (solved blind from rig data), the lake's colours, the
+     kit's bleach and grime, the tent sizes against the pavement.
+  2. **The kit glb in the repo is the no-bake build** (UV2 is zero, so no baked AO in the
+     shader). Rebuild it with the bake: `blender -b -t 2 --factory-startup --python
+     tools/encampment_kit.py`, then `godot --headless --path . --import`, and commit the `.glb`.
+  3. Nobody has seen it move: the breathing, the sway, fleeing and settling back are checked by
+     the smoke test's numbers only. No swimming (the lake is a wading depth). The site is
+     axis-aligned (the real Wilshire runs at 297 degrees). The boathouse and bandshell are code
+     massing on the building shader, not Blender models. The police can still dispatch a
+     cruiser that starts inside a crossing next to the park and heads into a closed arm (their
+     spawn has no look-ahead; traffic's does).
+- **The smoke test** (`tests/westlake_checks.gd`, ~30-60 s on a busy box) re-centres the origin
+  on every teleport and waits idle frames before a physics query, for the two reasons in its
+  `_go()`; copy that pattern for any check that teleports far and then casts rays.
+## 9s. Downtown at 1:1: the research, the fit, and a re-lay waiting to land (2026-09-24, agent branch)
+
+Owner: "I want the whole downtown landscape to become a 1:1 replica ... This should be
+geographically sound", "you should also have macarthur park". The session ended before the
+re-lay could be gated, so what is on main is **data only**: `scripts/world/downtown_real.gd`
+(`DowntownReal`), which nothing calls yet. The re-lay itself was written and probed headless (it
+compiles and lays out as described below) but never ran through the smoke test; it is kept as
+`tools/downtown_relay/relay.patch` (a `git diff` against 006e57c, the civic merge) with its
+draft checks `tools/downtown_relay/downtown_checks.gd.txt`.
+
+**The fit.** 93 Nominatim queries (strictly one per 1.2-3 s, the IP is shared and 429s came
+often; every answer is in `tools/downtown_relay/geocode_cache.json`, so NOTHING needs re-querying):
+40 landmark / anchor points by address or place, and the OSM way centroids of 45 named streets
+and 4 freeways in a downtown box (`limit=10&dedupe=0&bounded=1`: up to ten points ON each street's
+centre line per query - `tools/downtown_relay/points.txt` is the query list). `fit2.py` keeps each
+street's points where it runs on the core grid, trims them to 18 m of the median and fits the
+bearing that minimises the scatter: **37.86 degrees, RMS 2.0 m over 115 centre-line points**;
+avenues alone 37.87, streets alone 37.80 + 90, so the grid is square to 0.07 degrees. The old
+tables were off: the skyline's 45 degrees, the civic table's 36, and their metres per degree of
+latitude (110 574 is the equator's; 110 923 at 34.05 N). Real block spacing, centre line to centre
+line: avenues 122-130 m (Figueroa-Flower 125.9, Hill-Broadway 126.6), numbered streets 199-209 m
+(5th-6th 200.2, 1st-2nd 164), Wilshire 110 m below 6th, Temple 314 m above 1st, Pico-Venice 437.
+City hall to the arena 2 531 m. MacArthur Park's centre is 1 943 m west of Figueroa along
+Wilshire. Every value, with its point count and RMS, is in the module's AVENUES / STREETS tables;
+`-1` RMS marks a street placed rather than fitted (it runs off the grid - see below).
+
+**What the real grid does that the game's cannot**, all in the module header: east of Main the
+streets are on another grid (Alameda swings 500 m across it between Union Station and Little
+Tokyo), so only Alameda (where it passes Union Station) and Vignes are pinned there; one road is
+one line across the whole map, so Wilshire (pinned, it is MacArthur's axis) also splits the
+historic core's 6th-7th blocks, 12th St is left out (it would cut the arena), and Georgia St is
+pinned where it is south of Olympic; west of the 110 the streets bend 8 degrees, so MacArthur Park
+goes on the straightened Wilshire at its true distance along it (280 m grid-north of the real
+park). The 10 is 2.3 km south of Pershing Square, well below Pico (the convention centre is
+bounded by Venice, not the 10).
+
+**The placement, and why the basin has to grow.** At 1:1 downtown (the 110 to Vignes, Cesar
+Chavez to Venice) is 2.3 x 3.8 km - as big as the whole old basin between the coast, the front
+range and the port. Constraints that fixed it: MacArthur Park 2.5 km west of Pershing Square has
+to land on city east of the airport and clear of the coast towns and the mosque; the port cannot
+sit west of the arena; the civic centre must not be on a mountainside; CityPlan's road 0 is at z 0
+and must be a real street. Result (`DowntownReal.GAME_ANCHOR`): **Pershing Square at (2800,
+102.7)**, 5th St exactly on z 0, downtown x 1650-3950, z -1750..2020, MacArthur Park at x 100-487
+on Wilshire (z 313). In the patch that needs: the east range from x 1900 to 5000; an "embayment"
+(`MacroMap.embay_*`) stepping the whole north (front range, valley, back range) back 1 250 m east
+of the pass, with the front range at 0.4 height there - the real range ends at the Cahuenga Pass
+and only the low Elysian hills stand north of downtown; the port and harbour moved to x 2050-2750,
+z 3000-3560, at the foot of the 110; `industrial_corner` (1100, 2300) and the Arts District east of
+Vignes industrial; `AirTraffic.downwind_x` 1950 -> 1250 and `approach_clear_length` 700 -> 1150 (the
+final turned in over the South Park towers); relief calmed inside downtown; the masjid anchor to
+z 139 (6th St now runs where its gate was); the cargo ship to (2400, 3420). The zone map of the
+patched basin (100 m a character) is `tools/downtown_relay/zone_map_after.txt`: downtown east-north-
+east of the airport (bearing ~76 degrees), the embayment hills 150-220 m high from z -2200.
+
+**Freeways in the patch** (`Freeway._spline()` resamples control points to STEP): the 110 on its
+geocoded alignment from the four-level interchange (2157, -1616) down the west edge (u -886 at
+8th, -1016 at Olympic, -1089 at Pico) to the 10 interchange (2206, 2650) and into the port; the
+101 along the north edge (v -1335) past the civic centre to the four-level, west-south-west on its
+real heading - the geocoded point at u -2044 lands exactly on the game's pass - then north through
+the pass as the old valley route did (renamed "101 Hollywood Freeway"); the 10 new, from the 110
+east along the real line to x 4930; the 105 rerouted south of the airport's clear zone and round
+downtown's south-west, crossing the 110 south of the 10 (as the real one does), north of the port.
+
+**Measured.** geo_count at forced HIGH (`-- --quality=0`, or the auto step-down changes what is
+drawn mid-run) on the civic merge 006e57c, i.e. the "before": avenue `--spawn=589.2,860,0,12,2`
+**5.54 M tris, 3 169 draws, 3 185 objects**; south-west aerial `--spawn=-50,1250,-43,5,80` **9.30 M
+tris, 4 470 draws, 4 547 objects**. The "after" was NOT measured. Probe of the patch (headless): all
+19 towers within 13.8 m of their geocoded points (the pavement clamp; plans = built extents),
+civic sites 1-108 m (city hall and the concert hall 1 m; the LA Live plaza and hotel share one
+block and the geocoded point is a POI, so they are placed by `at`), 16 x 18 replica blocks, 2 799
+lots, 52 infill lots over 130 m (after lowering the non-core band to 14-80 m and the core to
+30-190 m with bigger core lots - with the old bands it was 301), MacroMap setup 180 ms.
+
+**How the next session lands it, step by step.**
+1. Merge origin/main; `git apply --3way tools/downtown_relay/relay.patch` and resolve (it touches
+   city_plan, macro_map, freeway, landmark_downtown, civic_sites, landmarks, air_traffic, traffic,
+   city_streamer, smoke_test).
+2. `mv tools/downtown_relay/downtown_checks.gd.txt tests/downtown_checks.gd` (the patch's smoke
+   test already loads it after `_test_downtown`).
+3. `godot --headless --path . --import`, then run `tools/downtown_relay/probe.gd.txt` (rename to
+   .gd) with `--script`: it prints every pinned road, tower anchor, civic site, route and the lot
+   count. Then the headless check inside the gate slot. Expect to fix: the ambience checks
+   (downtown noon sampled at Pershing), the air traffic checks (new downwind leg), the freeway
+   ramp/crossing checks (five routes), the civic checks' "no deck crosses a site" (the patch was
+   laid to keep the 110 west of Georgia and the 101 north of Temple, not yet run), and anything
+   that hard-codes the old port (800, 1150).
+4. If the MacArthur branch has landed: set its SITE from `DowntownReal.MACARTHUR` - west_x 100
+   (Park View), east_x 487 (Alvarado), north_z 200.2 (6th), south_z 404 (7th), wilshire_z 312.7,
+   anchor (293.5, 312.7).
+5. Measure geo_count at the new avenue `--spawn=2359.4,880,0,12,2` (Flower at Olympic, north) and a
+   south-west aerial `--spawn=1450,2150,-38,4,140`, at `--quality=0`, against the numbers above.
+   The patch caps the LOD ring at the skyline's start in metres (`CityStreamer._block_distance`),
+   because seven of downtown's 200-440 m blocks reach twice as far as the Skyline tier starts and
+   both drew the same city; the full-detail ring is still 2 blocks, which in downtown is 2.6x the
+   area it was - the first thing to look at if the avenue's draws are up.
+6. Stills: SW aerial as above, the avenue as above, the civic centre `--spawn=2600,-450,-50,-4,60`,
+   the arena `--spawn=2300,1150,138,-8,30`, a Forward+ golden hour `--hour=18.3` on the aerial.
+7. Docs: a CLAUDE.md bullet for DowntownReal (the module header has the substance), and fix the
+   skyline and civic bullets' "one real block to one game block" and their stills spawns.
+
+Not done at all: interiors of any of it; Bunker Hill as a hill (the relief is flat); Little Tokyo
+and the east side as real streets; the real 110/101/10 interchange ramps (the decks meet with the
+freeway code's usual lift); the civic builders at real size (the arena's `ARENA_RADII` is still
+36-37 m against the real ~90, so it will look small in its real 240 x 330 m block).
+## 9t. The distance, 2026-09-24 (agent branch)
+
+Owner: "it's glaringly obvious that certain areas of the map aren't loading properly at a
+distance. I'd like to see this fixed, do whatever GTA does and other grade-A games." The rules
+are the Distance bullet in CLAUDE.md. What a next session needs to know:
+
+**What was wrong, found by counting before fixing.** A headless census (every city block of the
+plan within 6 km of eight vantage points - downtown roof and street, midtown street, the hills
+over the basin, the beach, the airport, the valley, 900 m up - asked which tier draws it) plus
+opengl3 panoramas (`tools/glshot/lod_pano.gd`) from the same places:
+
+| Failure | Measured |
+| --- | --- |
+| The camera's far plane was 2000 m | 65-80 % of the city blocks within 6 km clipped from every vantage (969 of 1487 from downtown); the back range, the valley city and the far coast simply not drawn |
+| The old far tier drawn over the chunks | 17-142 blocks drawn twice per vantage; from 900 m up every block the chunks had also wore a coarse far box (`TIERS=1` shows blue over red everywhere) |
+| Gap ring | 0-10 holes per vantage in the 500-1000 m ring: the old tier decided visibility per 36-block tile by the tile CENTRE's distance, so a tile half inside the LOD ring drew nothing past it |
+| Far massing not the city's | malls, big boxes, commercial pads, pocket-garden yards and the freeway corridor drawn as lot-sized buildings the chunks never build |
+| Horizon plane burying the far city | `urban_lift` stood the built-up plane 42 m up past 2.6 km, over every suburb |
+| Far buildings brighter than near ones on the Mac | `instance_color_is_srgb` declared in building_lod.gdshader and never set or read: far boxes 1.4-4.3x the near buildings' value |
+| The LOD ring bald | LOD chunks plant nothing: no street or park trees 200-700 m out, no scrub on LOD hills |
+| The LOD ring could not keep up | LOD chunk build 40 ms (32 of it laying flat ground on the near 2.2 m grid); a 90 m/s flight ended with 3 of 200 LOD chunks standing |
+| The plane's own edge | once the far plane was fixed, the 14 km plane's rim showed from the hills as a pale slab across the sea |
+
+**What it is now** (commits on this branch, oldest first): the far plane is 12 km; far chunks'
+ground is on an 8 m grid (LOD build 40.3 -> 7.6 ms, worst step 17.6 -> 2.9 ms; startup headless
+58 -> 36 s, a teleport 18.7 -> 7.4 s); far boxes decode their colour on Forward+; the far city
+(`Skyline`) is a super-LOD of every block within 7 km, handed over per block with a dissolve and
+built from the LOD block build itself (capture mode), with plates, painted roads, freeway decks,
+port containers, street/park trees and hill planting; the queue is view-weighted; the plane's
+rim and the far city's last kilometre hand over to the sky's horizon colour together.
+
+**After, same census:** 0 holes, 0 blocks drawn twice, 0 past the far plane, from every vantage.
+The one exception is a teleport: the far city outside `far_city_immediate_radius` (2.5 km) is
+built progressively, ~1-2 s of play, nearest and most-in-view first; the loading screen builds
+all of it up front on desktop (`finish_far_city()`, ~2.7 s headless for 20,000 blocks, most of
+them sea and open hillside).
+
+**Cost, measured.** Geometry per frame is opengl3 + Xvfb (`lod_pano.gd` prints it per view,
+four views 90 degrees apart); the flight is headless (`tools/flight_bench.gd`, CPU side only).
+The box was shared with four other agents at a load of 7-11 on 4 cores the whole time, so the
+flight's wall-clock frame times are noise of +-20 % between two runs of the SAME build.
+
+| Vantage (4 views) | Triangles before | Triangles after | Draws before | Draws after |
+| --- | --- | --- | --- | --- |
+| Hills over the basin (300,-1150, 520 m) | 515k / 435k / 209k / 255k | 1.37M / 1.34M / 1.27M / 628k | 473 / 299 / 435 / 767 | 710 / 322 / 463 / 782 |
+| 900 m up over midtown | 471k / 374k / 236k / 252k | 927k / 511k / 387k / 656k | 538 / 638 / 248 / 102 | 577 / 659 / 283 / 128 |
+| Downtown roof (700,250, 260 m) | 756k / 514k / 669k / 565k | 1.80M / 908k / 930k / 986k | 938 / 859 / 768 / 335 | 979 / 884 / 806 / 355 |
+
+Triangles roughly double to triple from a height because the whole basin is now drawn (it was
+clipped at 2 km); draw calls are about flat (one MultiMesh per 36-block tile). The far canopy
+blob went from 48 to 24 triangles after these were taken, which takes a slice back.
+
+| Flight, 90 m/s at 70 m, wall clock | frames | p50 | p95 | p99 | max | over 100 ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| Route a (midtown - downtown - port), base, 2 runs | 339 / 351 | 98.9 / 105.7 | 286 / 334 | 402 / 473 | 1054 / 827 | 166 / 183 |
+| Route a, this branch | 340 / 355 | 101.9 / 96.5 | 302 / 354 | 445 / 509 | 647 / 917 | 172 / 174 |
+| Route b (hills - coast), base | 589 / 606 | 39.1 / 37.1 | 159 / 164 | 376 / 246 | 704 / 533 | 104 / 98 |
+| Route b, this branch | 530 / 645 | 42.6 / 35.2 | 244 / 140 | 498 / 188 | 1279 / 612 | 125 / 73 |
+
+So: no measurable change either way inside that noise, while the new side also builds the far
+city during the flight (headless has no loading screen). Holes ahead of the flight (city
+blocks within 3 km in a 100-degree cone that no tier draws, sampled every 20 frames): route a
+112.8 mean / 218 worst -> 23.6 / 102 (the far city past 2.5 km still being built progressively,
+which the desktop loading screen does up front), route b 81.3 / 247 -> 0.7 / 12.
+The far city's own work: 13,288 blocks (16,776 with sea and hills) in 2.3 s total headless,
+per work step p50 0.05 ms, p99 1.4 ms, since the capture was split into build steps.
+A fixed-step A/B (`FIXED=1`, same frames both sides, process CPU time from /proc) was set up in
+`scratchpad/lod/flight_ab2.sh` but not run before the session ended - run it on a quiet box:
+`FIXED=1 [FARCITY=1] ROUTE=a|b godot --headless --path . --script tools/flight_bench.gd -- --nohud`.
+
+**Traps and rules** (also in CLAUDE.md):
+- Never give a far-city node a visibility range and never free a chunk except through
+  `CityStreamer._retire_chunk()`: both reopen the gap ring.
+- The capture build must stay exactly the LOD build. `CityChunk.capturing` intercepts
+  `_add_slab`, `_add_cylinder` and `_add_lod_shape` only; everything else in `_block_steps` runs
+  as written, so its rolls land in the same order. `tests/distance_checks.gd` compares the two
+  box for box - if it fails, something in the block build now depends on a node or on the level.
+- A far block's instances carry its visibility in their colour ALPHA. Anything that draws with
+  building_lod or far_canopy must keep alpha 1 unless it means to be dissolved (the LOD chunks'
+  own batches do).
+- The far city's plates carry LINEAR colours (`CityChunk.far_tint()`), like the LOD chunks' far
+  ground, and building_lod skips its sRGB decode for them (`INSTANCE_CUSTOM.a` >= 2).
+- The retire keeps a chunk drawn for `lod_fade_time` but `CityChunk.retire()` takes its cars,
+  people, trash cans and collision at once, which is when they went before. The first smoke run
+  without that crashed: a test picked a parked car from a retiring chunk and it vanished
+  half a second later.
+
+**Not done / not verified:**
+- Nothing here has been seen in Forward+: the box never had 9 GB free while this ran. The
+  renders are opengl3, and on opengl3 the horizon plane's hills are a dark brown next to the
+  LOD chunks' gold terrain (a tier seam you can see in every hills shot, before and after); it
+  was there before this work and may be Compatibility-only - look at a Forward+ hills still
+  first.
+- Far trees are the right rows at the right density, not the FULL chunk's own trees (those are
+  placed with rolls the capture does not make), so a tree can shift a few metres as its block
+  turns FULL, 200 m out, under the dissolve.
+- Hill roads are not in the far city; the plane paints none. (The airport's runways are: they
+  cut its plates into strips.) Inside the LOD ring the airport chunk's runway box (top 0.14)
+  still z-fights its apron (top 0.10) past ~700 m on the Compatibility renderer - streaks in the
+  opengl3 stills, there before this work, and not expected on Forward+'s reverse-Z depth.
+- The far city's towers are shaded boxes (the LOD shader), exactly as the LOD chunks draw them;
+  a real impostor tier for towers is the next step up (G7).
+- The web build builds the far city progressively from 900 m out (it has no loading screen); on
+  a slow machine the far half of the basin arrives over the first seconds.
+- Merged with main's downtown skyline and civic set at the end of the session and the headless
+  check run once on the merge; the far copies of the named towers are theirs (far landmarks),
+  not the far city's. Not rendered after the merge.
+- Stills (opengl3, 5120 x 720 panoramas, four views; in the session scratchpad, not the repo,
+  and already sent to the owner): before = downtown, hills, high air, airport, beach, freeway;
+  after = downtown, hills, high air; `_tiers` = each tier a flat colour (red LOD chunks, blue far
+  city, pink landmarks). The after set predates the rim fade, the airport plates and the
+  harness far-city build (except `lod_after_highair_tiers`, which has the last two); re-shoot
+  the same vantages with `tools/glshot/lod_pano.gd` (usage in its header) to see all of it:
+  downtown `--spawn=700,250,0,-8,260`, hills `300,-1150,180,-12,520`, high air
+  `500,300,0,-28,900`, airport `-300,780,-90,-5,80`, beach `-850,-300,-90,-3,30`, freeway
+  `200,712,-90,-4,30`, all at `--hour=13`.
+
+
+## 9u. The hero, AAA pass, 2026-09-24 (agent branch, landed 2026-09-24 late)
 
 The owner asked for the Blender hero at "AAA studio level, from scratch, with real fingers".
 What changed, in the order the brief listed it:
@@ -1453,13 +1979,15 @@ textures (S3TC with mips).
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
 4-8 of it are still open.
 
-1. **Land what was in flight** (section 0): any agent branch that did not reach main is
-   described there with where it stopped.
+1. **Land the hero pass** (section 0): fix the collar shards on branch
+   `claude/optimistic-babbage-w2047x`, check it in stills, merge it. Then turn MacArthur Park
+   on (9r: find the traffic leak onto its closed roads first).
 2. **The 1:1 downtown re-lay** (owner: "the whole downtown landscape ... a 1:1 replica"). The
    real positions live in `LandmarkDowntown.TOWERS` (`real`, `real_plan`, `real_grid()`) and
    `CivicSites.SITES` (`real_en()`, `real_grid()`), both in metres east/north of
-   `LandmarkDowntown.REAL_ORIGIN`; if the research branch landed, the geocoded points and the
-   fitted grid are in its data module (section 0). The job: rotate the real grid onto the game
+   `LandmarkDowntown.REAL_ORIGIN`; the geocoded points and the fitted grid are in
+   `scripts/world/downtown_real.gd`, and a complete but never smoke-tested re-lay is
+   `tools/downtown_relay/relay.patch` (9s says how to land it and which checks will move). The job: rotate the real grid onto the game
    axes, lay real block spacing and street order into `CityPlan.PINNED_ROADS`, grow
    `MacroMap.downtown_core` and the DOWNTOWN district to the real core (about 2.5 x 3 km), move
    both tables' anchors to their real blocks, put MacArthur Park at Wilshire and Alvarado west
@@ -1483,6 +2011,14 @@ Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept becaus
 6. **Build hitches in the civic set**: each landmark builds in one step (museum 68 ms, arena and
    city hall 35 ms warm); split them into chunk build steps like everything else.
 7. **Interiors** (item 4 of the old list) remain the biggest change to how the game plays.
+8. **Headless log noise.** Every smoke run prints ~5,000 "Cannot set a buffer on a Multimesh
+   that is a different size" errors from the shadow twins (`MultiMeshBatch.build()`,
+   `twin_mm.buffer = mm.buffer`): under the dummy renderer the instance buffer reads back empty.
+   Harmless and not on the gate's tripwire list, but it buries real errors; skip that copy when
+   `DisplayServer.get_name() == "headless"` (or copy per instance there).
+9. **The suite's length.** With every branch merged the smoke test is ~420 checks; its watchdog is
+   840 s (`SMOKE_WATCHDOG` overrides) inside a 900 s timeout in `tests/headless_check.sh`. If CI
+   starts timing out, split the checks files into a second scene rather than raising it again.
 
 The 2026-09-21 list:
 
@@ -1495,12 +2031,10 @@ The 2026-09-21 list:
 2. **Judge everything on Forward+ from now on.** `tools/glshot/forward_shot.sh`. This is a
    working practice, not a task, and it is first among them because the alternative has already
    cost this project one entirely broken subsystem (see build 130).
-3. **The distance.** Beyond the streamed chunks the whole world is one plane wearing
-   `shaders/macro_ground.gdshader`, shaded from a 256 px bake - 55 metres per texel. In any shot
-   from the air, which is most of how the owner plays, it is dead flat grey-brown over a third of
-   the frame. Far buildings (`shaders/building_lod.gdshader`) are the same story: coloured boxes
-   with a window grid printed on them, no facade typology, no glazing specular, so a skyline has
-   no value contrast. Both are shader work on geometry that already exists.
+3. **The distance - next step up.** The tiers now cover everything (section 9p). What is left is
+   quality at range: real impostors for the far city's towers (they are shaded boxes, as the LOD
+   chunks draw them), hill roads painted on the horizon plane, and a Forward+ look at a hills
+   still to settle the plane-vs-LOD-terrain colour seam the opengl3 stills show.
 4. **Interiors.** Windows have traced fake rooms; doors and lobbies do not. A handful of enterable
    ground-floor interiors would be the biggest single step left in making the city feel real, and
    it is the one thing on this list that changes how the game plays rather than how it looks.

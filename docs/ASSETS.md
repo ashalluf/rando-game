@@ -36,6 +36,13 @@ Quaternius). Record every pack here.
 | Fabric036 (1K JPG: Color, NormalGL, Roughness) | https://ambientcg.com/a/Fabric036 | CC0 1.0 | facade kit: shop awning canvas (`fabric`) | 2026-09-24 |
 | Metal016 | https://ambientcg.com/a/Metal016 | CC0 1.0 | facade kit: painted steel - AC units, rooftop units, vents, fire escapes, railings (`metal_painted`) | 2026-09-24 |
 | Planks023A | https://ambientcg.com/a/Planks023A | CC0 1.0 | facade kit: rooftop water tank staves and roof (`planks`) | 2026-09-24 |
+| ClayRoofTiles02 (Poly Haven `clay_roof_tiles_02`, 1K JPG, Diffuse/nor_gl/Rough renamed to Color/NormalGL/Roughness) | https://polyhaven.com/a/clay_roof_tiles_02 | CC0 1.0 | Esplanade replica: the houses' hipped and gabled barrel-tile roofs (`roof_clay`, tinted per house) | 2026-09-24 |
+| Fabric048 | https://ambientcg.com/a/Fabric048 | CC0 1.0 | encampment kit: tent nylon, camp chair and duffel canvas (`camp_nylon`) | 2026-09-24 |
+| Fabric015 | https://ambientcg.com/a/Fabric015 | CC0 1.0 | encampment kit: woven poly tarps (`camp_tarp`) | 2026-09-24 |
+| Cardboard001 | https://ambientcg.com/a/Cardboard001 | CC0 1.0 | encampment kit: flattened boxes and cartons (`camp_cardboard`) | 2026-09-24 |
+| Fabric040 | https://ambientcg.com/a/Fabric040 | CC0 1.0 | encampment kit: mattress ticking (`camp_ticking`) | 2026-09-24 |
+| Fabric031 | https://ambientcg.com/a/Fabric031 | CC0 1.0 | encampment kit: blankets and quilts (`camp_wool`) | 2026-09-24 |
+| Plastic006 | https://ambientcg.com/a/Plastic006 | CC0 1.0 | encampment kit: trash-bag film (`camp_plastic`) | 2026-09-24 |
 
 Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
 attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.
@@ -118,6 +125,52 @@ ambientCG sets added for it); the glTF materials only carry names, which
 | `kit_water_tank` | 998 | timber rooftop tank on a braced steel stand | 2026-09-24 |
 | `kit_vent_mushroom` / `kit_vent_turbine` | 188 / 238 | roof vents | 2026-09-24 |
 | `kit_hvac` | 942 | packaged rooftop units on big roofs | 2026-09-24 |
+
+## Encampment kit (our own Blender generator)
+
+`assets/models/encampment_kit.glb` is written by `tools/encampment_kit.py`, run headless in
+Blender 4.2 (`blender -b -t 2 --factory-startup --python tools/encampment_kit.py`, `-- --no-bake`
+skips the AO bake for a fast shape loop), then `godot --headless --path . --import`. Like the
+facade kit the script is the model: every piece is bmesh in metres, UVs in metres (the shader
+tiles the CC0 sets above at their real scale), ambient occlusion baked in Cycles against a
+ground plane into UV2.x. The glTF materials only carry names, which `PropFactory.camp_material()`
+maps to `shaders/encampment.gdshader` / `encampment_2side.gdshader` (colour per instance, faded
+by the sun per instance, grime, stains). For the downtown encampments (`Encampment`).
+
+| Piece | Triangles | Used for | Added |
+| --- | --- | --- | --- |
+| `camp_tent_dome` | 2696 | two-pole dome tent with a sagging fly, door zipped half open, guy lines | 2026-09-24 |
+| `camp_tent_pop` | 2624 | pop-up tent, lower and rounder, with a bathtub floor | 2026-09-24 |
+| `camp_tarp_canopy` | 1516 | tarp roped from a wall to two sticks over a pitch | 2026-09-24 |
+| `camp_tarp_mound` | 2280 | tarp thrown over a heap of belongings, tied down | 2026-09-24 |
+| `camp_cart` | 2164 | wire shopping cart with a bagged load | 2026-09-24 |
+| `camp_bag_trash` / `camp_bag_duffel` / `camp_bags_pile` | 480 / 368 / 1808 | trash bags, a duffel, a heap of both | 2026-09-24 |
+| `camp_mattress` | 1928 | sagging stained mattress | 2026-09-24 |
+| `camp_bedding` | 1488 | rucked blankets and a pillow | 2026-09-24 |
+| `camp_cardboard` / `camp_box` | 144 / 68 | flattened cardboard bed, a carton | 2026-09-24 |
+| `camp_chair` | 680 | folding camp chair | 2026-09-24 |
+| `camp_bicycle` | 2772 | whole bicycle leant on its side | 2026-09-24 |
+| `camp_bike_wheel` / `camp_bike_frame` | 916 / 940 | loose wheels and stripped frames | 2026-09-24 |
+## Traffic signals (our own tool, no external source)
+
+`assets/models/traffic_signal.glb` is written by `tools/make_signals.py`, run headless in Blender
+4.2 (`blender -b --factory-startup --python tools/make_signals.py`); the script is the model and
+the `.glb` is build output (rerun it, then `godot --headless --path . --import`). Seven pieces,
+one node each, every hard edge bevelled with face-area weighted normals. No textures of its
+own: `PropFactory.signal_material()` puts the CC0 `metal_painted` and `concrete` sets above on
+the named glTF materials, and the lenses are `shaders/traffic_signal.gdshader` (LED lamps, and
+the pedestrian glyphs - an original raised hand and walking figure - drawn from distance
+fields). Original design; no real signal maker's hardware or symbol artwork is copied.
+
+| Piece | Triangles | Used for | Added |
+| --- | --- | --- | --- |
+| `sig_pole` | 1,376 | tapered galvanised pole, bolted base plate and cover, handhole, arm collar | 2026-09-24 |
+| `sig_arm` | 404 | the mast arm (8 m, scaled along its length per approach) | 2026-09-24 |
+| `sig_head` | 2,132 | three-lamp vehicle head: tunnel visors, bezels, domed lenses, yellow-bordered backplate, hanger | 2026-09-24 |
+| `sig_bracket` | 128 | side-mount arm for the head low on the pole | 2026-09-24 |
+| `sig_ped` | 980 | pedestrian head: hood, glyph panel and countdown panel | 2026-09-24 |
+| `sig_button` | 328 | push-button station with its sign | 2026-09-24 |
+| `sig_cabinet` | 740 | signal controller cabinet on a concrete pad | 2026-09-24 |
 
 ## Procedurally generated cars (our own tools, no external source)
 
@@ -392,3 +445,9 @@ side ("left/right" below), or by the loop against itself half a turn later (bird
 | Font | Source URL | License | Used for | Added |
 |---|---|---|---|---|
 | Inter 4.1 SemiBold and Medium (`extras/woff-hinted/Inter-SemiBold.woff2`, `Inter-Medium.woff2` from the release zip) | https://github.com/rsms/inter/releases/tag/v4.1 | SIL Open Font License 1.1 (text in `assets/fonts/Inter-OFL.txt`) | weapon wheel names and hints (`scripts/ui/weapon_wheel.gd`); falls back to Godot's default font if missing | 2026-09-24 |
+
+## Map data
+
+| Data | Source | License | Used for | Added |
+|---|---|---|---|---|
+| Coordinates of 40 landmark points (40 queries, 68 results, the first of each used) and 517 street / freeway centre-line points (53 queries) in downtown Los Angeles (93 Nominatim search queries in all, cached in `tools/downtown_relay/geocode_cache.json`) | https://nominatim.openstreetmap.org (OpenStreetMap) | © OpenStreetMap contributors (ODbL 1.0) | the fitted downtown street grid and landmark positions in `scripts/world/downtown_real.gd` | 2026-09-24 |

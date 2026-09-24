@@ -18,7 +18,7 @@ render_mode unshaded, blend_add, cull_disabled, depth_draw_never, shadows_disabl
 // Two things let a real plane's lights read across a city at night the way they do in life:
 // a light never shrinks below `min_angle` of the view (a couple of pixels), and one beyond
 // `max_depth` is pulled in along its own view ray to just inside the camera's far plane, with
-// its size scaled to match, so it lands on exactly the same pixels and survives the 2 km far
+// its size scaled to match, so it lands on exactly the same pixels and survives the far
 // clip that the aircraft itself does not. The MeshInstance3D carries a huge extra_cull_margin
 // for the same reason.
 
@@ -34,7 +34,7 @@ uniform float min_angle = 0.006;
 // How far over white the core of a light goes, so the glow pass blooms it.
 uniform float hdr = 2.5;
 // Lights further than this are drawn at this depth instead (keep it under the camera's far).
-uniform float max_depth = 1850.0;
+uniform float max_depth = 11000.0;
 // 0 hides the landing lights (they are only on during approach, take-off and the landing roll).
 uniform float landing_on : hint_range(0.0, 1.0) = 1.0;
 

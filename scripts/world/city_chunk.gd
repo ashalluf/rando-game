@@ -36,6 +36,12 @@ const SIDEWALK_TOP := 0.25
 ## Metres per quad of the *collision* grid under those same surfaces, kept coarse on purpose:
 ## the trimesh is what physics walks on and it gains nothing from the visual resolution.
 @export var ground_collision_step: float = 5.0
+## The same for a far (LOD) chunk's merged ground. It used the near step, so a block 300 m out
+## was ~12,000 triangles of flat ground and 32 of its 40 ms build (measured headless: the
+## pavement slab alone 17.6 ms, the roads 14.7) - which is why a fast flight outran the LOD ring
+## and flew over holes. The relief rolls over tens of metres; an 8 m chord is under 15 cm off it,
+## a fraction of a pixel from where these chunks are seen.
+@export var lod_ground_grid_step: float = 8.0
 ## Grass tufts per square metre of lawn, and the cap for one patch. A tuft is 160 triangles
 ## (ten creased blades) and covers about a third of a metre, so a lawn costs roughly 300
 ## triangles a square metre - a tenth of what the same ground costs in tree canopy overhead,
@@ -62,7 +68,7 @@ const SIDEWALK_TOP := 0.25
 @export var ocean_subdiv: int = 72
 @export var ocean_subdiv_lod: int = 32
 
-const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0, "rack": 15.0, "newsbox": 10.0, "mailbox": 20.0, "bollard": 40.0, "street_sign": 12.0, "bus_stop": 40.0}
+const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "signal_cabinet": 50.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0, "rack": 15.0, "newsbox": 10.0, "mailbox": 20.0, "bollard": 40.0, "street_sign": 12.0, "bus_stop": 40.0}
 
 var plan: CityPlan
 var ix: int = 0
@@ -81,6 +87,8 @@ var built_landmarks: Array[String] = []
 ## Parked cars this chunk spawned. They live under the city root (a driven car must outlive its
 ## chunk), so the chunk frees the ones nobody drove when it unloads.
 var _cars: Array[Node] = []
+## The replica area's builder for this chunk, when a replica area runs through it (ReplicaBuilder).
+var _replica: ReplicaBuilder = null
 var _batch := MultiMeshBatch.new()
 ## Per-block surface look (set by _block_surface from the district table and the block seed).
 var _tree_bias: int = -1
@@ -105,8 +113,25 @@ var _prop_counter: int = 0
 
 ## Lattice spacing of the relief cache below, in metres.
 const RELIEF_STEP := 3.0
-## Cached MacroMap.relief_at samples on a fixed world lattice, keyed Vector2i(x, z) / RELIEF_STEP.
+## The lattice a far (LOD) chunk samples on, and the far city (Skyline) with it. A third as
+## many samples per metre is a ninth as many relief evaluations, and the relief's shortest
+## wavelength is ~100 m, so 9 m interpolates it to a few centimetres.
+const LOD_RELIEF_STEP := 9.0
+## Cached MacroMap.relief_at samples on a fixed world lattice, keyed Vector2i(x, z) / _relief_step.
 var _relief_lattice: Dictionary = {}
+var _relief_step: float = RELIEF_STEP
+
+## Capture mode, for the far city (Skyline): the chunk runs its LOD block build - the same
+## steps with the same random rolls, so the same lots, pads, malls and massing - but builds
+## nothing. Ground slabs and solid boxes are recorded in `captured` instead of being made, and
+## the batched boxes are read back from the batch. That is what makes the far tier the very city
+## the LOD chunk will draw, including anything anyone adds to the block build later: it IS the
+## block build. Set before begin_build(); the chunk never enters the tree.
+var capturing: bool = false
+## {"ground": [[Rect2, Color (tint), float top, Color (LINEAR: what the LOD chunk draws there,
+##  seen from afar)], ...], "boxes": [[Transform3D, Color], ...],
+##  "batch": {key: {"xforms", "colors", "custom"}}} once a capture has run.
+var captured: Dictionary = {}
 
 ## The city's rolling ground under a world XZ (MacroMap.relief_at): every slab, prop and node a
 ## chunk builds adds this to its flat height. Zero on hills, beaches and flat zones.
@@ -126,8 +151,8 @@ func ground_y(x: float, z: float) -> float:
 func _gy(x: float, z: float) -> float:
 	if plan == null or plan.macro == null:
 		return 0.0
-	var fx := x / RELIEF_STEP
-	var fz := z / RELIEF_STEP
+	var fx := x / _relief_step
+	var fz := z / _relief_step
 	var i := floori(fx)
 	var j := floori(fz)
 	var tx := fx - float(i)
@@ -142,7 +167,7 @@ func _relief_sample(i: int, j: int) -> float:
 	var cached: Variant = _relief_lattice.get(key)
 	if cached != null:
 		return cached
-	var h := plan.macro.relief_at(Vector2(i * RELIEF_STEP, j * RELIEF_STEP))
+	var h := plan.macro.relief_at(Vector2(i * _relief_step, j * _relief_step))
 	_relief_lattice[key] = h
 	return h
 
@@ -224,7 +249,8 @@ func begin_build() -> void:
 	key = "%d,%d" % [ix, iz]
 	name = "Chunk_" + key
 	position = -WorldState.world_offset
-	if level == Level.FULL:
+	_relief_step = RELIEF_STEP if level == Level.FULL else LOD_RELIEF_STEP
+	if level == Level.FULL and not capturing:
 		_statics = StreetProps.new()
 		_statics.chunk = self
 		add_child(_statics)
@@ -232,6 +258,15 @@ func begin_build() -> void:
 	zone = plan.zone_at((block.rect as Rect2).get_center())
 	_steps.clear()
 	_step = 0
+	# A block the replica area's corridor runs through builds the replica's own content in place
+	# of the seeded block (ReplicaAreas.block_role(), ReplicaBuilder).
+	var replica: ReplicaAreas = plan.macro.replica if plan.macro else null
+	var replica_role := 0
+	if replica != null and (zone == MacroMap.Zone.CITY or zone == MacroMap.Zone.BEACH):
+		replica_role = replica.block_role(plan, ix, iz)
+	if capturing:
+		_begin_capture(block, replica_role)
+		return
 	match zone:
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
@@ -244,7 +279,8 @@ func begin_build() -> void:
 		MacroMap.Zone.HILLS:
 			_steps.append_array([_build_terrain, _build_hill_roads, _build_mansions, _scatter_hills])
 		MacroMap.Zone.BEACH:
-			_steps.append(_build_roads.bind(block))
+			if replica_role == 0:
+				_steps.append(_build_roads.bind(block))
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
 			# The coast highway runs the length of the sand on the land side of it, so a beach
@@ -259,18 +295,54 @@ func begin_build() -> void:
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
 				_steps.append(_build_hill_roads)
-			_steps.append(_build_roads.bind(block))
-			_steps.append_array(_block_steps(block))
-			if level == Level.FULL:
-				_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
-			else:
+			if block.has("site"):
+				# A landmark owns this ground (CityPlan.sites()): the roads it keeps open, and its
+				# own part of the landmark instead of a block.
+				_steps.append(_build_roads.bind(block))
+				_steps.append_array(Landmarks.site_steps(block.site, self))
+				if level == Level.FULL:
+					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
+				_steps.append(_build_freeway)
+				if level == Level.FULL and plan.macro:
+					_steps.append(_build_landmarks)
+				_steps.append(_finish_build)
+				return
+			if replica_role == 0:
+				_steps.append(_build_roads.bind(block))
+				_steps.append_array(_block_steps(block))
+				if level == Level.FULL:
+					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
+				else:
+					_steps.append(_add_relief_floor)
+			elif level != Level.FULL:
 				_steps.append(_add_relief_floor)
+	if replica != null and ReplicaBuilder.wanted(self):
+		_steps.append_array(ReplicaBuilder.attach(self, replica_role))
 	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
 	# last so its deck lands on top of whatever the chunk laid down.
 	_steps.append(_build_freeway)
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
 	_steps.append(_finish_build)
+
+
+## The capture build (see `capturing`): only what the far city draws from a block - its massing
+## and its ground - run exactly as the LOD build runs it. Roads are left out (Skyline paints them
+## from the plan), and so are the freeway (drawn from Freeway's own data), the landmarks (they
+## have far versions of their own) and everything the finish step makes (nodes).
+func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
+	captured = {"ground": [], "boxes": [], "batch": {}}
+	match zone:
+		MacroMap.Zone.CITY:
+			# A replica block or a landmark's site does not build the seeded block, so the far
+			# city must not record one there either.
+			if replica_role == 0 and not block.has("site"):
+				_steps.append_array(_block_steps(block))
+		MacroMap.Zone.PORT:
+			_steps.append(_build_port.bind(block))
+		MacroMap.Zone.AIRPORT:
+			_steps.append(_build_airport)
+	_steps.append(func() -> void: captured.batch = _batch.data())
 
 
 func _build_landmarks() -> void:
@@ -382,11 +454,7 @@ func _build_occluder() -> void:
 
 ## The whole area this chunk owns: its block plus the roads on its +X and +Z sides.
 func owned_rect() -> Rect2:
-	var x0 := plan.road_pos(CityPlan.AXIS_X, ix) + plan.road_width(CityPlan.AXIS_X, ix) * 0.5
-	var x1 := plan.road_pos(CityPlan.AXIS_X, ix + 1) + plan.road_width(CityPlan.AXIS_X, ix + 1) * 0.5
-	var z0 := plan.road_pos(CityPlan.AXIS_Z, iz) + plan.road_width(CityPlan.AXIS_Z, iz) * 0.5
-	var z1 := plan.road_pos(CityPlan.AXIS_Z, iz + 1) + plan.road_width(CityPlan.AXIS_Z, iz + 1) * 0.5
-	return Rect2(x0, z0, x1 - x0, z1 - z0)
+	return plan.owned_rect(ix, iz)
 
 
 # --- Airport and port ------------------------------------------------------------------
@@ -412,6 +480,11 @@ func _build_airport() -> void:
 		if strip.size.y <= 0.0:
 			continue
 		var sc := strip.get_center()
+		if capturing:
+			# The far city lays the runway into its plate (Skyline._add_plate); nothing below
+			# this rolls the rng at the LOD level, so skipping it changes no later roll.
+			captured.ground.append([strip, style.runway, 0.14, PropFactory.far_albedo(PropFactory.material(style.runway, 0.95), Color.BLACK)])
+			continue
 		var runway := MeshInstance3D.new()
 		runway.name = "Runway"
 		var box := BoxMesh.new()
@@ -644,17 +717,27 @@ func _owns_shoreline() -> bool:
 
 
 func _build_beach(block: Dictionary) -> void:
-	_build_sand(block.rect)
+	# Under a replica area the grid roads that would cross the sand are not built (the corridor
+	# runs to the sea), so the sand covers the chunk's road strips too.
+	_build_sand(owned_rect() if _replica != null else block.rect)
 	if level != Level.FULL:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
+	# The replica's beach under the Esplanade bluff has no palms on the sand (they are up on the
+	# bluff, in the front yards).
+	var bare := false
+	if plan.macro and plan.macro.replica:
+		var cr: Vector2 = plan.macro.replica.coast_range()
+		bare = block.rect.end.y > cr.x and block.rect.position.y < cr.y
 	# Scattered across the DRY sand, which is a band that moves with the shoreline rather than
 	# the chunk's rectangle: dropping them in the rectangle put palms in the surf.
 	for i in rng.randi_range(6, 14):
 		var z := rng.randf_range(block.rect.position.y + 4.0, block.rect.end.y - 4.0)
 		var across := rng.randf_range(0.18, 0.95)
-		_add_palm(Vector3(_dry_sand_x(z, across), _sand_y(z, across), z), rng)
+		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)
+		if not bare:
+			_add_palm(at, rng)
 	if rng.randf() < 0.6:
 		var z := rng.randf_range(block.rect.position.y + 8.0, block.rect.end.y - 8.0)
 		var across := rng.randf_range(0.1, 0.5)
@@ -686,7 +769,7 @@ func _build_sand(rect: Rect2) -> void:
 		var width := inland_x - water_x
 		if macro:
 			water_x = macro.coast_x(z)
-			width = macro.beach_width
+			width = macro.beach_width_at(z)
 			inland_x = water_x + width + SAND_LIP
 		# Seaward to landward: the bar under the water, the waterline, the swash the sea still
 		# reaches, the berm crest, and the backshore falling away behind it.
@@ -736,7 +819,7 @@ func _build_sand(rect: Rect2) -> void:
 	if macro == null:
 		_add_shape(Vector3(rect.size.x, 0.4, rect.size.y), Vector3(c.x, SAND_EDGE - 0.1, c.y))
 		return
-	var width: float = macro.beach_width + SAND_LIP
+	var width: float = macro.beach_width_at(c.y) + SAND_LIP
 	var band := width / float(SAND_COLLIDER_BANDS)
 	for k in SAND_COLLIDER_BANDS:
 		var across := (float(k) + 0.5) / float(SAND_COLLIDER_BANDS)
@@ -749,7 +832,7 @@ func _build_sand(rect: Rect2) -> void:
 func _dry_sand_x(z: float, across: float) -> float:
 	if plan.macro == null:
 		return owned_rect().get_center().x
-	return plan.macro.coast_x(z) + plan.macro.beach_width * across
+	return plan.macro.coast_x(z) + plan.macro.beach_width_at(z) * across
 
 
 ## One whole palm from PropFactory.palm(): trunk, crown, dead-frond skirt and coconuts in a
@@ -980,6 +1063,9 @@ func _build_hill_roads() -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var quads := 0
 	for seg in segs:
+		# The replica's hill route is carved here but drawn by ReplicaBuilder, markings and all.
+		if not seg.get("draw", true):
+			continue
 		var a: Vector2 = seg.a
 		var b: Vector2 = seg.b
 		var seg_len := a.distance_to(b)
@@ -1117,17 +1203,26 @@ func _build_roads(block: Dictionary) -> void:
 	var look_x := _road_look(CityPlan.AXIS_X, ix + 1, params)
 	var rx := plan.road_pos(CityPlan.AXIS_X, ix + 1)
 	var wx := plan.road_width(CityPlan.AXIS_X, ix + 1)
-	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt, true, look_x.material)
+	# A road through a landmark's site is closed there (CityPlan.road_open): the landmark's own
+	# ground covers it. A closed segment is closed along the whole block.
+	var open_x := plan.road_open(CityPlan.AXIS_X, ix + 1, rect.get_center().y)
+	if open_x:
+		_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt, true, look_x.material)
 	# Horizontal road on the +Z side, spanning this block's X range.
 	var look_z := _road_look(CityPlan.AXIS_Z, iz + 1, params)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
-	_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt, true, look_z.material)
+	var open_z := plan.road_open(CityPlan.AXIS_Z, iz + 1, rect.get_center().x)
+	if open_z:
+		_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt, true, look_z.material)
 	# The intersection square at the +X +Z corner.
-	_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, look_x.material)
+	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
+		_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, look_x.material)
 	if level == Level.FULL:
-		_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
-		_mark_road(false, rz, wz, rect.position.x, rect.end.x, look_z)
+		if open_x:
+			_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
+		if open_z:
+			_mark_road(false, rz, wz, rect.position.x, rect.end.x, look_z)
 
 
 ## Asphalt sets and tints a road can wear; a road keeps one along its length.
@@ -1242,9 +1337,28 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		# Downtown encampments (Encampment), after the furniture they keep clear of. Its own
+		# hash-seeded rolls: the block's rng is untouched, so the cars and the crowd are unmoved.
+		var camps: bool = block.kind == CityPlan.BlockKind.BUILDINGS and Encampment.block_has_camps(plan, ix, iz)
+		if camps:
+			var sleepers: Array = []
+			steps.append(func() -> void: Encampment.build_block(self, rect, _sidewalk_edges(rect), sleepers))
+			# The people at the camps, one a step, before the block's walkers take the crowd cap.
+			for i in Encampment.MAX_SLEEPERS:
+				steps.append(func() -> void: Encampment.spawn_sleeper(self, rect, sleepers, i))
 		steps.append_array(_park_car_steps(rect, rng, params))
-		steps.append_array(_pedestrian_steps(rect, rng, params))
+		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps else -1.0))
 	return steps
+
+
+## The four pavement edges of a block as [a, b, inward] (the order _build_sidewalk_props uses).
+static func _sidewalk_edges(rect: Rect2) -> Array:
+	return [
+		[Vector2(rect.position.x, rect.position.y), Vector2(rect.end.x, rect.position.y), Vector2(0.0, 1.0)],
+		[Vector2(rect.position.x, rect.end.y), Vector2(rect.end.x, rect.end.y), Vector2(0.0, -1.0)],
+		[Vector2(rect.position.x, rect.position.y), Vector2(rect.position.x, rect.end.y), Vector2(1.0, 0.0)],
+		[Vector2(rect.end.x, rect.position.y), Vector2(rect.end.x, rect.end.y), Vector2(-1.0, 0.0)],
+	]
 
 
 ## Where the block's lawn is (set by _block_lawn, read once the lots are down).
@@ -1294,12 +1408,14 @@ func _block_surface(block: Dictionary, params: Dictionary, rng: RandomNumberGene
 	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45))
 
 
-func _pedestrian_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}) -> Array[Callable]:
+## `sidewalk` narrows the strip the walkers keep to (a block with encampments along its walls);
+## below zero it is the plan's pavement width.
+func _pedestrian_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary = {}, sidewalk: float = -1.0) -> Array[Callable]:
 	var count: int = params.get("people", style.pedestrians_per_block)
 	if plan.macro and not params.is_empty():
 		# The downtown core is the busiest: up to twice the district's count in the middle.
 		count = roundi(count * (1.0 + plan.macro.skyline_boost(rect.get_center())))
-	return _crowd_steps(rect, plan.sidewalk_width, count, rng)
+	return _crowd_steps(rect, plan.sidewalk_width if sidewalk < 0.0 else sidewalk, count, rng)
 
 
 ## `count` pedestrians wandering the sidewalk ring of `rect` (inset `sidewalk` meters).
@@ -1447,6 +1563,24 @@ func reveal() -> void:
 			(car as Node3D).visible = true
 
 
+## This chunk has left the streaming window but stays drawn a moment longer, while the far city
+## dissolves back in over it (CityStreamer._retire_chunk). Everything that is not just its look
+## goes now, exactly when it went before there was a dissolve: its parked cars and its people, its
+## trash cans, and its collision - nothing should walk, drive or be hit in a block that is fading.
+func retire() -> void:
+	for car in _cars:
+		if is_instance_valid(car) and not car.has_meta("driven"):
+			car.queue_free()
+	_cars.clear()
+	for child in get_children():
+		if child.is_in_group("pedestrian") or child.is_in_group("physics_prop"):
+			child.queue_free()
+		elif child is CollisionObject3D:
+			(child as CollisionObject3D).collision_layer = 0
+			(child as CollisionObject3D).collision_mask = 0
+	set_process(false)
+
+
 func _exit_tree() -> void:
 	for car in _cars:
 		if is_instance_valid(car) and not car.has_meta("driven"):
@@ -1584,7 +1718,7 @@ func _lod_collision_wanted() -> bool:
 
 
 func _add_lod_shape(size: Vector3, pos: Vector3) -> void:
-	if not _lod_collision_wanted():
+	if capturing or not _lod_collision_wanted():
 		return
 	if _lod_body == null:
 		_lod_body = StaticBody3D.new()
@@ -1847,6 +1981,10 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 # --- Intersections ---------------------------------------------------------------------
 
 func _build_intersection(inter: Dictionary) -> void:
+	# A T where a road closed by a landmark's site meets its edge: no crossings, signals or signs
+	# for an arm that is not there.
+	if plan.junction_closed(ix + 1, iz + 1):
+		return
 	var pos: Vector2 = inter.pos
 	var size: Vector2 = inter.size
 	var kind: CityPlan.Intersection = inter.kind
@@ -1872,8 +2010,10 @@ func _build_intersection(inter: Dictionary) -> void:
 				["sign_pole", PropFactory.sign_pole(), Transform3D(Basis(), at + Vector3(0.0, 1.3, 0.0))],
 				["stop_sign", PropFactory.stop_sign(), Transform3D(face, at + Vector3(0.0, 2.4, 0.0))],
 			], [[Vector3(0.3, 2.8, 0.3), at + Vector3(0.0, 1.4, 0.0), 0.0]])
-		else:
+		elif not _add_signal_corner(at, c, size):
 			_add_signal(at, c, size)
+	if kind == CityPlan.Intersection.SIGNALS:
+		_add_signal_cabinet(pos, size)
 
 
 ## Crosswalk styles by intersection seed: 0 zebra, 1 wide continental bars, 2 ladder edges.
@@ -1909,6 +2049,112 @@ func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
 				zz += step
 
 
+## Heights on a signal pole (metres above the pavement): the side-mount head's bracket, the
+## pedestrian heads, the push buttons.
+const SIGNAL_SIDE_Y := 4.6
+const SIGNAL_PED_Y := 2.7
+const SIGNAL_BUTTON_Y := 1.05
+## How far past the innermost lane centre a mast arm runs (metres).
+const SIGNAL_ARM_OVERRUN := 0.6
+## Draw distances (metres). A lit lens is what reads a junction from a block away, and at night
+## from much further, so the heads go out furthest; the pedestrian heads and buttons are for the
+## pavement.
+const SIGNAL_HEAD_DRAW := 420.0
+const SIGNAL_PED_DRAW := 160.0
+const SIGNAL_SMALL_DRAW := 70.0
+
+
+## One corner of a signalised intersection (owner, 2026-09-24: "GTA-level street life"), laid out
+## the way US junctions are: each corner's pole carries the mast arm for the approach it stands
+## on the far right of, with a head over every lane of that approach and a second head low on
+## the pole, plus the two pedestrian heads facing back across the two crosswalks that end here
+## and their push buttons. Every head is an instance in the chunk's MultiMesh batch whose custom
+## data is the intersection's offset into TrafficSignals' cycle and the axis it serves, so the
+## lens shader lights it with no node of its own. False when the model is missing (the caller
+## then builds the old primitive signal).
+func _add_signal_corner(at: Vector3, c: Vector2, size: Vector2) -> bool:
+	var pole_mesh := PropFactory.signal_part("sig_pole")
+	if pole_mesh.get_surface_count() == 0:
+		return false
+	var head_mesh := PropFactory.signal_part("sig_head")
+	var ped_mesh := PropFactory.signal_part("sig_ped")
+	var off := TrafficSignals.offset01(plan, ix + 1, iz + 1)
+	# The approach this corner is the far right of: (-1, +1) and (+1, -1) face traffic on the
+	# north-south (AXIS_X) road, the other two traffic on the east-west one. `dir` is that
+	# traffic's direction of travel (TrafficManager._lane_offset puts it on the right).
+	var on_x := c.x * c.y < 0.0
+	var axis := CityPlan.AXIS_X if on_x else CityPlan.AXIS_Z
+	var dir := c.y if on_x else c.x
+	var arm_dir := Vector3(-c.x, 0.0, 0.0) if on_x else Vector3(0.0, 0.0, -c.y)
+	var facing := Vector3(0.0, 0.0, -dir) if on_x else Vector3(-dir, 0.0, 0.0)
+	var width: float = size.x if on_x else size.y
+	var lanes := 2 if width > plan.street_width + 1.0 else 1
+	# From the pole to each lane centre of the approach: the pole stands 1.2 m in from the kerb.
+	var reach := width * 0.5 + 1.2
+	var heads: Array[float] = []
+	var arm_len := 0.0
+	for n in lanes:
+		var d := reach - CityPlan.lane_center(width, lanes, n)
+		heads.append(d)
+		arm_len = maxf(arm_len, d + SIGNAL_ARM_OVERRUN)
+	var arm_y := PropFactory.SIGNAL_ARM_Y
+	var arm_yaw := atan2(-arm_dir.z, arm_dir.x)
+	var head_yaw := atan2(facing.x, facing.z)
+	var custom := Color(off, float(axis), 0.0, 0.0)
+	var instances := [
+		# The handhole away from the corner.
+		["sig_pole", pole_mesh, Transform3D(Basis(Vector3.UP, atan2(-c.x, -c.y)), at)],
+		["sig_arm", PropFactory.signal_part("sig_arm"), Transform3D(Basis(Vector3.UP, arm_yaw).scaled_local(Vector3(arm_len / PropFactory.SIGNAL_ARM_LENGTH, 1.0, 1.0)), at + Vector3(0.0, arm_y, 0.0))],
+		["sig_bracket", PropFactory.signal_part("sig_bracket"), Transform3D(Basis(Vector3.UP, arm_yaw), at + Vector3(0.0, SIGNAL_SIDE_Y, 0.0))],
+		["sig_head", head_mesh, Transform3D(Basis(Vector3.UP, head_yaw), at + arm_dir * PropFactory.SIGNAL_BRACKET_REACH + Vector3(0.0, SIGNAL_SIDE_Y, 0.0)), Color.WHITE, custom],
+	]
+	for d in heads:
+		instances.append(["sig_head", head_mesh, Transform3D(Basis(Vector3.UP, head_yaw), at + arm_dir * d + Vector3(0.0, arm_y, 0.0)), Color.WHITE, custom])
+	# The crosswalk across the north-south road ends here too, and the one across the east-west
+	# road: a pedestrian head for each, facing the people waiting at its other end, and a button
+	# for the people waiting at this end.
+	for across_x: bool in [true, false]:
+		var face := Vector3(-c.x, 0.0, 0.0) if across_x else Vector3(0.0, 0.0, -c.y)
+		var crossing := CityPlan.AXIS_X if across_x else CityPlan.AXIS_Z
+		instances.append(["sig_ped", ped_mesh, Transform3D(Basis(Vector3.UP, atan2(face.x, face.z)), at + Vector3(0.0, SIGNAL_PED_Y, 0.0)), Color.WHITE, Color(off, float(crossing), 0.0, 0.0)])
+		var press := Vector3(0.0, 0.0, c.y) if across_x else Vector3(c.x, 0.0, 0.0)
+		instances.append(["sig_button", PropFactory.signal_part("sig_button"), Transform3D(Basis(Vector3.UP, atan2(press.x, press.z)), at + Vector3(0.0, SIGNAL_BUTTON_Y, 0.0))])
+	var pole_h := PropFactory.SIGNAL_POLE_HEIGHT
+	_add_prop("signal", at, Color(0.5, 0.51, 0.52), instances, [
+		[Vector3(0.34, pole_h, 0.34), at + Vector3(0.0, pole_h * 0.5, 0.0), 0.0],
+		[Vector3(arm_len - 0.2, 0.26, 0.26), at + arm_dir * (arm_len * 0.5 + 0.1) + Vector3(0.0, arm_y, 0.0), arm_yaw],
+	])
+	_batch.set_draw_distance("sig_head", SIGNAL_HEAD_DRAW)
+	_batch.set_draw_distance("sig_ped", SIGNAL_PED_DRAW)
+	_batch.set_draw_distance("sig_button", SIGNAL_SMALL_DRAW)
+	_batch.set_no_shadow("sig_button")
+	return true
+
+
+## The signal controller: one cabinet per signalised junction, on the pavement of a seeded
+## corner, back against the lot line of the north-south road's pavement and past the crosswalk,
+## door to the street. The box that makes the heads change, as far as anyone on the pavement can
+## tell. Out of the band people walk (1-3 m from the kerb): at 3 m it stood square across the
+## route round the block and a walker walked into its door and stayed there.
+const SIGNAL_CABINET_INSET := 3.6
+func _add_signal_cabinet(pos: Vector2, size: Vector2) -> void:
+	var mesh := PropFactory.signal_part("sig_cabinet")
+	if mesh.get_surface_count() == 0:
+		return
+	var corners := [Vector2(1, 1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, -1)]
+	var c: Vector2 = corners[absi(hash([plan.seed, "signal_cabinet", ix, iz])) % corners.size()]
+	var inset := minf(SIGNAL_CABINET_INSET, plan.sidewalk_width - 0.3)
+	var p := pos + Vector2(c.x * (size.x * 0.5 + inset), c.y * (size.y * 0.5 + 6.0))
+	var at := Vector3(p.x, SIDEWALK_TOP, p.y)
+	var yaw := atan2(-c.x, 0.0)
+	_add_prop("signal_cabinet", at, Color(0.66, 0.68, 0.63), [
+		["sig_cabinet", mesh, Transform3D(Basis(Vector3.UP, yaw), at)],
+	], [[Vector3(0.8, 1.6, 0.56), at + Vector3(0.0, 0.8, 0.0), yaw]])
+	_batch.set_draw_distance("sig_cabinet", SIGNAL_PED_DRAW)
+
+
+## The old primitive signal: a pole, an arm and three always-lit spheres. Only built when
+## traffic_signal.glb is missing.
 func _add_signal(at: Vector3, corner: Vector2, size: Vector2) -> void:
 	var along_x := size.x >= size.y
 	var dir := Vector3(-corner.x, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, -corner.y)
@@ -1939,7 +2185,8 @@ func _add_prop(kind: String, at: Vector3, color: Color, instances: Array, shapes
 	var g := _gy(at.x, at.z)
 	var record := {"id": id, "kind": kind, "position": at + Vector3(0.0, g, 0.0), "color": color, "health": PROP_HEALTH.get(kind, 20.0), "instances": [], "shapes": [], "dead": false}
 	for inst in instances:
-		var index := _batch.add(inst[0], inst[1], inst[2], inst[3] if inst.size() > 3 else Color.WHITE)
+		# A fifth entry is the instance's custom data (a signal head's timing, see _add_signal_corner).
+		var index := _batch.add(inst[0], inst[1], inst[2], inst[3] if inst.size() > 3 else Color.WHITE, inst[4] if inst.size() > 4 else Color.BLACK)
 		record.instances.append([inst[0], index])
 	for s in shapes:
 		var shape := _add_shape(s[0], s[1] + Vector3(0.0, g, 0.0), s[2])
@@ -2145,6 +2392,20 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 # --- Helpers ---------------------------------------------------------------------------
 
 func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, material: Material = null) -> void:
+	if capturing:
+		# Recorded, not built (see `capturing`). A thin slab is ground; anything thicker is a
+		# solid box, lifted by one relief sample at its centre exactly as below.
+		if size.y <= 0.5:
+			# Its far colour is worked out the way the build below would draw it: a city ground
+			# slab goes into the merged ground at far_tint(), anything else is a box wearing its
+			# material (an airport apron, a port yard - road() at a tint well above 1).
+			var far_col := far_tint(color, style.asphalt)
+			if not (zone == MacroMap.Zone.CITY and maxf(size.x, size.z) >= 6.0):
+				far_col = PropFactory.far_albedo(material if material else PropFactory.material(color, 0.95), far_col)
+			captured.ground.append([Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), color, pos.y + size.y * 0.5, far_col])
+		else:
+			captured.boxes.append([Transform3D(Basis().scaled(size), pos + Vector3(0.0, _gy(pos.x, pos.z), 0.0)), color])
+		return
 	var mat: Material = material if material else PropFactory.material(color, 0.95)
 	if zone == MacroMap.Zone.CITY and size.y <= 0.5 and maxf(size.x, size.z) >= 6.0:
 		# Thin ground slab in the city (road, sidewalk, lawn, plaza): follow the relief.
@@ -2171,7 +2432,10 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 ## shape and would only pay for the detail. Both come from the cached relief, so the fine grid
 ## costs about what the old coarse one did.
 func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, collide: bool, tint: Color = Color.WHITE) -> void:
+	var far := level != Level.FULL
 	var step := ground_grid_step if _detail() >= 1.0 else ground_grid_step * 2.0
+	if far:
+		step = maxf(step, lod_ground_grid_step)
 	var nx := clampi(ceili(rect.size.x / step), 1, 120)
 	var nz := clampi(ceili(rect.size.y / step), 1, 120)
 	# Far chunks carry the surface's colour in the mesh itself (see below). Linear, because a
@@ -2179,7 +2443,6 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 	# sRGB. Alpha marks the carriageway and which way it runs, for the street lamp glow far chunks
 	# get instead of lamps (far_ground.gdshader): 1.0 along Z, 0.75 along X, 0.5 a junction, 0.25
 	# a pavement, 0 anything else. A road slab is long and thin, a junction square.
-	var far := level != Level.FULL
 	var vcolor := Color(0.0, 0.0, 0.0, 0.0)
 	if far:
 		var lamp := 0.0
@@ -2190,7 +2453,7 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 		# Everything but the asphalt is a textured surface up close, and a texture averages well
 		# under its tint (paving, lawn and concrete sets sit about 0.6 of it): at the bare tint
 		# the far pavements were twice as bright as the near ones and lit up like snow at night.
-		var lin := tint.srgb_to_linear() * (1.0 if tint == style.asphalt else 0.6)
+		var lin := far_tint(tint, style.asphalt)
 		vcolor = Color(lin.r, lin.g, lin.b, lamp)
 	var mesh := _grid_mesh(rect, top, skirt, nx, nz, far, vcolor)
 	if far:
@@ -2222,6 +2485,13 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 	var shape := CollisionShape3D.new()
 	shape.shape = (mesh if (cx == nx and cz == nz) else _grid_mesh(rect, top, skirt, cx, cz)).create_trimesh_shape()
 	_statics.add_child(shape)
+
+
+## The colour a ground surface is drawn in from afar (the LOD chunks' merged ground and the far
+## city's block plates, which must agree): linear, and at 0.6 of its tint unless it is asphalt.
+static func far_tint(tint: Color, asphalt: Color) -> Color:
+	var lin := tint.srgb_to_linear() * (1.0 if tint == asphalt else 0.6)
+	return Color(lin.r, lin.g, lin.b, 1.0)
 
 
 ## One grid of `nx` by `nz` quads over `rect`, following the relief, with the skirt around it.
@@ -2316,6 +2586,8 @@ func _add_relief_floor() -> void:
 
 
 func _add_cylinder(pos: Vector3, radius: float, height: float, color: Color, collide: bool = true, unshaded: bool = false) -> void:
+	if capturing:
+		return
 	var mesh := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = radius

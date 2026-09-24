@@ -144,6 +144,11 @@ uniform vec4 wound_2 = vec4(0.0);
 uniform vec4 wound_3 = vec4(0.0);
 // Soaked blood, in gamma space like the garment colours: a dark wet red, darker still on dark cloth.
 uniform vec3 wound_blood = vec3(0.34, 0.022, 0.018);
+// Clothes worn for months outdoors (RoughSleeper.worn_material): grime through the cloth, heaviest
+// at the cuffs, the knees and the seat, patchy rather than a flat darkening. 0 for everyone else,
+// so the crowd skips the branch. The person's skin, face and hair are left as they are.
+uniform float grime = 0.0;
+uniform vec3 grime_color = vec3(0.22, 0.18, 0.13);
 
 // Height up the body, 0 at the soles and 1 at the crown.
 varying float v_height;
@@ -307,6 +312,14 @@ void fragment() {
 		albedo = mix(albedo, piping_color * clamp(0.62 + 0.55 * gz, 0.6, 1.05), stripe);
 	}
 	ALBEDO = albedo * mix(vec3(1.0), skin_tint, is_skin);
+	float grimed = 0.0;
+	if (grime > 0.0) {
+		float gn = stain_noise(v_skel * 0.07) * 0.6 + stain_noise(v_skel * 0.23) * 0.4;
+		float low = 1.0 - smoothstep(0.04, 0.55, v_height);
+		grimed = grime * (0.3 + 0.7 * gn) * mix(0.5, 1.0, low) * (1.0 - is_skin) * (1.0 - head);
+		vec3 dirt = value_is_linear > 0.5 ? to_linear(grime_color) : grime_color;
+		ALBEDO = mix(ALBEDO, ALBEDO * 0.5 + dirt * 0.35, clamp(grimed, 0.0, 0.85));
+	}
 	float soak = 0.0;
 	if (wound_count > 0.5) {
 		soak = max(max(wound_soak(wound_0, v_skel), wound_soak(wound_1, v_skel)),
@@ -320,6 +333,7 @@ void fragment() {
 	}
 
 	ROUGHNESS = mix(mix(cloth_roughness, skin_roughness, is_skin), hair_roughness, is_hair * hair_strength);
+	ROUGHNESS = min(ROUGHNESS + grimed * 0.08, 1.0);
 	// Soaked cloth is wet, and wet is glossy.
 	ROUGHNESS = mix(ROUGHNESS, 0.24, soak);
 	METALLIC = 0.0;
