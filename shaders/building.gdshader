@@ -54,6 +54,12 @@ uniform int roof_style = 0;
 // Building picks these and places the shop signs in the world from the same numbers, so the
 // names line up with the sign bands drawn here.
 uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
+// Walls measured from the mesh instead of from a box. The downtown towers (TowerMesh) are
+// extruded outlines - circles, ellipses, bowed and chamfered plans - and a box's axis test finds
+// no wall on a curve, so there UV.x is metres round the outline (each face a whole number of
+// bays, so no window straddles a corner), UV.y the face's index, and the wall runs along
+// (-n.z, 0, n.x). On a roof, UV.x is 0 on the parapet ring and 1 inside it.
+uniform bool uv_facade = false;
 // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
 global uniform float night_factor;
 // The sky colour DayNight publishes, exactly as it writes it. Godot stores both an sRGB and a
@@ -151,6 +157,11 @@ void vertex() {
 	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	// The wall's horizontal axis: local Z on the +-X faces, local X on the +-Z faces.
 	vec3 t_local = abs(NORMAL.x) > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+	if (uv_facade) {
+		// Outline walls: u runs along the outline, a quarter turn from the outward normal.
+		vec2 h = NORMAL.xz;
+		t_local = dot(h, h) > 1e-6 ? normalize(vec3(-h.y, 0.0, h.x)) : vec3(1.0, 0.0, 0.0);
+	}
 	world_tangent = normalize((MODEL_MATRIX * vec4(t_local, 0.0)).xyz);
 }
 
@@ -269,6 +280,9 @@ void fragment() {
 		// Roof, with a lighter parapet ring around the edge.
 		vec2 edge = part_size.xz * 0.5 - abs(local_pos.xz);
 		float parapet = 1.0 - step(0.7, min(edge.x, edge.y));
+		if (uv_facade) {
+			parapet = 1.0 - step(0.5, UV.x);
+		}
 		vec3 surface;
 		if (roof_style == 1) {
 			// White single-ply membrane, rolled in strips and welded at the seams, weathered
@@ -301,8 +315,16 @@ void fragment() {
 		// along it, and a window grid carried across it would leave half a window either side.
 		// It is built as a solid corner pier instead, which is what a chamfered corner usually
 		// is, so all it needs is somewhere sane to sample the wall texture from.
-		bool chamfer = abs(n.x) > 0.35 && abs(n.z) > 0.35;
-		if (chamfer) {
+		bool chamfer = !uv_facade && abs(n.x) > 0.35 && abs(n.z) > 0.35;
+		if (uv_facade) {
+			u = UV.x;
+			pitch = window_pitch_x;
+			// 1..4, so the shop spans and every per-face hash below still index sanely.
+			face_id = 1.0 + mod(floor(UV.y + 0.5), 4.0);
+			// A face index of 100 or more is blank wall - a parapet lip, a mechanical floor, a
+			// podium band - drawn like the solid corner pier below.
+			chamfer = UV.y > 99.0;
+		} else if (chamfer) {
 			vec2 along = normalize(vec2(-n.z, n.x));
 			u = dot(local_pos.xz, along) + 0.5 * (part_size.x + part_size.z);
 			pitch = window_pitch_x;
@@ -398,7 +420,7 @@ void fragment() {
 		// `u` runs the opposite way to the wall's tangent on half the faces (-X and +Z): this
 		// sign puts the traced ray back in `u`'s frame. The room parallax below uses it too - it
 		// was mirrored on those faces, showing the left wall of a room seen from the left.
-		float u_sign = abs(n.x) > 0.5 ? sign(n.x) : -sign(n.z);
+		float u_sign = uv_facade ? 1.0 : (abs(n.x) > 0.5 ? sign(n.x) : -sign(n.z));
 		vec2 pane_w = vec2(-1.0);
 		float recess_shade = 0.0;
 		float reveal_deep = 0.0;
