@@ -63,17 +63,15 @@ inside one of them means its own section - the headers below are the authority.)
   far chunks, the far city (every block within 7 km, recorded from the far chunk's own build)
   and the horizon plane; per-block dissolve handoff. At merge the far-city capture was made to
   skip replica and landmark-site blocks, which never build the seeded block.
-- **NOT merged: the AAA pass on the hero.** Pushed as branch `claude/optimistic-babbage-w2047x`
-  (head 835b2af; it is the hero agent's branch, merged with main as of that afternoon). What it
-  has: a reproducible Blender pipeline (`tools/hero/setup.sh`, `build.sh`, ~15 min, byte-for-byte),
-  new skin / hair / cloth shaders (`HeroLook`), and hands fitted to every gun by
-  `tools/grip_fit.gd` (three real bugs fixed: the idle clip's 75-degree shoulder swing, the gun
-  placed from the wrong shoulder, a hip carry that could not reach the handguard). Why it is
-  not on main: a preview still of its final build (AK aimed, side on) still shows jagged dark
-  shards round the open collar, where main's closed collar is clean. Main's hands are worse
-  (left fingers splay off the handguard). Next step: fix the collar on that branch, take
-  `hero_shot.gd` stills (`CLIP=Idle SEEK=1.0 CAM_AT=head`, `WEAPON=0 AIM=1 YAW=90`), merge.
-  Its own handoff section is 9u.
+- **Merged since (2026-09-24 evening): the AAA pass on the hero** (section 9u). The collar
+  shards were holes in the skin, not the collar: the neck hole is now bounded by a ring round the
+  neck that decides the jacket, its cut and the hidden skin together (tools/hero/tracksuit.py).
+  `hero_shot.gd` has the four measurements that found it (STRETCH, CLEAR_SURF, SURF_COLORS,
+  SURF_HIDE). Landing it exposed a real car bug, also fixed: a car went into flight - which banks
+  with the stick - on any single tick with all four wheels unloaded, so a hard turn at speed
+  banked it on a flat road (`Vehicle.flight_grace`, 0.18 s).
+- **Merged since: Masjid Omar ibn Al-Khattab** (section 9v), a replica of the real building with
+  an interior, replacing Masjid Al Noor; and the sanctuary rule - no gun fires at it.
 
 **How the box was run** (9l has the detail): agents in git worktrees under
 `.claude/worktrees/`, one branch each, merged by the main session after its own headless check;
@@ -1974,14 +1972,52 @@ in motion; the skin is 60.8k of the 120.1k triangles (face, hands, neck at one s
 and could lose a third without showing. Texture memory: about 31 MB VRAM for the hero's 24
 textures (S3TC with mips).
 
+## 9v. Masjid Omar ibn Al-Khattab, 2026-09-24 evening
+
+Owner: "make masjid omar ibn khattab way more detailed and 1:1 accurate ... make it impossible for
+the character to shoot anything at it completely ... and give it an interior", with six photos
+(aerial from the south, the street elevation, the entrance, the stairs out to Exposition with the
+Expo Line station opposite, the prayer hall). The game had an original-design mosque, Masjid Al
+Noor, on a suburban parcel; it is replaced on the same parcel, whose south pavement plays
+Exposition Boulevard, so the entrance faces the street it faces in life.
+
+- **Real data:** Nominatim gave OSM way 412475901 (building=mosque, height 15.7, start_date
+  1993) and its 7-point outline: 49.2 m east-west, a tall west block 17.9 x 18.7 m and an east
+  wing 31.3 x 21.3 m standing 2.6 m further out to the street. `REAL_LATLON` is kept for the
+  downtown re-lay. Credited in `docs/ASSETS.md` (ODbL).
+- **Built in code** (`LandmarkMasjidOmar`), merged one surface per material, cached in static
+  vars so re-streaming costs nothing; one trimesh collision body with the doorways open and every
+  window closed by its pane. The generator's `_arch_wall()` makes a wall with round-arched
+  openings through its thickness (both faces, sill, jambs and intrados), `_surround()` the green
+  band, `_opening_fill()` the lattice and glass. The `_Kit` class picks each triangle's winding
+  from the normal it is given, so callers only say which way a face looks.
+- **Traps met, all fixed:** `:=` on a value read from a Dictionary or Array is a parse error
+  (the whole city then fails to compile, and the symptoms show up somewhere else entirely); a
+  cornice written as one box is a slab over the whole roof, and a capped cylinder for the drum's
+  band a disc across the inside of the dome; `PropFactory.pbr("plaster_white")` can never make a
+  white wall (the photo averages 0.27 linear, yellow), so the paint is `_paint()` - the plaster's
+  normal and roughness, a written colour.
+- **The sanctuary rule** is `Sanctuary` (`scripts/weapons/sanctuary.gd`), checked in
+  `Weapon.tick()`; CLAUDE.md has the whole rule. `tests/masjid_checks.gd` covers the building
+  (streams in, door open, pane closed, both floors) and the rule (on it, across it, beside it
+  with a blast, from inside it through a real rifle, away from it, a rocket fizzling).
+- **Stills:** `<scratchpad>/masjid/` (aerial, street, entrance, hall), opengl3. Views: aerial
+  `--spawn=-272,252,-31.8,-23.7,32`, entrance `-238.75,221.5,0,12,1.7`, prayer hall
+  `-251.35,200.5,0,8,2.6`, all `--hour=11`. Not yet seen on Forward+.
+- **Not done:** the east wing's rooms are one lobby and one domed hall (the real plan is not
+  public); no ablution room; the parking lot has no cars. The exterior mesh is 50.7k triangles and the
+  collision 9.1k (both counted by the smoke test); the frame cost is not measured -
+  `tools/geo_count.gd` at the aerial view is the way to (the interior mesh is hidden past 140 m,
+  and it adds five no-shadow lights). The smoke run's "Cannot set a buffer on a Multimesh" traces
+  through `masjid_checks.gd` are section 10 item 8's headless noise, from the chunks it streams.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
 4-8 of it are still open.
 
-1. **Land the hero pass** (section 0): fix the collar shards on branch
-   `claude/optimistic-babbage-w2047x`, check it in stills, merge it. Then turn MacArthur Park
-   on (9r: find the traffic leak onto its closed roads first).
+1. **Turn MacArthur Park on** (9r: find the traffic leak onto its closed roads first). The hero
+   pass that used to be item 1 is merged (section 0).
 2. **The 1:1 downtown re-lay** (owner: "the whole downtown landscape ... a 1:1 replica"). The
    real positions live in `LandmarkDowntown.TOWERS` (`real`, `real_plan`, `real_grid()`) and
    `CivicSites.SITES` (`real_en()`, `real_grid()`), both in metres east/north of
