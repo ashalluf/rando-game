@@ -1041,6 +1041,12 @@ const TRI_BUDGET := {
 	"facade_kit.glb:kit_fe_bottom": 2000, "facade_kit.glb:kit_water_tank": 2400,
 	"facade_kit.glb:kit_vent_mushroom": 400, "facade_kit.glb:kit_vent_turbine": 500,
 	"facade_kit.glb:kit_hvac": 2000,
+	# Traffic signal hardware (tools/make_signals.py). Guards, like the kit's: a head is the most
+	# repeated piece (up to a dozen an intersection), so it is the one that matters.
+	"traffic_signal.glb:sig_pole": 1500, "traffic_signal.glb:sig_arm": 450,
+	"traffic_signal.glb:sig_head": 2200, "traffic_signal.glb:sig_bracket": 150,
+	"traffic_signal.glb:sig_ped": 1000, "traffic_signal.glb:sig_button": 350,
+	"traffic_signal.glb:sig_cabinet": 800,
 }
 
 
@@ -1900,6 +1906,87 @@ static func kit_material(mat_name: String) -> ShaderMaterial:
 	mat.set_shader_parameter("slice", not spec.get("mitre", false))
 	mat.set_shader_parameter("stripes", spec.get("stripes", false))
 	_cache[key] = mat
+	return mat
+
+
+## --- Traffic signals -------------------------------------------------------------------------
+## Mast-arm poles, arms, vehicle and pedestrian heads, push buttons and the controller cabinet,
+## modelled by tools/make_signals.py (one node per piece in traffic_signal.glb, dimensions in its
+## header) and placed by CityChunk._add_signal_corner(). The lenses are one shared material on
+## shaders/traffic_signal.gdshader, which lights each lamp from its instance's custom data and
+## the `signal_clock` global (TrafficSignals), so every head in the city is a MultiMesh instance
+## and nothing ticks per signal.
+const SIGNAL_MODEL := MODEL_DIR + "traffic_signal.glb"
+## Per signal material (the Blender name): texture set (triplanar, metres per tile) or none, the
+## colour it is tinted to, roughness and metallic.
+const SIGNAL_MATERIALS := {
+	"sig_steel": {"set": "metal_painted", "tile": 0.7, "color": Color(0.64, 0.65, 0.66), "rough": 0.55, "metal": 0.45},
+	"sig_steel_dark": {"set": "metal_painted", "tile": 0.5, "color": Color(0.21, 0.21, 0.22), "rough": 0.5, "metal": 0.4},
+	"sig_housing": {"set": "metal_painted", "tile": 0.45, "color": Color(0.045, 0.047, 0.044), "rough": 0.42, "metal": 0.0},
+	"sig_reflect": {"set": "", "color": Color(0.92, 0.68, 0.05), "rough": 0.42, "metal": 0.0},
+	"sig_sign": {"set": "", "color": Color(0.86, 0.86, 0.84), "rough": 0.5, "metal": 0.0},
+	"sig_cabinet": {"set": "metal_painted", "tile": 0.8, "color": Color(0.70, 0.72, 0.67), "rough": 0.5, "metal": 0.25},
+	"sig_concrete": {"set": "concrete", "tile": 1.6, "color": Color(1.2, 1.18, 1.12), "rough": 1.0, "metal": 0.0},
+}
+## The model's dimensions the placing code builds on (tools/make_signals.py; the smoke test
+## checks them against the loaded meshes' bounds): the arm collar's height on the pole, the arm's
+## unscaled length, how far a side-mount bracket reaches, the pole's height.
+const SIGNAL_ARM_Y := 6.55
+const SIGNAL_ARM_LENGTH := 8.0
+const SIGNAL_BRACKET_REACH := 0.55
+const SIGNAL_POLE_HEIGHT := 7.6
+
+
+## One signal piece ("sig_pole", "sig_head"...) wearing the signal materials, or an empty mesh
+## when the model is missing (CityChunk then builds the old primitive signal).
+static func signal_part(piece: String) -> Mesh:
+	var key := "signal_part_" + piece
+	if _cache.has(key):
+		return _cache[key]
+	var mesh := model_mesh(SIGNAL_MODEL, PackedStringArray([piece]), [], Transform3D.IDENTITY, {}, true)
+	for s in mesh.get_surface_count():
+		var src := mesh.surface_get_material(s)
+		mesh.surface_set_material(s, signal_material(src.resource_name if src else ""))
+	_cache[key] = mesh
+	return mesh
+
+
+static func signal_material(mat_name: String) -> Material:
+	if mat_name == "sig_lens":
+		return signal_lens_material()
+	var key := "signal_mat_" + mat_name
+	if _cache.has(key):
+		return _cache[key]
+	var spec: Dictionary = SIGNAL_MATERIALS.get(mat_name, SIGNAL_MATERIALS["sig_steel"])
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = spec.color
+	mat.roughness = spec.rough
+	mat.metallic = spec.metal
+	var set_key: String = spec.set
+	if set_key != "":
+		mat.albedo_texture = texture(set_key, "Color")
+		var normal := texture(set_key, "NormalGL")
+		if normal:
+			mat.normal_enabled = true
+			mat.normal_texture = normal
+			mat.normal_scale = 0.5
+		mat.uv1_triplanar = true
+		mat.uv1_world_triplanar = true
+		mat.uv1_scale = Vector3.ONE / float(spec.tile)
+		mat.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
+	_cache[key] = mat
+	return mat
+
+
+## The lens material every head shares. The cycle's four numbers come from TrafficSignals here,
+## so the shader never carries a copy of its own.
+static func signal_lens_material() -> ShaderMaterial:
+	if _cache.has("signal_lens_mat"):
+		return _cache["signal_lens_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/traffic_signal.gdshader")
+	mat.set_shader_parameter("timing", Vector4(TrafficSignals.GREEN, TrafficSignals.AMBER, TrafficSignals.ALL_RED, TrafficSignals.WALK_TIME))
+	_cache["signal_lens_mat"] = mat
 	return mat
 
 

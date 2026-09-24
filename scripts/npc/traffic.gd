@@ -77,6 +77,9 @@ func _physics_process(delta: float) -> void:
 		_player = get_tree().get_first_node_in_group("player") as Node3D
 		if _player == null:
 			return
+	# The one clock every signal in the city runs on (TrafficSignals): the heads' shader and the
+	# cars below read the same value this tick.
+	TrafficSignals.advance(delta)
 	_timer += delta
 	if _timer >= 0.5:
 		_timer = 0.0

@@ -223,3 +223,7 @@ wind_factor={
 "type": "float",
 "value": 1.0
 }
+signal_clock={
+"type": "float",
+"value": 0.0
+}
