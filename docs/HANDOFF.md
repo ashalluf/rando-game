@@ -1250,7 +1250,7 @@ the table is `ReplicaAreas.ESPLANADE`. What a next session needs to know:
   bluff), the south curve past the Avenue I car park, the Avenue I roundabout, Paseo de la Playa
   (the one compression: 0.8 km for 1.6), Palos Verdes Blvd / Dr N up the peninsula's north face.
   4.57 km in all, 2.9 km of it town. The owner's three Street View captures are the reference; the
-  camera spots that reproduce them are in the report of the session that built it (EYE= values on
+  camera spots that reproduce them are under "How to take the stills" below (EYE= values on
   `tools/glshot/still_shot.gd`, a Street View lens ~2.5 m up, vertical FOV ~75 on the portrait
   shots).
 - **The map moved to fit it.** The coast between the Redondo pier and Malaga Cove is the
@@ -1280,6 +1280,23 @@ the table is `ReplicaAreas.ESPLANADE`. What a next session needs to know:
 - **People.** `ReplicaWalker` (a Pedestrian that strolls along the walkway or the inland
   pavement rather than round a block's ring) fills most 26 m slots of each pavement a replica
   chunk owns, inside the crowd cap; the backfill blocks carry nobody yet.
+- **Verified so far - maths and meshes, NOT pictures.** `tests/replica_checks.gd` (24 checks,
+  in the smoke test) and top-down rasters of the built chunk meshes (every surface drawn from
+  above by a scratch probe: road, kerbs, mouths, frontage, car park, roundabout, condo, the
+  town's end) are all that has looked at it. **No rendered still of it exists yet**: the three
+  framing stills and the geo_count before/after were queued on the shared render lock behind a
+  dozen jobs and the session ended first. That is the first thing to do next, then compare
+  side by side with the owner's three Street View captures and fix what reads wrong.
+- **How to take the stills** (opengl3, `tools/glshot/still_shot.gd`, `FRAMES=50`, `--hour=12
+  --nohud --quality=0 --weather=clear`, under the render lock):
+  1718 Esplanade inner northbound lane, portrait: `EYE=-449.26,14.42,3375.82,-173,-5 FOV=75`
+  `--resolution 540x1170 -- --spawn=-449.3,3375.8,-173,-5`; outer lane: `EYE=-446.98,14.42,
+  3375.54,-173,-5` (`--spawn=-447.0,3375.5,-173,-5`); 1799 Esplanade at the curve, landscape:
+  `EYE=-441.66,9.94,3534.58,-178,-1.5 FOV=44 --resolution 1400x646 -- --spawn=-441.7,3534.6,
+  -178,-1.5`. EYE is a true world point and yaw/pitch in degrees (yaw 0 north, 90 west) for a
+  free camera; heights are the road top + 2.5 m (a Street View lens), recomputed if the profile
+  changes. Frame cost: `tools/geo_count.gd` at `--spawn=-449.3,3375.8,-173,-5` with and without
+  `-- --no-replica` (MacroMap then builds the seeded city in its place).
 - **Not done / not verified.** The Knob Hill end is a kerb and
   a pavement (the grid's streets run past it); north of it the pier plaza is the seeded
   landmark's. The roundabout's inside (west) corner, where the ocean-side lines of a right turn
