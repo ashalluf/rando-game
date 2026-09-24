@@ -1096,6 +1096,67 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
+## 9l. Downtown's civic set, 2026-09-24 (agent branch)
+
+Owner: "downtown must match real downtown LA, we need staple center we need all day". The
+decision: real FORMS in their real places relative to the core, every NAME invented (the naming
+rule in CLAUDE.md). The rules are the "Downtown civic set" bullet in CLAUDE.md; what a next
+session needs to know:
+
+- **Where things are (default seed 1337; each one fills the block its anchor falls in):**
+  arena (352, 475) block 3,4; entertainment plaza (352, 378) block 3,3, north of the arena across
+  the street; hotel tower (456, 378) block 4,3; convention centre (352, 596) block 3,5; city hall
+  (876, 171) block 9,1; park (876, 59) block 9,0; concert hall (876, -50) block 9,-1; museum
+  (782, -50) block 8,-1; station (1091, -50) block 11,-1. Downtown's own grid is narrow there
+  (the blocks at x 520-723 are 48-57 m wide), which is why the arena district sits in the
+  100 m wide column at x 302-402 and not closer in.
+- **One table: `CivicSites.SITES`** (`scripts/world/civic_sites.gd`) holds each landmark's
+  anchor, relief radius, footprint (its own frame), yaw (quarter turns, counter-clockwise from
+  above), a note on which way it faces, and the REAL building's approximate lat/long, size and
+  facing. `Landmarks.all()` takes its entries from it; `CivicSites.build()` puts a pivot at the
+  site centre turned by the yaw, with the landmark's own StaticBody3D under it, and the builders
+  (`LandmarkArenaDistrict.build(id, site, y0, ...)`, `LandmarkCivicCenter.build(...)`) work in
+  a frame centred on the site; their crowd rects and the park's grass go back to the world
+  through `CivicSites.to_world()` / `rect_to_world()`. `CivicSites.yaw_override` turns one
+  without editing the table (the smoke test turns the station a quarter). For the 1:1 re-layout
+  of downtown, `CivicSites.real_metres(id)` is the real position in metres from Pershing Square
+  (x east, z SOUTH, like the game), approximately:
+
+  | id | real (x, z) m | real size (w, h, d) m | game anchor now |
+  |---|---|---|---|
+  | arena | (-1476, 597) | 200 x 45 x 170 | (352, 475) |
+  | live_plaza | (-1402, 420) | 280 x 30 x 180 | (352, 378) |
+  | live_hotel | (-1328, 354) | 70 x 203 x 35 | (456, 378) |
+  | convention_center | (-1587, 929) | 330 x 25 x 170 | (352, 596) |
+  | ziggurat_hall | (793, -586) | 140 x 138 x 110 | (876, 171) |
+  | civic_park | (489, -840) | 500 x 0 x 110 | (876, 59) |
+  | concert_hall | (138, -763) | 110 x 40 x 90 | (876, -50) |
+  | lattice_museum | (101, -663) | 70 x 36 x 60 | (782, -50) |
+  | pueblo_station | (1365, -862) | 260 x 38 x 70 | (1091, -50) |
+
+  Two things the re-layout has to decide that the table cannot: the real grid is turned about
+  36 degrees from north (`REAL_GRID_BEARING`) while the game's is axis-aligned, and the real
+  footprints are bigger than one of today's blocks, so a 1:1 site needs a block that big (or a
+  superblock with its through-roads closed, which traffic and the minimap do not support yet).
+  Only quarter-turn yaws are supported, because a site is an axis-aligned block.
+- **Block sites are the mechanism to reuse.** A landmark that says `"site": "block"` gets its
+  block to itself (`Landmarks.claims()` in `CityPlan.block()` / `lots()`), and its builder reads
+  `Landmarks.site_rect()` and fits inside it. The pavement ring, its lamps and trees, the parked
+  cars in the kerb lanes and the block's own walkers all stay, which is right: these buildings
+  have streets round them. `Landmarks.crowds()` adds plaza crowds as ordinary pedestrians.
+- **Scale is compressed on purpose.** One block each: the arena's bowl is ~80 m across (the
+  real one is ~200), city hall's tower tops out at ~140 m (real 138), the hotel slab is 196 m
+  (real ~200). Merging blocks into superblocks would mean closing road segments, which traffic,
+  the police, the minimap and the far tier all assume never happens - not attempted.
+- **The toolkit**: `LandmarkGeo` (geometry), `LandmarkMats` (materials), `LedScreen` (screens),
+  and six shaders sharing `shaders/landmark_common.gdshaderinc`. Nothing in them is specific to
+  these buildings; a new hand-modelled landmark should use them rather than `Landmarks._box()`.
+- **The concert hall is a Blender model** (`tools/make_concert_hall.py`, seconds to run, no bake)
+  with a `Collision` object the game turns into a trimesh; re-import after regenerating it.
+- **Checks** (`tests/civic_checks.gd`, about a second): every one listed and claiming its block,
+  no freeway over a site, far versions, geometry inside its own block, collision, rays onto the
+  roofs you can land on, crowds on open ground.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

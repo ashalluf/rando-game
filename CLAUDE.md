@@ -806,7 +806,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   road at x 824 and out from under the 110 deck, floodlit), `civic_park` (CIVIC PARK: fountain
   terrace, lawn, pink furniture), `concert_hall` (SYMPHONY HALL, steel sails from
   `tools/make_concert_hall.py`), `lattice_museum` (THE LATTICE), `pueblo_station` (PUEBLO
-  STATION). They are **block sites**: `"site": "block"` in `Landmarks.all()` makes
+  STATION). **One table places them all: `CivicSites.SITES`** (`scripts/world/civic_sites.gd`):
+  anchor, footprint (own frame), yaw (quarter turns) and the real building's lat/long, size and
+  facing, with `CivicSites.real_metres()` the real position from Pershing Square (x east, z
+  south) - the owner's long-term goal is downtown at 1:1, and a re-layout should change only
+  that table. Builders work in a frame centred on their site; `CivicSites.build()` puts a turned
+  pivot with its own static body in the world, and anything that needs world coordinates (crowd
+  rects, the chunk's grass) goes through `CivicSites.to_world()` / `rect_to_world()`, with the
+  chunk in `CivicSites.ctx`. They are **block sites**: `"site": "block"` in `Landmarks.all()` makes
   `Landmarks.claims()` true for the block the anchor falls in, so `CityPlan.lots()` returns
   nothing there and `CityPlan.block()` overrides its park/plaza/mall roll (AFTER the roll, so no
   seed moves); every builder lays itself out inside `Landmarks.site_rect()` (the block inside its

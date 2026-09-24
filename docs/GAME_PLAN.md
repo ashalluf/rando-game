@@ -100,6 +100,11 @@ What only the owner can supply, and why each one multiplies everything below:
     Stack), an airport zone with two runways, a terminal, a control tower, a saucer restaurant on
     arches and parked planes, and a port zone with container stacks, gantry cranes, a harbor and
     a moored container ship.
+  - [x] Push 4 (2026-09-24, owner: "downtown must match real downtown LA, we need staple
+    center"): the civic set - the arena, its entertainment plaza and hotel tower and the
+    convention centre south-west of the core; city hall (rebuilt faithfully), the park, the steel
+    concert hall, the lattice museum and the mission-revival station north-east. Real forms in
+    their real places, invented names (see the decisions log).
 
 - **Realism and character batch** (asked 2026-09-19), all done in builds 42 to 51: real models
   from Meshy for cars, pedestrians and jets (every prompt ultra-realistic), bigger crowds, a real
@@ -254,6 +259,36 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-24 Downtown's civic set: real forms, invented names (owner: "downtown must match
+  real downtown LA, we need staple center we need all day").** The decision for this project:
+  match the real buildings' FORM and where they sit relative to downtown; keep every name and
+  logo original, because the real ones are trademarks. So the arena is RANDO ARENA, its plaza
+  STARLIGHT PLAZA with the STARLIGHT THEATER, the hotel HOTEL ALTAIR, the concert hall SYMPHONY
+  HALL, the museum THE LATTICE, the station PUEBLO STATION, the park CIVIC PARK, and every brand
+  on the LED screens is made up. South-west of the core, the way the real ones sit at the edge
+  of downtown: the plaza north of the arena across the street, the hotel tower on the next block
+  toward the towers, the convention centre south. North-east: city hall, the park running north
+  from its steps, the concert hall at the park's far end with the museum beside it, the station
+  across the 5 freeway. Two decisions forced by the map. (1) Scale: the whole of downtown is
+  compressed four or five times (its radius is 330 m), and a block is 70-120 m, so each landmark
+  is sized to one block - the arena bowl is about 80 m across rather than 200 - and still reads
+  as itself next to 300 m towers. (2) Sites are whole blocks, not points: `"site": "block"`
+  makes the block the anchor falls in the landmark's (no lots, no park or plaza roll of its own -
+  overridden after the roll, so no seed moves) and every builder lays itself out inside that
+  block's pavement ring, so a landmark never stands on a road whatever the seed. The first
+  version of city hall, at a fixed point, had its base across the road at x 824 and the 110 deck
+  running through it; the other downtown towers still stand at fixed points (another branch's).
+  Everything is real geometry from one small toolkit (`LandmarkGeo`: one mesh per building, a
+  surface per material, UVs in metres) on six new shaders, each glass and steel surface mirroring
+  the sky mostly by EMISSION like the towers' glass, and all of it lit at night: floodlit stone,
+  lit concourses, glowing screens and clocks, neon, masts with real lights.
+  Later the same day the owner set the long-term goal: the WHOLE of downtown as a 1:1 replica
+  (real block sizes, street layout, distances), to be re-laid by a later pass. So every civic
+  landmark's anchor, footprint and turn now lives in ONE table, `CivicSites.SITES`, next to the
+  real building's approximate lat/long, size and facing (`CivicSites.real_metres()` gives metres
+  from Pershing Square, x east, z south); the builders work in their own frame and a pivot puts
+  them in the world, so the re-layout changes numbers in the table and nothing else.
 
 - **2026-09-24 A living sky (owner: "helicopters, police choppers, news choppers, private jets
   flying thru the sky, commercial jets taking off and landing at LAX").** `AirTraffic` flies
