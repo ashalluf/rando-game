@@ -779,7 +779,16 @@ func _test_city() -> void:
 				ped.queue_free()
 	await _ticks(2)
 	if cars.size() > 0:
+		# Always a sedan. cars[0] is the first parked car in the group's node order, which is the
+		# order the chunks happened to finish building in - so from run to run the drive and turn
+		# checks got a sedan, a van or a sports car, and the same two seconds of throttle measured
+		# anything from 7 to 21 m. (0 is Vehicle.BodyType.SEDAN; the class uses an autoload, so
+		# this script cannot name it.)
 		var car: Node3D = cars[0]
+		for c in cars:
+			if int(c.body_type) == 0:
+				car = c
+				break
 		var types := {}
 		for c in cars:
 			types[c.body_type] = true
@@ -809,9 +818,21 @@ func _test_city() -> void:
 		var start: Vector3 = car.global_position
 		var nose: Vector3 = -car.global_basis.z
 		Input.action_press("move_forward")
-		await _ticks(120)
+		# Where the two seconds go, so a short drive says why: the tick it first moved, the speed
+		# it ended at, and whether its script was on and its wheels down when the throttle went in.
+		var script_on: bool = car.is_physics_processing()
+		var wheels0 := 0
+		for w in car.wheels:
+			if w.is_in_contact():
+				wheels0 += 1
+		var first_move := -1
+		for i in 120:
+			await get_tree().physics_frame
+			if first_move < 0 and car.linear_velocity.length() > 0.5:
+				first_move = i
 		var driven: float = (car.global_position - start).dot(nose)
-		_check(driven > 8.0, "car drives toward its headlights %.1f m in 2 s" % driven)
+		_check(driven > 8.0, "car drives toward its headlights %.1f m in 2 s (body type %d, moving from tick %d, %.1f m/s at the end, script %s, %d wheels down)" % [
+			driven, int(car.body_type), first_move, car.linear_velocity.length(), "on" if script_on else "OFF", wheels0])
 		var yaw0: float = car.rotation.y
 		Input.action_press("move_right")
 		await _ticks(45)

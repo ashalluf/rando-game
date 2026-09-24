@@ -297,7 +297,14 @@ func enter_vehicle(car: Vehicle) -> void:
 	_driving = true
 	car.driver = self
 	car.freeze = false
+	# Wake it for real: the sleeping flag can read true while the server has the body awake (and
+	# the other way round), so tell the server. And switch its script on now - PhysicsBudget only
+	# does that on its next check, and until then a car it had parked far from you sits on its
+	# parking brake and ignores the throttle.
 	car.sleeping = false
+	PhysicsServer3D.body_set_state(car.get_rid(), PhysicsServer3D.BODY_STATE_SLEEPING, false)
+	if car.has_method("set_script_active"):
+		car.set_script_active(true)
 	visible = false
 	collision_layer = 0
 	collision_mask = 0
