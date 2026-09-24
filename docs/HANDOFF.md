@@ -1167,7 +1167,15 @@ session needs to know:
   each branch, runs `tests/headless_check.sh`, pushes to main and sends screenshots.
 - One 16 GB box is shared, and a Forward+ (lavapipe) city is 6-7 GB, so every render goes
   through `flock <scratchpad>/render.lock <command>`. Headless checks run without the lock.
-  An OOM-killed render prints `Killed` in its log and leaves no png.
+  An OOM-killed render prints `Killed` in its log and leaves no png. flock is not a queue:
+  whoever asks next may win, and on a busy afternoon jobs waited over an hour. A GL
+  (opengl3) job is ~4 GB, so the main session runs its own GL-only jobs (geo_count, preview
+  stills) under a second lock, `<scratchpad>/gl2.lock`, alongside whatever holds the main
+  one; never put a Forward+ job on it (two lavapipe cities do not fit in 16 GB).
+- A smoke check that fails once under heavy load (five or six Godot processes on the box) is
+  rerun in isolation before it is believed: `air_probe.gd`-style scripts that load the city
+  and run one checks file (`load("res://tests/air_traffic_checks.gd").new().run(t, city)`
+  with a stand-in `t` that has `_check()`) take three minutes instead of fifteen.
 - Merges conflict mostly in the docs (every agent appends a decisions-log entry and a handoff
   section): keep both sides and renumber the sections.
 - CI's box is slower than this one and drops to Quality LOWEST (thinner crowd, fewer cars), so
@@ -1176,9 +1184,15 @@ session needs to know:
   for that first.
 - Merged that day: window recesses, tracksuit then the Blender hero, weapon wheel, Blender guns
   and the shotgun, rocket warhead and smoke trail, far-glass emission, police and wanted stars,
-  facade kit, blood, air traffic. In flight when this was written: a studio pass on the hero,
-  the DTLA skyline massing and density, the arena district and civic centre, traffic signals
-  and crosswalks with police routing, and a city ambience soundscape. The unused Meshy hero is
+  facade kit, blood, air traffic, the city ambience, the lens pass (grain, fringe), night GI,
+  the downtown skyline (9n), and a helicopter fix (an orbit holds its whole ring above the
+  tallest thing on it: CI 241 caught the news chopper dipping between towers). In flight when
+  this was written: a studio pass on the hero,
+  the arena district and civic centre, traffic signals and crosswalks with police routing,
+  the Redondo Esplanade into Palos Verdes at 1:1, MacArthur Park with street encampments, and
+  GTA-style distance LOD tiers. Next after the civic merge: a 1:1 re-lay of the downtown grid
+  (the skyline's `LandmarkDowntown.TOWERS` and the civic `CivicSites` tables both carry
+  approximate real positions for it). The unused Meshy hero is
   on branch `worktree-agent-a5cb589744a1759b9` (not chosen).
 
 ## 9m. The city's sound, 2026-09-24 (agent branch)
