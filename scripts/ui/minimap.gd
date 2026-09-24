@@ -37,7 +37,7 @@ const LANDMARK_NAMES := {
 	"terminal": "Airport", "hangars": "Hangars", "port": "Port", "campus_hall": "Rando U",
 	"venice_boardwalk": "Venice Boardwalk", "manhattan_pier": "Manhattan Pier",
 	"redondo_pier": "Redondo Pier", "south_bay_mall": "South Bay Mall",
-	"verde_cafe": "Verde Cafe", "masjid_al_noor": "Masjid Al Noor",
+	"verde_cafe": "Verde Cafe", "masjid_omar": "Masjid Omar ibn Al-Khattab",
 	"cargo_ship": "Container Ship",
 	# The downtown skyline (LandmarkDowntown): original names, never the real towers'.
 	"dt_sail_tower": "Sail Tower", "dt_crown_cylinder": "Crown Tower", "dt_granite_slab": "White Granite Tower",

@@ -51,6 +51,8 @@ var player: Player
 ## Where shots and effects start. Set by _build_model().
 var muzzle: Node3D
 var _cooldown: float = 0.0
+## True while the last trigger pull was refused because the shot would reach a sanctuary.
+var blocked_by_sanctuary: bool = false
 var _kick: float = 0.0
 var _rest_position: Vector3
 
@@ -71,10 +73,21 @@ func _process(delta: float) -> void:
 ## Called by the WeaponManager every physics tick while this weapon is equipped.
 func tick(delta: float) -> void:
 	var wants_fire := Input.is_action_pressed("fire") if automatic else Input.is_action_just_pressed("fire")
+	# A sanctuary (the masjid) is never shot at: not with the crosshair on it, not through it,
+	# not with a blast landing beside it, and not from its own grounds. The shot is simply not
+	# fired - no recoil, no alarm, no cooldown spent. See Sanctuary.
+	var aim := {}
+	if wants_fire and _cooldown <= 0.0:
+		aim = player.get_aim()
+		var splash: float = float(get("explosion_radius")) if get("explosion_radius") != null else 0.0
+		if Sanctuary.blocks_fire(player, aim, splash):
+			wants_fire = false
+			blocked_by_sanctuary = true
+		else:
+			blocked_by_sanctuary = false
 	if wants_fire and _cooldown <= 0.0:
 		_cooldown = 1.0 / fire_rate
 		_kick = kick_distance
-		var aim := player.get_aim()
 		_fire(aim)
 		player.camera_rig.kick(camera_kick_deg)
 		player.notify_fired()

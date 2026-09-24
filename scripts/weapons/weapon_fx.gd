@@ -928,6 +928,8 @@ static func impact(node: Node, at: Vector3, color: Color = Color(1.0, 0.85, 0.5)
 static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface, collider: Object = null) -> void:
 	if RenderingServer.get_rendering_device() == null:
 		return
+	if Sanctuary.is_sanctuary(collider):
+		return
 	var look: Dictionary = SURFACES[surf]
 	var decal := Decal.new()
 	var glass := bool(look["glass"])
@@ -2050,7 +2052,7 @@ static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0
 
 	# 11. Scorch mark on whatever is under the blast. Decals need a rendering device, so the
 	# Compatibility renderer (the web build) quietly skips this.
-	if RenderingServer.get_rendering_device() != null:
+	if RenderingServer.get_rendering_device() != null and not (node.is_inside_tree() and Sanctuary.contains(node.get_tree(), at, radius)):
 		var decal := Decal.new()
 		decal.texture_albedo = puff_texture()
 		decal.modulate = Color(0.05, 0.04, 0.035)

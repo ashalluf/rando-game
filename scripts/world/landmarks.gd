@@ -66,12 +66,13 @@ static func _list() -> Array[Dictionary]:
 		# under it. At 150 the west half of the parking structure had blocks growing through it.
 		{"id": "south_bay_mall", "anchor": Vector2(-250.0, 1250.0), "radius": 215.0},
 		{"id": "verde_cafe", "anchor": Vector2(-900.0, -430.0), "radius": 22.0},
-		# The mosque sits on one suburban parcel, not on a crossroads: (-180, 120) put the
-		# prayer hall on the intersection of the road at x -177 and the road at z 118, with
-		# the forecourt straddling the carriageway. This anchor is the middle of the block
-		# bounded by those two roads, set so the gate steps stop just short of the south
-		# pavement. Radius 52 covers the 45 m from the hall centre to the gate steps.
-		{"id": "masjid_al_noor", "anchor": Vector2(-235.7, 165.2), "radius": 52.0},
+		# Masjid Omar ibn Al-Khattab, the replica of the real one on Exposition Boulevard
+		# (LandmarkMasjidOmar). Same parcel the original mosque here had: the middle of the
+		# 103 x 91 m block bounded by the road at x -177 and the road at z 118, whose south
+		# pavement stands in for Exposition, so the entrance flight lands on it. Radius 64
+		# reaches the far corners of the fenced parcel (44 m west and 46 m south of the anchor),
+		# which is what keeps city lots out of the car park and the relief flat under it.
+		{"id": "masjid_omar", "anchor": Vector2(-235.7, 165.2), "radius": 64.0},
 		# --- Downtown LA civic set (owner, 2026-09-24: "downtown must match real downtown LA,
 		# we need staple center we need all day"). Real FORMS in their real places relative to
 		# the core; every NAME is invented (LandmarkArenaDistrict, LandmarkCivicCenter).
@@ -203,8 +204,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			LandmarkSouthBayMall.build(lm.anchor, parent, statics, plan, detailed)
 		"verde_cafe":
 			LandmarkVerdeCafe.build(lm.anchor, parent, statics, plan, detailed)
-		"masjid_al_noor":
-			LandmarkMasjidAlNoor.build(lm.anchor, parent, statics, plan, detailed)
+		"masjid_omar":
+			LandmarkMasjidOmar.build(lm.anchor, parent, statics, plan, detailed)
 		"macarthur_park":
 			LandmarkMacArthurPark.build(lm.anchor, parent, statics, plan, detailed)
 		# Downtown LA civic set (see all() and CivicSites).

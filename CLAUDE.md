@@ -1135,6 +1135,25 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   gunfire makes the sitting and lying get up and FLEE (then RETURN and settle) and the slumped
   COWER in place. Worn clothes are `RoughSleeper.worn_material()` - the character shader's
   `grime` uniform (dirt low on the body, never on skin). Depict it as the street, never as a joke.
+- Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six
+  photos, "give it an interior", and "make it impossible for the character to shoot anything at
+  it"): `LandmarkMasjidOmar` (`scripts/world/landmark_masjid_omar.gd`), a replica of the real
+  building on Exposition Blvd with its OSM footprint (way 412475901: 49.2 m, a tall west block
+  and a lower east wing, 15.7 m), the lattice bays, the green ribbed dome, the minaret, the
+  entrance flight and a walkable interior (prayer hall with gallery, mihrab, minbar and
+  chandelier; lobby; a second hall under the hollow dome). Geometry is built once in code into
+  merged meshes (one surface per material, cached in static vars) plus ONE trimesh collision
+  body with the doorways left open; custom looks are `shaders/masjid_carpet.gdshader`,
+  `masjid_lattice.gdshader`, `masjid_marble.gdshader`. It replaced the original design Masjid
+  Al Noor on the same parcel, whose south pavement plays Exposition.
+  **It is a sanctuary** (`Sanctuary`, `scripts/weapons/sanctuary.gd`): a zone box (group
+  `sanctuary_zone`, built by the far copy too, since that has no collision) and the collision
+  body (group `sanctuary`). `Weapon.tick()` refuses the shot when the crosshair is on it, when
+  the shot would cross its grounds, when a blast would land within the weapon's
+  `explosion_radius` of them, or when the player stands inside - no recoil, no alarm, no
+  cooldown spent. Rockets that reach it fizzle (`Rocket.fizzle()`), and bullet holes and scorch
+  marks skip it whoever fired. Never route a new weapon around `Weapon.tick()`, and give any new
+  place of worship the same zone.
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

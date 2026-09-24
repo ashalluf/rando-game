@@ -141,12 +141,33 @@ func _physics_process(delta: float) -> void:
 	var step := direction * speed * delta
 	var query := PhysicsRayQueryParameters3D.create(global_position, global_position + step, Player.AIM_MASK, exclude)
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
+	if hit and Sanctuary.is_sanctuary(hit.collider):
+		fizzle()
+		return
 	if hit:
 		explode(hit.position)
 		return
 	global_position += step
 	if _age >= lifetime:
-		explode(global_position)
+		if Sanctuary.contains(get_tree(), global_position, explosion_radius):
+			fizzle()
+		else:
+			explode(global_position)
+
+
+## Goes out without a bang: what a rocket does when the thing in its way is a sanctuary (a
+## target that moved, a lock-on that swung behind the building). The trail is left to fade.
+func fizzle() -> void:
+	if _exploded:
+		return
+	_exploded = true
+	if _trail and get_parent():
+		_trail.reparent(get_parent())
+		_trail.emitting = false
+		var tween := _trail.create_tween()
+		tween.tween_interval(trail_seconds * 1.4)
+		tween.tween_callback(_trail.queue_free)
+	queue_free()
 
 
 func explode(at: Vector3) -> void:
