@@ -416,7 +416,11 @@ func _drivable(node: Vector2, axis: int, dir: int) -> bool:
 		var z := _plan.zone_at(node + step * d)
 		if z != MacroMap.Zone.CITY and z != MacroMap.Zone.BEACH:
 			return false
-	return true
+	# Not into a landmark's site, where the road is closed (CityPlan.road_open). Looked at past
+	# the crossing road's own width: inside it the road always reads open.
+	var coord := node.x if axis == CityPlan.AXIS_X else node.y
+	var along := (node.y if axis == CityPlan.AXIS_X else node.x) + float(dir) * 18.0
+	return _plan.road_open_at(axis, coord, along)
 
 
 func _place(world: Vector3, yaw: float, pitch: float) -> void:
