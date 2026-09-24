@@ -1893,9 +1893,12 @@ static func _shade_blood(f: PackedFloat32Array, w: int, h: int, rng: RandomNumbe
 			# OpenGL-style map (green up): the image's rows run down, so the Y slope flips.
 			var nv := Vector3(-dx, dy, 1.0).normalized()
 			nrm.set_pixel(x, y, Color(nv.x * 0.5 + 0.5, nv.y * 0.5 + 0.5, nv.z * 0.5 + 0.5, 1.0))
-			# Wet, not a mirror: at 0.05, and still at 0.2, the thick middles reflected the sky at
-			# any grazing angle and a splat ten metres off measured BRIGHTER than the road under it.
-			var rough := lerpf(0.5, 0.3, body) + 0.06 * n
+			# Satin, not a mirror. A splat on the road is always seen at a grazing angle, where
+			# Fresnel takes any glossy surface toward a mirror of the sky whatever its F0: at 0.05,
+			# at 0.2 and still at 0.3 the thick middles measured BRIGHTER than the road under them
+			# and read as pale pink. Roughness is the only lever; the wet look is the meniscus in
+			# the normal map catching the light at the edges.
+			var rough := lerpf(0.72, 0.5, body) + 0.06 * n
 			orm.set_pixel(x, y, Color(1.0, clampf(rough, 0.03, 1.0), 0.0, 1.0))
 	var out: Array = []
 	out.append(ImageTexture.create_from_image(_coverage_mips(alb)))
