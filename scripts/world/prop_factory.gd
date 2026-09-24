@@ -20,6 +20,8 @@ const TEXTURE_SETS := {
 	"metal_corrugated": "CorrugatedIron", "metal_factory": "FactoryWall",
 	# Facade detail kit (ambientCG): awning canvas, painted steel, weathered tank staves.
 	"fabric": "Fabric036", "metal_painted": "Metal016", "planks": "Planks023A",
+	# Clay barrel tiles (Poly Haven), the Esplanade replica's pitched roofs.
+	"roof_clay": "ClayRoofTiles02",
 }
 
 

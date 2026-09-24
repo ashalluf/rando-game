@@ -81,6 +81,8 @@ var built_landmarks: Array[String] = []
 ## Parked cars this chunk spawned. They live under the city root (a driven car must outlive its
 ## chunk), so the chunk frees the ones nobody drove when it unloads.
 var _cars: Array[Node] = []
+## The replica area's builder for this chunk, when a replica area runs through it (ReplicaBuilder).
+var _replica: ReplicaBuilder = null
 var _batch := MultiMeshBatch.new()
 ## Per-block surface look (set by _block_surface from the district table and the block seed).
 var _tree_bias: int = -1
@@ -232,6 +234,12 @@ func begin_build() -> void:
 	zone = plan.zone_at((block.rect as Rect2).get_center())
 	_steps.clear()
 	_step = 0
+	# A block the replica area's corridor runs through builds the replica's own content in place
+	# of the seeded block (ReplicaAreas.block_role(), ReplicaBuilder).
+	var replica: ReplicaAreas = plan.macro.replica if plan.macro else null
+	var replica_role := 0
+	if replica != null and (zone == MacroMap.Zone.CITY or zone == MacroMap.Zone.BEACH):
+		replica_role = replica.block_role(plan, ix, iz)
 	match zone:
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
@@ -244,7 +252,8 @@ func begin_build() -> void:
 		MacroMap.Zone.HILLS:
 			_steps.append_array([_build_terrain, _build_hill_roads, _build_mansions, _scatter_hills])
 		MacroMap.Zone.BEACH:
-			_steps.append(_build_roads.bind(block))
+			if replica_role == 0:
+				_steps.append(_build_roads.bind(block))
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
 			# The coast highway runs the length of the sand on the land side of it, so a beach
@@ -259,12 +268,17 @@ func begin_build() -> void:
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
 				_steps.append(_build_hill_roads)
-			_steps.append(_build_roads.bind(block))
-			_steps.append_array(_block_steps(block))
-			if level == Level.FULL:
-				_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
-			else:
+			if replica_role == 0:
+				_steps.append(_build_roads.bind(block))
+				_steps.append_array(_block_steps(block))
+				if level == Level.FULL:
+					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
+				else:
+					_steps.append(_add_relief_floor)
+			elif level != Level.FULL:
 				_steps.append(_add_relief_floor)
+	if replica != null and ReplicaBuilder.wanted(self):
+		_steps.append_array(ReplicaBuilder.attach(self, replica_role))
 	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
 	# last so its deck lands on top of whatever the chunk laid down.
 	_steps.append(_build_freeway)
@@ -636,17 +650,27 @@ func _owns_shoreline() -> bool:
 
 
 func _build_beach(block: Dictionary) -> void:
-	_build_sand(block.rect)
+	# Under a replica area the grid roads that would cross the sand are not built (the corridor
+	# runs to the sea), so the sand covers the chunk's road strips too.
+	_build_sand(owned_rect() if _replica != null else block.rect)
 	if level != Level.FULL:
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
+	# The replica's beach under the Esplanade bluff has no palms on the sand (they are up on the
+	# bluff, in the front yards).
+	var bare := false
+	if plan.macro and plan.macro.replica:
+		var cr: Vector2 = plan.macro.replica.coast_range()
+		bare = block.rect.end.y > cr.x and block.rect.position.y < cr.y
 	# Scattered across the DRY sand, which is a band that moves with the shoreline rather than
 	# the chunk's rectangle: dropping them in the rectangle put palms in the surf.
 	for i in rng.randi_range(6, 14):
 		var z := rng.randf_range(block.rect.position.y + 4.0, block.rect.end.y - 4.0)
 		var across := rng.randf_range(0.18, 0.95)
-		_add_palm(Vector3(_dry_sand_x(z, across), _sand_y(z, across), z), rng)
+		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)
+		if not bare:
+			_add_palm(at, rng)
 	if rng.randf() < 0.6:
 		var z := rng.randf_range(block.rect.position.y + 8.0, block.rect.end.y - 8.0)
 		var across := rng.randf_range(0.1, 0.5)
@@ -678,7 +702,7 @@ func _build_sand(rect: Rect2) -> void:
 		var width := inland_x - water_x
 		if macro:
 			water_x = macro.coast_x(z)
-			width = macro.beach_width
+			width = macro.beach_width_at(z)
 			inland_x = water_x + width + SAND_LIP
 		# Seaward to landward: the bar under the water, the waterline, the swash the sea still
 		# reaches, the berm crest, and the backshore falling away behind it.
@@ -728,7 +752,7 @@ func _build_sand(rect: Rect2) -> void:
 	if macro == null:
 		_add_shape(Vector3(rect.size.x, 0.4, rect.size.y), Vector3(c.x, SAND_EDGE - 0.1, c.y))
 		return
-	var width: float = macro.beach_width + SAND_LIP
+	var width: float = macro.beach_width_at(c.y) + SAND_LIP
 	var band := width / float(SAND_COLLIDER_BANDS)
 	for k in SAND_COLLIDER_BANDS:
 		var across := (float(k) + 0.5) / float(SAND_COLLIDER_BANDS)
@@ -741,7 +765,7 @@ func _build_sand(rect: Rect2) -> void:
 func _dry_sand_x(z: float, across: float) -> float:
 	if plan.macro == null:
 		return owned_rect().get_center().x
-	return plan.macro.coast_x(z) + plan.macro.beach_width * across
+	return plan.macro.coast_x(z) + plan.macro.beach_width_at(z) * across
 
 
 ## One whole palm from PropFactory.palm(): trunk, crown, dead-frond skirt and coconuts in a
@@ -972,6 +996,9 @@ func _build_hill_roads() -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var quads := 0
 	for seg in segs:
+		# The replica's hill route is carved here but drawn by ReplicaBuilder, markings and all.
+		if not seg.get("draw", true):
+			continue
 		var a: Vector2 = seg.a
 		var b: Vector2 = seg.b
 		var seg_len := a.distance_to(b)

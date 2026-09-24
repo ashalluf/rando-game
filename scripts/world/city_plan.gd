@@ -298,6 +298,15 @@ static func district_name(d: District) -> String:
 ## Not cached: it is pure arithmetic, a chunk asks once, and a cache across the thousands of
 ## blocks the far tier walks would cost more memory than the work it saves.
 func lots(ix: int, iz: int) -> Array[Dictionary]:
+	# A replica block's lots are the replica's own (its frontage houses and their seeded
+	# backfill), so every tier that asks - LOD chunks, the far skyline, the air traffic's
+	# obstacle map - sees the same houses the detailed chunk builds (ReplicaAreas.block_lots()).
+	if macro and macro.replica:
+		var replica_lots: Variant = macro.replica.block_lots(self, ix, iz)
+		if replica_lots != null:
+			var typed: Array[Dictionary] = []
+			typed.assign(replica_lots)
+			return typed
 	var b := block(ix, iz)
 	var rect: Rect2 = b.rect
 	var params: Dictionary = DISTRICTS[b.district]

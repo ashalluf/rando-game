@@ -207,11 +207,11 @@ func _add_block(ix: int, iz: int, macro: MacroMap, xforms: Array[Transform3D], c
 		var lot_size: Vector2 = lot.size
 		var lot_centre: Vector2 = lot.center
 		var hs: int = int(lot.seed)
-		var h: float = _plan.lot_height(hs, b.district, boost)
+		var h: float = float(lot.height) if lot.has("height") else _plan.lot_height(hs, b.district, boost)
 		xforms.append(Transform3D(
 			Basis().scaled(Vector3(lot_size.x, h, lot_size.y)),
 			Vector3(lot_centre.x, ground + h * 0.5, lot_centre.y)))
-		colors.append(_facade(hs))
+		colors.append(lot.color if lot.has("color") else _facade(hs))
 		# (window style / 4, lit ratio, seed, plain flag) - what building_lod.gdshader reads.
 		customs.append(Color(float(absi(hash([hs, "w"])) % 4) / 4.0, 0.0,
 			float(absi(hs) % 997) / 997.0, 0.0))
