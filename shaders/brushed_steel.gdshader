@@ -28,7 +28,9 @@ uniform float reflect_emit = 0.42;
 uniform float reflect_energy = 1.1;
 uniform vec3 sky_zenith : source_color = vec3(0.30, 0.46, 0.76);
 uniform vec3 sky_horizon : source_color = vec3(0.50, 0.53, 0.58);
-uniform vec3 street_reflect : source_color = vec3(0.16, 0.15, 0.14);
+// What the sails mirror below the horizon: the pale stone plaza and street at their foot, not
+// tarmac - at 0.16 every downward-leaning panel read as a dark smudge.
+uniform vec3 street_reflect : source_color = vec3(0.34, 0.33, 0.31);
 uniform float glint_strength = 5.0;
 // Floodlights at the foot of the sails after dark: colour, strength, how high they reach (m).
 uniform vec3 flood_color : source_color = vec3(1.0, 0.86, 0.66);
