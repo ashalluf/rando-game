@@ -922,6 +922,11 @@ static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface,
 ## `power` scales how hard the fast layers are thrown (1.0 is a rocket).
 ## The particle materials every blast and wound draws with, for the loading screen to compile
 ## ahead of time (see LoadingScreen._warm_shaders()).
+## The smoke puff material (the explosion's, drawn before the fire), for other emitters.
+static func smoke_material() -> StandardMaterial3D:
+	return _puff_material(false, true)
+
+
 static func warm_materials() -> Array:
 	return [_puff_material(false), _puff_material(true), _puff_material(false, true), _fire_material()]
 
