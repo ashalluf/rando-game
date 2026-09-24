@@ -1167,6 +1167,10 @@ session needs to know:
   (opengl3) job is ~4 GB, so the main session runs its own GL-only jobs (geo_count, preview
   stills) under a second lock, `<scratchpad>/gl2.lock`, alongside whatever holds the main
   one; never put a Forward+ job on it (two lavapipe cities do not fit in 16 GB).
+- Full smoke tests are ~2.5 GB each, and three of them plus a render OOM-killed a gate (exit
+  137, `Killed`, `dmesg` shows `Memory cgroup out of memory`). Every full check now runs
+  through `<scratchpad>/gate_slot.sh <command>`, two slots on `gate1.lock` / `gate2.lock`.
+  An exit 137 is memory, never the code: rerun it inside a slot.
 - A smoke check that fails once under heavy load (five or six Godot processes on the box) is
   rerun in isolation before it is believed: `air_probe.gd`-style scripts that load the city
   and run one checks file (`load("res://tests/air_traffic_checks.gd").new().run(t, city)`
