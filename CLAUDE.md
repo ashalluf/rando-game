@@ -479,7 +479,7 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (helicopters) or a dive (jets), `Explosion.blast()` where it hits, a charred burning wreck for
   `wreck_seconds`, a replacement later. Lights are one additive billboard mesh per aircraft
   (`shaders/aircraft_lights.gdshader`: nav, strobes, beacon, landing lights), never drawn
-  smaller than a few pixels and pulled inside the camera's 2 km far plane, so a night approach
+  smaller than a few pixels and pulled inside the camera's far plane (12 km), so a night approach
   reads across the basin. Above `disc_rpm` the rotor blades are swapped for
   `shaders/rotor_disc.gdshader` (real blades strobe). Sound: Sfx `jet_loop` / `rotor_loop`,
   real CC0 recordings, with a long falloff and a cheap Doppler. **Trap:** give an aircraft its
@@ -668,8 +668,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   hidden, `build_budget_ms` of steps a frame, and swaps each in only when it is complete - one
   whole chunk in one frame was ~100 ms on a slow machine and the physics then ran up to eight
   catch-up steps behind it, which is what made flying stutter. Two rules: steps run in the
-  one-shot order and share the block's rng, so **the order is load-bearing** (the far skyline
-  replays the same rolls); and a big job with its own rng (grass) goes through
+  one-shot order and share the block's rng, so **the order is load-bearing** (the far city runs
+  the very same LOD steps in capture mode, `CityChunk.capturing`, and must get the same rolls);
+  and a big job with its own rng (grass) goes through
   `_run_or_defer()`, which re-queues it before the finish step as a step that returns false
   until it is done. Small repeated props go through
   `MultiMeshBatch` with meshes from `PropFactory`. Breakable props are registered with
@@ -783,6 +784,48 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   transform set, even to the same value - and that box touches every parked car, trash can and
   prop in the city. When it was the sliding plane, re-placed eight times a second, nothing in
   the city could stay asleep. Never move a big static body per frame.
+- The distance (owner, 2026-09-24: "certain areas of the map aren't loading properly at a
+  distance ... do whatever GTA does"): four tiers ALWAYS cover the visible world, the way GTA V
+  and RDR2 do it - FULL chunks (two blocks round the led focus, one round the player), LOD
+  chunks (seven blocks), the **far city** (`Skyline`, `scripts/world/skyline.gd`, the super-LOD:
+  every block within `CityStreamer.far_city_radius`, 7 km, which is the whole basin) and the
+  horizon plane with the mountains. The handoff is **per block, never by distance**:
+  `CityStreamer._install_chunk()` calls `Skyline.cover(block, level)`, which dissolves the far
+  city out there (each block's instances carry their visibility in the colour alpha, dithered by
+  `building_lod.gdshader` / `far_canopy.gdshader` and collapsed at 0), and a chunk leaving the
+  window is **retired** (`_retire_chunk()`: `Skyline.uncover()`, `CityChunk.retire()` drops its
+  cars, people and collision at once, the node stays drawn for `lod_fade_time` while the far
+  city dissolves back in over it, then goes). So no ring is drawn by nobody and no block by two.
+  The far city IS the LOD chunk's city: `CityChunk.capturing` runs the LOD block build (same
+  steps, same rng) and records slabs and boxes into `captured` instead of building them, and
+  Skyline takes the `lod_box` batch as it is - anything added to the block build shows in the
+  far city with no far-city code. Around it: one plate per block over `CityPlan.owned_rect()`
+  (`INSTANCE_CUSTOM.a` 2, roads painted by the shader from the widths in .r/.g, linear colours
+  from `CityChunk.far_tint()`, the numbers the LOD chunks' ground uses; outside the city, where
+  a chunk draws its ground as a box in a `road()` material, `PropFactory.far_albedo()` - the
+  set's measured `TEXTURE_MEAN` times the tint - and the airport's runways cut its plates into
+  strips rather than lying on them, because two plates 10 cm apart z-fight at a kilometre on
+  the web's depth buffer), freeway decks and
+  pillars from `Freeway.segments_in()` (deck mode, .a 3), the port's containers, and canopies
+  (`PropFactory.canopy_blob()`) for street and park trees and hill scrub, which stay under a LOD
+  chunk (it plants none) standing on the real ground (`INSTANCE_CUSTOM.r` 1) and go under a
+  FULL one; the HillRoads estates in their own MultiMesh. Built a capture STEP at a time (one
+  LOD build step of one block, so no block costs a frame more than a chunk step does) in
+  `stream_priority_at()` order inside `far_city_budget_ms`, `far_city_immediate_radius` at once
+  on `update_streaming(true)`, the whole radius on the loading screen (`finish_far_city()`,
+  which `--nohud` / `--noload` runs too, so screenshots show what the player sees). The plane's
+  rim and the far city's last kilometre fade to the sky's horizon colour together
+  (`CityStreamer.GROUND_EDGE_FADE`, `edge_start` / `edge_end` in the three shaders).
+  Chunks build in `stream_priority()` order: distance to the player or the led focus, weighted
+  against the camera's heading by `view_priority`. The camera draws to 12 km (`player.tscn`
+  `far`; it was 2 km, which clipped two thirds of the basin), `aircraft_lights.gdshader`
+  `max_depth` stays just inside it, and the horizon plane no longer lifts itself over the far
+  city (`urban_lift` 0: it buried every suburb past 2.6 km). Rules: never give a far-city node a
+  visibility range; never free a chunk except through `_retire_chunk()`; anything a far block
+  draws must hide under its chunk. Checks: `tests/distance_checks.gd`. Look with
+  `tools/glshot/lod_pano.gd` (a 360 panorama; `TIERS=1` paints each tier a flat colour), measure
+  with `tools/flight_bench.gd` (frame times on a scripted 90 m/s flight; `CENSUS=1` counts the
+  blocks ahead nobody draws).
 - Trees and planting: `PropFactory.CITY_TREES` (five broadleaf street trees) and `HILL_TREES`
   (fir, pine, quiver, searsia) - the hills used to wear the same street trees as the basin, which
   reads as one texture stretched over everything. A block's dominant species comes from the
@@ -1021,6 +1064,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   Far buildings emit most of their glass's mirror too (`reflect_emit` / `reflect_energy`, kept
   level with `building.gdshader` so a tower does not change brightness at the LOD line, and
   faded to the facade's glazing average with the rest of the distance blend).
+  Far (LOD) chunks lay their merged ground on an 8 m grid (`CityChunk.lod_ground_grid_step`) and
+  sample the relief on a 9 m lattice (`LOD_RELIEF_STEP`): at the near 2.2 m step a far block was
+  ~12k triangles of flat ground and 32 of its 40 ms build, and a fast flight outran the LOD ring.
+  Now 7.6 ms, its worst step 2.9 ms (inside `build_budget_ms`). Far boxes decode their instance
+  colour on Forward+ (`building_lod.gdshader` `instance_color_is_srgb`, set by
+  `PropFactory.building_lod_material()`): it was declared and never set, so the whole far city
+  was drawn 1.4-4.3x brighter than the same buildings up close on the Mac.
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
   window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
   plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.

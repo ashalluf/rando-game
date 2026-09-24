@@ -84,7 +84,10 @@ What only the owner can supply, and why each one multiplies everything below:
   placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
 - [ ] **G6. Cars (1-2 months).** Interiors, real glass, damage, lights; extend tools/make_*.
 - [ ] **G7. Performance, throughout.** Generated occluders, far-building impostors, texture
-  streaming, profiled on the owner's Mac every push: the look at 60 fps, not 15.
+  streaming, profiled on the owner's Mac every push: the look at 60 fps, not 15. (Done
+  2026-09-24: the level-of-detail hierarchy - FULL, LOD, a whole-basin far city handed over per
+  block, the horizon - with view-weighted streaming; see the decisions log. Still to do: real
+  impostors for the far city's towers instead of shaded boxes.)
 - [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
 
 ## Owner requests queued
@@ -210,7 +213,9 @@ full-detail `CityChunk`s around the player and a 15 x 15 area of cheap LOD chunk
 colored box per building part, no props, no collision), building a few chunks per update, freeing
 the rest. It moves the ground plane under the player and re-centers the world when the player is
 1000 m from the origin (`WorldState.world_offset` holds the true offset; chunk nodes sit at minus
-that offset so their children use true world coordinates).
+that offset so their children use true world coordinates). Beyond the chunks the far city
+(`Skyline`, 2026-09-24) draws every block of the basin from the LOD build's own data, handed
+over per block as chunks arrive and leave, and the camera draws to 12 km.
 
 Each chunk owns its block, the road on its +X side, the road on its +Z side and the corner
 intersection. Street props (lamps, hydrants, benches, stop signs, signals) are MultiMesh instances
@@ -254,6 +259,33 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-24 The distance: four tiers that always cover the world (owner: "it's glaringly
+  obvious that certain areas of the map aren't loading properly at a distance ... do whatever
+  GTA does").** Diagnosed first, by counting rather than looking: over the city blocks within
+  6 km of eight vantage points (downtown roof and street, midtown, the hills, the beach, the
+  airport, the valley, 900 m up), 65-80 % of the map was simply past the camera's 2 km far
+  plane; up to 142 blocks were drawn twice (a LOD chunk with the old far tier over it - from
+  the air every detailed block wore a coarse box over it); a few blocks a vantage were holes,
+  in the 500-1000 m ring where the old tier's 36-block tiles decided visibility by their
+  centre's distance; malls, big boxes, pads, yards and the freeway corridor were drawn as
+  buildings the chunks never build; the horizon plane lifted itself 42 m over the far city and
+  buried the suburbs; the LOD chunks planted no trees; and at jet speed the LOD ring could not
+  be rebuilt fast enough (a 90 m/s flight ended with 3 of 200 LOD chunks standing), because a
+  LOD chunk's ground was laid on the near chunks' 2.2 m grid. What GTA V and RDR2 do, and what
+  this now does: a hierarchy in which a coarser tier ALWAYS stands in until the finer one is
+  built. FULL and LOD chunks as before, then the far city (`Skyline`, a super-LOD of every block
+  within 7 km, i.e. the whole basin), then the horizon plane and the mountains. The handoff is
+  per block and dissolved, never by distance: a chunk installed on a block hides the far city
+  there, a chunk leaving is kept until the far city has dissolved back in over it. The far city
+  IS the LOD chunk's own city - the LOD block build run in capture mode, same rolls, so a far
+  tower is the tower that streams in, and whatever anyone adds to the block build (a downtown
+  table, a new district) shows at distance by itself; landmarks keep their far versions. Plus:
+  the camera draws to 12 km, chunks and far tiles are built in view- and travel-weighted order,
+  far chunks' ground is on an 8 m grid (LOD builds 40 -> 7.6 ms), far buildings decode their
+  colour on Forward+ like the near ones (a half-finished fix since 2026-09-22), and street and
+  park trees stand in the far city. Measured after: 0 holes, 0 doubles, 0 past the far plane
+  from every vantage.
 
 - **2026-09-24 Replica areas (owner: "we are basically picking like certain 1:1 replica areas
   and then filling them in between with whatever").** The map becomes real places at true
