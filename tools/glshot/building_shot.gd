@@ -7,7 +7,8 @@ extends SceneTree
 ##     --script tools/glshot/building_shot.gd --resolution 960x540
 ##
 ## Env: OUT (png path), BSEED (building seed), FINISH (Building.Finish index), LOT (meters),
-## HMIN / HMAX (height range). This is the Compatibility renderer, like the web build: lighting is
+## HMIN / HMAX (height range), KIT=0 (no facade kit), CAM_POS / CAM_LOOK / CAM_FOV (an exact
+## close-up; see below). This is the Compatibility renderer, like the web build: lighting is
 ## flat, judge geometry and materials. ~20 s per shot on llvmpipe.
 func _initialize() -> void:
 	var root3d := Node3D.new()
@@ -24,6 +25,9 @@ func _initialize() -> void:
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	root3d.add_child(sun)
 	var scene := load("res://scenes/props/building.tscn") as PackedScene
+	# KIT=0 renders the building without the facade kit, for a before / after of the same seed.
+	if OS.get_environment("KIT") == "0":
+		Building.kit_enabled = false
 	var b := scene.instantiate()
 	b.seed = _env_int("BSEED", 7)
 	var lot := float(_env_int("LOT", 30))
@@ -41,7 +45,18 @@ func _initialize() -> void:
 	# height, and the height it looks at. Without them the whole building is framed, which is
 	# useless for judging facade detail.
 	var dist := float(_env_int("CAM_DIST", 0))
-	if dist > 0.0:
+	# CAM_POS=x,y,z and CAM_LOOK=x,y,z (metres, building space) place the camera exactly, for a
+	# close look at one window, cornice corner or balcony.
+	var pos_s := OS.get_environment("CAM_POS")
+	if pos_s != "":
+		var p := pos_s.split_floats(",")
+		var l := OS.get_environment("CAM_LOOK").split_floats(",")
+		if l.size() < 3:
+			l = PackedFloat64Array([0.0, p[1], 0.0])
+		cam.look_at_from_position(Vector3(p[0], p[1], p[2]), Vector3(l[0], l[1], l[2]))
+		if OS.get_environment("CAM_FOV") != "":
+			cam.fov = OS.get_environment("CAM_FOV").to_float()
+	elif dist > 0.0:
 		var eye := float(_env_int("CAM_EYE", 6))
 		var tgt := float(_env_int("CAM_TGT", 10))
 		cam.look_at_from_position(Vector3(dist * 0.45, eye, dist), Vector3(0, tgt, 0))
@@ -55,7 +70,7 @@ func _initialize() -> void:
 	if out == "":
 		out = "building_shot.png"
 	get_root().get_texture().get_image().save_png(out)
-	print("saved ", out, " finish=", b.finish, " style=", b.window_style, " height=", b.height)
+	print("saved ", out, " finish=", b.finish, " style=", b.window_style, " height=", b.height, " footprint=", b.footprint)
 	quit()
 
 

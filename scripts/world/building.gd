@@ -147,6 +147,14 @@ const KIT_CORNICE_PAINTS := [Color(0.20, 0.21, 0.19), Color(0.29, 0.21, 0.16), C
 ## below the roof, thickness, projection. Each box lies wholly inside its profile (checked
 ## against the points in tools/facade_kit.py), so near the camera it is hidden by the kit and
 ## past the kit's distance it is what is left of the cornice.
+## Most a cornice is raised above the roof line to clear the top windows (metres). Past it the
+## plainer, shallower cornice goes on instead: a heavy one standing a metre proud of the roof
+## would stand over the parapet's coping.
+const KIT_CORNICE_MAX_LIFT := 0.45
+## How far each cornice moulding hangs below its own top line, in its units (tools/facade_kit.py).
+const KIT_CORNICE_DROP := {"cornice_classic": 0.95, "cornice_bracket": 1.05, "cornice_simple": 0.52}
+## How far each window surround stands above the opening it frames (keystone, lintel, hood).
+const KIT_SURROUND_HEAD := {"surround_brick_a": 0.27, "surround_brick_b": 0.21, "surround_stucco": 0.43}
 const KIT_CORNICE_CORE := {
 	"cornice_classic": [-0.155, 0.27, 0.45],
 	"cornice_bracket": [-0.185, 0.33, 0.60],
@@ -550,13 +558,33 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	# The kit's moulded cornice (drawn near the camera, see _kit_runs below) and how big it is.
 	var kit_cornice := _kit != null and has_cornice and _kit_cornice != ""
 	var cornice_scale := _kit_cornice_scale(size) if kit_cornice else 1.0
+	# A real cornice hangs most of a metre down the wall, and the top floor's window heads come
+	# to within half a metre of the roof line (a slot window's to within ten centimetres), so
+	# the moulding would sit over them. Where there is no room the plainer cornice goes on, and
+	# whatever still does not fit is lifted: the cornice caps the wall and stands up in front
+	# of the parapet, as a real one does over a tall top floor.
+	var cornice_piece := _kit_cornice
+	var cornice_lift := 0.0
+	if kit_cornice:
+		var clear := top - _kit_top_window(bottom, storefront, floor_h, rows, cy, hy, top)
+		if _kit_surround != "":
+			clear -= float(KIT_SURROUND_HEAD[_kit_surround])
+		# The biggest this moulding may be and still clear them within the lift allowed; a rich
+		# cornice may come down a quarter to fit, past that the plain one goes on.
+		var fit := (clear + KIT_CORNICE_MAX_LIFT - 0.04) / float(KIT_CORNICE_DROP[cornice_piece])
+		if fit < 0.75 and cornice_piece != "cornice_simple":
+			cornice_piece = "cornice_simple"
+			fit = (clear + KIT_CORNICE_MAX_LIFT - 0.04) / float(KIT_CORNICE_DROP[cornice_piece])
+		cornice_scale = clampf(fit, 0.6, cornice_scale)
+		var drop := float(KIT_CORNICE_DROP[cornice_piece]) * cornice_scale
+		cornice_lift = clampf(drop + 0.04 - clear, 0.0, KIT_CORNICE_MAX_LIFT)
 	if has_cornice:
 		if kit_cornice:
 			# The moulding stands for the two bands below near the camera. Past its distance this
 			# one band is what is left of it, sized to sit wholly inside the moulding
 			# (KIT_CORNICE_CORE), so near the camera it is hidden rather than doubled.
-			var core: Array = KIT_CORNICE_CORE[_kit_cornice]
-			bands.append([top + float(core[0]) * cornice_scale, float(core[1]) * cornice_scale,
+			var core: Array = KIT_CORNICE_CORE[cornice_piece]
+			bands.append([top + cornice_lift + float(core[0]) * cornice_scale, float(core[1]) * cornice_scale,
 				float(core[2]) * cornice_scale, 0.10, _kit_cornice_color])
 		else:
 			# A deep cornice with a thinner coping under it. One band on its own reads as a stripe
@@ -848,7 +876,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	# The kit's roofline: the moulded cornice at the top of the wall, the coping stone on the
 	# parapet, both run round the whole footprint (cut corners too) and mitred at every corner.
 	if kit_cornice:
-		_kit_runs(_kit_cornice, center, size, cut_x, cut_z, top, cornice_scale, _kit_cornice_color)
+		_kit_runs(cornice_piece, center, size, cut_x, cut_z, top + cornice_lift, cornice_scale, _kit_cornice_color)
 	if coping_y > 0.0:
 		_kit_runs("coping", center, size, cut_x, cut_z, coping_y, 1.0,
 			_kit_trim if masonry else (style.facade as Color).lightened(0.12))
@@ -1104,6 +1132,16 @@ func _kit_runs(piece: String, center: Vector3, size: Vector3, cut_x: float, cut_
 			var custom := Color(tan1 * prof_scale / sx if k == 0 else 0.0,
 				tan0 * prof_scale / sx if k == runs - 1 else 0.0, 0.0, 0.0)
 			_kit.add(key, mesh, Transform3D(Basis(a * sx, Vector3.UP * prof_scale, n * prof_scale), at), color, custom)
+
+
+## Top of the highest window the frames loop draws on a part (the same rows and skip rule).
+func _kit_top_window(bottom: float, storefront: float, floor_h: float, rows: int, cy: float, hy: float, top: float) -> float:
+	var h := 2.0 * hy * floor_h
+	for row in range(rows - 1, -1, -1):
+		var v := bottom + storefront + (float(row) + cy) * floor_h
+		if v + h * 0.5 <= top - 0.3:
+			return v + h * 0.5
+	return bottom + storefront
 
 
 ## How big a building's cornice moulding is: a little heavier on a taller block, as they are.
