@@ -1082,6 +1082,26 @@ func _test_city() -> void:
 				if mat is ShaderMaterial and float((mat as ShaderMaterial).get_shader_parameter("wound_count")) > 0.0:
 					stained = true
 			_check(stained, "the shot body's clothes are stained round the wound")
+		# The shotgun sums a person's pellets into one wound, so a close blast bleeds far harder
+		# than a rifle round (Shotgun.blood_per_pellet, capped at WeaponFX.blood_strength_max).
+		var shotgun: Node = null
+		for w in player.weapon_manager.get_children():
+			if w is Shotgun:
+				shotgun = w
+		if shotgun:
+			var standing: Array = []
+			for p in get_tree().get_nodes_in_group("pedestrian"):
+				if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down"):
+					standing.append(p)
+			standing.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
+			var volley_bleed := 0.0
+			for cand: Node3D in standing.slice(0, 5):
+				shotgun._fire({"origin": cand.global_position + Vector3(-2.5, 1.2, 0.0), "direction": Vector3.RIGHT})
+				var doll: Variant = cand.get("_doll")
+				if doll is Ragdoll:
+					volley_bleed = float((doll as Ragdoll).bleed)
+					break
+			_check(volley_bleed > 1.5, "a close shotgun blast is one heavy wound (strength %.2f, a rifle round is 1)" % volley_bleed)
 		# Every kind of mark stays under its cap when a crowd is emptied into at once: 120 heavy
 		# wounds and 16 pools in one frame, with the per-moment budget lifted so all of them count.
 		var budget_was: int = WeaponFX.blood_budget

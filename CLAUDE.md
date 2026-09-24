@@ -458,8 +458,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `blood_wall_reach` on for a spatter plus runs that creep down the wall; and `blood_landings`
   drops traced along those arcs to where they land, each laying a splat at the moment it lands
   (the first always straight under the wound). `strength` 1 is a rifle round (`AssaultRifle
-  .blood_strength`), limbs are `blood_gib_strength`; a shotgun calls it per pellet (sprays
-  stack, caps hold) or once per person with the pellets summed, up to `blood_strength_max`.
+  .blood_strength`), limbs are `blood_gib_strength`; the shotgun sums a person's pellets into
+  one call (`Shotgun.blood_per_pellet` 0.45 each, capped at `blood_strength_max` 4, so a close
+  blast is four rifle rounds' worth). Called per pellet it also works: sprays stack, caps hold.
   A Ragdoll keeps `bleed` (its wounds summed): a pool spreads from under the Hips once it rests
   (`blood_pool`, over `blood_pool_grow`, widened by `feed_pool` when it is shot again), drag
   smears while it slides, a world-space drip from the exit wound, the stumps and each torn limb
@@ -488,8 +489,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   point, normal, collider, target). Explosions: `Explosion.blast()`. The arsenal is the AK-47, the
   rocket launcher and a pump **shotgun** (`Shotgun`, slot 3; owner, 2026-09-24: "lose the gravity
   gun, give us a shotgun"): nine pellets in a 4.5-degree cone down the rifle's hit path
-  (`fire_pellet()`), people thrown by all the pellets that hit them at once with
-  `WeaponFX.blood()`, a heavy flash and camera shake, then the pump strokes back and home
+  (`fire_pellet()`), people (and bodies already down) thrown and bled by all the pellets that
+  hit them at once - one `WeaponFX.bullet_wound()` each at `blood_per_pellet` a pellet, so a
+  close blast is a far heavier wound than a rifle round - a heavy flash and camera shake, then the pump strokes back and home
   (`pump_amount()`), a spent shell is thrown out of the port as debris and the left hand rides
   the forend (the script moves `grip_left`). Sfx `shotgun` (three real CC0 pump guns) and `pump`.
   **The guns are real models** (owner, 2026-09-24: "What are these horrible assets ... I need it to
