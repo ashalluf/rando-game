@@ -8,7 +8,7 @@ the day-to-day work goes, what is fragile, what to do next. Read all three befor
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
 Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
-day's work, newest first, is in 9o (civic set), 9n (skyline), 9m (sound), 9l (how the day ran),
+day's work, newest first, is in 9p (Esplanade replica), 9o (civic set), 9n (skyline), 9m (sound), 9l (how the day ran),
 9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the index.
 
 **Main at wrap-up** is green on CI; the release page has the newest build. Merged on
@@ -39,7 +39,9 @@ do whatever GTA does". Always send screenshots. No commercial-readiness audit fo
 - Street life (`worktree-agent-a24169908f67381c9`): traffic signals, crosswalks, cars queueing
   at red, police routing by road.
 - Redondo Esplanade into Palos Verdes at 1:1 (`worktree-agent-ac988801941b3dc26`): a replica-area
-  framework (`scripts/world/replica_areas.gd`), the esplanade, clay-tile houses, PV hills.
+  framework (`scripts/world/replica_areas.gd`), the esplanade, clay-tile houses, PV hills. Built
+  and checked in code, never seen rendered or measured for frame cost: section 9p says exactly
+  what is done, what is not and how to take the stills.
 - MacArthur Park and street encampments (`worktree-agent-ac9773ce9fd50b578`).
 - Distance LOD tiers and streaming (`worktree-agent-a7ca467ec2cbe1961`): the far city filled in
   to the horizon (before/after panoramas were sent to the owner).
@@ -1291,7 +1293,7 @@ session needs to know:
   no interiors). The crowd walla is one Hawaiian shopping street; a second take would help. The
   near "traffic" bed is still the old IgnasD highway recording.
 
-## 9n. The Esplanade, the first 1:1 replica area, 2026-09-24 (agent branch)
+## 9p. The Esplanade, the first 1:1 replica area, 2026-09-24 (agent branch)
 
 Owner: "we are basically picking certain 1:1 replica areas and then filling them in between with
 whatever". The rules are the replica bullets in CLAUDE.md (technical rules and conventions);
@@ -1338,6 +1340,13 @@ the table is `ReplicaAreas.ESPLANADE`. What a next session needs to know:
   framing stills and the geo_count before/after were queued on the shared render lock behind a
   dozen jobs and the session ended first. That is the first thing to do next, then compare
   side by side with the owner's three Street View captures and fix what reads wrong.
+  The last full headless check on the branch passed 364 of 365. The one failure was "replica
+  traffic spawns a car": late in the run the physics budget is full and `_spawn()` quietly
+  built nothing. The check now spawns with `force` (0569b16). The replica checks pass 24/24
+  against a stand-in city after the fix, but the full check has NOT been re-run since. The
+  thousands of "Cannot set a buffer on a Multimesh" lines in that log come from main's shadow
+  twins (`MultiMeshBatch.build()`, `twin_mm.buffer = mm.buffer`) under the dummy renderer.
+  They were there before this branch and are not on the check's tripwire list.
 - **How to take the stills** (opengl3, `tools/glshot/still_shot.gd`, `FRAMES=50`, `--hour=12
   --nohud --quality=0 --weather=clear`, under the render lock):
   1718 Esplanade inner northbound lane, portrait: `EYE=-449.26,14.42,3375.82,-173,-5 FOV=75`
