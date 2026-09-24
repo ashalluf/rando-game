@@ -184,19 +184,21 @@ func _initialize() -> void:
 ## the shooter stands round the target from the camera's line of sight, in degrees (default 90:
 ## from the left of the frame, so the exit spray crosses the picture; 0 = from the camera, 180 =
 ## towards it); SHOT_DIST is how far away (default 6 m), SHOT_HEIGHT where the rounds land on a
-## standing person (default 1.25 m, the chest). FX_PED_WALL=metres first stands the target that
+## standing person (default 1.25 m, the chest). SHOT_WEAPON=shotgun fires whole shotgun volleys
+## instead (the gun's own _fire(), so pellets are summed per person). FX_PED_WALL=metres first stands the target that
 ## far in front of the first wall down the line of fire (wall splatter). The tracer still starts
 ## at the hero's muzzle. The log prints the blood counts after the burst.
 func _rifle_burst(player: Node3D, at: Vector3, shots: int, forward: Vector3) -> void:
 	var rifle: Node = null
 	var manager: Node = player.get("weapon_manager")
+	var want_shotgun := OS.get_environment("SHOT_WEAPON") == "shotgun"
 	if manager:
 		for w in manager.get_children():
-			if w.has_method("fire_ray"):
+			if (w.has_method("fire_pellet") if want_shotgun else w.has_method("fire_ray")):
 				rifle = w
 				break
 	if rifle == null:
-		print("FX_SHOOT: no rifle on the player")
+		print("FX_SHOOT: no %s on the player" % ("shotgun" if want_shotgun else "rifle"))
 		return
 	var yaw := deg_to_rad(_env_float("SHOT_YAW", 90.0))
 	var dist := _env_float("SHOT_DIST", 6.0)
@@ -238,9 +240,14 @@ func _rifle_burst(player: Node3D, at: Vector3, shots: int, forward: Vector3) -> 
 				aim_at = body.global_transform * Vector3(0.0, 0.87, 0.0)
 		last = aim_at
 		var from := aim_at + from_dir * dist + Vector3.UP * 0.25
-		var hit: Dictionary = rifle.fire_ray(from, (aim_at - from).normalized())
-		var who: Object = hit.get("collider")
-		print("shot %d at %s hit %s" % [i, aim_at.round(), (who as Node).name if who is Node else "nothing"])
+		if want_shotgun:
+			# A whole volley, through the gun's own _fire(): pellets summed per person.
+			rifle.call("_fire", {"origin": from, "direction": (aim_at - from).normalized()})
+			print("volley %d at %s" % [i, aim_at.round()])
+		else:
+			var hit: Dictionary = rifle.fire_ray(from, (aim_at - from).normalized())
+			var who: Object = hit.get("collider")
+			print("shot %d at %s hit %s" % [i, aim_at.round(), (who as Node).name if who is Node else "nothing"])
 		var waited := 0.0
 		while waited < gap:
 			await process_frame
