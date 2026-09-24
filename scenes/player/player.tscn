@@ -74,4 +74,4 @@ margin = 0.3
 attributes = SubResource("CameraAttributesPractical_cam")
 fov = 75.0
 near = 0.05
-far = 2000.0
+far = 12000.0
