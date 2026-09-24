@@ -253,6 +253,22 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 A living sky (owner: "helicopters, police choppers, news choppers, private jets
+  flying thru the sky, commercial jets taking off and landing at LAX").** `AirTraffic` flies
+  scripted aircraft, never physics: airliners land and take off at the airport, private jets
+  cross the basin high (some land), a news helicopter cruises downtown and comes to circle any
+  explosion near the player, and a police patrol circles the player with its searchlight at
+  three stars (read from the group "wanted", which another system provides). Two decisions
+  forced by the map rather than chosen: arrivals cannot come straight in from the east like the
+  real field's, because the east range is two kilometres from the fence, so they come up the
+  basin from the south and turn onto a short 3 degree final over the city; and the city under
+  that final had 20 m midtown blocks where the glide path is 15 m up, so the last 700 m is a
+  runway protection zone with no lots built in it, as real airports have. Departures go west
+  over the sea. Every aircraft can be shot down and is replaced later. Helicopters are an
+  original Blender-made model (`tools/make_helicopter.py`) in police and news liveries (the
+  station, "RANDO 5", is invented); the jets reuse the existing models; the engine sounds are
+  real CC0 recordings from Freesound.
+
 - **2026-09-24 The guns are real models, made in Blender by script (owner: "What are these
   horrible assets ... it's looking like GTA San Andreas and I need it to look like RDR2").**
   `tools/make_weapons.py` builds each gun from real dimensions in millimetres, bevels every part

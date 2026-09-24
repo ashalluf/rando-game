@@ -18,8 +18,8 @@ extends SceneTree
 ## metres ahead instead (people come apart close to a blast); FX_PED_PLACE=1 also stands that
 ## pedestrian in the road exactly FX_AT metres ahead first. Debris is kept alive for the shot:
 ## its lifetime is wall-clock seconds, and a software frame takes seconds.
-## AIR=final|takeoff|news|police stages an aircraft for the shot (AIR_DIST, AIR_CLEAR,
-## AIR_FRAMES; see the block before the freeze).
+## AIR=final|takeoff|news|police stages an aircraft for the shot (AIR_DIST, AIR_SIDE metres to
+## the right, AIR_CLEAR, AIR_FRAMES; see the block before the freeze).
 ## CAR_PARAM=name=value sets one car paint uniform on every car (A/B tests); CAR_REPORT=1 prints
 ## each car on screen with its paint; AIM=1 holds GTA-style aim for the shot. WHEEL=<index> opens
 ## the weapon wheel just before the shot with that segment highlighted (-1 = none), time already
@@ -138,7 +138,8 @@ func _initialize() -> void:
 			await process_frame
 		else:
 			print("WHEEL: no weapon wheel in the scene")
-	# AIR=final|takeoff|news|police stages an aircraft AIR_DIST metres ahead of the camera
+	# AIR=final|takeoff|news|police stages an aircraft AIR_DIST metres ahead of the camera (and
+	# AIR_SIDE to its right)
 	# (AirTraffic.stage(): an airliner on short final, a departure just past lift-off, the news
 	# helicopter, or police circling the player with the searchlight on him), AIR_CLEAR=1 empties
 	# the rest of the sky first, then AIR_FRAMES frames run so it settles.
@@ -150,7 +151,8 @@ func _initialize() -> void:
 			if OS.get_environment("AIR_CLEAR") == "1":
 				air.call("clear_all")
 			var dist := float(OS.get_environment("AIR_DIST")) if OS.get_environment("AIR_DIST") != "" else 300.0
-			var placed: Node = air.call("stage", air_env, air_cam, dist)
+			var side := float(OS.get_environment("AIR_SIDE")) if OS.get_environment("AIR_SIDE") != "" else 0.0
+			var placed: Node = air.call("stage", air_env, air_cam, dist, side)
 			print("AIR staged ", placed.name if placed else "nothing", " at ", (placed as Node3D).global_position if placed else Vector3.ZERO)
 			for i in _env_int("AIR_FRAMES", 4):
 				await process_frame

@@ -902,6 +902,57 @@ still `rocket.gd`'s red primitive cylinder, not the olive warhead the model show
 The shotgun's fire rate and knock numbers are first guesses (`fire_rate` 1.25, nine pellets of
 9 impulse, `knock_base` 12 + 5 a pellet).
 
+## 9g. The living sky, 2026-09-24
+
+Owner: "helicopters, police choppers, news choppers, private jets flying thru the sky,
+commercial jets taking off and landing at LAX". Built on an agent worktree; the rules are the
+Air traffic bullet in CLAUDE.md. What a next session needs to know:
+
+- **Where things fly and why.** Arrivals come up the basin from the south (a downwind leg at
+  `AirTraffic.downwind_x`, x 1950), turn onto a 3 degree final along z 960 and land westbound
+  on the south runway, touching down about x -210; departures line up at x -35 on the middle
+  runway and climb out west over the sea, turning north-west or south-west. The real field's
+  arrivals come straight in from the east over the city; ours cannot, because the east range is
+  400 m high two kilometres from the fence (measured: `MacroMap.height_at()` along
+  z 960 reads 145 m at x 2400 and 330 m at x 3000). A route that crossed it would reach the
+  runway 100 m up even at a 5 degree descent.
+- **The runway protection zone** (`MacroMap.runway_clear_zone()`, 700 x 90 m off the east end of
+  the south runway): `CityPlan.lots()` builds nothing in it, so the near and far city both lose
+  the same lots. Without it the glide path met 20-30 m midtown roofs 150-400 m from the fence.
+- **Every height the traffic avoids is read, not guessed**: `obstacle_top()` replays the plan's
+  own lots and `lot_height()` (like Skyline), adds 10 m of roof plant, reads the freeway decks
+  that really pass over a cell (`Freeway.segments_in()` returns its whole 160 m index cells,
+  which first put a 24 m "deck" on the runway), and measures the landmarks from the far copies
+  CityStreamer keeps. Change the city and the routes follow.
+- **The one bug that mattered**: a kinematic body's velocity is derived from its motion per
+  step, so spawning an aircraft at the origin and then moving it launched the player at
+  ~170 km/s (he left the map in one frame, and every later check ran 60 km away). Aircraft are
+  placed before they enter the tree now; anything else that spawns kinematic bodies far from
+  where they are created has the same trap.
+- **Tuning.** Traffic: `arrival_interval` 70 s, `departure_interval` 76 s, `private_interval`
+  55 s, `max_aircraft` 10 (web 6). Approach: `glide_slope_deg` 3, `aim_inset` 190 m,
+  `final_turn_radius` 750 m. Jets (`AmbientJet`): `approach_speeds` (92, 72, 61, 54) m/s,
+  `rollout_decel` 4.0, `roll_accel` 3.5, `liftoff_speed` 56 - fast for an airliner, because the
+  runway is 740 m. News: `news_orbit_radius` 170, `news_orbit_height` 140, `news_linger` 90 s.
+  Police: `police_stars` 3, `police_orbit_radius` (80, 96), `police_orbit_height` 62. Helicopter:
+  `cruise_speed` 42, `orbit_speed` 17, `searchlight_energy` 22, `searchlight_angle` 6.5.
+  Damage: helicopters 80 hp (one rocket), private jets 70, airliners 140.
+- **Cost, measured headless on this box**: the routes at load 77 ms (once, in the loading
+  screen), a crossing route 7 ms and a private-jet arrival route 18 ms (each built when one
+  spawns, every minute or so), a tick of eight aircraft including two police in pursuit
+  0.24 ms. The obstacle cells are cached; the lots are only read for route points within
+  420 m of the ground.
+- **Stills**: `AIR=final|takeoff|news|police AIR_DIST=<m> AIR_SIDE=<m> AIR_CLEAR=1` on
+  `tools/glshot/still_shot.gd` (opengl3 only for this work; see the usage in the file).
+- **Not done / not verified**: nobody has heard the loops in the game or seen the searchlight
+  shaft through real volumetric fog (Forward+ was off limits for this agent). Aircraft do not
+  avoid each other: two arrivals are spaced by the schedule only, and a helicopter's route
+  over a jet's is not checked. Departures pop into existence behind a fade at the line-up
+  point; a watcher sees them appear. Arrivals fade out rather than taxiing to a gate. Smoke
+  trails left in the air jump a kilometre on an origin re-centering (CPUParticles in world
+  space; the rocket smoke already does this). Nothing shows aircraft on the minimap, and the
+  lock-on does not target them.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

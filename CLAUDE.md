@@ -364,6 +364,44 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
   `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
   (bit 5) and the player's under-terrain ray uses only that layer.
+- Air traffic (owner, 2026-09-24: "helicopters, police choppers, news choppers, private jets
+  flying thru the sky, commercial jets taking off and landing at LAX"): `AirTraffic`
+  (`scripts/world/air_traffic.gd`, a Node3D in `city.tscn`) flies scripted `AmbientCraft`s -
+  `AmbientJet` (airliners and private jets on `AirRoute`s) and `Helicopter` (police, news) -
+  none of them simulated. An `AirRoute` (`scripts/world/air_route.gd`) is a world-space track
+  of straight legs and circular turns with a height per point, sampled by distance flown, and
+  lifted clear of the city by `AirRoute.clear()` against `AirTraffic.obstacle_top()` (terrain,
+  the plan's own lots and massing heights plus roof plant, freeway decks that really pass
+  overhead, the far landmarks' bounds, trees, port cranes; 50 m cells, cached). The east range
+  stands two kilometres from the airport fence, so arrivals come up the basin from the south
+  (`downwind_x`), turn onto a 3 degree final over the city and land WESTBOUND on the south
+  runway (`MacroMap.arrival_runway`); departures line up on the middle runway (the hangars
+  stand across the east ends of the other two) and climb out west over the sea.
+  `MacroMap.runway_clear_zone()` keeps lots out from under the last 700 m of the final
+  (`CityPlan.lots()`): midtown lots put 20 m buildings where the glide path is 15 m up. News:
+  `Explosion.blast_count` / `last_blast_world` are polled; a blast within
+  `news_interest_radius` of the player sends the news helicopter to circle it. Police: the
+  group "wanted", `.get("stars")` (the most any node in it says; absent is 0); at
+  `police_stars` one, a star more two, circle the player with a `SpotLight3D` searchlight -
+  volumetric only where volumetric fog is on (Forward+ HIGH), a drawn shaft elsewhere
+  (`shaders/searchlight_beam.gdshader`), always an additive pool where it lands - and LEAVE when
+  the stars clear. Every aircraft is an AnimatableBody3D on the props layer (mask 0) with box
+  shapes and `take_hit()`, so bullets, pellets, rockets and blasts hit it with no weapon code
+  knowing aircraft exist; the layer is dropped past `hit_range`. Shot down: smoke, a spin
+  (helicopters) or a dive (jets), `Explosion.blast()` where it hits, a charred burning wreck for
+  `wreck_seconds`, a replacement later. Lights are one additive billboard mesh per aircraft
+  (`shaders/aircraft_lights.gdshader`: nav, strobes, beacon, landing lights), never drawn
+  smaller than a few pixels and pulled inside the camera's 2 km far plane, so a night approach
+  reads across the basin. Above `disc_rpm` the rotor blades are swapped for
+  `shaders/rotor_disc.gdshader` (real blades strobe). Sound: Sfx `jet_loop` / `rotor_loop`,
+  real CC0 recordings, with a long falloff and a cheap Doppler. **Trap:** give an aircraft its
+  transform BEFORE `add_child()` (`AirTraffic._place_before_entry()`). Godot derives a kinematic
+  body's velocity from how far it moved in a step; one that entered at the origin and was put
+  two kilometres away moved at ~170 km/s for a step, and a player standing at the origin took
+  that as platform velocity and left the map. The checks (`tests/air_traffic_checks.gd`, loaded
+  by the smoke test) step aircraft with `advance(dt)` in a loop - minutes of flight in a frame.
+  Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd`. The helicopter
+  model is `tools/make_helicopter.py` (Blender, headless; ASSETS.md).
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the

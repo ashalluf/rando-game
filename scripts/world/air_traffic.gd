@@ -105,6 +105,9 @@ const STREET_ALLOWANCE := 10.0
 ## Trees on the hills, cranes in the port.
 const HILL_ALLOWANCE := 20.0
 const PORT_ALLOWANCE := 65.0
+## Height over the ground above which nothing in the city can reach (the boosted downtown core
+## tops out near 370 m with its roof plant).
+const HIGH_ENOUGH := 420.0
 
 var plan: CityPlan
 var macro: MacroMap
@@ -144,6 +147,8 @@ var _serial: int = 0
 func _ready() -> void:
 	add_to_group("air_traffic")
 	_rng.seed = 7331
+	# The count is static: blasts from before a scene reload are not news in this one.
+	_seen_blasts = Explosion.blast_count
 	if OS.has_feature("web"):
 		max_aircraft = mini(max_aircraft, web_max_aircraft)
 
@@ -325,9 +330,15 @@ func _private_arrival_route(rng: RandomNumberGenerator) -> AirRoute:
 	return r
 
 
-## The tallest thing under route point `i` (and `side` metres either side of it).
+## The tallest thing under route point `i` (and `side` metres either side of it). A point
+## flying higher over the ground than the tallest tower in the city could reach only needs the
+## terrain: the lots are the expensive part of obstacle_top(), and a crossing at a kilometre
+## would otherwise read every lot under eighteen kilometres of track.
 func _swept_top(r: AirRoute, i: int, side: float) -> float:
 	var p: Vector2 = r.xz[i]
+	var ground := macro.height_at(p)
+	if r.y[i] - ground > HIGH_ENOUGH:
+		return ground + HILL_ALLOWANCE
 	var top := obstacle_top(p)
 	if side > 0.0:
 		var j := mini(i + 1, r.xz.size() - 1)
@@ -763,15 +774,17 @@ func _order_patrol(h: Helicopter, p: Vector3) -> void:
 # --- Stills and tests -------------------------------------------------------------------------
 
 ## Stages an aircraft for a screenshot in front of `cam`: "final" (an airliner on short final,
-## the point of the approach nearest `dist` metres ahead of the camera), "takeoff" (a departure
+## the point of the approach nearest `dist` metres ahead of the camera and `side` to its right), "takeoff" (a departure
 ## `dist` metres past lift-off), "news" (the news helicopter `dist` ahead, filming the camera's
 ## target) or "police" (police circling the player, searchlight on). Returns what it placed.
-func stage(kind: String, cam: Camera3D, dist: float) -> AmbientCraft:
+func stage(kind: String, cam: Camera3D, dist: float, side: float = 0.0) -> AmbientCraft:
 	if not _ready_done and not _setup():
 		return null
 	var eye := WorldState.to_world(cam.global_position)
 	var fwd := -cam.global_basis.z
-	var spot := eye + Vector3(fwd.x, 0.0, fwd.z).normalized() * dist
+	var flat := Vector3(fwd.x, 0.0, fwd.z).normalized()
+	# `side` metres to the right of the view, so the player is not standing in front of it.
+	var spot := eye + flat * dist + Vector3(-flat.z, 0.0, flat.x) * side
 	match kind:
 		"final":
 			var r: AirRoute = routes["arrival_south"]
