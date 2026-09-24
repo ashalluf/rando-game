@@ -277,6 +277,14 @@ func _build_landmarks() -> void:
 	for lm in Landmarks.in_rect(owned_rect()):
 		Landmarks.build(lm, self, _statics, plan, true)
 		built_landmarks.append(lm.id)
+		# The crowds a landmark wants (a plaza full of people, a park's walkers) are ordinary
+		# pedestrians on their own seeded stream, one per build step like the block's own, queued
+		# just before the finish so nothing else in the build moves.
+		for crowd: Array in Landmarks.crowds(lm, plan):
+			var rng := RandomNumberGenerator.new()
+			rng.seed = hash([plan.seed, lm.id, crowd[0]])
+			for step in _crowd_steps(crowd[0], crowd[1], crowd[2], rng):
+				_steps.insert(_steps.size() - 1, step)
 
 
 ## Batches that are paint on the road (shaders/road_paint.gdshader wears them).

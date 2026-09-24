@@ -949,6 +949,44 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   room. Stills: the skyline from the south-west `--spawn=-50,1250,-43,5,80`, from the hills
   `--spawn=350,-950,-170,-9,380`, on the avenue `--spawn=589.2,860,0,16,2`, with `HIDE=Visual`
   on `tools/glshot/city_shot.gd` (hides the player, who otherwise stands in the middle of it).
+- Downtown civic set (owner, 2026-09-24: "downtown must match real downtown LA, we need staple
+  center"): the same exception as the skyline - the real buildings' FORMS in their real places
+  relative to the core, every NAME invented (no real arena, sponsor, team, hotel, museum,
+  hall or station name anywhere, the LED slides' brands included). South-west of the core, `LandmarkArenaDistrict` (`scripts/world/landmark_arena_district.gd`):
+  `arena` (RANDO ARENA: oval bowl on a stepped podium, glass ring leaning out, banded metal drum,
+  domed roof you can land on, corner marquee with LED screens), `live_plaza` (STARLIGHT PLAZA with
+  the STARLIGHT THEATER, screens, neon, crowd), `live_hotel` (HOTEL ALTAIR, 200 m slab with a lit
+  crown), `convention_center` (white hall, two tilted green-glass pavilions). North-east,
+  `LandmarkCivicCenter` (`landmark_civic_center.gd`): `ziggurat_hall` (CITY HALL - moved off the
+  road at x 824 and out from under the 110 deck, floodlit), `civic_park` (CIVIC PARK: fountain
+  terrace, lawn, pink furniture), `concert_hall` (SYMPHONY HALL, steel sails from
+  `tools/make_concert_hall.py`), `lattice_museum` (THE LATTICE), `pueblo_station` (PUEBLO
+  STATION). **One table places them all: `CivicSites.SITES`** (`scripts/world/civic_sites.gd`):
+  anchor, footprint (own frame), yaw (quarter turns) and the real building's lat/long, size and
+  facing; `CivicSites.real_en()` is the real position in the SKYLINE table's frame (metres east
+  / north of `LandmarkDowntown.REAL_ORIGIN`, like a tower's `real`; `real_metres()` has z south,
+  `real_grid()` turns it onto the real street grid) - the owner's long-term goal is downtown at
+  1:1, and a re-layout should change only the two tables and the pinned grid. Builders work in a frame centred on their site; `CivicSites.build()` puts a turned
+  pivot with its own static body in the world, and anything that needs world coordinates (crowd
+  rects, the chunk's grass) goes through `CivicSites.to_world()` / `rect_to_world()`, with the
+  chunk in `CivicSites.ctx`. They are **block sites**: `"site": "block"` in `Landmarks.all()` makes
+  `Landmarks.claims()` true for the block the anchor falls in, so `CityPlan.lots()` returns
+  nothing there and `CityPlan.block()` overrides its park/plaza/mall roll (AFTER the roll, so no
+  seed moves); every builder lays itself out inside `Landmarks.site_rect()` (the block inside its
+  pavement ring), so nothing ever stands on a road whatever the seed. Anchors are the default
+  seed's block centres; radius only flattens relief and stays inside the block. Crowds:
+  `Landmarks.crowds()` returns rects the chunk fills with ordinary pedestrians (as build steps).
+  Geometry is `LandmarkGeo` (`scripts/world/landmark_geo.gd`): one mesh per building, a surface
+  per material; UVs in METRES (u along a wall, v world height) which the landmark shaders read;
+  every triangle is flipped to face the normal it is given, so winding cannot go wrong; curved
+  things you stand on get one concave shape, boxes get box shapes. Shaders:
+  `landmark_facade` (texture as detail, joints, bands, punched windows, FLOODLIGHT after dark),
+  `curtain_glass` (UV mullions, emitted sky + fake skyline, traced interior lit at night),
+  `brushed_steel`, `clay_roof`, `fountain_water` / `fountain_jet`, `led_screen` (slides from
+  `LedScreen.atlas()`, a 5 x 7 dot-matrix atlas of INVENTED brands in `LedScreen.SLIDES`), all
+  sharing `landmark_common.gdshaderinc`. Far versions are the same builders at low detail (a few
+  draws each). Checks: `tests/civic_checks.gd`. Frame them with `tools/glshot/landmark_shot.gd`
+  (free camera: `CAM`, `LOOK`, `FOV`).
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

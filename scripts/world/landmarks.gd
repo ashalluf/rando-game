@@ -50,7 +50,6 @@ static func _list() -> Array[Dictionary]:
 		{"id": "hills_sign", "anchor": Vector2(480.0, -960.0), "radius": 70.0},
 		{"id": "pier", "anchor": Vector2(-940.0, -350.0), "radius": 200.0},
 		{"id": "observatory", "anchor": Vector2(260.0, -1320.0), "radius": 60.0},
-		{"id": "ziggurat_hall", "anchor": Vector2(810.0, 160.0), "radius": 40.0},
 		{"id": "campus_hall", "anchor": Vector2(-620.0, -520.0), "radius": 95.0},
 		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
@@ -73,6 +72,21 @@ static func _list() -> Array[Dictionary]:
 		# bounded by those two roads, set so the gate steps stop just short of the south
 		# pavement. Radius 52 covers the 45 m from the hall centre to the gate steps.
 		{"id": "masjid_al_noor", "anchor": Vector2(-235.7, 165.2), "radius": 52.0},
+		# --- Downtown LA civic set (owner, 2026-09-24: "downtown must match real downtown LA,
+		# we need staple center we need all day"). Real FORMS in their real places relative to
+		# the core; every NAME is invented (LandmarkArenaDistrict, LandmarkCivicCenter).
+		# Position, footprint and orientation of each - and the real building's position in
+		# metres from a downtown origin - live in ONE table, CivicSites.SITES, so re-laying
+		# downtown only has to change that table. Each is a block site ("site": "block"): it
+		# takes the whole block its anchor falls in (Landmarks.claims()) and is laid out inside
+		# that block's pavement, so it never sits on a road whatever the seed.
+		# South-west of the core: the arena, its entertainment plaza north across the street,
+		# the plaza's hotel tower on the next block east, the convention centre south.
+		# North-east: city hall (it used to stand across the road at x 824, under the 110 deck),
+		# the park north of its steps, the concert hall and the museum, the station past the 5.
+		CivicSites.entry("arena"), CivicSites.entry("live_plaza"), CivicSites.entry("live_hotel"),
+		CivicSites.entry("convention_center"), CivicSites.entry("ziggurat_hall"), CivicSites.entry("civic_park"),
+		CivicSites.entry("concert_hall"), CivicSites.entry("lattice_museum"), CivicSites.entry("pueblo_station"),
 	]
 	# --- Downtown skyline (LandmarkDowntown) ----------------------------------------------------
 	# The real downtown's towers by massing, with original names (owner, 2026-09-24). Every
@@ -82,6 +96,46 @@ static func _list() -> Array[Dictionary]:
 	list.append_array(LandmarkDowntown.entries())
 	# --- end of the downtown skyline ------------------------------------------------------------
 	return list
+
+
+static var _site_anchors: PackedVector2Array = PackedVector2Array()
+static var _site_anchors_ready: bool = false
+
+
+## True when a landmark takes the whole block `rect` (its "site" is "block" and its anchor lies
+## inside it). CityPlan then plans nothing else there: no lots, and the block's own park, plaza
+## or mall roll is overridden, so the landmark has the block to itself.
+static func claims(rect: Rect2) -> bool:
+	if not _site_anchors_ready:
+		for lm in all():
+			if lm.get("site", "") == "block":
+				_site_anchors.append(lm.anchor)
+		_site_anchors_ready = true
+	for a in _site_anchors:
+		if rect.has_point(a):
+			return true
+	return false
+
+
+## The ground a block-site landmark is laid out on: the block its anchor falls in, inside the
+## pavement ring (which stays pavement, with the street's lamps, trees and walkers on it).
+## Layouts fit themselves to this rect, so a different seed's grid moves the landmark with it
+## rather than putting it across a road.
+static func site_rect(plan: CityPlan, anchor: Vector2) -> Rect2:
+	if plan == null:
+		return Rect2(anchor - Vector2(40.0, 40.0), Vector2(80.0, 80.0))
+	var idx := plan.block_index_at(anchor)
+	var rect: Rect2 = plan.block(idx.x, idx.y).rect
+	return rect.grow(-plan.sidewalk_width)
+
+
+## Crowds a landmark wants in its detailed version: [[rect, sidewalk, count], ...]. The chunk
+## spawns them as ordinary pedestrians (the ring they wander is `rect` inset by `sidewalk`, and a
+## `sidewalk` of half the rect's size lets them mill about the whole of it).
+static func crowds(lm: Dictionary, plan: CityPlan) -> Array:
+	if CivicSites.SITES.has(lm.id):
+		return CivicSites.crowds(lm.id, plan)
+	return []
 
 
 ## True when world XZ `p` (grown by `pad` metres) is inside a landmark building that stands on
@@ -114,8 +168,6 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			_build_pier(lm.anchor, parent, statics, plan, detailed)
 		"observatory":
 			_build_observatory(lm.anchor, parent, statics, plan, detailed)
-		"ziggurat_hall":
-			_build_ziggurat_hall(lm.anchor, parent, statics, detailed)
 		"campus_hall":
 			_build_campus_hall(lm.anchor, parent, statics, detailed)
 		"terminal":
@@ -136,6 +188,9 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			LandmarkVerdeCafe.build(lm.anchor, parent, statics, plan, detailed)
 		"masjid_al_noor":
 			LandmarkMasjidAlNoor.build(lm.anchor, parent, statics, plan, detailed)
+		# Downtown LA civic set (see all() and CivicSites).
+		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
+			CivicSites.build(lm.id, parent, statics, plan, detailed)
 		_:
 			if LandmarkDowntown.is_tower(lm.id):
 				LandmarkDowntown.build(lm, parent, statics, detailed)
@@ -423,19 +478,6 @@ const GLASS_DARK := Color(0.16, 0.24, 0.36)
 const GLASS_GREEN := Color(0.14, 0.30, 0.30)
 const PLINTH := Color(0.62, 0.60, 0.58)
 
-## A civic tower with a stepped pyramid on top.
-static func _build_ziggurat_hall(anchor: Vector2, parent: Node3D, statics: StaticBody3D, _detailed: bool) -> void:
-	var base := Vector3(anchor.x, 0.25, anchor.y)
-	var stone := Color(0.85, 0.80, 0.70)
-	_facade_box(parent, statics, Vector3(76.0, 22.0, 60.0), base + Vector3(0.0, 11.0, 0.0), stone, Building.Finish.PANELS, Building.WindowStyle.NARROW, 6.0)
-	_facade_box(parent, statics, Vector3(26.0, 96.0, 26.0), base + Vector3(0.0, 22.0 + 48.0, 0.0), stone, Building.Finish.PANELS, Building.WindowStyle.NARROW, 0.0)
-	var y := base.y + 118.0
-	var w := 26.0
-	for i in 4:
-		w -= 5.0
-		_box(parent, statics, Vector3(w, 5.0, w), Vector3(base.x, y + 2.5, base.z), stone.darkened(0.05 * i), true)
-		y += 5.0
-	_cyl(parent, null, 0.6, 12.0, Vector3(base.x, y + 6.0, base.z), Color(0.8, 0.8, 0.82))
 
 
 # --- University campus ----------------------------------------------------------------------
