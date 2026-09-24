@@ -874,6 +874,9 @@ taking away from graphics at all". What shipped, newest last:
   renderer a picture is from). Four agents were running on worktrees: weapon wheel, weapon
   models, a Blender hero and a Meshy hero; the owner then asked for the hero in a New Jersey
   mob tracksuit, which the current rig wears in the meantime (`Player.avatar_tracksuit`).
+  The weapon wheel (hold Tab / LB: quarter-speed time, frosted-glass wheel,
+  `scripts/ui/weapon_wheel.gd` + `shaders/glass_ui.gdshader`) came in from its agent branch the
+  same night; it has only been judged on opengl3 stills so far.
 - Store stills: `tools/glshot/still_shot.gd` (FX_AT / FX_SIDE / FX_TIME for explosions,
   `FX_AT_PED=1 FX_PED_PLACE=1` for limbs). The good ones: the gore shot downtown at 17:25
   (`--spawn=734.9,330,0,-5 --hour=17.4`, FX_AT=13 FX_RADIUS=9 FX_TIME=0.32), the skyline at

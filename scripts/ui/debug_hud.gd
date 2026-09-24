@@ -14,6 +14,8 @@ enum Mode { CLEAN, FULL, HIDDEN }
 var mode: Mode = Mode.CLEAN
 
 var _player: Player
+## The weapon the list was last written for, so it is rebuilt only on a switch.
+var _labelled_weapon: Weapon
 
 
 func _ready() -> void:
@@ -30,10 +32,10 @@ func _ready() -> void:
 		mode = Mode.FULL
 	_apply_mode()
 	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look   E get in / out of a car\n" \
-		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   R respawn   Esc pause / seed   F1 hide   F11 fullscreen\n" \
+		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   hold Tab weapon wheel   R respawn   Esc pause / seed   F1 hide   F11 fullscreen\n" \
 		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space jump   right click handbrake   in the air W / S flip, A / D roll\n" \
 		+ "Flying (jets at the airport): Shift throttle up   right click throttle down   S pull up, W nose down   A / D roll   S on the ground brakes\n" \
-		+ "Gamepad: left stick move   B boost   A jump   Y car   right stick look   RT fire   LT drop   LB / RB switch   Back respawn"
+		+ "Gamepad: left stick move   B boost   A jump   Y car   right stick look   RT fire   LT drop   LB tap previous / hold wheel   RB next   Back respawn"
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -54,12 +56,17 @@ func _apply_mode() -> void:
 
 
 func _process(_delta: float) -> void:
-	if not visible or mode != Mode.FULL:
+	if not visible:
 		return
 	if _player == null:
 		_player = get_tree().get_first_node_in_group("player") as Player
 		if _player == null:
 			return
+	# The weapon list shows in CLEAN mode too (it used to be filled only in FULL, so CLEAN
+	# showed "..." in its place).
+	_update_weapon_label()
+	if mode != Mode.FULL:
+		return
 	var budget := get_node_or_null("/root/PhysicsBudget")
 	var bodies: int = budget.active_body_count() if budget else 0
 	var frozen: int = budget.frozen_count if budget else 0
@@ -105,8 +112,11 @@ func _process(_delta: float) -> void:
 		var wp: Vector3 = city.world_position(_player.global_position)
 		stats.text += "   chunks %d full / %d far   world pos %d, %d   wrecked %d" % [counts.x, counts.y, int(wp.x), int(wp.z), WorldState.destroyed_count()]
 
+
+func _update_weapon_label() -> void:
 	var manager := _player.weapon_manager
-	if manager and manager.current:
+	if manager and manager.current and manager.current != _labelled_weapon:
+		_labelled_weapon = manager.current
 		var parts: PackedStringArray = []
 		for i in manager.weapons.size():
 			var name := manager.weapons[i].display_name

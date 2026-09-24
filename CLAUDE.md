@@ -271,12 +271,27 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"`.
   A midday city frame wants a p5/p50/p95 spread like 87/123/175; 78/103/137 is the washed-out
   look the grade was added to fix.
+- Weapon wheel (owner, 2026-09-24: "GTA style ... slows everything ... apple glass style"):
+  `WeaponWheel` (`scripts/ui/weapon_wheel.gd`) is its own CanvasLayer (3) in the HUD scene, so it
+  draws over the HUD and still works in HIDDEN (a nested layer ignores its parent's visibility).
+  Hold `weapon_wheel` (Tab at once; pad LB after `pad_hold_seconds`, a shorter tap = previous
+  weapon): time eases to `slow_time_scale` and audio to `slow_audio_scale` on the REAL clock
+  (the process delta is itself scaled), the mouse moves a virtual cursor (consumed in `_input`,
+  so the camera never sees it) or the right stick points, and the release equips the segment
+  (the centre keeps the current gun). It sets the rig's `look_blocked` and
+  `WeaponManager.wheel_open`; every other close (pause, car, leaving the tree) restores time at
+  once. The glass (`shaders/glass_ui.gdshader`) is one rect of signed distance fields: blurred
+  screen (28-tap spiral on the screen mips, which Compatibility builds too) darkened into smoked
+  glass so white glyphs read on anything, a lens and clearer frost at the rim, a magnifying
+  centre disc, a specular hairline. Icons: `_build_icons()`, one per weapon class name. Shoot it
+  with `WHEEL=<index>` on `tools/glshot/still_shot.gd` (no `--nohud`).
 - Pause menu (`scenes/ui/pause_menu.tscn`) owns Esc: pause, mouse release, seed rebuild via
   `WorldState.pending_seed` + `reload_current_scene()`.
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
-  `next_weapon`, `prev_weapon`, `weapon_1..3`, `interact` (E / gamepad Y), `respawn`,
-  `toggle_mouse`, `toggle_hud`. Add new actions there. There is no sprint; boost replaced it. In a
+  `next_weapon`, `prev_weapon` (mouse wheel only), `weapon_1..3`, `weapon_wheel` (Tab / gamepad
+  LB: a quick LB tap is still "previous weapon", see the weapon wheel note), `interact` (E / gamepad Y),
+  `respawn`, `toggle_mouse`, `toggle_hud`. Add new actions there. There is no sprint; boost replaced it. In a
   jet: boost = throttle up, alt_fire = throttle down, move axes = pitch and roll.
 - NPCs: `Pedestrian` (wanders a block's sidewalk ring, `knock(impulse)` turns it into a `Ragdoll`
   debris) and `TrafficManager` (kinematic `Vehicle`s with `traffic` state driving the lanes).

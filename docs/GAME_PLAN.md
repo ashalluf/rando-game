@@ -230,7 +230,8 @@ Milestone 2 recap: Weapons live in `scripts/weapons/`: `Weapon` base class,
 `AssaultRifle` (AK-47, full-auto hitscan, shoves what it hits), `RocketLauncher` (spawns `Rocket`,
 `Explosion.blast` applies a radial velocity change to props and launches the player for rocket
 jumps), `GravityGun` (grab, float at chest height, hurl). `WeaponManager` sits on the player's hand
-(`Visual/WeaponMount`), builds all three from code, switches with 1/2/3, scroll, or bumpers.
+(`Visual/WeaponMount`), builds all three from code, switches with 1/2/3, scroll, RB or a tap of
+LB, or the weapon wheel (hold Tab or LB; added 2026-09-24).
 `WeaponFX` makes tracers, flashes, impacts and explosions from unshaded primitives. The HUD shows
 the weapon list and a ring crosshair that turns cyan while holding something.
 
@@ -249,6 +250,19 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 A GTA-style weapon wheel in frosted glass (owner: "hold whatever button and it
+  slows everything n lets u switch but i want the UI to look like apple glass style").** Hold
+  Tab (or the pad's left bumper; a quick tap of it still steps back one gun): time eases to a
+  quarter and the sound slows and deepens, the mouse or right stick points at a segment, letting
+  go equips it, letting go in the centre keeps what you had. The camera and the trigger are held
+  while it is up. The eases run on the real clock, because the frame delta is itself slowed, and
+  every way out that is not a release (pause, a car, a scene reload) puts time back at once - a
+  wheel that could strand the game at quarter speed is worse than no wheel. The look is smoked
+  frosted glass drawn by one shader from signed distance fields: the city blurred behind it,
+  pulled toward a mid grey and darkened so white icons and text read over a white sky or a
+  black alley alike, a lens at every rim where the frost clears, a magnifying centre disc, a
+  specular hairline catching the light on the upper left, a soft shadow. A plain white frost was
+  tried first and the white glyphs vanished on it over a bright street. Text is Inter (OFL).
 - **2026-09-24 GTA-style aim (owner: "GTA style aiming that auto locks onto targets").** Hold
   right mouse / left trigger with the rifle or rocket launcher: over-the-shoulder camera, lock on
   the person (or traffic car) nearest the crosshair with line of sight, camera tracks it, flick

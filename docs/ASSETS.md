@@ -206,3 +206,9 @@ Trees and rocks are reduced with `tools/decimate_tree.py` (pymeshlab quadric dec
 the UVs for trunks, twigs and rocks; every kept leaf becomes one textured card in its best-fit
 plane, scaled up to keep the canopy full). Poly Haven's `boulder_01` and `searsia_burchellii`
 would not decimate below 40k (UV seams on every edge) and were dropped.
+
+## Fonts
+
+| Font | Source URL | License | Used for | Added |
+|---|---|---|---|---|
+| Inter 4.1 SemiBold and Medium (`extras/woff-hinted/Inter-SemiBold.woff2`, `Inter-Medium.woff2` from the release zip) | https://github.com/rsms/inter/releases/tag/v4.1 | SIL Open Font License 1.1 (text in `assets/fonts/Inter-OFL.txt`) | weapon wheel names and hints (`scripts/ui/weapon_wheel.gd`); falls back to Godot's default font if missing | 2026-09-24 |

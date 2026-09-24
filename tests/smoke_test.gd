@@ -1479,6 +1479,63 @@ func _test_weapons(player: Player) -> void:
 	await _press("next_weapon")
 	_check(manager.current is AssaultRifle, "next_weapon wraps around to the AK-47")
 
+	# Weapon wheel (owner, 2026-09-24): hold it and time slows, point at a gun, let go to equip.
+	# Looked up untyped: WeaponWheel is a class this script must not name.
+	var wheel = get_tree().get_first_node_in_group("weapon_wheel")
+	_check(wheel != null, "the HUD has a weapon wheel")
+	if wheel:
+		Input.action_press("weapon_wheel")
+		await _ticks(3)
+		_check(wheel.is_open() and manager.wheel_open, "holding weapon_wheel opens the wheel")
+		# The ease runs on the real clock, so wait on the real clock.
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		_check(Engine.time_scale < 0.3 and AudioServer.playback_speed_scale < 0.7,
+			"the open wheel slows time (%.2f) and audio (%.2f)" % [Engine.time_scale, AudioServer.playback_speed_scale])
+		# Mouse movement steers the wheel's cursor and never reaches the camera.
+		var yaw_before: float = player.camera_rig.get("_yaw")
+		var motion := InputEventMouseMotion.new()
+		motion.relative = Vector2(220.0, 0.0)
+		Input.parse_input_event(motion)
+		await _ticks(2)
+		_check(wheel.highlighted() == 1, "moving the mouse right points at the rocket launcher (segment %d)" % wheel.highlighted())
+		_check(is_equal_approx(player.camera_rig.get("_yaw"), yaw_before), "the camera does not turn while the wheel is open")
+		var cooldown_before: float = manager.current.get("_cooldown")
+		Input.action_press("fire")
+		await _ticks(3)
+		Input.action_release("fire")
+		_check(manager.current.get("_cooldown") <= cooldown_before, "the gun does not fire while the wheel is open")
+		Input.action_release("weapon_wheel")
+		await _ticks(3)
+		_check(manager.current is RocketLauncher and not wheel.is_open() and not manager.wheel_open,
+			"releasing the wheel equips the highlighted rocket launcher")
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		_check(Engine.time_scale == 1.0 and AudioServer.playback_speed_scale == 1.0,
+			"time and audio are back to normal after the wheel closes (%.2f, %.2f)" % [Engine.time_scale, AudioServer.playback_speed_scale])
+		await _press("weapon_wheel")
+		await _ticks(3)
+		_check(manager.current is RocketLauncher, "letting go with the cursor in the centre keeps the current gun")
+		# Let the clock ease back first: a tap is timed in real seconds, the ticks are not.
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		# The gamepad's left bumper: a quick tap still steps back one gun, a hold opens the wheel.
+		var bumper := InputEventJoypadButton.new()
+		bumper.button_index = JOY_BUTTON_LEFT_SHOULDER
+		bumper.pressed = true
+		Input.parse_input_event(bumper)
+		await _ticks(3)
+		_check(not wheel.is_open(), "a bumper tap does not open the wheel")
+		var bumper_up := bumper.duplicate() as InputEventJoypadButton
+		bumper_up.pressed = false
+		Input.parse_input_event(bumper_up)
+		await _ticks(3)
+		_check(manager.current is AssaultRifle and not wheel.is_open(), "a quick bumper tap steps to the previous weapon")
+		Input.parse_input_event(bumper)
+		await get_tree().create_timer(0.35, true, false, true).timeout
+		_check(wheel.is_open(), "holding the bumper opens the wheel")
+		Input.parse_input_event(bumper_up)
+		await get_tree().create_timer(0.3, true, false, true).timeout
+		_check(manager.current is AssaultRifle and not wheel.is_open() and Engine.time_scale == 1.0,
+			"releasing the bumper in the centre keeps the AK-47 and restores time")
+
 	# AK-47: shoot the crate wall and see a crate move.
 	var wall_crate := _nearest_crate(Vector3(-14.0, 2.5, -4.0))
 	_check(wall_crate != null, "found a crate in the wall")
