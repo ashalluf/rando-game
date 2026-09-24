@@ -145,6 +145,8 @@ var _roadblock_t: float = 0.0
 var _flash_left: float = 0.0
 var _witness_cache: Dictionary = {}
 var _last_fire_ms: int = -100000
+## Knock-downs waiting for the next tick to be pinned on the player or not: [kind, local, ms].
+var _pending_downs: Array = []
 var _web: bool = false
 
 
@@ -180,10 +182,26 @@ static func person_down(ped: Node3D) -> void:
 	if innocent or ped == null or not ped.is_inside_tree():
 		return
 	var p := find(ped.get_tree())
-	if p == null or not p._blame(ped.global_position):
+	if p:
+		p.knocked_down("cop_down" if ped is PoliceOfficer else "assault", ped.global_position)
+
+
+## Somebody went down at `local` (scene position): a `kind` crime if it turns out to be the
+## player's doing. Decided on the next physics tick rather than now, because a gun knocks its
+## target over BEFORE it raises the alarm that says it fired (Weapon.tick: _fire, then alarm).
+func knocked_down(kind: String, local: Vector3) -> void:
+	if innocent or not enabled:
 		return
-	var kind := "cop_down" if ped is PoliceOfficer else "assault"
-	p.report_crime(kind, WorldState.to_world(ped.global_position), 1.0)
+	if _pending_downs.size() < 64:
+		_pending_downs.append([kind, local, Time.get_ticks_msec()])
+
+
+func _resolve_downs() -> void:
+	var pending := _pending_downs
+	_pending_downs = []
+	for d: Array in pending:
+		if _blame(d[1], int(d[2])):
+			report_crime(d[0], WorldState.to_world(d[1]), 1.0)
 
 
 ## From Vehicle.drop_out_of_traffic(): a car was shot or blasted out of the traffic.
@@ -234,11 +252,11 @@ func _heard(at: Vector3, _radius: float, witnesses: int, kind: String) -> void:
 ## gun or blast went off in the last `blame_seconds`, or the player's car (or the player) is right
 ## there. Physics knocks nobody caused - a car nudged at a chunk build, a bin rolling off a kerb -
 ## do not count.
-func _blame(local: Vector3) -> bool:
+func _blame(local: Vector3, at_ms: int) -> bool:
 	_ensure_refs()
 	if _player == null:
 		return false
-	if Time.get_ticks_msec() - _last_fire_ms < int(blame_seconds * 1000.0):
+	if _last_fire_ms > at_ms - int(blame_seconds * 1000.0):
 		return true
 	if _player.is_driving():
 		return _player.vehicle.global_position.distance_to(local) < 14.0
@@ -700,6 +718,8 @@ func _ensure_refs() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	if not _pending_downs.is_empty():
+		_resolve_downs()
 	if stars == 0 and cruisers.is_empty() and officers.is_empty():
 		return
 	_ensure_refs()

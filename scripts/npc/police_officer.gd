@@ -75,6 +75,14 @@ var _sight: bool = false
 var _sight_t: float = 0.0
 var _aim_pitch: float = 0.0
 var _flinch: float = 0.0
+## The line from the gun to the player is open (no wall, no car in the way).
+var _clear: bool = false
+## Seconds the officer has wanted to shoot with the line blocked, and been trying to move and
+## not moving; and seconds left of a step it took to get a clear shot (its own orders wait).
+var _blocked_t: float = 0.0
+var _stuck_t: float = 0.0
+var _hold_t: float = 0.0
+var _peek_side: float = 1.0
 static var _uniform_mats: Dictionary = {}
 static var _cap_mesh: Mesh
 ## Rounds fired and rounds that reached the player, over the whole session (the smoke test and
@@ -274,6 +282,7 @@ func _physics_process(delta: float) -> void:
 		_lod_timer = 0.0
 		_update_lod()
 	_think_t -= delta
+	_hold_t = maxf(_hold_t - delta, 0.0)
 	if _think_t <= 0.0:
 		_think_t = 0.4 + randf() * 0.2
 		_think()
@@ -300,15 +309,38 @@ func _physics_process(delta: float) -> void:
 	else:
 		velocity.y = 0.0
 	move_and_slide()
-	# Line of sight to the player, a few times a second.
+	# Wanting to move and not moving (pressed against a car, a wall, a kerb it cannot take):
+	# stop trying and hold here for a moment.
+	var moved := Vector2(get_real_velocity().x, get_real_velocity().z).length()
+	if speed > 0.0 and moved < 0.4:
+		_stuck_t += delta
+		if _stuck_t > 0.8:
+			_stuck_t = 0.0
+			_dest = Vector3.INF
+			_hold_t = 1.5
+	else:
+		_stuck_t = 0.0
+	# Line of sight to the player, and a clear line of fire from the gun, a few times a second.
 	_sight_t -= delta
 	if _sight_t <= 0.0:
 		_sight_t = 0.3
 		_sight = known and police.can_shoot() and _can_see(target)
+		_clear = _sight and _line_of_fire(target)
 	var to := target - global_position
 	var flat := Vector3(to.x, 0.0, to.z)
 	var dist := flat.length()
 	var aiming := _sight and dist < fire_range and task != Task.REBOARD
+	# A car or a corner in the way: step out sideways to get a shot, alternating sides.
+	if aiming and not _clear and moved < 0.5:
+		_blocked_t += delta
+		if _blocked_t > 0.6:
+			_blocked_t = 0.0
+			_peek_side = -_peek_side
+			var side := flat.cross(Vector3.UP).normalized() * _peek_side
+			_dest = global_position + side * 2.2 - flat.normalized() * 0.6
+			_hold_t = 1.4
+	else:
+		_blocked_t = 0.0
 	var face := flat if aiming else Vector3(velocity.x, 0.0, velocity.z)
 	if face.length() > 0.3:
 		var yaw := atan2(-face.x, -face.z)
@@ -320,8 +352,8 @@ func _physics_process(delta: float) -> void:
 		_aim_pitch = lerpf(_aim_pitch, 0.0, 1.0 - exp(-6.0 * delta))
 	if _mount:
 		_mount.rotation.x = _aim_pitch
-	# Shooting: in bursts, once facing the player, never at a run.
-	if aiming and speed < officer_run_speed * 0.5:
+	# Shooting: in bursts, once facing the player, with the line open, never at a run.
+	if aiming and _clear and moved < officer_run_speed * 0.5:
 		var facing := -_visual.global_basis.z
 		facing.y = 0.0
 		var lined_up := facing.normalized().dot(flat / maxf(dist, 0.01)) > 0.93
@@ -348,6 +380,20 @@ func _can_see(target: Vector3) -> bool:
 	return hit.is_empty() or (hit.position as Vector3).distance_to(target) < 1.2
 
 
+## The gun has an open line to the player: nothing of the world and no car (their own cruiser
+## included) between the muzzle and them, except the car the player is sitting in. Firing into
+## the side of the cruiser you are hiding behind is how the first version spent all its rounds.
+func _line_of_fire(target: Vector3) -> bool:
+	var space := get_world_3d().direct_space_state
+	if space == null:
+		return false
+	var from := _gun.muzzle.global_position if _gun and is_instance_valid(_gun.muzzle) else global_position + Vector3.UP * 1.45
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, target, 1 | 4, police.officer_rids()))
+	if hit.is_empty():
+		return true
+	return hit.collider == police.player_vehicle() or (hit.position as Vector3).distance_to(target) < 1.0
+
+
 ## What to do and where to stand, a couple of times a second.
 func _think() -> void:
 	var car_ok := is_instance_valid(car) and car.driver == null and not car.is_queued_for_deletion()
@@ -365,6 +411,8 @@ func _think() -> void:
 	var known := police.player_known()
 	var pp := police.player_aim_point()
 	pp.y = global_position.y
+	if _hold_t > 0.0:
+		return
 	if not known and police.seen_time > 3.0:
 		task = Task.SEARCH
 		if _search_point == Vector3.INF or global_position.distance_to(_search_point) < 3.0:
@@ -374,7 +422,8 @@ func _think() -> void:
 		_dest = _search_point
 		return
 	_search_point = Vector3.INF
-	if car_ok and car.mode == PoliceCar.Mode.PARKED and car.global_position.distance_to(pp) < cover_reach and car.global_basis.y.y > 0.6:
+	var car_d := car.global_position.distance_to(pp) if car_ok else INF
+	if car_ok and car.mode == PoliceCar.Mode.PARKED and car_d > 9.0 and car_d < cover_reach and car.global_basis.y.y > 0.6:
 		task = Task.COVER
 		var away := car.global_position - pp
 		away.y = 0.0
@@ -457,8 +506,8 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 		_think_t = 0.0
 		Sfx.play("yelp", global_position + Vector3.UP * 1.5, -6.0, randf_range(0.9, 1.1))
 		# Hitting an officer at all is a crime in itself, even if it is not a kill.
-		if police and not Police.innocent and police._blame(global_position):
-			police.report_crime("cop_hit", WorldState.to_world(global_position), 1.0)
+		if police:
+			police.knocked_down("cop_hit", global_position)
 		return
 	var parent := get_parent()
 	var before := parent.get_child_count() if parent else 0

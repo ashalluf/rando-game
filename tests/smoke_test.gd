@@ -1423,6 +1423,24 @@ func _test_police(city: Node3D, player: Player) -> void:
 	var hud: Node = city.get_node_or_null("DebugHud/WantedHud")
 	await _ticks(20)
 	_check(hud != null and hud.get_node("Stars").visible, "the stars show on the HUD")
+	# 1b. The shotgun has its own pellet path; somebody it drops in front of a witness is a crime
+	# all the same (the knock is pinned on the shot a tick later, see Police.knocked_down).
+	var heat_before := float(police.heat)
+	var victim: Node3D = ped_script.new()
+	victim.setup(Rect2(player.global_position.x - 2.0, player.global_position.z - 7.0, 4.0, 4.0), 1.0, 4343)
+	city.add_child(victim)
+	victim.global_position = player.global_position + Vector3(0.0, 0.3, -5.0)
+	victim.set("_pause_left", 60.0)
+	await _ticks(4)
+	player.get("camera_rig").look_at_point(victim.global_position + Vector3.UP * 1.1)
+	manager.equip(2)
+	await _ticks(2)
+	await _press("fire")
+	await _ticks(6)
+	var victim_down: bool = not is_instance_valid(victim) or victim.is_queued_for_deletion() or bool(victim.get("_down"))
+	_check(victim_down and float(police.heat) >= heat_before + float(police.heat_assault) - 0.01,
+		"a shotgun blast into somebody in front of a witness counts (heat %.1f -> %.1f)" % [heat_before, float(police.heat)])
+	manager.equip(0)
 	# 2. Cruisers join out on the street and drive in.
 	police.call("set_wanted", 2)
 	var first_d := -1.0
