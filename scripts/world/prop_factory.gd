@@ -18,6 +18,8 @@ const TEXTURE_SETS := {
 	"plaster_painted": "PaintedPlasterWall", "plaster_beige": "BeigeWall001", "plaster_white": "WhitePlaster02",
 	"concrete_painted": "ConcreteWall003", "concrete_cracked": "CrackedConcreteWall", "concrete_layers": "ConcreteLayers02",
 	"metal_corrugated": "CorrugatedIron", "metal_factory": "FactoryWall",
+	# Facade detail kit (ambientCG): awning canvas, painted steel, weathered tank staves.
+	"fabric": "Fabric036", "metal_painted": "Metal016", "planks": "Planks023A",
 }
 
 
@@ -1026,6 +1028,19 @@ const TRI_BUDGET := {
 	"prop_cafe_set.glb": 3500, "prop_planter.glb": 1500, "prop_trash_can.glb": 2500,
 	"prop_manhole.glb": 400, "prop_barrier.glb": 2000, "prop_barrier_b.glb": 2000,
 	"prop_tyre.glb": 1500, "prop_ac.glb": 3000,
+	# Facade detail kit pieces (tools/facade_kit.py), keyed file:node. These are guards rather
+	# than cuts: every piece is modelled under its number, and one that grows past it in a
+	# regenerated kit is taken back down to it here instead of silently doubling a street.
+	# Window surrounds are per window (hundreds a building), so they are the tightest.
+	"facade_kit.glb:kit_cornice_classic": 900, "facade_kit.glb:kit_cornice_bracket": 1100,
+	"facade_kit.glb:kit_cornice_simple": 200, "facade_kit.glb:kit_coping": 120,
+	"facade_kit.glb:kit_surround_brick_a": 260, "facade_kit.glb:kit_surround_brick_b": 260,
+	"facade_kit.glb:kit_surround_stucco": 360, "facade_kit.glb:kit_ac_window": 700,
+	"facade_kit.glb:kit_awning": 200, "facade_kit.glb:kit_balcony": 1400,
+	"facade_kit.glb:kit_fe_stair_l": 2200, "facade_kit.glb:kit_fe_stair_r": 2200,
+	"facade_kit.glb:kit_fe_bottom": 2000, "facade_kit.glb:kit_water_tank": 2400,
+	"facade_kit.glb:kit_vent_mushroom": 400, "facade_kit.glb:kit_vent_turbine": 500,
+	"facade_kit.glb:kit_hvac": 2000,
 }
 
 
@@ -1041,7 +1056,10 @@ static func model_mesh(path: String, include: PackedStringArray = [], exclude: P
 		_merge_into(root, root, importer, include, exclude, xform, overrides)
 		if importer.get_surface_count() > 0:
 			importer.generate_lods(25.0, 60.0, [])
+			# A kit that ships many pieces in one file budgets them one by one ("file:node").
 			var budget: int = TRI_BUDGET.get(path.get_file(), 0)
+			if include.size() == 1:
+				budget = TRI_BUDGET.get(path.get_file() + ":" + include[0], budget)
 			if budget > 0:
 				importer = _within_budget(importer, budget)
 			mesh = importer.get_mesh()
@@ -1788,6 +1806,101 @@ static func window_frame(sill: bool) -> Mesh:
 	var mesh := st.commit()
 	_cache[key] = mesh
 	return mesh
+
+
+## --- Facade detail kit ---------------------------------------------------------------------
+## Real moulded geometry for the buildings near the camera, modelled in Blender by
+## tools/facade_kit.py (one node per piece in facade_kit.glb) and placed by Building from its
+## seed. How the pieces are built and why is in that script's header; how they bend to fit a
+## wall, a window or a shop is in shaders/facade_kit.gdshaderinc.
+const FACADE_KIT := MODEL_DIR + "facade_kit.glb"
+## Per kit material (the Blender material name): texture set, metres per tile, where the colour
+## comes from (0 the instance colour, 1 `base`, 2 an ironwork paint picked per instance), and the
+## surface. Texture means are the linear / raw sRGB averages of each set's Color map (measured
+## with the command in Building.WALL_TEXTURE_MEAN's comment), so the texture is detail and the
+## tint is the colour.
+const KIT_MATERIALS := {
+	# `ao` is how much of the occlusion Blender baked into UV2 to use. None on the ironwork: its
+	# bars are single rings of vertices at each end, buried in the rail they meet, so a baked
+	# vertex there reads fully occluded and the whole bar came out black between them.
+	"kit_stone_run": {"set": "concrete", "tile": 1.8, "tint": 0, "rough": 0.80, "detail": 0.55, "ao": 0.85, "mitre": true},
+	"kit_stone": {"set": "concrete", "tile": 1.8, "tint": 0, "rough": 0.80, "detail": 0.55, "ao": 0.85},
+	"kit_paint": {"set": "metal_painted", "tile": 0.9, "tint": 0, "rough": 0.52, "metal": 0.12, "detail": 0.55, "ao": 0.6},
+	"kit_iron": {"set": "metal_painted", "tile": 0.8, "tint": 2, "rough": 0.48, "metal": 0.30, "detail": 0.45, "ao": 0.0},
+	"kit_dark": {"set": "metal_painted", "tile": 0.8, "tint": 1, "base": Color(0.07, 0.07, 0.075), "rough": 0.62, "metal": 0.25, "detail": 0.30, "ao": 0.5},
+	"kit_fabric": {"set": "fabric", "tile": 0.45, "tint": 0, "rough": 0.93, "detail": 0.65, "ao": 0.7, "two_side": true, "stripes": true},
+	"kit_wood": {"set": "planks", "tile": 1.6, "tint": 1, "base": Color(0.58, 0.50, 0.42), "rough": 0.90, "detail": 0.9, "ao": 0.5, "swap_uv": true},
+}
+const KIT_TEXTURE_MEAN := {
+	"concrete": [Color(0.482, 0.482, 0.482), Color(0.723, 0.723, 0.723)],
+	"metal_painted": [Color(0.746, 0.712, 0.715), Color(0.875, 0.855, 0.857)],
+	"fabric": [Color(0.493, 0.493, 0.493), Color(0.729, 0.729, 0.729)],
+	"planks": [Color(0.101, 0.079, 0.062), Color(0.349, 0.310, 0.273)],
+}
+
+
+## One kit piece ("cornice_classic", "surround_stucco", "fe_stair_l"...) as a mesh wearing the
+## kit materials. Goes through model_mesh() like every other model, so it gets LODs and its
+## TRI_BUDGET, but with no shadow proxy: the proxy would keep the glTF's plain materials, and
+## without the kit shader's slicing a window's shadow would be cast by a 1 m window.
+static func facade_kit(piece: String) -> Mesh:
+	var key := "facade_kit_" + piece
+	if _cache.has(key):
+		return _cache[key]
+	var mesh := model_mesh(FACADE_KIT, PackedStringArray(["kit_" + piece]), [], Transform3D.IDENTITY, {}, false)
+	for s in mesh.get_surface_count():
+		var src := mesh.surface_get_material(s)
+		var mat_name := src.resource_name if src else ""
+		mesh.surface_set_material(s, kit_material(mat_name if KIT_MATERIALS.has(mat_name) else "kit_stone"))
+	_cache[key] = mesh
+	return mesh
+
+
+## Every kit piece loaded and every kit material, for the loading screen to warm.
+const KIT_PIECES := ["cornice_classic", "cornice_bracket", "cornice_simple", "coping", "surround_brick_a",
+	"surround_brick_b", "surround_stucco", "ac_window", "awning", "balcony", "fe_stair_l",
+	"fe_stair_r", "fe_bottom", "water_tank", "vent_mushroom", "vent_turbine", "hvac"]
+
+
+static func kit_materials() -> Array:
+	for piece: String in KIT_PIECES:
+		facade_kit(piece)
+	var out: Array = []
+	for mat_name: String in KIT_MATERIALS:
+		out.append(kit_material(mat_name))
+	return out
+
+
+static func kit_material(mat_name: String) -> ShaderMaterial:
+	var key := "kit_mat_" + mat_name
+	if _cache.has(key):
+		return _cache[key]
+	var spec: Dictionary = KIT_MATERIALS[mat_name]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/facade_kit_2side.gdshader" if spec.get("two_side", false) else "res://shaders/facade_kit.gdshader")
+	var set_key: String = spec.set
+	var albedo := texture(set_key, "Color")
+	mat.set_shader_parameter("use_textures", albedo != null)
+	if albedo:
+		mat.set_shader_parameter("albedo_tex", albedo)
+		mat.set_shader_parameter("normal_tex", texture(set_key, "NormalGL"))
+		mat.set_shader_parameter("rough_tex", texture(set_key, "Roughness"))
+	var mean: Array = KIT_TEXTURE_MEAN.get(set_key, [Color(0.5, 0.5, 0.5), Color(0.73, 0.73, 0.73)])
+	mat.set_shader_parameter("tex_mean_linear", mean[0])
+	mat.set_shader_parameter("tex_mean_srgb", mean[1])
+	mat.set_shader_parameter("tile_m", spec.tile)
+	mat.set_shader_parameter("tint_source", spec.tint)
+	mat.set_shader_parameter("base_tint", spec.get("base", Color(0.5, 0.5, 0.5)))
+	mat.set_shader_parameter("roughness", spec.rough)
+	mat.set_shader_parameter("metallic", spec.get("metal", 0.0))
+	mat.set_shader_parameter("detail", spec.detail)
+	mat.set_shader_parameter("ao_strength", spec.get("ao", 0.8))
+	mat.set_shader_parameter("swap_uv", spec.get("swap_uv", false))
+	mat.set_shader_parameter("mitre", spec.get("mitre", false))
+	mat.set_shader_parameter("slice", not spec.get("mitre", false))
+	mat.set_shader_parameter("stripes", spec.get("stripes", false))
+	_cache[key] = mat
+	return mat
 
 
 ## Rooftop air conditioning unit (Poly Haven exterior_aircon_unit), 0.8 x 0.93 x 0.4 m, bottom

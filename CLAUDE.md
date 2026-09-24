@@ -180,11 +180,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `Pedestrian.physics_range` (whose hit zone also leaves the broadphase). Queries - bullets,
   blasts, bumpers - test layers, not masks, so none of this changes what can be hit.
 - Node groups: `player` (the player body), `physics_prop` (every rigid prop PhysicsBudget manages),
-  `debris` (short-lived props that get freed after a timeout).
+  `debris` (short-lived props that get freed after a timeout), `wanted` (the one `Police` node),
+  `police` (officers on foot - NOT in `pedestrian`, so alarms, the crowd cap and trimming never
+  touch them; `LockOn` looks in it), `police_car` (cruisers, also in `vehicle`).
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
-  Sound is **real CC0 recordings** (`assets/audio/`, 62 clips, sources in `docs/ASSETS.md`) with
+  Sound is **real CC0 recordings** (`assets/audio/`, 63 clips - the siren is public domain - sources in `docs/ASSETS.md`) with
   the old synthesis kept as the fallback: `_build_synth()` fills every name first and
   `_load_samples()` replaces only the names whose files load, so a missing or unimported file
   degrades to a tone rather than to silence. A name holds several takes and `play()` picks one at
@@ -248,7 +250,8 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1 and
   shows up in screenshots. `CityStreamer.vignette_strength` (0 turns it off). Every lens does
   this; keep it subtle enough that you cannot point at it.
-- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap.
+- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair, the round minimap and
+  the wanted stars and health bar (`WantedHud`, see the Police note).
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
   what the game looks like while playing), FULL (plus the stats line, the frame-time breakdown
   and the control hints) and HIDDEN. `-- --nohud` starts HIDDEN (the screenshot harness),
@@ -332,6 +335,52 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `CityStreamer.take_crowd_room()`, one city-wide count a frame (redone whenever the cap
   moves or a chunk leaves): a chunk that counted its own room when its crowd began kept that
   number for frames, so it went on filling a cap `Quality` had lowered in the meantime.
+- Police (owner, 2026-09-24: "a police and star system", GTA-style but original - no "WASTED",
+  no "BUSTED", no copied UI). `Police` (`scripts/npc/police.gd`) is a node in the city scene, in
+  group `wanted`: `stars` is a plain int 0-5 that other systems read (the police helicopter is
+  another branch's and reads it there), `stars_changed` fires on a change, `report_sighting()`
+  tells it a non-police unit saw the player, and `report_crime(kind, world_pos, severity)` takes a
+  TRUE world position. Crimes come from hooks where they already happen, never from the
+  weapons: `Pedestrian.alarm()` (every gun and blast calls it; it now counts who heard it and
+  reports gunfire, or an explosion when forced; its `crime` argument "" reports nothing - police
+  fire uses that), `Pedestrian.knock()` (`Police.person_down`: an officer is `cop_down`, which
+  always counts) and `Vehicle.drop_out_of_traffic()` (`Police.car_hit`). A crime counts only
+  with a witness (pedestrians within `witness_radius`, police within `cop_hear_radius` or in
+  sight) and adds heat; `star_heat` turns heat into stars, which never fall with it.
+  `Police.innocent` is set around every knock the police cause themselves (their rounds, a
+  cruiser's bumper) so it is not the player's crime. Units look for the player every
+  `sight_interval` (a world-layer ray each, `max_sight_rays` a look); unseen for `lose_seconds`
+  the stars flash (`flashing`) and drop one per `flash_seconds`, and the units go to `last_seen`,
+  the centre of a search area that grows while the trail is cold. Response caps
+  `cruisers_per_star` / `officers_per_star`, roadblocks from `roadblock_stars`, tactical vans
+  from `heavy_stars`; units past `recall_distance` that nobody has seen are recalled; cruisers
+  are pooled. `PoliceCar` (`scripts/npc/police_car.gd`, extends Vehicle): DISPATCH drives the
+  lanes kinematically (its `traffic` dict carries `"police": true`, so it has no VehicleWheel3D),
+  PURSUE is real physics within `engage_range` of a player the police can see (the same handover
+  traffic uses, `go_physical()`), then STOPPED -> PARKED and the crew gets out
+  (`Police.deploy_crew`). Pooling strips the wheels BEFORE it re-freezes the body (a frozen
+  VehicleBody3D with wheels is NaN). Livery is `car_paint.gdshader` `stripe_mode` 5 (white doors
+  and roof over black), the light bar one vertex-coloured mesh on `shaders/police_lights.gdshader`
+  plus an OmniLight3D at night (desktop), the siren the Sfx `siren` loop (a real recorded wail). `PoliceOfficer`
+  (`scripts/npc/police_officer.gd`, extends Pedestrian, so it is shot, knocked, gibbed and
+  ragdolled like anyone; takes `hits_to_down` rounds): an `Avatar` body (so `Avatar.hold_gun`'s
+  IK holds its `PoliceGun`), a navy recolour through the character shader
+  (`uniform_material()`, only on the rigs in `OFFICER_MODELS` - k's yellow blazer and h and l's khakis do not take
+  it) and a peaked cap; COVER at the ends of its cruiser, ENGAGE, SEARCH the area, REBOARD when
+  recalled; it fires only with an open line from the muzzle (`_line_of_fire()`: the first
+  version emptied its gun into the cruiser it hid behind) and steps out sideways when blocked;
+  its rounds go through `WeaponFX.tracer/flash/impact`. A knock-down is pinned on the player a
+  tick late (`Police.knocked_down`), because `Weapon.tick()` knocks the target over before it
+  raises the alarm that says it fired. Player
+  health is `PlayerHealth` (`scripts/player/player_health.gd`, `Player.health`,
+  `Player.take_damage()`): 250 hp, regen after `regen_delay`, `self_blast_damage` off (rocket
+  jumps stay free), and at zero a real-clock slow-motion collapse, the "OUT COLD" card
+  (`shaders/downed.gdshader`) and a respawn at the nearest street corner `respawn_clearance` away,
+  stars cleared. HUD: `WantedHud` (`scripts/ui/wanted_hud.gd`, `shaders/glass_hud.gdshader`,
+  the weapon wheel's glass) draws the stars under the weapon list and the health bar over the
+  minimap; the minimap draws the units as flashing red/blue blips and the search area. The
+  smoke test runs with `Police.enabled` false except in `_test_police`. Stills: `STARS=n
+  POLICE=standoff|pursuit` on `tools/glshot/still_shot.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -385,7 +434,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `police_stars` one, a star more two, circle the player with a `SpotLight3D` searchlight -
   volumetric only where volumetric fog is on (Forward+ HIGH), a drawn shaft elsewhere
   (`shaders/searchlight_beam.gdshader`), always an additive pool where it lands - and LEAVE when
-  the stars clear. Every aircraft is an AnimatableBody3D on the props layer (mask 0) with box
+  the stars clear. While the light holds him with a clear line (`Helicopter.has_eyes_on()`)
+  AirTraffic calls `report_sighting()` on the wanted node (`Police`), so the stars do not drop
+  under a helicopter that can see him. Every aircraft is an AnimatableBody3D on the props layer (mask 0) with box
   shapes and `take_hit()`, so bullets, pellets, rockets and blasts hit it with no weapon code
   knowing aircraft exist; the layer is dropped past `hit_range`. Shot down: smoke, a spin
   (helicopters) or a dive (jets), `Explosion.blast()` where it hits, a charred burning wreck for
@@ -741,6 +792,36 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
   generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own
   ShaderMaterial (see the decisions log for why). Rooftop props are primitives built in code.
+- Facade kit (owner, 2026-09-24: "it must look like RDR2, not San Andreas"): real moulded geometry
+  on the buildings near the camera, modelled by `tools/facade_kit.py` in Blender
+  (`blender -b --python tools/facade_kit.py`, then `--import`) into `assets/models/facade_kit.glb`,
+  one node per piece: three cornices, a parapet coping, three window surrounds, a window AC,
+  a shop awning, a balcony, fire-escape landings (stair left, stair right, drop ladder), a timber
+  water tank, two vents and a packaged rooftop unit. `PropFactory.facade_kit(piece)` loads one
+  through `model_mesh()` (so `TRI_BUDGET` guards it, keyed `facade_kit.glb:kit_<piece>`) and
+  swaps the glTF materials for `PropFactory.kit_material()` by name. `Building` places them
+  (`_pick_kit`, `_kit_runs`, `_kit_awnings`, `_kit_roof_plant`, and inside
+  `_add_facade_details`) into ONE `MultiMeshBatch` per building (`Batch_kit_<piece>`): per
+  building rather than per chunk because frustum and occlusion culling and the distance fade
+  (`kit_*_distance` exports, 110-320 m) all work per node, and a chunk-wide batch is never
+  occluded. Two tricks in `shaders/facade_kit.gdshaderinc` let one mesh fit every building, and
+  the Blender side has to keep their rules (header of the generator): roofline runs are 2 m,
+  x -1..1, and the shader slides only their end rings by `INSTANCE_CUSTOM.r/.g` (tan of half
+  the corner's turn) so any corner, square or chamfered, is a true mitre; everything else is
+  three-sliced by `INSTANCE_CUSTOM.b/.a` round a 1 x 1 m opening, so a sill's lugs, a lintel's
+  height, a jamb's width and an awning's cheeks keep their real size on every window and shop.
+  So never scale a surround or awning instance - pass the slice instead - and never let a run
+  vertex other than its ends reach |x| 1. `INSTANCE_CUSTOM.r` is also the ironwork paint on
+  pieces with no mitre. Placement is all hashes of the seed (`_kit_hash`) or a private
+  `RandomNumberGenerator` (`_kit_roof_plant`), never `_rng`, and the old rolls it replaces are
+  still made: the smoke test builds the same block with the kit off and on and checks the roof
+  units and shop names do not move. The surrounds use `Building.WINDOW_RECTS`, which the smoke
+  test checks against the shader's own window rects. Near the camera the kit hides the old box
+  bands; past its distance they carry the look, so the cornice's far band is sized to sit inside
+  the moulding (`KIT_CORNICE_CORE`) and never doubles it. Balcony slabs and fire-escape landings
+  are one trimesh per building (`KitSolids`). Baked AO lives in UV2.x as occlusion, and is off
+  on `kit_iron`, whose thin bars bury their only vertices in the rails they meet. The kit is off
+  on the web (`Building.kit_enabled`), where the boxes and painted frames stand in for it.
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,
@@ -851,6 +932,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `road_wetness`. Flat perfect white was the most CG thing in
   any street shot. Limbs are cut and the effect materials compiled during the loading screen
   (`Ragdoll.warm_limbs()`, `WeaponFX.warm_materials()`), so the first rocket does not stall.
+  Far buildings emit most of their glass's mirror too (`reflect_emit` / `reflect_energy`, kept
+  level with `building.gdshader` so a tower does not change brightness at the LOD line, and
+  faded to the facade's glazing average with the rest of the distance blend).
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
   window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
   plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.

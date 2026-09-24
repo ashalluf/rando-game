@@ -22,7 +22,15 @@ func run(t: Node, city: Node3D) -> void:
 	t._check(air.crafts().size() >= 3, "the sky is populated from the start (%d aircraft)" % air.crafts().size())
 	var heli_count := air.helicopters().size()
 	t._check(heli_count >= 1, "helicopters are flying at load (%d)" % heli_count)
-	# From here the test drives the schedule itself.
+	# From here the test drives the schedule itself, with the real wanted system quiet: its
+	# stars count too (AirTraffic reads the most any "wanted" node says), and the blasts below
+	# would be crimes.
+	var police: Node = city.get_node_or_null("Police")
+	var police_was: Variant = police.get("enabled") if police else null
+	if police:
+		police.set("enabled", false)
+		if police.has_method("clear"):
+			police.call("clear")
 	air.set_physics_process(false)
 	air.clear_all()
 	await _tree.physics_frame
@@ -35,6 +43,8 @@ func run(t: Node, city: Node3D) -> void:
 	air.clear_all()
 	air.forced_stars = -1
 	air.set_physics_process(true)
+	if police and police_was != null:
+		police.set("enabled", police_was)
 
 
 func _arrival(air: AirTraffic) -> void:
@@ -144,9 +154,10 @@ func _news(air: AirTraffic, city: Node3D) -> void:
 
 
 func _police(air: AirTraffic, city: Node3D) -> void:
-	# A stand-in for the wanted system: a node in group "wanted" with a plain `stars`.
+	# A stand-in for the wanted system: a node in group "wanted" with a plain `stars` and the
+	# report_sighting() the real Police has.
 	var script := GDScript.new()
-	script.source_code = "extends Node\nvar stars: int = 0\n"
+	script.source_code = "extends Node\nvar stars: int = 0\nvar reports: int = 0\nfunc report_sighting(_at: Vector3 = Vector3.INF) -> void:\n\treports += 1\n"
 	script.reload()
 	var wanted := Node.new()
 	wanted.set_script(script)
@@ -167,6 +178,10 @@ func _police(air: AirTraffic, city: Node3D) -> void:
 		if h.mode == Helicopter.Mode.ORBIT and r < 150.0 and h.searchlight_on:
 			near = true
 	_t._check(air.stars == 3 and near, "at three stars a police helicopter circles the player with its searchlight on him (%d)" % chasing.size())
+	var seen := int(wanted.get("reports"))
+	_step(air, 2.0)
+	var reports := int(wanted.get("reports")) - seen
+	_t._check(reports > 0, "and while its light holds him it reports him to the wanted system (%d reports)" % reports)
 	wanted.set("stars", 0)
 	_step(air, 4.0)
 	var leaving := 0

@@ -106,6 +106,14 @@ func launch_rocket(from: Vector3, dir: Vector3) -> Rocket:
 	rocket.player_launch_speed = player_launch_speed
 	rocket.direction = dir
 	rocket.exclude = [player.get_rid()]
+	if _warhead and is_instance_valid(_warhead):
+		# The loaded warhead, where it sits relative to the muzzle, in the rocket's frame (the
+		# rocket spawns at the muzzle facing the gun's -Z).
+		var shot := _warhead.duplicate() as Node3D
+		shot.visible = true
+		var frame := Transform3D(global_basis.orthonormalized(), from)
+		shot.transform = frame.affine_inverse() * _warhead.global_transform
+		rocket.model = shot
 	WeaponFX.fx_parent(self).add_child(rocket)
 	rocket.global_position = from
 	var up := Vector3.UP if absf(dir.y) < 0.99 else Vector3.RIGHT

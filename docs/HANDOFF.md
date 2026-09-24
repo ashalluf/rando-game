@@ -902,7 +902,7 @@ still `rocket.gd`'s red primitive cylinder, not the olive warhead the model show
 The shotgun's fire rate and knock numbers are first guesses (`fire_rate` 1.25, nine pellets of
 9 impulse, `knock_base` 12 + 5 a pellet).
 
-## 9g. The living sky, 2026-09-24
+## 9i. The living sky, 2026-09-24
 
 Owner: "helicopters, police choppers, news choppers, private jets flying thru the sky,
 commercial jets taking off and landing at LAX". Built on an agent worktree; the rules are the
@@ -916,6 +916,12 @@ Air traffic bullet in CLAUDE.md. What a next session needs to know:
   400 m high two kilometres from the fence (measured: `MacroMap.height_at()` along
   z 960 reads 145 m at x 2400 and 330 m at x 3000). A route that crossed it would reach the
   runway 100 m up even at a 5 degree descent.
+- **The wanted system is `Police` (section 9h).** AirTraffic reads the most stars any node in
+  the "wanted" group reports, and a police helicopter in pursuit whose searchlight holds the
+  player with a clear line (`Helicopter.has_eyes_on()`: within 6 degrees of the beam, nothing
+  solid between) calls `Police.report_sighting()` every quarter second, so the stars do not
+  drop while it has him. Losing the helicopter (out of its light, under a bridge, inside) is
+  how you lose the stars.
 - **The runway protection zone** (`MacroMap.runway_clear_zone()`, 700 x 90 m off the east end of
   the south runway): `CityPlan.lots()` builds nothing in it, so the near and far city both lose
   the same lots. Without it the glide path met 20-30 m midtown roofs 150-400 m from the fence.
@@ -957,6 +963,101 @@ Air traffic bullet in CLAUDE.md. What a next session needs to know:
   only when the test's shot-down helicopter crashes in the street; a crash away from the street
   and two rockets into the road both leave none, and the gate does not match them, but the
   cause was not pinned down.
+
+## 9h. Police and the wanted level, 2026-09-24 (agent branch)
+
+The owner asked for "a police and star system", GTA-style but original. What is in, and what a
+next session needs to know (the rules are the Police note in CLAUDE.md):
+
+- **One node, one property.** `Police` in `scenes/levels/city.tscn`, group `wanted`, `stars` a
+  plain int. The police helicopter was built on another branch at the same time and reads that;
+  it can also call `report_sighting()` so its eyes keep the stars from dropping.
+- **Crimes are hooked where they already happen**, not in the weapons: `Pedestrian.alarm()` (the
+  one call every gun and blast already makes), `Pedestrian.knock()` and
+  `Vehicle.drop_out_of_traffic()`. A new gun gets reported for free. Anything the police do
+  themselves sets `Police.innocent` round the knock; forget that and a cruiser that clips a
+  pedestrian gives the player a star.
+- **Two driving modes, on purpose.** A physics car driving 200 m through a city grid on an AI
+  will get stuck on a kerb, a lamp or a building in the first block; a kinematic car on the lanes
+  cannot. So cruisers come in on the lanes (the traffic's own geometry, turning toward the goal
+  at each crossing) and only become VehicleBody3D physics within `engage_range` of a player they
+  can see - close enough that "steer at them, back out when stuck, stop and get out after three
+  tries" is enough AI. Pooling has to strip the VehicleWheel3D nodes before freezing the body.
+- **Officers are Pedestrians with an Avatar body.** That buys the knock, the ragdoll, gibs and
+  the LOD tiers from Pedestrian and the hand IK from the hero's Avatar, with a `PoliceGun` (a
+  Weapon, model and grips only) in the hands. They are taken OUT of the `pedestrian` group after
+  `_ready()`, so the crowd cap, `trim_pedestrians()` and alarms never touch them; `LockOn` looks in
+  `police` as well.
+- **The smoke test turns the police off** for everything except `_test_police`, which checks the
+  whole loop in about 25 s of game time: gunfire near a witness gives a star, a cruiser joins
+  60+ m out and drives in, officers get out and hurt the player, five stars stays inside the caps,
+  going down respawns 30+ m away with the stars and units gone, and out of sight the stars flash
+  and drop one at a time.
+- **Screenshots:** `STARS=3 POLICE=standoff|pursuit` on `tools/glshot/still_shot.gd` stages the
+  units in front of the camera (`Police.stage_for_shot()`), because a software frame takes
+  seconds and waiting for cruisers to drive in would take hundreds of them. opengl3 only.
+- **Two things that were wrong the first time, both found by measuring.** A knock-down has to be
+  judged a tick late (`Police.knocked_down`): `Weapon.tick()` fires, and so knocks the target
+  over, before it raises the alarm that says it fired, so judged at once the first kill of any
+  spree belonged to nobody - and judged by distance alone, a car nudged at a chunk build gave the
+  player a star. And the first officers fired 54 rounds without one reaching the player, because
+  every one went into the cruiser they were crouched behind (`_line_of_fire()` and the sideways
+  step are the fix; `PoliceOfficer.rounds_fired` / `rounds_hit` are there to measure it again).
+- **Known gaps.** Cruisers under physics steer straight at their target with no path finding, so
+  a player on a roof or deep inside a block gets a cruiser that noses up to the nearest wall,
+  backs off three times and lets its crew out there. There is no ground response off the street
+  grid (hills, airport, port): the stars still decay normally, and the helicopter is what covers
+  those. Officers are built when they get out (an Avatar each, a small hitch), not pooled. The
+  tactical unit has no helmets and nobody has finger bones. The siren is one wail cycle with no
+  yelp at close range and no Doppler. Nothing of this has been seen in Forward+ or at 60 fps:
+  the light bar's HDR lenses and the night OmniLight are tuned on opengl3 stills only.
+
+## 9g. The facade kit, 2026-09-24 (G2, first real-geometry pass)
+
+Owner: "it's looking like GTA San Andreas ... it must be the same quality as RDR2". The biggest
+tell left was that every building is a shaded box. `tools/facade_kit.py` (Blender 4.2, headless)
+now models a kit of seventeen pieces into `assets/models/facade_kit.glb`, and `Building` places
+them from its seed on every building near the camera. What a next session needs to know:
+
+- **Regenerating it**: `blender -b --python tools/facade_kit.py` (the scratchpad Blender works:
+  `.../blender_char/blender/blender-4.2.23-linux-x64/blender`), then `godot --headless --path .
+  --import` - the cached-import trap applies to it like any `.glb`. The script prints every
+  piece's triangle count and x range; the x range of a roofline run must stay exactly -1..1
+  (the smoke test checks it) or the corner mitres break.
+- **One mesh fits every building** because `shaders/facade_kit.gdshaderinc` bends it per
+  instance: roofline runs are mitred at any corner from `INSTANCE_CUSTOM.r/.g`, surrounds and
+  awnings are three-sliced from `.b/.a`. The rules the Blender side has to keep are in the
+  generator's header; break them and the geometry still loads, it just folds wrong.
+- **Per building, not per chunk.** A chunk-wide batch is one node for the whole block: it is
+  never occluded and it fades as one piece 100 m across. Per building, frustum and occlusion
+  culling and the distance fade all work.
+- **Top-floor clearance.** A classical cornice hangs ~1 m and the top window heads sit
+  0.3-0.5 m under the roof line (a slot window's ~0.1 m), so `_add_facade_details` shrinks a
+  rich cornice up to a quarter, then falls back to the plain one, and lifts what is left up to
+  `KIT_CORNICE_MAX_LIFT` so it stands in front of the parapet rather than over the windows.
+- **Measured** (`tools/geo_count.gd`, opengl3, 800x600, one frame, same cameras; the base
+  numbers come from a clean export of the parent commit, re-measured twice identically):
+
+  | Camera | Triangles before -> after | Draw calls before -> after | Objects |
+  | --- | --- | --- | --- |
+  | default spawn (midtown, origin) | 9.70 M -> 8.51 M | 8651 -> 8707 | 23411 -> 23467 |
+  | downtown `--spawn=734.9,330,25,-4` (glass towers) | 4.107 M -> 4.115 M | 3050 -> 3071 | 3081 -> 3102 |
+  | brick mid-rise `--spawn=-96,-230,-62,10` | 6.95 M -> 6.21 M | 6230 -> 6708 | 6361 -> 6839 |
+
+  Triangles went DOWN because the old procedural balconies and fire escapes drew to 480 m and
+  the old roof props had no range at all, while the kit fades at 110-320 m; the near blocks
+  carry more geometry than before. Draw calls rise where the kit is (up to ~10 nodes per
+  building plus shadows; +8 % on the brick street, nothing downtown, where the glass takes
+  none of it). Chunk build: ~3 ms more per building on this box, ~20 ms worst for a big
+  brick block with a hundred balconies (headless, warmed; `scratchpad/facade/kit_time.gd`).
+- The opengl3 path is flat-lit; nobody has seen the kit on Forward+ yet - the main session
+  should, since the shadows from cornices, balconies and awnings are most of what it adds.
+  Close-ups: `tools/glshot/building_shot.gd` with `CAM_POS` / `CAM_LOOK` (and `KIT=0` for
+  the same seed without the kit), and `tools/glshot/kit_shot.gd` (`SET=wall|roof`) for the
+  pieces on their own.
+- **Not done**: storefront glazing and interiors as geometry, a kit per LA style (bungalow,
+  deco, mission), string courses and plinths as mouldings (still boxes), and a LOD/impostor
+  step between the kit's range and the far boxes.
 
 ## 10. Suggested next steps, in order of impact
 

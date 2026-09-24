@@ -450,6 +450,22 @@ func _spin_rotors(dt: float) -> void:
 			((d as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("fade", disc)
 
 
+## True while the searchlight (or the camera ball) points within `cone_deg` of `target_world`
+## (TRUE world) with nothing solid in between: the police unit has eyes on the player.
+func has_eyes_on(target_world: Vector3, cone_deg: float = 6.0) -> bool:
+	var gear: Node3D = _searchlight if _searchlight else _camera_ball
+	if gear == null or life != Life.FLYING or not is_inside_tree():
+		return false
+	var at := WorldState.to_local(target_world)
+	var from := gear.global_position
+	var to := at - from
+	if to.length() > searchlight_range or to.length() < 0.5:
+		return false
+	if (-gear.global_basis.z).angle_to(to) > deg_to_rad(cone_deg):
+		return false
+	return _ground_between(from, at).is_empty()
+
+
 ## Points the gear at its target at once (stills: a software frame is too slow to swing it).
 func snap_gear() -> void:
 	var keep := searchlight_track

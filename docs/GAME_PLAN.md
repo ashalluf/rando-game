@@ -66,8 +66,10 @@ What only the owner can supply, and why each one multiplies everything below:
   (street noon, night, sunset, aerial, beach, hills) matched to GTA V compositions; every push
   measured against them (luminance spread, saturation, FPS), not judged by eye.
 - [ ] **G2. Buildings (2-4 months; the biggest gap).** Real facade geometry instead of shaded
-  boxes (window recesses are done per pixel, 2026-09-24: `window_recess`; still to do as real
-  geometry near the camera): frames, sills, ledges, cornices, balconies, storefronts with glass
+  boxes (window recesses are done per pixel, 2026-09-24: `window_recess`; the first real-geometry
+  pass is the facade kit, 2026-09-24: cornices, copings, sills, lintels, architraves, window ACs,
+  awnings, balconies, fire escapes and roof plant, see the decisions log; still to do: storefront
+  glass and interiors, per-style kits): frames, sills, ledges, cornices, balconies, storefronts with glass
   and interiors, awnings, fire escapes, roof clutter. About eight LA styles (stucco apartments,
   art deco, glass towers, strip malls, bungalows, warehouses...) as kits from Blender scripts,
   like the car generators, assembled from the seed. Then grime, streaks and edge wear, and a
@@ -269,6 +271,30 @@ already mapped so milestone 2 is script-only.
   station, "RANDO 5", is invented); the jets reuse the existing models; the engine sounds are
   real CC0 recordings from Freesound.
 
+- **2026-09-24 Police and a wanted level (owner: "a police and star system"), GTA-style but
+  original.** Crimes only count when somebody sees or hears them - a pedestrian within 40 m, or a
+  police unit in earshot (gunfire, blasts) or in sight (everything else) - and add heat; five
+  thresholds turn heat into stars, which only ever go up from a crime. Gunfire, knocking people
+  down, blasts, shooting cars out of the traffic, shooting or stealing a cruiser, and above all
+  downing an officer (which always counts). The hooks sit where the crimes already pass through -
+  `Pedestrian.alarm()` (every gun and every blast calls it), `Pedestrian.knock()`,
+  `Vehicle.drop_out_of_traffic()` - so no weapon had to change, including the shotgun another
+  branch is adding. Losing them is about sight, not distance: when no unit has seen you for 12 s
+  the stars flash and drop one at a time, and the police drive and walk to where you were last
+  seen (a search area that grows while the trail is cold), not to where you are. Cruisers join
+  out of sight along a street 170-240 m off, drive the lanes kinematically like traffic (robust at
+  any range, no physics), and switch to real VehicleBody3D physics within 70 m of a player they
+  can see - ramming a car, stopping short of someone on foot - then the crew gets out, takes cover
+  at the ends of the car and shoots, and gets back in when you run. More units per star, a
+  roadblock ahead of you at four, tactical vans with carbines at five; cruisers are pooled and
+  units that fall far behind are recalled and replaced. The player finally has health (250,
+  quick regen); going down is a slow-motion crumple, an "OUT COLD" card on greyed glass, and a
+  respawn at the nearest street corner at least 60 m away with the stars gone. No "WASTED" or
+  "BUSTED", no copied UI: the stars and the health bar are the weapon wheel's frosted glass, and
+  the siren is a real wail recorded in a street (public domain), looped. Your
+  own rockets do not hurt you (`PlayerHealth.self_blast_damage`, off) - rocket jumps are how the
+  game moves. The helicopter is another branch's; it reads `stars` off the "wanted" node and can
+  call `report_sighting()`.
 - **2026-09-24 The guns are real models, made in Blender by script (owner: "What are these
   horrible assets ... it's looking like GTA San Andreas and I need it to look like RDR2").**
   `tools/make_weapons.py` builds each gun from real dimensions in millimetres, bevels every part
@@ -296,6 +322,20 @@ already mapped so milestone 2 is script-only.
   black alley alike, a lens at every rim where the frost clears, a magnifying centre disc, a
   specular hairline catching the light on the upper left, a soft shadow. A plain white frost was
   tried first and the white glyphs vanished on it over a bright street. Text is Inter (OFL).
+
+- **2026-09-24 The facade kit (owner: "it must look like RDR2", G2).** Buildings near the camera
+  now wear real moulded geometry made in Blender by a script (`tools/facade_kit.py` ->
+  `assets/models/facade_kit.glb`): three cornices (classical with dentils, Italianate on scroll
+  brackets, plain), a parapet coping, stone sills and lintels with keystones on brick windows,
+  moulded architraves with hood cornices on stucco ones, window air conditioners, shop awnings
+  (one per shop, plain or striped), balconies on stone corbels, fire escapes with real stairs and
+  a drop ladder, a timber water tank, vents and packaged rooftop units. One mesh fits every
+  building because the kit shader bends it: roofline runs are mitred at any corner angle from
+  per-instance data, and window surrounds and awnings are three-sliced so their ends keep real
+  size at any width. Per-building batches (not per-chunk) so culling and the distance fade work
+  per building; everything placed from hashes so the seeded city does not move (a smoke check
+  builds a block with the kit off and on and compares). Off on the web.
+
 - **2026-09-24 GTA-style aim (owner: "GTA style aiming that auto locks onto targets").** Hold
   right mouse / left trigger with the rifle or rocket launcher: over-the-shoulder camera, lock on
   the person (or traffic car) nearest the crosshair with line of sight, camera tracks it, flick

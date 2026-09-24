@@ -120,6 +120,8 @@ var news_heat: float = 0.0
 var news_focus: Vector3 = Vector3.INF
 ## Debug: stars forced from outside (tests, stills); -1 reads the wanted system.
 var forced_stars: int = -1
+## Times a police helicopter has reported the player to the wanted system (tests read it).
+var sightings: int = 0
 
 var _ready_done: bool = false
 var _rng := RandomNumberGenerator.new()
@@ -460,6 +462,23 @@ func _poll() -> void:
 	if stars >= news_follow_stars and _player:
 		news_heat = maxf(news_heat, 0.5)
 		news_focus = player_world()
+	_report_sightings()
+
+
+## A police helicopter whose searchlight holds the player (a clear line, the beam on him) is a
+## unit that can see him: the wanted system hears it (Police.report_sighting()), so the stars
+## do not start to drop while the helicopter has him.
+func _report_sightings() -> void:
+	if stars <= 0 or _player == null:
+		return
+	var p := player_world()
+	for h in helicopters(Helicopter.Role.POLICE):
+		if h.task == "pursuit" and h.has_eyes_on(p + Vector3.UP * 1.2):
+			sightings += 1
+			for n in get_tree().get_nodes_in_group("wanted"):
+				if n.has_method("report_sighting"):
+					n.report_sighting(p)
+			return
 
 
 ## The most stars any node in the "wanted" group reports, 0 without a wanted system.

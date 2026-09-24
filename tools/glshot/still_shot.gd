@@ -24,6 +24,13 @@ extends SceneTree
 ## each car on screen with its paint; AIM=1 holds GTA-style aim for the shot. WHEEL=<index> opens
 ## the weapon wheel just before the shot with that segment highlighted (-1 = none), time already
 ## slowed; leave out --nohud for it, the wheel lives in the HUD.
+## STARS=n puts a wanted level on and stages the police in front of the camera (Police.stage_for_shot):
+## POLICE=standoff (default) is cruisers stopped across the street with their crews out and
+## shooting, POLICE=pursuit is cruisers bearing down the street at the player. POLICE_FRAMES
+## (default 24; 6 for a pursuit) lets them move before the shot, and a standoff ends with every
+## officer firing once, so the tracers and muzzle flashes are in the frame. HUD=1 (with --nohud,
+## which skips the loading screen) puts the HUD back for the shot: the stars, the health bar and
+## the police on the minimap.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -109,6 +116,38 @@ func _initialize() -> void:
 			await process_frame
 			elapsed += get_root().get_process_delta_time()
 			_pose(player, anchor, hold, boost, fov)
+	# HUD=1 with --nohud: skip the loading screen (which --nohud does) but put the HUD back up for
+	# the shot, in its CLEAN mode - without --nohud the loading screen fills the first hundred frames.
+	if OS.get_environment("HUD") == "1" and current_scene:
+		var hud_node := current_scene.get_node_or_null("DebugHud")
+		if hud_node:
+			hud_node.set("mode", 0)
+			hud_node.call("_apply_mode")
+	# STARS=n: the police, staged in front of the camera and given a moment to move.
+	var stars_env := OS.get_environment("STARS")
+	if stars_env != "" and player:
+		var police := current_scene.get_node_or_null("Police")
+		if police:
+			var scene_kind := OS.get_environment("POLICE") if OS.get_environment("POLICE") != "" else "standoff"
+			police.call("stage_for_shot", int(stars_env), scene_kind)
+			var frames_p := _env_int("POLICE_FRAMES", 6 if scene_kind == "pursuit" else 24)
+			for i in frames_p:
+				await process_frame
+				police.call("report_sighting")
+				_pose(player, anchor, hold, boost, fov)
+			if scene_kind != "pursuit":
+				# Freeze the clock first: a software frame is seconds of process time, which is
+				# the whole life of a tracer, so a volley fired at full speed is gone before the
+				# frame that would show it.
+				Engine.time_scale = float(OS.get_environment("TIME_SCALE")) if OS.get_environment("TIME_SCALE") != "" else 0.0005
+				for o in police.get("officers"):
+					if is_instance_valid(o) and o.get("police") != null:
+						var target: Vector3 = police.call("player_aim_point")
+						o.call("_shoot", target, (o as Node3D).global_position.distance_to(target))
+				await process_frame
+			print("police: %d stars, %d cruisers, %d officers, player hp %.0f" % [int(police.get("stars")), (police.get("cruisers") as Array).size(), (police.get("officers") as Array).size(), float(player.get("health").get("health")) if player.get("health") else -1.0])
+		else:
+			print("STARS: no Police node in the scene")
 	# AIM=1 holds GTA-style aim (alt_fire) through the last frames, so the shot shows the
 	# over-the-shoulder view and the lock brackets on whoever it picks up.
 	if OS.get_environment("AIM") == "1":

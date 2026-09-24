@@ -11,8 +11,10 @@ var _checks := 0
 
 
 func _ready() -> void:
-	# Watchdog: a broken test must never hang the check.
-	get_tree().create_timer(300.0).timeout.connect(func():
+	# Watchdog: a broken test must never hang the check. Game time, and under the 420 s wall-clock
+	# timeout in headless_check.sh; the police checks added about 30 s to a run that was already
+	# close to the old 300.
+	get_tree().create_timer(390.0).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
 	# Deferred: the root is still busy adding this scene during _ready().
@@ -97,6 +99,12 @@ func _test_city() -> void:
 	# Untyped on purpose: naming CityStreamer here would compile it before the autoloads exist.
 	var city: Node3D = packed.instantiate()
 	get_tree().root.add_child(city)
+	# The police sit out everything but their own checks (_test_police): the checks below shoot,
+	# blast and run people over, and a wanted level would send cruisers and officers into the
+	# middle of the traffic and crowd counts they measure.
+	var police_node: Node = city.get_node_or_null("Police")
+	if police_node:
+		police_node.set("enabled", false)
 	await _ticks(30)
 	var plan: CityPlan = city.plan
 	var lod_r: int = city.lod_radius_blocks
@@ -105,6 +113,24 @@ func _test_city() -> void:
 	_check(counts.x == (2 * load_r + 1) * (2 * load_r + 1), "%d full-detail chunks around the player" % counts.x)
 	_check(counts.y == (2 * lod_r + 1) * (2 * lod_r + 1) - counts.x, "%d far LOD chunks" % counts.y)
 	_check(city.building_count() >= 100, "city has buildings (%d)" % city.building_count())
+	# The facade kit goes on the buildings of the full-detail chunks. Counted from the batches'
+	# instance counts, which are real under --headless (the transforms are not: they read back
+	# as identity there, see CLAUDE.md).
+	var kit_buildings := 0
+	var kit_pieces := 0
+	var kit_kinds := {}
+	for k in city.chunks:
+		for child in (city.chunks[k] as Node).get_children():
+			if child is Building:
+				var n := _kit_count(child, "Batch_kit_")
+				if n > 0:
+					kit_buildings += 1
+				kit_pieces += n
+				for grand in (child as Node).get_children():
+					if grand is MultiMeshInstance3D and str(grand.name).begins_with("Batch_kit_"):
+						kit_kinds[str(grand.name).trim_prefix("Batch_kit_").get_slice("_", 0)] = true
+	_check(kit_buildings >= 20 and kit_pieces >= 1000 and kit_kinds.size() >= 4,
+		"full-detail chunks carry the facade kit (%d buildings, %d pieces, kinds %s)" % [kit_buildings, kit_pieces, ",".join(kit_kinds.keys())])
 	var districts := {}
 	var kinds := {}
 	var inter_kinds := {}
@@ -1323,6 +1349,7 @@ func _test_city() -> void:
 	if qual:
 		var reach: float = qual.shadow_distance[0]
 		_check(reach >= 500.0, "shadows reach across the city on HIGH (%.0f m)" % reach)
+	await _test_police(city, player)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
@@ -1365,6 +1392,198 @@ func _test_city() -> void:
 
 	city.queue_free()
 	_world_state().reset()
+
+
+## The wanted level and the police (owner, 2026-09-24: "a police and star system"). Every class
+## involved uses an autoload, so none of them is named as a type here: the Police node and its
+## units are untyped and reached through the scene.
+func _test_police(city: Node3D, player: Player) -> void:
+	var police: Node = city.get_node_or_null("Police")
+	_check(police != null and police.is_in_group("wanted") and get_tree().get_first_node_in_group("wanted") == police, "the city has a Police node in the 'wanted' group")
+	if police == null:
+		return
+	var ws := _world_state()
+	var health: Node = player.get("health")
+	_check(health != null and is_equal_approx(float(health.health), float(health.max_health)), "the player has health (%.0f)" % (float(health.health) if health else 0.0))
+	var sfx: Node = get_tree().root.get_node_or_null("/root/Sfx")
+	_check(sfx != null and sfx.has("siren"), "there is a siren sound")
+	# Short fuses so the whole chase fits in seconds: cruisers join close and fast, and nobody
+	# loses the player until the decay check asks for it.
+	var saved := {}
+	for key in ["lose_seconds", "flash_seconds", "dispatch_interval", "first_dispatch_delay", "spawn_min", "spawn_max"]:
+		saved[key] = police.get(key)
+	police.set("lose_seconds", 60.0)
+	police.set("dispatch_interval", 0.5)
+	police.set("first_dispatch_delay", 0.0)
+	police.set("spawn_min", 90.0)
+	police.set("spawn_max", 125.0)
+	police.call("clear")
+	police.set("enabled", true)
+	if player.is_driving():
+		player.exit_vehicle()
+	player.global_position = ws.to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	await _ticks(20)
+	# Somebody in earshot, standing still.
+	var ped_script: GDScript = load("res://scripts/npc/pedestrian.gd")
+	var witness: Node3D = ped_script.new()
+	witness.setup(Rect2(player.global_position.x + 4.0, player.global_position.z - 2.0, 4.0, 4.0), 1.0, 4242)
+	city.add_child(witness)
+	witness.global_position = player.global_position + Vector3(6.0, 0.3, 0.0)
+	witness.set("_pause_left", 60.0)
+	await _ticks(4)
+	# 1. Shooting where people can hear it: the rifle, pointed at the sky so nobody is hit.
+	var manager: Node = player.get("weapon_manager")
+	manager.equip(0)
+	player.get("camera_rig").set_look(0.0, 60.0)
+	Input.action_press("fire")
+	for i in 90:
+		await get_tree().physics_frame
+		if int(police.stars) >= 1:
+			break
+	Input.action_release("fire")
+	_check(int(police.stars) >= 1 and float(police.heat) > 0.0, "shooting where people can hear it raises the wanted level (%d stars, heat %.1f)" % [int(police.stars), float(police.heat)])
+	var hud: Node = city.get_node_or_null("DebugHud/WantedHud")
+	await _ticks(20)
+	_check(hud != null and hud.get_node("Stars").visible, "the stars show on the HUD")
+	# 1b. The shotgun has its own pellet path; somebody it drops in front of a witness is a crime
+	# all the same (the knock is pinned on the shot a tick later, see Police.knocked_down).
+	var heat_before := float(police.heat)
+	var victim: Node3D = ped_script.new()
+	victim.setup(Rect2(player.global_position.x - 2.0, player.global_position.z - 7.0, 4.0, 4.0), 1.0, 4343)
+	city.add_child(victim)
+	victim.global_position = player.global_position + Vector3(0.0, 0.3, -5.0)
+	victim.set("_pause_left", 60.0)
+	await _ticks(4)
+	player.get("camera_rig").look_at_point(victim.global_position + Vector3.UP * 1.1)
+	manager.equip(2)
+	await _ticks(2)
+	await _press("fire")
+	await _ticks(6)
+	var victim_down: bool = not is_instance_valid(victim) or victim.is_queued_for_deletion() or bool(victim.get("_down"))
+	_check(victim_down and float(police.heat) >= heat_before + float(police.heat_assault) - 0.01,
+		"a shotgun blast into somebody in front of a witness counts (heat %.1f -> %.1f)" % [heat_before, float(police.heat)])
+	manager.equip(0)
+	# 2. Cruisers join out on the street and drive in.
+	police.call("set_wanted", 2)
+	var first_d := -1.0
+	var closest := INF
+	var engaged := false
+	var livery_ok := false
+	var bar_ok := false
+	var caps_ok := true
+	for i in 720:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting") # stands in for the helicopter keeping eyes on
+		var cars: Array = police.get("cruisers")
+		if cars.size() > int(police.call("cruiser_cap")) or (police.get("officers") as Array).size() > int(police.call("officer_cap")):
+			caps_ok = false
+		if cars.is_empty():
+			continue
+		var car: Node3D = cars[0]
+		if not is_instance_valid(car):
+			continue
+		var d := car.global_position.distance_to(player.global_position)
+		if first_d < 0.0:
+			first_d = d
+			bar_ok = car.get_node_or_null("LightBar") != null
+			for mi in car.find_children("*", "MeshInstance3D", true, false):
+				for si in (mi as MeshInstance3D).get_surface_override_material_count():
+					var m := (mi as MeshInstance3D).get_surface_override_material(si) as ShaderMaterial
+					if m and m.get_shader_parameter("stripe_mode") == 5:
+						livery_ok = true
+		closest = minf(closest, d)
+		if int(car.get("mode")) != 0:
+			engaged = true
+		if engaged and closest < 45.0 and (police.get("officers") as Array).size() > 0:
+			break
+	_check(first_d > 60.0, "the first cruiser joins out on the street (%.0f m away)" % first_d)
+	_check(bar_ok and livery_ok, "cruisers wear the black-and-white livery and a light bar")
+	_check(first_d > 0.0 and closest < first_d - 30.0 and engaged, "cruisers drive in and engage (%.0f m -> %.0f m)" % [first_d, closest])
+	minimap_redraw(city)
+	# 3. Officers get out and shoot; the player takes damage. A cruiser parked across the
+	# street makes sure somebody has a clear line even if the first car stopped round a corner.
+	var street: Vector3 = ws.to_world(player.global_position) + Vector3(0.0, 0.0, -20.0)
+	police.call("spawn_cruiser", street + Vector3(0.0, 1.0, 0.0), PI * 0.5, "parked")
+	var hurt := false
+	for i in 600:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting")
+		if float(health.health) < float(health.max_health) - 0.5:
+			hurt = true
+			break
+	var officers: Array = police.get("officers")
+	_check(officers.size() > 0, "officers get out of their cruisers (%d)" % officers.size())
+	if officers.size() > 0:
+		var o: Node = officers[0]
+		var navy := false
+		for mi in o.find_children("*", "MeshInstance3D", true, false):
+			var ov := (mi as MeshInstance3D).material_override as ShaderMaterial
+			if ov and ov.get_shader_parameter("cloth_strength") != null and float(ov.get_shader_parameter("cloth_value")) < 0.3 and absf(float(ov.get_shader_parameter("cloth_hue")) - 0.62) < 0.06:
+				navy = true
+		_check(o.is_in_group("police") and not o.is_in_group("pedestrian") and navy, "officers wear navy and are not part of the crowd")
+	var officer_script: GDScript = load("res://scripts/npc/police_officer.gd")
+	_check(hurt, "officers shoot and the player takes damage (%.0f of %.0f; %d rounds, %d hit)" % [float(health.health), float(health.max_health), int(officer_script.get("rounds_fired")), int(officer_script.get("rounds_hit"))])
+	_check(caps_ok, "the units on the street stay inside the star caps")
+	# 4. Caps at five stars.
+	police.call("set_wanted", 5)
+	var worst := Vector2i.ZERO
+	for i in 150:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting")
+		var nc: int = (police.get("cruisers") as Array).size()
+		var no: int = (police.get("officers") as Array).size()
+		worst = Vector2i(maxi(worst.x, nc - int(police.call("cruiser_cap"))), maxi(worst.y, no - int(police.call("officer_cap"))))
+	_check(worst.x <= 0 and worst.y <= 0, "five stars stays inside the caps (%d cruisers, %d officers over)" % [worst.x, worst.y])
+	# 5. Going down: slow motion, a respawn on a street away from the fight, stars cleared.
+	health.set("collapse_seconds", 0.4)
+	health.set("downed_seconds", 1.2)
+	var died_at: Vector3 = ws.to_world(player.global_position)
+	player.take_damage(1.0e6)
+	_check(bool(health.downed) and Engine.time_scale < 1.0 and player.is_downed(), "at zero health the player goes down in slow motion")
+	for i in 900:
+		await get_tree().process_frame
+		if not bool(health.downed):
+			break
+	await _ticks(3)
+	var stood: Vector3 = ws.to_world(player.global_position)
+	_check(not bool(health.downed) and is_equal_approx(float(health.health), float(health.max_health)) and Engine.time_scale == 1.0, "the player gets up again with full health at full speed")
+	_check(int(police.stars) == 0 and (police.get("cruisers") as Array).is_empty() and (police.get("officers") as Array).is_empty(),
+		"going down clears the stars and the police (%d stars, %d cruisers, %d officers)" % [int(police.stars), (police.get("cruisers") as Array).size(), (police.get("officers") as Array).size()])
+	_check(Vector2(stood.x - died_at.x, stood.z - died_at.z).length() > 30.0 and player.is_physics_processing() and player.get("visual").visible, "the player stands up on a street corner away from the fight (%.0f m)" % Vector2(stood.x - died_at.x, stood.z - died_at.z).length())
+	# 6. Out of sight, the stars flash and drop one at a time. Nobody is sent this time, so
+	# nobody can see the player.
+	police.set("enabled", false)
+	police.set("lose_seconds", 1.6)
+	police.set("flash_seconds", 0.4)
+	police.call("set_wanted", 2)
+	var levels := {}
+	var flashed := false
+	var searching := false
+	for i in 300:
+		await get_tree().physics_frame
+		levels[int(police.stars)] = true
+		flashed = flashed or bool(police.flashing)
+		searching = searching or bool(police.call("show_search_area"))
+		if int(police.stars) == 0:
+			break
+	_check(flashed and searching and int(police.stars) == 0 and levels.has(1), "out of sight the stars flash and drop one at a time (saw %s)" % str(levels.keys()))
+	for key in saved:
+		police.set(key, saved[key])
+	police.call("clear")
+	if is_instance_valid(witness):
+		witness.queue_free()
+	await _ticks(2)
+
+
+func minimap_redraw(city: Node) -> void:
+	var minimap: Node = city.get_node_or_null("DebugHud/MinimapFrame/Minimap")
+	if minimap:
+		minimap.queue_redraw()
 
 
 func _test_buildings() -> void:
@@ -1429,7 +1648,7 @@ func _test_buildings() -> void:
 	_check(named > 3 and sign_nodes > named, "storefronts carry shop names (%d signs on %d buildings)" % [sign_nodes, named])
 	var with_balconies := 0
 	for b in get_tree().get_nodes_in_group("building"):
-		if b.has_node("Balconies") and b.get_node("Balconies").multimesh.instance_count > 0:
+		if (b.has_node("Balconies") and b.get_node("Balconies").multimesh.instance_count > 0) or _kit_count(b, "Batch_kit_balcony") > 0:
 			with_balconies += 1
 	_check(with_balconies > 0, "some buildings have balconies (%d)" % with_balconies)
 	# Fire escapes only go on brick blocks, and the handful of buildings in the test room are
@@ -1450,11 +1669,101 @@ func _test_buildings() -> void:
 		sample.append(eb)
 	await _ticks(2)
 	var with_escapes := 0
+	# The facade kit on the same brick sample: a surround at every window frame (they are
+	# placed in the same loop, so the counts must match exactly), a moulded cornice, and the
+	# lowest landing of every fire escape carrying the drop ladder.
+	var surrounds_match := true
+	var surrounded := 0
+	var corniced := 0
+	var ladders_ok := true
 	for eb in sample:
-		if eb.has_node("FireEscape") and eb.get_node("FireEscape").multimesh.instance_count > 0:
+		if (eb.has_node("FireEscape") and eb.get_node("FireEscape").multimesh.instance_count > 0) or _kit_count(eb, "Batch_kit_fe_") > 0:
 			with_escapes += 1
+		# Every part adds its own frames node, and the second one onwards is renamed on adding,
+		# so find them by their mesh rather than their name.
+		var frames_n := 0
+		for fc in eb.get_children():
+			if fc is MultiMeshInstance3D:
+				var fm: Mesh = (fc as MultiMeshInstance3D).multimesh.mesh
+				if fm == PropFactory.window_frame(true) or fm == PropFactory.window_frame(false):
+					frames_n += (fc as MultiMeshInstance3D).multimesh.instance_count
+		var surround_n := _kit_count(eb, "Batch_kit_surround")
+		if surround_n > 0:
+			surrounded += 1
+			if surround_n != frames_n:
+				surrounds_match = false
+		if _kit_count(eb, "Batch_kit_cornice") > 0:
+			corniced += 1
+		var landings := _kit_count(eb, "Batch_kit_fe_")
+		if landings > 0 and _kit_count(eb, "Batch_kit_fe_bottom") < 1:
+			ladders_ok = false
 		eb.free()
 	_check(with_escapes >= 4, "brick blocks get fire escapes (%d of 12)" % with_escapes)
+	_check(surrounded >= 10 and surrounds_match, "brick windows get the kit's stone surrounds, one per frame (%d of 12)" % surrounded)
+	_check(corniced >= 10, "brick blocks get a moulded cornice (%d of 12)" % corniced)
+	_check(ladders_ok, "every kit fire escape ends in a drop ladder")
+	# Every kit piece loads with its geometry and wears the kit shader. The mesh AABB is kept on
+	# the resource, so it is real under --headless.
+	var kit_ok := true
+	var kit_why := ""
+	for piece: String in PropFactory.KIT_PIECES:
+		var km := PropFactory.facade_kit(piece)
+		if km == null or km.get_surface_count() == 0 or km.get_aabb().size.length() < 0.2:
+			kit_ok = false
+			kit_why += " %s missing" % piece
+			continue
+		for s in km.get_surface_count():
+			var sm := km.surface_get_material(s) as ShaderMaterial
+			if sm == null or not str(sm.shader.resource_path).begins_with("res://shaders/facade_kit"):
+				kit_ok = false
+				kit_why += " %s surface %d not on the kit shader" % [piece, s]
+	_check(kit_ok, "every facade kit piece loads on the kit shader%s" % kit_why)
+	# The roofline runs are 2 m and centred, which is what the mitre in the kit shader assumes.
+	var run_box := PropFactory.facade_kit("cornice_classic").get_aabb()
+	_check(absf(run_box.position.x + 1.0) < 0.005 and absf(run_box.end.x - 1.0) < 0.005, "cornice runs span x -1..1 (%.3f..%.3f)" % [run_box.position.x, run_box.end.x])
+	# Surrounds line up with the windows the shader draws only if Building's window rects are
+	# the shader's. Read the shader's copies out of its source rather than writing them a third time.
+	var rx := RegEx.new()
+	rx.compile("abs\\(fu - ([0-9.]+)\\) < ([0-9.]+) && abs\\(fv - ([0-9.]+)\\) < ([0-9.]+)")
+	var shader_rects: Array = []
+	for m in rx.search_all(Building.SHADER.code):
+		shader_rects.append([m.get_string(1).to_float(), m.get_string(3).to_float(), m.get_string(2).to_float(), m.get_string(4).to_float()])
+	var rects_ok := true
+	for style in [Building.WindowStyle.PUNCHED, Building.WindowStyle.NARROW]:
+		var mine: Array = Building.WINDOW_RECTS[style]
+		var hit := false
+		for sr: Array in shader_rects:
+			if absf(sr[0] - mine[0]) < 1e-4 and absf(sr[1] - mine[1]) < 1e-4 and absf(sr[2] - mine[2]) < 1e-4 and absf(sr[3] - mine[3]) < 1e-4:
+				hit = true
+		rects_ok = rects_ok and hit
+	_check(rects_ok and shader_rects.size() >= 2, "Building.WINDOW_RECTS matches the shader's punched and slot windows (%d found)" % shader_rects.size())
+	# The kit must not move anything the building's seeded rolls placed: the same brick block
+	# with the kit off and on puts its rooftop units and shop names in exactly the same spots.
+	var same := true
+	var kit_was := Building.kit_enabled
+	for si in [3, 7, 11]:
+		var spots: Array = []
+		for on in [false, true]:
+			Building.kit_enabled = on
+			var kb: Building = escape_scene.instantiate()
+			kb.seed = si
+			kb.lot_size = Vector2(30.0, 30.0)
+			kb.min_height = 26.0
+			kb.max_height = 40.0
+			kb.finish_options.assign([Building.Finish.BRICK])
+			kb.position = Vector3(5000.0, 0.0, 5000.0)
+			add_child(kb)
+			var found: Array = []
+			for child in kb.get_children():
+				if child is MeshInstance3D and not (child is MultiMeshInstance3D):
+					var mi := child as MeshInstance3D
+					if str(mi.name).begins_with("Sign") or mi.mesh == PropFactory.model_ac(false) or mi.mesh == PropFactory.model_ac(true):
+						found.append(mi.position)
+			spots.append(found)
+			kb.free()
+		same = same and spots[0] == spots[1] and not (spots[0] as Array).is_empty()
+	Building.kit_enabled = kit_was
+	_check(same, "the facade kit leaves the seeded layout alone (roof units and shop names unmoved)")
 	_check(frames_fit, "window frames and cornices stay within the building height")
 	_check(looks.size() >= 5, "buildings vary (%d distinct looks)" % looks.size())
 
@@ -1707,6 +2016,16 @@ func traffic_cars_for_lights(city: Node) -> Array:
 			if out.size() >= 3:
 				break
 	return out
+
+
+## Instances in a building's facade-kit batches (MultiMeshBatch names them Batch_<key>) whose
+## node names start with `prefix`.
+func _kit_count(b: Node, prefix: String) -> int:
+	var n := 0
+	for child in b.get_children():
+		if child is MultiMeshInstance3D and str(child.name).begins_with(prefix):
+			n += (child as MultiMeshInstance3D).multimesh.instance_count
+	return n
 
 
 func _ticks(n: int) -> void:

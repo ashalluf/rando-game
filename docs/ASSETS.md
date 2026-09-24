@@ -33,6 +33,9 @@ Quaternius). Record every pack here.
 | CorrugatedIron, FactoryWall (`corrugated_iron`, `factory_wall`) | https://polyhaven.com/a/corrugated_iron etc. | CC0 1.0 | warehouses | 2026-09-19 |
 | AerialAsphalt01 (`aerial_asphalt_01`) | https://polyhaven.com/a/aerial_asphalt_01 | CC0 1.0 | second asphalt look, per road | 2026-09-19 |
 | LargeSquarePattern01, GravelConcrete03 (`large_square_pattern_01`, `gravel_concrete_03`) | https://polyhaven.com/a/large_square_pattern_01 etc. | CC0 1.0 | sidewalk pavers and plain concrete sidewalks, per block | 2026-09-19 |
+| Fabric036 (1K JPG: Color, NormalGL, Roughness) | https://ambientcg.com/a/Fabric036 | CC0 1.0 | facade kit: shop awning canvas (`fabric`) | 2026-09-24 |
+| Metal016 | https://ambientcg.com/a/Metal016 | CC0 1.0 | facade kit: painted steel - AC units, rooftop units, vents, fire escapes, railings (`metal_painted`) | 2026-09-24 |
+| Planks023A | https://ambientcg.com/a/Planks023A | CC0 1.0 | facade kit: rooftop water tank staves and roof (`planks`) | 2026-09-24 |
 
 Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
 attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.
@@ -88,6 +91,33 @@ brightened (`tools/shrink_glb.py --desaturate`) so the seeded paint tint gives t
 
 Godot extracts each model's textures next to it on import (`<model>_N.jpg` + `.import`); those
 files are committed like any other import output.
+
+## Facade detail kit (our own tool, no external source)
+
+`assets/models/facade_kit.glb` is written by `tools/facade_kit.py`, run headless in Blender 4.2
+(`blender -b --python tools/facade_kit.py`), so like the cars below the script *is* the model and
+the `.glb` is build output: rerun it, then `godot --headless --path . --import` before looking at
+anything (a cached import is served otherwise). Seventeen pieces, one node each, modelled from
+profiles and bevelled solids, with ambient occlusion baked in Cycles against a stand-in wall or
+roof and stored in UV2. Materials are the CC0 sets above (`concrete` for stone, and the three
+ambientCG sets added for it); the glTF materials only carry names, which
+`PropFactory.kit_material()` maps to `shaders/facade_kit.gdshader`.
+
+| Piece | Triangles | Used for | Added |
+| --- | --- | --- | --- |
+| `kit_cornice_classic` | 292 per 2 m | brick and stucco rooflines: bead, frieze, cove, dentils, ovolo, corona with drip, cyma crown | 2026-09-24 |
+| `kit_cornice_bracket` | 526 per 2 m | brick rooflines: Italianate cornice on scroll consoles | 2026-09-24 |
+| `kit_cornice_simple` | 42 per 2 m | stucco, precast and low buildings | 2026-09-24 |
+| `kit_coping` | 42 per 2 m | parapet coping stones, with drips both sides | 2026-09-24 |
+| `kit_surround_brick_a` / `_b` | 78 / 94 | brick punched and slot windows: stone sill with lugs and drip, keystone lintel / lintel with end blocks | 2026-09-24 |
+| `kit_surround_stucco` | 194 | stucco windows: moulded architrave, frieze, hood cornice, sill on corbels | 2026-09-24 |
+| `kit_ac_window` | 362 | window air conditioners on residential punched windows | 2026-09-24 |
+| `kit_awning` | 50 | shop awnings, one per shop run (plain or striped) | 2026-09-24 |
+| `kit_balcony` | 524 | balconies: moulded slab on corbels, iron railing | 2026-09-24 |
+| `kit_fe_stair_l` / `_r` / `kit_fe_bottom` | 668 / 668 / 576 | fire-escape landings with stairs (both hands) and the drop-ladder landing | 2026-09-24 |
+| `kit_water_tank` | 998 | timber rooftop tank on a braced steel stand | 2026-09-24 |
+| `kit_vent_mushroom` / `kit_vent_turbine` | 188 / 238 | roof vents | 2026-09-24 |
+| `kit_hvac` | 942 | packaged rooftop units on big roofs | 2026-09-24 |
 
 ## Procedurally generated cars (our own tools, no external source)
 
@@ -209,6 +239,7 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | 8 wet squish, slurp impacts | https://opengameart.org/content/8-wet-squish-slurp-impacts | CC0 1.0 | `assets/audio/gore_5..6` | 2026-09-23 |
 | airliner_ascend.aif (Heigh-hoo), a real airliner take-off | https://freesound.org/people/Heigh-hoo/sounds/51091/ | CC0 1.0 | `assets/audio/jet_loop_0` (19.6-29.6 s of the HQ preview, mono, crossfaded into a seamless loop) | 2026-09-24 |
 | cop helicopter flying (Atilio_Sanchez), a real police helicopter overhead | https://freesound.org/people/Atilio_Sanchez/sounds/721300/ | CC0 1.0 | `assets/audio/rotor_loop_0` (139.1-147.1 s, crossfaded loop; the 20 Hz blade-pass chop kept) | 2026-09-24 |
+| American police siren in Washington DC (lezer, via pdsounds.org) | https://commons.wikimedia.org/wiki/File:American_police_siren_i.ogg | Public domain | `assets/audio/siren_0` (one wail cycle, 17.62-22.78 s of the recording, band-passed 380 Hz - 6 kHz, level flattened, cross-faded into a seamless loop, mono 44.1 kHz; the Ogg Skeleton track dropped) | 2026-09-24 |
 | jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
 | island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
 | fir_tree_01 | `tree_fir.glb` | 54k tris, 5.2 MB | hill conifers | 2026-09-21 |

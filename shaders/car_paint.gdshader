@@ -45,8 +45,9 @@ uniform float pearl_power = 2.5;
 
 // Livery graphic, painted in body space so it works on any of the car models without needing
 // per-model UV layouts. 0 none, 1 twin racing stripes over the length, 2 two-tone lower body,
-// 3 fleet belt band round the flanks, 4 taxi checker band.
-uniform int stripe_mode : hint_range(0, 4) = 0;
+// 3 fleet belt band round the flanks, 4 taxi checker band, 5 police black-and-white (the second
+// colour over the doors and the roof, the base paint on the nose, the tail and the sills).
+uniform int stripe_mode : hint_range(0, 5) = 0;
 uniform vec3 stripe_color : source_color = vec3(0.92, 0.92, 0.93);
 // Half width of a stripe / band, as a fraction of the car's width (mode 1) or height (2, 3, 4).
 uniform float stripe_width = 0.032;
@@ -56,6 +57,11 @@ uniform float stripe_gap = 0.055;
 uniform float stripe_height = 0.42;
 // Checks along the length of the car (mode 4).
 uniform float checker_repeat = 44.0;
+// Police livery (mode 5): the stretch of the car, as fractions of its length, that the doors
+// cover, the height the roof starts at, and the sill line below which it stays the base paint.
+uniform vec2 door_band = vec2(0.24, 0.70);
+uniform float roof_from = 0.84;
+uniform float sill_line = 0.20;
 // Decals and vinyl are never as glossy as the paint under them.
 uniform float stripe_roughness_mul = 1.25;
 
@@ -127,6 +133,15 @@ float livery_mask() {
 	if (stripe_mode == 2) {
 		// Two-tone: everything below the split line is the second colour.
 		return 1.0 - smoothstep(stripe_height - feather, stripe_height + feather, body_uv.y);
+	}
+	if (stripe_mode == 5) {
+		// Black and white: white doors between the wheel arches, white roof, black nose, tail
+		// and sills. Pure body-space tests, so it lands on any of the car models.
+		float doors = smoothstep(door_band.x - feather, door_band.x + feather, body_uv.x)
+			* (1.0 - smoothstep(door_band.y - feather, door_band.y + feather, body_uv.x))
+			* smoothstep(sill_line - feather, sill_line + feather, body_uv.y);
+		float roof = smoothstep(roof_from - 0.01, roof_from + 0.01, body_uv.y) * smoothstep(0.6, 0.85, facing.y);
+		return max(doors, roof);
 	}
 	float band = 1.0 - smoothstep(stripe_width - feather, stripe_width + feather, abs(body_uv.y - stripe_height));
 	if (stripe_mode == 3) {
