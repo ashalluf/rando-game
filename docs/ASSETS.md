@@ -225,6 +225,24 @@ converted to geometry. Godot generates the LODs on import.
 
 The airliners and private jets of the air traffic reuse the Meshy jets above (`Aircraft.MODELS`).
 
+## Civic landmark models (our own Blender generator)
+
+The concert hall of the downtown civic centre (2026-09-24, landmark `concert_hall`, named SYMPHONY
+HALL in game). Written by `tools/make_concert_hall.py`, run in Blender 4.2 (`blender -b
+--factory-startup --python tools/make_concert_hall.py`), so the script is the model and the `.glb`
+is build output; no external input at all. The FORM of downtown's steel concert hall - curving
+sails round an auditorium box - composed for this game, not traced from the real building's
+drawings. Untextured: three material slots bound by name in `LandmarkCivicCenter._concert_hall()`
+(`steel` -> `shaders/brushed_steel.gdshader`, `glass` -> `shaders/curtain_glass.gdshader`, `stone`
+-> `shaders/landmark_facade.gdshader`), UVs in metres so the shader lays the panel seams. Godot
+generates the LODs on import. Every other civic landmark (the arena, the entertainment plaza, the
+hotel, the convention centre, city hall, the park, the museum, the station) is built in code by
+`LandmarkGeo` and uses only the CC0 texture sets already listed above.
+
+| Model | Nodes | Triangles | Used for | Added |
+|---|---|---|---|---|
+| `concert_hall.glb` | `ConcertHall` (12 sails, the auditorium core and its base, the entrance glazing), `Collision` (never drawn: a trimesh shape) | 36.2k drawn; 0.7k collision | `LandmarkCivicCenter` (`concert_hall`) | 2026-09-24 |
+
 ## The hero (Blender + MPFB2, CC0 assets)
 
 `assets/models/hero.glb` (and the `hero_hero_*` textures Godot extracts from it) is the player's

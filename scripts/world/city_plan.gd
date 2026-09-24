@@ -280,6 +280,11 @@ func block(ix: int, iz: int) -> Dictionary:
 		kind = BlockKind.MALL
 	elif roll < params.park + params.plaza + mall + bigbox and rect.size.x > 80.0 and rect.size.y > 80.0:
 		kind = BlockKind.BIGBOX
+	# A block a landmark stands on (the arena, city hall...) is that landmark's site: no park,
+	# plaza or mall of its own under it. Overridden AFTER the roll so the block's rng stream, and
+	# with it the block seed and everything built from it, is the same as it always was.
+	if macro and Landmarks.claims(rect):
+		kind = BlockKind.BUILDINGS
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
 	# Ground a landmark owns outright (a replica area's site): the chunk builds that instead.
 	var site := site_at_block(ix, iz)
@@ -309,7 +314,9 @@ func sites() -> Array:
 		return _sites
 	_sites_ready = true
 	for lm in Landmarks.all():
-		if lm.has("site"):
+		# A replica area's site is a table (LandmarkMacArthurPark); the civic set's "block" sites
+		# (Landmarks.claims()) are a different thing and handled there.
+		if lm.get("site") is Dictionary:
 			var s := _snap_site(lm.id, lm.site)
 			if not s.is_empty():
 				_sites.append(s)
@@ -494,6 +501,10 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 	if b.has("site"):
 		return []
 	var rect: Rect2 = b.rect
+	# The whole block is a landmark's site (see Landmarks.claims()): nothing else is built on it,
+	# near or far, so the far skyline and the streamed block agree.
+	if macro and Landmarks.claims(rect):
+		return []
 	var params: Dictionary = DISTRICTS[b.district]
 	var rng := _rng_for(11, ix, iz)
 	var inner := rect.grow(-sidewalk_width)
@@ -511,8 +522,8 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 	var blocked: Array[Rect2] = []
 	if macro:
 		for lm in Landmarks.all():
-			# A site's own blocks are handled above; its radius is for the relief and the map.
-			if lm.has("site"):
+			# A replica area's own blocks are handled above; its radius is for the relief and the map.
+			if lm.get("site") is Dictionary:
 				continue
 			var r: float = lm.radius
 			var foot := Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r * 2.0, r * 2.0))
