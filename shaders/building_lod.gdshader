@@ -65,6 +65,12 @@ uniform vec3 lit_color : source_color = vec3(1.0, 0.85, 0.55);
 // the buildings vanish (this is the "see-through cage" the old shader gave up specular over).
 uniform float glass_mirror_min = 0.26;
 uniform float glass_mirror_max = 0.62;
+// How much of the mirror is EMITTED rather than painted into the albedo, and how bright, as in
+// building.gdshader (keep the two level or a tower changes brightness at the LOD line). A
+// reflection does not depend on the light falling on the pane: carried in the albedo alone, a
+// far glass tower on the shaded side came out a black slab against a lit sky.
+uniform float reflect_emit = 0.7;
+uniform float reflect_energy = 1.6;
 // The sun glare path across the glazing, in two lobes. The tight one is the mirror flash a
 // tower throws when its face happens to bisect the eye and the sun; the broad one is the sheen
 // every pane on that side of the building carries. This is the single thing that makes a
@@ -321,6 +327,8 @@ void fragment() {
 		sky_ref = mix(vec3(0.055, 0.055, 0.065), sky_ref, smoothstep(-0.22, 0.08, refl.y));
 		float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
 		float mirror = mix(glass_mirror_min, glass_mirror_max, fres) * (1.0 - 0.85 * night_factor);
+		float sky_now = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
+		vec3 refl_emit = sky_ref * mirror * reflect_emit * reflect_energy * sky_now;
 		float to_sun = max(dot(refl, sun_n), 0.0);
 		float facing = max(dot(world_normal, sun_n), 0.0);
 		vec3 glare = vec3(1.0, 0.96, 0.88)
@@ -454,7 +462,7 @@ void fragment() {
 			// curtain-wall towers turn into see-through cages. Then the glare path to the sun -
 			// a skyline photographed at any hour but noon has a handful of towers burning and
 			// the rest in shade, and no amount of albedo detail substitutes for that.
-			albedo = mix(room, sky_ref, mirror) + glare;
+			albedo = mix(room, sky_ref, mirror * (1.0 - reflect_emit)) + glare;
 
 			// Shadows thrown ONTO the glass by the frame in front of it: the mullion (or a
 			// projecting sun fin, which a third of curtain-wall towers wear) shades the pane
@@ -624,10 +632,13 @@ void fragment() {
 		// procedural grid does not have, and without it every far tower buzzes.
 		float glaze_frac = (typ == 0) ? (abs(style - 2.0) < 0.5 ? 0.80 : (abs(style - 1.0) < 0.5 ? 0.55 : 0.45))
 			: (typ == 1 ? 0.26 : (typ == 2 ? 0.15 : 0.12));
-		vec3 mean_glass = mix((c * 0.30 + vec3(0.09, 0.10, 0.12)) * glass_interior, sky_ref, mirror) + glare;
+		vec3 mean_glass = mix((c * 0.30 + vec3(0.09, 0.10, 0.12)) * glass_interior, sky_ref, mirror * (1.0 - reflect_emit)) + glare;
 		vec3 mean_wall = c * vshift * (typ == 0 ? 0.95 : 0.97) + glare * (typ <= 1 ? 0.16 : 0.05);
 		vec3 mean = mix(mean_wall, mean_glass, glaze_frac) * mix(0.88, 1.07, clamp(v / max(box_size.y, 1.0), 0.0, 1.0));
 		albedo = mix(mean, albedo, mix(0.30, 1.0, band_fade));
+		// The emitted mirror, faded to its facade average on the same schedule, or the panes
+		// would buzz at distance in emission after the albedo had stopped.
+		emission += refl_emit * mix(glaze_frac, glass, mix(0.30, 1.0, band_fade));
 	}
 
 	ALBEDO = albedo;

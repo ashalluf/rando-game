@@ -813,6 +813,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `road_wetness`. Flat perfect white was the most CG thing in
   any street shot. Limbs are cut and the effect materials compiled during the loading screen
   (`Ragdoll.warm_limbs()`, `WeaponFX.warm_materials()`), so the first rocket does not stall.
+  Far buildings emit most of their glass's mirror too (`reflect_emit` / `reflect_energy`, kept
+  level with `building.gdshader` so a tower does not change brightness at the LOD line, and
+  faded to the facade's glazing average with the rest of the distance blend).
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
   window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
   plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.
