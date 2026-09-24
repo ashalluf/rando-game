@@ -1553,6 +1553,110 @@ as the street a realistic LA game shows, never as a joke; the code's words are n
 - **The smoke test** (`tests/westlake_checks.gd`, ~30-60 s on a busy box) re-centres the origin
   on every teleport and waits idle frames before a physics query, for the two reasons in its
   `_go()`; copy that pattern for any check that teleports far and then casts rays.
+## 9p. Downtown at 1:1: the research, the fit, and a re-lay waiting to land (2026-09-24, agent branch)
+
+Owner: "I want the whole downtown landscape to become a 1:1 replica ... This should be
+geographically sound", "you should also have macarthur park". The session ended before the
+re-lay could be gated, so what is on main is **data only**: `scripts/world/downtown_real.gd`
+(`DowntownReal`), which nothing calls yet. The re-lay itself was written and probed headless (it
+compiles and lays out as described below) but never ran through the smoke test; it is kept as
+`tools/downtown_relay/relay.patch` (a `git diff` against 006e57c, the civic merge) with its
+draft checks `tools/downtown_relay/downtown_checks.gd.txt`.
+
+**The fit.** 93 Nominatim queries (strictly one per 1.2-3 s, the IP is shared and 429s came
+often; every answer is in `tools/downtown_relay/geocode_cache.json`, so NOTHING needs re-querying):
+40 landmark / anchor points by address or place, and the OSM way centroids of 45 named streets
+and 4 freeways in a downtown box (`limit=10&dedupe=0&bounded=1`: up to ten points ON each street's
+centre line per query - `tools/downtown_relay/points.txt` is the query list). `fit2.py` keeps each
+street's points where it runs on the core grid, trims them to 18 m of the median and fits the
+bearing that minimises the scatter: **37.86 degrees, RMS 2.0 m over 115 centre-line points**;
+avenues alone 37.87, streets alone 37.80 + 90, so the grid is square to 0.07 degrees. The old
+tables were off: the skyline's 45 degrees, the civic table's 36, and their metres per degree of
+latitude (110 574 is the equator's; 110 923 at 34.05 N). Real block spacing, centre line to centre
+line: avenues 122-130 m (Figueroa-Flower 125.9, Hill-Broadway 126.6), numbered streets 199-209 m
+(5th-6th 200.2, 1st-2nd 164), Wilshire 110 m below 6th, Temple 314 m above 1st, Pico-Venice 437.
+City hall to the arena 2 531 m. MacArthur Park's centre is 1 943 m west of Figueroa along
+Wilshire. Every value, with its point count and RMS, is in the module's AVENUES / STREETS tables;
+`-1` RMS marks a street placed rather than fitted (it runs off the grid - see below).
+
+**What the real grid does that the game's cannot**, all in the module header: east of Main the
+streets are on another grid (Alameda swings 500 m across it between Union Station and Little
+Tokyo), so only Alameda (where it passes Union Station) and Vignes are pinned there; one road is
+one line across the whole map, so Wilshire (pinned, it is MacArthur's axis) also splits the
+historic core's 6th-7th blocks, 12th St is left out (it would cut the arena), and Georgia St is
+pinned where it is south of Olympic; west of the 110 the streets bend 8 degrees, so MacArthur Park
+goes on the straightened Wilshire at its true distance along it (280 m grid-north of the real
+park). The 10 is 2.3 km south of Pershing Square, well below Pico (the convention centre is
+bounded by Venice, not the 10).
+
+**The placement, and why the basin has to grow.** At 1:1 downtown (the 110 to Vignes, Cesar
+Chavez to Venice) is 2.3 x 3.8 km - as big as the whole old basin between the coast, the front
+range and the port. Constraints that fixed it: MacArthur Park 2.5 km west of Pershing Square has
+to land on city east of the airport and clear of the coast towns and the mosque; the port cannot
+sit west of the arena; the civic centre must not be on a mountainside; CityPlan's road 0 is at z 0
+and must be a real street. Result (`DowntownReal.GAME_ANCHOR`): **Pershing Square at (2800,
+102.7)**, 5th St exactly on z 0, downtown x 1650-3950, z -1750..2020, MacArthur Park at x 100-487
+on Wilshire (z 313). In the patch that needs: the east range from x 1900 to 5000; an "embayment"
+(`MacroMap.embay_*`) stepping the whole north (front range, valley, back range) back 1 250 m east
+of the pass, with the front range at 0.4 height there - the real range ends at the Cahuenga Pass
+and only the low Elysian hills stand north of downtown; the port and harbour moved to x 2050-2750,
+z 3000-3560, at the foot of the 110; `industrial_corner` (1100, 2300) and the Arts District east of
+Vignes industrial; `AirTraffic.downwind_x` 1950 -> 1250 and `approach_clear_length` 700 -> 1150 (the
+final turned in over the South Park towers); relief calmed inside downtown; the masjid anchor to
+z 139 (6th St now runs where its gate was); the cargo ship to (2400, 3420). The zone map of the
+patched basin (100 m a character) is `tools/downtown_relay/zone_map_after.txt`: downtown east-north-
+east of the airport (bearing ~76 degrees), the embayment hills 150-220 m high from z -2200.
+
+**Freeways in the patch** (`Freeway._spline()` resamples control points to STEP): the 110 on its
+geocoded alignment from the four-level interchange (2157, -1616) down the west edge (u -886 at
+8th, -1016 at Olympic, -1089 at Pico) to the 10 interchange (2206, 2650) and into the port; the
+101 along the north edge (v -1335) past the civic centre to the four-level, west-south-west on its
+real heading - the geocoded point at u -2044 lands exactly on the game's pass - then north through
+the pass as the old valley route did (renamed "101 Hollywood Freeway"); the 10 new, from the 110
+east along the real line to x 4930; the 105 rerouted south of the airport's clear zone and round
+downtown's south-west, crossing the 110 south of the 10 (as the real one does), north of the port.
+
+**Measured.** geo_count at forced HIGH (`-- --quality=0`, or the auto step-down changes what is
+drawn mid-run) on the civic merge 006e57c, i.e. the "before": avenue `--spawn=589.2,860,0,12,2`
+**5.54 M tris, 3 169 draws, 3 185 objects**; south-west aerial `--spawn=-50,1250,-43,5,80` **9.30 M
+tris, 4 470 draws, 4 547 objects**. The "after" was NOT measured. Probe of the patch (headless): all
+19 towers within 13.8 m of their geocoded points (the pavement clamp; plans = built extents),
+civic sites 1-108 m (city hall and the concert hall 1 m; the LA Live plaza and hotel share one
+block and the geocoded point is a POI, so they are placed by `at`), 16 x 18 replica blocks, 2 799
+lots, 52 infill lots over 130 m (after lowering the non-core band to 14-80 m and the core to
+30-190 m with bigger core lots - with the old bands it was 301), MacroMap setup 180 ms.
+
+**How the next session lands it, step by step.**
+1. Merge origin/main; `git apply --3way tools/downtown_relay/relay.patch` and resolve (it touches
+   city_plan, macro_map, freeway, landmark_downtown, civic_sites, landmarks, air_traffic, traffic,
+   city_streamer, smoke_test).
+2. `mv tools/downtown_relay/downtown_checks.gd.txt tests/downtown_checks.gd` (the patch's smoke
+   test already loads it after `_test_downtown`).
+3. `godot --headless --path . --import`, then run `tools/downtown_relay/probe.gd.txt` (rename to
+   .gd) with `--script`: it prints every pinned road, tower anchor, civic site, route and the lot
+   count. Then the headless check inside the gate slot. Expect to fix: the ambience checks
+   (downtown noon sampled at Pershing), the air traffic checks (new downwind leg), the freeway
+   ramp/crossing checks (five routes), the civic checks' "no deck crosses a site" (the patch was
+   laid to keep the 110 west of Georgia and the 101 north of Temple, not yet run), and anything
+   that hard-codes the old port (800, 1150).
+4. If the MacArthur branch has landed: set its SITE from `DowntownReal.MACARTHUR` - west_x 100
+   (Park View), east_x 487 (Alvarado), north_z 200.2 (6th), south_z 404 (7th), wilshire_z 312.7,
+   anchor (293.5, 312.7).
+5. Measure geo_count at the new avenue `--spawn=2359.4,880,0,12,2` (Flower at Olympic, north) and a
+   south-west aerial `--spawn=1450,2150,-38,4,140`, at `--quality=0`, against the numbers above.
+   The patch caps the LOD ring at the skyline's start in metres (`CityStreamer._block_distance`),
+   because seven of downtown's 200-440 m blocks reach twice as far as the Skyline tier starts and
+   both drew the same city; the full-detail ring is still 2 blocks, which in downtown is 2.6x the
+   area it was - the first thing to look at if the avenue's draws are up.
+6. Stills: SW aerial as above, the avenue as above, the civic centre `--spawn=2600,-450,-50,-4,60`,
+   the arena `--spawn=2300,1150,138,-8,30`, a Forward+ golden hour `--hour=18.3` on the aerial.
+7. Docs: a CLAUDE.md bullet for DowntownReal (the module header has the substance), and fix the
+   skyline and civic bullets' "one real block to one game block" and their stills spawns.
+
+Not done at all: interiors of any of it; Bunker Hill as a hill (the relief is flat); Little Tokyo
+and the east side as real streets; the real 110/101/10 interchange ramps (the decks meet with the
+freeway code's usual lift); the civic builders at real size (the arena's `ARENA_RADII` is still
+36-37 m against the real ~90, so it will look small in its real 240 x 330 m block).
 
 ## 10. Suggested next steps, in order of impact
 

@@ -1,0 +1,98 @@
+# Towers of LandmarkDowntown.TOWERS (real building behind each dt_* id)
+wilshire_grand|Wilshire Grand Center, Los Angeles
+bonaventure|Westin Bonaventure Hotel, Los Angeles
+cnp_515|515 South Flower Street, Los Angeles
+cnp_555|555 South Flower Street, Los Angeles
+fig_601|601 South Figueroa Street, Los Angeles
+ey_725|725 South Figueroa Street, Los Angeles
+t777|777 South Figueroa Street, Los Angeles
+bofa_333hope|333 South Hope Street, Los Angeles
+citi_444|444 South Flower Street, Los Angeles
+aon_707|707 Wilshire Boulevard, Los Angeles
+wf_333grand|333 South Grand Avenue, Los Angeles
+wf_355grand|355 South Grand Avenue, Los Angeles
+usbank|U.S. Bank Tower, Los Angeles
+twocal|Two California Plaza, Los Angeles
+onecal|One California Plaza, Los Angeles
+gasco|Gas Company Tower, Los Angeles
+oceanwide|Oceanwide Plaza, Los Angeles
+metropolis|Metropolis, Francisco Street, Los Angeles
+circa|1200 South Figueroa Street, Los Angeles
+aven|1120 South Grand Avenue, Los Angeles
+eighth_grand|Eighth and Grand, Los Angeles
+# Civic set (CivicSites)
+arena|Crypto.com Arena, Los Angeles
+la_live|L.A. Live, Los Angeles
+jw_marriott|JW Marriott Los Angeles L.A. Live
+convention|Los Angeles Convention Center
+city_hall|Los Angeles City Hall
+grand_park|Grand Park, Los Angeles
+disney_hall|Walt Disney Concert Hall
+the_broad|The Broad, Los Angeles
+union_station|Union Station, Los Angeles
+# Frame and context
+pershing|Pershing Square, Los Angeles
+macarthur|MacArthur Park, Los Angeles
+central_library|Los Angeles Central Library
+grand_central_market|Grand Central Market, Los Angeles
+music_center|Dorothy Chandler Pavilion, Los Angeles
+cathedral|Cathedral of Our Lady of the Angels, Los Angeles
+janm|Japanese American National Museum, Los Angeles
+dodger_stadium|Dodger Stadium, Los Angeles
+four_level|Four Level Interchange, Los Angeles
+# Street centre-line points (every way of the name inside the downtown box, limit 10)
+av_figueroa|South Figueroa Street|street
+av_flower|South Flower Street|street
+av_hope|South Hope Street|street
+av_grand|South Grand Avenue|street
+av_olive|South Olive Street|street
+av_hill|South Hill Street|street
+av_broadway|South Broadway|street
+av_spring|South Spring Street|street
+av_main|South Main Street|street
+av_losangeles|South Los Angeles Street|street
+av_sanpedro|South San Pedro Street|street
+av_central|South Central Avenue|street
+av_alameda|South Alameda Street|street
+avn_spring|North Spring Street|street
+avn_broadway|North Broadway|street
+avn_grand|North Grand Avenue|street
+avn_figueroa|North Figueroa Street|street
+st_temple|West Temple Street|street
+st_1st|West 1st Street|street
+st_2nd|West 2nd Street|street
+st_3rd|West 3rd Street|street
+st_4th|West 4th Street|street
+st_5th|West 5th Street|street
+st_6th|West 6th Street|street
+st_wilshire|Wilshire Boulevard|street
+st_7th|West 7th Street|street
+st_8th|West 8th Street|street
+st_9th|West 9th Street|street
+st_olympic|West Olympic Boulevard|street
+st_11th|West 11th Street|street
+st_12th|West 12th Street|street
+st_pico|West Pico Boulevard|street
+st_venice|West Venice Boulevard|street
+st_e1st|East 1st Street|street
+st_e4th|East 4th Street|street
+wl_alvarado|South Alvarado Street|street
+wl_parkview|South Park View Street|street
+fw_110|Harbor Freeway|-118.2900,34.0700,-118.2400,34.0200
+fw_101|Hollywood Freeway|-118.2700,34.0750,-118.2200,34.0450
+fw_10|Santa Monica Freeway|-118.2900,34.0450,-118.2200,34.0200
+t777|777 Tower, Los Angeles
+avn_main|North Main Street|street
+avn_losangeles|North Los Angeles Street|street
+st_e2nd|East 2nd Street|street
+st_e3rd|East 3rd Street|street
+st_venice2|Venice Boulevard|street
+st_etemple|East Temple Street|street
+st_chavez|West Cesar E Chavez Avenue|street
+st_arcadia|Arcadia Street|street
+st_echavez|East Cesar E Chavez Avenue|street
+avn_alameda|North Alameda Street|street
+fw_10w|Santa Monica Freeway|-118.3000,34.0400,-118.2500,34.0150
+av_francisco|South Francisco Street|street
+av_georgia|South Georgia Street|street
+avn_vignes|North Vignes Street|street

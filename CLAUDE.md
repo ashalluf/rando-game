@@ -937,6 +937,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   room. Stills: the skyline from the south-west `--spawn=-50,1250,-43,5,80`, from the hills
   `--spawn=350,-950,-170,-9,380`, on the avenue `--spawn=589.2,860,0,16,2`, with `HIDE=Visual`
   on `tools/glshot/city_shot.gd` (hides the player, who otherwise stands in the middle of it).
+  **Downtown at 1:1 is prepared but not landed**: `DowntownReal` (`scripts/world/downtown_real.gd`,
+  DATA ONLY, nothing calls it) holds the real grid fitted from OpenStreetMap (bearing 37.86
+  degrees, every avenue's and street's position, width and residual), the geocoded landmark
+  points, the freeway alignments and the frame (real origin, turn, game anchor - the Esplanade's
+  replica-area idea); the re-lay that consumes it is `tools/downtown_relay/relay.patch`, with the
+  landing steps in docs/HANDOFF.md 9p. The `real` metres in the tower and civic tables are from
+  memory with the wrong bearing (45 / 36) - use DowntownReal's points instead.
 - Downtown civic set (owner, 2026-09-24: "downtown must match real downtown LA, we need staple
   center"): the same exception as the skyline - the real buildings' FORMS in their real places
   relative to the core, every NAME invented (no real arena, sponsor, team, hotel, museum,
