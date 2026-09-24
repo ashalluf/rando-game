@@ -198,14 +198,19 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	var dir := 1 if _rng.randf() < 0.5 else -1
 	var lane := _lane_offset(axis, index, dir)
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
-	if plan.zone_at(pos2) != MacroMap.Zone.CITY or not plan.road_open(axis, index, along):
+	# Open where it stands AND just ahead: a car put down inside a crossing, past its centre, next
+	# checks the crossing after, and drove straight on into a road closed by a landmark's site.
+	if plan.zone_at(pos2) != MacroMap.Zone.CITY or not plan.road_open(axis, index, along) or not plan.road_open(axis, index, along + dir * 15.0):
 		return
 	var car := _new_car()
 	var speed := _rng.randf_range(speed_range.x, speed_range.y) * lerpf(1.0, dense_speed_factor, density)
 	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + plan.macro.relief_at(pos2), pos2.y))
+	# Relative to this node, which the streamer shifts with everything else on a re-centre: set as
+	# if this node sat at the origin, every car spawned after the first re-centre was put down the
+	# whole offset away along its road (into the ocean, or down a road a landmark closes).
+	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + plan.macro.relief_at(pos2), pos2.y)) - position
 	car.rotation.y = _heading(axis, dir)
 	add_child(car)
 	car.traffic_speed = car.traffic.speed
@@ -394,7 +399,7 @@ func _spawn_loop_car(loop_index: int, t: float) -> void:
 	car.traffic = {"loop": loop_index, "t": t, "speed": loop_speed * _rng.randf_range(0.85, 1.1)}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y))
+	car.position = WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y)) - position
 	car.rotation.y = atan2(-dir2.x, -dir2.y)
 	add_child(car)
 	car.traffic_speed = car.traffic.speed

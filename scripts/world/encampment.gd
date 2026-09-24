@@ -103,7 +103,7 @@ const PIECES := {
 ## main piece and the clutter that sits with it.
 const UNITS := [
 	["tent", 30], ["tent_tarp", 12], ["mound", 8], ["cart", 10], ["bed", 11], ["sit", 9],
-	["bags", 8], ["bike", 6], ["parts", 3], ["slump", 3],
+	["bags", 8], ["bike", 6], ["parts", 3], ["slump", 7],
 ]
 
 
@@ -294,6 +294,9 @@ static func _lay_unit(chunk: CityChunk, unit: String, a: Vector2, dir: Vector2, 
 				_place(chunk, "bag_trash", at.call(off + 1.25, 0.35), basis, rng, items, face, camp_id)
 			if rng.randf() < 0.25:
 				_place(chunk, "chair", at.call(off - 1.3, d + 0.2), basis * Basis(Vector3.UP, rng.randf_range(-0.6, 0.6)), rng, items, face, camp_id)
+			elif rng.randf() < 0.14:
+				# Somebody standing folded forward outside their tent.
+				sleepers.append({"pose": RoughSleeper.Pose.SLUMP, "at": at.call(off + 0.9, minf(d + 0.45, back - PATH_KEEP * 0.5)), "yaw": yaw + PI + rng.randf_range(-1.0, 1.0)})
 		"mound":
 			_place(chunk, "tarp_mound", at.call(width * 0.5, 0.95), basis * Basis(Vector3.UP, rng.randf_range(-0.2, 0.2)), rng, items, face, camp_id)
 		"cart":

@@ -55,10 +55,7 @@ func _park(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 		return
 	var ws: Node = _tree.root.get_node("/root/WorldState")
 	var anchor: Vector2 = LandmarkMacArthurPark.SITE.anchor
-	player.global_position = ws.to_local(Vector3(anchor.x, 3.0, anchor.y))
-	player.set("velocity", Vector3.ZERO)
-	city.update_streaming(true)
-	await _t._ticks(4)
+	await _go(city, player, Vector3(anchor.x, 3.0, anchor.y))
 	var fountain: Vector2 = lay.fountain
 	var lake_chunk: Node3D = city.chunks.get(plan.block_index_at(fountain))
 	_t._check(lake_chunk != null and lake_chunk.level == 0 and lake_chunk.get_node_or_null("Lake") != null and lake_chunk.get_node_or_null("LakeBasin") != null,
@@ -76,7 +73,7 @@ func _park(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 	var in_way := ""
 	for k in 8:
 		var probe := fountain + Vector2.from_angle(TAU * k / 8.0) * 10.0
-		var found := _floor_hit(space, ws, probe, ground_body, lake_chunk)
+		var found := _floor_hit(space, ws, probe, ground_body, city)
 		if not found.is_empty():
 			floor_y = found.y
 			in_way += String(found.other)
@@ -173,10 +170,7 @@ func _camps(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 	if pick.x == 999999:
 		return
 	var at: Vector2 = (plan.block(pick.x, pick.y).rect as Rect2).get_center()
-	player.global_position = ws.to_local(Vector3(at.x, 3.0, at.y))
-	player.set("velocity", Vector3.ZERO)
-	city.update_streaming(true)
-	await _t._ticks(3)
+	await _go(city, player, Vector3(at.x, 3.0, at.y))
 	var camp_chunks := 0
 	var items_total := 0
 	var wrong := 0
@@ -262,10 +256,10 @@ func _camps(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 			"a blast throws a camp's pieces as bodies and they stay gone")
 
 
-## The first thing of the lake chunk's own hit straight down at world XZ `at` (the city's ground box
-## excluded, since the lake lets bodies through it): {y, other}, `other` naming whatever else was
-## in the way first. Empty when nothing of the chunk's is there.
-func _floor_hit(space: PhysicsDirectSpaceState3D, ws: Node, at: Vector2, ground_body: Node, chunk: Node) -> Dictionary:
+## The first thing of a detailed chunk's own statics hit straight down at world XZ `at` (the city's
+## ground box excluded, since the lake lets bodies through it): {y, other}, `other` naming whatever
+## else was in the way first. Empty when no detailed chunk has anything there.
+func _floor_hit(space: PhysicsDirectSpaceState3D, ws: Node, at: Vector2, ground_body: Node, city: Node) -> Dictionary:
 	var exclude: Array[RID] = []
 	if ground_body:
 		exclude.append(ground_body.get_rid())
@@ -277,8 +271,27 @@ func _floor_hit(space: PhysicsDirectSpaceState3D, ws: Node, at: Vector2, ground_
 		if hit.is_empty():
 			return {}
 		var col := hit.collider as Node
-		if col and chunk and (col == chunk or col.get_parent() == chunk):
+		var owner_chunk: Node = col.get_parent() if col else null
+		if owner_chunk and owner_chunk.get("level") == 0 and (city.chunks.values() as Array).has(owner_chunk):
 			return {"y": ws.to_world(hit.position).y, "other": other}
 		other += " %s@%.2f" % [str(col.get_path()) if col else "?", ws.to_world(hit.position).y]
 		exclude.append(hit.rid)
 	return {}
+
+
+## Puts the player at a true world position and the city round him, and waits until physics
+## queries see it. The teleport is hundreds of metres, so the origin is re-centred on him first
+## (as the streamer would on the next tick) - and the broadphase lags a moved static body by a
+## couple of steps, so a ray cast straight after hit the relief floors of far chunks where they
+## stood before the shift, three metres over the lake. Idle frames as well as ticks: a far chunk
+## replaced by a detailed one is only freed at the end of a frame, and on a slow box several
+## ticks run inside one frame.
+func _go(city: Node3D, player: Node3D, world: Vector3) -> void:
+	var ws: Node = _tree.root.get_node("/root/WorldState")
+	player.global_position = ws.to_local(world)
+	player.set("velocity", Vector3.ZERO)
+	city.recenter()
+	city.update_streaming(true)
+	await _tree.process_frame
+	await _tree.process_frame
+	await _t._ticks(4)
