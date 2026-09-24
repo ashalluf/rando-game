@@ -399,10 +399,14 @@ func _gable(u0: float, u1: float, v0: float, v1: float, y: float) -> void:
 		var vm := (V0 + V1) * 0.5
 		_roof_plane(Vector2(U0, V1), Vector2(U1, V1), Vector2(U1, vm), Vector2(U0, vm), y, ry, Vector2(0, 1))
 		_roof_plane(Vector2(U1, V0), Vector2(U0, V0), Vector2(U0, vm), Vector2(U1, vm), y, ry, Vector2(0, -1))
-		var wy := y + ((v1 - v0) * 0.5) * PITCH
+		# The gable end runs up from the soffit line to just under the roof: the planes are
+		# EAVE * PITCH higher over the wall than at the eave.
+		var ey := y + EAVE * PITCH
+		var wy := ey + ((v1 - v0) * 0.5) * PITCH
 		for e: Array in [[u0, -1.0], [u1, 1.0]]:
 			var u: float = e[0]
-			_tri("h_wall", W(u, y, v0), W(u, y, v1), W(u, wy, vm), N(Vector2(e[1], 0)), wall_col)
+			_quad("h_wall", W(u, y - 0.2, v0), W(u, y - 0.2, v1), W(u, ey, v1), W(u, ey, v0), N(Vector2(e[1], 0)), wall_col)
+			_tri("h_wall", W(u, ey, v0), W(u, ey, v1), W(u, wy, vm), N(Vector2(e[1], 0)), wall_col)
 			# The underside of the rake.
 			_quad("h_trim", W(u, y, V1), W(u, ry, vm), W(U0 if e[1] < 0.0 else U1, ry, vm), W(U0 if e[1] < 0.0 else U1, y, V1), Vector3.DOWN, trim_col.darkened(0.1))
 			_quad("h_trim", W(u, y, V0), W(u, ry, vm), W(U0 if e[1] < 0.0 else U1, ry, vm), W(U0 if e[1] < 0.0 else U1, y, V0), Vector3.DOWN, trim_col.darkened(0.1))
@@ -412,10 +416,12 @@ func _gable(u0: float, u1: float, v0: float, v1: float, y: float) -> void:
 		var um := (U0 + U1) * 0.5
 		_roof_plane(Vector2(U1, V1), Vector2(U1, V0), Vector2(um, V0), Vector2(um, V1), y, ry, Vector2(1, 0))
 		_roof_plane(Vector2(U0, V0), Vector2(U0, V1), Vector2(um, V1), Vector2(um, V0), y, ry, Vector2(-1, 0))
-		var wy := y + ((u1 - u0) * 0.5) * PITCH
+		var ey := y + EAVE * PITCH
+		var wy := ey + ((u1 - u0) * 0.5) * PITCH
 		for e: Array in [[v0, -1.0], [v1, 1.0]]:
 			var v: float = e[0]
-			_tri("h_wall", W(u0, y, v), W(u1, y, v), W(um, wy, v), N(Vector2(0, e[1])), wall_col)
+			_quad("h_wall", W(u0, y - 0.2, v), W(u1, y - 0.2, v), W(u1, ey, v), W(u0, ey, v), N(Vector2(0, e[1])), wall_col)
+			_tri("h_wall", W(u0, ey, v), W(u1, ey, v), W(um, wy, v), N(Vector2(0, e[1])), wall_col)
 			var vv := V0 if e[1] < 0.0 else V1
 			_quad("h_trim", W(U1, y, v), W(um, ry, v), W(um, ry, vv), W(U1, y, vv), Vector3.DOWN, trim_col.darkened(0.1))
 			_quad("h_trim", W(U0, y, v), W(um, ry, v), W(um, ry, vv), W(U0, y, vv), Vector3.DOWN, trim_col.darkened(0.1))
@@ -428,10 +434,13 @@ func _eaves(u0: float, u1: float, v0: float, v1: float, U0: float, U1: float, V0
 	var fy := y - 0.2
 	var sof := trim_col.darkened(0.12)
 	# Soffit ring, facing down.
-	_quad("h_trim", W(U0, fy, V1), W(U1, fy, V1), W(u1, fy, v1), W(u0, fy, v1), Vector3.DOWN, sof)
-	_quad("h_trim", W(U1, fy, V0), W(U0, fy, V0), W(u0, fy, v0), W(u1, fy, v0), Vector3.DOWN, sof)
-	_quad("h_trim", W(U0, fy, V0), W(U0, fy, V1), W(u0, fy, v1), W(u0, fy, v0), Vector3.DOWN, sof)
-	_quad("h_trim", W(U1, fy, V1), W(U1, fy, V0), W(u1, fy, v0), W(u1, fy, v1), Vector3.DOWN, sof)
+	# (Not under a gable's rake, which is sloped: _gable() lays that.)
+	if not skip_v:
+		_quad("h_trim", W(U0, fy, V1), W(U1, fy, V1), W(u1, fy, v1), W(u0, fy, v1), Vector3.DOWN, sof)
+		_quad("h_trim", W(U1, fy, V0), W(U0, fy, V0), W(u0, fy, v0), W(u1, fy, v0), Vector3.DOWN, sof)
+	if not skip_u:
+		_quad("h_trim", W(U0, fy, V0), W(U0, fy, V1), W(u0, fy, v1), W(u0, fy, v0), Vector3.DOWN, sof)
+		_quad("h_trim", W(U1, fy, V1), W(U1, fy, V0), W(u1, fy, v0), W(u1, fy, v1), Vector3.DOWN, sof)
 	# Fascia, facing out.
 	if not skip_v:
 		_quad("h_trim", W(U0, fy, V1), W(U1, fy, V1), W(U1, y, V1), W(U0, y, V1), N(Vector2(0, 1)), trim_col)
@@ -439,8 +448,6 @@ func _eaves(u0: float, u1: float, v0: float, v1: float, U0: float, U1: float, V0
 	if not skip_u:
 		_quad("h_trim", W(U0, fy, V0), W(U0, fy, V1), W(U0, y, V1), W(U0, y, V0), N(Vector2(-1, 0)), trim_col)
 		_quad("h_trim", W(U1, fy, V1), W(U1, fy, V0), W(U1, y, V0), W(U1, y, V1), N(Vector2(1, 0)), trim_col)
-	# The walls stop under the soffit; close the gap between the wall top and the eave line.
-	_quad("h_wall", W(u0, y - 0.25, v1), W(u1, y - 0.25, v1), W(u1, fy + 0.001, v1), W(u0, fy + 0.001, v1), N(Vector2(0, 1)), wall_col)
 
 
 ## One tiled roof plane from eave edge a-b (at y) up to ridge points c-d (at ry). UV runs along the
@@ -558,7 +565,7 @@ func _block(u0: float, u1: float, v0: float, v1: float, f0: int, f1: int, parape
 	var roofed := parapet <= 0.0
 	if roofed:
 		# Pitched: the walls stop under the soffit (the eave closes the rest).
-		y1 = float(f1) * STOREY - 0.25
+		y1 = float(f1) * STOREY - 0.2
 	var faces := [
 		[Vector2(u0, v1), Vector2(1, 0), Vector2(0, 1), u1 - u0, "front"],
 		[Vector2(u1, v0), Vector2(-1, 0), Vector2(0, -1), u1 - u0, "back"],
