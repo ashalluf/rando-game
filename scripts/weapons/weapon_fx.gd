@@ -1594,6 +1594,11 @@ static func _splat_material(kind: int) -> StandardMaterial3D:
 	var m := StandardMaterial3D.new()
 	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.albedo_texture = tex[0]
+	# The quads only ever draw on the Compatibility renderer, which hands a colour texture back as
+	# its raw sRGB texels (see Pedestrian._texture_value): a dark red of 0.42 arrived as 0.42 where
+	# Forward+ would light 0.15, and the splats measured brighter red than the road (180, 97, 87
+	# against 170, 157, 144). Over this narrow range of dark reds, 0.4 of the texel is the decode.
+	m.albedo_color = Color(0.4, 0.4, 0.4, 1.0)
 	m.normal_enabled = true
 	m.normal_texture = tex[1]
 	m.roughness = 1.0
