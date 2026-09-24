@@ -365,8 +365,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (`scripts/npc/police_officer.gd`, extends Pedestrian, so it is shot, knocked, gibbed and
   ragdolled like anyone; takes `hits_to_down` rounds): an `Avatar` body (so `Avatar.hold_gun`'s
   IK holds its `PoliceGun`), a navy recolour through the character shader
-  (`uniform_material()`) and a peaked cap; COVER at the ends of its cruiser, ENGAGE, SEARCH the
-  area, REBOARD when recalled; its rounds go through `WeaponFX.tracer/flash/impact`. Player
+  (`uniform_material()`, only on the rigs in `OFFICER_MODELS` - k's yellow blazer does not take
+  it) and a peaked cap; COVER at the ends of its cruiser, ENGAGE, SEARCH the area, REBOARD when
+  recalled; it fires only with an open line from the muzzle (`_line_of_fire()`: the first
+  version emptied its gun into the cruiser it hid behind) and steps out sideways when blocked;
+  its rounds go through `WeaponFX.tracer/flash/impact`. A knock-down is pinned on the player a
+  tick late (`Police.knocked_down`), because `Weapon.tick()` knocks the target over before it
+  raises the alarm that says it fired. Player
   health is `PlayerHealth` (`scripts/player/player_health.gd`, `Player.health`,
   `Player.take_damage()`): 250 hp, regen after `regen_delay`, `self_blast_damage` off (rocket
   jumps stay free), and at zero a real-clock slow-motion collapse, the "OUT COLD" card
