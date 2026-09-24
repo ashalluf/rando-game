@@ -229,6 +229,11 @@ func block(ix: int, iz: int) -> Dictionary:
 		kind = BlockKind.MALL
 	elif roll < params.park + params.plaza + mall + bigbox and rect.size.x > 80.0 and rect.size.y > 80.0:
 		kind = BlockKind.BIGBOX
+	# A block a landmark stands on (the arena, city hall...) is that landmark's site: no park,
+	# plaza or mall of its own under it. Overridden AFTER the roll so the block's rng stream, and
+	# with it the block seed and everything built from it, is the same as it always was.
+	if macro and Landmarks.claims(rect):
+		kind = BlockKind.BUILDINGS
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
 	_blocks[key] = result
 	return result
@@ -300,6 +305,10 @@ static func district_name(d: District) -> String:
 func lots(ix: int, iz: int) -> Array[Dictionary]:
 	var b := block(ix, iz)
 	var rect: Rect2 = b.rect
+	# The whole block is a landmark's site (see Landmarks.claims()): nothing else is built on it,
+	# near or far, so the far skyline and the streamed block agree.
+	if macro and Landmarks.claims(rect):
+		return []
 	var params: Dictionary = DISTRICTS[b.district]
 	var rng := _rng_for(11, ix, iz)
 	var inner := rect.grow(-sidewalk_width)

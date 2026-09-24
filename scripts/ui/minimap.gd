@@ -34,12 +34,16 @@ const DISTRICT_COLORS := [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLOR
 
 const LANDMARK_NAMES := {
 	"sign": "Shalluferwood Sign", "hills_sign": "Shallufer Hills", "pier": "Rando Pier", "observatory": "Observatory", "crown_tower": "Crown Tower",
-	"five_drums": "Five Drums", "ziggurat_hall": "Ziggurat Hall", "stack_tower": "The Stack", "needle": "The Needle",
+	"five_drums": "Five Drums", "ziggurat_hall": "City Hall", "stack_tower": "The Stack", "needle": "The Needle",
 	"terminal": "Airport", "hangars": "Hangars", "port": "Port", "campus_hall": "Rando U",
 	"venice_boardwalk": "Venice Boardwalk", "manhattan_pier": "Manhattan Pier",
 	"redondo_pier": "Redondo Pier", "south_bay_mall": "South Bay Mall",
 	"verde_cafe": "Verde Cafe", "masjid_al_noor": "Masjid Al Noor",
 	"twin_glass": "Twin Towers", "cargo_ship": "Container Ship",
+	# Downtown LA civic set (Landmarks.all()); every name invented.
+	"arena": "Rando Arena", "live_plaza": "Starlight Plaza", "live_hotel": "Hotel Altair",
+	"convention_center": "Convention Center", "civic_park": "Civic Park",
+	"concert_hall": "Symphony Hall", "lattice_museum": "The Lattice", "pueblo_station": "Pueblo Station",
 }
 
 var _yaw: float = 0.0
