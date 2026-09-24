@@ -1599,6 +1599,11 @@ static func _splat_material(kind: int) -> StandardMaterial3D:
 	m.roughness = 1.0
 	m.roughness_texture = tex[2]
 	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
+	# A dark wet film, but not a mirror for the sky: the quad path has no screen-space
+	# reflections to put the street in it, only the sky.
+	m.metallic_specular = 0.3
+	# Seen at a grazing angle from across the street; plain mipmapping blurs a splat to nothing.
+	m.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS_ANISOTROPIC
 	_splat_mats[kind] = m
 	return m
 
@@ -1775,7 +1780,7 @@ static func _lobed(f: PackedFloat32Array, w: int, h: int, cx: float, cy: float, 
 static func _paint_drop(f: PackedFloat32Array, w: int, h: int, rng: RandomNumberGenerator) -> void:
 	var cx := w * 0.5
 	var cy := h * 0.5
-	var r := w * 0.19
+	var r := w * 0.23
 	_lobed(f, w, h, cx, cy, r, 0.16, 5, rng)
 	for i in 16:
 		var a := rng.randf() * TAU
@@ -1785,7 +1790,7 @@ static func _paint_drop(f: PackedFloat32Array, w: int, h: int, rng: RandomNumber
 		_blob(f, w, h, at.x, at.y, length * 0.5, r * rng.randf_range(0.06, 0.12), a, 0.8)
 	for i in 26:
 		var a := rng.randf_range(-1.1, 1.1) if rng.randf() < 0.65 else rng.randf() * TAU
-		var at := Vector2(cx, cy) + Vector2(cos(a), sin(a)) * r * rng.randf_range(1.3, 2.4)
+		var at := Vector2(cx, cy) + Vector2(cos(a), sin(a)) * r * rng.randf_range(1.25, 2.0)
 		if at.x < 3.0 or at.x > w - 3.0 or at.y < 3.0 or at.y > h - 3.0:
 			continue
 		var s := r * rng.randf_range(0.03, 0.11)
@@ -1888,15 +1893,45 @@ static func _shade_blood(f: PackedFloat32Array, w: int, h: int, rng: RandomNumbe
 			# OpenGL-style map (green up): the image's rows run down, so the Y slope flips.
 			var nv := Vector3(-dx, dy, 1.0).normalized()
 			nrm.set_pixel(x, y, Color(nv.x * 0.5 + 0.5, nv.y * 0.5 + 0.5, nv.z * 0.5 + 0.5, 1.0))
-			# Wet, not a mirror: at 0.05 the thick middles reflected the sky at any grazing angle
-			# and a splat ten metres off read as a pale pink smudge instead of blood.
-			var rough := lerpf(0.42, 0.2, body) + 0.06 * n
+			# Wet, not a mirror: at 0.05, and still at 0.2, the thick middles reflected the sky at
+			# any grazing angle and a splat ten metres off measured BRIGHTER than the road under it.
+			var rough := lerpf(0.5, 0.3, body) + 0.06 * n
 			orm.set_pixel(x, y, Color(1.0, clampf(rough, 0.03, 1.0), 0.0, 1.0))
 	var out: Array = []
-	for img: Image in [alb, nrm, orm]:
+	out.append(ImageTexture.create_from_image(_coverage_mips(alb)))
+	for img: Image in [nrm, orm]:
 		img.generate_mipmaps()
 		out.append(ImageTexture.create_from_image(img))
 	return out
+
+
+## Mipmaps that keep a mark's coverage. Plain mips average a small splash's alpha with the
+## empty texture round it, so ten metres off - a few mip levels down - a splat was a faint
+## translucent smear and the road showed through. Each level is the one above halved (a box
+## filter; resizing the full image straight down point-samples it) and stored with its alpha
+## lifted the further down it is, the usual fix for cut-out textures.
+static func _coverage_mips(img: Image) -> Image:
+	var w := img.get_width()
+	var h := img.get_height()
+	var data := img.get_data()
+	var level := 0
+	var prev := img
+	while w > 1 or h > 1:
+		w = maxi(1, w >> 1)
+		h = maxi(1, h >> 1)
+		level += 1
+		var half := prev.duplicate() as Image
+		half.resize(w, h, Image.INTERPOLATE_BILINEAR)
+		prev = half
+		var m := half.duplicate() as Image
+		var lift := 1.0 + 0.45 * float(level)
+		for y in h:
+			for x in w:
+				var c := m.get_pixel(x, y)
+				c.a = minf(c.a * lift, 1.0)
+				m.set_pixel(x, y, c)
+		data.append_array(m.get_data())
+	return Image.create_from_data(img.get_width(), img.get_height(), true, Image.FORMAT_RGBA8, data)
 
 
 static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0) -> void:
