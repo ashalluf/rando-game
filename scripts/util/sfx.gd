@@ -81,6 +81,8 @@ const SAMPLES := {
 		"yelp_6.ogg"],
 	"gore": ["gore_0.ogg", "gore_1.ogg", "gore_2.ogg", "gore_3.ogg", "gore_4.ogg", "gore_5.ogg",
 		"gore_6.ogg"],
+	# A real police wail recorded in the street (public domain): one cycle, looped.
+	"siren": ["siren_0.ogg"],
 }
 
 ## Loudest-50 ms level of every take above, in dB, in the same order, measured off the committed
@@ -110,6 +112,7 @@ const SAMPLE_LOUDNESS_DB := {
 		-13.95, -13.96],
 	"yelp": [-13.93, -13.96, -13.96, -14.10, -14.21, -14.11, -14.01],
 	"gore": [-11.97, -13.00, -13.86, -12.48, -14.75, -12.11, -11.95],
+	"siren": [-7.74],
 }
 
 ## Sample names that have to loop. Set on the stream in code rather than in the .import file, so

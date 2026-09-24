@@ -186,7 +186,7 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
-  Sound is **real CC0 recordings** (`assets/audio/`, 62 clips, sources in `docs/ASSETS.md`) with
+  Sound is **real CC0 recordings** (`assets/audio/`, 63 clips - the siren is public domain - sources in `docs/ASSETS.md`) with
   the old synthesis kept as the fallback: `_build_synth()` fills every name first and
   `_load_samples()` replaces only the names whose files load, so a missing or unimported file
   degrades to a tone rather than to silence. A name holds several takes and `play()` picks one at
@@ -361,7 +361,7 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (`Police.deploy_crew`). Pooling strips the wheels BEFORE it re-freezes the body (a frozen
   VehicleBody3D with wheels is NaN). Livery is `car_paint.gdshader` `stripe_mode` 5 (white doors
   and roof over black), the light bar one vertex-coloured mesh on `shaders/police_lights.gdshader`
-  plus an OmniLight3D at night (desktop), the siren the Sfx `siren` loop. `PoliceOfficer`
+  plus an OmniLight3D at night (desktop), the siren the Sfx `siren` loop (a real recorded wail). `PoliceOfficer`
   (`scripts/npc/police_officer.gd`, extends Pedestrian, so it is shot, knocked, gibbed and
   ragdolled like anyone; takes `hits_to_down` rounds): an `Avatar` body (so `Avatar.hold_gun`'s
   IK holds its `PoliceGun`), a navy recolour through the character shader

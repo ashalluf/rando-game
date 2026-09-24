@@ -272,7 +272,8 @@ already mapped so milestone 2 is script-only.
   units that fall far behind are recalled and replaced. The player finally has health (250,
   quick regen); going down is a slow-motion crumple, an "OUT COLD" card on greyed glass, and a
   respawn at the nearest street corner at least 60 m away with the stars gone. No "WASTED" or
-  "BUSTED", no copied UI: the stars and the health bar are the weapon wheel's frosted glass. Your
+  "BUSTED", no copied UI: the stars and the health bar are the weapon wheel's frosted glass, and
+  the siren is a real wail recorded in a street (public domain), looped. Your
   own rockets do not hurt you (`PlayerHealth.self_blast_damage`, off) - rocket jumps are how the
   game moves. The helicopter is another branch's; it reads `stars` off the "wanted" node and can
   call `report_sighting()`.
