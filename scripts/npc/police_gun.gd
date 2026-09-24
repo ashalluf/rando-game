@@ -22,6 +22,8 @@ func _init() -> void:
 
 
 func _ready() -> void:
+	# Square to the target (the grips below were set on a square chest): no bladed stance.
+	hold_twist = Vector2.ZERO
 	if carbine:
 		display_name = "Carbine"
 		# The AK's grips and carry suit a carbine of the same size; only the pistol needs its own.

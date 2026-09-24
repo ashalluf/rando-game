@@ -40,10 +40,25 @@ func _init() -> void:
 	automatic = true
 	kick_distance = 0.08
 	camera_kick_deg = 0.35
-	# The hands on the modelled rifle: the right wrist just behind the raked bakelite grip, the
-	# left under the rear of the lower handguard, palm up (as far forward as these arms reach).
-	grip_right = Vector3(0.025, -0.06, 0.10)
-	grip_left = Vector3(-0.03, -0.075, -0.26)
+	# The hands on the modelled rifle, fitted to the hero by tools/grip_fit.gd: the right hand
+	# round the raked bakelite grip with the index on the trigger, the left under the rear of
+	# the lower handguard, palm up; the chest turned into the gun so the left arm reaches.
+	grip_right = Vector3(0.010, -0.096, 0.142)
+	grip_right_fingers = Vector3(0.150, -0.300, -1.625)
+	grip_right_palm = Vector3(0.012, 1.800, -0.075)
+	grip_left = Vector3(-0.042, -0.051, -0.284)
+	grip_left_fingers = Vector3(0.700, 0.200, -0.550)
+	grip_left_palm = Vector3(-0.675, 1.600, 0.000)
+	curl_right = Vector3(62, 58, 89)
+	curl_trigger = Vector3(2, 66, 12)
+	curl_thumb = Vector3(19, 3, 12)
+	curl_left = Vector3(56, 52, 47)
+	curl_left_thumb = Vector3(31, 61, 20)
+	thumb_wrap = Vector2(-8, 0)
+	hold_twist = Vector2(12, 54)
+	hold_aim = Vector3(0.031, -0.056, -0.390)
+	hold_hip = Vector3(-0.156, -0.096, -0.188)
+	hold_hip_rot = Vector3(-24.0, 24.0, 3.0)
 
 
 func _build_model() -> void:

@@ -33,15 +33,24 @@ func _init() -> void:
 	kick_distance = 0.3
 	camera_kick_deg = 2.5
 	# Shoulder-fired: the rear heat shield rests on top of the shoulder, the venturi sticking out
-	# behind. The right wrist sits behind the trigger grip, the left behind the vertical fore
-	# grip with the palm turned in against it.
-	grip_right = Vector3(0.025, -0.035, 0.065)
-	grip_left = Vector3(-0.02, -0.03, -0.18)
-	grip_left_fingers = Vector3(0.25, -0.3, -0.9)
-	grip_left_palm = Vector3(1.0, 0.0, 0.0)
-	hold_hip = Vector3(-0.08, -0.26, -0.22)
-	hold_aim = Vector3(-0.06, 0.03, -0.16)
-	hold_hip_rot = Vector3(-15.0, 15.0, 0.0)
+	# behind. The right hand round the trigger grip, the left round the vertical fore grip with
+	# the palm turned in against it (fitted to the hero by tools/grip_fit.gd).
+	grip_right = Vector3(0.026, -0.023, 0.089)
+	grip_right_fingers = Vector3(-0.150, -0.338, -1.025)
+	grip_right_palm = Vector3(0.200, 1.650, -1.350)
+	grip_left = Vector3(-0.026, 0.006, -0.168)
+	grip_left_fingers = Vector3(-0.350, 0.450, -1.650)
+	grip_left_palm = Vector3(1.750, 0.300, 0.469)
+	curl_right = Vector3(54, 70, 77)
+	curl_trigger = Vector3(22, 78, 44)
+	curl_thumb = Vector3(39, 0, 20)
+	curl_left = Vector3(78, 30, 59)
+	curl_left_thumb = Vector3(54, 0, 20)
+	thumb_wrap = Vector2(0, 32)
+	hold_twist = Vector2(27, 38)
+	hold_aim = Vector3(-0.060, -0.006, -0.160)
+	hold_hip = Vector3(-0.158, -0.224, -0.196)
+	hold_hip_rot = Vector3(-11.0, 11.0, 4.0)
 
 
 func _build_model() -> void:

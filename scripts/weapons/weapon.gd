@@ -46,6 +46,21 @@ extends Node3D
 ## The carry angle at the hip (degrees: muzzle down, then across the body to the left) - low
 ## ready. Raised to aim the gun turns straight along the camera.
 @export var hold_hip_rot: Vector3 = Vector3(-24.0, 20.0, 0.0)
+## How far the hero's chest turns toward the gun side behind it, at the hip and aimed
+## (degrees; AimTwist): the bladed stance that brings the support hand within reach.
+@export var hold_twist: Vector2 = Vector2(12.0, 30.0)
+## How far each finger joint closes round this gun (knuckle, middle, tip; degrees), for a rig
+## with finger bones (the hero): the right hand's middle, ring and little fingers round the
+## pistol grip, its index on the trigger, its thumb; the left hand's fingers and thumb round
+## what it holds. Fitted per gun by tools/grip_fit.gd.
+@export var curl_right: Vector3 = Vector3(62.0, 78.0, 45.0)
+@export var curl_trigger: Vector3 = Vector3(22.0, 38.0, 20.0)
+@export var curl_thumb: Vector3 = Vector3(15.0, 25.0, 20.0)
+@export var curl_left: Vector3 = Vector3(62.0, 78.0, 45.0)
+@export var curl_left_thumb: Vector3 = Vector3(15.0, 25.0, 20.0)
+## How far the right and left thumbs roll across the grip at their base (degrees; the
+## opposition that wraps a thumb round the far side, which curling alone cannot do).
+@export var thumb_wrap: Vector2 = Vector2.ZERO
 
 var player: Player
 ## Where shots and effects start. Set by _build_model().
