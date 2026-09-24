@@ -1475,7 +1475,7 @@ func _test_weapons(player: Player) -> void:
 	await _press("weapon_2")
 	_check(manager.current is RocketLauncher, "weapon_2 selects the rocket launcher")
 	await _press("weapon_3")
-	_check(manager.current is GravityGun, "weapon_3 selects the gravity gun")
+	_check(manager.current is Shotgun, "weapon_3 selects the shotgun")
 	await _press("next_weapon")
 	_check(manager.current is AssaultRifle, "next_weapon wraps around to the AK-47")
 
@@ -1571,30 +1571,33 @@ func _test_weapons(player: Player) -> void:
 	_check(fx_after.particles - fx_before.particles >= 4, "an explosion has layered particles (%d systems)" % (fx_after.particles - fx_before.particles))
 	_check(player.camera_rig._shake > 0.0, "a nearby explosion shakes the camera")
 
-	# Gravity gun: grab a crate, hold it up, launch it.
+	# Shotgun (owner, 2026-09-24: "lose the gravity gun, give us a shotgun"): one blast of pellets
+	# throws a crate, then the pump strokes back and home and a spent shell flies out.
 	await _press("weapon_3")
-	var gun := manager.current as GravityGun
+	var gun := manager.current as Shotgun
+	_check(gun != null and gun.lock_on, "weapon_3 is the shotgun, and it takes GTA-style aim")
 	var crate := _nearest_crate(Vector3(-14.0, 1.0, 0.0))
 	if crate and gun:
-		player.global_position = crate.global_position + Vector3(6.0, 0.6, 0.0)
+		player.global_position = crate.global_position + Vector3(5.0, 0.6, 0.0)
 		player.velocity = Vector3.ZERO
 		await _ticks(5)
 		player.camera_rig.look_at_point(crate.global_position)
 		await _ticks(2)
+		var crate_at := crate.global_position
+		var shells_before := get_tree().get_nodes_in_group("spent_shell").size()
 		await _press("fire")
-		_check(gun.is_holding(), "gravity gun grabs a crate")
-		player.camera_rig.look_at_point(player.global_position + Vector3(-10.0, 1.6, 0.0))
-		await _ticks(60)
-		var hold_dist := crate.global_position.distance_to(player.global_position)
-		_check(gun.is_holding() and hold_dist < gun.hold_distance + 3.0 and crate.global_position.y > 1.0,
-			"held crate floats near the player (%.1f m away, %.1f m up)" % [hold_dist, crate.global_position.y])
-		# Aim up into open sky so the launched crate cannot hit anything before we measure.
-		player.camera_rig.look_at_point(player.global_position + Vector3(0.0, 30.0, -10.0))
-		await _ticks(20)
-		await _press("fire")
-		await _ticks(2)
-		_check(not gun.is_holding() and crate.linear_velocity.length() > gun.launch_speed * 0.6,
-			"gravity gun launches the crate at %.1f m/s" % crate.linear_velocity.length())
+		var pumped := 0.0
+		for i in 40:
+			await _ticks(1)
+			pumped = maxf(pumped, gun.pump_amount())
+		_check(pumped > 0.9, "the pump strokes back after the shot (%.2f of its travel)" % pumped)
+		_check(gun.pump_amount() == 0.0, "and slides home again")
+		_check(get_tree().get_nodes_in_group("spent_shell").size() > shells_before, "the pump throws a spent shell")
+		var shoved := crate.global_position.distance_to(crate_at)
+		_check(shoved > 0.3, "one shotgun blast throws a crate (%.2f m)" % shoved)
+		# Every pellet goes down the rifle's hit path: a prop hit straight on gets the impulse.
+		var hit: Dictionary = gun.fire_pellet(player.camera_rig.global_position, (crate.global_position - player.camera_rig.global_position).normalized())
+		_check(not hit.is_empty() and hit.collider == crate, "a single pellet hits the crate it is aimed at")
 
 
 ## Counts the explosion effect nodes currently alive in the scene.

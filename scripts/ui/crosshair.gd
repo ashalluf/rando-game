@@ -1,9 +1,8 @@
 extends Control
-## Simple ring-and-dot crosshair. Turns cyan while the gravity gun holds something, and red with
-## brackets round the target while GTA-style aim holds a lock (Player.lock_on).
+## Simple ring-and-dot crosshair. Turns red with brackets round the target while GTA-style aim
+## holds a lock (Player.lock_on).
 
 @export var color: Color = Color(1, 1, 1, 0.9)
-@export var hold_color: Color = Color(0.3, 0.9, 1.0, 1.0)
 @export var lock_color: Color = Color(1.0, 0.22, 0.18, 1.0)
 @export var radius: float = 7.0
 ## Bracket size round a locked target: this many pixels at 1 m, clamped to the range below.
@@ -22,9 +21,6 @@ func _process(_delta: float) -> void:
 
 func _draw() -> void:
 	var c := color
-	if _player and _player.weapon_manager and _player.weapon_manager.current is GravityGun:
-		if (_player.weapon_manager.current as GravityGun).is_holding():
-			c = hold_color
 	var lock: LockOn = _player.lock_on if _player else null
 	if lock and lock.aiming:
 		# Red once something is locked.

@@ -13,7 +13,8 @@ Build in this order, one milestone per PR or a few PRs.
   large flat ground, ramps, tall boxes of varied heights, and a pile of RigidBody3D crates.
 - [x] **2. Guns.** Weapon system with instant switching and unlimited ammo. Start with three: a
   hitscan rifle that shoves physics objects, a rocket launcher with an explosion that applies radial
-  impulse, and a gravity gun that grabs and launches objects. Simple crosshair HUD.
+  impulse, and a gravity gun that grabs and launches objects. Simple crosshair HUD. (The gravity
+  gun gave way to a pump shotgun on 2026-09-24, and all three are real Blender-made models now.)
 - [x] **3. Building shader.** A single shader that makes a plain box look like a building:
   parameters for window style, window tint, facade finish and color, floor height, and randomly lit
   windows. A `Building` scene that takes a seed and picks a shape style, dimensions, shader
@@ -229,11 +230,13 @@ city block of ten buildings 125 m in front of spawn.
 Milestone 2 recap: Weapons live in `scripts/weapons/`: `Weapon` base class,
 `AssaultRifle` (AK-47, full-auto hitscan, shoves what it hits), `RocketLauncher` (spawns `Rocket`,
 `Explosion.blast` applies a radial velocity change to props and launches the player for rocket
-jumps), `GravityGun` (grab, float at chest height, hurl). `WeaponManager` sits on the player's hand
+jumps), `Shotgun` (nine pellets, a pump stroke that throws a spent shell; it replaced the old
+`GravityGun` on 2026-09-24). `WeaponManager` sits on the player's hand
 (`Visual/WeaponMount`), builds all three from code, switches with 1/2/3, scroll, RB or a tap of
 LB, or the weapon wheel (hold Tab or LB; added 2026-09-24).
 `WeaponFX` makes tracers, flashes, impacts and explosions from unshaded primitives. The HUD shows
-the weapon list and a ring crosshair that turns cyan while holding something.
+the weapon list and a ring crosshair. The guns themselves are `.glb` models from
+`tools/make_weapons.py` (see the decisions log, 2026-09-24).
 
 Boost replaced sprint: hold Shift (gamepad B) for unlimited thrust up to 45 m/s on the ground; in
 the air it follows the camera pitch with gravity cut to a quarter, so looking up and boosting flies.
@@ -250,6 +253,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 The guns are real models, made in Blender by script (owner: "What are these
+  horrible assets ... it's looking like GTA San Andreas and I need it to look like RDR2").**
+  `tools/make_weapons.py` builds each gun from real dimensions in millimetres, bevels every part
+  with weighted normals, unwraps it and bakes 1K colour / metal-rough / normal maps from
+  procedural finishes through a baked edge and occlusion mask - steel worn bright on its edges,
+  oiled wood with CC0 grain, chipped olive paint. AK-47 15.1k triangles, rocket launcher 11.9k,
+  shotgun 8.2k, Godot's generated LODs below that. The box models stay in the scripts only as a
+  fallback for a missing file. The hands were re-set on the new grips (`grip_*`, `hold_*` per gun).
+- **2026-09-24 A pump shotgun replaces the gravity gun (owner: "Lose the gravity gun, give us a
+  shotgun").** Slot 3. Nine pellets in a 4.5-degree cone down the rifle's hit path, a person hit
+  by several is thrown once by all of them (with `WeaponFX.blood()`), a heavy flash and camera
+  shake, then the forend strokes back and home, throwing a spent shell out of the port as debris,
+  and the left hand rides it. It takes GTA-style aim like the other two. Real CC0 recordings of
+  three different pump guns, and a real rack for the pump.
 - **2026-09-24 A GTA-style weapon wheel in frosted glass (owner: "hold whatever button and it
   slows everything n lets u switch but i want the UI to look like apple glass style").** Hold
   Tab (or the pad's left bumper; a quick tap of it still steps back one gun): time eases to a
@@ -1350,6 +1367,8 @@ already mapped so milestone 2 is script-only.
   speed off gently (`boost_bleed_off`) instead of braking.
 - **2026-09-19 Weapons are built in code, no weapon scenes.** Each weapon's model is a few boxes and
   cylinders in `_build_model()`. Adding a weapon = one script, then append it in `WeaponManager`.
+  (Superseded for the models on 2026-09-24: they are generated `.glb` files now; the scripts
+  still hold everything else.)
 - **2026-09-19 Aim ray starts at the head pivot**, not the camera, so a wall behind the camera can
   never eat a shot. Shots and tracers still originate at the muzzle.
 - **2026-09-19 The body faces the camera for 1.5 s after firing or while holding something**, and

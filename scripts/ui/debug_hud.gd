@@ -32,10 +32,10 @@ func _ready() -> void:
 		mode = Mode.FULL
 	_apply_mode()
 	hints.text += "WASD move   Shift boost (hold; in the air it follows where you look)   Space jump (again in air)   Mouse look   E get in / out of a car\n" \
-		+ "Left click fire   Right click drop (gravity gun)   1 / 2 / 3 or scroll to switch weapons   hold Tab weapon wheel   R respawn   Esc pause / seed   F1 hide   F11 fullscreen\n" \
+		+ "Left click fire   Right click aim / lock on   1 / 2 / 3 or scroll to switch weapons   hold Tab weapon wheel   R respawn   Esc pause / seed   F1 hide   F11 fullscreen\n" \
 		+ "Driving: W / S gas and brake   A / D steer   Shift nitro   Space jump   right click handbrake   in the air W / S flip, A / D roll\n" \
 		+ "Flying (jets at the airport): Shift throttle up   right click throttle down   S pull up, W nose down   A / D roll   S on the ground brakes\n" \
-		+ "Gamepad: left stick move   B boost   A jump   Y car   right stick look   RT fire   LT drop   LB tap previous / hold wheel   RB next   Back respawn"
+		+ "Gamepad: left stick move   B boost   A jump   Y car   right stick look   RT fire   LT aim   LB tap previous / hold wheel   RB next   Back respawn"
 
 
 func _unhandled_input(event: InputEvent) -> void:
