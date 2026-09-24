@@ -123,7 +123,20 @@ if "skin" not in SKIP:
     beard = np.clip(beard, 0, 1)
     az = azimuth(Pc)
     hz = hairline_z(az)
-    hair = ss(-0.002, 0.007, z - hz) * (z > ear_c[2] - 0.1) * (1 - ears)
+    # The painted scalp fades in over a distance measured ON the head, from the hairline drawn as
+    # a band of texels: a fade in height alone is 9 mm wide where the hairline runs level and a
+    # razor edge at the temples and sideburns, where it runs nearly vertical (a hard vertical
+    # line of dark paint beside the eye). A little noise breaks the edge like a real hairline.
+    band = head & (np.abs(z - hz) < 0.0015) & (z > ear_c[2] - 0.1)
+    if band.any():
+        from scipy.spatial import cKDTree
+        dist, _ = cKDTree(Pc[band]).query(Pc, k=1, distance_upper_bound=0.05)
+        dist = np.where(np.isfinite(dist), dist, 0.05)
+        jag = np.sin(Pc[:, 0] * 2300.0) * np.sin(Pc[:, 2] * 1900.0 + Pc[:, 1] * 1700.0)
+        sd = np.sign(z - hz) * dist + 0.0015 * jag
+    else:
+        sd = z - hz
+    hair = ss(-0.003, 0.009, sd) * (z > ear_c[2] - 0.1) * (1 - ears)
     d_eye = np.minimum(np.linalg.norm(Pc - eye_l, axis=1), np.linalg.norm(Pc - eye_r, axis=1))
     socket = np.exp(-((d_eye - 0.012) / 0.010) ** 2) * head
     forehead = ss(eye_z + 0.018, eye_z + 0.03, z) * (1 - ss(hz - 0.012, hz, z)) * (ax < 0.055) * front

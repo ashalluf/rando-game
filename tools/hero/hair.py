@@ -159,6 +159,11 @@ def grow(root, length, rise, h0, step=0.007):
     wob = rng.normal() * 0.25
     while s <= length + 1e-6:
         loc, n = surface(p)
+        # a tapered nape: at the back no strand runs more than nape_below past the hairline
+        # (combed down from the crown, the back layer hung 5 cm onto the neck like a mullet)
+        a_ = abs(azimuth(loc))
+        if len(pts) >= 3 and a_ > 95 and loc[2] < hairline_z(a_) - HC.get("nape_below", 0.008):
+            break
         h = h0 + rise * (s / max(length, 1e-3)) ** 0.8
         pts.append(Vector(loc) + n * h)
         nrs.append(n)

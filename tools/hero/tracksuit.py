@@ -982,6 +982,68 @@ for o in (slider,):
 for o in bands + pipes + [zipper, slider, tank_o, tank_bind]:
     add_weights_from_body(o)
 
+
+def off_the_head(o, keep_neck):
+    """A collar does not turn with the head. Weights from the nearest skin gave the collar's top
+    the neck's, and some of the head's, so the idle - which looks round 60 degrees each way -
+    wrung it into shards against the jacket it stands on. The head's share and most of the
+    neck's go to the top of the spine instead."""
+    chest = o.vertex_groups[P + "Spine2"]
+    neck = o.vertex_groups.get(P + "Neck")
+    head = o.vertex_groups.get(P + "Head")
+    moved = 0
+    for v in o.data.vertices:
+        wn = wh = 0.0
+        for g in v.groups:
+            if neck is not None and g.group == neck.index:
+                wn = g.weight
+            if head is not None and g.group == head.index:
+                wh = g.weight
+        move = wn * (1.0 - keep_neck) + wh
+        if move <= 1e-4:
+            continue
+        if neck is not None and wn > 0:
+            neck.add([v.index], wn * keep_neck, 'REPLACE')
+        if head is not None and wh > 0:
+            head.remove([v.index])
+        chest.add([v.index], move, 'ADD')
+        moved += 1
+    return moved
+
+
+def smooth_weights(o, iters=3):
+    """Blur every weight over the mesh's own edges: weights taken from different skin faces
+    either side of a 2 mm edge put the tank's binding and the collar's lip in two places at once
+    (edges nine times their length in the idle)."""
+    bmx = bmesh.new()
+    bmx.from_mesh(o.data)
+    dl = bmx.verts.layers.deform.active
+    if dl is None:
+        bmx.free()
+        return
+    bmx.verts.ensure_lookup_table()
+    gids = sorted({g for v in bmx.verts for g in v[dl].keys()})
+    W = np.array([[v[dl].get(g, 0.0) for g in gids] for v in bmx.verts])
+    nb = [[e.other_vert(v).index for e in v.link_edges] for v in bmx.verts]
+    for _ in range(iters):
+        W = np.array([0.5 * W[i] + 0.5 * W[n].mean(0) if n else W[i] for i, n in enumerate(nb)])
+    W /= np.maximum(W.sum(1, keepdims=True), 1e-6)
+    for i, v in enumerate(bmx.verts):
+        for k, g in enumerate(gids):
+            if W[i, k] > 1e-4:
+                v[dl][g] = float(W[i, k])
+            elif g in v[dl]:
+                del v[dl][g]
+    bmx.to_mesh(o.data)
+    bmx.free()
+
+
+collar_o = [b for b in bands if "ts_collar" in b.name or "ts_cuff_v" in b.name]
+print("TS weights off the head:", {o.name: off_the_head(o, 0.2) for o in collar_o + [tank_o, tank_bind]},
+      "garment", off_the_head(garment, 0.35))
+for o in collar_o + [tank_o, tank_bind, zipper]:
+    smooth_weights(o)
+
 # ---- hide the body under the garments, one ring inside every edge ---------------------------------------
 covered = (cover == "jacket") | (cover == "pants")
 vcount = np.zeros(NV)

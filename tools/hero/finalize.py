@@ -253,6 +253,31 @@ hero.name = "hero_mesh"
 hero.data.name = "hero_mesh"
 for p in hero.data.polygons:
     p.use_smooth = True
+# ---- 5b. the twin stays inside what it stands for ------------------------------------------------
+# A decimated shell wanders both sides of the surface it was made from (and the cage it was made
+# from stands proud of the subdivided skin), and wherever it pokes out it throws its own facets
+# across the real cloth as jagged black patches. Every twin vertex that is outside the final
+# surface, or within shadow_inset of it, is put shadow_inset under it.
+from mathutils.bvhtree import BVHTree  # noqa: E402
+dg = bpy.context.evaluated_depsgraph_get()
+eh = hero.evaluated_get(dg)
+hm = eh.to_mesh()
+skip = {i for i, s in enumerate(hero.material_slots) if s.material and s.material.name in
+        ("hero_hair", "hero_eyes", "hero_lashes", "hero_brows", "hero_crystal")}
+hv = [eh.matrix_world @ v.co for v in hm.vertices]
+bvh_h = BVHTree.FromPolygons(hv, [tuple(p.vertices) for p in hm.polygons if p.material_index not in skip])
+eh.to_mesh_clear()
+inset = FIN.get("shadow_inset", 0.006)
+tw, twi = twin.matrix_world, twin.matrix_world.inverted()
+pulled = 0
+for v in twin.data.vertices:
+    w = tw @ v.co
+    loc, nrm, _, _ = bvh_h.find_nearest(w)
+    if loc is not None and (w - loc).dot(nrm) > -inset:
+        v.co = twi @ (loc - nrm * inset)
+        pulled += 1
+print("REPORT shadow twin: %d of %d vertices pulled %.0f mm under the surface" % (pulled, len(twin.data.vertices), inset * 1000))
+
 bone_names = {b.name for b in arm.data.bones}
 for o in (hero, twin):
     for g in list(o.vertex_groups):

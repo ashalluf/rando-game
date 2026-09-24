@@ -1258,6 +1258,13 @@ What changed, in the order the brief listed it:
   Square shoulders: bound with the arms 62 degrees down instead of MakeHuman's A-pose
   (`rest_pose` in the config) and the shoulder weights blurred. Hair is new (grown cards, not the
   `short04` helmet); the skin is re-tinted and gets a stubble mask; the shoes have laces.
+  The first in-game stills of the new model showed three more, none of them modelling: the
+  collar tore into shards whenever the idle turned the head (it had the neck's weights: now
+  `off_the_head()`), black jagged patches on the back (the decimated shadow twin standing proud
+  of the cloth: now pulled 6 mm under it), and a razor-straight edge of painted scalp at the
+  temples (a height fade on a vertical hairline: now a fade over distance on the head). The nape
+  hair also hung 5 cm onto the neck; strands now stop `nape_below` past the hairline.
+  `render.py` hides the twin (in Cycles it is drawn and shows through as white patches).
 - **Game shaders.** `HeroLook` puts the skin, hair and tracksuit on `shaders/hero_*.gdshader`
   with the `hero_x_*` maps (pores and stubble tiling on the face, T-zone oil, SSS on Forward+;
   anisotropic hair with dithered cut-out; velour pile and sheen, and rest / bent fold maps mixed
@@ -1279,7 +1286,7 @@ What changed, in the order the brief listed it:
   handguard / pump / fore grip, butts within 1 cm of their seats (the launcher 2.5 cm), both
   wrists on their targets aimed and at the hip, standing, walking and running (the hip carry
   and the shotgun keep 5 cm of arm spare for the walk's bob).
-- **Performance.** One skinned mesh, 15 surfaces, 120.6k triangles at LOD0 (Godot generates the
+- **Performance.** One skinned mesh, 15 surfaces, 120.1k triangles at LOD0 (Godot generates the
   LODs), and a 9k-triangle shadow twin: the body itself casts no shadow.
 - **Cycles previews that match the game**: `tools/hero/render.py --hero` rebuilds the hero
   shaders in nodes, `--pose` takes a `grip_fit.gd POSE_OUT` dump and imports the gun where the
@@ -1288,7 +1295,7 @@ What changed, in the order the brief listed it:
 Known gaps: the right thumbs still stop 2-3 cm short of the far side of the grip; nothing on
 the hero has been seen on the owner's Mac; the idle's hip turn now shows as the legs pivoting
 under a still chest while a gun is held, which reads as shifting weight but has not been judged
-in motion; the skin is 60.8k of the 120.6k triangles (face, hands, neck at one subdivision)
+in motion; the skin is 60.8k of the 120.1k triangles (face, hands, neck at one subdivision)
 and could lose a third without showing. Texture memory: about 31 MB VRAM for the hero's 24
 textures (S3TC with mips).
 

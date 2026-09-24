@@ -18,6 +18,10 @@ if glb:
     for o in list(bpy.data.objects):
         if o.type == 'MESH' and o.name.startswith("Icosphere"):
             bpy.data.objects.remove(o)
+        elif o.type == 'MESH' and o.name.startswith("hero_shadow"):
+            # the shadow twin only casts in the game (SHADOWS_ONLY); drawn, it shows through
+            # the cloth as white patches
+            o.hide_render = True
 scene = bpy.context.scene
 if "--nylon" in argv:
     # the same suit in shiny black nylon: soft specular instead of the velour sheen

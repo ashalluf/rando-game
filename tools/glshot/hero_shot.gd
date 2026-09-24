@@ -13,7 +13,8 @@ extends SceneTree
 ## fires a slow rocket so it is in frame just past the muzzle. WEAPON=-1 puts the gun away (arms on
 ## the clip); CLIP=Idle|Casual_Walk_inplace|run_fast_3_inplace with SEEK (seconds) freezes a clip
 ## frame. The light is the city's grade (AgX, the look LUT, sky ambient, a shadowed sun at
-## SUN_PITCH / SUN_YAW); FLAT=1 is the old flat-lit room. Run it with --rendering-driver vulkan
+## SUN_PITCH / SUN_YAW); FLAT=1 is the old flat-lit room. CAM_AT=hands|head aims at the hands
+## or the head wherever the pose put them (CAM_Y is then an offset from there). Run it with --rendering-driver vulkan
 ## (lavapipe) for the Forward+ look: subsurface skin and SSAO only exist there.
 func _initialize() -> void:
 	var stage := Node3D.new()
@@ -114,8 +115,28 @@ func _initialize() -> void:
 	var cam := Camera3D.new()
 	cam.fov = 40.0
 	stage.add_child(cam)
+	# CAM_AT=hands aims at the middle of the two hands as the IK left them (CAM_DIST, YAW and
+	# CAM_Y as an offset still apply), CAM_AT=head at the head: the stance moves both about.
+	var aim_at := OS.get_environment("CAM_AT")
+	var at := [Vector3.INF]
+	var sk0: Skeleton3D = player.find_child("Skeleton3D", true, false)
+	if aim_at != "" and sk0:
+		sk0.skeleton_updated.connect(func() -> void:
+			var names: Array = ["RightHand", "LeftHand"] if aim_at == "hands" else ["Head", "Head"]
+			var a := sk0.to_global(sk0.get_bone_global_pose(sk0.find_bone(names[0])).origin)
+			var b := sk0.to_global(sk0.get_bone_global_pose(sk0.find_bone(names[1])).origin)
+			at[0] = (a + b) * 0.5)
 	var yaw := deg_to_rad(float(OS.get_environment("YAW")) if OS.get_environment("YAW") != "" else 90.0)
 	var walk := OS.get_environment("WALK") == "1"
+	# CAM_DIST / CAM_Y close in on the hands (default: the whole figure).
+	var place := func() -> void:
+		var dist := float(OS.get_environment("CAM_DIST")) if OS.get_environment("CAM_DIST") != "" else 2.6
+		var centre := Vector3(0.0, float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 1.25, -float(OS.get_environment("CAM_FWD")) if OS.get_environment("CAM_FWD") != "" else 0.0)
+		if at[0] != Vector3.INF:
+			centre = at[0] + Vector3(0.0, float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 0.0, 0.0)
+		cam.global_position = centre + Basis(Vector3.UP, -yaw) * Vector3(0.0, 0.15 * dist / 2.6, -dist)
+		cam.look_at(centre, Vector3.UP)
+		cam.current = true
 	for i in 40:
 		if walk:
 			Input.action_press("move_forward")
@@ -123,12 +144,7 @@ func _initialize() -> void:
 		# Keep him on the spot facing -Z however the walk moves him.
 		player.global_position = Vector3(0.0, player.global_position.y, 0.0)
 		(player.get("visual") as Node3D).rotation.y = 0.0
-		# CAM_DIST / CAM_Y close in on the hands (default: the whole figure).
-		var dist := float(OS.get_environment("CAM_DIST")) if OS.get_environment("CAM_DIST") != "" else 2.6
-		var centre := Vector3(0.0, float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 1.25, -float(OS.get_environment("CAM_FWD")) if OS.get_environment("CAM_FWD") != "" else 0.0)
-		cam.global_position = centre + Basis(Vector3.UP, -yaw) * Vector3(0.0, 0.15 * dist / 2.6, -dist)
-		cam.look_at(centre, Vector3.UP)
-		cam.current = true
+		place.call()
 	# ROCKET=1 (with WEAPON=1 AIM=1): a rocket just out of the launcher, crawling so it is in frame.
 	if OS.get_environment("ROCKET") == "1":
 		var launcher: Node = manager.get("current")
@@ -149,6 +165,8 @@ func _initialize() -> void:
 			anim.speed_scale = 0.0
 			for i in 3:
 				await process_frame
+			place.call() # the clip's frame moved the head and hands
+			await process_frame
 	if sk:
 		for b in ["Hips", "RightArm", "RightHand", "LeftHand"]:
 			print(b, " at ", sk.to_global(sk.get_bone_global_pose(sk.find_bone(b)).origin))

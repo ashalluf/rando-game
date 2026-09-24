@@ -212,7 +212,7 @@ the ignored `build/hero_src/` on the machine that builds.
 
 Triangles (LOD0; Godot generates the LODs on import): skin 60.8k, tracksuit 18.0k, rib bands
 2.9k, piping 1.6k, zip 0.8k, tank 1.6k, gold (chain, watch case and bracelet, ring) 14.3k, watch
-glass and dial 0.4k, eyes 1.1k, brows and lashes 0.6k, hair 13.2k, shoes 2.4k, laces 3.0k: 120.6k
+glass and dial 0.4k, eyes 1.1k, brows and lashes 0.6k, hair 12.7k, shoes 2.4k, laces 3.0k: 120.1k
 in 15 surfaces, one skinned mesh. His shadow is `hero_shadow`, 9.0k triangles in one surface.
 Textures: 2K skin albedo and wrinkle normal, 2K tracksuit albedo and rest and bent fold
 normals; 1K or smaller for everything else (skin roughness and mask, hair atlas, shoes), plus

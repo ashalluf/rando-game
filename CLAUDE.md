@@ -989,7 +989,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   field on the 3D surface and `texspace.py` rasterises the UV layout to rest-pose points so
   `prep_textures.py` derives every map analytically (the bake put inverted normals in both
   armpits - the dark shoulder patch). The same field gives a second, closed-joint fold map and a
-  per-joint mask. `HeroLook` (`scripts/player/hero_look.gd`) dresses him in the game: by
+  per-joint mask. Three things that each looked like a modelling fault and were not: the
+  collar takes its weights off the head and most of the neck (`off_the_head()` in
+  `tracksuit.py`; with the skin's own weights the idle, which looks round 60 degrees, wrung it
+  into shards); the shadow twin is pulled `shadow_inset` (6 mm) under the real surface
+  (`finalize.py` 5b; where a decimated twin stands proud it throws its facets across the cloth
+  as jagged black patches); and the painted scalp fades over a distance measured on the head
+  from the hairline, not over height (a height fade is a razor edge where the hairline runs
+  vertical, at the temples). `HeroLook` (`scripts/player/hero_look.gd`) dresses him in the game: by
   material name it swaps skin, hair, brows and tracksuit onto `shaders/hero_skin.gdshader`
   (tiling pores and stubble over the body maps, T-zone oil, SSS and transmittance on Forward+,
   BACKLIGHT on Compatibility), `hero_hair.gdshader` (root-to-tip colour, the card's own
