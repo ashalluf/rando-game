@@ -186,15 +186,52 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
-  Sound is **real CC0 recordings** (`assets/audio/`, 63 clips - the siren is public domain - sources in `docs/ASSETS.md`) with
+  Sound is **real CC0 recordings** (`assets/audio/`, 111 clips - the siren is public domain - sources in `docs/ASSETS.md`) with
   the old synthesis kept as the fallback: `_build_synth()` fills every name first and
   `_load_samples()` replaces only the names whose files load, so a missing or unimported file
-  degrades to a tone rather than to silence. A name holds several takes and `play()` picks one at
-  random, which is what stops the rifle and the footsteps sounding like one file on repeat. Loop
-  flags are set on the stream **in code**, never in the `.import`: a regenerated `.import` can
-  silently drop the flag, and a non-looping ambience is very hard to diagnose. Only the clips
-  named in `Sfx.SAMPLES` ship - do not leave working downloads in `assets/audio/`, this builds
-  into a macOS app and a web page.
+  degrades to a tone rather than to silence (the ambience names are the exception: their
+  fallbacks, `ambience_synth()`, are built only for the names whose files did NOT load, because
+  they are long and startup should not pay for them twice). A name holds several takes and
+  `play()` picks one at random, which is what stops the rifle and the footsteps sounding like one
+  file on repeat. Loop flags are set on the stream **in code** (`LOOPING`, `AMBIENCE_LOOPING`),
+  never in the `.import`: a regenerated `.import` can silently drop the flag, and a non-looping
+  ambience is very hard to diagnose. Only the clips named in `Sfx.SAMPLES` and
+  `Sfx.AMBIENCE_SAMPLES` ship - do not leave working downloads in `assets/audio/`, this builds
+  into a macOS app and a web page. Every name in them needs its loudness in
+  `SAMPLE_LOUDNESS_DB` / `AMBIENCE_LOUDNESS_DB` (the smoke test checks the counts match); beds are
+  recorded at their long-term RMS (all cut to -22 dB), one-shots at their loudest 50 ms window.
+  **Buses** (`Sfx._install_buses()`, in code, no `.tres`): Master (limiter) <- `Game` (a low-pass,
+  the slow-motion and blast muffle) <- `World` (street-canyon reverb) and `Ambience` (enclosure
+  low-pass, then a compressor side-chained on World so gunfire pushes the city down).
+  `Sfx.bus_for(name)` routes: the ambience names plus rain, wind, ambience_city and thunder go to
+  Ambience, everything else (guns, blasts, engines, voices) to World. `Sfx.take(name)` hands a
+  caller that owns its player a take and its trim. Web builds (sample playback) skip bus effects
+  and play the plain mix.
+- Ambience (owner, 2026-09-24: "the city should SOUND like a real city, AAA-style"): `Ambience`
+  (`scripts/util/ambience.gd`), a Node in `city.tscn`. Beds (stereo, non-positional: `city` by day,
+  `city_far` - real downtown LA night traffic - by night and from the hills and the air, near
+  `traffic`, crowd walla, birds, crickets, wind, gale, rain / downpour / rain on a roof / on the
+  car roof), emitters (freeway, surf, airfield, port: AudioStreamPlayer3D with its falloff OFF,
+  parked `emitter_distance` from the listener toward the source so it pans while the level is
+  ours) and one-shots (far horns, far sirens, dogs, bus air brakes, gulls, coyotes, ship horns,
+  crane clanks: Poisson events per minute, placed at a real distance so the distance filter dulls
+  them). The nearest `TRAFFIC_VOICES` moving traffic cars carry a tyre-roll voice with a cheap
+  Doppler, and a car predicted to pass within `pass_distance` gets a recorded pass-by started so
+  its loudest instant (cut to sit at `pass_peak_seconds`, 1.2 s, in every take) lands as it goes
+  by; wet roads use `car_pass_wet`. The survey (`survey_interval`, REAL clock - the wheel scales
+  the process delta) never scans the city: `scene_at()` is MacroMap maths at a centre point and two
+  rings (`ring_radii`), the freeway its cell index, and `_probe()` adds nine world-layer rays
+  (street canyon, cover overhead), one sphere query on the npc layer (crowd, panic) and
+  TrafficManager's own car lists. `levels_for()` / `rates_for()` are pure (scene, hour, night
+  factor, weather) -> gains / events per minute, which is what the smoke test checks
+  (`tests/ambience_checks.gd`, mixer state only under the Dummy driver). Knobs: `ambience_db`,
+  `layer_db` (per layer), `pass_db` / `car_roll_db`, `fade_seconds`, the reaches, `district_density` (one per
+  CityPlan.District, guarded), the enclosure cutoffs, `reverb_wet`, the duck numbers. The weather
+  node's own rain loop only plays where there is no Ambience (the test room). Ducks: a blast
+  within `blast_duck_radius` (polled from `Explosion.blast_count`) dips the ambience and, inside
+  `concussion_radius`, muffles the Game bus for `blast_recover_seconds`; the weapon wheel or any
+  slow motion (`AudioServer.playback_speed_scale` < 0.97) muffles Game and dips the ambience.
+  Crowd screams stay where they were (`Pedestrian.alarm()`); the walla drops under panic.
 - Day/night: `DayNight` node in the city scene drives the sun, the sky (`shaders/sky.gdshader`,
   a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in
@@ -246,10 +283,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
-- Vignette: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a full-rect
-  `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1 and
-  shows up in screenshots. `CityStreamer.vignette_strength` (0 turns it off). Every lens does
-  this; keep it subtle enough that you cannot point at it.
+- Vignette and lens: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a
+  full-rect `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1
+  and shows up in screenshots. It reads the 3D picture (`hint_screen_texture`) and writes it
+  back with the corner falloff (`CityStreamer.vignette_strength`), lateral colour fringing that
+  grows with the square of the radius (`lens_fringe`), and a luminance film grain re-rolled at
+  24 fps (`film_grain`). Every lens and film stock does these; keep each subtle enough that you
+  cannot point at it (0 turns any of them off).
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair, the round minimap and
   the wanted stars and health bar (`WantedHud`, see the Police note).
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
@@ -860,9 +900,55 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (the boardwalk batches them as `palm_<variant>`); their old hand-built stick-and-frond palms
   are kept only for the far version, where they read as a silhouette and nothing more. Up close
   they looked like spiders.
-- Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes
-  one, detailed (with a StaticBody3D for shapes) or far (no collision). Add a new one by adding an
-  entry and a `_build_<id>()` function. Everything original: no real names, logos or copies.
+- Landmarks: `Landmarks.all()` lists them (id, world anchor, radius; built once and cached, so
+  never modify what it returns); `Landmarks.build()` makes one, detailed (with a StaticBody3D for
+  shapes) or far (no collision). Add a new one by adding an entry and a `_build_<id>()` function.
+  Everything original: no real names, logos or copies - with ONE exception, by owner request
+  (2026-09-24): **downtown's skyline follows the real DTLA massing** (which towers, where they
+  stand relative to each other, relative heights at real metres, silhouettes, crowns, facade
+  character). **Names and logos stay original**: no real building, company or brand name in any
+  game text or on the minimap, and no lettering on any crown. Code ids are neutral (`dt_*`).
+- Downtown skyline (owner, 2026-09-24: "a 1:1 match of DTLA skyline ... It needs more
+  buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
+  landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add
+  theirs elsewhere; the civic centre and the arena district are not these). **Everything about
+  a tower's placement is ONE table, `LandmarkDowntown.TOWERS`**: anchor, radius, height (real
+  metres: the 335 m sail with a spire, the 310 m round tower with the lit glass crown, the 262 m
+  white slab, ...), plan (checked against the built geometry), crown, and an APPROXIMATE real
+  position in metres east/north of `REAL_ORIGIN` with a real footprint, for the planned 1:1
+  re-lay (`real_grid()` turns it into the real street grid's frame). `Landmarks.all()` appends
+  `LandmarkDowntown.entries()`, so a re-lay changes the table, the pinned grid and the core
+  rects. The current plan is the real grid laid one real block to one game block (about 2/3
+  scale) with footprints near real size. Each tower is built by
+  `TowerMesh` (`scripts/world/tower_mesh.gd`): outlines (rect, chamfered, notched, circle,
+  ellipse, rounded, bowed, `union()`) extruded into tiers with setbacks (`prism`, `sloped`), and
+  `loft` / `wedge` / `vault` / `spike` / `mast` / `fins` / `balcony` for crowns and details, all
+  into ONE ArrayMesh per tower: a facade surface per material on `shaders/building.gdshader` in
+  its **`uv_facade` mode** (UV.x = metres round the outline, each face a whole number of bays so
+  no window straddles a corner; UV.y = face index, 100+ = blank wall - so round and curved towers
+  get the same traced recesses, rooms, lit offices and emitted glass mirror as the boxes), a
+  vertex-coloured metal surface, and a lit-crown surface on `shaders/tower_crown.gdshader`
+  (glass by day, `night_factor` glow in the vertex colour at night). Aviation lights are one
+  billboard mesh on `shaders/aircraft_lights.gdshader`; each tower carries its own
+  `OccluderInstance3D` (boxes inset like `CityChunk.OCCLUDER_INSET`) and, detailed, convex-hull
+  collision per tier plus a small detail mesh. Meshes are cached per id, so the far copy
+  `CityStreamer` keeps (the skyline from the freeway, hills and beach) and the detailed one a
+  chunk builds are the same geometry. **Rules:** outlines have positive signed area in (x, z)
+  (NW, NE, SE, SW), `TowerMesh.clean()` fixes any other; facade surfaces never carry vertex
+  colour (SurfaceTool fixes a surface's format at its first vertex); every tower must stay
+  inside its block less the pavement (`LandmarkDowntown.footprint()`, checked by the smoke test
+  on this seed and another). The blocks are fixed because **`CityPlan.PINNED_ROADS`** pins the
+  downtown street grid for every seed - the default seed's own roads to the last bit, so that
+  city did not move; on other seeds the seeded blocks either side stretch or split to meet them
+  (`CityPlan._next_road()`). Between the towers, `MacroMap.downtown_core` (two rects) +
+  `core_margin` make the district DOWNTOWN and the skyline boost 1, and DISTRICTS DOWNTOWN's
+  `core_height` / `core_curve` / `core_shapes` / `core_finishes` / `core_courtyard` turn the
+  infill into a field of 40-205 m towers, a quarter of them over 130 m (never over the named
+  ones; no SLAB, which caps itself at 40 m and would disagree with the far tier's box; more
+  stone than glass). The minimap only labels a pin with `LABEL_ROOM` pixels of
+  room. Stills: the skyline from the south-west `--spawn=-50,1250,-43,5,80`, from the hills
+  `--spawn=350,-950,-170,-9,380`, on the avenue `--spawn=589.2,860,0,16,2`, with `HIDE=Visual`
+  on `tools/glshot/city_shot.gd` (hides the player, who otherwise stands in the middle of it).
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

@@ -51,12 +51,13 @@ scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket,
 scripts/world/           city_streamer, city_chunk, city_plan, macro_map, hill_roads, landmarks, building, prop_factory (primitives + model_* merged Poly Haven models), street_props, trash_can, physics_prop, day_night, ferris_wheel
 scripts/vehicles/        vehicle.gd (cars), aircraft.gd (jets)
 scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd, police*.gd, street_route.gd (the police's street routes)
-scripts/util/            physics_budget.gd, world_state.gd, sfx.gd (autoloads)
+scripts/util/            physics_budget.gd, world_state.gd, sfx.gd (autoloads; sfx.gd also builds the audio buses), ambience.gd (the city's sound, a node in city.tscn)
 scripts/ui/              debug_hud, minimap, minimap_frame, minimap_border, crosshair
 shaders/                 building, grass, terrain, sky
 assets/textures/         CC0 PBR sets from ambientCG (1K JPG)
 assets/models/           Meshy .glb models, their .json manifests, extracted textures, .import files, thumbs/
 tools/meshy.py           Meshy API pipeline (generate, texture, rig, animate, download)
+tools/ambience_audio.py  Freesound CC0 search / verify / fetch and the ambience clip cutter (section 9m)
 tools/shrink_glb.py      shrinks embedded textures to 1K JPEG, --desaturate for car paint
 tools/pack_gltf.py       packs a Poly Haven .gltf + .bin + textures into one .glb
 tools/decimate_tree.py   reduces Poly Haven trees, bushes and rocks to game size (needs pymeshlab: pip install pymeshlab, apt-get install libopengl0)
@@ -704,8 +705,8 @@ Measure, do not squint:
 
 - **The container restarts.** It did twice here, killing four agent fleets and a render batch
   mid-flight. The repo and the Godot binary in the scratchpad survived both times. Commit often.
-- **The smoke test is now 210 checks and takes most of the 420 s timeout in
-  `tests/headless_check.sh` on an idle box.** Under load from a large fleet it *times out* at
+- **The smoke test is now 324 checks (2026-09-24) and the shell timeout in
+  `tests/headless_check.sh` is 600 s (it was 420, which the test had outgrown).** Under load from a large fleet it *times out* at
   around 150 checks with zero failures, which looks alarming and is not a failure. Do not run a
   big fan-out and the gate at the same time, and do not read exit code 124 as a pass.
 - **The eight-dimension sweep did finish** (56 agents, no errors) and its 26 verified patches are
@@ -1003,7 +1004,7 @@ next session needs to know (the rules are the Police note in CLAUDE.md):
   player a star. And the first officers fired 54 rounds without one reaching the player, because
   every one went into the cruiser they were crouched behind (`_line_of_fire()` and the sideways
   step are the fix; `PoliceOfficer.rounds_fired` / `rounds_hit` are there to measure it again).
-- **Known gaps.** (Fixed the same day, section 9l: cruisers now route along the streets and pull
+- **Known gaps.** (Fixed the same day, section 9o: cruisers now route along the streets and pull
   up at the kerb nearest the player; the next sentence is how it was.) Cruisers under physics
   steered straight at their target with no path finding, so
   a player on a roof or deep inside a block gets a cruiser that noses up to the nearest wall,
@@ -1098,7 +1099,7 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
-## 9l. Street life, 2026-09-24 (owner: "GTA-level street life")
+## 9o. Street life, 2026-09-24 (owner: "GTA-level street life")
 
 Signals that work, traffic that queues at them, people who cross on the walking figure, and
 police who drive the streets. Built on an agent worktree; the rules are the Street life bullet in
@@ -1187,6 +1188,149 @@ CLAUDE.md. What a next session needs to know:
   night (the lenses glow; there is no OmniLight per head, deliberately). A physics cruiser that
   meets a traffic car head on is blocked by it (kinematic cars are immovable to physics) and
   backs off and tries again; traffic only pulls over for a siren on the lanes behind it.
+## 9n. The downtown skyline, 2026-09-24 (owner: "a 1:1 match of DTLA skyline ... more buildings")
+
+Built on an agent branch; the rules are the Downtown skyline bullet in CLAUDE.md. The decision
+that shapes everything: **massing yes, names no.** Which towers stand where, their heights in
+real metres, their silhouettes, crowns and facade character follow the real downtown; every name
+(code ids `dt_*`, minimap labels) is invented and no crown carries lettering. What a next
+session needs to know:
+
+- **Where they are and why there.** The real grid is laid one real block to one game block on
+  the default seed's downtown streets: the avenues at x 507.8 / 589.2 / 660.7 / 734.9 / 824.2
+  and the streets from z 228 to 907. So the sail stands west of the first avenue; the drums,
+  the black twins, the pyramid, the spire and the curved tower down the next column; the dark
+  glass, bronze and white slabs and two South Park towers in the next; the round crown and the
+  red pair up the hill; the rounded pair, the blue crown and the unfinished cluster to the east.
+  City hall (`ziggurat_hall`, 810,160) is the civic branch's and sits north-east of the core, as
+  the real one does; nothing of this branch is north of z 244 or west of x 416, so the civic
+  centre, the station and the arena district (which another branch is placing west and south
+  west of the core) have their ground.
+- **The grid is pinned** (`CityPlan.PINNED_ROADS`, `_next_road()`): same roads on every seed,
+  so fixed towers never land in a street. The pinned values are the default seed's, bit for bit
+  (printed with `var_to_str`), so the default city is unchanged; a check walks another seed.
+  If a future change moves the downtown grid, re-derive both the pins and the anchors in
+  `Landmarks.all()` together, and the smoke test will say which tower left its block.
+- **One mesh per tower.** `TowerMesh` extrudes outlines into tiers; the facade is the ordinary
+  building shader in its `uv_facade` mode (UV.x metres round the outline, whole bays per face,
+  UV.y 100+ blank wall), so curves get windows, rooms and lit offices. Crowns are a separate
+  lit surface (`shaders/tower_crown.gdshader`), obstruction lights reuse the aircraft light
+  billboards. A whole tower is 60-1,900 triangles (the balconied South Park towers 3-7k); all
+  nineteen are about 25k and build in ~150 ms, once, at load - the far copy and the detailed one
+  share the mesh. Each carries an occluder, so the towers now also hide the city behind them.
+- **One table** (`LandmarkDowntown.TOWERS`) holds every tower's anchor, radius, height, plan
+  (checked against the built geometry by the smoke test), crown, and an APPROXIMATE real position
+  in metres east/north of `REAL_ORIGIN` (34.0500 N, 118.2550 W) with an approximate real
+  footprint, for the owner's next step: the whole downtown re-laid 1:1 (real blocks, real
+  streets, true distances), other real areas as 1:1 replica areas with seeded filler between.
+  `real_grid()` rotates a real position into the real street grid's frame (avenues about 45
+  degrees east of north). The real positions are from memory of public maps, good to perhaps
+  +/-50 m: check them before building on them. `Landmarks.all()` appends the table's rows
+  (`LandmarkDowntown.entries()`), so a re-lay changes the table, `CityPlan.PINNED_ROADS` and
+  `MacroMap.downtown_core`, and nothing else.
+- **The infill** (`MacroMap.downtown_core`, DISTRICTS DOWNTOWN `core_*`): the blocks between the
+  towers get 40-205 m towers (median ~75, a quarter over 130 m), no slabs, fewer pocket gardens,
+  more stone. The old downtown boost lerped the top to 368 m, so generic towers could out-top
+  the landmarks.
+- **Measured, and what was not.** Geometry, headless: the nineteen towers are 25k triangles in
+  all and 3-5 surfaces plus one light billboard each (so roughly 60-100 draws for the whole
+  skyline, casting included), built in ~150 ms at load. CPU, headless, the smoke test's
+  downtown teleport (`update_streaming(true)` at 742,423): 10.7 s against 10.3 s on the parent
+  commit, on a box loaded by other agents (+4 %, inside the noise). **tools/geo_count.gd was NOT
+  run**: the shared render lock was held by other agents' renders for over an hour. Run it
+  (the invocation in its header, plus `-- --spawn=589.2,860,0,12,2 --hour=12 --nohud` for the
+  avenue and `-- --spawn=-50,1250,-43,5,80 --hour=12 --nohud` for the south-west aerial) on
+  this commit and its parent before deciding the frame cost is fine. Expect more draws in the core than before (taller
+  infill, more of it) and fewer objects behind the towers (their occluders).
+- **Not done / not verified**: nothing here has been seen in Forward+ (the renders were all
+  opengl3; the box was full of other agents' lavapipe renders). Crown glow and the lit offices
+  on curved towers want a Forward+ dusk still. The towers have no interiors or lobbies, no
+  street-level retail beyond the storefront band, and the plazas (fountains, sculpture) are a
+  few boxes. Bunker Hill is not a hill: the relief is flat under landmarks. Collision is one
+  convex hull per tier, so the notches of the round tower's wings are filled in. The generic
+  core towers are the city's usual boxes; the next step up is a glass-tower facade kit.
+
+## 9l. How the 2026-09-24 session ran (read if you inherit a half-merged day)
+
+- The owner asks for many big features at once and wants speed, so the work went out to
+  background agents in git worktrees (`.claude/worktrees/`, ignored), each told to commit on
+  its own branch, merge origin/main before reporting, and never push. The main session merges
+  each branch, runs `tests/headless_check.sh`, pushes to main and sends screenshots.
+- One 16 GB box is shared, and a Forward+ (lavapipe) city is 6-7 GB, so every render goes
+  through `flock <scratchpad>/render.lock <command>`. Headless checks run without the lock.
+  An OOM-killed render prints `Killed` in its log and leaves no png. flock is not a queue:
+  whoever asks next may win, and on a busy afternoon jobs waited over an hour. A GL
+  (opengl3) job is ~4 GB, so the main session runs its own GL-only jobs (geo_count, preview
+  stills) under a second lock, `<scratchpad>/gl2.lock`, alongside whatever holds the main
+  one; never put a Forward+ job on it (two lavapipe cities do not fit in 16 GB).
+- A smoke check that fails once under heavy load (five or six Godot processes on the box) is
+  rerun in isolation before it is believed: `air_probe.gd`-style scripts that load the city
+  and run one checks file (`load("res://tests/air_traffic_checks.gd").new().run(t, city)`
+  with a stand-in `t` that has `_check()`) take three minutes instead of fifteen.
+- Merges conflict mostly in the docs (every agent appends a decisions-log entry and a handoff
+  section): keep both sides and renumber the sections.
+- CI's box is slower than this one and drops to Quality LOWEST (thinner crowd, fewer cars), so
+  tests that pick "the nearest pedestrian" or "cars[0]" are timing-sensitive there. Two such
+  checks failed on build 231 and were hardened; if a check passes here and fails on CI, look
+  for that first.
+- Merged that day: window recesses, tracksuit then the Blender hero, weapon wheel, Blender guns
+  and the shotgun, rocket warhead and smoke trail, far-glass emission, police and wanted stars,
+  facade kit, blood, air traffic, the city ambience, the lens pass (grain, fringe), night GI,
+  the downtown skyline (9n), and a helicopter fix (an orbit holds its whole ring above the
+  tallest thing on it: CI 241 caught the news chopper dipping between towers). In flight when
+  this was written: a studio pass on the hero,
+  the arena district and civic centre, traffic signals and crosswalks with police routing,
+  the Redondo Esplanade into Palos Verdes at 1:1, MacArthur Park with street encampments, and
+  GTA-style distance LOD tiers. Next after the civic merge: a 1:1 re-lay of the downtown grid
+  (the skyline's `LandmarkDowntown.TOWERS` and the civic `CivicSites` tables both carry
+  approximate real positions for it). The unused Meshy hero is
+  on branch `worktree-agent-a5cb589744a1759b9` (not chosen).
+
+## 9m. The city's sound, 2026-09-24 (agent branch)
+
+Owner: "the city should SOUND like a real city, AAA-style". Until now the only ambience in the
+game was the weather's rain loop: `ambience_city` and `wind` had shipped since build 104 and
+nothing ever played them. The rules are the Sfx and Ambience bullets in CLAUDE.md. What a next
+session needs to know:
+
+- **Nobody has heard it.** Every level, rate and crossfade was set by measuring the files and by
+  maths, under the Dummy audio driver; this container has no speakers and no ears. The first thing
+  to ask the owner for is ten minutes of play with the sound on: downtown at noon, a freeway deck,
+  the beach, the hills at night, a rocket at close range, the weapon wheel, rain from inside a car.
+  The knobs they will ask about are `Ambience.ambience_db` (everything), `layer_db` (per layer),
+  `ONE_SHOTS[*].db` / `unit` and the rates in `rates_for()`, `pass_db` / `car_roll_db` (the
+  street's own cars) and `blast_duck_db` / `slow_duck_db`.
+- **Levels.** Beds are all cut to -22 dB RMS and recorded so in `AMBIENCE_LOUDNESS_DB`, so after
+  Sfx's trim they sit level with each other and `layer_db` is the whole mix. With the defaults,
+  downtown at noon sums to roughly -28 dBFS RMS against a rifle round's -18 dBFS loudest window
+  (point-blank): the city under the gun by about 10 dB, well under its peak. That is a guess on
+  paper and the most likely thing to need moving.
+- **What plays where** (checked by `tests/ambience_checks.gd`, which is the fastest way to see the
+  mix: it prints every level it asserts): downtown noon city 1.0 with ~6 horns a minute; downtown
+  night city 0.45, far traffic 0.85; the beach surf 0.83 from the west, 5 gulls a minute, none in a
+  storm, louder surf in one; the hills birds 0.6 by day, crickets 1.0 and ~0.9 coyotes a minute at
+  night, nothing in rain; the suburbs dogs and birds; the airfield 1.0 (downtown hears 0.08); the
+  port hum plus ship horns and cranes; a freeway deck 1.0, 0.22 at 300 m; 400 m up the street
+  goes and the wind and gale come in.
+- **Sources.** Freesound's HQ previews, each page checked for the CC0 deed and nothing else, and
+  each description read: two first picks were dropped on the description alone (credit made a
+  condition; an AI-generated siren). `tools/ambience_audio.py` is the whole pipeline - `search`
+  (CC0-filtered), `get` (verify the page, save it, fetch the preview into `build/audio_src/`),
+  `build` (the clip table: spans, filters, loop cuts, levels) - and prints the loudness numbers
+  Sfx wants. Re-run `build` for one clip by name prefix; then `godot --headless --path . --import`.
+  The proxy is slow (~70 KB/s), so it fetches only the first 2.6 MB of each preview.
+- **Performance.** 16 bed/emitter players (only the ones with a level play; a faded bed stops),
+  5 pooled one-shot voices, 3 traffic voices, 2 pass-by voices. The survey measured 0.9 ms
+  headless; per frame it only eases gains and moves at most nine voices. Bus effects: one reverb,
+  two low-passes (switched off when open), one compressor.
+- **Not done / not verified.** The web build plays the plain mix (sample playback skips bus
+  effects: no reverb, no muffle, no ducker). Traffic voices ride only the TrafficManager's street
+  and freeway cars - parked cars, police and the airport loop are silent unless driven (the police
+  have sirens). The pass-by timing is maths on positions sampled every 0.15 s; it has never been
+  heard lining up. The canyon reverb reads eight horizontal rays at camera height, so it does not
+  know how tall the walls are (downtown density stands in for that). No interior sound (there are
+  no interiors). The crowd walla is one Hawaiian shopping street; a second take would help. The
+  near "traffic" bed is still the old IgnasD highway recording.
 
 ## 10. Suggested next steps, in order of impact
 

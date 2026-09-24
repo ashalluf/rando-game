@@ -16,7 +16,9 @@ extends Node
 ## every shadow turns grey and the frame has no value contrast left - the single thing that
 ## made the old aerials read as a pastel model village rather than a city at noon.
 @export var day_sun_energy: float = 1.3
-@export var night_sun_energy: float = 0.55
+## The moon. 0.55 lit every roof in the city brighter than the night sky above it (roofs 100-120
+## of 255 against a sky of 50 in a Forward+ aerial at 21:00): day-for-night, not a night.
+@export var night_sun_energy: float = 0.3
 ## Sun elevations the golden-hour tint fades out between once the sun is under the horizon
 ## (x fully faded, y still full strength; elevation is the sine of the arc angle, not degrees).
 @export var dusk_fade_elevation: Vector2 = Vector2(-0.36, -0.24)
@@ -100,7 +102,16 @@ extends Node
 ## Sky fill in the shadows. Kept well under the sun (see day_sun_energy): a real midday shadow
 ## is about a fifth as bright as the lit side, not two thirds.
 @export var day_ambient_energy: float = 0.30
-@export var night_ambient_energy: float = 0.55
+## Night sky fill. Halved from 0.55 with the moon, for the same reason: at night the city is lit
+## by its lamps and windows, and the sky only just shows the shapes between them.
+@export var night_ambient_energy: float = 0.3
+## Global illumination strength by day and by night. The streets' night glow is emission, and
+## SDFGI takes emission as light: at the daytime 0.85 it bounced the orange road glow across
+## every pavement and roof round it, so a night aerial read as orange paving under a
+## moonlit-day sky. The glow is a stand-in for lamps that are not built there, not a light
+## source, so at night the bounce is turned well down.
+@export var day_gi_energy: float = 0.85
+@export var night_gi_energy: float = 0.3
 @export_node_path("DirectionalLight3D") var sun_path: NodePath
 @export_node_path("WorldEnvironment") var environment_path: NodePath
 
@@ -298,6 +309,7 @@ func _apply() -> void:
 			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
 	if _env:
 		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, moonlight)
+		_env.sdfgi_energy = lerpf(day_gi_energy, night_gi_energy, moonlight)
 		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(night_fog, moonlight)
 		# Ambient comes from the sky cubemap, so shadows take the sky's own colour (blue at
 		# midday, warm at dusk) instead of a flat grey fill: the single biggest realism win in

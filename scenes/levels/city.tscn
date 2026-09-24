@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/city_streamer.gd" id="1_city"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://scripts/util/quality.gd" id="8_quality"]
 [ext_resource type="Script" path="res://scripts/npc/police.gd" id="9_police"]
 [ext_resource type="Script" path="res://scripts/world/air_traffic.gd" id="10_air"]
+[ext_resource type="Script" path="res://scripts/util/ambience.gd" id="11_ambience"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("6_sky")
@@ -116,6 +117,9 @@ script = ExtResource("7_weather")
 
 [node name="AirTraffic" type="Node3D" parent="."]
 script = ExtResource("10_air")
+
+[node name="Ambience" type="Node" parent="."]
+script = ExtResource("11_ambience")
 
 [node name="Quality" type="Node" parent="."]
 script = ExtResource("8_quality")

@@ -316,6 +316,69 @@ the UVs for trunks, twigs and rocks; every kept leaf becomes one textured card i
 plane, scaled up to keep the canopy full). Poly Haven's `boulder_01` and `searsia_burchellii`
 would not decimate below 40k (UV seams on every edge) and were dropped.
 
+## City ambience audio (Freesound, CC0)
+
+The layered city sound (`scripts/util/ambience.gd`, `Sfx.AMBIENCE_SAMPLES`), added 2026-09-24.
+Every clip is a Freesound recording whose own page states **Creative Commons 0** and links only
+the CC0 1.0 deed (checked page by page, saved with the download); descriptions were read too,
+and two first picks were dropped on them: `160570` (a San Gabriel mockingbird, whose page says
+CC0 but whose description makes credit a condition of use) and `705395` (a distant police siren
+whose description says it is AI-generated). CC0 asks for no attribution; it is given here anyway.
+
+Processing (a scratch tool, not in the repo; numpy + scipy + soundfile): the HQ preview (128 kbps
+MP3) of each recording, 4th-order zero-phase high/low-pass, resampled, then either **a loop** -
+the steadiest stretch (least level variance, no spike 6 dB over its median; gusty wind and big
+surf also want matching levels at both ends), cross-faded over its last 2.5 s into its start
+(equal power), levelled to -22 dB RMS with a soft knee on the peaks, 32 kHz Vorbis - or **a
+one-shot** - the stated span, faded, peak -1 dB, 44.1 kHz mono Vorbis (the far sirens 32 kHz).
+Pass-bys are cut so their loudest instant sits 1.2 s in (`Ambience.pass_peak_seconds`). Mono
+sources for stereo beds are made wide by two different stretches of the same recording, one per
+side ("left/right" below), or by the loop against itself half a turn later (birds). Emitters
+(freeway, surf, airport, port) and one-shots are mono. Total added: about 5 MB.
+
+| Recording (Freesound user) | Source URL | License | Clips (span of the recording used) | Added |
+|---|---|---|---|---|
+| 11 minutes of city sounds (LookIMadeAThing) | https://freesound.org/s/250270/ | CC0 1.0 | `amb_city_0` 351.5-382.0 s (left) and 385.0-415.5 s (right) | 2026-09-24 |
+| Downtown LA, Little Tokyo, late night semi distant traffic.wav (janbezouska) | https://freesound.org/s/330427/ | CC0 1.0 | `amb_city_far_0` 33.0-63.5 s | 2026-09-24 |
+| Shopping Street Ambience (florianreichelt) | https://freesound.org/s/451734/ | CC0 1.0 | `amb_crowd_0` 0.0-28.5 s | 2026-09-24 |
+| GoldenGatePark_Birds.mp3 (Andron827) | https://freesound.org/s/142938/ | CC0 1.0 | `amb_birds_0` 12.0-40.5 s | 2026-09-24 |
+| AMBIENCE NIGHT FIELD CRICKET 01.wav (sengjinn) | https://freesound.org/s/175020/ | CC0 1.0 | `amb_crickets_0` 19.0-45.5 s | 2026-09-24 |
+| Strong wind blowing in the plain in Anatolia (Turkey) (felix.blume) | https://freesound.org/s/167684/ | CC0 1.0 | `amb_gale_0` 0.0-30.5 s | 2026-09-24 |
+| Heavy Rain Sound - Inu Etc.mp3 (inuetc) | https://freesound.org/s/507902/ | CC0 1.0 | `amb_rain_heavy_0` 15.0-41.5 s (left) and 0.0-26.5 s (right) | 2026-09-24 |
+| Rain falling on a metal roof - 96 kHz / 24 Bit (GregorQuendel) | https://freesound.org/s/239939/ | CC0 1.0 | `amb_rain_roof_0` 21.0-45.5 s | 2026-09-24 |
+| Hard Rain on Car Roof.wav (eRobb4) | https://freesound.org/s/344460/ | CC0 1.0 | `amb_rain_car_0` 0.0-24.5 s | 2026-09-24 |
+| Hwy 134 in Burbank (Binaural).wav (courter) | https://freesound.org/s/448092/ | CC0 1.0 | `amb_freeway_0` 77.5-108.0 s | 2026-09-24 |
+| Big waves hit land.wav (straget) | https://freesound.org/s/412308/ | CC0 1.0 | `amb_surf_0` 5.5-38.0 s | 2026-09-24 |
+| Newark airport outside.wav (dncnbwrs) | https://freesound.org/s/369508/ | CC0 1.0 | `amb_airport_0` 22.0-50.5 s | 2026-09-24 |
+| Distant harbour noise in a windy night, Hamburg Landungsbrücken (Pfannkuchn) | https://freesound.org/s/342878/ | CC0 1.0 | `amb_port_0` 49.5-80.0 s | 2026-09-24 |
+| car_idle_ext_loop.wav (AndrewAlexander) | https://freesound.org/s/369054/ | CC0 1.0 | `car_roll_0` 0.2-4.2 s | 2026-09-24 |
+| car horn.wav (keweldog) | https://freesound.org/s/182474/ | CC0 1.0 | `horn_far_0` 0.55-2.20 s | 2026-09-24 |
+| Car Honking (MicktheMicGuy) | https://freesound.org/s/434878/ | CC0 1.0 | `horn_far_1` 0.00-0.75 s | 2026-09-24 |
+| Car horn beep beep two beeps honk honk (AmishRob) | https://freesound.org/s/423990/ | CC0 1.0 | `horn_far_2` 0.05-0.70 s | 2026-09-24 |
+| 05 Horn.wav (15HPanska_Ruttner_Jan) | https://freesound.org/s/461679/ | CC0 1.0 | `horn_far_3` 0.45-2.50 s | 2026-09-24 |
+| Car Horn Honk.wav (DeVern) | https://freesound.org/s/349922/ | CC0 1.0 | `horn_far_4` 1.40-3.10 s | 2026-09-24 |
+| Angry big dog barking - Far [d15].wav (v23) | https://freesound.org/s/440865/ | CC0 1.0 | `dog_0` 0.70-2.80 s; `dog_1` 4.95-7.10 s; `dog_2` 8.55-9.90 s | 2026-09-24 |
+| distant_dog.wav (Heigh-hoo) | https://freesound.org/s/54545/ | CC0 1.0 | `dog_3` 2.85-5.35 s | 2026-09-24 |
+| bus coach ext pull up brake air release idle.wav (kyles) | https://freesound.org/s/454420/ | CC0 1.0 | `bus_hiss_0` 3.90-6.40 s; `bus_hiss_1` 10.60-12.80 s | 2026-09-24 |
+| air brake sound effect (okpato123) | https://freesound.org/s/801435/ | CC0 1.0 | `bus_hiss_2` 0.90-2.30 s | 2026-09-24 |
+| Distant Ambulance Siren (brunoboselli) | https://freesound.org/s/469363/ | CC0 1.0 | `siren_far_0` 1.80-17.80 s | 2026-09-24 |
+| 200829 Sirens, distant, ambulence, police, urban echoes roof, stops 9am.flac (TRP) | https://freesound.org/s/568814/ | CC0 1.0 | `siren_far_1` 1.50-17.50 s | 2026-09-24 |
+| Gull.wav (nigelcoop) | https://freesound.org/s/73497/ | CC0 1.0 | `gull_0` 0.30-3.50 s | 2026-09-24 |
+| Seagulls_short.wav (Lydmakeren) | https://freesound.org/s/510917/ | CC0 1.0 | `gull_1` 3.90-6.40 s; `gull_2` 6.40-9.00 s | 2026-09-24 |
+| Seagull on beach (squashy555) | https://freesound.org/s/353416/ | CC0 1.0 | `gull_3` 0.00-2.60 s; `gull_4` 9.00-11.60 s | 2026-09-24 |
+| coyote barks and howls (dkaufman) | https://freesound.org/s/256533/ | CC0 1.0 | `coyote_0` 12.50-19.20 s; `coyote_1` 0.25-2.60 s | 2026-09-24 |
+| coyotes howling (SamsterBirdies) | https://freesound.org/s/640060/ | CC0 1.0 | `coyote_2` 20.00-28.00 s | 2026-09-24 |
+| ship horn.wav (monotraum) | https://freesound.org/s/208714/ | CC0 1.0 | `ship_horn_0` 11.00-17.50 s | 2026-09-24 |
+| Ship Horn.mp3 (Grotelue) | https://freesound.org/s/64601/ | CC0 1.0 | `ship_horn_1` 0.00-6.20 s | 2026-09-24 |
+| Ship Horn - Fog Horn - Cruise Ship Grand Princess (coalcon) | https://freesound.org/s/636075/ | CC0 1.0 | `ship_horn_2` 0.00-6.00 s | 2026-09-24 |
+| Four quiet distant clangs.aiff (Danjocross) | https://freesound.org/s/507465/ | CC0 1.0 | `crane_0` 1.45-3.30 s; `crane_1` 5.65-7.40 s; `crane_2` 9.60-11.30 s | 2026-09-24 |
+| backing up beep.wav (C-V) | https://freesound.org/s/523413/ | CC0 1.0 | `crane_3` 0.25-3.80 s | 2026-09-24 |
+| Car passing by.wav (hinzebeat) | https://freesound.org/s/171447/ | CC0 1.0 | `car_pass_0` 0.35-3.15 s | 2026-09-24 |
+| One car passing by (JPBILLINGSLEYJR) | https://freesound.org/s/465397/ | CC0 1.0 | `car_pass_1` 4.10-6.90 s | 2026-09-24 |
+| Car Passing (Johnnyfarmer) | https://freesound.org/s/209767/ | CC0 1.0 | `car_pass_2` 0.51-3.31 s | 2026-09-24 |
+| PassingCar01.wav (Pingel) | https://freesound.org/s/3179/ | CC0 1.0 | `car_pass_3` 3.45-6.25 s | 2026-09-24 |
+| Passing Car (Wet road) (Breviceps) | https://freesound.org/s/462862/ | CC0 1.0 | `car_pass_wet_0` 1.40-4.20 s | 2026-09-24 |
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |
