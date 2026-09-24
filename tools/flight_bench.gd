@@ -12,6 +12,13 @@ extends SceneTree
 ##
 ## Prints one FLIGHT line: frames, median / p95 / p99 / worst frame in ms, frames over 33, 50
 ## and 100 ms, and the streamer's own counters where it has them. ROUTE=a|b picks the route.
+##
+## FIXED=1 moves the player 1/60 s of flight per frame whatever the frame took, so two builds fly
+## exactly the same frames, and adds the process's CPU time for the flight (from /proc, so it is
+## the work done rather than the wall clock) - on a shared, loaded machine the wall-clock numbers
+## of two runs differ by more than any change being measured, the CPU total much less.
+## FARCITY=1 builds the whole far city first, as the loading screen does on desktop (without it
+## the far city past far_city_immediate_radius is built during the flight, as on the web).
 func _initialize() -> void:
 	var scene: PackedScene = load("res://scenes/levels/city.tscn")
 	root.add_child(scene.instantiate())
@@ -31,6 +38,9 @@ func _initialize() -> void:
 	var police := city.get_node_or_null("Police")
 	if police:
 		police.set("enabled", false)
+	var fixed := _env("FIXED", "") == "1"
+	if _env("FARCITY", "") == "1" and city.has_method("finish_far_city"):
+		city.call("finish_far_city")
 	# CENSUS=1: every 20 frames, count the city blocks ahead (a 100-degree cone, 3 km) that no tier
 	# draws - the holes a player flying this route actually looks at.
 	var census := _env("CENSUS", "") == "1"
@@ -42,6 +52,7 @@ func _initialize() -> void:
 	var times: Array[float] = []
 	var last := Time.get_ticks_usec()
 	var warm := 60
+	var cpu0 := 0
 	while seg < route.size() - 1:
 		await process_frame
 		var now := Time.get_ticks_usec()
@@ -50,9 +61,13 @@ func _initialize() -> void:
 		if warm > 0:
 			warm -= 1
 			dt = 0.0
+			if warm == 0:
+				cpu0 = _cpu_ms()
 		else:
 			times.append(dt * 1000.0)
 		var step := speed * minf(dt, 8.0 / 60.0)
+		if fixed and warm <= 0:
+			step = speed / 60.0
 		while step > 0.0 and seg < route.size() - 1:
 			var to := route[seg + 1]
 			var left := pos.distance_to(to)
@@ -85,9 +100,10 @@ func _initialize() -> void:
 	var total := 0.0
 	for t in times:
 		total += t
-	print("FLIGHT frames=%d mean=%.1f p50=%.1f p95=%.1f p99=%.1f max=%.1f over33=%d over50=%d over100=%d total=%.1fs" % [
+	var cpu := _cpu_ms() - cpu0
+	print("FLIGHT frames=%d mean=%.1f p50=%.1f p95=%.1f p99=%.1f max=%.1f over33=%d over50=%d over100=%d total=%.1fs cpu=%.1fs cpu_per_frame=%.1fms" % [
 		n, total / n, times[n / 2], times[int(n * 0.95)], times[int(n * 0.99)], times[n - 1],
-		over.call(33.0), over.call(50.0), over.call(100.0), total / 1000.0])
+		over.call(33.0), over.call(50.0), over.call(100.0), total / 1000.0, cpu / 1000.0, float(cpu) / n])
 	if city.has_method("chunk_counts"):
 		print("FLIGHT chunks ", city.call("chunk_counts"))
 	if census:
@@ -135,6 +151,17 @@ func _holes(city: Node, eye: Vector3, dir: Vector2) -> int:
 			if not drawn:
 				holes += 1
 	return holes
+
+
+## This process's user + system CPU time so far, in ms (Linux /proc; 0 elsewhere). Every thread
+## counts, the render and physics threads too.
+func _cpu_ms() -> int:
+	var f := FileAccess.open("/proc/self/stat", FileAccess.READ)
+	if f == null:
+		return 0
+	var fields := f.get_as_text().split(")")[-1].strip_edges().split(" ")
+	# After the ")" closing the name: state is field 3, utime 14 and stime 15 (1-based).
+	return int((int(fields[11]) + int(fields[12])) * 10)
 
 
 func _env(key: String, fallback: String) -> String:

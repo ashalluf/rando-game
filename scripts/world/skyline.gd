@@ -34,7 +34,7 @@ extends Node3D
 ## seats them on the drawn far ground, or on the real terrain where a LOD chunk has it).
 ##
 ## Tiles of TILE_BLOCKS x TILE_BLOCKS blocks, one MultiMesh (one draw) each plus one for the hill
-## planting. Built nearest-and-most-in-view first, a block at a time inside a per-frame budget,
+## planting. Built nearest-and-most-in-view first, a build step at a time inside a per-frame budget,
 ## out to `radius` metres - the whole basin - and not dropped again unless the player goes far
 ## enough for them to leave that radius.
 
@@ -89,7 +89,8 @@ var _cover: Dictionary = {}
 var _alpha: Dictionary = {}
 ## Blocks whose visibility is still moving.
 var _fading: Dictionary = {}
-## The tile under construction: {"t", "blocks" (Array[Vector2i]), "next", accumulators}.
+## The tile under construction: {"t", "blocks" (Array[Vector2i]), "next", accumulators, and while a
+## city block is being captured "cap" (its CityChunk), "cap_k", "cap_zone"}.
 var _work: Dictionary = {}
 ## Where the last scan for a missing tile was centred, and whether it found none: nothing is
 ## rescanned until the player reaches another tile.
@@ -377,25 +378,68 @@ func _begin_tile(t: Vector2i) -> void:
 	}
 
 
-## One block of the tile under construction; true once the tile is finished and in the tree.
+## One step of the tile under construction; true once the tile is finished and in the tree. A
+## city block is captured one of its build steps per call, so the far city never costs a frame
+## more than one LOD build step does: run whole, a block was up to 9 ms on a loaded machine, over
+## the per-frame budget by itself.
 func _work_step() -> bool:
 	if _work.is_empty():
 		return true
+	if _work.has("cap"):
+		var ch: CityChunk = _work.cap
+		if not ch.build_step():
+			return false
+		var ck: Vector2i = _work.cap_k
+		_work.erase("cap")
+		_add_captured(ck, _plan.block(ck.x, ck.y), int(_work.cap_zone), ch)
+		_end_block(ck)
+		return false
 	var blocks: Array = _work.blocks
 	if _work.next < blocks.size():
 		var k: Vector2i = blocks[_work.next]
 		_work.next += 1
-		var b0: int = (_work.xforms as Array).size()
-		var v0: int = (_work.veg as Array).size()
-		var h0: int = (_work.houses as Array).size()
-		_add_block(k)
-		_work.ranges[k] = [b0, (_work.xforms as Array).size() - b0, v0, (_work.veg as Array).size() - v0,
-			h0, (_work.houses as Array).size() - h0]
-		blocks_built += 1
+		_work.start = [(_work.xforms as Array).size(), (_work.veg as Array).size(), (_work.houses as Array).size()]
+		var b := _plan.block(k.x, k.y)
+		var macro: MacroMap = _plan.macro
+		var zone: int = macro.zone_at((b.rect as Rect2).get_center()) if macro else MacroMap.Zone.CITY
+		match zone:
+			MacroMap.Zone.CITY, MacroMap.Zone.PORT, MacroMap.Zone.AIRPORT:
+				# The chunk's own block build in capture mode, stepped from here on.
+				var ch := CityChunk.new()
+				ch.plan = _plan
+				ch.ix = k.x
+				ch.iz = k.y
+				ch.level = CityChunk.Level.LOD
+				ch.style = _style
+				ch.capturing = true
+				ch.begin_build()
+				_work.cap = ch
+				_work.cap_k = k
+				_work.cap_zone = zone
+				return false
+			MacroMap.Zone.HILLS:
+				_work.hills[k] = true
+				_add_hills(b.rect, macro)
+		_end_block(k)
 		return false
 	_commit_tile()
 	_work = {}
 	return true
+
+
+## Closes the block just built: its freeway, and where its instances sit in the tile.
+func _end_block(k: Vector2i) -> void:
+	_add_freeway(k)
+	var s: Array = _work.start
+	_work.ranges[k] = [s[0], (_work.xforms as Array).size() - s[0], s[1], (_work.veg as Array).size() - s[1],
+		s[2], (_work.houses as Array).size() - s[2]]
+	blocks_built += 1
+
+
+func _notification(what: int) -> void:
+	# A capture in progress is a CityChunk that never entered the tree: nothing else frees it.
+	if what == NOTIFICATION_PREDELETE and _work.has("cap"):
+		(_work.cap as Node).free()
 
 
 func _commit_tile() -> void:
@@ -499,32 +543,9 @@ func _planting_node(node_name: String, mesh: Mesh, veg: Array, veg_colors: Array
 
 # --- One block ---------------------------------------------------------------------------------
 
-func _add_block(k: Vector2i) -> void:
-	var b := _plan.block(k.x, k.y)
-	var rect: Rect2 = b.rect
-	var macro: MacroMap = _plan.macro
-	var zone: int = macro.zone_at(rect.get_center()) if macro else MacroMap.Zone.CITY
-	match zone:
-		MacroMap.Zone.CITY, MacroMap.Zone.PORT, MacroMap.Zone.AIRPORT:
-			_add_captured(k, b, zone)
-		MacroMap.Zone.HILLS:
-			_work.hills[k] = true
-			_add_hills(rect, macro)
-	_add_freeway(k)
-
-
-## A block as its LOD chunk builds it: the chunk's own block build run in capture mode.
-func _add_captured(k: Vector2i, b: Dictionary, zone: int) -> void:
-	var ch := CityChunk.new()
-	ch.plan = _plan
-	ch.ix = k.x
-	ch.iz = k.y
-	ch.level = CityChunk.Level.LOD
-	ch.style = _style
-	ch.capturing = true
-	ch.begin_build()
-	while not ch.build_step():
-		pass
+## A block as its LOD chunk builds it, from the chunk's own block build run in capture mode
+## (`ch`, finished; _work_step() steps it). Frees `ch`.
+func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void:
 	var cap: Dictionary = ch.captured
 	var batch: Dictionary = cap.get("batch", {})
 	var xforms: Array = _work.xforms
