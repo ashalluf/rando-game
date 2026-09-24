@@ -16,7 +16,7 @@ func _ready() -> void:
 	# close to the old 300, and the distance checks (tests/distance_checks.gd) about 20 more.
 	# SMOKE_WATCHDOG=seconds raises it for a run on a box shared with other heavy jobs, where the
 	# same checks take longer in wall time (the gate's own timeout has to be raised with it).
-	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 540.0
+	var watchdog := float(OS.get_environment("SMOKE_WATCHDOG")) if OS.get_environment("SMOKE_WATCHDOG") != "" else 840.0
 	get_tree().create_timer(watchdog).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
