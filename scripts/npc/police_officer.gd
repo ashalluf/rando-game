@@ -411,7 +411,9 @@ func _line_of_fire(target: Vector3) -> bool:
 
 ## What to do and where to stand, a couple of times a second.
 func _think() -> void:
-	var car_ok := is_instance_valid(car) and car.driver == null and not car.is_queued_for_deletion()
+	# In the tree too: Police.clear() pools a cruiser at once but frees its crew at the end of the
+	# frame, so the crew can still think once about a car that is no longer anywhere.
+	var car_ok := is_instance_valid(car) and car.is_inside_tree() and car.driver == null and not car.is_queued_for_deletion()
 	if car_ok and (car.recall_crew or police.stars <= 0):
 		task = Task.REBOARD
 		var door := car.global_position + car.global_basis.x * (1.6 if seat % 2 == 0 else -1.6)
