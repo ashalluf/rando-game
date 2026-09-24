@@ -454,7 +454,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   torn-off limb to `blood_gush()`. `blood(node, at, dir, strength, victim)` is one wound:
   backspatter out of the entry; the exit spray from `blood_exit_depth` further along the bullet
   (lit, glossy, OPAQUE droplet meshes aligned to their velocity - an unshaded red dot glows at
-  night - with no damping, so they fly the same arcs as the trace); a lit mist; one ray
+  night - with no damping, so they fly the same arcs as the trace, and backlit red); a mist that is
+  unshaded and darkens itself by `night_factor` (`shaders/blood_mist.gdshader` - lit, the
+  camera-facing cards caught no sun and read as grey-brown dust); one ray
   `blood_wall_reach` on for a spatter plus runs that creep down the wall; and `blood_landings`
   drops traced along those arcs to where they land, each laying a splat at the moment it lands
   (the first always straight under the wound). `strength` 1 is a rifle round (`AssaultRifle

@@ -917,7 +917,8 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   rounds' worth, a stray pellet a small wound. Called per pellet it would also work: the first
   puts them down and the rest land in the ragdoll, which bleeds more for each.
 - **The wound** (`blood()`): backspatter, an exit spray of lit glossy droplet meshes along the
-  bullet, a lit mist, a spatter plus creeping runs on any wall within 2.8 m behind (one ray), and
+  bullet (a fast jet inside a wider spray), an unshaded mist that dims itself at night
+  (`shaders/blood_mist.gdshader`; the lit version was grey dust), a spatter plus creeping runs on any wall within 2.8 m behind (one ray), and
   five drops traced ballistically to where they land, each leaving a splat at the moment it lands.
 - **The body**: a pool spreads from under the hips over 8 s once it rests (widened by later
   hits), drag smears while it slides, drips from the exit wound, a per-body stain on the
