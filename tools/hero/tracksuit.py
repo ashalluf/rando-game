@@ -144,6 +144,61 @@ for f in F:
 fdom = np.array(fdom)
 x, y, z = cent[:, 0], cent[:, 1], cent[:, 2]
 
+# ---- the neck hole: a ring round the neck axis ------------------------------------------------------
+# The neckline plane alone cannot say where the neck ends at the sides: across the top of the
+# shoulders the body runs almost parallel to it. Deciding "jacket" by the plane there left the
+# edge to the bone weights - arm-weighted faces were always jacket, shoulder-weighted ones only
+# below the plane, and the two interleave on the trapezius - so the jacket's edge was a sawtooth
+# with skin in the teeth, and the plane cut stopped dead at |x| = 11 cm with a step. In a still
+# that is the "jagged dark shards round the open collar". The hole is now bounded by the neck
+# itself: this ring, the skin's radius at collar height plus NECK_HOLE_FLARE, sampled round the
+# same axis the collar is swept round and smoothed so it cannot step. It decides which faces are
+# jacket, where the jacket is cut, and which skin is hidden, so all three meet on one line.
+NECK_AXIS_Y = NECK.y + 0.005
+NECK_HOLE_FLARE = 0.012
+NECK_RING_N = 72
+_ring_bvh = BVHTree.FromPolygons([tuple(v) for v in V], [f for f, b in zip(F, fbody) if b])
+
+
+def _ring_sample(a):
+    d = Vector((math.sin(a), -math.cos(a), 0))
+    zb = neck_cut(NECK_AXIS_Y - math.cos(a) * 0.065)
+    c = Vector((0, NECK_AXIS_Y, zb + 0.031 + 0.011 * (1 - math.cos(a)) / 2))
+    hit = _ring_bvh.ray_cast(c + d * 0.13, -d, 0.13)
+    return (hit[0] - c).length if hit[0] is not None else None
+
+
+_ring_raw = [_ring_sample(2 * math.pi * k / NECK_RING_N) for k in range(NECK_RING_N)]
+_ok = [r for r in _ring_raw if r is not None]
+_ring_raw = [r if r is not None else sum(_ok) / len(_ok) for r in _ring_raw]
+NECK_RING = [sum(_ring_raw[(k + j) % NECK_RING_N] for j in range(-2, 3)) / 5 + NECK_HOLE_FLARE for k in range(NECK_RING_N)]
+print("TS neck ring: radius %.1f-%.1f cm, largest step %.1f mm" % (min(NECK_RING) * 100, max(NECK_RING) * 100,
+      max(abs(NECK_RING[k] - NECK_RING[k - 1]) for k in range(NECK_RING_N)) * 1000))
+
+
+def neck_ring_point(k):
+    a = 2 * math.pi * (k % NECK_RING_N) / NECK_RING_N
+    r = NECK_RING[k % NECK_RING_N]
+    return Vector((r * math.sin(a), NECK_AXIS_Y - r * math.cos(a), 0))
+
+
+def neck_ring_edge(k):
+    """The ring's k-th edge as a vertical plane: (a point on it, its outward normal)."""
+    p0, p1 = neck_ring_point(k), neck_ring_point(k + 1)
+    t = p1 - p0
+    n = Vector((t.y, -t.x, 0)).normalized()
+    if n.dot(p0 - Vector((0, NECK_AXIS_Y, 0))) < 0:
+        n = -n
+    return p0, n
+
+
+def inside_neck_ring(p, margin=0.0):
+    """Whether p is inside the neck hole, measured on the ring's own polygon; margin > 0 shrinks it."""
+    a = math.atan2(p[0], -(p[1] - NECK_AXIS_Y)) % (2 * math.pi)
+    k = int(a / (2 * math.pi) * NECK_RING_N) % NECK_RING_N
+    p0, n = neck_ring_edge(k)
+    return n.dot(Vector((p[0], p[1], 0)) - p0) < -margin
+
 
 def classify(margin):
     """Garment faces. margin > 0 reaches past every edge (the shell is then cut back to the
@@ -163,7 +218,7 @@ def classify(margin):
         elif base in ("Spine", "Spine1", "Spine2", "Shoulder", "Neck", "Hips"):
             if base == "Hips" and p[2] < z_hem:
                 cls[i] = "pants"
-            elif p[2] < neck_cut(p[1]) + margin:
+            elif p[2] < neck_cut(p[1]) + margin or not inside_neck_ring(p, margin):
                 cls[i] = "jacket" if p[2] >= z_hem else "pants"
         elif base in ("UpLeg", "Leg"):
             if p[2] > z_pants_end - margin:
@@ -465,7 +520,19 @@ ncut_co = Vector((0, Y_BACK, z_nb))
 ncut_no = Vector((1, 0, 0)).cross(Vector((0, Y_FRONT - Y_BACK, z_nf - z_nb))).normalized()
 if ncut_no.dot(Vector((0, 0, 1))) < 0:
     ncut_no = -ncut_no
-cut(bm, ncut_co, ncut_no, lambda c: c.z > CHEST.z and abs(c.x) < 0.11, lambda c: ncut_no.dot(c - ncut_co) > 0)
+above_ncut = lambda c: ncut_no.dot(c - ncut_co) > 0  # noqa: E731
+# the band either side of the ring: inside it grown by 4 cm, not inside it shrunk by 4 cm
+near_ring = lambda c: c.z > CHEST.z and inside_neck_ring(c, -0.04) and not inside_neck_ring(c, 0.04)  # noqa: E731
+for k in range(NECK_RING_N):
+    p0, n = neck_ring_edge(k)
+    a0 = 2 * math.pi * k / NECK_RING_N
+    sector = lambda c, a0=a0: abs(((math.atan2(c.x, -(c.y - NECK_AXIS_Y)) - a0 - math.pi / NECK_RING_N) + math.pi) % (2 * math.pi) - math.pi) < 2.5 * math.pi / NECK_RING_N  # noqa: E731
+    faces = [f for f in bm.faces if near_ring(f.calc_center_median()) and sector(f.calc_center_median())
+             and ncut_no.dot(f.calc_center_median() - ncut_co) > -0.03]
+    if faces:
+        geom = list({v for f in faces for v in f.verts}) + list({e for f in faces for e in f.edges}) + faces
+        bmesh.ops.bisect_plane(bm, geom=geom, plane_co=p0, plane_no=n, dist=0.0002)
+cut(bm, ncut_co, ncut_no, lambda c: c.z > CHEST.z and inside_neck_ring(c, -0.03), lambda c: above_ncut(c) and inside_neck_ring(c))
 # sleeve ends: a plane across the forearm SLEEVE_END above the wrist
 for sh, el, wr in ((LSH, LEL, LWR), (RSH, REL, RWR)):
     ax = (wr - el).normalized()
@@ -709,6 +776,11 @@ bands.append(hem_band())
 
 
 # collar: a stand collar round the back and sides of the neck, open at the V
+COLLAR_MAX_R = 0.10       # a jacket hit further out than this is the shoulder, not the neckline
+COLLAR_FLARE = 0.012      # the lower edge's flare past the top ring where the skin sample is bad
+COLLAR_FLARE_MAX = 0.025  # a neck-base sample wider than the top ring by more than this is bad
+
+
 def collar():
     r_n = skin_radius(Vector((0, NECK.y + 0.005, z_vtop)), Vector((0, -1, 0)), 0.013, 0.13)
     open_half = math.asin(min(0.98, V_TOP_W / r_n))
@@ -717,9 +789,15 @@ def collar():
     def base(a):
         d = Vector((math.sin(a), -math.cos(a), 0))
         zb = neck_cut(cy - math.cos(a) * 0.065)
+        g = None
         for _ in range(2):  # the plane's height where the jacket really is at this azimuth
             g = garment_radius(Vector((0, cy, zb - 0.004)), d, 0.0, 0.16)
-            if g is None:
+            # A hit past COLLAR_MAX_R is the jacket's shoulder, not its neckline: at the sides the
+            # neckline plane runs under the trapezius, and the ray finds the slope 9-15 cm out.
+            # Taking it moved both this plane and the collar's lower edge by that much at a few
+            # azimuths and not their neighbours, which is what tore the collar into flaps.
+            if g is None or g > COLLAR_MAX_R:
+                g = None
                 break
             zb = neck_cut(cy - math.cos(a) * g)
         return d, zb, g
@@ -728,14 +806,52 @@ def collar():
         d, zb, _ = base(a)
         return Vector((0, cy, zb)), d, Vector((0, 0, 1))
 
+    def raw_radii(a):
+        d, zb, g = base(a)
+        c = Vector((0, cy, zb))
+        h = 0.031 + 0.011 * (1 - math.cos(a)) / 2
+        s_hi = skin_radius(c + Vector((0, 0, h)), d, 0.0, 0.13)
+        lo = body_bvh.ray_cast(c + d * 0.13, -d, 0.13)
+        s_lo = (lo[0] - c).length if lo[0] is not None else None
+        return s_lo, s_hi, g
+
+    # The collar's lower edge, sampled densely, cleaned and smoothed round the neck. Sampled
+    # raw, the neck-base radius went 8.1, 8.7, 12.6, 11.9, MISS (the 5 cm fallback), 8.2 cm over
+    # five neighbouring azimuths, because the neckline plane runs under the shoulders at the sides
+    # and the ray grazes the slope or never meets skin at all. The top ring (skin hi) is smooth -
+    # 7.6 cm tapering to 3.0 at the back - so a sample more than COLLAR_FLARE_MAX wider than the
+    # top, or a miss, is replaced by the top plus a small flare, and the result is averaged over
+    # its neighbours so no edge of the band can step.
+    n_tab = 180
+    tab_a = [open_half + (2 * math.pi - 2 * open_half) * k / (n_tab - 1) for k in range(n_tab)]
+    raw = [raw_radii(a) for a in tab_a]
+    lo_clean = []
+    for s_lo, s_hi, _g in raw:
+        if s_lo is None or s_lo > s_hi + COLLAR_FLARE_MAX or s_lo < s_hi - 0.004:
+            s_lo = s_hi + COLLAR_FLARE
+        lo_clean.append(s_lo)
+    lo_smooth = []
+    for k in range(n_tab):
+        win = lo_clean[max(0, k - 4):k + 5]
+        lo_smooth.append(sum(win) / len(win))
+    bad = sum(1 for (s_lo, s_hi, _g) in raw if s_lo is None or s_lo > s_hi + COLLAR_FLARE_MAX or s_lo < s_hi - 0.004)
+    steps = max(abs(lo_smooth[k + 1] - lo_smooth[k]) for k in range(n_tab - 1))
+    print("TS collar lower edge: %d of %d samples replaced, largest step between neighbours %.1f mm" % (bad, n_tab, steps * 1000.0))
+
+    def lo_at(a):
+        t = (a - tab_a[0]) / (tab_a[-1] - tab_a[0]) * (n_tab - 1)
+        k = max(0, min(n_tab - 2, int(t)))
+        f = min(1.0, max(0.0, t - k))
+        return lo_smooth[k] * (1 - f) + lo_smooth[k + 1] * f
+
     def prof(a):
         d, zb, g = base(a)
         c = Vector((0, cy, zb))
         back = (1 - math.cos(a)) / 2  # 0 at the front ends, 1 at the back
         h = 0.031 + 0.011 * back
-        s_lo = skin_radius(c, d, 0.0, 0.13)
+        s_lo = lo_at(a)
         s_hi = skin_radius(c + Vector((0, 0, h)), d, 0.0, 0.13)
-        rj = (g if g is not None else s_lo + 0.0135)
+        rj = (g if g is not None and g < s_lo + COLLAR_FLARE_MAX else s_lo + 0.0135)
         r_out_lo = max(rj - 0.0015, s_lo + 0.012)
         r_out_hi = s_hi + 0.0125
         r_in_hi = r_out_hi - 0.0052
@@ -1046,6 +1162,28 @@ for o in collar_o + [tank_o, tank_bind, zipper]:
 
 # ---- hide the body under the garments, one ring inside every edge ---------------------------------------
 covered = (cover == "jacket") | (cover == "pants")
+# Near the neckline, ask the cloth rather than the plane. The jacket stands 8-13.5 mm off the body
+# and is cut by the neckline plane, but across the top of the shoulders the skin runs almost
+# parallel to that plane, so a centimetre of offset moves the jacket's real edge by several
+# centimetres along the body. The plane test deleted skin the jacket never reached, and through
+# those holes the game drew the dark inside of the jacket: the "shards" round the open collar,
+# visible in every pose, not only when aiming. A body face near the neckline is now hidden only
+# if a ray out along its normal meets the jacket, the collar or a band within COVER_REACH.
+COVER_REACH = 0.03
+cloth_bvh = [BVHTree.FromObject(o, bpy.context.evaluated_depsgraph_get()) for o in [garment] + bands]
+kept_by_ray = 0
+for i in range(len(F)):
+    if not covered[i]:
+        continue
+    p = cent[i]
+    if p[2] < neck_cut(p[1]) - 0.12:
+        continue  # well below the neckline the plane and the cloth agree
+    n = Vector(src_me.polygons[i].normal)
+    c = Vector(p) + n * 0.0005
+    if not any(b.ray_cast(c, n, COVER_REACH)[0] is not None for b in cloth_bvh):
+        covered[i] = False
+        kept_by_ray += 1
+print("TS neckline: %d body faces kept that the plane test hid but no cloth covers" % kept_by_ray)
 vcount = np.zeros(NV)
 vcov = np.zeros(NV)
 for i, f in enumerate(F):
