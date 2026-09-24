@@ -1436,11 +1436,15 @@ A fixed-step A/B (`FIXED=1`, same frames both sides, process CPU time from /proc
 - Merged with main's downtown skyline and civic set at the end of the session and the headless
   check run once on the merge; the far copies of the named towers are theirs (far landmarks),
   not the far city's. Not rendered after the merge.
-- Stills (opengl3, 5120 x 720 panoramas, four views): `scratchpad/lod/lod_before_*.png` and
-  `lod_after_*.png` (downtown, hills, high air, airport, beach, freeway; `_tiers` = each tier a
-  flat colour: red LOD chunks, blue far city, pink landmarks). The after set predates the rim
-  fade, the airport plates and the harness far-city build; re-shoot with
-  `tools/glshot/lod_pano.gd` (usage in its header) to see those.
+- Stills (opengl3, 5120 x 720 panoramas, four views; in the session scratchpad, not the repo,
+  and already sent to the owner): before = downtown, hills, high air, airport, beach, freeway;
+  after = downtown, hills, high air; `_tiers` = each tier a flat colour (red LOD chunks, blue far
+  city, pink landmarks). The after set predates the rim fade, the airport plates and the
+  harness far-city build (except `lod_after_highair_tiers`, which has the last two); re-shoot
+  the same vantages with `tools/glshot/lod_pano.gd` (usage in its header) to see all of it:
+  downtown `--spawn=700,250,0,-8,260`, hills `300,-1150,180,-12,520`, high air
+  `500,300,0,-28,900`, airport `-300,780,-90,-5,80`, beach `-850,-300,-90,-3,30`, freeway
+  `200,712,-90,-4,30`, all at `--hour=13`.
 
 
 ## 10. Suggested next steps, in order of impact
