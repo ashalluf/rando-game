@@ -255,6 +255,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 Replica areas (owner: "we are basically picking like certain 1:1 replica areas
+  and then filling them in between with whatever").** The map becomes real places at true
+  scale, joined by seeded filler, and it must stay geographically sound (the Esplanade is south
+  of the airport and the piers, and so on). Replica areas are authored from real references -
+  street layout, widths, heights, what you see from the road - as data tables, never
+  hand-placed nodes; everything between them stays seeded. Business names and logos stay
+  original (trademarks); public street names may appear. First areas: the Redondo Beach
+  Esplanade curving up into Palos Verdes with the real view of the PV hills (from the owner's
+  Street View shots), and the whole of downtown LA at 1:1 - the skyline and civic/arena passes
+  first at the current scale, then one re-layout at real block sizes and distances.
+
 - **2026-09-24 The city sounds like a city (owner: "the city should SOUND like a real city,
   AAA-style").** The game had gunfire, engines and rain and otherwise silence: two ambience
   recordings had shipped for months and nothing played them. Now an `Ambience` node layers real
