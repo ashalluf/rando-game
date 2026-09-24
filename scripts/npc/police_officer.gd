@@ -153,13 +153,29 @@ func _add_model() -> bool:
 	return true
 
 
-## Any of the crowd's rigs except the hero's own.
+## The rigs that take the uniform cleanly (judged in a standoff still): not the hero's own (d),
+## not e (its sleeves are painted skin from the elbow down), not i (it has a cap of its own) and
+## not k (its yellow blazer stays yellow under the recolour, and read as a hi-vis vest).
+const OFFICER_MODELS := [
+	"res://assets/models/pedestrian_f_anim.glb",
+	"res://assets/models/pedestrian_g_anim.glb",
+	"res://assets/models/pedestrian_h_anim.glb",
+	"res://assets/models/pedestrian_j_anim.glb",
+	"res://assets/models/pedestrian_l_anim.glb",
+]
+
+
+## One of OFFICER_MODELS, seeded; any crowd rig but the hero's if none of those exist.
 func _pick_model() -> String:
 	var hero := "res://assets/models/pedestrian_d_anim.glb"
 	var available: Array[String] = []
-	for p in MODELS:
-		if p != hero and ResourceLoader.exists(p):
+	for p in OFFICER_MODELS:
+		if ResourceLoader.exists(p):
 			available.append(p)
+	if available.is_empty():
+		for p in MODELS:
+			if p != hero and ResourceLoader.exists(p):
+				available.append(p)
 	if available.is_empty():
 		return ""
 	return available[_style.randi() % available.size()]

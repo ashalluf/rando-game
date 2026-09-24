@@ -11,7 +11,7 @@ extends Control
 ## plain properties, so this costs a handful of uniform writes.
 
 ## Star size as a fraction of the viewport height (clamped), and the margin from the top right.
-@export var star_size: float = 0.036
+@export var star_size: float = 0.044
 @export var star_margin: Vector2 = Vector2(16.0, 44.0)
 ## How fast a star lights or goes out (per second), and the flash rate while the police have
 ## lost the player (flashes per second).

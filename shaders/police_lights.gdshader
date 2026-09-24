@@ -10,9 +10,10 @@ render_mode unshaded, cull_back, shadows_disabled;
 // Flash cycles per second, and where in the cycle this car is (so a row is not in step).
 uniform float rate = 1.6;
 uniform float phase = 0.0;
-// Brightness of a lit lens, and of an unlit one (lenses are coloured glass, never black).
+// Brightness of a lit lens, and of an unlit one: lenses are coloured plastic and read red and
+// blue in daylight even between flashes (at 0.16 an unlit bar vanished into a black roof).
 uniform float energy = 4.0;
-uniform float idle = 0.16;
+uniform float idle = 0.45;
 // 0 switches the bar off (an abandoned cruiser).
 uniform float lights_on = 1.0;
 
