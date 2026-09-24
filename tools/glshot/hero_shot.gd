@@ -9,7 +9,8 @@ extends SceneTree
 ## Env: OUT (png), WEAPON (0 AK, 1 rocket launcher, 2 shotgun), AIM=1 raises it to the
 ## shoulder, YAW (degrees to orbit the camera round the hero; 0 is front-on, 90 his right side),
 ## WALK=1 plays the walk clip (the IK has to hold the gun whatever the legs do), CAM_DIST and
-## CAM_Y bring the camera in on the hands, DEBUG=1 marks the IK targets.
+## CAM_Y bring the camera in on the hands, DEBUG=1 marks the IK targets, ROCKET=1 (with WEAPON=1)
+## fires a slow rocket so it is in frame just past the muzzle.
 func _initialize() -> void:
 	var stage := Node3D.new()
 	get_root().add_child(stage)
@@ -86,6 +87,15 @@ func _initialize() -> void:
 		cam.global_position = centre + Basis(Vector3.UP, -yaw) * Vector3(0.0, 0.15 * dist / 2.6, -dist)
 		cam.look_at(centre, Vector3.UP)
 		cam.current = true
+	# ROCKET=1 (with WEAPON=1 AIM=1): a rocket just out of the launcher, crawling so it is in frame.
+	if OS.get_environment("ROCKET") == "1":
+		var launcher: Node = manager.get("current")
+		if launcher and launcher.has_method("launch_rocket"):
+			var muzzle: Node3D = launcher.get("muzzle")
+			var shot: Node3D = launcher.launch_rocket(muzzle.global_position, -(launcher as Node3D).global_basis.z)
+			shot.set("speed", 3.0)
+			for i in 24:
+				await physics_frame
 	var sk: Skeleton3D = player.find_child("Skeleton3D", true, false)
 	if sk:
 		for b in ["Hips", "RightArm", "RightHand", "LeftHand"]:
