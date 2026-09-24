@@ -189,6 +189,8 @@ func _draw() -> void:
 			var chip := PackedVector2Array([p + f * 3.5 + r * 1.8, p + f * 3.5 - r * 1.8, p - f * 3.5 - r * 1.8, p - f * 3.5 + r * 1.8])
 			draw_colored_polygon(chip, COLORS.car_traffic if car.get("traffic") else COLORS.car)
 
+	_draw_police(center, scale)
+
 	# Landmarks: pins with names (names stay upright).
 	if plan.macro:
 		for lm in Landmarks.all():
@@ -226,6 +228,48 @@ func _draw() -> void:
 	draw_polyline(PackedVector2Array([tri[0], tri[1], tri[2], tri[3], tri[0]]), Color.WHITE, 1.5, true)
 	# Inner vignette so the edge fades into the frame.
 	draw_arc(c, size.x * 0.5 - 6.0, 0.0, TAU, 96, Color(0.0, 0.0, 0.0, 0.35), 12.0, true)
+
+
+## The police (scripts/npc/police.gd): the search area round the last sighting once they have
+## lost the player, and every unit as a blip flashing red and blue - cruisers as bigger chips,
+## officers on foot as dots. Clamped to the rim when they are off the map, so you can see what
+## is coming.
+func _draw_police(center: Vector2, scale: float) -> void:
+	var police := get_tree().get_first_node_in_group("wanted")
+	if police == null or int(police.get("stars")) <= 0 and (police.get("cruisers") as Array).is_empty():
+		return
+	var red := Color(1.0, 0.18, 0.16)
+	var blue := Color(0.22, 0.45, 1.0)
+	if police.call("show_search_area"):
+		var sc: Vector3 = _city.world_position(police.call("search_center"))
+		var sp := world_to_map(Vector2(sc.x, sc.z), center)
+		var sr: float = float(police.call("search_radius_now")) * scale
+		var breathe := 0.5 + 0.5 * sin(_pulse * 3.0)
+		draw_circle(sp, sr, Color(red.r, red.g, red.b, 0.10 + 0.06 * breathe))
+		draw_arc(sp, sr, 0.0, TAU, 64, Color(blue.r, blue.g, blue.b, 0.55), 2.0, true)
+	var phase := fmod(_pulse * 2.2, 1.0) < 0.5
+	var limit := size.x * 0.5 - 12.0
+	var mid := size * 0.5
+	for car in police.get("cruisers"):
+		if is_instance_valid(car):
+			var cw: Vector3 = _city.world_position((car as Node3D).global_position)
+			var p := _clamp_to_rim(world_to_map(Vector2(cw.x, cw.z), center), mid, limit)
+			draw_circle(p, 6.5, COLORS.road_edge)
+			draw_circle(p, 5.0, red if phase else blue)
+			draw_circle(p, 2.0, Color.WHITE)
+	for o in police.get("officers"):
+		if is_instance_valid(o):
+			var ow: Vector3 = _city.world_position((o as Node3D).global_position)
+			var p2 := _clamp_to_rim(world_to_map(Vector2(ow.x, ow.z), center), mid, limit)
+			draw_circle(p2, 4.0, COLORS.road_edge)
+			draw_circle(p2, 2.8, blue if phase else red)
+
+
+func _clamp_to_rim(p: Vector2, mid: Vector2, limit: float) -> Vector2:
+	var off := p - mid
+	if off.length() > limit:
+		off = off.normalized() * limit
+	return mid + off
 
 
 func _owned_rect(plan: CityPlan, ix: int, iz: int) -> Rect2:
