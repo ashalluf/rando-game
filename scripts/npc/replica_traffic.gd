@@ -167,7 +167,9 @@ func _maintain() -> void:
 			_spawn(s, dir, lane)
 
 
-func _spawn(s: float, dir: int, lane: int) -> void:
+## `force` skips the per-frame build cap and the physics budget (the checks use it: late in the
+## smoke test the budget is full of the earlier tests' props and a spawn would quietly do nothing).
+func _spawn(s: float, dir: int, lane: int, force: bool = false) -> void:
 	if Engine.get_process_frames() != _built_frame:
 		_built_frame = Engine.get_process_frames()
 		_built = 0
@@ -177,7 +179,7 @@ func _spawn(s: float, dir: int, lane: int) -> void:
 		if is_instance_valid(c):
 			car = c
 	if car == null:
-		if _built >= builds_per_frame or not PhysicsBudget.can_spawn():
+		if not force and (_built >= builds_per_frame or not PhysicsBudget.can_spawn()):
 			return
 		_built += 1
 		car = Vehicle.random_car(_rng)

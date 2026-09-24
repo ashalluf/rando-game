@@ -242,8 +242,9 @@ func _traffic(rep: ReplicaAreas, city: Node3D) -> void:
 	_t._check(closest > float(ra.r_island) + 1.5 and swept < -0.5 and off_road == 0,
 		"southbound traffic goes round the roundabout anticlockwise, clear of the island (%.1f m from its centre, swept %.0f deg, %d points off its half of the road)" % [closest, rad_to_deg(swept), off_road])
 	# And a real car, driven by hand for a few simulated seconds, moves along its lane.
-	rt._spawn(600.0, -1, 1)
-	var car: Vehicle = rt.cars.back() if not rt.cars.is_empty() else null
+	var before: int = rt.cars.size()
+	rt._spawn(600.0, -1, 1, true)
+	var car: Vehicle = rt.cars.back() if rt.cars.size() > before else null
 	_t._check(car != null, "replica traffic spawns a car")
 	if car == null:
 		return
