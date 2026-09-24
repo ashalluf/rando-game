@@ -172,6 +172,8 @@ func _maintain() -> void:
 		if wp.distance_to(pw) > despawn_distance or (zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.BEACH):
 			cars.erase(car)
 			_retire(car)
+		else:
+			_turn_back_from_replica(car)
 	var density := density_at(Vector2(pw.x, pw.z))
 	var want := roundi(max_cars * density)
 	# Too many (a lower quality level or a quieter district): shed the farthest ones.
@@ -198,7 +200,7 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	var dir := 1 if _rng.randf() < 0.5 else -1
 	var lane := _lane_offset(axis, index, dir)
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
-	if plan.zone_at(pos2) != MacroMap.Zone.CITY:
+	if plan.zone_at(pos2) != MacroMap.Zone.CITY or _replica_blocks(pos2, 6.0):
 		return
 	var car := _new_car()
 	var speed := _rng.randf_range(speed_range.x, speed_range.y) * lerpf(1.0, dense_speed_factor, density)
@@ -210,6 +212,32 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	add_child(car)
 	car.traffic_speed = car.traffic.speed
 	cars.append(car)
+
+
+## Grid cars keep out of a replica area's corridor (ReplicaAreas.blocks_grid()): the grid's own
+## roads stop at its edge, and the replica's road carries its own traffic (ReplicaTraffic).
+func _replica_blocks(p: Vector2, pad: float) -> bool:
+	var rep: ReplicaAreas = plan.macro.replica if plan.macro else null
+	return rep != null and rep.blocks_grid(p, pad)
+
+
+## A grid car about to drive into the corridor turns round in the street instead (checked every
+## upkeep, half a second apart, so it looks well ahead of itself).
+func _turn_back_from_replica(car: Vehicle) -> void:
+	var t: Dictionary = car.traffic
+	if not t.has("axis") or plan.macro == null or plan.macro.replica == null:
+		return
+	var wp := WorldState.to_world(car.global_position)
+	var ahead := Vector2(0.0, float(t.dir)) if int(t.axis) == CityPlan.AXIS_X else Vector2(float(t.dir), 0.0)
+	if not _replica_blocks(Vector2(wp.x, wp.z) + ahead * 16.0, 1.0):
+		return
+	var new_dir := -int(t.dir)
+	var lane := _lane_offset(t.axis, t.index, new_dir)
+	t.dir = new_dir
+	t.lane = lane
+	var road := plan.road_pos(t.axis, t.index)
+	var pos2 := Vector2(road + lane, wp.z) if int(t.axis) == CityPlan.AXIS_X else Vector2(wp.x, road + lane)
+	_place(car, WorldState.to_local(Vector3(pos2.x, wp.y, pos2.y)), _heading(t.axis, new_dir), 0.0)
 
 
 ## Right-hand traffic: the lane sits to the right of the direction of travel.

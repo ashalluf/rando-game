@@ -208,6 +208,13 @@ func _ready() -> void:
 	traffic.max_loop_cars = airport_loop_cars
 	traffic.max_freeway_cars = freeway_cars
 	add_child(traffic)
+	# A replica area's own road carries its own traffic (the grid traffic keeps out of it).
+	if plan.macro and plan.macro.replica:
+		var replica_traffic := ReplicaTraffic.new()
+		replica_traffic.name = "ReplicaTraffic"
+		replica_traffic.plan = plan
+		replica_traffic.rep = plan.macro.replica
+		add_child(replica_traffic)
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	_apply_spawn_override()
 	update_streaming(true)
@@ -814,6 +821,12 @@ func _build_ground_material() -> ShaderMaterial:
 		m.set_shader_parameter("macro_centre", Vector2.ZERO)
 		m.set_shader_parameter("macro_span", macro_span)
 		m.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)
+		# The Palos Verdes hills are shaped to the Esplanade photographs' skyline; keep the crags
+		# off them (macro_relief.gdshaderinc, calm_*).
+		if plan.macro.replica:
+			m.set_shader_parameter("calm_centre", plan.macro.peninsula_center)
+			m.set_shader_parameter("calm_axes", plan.macro.peninsula_axes * 1.08)
+			m.set_shader_parameter("calm_dir", plan.macro._headland_axes()[0])
 	_canopy_material.set_shader_parameter("plane_half", ground_size * 0.5)
 	_canopy_material.set_shader_parameter("plane_step", ground_step())
 	_far_ground_materials = [_canopy_material]
