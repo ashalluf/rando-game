@@ -1596,8 +1596,15 @@ func _test_weapons(player: Player) -> void:
 		var shoved := crate.global_position.distance_to(crate_at)
 		_check(shoved > 0.3, "one shotgun blast throws a crate (%.2f m)" % shoved)
 		# Every pellet goes down the rifle's hit path: a prop hit straight on gets the impulse.
+		# The blast just threw this crate, so put it back and let it stand still first: a pellet
+		# fired at a crate still tumbling behind the others hit whichever one was in the way.
+		crate.global_position = crate_at
+		crate.linear_velocity = Vector3.ZERO
+		crate.angular_velocity = Vector3.ZERO
+		for i in 2:
+			await get_tree().physics_frame
 		var hit: Dictionary = gun.fire_pellet(player.camera_rig.global_position, (crate.global_position - player.camera_rig.global_position).normalized())
-		_check(not hit.is_empty() and hit.collider == crate, "a single pellet hits the crate it is aimed at")
+		_check(not hit.is_empty() and hit.collider == crate, "a single pellet hits the crate it is aimed at (hit %s)" % (hit.collider.name if not hit.is_empty() and hit.collider else "nothing"))
 
 
 ## Counts the explosion effect nodes currently alive in the scene.
