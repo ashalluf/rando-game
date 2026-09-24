@@ -289,7 +289,9 @@ static func pins() -> Array:
 			xs.append([GAME_ANCHOR.x + float(a.u), float(a.width), str(a.name), int(a.run)])
 		var zs: Array = []
 		for s: Dictionary in STREETS:
-			zs.append([GAME_ANCHOR.y + float(s.v), float(s.width), str(s.name), 0])
+			var z := GAME_ANCHOR.y + float(s.v)
+			# 5th St is road 0, which CityPlan keeps at exactly 0: 102.7 - 102.7 in float32 is not.
+			zs.append([0.0 if absf(z) < 0.001 else z, float(s.width), str(s.name), 0])
 		_pins = [xs, zs]
 	return _pins
 
