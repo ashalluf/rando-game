@@ -37,6 +37,15 @@ uniform vec3 haze_color : source_color = vec3(0.70, 0.78, 0.88);
 uniform float haze_start = 4500.0;
 uniform float haze_end = 7400.0;
 uniform float haze_strength : hint_range(0.0, 1.0) = 0.45;
+// The plane's own rim. It is 14 km across and the camera now draws to 12 km, so from any height
+// its edge was a hard line with the sky's under-horizon colour beyond it - seen from the hills as
+// a pale slab laid across the sea. Between these two horizontal distances from the camera it
+// hands over completely to the sky's horizon colour (the `sky_tint` global, which is what the
+// sky shows just under the horizon), and so do the far city's boxes and planting, on the same
+// numbers (building_lod.gdshader, far_canopy.gdshader). CityStreamer sets all three from
+// ground_size.
+uniform float edge_start = 5040.0;
+uniform float edge_end = 6860.0;
 
 uniform vec3 sun_dir = vec3(0.45, 0.72, 0.28);
 global uniform float night_factor;
@@ -439,8 +448,9 @@ void fragment() {
 	// unlit `base` and a `lit` term is what lets one shader do both without double-lighting the
 	// near ground or leaving the far ground at the mercy of the ambient.
 	float painted = smoothstep(near_fade_end * 0.6, near_fade_end * 1.8, dist);
-	ALBEDO = albedo * (1.0 - painted);
-	EMISSION = emitted * painted;
+	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - eye.xz));
+	ALBEDO = albedo * (1.0 - painted) * (1.0 - rim);
+	EMISSION = mix(emitted * painted, sky_tint.rgb, rim);
 	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25);
 	METALLIC = 0.0;
 	SPECULAR = mix(0.15, 0.55, water);

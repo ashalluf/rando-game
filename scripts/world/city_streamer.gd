@@ -914,6 +914,10 @@ func _build_ground_material() -> ShaderMaterial:
 		m.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)
 	_canopy_material.set_shader_parameter("plane_half", ground_size * 0.5)
 	_canopy_material.set_shader_parameter("plane_step", ground_step())
+	# The plane's rim hands over to the sky, and the far city fades out on the same numbers.
+	for m: ShaderMaterial in [mat, _canopy_material, PropFactory.building_lod_material()]:
+		m.set_shader_parameter("edge_start", ground_size * 0.5 * GROUND_EDGE_FADE.x)
+		m.set_shader_parameter("edge_end", ground_size * 0.5 * GROUND_EDGE_FADE.y)
 	_far_ground_materials = [_canopy_material]
 	mat.set_shader_parameter("near_albedo", PropFactory.texture("grass", "Color"))
 	mat.set_shader_parameter("near_normal", PropFactory.texture("grass", "NormalGL"))
@@ -932,6 +936,11 @@ func set_ground_haze(color: Color, sun_direction: Vector3) -> void:
 	if _ground_material:
 		_ground_material.set_shader_parameter("haze_color", color)
 		_ground_material.set_shader_parameter("sun_dir", sun_direction)
+
+
+## Where the horizon plane's rim hands over to the sky, as fractions of its half-size (see
+## edge_start in macro_ground.gdshader).
+const GROUND_EDGE_FADE := Vector2(0.72, 0.98)
 
 
 ## How far (as a fraction of ground_size) the player may get from the ground's collision box

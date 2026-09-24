@@ -137,6 +137,10 @@ uniform float detail_px_full = 3.2;
 // These are LINEAR, like the instance colours the plates carry (CityChunk.far_tint(), the same
 // numbers the LOD chunks' merged ground is drawn in), so no source_color hint.
 uniform vec3 plate_road_color = vec3(0.033, 0.033, 0.040);
+// Where the horizon plane hands over to the sky (macro_ground.gdshader edge_start / edge_end,
+// set by CityStreamer): the far city goes with it, or its last blocks stand on nothing.
+uniform float edge_start = 5040.0;
+uniform float edge_end = 6860.0;
 uniform vec3 deck_road_color = vec3(0.040, 0.040, 0.044);
 #include "res://shaders/street_glow.gdshaderinc"
 
@@ -719,6 +723,9 @@ void fragment() {
 		emission += refl_emit * mix(glaze_frac, glass, mix(0.30, 1.0, band_fade));
 	}
 
+	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xz));
+	albedo *= 1.0 - rim;
+	emission = mix(emission, sky_tint.rgb, rim);
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
 	METALLIC = 0.0;

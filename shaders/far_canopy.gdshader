@@ -37,12 +37,17 @@ uniform vec2 seat_a = vec2(0.0);
 uniform vec2 seat_b = vec2(0.0);
 uniform float seat_ground = 0.0;
 uniform vec3 rigid_color : source_color = vec3(0.96, 0.96, 0.94);
+// Where the horizon plane hands over to the sky (macro_ground.gdshader, set by CityStreamer).
+uniform float edge_start = 5040.0;
+uniform float edge_end = 6860.0;
+global uniform vec4 sky_tint;
 
 varying vec3 tint;
 varying float shade;
 // Per-instance visibility (Skyline writes it into COLOR.a while a chunk takes a block over or
 // hands it back): dithered in the fragment, collapsed at zero.
 varying float fade;
+varying float rim;
 
 
 // The plane's own offset (lift minus sink) at one of its vertices, exactly as its shader works it.
@@ -106,6 +111,8 @@ void vertex() {
 		shade = mix(0.72, 1.0, clamp(VERTEX.y + 0.5, 0.0, 1.0)) * mix(0.85, 1.0, max(NORMAL.y, 0.0));
 	}
 	fade = rigid ? 1.0 : COLOR.a;
+	vec3 at = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	rim = smoothstep(edge_start, edge_end, length(at.xz - cam.xz));
 	if (fade < 0.004) {
 		// Collapsed: nothing rasterises, so a hidden block costs no fragments.
 		VERTEX = vec3(0.0);
@@ -122,7 +129,8 @@ void fragment() {
 			discard;
 		}
 	}
-	ALBEDO = tint * shade;
+	ALBEDO = tint * shade * (1.0 - rim);
+	EMISSION = sky_tint.rgb * rim;
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;
 }
