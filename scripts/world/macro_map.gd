@@ -123,6 +123,14 @@ var harbor_rect: Rect2 = Rect2(450.0, 1300.0, 700.0, 260.0)
 ## Runway center lines (z) and width inside the airport rect.
 var runway_zs: PackedFloat32Array = PackedFloat32Array([780.0, 870.0, 960.0])
 var runway_width: float = 55.0
+## The runway arrivals land on (an index into runway_zs; AirTraffic flies to it), and the
+## runway protection zone off its east end: no lot is built in it (CityPlan.lots()), because the
+## final approach crosses the city there at three degrees - ten to forty metres up - and a
+## midtown block puts twenty-metre buildings under it. The south runway, because the hangars
+## stand across the east ends of the other two.
+var arrival_runway: int = 2
+var approach_clear_length: float = 700.0
+var approach_clear_half_width: float = 45.0
 ## Where flyable jets wait on the apron (world XZ, nose toward +X) and what kind each is.
 ## Staggered so no jet sits in another's taxi lane.
 var apron_spots: Array = [[Vector2(-440.0, 700.0), 0], [Vector2(-350.0, 730.0), 1], [Vector2(-255.0, 670.0), 0]]
@@ -169,6 +177,12 @@ func setup() -> void:
 
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.
+## The runway protection zone (see arrival_runway), world XZ.
+func runway_clear_zone() -> Rect2:
+	var z: float = runway_zs[clampi(arrival_runway, 0, runway_zs.size() - 1)]
+	return Rect2(airport_rect.end.x, z - approach_clear_half_width, approach_clear_length, approach_clear_half_width * 2.0)
+
+
 func coast_x(z: float) -> float:
 	var x := coast_base_x + coast_wobble * sin(z / coast_period)
 	var d := absf(z - peninsula_center.y)

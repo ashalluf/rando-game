@@ -23,10 +23,16 @@ static var min_falloff: float = 0.2
 static var reference_launch: float = 30.0
 ## Fraction of the blast radius inside which people lose limbs (more of them nearer the centre).
 static var gib_reach: float = 0.6
+## Every blast so far, and where the last one was (TRUE world): AirTraffic polls these to send
+## the news helicopter, instead of anything being called from here.
+static var blast_count: int = 0
+static var last_blast_world: Vector3 = Vector3.ZERO
 
 
 ## `launch_speed` is the velocity change at the center for props (scaled by falloff, not mass).
 static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float, player_launch_speed: float) -> int:
+	blast_count += 1
+	last_blast_world = WorldState.to_world(at)
 	var shape := SphereShape3D.new()
 	shape.radius = radius
 	var query := PhysicsShapeQueryParameters3D.new()

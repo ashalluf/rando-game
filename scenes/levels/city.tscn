@@ -8,6 +8,7 @@
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="6_sky"]
 [ext_resource type="Script" path="res://scripts/world/weather.gd" id="7_weather"]
 [ext_resource type="Script" path="res://scripts/util/quality.gd" id="8_quality"]
+[ext_resource type="Script" path="res://scripts/world/air_traffic.gd" id="9_air"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("6_sky")
@@ -111,6 +112,9 @@ environment_path = NodePath("../WorldEnvironment")
 
 [node name="Weather" type="Node" parent="."]
 script = ExtResource("7_weather")
+
+[node name="AirTraffic" type="Node3D" parent="."]
+script = ExtResource("9_air")
 
 [node name="Quality" type="Node" parent="."]
 script = ExtResource("8_quality")
