@@ -1453,6 +1453,10 @@ func _test_city() -> void:
 		"lamp light pool is square in world space (%.1f x %.1f m, wants %.1f)" % [span_a.length(), span_b.length(), pool_size])
 	_check(absf(normal.length() - 1.0) < 0.01 and absf(normal.y) > 0.99, "lamp light pool lies flat with a unit normal")
 
+	# Air traffic: its checks live in their own file, loaded here so it compiles after the
+	# autoloads (tests/air_traffic_checks.gd).
+	await load("res://tests/air_traffic_checks.gd").new().run(self, city)
+
 	city.queue_free()
 	_world_state().reset()
 

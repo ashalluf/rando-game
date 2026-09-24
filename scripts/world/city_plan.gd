@@ -317,6 +317,10 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 			var foot := Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r * 2.0, r * 2.0))
 			if foot.intersects(rect):
 				blocked.append(foot)
+		# Nothing is built under the final approach off the end of the arrival runway.
+		var clear: Rect2 = macro.runway_clear_zone()
+		if clear.intersects(rect):
+			blocked.append(clear)
 	var out: Array[Dictionary] = []
 	for lx in nx:
 		for lz in nz:

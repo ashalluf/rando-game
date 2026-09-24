@@ -175,6 +175,24 @@ embedded maps as `weapon_<gun>_<material>_<map>.jpg`.
 | `weapon_rocket_launcher.glb` | `Body`, `Warhead`, `Muzzle` | 11.9k (10.2k + 1.7k) | `body`, `warhead`, `wood` (x3) | `RocketLauncher` | 2026-09-24 |
 | `weapon_shotgun.glb` | `Body`, `Pump`, `Shell`, `Muzzle`, `PumpBack`, `EjectPort` | 8.2k (5.3k + 2.6k + 0.4k) | `metal`, `wood` (x3) | `Shotgun` | 2026-09-24 |
 
+## Aircraft models (our own Blender generator)
+
+The helicopter the air traffic flies (2026-09-24), police and news liveries in one file.
+Written by `tools/make_helicopter.py`, run in Blender 4.2 (`blender -b --factory-startup
+--python tools/make_helicopter.py [-- --render out.png]`), so the model is the script and the
+`.glb` is build output; no external input at all. An original light helicopter in the 10 m class,
+a class study rather than a copy of any type. Clean painted materials (no textures), bound by
+name in `Helicopter._paint()`: `paint`, `paint2`, `stripe` (re-coloured per livery), `glass`,
+`trim`, `metal`, `blade`, `lens`, `nav_red`, `nav_green`, `decal_police`, `decal_news`. The
+lettering ("POLICE"; "RANDO 5" and "NEWS" for the invented station) is Blender's bundled font
+converted to geometry. Godot generates the LODs on import.
+
+| Model | Nodes | Triangles | Used for | Added |
+|---|---|---|---|---|
+| `helicopter.glb` | `Body`, `MainRotor` (`MainRotorHub`, `MainRotorBlades`), `TailRotor` (`TailRotorHub`, `TailRotorBlades`), `Searchlight`, `CameraBall`, `LiveryPolice`, `LiveryNews` | 7.2k in the file; 5.7k drawn as police (body 3.6k), 5.8k as news | `Helicopter` (air traffic) | 2026-09-24 |
+
+The airliners and private jets of the air traffic reuse the Meshy jets above (`Aircraft.MODELS`).
+
 ## Street prop models (Poly Haven, CC0)
 
 Downloaded from the open Poly Haven API (`https://api.polyhaven.com/files/<id>`, glTF at 1K) and
@@ -219,6 +237,8 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | Man hurt sounds | https://opengameart.org/content/man-hurt-sounds | CC0 1.0 | `assets/audio/yelp_4..6` | 2026-09-23 |
 | Fleshy bone break/snap SFX | https://opengameart.org/content/fleshy-bone-breaksnap-sfx | CC0 1.0 | `assets/audio/gore_0..4` (Wet Break 1, 3, 5, 7, 9) | 2026-09-23 |
 | 8 wet squish, slurp impacts | https://opengameart.org/content/8-wet-squish-slurp-impacts | CC0 1.0 | `assets/audio/gore_5..6` | 2026-09-23 |
+| airliner_ascend.aif (Heigh-hoo), a real airliner take-off | https://freesound.org/people/Heigh-hoo/sounds/51091/ | CC0 1.0 | `assets/audio/jet_loop_0` (19.6-29.6 s of the HQ preview, mono, crossfaded into a seamless loop) | 2026-09-24 |
+| cop helicopter flying (Atilio_Sanchez), a real police helicopter overhead | https://freesound.org/people/Atilio_Sanchez/sounds/721300/ | CC0 1.0 | `assets/audio/rotor_loop_0` (139.1-147.1 s, crossfaded loop; the 20 Hz blade-pass chop kept) | 2026-09-24 |
 | American police siren in Washington DC (lezer, via pdsounds.org) | https://commons.wikimedia.org/wiki/File:American_police_siren_i.ogg | Public domain | `assets/audio/siren_0` (one wail cycle, 17.62-22.78 s of the recording, band-passed 380 Hz - 6 kHz, level flattened, cross-faded into a seamless loop, mono 44.1 kHz; the Ogg Skeleton track dropped) | 2026-09-24 |
 | jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
 | island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
