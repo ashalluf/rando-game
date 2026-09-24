@@ -153,15 +153,14 @@ func _add_model() -> bool:
 	return true
 
 
-## The rigs that take the uniform cleanly (judged in a standoff still): not the hero's own (d),
-## not e (its sleeves are painted skin from the elbow down), not i (it has a cap of its own) and
-## not k (its yellow blazer stays yellow under the recolour, and read as a hi-vis vest).
+## The rigs that take the uniform cleanly (judged in standoff stills): not the hero's own (d),
+## not e (its sleeves are painted skin from the elbow down), not i (it has a cap of its own), not
+## k (its yellow blazer stays yellow under the recolour and read as a hi-vis vest), and not h or
+## l (khaki and cargo trousers sit on a skin hue, so the shader leaves them tan under a navy top).
 const OFFICER_MODELS := [
 	"res://assets/models/pedestrian_f_anim.glb",
 	"res://assets/models/pedestrian_g_anim.glb",
-	"res://assets/models/pedestrian_h_anim.glb",
 	"res://assets/models/pedestrian_j_anim.glb",
-	"res://assets/models/pedestrian_l_anim.glb",
 ]
 
 

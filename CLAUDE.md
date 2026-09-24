@@ -365,7 +365,7 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (`scripts/npc/police_officer.gd`, extends Pedestrian, so it is shot, knocked, gibbed and
   ragdolled like anyone; takes `hits_to_down` rounds): an `Avatar` body (so `Avatar.hold_gun`'s
   IK holds its `PoliceGun`), a navy recolour through the character shader
-  (`uniform_material()`, only on the rigs in `OFFICER_MODELS` - k's yellow blazer does not take
+  (`uniform_material()`, only on the rigs in `OFFICER_MODELS` - k's yellow blazer and h and l's khakis do not take
   it) and a peaked cap; COVER at the ends of its cruiser, ENGAGE, SEARCH the area, REBOARD when
   recalled; it fires only with an open line from the muzzle (`_line_of_fire()`: the first
   version emptied its gun into the cruiser it hid behind) and steps out sideways when blocked;
