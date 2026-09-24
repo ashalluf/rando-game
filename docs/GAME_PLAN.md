@@ -262,6 +262,25 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 Downtown at 1:1: the real grid fitted, the re-lay prepared, not yet landed
+  (owner: "I want the whole downtown landscape to become a 1:1 replica ... geographically
+  sound", "you should also have macarthur park").** The real street grid was fitted from
+  OpenStreetMap (93 cached Nominatim queries: landmark points and street centre-line points,
+  ODbL): the avenues run 37.86 degrees east of north (RMS 2.0 m over 115 points, square to 0.07),
+  blocks are ~125 m between avenues and ~200 m between numbered streets, city hall to the arena
+  2.53 km. It is `DowntownReal` (`scripts/world/downtown_real.gd`), data only: the plan is to turn
+  the real grid onto the game's axes (avenues north-south) at true scale, pin every real street
+  in CityPlan, and put every tower and civic building at its geocoded point on its real block.
+  Decided: at 1:1 downtown (2.3 x 3.8 km) is as big as the old basin, so the basin grows rather
+  than downtown shrinking - Pershing Square at (2800, 102.7) with 5th St on z 0, the east range
+  out to x 5000, the mountains north of the civic centre stepped back 1.25 km into low hills (the
+  real range ends at the Cahuenga Pass), the port moved south of downtown to the foot of the 110,
+  the freeways on their real alignments round it (110 west, 101 north, 10 south; the 105 moved
+  south of the airport), MacArthur Park on Wilshire 1.9 km west of Figueroa. Real street names
+  are used; business names stay invented. The re-lay is written and probed but was not gated
+  before the session ended: `tools/downtown_relay/relay.patch`, landing steps in docs/HANDOFF.md
+  section 9p.
+
 - **2026-09-24 Downtown is the real downtown's skyline, with original names (owner: "the
   downtown skyline [must] become a 1:1 match of DTLA skyline ... It needs more buildings").**
   What is matched is the massing: which towers, where they stand relative to each other, their
