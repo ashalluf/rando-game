@@ -127,10 +127,17 @@ static var _lake_mat: ShaderMaterial
 
 ## The entry Landmarks.all() lists: id, anchor, a radius for the relief flattening and the minimap,
 ## and the site CityPlan snaps to the grid.
+## Off until the park has been seen in a render and its traffic check passes in the full smoke
+## test (docs/HANDOFF.md 9p): with it off there is no entry, no site, and every road is open, so
+## the city is exactly what it was. Set it before the city scene loads (Landmarks.all() is built
+## once).
+static var enabled: bool = false
+
+
 static func entry() -> Dictionary:
 	return {
 		"id": SITE.id, "anchor": SITE.anchor, "radius": 270.0,
-		"site": {"west_x": SITE.west_x, "east_x": SITE.east_x, "north_z": SITE.north_z,
+		"area": {"west_x": SITE.west_x, "east_x": SITE.east_x, "north_z": SITE.north_z,
 			"south_z": SITE.south_z, "keep_z": [SITE.wilshire_z], "streets": SITE.streets},
 	}
 

@@ -17,8 +17,12 @@ func run(t: Node, city: Node3D) -> void:
 	var police: Node = city.get_node_or_null("Police")
 	if police:
 		police.set("enabled", false)
-	_plan_checks(plan)
-	await _park(city, plan, player)
+	# The park is behind LandmarkMacArthurPark.enabled (off: see its note); the camps are on.
+	if LandmarkMacArthurPark.enabled:
+		_plan_checks(plan)
+		await _park(city, plan, player)
+	else:
+		_t._check(plan.site_by_id(LandmarkMacArthurPark.SITE.id).is_empty(), "MacArthur Park is off: no site, every road open")
 	await _camps(city, plan, player)
 
 
@@ -217,14 +221,16 @@ func _camps(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 	await _t._ticks(30)
 	var moved := 0
 	var posed := 0
+	var alive := 0
 	for s in sleepers:
 		if not is_instance_valid(s):
 			continue
+		alive += 1
 		if (s as Node3D).global_position.distance_to(start[s]) > 0.05:
 			moved += 1
 		if s.is_posed():
 			posed += 1
-	_t._check(moved == 0 and posed == sleepers.size(), "the people at the camps hold their poses and do not walk (%d moved, %d posed, %d poses)" % [moved, posed, kinds.size()])
+	_t._check(moved == 0 and posed == alive and alive > 0, "the people at the camps hold their poses and do not walk (%d moved, %d posed, %d poses)" % [moved, posed, kinds.size()])
 	var worn := false
 	for s in sleepers:
 		for mi in (s as Node).find_children("*", "MeshInstance3D", true, false):

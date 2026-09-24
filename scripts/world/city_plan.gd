@@ -316,8 +316,8 @@ func sites() -> Array:
 	for lm in Landmarks.all():
 		# A replica area's site is a table (LandmarkMacArthurPark); the civic set's "block" sites
 		# (Landmarks.claims()) are a different thing and handled there.
-		if lm.get("site") is Dictionary:
-			var s := _snap_site(lm.id, lm.site)
+		if lm.get("area") is Dictionary:
+			var s := _snap_site(lm.id, lm.area)
 			if not s.is_empty():
 				_sites.append(s)
 	return _sites
@@ -523,7 +523,7 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 	if macro:
 		for lm in Landmarks.all():
 			# A replica area's own blocks are handled above; its radius is for the relief and the map.
-			if lm.get("site") is Dictionary:
+			if lm.get("area") is Dictionary:
 				continue
 			var r: float = lm.radius
 			var foot := Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r * 2.0, r * 2.0))

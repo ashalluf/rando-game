@@ -99,7 +99,8 @@ static func _list() -> Array[Dictionary]:
 	# The whole data table - real lat/long, the real offset from downtown, size, heading, and
 	# where it stands on today's map - is LandmarkMacArthurPark.SITE. Its entry carries a `site`:
 	# CityPlan snaps that to whole blocks and closes the roads through it but Wilshire.
-	list.append(LandmarkMacArthurPark.entry())
+	if LandmarkMacArthurPark.enabled:
+		list.append(LandmarkMacArthurPark.entry())
 	# --- end of Westlake ------------------------------------------------------------------------
 	return list
 
