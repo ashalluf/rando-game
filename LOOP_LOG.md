@@ -15,3 +15,8 @@ that took them.
 ## Wave 1 (2026-09-24)
 
 Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
+
+- **MacArthur Park on** (roadmap #4) - build 254 - done, CI green.
+  Before: park off. After: `<scratchpad>/park/park_aerial.png` (+ lake, camp stills). Perf: the
+  park replaces blocks of buildings with lawn, lake and trees; not measured with geo_count yet.
+  Gate 453/453. The same fix made the helicopter checks stop flaking (they were the offset bug).
