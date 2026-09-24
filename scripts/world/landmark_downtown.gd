@@ -36,29 +36,106 @@ extends RefCounted
 ## Every tower stands on the pavement top: landmarks keep the relief flat under them.
 const BASE_Y := 0.25
 
-## The height of each tower's highest point (m): what the smoke test checks against the
-## geometry. Rounded real heights.
-const HEIGHTS := {
-	"dt_sail_tower": 335.0,
-	"dt_crown_cylinder": 310.0,
-	"dt_granite_slab": 262.0,
-	"dt_ellipse_crown": 229.0,
-	"dt_round_crown": 229.0,
-	"dt_bronze_slab": 224.0,
-	"dt_curved_white": 221.0,
-	"dt_faceted_twins": 220.0,
-	"dt_pyramid_crown": 218.0,
-	"dt_black_twins": 213.0,
-	"dt_dark_glass": 191.0,
-	"dt_plaza_one": 176.0,
-	"dt_spire_pyramid": 163.0,
-	"dt_five_drums": 112.0,
-	"dt_park_a": 190.0,
-	"dt_park_b": 175.0,
-	"dt_park_c": 160.0,
-	"dt_park_d": 145.0,
-	"dt_unfinished": 190.0,
+## THE downtown table: one row per tower, and the only place a tower's placement lives.
+##   anchor     game world XZ of the plan's centre, in its block of the pinned grid (the current,
+##              about-2/3-scale layout: one real block to one game block)
+##   radius     half-extent the landmark reserves (lots, relief) - covers `plan`
+##   height     metres to the highest point, REAL (1:1); the smoke test checks the geometry
+##   plan       metres, the extent of the plan as built (x, z), podium included
+##   crown      what stands on top, in words
+##   real       APPROXIMATE real position, metres east (x) and north (y) of REAL_ORIGIN, from the
+##              tower's rough latitude / longitude (public maps, from memory: good to about
+##              +/-50 m, check before a 1:1 re-lay). park_a..d are representative South Park
+##              spots, not particular buildings.
+##   real_plan  APPROXIMATE real footprint (m), for a 1:1 re-lay
+## The builders below make each tower in its own local metres round (0, 0), so moving a tower
+## is changing its anchor; nothing else knows where it stands.
+const TOWERS := {
+	"dt_sail_tower": {"anchor": Vector2(456.1, 595.65), "radius": 43.0, "height": 335.0, "plan": Vector2(70.0, 84.0),
+		"crown": "sloping glass sail rising east to a 35 m spire, on a stone hotel podium",
+		"real": Vector2(-470.0, 11.0), "real_plan": Vector2(75.0, 45.0)},
+	"dt_five_drums": {"anchor": Vector2(548.5, 377.7), "radius": 29.0, "height": 112.0, "plan": Vector2(49.0, 57.0),
+		"crown": "flat tops; lit restaurant band near the top of the middle drum; glass lifts outside",
+		"real": Vector2(-148.0, 300.0), "real_plan": Vector2(110.0, 110.0)},
+	"dt_black_twins": {"anchor": Vector2(548.5, 474.55), "radius": 46.0, "height": 213.0, "plan": Vector2(42.0, 91.2),
+		"crown": "flat; two identical black towers across a plaza",
+		"real": Vector2(-171.0, 172.0), "real_plan": Vector2(48.0, 48.0)},
+	"dt_pyramid_crown": {"anchor": Vector2(548.5, 590.0), "radius": 22.0, "height": 218.0, "plan": Vector2(42.0, 42.0),
+		"crown": "stepped glass pyramid, lit green",
+		"real": Vector2(-350.0, -55.0), "real_plan": Vector2(45.0, 45.0)},
+	"dt_spire_pyramid": {"anchor": Vector2(548.5, 694.95), "radius": 19.0, "height": 163.0, "plan": Vector2(36.0, 36.0),
+		"crown": "dark glass pyramid roof and a spire",
+		"real": Vector2(-443.0, -155.0), "real_plan": Vector2(42.0, 42.0)},
+	"dt_curved_white": {"anchor": Vector2(548.5, 781.2), "radius": 25.0, "height": 221.0, "plan": Vector2(48.0, 43.0),
+		"crown": "three curved setbacks and a lit band",
+		"real": Vector2(-516.0, -266.0), "real_plan": Vector2(55.0, 45.0)},
+	"dt_bronze_slab": {"anchor": Vector2(624.95, 285.7), "radius": 27.0, "height": 224.0, "plan": Vector2(38.0, 52.0),
+		"crown": "flat, corners cut",
+		"real": Vector2(-28.0, 411.0), "real_plan": Vector2(60.0, 45.0)},
+	"dt_dark_glass": {"anchor": Vector2(624.95, 377.7), "radius": 22.0, "height": 191.0, "plan": Vector2(38.0, 42.0),
+		"crown": "two notched setbacks",
+		"real": Vector2(-55.0, 311.0), "real_plan": Vector2(45.0, 45.0)},
+	"dt_granite_slab": {"anchor": Vector2(624.95, 595.65), "radius": 30.0, "height": 262.0, "plan": Vector2(38.2, 58.2),
+		"crown": "flat; dark mechanical band with one lit line",
+		"real": Vector2(-184.0, -33.0), "real_plan": Vector2(61.0, 40.0)},
+	"dt_park_a": {"anchor": Vector2(624.95, 694.95), "radius": 23.0, "height": 190.0, "plan": Vector2(38.0, 44.0),
+		"crown": "violet lit top; balconies winding round the tower",
+		"real": Vector2(-553.0, -555.0), "real_plan": Vector2(32.0, 32.0)},
+	"dt_park_c": {"anchor": Vector2(624.95, 790.0), "radius": 15.0, "height": 160.0, "plan": Vector2(29.2, 29.2),
+		"crown": "warm lit top; vertical fins",
+		"real": Vector2(-323.0, -499.0), "real_plan": Vector2(30.0, 30.0)},
+	"dt_faceted_twins": {"anchor": Vector2(697.8, 285.7), "radius": 40.0, "height": 220.0, "plan": Vector2(38.0, 78.0),
+		"crown": "sloping glass tops facing apart (220 m and 192 m)",
+		"real": Vector2(185.0, 283.0), "real_plan": Vector2(45.0, 45.0)},
+	"dt_crown_cylinder": {"anchor": Vector2(697.8, 377.7), "radius": 22.0, "height": 310.0, "plan": Vector2(42.0, 42.0),
+		"crown": "crenellated glass lantern, lit, and a helipad; wings step back in a spiral",
+		"real": Vector2(74.0, 111.0), "real_plan": Vector2(50.0, 50.0)},
+	"dt_park_b": {"anchor": Vector2(697.8, 767.0), "radius": 17.0, "height": 175.0, "plan": Vector2(31.2, 33.2),
+		"crown": "ice-white lit top; staggered balconies",
+		"real": Vector2(-369.0, -666.0), "real_plan": Vector2(30.0, 30.0)},
+	"dt_plaza_one": {"anchor": Vector2(774.0, 267.0), "radius": 18.0, "height": 176.0, "plan": Vector2(35.0, 33.0),
+		"crown": "flat, granite penthouse",
+		"real": Vector2(415.0, 344.0), "real_plan": Vector2(40.0, 40.0)},
+	"dt_round_crown": {"anchor": Vector2(789.0, 305.0), "radius": 20.0, "height": 229.0, "plan": Vector2(40.0, 38.0),
+		"crown": "rounded glass barrel vault, lit warm, and a finial",
+		"real": Vector2(378.0, 288.0), "real_plan": Vector2(45.0, 45.0)},
+	"dt_ellipse_crown": {"anchor": Vector2(782.05, 458.0), "radius": 25.0, "height": 229.0, "plan": Vector2(47.0, 35.0),
+		"crown": "elliptical blue glass crown, lit blue",
+		"real": Vector2(184.0, 0.0), "real_plan": Vector2(55.0, 40.0)},
+	"dt_park_d": {"anchor": Vector2(782.05, 694.95), "radius": 17.0, "height": 145.0, "plan": Vector2(33.4, 33.4),
+		"crown": "blue lit top; boxed-out balconies",
+		"real": Vector2(-231.0, -754.0), "real_plan": Vector2(30.0, 30.0)},
+	"dt_unfinished": {"anchor": Vector2(782.05, 781.2), "radius": 40.0, "height": 190.0, "plan": Vector2(62.3, 78.0),
+		"crown": "bare concrete frames on three towers, a tower crane on the tallest",
+		"real": Vector2(-812.0, -810.0), "real_plan": Vector2(120.0, 100.0)},
 }
+
+## Where `real` is measured from: latitude, longitude (a point just north-west of the central
+## square), and the bearing of the real street grid's "north" (the avenues run from about 45
+## degrees east of true north). real_grid() turns `real` into grid-aligned metres, which is what
+## an axis-aligned game grid wants.
+const REAL_ORIGIN := Vector2(34.0500, -118.2550)
+const GRID_BEARING_DEG := 45.0
+
+
+## A tower's approximate real position in the real grid's frame: x metres along the numbered
+## streets (toward the old commercial core), y metres along the avenues toward the higher street
+## numbers (so +y is "grid south", like the game's +Z).
+static func real_grid(id: String) -> Vector2:
+	var en: Vector2 = TOWERS[id].real
+	var b := deg_to_rad(GRID_BEARING_DEG)
+	var grid_north := Vector2(sin(b), cos(b))
+	var grid_east := Vector2(cos(b), -sin(b))
+	return Vector2(en.dot(grid_east), -en.dot(grid_north))
+
+
+## The landmark rows for Landmarks.all(), in the table's order.
+static func entries() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for id: String in TOWERS:
+		out.append({"id": id, "anchor": TOWERS[id].anchor, "radius": TOWERS[id].radius})
+	return out
+
 
 # Colours of the metal and lit parts.
 const STEEL := Color(0.62, 0.64, 0.66)
@@ -81,7 +158,7 @@ static var _materials: Dictionary = {}
 
 
 static func is_tower(id: String) -> bool:
-	return HEIGHTS.has(id)
+	return TOWERS.has(id)
 
 
 ## Builds one tower under `parent` at its anchor (children at true world coordinates, like every

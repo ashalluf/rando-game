@@ -45,7 +45,7 @@ static func all() -> Array[Dictionary]:
 
 
 static func _list() -> Array[Dictionary]:
-	return [
+	var list: Array[Dictionary] = [
 		{"id": "sign", "anchor": Vector2(0.0, -1180.0), "radius": 400.0},
 		{"id": "hills_sign", "anchor": Vector2(480.0, -960.0), "radius": 70.0},
 		{"id": "pier", "anchor": Vector2(-940.0, -350.0), "radius": 200.0},
@@ -73,32 +73,15 @@ static func _list() -> Array[Dictionary]:
 		# bounded by those two roads, set so the gate steps stop just short of the south
 		# pavement. Radius 52 covers the 45 m from the hall centre to the gate steps.
 		{"id": "masjid_al_noor", "anchor": Vector2(-235.7, 165.2), "radius": 52.0},
-		# --- Downtown skyline (LandmarkDowntown) ------------------------------------------------
-		# The real downtown's towers by massing, with original names (owner, 2026-09-24). Each
-		# anchor is the centre of the tower's plan in its block of the downtown grid CityPlan pins
-		# for every seed (PINNED_ROADS), and each radius covers its plan, so the lots it reserves
-		# are the block it stands in. West to east by avenue, north to south by street.
-		{"id": "dt_sail_tower", "anchor": Vector2(456.1, 595.65), "radius": 43.0},
-		{"id": "dt_five_drums", "anchor": Vector2(548.5, 377.7), "radius": 29.0},
-		{"id": "dt_black_twins", "anchor": Vector2(548.5, 474.55), "radius": 46.0},
-		{"id": "dt_pyramid_crown", "anchor": Vector2(548.5, 590.0), "radius": 22.0},
-		{"id": "dt_spire_pyramid", "anchor": Vector2(548.5, 694.95), "radius": 19.0},
-		{"id": "dt_curved_white", "anchor": Vector2(548.5, 781.2), "radius": 25.0},
-		{"id": "dt_bronze_slab", "anchor": Vector2(624.95, 285.7), "radius": 27.0},
-		{"id": "dt_dark_glass", "anchor": Vector2(624.95, 377.7), "radius": 22.0},
-		{"id": "dt_granite_slab", "anchor": Vector2(624.95, 595.65), "radius": 30.0},
-		{"id": "dt_park_a", "anchor": Vector2(624.95, 694.95), "radius": 23.0},
-		{"id": "dt_park_c", "anchor": Vector2(624.95, 790.0), "radius": 15.0},
-		{"id": "dt_faceted_twins", "anchor": Vector2(697.8, 285.7), "radius": 40.0},
-		{"id": "dt_crown_cylinder", "anchor": Vector2(697.8, 377.7), "radius": 22.0},
-		{"id": "dt_park_b", "anchor": Vector2(697.8, 767.0), "radius": 17.0},
-		{"id": "dt_plaza_one", "anchor": Vector2(774.0, 267.0), "radius": 18.0},
-		{"id": "dt_round_crown", "anchor": Vector2(789.0, 305.0), "radius": 20.0},
-		{"id": "dt_ellipse_crown", "anchor": Vector2(782.05, 458.0), "radius": 25.0},
-		{"id": "dt_park_d", "anchor": Vector2(782.05, 694.95), "radius": 17.0},
-		{"id": "dt_unfinished", "anchor": Vector2(782.05, 781.2), "radius": 40.0},
-		# --- end of the downtown skyline --------------------------------------------------------
 	]
+	# --- Downtown skyline (LandmarkDowntown) ----------------------------------------------------
+	# The real downtown's towers by massing, with original names (owner, 2026-09-24). Every
+	# tower's anchor, radius, plan, height, crown and approximate real position is ONE table,
+	# LandmarkDowntown.TOWERS, so a re-layout of downtown changes that table (and the pinned grid)
+	# and nothing here.
+	list.append_array(LandmarkDowntown.entries())
+	# --- end of the downtown skyline ------------------------------------------------------------
+	return list
 
 
 ## True when world XZ `p` (grown by `pad` metres) is inside a landmark building that stands on

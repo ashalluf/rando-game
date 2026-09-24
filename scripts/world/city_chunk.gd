@@ -1497,7 +1497,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.lit_ratio_range = params.lit
 	building.weathering_range = params.get("weathering", Vector2(0.2, 0.9))
 	building.shape_options.assign(CityPlan.lot_shapes(district, boost))
-	building.finish_options.assign(params.finishes)
+	building.finish_options.assign(CityPlan.lot_finishes(district, boost))
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5

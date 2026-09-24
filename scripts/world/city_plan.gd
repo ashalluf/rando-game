@@ -20,8 +20,9 @@ const DISTRICTS := {
 	District.DOWNTOWN: {
 		# 18 m at the bottom, not 50: a 50 m floor meant downtown had no low-rise in it at all
 		# (the measured minimum was 50.0 m, the area-weighted 25th percentile 101.9 m), and a
-		# skyline is the gap between the infill and the towers. 160 at the top because the core
-		# lerps the top by 2.2x (city_chunk._build_lots), so the nominal ceiling there is 352 m.
+		# skyline is the gap between the infill and the towers. 160 at the top at the district's
+		# edge; toward the core the band lerps to core_height below (it used to lerp the top by
+		# 2.3x, to 368 m - generic towers over the landmark ones).
 		"height": Vector2(18.0, 160.0), "lot": Vector2(28.0, 46.0), "gap": Vector2(2.0, 5.0),
 		# SLAB twice, for the infill. Every other shape here has a floor baked into
 		# Building._layout_parts - a CROWN is never under 50 m, a SETBACK never under 40, a TOWER
@@ -40,6 +41,9 @@ const DISTRICTS := {
 			Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.STEPPED],
 		# Fewer pocket gardens between the towers of the core: 0.5 at the edge, 0.15 inside.
 		"core_courtyard": 0.15,
+		# And more stone: the real core is as much granite and precast as glass, and a field of
+		# glass towers around the named ones read as one dark mass in every wide shot.
+		"core_finishes": [Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.PANELS],
 
 		"finishes": [Building.Finish.GLASS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS],
 		"lit": Vector2(0.3, 0.6), "park": 0.05, "plaza": 0.12, "trees": 0.35, "courtyard": 0.5,
@@ -416,6 +420,14 @@ static func lot_shapes(district: int, boost: float) -> Array:
 	if boost > 0.55 and params.has("core_shapes"):
 		return params.core_shapes
 	return params.shapes
+
+
+## ... and the finishes it may wear ("core_finishes" in the same place).
+static func lot_finishes(district: int, boost: float) -> Array:
+	var params: Dictionary = DISTRICTS[district]
+	if boost > 0.55 and params.has("core_finishes"):
+		return params.core_finishes
+	return params.finishes
 
 
 func _rng_for(kind: int, a: int, b: int) -> RandomNumberGenerator:

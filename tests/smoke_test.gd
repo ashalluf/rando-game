@@ -1468,7 +1468,7 @@ func _test_downtown(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> vo
 	for lm in Landmarks.all():
 		if LandmarkDowntown.is_tower(lm.id):
 			towers.append(lm)
-	_check(towers.size() == LandmarkDowntown.HEIGHTS.size(), "every downtown tower is in the landmark list (%d of %d)" % [towers.size(), LandmarkDowntown.HEIGHTS.size()])
+	_check(towers.size() == LandmarkDowntown.TOWERS.size(), "every downtown tower is in the landmark list (%d of %d)" % [towers.size(), LandmarkDowntown.TOWERS.size()])
 	var wrong := ""
 	var off_block := ""
 	var no_far := ""
@@ -1482,9 +1482,14 @@ func _test_downtown(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> vo
 	other.sidewalk_width = plan.sidewalk_width
 	for lm in towers:
 		var t: Dictionary = LandmarkDowntown.tower(lm.id)
-		var want: float = LandmarkDowntown.HEIGHTS[lm.id]
+		var want: float = LandmarkDowntown.TOWERS[lm.id].height
 		if absf(float(t.top) - want) > 1.5:
 			wrong += " %s %.1f/%.0f" % [lm.id, t.top, want]
+		# The table's plan is what was built: the one table has to stay the truth.
+		var built: Vector2 = (t.extent as Rect2).size
+		var tabled: Vector2 = LandmarkDowntown.TOWERS[lm.id].plan
+		if absf(built.x - tabled.x) > 1.0 or absf(built.y - tabled.y) > 1.0:
+			wrong += " %s plan %s/%s" % [lm.id, built, tabled]
 		if float(t.top) > tallest_h:
 			tallest_h = t.top
 			tallest = lm.id
@@ -1497,7 +1502,7 @@ func _test_downtown(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> vo
 				off_block += " %s(seed %d)" % [lm.id, p.seed]
 		if not city.has_node("FarLandmark_" + str(lm.id)):
 			no_far += " " + str(lm.id)
-	_check(wrong == "", "downtown towers stand at their real heights%s" % wrong)
+	_check(wrong == "", "downtown towers stand at their real heights, on the plans the table gives%s" % wrong)
 	_check(off_block == "", "every downtown tower stays inside its block, off the road and pavement%s" % off_block)
 	_check(no_far == "", "every downtown tower has a far copy for the skyline%s" % no_far)
 	_check(tallest == "dt_sail_tower" and absf(float(LandmarkDowntown.tower("dt_crown_cylinder").top) - 310.0) < 1.5,
