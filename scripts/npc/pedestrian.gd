@@ -815,6 +815,157 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	return mat
 
 
+## The player's tracksuit: jacket and trousers in one velour colour with white piping down the
+## sleeves and legs (shaders/character.gdshader). Its own material rather than a crowd look, so
+## nobody on the street is dressed like the hero. Pair it with add_piping() on the same rig, or
+## the stripes have no data to draw from.
+static func tracksuit_material(albedo: Texture2D, color: Color) -> ShaderMaterial:
+	var look := character_material(albedo, 1)
+	if look == null:
+		return null
+	var mat := look.duplicate() as ShaderMaterial
+	for part in ["cloth", "pants"]:
+		mat.set_shader_parameter(part + "_hue", color.h)
+		mat.set_shader_parameter(part + "_sat", color.s)
+		mat.set_shader_parameter(part + "_value", color.v)
+		mat.set_shader_parameter(part + "_strength", 0.97)
+	# The rig's own hair and complexion: it is still the same person, just changed.
+	mat.set_shader_parameter("hair_strength", 0.0)
+	mat.set_shader_parameter("skin_tint", Color(1, 1, 1))
+	mat.set_shader_parameter("cloth_roughness", 0.92)
+	mat.set_shader_parameter("velour", TRACKSUIT_SHEEN)
+	mat.set_shader_parameter("piping", 1.0)
+	mat.set_shader_parameter("cloth_shade_keep", 0.5)
+	return mat
+
+
+## Rim sheen of the tracksuit's velour (0 flat cotton, 1 satin-bright edges).
+const TRACKSUIT_SHEEN := 0.45
+## Arm and leg bones that carry the piping, each with the bone its axis points at.
+const PIPING_BONES := {
+	"LeftArm": "LeftForeArm", "LeftForeArm": "LeftHand",
+	"RightArm": "RightForeArm", "RightForeArm": "RightHand",
+	"LeftUpLeg": "LeftLeg", "LeftLeg": "LeftFoot",
+	"RightUpLeg": "RightLeg", "RightLeg": "RightFoot",
+}
+
+
+## Bakes where the tracksuit piping runs into every skinned mesh of a rig, as CUSTOM0: for each
+## vertex, its signed distance in metres round its arm or leg from the limb's outer line, how
+## much of it follows arm and leg bones and how squarely it faces outward; and as CUSTOM1 how
+## much of it follows the head and the hands (the only places skin can be) and the feet (the
+## shoes, which keep their own colour). Measured on the
+## rest pose, so the stripes are part of the cloth and move with it rather than being painted
+## on in screen or model space, where they would slide over the sleeve as the arm swings.
+## The outer line of a leg is its side away from the body's midline; an arm's is taken from
+## "out and a little up", which on an A-posed or T-posed rest arm is its top - the side that
+## faces out once it hangs. Needs mesh data, which the headless dummy renderer does not keep:
+## there it changes nothing.
+static func add_piping(inst: Node3D) -> void:
+	var skel := inst.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null:
+		return
+	var rig_xf := Ragdoll._rig_space_of_skel(skel)
+	var hips := skel.find_bone("Hips")
+	var mid_x := (rig_xf * skel.get_bone_global_rest(hips).origin).x if hips >= 0 else 0.0
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.skin == null or mi.mesh == null or mi.mesh.get_surface_count() != 1:
+			continue
+		var arrays := mi.mesh.surface_get_arrays(0)
+		if arrays.is_empty() or arrays[Mesh.ARRAY_BONES] == null or arrays[Mesh.ARRAY_WEIGHTS] == null:
+			continue
+		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+		if verts.is_empty() or bones.size() % verts.size() != 0:
+			continue
+		var per := bones.size() / verts.size()
+		# Per skin bind: its rest transform into model space, and for a limb bone its axis
+		# (origin, direction) and the frame round it (outer line, and the line 90 degrees on).
+		var bind_xf: Array[Transform3D] = []
+		var limb: Array = []
+		for i in mi.skin.get_bind_count():
+			var bname := String(mi.skin.get_bind_name(i))
+			var bone := skel.find_bone(bname)
+			var rest := skel.get_bone_global_rest(bone) if bone >= 0 else Transform3D.IDENTITY
+			bind_xf.append(rig_xf * rest * mi.skin.get_bind_pose(i))
+			var child := skel.find_bone(PIPING_BONES.get(bname, ""))
+			if bone < 0 or child < 0:
+				limb.append(null)
+				continue
+			var o := rig_xf * rest.origin
+			var axis := (rig_xf * skel.get_bone_global_rest(child).origin - o).normalized()
+			var side := signf(o.x - mid_x)
+			var hint := Vector3(side, 0.6 if bname.ends_with("Arm") else 0.0, 0.0)
+			var out := (hint - axis * hint.dot(axis)).normalized()
+			limb.append([o, axis, out, axis.cross(out) * side])
+		# 1 the head, 2 a hand, 3 a foot.
+		var skin_bind := PackedByteArray()
+		skin_bind.resize(mi.skin.get_bind_count())
+		for i in mi.skin.get_bind_count():
+			var bn := String(mi.skin.get_bind_name(i))
+			skin_bind[i] = 1 if bn.begins_with("head") or bn == "Head" else (2 if bn.ends_with("Hand") else (3 if bn.ends_with("Foot") or bn.ends_with("ToeBase") else 0))
+		var custom := PackedFloat32Array()
+		custom.resize(verts.size() * 3)
+		var custom1 := PackedFloat32Array()
+		custom1.resize(verts.size() * 3)
+		for v in verts.size():
+			var pos := Vector3.ZERO
+			var total := 0.0
+			var on_limb := 0.0
+			var on_head := 0.0
+			var on_hand := 0.0
+			var on_foot := 0.0
+			var best := -1
+			var best_w := 0.0
+			for k in per:
+				var w := weights[v * per + k]
+				var bi := bones[v * per + k]
+				if w <= 0.0 or bi < 0 or bi >= bind_xf.size():
+					continue
+				pos += bind_xf[bi] * verts[v] * w
+				total += w
+				if skin_bind[bi] == 1:
+					on_head += w
+				elif skin_bind[bi] == 2:
+					on_hand += w
+				elif skin_bind[bi] == 3:
+					on_foot += w
+				if limb[bi] != null:
+					on_limb += w
+					if w > best_w:
+						best_w = w
+						best = bi
+			pos /= maxf(total, 0.0001)
+			var arc := 0.0
+			var facing := -1.0
+			if best >= 0:
+				var l: Array = limb[best]
+				var radial: Vector3 = pos - l[0]
+				radial -= (l[1] as Vector3) * radial.dot(l[1])
+				var r := radial.length()
+				if r > 0.0001:
+					var c := radial.dot(l[2]) / r
+					arc = atan2(radial.dot(l[3]) / r, c) * r
+					facing = c
+			custom[v * 3] = arc
+			custom[v * 3 + 1] = on_limb / maxf(total, 0.0001)
+			custom[v * 3 + 2] = facing
+			custom1[v * 3] = on_head / maxf(total, 0.0001)
+			custom1[v * 3 + 1] = on_hand / maxf(total, 0.0001)
+			custom1[v * 3 + 2] = on_foot / maxf(total, 0.0001)
+		arrays[Mesh.ARRAY_CUSTOM0] = custom
+		arrays[Mesh.ARRAY_CUSTOM1] = custom1
+		var flags := (Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) | (Mesh.ARRAY_CUSTOM_RGB_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT)
+		if per == 8:
+			flags |= Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, flags)
+		mesh.surface_set_material(0, mi.mesh.surface_get_material(0))
+		mi.mesh = mesh
+
+
 func _add_hit_area() -> void:
 	# Hit detector: anything fast on the props layer, or a fast player.
 	var area := Area3D.new()

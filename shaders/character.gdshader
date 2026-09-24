@@ -111,9 +111,32 @@ uniform float normal_strength = 0.0;
 // with one complexion each is the second loudest tell (after everyone walking in step) that a
 // crowd is three people copied a thousand times.
 uniform vec3 skin_tint : source_color = vec3(1.0, 1.0, 1.0);
+// The player's tracksuit (Pedestrian.tracksuit_material). `velour` is the sheen of the pile:
+// velour and velvet are brighter at a grazing angle than head on, which is the whole look of
+// the fabric - without it a matching jacket and trousers read as a boiler suit. `piping` draws
+// two stripes down the outside of each sleeve and leg from the per-vertex data
+// Pedestrian.add_piping() bakes into CUSTOM0 (signed distance round the limb from its outer
+// line in metres, how much of the vertex follows an arm or leg bone, and how far it faces
+// outward); a mesh without that data reads zero there and gets no stripes.
+uniform float velour = 0.0;
+uniform float piping = 0.0;
+uniform vec3 piping_color : source_color = vec3(0.95, 0.95, 0.93);
+// Centre of each stripe from the outer line, and its width, in metres.
+uniform float piping_offset = 0.011;
+uniform float piping_width = 0.010;
+// How much of the source texture's value shading a recoloured garment keeps (1 all of it). The
+// source garments are patterned - panels, patches, pockets - and a plain tracksuit keeps only
+// its folds.
+uniform float cloth_shade_keep = 1.0;
+// With piping on, only vertices the rig's head and hands move can be skin, and the head is where
+// the head bone moves the mesh rather than a height band (CUSTOM1, from add_piping): the hero's
+// source jacket has tan leather yokes that pass every colour test for skin, and the height band
+// - set for the crowd's average build - took in his collar and shoulders.
 
 // Height up the body, 0 at the soles and 1 at the crown.
 varying float v_height;
+varying vec3 v_pipe;
+varying vec3 v_bind;
 
 
 vec3 rgb_to_hsv(vec3 c) {
@@ -157,6 +180,8 @@ void vertex() {
 	// Skeleton space, not world space: a ragdoll tumbling through the air keeps its trousers on
 	// its legs, and a taller or wider pedestrian still has its waistband in the same place.
 	v_height = VERTEX.y / body_height;
+	v_pipe = CUSTOM0.xyz;
+	v_bind = CUSTOM1.xyz;
 }
 
 
@@ -172,10 +197,16 @@ void fragment() {
 	float hue_dist = abs(fract(hsv.x - skin_hue + 0.5) - 0.5);
 	float warm = 1.0 - smoothstep(cloth_guard, cloth_guard * 2.0, hue_dist);
 	float is_skin = warm * smoothstep(0.10, 0.19, hsv.y) * smoothstep(skin_value_lo, skin_value_hi, hsv.z);
+	if (piping > 0.0) {
+		is_skin *= smoothstep(0.04, 0.2, v_bind.x + v_bind.y);
+	}
 	// Very dark pixels are seams, folds and shadow; leave them their own colour.
 	float is_cloth = (1.0 - is_skin) * smoothstep(cloth_value_lo, cloth_value_hi, hsv.z);
 
 	float head = smoothstep(hair_line - hair_blend, hair_line + hair_blend, v_height);
+	if (piping > 0.0) {
+		head = smoothstep(0.35, 0.75, v_bind.x);
+	}
 	// On the head, hair is the dark half and the face is the bright half. Testing for darkness
 	// directly is the only thing that finds it: hair is warm and saturated, so it passes the
 	// skin test, and a gate of the form (1.0 - is_skin) on its own collapses to nothing.
@@ -198,7 +229,7 @@ void fragment() {
 	// multiplier could not do that - the trousers on these rigs are nearly black in the texture,
 	// so no multiplier reaches a pale chino, and every pedestrian in the city wore black.
 	float gz = value_is_linear > 0.5 ? to_gamma(hsv.z) : hsv.z;
-	float shade = clamp(0.55 + 1.30 * gz, 0.35, 1.35);
+	float shade = mix(1.0, clamp(0.55 + 1.30 * gz, 0.35, 1.35), cloth_shade_keep);
 	vec3 top_target = hsv_to_rgb(vec3(cloth_hue, cloth_sat, min(cloth_value * shade, 0.96)));
 	vec3 low_target = hsv_to_rgb(vec3(pants_hue, pants_sat, min(pants_value * shade, 0.96)));
 	vec3 garment = mix(top_target, low_target, lower);
@@ -208,11 +239,27 @@ void fragment() {
 	// The head is excluded: without this the hair takes the shirt colour, and everybody in the
 	// city walks around with hair that matches what they are wearing.
 	float garment_mix = is_cloth * mix(cloth_strength, pants_strength, lower) * (1.0 - head);
+	if (piping > 0.0) {
+		// The shoes are not part of the tracksuit.
+		garment_mix *= 1.0 - smoothstep(0.55, 0.85, v_bind.z);
+	}
 
 	vec3 albedo = mix(base, garment, garment_mix);
 	// The replacement hair keeps the source's own shading so it still reads as strands.
 	float hair_shade = clamp(hair_shade_bias + hair_shade_gain * gz, 0.0, 1.5);
 	albedo = mix(albedo, hair_color * hair_shade, is_hair * hair_strength);
+	if (piping > 0.0) {
+		// Distance from the nearer stripe's centre line, anti-aliased by the screen rate of the
+		// interpolated distance. v_pipe.z keeps it on the outer half of the limb: the signed
+		// distance wraps from +pi r to -pi r on the inner side, and a triangle across the wrap
+		// would otherwise interpolate through zero and draw a stripe down the inside leg.
+		float a = v_pipe.x;
+		float off = abs(abs(a) - piping_offset);
+		float fw = max(fwidth(a), 1e-4);
+		float stripe = 1.0 - smoothstep(piping_width * 0.5 - fw, piping_width * 0.5 + fw, off);
+		stripe *= smoothstep(0.55, 0.85, v_pipe.y) * smoothstep(0.3, 0.6, v_pipe.z) * (1.0 - is_skin) * (1.0 - head) * piping;
+		albedo = mix(albedo, piping_color * clamp(0.62 + 0.55 * gz, 0.6, 1.05), stripe);
+	}
 	ALBEDO = albedo * mix(vec3(1.0), skin_tint, is_skin);
 
 	ROUGHNESS = mix(mix(cloth_roughness, skin_roughness, is_skin), hair_roughness, is_hair * hair_strength);
@@ -223,6 +270,8 @@ void fragment() {
 	// (IOR 1.5) and 0.028 for skin (IOR 1.4); those are SPECULAR 0.50 and 0.42. Skin stays the
 	// lower of the two, as it should be - it was just far too low.
 	SPECULAR = mix(0.50, 0.42, is_skin);
+	// Velour's pile scatters rather than mirrors; its shine is the rim below, not a hot spot.
+	SPECULAR = mix(SPECULAR, 0.28, clamp(velour * 2.0, 0.0, 1.0) * garment_mix);
 	// The baked relief. normal_strength is 0 for any rig with no map, and at 0 Godot blends
 	// straight back to the geometric normal, so an unbound sampler here is harmless rather
 	// than a white wall of noise. Declaring these two uniforms without ever sampling them -
@@ -232,4 +281,8 @@ void fragment() {
 	NORMAL_MAP_DEPTH = normal_strength;
 	// Thin extremities catch light from behind the way real skin does.
 	BACKLIGHT = vec3(skin_subsurface * is_skin * 0.5);
+	// Velour pile: Godot's rim lobe is exactly the brighter-at-grazing sheen, tinted mostly by
+	// the fabric's own colour.
+	RIM = velour * garment_mix;
+	RIM_TINT = 0.6;
 }

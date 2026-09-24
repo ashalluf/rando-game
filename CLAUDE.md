@@ -673,6 +673,16 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   faces pink. Materials are cached per look (`Pedestrian.CHARACTER_LOOKS`), so hundreds of
   pedestrians share a handful. Pedestrians also get a height and width scale and a random seek
   into the walk cycle: a crowd stepping in unison is the loudest tell that they are one model.
+  The player wears a tracksuit (owner, 2026-09-24: "a new jersey mafia tracksuit";
+  `Player.avatar_tracksuit`, alpha 0 turns it off): `Pedestrian.tracksuit_material()` paints top
+  and trousers one velour colour (`velour` is Godot's rim lobe, `cloth_shade_keep` flattens the
+  source jacket's patches), and `Pedestrian.add_piping()` bakes CUSTOM0 (signed distance round
+  each arm and leg from its outer line, limb weight, outward facing) and CUSTOM1 (head, hand and
+  foot weights) from the rest pose, so the piping moves with the cloth and skin, head and shoes
+  are found by bone rather than by colour or height. The height band was set for the crowd's
+  average build and took in the hero's collar and shoulders; his jacket's tan yokes passed
+  every colour test for skin. Like limb cutting, the bake needs mesh data, so it does nothing
+  under the headless dummy renderer.
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
 - Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from

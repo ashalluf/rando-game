@@ -53,7 +53,7 @@ var _raise := 0.0
 
 
 ## Loads the rig; false when the file is missing or has no AnimationPlayer.
-func load_model(path: String, look: int = 3) -> bool:
+func load_model(path: String, look: int = 3, tracksuit: Color = Color(0, 0, 0, 0)) -> bool:
 	if not ResourceLoader.exists(path):
 		return false
 	var scene: PackedScene = load(path)
@@ -61,6 +61,8 @@ func load_model(path: String, look: int = 3) -> bool:
 		return false
 	var inst := scene.instantiate() as Node3D
 	Pedestrian.prepare_rig(inst, look)
+	if tracksuit.a > 0.0:
+		_dress_tracksuit(inst, tracksuit)
 	inst.rotation.y = PI # the rigs face +Z; the player's visual faces -Z
 	add_child(inst)
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -72,6 +74,19 @@ func load_model(path: String, look: int = 3) -> bool:
 	_play(IDLE_CLIP, 1.0)
 	_skeleton = inst.find_child("Skeleton3D", true, false) as Skeleton3D
 	return true
+
+
+## Jacket and trousers in one velour colour with white piping (Pedestrian.tracksuit_material).
+func _dress_tracksuit(inst: Node3D, color: Color) -> void:
+	Pedestrian.add_piping(inst)
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh else null
+		if src == null or src.albedo_texture == null:
+			continue
+		var mat := Pedestrian.tracksuit_material(src.albedo_texture, color)
+		if mat:
+			mi.material_override = mat
 
 
 ## Puts the hands on the guns in `mount` (the WeaponManager, a child of `body`). Call once the

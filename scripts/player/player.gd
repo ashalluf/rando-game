@@ -75,6 +75,9 @@ const BLAST_MASK := 2 | 4 | 8
 ## Outfit look for the player's body (Pedestrian.character_material). Even numbers keep the
 ## model's own clothes; odd ones are the crowd's recoloured outfits.
 @export var avatar_look: int = 0
+## The hero's tracksuit colour: jacket and trousers in matching velour with white piping down
+## the sleeves and legs (Pedestrian.tracksuit_material). Alpha 0 keeps `avatar_look` instead.
+@export var avatar_tracksuit: Color = Color(0.20, 0.035, 0.05)
 
 ## Height (relative to takeoff) reached by the last jump. Shown on the debug HUD.
 var last_jump_peak: float = 0.0
@@ -523,7 +526,7 @@ func _build_avatar() -> void:
 	var body := Avatar.new()
 	body.name = "Avatar"
 	visual.add_child(body)
-	if body.load_model(avatar_model, avatar_look):
+	if body.load_model(avatar_model, avatar_look, avatar_tracksuit):
 		avatar = body
 		if weapon_manager:
 			avatar.setup_gun_hands(weapon_manager, visual, self)
