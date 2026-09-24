@@ -58,6 +58,46 @@ const RUN_CLIP_SPEED := 5.0
 @export var run_speed: float = 5.2
 ## How long a scare lasts (seconds, min and max). Another shot while running starts it again.
 @export var panic_seconds: Vector2 = Vector2(7.0, 12.0)
+## Share of the walkers who, reaching a spot on their pavement, head for the nearest crosswalk
+## and cross to the next block instead of turning back along their own (owner, 2026-09-24:
+## "GTA-level street life"). They cross at signals and stop signs, never mid-block.
+@export var cross_chance: float = 0.3
+## Pace on the crosswalk, as a multiple of this walker's own (people hurry across).
+@export var cross_pace: float = 1.2
+## How far back from the kerb edge people wait to cross (m), and how far along the kerb a
+## waiting crowd spreads either side of the crosswalk's middle (the crosswalk is 3 m wide).
+@export var kerb_wait: float = 0.7
+@export var kerb_spread: float = 1.1
+## Seconds a walker stands at a stop-sign crosswalk before stepping out (min and max).
+@export var stop_sign_patience: Vector2 = Vector2(0.8, 2.6)
+
+## Crossing to the next block: walking to the kerb, waiting there, on the crosswalk.
+enum Cross { NONE, TO_KERB, WAIT, CROSSING }
+var _cross: int = Cross.NONE
+## The two kerb points, the crosswalk (intersection, crossed road's axis, which side of the
+## junction: Vector4i(ix, iz, axis, side)), the road's centre line and half width across the
+## crossing, and the block on the far side.
+var _cross_from := Vector2.ZERO
+var _cross_to := Vector2.ZERO
+var _cross_key := Vector4i.ZERO
+var _cross_road := Vector2.ZERO
+var _cross_ring := Rect2()
+var _cross_signal: bool = false
+var _cross_wait: float = 0.0
+var _cross_patience: float = 1.5
+## True while this walker is counted on its crosswalk (crosswalk_busy()).
+var _on_crosswalk: bool = false
+## Corners of the pavement ring to walk through before `_target`, so a walker goes round the
+## block rather than through it (_ring_route()).
+var _route: PackedVector2Array = PackedVector2Array()
+var _route_pending: bool = true
+## Seconds a near walker has pushed against something without getting anywhere.
+var _walk_stuck_t: float = 0.0
+## Crossing decisions roll on their own stream, like the cosmetic ones on `_style`.
+var _way := RandomNumberGenerator.new()
+## Walkers on each crosswalk right now, keyed Vector4i(ix, iz, crossed axis, side): what traffic
+## yields to (TrafficManager._drive_street()). A count, taken on and off in exactly two places.
+static var _crosswalks: Dictionary = {}
 
 ## Seconds of panic left; above zero the pedestrian runs away from `_threat` and never pauses.
 var _panic_left: float = 0.0
@@ -115,6 +155,8 @@ func setup(block_rect: Rect2, sidewalk: float, seed_value: int) -> void:
 	walk_speed = _rng.randf_range(1.4, 2.6)
 	_target = _random_ring_point(sidewalk)
 	_sidewalk = sidewalk
+	_way.seed = hash([seed_value, "way"])
+	_route_pending = true
 
 
 var _sidewalk: float = 4.0
@@ -1019,7 +1061,8 @@ func _physics_process(delta: float) -> void:
 				_scream()
 		if _panic_left <= 0.0:
 			_scream_in = -1.0
-			_target = _random_ring_point(_sidewalk)
+			if _cross != Cross.CROSSING:
+				_go_to(_random_ring_point(_sidewalk))
 			_play_walk()
 	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
 	# every single person walks without ever stopping reads as a conveyor belt.
@@ -1035,18 +1078,40 @@ func _physics_process(delta: float) -> void:
 		if _pause_left <= 0.0:
 			_play_walk()
 		return
-	var here := Vector2(global_position.x, global_position.z) - _ring_origin()
-	var to_target := _target - here
+	if _cross == Cross.WAIT:
+		_wait_at_kerb(delta)
+		return
+	if _cross == Cross.CROSSING:
+		_walk_crossing(delta, panicking)
+		return
+	# The parent's space, which for a chunk's walker is the true world plan `ring` is in. This
+	# used to be the scene position, which is the same thing only until the first origin shift.
+	var here := Vector2(position.x, position.z) - _ring_origin()
+	if _route_pending:
+		_route_pending = false
+		_route = _ring_route(here, _target)
+	var goal := _target if _route.is_empty() else _route[0]
+	var to_target := goal - here
+	if to_target.length() < 1.0 and not _route.is_empty():
+		_route.remove_at(0)
+		goal = _target if _route.is_empty() else _route[0]
+		to_target = goal - here
 	if to_target.length() < 1.0:
+		if _cross == Cross.TO_KERB:
+			_arrive_at_kerb()
+			return
 		if panicking:
-			_target = _flee_point()
+			_go_to(_flee_point())
+		elif _way.randf() < cross_chance and plan_crossing(-1):
+			pass
 		else:
-			_target = _random_ring_point(_sidewalk)
-		to_target = _target - here
-		if not panicking and _anim and _anim.has_animation(IDLE_CLIP) and _style.randf() < pause_chance:
-			_pause_left = _style.randf_range(pause_seconds.x, pause_seconds.y)
-			_play_idle()
-	var dir := to_target.normalized()
+			_go_to(_random_ring_point(_sidewalk))
+			if _anim and _anim.has_animation(IDLE_CLIP) and _style.randf() < pause_chance:
+				_pause_left = _style.randf_range(pause_seconds.x, pause_seconds.y)
+				_play_idle()
+		goal = _target if _route.is_empty() else _route[0]
+		to_target = goal - here
+	var dir := to_target.normalized() if to_target.length() > 0.001 else Vector2(0.0, -1.0)
 	var speed := run_speed if panicking else walk_speed
 	velocity.x = dir.x * speed
 	velocity.z = dir.y * speed
@@ -1063,6 +1128,17 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.y = 0.0
 		move_and_slide()
+		# Walked square into something flat - a bus shelter, a news box, a parked car over the
+		# kerb - since walkers keep to the pavement band now: somewhere else, not the same spot
+		# marched on for ever.
+		var real := get_real_velocity()
+		if Vector2(real.x, real.z).length() < speed * 0.25:
+			_walk_stuck_t += delta
+			if _walk_stuck_t > 0.8:
+				_walk_stuck_t = 0.0
+				_go_to(_flee_point() if panicking else _random_ring_point(_sidewalk))
+		else:
+			_walk_stuck_t = 0.0
 	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.y), 1.0 - exp(-(14.0 if panicking else 8.0) * delta))
 	if _anim == null:
 		_bob += delta * speed * 4.0
@@ -1321,11 +1397,278 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 func _scare(at: Vector3) -> void:
 	var calm := _panic_left <= 0.0
 	_panic_left = _rng.randf_range(panic_seconds.x, panic_seconds.y)
-	_threat = Vector2(at.x, at.z)
+	# `at` is a scene position; the ring is in the parent's (a chunk's: the true world).
+	var local := (get_parent() as Node3D).to_local(at) if get_parent() is Node3D else at
+	_threat = Vector2(local.x, local.z)
 	_pause_left = 0.0
+	# Panic wins over waiting to cross: back along this block's pavement at a run. Somebody
+	# already out in the road keeps going, at a run, and flees on the far side.
+	if _cross == Cross.TO_KERB or _cross == Cross.WAIT:
+		_cross = Cross.NONE
 	if calm:
-		_target = _flee_point()
+		if _cross != Cross.CROSSING:
+			_go_to(_flee_point())
 		_play_run()
+
+
+## Heads for `target` on this block's pavement, going round the ring (not through the block).
+func _go_to(target: Vector2) -> void:
+	_target = target
+	_route = _ring_route(Vector2(position.x, position.z) - _ring_origin(), target)
+	_route_pending = false
+
+
+## Corner waypoints from `from` to `to` round the pavement ring, the shorter way: both points
+## sit on the pavement band a few metres in from the kerb, and a straight line between two of
+## its sides runs through the buildings (a near walker bumped along the walls, a far one walked
+## straight through them). Empty when both are on the same side.
+func _ring_route(from: Vector2, to: Vector2) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var w := ring.size.x
+	var h := ring.size.y
+	if w < 4.0 or h < 4.0:
+		return out
+	var s0 := _ring_s(from)
+	var s1 := _ring_s(to)
+	var perimeter := 2.0 * (w + h)
+	var cw := fposmod(s1 - s0, perimeter)
+	if absf(_ring_side(from) - _ring_side(to)) < 0.5:
+		return out
+	var inset := clampf(_sidewalk * 0.5, 1.0, 2.5)
+	# Corners in clockwise order with their perimeter position: NE, SE, SW, NW (z runs south).
+	var corners := [
+		[w, Vector2(ring.end.x - inset, ring.position.y + inset)],
+		[w + h, Vector2(ring.end.x - inset, ring.end.y - inset)],
+		[2.0 * w + h, Vector2(ring.position.x + inset, ring.end.y - inset)],
+		[perimeter, Vector2(ring.position.x + inset, ring.position.y + inset)],
+	]
+	var clockwise := cw <= perimeter * 0.5
+	var span := cw if clockwise else perimeter - cw
+	var picks: Array = []
+	for c: Array in corners:
+		var d: float = fposmod(float(c[0]) - s0, perimeter) if clockwise else fposmod(s0 - float(c[0]), perimeter)
+		if d > 0.01 and d < span:
+			picks.append([d, c[1]])
+	picks.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	for p: Array in picks:
+		out.append(p[1])
+	return out
+
+
+## Which side of the ring a point is on: 0 north, 1 east, 2 south, 3 west.
+func _ring_side(p: Vector2) -> float:
+	var d := [p.y - ring.position.y, ring.end.x - p.x, ring.end.y - p.y, p.x - ring.position.x]
+	var best := 0
+	for i in 4:
+		if float(d[i]) < float(d[best]):
+			best = i
+	return float(best)
+
+
+## Distance round the ring clockwise from its north-west corner to the side point nearest `p`.
+func _ring_s(p: Vector2) -> float:
+	var w := ring.size.x
+	var h := ring.size.y
+	match int(_ring_side(p)):
+		0:
+			return clampf(p.x - ring.position.x, 0.0, w)
+		1:
+			return w + clampf(p.y - ring.position.y, 0.0, h)
+		2:
+			return w + h + clampf(ring.end.x - p.x, 0.0, w)
+	return 2.0 * w + h + clampf(ring.end.y - p.y, 0.0, h)
+
+
+# --- Crossing the street -----------------------------------------------------------------------
+
+## True while somebody is on crosswalk (`node`, the crossed road's `axis`, `side` of the junction):
+## a car on that road stops short of it (TrafficManager._drive_street()).
+static func crosswalk_busy(node: Vector2i, axis: int, side: int) -> bool:
+	if _crosswalks.is_empty():
+		return false
+	return int(_crosswalks.get(Vector4i(node.x, node.y, axis, side), 0)) > 0
+
+
+## The city plan, from the chunk this walker belongs to.
+func _city_plan() -> CityPlan:
+	var p := get_parent()
+	if p == null:
+		return null
+	var value: Variant = p.get("plan")
+	return value as CityPlan if value is CityPlan else null
+
+
+## Heads for a crosswalk at the corner of the block nearest to this walker: across the road of
+## `prefer_axis` (CityPlan.AXIS_X or AXIS_Z), or either (-1, rolled). Only at a junction that
+## has crosswalks (signals or stop signs), and only onto a block the city really goes on to.
+## False (and nothing changed) when there is no such crossing here.
+func plan_crossing(prefer_axis: int = -1) -> bool:
+	var plan := _city_plan()
+	if plan == null or _down:
+		return false
+	var here := Vector2(position.x, position.z) - _ring_origin()
+	var centre := ring.get_center()
+	var b := plan.block_index_at(centre)
+	var sx := 1 if here.x > centre.x else -1
+	var sz := 1 if here.y > centre.y else -1
+	var node := Vector2i(b.x + (1 if sx > 0 else 0), b.y + (1 if sz > 0 else 0))
+	var inter: Dictionary = plan.intersection(node.x, node.y)
+	var kind: int = inter.kind
+	if kind != CityPlan.Intersection.SIGNALS and kind != CityPlan.Intersection.STOP_SIGNS:
+		return false
+	var pos: Vector2 = inter.pos
+	var size: Vector2 = inter.size
+	# This block is in the junction's (-sx, -sz) quadrant.
+	var first_x := prefer_axis == CityPlan.AXIS_X if prefer_axis >= 0 else _way.randf() < 0.5
+	var spread := _way.randf_range(-kerb_spread, kerb_spread)
+	for attempt in (1 if prefer_axis >= 0 else 2):
+		var across_x := first_x if attempt == 0 else not first_x
+		var from: Vector2
+		var to: Vector2
+		var next: Rect2
+		var key: Vector4i
+		var road: Vector2
+		if across_x:
+			var z := pos.y - sz * (size.y * 0.5 + 1.8) + spread
+			from = Vector2(pos.x - sx * (size.x * 0.5 + kerb_wait), z)
+			to = Vector2(pos.x + sx * (size.x * 0.5 + kerb_wait), z)
+			next = plan.block(b.x + sx, b.y).rect
+			key = Vector4i(node.x, node.y, CityPlan.AXIS_X, -sz)
+			road = Vector2(pos.x, size.x * 0.5)
+		else:
+			var x := pos.x - sx * (size.x * 0.5 + 1.8) + spread
+			from = Vector2(x, pos.y - sz * (size.y * 0.5 + kerb_wait))
+			to = Vector2(x, pos.y + sz * (size.y * 0.5 + kerb_wait))
+			next = plan.block(b.x, b.y + sz).rect
+			key = Vector4i(node.x, node.y, CityPlan.AXIS_Z, -sx)
+			road = Vector2(pos.y, size.y * 0.5)
+		if not _crossable(plan, next, to):
+			continue
+		_cross = Cross.TO_KERB
+		_cross_from = from
+		_cross_to = to
+		_cross_key = key
+		_cross_road = road
+		_cross_ring = next
+		_cross_signal = kind == CityPlan.Intersection.SIGNALS
+		_cross_wait = 0.0
+		_cross_patience = _way.randf_range(stop_sign_patience.x, stop_sign_patience.y)
+		_pause_left = 0.0
+		_go_to(from)
+		return true
+	return false
+
+
+## A block worth crossing to: city ground with a pavement round it, the far kerb on it too.
+func _crossable(plan: CityPlan, rect: Rect2, far_kerb: Vector2) -> bool:
+	if rect.size.x < 12.0 or rect.size.y < 12.0:
+		return false
+	if plan.zone_at(rect.get_center()) != MacroMap.Zone.CITY or plan.zone_at(far_kerb) != MacroMap.Zone.CITY:
+		return false
+	return not Landmarks.covers(plan, far_kerb, 1.0)
+
+
+## Straight out onto the crosswalk plan_crossing() picked, `progress` (0..1) of the way over, as
+## if the walking figure had just come up (screenshots: a still cannot wait for a walker to reach
+## the kerb and the light to change).
+func cross_now(progress: float) -> void:
+	if _cross == Cross.NONE:
+		return
+	var at := _cross_from.lerp(_cross_to, clampf(progress, 0.0, 0.95))
+	position = Vector3(at.x, _ground_y(at.x, at.y, position.y), at.y)
+	_start_crossing()
+
+
+func _arrive_at_kerb() -> void:
+	_cross = Cross.WAIT
+	_cross_wait = 0.0
+	velocity = Vector3.ZERO
+	_play_idle()
+
+
+## Standing at the kerb: at a signal until the walking figure comes up, at a stop sign for a
+## moment. Nobody stands there for ever.
+func _wait_at_kerb(delta: float) -> void:
+	velocity.x = 0.0
+	velocity.z = 0.0
+	_cross_wait += delta
+	var go := false
+	var plan := _city_plan()
+	if plan == null:
+		go = true
+	elif _cross_signal:
+		go = TrafficSignals.walk(plan, _cross_key.x, _cross_key.y, _cross_key.z) == TrafficSignals.Walk.WALK
+	else:
+		go = _cross_wait >= _cross_patience
+	var across := (_cross_to - _cross_from).normalized()
+	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-across.x, -across.y), 1.0 - exp(-6.0 * delta))
+	if go:
+		_start_crossing()
+	elif _cross_wait > 75.0:
+		_cross = Cross.NONE
+		_go_to(_random_ring_point(_sidewalk))
+		_play_walk()
+
+
+func _start_crossing() -> void:
+	_cross = Cross.CROSSING
+	if not _on_crosswalk:
+		_on_crosswalk = true
+		_crosswalks[_cross_key] = int(_crosswalks.get(_cross_key, 0)) + 1
+	if _panic_left > 0.0:
+		_play_run()
+	elif _anim and _anim.has_animation(WALK_CLIP):
+		_anim.play(WALK_CLIP, 0.25)
+		_anim.speed_scale = walk_speed * cross_pace / WALK_CLIP_SPEED * _gait
+
+
+func _leave_crosswalk() -> void:
+	if not _on_crosswalk:
+		return
+	_on_crosswalk = false
+	var n := int(_crosswalks.get(_cross_key, 0)) - 1
+	if n > 0:
+		_crosswalks[_cross_key] = n
+	else:
+		_crosswalks.erase(_cross_key)
+
+
+## On the crosswalk: straight over to the far kerb, down onto the asphalt and up again, placed
+## rather than slid (a kerb is a step a capsule does not climb). At the far kerb this walker
+## belongs to the next block.
+func _walk_crossing(delta: float, panicking: bool) -> void:
+	var here := Vector2(position.x, position.z)
+	var to := _cross_to - here
+	var speed := run_speed if panicking else walk_speed * cross_pace
+	var step := speed * delta
+	var across := (_cross_to - _cross_from).normalized()
+	if to.length() <= step + 0.05:
+		position = Vector3(_cross_to.x, _ground_y(_cross_to.x, _cross_to.y, position.y), _cross_to.y)
+		_leave_crosswalk()
+		_cross = Cross.NONE
+		ring = _cross_ring
+		# The velocity is left as it was: the next step sets it for the pavement, and a walker
+		# read on the step it steps up the kerb is still walking.
+		if panicking:
+			_go_to(_flee_point())
+		else:
+			_go_to(_random_ring_point(_sidewalk))
+			_play_walk()
+		return
+	var dir := to.normalized()
+	var at := here + dir * step
+	var y := _ground_y(at.x, at.y, position.y)
+	# On the carriageway (inside the kerbs), the ground is the road, a kerb's height lower.
+	var off := absf((at.x if absf(across.x) > 0.5 else at.y) - _cross_road.x)
+	if off < _cross_road.y:
+		y -= CityChunk.SIDEWALK_TOP - CityChunk.ROAD_TOP
+	position = Vector3(at.x, y, at.y)
+	velocity = Vector3(dir.x * speed, 0.0, dir.y * speed)
+	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.y), 1.0 - exp(-10.0 * delta))
+
+
+func _exit_tree() -> void:
+	_leave_crosswalk()
 
 
 ## The spot on this block's pavement ring farthest from the threat, out of a handful: fleeing

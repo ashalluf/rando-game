@@ -347,8 +347,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   LB: a quick LB tap is still "previous weapon", see the weapon wheel note), `interact` (E / gamepad Y),
   `respawn`, `toggle_mouse`, `toggle_hud`. Add new actions there. There is no sprint; boost replaced it. In a
   jet: boost = throttle up, alt_fire = throttle down, move axes = pitch and roll.
-- NPCs: `Pedestrian` (wanders a block's sidewalk ring, `knock(impulse)` turns it into a `Ragdoll`
-  debris) and `TrafficManager` (kinematic `Vehicle`s with `traffic` state driving the lanes).
+- NPCs: `Pedestrian` (wanders a block's sidewalk ring, going round it by its corners -
+  `_ring_route()` - and now and then across a crosswalk to the next block, see Street life;
+  `knock(impulse)` turns it into a `Ragdoll` debris) and `TrafficManager` (kinematic `Vehicle`s
+  with `traffic` state driving the lanes).
   Never freeze a VehicleBody3D and never give a kinematic one VehicleWheel3D nodes: NaN.
   Panic (owner, 2026-09-23: "when you shoot there should be NPCs screaming"):
   `Pedestrian.alarm(tree, at, radius, screams)` scares everyone in range - they run
@@ -407,9 +409,16 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   from `heavy_stars`; units past `recall_distance` that nobody has seen are recalled; cruisers
   are pooled. `PoliceCar` (`scripts/npc/police_car.gd`, extends Vehicle): DISPATCH drives the
   lanes kinematically (its `traffic` dict carries `"police": true`, so it has no VehicleWheel3D),
-  PURSUE is real physics within `engage_range` of a player the police can see (the same handover
-  traffic uses, `go_physical()`), then STOPPED -> PARKED and the crew gets out
-  (`Police.deploy_crew`). Pooling strips the wheels BEFORE it re-freezes the body (a frozen
+  taking each junction's turn from a street route (`StreetRoute`, see Street life) and running
+  every red with the siren going; for a player on foot it stays on the lanes to the kerb nearest
+  him (`StreetRoute.kerb_stop()`) and pulls up there (`_pull_up()`: `go_physical()` then
+  `stop_here()`) - handed to physics on the last straight instead, it got knocked off the road
+  by the wrecks of a busy fight and stuck short. PURSUE is real physics within `engage_range` of a player in a car the police
+  can see (the same handover traffic uses, `go_physical()`), and after a hit or a reboard: it
+  steers along the route's lane polyline (`_path_target()`, slowing for turns), straight at the
+  car only inside `ram_range` with a clear line - it used to steer straight at the target from
+  70 m, so a player on a roof got a cruiser nosing into the wall. Then STOPPED -> PARKED and the
+  crew gets out (`Police.deploy_crew`). Pooling strips the wheels BEFORE it re-freezes the body (a frozen
   VehicleBody3D with wheels is NaN). Livery is `car_paint.gdshader` `stripe_mode` 5 (white doors
   and roof over black), the light bar one vertex-coloured mesh on `shaders/police_lights.gdshader`
   plus an OmniLight3D at night (desktop), the siren the Sfx `siren` loop (a real recorded wail). `PoliceOfficer`
@@ -432,6 +441,65 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   minimap; the minimap draws the units as flashing red/blue blips and the search area. The
   smoke test runs with `Police.enabled` false except in `_test_police`. Stills: `STARS=n
   POLICE=standoff|pursuit` on `tools/glshot/still_shot.gd`.
+- Street life (owner, 2026-09-24: "GTA-level street life"). **Signals are worked out, never
+  ticked.** `TrafficSignals` (`scripts/world/traffic_signals.gd`, static) is one shared clock
+  (`clock`, advanced once a physics tick by `TrafficManager` and pushed as the `signal_clock`
+  shader global) plus a seeded offset per intersection (`offset01()`), so any head's state
+  anywhere is a few multiplies: `light(plan, ix, iz, axis)` for cars on roads of `axis`,
+  `walk(plan, ix, iz, crossing_axis)` for people crossing a road (they walk with the traffic
+  beside them - the other axis' green: WALK, then the flashing hand and countdown), `force()` for
+  tests and stills. The cycle's four numbers (`GREEN`, `AMBER`, `ALL_RED`, `WALK_TIME`) reach
+  the lens shader only through `PropFactory.signal_lens_material()`; the smoke test checks the
+  copy. The hardware is `tools/make_signals.py` (Blender, headless, like the facade kit;
+  dimensions in its header, mirrored by `PropFactory.SIGNAL_*` and checked against the loaded
+  bounds) -> `assets/models/traffic_signal.glb`: tapered pole on a bolted base, a mast arm scaled
+  along its length per approach, three-lamp heads with tunnel visors and a yellow-bordered
+  backplate, a side-mount bracket, pedestrian heads (original raised hand / walking figure beside
+  a seven-segment countdown), push buttons, a controller cabinet. `CityChunk._add_signal_corner()`
+  lays a junction out US-style - each corner's pole carries the arm for the approach it is the
+  far right of, a head over every lane plus one low on the pole, and the two pedestrian heads
+  facing back across the crosswalks that end there - as ONE prop per pole (it breaks as one)
+  whose head instances carry `Color(offset01, axis, 0, 0)` as MultiMesh custom data (the fifth
+  entry of an `_add_prop()` instance). `shaders/traffic_signal.gdshader` reads that and UV2.x
+  (the lamp id the model bakes) and lights LED-dotted HDR lamps. Nothing per signal runs on the
+  CPU. The old primitive `_add_signal()` is only the fallback for a missing model.
+  **Street traffic queues.** `TrafficManager._drive_streets()` groups the street cars by lane
+  (`lane_key()`: road, axis, direction, lane), sorts each group along the road and drives each
+  car with the Intelligent Driver Model behind the one in front; everything else it must stop for
+  is another stationary car in front of it - the stop line (nose `stop_line_back` short of the
+  crossing road) at a red or an amber it can stop for (`_must_stop()`, `amber_margin`), a stop
+  sign until it has stood `stop_sign_wait` at it, a crosswalk with somebody on it
+  (`Pedestrian.crosswalk_busy()`), the player's car in the lane (solid) or the player on foot
+  (braked for, up to `player_brake`, not guaranteed). A hard clamp (`room`) means a nose never
+  passes what is in front of it, and a car closed up on something still stands still (the IDM
+  alone creeps forever). Turns are rolled once per junction (`t.turn`), slowed for
+  (`turn_speed`), and skipped if the target lane is occupied at the corner; cars pull to the kerb
+  and stop for a siren behind them (`siren_yield_distance`). Police cruisers are not in the
+  groups and run reds. `place_car()` puts a street car exactly somewhere (tests, stills), and
+  **`staged`** stops the upkeep shedding or spawning street cars while that is going on - with
+  spawns still queued a lowered cap overshoots, and the shedding that follows takes the placed
+  cars with it (it did, in the first version of the checks).
+  **Pedestrians cross.** At a spot on their ring, `cross_chance` of walkers call
+  `plan_crossing()`: the corner nearest them, if its junction has crosswalks (signals or stop
+  signs) and the block over the road is city ground; they walk round the ring to the kerb (TO_KERB),
+  wait (WAIT: the walking figure at a signal, `stop_sign_patience` at a stop sign), cross placed
+  rather than slid (CROSSING, down onto the asphalt and up again; `cross_pace`) and belong to the
+  next block's ring after. `Pedestrian._crosswalks` counts who is on each crosswalk,
+  `Vector4i(ix, iz, crossed axis, side)`, taken on in `_start_crossing()` and off in
+  `_leave_crosswalk()` (also from `_exit_tree()`, so a knocked or freed walker never leaves a
+  crosswalk "busy"). Panic cancels a wait; somebody already in the road runs the rest of the way.
+  A walker stays a child of the chunk it spawned in wherever it walks, and its movement now
+  reads the chunk-local `position` (true world, the ring's space) - it read `global_position`,
+  which is the same thing only until the first origin shift.
+  **Police route by street.** `StreetRoute` (`scripts/npc/street_route.gd`, static): A* over
+  the intersection grid (`path()`, bounded to a box round the ends, U-turns charged
+  `U_TURN_COST`, stretches off city ground refused), `kerb_stop()` (the lane on the goal's side
+  of the nearest road, level with it, clear of the crossings, just inside the parked cars; a goal
+  on the carriageway itself is stopped short of), `locate()` and `polyline()` for the physics
+  follower. Stills: `STREET=queue|crossing` on `tools/glshot/still_shot.gd` (a queue at the red
+  of the junction ahead of the camera, walkers on the crosswalk in front of it; `--hour=21` for
+  the heads at night). Checks: `tests/street_life_checks.gd`, loaded by the smoke test like the
+  air traffic's.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -1282,7 +1350,8 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
      transforms back out measures nothing and reports a clean bill of health.
   `tools/geo_count.gd` counts triangles, draw calls and objects for one frame and has the working
   invocation in its header: it must run under `--rendering-driver opengl3` with Xvfb, never
-  `--headless`. Measure a geometry change before and after with it rather than arguing about it.
+  `--headless`. `AB=Batch_sig_*,BatchShadow_sig_*` counts the same frozen frame again with the
+  matching nodes hidden, so one kind of geometry's cost comes out of one run. Measure a geometry change before and after with it rather than arguing about it.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
   `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
   Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.

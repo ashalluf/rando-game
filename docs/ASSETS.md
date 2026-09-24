@@ -151,6 +151,26 @@ by the sun per instance, grime, stains). For the downtown encampments (`Encampme
 | `camp_chair` | 680 | folding camp chair | 2026-09-24 |
 | `camp_bicycle` | 2772 | whole bicycle leant on its side | 2026-09-24 |
 | `camp_bike_wheel` / `camp_bike_frame` | 916 / 940 | loose wheels and stripped frames | 2026-09-24 |
+## Traffic signals (our own tool, no external source)
+
+`assets/models/traffic_signal.glb` is written by `tools/make_signals.py`, run headless in Blender
+4.2 (`blender -b --factory-startup --python tools/make_signals.py`); the script is the model and
+the `.glb` is build output (rerun it, then `godot --headless --path . --import`). Seven pieces,
+one node each, every hard edge bevelled with face-area weighted normals. No textures of its
+own: `PropFactory.signal_material()` puts the CC0 `metal_painted` and `concrete` sets above on
+the named glTF materials, and the lenses are `shaders/traffic_signal.gdshader` (LED lamps, and
+the pedestrian glyphs - an original raised hand and walking figure - drawn from distance
+fields). Original design; no real signal maker's hardware or symbol artwork is copied.
+
+| Piece | Triangles | Used for | Added |
+| --- | --- | --- | --- |
+| `sig_pole` | 1,376 | tapered galvanised pole, bolted base plate and cover, handhole, arm collar | 2026-09-24 |
+| `sig_arm` | 404 | the mast arm (8 m, scaled along its length per approach) | 2026-09-24 |
+| `sig_head` | 2,132 | three-lamp vehicle head: tunnel visors, bezels, domed lenses, yellow-bordered backplate, hanger | 2026-09-24 |
+| `sig_bracket` | 128 | side-mount arm for the head low on the pole | 2026-09-24 |
+| `sig_ped` | 980 | pedestrian head: hood, glyph panel and countdown panel | 2026-09-24 |
+| `sig_button` | 328 | push-button station with its sign | 2026-09-24 |
+| `sig_cabinet` | 740 | signal controller cabinet on a concrete pad | 2026-09-24 |
 
 ## Procedurally generated cars (our own tools, no external source)
 

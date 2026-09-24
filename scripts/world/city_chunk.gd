@@ -68,7 +68,7 @@ const SIDEWALK_TOP := 0.25
 @export var ocean_subdiv: int = 72
 @export var ocean_subdiv_lod: int = 32
 
-const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0, "rack": 15.0, "newsbox": 10.0, "mailbox": 20.0, "bollard": 40.0, "street_sign": 12.0, "bus_stop": 40.0}
+const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "signal_cabinet": 50.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0, "rack": 15.0, "newsbox": 10.0, "mailbox": 20.0, "bollard": 40.0, "street_sign": 12.0, "bus_stop": 40.0}
 
 var plan: CityPlan
 var ix: int = 0
@@ -2010,8 +2010,10 @@ func _build_intersection(inter: Dictionary) -> void:
 				["sign_pole", PropFactory.sign_pole(), Transform3D(Basis(), at + Vector3(0.0, 1.3, 0.0))],
 				["stop_sign", PropFactory.stop_sign(), Transform3D(face, at + Vector3(0.0, 2.4, 0.0))],
 			], [[Vector3(0.3, 2.8, 0.3), at + Vector3(0.0, 1.4, 0.0), 0.0]])
-		else:
+		elif not _add_signal_corner(at, c, size):
 			_add_signal(at, c, size)
+	if kind == CityPlan.Intersection.SIGNALS:
+		_add_signal_cabinet(pos, size)
 
 
 ## Crosswalk styles by intersection seed: 0 zebra, 1 wide continental bars, 2 ladder edges.
@@ -2047,6 +2049,112 @@ func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
 				zz += step
 
 
+## Heights on a signal pole (metres above the pavement): the side-mount head's bracket, the
+## pedestrian heads, the push buttons.
+const SIGNAL_SIDE_Y := 4.6
+const SIGNAL_PED_Y := 2.7
+const SIGNAL_BUTTON_Y := 1.05
+## How far past the innermost lane centre a mast arm runs (metres).
+const SIGNAL_ARM_OVERRUN := 0.6
+## Draw distances (metres). A lit lens is what reads a junction from a block away, and at night
+## from much further, so the heads go out furthest; the pedestrian heads and buttons are for the
+## pavement.
+const SIGNAL_HEAD_DRAW := 420.0
+const SIGNAL_PED_DRAW := 160.0
+const SIGNAL_SMALL_DRAW := 70.0
+
+
+## One corner of a signalised intersection (owner, 2026-09-24: "GTA-level street life"), laid out
+## the way US junctions are: each corner's pole carries the mast arm for the approach it stands
+## on the far right of, with a head over every lane of that approach and a second head low on
+## the pole, plus the two pedestrian heads facing back across the two crosswalks that end here
+## and their push buttons. Every head is an instance in the chunk's MultiMesh batch whose custom
+## data is the intersection's offset into TrafficSignals' cycle and the axis it serves, so the
+## lens shader lights it with no node of its own. False when the model is missing (the caller
+## then builds the old primitive signal).
+func _add_signal_corner(at: Vector3, c: Vector2, size: Vector2) -> bool:
+	var pole_mesh := PropFactory.signal_part("sig_pole")
+	if pole_mesh.get_surface_count() == 0:
+		return false
+	var head_mesh := PropFactory.signal_part("sig_head")
+	var ped_mesh := PropFactory.signal_part("sig_ped")
+	var off := TrafficSignals.offset01(plan, ix + 1, iz + 1)
+	# The approach this corner is the far right of: (-1, +1) and (+1, -1) face traffic on the
+	# north-south (AXIS_X) road, the other two traffic on the east-west one. `dir` is that
+	# traffic's direction of travel (TrafficManager._lane_offset puts it on the right).
+	var on_x := c.x * c.y < 0.0
+	var axis := CityPlan.AXIS_X if on_x else CityPlan.AXIS_Z
+	var dir := c.y if on_x else c.x
+	var arm_dir := Vector3(-c.x, 0.0, 0.0) if on_x else Vector3(0.0, 0.0, -c.y)
+	var facing := Vector3(0.0, 0.0, -dir) if on_x else Vector3(-dir, 0.0, 0.0)
+	var width: float = size.x if on_x else size.y
+	var lanes := 2 if width > plan.street_width + 1.0 else 1
+	# From the pole to each lane centre of the approach: the pole stands 1.2 m in from the kerb.
+	var reach := width * 0.5 + 1.2
+	var heads: Array[float] = []
+	var arm_len := 0.0
+	for n in lanes:
+		var d := reach - CityPlan.lane_center(width, lanes, n)
+		heads.append(d)
+		arm_len = maxf(arm_len, d + SIGNAL_ARM_OVERRUN)
+	var arm_y := PropFactory.SIGNAL_ARM_Y
+	var arm_yaw := atan2(-arm_dir.z, arm_dir.x)
+	var head_yaw := atan2(facing.x, facing.z)
+	var custom := Color(off, float(axis), 0.0, 0.0)
+	var instances := [
+		# The handhole away from the corner.
+		["sig_pole", pole_mesh, Transform3D(Basis(Vector3.UP, atan2(-c.x, -c.y)), at)],
+		["sig_arm", PropFactory.signal_part("sig_arm"), Transform3D(Basis(Vector3.UP, arm_yaw).scaled_local(Vector3(arm_len / PropFactory.SIGNAL_ARM_LENGTH, 1.0, 1.0)), at + Vector3(0.0, arm_y, 0.0))],
+		["sig_bracket", PropFactory.signal_part("sig_bracket"), Transform3D(Basis(Vector3.UP, arm_yaw), at + Vector3(0.0, SIGNAL_SIDE_Y, 0.0))],
+		["sig_head", head_mesh, Transform3D(Basis(Vector3.UP, head_yaw), at + arm_dir * PropFactory.SIGNAL_BRACKET_REACH + Vector3(0.0, SIGNAL_SIDE_Y, 0.0)), Color.WHITE, custom],
+	]
+	for d in heads:
+		instances.append(["sig_head", head_mesh, Transform3D(Basis(Vector3.UP, head_yaw), at + arm_dir * d + Vector3(0.0, arm_y, 0.0)), Color.WHITE, custom])
+	# The crosswalk across the north-south road ends here too, and the one across the east-west
+	# road: a pedestrian head for each, facing the people waiting at its other end, and a button
+	# for the people waiting at this end.
+	for across_x: bool in [true, false]:
+		var face := Vector3(-c.x, 0.0, 0.0) if across_x else Vector3(0.0, 0.0, -c.y)
+		var crossing := CityPlan.AXIS_X if across_x else CityPlan.AXIS_Z
+		instances.append(["sig_ped", ped_mesh, Transform3D(Basis(Vector3.UP, atan2(face.x, face.z)), at + Vector3(0.0, SIGNAL_PED_Y, 0.0)), Color.WHITE, Color(off, float(crossing), 0.0, 0.0)])
+		var press := Vector3(0.0, 0.0, c.y) if across_x else Vector3(c.x, 0.0, 0.0)
+		instances.append(["sig_button", PropFactory.signal_part("sig_button"), Transform3D(Basis(Vector3.UP, atan2(press.x, press.z)), at + Vector3(0.0, SIGNAL_BUTTON_Y, 0.0))])
+	var pole_h := PropFactory.SIGNAL_POLE_HEIGHT
+	_add_prop("signal", at, Color(0.5, 0.51, 0.52), instances, [
+		[Vector3(0.34, pole_h, 0.34), at + Vector3(0.0, pole_h * 0.5, 0.0), 0.0],
+		[Vector3(arm_len - 0.2, 0.26, 0.26), at + arm_dir * (arm_len * 0.5 + 0.1) + Vector3(0.0, arm_y, 0.0), arm_yaw],
+	])
+	_batch.set_draw_distance("sig_head", SIGNAL_HEAD_DRAW)
+	_batch.set_draw_distance("sig_ped", SIGNAL_PED_DRAW)
+	_batch.set_draw_distance("sig_button", SIGNAL_SMALL_DRAW)
+	_batch.set_no_shadow("sig_button")
+	return true
+
+
+## The signal controller: one cabinet per signalised junction, on the pavement of a seeded
+## corner, back against the lot line of the north-south road's pavement and past the crosswalk,
+## door to the street. The box that makes the heads change, as far as anyone on the pavement can
+## tell. Out of the band people walk (1-3 m from the kerb): at 3 m it stood square across the
+## route round the block and a walker walked into its door and stayed there.
+const SIGNAL_CABINET_INSET := 3.6
+func _add_signal_cabinet(pos: Vector2, size: Vector2) -> void:
+	var mesh := PropFactory.signal_part("sig_cabinet")
+	if mesh.get_surface_count() == 0:
+		return
+	var corners := [Vector2(1, 1), Vector2(-1, 1), Vector2(-1, -1), Vector2(1, -1)]
+	var c: Vector2 = corners[absi(hash([plan.seed, "signal_cabinet", ix, iz])) % corners.size()]
+	var inset := minf(SIGNAL_CABINET_INSET, plan.sidewalk_width - 0.3)
+	var p := pos + Vector2(c.x * (size.x * 0.5 + inset), c.y * (size.y * 0.5 + 6.0))
+	var at := Vector3(p.x, SIDEWALK_TOP, p.y)
+	var yaw := atan2(-c.x, 0.0)
+	_add_prop("signal_cabinet", at, Color(0.66, 0.68, 0.63), [
+		["sig_cabinet", mesh, Transform3D(Basis(Vector3.UP, yaw), at)],
+	], [[Vector3(0.8, 1.6, 0.56), at + Vector3(0.0, 0.8, 0.0), yaw]])
+	_batch.set_draw_distance("sig_cabinet", SIGNAL_PED_DRAW)
+
+
+## The old primitive signal: a pole, an arm and three always-lit spheres. Only built when
+## traffic_signal.glb is missing.
 func _add_signal(at: Vector3, corner: Vector2, size: Vector2) -> void:
 	var along_x := size.x >= size.y
 	var dir := Vector3(-corner.x, 0.0, 0.0) if along_x else Vector3(0.0, 0.0, -corner.y)
@@ -2077,7 +2185,8 @@ func _add_prop(kind: String, at: Vector3, color: Color, instances: Array, shapes
 	var g := _gy(at.x, at.z)
 	var record := {"id": id, "kind": kind, "position": at + Vector3(0.0, g, 0.0), "color": color, "health": PROP_HEALTH.get(kind, 20.0), "instances": [], "shapes": [], "dead": false}
 	for inst in instances:
-		var index := _batch.add(inst[0], inst[1], inst[2], inst[3] if inst.size() > 3 else Color.WHITE)
+		# A fifth entry is the instance's custom data (a signal head's timing, see _add_signal_corner).
+		var index := _batch.add(inst[0], inst[1], inst[2], inst[3] if inst.size() > 3 else Color.WHITE, inst[4] if inst.size() > 4 else Color.BLACK)
 		record.instances.append([inst[0], index])
 	for s in shapes:
 		var shape := _add_shape(s[0], s[1] + Vector3(0.0, g, 0.0), s[2])
