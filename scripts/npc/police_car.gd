@@ -407,12 +407,10 @@ func _drive_lane(delta: float) -> void:
 	var to_stop := INF
 	if _stop_at_dest and _on_dest(axis, index, dir):
 		to_stop = (float(_dest.along) - along) * float(dir)
-		# On the last straight and close: off the lanes and into physics for the approach, as
-		# the cruiser always did near a player it can see - the route from here is one straight
-		# line to the kerb (_pursue() follows it), so nothing is left for physics to get wrong.
-		if mode == Mode.DISPATCH and to_stop > 8.0 and to_stop < engage_range:
-			go_physical()
-			return
+		# Kept on the lanes all the way to the kerb point, and only handed to physics there
+		# (_pull_up()). Handing over on the last straight instead was tried: in a city already
+		# strewn with wrecks and bodies the physics approach got knocked off the road and stuck
+		# 60 m short, where the lanes cannot be.
 		if to_stop > -2.0 and to_stop < 150.0:
 			cruise = minf(cruise, sqrt(2.0 * route_brake * 0.75 * maxf(to_stop, 0.0)) + 0.4)
 			var ease := clampf(1.0 - to_stop / kerb_approach, 0.0, 1.0)

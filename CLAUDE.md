@@ -399,10 +399,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   are pooled. `PoliceCar` (`scripts/npc/police_car.gd`, extends Vehicle): DISPATCH drives the
   lanes kinematically (its `traffic` dict carries `"police": true`, so it has no VehicleWheel3D),
   taking each junction's turn from a street route (`StreetRoute`, see Street life) and running
-  every red with the siren going; for a player on foot it heads for the kerb nearest him
-  (`StreetRoute.kerb_stop()`), on the lanes until the last straight and within `engage_range`,
-  then on physics along the route to a stop there (`_pull_up()` if it reaches the point still on
-  the lanes). PURSUE is real physics within `engage_range` of a player in a car the police
+  every red with the siren going; for a player on foot it stays on the lanes to the kerb nearest
+  him (`StreetRoute.kerb_stop()`) and pulls up there (`_pull_up()`: `go_physical()` then
+  `stop_here()`) - handed to physics on the last straight instead, it got knocked off the road
+  by the wrecks of a busy fight and stuck short. PURSUE is real physics within `engage_range` of a player in a car the police
   can see (the same handover traffic uses, `go_physical()`), and after a hit or a reboard: it
   steers along the route's lane polyline (`_path_target()`, slowing for turns), straight at the
   car only inside `ram_range` with a clear line - it used to steer straight at the target from

@@ -1147,12 +1147,16 @@ CLAUDE.md. What a next session needs to know:
   by both of the cruiser's driving modes. Tunables on `PoliceCar`, group "Routing":
   `route_interval` 0.5 s, `route_moved` 10 m, `ram_range` 35 m, `corner_speed` 9,
   `u_turn_speed` 4, `route_brake` 7, `look_ahead` 6-16 m, `kerb_approach` 26 m. A dispatched
-  cruiser drives the lanes until it is on the last straight to the kerb point and within
-  `engage_range` of it, then goes onto real physics for the approach (as it always did near a
-  player it can see) and follows the route polyline to a stop. Probed headless: dispatched 132 m
-  out to a player mid-block, 0 of 532 samples off a carriageway, parked 1.4 m from the kerb point;
-  to a player at a junction centre from 168 m, parked in 12 s; a physics cruiser spawned 127 m
-  out got there by road in 17 s, 0 of 1,060 samples off.
+  cruiser stays on the lanes to the kerb point and only then goes onto physics to stop
+  (`_pull_up()`). Handing it to physics on the last straight inside `engage_range` was tried and
+  reverted: in the full smoke run, after the police and car checks had left wrecks about, the
+  physics approach was knocked off the road and stuck 61 m short (175 of 934 samples off the
+  carriageway); the lanes cannot be. Probed headless: dispatched 132 m out to a player mid-block,
+  0 of 453 samples off a carriageway, parked 0.6 m from the kerb point; to a player at a
+  junction centre from 168 m, parked in 10.9 s (the smoke test's engage window is 25 s since
+  main raised it); a physics cruiser spawned 127 m out got there by road in 17 s, 0 of 1,060
+  samples off - but that follower is the part to watch in a cluttered street (it has no idea of
+  obstacles beyond backing off when stuck).
 - **Checks** (`tests/street_life_checks.gd`, 16 of them, about 35 s of game time): the model and
   its placing numbers, the shader's copy of the cycle, heads on every signalised full-detail
   junction, the cycle's logic (never both green, an all-red, walking only across a red), live
