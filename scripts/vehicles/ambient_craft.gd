@@ -434,7 +434,9 @@ func _apply_fade() -> void:
 ## Steps a fade in (fading_out false) or out; true once a fade out is complete.
 func _step_fade(dt: float) -> bool:
 	var target := 1.0 if fading_out else 0.0
-	if is_equal_approx(fade, target):
+	# Exact, not approximate: an is_equal_approx() stop left a fade in at 1e-7 for good, and
+	# everything waiting for "fully in" waited forever.
+	if fade == target:
 		return fading_out
 	fade = move_toward(fade, target, dt / maxf(fade_time, 0.01))
 	_apply_fade()

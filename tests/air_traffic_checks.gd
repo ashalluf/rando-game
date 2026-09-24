@@ -96,6 +96,7 @@ func _origin_shift(air: AirTraffic, city: Node3D) -> void:
 	var heli_before := WorldState.to_world(heli.global_position)
 	var player := _tree.get_first_node_in_group("player") as Node3D
 	var home := player.global_position
+	var home_world := WorldState.to_world(home)
 	player.global_position = home + Vector3(1400.0, 0.0, 300.0)
 	city.recenter()
 	var moved := WorldState.to_world(jet.global_position).distance_to(jet_before) + WorldState.to_world(heli.global_position).distance_to(heli_before)
@@ -104,7 +105,8 @@ func _origin_shift(air: AirTraffic, city: Node3D) -> void:
 	heli.advance(0.0)
 	var drift := WorldState.to_world(jet.global_position).distance_to(jet_before) + WorldState.to_world(heli.global_position).distance_to(heli_before)
 	_t._check(moved < 0.01 and drift < 0.01, "aircraft keep their world positions across an origin shift (%.3f m, %.3f m)" % [moved, drift])
-	player.global_position = WorldState.to_local(WorldState.to_world(home))
+	# Back where he was in the world (the origin has moved under him).
+	player.global_position = WorldState.to_local(home_world)
 	jet.remove()
 	heli.remove()
 	await _tree.process_frame

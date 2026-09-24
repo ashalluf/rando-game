@@ -331,7 +331,7 @@ func _fly_departure(dt: float) -> void:
 			_along_runway(0.0)
 			velocity = Vector3.ZERO
 			pitch = 0.0
-			if fade <= 0.0:
+			if fade < 0.001:
 				_hold_left -= dt
 				if _hold_left <= 0.0:
 					phase = Phase.ROLL

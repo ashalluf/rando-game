@@ -591,6 +591,7 @@ func _add_jet(kind: Aircraft.Kind, p: AmbientJet.Plan, r: AirRoute, d: float) ->
 	jet.name = "Jet%d" % _serial
 	jet.traffic = self
 	jet.setup(kind, p, r, d, _rng.randi())
+	_place_before_entry(jet)
 	add_child(jet)
 	_crafts.append(jet)
 	return jet
@@ -603,9 +604,18 @@ func spawn_helicopter(role: Helicopter.Role, at_world: Vector3, task: String) ->
 	heli.traffic = self
 	heli.setup(role, at_world, _rng.randf() * TAU, _rng.randi())
 	heli.task = task
+	_place_before_entry(heli)
 	add_child(heli)
 	_crafts.append(heli)
 	return heli
+
+
+## Puts a new aircraft where it belongs BEFORE it enters the tree. Godot works out a kinematic
+## body's velocity from how far it moved in a step, so a body that entered at the origin and
+## was then put two kilometres away moved at a hundred kilometres a second for one step - and
+## a player standing at the origin inherited that as platform velocity and left the map.
+func _place_before_entry(craft: AmbientCraft) -> void:
+	craft.transform = Transform3D(Basis.from_euler(Vector3(craft.pitch, craft.yaw, craft.roll)), to_local(WorldState.to_local(craft.world_pos)))
 
 
 ## Somewhere a helicopter can come from without popping into view: `spawn_distance` behind the
