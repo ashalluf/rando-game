@@ -225,7 +225,7 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   TrafficManager's own car lists. `levels_for()` / `rates_for()` are pure (scene, hour, night
   factor, weather) -> gains / events per minute, which is what the smoke test checks
   (`tests/ambience_checks.gd`, mixer state only under the Dummy driver). Knobs: `ambience_db`,
-  `layer_db` (per layer), `fade_seconds`, the reaches, `district_density` (one per
+  `layer_db` (per layer), `pass_db` / `car_roll_db`, `fade_seconds`, the reaches, `district_density` (one per
   CityPlan.District, guarded), the enclosure cutoffs, `reverb_wet`, the duck numbers. The weather
   node's own rain loop only plays where there is no Ambience (the test room). Ducks: a blast
   within `blast_duck_radius` (polled from `Explosion.blast_count`) dips the ambience and, inside

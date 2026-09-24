@@ -90,6 +90,11 @@ extends Node
 @export var pass_distance: float = 7.5
 ## ...if it is doing at least this, m/s.
 @export var pass_min_speed: float = 8.0
+## Level of a pass-by 3 m away, dB (on top of `ambience_db`); it falls 6 dB per doubling of the
+## distance it passes at.
+@export var pass_db: float = -4.0
+## Level of the traffic voices' tyre roll, dB at full speed (a stopped car is 12 dB under).
+@export var car_roll_db: float = -2.0
 ## Where the loudest instant of every car_pass take sits, seconds from its start (the clips are
 ## cut so it is the same for all of them).
 @export var pass_peak_seconds: float = 1.2
@@ -802,7 +807,8 @@ func _maybe_pass(car: Node3D, id: int, pos: Vector3, eye: Vector3, now: int) -> 
 	var v := _passes[slot]
 	v.stream = got[0]
 	# Closer and faster is louder; the take already carries its own swell and Doppler.
-	v.volume_db = float(got[1]) - 2.0 - 20.0 * log(maxf(miss, 2.0) / 3.0) / log(10.0) + clampf((vel.length() - 12.0) * 0.4, -4.0, 4.0)
+	# At 3 m and 12 m/s its loudest instant lands about 4 dB under a rifle round's.
+	v.volume_db = float(got[1]) + ambience_db + pass_db - 20.0 * log(maxf(miss, 2.0) / 3.0) / log(10.0) + clampf((vel.length() - 12.0) * 0.4, -4.0, 4.0)
 	v.pitch_scale = clampf(vel.length() / 14.0, 0.8, 1.25)
 	v.global_position = pos
 	_pass_of[slot] = car
@@ -828,7 +834,7 @@ func _follow_traffic(eye: Vector3, _dt: float) -> void:
 		var doppler := clampf(SOUND_SPEED / maxf(SOUND_SPEED - closing, 200.0), 0.85, 1.2)
 		v.pitch_scale = clampf((0.75 + speed / 40.0) * doppler, 0.5, 2.0)
 		# A stopped car is an idle murmur; a fast one is tyre roar.
-		v.volume_db = _car_trim + ambience_db + clampf(-14.0 + speed * 0.6, -14.0, -2.0)
+		v.volume_db = _car_trim + ambience_db + car_roll_db + clampf((speed - 20.0) * 0.6, -12.0, 0.0)
 		for k in _passes.size():
 			if _pass_of[k] == car and _passes[k].playing:
 				v.volume_db -= 8.0 # the pass-by carries it for now

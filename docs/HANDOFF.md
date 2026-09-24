@@ -1109,7 +1109,8 @@ session needs to know:
   to ask the owner for is ten minutes of play with the sound on: downtown at noon, a freeway deck,
   the beach, the hills at night, a rocket at close range, the weapon wheel, rain from inside a car.
   The knobs they will ask about are `Ambience.ambience_db` (everything), `layer_db` (per layer),
-  `ONE_SHOTS[*].db` / `unit` and the rates in `rates_for()`.
+  `ONE_SHOTS[*].db` / `unit` and the rates in `rates_for()`, `pass_db` / `car_roll_db` (the
+  street's own cars) and `blast_duck_db` / `slow_duck_db`.
 - **Levels.** Beds are all cut to -22 dB RMS and recorded so in `AMBIENCE_LOUDNESS_DB`, so after
   Sfx's trim they sit level with each other and `layer_db` is the whole mix. With the defaults,
   downtown at noon sums to roughly -28 dBFS RMS against a rifle round's -18 dBFS loudest window
