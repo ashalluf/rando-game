@@ -45,6 +45,14 @@ showcase slice (downtown, the beach, the hills); GTA VI level (ray tracing, stra
 film faces) is past Godot 4 today, and would mean Unreal 5, which breaks the phone-only
 text-file workflow. About a year of steady work for the slice; the whole map takes longer.
 
+**2026-09-24, owner: "It must be the same quality as Red Dead Redemption 2."** RDR2 raises the
+bar past GTA V mainly in three places, so they move up the list: people and animation (G5 -
+mocap-grade movement, faces, fingers, weapon handling; the hero now holds guns by IK and a
+Blender-built hero is being prototyped), lighting and weather (G4 - volumetric clouds, fog and
+rain that light and shadow the world), and hand-authored density (G2/G3). The honest limit is
+unchanged: RDR2 is eight years of a studio of thousands; the aim is that a showcase slice holds
+up next to it in screenshots and in motion, one weakest-thing-first fix at a time.
+
 What only the owner can supply, and why each one multiplies everything below:
 - **A real GPU in the loop.** Claude sees one lavapipe frame every 6-10 minutes and never a real
   frame rate. A self-hosted GitHub Actions runner on the owner's Mac (one-time setup) would
