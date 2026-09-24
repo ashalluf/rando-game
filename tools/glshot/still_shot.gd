@@ -134,6 +134,10 @@ func _initialize() -> void:
 				police.call("report_sighting")
 				_pose(player, anchor, hold, boost, fov)
 			if scene_kind != "pursuit":
+				# Freeze the clock first: a software frame is seconds of process time, which is
+				# the whole life of a tracer, so a volley fired at full speed is gone before the
+				# frame that would show it.
+				Engine.time_scale = float(OS.get_environment("TIME_SCALE")) if OS.get_environment("TIME_SCALE") != "" else 0.0005
 				for o in police.get("officers"):
 					if is_instance_valid(o) and o.get("police") != null:
 						var target: Vector3 = police.call("player_aim_point")

@@ -978,7 +978,7 @@ func stage_for_shot(n_stars: int, scene: String) -> void:
 	var pw := player_world()
 	var count := clampi(n_stars, 1, 3)
 	for i in count:
-		var dist := (20.0 + 9.0 * float(i)) if scene == "pursuit" else (17.0 + 3.0 * float(i))
+		var dist := (20.0 + 9.0 * float(i)) if scene == "pursuit" else (14.0 + 3.0 * float(i))
 		var side := (float(i % 2) - 0.5) * (7.0 if scene == "pursuit" else 9.0)
 		var right := fwd.cross(Vector3.UP)
 		var at := pw + fwd * dist + right * side
