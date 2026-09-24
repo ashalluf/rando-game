@@ -18,6 +18,8 @@ extends SceneTree
 ## metres ahead instead (people come apart close to a blast); FX_PED_PLACE=1 also stands that
 ## pedestrian in the road exactly FX_AT metres ahead first. Debris is kept alive for the shot:
 ## its lifetime is wall-clock seconds, and a software frame takes seconds.
+## AIR=final|takeoff|news|police stages an aircraft for the shot (AIR_DIST, AIR_CLEAR,
+## AIR_FRAMES; see the block before the freeze).
 ## CAR_PARAM=name=value sets one car paint uniform on every car (A/B tests); CAR_REPORT=1 prints
 ## each car on screen with its paint; AIM=1 holds GTA-style aim for the shot. WHEEL=<index> opens
 ## the weapon wheel just before the shot with that segment highlighted (-1 = none), time already
@@ -136,6 +138,25 @@ func _initialize() -> void:
 			await process_frame
 		else:
 			print("WHEEL: no weapon wheel in the scene")
+	# AIR=final|takeoff|news|police stages an aircraft AIR_DIST metres ahead of the camera
+	# (AirTraffic.stage(): an airliner on short final, a departure just past lift-off, the news
+	# helicopter, or police circling the player with the searchlight on him), AIR_CLEAR=1 empties
+	# the rest of the sky first, then AIR_FRAMES frames run so it settles.
+	var air_env := OS.get_environment("AIR")
+	if air_env != "":
+		var air := current_scene.get_node_or_null("AirTraffic")
+		var air_cam := get_root().get_camera_3d()
+		if air and air_cam:
+			if OS.get_environment("AIR_CLEAR") == "1":
+				air.call("clear_all")
+			var dist := float(OS.get_environment("AIR_DIST")) if OS.get_environment("AIR_DIST") != "" else 300.0
+			var placed: Node = air.call("stage", air_env, air_cam, dist)
+			print("AIR staged ", placed.name if placed else "nothing", " at ", (placed as Node3D).global_position if placed else Vector3.ZERO)
+			for i in _env_int("AIR_FRAMES", 4):
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+		else:
+			print("AIR: no AirTraffic in the scene")
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.

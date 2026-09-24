@@ -797,6 +797,8 @@ func stage(kind: String, cam: Camera3D, dist: float) -> AmbientCraft:
 			h.goal = at
 			h.look_target = eye
 			h.yaw = AmbientCraft.yaw_of(Vector3(-fwd.z, 0.0, fwd.x))
+			h.apply_pose()
+			h.snap_gear()
 			return h
 		"police":
 			forced_stars = police_stars
@@ -805,6 +807,9 @@ func stage(kind: String, cam: Camera3D, dist: float) -> AmbientCraft:
 			h.yaw = AmbientCraft.yaw_of(Vector3(-fwd.z, 0.0, fwd.x))
 			h.searchlight_on = true
 			h.look_target = player_world()
+			_poll()
+			h.apply_pose()
+			h.snap_gear()
 			return h
 	return null
 

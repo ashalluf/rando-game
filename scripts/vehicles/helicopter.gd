@@ -450,6 +450,14 @@ func _spin_rotors(dt: float) -> void:
 			((d as MeshInstance3D).material_override as ShaderMaterial).set_shader_parameter("fade", disc)
 
 
+## Points the gear at its target at once (stills: a software frame is too slow to swing it).
+func snap_gear() -> void:
+	var keep := searchlight_track
+	searchlight_track = 1000.0
+	_aim_gear(1.0)
+	searchlight_track = keep
+
+
 ## Points the searchlight or the camera ball at `look_target`, and lays the pool where the beam
 ## lands.
 func _aim_gear(dt: float) -> void:
