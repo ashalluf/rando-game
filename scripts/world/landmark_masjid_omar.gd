@@ -208,8 +208,12 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 
 static func _materials() -> Dictionary:
 	var m := {}
-	m["stucco"] = PropFactory.pbr("plaster_white", 2.2, Color(0.97, 0.96, 0.93))
-	m["stucco_in"] = PropFactory.pbr("plaster_white", 2.2, Color(0.97, 0.93, 0.84))
+	# Painted stucco: the plaster set's normal and roughness for the surface, but not its colour.
+	# That photo averages 0.27 linear with a yellow cast (blue 0.20), and no tint gets a photo that
+	# dark to the 0.75 a white-painted wall reflects - the building came out concrete grey. The
+	# colour is written as what the paint is.
+	m["stucco"] = _paint(Color(0.88, 0.88, 0.86))
+	m["stucco_in"] = _paint(Color(0.90, 0.85, 0.74))
 	m["green"] = _std(Color(0.09, 0.29, 0.21), 0.2, 0.36)
 	var dome := _std(Color(0.26, 0.58, 0.50), 0.15, 0.24)
 	dome.clearcoat_enabled = true
@@ -253,6 +257,13 @@ static func _materials() -> Dictionary:
 	m["paint"] = _std(Color(0.92, 0.92, 0.88), 0.0, 0.7)
 	m["red"] = _std(Color(0.42, 0.07, 0.07), 0.0, 0.6)
 	return m
+
+
+static func _paint(c: Color) -> StandardMaterial3D:
+	var mat := (PropFactory.pbr("plaster_white", 2.2, Color.WHITE) as StandardMaterial3D).duplicate() as StandardMaterial3D
+	mat.albedo_texture = null
+	mat.albedo_color = c
+	return mat
 
 
 static func _std(c: Color, metallic: float, rough: float) -> StandardMaterial3D:
@@ -972,7 +983,7 @@ static func _hall(k: _Kit) -> void:
 			x += 2.0
 	# The ceiling's centre: a recessed square coffer with a gold rim, the chandelier's rose.
 	var coffer := 3.2
-	k.box("gold", Vector3(cx, HALL_CEIL - 0.05, cz), Vector3(coffer * 2.0 + 0.2, 0.1, coffer * 2.0 + 0.2), false)
+	_band_ring(k, "gold", Rect2(cx - coffer, cz - coffer, coffer * 2.0, coffer * 2.0), HALL_CEIL - 0.12, 0.12, 0.22)
 	k.cyl("gold", Vector3(cx, HALL_CEIL - 0.25, cz), 0.5, 0.5, 0.25, 24, true, false)
 	_chandelier(k, Vector3(cx, HALL_CEIL - 0.25, cz), 1.0, 3.8)
 	# Ceiling lights round the coffer.

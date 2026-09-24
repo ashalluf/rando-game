@@ -9,8 +9,8 @@ shader_type spatial;
 // Colours are written as the colours they are (source_color); the pile gets its look from a
 // fine sheen and a darker nap, not from a texture, so it holds together at any distance.
 
-uniform vec3 field : source_color = vec3(0.50, 0.05, 0.07);
-uniform vec3 field_dark : source_color = vec3(0.30, 0.02, 0.04);
+uniform vec3 field : source_color = vec3(0.44, 0.035, 0.075);
+uniform vec3 field_dark : source_color = vec3(0.26, 0.015, 0.045);
 uniform vec3 band : source_color = vec3(0.86, 0.78, 0.60);
 uniform vec3 gold : source_color = vec3(0.72, 0.52, 0.20);
 // Depth of one prayer row front to back, and width of one prayer space along it, in metres.
@@ -76,6 +76,6 @@ void fragment() {
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 	// Pile sheen: wool throws light back along grazing view directions.
-	RIM = 0.35;
+	RIM = 0.2;
 	RIM_TINT = 0.6;
 }
