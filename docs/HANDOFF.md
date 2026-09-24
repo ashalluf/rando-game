@@ -1167,10 +1167,14 @@ CLAUDE.md. What a next session needs to know:
   moved in 1 s" check now takes the farthest any car moved: the nearest car can simply be
   waiting at a red.
 - **Stills**: `STREET=queue|crossing` on `tools/glshot/still_shot.gd` (opengl3 only for this
-  work): `street_queue_red.png` (`FOV=50 STREET=queue --spawn=-0.8,50,-4,-3 --hour=11.5`, the
-  player on the centre line behind the queue), `street_crosswalk.png` (`STREET=crossing
-  --spawn=34,9.5,84,2 --hour=16.5`), `street_signals_night.png` (the queue camera at 21:30), all
-  in the session scratchpad.
+  work). Only two were rendered before the session ended - the render lock was queued for hours:
+  `street_look1.png` (the spawn junction at noon, `--spawn=16,22,40,8 --hour=12`: signal heads,
+  mast arms and walkers in the frame) and `street_queue_red.png` (`STREET=queue --spawn=14,50,8,4
+  --hour=11.5`, framed badly: the camera is on the pavement and the queue is small in the
+  distance). Still to take, commands ready: the queue from behind it, `FOV=50 STREET=queue
+  --spawn=-0.8,50,-4,-3 --hour=11.5`; the same camera at `--hour=21.5` for the lit heads at
+  night; people on the crosswalk, `STREET=crossing STREET_PEDS=10 --spawn=34,9.5,84,2
+  --hour=16.5`. None has been seen in Forward+.
 - **Bugs found on the way, all fixed:** a new street car was placed from `to_local()` under the
   already-shifted `TrafficManager` after an origin re-centre, so it appeared a whole shift away
   (cars now get their local transform before `add_child()`, which also avoids the kinematic
@@ -1192,6 +1196,12 @@ CLAUDE.md. What a next session needs to know:
   night (the lenses glow; there is no OmniLight per head, deliberately). A physics cruiser that
   meets a traffic car head on is blocked by it (kinematic cars are immovable to physics) and
   backs off and tries again; traffic only pulls over for a siren on the lanes behind it.
+  The geometry cost of the signals (`AB=Batch_sig_*,BatchShadow_sig_*` on geo_count) is not
+  measured. **To continue:** take the three stills above and the geo_count A/B, then judge the
+  lamps in Forward+ (`forward_shot.sh` at the queue camera, day and night) - the lens `energy`
+  (3.2) and `ped_energy` (2.4) in `shaders/traffic_signal.gdshader` are the numbers most likely
+  to need a change once glow is on.
+
 ## 9n. The downtown skyline, 2026-09-24 (owner: "a 1:1 match of DTLA skyline ... more buildings")
 
 Built on an agent branch; the rules are the Downtown skyline bullet in CLAUDE.md. The decision
