@@ -17,9 +17,9 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 | 2 | Vehicle grime: dirt on the lower body and wheel arches, dust on glass, per-car amount | Vehicles (car_paint.gdshader, vehicle.gd) | 3 | 5 | 1 | 15.0 | in-progress | wave 1. Every car is showroom clean today |
 | 3 | Walls and pavements: grime streaks under sills, rain stains, damp kerb line, graffiti tags on low walls | Materials (building.gdshader) | 4 | 4 | 1.1 | 14.5 | in-progress | wave 1 |
 | 4 | MacArthur Park on (build 253) | Density / landmark | 3 | 3 | 1 | 9.0 | in-progress | orchestrator. Forced-turn fix done; full-suite-only traffic leak into the closed roads and a lake dive blocked by ReliefFloor remain |
-| 5 | Golden hour / LA haze: warmer low sun, orange-pink horizon band, brown-grey smog layer at the basin edge | Lighting (day_night.gd, sky.gdshader) | 4 | 3 | 1 | 12.0 | todo | NEEDS MAC CHECK - Forward+ only via lavapipe |
+| 5 | Golden hour / LA haze: warmer low sun, orange-pink horizon band, brown-grey smog layer at the basin edge | Lighting (day_night.gd, sky.gdshader) | 4 | 3 | 1 | 12.0 | in-progress | wave 2. NEEDS MAC CHECK - Forward+ only via lavapipe |
 | 6 | Hill vegetation density: chaparral scrub clumps and dry grass tufts on the slopes, LOD'd | Hills (city_chunk _scatter_hills) | 4 | 3 | 1.5 | 8.0 | todo | after #1 |
-| 7 | Street clutter: newspaper boxes, bollards, utility boxes, sandwich boards, litter decals | Density (street_detail.gd) | 3 | 4 | 1.3 | 9.2 | todo | wires, signals and lamps already exist |
+| 7 | Street clutter: newspaper boxes, bollards, utility boxes, sandwich boards, litter decals | Density (street_detail.gd) | 3 | 4 | 1.3 | 9.2 | in-progress | wave 2. Wires, signals, lamps, meters, shelters already exist |
 | 8 | Neon and shop-front glow at night: signage emission, light spill on the pavement | Lighting (building.gdshader shop band, light_pool) | 4 | 3 | 1.2 | 10.0 | todo | |
 | 9 | Puddles and wet decals after rain: persistent dark wet patches, gutter water | Materials (road.gdshader) | 3 | 4 | 1 | 12.0 | todo | road already has mirror puddles when soaked |
 | 10 | Vehicle damage: dents / scratches where hit, cracked glass | Vehicles | 3 | 2 | 1.2 | 5.0 | todo | |

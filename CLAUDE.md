@@ -474,7 +474,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   passes what is in front of it, and a car closed up on something still stands still (the IDM
   alone creeps forever). Turns are rolled once per junction (`t.turn`), slowed for
   (`turn_speed`), and skipped if the target lane is occupied at the corner; cars pull to the kerb
-  and stop for a siren behind them (`siren_yield_distance`). Police cruisers are not in the
+  and stop for a siren behind them (`siren_yield_distance`). **A forced turn is never dropped:**
+  where the road ahead is closed (`t.forced`) and the lane the car must turn into is taken, it
+  waits at the centre of the crossing; dropping it drove the car straight into the closed road,
+  which was MacArthur Park's traffic leak (it only showed at a busy corner). Police cruisers are not in the
   groups and run reds. `place_car()` puts a street car exactly somewhere (tests, stills), and
   **`staged`** stops the upkeep shedding or spawning street cars while that is going on - with
   spawns still queued a lowered cap overshoots, and the shedding that follows takes the placed
@@ -1095,8 +1098,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (free camera: `CAM`, `LOOK`, `FOV`).
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
-  **The park is OFF by default** (`LandmarkMacArthurPark.enabled`; docs/HANDOFF.md 9p says why and
-  what is left); the encampments are on. Its entry's table is `"area"` (the civic set's
+  **The park is ON** (`LandmarkMacArthurPark.enabled`, since 2026-09-24 evening; it was held off
+  while traffic leaked onto its closed roads - the forced-turn note under Street life, and
+  `CityStreamer.recenter()` called outside the physics tick by the tests); the
+  encampments are on. Its entry's table is `"area"` (the civic set's
   `"site": "block"` is a different thing).
   `LandmarkMacArthurPark` (`scripts/world/landmark_macarthur_park.gd`) keeps everything real in
   ONE table, `SITE` (lat/long, the real offset from Pershing Square, real size, Wilshire's real

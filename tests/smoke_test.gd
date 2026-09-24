@@ -183,6 +183,7 @@ func _test_city() -> void:
 	_check(not city.chunks.has(home_key) or city.chunks[home_key].level == 1, "home chunk is no longer full detail")
 
 	# Origin re-centering: the world shifts so the player is back near zero.
+	await get_tree().physics_frame
 	player.global_position = Vector3(1200.0, 2.0, 0.0)
 	city.recenter()
 	_check(_world_state().world_offset.x > 1100.0 and player.global_position.length() < 5.0, "world re-centered (offset %.0f m)" % _world_state().world_offset.x)
@@ -1470,12 +1471,17 @@ func _test_city() -> void:
 	menu.close()
 	_check(not get_tree().paused, "resume unpauses")
 	_world_state().pending_seed = 4321
+	# The second city's _ready() resets the shared world offset to zero under this one. Put it
+	# back after, or every check below runs in a frame the far chunks built before this point
+	# disagree with - which stood their relief floors over MacArthur Park's lake, 380 m away.
+	var saved_offset: Vector3 = _world_state().world_offset
 	var city2: Node3D = packed.instantiate()
 	get_tree().root.add_child(city2)
 	await get_tree().process_frame
 	_check(city2.world_seed == 4321 and _world_state().pending_seed == -1, "a pending seed rebuilds the city with that seed")
 	_check(city2.plan.road_pos(0, 3) != plan.road_pos(0, 3), "a different seed gives a different city")
 	city2.queue_free()
+	_world_state().world_offset = saved_offset
 
 	# Same seed, same plan.
 	var a := CityPlan.new()

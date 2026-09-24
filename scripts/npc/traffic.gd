@@ -432,6 +432,8 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		var past_cross := cw * 0.5 + 3.0
 		var past_here := plan.road_width(axis, index) * 0.5 + 3.0
 		var ahead_open := plan.road_open(axis, index, cross_pos + dir * past_cross)
+		# Remembered so a blocked turn knows whether going straight on is allowed at all.
+		t.forced = not ahead_open
 		if not ahead_open or (_rng.randf() < turn_chance and not t.has("no_turns")):
 			var nd := 1 if _rng.randf() < 0.5 else -1
 			if not plan.road_open(cross_axis, cross_index, lane_here + nd * past_here):
@@ -543,7 +545,16 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			var pos2 := Vector2(wp.x, road + lane) if cross_axis == CityPlan.AXIS_Z else Vector2(road + lane, wp.z)
 			_place(car, WorldState.to_local(Vector3(pos2.x, 0.55 + _relief(pos2), pos2.y)), _heading(cross_axis, new_dir), 0.0)
 			return
-		t.turn = 0
+		if t.get("forced", false):
+			# The road ahead is closed and the lane it must turn into is taken: wait at the centre
+			# of the crossing until it clears. This used to drop the turn and drive straight on,
+			# so whenever a car had to turn off a closed road at a busy corner - MacArthur Park's
+			# streets - it went straight into it, and on down the closed road through the lake.
+			new_along = along + float(dir) * maxf(to_centre - 0.05, 0.0)
+			t.v = 0.0
+			car.traffic_speed = 0.0
+		else:
+			t.turn = 0
 	var lane_pos: float = plan.road_pos(axis, index) + float(t.lane) + signf(float(t.lane)) * float(t.shift)
 	var new_wp := Vector3(lane_pos, wp.y, new_along) if axis == CityPlan.AXIS_X else Vector3(new_along, wp.y, lane_pos)
 	# Follow the city's rolling ground and pitch the nose along the slope ahead.

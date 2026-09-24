@@ -1590,11 +1590,23 @@ downtown and people slumped over". The rules are the Westlake bullet in CLAUDE.m
 as the street a realistic LA game shows, never as a joke; the code's words are neutral
 (`encampment`, `rough_sleeper`, `slumped`). What a next session needs to know:
 
-- **STATE: the encampments are ON; MacArthur Park is OFF** (`LandmarkMacArthurPark.enabled`,
-  a static var, default false: no landmark entry, no site, every road open, the city exactly as
-  before). It is off because the last full smoke run on the merged tree still found traffic cars
-  on the park's closed roads (cars on the inner street z ~0 through the lake), which the
-  isolated check did not reproduce; that has to be found before it goes on. To work on it, set
+- **STATE (updated 2026-09-24 evening): the encampments and MacArthur Park are both ON.** The
+  leak that held the park off had two causes. (1) In `TrafficManager._drive_street()`, a car
+  that had to turn because the road ahead was closed, and found the lane it was turning into
+  occupied, gave up the turn and drove straight on - into the closed road and through the lake.
+  A forced turn now waits at the centre of the crossing (`t.forced`). (2) The bigger one, and
+  test-only: the checks' teleport helpers called `CityStreamer.recenter()` from the process
+  phase. The kinematic traffic cars were then put back where the physics server last had them
+  at the next sync - the whole shift away, 270-500 m - and the next tick snapped each onto a
+  lane with the wrong `along`, dozens of them on the park's closed roads. The game only
+  re-centres inside the physics tick (the streamer's `_physics_process`), where it is fine; the
+  helpers (westlake, masjid, air traffic, the smoke test's own) now `await physics_frame`
+  first. A scratch probe showed 66 and 70 jumps from the process phase, none from the physics
+  phase. (3) Also test-only: the smoke test's seed-rebuild check builds a second city, whose
+  `_ready()` zeroes the shared `WorldState.world_offset` under the first; every far chunk built
+  before it then stood 100-400 m from where the checks after it thought (their relief floors
+  over the lake, the helicopter checks' "inf m above the ground"). The check now puts the
+  offset back. That is why the isolated check never saw any of it. To work on it, set
   `LandmarkMacArthurPark.enabled = true` before the city scene loads (Landmarks.all() is built
   once) - the westlake checks then run the park's half too. The table rides under the entry's
   `"area"` key: the civic set uses `"site": "block"` for something else (Landmarks.claims()).
@@ -2016,8 +2028,9 @@ Exposition Boulevard, so the entrance faces the street it faces in life.
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
 4-8 of it are still open.
 
-1. **Turn MacArthur Park on** (9r: find the traffic leak onto its closed roads first). The hero
-   pass that used to be item 1 is merged (section 0).
+1. **MacArthur Park is on** (9r). What is left there is 9r's own list: the Blender bake of the
+   encampment kit, nobody having seen the poses move, the police cruiser that can start inside
+   a crossing next to the park. The hero pass that used to be item 1 is merged (section 0).
 2. **The 1:1 downtown re-lay** (owner: "the whole downtown landscape ... a 1:1 replica"). The
    real positions live in `LandmarkDowntown.TOWERS` (`real`, `real_plan`, `real_grid()`) and
    `CivicSites.SITES` (`real_en()`, `real_grid()`), both in metres east/north of

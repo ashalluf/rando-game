@@ -881,6 +881,10 @@ func _set_far_landmark_visible(id: String, on: bool) -> void:
 
 
 ## Shifts every 3D child (chunks, player, rockets, debris) so the player is back near the origin.
+## Call it only inside the physics tick (the streamer does, from _physics_process). Called from
+## the process phase, the kinematic traffic cars are put back where the physics server last had
+## them at the next sync - the whole shift away - and the next tick snaps each onto its lane with
+## the wrong `along`: that is how the tests once filled MacArthur Park's closed roads with cars.
 func recenter() -> void:
 	if _player == null:
 		return

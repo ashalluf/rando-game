@@ -137,6 +137,8 @@ func _sanctuary(city: Node3D, player: CharacterBody3D, ws: Node, origin: Vector3
 
 func _go(city: Node3D, player: Node3D, world: Vector3) -> void:
 	var ws: Node = _tree.root.get_node("/root/WorldState")
+	# Inside the physics tick, as the streamer does it (see CityStreamer.recenter()).
+	await _tree.physics_frame
 	player.global_position = ws.to_local(world)
 	player.set("velocity", Vector3.ZERO)
 	city.recenter()

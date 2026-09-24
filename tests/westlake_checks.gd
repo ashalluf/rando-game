@@ -155,7 +155,7 @@ func _park(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 		if car is RigidBody3D and (car as RigidBody3D).linear_velocity.length() > 0.5:
 			continue
 		parked_in += 1
-		printerr("westlake: a car standing in the park at %s (%s)" % [str(cw.snapped(Vector3.ONE)), car.name])
+		printerr("westlake: a car standing in the park at %s (%s, parent %s, metas %s, traffic %s)" % [str(cw.snapped(Vector3.ONE)), car.name, str(car.get_parent().get_path()) if car.get_parent() else "none", str(car.get_meta_list()), str(car.get("traffic"))])
 	_t._check(bad == 0 and parked_in == 0, "no car drives or parks inside the park (%d driving, %d standing)" % [bad, parked_in])
 
 
@@ -233,6 +233,8 @@ func _camps(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 	_t._check(moved == 0 and posed == alive and alive > 0, "the people at the camps hold their poses and do not walk (%d moved, %d posed, %d poses)" % [moved, posed, kinds.size()])
 	var worn := false
 	for s in sleepers:
+		if not is_instance_valid(s):
+			continue
 		for mi in (s as Node).find_children("*", "MeshInstance3D", true, false):
 			var m := (mi as MeshInstance3D).material_override as ShaderMaterial
 			if m and float(m.get_shader_parameter("grime")) > 0.3:
@@ -294,6 +296,8 @@ func _floor_hit(space: PhysicsDirectSpaceState3D, ws: Node, at: Vector2, ground_
 ## ticks run inside one frame.
 func _go(city: Node3D, player: Node3D, world: Vector3) -> void:
 	var ws: Node = _tree.root.get_node("/root/WorldState")
+	# Inside the physics tick, as the streamer does it (see CityStreamer.recenter()).
+	await _tree.physics_frame
 	player.global_position = ws.to_local(world)
 	player.set("velocity", Vector3.ZERO)
 	city.recenter()

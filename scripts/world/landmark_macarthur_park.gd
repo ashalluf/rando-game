@@ -127,11 +127,14 @@ static var _lake_mat: ShaderMaterial
 
 ## The entry Landmarks.all() lists: id, anchor, a radius for the relief flattening and the minimap,
 ## and the site CityPlan snaps to the grid.
-## Off until the park has been seen in a render and its traffic check passes in the full smoke
-## test (docs/HANDOFF.md 9p): with it off there is no entry, no site, and every road is open, so
-## the city is exactly what it was. Set it before the city scene loads (Landmarks.all() is built
+## On since 2026-09-24 evening. It was held off because traffic leaked onto its closed roads:
+## a car that had to turn off a closed road, and found the lane it was turning into taken, went
+## straight on instead (TrafficManager._drive_street now makes it wait), and the checks re-centred
+## the world outside the physics tick, which threw every traffic car hundreds of metres (see
+## CityStreamer.recenter()). Off, there is no entry,
+## no site, and every road is open. Set it before the city scene loads (Landmarks.all() is built
 ## once).
-static var enabled: bool = false
+static var enabled: bool = true
 
 
 static func entry() -> Dictionary:

@@ -14,4 +14,4 @@ that took them.
 
 ## Wave 1 (2026-09-24)
 
-Baseline bookmarks for main 07d15a4: `<scratchpad>/bookmarks/base_07d15a4/`.
+Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.

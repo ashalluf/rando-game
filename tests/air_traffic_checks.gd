@@ -107,6 +107,7 @@ func _origin_shift(air: AirTraffic, city: Node3D) -> void:
 	var player := _tree.get_first_node_in_group("player") as Node3D
 	var home := player.global_position
 	var home_world := WorldState.to_world(home)
+	await _tree.physics_frame
 	player.global_position = home + Vector3(1400.0, 0.0, 300.0)
 	city.recenter()
 	var moved := WorldState.to_world(jet.global_position).distance_to(jet_before) + WorldState.to_world(heli.global_position).distance_to(heli_before)
