@@ -169,11 +169,12 @@ const ESPLANADE := {
 	"city_legs": 9,
 	# Road-top elevation (m above sea level) along the route, for the city legs: control points,
 	# joined linearly, then smoothed and held to MAX_GRADE. Real Esplanade: up from the pier plaza
-	# onto a 14-16 m bluff, level for most of its length, down to 7 m at the Avenue I curve; the
-	# Paseo climbs back up onto the Torrance bluff.
+	# onto a 14-16 m bluff, level for most of its length, down to 6.5 m at the Avenue I curve (the
+	# car park beside it is at 6), the Paseo up onto the Torrance bluff and down again toward
+	# Malaga Cove, where the hill road picks up the headland's own ground.
 	"profile": [[0.0, 4.0], [220.0, 14.0], [520.0, 15.5], [1000.0, 16.2], [1500.0, 15.4],
 		[1780.0, 13.6], [1930.0, 10.0], [2030.0, 6.6], [2230.0, 6.4], [2330.0, 9.0],
-		[2600.0, 17.0], [2900.0, 24.0], [3030.0, 26.0]],
+		[2600.0, 13.0], [2780.0, 14.0], [2915.0, 11.5], [3030.0, 12.0]],
 	# Grade limit for the whole route, and for the hill part how far the road may sit above or
 	# below the natural slope it follows.
 	"max_grade": 0.085,
@@ -828,8 +829,13 @@ func terrace_at(pos: Vector2) -> Vector2:
 		o = float(hit.o)
 		beyond = float(hit.beyond)
 		sd = sec[int(hit.i)]
-	if s > s_city_end + 1.0:
+	# Past the town the hill road takes over (HillRoads carves it); the town's ground eases out
+	# over END_FADE rather than stopping dead, or a cliff ran inland from the Paseo's end.
+	if s > s_city_end + END_FADE:
 		return Vector2.ZERO
+	if s > s_city_end:
+		var tail := terrace_without_car_park(pos, s_city_end, o, beyond, sec[_index_of_s(s_city_end)])
+		return tail * (1.0 - smoothstep(s_city_end, s_city_end + END_FADE, s))
 	# The beach car park is a platform of its own, and so is the ground between it and the road.
 	var lot_level := car_park_level(pos)
 	if lot_level > -INF:

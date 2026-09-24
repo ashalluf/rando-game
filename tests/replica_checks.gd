@@ -56,14 +56,32 @@ func _road(rep: ReplicaAreas) -> void:
 	_t._check(grade <= float(rep.data.hill_grade) + 0.01, "no grade on the route steeper than %.0f %% (%.1f %%)" % [float(rep.data.hill_grade) * 100.0, grade * 100.0])
 	_t._check(rep.roundabouts.size() == 1 and absf(float(rep.roundabouts[0].s) - 2111.0) < 25.0,
 		"the Avenue I roundabout is where the curve ends (%s)" % [str(rep.roundabouts[0].s) if not rep.roundabouts.is_empty() else "none"])
-	# The hill part is carved into the terrain, not floating over it or buried in it.
+	# The hill part is carved into the terrain, not floating over it or buried in it: the carved
+	# ground under it is the road, and the ground a few metres off either shoulder is near it (a
+	# hillside road cuts one side and fills the other, by a few metres, not a causeway or a canyon).
 	var worst := 0.0
+	var off_worst := 0.0
 	var i := rep._index_of_s(rep.s_city_end + 40.0)
 	while i < rep.pts.size():
 		var g := rep.macro.height_at(rep.pts[i])
 		worst = maxf(worst, absf(g - rep.top[i]))
+		var sd: Dictionary = rep.sec[i]
+		var l := ReplicaAreas.left_of(rep.dirs[i])
+		var both := 0.0
+		for side: float in [-1.0, 1.0]:
+			both += absf(rep.macro.height_at(rep.pts[i] + l * side * (float(sd.kerb_e) + 8.0)) - rep.top[i])
+		off_worst = maxf(off_worst, both * 0.5)
 		i += 6
-	_t._check(worst < 1.2, "the hill road sits in its cut (worst %.2f m from the carved ground)" % worst)
+	# Where the town ends, its ground eases out rather than dropping off a cliff inland.
+	var step := 0.0
+	for o: float in [40.0, 120.0, 240.0]:
+		var a0 := rep.at_s(rep.s_city_end - 15.0)
+		var a1 := rep.at_s(rep.s_city_end + 15.0)
+		var q0: Vector2 = (a0[0] as Vector2) + ReplicaAreas.left_of(a0[1]) * o
+		var q1: Vector2 = (a1[0] as Vector2) + ReplicaAreas.left_of(a1[1]) * o
+		step = maxf(step, absf(rep.macro.relief_at(q0) - rep.macro.relief_at(q1)))
+	_t._check(step < 6.0, "the town's ground eases out where the hill road begins, no cliff inland (%.1f m across 30 m)" % step)
+	_t._check(worst < 1.2 and off_worst < 9.0, "the hill road sits in its cut (worst %.2f m from the carved ground, %.1f m from the ground off its shoulders)" % [worst, off_worst])
 
 
 ## The coast: bluff over the sand, the sand over the sea, the headland where the photo has it.
