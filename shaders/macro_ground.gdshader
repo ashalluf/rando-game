@@ -37,6 +37,15 @@ uniform vec3 haze_color : source_color = vec3(0.70, 0.78, 0.88);
 uniform float haze_start = 4500.0;
 uniform float haze_end = 7400.0;
 uniform float haze_strength : hint_range(0.0, 1.0) = 0.45;
+// The plane's own rim. It is 14 km across and the camera now draws to 12 km, so from any height
+// its edge was a hard line with the sky's under-horizon colour beyond it - seen from the hills as
+// a pale slab laid across the sea. Between these two horizontal distances from the camera it
+// hands over completely to the sky's horizon colour (the `sky_tint` global, which is what the
+// sky shows just under the horizon), and so do the far city's boxes and planting, on the same
+// numbers (building_lod.gdshader, far_canopy.gdshader). CityStreamer sets all three from
+// ground_size.
+uniform float edge_start = 5040.0;
+uniform float edge_end = 6860.0;
 
 uniform vec3 sun_dir = vec3(0.45, 0.72, 0.28);
 global uniform float night_factor;
@@ -131,8 +140,11 @@ uniform vec3 city_light_color : source_color = vec3(1.0, 0.70, 0.36);
 uniform float city_light_strength : hint_range(0.0, 3.0) = 0.30;
 // How leafy the leafier districts get.
 uniform float canopy_amount : hint_range(0.0, 1.0) = 0.55;
-// Metres the far city stands proud of the basin floor, so a downtown reads as a raised mass.
-uniform float urban_lift = 42.0;
+// Metres the far city's ground was stood proud of the basin floor, to fake a downtown as a
+// raised mass when nothing was drawn out there. Nothing is faked any more: the far city
+// (scripts/world/skyline.gd) draws every block of the basin as its real buildings, on the real
+// ground height, and a lifted plane only buried them - 42 m swallowed every suburb past 2.6 km.
+uniform float urban_lift = 0.0;
 // That lift only starts past the streamed chunks, or it would cut their feet off.
 uniform float urban_lift_start = 1400.0;
 uniform float urban_lift_end = 2600.0;
@@ -436,8 +448,9 @@ void fragment() {
 	// unlit `base` and a `lit` term is what lets one shader do both without double-lighting the
 	// near ground or leaving the far ground at the mercy of the ambient.
 	float painted = smoothstep(near_fade_end * 0.6, near_fade_end * 1.8, dist);
-	ALBEDO = albedo * (1.0 - painted);
-	EMISSION = emitted * painted;
+	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - eye.xz));
+	ALBEDO = albedo * (1.0 - painted) * (1.0 - rim);
+	EMISSION = mix(emitted * painted, sky_tint.rgb, rim);
 	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25);
 	METALLIC = 0.0;
 	SPECULAR = mix(0.15, 0.55, water);

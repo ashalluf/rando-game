@@ -11,10 +11,10 @@ var _checks := 0
 
 
 func _ready() -> void:
-	# Watchdog: a broken test must never hang the check. Game time, and under the 420 s wall-clock
+	# Watchdog: a broken test must never hang the check. Game time, and under the 600 s wall-clock
 	# timeout in headless_check.sh; the police checks added about 30 s to a run that was already
-	# close to the old 300.
-	get_tree().create_timer(390.0).timeout.connect(func():
+	# close to the old 300, and the distance checks (tests/distance_checks.gd) about 20 more.
+	get_tree().create_timer(540.0).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
 	# Deferred: the root is still busy adding this scene during _ready().
@@ -1465,6 +1465,10 @@ func _test_city() -> void:
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)
+	# The distance (tests/distance_checks.gd): every tier of detail present, no gap ring between
+	# them out to the horizon, no block drawn twice, consistent handoff distances, and a streaming
+	# queue ordered by the view.
+	await load("res://tests/distance_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

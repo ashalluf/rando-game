@@ -38,9 +38,9 @@ enum Phase { LINEUP, ROLL, AIRBORNE, FLARE, ROLLOUT, TAXI }
 ## Rotation: nose-up attitude at lift-off and in the climb (degrees).
 @export var rotate_attitude: float = 9.0
 @export var climb_attitude: float = 4.0
-## A departure is removed once it is this far from the camera (metres), well past the 2 km far
-## plane, so its lights still trail off across the sky at night.
-@export var despawn_distance: float = 7000.0
+## A departure is removed once it is this far from the camera (metres), just inside the camera's
+## 12 km far plane: it is drawn all the way out now, so going sooner would pop it out of the sky.
+@export var despawn_distance: float = 11000.0
 @export_group("Feel")
 ## How fast the bank follows the turn (1/s) and the most it banks (degrees).
 @export var bank_rate: float = 1.4

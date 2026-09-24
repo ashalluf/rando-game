@@ -88,6 +88,13 @@ func run(city: Node3D) -> void:
 	await _frames(1)
 	_preload_world(city)
 	await _frames(2)
+	# The far city for the whole basin (Skyline), so the first look round from a rooftop sees
+	# every block out to the horizon rather than watching the far half fill in.
+	_step("Building the skyline", 0.8)
+	await _frames(1)
+	if city.has_method("finish_far_city"):
+		city.call("finish_far_city")
+	await _frames(1)
 	# Cutting a character's limbs apart takes tens of milliseconds the first time for each
 	# model, which is a hitch on the first rocket into a crowd; here it is part of the wait.
 	var models: Array = Pedestrian.MODELS

@@ -1657,6 +1657,123 @@ Not done at all: interiors of any of it; Bunker Hill as a hill (the relief is fl
 and the east side as real streets; the real 110/101/10 interchange ramps (the decks meet with the
 freeway code's usual lift); the civic builders at real size (the arena's `ARENA_RADII` is still
 36-37 m against the real ~90, so it will look small in its real 240 x 330 m block).
+## 9p. The distance, 2026-09-24 (agent branch)
+
+Owner: "it's glaringly obvious that certain areas of the map aren't loading properly at a
+distance. I'd like to see this fixed, do whatever GTA does and other grade-A games." The rules
+are the Distance bullet in CLAUDE.md. What a next session needs to know:
+
+**What was wrong, found by counting before fixing.** A headless census (every city block of the
+plan within 6 km of eight vantage points - downtown roof and street, midtown street, the hills
+over the basin, the beach, the airport, the valley, 900 m up - asked which tier draws it) plus
+opengl3 panoramas (`tools/glshot/lod_pano.gd`) from the same places:
+
+| Failure | Measured |
+| --- | --- |
+| The camera's far plane was 2000 m | 65-80 % of the city blocks within 6 km clipped from every vantage (969 of 1487 from downtown); the back range, the valley city and the far coast simply not drawn |
+| The old far tier drawn over the chunks | 17-142 blocks drawn twice per vantage; from 900 m up every block the chunks had also wore a coarse far box (`TIERS=1` shows blue over red everywhere) |
+| Gap ring | 0-10 holes per vantage in the 500-1000 m ring: the old tier decided visibility per 36-block tile by the tile CENTRE's distance, so a tile half inside the LOD ring drew nothing past it |
+| Far massing not the city's | malls, big boxes, commercial pads, pocket-garden yards and the freeway corridor drawn as lot-sized buildings the chunks never build |
+| Horizon plane burying the far city | `urban_lift` stood the built-up plane 42 m up past 2.6 km, over every suburb |
+| Far buildings brighter than near ones on the Mac | `instance_color_is_srgb` declared in building_lod.gdshader and never set or read: far boxes 1.4-4.3x the near buildings' value |
+| The LOD ring bald | LOD chunks plant nothing: no street or park trees 200-700 m out, no scrub on LOD hills |
+| The LOD ring could not keep up | LOD chunk build 40 ms (32 of it laying flat ground on the near 2.2 m grid); a 90 m/s flight ended with 3 of 200 LOD chunks standing |
+| The plane's own edge | once the far plane was fixed, the 14 km plane's rim showed from the hills as a pale slab across the sea |
+
+**What it is now** (commits on this branch, oldest first): the far plane is 12 km; far chunks'
+ground is on an 8 m grid (LOD build 40.3 -> 7.6 ms, worst step 17.6 -> 2.9 ms; startup headless
+58 -> 36 s, a teleport 18.7 -> 7.4 s); far boxes decode their colour on Forward+; the far city
+(`Skyline`) is a super-LOD of every block within 7 km, handed over per block with a dissolve and
+built from the LOD block build itself (capture mode), with plates, painted roads, freeway decks,
+port containers, street/park trees and hill planting; the queue is view-weighted; the plane's
+rim and the far city's last kilometre hand over to the sky's horizon colour together.
+
+**After, same census:** 0 holes, 0 blocks drawn twice, 0 past the far plane, from every vantage.
+The one exception is a teleport: the far city outside `far_city_immediate_radius` (2.5 km) is
+built progressively, ~1-2 s of play, nearest and most-in-view first; the loading screen builds
+all of it up front on desktop (`finish_far_city()`, ~2.7 s headless for 20,000 blocks, most of
+them sea and open hillside).
+
+**Cost, measured.** Geometry per frame is opengl3 + Xvfb (`lod_pano.gd` prints it per view,
+four views 90 degrees apart); the flight is headless (`tools/flight_bench.gd`, CPU side only).
+The box was shared with four other agents at a load of 7-11 on 4 cores the whole time, so the
+flight's wall-clock frame times are noise of +-20 % between two runs of the SAME build.
+
+| Vantage (4 views) | Triangles before | Triangles after | Draws before | Draws after |
+| --- | --- | --- | --- | --- |
+| Hills over the basin (300,-1150, 520 m) | 515k / 435k / 209k / 255k | 1.37M / 1.34M / 1.27M / 628k | 473 / 299 / 435 / 767 | 710 / 322 / 463 / 782 |
+| 900 m up over midtown | 471k / 374k / 236k / 252k | 927k / 511k / 387k / 656k | 538 / 638 / 248 / 102 | 577 / 659 / 283 / 128 |
+| Downtown roof (700,250, 260 m) | 756k / 514k / 669k / 565k | 1.80M / 908k / 930k / 986k | 938 / 859 / 768 / 335 | 979 / 884 / 806 / 355 |
+
+Triangles roughly double to triple from a height because the whole basin is now drawn (it was
+clipped at 2 km); draw calls are about flat (one MultiMesh per 36-block tile). The far canopy
+blob went from 48 to 24 triangles after these were taken, which takes a slice back.
+
+| Flight, 90 m/s at 70 m, wall clock | frames | p50 | p95 | p99 | max | over 100 ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| Route a (midtown - downtown - port), base, 2 runs | 339 / 351 | 98.9 / 105.7 | 286 / 334 | 402 / 473 | 1054 / 827 | 166 / 183 |
+| Route a, this branch | 340 / 355 | 101.9 / 96.5 | 302 / 354 | 445 / 509 | 647 / 917 | 172 / 174 |
+| Route b (hills - coast), base | 589 / 606 | 39.1 / 37.1 | 159 / 164 | 376 / 246 | 704 / 533 | 104 / 98 |
+| Route b, this branch | 530 / 645 | 42.6 / 35.2 | 244 / 140 | 498 / 188 | 1279 / 612 | 125 / 73 |
+
+So: no measurable change either way inside that noise, while the new side also builds the far
+city during the flight (headless has no loading screen). Holes ahead of the flight (city
+blocks within 3 km in a 100-degree cone that no tier draws, sampled every 20 frames): route a
+112.8 mean / 218 worst -> 23.6 / 102 (the far city past 2.5 km still being built progressively,
+which the desktop loading screen does up front), route b 81.3 / 247 -> 0.7 / 12.
+The far city's own work: 13,288 blocks (16,776 with sea and hills) in 2.3 s total headless,
+per work step p50 0.05 ms, p99 1.4 ms, since the capture was split into build steps.
+A fixed-step A/B (`FIXED=1`, same frames both sides, process CPU time from /proc) was set up in
+`scratchpad/lod/flight_ab2.sh` but not run before the session ended - run it on a quiet box:
+`FIXED=1 [FARCITY=1] ROUTE=a|b godot --headless --path . --script tools/flight_bench.gd -- --nohud`.
+
+**Traps and rules** (also in CLAUDE.md):
+- Never give a far-city node a visibility range and never free a chunk except through
+  `CityStreamer._retire_chunk()`: both reopen the gap ring.
+- The capture build must stay exactly the LOD build. `CityChunk.capturing` intercepts
+  `_add_slab`, `_add_cylinder` and `_add_lod_shape` only; everything else in `_block_steps` runs
+  as written, so its rolls land in the same order. `tests/distance_checks.gd` compares the two
+  box for box - if it fails, something in the block build now depends on a node or on the level.
+- A far block's instances carry its visibility in their colour ALPHA. Anything that draws with
+  building_lod or far_canopy must keep alpha 1 unless it means to be dissolved (the LOD chunks'
+  own batches do).
+- The far city's plates carry LINEAR colours (`CityChunk.far_tint()`), like the LOD chunks' far
+  ground, and building_lod skips its sRGB decode for them (`INSTANCE_CUSTOM.a` >= 2).
+- The retire keeps a chunk drawn for `lod_fade_time` but `CityChunk.retire()` takes its cars,
+  people, trash cans and collision at once, which is when they went before. The first smoke run
+  without that crashed: a test picked a parked car from a retiring chunk and it vanished
+  half a second later.
+
+**Not done / not verified:**
+- Nothing here has been seen in Forward+: the box never had 9 GB free while this ran. The
+  renders are opengl3, and on opengl3 the horizon plane's hills are a dark brown next to the
+  LOD chunks' gold terrain (a tier seam you can see in every hills shot, before and after); it
+  was there before this work and may be Compatibility-only - look at a Forward+ hills still
+  first.
+- Far trees are the right rows at the right density, not the FULL chunk's own trees (those are
+  placed with rolls the capture does not make), so a tree can shift a few metres as its block
+  turns FULL, 200 m out, under the dissolve.
+- Hill roads are not in the far city; the plane paints none. (The airport's runways are: they
+  cut its plates into strips.) Inside the LOD ring the airport chunk's runway box (top 0.14)
+  still z-fights its apron (top 0.10) past ~700 m on the Compatibility renderer - streaks in the
+  opengl3 stills, there before this work, and not expected on Forward+'s reverse-Z depth.
+- The far city's towers are shaded boxes (the LOD shader), exactly as the LOD chunks draw them;
+  a real impostor tier for towers is the next step up (G7).
+- The web build builds the far city progressively from 900 m out (it has no loading screen); on
+  a slow machine the far half of the basin arrives over the first seconds.
+- Merged with main's downtown skyline and civic set at the end of the session and the headless
+  check run once on the merge; the far copies of the named towers are theirs (far landmarks),
+  not the far city's. Not rendered after the merge.
+- Stills (opengl3, 5120 x 720 panoramas, four views; in the session scratchpad, not the repo,
+  and already sent to the owner): before = downtown, hills, high air, airport, beach, freeway;
+  after = downtown, hills, high air; `_tiers` = each tier a flat colour (red LOD chunks, blue far
+  city, pink landmarks). The after set predates the rim fade, the airport plates and the
+  harness far-city build (except `lod_after_highair_tiers`, which has the last two); re-shoot
+  the same vantages with `tools/glshot/lod_pano.gd` (usage in its header) to see all of it:
+  downtown `--spawn=700,250,0,-8,260`, hills `300,-1150,180,-12,520`, high air
+  `500,300,0,-28,900`, airport `-300,780,-90,-5,80`, beach `-850,-300,-90,-3,30`, freeway
+  `200,712,-90,-4,30`, all at `--hour=13`.
+
 
 ## 10. Suggested next steps, in order of impact
 
@@ -1705,12 +1822,10 @@ The 2026-09-21 list:
 2. **Judge everything on Forward+ from now on.** `tools/glshot/forward_shot.sh`. This is a
    working practice, not a task, and it is first among them because the alternative has already
    cost this project one entirely broken subsystem (see build 130).
-3. **The distance.** Beyond the streamed chunks the whole world is one plane wearing
-   `shaders/macro_ground.gdshader`, shaded from a 256 px bake - 55 metres per texel. In any shot
-   from the air, which is most of how the owner plays, it is dead flat grey-brown over a third of
-   the frame. Far buildings (`shaders/building_lod.gdshader`) are the same story: coloured boxes
-   with a window grid printed on them, no facade typology, no glazing specular, so a skyline has
-   no value contrast. Both are shader work on geometry that already exists.
+3. **The distance - next step up.** The tiers now cover everything (section 9p). What is left is
+   quality at range: real impostors for the far city's towers (they are shaded boxes, as the LOD
+   chunks draw them), hill roads painted on the horizon plane, and a Forward+ look at a hills
+   still to settle the plane-vs-LOD-terrain colour seam the opengl3 stills show.
 4. **Interiors.** Windows have traced fake rooms; doors and lobbies do not. A handful of enterable
    ground-floor interiors would be the biggest single step left in making the city feel real, and
    it is the one thing on this list that changes how the game plays rather than how it looks.

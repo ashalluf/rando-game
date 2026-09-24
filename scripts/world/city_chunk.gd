@@ -36,6 +36,12 @@ const SIDEWALK_TOP := 0.25
 ## Metres per quad of the *collision* grid under those same surfaces, kept coarse on purpose:
 ## the trimesh is what physics walks on and it gains nothing from the visual resolution.
 @export var ground_collision_step: float = 5.0
+## The same for a far (LOD) chunk's merged ground. It used the near step, so a block 300 m out
+## was ~12,000 triangles of flat ground and 32 of its 40 ms build (measured headless: the
+## pavement slab alone 17.6 ms, the roads 14.7) - which is why a fast flight outran the LOD ring
+## and flew over holes. The relief rolls over tens of metres; an 8 m chord is under 15 cm off it,
+## a fraction of a pixel from where these chunks are seen.
+@export var lod_ground_grid_step: float = 8.0
 ## Grass tufts per square metre of lawn, and the cap for one patch. A tuft is 160 triangles
 ## (ten creased blades) and covers about a third of a metre, so a lawn costs roughly 300
 ## triangles a square metre - a tenth of what the same ground costs in tree canopy overhead,
@@ -107,8 +113,25 @@ var _prop_counter: int = 0
 
 ## Lattice spacing of the relief cache below, in metres.
 const RELIEF_STEP := 3.0
-## Cached MacroMap.relief_at samples on a fixed world lattice, keyed Vector2i(x, z) / RELIEF_STEP.
+## The lattice a far (LOD) chunk samples on, and the far city (Skyline) with it. A third as
+## many samples per metre is a ninth as many relief evaluations, and the relief's shortest
+## wavelength is ~100 m, so 9 m interpolates it to a few centimetres.
+const LOD_RELIEF_STEP := 9.0
+## Cached MacroMap.relief_at samples on a fixed world lattice, keyed Vector2i(x, z) / _relief_step.
 var _relief_lattice: Dictionary = {}
+var _relief_step: float = RELIEF_STEP
+
+## Capture mode, for the far city (Skyline): the chunk runs its LOD block build - the same
+## steps with the same random rolls, so the same lots, pads, malls and massing - but builds
+## nothing. Ground slabs and solid boxes are recorded in `captured` instead of being made, and
+## the batched boxes are read back from the batch. That is what makes the far tier the very city
+## the LOD chunk will draw, including anything anyone adds to the block build later: it IS the
+## block build. Set before begin_build(); the chunk never enters the tree.
+var capturing: bool = false
+## {"ground": [[Rect2, Color (tint), float top, Color (LINEAR: what the LOD chunk draws there,
+##  seen from afar)], ...], "boxes": [[Transform3D, Color], ...],
+##  "batch": {key: {"xforms", "colors", "custom"}}} once a capture has run.
+var captured: Dictionary = {}
 
 ## The city's rolling ground under a world XZ (MacroMap.relief_at): every slab, prop and node a
 ## chunk builds adds this to its flat height. Zero on hills, beaches and flat zones.
@@ -128,8 +151,8 @@ func ground_y(x: float, z: float) -> float:
 func _gy(x: float, z: float) -> float:
 	if plan == null or plan.macro == null:
 		return 0.0
-	var fx := x / RELIEF_STEP
-	var fz := z / RELIEF_STEP
+	var fx := x / _relief_step
+	var fz := z / _relief_step
 	var i := floori(fx)
 	var j := floori(fz)
 	var tx := fx - float(i)
@@ -144,7 +167,7 @@ func _relief_sample(i: int, j: int) -> float:
 	var cached: Variant = _relief_lattice.get(key)
 	if cached != null:
 		return cached
-	var h := plan.macro.relief_at(Vector2(i * RELIEF_STEP, j * RELIEF_STEP))
+	var h := plan.macro.relief_at(Vector2(i * _relief_step, j * _relief_step))
 	_relief_lattice[key] = h
 	return h
 
@@ -226,7 +249,8 @@ func begin_build() -> void:
 	key = "%d,%d" % [ix, iz]
 	name = "Chunk_" + key
 	position = -WorldState.world_offset
-	if level == Level.FULL:
+	_relief_step = RELIEF_STEP if level == Level.FULL else LOD_RELIEF_STEP
+	if level == Level.FULL and not capturing:
 		_statics = StreetProps.new()
 		_statics.chunk = self
 		add_child(_statics)
@@ -240,6 +264,9 @@ func begin_build() -> void:
 	var replica_role := 0
 	if replica != null and (zone == MacroMap.Zone.CITY or zone == MacroMap.Zone.BEACH):
 		replica_role = replica.block_role(plan, ix, iz)
+	if capturing:
+		_begin_capture(block, replica_role)
+		return
 	match zone:
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
@@ -297,6 +324,25 @@ func begin_build() -> void:
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
 	_steps.append(_finish_build)
+
+
+## The capture build (see `capturing`): only what the far city draws from a block - its massing
+## and its ground - run exactly as the LOD build runs it. Roads are left out (Skyline paints them
+## from the plan), and so are the freeway (drawn from Freeway's own data), the landmarks (they
+## have far versions of their own) and everything the finish step makes (nodes).
+func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
+	captured = {"ground": [], "boxes": [], "batch": {}}
+	match zone:
+		MacroMap.Zone.CITY:
+			# A replica block or a landmark's site does not build the seeded block, so the far
+			# city must not record one there either.
+			if replica_role == 0 and not block.has("site"):
+				_steps.append_array(_block_steps(block))
+		MacroMap.Zone.PORT:
+			_steps.append(_build_port.bind(block))
+		MacroMap.Zone.AIRPORT:
+			_steps.append(_build_airport)
+	_steps.append(func() -> void: captured.batch = _batch.data())
 
 
 func _build_landmarks() -> void:
@@ -408,11 +454,7 @@ func _build_occluder() -> void:
 
 ## The whole area this chunk owns: its block plus the roads on its +X and +Z sides.
 func owned_rect() -> Rect2:
-	var x0 := plan.road_pos(CityPlan.AXIS_X, ix) + plan.road_width(CityPlan.AXIS_X, ix) * 0.5
-	var x1 := plan.road_pos(CityPlan.AXIS_X, ix + 1) + plan.road_width(CityPlan.AXIS_X, ix + 1) * 0.5
-	var z0 := plan.road_pos(CityPlan.AXIS_Z, iz) + plan.road_width(CityPlan.AXIS_Z, iz) * 0.5
-	var z1 := plan.road_pos(CityPlan.AXIS_Z, iz + 1) + plan.road_width(CityPlan.AXIS_Z, iz + 1) * 0.5
-	return Rect2(x0, z0, x1 - x0, z1 - z0)
+	return plan.owned_rect(ix, iz)
 
 
 # --- Airport and port ------------------------------------------------------------------
@@ -438,6 +480,11 @@ func _build_airport() -> void:
 		if strip.size.y <= 0.0:
 			continue
 		var sc := strip.get_center()
+		if capturing:
+			# The far city lays the runway into its plate (Skyline._add_plate); nothing below
+			# this rolls the rng at the LOD level, so skipping it changes no later roll.
+			captured.ground.append([strip, style.runway, 0.14, PropFactory.far_albedo(PropFactory.material(style.runway, 0.95), Color.BLACK)])
+			continue
 		var runway := MeshInstance3D.new()
 		runway.name = "Runway"
 		var box := BoxMesh.new()
@@ -1516,6 +1563,24 @@ func reveal() -> void:
 			(car as Node3D).visible = true
 
 
+## This chunk has left the streaming window but stays drawn a moment longer, while the far city
+## dissolves back in over it (CityStreamer._retire_chunk). Everything that is not just its look
+## goes now, exactly when it went before there was a dissolve: its parked cars and its people, its
+## trash cans, and its collision - nothing should walk, drive or be hit in a block that is fading.
+func retire() -> void:
+	for car in _cars:
+		if is_instance_valid(car) and not car.has_meta("driven"):
+			car.queue_free()
+	_cars.clear()
+	for child in get_children():
+		if child.is_in_group("pedestrian") or child.is_in_group("physics_prop"):
+			child.queue_free()
+		elif child is CollisionObject3D:
+			(child as CollisionObject3D).collision_layer = 0
+			(child as CollisionObject3D).collision_mask = 0
+	set_process(false)
+
+
 func _exit_tree() -> void:
 	for car in _cars:
 		if is_instance_valid(car) and not car.has_meta("driven"):
@@ -1653,7 +1718,7 @@ func _lod_collision_wanted() -> bool:
 
 
 func _add_lod_shape(size: Vector3, pos: Vector3) -> void:
-	if not _lod_collision_wanted():
+	if capturing or not _lod_collision_wanted():
 		return
 	if _lod_body == null:
 		_lod_body = StaticBody3D.new()
@@ -2218,6 +2283,20 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 # --- Helpers ---------------------------------------------------------------------------
 
 func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, material: Material = null) -> void:
+	if capturing:
+		# Recorded, not built (see `capturing`). A thin slab is ground; anything thicker is a
+		# solid box, lifted by one relief sample at its centre exactly as below.
+		if size.y <= 0.5:
+			# Its far colour is worked out the way the build below would draw it: a city ground
+			# slab goes into the merged ground at far_tint(), anything else is a box wearing its
+			# material (an airport apron, a port yard - road() at a tint well above 1).
+			var far_col := far_tint(color, style.asphalt)
+			if not (zone == MacroMap.Zone.CITY and maxf(size.x, size.z) >= 6.0):
+				far_col = PropFactory.far_albedo(material if material else PropFactory.material(color, 0.95), far_col)
+			captured.ground.append([Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), color, pos.y + size.y * 0.5, far_col])
+		else:
+			captured.boxes.append([Transform3D(Basis().scaled(size), pos + Vector3(0.0, _gy(pos.x, pos.z), 0.0)), color])
+		return
 	var mat: Material = material if material else PropFactory.material(color, 0.95)
 	if zone == MacroMap.Zone.CITY and size.y <= 0.5 and maxf(size.x, size.z) >= 6.0:
 		# Thin ground slab in the city (road, sidewalk, lawn, plaza): follow the relief.
@@ -2244,7 +2323,10 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 ## shape and would only pay for the detail. Both come from the cached relief, so the fine grid
 ## costs about what the old coarse one did.
 func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, collide: bool, tint: Color = Color.WHITE) -> void:
+	var far := level != Level.FULL
 	var step := ground_grid_step if _detail() >= 1.0 else ground_grid_step * 2.0
+	if far:
+		step = maxf(step, lod_ground_grid_step)
 	var nx := clampi(ceili(rect.size.x / step), 1, 120)
 	var nz := clampi(ceili(rect.size.y / step), 1, 120)
 	# Far chunks carry the surface's colour in the mesh itself (see below). Linear, because a
@@ -2252,7 +2334,6 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 	# sRGB. Alpha marks the carriageway and which way it runs, for the street lamp glow far chunks
 	# get instead of lamps (far_ground.gdshader): 1.0 along Z, 0.75 along X, 0.5 a junction, 0.25
 	# a pavement, 0 anything else. A road slab is long and thin, a junction square.
-	var far := level != Level.FULL
 	var vcolor := Color(0.0, 0.0, 0.0, 0.0)
 	if far:
 		var lamp := 0.0
@@ -2263,7 +2344,7 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 		# Everything but the asphalt is a textured surface up close, and a texture averages well
 		# under its tint (paving, lawn and concrete sets sit about 0.6 of it): at the bare tint
 		# the far pavements were twice as bright as the near ones and lit up like snow at night.
-		var lin := tint.srgb_to_linear() * (1.0 if tint == style.asphalt else 0.6)
+		var lin := far_tint(tint, style.asphalt)
 		vcolor = Color(lin.r, lin.g, lin.b, lamp)
 	var mesh := _grid_mesh(rect, top, skirt, nx, nz, far, vcolor)
 	if far:
@@ -2295,6 +2376,13 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 	var shape := CollisionShape3D.new()
 	shape.shape = (mesh if (cx == nx and cz == nz) else _grid_mesh(rect, top, skirt, cx, cz)).create_trimesh_shape()
 	_statics.add_child(shape)
+
+
+## The colour a ground surface is drawn in from afar (the LOD chunks' merged ground and the far
+## city's block plates, which must agree): linear, and at 0.6 of its tint unless it is asphalt.
+static func far_tint(tint: Color, asphalt: Color) -> Color:
+	var lin := tint.srgb_to_linear() * (1.0 if tint == asphalt else 0.6)
+	return Color(lin.r, lin.g, lin.b, 1.0)
 
 
 ## One grid of `nx` by `nz` quads over `rect`, following the relief, with the skirt around it.
@@ -2389,6 +2477,8 @@ func _add_relief_floor() -> void:
 
 
 func _add_cylinder(pos: Vector3, radius: float, height: float, color: Color, collide: bool = true, unshaded: bool = false) -> void:
+	if capturing:
+		return
 	var mesh := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = radius

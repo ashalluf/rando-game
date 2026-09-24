@@ -253,6 +253,27 @@ func _index_at(axis: int, value: float) -> int:
 	return i
 
 
+## The whole area chunk (ix, iz) owns (CityChunk): its block plus the roads on its +X and +Z
+## sides and the junction between them. These rects tile the plane with no gaps and no overlap.
+func owned_rect(ix: int, iz: int) -> Rect2:
+	var x0 := road_pos(AXIS_X, ix) + road_width(AXIS_X, ix) * 0.5
+	var x1 := road_pos(AXIS_X, ix + 1) + road_width(AXIS_X, ix + 1) * 0.5
+	var z0 := road_pos(AXIS_Z, iz) + road_width(AXIS_Z, iz) * 0.5
+	var z1 := road_pos(AXIS_Z, iz + 1) + road_width(AXIS_Z, iz + 1) * 0.5
+	return Rect2(x0, z0, x1 - x0, z1 - z0)
+
+
+## The chunk whose owned_rect() holds a world XZ. Not quite block_index_at(): the road on a
+## block's -X / -Z side belongs to the chunk before it.
+func chunk_index_at(pos: Vector2) -> Vector2i:
+	var k := block_index_at(pos)
+	if pos.x < road_pos(AXIS_X, k.x) + road_width(AXIS_X, k.x) * 0.5:
+		k.x -= 1
+	if pos.y < road_pos(AXIS_Z, k.y) + road_width(AXIS_Z, k.y) * 0.5:
+		k.y -= 1
+	return k
+
+
 # --- Blocks and intersections --------------------------------------------------------
 
 ## {"rect": Rect2 (between road edges), "ix", "iz", "district", "kind", "seed"}
