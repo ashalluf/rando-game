@@ -213,6 +213,14 @@ func _yield_to_walkers() -> void:
 	var node := Vector2i(0, 0)
 	var pos := _plan.road_pos(CityPlan.AXIS_X, 0)
 	var cw := _plan.road_width(CityPlan.AXIS_X, 0)
+	# The live crowd off this junction's crosswalks across the road, so the only walker the car
+	# sees is the one this check puts there: a real one still crossing from the red before, or
+	# stepping out later, is a correct reason to wait and made the "then goes" half flaky.
+	for p in _tree.get_nodes_in_group("pedestrian"):
+		var w := p as Pedestrian
+		if w and w._cross != Pedestrian.Cross.NONE and w._cross_key.x == node.x and w._cross_key.y == node.y and w._cross_key.z == CityPlan.AXIS_Z:
+			w.queue_free()
+	await _ticks(1)
 	TrafficSignals.force(_plan, node.x, node.y, CityPlan.AXIS_Z, TrafficSignals.Light.GREEN, 0.2)
 	# Driving -x toward the junction from +x: its near crosswalk is on the +x side.
 	var car := _traffic.place_car(CityPlan.AXIS_Z, 0, -1, 0, pos + 42.0, 9.0, false)
@@ -242,7 +250,8 @@ func _yield_to_walkers() -> void:
 		if float(car.traffic.get("along", INF)) < pos:
 			went = true
 			break
-	_check(held and went, "a car on green waits for somebody on its crosswalk, then goes (held %s at %.1f, over %s, went %s, line %.1f)" % [held, held_at, over, went, line])
+	var still_busy := Pedestrian.crosswalk_busy(node, CityPlan.AXIS_Z, 1) or Pedestrian.crosswalk_busy(node, CityPlan.AXIS_Z, -1)
+	_check(held and went, "a car on green waits for somebody on its crosswalk, then goes (held %s at %.1f, over %s, went %s, line %.1f, crosswalks busy %s)" % [held, held_at, over, went, line, still_busy])
 	_clear_traffic()
 
 
