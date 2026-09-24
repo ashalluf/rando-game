@@ -1034,6 +1034,10 @@ const BLOOD_FRESH := Color(0.42, 0.03, 0.022)
 const BLOOD_DARK := Color(0.19, 0.013, 0.01)
 ## What blood lands on and splatters: the world and the props (cars, crates), not the npc layer.
 const BLOOD_MASK := 1 | 4
+## The render layer a shot body's own meshes move to (Ragdoll), which blood decals leave out: a
+## pool's projection box is half a metre deep and painted the whole top of the body lying in it
+## red. The body's blood is its stain (character.gdshader); the decals are for the world.
+const NO_BLOOD_LAYER := 1 << 19
 
 ## The kinds of mark blood leaves; each has its own generated texture set.
 const _KIND_DROP := 0
@@ -1329,7 +1333,8 @@ static func _mist_layer(parent: Node, at: Vector3, count: int, size: float, life
 ## trail through the air. `local_at` is the wound in the host's own space. `rate` scales how many.
 ## Returns null when the particle cap is full.
 static func blood_drip(host: Node3D, local_at: Vector3, seconds: float, rate: float = 1.0) -> CPUParticles3D:
-	if host == null or not host.is_inside_tree() or not _blood_room():
+	# Drips last seconds, sprays under one: leave room under the cap for the next wounds' sprays.
+	if host == null or not host.is_inside_tree() or not _blood_room(8):
 		return null
 	if _view_distance(host, host.global_position) > blood_detail_distance:
 		return null
@@ -1621,6 +1626,7 @@ static func _splat(host: Node, kind: int, xf: Transform3D, size: Vector3, life: 
 		dec.distance_fade_enabled = true
 		dec.distance_fade_begin = 50.0
 		dec.distance_fade_length = 15.0
+		dec.cull_mask = 0xFFFFF & ~NO_BLOOD_LAYER
 		dec.size = size
 		n = dec
 	else:

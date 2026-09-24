@@ -67,6 +67,9 @@ func build_from_rig(path: String, look: int = -1) -> bool:
 		return false
 	var inst := scene.instantiate() as Node3D
 	Pedestrian.prepare_rig(inst, look)
+	# Out of the blood decals' reach: the pool it lies in would paint it from above.
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		(mi as MeshInstance3D).layers = WeaponFX.NO_BLOOD_LAYER
 	inst.rotation.y = PI
 	_rig = inst
 	_rig_path = path
@@ -420,6 +423,7 @@ func _throw_limb(piece: Array, limb: String, material: Material, impulse: Vector
 	body.add_to_group("gib")
 	var mi := MeshInstance3D.new()
 	mi.mesh = piece[0]
+	mi.layers = WeaponFX.NO_BLOOD_LAYER
 	if material:
 		mi.material_override = material
 	body.add_child(mi)
