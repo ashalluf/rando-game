@@ -69,7 +69,9 @@ func _same_city(streamer: CityStreamer) -> void:
 	var plan: CityPlan = streamer.plan
 	var checked := 0
 	var same := 0
-	for k: Vector2i in [Vector2i(7, 2), Vector2i(3, -3), Vector2i(-6, 4), Vector2i(10, 5)]:
+	# Blocks the LOD build puts no boxes on (a downtown tower site is a landmark, drawn by its
+	# far version) prove nothing and are skipped, so there are spares.
+	for k: Vector2i in [Vector2i(7, 2), Vector2i(3, -3), Vector2i(-6, 4), Vector2i(10, 5), Vector2i(5, -2), Vector2i(-3, 6)]:
 		var b := plan.block(k.x, k.y)
 		if plan.zone_at((b.rect as Rect2).get_center()) != MacroMap.Zone.CITY:
 			continue
@@ -93,12 +95,13 @@ func _same_city(streamer: CityStreamer) -> void:
 		cap.capturing = true
 		cap.build()
 		var c: Dictionary = cap.captured.batch.get("lod_box", {"xforms": [], "colors": []})
-		checked += 1
-		if (a.xforms as Array).size() > 0 and a.xforms == c.xforms and a.colors == c.colors:
-			same += 1
+		if not (a.xforms as Array).is_empty():
+			checked += 1
+			if a.xforms == c.xforms and a.colors == c.colors:
+				same += 1
 		lod.free()
 		cap.free()
-	_t._check(checked > 0 and same == checked, "the far city's massing is the LOD chunk's own, box for box (%d of %d blocks)" % [same, checked])
+	_t._check(checked >= 3 and same == checked, "the far city's massing is the LOD chunk's own, box for box (%d of %d blocks)" % [same, checked])
 	_airport_ground(streamer)
 
 
