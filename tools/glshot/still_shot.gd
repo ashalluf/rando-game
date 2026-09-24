@@ -340,6 +340,7 @@ static func _env_float(key: String, fallback: float) -> float:
 func _pose(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
 	if player == null:
 		return
+	_eye(player, fov)
 	if boost:
 		Input.action_press("boost")
 	if hold != Vector3.INF:
@@ -354,6 +355,39 @@ func _pose(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: flo
 		if rig:
 			rig.set("camera_fov", fov)
 			rig.set("boost_fov_boost", 0.0)
+
+
+## EYE=x,y,z,yaw,pitch: a free camera at that TRUE world point (yaw 0 looks north, 90 west, as
+## --spawn does), the player hidden - for matching a reference photograph from a fixed viewpoint
+## (a Street View car's lens is about 2.5 m above the road). FOV is the vertical field of view.
+var _eye_cam: Camera3D
+
+
+func _eye(player: Node3D, fov: float) -> void:
+	var env := OS.get_environment("EYE")
+	if env == "":
+		return
+	var p := env.split(",")
+	if p.size() < 5:
+		return
+	var world_state := root.get_node_or_null("/root/WorldState")
+	var offset: Vector3 = world_state.get("world_offset") if world_state else Vector3.ZERO
+	var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float()) - offset
+	var player_cam := get_root().get_camera_3d() if _eye_cam == null else null
+	if _eye_cam == null:
+		_eye_cam = Camera3D.new()
+		_eye_cam.name = "EyeCamera"
+		root.add_child(_eye_cam)
+		if player_cam:
+			_eye_cam.attributes = player_cam.attributes
+			_eye_cam.far = player_cam.far
+			_eye_cam.near = player_cam.near
+		_eye_cam.make_current()
+	_eye_cam.fov = fov if fov > 0.0 else 45.0
+	_eye_cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
+	player.visible = false
+	# Keep the streaming centred where the camera is.
+	player.global_position = Vector3(at.x, player.global_position.y, at.z)
 
 
 static func _env_int(key: String, fallback: int) -> int:

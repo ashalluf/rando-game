@@ -622,9 +622,10 @@ func _test_city() -> void:
 		# and the sand stop being in the same place.
 		var coast_why := ""
 		for pair in [["coast_base_x", macro.coast_base_x], ["coast_wobble", macro.coast_wobble],
-				["coast_period", macro.coast_period], ["peninsula_radius", macro.peninsula_radius],
-				["peninsula_bulge", macro.peninsula_bulge], ["bay_z", macro.bay_z],
-				["bay_east_x", macro.bay_east_x]]:
+				["coast_period", macro.coast_period], ["peninsula_axis_a", macro.peninsula_axes.x],
+				["peninsula_axis_b", macro.peninsula_axes.y], ["peninsula_bearing", macro.peninsula_axis_bearing],
+				["bay_z", macro.bay_z], ["bay_east_x", macro.bay_east_x],
+				["coast_table_blend", macro.replica_coast_blend]]:
 			var got: PackedFloat32Array = shader_nums.call(sea_src, "uniform float %s =" % str(pair[0]))
 			if got.size() != 1 or absf(got[0] - float(pair[1])) > 0.5:
 				coast_why += " %s=%s want %.0f" % [str(pair[0]), str(got), float(pair[1])]
@@ -1468,6 +1469,9 @@ func _test_city() -> void:
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
+	# The Esplanade replica (tests/replica_checks.gd): the road, the coast, the lots, one replica
+	# chunk and its traffic.
+	await load("res://tests/replica_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
