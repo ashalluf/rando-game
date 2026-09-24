@@ -10,23 +10,61 @@ extends SceneTree
 ## shoulder, YAW (degrees to orbit the camera round the hero; 0 is front-on, 90 his right side),
 ## WALK=1 plays the walk clip (the IK has to hold the gun whatever the legs do), CAM_DIST and
 ## CAM_Y (and CAM_FWD, metres in front of him) bring the camera in on the hands, DEBUG=1 marks the IK targets, ROCKET=1 (with WEAPON=1)
-## fires a slow rocket so it is in frame just past the muzzle.
+## fires a slow rocket so it is in frame just past the muzzle. WEAPON=-1 puts the gun away (arms on
+## the clip); CLIP=Idle|Casual_Walk_inplace|run_fast_3_inplace with SEEK (seconds) freezes a clip
+## frame. The light is the city's grade (AgX, the look LUT, sky ambient, a shadowed sun at
+## SUN_PITCH / SUN_YAW); FLAT=1 is the old flat-lit room. Run it with --rendering-driver vulkan
+## (lavapipe) for the Forward+ look: subsurface skin and SSAO only exist there.
 func _initialize() -> void:
 	var stage := Node3D.new()
 	get_root().add_child(stage)
 	var env := WorldEnvironment.new()
 	var e := Environment.new()
-	e.background_mode = Environment.BG_COLOR
-	e.background_color = Color(0.62, 0.66, 0.72)
-	e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	e.ambient_light_color = Color(0.75, 0.78, 0.84)
-	e.ambient_light_energy = 0.6
-	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	var sun := DirectionalLight3D.new()
+	if OS.get_environment("FLAT") == "1":
+		e.background_mode = Environment.BG_COLOR
+		e.background_color = Color(0.62, 0.66, 0.72)
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		e.ambient_light_color = Color(0.75, 0.78, 0.84)
+		e.ambient_light_energy = 0.6
+		e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+		sun.rotation_degrees = Vector3(-40.0, 30.0, 0.0)
+		sun.light_energy = 1.4
+	else:
+		# The city's own grade (city.tscn): AgX, the look LUT, sky ambient, a shadowed sun -
+		# so skin, velour and gold are judged under the light they are played in.
+		var sky_mat := ProceduralSkyMaterial.new()
+		sky_mat.sky_top_color = Color(0.32, 0.46, 0.68)
+		sky_mat.sky_horizon_color = Color(0.66, 0.70, 0.74)
+		sky_mat.ground_horizon_color = Color(0.52, 0.50, 0.47)
+		sky_mat.ground_bottom_color = Color(0.30, 0.28, 0.26)
+		var sky := Sky.new()
+		sky.sky_material = sky_mat
+		e.background_mode = Environment.BG_SKY
+		e.sky = sky
+		e.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		e.ambient_light_energy = float(OS.get_environment("AMBIENT")) if OS.get_environment("AMBIENT") != "" else 0.45
+		e.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+		e.tonemap_mode = Environment.TONE_MAPPER_AGX
+		e.tonemap_exposure = 1.25
+		e.tonemap_white = 5.0
+		var grade := Gradient.new()
+		grade.offsets = PackedFloat32Array([0, 0.14, 0.28, 0.45, 0.62, 0.78, 0.9, 1])
+		grade.colors = PackedColorArray([Color(0.035, 0.036, 0.041), Color(0.172, 0.176, 0.180), Color(0.318, 0.307, 0.290), Color(0.470, 0.448, 0.412), Color(0.628, 0.598, 0.548), Color(0.772, 0.738, 0.680), Color(0.877, 0.845, 0.786), Color(0.962, 0.936, 0.878)])
+		var lut := GradientTexture1D.new()
+		lut.gradient = grade
+		lut.width = 256
+		e.adjustment_enabled = true
+		e.adjustment_saturation = 1.32
+		e.adjustment_color_correction = lut
+		e.ssao_enabled = true
+		sun.rotation_degrees = Vector3(float(OS.get_environment("SUN_PITCH")) if OS.get_environment("SUN_PITCH") != "" else -38.0, float(OS.get_environment("SUN_YAW")) if OS.get_environment("SUN_YAW") != "" else 35.0, 0.0)
+		sun.light_energy = 1.3
+		sun.light_color = Color(1.0, 0.96, 0.9)
+		sun.shadow_enabled = true
+		sun.directional_shadow_max_distance = 12.0
 	env.environment = e
 	stage.add_child(env)
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-40.0, 30.0, 0.0)
-	sun.light_energy = 1.4
 	stage.add_child(sun)
 	var floor_body := StaticBody3D.new()
 	var shape := CollisionShape3D.new()
@@ -46,7 +84,11 @@ func _initialize() -> void:
 	for i in 4:
 		await process_frame
 	var manager: Node = player.get("weapon_manager")
-	manager.equip(int(OS.get_environment("WEAPON")) if OS.get_environment("WEAPON") != "" else 0)
+	var weapon := int(OS.get_environment("WEAPON")) if OS.get_environment("WEAPON") != "" else 0
+	if weapon < 0:
+		(manager as Node3D).visible = false # no gun: the arms go back to the clip
+	else:
+		manager.equip(weapon)
 	var rig: Node = player.get("camera_rig")
 	rig.set_look(0.0, 0.0)
 	if OS.get_environment("AIM") == "1":
@@ -97,6 +139,16 @@ func _initialize() -> void:
 			for i in 24:
 				await physics_frame
 	var sk: Skeleton3D = player.find_child("Skeleton3D", true, false)
+	var clip := OS.get_environment("CLIP")
+	if clip != "":
+		var anim: AnimationPlayer = player.find_child("AnimationPlayer", true, false)
+		if anim and anim.has_animation(clip):
+			player.set_physics_process(false) # or Avatar.drive() picks its own clip back
+			anim.play(clip, 0.0)
+			anim.seek(float(OS.get_environment("SEEK")) if OS.get_environment("SEEK") != "" else 0.0, true)
+			anim.speed_scale = 0.0
+			for i in 3:
+				await process_frame
 	if sk:
 		for b in ["Hips", "RightArm", "RightHand", "LeftHand"]:
 			print(b, " at ", sk.to_global(sk.get_bone_global_pose(sk.find_bone(b)).origin))
