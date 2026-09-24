@@ -36,6 +36,12 @@ const SIDEWALK_TOP := 0.25
 ## Metres per quad of the *collision* grid under those same surfaces, kept coarse on purpose:
 ## the trimesh is what physics walks on and it gains nothing from the visual resolution.
 @export var ground_collision_step: float = 5.0
+## The same for a far (LOD) chunk's merged ground. It used the near step, so a block 300 m out
+## was ~12,000 triangles of flat ground and 32 of its 40 ms build (measured headless: the
+## pavement slab alone 17.6 ms, the roads 14.7) - which is why a fast flight outran the LOD ring
+## and flew over holes. The relief rolls over tens of metres; an 8 m chord is under 15 cm off it,
+## a fraction of a pixel from where these chunks are seen.
+@export var lod_ground_grid_step: float = 8.0
 ## Grass tufts per square metre of lawn, and the cap for one patch. A tuft is 160 triangles
 ## (ten creased blades) and covers about a third of a metre, so a lawn costs roughly 300
 ## triangles a square metre - a tenth of what the same ground costs in tree canopy overhead,
@@ -105,8 +111,24 @@ var _prop_counter: int = 0
 
 ## Lattice spacing of the relief cache below, in metres.
 const RELIEF_STEP := 3.0
-## Cached MacroMap.relief_at samples on a fixed world lattice, keyed Vector2i(x, z) / RELIEF_STEP.
+## The lattice a far (LOD) chunk samples on, and the far city (Skyline) with it. A third as
+## many samples per metre is a ninth as many relief evaluations, and the relief's shortest
+## wavelength is ~100 m, so 9 m interpolates it to a few centimetres.
+const LOD_RELIEF_STEP := 9.0
+## Cached MacroMap.relief_at samples on a fixed world lattice, keyed Vector2i(x, z) / _relief_step.
 var _relief_lattice: Dictionary = {}
+var _relief_step: float = RELIEF_STEP
+
+## Capture mode, for the far city (Skyline): the chunk runs its LOD block build - the same
+## steps with the same random rolls, so the same lots, pads, malls and massing - but builds
+## nothing. Ground slabs and solid boxes are recorded in `captured` instead of being made, and
+## the batched boxes are read back from the batch. That is what makes the far tier the very city
+## the LOD chunk will draw, including anything anyone adds to the block build later: it IS the
+## block build. Set before begin_build(); the chunk never enters the tree.
+var capturing: bool = false
+## {"ground": [[Rect2, Color (tint), float top], ...], "boxes": [[Transform3D, Color], ...],
+##  "batch": {key: {"xforms", "colors", "custom"}}} once a capture has run.
+var captured: Dictionary = {}
 
 ## The city's rolling ground under a world XZ (MacroMap.relief_at): every slab, prop and node a
 ## chunk builds adds this to its flat height. Zero on hills, beaches and flat zones.
@@ -126,8 +148,8 @@ func ground_y(x: float, z: float) -> float:
 func _gy(x: float, z: float) -> float:
 	if plan == null or plan.macro == null:
 		return 0.0
-	var fx := x / RELIEF_STEP
-	var fz := z / RELIEF_STEP
+	var fx := x / _relief_step
+	var fz := z / _relief_step
 	var i := floori(fx)
 	var j := floori(fz)
 	var tx := fx - float(i)
@@ -142,7 +164,7 @@ func _relief_sample(i: int, j: int) -> float:
 	var cached: Variant = _relief_lattice.get(key)
 	if cached != null:
 		return cached
-	var h := plan.macro.relief_at(Vector2(i * RELIEF_STEP, j * RELIEF_STEP))
+	var h := plan.macro.relief_at(Vector2(i * _relief_step, j * _relief_step))
 	_relief_lattice[key] = h
 	return h
 
@@ -224,7 +246,8 @@ func begin_build() -> void:
 	key = "%d,%d" % [ix, iz]
 	name = "Chunk_" + key
 	position = -WorldState.world_offset
-	if level == Level.FULL:
+	_relief_step = RELIEF_STEP if level == Level.FULL else LOD_RELIEF_STEP
+	if level == Level.FULL and not capturing:
 		_statics = StreetProps.new()
 		_statics.chunk = self
 		add_child(_statics)
@@ -2165,7 +2188,10 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 ## shape and would only pay for the detail. Both come from the cached relief, so the fine grid
 ## costs about what the old coarse one did.
 func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, collide: bool, tint: Color = Color.WHITE) -> void:
+	var far := level != Level.FULL
 	var step := ground_grid_step if _detail() >= 1.0 else ground_grid_step * 2.0
+	if far:
+		step = maxf(step, lod_ground_grid_step)
 	var nx := clampi(ceili(rect.size.x / step), 1, 120)
 	var nz := clampi(ceili(rect.size.y / step), 1, 120)
 	# Far chunks carry the surface's colour in the mesh itself (see below). Linear, because a
@@ -2173,7 +2199,6 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 	# sRGB. Alpha marks the carriageway and which way it runs, for the street lamp glow far chunks
 	# get instead of lamps (far_ground.gdshader): 1.0 along Z, 0.75 along X, 0.5 a junction, 0.25
 	# a pavement, 0 anything else. A road slab is long and thin, a junction square.
-	var far := level != Level.FULL
 	var vcolor := Color(0.0, 0.0, 0.0, 0.0)
 	if far:
 		var lamp := 0.0
