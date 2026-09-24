@@ -97,6 +97,12 @@ func _test_city() -> void:
 	# Untyped on purpose: naming CityStreamer here would compile it before the autoloads exist.
 	var city: Node3D = packed.instantiate()
 	get_tree().root.add_child(city)
+	# The police sit out everything but their own checks (_test_police): the checks below shoot,
+	# blast and run people over, and a wanted level would send cruisers and officers into the
+	# middle of the traffic and crowd counts they measure.
+	var police_node: Node = city.get_node_or_null("Police")
+	if police_node:
+		police_node.set("enabled", false)
 	await _ticks(30)
 	var plan: CityPlan = city.plan
 	var lod_r: int = city.lod_radius_blocks
@@ -1323,6 +1329,7 @@ func _test_city() -> void:
 	if qual:
 		var reach: float = qual.shadow_distance[0]
 		_check(reach >= 500.0, "shadows reach across the city on HIGH (%.0f m)" % reach)
+	await _test_police(city, player)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
@@ -1361,6 +1368,180 @@ func _test_city() -> void:
 
 	city.queue_free()
 	_world_state().reset()
+
+
+## The wanted level and the police (owner, 2026-09-24: "a police and star system"). Every class
+## involved uses an autoload, so none of them is named as a type here: the Police node and its
+## units are untyped and reached through the scene.
+func _test_police(city: Node3D, player: Player) -> void:
+	var police: Node = city.get_node_or_null("Police")
+	_check(police != null and police.is_in_group("wanted") and get_tree().get_first_node_in_group("wanted") == police, "the city has a Police node in the 'wanted' group")
+	if police == null:
+		return
+	var ws := _world_state()
+	var health: Node = player.get("health")
+	_check(health != null and is_equal_approx(float(health.health), float(health.max_health)), "the player has health (%.0f)" % (float(health.health) if health else 0.0))
+	var sfx: Node = get_tree().root.get_node_or_null("/root/Sfx")
+	_check(sfx != null and sfx.has("siren"), "there is a siren sound")
+	# Short fuses so the whole chase fits in seconds: cruisers join close and fast, and nobody
+	# loses the player until the decay check asks for it.
+	var saved := {}
+	for key in ["lose_seconds", "flash_seconds", "dispatch_interval", "first_dispatch_delay", "spawn_min", "spawn_max"]:
+		saved[key] = police.get(key)
+	police.set("lose_seconds", 60.0)
+	police.set("dispatch_interval", 0.5)
+	police.set("first_dispatch_delay", 0.0)
+	police.set("spawn_min", 90.0)
+	police.set("spawn_max", 125.0)
+	police.call("clear")
+	police.set("enabled", true)
+	if player.is_driving():
+		player.exit_vehicle()
+	player.global_position = ws.to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	await _ticks(20)
+	# Somebody in earshot, standing still.
+	var ped_script: GDScript = load("res://scripts/npc/pedestrian.gd")
+	var witness: Node3D = ped_script.new()
+	witness.setup(Rect2(player.global_position.x + 4.0, player.global_position.z - 2.0, 4.0, 4.0), 1.0, 4242)
+	city.add_child(witness)
+	witness.global_position = player.global_position + Vector3(6.0, 0.3, 0.0)
+	witness.set("_pause_left", 60.0)
+	await _ticks(4)
+	# 1. Shooting where people can hear it: the rifle, pointed at the sky so nobody is hit.
+	var manager: Node = player.get("weapon_manager")
+	manager.equip(0)
+	player.get("camera_rig").set_look(0.0, 60.0)
+	Input.action_press("fire")
+	for i in 90:
+		await get_tree().physics_frame
+		if int(police.stars) >= 1:
+			break
+	Input.action_release("fire")
+	_check(int(police.stars) >= 1 and float(police.heat) > 0.0, "shooting where people can hear it raises the wanted level (%d stars, heat %.1f)" % [int(police.stars), float(police.heat)])
+	var hud: Node = city.get_node_or_null("DebugHud/WantedHud")
+	await _ticks(20)
+	_check(hud != null and hud.get_node("Stars").visible, "the stars show on the HUD")
+	# 2. Cruisers join out on the street and drive in.
+	police.call("set_wanted", 2)
+	var first_d := -1.0
+	var closest := INF
+	var engaged := false
+	var livery_ok := false
+	var bar_ok := false
+	var caps_ok := true
+	for i in 720:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting") # stands in for the helicopter keeping eyes on
+		var cars: Array = police.get("cruisers")
+		if cars.size() > int(police.call("cruiser_cap")) or (police.get("officers") as Array).size() > int(police.call("officer_cap")):
+			caps_ok = false
+		if cars.is_empty():
+			continue
+		var car: Node3D = cars[0]
+		if not is_instance_valid(car):
+			continue
+		var d := car.global_position.distance_to(player.global_position)
+		if first_d < 0.0:
+			first_d = d
+			bar_ok = car.get_node_or_null("LightBar") != null
+			for mi in car.find_children("*", "MeshInstance3D", true, false):
+				for si in (mi as MeshInstance3D).get_surface_override_material_count():
+					var m := (mi as MeshInstance3D).get_surface_override_material(si) as ShaderMaterial
+					if m and m.get_shader_parameter("stripe_mode") == 5:
+						livery_ok = true
+		closest = minf(closest, d)
+		if int(car.get("mode")) != 0:
+			engaged = true
+		if engaged and closest < 45.0 and (police.get("officers") as Array).size() > 0:
+			break
+	_check(first_d > 60.0, "the first cruiser joins out on the street (%.0f m away)" % first_d)
+	_check(bar_ok and livery_ok, "cruisers wear the black-and-white livery and a light bar")
+	_check(first_d > 0.0 and closest < first_d - 30.0 and engaged, "cruisers drive in and engage (%.0f m -> %.0f m)" % [first_d, closest])
+	minimap_redraw(city)
+	# 3. Officers get out and shoot; the player takes damage. A cruiser parked across the
+	# street makes sure somebody has a clear line even if the first car stopped round a corner.
+	var street: Vector3 = ws.to_world(player.global_position) + Vector3(0.0, 0.0, -20.0)
+	police.call("spawn_cruiser", street + Vector3(0.0, 1.0, 0.0), PI * 0.5, "parked")
+	var hurt := false
+	for i in 600:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting")
+		if float(health.health) < float(health.max_health) - 0.5:
+			hurt = true
+			break
+	var officers: Array = police.get("officers")
+	_check(officers.size() > 0, "officers get out of their cruisers (%d)" % officers.size())
+	if officers.size() > 0:
+		var o: Node = officers[0]
+		var navy := false
+		for mi in o.find_children("*", "MeshInstance3D", true, false):
+			var ov := (mi as MeshInstance3D).material_override as ShaderMaterial
+			if ov and ov.get_shader_parameter("cloth_strength") != null and float(ov.get_shader_parameter("cloth_value")) < 0.3 and absf(float(ov.get_shader_parameter("cloth_hue")) - 0.62) < 0.06:
+				navy = true
+		_check(o.is_in_group("police") and not o.is_in_group("pedestrian") and navy, "officers wear navy and are not part of the crowd")
+	var officer_script: GDScript = load("res://scripts/npc/police_officer.gd")
+	_check(hurt, "officers shoot and the player takes damage (%.0f of %.0f; %d rounds, %d hit)" % [float(health.health), float(health.max_health), int(officer_script.get("rounds_fired")), int(officer_script.get("rounds_hit"))])
+	_check(caps_ok, "the units on the street stay inside the star caps")
+	# 4. Caps at five stars.
+	police.call("set_wanted", 5)
+	var worst := Vector2i.ZERO
+	for i in 150:
+		await get_tree().physics_frame
+		if i % 20 == 0:
+			police.call("report_sighting")
+		var nc: int = (police.get("cruisers") as Array).size()
+		var no: int = (police.get("officers") as Array).size()
+		worst = Vector2i(maxi(worst.x, nc - int(police.call("cruiser_cap"))), maxi(worst.y, no - int(police.call("officer_cap"))))
+	_check(worst.x <= 0 and worst.y <= 0, "five stars stays inside the caps (%d cruisers, %d officers over)" % [worst.x, worst.y])
+	# 5. Going down: slow motion, a respawn on a street away from the fight, stars cleared.
+	health.set("collapse_seconds", 0.4)
+	health.set("downed_seconds", 1.2)
+	var died_at: Vector3 = ws.to_world(player.global_position)
+	player.take_damage(1.0e6)
+	_check(bool(health.downed) and Engine.time_scale < 1.0 and player.is_downed(), "at zero health the player goes down in slow motion")
+	for i in 900:
+		await get_tree().process_frame
+		if not bool(health.downed):
+			break
+	await _ticks(3)
+	var stood: Vector3 = ws.to_world(player.global_position)
+	_check(not bool(health.downed) and is_equal_approx(float(health.health), float(health.max_health)) and Engine.time_scale == 1.0, "the player gets up again with full health at full speed")
+	_check(int(police.stars) == 0 and (police.get("cruisers") as Array).is_empty() and (police.get("officers") as Array).is_empty(),
+		"going down clears the stars and the police (%d stars, %d cruisers, %d officers)" % [int(police.stars), (police.get("cruisers") as Array).size(), (police.get("officers") as Array).size()])
+	_check(Vector2(stood.x - died_at.x, stood.z - died_at.z).length() > 30.0 and player.is_physics_processing() and player.get("visual").visible, "the player stands up on a street corner away from the fight (%.0f m)" % Vector2(stood.x - died_at.x, stood.z - died_at.z).length())
+	# 6. Out of sight, the stars flash and drop one at a time. Nobody is sent this time, so
+	# nobody can see the player.
+	police.set("enabled", false)
+	police.set("lose_seconds", 1.6)
+	police.set("flash_seconds", 0.4)
+	police.call("set_wanted", 2)
+	var levels := {}
+	var flashed := false
+	var searching := false
+	for i in 300:
+		await get_tree().physics_frame
+		levels[int(police.stars)] = true
+		flashed = flashed or bool(police.flashing)
+		searching = searching or bool(police.call("show_search_area"))
+		if int(police.stars) == 0:
+			break
+	_check(flashed and searching and int(police.stars) == 0 and levels.has(1), "out of sight the stars flash and drop one at a time (saw %s)" % str(levels.keys()))
+	for key in saved:
+		police.set(key, saved[key])
+	police.call("clear")
+	if is_instance_valid(witness):
+		witness.queue_free()
+	await _ticks(2)
+
+
+func minimap_redraw(city: Node) -> void:
+	var minimap: Node = city.get_node_or_null("DebugHud/MinimapFrame/Minimap")
+	if minimap:
+		minimap.queue_redraw()
 
 
 func _test_buildings() -> void:
