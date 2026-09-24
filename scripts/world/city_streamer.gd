@@ -726,6 +726,11 @@ func _start_loading_screen() -> void:
 	# game at all. `--noload` skips it explicitly; `--nohud` implies it.
 	for arg in OS.get_cmdline_user_args():
 		if arg == "--noload" or arg == "--nohud":
+			# The loading screen is also what builds the whole far city. Without it the far half
+			# of the basin arrives progressively over the first seconds, and a harness that grabs
+			# a frame early photographs a tier that is not there yet - which is not what the
+			# player sees. So build it here instead (deferred: _ready() has to place the eye first).
+			call_deferred("finish_far_city")
 			return
 	var screen := LoadingScreen.new()
 	screen.name = "LoadingScreen"
