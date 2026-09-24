@@ -951,7 +951,12 @@ Air traffic bullet in CLAUDE.md. What a next session needs to know:
   point; a watcher sees them appear. Arrivals fade out rather than taxiing to a gate. Smoke
   trails left in the air jump a kilometre on an origin re-centering (CPUParticles in world
   space; the rocket smoke already does this). Nothing shows aircraft on the minimap, and the
-  lock-on does not target them.
+  lock-on does not target them. The runway protection zone reads as bare block paving up close
+  (a lawn there would read better; the skyline would need the same green plate). The smoke
+  log gains four `Parameter "material" is null` lines at shutdown, from the dummy renderer,
+  only when the test's shot-down helicopter crashes in the street; a crash away from the street
+  and two rockets into the road both leave none, and the gate does not match them, but the
+  cause was not pinned down.
 
 ## 10. Suggested next steps, in order of impact
 
