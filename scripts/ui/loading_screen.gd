@@ -143,6 +143,10 @@ func _warm_shaders() -> void:
 	# MultiMesh laid out the way CPUParticles3D lays its buffer out.
 	var effects: Array = WeaponFX.warm_materials()
 	effects.append(Ragdoll.wound_material())
+	# The facade kit only ever draws through a MultiMesh too, so the quads above warmed the wrong
+	# variant of its shaders; and the pieces are loaded here, not by the first building to use one.
+	if Building.kit_enabled:
+		effects.append_array(PropFactory.kit_materials())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
