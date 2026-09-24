@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cugfrxkp5epf5"
-path.s3tc="res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.s3tc.ctex"
-path.etc2="res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.etc2.ctex"
+uid="uid://cxqd34kittcgb"
+path.s3tc="res://.godot/imported/hero_hero_laces_normal.jpg-5dae4ca6ddc6aeb37922ca3ba19379ee.s3tc.ctex"
+path.etc2="res://.godot/imported/hero_hero_laces_normal.jpg-5dae4ca6ddc6aeb37922ca3ba19379ee.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "12a5038f03b7716f3d3824e74bf484b1"
+"md5": "b3ddff5f69a0612a37f42890c1352e1f"
 }
 
 [deps]
 
-source_file="res://assets/models/hero_hero_zip_diffuse.jpg"
-dest_files=["res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.s3tc.ctex", "res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.etc2.ctex"]
+source_file="res://assets/models/hero_hero_laces_normal.jpg"
+dest_files=["res://.godot/imported/hero_hero_laces_normal.jpg-5dae4ca6ddc6aeb37922ca3ba19379ee.s3tc.ctex", "res://.godot/imported/hero_hero_laces_normal.jpg-5dae4ca6ddc6aeb37922ca3ba19379ee.etc2.ctex"]
 
 [params]
 
@@ -26,7 +26,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=0
+compress/normal_map=1
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

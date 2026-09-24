@@ -1,5 +1,8 @@
 # Studio preview renderer. Usage:
 #   blender -b -t 2 [file.blend] --python render.py -- --glb path.glb (optional) --out prefix --views front,side,34,face [--samples 48] [--res 1024] [--anim clip --frame f]
+#   --hero        dress the materials the way the game's hero shaders do (render_look.dress)
+#   --pose f.json the pose from tools/grip_fit.gd POSE_OUT=..., and the gun where it is held;
+#                 views grip_right, grip_left, grip_front, grip_above frame the hands on it
 import bpy, sys, os, math, mathutils
 argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
 def arg(name, default=None):
@@ -70,6 +73,16 @@ elif "--neutral" in argv:
     fixarms.add_finger_keys(arm, act)
     arm.animation_data_create(); arm.animation_data.action = act
     scene.frame_set(0)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import render_look
+pose_data = None
+if arg("--pose"):
+    if arms[0].animation_data:
+        arms[0].animation_data.action = None
+    pose_data = render_look.pose(arms[0], arg("--pose"))
+    render_look.add_gun(arms[0], pose_data)
+if "--hero" in argv:
+    render_look.dress(arms[0] if arms else None)
 
 # World bounds of all visible meshes (evaluated, so armature poses count).
 dg = bpy.context.evaluated_depsgraph_get()
@@ -134,6 +147,22 @@ scene.render.threads_mode = 'FIXED'; scene.render.threads = 2
 scene.view_settings.view_transform = 'AgX'; scene.view_settings.look = 'None'; scene.view_settings.exposure = float(arg('--exposure', '-0.3'))
 scene.cycles.max_bounces = 6; scene.cycles.transparent_max_bounces = 16
 def shoot(view):
+    if view.startswith("grip_"):
+        # the hands on the gun of a --pose, framed in the gun's own axes
+        scene.render.resolution_x = res; scene.render.resolution_y = res
+        pb = _arm[0].pose.bones; mw = _arm[0].matrix_world
+        target = (mw @ pb["RightHand"].head + mw @ pb["LeftHand"].head) * 0.5
+        rot = bpy.data.objects["gun"].matrix_world.to_3x3().normalized()
+        gx = rot @ mathutils.Vector((1, 0, 0)); gup = rot @ mathutils.Vector((0, 0, 1)); gf = rot @ mathutils.Vector((0, 1, 0))
+        direction = {"grip_right": gx + gup * 0.25 + gf * 0.2, "grip_left": -gx + gup * 0.3 + gf * 0.25,
+                     "grip_front": gf + gup * 0.3 + gx * 0.4, "grip_above": gup + gx * 0.35 - gf * 0.15}[view].normalized()
+        cam_data.lens = float(arg("--lens", "55"))
+        cam.location = target + direction * float(arg("--dist", "0.8"))
+        cam.rotation_euler = (target - cam.location).to_track_quat('-Z', 'Y').to_euler()
+        scene.render.filepath = f"{out}{view}.png"
+        bpy.ops.render.render(write_still=True)
+        print("WROTE", scene.render.filepath)
+        return
     if view in ("lwrist", "rhand", "feet", "knee"):
         # detail close-ups: left wrist (watch), right hand (ring), feet (sneakers), knee (folds)
         scene.render.resolution_x = res; scene.render.resolution_y = res
@@ -189,4 +218,6 @@ def shoot(view):
     scene.render.filepath = f"{out}{view}.png"
     bpy.ops.render.render(write_still=True)
     print("WROTE", scene.render.filepath)
-for v in views: shoot(v)
+for v in views:
+    if v and v != "none":  # --views none: build the scene, render nothing (a dry run)
+        shoot(v)

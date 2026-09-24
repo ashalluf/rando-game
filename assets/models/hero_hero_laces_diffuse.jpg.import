@@ -2,21 +2,21 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cugfrxkp5epf5"
-path.s3tc="res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.s3tc.ctex"
-path.etc2="res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.etc2.ctex"
+uid="uid://b22donrusb5gb"
+path.s3tc="res://.godot/imported/hero_hero_laces_diffuse.jpg-788f1e1889a83c2a8f0f4af05616ea8f.s3tc.ctex"
+path.etc2="res://.godot/imported/hero_hero_laces_diffuse.jpg-788f1e1889a83c2a8f0f4af05616ea8f.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
 generator_parameters={
-"md5": "12a5038f03b7716f3d3824e74bf484b1"
+"md5": "c00822dff2e4a944a5257f621d6da60f"
 }
 
 [deps]
 
-source_file="res://assets/models/hero_hero_zip_diffuse.jpg"
-dest_files=["res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.s3tc.ctex", "res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.etc2.ctex"]
+source_file="res://assets/models/hero_hero_laces_diffuse.jpg"
+dest_files=["res://.godot/imported/hero_hero_laces_diffuse.jpg-788f1e1889a83c2a8f0f4af05616ea8f.s3tc.ctex", "res://.godot/imported/hero_hero_laces_diffuse.jpg-788f1e1889a83c2a8f0f4af05616ea8f.etc2.ctex"]
 
 [params]
 

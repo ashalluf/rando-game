@@ -54,6 +54,7 @@ blender_step() { # script [args...]: stops the build on a Python error inside Bl
 	local status=0
 	"${RUN[@]}" "$BLENDER" -b -t "$THREADS" --python-exit-code 1 --python "$HERE/$s" -- "$@" > "$log" 2>&1 || status=$?
 	grep -E "$FILTER" "$log" || true
+	rm -f "$HERO_BUILD"/work/*.blend1  # Blender's save backups: 90 MB a build, never read
 	if [ $status != 0 ]; then echo "== $s FAILED, full log: $log"; exit 1; fi
 }
 started=0
@@ -76,6 +77,6 @@ for s in "${STEPS[@]}"; do
 done
 if [ $RENDER = 1 ]; then
 	"${RUN[@]}" "$BLENDER" -b -t "$THREADS" --python "$HERE/render.py" -- --glb "$REPO/assets/models/hero.glb" \
-		--neutral --out "$HERO_BUILD/renders/hero_" --views front,34,face,chest,lwrist,feet --samples 48 --res 1024 2>&1 | grep -E "WROTE|Traceback|Error" || true
+		--neutral --hero --out "$HERO_BUILD/renders/hero_" --views front,34,face,chest,lwrist,feet --samples 48 --res 1024 2>&1 | grep -E "WROTE|Traceback|Error" || true
 fi
 echo "== done: $REPO/assets/models/hero.glb"

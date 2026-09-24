@@ -129,6 +129,24 @@ def surface_normal_map(height_fn, P, N, T, B, cov, eps=0.0004, chunk=400000):
     return imgs[""] if list(imgs) == [""] else imgs
 
 
+def load_txs(path):
+    """A texture-space file from texspace.py, expanded back to full-size arrays."""
+    z = np.load(path)
+    n = int(z["size"])
+    cov = np.zeros((n, n), bool)
+    iy, ix = z["iy"].astype(np.int64), z["ix"].astype(np.int64)
+    cov[iy, ix] = True
+    out = {"cov": cov}
+    for k in z.files:
+        if k in ("size", "iy", "ix"):
+            continue
+        v = z[k]
+        full = np.zeros((n, n) + v.shape[1:], np.float32)
+        full[iy, ix] = v
+        out[k] = full
+    return out
+
+
 def raster_values(values, cov, fill=0.0):
     img = np.full(cov.shape + np.shape(values)[1:], fill, np.float32)
     img[np.nonzero(cov)] = values

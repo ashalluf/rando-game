@@ -2,21 +2,18 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cugfrxkp5epf5"
-path.s3tc="res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.s3tc.ctex"
-path.etc2="res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.etc2.ctex"
+uid="uid://b0tsnlauwg6g3"
+path.s3tc="res://.godot/imported/hero_x_skin_detail.png-de17f9200696d25bb133716f867c8815.s3tc.ctex"
+path.etc2="res://.godot/imported/hero_x_skin_detail.png-de17f9200696d25bb133716f867c8815.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
-generator_parameters={
-"md5": "12a5038f03b7716f3d3824e74bf484b1"
-}
 
 [deps]
 
-source_file="res://assets/models/hero_hero_zip_diffuse.jpg"
-dest_files=["res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.s3tc.ctex", "res://.godot/imported/hero_hero_zip_diffuse.jpg-68f5c4ff3187f100ecfd6498bcef7e9b.etc2.ctex"]
+source_file="res://assets/models/hero_x_skin_detail.png"
+dest_files=["res://.godot/imported/hero_x_skin_detail.png-de17f9200696d25bb133716f867c8815.s3tc.ctex", "res://.godot/imported/hero_x_skin_detail.png-de17f9200696d25bb133716f867c8815.etc2.ctex"]
 
 [params]
 

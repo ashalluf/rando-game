@@ -190,8 +190,12 @@ def raster(me, size, attrs):
 
 
 def save(name, size, me, attrs):
+    """Only the covered texels go to disk (texlib.load_txs() expands them again): the full
+    2K arrays of the skin alone were a third of a gigabyte."""
     cov, P, N, T, B, A = raster(me, size, attrs)
-    np.savez(common.work("txs_%s.npz" % name), cov=cov, P=P, N=N, T=T, B=B, **{"a_" + k: v for k, v in A.items()})
+    iy, ix = np.nonzero(cov)
+    np.savez(common.work("txs_%s.npz" % name), size=size, iy=iy.astype(np.int16), ix=ix.astype(np.int16),
+             P=P[cov], N=N[cov], T=T[cov], B=B[cov], **{"a_" + k: v[cov] for k, v in A.items()})
     print("TXS %s %dpx covered %.1f%%" % (name, size, 100.0 * cov.mean()))
 
 

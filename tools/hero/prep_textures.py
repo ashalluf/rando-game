@@ -86,7 +86,7 @@ SKIP = os.environ.get("HERO_TEX_SKIP", "").split(",")
 # The skin is most of this step's time; HERO_TEX_SKIP=skin reuses the last skin maps.
 specs.update(skin_base="hero_skin_diffuse.jpg", skin_normal="hero_skin_normal.jpg", skin_rough="hero_skin_roughness.png")
 if "skin" not in SKIP:
-    S = np.load(common.work("txs_skin.npz"))
+    S = T.load_txs(common.work("txs_skin.npz"))
     cov = S["cov"]
     idx = np.nonzero(cov)
     Pc = S["P"][idx].astype(np.float64)
@@ -404,7 +404,7 @@ specs["hair_base"] = T.save(atlas, tex("hero_hair.png"))
 # TRACKSUIT: fold normals (straight and closed joints), occlusion, the wrinkle mask
 # =================================================================================================
 rng = np.random.default_rng(23)  # each section its own stream, so skipping one changes nothing
-S = np.load(common.work("txs_suit.npz"))
+S = T.load_txs(common.work("txs_suit.npz"))
 cov = S["cov"]
 idx = np.nonzero(cov)
 Pc = S["P"][idx].astype(np.float64)
@@ -470,7 +470,7 @@ specs["zip_base"] = T.save(0.18 + 0.82 * tz, tex("hero_zip_diffuse.jpg"), 256)
 # SHOES and LACES
 # =================================================================================================
 rng = np.random.default_rng(24)  # each section its own stream, so skipping one changes nothing
-S = np.load(common.work("txs_shoes.npz"))
+S = T.load_txs(common.work("txs_shoes.npz"))
 marks = json.load(open(common.work("shoe_marks.json")))
 cov = S["cov"]
 idx = np.nonzero(cov)
