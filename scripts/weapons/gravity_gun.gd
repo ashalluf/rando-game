@@ -35,6 +35,12 @@ func _init() -> void:
 	alarm_radius = 0.0
 	# Right click is its own alt fire (throw), so it does not take GTA-style aim.
 	lock_on = false
+	# Held low at the hip in both hands, like a heavy tool.
+	grip_right = Vector3(0.03, -0.11, 0.18)
+	grip_left = Vector3(-0.06, -0.08, -0.06)
+	hold_hip = Vector3(-0.12, -0.30, -0.30)
+	hold_aim = Vector3(-0.10, -0.14, -0.40)
+	hold_hip_rot = Vector3(-18.0, 15.0, 0.0)
 	kick_distance = 0.15
 	camera_kick_deg = 0.0
 

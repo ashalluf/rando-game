@@ -24,6 +24,29 @@ extends Node3D
 ## target nearest the crosshair (Player.lock_on). Off for a gun whose alt fire does something.
 @export var lock_on: bool = true
 
+@export_group("Hold")
+## Where the right and left WRISTS go on this gun, in its own space (forward -Z): behind the
+## pistol grip, and under the handguard. Two-bone IK pulls the hero's hands there
+## (Avatar.hold_gun), so the gun is held whatever the legs are doing. The defaults are the AK.
+@export var grip_right: Vector3 = Vector3(0.03, -0.075, 0.14)
+@export var grip_left: Vector3 = Vector3(-0.04, -0.075, -0.12)
+## Which way each hand's fingers run and its palm faces, in the gun's space: the right hand
+## round the pistol grip (fingers down and forward, palm against the grip's right side), the
+## left under the handguard (palm up, fingers wrapping its right side).
+@export var grip_right_fingers: Vector3 = Vector3(0.0, -0.6, -0.8)
+@export var grip_right_palm: Vector3 = Vector3(-1.0, 0.0, 0.0)
+@export var grip_left_fingers: Vector3 = Vector3(0.7, 0.2, -0.7)
+@export var grip_left_palm: Vector3 = Vector3(0.0, 1.0, 0.0)
+## Where the gun's origin sits relative to the hero's right shoulder joint (in the body's
+## space: +X right, +Y up, -Z forward), carried at the hip and raised to aim. Everything the
+## hands hold has to be within an arm's reach of its shoulder (0.52 m to the wrist on these
+## rigs): past that the arm goes dead straight and the hand stops short of the grip.
+@export var hold_hip: Vector3 = Vector3(-0.12, -0.27, -0.26)
+@export var hold_aim: Vector3 = Vector3(-0.10, -0.05, -0.36)
+## The carry angle at the hip (degrees: muzzle down, then across the body to the left) - low
+## ready. Raised to aim the gun turns straight along the camera.
+@export var hold_hip_rot: Vector3 = Vector3(-24.0, 20.0, 0.0)
+
 var player: Player
 ## Where shots and effects start. Set by _build_model().
 var muzzle: Node3D

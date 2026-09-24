@@ -23,6 +23,12 @@ func _init() -> void:
 	automatic = false
 	kick_distance = 0.3
 	camera_kick_deg = 2.5
+	# Shoulder-fired: the tube rests on top of the shoulder, its back end sticking out behind.
+	grip_right = Vector3(0.03, -0.13, 0.05)
+	grip_left = Vector3(-0.03, -0.11, -0.28)
+	hold_hip = Vector3(-0.08, -0.26, -0.22)
+	hold_aim = Vector3(-0.06, 0.07, -0.16)
+	hold_hip_rot = Vector3(-15.0, 15.0, 0.0)
 
 
 func _build_model() -> void:

@@ -166,6 +166,8 @@ func _physics_process(delta: float) -> void:
 	_update_visual(delta, move_dir)
 	if avatar:
 		avatar.drive(delta, horizontal_speed(), is_on_floor(), velocity.y, _boosting)
+		var gun: Weapon = weapon_manager.current if weapon_manager and weapon_manager.visible else null
+		avatar.hold_gun(gun, _aim_timer > 0.0 or (lock_on != null and lock_on.aiming), delta)
 	_boost_fx.emitting = _boosting
 	if _boosting and not _boost_sound.playing:
 		_boost_sound.play()
@@ -291,6 +293,8 @@ func enter_vehicle(car: Vehicle) -> void:
 	collision_mask = 0
 	if weapon_manager:
 		weapon_manager.visible = false
+	if avatar:
+		avatar.hold_gun(null, false, 0.0)
 	global_position = car.seat_position()
 
 
@@ -521,6 +525,8 @@ func _build_avatar() -> void:
 	visual.add_child(body)
 	if body.load_model(avatar_model, avatar_look):
 		avatar = body
+		if weapon_manager:
+			avatar.setup_gun_hands(weapon_manager, visual, self)
 		for placeholder in ["Body", "Visor"]:
 			if visual.has_node(placeholder):
 				visual.get_node(placeholder).visible = false

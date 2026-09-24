@@ -673,7 +673,17 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from
   `avatar_model`, one of `Pedestrian.MODELS`): idle / walk / run clips picked by speed, frozen or
   slowed stride in the air, forward lean while boosting. The orange capsule in `player.tscn` is
-  only the fallback when the model file is missing. `Pedestrian.prepare_rig()` is the shared fix
+  only the fallback when the model file is missing. Guns are held, not hung (owner, 2026-09-24:
+  "the weapons not even in the hands"): `Avatar.hold_gun()` puts the WeaponMount relative to the
+  hero's LIVE right shoulder (the clips carry the shoulders 12 cm above the rest pose, so a rest
+  shoulder put every grip out of reach) at `Weapon.hold_hip` with the `hold_hip_rot` low-ready
+  carry, raised to `hold_aim` while aiming or firing; a `TwoBoneIK3D` on the skeleton pulls both
+  wrists onto `Weapon.grip_right` / `grip_left` (elbows steered by poles), and `GripHands` (a
+  SkeletonModifier3D after it) turns each hand to `grip_*_fingers` / `grip_*_palm`. On these
+  rigs a hand bone's +Y runs along the fingers. Keep every grip within 0.52 m of its shoulder or
+  the arm locks straight short of it. The rigs have no finger bones, so a hand cannot curl round
+  a grip. Judge it with `tools/glshot/hero_shot.gd` (WEAPON, AIM, YAW, CAM_DIST, DEBUG).
+  `Pedestrian.prepare_rig()` is the shared fix
   for every instantiated rig (AABB, materials). Knocked pedestrians become `Ragdoll`s that keep
   the same rigged model as one tumbling body (`build_from_rig`); far pedestrians move and animate
   every 3rd / 6th physics frame (`Pedestrian.lod_mid` / `lod_far`).
