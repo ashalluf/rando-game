@@ -250,6 +250,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 Gunshots bleed (owner: "I want more blood when people get shot").** A round into
+  a person used to be a small red dust puff and a ragdoll. Now it comes out of the far side:
+  a spray of glossy droplets along the bullet that falls and lands as splats where it falls, a
+  spatter with runs down any wall close behind, and a body that keeps bleeding - a pool spreading
+  from under it over eight seconds, a smear where it slides, drips, and its clothes soaking dark
+  round each wound. Dark arterial red, never paint red; lit, so it is dark at night. Rocket gibs
+  bleed harder and torn limbs leave trails. Every gun uses one call with a strength, so the
+  shotgun reads heavier than the rifle for free. Everything is capped and fades on its own.
+
 - **2026-09-24 A GTA-style weapon wheel in frosted glass (owner: "hold whatever button and it
   slows everything n lets u switch but i want the UI to look like apple glass style").** Hold
   Tab (or the pad's left bumper; a quick tap of it still steps back one gun): time eases to a
