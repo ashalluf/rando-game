@@ -648,6 +648,7 @@ func spawn_cruiser(world_pos: Vector3, yaw: float, kind: String = "parked", is_h
 	if car.get_parent() == null:
 		add_child(car)
 	car.global_transform = Transform3D(Basis(Vector3.UP, yaw), WorldState.to_local(world_pos))
+	car.traffic_speed = 0.0
 	car.go_physical()
 	cruisers.append(car)
 	dispatched += 1
@@ -952,7 +953,8 @@ func _place_roadblock() -> void:
 	# Across the road: the cars' length runs across the carriageway.
 	var yaw := PI * 0.5 if axis == CityPlan.AXIS_X else 0.0
 	for k in 2:
-		var lat := (float(k) - 0.5) * 3.2
+		# Nose to tail across the carriageway: a car's length apart, or they spawn inside each other.
+		var lat := (float(k) - 0.5) * 5.4
 		var at := mid + (Vector2(lat, 0.0) if axis == CityPlan.AXIS_X else Vector2(0.0, lat))
 		var h := traffic._relief(at) if traffic else 0.0
 		spawn_cruiser(Vector3(at.x, 0.9 + h, at.y), yaw + (PI if k == 1 else 0.0), "roadblock")
