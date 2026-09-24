@@ -1552,7 +1552,10 @@ func _test_police(city: Node3D, player: Player) -> void:
 	var livery_ok := false
 	var bar_ok := false
 	var caps_ok := true
-	for i in 720:
+	# 1500 physics frames at most (25 s); the loop leaves as soon as a crew is out. 720 was
+	# enough here and not on CI's slower box, where a cruiser was still 83 m out, short of its
+	# 70 m engage range, when time ran out (build 239).
+	for i in 1500:
 		await get_tree().physics_frame
 		if i % 20 == 0:
 			police.call("report_sighting") # stands in for the helicopter keeping eyes on
