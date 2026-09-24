@@ -883,6 +883,39 @@ taking away from graphics at all". What shipped, newest last:
   17:45, the boardwalk at 17:50, the freeway at 18:00 and downtown rain at 21:20. The hills are
   still weak (next steps item 3).
 
+## 9g. Police and the wanted level, 2026-09-24 (agent branch)
+
+The owner asked for "a police and star system", GTA-style but original. What is in, and what a
+next session needs to know (the rules are the Police note in CLAUDE.md):
+
+- **One node, one property.** `Police` in `scenes/levels/city.tscn`, group `wanted`, `stars` a
+  plain int. The police helicopter was built on another branch at the same time and reads that;
+  it can also call `report_sighting()` so its eyes keep the stars from dropping.
+- **Crimes are hooked where they already happen**, not in the weapons: `Pedestrian.alarm()` (the
+  one call every gun and blast already makes), `Pedestrian.knock()` and
+  `Vehicle.drop_out_of_traffic()`. A new gun gets reported for free. Anything the police do
+  themselves sets `Police.innocent` round the knock; forget that and a cruiser that clips a
+  pedestrian gives the player a star.
+- **Two driving modes, on purpose.** A physics car driving 200 m through a city grid on an AI
+  will get stuck on a kerb, a lamp or a building in the first block; a kinematic car on the lanes
+  cannot. So cruisers come in on the lanes (the traffic's own geometry, turning toward the goal
+  at each crossing) and only become VehicleBody3D physics within `engage_range` of a player they
+  can see - close enough that "steer at them, back out when stuck, stop and get out after three
+  tries" is enough AI. Pooling has to strip the VehicleWheel3D nodes before freezing the body.
+- **Officers are Pedestrians with an Avatar body.** That buys the knock, the ragdoll, gibs and
+  the LOD tiers from Pedestrian and the hand IK from the hero's Avatar, with a `PoliceGun` (a
+  Weapon, model and grips only) in the hands. They are taken OUT of the `pedestrian` group after
+  `_ready()`, so the crowd cap, `trim_pedestrians()` and alarms never touch them; `LockOn` looks in
+  `police` as well.
+- **The smoke test turns the police off** for everything except `_test_police`, which checks the
+  whole loop in about 25 s of game time: gunfire near a witness gives a star, a cruiser joins
+  60+ m out and drives in, officers get out and hurt the player, five stars stays inside the caps,
+  going down respawns 30+ m away with the stars and units gone, and out of sight the stars flash
+  and drop one at a time.
+- **Screenshots:** `STARS=3 POLICE=standoff|pursuit` on `tools/glshot/still_shot.gd` stages the
+  units in front of the camera (`Police.stage_for_shot()`), because a software frame takes
+  seconds and waiting for cruisers to drive in would take hundreds of them. opengl3 only.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

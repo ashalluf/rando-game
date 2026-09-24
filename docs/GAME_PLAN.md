@@ -250,6 +250,29 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 Police and a wanted level (owner: "a police and star system"), GTA-style but
+  original.** Crimes only count when somebody sees or hears them - a pedestrian within 40 m, or a
+  police unit in earshot (gunfire, blasts) or in sight (everything else) - and add heat; five
+  thresholds turn heat into stars, which only ever go up from a crime. Gunfire, knocking people
+  down, blasts, shooting cars out of the traffic, shooting or stealing a cruiser, and above all
+  downing an officer (which always counts). The hooks sit where the crimes already pass through -
+  `Pedestrian.alarm()` (every gun and every blast calls it), `Pedestrian.knock()`,
+  `Vehicle.drop_out_of_traffic()` - so no weapon had to change, including the shotgun another
+  branch is adding. Losing them is about sight, not distance: when no unit has seen you for 12 s
+  the stars flash and drop one at a time, and the police drive and walk to where you were last
+  seen (a search area that grows while the trail is cold), not to where you are. Cruisers join
+  out of sight along a street 170-240 m off, drive the lanes kinematically like traffic (robust at
+  any range, no physics), and switch to real VehicleBody3D physics within 70 m of a player they
+  can see - ramming a car, stopping short of someone on foot - then the crew gets out, takes cover
+  at the ends of the car and shoots, and gets back in when you run. More units per star, a
+  roadblock ahead of you at four, tactical vans with carbines at five; cruisers are pooled and
+  units that fall far behind are recalled and replaced. The player finally has health (250,
+  quick regen); going down is a slow-motion crumple, an "OUT COLD" card on greyed glass, and a
+  respawn at the nearest street corner at least 60 m away with the stars gone. No "WASTED" or
+  "BUSTED", no copied UI: the stars and the health bar are the weapon wheel's frosted glass. Your
+  own rockets do not hurt you (`PlayerHealth.self_blast_damage`, off) - rocket jumps are how the
+  game moves. The helicopter is another branch's; it reads `stars` off the "wanted" node and can
+  call `report_sighting()`.
 - **2026-09-24 A GTA-style weapon wheel in frosted glass (owner: "hold whatever button and it
   slows everything n lets u switch but i want the UI to look like apple glass style").** Hold
   Tab (or the pad's left bumper; a quick tap of it still steps back one gun): time eases to a

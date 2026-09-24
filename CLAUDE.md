@@ -180,7 +180,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `Pedestrian.physics_range` (whose hit zone also leaves the broadphase). Queries - bullets,
   blasts, bumpers - test layers, not masks, so none of this changes what can be hit.
 - Node groups: `player` (the player body), `physics_prop` (every rigid prop PhysicsBudget manages),
-  `debris` (short-lived props that get freed after a timeout).
+  `debris` (short-lived props that get freed after a timeout), `wanted` (the one `Police` node),
+  `police` (officers on foot - NOT in `pedestrian`, so alarms, the crowd cap and trimming never
+  touch them; `LockOn` looks in it), `police_car` (cruisers, also in `vehicle`).
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
@@ -248,7 +250,8 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1 and
   shows up in screenshots. `CityStreamer.vignette_strength` (0 turns it off). Every lens does
   this; keep it subtle enough that you cannot point at it.
-- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair and the round minimap.
+- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair, the round minimap and
+  the wanted stars and health bar (`WantedHud`, see the Police note).
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
   what the game looks like while playing), FULL (plus the stats line, the frame-time breakdown
   and the control hints) and HIDDEN. `-- --nohud` starts HIDDEN (the screenshot harness),
@@ -332,6 +335,47 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `CityStreamer.take_crowd_room()`, one city-wide count a frame (redone whenever the cap
   moves or a chunk leaves): a chunk that counted its own room when its crowd began kept that
   number for frames, so it went on filling a cap `Quality` had lowered in the meantime.
+- Police (owner, 2026-09-24: "a police and star system", GTA-style but original - no "WASTED",
+  no "BUSTED", no copied UI). `Police` (`scripts/npc/police.gd`) is a node in the city scene, in
+  group `wanted`: `stars` is a plain int 0-5 that other systems read (the police helicopter is
+  another branch's and reads it there), `stars_changed` fires on a change, `report_sighting()`
+  tells it a non-police unit saw the player, and `report_crime(kind, world_pos, severity)` takes a
+  TRUE world position. Crimes come from hooks where they already happen, never from the
+  weapons: `Pedestrian.alarm()` (every gun and blast calls it; it now counts who heard it and
+  reports gunfire, or an explosion when forced; its `crime` argument "" reports nothing - police
+  fire uses that), `Pedestrian.knock()` (`Police.person_down`: an officer is `cop_down`, which
+  always counts) and `Vehicle.drop_out_of_traffic()` (`Police.car_hit`). A crime counts only
+  with a witness (pedestrians within `witness_radius`, police within `cop_hear_radius` or in
+  sight) and adds heat; `star_heat` turns heat into stars, which never fall with it.
+  `Police.innocent` is set around every knock the police cause themselves (their rounds, a
+  cruiser's bumper) so it is not the player's crime. Units look for the player every
+  `sight_interval` (a world-layer ray each, `max_sight_rays` a look); unseen for `lose_seconds`
+  the stars flash (`flashing`) and drop one per `flash_seconds`, and the units go to `last_seen`,
+  the centre of a search area that grows while the trail is cold. Response caps
+  `cruisers_per_star` / `officers_per_star`, roadblocks from `roadblock_stars`, tactical vans
+  from `heavy_stars`; units past `recall_distance` that nobody has seen are recalled; cruisers
+  are pooled. `PoliceCar` (`scripts/npc/police_car.gd`, extends Vehicle): DISPATCH drives the
+  lanes kinematically (its `traffic` dict carries `"police": true`, so it has no VehicleWheel3D),
+  PURSUE is real physics within `engage_range` of a player the police can see (the same handover
+  traffic uses, `go_physical()`), then STOPPED -> PARKED and the crew gets out
+  (`Police.deploy_crew`). Pooling strips the wheels BEFORE it re-freezes the body (a frozen
+  VehicleBody3D with wheels is NaN). Livery is `car_paint.gdshader` `stripe_mode` 5 (white doors
+  and roof over black), the light bar one vertex-coloured mesh on `shaders/police_lights.gdshader`
+  plus an OmniLight3D at night (desktop), the siren the Sfx `siren` loop. `PoliceOfficer`
+  (`scripts/npc/police_officer.gd`, extends Pedestrian, so it is shot, knocked, gibbed and
+  ragdolled like anyone; takes `hits_to_down` rounds): an `Avatar` body (so `Avatar.hold_gun`'s
+  IK holds its `PoliceGun`), a navy recolour through the character shader
+  (`uniform_material()`) and a peaked cap; COVER at the ends of its cruiser, ENGAGE, SEARCH the
+  area, REBOARD when recalled; its rounds go through `WeaponFX.tracer/flash/impact`. Player
+  health is `PlayerHealth` (`scripts/player/player_health.gd`, `Player.health`,
+  `Player.take_damage()`): 250 hp, regen after `regen_delay`, `self_blast_damage` off (rocket
+  jumps stay free), and at zero a real-clock slow-motion collapse, the "OUT COLD" card
+  (`shaders/downed.gdshader`) and a respawn at the nearest street corner `respawn_clearance` away,
+  stars cleared. HUD: `WantedHud` (`scripts/ui/wanted_hud.gd`, `shaders/glass_hud.gdshader`,
+  the weapon wheel's glass) draws the stars under the weapon list and the health bar over the
+  minimap; the minimap draws the units as flashing red/blue blips and the search area. The
+  smoke test runs with `Police.enabled` false except in `_test_police`. Stills: `STARS=n
+  POLICE=standoff|pursuit` on `tools/glshot/still_shot.gd`.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
