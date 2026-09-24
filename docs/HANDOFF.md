@@ -50,7 +50,7 @@ scripts/player/          player.gd (movement, boost, jumps, vehicles, fall recov
 scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket, explosion, shotgun, weapon_fx, weapon_manager (models: assets/models/weapon_*.glb from tools/make_weapons.py)
 scripts/world/           city_streamer, city_chunk, city_plan, macro_map, hill_roads, landmarks, building, prop_factory (primitives + model_* merged Poly Haven models), street_props, trash_can, physics_prop, day_night, ferris_wheel
 scripts/vehicles/        vehicle.gd (cars), aircraft.gd (jets)
-scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd
+scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd, police*.gd, street_route.gd (the police's street routes)
 scripts/util/            physics_budget.gd, world_state.gd, sfx.gd (autoloads)
 scripts/ui/              debug_hud, minimap, minimap_frame, minimap_border, crosshair
 shaders/                 building, grass, terrain, sky
@@ -1003,7 +1003,9 @@ next session needs to know (the rules are the Police note in CLAUDE.md):
   player a star. And the first officers fired 54 rounds without one reaching the player, because
   every one went into the cruiser they were crouched behind (`_line_of_fire()` and the sideways
   step are the fix; `PoliceOfficer.rounds_fired` / `rounds_hit` are there to measure it again).
-- **Known gaps.** Cruisers under physics steer straight at their target with no path finding, so
+- **Known gaps.** (Fixed the same day, section 9l: cruisers now route along the streets and pull
+  up at the kerb nearest the player; the next sentence is how it was.) Cruisers under physics
+  steered straight at their target with no path finding, so
   a player on a roof or deep inside a block gets a cruiser that noses up to the nearest wall,
   backs off three times and lets its crew out there. There is no ground response off the street
   grid (hills, airport, port): the stars still decay normally, and the helicopter is what covers
@@ -1095,6 +1097,96 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   a Multimesh` errors and one `get_meta ... 'shadow_twin'` from `multimesh_batch.gd` (the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
+
+## 9l. Street life, 2026-09-24 (owner: "GTA-level street life")
+
+Signals that work, traffic that queues at them, people who cross on the walking figure, and
+police who drive the streets. Built on an agent worktree; the rules are the Street life bullet in
+CLAUDE.md. What a next session needs to know:
+
+- **Nothing per signal ticks.** One clock (`TrafficSignals.clock`, advanced by `TrafficManager`,
+  pushed as the `signal_clock` shader global) plus a seeded offset per junction. The lens shader
+  lights a head from its MultiMesh custom data (offset, axis) and the lamp id baked in UV2; the
+  cars ask `TrafficSignals.light()`, the crowd `walk()`. Change the cycle in `TrafficSignals`
+  only: `PropFactory.signal_lens_material()` pushes it to the shader and the smoke test checks
+  the copy. To stage a light for a test or a still, `TrafficSignals.force()` moves the shared
+  clock (so every junction moves with it - fine for one junction at a time).
+- **The hardware** is `tools/make_signals.py` (Blender 4.2 headless: `blender -b
+  --factory-startup --python tools/make_signals.py`, then `godot --headless --path . --import`,
+  commit the `.glb` and its `.import`). Every piece is bevelled with face-area weighted normals.
+  Triangles: pole 1,376, arm 404, vehicle head 2,132, bracket 128, pedestrian head 980, button
+  328, cabinet 740 (guards in `PropFactory.TRI_BUDGET`). The dimensions the placing code uses are
+  `PropFactory.SIGNAL_*`; `tests/street_life_checks.gd` checks them against the loaded bounds.
+- **Layout** (`CityChunk._add_signal_corner()`): the far-right pole of each approach carries
+  its mast arm, scaled along its length to reach the innermost lane (6.6 m on a 14 m street,
+  11.4 m on a 24 m avenue), one head per lane plus a side-mount head at 4.6 m, two pedestrian
+  heads at 2.7 m facing back across the two crosswalks ending at that corner, and two buttons.
+  One controller cabinet per junction. Each pole is one breakable prop. Draw distances: heads
+  420 m (a lit lens is what reads a junction from blocks away), pedestrian heads and the cabinet
+  160 m, buttons 70 m.
+- **Measured** (`tools/geo_count.gd` `AB=Batch_sig_*,BatchShadow_sig_*`, opengl3, 800x600, the
+  spawn camera, one frozen frame with and without): not taken yet - the shared render lock was
+  queued for hours. Take it before the next geometry change here.
+- **Traffic**: `TrafficManager._drive_streets()` - IDM car following per lane group, the stop
+  line / stop sign / busy crosswalk / player's car as stationary cars ahead, a hard no-overlap
+  clamp, stand-still once closed up (the IDM alone creeps forever), turns slowed and skipped when
+  the target lane is occupied, pull-over for a siren. Tunables at the top of `traffic.gd`, group
+  "Street driving": `accel` 2.4, `brake_comfort` 3.6, `brake_max` 9, `min_gap` 2.2, `time_gap`
+  1.1, `stop_line_back` 3.7, `turn_speed` 6.5, `stop_sign_wait` 1.0, `amber_margin` 1.25,
+  `siren_yield_distance` 40, `siren_shift` 1.2, `player_brake` 6. Signal cycle in
+  `TrafficSignals`: `GREEN` 16, `AMBER` 3.5, `ALL_RED` 1.5, `WALK_TIME` 7 (42 s a cycle).
+- **Pedestrians**: `cross_chance` 0.3, `cross_pace` 1.2, `kerb_wait` 0.7, `kerb_spread` 1.1,
+  `stop_sign_patience` 0.8-2.6 s. They now walk round their ring by its corners
+  (`_ring_route()`); straight lines between two sides of a block went through the buildings.
+  **A real bug fixed on the way:** the walk steered by `global_position` (scene space) toward
+  targets in the chunk's space (true world), so after the first origin shift - flying 1 km out -
+  the whole crowd walked off toward points a kilometre away. It reads `position` now; `_scare()`
+  converts the threat into the same space.
+- **Police**: `StreetRoute` (A* over the intersection grid, `kerb_stop()`, `polyline()`), used
+  by both of the cruiser's driving modes. Tunables on `PoliceCar`, group "Routing":
+  `route_interval` 0.5 s, `route_moved` 10 m, `ram_range` 35 m, `corner_speed` 9,
+  `u_turn_speed` 4, `route_brake` 7, `look_ahead` 6-16 m, `kerb_approach` 26 m. A dispatched
+  cruiser drives the lanes until it is on the last straight to the kerb point and within
+  `engage_range` of it, then goes onto real physics for the approach (as it always did near a
+  player it can see) and follows the route polyline to a stop. Probed headless: dispatched 132 m
+  out to a player mid-block, 0 of 532 samples off a carriageway, parked 1.4 m from the kerb point;
+  to a player at a junction centre from 168 m, parked in 12 s; a physics cruiser spawned 127 m
+  out got there by road in 17 s, 0 of 1,060 samples off.
+- **Checks** (`tests/street_life_checks.gd`, 16 of them, about 35 s of game time): the model and
+  its placing numbers, the shader's copy of the cycle, heads on every signalised full-detail
+  junction, the cycle's logic (never both green, an all-red, walking only across a red), live
+  traffic never overlapping, a queue of three plus a fast fourth at a red (stops at the line,
+  nobody over it, no overlap) and going on green, a car on green waiting for somebody on its
+  crosswalk, a walker waiting through the steady hand, stepping out on the walking figure and
+  joining the next block, and the cruiser to a mid-block player by road. The old "traffic car
+  moved in 1 s" check now takes the farthest any car moved: the nearest car can simply be
+  waiting at a red.
+- **Stills**: `STREET=queue|crossing` on `tools/glshot/still_shot.gd` (opengl3 only for this
+  work): `street_queue_red.png` (`FOV=50 STREET=queue --spawn=-0.8,50,-4,-3 --hour=11.5`, the
+  player on the centre line behind the queue), `street_crosswalk.png` (`STREET=crossing
+  --spawn=34,9.5,84,2 --hour=16.5`), `street_signals_night.png` (the queue camera at 21:30), all
+  in the session scratchpad.
+- **Bugs found on the way, all fixed:** a new street car was placed from `to_local()` under the
+  already-shifted `TrafficManager` after an origin re-centre, so it appeared a whole shift away
+  (cars now get their local transform before `add_child()`, which also avoids the kinematic
+  velocity trap; loop, freeway and police spawns too); an officer could think once about a
+  cruiser `Police.clear()` had already pooled (`is_inside_tree` errors); the smoke test's panic
+  check picked the walker standing where the body it had just shot was flying, and the ragdoll
+  knocked them down before their speed was read (it now skips anybody within 10 m of a fresh
+  ragdoll). The smoke test's seed-rebuild check resets `WorldState.world_offset` under the live,
+  still-shifted city, so the street checks run before it; anything positional after that point
+  (the air traffic checks) is in a frame that disagrees with the nodes. The street checks put the
+  player back where they found him, or the air checks' rocket leaves from a mid-block pavement
+  and hits a building.
+- **Not done / not verified**: nothing of it has been seen in Forward+ (HDR lamps, glow and the
+  lens specular are tuned on opengl3 stills). Turning cars do not cross oncoming traffic with
+  any care (a left turn is instant at the junction centre, as before), and cross traffic does not
+  yield to a cruiser in the box. Stop-sign junctions stop everyone and then let them go without
+  taking turns. Walkers still spawn and live on the ring of the chunk that built them; crossed
+  to another block they vanish with their original chunk. Lamps throw no light on the street at
+  night (the lenses glow; there is no OmniLight per head, deliberately). A physics cruiser that
+  meets a traffic car head on is blocked by it (kinematic cars are immovable to physics) and
+  backs off and tries again; traffic only pulls over for a siren on the lanes behind it.
 
 ## 10. Suggested next steps, in order of impact
 

@@ -148,7 +148,9 @@ What only the owner can supply, and why each one multiplies everything below:
     ground textures, boulders, shrubs, dry scrub, grass tufts), clearer sky (less haze and fog).
     Meshy is out for good (owner: the tinted results looked wrong); Poly Haven only.
   - [ ] Push 3: traffic signals, stop signs, palms, beach and pier props. Poly Haven has no
-    signal or stop sign, so those stay primitives until a CC0 source turns up.
+    signal or stop sign, so those stay primitives until a CC0 source turns up. (Signals done
+    2026-09-24, modelled in Blender by `tools/make_signals.py` and working; stop signs are
+    still a cylinder on a pole.)
   - [x] Push 3 (build 56): building facades: eleven Poly Haven wall sets picked per building,
     window reveals and inset shading, grime near the ground and streaks under windows.
   - [ ] Push 4: rooftop props, storefront awnings and signs as real assets.
@@ -254,6 +256,33 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-24 Street life: working signals, queues, people crossing, police that drive the
+  streets (owner: "GTA-level street life").** Four things, one idea: nothing per signal ticks.
+  Every junction shares one clock with a seeded offset (`TrafficSignals`), so the lens shader,
+  the cars and the crowd all work the same light out from the same numbers and can never
+  disagree. (1) The signals are a modelled kit from a Blender script (`tools/make_signals.py`):
+  galvanised mast-arm poles on bolted bases, arms that reach over every lane of their approach,
+  three-lamp heads with tunnel visors and yellow-bordered backplates, side-mount heads, original
+  hand / walking-figure pedestrian heads with countdowns, push buttons, a controller cabinet -
+  laid out the US way (each corner serves the approach it is the far right of). The lamps are
+  LED arrays in HDR from the shader; a junction is a handful of MultiMesh draws. (2) Street
+  traffic used to drive through itself: cars had a speed and no idea of each other. They now
+  follow the car in front (the Intelligent Driver Model) and treat the stop line at a red, a
+  stop sign, a crosswalk with somebody on it and the player's car as one more car ahead,
+  stopped, with a hard clamp so no nose ever passes what is in front of it. Amber is run only
+  when stopping would be too hard; turns slow down; cars pull over for a siren. (3) A share of
+  the crowd crosses: they walk round their block to the corner (they used to cut straight
+  through the buildings), wait at the kerb for the walking figure, cross on it and carry on
+  round the next block. Cars yield to anyone on the crosswalk; panic still wins. (4) Police
+  cruisers route along the street grid (A* over the intersections) to the kerb nearest the
+  player and pull up there; under physics they steer along the route's lanes and only aim
+  straight at a car they are ramming at close range with a clear line. Before, a player on a
+  roof got a cruiser nosing into the wall below him. Two bugs found on the way: pedestrians
+  steered by their scene position but walked in their chunk's space, so every origin shift sent
+  the whole crowd walking off toward targets a kilometre away; and a lowered traffic cap with
+  spawns still queued overshot and shed every car, the ones a test had just placed included
+  (`TrafficManager.staged`).
 
 - **2026-09-24 A living sky (owner: "helicopters, police choppers, news choppers, private jets
   flying thru the sky, commercial jets taking off and landing at LAX").** `AirTraffic` flies
