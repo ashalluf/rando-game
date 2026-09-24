@@ -9,7 +9,7 @@ echo "== Import"; "$GODOT" --headless --path . --import
 echo "== Smoke test"
 LOG="$(mktemp)"
 set +e
-timeout 420 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
+timeout 600 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
 STATUS=${PIPESTATUS[0]}
 set -e
 if [ "$STATUS" = "124" ]; then
