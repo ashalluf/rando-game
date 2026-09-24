@@ -26,8 +26,9 @@ extends SceneTree
 ## POLICE=standoff (default) is cruisers stopped across the street with their crews out and
 ## shooting, POLICE=pursuit is cruisers bearing down the street at the player. POLICE_FRAMES
 ## (default 24; 6 for a pursuit) lets them move before the shot, and a standoff ends with every
-## officer firing once, so the tracers and muzzle flashes are in the frame. Leave out --nohud
-## to see the stars and the health bar.
+## officer firing once, so the tracers and muzzle flashes are in the frame. HUD=1 (with --nohud,
+## which skips the loading screen) puts the HUD back for the shot: the stars, the health bar and
+## the police on the minimap.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -113,6 +114,13 @@ func _initialize() -> void:
 			await process_frame
 			elapsed += get_root().get_process_delta_time()
 			_pose(player, anchor, hold, boost, fov)
+	# HUD=1 with --nohud: skip the loading screen (which --nohud does) but put the HUD back up for
+	# the shot, in its CLEAN mode - without --nohud the loading screen fills the first hundred frames.
+	if OS.get_environment("HUD") == "1" and current_scene:
+		var hud_node := current_scene.get_node_or_null("DebugHud")
+		if hud_node:
+			hud_node.set("mode", 0)
+			hud_node.call("_apply_mode")
 	# STARS=n: the police, staged in front of the camera and given a moment to move.
 	var stars_env := OS.get_environment("STARS")
 	if stars_env != "" and player:
