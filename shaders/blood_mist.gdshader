@@ -12,7 +12,7 @@ global uniform float night_factor;
 uniform sampler2D puff_tex : source_color, filter_linear_mipmap, repeat_disable;
 // Fine blood droplets in the air scatter more light than blood lying on the ground: a lighter,
 // redder colour than the splats', still dark enough not to read as paint.
-uniform vec3 blood : source_color = vec3(0.56, 0.05, 0.04);
+uniform vec3 blood : source_color = vec3(0.46, 0.04, 0.03);
 // Brightness at full night, against the day's 1.0.
 uniform float night_level = 0.14;
 

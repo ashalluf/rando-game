@@ -1317,7 +1317,7 @@ static func _drop_layer(parent: Node, at: Vector3, count: int, life: float, spee
 static func _mist_layer(parent: Node, at: Vector3, count: int, size: float, life: float,
 		aim: Basis, spread: float, alpha: float) -> CPUParticles3D:
 	var p := _puff_layer(parent, at, count, size, life, 0.4, 1.8, -1.2,
-		_ramp([Color(1.0, 1.0, 1.0, 0.0), Color(1.0, 1.0, 1.0, 0.6 * alpha), Color(0.75, 0.75, 0.75, 0.28 * alpha),
+		_ramp([Color(1.0, 1.0, 1.0, 0.0), Color(1.0, 1.0, 1.0, 0.5 * alpha), Color(0.75, 0.75, 0.75, 0.24 * alpha),
 			Color(0.6, 0.6, 0.6, 0.0)]), false, spread, 2.4, aim, 0.0, 0.3, 1.0, false, null,
 		_blood_mist_material())
 	p.name = "BloodMist"
