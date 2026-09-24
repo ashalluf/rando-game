@@ -32,6 +32,9 @@ global uniform vec3 sun_direction;
 global uniform vec4 sky_tint;
 // Whether this renderer needs the instance colour decoded from sRGB. PropFactory sets it from
 // has_reflections(): true on Forward+ and Mobile, false on Compatibility (web, opengl3 shots).
+// (It was declared for months and never set or read - the far city was drawn 1.4-4.3x brighter
+// than the same buildings up close on the Mac, and changed value as each block crossed the LOD
+// line. Set and applied since the distance pass, 2026-09-24.)
 // Godot sRGB-decodes a `source_color` uniform but NOT a MultiMesh instance colour - the repo's
 // own two-renderer probe (header of shaders/foliage_tex.gdshader) found COLOR arriving identical
 // in both renderers, which is what proves it skips the decode. So on Forward+ this shader is
@@ -174,16 +177,24 @@ void fragment() {
 	// close-up detail blend further down, and a second one silently killed the WHOLE shader
 	// compile ("Redefinition of 'fade'"), which falls back to blank white on every far
 	// building. The headless gate passed 210/210 while that was true.
-	if (chunk_fade < 0.999) {
+	float dissolve = chunk_fade * tint.a;
+	if (dissolve < 0.999) {
 		// Interleaved-gradient noise: cheap, stable per pixel, and it breaks into a fine grain
 		// rather than the banding a plain ordered matrix gives on a big flat facade.
 		float d = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
-		if (chunk_fade < d) {
+		if (dissolve < d) {
 			discard;
 		}
 	}
 	vec3 n = normalize(local_normal);
-	vec3 c = tint.rgb;
+	// The palette entry as Building picked it (the typology test below is tuned to these numbers),
+	// and the same colour in the space this renderer lights in - see instance_color_is_srgb. The
+	// far city's ground plates already carry linear colours (CityChunk.far_tint), like the LOD
+	// chunks' merged ground, and are left alone.
+	vec3 c_raw = tint.rgb;
+	vec3 c = (instance_color_is_srgb && custom.a < 1.5)
+		? mix(c_raw / 12.92, pow((c_raw + vec3(0.055)) / 1.055, vec3(2.4)), step(vec3(0.04045), c_raw))
+		: c_raw;
 	float bseed = custom.b;
 	vec3 albedo = c;
 	float rough = 0.85;
@@ -289,10 +300,10 @@ void fragment() {
 	} else {
 		// ------------------------------------------------------------- Facade ------------
 		float style = custom.r * 4.0;
-		float maxc = max(c.r, max(c.g, c.b));
-		float minc = min(c.r, min(c.g, c.b));
-		float lum = dot(c, vec3(0.299, 0.587, 0.114));
-		float warm = c.r - c.b;
+		float maxc = max(c_raw.r, max(c_raw.g, c_raw.b));
+		float minc = min(c_raw.r, min(c_raw.g, c_raw.b));
+		float lum = dot(c_raw, vec3(0.299, 0.587, 0.114));
+		float warm = c_raw.r - c_raw.b;
 		float sat = maxc - minc;
 
 		// Typology. 0 curtain wall, 1 precast panel, 2 stone / stucco punched, 3 brick.

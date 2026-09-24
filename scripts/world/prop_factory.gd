@@ -1503,6 +1503,10 @@ static func building_lod_material() -> ShaderMaterial:
 		return _cache["building_lod_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/building_lod.gdshader")
+	# Forward+ decodes the near buildings' source_color facade but never a MultiMesh instance
+	# colour, so the far boxes have to decode theirs or they are drawn up to four times brighter
+	# than the same building up close (see the shader). Compatibility decodes neither.
+	mat.set_shader_parameter("instance_color_is_srgb", has_reflections())
 	_cache["building_lod_mat"] = mat
 	return mat
 
