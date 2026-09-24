@@ -1,9 +1,60 @@
-# Handoff: Rando Game (written 2026-09-19; section 9a added 2026-09-21 with the LA pass and the grade)
+# Handoff: Rando Game (written 2026-09-19; section 0 is the newest state, 2026-09-24)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 0. Start here (wrap-up of 2026-09-24, the newest state)
+
+Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
+day's work, newest first, is in 9o (civic set), 9n (skyline), 9m (sound), 9l (how the day ran),
+9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the index.
+
+**Main at wrap-up** is green on CI; the release page has the newest build. Merged on
+2026-09-24 (about 100 commits): window recesses; the Blender-built hero with real finger bones
+in a black tracksuit, chain and watch; the weapon wheel (slow motion, glass UI); Blender-built
+AK, rocket launcher and pump shotgun (the gravity gun is gone), a rocket that flies as its
+warhead with a smoke trail; heavier gunshot blood (sprays, splats, pools, stained clothes);
+police and wanted stars (cruisers, officers, roadblocks, a health bar, "OUT COLD");
+air traffic (airliners landing and taking off at the airport, private jets, news and police
+helicopters with a searchlight); the facade kit (real mouldings, fire escapes, awnings); a
+layered city soundscape; a lens pass (grain, fringing); darker nights with the night GI turned
+down; the downtown skyline (19 towers at real heights and silhouettes, one table,
+`LandmarkDowntown.TOWERS`); and the civic set (arena district, entertainment plaza, hotel,
+convention centre, city hall and park, concert hall, museum, station; one table,
+`CivicSites.SITES`). Both tables carry approximate real positions for the 1:1 re-lay.
+
+**The owner's direction** (2026-09-24, in their words): "AAA studio quality ... like a real 2026
+released game", RDR2-level; "picking certain 1:1 replica areas and then filling them in between
+with whatever" - downtown LA as a whole at 1:1, the Redondo Beach Esplanade curving up into
+Palos Verdes at 1:1 street and view ("geographically sound, like south of LAX"; the owner's
+three Street View references are described in the Esplanade section), MacArthur Park and
+encampments on downtown streets, and "certain areas of the map aren't loading at a distance -
+do whatever GTA does". Always send screenshots. No commercial-readiness audit for now.
+
+**In flight at wrap-up** (agent branches; what happened to each is recorded here):
+
+- AAA pass on the hero (branch `worktree-agent-a21610dd7a24d00b8`): skin, hair, collar, hands.
+- Street life (`worktree-agent-a24169908f67381c9`): traffic signals, crosswalks, cars queueing
+  at red, police routing by road.
+- Redondo Esplanade into Palos Verdes at 1:1 (`worktree-agent-ac988801941b3dc26`): a replica-area
+  framework (`scripts/world/replica_areas.gd`), the esplanade, clay-tile houses, PV hills.
+- MacArthur Park and street encampments (`worktree-agent-ac9773ce9fd50b578`).
+- Distance LOD tiers and streaming (`worktree-agent-a7ca467ec2cbe1961`): the far city filled in
+  to the horizon (before/after panoramas were sent to the owner).
+- 1:1 downtown research (`worktree-agent-ab2c6ac22ca7e5a19`): geocoded anchors and the fitted grid.
+
+STATUS: being merged at wrap-up; this list is updated with the outcome of each.
+
+**How the box was run** (9l has the detail): agents in git worktrees under
+`.claude/worktrees/`, one branch each, merged by the main session after its own headless check;
+Forward+ renders serialised on `<scratchpad>/render.lock` and started only with 8 GB free, GL
+jobs on `gl2.lock`, full smoke tests two at a time through `<scratchpad>/gate_slot.sh`. A fresh
+container has none of that: the scratchpad scripts are gone, recreate what you need (they are
+three lines each, described in 9l). The Godot binary is a fresh download (section 5).
+
+**Next, in order:** see section 10 (rewritten at this wrap-up).
 
 ## 1. What this is, in one paragraph
 
@@ -1396,8 +1447,41 @@ session needs to know:
 
 ## 10. Suggested next steps, in order of impact
 
-Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
-recorded as blocked above.
+Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
+4-8 of it are still open.
+
+1. **Land what was in flight** (section 0): any agent branch that did not reach main is
+   described there with where it stopped.
+2. **The 1:1 downtown re-lay** (owner: "the whole downtown landscape ... a 1:1 replica"). The
+   real positions live in `LandmarkDowntown.TOWERS` (`real`, `real_plan`, `real_grid()`) and
+   `CivicSites.SITES` (`real_en()`, `real_grid()`), both in metres east/north of
+   `LandmarkDowntown.REAL_ORIGIN`; if the research branch landed, the geocoded points and the
+   fitted grid are in its data module (section 0). The job: rotate the real grid onto the game
+   axes, lay real block spacing and street order into `CityPlan.PINNED_ROADS`, grow
+   `MacroMap.downtown_core` and the DOWNTOWN district to the real core (about 2.5 x 3 km), move
+   both tables' anchors to their real blocks, put MacArthur Park at Wilshire and Alvarado west
+   of the 110, and pin a freeway route to the 110's alignment if it can be done inside the
+   freeway rules. Nominatim geocodes landmarks and street addresses from this box (1 request a
+   second, cache the results, credit OpenStreetMap in ASSETS.md); Overpass is not reachable.
+3. **Judge today's work on Forward+.** Almost everything merged on 2026-09-24 was judged on the
+   opengl3 preview, because the shared render lock was saturated: the night GI change (was
+   night paving orange from SDFGI bouncing emission?), the skyline's crowns at dusk, the civic
+   set at night, the lens pass, the concert hall's steel. `tools/glshot/forward_shot.sh` or the
+   `still_shot.gd` Forward+ invocation; about eight minutes and 7 GB a shot.
+4. **The hills.** In every preview shot the mountains read as flat brown with horizontal bands
+   (the station and skyline stills in 9o / 9n show it). Judge it on Forward+ before touching it -
+   the preview has no sun shadows and flattens relief - then look at `terrain.gdshader` (near),
+   `macro_ground.gdshader` / `MacroMap.bake()` (far) and whether the bands are the carved hill
+   roads and mansion pads. Real LA hills are dusty grey-green chaparral in the folds and pale
+   gold grass on the open slopes.
+5. **The hero up close.** The jacket collar clips into the neck when aiming (the AK side shot
+   in the scratchpad showed black shards over the throat) and the hair cards read blocky at
+   face distance. The AAA pass branch (section 0) was on exactly this.
+6. **Build hitches in the civic set**: each landmark builds in one step (museum 68 ms, arena and
+   city hall 35 ms warm); split them into chunk build steps like everything else.
+7. **Interiors** (item 4 of the old list) remain the biggest change to how the game plays.
+
+The 2026-09-21 list:
 
 1. **The 90s cinematic colour grade.** The owner asked for it on 2026-09-21 and deferred it the
    same minute ("we can explore that later tho"), so it is queued rather than started. The spec
