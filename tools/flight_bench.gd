@@ -159,7 +159,8 @@ func _cpu_ms() -> int:
 	var f := FileAccess.open("/proc/self/stat", FileAccess.READ)
 	if f == null:
 		return 0
-	var fields := f.get_as_text().split(")")[-1].strip_edges().split(" ")
+	# get_line(), not get_as_text(): a /proc file reports a length of 0, so the latter reads nothing.
+	var fields := f.get_line().split(")")[-1].strip_edges().split(" ")
 	# After the ")" closing the name: state is field 3, utime 14 and stime 15 (1-based).
 	return int((int(fields[11]) + int(fields[12])) * 10)
 

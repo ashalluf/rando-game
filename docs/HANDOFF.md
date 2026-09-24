@@ -1097,6 +1097,63 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
+## 9n. The downtown skyline, 2026-09-24 (owner: "a 1:1 match of DTLA skyline ... more buildings")
+
+Built on an agent branch; the rules are the Downtown skyline bullet in CLAUDE.md. The decision
+that shapes everything: **massing yes, names no.** Which towers stand where, their heights in
+real metres, their silhouettes, crowns and facade character follow the real downtown; every name
+(code ids `dt_*`, minimap labels) is invented and no crown carries lettering. What a next
+session needs to know:
+
+- **Where they are and why there.** The real grid is laid one real block to one game block on
+  the default seed's downtown streets: the avenues at x 507.8 / 589.2 / 660.7 / 734.9 / 824.2
+  and the streets from z 228 to 907. So the sail stands west of the first avenue; the drums,
+  the black twins, the pyramid, the spire and the curved tower down the next column; the dark
+  glass, bronze and white slabs and two South Park towers in the next; the round crown and the
+  red pair up the hill; the rounded pair, the blue crown and the unfinished cluster to the east.
+  City hall (`ziggurat_hall`, 810,160) is the civic branch's and sits north-east of the core, as
+  the real one does; nothing of this branch is north of z 244 or west of x 416, so the civic
+  centre, the station and the arena district (which another branch is placing west and south
+  west of the core) have their ground.
+- **The grid is pinned** (`CityPlan.PINNED_ROADS`, `_next_road()`): same roads on every seed,
+  so fixed towers never land in a street. The pinned values are the default seed's, bit for bit
+  (printed with `var_to_str`), so the default city is unchanged; a check walks another seed.
+  If a future change moves the downtown grid, re-derive both the pins and the anchors in
+  `Landmarks.all()` together, and the smoke test will say which tower left its block.
+- **One mesh per tower.** `TowerMesh` extrudes outlines into tiers; the facade is the ordinary
+  building shader in its `uv_facade` mode (UV.x metres round the outline, whole bays per face,
+  UV.y 100+ blank wall), so curves get windows, rooms and lit offices. Crowns are a separate
+  lit surface (`shaders/tower_crown.gdshader`), obstruction lights reuse the aircraft light
+  billboards. A whole tower is 60-1,900 triangles (the balconied South Park towers 3-7k); all
+  nineteen are about 25k and build in ~150 ms, once, at load - the far copy and the detailed one
+  share the mesh. Each carries an occluder, so the towers now also hide the city behind them.
+- **One table** (`LandmarkDowntown.TOWERS`) holds every tower's anchor, radius, height, plan
+  (checked against the built geometry by the smoke test), crown, and an APPROXIMATE real position
+  in metres east/north of `REAL_ORIGIN` (34.0500 N, 118.2550 W) with an approximate real
+  footprint, for the owner's next step: the whole downtown re-laid 1:1 (real blocks, real
+  streets, true distances), other real areas as 1:1 replica areas with seeded filler between.
+  `real_grid()` rotates a real position into the real street grid's frame (avenues about 45
+  degrees east of north). The real positions are from memory of public maps, good to perhaps
+  +/-50 m: check them before building on them. `Landmarks.all()` appends the table's rows
+  (`LandmarkDowntown.entries()`), so a re-lay changes the table, `CityPlan.PINNED_ROADS` and
+  `MacroMap.downtown_core`, and nothing else.
+- **The infill** (`MacroMap.downtown_core`, DISTRICTS DOWNTOWN `core_*`): the blocks between the
+  towers get 40-205 m towers (median ~75, a quarter over 130 m), no slabs, fewer pocket gardens,
+  more stone. The old downtown boost lerped the top to 368 m, so generic towers could out-top
+  the landmarks.
+- **Measured, and what was not.** Geometry, headless: the nineteen towers are 25k triangles in
+  all and 3-5 surfaces plus one light billboard each (so roughly 60-100 draws for the whole
+  skyline, casting included), built in ~150 ms at load. CPU, headless, the smoke test's
+  downtown teleport (`update_streaming(true)` at 742,423): 10.7 s against 10.3 s on the parent
+  commit, on a box loaded by other agents (+4 %, inside the noise). **tools/geo_count.gd, measured after the merge** (opengl3, 800x600, the avenue `-- --spawn=589.2,860,0,12,2`): 6.20 M triangles / 8,078 draws / 20,588 objects on the parent commit 044e076 against 5.20 M / 5,412 / 17,976 with the skyline - cheaper, because the towers' occluders hide the blocks behind them. The south-west aerial (`-50,1250,-43,5,80`) did not finish inside geo_count's 600 s on this box either side; measure it on a quieter one.
+- **Not done / not verified**: nothing here has been seen in Forward+ (the renders were all
+  opengl3; the box was full of other agents' lavapipe renders). Crown glow and the lit offices
+  on curved towers want a Forward+ dusk still. The towers have no interiors or lobbies, no
+  street-level retail beyond the storefront band, and the plazas (fountains, sculpture) are a
+  few boxes. Bunker Hill is not a hill: the relief is flat under landmarks. Collision is one
+  convex hull per tier, so the notches of the round tower's wings are filled in. The generic
+  core towers are the city's usual boxes; the next step up is a glass-tower facade kit.
+
 ## 9l. How the 2026-09-24 session ran (read if you inherit a half-merged day)
 
 - The owner asks for many big features at once and wants speed, so the work went out to
@@ -1105,7 +1162,19 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   each branch, runs `tests/headless_check.sh`, pushes to main and sends screenshots.
 - One 16 GB box is shared, and a Forward+ (lavapipe) city is 6-7 GB, so every render goes
   through `flock <scratchpad>/render.lock <command>`. Headless checks run without the lock.
-  An OOM-killed render prints `Killed` in its log and leaves no png.
+  An OOM-killed render prints `Killed` in its log and leaves no png. flock is not a queue:
+  whoever asks next may win, and on a busy afternoon jobs waited over an hour. A GL
+  (opengl3) job is ~4 GB, so the main session runs its own GL-only jobs (geo_count, preview
+  stills) under a second lock, `<scratchpad>/gl2.lock`, alongside whatever holds the main
+  one; never put a Forward+ job on it (two lavapipe cities do not fit in 16 GB).
+- Full smoke tests are ~2.5 GB each, and three of them plus a render OOM-killed a gate (exit
+  137, `Killed`, `dmesg` shows `Memory cgroup out of memory`). Every full check now runs
+  through `<scratchpad>/gate_slot.sh <command>`, two slots on `gate1.lock` / `gate2.lock`.
+  An exit 137 is memory, never the code: rerun it inside a slot.
+- A smoke check that fails once under heavy load (five or six Godot processes on the box) is
+  rerun in isolation before it is believed: `air_probe.gd`-style scripts that load the city
+  and run one checks file (`load("res://tests/air_traffic_checks.gd").new().run(t, city)`
+  with a stand-in `t` that has `_check()`) take three minutes instead of fifteen.
 - Merges conflict mostly in the docs (every agent appends a decisions-log entry and a handoff
   section): keep both sides and renumber the sections.
 - CI's box is slower than this one and drops to Quality LOWEST (thinner crowd, fewer cars), so
@@ -1114,9 +1183,15 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   for that first.
 - Merged that day: window recesses, tracksuit then the Blender hero, weapon wheel, Blender guns
   and the shotgun, rocket warhead and smoke trail, far-glass emission, police and wanted stars,
-  facade kit, blood, air traffic. In flight when this was written: a studio pass on the hero,
-  the DTLA skyline massing and density, the arena district and civic centre, traffic signals
-  and crosswalks with police routing, and a city ambience soundscape. The unused Meshy hero is
+  facade kit, blood, air traffic, the city ambience, the lens pass (grain, fringe), night GI,
+  the downtown skyline (9n), and a helicopter fix (an orbit holds its whole ring above the
+  tallest thing on it: CI 241 caught the news chopper dipping between towers). In flight when
+  this was written: a studio pass on the hero,
+  the arena district and civic centre, traffic signals and crosswalks with police routing,
+  the Redondo Esplanade into Palos Verdes at 1:1, MacArthur Park with street encampments, and
+  GTA-style distance LOD tiers. Next after the civic merge: a 1:1 re-lay of the downtown grid
+  (the skyline's `LandmarkDowntown.TOWERS` and the civic `CivicSites` tables both carry
+  approximate real positions for it). The unused Meshy hero is
   on branch `worktree-agent-a5cb589744a1759b9` (not chosen).
 
 ## 9m. The city's sound, 2026-09-24 (agent branch)
@@ -1165,6 +1240,209 @@ session needs to know:
   no interiors). The crowd walla is one Hawaiian shopping street; a second take would help. The
   near "traffic" bed is still the old IgnasD highway recording.
 
+## 9o. Downtown's civic set, 2026-09-24 (agent branch)
+
+Owner: "downtown must match real downtown LA, we need staple center we need all day". The
+decision: real FORMS in their real places relative to the core, every NAME invented (the naming
+rule in CLAUDE.md). The rules are the "Downtown civic set" bullet in CLAUDE.md; what a next
+session needs to know:
+
+- **Where things are (default seed 1337; each one fills the block its anchor falls in):**
+  arena (352, 475) block 3,4; entertainment plaza (352, 378) block 3,3, north of the arena across
+  the street; hotel tower (456, 378) block 4,3; convention centre (352, 596) block 3,5; city hall
+  (876, 171) block 9,1; park (876, 59) block 9,0; concert hall (876, -50) block 9,-1; museum
+  (782, -50) block 8,-1; station (1091, -50) block 11,-1. Downtown's own grid is narrow there
+  (the blocks at x 520-723 are 48-57 m wide), which is why the arena district sits in the
+  100 m wide column at x 302-402 and not closer in.
+- **One table: `CivicSites.SITES`** (`scripts/world/civic_sites.gd`) holds each landmark's
+  anchor, relief radius, footprint (its own frame), yaw (quarter turns, counter-clockwise from
+  above), a note on which way it faces, and the REAL building's approximate lat/long, size and
+  facing. `Landmarks.all()` takes its entries from it; `CivicSites.build()` puts a pivot at the
+  site centre turned by the yaw, with the landmark's own StaticBody3D under it, and the builders
+  (`LandmarkArenaDistrict.build(id, site, y0, ...)`, `LandmarkCivicCenter.build(...)`) work in
+  a frame centred on the site; their crowd rects and the park's grass go back to the world
+  through `CivicSites.to_world()` / `rect_to_world()`. `CivicSites.yaw_override` turns one
+  without editing the table (the smoke test turns the station a quarter). For the 1:1 re-layout
+  of downtown the real positions share the skyline table's frame (section 9n): `CivicSites
+  .real_en(id)` is metres east / NORTH of `LandmarkDowntown.REAL_ORIGIN`, exactly like a tower's
+  `real`, `real_metres(id)` the same point with z south, and `real_grid(id)` the point turned
+  onto the real street grid the way `LandmarkDowntown.real_grid()` turns a tower. Approximately:
+
+  | id | real east, north (m) | real size (w, h, d) m | game anchor now |
+  |---|---|---|---|
+  | arena | (-1135, -774) | 200 x 45 x 170 | (352, 475) |
+  | live_plaza | (-1061, -597) | 280 x 30 x 180 | (352, 378) |
+  | live_hotel | (-987, -531) | 70 x 203 x 35 | (456, 378) |
+  | convention_center | (-1245, -1106) | 330 x 25 x 170 | (352, 596) |
+  | ziggurat_hall | (1135, 409) | 140 x 138 x 110 | (876, 171) |
+  | civic_park | (830, 663) | 500 x 0 x 110 | (876, 59) |
+  | concert_hall | (480, 586) | 110 x 40 x 90 | (876, -50) |
+  | lattice_museum | (443, 487) | 70 x 36 x 60 | (782, -50) |
+  | pueblo_station | (1706, 686) | 260 x 38 x 70 | (1091, -50) |
+
+  None of the sites overlaps a skyline tower: the towers stand east of x 416 and south of z 244,
+  and the only civic block inside that corner is the hotel's (x 416-496, z 345-410), which is
+  the block west of the five-drums hotel. Two things the re-layout has to decide that the
+  tables cannot: the real grid is turned off north (`LandmarkDowntown.GRID_BEARING_DEG`) while
+  the game's is axis-aligned, and the real
+  footprints are bigger than one of today's blocks, so a 1:1 site needs a block that big (or a
+  superblock with its through-roads closed, which traffic and the minimap do not support yet).
+  Only quarter-turn yaws are supported, because a site is an axis-aligned block.
+- **Block sites are the mechanism to reuse.** A landmark that says `"site": "block"` gets its
+  block to itself (`Landmarks.claims()` in `CityPlan.block()` / `lots()`), and its builder reads
+  `Landmarks.site_rect()` and fits inside it. The pavement ring, its lamps and trees, the parked
+  cars in the kerb lanes and the block's own walkers all stay, which is right: these buildings
+  have streets round them. `Landmarks.crowds()` adds plaza crowds as ordinary pedestrians.
+- **Scale is compressed on purpose.** One block each: the arena's bowl is ~80 m across (the
+  real one is ~200), city hall's tower tops out at ~140 m (real 138), the hotel slab is 196 m
+  (real ~200). Merging blocks into superblocks would mean closing road segments, which traffic,
+  the police, the minimap and the far tier all assume never happens - not attempted.
+- **The toolkit**: `LandmarkGeo` (geometry), `LandmarkMats` (materials), `LedScreen` (screens),
+  and six shaders sharing `shaders/landmark_common.gdshaderinc`. Nothing in them is specific to
+  these buildings; a new hand-modelled landmark should use them rather than `Landmarks._box()`.
+- **The concert hall is a Blender model** (`tools/make_concert_hall.py`, seconds to run, no bake)
+  with a `Collision` object the game turns into a trimesh; re-import after regenerating it.
+- **Checks** (`tests/civic_checks.gd`, about a second): every one listed and claiming its block,
+  no freeway over a site, far versions, geometry inside its own block, collision, rays onto the
+  roofs you can land on, crowds on open ground, the table itself, and a quarter turn by yaw.
+- **Frame cost.** What each one adds when detailed (own triangles / draw surfaces / prop
+  batches): arena 6.0k / 12 / 20, plaza 0.6k / 12 / 17, hotel 1.2k / 5 / 3, convention centre
+  2.0k / 5 / 5, city hall 6.7k / 9 / 5, park 0.7k / 6 / 16, concert hall 36.2k (the model) /
+  5 / 4, museum 12.9k / 4 / 3, station 2.6k / 13 / 15; a far version is 0.1-1.2k triangles in
+  1-10 surfaces and at most one batch. Whole frames at the landmarks (opengl3 stills, the
+  STATS line of `tools/glshot/landmark_shot.gd`): plaza by day 3.2 M triangles / 1,853 draws,
+  city hall and park 4.4 M / 2,825, concert hall 3.2 M / 1,862, station 2.9 M / 1,892, arena
+  at dusk 3.7 M / 2,321, plaza at night 3.1 M / 1,570. The same-camera before/after (`tools/horizon_probe.gd`, 800x600, spawn
+  352,405 facing the arena) has only its before side, 5.33 M / 4,054 draws on the parent
+  commit: the after run was OOM-killed and then timed out on the shared box. Take it first.
+- **Not done / not verified.** Only judged on the opengl3 path (Compatibility): no Forward+
+  render yet, so SSR on the steel and glass, SDFGI under the arena's canopy and the night
+  floodlights under AgX are unseen. A detailed landmark is built in ONE chunk step. Warm
+  (caches full) on this shared, loaded box: museum 68 ms (its veil is 12.9k triangles), arena
+  35, city hall 35, station 15, convention centre 11, the rest under 8; a far version is 1-10 ms.
+  Cold, in a bare tree with nothing loaded, the first detailed build was 0.1-0.8 s (the arena's
+  palms, trees, textures and LED atlas; a running city has most of that loaded already, but it
+  was not measured there). That is a hitch as the block streams in; splitting a builder into
+  steps (like `CityChunk`'s own) is the fix. The concert hall's model is paid on the loading
+  screen by its far copy. Far versions
+  are the same builders at low detail with no LOD chain between. Yaw is quarter turns only.
+  Names on the LED slides and signs are invented, but nobody has read every slide for an
+  accidental real brand - worth a look.
+
+## 9p. The distance, 2026-09-24 (agent branch)
+
+Owner: "it's glaringly obvious that certain areas of the map aren't loading properly at a
+distance. I'd like to see this fixed, do whatever GTA does and other grade-A games." The rules
+are the Distance bullet in CLAUDE.md. What a next session needs to know:
+
+**What was wrong, found by counting before fixing.** A headless census (every city block of the
+plan within 6 km of eight vantage points - downtown roof and street, midtown street, the hills
+over the basin, the beach, the airport, the valley, 900 m up - asked which tier draws it) plus
+opengl3 panoramas (`tools/glshot/lod_pano.gd`) from the same places:
+
+| Failure | Measured |
+| --- | --- |
+| The camera's far plane was 2000 m | 65-80 % of the city blocks within 6 km clipped from every vantage (969 of 1487 from downtown); the back range, the valley city and the far coast simply not drawn |
+| The old far tier drawn over the chunks | 17-142 blocks drawn twice per vantage; from 900 m up every block the chunks had also wore a coarse far box (`TIERS=1` shows blue over red everywhere) |
+| Gap ring | 0-10 holes per vantage in the 500-1000 m ring: the old tier decided visibility per 36-block tile by the tile CENTRE's distance, so a tile half inside the LOD ring drew nothing past it |
+| Far massing not the city's | malls, big boxes, commercial pads, pocket-garden yards and the freeway corridor drawn as lot-sized buildings the chunks never build |
+| Horizon plane burying the far city | `urban_lift` stood the built-up plane 42 m up past 2.6 km, over every suburb |
+| Far buildings brighter than near ones on the Mac | `instance_color_is_srgb` declared in building_lod.gdshader and never set or read: far boxes 1.4-4.3x the near buildings' value |
+| The LOD ring bald | LOD chunks plant nothing: no street or park trees 200-700 m out, no scrub on LOD hills |
+| The LOD ring could not keep up | LOD chunk build 40 ms (32 of it laying flat ground on the near 2.2 m grid); a 90 m/s flight ended with 3 of 200 LOD chunks standing |
+| The plane's own edge | once the far plane was fixed, the 14 km plane's rim showed from the hills as a pale slab across the sea |
+
+**What it is now** (commits on this branch, oldest first): the far plane is 12 km; far chunks'
+ground is on an 8 m grid (LOD build 40.3 -> 7.6 ms, worst step 17.6 -> 2.9 ms; startup headless
+58 -> 36 s, a teleport 18.7 -> 7.4 s); far boxes decode their colour on Forward+; the far city
+(`Skyline`) is a super-LOD of every block within 7 km, handed over per block with a dissolve and
+built from the LOD block build itself (capture mode), with plates, painted roads, freeway decks,
+port containers, street/park trees and hill planting; the queue is view-weighted; the plane's
+rim and the far city's last kilometre hand over to the sky's horizon colour together.
+
+**After, same census:** 0 holes, 0 blocks drawn twice, 0 past the far plane, from every vantage.
+The one exception is a teleport: the far city outside `far_city_immediate_radius` (2.5 km) is
+built progressively, ~1-2 s of play, nearest and most-in-view first; the loading screen builds
+all of it up front on desktop (`finish_far_city()`, ~2.7 s headless for 20,000 blocks, most of
+them sea and open hillside).
+
+**Cost, measured.** Geometry per frame is opengl3 + Xvfb (`lod_pano.gd` prints it per view,
+four views 90 degrees apart); the flight is headless (`tools/flight_bench.gd`, CPU side only).
+The box was shared with four other agents at a load of 7-11 on 4 cores the whole time, so the
+flight's wall-clock frame times are noise of +-20 % between two runs of the SAME build.
+
+| Vantage (4 views) | Triangles before | Triangles after | Draws before | Draws after |
+| --- | --- | --- | --- | --- |
+| Hills over the basin (300,-1150, 520 m) | 515k / 435k / 209k / 255k | 1.37M / 1.34M / 1.27M / 628k | 473 / 299 / 435 / 767 | 710 / 322 / 463 / 782 |
+| 900 m up over midtown | 471k / 374k / 236k / 252k | 927k / 511k / 387k / 656k | 538 / 638 / 248 / 102 | 577 / 659 / 283 / 128 |
+| Downtown roof (700,250, 260 m) | 756k / 514k / 669k / 565k | 1.80M / 908k / 930k / 986k | 938 / 859 / 768 / 335 | 979 / 884 / 806 / 355 |
+
+Triangles roughly double to triple from a height because the whole basin is now drawn (it was
+clipped at 2 km); draw calls are about flat (one MultiMesh per 36-block tile). The far canopy
+blob went from 48 to 24 triangles after these were taken, which takes a slice back.
+
+| Flight, 90 m/s at 70 m, wall clock | frames | p50 | p95 | p99 | max | over 100 ms |
+| --- | --- | --- | --- | --- | --- | --- |
+| Route a (midtown - downtown - port), base, 2 runs | 339 / 351 | 98.9 / 105.7 | 286 / 334 | 402 / 473 | 1054 / 827 | 166 / 183 |
+| Route a, this branch | 340 / 355 | 101.9 / 96.5 | 302 / 354 | 445 / 509 | 647 / 917 | 172 / 174 |
+| Route b (hills - coast), base | 589 / 606 | 39.1 / 37.1 | 159 / 164 | 376 / 246 | 704 / 533 | 104 / 98 |
+| Route b, this branch | 530 / 645 | 42.6 / 35.2 | 244 / 140 | 498 / 188 | 1279 / 612 | 125 / 73 |
+
+So: no measurable change either way inside that noise, while the new side also builds the far
+city during the flight (headless has no loading screen). Holes ahead of the flight (city
+blocks within 3 km in a 100-degree cone that no tier draws, sampled every 20 frames): route a
+112.8 mean / 218 worst -> 23.6 / 102 (the far city past 2.5 km still being built progressively,
+which the desktop loading screen does up front), route b 81.3 / 247 -> 0.7 / 12.
+The far city's own work: 13,288 blocks (16,776 with sea and hills) in 2.3 s total headless,
+per work step p50 0.05 ms, p99 1.4 ms, since the capture was split into build steps.
+A fixed-step A/B (`FIXED=1`, same frames both sides, process CPU time from /proc) was set up in
+`scratchpad/lod/flight_ab2.sh` but not run before the session ended - run it on a quiet box:
+`FIXED=1 [FARCITY=1] ROUTE=a|b godot --headless --path . --script tools/flight_bench.gd -- --nohud`.
+
+**Traps and rules** (also in CLAUDE.md):
+- Never give a far-city node a visibility range and never free a chunk except through
+  `CityStreamer._retire_chunk()`: both reopen the gap ring.
+- The capture build must stay exactly the LOD build. `CityChunk.capturing` intercepts
+  `_add_slab`, `_add_cylinder` and `_add_lod_shape` only; everything else in `_block_steps` runs
+  as written, so its rolls land in the same order. `tests/distance_checks.gd` compares the two
+  box for box - if it fails, something in the block build now depends on a node or on the level.
+- A far block's instances carry its visibility in their colour ALPHA. Anything that draws with
+  building_lod or far_canopy must keep alpha 1 unless it means to be dissolved (the LOD chunks'
+  own batches do).
+- The far city's plates carry LINEAR colours (`CityChunk.far_tint()`), like the LOD chunks' far
+  ground, and building_lod skips its sRGB decode for them (`INSTANCE_CUSTOM.a` >= 2).
+- The retire keeps a chunk drawn for `lod_fade_time` but `CityChunk.retire()` takes its cars,
+  people, trash cans and collision at once, which is when they went before. The first smoke run
+  without that crashed: a test picked a parked car from a retiring chunk and it vanished
+  half a second later.
+
+**Not done / not verified:**
+- Nothing here has been seen in Forward+: the box never had 9 GB free while this ran. The
+  renders are opengl3, and on opengl3 the horizon plane's hills are a dark brown next to the
+  LOD chunks' gold terrain (a tier seam you can see in every hills shot, before and after); it
+  was there before this work and may be Compatibility-only - look at a Forward+ hills still
+  first.
+- Far trees are the right rows at the right density, not the FULL chunk's own trees (those are
+  placed with rolls the capture does not make), so a tree can shift a few metres as its block
+  turns FULL, 200 m out, under the dissolve.
+- Hill roads are not in the far city; the plane paints none. (The airport's runways are: they
+  cut its plates into strips.) Inside the LOD ring the airport chunk's runway box (top 0.14)
+  still z-fights its apron (top 0.10) past ~700 m on the Compatibility renderer - streaks in the
+  opengl3 stills, there before this work, and not expected on Forward+'s reverse-Z depth.
+- The far city's towers are shaded boxes (the LOD shader), exactly as the LOD chunks draw them;
+  a real impostor tier for towers is the next step up (G7).
+- The web build builds the far city progressively from 900 m out (it has no loading screen); on
+  a slow machine the far half of the basin arrives over the first seconds.
+- Merged with main's downtown skyline and civic set at the end of the session and the headless
+  check run once on the merge; the far copies of the named towers are theirs (far landmarks),
+  not the far city's. Not rendered after the merge.
+- Stills (opengl3, 5120 x 720 panoramas, four views): `scratchpad/lod/lod_before_*.png` and
+  `lod_after_*.png` (downtown, hills, high air, airport, beach, freeway; `_tiers` = each tier a
+  flat colour: red LOD chunks, blue far city, pink landmarks). The after set predates the rim
+  fade, the airport plates and the harness far-city build; re-shoot with
+  `tools/glshot/lod_pano.gd` (usage in its header) to see those.
+
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
@@ -1179,12 +1457,10 @@ recorded as blocked above.
 2. **Judge everything on Forward+ from now on.** `tools/glshot/forward_shot.sh`. This is a
    working practice, not a task, and it is first among them because the alternative has already
    cost this project one entirely broken subsystem (see build 130).
-3. **The distance.** Beyond the streamed chunks the whole world is one plane wearing
-   `shaders/macro_ground.gdshader`, shaded from a 256 px bake - 55 metres per texel. In any shot
-   from the air, which is most of how the owner plays, it is dead flat grey-brown over a third of
-   the frame. Far buildings (`shaders/building_lod.gdshader`) are the same story: coloured boxes
-   with a window grid printed on them, no facade typology, no glazing specular, so a skyline has
-   no value contrast. Both are shader work on geometry that already exists.
+3. **The distance - next step up.** The tiers now cover everything (section 9p). What is left is
+   quality at range: real impostors for the far city's towers (they are shaded boxes, as the LOD
+   chunks draw them), hill roads painted on the horizon plane, and a Forward+ look at a hills
+   still to settle the plane-vs-LOD-terrain colour seam the opengl3 stills show.
 4. **Interiors.** Windows have traced fake rooms; doors and lobbies do not. A handful of enterable
    ground-floor interiors would be the biggest single step left in making the city feel real, and
    it is the one thing on this list that changes how the game plays rather than how it looks.

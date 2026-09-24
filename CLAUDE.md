@@ -283,10 +283,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
-- Vignette: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a full-rect
-  `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1 and
-  shows up in screenshots. `CityStreamer.vignette_strength` (0 turns it off). Every lens does
-  this; keep it subtle enough that you cannot point at it.
+- Vignette and lens: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a
+  full-rect `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1
+  and shows up in screenshots. It reads the 3D picture (`hint_screen_texture`) and writes it
+  back with the corner falloff (`CityStreamer.vignette_strength`), lateral colour fringing that
+  grows with the square of the radius (`lens_fringe`), and a luminance film grain re-rolled at
+  24 fps (`film_grain`). Every lens and film stock does these; keep each subtle enough that you
+  cannot point at it (0 turns any of them off).
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair, the round minimap and
   the wanted stars and health bar (`WantedHud`, see the Police note).
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
@@ -872,9 +875,93 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (the boardwalk batches them as `palm_<variant>`); their old hand-built stick-and-frond palms
   are kept only for the far version, where they read as a silhouette and nothing more. Up close
   they looked like spiders.
-- Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes
-  one, detailed (with a StaticBody3D for shapes) or far (no collision). Add a new one by adding an
-  entry and a `_build_<id>()` function. Everything original: no real names, logos or copies.
+- Landmarks: `Landmarks.all()` lists them (id, world anchor, radius; built once and cached, so
+  never modify what it returns); `Landmarks.build()` makes one, detailed (with a StaticBody3D for
+  shapes) or far (no collision). Add a new one by adding an entry and a `_build_<id>()` function.
+  Everything original: no real names, logos or copies - with ONE exception, by owner request
+  (2026-09-24): **downtown's skyline follows the real DTLA massing** (which towers, where they
+  stand relative to each other, relative heights at real metres, silhouettes, crowns, facade
+  character). **Names and logos stay original**: no real building, company or brand name in any
+  game text or on the minimap, and no lettering on any crown. Code ids are neutral (`dt_*`).
+- Downtown skyline (owner, 2026-09-24: "a 1:1 match of DTLA skyline ... It needs more
+  buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
+  landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add
+  theirs elsewhere; the civic centre and the arena district are not these). **Everything about
+  a tower's placement is ONE table, `LandmarkDowntown.TOWERS`**: anchor, radius, height (real
+  metres: the 335 m sail with a spire, the 310 m round tower with the lit glass crown, the 262 m
+  white slab, ...), plan (checked against the built geometry), crown, and an APPROXIMATE real
+  position in metres east/north of `REAL_ORIGIN` with a real footprint, for the planned 1:1
+  re-lay (`real_grid()` turns it into the real street grid's frame). `Landmarks.all()` appends
+  `LandmarkDowntown.entries()`, so a re-lay changes the table, the pinned grid and the core
+  rects. The current plan is the real grid laid one real block to one game block (about 2/3
+  scale) with footprints near real size. Each tower is built by
+  `TowerMesh` (`scripts/world/tower_mesh.gd`): outlines (rect, chamfered, notched, circle,
+  ellipse, rounded, bowed, `union()`) extruded into tiers with setbacks (`prism`, `sloped`), and
+  `loft` / `wedge` / `vault` / `spike` / `mast` / `fins` / `balcony` for crowns and details, all
+  into ONE ArrayMesh per tower: a facade surface per material on `shaders/building.gdshader` in
+  its **`uv_facade` mode** (UV.x = metres round the outline, each face a whole number of bays so
+  no window straddles a corner; UV.y = face index, 100+ = blank wall - so round and curved towers
+  get the same traced recesses, rooms, lit offices and emitted glass mirror as the boxes), a
+  vertex-coloured metal surface, and a lit-crown surface on `shaders/tower_crown.gdshader`
+  (glass by day, `night_factor` glow in the vertex colour at night). Aviation lights are one
+  billboard mesh on `shaders/aircraft_lights.gdshader`; each tower carries its own
+  `OccluderInstance3D` (boxes inset like `CityChunk.OCCLUDER_INSET`) and, detailed, convex-hull
+  collision per tier plus a small detail mesh. Meshes are cached per id, so the far copy
+  `CityStreamer` keeps (the skyline from the freeway, hills and beach) and the detailed one a
+  chunk builds are the same geometry. **Rules:** outlines have positive signed area in (x, z)
+  (NW, NE, SE, SW), `TowerMesh.clean()` fixes any other; facade surfaces never carry vertex
+  colour (SurfaceTool fixes a surface's format at its first vertex); every tower must stay
+  inside its block less the pavement (`LandmarkDowntown.footprint()`, checked by the smoke test
+  on this seed and another). The blocks are fixed because **`CityPlan.PINNED_ROADS`** pins the
+  downtown street grid for every seed - the default seed's own roads to the last bit, so that
+  city did not move; on other seeds the seeded blocks either side stretch or split to meet them
+  (`CityPlan._next_road()`). Between the towers, `MacroMap.downtown_core` (two rects) +
+  `core_margin` make the district DOWNTOWN and the skyline boost 1, and DISTRICTS DOWNTOWN's
+  `core_height` / `core_curve` / `core_shapes` / `core_finishes` / `core_courtyard` turn the
+  infill into a field of 40-205 m towers, a quarter of them over 130 m (never over the named
+  ones; no SLAB, which caps itself at 40 m and would disagree with the far tier's box; more
+  stone than glass). The minimap only labels a pin with `LABEL_ROOM` pixels of
+  room. Stills: the skyline from the south-west `--spawn=-50,1250,-43,5,80`, from the hills
+  `--spawn=350,-950,-170,-9,380`, on the avenue `--spawn=589.2,860,0,16,2`, with `HIDE=Visual`
+  on `tools/glshot/city_shot.gd` (hides the player, who otherwise stands in the middle of it).
+- Downtown civic set (owner, 2026-09-24: "downtown must match real downtown LA, we need staple
+  center"): the same exception as the skyline - the real buildings' FORMS in their real places
+  relative to the core, every NAME invented (no real arena, sponsor, team, hotel, museum,
+  hall or station name anywhere, the LED slides' brands included). South-west of the core, `LandmarkArenaDistrict` (`scripts/world/landmark_arena_district.gd`):
+  `arena` (RANDO ARENA: oval bowl on a stepped podium, glass ring leaning out, banded metal drum,
+  domed roof you can land on, corner marquee with LED screens), `live_plaza` (STARLIGHT PLAZA with
+  the STARLIGHT THEATER, screens, neon, crowd), `live_hotel` (HOTEL ALTAIR, 200 m slab with a lit
+  crown), `convention_center` (white hall, two tilted green-glass pavilions). North-east,
+  `LandmarkCivicCenter` (`landmark_civic_center.gd`): `ziggurat_hall` (CITY HALL - moved off the
+  road at x 824 and out from under the 110 deck, floodlit), `civic_park` (CIVIC PARK: fountain
+  terrace, lawn, pink furniture), `concert_hall` (SYMPHONY HALL, steel sails from
+  `tools/make_concert_hall.py`), `lattice_museum` (THE LATTICE), `pueblo_station` (PUEBLO
+  STATION). **One table places them all: `CivicSites.SITES`** (`scripts/world/civic_sites.gd`):
+  anchor, footprint (own frame), yaw (quarter turns) and the real building's lat/long, size and
+  facing; `CivicSites.real_en()` is the real position in the SKYLINE table's frame (metres east
+  / north of `LandmarkDowntown.REAL_ORIGIN`, like a tower's `real`; `real_metres()` has z south,
+  `real_grid()` turns it onto the real street grid) - the owner's long-term goal is downtown at
+  1:1, and a re-layout should change only the two tables and the pinned grid. Builders work in a frame centred on their site; `CivicSites.build()` puts a turned
+  pivot with its own static body in the world, and anything that needs world coordinates (crowd
+  rects, the chunk's grass) goes through `CivicSites.to_world()` / `rect_to_world()`, with the
+  chunk in `CivicSites.ctx`. They are **block sites**: `"site": "block"` in `Landmarks.all()` makes
+  `Landmarks.claims()` true for the block the anchor falls in, so `CityPlan.lots()` returns
+  nothing there and `CityPlan.block()` overrides its park/plaza/mall roll (AFTER the roll, so no
+  seed moves); every builder lays itself out inside `Landmarks.site_rect()` (the block inside its
+  pavement ring), so nothing ever stands on a road whatever the seed. Anchors are the default
+  seed's block centres; radius only flattens relief and stays inside the block. Crowds:
+  `Landmarks.crowds()` returns rects the chunk fills with ordinary pedestrians (as build steps).
+  Geometry is `LandmarkGeo` (`scripts/world/landmark_geo.gd`): one mesh per building, a surface
+  per material; UVs in METRES (u along a wall, v world height) which the landmark shaders read;
+  every triangle is flipped to face the normal it is given, so winding cannot go wrong; curved
+  things you stand on get one concave shape, boxes get box shapes. Shaders:
+  `landmark_facade` (texture as detail, joints, bands, punched windows, FLOODLIGHT after dark),
+  `curtain_glass` (UV mullions, emitted sky + fake skyline, traced interior lit at night),
+  `brushed_steel`, `clay_roof`, `fountain_water` / `fountain_jet`, `led_screen` (slides from
+  `LedScreen.atlas()`, a 5 x 7 dot-matrix atlas of INVENTED brands in `LedScreen.SLIDES`), all
+  sharing `landmark_common.gdshaderinc`. Far versions are the same builders at low detail (a few
+  draws each). Checks: `tests/civic_checks.gd`. Frame them with `tools/glshot/landmark_shot.gd`
+  (free camera: `CAM`, `LOOK`, `FOV`).
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

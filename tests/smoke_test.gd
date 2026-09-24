@@ -715,21 +715,7 @@ func _test_city() -> void:
 	if macro:
 		_check(macro.zone_at(Vector2(-350.0, 800.0)) == MacroMap.Zone.AIRPORT and macro.height_at(Vector2(-350.0, 800.0)) == 0.0, "airport zone is flat")
 		_check(macro.zone_at(Vector2(800.0, 1150.0)) == MacroMap.Zone.PORT and macro.zone_at(Vector2(800.0, 1420.0)) == MacroMap.Zone.OCEAN, "port sits on a harbor")
-		var crown: Vector2 = _landmark_anchor("crown_tower")
-		player.global_position = _world_state().to_local(Vector3(crown.x + 40.0, 2.0, crown.y + 40.0))
-		player.velocity = Vector3.ZERO
-		city.update_streaming(true)
-		var crown_chunk: Node3D = city.chunks.get(plan.block_index_at(crown))
-		_check(crown_chunk != null and crown_chunk.built_landmarks.has("crown_tower"), "downtown chunk built the crown tower")
-		var overlaps := 0
-		if crown_chunk:
-			for child in crown_chunk.get_children():
-				if child is Building:
-					var b := child as Building
-					var foot := Rect2(Vector2(b.position.x, b.position.z) - b.footprint * 0.5, b.footprint)
-					if foot.intersects(Rect2(crown - Vector2(34.0, 34.0), Vector2(68.0, 68.0))):
-						overlaps += 1
-		_check(overlaps == 0, "no seeded building overlaps the crown tower footprint")
+		await _test_downtown(city, plan, player)
 		var runway := Vector2(-300.0, 760.0)
 		player.global_position = _world_state().to_local(Vector3(runway.x, 2.0, runway.y))
 		city.update_streaming(true)
@@ -1462,6 +1448,10 @@ func _test_city() -> void:
 		"lamp light pool is square in world space (%.1f x %.1f m, wants %.1f)" % [span_a.length(), span_b.length(), pool_size])
 	_check(absf(normal.length() - 1.0) < 0.01 and absf(normal.y) > 0.99, "lamp light pool lies flat with a unit normal")
 
+	# The downtown civic landmarks (arena district, civic centre): their own file, like the air
+	# traffic's (tests/civic_checks.gd).
+	await load("res://tests/civic_checks.gd").new().run(self, city)
+
 	# Air traffic: its checks live in their own file, loaded here so it compiles after the
 	# autoloads (tests/air_traffic_checks.gd).
 	await load("res://tests/air_traffic_checks.gd").new().run(self, city)
@@ -1480,6 +1470,103 @@ func _test_city() -> void:
 ## The wanted level and the police (owner, 2026-09-24: "a police and star system"). Every class
 ## involved uses an autoload, so none of them is named as a type here: the Police node and its
 ## units are untyped and reached through the scene.
+## The downtown skyline (LandmarkDowntown): every named tower exists at its real height, stands
+## inside its block clear of the road and the pavement - on this seed and on another, because the
+## downtown grid is pinned - has a far copy for the skyline, and builds in detail with collision
+## where it stands; the infill between the towers is dense and never out-tops them.
+func _test_downtown(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
+	var towers: Array = []
+	for lm in Landmarks.all():
+		if LandmarkDowntown.is_tower(lm.id):
+			towers.append(lm)
+	_check(towers.size() == LandmarkDowntown.TOWERS.size(), "every downtown tower is in the landmark list (%d of %d)" % [towers.size(), LandmarkDowntown.TOWERS.size()])
+	var wrong := ""
+	var off_block := ""
+	var no_far := ""
+	var tallest := ""
+	var tallest_h := 0.0
+	var other := CityPlan.new()
+	other.seed = 4242
+	other.block_size_range = plan.block_size_range
+	other.street_width = plan.street_width
+	other.avenue_width = plan.avenue_width
+	other.sidewalk_width = plan.sidewalk_width
+	for lm in towers:
+		var t: Dictionary = LandmarkDowntown.tower(lm.id)
+		var want: float = LandmarkDowntown.TOWERS[lm.id].height
+		if absf(float(t.top) - want) > 1.5:
+			wrong += " %s %.1f/%.0f" % [lm.id, t.top, want]
+		# The table's plan is what was built: the one table has to stay the truth.
+		var built: Vector2 = (t.extent as Rect2).size
+		var tabled: Vector2 = LandmarkDowntown.TOWERS[lm.id].plan
+		if absf(built.x - tabled.x) > 1.0 or absf(built.y - tabled.y) > 1.0:
+			wrong += " %s plan %s/%s" % [lm.id, built, tabled]
+		if float(t.top) > tallest_h:
+			tallest_h = t.top
+			tallest = lm.id
+		var fp: Rect2 = LandmarkDowntown.footprint(lm)
+		# Inside the block's rect less its pavement, on this seed and on another one.
+		for p: CityPlan in [plan, other]:
+			var key := p.block_index_at(fp.get_center())
+			var rect: Rect2 = p.block(key.x, key.y).rect
+			if not rect.grow(-p.sidewalk_width + 0.05).encloses(fp):
+				off_block += " %s(seed %d)" % [lm.id, p.seed]
+		if not city.has_node("FarLandmark_" + str(lm.id)):
+			no_far += " " + str(lm.id)
+	_check(wrong == "", "downtown towers stand at their real heights, on the plans the table gives%s" % wrong)
+	_check(off_block == "", "every downtown tower stays inside its block, off the road and pavement%s" % off_block)
+	_check(no_far == "", "every downtown tower has a far copy for the skyline%s" % no_far)
+	_check(tallest == "dt_sail_tower" and absf(float(LandmarkDowntown.tower("dt_crown_cylinder").top) - 310.0) < 1.5,
+		"the sail tower tops the skyline (%s, %.0f m), the round crown second" % [tallest, tallest_h])
+	# The pinned grid: another seed has the same downtown roads, with the same widths.
+	var pins_ok := true
+	for axis in 2:
+		for pin: Array in CityPlan.PINNED_ROADS[axis]:
+			var i := other._index_at(axis, float(pin[0]) + 0.01)
+			if absf(other.road_pos(axis, i) - float(pin[0])) > 0.01 or absf(other.road_width(axis, i) - float(pin[1])) > 0.01:
+				pins_ok = false
+	_check(pins_ok, "the downtown street grid is the same on another seed")
+	# The infill between the towers: plenty of it tall, none of it taller than the named towers.
+	var macro: MacroMap = plan.macro
+	var tall := 0
+	var top_infill := 0.0
+	for ix in range(4, 10):
+		for iz in range(2, 8):
+			var b := plan.block(ix, iz)
+			for lot in plan.lots(ix, iz):
+				var h := plan.lot_height(lot.seed, b.district, macro.skyline_boost(lot.center))
+				top_infill = maxf(top_infill, h)
+				if h >= 100.0:
+					tall += 1
+	_check(tall >= 10 and top_infill < 212.0, "the core infill is dense and stays under the towers (%d lots over 100 m, tallest %.0f m)" % [tall, top_infill])
+	# Built in detail where it stands: collision on the roof, the far copy hidden meanwhile, no
+	# seeded building inside any tower.
+	var crown: Vector2 = _landmark_anchor("dt_crown_cylinder")
+	player.global_position = _world_state().to_local(Vector3(crown.x + 45.0, 2.0, crown.y + 45.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	var crown_chunk: Node3D = city.chunks.get(plan.block_index_at(crown))
+	_check(crown_chunk != null and crown_chunk.built_landmarks.has("dt_crown_cylinder") and not city.get_node("FarLandmark_dt_crown_cylinder").visible,
+		"the downtown chunk built the round crown tower in detail")
+	await _ticks(3)
+	var space := player.get_world_3d().direct_space_state
+	var from: Vector3 = _world_state().to_local(Vector3(crown.x, 420.0, crown.y))
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + Vector3(0.0, -400.0, 0.0), 1))
+	var roof: float = _world_state().to_world(hit.position).y if hit.has("position") else -1.0
+	_check(roof > 295.0, "the round crown tower is solid to its roof (hit at %.0f m)" % roof)
+	var overlaps := ""
+	for k in city.chunks:
+		for child in (city.chunks[k] as Node).get_children():
+			if not (child is Building):
+				continue
+			var b := child as Building
+			var foot := Rect2(Vector2(b.position.x, b.position.z) - b.footprint * 0.5, b.footprint)
+			for lm in towers:
+				if foot.intersects(LandmarkDowntown.footprint(lm).grow(-0.5)):
+					overlaps += " %s" % lm.id
+	_check(overlaps == "", "no seeded building stands inside a downtown tower%s" % overlaps)
+
+
 func _test_police(city: Node3D, player: Player) -> void:
 	var police: Node = city.get_node_or_null("Police")
 	_check(police != null and police.is_in_group("wanted") and get_tree().get_first_node_in_group("wanted") == police, "the city has a Police node in the 'wanted' group")

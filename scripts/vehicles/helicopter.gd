@@ -66,6 +66,9 @@ var orbit_radius: float = 150.0
 var orbit_height: float = 140.0
 ## +1 anticlockwise seen from above, -1 clockwise.
 var orbit_dir: float = 1.0
+## The tallest thing anywhere on the current ring, and the ring it was measured for.
+var _ring_top: float = -INF
+var _ring_key: Vector4 = Vector4.INF
 var leave_dir: Vector3 = Vector3.FORWARD
 ## What the searchlight or the camera ball points at, TRUE world (INF = forward and down).
 var look_target: Vector3 = Vector3.INF
@@ -377,7 +380,9 @@ func _fly(dt: float) -> void:
 			want = tangent * round_speed + rn * radial
 			if want.length() > cruise_speed:
 				want = want.normalized() * cruise_speed
-			want_alt = orbit_centre.y + orbit_height
+			# The look-ahead floor only sees 4 s of the ring, so a tower on the far side is met
+			# climbing; hold the whole ring above the tallest thing on it.
+			want_alt = maxf(orbit_centre.y + orbit_height, _orbit_ring_top() + obstacle_clearance)
 		Mode.LEAVE:
 			want = Vector3(leave_dir.x, 0.0, leave_dir.z).normalized() * cruise_speed
 			want_alt = maxf(want_alt, world_pos.y + 30.0)
@@ -406,6 +411,21 @@ func _floor_height(flat_v: Vector3) -> float:
 	var ahead := here + Vector2(flat_v.x, flat_v.z) * 4.0
 	var top := maxf(traffic.obstacle_top(here), traffic.obstacle_top(ahead))
 	return maxf(top + obstacle_clearance, _ground_here() + min_height)
+
+
+func _orbit_ring_top() -> float:
+	if traffic == null:
+		return -INF
+	var key := Vector4(orbit_centre.x, orbit_centre.y, orbit_centre.z, orbit_radius)
+	if key != _ring_key:
+		_ring_key = key
+		_ring_top = -INF
+		for i in 24:
+			var a := TAU * float(i) / 24.0
+			for f in [0.8, 1.0, 1.2]:
+				var at := Vector2(orbit_centre.x + cos(a) * orbit_radius * f, orbit_centre.z + sin(a) * orbit_radius * f)
+				_ring_top = maxf(_ring_top, traffic.obstacle_top(at))
+	return _ring_top
 
 
 func _ground_here() -> float:

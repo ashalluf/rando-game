@@ -99,6 +99,10 @@ extends Node3D
 @export var macro_span: float = 16000.0
 ## Corner darkening over the whole frame (0 turns it off). See shaders/vignette.gdshader.
 @export var vignette_strength: float = 0.24
+## Film grain on the picture (0 off) and lateral colour fringing at the frame edge, as a
+## fraction of the screen width (0 off). Both in shaders/vignette.gdshader; keep them subtle.
+@export var film_grain: float = 0.028
+@export var lens_fringe: float = 0.0016
 ## Subdivisions of the ground follower (PlaneMesh.subdivide_*). The plane's world position is
 ## snapped to its vertex spacing so its vertices land on fixed world points; without that the
 ## lifted mountains swim as you walk. N subdivisions make N + 1 quads - see ground_step().
@@ -899,6 +903,8 @@ func _build_vignette() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/vignette.gdshader")
 	mat.set_shader_parameter("strength", vignette_strength)
+	mat.set_shader_parameter("grain", film_grain)
+	mat.set_shader_parameter("fringe", lens_fringe)
 	rect.material = mat
 	layer.add_child(rect)
 	add_child(layer)
