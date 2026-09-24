@@ -1224,7 +1224,30 @@ session needs to know:
   with a `Collision` object the game turns into a trimesh; re-import after regenerating it.
 - **Checks** (`tests/civic_checks.gd`, about a second): every one listed and claiming its block,
   no freeway over a site, far versions, geometry inside its own block, collision, rays onto the
-  roofs you can land on, crowds on open ground.
+  roofs you can land on, crowds on open ground, the table itself, and a quarter turn by yaw.
+- **Frame cost.** What each one adds when detailed (own triangles / draw surfaces / prop
+  batches): arena 6.0k / 12 / 20, plaza 0.6k / 12 / 17, hotel 1.2k / 5 / 3, convention centre
+  2.0k / 5 / 5, city hall 6.7k / 9 / 5, park 0.7k / 6 / 16, concert hall 36.2k (the model) /
+  5 / 4, museum 12.9k / 4 / 3, station 2.6k / 13 / 15; a far version is 0.1-1.2k triangles in
+  1-10 surfaces and at most one batch. Whole frames at the landmarks (opengl3 stills, the
+  STATS line of `tools/glshot/landmark_shot.gd`): plaza by day 3.2 M triangles / 1,853 draws,
+  city hall and park 4.4 M / 2,825, concert hall 3.2 M / 1,862, station 2.9 M / 1,892, arena
+  at dusk 3.7 M / 2,321, plaza at night 3.1 M / 1,570. The same-camera before/after (`tools/horizon_probe.gd`, 800x600, spawn
+  352,405 facing the arena) has only its before side, 5.33 M / 4,054 draws on the parent
+  commit: the after run was OOM-killed and then timed out on the shared box. Take it first.
+- **Not done / not verified.** Only judged on the opengl3 path (Compatibility): no Forward+
+  render yet, so SSR on the steel and glass, SDFGI under the arena's canopy and the night
+  floodlights under AgX are unseen. A detailed landmark is built in ONE chunk step. Warm
+  (caches full) on this shared, loaded box: museum 68 ms (its veil is 12.9k triangles), arena
+  35, city hall 35, station 15, convention centre 11, the rest under 8; a far version is 1-10 ms.
+  Cold, in a bare tree with nothing loaded, the first detailed build was 0.1-0.8 s (the arena's
+  palms, trees, textures and LED atlas; a running city has most of that loaded already, but it
+  was not measured there). That is a hitch as the block streams in; splitting a builder into
+  steps (like `CityChunk`'s own) is the fix. The concert hall's model is paid on the loading
+  screen by its far copy. Far versions
+  are the same builders at low detail with no LOD chain between. Yaw is quarter turns only.
+  Names on the LED slides and signs are invented, but nobody has read every slide for an
+  accidental real brand - worth a look.
 
 ## 10. Suggested next steps, in order of impact
 
