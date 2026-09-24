@@ -40,6 +40,9 @@ uniform vec3 rigid_color : source_color = vec3(0.96, 0.96, 0.94);
 
 varying vec3 tint;
 varying float shade;
+// Per-instance visibility (Skyline writes it into COLOR.a while a chunk takes a block over or
+// hands it back): dithered in the fragment, collapsed at zero.
+varying float fade;
 
 
 // The plane's own offset (lift minus sink) at one of its vertices, exactly as its shader works it.
@@ -87,19 +90,38 @@ void vertex() {
 	} else {
 		vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 		float h = length(MODEL_MATRIX[1].xyz);
-		float ground = plane_y + plane_height(origin.xz, cam);
-		// The unit box is centred on its origin, so its base is half its height below it.
-		shift = ground - (origin.y - 0.5 * h) - bury * h;
+		// INSTANCE_CUSTOM.r 1: a LOD chunk has drawn the real terrain under this clump, which is
+		// exactly where the CPU put it (MacroMap.height_at()), so it stays there. 0: the ground
+		// here is the far plane, and it is moved onto that.
+		float real = clamp(INSTANCE_CUSTOM.r, 0.0, 1.0);
+		shift = 0.0;
+		if (real < 0.999) {
+			float ground = plane_y + plane_height(origin.xz, cam);
+			// The unit box is centred on its origin, so its base is half its height below it.
+			shift = (ground - (origin.y - 0.5 * h) - bury * h) * (1.0 - real);
+		}
 		tint = COLOR.rgb;
 		// A canopy is darker low down and on its flanks than on top. Read before the move below,
 		// while VERTEX is still the unit box's own -0.5 .. 0.5.
 		shade = mix(0.72, 1.0, clamp(VERTEX.y + 0.5, 0.0, 1.0)) * mix(0.85, 1.0, max(NORMAL.y, 0.0));
 	}
-	VERTEX += inverse(mat3(MODEL_MATRIX)) * vec3(0.0, shift, 0.0);
+	fade = rigid ? 1.0 : COLOR.a;
+	if (fade < 0.004) {
+		// Collapsed: nothing rasterises, so a hidden block costs no fragments.
+		VERTEX = vec3(0.0);
+	} else {
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * vec3(0.0, shift, 0.0);
+	}
 }
 
 
 void fragment() {
+	if (fade < 0.999) {
+		float d = fract(52.9829189 * fract(dot(FRAGCOORD.xy, vec2(0.06711056, 0.00583715))));
+		if (fade < d) {
+			discard;
+		}
+	}
 	ALBEDO = tint * shade;
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;

@@ -69,17 +69,26 @@ extends Node3D
 ## same place. This is the last of the swap: build-before-free stopped the block going missing,
 ## and this stops it changing in a single frame. 0 turns it off and swaps instantly.
 @export var lod_fade_time: float = 0.45
-## Tiles of coarse far city kept around the player (see scripts/world/skyline.gd). 5 reaches
-## about three kilometres at six blocks a tile, which is what makes the skyline visible from
-## across the basin instead of the world ending seven blocks out. Each tile is ONE draw call.
-@export var skyline_tiles: int = 7
+## How strongly the build order favours what the camera is looking at: a chunk (or far-city
+## tile) straight behind the view waits as long as one (1 + this) times as far away in front of
+## it. The lead (`stream_lookahead`) already favours the direction of travel; this adds the
+## direction of view, which is not the same thing when flying with the camera turned. 0 = by
+## distance alone.
+@export var view_priority: float = 1.0
+## Metres around the player the far city (scripts/world/skyline.gd, the super-LOD tier) reaches.
+## The ground follower is 14 km across, so its edge is 7 km out: that is the whole visible world.
+@export var far_city_radius: float = 7000.0
+## Milliseconds a frame the far city may spend building, a block at a time, until the whole
+## radius is built (a few seconds of play; the loading screen finishes it up front on desktop).
+@export var far_city_budget_ms: float = 1.5
+## Metres of far city built at once whenever everything is wanted NOW (update_streaming(true):
+## the start, a teleport, the headless check); the rest follows within the budget above.
+@export var far_city_immediate_radius: float = 2500.0
+@export var web_far_city_immediate_radius: float = 900.0
 ## Show the loading screen at startup: compiles every shader and pre-builds a wide area, so the
 ## stalls that would otherwise land mid-play (first explosion, first rain, first unseen car
 ## paint) are paid once, up front. See scripts/ui/loading_screen.gd.
 @export var show_loading_screen: bool = true
-## Far tiles built per update. They are cheap next to a FULL chunk (no nodes, no collision, no
-## props) but a tile still scans 36 blocks, so it is budgeted like everything else.
-@export var max_skyline_builds_per_update: int = 3
 ## When the player is this far from the origin, the whole world shifts back to it.
 @export var recenter_distance: float = 1000.0
 ## The ground follower is the whole world outside the streamed chunks, so it has to reach past
@@ -168,6 +177,16 @@ var _timer: float = 0.0
 var _pending: Dictionary = {}
 ## Far (always loaded) versions of the landmarks, keyed by id.
 var _far_landmarks: Dictionary = {}
+## Chunks that have left the window but are still standing while the far city dissolves back in
+## over them (block -> [CityChunk, seconds left]). Freeing one at once left its block empty for
+## the length of the dissolve - a hole at the edge of the window, exactly where the eye is on
+## a turn.
+var _retiring: Dictionary = {}
+## Where the player is (true world XZ), where the led window is centred, and which way the camera
+## faces (unit XZ), as of the last update: what stream_priority_at() weighs against.
+var _eye: Vector2 = Vector2.ZERO
+var _lead: Vector2 = Vector2.ZERO
+var _view_dir: Vector2 = Vector2(0.0, -1.0)
 
 
 func _ready() -> void:
@@ -334,6 +353,57 @@ func _process(delta: float) -> void:
 		_timer = 0.0
 		update_streaming(false)
 	_advance_builds()
+	_advance_retiring(delta)
+	if _skyline:
+		_skyline.advance(_eye, int(far_city_budget_ms * 1000.0))
+
+
+## Frees the chunks that were kept standing while the far city came back in over them.
+func _advance_retiring(delta: float) -> void:
+	if _retiring.is_empty():
+		return
+	for k in _retiring.keys():
+		var entry: Array = _retiring[k]
+		entry[1] = float(entry[1]) - delta
+		if float(entry[1]) <= 0.0:
+			_free_retired(k)
+
+
+func _free_retired(k: Vector2i) -> void:
+	var entry: Array = _retiring.get(k, [])
+	_retiring.erase(k)
+	if entry.is_empty():
+		return
+	var chunk: CityChunk = entry[0]
+	if not is_instance_valid(chunk):
+		return
+	var current: CityChunk = chunks.get(k)
+	for id in chunk.built_landmarks:
+		if current == null or not current.built_landmarks.has(id):
+			_set_far_landmark_visible(id, true)
+	chunk.queue_free()
+	_crowd_frame = -1
+
+
+## Takes a chunk out of the window. The far city is told first, and dissolves back in over the
+## block; the chunk stays up until it has (lod_fade_time), then goes. Never an empty block.
+func _retire_chunk(k: Vector2i) -> void:
+	var chunk: CityChunk = chunks.get(k)
+	chunks.erase(k)
+	if chunk == null:
+		return
+	if _skyline:
+		_skyline.uncover(k)
+	if _retiring.has(k):
+		_free_retired(k)
+	_retiring[k] = [chunk, 0.0]
+	if lod_fade_time > 0.0 and _skyline and _skyline.block_alpha(k) >= 0.0:
+		_retiring[k][1] = lod_fade_time
+		# Only its look stays for the dissolve; its cars, people and collision go now.
+		chunk.retire()
+		_crowd_frame = -1
+		return
+	_free_retired(k)
 
 
 ## Runs build steps for the chunks in progress, nearest first, until this frame's budget is spent.
@@ -343,9 +413,7 @@ func _advance_builds() -> void:
 		return
 	var start := Time.get_ticks_usec()
 	var budget := int(build_budget_ms * 1000.0)
-	var keys: Array = _pending.keys()
-	var here := _center_block
-	keys.sort_custom(func(a, b): return _build_priority(a, _focus_block, here) < _build_priority(b, _focus_block, here))
+	var keys: Array = stream_queue(_pending.keys())
 	for k: Vector2i in keys:
 		var chunk: CityChunk = _pending[k]
 		while true:
@@ -544,6 +612,13 @@ func update_streaming(immediate: bool) -> void:
 	var wp := world_position(local)
 	var here := plan.block_index_at(Vector2(wp.x, wp.z))
 	_center_block = here
+	_eye = Vector2(wp.x, wp.z)
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	if cam:
+		var fwd := -cam.global_transform.basis.z
+		var flat := Vector2(fwd.x, fwd.z)
+		if flat.length_squared() > 1e-4:
+			_view_dir = flat.normalized()
 	# Stream towards where the player is GOING, not where they are standing. `velocity` is kept
 	# in step with the car or the jet while riding one (see Player._physics_process), so this one
 	# read covers walking, boosting, driving and flying alike.
@@ -554,6 +629,7 @@ func update_streaming(immediate: bool) -> void:
 		focus += (Vector2(v.x, v.z) * stream_lookahead).limit_length(stream_lookahead_max)
 	var center := plan.block_index_at(focus)
 	_focus_block = center
+	_lead = focus
 
 	var wanted := {}
 	for dx in range(-lod_radius_blocks, lod_radius_blocks + 1):
@@ -576,11 +652,7 @@ func update_streaming(immediate: bool) -> void:
 	# now go through _replace_chunk(), which builds first and removes afterwards.
 	for k in chunks.keys():
 		if maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
-			for id in chunks[k].built_landmarks:
-				_set_far_landmark_visible(id, true)
-			chunks[k].queue_free()
-			chunks.erase(k)
-			_crowd_frame = -1
+			_retire_chunk(k)
 	for k in _pending.keys():
 		if maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
 			_cancel_build(k)
@@ -599,7 +671,7 @@ func update_streaming(immediate: bool) -> void:
 					continue
 				_cancel_build(k)
 			todo.append(k)
-	todo.sort_custom(func(a, b): return _build_priority(a, center, here) < _build_priority(b, center, here))
+	todo = stream_queue(todo)
 	var full_budget := max_full_builds_per_update if not immediate else 1000000
 	var lod_budget := max_lod_builds_per_update if not immediate else 1000000
 	for k in todo:
@@ -618,31 +690,27 @@ func update_streaming(immediate: bool) -> void:
 			_replace_chunk(k, level)
 		else:
 			_start_build(k, level)
-	_update_skyline(here, immediate)
+	_update_skyline(immediate)
 
 
-## Keeps the coarse far city around the player: build the nearest missing tiles, drop the ones
-## that have fallen out of range. Cheap enough to run every update - a tile that holds no city
-## (ocean, hills, empty basin) is remembered as empty and never rescanned.
-func _update_skyline(here: Vector2i, immediate: bool) -> void:
+## The far city: everything within far_city_immediate_radius built now when everything is wanted
+## now, the rest a block at a time from _process() (Skyline.advance), and tiles dropped only once
+## the player has left them far behind.
+func _update_skyline(immediate: bool) -> void:
 	if _skyline == null:
 		return
-	var t := Vector2i(floori(float(here.x) / float(Skyline.TILE_BLOCKS)), floori(float(here.y) / float(Skyline.TILE_BLOCKS)))
-	_skyline.trim(t, skyline_tiles + 1)
-	var budget := max_skyline_builds_per_update if not immediate else 1000000
-	# Nearest ring first, so the gap the player is looking at closes before the far corners.
-	for ring in range(0, skyline_tiles + 1):
-		for dx in range(-ring, ring + 1):
-			for dz in range(-ring, ring + 1):
-				if maxi(absi(dx), absi(dz)) != ring:
-					continue
-				var k := Vector2i(t.x + dx, t.y + dz)
-				if _skyline.has_tile(k):
-					continue
-				_skyline.build_tile(k)
-				budget -= 1
-				if budget <= 0:
-					return
+	if immediate:
+		var reach := web_far_city_immediate_radius if OS.has_feature("web") else far_city_immediate_radius
+		_skyline.build_near(_eye, minf(reach, far_city_radius))
+	_skyline.trim(_eye)
+
+
+## Builds the whole far city now. The loading screen calls it, so play starts with every block of
+## the basin standing.
+func finish_far_city() -> void:
+	if _skyline == null:
+		return
+	_skyline.build_near(_eye, far_city_radius)
 
 
 ## Puts the loading screen up and lets it drive the warm-up. Deferred so the rest of _ready()
@@ -668,18 +736,37 @@ func _start_loading_screen() -> void:
 func _build_skyline() -> void:
 	_skyline = Skyline.new()
 	_skyline.name = "Skyline"
-	# Where the LOD chunks stop is where this starts. Derived from the ring count rather than
-	# hard-coded so the two can never drift apart when the radius is tuned.
-	var reach := float(lod_radius_blocks) * plan.block_size_range.y
-	_skyline.setup(plan, reach, reach * 0.18, _canopy_material)
+	_skyline.radius = far_city_radius
+	# The far city dissolves in and out over exactly the time a LOD chunk dissolves into a FULL
+	# one, so every handoff between tiers takes the same time.
+	_skyline.fade_time = lod_fade_time
+	_skyline.setup(plan, chunk_style(), _canopy_material, stream_priority_at)
 	add_child(_skyline)
 
 
-## How soon a chunk gets built: by whichever it sits closer to, the led focus or the player.
-## Sorting by the focus alone starves the blocks beside the player the moment they turn hard,
-## because everything between them and the lead sorts ahead of it.
-func _build_priority(k: Vector2i, center: Vector2i, here: Vector2i) -> int:
-	return mini((k - center).length_squared(), (k - here).length_squared())
+## How soon a chunk gets built, lower first: its distance from the player or from the led focus,
+## whichever is nearer (sorting by the focus alone starves the blocks beside the player the moment
+## they turn hard), weighted by the view (`view_priority`): what the camera looks at comes first.
+func stream_priority(k: Vector2i) -> float:
+	return stream_priority_at((plan.block(k.x, k.y).rect as Rect2).get_center())
+
+
+## Chunk keys in the order they are built: by stream_priority(), lowest first.
+func stream_queue(keys: Array) -> Array:
+	var order := {}
+	for k in keys:
+		order[k] = stream_priority(k)
+	var out := keys.duplicate()
+	out.sort_custom(func(a, b): return order[a] < order[b])
+	return out
+
+
+## The same for any true world XZ; the far city orders its tiles by it too.
+func stream_priority_at(p: Vector2) -> float:
+	var to := p - _eye
+	var dist := minf(to.length(), p.distance_to(_lead))
+	var facing := to.normalized().dot(_view_dir) if to.length_squared() > 1.0 else 1.0
+	return dist * (1.0 + view_priority * (1.0 - facing) * 0.5)
 
 
 ## Builds a chunk and only then takes down whatever was standing in its place. The two never
@@ -721,6 +808,12 @@ func _install_chunk(k: Vector2i, chunk: CityChunk) -> void:
 	var old_chunk: CityChunk = chunks.get(k)
 	chunk.reveal()
 	chunks[k] = chunk
+	# The far city goes from under it (dissolving), and a chunk still retiring from this block is
+	# not needed any more.
+	if _skyline:
+		_skyline.cover(k, chunk.level)
+	if _retiring.has(k):
+		_free_retired(k)
 	for id in chunk.built_landmarks:
 		_set_far_landmark_visible(id, false)
 	if old_chunk == null or old_chunk == chunk:
@@ -748,7 +841,14 @@ func _new_chunk(k: Vector2i, level: CityChunk.Level) -> CityChunk:
 	chunk.iz = k.y
 	chunk.level = level
 	chunk.center_block = _center_block
-	chunk.style = {
+	chunk.style = chunk_style()
+	add_child(chunk)
+	return chunk
+
+
+## The colours and spacings every chunk is built with (and the far city's capture builds).
+func chunk_style() -> Dictionary:
+	return {
 		"asphalt": asphalt_color, "sidewalk": sidewalk_color, "grass": grass_color, "plaza": plaza_color,
 		"path": path_color, "water": water_color, "ocean": ocean_color, "sand": sand_color,
 		"hill_grass": hill_grass_color, "hill_rock": hill_rock_color,
@@ -757,8 +857,6 @@ func _new_chunk(k: Vector2i, level: CityChunk.Level) -> CityChunk:
 		"cars_per_block": cars_per_block, "pedestrians_per_block": pedestrians_per_block, "max_pedestrians": max_pedestrians, "airport_crowd": airport_crowd,
 		"grass_per_park": grass_per_park,
 	}
-	add_child(chunk)
-	return chunk
 
 
 func _set_far_landmark_visible(id: String, on: bool) -> void:

@@ -255,6 +255,9 @@ func begin_build() -> void:
 	zone = plan.zone_at((block.rect as Rect2).get_center())
 	_steps.clear()
 	_step = 0
+	if capturing:
+		_begin_capture(block)
+		return
 	match zone:
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
@@ -294,6 +297,22 @@ func begin_build() -> void:
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
 	_steps.append(_finish_build)
+
+
+## The capture build (see `capturing`): only what the far city draws from a block - its massing
+## and its ground - run exactly as the LOD build runs it. Roads are left out (Skyline paints them
+## from the plan), and so are the freeway (drawn from Freeway's own data), the landmarks (they
+## have far versions of their own) and everything the finish step makes (nodes).
+func _begin_capture(block: Dictionary) -> void:
+	captured = {"ground": [], "boxes": [], "batch": {}}
+	match zone:
+		MacroMap.Zone.CITY:
+			_steps.append_array(_block_steps(block))
+		MacroMap.Zone.PORT:
+			_steps.append(_build_port.bind(block))
+		MacroMap.Zone.AIRPORT:
+			_steps.append(_build_airport)
+	_steps.append(func() -> void: captured.batch = _batch.data())
 
 
 func _build_landmarks() -> void:
@@ -397,11 +416,7 @@ func _build_occluder() -> void:
 
 ## The whole area this chunk owns: its block plus the roads on its +X and +Z sides.
 func owned_rect() -> Rect2:
-	var x0 := plan.road_pos(CityPlan.AXIS_X, ix) + plan.road_width(CityPlan.AXIS_X, ix) * 0.5
-	var x1 := plan.road_pos(CityPlan.AXIS_X, ix + 1) + plan.road_width(CityPlan.AXIS_X, ix + 1) * 0.5
-	var z0 := plan.road_pos(CityPlan.AXIS_Z, iz) + plan.road_width(CityPlan.AXIS_Z, iz) * 0.5
-	var z1 := plan.road_pos(CityPlan.AXIS_Z, iz + 1) + plan.road_width(CityPlan.AXIS_Z, iz + 1) * 0.5
-	return Rect2(x0, z0, x1 - x0, z1 - z0)
+	return plan.owned_rect(ix, iz)
 
 
 # --- Airport and port ------------------------------------------------------------------
@@ -1462,6 +1477,24 @@ func reveal() -> void:
 			(car as Node3D).visible = true
 
 
+## This chunk has left the streaming window but stays drawn a moment longer, while the far city
+## dissolves back in over it (CityStreamer._retire_chunk). Everything that is not just its look
+## goes now, exactly when it went before there was a dissolve: its parked cars and its people, its
+## trash cans, and its collision - nothing should walk, drive or be hit in a block that is fading.
+func retire() -> void:
+	for car in _cars:
+		if is_instance_valid(car) and not car.has_meta("driven"):
+			car.queue_free()
+	_cars.clear()
+	for child in get_children():
+		if child.is_in_group("pedestrian") or child.is_in_group("physics_prop"):
+			child.queue_free()
+		elif child is CollisionObject3D:
+			(child as CollisionObject3D).collision_layer = 0
+			(child as CollisionObject3D).collision_mask = 0
+	set_process(false)
+
+
 func _exit_tree() -> void:
 	for car in _cars:
 		if is_instance_valid(car) and not car.has_meta("driven"):
@@ -1601,7 +1634,7 @@ func _lod_collision_wanted() -> bool:
 
 
 func _add_lod_shape(size: Vector3, pos: Vector3) -> void:
-	if not _lod_collision_wanted():
+	if capturing or not _lod_collision_wanted():
 		return
 	if _lod_body == null:
 		_lod_body = StaticBody3D.new()
@@ -2162,6 +2195,14 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 # --- Helpers ---------------------------------------------------------------------------
 
 func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, material: Material = null) -> void:
+	if capturing:
+		# Recorded, not built (see `capturing`). A thin slab is ground; anything thicker is a
+		# solid box, lifted by one relief sample at its centre exactly as below.
+		if size.y <= 0.5:
+			captured.ground.append([Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), color, pos.y + size.y * 0.5])
+		else:
+			captured.boxes.append([Transform3D(Basis().scaled(size), pos + Vector3(0.0, _gy(pos.x, pos.z), 0.0)), color])
+		return
 	var mat: Material = material if material else PropFactory.material(color, 0.95)
 	if zone == MacroMap.Zone.CITY and size.y <= 0.5 and maxf(size.x, size.z) >= 6.0:
 		# Thin ground slab in the city (road, sidewalk, lawn, plaza): follow the relief.
@@ -2209,7 +2250,7 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 		# Everything but the asphalt is a textured surface up close, and a texture averages well
 		# under its tint (paving, lawn and concrete sets sit about 0.6 of it): at the bare tint
 		# the far pavements were twice as bright as the near ones and lit up like snow at night.
-		var lin := tint.srgb_to_linear() * (1.0 if tint == style.asphalt else 0.6)
+		var lin := far_tint(tint, style.asphalt)
 		vcolor = Color(lin.r, lin.g, lin.b, lamp)
 	var mesh := _grid_mesh(rect, top, skirt, nx, nz, far, vcolor)
 	if far:
@@ -2241,6 +2282,13 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 	var shape := CollisionShape3D.new()
 	shape.shape = (mesh if (cx == nx and cz == nz) else _grid_mesh(rect, top, skirt, cx, cz)).create_trimesh_shape()
 	_statics.add_child(shape)
+
+
+## The colour a ground surface is drawn in from afar (the LOD chunks' merged ground and the far
+## city's block plates, which must agree): linear, and at 0.6 of its tint unless it is asphalt.
+static func far_tint(tint: Color, asphalt: Color) -> Color:
+	var lin := tint.srgb_to_linear() * (1.0 if tint == asphalt else 0.6)
+	return Color(lin.r, lin.g, lin.b, 1.0)
 
 
 ## One grid of `nx` by `nz` quads over `rect`, following the relief, with the skirt around it.
@@ -2335,6 +2383,8 @@ func _add_relief_floor() -> void:
 
 
 func _add_cylinder(pos: Vector3, radius: float, height: float, color: Color, collide: bool = true, unshaded: bool = false) -> void:
+	if capturing:
+		return
 	var mesh := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = radius

@@ -131,8 +131,11 @@ uniform vec3 city_light_color : source_color = vec3(1.0, 0.70, 0.36);
 uniform float city_light_strength : hint_range(0.0, 3.0) = 0.30;
 // How leafy the leafier districts get.
 uniform float canopy_amount : hint_range(0.0, 1.0) = 0.55;
-// Metres the far city stands proud of the basin floor, so a downtown reads as a raised mass.
-uniform float urban_lift = 42.0;
+// Metres the far city's ground was stood proud of the basin floor, to fake a downtown as a
+// raised mass when nothing was drawn out there. Nothing is faked any more: the far city
+// (scripts/world/skyline.gd) draws every block of the basin as its real buildings, on the real
+// ground height, and a lifted plane only buried them - 42 m swallowed every suburb past 2.6 km.
+uniform float urban_lift = 0.0;
 // That lift only starts past the streamed chunks, or it would cut their feet off.
 uniform float urban_lift_start = 1400.0;
 uniform float urban_lift_end = 2600.0;

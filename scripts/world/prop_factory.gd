@@ -997,6 +997,21 @@ static func unit_box() -> Mesh:
 	return box("unit_box", Vector3.ONE, Color(0.9, 0.9, 0.9))
 
 
+## A unit ellipsoid of 48 triangles, -0.5..0.5 on every axis like unit_box(): the far city's tree
+## and scrub canopies (Skyline). A box read as a crate from the LOD ring in; this reads as foliage
+## from there out, at a quarter of what a real tree's shadow proxy costs.
+static func canopy_blob() -> Mesh:
+	if _cache.has("canopy_blob"):
+		return _cache["canopy_blob"]
+	var mesh := SphereMesh.new()
+	mesh.radius = 0.5
+	mesh.height = 1.0
+	mesh.radial_segments = 8
+	mesh.rings = 3
+	_cache["canopy_blob"] = mesh
+	return mesh
+
+
 static func planter() -> Mesh:
 	return box("planter", Vector3(2.4, 0.7, 2.4), Color(0.55, 0.5, 0.45))
 

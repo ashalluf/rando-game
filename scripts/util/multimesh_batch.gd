@@ -37,6 +37,12 @@ func keys() -> Array:
 	return _batches.keys()
 
 
+## The collected instances, key -> {"mesh", "xforms", "colors", "custom"}, without building any
+## nodes: the far city reads a capture chunk's batches this way (CityChunk.capturing).
+func data() -> Dictionary:
+	return _batches
+
+
 func set_no_shadow(key: String) -> void:
 	if _batches.has(key):
 		_batches[key].no_shadow = true
