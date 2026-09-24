@@ -683,7 +683,12 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		for b: Array in bands:
 			boxes.append([_band_xform(a, n, fc, band_len, b), b[4]])
 		for b: Array in cap_bands:
-			caps.append([_band_xform(a, n, fc, band_len, b), b[4]])
+			# The parapet and its cap run exactly their own projection past a square corner, so
+			# the two walls' boxes meet flush. With the bands' 0.35 m overlap they stood 0.3 m
+			# proud of the corner as a block on every roof, and under the kit's mitred coping
+			# that block showed through as a brick-red stub.
+			var cap_len: float = size_u - 2.0 * cut + (2.0 * float(b[2]) if cut <= 0.0 else 0.12)
+			caps.append([_band_xform(a, n, fc, cap_len, b), b[4]])
 		if cells <= MAX_FRAME_CELLS:
 			var w := 2.0 * hx * pitch
 			var h := 2.0 * hy * floor_h

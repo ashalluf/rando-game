@@ -1856,6 +1856,21 @@ static func facade_kit(piece: String) -> Mesh:
 	return mesh
 
 
+## Every kit piece loaded and every kit material, for the loading screen to warm.
+const KIT_PIECES := ["cornice_classic", "cornice_bracket", "cornice_simple", "coping", "surround_brick_a",
+	"surround_brick_b", "surround_stucco", "ac_window", "awning", "balcony", "fe_stair_l",
+	"fe_stair_r", "fe_bottom", "water_tank", "vent_mushroom", "vent_turbine", "hvac"]
+
+
+static func kit_materials() -> Array:
+	for piece: String in KIT_PIECES:
+		facade_kit(piece)
+	var out: Array = []
+	for mat_name: String in KIT_MATERIALS:
+		out.append(kit_material(mat_name))
+	return out
+
+
 static func kit_material(mat_name: String) -> ShaderMaterial:
 	var key := "kit_mat_" + mat_name
 	if _cache.has(key):

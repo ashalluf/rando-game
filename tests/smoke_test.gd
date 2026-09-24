@@ -1501,9 +1501,7 @@ func _test_buildings() -> void:
 	# the resource, so it is real under --headless.
 	var kit_ok := true
 	var kit_why := ""
-	for piece in ["cornice_classic", "cornice_bracket", "cornice_simple", "coping", "surround_brick_a",
-			"surround_brick_b", "surround_stucco", "ac_window", "awning", "balcony", "fe_stair_l",
-			"fe_stair_r", "fe_bottom", "water_tank", "vent_mushroom", "vent_turbine", "hvac"]:
+	for piece: String in PropFactory.KIT_PIECES:
 		var km := PropFactory.facade_kit(piece)
 		if km == null or km.get_surface_count() == 0 or km.get_aabb().size.length() < 0.2:
 			kit_ok = false
