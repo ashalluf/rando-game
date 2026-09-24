@@ -19,3 +19,6 @@ node_modules/
 # Python bytecode from the asset tools.
 __pycache__/
 *.pyc
+
+# Claude Code agent worktrees (a background agent's working copy of the repo).
+.claude/worktrees/
