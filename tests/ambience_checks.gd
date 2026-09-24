@@ -148,6 +148,10 @@ func _places(amb: Ambience, macro: MacroMap) -> void:
 			"the beach has surf from the west (%.2f) and gulls by day (%.1f/min), none in a storm" % [lv.surf, r.gull])
 		var big := amb.levels_for(s, 12.0, 0.0, storm)
 		_t._check(big.surf > lv.surf, "storm waves make the surf louder (%.2f -> %.2f)" % [lv.surf, big.surf])
+		var offshore := amb.scene_at(Vector3(macro.coast_x(shore.z) - 60.0, 2.0, shore.z), macro)
+		var open_sea := amb.scene_at(Vector3(macro.coast_x(shore.z) - 1500.0, 2.0, shore.z), macro)
+		_t._check(offshore.surf > 0.5 and open_sea.surf == 0.0 and (offshore.surf_at as Vector3).x > macro.coast_x(shore.z) - 60.0,
+			"the surf is at the waterline: 60 m out %.2f (toward the shore), 1.5 km out %.2f" % [offshore.surf, open_sea.surf])
 	# The hills, deep in them.
 	var hill := _find(macro, func(p: Vector2) -> bool: return macro.zone_at(p) == MacroMap.Zone.HILLS and macro.raw_height_at(p) > 200.0,
 		[-600.0, -200.0, 200.0, 600.0, 1000.0, 1400.0], [-1200.0, -1300.0, -1400.0])

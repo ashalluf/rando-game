@@ -175,7 +175,6 @@ var fired: Dictionary = {}
 
 var _beds: Dictionary = {}        # layer -> AudioStreamPlayer or AudioStreamPlayer3D
 var _trim: Dictionary = {}        # layer -> dB trim of the take it plays
-var _emit_dir: Dictionary = {}    # layer -> world direction to its source
 var _shots: Array[AudioStreamPlayer3D] = []
 var _next_shot: int = 0
 var _cars: Array[AudioStreamPlayer3D] = []
@@ -286,6 +285,14 @@ func _build_voices() -> void:
 		add_child(v)
 		_passes.append(v)
 		_pass_of.append(null)
+
+
+## The buses outlive this node (Sfx is an autoload): a seed rebuild in the middle of a blast's
+## muffle, or from inside a car, must not leave the next scene low-passed.
+func _exit_tree() -> void:
+	Sfx.set_filter(Sfx.BUS_AMBIENCE, 20000.0)
+	Sfx.set_filter(Sfx.BUS_GAME, 20000.0)
+	Sfx.set_reverb(reverb_wet.x, 0.4, 30.0)
 
 
 func _process(_delta: float) -> void:
@@ -420,6 +427,10 @@ func scene_at(w: Vector3, macro: MacroMap) -> Dictionary:
 	var green := 0.0
 	var far_city := 0.0
 	var total := 0.0
+	# The waterline, seen from land: the nearest sea sample. Seen from the sea: the nearest land
+	# sample. Either way the surf is where the two meet, not wherever there is water.
+	var at_sea := macro.zone_at(here) == MacroMap.Zone.OCEAN
+	var in_harbor := macro.harbor_rect.has_point(here)
 	var water_near := INF
 	var water_at := Vector2.INF
 	# Centre (weight 3), a near ring of 6 (1 each) and a far ring of 8 that only says what is in
@@ -436,7 +447,8 @@ func scene_at(w: Vector3, macro: MacroMap) -> Dictionary:
 		var p: Vector2 = pt[0]
 		var wt: float = pt[1]
 		var zone := macro.zone_at(p)
-		if zone == MacroMap.Zone.OCEAN and not macro.harbor_rect.has_point(p):
+		var sea := zone == MacroMap.Zone.OCEAN and not macro.harbor_rect.has_point(p)
+		if sea != at_sea and p != here:
 			var d := p.distance_to(here)
 			if d < water_near:
 				water_near = d
@@ -458,12 +470,15 @@ func scene_at(w: Vector3, macro: MacroMap) -> Dictionary:
 			green += wt * 0.2
 	for i in zones.size():
 		zones[i] /= total
-	# The waterline: the main coast is maths; the bay's shore is whichever ring point was sea.
+	# The main coast is maths, from either side of it; the bay's shore is whichever ring point
+	# crossed the waterline. The harbour is the port's, and has no surf.
 	var coast := Vector2(macro.coast_x(here.y), here.y)
-	var coast_d := absf(here.x - coast.x) if here.x > coast.x else 0.0
+	var coast_d := absf(here.x - coast.x)
 	if coast_d < water_near:
 		water_near = coast_d
 		water_at = coast
+	if in_harbor:
+		water_at = Vector2.INF
 	var ground := maxf(macro.height_at(here), 0.0)
 	var height := w.y - ground
 	var s := {
@@ -471,7 +486,6 @@ func scene_at(w: Vector3, macro: MacroMap) -> Dictionary:
 		"urban": urban / total,
 		"green": clampf(green / total, 0.0, 1.0),
 		"far_city": far_city / maxf(far_n, 1.0),
-		"district": int(macro.district_at(here)) if zones[MacroMap.Zone.CITY] > 0.0 else -1,
 		"height": height,
 		"altitude": smoothstep(altitude_range.x, altitude_range.y, height),
 		"ridge": smoothstep(80.0, 350.0, macro.raw_height_at(here)),
@@ -705,7 +719,6 @@ func _place_emitters(eye: Vector3) -> void:
 			if d.length() > 0.5:
 				dir = d.normalized()
 		p.global_position = eye + dir * emitter_distance
-		_emit_dir[layer] = dir
 
 
 # --- Traffic ------------------------------------------------------------------------------------
