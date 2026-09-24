@@ -22,3 +22,4 @@ __pycache__/
 
 # Claude Code agent worktrees (a background agent's working copy of the repo).
 .claude/worktrees/
+STOP
