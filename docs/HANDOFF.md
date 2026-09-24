@@ -1336,6 +1336,15 @@ downtown and people slumped over". The rules are the Westlake bullet in CLAUDE.m
 as the street a realistic LA game shows, never as a joke; the code's words are neutral
 (`encampment`, `rough_sleeper`, `slumped`). What a next session needs to know:
 
+- **STATE: the encampments are ON; MacArthur Park is OFF** (`LandmarkMacArthurPark.enabled`,
+  a static var, default false: no landmark entry, no site, every road open, the city exactly as
+  before). It is off because the last full smoke run on the merged tree still found traffic cars
+  on the park's closed roads (cars on the inner street z ~0 through the lake), which the
+  isolated check did not reproduce; that has to be found before it goes on. To work on it, set
+  `LandmarkMacArthurPark.enabled = true` before the city scene loads (Landmarks.all() is built
+  once) - the westlake checks then run the park's half too. The table rides under the entry's
+  `"area"` key: the civic set uses `"site": "block"` for something else (Landmarks.claims()).
+
 - **Where the park is, and why it moves later.** `LandmarkMacArthurPark.SITE` holds the real
   place (34.05861 N, 118.27750 W: 2,300 m west and 1,158 m north of Pershing Square, 460 x 310 m,
   35 acres, Wilshire through the middle at a real heading of 297 degrees, the lake about 4.3 m

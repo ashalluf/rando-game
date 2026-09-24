@@ -921,6 +921,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (free camera: `CAM`, `LOOK`, `FOV`).
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
+  **The park is OFF by default** (`LandmarkMacArthurPark.enabled`; docs/HANDOFF.md 9p says why and
+  what is left); the encampments are on. Its entry's table is `"area"` (the civic set's
+  `"site": "block"` is a different thing).
   `LandmarkMacArthurPark` (`scripts/world/landmark_macarthur_park.gd`) keeps everything real in
   ONE table, `SITE` (lat/long, the real offset from Pershing Square, real size, Wilshire's real
   heading, the lake outline in the south half's 0..1 frame) plus today's compressed placement
