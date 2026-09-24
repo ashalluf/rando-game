@@ -8,6 +8,9 @@ extends SkeletonModifier3D
 
 ## [bone index, marker Node3D] pairs; the marker's global basis is the hand's wanted basis.
 var hands: Array = []
+## Finger bones closed round the grip: [bone index, rest rotation, local curl axis, angle in
+## radians]. Built by Avatar.setup_gun_hands() on a rig that has finger bones (the hero).
+var fingers: Array = []
 
 
 func _process_modification_with_delta(_delta: float) -> void:
@@ -26,6 +29,11 @@ func _process_modification_with_delta(_delta: float) -> void:
 		var want := (to_skeleton * marker.global_transform).basis.orthonormalized()
 		var parent_basis := _chain(skeleton, parent).basis.orthonormalized()
 		skeleton.set_bone_pose_rotation(bone, (parent_basis.inverse() * want).get_rotation_quaternion())
+	# Then close the fingers. Each joint turns about the axis that carries its tip toward the
+	# palm, from its rest pose; the clip's own relaxed finger keys are overridden while the
+	# gun is held.
+	for f in fingers:
+		skeleton.set_bone_pose_rotation(f[0], (f[1] as Quaternion) * Quaternion(f[2] as Vector3, f[3] as float))
 
 
 ## A bone's skeleton-space pose composed from the local poses as they stand right now - after

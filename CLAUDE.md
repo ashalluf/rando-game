@@ -885,6 +885,16 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   under the headless dummy renderer.
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
+- The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
+  `assets/models/hero.glb`, built in Blender with MPFB2 from CC0 MakeHuman assets plus our own
+  tracksuit, chain and watch (sources in `docs/ASSETS.md`). 54 bones: the crowd rigs' 24 names
+  plus 30 finger bones, cm under a 0.01 armature, facing +Z, the same three clips. It keeps its
+  own 15 materials (`Player.avatar_look = -1`; the crowd shader would paint them all as skin),
+  `Avatar._velour_sheen()` gives the tracksuit its rim lobe back (the importer drops it), and
+  `GripHands.fingers` (built by `Avatar._grip_fingers()` from the rest pose) closes each finger
+  joint round the gun about the axis that swings its tip toward the palm - `finger_curl`,
+  `trigger_curl`, `thumb_curl`, `palm_curl_sign` on Avatar. The crowd tracksuit code
+  (`Pedestrian.tracksuit_material()`, `add_piping()`) is kept for dressing a crowd rig.
 - Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from
   `avatar_model`, one of `Pedestrian.MODELS`): idle / walk / run clips picked by speed, frozen or
   slowed stride in the air, forward lean while boosting. The orange capsule in `player.tscn` is

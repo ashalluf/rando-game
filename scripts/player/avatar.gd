@@ -27,6 +27,15 @@ const RUN_CLIP_SPEED := 5.0
 ## Cross-fade time between clips (seconds).
 @export var blend_time: float = 0.15
 ## How fast the gun comes up to the shoulder when aiming or firing, and back down (per second).
+## How far each finger joint closes round a grip (knuckle, middle, tip), in degrees; the
+## right index on the trigger, and the thumb, have their own. Rigs without finger bones ignore it.
+@export var finger_curl: Vector3 = Vector3(62.0, 78.0, 45.0)
+@export var trigger_curl: Vector3 = Vector3(22.0, 38.0, 20.0)
+@export var thumb_curl: Vector3 = Vector3(15.0, 25.0, 20.0)
+## Which way the curl goes: flip if the fingers bend back instead of closing.
+@export var palm_curl_sign: float = 1.0
+## Rim sheen on the hero's velour tracksuit (0 flat cotton, 1 satin-bright edges).
+@export var velour_rim: float = 0.55
 @export var raise_speed: float = 7.0
 ## Where the elbows point while holding a gun, relative to each shoulder joint (body space).
 @export var right_elbow_pole: Vector3 = Vector3(0.5, -0.6, 0.35)
@@ -63,6 +72,7 @@ func load_model(path: String, look: int = 3, tracksuit: Color = Color(0, 0, 0, 0
 	Pedestrian.prepare_rig(inst, look)
 	if tracksuit.a > 0.0:
 		_dress_tracksuit(inst, tracksuit)
+	_velour_sheen(inst)
 	inst.rotation.y = PI # the rigs face +Z; the player's visual faces -Z
 	add_child(inst)
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -74,6 +84,21 @@ func load_model(path: String, look: int = 3, tracksuit: Color = Color(0, 0, 0, 0
 	_play(IDLE_CLIP, 1.0)
 	_skeleton = inst.find_child("Skeleton3D", true, false) as Skeleton3D
 	return true
+
+
+## Velour is brighter at a grazing angle than head on - that sheen is the fabric. The glTF
+## importer drops it, so the hero's own tracksuit materials get Godot's rim lobe back here.
+func _velour_sheen(inst: Node3D) -> void:
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (node as MeshInstance3D).mesh
+		if mesh == null:
+			continue
+		for i in mesh.get_surface_count():
+			var mat := mesh.surface_get_material(i) as StandardMaterial3D
+			if mat and mat.resource_name.begins_with("hero_tracksuit"):
+				mat.rim_enabled = true
+				mat.rim = velour_rim
+				mat.rim_tint = 0.6
 
 
 ## Jacket and trousers in one velour colour with white piping (Pedestrian.tracksuit_material).
@@ -138,7 +163,48 @@ func setup_gun_hands(mount: Node3D, body: Node3D, player: Node3D) -> void:
 	_hands.name = "GunHandsTurn"
 	_skeleton.add_child(_hands)
 	_hands.hands = [[_skeleton.find_bone("RightHand"), _grip_r], [_skeleton.find_bone("LeftHand"), _grip_l]]
+	_hands.fingers = _grip_fingers()
 	_hands.active = false
+
+
+## Curl for every finger joint of a rig with finger bones (the hero; the crowd rigs have none),
+## so the hands close round the gun instead of lying flat on it. The axis each joint turns
+## about is worked out from the rest pose: the palm faces along the cross of the knuckle line
+## and the finger direction, and a joint turns about (its own direction x palm normal), which
+## swings its tip toward the palm. The right index stays straighter: it is on the trigger.
+func _grip_fingers() -> Array:
+	var out: Array = []
+	for side in ["Right", "Left"]:
+		var hand := _skeleton.find_bone(side + "Hand")
+		var index1 := _skeleton.find_bone(side + "HandIndex1")
+		var pinky1 := _skeleton.find_bone(side + "HandPinky1")
+		if hand < 0 or index1 < 0 or pinky1 < 0:
+			continue
+		var at_hand := _skeleton.get_bone_global_rest(hand).origin
+		var at_index := _skeleton.get_bone_global_rest(index1).origin
+		var at_pinky := _skeleton.get_bone_global_rest(pinky1).origin
+		var along := ((at_index + at_pinky) * 0.5 - at_hand).normalized()
+		var across := (at_index - at_pinky).normalized()
+		var palm := across.cross(along).normalized() * palm_curl_sign * (1.0 if side == "Right" else -1.0)
+		for finger in ["Thumb", "Index", "Middle", "Ring", "Pinky"]:
+			for joint in 3:
+				var bone := _skeleton.find_bone("%sHand%s%d" % [side, finger, joint + 1])
+				if bone < 0:
+					continue
+				var rest := _skeleton.get_bone_global_rest(bone)
+				var child := _skeleton.find_bone("%sHand%s%d" % [side, finger, joint + 2])
+				var dir: Vector3 = (_skeleton.get_bone_global_rest(child).origin - rest.origin).normalized() if child >= 0 else rest.basis.y.normalized()
+				var axis := dir.cross(palm)
+				if axis.length() < 0.001:
+					continue
+				var local_axis := (rest.basis.orthonormalized().inverse() * axis.normalized()).normalized()
+				var curl: float = finger_curl[joint]
+				if finger == "Thumb":
+					curl = thumb_curl[joint]
+				elif finger == "Index" and side == "Right":
+					curl = trigger_curl[joint]
+				out.append([bone, _skeleton.get_bone_rest(bone).basis.get_rotation_quaternion(), local_axis, deg_to_rad(curl)])
+	return out
 
 
 ## The gun the hands are on: at the hip, or up at the shoulder while `raised` (aiming, firing).

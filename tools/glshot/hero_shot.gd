@@ -9,7 +9,7 @@ extends SceneTree
 ## Env: OUT (png), WEAPON (0 AK, 1 rocket launcher, 2 shotgun), AIM=1 raises it to the
 ## shoulder, YAW (degrees to orbit the camera round the hero; 0 is front-on, 90 his right side),
 ## WALK=1 plays the walk clip (the IK has to hold the gun whatever the legs do), CAM_DIST and
-## CAM_Y bring the camera in on the hands, DEBUG=1 marks the IK targets, ROCKET=1 (with WEAPON=1)
+## CAM_Y (and CAM_FWD, metres in front of him) bring the camera in on the hands, DEBUG=1 marks the IK targets, ROCKET=1 (with WEAPON=1)
 ## fires a slow rocket so it is in frame just past the muzzle.
 func _initialize() -> void:
 	var stage := Node3D.new()
@@ -83,7 +83,7 @@ func _initialize() -> void:
 		(player.get("visual") as Node3D).rotation.y = 0.0
 		# CAM_DIST / CAM_Y close in on the hands (default: the whole figure).
 		var dist := float(OS.get_environment("CAM_DIST")) if OS.get_environment("CAM_DIST") != "" else 2.6
-		var centre := Vector3(0.0, float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 1.25, 0.0)
+		var centre := Vector3(0.0, float(OS.get_environment("CAM_Y")) if OS.get_environment("CAM_Y") != "" else 1.25, -float(OS.get_environment("CAM_FWD")) if OS.get_environment("CAM_FWD") != "" else 0.0)
 		cam.global_position = centre + Basis(Vector3.UP, -yaw) * Vector3(0.0, 0.15 * dist / 2.6, -dist)
 		cam.look_at(centre, Vector3.UP)
 		cam.current = true

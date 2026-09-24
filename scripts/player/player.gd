@@ -69,15 +69,17 @@ const BLAST_MASK := 2 | 4 | 8
 @export var enter_range: float = 4.5
 
 @export_group("Look")
-## Rigged character used as the player's body (one of Pedestrian.MODELS). Missing file: the
-## orange capsule stays.
-@export var avatar_model: String = "res://assets/models/pedestrian_d_anim.glb"
-## Outfit look for the player's body (Pedestrian.character_material). Even numbers keep the
-## model's own clothes; odd ones are the crowd's recoloured outfits.
-@export var avatar_look: int = 0
-## The hero's tracksuit colour: jacket and trousers in matching velour with white piping down
-## the sleeves and legs (Pedestrian.tracksuit_material). Alpha 0 keeps `avatar_look` instead.
-@export var avatar_tracksuit: Color = Color(0.085, 0.085, 0.09)
+## Rigged character used as the player's body: the hero built in Blender (hero.glb: real face,
+## eyes and fingers, his own black velour tracksuit), or any of Pedestrian.MODELS. Missing
+## file: the orange capsule stays.
+@export var avatar_model: String = "res://assets/models/hero.glb"
+## Outfit look (Pedestrian.character_material) for a crowd rig. -1 keeps the model's own
+## materials, which the hero needs: he has fifteen, and the crowd shader would paint them all
+## as one skin texture.
+@export var avatar_look: int = -1
+## A crowd rig dressed as the hero instead: jacket and trousers in one velour colour with
+## white piping (Pedestrian.tracksuit_material). Alpha 0 (the hero) leaves the model alone.
+@export var avatar_tracksuit: Color = Color(0.0, 0.0, 0.0, 0.0)
 
 ## Height (relative to takeoff) reached by the last jump. Shown on the debug HUD.
 var last_jump_peak: float = 0.0

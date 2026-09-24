@@ -193,6 +193,20 @@ converted to geometry. Godot generates the LODs on import.
 
 The airliners and private jets of the air traffic reuse the Meshy jets above (`Aircraft.MODELS`).
 
+## The hero (Blender + MPFB2, CC0 assets)
+
+`assets/models/hero.glb` (and the `hero_hero_*` textures Godot extracts from it) is the player's
+body, built in Blender 4.2 with the MPFB 2.0.17 add-on (https://extensions.blender.org/add-ons/mpfb/,
+code GPLv3; its bundled assets and its output are CC0, LICENSE.md sections C and D).
+
+| Part | Source | License |
+|---|---|---|
+| Base mesh, body/face shape targets, "mixamo" rig and weights | MPFB 2.0.17 | CC0 |
+| Skin `middleage_caucasian_male` (re-tinted, stubble and scalp painted), eyes `high-poly` + `brown`, `eyebrow009`, `eyelashes02`, hair `short04`, `shoes05` mesh | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
+| Tracksuit, piping, zip, rib bands, tank, gold rope chain, watch, ring, all fold maps and procedural textures | Our own Blender scripts | ours |
+| Shoe texture | Painted from scratch (the pack's photo texture was of a branded three-stripe shoe and was discarded) | ours |
+| Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` | ours |
+
 ## Street prop models (Poly Haven, CC0)
 
 Downloaded from the open Poly Haven API (`https://api.polyhaven.com/files/<id>`, glTF at 1K) and
