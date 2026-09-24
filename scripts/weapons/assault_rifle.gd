@@ -12,6 +12,8 @@ extends Weapon
 ## Max bullet reach (meters).
 @export var bullet_range: float = 400.0
 @export var tracer_color: Color = Color(1.0, 0.85, 0.4)
+## How much one round bleeds (WeaponFX.blood's strength: spray, splats, pool, stain).
+@export var blood_strength: float = 1.0
 
 # Walnut, not orange: the old 0.55 / 0.32 / 0.14 blew out to bright orange in sunlight, and the
 # rifle is on screen in every single frame of this game.
@@ -105,8 +107,9 @@ func fire_ray(from: Vector3, dir: Vector3) -> Dictionary:
 			body.apply_impulse(dir * impact_force, hit.position - body.global_position)
 		elif hit.collider.has_method("take_hit"):
 			hit.collider.take_hit(hit.get("shape", -1), bullet_damage, dir)
-		elif hit.collider.has_method("knock"):
-			hit.collider.knock(dir * 14.0 + Vector3.UP * 5.0)
+		# A person goes down bleeding - in, out the far side, onto the wall behind and the ground -
+		# and a body already down bleeds again where it is hit (WeaponFX.bullet_wound).
+		WeaponFX.bullet_wound(self, hit, dir, blood_strength, dir * 14.0 + Vector3.UP * 5.0)
 		if hit.collider is Vehicle:
 			(hit.collider as Vehicle).drop_out_of_traffic(dir * impact_force)
 		WeaponFX.impact(self, hit.position)

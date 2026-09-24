@@ -998,6 +998,7 @@ func _test_city() -> void:
 					rifle = w
 		var hit_a_person := false
 		var struck_id: int = 0
+		var blood_before: Dictionary = WeaponFX.blood_stats.duplicate()
 		for target: Node3D in targets.slice(0, 5):
 			# Fire from close range and follow whoever the bullet actually hits: the crowd is
 			# dense enough now that a long shot often passes through somebody else first.
@@ -1015,6 +1016,12 @@ func _test_city() -> void:
 			await _ticks(3)
 			var gone := hit_a_person and (not is_instance_valid(instance_from_id(struck_id)) or (instance_from_id(struck_id) as Node).is_queued_for_deletion())
 			_check(hit_a_person and gone, "an AK-47 bullet knocks a pedestrian down")
+			# Blood (owner, 2026-09-24: "I want more blood when people get shot"): the round that
+			# put them down came out of the far side as a spray, and the drops marked the ground.
+			_check(hit_a_person and int(WeaponFX.blood_stats.exit_sprays) > int(blood_before.exit_sprays),
+				"a rifle hit on a pedestrian throws an exit spray")
+			_check(hit_a_person and int(WeaponFX.blood_stats.splats) > int(blood_before.splats),
+				"the spray lands as blood splats (%d)" % (int(WeaponFX.blood_stats.splats) - int(blood_before.splats)))
 		# Gunfire scares people (owner, 2026-09-23: "NPCs screaming"): the ones near it run.
 		var runner: Node3D = null
 		for p in get_tree().get_nodes_in_group("pedestrian"):
@@ -1059,6 +1066,38 @@ func _test_city() -> void:
 		for i in 3:
 			await get_tree().process_frame
 		_check(lock.get("target") == null and not lock.get("aiming"), "letting go of aim drops the lock")
+		# The body the rifle put down stains round its wounds and bleeds into a pool under it once
+		# it lies still (a few seconds; the checks above have used some of them).
+		if hit_a_person:
+			var pooled := false
+			for i in 180:
+				pooled = int(WeaponFX.blood_stats.pools) > int(blood_before.pools)
+				if pooled:
+					break
+				await _ticks(1)
+			_check(pooled, "a body shot down bleeds into a pool under it")
+			var stained := false
+			for n in get_tree().get_nodes_in_group("debris"):
+				var mat: Variant = n.get("_stain_mat") if n is Ragdoll else null
+				if mat is ShaderMaterial and float((mat as ShaderMaterial).get_shader_parameter("wound_count")) > 0.0:
+					stained = true
+			_check(stained, "the shot body's clothes are stained round the wound")
+		# Every kind of mark stays under its cap when a crowd is emptied into at once: 120 heavy
+		# wounds and 16 pools in one frame, with the per-moment budget lifted so all of them count.
+		var budget_was: int = WeaponFX.blood_budget
+		WeaponFX.blood_budget = 1000
+		var spot: Vector3 = player.global_position + Vector3(4.0, 1.2, 0.0)
+		for i in 120:
+			WeaponFX.blood(player, spot + Vector3(randf_range(-2.0, 2.0), 0.0, randf_range(-2.0, 2.0)),
+				Vector3(1.0, randf_range(-0.2, 0.2), randf_range(-0.6, 0.6)), 3.0)
+		for i in 16:
+			WeaponFX.blood_pool(player, spot - Vector3(0.0, 1.2, 0.0), Vector3.UP, 2.0)
+		WeaponFX.blood_budget = budget_was
+		await _ticks(1)
+		var bc: Dictionary = WeaponFX.blood_counts()
+		_check(int(bc.splats) > 0 and int(bc.systems) <= WeaponFX.blood_system_max and int(bc.splats) <= WeaponFX.blood_splat_max
+			and int(bc.walls) <= WeaponFX.blood_wall_max and int(bc.pools) <= WeaponFX.blood_pool_max,
+			"blood stays under its caps after a flood of wounds (%s)" % bc)
 	# Quality levels scale the population, not just the effects (owner: "still super laggy").
 	var quality_node: Node = city.get_node("Quality")
 	var full_cap: int = city.max_pedestrians

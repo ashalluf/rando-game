@@ -132,11 +132,25 @@ uniform float cloth_shade_keep = 1.0;
 // the head bone moves the mesh rather than a height band (CUSTOM1, from add_piping): the hero's
 // source jacket has tan leather yokes that pass every colour test for skin, and the height band
 // - set for the crowd's average build - took in his collar and shoulders.
+// Blood soaking through the clothes round a gunshot (Ragdoll._place_stain). Up to four wounds,
+// each a point on the posed body in skeleton space (the same space as VERTEX here, centimetres on
+// these rigs) with its radius in w; the ragdoll moves each one with the bone it landed on and
+// grows it as it soaks. Only a shot body's own copy of its look's material carries any: every
+// living pedestrian has wound_count 0, so the whole crowd skips the branch.
+uniform float wound_count = 0.0;
+uniform vec4 wound_0 = vec4(0.0);
+uniform vec4 wound_1 = vec4(0.0);
+uniform vec4 wound_2 = vec4(0.0);
+uniform vec4 wound_3 = vec4(0.0);
+// Soaked blood, in gamma space like the garment colours: a dark wet red, darker still on dark cloth.
+uniform vec3 wound_blood = vec3(0.34, 0.022, 0.018);
 
 // Height up the body, 0 at the soles and 1 at the crown.
 varying float v_height;
 varying vec3 v_pipe;
 varying vec3 v_bind;
+// The posed vertex in skeleton space, for the wound stains.
+varying vec3 v_skel;
 
 
 vec3 rgb_to_hsv(vec3 c) {
@@ -170,6 +184,37 @@ vec3 to_linear(vec3 c) {
 }
 
 
+float stain_hash(vec3 p) {
+	p = fract(p * 0.3183099 + vec3(0.11, 0.17, 0.13));
+	p *= 17.0;
+	return fract(p.x * p.y * p.z * (p.x + p.y + p.z));
+}
+
+
+float stain_noise(vec3 x) {
+	vec3 i = floor(x);
+	vec3 f = fract(x);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(
+		mix(mix(stain_hash(i), stain_hash(i + vec3(1.0, 0.0, 0.0)), f.x),
+			mix(stain_hash(i + vec3(0.0, 1.0, 0.0)), stain_hash(i + vec3(1.0, 1.0, 0.0)), f.x), f.y),
+		mix(mix(stain_hash(i + vec3(0.0, 0.0, 1.0)), stain_hash(i + vec3(1.0, 0.0, 1.0)), f.x),
+			mix(stain_hash(i + vec3(0.0, 1.0, 1.0)), stain_hash(i + vec3(1.0, 1.0, 1.0)), f.x), f.y), f.z);
+}
+
+
+// How soaked the point `p` is by one wound: a patch whose edge wanders by two octaves of noise,
+// so it reads as blood that spread through the weave rather than a painted circle.
+float wound_soak(vec4 w, vec3 p) {
+	if (w.w <= 0.0) {
+		return 0.0;
+	}
+	float d = length(p - w.xyz) / w.w;
+	float n = stain_noise(p * 0.16) * 0.65 + stain_noise(p * 0.45) * 0.35;
+	return 1.0 - smoothstep(0.55, 0.92, d + (n - 0.5) * 0.55);
+}
+
+
 vec3 hsv_to_rgb(vec3 c) {
 	vec3 p = abs(fract(c.xxx + vec3(1.0, 2.0 / 3.0, 1.0 / 3.0)) * 6.0 - 3.0);
 	return c.z * mix(vec3(1.0), clamp(p - 1.0, 0.0, 1.0), c.y);
@@ -182,6 +227,7 @@ void vertex() {
 	v_height = VERTEX.y / body_height;
 	v_pipe = CUSTOM0.xyz;
 	v_bind = CUSTOM1.xyz;
+	v_skel = VERTEX;
 }
 
 
@@ -261,8 +307,21 @@ void fragment() {
 		albedo = mix(albedo, piping_color * clamp(0.62 + 0.55 * gz, 0.6, 1.05), stripe);
 	}
 	ALBEDO = albedo * mix(vec3(1.0), skin_tint, is_skin);
+	float soak = 0.0;
+	if (wound_count > 0.5) {
+		soak = max(max(wound_soak(wound_0, v_skel), wound_soak(wound_1, v_skel)),
+			max(wound_soak(wound_2, v_skel), wound_soak(wound_3, v_skel)));
+		// Dark wet red over whatever it soaked into: nearly black on dark cloth, red on pale.
+		vec3 soaked = wound_blood * (0.4 + 0.6 * clamp(gz * 1.6, 0.0, 1.0));
+		if (value_is_linear > 0.5) {
+			soaked = to_linear(soaked);
+		}
+		ALBEDO = mix(ALBEDO, soaked, soak * 0.92);
+	}
 
 	ROUGHNESS = mix(mix(cloth_roughness, skin_roughness, is_skin), hair_roughness, is_hair * hair_strength);
+	// Soaked cloth is wet, and wet is glossy.
+	ROUGHNESS = mix(ROUGHNESS, 0.24, soak);
 	METALLIC = 0.0;
 	// Godot builds a dielectric's F0 as 0.16 * SPECULAR^2, so the old 0.45 / 0.32 meant F0 0.032
 	// for cloth and 0.016 for skin - skin reflected less than water does (0.020), which is what

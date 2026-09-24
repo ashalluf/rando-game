@@ -66,6 +66,61 @@ static var dust_puffs_max: int = 4
 ## Fraction of the particle counts used on the web build (single threaded, Compatibility).
 static var web_particle_scale: float = 0.5
 
+# Blood (owner, 2026-09-24: "I want more blood when people get shot"). Everything a wound leaves
+# behind is capped here and fades on its own clock; see blood() for what one wound is made of.
+
+## Most ground splats (landed droplets, drag smears) at once; the oldest goes when a new one
+## would pass it.
+static var blood_splat_max: int = 48
+## Seconds a ground splat stays before it fades out.
+static var blood_splat_life: float = 40.0
+## Most wall splatters at once (a spatter and the runs down the wall under it count as one).
+static var blood_wall_max: int = 12
+## Seconds a wall splatter stays before it fades out.
+static var blood_wall_life: float = 45.0
+## Most pools under bodies at once.
+static var blood_pool_max: int = 8
+## Seconds a pool stays before it fades out. Longer than the body, which is debris.
+static var blood_pool_life: float = 40.0
+## Seconds a pool takes to spread to its full width, fast at first and slowing as it thins.
+static var blood_pool_grow: float = 8.0
+## Width of the pool under someone shot once (metres); more wounds widen it, up to twice this.
+static var blood_pool_size: float = 1.35
+## Most blood particle systems alive at once. Past it a new spray is skipped entirely.
+static var blood_system_max: int = 40
+## Detailed wounds (rays, splats, wall splatter) allowed in any 0.7 s; past it a hit only sprays.
+static var blood_budget: int = 8
+## Beyond this distance a wound only sprays: no rays, no splats, no wall.
+static var blood_detail_distance: float = 70.0
+## Beyond this distance a wound draws nothing at all.
+static var blood_far_distance: float = 150.0
+## Droplets thrown out of the exit wound by a rifle round (strength 1).
+static var blood_drops: int = 30
+## Speed range of the exit spray's droplets (m/s).
+static var blood_exit_speed: Vector2 = Vector2(2.8, 8.0)
+## Half-angle of the exit spray's cone round the bullet's line (degrees).
+static var blood_exit_cone: float = 20.0
+## How far through the body the exit wound is, along the bullet (metres).
+static var blood_exit_depth: float = 0.28
+## How far behind the victim a wall still gets painted (metres along the bullet).
+static var blood_wall_reach: float = 2.8
+## Droplets per rifle wound whose flight is traced to where they come down; each lands as a
+## splat there, at the moment it lands.
+static var blood_landings: int = 5
+## Strongest single wound. A shotgun volley's pellets summed into one call stop here.
+static var blood_strength_max: float = 4.0
+## Gravity on the droplets (m/s^2). The landing trace uses the same number, which is what puts
+## the splats where the drops are seen to come down.
+static var blood_gravity: float = 11.0
+## Seconds a wound keeps dripping from a body, a stump or a torn-off limb.
+static var blood_drip_seconds: float = 2.4
+## Metres a sliding body travels between two smears of its trail.
+static var blood_trail_step: float = 0.45
+## Most trail smears one body (or limb) leaves.
+static var blood_trail_max: int = 14
+## How hard a limb torn off by a blast bleeds, against a rifle round's 1.
+static var blood_gib_strength: float = 2.2
+
 
 ## Physics layers an effect may probe: world + props + npc. Mirrors Player.AIM_MASK, kept
 ## local so weapon effects have no reference back to the player.
@@ -923,7 +978,31 @@ static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface,
 ## The particle materials every blast and wound draws with, for the loading screen to compile
 ## ahead of time (see LoadingScreen._warm_shaders()).
 static func warm_materials() -> Array:
-	return [_puff_material(false), _puff_material(true), _puff_material(false, true), _fire_material()]
+	# The blood marks' textures are generated here too (a few tens of milliseconds for all five
+	# kinds), so the first wound does not pay for them.
+	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP]:
+		blood_textures(kind)
+	return [_puff_material(false), _puff_material(true), _puff_material(false, true), _fire_material(),
+		_blood_drop_material(), _blood_mist_material()]
+
+
+## One tiny blood decal of every kind, for the loading screen to hold in front of the camera for a
+## few frames: the first decal to use a texture repacks the decal atlas, and the first wound
+## should not be the one that does it. Empty on the Compatibility renderer, which has no decals
+## (its quads' materials are in warm_mesh_materials()).
+static func warm_decals() -> Array:
+	var out: Array = []
+	if not _decals():
+		return out
+	for kind in [_KIND_DROP, _KIND_SPATTER, _KIND_POOL, _KIND_SMEAR, _KIND_DRIP]:
+		var tex := blood_textures(kind)
+		var dec := Decal.new()
+		dec.texture_albedo = tex[0]
+		dec.texture_normal = tex[1]
+		dec.texture_orm = tex[2]
+		dec.size = Vector3(0.02, 0.02, 0.02)
+		out.append(dec)
+	return out
 
 
 ## The same for what draws through plain meshes: the additive billboard flare of a muzzle flash
@@ -938,58 +1017,880 @@ static func warm_mesh_materials() -> Array:
 	var glow := unshaded(Color(2.0, 1.6, 1.0), 0.9)
 	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glow.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	return [flare, glow]
+	var out: Array = [flare, glow]
+	# Blood marks are flat quads where there are no decals; one material covers every kind.
+	if not _decals():
+		out.append(_splat_material(_KIND_DROP))
+	return out
 
 
-## Most blood splats on the ground at once; the oldest goes when a new one would pass it.
-static var blood_splat_max: int = 24
+# ---------------------------------------------------------------------------------------------
+# Blood
+# ---------------------------------------------------------------------------------------------
+
+## Fresh blood (sRGB): a deep arterial red, and the near-black red it thickens and dries to. Not
+## the pinkish red of paint: real blood is dark, and only a thin film or a lit droplet shows red.
+const BLOOD_FRESH := Color(0.42, 0.03, 0.022)
+const BLOOD_DARK := Color(0.19, 0.013, 0.01)
+## What blood lands on and splatters: the world and the props (cars, crates), not the npc layer.
+const BLOOD_MASK := 1 | 4
+
+## The kinds of mark blood leaves; each has its own generated texture set.
+const _KIND_DROP := 0
+const _KIND_SPATTER := 1
+const _KIND_POOL := 2
+const _KIND_SMEAR := 3
+const _KIND_DRIP := 4
+
 static var _splats: Array = []
+static var _walls: Array = []
+static var _pools: Array = []
+static var _blood_systems: Array = []
+static var _blood_times: Array[float] = []
+static var _decal_cache: int = -1
+## Running totals since start (for the smoke test and screenshot logs): wounds sprayed, exit
+## sprays thrown, splats, wall splatters and pools laid. Live counts are blood_counts().
+static var blood_stats := {"wounds": 0, "exit_sprays": 0, "splats": 0, "walls": 0, "pools": 0}
 
 
-## A wound opening: a spray of droplets thrown along `dir` that falls under gravity, a thin red
-## mist, and a dark splat on whatever is below (desktop only; decals are Forward+). `amount`
-## scales the spray. Used when a limb comes off (Ragdoll.dismember()).
-static func blood(node: Node, at: Vector3, dir: Vector3, amount: float = 1.0) -> void:
+## A gunshot wound (owner, 2026-09-24: "I want more blood when people get shot"). `at` is where
+## the round went in and `dir` the way it was going. A little backspatter out of the entry; a
+## heavier spray out of the far side, along the bullet, of droplets that fall under gravity and
+## leave splats where they come down (a few of them are traced through the air to find where); a
+## red mist; and a spatter with runs under it on any wall close behind. `strength` scales all of
+## it: 1 is a rifle round, a blast's torn-off limb is `blood_gib_strength`, and a shotgun either
+## calls this per pellet (the sprays stack, the caps hold) or once per person with its pellets
+## summed, up to `blood_strength_max`. `victim` - the body it came out of - is left out of every
+## ray, so the blood does not land on the person it came from.
+static func blood(node: Node, at: Vector3, dir: Vector3, strength: float = 1.0, victim: Node = null) -> void:
+	_bleed(node, at, dir, strength, victim, true)
+
+
+## Blood out of an open wound along `dir`, with no entry: a stump where a limb came off.
+static func blood_gush(node: Node, at: Vector3, dir: Vector3, strength: float = 1.0, victim: Node = null) -> void:
+	_bleed(node, at, dir, strength, victim, false)
+
+
+## A bullet into flesh, for any gun: hand it the ray hit. A pedestrian bleeds and goes down
+## (Pedestrian.shot; `knock` is the shove), a body already down bleeds again where it was hit
+## (Ragdoll.shot), a torn-off limb bleeds. Returns false when it was not flesh, so the gun goes on
+## to shove or break whatever it was. `strength` as for blood(). Duck-typed, like classify(), so
+## this file never names the NPC classes.
+static func bullet_wound(node: Node, hit: Dictionary, dir: Vector3, strength: float = 1.0,
+		knock: Vector3 = Vector3.ZERO) -> bool:
+	var who := hit.get("collider") as Node
+	if who == null:
+		return false
+	var at: Vector3 = hit.get("position", Vector3.ZERO)
+	if who.has_method("shot"):
+		who.shot(at, dir, knock, strength)
+		return true
+	var holder := who.get_parent()
+	if holder != null and holder.has_method("shot") and holder.has_method("fling"):
+		holder.shot(at, dir, Vector3.ZERO, strength)
+		return true
+	if who.is_in_group("gib"):
+		blood_gush(node, at, dir, strength * 0.6, who)
+		return true
+	if who.has_method("knock"):
+		who.knock(knock)
+		return true
+	return false
+
+
+## Live counts of what blood is in the world right now: particle systems, ground splats, wall
+## splatters and pools. Each stays under its cap.
+static func blood_counts() -> Dictionary:
+	for list: Array in [_splats, _walls, _pools, _blood_systems]:
+		_prune(list)
+	return {"systems": _blood_systems.size(), "splats": _splats.size(), "walls": _walls.size(), "pools": _pools.size()}
+
+
+static func _bleed(node: Node, at: Vector3, dir: Vector3, strength: float, victim: Node, entry: bool) -> void:
+	if node == null or not node.is_inside_tree():
+		return
+	var d := dir.normalized() if not dir.is_zero_approx() else Vector3.UP
+	var s := clampf(strength, 0.1, blood_strength_max)
+	var dist := _view_distance(node, at)
+	if dist > blood_far_distance:
+		return
+	blood_stats["wounds"] += 1
 	var parent := fx_parent(node)
-	var drops := _ramp([Color(0.42, 0.02, 0.02, 1.0), Color(0.30, 0.01, 0.01, 0.95), Color(0.18, 0.0, 0.0, 0.0)])
-	_puff_layer(parent, at, _count(int(28 * amount)), 0.07, 0.9, 2.5, 8.0, -18.0, drops, false,
-		40.0, 1.3, _basis_up(dir), 0.0, 0.5)
-	var mist := _ramp([Color(0.35, 0.02, 0.02, 0.0), Color(0.30, 0.02, 0.02, 0.35), Color(0.22, 0.01, 0.01, 0.0)])
-	_puff_layer(parent, at, _count(int(6 * amount)), 0.45, 0.7, 0.6, 2.0, -1.0, mist, false,
-		70.0, 2.0, _basis_up(dir))
-	if _web():
+	var exit_at := at + d * (blood_exit_depth if entry else 0.0)
+	var grow := sqrt(s)
+	# Particles. Hard-capped as a whole: a crowd emptied into at close range is exactly when the
+	# frame can least afford a hundred sprays. A wound is up to four systems.
+	if _blood_room(4 if entry else 2):
+		var cone := blood_exit_cone * (0.9 + 0.1 * s)
+		if entry:
+			# Backspatter: a few fine drops and a puff thrown back out of the entry, at the shooter.
+			_track(_drop_layer(parent, at, _count(int(8 * grow)), 0.55, Vector2(0.8, 2.6), _basis_up(-d), 38.0, 0.6))
+			_track(_mist_layer(parent, at, _count(2), 0.16, 0.45, _basis_up(-d), 50.0, 0.6))
+		# The exit spray: most of the blood, along the bullet, thrown hard and falling fast.
+		var drops := clampi(int(float(blood_drops) * (0.6 + 0.4 * s)), 6, 110)
+		var speed := blood_exit_speed * (0.9 + 0.1 * s)
+		_track(_drop_layer(parent, exit_at, _count(drops), 0.85, speed, _basis_up(d), cone, 1.0 + 0.1 * s))
+		_track(_mist_layer(parent, exit_at, _count(int(3 + 2 * s)), 0.22 + 0.06 * s, 0.75, _basis_up(d), cone * 2.0, 1.0))
+		blood_stats["exit_sprays"] += 1
+	if dist > blood_detail_distance or not _blood_budget_ok():
 		return
 	var space := _space(node)
 	if space == null:
 		return
-	var down := PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.3, at + Vector3.DOWN * 4.0, 1)
-	var hit := space.intersect_ray(down)
-	if hit.is_empty():
-		return
-	var decal := Decal.new()
-	decal.texture_albedo = puff_texture()
-	decal.modulate = Color(0.22, 0.01, 0.01)
-	decal.albedo_mix = 0.9
-	var w := randf_range(1.0, 1.8) * amount
-	decal.size = Vector3(w, 1.2, w)
-	decal.upper_fade = 0.5
-	decal.lower_fade = 0.5
-	decal.normal_fade = 0.5
-	decal.distance_fade_enabled = true
-	decal.distance_fade_begin = 45.0
-	decal.distance_fade_length = 15.0
-	parent.add_child(decal)
-	decal.global_position = (hit.position as Vector3) + dir.normalized() * randf_range(0.3, 1.2) * Vector3(1, 0, 1)
-	decal.rotation.y = randf_range(0.0, TAU)
-	_splats.append(decal)
-	while _splats.size() > blood_splat_max:
-		var old = _splats.pop_front()
+	var exclude := _victim_rids(victim)
+	_wall_splatter(parent, space, exit_at, d, s, exclude)
+	_land_drops(parent, space, exit_at, d, clampi(int(round(float(blood_landings) * (0.7 + 0.3 * s))), 2, 12), s, exclude)
+
+
+## Counts the detailed wounds started in the last moment, like impact() does, rather than keep a
+## live counter through tween callbacks.
+static func _blood_budget_ok() -> bool:
+	var now := Time.get_ticks_msec() * 0.001
+	while not _blood_times.is_empty() and now - _blood_times[0] > 0.7:
+		_blood_times.pop_front()
+	if _blood_times.size() >= blood_budget:
+		return false
+	_blood_times.append(now)
+	return true
+
+
+static func _blood_room(need: int = 1) -> bool:
+	_prune(_blood_systems)
+	return _blood_systems.size() + need <= blood_system_max
+
+
+static func _track(p: Node) -> void:
+	if p != null:
+		_blood_systems.append(p)
+
+
+## Drops freed nodes from one of the capped lists, in place.
+static func _prune(list: Array) -> void:
+	for i in range(list.size() - 1, -1, -1):
+		if not is_instance_valid(list[i]) or (list[i] as Node).is_queued_for_deletion():
+			list.remove_at(i)
+
+
+## Frees the oldest marks of one list until it is back under its cap.
+static func _trim(list: Array, cap: int) -> void:
+	_prune(list)
+	while list.size() > maxi(cap, 0):
+		var old: Object = list.pop_front()
 		if is_instance_valid(old):
 			(old as Node).queue_free()
-	var t := decal.create_tween()
-	t.tween_interval(30.0)
-	t.tween_property(decal, "modulate:a", 0.0, 4.0)
-	t.tween_callback(decal.queue_free)
+
+
+## The physics bodies of the person blood came out of - a pedestrian's capsule, a ragdoll's
+## pieces, a limb - for the rays to skip.
+static func _victim_rids(victim: Node) -> Array[RID]:
+	var out: Array[RID] = []
+	if victim == null or not is_instance_valid(victim):
+		return out
+	if victim is CollisionObject3D:
+		out.append((victim as CollisionObject3D).get_rid())
+	for c in victim.find_children("*", "CollisionObject3D", true, false):
+		out.append((c as CollisionObject3D).get_rid())
+	return out
+
+
+## Decals need Forward+ or Mobile. The Compatibility renderer - the web build, and the opengl3
+## screenshot path - lays flat alpha quads with the same textures instead.
+static func _decals() -> bool:
+	if _decal_cache < 0:
+		_decal_cache = 0 if _web() or RenderingServer.get_current_rendering_method() == "gl_compatibility" else 1
+	return _decal_cache == 1
+
+
+## A direction inside a cone of half-angle `deg` round `axis`, spread evenly over the cone's area.
+static func _cone(axis: Vector3, deg: float) -> Vector3:
+	var b := _basis_up(axis)
+	var cos_max := cos(deg_to_rad(deg))
+	var z := lerpf(cos_max, 1.0, randf())
+	var r := sqrt(maxf(0.0, 1.0 - z * z))
+	var phi := randf() * TAU
+	return (b * Vector3(r * cos(phi), z, r * sin(phi))).normalized()
+
+
+# --- Blood particles --------------------------------------------------------------------------
+
+static var _mat_drop: StandardMaterial3D
+static var _mat_mist: StandardMaterial3D
+static var _drop_mesh: SphereMesh
+
+
+## Lit, glossy and opaque: a droplet is a bead of liquid that catches the light, not a glowing
+## dot, and at night it is as dark as everything else. Opaque, so a spray needs no sorting; it
+## shrinks away at the end of its life instead of fading.
+static func _blood_drop_material() -> StandardMaterial3D:
+	if _mat_drop == null:
+		var m := StandardMaterial3D.new()
+		m.albedo_color = BLOOD_FRESH
+		m.vertex_color_use_as_albedo = true
+		m.roughness = 0.12
+		m.metallic_specular = 0.7
+		_mat_drop = m
+	return _mat_drop
+
+
+static func _blood_drop_mesh() -> SphereMesh:
+	if _drop_mesh == null:
+		var s := SphereMesh.new()
+		# Four times as long as it is wide, and every particle's Y follows its velocity, so a drop
+		# in flight is a streak that reads from any side instead of a dot.
+		s.radius = 0.017
+		s.height = 0.07
+		s.radial_segments = 6
+		s.rings = 3
+		s.material = _blood_drop_material()
+		_drop_mesh = s
+	return _drop_mesh
+
+
+## A lit billboard puff for the red mist: lit, so it sits in the street's light rather than
+## glowing like the old unshaded one.
+static func _blood_mist_material() -> StandardMaterial3D:
+	if _mat_mist == null:
+		var m := StandardMaterial3D.new()
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
+		# Same trap as every puff: without it the mist is exactly one metre whatever it asks for.
+		m.billboard_keep_scale = true
+		m.particles_anim_h_frames = 1
+		m.particles_anim_v_frames = 1
+		m.vertex_color_use_as_albedo = true
+		m.albedo_color = BLOOD_FRESH
+		m.albedo_texture = puff_texture()
+		m.roughness = 0.9
+		m.disable_receive_shadows = true
+		if not _web():
+			m.proximity_fade_enabled = true
+			m.proximity_fade_distance = 0.4
+		_mat_mist = m
+	return _mat_mist
+
+
+## A burst of droplets thrown along `aim`'s +Y within a cone of `spread` degrees. No damping, so
+## each follows the same arc the landing trace in _land_drops() computes.
+static func _drop_layer(parent: Node, at: Vector3, count: int, life: float, speed: Vector2,
+		aim: Basis, spread: float, size: float = 1.0) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.name = "BloodDrops"
+	p.add_to_group("blood")
+	p.one_shot = true
+	p.explosiveness = 1.0
+	p.amount = maxi(1, count)
+	p.lifetime = life
+	p.lifetime_randomness = 0.35
+	# Out of a wound, not a point: a few centimetres of torn cloth and skin.
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	p.emission_sphere_radius = 0.035
+	p.direction = Vector3.UP
+	p.spread = spread
+	p.initial_velocity_min = speed.x
+	p.initial_velocity_max = speed.y
+	p.gravity = Vector3(0.0, -blood_gravity, 0.0)
+	p.particle_flag_align_y = true
+	p.scale_amount_min = 0.45 * size
+	p.scale_amount_max = 1.5 * size
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))
+	curve.add_point(Vector2(0.7, 0.85))
+	curve.add_point(Vector2(1.0, 0.0))
+	p.scale_amount_curve = curve
+	# Some drops darker than others: thin ones catch the light red, thick ones stay near black.
+	p.color_initial_ramp = _ramp([Color(1.15, 1.1, 1.1), Color(0.8, 0.8, 0.8), Color(0.45, 0.45, 0.45)])
+	p.mesh = _blood_drop_mesh()
+	parent.add_child(p)
+	p.global_transform = Transform3D(aim, at)
+	var span := life * 1.35
+	var reach := speed.y * span + blood_gravity * span * span + 1.0
+	p.custom_aabb = AABB(Vector3.ONE * -reach, Vector3.ONE * (reach * 2.0))
+	p.restart()
+	p.emitting = true
+	var tween := p.create_tween()
+	tween.tween_interval(span + 0.2)
+	tween.tween_callback(p.queue_free)
+	return p
+
+
+static func _mist_layer(parent: Node, at: Vector3, count: int, size: float, life: float,
+		aim: Basis, spread: float, alpha: float) -> CPUParticles3D:
+	var p := _puff_layer(parent, at, count, size, life, 0.4, 1.8, -1.2,
+		_ramp([Color(1.0, 1.0, 1.0, 0.0), Color(1.0, 1.0, 1.0, 0.42 * alpha), Color(0.7, 0.7, 0.7, 0.18 * alpha),
+			Color(0.6, 0.6, 0.6, 0.0)]), false, spread, 2.4, aim, 0.0, 0.3, 1.0, false, null,
+		_blood_mist_material())
+	p.name = "BloodMist"
+	p.add_to_group("blood")
+	return p
+
+
+## Drops falling off a wound for `seconds` - a body's exit wound, a stump, the end of a torn-off
+## limb - left behind in the world as `host` moves, so a tumbling limb or a sliding body draws a
+## trail through the air. `local_at` is the wound in the host's own space. `rate` scales how many.
+## Returns null when the particle cap is full.
+static func blood_drip(host: Node3D, local_at: Vector3, seconds: float, rate: float = 1.0) -> CPUParticles3D:
+	if host == null or not host.is_inside_tree() or not _blood_room():
+		return null
+	if _view_distance(host, host.global_position) > blood_detail_distance:
+		return null
+	var p := CPUParticles3D.new()
+	p.name = "BloodDrip"
+	p.add_to_group("blood")
+	p.local_coords = false
+	p.amount = maxi(4, int(16.0 * rate))
+	p.lifetime = 0.8
+	p.direction = Vector3.DOWN
+	p.spread = 180.0
+	p.initial_velocity_min = 0.1
+	p.initial_velocity_max = 0.9
+	p.gravity = Vector3(0.0, -blood_gravity, 0.0)
+	p.particle_flag_align_y = true
+	p.scale_amount_min = 0.4
+	p.scale_amount_max = 1.1
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 1.0))
+	curve.add_point(Vector2(1.0, 0.2))
+	p.scale_amount_curve = curve
+	p.color_initial_ramp = _ramp([Color(1.0, 1.0, 1.0), Color(0.55, 0.55, 0.55)])
+	p.mesh = _blood_drop_mesh()
+	# The drops live in the world while the emitter rides the host, so the bounds have to cover
+	# wherever the host tumbles to in that time as well as the fall.
+	p.custom_aabb = AABB(Vector3.ONE * -12.0, Vector3.ONE * 24.0)
+	host.add_child(p)
+	p.position = local_at
+	p.emitting = true
+	var tween := p.create_tween()
+	tween.tween_interval(maxf(seconds, 0.1))
+	tween.tween_callback(p.set.bind("emitting", false))
+	tween.tween_interval(p.lifetime + 0.2)
+	tween.tween_callback(p.queue_free)
+	_track(p)
+	return p
+
+
+# --- Blood on the world -----------------------------------------------------------------------
+
+## Traces `n` droplets of an exit spray from `from` through the air to wherever they come down
+## and lays a splat there, shown at the moment it lands. A few short rays along each arc. The
+## first is the heavy drop that runs straight out of the wound onto the ground under it, so a
+## wound always marks the ground beneath it as well as where the spray carried.
+static func _land_drops(parent: Node, space: PhysicsDirectSpaceState3D, from: Vector3, d: Vector3,
+		n: int, strength: float, exclude: Array[RID]) -> void:
+	var step := 0.07
+	for i in n:
+		var v: Vector3
+		var size: float
+		if i == 0:
+			v = d * randf_range(0.2, 0.9) + Vector3(randf_range(-0.25, 0.25), -0.5, randf_range(-0.25, 0.25))
+			size = randf_range(0.30, 0.46) * (0.8 + 0.2 * strength)
+		else:
+			v = _cone(d, blood_exit_cone * (0.9 + 0.1 * strength)) * randf_range(blood_exit_speed.x, blood_exit_speed.y)
+			size = randf_range(0.10, 0.26) * (0.9 + 0.1 * strength)
+		var p := from
+		var t := 0.0
+		while t < 1.4:
+			var nv := v + Vector3.DOWN * blood_gravity * step
+			var np := p + (v + nv) * 0.5 * step
+			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(p, np, BLOOD_MASK, exclude))
+			if not hit.is_empty():
+				var frac := ((hit.position as Vector3) - p).length() / maxf((np - p).length(), 0.0001)
+				_drop_splat(parent, hit, v.lerp(nv, frac), size, t + step * frac)
+				break
+			p = np
+			v = nv
+			t += step
+
+
+## Where a drop came down: a splat on the ground stretched along the way it was going (a drop
+## landing at a slant smears), or a smaller spatter where it met a wall.
+static func _drop_splat(parent: Node, hit: Dictionary, vel: Vector3, size: float, delay: float) -> void:
+	var n: Vector3 = hit.normal
+	var host := _host_for(hit.get("collider"), parent)
+	var slide := vel - n * vel.dot(n)
+	var slant := clampf(slide.length() / maxf(absf(vel.dot(n)), 0.5), 0.0, 1.6)
+	var along := slide.normalized() if slide.length() > 0.05 else _any_tangent(n)
+	var basis := _basis_on(n, along)
+	var wall := absf(n.y) < 0.5
+	var sz := Vector3(size * (1.0 + 0.45 * slant), 0.4, size) * (0.7 if wall else 1.0)
+	var splat := _splat(host, _KIND_DROP, Transform3D(basis, (hit.position as Vector3) + n * 0.015), sz,
+		blood_splat_life, delay, true)
+	if splat:
+		_splats.append(splat)
+		_trim(_splats, blood_splat_max)
+		blood_stats["splats"] += 1
+
+
+## The spray that reaches a wall close behind the victim: a spatter flung out along the bullet's
+## line across the wall, and runs of blood creeping down the wall under it. One ray.
+static func _wall_splatter(parent: Node, space: PhysicsDirectSpaceState3D, from: Vector3, d: Vector3,
+		strength: float, exclude: Array[RID]) -> void:
+	var reach := blood_wall_reach * (0.85 + 0.15 * strength)
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(from, from + d * reach, BLOOD_MASK, exclude))
+	if hit.is_empty():
+		return
+	var n: Vector3 = hit.normal
+	if absf(n.y) > 0.7:
+		return # a floor: the landings paint those
+	var at: Vector3 = hit.position
+	var gone := at.distance_to(from)
+	# The spray widens the further it flew; a heavier wound throws more of it.
+	var w := (0.42 + 0.32 * gone) * (0.8 + 0.2 * sqrt(strength))
+	var along := d - n * d.dot(n)
+	if along.length() < 0.2:
+		along = Vector3.DOWN - n * n.dot(Vector3.DOWN) # square on: it runs down
+	if along.length() < 0.05:
+		along = _any_tangent(n)
+	along = along.normalized()
+	var host := _host_for(hit.get("collider"), parent)
+	var delay := gone / maxf((blood_exit_speed.x + blood_exit_speed.y) * 0.5, 0.1)
+	var size := Vector3(w * 0.85, 0.5, w * 1.35)
+	# The texture's dense core sits a fifth of the way along it; put that on the impact.
+	var spat := _splat(host, _KIND_SPATTER, Transform3D(_basis_on(n, along, true), at + along * size.z * 0.3 + n * 0.02),
+		size, blood_wall_life, delay, true)
+	if spat == null:
+		return
+	_walls.append(spat)
+	_trim(_walls, blood_wall_max)
+	blood_stats["walls"] += 1
+	# Runs: what hit the wall creeps down it for a few seconds. A child of the spatter, so the
+	# cap that removes a spatter takes its runs with it.
+	var down := Vector3.DOWN - n * n.dot(Vector3.DOWN)
+	if down.length() < 0.5:
+		return
+	down = down.normalized()
+	var top := at - down * w * 0.05 + n * 0.021
+	var run_len := w * randf_range(0.9, 1.9) * (0.8 + 0.2 * strength)
+	var run := _splat(spat, _KIND_DRIP, Transform3D(_basis_on(n, down, true), top + down * w * 0.06),
+		Vector3(w * 0.75, 0.5, w * 0.12), blood_wall_life, delay, false)
+	if run == null:
+		return
+	var width := w * 0.75
+	var start := w * 0.12
+	var creep := func(k: float) -> void:
+		var run_now := lerpf(start, run_len, k)
+		_set_extent(run, Vector3(width, 0.5, run_now))
+		run.global_position = top + down * run_now * 0.5
+	var t := run.create_tween()
+	t.tween_interval(delay + 0.15)
+	t.tween_method(creep, 0.0, 1.0, randf_range(4.0, 7.0)).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_SINE)
+
+
+## A pool of blood spreading on the ground at `at` (`normal` is the ground's up) under a body
+## (Ragdoll) to `blood_pool_size`, wider the worse the wounds (`strength`, their sum), over
+## `blood_pool_grow` seconds. Returns the node, which feed_pool() widens if the body is shot again.
+static func blood_pool(node: Node, at: Vector3, normal: Vector3, strength: float = 1.0) -> Node3D:
+	if node == null or not node.is_inside_tree():
+		return null
+	var parent := fx_parent(node)
+	var basis := _basis_up(normal, randf_range(-PI, PI))
+	var pool := _splat(parent, _KIND_POOL, Transform3D(basis, at + normal * 0.018), Vector3(0.22, 0.5, 0.22),
+		blood_pool_life, 0.0, false)
+	if pool == null:
+		return null
+	pool.set_meta("aspect", randf_range(0.8, 1.2))
+	_pools.append(pool)
+	_trim(_pools, blood_pool_max)
+	blood_stats["pools"] += 1
+	feed_pool(pool, strength)
+	return pool
+
+
+## Retargets a pool to the width `strength` (the body's wounds, summed) calls for, spreading
+## there from wherever it has got to.
+static func feed_pool(pool: Node3D, strength: float) -> void:
+	if pool == null or not is_instance_valid(pool) or not pool.is_inside_tree():
+		return
+	var target := blood_pool_size * clampf(0.75 + 0.25 * strength, 0.75, 2.0)
+	var aspect: float = pool.get_meta("aspect", 1.0)
+	if pool.has_meta("grow"):
+		var old := pool.get_meta("grow") as Tween
+		if old != null and old.is_valid():
+			old.kill()
+	var from := _extent(pool)
+	var to := Vector3(target * aspect, from.y, target)
+	var t := pool.create_tween()
+	t.tween_method(func(k: float) -> void: _set_extent(pool, from.lerp(to, k)), 0.0, 1.0,
+		blood_pool_grow).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	pool.set_meta("grow", t)
+
+
+## A smear dragged along `along` on the ground at `at`: a body sliding, a limb skidding.
+static func blood_smear(node: Node, at: Vector3, normal: Vector3, along: Vector3, length: float, width: float) -> Node3D:
+	if node == null or not node.is_inside_tree():
+		return null
+	var dir := along - normal * along.dot(normal)
+	if dir.length() < 0.01:
+		dir = _any_tangent(normal)
+	var smear := _splat(fx_parent(node), _KIND_SMEAR, Transform3D(_basis_on(normal, dir.normalized()), at + normal * 0.016),
+		Vector3(maxf(length, 0.2), 0.4, width), blood_splat_life, 0.0, false)
+	if smear:
+		_splats.append(smear)
+		_trim(_splats, blood_splat_max)
+		blood_stats["splats"] += 1
+	return smear
+
+
+## A drop landing where `at` meets the ground under it (a limb hitting the road). Null if there
+## is no ground within reach.
+static func blood_splat_below(node: Node, at: Vector3, size: float, exclude: Array[RID] = []) -> Node3D:
+	var space := _space(node)
+	if space == null:
+		return null
+	var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(at + Vector3.UP * 0.2, at + Vector3.DOWN * 1.5, 1, exclude))
+	if hit.is_empty():
+		return null
+	var n: Vector3 = hit.normal
+	var splat := _splat(fx_parent(node), _KIND_DROP, Transform3D(_basis_up(n, randf_range(-PI, PI)), (hit.position as Vector3) + n * 0.015),
+		Vector3(size, 0.4, size), blood_splat_life, 0.0, true)
+	if splat:
+		_splats.append(splat)
+		_trim(_splats, blood_splat_max)
+		blood_stats["splats"] += 1
+	return splat
+
+
+## Moving things carry their splatter (a car door drives off with it); everything else hangs off
+## the scene root, which the streamer shifts with the world and which outlives chunk swaps.
+static func _host_for(collider: Variant, fallback: Node) -> Node:
+	var body := collider as PhysicsBody3D
+	if body != null and body.is_inside_tree() and not (body is StaticBody3D):
+		return body
+	return fallback
+
+
+## A basis standing on `normal` (local +Y, the way a decal projects down its -Y) with its local
+## +X along `along`, or its +Z when `along_z` - the texture's U or V, respectively.
+static func _basis_on(normal: Vector3, along: Vector3, along_z: bool = false) -> Basis:
+	var y := normal.normalized()
+	var a := (along - y * along.dot(y))
+	if a.length() < 0.001:
+		a = _any_tangent(y)
+	a = a.normalized()
+	if along_z:
+		var x := y.cross(a).normalized()
+		return Basis(x, y, x.cross(y).normalized())
+	var z := a.cross(y).normalized()
+	return Basis(a, y, z)
+
+
+static func _any_tangent(n: Vector3) -> Vector3:
+	var side := Vector3.RIGHT if absf(n.x) < 0.9 else Vector3.FORWARD
+	return (side - n * side.dot(n)).normalized()
+
+
+static var _splat_mats: Dictionary = {}
+
+
+## The flat-quad version of a mark for the Compatibility renderer: the same three maps on a lit,
+## alpha-blended material, roughness from the ORM map's green channel.
+static func _splat_material(kind: int) -> StandardMaterial3D:
+	if _splat_mats.has(kind):
+		return _splat_mats[kind]
+	var tex := blood_textures(kind)
+	var m := StandardMaterial3D.new()
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_texture = tex[0]
+	m.normal_enabled = true
+	m.normal_texture = tex[1]
+	m.roughness = 1.0
+	m.roughness_texture = tex[2]
+	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
+	m.metallic_specular = 0.65
+	_splat_mats[kind] = m
+	return m
+
+
+## One mark: a Decal on Forward+ (it wraps kerbs and follows the surface), a flat alpha quad on
+## the Compatibility renderer. Hidden until `delay` has passed (a drop lands when it lands), with
+## a quick spread on arrival when `pop`, then held `life` seconds and faded out.
+static func _splat(host: Node, kind: int, xf: Transform3D, size: Vector3, life: float, delay: float, pop: bool) -> Node3D:
+	if host == null or not host.is_inside_tree():
+		return null
+	var tex := blood_textures(kind)
+	var n: Node3D
+	if _decals():
+		var dec := Decal.new()
+		dec.texture_albedo = tex[0]
+		dec.texture_normal = tex[1]
+		dec.texture_orm = tex[2]
+		dec.albedo_mix = 1.0
+		# Without a normal fade the projection smears down any kerb or wall it grazes.
+		dec.normal_fade = 0.3
+		dec.upper_fade = 0.3
+		dec.lower_fade = 0.3
+		dec.distance_fade_enabled = true
+		dec.distance_fade_begin = 50.0
+		dec.distance_fade_length = 15.0
+		dec.size = size
+		n = dec
+	else:
+		var mi := MeshInstance3D.new()
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(size.x, size.z)
+		mi.mesh = plane
+		# Its own copy, because each one fades on its own clock.
+		mi.material_override = _splat_material(kind).duplicate()
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = 60.0
+		n = mi
+	n.name = "Blood"
+	n.add_to_group("blood")
+	host.add_child(n)
+	n.global_transform = Transform3D(xf.basis.orthonormalized(), xf.origin)
+	var t := n.create_tween()
+	if delay > 0.0:
+		n.visible = false
+		t.tween_interval(delay)
+		t.tween_callback(n.show)
+	if pop:
+		t.tween_method(func(k: float) -> void: _set_extent(n, size * lerpf(0.5, 1.0, k)), 0.0, 1.0, 0.09).set_ease(Tween.EASE_OUT)
+	t.tween_interval(maxf(life, 0.5))
+	t.tween_method(func(a: float) -> void: _set_alpha(n, a), 1.0, 0.0, 3.0)
+	t.tween_callback(n.queue_free)
+	return n
+
+
+static func _set_extent(n: Node3D, size: Vector3) -> void:
+	if not is_instance_valid(n):
+		return
+	if n is Decal:
+		(n as Decal).size = size
+	elif n is MeshInstance3D and (n as MeshInstance3D).mesh is PlaneMesh:
+		((n as MeshInstance3D).mesh as PlaneMesh).size = Vector2(size.x, size.z)
+
+
+static func _extent(n: Node3D) -> Vector3:
+	if n is Decal:
+		return (n as Decal).size
+	if n is MeshInstance3D and (n as MeshInstance3D).mesh is PlaneMesh:
+		var s := ((n as MeshInstance3D).mesh as PlaneMesh).size
+		return Vector3(s.x, 0.5, s.y)
+	return Vector3.ONE
+
+
+static func _set_alpha(n: Node3D, a: float) -> void:
+	if not is_instance_valid(n):
+		return
+	if n is Decal:
+		(n as Decal).modulate.a = a
+	elif n is MeshInstance3D and (n as MeshInstance3D).material_override is StandardMaterial3D:
+		((n as MeshInstance3D).material_override as StandardMaterial3D).albedo_color.a = a
+
+
+# --- Blood textures ---------------------------------------------------------------------------
+
+static var _blood_tex: Dictionary = {}
+
+
+## The albedo, normal and ORM maps of one kind of blood mark, generated once and cached (the
+## loading screen pays for them). Each kind paints a "thickness" field out of soft domes, and
+## every kind is then shaded the same way: a thin film is the brighter red, thick blood near-black
+## red, and the rim darker again where a drying edge collects - the coffee-ring edge is what tells
+## dried blood from red paint. The normal map carries the meniscus at the edge, and the roughness
+## runs to a near-mirror where it is thick and wet, so a pool catches the sky.
+static func blood_textures(kind: int) -> Array:
+	if _blood_tex.has(kind):
+		return _blood_tex[kind]
+	var w := 128
+	var h := 128
+	if kind == _KIND_DRIP:
+		w = 64
+	elif kind == _KIND_SMEAR:
+		h = 64
+	var f := PackedFloat32Array()
+	f.resize(w * h)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5150 + kind * 31
+	match kind:
+		_KIND_DROP:
+			_paint_drop(f, w, h, rng)
+		_KIND_SPATTER:
+			_paint_spatter(f, w, h, rng)
+		_KIND_POOL:
+			_paint_pool(f, w, h, rng)
+		_KIND_SMEAR:
+			_paint_smear(f, w, h, rng)
+		_:
+			_paint_drip(f, w, h, rng)
+	var maps := _shade_blood(f, w, h, rng)
+	_blood_tex[kind] = maps
+	return maps
+
+
+## A soft dome of blood: an ellipse `rx` by `ry` pixels at (cx, cy), its long axis turned to
+## `ang`, `amp` thick in the middle. Where two meet they run together instead of overlapping.
+static func _blob(f: PackedFloat32Array, w: int, h: int, cx: float, cy: float, rx: float, ry: float,
+		ang: float = 0.0, amp: float = 1.0) -> void:
+	var r := maxf(rx, ry) + 1.0
+	var c := cos(ang)
+	var s := sin(ang)
+	for y in range(maxi(0, int(cy - r)), mini(h, int(cy + r) + 2)):
+		for x in range(maxi(0, int(cx - r)), mini(w, int(cx + r) + 2)):
+			var dx := float(x) + 0.5 - cx
+			var dy := float(y) + 0.5 - cy
+			var lx := (dx * c + dy * s) / maxf(rx, 0.3)
+			var ly := (-dx * s + dy * c) / maxf(ry, 0.3)
+			var d2 := lx * lx + ly * ly
+			if d2 >= 1.0:
+				continue
+			var v := amp * sqrt(1.0 - d2)
+			var i := y * w + x
+			var old := f[i]
+			f[i] = maxf(old, v) + 0.35 * minf(old, v)
+
+
+## The main body of a mark: a dome (or, with `flat` above 0, a flat-topped pool whose edge rises
+## over that fraction of the radius) whose outline wanders by three sines of random phase.
+static func _lobed(f: PackedFloat32Array, w: int, h: int, cx: float, cy: float, radius: float,
+		wobble: float, lobes: int, rng: RandomNumberGenerator, amp: float = 1.0, flat: float = 0.0) -> void:
+	var p0 := rng.randf() * TAU
+	var p1 := rng.randf() * TAU
+	var p2 := rng.randf() * TAU
+	var k0 := float(lobes)
+	var k1 := float(lobes * 2 + 1)
+	var k2 := float(lobes * 3 + 2)
+	var r := radius * (1.0 + wobble) + 1.0
+	for y in range(maxi(0, int(cy - r)), mini(h, int(cy + r) + 2)):
+		for x in range(maxi(0, int(cx - r)), mini(w, int(cx + r) + 2)):
+			var dx := float(x) + 0.5 - cx
+			var dy := float(y) + 0.5 - cy
+			var rr := sqrt(dx * dx + dy * dy)
+			var a := atan2(dy, dx)
+			var edge := radius * (1.0 + wobble * (0.55 * sin(k0 * a + p0) + 0.3 * sin(k1 * a + p1) + 0.15 * sin(k2 * a + p2)))
+			if rr >= edge:
+				continue
+			var q := rr / edge
+			var v := amp * (smoothstep(0.0, flat, 1.0 - q) if flat > 0.0 else sqrt(1.0 - q * q))
+			var i := y * w + x
+			var old := f[i]
+			f[i] = maxf(old, v) + 0.35 * minf(old, v)
+
+
+## A drop that hit the ground: a lobed splash with a crown of short spikes round it and satellite
+## droplets thrown out past it, most of them forward (+U, the way it was travelling).
+static func _paint_drop(f: PackedFloat32Array, w: int, h: int, rng: RandomNumberGenerator) -> void:
+	var cx := w * 0.5
+	var cy := h * 0.5
+	var r := w * 0.19
+	_lobed(f, w, h, cx, cy, r, 0.16, 5, rng)
+	for i in 16:
+		var a := rng.randf() * TAU
+		var fwd := 0.5 + 0.5 * cos(a)
+		var length := r * rng.randf_range(0.25, 0.55) * (0.7 + 0.8 * fwd)
+		var at := Vector2(cx, cy) + Vector2(cos(a), sin(a)) * (r * 0.95 + length * 0.5)
+		_blob(f, w, h, at.x, at.y, length * 0.5, r * rng.randf_range(0.06, 0.12), a, 0.8)
+	for i in 26:
+		var a := rng.randf_range(-1.1, 1.1) if rng.randf() < 0.65 else rng.randf() * TAU
+		var at := Vector2(cx, cy) + Vector2(cos(a), sin(a)) * r * rng.randf_range(1.3, 2.4)
+		if at.x < 3.0 or at.x > w - 3.0 or at.y < 3.0 or at.y > h - 3.0:
+			continue
+		var s := r * rng.randf_range(0.03, 0.11)
+		_blob(f, w, h, at.x, at.y, s * 1.4, s, a, 0.75)
+
+
+## An exit wound's spray on a wall: a dense core near V 0.2 and droplets flung out from it toward
+## +V inside a cone, smaller, longer and more tailed the further they flew, plus a few streaks.
+static func _paint_spatter(f: PackedFloat32Array, w: int, h: int, rng: RandomNumberGenerator) -> void:
+	var core := Vector2(w * 0.5, h * 0.2)
+	_lobed(f, w, h, core.x, core.y, w * 0.10, 0.2, 4, rng)
+	for i in 80:
+		var a := PI * 0.5 + rng.randf_range(-0.55, 0.55) * (0.25 + 0.75 * rng.randf())
+		var t := pow(rng.randf(), 0.8)
+		var at := core + Vector2(cos(a), sin(a)) * lerpf(w * 0.07, h * 0.76, t)
+		if at.y > h - 3.0 or at.x < 3.0 or at.x > w - 3.0:
+			continue
+		var s := lerpf(w * 0.034, w * 0.008, t) * rng.randf_range(0.6, 1.3)
+		var stretch := lerpf(1.2, 3.2, t)
+		_blob(f, w, h, at.x, at.y, s * stretch, s, a, 0.85)
+		if rng.randf() < 0.5:
+			var tail := at + Vector2(cos(a), sin(a)) * s * stretch * 1.4
+			_blob(f, w, h, tail.x, tail.y, s * stretch * 0.9, s * 0.35, a, 0.5)
+	for i in 5:
+		var a := PI * 0.5 + rng.randf_range(-0.35, 0.35)
+		var length := h * rng.randf_range(0.18, 0.4)
+		var at := core + Vector2(cos(a), sin(a)) * (w * 0.1 + length * 0.5)
+		_blob(f, w, h, at.x, at.y, length * 0.5, w * rng.randf_range(0.01, 0.022), a, 0.7)
+
+
+## A pool: flat-topped with a rounded edge (the meniscus), lobed where it ran further on one side,
+## and a couple of little pools touching its rim.
+static func _paint_pool(f: PackedFloat32Array, w: int, h: int, rng: RandomNumberGenerator) -> void:
+	_lobed(f, w, h, w * 0.5, h * 0.5, w * 0.33, 0.10, 3, rng, 1.0, 0.18)
+	for i in 4:
+		var a := rng.randf() * TAU
+		var at := Vector2(w * 0.5, h * 0.5) + Vector2(cos(a), sin(a)) * w * rng.randf_range(0.22, 0.31)
+		_lobed(f, w, h, at.x, at.y, w * rng.randf_range(0.07, 0.13), 0.2, 3, rng, 0.95, 0.3)
+
+
+## A body dragged through blood: parallel streaks running the length of the mark (+U), heavy
+## where it started and fraying out toward the end, broken where it lifted.
+static func _paint_smear(f: PackedFloat32Array, w: int, h: int, rng: RandomNumberGenerator) -> void:
+	var lanes := 9
+	for l in lanes:
+		var y0 := h * (0.2 + 0.6 * (float(l) + rng.randf_range(-0.3, 0.3)) / float(lanes - 1))
+		var width := h * rng.randf_range(0.03, 0.08)
+		var reach := w * rng.randf_range(0.55, 0.97)
+		var x := w * rng.randf_range(0.02, 0.12)
+		while x < reach:
+			var seg := w * rng.randf_range(0.08, 0.2)
+			var fade := 1.0 - x / float(w)
+			_blob(f, w, h, x + seg * 0.5, y0 + rng.randf_range(-1.0, 1.0), seg * 0.6, width * (0.5 + 0.6 * fade), 0.0, 0.5 + 0.5 * fade)
+			x += seg * rng.randf_range(0.7, 1.3)
+			if rng.randf() < 0.15:
+				x += w * 0.06
+	_lobed(f, w, h, w * 0.12, h * 0.5, h * 0.3, 0.2, 3, rng, 0.9)
+
+
+## Runs down a wall (+V is down): the band where the spray hit, then runs of different lengths
+## down from it, each ending in a bead.
+static func _paint_drip(f: PackedFloat32Array, w: int, h: int, rng: RandomNumberGenerator) -> void:
+	for i in 5:
+		_blob(f, w, h, w * rng.randf_range(0.15, 0.85), h * rng.randf_range(0.03, 0.09), w * rng.randf_range(0.10, 0.2), h * 0.04, 0.0, 0.8)
+	for i in 7:
+		var x := w * rng.randf_range(0.1, 0.9)
+		var length := h * rng.randf_range(0.25, 0.9)
+		var wd := w * rng.randf_range(0.018, 0.04)
+		_blob(f, w, h, x, h * 0.04 + length * 0.5, wd, length * 0.5, 0.0, 0.7)
+		_blob(f, w, h, x, h * 0.04 + length, wd * 1.8, wd * 2.2, 0.0, 0.9)
+
+
+## Thickness field -> [albedo, normal, ORM] textures.
+static func _shade_blood(f: PackedFloat32Array, w: int, h: int, rng: RandomNumberGenerator) -> Array:
+	var alb := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var nrm := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var orm := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	var noise := FastNoiseLite.new()
+	noise.seed = rng.randi()
+	noise.frequency = 0.09
+	# The surface the normal map is taken from: rises fast at the edge, then flat on top.
+	var height := PackedFloat32Array()
+	height.resize(w * h)
+	for i in w * h:
+		height[i] = smoothstep(0.04, 0.35, f[i])
+	for y in h:
+		for x in w:
+			var i := y * w + x
+			var t := f[i]
+			var a := smoothstep(0.04, 0.12, t)
+			# Only the thick middles go near black; droplets, streaks and runs stay a thin-film red.
+			var body := smoothstep(0.3, 1.0, t)
+			var n := noise.get_noise_2d(float(x), float(y)) * 0.5 + 0.5
+			var col := BLOOD_FRESH.lerp(BLOOD_DARK, body * 0.9)
+			var rim := 1.0 - smoothstep(0.05, 0.22, t)
+			col = col.darkened(0.35 * rim * a + 0.18 * n)
+			alb.set_pixel(x, y, Color(col.r, col.g, col.b, a))
+			var dx := (height[y * w + mini(x + 1, w - 1)] - height[y * w + maxi(x - 1, 0)]) * 1.6
+			var dy := (height[mini(y + 1, h - 1) * w + x] - height[maxi(y - 1, 0) * w + x]) * 1.6
+			# OpenGL-style map (green up): the image's rows run down, so the Y slope flips.
+			var nv := Vector3(-dx, dy, 1.0).normalized()
+			nrm.set_pixel(x, y, Color(nv.x * 0.5 + 0.5, nv.y * 0.5 + 0.5, nv.z * 0.5 + 0.5, 1.0))
+			var rough := lerpf(0.34, 0.05, body) + 0.06 * n
+			orm.set_pixel(x, y, Color(1.0, clampf(rough, 0.03, 1.0), 0.0, 1.0))
+	var out: Array = []
+	for img: Image in [alb, nrm, orm]:
+		img.generate_mipmaps()
+		out.append(ImageTexture.create_from_image(img))
+	return out
 
 
 static func explosion(node: Node, at: Vector3, radius: float, power: float = 1.0) -> void:
