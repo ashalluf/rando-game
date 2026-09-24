@@ -65,7 +65,8 @@ What only the owner can supply, and why each one multiplies everything below:
   (street noon, night, sunset, aerial, beach, hills) matched to GTA V compositions; every push
   measured against them (luminance spread, saturation, FPS), not judged by eye.
 - [ ] **G2. Buildings (2-4 months; the biggest gap).** Real facade geometry instead of shaded
-  boxes: recessed windows and frames, sills, ledges, cornices, balconies, storefronts with glass
+  boxes (window recesses are done per pixel, 2026-09-24: `window_recess`; still to do as real
+  geometry near the camera): frames, sills, ledges, cornices, balconies, storefronts with glass
   and interiors, awnings, fire escapes, roof clutter. About eight LA styles (stucco apartments,
   art deco, glass towers, strip malls, bungalows, warehouses...) as kits from Blender scripts,
   like the car generators, assembled from the seed. Then grime, streaks and edge wear, and a

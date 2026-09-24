@@ -634,7 +634,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   have true parallax (lean left, see the room's right wall) instead of glass painted on a wall.
   Each room gets its own paint, depth falloff and a blind pulled to its own height. This is the
   single technique that stops a box reading as a box; do not replace it with a gradient.
-  `room_depth` and `interior_enabled` are the knobs. Most of the glass's mirror is EMITTED
+  `room_depth` and `interior_enabled` are the knobs. The opening itself is traced too
+  (`window_recess`, faded out between `recess_fade_start` and `recess_fade_end`): the glass sits
+  behind the wall face, a view ray that hits a jamb, sill or head first draws that surface with
+  its own normal (so a sill catches the sun), and a ray toward `sun_direction` shades the glass
+  and reveals under the head. `u` runs against the wall tangent on the -X and +Z faces
+  (`u_sign`); the room parallax had that mirrored until the recess went in. Most of the glass's mirror is EMITTED
   (`reflect_emit`, `reflect_energy`, scaled by the `sky_tint` global), not mixed into the albedo:
   a reflection does not depend on the light falling on the pane, and carried in the albedo a glass
   tower on the shaded side of a street was lit like paint and came out black (16/255 against 111

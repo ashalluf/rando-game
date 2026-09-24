@@ -104,6 +104,15 @@ uniform float reflect_energy = 1.6;
 // each pane's reflection is knocked off true (see the glass branch).
 uniform float reflect_city = 1.0;
 uniform float pane_bow = 0.035;
+// How far the glass sits back from the face of the wall in a punched opening (metres); the other
+// window styles scale it (see the window-depth block). 0 flattens every window onto its wall.
+uniform float window_recess = 0.20;
+// Past these distances the recess fades out: a reveal a few pixels wide only shimmers.
+uniform float recess_fade_start = 170.0;
+uniform float recess_fade_end = 320.0;
+// The sun, as DayNight publishes it (the direction toward it), for the shadow the lintel and
+// jambs throw into each recess.
+global uniform vec3 sun_direction;
 // How bright the room behind the glass is against full daylight outside. Rooms read almost
 // black from the street in real life; a room lit to the same level as the wall around it is
 // what made every pane look like a beige card taped over the opening.
@@ -251,6 +260,10 @@ void fragment() {
 	vec3 emission = vec3(0.0);
 	vec3 wall_nm = vec3(0.5, 0.5, 1.0);
 	float wall_nm_weight = 0.0;
+	// Set when this pixel is the side, sill or head of a window recess: the world normal that
+	// face really has, so it is lit as the surface it is.
+	bool reveal_face = false;
+	vec3 reveal_normal = vec3(0.0, 1.0, 0.0);
 
 	if (abs(n.y) > 0.5) {
 		// Roof, with a lighter parapet ring around the edge.
@@ -373,6 +386,65 @@ void fragment() {
 			float cy = window_style == 0 ? 0.52 : 0.5;
 			reveal = !glass && abs(fu - 0.5) < hw + 0.05 && abs(fv - cy) < hh + 0.05;
 		}
+
+		// ---- Window depth ------------------------------------------------------------------
+		// Every opening is a real recess, traced per pixel: the glass sits `window_recess` behind
+		// the face of the wall, and a view ray that enters the opening either reaches the glass
+		// (and sees the room from where it lands, not from where it entered) or hits a jamb, the
+		// sill or the head first - which is then drawn as that surface, with its own normal, so
+		// a sill catches the sun and a head goes dark. A second ray toward the sun decides how
+		// much of the recess the head and jambs shade. Painted flush on a flat box, every window
+		// in the city was a sticker, and a sticker is the first thing that says "old game".
+		// `u` runs the opposite way to the wall's tangent on half the faces (-X and +Z): this
+		// sign puts the traced ray back in `u`'s frame. The room parallax below uses it too - it
+		// was mirrored on those faces, showing the left wall of a room seen from the left.
+		float u_sign = abs(n.x) > 0.5 ? sign(n.x) : -sign(n.z);
+		vec2 pane_w = vec2(-1.0);
+		float recess_shade = 0.0;
+		float reveal_deep = 0.0;
+		if (glass && window_recess > 0.0) {
+			float cell_h = storefront ? ground_floor_height : floor_height;
+			// Curtain walls are near flush (only the mullion caps stand proud), ribbon glass
+			// and shopfronts a little deeper, punched and slot windows the full reveal.
+			float depth = window_recess * (storefront ? 0.6 : (window_style == 2 ? 0.25 : (window_style == 1 ? 0.5 : (window_style == 3 ? 1.1 : 1.0))));
+			depth *= 1.0 - smoothstep(recess_fade_start, recess_fade_end, length(VERTEX));
+			vec2 size = 2.0 * win_h * vec2(pitch, cell_h);
+			vec2 p = (vec2(fu, fv) - (win_c - win_h)) * vec2(pitch, cell_h);
+			vec3 eye = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+			vec3 dir = normalize(world_pos - eye);
+			vec3 tan_w = normalize(world_tangent - world_normal * dot(world_tangent, world_normal)) * u_sign;
+			vec3 r = vec3(dot(dir, tan_w), dir.y, -dot(dir, world_normal));
+			if (r.z > 0.001 && depth > 0.002) {
+				float t_hit = depth / r.z;
+				vec2 q = p + r.xy * t_hit;
+				bool side = false;
+				vec3 side_n = vec3(0.0);
+				if (r.x < 0.0 && -p.x / r.x < t_hit) { t_hit = -p.x / r.x; side = true; side_n = tan_w; }
+				if (r.x > 0.0 && (size.x - p.x) / r.x < t_hit) { t_hit = (size.x - p.x) / r.x; side = true; side_n = -tan_w; }
+				if (r.y < 0.0 && -p.y / r.y < t_hit) { t_hit = -p.y / r.y; side = true; side_n = vec3(0.0, 1.0, 0.0); }
+				if (r.y > 0.0 && (size.y - p.y) / r.y < t_hit) { t_hit = (size.y - p.y) / r.y; side = true; side_n = vec3(0.0, -1.0, 0.0); }
+				q = p + r.xy * t_hit;
+				float d_here = r.z * t_hit;
+				if (side) {
+					glass = false;
+					reveal_face = true;
+					reveal_normal = side_n;
+					reveal_deep = clamp(d_here / depth, 0.0, 1.0);
+				} else {
+					pane_w = clamp(q / size, vec2(0.0), vec2(1.0));
+				}
+				// Sun into the recess: from this point, does the way out toward the sun pass
+				// back through the opening, or through the wall round it?
+				vec3 sun = normalize(sun_direction);
+				float lz = dot(sun, world_normal);
+				if (lz > 0.02) {
+					vec2 out_at = q + vec2(dot(sun, tan_w), sun.y) * (d_here / lz);
+					vec2 over = max(-out_at, out_at - size);
+					recess_shade = smoothstep(-0.015, 0.03, max(over.x, over.y)) * (1.0 - night_factor);
+				}
+			}
+		}
+
 		if (glass) {
 			vec3 reflected = vec3(0.0);
 			// The room behind the glass as traced, before the daylight exposure, and how its
@@ -404,10 +476,10 @@ void fragment() {
 
 			if (interior_enabled) {
 				// Where we are inside the opening, and the view ray in wall space.
-				vec2 w = clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
+				vec2 w = pane_w.x >= 0.0 ? pane_w : clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
 				vec3 up = vec3(0.0, 1.0, 0.0);
 				vec3 tan_dir = normalize(world_tangent - world_normal * dot(world_tangent, world_normal));
-				vec3 ray = vec3(dot(to_frag, tan_dir), dot(to_frag, up), -dot(to_frag, world_normal));
+				vec3 ray = vec3(dot(to_frag, tan_dir) * u_sign, dot(to_frag, up), -dot(to_frag, world_normal));
 				float wide = max(2.0 * win_h.x * pitch, 0.2);
 				float high = max(2.0 * win_h.y * (storefront ? ground_floor_height : floor_height), 0.2);
 				float depth_t = 0.0;
@@ -444,6 +516,8 @@ void fragment() {
 			float dv = abs(fv - win_c.y);
 			float inset = smoothstep(0.0, 0.06, max(du - (win_h.x - 0.07), dv - (win_h.y - 0.07)));
 			albedo *= mix(1.0, 0.45, inset * (storefront ? 0.5 : 1.0));
+			// The head and jambs shade the glass behind them (the traced sun ray above).
+			albedo *= mix(1.0, 0.5, recess_shade);
 
 			// Glass reflects, and that is most of what a window looks like from outside. In any
 			// photograph the panes are not beige rectangles: above the horizon they mirror the
@@ -548,6 +622,15 @@ void fragment() {
 				rough = mix(rough, 0.5, on);
 			}
 			emission += reflected;
+		} else if (reveal_face) {
+			// A jamb, the sill or the head of the opening, reached by the traced view ray. The
+			// wall's own material on a punched window, the frame colour on a curtain wall; a
+			// little darker toward the glass, where less sky reaches.
+			vec3 base = window_style == 2 ? accent_color : mix(facade_color, accent_color, 0.25);
+			albedo = base * mix(1.0, 0.62, reveal_deep);
+			albedo *= mix(1.0, 0.45, recess_shade);
+			rough = 0.8;
+			metal = window_style == 2 ? 0.3 : 0.0;
 		} else if (fascia) {
 			// Sign band. Each shop paints it its own colour, which is what makes a block read
 			// as a row of businesses rather than one long building with a stripe on it.
@@ -719,5 +802,10 @@ void fragment() {
 	SPECULAR = 0.25;
 	EMISSION = emission;
 	NORMAL_MAP = wall_nm;
-	NORMAL_MAP_DEPTH = wall_normal_depth * wall_nm_weight;
+	NORMAL_MAP_DEPTH = reveal_face ? 0.0 : wall_normal_depth * wall_nm_weight;
+	// A reveal is lit as the surface it is - a sill faces up, a head faces down - not as the
+	// wall it was drawn on.
+	if (reveal_face) {
+		NORMAL = normalize((VIEW_MATRIX * vec4(reveal_normal, 0.0)).xyz);
+	}
 }

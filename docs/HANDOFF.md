@@ -867,6 +867,13 @@ taking away from graphics at all". What shipped, newest last:
   Harness notes: edit a batch script only when nothing is running it - bash reads a script
   from disk as it goes, and inserting a line mid-run broke one after its last shot. Copy it
   and run the copy.
+- **2026-09-24** (owner: "it's looking like gta San Andreas ... I need it to look like RDR2"):
+  lock-on aim, guns held by IK, and every window is now a traced recess (`window_recess` in
+  `building.gdshader`): set-back glass, lit jambs and sills, head shadow from the sun. The owner
+  had been judging the GL previews, which have flat light; send Forward+ stills (or say which
+  renderer a picture is from). Four agents were running on worktrees: weapon wheel, weapon
+  models, a Blender hero and a Meshy hero; the owner then asked for the hero in a New Jersey
+  mob tracksuit, which the current rig wears in the meantime (`Player.avatar_tracksuit`).
 - Store stills: `tools/glshot/still_shot.gd` (FX_AT / FX_SIDE / FX_TIME for explosions,
   `FX_AT_PED=1 FX_PED_PLACE=1` for limbs). The good ones: the gore shot downtown at 17:25
   (`--spawn=734.9,330,0,-5 --hour=17.4`, FX_AT=13 FX_RADIUS=9 FX_TIME=0.32), the skyline at
