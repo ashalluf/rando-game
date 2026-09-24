@@ -880,6 +880,53 @@ taking away from graphics at all". What shipped, newest last:
   17:45, the boardwalk at 17:50, the freeway at 18:00 and downtown rain at 21:20. The hills are
   still weak (next steps item 3).
 
+## 9g. The facade kit, 2026-09-24 (G2, first real-geometry pass)
+
+Owner: "it's looking like GTA San Andreas ... it must be the same quality as RDR2". The biggest
+tell left was that every building is a shaded box. `tools/facade_kit.py` (Blender 4.2, headless)
+now models a kit of seventeen pieces into `assets/models/facade_kit.glb`, and `Building` places
+them from its seed on every building near the camera. What a next session needs to know:
+
+- **Regenerating it**: `blender -b --python tools/facade_kit.py` (the scratchpad Blender works:
+  `.../blender_char/blender/blender-4.2.23-linux-x64/blender`), then `godot --headless --path .
+  --import` - the cached-import trap applies to it like any `.glb`. The script prints every
+  piece's triangle count and x range; the x range of a roofline run must stay exactly -1..1
+  (the smoke test checks it) or the corner mitres break.
+- **One mesh fits every building** because `shaders/facade_kit.gdshaderinc` bends it per
+  instance: roofline runs are mitred at any corner from `INSTANCE_CUSTOM.r/.g`, surrounds and
+  awnings are three-sliced from `.b/.a`. The rules the Blender side has to keep are in the
+  generator's header; break them and the geometry still loads, it just folds wrong.
+- **Per building, not per chunk.** A chunk-wide batch is one node for the whole block: it is
+  never occluded and it fades as one piece 100 m across. Per building, frustum and occlusion
+  culling and the distance fade all work.
+- **Top-floor clearance.** A classical cornice hangs ~1 m and the top window heads sit
+  0.3-0.5 m under the roof line (a slot window's ~0.1 m), so `_add_facade_details` shrinks a
+  rich cornice up to a quarter, then falls back to the plain one, and lifts what is left up to
+  `KIT_CORNICE_MAX_LIFT` so it stands in front of the parapet rather than over the windows.
+- **Measured** (`tools/geo_count.gd`, opengl3, 800x600, one frame, same cameras; the base
+  numbers come from a clean export of the parent commit, re-measured twice identically):
+
+  | Camera | Triangles before -> after | Draw calls before -> after | Objects |
+  | --- | --- | --- | --- |
+  | default spawn (midtown, origin) | 9.70 M -> 8.51 M | 8651 -> 8707 | 23411 -> 23467 |
+  | downtown `--spawn=734.9,330,25,-4` (glass towers) | 4.107 M -> 4.115 M | 3050 -> 3071 | 3081 -> 3102 |
+  | brick mid-rise `--spawn=-96,-230,-62,10` | 6.95 M -> 6.21 M | 6230 -> 6708 | 6361 -> 6839 |
+
+  Triangles went DOWN because the old procedural balconies and fire escapes drew to 480 m and
+  the old roof props had no range at all, while the kit fades at 110-320 m; the near blocks
+  carry more geometry than before. Draw calls rise where the kit is (up to ~10 nodes per
+  building plus shadows; +8 % on the brick street, nothing downtown, where the glass takes
+  none of it). Chunk build: ~3 ms more per building on this box, ~20 ms worst for a big
+  brick block with a hundred balconies (headless, warmed; `scratchpad/facade/kit_time.gd`).
+- The opengl3 path is flat-lit; nobody has seen the kit on Forward+ yet - the main session
+  should, since the shadows from cornices, balconies and awnings are most of what it adds.
+  Close-ups: `tools/glshot/building_shot.gd` with `CAM_POS` / `CAM_LOOK` (and `KIT=0` for
+  the same seed without the kit), and `tools/glshot/kit_shot.gd` (`SET=wall|roof`) for the
+  pieces on their own.
+- **Not done**: storefront glazing and interiors as geometry, a kit per LA style (bungalow,
+  deco, mission), string courses and plinths as mouldings (still boxes), and a LOD/impostor
+  step between the kit's range and the far boxes.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

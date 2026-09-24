@@ -661,6 +661,36 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
   generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own
   ShaderMaterial (see the decisions log for why). Rooftop props are primitives built in code.
+- Facade kit (owner, 2026-09-24: "it must look like RDR2, not San Andreas"): real moulded geometry
+  on the buildings near the camera, modelled by `tools/facade_kit.py` in Blender
+  (`blender -b --python tools/facade_kit.py`, then `--import`) into `assets/models/facade_kit.glb`,
+  one node per piece: three cornices, a parapet coping, three window surrounds, a window AC,
+  a shop awning, a balcony, fire-escape landings (stair left, stair right, drop ladder), a timber
+  water tank, two vents and a packaged rooftop unit. `PropFactory.facade_kit(piece)` loads one
+  through `model_mesh()` (so `TRI_BUDGET` guards it, keyed `facade_kit.glb:kit_<piece>`) and
+  swaps the glTF materials for `PropFactory.kit_material()` by name. `Building` places them
+  (`_pick_kit`, `_kit_runs`, `_kit_awnings`, `_kit_roof_plant`, and inside
+  `_add_facade_details`) into ONE `MultiMeshBatch` per building (`Batch_kit_<piece>`): per
+  building rather than per chunk because frustum and occlusion culling and the distance fade
+  (`kit_*_distance` exports, 110-320 m) all work per node, and a chunk-wide batch is never
+  occluded. Two tricks in `shaders/facade_kit.gdshaderinc` let one mesh fit every building, and
+  the Blender side has to keep their rules (header of the generator): roofline runs are 2 m,
+  x -1..1, and the shader slides only their end rings by `INSTANCE_CUSTOM.r/.g` (tan of half
+  the corner's turn) so any corner, square or chamfered, is a true mitre; everything else is
+  three-sliced by `INSTANCE_CUSTOM.b/.a` round a 1 x 1 m opening, so a sill's lugs, a lintel's
+  height, a jamb's width and an awning's cheeks keep their real size on every window and shop.
+  So never scale a surround or awning instance - pass the slice instead - and never let a run
+  vertex other than its ends reach |x| 1. `INSTANCE_CUSTOM.r` is also the ironwork paint on
+  pieces with no mitre. Placement is all hashes of the seed (`_kit_hash`) or a private
+  `RandomNumberGenerator` (`_kit_roof_plant`), never `_rng`, and the old rolls it replaces are
+  still made: the smoke test builds the same block with the kit off and on and checks the roof
+  units and shop names do not move. The surrounds use `Building.WINDOW_RECTS`, which the smoke
+  test checks against the shader's own window rects. Near the camera the kit hides the old box
+  bands; past its distance they carry the look, so the cornice's far band is sized to sit inside
+  the moulding (`KIT_CORNICE_CORE`) and never doubles it. Balcony slabs and fire-escape landings
+  are one trimesh per building (`KitSolids`). Baked AO lives in UV2.x as occlusion, and is off
+  on `kit_iron`, whose thin bars bury their only vertices in the rails they meet. The kit is off
+  on the web (`Building.kit_enabled`), where the boxes and painted frames stand in for it.
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,
