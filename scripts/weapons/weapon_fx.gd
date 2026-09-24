@@ -1224,7 +1224,7 @@ static func _cone(axis: Vector3, deg: float) -> Vector3:
 # --- Blood particles --------------------------------------------------------------------------
 
 static var _mat_drop: StandardMaterial3D
-static var _mat_mist: StandardMaterial3D
+static var _mat_mist: Material
 static var _drop_mesh: SphereMesh
 
 
@@ -1238,6 +1238,9 @@ static func _blood_drop_material() -> StandardMaterial3D:
 		m.vertex_color_use_as_albedo = true
 		m.roughness = 0.12
 		m.metallic_specular = 0.7
+		# Blood is translucent: a drop with the sun behind it glows red instead of going black.
+		m.backlight_enabled = true
+		m.backlight = Color(0.45, 0.03, 0.02)
 		_mat_drop = m
 	return _mat_drop
 
@@ -1256,25 +1259,13 @@ static func _blood_drop_mesh() -> SphereMesh:
 	return _drop_mesh
 
 
-## A lit billboard puff for the red mist: lit, so it sits in the street's light rather than
-## glowing like the old unshaded one.
-static func _blood_mist_material() -> StandardMaterial3D:
+## The red mist's puffs: unshaded, darkened by the time of day (shaders/blood_mist.gdshader). A
+## lit billboard came out as grey-brown dust - a camera-facing card catches almost no sun.
+static func _blood_mist_material() -> Material:
 	if _mat_mist == null:
-		var m := StandardMaterial3D.new()
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
-		# Same trap as every puff: without it the mist is exactly one metre whatever it asks for.
-		m.billboard_keep_scale = true
-		m.particles_anim_h_frames = 1
-		m.particles_anim_v_frames = 1
-		m.vertex_color_use_as_albedo = true
-		m.albedo_color = BLOOD_FRESH
-		m.albedo_texture = puff_texture()
-		m.roughness = 0.9
-		m.disable_receive_shadows = true
-		if not _web():
-			m.proximity_fade_enabled = true
-			m.proximity_fade_distance = 0.4
+		var m := ShaderMaterial.new()
+		m.shader = preload("res://shaders/blood_mist.gdshader")
+		m.set_shader_parameter("puff_tex", puff_texture())
 		_mat_mist = m
 	return _mat_mist
 
