@@ -843,9 +843,13 @@ func _upkeep() -> void:
 	if stars <= 0 or not enabled:
 		return
 	_dispatch_t -= 0.5
+	# Every cruiser still on the street counts against the cap, leaving or crewless ones too:
+	# counted only while crewed and not leaving, one more could be sent while an empty one was
+	# still standing there, and five stars put seven on the street against a cap of six.
+	# Roadblocks are their own budget.
 	var active := 0
 	for car in cruisers:
-		if car.crew_alive > 0 and not car.roadblock and car.mode != PoliceCar.Mode.LEAVING:
+		if not car.roadblock:
 			active += 1
 	if active < cruiser_cap() and _dispatch_t <= 0.0 and PhysicsBudget.can_spawn():
 		_dispatch_t = dispatch_interval

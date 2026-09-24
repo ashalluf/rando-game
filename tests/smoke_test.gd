@@ -1073,13 +1073,22 @@ func _test_city() -> void:
 			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down"):
 				candidates.append(p)
 		candidates.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
-		for cand: Node3D in candidates.slice(0, 5):
+		var tried := 0
+		var took := "nothing"
+		for cand: Node3D in candidates.slice(0, 10):
 			# A few degrees off, so the lock has to find them rather than be handed them.
 			player.get("camera_rig").look_at_point(cand.global_position + Vector3(0.6, 1.2, 0.0))
 			Input.action_press("alt_fire")
 			for i in 8:
 				await get_tree().process_frame
 			locked = lock.get("target")
+			tried += 1
+			took = locked.get_class() if locked else "nothing"
+			# The lock takes a person first but a traffic car when no person is in the cone with
+			# a clear line (a slow CI box thins the crowd): that is the next candidate's turn,
+			# not a failure of the lock.
+			if locked != null and not (locked is Pedestrian):
+				locked = null
 			if locked != null:
 				var aim: Dictionary = player.get_aim()
 				var to_target: Vector3 = (locked.global_position + Vector3.UP * 1.2 - aim.origin).normalized()
@@ -1087,7 +1096,7 @@ func _test_city() -> void:
 				break
 			Input.action_release("alt_fire")
 			await get_tree().process_frame
-		_check(locked is Pedestrian and aim_ok, "holding aim locks onto a pedestrian and the shot goes at them")
+		_check(locked is Pedestrian and aim_ok, "holding aim locks onto a pedestrian and the shot goes at them (%d tried, last lock %s)" % [tried, took])
 		Input.action_release("alt_fire")
 		for i in 3:
 			await get_tree().process_frame
@@ -1602,7 +1611,11 @@ func _test_police(city: Node3D, player: Player) -> void:
 		await get_tree().physics_frame
 		if i % 20 == 0:
 			police.call("report_sighting")
-		var nc: int = (police.get("cruisers") as Array).size()
+		# Roadblocks are placed on their own budget, outside the per-star cruiser cap.
+		var nc := 0
+		for car in police.get("cruisers"):
+			if is_instance_valid(car) and not car.get("roadblock"):
+				nc += 1
 		var no: int = (police.get("officers") as Array).size()
 		worst = Vector2i(maxi(worst.x, nc - int(police.call("cruiser_cap"))), maxi(worst.y, no - int(police.call("officer_cap"))))
 	_check(worst.x <= 0 and worst.y <= 0, "five stars stays inside the caps (%d cruisers, %d officers over)" % [worst.x, worst.y])
