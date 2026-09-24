@@ -79,6 +79,7 @@ static func attach(c: CityChunk, chunk_role: int) -> Array[Callable]:
 		steps.append(ReplicaHouses.build.bind(b, lot))
 	if b.full:
 		steps.append_array(b._car_steps())
+		steps.append_array(b._walker_steps())
 	steps.append(b._commit_step)
 	return steps
 
@@ -1499,6 +1500,51 @@ func _park(at: Vector3, yaw: float, h: int) -> void:
 	holder.add_child(car)
 	car.visible = chunk.visible
 	chunk._cars.append(car)
+
+
+# --- People -----------------------------------------------------------------------------------
+
+## People on the replica's pavements: a slot every WALKER_SPACING metres of each, most of them
+## filled, within the city's crowd cap (CityChunk._take_crowd_room()). One build step each.
+const WALKER_SPACING := 26.0
+const WALKER_ODDS := 0.6
+
+
+func _walker_steps() -> Array[Callable]:
+	var steps: Array[Callable] = []
+	var lo := INF
+	var hi := -INF
+	for i in rep.pts.size() - 1:
+		if _owned(i) and rep.run[i + 1] <= rep.s_city_end:
+			lo = minf(lo, rep.run[i])
+			hi = maxf(hi, rep.run[i + 1])
+	if lo > hi:
+		return steps
+	var n := int((hi - lo) / WALKER_SPACING)
+	for side: float in [-1.0, 1.0]:
+		for k in n:
+			var h := hash([plan.seed, "walker", int(lo), int(side), k])
+			if hash01([h, 0]) > WALKER_ODDS:
+				continue
+			steps.append(_spawn_walker.bind(lo, hi, side, h))
+	return steps
+
+
+func _spawn_walker(lo: float, hi: float, side: float, h: int) -> void:
+	var sd: Dictionary = rep.at_s((lo + hi) * 0.5)[3]
+	if side < 0.0 and float(sd.coast) < 0.5:
+		return
+	if not chunk._take_crowd_room():
+		return
+	var ped := ReplicaWalker.new()
+	ped.rep = rep
+	ped.s_lo = lo
+	ped.s_hi = hi
+	ped.side = side
+	ped.setup(Rect2(), 3.0, h)
+	var start := ped._random_ring_point(3.0)
+	ped.position = Vector3(start.x, chunk._gy(start.x, start.y) + CityChunk.SIDEWALK_TOP + 0.1, start.y)
+	chunk.add_child(ped)
 
 
 # --- Commit ------------------------------------------------------------------------------------
