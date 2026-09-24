@@ -851,7 +851,10 @@ func _upkeep() -> void:
 	for car in cruisers:
 		if not car.roadblock:
 			active += 1
-	if active < cruiser_cap() and _dispatch_t <= 0.0 and PhysicsBudget.can_spawn():
+	# make_room, not can_spawn: after a big fight the budget is full of debris (gibs, shells,
+	# wreckage), and waiting for room meant no police came at all until it timed out. Debris
+	# is short-lived by definition; the oldest goes so the cruiser can.
+	if active < cruiser_cap() and _dispatch_t <= 0.0 and PhysicsBudget.make_room(1):
 		_dispatch_t = dispatch_interval
 		_dispatch()
 	if stars >= roadblock_stars:

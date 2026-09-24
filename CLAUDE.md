@@ -283,10 +283,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
-- Vignette: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a full-rect
-  `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1 and
-  shows up in screenshots. `CityStreamer.vignette_strength` (0 turns it off). Every lens does
-  this; keep it subtle enough that you cannot point at it.
+- Vignette and lens: `CityStreamer._build_vignette()` puts `shaders/vignette.gdshader` on a
+  full-rect `ColorRect` in its own CanvasLayer at layer -1, so it sits under the HUD, survives F1
+  and shows up in screenshots. It reads the 3D picture (`hint_screen_texture`) and writes it
+  back with the corner falloff (`CityStreamer.vignette_strength`), lateral colour fringing that
+  grows with the square of the radius (`lens_fringe`), and a luminance film grain re-rolled at
+  24 fps (`film_grain`). Every lens and film stock does these; keep each subtle enough that you
+  cannot point at it (0 turns any of them off).
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair, the round minimap and
   the wanted stars and health bar (`WantedHud`, see the Police note).
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
