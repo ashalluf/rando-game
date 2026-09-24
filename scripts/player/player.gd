@@ -87,6 +87,8 @@ var air_jumps_left: int = 0
 var vehicle: Vehicle
 ## GTA-style aim: hold aim to lock onto the target nearest the crosshair (scripts/player/lock_on.gd).
 var lock_on: LockOn
+## Health, the police's bullets and going down (scripts/player/player_health.gd).
+var health: PlayerHealth
 
 var _coyote_timer: float = 0.0
 var _jump_buffer_timer: float = 0.0
@@ -120,6 +122,9 @@ func _ready() -> void:
 	lock_on = LockOn.new()
 	lock_on.name = "LockOn"
 	add_child(lock_on)
+	health = PlayerHealth.new()
+	health.name = "Health"
+	add_child(health)
 
 
 func _physics_process(delta: float) -> void:
@@ -346,6 +351,24 @@ func shift_origin(offset: Vector3) -> void:
 ## Adds velocity from an outside force (explosions).
 func launch(delta_velocity: Vector3) -> void:
 	velocity += delta_velocity
+
+
+## Hurts the player (police rounds, a cruiser). `from` is where it came from (scene position).
+func take_damage(amount: float, from: Vector3 = Vector3.INF, kind: String = "bullet") -> void:
+	if health:
+		health.take_damage(amount, from, kind)
+
+
+## An explosion caught the player; `falloff` is 1 at its centre. Harmless unless
+## PlayerHealth.self_blast_damage is on.
+func blast_hit(falloff: float, at: Vector3) -> void:
+	if health:
+		health.on_blast(falloff, at)
+
+
+## Down and out (PlayerHealth): no input until they stand up again.
+func is_downed() -> bool:
+	return health != null and health.downed
 
 
 ## Weapons call this when they fire so the body turns to face the camera for a moment.

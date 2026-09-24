@@ -1274,14 +1274,19 @@ func _on_body_entered(body: Node3D) -> void:
 		if speed < tackle_speed:
 			return
 	if speed >= knock_speed:
+		# A cruiser that runs somebody down is the police's doing, not the player's crime.
+		Police.innocent = body.has_meta("police")
 		knock(dir * (8.0 + speed * 0.6) + Vector3.UP * 6.0)
+		Police.innocent = false
 
 
 ## Frightens everyone within `radius` of `at` (a gunshot, a blast): they run from it, and the
 ## `screams` nearest of the ones who were calm scream, each after their own short delay.
 ## One pass over the crowd group, and at most one pass per quarter second per spot.
 ## `force` skips the rate limit (a blast is bigger news than the shot that caused it).
-static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, force: bool = false) -> void:
+## The same pass counts who heard it and reports the crime to the police (Police.on_alarm):
+## `crime` "auto" is a gunshot, or an explosion when forced; "" reports nothing (police fire).
+static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, force: bool = false, crime: String = "auto") -> void:
 	if tree == null or radius <= 0.0:
 		return
 	var now := Time.get_ticks_msec()
@@ -1291,6 +1296,7 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 	_last_alarm_at = at
 	var r2 := radius * radius
 	var fresh: Array = []
+	var heard := 0
 	for n in tree.get_nodes_in_group("pedestrian"):
 		var p := n as Pedestrian
 		if p == null or p._down or not p.is_inside_tree():
@@ -1298,6 +1304,7 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 		var d2 := p.global_position.distance_squared_to(at)
 		if d2 > r2:
 			continue
+		heard += 1
 		if p._panic_left <= 0.0:
 			fresh.append([d2, p])
 		p._scare(at)
@@ -1305,6 +1312,8 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 	for i in mini(screams, fresh.size()):
 		var p: Pedestrian = fresh[i][1]
 		p._scream_in = p._rng.randf_range(0.05, 0.45) + 0.25 * float(i)
+	if crime != "":
+		Police.on_alarm(tree, at, radius, heard, ("explosion" if force else "gunfire") if crime == "auto" else crime)
 
 
 func _scare(at: Vector3) -> void:
@@ -1355,6 +1364,8 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 	if _down:
 		return
 	_down = true
+	# A crime if anybody saw it, unless the police did it themselves (Police.innocent).
+	Police.person_down(self)
 	Sfx.play("yelp", global_position, 0.0, _rng.randf_range(0.8, 1.3))
 	var doll := Ragdoll.new()
 	doll.position = position

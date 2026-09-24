@@ -467,6 +467,8 @@ func _mask() -> int:
 func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
 	if not is_traffic():
 		return
+	# Only guns and blasts knock a car out of the traffic: a crime if anybody saw it.
+	Police.car_hit(self)
 	var v := -global_basis.z * traffic_speed
 	traffic = {}
 	traffic_speed = 0.0
