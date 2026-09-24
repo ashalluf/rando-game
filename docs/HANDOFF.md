@@ -927,7 +927,9 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
 - **Marks** are generated textures (albedo + normal + ORM) on Decals in Forward+ and on flat alpha
   quads in Compatibility. **Nobody has seen the Decal path yet**: the opengl3 stills show the quad
   fallback, and agents may not run lavapipe. The first Forward+ still of a shooting is the thing
-  to check - colour (decal albedo through the atlas), wetness (ORM roughness 0.2 where thick; at 0.05 the opengl3 quads mirrored the sky pink) and
+  to check - colour (decal albedo through the atlas), wetness (ORM roughness 0.5 where thick: anything glossier mirrored the sky at the grazing
+  angle every road splat is seen at, and measured brighter than the road on opengl3; with SSR
+  on Forward+ a little glossier may look better, it is one `lerpf` in `_shade_blood()`) and
   which way the wall runs go (they should run DOWN; the decal V axis is local +Z, set to the wall's
   down direction in `_wall_splatter`).
 - Stills: `still_shot.gd` `FX_SHOOT=3 FX_AT=8 FX_AT_PED=1 FX_PED_PLACE=1` (spray at

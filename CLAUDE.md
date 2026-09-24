@@ -471,8 +471,12 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   of the look material (looks are shared by the crowd; set on the shared one and every copy of
   that look bleeds), each wound riding its nearest bone and soaking out over `STAIN_SOAK`.
   Marks are Decals on Forward+ with albedo, normal and ORM generated in code
-  (`blood_textures()`: dark coffee-ring rims, a meniscus in the normal, a wet sheen where
-  thick - roughness 0.2, not a mirror: at 0.05 a splat reflected the sky and read pale pink) and flat alpha PlaneMesh quads with the same maps on the Compatibility renderer -
+  (`blood_textures()`: dark coffee-ring rims, a meniscus in the normal that carries the wet
+  look, and SATIN roughness, 0.72 thin to 0.5 thick - a splat on the road is always seen at a
+  grazing angle, where Fresnel turns anything glossy into a mirror of the sky whatever its F0,
+  and at 0.05, 0.2 and 0.3 splats measured brighter than the road and read pale pink; the
+  albedo carries its own coverage-keeping mips, `_coverage_mips()`, or a small mark goes
+  translucent a few mip levels down) and flat alpha PlaneMesh quads with the same maps on the Compatibility renderer -
   the web build AND the opengl3 screenshot path, so a `still_shot.gd` still shows the quads,
   never the decals. Caps: `blood_splat_max`, `blood_wall_max`, `blood_pool_max`,
   `blood_system_max` (particle systems), `blood_budget` (detailed wounds per 0.7 s); lifetimes
