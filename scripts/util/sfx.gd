@@ -51,6 +51,10 @@ const LOUDNESS_WINDOW := 0.05
 ## or unimported file degrades to the old sound rather than to silence.
 const SAMPLES := {
 	"shot": ["shot_0.ogg", "shot_1.ogg", "shot_2.ogg"],
+	# Three different pump guns (12 gauge, near the shooter) so no two blasts are the same
+	# recording, and the pump being racked between them.
+	"shotgun": ["shotgun_0.ogg", "shotgun_1.ogg", "shotgun_2.ogg"],
+	"pump": ["pump_0.ogg"],
 	"explosion": ["explosion_0.ogg", "explosion_1.ogg"],
 	"rocket": ["rocket_0.ogg"],
 	"break": ["break_0.ogg", "break_1.ogg", "break_2.ogg"],
@@ -89,6 +93,8 @@ const SAMPLES := {
 ## window, take the loudest window, 10*log10). Anything missing here is left untrimmed.
 const SAMPLE_LOUDNESS_DB := {
 	"shot": [-18.35, -12.10, -21.41],
+	"shotgun": [-15.23, -15.21, -15.60],
+	"pump": [-8.43],
 	"explosion": [-18.02, -13.49],
 	"rocket": [-12.17],
 	"break": [-23.08, -21.79, -17.18],
@@ -260,10 +266,10 @@ func _set_looping(stream: AudioStream) -> void:
 
 func _build_synth() -> void:
 	_put("shot", _noise_burst(0.10, 40.0, 0.9, 0.35))
+	_put("shotgun", _noise_burst(0.32, 13.0, 1.0, 0.12))
+	_put("pump", _noise_burst(0.07, 60.0, 0.6, 0.7))
 	_put("rocket", _noise_burst(0.35, 9.0, 0.7, 0.08))
 	_put("explosion", _noise_burst(1.3, 3.5, 1.0, 0.03))
-	_put("grab", _sweep(0.22, 220.0, 900.0, 0.5))
-	_put("launch", _sweep(0.25, 900.0, 200.0, 0.7))
 	_put("jump", _sweep(0.16, 320.0, 640.0, 0.45))
 	_put("land", _thud(0.12, 90.0, 0.7))
 	_put("thud", _thud(0.18, 70.0, 0.9))

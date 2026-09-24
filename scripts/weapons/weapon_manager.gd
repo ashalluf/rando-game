@@ -8,7 +8,7 @@ extends Node3D
 var weapons: Array[Weapon] = []
 var current: Weapon
 ## True while the weapon wheel (WeaponWheel) is open: the gun neither fires nor switches, but its
-## own update keeps running, so a crate held by the gravity gun stays up while you choose.
+## own update keeps running, so a pump stroke finishes while you choose.
 var wheel_open: bool = false
 var _player: Player
 
@@ -17,7 +17,7 @@ func _ready() -> void:
 	_player = owner as Player
 	if _player == null:
 		_player = get_parent().get_parent() as Player
-	for weapon in [AssaultRifle.new(), RocketLauncher.new(), GravityGun.new()]:
+	for weapon in [AssaultRifle.new(), RocketLauncher.new(), Shotgun.new()]:
 		weapon.player = _player
 		weapon.visible = false
 		add_child(weapon)
