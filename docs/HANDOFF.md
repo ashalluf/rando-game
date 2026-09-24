@@ -57,7 +57,7 @@ shaders/                 building, grass, terrain, sky
 assets/textures/         CC0 PBR sets from ambientCG (1K JPG)
 assets/models/           Meshy .glb models, their .json manifests, extracted textures, .import files, thumbs/
 tools/meshy.py           Meshy API pipeline (generate, texture, rig, animate, download)
-tools/ambience_audio.py  Freesound CC0 search / verify / fetch and the ambience clip cutter (section 9l)
+tools/ambience_audio.py  Freesound CC0 search / verify / fetch and the ambience clip cutter (section 9m)
 tools/shrink_glb.py      shrinks embedded textures to 1K JPEG, --desaturate for car paint
 tools/pack_gltf.py       packs a Poly Haven .gltf + .bin + textures into one .glb
 tools/decimate_tree.py   reduces Poly Haven trees, bushes and rocks to game size (needs pymeshlab: pip install pymeshlab, apt-get install libopengl0)
@@ -1097,7 +1097,29 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
-## 9l. The city's sound, 2026-09-24 (agent branch)
+## 9l. How the 2026-09-24 session ran (read if you inherit a half-merged day)
+
+- The owner asks for many big features at once and wants speed, so the work went out to
+  background agents in git worktrees (`.claude/worktrees/`, ignored), each told to commit on
+  its own branch, merge origin/main before reporting, and never push. The main session merges
+  each branch, runs `tests/headless_check.sh`, pushes to main and sends screenshots.
+- One 16 GB box is shared, and a Forward+ (lavapipe) city is 6-7 GB, so every render goes
+  through `flock <scratchpad>/render.lock <command>`. Headless checks run without the lock.
+  An OOM-killed render prints `Killed` in its log and leaves no png.
+- Merges conflict mostly in the docs (every agent appends a decisions-log entry and a handoff
+  section): keep both sides and renumber the sections.
+- CI's box is slower than this one and drops to Quality LOWEST (thinner crowd, fewer cars), so
+  tests that pick "the nearest pedestrian" or "cars[0]" are timing-sensitive there. Two such
+  checks failed on build 231 and were hardened; if a check passes here and fails on CI, look
+  for that first.
+- Merged that day: window recesses, tracksuit then the Blender hero, weapon wheel, Blender guns
+  and the shotgun, rocket warhead and smoke trail, far-glass emission, police and wanted stars,
+  facade kit, blood, air traffic. In flight when this was written: a studio pass on the hero,
+  the DTLA skyline massing and density, the arena district and civic centre, traffic signals
+  and crosswalks with police routing, and a city ambience soundscape. The unused Meshy hero is
+  on branch `worktree-agent-a5cb589744a1759b9` (not chosen).
+
+## 9m. The city's sound, 2026-09-24 (agent branch)
 
 Owner: "the city should SOUND like a real city, AAA-style". Until now the only ambience in the
 game was the weather's rain loop: `ambience_city` and `wind` had shipped since build 104 and
