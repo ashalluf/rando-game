@@ -16,7 +16,10 @@ extends SceneTree
 ## people, traffic, leaves, fire - smears under TAA. Held still, it resolves as crisply as it
 ## does on the Mac. FX_AT_PED=1 centres the explosion on the nearest pedestrian at least FX_AT
 ## metres ahead instead (people come apart close to a blast); FX_PED_PLACE=1 also stands that
-## pedestrian in the road exactly FX_AT metres ahead first. Debris is kept alive for the shot:
+## pedestrian in the road exactly FX_AT metres ahead first. FX_SHOOT=N fires N AK-47 rounds into
+## that pedestrian instead of the blast (see _rifle_burst for SHOT_YAW / SHOT_DIST / SHOT_HEIGHT /
+## SHOT_GAP), and FX_SCALE sets the clock scale the effect runs at (default 0.375; 1.0 for an
+## aftermath shot many seconds later). Debris is kept alive for the shot:
 ## its lifetime is wall-clock seconds, and a software frame takes seconds.
 ## CAR_PARAM=name=value sets one car paint uniform on every car (A/B tests); CAR_REPORT=1 prints
 ## each car on screen with its paint; AIM=1 holds GTA-style aim for the shot. WHEEL=<index> opens
@@ -93,12 +96,17 @@ func _initialize() -> void:
 		var radius := float(_env_int("FX_RADIUS", 9))
 		# Godot caps a frame at eight physics ticks (0.133 s), whatever the wall clock says, so
 		# a scale of 0.375 steps the effect 0.05 s a frame - fine enough to stop where asked.
-		Engine.time_scale = 0.375
-		# Loaded, not named: this script compiles before the autoloads exist, and Explosion
-		# uses one (Sfx), so naming the class here fails the whole script.
-		load("res://scripts/weapons/weapon_fx.gd").explosion(player, at, radius)
-		var hit: int = load("res://scripts/weapons/explosion.gd").blast(player, at, radius, 26.0, 0.0)
-		print("fx blast at %s hit %d bodies; gibs now %d, target down %s" % [at, hit, get_nodes_in_group("gib").size(), "?"])
+		# FX_SCALE raises it for aftermath shots that want many seconds of effect time.
+		Engine.time_scale = float(OS.get_environment("FX_SCALE")) if OS.get_environment("FX_SCALE") != "" else 0.375
+		var shots := _env_int("FX_SHOOT", 0)
+		if shots > 0:
+			await _rifle_burst(player, at, shots, forward.normalized())
+		else:
+			# Loaded, not named: this script compiles before the autoloads exist, and Explosion
+			# uses one (Sfx), so naming the class here fails the whole script.
+			load("res://scripts/weapons/weapon_fx.gd").explosion(player, at, radius)
+			var hit: int = load("res://scripts/weapons/explosion.gd").blast(player, at, radius, 26.0, 0.0)
+			print("fx blast at %s hit %d bodies; gibs now %d, target down %s" % [at, hit, get_nodes_in_group("gib").size(), "?"])
 		for d in get_nodes_in_group("debris"):
 			print("  debris ", d.name, " ", d.get_script().get_global_name() if d.get_script() else d.get_class(), " at ", (d as Node3D).global_position)
 		var want := float(OS.get_environment("FX_TIME")) if OS.get_environment("FX_TIME") != "" else 0.25
@@ -168,6 +176,94 @@ func _initialize() -> void:
 	get_root().get_texture().get_image().save_png(out)
 	print("saved ", out)
 	quit()
+
+
+## FX_SHOOT=N: N AK-47 rounds into the pedestrian nearest `at` (FX_AT_PED=1, and FX_PED_PLACE=1
+## to stand them in the road first), one every SHOT_GAP seconds of effect time (default 0.12).
+## The first round puts them down; the rest go into the body where it lies. SHOT_YAW turns where
+## the shooter stands round the target from the camera's line of sight, in degrees (default 90:
+## from the left of the frame, so the exit spray crosses the picture; 0 = from the camera, 180 =
+## towards it); SHOT_DIST is how far away (default 6 m), SHOT_HEIGHT where the rounds land on a
+## standing person (default 1.25 m, the chest). FX_PED_WALL=metres first stands the target that
+## far in front of the first wall down the line of fire (wall splatter). The tracer still starts
+## at the hero's muzzle. The log prints the blood counts after the burst.
+func _rifle_burst(player: Node3D, at: Vector3, shots: int, forward: Vector3) -> void:
+	var rifle: Node = null
+	var manager: Node = player.get("weapon_manager")
+	if manager:
+		for w in manager.get_children():
+			if w.has_method("fire_ray"):
+				rifle = w
+				break
+	if rifle == null:
+		print("FX_SHOOT: no rifle on the player")
+		return
+	var yaw := deg_to_rad(_env_float("SHOT_YAW", 90.0))
+	var dist := _env_float("SHOT_DIST", 6.0)
+	var height := _env_float("SHOT_HEIGHT", 1.25)
+	var gap := _env_float("SHOT_GAP", 0.12)
+	var from_dir := (-forward).rotated(Vector3.UP, -yaw).normalized()
+	var target: Node3D = null
+	for p in get_nodes_in_group("pedestrian"):
+		if target == null or (p as Node3D).global_position.distance_to(at) < target.global_position.distance_to(at):
+			target = p
+	# FX_PED_WALL=metres: find the first wall down the line of fire and stand the target that far
+	# in front of it, so the exit spray reaches it.
+	var wall_gap := _env_float("FX_PED_WALL", 0.0)
+	if target and wall_gap > 0.0:
+		var chest := target.global_position + Vector3.UP * height
+		var space := target.get_world_3d().direct_space_state
+		var wall := space.intersect_ray(PhysicsRayQueryParameters3D.create(chest, chest - from_dir * 30.0, 1))
+		if not wall.is_empty() and absf((wall.normal as Vector3).y) < 0.5:
+			var spot: Vector3 = (wall.position as Vector3) + from_dir * wall_gap
+			var down := space.intersect_ray(PhysicsRayQueryParameters3D.create(spot + Vector3.UP * 2.0, spot + Vector3.DOWN * 4.0, 1))
+			spot.y = (down.position as Vector3).y if not down.is_empty() else target.global_position.y
+			target.global_position = Vector3(spot.x, spot.y, spot.z)
+			target.set("velocity", Vector3.ZERO)
+			target.set("_pause_left", 30.0)
+			print("stood the target %.1f m in front of %s at %s" % [wall_gap, (wall.collider as Node).name, spot.round()])
+			for i in 2:
+				await physics_frame
+		else:
+			print("FX_PED_WALL: no wall down the line of fire")
+	var last := at
+	for i in shots:
+		var aim_at := last
+		if is_instance_valid(target) and not target.is_queued_for_deletion():
+			aim_at = target.global_position + Vector3.UP * height
+		else:
+			# Down: aim at the middle of the newest body near where they were.
+			var body := _nearest_doll_body(last)
+			if body:
+				aim_at = body.global_transform * Vector3(0.0, 0.87, 0.0)
+		last = aim_at
+		var from := aim_at + from_dir * dist + Vector3.UP * 0.25
+		var hit: Dictionary = rifle.fire_ray(from, (aim_at - from).normalized())
+		var who: Object = hit.get("collider")
+		print("shot %d at %s hit %s" % [i, aim_at.round(), (who as Node).name if who is Node else "nothing"])
+		var waited := 0.0
+		while waited < gap:
+			await process_frame
+			waited += get_root().get_process_delta_time()
+	var fx: GDScript = load("res://scripts/weapons/weapon_fx.gd")
+	if fx.get("blood_stats") != null:
+		print("blood after the burst: live ", fx.call("blood_counts"), " totals ", fx.get("blood_stats"))
+
+
+func _nearest_doll_body(near: Vector3) -> RigidBody3D:
+	var best: RigidBody3D = null
+	for d in get_nodes_in_group("debris"):
+		if d.get_script() == null or d.get_script().get_global_name() != "Ragdoll":
+			continue
+		for b in (d as Node).get_children():
+			if b is RigidBody3D and (best == null or (b as Node3D).global_position.distance_to(near) < best.global_position.distance_to(near)):
+				best = b
+	return best
+
+
+static func _env_float(key: String, fallback: float) -> float:
+	var v := OS.get_environment(key)
+	return float(v) if v != "" else fallback
 
 
 ## Keeps the player where the shot wants them: at the --spawn height, and for BOOST held in
