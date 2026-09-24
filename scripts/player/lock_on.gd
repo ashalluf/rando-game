@@ -157,7 +157,7 @@ func _pick(current: Node3D, side: float) -> Node3D:
 	if current != null:
 		current_x = (_chest(current) - from).normalized().dot(right)
 	var scored: Array = []
-	for group in ["pedestrian", "vehicle"]:
+	for group in ["pedestrian", "police", "vehicle"]:
 		for n in get_tree().get_nodes_in_group(group):
 			var node := n as Node3D
 			if node == null or node == current or node == _player.vehicle or not _alive(node):

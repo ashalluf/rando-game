@@ -69,6 +69,8 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 			affected += 1
 		elif collider is Player:
 			(collider as Player).launch(dir * player_launch_speed * falloff)
+			# Only hurts with PlayerHealth.self_blast_damage on (rocket jumps stay free).
+			(collider as Player).blast_hit(falloff, at)
 			affected += 1
 		elif collider.has_method("take_hit"):
 			collider.take_hit(result.get("shape", -1), prop_damage * falloff, dir)
