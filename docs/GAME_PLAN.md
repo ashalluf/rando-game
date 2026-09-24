@@ -255,6 +255,30 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 Westlake: MacArthur Park and the downtown encampments (owner: "you should also
+  have MacArthur Park and a bunch of homeless tents up on random streets in downtown and people
+  slumped over").** Two things, both depicted as the street a realistic LA game would show, never
+  as a joke, with neutral names in the code (`encampment`, `rough_sleeper`, `slumped`).
+  MacArthur Park is the first replica area ON the street grid: the real place in one data table
+  (`LandmarkMacArthurPark.SITE`: lat/long, 2.3 km west and 1.16 km north of Pershing Square,
+  460 x 310 m, Wilshire through the middle at a real heading of 297 degrees, the lake outline),
+  placed on today's compressed map west-north-west of the downtown core between Park View,
+  Alvarado, 6th and 7th, with Wilshire kept open through it. The plan snaps it to whole blocks and
+  CLOSES the roads inside rather than overlaying the grid, so road indices, block seeds and every
+  block round it stay exactly as they were; each chunk builds its own part (lawns, paths, palms
+  ringing the lake and the streets, trees, beds, lamps, benches, the 7-a-side pitch, the
+  bandshell, a crowd), and the fountain jet and the two-storey boathouse on its veranda over the
+  water are the anchored landmark. The lake is a real basin: coping, walls, a floor 1.2 m down
+  you can land on (the city's ground box is let through inside the lake), a splash. Encampments:
+  a hash of seed, street and face decides which downtown block faces have camps (a third of the
+  streets carry most of them); a camp is a run of tents, tarps, carts, bags, mattresses,
+  cardboard, chairs and bikes along the building line with doorways, corners and street furniture
+  kept clear, modelled in Blender with CC0 fabric textures, one batch per piece kind per chunk,
+  every piece knockable (bullets, blasts, cars) into debris that stays gone. The people there sit
+  against the wall, lie on their bedding or stand folded forward, breathing, in worn dirty
+  clothes; gunfire sends them running (the slumped cower where they stand); they bleed, ragdoll
+  and count against the crowd cap like anyone. FULL chunks only, capped per chunk.
+
 - **2026-09-24 Replica areas (owner: "we are basically picking like certain 1:1 replica areas
   and then filling them in between with whatever").** The map becomes real places at true
   scale, joined by seeded filler, and it must stay geographically sound (the Esplanade is south

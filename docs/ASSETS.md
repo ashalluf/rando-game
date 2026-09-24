@@ -36,6 +36,12 @@ Quaternius). Record every pack here.
 | Fabric036 (1K JPG: Color, NormalGL, Roughness) | https://ambientcg.com/a/Fabric036 | CC0 1.0 | facade kit: shop awning canvas (`fabric`) | 2026-09-24 |
 | Metal016 | https://ambientcg.com/a/Metal016 | CC0 1.0 | facade kit: painted steel - AC units, rooftop units, vents, fire escapes, railings (`metal_painted`) | 2026-09-24 |
 | Planks023A | https://ambientcg.com/a/Planks023A | CC0 1.0 | facade kit: rooftop water tank staves and roof (`planks`) | 2026-09-24 |
+| Fabric048 | https://ambientcg.com/a/Fabric048 | CC0 1.0 | encampment kit: tent nylon, camp chair and duffel canvas (`camp_nylon`) | 2026-09-24 |
+| Fabric015 | https://ambientcg.com/a/Fabric015 | CC0 1.0 | encampment kit: woven poly tarps (`camp_tarp`) | 2026-09-24 |
+| Cardboard001 | https://ambientcg.com/a/Cardboard001 | CC0 1.0 | encampment kit: flattened boxes and cartons (`camp_cardboard`) | 2026-09-24 |
+| Fabric040 | https://ambientcg.com/a/Fabric040 | CC0 1.0 | encampment kit: mattress ticking (`camp_ticking`) | 2026-09-24 |
+| Fabric031 | https://ambientcg.com/a/Fabric031 | CC0 1.0 | encampment kit: blankets and quilts (`camp_wool`) | 2026-09-24 |
+| Plastic006 | https://ambientcg.com/a/Plastic006 | CC0 1.0 | encampment kit: trash-bag film (`camp_plastic`) | 2026-09-24 |
 
 Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
 attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.
@@ -118,6 +124,32 @@ ambientCG sets added for it); the glTF materials only carry names, which
 | `kit_water_tank` | 998 | timber rooftop tank on a braced steel stand | 2026-09-24 |
 | `kit_vent_mushroom` / `kit_vent_turbine` | 188 / 238 | roof vents | 2026-09-24 |
 | `kit_hvac` | 942 | packaged rooftop units on big roofs | 2026-09-24 |
+
+## Encampment kit (our own Blender generator)
+
+`assets/models/encampment_kit.glb` is written by `tools/encampment_kit.py`, run headless in
+Blender 4.2 (`blender -b -t 2 --factory-startup --python tools/encampment_kit.py`, `-- --no-bake`
+skips the AO bake for a fast shape loop), then `godot --headless --path . --import`. Like the
+facade kit the script is the model: every piece is bmesh in metres, UVs in metres (the shader
+tiles the CC0 sets above at their real scale), ambient occlusion baked in Cycles against a
+ground plane into UV2.x. The glTF materials only carry names, which `PropFactory.camp_material()`
+maps to `shaders/encampment.gdshader` / `encampment_2side.gdshader` (colour per instance, faded
+by the sun per instance, grime, stains). For the downtown encampments (`Encampment`).
+
+| Piece | Triangles | Used for | Added |
+| --- | --- | --- | --- |
+| `camp_tent_dome` | 2696 | two-pole dome tent with a sagging fly, door zipped half open, guy lines | 2026-09-24 |
+| `camp_tent_pop` | 2624 | pop-up tent, lower and rounder, with a bathtub floor | 2026-09-24 |
+| `camp_tarp_canopy` | 1516 | tarp roped from a wall to two sticks over a pitch | 2026-09-24 |
+| `camp_tarp_mound` | 2280 | tarp thrown over a heap of belongings, tied down | 2026-09-24 |
+| `camp_cart` | 2164 | wire shopping cart with a bagged load | 2026-09-24 |
+| `camp_bag_trash` / `camp_bag_duffel` / `camp_bags_pile` | 480 / 368 / 1808 | trash bags, a duffel, a heap of both | 2026-09-24 |
+| `camp_mattress` | 1928 | sagging stained mattress | 2026-09-24 |
+| `camp_bedding` | 1488 | rucked blankets and a pillow | 2026-09-24 |
+| `camp_cardboard` / `camp_box` | 144 / 68 | flattened cardboard bed, a carton | 2026-09-24 |
+| `camp_chair` | 680 | folding camp chair | 2026-09-24 |
+| `camp_bicycle` | 2772 | whole bicycle leant on its side | 2026-09-24 |
+| `camp_bike_wheel` / `camp_bike_frame` | 916 / 940 | loose wheels and stripped frames | 2026-09-24 |
 
 ## Procedurally generated cars (our own tools, no external source)
 
