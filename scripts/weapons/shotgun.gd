@@ -17,6 +17,10 @@ extends Weapon
 ## How hard a person is thrown: `knock_base` plus this much per pellet that hit them (m/s).
 @export var knock_per_pellet: float = 5.0
 @export var knock_base: float = 12.0
+## How much each pellet in a person bleeds (WeaponFX.blood's strength; a rifle round is 1). A
+## person's pellets are summed into one wound, so a close blast of nine is a much heavier one
+## (WeaponFX.blood_strength_max caps it) and a stray pellet a small one.
+@export var blood_per_pellet: float = 0.45
 ## Seconds between the shot and the pump starting back.
 @export var pump_delay: float = 0.14
 ## Seconds each stroke of the pump takes (back, then home).
@@ -168,14 +172,18 @@ func _fire(aim: Dictionary) -> void:
 	var people := {}
 	for i in pellets:
 		fire_pellet(from, _spread(aim.direction), people)
-	# People take the whole charge at once: blood where it went in, then thrown by all of it.
+	# People take the whole charge at once, as one wound as heavy as the pellets in it: thrown by
+	# all of it, bleeding out of the far side, onto the wall behind and the ground, then pooling
+	# (WeaponFX.bullet_wound). A body already down just bleeds again (its pellets shoved it).
 	for person in people:
 		if not is_instance_valid(person):
 			continue
 		var n: int = people[person][0]
 		var dir: Vector3 = people[person][1]
-		WeaponFX.blood(self, people[person][2], (dir + Vector3.UP * 0.4).normalized(), clampf(0.45 + 0.15 * n, 0.45, 1.6))
-		person.knock(dir * (knock_base + knock_per_pellet * n) + Vector3.UP * (4.0 + n))
+		var down: bool = person.has_method("fling")
+		var knock := Vector3.ZERO if down else dir * (knock_base + knock_per_pellet * n) + Vector3.UP * (4.0 + n)
+		WeaponFX.bullet_wound(self, {"collider": person, "position": people[person][2]}, dir,
+			blood_per_pellet * n, knock)
 	WeaponFX.flash(self, muzzle.global_position, Color(1.0, 0.72, 0.35), flash_size, flash_life)
 	player.camera_rig.shake(shake_amount)
 	Sfx.play("shotgun", muzzle.global_position, 2.0, randf_range(0.95, 1.05))
@@ -191,9 +199,9 @@ func _spread(dir: Vector3) -> Vector3:
 
 
 ## Fires one pellet: the rifle's hit path (props shoved, street props damaged, traffic knocked
-## loose) with the shotgun's numbers. People hit are gathered into `people` (collider ->
-## [pellets, direction, hit point]) so _fire() throws each once with all of it. Public so tests
-## can call it.
+## loose) with the shotgun's numbers. People hit - and bodies already down, by their Ragdoll -
+## are gathered into `people` (who -> [pellets, direction, first hit point]) so _fire() throws
+## and bleeds each once with all of it. Public so tests can call it.
 func fire_pellet(from: Vector3, dir: Vector3, people: Dictionary = {}) -> Dictionary:
 	var to := from + dir * pellet_range
 	var query := PhysicsRayQueryParameters3D.create(from, to, Player.AIM_MASK, [player.get_rid()])
@@ -205,16 +213,27 @@ func fire_pellet(from: Vector3, dir: Vector3, people: Dictionary = {}) -> Dictio
 		if body:
 			body.sleeping = false
 			body.apply_impulse(dir * pellet_force, hit.position - body.global_position)
+			# A body already down (one rigid body under its Ragdoll): its pellets are summed too.
+			var doll := body.get_parent()
+			if doll != null and doll.has_method("shot") and doll.has_method("fling"):
+				_gather(people, doll, dir, hit.position)
 		elif hit.collider.has_method("take_hit"):
 			hit.collider.take_hit(hit.get("shape", -1), pellet_damage, dir)
 		elif hit.collider.has_method("knock"):
-			var n: int = people[hit.collider][0] if people.has(hit.collider) else 0
-			people[hit.collider] = [n + 1, dir, hit.position]
+			_gather(people, hit.collider, dir, hit.position)
 		if hit.collider is Vehicle:
 			(hit.collider as Vehicle).drop_out_of_traffic(dir * pellet_force)
 		WeaponFX.impact(self, hit.position, Color(1.0, 0.85, 0.5), hit.normal, hit.collider)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color, 0.05, 0.012)
 	return hit
+
+
+## Counts one more pellet into a person (or a body): [pellets, direction, first hit point].
+static func _gather(people: Dictionary, who: Object, dir: Vector3, at: Vector3) -> void:
+	if people.has(who):
+		people[who][0] = int(people[who][0]) + 1
+	else:
+		people[who] = [1, dir, at]
 
 
 ## Throws a spent shell out of the ejection port: a small rigid body that clatters off the

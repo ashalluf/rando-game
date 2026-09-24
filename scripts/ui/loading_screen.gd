@@ -168,6 +168,10 @@ func _warm_shaders() -> void:
 		mi.position = Vector3(0.0, 0.0, -0.3)
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		holder.add_child(mi)
+	# Blood decals: the first to use a texture repacks the decal atlas.
+	for dec: Node3D in WeaponFX.warm_decals():
+		dec.position = Vector3(0.0, 0.0, -0.3)
+		holder.add_child(dec)
 	_step("Compiling effects", 0.5)
 	await _frames(warm_frames)
 	await _frames(1)

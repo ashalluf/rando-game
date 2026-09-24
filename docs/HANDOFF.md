@@ -950,7 +950,7 @@ next session needs to know (the rules are the Police note in CLAUDE.md):
   yelp at close range and no Doppler. Nothing of this has been seen in Forward+ or at 60 fps:
   the light bar's HDR lenses and the night OmniLight are tuned on opengl3 stills only.
 
-## 9g. The facade kit, 2026-09-24 (G2, first real-geometry pass)
+## 9i. The facade kit, 2026-09-24 (G2, first real-geometry pass)
 
 Owner: "it's looking like GTA San Andreas ... it must be the same quality as RDR2". The biggest
 tell left was that every building is a shaded box. `tools/facade_kit.py` (Blender 4.2, headless)
@@ -996,6 +996,43 @@ them from its seed on every building near the camera. What a next session needs 
 - **Not done**: storefront glazing and interiors as geometry, a kit per LA style (bungalow,
   deco, mission), string courses and plinths as mouldings (still boxes), and a LOD/impostor
   step between the kit's range and the far boxes.
+
+## 9j. Blood, 2026-09-24 (owner: "I want more blood when people get shot")
+
+Built on an agent branch while another agent swapped the gravity gun for a shotgun. What a
+rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the top of
+`scripts/weapons/weapon_fx.gd`) with the body's side in `Ragdoll`:
+
+- **One entry point for every gun**: `WeaponFX.bullet_wound(node, hit, dir, strength, knock)`
+  takes the ray hit and duck-types the victim (pedestrian -> `Pedestrian.shot()`, body ->
+  `Ragdoll.shot()`, limb -> `blood_gush()`). The rifle's `fire_ray()` calls it with
+  `AssaultRifle.blood_strength`. The shotgun (merged in from main the same day) sums each
+  person's pellets - bodies already down included - into one call at `Shotgun.blood_per_pellet`
+  (0.45) a pellet, capped at `blood_strength_max` (4): a close blast of nine is four rifle
+  rounds' worth, a stray pellet a small wound. Called per pellet it would also work: the first
+  puts them down and the rest land in the ragdoll, which bleeds more for each.
+- **The wound** (`blood()`): backspatter, an exit spray of lit glossy droplet meshes along the
+  bullet (a fast jet inside a wider spray), an unshaded mist that dims itself at night
+  (`shaders/blood_mist.gdshader`; the lit version was grey dust), a spatter plus creeping runs on any wall within 2.8 m behind (one ray), and
+  five drops traced ballistically to where they land, each leaving a splat at the moment it lands.
+- **The body**: a pool spreads from under the hips over 8 s once it rests (widened by later
+  hits), drag smears while it slides, drips from the exit wound, a per-body stain on the
+  clothes (`character.gdshader` `wound_0..3`) that rides the nearest bone and soaks outward.
+  Rocket gibs bleed at 2.2, the stumps pump, torn limbs drip in flight and mark where they land.
+- **Marks** are generated textures (albedo + normal + ORM) on Decals in Forward+ and on flat alpha
+  quads in Compatibility. **Nobody has seen the Decal path yet**: the opengl3 stills show the quad
+  fallback, and agents may not run lavapipe. The first Forward+ still of a shooting is the thing
+  to check - colour (decal albedo through the atlas), wetness (ORM roughness 0.5 where thick: anything glossier mirrored the sky at the grazing
+  angle every road splat is seen at, and measured brighter than the road on opengl3; with SSR
+  on Forward+ a little glossier may look better, it is one `lerpf` in `_shade_blood()`) and
+  which way the wall runs go (they should run DOWN; the decal V axis is local +Z, set to the wall's
+  down direction in `_wall_splatter`).
+- Stills: `still_shot.gd` `FX_SHOOT=3 FX_AT=8 FX_AT_PED=1 FX_PED_PLACE=1` (spray at
+  `FX_TIME=0.15`; aftermath at `FX_SCALE=1 FX_TIME=9`; `FX_PED_WALL=1.4` for a wall).
+- Pre-existing, not from this work: every headless run logs thousands of `Cannot set a buffer on
+  a Multimesh` errors and one `get_meta ... 'shadow_twin'` from `multimesh_batch.gd` (the
+  shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
+  gate does not match them, so it stays green; they are worth a look.
 
 ## 10. Suggested next steps, in order of impact
 

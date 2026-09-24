@@ -279,6 +279,16 @@ already mapped so milestone 2 is script-only.
   own rockets do not hurt you (`PlayerHealth.self_blast_damage`, off) - rocket jumps are how the
   game moves. The helicopter is another branch's; it reads `stars` off the "wanted" node and can
   call `report_sighting()`.
+
+- **2026-09-24 Gunshots bleed (owner: "I want more blood when people get shot").** A round into
+  a person used to be a small red dust puff and a ragdoll. Now it comes out of the far side:
+  a spray of glossy droplets along the bullet that falls and lands as splats where it falls, a
+  spatter with runs down any wall close behind, and a body that keeps bleeding - a pool spreading
+  from under it over eight seconds, a smear where it slides, drips, and its clothes soaking dark
+  round each wound. Dark arterial red, never paint red; lit, so it is dark at night. Rocket gibs
+  bleed harder and torn limbs leave trails. Every gun uses one call with a strength, so the
+  shotgun reads heavier than the rifle for free. Everything is capped and fades on its own.
+
 - **2026-09-24 The guns are real models, made in Blender by script (owner: "What are these
   horrible assets ... it's looking like GTA San Andreas and I need it to look like RDR2").**
   `tools/make_weapons.py` builds each gun from real dimensions in millimetres, bevels every part

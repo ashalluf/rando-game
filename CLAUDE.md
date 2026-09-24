@@ -316,8 +316,8 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   of its size at the feet; a limb must not collide with the body it spawns inside, or with the
   ground it overlaps (the depenetration fired legs up at 45 m/s); and cutting needs mesh data,
   which the headless dummy renderer does not keep, so the smoke test cannot see limbs - judge
-  them with `still_shot.gd` (`FX_AT_PED=1 FX_PED_PLACE=1`). `WeaponFX.blood()` is the spray,
-  mist and ground splat (splats capped at `blood_splat_max`).
+  them with `still_shot.gd` (`FX_AT_PED=1 FX_PED_PLACE=1`). Blood from gunshots and gibs is in
+  the Effects note (`WeaponFX.bullet_wound()` / `blood()`).
   Population (owner, 2026-09-20: "an actual very populated city", densest downtown, thinning
   outward, the airport jam-packed): `"people"` and `"parked"` per block live in
   `CityPlan.DISTRICTS` (the downtown core doubles people via `skyline_boost`), the caps are
@@ -496,6 +496,44 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   part of a puff the same colour, forty of them were one flat orange cloud that read as dust.
   Blast debris is small dark wedges (`_chip_layer` uses a PrismMesh): 18 cm brown cubes read as
   cardboard boxes in a still.
+  Blood (owner, 2026-09-24: "I want more blood when people get shot"). Every gun hands its ray
+  hit to `WeaponFX.bullet_wound(node, hit, dir, strength, knock)`, which duck-types the victim:
+  a pedestrian goes to `Pedestrian.shot()` (down, then the round goes into the `Ragdoll` it
+  became, so later pellets of a volley bleed into the body), a body to `Ragdoll.shot()`, a
+  torn-off limb to `blood_gush()`. `blood(node, at, dir, strength, victim)` is one wound:
+  backspatter out of the entry; the exit spray from `blood_exit_depth` further along the bullet
+  (lit, glossy, OPAQUE droplet meshes aligned to their velocity - an unshaded red dot glows at
+  night - with no damping, so they fly the same arcs as the trace, and backlit red); a mist that is
+  unshaded and darkens itself by `night_factor` (`shaders/blood_mist.gdshader` - lit, the
+  camera-facing cards caught no sun and read as grey-brown dust); one ray
+  `blood_wall_reach` on for a spatter plus runs that creep down the wall; and `blood_landings`
+  drops traced along those arcs to where they land, each laying a splat at the moment it lands
+  (the first always straight under the wound). `strength` 1 is a rifle round (`AssaultRifle
+  .blood_strength`), limbs are `blood_gib_strength`; the shotgun sums a person's pellets into
+  one call (`Shotgun.blood_per_pellet` 0.45 each, capped at `blood_strength_max` 4, so a close
+  blast is four rifle rounds' worth). Called per pellet it also works: sprays stack, caps hold.
+  A Ragdoll keeps `bleed` (its wounds summed): a pool spreads from under the Hips once it rests
+  (`blood_pool`, over `blood_pool_grow`, widened by `feed_pool` when it is shot again), drag
+  smears while it slides, a world-space drip from the exit wound, the stumps and each torn limb
+  end (`blood_drip`), and limbs mark where they land and skid. The clothes stain round each
+  wound through `wound_0..3` / `wound_count` in `character.gdshader`, on a per-ragdoll DUPLICATE
+  of the look material (looks are shared by the crowd; set on the shared one and every copy of
+  that look bleeds), each wound riding its nearest bone and soaking out over `STAIN_SOAK`.
+  Marks are Decals on Forward+ with albedo, normal and ORM generated in code
+  (`blood_textures()`: dark coffee-ring rims, a meniscus in the normal that carries the wet
+  look, and SATIN roughness, 0.72 thin to 0.5 thick - a splat on the road is always seen at a
+  grazing angle, where Fresnel turns anything glossy into a mirror of the sky whatever its F0,
+  and at 0.05, 0.2 and 0.3 splats measured brighter than the road and read pale pink; the
+  albedo carries its own coverage-keeping mips, `_coverage_mips()`, or a small mark goes
+  translucent a few mip levels down) and flat alpha PlaneMesh quads with the same maps on the Compatibility renderer -
+  the web build AND the opengl3 screenshot path, so a `still_shot.gd` still shows the quads,
+  never the decals. Caps: `blood_splat_max`, `blood_wall_max`, `blood_pool_max`,
+  `blood_system_max` (particle systems), `blood_budget` (detailed wounds per 0.7 s); lifetimes
+  `blood_*_life`; textures, materials and the decal atlas are warmed on the loading screen
+  (`warm_materials()`, `warm_decals()`). Two traps: `get_meta(key, null)` is an error when the
+  key is missing (a null default means no default), and a CPUParticles3D under a bone attachment
+  inherits the rig's 0.01 scale and shrinks a hundredfold, so drips ride the ragdoll's body.
+  Stage it with `still_shot.gd` `FX_SHOOT=N` (`SHOT_YAW`, `FX_PED_WALL`, `FX_SCALE`).
   Screenshot effects with `tools/glshot/fx_shot.gd` (and store stills with
   `tools/glshot/still_shot.gd`): Godot caps a frame at eight physics ticks (0.133 s) however
   long a software frame really takes, so they count the effect's own elapsed time, never the
@@ -506,8 +544,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   point, normal, collider, target). Explosions: `Explosion.blast()`. The arsenal is the AK-47, the
   rocket launcher and a pump **shotgun** (`Shotgun`, slot 3; owner, 2026-09-24: "lose the gravity
   gun, give us a shotgun"): nine pellets in a 4.5-degree cone down the rifle's hit path
-  (`fire_pellet()`), people thrown by all the pellets that hit them at once with
-  `WeaponFX.blood()`, a heavy flash and camera shake, then the pump strokes back and home
+  (`fire_pellet()`), people (and bodies already down) thrown and bled by all the pellets that
+  hit them at once - one `WeaponFX.bullet_wound()` each at `blood_per_pellet` a pellet, so a
+  close blast is a far heavier wound than a rifle round - a heavy flash and camera shake, then the pump strokes back and home
   (`pump_amount()`), a spent shell is thrown out of the port as debris and the left hand rides
   the forend (the script moves `grip_left`). Sfx `shotgun` (three real CC0 pump guns) and `pump`.
   **The guns are real models** (owner, 2026-09-24: "What are these horrible assets ... I need it to

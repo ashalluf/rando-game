@@ -84,6 +84,8 @@ var _rng := RandomNumberGenerator.new()
 var _visual: Node3D
 var _bob: float = 0.0
 var _down: bool = false
+## The ragdoll this pedestrian became, for rounds that arrive after it went down.
+var _doll: Ragdoll
 var _anim: AnimationPlayer
 ## Which rig this pedestrian wears ("" for the box person); the ragdoll keeps the same one.
 var _model_path: String = ""
@@ -1375,6 +1377,19 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 		doll.build(shirt, pants, skin)
 	PhysicsBudget.register_debris(doll)
 	doll.fling(impulse)
+	_doll = doll
 	if gibs > 0:
 		doll.dismember(gibs, impulse)
 	queue_free()
+
+
+## A round in at `at`, travelling along `dir` (WeaponFX.bullet_wound, from any gun): they go
+## down, flung by `impulse`, and bleed - `strength` 1 is a rifle round. The blood is the body's
+## (Ragdoll.shot), so it stains, pools and trails. Hit again before this node is gone (a
+## shotgun's other pellets in the same frame) and the round goes into the body it became.
+func shot(at: Vector3, dir: Vector3, impulse: Vector3, strength: float = 1.0) -> void:
+	knock(impulse)
+	if _doll != null and is_instance_valid(_doll):
+		_doll.shot(at, dir, Vector3.ZERO, strength)
+	else:
+		WeaponFX.blood(self, at, dir, strength, self)
