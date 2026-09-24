@@ -1141,7 +1141,16 @@ session needs to know:
   towers get 40-205 m towers (median ~75, a quarter over 130 m), no slabs, fewer pocket gardens,
   more stone. The old downtown boost lerped the top to 368 m, so generic towers could out-top
   the landmarks.
-- **Measured**: see the table below (tools/geo_count.gd, opengl3, 800x600, one frame).
+- **Measured, and what was not.** Geometry, headless: the nineteen towers are 25k triangles in
+  all and 3-5 surfaces plus one light billboard each (so roughly 60-100 draws for the whole
+  skyline, casting included), built in ~150 ms at load. CPU, headless, the smoke test's
+  downtown teleport (`update_streaming(true)` at 742,423): 10.7 s against 10.3 s on the parent
+  commit, on a box loaded by other agents (+4 %, inside the noise). **tools/geo_count.gd was NOT
+  run**: the shared render lock was held by other agents' renders for over an hour. Run it
+  (the invocation in its header, plus `-- --spawn=589.2,860,0,12,2 --hour=12 --nohud` for the
+  avenue and `-- --spawn=-50,1250,-43,5,80 --hour=12 --nohud` for the south-west aerial) on
+  this commit and its parent before deciding the frame cost is fine. Expect more draws in the core than before (taller
+  infill, more of it) and fewer objects behind the towers (their occluders).
 - **Not done / not verified**: nothing here has been seen in Forward+ (the renders were all
   opengl3; the box was full of other agents' lavapipe renders). Crown glow and the lit offices
   on curved towers want a Forward+ dusk still. The towers have no interiors or lobbies, no
