@@ -95,7 +95,7 @@ static var blood_detail_distance: float = 70.0
 ## Beyond this distance a wound draws nothing at all.
 static var blood_far_distance: float = 150.0
 ## Droplets thrown out of the exit wound by a rifle round (strength 1).
-static var blood_drops: int = 30
+static var blood_drops: int = 44
 ## Speed range of the exit spray's droplets (m/s).
 static var blood_exit_speed: Vector2 = Vector2(2.8, 8.0)
 ## Half-angle of the exit spray's cone round the bullet's line (degrees).
@@ -1123,18 +1123,22 @@ static func _bleed(node: Node, at: Vector3, dir: Vector3, strength: float, victi
 	var exit_at := at + d * (blood_exit_depth if entry else 0.0)
 	var grow := sqrt(s)
 	# Particles. Hard-capped as a whole: a crowd emptied into at close range is exactly when the
-	# frame can least afford a hundred sprays. A wound is up to four systems.
-	if _blood_room(4 if entry else 2):
+	# frame can least afford a hundred sprays. A wound is up to five systems.
+	if _blood_room(5 if entry else 3):
 		var cone := blood_exit_cone * (0.9 + 0.1 * s)
 		if entry:
 			# Backspatter: a few fine drops and a puff thrown back out of the entry, at the shooter.
 			_track(_drop_layer(parent, at, _count(int(8 * grow)), 0.55, Vector2(0.8, 2.6), _basis_up(-d), 38.0, 0.6))
 			_track(_mist_layer(parent, at, _count(2), 0.16, 0.45, _basis_up(-d), 50.0, 0.6))
-		# The exit spray: most of the blood, along the bullet, thrown hard and falling fast.
-		var drops := clampi(int(float(blood_drops) * (0.6 + 0.4 * s)), 6, 110)
+		# The exit spray: most of the blood, along the bullet, thrown hard and falling fast - a
+		# tight jet of the fastest drops down the bullet's line inside a wider, slower spray. One
+		# even cone read as a handful of separate beads; the jet is what reads as blood leaving.
+		var drops := clampi(int(float(blood_drops) * (0.6 + 0.4 * s)), 8, 140)
 		var speed := blood_exit_speed * (0.9 + 0.1 * s)
-		_track(_drop_layer(parent, exit_at, _count(drops), 0.85, speed, _basis_up(d), cone, 1.0 + 0.1 * s))
-		_track(_mist_layer(parent, exit_at, _count(int(3 + 2 * s)), 0.22 + 0.06 * s, 0.75, _basis_up(d), cone * 2.0, 1.0))
+		_track(_drop_layer(parent, exit_at, _count(drops * 3 / 5), 0.85, speed, _basis_up(d), cone, 1.0 + 0.1 * s))
+		_track(_drop_layer(parent, exit_at, _count(drops * 2 / 5), 0.7, Vector2(speed.y * 0.7, speed.y * 1.15),
+			_basis_up(d), cone * 0.35, 0.8 + 0.1 * s))
+		_track(_mist_layer(parent, exit_at, _count(int(4 + 2 * s)), 0.34 + 0.08 * s, 0.9, _basis_up(d), cone * 2.0, 1.0))
 		blood_stats["exit_sprays"] += 1
 	if dist > blood_detail_distance or not _blood_budget_ok():
 		return
@@ -1241,8 +1245,8 @@ static func _blood_drop_mesh() -> SphereMesh:
 		var s := SphereMesh.new()
 		# Four times as long as it is wide, and every particle's Y follows its velocity, so a drop
 		# in flight is a streak that reads from any side instead of a dot.
-		s.radius = 0.017
-		s.height = 0.07
+		s.radius = 0.02
+		s.height = 0.085
 		s.radial_segments = 6
 		s.rings = 3
 		s.material = _blood_drop_material()
@@ -1320,7 +1324,7 @@ static func _drop_layer(parent: Node, at: Vector3, count: int, life: float, spee
 static func _mist_layer(parent: Node, at: Vector3, count: int, size: float, life: float,
 		aim: Basis, spread: float, alpha: float) -> CPUParticles3D:
 	var p := _puff_layer(parent, at, count, size, life, 0.4, 1.8, -1.2,
-		_ramp([Color(1.0, 1.0, 1.0, 0.0), Color(1.0, 1.0, 1.0, 0.42 * alpha), Color(0.7, 0.7, 0.7, 0.18 * alpha),
+		_ramp([Color(1.0, 1.0, 1.0, 0.0), Color(1.0, 1.0, 1.0, 0.6 * alpha), Color(0.75, 0.75, 0.75, 0.28 * alpha),
 			Color(0.6, 0.6, 0.6, 0.0)]), false, spread, 2.4, aim, 0.0, 0.3, 1.0, false, null,
 		_blood_mist_material())
 	p.name = "BloodMist"
