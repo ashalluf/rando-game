@@ -2,21 +2,18 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bjdlw2mluin0n"
-path.s3tc="res://.godot/imported/hero_hero_links_normal.jpg-b188c2b92957a8df1a29844f2db010ea.s3tc.ctex"
-path.etc2="res://.godot/imported/hero_hero_links_normal.jpg-b188c2b92957a8df1a29844f2db010ea.etc2.ctex"
+uid="uid://rqkts2y0i4co"
+path.s3tc="res://.godot/imported/hero_x_suit_wrinkle_mask.png-b5012a835758e0a6ca4bdbc153ce2476.s3tc.ctex"
+path.etc2="res://.godot/imported/hero_x_suit_wrinkle_mask.png-b5012a835758e0a6ca4bdbc153ce2476.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
-generator_parameters={
-"md5": "d64f166d99a9d78ca8f986cd0acd660b"
-}
 
 [deps]
 
-source_file="res://assets/models/hero_hero_links_normal.jpg"
-dest_files=["res://.godot/imported/hero_hero_links_normal.jpg-b188c2b92957a8df1a29844f2db010ea.s3tc.ctex", "res://.godot/imported/hero_hero_links_normal.jpg-b188c2b92957a8df1a29844f2db010ea.etc2.ctex"]
+source_file="res://assets/models/hero_x_suit_wrinkle_mask.png"
+dest_files=["res://.godot/imported/hero_x_suit_wrinkle_mask.png-b5012a835758e0a6ca4bdbc153ce2476.s3tc.ctex", "res://.godot/imported/hero_x_suit_wrinkle_mask.png-b5012a835758e0a6ca4bdbc153ce2476.etc2.ctex"]
 
 [params]
 
@@ -26,7 +23,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

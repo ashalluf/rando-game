@@ -26,22 +26,33 @@ const RUN_CLIP_SPEED := 5.0
 @export var palm_axis_sign: float = 1.0
 ## Cross-fade time between clips (seconds).
 @export var blend_time: float = 0.15
-## How fast the gun comes up to the shoulder when aiming or firing, and back down (per second).
-## How far each finger joint closes round a grip (knuckle, middle, tip), in degrees; the
-## right index on the trigger, and the thumb, have their own. Rigs without finger bones ignore it.
-@export var finger_curl: Vector3 = Vector3(62.0, 78.0, 45.0)
-@export var trigger_curl: Vector3 = Vector3(22.0, 38.0, 20.0)
-@export var thumb_curl: Vector3 = Vector3(15.0, 25.0, 20.0)
-## Which way the curl goes: flip if the fingers bend back instead of closing.
+## How far the fingers close round a grip is the gun's own (Weapon.curl_*, fitted per gun by
+## tools/grip_fit.gd). Which way the curl goes: flip if the fingers bend back instead of closing.
 @export var palm_curl_sign: float = 1.0
-## Rim sheen on the hero's velour tracksuit (0 flat cotton, 1 satin-bright edges).
-@export var velour_rim: float = 0.55
+## Rim sheen on the hero's velour tracksuit in the sun (0 flat cotton, 1 satin-bright edges).
+@export var velour_rim: float = 0.45
+## The velour's edge-on brightening in any light (the pile catching light sideways).
+@export var velour_sheen: float = 0.55
+## Subsurface scattering in the hero's skin (Forward+ only; 0 is a plastic mannequin).
+@export var skin_sss: float = 0.4
+## Density of the hero's stubble hairs over his beard area.
+@export var stubble: float = 0.9
+## Depth of the pores and fine lines in the hero's skin.
+@export var pores: float = 0.6
+## How far the hero's hair highlight stretches across the strands (0 a round plastic sheen).
+@export var hair_anisotropy: float = 0.8
+## How fast the gun comes up to the shoulder when aiming or firing, and back down (per second).
 @export var raise_speed: float = 7.0
+## 0..1: how firmly the chest holds its shooting stance against the clip's own turning (the
+## idle swings the shoulders 75 degrees; at 0 the support hand leaves the gun as it does).
+@export var stance_hold: float = 1.0
 ## Where the elbows point while holding a gun, relative to each shoulder joint (body space).
 @export var right_elbow_pole: Vector3 = Vector3(0.5, -0.6, 0.35)
 @export var left_elbow_pole: Vector3 = Vector3(-0.45, -0.6, 0.2)
 
 var _anim: AnimationPlayer
+## The hero's materials and pose-driven wrinkles (HeroLook), null on the crowd rigs.
+var hero_look: HeroLook
 var _clip := ""
 var _lean := 0.0
 
@@ -51,6 +62,7 @@ var _lean := 0.0
 # and two-bone IK pulls both wrists onto its grips (Weapon.grip_right / grip_left).
 var _skeleton: Skeleton3D
 var _ik: TwoBoneIK3D
+var _twist: AimTwist
 var _hands: GripHands
 var _mount: Node3D
 var _player: Node3D
@@ -72,7 +84,10 @@ func load_model(path: String, look: int = 3, tracksuit: Color = Color(0, 0, 0, 0
 	Pedestrian.prepare_rig(inst, look)
 	if tracksuit.a > 0.0:
 		_dress_tracksuit(inst, tracksuit)
-	_velour_sheen(inst)
+	hero_look = HeroLook.dress(inst, {"skin_sss": skin_sss, "stubble": stubble, "pores": pores,
+		"hair_anisotropy": hair_anisotropy, "velour_sheen": velour_sheen, "velour_rim": velour_rim})
+	if hero_look == null:
+		_velour_sheen(inst)
 	inst.rotation.y = PI # the rigs face +Z; the player's visual faces -Z
 	add_child(inst)
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -145,6 +160,17 @@ func setup_gun_hands(mount: Node3D, body: Node3D, player: Node3D) -> void:
 	pole_l.name = "ElbowPoleLeft"
 	body.add_child(pole_l)
 	pole_l.position = shoulder_l + left_elbow_pole
+	# The stance first: modifiers run in child order, so the IK reaches from twisted shoulders.
+	_twist = AimTwist.new()
+	_twist.name = "GunTwist"
+	for pair in [["Spine02", 0.25], ["Spine01", 0.35], ["Spine", 0.4], ["neck", -0.45], ["Head", -0.55]]:
+		var b := _skeleton.find_bone(pair[0])
+		if b >= 0:
+			_twist.bones.append([b, pair[1]])
+	_twist.left_arm = _skeleton.find_bone("LeftArm")
+	_twist.right_arm = _bone_r
+	_skeleton.add_child(_twist)
+	_twist.active = false
 	_ik = TwoBoneIK3D.new()
 	_ik.name = "GunHandsIK"
 	_skeleton.add_child(_ik)
@@ -198,12 +224,18 @@ func _grip_fingers() -> Array:
 				if axis.length() < 0.001:
 					continue
 				var local_axis := (rest.basis.orthonormalized().inverse() * axis.normalized()).normalized()
-				var curl: float = finger_curl[joint]
+				# Which of the gun's curls this joint takes (Weapon.curl_*), set per gun in hold_gun().
+				var kind := "curl_right" if side == "Right" else "curl_left"
 				if finger == "Thumb":
-					curl = thumb_curl[joint]
+					kind = "curl_thumb" if side == "Right" else "curl_left_thumb"
 				elif finger == "Index" and side == "Right":
-					curl = trigger_curl[joint]
-				out.append([bone, _skeleton.get_bone_rest(bone).basis.get_rotation_quaternion(), local_axis, deg_to_rad(curl)])
+					kind = "curl_trigger"
+				var entry := [bone, _skeleton.get_bone_rest(bone).basis.get_rotation_quaternion(), local_axis, 0.0, kind, joint]
+				if finger == "Thumb" and joint == 0:
+					# The thumb's base also rolls about the hand's length (Weapon.thumb_wrap),
+					# which carries the thumb across the grip: opposition, not flexion.
+					entry.append_array([(rest.basis.orthonormalized().inverse() * along).normalized(), 0.0, 0 if side == "Right" else 1])
+				out.append(entry)
 	return out
 
 
@@ -215,18 +247,29 @@ func hold_gun(weapon: Weapon, raised: bool, delta: float) -> void:
 	if weapon == null:
 		_ik.active = false
 		_hands.active = false
+		_twist.active = false
 		return
 	_raise = move_toward(_raise, 1.0 if raised else 0.0, raise_speed * delta)
 	var t := smoothstep(0.0, 1.0, _raise)
+	_twist.angle = deg_to_rad(lerpf(weapon.hold_twist.x, weapon.hold_twist.y, t))
+	_twist.hold = stance_hold
+	_twist.active = true
 	# The live shoulder, not the rest pose: the clips stand the rig 7 cm taller than it is bound
 	# and carry the shoulders 12 cm higher again, which put every grip out of arm's reach. It
-	# also lets the gun ride the walk the way it does on a real shoulder.
-	var shoulder := _body.to_local(_skeleton.to_global(_skeleton.get_bone_global_pose(_bone_r).origin))
+	# also lets the gun ride the walk the way it does on a real shoulder. It is the shoulder
+	# where the stance put it last frame; the clip's own is 20 cm off it while the idle turns.
+	var at := _twist.shoulder if _twist.shoulder != Vector3.INF else _skeleton.get_bone_global_pose(_bone_r).origin
+	var shoulder := _body.to_local(_skeleton.to_global(at))
 	_mount.position = shoulder + weapon.hold_hip.lerp(weapon.hold_aim, t)
 	weapon.rotation_degrees = weapon.hold_hip_rot.lerp(Vector3.ZERO, t)
 	# In the mount's space, through the gun's own transform so the recoil kick carries the hands.
 	_grip_r.transform = weapon.transform * Transform3D(_hand_basis(weapon.grip_right_fingers, weapon.grip_right_palm), weapon.grip_right)
 	_grip_l.transform = weapon.transform * Transform3D(_hand_basis(weapon.grip_left_fingers, weapon.grip_left_palm), weapon.grip_left)
+	for f in _hands.fingers:
+		var curl: Vector3 = weapon.get(f[4])
+		f[3] = deg_to_rad(curl[f[5]])
+		if f.size() > 8:
+			f[7] = deg_to_rad(weapon.thumb_wrap[f[8]])
 	_ik.active = true
 	_hands.active = true
 
@@ -241,6 +284,7 @@ func _hand_basis(fingers: Vector3, palm: Vector3) -> Basis:
 
 func has_model() -> bool:
 	return _anim != null
+
 
 
 ## Called by the player after it moved: horizontal speed, floor contact, vertical velocity, boost.

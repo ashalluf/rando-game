@@ -1228,6 +1228,7 @@ func _test_city() -> void:
 	_check(heights.size() >= 5, "the crowd has %d different heights" % heights.size())
 	var avatar: Node = player.get_node_or_null("Visual/Avatar")
 	_check(avatar != null and avatar.find_child("AnimationPlayer", true, false) != null and not player.get_node("Visual/Body").visible, "the player wears the animated character, capsule hidden")
+	_check_hero(avatar)
 	var traffic_node: Node3D = city.get_node("Traffic")
 	var moving: int = traffic_node.cars.size()
 	_check(moving >= 4, "traffic cars are driving (%d)" % moving)
@@ -2232,6 +2233,53 @@ func traffic_cars_for_lights(city: Node) -> Array:
 			if out.size() >= 3:
 				break
 	return out
+
+
+## The Blender-built hero (tools/hero/): the rig contract the clips and the gun hands rely on,
+## and HeroLook's dressing - the hero shaders with their hero_x_* maps, the shadow twin, and the
+## pose-driven folds. Untyped: Avatar and HeroLook are fine, but keep to get() like the rest.
+func _check_hero(avatar: Node) -> void:
+	if avatar == null:
+		_check(false, "the hero is built")
+		return
+	var sk: Skeleton3D = avatar.find_child("Skeleton3D", true, false)
+	var names := ["Hips", "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot",
+		"RightToeBase", "Spine02", "Spine01", "Spine", "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand",
+		"RightShoulder", "RightArm", "RightForeArm", "RightHand", "neck", "Head", "head_end", "headfront",
+		"RightHandIndex1", "RightHandIndex3", "RightHandThumb1", "LeftHandMiddle3", "LeftHandPinky1", "LeftHandThumb3"]
+	var missing: Array = []
+	for n in names:
+		if sk == null or sk.find_bone(n) < 0:
+			missing.append(n)
+	_check(sk != null and missing.is_empty() and sk.get_bone_count() >= 54, "the hero's rig has the crowd's bones and 30 finger bones (%d bones, missing %s)" % [sk.get_bone_count() if sk else 0, missing])
+	var anim: AnimationPlayer = avatar.find_child("AnimationPlayer", true, false)
+	var clips_ok := anim != null and anim.has_animation("Idle") and anim.has_animation("Casual_Walk_inplace") and anim.has_animation("run_fast_3_inplace")
+	_check(clips_ok, "the hero carries the three shared clips")
+	var look = avatar.get("hero_look")
+	_check(look != null, "HeroLook dressed the hero")
+	if look == null:
+		return
+	var skin: ShaderMaterial = look.skin
+	var cloth: ShaderMaterial = look.cloth
+	var maps_ok: bool = skin != null and cloth != null and look.hair != null \
+		and skin.get_shader_parameter("mask_tex") != null and skin.get_shader_parameter("detail_tex") != null \
+		and cloth.get_shader_parameter("bent_tex") != null and cloth.get_shader_parameter("wrinkle_mask") != null \
+		and cloth.get_shader_parameter("pile_tex") != null
+	_check(maps_ok, "skin, hair and tracksuit are on the hero shaders with their hero_x maps")
+	var twin: MeshInstance3D = look.shadow_twin
+	var body_cast := -1
+	for mi in avatar.find_children("*", "MeshInstance3D", true, false):
+		if mi != twin and str(mi.name).begins_with("hero_mesh"):
+			body_cast = (mi as MeshInstance3D).cast_shadow
+	_check(twin != null and twin.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY and body_cast == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "the hero's shadow comes from his light twin")
+	var w: Vector4 = cloth.get_shader_parameter("wrinkle_weights") if cloth else Vector4.ZERO
+	_check(w.x + w.y + w.z + w.w > 0.05, "the tracksuit's folds follow the pose (weights %s)" % w)
+	var twist_ok := false
+	if sk:
+		for c in sk.get_children():
+			if c.get_class() == "SkeletonModifier3D" and c.get_script() != null and str(c.get_script().resource_path).ends_with("aim_twist.gd"):
+				twist_ok = true
+	_check(twist_ok, "the aiming stance twist sits on the hero's skeleton")
 
 
 ## Instances in a building's facade-kit batches (MultiMeshBatch names them Batch_<key>) whose

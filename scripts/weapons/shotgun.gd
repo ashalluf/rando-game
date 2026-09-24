@@ -71,11 +71,23 @@ func _init() -> void:
 	lock_on = true
 	# The right wrist behind the stock's semi-pistol grip, the left under the forend (it rides
 	# the forend back and forth while the pump cycles). The butt sits where the rifle's does.
-	grip_right = Vector3(0.025, -0.025, 0.155)
-	grip_right_fingers = Vector3(0.0, -0.7, -0.7)
-	grip_left = Vector3(-0.03, -0.07, -0.265)
-	hold_aim = Vector3(-0.11, -0.05, -0.395)
-	hold_hip = Vector3(-0.12, -0.27, -0.28)
+	# Fitted to the hero by tools/grip_fit.gd.
+	grip_right = Vector3(0.014, -0.049, 0.197)
+	grip_right_fingers = Vector3(-0.000, -0.475, -1.300)
+	grip_right_palm = Vector3(-0.025, 1.650, -0.750)
+	grip_left = Vector3(-0.042, -0.070, -0.229)
+	grip_left_fingers = Vector3(0.400, 0.350, -0.850)
+	grip_left_palm = Vector3(0.450, 2.350, -0.150)
+	curl_right = Vector3(70, 62, 93)
+	curl_trigger = Vector3(6, 18, 95)
+	curl_thumb = Vector3(11, 0, 28)
+	curl_left = Vector3(54, 70, 95)
+	curl_left_thumb = Vector3(39, 57, 20)
+	thumb_wrap = Vector2(-24, 8)
+	hold_twist = Vector2(12, 54)
+	hold_aim = Vector3(0.022, -0.056, -0.425)
+	hold_hip = Vector3(-0.264, -0.150, -0.196)
+	hold_hip_rot = Vector3(-16.0, 33.5, 4.0)
 	_grip_left_rest = grip_left
 
 

@@ -266,17 +266,28 @@ hotel, the convention centre, city hall, the park, the museum, the station) is b
 
 ## The hero (Blender + MPFB2, CC0 assets)
 
-`assets/models/hero.glb` (and the `hero_hero_*` textures Godot extracts from it) is the player's
-body, built in Blender 4.2 with the MPFB 2.0.17 add-on (https://extensions.blender.org/add-ons/mpfb/,
-code GPLv3; its bundled assets and its output are CC0, LICENSE.md sections C and D).
+`assets/models/hero.glb` (and the `hero_hero_*` textures Godot extracts from it, plus the
+`hero_x_*` maps beside it that `HeroLook` loads) is the player's body, built by `tools/hero/` in
+Blender 4.2 LTS with the MPFB 2.0.17 add-on (https://extensions.blender.org/add-ons/mpfb/, code
+GPLv3; its bundled assets and its output are CC0, LICENSE.md sections C and D). Nothing of
+MPFB's code ships: `tools/hero/setup.sh` downloads Blender, the add-on and the asset pack into
+the ignored `build/hero_src/` on the machine that builds.
 
 | Part | Source | License |
 |---|---|---|
 | Base mesh, body/face shape targets, "mixamo" rig and weights | MPFB 2.0.17 | CC0 |
-| Skin `middleage_caucasian_male` (re-tinted, stubble and scalp painted), eyes `high-poly` + `brown`, `eyebrow009`, `eyelashes02`, hair `short04`, `shoes05` mesh | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
-| Tracksuit, piping, zip, rib bands, tank, gold rope chain, watch, ring, all fold maps and procedural textures | Our own Blender scripts | ours |
+| Skin `middleage_caucasian_male` (re-tinted, stubble, scalp and complexion zones painted over it), eyes `high-poly` + `brown`, `eyebrow009`, `eyelashes02`, `shoes05` mesh (uppers only; tongue, eyelets and laces are ours) | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
+| Hair (about 700 cards grown along a combed flow, strand atlas), tracksuit, piping, zip, rib bands, tank, rope chain, watch, ring, laces, every fold, wrinkle, pore, pile and mask map | Our own scripts (`tools/hero/*.py`) | ours |
 | Shoe texture | Painted from scratch (the pack's photo texture was of a branded three-stripe shoe and was discarded) | ours |
 | Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` | ours |
+
+Triangles (LOD0; Godot generates the LODs on import): skin 60.8k, tracksuit 18.0k, rib bands
+2.9k, piping 1.6k, zip 0.8k, tank 1.6k, gold (chain, watch case and bracelet, ring) 14.3k, watch
+glass and dial 0.4k, eyes 1.1k, brows and lashes 0.6k, hair 12.7k, shoes 2.4k, laces 3.0k: 120.1k
+in 15 surfaces, one skinned mesh. His shadow is `hero_shadow`, 9.0k triangles in one surface.
+Textures: 2K skin albedo and wrinkle normal, 2K tracksuit albedo and rest and bent fold
+normals; 1K or smaller for everything else (skin roughness and mask, hair atlas, shoes), plus
+the tiling `hero_x_skin_detail` (pores, stubble) and `hero_x_pile` (velour).
 
 ## Street prop models (Poly Haven, CC0)
 

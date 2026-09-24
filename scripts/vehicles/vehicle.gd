@@ -292,6 +292,13 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 @export var upright_torque: float = 25000.0
 
 @export_group("Flight")
+## How long all four wheels must be off the ground before the car switches into flight. A hard
+## turn at speed, a kerb or a seam in the road can unload every wheel for a physics tick or two,
+## and switching then put the car into the banking hover on a flat road: holding the turn banked
+## it past 25 degrees mid-corner, a different amount on every run, because whether all four
+## wheels let go on the same tick is down to the solver's contact order. A real jump or launch is
+## airborne many times longer than this, so flying feels exactly as it did.
+@export var flight_grace: float = 0.18
 ## Owner's rule (2026-09-20): a car in the air must fly like the player does, not tumble.
 ## Leaving the ground puts the car into a stabilised hover: it holds itself level, the stick
 ## aims it, and holding boost thrusts it where the camera is looking.
@@ -383,6 +390,8 @@ var _jump_timer: float = 0.0
 ## Heading the car holds while flying (radians). Seeded from the car when it leaves the ground.
 var _fly_yaw: float = 0.0
 var _was_airborne: bool = false
+## Seconds all four wheels have been off the ground (see flight_grace).
+var _air_time: float = 0.0
 ## True when a generated body model is used: box parts then only provide collision.
 var _has_model: bool = false
 ## Top of the generated model in body space, measured from its own bounding box, so a roof prop
@@ -546,7 +555,8 @@ func _physics_process(delta: float) -> void:
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
 	_steer_target = -input.x * max_steer * steer_factor
 	steering = lerpf(steering, _steer_target, 1.0 - exp(-steer_speed * delta))
-	if is_airborne():
+	_air_time = _air_time + delta if is_airborne() else 0.0
+	if _air_time >= flight_grace:
 		_fly(delta, input)
 	else:
 		if _was_airborne:

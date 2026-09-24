@@ -9,7 +9,10 @@ extends SkeletonModifier3D
 ## [bone index, marker Node3D] pairs; the marker's global basis is the hand's wanted basis.
 var hands: Array = []
 ## Finger bones closed round the grip: [bone index, rest rotation, local curl axis, angle in
-## radians]. Built by Avatar.setup_gun_hands() on a rig that has finger bones (the hero).
+## radians, the Weapon.curl_* it takes, joint 0-2]. Built by Avatar.setup_gun_hands() on a rig
+## that has finger bones (the hero); Avatar.hold_gun() sets the angles from the gun in hand.
+## A thumb's base joint carries three more: the local roll axis, the roll angle in radians and
+## which Weapon.thumb_wrap component it takes (0 right, 1 left).
 var fingers: Array = []
 
 
@@ -33,7 +36,10 @@ func _process_modification_with_delta(_delta: float) -> void:
 	# palm, from its rest pose; the clip's own relaxed finger keys are overridden while the
 	# gun is held.
 	for f in fingers:
-		skeleton.set_bone_pose_rotation(f[0], (f[1] as Quaternion) * Quaternion(f[2] as Vector3, f[3] as float))
+		var q := (f[1] as Quaternion) * Quaternion(f[2] as Vector3, f[3] as float)
+		if f.size() > 8: # a thumb base: rolled across the grip first (Weapon.thumb_wrap)
+			q = (f[1] as Quaternion) * Quaternion(f[6] as Vector3, f[7] as float) * Quaternion(f[2] as Vector3, f[3] as float)
+		skeleton.set_bone_pose_rotation(f[0], q)
 
 
 ## A bone's skeleton-space pose composed from the local poses as they stand right now - after
