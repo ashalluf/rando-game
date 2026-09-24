@@ -101,6 +101,15 @@ What only the owner can supply, and why each one multiplies everything below:
     arches and parked planes, and a port zone with container stacks, gantry cranes, a harbor and
     a moored container ship.
 
+- **Replica areas at 1:1** (asked 2026-09-24; see the decisions log): real places at true scale
+  from real references, seeded filler between them.
+  - [x] The Redondo Beach Esplanade to Palos Verdes, from the owner's Street View shots
+    (`ReplicaAreas.ESPLANADE`; the road, bluff and beach, the frontage, the roundabout and car
+    park, its traffic, the Palos Verdes skyline).
+  - [ ] Its gaps: grid traffic cannot turn onto it yet (it turns round at the corridor), no
+    pedestrians on its pavements, the pier plaza at its north end is the seeded landmark's.
+  - [ ] Downtown LA at 1:1 (the skyline and civic/arena passes first, other branches).
+
 - **Realism and character batch** (asked 2026-09-19), all done in builds 42 to 51: real models
   from Meshy for cars, pedestrians and jets (every prompt ultra-realistic), bigger crowds, a real
   sky, a GTA-style skyline, hills with roads and estates, the peninsula in a bay, a university
@@ -254,6 +263,26 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-24 The Esplanade, the first replica area.** Built from the owner's three Street
+  View captures (1718 Esplanade looking south, kerb lane and centre; 1799 Esplanade at the south
+  curve) as the `ESPLANADE` table in `scripts/world/replica_areas.gd`: Knob Hill down the
+  Redondo Esplanade (1880 m straight on a 173 degree bearing along a 12-16 m bluff), the south
+  curve past the Avenue I beach car park, the Avenue I roundabout, Paseo de la Playa along the
+  Torrance bluff (compressed to 0.8 km, the one compression) and Palos Verdes Blvd / Dr N
+  climbing the peninsula's north face. At 1:1: two 3.5 m lanes each way either side of a painted
+  median between double yellows, 2.6 m parallel parking with T marks on both kerbs, 3.5 m
+  pavements, the ocean side's walkway, seat wall, scrub verge, bluff fence, bluff face and five
+  sets of beach stairs, cobra lamps every 45 m, a continuous frontage of stucco houses on
+  10-16 m lots with garages, garden walls, balconies and tile or flat roofs, palms in the front
+  yards, the long green-glass condominium on the Paseo. Geography moved to fit it: the coast
+  from the Redondo pier to Malaga Cove is the replica's own waterline, the Palos Verdes headland
+  became an ellipse south of it whose crest is fitted to the photos' skyline, the bay moved
+  south of the peninsula; the piers and the airport stayed where they were. Seeded inside it:
+  which house looks how, and the backfill on the rest of each replica block. The grid meets it
+  exactly (streets cut round the corridor, mouths into the frontage, all-way stops at every
+  other one), grid traffic turns round at its edge and its own traffic drives it. Everything
+  real is data; nothing is placed by hand.
 
 - **2026-09-24 Replica areas (owner: "we are basically picking like certain 1:1 replica areas
   and then filling them in between with whatever").** The map becomes real places at true

@@ -36,6 +36,7 @@ Quaternius). Record every pack here.
 | Fabric036 (1K JPG: Color, NormalGL, Roughness) | https://ambientcg.com/a/Fabric036 | CC0 1.0 | facade kit: shop awning canvas (`fabric`) | 2026-09-24 |
 | Metal016 | https://ambientcg.com/a/Metal016 | CC0 1.0 | facade kit: painted steel - AC units, rooftop units, vents, fire escapes, railings (`metal_painted`) | 2026-09-24 |
 | Planks023A | https://ambientcg.com/a/Planks023A | CC0 1.0 | facade kit: rooftop water tank staves and roof (`planks`) | 2026-09-24 |
+| ClayRoofTiles02 (Poly Haven `clay_roof_tiles_02`, 1K JPG, Diffuse/nor_gl/Rough renamed to Color/NormalGL/Roughness) | https://polyhaven.com/a/clay_roof_tiles_02 | CC0 1.0 | Esplanade replica: the houses' hipped and gabled barrel-tile roofs (`roof_clay`, tinted per house) | 2026-09-24 |
 
 Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
 attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.

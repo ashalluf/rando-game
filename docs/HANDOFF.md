@@ -1165,6 +1165,52 @@ session needs to know:
   no interiors). The crowd walla is one Hawaiian shopping street; a second take would help. The
   near "traffic" bed is still the old IgnasD highway recording.
 
+## 9n. The Esplanade, the first 1:1 replica area, 2026-09-24 (agent branch)
+
+Owner: "we are basically picking certain 1:1 replica areas and then filling them in between with
+whatever". The rules are the replica bullets in CLAUDE.md (technical rules and conventions);
+the table is `ReplicaAreas.ESPLANADE`. What a next session needs to know:
+
+- **What it is.** Knob Hill down the Redondo Esplanade (1880 m straight, bearing 173, on a 12-16 m
+  bluff), the south curve past the Avenue I car park, the Avenue I roundabout, Paseo de la Playa
+  (the one compression: 0.8 km for 1.6), Palos Verdes Blvd / Dr N up the peninsula's north face.
+  4.57 km in all, 2.9 km of it town. The owner's three Street View captures are the reference; the
+  camera spots that reproduce them are in the report of the session that built it (EYE= values on
+  `tools/glshot/still_shot.gd`, a Street View lens ~2.5 m up, vertical FOV ~75 on the portrait
+  shots).
+- **The map moved to fit it.** The coast between the Redondo pier and Malaga Cove is the
+  replica's waterline table; north of it the basin's sine eases onto it over
+  `MacroMap.replica_coast_blend`; the Palos Verdes headland is an ellipse (`peninsula_center`,
+  `peninsula_axes`, `peninsula_axis_bearing`) whose crest (`peninsula_crest`) was fitted to the
+  photos' skyline seen from 1718 Esplanade (mean error a quarter of a degree, probe in the
+  session's scratchpad: sample the ridge's elevation angle against azimuth from the camera and
+  compare to the traced photo ridge); the bay is south of it. The ocean shader carries the same
+  shapes (`ocean.gdshader` main_coast_x / headland_*), pushed by `Weather._push_ocean_shape()`,
+  and the smoke test guards the shader defaults. The piers and the airport did not move.
+- **Build path.** `CityChunk.begin_build()` asks `block_role()`; role 1 skips the seeded block and
+  `ReplicaBuilder.attach()` adds the replica's steps (see CLAUDE.md for the list and the ownership
+  rules). Every chunk near the route that is not role 1 (ocean, hills, the blocks beside it) still
+  gets the steps for whatever path segments, lots or features it owns.
+- **Houses.** `ReplicaHouses`: walls are cut round every opening, reveals, frames, glass on
+  `house_glass.gdshader`, garages with panel grooves, hip/gable clay roofs (`roof_clay`, UV along
+  the eave and up the slope - triplanar would run the barrels the wrong way on two of four
+  hips), coped parapets, balconies (steel or glass), garden walls, planting. The footprint is
+  `ReplicaAreas.house_frame(lot)`, used by the kerb parking (no car across a driveway) and by the
+  frontage's own overlap test (on the inside of the curve the lots fan in; a house that would hit
+  its neighbour is left out). Far chunks draw each house as a `lod_box` plus a roof prism.
+- **Traffic.** `ReplicaTraffic` keeps `cars_per_direction` a side within `spawn_max` of the player
+  while the player is within 250 m of the route; lane changes happen only where two lanes merge
+  into one. Grid cars U-turn when they would drive into the corridor; they cannot turn onto the
+  Esplanade yet.
+- **Not done / not verified.** No pedestrians on the replica's pavements (Pedestrian wanders a
+  block's rect ring; a path-following walker is the next piece). The Knob Hill end is a kerb and
+  a pavement (the grid's streets run past it); north of it the pier plaza is the seeded
+  landmark's. The roundabout's inside (west) corner, where the ocean-side lines of a right turn
+  fold, is covered by the ring's planting rather than modelled. The car park's sea wall is ~5 m
+  because the sand is flat at 0.5 m; a raised backshore would make it the real 2-3 m. The Palos
+  Verdes hills carry HillRoads' rim road and estates and Skyline's scrub, not the photo's dense
+  house cover. Nobody has driven it on a Mac.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
