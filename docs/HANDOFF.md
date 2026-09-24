@@ -51,12 +51,13 @@ scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket,
 scripts/world/           city_streamer, city_chunk, city_plan, macro_map, hill_roads, landmarks, building, prop_factory (primitives + model_* merged Poly Haven models), street_props, trash_can, physics_prop, day_night, ferris_wheel
 scripts/vehicles/        vehicle.gd (cars), aircraft.gd (jets)
 scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd
-scripts/util/            physics_budget.gd, world_state.gd, sfx.gd (autoloads)
+scripts/util/            physics_budget.gd, world_state.gd, sfx.gd (autoloads; sfx.gd also builds the audio buses), ambience.gd (the city's sound, a node in city.tscn)
 scripts/ui/              debug_hud, minimap, minimap_frame, minimap_border, crosshair
 shaders/                 building, grass, terrain, sky
 assets/textures/         CC0 PBR sets from ambientCG (1K JPG)
 assets/models/           Meshy .glb models, their .json manifests, extracted textures, .import files, thumbs/
 tools/meshy.py           Meshy API pipeline (generate, texture, rig, animate, download)
+tools/ambience_audio.py  Freesound CC0 search / verify / fetch and the ambience clip cutter (section 9m)
 tools/shrink_glb.py      shrinks embedded textures to 1K JPEG, --desaturate for car paint
 tools/pack_gltf.py       packs a Poly Haven .gltf + .bin + textures into one .glb
 tools/decimate_tree.py   reduces Poly Haven trees, bushes and rocks to game size (needs pymeshlab: pip install pymeshlab, apt-get install libopengl0)
@@ -704,8 +705,8 @@ Measure, do not squint:
 
 - **The container restarts.** It did twice here, killing four agent fleets and a render batch
   mid-flight. The repo and the Godot binary in the scratchpad survived both times. Commit often.
-- **The smoke test is now 210 checks and takes most of the 420 s timeout in
-  `tests/headless_check.sh` on an idle box.** Under load from a large fleet it *times out* at
+- **The smoke test is now 324 checks (2026-09-24) and the shell timeout in
+  `tests/headless_check.sh` is 600 s (it was 420, which the test had outgrown).** Under load from a large fleet it *times out* at
   around 150 checks with zero failures, which looks alarming and is not a failure. Do not run a
   big fan-out and the gate at the same time, and do not read exit code 124 as a pass.
 - **The eight-dimension sweep did finish** (56 agents, no errors) and its 26 verified patches are
@@ -1096,7 +1097,75 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
-## 9l. Downtown's civic set, 2026-09-24 (agent branch)
+## 9l. How the 2026-09-24 session ran (read if you inherit a half-merged day)
+
+- The owner asks for many big features at once and wants speed, so the work went out to
+  background agents in git worktrees (`.claude/worktrees/`, ignored), each told to commit on
+  its own branch, merge origin/main before reporting, and never push. The main session merges
+  each branch, runs `tests/headless_check.sh`, pushes to main and sends screenshots.
+- One 16 GB box is shared, and a Forward+ (lavapipe) city is 6-7 GB, so every render goes
+  through `flock <scratchpad>/render.lock <command>`. Headless checks run without the lock.
+  An OOM-killed render prints `Killed` in its log and leaves no png.
+- Merges conflict mostly in the docs (every agent appends a decisions-log entry and a handoff
+  section): keep both sides and renumber the sections.
+- CI's box is slower than this one and drops to Quality LOWEST (thinner crowd, fewer cars), so
+  tests that pick "the nearest pedestrian" or "cars[0]" are timing-sensitive there. Two such
+  checks failed on build 231 and were hardened; if a check passes here and fails on CI, look
+  for that first.
+- Merged that day: window recesses, tracksuit then the Blender hero, weapon wheel, Blender guns
+  and the shotgun, rocket warhead and smoke trail, far-glass emission, police and wanted stars,
+  facade kit, blood, air traffic. In flight when this was written: a studio pass on the hero,
+  the DTLA skyline massing and density, the arena district and civic centre, traffic signals
+  and crosswalks with police routing, and a city ambience soundscape. The unused Meshy hero is
+  on branch `worktree-agent-a5cb589744a1759b9` (not chosen).
+
+## 9m. The city's sound, 2026-09-24 (agent branch)
+
+Owner: "the city should SOUND like a real city, AAA-style". Until now the only ambience in the
+game was the weather's rain loop: `ambience_city` and `wind` had shipped since build 104 and
+nothing ever played them. The rules are the Sfx and Ambience bullets in CLAUDE.md. What a next
+session needs to know:
+
+- **Nobody has heard it.** Every level, rate and crossfade was set by measuring the files and by
+  maths, under the Dummy audio driver; this container has no speakers and no ears. The first thing
+  to ask the owner for is ten minutes of play with the sound on: downtown at noon, a freeway deck,
+  the beach, the hills at night, a rocket at close range, the weapon wheel, rain from inside a car.
+  The knobs they will ask about are `Ambience.ambience_db` (everything), `layer_db` (per layer),
+  `ONE_SHOTS[*].db` / `unit` and the rates in `rates_for()`, `pass_db` / `car_roll_db` (the
+  street's own cars) and `blast_duck_db` / `slow_duck_db`.
+- **Levels.** Beds are all cut to -22 dB RMS and recorded so in `AMBIENCE_LOUDNESS_DB`, so after
+  Sfx's trim they sit level with each other and `layer_db` is the whole mix. With the defaults,
+  downtown at noon sums to roughly -28 dBFS RMS against a rifle round's -18 dBFS loudest window
+  (point-blank): the city under the gun by about 10 dB, well under its peak. That is a guess on
+  paper and the most likely thing to need moving.
+- **What plays where** (checked by `tests/ambience_checks.gd`, which is the fastest way to see the
+  mix: it prints every level it asserts): downtown noon city 1.0 with ~6 horns a minute; downtown
+  night city 0.45, far traffic 0.85; the beach surf 0.83 from the west, 5 gulls a minute, none in a
+  storm, louder surf in one; the hills birds 0.6 by day, crickets 1.0 and ~0.9 coyotes a minute at
+  night, nothing in rain; the suburbs dogs and birds; the airfield 1.0 (downtown hears 0.08); the
+  port hum plus ship horns and cranes; a freeway deck 1.0, 0.22 at 300 m; 400 m up the street
+  goes and the wind and gale come in.
+- **Sources.** Freesound's HQ previews, each page checked for the CC0 deed and nothing else, and
+  each description read: two first picks were dropped on the description alone (credit made a
+  condition; an AI-generated siren). `tools/ambience_audio.py` is the whole pipeline - `search`
+  (CC0-filtered), `get` (verify the page, save it, fetch the preview into `build/audio_src/`),
+  `build` (the clip table: spans, filters, loop cuts, levels) - and prints the loudness numbers
+  Sfx wants. Re-run `build` for one clip by name prefix; then `godot --headless --path . --import`.
+  The proxy is slow (~70 KB/s), so it fetches only the first 2.6 MB of each preview.
+- **Performance.** 16 bed/emitter players (only the ones with a level play; a faded bed stops),
+  5 pooled one-shot voices, 3 traffic voices, 2 pass-by voices. The survey measured 0.9 ms
+  headless; per frame it only eases gains and moves at most nine voices. Bus effects: one reverb,
+  two low-passes (switched off when open), one compressor.
+- **Not done / not verified.** The web build plays the plain mix (sample playback skips bus
+  effects: no reverb, no muffle, no ducker). Traffic voices ride only the TrafficManager's street
+  and freeway cars - parked cars, police and the airport loop are silent unless driven (the police
+  have sirens). The pass-by timing is maths on positions sampled every 0.15 s; it has never been
+  heard lining up. The canyon reverb reads eight horizontal rays at camera height, so it does not
+  know how tall the walls are (downtown density stands in for that). No interior sound (there are
+  no interiors). The crowd walla is one Hawaiian shopping street; a second take would help. The
+  near "traffic" bed is still the old IgnasD highway recording.
+
+## 9n. Downtown's civic set, 2026-09-24 (agent branch)
 
 Owner: "downtown must match real downtown LA, we need staple center we need all day". The
 decision: real FORMS in their real places relative to the core, every NAME invented (the naming

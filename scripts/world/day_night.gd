@@ -16,7 +16,9 @@ extends Node
 ## every shadow turns grey and the frame has no value contrast left - the single thing that
 ## made the old aerials read as a pastel model village rather than a city at noon.
 @export var day_sun_energy: float = 1.3
-@export var night_sun_energy: float = 0.55
+## The moon. 0.55 lit every roof in the city brighter than the night sky above it (roofs 100-120
+## of 255 against a sky of 50 in a Forward+ aerial at 21:00): day-for-night, not a night.
+@export var night_sun_energy: float = 0.3
 ## Sun elevations the golden-hour tint fades out between once the sun is under the horizon
 ## (x fully faded, y still full strength; elevation is the sine of the arc angle, not degrees).
 @export var dusk_fade_elevation: Vector2 = Vector2(-0.36, -0.24)
@@ -100,7 +102,9 @@ extends Node
 ## Sky fill in the shadows. Kept well under the sun (see day_sun_energy): a real midday shadow
 ## is about a fifth as bright as the lit side, not two thirds.
 @export var day_ambient_energy: float = 0.30
-@export var night_ambient_energy: float = 0.55
+## Night sky fill. Halved from 0.55 with the moon, for the same reason: at night the city is lit
+## by its lamps and windows, and the sky only just shows the shapes between them.
+@export var night_ambient_energy: float = 0.3
 @export_node_path("DirectionalLight3D") var sun_path: NodePath
 @export_node_path("WorldEnvironment") var environment_path: NodePath
 

@@ -260,6 +260,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 Replica areas (owner: "we are basically picking like certain 1:1 replica areas
+  and then filling them in between with whatever").** The map becomes real places at true
+  scale, joined by seeded filler, and it must stay geographically sound (the Esplanade is south
+  of the airport and the piers, and so on). Replica areas are authored from real references -
+  street layout, widths, heights, what you see from the road - as data tables, never
+  hand-placed nodes; everything between them stays seeded. Business names and logos stay
+  original (trademarks); public street names may appear. First areas: the Redondo Beach
+  Esplanade curving up into Palos Verdes with the real view of the PV hills (from the owner's
+  Street View shots), and the whole of downtown LA at 1:1 - the skyline and civic/arena passes
+  first at the current scale, then one re-layout at real block sizes and distances.
+
 - **2026-09-24 Downtown's civic set: real forms, invented names (owner: "downtown must match
   real downtown LA, we need staple center we need all day").** The decision for this project:
   match the real buildings' FORM and where they sit relative to downtown; keep every name and
@@ -289,6 +300,24 @@ already mapped so milestone 2 is script-only.
   real building's approximate lat/long, size and facing (`CivicSites.real_metres()` gives metres
   from Pershing Square, x east, z south); the builders work in their own frame and a pivot puts
   them in the world, so the re-layout changes numbers in the table and nothing else.
+
+- **2026-09-24 The city sounds like a city (owner: "the city should SOUND like a real city,
+  AAA-style").** The game had gunfire, engines and rain and otherwise silence: two ambience
+  recordings had shipped for months and nothing played them. Now an `Ambience` node layers real
+  CC0 recordings by where you are, the hour and the weather: the city's roar downtown by day and,
+  after dark, real late-night traffic recorded in downtown Los Angeles; the freeway from the deck
+  you are near (a real recording of the 134 in Burbank); surf from the direction of the water,
+  gulls by day; birds by day and crickets and coyotes at night in the hills; the airfield's
+  rumble; ship horns and crane clanks at the port; rain on the street, on a roof overhead and on
+  the car roof when you are in a car; wind that takes over as you climb. Horns, far sirens, dogs
+  and bus air brakes are dropped round you at real distances. The nearest moving cars carry a
+  tyre-roll voice with Doppler, and a car that passes close gets a recorded pass-by timed to the
+  moment it goes by. The mix now has buses: a street-canyon reverb on everything the world makes,
+  the city low-passed inside a car, ducked under gunfire by a side-chained compressor, dipped and
+  muffled while the weapon wheel slows time and for a moment after a rocket lands close (ringing
+  ears). Crowd screams are untouched; the crowd's chatter drops while it panics. Chosen over
+  per-object sounds everywhere because nothing in it scans the city: a few maths samples, nine
+  rays and one sphere query twice a second. About 5 MB of audio. Nobody has heard it yet.
 
 - **2026-09-24 A living sky (owner: "helicopters, police choppers, news choppers, private jets
   flying thru the sky, commercial jets taking off and landing at LAX").** `AirTraffic` flies
