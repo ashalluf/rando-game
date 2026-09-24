@@ -1097,6 +1097,68 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
+## 9n. The downtown skyline, 2026-09-24 (owner: "a 1:1 match of DTLA skyline ... more buildings")
+
+Built on an agent branch; the rules are the Downtown skyline bullet in CLAUDE.md. The decision
+that shapes everything: **massing yes, names no.** Which towers stand where, their heights in
+real metres, their silhouettes, crowns and facade character follow the real downtown; every name
+(code ids `dt_*`, minimap labels) is invented and no crown carries lettering. What a next
+session needs to know:
+
+- **Where they are and why there.** The real grid is laid one real block to one game block on
+  the default seed's downtown streets: the avenues at x 507.8 / 589.2 / 660.7 / 734.9 / 824.2
+  and the streets from z 228 to 907. So the sail stands west of the first avenue; the drums,
+  the black twins, the pyramid, the spire and the curved tower down the next column; the dark
+  glass, bronze and white slabs and two South Park towers in the next; the round crown and the
+  red pair up the hill; the rounded pair, the blue crown and the unfinished cluster to the east.
+  City hall (`ziggurat_hall`, 810,160) is the civic branch's and sits north-east of the core, as
+  the real one does; nothing of this branch is north of z 244 or west of x 416, so the civic
+  centre, the station and the arena district (which another branch is placing west and south
+  west of the core) have their ground.
+- **The grid is pinned** (`CityPlan.PINNED_ROADS`, `_next_road()`): same roads on every seed,
+  so fixed towers never land in a street. The pinned values are the default seed's, bit for bit
+  (printed with `var_to_str`), so the default city is unchanged; a check walks another seed.
+  If a future change moves the downtown grid, re-derive both the pins and the anchors in
+  `Landmarks.all()` together, and the smoke test will say which tower left its block.
+- **One mesh per tower.** `TowerMesh` extrudes outlines into tiers; the facade is the ordinary
+  building shader in its `uv_facade` mode (UV.x metres round the outline, whole bays per face,
+  UV.y 100+ blank wall), so curves get windows, rooms and lit offices. Crowns are a separate
+  lit surface (`shaders/tower_crown.gdshader`), obstruction lights reuse the aircraft light
+  billboards. A whole tower is 60-1,900 triangles (the balconied South Park towers 3-7k); all
+  nineteen are about 25k and build in ~150 ms, once, at load - the far copy and the detailed one
+  share the mesh. Each carries an occluder, so the towers now also hide the city behind them.
+- **One table** (`LandmarkDowntown.TOWERS`) holds every tower's anchor, radius, height, plan
+  (checked against the built geometry by the smoke test), crown, and an APPROXIMATE real position
+  in metres east/north of `REAL_ORIGIN` (34.0500 N, 118.2550 W) with an approximate real
+  footprint, for the owner's next step: the whole downtown re-laid 1:1 (real blocks, real
+  streets, true distances), other real areas as 1:1 replica areas with seeded filler between.
+  `real_grid()` rotates a real position into the real street grid's frame (avenues about 45
+  degrees east of north). The real positions are from memory of public maps, good to perhaps
+  +/-50 m: check them before building on them. `Landmarks.all()` appends the table's rows
+  (`LandmarkDowntown.entries()`), so a re-lay changes the table, `CityPlan.PINNED_ROADS` and
+  `MacroMap.downtown_core`, and nothing else.
+- **The infill** (`MacroMap.downtown_core`, DISTRICTS DOWNTOWN `core_*`): the blocks between the
+  towers get 40-205 m towers (median ~75, a quarter over 130 m), no slabs, fewer pocket gardens,
+  more stone. The old downtown boost lerped the top to 368 m, so generic towers could out-top
+  the landmarks.
+- **Measured, and what was not.** Geometry, headless: the nineteen towers are 25k triangles in
+  all and 3-5 surfaces plus one light billboard each (so roughly 60-100 draws for the whole
+  skyline, casting included), built in ~150 ms at load. CPU, headless, the smoke test's
+  downtown teleport (`update_streaming(true)` at 742,423): 10.7 s against 10.3 s on the parent
+  commit, on a box loaded by other agents (+4 %, inside the noise). **tools/geo_count.gd was NOT
+  run**: the shared render lock was held by other agents' renders for over an hour. Run it
+  (the invocation in its header, plus `-- --spawn=589.2,860,0,12,2 --hour=12 --nohud` for the
+  avenue and `-- --spawn=-50,1250,-43,5,80 --hour=12 --nohud` for the south-west aerial) on
+  this commit and its parent before deciding the frame cost is fine. Expect more draws in the core than before (taller
+  infill, more of it) and fewer objects behind the towers (their occluders).
+- **Not done / not verified**: nothing here has been seen in Forward+ (the renders were all
+  opengl3; the box was full of other agents' lavapipe renders). Crown glow and the lit offices
+  on curved towers want a Forward+ dusk still. The towers have no interiors or lobbies, no
+  street-level retail beyond the storefront band, and the plazas (fountains, sculpture) are a
+  few boxes. Bunker Hill is not a hill: the relief is flat under landmarks. Collision is one
+  convex hull per tier, so the notches of the round tower's wings are filled in. The generic
+  core towers are the city's usual boxes; the next step up is a glass-tower facade kit.
+
 ## 9l. How the 2026-09-24 session ran (read if you inherit a half-merged day)
 
 - The owner asks for many big features at once and wants speed, so the work went out to
@@ -1165,7 +1227,7 @@ session needs to know:
   no interiors). The crowd walla is one Hawaiian shopping street; a second take would help. The
   near "traffic" bed is still the old IgnasD highway recording.
 
-## 9n. Downtown's civic set, 2026-09-24 (agent branch)
+## 9o. Downtown's civic set, 2026-09-24 (agent branch)
 
 Owner: "downtown must match real downtown LA, we need staple center we need all day". The
 decision: real FORMS in their real places relative to the core, every NAME invented (the naming
@@ -1188,23 +1250,28 @@ session needs to know:
   a frame centred on the site; their crowd rects and the park's grass go back to the world
   through `CivicSites.to_world()` / `rect_to_world()`. `CivicSites.yaw_override` turns one
   without editing the table (the smoke test turns the station a quarter). For the 1:1 re-layout
-  of downtown, `CivicSites.real_metres(id)` is the real position in metres from Pershing Square
-  (x east, z SOUTH, like the game), approximately:
+  of downtown the real positions share the skyline table's frame (section 9n): `CivicSites
+  .real_en(id)` is metres east / NORTH of `LandmarkDowntown.REAL_ORIGIN`, exactly like a tower's
+  `real`, `real_metres(id)` the same point with z south, and `real_grid(id)` the point turned
+  onto the real street grid the way `LandmarkDowntown.real_grid()` turns a tower. Approximately:
 
-  | id | real (x, z) m | real size (w, h, d) m | game anchor now |
+  | id | real east, north (m) | real size (w, h, d) m | game anchor now |
   |---|---|---|---|
-  | arena | (-1476, 597) | 200 x 45 x 170 | (352, 475) |
-  | live_plaza | (-1402, 420) | 280 x 30 x 180 | (352, 378) |
-  | live_hotel | (-1328, 354) | 70 x 203 x 35 | (456, 378) |
-  | convention_center | (-1587, 929) | 330 x 25 x 170 | (352, 596) |
-  | ziggurat_hall | (793, -586) | 140 x 138 x 110 | (876, 171) |
-  | civic_park | (489, -840) | 500 x 0 x 110 | (876, 59) |
-  | concert_hall | (138, -763) | 110 x 40 x 90 | (876, -50) |
-  | lattice_museum | (101, -663) | 70 x 36 x 60 | (782, -50) |
-  | pueblo_station | (1365, -862) | 260 x 38 x 70 | (1091, -50) |
+  | arena | (-1135, -774) | 200 x 45 x 170 | (352, 475) |
+  | live_plaza | (-1061, -597) | 280 x 30 x 180 | (352, 378) |
+  | live_hotel | (-987, -531) | 70 x 203 x 35 | (456, 378) |
+  | convention_center | (-1245, -1106) | 330 x 25 x 170 | (352, 596) |
+  | ziggurat_hall | (1135, 409) | 140 x 138 x 110 | (876, 171) |
+  | civic_park | (830, 663) | 500 x 0 x 110 | (876, 59) |
+  | concert_hall | (480, 586) | 110 x 40 x 90 | (876, -50) |
+  | lattice_museum | (443, 487) | 70 x 36 x 60 | (782, -50) |
+  | pueblo_station | (1706, 686) | 260 x 38 x 70 | (1091, -50) |
 
-  Two things the re-layout has to decide that the table cannot: the real grid is turned about
-  36 degrees from north (`REAL_GRID_BEARING`) while the game's is axis-aligned, and the real
+  None of the sites overlaps a skyline tower: the towers stand east of x 416 and south of z 244,
+  and the only civic block inside that corner is the hotel's (x 416-496, z 345-410), which is
+  the block west of the five-drums hotel. Two things the re-layout has to decide that the
+  tables cannot: the real grid is turned off north (`LandmarkDowntown.GRID_BEARING_DEG`) while
+  the game's is axis-aligned, and the real
   footprints are bigger than one of today's blocks, so a 1:1 site needs a block that big (or a
   superblock with its through-roads closed, which traffic and the minimap do not support yet).
   Only quarter-turn yaws are supported, because a site is an axis-aligned block.

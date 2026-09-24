@@ -32,19 +32,25 @@ const FONT := {
 }
 
 
-## Every landmark: id, anchor (world XZ), and a rough footprint radius.
+## Every landmark: id, anchor (world XZ), and a rough footprint radius. Built once: it is read
+## for every block's lots and by every ground sample's relief, and downtown alone is twenty
+## entries. Read-only - nobody may change what it hands back.
+static var _all: Array[Dictionary] = []
+
+
 static func all() -> Array[Dictionary]:
-	return [
+	if _all.is_empty():
+		_all = _list()
+	return _all
+
+
+static func _list() -> Array[Dictionary]:
+	var list: Array[Dictionary] = [
 		{"id": "sign", "anchor": Vector2(0.0, -1180.0), "radius": 400.0},
 		{"id": "hills_sign", "anchor": Vector2(480.0, -960.0), "radius": 70.0},
 		{"id": "pier", "anchor": Vector2(-940.0, -350.0), "radius": 200.0},
 		{"id": "observatory", "anchor": Vector2(260.0, -1320.0), "radius": 60.0},
-		{"id": "crown_tower", "anchor": Vector2(700.0, 250.0), "radius": 34.0},
-		{"id": "five_drums", "anchor": Vector2(590.0, 340.0), "radius": 42.0},
-		{"id": "stack_tower", "anchor": Vector2(640.0, 150.0), "radius": 26.0},
-		{"id": "needle", "anchor": Vector2(770.0, 330.0), "radius": 30.0},
 		{"id": "campus_hall", "anchor": Vector2(-620.0, -520.0), "radius": 95.0},
-		{"id": "twin_glass", "anchor": Vector2(600.0, 210.0), "radius": 46.0},
 		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
 		{"id": "cargo_ship", "anchor": Vector2(800.0, 1420.0), "radius": 100.0},
@@ -82,6 +88,14 @@ static func all() -> Array[Dictionary]:
 		CivicSites.entry("convention_center"), CivicSites.entry("ziggurat_hall"), CivicSites.entry("civic_park"),
 		CivicSites.entry("concert_hall"), CivicSites.entry("lattice_museum"), CivicSites.entry("pueblo_station"),
 	]
+	# --- Downtown skyline (LandmarkDowntown) ----------------------------------------------------
+	# The real downtown's towers by massing, with original names (owner, 2026-09-24). Every
+	# tower's anchor, radius, plan, height, crown and approximate real position is ONE table,
+	# LandmarkDowntown.TOWERS, so a re-layout of downtown changes that table (and the pinned grid)
+	# and nothing here.
+	list.append_array(LandmarkDowntown.entries())
+	# --- end of the downtown skyline ------------------------------------------------------------
+	return list
 
 
 static var _site_anchors: PackedVector2Array = PackedVector2Array()
@@ -154,18 +168,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			_build_pier(lm.anchor, parent, statics, plan, detailed)
 		"observatory":
 			_build_observatory(lm.anchor, parent, statics, plan, detailed)
-		"crown_tower":
-			_build_crown_tower(lm.anchor, parent, statics, detailed)
-		"five_drums":
-			_build_five_drums(lm.anchor, parent, statics, detailed)
-		"stack_tower":
-			_build_stack_tower(lm.anchor, parent, statics, detailed)
-		"needle":
-			_build_needle(lm.anchor, parent, statics, detailed)
 		"campus_hall":
 			_build_campus_hall(lm.anchor, parent, statics, detailed)
-		"twin_glass":
-			_build_twin_glass(lm.anchor, parent, statics, detailed)
 		"terminal":
 			_build_terminal(lm.anchor, parent, statics, plan, detailed)
 		"hangars":
@@ -187,6 +191,9 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 		# Downtown LA civic set (see all() and CivicSites).
 		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
 			CivicSites.build(lm.id, parent, statics, plan, detailed)
+		_:
+			if LandmarkDowntown.is_tower(lm.id):
+				LandmarkDowntown.build(lm, parent, statics, detailed)
 
 
 # --- Hill sign ------------------------------------------------------------------------------
@@ -471,102 +478,6 @@ const GLASS_DARK := Color(0.16, 0.24, 0.36)
 const GLASS_GREEN := Color(0.14, 0.30, 0.30)
 const PLINTH := Color(0.62, 0.60, 0.58)
 
-## The tallest tower: square shaft, glass, a lit crown of fins and a spire.
-static func _build_crown_tower(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
-	var base := Vector3(anchor.x, 0.25, anchor.y)
-	_facade_box(parent, statics, Vector3(44.0, 14.0, 44.0), base + Vector3(0.0, 7.0, 0.0), PLINTH, Building.Finish.PANELS, Building.WindowStyle.RIBBON, 6.0)
-	_facade_box(parent, statics, Vector3(34.0, 190.0, 34.0), base + Vector3(0.0, 14.0 + 95.0, 0.0), GLASS_DARK, Building.Finish.GLASS, Building.WindowStyle.CURTAIN, 0.0)
-	var top := base.y + 204.0
-	# Crown: a ring of fins and a glowing band.
-	var fins := 16 if detailed else 8
-	for i in fins:
-		var a := TAU * i / fins
-		var fin := _box(parent, null, Vector3(1.2, 14.0, 3.0), Vector3(base.x + cos(a) * 19.0, top + 7.0, base.z + sin(a) * 19.0), Color(0.9, 0.9, 0.92), false)
-		fin.rotation.y = -a
-	var band := _box(parent, null, Vector3(36.0, 1.5, 36.0), Vector3(base.x, top + 14.5, base.z), Color(1.0, 0.85, 0.5), false)
-	band.material_override = WeaponFX.unshaded(Color(1.0, 0.85, 0.5))
-	_cyl(parent, statics, 1.0, 40.0, Vector3(base.x, top + 34.0, base.z), Color(0.8, 0.8, 0.82))
-	if statics:
-		_shape(statics, Vector3(38.0, 16.0, 38.0), Vector3(base.x, top + 8.0, base.z))
-
-
-## Five mirrored glass cylinders on a shared podium.
-static func _build_five_drums(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
-	var base := Vector3(anchor.x, 0.25, anchor.y)
-	_facade_box(parent, statics, Vector3(80.0, 18.0, 80.0), base + Vector3(0.0, 9.0, 0.0), PLINTH, Building.Finish.PANELS, Building.WindowStyle.RIBBON, 6.0)
-	var mirror := Color(0.55, 0.65, 0.75)
-	_mirror_cyl(parent, statics, 15.0, 120.0, base + Vector3(0.0, 18.0 + 60.0, 0.0), mirror)
-	for dx: float in [-1.0, 1.0]:
-		for dz: float in [-1.0, 1.0]:
-			_mirror_cyl(parent, statics, 11.0, 88.0, base + Vector3(dx * 26.0, 18.0 + 44.0, dz * 26.0), mirror)
-	if detailed:
-		# Floor rings on the central drum.
-		for i in 6:
-			_cyl(parent, null, 15.6, 0.6, base + Vector3(0.0, 18.0 + 18.0 * (i + 1), 0.0), Color(0.3, 0.32, 0.36))
-
-
-## A round tower with overhanging floor discs and a needle.
-static func _build_stack_tower(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
-	var base := Vector3(anchor.x, 0.25, anchor.y)
-	var cream := Color(0.92, 0.90, 0.84)
-	var floors := 13
-	var floor_h := 4.6
-	_cyl(parent, statics, 12.0, floors * floor_h, base + Vector3(0.0, floors * floor_h * 0.5, 0.0), Color(0.18, 0.28, 0.36))
-	var discs := floors if detailed else floors / 2
-	for i in discs:
-		var step := floors / float(discs)
-		_cyl(parent, null, 14.5, 0.9, base + Vector3(0.0, (i + 1) * step * floor_h, 0.0), cream)
-	var top := base.y + floors * floor_h
-	_cyl(parent, statics, 5.0, 4.0, base + Vector3(0.0, top - base.y + 2.0, 0.0), cream)
-	_cyl(parent, null, 0.5, 30.0, Vector3(base.x, top + 19.0, base.z), Color(0.85, 0.2, 0.2))
-	var beacon := _box(parent, null, Vector3(1.2, 1.2, 1.2), Vector3(base.x, top + 34.5, base.z), Color(1.0, 0.2, 0.2), false)
-	beacon.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
-
-
-## The tallest thing in town: a slim tapering glass needle, 320 m plus a 70 m mast.
-static func _build_needle(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
-	var base := Vector3(anchor.x, 0.25, anchor.y)
-	_facade_box(parent, statics, Vector3(46.0, 10.0, 46.0), base + Vector3(0.0, 5.0, 0.0), PLINTH, Building.Finish.PANELS, Building.WindowStyle.RIBBON, 6.0)
-	var y := base.y + 10.0
-	var w := 30.0
-	var tiers := [110.0, 90.0, 70.0, 50.0]
-	for i in tiers.size():
-		var h: float = tiers[i]
-		_facade_box(parent, statics, Vector3(w, h, w), Vector3(base.x, y + h * 0.5, base.z), GLASS_GREEN, Building.Finish.GLASS, Building.WindowStyle.CURTAIN, 0.0)
-		y += h
-		w -= 5.0
-	# Crown: lit ring and a mast with a beacon.
-	var ring := _cyl(parent, null, w * 0.5 + 2.0, 1.2, Vector3(base.x, y + 0.6, base.z), Color(1.0, 0.9, 0.6))
-	ring.material_override = WeaponFX.unshaded(Color(1.0, 0.9, 0.6))
-	_cyl(parent, statics, 1.6, 70.0, Vector3(base.x, y + 35.0, base.z), Color(0.82, 0.82, 0.86))
-	var beacon := _box(parent, null, Vector3(1.5, 1.5, 1.5), Vector3(base.x, y + 70.8, base.z), Color(1.0, 0.2, 0.2), false)
-	beacon.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
-	if detailed:
-		for i in 8:
-			var a := TAU * i / 8
-			_box(parent, null, Vector3(0.8, 6.0, 2.0), Vector3(base.x + cos(a) * (w * 0.5 + 1.0), y + 3.5, base.z + sin(a) * (w * 0.5 + 1.0)), Color(0.9, 0.9, 0.92), false).rotation.y = -a
-
-
-## Twin glass towers on a shared podium, joined by a sky bridge near the top.
-static func _build_twin_glass(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
-	var base := Vector3(anchor.x, 0.25, anchor.y)
-	_facade_box(parent, statics, Vector3(84.0, 16.0, 50.0), base + Vector3(0.0, 8.0, 0.0), PLINTH, Building.Finish.PANELS, Building.WindowStyle.RIBBON, 6.0)
-	var h := 210.0
-	for dx: float in [-1.0, 1.0]:
-		var cx := base.x + dx * 24.0
-		_facade_box(parent, statics, Vector3(28.0, h, 34.0), Vector3(cx, base.y + 16.0 + h * 0.5, base.z), GLASS_DARK, Building.Finish.GLASS, Building.WindowStyle.CURTAIN, 0.0)
-		# Crown fins and a short spire on each tower.
-		var top := base.y + 16.0 + h
-		_facade_box(parent, statics, Vector3(18.0, 9.0, 22.0), Vector3(cx, top + 4.5, base.z), GLASS_DARK, Building.Finish.GLASS, Building.WindowStyle.CURTAIN, 0.0)
-		_cyl(parent, null, 0.6, 26.0, Vector3(cx, top + 9.0 + 13.0, base.z), Color(0.85, 0.85, 0.88))
-		var tip := _box(parent, null, Vector3(0.8, 0.8, 0.8), Vector3(cx, top + 35.4, base.z), Color(1.0, 0.2, 0.15), false)
-		tip.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
-	# Sky bridge two-thirds up, glowing at night like a lit floor.
-	var bridge_y := base.y + 16.0 + h * 0.68
-	_facade_box(parent, statics, Vector3(22.0, 7.0, 12.0), Vector3(base.x, bridge_y, base.z), Color(0.75, 0.78, 0.82), Building.Finish.GLASS, Building.WindowStyle.RIBBON, 0.0)
-	if detailed:
-		for i in 3:
-			_box(parent, null, Vector3(22.0, 0.5, 0.4), Vector3(base.x, bridge_y - 3.5 + i * 3.4, base.z + 6.2), Color(0.3, 0.32, 0.36), false)
 
 
 # --- University campus ----------------------------------------------------------------------
@@ -846,15 +757,6 @@ static func _facade_box(parent: Node3D, statics: StaticBody3D, size: Vector3, po
 	if statics:
 		_shape(statics, size, pos)
 	return mesh
-
-
-static func _mirror_cyl(parent: Node3D, statics: StaticBody3D, radius: float, height: float, pos: Vector3, color: Color) -> void:
-	var mesh := _cyl(parent, statics, radius, height, pos, color)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.metallic = 0.85
-	mat.roughness = 0.12
-	mesh.material_override = mat
 
 
 # --- Helpers --------------------------------------------------------------------------------

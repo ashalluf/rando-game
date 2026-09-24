@@ -19,17 +19,16 @@ extends RefCounted
 ##   latlon     the real building's approximate latitude / longitude (degrees).
 ##   real_size  the real building's approximate footprint (metres) and height.
 ##   real_faces compass bearing its real main front looks toward (degrees from true north).
-## The real position in metres is `real_metres(id)`: from latlon, east = +x, SOUTH = +z (the
-## game's convention: north is -Z), relative to ORIGIN_LATLON. Downtown's real street grid is
-## turned about REAL_GRID_BEARING degrees from true north (Spring, Broadway, Hill... run on it),
-## which a 1:1 re-layout on the game's axis-aligned grid will have to decide what to do with.
+## The real position in metres shares the skyline table's frame (LandmarkDowntown.TOWERS
+## `real`), so one re-layout can place towers and civic buildings together: `real_en(id)` is
+## metres east (x) and NORTH (y) of LandmarkDowntown.REAL_ORIGIN, exactly like a tower's `real`;
+## `real_metres(id)` is the same point in the game's own sense (x east, z SOUTH: north is -Z);
+## `real_grid(id)` turns it onto the real street grid (LandmarkDowntown.GRID_BEARING_DEG), which
+## is what the game's axis-aligned grid wants.
 ##
 ## Everything here is approximate - read off public maps, not surveyed - and every NAME the game
 ## shows is invented (Minimap.LANDMARK_NAMES, the builders' *_NAME consts).
 
-## Pershing Square, the middle of the downtown grid.
-const ORIGIN_LATLON := Vector2(34.0484, -118.2513)
-const REAL_GRID_BEARING := 36.0
 const METRES_PER_DEG_LAT := 110574.0
 ## At the origin's latitude (111 320 x cos 34.05 degrees).
 const METRES_PER_DEG_LON := 92240.0
@@ -79,10 +78,28 @@ static func entry(id: String) -> Dictionary:
 	return {"id": id, "anchor": s.anchor, "radius": s.radius, "site": "block"}
 
 
-## The real building's position in metres from ORIGIN_LATLON: x east, z south.
-static func real_metres(id: String) -> Vector2:
+## The real building's position in metres east (x) and north (y) of the skyline's
+## REAL_ORIGIN - the same frame as a tower's `real` in LandmarkDowntown.TOWERS.
+static func real_en(id: String) -> Vector2:
 	var ll: Vector2 = SITES[id].latlon
-	return Vector2((ll.y - ORIGIN_LATLON.y) * METRES_PER_DEG_LON, -(ll.x - ORIGIN_LATLON.x) * METRES_PER_DEG_LAT)
+	var o: Vector2 = LandmarkDowntown.REAL_ORIGIN
+	return Vector2((ll.y - o.y) * METRES_PER_DEG_LON, (ll.x - o.x) * METRES_PER_DEG_LAT)
+
+
+## The same point in the game's sense: x east, z south.
+static func real_metres(id: String) -> Vector2:
+	var en := real_en(id)
+	return Vector2(en.x, -en.y)
+
+
+## The real position turned onto the real street grid, in the game's sense (x along the
+## grid's "east", z along its "south"), exactly as LandmarkDowntown.real_grid() turns a tower's.
+static func real_grid(id: String) -> Vector2:
+	var en := real_en(id)
+	var b := deg_to_rad(LandmarkDowntown.GRID_BEARING_DEG)
+	var grid_north := Vector2(sin(b), cos(b))
+	var grid_east := Vector2(cos(b), -sin(b))
+	return Vector2(en.dot(grid_east), -en.dot(grid_north))
 
 
 ## Where one landmark is built: {"world": the ground it may use in world XZ (axis-aligned),
