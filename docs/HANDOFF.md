@@ -1096,6 +1096,28 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
+## 9l. How the 2026-09-24 session ran (read if you inherit a half-merged day)
+
+- The owner asks for many big features at once and wants speed, so the work went out to
+  background agents in git worktrees (`.claude/worktrees/`, ignored), each told to commit on
+  its own branch, merge origin/main before reporting, and never push. The main session merges
+  each branch, runs `tests/headless_check.sh`, pushes to main and sends screenshots.
+- One 16 GB box is shared, and a Forward+ (lavapipe) city is 6-7 GB, so every render goes
+  through `flock <scratchpad>/render.lock <command>`. Headless checks run without the lock.
+  An OOM-killed render prints `Killed` in its log and leaves no png.
+- Merges conflict mostly in the docs (every agent appends a decisions-log entry and a handoff
+  section): keep both sides and renumber the sections.
+- CI's box is slower than this one and drops to Quality LOWEST (thinner crowd, fewer cars), so
+  tests that pick "the nearest pedestrian" or "cars[0]" are timing-sensitive there. Two such
+  checks failed on build 231 and were hardened; if a check passes here and fails on CI, look
+  for that first.
+- Merged that day: window recesses, tracksuit then the Blender hero, weapon wheel, Blender guns
+  and the shotgun, rocket warhead and smoke trail, far-glass emission, police and wanted stars,
+  facade kit, blood, air traffic. In flight when this was written: a studio pass on the hero,
+  the DTLA skyline massing and density, the arena district and civic centre, traffic signals
+  and crosswalks with police routing, and a city ambience soundscape. The unused Meshy hero is
+  on branch `worktree-agent-a5cb589744a1759b9` (not chosen).
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
