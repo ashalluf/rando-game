@@ -1468,6 +1468,9 @@ func _test_city() -> void:
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
+	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
+	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
+	await load("res://tests/westlake_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
