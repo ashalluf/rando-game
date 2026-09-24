@@ -7,6 +7,9 @@ extends Node3D
 
 var weapons: Array[Weapon] = []
 var current: Weapon
+## True while the weapon wheel (WeaponWheel) is open: the gun neither fires nor switches, but its
+## own update keeps running, so a crate held by the gravity gun stays up while you choose.
+var wheel_open: bool = false
 var _player: Player
 
 
@@ -41,7 +44,10 @@ func current_index() -> int:
 func _physics_process(delta: float) -> void:
 	if _player and _player.is_driving():
 		return
-	if Input.is_action_just_pressed("weapon_1"):
+	if wheel_open:
+		if current:
+			current._update(delta)
+	elif Input.is_action_just_pressed("weapon_1"):
 		equip(0)
 	elif Input.is_action_just_pressed("weapon_2"):
 		equip(1)
@@ -51,7 +57,7 @@ func _physics_process(delta: float) -> void:
 		equip(current_index() + 1)
 	elif Input.is_action_just_pressed("prev_weapon"):
 		equip(current_index() - 1)
-	if current:
+	if current and not wheel_open:
 		current.tick(delta)
 	# Tilt the gun with the camera so it points where you are looking.
 	if _player:

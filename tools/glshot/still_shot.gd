@@ -19,7 +19,9 @@ extends SceneTree
 ## pedestrian in the road exactly FX_AT metres ahead first. Debris is kept alive for the shot:
 ## its lifetime is wall-clock seconds, and a software frame takes seconds.
 ## CAR_PARAM=name=value sets one car paint uniform on every car (A/B tests); CAR_REPORT=1 prints
-## each car on screen with its paint.
+## each car on screen with its paint. WHEEL=<index> opens the weapon wheel just before the shot
+## with that segment highlighted (-1 = none), time already slowed; leave out --nohud for it, the
+## wheel lives in the HUD.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -115,6 +117,16 @@ func _initialize() -> void:
 					var m := (mi as MeshInstance3D).get_surface_override_material(si) as ShaderMaterial
 					if m:
 						m.set_shader_parameter(kv[0], kv[1].to_float())
+	# WHEEL=<index>: the weapon wheel, open, with that segment highlighted. Looked up and called
+	# rather than named: this script compiles before the autoloads exist.
+	var wheel_env := OS.get_environment("WHEEL")
+	if wheel_env != "":
+		var wheel := get_first_node_in_group("weapon_wheel")
+		if wheel:
+			wheel.call("show_for_shot", int(wheel_env))
+			await process_frame
+		else:
+			print("WHEEL: no weapon wheel in the scene")
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.

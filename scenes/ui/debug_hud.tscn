@@ -1,10 +1,11 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/ui/debug_hud.gd" id="1_hud"]
 [ext_resource type="Script" path="res://scripts/ui/crosshair.gd" id="2_crosshair"]
 [ext_resource type="Script" path="res://scripts/ui/minimap.gd" id="3_minimap"]
 [ext_resource type="Script" path="res://scripts/ui/minimap_frame.gd" id="4_frame"]
 [ext_resource type="Script" path="res://scripts/ui/minimap_border.gd" id="5_border"]
+[ext_resource type="Script" path="res://scripts/ui/weapon_wheel.gd" id="6_wheel"]
 
 [node name="DebugHud" type="CanvasLayer"]
 script = ExtResource("1_hud")
@@ -93,3 +94,7 @@ theme_override_constants/shadow_offset_x = 1
 theme_override_constants/shadow_offset_y = 1
 theme_override_font_sizes/font_size = 15
 text = "..."
+
+[node name="WeaponWheel" type="CanvasLayer" parent="."]
+layer = 3
+script = ExtResource("6_wheel")
