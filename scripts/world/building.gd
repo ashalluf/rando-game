@@ -91,6 +91,24 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 ## How far a cornice stands out of the wall (meters); the smaller bands scale off it.
 @export var band_projection: float = 0.30
 
+@export_group("Facade kit")
+## The facade detail kit (tools/facade_kit.py): real moulded cornices, copings, window
+## surrounds, air conditioners, awnings, balconies, fire escapes and roof plant, one MultiMesh
+## per piece per building. Each kind stops drawing at its own distance (metres); past it the
+## old box bands and painted frames carry the look, and they are sized to sit inside the kit's
+## mouldings so the two never show at once.
+@export var kit_surround_distance: float = 130.0
+@export var kit_roofline_distance: float = 230.0
+@export var kit_hardware_distance: float = 170.0
+@export var kit_ac_distance: float = 110.0
+@export var kit_roof_distance: float = 320.0
+## Share of punched windows on a residential block with an air conditioner in them.
+@export var kit_ac_chance: float = 0.07
+## Share of the shops on an awning block that hang one.
+@export var kit_awning_chance: float = 0.8
+## Share of those awnings in striped canvas.
+@export var kit_stripe_chance: float = 0.35
+
 var shape: Shape
 var window_style: WindowStyle
 var finish: Finish
@@ -113,6 +131,38 @@ var roof_style: int = 0
 ## True when this building's corners are cut back (see Building._build_part).
 var _chamfered: bool = false
 
+## The facade kit is on everywhere but the web build, whose Compatibility renderer in a browser
+## has no triangles to spare; there the box bands and painted frames stand in for all of it.
+static var kit_enabled: bool = not OS.has_feature("web")
+## Window rows per surround batch: a tall block's windows go into bands of this many floors, so
+## the street-level ones draw while the ones forty floors up are past their distance.
+const KIT_SURROUND_BAND_ROWS := 8
+## Stone for the trim on a brick block (limestone, grey stone, brownstone, painted white).
+const KIT_STONES := [Color(0.80, 0.77, 0.70), Color(0.72, 0.70, 0.66), Color(0.66, 0.58, 0.47),
+	Color(0.86, 0.84, 0.80), Color(0.78, 0.74, 0.66)]
+## Dark paints for a bracketed cornice: pressed-metal cornices were painted, and dark.
+const KIT_CORNICE_PAINTS := [Color(0.20, 0.21, 0.19), Color(0.29, 0.21, 0.16), Color(0.16, 0.21, 0.19),
+	Color(0.34, 0.31, 0.27)]
+## Where the far band sits inside each cornice moulding, in the moulding's own units: centre
+## below the roof, thickness, projection. Each box lies wholly inside its profile (checked
+## against the points in tools/facade_kit.py), so near the camera it is hidden by the kit and
+## past the kit's distance it is what is left of the cornice.
+const KIT_CORNICE_CORE := {
+	"cornice_classic": [-0.155, 0.27, 0.45],
+	"cornice_bracket": [-0.185, 0.33, 0.60],
+	"cornice_simple": [-0.115, 0.23, 0.25],
+}
+## This building's kit: its batch while generating (null when the kit is off), the pieces it
+## picked, its trim colours and the ironwork paint (INSTANCE_CUSTOM.r for kit_iron).
+var _kit: MultiMeshBatch = null
+var _kit_cornice: String = ""
+var _kit_surround: String = ""
+var _kit_trim: Color = Color.WHITE
+var _kit_cornice_color: Color = Color.WHITE
+var _kit_iron: float = 0.125
+## Collision for what stands on the kit (balcony slabs, fire-escape landings), as one trimesh.
+var _kit_solids := PackedVector3Array()
+
 
 func _ready() -> void:
 	add_to_group("building")
@@ -126,10 +176,14 @@ func generate() -> void:
 		child.queue_free()
 	collision_layer = 1
 	collision_mask = 0 # static never detects; a mask here only makes useless pairs (CLAUDE.md)
+	_kit = MultiMeshBatch.new() if kit_enabled else null
+	if _kit:
+		_pick_kit(style)
 	for part in parts:
 		_build_part(part, style)
 	_build_plinth()
 	_build_roof_props()
+	_finish_kit()
 
 
 func _build_plinth() -> void:
@@ -397,6 +451,17 @@ const AWNING_COLORS := [Color(0.42, 0.10, 0.10), Color(0.09, 0.20, 0.34), Color(
 	Color(0.14, 0.44, 0.26), Color(0.62, 0.14, 0.38), Color(0.80, 0.70, 0.16)]
 ## Above this many window cells on a part, frames are left to the shader (supertalls).
 const MAX_FRAME_CELLS := 7000
+## Each window style's opening in cell units: [centre u, centre v, half width, half height].
+## These are the numbers shaders/building.gdshader draws the glass with (its `win_c` / `win_h`
+## and the glass tests), and the frames and the kit's surrounds are placed from them, so they
+## have to agree with the shader exactly; tests/smoke_test.gd reads the shader's copies out of
+## its source and checks.
+const WINDOW_RECTS := {
+	WindowStyle.PUNCHED: [0.5, 0.52, 0.27, 0.25],
+	WindowStyle.RIBBON: [0.5, 0.55, 0.47, 0.27],
+	WindowStyle.CURTAIN: [0.525, 0.53, 0.475, 0.47],
+	WindowStyle.NARROW: [0.5, 0.5, 0.16, 0.40],
+}
 ## Window frames are drawn out to this distance (meters); cornices and awnings 1.6x that.
 const FRAME_DRAW_DISTANCE := 240.0
 
@@ -443,27 +508,12 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		[Vector3(0, 0, -1), Vector3(-1, 0, 0), size.x, cols_x, cut_x],
 	]
 	# Window rect per style in cell units (center, half size), matching shaders/building.gdshader.
-	var cx := 0.5
-	var cy := 0.52
-	var hx := 0.27
-	var hy := 0.25
-	var sill := true
-	match window_style:
-		WindowStyle.RIBBON:
-			cy = 0.55
-			hx = 0.47
-			hy = 0.27
-			sill = false
-		WindowStyle.CURTAIN:
-			cx = 0.525
-			cy = 0.53
-			hx = 0.475
-			hy = 0.47
-			sill = false
-		WindowStyle.NARROW:
-			cy = 0.5
-			hx = 0.16
-			hy = 0.40
+	var rect: Array = WINDOW_RECTS[window_style]
+	var cx: float = rect[0]
+	var cy: float = rect[1]
+	var hx: float = rect[2]
+	var hy: float = rect[3]
+	var sill := window_style == WindowStyle.PUNCHED or window_style == WindowStyle.NARROW
 	var frame_color := Color(0.25, 0.25, 0.27)
 	match finish:
 		Finish.BRICK:
@@ -497,11 +547,22 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	# colour]. Between them they give a wall a base, a shaft and a crown instead of one
 	# uninterrupted run of windows from the pavement to the sky.
 	var bands: Array = []
+	# The kit's moulded cornice (drawn near the camera, see _kit_runs below) and how big it is.
+	var kit_cornice := _kit != null and has_cornice and _kit_cornice != ""
+	var cornice_scale := _kit_cornice_scale(size) if kit_cornice else 1.0
 	if has_cornice:
-		# A deep cornice with a thinner coping under it. One band on its own reads as a stripe
-		# painted round the top; two with a gap between them read as a moulding.
-		bands.append([top - 0.30, 0.44, band_projection, 0.12, accent])
-		bands.append([top - 0.66, 0.20, band_projection * 0.55, 0.10, accent.darkened(0.15)])
+		if kit_cornice:
+			# The moulding stands for the two bands below near the camera. Past its distance this
+			# one band is what is left of it, sized to sit wholly inside the moulding
+			# (KIT_CORNICE_CORE), so near the camera it is hidden rather than doubled.
+			var core: Array = KIT_CORNICE_CORE[_kit_cornice]
+			bands.append([top + float(core[0]) * cornice_scale, float(core[1]) * cornice_scale,
+				float(core[2]) * cornice_scale, 0.10, _kit_cornice_color])
+		else:
+			# A deep cornice with a thinner coping under it. One band on its own reads as a stripe
+			# painted round the top; two with a gap between them read as a moulding.
+			bands.append([top - 0.30, 0.44, band_projection, 0.12, accent])
+			bands.append([top - 0.66, 0.20, band_projection * 0.55, 0.10, accent.darkened(0.15)])
 		if size.y > 22.0:
 			# The crown band, at exactly the height the shader changes the wall tone at.
 			bands.append([top - 1.6 * floor_h, 0.26, band_projection * 0.5, 0.10, accent])
@@ -538,10 +599,15 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	# plant from the street. Its own list, because it is the one detail that is meant to stand
 	# above the part it belongs to.
 	var cap_bands: Array = []
+	# Height of the kit's coping stone, when this part has a parapet for it to sit on.
+	var coping_y := -1.0
 	if parapet_height > 0.02 and _roof_edge_free(center, size):
 		var ph := parapet_height * (0.7 if finish == Finish.GLASS else 1.0)
 		cap_bands.append([top + ph * 0.5, ph, 0.05, 0.42, (style.facade as Color).lightened(0.06)])
-		cap_bands.append([top + ph + 0.05, 0.12, 0.14, 0.52, accent])
+		if _kit != null:
+			coping_y = top + ph
+		else:
+			cap_bands.append([top + ph + 0.05, 0.12, 0.14, 0.52, accent])
 
 	# Balconies belong on residential-looking blocks, never on a glass curtain-wall tower or a
 	# warehouse. They are the cheapest way to break the flat rhythm of a facade.
@@ -566,6 +632,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var has_escape := finish == Finish.BRICK and shape != Shape.WAREHOUSE and rows >= 3 and _rng.randf() < 0.7
 	var escape_face := _rng.randi() % 4
 	var escapes: Array[Transform3D] = []
+	# The kit's window surround for this building ("" for none), and its mesh.
+	var kit_surround := _kit_surround if _kit != null else ""
+	var surround_mesh: Mesh = PropFactory.facade_kit(kit_surround) if kit_surround != "" else null
 	var face_index := -1
 	for face in faces:
 		face_index += 1
@@ -590,6 +659,13 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		if cells <= MAX_FRAME_CELLS:
 			var w := 2.0 * hx * pitch
 			var h := 2.0 * hy * floor_h
+			# The kit's surround (sill, head, jambs) at every window the shader draws, three-sliced
+			# to this opening by INSTANCE_CUSTOM: b and a are how far the real opening is past
+			# the piece's 1 x 1 m on each side.
+			var surround := kit_surround != ""
+			var slices := Color(0.0, 0.0, (w - 1.0) * 0.5, (h - 1.0) * 0.5)
+			var wall := Basis(a, Vector3.UP, n)
+			var ac_ok := _kit != null and window_style == WindowStyle.PUNCHED and residential and w >= 0.8
 			for col in range(skip, cols - skip):
 				var u := -size_u * 0.5 + (col + cx) * pitch
 				for row in rows:
@@ -597,6 +673,15 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 					if v + h * 0.5 > top - 0.3:
 						continue
 					frames.append(Transform3D(Basis(a * w, Vector3.UP * h, n * 0.1), fc + a * u + Vector3(0.0, v, 0.0) + n * 0.02))
+					if surround:
+						_kit.add("kit_%s_%d" % [kit_surround, row / KIT_SURROUND_BAND_ROWS], surround_mesh,
+							Transform3D(wall, fc + a * u + Vector3(0.0, v, 0.0)), _kit_trim, slices)
+					if ac_ok and _kit_hash("ac", (face_index * 1009 + col) * 997 + row) < kit_ac_chance:
+						# On the sill, pushed to one side of the opening or the other.
+						var off := (_kit_hash("ac side", (face_index * 1009 + col) * 997 + row) - 0.5) * (w - 0.72)
+						var unit: Color = [Color(0.86, 0.85, 0.80), Color(0.78, 0.76, 0.70), Color(0.70, 0.71, 0.72)][absi(hash([seed, "ac colour", col, row])) % 3]
+						_kit.add("kit_ac_window", PropFactory.facade_kit("ac_window"),
+							Transform3D(wall, fc + a * (u + off) + Vector3(0.0, v - h * 0.5, 0.0)), unit, Color(_kit_iron, 0.0, 0.0, 0.0))
 		if has_escape and face_index == escape_face and cols - 2 * skip >= 2:
 			# `bay` is 1-based: bay 1 sits on column 0, because `eu` below offsets by bay - 0.5.
 			# A chamfer takes exactly one column off each end of the wall (cut == pitch), so
@@ -610,9 +695,21 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			var bay := low_bay + (_rng.randi() % maxi(high_bay - low_bay + 1, 1))
 			var eu := -size_u * 0.5 + (float(bay) - 0.5) * pitch
 			var ew: float = minf(pitch * 0.9, 2.6)
+			var lowest := true
 			for row in rows:
 				var ev := bottom + storefront + float(row) * floor_h
 				if ev < bottom + storefront + 0.5 or ev + floor_h > top - 0.5:
+					continue
+				if _kit != null:
+					# The kit's landings: the lowest one hangs its drop ladder over the pavement,
+					# every other one has a stair down to the one below, alternating direction so
+					# each stair lands where the next one starts (two meshes, not a mirrored one:
+					# a mirrored instance winds inside out).
+					var piece := "fe_bottom" if lowest else ("fe_stair_r" if row % 2 == 0 else "fe_stair_l")
+					lowest = false
+					var xf := Transform3D(Basis(a * (ew / 2.4), Vector3.UP * (floor_h / 3.5), n * (1.35 / 1.3)), fc + a * eu + Vector3(0.0, ev, 0.0))
+					_kit.add("kit_" + piece, PropFactory.facade_kit(piece), xf, Color.WHITE, Color(_kit_iron, 0.0, 0.0, 0.0))
+					_kit_solid_box(xf, Vector3(0.0, -0.04, 0.65), Vector3(2.4, 0.08, 1.3))
 					continue
 				# Flip the bay on alternate floors so the stair runs zigzag down the wall.
 				var flip := 1.0 if row % 2 == 0 else -1.0
@@ -701,10 +798,23 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 						continue
 					# Railing height is about 1.1 m in the real world. Scaling it by a fraction of
 					# the floor height made 2 m railings that stacked into a continuous lattice.
-					balconies.append(Transform3D(Basis(a * bw, Vector3.UP * _rng.randf_range(1.02, 1.18), n * depth), fc + a * u + Vector3(0.0, v, 0.0)))
+					var bxf := Transform3D(Basis(a * bw, Vector3.UP * _rng.randf_range(1.02, 1.18), n * depth), fc + a * u + Vector3(0.0, v, 0.0))
+					if _kit != null:
+						# The kit's balcony is modelled at 2.2 x 1.1 x 1.2 m; the same box, in its units.
+						var kxf := Transform3D(bxf.basis * Basis.from_scale(Vector3(1.0 / 2.2, 1.0 / 1.1, 1.0 / 1.2)), bxf.origin)
+						_kit.add("kit_balcony", PropFactory.facade_kit("balcony"), kxf, _kit_trim, Color(_kit_iron, 0.0, 0.0, 0.0))
+						_kit_solid_box(kxf, Vector3(0.0, -0.08, 0.585), Vector3(2.24, 0.16, 1.27))
+					else:
+						balconies.append(bxf)
 		if has_awnings:
+			if _kit != null:
+				_kit_awnings(face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index])
 			for col in range(skip, cols - skip):
 				if col % 2 == 1 or _rng.randf() < 0.3:
+					continue
+				# The kit hangs one awning per shop instead (above); the roll stays so every
+				# seeded draw after it lands where it always did.
+				if _kit != null:
 					continue
 				var u := -size_u * 0.5 + (col + 0.5) * pitch
 				var tilt := Basis(a, -0.35)
@@ -735,11 +845,19 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 					boxes.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
 				for b: Array in cap_bands:
 					caps.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
+	# The kit's roofline: the moulded cornice at the top of the wall, the coping stone on the
+	# parapet, both run round the whole footprint (cut corners too) and mitred at every corner.
+	if kit_cornice:
+		_kit_runs(_kit_cornice, center, size, cut_x, cut_z, top, cornice_scale, _kit_cornice_color)
+	if coping_y > 0.0:
+		_kit_runs("coping", center, size, cut_x, cut_z, coping_y, 1.0,
+			_kit_trim if masonry else (style.facade as Color).lightened(0.12))
 	if not frames.is_empty():
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
-		mm.mesh = PropFactory.window_frame(sill)
+		# Where the kit gives the window a real sill, the frame goes without its box one.
+		mm.mesh = PropFactory.window_frame(sill and kit_surround == "")
 		mm.instance_count = frames.size()
 		# Per-window tint. A wall of identical frames is the loudest "these were stamped out"
 		# tell on a close facade; real frames differ in how they have weathered, and a few have
@@ -831,6 +949,190 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		node.multimesh = mm
 		node.visibility_range_end = relief_draw_distance
 		add_child(node)
+
+
+# --- Facade kit ----------------------------------------------------------------------------------
+# Everything here is placed from hashes of the seed, never from _rng: the building's rolls are
+# shared with the far skyline and with every block downstream of it, and one extra draw moves
+# them all (CLAUDE.md, City).
+
+## A repeatable 0..1 for this building, `tag` and `i`.
+func _kit_hash(tag: String, i: int = 0) -> float:
+	return float(absi(hash([seed, tag, i])) % 100003) / 100003.0
+
+
+## Which cornice and window surround this building wears, and in what colours.
+func _pick_kit(style: Dictionary) -> void:
+	_kit_solids = PackedVector3Array()
+	_kit_cornice = ""
+	_kit_surround = ""
+	var masonry := finish != Finish.GLASS and shape != Shape.WAREHOUSE
+	if masonry:
+		var r := _kit_hash("cornice")
+		match finish:
+			Finish.BRICK:
+				_kit_cornice = "cornice_classic" if r < 0.45 else "cornice_bracket"
+			Finish.FLAT:
+				_kit_cornice = "cornice_classic" if r < 0.35 else "cornice_simple"
+			_:
+				_kit_cornice = "cornice_simple"
+		# A bungalow does not carry an entablature.
+		if height < 11.0:
+			_kit_cornice = "cornice_simple"
+		# Punched and slot windows get a surround; precast panels stay plain, like the real ones.
+		if (window_style == WindowStyle.PUNCHED or window_style == WindowStyle.NARROW) and finish != Finish.PANELS:
+			if finish == Finish.BRICK:
+				_kit_surround = "surround_brick_a" if _kit_hash("surround") < 0.55 else "surround_brick_b"
+			else:
+				_kit_surround = "surround_stucco"
+	var facade: Color = style.facade
+	if finish == Finish.BRICK:
+		_kit_trim = KIT_STONES[absi(hash([seed, "kit trim"])) % KIT_STONES.size()]
+	elif finish == Finish.GLASS:
+		_kit_trim = Color(0.60, 0.61, 0.63)
+	else:
+		# Painted trim: a shade lighter than the wall, or the cream every landlord buys.
+		_kit_trim = facade.lightened(0.18) if _kit_hash("trim") < 0.5 else Color(0.88, 0.86, 0.80)
+	_kit_cornice_color = _kit_trim
+	if _kit_cornice == "cornice_bracket" and _kit_hash("dark cornice") < 0.5:
+		_kit_cornice_color = KIT_CORNICE_PAINTS[absi(hash([seed, "cornice paint"])) % KIT_CORNICE_PAINTS.size()]
+	# Ironwork paint: mostly black, then green, grey and a rusty red oxide (facade_kit.gdshaderinc).
+	var iron := _kit_hash("iron")
+	_kit_iron = (0.5 if iron < 0.5 else (1.5 if iron < 0.7 else (2.5 if iron < 0.9 else 3.5))) / 4.0
+
+
+## Builds the kit batch into this building, with each kind's draw distance and shadows.
+func _finish_kit() -> void:
+	if _kit == null:
+		return
+	for key: String in _kit.keys():
+		var d := kit_hardware_distance
+		if key.begins_with("kit_surround"):
+			# Hundreds a building, a few centimetres proud: their shadow is a line the window
+			# recess already draws, and it would cost every cascade.
+			d = kit_surround_distance
+			_kit.set_no_shadow(key)
+		elif key.begins_with("kit_cornice") or key == "kit_coping":
+			d = kit_roofline_distance
+		elif key == "kit_ac_window":
+			d = kit_ac_distance
+		elif key.begins_with("kit_vent") or key == "kit_water_tank" or key == "kit_hvac":
+			d = kit_roof_distance
+		_kit.set_draw_distance(key, d)
+	_kit.build(self)
+	_kit = null
+	if not _kit_solids.is_empty():
+		var shape_node := CollisionShape3D.new()
+		shape_node.name = "KitSolids"
+		var concave := ConcavePolygonShape3D.new()
+		concave.backface_collision = true
+		concave.set_faces(_kit_solids)
+		shape_node.shape = concave
+		add_child(shape_node)
+
+
+## A box of collision (in `xform`'s space: centre and size) for something the player can land
+## on, into the building's one kit trimesh.
+func _kit_solid_box(xform: Transform3D, c: Vector3, s: Vector3) -> void:
+	var h := s * 0.5
+	var p: Array[Vector3] = []
+	for k in 8:
+		p.append(xform * (c + Vector3(h.x if k & 1 else -h.x, h.y if k & 2 else -h.y, h.z if k & 4 else -h.z)))
+	for f: Array in [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]]:
+		_kit_solids.append_array([p[f[0]], p[f[1]], p[f[2]], p[f[0]], p[f[2]], p[f[3]]])
+
+
+## The signed turn at `cur` walking prev -> cur -> nxt round a part's footprint (positive on a
+## convex corner in _footprint_polygon's winding).
+static func _kit_turn(prev: Vector2, cur: Vector2, nxt: Vector2) -> float:
+	var d_in := (cur - prev).normalized()
+	var d_out := (nxt - cur).normalized()
+	return atan2(d_in.cross(d_out), d_in.dot(d_out))
+
+
+## True when a point just outside this part's wall is inside another part that stands at least
+## as high: that stretch of roofline is inside the building (the notch of an L of one height),
+## and a cornice there would lie on the roof.
+func _kit_run_hidden(p: Vector3, part_top: float) -> bool:
+	for other in parts:
+		var oc: Vector3 = other.center
+		var os: Vector3 = other.size
+		if oc.y + os.y * 0.5 < part_top - 0.05 or oc.y - os.y * 0.5 > part_top:
+			continue
+		if absf(p.x - oc.x) < os.x * 0.5 - 0.05 and absf(p.z - oc.z) < os.z * 0.5 - 0.05:
+			return true
+	return false
+
+
+## A roofline moulding (`piece`: a cornice or the coping) round a part at height `y`, in 2 m
+## runs fitted to each wall, mitred at every corner by the kit shader: INSTANCE_CUSTOM.r / .g
+## carry each end's tan(half the corner's turn), converted to the run's own model units.
+func _kit_runs(piece: String, center: Vector3, size: Vector3, cut_x: float, cut_z: float, y: float, prof_scale: float, color: Color) -> void:
+	var raw := _footprint_polygon(size, cut_x, cut_z)
+	var poly := PackedVector2Array()
+	for q in raw:
+		if poly.is_empty() or poly[poly.size() - 1].distance_to(q) > 0.01:
+			poly.append(q)
+	if poly.size() > 1 and poly[0].distance_to(poly[poly.size() - 1]) < 0.01:
+		poly.remove_at(poly.size() - 1)
+	var count_pts := poly.size()
+	if count_pts < 3:
+		return
+	var mesh := PropFactory.facade_kit(piece)
+	var key := "kit_" + piece
+	var top := center.y + size.y * 0.5
+	for i in count_pts:
+		var p0 := poly[i]
+		var p1 := poly[(i + 1) % count_pts]
+		var length := p0.distance_to(p1)
+		if length < 0.3:
+			continue
+		var d := Vector3(p1.x - p0.x, 0.0, p1.y - p0.y) / length
+		# Walk the edge backwards so Basis(a, UP, n) is right-handed with n outward (a x UP = n).
+		var a := -d
+		var n := Vector3.UP.cross(d)
+		var tan0 := tan(_kit_turn(poly[(i - 1 + count_pts) % count_pts], p0, p1) * 0.5)
+		var tan1 := tan(_kit_turn(p0, p1, poly[(i + 2) % count_pts]) * 0.5)
+		var runs := maxi(1, roundi(length / 2.0))
+		var sx := length / float(runs) * 0.5
+		for k in runs:
+			# From p1 (the run's -x end) toward p0.
+			var mid := p1.lerp(p0, (float(k) + 0.5) / float(runs))
+			var at := Vector3(center.x + mid.x, y, center.z + mid.y)
+			if _kit_run_hidden(at + n * 0.35, top):
+				continue
+			var custom := Color(tan1 * prof_scale / sx if k == 0 else 0.0,
+				tan0 * prof_scale / sx if k == runs - 1 else 0.0, 0.0, 0.0)
+			_kit.add(key, mesh, Transform3D(Basis(a * sx, Vector3.UP * prof_scale, n * prof_scale), at), color, custom)
+
+
+## How big a building's cornice moulding is: a little heavier on a taller block, as they are.
+func _kit_cornice_scale(size: Vector3) -> float:
+	return clampf(0.78 + size.y / 90.0, 0.85, 1.45)
+
+
+## One awning per shop along a storefront, on the same runs of bays the shader gives each shop
+## (`shop_span`, measured from the far end of the wall - see the sign code), stopping short of
+## the piers between them. Colour, stripes and whether a shop has one at all are hashed per shop.
+func _kit_awnings(face_index: int, fc: Vector3, a: Vector3, n: Vector3, size_u: float, cols: int, pitch: float, cut: float, bottom: float, storefront: float, span: float) -> void:
+	var mesh := PropFactory.facade_kit("awning")
+	var runs := ceili(float(cols) / span)
+	for run in runs:
+		var hi_u := size_u * 0.5 - float(run) * span * pitch
+		var lo_u := size_u * 0.5 - minf(float(run + 1) * span, float(cols)) * pitch
+		hi_u = minf(hi_u, size_u * 0.5 - cut) - 0.30
+		lo_u = maxf(lo_u, -size_u * 0.5 + cut) + 0.30
+		var width := hi_u - lo_u
+		if width < 1.2:
+			continue
+		var shop := face_index * 131 + run
+		if _kit_hash("awning", shop) > kit_awning_chance:
+			continue
+		var colour: Color = AWNING_COLORS[absi(hash([seed, "awning colour", shop])) % AWNING_COLORS.size()]
+		var striped := 1.0 if _kit_hash("awning stripes", shop) < kit_stripe_chance else 0.0
+		var at := fc + a * ((hi_u + lo_u) * 0.5) + Vector3(0.0, bottom + storefront * 0.745, 0.0)
+		_kit.add("kit_awning", mesh, Transform3D(Basis(a, Vector3.UP, n), at), colour,
+			Color(_kit_iron, striped, (width - 1.0) * 0.5, 0.0))
 
 
 ## One piece of a horizontal band: `a` is the direction along the wall, `n` the wall's outward
@@ -1119,6 +1421,50 @@ func _build_roof_props() -> void:
 					placed.append(rect)
 					_build_prop(kind, Vector3(center.x + pos.x, top, center.z + pos.y))
 					break
+		if _kit != null:
+			_kit_roof_plant(i, center, top, area, roof_area, placed)
+
+
+## The kit's roof plant on top of what _build_roof_props placed: packaged rooftop units on the
+## big roofs and a scatter of vents. Its own random stream, seeded per part, placed after
+## everything else and into the same `placed` list, so none of the old props move.
+func _kit_roof_plant(part_index: int, center: Vector3, top: float, area: Vector2, roof_area: float, placed: Array[Rect2]) -> void:
+	var krng := RandomNumberGenerator.new()
+	krng.seed = hash([seed, "kit roof", part_index])
+	var extra: Array[String] = []
+	if roof_area > 120.0:
+		for k in clampi(roundi(roof_area / 450.0), 1, 3):
+			extra.append("hvac")
+	for k in krng.randi_range(1, 4 if roof_area > 60.0 else 2):
+		extra.append("vent")
+	for kind in extra:
+		# Units stand square to the building (turned 0 or 180 degrees), so their rect holds.
+		var fp := Vector2(2.9, 1.8) if kind == "hvac" else Vector2(0.9, 0.9)
+		if fp.x > area.x - 0.2 or fp.y > area.y - 0.2:
+			continue
+		for attempt in 14:
+			var pos := Vector2(krng.randf_range(-area.x * 0.5 + fp.x * 0.5, area.x * 0.5 - fp.x * 0.5),
+				krng.randf_range(-area.y * 0.5 + fp.y * 0.5, area.y * 0.5 - fp.y * 0.5))
+			var rect := Rect2(pos - fp * 0.5, fp)
+			if not _rect_free(rect, placed, part_index, center):
+				continue
+			placed.append(rect)
+			var at := Vector3(center.x + pos.x, top, center.z + pos.y)
+			if kind == "hvac":
+				var turn := Basis(Vector3.UP, PI if krng.randf() < 0.5 else 0.0)
+				var body: Color = [Color(0.80, 0.79, 0.74), Color(0.70, 0.71, 0.70), Color(0.84, 0.83, 0.80)][krng.randi() % 3]
+				_kit.add("kit_hvac", PropFactory.facade_kit("hvac"), Transform3D(turn, at), body, Color(_kit_iron, 0.0, 0.0, 0.0))
+				_prop_collision(Vector3(2.5, 1.35, 1.4), at + Vector3(0.0, 0.68, 0.0))
+			else:
+				_kit_vent(at, krng.randf() < 0.5, krng.randf() * TAU)
+			break
+
+
+## One kit roof vent: a mushroom cowl or a turbine, galvanised.
+func _kit_vent(at: Vector3, turbine: bool, yaw: float) -> void:
+	var piece := "vent_turbine" if turbine else "vent_mushroom"
+	_kit.add("kit_" + piece, PropFactory.facade_kit(piece), Transform3D(Basis(Vector3.UP, yaw), at),
+		Color(0.64, 0.65, 0.66), Color(_kit_iron, 0.0, 0.0, 0.0))
 
 
 func _prop_footprint(kind: String) -> Vector2:
@@ -1168,7 +1514,10 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			_prop_collision(Vector3(1.4, 1.6, 1.4), at + Vector3(0.0, 0.8, 0.0))
 		"vents":
 			for k in 5:
-				_prop_box(Vector3(1.2, 0.8, 1.2), Color(0.6, 0.6, 0.58), at + Vector3(-3.0 + k * 1.5, 0.4, 0.0))
+				if _kit != null:
+					_kit_vent(at + Vector3(-3.0 + k * 1.5, 0.0, 0.0), _kit_hash("vent", roundi(at.x * 7.0) + k) < 0.6, _kit_hash("vent yaw", k) * TAU)
+				else:
+					_prop_box(Vector3(1.2, 0.8, 1.2), Color(0.6, 0.6, 0.58), at + Vector3(-3.0 + k * 1.5, 0.4, 0.0))
 		"ducts":
 			# A run of insulated duct on short legs, with an elbow turning up at one end.
 			var yaw := _rng.randf_range(0.0, TAU)
@@ -1214,12 +1563,19 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			_prop_box(Vector3(0.9, 2.0, 0.1), Color(0.25, 0.25, 0.28), at + Vector3(0.6, 1.0, 1.62))
 			_prop_collision(Vector3(3.2, 2.6, 3.2), at + Vector3(0.0, 1.3, 0.0))
 		"water_tower":
-			var leg_color := Color(0.3, 0.3, 0.32)
-			for dx in [-1.0, 1.0]:
-				for dz in [-1.0, 1.0]:
-					_prop_cylinder(0.08, 3.0, leg_color, at + Vector3(dx * 1.1, 1.5, dz * 1.1))
-			_prop_cylinder(1.6, 3.0, Color(0.55, 0.38, 0.22), at + Vector3(0.0, 4.5, 0.0))
-			_prop_cylinder(1.75, 1.2, Color(0.4, 0.28, 0.18), at + Vector3(0.0, 6.6, 0.0), null, 0.0)
+			if _kit != null:
+				# The kit's timber tank on its braced steel stand, turned by a hash of where it
+				# stands (no _rng: the roll count must not change).
+				var yaw := _kit_hash("tank", roundi(at.x * 13.0 + at.z * 7.0)) * TAU
+				_kit.add("kit_water_tank", PropFactory.facade_kit("water_tank"), Transform3D(Basis(Vector3.UP, yaw), at),
+					Color.WHITE, Color(_kit_iron, 0.0, 0.0, 0.0))
+			else:
+				var leg_color := Color(0.3, 0.3, 0.32)
+				for dx in [-1.0, 1.0]:
+					for dz in [-1.0, 1.0]:
+						_prop_cylinder(0.08, 3.0, leg_color, at + Vector3(dx * 1.1, 1.5, dz * 1.1))
+				_prop_cylinder(1.6, 3.0, Color(0.55, 0.38, 0.22), at + Vector3(0.0, 4.5, 0.0))
+				_prop_cylinder(1.75, 1.2, Color(0.4, 0.28, 0.18), at + Vector3(0.0, 6.6, 0.0), null, 0.0)
 			_prop_collision(Vector3(3.2, 7.2, 3.2), at + Vector3(0.0, 3.6, 0.0))
 		"spire":
 			# Skyline spire with a lit tip: base cone, long mast, blinking-red beacon.
