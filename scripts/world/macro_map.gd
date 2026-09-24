@@ -61,20 +61,29 @@ var beach_town_depth: float = 340.0
 ## coast like this one is a chain of small separate towns rather than one seafront, and naming
 ## them is most of what makes it read that way: the HUD place name changes as you drive the
 ## highway. Bands are keyed to Z only, because the coast is a ribbon.
+## Torrance begins at Avenue I, the roundabout at the south end of the Esplanade replica
+## (ReplicaAreas.ESPLANADE); Palos Verdes is the headland, named by place_name() itself.
 const COAST_TOWNS := [
 	[-99999.0, "Malibu"], [-950.0, "Santa Monica"], [-520.0, "Venice"], [-160.0, "Playa"],
 	[250.0, "El Segundo"], [1010.0, "Manhattan Beach"], [1240.0, "Hermosa Beach"],
-	[1420.0, "Redondo Beach"],
+	[1420.0, "Redondo Beach"], [3625.0, "Torrance"],
 ]
-## The headland. It sits far enough south that the chain of beach towns has coastline to run
-## along before it starts: with it at 1500 the towns south of the airport had nowhere to go.
-var peninsula_center: Vector2 = Vector2(-780.0, 1980.0)
-var peninsula_radius: float = 550.0
-## How far west the headland pushes the waterline out around itself, in metres. Also a copy in
-## ocean.gdshader; Weather pushes it.
-var peninsula_bulge: float = 520.0
-## The headland in the south-west bay: cliffs straight out of the water.
-var peninsula_height: float = 285.0
+## The Palos Verdes headland (owner, 2026-09-24: "the real view of the Palos Verdes hills"). An
+## ellipse of land: its north coast meets the end of the Esplanade replica's beach at Malaga Cove
+## and runs west-south-west from there; its north face rises steeply to the first ridge (the one
+## that fills the view south from the Esplanade and falls right to the Malaga Cove headland in the
+## sea), with the higher upland behind it; the land side to the north-east rises out of the
+## Torrance plain. It was a 550 m circle at z 1980, right where the Esplanade now runs.
+## peninsula_axis_bearing is the compass bearing of the major axis (toward its east-north-east
+## end); peninsula_axes are the semi-axes (major, minor). All three are copied into
+## ocean.gdshader by Weather._push_ocean_shape().
+var peninsula_center: Vector2 = Vector2(-100.0, 5700.0)
+var peninsula_axes: Vector2 = Vector2(2800.0, 1250.0)
+var peninsula_axis_bearing: float = 100.0
+## The sea cliffs round the headland, in metres (the crest line is `peninsula_crest`, below).
+var peninsula_cliff: float = 22.0
+## The Esplanade and anything else rebuilt at 1:1 from real references (ReplicaAreas).
+var replica: ReplicaAreas
 ## Water south of this Z and west of this X (except the peninsula) so the peninsula sticks out.
 ## How far inland the land takes to climb out of the water, in metres. zone_at() draws the
 ## shoreline as a hard line; the height field has to have reached zero on that line or a hill
@@ -83,8 +92,11 @@ var peninsula_height: float = 285.0
 ## bulge is a function of z alone and the headland is a circle, so the waterline cut clean
 ## across a 100 m cliff.
 var shore_rise: float = 52.0
-var bay_z: float = 1460.0
-var bay_east_x: float = 400.0
+## The bay south-east of the headland (the water between it and the harbour coast): water south
+## of bay_z and west of bay_east_x, except the headland itself. It used to start at z 1460,
+## straight off the Redondo pier; the coast now runs on south past it to Palos Verdes.
+var bay_z: float = 6300.0
+var bay_east_x: float = 1600.0
 var downtown_center: Vector2 = Vector2(700.0, 250.0)
 var downtown_radius: float = 330.0
 var midtown_radius: float = 800.0
@@ -167,6 +179,15 @@ func setup() -> void:
 	_relief.fractal_octaves = 3
 	_relief.fractal_gain = 0.45
 	_landmarks = Landmarks.all()
+	# The replica first: it draws the coast from the Redondo pier to Malaga Cove, and everything
+	# below - the headland's shore mask, the hill roads, the freeways - reads coast_x(). Its hill
+	# part is then fitted to the headland's terrain, which needs the coast.
+	# `-- --no-replica` leaves it out (the seeded city in its place), for measuring what it costs.
+	if not OS.get_cmdline_user_args().has("--no-replica"):
+		var rep := ReplicaAreas.new()
+		rep.build(self, seed)
+		replica = rep
+		rep.fit_hill_profile()
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
@@ -183,11 +204,76 @@ func runway_clear_zone() -> Rect2:
 	return Rect2(airport_rect.end.x, z - approach_clear_half_width, approach_clear_length, approach_clear_half_width * 2.0)
 
 
+## The coast is the long sine down the basin, handed over to the replica's authored waterline
+## (Redondo pier to Malaga Cove) over `replica_coast_blend` metres north of it, and pushed out
+## west around the headland to wherever the headland's own shore is.
 func coast_x(z: float) -> float:
+	return minf(_main_coast_x(z), headland_west_x(z))
+
+
+## The coast without the headland: the basin's sine and the replica's waterline. What the sea
+## off the headland's shore is tested against.
+func _main_coast_x(z: float) -> float:
 	var x := coast_base_x + coast_wobble * sin(z / coast_period)
-	var d := absf(z - peninsula_center.y)
-	var bulge := smoothstep(peninsula_radius * 1.2, 0.0, d) * peninsula_bulge
-	return x - bulge
+	if replica:
+		var r := replica.coast_range()
+		var t := smoothstep(r.x - replica_coast_blend, r.x, z)
+		if t > 0.0:
+			x = lerpf(x, replica.waterline_x(clampf(z, r.x, r.y)), t)
+	return x
+
+
+## Metres north of the replica's waterline over which the basin's coast is eased onto it.
+var replica_coast_blend: float = 300.0
+
+
+## Unit vectors of the headland's axes in world XZ: major toward peninsula_axis_bearing, minor
+## ninety degrees clockwise of it (into the headland from its north coast).
+func _headland_axes() -> Array:
+	var b := deg_to_rad(peninsula_axis_bearing)
+	var u := Vector2(sin(b), -cos(b))
+	return [u, Vector2(-u.y, u.x)]
+
+
+## The headland's elliptic radius at `pos`: 0 at its centre, 1 on its shore. Also returns the
+## normalised position along the major axis (-1 west end, +1 east end) in y.
+func headland_e(pos: Vector2) -> Vector2:
+	var ax: Array = _headland_axes()
+	var q := pos - peninsula_center
+	var a := q.dot(ax[0]) / peninsula_axes.x
+	var b := q.dot(ax[1]) / peninsula_axes.y
+	return Vector2(sqrt(a * a + b * b), a)
+
+
+## Approximate metres outside the headland's shore (negative inside), the usual ellipse distance
+## estimate: exact on the axes and close everywhere else, which is all a shore ramp needs.
+func headland_dist(pos: Vector2) -> float:
+	var ax: Array = _headland_axes()
+	var q := pos - peninsula_center
+	var l := Vector2(q.dot(ax[0]), q.dot(ax[1]))
+	var k0 := (l / peninsula_axes).length()
+	var k1 := (l / (peninsula_axes * peninsula_axes)).length()
+	if k1 < 0.000001:
+		return -minf(peninsula_axes.x, peninsula_axes.y)
+	return k0 * (k0 - 1.0) / k1
+
+
+## X of the headland's west shore at z, or INF where the headland does not reach that z.
+func headland_west_x(z: float) -> float:
+	var ax: Array = _headland_axes()
+	var u: Vector2 = ax[0]
+	var v: Vector2 = ax[1]
+	var aa := peninsula_axes.x * peninsula_axes.x
+	var bb := peninsula_axes.y * peninsula_axes.y
+	# (X u.x + Z u.y)^2 / A^2 + (X v.x + Z v.y)^2 / B^2 = 1, solved for X at Z = z - centre.
+	var zz := z - peninsula_center.y
+	var al := u.x * u.x / aa + v.x * v.x / bb
+	var be := u.x * u.y / aa + v.x * v.y / bb
+	var ga := u.y * u.y / aa + v.y * v.y / bb
+	var disc := be * be * zz * zz - al * (ga * zz * zz - 1.0)
+	if disc < 0.0:
+		return INF
+	return peninsula_center.x + (-be * zz - sqrt(disc)) / al
 
 
 ## Land height with hill roads and mansion pads carved in.
@@ -214,17 +300,27 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 	# The valley floor is a base elevation, not rolling ground: it does not fade out near the
 	# mountains, or the city built on it would slide back down to sea level at its own edges.
 	var base := plateau_at(pos)
+	# The replica's town on its bluff, the same way: a base the chunks lay everything on, with the
+	# seeded rolling relief calmed off its streets. Where the headland's own terrain rises under
+	# it the terrace hands over to it, so the two add up to one slope rather than stacking.
+	var calm := 0.0
+	if replica:
+		var terrace := replica.terrace_at(pos)
+		if terrace.x > 0.0:
+			base += terrace.x * (1.0 - smoothstep(0.0, maxf(terrace.x, 1.0), raw))
+		calm = terrace.y
 	# Fade the rolling relief out over the first `relief_fade_height` metres of mountain, not the
 	# first 2.5. At the foot of a range raw climbs from 0 to 3 m in about twenty metres of ground,
 	# so a narrow window switched the relief off in one step and left a metres-high wall along the
 	# whole city/hills seam - a grey band right round the valley. Hill roads are carved into the
 	# surface *including* relief (see `height_at`), so letting it run up the lower slopes costs
 	# nothing.
-	var fade := 1.0 - smoothstep(0.0, relief_fade_height, raw)
+	var fade := (1.0 - smoothstep(0.0, relief_fade_height, raw)) * (1.0 - calm)
 	if fade <= 0.0:
 		return base
 	var cx := coast_x(pos.y)
-	fade *= smoothstep(cx + beach_width + 20.0, cx + beach_width + 220.0, pos.x)
+	var bw := beach_width_at(pos.y)
+	fade *= smoothstep(cx + bw + 20.0, cx + bw + 220.0, pos.x)
 	# The bay south of bay_z (west of bay_east_x) is water; flatten toward it.
 	fade *= 1.0 - smoothstep(bay_z - 240.0, bay_z, pos.y) * (1.0 - smoothstep(bay_east_x, bay_east_x + 240.0, pos.x))
 	for r: Rect2 in [airport_rect, port_rect, harbor_rect]:
@@ -278,10 +374,7 @@ func raw_height_at(pos: Vector2) -> float:
 	var east := smoothstep(east_start_x, east_full_x, pos.x)
 	h = maxf(h, east * (east_height * (0.6 + 0.4 * n) + 55.0 * n2))
 
-	var pd := pos.distance_to(peninsula_center)
-	# Steep sides: the peninsula rises out of the bay as cliffs.
-	var pt := smoothstep(peninsula_radius, peninsula_radius * 0.5, pd)
-	h += pt * peninsula_height * (0.7 + 0.3 * n)
+	h = maxf(h, _headland_height(pos, n, n2))
 
 	# The northern coastal shelf. Up there the front range comes all the way down to the water,
 	# and on a coast like that the mountains stop at a narrow bench a few hundred metres wide
@@ -295,24 +388,84 @@ func raw_height_at(pos: Vector2) -> float:
 		var rise := smoothstep(0.0, shelf_width, inland)
 		var bench := lerpf(minf(h, shelf_height + 14.0 * n2), h, rise)
 		h = lerpf(h, bench, north)
-	return maxf(h, 0.0) * _shore_mask(pos, pd)
+	return maxf(h, 0.0) * _shore_mask(pos)
+
+
+## Palos Verdes. Heights from the shore inward: sea cliffs right at the water on the ocean side
+## (the land side, where it rises out of the Torrance plain, has none), a steep north face up to
+## the first ridge, and the upland behind it, highest toward the east end and falling away to the
+## west end, where the headland drops into the sea. `n`, `n2` are raw_height_at()'s two octaves.
+func _headland_height(pos: Vector2, n: float, n2: float) -> float:
+	var e := headland_e(pos)
+	if e.x >= 1.0:
+		return 0.0
+	var inward := -headland_dist(pos)   # metres in from the shore
+	var crest := headland_crest(e.y)
+	# Across: the north face climbs over its first `peninsula_face` metres, then the upland rolls
+	# on to the crest line along the axis.
+	var face := smoothstep(0.0, peninsula_face, inward)
+	var body := smoothstep(1.0, 0.12, e.x)
+	# The noise scales with the crest, or on the low western terraces it dug patches below the
+	# 3 m HILLS line and the seeded city grew in holes in the headland.
+	var h := crest * (lerpf(face * peninsula_shoulder, 1.0, body * body) * (0.9 + 0.1 * n) + 0.07 * n2 * face)
+	h = maxf(h, 5.0 * smoothstep(0.0, 40.0, inward))
+	# The sea cliffs, only where the sea is what lies off the shore: step out along the headland's
+	# outward normal and see whether that is water. The land side, rising out of the Torrance plain,
+	# has none - and nor does the corner at Malaga Cove where the two meet.
+	var cliff := 0.0
+	if inward < 90.0:
+		var ax: Array = _headland_axes()
+		var q := pos - peninsula_center
+		var l := Vector2(q.dot(ax[0]) / (peninsula_axes.x * peninsula_axes.x), q.dot(ax[1]) / (peninsula_axes.y * peninsula_axes.y))
+		var nrm: Vector2 = ((ax[0] as Vector2) * l.x + (ax[1] as Vector2) * l.y).normalized()
+		var out := pos + nrm * (inward + 70.0)
+		var sea := out.x < _main_coast_x(out.y) or (out.y > bay_z and out.x < bay_east_x)
+		if sea:
+			cliff = peninsula_cliff * (0.8 + 0.4 * n2) * smoothstep(0.0, 70.0, inward)
+	return maxf(h, cliff + h * 0.3)
+
+
+## The height of the headland's crest line at `along` (-1 its west end, +1 its east end): low
+## terraces out west, rising through the first ridge south of Malaga Cove to the high upland in
+## the east, which then falls back to the plain at the land end. Piecewise smooth through
+## `peninsula_crest` (pairs of along, height) - the numbers that decide the skyline seen from the
+## Esplanade, so they are the ones to tune against the owner's photos.
+func headland_crest(along: float) -> float:
+	var t: Array = peninsula_crest
+	if along <= float(t[0][0]):
+		return float(t[0][1])
+	for k in range(1, t.size()):
+		if along <= float(t[k][0]):
+			var a: Array = t[k - 1]
+			var b: Array = t[k]
+			var f := (along - float(a[0])) / maxf(float(b[0]) - float(a[0]), 0.0001)
+			return lerpf(float(a[1]), float(b[1]), f * f * (3.0 - 2.0 * f))
+	return float(t[t.size() - 1][1])
+
+
+## Crest line of the headland, [along, metres]. See headland_crest().
+var peninsula_crest: Array = [[-1.0, 18.0], [-0.6, 22.0], [-0.42, 26.0], [-0.3, 64.0],
+	[-0.15, 172.0], [0.05, 248.0], [0.45, 340.0], [0.8, 275.0], [1.0, 60.0]]
+## Metres over which the north face climbs from the shore to its shoulder, and how high the
+## shoulder stands as a share of the crest there.
+var peninsula_face: float = 700.0
+var peninsula_shoulder: float = 0.72
 
 
 ## 1 on dry land, 0 wherever zone_at() calls the water, with `shore_rise` metres of ramp in
 ## between. Every sea edge on the map is a hard test - west of coast_x(), or inside the bay -
 ## and the mountains are a separate noise field that knows nothing about them, so without this
 ## the two disagree and the land is left standing in the sea with a cliff for a coastline.
-func _shore_mask(pos: Vector2, pd: float) -> float:
+func _shore_mask(pos: Vector2) -> float:
 	var cx := coast_x(pos.y)
 	var coast := smoothstep(cx - 4.0, cx + shore_rise, pos.x)
 	# The bay is the intersection of three half-spaces (south of bay_z, west of bay_east_x, off
 	# the headland), so land is the union of their complements: being clear of any one of them
 	# is enough.
-	var r := peninsula_radius * 1.02
 	var land: float = maxf(maxf(
 			1.0 - smoothstep(bay_z - shore_rise, bay_z, pos.y),
 			smoothstep(bay_east_x - shore_rise, bay_east_x, pos.x)),
-			smoothstep(r, r - shore_rise, pd))
+			smoothstep(-2.0, shore_rise, -headland_dist(pos)))
 	return minf(coast, land)
 
 
@@ -326,9 +479,21 @@ func plateau_at(pos: Vector2) -> float:
 	return valley_height * smoothstep(valley_from_z, valley_to_z, pos.y)
 
 
-## The bay south of the airport that wraps the peninsula: water unless on the peninsula itself.
+## The bay south-east of the headland: water unless on the headland itself.
 func in_bay(pos: Vector2) -> bool:
-	return pos.y > bay_z and pos.x < bay_east_x and pos.distance_to(peninsula_center) > peninsula_radius * 1.02
+	return pos.y > bay_z and pos.x < bay_east_x and headland_dist(pos) > 2.0
+
+
+## How wide the sand is at z: the replica's own beach (bluff toe to waterline) along its coast,
+## eased back to the basin's `beach_width` over the same blend the coast uses.
+func beach_width_at(z: float) -> float:
+	if replica == null:
+		return beach_width
+	var r := replica.coast_range()
+	var t := smoothstep(r.x - replica_coast_blend, r.x, z) * (1.0 - smoothstep(r.y, r.y + 60.0, z))
+	if t <= 0.0:
+		return beach_width
+	return lerpf(beach_width, replica.beach_width(clampf(z, r.x, r.y)), t)
 
 
 func zone_at(pos: Vector2) -> Zone:
@@ -343,8 +508,8 @@ func zone_at(pos: Vector2) -> Zone:
 		return Zone.OCEAN
 	if raw_height_at(pos) > 3.0:
 		return Zone.HILLS
-	if pos.x < cx + beach_width or pos.distance_to(peninsula_center) <= peninsula_radius * 1.02:
-		return Zone.BEACH # the main shore, and the low ring around the peninsula's cliffs
+	if pos.x < cx + beach_width_at(pos.y) or headland_dist(pos) <= 8.0:
+		return Zone.BEACH # the main shore, and the low ring around the headland's cliffs
 	return Zone.CITY
 
 
@@ -375,9 +540,9 @@ func district_at(pos: Vector2) -> CityPlan.District:
 ## The name of the place at a world position, or "" when it has none and the district name
 ## should be used instead. Only the coast is named: that is where the towns are.
 func place_name(pos: Vector2) -> String:
-	# 0.85 rather than the full radius: the headland's low northern fringe is where the last
-	# beach town sits, and calling that Palos Verdes takes the town's name off its own pier.
-	if pos.distance_to(peninsula_center) < peninsula_radius * 0.85:
+	# A little inside the shore rather than on it: the headland's low northern fringe is Malaga
+	# Cove and the end of Torrance Beach, and the ring road below the first ridge is Palos Verdes.
+	if headland_dist(pos) < -60.0:
 		return "Palos Verdes"
 	if airport_rect.has_point(pos):
 		return ""

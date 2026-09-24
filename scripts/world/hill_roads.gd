@@ -21,6 +21,9 @@ const COAST_INSET := 46.0
 ## Sampling step along the shore. Short enough that the bends read as curves rather than as a
 ## chain of straights, which on the northern cliffs is the entire character of the road.
 const COAST_STEP := 26.0
+## Where the coast highway leaves the shore (z): short of the Redondo pier, whose own car park
+## and the Esplanade replica take the coast from there.
+const PCH_END_Z := 1380.0
 ## Shoulder width on each side of a road where terrain blends back to its natural height.
 const SHOULDER := 14.0
 const PAD_RADIUS := 17.0
@@ -65,19 +68,62 @@ func build(macro: MacroMap, seed_value: int) -> void:
 			_place_mansions(li, rng)
 		if ci >= 0 and rng.randf() < 0.5:
 			_place_mansions(ci, rng)
-	# 3. Rim drive around the peninsula.
+	# 3. The replica's hill route (Palos Verdes Blvd and Drive West), carved at its own authored
+	#    profile. The replica draws its own road; this road is here for the carving, the scatter's
+	#    keep-out and the estates along it. Then the ring road round the headland, which picks it
+	#    up where the replica stops, and the estate lanes climbing off both.
+	_add_replica_route(macro, rng)
 	var rim := PackedVector2Array()
-	var r := macro.peninsula_radius * 0.6
-	for i in 36:
-		var a := TAU * i / 36
-		rim.append(macro.peninsula_center + Vector2(cos(a), sin(a)) * (r + 25.0 * sin(a * 3.0)))
-	rim.append(rim[0])
-	var ri := _add_road("Rim Drive", rim, 12.0, true)
+	var ax: Array = macro._headland_axes()
+	for i in 49:
+		var a := TAU * i / 48
+		var k := RIM_RADIUS + 0.035 * sin(a * 3.0 + 0.7)
+		rim.append(macro.peninsula_center + (ax[0] as Vector2) * (cos(a) * macro.peninsula_axes.x * k)
+			+ (ax[1] as Vector2) * (sin(a) * macro.peninsula_axes.y * k))
+	var ri := _add_road("Palos Verdes Dr", rim, 12.0, true)
 	_place_mansions(ri, rng)
+	# Estate lanes up the north face, the reason the slopes seen from the Esplanade are covered in
+	# houses. Each climbs off the ring road toward the crest line.
+	for k in ESTATE_LANES:
+		var t := float(k) / float(ESTATE_LANES)
+		var at: Vector2 = rim[int(t * 48.0) % 48]
+		var up: Vector2 = (macro.peninsula_center - at).normalized()
+		var lane := _walk(at, atan2(up.y, up.x) + rng.randf_range(-0.5, 0.5), 7, rng, 0.45)
+		var li := _add_road("Estates %d" % roads.size(), lane, 9.0, true)
+		_place_mansions(li, rng)
 	# 4. The coast highway, last so that its height profile is smoothed against a shoreline the
 	#    other roads have already settled against.
 	_add_coast_highway(macro)
 	_index()
+
+
+## How far out the headland's ring road runs, as a share of the ellipse (1 is the shore), and how
+## many estate lanes climb off it.
+const RIM_RADIUS := 0.62
+const ESTATE_LANES := 12
+
+
+## The replica's route where it leaves the town for the hills: carved into the terrain at the
+## profile ReplicaAreas authored and fitted, flat across its width, with estates along it.
+func _add_replica_route(macro: MacroMap, rng: RandomNumberGenerator) -> void:
+	var rep: ReplicaAreas = macro.replica
+	if rep == null:
+		return
+	var i0 := rep._index_of_s(maxf(rep.s_city_end - 120.0, 0.0))
+	var pts := PackedVector2Array()
+	var hs := PackedFloat32Array()
+	var step := 3
+	var i := i0
+	while i < rep.pts.size():
+		pts.append(rep.pts[i])
+		hs.append(rep.top[i] - ReplicaAreas.ROAD_TOP)
+		i += step
+	if pts.size() < 2:
+		return
+	var sd: Dictionary = rep.sec[rep.pts.size() - 1]
+	var width: float = (float(sd.kerb_e) - float(sd.kerb_w)) + 2.0
+	roads.append({"name": "Palos Verdes Dr W", "points": pts, "heights": hs, "width": width, "mansions": true, "draw": false})
+	_place_mansions(roads.size() - 1, rng)
 
 
 ## The coast highway, from the cliffs in the north to the headland in the south, holding
@@ -86,10 +132,11 @@ func build(macro: MacroMap, seed_value: int) -> void:
 ## both, which is why it comes out curving rather than straight.
 func _add_coast_highway(macro: MacroMap) -> void:
 	var pts := PackedVector2Array()
-	# Start up in the northern cliffs, where the shelf carries it, and run to the far side of
-	# the headland so the whole coast has one road along it.
+	# Start up in the northern cliffs, where the shelf carries it, and run down the coast to the
+	# Redondo pier. The real road turns inland there, and south of it the coast is the Esplanade
+	# replica's (ReplicaAreas), which lays its own road along the bluff.
 	var z := macro.shelf_full_z - 420.0
-	var end_z := macro.peninsula_center.y + macro.peninsula_radius * 0.72
+	var end_z := PCH_END_Z
 	while z < end_z:
 		pts.append(Vector2(macro.coast_x(z) + COAST_INSET, z))
 		z += COAST_STEP
@@ -266,7 +313,8 @@ func segments_in(rect: Rect2) -> Array[Dictionary]:
 				var b: Vector2 = road.points[ref.y + 1]
 				var seg_rect := Rect2(Vector2(minf(a.x, b.x), minf(a.y, b.y)), (b - a).abs()).grow(road.width)
 				if seg_rect.intersects(rect):
-					out.append({"a": a, "b": b, "ha": road.heights[ref.y], "hb": road.heights[ref.y + 1], "width": road.width})
+					out.append({"a": a, "b": b, "ha": road.heights[ref.y], "hb": road.heights[ref.y + 1], "width": road.width,
+						"draw": road.get("draw", true)})
 	return out
 
 

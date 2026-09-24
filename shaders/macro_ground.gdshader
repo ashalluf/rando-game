@@ -271,7 +271,7 @@ void fragment() {
 	} else {
 		// ---- the surface, at every scale between the bake's 62 m and about a metre ----------
 		// The derivative comes out of the same evaluation, so this is ONE fractal, not four.
-		float amp_m = relief_scale(m.a, mg);
+		float amp_m = relief_scale(w, m.a, mg);
 		int octaves = rich ? relief_octaves : 4;
 		vec3 fb = relief_fbm(w, octaves, fp);
 		// The crags only exist in the geometry past `lift_start`, so the normal only carries
