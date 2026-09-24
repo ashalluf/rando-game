@@ -186,15 +186,52 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
-  Sound is **real CC0 recordings** (`assets/audio/`, 63 clips - the siren is public domain - sources in `docs/ASSETS.md`) with
+  Sound is **real CC0 recordings** (`assets/audio/`, 111 clips - the siren is public domain - sources in `docs/ASSETS.md`) with
   the old synthesis kept as the fallback: `_build_synth()` fills every name first and
   `_load_samples()` replaces only the names whose files load, so a missing or unimported file
-  degrades to a tone rather than to silence. A name holds several takes and `play()` picks one at
-  random, which is what stops the rifle and the footsteps sounding like one file on repeat. Loop
-  flags are set on the stream **in code**, never in the `.import`: a regenerated `.import` can
-  silently drop the flag, and a non-looping ambience is very hard to diagnose. Only the clips
-  named in `Sfx.SAMPLES` ship - do not leave working downloads in `assets/audio/`, this builds
-  into a macOS app and a web page.
+  degrades to a tone rather than to silence (the ambience names are the exception: their
+  fallbacks, `ambience_synth()`, are built only for the names whose files did NOT load, because
+  they are long and startup should not pay for them twice). A name holds several takes and
+  `play()` picks one at random, which is what stops the rifle and the footsteps sounding like one
+  file on repeat. Loop flags are set on the stream **in code** (`LOOPING`, `AMBIENCE_LOOPING`),
+  never in the `.import`: a regenerated `.import` can silently drop the flag, and a non-looping
+  ambience is very hard to diagnose. Only the clips named in `Sfx.SAMPLES` and
+  `Sfx.AMBIENCE_SAMPLES` ship - do not leave working downloads in `assets/audio/`, this builds
+  into a macOS app and a web page. Every name in them needs its loudness in
+  `SAMPLE_LOUDNESS_DB` / `AMBIENCE_LOUDNESS_DB` (the smoke test checks the counts match); beds are
+  recorded at their long-term RMS (all cut to -22 dB), one-shots at their loudest 50 ms window.
+  **Buses** (`Sfx._install_buses()`, in code, no `.tres`): Master (limiter) <- `Game` (a low-pass,
+  the slow-motion and blast muffle) <- `World` (street-canyon reverb) and `Ambience` (enclosure
+  low-pass, then a compressor side-chained on World so gunfire pushes the city down).
+  `Sfx.bus_for(name)` routes: the ambience names plus rain, wind, ambience_city and thunder go to
+  Ambience, everything else (guns, blasts, engines, voices) to World. `Sfx.take(name)` hands a
+  caller that owns its player a take and its trim. Web builds (sample playback) skip bus effects
+  and play the plain mix.
+- Ambience (owner, 2026-09-24: "the city should SOUND like a real city, AAA-style"): `Ambience`
+  (`scripts/util/ambience.gd`), a Node in `city.tscn`. Beds (stereo, non-positional: `city` by day,
+  `city_far` - real downtown LA night traffic - by night and from the hills and the air, near
+  `traffic`, crowd walla, birds, crickets, wind, gale, rain / downpour / rain on a roof / on the
+  car roof), emitters (freeway, surf, airfield, port: AudioStreamPlayer3D with its falloff OFF,
+  parked `emitter_distance` from the listener toward the source so it pans while the level is
+  ours) and one-shots (far horns, far sirens, dogs, bus air brakes, gulls, coyotes, ship horns,
+  crane clanks: Poisson events per minute, placed at a real distance so the distance filter dulls
+  them). The nearest `TRAFFIC_VOICES` moving traffic cars carry a tyre-roll voice with a cheap
+  Doppler, and a car predicted to pass within `pass_distance` gets a recorded pass-by started so
+  its loudest instant (cut to sit at `pass_peak_seconds`, 1.2 s, in every take) lands as it goes
+  by; wet roads use `car_pass_wet`. The survey (`survey_interval`, REAL clock - the wheel scales
+  the process delta) never scans the city: `scene_at()` is MacroMap maths at a centre point and two
+  rings (`ring_radii`), the freeway its cell index, and `_probe()` adds nine world-layer rays
+  (street canyon, cover overhead), one sphere query on the npc layer (crowd, panic) and
+  TrafficManager's own car lists. `levels_for()` / `rates_for()` are pure (scene, hour, night
+  factor, weather) -> gains / events per minute, which is what the smoke test checks
+  (`tests/ambience_checks.gd`, mixer state only under the Dummy driver). Knobs: `ambience_db`,
+  `layer_db` (per layer), `fade_seconds`, the reaches, `district_density` (one per
+  CityPlan.District, guarded), the enclosure cutoffs, `reverb_wet`, the duck numbers. The weather
+  node's own rain loop only plays where there is no Ambience (the test room). Ducks: a blast
+  within `blast_duck_radius` (polled from `Explosion.blast_count`) dips the ambience and, inside
+  `concussion_radius`, muffles the Game bus for `blast_recover_seconds`; the weapon wheel or any
+  slow motion (`AudioServer.playback_speed_scale` < 0.97) muffles Game and dips the ambience.
+  Crowd screams stay where they were (`Pedestrian.alarm()`); the walla drops under panic.
 - Day/night: `DayNight` node in the city scene drives the sun, the sky (`shaders/sky.gdshader`,
   a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in

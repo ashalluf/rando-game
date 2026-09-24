@@ -255,6 +255,24 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 The city sounds like a city (owner: "the city should SOUND like a real city,
+  AAA-style").** The game had gunfire, engines and rain and otherwise silence: two ambience
+  recordings had shipped for months and nothing played them. Now an `Ambience` node layers real
+  CC0 recordings by where you are, the hour and the weather: the city's roar downtown by day and,
+  after dark, real late-night traffic recorded in downtown Los Angeles; the freeway from the deck
+  you are near (a real recording of the 134 in Burbank); surf from the direction of the water,
+  gulls by day; birds by day and crickets and coyotes at night in the hills; the airfield's
+  rumble; ship horns and crane clanks at the port; rain on the street, on a roof overhead and on
+  the car roof when you are in a car; wind that takes over as you climb. Horns, far sirens, dogs
+  and bus air brakes are dropped round you at real distances. The nearest moving cars carry a
+  tyre-roll voice with Doppler, and a car that passes close gets a recorded pass-by timed to the
+  moment it goes by. The mix now has buses: a street-canyon reverb on everything the world makes,
+  the city low-passed inside a car, ducked under gunfire by a side-chained compressor, dipped and
+  muffled while the weapon wheel slows time and for a moment after a rocket lands close (ringing
+  ears). Crowd screams are untouched; the crowd's chatter drops while it panics. Chosen over
+  per-object sounds everywhere because nothing in it scans the city: a few maths samples, nine
+  rays and one sphere query twice a second. About 5 MB of audio. Nobody has heard it yet.
+
 - **2026-09-24 A living sky (owner: "helicopters, police choppers, news choppers, private jets
   flying thru the sky, commercial jets taking off and landing at LAX").** `AirTraffic` flies
   scripted aircraft, never physics: airliners land and take off at the airport, private jets
