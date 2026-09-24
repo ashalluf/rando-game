@@ -170,6 +170,9 @@ func _initialize() -> void:
 	if out == "":
 		out = "hero.png"
 	await process_frame
+	# What this frame cost (only under a real renderer; --headless reads zero).
+	print("GEO tris=%d draws=%d objects=%d" % [int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)), int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME))])
 	get_root().get_texture().get_image().save_png(out)
 	print("saved ", out)
 	quit()

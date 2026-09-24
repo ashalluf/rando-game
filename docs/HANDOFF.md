@@ -1096,6 +1096,57 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
+## 9l. The hero, AAA pass, 2026-09-24 (agent branch)
+
+The owner asked for the Blender hero at "AAA studio level, from scratch, with real fingers".
+What changed, in the order the brief listed it:
+
+- **Pipeline in the repo.** `tools/hero/` (setup.sh, build.sh, hero_config.json and one Python
+  file per step) rebuilds `assets/models/hero.glb` from the CC0 inputs in about 15 minutes; the
+  CLAUDE.md hero bullet has the commands. Blender, MPFB and the asset pack land in
+  `build/hero_src/` (ignored, with a `.gdignore` so Godot never scans the Blender install).
+- **Fixed flaws.** The collar and neckline were cut face by face and came out torn: every garment
+  edge is now a plane cut with a real cross-section band (stand collar, rib cuffs and hems, the
+  V-neck of the tank). The dark hole on the left shoulder was the ray bake putting inverted
+  normals in the armpit: no normal map is baked any more, they are all derived from a 3D fold
+  field (`folds.py`) through the UV layout (`texspace.py` rasterises it to rest-pose points).
+  Square shoulders: bound with the arms 62 degrees down instead of MakeHuman's A-pose
+  (`rest_pose` in the config) and the shoulder weights blurred. Hair is new (grown cards, not the
+  `short04` helmet); the skin is re-tinted and gets a stubble mask; the shoes have laces.
+- **Game shaders.** `HeroLook` puts the skin, hair and tracksuit on `shaders/hero_*.gdshader`
+  with the `hero_x_*` maps (pores and stubble tiling on the face, T-zone oil, SSS on Forward+;
+  anisotropic hair with dithered cut-out; velour pile and sheen, and rest / bent fold maps mixed
+  per joint by the pose).
+- **Hands on the guns** (the part that took longest). `tools/grip_fit.gd` measures the hold
+  headless and fits it. What it found, which a screenshot would not have shown: (1) the idle
+  clip turns the hips and shoulders through 50-75 degrees as it shifts weight, and the support
+  hand came off the handguard by up to 23 cm every couple of seconds - `AimTwist` now holds the
+  chest against the clip (`Avatar.stance_hold`); (2) with the bladed stance the gun had been
+  placed from the clip's shoulder, 18 cm from where the stance put it, so the butt sat 12 cm
+  inside the chest - the gun is now placed from the stance's shoulder and the fitter seats the
+  butt in the shoulder pocket (the launcher on top of the shoulder); (3) switching guns looked
+  like a bug for a while, and was (1); (4) the hip carry could not reach the handguard at all,
+  and is now fitted too (`AIM=0 FIT=1`); (5) a report taken three frames after equipping reads
+  the gun a third of the way up, and a hand measured against where the gun is a frame later
+  missed by 20 cm at walking speed (the fitter now captures both at the same moment). Final
+  fit: palms 8-14 mm off the grip side (13 wanted), index tips 11-12 mm from the trigger face,
+  right thumbs 20-28 mm off the far side (`thumb_wrap`), support fingertips 2-21 mm off the
+  handguard / pump / fore grip, butts within 1 cm of their seats (the launcher 2.5 cm), both
+  wrists on their targets aimed and at the hip, standing, walking and running (the hip carry
+  and the shotgun keep 5 cm of arm spare for the walk's bob).
+- **Performance.** One skinned mesh, 15 surfaces, 120.6k triangles at LOD0 (Godot generates the
+  LODs), and a 9k-triangle shadow twin: the body itself casts no shadow.
+- **Cycles previews that match the game**: `tools/hero/render.py --hero` rebuilds the hero
+  shaders in nodes, `--pose` takes a `grip_fit.gd POSE_OUT` dump and imports the gun where the
+  game holds it (views `grip_right`, `grip_left`, `grip_front`, `grip_above`).
+
+Known gaps: the right thumbs still stop 2-3 cm short of the far side of the grip; nothing on
+the hero has been seen on the owner's Mac; the idle's hip turn now shows as the legs pivoting
+under a still chest while a gun is held, which reads as shifting weight but has not been judged
+in motion; the skin is 60.8k of the 120.6k triangles (face, hands, neck at one subdivision)
+and could lose a third without showing. Texture memory: about 31 MB VRAM for the hero's 24
+textures (S3TC with mips).
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is

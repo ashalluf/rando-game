@@ -886,15 +886,38 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
-  `assets/models/hero.glb`, built in Blender with MPFB2 from CC0 MakeHuman assets plus our own
-  tracksuit, chain and watch (sources in `docs/ASSETS.md`). 54 bones: the crowd rigs' 24 names
-  plus 30 finger bones, cm under a 0.01 armature, facing +Z, the same three clips. It keeps its
-  own 15 materials (`Player.avatar_look = -1`; the crowd shader would paint them all as skin),
-  `Avatar._velour_sheen()` gives the tracksuit its rim lobe back (the importer drops it), and
-  `GripHands.fingers` (built by `Avatar._grip_fingers()` from the rest pose) closes each finger
-  joint round the gun about the axis that swings its tip toward the palm - `finger_curl`,
-  `trigger_curl`, `thumb_curl`, `palm_curl_sign` on Avatar. The crowd tracksuit code
-  (`Pedestrian.tracksuit_material()`, `add_piping()`) is kept for dressing a crowd rig.
+  `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
+  MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and
+  hair cards (sources in `docs/ASSETS.md`). `tools/hero/setup.sh` fetches Blender, MPFB and the
+  asset pack into the ignored `build/hero_src/` (it gets a `.gdignore`); `tools/hero/build.sh`
+  runs the steps (body, tracksuit, jewellery, shoes, hair, texspace, textures, finalize, export;
+  `build.sh <step>` restarts from one, `--only` runs just it, `--render` adds Cycles previews),
+  about 15 minutes; every number is in `tools/hero/hero_config.json`. Then `godot --headless
+  --path . --import`, `python3 tools/fix_texture_imports.py assets/models` (put back any
+  unrelated `.import` it touches) and commit the `.glb`, the `hero_hero_*` textures Godot
+  extracts, the `hero_x_*` maps and every `.import`. 54 bones: the crowd rigs' 24 names plus 30
+  finger bones, cm under a 0.01 armature, facing +Z, the same three clips, bound with the arms
+  lower than MakeHuman's A-pose (`rest_pose` in the config) so hanging arms skin without square
+  shoulder pads. Garment edges are plane cuts with real cross-section bands (a face-by-face
+  pick left the collar ragged), and **fold normals are never ray-baked**: `folds.py` is a fold
+  field on the 3D surface and `texspace.py` rasterises the UV layout to rest-pose points so
+  `prep_textures.py` derives every map analytically (the bake put inverted normals in both
+  armpits - the dark shoulder patch). The same field gives a second, closed-joint fold map and a
+  per-joint mask. `HeroLook` (`scripts/player/hero_look.gd`) dresses him in the game: by
+  material name it swaps skin, hair, brows and tracksuit onto `shaders/hero_skin.gdshader`
+  (tiling pores and stubble over the body maps, T-zone oil, SSS and transmittance on Forward+,
+  BACKLIGHT on Compatibility), `hero_hair.gdshader` (root-to-tip colour, the card's own
+  occlusion from UV2, dithered alpha scissor, anisotropic highlight along the strands) and
+  `hero_cloth.gdshader` (rest and bent fold maps mixed per joint, velour pile and sheen), wets
+  the eyes and the watch glass with a clearcoat, and draws his shadow from `hero_shadow`, a
+  9k-triangle twin (`SHADOWS_ONLY`; the body casts none). The `hero_x_*` maps are not in the
+  glTF: they sit next to it and must be committed. `HeroLook.update()` turns the elbow and knee
+  angles into the folds' `wrinkle_weights` on `Skeleton3D.skeleton_updated` - read anywhere
+  else, a pose is the clip's, without the IK. Knobs on Avatar: `skin_sss`, `stubble`, `pores`,
+  `hair_anisotropy`, `velour_rim`, `velour_sheen`. Cycles previews that match the game:
+  `tools/hero/render.py --hero` (the same recipe in nodes) and `--pose` (see Player body). The
+  crowd tracksuit code (`Pedestrian.tracksuit_material()`, `add_piping()`) is kept for dressing
+  a crowd rig.
 - Player body: `Avatar` (`scripts/player/avatar.gd`, built by `Player._build_avatar()` from
   `avatar_model`, one of `Pedestrian.MODELS`): idle / walk / run clips picked by speed, frozen or
   slowed stride in the air, forward lean while boosting. The orange capsule in `player.tscn` is
@@ -906,8 +929,24 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   wrists onto `Weapon.grip_right` / `grip_left` (elbows steered by poles), and `GripHands` (a
   SkeletonModifier3D after it) turns each hand to `grip_*_fingers` / `grip_*_palm`. On these
   rigs a hand bone's +Y runs along the fingers. Keep every grip within 0.52 m of its shoulder or
-  the arm locks straight short of it. The rigs have no finger bones, so a hand cannot curl round
-  a grip. Judge it with `tools/glshot/hero_shot.gd` (WEAPON, AIM, YAW, CAM_DIST, DEBUG).
+  the arm locks straight short of it. Before the IK, `AimTwist` (`scripts/player/aim_twist.gd`)
+  holds the chest in a shooting stance: it blades the spine by `Weapon.hold_twist` (hip, aimed
+  degrees) with the neck and head turned back to the sights, and with `Avatar.stance_hold` it
+  takes back the clip's own turn of the shoulders - the idle swings them 75 degrees as it shifts
+  weight, which took the support shoulder 30 cm off the gun and the hand with it. The gun is
+  placed from the shoulder the stance leaves (`AimTwist.shoulder`), not the clip's. The hero has
+  finger bones: `GripHands.fingers` closes every joint round the gun by the gun's own curls
+  (`Weapon.curl_right`, `curl_trigger`, `curl_thumb`, `curl_left`, `curl_left_thumb`, degrees
+  per joint; the crowd rigs have no fingers and ignore them). Every hold number is **fitted,
+  not guessed**: `tools/grip_fit.gd` runs the IK headless and scores the hands against each
+  gun's grips as measured from `tools/make_weapons.py` (palm on the grip, fingers round it,
+  index on the trigger, thumb round the far side, support hand round the handguard / pump / fore
+  grip, the butt in the shoulder pocket, the launcher on top of the shoulder); `FIT=1` walks the
+  numbers downhill and prints the lines to paste into the gun's `_init()`, `TRACE=150` prints
+  the reach over time, `POSE_OUT=` dumps the pose for `tools/hero/render.py --pose` (Cycles
+  close-ups of the same hold). Let the gun finish rising before measuring (`raise_speed`; three
+  frames in, a report reads the gun a third of the way up). Judge it with
+  `tools/glshot/hero_shot.gd` (WEAPON, AIM, YAW, CAM_DIST, CAM_Y, CAM_FWD, DEBUG).
   `Pedestrian.prepare_rig()` is the shared fix
   for every instantiated rig (AABB, materials). Knocked pedestrians become `Ragdoll`s that keep
   the same rigged model as one tumbling body (`build_from_rig`); far pedestrians move and animate
