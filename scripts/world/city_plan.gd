@@ -20,14 +20,30 @@ const DISTRICTS := {
 	District.DOWNTOWN: {
 		# 18 m at the bottom, not 50: a 50 m floor meant downtown had no low-rise in it at all
 		# (the measured minimum was 50.0 m, the area-weighted 25th percentile 101.9 m), and a
-		# skyline is the gap between the infill and the towers. 160 at the top because the core
-		# lerps the top by 2.2x (city_chunk._build_lots), so the nominal ceiling there is 352 m.
+		# skyline is the gap between the infill and the towers. 160 at the top at the district's
+		# edge; toward the core the band lerps to core_height below (it used to lerp the top by
+		# 2.3x, to 368 m - generic towers over the landmark ones).
 		"height": Vector2(18.0, 160.0), "lot": Vector2(28.0, 46.0), "gap": Vector2(2.0, 5.0),
 		# SLAB twice, for the infill. Every other shape here has a floor baked into
 		# Building._layout_parts - a CROWN is never under 50 m, a SETBACK never under 40, a TOWER
 		# never under 30, STEPPED never under 15 - so without a shape that has none the 18 m
 		# bottom is unreachable. SLAB also caps itself at 40 m, which is the infill tier.
 		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN, Building.Shape.CROWN, Building.Shape.STEPPED],
+		# The financial core between the landmark towers (MacroMap.downtown_core, skyline_boost
+		# 1): a field of 80-200 m towers, not low-rise with the odd spike. The band is what
+		# lot_height() lerps to as the boost rises; the flatter curve moves the median up to
+		# ~105 m where the district curve would leave it at 70; the top stops at 205 so the
+		# named towers (163-335 m) keep the skyline's peaks to themselves. SLAB never goes over
+		# 40 m (Building._layout_parts), so the core draws from shapes that can reach the height
+		# the far tier (Skyline) draws for the lot.
+		"core_height": Vector2(40.0, 205.0), "core_curve": 1.35,
+		"core_shapes": [Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN,
+			Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.STEPPED],
+		# Fewer pocket gardens between the towers of the core: 0.5 at the edge, 0.15 inside.
+		"core_courtyard": 0.15,
+		# And more stone: the real core is as much granite and precast as glass, and a field of
+		# glass towers around the named ones read as one dark mass in every wide shot.
+		"core_finishes": [Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.PANELS],
 
 		"finishes": [Building.Finish.GLASS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS],
 		"lit": Vector2(0.3, 0.6), "park": 0.05, "plaza": 0.12, "trees": 0.35, "courtyard": 0.5,
@@ -114,6 +130,20 @@ var industrial_start_radius: float = 260.0
 ## Optional big-picture map. When set, it decides districts and zones (ocean, beach, hills).
 var macro: MacroMap
 
+## The downtown street grid, the same for every seed: [position, width] per road, per axis
+## (AXIS_X: the north-south avenues, AXIS_Z: the east-west streets). The downtown towers are
+## fixed landmarks (LandmarkDowntown) and each stands in a particular block, so the blocks have
+## to be where the towers are whatever the seed - on any other seed an unpinned grid ran roads
+## straight through them. These are the default seed's own roads, to the last bit, so that city
+## does not move by a millimetre; on other seeds the seeded blocks either side stretch or split
+## to meet them (_next_road).
+const PINNED_ROADS := [
+	[[409.37879180908203, 14.0], [507.7798385620117, 24.0], [589.1617813110352, 24.0], [660.7405776977539, 24.0],
+		[734.894157409668, 24.0], [824.2449493408203, 14.0], [932.5944137573242, 24.0]],
+	[[228.40353, 24.0], [337.9709, 14.0], [417.44156, 14.0], [536.65106, 24.0],
+		[654.6276397705078, 24.0], [730.2834, 14.0], [837.092414855957, 24.0], [907.1332855224609, 14.0]],
+]
+
 var _industrial_quadrant: int = -1
 var _road_pos: Array[Dictionary] = [{0: 0.0}, {0: 0.0}]
 var _road_width: Array[Dictionary] = [{}, {}]
@@ -140,7 +170,7 @@ func road_pos(axis: int, i: int) -> float:
 			j -= 1
 		var pos: float = cache[j]
 		while j < i:
-			pos += _block_size(axis, j)
+			pos = _next_road(axis, j, pos)
 			j += 1
 			cache[j] = pos
 		return pos
@@ -155,10 +185,31 @@ func road_pos(axis: int, i: int) -> float:
 	return pos
 
 
+## The road after road `j` (at `pos`) going up the axis: a seeded block on, unless that would
+## land within a minimum block of the next pinned road or past it, in which case the pinned road
+## (or, when the gap is more than a block and a half, a road halfway to it first).
+func _next_road(axis: int, j: int, pos: float) -> float:
+	var step := _block_size(axis, j)
+	for pin: Array in PINNED_ROADS[axis]:
+		var at: float = pin[0]
+		if at <= pos + 1.0:
+			continue
+		if pos + step > at - block_size_range.x:
+			var gap := at - pos
+			return pos + gap * 0.5 if gap > block_size_range.y + 10.0 else at
+		return pos + step
+	return pos + step
+
+
 func road_width(axis: int, i: int) -> float:
 	var cache: Dictionary = _road_width[axis]
 	if cache.has(i):
 		return cache[i]
+	var at := road_pos(axis, i)
+	for pin: Array in PINNED_ROADS[axis]:
+		if absf(float(pin[0]) - at) < 0.01:
+			cache[i] = float(pin[1])
+			return cache[i]
 	var is_avenue := posmod(i, avenue_every) == avenue_every - 1 or _rng_for(2 + axis, i, 0).randf() < 0.15
 	var w := avenue_width if is_avenue else street_width
 	cache[i] = w
@@ -310,6 +361,10 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 	var nz := maxi(1, floori(inner.size.y / lot_d))
 	var cell := Vector2(inner.size.x / nx, inner.size.y / nz)
 	var gap_range: Vector2 = params.gap
+	# Pocket gardens thin out toward the core (the roll is made either way, so nothing moves).
+	var courtyard: float = float(params.courtyard)
+	if macro and params.has("core_courtyard"):
+		courtyard = lerpf(courtyard, float(params.core_courtyard), macro.skyline_boost(rect.get_center()))
 	var blocked: Array[Rect2] = []
 	if macro:
 		for lm in Landmarks.all():
@@ -325,7 +380,7 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 	for lx in nx:
 		for lz in nz:
 			var edge := lx == 0 or lz == 0 or lx == nx - 1 or lz == nz - 1
-			var yard: bool = (not edge) and rng.randf() < float(params.courtyard)
+			var yard: bool = (not edge) and rng.randf() < courtyard
 			var gap := rng.randf_range(gap_range.x, gap_range.y)
 			var lot_size := cell - Vector2(gap, gap)
 			if lot_size.x < 6.0 or lot_size.y < 6.0:
@@ -349,10 +404,30 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 func lot_height(lot_seed: int, district: int, boost: float) -> float:
 	var params: Dictionary = DISTRICTS[district]
 	var heights: Vector2 = params.height
-	var h_low: float = lerpf(heights.x, heights.x * 1.45, boost)
-	var h_top: float = lerpf(heights.y, heights.y * 2.3, boost)
+	var core: Vector2 = params.get("core_height", Vector2(heights.x * 1.45, heights.y * 2.3))
+	var h_low: float = lerpf(heights.x, core.x, boost)
+	var h_top: float = lerpf(heights.y, core.y, boost)
 	var curve: float = 1.0 + log(h_top / maxf(h_low, 1.0)) / log(4.0)
+	if params.has("core_curve"):
+		curve = lerpf(curve, float(params.core_curve), boost)
 	return lerpf(h_low, h_top, pow(float(absi(hash([lot_seed, "massing"])) % 100003) / 100003.0, curve))
+
+
+## The shapes a lot's building may take: the district's, or its core set where the skyline boost
+## is high (see DISTRICTS DOWNTOWN "core_shapes").
+static func lot_shapes(district: int, boost: float) -> Array:
+	var params: Dictionary = DISTRICTS[district]
+	if boost > 0.55 and params.has("core_shapes"):
+		return params.core_shapes
+	return params.shapes
+
+
+## ... and the finishes it may wear ("core_finishes" in the same place).
+static func lot_finishes(district: int, boost: float) -> Array:
+	var params: Dictionary = DISTRICTS[district]
+	if boost > 0.55 and params.has("core_finishes"):
+		return params.core_finishes
+	return params.finishes
 
 
 func _rng_for(kind: int, a: int, b: int) -> RandomNumberGenerator:
