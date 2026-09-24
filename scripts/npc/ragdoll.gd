@@ -329,7 +329,7 @@ func _limb_blood() -> bool:
 			continue
 		var last: Vector3 = entry[2]
 		if last == Vector3.INF:
-			WeaponFX.blood_splat_below(self, limb.global_position, randf_range(0.3, 0.45))
+			WeaponFX.blood_splat_below(self, limb.global_position, randf_range(0.6, 0.9))
 			entry[2] = gp
 			entry[1] = int(entry[1]) - 1
 		elif gp.distance_to(last) > 0.35 and limb.linear_velocity.length() > 0.8:

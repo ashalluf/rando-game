@@ -1135,8 +1135,8 @@ static func _bleed(node: Node, at: Vector3, dir: Vector3, strength: float, victi
 		# even cone read as a handful of separate beads; the jet is what reads as blood leaving.
 		var drops := clampi(int(float(blood_drops) * (0.6 + 0.4 * s)), 8, 140)
 		var speed := blood_exit_speed * (0.9 + 0.1 * s)
-		_track(_drop_layer(parent, exit_at, _count(drops * 3 / 5), 0.85, speed, _basis_up(d), cone, 1.0 + 0.1 * s))
-		_track(_drop_layer(parent, exit_at, _count(drops * 2 / 5), 0.7, Vector2(speed.y * 0.7, speed.y * 1.15),
+		_track(_drop_layer(parent, exit_at, _count(int(drops * 0.6)), 0.85, speed, _basis_up(d), cone, 1.0 + 0.1 * s))
+		_track(_drop_layer(parent, exit_at, _count(int(drops * 0.4)), 0.7, Vector2(speed.y * 0.7, speed.y * 1.15),
 			_basis_up(d), cone * 0.35, 0.8 + 0.1 * s))
 		_track(_mist_layer(parent, exit_at, _count(int(4 + 2 * s)), 0.34 + 0.08 * s, 0.9, _basis_up(d), cone * 2.0, 1.0))
 		blood_stats["exit_sprays"] += 1
@@ -1179,10 +1179,12 @@ static func _prune(list: Array) -> void:
 			list.remove_at(i)
 
 
-## Frees the oldest marks of one list until it is back under its cap.
+## Frees the oldest marks of one list until it is back under its cap. Halved on the web, where
+## every mark is its own transparent quad rather than a decal in the clustered pass.
 static func _trim(list: Array, cap: int) -> void:
 	_prune(list)
-	while list.size() > maxi(cap, 0):
+	var limit := maxi(int(cap * 0.5) if _web() else cap, 0)
+	while list.size() > limit:
 		var old: Object = list.pop_front()
 		if is_instance_valid(old):
 			(old as Node).queue_free()
@@ -1389,12 +1391,14 @@ static func _land_drops(parent: Node, space: PhysicsDirectSpaceState3D, from: Ve
 	for i in n:
 		var v: Vector3
 		var size: float
+		# Sizes are the mark's square; the splash itself is about two fifths of it, the rest is
+		# its crown and the satellite drops. At half these, a still at ten metres showed specks.
 		if i == 0:
 			v = d * randf_range(0.2, 0.9) + Vector3(randf_range(-0.25, 0.25), -0.5, randf_range(-0.25, 0.25))
-			size = randf_range(0.30, 0.46) * (0.8 + 0.2 * strength)
+			size = randf_range(0.75, 1.05) * (0.8 + 0.2 * strength)
 		else:
 			v = _cone(d, blood_exit_cone * (0.9 + 0.1 * strength)) * randf_range(blood_exit_speed.x, blood_exit_speed.y)
-			size = randf_range(0.10, 0.26) * (0.9 + 0.1 * strength)
+			size = randf_range(0.26, 0.55) * (0.9 + 0.1 * strength)
 		var p := from
 		var t := 0.0
 		while t < 1.4:
@@ -1604,7 +1608,6 @@ static func _splat_material(kind: int) -> StandardMaterial3D:
 	m.roughness = 1.0
 	m.roughness_texture = tex[2]
 	m.roughness_texture_channel = BaseMaterial3D.TEXTURE_CHANNEL_GREEN
-	m.metallic_specular = 0.65
 	_splat_mats[kind] = m
 	return m
 
@@ -1894,7 +1897,9 @@ static func _shade_blood(f: PackedFloat32Array, w: int, h: int, rng: RandomNumbe
 			# OpenGL-style map (green up): the image's rows run down, so the Y slope flips.
 			var nv := Vector3(-dx, dy, 1.0).normalized()
 			nrm.set_pixel(x, y, Color(nv.x * 0.5 + 0.5, nv.y * 0.5 + 0.5, nv.z * 0.5 + 0.5, 1.0))
-			var rough := lerpf(0.34, 0.05, body) + 0.06 * n
+			# Wet, not a mirror: at 0.05 the thick middles reflected the sky at any grazing angle
+			# and a splat ten metres off read as a pale pink smudge instead of blood.
+			var rough := lerpf(0.42, 0.2, body) + 0.06 * n
 			orm.set_pixel(x, y, Color(1.0, clampf(rough, 0.03, 1.0), 0.0, 1.0))
 	var out: Array = []
 	for img: Image in [alb, nrm, orm]:
