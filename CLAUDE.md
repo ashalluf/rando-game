@@ -962,6 +962,9 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the
   streamer shifts every Node3D child). Store true world positions only via `WorldState.to_world()`.
+  A node under one of those shifted children is placed relative to its parent, not as if the
+  parent sat at the origin: TrafficManager's spawns set `WorldState.to_local(p) - position`
+  (before that, every car spawned after the first re-centre landed the whole offset away).
 - Building windows use **interior mapping**: `shaders/building.gdshader` traces the view ray
   into a virtual room behind each pane and shades whichever inner surface it reaches, so windows
   have true parallax (lean left, see the room's right wall) instead of glass painted on a wall.
