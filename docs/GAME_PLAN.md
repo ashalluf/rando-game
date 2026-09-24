@@ -92,7 +92,9 @@ What only the owner can supply, and why each one multiplies everything below:
 - **Miniature Los Angeles layout** (asked 2026-09-19): a coastline with beach and ocean, a hill with
   big letters, a pier with a Ferris wheel, a recognisable skyline of specific towers. Keep everything
   legally distinct: original sign text, original pier name, towers inspired by but not copies of
-  real ones (the real sign, pier sign and some towers are trademarked).
+  real ones (the real sign, pier sign and some towers are trademarked). Amended 2026-09-24 by the
+  owner for downtown only: its skyline follows the real towers' massing, names and logos stay
+  original (see the decisions log).
   - [x] Push 1: macro map with ocean, beach, hills, peninsula, district placement (`MacroMap`).
   - [x] Push 2: the hill sign ("RANDOWOOD"), the pier ("RANDO PIER") with a spinning Ferris wheel,
     a coaster loop, booths and lamps, and the observatory with three domes and a terrace.
@@ -254,6 +256,27 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-09-24 Downtown is the real downtown's skyline, with original names (owner: "the
+  downtown skyline [must] become a 1:1 match of DTLA skyline ... It needs more buildings").**
+  What is matched is the massing: which towers, where they stand relative to each other, their
+  heights in real metres, their silhouettes, crowns and facade character. What is not: names and
+  logos - every tower has an invented name and no crown carries lettering. The rule "nothing
+  copied" in the landmarks note is amended for downtown only. Nineteen towers (the 335 m sail
+  with its spire on the west edge; the 310 m round tower with the crenellated, lit glass crown;
+  the 262 m white granite slab; the 229 m blue elliptical crown and the 229 m rounded crown with
+  its 176 m sister; the 224 m bronze slab; the 221 m curved white tower; the 220 m / 192 m red
+  granite pair with angled tops; the 218 m stepped glass pyramid; the 213 m black twins; the
+  191 m smoked glass tower; the 163 m pyramid and spire; the five mirrored drums; four slender
+  South Park towers with twisting and staggered balconies and an unfinished cluster with its
+  crane still up). Heights 1:1, plan at about 2/3 (one real block to one game block), footprints
+  near real, so the towers stand a little closer together than in life. The downtown street
+  grid is now pinned for every seed (the default seed's own, so that city did not move) because
+  the towers are fixed; the blocks between them are a denser, taller core (80-205 m infill that
+  never out-tops a named tower). Every tower is one mesh on the building shader's new outline
+  mode, so round and curved towers get the same windows, rooms and lit offices as the boxes,
+  with lit crowns and red obstruction lights at night; the far copy that makes the skyline from
+  the beach and the hills is the same mesh.
 
 - **2026-09-24 A living sky (owner: "helicopters, police choppers, news choppers, private jets
   flying thru the sky, commercial jets taking off and landing at LAX").** `AirTraffic` flies

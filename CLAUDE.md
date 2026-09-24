@@ -792,9 +792,55 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (the boardwalk batches them as `palm_<variant>`); their old hand-built stick-and-frond palms
   are kept only for the far version, where they read as a silhouette and nothing more. Up close
   they looked like spiders.
-- Landmarks: `Landmarks.all()` lists them (id, world anchor, radius); `Landmarks.build()` makes
-  one, detailed (with a StaticBody3D for shapes) or far (no collision). Add a new one by adding an
-  entry and a `_build_<id>()` function. Everything original: no real names, logos or copies.
+- Landmarks: `Landmarks.all()` lists them (id, world anchor, radius; built once and cached, so
+  never modify what it returns); `Landmarks.build()` makes one, detailed (with a StaticBody3D for
+  shapes) or far (no collision). Add a new one by adding an entry and a `_build_<id>()` function.
+  Everything original: no real names, logos or copies - with ONE exception, by owner request
+  (2026-09-24): **downtown's skyline follows the real DTLA massing** (which towers, where they
+  stand relative to each other, relative heights at real metres, silhouettes, crowns, facade
+  character). **Names and logos stay original**: no real building, company or brand name in any
+  game text or on the minimap, and no lettering on any crown. Code ids are neutral (`dt_*`).
+- Downtown skyline (owner, 2026-09-24: "a 1:1 match of DTLA skyline ... It needs more
+  buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
+  landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add
+  theirs elsewhere; the civic centre and the arena district are not these). **Everything about
+  a tower's placement is ONE table, `LandmarkDowntown.TOWERS`**: anchor, radius, height (real
+  metres: the 335 m sail with a spire, the 310 m round tower with the lit glass crown, the 262 m
+  white slab, ...), plan (checked against the built geometry), crown, and an APPROXIMATE real
+  position in metres east/north of `REAL_ORIGIN` with a real footprint, for the planned 1:1
+  re-lay (`real_grid()` turns it into the real street grid's frame). `Landmarks.all()` appends
+  `LandmarkDowntown.entries()`, so a re-lay changes the table, the pinned grid and the core
+  rects. The current plan is the real grid laid one real block to one game block (about 2/3
+  scale) with footprints near real size. Each tower is built by
+  `TowerMesh` (`scripts/world/tower_mesh.gd`): outlines (rect, chamfered, notched, circle,
+  ellipse, rounded, bowed, `union()`) extruded into tiers with setbacks (`prism`, `sloped`), and
+  `loft` / `wedge` / `vault` / `spike` / `mast` / `fins` / `balcony` for crowns and details, all
+  into ONE ArrayMesh per tower: a facade surface per material on `shaders/building.gdshader` in
+  its **`uv_facade` mode** (UV.x = metres round the outline, each face a whole number of bays so
+  no window straddles a corner; UV.y = face index, 100+ = blank wall - so round and curved towers
+  get the same traced recesses, rooms, lit offices and emitted glass mirror as the boxes), a
+  vertex-coloured metal surface, and a lit-crown surface on `shaders/tower_crown.gdshader`
+  (glass by day, `night_factor` glow in the vertex colour at night). Aviation lights are one
+  billboard mesh on `shaders/aircraft_lights.gdshader`; each tower carries its own
+  `OccluderInstance3D` (boxes inset like `CityChunk.OCCLUDER_INSET`) and, detailed, convex-hull
+  collision per tier plus a small detail mesh. Meshes are cached per id, so the far copy
+  `CityStreamer` keeps (the skyline from the freeway, hills and beach) and the detailed one a
+  chunk builds are the same geometry. **Rules:** outlines have positive signed area in (x, z)
+  (NW, NE, SE, SW), `TowerMesh.clean()` fixes any other; facade surfaces never carry vertex
+  colour (SurfaceTool fixes a surface's format at its first vertex); every tower must stay
+  inside its block less the pavement (`LandmarkDowntown.footprint()`, checked by the smoke test
+  on this seed and another). The blocks are fixed because **`CityPlan.PINNED_ROADS`** pins the
+  downtown street grid for every seed - the default seed's own roads to the last bit, so that
+  city did not move; on other seeds the seeded blocks either side stretch or split to meet them
+  (`CityPlan._next_road()`). Between the towers, `MacroMap.downtown_core` (two rects) +
+  `core_margin` make the district DOWNTOWN and the skyline boost 1, and DISTRICTS DOWNTOWN's
+  `core_height` / `core_curve` / `core_shapes` / `core_finishes` / `core_courtyard` turn the
+  infill into a field of 40-205 m towers, a quarter of them over 130 m (never over the named
+  ones; no SLAB, which caps itself at 40 m and would disagree with the far tier's box; more
+  stone than glass). The minimap only labels a pin with `LABEL_ROOM` pixels of
+  room. Stills: the skyline from the south-west `--spawn=-50,1250,-43,5,80`, from the hills
+  `--spawn=350,-950,-170,-9,380`, on the avenue `--spawn=589.2,860,0,16,2`, with `HIDE=Visual`
+  on `tools/glshot/city_shot.gd` (hides the player, who otherwise stands in the middle of it).
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

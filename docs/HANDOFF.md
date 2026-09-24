@@ -1096,6 +1096,59 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
+## 9l. The downtown skyline, 2026-09-24 (owner: "a 1:1 match of DTLA skyline ... more buildings")
+
+Built on an agent branch; the rules are the Downtown skyline bullet in CLAUDE.md. The decision
+that shapes everything: **massing yes, names no.** Which towers stand where, their heights in
+real metres, their silhouettes, crowns and facade character follow the real downtown; every name
+(code ids `dt_*`, minimap labels) is invented and no crown carries lettering. What a next
+session needs to know:
+
+- **Where they are and why there.** The real grid is laid one real block to one game block on
+  the default seed's downtown streets: the avenues at x 507.8 / 589.2 / 660.7 / 734.9 / 824.2
+  and the streets from z 228 to 907. So the sail stands west of the first avenue; the drums,
+  the black twins, the pyramid, the spire and the curved tower down the next column; the dark
+  glass, bronze and white slabs and two South Park towers in the next; the round crown and the
+  red pair up the hill; the rounded pair, the blue crown and the unfinished cluster to the east.
+  City hall (`ziggurat_hall`, 810,160) is the civic branch's and sits north-east of the core, as
+  the real one does; nothing of this branch is north of z 244 or west of x 416, so the civic
+  centre, the station and the arena district (which another branch is placing west and south
+  west of the core) have their ground.
+- **The grid is pinned** (`CityPlan.PINNED_ROADS`, `_next_road()`): same roads on every seed,
+  so fixed towers never land in a street. The pinned values are the default seed's, bit for bit
+  (printed with `var_to_str`), so the default city is unchanged; a check walks another seed.
+  If a future change moves the downtown grid, re-derive both the pins and the anchors in
+  `Landmarks.all()` together, and the smoke test will say which tower left its block.
+- **One mesh per tower.** `TowerMesh` extrudes outlines into tiers; the facade is the ordinary
+  building shader in its `uv_facade` mode (UV.x metres round the outline, whole bays per face,
+  UV.y 100+ blank wall), so curves get windows, rooms and lit offices. Crowns are a separate
+  lit surface (`shaders/tower_crown.gdshader`), obstruction lights reuse the aircraft light
+  billboards. A whole tower is 60-1,900 triangles (the balconied South Park towers 3-7k); all
+  nineteen are about 25k and build in ~150 ms, once, at load - the far copy and the detailed one
+  share the mesh. Each carries an occluder, so the towers now also hide the city behind them.
+- **One table** (`LandmarkDowntown.TOWERS`) holds every tower's anchor, radius, height, plan
+  (checked against the built geometry by the smoke test), crown, and an APPROXIMATE real position
+  in metres east/north of `REAL_ORIGIN` (34.0500 N, 118.2550 W) with an approximate real
+  footprint, for the owner's next step: the whole downtown re-laid 1:1 (real blocks, real
+  streets, true distances), other real areas as 1:1 replica areas with seeded filler between.
+  `real_grid()` rotates a real position into the real street grid's frame (avenues about 45
+  degrees east of north). The real positions are from memory of public maps, good to perhaps
+  +/-50 m: check them before building on them. `Landmarks.all()` appends the table's rows
+  (`LandmarkDowntown.entries()`), so a re-lay changes the table, `CityPlan.PINNED_ROADS` and
+  `MacroMap.downtown_core`, and nothing else.
+- **The infill** (`MacroMap.downtown_core`, DISTRICTS DOWNTOWN `core_*`): the blocks between the
+  towers get 40-205 m towers (median ~75, a quarter over 130 m), no slabs, fewer pocket gardens,
+  more stone. The old downtown boost lerped the top to 368 m, so generic towers could out-top
+  the landmarks.
+- **Measured**: see the table below (tools/geo_count.gd, opengl3, 800x600, one frame).
+- **Not done / not verified**: nothing here has been seen in Forward+ (the renders were all
+  opengl3; the box was full of other agents' lavapipe renders). Crown glow and the lit offices
+  on curved towers want a Forward+ dusk still. The towers have no interiors or lobbies, no
+  street-level retail beyond the storefront band, and the plazas (fountains, sculpture) are a
+  few boxes. Bunker Hill is not a hill: the relief is flat under landmarks. Collision is one
+  convex hull per tier, so the notches of the round tower's wings are filled in. The generic
+  core towers are the city's usual boxes; the next step up is a glass-tower facade kit.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
