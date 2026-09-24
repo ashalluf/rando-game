@@ -99,6 +99,43 @@ func _same_city(streamer: CityStreamer) -> void:
 		lod.free()
 		cap.free()
 	_t._check(checked > 0 and same == checked, "the far city's massing is the LOD chunk's own, box for box (%d of %d blocks)" % [same, checked])
+	_airport_ground(streamer)
+
+
+## Outside the city a far plate wears the colour the LOD chunk's ground is really drawn in (the
+## airport apron is road() at a tint of 1.25 - three times what the city's far ground rule gave,
+## so the far airport was a dark slab beside a pale near one), and a runway is its own strip.
+func _airport_ground(streamer: CityStreamer) -> void:
+	var plan: CityPlan = streamer.plan
+	var macro := plan.macro
+	if macro == null:
+		return
+	var k: Vector2i = plan.block_index_at(Vector2(macro.airport_rect.get_center().x, macro.runway_zs[0]))
+	var cap := CityChunk.new()
+	cap.plan = plan
+	cap.ix = k.x
+	cap.iz = k.y
+	cap.level = CityChunk.Level.LOD
+	cap.style = streamer.chunk_style()
+	cap.capturing = true
+	cap.build()
+	var ground: Array = cap.captured.ground
+	var apron := PropFactory.far_albedo(PropFactory.road("asphalt", 8.0, Color(1.25, 1.25, 1.27), 0), Color.BLACK)
+	var sky := Skyline.new()
+	sky.setup(plan, streamer.chunk_style())
+	sky._work = {"xforms": [], "colors": [], "customs": []}
+	sky._add_plate(k, cap.zone, ground, cap)
+	var colors: Array = sky._work.colors
+	var runway := CityChunk.far_tint(streamer.chunk_style().runway, Color.BLACK)
+	var has_runway := false
+	var apron_ok := false
+	for c: Color in colors:
+		has_runway = has_runway or c.is_equal_approx(PropFactory.far_albedo(PropFactory.material(streamer.chunk_style().runway, 0.95), runway))
+		apron_ok = apron_ok or c.is_equal_approx(apron)
+	_t._check(cap.zone == MacroMap.Zone.AIRPORT and ground.size() >= 2 and colors.size() >= 2 and has_runway and apron_ok,
+		"a far airport block wears the apron the chunk draws and its runway as a strip (%d plates)" % colors.size())
+	sky.free()
+	cap.free()
 
 
 ## The build queue puts what the camera looks at first: at equal distance a block ahead of the

@@ -86,6 +86,32 @@ static func lawn(tint: Color, seed_value: int, dryness: float = 0.35, stripes: f
 	return mat
 
 
+## The linear mean albedo of a texture set's colour map, measured from the 1K JPG (numpy over
+## every texel, sRGB decoded). Only for what is seen from so far that it is one colour - the far
+## city's plates under an airport apron or a port yard, which the chunks draw with road() and a
+## tint well above 1. Add a set here when a non-city zone lays its ground with it.
+const TEXTURE_MEAN := {
+	"asphalt": Color(0.0936, 0.0844, 0.0645), "concrete": Color(0.4818, 0.4818, 0.4818),
+	"asphalt_aerial": Color(0.1382, 0.1265, 0.1408), "sidewalk": Color(0.1042, 0.1034, 0.0877),
+}
+
+
+## The colour (LINEAR) a surface drawn with `mat` averages to from a long way off: a road()
+## material is its texture's mean times its tint, a plain material its albedo; anything else is
+## `fallback`. The far city uses it so a plate matches the ground the LOD chunk actually drew.
+static func far_albedo(mat: Material, fallback: Color) -> Color:
+	if mat is ShaderMaterial and mat.has_meta("texture_set"):
+		var mean: Color = TEXTURE_MEAN.get(str(mat.get_meta("texture_set")), Color(-1.0, 0.0, 0.0))
+		var tint = (mat as ShaderMaterial).get_shader_parameter("tint")
+		if mean.r >= 0.0 and tint is Color:
+			var t: Color = (tint as Color).srgb_to_linear()
+			return Color(mean.r * t.r, mean.g * t.g, mean.b * t.b, 1.0)
+	elif mat is StandardMaterial3D and (mat as StandardMaterial3D).albedo_texture == null:
+		var c := (mat as StandardMaterial3D).albedo_color.srgb_to_linear()
+		return Color(c.r, c.g, c.b, 1.0)
+	return fallback
+
+
 ## Worn asphalt for road surfaces (see shaders/road.gdshader). Cached per set, scale, tint and
 ## seed, so every road in a chunk shares one material.
 static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, joints: float = 0.0, wear: float = 1.0) -> ShaderMaterial:
@@ -109,6 +135,7 @@ static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, 
 	mat.set_shader_parameter("patch_amount", 0.30 * wear)
 	mat.set_shader_parameter("crack_amount", 0.5 * wear)
 	mat.set_shader_parameter("stain_amount", 0.32 * wear)
+	mat.set_meta("texture_set", set_key)
 	_cache[key] = mat
 	return mat
 

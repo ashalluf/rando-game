@@ -562,16 +562,46 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int) -> void:
 
 
 ## One plate over the area the chunk owns, top on a plane fitted to the relief, in the average
-## colour its LOD ground is drawn in (CityChunk.far_tint), with the chunk's two roads - on its +X
-## and +Z sides - left for the shader to paint (their widths ride in INSTANCE_CUSTOM.r / .g).
+## colour its LOD ground is drawn in (the far colour the capture recorded for each slab), with the
+## chunk's two roads - on its +X and +Z sides - left for the shader to paint (their widths ride in
+## INSTANCE_CUSTOM.r / .g).
+##
+## Outside the city, ground that crosses the whole block one way (the airport's runways) cuts the
+## plate into strips instead of being averaged into it: a runway is what an airport looks like
+## from the air, and laid as a second plate on top it would fight the first for depth - on the
+## web's depth buffer two surfaces 10 cm apart are one surface a kilometre away.
 func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 	var area: Rect2 = _plan.owned_rect(k.x, k.y)
 	var roads := zone == MacroMap.Zone.CITY
 	var wx: float = _plan.road_width(CityPlan.AXIS_X, k.x + 1) if roads else 0.0
 	var wz: float = _plan.road_width(CityPlan.AXIS_Z, k.y + 1) if roads else 0.0
-	# What the ground looks like from above: sample the block on a grid, later slabs over earlier
-	# ones (the build lays them bottom up), and average the far colour of whatever is on top.
-	var inner := Rect2(area.position, area.size - Vector2(wx, wz))
+	var bands: Array = []
+	if not roads:
+		for i in range(1, ground.size()):
+			var r: Rect2 = (ground[i][0] as Rect2).intersection(area)
+			if r.size.y > 0.0 and r.size.x >= area.size.x - 1.0:
+				bands.append([r.position.y, r.end.y, ground[i][3]])
+		bands.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	var col := _ground_colour(Rect2(area.position, area.size - Vector2(wx, wz)), zone, ground, bands)
+	if bands.is_empty():
+		_plate(k, area, col, wx, wz, ch)
+		return
+	var z := area.position.y
+	for band: Array in bands:
+		var z0 := maxf(float(band[0]), z)
+		if z0 > z + 0.5:
+			_plate(k, Rect2(area.position.x, z, area.size.x, z0 - z), col, 0.0, 0.0, ch)
+		if float(band[1]) > z0 + 0.01:
+			_plate(k, Rect2(area.position.x, z0, area.size.x, float(band[1]) - z0), band[2], 0.0, 0.0, ch)
+		z = maxf(z, float(band[1]))
+	if area.end.y > z + 0.5:
+		_plate(k, Rect2(area.position.x, z, area.size.x, area.end.y - z), col, 0.0, 0.0, ch)
+
+
+## What the ground inside `inner` looks like from above: sampled on a grid, later slabs over
+## earlier ones (the build lays them bottom up), the far colour of whatever is on top averaged.
+## Samples inside `bands` ([z0, z1, colour]) are left out - those get their own plates.
+func _ground_colour(inner: Rect2, zone: int, ground: Array, bands: Array) -> Color:
 	var asphalt: Color = _style.get("asphalt", Color(0.2, 0.2, 0.22))
 	var sum := Color(0.0, 0.0, 0.0, 0.0)
 	var n := 0
@@ -579,35 +609,43 @@ func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 	for gx in GRID:
 		for gz in GRID:
 			var p := inner.position + inner.size * Vector2((gx + 0.5) / GRID, (gz + 0.5) / GRID)
+			var in_band := false
+			for band: Array in bands:
+				if p.y >= float(band[0]) and p.y < float(band[1]):
+					in_band = true
+			if in_band:
+				continue
 			var top: Color = Color(-1.0, 0.0, 0.0)
 			for g: Array in ground:
 				if (g[0] as Rect2).has_point(p):
-					top = g[1]
+					top = g[3]
 			if top.r < 0.0:
 				continue
-			var lin := CityChunk.far_tint(top, asphalt)
-			sum += Color(lin.r, lin.g, lin.b, 0.0)
+			sum += Color(top.r, top.g, top.b, 0.0)
 			n += 1
-	var col := Color(0.12, 0.12, 0.12)
 	if n > 0:
-		col = Color(sum.r / n, sum.g / n, sum.b / n)
-	elif zone == MacroMap.Zone.CITY:
+		return Color(sum.r / n, sum.g / n, sum.b / n)
+	if zone == MacroMap.Zone.CITY:
 		# A block the build laid no ground on (landmark footprints): pavement.
-		col = CityChunk.far_tint(_style.get("sidewalk", Color(0.68, 0.66, 0.62)), asphalt)
-	# The relief under the four corners, fitted with a plane: the plate's top follows it.
-	var h00 := ch._gy(area.position.x, area.position.y)
-	var h10 := ch._gy(area.end.x, area.position.y)
-	var h01 := ch._gy(area.position.x, area.end.y)
-	var h11 := ch._gy(area.end.x, area.end.y)
+		return CityChunk.far_tint(_style.get("sidewalk", Color(0.68, 0.66, 0.62)), asphalt)
+	return Color(0.12, 0.12, 0.12)
+
+
+## One plate instance over `rect`: its top on a plane fitted to the relief under its corners.
+func _plate(k: Vector2i, rect: Rect2, col: Color, wx: float, wz: float, ch: CityChunk) -> void:
+	var h00 := ch._gy(rect.position.x, rect.position.y)
+	var h10 := ch._gy(rect.end.x, rect.position.y)
+	var h01 := ch._gy(rect.position.x, rect.end.y)
+	var h11 := ch._gy(rect.end.x, rect.end.y)
 	var slope_x := ((h10 - h00) + (h11 - h01)) * 0.5
 	var slope_z := ((h01 - h00) + (h11 - h10)) * 0.5
 	var centre_h := (h00 + h10 + h01 + h11) * 0.25
-	var c := area.get_center()
-	var basis := Basis(Vector3(area.size.x, slope_x, 0.0), Vector3(0.0, PLATE_DEPTH, 0.0), Vector3(0.0, slope_z, area.size.y))
+	var c := rect.get_center()
+	var basis := Basis(Vector3(rect.size.x, slope_x, 0.0), Vector3(0.0, PLATE_DEPTH, 0.0), Vector3(0.0, slope_z, rect.size.y))
 	var top_y := centre_h + PLATE_TOP
 	(_work.xforms as Array).append(Transform3D(basis, Vector3(c.x, top_y - PLATE_DEPTH * 0.5, c.y)))
 	(_work.colors as Array).append(Color(col.r, col.g, col.b, 1.0))
-	(_work.customs as Array).append(Color(wx, wz, float(absi(hash([k, "plate"])) % 997) / 997.0, PLATE_FLAG))
+	(_work.customs as Array).append(Color(wx, wz, float(absi(hash([k, "plate", rect.position])) % 997) / 997.0, PLATE_FLAG))
 
 
 ## The freeway deck and pillars the chunk that owns each segment's midpoint would build.

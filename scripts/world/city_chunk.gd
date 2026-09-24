@@ -126,7 +126,8 @@ var _relief_step: float = RELIEF_STEP
 ## the LOD chunk will draw, including anything anyone adds to the block build later: it IS the
 ## block build. Set before begin_build(); the chunk never enters the tree.
 var capturing: bool = false
-## {"ground": [[Rect2, Color (tint), float top], ...], "boxes": [[Transform3D, Color], ...],
+## {"ground": [[Rect2, Color (tint), float top, Color (LINEAR: what the LOD chunk draws there,
+##  seen from afar)], ...], "boxes": [[Transform3D, Color], ...],
 ##  "batch": {key: {"xforms", "colors", "custom"}}} once a capture has run.
 var captured: Dictionary = {}
 
@@ -442,6 +443,11 @@ func _build_airport() -> void:
 		if strip.size.y <= 0.0:
 			continue
 		var sc := strip.get_center()
+		if capturing:
+			# The far city lays the runway into its plate (Skyline._add_plate); nothing below
+			# this rolls the rng at the LOD level, so skipping it changes no later roll.
+			captured.ground.append([strip, style.runway, 0.14, PropFactory.far_albedo(PropFactory.material(style.runway, 0.95), Color.BLACK)])
+			continue
 		var runway := MeshInstance3D.new()
 		runway.name = "Runway"
 		var box := BoxMesh.new()
@@ -2199,7 +2205,13 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 		# Recorded, not built (see `capturing`). A thin slab is ground; anything thicker is a
 		# solid box, lifted by one relief sample at its centre exactly as below.
 		if size.y <= 0.5:
-			captured.ground.append([Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), color, pos.y + size.y * 0.5])
+			# Its far colour is worked out the way the build below would draw it: a city ground
+			# slab goes into the merged ground at far_tint(), anything else is a box wearing its
+			# material (an airport apron, a port yard - road() at a tint well above 1).
+			var far_col := far_tint(color, style.asphalt)
+			if not (zone == MacroMap.Zone.CITY and maxf(size.x, size.z) >= 6.0):
+				far_col = PropFactory.far_albedo(material if material else PropFactory.material(color, 0.95), far_col)
+			captured.ground.append([Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), color, pos.y + size.y * 0.5, far_col])
 		else:
 			captured.boxes.append([Transform3D(Basis().scaled(size), pos + Vector3(0.0, _gy(pos.x, pos.z), 0.0)), color])
 		return
