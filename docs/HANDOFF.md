@@ -1,9 +1,60 @@
-# Handoff: Rando Game (written 2026-09-19; section 9a added 2026-09-21 with the LA pass and the grade)
+# Handoff: Rando Game (written 2026-09-19; section 0 is the newest state, 2026-09-24)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 0. Start here (wrap-up of 2026-09-24, the newest state)
+
+Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
+day's work, newest first, is in 9o (civic set), 9n (skyline), 9m (sound), 9l (how the day ran),
+9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the index.
+
+**Main at wrap-up** is green on CI; the release page has the newest build. Merged on
+2026-09-24 (about 100 commits): window recesses; the Blender-built hero with real finger bones
+in a black tracksuit, chain and watch; the weapon wheel (slow motion, glass UI); Blender-built
+AK, rocket launcher and pump shotgun (the gravity gun is gone), a rocket that flies as its
+warhead with a smoke trail; heavier gunshot blood (sprays, splats, pools, stained clothes);
+police and wanted stars (cruisers, officers, roadblocks, a health bar, "OUT COLD");
+air traffic (airliners landing and taking off at the airport, private jets, news and police
+helicopters with a searchlight); the facade kit (real mouldings, fire escapes, awnings); a
+layered city soundscape; a lens pass (grain, fringing); darker nights with the night GI turned
+down; the downtown skyline (19 towers at real heights and silhouettes, one table,
+`LandmarkDowntown.TOWERS`); and the civic set (arena district, entertainment plaza, hotel,
+convention centre, city hall and park, concert hall, museum, station; one table,
+`CivicSites.SITES`). Both tables carry approximate real positions for the 1:1 re-lay.
+
+**The owner's direction** (2026-09-24, in their words): "AAA studio quality ... like a real 2026
+released game", RDR2-level; "picking certain 1:1 replica areas and then filling them in between
+with whatever" - downtown LA as a whole at 1:1, the Redondo Beach Esplanade curving up into
+Palos Verdes at 1:1 street and view ("geographically sound, like south of LAX"; the owner's
+three Street View references are described in the Esplanade section), MacArthur Park and
+encampments on downtown streets, and "certain areas of the map aren't loading at a distance -
+do whatever GTA does". Always send screenshots. No commercial-readiness audit for now.
+
+**In flight at wrap-up** (agent branches; what happened to each is recorded here):
+
+- AAA pass on the hero (branch `worktree-agent-a21610dd7a24d00b8`): skin, hair, collar, hands.
+- Street life (`worktree-agent-a24169908f67381c9`): traffic signals, crosswalks, cars queueing
+  at red, police routing by road.
+- Redondo Esplanade into Palos Verdes at 1:1 (`worktree-agent-ac988801941b3dc26`): a replica-area
+  framework (`scripts/world/replica_areas.gd`), the esplanade, clay-tile houses, PV hills.
+- MacArthur Park and street encampments (`worktree-agent-ac9773ce9fd50b578`).
+- Distance LOD tiers and streaming (`worktree-agent-a7ca467ec2cbe1961`): the far city filled in
+  to the horizon (before/after panoramas were sent to the owner).
+- 1:1 downtown research (`worktree-agent-ab2c6ac22ca7e5a19`): geocoded anchors and the fitted grid.
+
+STATUS: being merged at wrap-up; this list is updated with the outcome of each.
+
+**How the box was run** (9l has the detail): agents in git worktrees under
+`.claude/worktrees/`, one branch each, merged by the main session after its own headless check;
+Forward+ renders serialised on `<scratchpad>/render.lock` and started only with 8 GB free, GL
+jobs on `gl2.lock`, full smoke tests two at a time through `<scratchpad>/gate_slot.sh`. A fresh
+container has none of that: the scratchpad scripts are gone, recreate what you need (they are
+three lines each, described in 9l). The Godot binary is a fresh download (section 5).
+
+**Next, in order:** see section 10 (rewritten at this wrap-up).
 
 ## 1. What this is, in one paragraph
 
@@ -1145,12 +1196,7 @@ session needs to know:
   all and 3-5 surfaces plus one light billboard each (so roughly 60-100 draws for the whole
   skyline, casting included), built in ~150 ms at load. CPU, headless, the smoke test's
   downtown teleport (`update_streaming(true)` at 742,423): 10.7 s against 10.3 s on the parent
-  commit, on a box loaded by other agents (+4 %, inside the noise). **tools/geo_count.gd was NOT
-  run**: the shared render lock was held by other agents' renders for over an hour. Run it
-  (the invocation in its header, plus `-- --spawn=589.2,860,0,12,2 --hour=12 --nohud` for the
-  avenue and `-- --spawn=-50,1250,-43,5,80 --hour=12 --nohud` for the south-west aerial) on
-  this commit and its parent before deciding the frame cost is fine. Expect more draws in the core than before (taller
-  infill, more of it) and fewer objects behind the towers (their occluders).
+  commit, on a box loaded by other agents (+4 %, inside the noise). **tools/geo_count.gd, measured after the merge** (opengl3, 800x600, the avenue `-- --spawn=589.2,860,0,12,2`): 6.20 M triangles / 8,078 draws / 20,588 objects on the parent commit 044e076 against 5.20 M / 5,412 / 17,976 with the skyline - cheaper, because the towers' occluders hide the blocks behind them. The south-west aerial (`-50,1250,-43,5,80`) did not finish inside geo_count's 600 s on this box either side; measure it on a quieter one.
 - **Not done / not verified**: nothing here has been seen in Forward+ (the renders were all
   opengl3; the box was full of other agents' lavapipe renders). Crown glow and the lit offices
   on curved towers want a Forward+ dusk still. The towers have no interiors or lobbies, no
@@ -1172,6 +1218,10 @@ session needs to know:
   (opengl3) job is ~4 GB, so the main session runs its own GL-only jobs (geo_count, preview
   stills) under a second lock, `<scratchpad>/gl2.lock`, alongside whatever holds the main
   one; never put a Forward+ job on it (two lavapipe cities do not fit in 16 GB).
+- Full smoke tests are ~2.5 GB each, and three of them plus a render OOM-killed a gate (exit
+  137, `Killed`, `dmesg` shows `Memory cgroup out of memory`). Every full check now runs
+  through `<scratchpad>/gate_slot.sh <command>`, two slots on `gate1.lock` / `gate2.lock`.
+  An exit 137 is memory, never the code: rerun it inside a slot.
 - A smoke check that fails once under heavy load (five or six Godot processes on the box) is
   rerun in isolation before it is believed: `air_probe.gd`-style scripts that load the city
   and run one checks file (`load("res://tests/air_traffic_checks.gd").new().run(t, city)`
@@ -1241,7 +1291,96 @@ session needs to know:
   no interiors). The crowd walla is one Hawaiian shopping street; a second take would help. The
   near "traffic" bed is still the old IgnasD highway recording.
 
-## 9o. The hero, AAA pass, 2026-09-24 (agent branch)
+## 9o. Downtown's civic set, 2026-09-24 (agent branch)
+
+Owner: "downtown must match real downtown LA, we need staple center we need all day". The
+decision: real FORMS in their real places relative to the core, every NAME invented (the naming
+rule in CLAUDE.md). The rules are the "Downtown civic set" bullet in CLAUDE.md; what a next
+session needs to know:
+
+- **Where things are (default seed 1337; each one fills the block its anchor falls in):**
+  arena (352, 475) block 3,4; entertainment plaza (352, 378) block 3,3, north of the arena across
+  the street; hotel tower (456, 378) block 4,3; convention centre (352, 596) block 3,5; city hall
+  (876, 171) block 9,1; park (876, 59) block 9,0; concert hall (876, -50) block 9,-1; museum
+  (782, -50) block 8,-1; station (1091, -50) block 11,-1. Downtown's own grid is narrow there
+  (the blocks at x 520-723 are 48-57 m wide), which is why the arena district sits in the
+  100 m wide column at x 302-402 and not closer in.
+- **One table: `CivicSites.SITES`** (`scripts/world/civic_sites.gd`) holds each landmark's
+  anchor, relief radius, footprint (its own frame), yaw (quarter turns, counter-clockwise from
+  above), a note on which way it faces, and the REAL building's approximate lat/long, size and
+  facing. `Landmarks.all()` takes its entries from it; `CivicSites.build()` puts a pivot at the
+  site centre turned by the yaw, with the landmark's own StaticBody3D under it, and the builders
+  (`LandmarkArenaDistrict.build(id, site, y0, ...)`, `LandmarkCivicCenter.build(...)`) work in
+  a frame centred on the site; their crowd rects and the park's grass go back to the world
+  through `CivicSites.to_world()` / `rect_to_world()`. `CivicSites.yaw_override` turns one
+  without editing the table (the smoke test turns the station a quarter). For the 1:1 re-layout
+  of downtown the real positions share the skyline table's frame (section 9n): `CivicSites
+  .real_en(id)` is metres east / NORTH of `LandmarkDowntown.REAL_ORIGIN`, exactly like a tower's
+  `real`, `real_metres(id)` the same point with z south, and `real_grid(id)` the point turned
+  onto the real street grid the way `LandmarkDowntown.real_grid()` turns a tower. Approximately:
+
+  | id | real east, north (m) | real size (w, h, d) m | game anchor now |
+  |---|---|---|---|
+  | arena | (-1135, -774) | 200 x 45 x 170 | (352, 475) |
+  | live_plaza | (-1061, -597) | 280 x 30 x 180 | (352, 378) |
+  | live_hotel | (-987, -531) | 70 x 203 x 35 | (456, 378) |
+  | convention_center | (-1245, -1106) | 330 x 25 x 170 | (352, 596) |
+  | ziggurat_hall | (1135, 409) | 140 x 138 x 110 | (876, 171) |
+  | civic_park | (830, 663) | 500 x 0 x 110 | (876, 59) |
+  | concert_hall | (480, 586) | 110 x 40 x 90 | (876, -50) |
+  | lattice_museum | (443, 487) | 70 x 36 x 60 | (782, -50) |
+  | pueblo_station | (1706, 686) | 260 x 38 x 70 | (1091, -50) |
+
+  None of the sites overlaps a skyline tower: the towers stand east of x 416 and south of z 244,
+  and the only civic block inside that corner is the hotel's (x 416-496, z 345-410), which is
+  the block west of the five-drums hotel. Two things the re-layout has to decide that the
+  tables cannot: the real grid is turned off north (`LandmarkDowntown.GRID_BEARING_DEG`) while
+  the game's is axis-aligned, and the real
+  footprints are bigger than one of today's blocks, so a 1:1 site needs a block that big (or a
+  superblock with its through-roads closed, which traffic and the minimap do not support yet).
+  Only quarter-turn yaws are supported, because a site is an axis-aligned block.
+- **Block sites are the mechanism to reuse.** A landmark that says `"site": "block"` gets its
+  block to itself (`Landmarks.claims()` in `CityPlan.block()` / `lots()`), and its builder reads
+  `Landmarks.site_rect()` and fits inside it. The pavement ring, its lamps and trees, the parked
+  cars in the kerb lanes and the block's own walkers all stay, which is right: these buildings
+  have streets round them. `Landmarks.crowds()` adds plaza crowds as ordinary pedestrians.
+- **Scale is compressed on purpose.** One block each: the arena's bowl is ~80 m across (the
+  real one is ~200), city hall's tower tops out at ~140 m (real 138), the hotel slab is 196 m
+  (real ~200). Merging blocks into superblocks would mean closing road segments, which traffic,
+  the police, the minimap and the far tier all assume never happens - not attempted.
+- **The toolkit**: `LandmarkGeo` (geometry), `LandmarkMats` (materials), `LedScreen` (screens),
+  and six shaders sharing `shaders/landmark_common.gdshaderinc`. Nothing in them is specific to
+  these buildings; a new hand-modelled landmark should use them rather than `Landmarks._box()`.
+- **The concert hall is a Blender model** (`tools/make_concert_hall.py`, seconds to run, no bake)
+  with a `Collision` object the game turns into a trimesh; re-import after regenerating it.
+- **Checks** (`tests/civic_checks.gd`, about a second): every one listed and claiming its block,
+  no freeway over a site, far versions, geometry inside its own block, collision, rays onto the
+  roofs you can land on, crowds on open ground, the table itself, and a quarter turn by yaw.
+- **Frame cost.** What each one adds when detailed (own triangles / draw surfaces / prop
+  batches): arena 6.0k / 12 / 20, plaza 0.6k / 12 / 17, hotel 1.2k / 5 / 3, convention centre
+  2.0k / 5 / 5, city hall 6.7k / 9 / 5, park 0.7k / 6 / 16, concert hall 36.2k (the model) /
+  5 / 4, museum 12.9k / 4 / 3, station 2.6k / 13 / 15; a far version is 0.1-1.2k triangles in
+  1-10 surfaces and at most one batch. Whole frames at the landmarks (opengl3 stills, the
+  STATS line of `tools/glshot/landmark_shot.gd`): plaza by day 3.2 M triangles / 1,853 draws,
+  city hall and park 4.4 M / 2,825, concert hall 3.2 M / 1,862, station 2.9 M / 1,892, arena
+  at dusk 3.7 M / 2,321, plaza at night 3.1 M / 1,570. The same-camera before/after (`tools/horizon_probe.gd`, 800x600, spawn
+  352,405 facing the arena) has only its before side, 5.33 M / 4,054 draws on the parent
+  commit: the after run was OOM-killed and then timed out on the shared box. Take it first.
+- **Not done / not verified.** Only judged on the opengl3 path (Compatibility): no Forward+
+  render yet, so SSR on the steel and glass, SDFGI under the arena's canopy and the night
+  floodlights under AgX are unseen. A detailed landmark is built in ONE chunk step. Warm
+  (caches full) on this shared, loaded box: museum 68 ms (its veil is 12.9k triangles), arena
+  35, city hall 35, station 15, convention centre 11, the rest under 8; a far version is 1-10 ms.
+  Cold, in a bare tree with nothing loaded, the first detailed build was 0.1-0.8 s (the arena's
+  palms, trees, textures and LED atlas; a running city has most of that loaded already, but it
+  was not measured there). That is a hitch as the block streams in; splitting a builder into
+  steps (like `CityChunk`'s own) is the fix. The concert hall's model is paid on the loading
+  screen by its far copy. Far versions
+  are the same builders at low detail with no LOD chain between. Yaw is quarter turns only.
+  Names on the LED slides and signs are invented, but nobody has read every slide for an
+  accidental real brand - worth a look.
+
+## 9p. The hero, AAA pass, 2026-09-24 (agent branch)
 
 The owner asked for the Blender hero at "AAA studio level, from scratch, with real fingers".
 What changed, in the order the brief listed it:
@@ -1292,6 +1431,16 @@ What changed, in the order the brief listed it:
   shaders in nodes, `--pose` takes a `grip_fit.gd POSE_OUT` dump and imports the gun where the
   game holds it (views `grip_right`, `grip_left`, `grip_front`, `grip_above`).
 
+**Not yet seen in a render (session ended first):** the last rebuild (collar weights off the
+head, shadow twin 6 mm under the cloth, distance-faded hairline, tapered nape) was measured
+(collar edges grown past 1 cm in the idle and aim poses 167 -> 42, tank 286 -> 82) but no still
+of it exists; the in-game stills in the scratchpad (`aaa/r2_look`, `aaa/r2_hands`) are of the
+build before it and show the shards and the patches. First thing next session:
+`b_quick2.sh`-style stills (`hero_shot.gd` with `CLIP=Idle SEEK=2.9 CAM_AT=head` for the face,
+`SEEK=1.0` for the head turned, `CAM_AT=hands` for the guns) and `tools/hero/render.py --hero
+--neutral` / `--pose <grip_fit dump>` in Cycles. No Forward+ still of the hero was taken (the box
+never had 9 GB free).
+
 Known gaps: the right thumbs still stop 2-3 cm short of the far side of the grip; nothing on
 the hero has been seen on the owner's Mac; the idle's hip turn now shows as the legs pivoting
 under a still chest while a gun is held, which reads as shifting weight but has not been judged
@@ -1301,8 +1450,41 @@ textures (S3TC with mips).
 
 ## 10. Suggested next steps, in order of impact
 
-Rewritten 2026-09-21 at build 130, after the PS5 push. The old list is done except where it is
-recorded as blocked above.
+Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
+4-8 of it are still open.
+
+1. **Land what was in flight** (section 0): any agent branch that did not reach main is
+   described there with where it stopped.
+2. **The 1:1 downtown re-lay** (owner: "the whole downtown landscape ... a 1:1 replica"). The
+   real positions live in `LandmarkDowntown.TOWERS` (`real`, `real_plan`, `real_grid()`) and
+   `CivicSites.SITES` (`real_en()`, `real_grid()`), both in metres east/north of
+   `LandmarkDowntown.REAL_ORIGIN`; if the research branch landed, the geocoded points and the
+   fitted grid are in its data module (section 0). The job: rotate the real grid onto the game
+   axes, lay real block spacing and street order into `CityPlan.PINNED_ROADS`, grow
+   `MacroMap.downtown_core` and the DOWNTOWN district to the real core (about 2.5 x 3 km), move
+   both tables' anchors to their real blocks, put MacArthur Park at Wilshire and Alvarado west
+   of the 110, and pin a freeway route to the 110's alignment if it can be done inside the
+   freeway rules. Nominatim geocodes landmarks and street addresses from this box (1 request a
+   second, cache the results, credit OpenStreetMap in ASSETS.md); Overpass is not reachable.
+3. **Judge today's work on Forward+.** Almost everything merged on 2026-09-24 was judged on the
+   opengl3 preview, because the shared render lock was saturated: the night GI change (was
+   night paving orange from SDFGI bouncing emission?), the skyline's crowns at dusk, the civic
+   set at night, the lens pass, the concert hall's steel. `tools/glshot/forward_shot.sh` or the
+   `still_shot.gd` Forward+ invocation; about eight minutes and 7 GB a shot.
+4. **The hills.** In every preview shot the mountains read as flat brown with horizontal bands
+   (the station and skyline stills in 9o / 9n show it). Judge it on Forward+ before touching it -
+   the preview has no sun shadows and flattens relief - then look at `terrain.gdshader` (near),
+   `macro_ground.gdshader` / `MacroMap.bake()` (far) and whether the bands are the carved hill
+   roads and mansion pads. Real LA hills are dusty grey-green chaparral in the folds and pale
+   gold grass on the open slopes.
+5. **The hero up close.** The jacket collar clips into the neck when aiming (the AK side shot
+   in the scratchpad showed black shards over the throat) and the hair cards read blocky at
+   face distance. The AAA pass branch (section 0) was on exactly this.
+6. **Build hitches in the civic set**: each landmark builds in one step (museum 68 ms, arena and
+   city hall 35 ms warm); split them into chunk build steps like everything else.
+7. **Interiors** (item 4 of the old list) remain the biggest change to how the game plays.
+
+The 2026-09-21 list:
 
 1. **The 90s cinematic colour grade.** The owner asked for it on 2026-09-21 and deferred it the
    same minute ("we can explore that later tho"), so it is queued rather than started. The spec
