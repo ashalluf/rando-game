@@ -842,7 +842,7 @@ static func tracksuit_material(albedo: Texture2D, color: Color) -> ShaderMateria
 
 
 ## Rim sheen of the tracksuit's velour (0 flat cotton, 1 satin-bright edges).
-const TRACKSUIT_SHEEN := 0.45
+const TRACKSUIT_SHEEN := 0.6
 ## Arm and leg bones that carry the piping, each with the bone its axis points at.
 const PIPING_BONES := {
 	"LeftArm": "LeftForeArm", "LeftForeArm": "LeftHand",

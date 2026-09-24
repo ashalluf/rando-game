@@ -124,6 +124,27 @@ Every car model must expose these six material slots, because `Vehicle._add_body
 by name: `paint`, `glass`, `trim`, `tyre`, `light_front`, `light_rear`. Only bodywork goes in
 `paint` - the per-car colour and the clearcoat shader are applied to that slot alone.
 
+## Weapon models (our own Blender generator)
+
+The guns in the hero's hands (2026-09-24, replacing a dozen boxes each). Like the `hifi_*` cars
+these are written by a script, `tools/make_weapons.py`, run in Blender 4.2 (`blender -b -t 2
+--factory-startup -P tools/make_weapons.py -- [ak47] [rocket_launcher] [shotgun]`), so the model
+is the script and the `.glb` is build output. Modelled in millimetres from real dimensions,
+bevelled with weighted normals, UV-unwrapped and baked to 1K maps per material (colour, glTF
+metal/roughness, OpenGL normal) from procedural finishes. The only external input is the wood
+grain: Poly Haven `dark_wood` (https://polyhaven.com/a/dark_wood, CC0 1.0; 1K diffuse,
+displacement and roughness), downloaded into `build/weapon_src/` by the script and never
+shipped raw - it is baked into the wood maps below. Original designs with no maker's marks or
+text; the rifle is the AKM pattern, the launcher an RPG-style tube, the shotgun a classic
+walnut pump gun. Godot generates the LODs on import (`meshes/generate_lods`) and extracts the
+embedded maps as `weapon_<gun>_<material>_<map>.jpg`.
+
+| Model | Nodes | Triangles | Maps (1K each) | Used for | Added |
+|---|---|---|---|---|---|
+| `weapon_ak47.glb` | `Body`, `Muzzle` | 15.1k | `metal`, `wood` (x3) | `AssaultRifle` | 2026-09-24 |
+| `weapon_rocket_launcher.glb` | `Body`, `Warhead`, `Muzzle` | 11.9k (10.2k + 1.7k) | `body`, `warhead`, `wood` (x3) | `RocketLauncher` | 2026-09-24 |
+| `weapon_shotgun.glb` | `Body`, `Pump`, `Shell`, `Muzzle`, `PumpBack`, `EjectPort` | 8.2k (5.3k + 2.6k + 0.4k) | `metal`, `wood` (x3) | `Shotgun` | 2026-09-24 |
+
 ## Street prop models (Poly Haven, CC0)
 
 Downloaded from the open Poly Haven API (`https://api.polyhaven.com/files/<id>`, glTF at 1K) and
@@ -146,6 +167,8 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | water_manhole_cover | `prop_manhole.glb` | 6k | manhole covers in the lanes | 2026-09-19 |
 | concrete_road_barrier_02 | `prop_barrier_b.glb` | 24k | tall barrier variant, industrial clutter | 2026-09-19 |
 | Gunshots (kurt) | https://opengameart.org/content/gunshots | CC0 1.0 | `assets/audio/shot_0..2` | 2026-09-21 |
+| The Free Firearm Sound Library (Ben Jaszczak, Brian Nelson, Kevin Heras, Matthew Nanney; posted by bart) | https://opengameart.org/content/the-free-firearm-sound-library | CC0 1.0 | `assets/audio/shotgun_0..2` (takes H_21P, K_22P and O_21P: three 12-gauge pump guns, near the shooter), trimmed to 1.6 s with the tail faded, mono 44.1 kHz | 2026-09-24 |
+| Shotgun reload sound effects (zer0_sol) | https://opengameart.org/content/shotgun-reload-sound-effects | CC0 1.0 | `assets/audio/pump_0` (Rack) | 2026-09-24 |
 | Chunky Explosion (Joth) | https://opengameart.org/content/chunky-explosion | CC0 1.0 | `assets/audio/explosion_0` | 2026-09-21 |
 | Explosion (TinyWorlds) | https://opengameart.org/content/explosion-0 | CC0 1.0 | `assets/audio/explosion_1` | 2026-09-21 |
 | Rocket Engine (theMinesAreShakin) | https://opengameart.org/content/rocket-engine | CC0 1.0 | `assets/audio/rocket_0, boost_loop_0` | 2026-09-21 |

@@ -184,7 +184,7 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
-  Sound is **real CC0 recordings** (`assets/audio/`, 58 clips, sources in `docs/ASSETS.md`) with
+  Sound is **real CC0 recordings** (`assets/audio/`, 62 clips, sources in `docs/ASSETS.md`) with
   the old synthesis kept as the fallback: `_build_synth()` fills every name first and
   `_load_samples()` replaces only the names whose files load, so a missing or unimported file
   degrades to a tone rather than to silence. A name holds several takes and `play()` picks one at
@@ -301,7 +301,7 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (`run_speed`, the avatar's run clip) along their pavement ring away from the threat for
   `panic_seconds`, and the nearest few of the newly scared scream (Sfx `scream`, 12 real takes,
   spaced across the crowd by `scream_gap_ms`). `Weapon.tick()` raises it at `alarm_radius` from
-  the shooter (0 for the gravity gun), `Explosion.blast()` at six blast radii. One pass over the
+  the shooter (70 m for the shotgun), `Explosion.blast()` at six blast radii. One pass over the
   crowd group per alarm, rate-limited per spot, so an automatic rifle costs nothing extra.
   Dismemberment (owner, same day: "body parts limbs flying off ... from the rocket launcher"):
   `Explosion.blast()` passes `gibs` (up to 3 inside `gib_reach` of the radius) to
@@ -482,13 +482,40 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `tools/glshot/still_shot.gd`): Godot caps a frame at eight physics ticks (0.133 s) however
   long a software frame really takes, so they count the effect's own elapsed time, never the
   wall clock - the wall-clock version stopped every shot in the first milliseconds.
-- Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
-  the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
-  `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is
-  the crosshair ray (origin, direction, point, normal, collider, target). Explosions: `Explosion.blast()`.
+- Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()`,
+  call `_make_muzzle()`, implement `_fire(aim)`. Register it in `WeaponManager._ready()`. Effects go
+  through `WeaponFX` static functions. `Player.get_aim()` is the crosshair ray (origin, direction,
+  point, normal, collider, target). Explosions: `Explosion.blast()`. The arsenal is the AK-47, the
+  rocket launcher and a pump **shotgun** (`Shotgun`, slot 3; owner, 2026-09-24: "lose the gravity
+  gun, give us a shotgun"): nine pellets in a 4.5-degree cone down the rifle's hit path
+  (`fire_pellet()`), people thrown by all the pellets that hit them at once with
+  `WeaponFX.blood()`, a heavy flash and camera shake, then the pump strokes back and home
+  (`pump_amount()`), a spent shell is thrown out of the port as debris and the left hand rides
+  the forend (the script moves `grip_left`). Sfx `shotgun` (three real CC0 pump guns) and `pump`.
+  **The guns are real models** (owner, 2026-09-24: "What are these horrible assets ... I need it to
+  look like RDR2"), built, UV-unwrapped and texture-baked by `tools/make_weapons.py` in Blender:
+  `blender -b -t 2 --factory-startup -P tools/make_weapons.py -- [ak47] [rocket_launcher]
+  [shotgun] [--nobake]` writes `assets/models/weapon_<name>.glb` (a few minutes a gun; `--nobake`
+  is the fast shape loop), then `godot --headless --path . --import` and
+  `python3 tools/fix_texture_imports.py` on the new `weapon_*.import` files, and commit the
+  `.glb`, the extracted `weapon_*_*.jpg` and every `.import`. Everything is authored in mm from
+  real dimensions, every part has a bevel plus weighted normals (the catch-light on the edges is
+  most of what reads as real), and each material is a procedural finish baked to 1K
+  colour / metal-rough / normal maps through a baked edge and AO mask: parkerised and blued
+  steel worn bright on the edges, oiled wood (Poly Haven's CC0 `dark_wood`, fetched into
+  `build/weapon_src/` and projected so the grain runs down the gun), chipped olive paint. Node
+  names are the contract with the scripts: `Muzzle` in every gun, `Warhead` on the launcher
+  (hidden until it has reloaded), `Pump` / `PumpBack` / `Shell` / `EjectPort` on the shotgun.
+  Each script keeps its old box model as the fallback when the file is missing. Trap: when
+  several objects bake into one image, Blender applies each object's margin over the others'
+  islands, so `ISLAND_MARGIN` must stay wider than two `BAKE_MARGIN`s or colours bleed (the
+  shotgun's rib came out striped red from the shell). Judge a gun alone with
+  `tools/glshot/weapon_shot.gd` (the city's own AgX / sun / fill numbers) and in the hands with
+  `hero_shot.gd` (`DEBUG=1` shows the wrist targets); the hold numbers (`grip_*`, `hold_*`)
+  are set per gun in its `_init()`.
   GTA-style aim (owner, 2026-09-24): `LockOn` (`scripts/player/lock_on.gd`, a child of the
   player). Holding `alt_fire` (right mouse / left trigger) with a gun whose `lock_on` is true
-  (not the gravity gun, whose right click throws) pulls the camera in over the shoulder
+  (all three) pulls the camera in over the shoulder
   (`CameraRig.set_aiming()`, `aim_shoulder` - without the offset the hero's own head sat on the
   crosshair) and locks the person, else the traffic car, nearest the crosshair in
   `acquire_cone_deg` with line of sight. The camera tracks it (`CameraRig.track()`; mouse and

@@ -15,6 +15,13 @@ extends Weapon
 ## How much one round bleeds (WeaponFX.blood's strength: spray, splats, pool, stain).
 @export var blood_strength: float = 1.0
 
+## The rifle: an AKM modelled, unwrapped and texture-baked in Blender by tools/make_weapons.py
+## (rebuild it there, never by hand). The box model further down only stands in when the file
+## is missing.
+const MODEL_PATH := "res://assets/models/weapon_ak47.glb"
+## The muzzle, for a model without its own Muzzle node.
+const MODEL_MUZZLE := Vector3(0.0, 0.0, -0.55)
+
 # Walnut, not orange: the old 0.55 / 0.32 / 0.14 blew out to bright orange in sunlight, and the
 # rifle is on screen in every single frame of this game.
 const WOOD := Color(0.31, 0.18, 0.09)
@@ -33,9 +40,36 @@ func _init() -> void:
 	automatic = true
 	kick_distance = 0.08
 	camera_kick_deg = 0.35
+	# The hands on the modelled rifle: the right wrist just behind the raked bakelite grip, the
+	# left under the rear of the lower handguard, palm up (as far forward as these arms reach).
+	grip_right = Vector3(0.025, -0.06, 0.10)
+	grip_left = Vector3(-0.03, -0.075, -0.26)
 
 
 func _build_model() -> void:
+	var model := _load_model(MODEL_PATH)
+	if model == null:
+		_build_box_model()
+		return
+	var mark := model.get_node_or_null("Muzzle") as Node3D
+	_make_muzzle(mark.position if mark else MODEL_MUZZLE)
+
+
+## Instances a generated gun model as a child; null when the file is missing.
+func _load_model(path: String) -> Node3D:
+	if not ResourceLoader.exists(path):
+		return null
+	var scene := load(path) as PackedScene
+	if scene == null:
+		return null
+	var model := scene.instantiate() as Node3D
+	model.name = "Model"
+	add_child(model)
+	return model
+
+
+## The old primitive rifle, kept as the fallback.
+func _build_box_model() -> void:
 	# An AK-47 is 880 mm long. The old model spanned 1.31 m of boxes, which is why it read as a
 	# plank with a pipe on it. Everything below is laid out in real proportions, butt at +0.34,
 	# muzzle at -0.575, forward is -Z.

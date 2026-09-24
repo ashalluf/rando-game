@@ -47,7 +47,7 @@ scenes/levels/test_box.tscn  greybox test room used by the smoke test
 scenes/player/player.tscn    CharacterBody3D + camera rig + weapon mount
 scenes/ui/               debug_hud (stats, hints, crosshair, round minimap), pause_menu (Esc, seed)
 scripts/player/          player.gd (movement, boost, jumps, vehicles, fall recovery), camera_rig.gd
-scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket, explosion, gravity_gun, weapon_fx, weapon_manager
+scripts/weapons/         weapon.gd base, assault_rifle, rocket_launcher, rocket, explosion, shotgun, weapon_fx, weapon_manager (models: assets/models/weapon_*.glb from tools/make_weapons.py)
 scripts/world/           city_streamer, city_chunk, city_plan, macro_map, hill_roads, landmarks, building, prop_factory (primitives + model_* merged Poly Haven models), street_props, trash_can, physics_prop, day_night, ferris_wheel
 scripts/vehicles/        vehicle.gd (cars), aircraft.gd (jets)
 scripts/npc/             pedestrian.gd, ragdoll.gd, traffic.gd
@@ -883,7 +883,26 @@ taking away from graphics at all". What shipped, newest last:
   17:45, the boardwalk at 17:50, the freeway at 18:00 and downtown rain at 21:20. The hills are
   still weak (next steps item 3).
 
-## 9g. Blood, 2026-09-24 (owner: "I want more blood when people get shot")
+## 9g. The guns, 2026-09-24
+
+The owner called the box guns "horrible assets" and asked for RDR2, then swapped the gravity gun
+for a shotgun. All three guns are now models from `tools/make_weapons.py` (Blender 4.2, run
+headless with two threads; the CLAUDE.md Weapons bullet has the command and the node-name
+contract). A full build is one to three minutes a gun, almost all of it the mask bake (a Bevel
+node edge mask and local AO, 16 samples); `--nobake` exports flat colours in a second for shape
+work. Look at a gun with `tools/glshot/weapon_shot.gd` (`WEAPON=0/1/2`, `YAW`, `PITCH`, `ZOOM`,
+`FOCUS`; it lights with the city's own AgX, sun and fill numbers, so a finish judged there holds
+in the street) and in the hands with `hero_shot.gd` (`DEBUG=1`). Only the opengl3 path was used.
+On a machine shared with other agents, wrap Blender and every Godot render in `flock` on one lock
+file; two lavapipe renders at once get OOM-killed.
+
+Open: the rigs have no finger bones, so the hands sit flat on the grips rather than curling round
+them (the wrist targets are right; the pose is the limit). The rocket that leaves the launcher is
+still `rocket.gd`'s red primitive cylinder, not the olive warhead the model shows in its muzzle.
+The shotgun's fire rate and knock numbers are first guesses (`fire_rate` 1.25, nine pellets of
+9 impulse, `knock_base` 12 + 5 a pellet).
+
+## 9h. Blood, 2026-09-24 (owner: "I want more blood when people get shot")
 
 Built on an agent branch while another agent swapped the gravity gun for a shotgun. What a
 rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the top of
@@ -892,10 +911,11 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
 - **One entry point for every gun**: `WeaponFX.bullet_wound(node, hit, dir, strength, knock)`
   takes the ray hit and duck-types the victim (pedestrian -> `Pedestrian.shot()`, body ->
   `Ragdoll.shot()`, limb -> `blood_gush()`). The rifle's `fire_ray()` calls it with
-  `AssaultRifle.blood_strength`. **For the shotgun:** call it per pellet with a strength around
-  0.5, or once per person hit with the pellets summed (it caps at `blood_strength_max`, 4). Per
-  pellet also works: the first pellet puts them down and the rest land in the ragdoll, which
-  bleeds more for each.
+  `AssaultRifle.blood_strength`. The shotgun (merged in from main the same day) sums each
+  person's pellets - bodies already down included - into one call at `Shotgun.blood_per_pellet`
+  (0.45) a pellet, capped at `blood_strength_max` (4): a close blast of nine is four rifle
+  rounds' worth, a stray pellet a small wound. Called per pellet it would also work: the first
+  puts them down and the rest land in the ragdoll, which bleeds more for each.
 - **The wound** (`blood()`): backspatter, an exit spray of lit glossy droplet meshes along the
   bullet, a lit mist, a spatter plus creeping runs on any wall within 2.8 m behind (one ray), and
   five drops traced ballistically to where they land, each leaving a splat at the moment it lands.

@@ -6,7 +6,7 @@ extends SceneTree
 ##     godot --rendering-driver opengl3 --display-driver x11 --audio-driver Dummy --path . \
 ##     --script tools/glshot/hero_shot.gd --resolution 900x900
 ##
-## Env: OUT (png), WEAPON (0 AK, 1 rocket launcher, 2 gravity gun), AIM=1 raises it to the
+## Env: OUT (png), WEAPON (0 AK, 1 rocket launcher, 2 shotgun), AIM=1 raises it to the
 ## shoulder, YAW (degrees to orbit the camera round the hero; 0 is front-on, 90 his right side),
 ## WALK=1 plays the walk clip (the IK has to hold the gun whatever the legs do), CAM_DIST and
 ## CAM_Y bring the camera in on the hands, DEBUG=1 marks the IK targets.
