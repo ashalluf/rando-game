@@ -8,8 +8,10 @@ the day-to-day work goes, what is fragile, what to do next. Read all three befor
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
 Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
-day's work, newest first, is in 9p (Esplanade replica), 9o (civic set), 9n (skyline), 9m (sound), 9l (how the day ran),
-9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the index.
+day's work is in 9t (distance), 9s (1:1 downtown research), 9r (MacArthur Park, encampments),
+9q (street life), 9p (the Esplanade), 9o (civic set), 9n (skyline), 9m (sound), 9l (how the
+day ran), 9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the
+index.
 
 **Main at wrap-up** is green on CI; the release page has the newest build. Merged on
 2026-09-24 (about 100 commits): window recesses; the Blender-built hero with real finger bones
@@ -35,19 +37,43 @@ do whatever GTA does". Always send screenshots. No commercial-readiness audit fo
 
 **In flight at wrap-up** (agent branches; what happened to each is recorded here):
 
-- AAA pass on the hero (branch `worktree-agent-a21610dd7a24d00b8`): skin, hair, collar, hands.
-- Street life (`worktree-agent-a24169908f67381c9`): traffic signals, crosswalks, cars queueing
-  at red, police routing by road.
-- Redondo Esplanade into Palos Verdes at 1:1 (`worktree-agent-ac988801941b3dc26`): a replica-area
-  framework (`scripts/world/replica_areas.gd`), the esplanade, clay-tile houses, PV hills. Built
-  and checked in code, never seen rendered or measured for frame cost: section 9p says exactly
-  what is done, what is not and how to take the stills.
-- MacArthur Park and street encampments (`worktree-agent-ac9773ce9fd50b578`).
-- Distance LOD tiers and streaming (`worktree-agent-a7ca467ec2cbe1961`): the far city filled in
-  to the horizon (before/after panoramas were sent to the owner).
-- 1:1 downtown research (`worktree-agent-ab2c6ac22ca7e5a19`): geocoded anchors and the fitted grid.
+All six agent branches came back at wrap-up. Five are merged to main; one is kept on a
+branch. (Four agents each wrote a "9p"; the sections were renumbered at merge, so a "see 9p"
+inside one of them means its own section - the headers below are the authority.)
 
-STATUS: being merged at wrap-up; this list is updated with the outcome of each.
+- **Merged: the Redondo Esplanade into Palos Verdes, 1:1** (section 9p). 4.57 km at true scale,
+  one data table (`scripts/world/replica_areas.gd`), its own builders, traffic and walkers;
+  `-- --no-replica` turns it off. The first preview stills were taken at wrap-up (they read as
+  the owner's Street View captures); nothing on Forward+, frame cost not measured.
+- **Merged: street life** (9q). Blender-built traffic signals on a shared clock, pedestrians on
+  the walking figure, cars queueing at red and yielding, police routed by road to the kerb.
+  At merge the police helicopter's sighting ray was made to look past `StreetProps` (the new
+  signal mast arms hid the player at the spawn junction - the one failing check on the branch).
+- **Merged: MacArthur Park and street encampments** (9r). The encampments are ON (downtown
+  building blocks only, knockable pieces, rough sleepers who breathe, cower and ragdoll). The
+  park is built but OFF (`LandmarkMacArthurPark.enabled`, a static var) until a traffic leak onto
+  its closed roads is found. At merge its closed-road turning rules were ported into street
+  life's new car-following model in `traffic.gd` (a closed road ahead forces a turn, or a U-turn
+  at a dead end: `t.turn == 2`) - untested with the park on.
+- **Merged: the 1:1 downtown research, data only** (9s). `scripts/world/downtown_real.gd`
+  (geocoded anchors, the fitted grid: avenues 37.86 degrees east of north, 2.0 m RMS), the full
+  re-lay as `tools/downtown_relay/relay.patch` (never smoke-tested), its checks as a text file.
+  Nothing calls the data yet. Landing the re-lay is item 2 of section 10.
+- **Merged: the distance** (9t). Four tiers that always cover the view to 12 km: near chunks,
+  far chunks, the far city (every block within 7 km, recorded from the far chunk's own build)
+  and the horizon plane; per-block dissolve handoff. At merge the far-city capture was made to
+  skip replica and landmark-site blocks, which never build the seeded block.
+- **NOT merged: the AAA pass on the hero.** Pushed as branch `claude/optimistic-babbage-w2047x`
+  (head 835b2af; it is the hero agent's branch, merged with main as of that afternoon). What it
+  has: a reproducible Blender pipeline (`tools/hero/setup.sh`, `build.sh`, ~15 min, byte-for-byte),
+  new skin / hair / cloth shaders (`HeroLook`), and hands fitted to every gun by
+  `tools/grip_fit.gd` (three real bugs fixed: the idle clip's 75-degree shoulder swing, the gun
+  placed from the wrong shoulder, a hip carry that could not reach the handguard). Why it is
+  not on main: a preview still of its final build (AK aimed, side on) still shows jagged dark
+  shards round the open collar, where main's closed collar is clean. Main's hands are worse
+  (left fingers splay off the handguard). Next step: fix the collar on that branch, take
+  `hero_shot.gd` stills (`CLIP=Idle SEEK=1.0 CAM_AT=head`, `WEAPON=0 AIM=1 YAW=90`), merge.
+  Its own handoff section (a 9p on that branch) has the rest.
 
 **How the box was run** (9l has the detail): agents in git worktrees under
 `.claude/worktrees/`, one branch each, merged by the main session after its own headless check;
@@ -1152,7 +1178,7 @@ rifle round into a person does now, all in `WeaponFX` (tunables `blood_*` at the
   shadow-twin commit e2d3a2a; `get_meta(key, null)` is an error when the key is missing). The
   gate does not match them, so it stays green; they are worth a look.
 
-## 9o. Street life, 2026-09-24 (owner: "GTA-level street life")
+## 9q. Street life, 2026-09-24 (owner: "GTA-level street life")
 
 Signals that work, traffic that queues at them, people who cross on the walking figure, and
 police who drive the streets. Built on an agent worktree; the rules are the Street life bullet in
@@ -1559,7 +1585,7 @@ session needs to know:
   Names on the LED slides and signs are invented, but nobody has read every slide for an
   accidental real brand - worth a look.
 
-## 9p. Westlake: MacArthur Park and the encampments, 2026-09-24 (agent branch)
+## 9r. Westlake: MacArthur Park and the encampments, 2026-09-24 (agent branch)
 
 Owner: "you should also have MacArthur Park and a bunch of homeless tents up on random streets in
 downtown and people slumped over". The rules are the Westlake bullet in CLAUDE.md. It is depicted
@@ -1658,7 +1684,7 @@ as the street a realistic LA game shows, never as a joke; the code's words are n
 - **The smoke test** (`tests/westlake_checks.gd`, ~30-60 s on a busy box) re-centres the origin
   on every teleport and waits idle frames before a physics query, for the two reasons in its
   `_go()`; copy that pattern for any check that teleports far and then casts rays.
-## 9p. Downtown at 1:1: the research, the fit, and a re-lay waiting to land (2026-09-24, agent branch)
+## 9s. Downtown at 1:1: the research, the fit, and a re-lay waiting to land (2026-09-24, agent branch)
 
 Owner: "I want the whole downtown landscape to become a 1:1 replica ... This should be
 geographically sound", "you should also have macarthur park". The session ended before the
@@ -1762,7 +1788,7 @@ Not done at all: interiors of any of it; Bunker Hill as a hill (the relief is fl
 and the east side as real streets; the real 110/101/10 interchange ramps (the decks meet with the
 freeway code's usual lift); the civic builders at real size (the arena's `ARENA_RADII` is still
 36-37 m against the real ~90, so it will look small in its real 240 x 330 m block).
-## 9p. The distance, 2026-09-24 (agent branch)
+## 9t. The distance, 2026-09-24 (agent branch)
 
 Owner: "it's glaringly obvious that certain areas of the map aren't loading properly at a
 distance. I'd like to see this fixed, do whatever GTA does and other grade-A games." The rules
@@ -1885,13 +1911,15 @@ A fixed-step A/B (`FIXED=1`, same frames both sides, process CPU time from /proc
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
 4-8 of it are still open.
 
-1. **Land what was in flight** (section 0): any agent branch that did not reach main is
-   described there with where it stopped.
+1. **Land the hero pass** (section 0): fix the collar shards on branch
+   `claude/optimistic-babbage-w2047x`, check it in stills, merge it. Then turn MacArthur Park
+   on (9r: find the traffic leak onto its closed roads first).
 2. **The 1:1 downtown re-lay** (owner: "the whole downtown landscape ... a 1:1 replica"). The
    real positions live in `LandmarkDowntown.TOWERS` (`real`, `real_plan`, `real_grid()`) and
    `CivicSites.SITES` (`real_en()`, `real_grid()`), both in metres east/north of
-   `LandmarkDowntown.REAL_ORIGIN`; if the research branch landed, the geocoded points and the
-   fitted grid are in its data module (section 0). The job: rotate the real grid onto the game
+   `LandmarkDowntown.REAL_ORIGIN`; the geocoded points and the fitted grid are in
+   `scripts/world/downtown_real.gd`, and a complete but never smoke-tested re-lay is
+   `tools/downtown_relay/relay.patch` (9s says how to land it and which checks will move). The job: rotate the real grid onto the game
    axes, lay real block spacing and street order into `CityPlan.PINNED_ROADS`, grow
    `MacroMap.downtown_core` and the DOWNTOWN district to the real core (about 2.5 x 3 km), move
    both tables' anchors to their real blocks, put MacArthur Park at Wilshire and Alvarado west
@@ -1915,6 +1943,14 @@ Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept becaus
 6. **Build hitches in the civic set**: each landmark builds in one step (museum 68 ms, arena and
    city hall 35 ms warm); split them into chunk build steps like everything else.
 7. **Interiors** (item 4 of the old list) remain the biggest change to how the game plays.
+8. **Headless log noise.** Every smoke run prints ~5,000 "Cannot set a buffer on a Multimesh
+   that is a different size" errors from the shadow twins (`MultiMeshBatch.build()`,
+   `twin_mm.buffer = mm.buffer`): under the dummy renderer the instance buffer reads back empty.
+   Harmless and not on the gate's tripwire list, but it buries real errors; skip that copy when
+   `DisplayServer.get_name() == "headless"` (or copy per instance there).
+9. **The suite's length.** With every branch merged the smoke test is ~420 checks; its watchdog is
+   840 s (`SMOKE_WATCHDOG` overrides) inside a 900 s timeout in `tests/headless_check.sh`. If CI
+   starts timing out, split the checks files into a second scene rather than raising it again.
 
 The 2026-09-21 list:
 

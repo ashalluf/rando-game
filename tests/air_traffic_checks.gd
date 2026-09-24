@@ -154,6 +154,17 @@ func _news(air: AirTraffic, city: Node3D) -> void:
 
 
 func _police(air: AirTraffic, city: Node3D) -> void:
+	# The sighting needs a clear line from the searchlight to him, and the checks before this one
+	# leave the player wherever they finished - under a deck, a mast arm or an awning, depending
+	# on the suite (it failed with 0 reports in full runs and passed alone). Stand him in the open
+	# at the spawn for this stage and put him back after.
+	var player := _tree.get_first_node_in_group("player") as Node3D
+	var ws: Node = _tree.root.get_node("/root/WorldState")
+	var home: Vector3 = ws.to_world(player.global_position)
+	var open_local: Vector3 = ws.to_local(Vector3(0.0, 0.0, 0.0))
+	open_local.y = city.surface_height_at(open_local) + 1.0
+	player.global_position = open_local
+	player.set("velocity", Vector3.ZERO)
 	# A stand-in for the wanted system: a node in group "wanted" with a plain `stars` and the
 	# report_sighting() the real Police has.
 	var script := GDScript.new()
@@ -197,6 +208,8 @@ func _police(air: AirTraffic, city: Node3D) -> void:
 	_t._check(gone == chasing.size(), "and they are gone a minute later")
 	wanted.queue_free()
 	air.clear_all()
+	player.global_position = ws.to_local(home)
+	player.set("velocity", Vector3.ZERO)
 	await _tree.process_frame
 
 

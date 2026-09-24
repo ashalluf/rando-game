@@ -335,7 +335,10 @@ func _police_route() -> void:
 	var samples := 0
 	var off := 0
 	var parked := false
-	for i in 60 * 16:
+	# 40 s: the cruiser drives the signalised lanes, and a red (green 16 s + amber + all-red for
+	# the other axis) can hold it for over 20 s; the full suite reaches this check at a different
+	# point in the signal cycle than a run of this file alone. The loop leaves once it is parked.
+	for i in 60 * 40:
 		await _tree.physics_frame
 		if i % 20 == 0:
 			police.call("report_sighting")
