@@ -19,7 +19,7 @@ extends SceneTree
 ## pedestrian in the road exactly FX_AT metres ahead first. Debris is kept alive for the shot:
 ## its lifetime is wall-clock seconds, and a software frame takes seconds.
 ## CAR_PARAM=name=value sets one car paint uniform on every car (A/B tests); CAR_REPORT=1 prints
-## each car on screen with its paint.
+## each car on screen with its paint; AIM=1 holds GTA-style aim for the shot.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -105,6 +105,15 @@ func _initialize() -> void:
 			await process_frame
 			elapsed += get_root().get_process_delta_time()
 			_pose(player, anchor, hold, boost, fov)
+	# AIM=1 holds GTA-style aim (alt_fire) through the last frames, so the shot shows the
+	# over-the-shoulder view and the lock brackets on whoever it picks up.
+	if OS.get_environment("AIM") == "1":
+		Input.action_press("alt_fire")
+		for i in 12:
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+		var lock: Node = player.get("lock_on") if player else null
+		print("aim lock: ", lock.get("target").name if lock and lock.get("target") else "none")
 	# CAR_PARAM=name=value overrides one car paint uniform on every car (A/B tests).
 	var car_param := OS.get_environment("CAR_PARAM")
 	if car_param.contains("="):

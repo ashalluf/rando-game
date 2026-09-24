@@ -82,6 +82,8 @@ var last_jump_peak: float = 0.0
 var air_jumps_left: int = 0
 ## The car being driven, or null.
 var vehicle: Vehicle
+## GTA-style aim: hold aim to lock onto the target nearest the crosshair (scripts/player/lock_on.gd).
+var lock_on: LockOn
 
 var _coyote_timer: float = 0.0
 var _jump_buffer_timer: float = 0.0
@@ -112,6 +114,9 @@ func _ready() -> void:
 	_build_boost_fx()
 	_boost_sound = Sfx.loop_player("boost_loop", -10.0)
 	add_child(_boost_sound)
+	lock_on = LockOn.new()
+	lock_on.name = "LockOn"
+	add_child(lock_on)
 
 
 func _physics_process(delta: float) -> void:
@@ -341,10 +346,23 @@ func notify_fired() -> void:
 	_aim_timer = aim_hold_time
 
 
-## Where the crosshair points. Ray starts at the head pivot so walls behind the camera are ignored.
+## While aiming the body keeps facing where the gun points.
+func notify_aiming() -> void:
+	_aim_timer = maxf(_aim_timer, 0.25)
+
+
+## Where the crosshair points. Ray starts at the head pivot (or the shoulder, while aiming) so
+## walls behind the camera are ignored. With a lock (LockOn) it goes straight at the target
+## rather than at the screen centre, led for a projectile gun, so a shot fired while the camera
+## is still swinging onto the target lands anyway.
 func get_aim() -> Dictionary:
-	var origin: Vector3 = camera_rig.global_position
+	var origin: Vector3 = camera_rig.aim_origin()
 	var direction: Vector3 = -camera.global_basis.z
+	var locked: Node3D = lock_on.target if lock_on and is_instance_valid(lock_on.target) else null
+	if locked:
+		var weapon: Node = weapon_manager.current if weapon_manager else null
+		var lead := float(weapon.get("rocket_speed")) if weapon and weapon.get("rocket_speed") != null else 0.0
+		direction = (lock_on.aim_point(lead) - origin).normalized()
 	var to := origin + direction * 1000.0
 	var query := PhysicsRayQueryParameters3D.create(origin, to, AIM_MASK, [get_rid()])
 	var hit := get_world_3d().direct_space_state.intersect_ray(query)
@@ -354,6 +372,7 @@ func get_aim() -> Dictionary:
 		"point": hit.position if hit else to,
 		"normal": hit.normal if hit else -direction,
 		"collider": hit.collider if hit else null,
+		"target": locked,
 	}
 
 

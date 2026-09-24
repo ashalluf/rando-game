@@ -240,6 +240,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 GTA-style aim (owner: "GTA style aiming that auto locks onto targets").** Hold
+  right mouse / left trigger with the rifle or rocket launcher: over-the-shoulder camera, lock on
+  the person (or traffic car) nearest the crosshair with line of sight, camera tracks it, flick
+  to switch, shots go at the lock (rockets lead it), next target taken after a kill. The gravity
+  gun keeps right click for its throw.
+
 - **2026-09-23 Rainy nights are dark and warm; sand at its real scale.** An overcast night over a
   city is its own sodium light on the cloud base: the rain night used the daytime storm grey and
   a moonlit grey fog veil and read as dusk (sky 133/134/136, now 129/118/110 with the frame's

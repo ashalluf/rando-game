@@ -20,6 +20,9 @@ extends Node3D
 @export var alarm_radius: float = 45.0
 ## How many of the newly frightened scream per shot.
 @export var alarm_screams: int = 3
+## Holding aim (alt_fire) with this gun pulls the camera over the shoulder and locks onto the
+## target nearest the crosshair (Player.lock_on). Off for a gun whose alt fire does something.
+@export var lock_on: bool = true
 
 var player: Player
 ## Where shots and effects start. Set by _build_model().

@@ -439,7 +439,18 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
 - Weapons: subclass `Weapon` (`scripts/weapons/weapon.gd`), build the model in `_build_model()` with
   the `_box` / `_cylinder` helpers, call `_make_muzzle()`, implement `_fire(aim)`. Register it in
   `WeaponManager._ready()`. Effects go through `WeaponFX` static functions. `Player.get_aim()` is
-  the crosshair ray (origin, direction, point, normal, collider). Explosions: `Explosion.blast()`.
+  the crosshair ray (origin, direction, point, normal, collider, target). Explosions: `Explosion.blast()`.
+  GTA-style aim (owner, 2026-09-24): `LockOn` (`scripts/player/lock_on.gd`, a child of the
+  player). Holding `alt_fire` (right mouse / left trigger) with a gun whose `lock_on` is true
+  (not the gravity gun, whose right click throws) pulls the camera in over the shoulder
+  (`CameraRig.set_aiming()`, `aim_shoulder` - without the offset the hero's own head sat on the
+  crosshair) and locks the person, else the traffic car, nearest the crosshair in
+  `acquire_cone_deg` with line of sight. The camera tracks it (`CameraRig.track()`; mouse and
+  stick become a fading nudge, `lock_active`), a flick switches target, `get_aim()` goes at the
+  target (led for the rocket), and a downed target is replaced after `reacquire_delay`. The
+  crosshair turns red with brackets on the target. The crosshair ray now starts at
+  `CameraRig.aim_origin()` (the shoulder while aiming), which the camera's centre ray passes
+  through. `look_blocked` on the rig stops the view turning (the weapon wheel sets it).
 - City: `CityPlan` (lazy, endless data: `road_pos()`, `road_width()`, `block()`, `intersection()`,
   `block_index_at()`, `district_at()`; `DISTRICTS` holds the parameter ranges for DOWNTOWN,
   MIDTOWN, SUBURBS, INDUSTRIAL and CAMPUS), `CityStreamer`

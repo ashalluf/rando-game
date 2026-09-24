@@ -33,6 +33,8 @@ func _init() -> void:
 	automatic = false
 	# A tractor beam hums; nobody runs from it (the crate it throws is another matter).
 	alarm_radius = 0.0
+	# Right click is its own alt fire (throw), so it does not take GTA-style aim.
+	lock_on = false
 	kick_distance = 0.15
 	camera_kick_deg = 0.0
 

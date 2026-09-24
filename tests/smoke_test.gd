@@ -1027,6 +1027,38 @@ func _test_city() -> void:
 			var flat_speed := Vector2(runner.velocity.x, runner.velocity.z).length() if is_instance_valid(runner) else 0.0
 			_check(is_instance_valid(runner) and float(runner.get("_panic_left")) > 0.0 and flat_speed > float(runner.get("walk_speed")) * 1.5,
 				"a gunshot sends the people near it running (%.1f m/s)" % flat_speed)
+		# GTA-style aim (owner, 2026-09-24: "aiming that auto locks onto targets"): look roughly
+		# at somebody, hold aim with the AK, and the lock takes them and the shot goes at them.
+		# The nearest few in turn, because a lamp post or a car can stand in the line of sight.
+		var lock: Node = player.get("lock_on")
+		var manager: Node = player.get("weapon_manager")
+		manager.equip(0)
+		var locked: Node3D = null
+		var aim_ok := false
+		var candidates: Array = []
+		for p in get_tree().get_nodes_in_group("pedestrian"):
+			if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down"):
+				candidates.append(p)
+		candidates.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
+		for cand: Node3D in candidates.slice(0, 5):
+			# A few degrees off, so the lock has to find them rather than be handed them.
+			player.get("camera_rig").look_at_point(cand.global_position + Vector3(0.6, 1.2, 0.0))
+			Input.action_press("alt_fire")
+			for i in 8:
+				await get_tree().process_frame
+			locked = lock.get("target")
+			if locked != null:
+				var aim: Dictionary = player.get_aim()
+				var to_target: Vector3 = (locked.global_position + Vector3.UP * 1.2 - aim.origin).normalized()
+				aim_ok = aim.get("target") == locked and (aim.direction as Vector3).dot(to_target) > 0.995
+				break
+			Input.action_release("alt_fire")
+			await get_tree().process_frame
+		_check(locked is Pedestrian and aim_ok, "holding aim locks onto a pedestrian and the shot goes at them")
+		Input.action_release("alt_fire")
+		for i in 3:
+			await get_tree().process_frame
+		_check(lock.get("target") == null and not lock.get("aiming"), "letting go of aim drops the lock")
 	# Quality levels scale the population, not just the effects (owner: "still super laggy").
 	var quality_node: Node = city.get_node("Quality")
 	var full_cap: int = city.max_pedestrians

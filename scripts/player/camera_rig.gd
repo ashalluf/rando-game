@@ -37,6 +37,10 @@ extends Node3D
 @export var shake_recover_speed: float = 3.2
 ## Angular size of a full-strength shake (radians).
 @export var shake_strength: float = 0.05
+## How far right of the head the camera sits while aiming, so the body is not in front of the
+## crosshair (metres), and how fast the camera moves between the normal and the aiming view.
+@export var aim_shoulder: float = 0.75
+@export var aim_blend_speed: float = 5.0
 
 @onready var spring_arm: SpringArm3D = $SpringArm3D
 @onready var camera: Camera3D = $SpringArm3D/Camera3D
@@ -46,6 +50,17 @@ var _pitch: float = 0.0
 var _kick_pitch: float = 0.0
 var _shake: float = 0.0
 var _shake_offset: Vector3 = Vector3.ZERO
+## Set by LockOn while it holds a target: the camera follows the lock, and mouse and stick
+## movement is collected as a nudge (for flicking to the next target) instead of turning it.
+var lock_active: bool = false
+## Set by the weapon wheel while it is open: the mouse and stick pick a weapon, not the view.
+var look_blocked: bool = false
+var _lock_nudge: Vector2 = Vector2.ZERO
+var _aiming: bool = false
+var _aim_distance: float = 3.8
+var _aim_fov_drop: float = 14.0
+## 0 in the normal view, 1 fully in the aiming view.
+var _aim_blend: float = 0.0
 
 
 func _ready() -> void:
@@ -64,6 +79,11 @@ func _ready() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var motion := event as InputEventMouseMotion
+		if look_blocked:
+			return
+		if lock_active:
+			_lock_nudge += motion.relative
+			return
 		_yaw -= motion.relative.x * mouse_sensitivity
 		_pitch -= motion.relative.y * mouse_sensitivity * (-1.0 if invert_y else 1.0)
 		_apply_rotation()
@@ -73,7 +93,10 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _process(delta: float) -> void:
 	var look := Input.get_vector("look_left", "look_right", "look_up", "look_down")
-	if look != Vector2.ZERO:
+	# A flick has to be quick to count: the nudge fades, so a slow drift of the mouse while
+	# locked does not add up to a switch.
+	_lock_nudge *= exp(-10.0 * delta)
+	if look != Vector2.ZERO and not lock_active and not look_blocked:
 		_yaw -= look.x * gamepad_look_speed * delta
 		_pitch -= look.y * gamepad_look_speed * delta * (-1.0 if invert_y else 1.0)
 	if _kick_pitch != 0.0:
@@ -87,7 +110,11 @@ func _process(delta: float) -> void:
 		_shake_offset = Vector3.ZERO
 	_apply_rotation()
 
-	var target_fov := camera_fov
+	_aim_blend = move_toward(_aim_blend, 1.0 if _aiming else 0.0, aim_blend_speed * delta)
+	var ease_blend := smoothstep(0.0, 1.0, _aim_blend)
+	spring_arm.spring_length = lerpf(camera_distance, _aim_distance, ease_blend)
+	spring_arm.position.x = aim_shoulder * ease_blend
+	var target_fov := camera_fov - _aim_fov_drop * ease_blend
 	var player := get_parent() as Player
 	if player and player.is_boosting():
 		target_fov += boost_fov_boost
@@ -113,6 +140,38 @@ func _update_focus(delta: float) -> void:
 	var want := dof_ground_distance + altitude * dof_altitude_gain
 	attrs.dof_blur_far_distance = lerpf(attrs.dof_blur_far_distance, want, 1.0 - exp(-dof_lerp_speed * delta))
 	attrs.dof_blur_far_transition = attrs.dof_blur_far_distance
+
+
+## The aiming view: pulled in to `distance`, over the shoulder, `fov_drop` degrees narrower.
+func set_aiming(on: bool, distance: float, fov_drop: float) -> void:
+	_aiming = on
+	_aim_distance = distance
+	_aim_fov_drop = fov_drop
+
+
+## Where the crosshair ray starts: the head, or the shoulder the camera looks past while aiming.
+## The camera's centre ray passes through this point, so a ray from here along the camera's
+## forward lands exactly under the crosshair.
+func aim_origin() -> Vector3:
+	return spring_arm.global_position
+
+
+## Swings the view onto `point`, `speed` per second (exponential). LockOn calls it every frame.
+func track(point: Vector3, speed: float, delta: float) -> void:
+	var dir := (point - aim_origin()).normalized()
+	var t := 1.0 - exp(-speed * delta)
+	_yaw = lerp_angle(_yaw, atan2(-dir.x, -dir.z), t)
+	_pitch = lerpf(_pitch, asin(clampf(dir.y, -1.0, 1.0)), t)
+	_apply_rotation()
+
+
+## Mouse movement collected while locked (pixels, fading), for flicking to the next target.
+func take_lock_nudge() -> Vector2:
+	return _lock_nudge
+
+
+func clear_lock_nudge() -> void:
+	_lock_nudge = Vector2.ZERO
 
 
 ## Rattles the view. `amount` is 0..1; explosions call this scaled by distance.
