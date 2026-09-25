@@ -355,9 +355,16 @@ func _police_route() -> void:
 			parked = true
 			break
 	var gap := INF
+	# Against the kerb nearest the player where he stands at the end as well: on the real downtown
+	# grid block (0, 0) is 100 x 200 m and he can be nudged several metres during the forty
+	# seconds (off a building he landed against), and the cruiser follows him, as it should.
+	var pe: Vector3 = _ws.to_world(player.global_position)
+	var stop_end := StreetRoute.kerb_stop(_plan, Vector2(pe.x, pe.z), 13.0)
 	if car and is_instance_valid(car) and not stop.is_empty():
 		var cw: Vector3 = _ws.to_world(car.global_position)
 		gap = Vector2(cw.x, cw.z).distance_to(stop.stop)
+		if not stop_end.is_empty():
+			gap = minf(gap, Vector2(cw.x, cw.z).distance_to(stop_end.stop))
 	if gap >= 3.0 and car and is_instance_valid(car):
 		# What stood in the way: the car's own goal against the test's, and every body near it.
 		var cw: Vector3 = _ws.to_world(car.global_position)

@@ -653,13 +653,18 @@ func update_streaming(immediate: bool) -> void:
 	# downtown's real blocks (DowntownReal) are up to 440 m long, so seven of them ran LOD chunks
 	# three kilometres out over ground the far city (Skyline) draws anyway, per block.
 	var lod_reach := lod_reach_metres()
+	# And the FULL ring the same way: two of downtown's 125 x 200 m blocks each way was 2.6 times the
+	# area two ordinary blocks are, and every draw in it full detail (the avenue's draw calls went
+	# up by three quarters). A block of the ring further than two ordinary blocks is a LOD chunk.
+	var full_reach := full_reach_metres()
 	for dx in range(-lod_radius_blocks, lod_radius_blocks + 1):
 		for dz in range(-lod_radius_blocks, lod_radius_blocks + 1):
 			var ring := maxi(absi(dx), absi(dz))
 			var k := Vector2i(center.x + dx, center.y + dz)
-			if ring > load_radius_blocks and _block_distance(k, focus) > lod_reach:
+			var dist := _block_distance(k, focus)
+			if ring > load_radius_blocks and dist > lod_reach:
 				continue
-			wanted[k] = CityChunk.Level.FULL if ring <= load_radius_blocks else CityChunk.Level.LOD
+			wanted[k] = CityChunk.Level.FULL if ring <= load_radius_blocks and dist <= full_reach else CityChunk.Level.LOD
 	# Whatever the lead asks for, the ground actually under the player is always full detail.
 	# Leading the window alone would let a hard turn or a fast stop downgrade the block they are
 	# standing on, which is the one block that can never be a box.
@@ -778,6 +783,12 @@ func _build_skyline() -> void:
 	_skyline.fade_time = lod_fade_time
 	_skyline.setup(plan, chunk_style(), _canopy_material, stream_priority_at)
 	add_child(_skyline)
+
+
+## How far out, in metres from the focus, a chunk of the FULL ring is built in full detail: where an
+## ordinary ring of `load_radius_blocks` ends. Past it (downtown's long blocks) it is a LOD chunk.
+func full_reach_metres() -> float:
+	return float(load_radius_blocks) * plan.block_size_range.y
 
 
 ## How far out, in metres from the focus, a LOD chunk is still wanted: where an ordinary ring of

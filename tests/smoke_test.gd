@@ -113,19 +113,24 @@ func _test_city() -> void:
 	var lod_r: int = city.lod_radius_blocks
 	var load_r: int = city.load_radius_blocks
 	var counts: Vector2i = city.chunk_counts()
-	_check(counts.x == (2 * load_r + 1) * (2 * load_r + 1), "%d full-detail chunks around the player" % counts.x)
-	# The LOD ring stops lod_reach_metres() out: the real downtown's streets are pinned across the
-	# whole map (DowntownReal), so round the spawn the blocks are up to 440 m deep and the ring's
-	# outer blocks are left to the far city.
+	# Both rings stop where ordinary rings of blocks would (full_reach_metres(), lod_reach_metres()):
+	# the real downtown's streets are pinned across the whole map (DowntownReal), so round the spawn
+	# the blocks are up to 440 m deep, and the outer blocks of a ring are a coarser tier.
 	var spawn_body := get_tree().get_first_node_in_group("player") as Node3D
 	var here_xz: Vector3 = _world_state().to_world(spawn_body.global_position)
 	var here_k: Vector2i = plan.block_index_at(Vector2(here_xz.x, here_xz.z))
+	var want_full := 0
 	var want_lod := 0
 	for dx in range(-lod_r, lod_r + 1):
 		for dz in range(-lod_r, lod_r + 1):
 			var kk := Vector2i(here_k.x + dx, here_k.y + dz)
-			if maxi(absi(dx), absi(dz)) > load_r and float(city._block_distance(kk, Vector2(here_xz.x, here_xz.z))) <= float(city.lod_reach_metres()):
+			var dist := float(city._block_distance(kk, Vector2(here_xz.x, here_xz.z)))
+			var ring := maxi(absi(dx), absi(dz))
+			if ring <= load_r and (ring <= 1 or dist <= float(city.full_reach_metres())):
+				want_full += 1
+			elif dist <= float(city.lod_reach_metres()):
 				want_lod += 1
+	_check(absi(counts.x - want_full) <= 2 and want_full >= 9, "%d full-detail chunks around the player (%d wanted inside %.0f m)" % [counts.x, want_full, city.full_reach_metres()])
 	# (Within a few: the streamer measures from the led focus and keeps a LOD chunk 150 m past the
 	# reach before retiring it, so the edge of the ring can differ by a block or two.)
 	_check(absi(counts.y - want_lod) <= 4 and want_lod >= 80, "%d far LOD chunks (%d wanted inside %.0f m)" % [counts.y, want_lod, city.lod_reach_metres()])

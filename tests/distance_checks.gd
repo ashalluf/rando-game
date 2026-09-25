@@ -35,7 +35,11 @@ func run(t: Node, city: Node3D) -> void:
 	var here: Vector3 = ws.to_world(player.global_position)
 	await _vantage(streamer, sky, player, cam, Vector3(here.x, maxf(here.y, 2.0), here.z), "street level")
 	await _vantage(streamer, sky, player, cam, Vector3(here.x, 600.0, here.z), "600 m up")
-	await _vantage(streamer, sky, player, cam, Vector3(300.0, 520.0, -1150.0), "the hills over the basin")
+	# Over the foot of the front range, where the city starts: 250 m south of where this stood before
+	# downtown went in at 1:1 (DowntownReal). The real streets pinned across the map made the blocks
+	# here 184 m deep, and the FULL ring stops at CityStreamer.full_reach_metres(), so from z -1150
+	# every full-detail chunk was hillside and the full tier had no city to show.
+	await _vantage(streamer, sky, player, cam, Vector3(300.0, 520.0, -900.0), "the hills over the basin")
 	_fade_handoff(streamer, sky)
 
 
