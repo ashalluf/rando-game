@@ -136,6 +136,7 @@ assets/models/           Meshy .glb models, their .json manifests, extracted tex
 tools/meshy.py           Meshy API pipeline (generate, texture, rig, animate, download)
 tools/ambience_audio.py  Freesound CC0 search / verify / fetch and the ambience clip cutter (section 9m)
 tools/shrink_glb.py      shrinks embedded textures to 1K JPEG, --desaturate for car paint
+tools/smooth_normals.py  re-smooths a .glb's normals by angle (45 deg) and welds; run on the Meshy car bodies
 tools/pack_gltf.py       packs a Poly Haven .gltf + .bin + textures into one .glb
 tools/decimate_tree.py   reduces Poly Haven trees, bushes and rocks to game size (needs pymeshlab: pip install pymeshlab, apt-get install libopengl0)
 tools/webshot/           Playwright screenshot harness for the web build (see section 5)
@@ -403,6 +404,9 @@ pedestrian 44, each jet 30. `docs/ASSETS.md` has the table.
   collision for buildings and terrain so nothing sits inside a footprint when detail arrives.
 - Every Meshy car model has its nose along +X: `Vehicle.MODEL_YAW` -PI/2 puts it at -Z, the
   physics forward. Car paint is `shaders/car_paint.gdshader` (luminance split), not a tint.
+- The Meshy car bodies ship flat-shaded (normals split at 30 degrees and on every UV seam on an
+  8k-triangle remesh); they have been through `tools/smooth_normals.py` (45 degrees). A fresh
+  Meshy car needs the same, or it comes out faceted.
 - Meshy: rigs have a cm skeleton under a 0.01 armature; animated exports drop PBR maps and set
   metallic 1 + emissive; models come out along +X or -X (`MODEL_YAW` tables); car paint needs the
   base color greyscaled (`shrink_glb.py --desaturate`) so the tint works.

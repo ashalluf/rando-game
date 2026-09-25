@@ -22,6 +22,9 @@ const BODY_MODELS := {
 ## Belt line (bottom of the side glass, as a fraction of body height) for the single-texture
 ## bodies whose texture does not darken the windows, so the paint shader finds glass by shape.
 const GEO_GLASS_BELTLINE := {BodyType.SEDAN: 0.58, BodyType.PICKUP: 0.60, BodyType.VAN: 0.52}
+## The stretch of the body's length (0..1 in model space, which for the van runs nose to tail)
+## that has side glass: the van is a panel van, glazed only round the cab.
+const GEO_GLASS_SPAN := {BodyType.VAN: Vector2(0.0, 0.36)}
 ## How often each body type turns up, in parts per thousand. Exotics are deliberately rare: a
 ## street where every fourth car is a hypercar reads as a toy box, and the whole reason they land
 ## is that they are unusual. Must sum to 1000.
@@ -1132,6 +1135,7 @@ func _add_body_model(length: float) -> bool:
 		if GEO_GLASS_BELTLINE.has(body_type):
 			pm.set_shader_parameter("geo_glass", true)
 			pm.set_shader_parameter("beltline", GEO_GLASS_BELTLINE[body_type])
+			pm.set_shader_parameter("glass_span", GEO_GLASS_SPAN.get(body_type, Vector2(0.0, 1.0)))
 	# inst.position below puts the bottom of the box at model_bottom_y, so the top of the car is
 	# exactly that plus the scaled height of the box. That is where a roof prop goes.
 	var bottom: float = float(_dims().get("ride", model_bottom_y))
