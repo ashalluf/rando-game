@@ -26,3 +26,9 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   `<scratchpad>/patch/ab_crop.png`. Perf: the patch batch moves to the transparent pass
   (one MultiMesh per chunk, no shadows); one texture + one normal fetch and two noise
   evaluations per fragment on small decals - negligible. Gate green.
+
+- **Park lawn tint** (roadmap #15) - not shipped, reverted. Tried dryness 0.3 -> 0.48 / 0.62,
+  wear 0.5-0.6, tint greyed. Before `<scratchpad>/park/park_lake.png`, afters
+  `<scratchpad>/lawn/lake_after{,2,3}.png`. Lawn region HSV saturation 145 -> 153-155, value
+  145 -> 130: darker, not less saturated, because the near lawn is the blade-grass multimesh.
+  Not clearly better -> reverted.

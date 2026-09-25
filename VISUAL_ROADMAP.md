@@ -27,7 +27,7 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 | 12 | Post: restrained motion blur and DOF in aim / wheel | Post | 3 | 2 | 2 | 3.0 | todo | Forward+ only |
 | 13 | Land the downtown 1:1 re-lay patch (tools/downtown_relay/relay.patch) | Downtown | 4 | 2 | 1 | 8.0 | todo | HANDOFF 9p; big and risky, give it a wave of its own |
 | 14 | Interiors for key buildings (lobbies behind street-level glass) | Interiors | 2 | 2 | 1.5 | 2.7 | todo | |
-| 15 | Park lawns: less saturated, drier LA-autumn variation, worn paths under trees; jacaranda reads navy in the harness | Materials (lawn.gdshader, grass) | 3 | 4 | 1 | 12.0 | todo | seen in the MacArthur Park stills |
+| 15 | Park lawns: less saturated, drier LA-autumn variation, worn paths under trees; jacaranda reads navy in the harness | Materials (lawn.gdshader, grass) | 3 | 3 | 1 | 9.0 | reverted | a drier, greyer park lawn tint barely moved the frame: the blade-grass multimesh (its own colour, chunk._add_grass) is what fills the near lawn. Redo as a blade-colour + lawn pass together |
 | 16 | Road patch decals read as dark square holes (seen at Westlake, `park_camp.png`): feather their edges, match the asphalt tone | Materials (street_detail.gd `_road_wear`, road.gdshader) | 3 | 5 | 1 | 15.0 | done | build 257 (ec65e50): road_patch.gdshader |
 
 ## NEEDS MAC CHECK
