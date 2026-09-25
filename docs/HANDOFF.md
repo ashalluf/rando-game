@@ -2059,6 +2059,39 @@ Midday and night must not move. The rules are in the Day/night bullet of CLAUDE.
 - **Needs the Mac.** Not seen on the real city in Forward+ at all: the far ground's smog under
   `smog_lid`, the lid against the real mountains, volumetric fog over the real streets.
 
+## 9x. Street level at night, 2026-09-25 (agent branch)
+
+The ask: downtown at 21:30 in the rain read as one flat white fluorescent band along every tower
+base - every open shop was the building's single `lit_color` at one strength painted flat over
+the glass (the storefront fell through to the old flat-tile branch, not the traced room), every
+sign band was lit alike, and nothing at street level had colour or threw light on the wet
+pavement. The rules are in the Shop signs bullet of CLAUDE.md.
+
+- **What changed.** Each shop's night is rolled from integers (`shop_hash()` in the shader,
+  `Building.shop_hash()` bit for bit): about 62 % open, each open shop its own traced room in its
+  own light (warm, neutral, cool, sometimes pink or teal) at its own brightness, a third with a
+  neon piece (four SDF shapes, five colours) in the bay after the door; closed shops dark with a
+  night light, over half behind a roll-down shutter (only with `lamp_factor` over 0.5). Sign
+  bands: a closed shop's lightbox is off as often as not, and over half the boards are dark with
+  lit channel letters (the board carries a stand-in strip of their colour from 58 m, before the
+  letters cull at 75 m, and everywhere the letters are not drawn: web, landmark towers). Open shops throw a pool of their colour on the
+  pavement: one additive `shop_spill` batch per FULL chunk (`CityChunk._add_shop_spill()`).
+  Everything runs off `lamp_factor`; by day nothing differs (letters keep their cream and faint
+  glow, shutters are up).
+- **Cost.** One draw per FULL chunk for the spill (additive quads, no shadow, 170 m). The
+  shader's new work is on storefront pixels only (a dozen integer hashes, the neon SDF in a
+  neon bay); every other building pixel gains one `fwidth`.
+- **Needs the Mac.** Judged on opengl3 stills only. On Forward+ the lit rooms and neon go
+  through AgX and glow; check the neon is not blown out and the spill still reads on a soaked
+  road (SSR will mirror the lit shopfronts too, which the stills cannot show).
+- **Found, not fixed (next).** The shader measures the storefront as `fv = world_y /
+  ground_floor_height`, a fraction of WORLD height, not of the storefront: on a building standing
+  on raised relief the glass shrinks to a sliver and the sign band grows to metres (the huge white
+  "RECORDS" lightbox on the brick street, `--spawn=-96,-230,-62,10`). The shop-name `band_y`
+  (0.845 of the world height) was written to match it. The fix is `(world_y - base_y) /
+  (ground_floor_height - base_y)` plus `band_y = bottom + 0.845 * storefront`, and it changes the
+  day look of every raised storefront, so it wants its own before/after.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and

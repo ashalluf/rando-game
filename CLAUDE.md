@@ -598,6 +598,22 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `Building.SHOP_NAMES` and are original, never a real brand. Note the shader measures its `u`
   the opposite way round the box from the script's `a` on every face, so a run's centre has to
   be mirrored.
+  **Street level at night** (the storefront row is a patchwork, not one lit band): each shop's
+  night is rolled from INTEGERS - `shop_hash()` in `building.gdshader`, `Building.shop_hash()` /
+  `shop_byte()` / `shop_key()` bit for bit (a float hash cannot be reproduced off the GPU), salts
+  listed on `Building.shop_hash` - so the script knows what the shader draws. About 62 % of shops
+  are open: their traced room is lit in its own `shop_tone()` (warm, neutral, cool, now and then
+  pink or teal) at its own brightness, and a third hang a neon piece (`neon_shape()`, four
+  shapes, `neon_color()`) in the bay after the door. Closed ones are dark with a night light, and
+  over half pull a roll-down shutter (only while `lamp_factor` > 0.5, so never by day). Sign
+  bands: a closed shop leaves its lightbox off as often as not, and over half the boards are
+  dark with lit channel letters (`Building.shop_letters()` -> `PropFactory.shop_sign_material()`,
+  cream by day as before); the board draws a lit stand-in strip of their colour where there are
+  no letters (`sign_letters` false: the web, landmark towers) and past the letters' cull. Open shops
+  throw their light on the pavement: `Building.shop_pools` -> `CityChunk._add_shop_spill()`, ONE
+  additive batch per chunk (`PropFactory.shop_spill()`, `light_pool.gdshader`), knobs
+  `shop_spill_*` on Building. All of it runs off `lamp_factor`. The palettes are written in
+  both places; the smoke test reads the shader's copies back.
 - Night lighting: the city has no real lights except the sun, so at night it was pitch black.
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick

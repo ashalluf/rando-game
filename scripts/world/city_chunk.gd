@@ -380,6 +380,7 @@ func _finish_build() -> void:
 	for text_key: String in _batch.keys():
 		if text_key.begins_with("text_"):
 			_batch.set_no_shadow(text_key)
+	_add_shop_spill()
 	_commit_far_ground()
 	_mm_nodes = _batch.build(self)
 	for paint_key: String in PAINT_KEYS:
@@ -391,6 +392,26 @@ func _finish_build() -> void:
 	# The build's own samples go; pedestrians walking the pavement (Pedestrian._ground_y) fill
 	# back only the few cells along their ring.
 	_relief_lattice.clear()
+
+
+## How far the shop spill draws (metres). Past it the lit shopfronts carry the street.
+const SHOP_SPILL_DISTANCE := 170.0
+
+
+## The light open shops throw on the pavement (Building.shop_pools), as ONE additive batch for
+## the chunk: a draw call, and nothing at all by day (light_pool.gdshader reads lamp_factor). The
+## batch adds the relief, so each pool goes in at the pavement top.
+func _add_shop_spill() -> void:
+	var mesh := PropFactory.shop_spill()
+	for child in get_children():
+		if child is Building:
+			var b := child as Building
+			for pool: Array in b.shop_pools:
+				var xf: Transform3D = b.transform * (pool[0] as Transform3D)
+				xf.origin.y = SIDEWALK_TOP + 0.06
+				_batch.add("shop_spill", mesh, xf, pool[1])
+	_batch.set_no_shadow("shop_spill")
+	_batch.set_draw_distance("shop_spill", SHOP_SPILL_DISTANCE)
 
 
 ## Building boxes (building transform, part centre, part size) for this chunk's occluder: the
