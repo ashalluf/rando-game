@@ -1592,9 +1592,21 @@ static func stop_line() -> Mesh:
 	return box("stop_line", Vector3(1.0, 0.012, 0.45), Color(0.95, 0.95, 0.92))
 
 
-## Unit asphalt patch (scaled per instance), takes the instance color.
+## Unit asphalt patch (scaled per instance). The instance colour is a shade of the road (grey)
+## or spray paint (saturated); shaders/road_patch.gdshader textures it and feathers its edge.
+## It was a flat grey box, and every one read as a square hole in the road.
 static func patch() -> Mesh:
-	return box("patch", Vector3(1.0, 0.006, 1.0), Color(0.5, 0.5, 0.52))
+	if _cache.has("patch"):
+		return _cache["patch"]
+	var mesh := BoxMesh.new()
+	mesh.size = Vector3(1.0, 0.006, 1.0)
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/road_patch.gdshader")
+	mat.set_shader_parameter("albedo_tex", texture("asphalt", "Color"))
+	mat.set_shader_parameter("normal_tex", texture("asphalt", "NormalGL"))
+	mesh.material = mat
+	_cache["patch"] = mesh
+	return mesh
 
 
 ## Flat painted arrow pointing -Z: shaft plus head, 3.4 m long.

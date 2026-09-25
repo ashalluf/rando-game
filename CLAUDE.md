@@ -1386,6 +1386,11 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   texture has a directional grain, so at a 5 m tile a long slope turned into corduroy. Keep all of it subtle: the first
   pass used strong patch blends and dark joints and the ground read as a printed pattern rather
   than a surface.
+  The "patch" batch (resurfacing patches, oil, wheel tracks, braking polish, locate paint -
+  StreetDetail) wears `shaders/road_patch.gdshader`: the asphalt texture times the instance's
+  grey shade (1.0 = the road) with a ragged, feathered rim, oil soaked in blotchy and
+  see-through, saturated instance colours drawn as spray paint. As flat grey boxes every patch
+  read as a square hole cut in the road.
   Road paint (the `CityChunk.PAINT_KEYS` batches: dashes, centre lines, crosswalk bars, stop
   lines, arrows, stalls) wears `shaders/road_paint.gdshader`: worn through to the asphalt in
   patches (a discard - the boxes sit on the road, so a hole shows the road), speckled where it
