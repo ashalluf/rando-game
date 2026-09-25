@@ -1992,7 +1992,9 @@ static func camp_materials() -> Array:
 ## Wet streets: lowers the roughness of every cached road and sidewalk material (0 dry, 1 soaked).
 static var _wetness: float = -1.0
 static func set_wetness(w: float) -> void:
-	if absf(w - _wetness) < 0.01:
+	# Steps under 0.01 are skipped, but never the last one to bone dry: left at 0.009 the road
+	# shaders would still be doing their wet work on a dry street.
+	if absf(w - _wetness) < 0.01 and (w > 0.0 or _wetness == 0.0):
 		return
 	_wetness = w
 	# Road surfaces read it from a global instead of being walked one material at a time.

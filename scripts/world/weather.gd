@@ -40,6 +40,10 @@ const SOUND_SPEED := 343.0
 ## again. Drying is much slower than soaking, which is why the city stays shiny after a shower.
 @export var soak_seconds: float = 16.0
 @export var dry_seconds: float = 80.0
+## Seconds for the street to switch between the even soak of falling rain and the uneven drying
+## after it (the `road_drying` shader global: gutters, low spots and puddles hold their water,
+## wheel tracks and pavements dry first - road.gdshader).
+@export var drying_switch_seconds: float = 6.0
 @export_group("Storm")
 @export var lightning_gap: Vector2 = Vector2(3.0, 11.0)
 ## Length of one stroke of a flash (a strike is two to four of them).
@@ -87,6 +91,10 @@ var rain_level: float = 0.0
 ## How wet the streets are (0 dry, 1 soaked). Lags the rain: it builds while it rains and dries
 ## off slowly afterwards, so a shower leaves the city shining for a while.
 var wetness: float = 0.0
+## 0 while rain is wetting the streets evenly, 1 while they are drying out after it (published as
+## the `road_drying` global). Only the SHAPE of the wetness changes with it; how much water is
+## left is still `wetness`.
+var drying: float = 0.0
 var _previous: State = State.CLEAR
 var _timer: float = 0.0
 var _rng := RandomNumberGenerator.new()
@@ -154,6 +162,28 @@ func _ready() -> void:
 	# Start as wet as the weather we start in. Soaking from dry took soak_seconds, so a game that
 	# opened in rain spent its first quarter-minute on dry tarmac under a downpour.
 	wetness = clampf(_rain_level(state) * 1.2, 0.0, 1.0)
+	# `--wetness=0.5` (web `wetness=0.5`) starts the streets that wet and already drying: the
+	# after-the-rain look for stills, with `--weather=clear`.
+	var forced_wet := _wetness_override()
+	if forced_wet >= 0.0:
+		wetness = forced_wet
+		drying = 1.0 if forced_wet > _rain_level(state) * 1.2 else 0.0
+	RenderingServer.global_shader_parameter_set("road_drying", drying)
+
+
+func _wetness_override() -> float:
+	var text := ""
+	if OS.has_feature("web"):
+		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
+		if search is String:
+			for part in (search as String).trim_prefix("?").split("&"):
+				if part.begins_with("wetness="):
+					text = part.trim_prefix("wetness=")
+	else:
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--wetness="):
+				text = arg.trim_prefix("--wetness=")
+	return clampf(text.to_float(), 0.0, 1.0) if text.is_valid_float() else -1.0
 
 
 func _apply_override() -> void:
@@ -516,6 +546,13 @@ func _process(delta: float) -> void:
 	var soak := delta / maxf(soak_seconds, 0.01) if wet_target > wetness else delta / maxf(dry_seconds, 0.01)
 	wetness = move_toward(wetness, wet_target, soak)
 	PropFactory.set_wetness(wetness)
+	# Rain wets a street evenly; once the water is leaving it dries unevenly. Switched over a few
+	# seconds rather than snapped, so a shower that starts again does not flash the street.
+	var drying_target := 1.0 if wet_target < wetness - 0.001 else (0.0 if wet_target > 0.001 else drying)
+	var was_drying := drying
+	drying = move_toward(drying, drying_target, delta / maxf(drying_switch_seconds, 0.01))
+	if absf(drying - was_drying) > 0.0:
+		RenderingServer.global_shader_parameter_set("road_drying", drying)
 	# Rain follows the player.
 	if _rain:
 		# Changing amount restarts the emitter (and turns it on), so only touch it when it changes.

@@ -1376,12 +1376,14 @@ func _test_city() -> void:
 		_check(weather.wave_scale > 3.0, "a storm raises the ocean's wave scale (%.1f)" % weather.wave_scale)
 		_check(weather._rain.emitting, "a storm turns the rain on")
 		_check(city.get_node("DayNight").weather_darken > 0.5, "a storm darkens the sky")
+		_check(weather.wetness > 0.0 and weather.drying == 0.0, "rain wets the streets evenly (wetness %.2f, drying %.2f)" % [weather.wetness, weather.drying])
 		weather.state = 0
 		weather._previous = 0
 		weather.blend = 1.0
 		for i in 3:
 			weather._process(0.1)
 		_check(not weather._rain.emitting, "clear weather turns the rain off")
+		_check(weather.drying > 0.0, "the streets start drying unevenly once the rain stops (drying %.2f)" % weather.drying)
 	# Ground surfaces are textured: either a triplanar PBR material or the road/pavement wear
 	# shader, which carries its own albedo texture.
 	var road_textured := false

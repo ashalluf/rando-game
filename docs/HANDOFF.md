@@ -2235,6 +2235,44 @@ pavement. The rules are in the Shop signs bullet of CLAUDE.md.
   (ground_floor_height - base_y)` plus `band_y = bottom + 0.845 * storefront`, and it changes the
   day look of every raised storefront, so it wants its own before/after.
 
+## 9z. Wet streets that dry believably, 2026-09-25 (agent branch)
+
+The ask: wetness was one global (`road_wetness`) laid evenly over every road, so when the rain
+stopped the whole street dried as one sheet. Real streets after rain dry from the wheel tracks
+and the crown, puddles shrink from their edges, pavements dry slab by slab, and the gutters hold
+a band of running water to the end. The rules are in the Road surfaces bullet of CLAUDE.md.
+
+- **What changed.** Weather publishes a second global, `road_drying` (0 while rain is wetting
+  the street, ramped to 1 over `drying_switch_seconds` once the water is leaving). The amount of
+  water is still `road_wetness`; drying only changes its shape. `shaders/wet_drying.gdshaderinc`
+  turns a per-pixel `hold` into `film` (gloss, goes first) and `damp` (darkening, a little
+  later), and is shared by `road`, `road_patch` and `road_paint` so patches and paint dry with
+  the tarmac. road.gdshader builds `hold` from blotchy world noise, the puddle field (puddles use
+  `sqrt(wetness)` while drying, so they outlast the tarmac and shrink from the rim), the camber,
+  two wheel tracks per travel lane and the gutter; pavements drain `pavement_drain` sooner and
+  each slab rolls its own pace. A ragged mirror band of running water with a sliding ripple sits
+  at each kerb (`gutter_width`, `gutter_ripple`, `gutter_flow`) whenever the street is wet, rain
+  included - that is the only change to the soaked look.
+- **Kerbs without new data.** A road slab's UV already runs 0..1 across its rect (the lamp
+  glow uses it); its width and length in metres come from the ratio of screen derivatives of
+  `plan_pos` and the UV (exact, both are linear over the slab). Only a long slab of a street's
+  width gets kerbs and lanes; junction squares, skirts (constant UV) and the replica's 6 m grid
+  pieces get the noise alone.
+- **Degrades to today.** Everything new is inside `road_wetness > 0.01` and `ground_detail`
+  (off on the web and at LOW/LOWEST), and while it rains `film` and `damp` equal the old wetness,
+  so the soaked-at-night look only gains the gutter. `PropFactory.set_wetness()` now always
+  pushes the final 0 (steps under 0.01 were skipped, which could leave 0.009 standing).
+- **Cost.** Dry: nothing (one uniform compare). Wet, raining: about 150 ALU and one extra
+  normal-map fetch per road fragment (derivatives, two value noises, the gutter ripple). Drying:
+  about another 110 ALU (two value noises, the film/damp ramps). Patches and paint: about 110
+  ALU while drying, nothing otherwise. Roughly +15-25 % on a wet road fragment.
+- **Judge it.** `--weather=clear --wetness=0.45` (web `wetness=0.45`) starts that wet and already
+  drying; e.g. `--spawn=16,22,40,8 --hour=10 --weather=clear --wetness=0.6` for the day, the
+  `downtown_night_rain` bookmark's spawn at `--hour=21.5` for night. Stills are opengl3.
+- **Needs the Mac.** On Forward+ the gutter band and the drying puddles go through SSR: check the
+  kerb water mirrors the shopfronts without a hard seam, and that the drying street at night
+  still holds the lit windows in its puddles.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and

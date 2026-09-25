@@ -188,6 +188,11 @@ road_wetness={
 "value": 0.0
 }
 
+road_drying={
+"type": "float",
+"value": 0.0
+}
+
 night_factor={
 "type": "float",
 "value": 0.0

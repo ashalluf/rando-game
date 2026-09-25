@@ -277,7 +277,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   is mostly the sky seen in it, and leaving that to reflections gives nothing on the web). Debug `?weather=storm`.
   Rain at night is judged by the wet street, so: `Weather` starts as wet as the weather it
   starts in (soaking from dry spent the first 16 s on dry tarmac under a downpour); a soaked
-  road is roughness 0.07 with mirror puddles at 0.02 (`road.gdshader`, spreading as it soaks),
+  road is roughness 0.07 with mirror puddles at 0.02 (`road.gdshader`, spreading as it soaks,
+  and drying unevenly afterwards - see Road surfaces),
   because at 0.18 SSR only gave a smear and the lit windows standing in the street are the
   whole look; drops are lit (with a faint glow of their own) and fade out within 5 m of the
   lens, splashes are lit like the road, and the lens rain is a few dozen drops at the frame
@@ -1457,6 +1458,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   jittered grid with darker seams, ridged-noise cracks and sparse oil staining, so the road never
   repeats visibly and never reads as a flat grey plane. Wetness comes from the `road_wetness`
   global that `PropFactory.set_wetness()` sets, not from walking materials one at a time.
+  **Streets dry the way real ones do** (`shaders/wet_drying.gdshaderinc`, shared with
+  `road_patch` and `road_paint` so patches and paint dry in step with the tarmac): while it rains
+  the street is evenly `road_wetness`, exactly as before; once the water is leaving, Weather ramps
+  the `road_drying` global to 1 (`drying_switch_seconds`) and the same water is spread by a
+  per-pixel `hold` (0 dries first, 1 last): slow blotchy noise, the puddle field (puddles shrink
+  from their edges and outlast the tarmac, `sqrt` of the wetness), the camber (kerb side wetter
+  than the crown), two wheel tracks per travel lane (`CityPlan.lane_center()`'s lanes, drier),
+  pavements drain sooner and dry slab by slab, and a ragged band of running water at each kerb
+  (`gutter_width`, a mirror with its own sliding ripple, there while it rains too) is the last to
+  go. A spot's `film` (gloss) goes before its `damp` (darkening). The road finds its kerbs from
+  the slab UV (0..1 across the rect) and its size in metres from the ratio of screen derivatives
+  of the plan position and the UV - only a long street slab counts, so junction squares, skirts
+  and replica pieces get the noise alone. All of it is behind `ground_detail` (the web and low
+  levels keep the even look) and `road_wetness` > 0.01 (nothing runs on a dry street; set_wetness
+  always pushes the final 0). Force it for stills with `--wetness=0.45 --weather=clear` (web
+  `wetness=`), which starts that wet and already drying.
   Pavements use the same shader with `joints` (expansion-joint spacing in metres) and a lower
   `wear`, so they read as poured slabs rather than a grey plane. It also kills the visible tile
   grid, which is the first thing the eye finds on a plaza or a long pavement: it samples the
