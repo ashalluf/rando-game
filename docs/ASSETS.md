@@ -26,7 +26,6 @@ Quaternius). Record every pack here.
 | PavingStones138 | https://ambientcg.com/a/PavingStones138 | CC0 1.0 | sidewalks, plazas | 2026-09-19 |
 | Rock064 | https://ambientcg.com/a/Rock064 | CC0 1.0 | (kept, no longer on hills) | 2026-09-19 |
 | AerialGrassRock (Poly Haven `aerial_grass_rock`, Diffuse/nor_gl/Rough renamed to Color/NormalGL/Roughness) | https://polyhaven.com/a/aerial_grass_rock | CC0 1.0 | hills: its light and dark only, a large-tile mottle over the dry grass (terrain.gdshader) | 2026-09-19 |
-| RockyTerrain02 (Poly Haven `rocky_terrain_02`) | https://polyhaven.com/a/rocky_terrain_02 | CC0 1.0 | (kept, no longer on hills: it is green grass with pebbles, not rock) | 2026-09-19 |
 | DryGroundRocks (Poly Haven `dry_ground_rocks`, Rob Tuytel; 1K Diffuse/nor_gl/Rough renamed to Color/NormalGL/Roughness) | https://polyhaven.com/a/dry_ground_rocks | CC0 1.0 | hills: bare dirt / decomposed granite on cuts, banks and trails | 2026-09-24 |
 | RockFace (Poly Haven `rock_face`, Greg Zaal / Dario Barresi; 1K, renamed as above) | https://polyhaven.com/a/rock_face | CC0 1.0 | hills: rock outcrops on the steepest faces (recoloured buff-grey) | 2026-09-24 |
 | RedBrick, Brick4, RedBrick03 (Poly Haven `red_brick`, `brick_4`, `red_brick_03`) | https://polyhaven.com/a/red_brick etc. | CC0 1.0 | brick facades (one per building) | 2026-09-19 |
@@ -96,7 +95,9 @@ sending a subject-free texture prompt; J, K and L were made after the fix and ma
 
 All seven were first made as low-poly cartoon models (147 credits) and then regenerated with the
 owner's realism rule on Meshy's standard model (252 credits). Car base colors are greyscaled and
-brightened (`tools/shrink_glb.py --desaturate`) so the seeded paint tint gives the color.
+brightened (`tools/shrink_glb.py --desaturate`) so the seeded paint tint gives the color, and
+their normals re-smoothed by angle (`tools/smooth_normals.py`, 45 degrees; the export split
+them at 30 degrees and on every UV seam, which shaded the bodies as facets).
 
 Godot extracts each model's textures next to it on import (`<model>_N.jpg` + `.import`); those
 files are committed like any other import output.

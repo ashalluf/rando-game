@@ -85,6 +85,10 @@ uniform float beltline = 0.56;
 // Slope band that counts as glass: the up-component of the body-space normal.
 uniform float glass_slope_min = 0.10;
 uniform float glass_slope_max = 0.86;
+// Where along the body (body_uv.x, 0..1) glass can be. The van is a panel van: behind the cab
+// its flanks are sheet metal whose top turns in exactly like side glass, and once the body was
+// shaded smooth the slope test painted a dark band the length of it.
+uniform vec2 glass_span = vec2(0.0, 1.0);
 // How much of the lacquer's reflection survives where it would see the city rather than the sky:
 // reflected rays within `canyon_rise` of level. The radiance map is the open sky in every
 // direction, but a car door in a street reflects the buildings opposite, which are far darker
@@ -174,9 +178,19 @@ void fragment() {
 	float body = smoothstep(dark_below, body_above, lum);
 	float shape_glass = 0.0;
 	if (geo_glass) {
+		// The bodies are shaded smooth across bends of up to 45 degrees
+		// (tools/smooth_normals.py), so the normal no longer steps from face to face: it drifts
+		// slowly through the glass band, and a fixed +-0.04 blend smeared the edge of a window
+		// over a hand's width of panel.
+		// The blend is one pixel wide instead, so the window edge is a crisp line wherever it
+		// falls. (Classifying by the triangle's own normal was tried and brings the facets back
+		// as a patchwork of glass triangles.)
+		float slope_aa = max(fwidth(body_ny), 0.004);
 		shape_glass = smoothstep(beltline - 0.02, beltline + 0.02, body_uv.y)
-			* smoothstep(glass_slope_min - 0.04, glass_slope_min + 0.04, body_ny)
-			* (1.0 - smoothstep(glass_slope_max - 0.04, glass_slope_max + 0.04, body_ny))
+			* smoothstep(glass_slope_min - slope_aa, glass_slope_min + slope_aa, body_ny)
+			* (1.0 - smoothstep(glass_slope_max - slope_aa, glass_slope_max + slope_aa, body_ny))
+			* smoothstep(glass_span.x - 0.004, glass_span.x + 0.004, body_uv.x)
+			* (1.0 - smoothstep(glass_span.y - 0.004, glass_span.y + 0.004, body_uv.x))
 			// Not the top of the roof pillars' own panels: the last few percent is roof.
 			* (1.0 - smoothstep(0.93, 0.97, body_uv.y));
 		body *= 1.0 - shape_glass;

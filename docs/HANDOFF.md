@@ -1,9 +1,37 @@
-# Handoff: Rando Game (written 2026-09-19; section 0 is the newest state, 2026-09-24)
+# Handoff: Rando Game (written 2026-09-19; section 00 is the newest state, 2026-09-25)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 00. The orchestrator loop (2026-09-25, newest)
+
+Since 2026-09-24 evening the owner runs an autonomous loop: parallel agents in git worktrees
+(`/home/user/wt/<slug>`, branches `wt/<slug>`), each owning one visual item, merged to main one
+at a time after a full headless check and a before/after screenshot review. Its memory is two
+files at the repo root: **VISUAL_ROADMAP.md** (ranked backlog, statuses, NEEDS MAC CHECK,
+WAITING ON ASH) and **LOOP_LOG.md** (append-only history with screenshot paths and perf
+deltas). Read both before starting anything visual. Items judged "not clearly better" are not
+merged; their branches are kept (wt/vehicle-grime, wt/wall-weathering) and the log says why.
+
+How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every agent):
+- `tools/glshot/bookmarks.sh <dir> [names]` renders the seven fixed cameras (downtown noon,
+  downtown night + rain, hills, freeway, masjid, esplanade sunset, hero). The hills camera is
+  `--spawn=300,-650,0,-6,260` (the old one was too far to show the hill ground).
+- Locks: opengl3 renders `flock -o /tmp/rando_render_gl.lock`, lavapipe renders
+  `flock -o /tmp/rando_render.lock`, headless checks `flock /tmp/rando_test.lock`. Use `-o`:
+  plain flock hands the locked fd to the Xvfb that xvfb-run starts, and an orphaned Xvfb then
+  holds the lock with nothing rendering.
+- A full-city Forward+ (lavapipe) render needs ~13.9 GB and is OOM-killed here once anything
+  else runs; judge Forward+ looks on small stand-in scenes or on the owner's Mac.
+- Cap every Godot log with `| tail -c ...`: one runaway geo_count log reached 7.5 GB and
+  filled the disk (geo_count's AB= mode sets time_scale 0 and spams "must be finite" warnings
+  from player.gd:173).
+- Test traps found by the loop: re-centre the origin only inside the physics tick (tests await
+  `physics_frame` first; CityStreamer.recenter() says why), and the seed-rebuild check puts
+  `WorldState.world_offset` back after its second city - both used to throw traffic and far
+  chunks hundreds of metres.
 
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
@@ -137,6 +165,7 @@ assets/models/           Meshy .glb models, their .json manifests, extracted tex
 tools/meshy.py           Meshy API pipeline (generate, texture, rig, animate, download)
 tools/ambience_audio.py  Freesound CC0 search / verify / fetch and the ambience clip cutter (section 9m)
 tools/shrink_glb.py      shrinks embedded textures to 1K JPEG, --desaturate for car paint
+tools/smooth_normals.py  re-smooths a .glb's normals by angle (45 deg) and welds; run on the Meshy car bodies
 tools/pack_gltf.py       packs a Poly Haven .gltf + .bin + textures into one .glb
 tools/decimate_tree.py   reduces Poly Haven trees, bushes and rocks to game size (needs pymeshlab: pip install pymeshlab, apt-get install libopengl0)
 tools/webshot/           Playwright screenshot harness for the web build (see section 5)
@@ -404,6 +433,9 @@ pedestrian 44, each jet 30. `docs/ASSETS.md` has the table.
   collision for buildings and terrain so nothing sits inside a footprint when detail arrives.
 - Every Meshy car model has its nose along +X: `Vehicle.MODEL_YAW` -PI/2 puts it at -Z, the
   physics forward. Car paint is `shaders/car_paint.gdshader` (luminance split), not a tint.
+- The Meshy car bodies ship flat-shaded (normals split at 30 degrees and on every UV seam on an
+  8k-triangle remesh); they have been through `tools/smooth_normals.py` (45 degrees). A fresh
+  Meshy car needs the same, or it comes out faceted.
 - Meshy: rigs have a cm skeleton under a 0.01 armature; animated exports drop PBR maps and set
   metallic 1 + emissive; models come out along +X or -X (`MODEL_YAW` tables); car paint needs the
   base color greyscaled (`shrink_glb.py --desaturate`) so the tint works.
@@ -2111,6 +2143,126 @@ Midday and night must not move. The rules are in the Day/night bullet of CLAUDE.
   Compatibility are cheaper still for the sky itself. Neither shows the far ground's smog lid.
 - **Needs the Mac.** Not seen on the real city in Forward+ at all: the far ground's smog under
   `smog_lid`, the lid against the real mountains, volumetric fog over the real streets.
+
+## 9x. Frame cost baseline (2026-09-25)
+
+The yardstick the visual waves are judged against (north star: 60 fps at 1440p on the owner's
+Mac, 30 the floor). Measured on 20e2169 (street clutter just merged) with the new GEO / `SPLIT=1`
+report of `tools/glshot/still_shot.gd`, which every bookmark now prints for the exact frame it
+shoots: `SPLIT=1 GODOT=... tools/glshot/bookmarks.sh <dir> <names>`, then `grep -E '^(GEO|SPLIT)'
+<dir>/<name>.log`. opengl3 / llvmpipe, 1280x720 window, `--quality=0` (HIGH). Read the columns
+right: triangles include the shadow passes; the GL renderer does NOT count shadow draw calls,
+so "draws" is the camera pass only - on Forward+ every opaque draw also has a depth pre-pass
+twin and one more per shadow cascade it falls in. The counts are steady run to run: downtown
+noon and downtown night rain (same camera, other hour and weather) differ by 2.6k triangles
+and 6 draws.
+
+| Bookmark | Triangles (camera / shadow) | Draws | Objects |
+|---|---|---|---|
+| downtown_noon | 8.24 M (5.55 / 2.69) | 4,679 | 4,706 |
+| downtown_night_rain | 8.24 M (5.55 / 2.69) | 4,685 | 4,712 |
+| freeway | 8.68 M (5.39 / 3.29) | 6,661 | 6,781 |
+| esplanade_sunset | 3.19 M (1.84 / 1.35) | 1,309 | 1,309 |
+| hills | 1.60 M (1.30 / 0.30) | 1,202 | 1,203 |
+
+Where it goes (`SPLIT`: that category hidden, same frozen frame; triangles, of which shadow,
+and draws):
+
+| Category | downtown_noon | freeway | esplanade_sunset | hills |
+|---|---|---|---|---|
+| Trees, palms, planting | 1.97 M (1.14 sh), 454 | **3.40 M (1.95 sh)**, 735 | **1.98 M (1.18 sh)**, 639 | 0.51 M (0.21 sh), 32 |
+| Pedestrians (+ hero) | **1.88 M** (0.34 sh), 510 | 0.51 M, 440 | 0.04 M, 8 | 0.07 M, 23 |
+| Vehicles | 1.64 M (0.48 sh), 528 | 1.09 M (0.16 sh), 408 | 0.07 M, 27 | ~0, 5 |
+| Far city (Skyline) | 1.33 M, 125 | 1.32 M, 197 | 0.69 M, 114 | **0.81 M**, 120 |
+| Street props | 0.71 M (0.35 sh), **1,252** | 0.89 M (0.31 sh), **1,348** | 0.12 M, 281 | ~0, 51 |
+| Buildings | 0.23 M, 445 | 0.95 M (0.58 sh), **2,526** | 0.01 M, 24 | 0, 0 |
+| Chunk meshes (ground, freeway, boxes) | 0.37 M, 806 | 0.47 M, 908 | 0.24 M, 171 | 0.20 M, 401 |
+| Landmarks | 0.07 M, 524 | 0.09 M, 235 | ~0, 20 | 0.01 M, **569** |
+| Far ground (LOD chunks) | 0.32 M, 109 | 0.11 M, 79 | 0.02 M, 25 | 0, 0 |
+
+What that says, for whoever picks the next performance pass:
+- **Triangles: foliage first.** Trees are the biggest category on three of the four views (39 %
+  of the freeway frame, 62 % of the esplanade), and more than half of it is SHADOW even with the
+  lighter twins. The cause is known (9f): a batch takes one LOD for every instance from its
+  bounds, so every tree in the chunk the camera stands in draws LOD0 (40-60k triangles a tree)
+  into the camera and all cascades. Smaller tree cells fix it at the price of draw calls.
+- **Pedestrians downtown (1.88 M):** the 60-140 m band sits on the unwelded models' 4,150
+  triangle LOD floor; the welded far body starts at 140 m. Moving it closer is a visible-risk
+  call (it smears the texture seams), not a free win.
+- **Far city (0.7-1.3 M, few draws):** mostly the 24-triangle canopy blobs across the basin.
+  Tiles whose blocks are all under chunks are only ~2 of 81 near downtown, so hiding them buys
+  little.
+- **Draw calls: street props (1,250-1,350 a street frame, a key per batch per chunk) and
+  buildings (2,526 on the freeway - several meshes each)** are now the biggest draw sinks.
+- Forward+ (lavapipe) per-pass timings were not re-taken: both lavapipe runs of this session
+  were OOM-killed (the memory cgroup is shared by every agent on the box).
+  `tools/gpu_profile.gd` now also prints the camera / shadow split and honours `MERGE_STATIC`, for a quieter box.
+
+### What landed with it: static boxes merged into one draw per material
+
+`CityChunk._add_slab()` built every solid box (big-box walls, their pilasters, base bands and
+parapets, planters, port and airport pads, the crane) as its own MeshInstance3D - 300-530 of them
+in every bookmark's streamed ring, most in the LOD chunks, each a draw call and each casting into
+the far cascades. The far landmarks were the same: 802 nodes across the basin, mostly boxes and
+cylinders (the hills sign 129, the campus hall 106, the pier 71, the mall 61, the ship 51...),
+which on the hills bookmark were 569 of the frame's 1,202 draws for 9k triangles. Now a chunk
+accumulates its boxes per material and commits one mesh each at the finish (`_commit_boxes()`),
+and `MultiMeshBatch.merge_meshes()` merges each far landmark's plain primitives the same way
+(802 nodes -> 337; opaque BaseMaterial3D, auto-named, unscripted nodes only; shader materials
+such as the ridge sign's rigid seat are left alone because they can read MODEL_MATRIX). The
+vertices are the
+primitives' own, moved (normals by the inverse transpose), so nothing about the picture changes;
+`MERGE_STATIC=0` on `still_shot.gd` / `gpu_profile.gd` turns both off for the A/B.
+
+| Bookmark | Draws before -> after | Objects before -> after | Triangles before -> after |
+|---|---|---|---|
+| hills | 1,202 -> 942 (-21.6 %) | 1,203 -> 943 | 1,600,573 -> 1,600,573 |
+| downtown_noon | 4,679 -> 4,313 (-7.8 %) | 4,706 -> 4,340 | 8,236,628 -> 8,239,364 |
+| downtown_night_rain | 4,685 -> 4,319 (-7.8 %) | 4,712 -> 4,346 | 8,239,244 -> 8,241,980 |
+| freeway | 6,661 -> 6,485 (-2.6 %) | 6,781 -> 6,605 | 8,683,165 -> 8,686,153 |
+| esplanade_sunset | 1,309 -> 1,309 (none in view) | 1,309 -> 1,309 | 3,188,697 -> 3,188,697 |
+
+Camera-pass draws only; the shadow and depth pre-pass draws of the same boxes go too, which the
+GL counters cannot show. Triangles move by +0.03 % because a merged mesh is culled as one box.
+Pixel diffs (before on 20e2169 or `MERGE_STATIC=0`, after on this commit): the only differences
+are things that move with the clock - clouds and their reflection in the glass, wind-swayed
+foliage and its shadows, rain, the hero's idle - and the merged geometry itself is identical
+(freeway: the big-box store 0.08 % of pixels over 8/255; the road under downtown noon 0.000 %,
+max 2; hills without the sky and the hero, 0.058 mean abs). Renders and diff images of this pass
+were in the agent's scratchpad, not the repo; `MERGE_STATIC=0` reproduces the "before" side.
+
+## 9y. Street level at night, 2026-09-25 (agent branch)
+
+The ask: downtown at 21:30 in the rain read as one flat white fluorescent band along every tower
+base - every open shop was the building's single `lit_color` at one strength painted flat over
+the glass (the storefront fell through to the old flat-tile branch, not the traced room), every
+sign band was lit alike, and nothing at street level had colour or threw light on the wet
+pavement. The rules are in the Shop signs bullet of CLAUDE.md.
+
+- **What changed.** Each shop's night is rolled from integers (`shop_hash()` in the shader,
+  `Building.shop_hash()` bit for bit): about 62 % open, each open shop its own traced room in its
+  own light (warm, neutral, cool, sometimes pink or teal) at its own brightness, a third with a
+  neon piece (four SDF shapes, five colours) in the bay after the door; closed shops dark with a
+  night light, over half behind a roll-down shutter (only with `lamp_factor` over 0.5). Sign
+  bands: a closed shop's lightbox is off as often as not, and over half the boards are dark with
+  lit channel letters (the board carries a stand-in strip of their colour from 58 m, before the
+  letters cull at 75 m, and everywhere the letters are not drawn: web, landmark towers). Open shops throw a pool of their colour on the
+  pavement: one additive `shop_spill` batch per FULL chunk (`CityChunk._add_shop_spill()`).
+  Everything runs off `lamp_factor`; by day nothing differs (letters keep their cream and faint
+  glow, shutters are up).
+- **Cost.** One draw per FULL chunk for the spill (additive quads, no shadow, 170 m). The
+  shader's new work is on storefront pixels only (a dozen integer hashes, the neon SDF in a
+  neon bay); every other building pixel gains one `fwidth`.
+- **Needs the Mac.** Judged on opengl3 stills only. On Forward+ the lit rooms and neon go
+  through AgX and glow; check the neon is not blown out and the spill still reads on a soaked
+  road (SSR will mirror the lit shopfronts too, which the stills cannot show).
+- **Found, not fixed (next).** The shader measures the storefront as `fv = world_y /
+  ground_floor_height`, a fraction of WORLD height, not of the storefront: on a building standing
+  on raised relief the glass shrinks to a sliver and the sign band grows to metres (the huge white
+  "RECORDS" lightbox on the brick street, `--spawn=-96,-230,-62,10`). The shop-name `band_y`
+  (0.845 of the world height) was written to match it. The fix is `(world_y - base_y) /
+  (ground_floor_height - base_y)` plus `band_y = bottom + 0.845 * storefront`, and it changes the
+  day look of every raised storefront, so it wants its own before/after.
 
 ## 10. Suggested next steps, in order of impact
 

@@ -380,7 +380,9 @@ func _finish_build() -> void:
 	for text_key: String in _batch.keys():
 		if text_key.begins_with("text_"):
 			_batch.set_no_shadow(text_key)
+	_add_shop_spill()
 	_commit_far_ground()
+	_commit_boxes()
 	_mm_nodes = _batch.build(self)
 	for paint_key: String in PAINT_KEYS:
 		if _mm_nodes.has(paint_key):
@@ -391,6 +393,26 @@ func _finish_build() -> void:
 	# The build's own samples go; pedestrians walking the pavement (Pedestrian._ground_y) fill
 	# back only the few cells along their ring.
 	_relief_lattice.clear()
+
+
+## How far the shop spill draws (metres). Past it the lit shopfronts carry the street.
+const SHOP_SPILL_DISTANCE := 170.0
+
+
+## The light open shops throw on the pavement (Building.shop_pools), as ONE additive batch for
+## the chunk: a draw call, and nothing at all by day (light_pool.gdshader reads lamp_factor). The
+## batch adds the relief, so each pool goes in at the pavement top.
+func _add_shop_spill() -> void:
+	var mesh := PropFactory.shop_spill()
+	for child in get_children():
+		if child is Building:
+			var b := child as Building
+			for pool: Array in b.shop_pools:
+				var xf: Transform3D = b.transform * (pool[0] as Transform3D)
+				xf.origin.y = SIDEWALK_TOP + 0.06
+				_batch.add("shop_spill", mesh, xf, pool[1])
+	_batch.set_no_shadow("shop_spill")
+	_batch.set_draw_distance("shop_spill", SHOP_SPILL_DISTANCE)
 
 
 ## Building boxes (building transform, part centre, part size) for this chunk's occluder: the
@@ -2412,15 +2434,107 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 		_add_ground_grid(Rect2(pos.x - size.x * 0.5, pos.z - size.z * 0.5, size.x, size.z), pos.y + size.y * 0.5, size.y + 0.5, mat, collide, color)
 		return
 	var lifted := pos + Vector3(0.0, _gy(pos.x, pos.z), 0.0)
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.material_override = mat
-	mesh.position = lifted
-	add_child(mesh)
+	if merge_boxes and not _boxes_committed:
+		_merge_box(mat, size, lifted)
+	else:
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = size
+		mesh.mesh = box
+		mesh.material_override = mat
+		mesh.position = lifted
+		add_child(mesh)
 	if collide:
 		_add_shape(size, lifted)
+
+
+## Solid boxes (_add_slab's non-ground path: big-box walls, their pilasters, base bands and
+## parapets, planters, port and airport pads, the crane) are merged per material into ONE mesh a
+## chunk, committed at the finish (_commit_boxes). Each used to be its own MeshInstance3D, so its
+## own draw call - and again in the depth pre-pass and in every shadow cascade it falls in: a
+## big box is twenty-odd of them, and 300-530 were standing in every bookmark's streamed ring,
+## most of them in the LOD chunks, casting into the far cascades. Merging is exact: the vertices
+## are BoxMesh's own (unit_box_arrays(), scaled and moved), every material that comes through
+## here maps its textures in world space (PropFactory.pbr() is world-triplanar, material() is a
+## flat colour, road() works in world space) or reads BoxMesh's UV atlas, which does not depend
+## on the size, and the whole set still casts and receives like before.
+## `merge_boxes` false builds them one node each, as before (the A/B for a frame-cost
+## measurement: still_shot.gd MERGE_BOXES=0).
+static var merge_boxes: bool = true
+## Material -> [verts, normals, tangents, uvs, indices].
+var _boxes: Dictionary = {}
+## Set once the boxes are committed; anything added after that is built as its own node again.
+var _boxes_committed: bool = false
+static var _unit_box: Array = []
+
+
+## BoxMesh's arrays for a 1 m cube, read once. Normals and tangents are snapped back onto the
+## axes (they come back through the vertex compression a few 1e-5 off).
+static func unit_box_arrays() -> Array:
+	if _unit_box.is_empty():
+		var box := BoxMesh.new()
+		box.size = Vector3.ONE
+		var a := box.get_mesh_arrays()
+		var n: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+		for i in n.size():
+			n[i] = n[i].round()
+		var t: PackedFloat32Array = a[Mesh.ARRAY_TANGENT]
+		for i in t.size():
+			t[i] = roundf(t[i])
+		_unit_box = [a[Mesh.ARRAY_VERTEX], n, t, a[Mesh.ARRAY_TEX_UV], a[Mesh.ARRAY_INDEX]]
+	return _unit_box
+
+
+func _merge_box(mat: Material, size: Vector3, at: Vector3) -> void:
+	var unit := unit_box_arrays()
+	var acc: Array = _boxes.get(mat, [])
+	if acc.is_empty():
+		acc = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array(), PackedInt32Array()]
+		_boxes[mat] = acc
+	# Take the arrays out of the list while they grow: a packed array is copy-on-write, and one
+	# still referenced from `acc` would be copied whole on every append.
+	var verts: PackedVector3Array = acc[0]
+	var normals: PackedVector3Array = acc[1]
+	var tangents: PackedFloat32Array = acc[2]
+	var uvs: PackedVector2Array = acc[3]
+	var idx: PackedInt32Array = acc[4]
+	acc.fill(null)
+	var base := verts.size()
+	for v: Vector3 in unit[0]:
+		verts.append(v * size + at)
+	normals.append_array(unit[1])
+	tangents.append_array(unit[2])
+	uvs.append_array(unit[3])
+	for i: int in unit[4]:
+		idx.append(base + i)
+	acc[0] = verts
+	acc[1] = normals
+	acc[2] = tangents
+	acc[3] = uvs
+	acc[4] = idx
+
+
+func _commit_boxes() -> void:
+	_boxes_committed = true
+	var n := 0
+	for mat: Material in _boxes:
+		var acc: Array = _boxes[mat]
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = acc[0]
+		arrays[Mesh.ARRAY_NORMAL] = acc[1]
+		arrays[Mesh.ARRAY_TANGENT] = acc[2]
+		arrays[Mesh.ARRAY_TEX_UV] = acc[3]
+		arrays[Mesh.ARRAY_INDEX] = acc[4]
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var mi := MeshInstance3D.new()
+		mi.name = "Boxes%d" % n
+		mi.mesh = mesh
+		mi.material_override = mat
+		add_child(mi)
+		n += 1
+	_boxes.clear()
 
 
 ## A ground surface over `rect` at `top` above the relief, with a skirt hanging `skirt` meters

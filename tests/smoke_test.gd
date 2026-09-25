@@ -1176,17 +1176,22 @@ func _test_city() -> void:
 		if shotgun:
 			var standing: Array = []
 			for p in get_tree().get_nodes_in_group("pedestrian"):
-				if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down"):
+				# Upright walkers only: a rough sleeper (is_posed) sits or lies, and a chest-high
+				# blast over them lands two or three pellets, so which of them happened to be
+				# nearest decided the check.
+				if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down") and not p.has_method("is_posed"):
 					standing.append(p)
 			standing.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
 			var volley_bleed := 0.0
+			var victim := "nobody"
 			for cand: Node3D in standing.slice(0, 5):
 				shotgun._fire({"origin": cand.global_position + Vector3(-2.5, 1.2, 0.0), "direction": Vector3.RIGHT})
 				var doll: Variant = cand.get("_doll")
 				if doll is Ragdoll:
 					volley_bleed = float((doll as Ragdoll).bleed)
+					victim = str(cand.name)
 					break
-			_check(volley_bleed > 1.5, "a close shotgun blast is one heavy wound (strength %.2f, a rifle round is 1)" % volley_bleed)
+			_check(volley_bleed > 1.5, "a close shotgun blast is one heavy wound (strength %.2f, a rifle round is 1; %s)" % [volley_bleed, victim])
 		# Every kind of mark stays under its cap when a crowd is emptied into at once: 120 heavy
 		# wounds and 16 pools in one frame, with the per-moment budget lifted so all of them count.
 		var budget_was: int = WeaponFX.blood_budget
@@ -1354,6 +1359,17 @@ func _test_city() -> void:
 	for n in city.find_children("Batch_lamp_pool", "MultiMeshInstance3D", true, false):
 		pools += (n as MultiMeshInstance3D).multimesh.instance_count
 	_check(pools > 20, "lamps throw a pool of light on the pavement (%d)" % pools)
+	# Open shops throw theirs too: one batch per chunk, one pool per open shop Building reports.
+	var spill := 0
+	var spill_want := 0
+	for n in city.find_children("Batch_shop_spill", "MultiMeshInstance3D", true, false):
+		spill += (n as MultiMeshInstance3D).multimesh.instance_count
+	for b in get_tree().get_nodes_in_group("building"):
+		# Not `is CityChunk`: the test must not name a class that uses an autoload (CLAUDE.md).
+		if (b as Node).get_parent() != null and (b as Node).get_parent().has_method("build_step"):
+			spill_want += (b.get("shop_pools") as Array).size()
+	# At most: a chunk still building has its buildings but not yet its batches.
+	_check(spill > 10 and spill <= spill_want, "open shops spill light on the pavement (%d of %d)" % [spill, spill_want])
 	# Every car carries its headlights, tail lights and road beam as one mesh (one draw, not
 	# five - there are up to 150 cars on the road).
 	var car_lights := 0
@@ -1926,6 +1942,41 @@ func _test_buildings() -> void:
 		if found:
 			named += 1
 	_check(named > 3 and sign_nodes > named, "storefronts carry shop names (%d signs on %d buildings)" % [sign_nodes, named])
+	# Street level at night: Building rolls each shop's night (open, its light, its sign) with the
+	# shader's own integer hash, and the palettes are written twice, so read the shader's copies
+	# out of its source. A drift here puts a pink spill in front of a white shop, or a pool of light
+	# in front of a shuttered one.
+	var night_why := ""
+	for pair: Array in [["shop_tone", Building.SHOP_TONES], ["neon_color", Building.NEON_COLORS], ["letter_color", Building.LETTER_COLORS]]:
+		var at := Building.SHADER.code.find("vec3 %s(uint" % pair[0])
+		var body := Building.SHADER.code.substr(at, Building.SHADER.code.find("\n}", at) - at)
+		var vx := RegEx.new()
+		vx.compile("vec3\\(([0-9.]+), ([0-9.]+), ([0-9.]+)\\)")
+		var found := vx.search_all(body)
+		var want: Array = pair[1]
+		if at < 0 or found.size() != want.size():
+			night_why += " %s has %d colours" % [pair[0], found.size()]
+			continue
+		for i in want.size():
+			var c: Color = want[i]
+			var m: RegExMatch = found[i]
+			if absf(m.get_string(1).to_float() - c.r) + absf(m.get_string(2).to_float() - c.g) + absf(m.get_string(3).to_float() - c.b) > 1e-4:
+				night_why += " %s[%d]" % [pair[0], i]
+	for needle: String in ["747796405u", "2891336453u", "2246822519u", "3266489917u", "shop_byte(shop_key, 1u) < 158u"]:
+		if Building.SHADER.code.find(needle) < 0:
+			night_why += " no %s" % needle
+	# The GDScript side of the hash, against values worked out by hand in 32-bit unsigned maths.
+	if Building.shop_hash(12345, 1) != 2844175535 or Building.shop_byte(4294967295, 11) != 174:
+		night_why += " hash drifted"
+	_check(night_why == "", "Building rolls each shop's night the way the shader does%s" % night_why)
+	var spills := 0
+	var spill_closed := 0
+	for b in get_tree().get_nodes_in_group("building"):
+		for pool: Array in b.get("shop_pools"):
+			spills += 1
+			if (pool[1] as Color).a <= 0.0:
+				spill_closed += 1
+	_check(spills > 0 and spill_closed == 0, "open shops put a pool of their light on the pavement (%d)" % spills)
 	var with_balconies := 0
 	for b in get_tree().get_nodes_in_group("building"):
 		if (b.has_node("Balconies") and b.get_node("Balconies").multimesh.instance_count > 0) or _kit_count(b, "Batch_kit_balcony") > 0:

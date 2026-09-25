@@ -48,13 +48,13 @@ for entry in "${BOOKMARKS[@]}"; do
 	start=$(date +%s)
 	if [ "$name" = "hero" ]; then
 		env OUT="$png" WEAPON=0 AIM=1 YAW=35 CAM_AT=head CAM_DIST=1.6 LIBGL_ALWAYS_SOFTWARE=1 \
-			flock "$LOCK" timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" \
+			flock -o "$LOCK" timeout 900 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" \
 			--rendering-driver $driver --display-driver x11 --audio-driver Dummy --path . \
 			--script tools/glshot/hero_shot.gd --resolution 720x720 > "$OUT/$name.log" 2>&1
 	else
 		# shellcheck disable=SC2086
 		env OUT="$png" FRAMES=${FRAMES:-45} $extra LIBGL_ALWAYS_SOFTWARE=1 \
-			flock "$LOCK" timeout 1500 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" \
+			flock -o "$LOCK" timeout 1500 xvfb-run -a -s "-screen 0 1280x720x24" "$GODOT" \
 			--rendering-driver $driver --display-driver x11 --audio-driver Dummy --path . \
 			--script tools/glshot/still_shot.gd --resolution 960x540 \
 			-- $args --nohud --quality=0 > "$OUT/$name.log" 2>&1

@@ -10,7 +10,7 @@ static var _cache: Dictionary = {}
 const TEXTURE_SETS := {
 	"asphalt": "Asphalt033", "brick": "Bricks104", "concrete": "Concrete034", "grass": "Grass004",
 	"sand": "Ground054", "metal": "MetalPlates006", "paving": "PavingStones138", "rock": "Rock064",
-	"hill": "AerialGrassRock", "hill_rock": "RockyTerrain02",
+	"hill": "AerialGrassRock",
 	# Hill ground splat (Poly Haven): bare dirt / decomposed granite, and the rock outcrops.
 	"hill_dirt": "DryGroundRocks", "hill_outcrop": "RockFace",
 	# Street surface sets (Poly Haven), picked per road and per block for variety.
@@ -904,6 +904,49 @@ static func sign_material() -> StandardMaterial3D:
 	mat.emission_energy_multiplier = 0.55
 	_cache["sign_mat"] = mat
 	return mat
+
+
+## The raised name on a city shopfront (Building.shop_letters()), one material per look so a
+## street shares a handful: by day all of them are the cream letter sign_material() was, with its
+## faint glow; after dark `index` 0.. is a channel letter burning Building.LETTER_COLORS[index] at
+## `glow`, -2 a dark letter against a lit lightbox, -1 an unlit letter on a board left off.
+static func shop_sign_material(index: int, glow: float) -> ShaderMaterial:
+	var key := "shop_sign_%d_%.2f" % [index, glow]
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/sign_letters.gdshader")
+	mat.set_shader_parameter("ink", Color(0.95, 0.92, 0.85))
+	mat.set_shader_parameter("roughness", 0.6)
+	mat.set_shader_parameter("day_glow_color", Color(1.0, 0.93, 0.78))
+	mat.set_shader_parameter("day_glow", 0.55)
+	mat.set_shader_parameter("night_mix", 1.0)
+	mat.set_shader_parameter("glow", glow)
+	if index >= 0:
+		mat.set_shader_parameter("night_ink", Building.LETTER_COLORS[index])
+	elif index == -2:
+		mat.set_shader_parameter("night_ink", Color(0.05, 0.05, 0.05))
+	else:
+		mat.set_shader_parameter("night_ink", Color(0.62, 0.60, 0.56))
+	_cache[key] = mat
+	return mat
+
+
+## The pool of light an open shop throws on the pavement: light_pool()'s additive quad with a
+## wider, softer falloff, white so each instance's colour (the shop's light) is the tint.
+static func shop_spill() -> Mesh:
+	if _cache.has("shop_spill"):
+		return _cache["shop_spill"]
+	var mesh := QuadMesh.new()
+	mesh.size = Vector2.ONE
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/light_pool.gdshader")
+	mat.set_shader_parameter("tint", Color.WHITE)
+	mat.set_shader_parameter("strength", 1.0)
+	mat.set_shader_parameter("falloff", 1.7)
+	mesh.material = mat
+	_cache["shop_spill"] = mesh
+	return mesh
 
 
 ## Shared vertex-colour foliage material with the wind sway (see shaders/foliage.gdshader).

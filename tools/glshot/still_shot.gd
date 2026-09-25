@@ -38,9 +38,21 @@ extends SceneTree
 ## its red, and for `crossing` people out on the crosswalk in front of it (see _stage_street for
 ## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES). With --hour=21 it is the lit heads
 ## at night.
+## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
+## camera pass and the shadow passes); SPLIT=1 then hides one category at a time (cars, people,
+## buildings, trees, props, far city, ...) with the world held still and prints what each costs,
+## like tools/tri_split.gd but on the bookmark's exact frame. MERGE_STATIC=0 builds the chunks'
+## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
+## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
+	# MERGE_STATIC=0: the chunks' solid boxes and the far landmarks' boxes one node each, as
+	# before they were merged (the A/B of that change). Through the script resources, not the
+	# class names: CityChunk uses autoloads, and this script compiles before they exist.
+	if OS.get_environment("MERGE_STATIC") == "0":
+		(load("res://scripts/world/city_chunk.gd") as GDScript).set("merge_boxes", false)
+		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("merge_enabled", false)
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	var frames := _env_int("FRAMES", 30)
 	var hold := Vector3.INF
@@ -249,7 +261,96 @@ func _initialize() -> void:
 		out = "still.png"
 	get_root().get_texture().get_image().save_png(out)
 	print("saved ", out)
+	# The frame's cost, split into the camera's pass and the shadow passes (the counters are
+	# real here: this runs under opengl3 or vulkan, never --headless). SPLIT=1 then hides one
+	# category at a time, the world held still, as tools/tri_split.gd does - so every bookmark
+	# still also gives a cost table for the exact frame it shot.
+	await _geo_report("GEO")
+	if OS.get_environment("SPLIT") == "1":
+		await _geo_split(player, anchor, hold, boost, fov)
 	quit()
+
+
+func _geo_counts() -> Array:
+	var vp := get_root()
+	var vis := Viewport.RENDER_INFO_TYPE_VISIBLE
+	var sh := Viewport.RENDER_INFO_TYPE_SHADOW
+	return [int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)),
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)),
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),
+		vp.get_render_info(vis, Viewport.RENDER_INFO_PRIMITIVES_IN_FRAME),
+		vp.get_render_info(sh, Viewport.RENDER_INFO_PRIMITIVES_IN_FRAME),
+		vp.get_render_info(vis, Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME),
+		vp.get_render_info(sh, Viewport.RENDER_INFO_DRAW_CALLS_IN_FRAME)]
+
+
+func _geo_report(label: String) -> Array:
+	await process_frame
+	await process_frame
+	var c := _geo_counts()
+	print("%s tris=%d draws=%d objects=%d | camera tris=%d draws=%d | shadow tris=%d draws=%d" % [
+		label, c[0], c[1], c[2], c[3], c[5], c[4], c[6]])
+	return c
+
+
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+
+
+func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
+	var nodes := {}
+	for c in SPLIT_CATEGORIES:
+		nodes[c] = []
+	for n in current_scene.find_children("*", "GeometryInstance3D", true, false):
+		var gi := n as GeometryInstance3D
+		if gi.is_visible_in_tree():
+			nodes[_split_category(gi)].append(gi)
+	_pose(player, anchor, hold, boost, fov)
+	var base := await _geo_report("SPLIT base")
+	for c in SPLIT_CATEGORIES:
+		var list: Array = nodes[c]
+		if list.is_empty():
+			continue
+		for gi: GeometryInstance3D in list:
+			if is_instance_valid(gi):
+				gi.visible = false
+		var hidden := await _geo_report("  (hidden %s)" % c)
+		for gi: GeometryInstance3D in list:
+			if is_instance_valid(gi):
+				gi.visible = true
+		print("SPLIT %-12s nodes %5d  tris %9d (%4.1f%%)  draws %5d  objects %5d  | shadow tris %9d draws %5d" % [
+			c, list.size(), base[0] - hidden[0], 100.0 * (base[0] - hidden[0]) / maxf(base[0], 1),
+			base[1] - hidden[1], base[2] - hidden[2], base[4] - hidden[4], base[6] - hidden[6]])
+
+
+func _split_category(gi: GeometryInstance3D) -> String:
+	var n: Node = gi
+	while n != null:
+		var cls := String(n.get_script().get_global_name()) if n.get_script() else ""
+		match cls:
+			"Building":
+				return "Building"
+			"Vehicle", "Aircraft", "PoliceCar", "AmbientJet", "Helicopter":
+				return "Vehicle"
+			"Pedestrian", "Ragdoll", "Avatar", "Player", "PoliceOfficer", "RoughSleeper", "ReplicaWalker":
+				return "Pedestrian"
+			"Skyline":
+				return "FarCity"
+			"CityChunk":
+				var nm := String(gi.name)
+				for k in ["tree", "palm", "bush", "shrub", "flower", "plant", "gclump", "Planting"]:
+					if nm.contains(k):
+						return "Trees"
+				if nm.contains("grass"):
+					return "Grass"
+				if nm.contains("FarGround"):
+					return "FarGround"
+				if nm.begins_with("Batch"):
+					return "StreetProps"
+				return "Other"
+		if String(n.name).begins_with("Landmark") or String(n.name).begins_with("FarLandmark"):
+			return "Landmark"
+		n = n.get_parent()
+	return "Other"
 
 
 ## FX_SHOOT=N: N AK-47 rounds into the pedestrian nearest `at` (FX_AT_PED=1, and FX_PED_PLACE=1
