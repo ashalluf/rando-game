@@ -135,3 +135,8 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   Evidence `<scratchpad>/audit5/`.
 - **OWNER reports** (2026-09-25): port in the middle of the city (#29), freeways through
   downtown buildings (#30) -> re-lay agent; more homeless downtown (#31) -> new agent.
+- **CI 286 red** (police damage check, 0.7^5 chance of five misses): that phase now aims well.
+  c08b87b.
+- **Session ended by the owner** (2026-09-25 ~15:30). Agents stopped; unfinished branches
+  pushed as wt/downtown-relay, wt/sedan-body, wt/downtown-homeless, wt/street-wear,
+  wt/tree-lod, wt/wet-streets (see HANDOFF section 00). STOP file created.
