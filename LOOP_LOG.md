@@ -112,3 +112,9 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 ## Wave 6 (2026-09-25)
 
 - Launched: wet streets that dry believably (#9). Tree LOD (#23) waits for hill vegetation (same batching code).
+- **Hill vegetation** (roadmap #6) - merged 75902af (gate pending at writing). Shrubs and oaks
+  placed from a GDScript copy of the terrain shader's brush/dirt/rock field (checked against
+  the shader by the smoke test); far mounds from the same field. North-face A/B
+  `<scratchpad>/veg/nf_ab.png` (clearly better), hills bookmark `hills_ab.png` (neutral). GEO:
+  hills +4.5 % tris / -0.3 % draws, city +1.2 % tris, among the stands +14-22 % tris and
+  +5-10 % draws. Found: a floating hill chunk (#25).
