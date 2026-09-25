@@ -1,9 +1,37 @@
-# Handoff: Rando Game (written 2026-09-19; section 0 is the newest state, 2026-09-24)
+# Handoff: Rando Game (written 2026-09-19; section 00 is the newest state, 2026-09-25)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
+
+## 00. The orchestrator loop (2026-09-25, newest)
+
+Since 2026-09-24 evening the owner runs an autonomous loop: parallel agents in git worktrees
+(`/home/user/wt/<slug>`, branches `wt/<slug>`), each owning one visual item, merged to main one
+at a time after a full headless check and a before/after screenshot review. Its memory is two
+files at the repo root: **VISUAL_ROADMAP.md** (ranked backlog, statuses, NEEDS MAC CHECK,
+WAITING ON ASH) and **LOOP_LOG.md** (append-only history with screenshot paths and perf
+deltas). Read both before starting anything visual. Items judged "not clearly better" are not
+merged; their branches are kept (wt/vehicle-grime, wt/wall-weathering) and the log says why.
+
+How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every agent):
+- `tools/glshot/bookmarks.sh <dir> [names]` renders the seven fixed cameras (downtown noon,
+  downtown night + rain, hills, freeway, masjid, esplanade sunset, hero). The hills camera is
+  `--spawn=300,-650,0,-6,260` (the old one was too far to show the hill ground).
+- Locks: opengl3 renders `flock -o /tmp/rando_render_gl.lock`, lavapipe renders
+  `flock -o /tmp/rando_render.lock`, headless checks `flock /tmp/rando_test.lock`. Use `-o`:
+  plain flock hands the locked fd to the Xvfb that xvfb-run starts, and an orphaned Xvfb then
+  holds the lock with nothing rendering.
+- A full-city Forward+ (lavapipe) render needs ~13.9 GB and is OOM-killed here once anything
+  else runs; judge Forward+ looks on small stand-in scenes or on the owner's Mac.
+- Cap every Godot log with `| tail -c ...`: one runaway geo_count log reached 7.5 GB and
+  filled the disk (geo_count's AB= mode sets time_scale 0 and spams "must be finite" warnings
+  from player.gd:173).
+- Test traps found by the loop: re-centre the origin only inside the physics tick (tests await
+  `physics_frame` first; CityStreamer.recenter() says why), and the seed-rebuild check puts
+  `WorldState.world_offset` back after its second city - both used to throw traffic and far
+  chunks hundreds of metres.
 
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
