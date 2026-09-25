@@ -67,3 +67,10 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 ## Wave 4 (2026-09-25)
 
 - Launched: downtown 1:1 re-lay (roadmap #13), hill vegetation (#6).
+- **Vehicle grime** (roadmap #2) - not merged. Close-ups `<scratchpad>/grime/m2/z_sedan.png`,
+  `z_pickup.png` (dirt 0 / 0.3 / 1). Real but subtle at the median car, ~+190 ALU per car
+  fragment (paint code ~90 before). Found: the body meshes' faceting is the louder tell (#21).
+- **Wall weathering** (roadmap #3) - not merged. `<scratchpad>/ww/cmp3_brick_close.png` (better
+  up close), `cmp3_city_brick.png` (no difference at 40 m). +90-120 ALU per wall pixel.
+- Render lock: `flock ... xvfb-run` handed the lock fd to Xvfb, and an orphaned Xvfb held every
+  render for a while. bookmarks.sh now uses `flock -o` (the child never inherits the lock).
