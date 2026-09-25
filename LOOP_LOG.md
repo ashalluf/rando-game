@@ -94,7 +94,7 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 - **Container restart** (~10:30): all five agents were killed. Night shopfronts had finished;
   re-lay, hill vegetation, pedestrian LOD and the audit were relaunched to resume from their
   worktrees.
-- **Night shopfronts** (roadmap #8) - merged 5340b9b (gate pending at writing). Root cause: an
+- **Night shopfronts** (roadmap #8) - merged 5340b9b, gate 459/459. Root cause: an
   open shop fell through to a flat `lit_color` branch, so every tower base was one white band.
   Crop `<scratchpad>/nshop/cmp_rain_base2.png`, full `after2/night_rain.png`. geo_count night
   avenue +1 draw, +78 tris. Brightness p95 night rain 153 -> 128 (the white band came down);
