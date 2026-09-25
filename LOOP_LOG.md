@@ -32,3 +32,7 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   `<scratchpad>/lawn/lake_after{,2,3}.png`. Lawn region HSV saturation 145 -> 153-155, value
   145 -> 130: darker, not less saturated, because the near lawn is the blade-grass multimesh.
   Not clearly better -> reverted.
+
+## Wave 3 (2026-09-25)
+
+- Hill road cut banks (roadmap #17) launched. New hills bookmark baseline: `<scratchpad>/bookmarks/base_18c1bcb/hills2.png`.
