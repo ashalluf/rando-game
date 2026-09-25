@@ -17,7 +17,7 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 | 2 | Vehicle grime: dirt on the lower body and wheel arches, dust on glass, per-car amount | Vehicles (car_paint.gdshader, vehicle.gd) | 3 | 5 | 1 | 15.0 | in-progress | wave 1. Every car is showroom clean today |
 | 3 | Walls and pavements: grime streaks under sills, rain stains, damp kerb line, graffiti tags on low walls | Materials (building.gdshader) | 4 | 4 | 1.1 | 14.5 | in-progress | wave 1 |
 | 4 | MacArthur Park on (build 253) | Density / landmark | 3 | 3 | 1 | 9.0 | done | build 254. Three causes found (forced turn; tests re-centring outside the physics tick; seed-rebuild check zeroing the offset) |
-| 5 | Golden hour / LA haze: warmer low sun, orange-pink horizon band, brown-grey smog layer at the basin edge | Lighting (day_night.gd, sky.gdshader) | 4 | 3 | 1 | 12.0 | in-progress | wave 2. NEEDS MAC CHECK - Forward+ only via lavapipe |
+| 5 | Golden hour / LA haze: warmer low sun, orange-pink horizon band, brown-grey smog layer at the basin edge | Lighting (day_night.gd, sky.gdshader) | 4 | 3 | 1 | 12.0 | done | merged ffc19f8. Blue sky until the sun is low, smog band, warm haze. NEEDS MAC CHECK: no Forward+ city shot possible here (lavapipe OOM at 13.9 GB) |
 | 6 | Hill vegetation density: chaparral scrub clumps and dry grass tufts on the slopes, LOD'd | Hills (city_chunk _scatter_hills) | 4 | 3 | 1.5 | 8.0 | todo | after #1 |
 | 7 | Street clutter: newspaper boxes, bollards, utility boxes, sandwich boards, litter decals | Density (street_detail.gd) | 3 | 4 | 1.3 | 9.2 | done | merged 20e2169: news boxes, magazine racks, A-frames, gutter litter (+1% draws). Weak spots: rack header card dark, litter reads only within ~15 m |
 | 8 | Neon and shop-front glow at night: signage emission, light spill on the pavement | Lighting (building.gdshader shop band, light_pool) | 4 | 3 | 1.2 | 10.0 | todo | |
@@ -37,8 +37,15 @@ Forward+-dependent looks never seen on the owner's Mac (the harness is opengl3 o
 - Masjid Omar ibn Al-Khattab exterior and interior (build 252).
 - The hero AAA pass: skin SSS, hair anisotropy, cloth folds (build 250).
 - Anything under "Lighting" or "Post" above.
+- Golden hour / LA smog (ffc19f8): judged on a Forward+ stand-in scene only. Try `--hour=17.5` on
+  the Mac, facing away from the sun and toward it; knobs `smog_amount`, `smog_color`,
+  `golden_blue_top`, `golden_fog_gain` in DayNight's Golden hour group.
 
 ## WAITING ON ASH
+
+- Forward+ city renders do not fit in this box's 14.3 GB (lavapipe peaks at 13.9 GB), so every
+  Forward+ look is judged on the Mac. A Mac screenshot at 17:30 game time, toward and away from the
+  sun, would settle the golden-hour change.
 
 - An F1 screenshot (FULL mode: the frame-time line) on the Mac downtown at noon and at night in
   rain, for the real frame rate against the 60 / 30 fps targets.

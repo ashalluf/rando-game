@@ -41,3 +41,12 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   `<scratchpad>/sc/before/{box,news,board,corner}.png`, after `<scratchpad>/sc/after3/`, A/B
   `<scratchpad>/sc/box_ab.png`, `board_ab.png`. geo_count street view 576.4,860.5: 4.641 M ->
   4.652 M tris (+0.23 %), 2169 -> 2190 draws (+1 %). Gate on the merged tree 456/456.
+
+- **CI 265 red -> 266 green** (b581d15): one traffic car on the park's closed road on CI; the
+  street tick now recycles any car found on a closed stretch.
+- **Golden hour / LA haze** (roadmap #5) - merged ffc19f8 - done with NEEDS MAC CHECK. Fixes a
+  real bug: at 17:36 (sun 9 deg up) the sky was already a full violet sunset and every shadow
+  went lavender. Now a blue sky with a smog band and warm haze until the sun is low; noon and
+  night pixel-identical. Forward+ stand-in `<scratchpad>/gh/fwd_sheet.png`, sky probes
+  `<scratchpad>/gh/sky_sheet3.png`. Perf: ~25 ALU on sky pixels only while smoggy. Verdict:
+  clearly better away from the sun, sideways toward it (hazier, less punchy).
