@@ -20,3 +20,9 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   Before: park off. After: `<scratchpad>/park/park_aerial.png` (+ lake, camp stills). Perf: the
   park replaces blocks of buildings with lawn, lake and trees; not measured with geo_count yet.
   Gate 453/453. The same fix made the helicopter checks stop flaking (they were the offset bug).
+
+- **Road patch decals** (roadmap #16) - build 257 (ec65e50) - done, clearly better. Before
+  `<scratchpad>/park/park_camp.png`, after `<scratchpad>/patch/camp_after3.png`, crop
+  `<scratchpad>/patch/ab_crop.png`. Perf: the patch batch moves to the transparent pass
+  (one MultiMesh per chunk, no shadows); one texture + one normal fetch and two noise
+  evaluations per fragment on small decals - negligible. Gate green.
