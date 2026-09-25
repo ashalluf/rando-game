@@ -1772,7 +1772,10 @@ moved, and what differs from the patch:
 - **The north**: the east range out to x 5000, the embayment above the civic centre (patch).
 - **Streaming**: the LOD ring stops `lod_reach_metres()` (840 m) out and a LOD chunk left 150 m
   past it is RETIRED (the far city covers the block, per block) - the patch freed it, which the
-  distance tiers no longer allow.
+  distance tiers no longer allow. And a block of the FULL ring further than
+  `full_reach_metres()` (240 m, two ordinary blocks) is a LOD chunk: two of downtown's
+  125 x 200 m blocks each way is 2.6 times the full-detail area, and at Flower and Olympic the
+  frame had 78 % more draw calls than the old avenue before this (73553af).
 - **Names**: a seeded street never takes a real downtown name (no second Olive St).
 
 Checks changed, and why: the LOD count at the spawn (the pinned streets cross the whole map, so
@@ -2104,9 +2107,10 @@ Exposition Boulevard, so the entrance faces the street it faces in life.
   `Weapon.tick()`; CLAUDE.md has the whole rule. `tests/masjid_checks.gd` covers the building
   (streams in, door open, pane closed, both floors) and the rule (on it, across it, beside it
   with a blast, from inside it through a real rifle, away from it, a rocket fizzling).
-- **Stills:** `<scratchpad>/masjid/` (aerial, street, entrance, hall), opengl3. Views: aerial
-  `--spawn=-272,252,-31.8,-23.7,32`, entrance `-238.75,221.5,0,12,1.7`, prayer hall
-  `-251.35,200.5,0,8,2.6`, all `--hour=11`. Not yet seen on Forward+.
+- **Stills:** `<scratchpad>/masjid/` (aerial, street, entrance, hall), opengl3. Views (since the
+  1:1 downtown moved it, 9s): aerial `--spawn=1880.7,2809.6,-31.8,-23.7,32`, entrance
+  `1913.95,2779.1,0,12,1.7`, prayer hall `1901.35,2758.1,0,8,2.6`, all `--hour=11` (before it:
+  `-272,252`, `-238.75,221.5`, `-251.35,200.5`). Not yet seen on Forward+.
 - **Not done:** the east wing's rooms are one lobby and one domed hall (the real plan is not
   public); no ablution room; the parking lot has no cars. The exterior mesh is 50.7k triangles and the
   collision 9.1k (both counted by the smoke test); the frame cost is not measured -

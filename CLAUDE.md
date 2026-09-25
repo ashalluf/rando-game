@@ -1136,8 +1136,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   lines, the 10 new, the 105 rerouted south of the airport's clear zone, down the west side of the
   110 corridor and east just north of the port; the airport's final turns in over Westlake
   (`AirTraffic.downwind_x` 1250, `MacroMap.approach_clear_length` 1150). CityStreamer stops the
-  LOD ring `lod_reach` metres out (downtown's 440 m blocks would run it 3 km) and retires LOD
-  chunks left past it. NOT 1:1: east of Main the real streets are another grid (only Alameda and
+  LOD ring at `lod_reach_metres()` (840 m; downtown's 440 m blocks would run it 3 km) and retires
+  LOD chunks left 150 m past it, and builds a block of the FULL ring in full detail only inside
+  `full_reach_metres()` (240 m, where two ordinary blocks end; two of downtown's 125 x 200 m
+  blocks each way was 2.6 times the full-detail area). NOT 1:1: east of Main the real streets are another grid (only Alameda and
   Vignes are pinned there); one road is one line (Wilshire also splits the historic core, 12th St
   is left out, Georgia runs the whole map); the streets west of the 110 bend 8 degrees and are
   straightened (MacArthur Park 280 m grid-north of the real one, and 6th to 7th is 204 m there
@@ -1153,8 +1155,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   domed roof you can land on, corner marquee with LED screens), `live_plaza` (STARLIGHT PLAZA with
   the STARLIGHT THEATER, screens, neon, crowd), `live_hotel` (HOTEL ALTAIR, 200 m slab with a lit
   crown), `convention_center` (white hall, two tilted green-glass pavilions). North-east,
-  `LandmarkCivicCenter` (`landmark_civic_center.gd`): `ziggurat_hall` (CITY HALL - moved off the
-  road at x 824 and out from under the 110 deck, floodlit), `civic_park` (CIVIC PARK: fountain
+  `LandmarkCivicCenter` (`landmark_civic_center.gd`): `ziggurat_hall` (CITY HALL - on its real
+  block, turned to face its real street, floodlit), `civic_park` (CIVIC PARK: fountain
   terrace, lawn, pink furniture), `concert_hall` (SYMPHONY HALL, steel sails from
   `tools/make_concert_hall.py`), `lattice_museum` (THE LATTICE), `pueblo_station` (PUEBLO
   STATION). **One table places them all: `CivicSites.SITES`** (`scripts/world/civic_sites.gd`):
