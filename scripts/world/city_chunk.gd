@@ -1516,15 +1516,15 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
 		# Downtown encampments (Encampment), after the furniture they keep clear of. Its own
 		# hash-seeded rolls: the block's rng is untouched, so the cars and the crowd are unmoved.
-		var camps: bool = block.kind == CityPlan.BlockKind.BUILDINGS and Encampment.block_has_camps(plan, ix, iz)
-		if camps:
+		var camps: int = Encampment.block_flags(plan, ix, iz) if block.kind == CityPlan.BlockKind.BUILDINGS else 0
+		if camps != 0:
 			var sleepers: Array = []
 			steps.append(func() -> void: Encampment.build_block(self, rect, _sidewalk_edges(rect), sleepers))
 			# The people at the camps, one a step, before the block's walkers take the crowd cap.
-			for i in Encampment.MAX_SLEEPERS:
+			for i in Encampment.PEOPLE_STEPS:
 				steps.append(func() -> void: Encampment.spawn_sleeper(self, rect, sleepers, i))
 		steps.append_array(_park_car_steps(rect, rng, params))
-		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps else -1.0))
+		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
 	return steps
 
 
@@ -1636,19 +1636,20 @@ static func count_crowd_room(tree: SceneTree, cap: int) -> int:
 
 
 ## One walker's worth of room: from the streamer's city-wide count when there is a streamer
-## (see CityStreamer.take_crowd_room()), else from this chunk's own count.
-func _take_crowd_room() -> bool:
+## (see CityStreamer.take_crowd_room()), else from this chunk's own count. `reserve` is the share
+## of the cap to leave unspent (a walker near downtown leaves room for the people at the camps).
+func _take_crowd_room(reserve: float = 0.0) -> bool:
 	var streamer := get_parent()
 	if streamer and streamer.has_method("take_crowd_room"):
-		return streamer.take_crowd_room()
-	if _crowd_room <= 0:
+		return streamer.take_crowd_room(reserve)
+	if _crowd_room <= roundi(int(style.max_pedestrians) * reserve):
 		return false
 	_crowd_room -= 1
 	return true
 
 
 func _spawn_walker(rect: Rect2, sidewalk: float, rng: RandomNumberGenerator) -> void:
-	if not _take_crowd_room():
+	if not _take_crowd_room(Encampment.walker_reserve(plan, ix, iz)):
 		return
 	var ped := Pedestrian.new()
 	ped.setup(rect, sidewalk, rng.randi())

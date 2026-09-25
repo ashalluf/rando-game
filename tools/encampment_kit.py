@@ -4,6 +4,8 @@ Run headless with Blender 4.2 (on a shared box, under the render lock):
 
     blender -b --factory-startup --python tools/encampment_kit.py -- [out.glb] [--no-bake]
 
+or, where bpy 4.2 is installed as a Python module, `python3 tools/encampment_kit.py -- [out.glb]`.
+
 Writes assets/models/encampment_kit.glb, one mesh node per piece, named camp_<piece>. Then run
 `godot --headless --path . --import` before rendering anything (Godot serves a CACHED import of a
 .glb - CLAUDE.md, measurement traps) and `python3 tools/fix_texture_imports.py` is not needed:
@@ -14,7 +16,8 @@ the numbers in here are the numbers it places them with. Everything is street re
 from the real objects: a cheap two-pole dome tent pulled out of shape, a poly tarp strung as a
 lean-to on two sticks or thrown over a pile, a shopping cart built wire by wire, knotted trash
 bags, a warped twin mattress, flattened boxes, a rumpled sleeping bag, a folding camp chair and a
-bicycle with its spokes.
+bicycle with its spokes - and what people carry: a cart loaded with sacks and a roped blanket
+roll (pushed along the pavement by RoughSleeper's PUSH), and a blanket bundle.
 
 Conventions (the Godot side depends on them):
 
@@ -44,8 +47,8 @@ import os
 import random
 import sys
 
+import bpy  # first: as a Python module, bpy is what makes bmesh and mathutils importable
 import bmesh
-import bpy
 from mathutils import Matrix, Vector, noise
 
 ARGV = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -84,6 +87,9 @@ MATERIALS = {
     "camp_quilt": ((0.30, 0.22, 0.35), 0.85, 0.0, True),
     "camp_frame": ((0.20, 0.30, 0.55), 0.45, 0.3, False),
     "camp_saddle": ((0.06, 0.06, 0.06), 0.6, 0.0, False),
+    # Trash-bag plastic that is always black (a loaded cart's sacks: its instance colour is the
+    # blanket's, camp_quilt).
+    "camp_sack": ((0.03, 0.03, 0.035), 0.3, 0.0, True),
 }
 
 
@@ -612,6 +618,12 @@ def cart():
     """A supermarket cart, wire by wire: tapered basket, top rim, back gate, bottom tray, the
     chassis and four casters. Nose toward +z, handle at -z."""
     pc = Piece("camp_cart", ao_distance=0.35)
+    _cart_parts(pc)
+    return pc
+
+
+def _cart_parts(pc):
+    """The cart itself, into `pc` (cart() and loaded_cart())."""
     top_y, bot_y = 1.0, 0.58
     top = {"x": 0.285, "z0": -0.47, "z1": 0.50}
     bot = {"x": 0.225, "z0": -0.36, "z1": 0.46}
@@ -670,12 +682,11 @@ def cart():
         pc.box((cx, 0.085, cz - 0.015), (0.045, 0.04, 0.03), "camp_chrome", bevel=0.004)
         pc.torus((cx, 0.062, cz - 0.03), (1.0, 0.0, 0.0), 0.047, 0.014, "camp_rubber", seg=16, sides=6)
         pc.box((cx, 0.062, cz - 0.03), (0.03, 0.05, 0.05), "camp_plastic", bevel=0.01)
-    return pc
 
 
 # --- Bags -------------------------------------------------------------------------------------
 
-def _sack(pc, c, radii, seed, lean=0.0):
+def _sack(pc, c, radii, seed, lean=0.0, mat="camp_bag"):
     """A knotted trash bag sitting on the ground: flat underneath, gathered to a neck and a knot,
     creased where the plastic is pulled toward the neck."""
     neck = Vector((c[0] + lean, c[1] + radii[1] * 1.12, c[2]))
@@ -696,11 +707,11 @@ def _sack(pc, c, radii, seed, lean=0.0):
         if q.y < c[1] - radii[1] * 0.55:
             q.y = c[1] - radii[1] * 0.55 + (q.y - (c[1] - radii[1] * 0.55)) * 0.15
         return q
-    pc.blob(c, radii, "camp_bag", seg=16, rings=11, shape=shape)
+    pc.blob(c, radii, mat, seg=16, rings=11, shape=shape)
     # The knot and its two ears.
-    pc.blob(tuple(neck + Vector((0.0, 0.02, 0.0))), (0.03, 0.035, 0.03), "camp_bag", seg=8, rings=5)
+    pc.blob(tuple(neck + Vector((0.0, 0.02, 0.0))), (0.03, 0.035, 0.03), mat, seg=8, rings=5)
     for s in (-1.0, 1.0):
-        pc.blob(tuple(neck + Vector((s * 0.045, 0.06, 0.01 * s))), (0.035, 0.012, 0.02), "camp_bag", seg=8, rings=4)
+        pc.blob(tuple(neck + Vector((s * 0.045, 0.06, 0.01 * s))), (0.035, 0.012, 0.02), mat, seg=8, rings=4)
 
 
 def bag_trash():
@@ -1073,8 +1084,77 @@ def bike_frame():
     return pc
 
 
+# --- What people carry (2026-09-25) --------------------------------------------------------------
+
+def _ellipse_band(pc, c, rx, ry, plane, mat, r=0.007):
+    """A rope pulled tight round a bundle: a closed loop on an ellipse about Godot `c`, in the
+    x-y plane ("xy") or the z-y plane ("zy")."""
+    pts = []
+    for k in range(20):
+        a = 2.0 * math.pi * k / 20
+        if plane == "xy":
+            pts.append((c[0] + rx * math.cos(a), c[1] + ry * math.sin(a), c[2]))
+        else:
+            pts.append((c[0], c[1] + ry * math.sin(a), c[2] + rx * math.cos(a)))
+    pc.tube(pts, r, mat, sides=4, closed=True)
+
+
+def _blanket_roll(pc, c, length, r, seed):
+    """A blanket rolled up along x and roped at both ends of the roll."""
+    def shape(p, n):
+        q = Vector(p)
+        q.y += 0.015 * nz(q, 6.0, seed)
+        # Squashed a little where it sits.
+        if q.y < c[1] - r * 0.6:
+            q.y = c[1] - r * 0.6 + (q.y - (c[1] - r * 0.6)) * 0.3
+        return q
+    pc.blob(c, (length * 0.5, r, r * 1.05), "camp_quilt", seg=14, rings=9, shape=shape)
+    for sx in (-0.3, 0.3):
+        _ellipse_band(pc, (c[0] + sx * length, c[1], c[2]), r * 1.03, r * 0.99, "zy", "camp_rope", r=0.006)
+
+
+def loaded_cart():
+    """A cart somebody lives out of: black sacks packed into the basket and heaped over the rim, a
+    blanket rolled and roped on top, a sheet of cardboard stood up inside the front, a sack on the
+    bottom tray. The same cart as cart() (nose toward +z, handle at -z); pushed along the pavement
+    by RoughSleeper's PUSH, or parked at a camp. Its instance colour is the blanket's."""
+    pc = Piece("camp_loaded_cart", ao_distance=0.35)
+    _cart_parts(pc)
+    bottom = 0.58
+    _sack(pc, (-0.1, bottom + 0.21 * 0.55, 0.22), (0.2, 0.21, 0.2), 1.7, lean=0.02, mat="camp_sack")
+    _sack(pc, (0.11, bottom + 0.22 * 0.55, -0.17), (0.19, 0.22, 0.21), 6.1, lean=-0.03, mat="camp_sack")
+    _sack(pc, (0.03, 0.93, 0.02), (0.22, 0.19, 0.24), 2.2, lean=0.04, mat="camp_sack")
+    _blanket_roll(pc, (0.0, 1.17, -0.12), 0.62, 0.12, 3.7)
+    pc.box((0.0, 0.93, 0.40), (0.44, 0.62, 0.008), "camp_cardboard", bevel=0.002)
+    _sack(pc, (0.0, 0.18 + 0.1 * 0.55, 0.03), (0.15, 0.1, 0.2), 4.2, mat="camp_sack")
+    return pc
+
+
+def bundle():
+    """A blanket knotted round somebody's things and roped both ways: set down at their feet."""
+    pc = Piece("camp_bundle", ao_distance=0.3)
+    c = (0.0, 0.17, 0.0)
+    rx, ry, rz = 0.3, 0.18, 0.21
+
+    def shape(p, n):
+        q = Vector(p)
+        q += Vector((0.0, 0.02 * nz(q, 5.0, 7.3), 0.0)) + n * 0.02 * nz(q, 9.0, 1.9)
+        if q.y < 0.03:
+            q.y = 0.03 + (q.y - 0.03) * 0.15
+        return q
+    pc.blob(c, (rx, ry, rz), "camp_quilt", seg=16, rings=10, shape=shape)
+    # The blanket's corners knotted on top, and the rope both ways round it.
+    for s in (-1.0, 1.0):
+        pc.blob((s * 0.07, 0.35, 0.03 * s), (0.08, 0.045, 0.05), "camp_quilt", seg=10, rings=6)
+    _ellipse_band(pc, c, rx * 1.01, ry * 1.02, "xy", "camp_rope")
+    _ellipse_band(pc, c, rz * 1.02, ry * 1.02, "zy", "camp_rope")
+    pc.blob((0.0, 0.37, 0.0), (0.03, 0.025, 0.03), "camp_rope", seg=8, rings=5)
+    return pc
+
+
 PIECES = [tent_dome, tent_pop, tarp_canopy, tarp_mound, cart, bag_trash, bag_duffel, bags_pile,
-          mattress, bedding, cardboard, box, chair, bicycle, bike_wheel, bike_frame]
+          mattress, bedding, cardboard, box, chair, bicycle, bike_wheel, bike_frame,
+          loaded_cart, bundle]
 
 
 # --- Bake and export -----------------------------------------------------------------------------
@@ -1167,3 +1247,7 @@ def main():
 
 
 main()
+# As a Python module (python3 tools/encampment_kit.py), bpy crashes tearing itself down after the
+# file is written; leave without the teardown so the exit code says whether the kit was made.
+sys.stdout.flush()
+os._exit(0)

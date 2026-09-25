@@ -1151,6 +1151,7 @@ const TRI_BUDGET := {
 	"encampment_kit.glb:camp_cardboard": 700, "encampment_kit.glb:camp_box": 400,
 	"encampment_kit.glb:camp_chair": 1800, "encampment_kit.glb:camp_bicycle": 5200,
 	"encampment_kit.glb:camp_bike_wheel": 1800, "encampment_kit.glb:camp_bike_frame": 3400,
+	"encampment_kit.glb:camp_loaded_cart": 6000, "encampment_kit.glb:camp_bundle": 900,
 	# Traffic signal hardware (tools/make_signals.py). Guards, like the kit's: a head is the most
 	# repeated piece (up to a dozen an intersection), so it is the one that matters.
 	"traffic_signal.glb:sig_pole": 1500, "traffic_signal.glb:sig_arm": 450,
@@ -1957,6 +1958,7 @@ const CAMP_MATERIALS := {
 	"camp_quilt": {"set": "camp_wool", "tile": 0.4, "tint": 0, "rough": 0.92, "detail": 0.9, "grime": 0.45, "stains": 0.45, "bleach": 0.3, "two_side": true},
 	"camp_frame": {"set": "", "tint": 0, "rough": 0.4, "metal": 0.35, "grime": 0.35, "stains": 0.3, "bleach": 0.4},
 	"camp_saddle": {"set": "", "tint": 1, "base": Color(0.05, 0.05, 0.05), "rough": 0.6, "grime": 0.2},
+	"camp_sack": {"set": "camp_plastic", "tile": 0.6, "tint": 1, "base": Color(0.035, 0.035, 0.04), "rough": 0.26, "detail": 0.25, "grime": 0.35, "stains": 0.15, "two_side": true},
 }
 const CAMP_TEXTURE_MEAN := {
 	"camp_nylon": [0.905, 0.956], "camp_tarp": [0.219, 0.362], "camp_cardboard": [0.301, 0.571],
@@ -1965,7 +1967,7 @@ const CAMP_TEXTURE_MEAN := {
 ## Every kit piece, for the loading screen to warm and the smoke test to check.
 const CAMP_PIECES := ["tent_dome", "tent_pop", "tarp_canopy", "tarp_mound", "cart", "bag_trash",
 	"bag_duffel", "bags_pile", "mattress", "bedding", "cardboard", "box", "chair", "bicycle",
-	"bike_wheel", "bike_frame"]
+	"bike_wheel", "bike_frame", "loaded_cart", "bundle"]
 
 
 ## One encampment piece ("tent_dome", "cart", "bicycle"...) as a mesh wearing the camp materials,

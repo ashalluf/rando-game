@@ -67,35 +67,43 @@ func knock(impulse: Vector3, _gibs: int = 0) -> void:
 			MultiMeshBatch.hide_instance(nodes.get(inst[0]) as MultiMeshInstance3D, int(inst[1]))
 		WorldState.mark_destroyed(String(chunk.get("key")), item_id)
 	var parent := get_parent()
-	if parent and mesh and PhysicsBudget.make_room(1):
-		var body := PhysicsProp.new()
-		var shape := BoxShape3D.new()
-		shape.size = box
-		body.setup(mesh, shape, Vector3(0.0, box_y, 0.0), mass_kg)
-		body.transform = transform
-		parent.add_child(body)
-		# The batch carried the colour and the wear per instance (COLOR, INSTANCE_CUSTOM in
-		# shaders/encampment.gdshaderinc), so the thrown body is drawn as a one-instance MultiMesh
-		# too rather than a plain mesh that would come out white and new.
-		for c in body.get_children():
-			var mi := c as MeshInstance3D
-			if mi:
-				var mm := MultiMesh.new()
-				mm.transform_format = MultiMesh.TRANSFORM_3D
-				mm.use_colors = true
-				mm.use_custom_data = true
-				mm.mesh = mesh
-				mm.instance_count = 1
-				mm.set_instance_transform(0, Transform3D.IDENTITY)
-				mm.set_instance_color(0, tint)
-				mm.set_instance_custom_data(0, custom)
-				var mmi := MultiMeshInstance3D.new()
-				mmi.multimesh = mm
-				body.add_child(mmi)
-				mi.queue_free()
-		PhysicsBudget.register_debris(body)
-		# Light and baggy: a tent or a tarp catches the blast more than its mass says.
-		var fling := impulse.limit_length(26.0)
-		body.linear_velocity = fling
-		body.angular_velocity = Vector3(randf_range(-4.0, 4.0), randf_range(-3.0, 3.0), randf_range(-4.0, 4.0))
+	if parent and mesh:
+		throw(parent, mesh, box, box_y, mass_kg, tint, custom, transform, impulse)
 	queue_free()
+
+
+## A camp piece as a real body thrown by `impulse` from `xform` (in `parent`'s space): debris,
+## cleared by PhysicsBudget with the rest. Also a pushed cart let go of (RoughSleeper.knock).
+static func throw(parent: Node, piece_mesh: Mesh, size: Vector3, centre_y: float, mass: float, piece_tint: Color, piece_custom: Color, xform: Transform3D, impulse: Vector3) -> void:
+	if parent == null or piece_mesh == null or not PhysicsBudget.make_room(1):
+		return
+	var body := PhysicsProp.new()
+	var shape := BoxShape3D.new()
+	shape.size = size
+	body.setup(piece_mesh, shape, Vector3(0.0, centre_y, 0.0), mass)
+	body.transform = xform
+	parent.add_child(body)
+	# The batch carried the colour and the wear per instance (COLOR, INSTANCE_CUSTOM in
+	# shaders/encampment.gdshaderinc), so the thrown body is drawn as a one-instance MultiMesh
+	# too rather than a plain mesh that would come out white and new.
+	for c in body.get_children():
+		var mi := c as MeshInstance3D
+		if mi:
+			var mm := MultiMesh.new()
+			mm.transform_format = MultiMesh.TRANSFORM_3D
+			mm.use_colors = true
+			mm.use_custom_data = true
+			mm.mesh = piece_mesh
+			mm.instance_count = 1
+			mm.set_instance_transform(0, Transform3D.IDENTITY)
+			mm.set_instance_color(0, piece_tint)
+			mm.set_instance_custom_data(0, piece_custom)
+			var mmi := MultiMeshInstance3D.new()
+			mmi.multimesh = mm
+			body.add_child(mmi)
+			mi.queue_free()
+	PhysicsBudget.register_debris(body)
+	# Light and baggy: a tent or a tarp catches the blast more than its mass says.
+	var fling := impulse.limit_length(26.0)
+	body.linear_velocity = fling
+	body.angular_velocity = Vector3(randf_range(-4.0, 4.0), randf_range(-3.0, 3.0), randf_range(-4.0, 4.0))

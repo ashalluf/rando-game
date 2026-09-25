@@ -519,12 +519,14 @@ var _crowd_frame := -1
 ## frame, shared by every chunk: building in steps, each chunk used to count its own room when its
 ## crowd began and keep that number for frames, so it went on filling a cap Quality had lowered
 ## in the meantime, and two chunks building side by side both spent the same room.
-func take_crowd_room() -> bool:
+## `reserve` is the share of the cap left unspent: walkers near downtown leave
+## Encampment.CROWD_RESERVE of it for the people at the camps, who are spawned with none.
+func take_crowd_room(reserve: float = 0.0) -> bool:
 	var frame := Engine.get_process_frames()
 	if frame != _crowd_frame:
 		_crowd_frame = frame
 		_crowd_left = CityChunk.count_crowd_room(get_tree(), max_pedestrians)
-	if _crowd_left <= 0:
+	if _crowd_left <= roundi(max_pedestrians * reserve):
 		return false
 	_crowd_left -= 1
 	return true
