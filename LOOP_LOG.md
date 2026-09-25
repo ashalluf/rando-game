@@ -120,7 +120,7 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   +5-10 % draws. Found: a floating hill chunk (#25).
 - Launched: tree LOD (#23, PERF), floating hill chunk (#25), hi-fi sedan (#22).
 - **CI 284 red** (blood-pool check, a 3 s wait vs the ragdoll 3.5 s fallback): test waits 7 s and prints diagnostics.
-- **Floating hill props** (roadmap #25) - merged 2106e3e (gate pending at writing). Root cause:
+- **Floating hill props** (roadmap #25) - merged 2106e3e, gate 466/466. Root cause:
   relief added twice (height_at() already includes it; the batch's `ground = _gy` added it
   again). Probe: 700/1,597 hill chunks off, 367k instances, worst +144 m -> 0 chunks, worst
   1.2 m. A/B `<scratchpad>/float/slope_ab.png`. New smoke check + tools/float_probe.
