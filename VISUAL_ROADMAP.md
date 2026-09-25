@@ -33,7 +33,7 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 | 18 | Mipmaps on: about a dozen Poly Haven sets (facade and street sets) are imported with mipmaps off, against the CLAUDE.md rule - shimmer at distance and wasted bandwidth. Switch the .imports (compress/mode=2, mipmaps/generate=true), drop the unused RockyTerrain02 | Materials / perf (assets/textures/*.import) | 4 | 5 | 0.8 | 25.0 | todo | found by the hills agent; pure import settings |
 | 19 | Hill chaparral stands read as cloud shadows at mid distance; the gold still leans orange (opengl3). Tune `chaparral_amount`, `north_brush`, `chaparral_color` against a Mac/Forward+ look | Hills (terrain.gdshader) | 3 | 4 | 1 | 12.0 | todo | NEEDS MAC CHECK first |
 | 20 | Front range roads and estates back: switchback roads that follow the contours (HillRoads), so the range has drives and mansions again without trench cuts | Hills (hill_roads.gd) | 3 | 2 | 1.2 | 5.0 | todo | owner may miss the ~150 front-range mansions the cut-bank fix dropped |
-| 21 | Car bodies are visibly faceted (flat-shaded low-poly panels in every close-up): smooth the normals / weld the generated bodies, or higher-poly bodies | Vehicles (Vehicle.BODY_MODELS, the .glb bodies) | 5 | 3 | 1.1 | 13.6 | todo | seen in the grime close-ups (`<scratchpad>/grime/m2/z_sedan.png`) |
+| 21 | Car bodies are visibly faceted (flat-shaded low-poly panels in every close-up): smooth the normals / weld the generated bodies, or higher-poly bodies | Vehicles (Vehicle.BODY_MODELS, the .glb bodies) | 5 | 3 | 1.1 | 13.6 | in-progress | wave 4. Seen in the grime close-ups (`<scratchpad>/grime/m2/z_sedan.png`) |
 
 ## NEEDS MAC CHECK
 
