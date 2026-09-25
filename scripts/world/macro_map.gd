@@ -105,11 +105,17 @@ var replica: ReplicaAreas
 ## bulge is a function of z alone and the headland is a circle, so the waterline cut clean
 ## across a 100 m cliff.
 var shore_rise: float = 52.0
-## The bay south-east of the headland (the water between it and the harbour coast): water south
-## of bay_z and west of bay_east_x, except the headland itself. It used to start at z 1460,
-## straight off the Redondo pier; the coast now runs on south past it to Palos Verdes.
+## San Pedro Bay, round the headland's south and east sides: water south of bay_z and west of
+## bay_east_x, except the headland itself. Its north shore east of the headland is the harbour
+## coast - the port on its terminal (port_rect), then Long Beach's sand (bay_beach_depth) - and
+## its east shore stands at bay_east_x. It used to start at z 1460, straight off the Redondo pier,
+## then stopped at x 1600, south of the headland only, so its east flank was dry land and the
+## port stood on an inland pond in the middle of the city (owner, 2026-09-25: "the san pedro
+## pier ... should be on the east side of palos verdes where it is in real life").
 var bay_z: float = 6300.0
-var bay_east_x: float = 1600.0
+var bay_east_x: float = 4700.0
+## How far inland of the bay's north shore, east of the port, the beach runs.
+var bay_beach_depth: float = 70.0
 ## Downtown is the real one at 1:1 (DowntownReal): its centre is Pershing Square, its district
 ## the replica's extent (the 110 to Vignes, Cesar Chavez to Venice) out to `core_margin`. The
 ## radius is only a scale for the systems that want one number (the news helicopter's beat).
@@ -132,9 +138,9 @@ var westside_radius: float = 320.0
 ## The university campus: brick halls, quads and a bell tower on the west side.
 var campus_center: Vector2 = Vector2(-620.0, -520.0)
 var campus_radius: float = 250.0
-## South-east of this corner is the port and industrial district: east of the 110 below the 10's
-## line, round the port, the way the real Harbor Freeway runs down past warehouses and rail yards
-## to the docks. West of the 110 it stays city - South Los Angeles and Exposition (the masjid,
+## South-east of this corner is the industrial district: east of the 110 below the 10's line,
+## all the way down to the port, the way the real Harbor Freeway runs down past warehouses and
+## rail yards to the docks. West of the 110 it stays city - South Los Angeles and Exposition (the masjid,
 ## LandmarkMasjidOmar) - down to the Torrance plain.
 var industrial_corner: Vector2 = Vector2(2150.0, 2300.0)
 ## Flat zones (world XZ rects): the airport by the south-west coast, the port on a harbor.
@@ -159,11 +165,17 @@ var terminal_loops: Array = [
 	PackedVector2Array([Vector2(-484.0, 620.5), Vector2(-216.0, 620.5), Vector2(-216.0, 599.5), Vector2(-484.0, 599.5)]),
 	PackedVector2Array([Vector2(-474.0, 614.5), Vector2(-226.0, 614.5), Vector2(-226.0, 605.5), Vector2(-474.0, 605.5)]),
 ]
-## The port, due south of downtown at the foot of the 110 (it stood 750 m south of the old,
-## two-thirds-scale downtown; at 1:1 that ground is the arena district). The harbour is its
-## enclosed basin.
-var port_rect: Rect2 = Rect2(2050.0, 3000.0, 700.0, 300.0)
-var harbor_rect: Rect2 = Rect2(2050.0, 3300.0, 700.0, 260.0)
+## The port where the real Port of Los Angeles is: at the foot of the 110 on the headland's east
+## flank, facing San Pedro Bay. A container terminal on the bay's north shore that runs out into
+## the water (its south third is built out into the bay, like Terminal Island), with the channel
+## between it and the headland's east shore (San Pedro) on its west side. Its edges are the
+## default seed's roads (x 2740 / 3390, z 5922 / 6508), so it is whole blocks there. The harbour
+## is the berth off its south quay, where the container ship lies: part of the bay, open to the
+## sea, named so the ambience and the cranes know the water that belongs to the port. Nothing
+## else may be enclosed water: the old inland harbour (a rect of sea in the middle of the city,
+## z 3300) is gone.
+var port_rect: Rect2 = Rect2(2750.0, 5935.0, 630.0, 560.0)
+var harbor_rect: Rect2 = Rect2(2750.0, 6520.0, 630.0, 260.0)
 ## Runway center lines (z) and width inside the airport rect.
 var runway_zs: PackedFloat32Array = PackedFloat32Array([780.0, 870.0, 960.0])
 var runway_width: float = 55.0
@@ -561,6 +573,8 @@ func zone_at(pos: Vector2) -> Zone:
 		return Zone.HILLS
 	if pos.x < cx + beach_width_at(pos.y) or headland_dist(pos) <= 8.0:
 		return Zone.BEACH # the main shore, and the low ring around the headland's cliffs
+	if pos.y > bay_z - bay_beach_depth and pos.x > port_rect.end.x and pos.x < bay_east_x:
+		return Zone.BEACH # Long Beach, on the bay's north shore east of the port
 	return Zone.CITY
 
 

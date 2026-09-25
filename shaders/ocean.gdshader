@@ -121,7 +121,7 @@ uniform float peninsula_axis_a = 2800.0;
 uniform float peninsula_axis_b = 1250.0;
 uniform float peninsula_bearing = 100.0;
 uniform float bay_z = 6300.0;
-uniform float bay_east_x = 1600.0;
+uniform float bay_east_x = 4700.0;
 // The replica's authored waterline (ReplicaAreas.waterline_table(), Redondo pier to Malaga
 // Cove): COAST_TABLE samples of x from coast_table_z0, coast_table_dz apart, eased onto the
 // basin's sine over coast_table_blend metres north of it. coast_table_dz 0 means no table.
@@ -276,9 +276,8 @@ float cloud_shade(vec2 w, vec3 L) {
 // shoreline (y, clamped at zero). Both come from the same shapes MacroMap.coast_x() / in_bay()
 // use: the bay curve of the main shore, the bulge around the peninsula, and the peninsula's own
 // circle. The second one is what MacroMap.bake() colours its water by, so it is what the far
-// plane's colour has to be reproduced from. Enclosed water (the harbour and port basins, which
-// sit east of the shoreline) gets a fixed offshore distance instead, so no surf line is drawn
-// across a dock.
+// plane's colour has to be reproduced from. The bay (San Pedro Bay round the headland's south
+// and east, which sits east of the main shoreline) measures to its own north and east shores.
 // MacroMap._main_coast_x(): the basin's sine, eased onto the replica's waterline table.
 float main_coast_x(float z) {
 	float x = coast_base_x + coast_wobble * sin(z / coast_period);

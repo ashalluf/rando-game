@@ -77,8 +77,9 @@ func build(macro: MacroMap, seed_value: int) -> void:
 
 	# 2. The cross route (the 105): in from the coast just south of the airport and its runway
 	#    protection zone, across the basin, down the west side of the 110 corridor and then east,
-	#    crossing the 110 south of the 10 and just north of the port - where the real one crosses
-	#    it, well below downtown - and on east. It used to run through the middle of the basin at
+	#    crossing the 110 south of the 10 - where the real one crosses it, well below downtown -
+	#    and on east. (Its line down there was drawn when the port stood at z 3000; the port moved
+	#    to the headland's east flank, the 105 kept its line.) It used to run through the middle of the basin at
 	#    z 500, which at 1:1 (DowntownReal) is straight through MacArthur Park and the Financial
 	#    District. It swings wide round the masjid's neighbourhood (Exposition, south of the 10
 	#    and west of the 110, LandmarkMasjidOmar) so the order north to south is the real one: the
@@ -87,8 +88,7 @@ func build(macro: MacroMap, seed_value: int) -> void:
 	var cross := _spline(PackedVector2Array([
 		Vector2(macro.coast_x(cz) + 60.0, cz), Vector2(300.0, cz + 15.0), Vector2(1000.0, cz + 60.0),
 		Vector2(1420.0, cz + 420.0), Vector2(1540.0, 2300.0), Vector2(1700.0, 2790.0),
-		Vector2(2000.0, macro.port_rect.position.y - 75.0), Vector2(3100.0, macro.port_rect.position.y - 110.0),
-		Vector2(macro.east_start_x - 200.0, macro.port_rect.position.y - 130.0)]))
+		Vector2(2000.0, 2925.0), Vector2(3100.0, 2890.0), Vector2(macro.east_start_x - 200.0, 2870.0)]))
 	_add_route("105 Century Freeway", cross, rng)
 
 	# 3. The valley route (the 101): along the north edge of downtown past the civic centre on
@@ -112,10 +112,14 @@ func build(macro: MacroMap, seed_value: int) -> void:
 
 	# 4. The harbour route (the 110): down the west edge of downtown on its real alignment
 	#    (DowntownReal.FREEWAY_110), from the four-level interchange past the arena to the 10,
-	#    and on south into the port - the spur that moves containers off the docks, and the reason
-	#    downtown and the port feel like one place rather than two.
+	#    and on south, nearly due south as the real one runs, to the port on the headland's east
+	#    flank (MacroMap.port_rect), ending at the terminal's north-west corner by the channel -
+	#    where the real one ends in San Pedro. The spur that moves containers off the docks, and the
+	#    reason downtown and the port feel like one place rather than two.
 	var harbour := DowntownReal.freeway(DowntownReal.FREEWAY_110)
-	harbour.append(Vector2(macro.port_rect.get_center().x, macro.port_rect.position.y + 120.0))
+	var dock := macro.port_rect.position
+	harbour.append_array(PackedVector2Array([Vector2(2400.0, 3700.0), Vector2(2470.0, 4700.0),
+		Vector2(dock.x - 170.0, dock.y - 485.0), Vector2(dock.x - 60.0, dock.y - 45.0)]))
 	_add_route("110 Harbor Freeway", _spline(harbour), rng)
 
 	# 5. The 10: from the 110 east along the south of downtown (DowntownReal.FREEWAY_10) toward

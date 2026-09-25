@@ -623,9 +623,9 @@ func _build_port(block: Dictionary) -> void:
 				_batch.add("container", PropFactory.container(), Transform3D(Basis(), Vector3(p.x, 0.2 + 1.3 + h * 2.6, p.y)), col_color)
 			if level == Level.FULL:
 				_add_shape(Vector3(12.0, 2.6 * height, 2.4), Vector3(p.x, 0.2 + 1.3 * height, p.y))
-	# A gantry crane on chunks that touch the harbor.
+	# A gantry crane on the quay: a chunk with the harbour's water off its south edge.
 	var macro: MacroMap = plan.macro
-	if area.end.y >= macro.harbor_rect.position.y - 2.0 and level == Level.FULL:
+	if level == Level.FULL and macro.zone_at(Vector2(c.x, area.end.y + 30.0)) == MacroMap.Zone.OCEAN:
 		_build_crane(Vector3(c.x, 0.2, area.end.y - 18.0))
 	if level == Level.FULL:
 		for i in 2:
