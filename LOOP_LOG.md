@@ -52,3 +52,14 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   clearly better away from the sun, sideways toward it (hazier, less punchy).
 - Street clutter and golden hour merged; PERF pass 1 and crowd skin/cloth launched.
 - **Hill ground splat** (roadmap #1) - merged dfdeefa - done. Before `<scratchpad>/bookmarks/base_18c1bcb/hills2.png`, after `<scratchpad>/hills/final3/hills2.png`, A/B `<scratchpad>/hills/cmp_hills2_final.png`. Near/far mean albedo now within ~11 %. Perf: terrain fragment ~1.8-2x (7 fetches + 9 noises, was 4 + 2). Follow-ups: #19 (chaparral reads as cloud shadows), #18 (mipmaps off on 14 sets).
+- **Hill road cut banks** (roadmap #17) - merged 42bf864 - done, clearly better. A/B
+  `<scratchpad>/hcb/hills_ab.png`, `spur_ab.png`. Root cause: carve() blended every road over a
+  fixed 14 m whatever the cut; canyon roads at 11 % in a range rising 560 m in 400 m sank into
+  250-320 m trenches; estates started at the hillside height, not their road's; the boulevard
+  rode a 60 m embankment. Now 1:1 cuts / 1:1.5 fills out to 46 m, unbuildable roads trimmed,
+  boulevard moved downhill <= 96 m. Carved cells > 60 deg: 32.2 % -> 0.6 %. Terrain tris -3.4 %;
+  load +190 ms. Content cost: mansions 468 -> 318 (front range ~150 -> 10) -> roadmap #20.
+- **Crowd skin and cloth** (roadmap #11) - not merged (modest, not clearly better). Sheets
+  `<scratchpad>/crowd/cmp6.png`, `cmp_faces_fp.png`. Screen-space SSS blurred the photo-baked
+  eyes and stubble; the vinyl look comes from lighting baked into the textures. Kept the
+  character_shot.gd LOOK fix (9ad44e7).
