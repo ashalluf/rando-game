@@ -174,6 +174,7 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 	_parking_meters(chunk, edges, district)
 	# Sidewalk furniture by district.
 	var corner_count := 0
+	var news: Array = []
 	var rack_odds := 0.6 if district == CityPlan.District.DOWNTOWN or district == CityPlan.District.CAMPUS else 0.25
 	var news_odds := 0.7 if district == CityPlan.District.DOWNTOWN else 0.3
 	var mail_odds := 0.5 if district == CityPlan.District.SUBURBS or district == CityPlan.District.MIDTOWN else 0.15
@@ -193,13 +194,14 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 					["rack", PropFactory.bike_rack(), Transform3D(basis, Vector3(q.x, top, q.y))],
 				], [[Vector3(0.9, 0.9, 0.1), Vector3(q.x, top + 0.45, q.y), yaw]])
 		if rng.randf() < news_odds:
+			# The rolls stay exactly as they were (the parked cars and the crowd draw from this
+			# rng after us); StreetClutter builds the boxes once the rest of the furniture is
+			# down, so it can keep them clear of it.
 			var p := a + dir * rng.randf_range(5.0, 12.0) + inward * 1.0
+			var paints: Array = []
 			for k in rng.randi_range(1, 3):
-				var q := p + dir * k * 0.55
-				var color: Color = NEWS_COLORS[rng.randi() % NEWS_COLORS.size()]
-				chunk._add_prop("newsbox", Vector3(q.x, top, q.y), color, [
-					["newsbox", PropFactory.news_box(), Transform3D(Basis(Vector3.UP, yaw), Vector3(q.x, top + 0.55, q.y)), color],
-				], [[Vector3(0.5, 1.1, 0.5), Vector3(q.x, top + 0.55, q.y), yaw]])
+				paints.append(StreetClutter.NEWS_PAINTS[rng.randi() % NEWS_COLORS.size()])
+			news.append([p + dir * 0.55, dir, inward, paints])
 		if rng.randf() < mail_odds:
 			var p := a + dir * rng.randf_range(10.0, length - 10.0) + inward * 1.1
 			chunk._add_prop("mailbox", Vector3(p.x, top, p.y), Color(0.15, 0.3, 0.25), [
@@ -222,6 +224,9 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 		var dir := (b - a).normalized()
 		var p := a + dir * rng.randf_range(12.0, a.distance_to(b) - 12.0) + inward * 2.0
 		_bus_shelter(chunk, p, inward, dir)
+	# News boxes, A-frame boards and gutter litter (StreetClutter), last: they keep clear of
+	# everything above and roll nothing from `rng`.
+	StreetClutter.build_block(chunk, rect, edges, district, news)
 
 
 ## Intersection details: stop lines, lane arrows, junction wear, street name signs, no-parking
