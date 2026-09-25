@@ -147,3 +147,4 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   Launched: encampments x20 (wt/downtown-homeless), real mountains (wt/real-mountains), port
   to Palos Verdes' east flank + freeway clearance (wt/downtown-relay). Agents drop every render
   in `<scratchpad>/screens/`, forwarded to the owner as they land.
+- **Stopped at the owner's request** (wave 7). Unfinished work pushed: wt/downtown-relay (port moved to San Pedro Bay east of Palos Verdes, 110 clear of buildings; arena-district plazas still empty), wt/real-mountains (ridged heightfield, rounded summits, far-range banding fixed, chaparral palette - pass 2, not gated), wt/downtown-homeless (x20 encampments, WIP). STOP file set.
