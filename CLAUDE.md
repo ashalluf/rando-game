@@ -798,7 +798,18 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   the plan go through it. `height_at()` is the terrain with hill roads and mansion pads carved in
   (`raw_height_at()` is the noise alone); `MacroMap.hill_roads` (`HillRoads`, seeded polylines
   with grade-limited height profiles, `carve()`, `segments_in()`, `mansions_in()`) is what hill
-  chunks build asphalt strips and estates from. Chunks build water, sand or terrain for non-city
+  chunks build asphalt strips and estates from. `carve()` grades the ground off a road or pad on
+  **banks** (`CUT_BANK` 1:1, `FILL_BANK` 1:1.5, out to `BANK_REACH`): with only the old 14 m
+  shoulder every deep cut was a sheer wall. A road the mountains are too steep for is not built:
+  canyon roads and estate lanes are kept only as far as `_earthwork_ok()` passes (bed within
+  `MAX_EARTHWORK` of the ground, banks met by `DAYLIGHT_AT`) and re-profiled over what is kept,
+  a branch starts at its parent's bed height, a pad must pass `_pad_ok()`, and the boulevard is
+  slid downhill off the range where it cannot be graded in. The front range is steeper than 45
+  degrees almost everywhere, so of its canyon roads only the one up the pass survives (with its
+  estates) and the rest are stubs; a branch ramps at up to `JUNCTION_GRADE` for its first
+  `JUNCTION_RUN` metres to meet its parent. The walks, branch points and mansion rolls are
+  still made, so the rng stream (and the headland's estates after it) does not move. Chunks
+  build water, sand or terrain for non-city
   zones; the water surface is at y 0.15 (above the ground follower plane). To start
   somewhere else for testing: web `?spawn=x,z,yaw,pitch[,y]`, desktop `-- --spawn=x,z,yaw,pitch[,y]`.
   Mountains (owner, 2026-09-21: "LA is covered by mountains, Palos Verdes, the valley"): the basin

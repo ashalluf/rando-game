@@ -455,8 +455,14 @@ Rewritten 2026-09-21 at build 130.
 - Jet landing has not been exercised beyond the smoke test's takeoff. Gear is tiny and hidden
   under the model; the flight model is arcade and may need tuning (`aircraft.gd` exports).
 - The moon is the sun light re-aimed at night; the sky draws its disc where LIGHT0 points.
-- LOD terrain (6 subdivisions) vs FULL (14 or 28) can pop at the swap; hill road cut walls are
-  steep where the road profile drops well below the raw terrain.
+- LOD terrain (6 subdivisions) vs FULL (14 or 28) can pop at the swap. Hill road cuts are
+  graded banks now (`HillRoads.carve()`, 1:1 cut, 1:1.5 fill). The price was the front range's
+  canyon roads and estates: they climbed straight up a slope no road can be graded into (cuts
+  up to 320 m, fills up to 170 m, every one a sheer wall) and are now trimmed by
+  `_earthwork_ok()` to stubs - all but the canyon road up the pass and its estates (318 mansions
+  in the world, 468 before; the headland kept nearly all of its own). Roads and houses back on
+  the front range need switchback walks that follow the contours, or gentler foothills, not
+  deeper cuts.
 - The web build carries all the models and runs slowly on weak machines; caps are lower there.
 - The Meshy API key the owner pasted in chat during this project should be rotated. Meshy itself
   is retired (owner, 2026-09-19), so nothing needs the new one.
