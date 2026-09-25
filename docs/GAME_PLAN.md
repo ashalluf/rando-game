@@ -278,6 +278,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-25 Downtown is 1:1, and the masjid is south of it where the real one is.** The
+  re-lay (docs/HANDOFF.md 9s) landed: the real street grid (fitted from OpenStreetMap, 37.86
+  degrees) turned onto the game's axes and pinned on every seed, towers and civic buildings on
+  their geocoded points, the 110 / 101 / 10 on their real lines, MacArthur Park on its real
+  streets, the port at the foot of the 110. Masjid Omar ibn Al-Khattab moved with it: the drafted
+  re-lay left it 3 km due west of Pershing Square, past MacArthur Park, which contradicts
+  reality; it now stands grid-south of downtown on the real building's line, west of the 110,
+  between the 10 and the 105, the distance compressed like everything between downtown and the
+  port. It keeps its sanctuary (the zone moves with the anchor). A pinned road runs the whole
+  map, so the basin's blocks between z -1726 and 2000 take downtown's street spacing.
+
 - **2026-09-24 The hills are a Southern-California hillside.** `terrain.gdshader` was one grass
   texture with a second "rock" layer that was really green grass with pebbles (RockyTerrain02),
   and both hill sets were imported without mipmaps, so a range read as a shimmering meadow. It

@@ -8,7 +8,7 @@ the day-to-day work goes, what is fragile, what to do next. Read all three befor
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
 Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
-day's work is in 9t (distance), 9s (1:1 downtown research), 9r (MacArthur Park, encampments),
+day's work is in 9t (distance), 9s (1:1 downtown, landed 2026-09-25), 9r (MacArthur Park, encampments),
 9q (street life), 9p (the Esplanade), 9o (civic set), 9n (skyline), 9m (sound), 9l (how the
 day ran), 9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the
 index.
@@ -55,10 +55,11 @@ inside one of them means its own section - the headers below are the authority.)
   its closed roads is found. At merge its closed-road turning rules were ported into street
   life's new car-following model in `traffic.gd` (a closed road ahead forces a turn, or a U-turn
   at a dead end: `t.turn == 2`) - untested with the park on.
-- **Merged: the 1:1 downtown research, data only** (9s). `scripts/world/downtown_real.gd`
-  (geocoded anchors, the fitted grid: avenues 37.86 degrees east of north, 2.0 m RMS), the full
-  re-lay as `tools/downtown_relay/relay.patch` (never smoke-tested), its checks as a text file.
-  Nothing calls the data yet. Landing the re-lay is item 2 of section 10.
+- **Landed: downtown at 1:1** (9s, 2026-09-25). The re-lay in `tools/downtown_relay/relay.patch`
+  was ported by hand onto main (MacArthur Park on, the masjid, the Esplanade, the distance tiers)
+  and gated: the real street grid pinned on every seed, the towers and civic buildings on their
+  geocoded points, the 110 / 101 / 10 on their real lines, the park on its real streets, the
+  masjid moved south to where the real one is relative to downtown. 9s has what moved.
 - **Merged: the distance** (9t). Four tiers that always cover the view to 12 km: near chunks,
   far chunks, the far city (every block within 7 km, recorded from the far chunk's own build)
   and the horizon plane; per-block dissolve handoff. At merge the far-city capture was made to
@@ -1700,15 +1701,67 @@ as the street a realistic LA game shows, never as a joke; the code's words are n
 - **The smoke test** (`tests/westlake_checks.gd`, ~30-60 s on a busy box) re-centres the origin
   on every teleport and waits idle frames before a physics query, for the two reasons in its
   `_go()`; copy that pattern for any check that teleports far and then casts rays.
-## 9s. Downtown at 1:1: the research, the fit, and a re-lay waiting to land (2026-09-24, agent branch)
+## 9s. Downtown at 1:1: the research, the fit, and the re-lay (researched 2026-09-24, landed 2026-09-25)
 
 Owner: "I want the whole downtown landscape to become a 1:1 replica ... This should be
-geographically sound", "you should also have macarthur park". The session ended before the
-re-lay could be gated, so what is on main is **data only**: `scripts/world/downtown_real.gd`
-(`DowntownReal`), which nothing calls yet. The re-lay itself was written and probed headless (it
-compiles and lays out as described below) but never ran through the smoke test; it is kept as
-`tools/downtown_relay/relay.patch` (a `git diff` against 006e57c, the civic merge) with its
-draft checks `tools/downtown_relay/downtown_checks.gd.txt`.
+geographically sound", "you should also have macarthur park".
+
+**LANDED (2026-09-25, branch wt/downtown-relay).** The re-lay (`tools/downtown_relay/relay.patch`,
+a diff against 006e57c) no longer applied - main had MacArthur Park on, the masjid replica with
+its sanctuary, the Esplanade's coast and headland, the distance tiers - so it was ported by hand
+and gated; the headless check passes (464 checks), `tests/downtown_checks.gd` included. What
+moved, and what differs from the patch:
+
+- **Downtown**: the real grid pinned on every seed, the 19 towers and 9 civic sites on their
+  geocoded points (worst tower 13.8 m off, the pavement clamp; civic within their tolerances),
+  district and core from `DowntownReal`, relief off inside it, all crossings signalled.
+- **The masjid** moved south: anchor (1917, 2722.8), the block west of Georgia St, its south
+  road (the default seed's 24 m boulevard at z 2785.1) playing Exposition. The patch kept it at
+  (-235.7, 139) - 3 km due west of Pershing Square and west of MacArthur Park, i.e. in
+  Koreatown - which contradicts reality (the real one is 4.9 km grid-south, by USC, on Georgia's
+  line). Now: on the real line within 40 m, west of the 110, south of where the 10 leaves it,
+  north of the 105, distance south compressed (the real point is past the port). Sanctuary zone,
+  collision and far copy are built at the anchor, so they moved with it; `tests/masjid_checks.gd`
+  passes unchanged, and `downtown_checks.gd` holds the place.
+- **MacArthur Park**: SITE from `DowntownReal.MACARTHUR` (Park View x 100, Alvarado x 487, 6th
+  z 200.2, Wilshire z 312.7, 7th z 404; anchor (293.5, 312.7)). The lake half is 69 m deep and
+  the fields half 90 m, because downtown's 6th-Wilshire-7th spacing is used there (the real
+  streets fan out west of the 110: the real park is 310 m across, ours 204 m kerb to kerb).
+- **Freeways**: the patch's alignments, plus `Freeway._spline()` made centripetal - the uniform
+  Catmull-Rom looped the 110 back on itself at the four-level interchange and near Olympic and
+  Pico (with a 230 m span next to a 2 km one). The 10 gets its real bend north toward the East LA
+  interchange (it was a ruler-straight line). The 105 now swings wide round the masjid's
+  neighbourhood - down the west side of the 110 corridor, then east just north of the port - so
+  north to south it is the real order: the 10, the masjid, the 105.
+- **Port** at the foot of the 110 (x 2050-2750, z 3000-3560), cargo ship (2400, 3420), as in the
+  patch. Industrial is east of the 110 only (`industrial_corner` (2150, 2300); the patch had
+  (1100, 2300), which made USC / Exposition and the Torrance plain warehouses).
+- **Airport approach**: `downwind_x` 1250 and `approach_clear_length` 1150 (the patch's).
+- **The north**: the east range out to x 5000, the embayment above the civic centre (patch).
+- **Streaming**: the LOD ring stops `lod_reach_metres()` (840 m) out and a LOD chunk left 150 m
+  past it is RETIRED (the far city covers the block, per block) - the patch freed it, which the
+  distance tiers no longer allow.
+- **Names**: a seeded street never takes a real downtown name (no second Olive St).
+
+Checks changed, and why: the LOD count at the spawn (the pinned streets cross the whole map, so
+blocks round the spawn are 200-440 m deep and the ring stops at 840 m); "every freeway route
+curves" now measures the most the heading turns (the real 110 leaves the four-level and meets
+the port heading south both times); city hall's roof probe reads the tower's position from the
+builder (`LandmarkCivicCenter._hall_tower()`; the turned, bigger site moved it 10 m off the old
+probe point); "no deck crosses the core" is measured east of Figueroa (the core rect starts at
+the 110, which is Bunker Hill's real west edge). `street_life_checks` prints what stood round
+the cruiser when it pulls up off its kerb point: in the gate runs it stopped 0.2, 2.5, 0.2 and
+once 4.2 m off (the limit is 3.0; main stops 0.6 m off every time) - watch it.
+
+Consequence to know: a pinned road runs the whole map, so every block between z -1726 and 2000,
+anywhere in the basin, has downtown's street spacing (164-437 m) on that axis.
+
+What is left: interiors; Bunker Hill as a hill; Little Tokyo and the east side as real streets;
+the real 110/101/10 interchange ramps; the civic builders at real size (the arena's
+`ARENA_RADII` is 36-37 m against the real ~90); a Forward+ golden-hour still of the new skyline
+(NEEDS MAC CHECK - a full city on lavapipe runs out of memory on the shared box).
+
+The research as it was written before the landing:
 
 **The fit.** 93 Nominatim queries (strictly one per 1.2-3 s, the IP is shared and 429s came
 often; every answer is in `tools/downtown_relay/geocode_cache.json`, so NOTHING needs re-querying):
@@ -1773,7 +1826,7 @@ block and the geocoded point is a POI, so they are placed by `at`), 16 x 18 repl
 lots, 52 infill lots over 130 m (after lowering the non-core band to 14-80 m and the core to
 30-190 m with bigger core lots - with the old bands it was 301), MacroMap setup 180 ms.
 
-**How the next session lands it, step by step.**
+**How it was to be landed, step by step** (done, 2026-09-25; kept for the record).
 1. Merge origin/main; `git apply --3way tools/downtown_relay/relay.patch` and resolve (it touches
    city_plan, macro_map, freeway, landmark_downtown, civic_sites, landmarks, air_traffic, traffic,
    city_streamer, smoke_test).
@@ -2067,18 +2120,10 @@ Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept becaus
 1. **MacArthur Park is on** (9r). What is left there is 9r's own list: the Blender bake of the
    encampment kit, nobody having seen the poses move, the police cruiser that can start inside
    a crossing next to the park. The hero pass that used to be item 1 is merged (section 0).
-2. **The 1:1 downtown re-lay** (owner: "the whole downtown landscape ... a 1:1 replica"). The
-   real positions live in `LandmarkDowntown.TOWERS` (`real`, `real_plan`, `real_grid()`) and
-   `CivicSites.SITES` (`real_en()`, `real_grid()`), both in metres east/north of
-   `LandmarkDowntown.REAL_ORIGIN`; the geocoded points and the fitted grid are in
-   `scripts/world/downtown_real.gd`, and a complete but never smoke-tested re-lay is
-   `tools/downtown_relay/relay.patch` (9s says how to land it and which checks will move). The job: rotate the real grid onto the game
-   axes, lay real block spacing and street order into `CityPlan.PINNED_ROADS`, grow
-   `MacroMap.downtown_core` and the DOWNTOWN district to the real core (about 2.5 x 3 km), move
-   both tables' anchors to their real blocks, put MacArthur Park at Wilshire and Alvarado west
-   of the 110, and pin a freeway route to the 110's alignment if it can be done inside the
-   freeway rules. Nominatim geocodes landmarks and street addresses from this box (1 request a
-   second, cache the results, credit OpenStreetMap in ASSETS.md); Overpass is not reachable.
+2. **The 1:1 downtown re-lay - LANDED 2026-09-25** (9s). What is left of it: Bunker Hill as a
+   hill, Little Tokyo and the east side as real streets, the real interchange ramps, the civic
+   builders at real size (the arena is a third of its real width in its real 240 x 330 m block),
+   and a look at the new skyline on Forward+ at golden hour (NEEDS MAC CHECK).
 3. **Judge today's work on Forward+.** Almost everything merged on 2026-09-24 was judged on the
    opengl3 preview, because the shared render lock was saturated: the night GI change (was
    night paving orange from SDFGI bouncing emission?), the skyline's crowns at dusk, the civic

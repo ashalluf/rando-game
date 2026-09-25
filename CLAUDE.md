@@ -1046,14 +1046,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   buildings"): `LandmarkDowntown` (`scripts/world/landmark_downtown.gd`) builds nineteen `dt_*`
   landmarks, listed in ONE contiguous block at the end of `Landmarks.all()` (other branches add
   theirs elsewhere; the civic centre and the arena district are not these). **Everything about
-  a tower's placement is ONE table, `LandmarkDowntown.TOWERS`**: anchor, radius, height (real
-  metres: the 335 m sail with a spire, the 310 m round tower with the lit glass crown, the 262 m
-  white slab, ...), plan (checked against the built geometry), crown, and an APPROXIMATE real
-  position in metres east/north of `REAL_ORIGIN` with a real footprint, for the planned 1:1
-  re-lay (`real_grid()` turns it into the real street grid's frame). `Landmarks.all()` appends
-  `LandmarkDowntown.entries()`, so a re-lay changes the table, the pinned grid and the core
-  rects. The current plan is the real grid laid one real block to one game block (about 2/3
-  scale) with footprints near real size. Each tower is built by
+  a tower's placement is ONE table, `LandmarkDowntown.TOWERS`**: its real point(s) (keys of
+  `DowntownReal.POINTS`, geocoded addresses; two for a pair, built round their midpoint), radius,
+  height (real metres: the 335 m sail with a spire, the 310 m round tower with the lit glass
+  crown, the 262 m white slab, ...), plan (real footprints, the pairs at their real spacing;
+  checked against the built geometry) and crown. `LandmarkDowntown.anchor(id)` is the real point
+  through `DowntownReal.game_xz()`, clamped into its block less the pavement (13.8 m at worst;
+  the checks hold it under 30). `Landmarks.all()` appends `LandmarkDowntown.entries()`. Downtown
+  is **1:1**, plan and heights (see the DowntownReal bullet). Each tower is built by
   `TowerMesh` (`scripts/world/tower_mesh.gd`): outlines (rect, chamfered, notched, circle,
   ellipse, rounded, bowed, `union()`) extruded into tiers with setbacks (`prism`, `sloped`), and
   `loft` / `wedge` / `vault` / `spike` / `mast` / `fins` / `balcony` for crowns and details, all
@@ -1071,25 +1071,53 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (NW, NE, SE, SW), `TowerMesh.clean()` fixes any other; facade surfaces never carry vertex
   colour (SurfaceTool fixes a surface's format at its first vertex); every tower must stay
   inside its block less the pavement (`LandmarkDowntown.footprint()`, checked by the smoke test
-  on this seed and another). The blocks are fixed because **`CityPlan.PINNED_ROADS`** pins the
-  downtown street grid for every seed - the default seed's own roads to the last bit, so that
-  city did not move; on other seeds the seeded blocks either side stretch or split to meet them
-  (`CityPlan._next_road()`). Between the towers, `MacroMap.downtown_core` (two rects) +
+  on this seed and another). The blocks are fixed because **`CityPlan.pinned_roads()`**
+  (`DowntownReal.pins()`) pins the real street grid for every seed; the seeded blocks either side
+  of a run of real streets stretch or split to meet them (`CityPlan._next_road()` /
+  `_prev_road()`). Between the towers, `MacroMap.downtown_core` (`DowntownReal.game_core()`, two
+  rects: Bunker Hill and the Financial District from the 110 to Olive, South Park) +
   `core_margin` make the district DOWNTOWN and the skyline boost 1, and DISTRICTS DOWNTOWN's
   `core_height` / `core_curve` / `core_shapes` / `core_finishes` / `core_courtyard` turn the
-  infill into a field of 40-205 m towers, a quarter of them over 130 m (never over the named
-  ones; no SLAB, which caps itself at 40 m and would disagree with the far tier's box; more
-  stone than glass). The minimap only labels a pin with `LABEL_ROOM` pixels of
-  room. Stills: the skyline from the south-west `--spawn=-50,1250,-43,5,80`, from the hills
-  `--spawn=350,-950,-170,-9,380`, on the avenue `--spawn=589.2,860,0,16,2`, with `HIDE=Visual`
-  on `tools/glshot/city_shot.gd` (hides the player, who otherwise stands in the middle of it).
-  **Downtown at 1:1 is prepared but not landed**: `DowntownReal` (`scripts/world/downtown_real.gd`,
-  DATA ONLY, nothing calls it) holds the real grid fitted from OpenStreetMap (bearing 37.86
-  degrees, every avenue's and street's position, width and residual), the geocoded landmark
-  points, the freeway alignments and the frame (real origin, turn, game anchor - the Esplanade's
-  replica-area idea); the re-lay that consumes it is `tools/downtown_relay/relay.patch`, with the
-  landing steps in docs/HANDOFF.md 9p. The `real` metres in the tower and civic tables are from
-  memory with the wrong bearing (45 / 36) - use DowntownReal's points instead.
+  infill into a field of 30-190 m towers on bigger lots (`core_lot`), 52 lots over 130 m (never
+  over the named ones; no SLAB, which caps itself at 40 m and would disagree with the far tier's
+  box; more stone than glass). Outside the core the district is the historic core's 14-80 m of
+  stone, brick and render. The minimap only labels a pin with `LABEL_ROOM` pixels of room.
+  Stills: the south-west aerial `--spawn=1450,2150,-38,4,140`, on the avenue (Flower at Olympic,
+  north) `--spawn=2359.4,880,0,12,2`, the civic centre `--spawn=2600,-450,-50,-4,60`, the arena
+  `--spawn=2300,1150,138,-8,30`, with `HIDE=Visual` on `tools/glshot/city_shot.gd` (hides the
+  player, who otherwise stands in the middle of it).
+- DowntownReal (owner, 2026-09-24: "I want the whole downtown landscape to become a 1:1 replica
+  ... geographically sound"): `scripts/world/downtown_real.gd`, the replica area that carries
+  downtown - the Esplanade's idea (a REAL ORIGIN, a TURN, a GAME ANCHOR) for a street GRID. The
+  real grid was fitted from OpenStreetMap (93 cached Nominatim answers in
+  `tools/downtown_relay/geocode_cache.json`, `fit2.py`): bearing 37.86 degrees, RMS 2.0 m over 115
+  centre-line points. The whole grid is turned onto the game's axes (grid north = game north),
+  Pershing Square is `GAME_ANCHOR` (2800, 102.7) and 5th St is exactly z 0 (CityPlan's road 0).
+  Tables: `AVENUES` / `STREETS` (name, position in grid metres, width, points, RMS, `run`),
+  `POINTS` (geocoded towers, civic buildings, parks), `FREEWAY_110/101/10`, `EXTENT`, `CORE`,
+  `PARKS` (Pershing Square, Grand Hope Park, Grand Park are their real kinds, every other block
+  inside is buildings), `MACARTHUR`. Helpers: `game_xz(latlon)`, `point(key)`, `pins()` (what
+  CityPlan pins: [x or z, width, name, run]; a pinned road runs the whole map), `pin_at()`,
+  `named()`, `block_inner()`, `freeway()`, `in_extent()`. What it does to the rest: downtown is
+  x 1650-3950, z -1750..2020 (the 110 to Vignes, Cesar Chavez to Venice); all its crossings are
+  signals; the rolling relief is off inside it; `MacroMap` pushes the east range out to x 5000
+  and steps the whole north back `embay_depth` 1250 m over `embay_x` (the real range ends at the
+  Cahuenga Pass; only low hills stand above the civic centre); the port and harbour are at the
+  foot of the 110, x 2050-2750, z 3000-3560 (cargo ship (2400, 3420)); industrial is east of the
+  110 below z 2300 (`industrial_corner` (2150, 2300)) and the Arts District east of Vignes; the
+  freeways (`Freeway`, `_spline()` of control points) are the 110 and the 101 on their geocoded
+  lines, the 10 new, the 105 rerouted south of the airport's clear zone, down the west side of the
+  110 corridor and east just north of the port; the airport's final turns in over Westlake
+  (`AirTraffic.downwind_x` 1250, `MacroMap.approach_clear_length` 1150). CityStreamer stops the
+  LOD ring `lod_reach` metres out (downtown's 440 m blocks would run it 3 km) and retires LOD
+  chunks left past it. NOT 1:1: east of Main the real streets are another grid (only Alameda and
+  Vignes are pinned there); one road is one line (Wilshire also splits the historic core, 12th St
+  is left out, Georgia runs the whole map); the streets west of the 110 bend 8 degrees and are
+  straightened (MacArthur Park 280 m grid-north of the real one, and 6th to 7th is 204 m there
+  where the real park is 310 m); distances BETWEEN areas are compressed (the port is 3 km south of
+  Pershing Square, not 30). Checks: `tests/downtown_checks.gd` (the grid on two seeds, the real
+  order and spacing, towers and civic sites at their points, real distances, the frame, the
+  masjid's place). Probe: `tools/downtown_relay/probe.gd.txt`.
 - Downtown civic set (owner, 2026-09-24: "downtown must match real downtown LA, we need staple
   center"): the same exception as the skyline - the real buildings' FORMS in their real places
   relative to the core, every NAME invented (no real arena, sponsor, team, hotel, museum,
@@ -1103,19 +1131,20 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   terrace, lawn, pink furniture), `concert_hall` (SYMPHONY HALL, steel sails from
   `tools/make_concert_hall.py`), `lattice_museum` (THE LATTICE), `pueblo_station` (PUEBLO
   STATION). **One table places them all: `CivicSites.SITES`** (`scripts/world/civic_sites.gd`):
-  anchor, footprint (own frame), yaw (quarter turns) and the real building's lat/long, size and
-  facing; `CivicSites.real_en()` is the real position in the SKYLINE table's frame (metres east
-  / north of `LandmarkDowntown.REAL_ORIGIN`, like a tower's `real`; `real_metres()` has z south,
-  `real_grid()` turns it onto the real street grid) - the owner's long-term goal is downtown at
-  1:1, and a re-layout should change only the two tables and the pinned grid. Builders work in a frame centred on their site; `CivicSites.build()` puts a turned
+  the real point (a key of `DowntownReal.POINTS` plus its lat/long; `at` in grid metres for the
+  hotel and the plaza, which share one block and whose geocoded point is a POI), footprint (own
+  frame), yaw (quarter turns, set so each faces its real street after the grid's turn: city hall
+  90, the concert hall 180), `tolerance` (how far the block may clamp it off its point, checked)
+  and the real size and facing. `CivicSites.anchor(id)` / `real_xz(id)` go through DowntownReal;
+  `site()` centres the footprint on the anchor as far as the block lets it. Builders work in a frame centred on their site; `CivicSites.build()` puts a turned
   pivot with its own static body in the world, and anything that needs world coordinates (crowd
   rects, the chunk's grass) goes through `CivicSites.to_world()` / `rect_to_world()`, with the
   chunk in `CivicSites.ctx`. They are **block sites**: `"site": "block"` in `Landmarks.all()` makes
   `Landmarks.claims()` true for the block the anchor falls in, so `CityPlan.lots()` returns
   nothing there and `CityPlan.block()` overrides its park/plaza/mall roll (AFTER the roll, so no
   seed moves); every builder lays itself out inside `Landmarks.site_rect()` (the block inside its
-  pavement ring), so nothing ever stands on a road whatever the seed. Anchors are the default
-  seed's block centres; radius only flattens relief and stays inside the block. Crowds:
+  pavement ring), so nothing ever stands on a road whatever the seed (the real grid is pinned on
+  every seed). Radius only flattens relief and stays inside the block. Crowds:
   `Landmarks.crowds()` returns rects the chunk fills with ordinary pedestrians (as build steps).
   Geometry is `LandmarkGeo` (`scripts/world/landmark_geo.gd`): one mesh per building, a surface
   per material; UVs in METRES (u along a wall, v world height) which the landmark shaders read;
@@ -1137,8 +1166,10 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `"site": "block"` is a different thing).
   `LandmarkMacArthurPark` (`scripts/world/landmark_macarthur_park.gd`) keeps everything real in
   ONE table, `SITE` (lat/long, the real offset from Pershing Square, real size, Wilshire's real
-  heading, the lake outline in the south half's 0..1 frame) plus today's compressed placement
-  (`anchor`, desired edges). Its `Landmarks.all()` entry carries a `site`, which
+  heading, the lake outline in the south half's 0..1 frame) plus its placement at 1:1
+  (`DowntownReal.MACARTHUR`: Park View x 100, Alvarado x 487, 6th z 200.2, Wilshire z 312.7, 7th
+  z 404 - all pinned real streets; anchor (293.5, 312.7)). Stills: the whole park from the south
+  `--spawn=300,528,0,-35,120`. Its `Landmarks.all()` entry carries a `site`, which
   `CityPlan.sites()` snaps to whole blocks: `block()` gets `"site"`, `lots()` is empty, and
   `road_open(axis, index, along)` / `road_open_at()` / `junction_closed()` close every road
   inside the four boundary roads except Wilshire. Everything that puts things on roads asks it:
@@ -1181,8 +1212,15 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   chandelier; lobby; a second hall under the hollow dome). Geometry is built once in code into
   merged meshes (one surface per material, cached in static vars) plus ONE trimesh collision
   body with the doorways left open; custom looks are `shaders/masjid_carpet.gdshader`,
-  `masjid_lattice.gdshader`, `masjid_marble.gdshader`. It replaced the original design Masjid
-  Al Noor on the same parcel, whose south pavement plays Exposition.
+  `masjid_lattice.gdshader`, `masjid_marble.gdshader`. **Where it stands** (anchor (1917, 2722.8)):
+  where the real one is relative to downtown at 1:1 - grid-south of Pershing Square on the real
+  building's line (`REAL_LATLON` through `DowntownReal.game_xz()`, 40 m off in x), west of the
+  110, south of where the 10 leaves it and north of the 105, the distance south compressed (the
+  real point is past the port; checked in `tests/downtown_checks.gd`). The block west of Georgia
+  St; its south road (the default seed's 24 m boulevard at z 2785.1) plays Exposition and the
+  entrance flight lands on its pavement. It used to stand at (-235.7, 165.2), which the 1:1
+  downtown put 3 km due west of Pershing Square, past MacArthur Park. Still:
+  `--spawn=1880.7,2809.6,-31.8,-23.7,32` (tools/glshot/bookmarks.sh `masjid`).
   **It is a sanctuary** (`Sanctuary`, `scripts/weapons/sanctuary.gd`): a zone box (group
   `sanctuary_zone`, built by the far copy too, since that has no collision) and the collision
   body (group `sanctuary`). `Weapon.tick()` refuses the shot when the crosshair is on it, when
