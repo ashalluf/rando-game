@@ -47,6 +47,7 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 | 32 | Audit: MacArthur Park's far palm ring adds ~2 M tris toward the park (masjid bookmark +15.9 %) | Perf (palms LOD) | 3 | 4 | 0.5 | 24.0 | in-progress | folded into the tree LOD agent |
 | 33 | Audit: hill ground on Compatibility/web - near grass grain lost (smooth), chaparral flat camo stains, mauve dirt blotches, a faint dot lattice in brush | Hills (terrain.gdshader) | 3 | 4 | 1 | 12.0 | todo | with #19; judge on Forward+ too |
 | 34 | OWNER: 'the hills look like garbage, don't look like real mountains' - ridged/eroded heightfield (knife ridges, V-canyons, drainage), kill the far range's stepped contour banding, chaparral-dominant muted palette | Hills (macro_map raw_height_at, terrain/macro_ground shaders, hill_planting) | 5 | 3 | 1.2 | 12.5 | in-progress | wave 7 agent, wt/real-mountains; supersedes #19 and #33 |
+| 35 | Port assets are plain primitive boxes (containers, gantry cranes): corrugated containers with doors/corner castings and livery variety, real ship-to-shore cranes, straddle carriers, a textured quay, the cargo ship | Port (landmarks port builders, a Blender generator) | 4 | 4 | 1 | 16.0 | todo | after the port move (#29) lands; seen in `screens/relay_04_port_street.png` |
 
 ## NEEDS MAC CHECK
 
