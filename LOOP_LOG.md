@@ -63,3 +63,7 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   `<scratchpad>/crowd/cmp6.png`, `cmp_faces_fp.png`. Screen-space SSS blurred the photo-baked
   eyes and stubble; the vinyl look comes from lighting baked into the textures. Kept the
   character_shot.gd LOOK fix (9ad44e7).
+
+## Wave 4 (2026-09-25)
+
+- Launched: downtown 1:1 re-lay (roadmap #13), hill vegetation (#6).
