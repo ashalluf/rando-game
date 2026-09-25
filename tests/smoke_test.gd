@@ -365,6 +365,7 @@ func _test_city() -> void:
 		var hill_key: Vector2i = plan.block_index_at(Vector2(hill.x, hill.z))
 		var hill_chunk: Node3D = city.chunks.get(hill_key)
 		_check(hill_chunk != null and hill_chunk.zone == MacroMap.Zone.HILLS and hill_chunk.has_node("Terrain"), "hill chunk has a terrain tile")
+		_check_hill_planting(hill_chunk, plan)
 		await _wait_for_floor(player, 240)
 		var ground_h: float = _world_state().to_world(player.global_position).y
 		_check(player.is_on_floor() and ground_h > 20.0, "player stands on the hills at %.0f m" % ground_h)
@@ -2239,6 +2240,49 @@ func _double_jump_and_measure(player: CharacterBody3D, ground_y: float) -> float
 			break
 	Input.action_release("jump")
 	return peak
+
+
+## The hills' planting stands where the terrain shader paints brush: HillPlanting mirrors the
+## shader's numbers (read back out of its source here), a FULL hill chunk plants chaparral on
+## the painted stands and nothing on rock or bare cuts, and the north faces carry more brush.
+func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
+	var src := FileAccess.get_file_as_string("res://shaders/terrain.gdshader")
+	var mismatched: Array[String] = []
+	for uname: String in HillPlanting.MIRRORED:
+		var re := RegEx.create_from_string("uniform float " + uname + "\\b[^=]*=\\s*([0-9.]+)")
+		var m := re.search(src)
+		if m == null or absf(m.get_string(1).to_float() - float(HillPlanting.MIRRORED[uname])) > 1e-6:
+			mismatched.append(uname)
+	_check(mismatched.is_empty(), "HillPlanting mirrors terrain.gdshader's numbers (%s)" % (", ".join(mismatched) if mismatched else "all match"))
+	if chunk == null:
+		return
+	var planted: Dictionary = chunk.get("hill_planting")
+	var points: Array = planted.get("points", [])
+	var chaparral := 0
+	var on_brush := 0
+	var on_rock := 0
+	for rec in points:
+		var p: Vector2 = rec[0]
+		var grad := Vector2(plan.height_at(p + Vector2(2.0, 0.0)) - plan.height_at(p - Vector2(2.0, 0.0)),
+			plan.height_at(p + Vector2(0.0, 2.0)) - plan.height_at(p - Vector2(0.0, 2.0))) * 0.25
+		var g := HillPlanting.ground(p, grad)
+		if float(g.rocky) > 0.45 or float(g.bare) > 0.55:
+			on_rock += 1
+		if rec[1] == "chaparral":
+			chaparral += 1
+			if float(g.brush) > 0.3:
+				on_brush += 1
+	_check(chaparral >= 20 and chunk.has_node("Batch_hill_chaparral"), "a hill chunk plants chaparral stands (%d shrubs, %d oaks, %d lone shrubs)" % [chaparral, planted.get("oak", 0), planted.get("sage", 0)])
+	_check(on_rock == 0, "nothing planted on rock or bare cuts (%d of %d)" % [on_rock, points.size()])
+	_check(on_brush >= chaparral * 0.75, "the chaparral stands on the painted brush (%d of %d)" % [on_brush, chaparral])
+	# The field itself: the shaded side is brush, the sunny side grass.
+	var north_brush := 0.0
+	var south_brush := 0.0
+	for i in 400:
+		var w := Vector2(float(i % 20) * 37.0, float(i / 20) * 41.0)
+		north_brush += float(HillPlanting.ground(w, Vector2(0.0, 0.5)).brush)
+		south_brush += float(HillPlanting.ground(w, Vector2(0.0, -0.5)).brush)
+	_check(north_brush > south_brush * 1.3, "north faces carry more brush than south faces (%.0f vs %.0f of 400)" % [north_brush, south_brush])
 
 
 func _wait_for_floor(player: CharacterBody3D, max_ticks: int) -> void:

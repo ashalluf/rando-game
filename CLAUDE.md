@@ -959,6 +959,23 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   leaf luminance *alone* drags shaded leaves to navy - the constant term in that mix is what keeps
   a flower in shadow reading as a flower. `blossom_mix` 0 leaves every other tree untouched.
   `CityChunk._jacaranda_street` biases whole blocks to it, the same idea as the palm streets.
+  **The hills are planted where the ground is painted.** `HillPlanting`
+  (`scripts/world/hill_planting.gd`, static) is `terrain.gdshader`'s splat worked out on the
+  CPU - the same hash, noise octaves, offsets and thresholds (`HillPlanting.MIRRORED`, which the
+  smoke test checks against the shader source; change one, change both) - so `ground(w, grad)`
+  says whether a point is a chaparral stand, bare dirt or rock and which way it faces, and
+  `hollow()` finds gullies and slope feet. FULL hill chunks run `_plant_hills` (after
+  `_scatter_hills`; a jittered `hill_brush_spacing` grid, a private rng per grid row, a few rows a
+  build step, heights off the chunk's own terrain grid): budgeted searsia
+  (`PropFactory.model_chaparral()`, `CHAPARRAL_BUDGET`) wide and low on every stand point,
+  a budgeted city broadleaf (`tree_a`) as the oaks in the hollows (`model_hill_oak()`), a rare
+  lone shrub on open grass, nothing on rock, cuts or trails. Their tints are OVER 1 (1.4-2.2):
+  both leaf atlases are mostly black background, which the mip chain averages into the leaves,
+  so tinted below 1 a stand drew black from twenty metres. The far tier
+  (`Skyline._add_hills`) asks the same field on a 30 m height lattice: low draped chaparral
+  mounds on the stands, taller dark oaks in the hollows, colours lifted from the
+  terrain's `chaparral_color` (`HILL_BRUSH_COLOR`). Past that, `macro_ground.gdshader` biases its scrub to
+  the north faces (`north_scrub`) the way the near ground does.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and

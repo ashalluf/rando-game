@@ -95,6 +95,11 @@ func run(city: Node3D) -> void:
 	if city.has_method("finish_far_city"):
 		city.call("finish_far_city")
 	await _frames(1)
+	# The hills' shrubs and oaks, cut to their triangle budgets (tenths of a second the first
+	# time), so the first hill block after the spawn does not pay for it mid-flight.
+	PropFactory.model_chaparral()
+	for v in PropFactory.HILL_OAKS.size():
+		PropFactory.model_hill_oak(v)
 	# Cutting a character's limbs apart takes tens of milliseconds the first time for each
 	# model, which is a hitch on the first rocket into a crowd; here it is part of the wait.
 	var models: Array = Pedestrian.MODELS
