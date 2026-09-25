@@ -2351,8 +2351,13 @@ func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
 	var on_rock := 0
 	for rec in points:
 		var p: Vector2 = rec[0]
-		var grad := Vector2(plan.height_at(p + Vector2(2.0, 0.0)) - plan.height_at(p - Vector2(2.0, 0.0)),
-			plan.height_at(p + Vector2(0.0, 2.0)) - plan.height_at(p - Vector2(0.0, 2.0))) * 0.25
+		# The slope off the surface the chunk drew (its terrain grid, whose normals the shader
+		# paints by), as the planting reads it: the analytic height_at() is not that surface on a
+		# steep face, and at this spot on the 1:1 map two shrubs read as rock by it and not by the
+		# drawn ground.
+		var th := func(q: Vector2) -> float: return float(chunk.call("_terrain_height", q)) if chunk.has_method("_terrain_height") else plan.height_at(q)
+		var grad := Vector2(float(th.call(p + Vector2(2.0, 0.0))) - float(th.call(p - Vector2(2.0, 0.0))),
+			float(th.call(p + Vector2(0.0, 2.0))) - float(th.call(p - Vector2(0.0, 2.0)))) * 0.25
 		var g := HillPlanting.ground(p, grad)
 		if float(g.rocky) > 0.45 or float(g.bare) > 0.55:
 			on_rock += 1
