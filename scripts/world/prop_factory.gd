@@ -10,7 +10,7 @@ static var _cache: Dictionary = {}
 const TEXTURE_SETS := {
 	"asphalt": "Asphalt033", "brick": "Bricks104", "concrete": "Concrete034", "grass": "Grass004",
 	"sand": "Ground054", "metal": "MetalPlates006", "paving": "PavingStones138", "rock": "Rock064",
-	"hill": "AerialGrassRock", "hill_rock": "RockyTerrain02",
+	"hill": "AerialGrassRock",
 	# Hill ground splat (Poly Haven): bare dirt / decomposed granite, and the rock outcrops.
 	"hill_dirt": "DryGroundRocks", "hill_outcrop": "RockFace",
 	# Street surface sets (Poly Haven), picked per road and per block for variety.
