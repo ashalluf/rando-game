@@ -28,6 +28,8 @@ const RAMP_RUN := 78.0
 const RAMP_WIDTH := 9.0
 const RAMP_BOW := 10.0
 const RAMP_STEPS := 13
+## How far outside the airport fence a deck has to end (_drivable()), metres.
+const AIRPORT_KEEP := 60.0
 ## Points are this far apart along a route; the deck is built from them directly.
 const STEP := 24.0
 const CELL := 160.0
@@ -192,15 +194,18 @@ func _add_route(route_name: String, drawn: PackedVector2Array, rng: RandomNumber
 
 
 ## The longest run of a drawn route that is over ground a freeway can be built on: below
-## MAX_GROUND and not out at sea. Everything outside it is dropped, so a route ends where the
-## basin does instead of running up a cliff with its deck buried under the hillside.
+## MAX_GROUND, not out at sea and not over the airport. Everything outside it is dropped, so a
+## route ends where the basin does instead of running up a cliff with its deck buried under the
+## hillside - and the coast route stops at the airport's north fence: it used to run straight on
+## over the terminal and all three runways at nine metres, in the arriving jets' way.
 func _drivable(pts: PackedVector2Array) -> PackedVector2Array:
 	var best_from := 0
 	var best_len := 0
 	var run_from := -1
 	for i in pts.size():
 		var p := pts[i]
-		if _macro.height_at(p) <= MAX_GROUND and _macro.zone_at(p) != MacroMap.Zone.OCEAN:
+		if _macro.height_at(p) <= MAX_GROUND and _macro.zone_at(p) != MacroMap.Zone.OCEAN \
+				and not _macro.airport_rect.grow(AIRPORT_KEEP).has_point(p):
 			if run_from < 0:
 				run_from = i
 			if i - run_from + 1 > best_len:

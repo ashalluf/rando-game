@@ -167,8 +167,9 @@ var terminal_loops: Array = [
 ]
 ## The port where the real Port of Los Angeles is: at the foot of the 110 on the headland's east
 ## flank, facing San Pedro Bay. A container terminal on the bay's north shore that runs out into
-## the water (its south third is built out into the bay, like Terminal Island), with the channel
-## between it and the headland's east shore (San Pedro) on its west side. Its edges are the
+## the water (its south third is built out into the bay, like Terminal Island), just east of
+## where the headland's land end (San Pedro) meets the bay, so its south and west quays face open
+## water. Its edges are the
 ## default seed's roads (x 2740 / 3390, z 5922 / 6508), so it is whole blocks there. The harbour
 ## is the berth off its south quay, where the container ship lies: part of the bay, open to the
 ## sea, named so the ambience and the cranes know the water that belongs to the port. Nothing

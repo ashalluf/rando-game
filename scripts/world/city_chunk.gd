@@ -300,6 +300,11 @@ func begin_build() -> void:
 	match zone:
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
+			# The same for the headland: its shore is an ellipse, so a chunk whose centre is at sea
+			# can hold a slice of its sea cliffs, which nobody built - the hill chunk next door
+			# ended in a straight wall of terrain along the chunk line.
+			if _headland_shore(true):
+				_steps.append(_build_terrain)
 			# The waterline does not respect the zone grid: a chunk whose centre is out to sea
 			# can still have the shore running through its landward edge, and before this those
 			# bands showed as dark gaps between one beach and the next.
@@ -307,6 +312,10 @@ func begin_build() -> void:
 				_steps.append(_build_beach.bind(block))
 				_steps.append(_build_hill_roads)
 		MacroMap.Zone.HILLS:
+			# ...and a hill chunk on the headland's shore holds a slice of sea, which only the
+			# sea chunks built: its terrain ran down to sea level with no water over it.
+			if _headland_shore(false):
+				_steps.append(_build_water)
 			_steps.append_array([_build_terrain, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
 		MacroMap.Zone.BEACH:
 			if replica_role == 0:
@@ -760,6 +769,32 @@ const SAND_HIGH := 0.5
 ## waves up to the town.
 ## True when this chunk is the one the waterline runs through at its own Z. Exactly one chunk per
 ## Z band answers yes, so the sand is laid once and never double-drawn by a neighbour.
+## True if this chunk's rect holds part of the Palos Verdes headland (`land`) or of the sea off
+## its shore (not `land`), sampled on a 5 x 5 grid. San Pedro Bay wraps the headland's south and
+## east sides, so its whole shore runs through chunks zoned by their centres alone.
+func _headland_shore(land: bool) -> bool:
+	var macro: MacroMap = plan.macro
+	if macro == null:
+		return false
+	var r := owned_rect()
+	if macro.headland_dist(r.get_center()) > r.size.length() + 50.0:
+		return false
+	# Not along the replica's coast (Malaga Cove and north): its sand, bluff and beach are its own.
+	if macro.replica:
+		var cr: Vector2 = macro.replica.coast_range()
+		if r.end.y > cr.x - 200.0 and r.position.y < cr.y + 200.0:
+			return false
+	for j in 5:
+		for i in 5:
+			var p := r.position + r.size * Vector2(float(i) / 4.0, float(j) / 4.0)
+			if land:
+				if macro.headland_dist(p) < -2.0 and macro.zone_at(p) != MacroMap.Zone.OCEAN:
+					return true
+			elif macro.zone_at(p) == MacroMap.Zone.OCEAN and macro.headland_dist(p) < 400.0:
+				return true
+	return false
+
+
 func _owns_shoreline() -> bool:
 	if plan.macro == null:
 		return false

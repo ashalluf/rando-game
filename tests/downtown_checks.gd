@@ -263,12 +263,21 @@ func _freeways_clear(plan: CityPlan, city: Node3D) -> void:
 			foot = LandmarkDowntown.footprint(lm)
 		elif CivicSites.SITES.has(id):
 			foot = CivicSites.site(plan, id).world
+		elif id == "masjid_omar":
+			var m := Vector2(lm.anchor) + Vector2(LandmarkMasjidOmar.BLD_OFFSET.x, LandmarkMasjidOmar.BLD_OFFSET.z)
+			foot = Rect2(m.x + LandmarkMasjidOmar.SITE_X0, m.y + LandmarkMasjidOmar.SITE_Z0,
+				LandmarkMasjidOmar.SITE_X1 - LandmarkMasjidOmar.SITE_X0, LandmarkMasjidOmar.SITE_Z1 - LandmarkMasjidOmar.SITE_Z0)
 		else:
 			continue
 		if fw.blocks_rect(foot, 0.0):
 			hits.append(id)
+	# Out in the basin: no deck over the airport (its terminal, its runways - the 405 used to cross
+	# all three at nine metres, in the jets' way) or the port.
+	for named in [["airport", plan.macro.airport_rect], ["port", plan.macro.port_rect]]:
+		if fw.blocks_rect(named[1] as Rect2, 0.0):
+			hits.append(str(named[0]))
 	_check(segs > 100 and boxes > 500 and hits.is_empty(),
-		"no freeway deck, pillar or ramp downtown passes through a building, tower or civic site (%d segments, %d blocks, %d boxes)%s" \
+		"no freeway deck, pillar or ramp downtown passes through a building, tower, civic site or the masjid, nor over the airport or the port (%d segments, %d blocks, %d boxes)%s" \
 		% [segs, blocks.size(), boxes, (": " + ", ".join(hits)) if not hits.is_empty() else ""])
 
 

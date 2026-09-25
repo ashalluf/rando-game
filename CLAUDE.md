@@ -1150,12 +1150,24 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   x 1650-3950, z -1750..2020 (the 110 to Vignes, Cesar Chavez to Venice); all its crossings are
   signals; the rolling relief is off inside it; `MacroMap` pushes the east range out to x 5000
   and steps the whole north back `embay_depth` 1250 m over `embay_x` (the real range ends at the
-  Cahuenga Pass; only low hills stand above the civic centre); the port and harbour are at the
-  foot of the 110, x 2050-2750, z 3000-3560 (cargo ship (2400, 3420)); industrial is east of the
-  110 below z 2300 (`industrial_corner` (2150, 2300)) and the Arts District east of Vignes; the
+  Cahuenga Pass; only low hills stand above the civic centre); the port is where the real one
+  is (owner, 2026-09-25: "it should be on the east side of palos verdes"): on San Pedro Bay at
+  the foot of the 110, just east of the headland's land end, x 2750-3380, z 5935-6495, its south
+  third built out into the bay, the harbour (the berth, `harbor_rect`) off its south quay and the
+  cargo ship at (3065, 6522). The bay (`bay_z` 6300, `bay_east_x` 4700) wraps the headland's
+  south and east and is open sea; east of the port its north shore is Long Beach's sand
+  (`bay_beach_depth`). There is no inland water anywhere: the old harbour at z 3300 is city now.
+  The ocean shader gets `bay_east_x` from `Weather._push_ocean_shape()`. Industrial is east of the
+  110 below z 2300 (`industrial_corner` (2150, 2300)) all the way down to the port, and the Arts
+  District east of Vignes; the
   freeways (`Freeway`, `_spline()` of control points) are the 110 and the 101 on their geocoded
-  lines, the 10 new, the 105 rerouted south of the airport's clear zone, down the west side of the
-  110 corridor and east just north of the port; the airport's final turns in over Westlake
+  lines (the 110 then runs nearly due south to the port's north-west corner), the 10 new, the
+  105 rerouted south of the airport's clear zone, down the west side of the 110 corridor and
+  east at z ~2900; the 405 stops 60 m short of the airport fence (`Freeway.AIRPORT_KEEP`; it
+  used to cross the terminal and the runways). No building part of any lot, plaza or big-box
+  store stands within 3 m of a deck or an off-ramp (`Freeway.blocks_rect()`, checked downtown by
+  `tests/downtown_checks.gd` against every captured box, the towers, the civic sites, the
+  masjid, the airport and the port); the airport's final turns in over Westlake
   (`AirTraffic.downwind_x` 1250, `MacroMap.approach_clear_length` 1150). CityStreamer stops the
   LOD ring at `lod_reach_metres()` (840 m; downtown's 440 m blocks would run it 3 km) and retires
   LOD chunks left 150 m past it, and builds a block of the FULL ring in full detail only inside
@@ -1164,7 +1176,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   Vignes are pinned there); one road is one line (Wilshire also splits the historic core, 12th St
   is left out, Georgia runs the whole map); the streets west of the 110 bend 8 degrees and are
   straightened (MacArthur Park 280 m grid-north of the real one, and 6th to 7th is 204 m there
-  where the real park is 310 m); distances BETWEEN areas are compressed (the port is 3 km south of
+  where the real park is 310 m); distances BETWEEN areas are compressed (the port is about 6 km south of
   Pershing Square, not 30). Checks: `tests/downtown_checks.gd` (the grid on two seeds, the real
   order and spacing, towers and civic sites at their points, real distances, the frame, the
   masjid's place). Probe: `tools/downtown_relay/probe.gd.txt`.

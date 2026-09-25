@@ -55,7 +55,7 @@ static func _list() -> Array[Dictionary]:
 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
 		# Moored along the port's south quay in San Pedro Bay (MacroMap.port_rect / harbor_rect), on
 		# the headland's east flank where the real Port of Los Angeles is.
-		{"id": "cargo_ship", "anchor": Vector2(3065.0, 6545.0), "radius": 100.0},
+		{"id": "cargo_ship", "anchor": Vector2(3065.0, 6522.0), "radius": 100.0},
 		# The LA set. Anchors are placed the way the real chain runs: the boardwalk on the sand
 		# at Venice, a straight pier off Manhattan Beach, the timber horseshoe at Redondo where
 		# the coast meets the headland, the enclosed mall inland behind them, a corner coffee

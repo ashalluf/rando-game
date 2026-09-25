@@ -215,7 +215,7 @@ industrial port in the south-east. Chunks ask `plan.zone_at()` and build water, 
 tile (SurfaceTool mesh colored by height plus a HeightMapShape3D) instead of a city block. The
 spawn stays at the origin, in midtown. Landmarks: the hill sign north of the city, the pier on the
 north-west coast, the observatory on the ridge, four skyline towers downtown, the airport terminal
-south-west, the container ship in the harbor south-east. Debug: open the web build with `?spawn=x,z` or
+south-west, the container ship at the port on San Pedro Bay, east of the Palos Verdes headland. Debug: open the web build with `?spawn=x,z` or
 `?spawn=x,z,yaw,pitch` (yaw 0 = north, 90 = west) or run the desktop build with
 `-- --spawn=x,z,yaw,pitch` to start anywhere. The main scene is `scenes/levels/city.tscn`; `test_box.tscn` stays as
 the movement/weapons test room.
@@ -278,6 +278,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-25 The port is on San Pedro Bay, and no freeway runs through anything.** Owner:
+  "the san pedro pier is in the middle of the damn city with water ... it should be on the east
+  side of palos verdes where it is in real life", and "theres freeways in downtown going straight
+  thru buildings". The port (`MacroMap.port_rect`) now stands on the bay's north shore just east
+  of the headland's land end, its south third built out into the water, the berth and the cargo
+  ship off its south quay; the bay wraps the headland's south and east sides out to x 4700 with
+  Long Beach's sand east of the port. The inland harbour at z 3300 is gone (city ground). The 110
+  runs on nearly due south from the 10 to the port. Every lot, plaza and big-box store keeps its
+  whole footprint 3 m clear of every deck and off-ramp (`Freeway.blocks_rect()`), and the 405
+  stops short of the airport, which it used to cross at nine metres. Checked in
+  `tests/downtown_checks.gd`.
 - **2026-09-25 Downtown is 1:1, and the masjid is south of it where the real one is.** The
   re-lay (docs/HANDOFF.md 9s) landed: the real street grid (fitted from OpenStreetMap, 37.86
   degrees) turned onto the game's axes and pinned on every seed, towers and civic buildings on
