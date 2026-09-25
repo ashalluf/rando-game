@@ -494,7 +494,9 @@ func _process(delta: float) -> void:
 		_daynight.set("cloud_extra", cloud)
 		_daynight.set("weather_darken", dark)
 	if _env:
-		_env.fog_density = fog
+		# DayNight's fog_gain thickens the clear-weather haze at golden hour (the low sun lights
+		# a longer path of the basin's smog); it is 1 by day, by night and under weather.
+		_env.fog_density = fog * (_daynight.get("fog_gain") if _daynight else 1.0)
 		# Scaled by the sun's height (see DayNight.haze_gain): the volume is 900 m long so that
 		# it can carry the whole basin with a low sun, and at noon that same volume lit from
 		# overhead is a white veil over everything.

@@ -65,6 +65,40 @@ extends Node
 ## Crepuscular rays through the gaps in the cloud deck (0 off). They are gated on `cloud_detail`
 ## in the shader, so Quality drops them on web and below MEDIUM with the rest of the cloud work.
 @export var god_rays: float = 1.1
+@export_group("Golden hour")
+## The basin's smog layer, which is what makes a Los Angeles evening: a pale brown-grey lid of
+## haze over the city that glows orange and pink toward a low sun and hides the foot of the
+## mountains while their tops stand clear. How much of the low sky it covers at the height of
+## golden hour (0 off). It only exists with the sun low - see `golden_elevation`.
+@export var smog_amount: float = 0.8
+## The morning's share of it. Smog builds through the day; a sunrise is cleaner than a sunset.
+@export var smog_morning: float = 0.45
+## The layer lit from the side, away from the sun: brown-grey, not the sky's blue.
+@export var smog_color: Color = Color(0.64, 0.54, 0.47)
+## The layer toward the sun and low down: the orange-to-pink band along the horizon.
+@export var smog_glow: Color = Color(1.0, 0.58, 0.40)
+## Top of the layer (the inversion lid), as the sine of the elevation angle: 0.075 is 4.3 degrees.
+@export var smog_top: float = 0.075
+## Sun elevations (sine of the arc, like `dusk_fade_elevation`) golden hour ramps in between:
+## x none, y full. 0.32 is about 27 degrees up, 0.12 about 10. Midday never sees any of it.
+@export var golden_elevation: Vector2 = Vector2(0.32, 0.12)
+## And where it fades out again once the sun has set (x gone, y still full): the afterglow in
+## the smog outlives the sun by a few minutes, then the night is exactly what it was.
+@export var golden_set_elevation: Vector2 = Vector2(-0.16, -0.02)
+## Depth fog multiplier at the height of golden hour (Weather reads `fog_gain`). The air is no
+## dirtier at six than at noon, but a sun ten degrees up lights a far longer path of it.
+@export var golden_fog_gain: float = 1.45
+## How far the fog colour goes toward the smog colour at golden hour (0 keeps `dusk_fog`).
+@export var golden_fog_smog: float = 0.55
+## While the sun is still clearly up (see `sun_high`), how much of the dusk colouring the zenith
+## and the horizon hold back. An evening sky with the sun ten degrees up is blue overhead and
+## pale round the sides; the dusky violet zenith and the peach horizon belong to the sunset
+## itself. Keeping the zenith blue is also what keeps the long shadows sky-coloured, because the
+## ambient is the sky.
+@export var golden_blue_top: float = 0.6
+@export var golden_pale_horizon: float = 0.45
+## How far the far land under the smog lid goes into it (0..1; macro_ground.gdshader `smog`).
+@export var ground_smog: float = 0.7
 @export_group("Moon")
 ## Hours the moon trails the sun. 12 is a full moon rising exactly at sunset; less than that puts
 ## it up for most of the night as a gibbous, which is a far more interesting shape.
@@ -128,6 +162,11 @@ var night_factor: float = 0.0
 ## Weather multiplies the volumetric density by this, so the 900 m volume can carry the basin
 ## at golden hour without laying a lit white veil over noon.
 var haze_gain: float = 1.0
+## Depth-fog multiplier for the hour (1 by day and night, `golden_fog_gain` at golden hour, less
+## under weather, which brings its own fog). Weather multiplies the depth fog by it.
+var fog_gain: float = 1.0
+## How much golden hour there is this frame, 0..1 (sun elevation only; see `golden_elevation`).
+var golden: float = 0.0
 ## Directions toward the sun and the moon this frame (the sun's is continuous, so it really sets).
 var sun_dir: Vector3 = Vector3.UP
 var moon_dir: Vector3 = Vector3.UP
@@ -228,6 +267,29 @@ func _apply() -> void:
 	# lavender at 18:30 and over-exposed it by most of a stop - a blue moon lighting a pink sky.
 	var moonlight := smoothstep(0.02, -0.34, elevation)
 	haze_gain = lerpf(1.0, 0.30, clampf(elevation, 0.0, 1.0))
+	# Golden hour: a sun between about ten and twenty-seven degrees up ramps it in, and it
+	# outlives the sunset by a few minutes (the smog keeps glowing), then it is gone before the
+	# night proper. Zero at midday and at night, so neither changes by a bit.
+	golden = smoothstep(golden_elevation.x, golden_elevation.y, elevation) \
+		* smoothstep(golden_set_elevation.x, golden_set_elevation.y, elevation)
+	# The smog as the sky draws it: thinner at sunrise, gone under cloud (weather brings its own
+	# grey, and an orange lid under an overcast sky reads as a bug).
+	var smog := golden * smog_amount * (smog_morning if hour < 12.0 else 1.0) \
+		* (1.0 - clampf(weather_darken * 1.6, 0.0, 1.0))
+	fog_gain = lerpf(1.0, golden_fog_gain, smog / maxf(smog_amount, 0.001))
+	# The layer is lit air, so it dims with the light: full with the sun up, a fifth of that
+	# once it is eight degrees under.
+	var smog_light := 1.0 - 0.8 * deep
+	var smog_side := smog_color * smog_light
+	var smog_warm := smog_glow * smog_light
+	# What the layer looks like at the horizon, averaged round it: the colour the far land and
+	# the plane's rim hand over to.
+	var smog_horizon := smog_side.lerp(smog_warm, 0.4)
+	# How clearly the sun is still up: 1 from about ten degrees, 0 on the horizon. The sky's
+	# sunset colours (violet zenith, peach horizon, the earth's-shadow band) wait for it.
+	var sun_high := smoothstep(0.0, 0.12, elevation)
+	var dusk_top := dusk * (1.0 - golden_blue_top * sun_high)
+	var dusk_rim := dusk * (1.0 - golden_pale_horizon * sun_high)
 	# Where the sun and the moon actually are. The sky shader needs the sun's direction even
 	# after it has set (the twilight bands are anchored to it), so it is never special-cased.
 	var sun_basis := _arc_basis(t)
@@ -258,14 +320,15 @@ func _apply() -> void:
 			_sun.light_color = _sun.light_color.lerp(Color(0.85, 0.9, 1.0), clampf(flash, 0.0, 1.0))
 		_sun.shadow_enabled = true
 	if _sky:
-		var horizon := day_horizon.lerp(dusk_horizon, dusk).lerp(night_horizon, night_factor)
-		_horizon_now = horizon
+		var horizon := day_horizon.lerp(dusk_horizon, dusk_rim).lerp(night_horizon, night_factor)
+		# What the sky really shows at the horizon, which with the smog up is the smog.
+		_horizon_now = horizon.lerp(smog_horizon, smog)
 		# Overcast by day is grey; overcast over a city at night is the city's own sodium light
 		# on the cloud base - dark, and warm low down. The storm colours used to be the daytime
 		# grey at every hour, so a rainy night had a pale grey sky and read as dusk.
 		var storm_top := Color(0.16, 0.17, 0.2).lerp(night_storm_top, moonlight)
 		var storm_horizon := Color(0.3, 0.31, 0.34).lerp(night_storm_horizon, moonlight)
-		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk).lerp(night_sky_top, night_factor).lerp(storm_top, weather_darken))
+		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk_top).lerp(night_sky_top, night_factor).lerp(storm_top, weather_darken))
 		_sky.set_shader_parameter("sky_horizon", horizon.lerp(storm_horizon, weather_darken))
 		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk))
 		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra, 0.0, 0.98))
@@ -281,6 +344,10 @@ func _apply() -> void:
 		_sky.set_shader_parameter("milky_way", milky_way * (1.0 - weather_darken))
 		_sky.set_shader_parameter("haze", lerpf(day_haze, dusk_haze, dusk))
 		_sky.set_shader_parameter("sun_glow", lerpf(0.9, 1.6, dusk))
+		_sky.set_shader_parameter("smog", smog)
+		_sky.set_shader_parameter("smog_color", smog_side)
+		_sky.set_shader_parameter("smog_glow", smog_warm)
+		_sky.set_shader_parameter("smog_top", smog_top)
 		# The sun's own colour, not the light's: the light turns into the moon after dark.
 		_sky.set_shader_parameter("sun_dir", sun_dir)
 		_sky.set_shader_parameter("sun_color", day_sun_color.lerp(dusk_sun_color, dusk))
@@ -295,6 +362,7 @@ func _apply() -> void:
 		_sky.set_shader_parameter("twilight_band", sunrise_band if morning else sunset_band)
 		_sky.set_shader_parameter("twilight_amount", dusk * twilight_strength * (1.0 - weather_darken * 0.8))
 		_sky.set_shader_parameter("twilight_falloff", lerpf(twilight_height.x, twilight_height.y, deep))
+		_sky.set_shader_parameter("twilight_band_gain", 1.0 - sun_high)
 		_sky.set_shader_parameter("twilight_band_height", lerpf(twilight_band_height.x, twilight_band_height.y, deep))
 		# Rays are at their most obvious with a low sun behind broken cloud.
 		_sky.set_shader_parameter("god_rays", god_rays * (0.45 + 0.55 * dusk) * (1.0 - night_factor) * (1.0 - weather_darken * 0.6))
@@ -304,13 +372,18 @@ func _apply() -> void:
 		# with, or the land ends in a hard line however good the haze is.
 		var streamer := get_parent()
 		if streamer and streamer.has_method("set_ground_haze"):
-			var hz: Color = horizon.lerp(storm_horizon, weather_darken)
+			var hz: Color = _horizon_now.lerp(storm_horizon, weather_darken)
 			# A directional light shines along -Z, so +Z points back at the sun.
 			streamer.set_ground_haze(hz, _sun.global_transform.basis.z if _sun else Vector3.UP)
+		if streamer and streamer.has_method("set_ground_smog"):
+			streamer.set_ground_smog(smog * ground_smog, smog_side)
 	if _env:
 		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, moonlight)
 		_env.sdfgi_energy = lerpf(day_gi_energy, night_gi_energy, moonlight)
-		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(night_fog, moonlight)
+		# At golden hour the distance goes the smog's brown-grey rather than dusk_fog's orange:
+		# the orange belongs to the air toward the sun, which fog_sun_scatter already adds.
+		_env.fog_light_color = day_fog.lerp(dusk_fog, dusk).lerp(smog_side, golden_fog_smog * smog) \
+			.lerp(night_fog, moonlight)
 		# Ambient comes from the sky cubemap, so shadows take the sky's own colour (blue at
 		# midday, warm at dusk) instead of a flat grey fill: the single biggest realism win in
 		# outdoor lighting. At night the sky is nearly black, so we blend back toward a colour
