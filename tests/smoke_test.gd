@@ -1150,17 +1150,22 @@ func _test_city() -> void:
 		if shotgun:
 			var standing: Array = []
 			for p in get_tree().get_nodes_in_group("pedestrian"):
-				if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down"):
+				# Upright walkers only: a rough sleeper (is_posed) sits or lies, and a chest-high
+				# blast over them lands two or three pellets, so which of them happened to be
+				# nearest decided the check.
+				if is_instance_valid(p) and not (p as Node).is_queued_for_deletion() and not p.get("_down") and not p.has_method("is_posed"):
 					standing.append(p)
 			standing.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(player.global_position) < b.global_position.distance_to(player.global_position))
 			var volley_bleed := 0.0
+			var victim := "nobody"
 			for cand: Node3D in standing.slice(0, 5):
 				shotgun._fire({"origin": cand.global_position + Vector3(-2.5, 1.2, 0.0), "direction": Vector3.RIGHT})
 				var doll: Variant = cand.get("_doll")
 				if doll is Ragdoll:
 					volley_bleed = float((doll as Ragdoll).bleed)
+					victim = str(cand.name)
 					break
-			_check(volley_bleed > 1.5, "a close shotgun blast is one heavy wound (strength %.2f, a rifle round is 1)" % volley_bleed)
+			_check(volley_bleed > 1.5, "a close shotgun blast is one heavy wound (strength %.2f, a rifle round is 1; %s)" % [volley_bleed, victim])
 		# Every kind of mark stays under its cap when a crowd is emptied into at once: 120 heavy
 		# wounds and 16 pools in one frame, with the per-moment budget lifted so all of them count.
 		var budget_was: int = WeaponFX.blood_budget
