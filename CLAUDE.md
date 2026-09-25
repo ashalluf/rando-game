@@ -1394,10 +1394,23 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   opens maximised, and on a Retina Mac "native" was 3456 x 2234 - 7.7 million pixels through
   SDFGI, SSR, SSIL and volumetric fog - so the 3D scene now renders at most the budget and FSR
   2.2 scales it to the window. The HUD's quality line shows the 3D resolution in use.
-  Past `lod_far` (140 m) a pedestrian swaps to a welded far body (`Pedestrian.far_mesh()`, at
-  most `far_triangles`, built during loading): the models are unwelded, so the importer's LODs
-  stop at ~4,150 of 16,600 triangles and a figure eleven pixels tall still cost 4k; welded,
-  the simplifier goes down to a few hundred. Street frame 7.7 M -> 6.6 M.
+  Past `Pedestrian.mid_body_range` (50 m) a pedestrian swaps to a welded middle body (at most
+  `mid_triangles`, ~2,070) and past `lod_far` (140 m) to a welded far body (at most
+  `far_triangles`, ~515), both from `Pedestrian.far_mesh()` and built during loading (~45 ms a
+  model more than the far body alone cost): the models are unwelded, so the importer's LODs
+  stop at 8,300 / 5,500 of 16,600 triangles and at 1080p most of the 45-140 m crowd drew 8,300
+  a figure; welded, the simplifier goes as low as asked. Three traps, all paid for: welding
+  keeps one UV per position, so each body triangle takes back the seam copies of its corners
+  from one UV island, closest together (`_unweld()`); a triangle that still spans two islands,
+  or stretches over more than `STRETCH_LIMIT` times the atlas its size should, takes ONE
+  corner's texel on all three corners (interpolated, it smeared face and shoe across a white
+  top); and the bodies have NO LODs of their own - the simplifier's errors are in the mesh's
+  metres, the renderer weighs them by the instance's 0.01 armature scale, and the old far body
+  was drawn at its last level, an 18-35 triangle stick. Past ~35 m the model itself turns to
+  brown speckle (its tiny UV islands bleed together in the mips), so the welded bodies read
+  truer to the close-up clothes than the model does at that range. Judge a body against the
+  model with `character_shot.gd` (`BODY=mid|far`, `FOV=75`, `CAM_DIST` 15-140, crop and scale
+  up). Downtown bookmark: crowd 1.88 M -> 1.10 M triangles, frame 8.23 M -> 7.44 M (HANDOFF 9x).
   Pedestrians cast shadows only inside `Pedestrian.shadow_range` (45 m) and drop to coarser
   mesh LODs with distance (`LOD_BIAS`): on a downtown street the crowd was 6.4 of 15.7 million
   triangles a frame, most of it shadow passes of 16k-triangle rigs; now 2.4. Cars do the same
