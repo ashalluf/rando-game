@@ -108,3 +108,7 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   pass unchanged. Bookmark crop `<scratchpad>/ped/city_ab3_C.png` (no visible change). Loading
   +415 ms CPU. Also fixed: the old far body had its own LOD chain and drew as an 18-35 triangle
   stick.
+
+## Wave 6 (2026-09-25)
+
+- Launched: wet streets that dry believably (#9). Tree LOD (#23) waits for hill vegetation (same batching code).
