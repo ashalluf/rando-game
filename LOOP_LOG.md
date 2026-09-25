@@ -91,3 +91,24 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   downtown 4,679 -> 4,313 (-7.8 %), freeway 6,661 -> 6,485 (-2.6 %), triangles unchanged;
   pixel diffs only on clock-driven things (`<scratchpad>/perf/*_diff.png`). Baseline table in
   HANDOFF 9x. Found: trees (#23) and mid-range pedestrians (#24) are the triangle hogs.
+- **Container restart** (~10:30): all five agents were killed. Night shopfronts had finished;
+  re-lay, hill vegetation, pedestrian LOD and the audit were relaunched to resume from their
+  worktrees.
+- **Night shopfronts** (roadmap #8) - merged 5340b9b, gate 459/459. Root cause: an
+  open shop fell through to a flat `lit_color` branch, so every tower base was one white band.
+  Crop `<scratchpad>/nshop/cmp_rain_base2.png`, full `after2/night_rain.png`. geo_count night
+  avenue +1 draw, +78 tris. Brightness p95 night rain 153 -> 128 (the white band came down);
+  noon identical. Clearly better at tower bases, modest on side streets. NEEDS MAC CHECK.
+- **CI 279 red -> 280 green** (dc83d4f): "live street traffic never drives into the car in
+  front" failed at -3.8 m. Real bug on the park's closed roads: dead-end U-turns were dropped
+  onto the other carriageway unasked, and two cars could turn into one lane in the same tick.
+  Both now wait / register at once. Shotgun wound check made robust (strongest of 5 tries).
+- **Pedestrian middle body** (roadmap #24, PERF) - merged 35efe0a, gate 459/459. Downtown noon
+  crowd 1.88 M -> 1.10 M triangles (-42 %), frame 8.23 M -> 7.44 M (-9.5 %), draws and shadow
+  pass unchanged. Bookmark crop `<scratchpad>/ped/city_ab3_C.png` (no visible change). Loading
+  +415 ms CPU. Also fixed: the old far body had its own LOD chain and drew as an 18-35 triangle
+  stick.
+
+## Wave 6 (2026-09-25)
+
+- Launched: wet streets that dry believably (#9). Tree LOD (#23) waits for hill vegetation (same batching code).

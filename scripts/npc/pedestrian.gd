@@ -1156,16 +1156,31 @@ static var lod_far: float = 140.0
 ## cascades. A person's shadow past this is a few pixels, and the one cast by the building behind
 ## them is what the eye reads anyway.
 static var shadow_range: float = 45.0
-## Mesh LOD bias per distance tier (near, mid, far): below 1 the renderer drops to the coarser
-## generated LODs sooner. Nobody can see 16k triangles on a figure forty pixels tall.
-const LOD_BIAS := [1.0, 0.45, 0.2]
-## Most triangles a far body (past lod_far) may have. The models' own LODs stop at about 4,150
-## of their 16,600: they are unwelded - nearly every triangle is its own UV island - and the
-## importer will not simplify across a seam. So a crowd past 140 m, a third or more of it,
-## still cost 4k triangles a figure eleven pixels tall.
-static var far_triangles: int = 1100
-## Far bodies, keyed by the model mesh they stand in for (see far_mesh()).
+## Mesh LOD bias per distance tier (near, mid, middle body, far body): below 1 the renderer drops
+## to the coarser generated LODs sooner. Nobody can see 16k triangles on a figure forty pixels tall.
+## The two welded bodies have no LODs of their own, so their entries do nothing.
+const LOD_BIAS := [1.0, 0.45, 0.45, 0.2]
+## The models' own LODs stop at 8,300 and 5,500 of their 16,600 triangles: they are unwelded -
+## most positions carry two or three UV copies - and the importer will not simplify across a
+## seam. Measured at 1080p, most of the crowd between 45 and 140 m drew 8,300 a figure. So past
+## mid_body_range a pedestrian wears a welded body of at most mid_triangles, and past lod_far one
+## of at most far_triangles (far_mesh()). Set mid_body_range past lod_far to turn the middle one
+## off.
+static var mid_body_range: float = 50.0
+## Most triangles the middle body (mid_body_range to lod_far) may have. The simplifier halves
+## at each step, so this lands on ~2,080: side by side with the model at 50-140 m, 1,040 already
+## lost the small bright pattern on the busiest jackets at 50 m and 2,080 did not.
+static var mid_triangles: int = 2100
+## Most triangles the far body (past lod_far) may have: ~520, a figure under ten pixels tall.
+static var far_triangles: int = 600
+## Welded bodies, keyed by the model mesh they stand in for, then by their triangle cap (see
+## far_mesh()).
 static var _far_meshes: Dictionary = {}
+## A model's welded topology and its LOD chain, shared by every cap built from it (far_mesh()).
+static var _welds: Dictionary = {}
+## A welded body's triangle whose UVs span more than this many times the atlas a triangle of its
+## size spans on the model takes one flat texel instead (_unweld()).
+const STRETCH_LIMIT := 2.5
 var _meshes: Array[MeshInstance3D] = []
 var _draw_tier: int = -1
 ## Past this distance from the player (metres) a pedestrian walks without physics: no
@@ -1201,7 +1216,7 @@ func _update_lod() -> void:
 			_hit_shape.disabled = kinematic
 		if kinematic:
 			velocity = Vector3.ZERO
-	var tier := 0 if d < shadow_range else (1 if d < lod_far else 2)
+	var tier := 0 if d < shadow_range else (3 if d >= lod_far else (2 if d >= mid_body_range else 1))
 	if tier != _draw_tier:
 		_draw_tier = tier
 		for mi in _meshes:
@@ -1213,27 +1228,61 @@ func _update_lod() -> void:
 					if not mi.has_meta("near_mesh"):
 						mi.set_meta("near_mesh", mi.mesh)
 					var near: Mesh = mi.get_meta("near_mesh")
-					mi.mesh = far_mesh(near) if tier == 2 else near
+					mi.mesh = near if tier < 2 \
+						else far_mesh(near, far_triangles if tier == 3 else mid_triangles)
 
 
-## A coarse body for people past lod_far: the model welded to one vertex per position, so the
-## simplifier can go all the way down, capped at far_triangles with its own LODs below that.
-## Welding smears the texture across the seams, which at eleven pixels tall nobody can see.
-## Built once per model (the loading screen does all nine); the original mesh when there is no
-## mesh data to weld (the headless check).
-static func far_mesh(mesh: Mesh) -> Mesh:
+## A coarse body for people past mid_body_range / lod_far: the model welded to one vertex per
+## position so the simplifier can go all the way down, cut to the first of its LODs with at most
+## `cap` triangles (default far_triangles), then each triangle takes back, from the seam copies
+## of its three corners, the three whose UVs lie closest together (_unweld()): welded to whichever
+## copy came first, a triangle's corners could come from three UV islands across the atlas and
+## some models' clothes came out skin-coloured. A triangle that still spans two islands takes one
+## flat texel instead. The body has no LODs of its own, on purpose: the simplifier's error on a
+## figure this thin says nothing about its limbs, and the chain it made
+## - with errors measured in the mesh's metres, while the renderer weighs them by the instance's
+## scale, 0.01 under these rigs' armature - had the renderer draw the old far body at its last
+## level, 18-35 triangles, a stick. Built once per model and cap (the loading screen does all
+## nine); the original mesh when there is no mesh data to weld (the headless check).
+static func far_mesh(mesh: Mesh, cap: int = -1) -> Mesh:
 	if mesh == null:
 		return mesh
-	if _far_meshes.has(mesh):
-		return _far_meshes[mesh]
-	_far_meshes[mesh] = mesh
-	var arrays := mesh.surface_get_arrays(0)
-	if arrays.is_empty() or arrays[Mesh.ARRAY_INDEX] == null or arrays[Mesh.ARRAY_BONES] == null:
+	if cap < 0:
+		cap = far_triangles
+	if not _far_meshes.has(mesh):
+		_far_meshes[mesh] = {}
+	var per_cap: Dictionary = _far_meshes[mesh]
+	if per_cap.has(cap):
+		return per_cap[cap]
+	per_cap[cap] = mesh
+	var w := _weld(mesh)
+	if w.is_empty():
 		return mesh
+	var base: PackedInt32Array = (w.out as Array)[Mesh.ARRAY_INDEX]
+	for lod: PackedInt32Array in w.lods:
+		if lod.size() / 3 <= cap:
+			base = lod
+			break
+	var result := _unweld(w, base, mesh.surface_get_material(0))
+	per_cap[cap] = result
+	return result
+
+
+## The welded copy of a model's single skinned surface ({} when there is no mesh data): `out`
+## (arrays, one vertex per position, the full index), `lods` (the simplifier's chain on it),
+## `src` (the model's own arrays), `start` / `copies` (each welded vertex's source vertices, CSR).
+static func _weld(mesh: Mesh) -> Dictionary:
+	if _welds.has(mesh):
+		return _welds[mesh]
+	_welds[mesh] = {}
+	var arrays := mesh.surface_get_arrays(0)
+	if arrays.is_empty() or arrays[Mesh.ARRAY_INDEX] == null or arrays[Mesh.ARRAY_BONES] == null \
+			or arrays[Mesh.ARRAY_TEX_UV] == null:
+		return {}
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
 	if verts.is_empty():
-		return mesh
+		return {}
 	var per: int = (arrays[Mesh.ARRAY_BONES] as PackedInt32Array).size() / verts.size()
 	var first := {}
 	var order := PackedInt32Array()
@@ -1272,25 +1321,173 @@ static func far_mesh(mesh: Mesh) -> Mesh:
 	for i in index.size():
 		idx[i] = weld[index[i]]
 	out[Mesh.ARRAY_INDEX] = idx
-	var material := mesh.surface_get_material(0)
 	var im := ImporterMesh.new()
-	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, out, [], {}, material)
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, out, [], {}, mesh.surface_get_material(0))
 	im.generate_lods(25.0, 60.0, [])
-	var base: PackedInt32Array = idx
+	var lods: Array[PackedInt32Array] = []
 	for l in im.get_surface_lod_count(0):
-		var lod := im.get_surface_lod_indices(0, l)
-		if lod.size() / 3 <= far_triangles:
-			base = lod
-			break
-	out[Mesh.ARRAY_INDEX] = base
-	var far := ImporterMesh.new()
-	far.add_surface(Mesh.PRIMITIVE_TRIANGLES, out, [], {}, material)
-	far.generate_lods(25.0, 60.0, [])
-	var result: Mesh = far.get_mesh()
-	if result == null:
-		return mesh
-	_far_meshes[mesh] = result
+		lods.append(im.get_surface_lod_indices(0, l))
+	# Each welded vertex's source copies, compressed-row: copies[start[w] .. start[w + 1]).
+	var start := PackedInt32Array()
+	start.resize(order.size() + 1)
+	for v in verts.size():
+		start[weld[v] + 1] += 1
+	for w in order.size():
+		start[w + 1] += start[w]
+	var fill := start.duplicate()
+	var copies := PackedInt32Array()
+	copies.resize(verts.size())
+	for v in verts.size():
+		copies[fill[weld[v]]] = v
+		fill[weld[v]] += 1
+	# Each source vertex's UV island: triangles that share a source vertex share a UV chart.
+	var island := PackedInt32Array()
+	island.resize(verts.size())
+	for v in verts.size():
+		island[v] = v
+	for t in index.size() / 3:
+		var r0 := _find(island, index[t * 3])
+		for k in [1, 2]:
+			var r := _find(island, index[t * 3 + k])
+			if r != r0:
+				island[r] = r0
+	for v in verts.size():
+		island[v] = _find(island, v)
+	# The model's texel density: UV perimeter per metre of perimeter, median over its triangles.
+	var src_uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var ratios := PackedFloat32Array()
+	for t in range(0, index.size() / 3, 5):
+		var i0 := index[t * 3]
+		var i1 := index[t * 3 + 1]
+		var i2 := index[t * 3 + 2]
+		var p := verts[i0].distance_to(verts[i1]) + verts[i1].distance_to(verts[i2]) \
+			+ verts[i2].distance_to(verts[i0])
+		if p > 0.0:
+			ratios.append((src_uv[i0].distance_to(src_uv[i1]) + src_uv[i1].distance_to(src_uv[i2])
+				+ src_uv[i2].distance_to(src_uv[i0])) / p)
+	ratios.sort()
+	var density: float = ratios[ratios.size() / 2] if not ratios.is_empty() else INF
+	var result := {"out": out, "lods": lods, "src": arrays, "per": per, "start": start, "copies": copies,
+		"island": island, "density": density}
+	_welds[mesh] = result
 	return result
+
+
+## Union-find root of `v` in `parent`, halving the path as it goes.
+static func _find(parent: PackedInt32Array, v: int) -> int:
+	while parent[v] != v:
+		parent[v] = parent[parent[v]]
+		v = parent[v]
+	return v
+
+
+## Turns a welded index list back into the model's own vertices: each triangle picks, among the
+## seam copies of its three corners, three from one UV island if it can (fewest islands first),
+## then the three whose UVs are closest together (the smallest UV perimeter), so it samples one
+## patch of the texture rather than three. The islands come first because the atlas packs them
+## side by side: by distance alone a leg could take a corner from the shoe's island next door.
+static func _unweld(w: Dictionary, index: PackedInt32Array, material: Material) -> ArrayMesh:
+	var src: Array = w.src
+	var uv: PackedVector2Array = src[Mesh.ARRAY_TEX_UV]
+	var start: PackedInt32Array = w.start
+	var copies: PackedInt32Array = w.copies
+	var island: PackedInt32Array = w.island
+	var remap := PackedInt32Array()
+	remap.resize(uv.size())
+	remap.fill(-1)
+	var order := PackedInt32Array()
+	# Where each vertex takes its UV from (its own source vertex, or a flat triangle's texel).
+	var uv_from := PackedInt32Array()
+	var flat_map := {}
+	var density: float = w.density
+	var pos: PackedVector3Array = (w.out as Array)[Mesh.ARRAY_VERTEX]
+	var res := PackedInt32Array()
+	res.resize(index.size())
+	for t in index.size() / 3:
+		var a := index[t * 3]
+		var b := index[t * 3 + 1]
+		var c := index[t * 3 + 2]
+		var best := INF
+		var pick := Vector3i(copies[start[a]], copies[start[b]], copies[start[c]])
+		if start[a + 1] - start[a] > 1 or start[b + 1] - start[b] > 1 or start[c + 1] - start[c] > 1:
+			for i in range(start[a], mini(start[a + 1], start[a] + 6)):
+				var ua := uv[copies[i]]
+				var ia := island[copies[i]]
+				for j in range(start[b], mini(start[b + 1], start[b] + 6)):
+					var ub := uv[copies[j]]
+					var ib := island[copies[j]]
+					# Every island past the first costs more than any perimeter in a 0..1 atlas.
+					var ab := ua.distance_to(ub) + (0.0 if ib == ia else 8.0)
+					if ab >= best:
+						continue
+					for k in range(start[c], mini(start[c + 1], start[c] + 6)):
+						var uc := uv[copies[k]]
+						var ic := island[copies[k]]
+						var p := ab + ub.distance_to(uc) + uc.distance_to(ua) \
+							+ (0.0 if ic == ia or ic == ib else 8.0)
+						if p < best:
+							best = p
+							pick = Vector3i(copies[i], copies[j], copies[k])
+		# A triangle whose corners still span two UV islands, or stretch across far more of the
+		# atlas than a triangle of its size should, would interpolate across whatever lies between
+		# them in the atlas - streaks of face and shoe over a white top. It takes one corner's
+		# texel instead, all three corners: a flat patch of the right colour.
+		var flat := -1
+		var pa := island[pick.x]
+		var pb := island[pick.y]
+		var pc := island[pick.z]
+		if pa != pb or pb != pc:
+			flat = pick.x if pa == pb or pa == pc else (pick.y if pb == pc else pick.x)
+		else:
+			var p3 := pos[a].distance_to(pos[b]) + pos[b].distance_to(pos[c]) + pos[c].distance_to(pos[a])
+			var puv := uv[pick.x].distance_to(uv[pick.y]) + uv[pick.y].distance_to(uv[pick.z]) \
+				+ uv[pick.z].distance_to(uv[pick.x])
+			if puv > STRETCH_LIMIT * density * p3:
+				flat = pick.x
+		for n in 3:
+			var v: int = pick[n]
+			if flat < 0:
+				if remap[v] < 0:
+					remap[v] = order.size()
+					order.append(v)
+					uv_from.append(v)
+				res[t * 3 + n] = remap[v]
+			else:
+				var key := v * uv.size() + flat
+				if not flat_map.has(key):
+					flat_map[key] = order.size()
+					order.append(v)
+					uv_from.append(flat)
+				res[t * 3 + n] = flat_map[key]
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	var per: int = w.per
+	for a in [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_TEX_UV, Mesh.ARRAY_TEX_UV2, Mesh.ARRAY_COLOR]:
+		if src[a] == null:
+			continue
+		var s = src[a]
+		var dst = s.duplicate()
+		dst.resize(order.size())
+		var from := uv_from if a == Mesh.ARRAY_TEX_UV else order
+		for i in order.size():
+			dst[i] = s[from[i]]
+		out[a] = dst
+	for a in [Mesh.ARRAY_TANGENT, Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS]:
+		if src[a] == null:
+			continue
+		var n := 4 if a == Mesh.ARRAY_TANGENT else per
+		var s = src[a]
+		var dst = s.duplicate()
+		dst.resize(order.size() * n)
+		for i in order.size():
+			for k in n:
+				dst[i * n + k] = s[order[i] * n + k]
+		out[a] = dst
+	out[Mesh.ARRAY_INDEX] = res
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out)
+	mesh.surface_set_material(0, material)
+	return mesh
 
 
 ## Makes the far body of a model now (the loading screen), so no pedestrian walking out past
@@ -1301,8 +1498,11 @@ static func warm_far_mesh(path: String, host: Node) -> void:
 	var inst := (load(path) as PackedScene).instantiate() as Node3D
 	host.add_child(inst)
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var mesh := (mi as MeshInstance3D).mesh
 		if (mi as MeshInstance3D).skin:
-			far_mesh((mi as MeshInstance3D).mesh)
+			far_mesh(mesh, mid_triangles)
+			far_mesh(mesh, far_triangles)
+			_welds.erase(mesh)
 	inst.queue_free()
 
 
