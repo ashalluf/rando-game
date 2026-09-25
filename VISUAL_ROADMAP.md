@@ -1,5 +1,7 @@
 # Visual roadmap (orchestrator loop)
 
+Handoff: work stopped 2026-09-25 - read docs/HANDOFF.md section 00 first (owner's open asks, parked branches).
+
 North star: 2026 PS5-tier street-level photorealism that stays playable - 60 fps at 1440p on the
 owner's Mac, 30 fps absolute floor. A gorgeous screenshot at 12 fps is a regression.
 

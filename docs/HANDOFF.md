@@ -1,40 +1,69 @@
-# Handoff: Rando Game (written 2026-09-19; section 00 is the newest state, 2026-09-25)
+# Handoff: Rando Game (written 2026-09-19; section 00 is the newest state and the handoff to the next account, 2026-09-25)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
 
-## 00. The orchestrator loop (2026-09-25, newest)
+## 00. START HERE - handoff to the next account (2026-09-25, newest)
 
-Since 2026-09-24 evening the owner runs an autonomous loop: parallel agents in git worktrees
-(`/home/user/wt/<slug>`, branches `wt/<slug>`), each owning one visual item, merged to main one
-at a time after a full headless check and a before/after screenshot review. Its memory is two
-files at the repo root: **VISUAL_ROADMAP.md** (ranked backlog, statuses, NEEDS MAC CHECK,
-WAITING ON ASH) and **LOOP_LOG.md** (append-only history with screenshot paths and perf
-deltas). Read both before starting anything visual. Items judged "not clearly better" are not
-merged; their branches are kept (wt/vehicle-grime, wt/wall-weathering) and the log says why.
+The owner ended work on the previous account on 2026-09-25 and asked for this handoff. Read
+this section, then CLAUDE.md (the rulebook), VISUAL_ROADMAP.md (ranked backlog) and
+LOOP_LOG.md (what was tried, merged or reverted, with numbers), then the dated sections below.
 
-**Where the loop stopped (2026-09-25, owner ended the session).** Main is green (CI through
-the police-check fix, c08b87b). Unfinished work is pushed as branches (the owner's rule is
-main-only, so these are parking spots, not PRs - merge into main one at a time after a full
-headless check, or delete):
-- `wt/downtown-relay` - the downtown 1:1 re-lay LANDED and gated green on its branch (13
-  commits; last gated state 0aa7731 + a merge of main with the hill float fix). On top: a WIP
-  commit starting the owner's two geography asks - move the port/harbour to real ocean on
-  Palos Verdes' east flank (the inland harbour at MacroMap.port_rect / harbor_rect must go)
-  and keep every freeway deck/pillar out of every building (a smoke check over downtown's
-  decks was being added). Roadmap #13, #29, #30.
-- `wt/sedan-body` - Blender-built hi-fi sedan (tools/make_hifi_sedan.py, one draw a car,
-  -6.5 % vehicle triangles), gated green at 97274c0; WIP on top: a styling pass (the first
-  shape read dated - bulb nose, tall slatted grille) and fixes for two bugs it found (every
-  car's headlight beam quad sits below the road; the `_dims()` cabin box floats over the roof).
-  Roadmap #22, #26.
-- `wt/downtown-homeless` (owner ask, #31), `wt/street-wear` (graffiti/posters, #27),
-  `wt/tree-lod` (trees + MacArthur's far palms, #23/#32), `wt/wet-streets` (#9): WIP, never
-  gated.
-VISUAL_ROADMAP.md has the ranked backlog and LOOP_LOG.md the history. To stop the loop's Stop
-hook from blocking, a `STOP` file sits in the repo root (git-ignored); delete it to resume.
+**The owner and how they work.** Ash plays on a Mac from the GitHub release
+(https://github.com/ashalluf/rando-game/releases/latest) and prompts from a phone. Rules that
+matter most: push straight to `main` (no PRs); run `tests/headless_check.sh` before every push
+and confirm the CI build goes green; **send screenshots constantly** - every change, before and
+after, without being asked (the owner's most repeated request: "SCREENSHOTS"); keep messages
+short; work fast and in parallel. The north star is 2026 PS5-tier photorealism (GTA VI /
+Spider-Man 2 street level) at 60 fps on the Mac, 30 fps floor. Masjid Omar ibn Al-Khattab keeps
+its no-fire sanctuary and is always treated respectfully. Real place layouts are fine; real
+business names and logos are not.
+
+**State of main.** Green (CI build 290, 72b1247; 291 is docs only). Merged this session:
+MacArthur Park on; road patch decals; street clutter; golden-hour LA smog; hill ground splat;
+hill road cut banks; hill planting; floating hill props fix (relief added twice); texture
+mipmaps; smoothed car normals; perf pass (static boxes merged); pedestrian middle body;
+night shopfronts and neon; several CI fixes (traffic U-turn overlap, flaky blood-pool,
+shotgun and police checks).
+
+**The owner's open asks, in priority order** (all started, none on main yet):
+1. **The hills "look like garbage, not real mountains".** Branch `wt/real-mountains`
+   (1 WIP commit, NOT gated): ridged heightfield with canyons, rounded summits, far-range
+   contour banding fixed (float height bake), chaparral-dominant grey-olive palette. Last
+   render: `hills_02_rounder_chaparral`. Next: finish, run the full check (hill checks: cut
+   banks, floating props, planting field), before/after at the hills bookmark and from the
+   basin, merge.
+2. **Downtown needs ~20x more homeless encampments** ("whatever you think it should be,
+   multiply by 20"). Branch `wt/downtown-homeless` (WIP, NOT gated, barely started this
+   round): Encampment density/caps, a skid-row band, people against walls, cart pushers.
+   Depict with dignity; never near places of worship; use the pedestrian middle body and
+   batched static figures to keep the frame cost sane.
+3. **San Pedro port must be on the east side of Palos Verdes, not in the middle of the city**
+   and **no freeway may go through buildings.** Branch `wt/downtown-relay` (15 commits): the
+   downtown 1:1 re-lay itself is done and was gated green on the branch (up to 0aa7731); on top,
+   WIP (NOT gated): the port and harbour moved onto San Pedro Bay east of the peninsula (inland
+   harbour removed) and the 110 clear of every building, plus a started smoke check. Still to
+   do: finish and gate those, fill the empty paved plazas around the arena district (civic
+   sites' blocks grew at 1:1 and are mostly bare), merge main in, run the full check, merge.
+   The port's containers and cranes are still primitive boxes (roadmap #35).
+
+**Other parked branches** (pushed; merge one at a time after a full check, or delete):
+`wt/sedan-body` (Blender-built hi-fi sedan, gated at 97274c0; WIP styling pass - the first
+shape read dated; also fixes the headlight beam below the road and the cabin collision box
+above the roof), `wt/tree-lod` (trees + MacArthur's far palms, the biggest triangle cost),
+`wt/wet-streets` (streets that dry believably), `wt/street-wear` (graffiti/posters). All WIP,
+never gated. `wt/vehicle-grime` and `wt/wall-weathering` were judged not clearly better.
+
+**The autonomous loop** (optional). The owner ran an orchestrator loop: parallel agents in git
+worktrees (`/home/user/wt/<slug>`, branches `wt/<slug>`), each owning one roadmap item, merged
+to main one at a time after a full check and screenshot review. A Stop hook
+(`.claude/hooks/keep-going.sh`, registered in `.claude/settings.json`) blocks stopping unless
+a `STOP` file exists in the repo root (git-ignored). A fresh clone has no STOP file, so the
+hook WILL keep a new session running until you `touch STOP`, or the owner says to remove the
+hook. Agents dropped every render into a shared scratch `screens/` folder that the
+orchestrator forwarded to the owner.
 
 How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every agent):
 - `tools/glshot/bookmarks.sh <dir> [names]` renders the seven fixed cameras (downtown noon,
