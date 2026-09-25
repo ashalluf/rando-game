@@ -344,7 +344,7 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | fir_tree_01 | `tree_fir.glb` | 54k tris, 5.2 MB | hill conifers | 2026-09-21 |
 | pine_tree_01 | `tree_pine.glb` | 48k tris, 3.5 MB | hill conifers | 2026-09-21 |
 | quiver_tree_01 | `tree_quiver.glb` | 42k tris, 2.5 MB | dry hill trees | 2026-09-21 |
-| searsia_burchellii | `tree_searsia.glb` | 16k tris, 1.8 MB | dry hill scrub | 2026-09-21 |
+| searsia_burchellii | `tree_searsia.glb` | 16k tris, 1.8 MB | dry hill scrub; the hills' chaparral stands (`model_chaparral()`, cut to ~3k) | 2026-09-21 |
 | shrub_01 | `bush_a.glb` | 16k tris, 1.1 MB | street and park bushes | 2026-09-21 |
 | shrub_03 | `bush_b.glb` | 8k tris, 0.6 MB | street and park bushes | 2026-09-21 |
 | shrub_04 | `bush_c.glb` | 27k tris, 1.1 MB | street and park bushes | 2026-09-21 |
@@ -366,7 +366,7 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | street_lamp_01 | `prop_streetlamp.glb` | 31k tris, 1.2 MB | street lamps | 2026-09-21 |
 | trashbag | `prop_trashbag.glb` | 4k tris, 0.5 MB | street clutter | 2026-09-21 |
 | outdoor_table_chair_set_01 | `prop_patio_set.glb` | 10k tris, 1.2 MB | cafe and patio seating | 2026-09-21 |
-| island_tree_01 | `tree_a.glb` | 44k (from 1.6M, `tools/decimate_tree.py`) | street and park trees | 2026-09-19 |
+| island_tree_01 | `tree_a.glb` | 44k (from 1.6M, `tools/decimate_tree.py`) | street and park trees; hill oaks in the gullies (`model_hill_oak()`, cut to ~20k) | 2026-09-19 |
 | island_tree_02 | `tree_b.glb` | 40k (from 890k) | street and park trees | 2026-09-19 |
 | tree_small_02 | `tree_c.glb` | 40k (from 2.0M) | street and park trees | 2026-09-19 |
 | namaqualand_boulder_02 | `rock_a.glb` | 3.5k (from 98k) | hill boulders (flat) | 2026-09-19 |
