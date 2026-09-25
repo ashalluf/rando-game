@@ -77,6 +77,15 @@ static func crowds(id: String, s: Rect2) -> Array:
 # City hall
 # ============================================================================================
 
+## Where the hall's tower stands in its own frame (x, z), from the site rect `s`: the centre block
+## sits on the plinth, which is pushed to the park side of the site, and the tower 2 m behind the
+## block's centre. The checks probe the roof here.
+static func _hall_tower(s: Rect2) -> Vector2:
+	var c := s.get_center()
+	var pd := minf(72.0, s.size.y - 6.0)
+	return Vector2(c.x, c.y + (s.size.y - pd) * 0.5 - 1.0 + 4.0 + 2.0)
+
+
 static func _city_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
 	var g := LandmarkGeo.new()
 	var batch := MultiMeshBatch.new()
@@ -164,8 +173,9 @@ static func _city_hall(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3
 
 	# The tower: a transition base, the tall shaft with its piers, a cornice, the upper shaft,
 	# the colonnaded belvedere, the stepped pyramid, the lantern and the beacon mast.
-	var tx := c.x
-	var tz := cc.z + 2.0
+	var tower_at := _hall_tower(s)
+	var tx := tower_at.x
+	var tz := tower_at.y
 	var y := top + ch
 	g.box("tower", Vector3(tx, y + 3.0, tz), Vector3(30.0, 6.0, 30.0), Color.WHITE, Basis(), bev, false, 2.4)
 	LandmarkGeo.shape_box(statics, Vector3(tx, y + 3.0, tz), Vector3(30.0, 6.0, 30.0))

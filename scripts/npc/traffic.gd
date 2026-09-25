@@ -188,8 +188,9 @@ func density_at(pos: Vector2) -> float:
 	var macro: MacroMap = plan.macro
 	if macro == null:
 		return 1.0
-	var dd := pos.distance_to(macro.downtown_center)
-	var d := lerpf(edge_density, 1.0, smoothstep(macro.midtown_radius * 1.6, macro.downtown_radius * 0.5, dd))
+	# Busiest across all of downtown (the 1:1 replica is 3.8 km from north to south), thinning
+	# over midtown round it.
+	var d := lerpf(edge_density, 1.0, smoothstep(macro.midtown_radius, 0.0, macro.downtown_distance(pos)))
 	var curb: Rect2 = macro.terminal_curb
 	var to_curb := (pos - pos.clamp(curb.position, curb.end)).length()
 	d = maxf(d, lerpf(1.0, edge_density, smoothstep(140.0, 480.0, to_curb)))

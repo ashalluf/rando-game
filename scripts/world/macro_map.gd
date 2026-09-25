@@ -44,9 +44,22 @@ var back_start_z: float = -3300.0
 var back_full_z: float = -4400.0
 var back_height: float = 1150.0
 ## And a range closing the basin off to the east, so the city is a bowl rather than a sprawl
-## that runs to the edge of the world in one direction.
-var east_start_x: float = 1900.0
-var east_full_x: float = 2900.0
+## that runs to the edge of the world in one direction. Pushed out 3.1 km when downtown went in
+## at 1:1 (DowntownReal): the real downtown alone is 2.3 km across from the 110 to Vignes, and
+## east of it runs the Arts District and Boyle Heights before anything like a hill.
+var east_start_x: float = 5000.0
+var east_full_x: float = 6000.0
+## The bay in the mountains above downtown. East of the pass the real range ends (the Cahuenga
+## Pass is where the mountains with the sign stop) and north of the civic centre stand only the
+## low Elysian hills, with the river's gap into the valley beyond. So over this X window the whole
+## north - front range, valley floor and back range - steps back `embay_depth` metres and the front
+## range drops to `embay_scale` of its height: without it the 1:1 downtown's north edge (Union
+## Station, Cesar Chavez Ave) would stand on the flank of a 560 m mountain. The window's ramps are
+## (x, y) in and (z, w) out; the west ramp starts inside the pass so no spur of mountain is left
+## standing between the pass and the bay for the 101 to climb over.
+var embay_depth: float = 1250.0
+var embay_x: Vector4 = Vector4(800.0, 1450.0, 4100.0, 4700.0)
+var embay_scale: float = 0.4
 var east_height: float = 540.0
 ## Where the northern coastal shelf starts and is fully cut (Z; north is negative), how far
 ## inland it reaches before the mountainside takes over again, and how high its bench sits.
@@ -97,24 +110,33 @@ var shore_rise: float = 52.0
 ## straight off the Redondo pier; the coast now runs on south past it to Palos Verdes.
 var bay_z: float = 6300.0
 var bay_east_x: float = 1600.0
-var downtown_center: Vector2 = Vector2(700.0, 250.0)
-var downtown_radius: float = 330.0
-## The financial core: the blocks the downtown's landmark towers stand in (LandmarkDowntown) -
-## the hill and the avenues from the first street south, then South Park, which stops east of
-## the first avenue so the ground south-west of the core stays open. Inside these the skyline
-## boost is 1 and the infill climbs with the towers; it fades out over `core_margin`, and the
-## district is DOWNTOWN out to that margin as well as inside the old radius.
-var downtown_core: Array[Rect2] = [Rect2(410.0, 236.0, 425.0, 414.0), Rect2(515.0, 650.0, 320.0, 172.0)]
+## Downtown is the real one at 1:1 (DowntownReal): its centre is Pershing Square, its district
+## the replica's extent (the 110 to Vignes, Cesar Chavez to Venice) out to `core_margin`. The
+## radius is only a scale for the systems that want one number (the news helicopter's beat).
+var downtown_center: Vector2 = DowntownReal.GAME_ANCHOR
+var downtown_radius: float = 900.0
+## The financial core and South Park, where the towers are (DowntownReal.CORE): inside these the
+## skyline boost is 1 and the infill climbs with the towers; it fades out over `core_margin`.
+## The historic core, the civic centre and the east side keep the district's lower band.
+var downtown_core: Array[Rect2] = DowntownReal.game_core()
 var core_margin: float = 75.0
-var midtown_radius: float = 800.0
+## Metres out from downtown's edge that stay midtown (Westlake and Koreatown to MacArthur Park
+## and beyond, Chinatown, the ring round it).
+var midtown_radius: float = 1700.0
+## East of downtown, between Vignes and the east range: the Arts District's warehouses and the
+## rail yards (industrial), from this far north of Pershing Square to this far south.
+var arts_district_z: Vector2 = Vector2(-1750.0, 2700.0)
 ## A second cluster of mid-rise towers on the west side.
 var westside_center: Vector2 = Vector2(-350.0, -250.0)
 var westside_radius: float = 320.0
 ## The university campus: brick halls, quads and a bell tower on the west side.
 var campus_center: Vector2 = Vector2(-620.0, -520.0)
 var campus_radius: float = 250.0
-## South-east of this corner is the port and industrial district.
-var industrial_corner: Vector2 = Vector2(300.0, 900.0)
+## South-east of this corner is the port and industrial district: east of the 110 below the 10's
+## line, round the port, the way the real Harbor Freeway runs down past warehouses and rail yards
+## to the docks. West of the 110 it stays city - South Los Angeles and Exposition (the masjid,
+## LandmarkMasjidOmar) - down to the Torrance plain.
+var industrial_corner: Vector2 = Vector2(2150.0, 2300.0)
 ## Flat zones (world XZ rects): the airport by the south-west coast, the port on a harbor.
 ## The airport. Its west edge is INLAND of the beach: zone_at() checks the flat rects before it
 ## checks the coastline, so a rect that reaches past the waterline wins and lays tarmac over the
@@ -137,8 +159,11 @@ var terminal_loops: Array = [
 	PackedVector2Array([Vector2(-484.0, 620.5), Vector2(-216.0, 620.5), Vector2(-216.0, 599.5), Vector2(-484.0, 599.5)]),
 	PackedVector2Array([Vector2(-474.0, 614.5), Vector2(-226.0, 614.5), Vector2(-226.0, 605.5), Vector2(-474.0, 605.5)]),
 ]
-var port_rect: Rect2 = Rect2(450.0, 1000.0, 700.0, 300.0)
-var harbor_rect: Rect2 = Rect2(450.0, 1300.0, 700.0, 260.0)
+## The port, due south of downtown at the foot of the 110 (it stood 750 m south of the old,
+## two-thirds-scale downtown; at 1:1 that ground is the arena district). The harbour is its
+## enclosed basin.
+var port_rect: Rect2 = Rect2(2050.0, 3000.0, 700.0, 300.0)
+var harbor_rect: Rect2 = Rect2(2050.0, 3300.0, 700.0, 260.0)
 ## Runway center lines (z) and width inside the airport rect.
 var runway_zs: PackedFloat32Array = PackedFloat32Array([780.0, 870.0, 960.0])
 var runway_width: float = 55.0
@@ -148,7 +173,8 @@ var runway_width: float = 55.0
 ## midtown block puts twenty-metre buildings under it. The south runway, because the hangars
 ## stand across the east ends of the other two.
 var arrival_runway: int = 2
-var approach_clear_length: float = 700.0
+## 1150, not 700: the final now turns in over Westlake (AirTraffic.downwind_x), west of downtown.
+var approach_clear_length: float = 1150.0
 var approach_clear_half_width: float = 45.0
 ## Where flyable jets wait on the apron (world XZ, nose toward +X) and what kind each is.
 ## Staggered so no jet sits in another's taxi lane.
@@ -328,6 +354,11 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 	var cx := coast_x(pos.y)
 	var bw := beach_width_at(pos.y)
 	fade *= smoothstep(cx + bw + 20.0, cx + bw + 220.0, pos.x)
+	# Downtown at 1:1 lies flat: the rolling relief would put twenty-metre swells across a real
+	# street grid (and the towers flatten it round themselves anyway, in patches).
+	fade *= smoothstep(40.0, 320.0, downtown_distance(pos))
+	if fade <= 0.0:
+		return base
 	# The bay south of bay_z (west of bay_east_x) is water; flatten toward it.
 	fade *= 1.0 - smoothstep(bay_z - 240.0, bay_z, pos.y) * (1.0 - smoothstep(bay_east_x, bay_east_x + 240.0, pos.x))
 	for r: Rect2 in [airport_rect, port_rect, harbor_rect]:
@@ -367,11 +398,14 @@ func raw_height_at(pos: Vector2) -> float:
 	var n := _noise.get_noise_2dv(pos)
 	var n2 := _noise.get_noise_2dv(pos * 2.7 + Vector2(913.0, -457.0))
 	var h := 0.0
+	# Above downtown the whole north stands `embay_depth` further back (see embay_at()).
+	var emb := embay_at(pos.x)
+	var zs := pos.y + embay_depth * emb
 
 	# The front range, walling off the basin, fading out again on its inland side so the valley
 	# behind it is open ground.
-	var front := smoothstep(hills_start_z, hills_full_z, pos.y) * (1.0 - smoothstep(valley_from_z, valley_to_z, pos.y))
-	var front_h := front * (hills_height * (0.62 + 0.38 * n) + 60.0 * n2)
+	var front := smoothstep(hills_start_z, hills_full_z, zs) * (1.0 - smoothstep(valley_from_z, valley_to_z, zs))
+	var front_h := front * (hills_height * lerpf(1.0, embay_scale, emb) * (0.62 + 0.38 * n) + 60.0 * n2)
 	# The pass: inside it the front range drops to a canyon floor. Blended with smoothstep and
 	# taken with minf so it only ever cuts the range down, never raises ground outside it.
 	var notch := smoothstep(pass_width, pass_width * 0.3, absf(pos.x - pass_center_x))
@@ -379,7 +413,7 @@ func raw_height_at(pos: Vector2) -> float:
 	h = maxf(h, front_h)
 
 	# The back range beyond the valley: the real wall.
-	var back := smoothstep(back_start_z, back_full_z, pos.y)
+	var back := smoothstep(back_start_z, back_full_z, zs)
 	h = maxf(h, back * (back_height * (0.58 + 0.42 * n) + 110.0 * n2))
 
 	# The eastern range, closing the bowl.
@@ -488,7 +522,12 @@ func _shore_mask(pos: Vector2) -> float:
 func plateau_at(pos: Vector2) -> float:
 	if airport_rect.has_point(pos) or port_rect.has_point(pos) or harbor_rect.has_point(pos):
 		return 0.0
-	return valley_height * smoothstep(valley_from_z, valley_to_z, pos.y)
+	return valley_height * smoothstep(valley_from_z, valley_to_z, pos.y + embay_depth * embay_at(pos.x))
+
+
+## 1 over the X window where the north steps back above downtown, 0 outside it.
+func embay_at(x: float) -> float:
+	return smoothstep(embay_x.x, embay_x.y, x) * (1.0 - smoothstep(embay_x.z, embay_x.w, x))
 
 
 ## The bay south-east of the headland: water unless on the headland itself.
@@ -528,9 +567,7 @@ func zone_at(pos: Vector2) -> Zone:
 ## 1 at the heart of downtown, 0 at its edge: lots there get much taller buildings. The heart
 ## is the radial old centre and, taller and wider, the financial core the landmark towers stand in.
 func skyline_boost(pos: Vector2) -> float:
-	var dd := pos.distance_to(downtown_center)
-	var radial := smoothstep(downtown_radius, downtown_radius * 0.3, dd)
-	return maxf(radial, smoothstep(core_margin, 0.0, core_distance(pos)))
+	return smoothstep(core_margin, 0.0, core_distance(pos))
 
 
 ## Metres from `pos` to the nearest core rect (0 inside one).
@@ -543,11 +580,22 @@ func core_distance(pos: Vector2) -> float:
 	return best
 
 
+## Metres from `pos` to downtown's extent (0 inside it).
+func downtown_distance(pos: Vector2) -> float:
+	var r := DowntownReal.game_extent()
+	var dx := maxf(maxf(r.position.x - pos.x, pos.x - r.end.x), 0.0)
+	var dy := maxf(maxf(r.position.y - pos.y, pos.y - r.end.y), 0.0)
+	return Vector2(dx, dy).length()
+
+
 func district_at(pos: Vector2) -> CityPlan.District:
-	var dd := pos.distance_to(downtown_center)
-	if dd < downtown_radius or core_distance(pos) < core_margin:
+	var dd := downtown_distance(pos)
+	if dd < core_margin or core_distance(pos) < core_margin:
 		return CityPlan.District.DOWNTOWN
 	if pos.x > industrial_corner.x and pos.y > industrial_corner.y:
+		return CityPlan.District.INDUSTRIAL
+	var ext := DowntownReal.game_extent()
+	if pos.x > ext.end.x and pos.y > downtown_center.y + arts_district_z.x and pos.y < downtown_center.y + arts_district_z.y:
 		return CityPlan.District.INDUSTRIAL
 	if pos.distance_to(campus_center) < campus_radius:
 		return CityPlan.District.CAMPUS

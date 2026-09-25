@@ -18,25 +18,24 @@ const AXIS_Z := 1
 ## multiplies people by up to 2x again (CityChunk._spawn_pedestrians).
 const DISTRICTS := {
 	District.DOWNTOWN: {
-		# 18 m at the bottom, not 50: a 50 m floor meant downtown had no low-rise in it at all
-		# (the measured minimum was 50.0 m, the area-weighted 25th percentile 101.9 m), and a
-		# skyline is the gap between the infill and the towers. 160 at the top at the district's
-		# edge; toward the core the band lerps to core_height below (it used to lerp the top by
-		# 2.3x, to 368 m - generic towers over the landmark ones).
-		"height": Vector2(18.0, 160.0), "lot": Vector2(28.0, 46.0), "gap": Vector2(2.0, 5.0),
-		# SLAB twice, for the infill. Every other shape here has a floor baked into
-		# Building._layout_parts - a CROWN is never under 50 m, a SETBACK never under 40, a TOWER
-		# never under 30, STEPPED never under 15 - so without a shape that has none the 18 m
-		# bottom is unreachable. SLAB also caps itself at 40 m, which is the infill tier.
-		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN, Building.Shape.CROWN, Building.Shape.STEPPED],
-		# The financial core between the landmark towers (MacroMap.downtown_core, skyline_boost
-		# 1): a field of 80-200 m towers, not low-rise with the odd spike. The band is what
-		# lot_height() lerps to as the boost rises; the flatter curve moves the median up to
-		# ~105 m where the district curve would leave it at 70; the top stops at 205 so the
-		# named towers (163-335 m) keep the skyline's peaks to themselves. SLAB never goes over
-		# 40 m (Building._layout_parts), so the core draws from shapes that can reach the height
-		# the far tier (Skyline) draws for the lot.
-		"core_height": Vector2(40.0, 205.0), "core_curve": 1.35,
+		# 14-80 m outside the core: at 1:1 (DowntownReal) the district is the whole real downtown,
+		# and the historic core, the civic centre, Little Tokyo and the east side are 12-storey city
+		# at the most (the 150-foot limit held until 1957); toward the core the band lerps to
+		# core_height below. (It was 18-160 for the old radial downtown; a skyline is the gap
+		# between the infill and the towers.)
+		"height": Vector2(14.0, 80.0), "lot": Vector2(30.0, 50.0), "gap": Vector2(2.0, 5.0),
+		# Mostly SLAB and STEPPED: every other shape has a floor baked into Building._layout_parts - a
+		# CROWN is never under 50 m, a SETBACK never under 40, a TOWER never under 30, STEPPED never
+		# under 15 - and would lift the historic core past its real height. SLAB caps itself at 40 m.
+		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.STEPPED, Building.Shape.SLAB, Building.Shape.PODIUM_TOWER, Building.Shape.STEPPED],
+		# The financial core and South Park between the landmark towers (MacroMap.downtown_core,
+		# skyline_boost 1). The band is what lot_height() lerps to as the boost rises. At 1:1 a core
+		# block is 125 x 200 m, three of the old ones, and a real one holds a few big buildings:
+		# bigger lots ("core_lot", lerped in by the boost like the heights), a median near 75 m and
+		# a top of 190 m, so the named towers (163-335 m) keep the skyline's peaks. SLAB never goes
+		# over 40 m (Building._layout_parts), so the core draws from shapes that can reach the
+		# height the far tier (Skyline) draws for the lot.
+		"core_height": Vector2(30.0, 190.0), "core_curve": 1.8, "core_lot": Vector2(40.0, 62.0),
 		"core_shapes": [Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.CROWN,
 			Building.Shape.TOWER, Building.Shape.PODIUM_TOWER, Building.Shape.SETBACK, Building.Shape.STEPPED],
 		# Fewer pocket gardens between the towers of the core: 0.5 at the edge, 0.15 inside.
@@ -45,7 +44,8 @@ const DISTRICTS := {
 		# glass towers around the named ones read as one dark mass in every wide shot.
 		"core_finishes": [Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.PANELS],
 
-		"finishes": [Building.Finish.GLASS, Building.Finish.GLASS, Building.Finish.PANELS, Building.Finish.GLASS],
+		# Stone, brick and render outside the core, as the historic core is.
+		"finishes": [Building.Finish.PANELS, Building.Finish.BRICK, Building.Finish.FLAT, Building.Finish.PANELS, Building.Finish.GLASS],
 		"lit": Vector2(0.3, 0.6), "park": 0.05, "plaza": 0.12, "trees": 0.35, "courtyard": 0.5,
 		"cafes": 2, "planters": 1, "clutter": 0, "weathering": Vector2(0.1, 0.4), "line_white": 0.5,
 		"paving": [["pavers", 2.5, Color(1.07, 1.07, 1.07)], ["sidewalk", 3.0, Color(1.52, 1.52, 1.52)]],
@@ -130,19 +130,15 @@ var industrial_start_radius: float = 260.0
 ## Optional big-picture map. When set, it decides districts and zones (ocean, beach, hills).
 var macro: MacroMap
 
-## The downtown street grid, the same for every seed: [position, width] per road, per axis
-## (AXIS_X: the north-south avenues, AXIS_Z: the east-west streets). The downtown towers are
-## fixed landmarks (LandmarkDowntown) and each stands in a particular block, so the blocks have
-## to be where the towers are whatever the seed - on any other seed an unpinned grid ran roads
-## straight through them. These are the default seed's own roads, to the last bit, so that city
-## does not move by a millimetre; on other seeds the seeded blocks either side stretch or split
-## to meet them (_next_road).
-const PINNED_ROADS := [
-	[[409.37879180908203, 14.0], [507.7798385620117, 24.0], [589.1617813110352, 24.0], [660.7405776977539, 24.0],
-		[734.894157409668, 24.0], [824.2449493408203, 14.0], [932.5944137573242, 24.0]],
-	[[228.40353, 24.0], [337.9709, 14.0], [417.44156, 14.0], [536.65106, 24.0],
-		[654.6276397705078, 24.0], [730.2834, 14.0], [837.092414855957, 24.0], [907.1332855224609, 14.0]],
-]
+## The downtown street grid, the same for every seed: the real downtown's streets at 1:1
+## (DowntownReal.pins(): [position, width, name, run] per road, per axis - AXIS_X the avenues,
+## AXIS_Z the streets). The towers and the civic buildings are fixed landmarks on their real
+## blocks, so the blocks have to be the real ones whatever the seed. Consecutive real roads of one
+## run are adjacent (no seeded road between them, however long the real block); up to the first
+## and past the last of a run the seeded blocks stretch or split to meet them (_next_road,
+## _prev_road). A pinned road runs the whole length of the map, as the real ones mostly do.
+static func pinned_roads() -> Array:
+	return DowntownReal.pins()
 
 var _industrial_quadrant: int = -1
 var _road_pos: Array[Dictionary] = [{0: 0.0}, {0: 0.0}]
@@ -180,7 +176,7 @@ func road_pos(axis: int, i: int) -> float:
 	var pos: float = cache[j]
 	while j > i:
 		j -= 1
-		pos -= _block_size(axis, j)
+		pos = _prev_road(axis, j, pos)
 		cache[j] = pos
 	return pos
 
@@ -190,10 +186,14 @@ func road_pos(axis: int, i: int) -> float:
 ## (or, when the gap is more than a block and a half, a road halfway to it first).
 func _next_road(axis: int, j: int, pos: float) -> float:
 	var step := _block_size(axis, j)
-	for pin: Array in PINNED_ROADS[axis]:
+	var here := DowntownReal.pin_at(axis, pos)
+	for pin: Array in DowntownReal.pins()[axis]:
 		var at: float = pin[0]
 		if at <= pos + 1.0:
 			continue
+		# Inside a run of real streets the next real one is the next road, however far.
+		if not here.is_empty() and int(here[3]) == int(pin[3]):
+			return at
 		if pos + step > at - block_size_range.x:
 			var gap := at - pos
 			return pos + gap * 0.5 if gap > block_size_range.y + 10.0 else at
@@ -201,15 +201,36 @@ func _next_road(axis: int, j: int, pos: float) -> float:
 	return pos + step
 
 
+## The same going DOWN the axis from road j + 1 at `pos` to road `j` (the block between them is
+## _block_size(axis, j), as it always was): the real streets below 0 (downtown's north, grid
+## north of 5th St) are met exactly as _next_road meets the ones above.
+func _prev_road(axis: int, j: int, pos: float) -> float:
+	var step := _block_size(axis, j)
+	var here := DowntownReal.pin_at(axis, pos)
+	var list: Array = DowntownReal.pins()[axis]
+	for k in range(list.size() - 1, -1, -1):
+		var pin: Array = list[k]
+		var at: float = pin[0]
+		if at >= pos - 1.0:
+			continue
+		if not here.is_empty() and int(here[3]) == int(pin[3]):
+			return at
+		if pos - step < at + block_size_range.x:
+			var gap := pos - at
+			return pos - gap * 0.5 if gap > block_size_range.y + 10.0 else at
+		return pos - step
+	return pos - step
+
+
 func road_width(axis: int, i: int) -> float:
 	var cache: Dictionary = _road_width[axis]
 	if cache.has(i):
 		return cache[i]
 	var at := road_pos(axis, i)
-	for pin: Array in PINNED_ROADS[axis]:
-		if absf(float(pin[0]) - at) < 0.01:
-			cache[i] = float(pin[1])
-			return cache[i]
+	var pin := DowntownReal.pin_at(axis, at)
+	if not pin.is_empty():
+		cache[i] = float(pin[1])
+		return cache[i]
 	var is_avenue := posmod(i, avenue_every) == avenue_every - 1 or _rng_for(2 + axis, i, 0).randf() < 0.15
 	var w := avenue_width if is_avenue else street_width
 	cache[i] = w
@@ -301,6 +322,16 @@ func block(ix: int, iz: int) -> Dictionary:
 		kind = BlockKind.MALL
 	elif roll < params.park + params.plaza + mall + bigbox and rect.size.x > 80.0 and rect.size.y > 80.0:
 		kind = BlockKind.BIGBOX
+	# Downtown at 1:1 is the real downtown: its real parks and plazas where they are, buildings on
+	# every other block (no seeded park in the middle of the Financial District). Also AFTER the roll.
+	if macro and DowntownReal.in_extent(rect.get_center()):
+		match DowntownReal.block_kind(rect.get_center()):
+			"plaza":
+				kind = BlockKind.PLAZA
+			"park":
+				kind = BlockKind.PARK
+			_:
+				kind = BlockKind.BUILDINGS
 	# A block a landmark stands on (the arena, city hall...) is that landmark's site: no park,
 	# plaza or mall of its own under it. Overridden AFTER the roll so the block's rng stream, and
 	# with it the block seed and everything built from it, is the same as it always was.
@@ -473,6 +504,9 @@ func intersection(ix: int, iz: int) -> Dictionary:
 		kind = Intersection.SIGNALS if roll < 0.7 else Intersection.STOP_SIGNS
 	else:
 		kind = Intersection.STOP_SIGNS if roll < 0.6 else Intersection.PLAIN
+	# Downtown's real crossings are all signalled: no roundabout at Figueroa and Wilshire.
+	if macro and DowntownReal.in_extent(Vector2(road_pos(AXIS_X, ix), road_pos(AXIS_Z, iz))):
+		kind = Intersection.SIGNALS
 	var result := {"pos": Vector2(road_pos(AXIS_X, ix), road_pos(AXIS_Z, iz)), "kind": kind, "size": Vector2(wx, wz), "seed": rng.randi()}
 	_intersections[key] = result
 	return result
@@ -539,6 +573,8 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 	var rng := _rng_for(11, ix, iz)
 	var inner := rect.grow(-sidewalk_width)
 	var lot_range: Vector2 = params.lot
+	if macro and params.has("core_lot"):
+		lot_range = lot_range.lerp(params.core_lot, macro.skyline_boost(rect.get_center()))
 	var lot_w := rng.randf_range(lot_range.x, lot_range.y)
 	var lot_d := rng.randf_range(lot_range.x, lot_range.y)
 	var nx := maxi(1, floori(inner.size.x / lot_w))
@@ -645,11 +681,22 @@ func road_name(axis: int, index: int) -> String:
 			return streets.south
 		if axis == AXIS_Z and (s.keep_z as Array).has(index) and streets.has("middle"):
 			return streets.middle
+	# Downtown's real streets carry their real (public) names.
+	var pin := DowntownReal.pin_at(axis, road_pos(axis, index))
+	if not pin.is_empty():
+		return str(pin[2])
 	var rng := _rng_for(9, axis, index)
 	var avenue := road_width(axis, index) > street_width + 1.0
 	if axis == AXIS_Z and rng.randf() < 0.35:
-		return ORDINALS[posmod(index, ORDINALS.size())] + " ST"
-	var base: String = STREET_NAMES[rng.randi() % STREET_NAMES.size()]
-	if axis == AXIS_X:
-		return base.to_upper() + (" BLVD" if avenue else " AVE")
-	return base.to_upper() + (" BLVD" if avenue else " ST")
+		var ordinal: String = ORDINALS[posmod(index, ORDINALS.size())] + " ST"
+		# Not a second 6th Street a kilometre from downtown's own.
+		if DowntownReal.named(axis, ordinal).is_empty():
+			return ordinal
+	var pick := rng.randi() % STREET_NAMES.size()
+	var suffix := (" BLVD" if avenue else " AVE") if axis == AXIS_X else (" BLVD" if avenue else " ST")
+	var road := String(STREET_NAMES[pick]).to_upper() + suffix
+	# Nor a second Olive St or Grand Ave: a seeded name that is one of downtown's real ones takes
+	# the next name in the list.
+	if not DowntownReal.named(AXIS_X, road).is_empty() or not DowntownReal.named(AXIS_Z, road).is_empty():
+		road = String(STREET_NAMES[(pick + 1) % STREET_NAMES.size()]).to_upper() + suffix
+	return road

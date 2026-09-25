@@ -3,10 +3,10 @@ extends RefCounted
 ## DOWNTOWN LOS ANGELES AT 1:1 - a replica area (owner, 2026-09-24: "I want the whole downtown
 ## landscape to become a 1:1 replica ... This should be geographically sound").
 ##
-## STATUS (2026-09-24): DATA ONLY - nothing calls this module yet. The re-lay that consumes it
-## (CityPlan's pins, MacroMap, the freeways, the tower and civic tables, the checks) was written
-## and probed but not run through the smoke test before the session ended; it is kept as
-## tools/downtown_relay/relay.patch, and docs/HANDOFF.md (section 9p) says how to land it.
+## STATUS (2026-09-25): LANDED. CityPlan pins this grid (pinned_roads()), MacroMap takes its
+## extent, core and anchor, the freeways follow FREEWAY_*, LandmarkDowntown and CivicSites place
+## every tower and civic building at its POINTS, MacArthur Park stands on MACARTHUR's streets;
+## tests/downtown_checks.gd holds it. docs/HANDOFF.md section 9s has the story.
 ##
 ## The same idea as ReplicaAreas (the Esplanade): a real place rebuilt at TRUE scale from real
 ## references, as data, with the seeded city between replica areas. A replica area is a REAL
@@ -187,9 +187,11 @@ const FREEWAY_110 := [Vector2(-642.6, -1718.4), Vector2(-666.4, -1488.0), Vector
 const FREEWAY_101 := [Vector2(1500.0, -1335.0), Vector2(600.0, -1330.0), Vector2(-300.0, -1335.0),
 	Vector2(-560.0, -1440.0), Vector2(-666.4, -1488.0), Vector2(-805.3, -1514.3),
 	Vector2(-2044.4, -1391.7)]
-## (The 10's line runs on from u 2150 to the geocoded points at u 2416-2685, where it curves north
-## to the East LA interchange; here that is the east range's flank, so it stops short.)
-const FREEWAY_10 := [Vector2(-594.0, 2547.0), Vector2(1000.0, 2048.0), Vector2(2150.0, 1688.0)]
+## (The real 10 runs on from u 2150 to the geocoded points at u 2416-2685, where it curves north
+## to the East LA interchange; here that is the east range's flank, so the curve north is begun
+## sooner - from u 1750 - and the east range's grade trims the route before the interchange.)
+const FREEWAY_10 := [Vector2(-594.0, 2547.0), Vector2(1000.0, 2048.0), Vector2(1750.0, 1800.0),
+	Vector2(2150.0, 1560.0)]
 
 ## The replica's extent in grid metres: the 110 to Vignes, Cesar Chavez to Venice.
 const EXTENT := Rect2(-1150.0, -1850.0, 2300.0, 3770.0)

@@ -8,7 +8,7 @@ extends RefCounted
 ## few metres a block's pavement clamps them by); a few real distances survive the turn onto the
 ## game's axes; and the frame round the area is the real one - the 110 down the west edge, the
 ## 101 across the north, the 10 to the south, the hills behind the civic centre, the airport to
-## the south-west.
+## the south-west, the masjid on Exposition to the south.
 
 var _t: Node
 
@@ -149,11 +149,14 @@ func run(t: Node, city: Node3D) -> void:
 			south = true
 	if not south:
 		frame += " no 10 south of Venice at Broadway"
-	# No freeway deck runs through the core: the old cross route cut the Financial District.
+	# No freeway deck runs through the core east of Figueroa: the old cross route cut the Financial
+	# District. (The core rects start at the 110 - Bunker Hill's west side is the freeway's cut - so
+	# the deck along their west edge is the real one.)
 	for r: Rect2 in macro.downtown_core:
+		var east := Rect2(Vector2(maxf(r.position.x, fig + 20.0), r.position.y), Vector2(r.end.x - maxf(r.position.x, fig + 20.0), r.size.y))
 		for i in 12:
 			for j in 12:
-				var p := r.position + r.size * Vector2((float(i) + 0.5) / 12.0, (float(j) + 0.5) / 12.0)
+				var p := east.position + east.size * Vector2((float(i) + 0.5) / 12.0, (float(j) + 0.5) / 12.0)
 				if fw.blocks(p, 0.0) and not frame.contains("core"):
 					frame += " a deck crosses the core at %s" % p
 	_check(frame == "", "downtown sits in its real frame: freeways round it, hills behind, the airport south-west%s" % frame)
@@ -168,6 +171,61 @@ func run(t: Node, city: Node3D) -> void:
 	var real_along := DowntownReal.grid_uv(DowntownReal.real_en(DowntownReal.POINTS.macarthur_park)).x
 	mac_ok = mac_ok and absf(along - (DowntownReal.AVENUES[3].u - real_along)) < 40.0
 	_check(mac_ok, "MacArthur Park's sides are real roads, %.0f m west of Figueroa along Wilshire" % along)
+
+	# Masjid Omar ibn Al-Khattab (LandmarkMasjidOmar) is where the real one is relative to downtown:
+	# grid-south of Pershing Square below Venice, on the real building's line to within 60 m (its
+	# real point is past the port, so the distance south is compressed), west of the 110, south of
+	# where the 10 leaves it, north of the 105 - the real order.
+	var masjid := Vector2.INF
+	for lm in Landmarks.all():
+		if lm.id == "masjid_omar":
+			masjid = lm.anchor
+	var mq := ""
+	var real_m := DowntownReal.game_xz(LandmarkMasjidOmar.REAL_LATLON)
+	if masjid == Vector2.INF:
+		mq = " not in the landmark table"
+	else:
+		if absf(masjid.x - real_m.x) > 60.0:
+			mq += " %.0f m off its real line (x %.0f, real %.0f)" % [absf(masjid.x - real_m.x), masjid.x, real_m.x]
+		if masjid.y < venice + 200.0:
+			mq += " not south of Venice Blvd"
+		var at_110 := _route_x_at(fw, "110", masjid.y)
+		if not (masjid.x + 60.0 < at_110):
+			mq += " not west of the 110 (x %.0f there)" % at_110
+		var ten: PackedVector2Array = _route(fw, "10")
+		if ten.is_empty() or masjid.y < ten[0].y:
+			mq += " not south of the 10"
+		var cross := _route_z_at(fw, "105", masjid.x)
+		if not (cross > masjid.y + LandmarkMasjidOmar.BLD_OFFSET.z + LandmarkMasjidOmar.SITE_Z1 + 40.0):
+			mq += " not north of the 105 (z %.0f there)" % cross
+	_check(mq == "", "the masjid stands south of downtown where the real one does: west of the 110, between the 10 and the 105%s" % mq)
+
+
+## The named route's points, or [].
+func _route(fw: Freeway, number: String) -> PackedVector2Array:
+	for route: Dictionary in fw.routes:
+		if str(route.name).begins_with(number + " "):
+			return route.points
+	return PackedVector2Array()
+
+
+## World x where the named route crosses z (the first crossing), or INF.
+func _route_x_at(fw: Freeway, number: String, z: float) -> float:
+	var pts := _route(fw, number)
+	for i in pts.size() - 1:
+		if (pts[i].y - z) * (pts[i + 1].y - z) <= 0.0 and pts[i].y != pts[i + 1].y:
+			return lerpf(pts[i].x, pts[i + 1].x, (z - pts[i].y) / (pts[i + 1].y - pts[i].y))
+	return INF
+
+
+## World z where the named route crosses x (the southernmost crossing), or -INF.
+func _route_z_at(fw: Freeway, number: String, x: float) -> float:
+	var pts := _route(fw, number)
+	var best := -INF
+	for i in pts.size() - 1:
+		if (pts[i].x - x) * (pts[i + 1].x - x) <= 0.0 and pts[i].x != pts[i + 1].x:
+			best = maxf(best, lerpf(pts[i].y, pts[i + 1].y, (x - pts[i].x) / (pts[i + 1].x - pts[i].x)))
+	return best
 
 
 func _pin_pos(axis: int, road_name: String) -> float:

@@ -68,44 +68,97 @@ func build(macro: MacroMap, seed_value: int) -> void:
 		z += STEP
 	_add_route("405 Coast Freeway", coast, rng)
 
-	# 2. The cross route: west to east through the middle of the basin, south of downtown, with
-	#    a long sweeping curve in it.
-	var cross := PackedVector2Array()
-	var x := macro.coast_x(560.0) + 60.0
-	while x < macro.east_start_x + 300.0:
-		cross.append(Vector2(x, 520.0 + 190.0 * sin(x / 780.0 + 0.6) + 60.0 * sin(x / 210.0)))
-		x += STEP
+	# 2. The cross route (the 105): in from the coast just south of the airport and its runway
+	#    protection zone, across the basin, down the west side of the 110 corridor and then east,
+	#    crossing the 110 south of the 10 and just north of the port - where the real one crosses
+	#    it, well below downtown - and on east. It used to run through the middle of the basin at
+	#    z 500, which at 1:1 (DowntownReal) is straight through MacArthur Park and the Financial
+	#    District. It swings wide round the masjid's neighbourhood (Exposition, south of the 10
+	#    and west of the 110, LandmarkMasjidOmar) so the order north to south is the real one: the
+	#    10, the masjid, the 105.
+	var cz := macro.runway_clear_zone().end.y + 70.0
+	var cross := _spline(PackedVector2Array([
+		Vector2(macro.coast_x(cz) + 60.0, cz), Vector2(300.0, cz + 15.0), Vector2(1000.0, cz + 60.0),
+		Vector2(1420.0, cz + 420.0), Vector2(1540.0, 2300.0), Vector2(1700.0, 2790.0),
+		Vector2(2000.0, macro.port_rect.position.y - 75.0), Vector2(3100.0, macro.port_rect.position.y - 110.0),
+		Vector2(macro.east_start_x - 200.0, macro.port_rect.position.y - 130.0)]))
 	_add_route("105 Century Freeway", cross, rng)
 
-	# 3. The valley route: starts down in the basin, climbs through the pass in the front range
-	#    and runs north across the inland valley. It starts a long way south on purpose - the
-	#    climb to the valley floor is the whole run, and a short route cannot do it at a
-	#    drivable grade.
-	var valley := PackedVector2Array()
-	var vz := 500.0
+	# 3. The valley route (the 101): along the north edge of downtown past the civic centre on
+	#    its real alignment (DowntownReal.FREEWAY_101) to the four-level interchange, west-south-
+	#    west from there - its real heading, which runs it into the pass - and north through the
+	#    pass in the front range and across the inland valley. The climb to the valley floor is
+	#    the whole northern run, and a short route could not make it at a drivable grade.
+	var valley := DowntownReal.freeway(DowntownReal.FREEWAY_101)
+	# The real line runs on west past the pass mouth; the route turns north into the pass instead.
+	valley.remove_at(valley.size() - 1)
+	valley.append(Vector2(1150.0, -1325.0))
+	valley.append(Vector2(macro.pass_center_x + 70.0, -1420.0))
 	var pass_z: float = (macro.hills_full_z + macro.valley_from_z) * 0.5
+	var vz := -1560.0
 	while vz > macro.valley_to_z - 700.0:
 		# Zero at the pass, so the route threads it and curves away either side.
 		var t := (vz - pass_z) / 1100.0
 		valley.append(Vector2(macro.pass_center_x + 210.0 * sin(t * 1.4), vz))
-		vz -= STEP
-	_add_route("5 Valley Freeway", valley, rng)
+		vz -= STEP * 6.0
+	_add_route("101 Hollywood Freeway", _spline(valley), rng)
 
-	# 4. The harbour route: down out of downtown to the port, the short stubby one. A basin like
-	#    this has a spur that exists only to move containers off the docks, and it is the reason
+	# 4. The harbour route (the 110): down the west edge of downtown on its real alignment
+	#    (DowntownReal.FREEWAY_110), from the four-level interchange past the arena to the 10,
+	#    and on south into the port - the spur that moves containers off the docks, and the reason
 	#    downtown and the port feel like one place rather than two.
-	var harbour := PackedVector2Array()
-	var hz := macro.downtown_center.y - 180.0
-	var port_x: float = macro.port_rect.position.x + macro.port_rect.size.x * 0.45
-	while hz < macro.port_rect.position.y + 120.0:
-		var t := (hz - macro.downtown_center.y) / 900.0
-		harbour.append(Vector2(lerpf(macro.downtown_center.x + 40.0, port_x, clampf(t, 0.0, 1.0)) + 70.0 * sin(hz / 430.0), hz))
-		hz += STEP
-	_add_route("110 Harbour Freeway", harbour, rng)
+	var harbour := DowntownReal.freeway(DowntownReal.FREEWAY_110)
+	harbour.append(Vector2(macro.port_rect.get_center().x, macro.port_rect.position.y + 120.0))
+	_add_route("110 Harbor Freeway", _spline(harbour), rng)
+
+	# 5. The 10: from the 110 east along the south of downtown (DowntownReal.FREEWAY_10) toward
+	#    the east range, whose grade trims it.
+	_add_route("10 Santa Monica Freeway", _spline(DowntownReal.freeway(DowntownReal.FREEWAY_10)), rng)
 
 	_separate_crossings()
 	_place_ramps(rng)
 	_index()
+
+
+## A smooth route through control points, resampled to one point every STEP metres along the
+## curve: the deck, the traffic and the bake all assume STEP. The spline is CENTRIPETAL Catmull-Rom
+## (knots spaced by the square root of the chord): the uniform kind loops back on itself where a
+## short span meets a long one - the 110's first 230 m span before its 2 km run doubled the deck
+## back 12 m at the four-level interchange, and put two more hairpins in it near Olympic and Pico.
+## The ends are extended by a phantom point mirrored through them, so the first span has a tangent.
+static func _spline(ctrl: PackedVector2Array) -> PackedVector2Array:
+	var fine := PackedVector2Array()
+	var count := ctrl.size()
+	for i in count - 1:
+		var p1 := ctrl[i]
+		var p2 := ctrl[i + 1]
+		var p0 := ctrl[i - 1] if i > 0 else p1 * 2.0 - p2
+		var p3 := ctrl[i + 2] if i + 2 < count else p2 * 2.0 - p1
+		var t1 := sqrt(maxf(p0.distance_to(p1), 0.001))
+		var t2 := t1 + sqrt(maxf(p1.distance_to(p2), 0.001))
+		var t3 := t2 + sqrt(maxf(p2.distance_to(p3), 0.001))
+		var n := maxi(4, int(p1.distance_to(p2) / 4.0))
+		for k in n:
+			var t := lerpf(t1, t2, float(k) / float(n))
+			var a1 := p0.lerp(p1, t / t1)
+			var a2 := p1.lerp(p2, (t - t1) / (t2 - t1))
+			var a3 := p2.lerp(p3, (t - t2) / (t3 - t2))
+			var b1 := a1.lerp(a2, t / t2)
+			var b2 := a2.lerp(a3, (t - t1) / (t3 - t1))
+			fine.append(b1.lerp(b2, (t - t1) / (t2 - t1)))
+	fine.append(ctrl[ctrl.size() - 1])
+	var out := PackedVector2Array([fine[0]])
+	var carry := 0.0
+	for i in range(1, fine.size()):
+		var a := fine[i - 1]
+		var seg := a.distance_to(fine[i])
+		while carry + seg >= STEP:
+			a = a.lerp(fine[i], (STEP - carry) / seg)
+			seg = a.distance_to(fine[i])
+			out.append(a)
+			carry = 0.0
+		carry += seg
+	return out
 
 
 ## A route's deck height at one of its points: the ground below it plus the rise, smoothed and
@@ -192,6 +245,8 @@ func _separate_crossings() -> void:
 		for a in b:
 			var pa: PackedVector2Array = routes[a].points
 			var ha: PackedFloat32Array = routes[a].heights
+			if not _bounds(pa).intersects(_bounds(pb)):
+				continue
 			for j in pb.size() - 1:
 				for i in pa.size() - 1:
 					var t := _segments_cross(pa[i], pa[i + 1], pb[j], pb[j + 1])
@@ -212,6 +267,13 @@ func _separate_crossings() -> void:
 		for i in out.size():
 			out[i] = maxf(out[i], need[i])
 		routes[b].heights = out
+
+
+static func _bounds(pts: PackedVector2Array) -> Rect2:
+	var r := Rect2(pts[0], Vector2.ZERO)
+	for p in pts:
+		r = r.expand(p)
+	return r.grow(2.0)
 
 
 ## Where segment a0-a1 crosses b0-b1, as the fraction along b, or -1 if they do not cross.

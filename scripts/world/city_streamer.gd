@@ -649,10 +649,17 @@ func update_streaming(immediate: bool) -> void:
 	_lead = focus
 
 	var wanted := {}
+	# The LOD ring also stops `lod_reach` metres out, where an ordinary seven-block ring ends:
+	# downtown's real blocks (DowntownReal) are up to 440 m long, so seven of them ran LOD chunks
+	# three kilometres out over ground the far city (Skyline) draws anyway, per block.
+	var lod_reach := lod_reach_metres()
 	for dx in range(-lod_radius_blocks, lod_radius_blocks + 1):
 		for dz in range(-lod_radius_blocks, lod_radius_blocks + 1):
 			var ring := maxi(absi(dx), absi(dz))
-			wanted[Vector2i(center.x + dx, center.y + dz)] = CityChunk.Level.FULL if ring <= load_radius_blocks else CityChunk.Level.LOD
+			var k := Vector2i(center.x + dx, center.y + dz)
+			if ring > load_radius_blocks and _block_distance(k, focus) > lod_reach:
+				continue
+			wanted[k] = CityChunk.Level.FULL if ring <= load_radius_blocks else CityChunk.Level.LOD
 	# Whatever the lead asks for, the ground actually under the player is always full detail.
 	# Leading the window alone would let a hard turn or a fast stop downgrade the block they are
 	# standing on, which is the one block that can never be a box.
@@ -668,10 +675,17 @@ func update_streaming(immediate: bool) -> void:
 	# absent one. That is the hole in the world you see when moving fast. Upgrades and downgrades
 	# now go through _replace_chunk(), which builds first and removes afterwards.
 	for k in chunks.keys():
-		if maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
+		# ... and a LOD chunk left behind past the LOD reach goes too (with 150 m of slack so one
+		# does not flicker in and out on the line): downtown's real blocks are up to 440 m long, and
+		# seven of them would keep LOD chunks 3 km out where the far city draws the same blocks.
+		var stale: bool = chunks[k].level == CityChunk.Level.LOD and not wanted.has(k) \
+				and _block_distance(k, Vector2(wp.x, wp.z)) > lod_reach + 150.0
+		if stale or maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
 			_retire_chunk(k)
 	for k in _pending.keys():
-		if maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
+		var stale_build: bool = _pending[k].level == CityChunk.Level.LOD and not wanted.has(k) \
+				and _block_distance(k, Vector2(wp.x, wp.z)) > lod_reach + 150.0
+		if stale_build or maxi(absi(k.x - here.x), absi(k.y - here.y)) > keep_radius_blocks:
 			_cancel_build(k)
 
 	var todo: Array = []
@@ -764,6 +778,21 @@ func _build_skyline() -> void:
 	_skyline.fade_time = lod_fade_time
 	_skyline.setup(plan, chunk_style(), _canopy_material, stream_priority_at)
 	add_child(_skyline)
+
+
+## How far out, in metres from the focus, a LOD chunk is still wanted: where an ordinary ring of
+## `lod_radius_blocks` ends. Blocks past it inside the ring are left to the far city.
+func lod_reach_metres() -> float:
+	return float(lod_radius_blocks) * plan.block_size_range.y
+
+
+## Metres from world XZ `p` to block `k`'s rect (0 inside it).
+func _block_distance(k: Vector2i, p: Vector2) -> float:
+	var x0 := plan.road_pos(CityPlan.AXIS_X, k.x)
+	var x1 := plan.road_pos(CityPlan.AXIS_X, k.x + 1)
+	var z0 := plan.road_pos(CityPlan.AXIS_Z, k.y)
+	var z1 := plan.road_pos(CityPlan.AXIS_Z, k.y + 1)
+	return Vector2(maxf(maxf(x0 - p.x, p.x - x1), 0.0), maxf(maxf(z0 - p.y, p.y - z1), 0.0)).length()
 
 
 ## How soon a chunk gets built, lower first: its distance from the player or from the led focus,

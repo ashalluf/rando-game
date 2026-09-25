@@ -48,7 +48,9 @@ extends Node3D
 @export var glide_slope_deg: float = 3.0
 @export var aim_inset: float = 190.0
 ## The downwind leg runs north up this line (world x) and turns onto final with this radius.
-@export var downwind_x: float = 1950.0
+## 1250, over Westlake: at 1950 the final turned in over downtown's south-west corner, among
+## 150-330 m towers, since downtown went in at 1:1 (DowntownReal).
+@export var downwind_x: float = 1250.0
 @export var final_turn_radius: float = 750.0
 ## Height kept over the city under the final: near the fence and from 2.5 km out (m).
 @export var approach_clearance: Vector2 = Vector2(6.0, 80.0)

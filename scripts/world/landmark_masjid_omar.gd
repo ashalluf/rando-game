@@ -36,9 +36,13 @@ extends RefCounted
 ## It is a sanctuary: the guns will not fire at it, through it or from its grounds, rockets that
 ## reach it fizzle, and nothing marks it (see Sanctuary). The zone is added by the far build too.
 ##
-## Placement: the parcel the old Masjid Al Noor stood on (Landmarks.all()), in a 103 x 91 m block
-## whose south pavement plays Exposition Boulevard, so the building faces the street it faces in
-## life. REAL_LATLON is kept for the 1:1 downtown re-lay, which will move it to its real block.
+## Placement (Landmarks.all()): where the real one stands relative to downtown at 1:1
+## (DowntownReal) - grid-south of Pershing Square on the real building's line (REAL_LATLON through
+## DowntownReal.game_xz(), to within 40 m in x), west of the 110, south of where the 10 leaves it
+## and north of the 105, with the distance south compressed (the real point lies past the port).
+## Its block's south pavement plays Exposition Boulevard, so the building faces the street it
+## faces in life. Until the 1:1 re-lay it stood on the old Masjid Al Noor's parcel at (-235.7,
+## 165.2), which the real downtown put 3 km due west of Pershing Square, past MacArthur Park.
 ##
 ## Frame: +X east, +Z south, y 0 at the prayer-hall floor, the origin at the centre of the real
 ## footprint's bounding box. The site is BLD_OFFSET from the landmark anchor.

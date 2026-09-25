@@ -114,7 +114,21 @@ func _test_city() -> void:
 	var load_r: int = city.load_radius_blocks
 	var counts: Vector2i = city.chunk_counts()
 	_check(counts.x == (2 * load_r + 1) * (2 * load_r + 1), "%d full-detail chunks around the player" % counts.x)
-	_check(counts.y == (2 * lod_r + 1) * (2 * lod_r + 1) - counts.x, "%d far LOD chunks" % counts.y)
+	# The LOD ring stops lod_reach_metres() out: the real downtown's streets are pinned across the
+	# whole map (DowntownReal), so round the spawn the blocks are up to 440 m deep and the ring's
+	# outer blocks are left to the far city.
+	var spawn_body := get_tree().get_first_node_in_group("player") as Node3D
+	var here_xz: Vector3 = _world_state().to_world(spawn_body.global_position)
+	var here_k: Vector2i = plan.block_index_at(Vector2(here_xz.x, here_xz.z))
+	var want_lod := 0
+	for dx in range(-lod_r, lod_r + 1):
+		for dz in range(-lod_r, lod_r + 1):
+			var kk := Vector2i(here_k.x + dx, here_k.y + dz)
+			if maxi(absi(dx), absi(dz)) > load_r and float(city._block_distance(kk, Vector2(here_xz.x, here_xz.z))) <= float(city.lod_reach_metres()):
+				want_lod += 1
+	# (Within a few: the streamer measures from the led focus and keeps a LOD chunk 150 m past the
+	# reach before retiring it, so the edge of the ring can differ by a block or two.)
+	_check(absi(counts.y - want_lod) <= 4 and want_lod >= 80, "%d far LOD chunks (%d wanted inside %.0f m)" % [counts.y, want_lod, city.lod_reach_metres()])
 	_check(city.building_count() >= 100, "city has buildings (%d)" % city.building_count())
 	# The facade kit goes on the buildings of the full-detail chunks. Counted from the batches'
 	# instance counts, which are real under --headless (the transforms are not: they read back
@@ -419,7 +433,8 @@ func _test_city() -> void:
 		# The pass: a canyon through the front range, so the valley is reachable on the ground.
 		var pass_z: float = (macro.hills_full_z + macro.valley_from_z) * 0.5
 		var in_pass: float = macro.raw_height_at(Vector2(macro.pass_center_x, pass_z))
-		var on_flank: float = macro.raw_height_at(Vector2(macro.pass_center_x + 1100.0, pass_z))
+		# The west flank: east of the pass the range steps back above downtown (MacroMap.embay_at).
+		var on_flank: float = macro.raw_height_at(Vector2(macro.pass_center_x - 1100.0, pass_z))
 		_check(in_pass < 120.0 and on_flank > in_pass * 3.0,
 			"a pass is cut through the front range (%.0f m in it, %.0f m beside it)" % [in_pass, on_flank])
 		_check(macro.plateau_at(Vector2.ZERO) == 0.0 and macro.plateau_at(macro.airport_rect.get_center()) == 0.0,
@@ -432,12 +447,16 @@ func _test_city() -> void:
 			"freeway routes and ramps planned (%d routes, %d ramps)" % [fw.routes.size() if fw else 0, fw.ramps.size() if fw else 0])
 		if fw:
 			# Every route curves: a straight line would have a constant heading.
+			# Measured as the most the heading ever turns from the start's, not end against end:
+			# the real 110 (DowntownReal) leaves and meets the port heading the same way.
 			var bends := 0
 			for route: Dictionary in fw.routes:
 				var pts: PackedVector2Array = route.points
 				var h0: float = (pts[1] - pts[0]).angle()
-				var h1: float = (pts[pts.size() - 1] - pts[pts.size() - 2]).angle()
-				if absf(angle_difference(h0, h1)) > 0.12:
+				var turned := 0.0
+				for i in pts.size() - 1:
+					turned = maxf(turned, absf(angle_difference(h0, (pts[i + 1] - pts[i]).angle())))
+				if turned > 0.12:
 					bends += 1
 			_check(bends == fw.routes.size(), "every freeway route curves (%d of %d)" % [bends, fw.routes.size()])
 			# The deck rides above the ground, on a drivable grade.
@@ -722,8 +741,10 @@ func _test_city() -> void:
 	# Skyline, airport, port.
 	if macro:
 		_check(macro.zone_at(Vector2(-350.0, 800.0)) == MacroMap.Zone.AIRPORT and macro.height_at(Vector2(-350.0, 800.0)) == 0.0, "airport zone is flat")
-		_check(macro.zone_at(Vector2(800.0, 1150.0)) == MacroMap.Zone.PORT and macro.zone_at(Vector2(800.0, 1420.0)) == MacroMap.Zone.OCEAN, "port sits on a harbor")
+		_check(macro.zone_at(macro.port_rect.get_center()) == MacroMap.Zone.PORT and macro.zone_at(macro.harbor_rect.get_center()) == MacroMap.Zone.OCEAN, "port sits on a harbor")
 		await _test_downtown(city, plan, player)
+		# Downtown at 1:1 (DowntownReal): the real grid, the real distances, the real frame.
+		await load("res://tests/downtown_checks.gd").new().run(self, city)
 		var runway := Vector2(-300.0, 760.0)
 		player.global_position = _world_state().to_local(Vector3(runway.x, 2.0, runway.y))
 		city.update_streaming(true)
@@ -752,7 +773,7 @@ func _test_city() -> void:
 			var lp0: Vector3 = lc.global_position
 			await _ticks(60)
 			_check(is_instance_valid(lc) and lc.global_position.distance_to(lp0) > 1.0, "loop cars crawl forward")
-		var port := Vector2(800.0, 1150.0)
+		var port := macro.port_rect.get_center()
 		player.global_position = _world_state().to_local(Vector3(port.x, 2.0, port.y))
 		city.update_streaming(true)
 		var port_chunk: Node3D = city.chunks.get(plan.block_index_at(port))
@@ -1591,23 +1612,30 @@ func _test_downtown(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> vo
 	# The pinned grid: another seed has the same downtown roads, with the same widths.
 	var pins_ok := true
 	for axis in 2:
-		for pin: Array in CityPlan.PINNED_ROADS[axis]:
+		for pin: Array in CityPlan.pinned_roads()[axis]:
 			var i := other._index_at(axis, float(pin[0]) + 0.01)
 			if absf(other.road_pos(axis, i) - float(pin[0])) > 0.01 or absf(other.road_width(axis, i) - float(pin[1])) > 0.01:
 				pins_ok = false
 	_check(pins_ok, "the downtown street grid is the same on another seed")
-	# The infill between the towers: plenty of it tall, none of it taller than the named towers.
+	# The infill between the towers (every block the core rects touch): plenty of it tall, none of it
+	# taller than the named towers.
 	var macro: MacroMap = plan.macro
 	var tall := 0
 	var top_infill := 0.0
-	for ix in range(4, 10):
-		for iz in range(2, 8):
-			var b := plan.block(ix, iz)
-			for lot in plan.lots(ix, iz):
-				var h := plan.lot_height(lot.seed, b.district, macro.skyline_boost(lot.center))
-				top_infill = maxf(top_infill, h)
-				if h >= 100.0:
-					tall += 1
+	var core_blocks := {}
+	for r: Rect2 in macro.downtown_core:
+		var lo := plan.block_index_at(r.position)
+		var hi := plan.block_index_at(r.end)
+		for ix in range(lo.x, hi.x + 1):
+			for iz in range(lo.y, hi.y + 1):
+				core_blocks[Vector2i(ix, iz)] = true
+	for key: Vector2i in core_blocks:
+		var b := plan.block(key.x, key.y)
+		for lot in plan.lots(key.x, key.y):
+			var h := plan.lot_height(lot.seed, b.district, macro.skyline_boost(lot.center))
+			top_infill = maxf(top_infill, h)
+			if h >= 100.0:
+				tall += 1
 	_check(tall >= 10 and top_infill < 212.0, "the core infill is dense and stays under the towers (%d lots over 100 m, tallest %.0f m)" % [tall, top_infill])
 	# Built in detail where it stands: collision on the roof, the far copy hidden meanwhile, no
 	# seeded building inside any tower.

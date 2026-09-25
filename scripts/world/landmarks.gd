@@ -53,7 +53,8 @@ static func _list() -> Array[Dictionary]:
 		{"id": "campus_hall", "anchor": Vector2(-620.0, -520.0), "radius": 95.0},
 		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
-		{"id": "cargo_ship", "anchor": Vector2(800.0, 1420.0), "radius": 100.0},
+		# In the harbour basin, which moved south with the port when downtown went in at 1:1.
+		{"id": "cargo_ship", "anchor": Vector2(2400.0, 3420.0), "radius": 100.0},
 		# The LA set. Anchors are placed the way the real chain runs: the boardwalk on the sand
 		# at Venice, a straight pier off Manhattan Beach, the timber horseshoe at Redondo where
 		# the coast meets the headland, the enclosed mall inland behind them, a corner coffee
@@ -67,12 +68,20 @@ static func _list() -> Array[Dictionary]:
 		{"id": "south_bay_mall", "anchor": Vector2(-250.0, 1250.0), "radius": 215.0},
 		{"id": "verde_cafe", "anchor": Vector2(-900.0, -430.0), "radius": 22.0},
 		# Masjid Omar ibn Al-Khattab, the replica of the real one on Exposition Boulevard
-		# (LandmarkMasjidOmar). Same parcel the original mosque here had: the middle of the
-		# 103 x 91 m block bounded by the road at x -177 and the road at z 118, whose south
-		# pavement stands in for Exposition, so the entrance flight lands on it. Radius 64
-		# reaches the far corners of the fenced parcel (44 m west and 46 m south of the anchor),
-		# which is what keeps city lots out of the car park and the relief flat under it.
-		{"id": "masjid_omar", "anchor": Vector2(-235.7, 165.2), "radius": 64.0},
+		# (LandmarkMasjidOmar). Where the real one stands relative to downtown at 1:1
+		# (DowntownReal): grid-south of it along Figueroa, just west of the 110, south of the 10
+		# and north of the 105 - 4.9 km below Pershing Square in life, compressed here to 2.6 km
+		# like everything between downtown and the port (the real point is past the port). x is
+		# the real one within 40 m (real u -843; this block is the one west of Georgia St, whose
+		# line the real building stands on). The block (default seed): x 1865.6-1957 kerb to
+		# kerb, bounded south by the 24 m boulevard at z 2785.1, whose north pavement plays
+		# Exposition - the entrance flight lands on it, 46.5 m south of the anchor, as it did on
+		# the old parcel (it stood at (-235.7, 165.2), 3 km due west of the new downtown and west
+		# of MacArthur Park - Koreatown, where it is not). The car park is 7.4 m inside the west
+		# kerb, as before. Radius 64 reaches the far corners of the fenced parcel (44 m west and
+		# 46 m south of the anchor), which is what keeps city lots out of the car park and the
+		# relief flat under it.
+		{"id": "masjid_omar", "anchor": Vector2(1917.0, 2722.8), "radius": 64.0},
 		# --- Downtown LA civic set (owner, 2026-09-24: "downtown must match real downtown LA,
 		# we need staple center we need all day"). Real FORMS in their real places relative to
 		# the core; every NAME is invented (LandmarkArenaDistrict, LandmarkCivicCenter).
