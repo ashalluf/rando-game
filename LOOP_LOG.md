@@ -119,3 +119,4 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   hills +4.5 % tris / -0.3 % draws, city +1.2 % tris, among the stands +14-22 % tris and
   +5-10 % draws. Found: a floating hill chunk (#25).
 - Launched: tree LOD (#23, PERF), floating hill chunk (#25), hi-fi sedan (#22).
+- **CI 284 red** (blood-pool check, a 3 s wait vs the ragdoll 3.5 s fallback): test waits 7 s and prints diagnostics.

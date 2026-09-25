@@ -1155,12 +1155,19 @@ func _test_city() -> void:
 		# The body the rifle put down stains round its wounds and bleeds into a pool under it once
 		# it lies still (a few seconds; the checks above have used some of them).
 		if hit_a_person:
+			# Up to 7 s: a body still sliding on a sloped street pools only once it is 3.5 s old
+			# (Ragdoll's fallback), and 3 s from here missed that on a loaded CI runner.
 			var pooled := false
-			for i in 180:
+			for i in 420:
 				pooled = int(WeaponFX.blood_stats.pools) > int(blood_before.pools)
 				if pooled:
 					break
 				await _ticks(1)
+			if not pooled:
+				for n in get_tree().get_nodes_in_group("debris"):
+					if n is Ragdoll and not (n as Ragdoll).bodies.is_empty():
+						var rb: RigidBody3D = (n as Ragdoll).bodies[0]
+						printerr("blood: no pool - ragdoll at %s, speed %.2f, age %.1f" % [str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(), float(n.get("_age"))])
 			_check(pooled, "a body shot down bleeds into a pool under it")
 			var stained := false
 			for n in get_tree().get_nodes_in_group("debris"):
