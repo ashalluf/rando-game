@@ -120,10 +120,23 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   +5-10 % draws. Found: a floating hill chunk (#25).
 - Launched: tree LOD (#23, PERF), floating hill chunk (#25), hi-fi sedan (#22).
 - **CI 284 red** (blood-pool check, a 3 s wait vs the ragdoll 3.5 s fallback): test waits 7 s and prints diagnostics.
-- **Floating hill props** (roadmap #25) - merged 2106e3e (gate pending at writing). Root cause:
+- **Floating hill props** (roadmap #25) - merged 2106e3e, gate 466/466. Root cause:
   relief added twice (height_at() already includes it; the batch's `ground = _gy` added it
   again). Probe: 700/1,597 hill chunks off, 367k instances, worst +144 m -> 0 chunks, worst
   1.2 m. A/B `<scratchpad>/float/slope_ab.png`. New smoke check + tools/float_probe.
 - **Hi-fi sedan** (#22) - not merged yet: clean render and -6.5 % vehicle tris, but styling reads
   dated (bulb nose, tall slatted grille). Sent back for one styling pass. Sheets
   `<scratchpad>/sedan/ba_sedan_day.png`, `ba_police_day.png`.
+- **Regression audit (wave 5)** - reported. No breakage; sanctuary checks all pass; web-safe.
+  Regressions: MacArthur far palms +2 M tris toward the park (#32, to tree LOD); hill ground on
+  Compatibility smoother/camo-ish (#33); front range emptier (intentional, WAITING ON ASH);
+  closed-road recycle masks a root cause (traffic fixes since then address the real paths).
+  Perf: downtown -7.9 % draws, hills -39 % draws, triangles flat except masjid view.
+  Evidence `<scratchpad>/audit5/`.
+- **OWNER reports** (2026-09-25): port in the middle of the city (#29), freeways through
+  downtown buildings (#30) -> re-lay agent; more homeless downtown (#31) -> new agent.
+- **CI 286 red** (police damage check, 0.7^5 chance of five misses): that phase now aims well.
+  c08b87b.
+- **Session ended by the owner** (2026-09-25 ~15:30). Agents stopped; unfinished branches
+  pushed as wt/downtown-relay, wt/sedan-body, wt/downtown-homeless, wt/street-wear,
+  wt/tree-lod, wt/wet-streets (see HANDOFF section 00). STOP file created.

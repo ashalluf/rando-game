@@ -41,6 +41,11 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 | 26 | Every car's headlight beam quad sits below the road (`vehicle_lights()` at 0.12 - y) so the night beams never show; the `_dims()` cabin collision box floats ~0.5 m above every roof | Vehicles (prop_factory vehicle_lights, vehicle.gd _dims) | 3 | 5 | 1 | 15.0 | todo | found by the sedan agent (HANDOFF 9z); asked it to fix in its styling pass |
 | 27 | Street-level wear: graffiti tags, wheat-paste posters, stickers on poles and boxes, faded paint on walls and shutters (hash-seeded decals, original art only) | Density (street_detail / street_clutter / building shader) | 4 | 4 | 1 | 16.0 | in-progress | wave 6 |
 | 28 | Crowd animation blending: walk/run/idle cross-fades, turn-in-place, start/stop, head look-at nearby action | Characters (pedestrian.gd, avatar.gd) | 4 | 3 | 1 | 12.0 | todo | seed item 4 |
+| 29 | OWNER: the San Pedro port/pier sits on an inland harbour in the middle of the city - move it to the east side of Palos Verdes on real ocean, remove the inland harbour | Map (macro_map port/harbor, port landmarks, freeway 110 end) | 5 | 3 | 1 | 15.0 | in-progress | owner report 2026-09-25; given to the downtown re-lay agent (same files) |
+| 30 | OWNER: downtown freeways drive straight through buildings - no deck or pillar through any building/tower/civic site; smoke check | Map (freeway.gd, _under_freeway) | 5 | 4 | 1 | 20.0 | in-progress | owner report; given to the re-lay agent (it reroutes the freeways) |
+| 31 | OWNER: downtown needs way more homeless people - denser encampments, a skid-row band, people against walls, cart pushers | Street life (encampment.gd, rough_sleeper.gd) | 5 | 4 | 1.2 | 16.7 | in-progress | owner report; wave 6 agent |
+| 32 | Audit: MacArthur Park's far palm ring adds ~2 M tris toward the park (masjid bookmark +15.9 %) | Perf (palms LOD) | 3 | 4 | 0.5 | 24.0 | in-progress | folded into the tree LOD agent |
+| 33 | Audit: hill ground on Compatibility/web - near grass grain lost (smooth), chaparral flat camo stains, mauve dirt blotches, a faint dot lattice in brush | Hills (terrain.gdshader) | 3 | 4 | 1 | 12.0 | todo | with #19; judge on Forward+ too |
 
 ## NEEDS MAC CHECK
 
@@ -53,6 +58,8 @@ Forward+-dependent looks never seen on the owner's Mac (the harness is opengl3 o
   `golden_blue_top`, `golden_fog_gain` in DayNight's Golden hour group.
 
 ## WAITING ON ASH
+
+- The hill cut-bank fix left the front range with almost no roads or mansions (468 -> 318). Switchback roads (#20) would bring them back; say if you miss them.
 
 - Forward+ city renders do not fit in this box's 14.3 GB (lavapipe peaks at 13.9 GB), so every
   Forward+ look is judged on the Mac. A Mac screenshot at 17:30 game time, toward and away from the

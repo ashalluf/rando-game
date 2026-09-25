@@ -1779,14 +1779,21 @@ func _test_police(city: Node3D, player: Player) -> void:
 	# street makes sure somebody has a clear line even if the first car stopped round a corner.
 	var street: Vector3 = ws.to_world(player.global_position) + Vector3(0.0, 0.0, -20.0)
 	police.call("spawn_cruiser", street + Vector3(0.0, 1.0, 0.0), PI * 0.5, "parked")
+	# What this checks is that officers' rounds reach and hurt the player, not how often they
+	# hit: at the default accuracy a round at 20 m lands about 3 times in 10, and the five or
+	# six rounds that fit in the window all missed on CI 286 (0.7^5, one run in six). So the
+	# officers aim well here, and the window is longer; the accuracy goes back after.
+	var saved_accuracy: float = float(police.get("accuracy_base"))
+	police.set("accuracy_base", 4.0)
 	var hurt := false
-	for i in 600:
+	for i in 900:
 		await get_tree().physics_frame
 		if i % 20 == 0:
 			police.call("report_sighting")
 		if float(health.health) < float(health.max_health) - 0.5:
 			hurt = true
 			break
+	police.set("accuracy_base", saved_accuracy)
 	var officers: Array = police.get("officers")
 	_check(officers.size() > 0, "officers get out of their cruisers (%d)" % officers.size())
 	if officers.size() > 0:

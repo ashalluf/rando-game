@@ -15,6 +15,27 @@ WAITING ON ASH) and **LOOP_LOG.md** (append-only history with screenshot paths a
 deltas). Read both before starting anything visual. Items judged "not clearly better" are not
 merged; their branches are kept (wt/vehicle-grime, wt/wall-weathering) and the log says why.
 
+**Where the loop stopped (2026-09-25, owner ended the session).** Main is green (CI through
+the police-check fix, c08b87b). Unfinished work is pushed as branches (the owner's rule is
+main-only, so these are parking spots, not PRs - merge into main one at a time after a full
+headless check, or delete):
+- `wt/downtown-relay` - the downtown 1:1 re-lay LANDED and gated green on its branch (13
+  commits; last gated state 0aa7731 + a merge of main with the hill float fix). On top: a WIP
+  commit starting the owner's two geography asks - move the port/harbour to real ocean on
+  Palos Verdes' east flank (the inland harbour at MacroMap.port_rect / harbor_rect must go)
+  and keep every freeway deck/pillar out of every building (a smoke check over downtown's
+  decks was being added). Roadmap #13, #29, #30.
+- `wt/sedan-body` - Blender-built hi-fi sedan (tools/make_hifi_sedan.py, one draw a car,
+  -6.5 % vehicle triangles), gated green at 97274c0; WIP on top: a styling pass (the first
+  shape read dated - bulb nose, tall slatted grille) and fixes for two bugs it found (every
+  car's headlight beam quad sits below the road; the `_dims()` cabin box floats over the roof).
+  Roadmap #22, #26.
+- `wt/downtown-homeless` (owner ask, #31), `wt/street-wear` (graffiti/posters, #27),
+  `wt/tree-lod` (trees + MacArthur's far palms, #23/#32), `wt/wet-streets` (#9): WIP, never
+  gated.
+VISUAL_ROADMAP.md has the ranked backlog and LOOP_LOG.md the history. To stop the loop's Stop
+hook from blocking, a `STOP` file sits in the repo root (git-ignored); delete it to resume.
+
 How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every agent):
 - `tools/glshot/bookmarks.sh <dir> [names]` renders the seven fixed cameras (downtown noon,
   downtown night + rain, hills, freeway, masjid, esplanade sunset, hero). The hills camera is
