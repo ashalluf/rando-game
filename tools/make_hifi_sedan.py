@@ -26,7 +26,7 @@ cars and every other parked car. So the subdivided shell (about 120k triangles) 
 SHELL_TRIS with Blender's quadric collapse, symmetric about the centre line, then shaded by angle.
 Quadric collapse spends triangles where the surface bends and on the sharp shutline and bevel
 edges, so the silhouette and the panel gaps survive. Everything bolted on is built at a resolution chosen for a car
-seen from a pavement, not a showroom. Total ~28k triangles at LOD0; Godot's importer builds the
+seen from a pavement, not a showroom. Total ~27k triangles at LOD0; Godot's importer builds the
 LOD chain and the shadow mesh from that.
 
 ONE SURFACE, NOT SIX. The exotics carry six material slots, which is six draw calls a car and
@@ -54,7 +54,12 @@ lamps are tapered blades, the badge recesses are empty.
 
 THE STANCE
 ----------
-    length 4.85   width 1.84 (without mirrors)   height 1.44   wheelbase 2.80
+    length 4.85   width 1.85 (without mirrors)   height 1.44   wheelbase 2.82
+
+Styled as a 2020s car, not a 1990s one (that was the first pass's review): a low bonnet that
+falls to a crisp leading edge 0.72 m up, slim headlamps joined by a dark slot, a wide low grille
+with corner intakes, a windscreen raked ~24 degrees off horizontal, a fastback roof running into
+a short high deck, and a character line rising toward the tail.
     front overhang 0.97   rear overhang 1.08   tyre 0.66 diameter (225/50 R17 class)
 
 Geometry conventions are the GT's: authored X lateral, Y longitudinal with the nose at +Y (`f`),
@@ -82,7 +87,7 @@ SLOTS = [
     ("glass",       (0.016, 0.018, 0.021), 0.04, 0.00, False),
     ("trim",        (0.030, 0.030, 0.032), 0.48, 0.00, False),
     ("tyre",        (0.026, 0.026, 0.028), 0.88, 0.00, False),
-    ("light_front", (0.74, 0.74, 0.72),    0.14, 0.00, True),
+    ("light_front", (0.30, 0.31, 0.33),    0.08, 0.60, True),
     ("light_rear",  (0.42, 0.018, 0.022),  0.08, 0.10, True),
     ("rim",         (0.50, 0.51, 0.53),    0.30, 0.85, False),
     ("gloss",       (0.012, 0.012, 0.013), 0.10, 0.00, False),
@@ -112,49 +117,49 @@ ANCHOR_J = [0.0, 2.0, 4.0, 7.0, 10.0, 13.0, 16.0, 19.0, 22.0]
 # the wheels. Each column is a monotone cubic along f.
 KEYS_LOWER = [
     # f        zb     ub     us     zs     uh     zh     uw     zw
-    (2.340, 0.215, 0.470, 0.700, 0.235, 0.825, 0.360, 0.845, 0.560),
-    (2.250, 0.185, 0.500, 0.740, 0.212, 0.875, 0.365, 0.885, 0.600),
-    (2.100, 0.165, 0.515, 0.745, 0.200, 0.897, 0.372, 0.905, 0.650),
-    (1.850, 0.155, 0.530, 0.770, 0.200, 0.910, 0.380, 0.914, 0.705),
-    (1.450, 0.150, 0.550, 0.790, 0.200, 0.912, 0.385, 0.915, 0.745),
-    (1.100, 0.150, 0.558, 0.800, 0.205, 0.911, 0.392, 0.915, 0.755),
-    (0.700, 0.150, 0.560, 0.808, 0.210, 0.910, 0.400, 0.915, 0.762),
-    (0.000, 0.150, 0.560, 0.810, 0.210, 0.910, 0.400, 0.915, 0.768),
-    (-0.800, 0.150, 0.560, 0.810, 0.210, 0.910, 0.400, 0.915, 0.775),
-    (-1.350, 0.152, 0.556, 0.806, 0.210, 0.912, 0.400, 0.915, 0.780),
-    (-1.600, 0.160, 0.550, 0.795, 0.212, 0.910, 0.400, 0.913, 0.782),
-    (-1.850, 0.170, 0.530, 0.780, 0.220, 0.900, 0.400, 0.908, 0.785),
-    (-2.050, 0.190, 0.505, 0.755, 0.240, 0.885, 0.410, 0.898, 0.785),
-    (-2.220, 0.220, 0.480, 0.730, 0.268, 0.868, 0.420, 0.884, 0.780),
-    (-2.330, 0.250, 0.450, 0.690, 0.295, 0.838, 0.430, 0.855, 0.770),
+    (2.380, 0.215, 0.450, 0.660, 0.235, 0.775, 0.360, 0.795, 0.540),
+    (2.250, 0.185, 0.505, 0.740, 0.212, 0.868, 0.365, 0.882, 0.575),
+    (2.100, 0.165, 0.525, 0.760, 0.200, 0.908, 0.372, 0.918, 0.615),
+    (1.850, 0.155, 0.540, 0.782, 0.200, 0.920, 0.380, 0.925, 0.660),
+    (1.450, 0.150, 0.555, 0.800, 0.200, 0.922, 0.385, 0.926, 0.695),
+    (1.100, 0.150, 0.560, 0.808, 0.205, 0.920, 0.392, 0.925, 0.712),
+    (0.700, 0.150, 0.562, 0.815, 0.210, 0.918, 0.400, 0.924, 0.728),
+    (0.000, 0.150, 0.562, 0.818, 0.210, 0.918, 0.400, 0.924, 0.752),
+    (-0.800, 0.150, 0.562, 0.818, 0.210, 0.918, 0.400, 0.924, 0.778),
+    (-1.350, 0.152, 0.558, 0.814, 0.210, 0.920, 0.400, 0.925, 0.795),
+    (-1.600, 0.160, 0.552, 0.803, 0.212, 0.918, 0.400, 0.923, 0.802),
+    (-1.850, 0.170, 0.532, 0.788, 0.220, 0.908, 0.400, 0.918, 0.808),
+    (-2.050, 0.190, 0.508, 0.762, 0.240, 0.893, 0.410, 0.907, 0.810),
+    (-2.220, 0.220, 0.482, 0.735, 0.268, 0.875, 0.420, 0.892, 0.808),
+    (-2.370, 0.250, 0.452, 0.695, 0.295, 0.845, 0.430, 0.862, 0.800),
 ]
 KEYS_UPPER = [
     # f        ubl    zbl     um     zm     ur     zr     zt
-    (2.340, 0.832, 0.640, 0.660, 0.686, 0.385, 0.700, 0.705),
-    (2.250, 0.868, 0.705, 0.718, 0.752, 0.412, 0.770, 0.775),
-    (2.100, 0.888, 0.765, 0.738, 0.812, 0.422, 0.830, 0.835),
-    (1.850, 0.890, 0.830, 0.745, 0.870, 0.425, 0.890, 0.895),
-    (1.450, 0.890, 0.869, 0.750, 0.911, 0.430, 0.935, 0.940),
-    (1.200, 0.888, 0.885, 0.750, 0.933, 0.430, 0.965, 0.970),
-    (1.080, 0.885, 0.910, 0.755, 0.963, 0.455, 0.995, 1.000),
-    (0.940, 0.882, 0.930, 0.780, 0.993, 0.515, 1.025, 1.030),
-    (0.670, 0.878, 0.945, 0.800, 1.068, 0.590, 1.135, 1.150),
-    (0.370, 0.874, 0.955, 0.790, 1.148, 0.635, 1.270, 1.290),
-    (0.070, 0.871, 0.963, 0.780, 1.188, 0.655, 1.365, 1.395),
-    (-0.300, 0.870, 0.970, 0.775, 1.203, 0.660, 1.400, 1.440),
-    (-0.800, 0.870, 0.980, 0.772, 1.193, 0.655, 1.380, 1.422),
-    (-1.100, 0.868, 0.988, 0.765, 1.183, 0.645, 1.350, 1.388),
-    (-1.350, 0.866, 0.995, 0.748, 1.158, 0.622, 1.300, 1.330),
-    (-1.600, 0.860, 1.010, 0.724, 1.128, 0.580, 1.220, 1.245),
-    (-1.850, 0.852, 1.034, 0.705, 1.098, 0.520, 1.128, 1.140),
-    (-2.050, 0.840, 1.060, 0.685, 1.085, 0.460, 1.092, 1.100),
-    (-2.220, 0.845, 1.052, 0.668, 1.078, 0.425, 1.083, 1.088),
-    (-2.330, 0.830, 1.025, 0.650, 1.055, 0.400, 1.060, 1.065),
+    (2.380, 0.775, 0.672, 0.630, 0.708, 0.385, 0.721, 0.726),
+    (2.250, 0.862, 0.703, 0.718, 0.735, 0.415, 0.747, 0.751),
+    (2.100, 0.898, 0.735, 0.745, 0.766, 0.425, 0.779, 0.783),
+    (1.850, 0.903, 0.775, 0.755, 0.806, 0.432, 0.820, 0.824),
+    (1.450, 0.902, 0.820, 0.760, 0.848, 0.435, 0.862, 0.866),
+    (1.200, 0.900, 0.846, 0.760, 0.873, 0.435, 0.887, 0.891),
+    (1.000, 0.897, 0.870, 0.765, 0.898, 0.448, 0.912, 0.917),
+    (0.880, 0.894, 0.884, 0.780, 0.922, 0.495, 0.938, 0.944),
+    (0.600, 0.889, 0.902, 0.805, 1.012, 0.588, 1.075, 1.092),
+    (0.300, 0.885, 0.914, 0.795, 1.105, 0.642, 1.228, 1.255),
+    (0.000, 0.882, 0.924, 0.785, 1.158, 0.662, 1.338, 1.375),
+    (-0.300, 0.881, 0.934, 0.780, 1.180, 0.667, 1.392, 1.438),
+    (-0.700, 0.880, 0.946, 0.776, 1.176, 0.662, 1.378, 1.418),
+    (-1.050, 0.878, 0.960, 0.765, 1.155, 0.642, 1.328, 1.362),
+    (-1.350, 0.875, 0.976, 0.748, 1.130, 0.612, 1.262, 1.288),
+    (-1.650, 0.869, 0.998, 0.725, 1.102, 0.562, 1.182, 1.198),
+    (-1.950, 0.862, 1.030, 0.703, 1.082, 0.502, 1.103, 1.108),
+    (-2.150, 0.857, 1.050, 0.692, 1.082, 0.462, 1.093, 1.098),
+    (-2.260, 0.855, 1.054, 0.682, 1.080, 0.432, 1.088, 1.093),
+    (-2.370, 0.845, 1.042, 0.668, 1.068, 0.407, 1.076, 1.080),
 ]
 
-F_NOSE = 2.340
-F_TAIL = -2.330
-ROLL_R = 0.038        # radius of the fillet that rolls the nose and tail rims into the fascias
+F_NOSE = 2.380
+F_TAIL = -2.370
+ROLL_R = 0.024        # radius of the fillet that rolls the nose and tail rims into the fascias
 ROLL_STEPS = 2
 
 FRONT_AXLE = 1.450
@@ -162,7 +167,7 @@ REAR_AXLE = -1.370
 AXLE_Z = 0.330
 ARCH_R_F = 0.372
 ARCH_R_R = 0.372
-WHEEL_X = 0.790
+WHEEL_X = 0.800
 TYRE_R = 0.330
 TYRE_W = 0.225
 
@@ -175,34 +180,34 @@ GAP_DEPTH = 0.005
 
 # (f0, j_lo, j_hi): a gap running across the car at station f0, over that ring span.
 TRANS_GAPS = [
-    (2.255, 14.5, 22.0),    # bonnet front edge, over the headlamps
-    (1.022, 14.5, 22.0),    # bonnet rear edge, at the cowl
+    (2.290, 14.5, 22.0),    # bonnet front edge, over the headlamps
+    (0.915, 14.5, 22.0),    # bonnet rear edge, at the cowl
     (0.985, 4.60, 13.05),   # front door front cut, behind the front arch
     (-0.140, 4.60, 13.05),  # front / rear door split, under the B-pillar
     (-1.050, 4.60, 13.05),  # rear door rear cut, down into the rear arch
-    (-1.960, 14.5, 22.0),   # boot lid front edge, at the foot of the backlight
-    (-2.255, 14.5, 22.0),   # boot lid rear edge, where the deck turns down
+    (-1.975, 14.5, 22.0),   # boot lid front edge, at the foot of the backlight
+    (-2.290, 14.5, 22.0),   # boot lid rear edge, where the deck turns down
 ]
 # (j0, f_lo, f_hi): a gap running along the car at ring j0, over that station span.
 LONG_GAPS = [
-    (14.5, 1.022, 2.255),    # bonnet side, where the wing top turns over
-    (14.5, -2.255, -1.960),  # boot lid side
+    (14.5, 0.915, 2.290),    # bonnet side, where the wing top turns over
+    (14.5, -2.290, -1.975),  # boot lid side
     (13.05, -1.050, 0.985),  # door tops (the belt line)
     (4.60, -1.050, 0.985),   # door bottoms, at the sill step
 ]
 
 SHOULDER_J = 10.0
 SHOULDER_CREASE = 1.0
-SHOULDER_RIDGE = 0.011
-SHOULDER_FADE = (2.05, 2.30)
+SHOULDER_RIDGE = 0.014
+SHOULDER_FADE = (2.08, 2.33)
 
 # --- the glasshouse -----------------------------------------------------------------------------
-A_PILLAR = [(13.30, 0.820), (14.60, 0.760), (15.60, 0.685), (16.60, 0.590),
-            (17.60, 0.470), (18.60, 0.310), (19.60, 0.170), (20.60, 0.110), (22.00, 0.090)]
-COWL = [(14.00, 0.860), (16.00, 0.925), (19.00, 0.968), (22.00, 0.985)]
-C_PILLAR = [(13.30, -1.500), (15.00, -1.440), (16.60, -1.350), (18.50, -1.200)]
-BACKLIGHT_FRONT = [(16.80, -1.380), (18.50, -1.290), (20.00, -1.225), (22.00, -1.190)]
-BACKLIGHT_REAR = [(16.80, -1.850), (19.00, -1.890), (22.00, -1.910)]
+A_PILLAR = [(13.30, 0.730), (14.60, 0.665), (15.60, 0.585), (16.60, 0.480),
+            (17.60, 0.345), (18.60, 0.175), (19.60, 0.030), (20.60, -0.030), (22.00, -0.050)]
+COWL = [(14.00, 0.770), (16.00, 0.832), (19.00, 0.868), (22.00, 0.880)]
+C_PILLAR = [(13.30, -1.470), (15.00, -1.390), (16.60, -1.270), (18.50, -1.080)]
+BACKLIGHT_FRONT = [(16.80, -1.290), (18.50, -1.170), (20.00, -1.100), (22.00, -1.070)]
+BACKLIGHT_REAR = [(16.80, -1.860), (19.00, -1.900), (22.00, -1.920)]
 PILLAR_HALF = 0.050
 ## The B-pillar applique (piano black over the glass) and the quarter-light divider in line
 ## with the rear door cut: (f centre, half width).
@@ -212,10 +217,10 @@ QUARTER_BAR = (-1.062, 0.016)
 # --- the cage's own resolution ------------------------------------------------------------------
 BASE_RINGS = [0.0, 1.8, 2.7, 3.6, 4.35, 5.1, 6.8, 8.6, 9.3, 9.65, 10.0, 10.35, 10.9,
               11.9, 12.95, 13.7, 14.6, 15.6, 16.6, 17.6, 18.6, 19.6, 20.6, 21.4, 22.0]
-BASE_STATIONS = [2.340, 2.29, 2.20, 2.10, 1.98, 1.85, 1.70, 1.56, 1.450, 1.30, 1.16, 1.08,
+BASE_STATIONS = [2.380, 2.33, 2.20, 2.10, 1.98, 1.85, 1.70, 1.56, 1.450, 1.30, 1.16, 1.08,
                  0.94, 0.82, 0.68, 0.52, 0.36, 0.20, 0.05, -0.05, -0.26, -0.40, -0.56, -0.72,
                  -0.88, -0.98, -1.14, -1.26, -1.370, -1.50, -1.62, -1.74, -1.86, -2.06,
-                 -2.16, -2.23, -2.29, -2.330]
+                 -2.16, -2.23, -2.32, -2.370]
 
 
 # --- small numeric helpers ----------------------------------------------------------------------
@@ -693,7 +698,7 @@ def build_body(mats):
         verts[i][k].co -= normal_at(i, k) * GAP_DEPTH
 
     sh_rings = {}
-    for want, amount in ((SHOULDER_J, 1.0), (SHOULDER_J - 0.35, 0.38), (SHOULDER_J + 0.35, 0.30)):
+    for want, amount in ((SHOULDER_J, 1.0), (SHOULDER_J - 0.35, -0.30), (SHOULDER_J + 0.35, 0.55)):
         key = round(want, 6)
         if key in ring_index:
             sh_rings[ring_index[key]] = amount
@@ -1009,9 +1014,9 @@ def build_glasshouse(surf, mats):
 ## (x_inboard, x_outboard, z_centre in, z_centre out, height in, height out, end, material,
 ## mirrored). Tapered blades, as on the GT: a lamp that narrows toward one end reads as designed.
 LAMP_SPECS = [
-    (0.350, 0.815, 0.598, 0.622, 0.082, 0.056, 1.0, LIGHT_F, True),
-    (0.280, 0.835, 0.900, 0.892, 0.080, 0.125, -1.0, LIGHT_R, True),
-    (-0.280, 0.280, 0.905, 0.905, 0.030, 0.030, -1.0, LIGHT_R, False),
+    (0.330, 0.790, 0.660, 0.684, 0.056, 0.034, 1.0, LIGHT_F, True),
+    (0.250, 0.870, 0.905, 0.890, 0.045, 0.125, -1.0, LIGHT_R, True),
+    (-0.260, 0.260, 0.905, 0.905, 0.030, 0.030, -1.0, LIGHT_R, False),
 ]
 LAMP_INSET_X = 0.016
 LAMP_INSET_Z = 0.010
@@ -1083,17 +1088,17 @@ def build_lamps(surf, mats):
     # Two projector cups behind each headlamp lens, and a dark bezel strip under them: the lamp
     # needs something in it or the lens reads as a painted shape.
     for side in (1.0, -1.0):
-        for x0 in (0.470, 0.620):
+        for x0 in (0.430, 0.540, 0.650):
             x = side * x0
-            z0 = 0.598 + (0.622 - 0.598) * (x0 - 0.350) / (0.815 - 0.350)
+            z0 = 0.660 + (0.684 - 0.660) * (x0 - 0.330) / (0.790 - 0.330)
             loc = fascia_hit(surf, x, z0, 1.0)
             if loc is None:
                 continue
             fy = loc.y - LAMP_DEPTH - 0.004
             n_seg = 12
-            ring = [bm.verts.new((x + 0.022 * math.cos(a), fy, z0 + 0.022 * math.sin(a)))
+            ring = [bm.verts.new((x + 0.016 * math.cos(a), fy, z0 + 0.012 * math.sin(a)))
                     for a in [2 * math.pi * q / n_seg for q in range(n_seg)]]
-            deep = [bm.verts.new((x + 0.015 * math.cos(a), fy - 0.022, z0 + 0.015 * math.sin(a)))
+            deep = [bm.verts.new((x + 0.011 * math.cos(a), fy - 0.018, z0 + 0.008 * math.sin(a)))
                     for a in [2 * math.pi * q / n_seg for q in range(n_seg)]]
             for q in range(n_seg):
                 q2 = (q + 1) % n_seg
@@ -1233,20 +1238,20 @@ def build_handles_and_flap(surf, mats):
 def build_mirrors(surf, mats, extra):
     bm = bmesh.new()
     for side in (1.0, -1.0):
-        root, n = surf.on_body(0.795, 13.25, side)
-        head = Vector((side * 0.985, 0.735, 1.030))
+        root, n = surf.on_body(0.715, 13.25, side)
+        head = Vector((side * 0.995, 0.655, 1.000))
         path = [root + n * 0.004,
                 root.lerp(head, 0.5) + Vector((0, 0, 0.012)),
                 head]
         sweep_tube(bm, path, lambda i: (0.032, 0.024, 0.020)[i], TRIM, segs=8, caps=True)
         hb = bmesh.new()
-        add_box(hb, (0.095, 0.105, 0.120), (side * 1.030, 0.725, 1.043), PAINT)
+        add_box(hb, (0.095, 0.105, 0.115), (side * 1.040, 0.645, 1.012), PAINT)
         bmesh.ops.recalc_face_normals(hb, faces=hb.faces)
         hob = new_object("mirror_head", hb, mats)
         bevel(hob, 0.026, segments=2, angle=40.0)
         subsurf(hob, 1)
         gb = bmesh.new()
-        add_box(gb, (0.080, 0.010, 0.100), (side * 1.034, 0.6735, 1.041), GLASS)
+        add_box(gb, (0.080, 0.010, 0.095), (side * 1.044, 0.5935, 1.010), GLASS)
         bmesh.ops.recalc_face_normals(gb, faces=gb.faces)
         gob = new_object("mirror_glass", gb, mats)
         for poly in gob.data.polygons:
@@ -1267,21 +1272,50 @@ def slats(bm, x0, x1, z0, z1, f_front, depth, n, mat=TRIM, thick=0.010, uprights
         add_box(bm, (thick, depth * 0.8, z1 - z0), (x, fc - depth * 0.1, (z0 + z1) * 0.5), mat)
 
 
+## The mouths, as (half width, z bottom, z top, x centre, mirrored): a slim dark slot joining
+## the headlamps under the bonnet's leading edge, a wide low grille, and a small vertical
+## intake at each corner of the bumper. Pockets POCKET deep behind the fascia, each placed off
+## the fascia where it is (a box placed off a guessed station missed the nose entirely).
+MOUTHS = [
+    (0.305, 0.652, 0.676, 0.0, False),
+    (0.560, 0.330, 0.495, 0.0, False),
+    (0.050, 0.300, 0.390, 0.650, True),
+]
+POCKET = 0.045
+
+
+def mouth_cutters(surf, mats):
+    out = []
+    for hw, z0, z1, xc, mirror in MOUTHS:
+        for side in ((1.0, -1.0) if mirror else (1.0,)):
+            loc = fascia_hit(surf, side * xc, (z0 + z1) * 0.5, 1.0)
+            if loc is None:
+                print("  mouth missed the fascia:", hw, z0, z1, xc)
+                continue
+            back = loc.y - POCKET
+            out.append(box_cutter((hw * 2.0, 0.40, z1 - z0), (side * xc, back + 0.20, (z0 + z1) * 0.5),
+                                  mats, 0.008))
+    return out
+
+
 def build_front_end(surf, mats):
     bm = bmesh.new()
-    # Upper grille: slats in the mouth. Lower intake: a mesh of fins behind the bumper.
-    slats(bm, -0.300, 0.300, 0.478, 0.572, 2.440, 0.050, 4, TRIM, uprights=0)
-    slats(bm, -0.440, 0.440, 0.262, 0.358, 2.430, 0.050, 3, TRIM, uprights=9)
+    # A fine mesh in the low grille (horizontal bars and uprights, set back in the pocket).
+    hw, z0, z1, _xc, _m = MOUTHS[1]
+    loc = fascia_hit(surf, 0.0, (z0 + z1) * 0.5, 1.0)
+    if loc:
+        slats(bm, -hw + 0.01, hw - 0.01, z0 + 0.008, z1 - 0.008, loc.y - 0.012, 0.022, 5, TRIM,
+              thick=0.008, uprights=15)
     # Chin spoiler along the bottom rim of the nose.
     build_lip(bm, 0.40, 5.0, 1.0, 0.030, 0.010, 0.016)
-    # Badge recess on the upper grille bar: a recess, and nothing in it.
-    loc = fascia_hit(surf, 0.0, 0.610, 1.0)
+    # Badge recess on the nose between the slot and the grille: a recess, and nothing in it.
+    loc = fascia_hit(surf, 0.0, 0.590, 1.0)
     if loc:
         n_seg = 16
         outer, inner = [], []
         for k in range(n_seg):
             a = 2 * math.pi * k / n_seg
-            d = Vector((0.050 * math.cos(a), 0.0, 0.028 * math.sin(a)))
+            d = Vector((0.046 * math.cos(a), 0.0, 0.024 * math.sin(a)))
             outer.append(bm.verts.new(loc + d + Vector((0, 0.001, 0))))
             inner.append(bm.verts.new(loc + d * 0.86 - Vector((0, 0.006, 0))))
         for k in range(n_seg):
@@ -1380,12 +1414,15 @@ def build():
     body = build_body(mats)
 
     boolean(body, arch_cutter(mats))
-    # Upper grille mouth, lower intake, and the black lower valance band across the tail.
-    boolean(body, box_cutter((0.640, 0.300, 0.115), (0.0, 2.560, 0.525), mats))
-    boolean(body, box_cutter((0.940, 0.300, 0.115), (0.0, 2.540, 0.310), mats))
-    boolean(body, box_cutter((1.300, 0.300, 0.085), (0.0, -2.520, 0.300), mats, 0.012))
-    # Number-plate recess on the boot lid's tail face, between the lamps.
-    boolean(body, box_cutter((0.540, 0.300, 0.125), (0.0, -2.540, 0.765), mats, 0.010))
+    # The front mouths, the black lower valance band across the tail and the number-plate
+    # recess between the tail lamps, each a pocket placed off the fascia where it really is.
+    surf0 = Surface(body)
+    for cutter in mouth_cutters(surf0, mats):
+        boolean(body, cutter)
+    for w, h, z, r in ((1.380, 0.125, 0.320, 0.012), (0.540, 0.125, 0.745, 0.010)):
+        loc = fascia_hit(surf0, 0.0, z, -1.0, limit=1.9)
+        if loc is not None:
+            boolean(body, box_cutter((w, 0.40, h), (0.0, loc.y + 0.030 - 0.20, z), mats, r))
     bevel(body, 0.004, segments=1, angle=42.0)
 
     surf = Surface(body)

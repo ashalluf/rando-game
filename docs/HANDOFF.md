@@ -2246,18 +2246,29 @@ the short version:
 - The hi-fi GT's construction (lofted quad cage from two key tables, `KEYS_LOWER` and
   `KEYS_UPPER`, level-2 subdivision, creased shutlines for bonnet, four doors and boot, recessed
   glass cut by booleans, arch lips, sill mouldings, lamps in recesses) with the ~160k-triangle
-  shell quadric-decimated to 20.5k (`SHELL_TRIS`, env `SEDAN_SHELL_TRIS` to try others). 26.7k
-  triangles in all; the importer makes six LODs (13.3k, 6.7k, 3.3k, 1.7k, 0.8k, 0.4k - the old
-  body had one, at 5.1k) and the shadow twin takes them at `BODY_SHADOW_LOD_BIAS`.
+  shell quadric-decimated to 20.5k (`SHELL_TRIS`, env `SEDAN_SHELL_TRIS` to try others). 26.8k
+  triangles in all; the importer makes four LODs (13.4k, 6.7k, 3.3k, 1.4k - the old body had
+  one, at 5.1k) and the shadow twin takes them at `BODY_SHADOW_LOD_BIAS`.
+- Styling (second pass, after review said the first read as a 1990s car): a low bonnet falling
+  to a crisp 0.72 m leading edge (`ROLL_R` 0.024), slim headlamps joined by a dark slot, a wide
+  low grille with corner intakes (`MOUTHS`, pockets placed off the fascia by raycast - the first
+  version's boxes never reached the nose, and what looked like a grille was slat boxes standing
+  proud of it), a 24-degree windscreen, a fastback roof into a short high deck, a rising
+  character line (`SHOULDER_RIDGE`, the loop under it pulled in so it casts a line), 1.85 m
+  over the arches.
 - ONE surface: parts in the vertex attributes, `car_paint.gdshader` `vertex_slots`. Lamp lenses
   glow by `lamp_factor`. Baked 300-triangle tyres and rims are the far wheel (WHEEL_POSE `cut`).
 - Printed by the run and pasted by hand: the WHEEL_POSE row and `PoliceCar.DOOR_BAND`. The
-  night quads sit at the sedan's lamps through `_dims()["lamp_y"]` (0.47; the old 0.98 put them
-  over the bonnet). The headlight beam quad (`vehicle_lights()`, `0.12 - y`) lies below the
-  road for every body type - found, not fixed.
-- Found, not fixed: `_dims()` collision boxes for every car stand on `base_y` 0.55, so the
-  cabin box floats ~0.5 m above a model's roof (body y 1.25-1.95 against a roof at 1.2).
-- Looks: clean panels, real glass, crisp gaps, round arches, where the Meshy car had a mottled
+  night quads sit at the sedan's lamps through `_dims()["lamp_y"]` (0.53; the old 0.98 put them
+  over the bonnet).
+- Fixed for every car: the headlight beam quad (`vehicle_lights()`) was at `0.12 - y`, a
+  leftover from when each light was its own node, so it lay 0.6 m under the road on every car
+  and no beam was ever drawn; it now takes the body's `ride` and lies 12 cm over the road.
+- Fixed for every model car: `_dims()` collision boxes stood on `base_y` 0.55 - 0.8 m over the
+  road, the cabin box half a metre above the roof. `_box()` now squeezes the same stack onto
+  the model, from `collision_clearance` (0.34 m) over the road to the model's roof. Aircraft
+  keep theirs (identity map).
+- Looks (first pass): clean panels, real glass, crisp gaps, round arches, where the Meshy car had a mottled
   nose, a shape-guessed glass band that ran over its bonnet and faceted arches. The styling is
   plainer than the Meshy car's (a taller, more upright three-box), which is the next thing to
   push if the owner wants it sleeker: `KEYS_UPPER` owns the glasshouse and nose.

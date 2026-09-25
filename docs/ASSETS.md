@@ -191,7 +191,7 @@ class instead.
 | `tools/make_exotic_hyper.py` | `exo_hyper_b.glb` | 0.9 MB | `BodyType.TRACK` | 2026-09-21 |
 | `tools/make_hifi_super.py` | `hifi_super_coupe.glb` | 223k tris, 4.9 MB | not wired in yet | 2026-09-21 |
 | `tools/make_hifi_hyper.py` | `hifi_hyper_coupe.glb` | 217k tris, 5.7 MB | not wired in yet | 2026-09-21 |
-| `tools/make_hifi_sedan.py` | `hifi_sedan.glb` | 26.7k tris (LODs 13k / 6.7k / 3.3k / 1.7k / 0.8k / 0.4k), 0.9 MB, one surface | `BodyType.SEDAN` (and the police cruiser) | 2026-09-25 |
+| `tools/make_hifi_sedan.py` | `hifi_sedan.glb` | 26.8k tris (LODs 13.4k / 6.7k / 3.3k / 1.4k), 0.9 MB, one surface | `BodyType.SEDAN` (and the police cruiser) | 2026-09-25 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position

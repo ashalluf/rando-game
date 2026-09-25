@@ -69,7 +69,7 @@ const POLICE_WHITE := Color(0.93, 0.93, 0.92)
 const HEAVY_PAINT := Color(0.045, 0.060, 0.095)
 ## Livery bands along the car (fractions of its length from the nose): the doors between them
 ## are white. The sedan's own door cuts, as tools/make_hifi_sedan.py prints them.
-const DOOR_BAND := Vector2(0.301, 0.723)
+const DOOR_BAND := Vector2(0.299, 0.719)
 
 var police: Police
 var mode: Mode = Mode.DISPATCH

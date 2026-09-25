@@ -319,7 +319,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   in like side glass and became one long dark smudge. **The sedan** (the commonest car, and the
   police cruiser) is `assets/models/hifi_sedan.glb` from `tools/make_hifi_sedan.py`: the
   hi-fi GT's method (lofted quad cage, subdivision, shutlines, recessed glass, arch lips) with
-  the level-2 shell quadric-decimated to ~20k triangles, 26.7k in all, and ONE surface - its
+  the level-2 shell quadric-decimated to ~20k triangles, 26.8k in all, and ONE surface - its
   glass, rubber, trim, lenses and baked far wheels live in the vertex attributes (COLOR rgb
   albedo, COLOR.a paint mask, UV roughness / metallic, +2 on a lens, which glows by
   `lamp_factor`) and `car_paint.gdshader` reads them when `vertex_slots` is set
@@ -329,7 +329,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   normal across whole doors, so it keeps its own angle-shaded normals; and Blender's glTF
   exporter writes V as 1 - v, so the generator stores 1 - metallic. After a rebuild paste its
   printed `WHEEL_POSE` row into `Vehicle` and its door band into `PoliceCar.DOOR_BAND`
-  (fractions of the length from the nose, for the white doors). The basecoat metallic is
+  (fractions of the length from the nose, for the white doors). Model cars' collision boxes are
+  the primitive car's stack squeezed onto the model (`Vehicle._box()`, `collision_clearance`),
+  and the headlight beam quad takes the body's `ride` (`PropFactory.vehicle_lights()`). The basecoat metallic is
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.

@@ -282,8 +282,8 @@ already mapped so milestone 2 is script-only.
   traffic and the police cruiser) was an 8k-triangle Meshy remesh: polygonal arch lips and
   bumper corners, a mottled baked nose. `tools/make_hifi_sedan.py` builds an original mid-size
   four-door the hi-fi GT's way (lofted quad cage, subdivision, shutlines, recessed glass, arch
-  lips) and decimates the shell to ~20k triangles (26.7k in all, six generated LODs down to
-  400). It is ONE surface: glass, trim, lenses and the baked far wheels are in the vertex
+  lips) and decimates the shell to ~20k triangles (26.8k in all, four generated LODs down to
+  1.4k), styled as a 2020s car (low bonnet, slim lamps, wide low grille, fastback roof). It is ONE surface: glass, trim, lenses and the baked far wheels are in the vertex
   attributes that `car_paint.gdshader` reads with `vertex_slots`, so it stays one draw a car.
   The old `car_sedan.glb` is gone.
 - **2026-09-24 The hills are a Southern-California hillside.** `terrain.gdshader` was one grass
