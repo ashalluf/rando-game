@@ -1561,6 +1561,9 @@ func _test_city() -> void:
 	# Masjid Omar ibn Al-Khattab and the sanctuary rule (tests/masjid_checks.gd): it streams in
 	# modelled and enterable, and no gun fires at it, across it or inside it.
 	await load("res://tests/masjid_checks.gd").new().run(self, city)
+	# Street-level wear (tests/street_wear_checks.gd): tags, posters and stickers on downtown
+	# blocks as one batch a chunk, none near a place of worship, nothing else in the block moved.
+	load("res://tests/street_wear_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

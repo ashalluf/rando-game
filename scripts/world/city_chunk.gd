@@ -353,6 +353,10 @@ func begin_build() -> void:
 	_steps.append(_build_freeway)
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
+	if level == Level.FULL:
+		# Tags, buffs, posters and stickers (StreetWear) on the walls, poles and freeway columns
+		# everything above built. Hash-seeded: the block's rng is untouched.
+		_steps.append(StreetWear.build.bind(self))
 	_steps.append(_finish_build)
 
 
