@@ -278,6 +278,23 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-24 The hills are a Southern-California hillside.** `terrain.gdshader` was one grass
+  texture with a second "rock" layer that was really green grass with pebbles (RockyTerrain02),
+  and both hill sets were imported without mipmaps, so a range read as a shimmering meadow. It
+  is now a splat of four grounds by slope, aspect, height and noise: tawny dry grass (the lawn
+  texture's blades recoloured by luminance, the aerial scan as a 13 m mottle so the grain
+  survives past where the blades mip away), ragged chaparral stands (thicker on north-facing
+  slopes) with single shrubs between, dirt / decomposed granite on the steepest quarter and
+  trails (Poly Haven `dry_ground_rocks`), rock outcrops on the steepest tenth (Poly Haven
+  `rock_face`, recoloured buff-grey), with hillside-scale variation and the rotated second
+  grass sample gated on `ground_detail`. Snow
+  moved from ~690 m to the far ground's own `snow_line` (1150 m) so the near and far agree;
+  above that only the back range's peaks carry it. The layer colours sit in
+  `macro_ground.gdshader`'s natural range. Checked against the far ground numerically: over the
+  front range the near mean albedo is (0.099, 0.087, 0.040) linear against the far ground's
+  (0.089, 0.078, 0.044); the old near was (0.133, 0.097, 0.018). Cost: 7 texture fetches a
+  fragment (8 with `ground_detail`), was 4 (5), and nine value noises (ten), was two (three).
+
 - **2026-09-24 Wrap-up: five branches merged, the hero pass held back.** The owner ended the
   session ("wrap it up and create a handoff"). The Esplanade replica, street life, MacArthur
   Park with the encampments (park off), the 1:1 downtown research (data only) and the distance

@@ -176,6 +176,8 @@ var _canopy_material: ShaderMaterial
 ## Every material that computes the far ground's height (the canopy and anything seated with it),
 ## so the uniforms that height reads are kept in step on all of them.
 var _far_ground_materials: Array[ShaderMaterial] = []
+## The world_offset last pushed to the hills' ground material (INF: never, so a reloaded scene sets it).
+var _terrain_offset := Vector2(INF, INF)
 var _timer: float = 0.0
 ## Chunks being built over several frames, by block, hidden until finished (see _advance_builds).
 var _pending: Dictionary = {}
@@ -620,6 +622,10 @@ func update_streaming(immediate: bool) -> void:
 	for mat in _far_ground_materials:
 		mat.set_shader_parameter("world_offset", offset_xz)
 		mat.set_shader_parameter("plane_origin", Vector2(_ground.position.x, _ground.position.z))
+	# The hills' ground noise and tiles are in true world XZ too, or they jump at every re-centre.
+	if offset_xz != _terrain_offset:
+		_terrain_offset = offset_xz
+		PropFactory.terrain_material().set_shader_parameter("world_offset", offset_xz)
 	var wp := world_position(local)
 	var here := plan.block_index_at(Vector2(wp.x, wp.z))
 	_center_block = here

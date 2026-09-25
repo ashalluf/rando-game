@@ -1404,7 +1404,15 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   texture a second time, rotated and at a different scale, and cross-fades on slow noise. That
   second fetch is gated on the `ground_detail` global, which `Quality` clears on web and below
   MEDIUM. Car parks, port yards and plazas go through `PropFactory.road()` for the same reason. The hill terrain shader does the same thing with the same global: its
-  texture has a directional grain, so at a 5 m tile a long slope turned into corduroy. Keep all of it subtle: the first
+  texture has a directional grain, so at a 5 m tile a long slope turned into corduroy. The hills' ground
+  itself is a splat (`shaders/terrain.gdshader`, `PropFactory.terrain_material()`): tawny dry grass
+  (the lawn texture's blades recoloured by luminance, the `hill` scan as a large-tile mottle),
+  dark olive chaparral in ragged stands and far thicker on north-facing slopes, dirt / decomposed granite (`hill_dirt`) on the steep
+  quarter and on a few trails, rock outcrops (`hill_outcrop`) on the steepest tenth, hillside-scale
+  brightness swings, snow only above the far ground's `snow_line`. Its colours are LINEAR and sit
+  in `macro_ground.gdshader`'s natural range so a range matches across the horizon handoff, and
+  it reads TRUE world XZ (`world_offset`, pushed by `CityStreamer`) so nothing jumps on a
+  re-centre. Keep all of it subtle: the first
   pass used strong patch blends and dark joints and the ground read as a printed pattern rather
   than a surface.
   The "patch" batch (resurfacing patches, oil, wheel tracks, braking polish, locate paint -
