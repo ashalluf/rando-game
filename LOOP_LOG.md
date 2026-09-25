@@ -51,3 +51,4 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   `<scratchpad>/gh/sky_sheet3.png`. Perf: ~25 ALU on sky pixels only while smoggy. Verdict:
   clearly better away from the sun, sideways toward it (hazier, less punchy).
 - Street clutter and golden hour merged; PERF pass 1 and crowd skin/cloth launched.
+- **Hill ground splat** (roadmap #1) - merged dfdeefa - done. Before `<scratchpad>/bookmarks/base_18c1bcb/hills2.png`, after `<scratchpad>/hills/final3/hills2.png`, A/B `<scratchpad>/hills/cmp_hills2_final.png`. Near/far mean albedo now within ~11 %. Perf: terrain fragment ~1.8-2x (7 fetches + 9 noises, was 4 + 2). Follow-ups: #19 (chaparral reads as cloud shadows), #18 (mipmaps off on 14 sets).
