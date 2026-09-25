@@ -1741,7 +1741,7 @@ geographically sound", "you should also have macarthur park".
 **LANDED (2026-09-25, branch wt/downtown-relay).** The re-lay (`tools/downtown_relay/relay.patch`,
 a diff against 006e57c) no longer applied - main had MacArthur Park on, the masjid replica with
 its sanctuary, the Esplanade's coast and headland, the distance tiers - so it was ported by hand
-and gated; the headless check passes (467 checks after merging main at 6330409), `tests/downtown_checks.gd` included. What
+and gated; the headless check passes (472 checks after merging main at f9f3129), `tests/downtown_checks.gd` included. What
 moved, and what differs from the patch:
 
 - **Downtown**: the real grid pinned on every seed, the 19 towers and 9 civic sites on their
@@ -1788,7 +1788,11 @@ the 110, which is Bunker Hill's real west edge). `street_life_checks` prints wha
 the cruiser when it pulls up off its kerb point: in the early gate runs it stopped 0.2, 2.5, 0.2
 and once 4.2 m off (the limit is 3.0); 73553af also accepts the kerb nearest where the player
 ends up (block 0,0 is 100 x 200 m now and he can be nudged while the cruiser follows him), and
-the last two gates read 0.6 m, as main does - watch it.
+the last gates read 0.6 m, as main does - watch it. Main's hill-planting check ("nothing
+planted on rock or bare cuts") recomputed each shrub's slope from the analytic `height_at()`;
+at its hill spot on the 1:1 map two of 445 shrubs read as rock that way and not on the drawn
+terrain grid, which is what the planting and the shader use - it now asks the chunk for
+`_terrain_height()` (1143a72).
 
 Consequence to know: a pinned road runs the whole map, so every block between z -1726 and 2000,
 anywhere in the basin, has downtown's street spacing (164-437 m) on that axis.
