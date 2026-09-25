@@ -2614,7 +2614,7 @@ func _add_slab(pos: Vector3, size: Vector3, color: Color, collide: bool = true, 
 ## flat colour, road() works in world space) or reads BoxMesh's UV atlas, which does not depend
 ## on the size, and the whole set still casts and receives like before.
 ## `merge_boxes` false builds them one node each, as before (the A/B for a frame-cost
-## measurement: still_shot.gd MERGE_BOXES=0).
+## measurement: still_shot.gd MERGE_STATIC=0).
 static var merge_boxes: bool = true
 ## Material -> [verts, normals, tangents, uvs, indices].
 var _boxes: Dictionary = {}

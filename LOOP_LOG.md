@@ -127,3 +127,11 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 - **Hi-fi sedan** (#22) - not merged yet: clean render and -6.5 % vehicle tris, but styling reads
   dated (bulb nose, tall slatted grille). Sent back for one styling pass. Sheets
   `<scratchpad>/sedan/ba_sedan_day.png`, `ba_police_day.png`.
+- **Regression audit (wave 5)** - reported. No breakage; sanctuary checks all pass; web-safe.
+  Regressions: MacArthur far palms +2 M tris toward the park (#32, to tree LOD); hill ground on
+  Compatibility smoother/camo-ish (#33); front range emptier (intentional, WAITING ON ASH);
+  closed-road recycle masks a root cause (traffic fixes since then address the real paths).
+  Perf: downtown -7.9 % draws, hills -39 % draws, triangles flat except masjid view.
+  Evidence `<scratchpad>/audit5/`.
+- **OWNER reports** (2026-09-25): port in the middle of the city (#29), freeways through
+  downtown buildings (#30) -> re-lay agent; more homeless downtown (#31) -> new agent.
