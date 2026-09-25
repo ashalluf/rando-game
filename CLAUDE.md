@@ -120,7 +120,8 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   blocky - with a `--texture-prompt` for skin and fabric. The existing
   cars, pedestrians and jets were made with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
-  `python3 tools/shrink_glb.py assets/models/<name>.glb`, commit the `.glb`, its `.json`, the
+  `python3 tools/shrink_glb.py assets/models/<name>.glb` (a hard-surface model like a car also
+  gets `python3 tools/smooth_normals.py assets/models/<name>.glb`, see the car paint note), commit the `.glb`, its `.json`, the
   extracted `_N.jpg` textures and all `.import` files, and add a row to `docs/ASSETS.md`.
   **Owner's rule: every Meshy prompt asks for the most ultra-realistic result possible** (the
   tool appends that wording itself; never pass `--plain` or ask for cartoon / low-poly looks).
@@ -166,7 +167,7 @@ scripts/               player, weapons, world, vehicles, npc, util, ui
 shaders/
 assets/                textures/ (CC0 sets) and models/ (Meshy .glb + .json)
 tests/                 headless smoke test and check script
-tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
+tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (screenshot harness)
 ```
 
 ## Conventions
@@ -305,7 +306,17 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (which faces a little downward) mirrored pale-blue sky - a dark red pickup read as ice-blue,
   and with the clearcoat off the same car was dark red. `sky.gdshader` now puts the street
   (`reflect_ground`, a warm grey following the horizon's brightness) under the horizon in the
-  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The basecoat metallic is
+  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The four Meshy bodies
+  (sedan, pickup, van, sports) were also flat-shaded: ~8k-triangle remeshes exported with the
+  normals split at 30 degrees and along every UV seam, so a curved wing was a set of facets and
+  the lacquer mirrored each one. `tools/smooth_normals.py` (run once on the `.glb`, then
+  `--import`) re-smooths them by angle: triangles joined through bends under 45 degrees share
+  one angle-weighted normal, sharper bends stay hard, UV seams no longer crease, no triangle
+  is added (`--report` prints the crease table). The exotics are Blender-built with their
+  creases on purpose; leave them. Smooth normals drift slowly through the glass slope band, so
+  the geometric glass test blends over one pixel (`fwidth`), not a fixed 0.04, and
+  `Vehicle.GEO_GLASS_SPAN` keeps the van's glass to its cab - its flanks behind the cab turn
+  in like side glass and became one long dark smudge. The basecoat metallic is
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.

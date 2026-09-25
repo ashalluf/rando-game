@@ -95,7 +95,9 @@ sending a subject-free texture prompt; J, K and L were made after the fix and ma
 
 All seven were first made as low-poly cartoon models (147 credits) and then regenerated with the
 owner's realism rule on Meshy's standard model (252 credits). Car base colors are greyscaled and
-brightened (`tools/shrink_glb.py --desaturate`) so the seeded paint tint gives the color.
+brightened (`tools/shrink_glb.py --desaturate`) so the seeded paint tint gives the color, and
+their normals re-smoothed by angle (`tools/smooth_normals.py`, 45 degrees; the export split
+them at 30 degrees and on every UV seam, which shaded the bodies as facets).
 
 Godot extracts each model's textures next to it on import (`<model>_N.jpg` + `.import`); those
 files are committed like any other import output.
