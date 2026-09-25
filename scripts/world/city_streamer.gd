@@ -936,10 +936,12 @@ func _build_ground_material() -> ShaderMaterial:
 	var size := 160 if OS.has_feature("web") else 256
 	var img := plan.macro.bake(Vector2.ZERO, macro_span, size)
 	var tex := ImageTexture.create_from_image(img)
+	var htex := ImageTexture.create_from_image(plan.macro.bake_height)
 	_canopy_material = ShaderMaterial.new()
 	_canopy_material.shader = load("res://shaders/far_canopy.gdshader")
 	for m in [mat, _canopy_material]:
 		m.set_shader_parameter("macro_tex", tex)
+		m.set_shader_parameter("macro_height_tex", htex)
 		m.set_shader_parameter("macro_centre", Vector2.ZERO)
 		m.set_shader_parameter("macro_span", macro_span)
 		m.set_shader_parameter("macro_height", MacroMap.BAKE_HEIGHT_SCALE)

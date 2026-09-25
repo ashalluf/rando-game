@@ -49,7 +49,7 @@ const HILL_TRIES := 28
 ## A mound grows toward the top of its range deeper into a stand, so a stand's heart is one
 ## overlapping mass and its edge a few loose shrubs; and nothing below `HILL_MOUND_MIN` brush.
 const HILL_MOUND_RADIUS := Vector2(4.5, 11.0)
-const HILL_MOUND_MIN := 0.6
+const HILL_MOUND_MIN := 0.72
 const HILL_MOUND_HEIGHT := Vector2(2.0, 3.4)
 const HILL_OAK_RADIUS := Vector2(3.5, 5.5)
 const HILL_OAK_HEIGHT := Vector2(5.5, 8.0)
@@ -58,7 +58,7 @@ const HILL_OAK_HEIGHT := Vector2(5.5, 8.0)
 ## brush where the painted stand averages in the shade between the bushes (at half this, the
 ## mounds measured 44/255 against the painted stand's 78 and read as holes in the hill). The
 ## oaks darker and greener.
-const HILL_BRUSH_COLOR := Color(0.15, 0.16, 0.085)
+const HILL_BRUSH_COLOR := Color(0.17, 0.18, 0.12)
 const HILL_OAK_COLOR := Color(0.11, 0.14, 0.065)
 ## Street trees: metres between them along a kerb (the chunks plant every
 ## CityStreamer.tree_spacing x CityChunk.street_tree_spacing, about 10 m) - the far city plants
@@ -833,7 +833,7 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 			var step: float = lat.step
 			var grad := Vector2(_lattice_height(lat, p + Vector2(step, 0.0)) - _lattice_height(lat, p - Vector2(step, 0.0)),
 				_lattice_height(lat, p + Vector2(0.0, step)) - _lattice_height(lat, p - Vector2(0.0, step))) / (2.0 * step)
-			var g := HillPlanting.ground(p, grad, false)
+			var g := HillPlanting.ground(p, grad, false, _plan.macro.drainage_at(p))
 			if float(g.rocky) > 0.3 or float(g.bare) > 0.4:
 				continue
 			var hollow := HillPlanting.hollow(p, gy, step * 1.5, _lat_h.bind(lat))

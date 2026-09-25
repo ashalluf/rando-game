@@ -962,10 +962,13 @@ func _build_terrain() -> void:
 			var z := area.position.y + area.size.y * j / n
 			var h := plan.height_at(Vector2(x, z))
 			heights[j * (n + 1) + i] = h
-			# COLOR.r is the height the terrain shader blends rock and snow from. Rescaled for
-			# the real ranges: 160 m used to be "fully rock", and the back range is 1150.
+			# COLOR.r is the height (0..1 over 40..940 m), COLOR.g the drainage the height field
+			# was cut with (MacroMap.last_drain, left by the height_at() just above: 0 a spur's
+			# crest, 0.5 open slope, 1 a gully's line), which terrain.gdshader paints brush,
+			# scree and rock from - the same field HillPlanting plants by.
 			var t := clampf((h - 40.0) / 900.0, 0.0, 1.0)
-			st.set_color(Color(t, 0.0, 0.0, 1.0))
+			var drain := plan.macro.last_drain if plan.macro else 0.0
+			st.set_color(Color(t, drain * 0.5 + 0.5, 0.0, 1.0))
 			st.add_vertex(Vector3(x, h, z))
 	for j in n:
 		for i in n:
@@ -1147,7 +1150,7 @@ func _plant_hills() -> bool:
 				continue
 			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
 				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25
-			var g := HillPlanting.ground(p, grad)
+			var g := HillPlanting.ground(p, grad, true, plan.macro.drainage_at(p))
 			# Nothing on the rock or the bare cuts and trails.
 			if float(g.rocky) > 0.3 or float(g.bare) > 0.4:
 				continue

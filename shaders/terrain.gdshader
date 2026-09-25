@@ -37,34 +37,43 @@ uniform float mottle_mean_luma = 0.126;
 uniform float dirt_mean_luma = 0.203;
 uniform float rock_mean_luma = 0.072;
 // Straw on a pale, burnt hillside and on a greener, later-drying one (LINEAR albedo).
-uniform vec3 straw_color = vec3(0.175, 0.135, 0.055);
-uniform vec3 straw_green_color = vec3(0.120, 0.104, 0.040);
+uniform vec3 straw_color = vec3(0.150, 0.124, 0.074);
+uniform vec3 straw_green_color = vec3(0.106, 0.100, 0.064);
 // Chaparral: the brush with the shade between the bushes (LINEAR).
-uniform vec3 chaparral_color = vec3(0.045, 0.062, 0.025);
+uniform vec3 chaparral_color = vec3(0.050, 0.056, 0.036);
 // Decomposed granite and dirt (LINEAR), and how much of the dirt texture's own orange survives.
-uniform vec3 dirt_color = vec3(0.170, 0.130, 0.080);
+uniform vec3 dirt_color = vec3(0.150, 0.126, 0.094);
 uniform float dirt_keep_hue : hint_range(0.0, 1.0) = 0.25;
 // How much bare ground shows between the thinnest grass tufts, up close.
 uniform float bare_between : hint_range(0.0, 1.0) = 0.7;
 // Rock outcrops, buff sandstone going grey (LINEAR), and how much of the texture's hue stays.
-uniform vec3 rock_color = vec3(0.115, 0.102, 0.086);
+uniform vec3 rock_color = vec3(0.112, 0.106, 0.096);
 uniform float rock_keep_hue : hint_range(0.0, 1.0) = 0.15;
 // How much of the ground is chaparral, and how much more of it the north-facing slopes carry.
-uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.45;
-uniform float north_brush : hint_range(0.0, 1.0) = 0.25;
+// Chaparral is the hills' DOMINANT cover (the grass is the exception, on gentle south slopes).
+uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.66;
+uniform float north_brush : hint_range(0.0, 1.0) = 0.3;
+// How much more brush the gullies carry and how much less the spur crests (the drainage the
+// height field was cut with, MacroMap.last_drain, in COLOR.g), and how much less the gentle
+// ground carries - benches and saddles are where the grass is.
+uniform float drain_brush : hint_range(0.0, 1.0) = 0.3;
+uniform float gentle_grass : hint_range(0.0, 1.0) = 0.4;
+// Scree and dirt down the steep gullies, and rock breaking out along the spur crests.
+uniform float gully_scree : hint_range(0.0, 1.0) = 0.5;
+uniform float crest_rock : hint_range(0.0, 1.0) = 0.8;
 // Single shrubs (sage, buckwheat) dotted through the open grass.
 uniform float sage_amount : hint_range(0.0, 1.0) = 0.5;
 // Slope (1 - normal.y) where bare dirt starts and has taken over, and where rock does. The
 // ranges are steep (median slope 0.14, 31 degrees; 0.30 is the steepest quarter, 0.45 the
 // steepest tenth), so most of a hillside stays grass and brush, as the real ones do.
-uniform float dirt_slope_start : hint_range(0.0, 1.0) = 0.36;
-uniform float dirt_slope_end : hint_range(0.0, 1.0) = 0.56;
-uniform float rock_slope_start : hint_range(0.0, 1.0) = 0.45;
-uniform float rock_slope_end : hint_range(0.0, 1.0) = 0.66;
+uniform float dirt_slope_start : hint_range(0.0, 1.0) = 0.42;
+uniform float dirt_slope_end : hint_range(0.0, 1.0) = 0.62;
+uniform float rock_slope_start : hint_range(0.0, 1.0) = 0.5;
+uniform float rock_slope_end : hint_range(0.0, 1.0) = 0.72;
 // Fire roads and foot trails across the open slopes; 0 turns them off.
 uniform float trail_amount : hint_range(0.0, 1.0) = 0.8;
 // Brightness swing between one hillside and the next, so a range is never one tile.
-uniform float macro_variation : hint_range(0.0, 1.0) = 0.22;
+uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
 // Metres above sea level the snow starts: the far ground's `snow_line`, keep them equal.
 uniform vec3 snow_color = vec3(0.58, 0.60, 0.66);
 uniform float snow_line = 1150.0;
@@ -74,11 +83,13 @@ global uniform float ground_detail;
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
+varying float drain;
 
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = MODEL_NORMAL_MATRIX * NORMAL;
+	drain = COLOR.g * 2.0 - 1.0;
 }
 
 
@@ -148,9 +159,17 @@ void fragment() {
 	// `coverage` is the share of the ground the brush takes here; the threshold is where the
 	// patch noise (mean 0.5) leaves about that share below it. A third, finer octave and the
 	// bush noise rag the stand's edge so it reads as shrubs, not as camouflage blobs.
-	float coverage = chaparral_amount + north * north_brush + (hill - 0.5) * 0.3;
+	// The stands follow the land, not a blob noise: brush fills the gullies and the north faces,
+	// the grass holds the gentle ground and the sunny side, and the patch noise only rags the
+	// edge, with most of its weight at the scale of single bushes.
+	float gentle = 1.0 - smoothstep(0.06, 0.22, slope);
+	// The sunny side loses less brush than the shaded side gains: from the basin the south
+	// faces are what you see, and they are brush with grass between, not grass with brush.
+	float south = max(-north, 0.0);
+	float coverage = chaparral_amount + max(north, 0.0) * north_brush - south * 0.1
+		+ drain * drain_brush - gentle * (0.5 + 0.5 * south) * gentle_grass + (hill - 0.5) * 0.2;
 	float th = 0.5 + (coverage - 0.5) * 0.45;
-	float frag = patchy * 0.8 + vnoiset(w * 0.12 + 17.0) * 0.2 + (bush - 0.5) * 0.08;
+	float frag = patchy * 0.35 + vnoiset(w * 0.12 + 17.0) * 0.35 + (bush - 0.5) * 0.3 + 0.15;
 	float brush = smoothstep(th + 0.045, th - 0.045, frag);
 	// Gaps between the bushes of a stand, where the straw shows through, and single shrubs out
 	// in the open grass.
@@ -162,6 +181,8 @@ void fragment() {
 
 	// ---- dirt: steep cuts and road banks, the odd bare patch, trails -----------------------
 	float bare = smoothstep(dirt_slope_start, dirt_slope_end, slope + (patchy - 0.5) * 0.3);
+	// Scree fans down the steep gullies.
+	bare = max(bare, smoothstep(0.3, 0.8, drain) * smoothstep(0.32, 0.48, slope) * gully_scree);
 	// Trails: one contour of a slow noise, about a metre wide, only on some hillsides and off the
 	// steep ground. fwidth keeps it a line rather than a stair of pixels from far off.
 	float tn = vnoiset(w * 0.0065 + 41.0);
@@ -177,6 +198,9 @@ void fragment() {
 	float crag = vnoiset(w * 0.021 + 29.0);
 	float rocky = smoothstep(rock_slope_start, rock_slope_end, slope + (crag - 0.5) * 0.22);
 	rocky = max(rocky, smoothstep(0.78, 0.86, crag * 0.7 + patchy * 0.3) * smoothstep(0.10, 0.22, slope));
+	// Rock along the spur crests, broken into outcrops.
+	rocky = max(rocky, smoothstep(0.2, 0.7, -drain) * smoothstep(0.14, 0.3, slope)
+		* smoothstep(0.42, 0.62, crag * 0.6 + bush * 0.4) * crest_rock);
 	albedo = mix(albedo, rock, rocky);
 
 	// ---- hillside-scale variation: nothing reads as one tile from across the valley --------

@@ -13,6 +13,10 @@
 
 // RGB is the ground colour, A is land height / macro_height (exactly 0 on water).
 uniform sampler2D macro_tex : filter_linear, source_color;
+// The same height as a float (MacroMap.bake_height). The alpha above is 8 bits - 6.3 m a step -
+// and every step came out as a contour line across the far ranges; heights come from here, and
+// the alpha only still says where the water is (exactly 0).
+uniform sampler2D macro_height_tex : filter_linear;
 // World XZ the baked image is centred on, and how many metres across it covers.
 uniform vec2 macro_centre = vec2(0.0);
 uniform float macro_span = 16000.0;
@@ -27,9 +31,9 @@ uniform float lift_end = 1600.0;
 // The scene's origin has been shifted this far; local + offset is the true world position.
 uniform vec2 world_offset = vec2(0.0);
 // Metres of crag the fractal adds on the mountains, on top of the baked shape.
-uniform float relief_amplitude = 145.0;
+uniform float relief_amplitude = 70.0;
 // Wavelength of its first octave, in metres; every octave after is half of it.
-uniform float relief_wavelength = 1300.0;
+uniform float relief_wavelength = 900.0;
 // How hard a slope damps the octaves under it, which is what turns noise into eroded land.
 uniform float relief_erosion : hint_range(0.0, 4.0) = 1.4;
 // Metres of undulation out on the flats, so the basin floor is not a dead level sheet.
@@ -145,10 +149,14 @@ vec4 macro_sample(vec2 uv, out vec2 grad) {
 	vec2 dw = 6.0 * f * (1.0 - f);
 	ivec2 hi = ivec2(ts) - ivec2(1);
 	ivec2 b = ivec2(i);
-	vec4 c00 = texelFetch(macro_tex, clamp(b, ivec2(0), hi), 0);
-	vec4 c10 = texelFetch(macro_tex, clamp(b + ivec2(1, 0), ivec2(0), hi), 0);
-	vec4 c01 = texelFetch(macro_tex, clamp(b + ivec2(0, 1), ivec2(0), hi), 0);
-	vec4 c11 = texelFetch(macro_tex, clamp(b + ivec2(1, 1), ivec2(0), hi), 0);
+	ivec2 b10 = clamp(b + ivec2(1, 0), ivec2(0), hi);
+	ivec2 b01 = clamp(b + ivec2(0, 1), ivec2(0), hi);
+	ivec2 b11 = clamp(b + ivec2(1, 1), ivec2(0), hi);
+	b = clamp(b, ivec2(0), hi);
+	vec4 c00 = vec4(texelFetch(macro_tex, b, 0).rgb, texelFetch(macro_height_tex, b, 0).r);
+	vec4 c10 = vec4(texelFetch(macro_tex, b10, 0).rgb, texelFetch(macro_height_tex, b10, 0).r);
+	vec4 c01 = vec4(texelFetch(macro_tex, b01, 0).rgb, texelFetch(macro_height_tex, b01, 0).r);
+	vec4 c11 = vec4(texelFetch(macro_tex, b11, 0).rgb, texelFetch(macro_height_tex, b11, 0).r);
 	float k1 = c10.a - c00.a;
 	float k2 = c01.a - c00.a;
 	float k3 = c00.a - c10.a - c01.a + c11.a;

@@ -2335,7 +2335,7 @@ func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
 		var p: Vector2 = rec[0]
 		var grad := Vector2(plan.height_at(p + Vector2(2.0, 0.0)) - plan.height_at(p - Vector2(2.0, 0.0)),
 			plan.height_at(p + Vector2(0.0, 2.0)) - plan.height_at(p - Vector2(0.0, 2.0))) * 0.25
-		var g := HillPlanting.ground(p, grad)
+		var g := HillPlanting.ground(p, grad, true, plan.macro.drainage_at(p))
 		if float(g.rocky) > 0.45 or float(g.bare) > 0.55:
 			on_rock += 1
 		if rec[1] == "chaparral":

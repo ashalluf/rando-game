@@ -110,10 +110,10 @@ uniform float cloud_speed = 7.0;
 // hillsides four or five times brighter than the basin they stand in, with a hard bright line
 // along the foot of every range. The numbers below sit inside the range MacroMap's own palette
 // decodes to - see the comment on BAKE_GRASS there.
-uniform vec3 rock_color : source_color = vec3(0.100, 0.093, 0.084);
+uniform vec3 rock_color : source_color = vec3(0.100, 0.096, 0.088);
 uniform vec3 scree_color : source_color = vec3(0.150, 0.130, 0.100);
-uniform vec3 scrub_color : source_color = vec3(0.040, 0.044, 0.019);
-uniform vec3 dry_grass_color : source_color = vec3(0.095, 0.078, 0.028);
+uniform vec3 scrub_color : source_color = vec3(0.042, 0.047, 0.029);
+uniform vec3 dry_grass_color : source_color = vec3(0.092, 0.078, 0.044);
 uniform vec3 snow_color : source_color = vec3(0.58, 0.60, 0.66);
 // The light the ground in front of a slope bounces back up into it. A hue, not an albedo.
 uniform vec3 bounce_color : source_color = vec3(0.62, 0.52, 0.34);
@@ -121,11 +121,11 @@ uniform vec3 bounce_color : source_color = vec3(0.62, 0.52, 0.34);
 uniform float rock_slope_start : hint_range(0.0, 1.0) = 0.24;
 uniform float rock_slope_end : hint_range(0.0, 1.0) = 0.60;
 // How much of a hillside the chaparral covers.
-uniform float scrub_amount : hint_range(0.0, 1.0) = 0.70;
+uniform float scrub_amount : hint_range(0.0, 1.0) = 0.85;
 // How much more of it the north-facing slopes carry, and how much less the south ones: the shaded
 // side of a Californian hill is brush and the sunny side grass (terrain.gdshader's north_brush,
 // which the near hills and their planting use).
-uniform float north_scrub : hint_range(0.0, 0.5) = 0.2;
+uniform float north_scrub : hint_range(0.0, 0.5) = 0.3;
 // How strongly the drainage lines green up and darken the gullies.
 uniform float gully_amount : hint_range(0.0, 1.0) = 0.55;
 // Metres above sea level the snow line sits.
@@ -318,7 +318,9 @@ void fragment() {
 			// over parched grass. Southern California, so gold and olive over grey rock.
 			float clump = vnoise(w * 0.0042) * 0.65 + vnoise(w * 0.019) * 0.35;
 			float north = -n.z / max(length(n.xz), 0.001) * smoothstep(0.02, 0.12, slope);
-			float scrub = smoothstep(0.34, 0.68, clump + north * north_scrub) * scrub_amount;
+			// Chaparral is the dominant cover, the grass the exception: on the gentle sunny ground.
+			float gentle = 1.0 - smoothstep(0.06, 0.22, slope);
+			float scrub = smoothstep(0.26, 0.60, clump + north * north_scrub - gentle * 0.25) * scrub_amount;
 			vec3 nat = mix(dry_grass_color, scrub_color, scrub);
 			// Individual bushes, but only once they are bigger than a couple of pixels.
 			float bush = smoothstep(7.0, 2.0, fp) * smoothstep(0.45, 0.85, vnoise(w * 0.33));
@@ -337,7 +339,9 @@ void fragment() {
 			float strata = vnoise(vec2(dot(w, across) * 0.006, height_m * 0.055));
 			float scree = smoothstep(rock_slope_start * 0.45, rock_slope_start, slope) * (1.0 - rocky);
 			nat = mix(nat, scree_color * (0.82 + 0.36 * vnoise(w * 0.05)), scree * 0.7);
-			nat = mix(nat, rock_color * (0.72 + 0.62 * strata), rocky);
+			// Faint: bedding picked out by height at full strength drew every range as a stack
+			// of contour lines.
+			nat = mix(nat, rock_color * (0.88 + 0.24 * strata), rocky);
 			// Snow above the treeline, and not on the near-vertical faces, where it slides off.
 			float snow = smoothstep(snow_line, snow_line + 270.0, height_m)
 				* (1.0 - smoothstep(0.45, 0.8, slope));
@@ -419,7 +423,7 @@ void fragment() {
 				// Geometric spacing: fine near the point, coarse out where only a whole range
 				// can still block the sun.
 				float t = shadow_reach * pow(float(i) / float(shadow_steps), 2.0);
-				float hs = texture(macro_tex, macro_uv(w + step_dir * t)).a * macro_height;
+				float hs = texture(macro_height_tex, macro_uv(w + step_dir * t)).r * macro_height;
 				sun_vis = min(sun_vis, smoothstep(-8.0, 42.0, ray_h + climb * t - hs));
 			}
 			sun_vis = mix(1.0, sun_vis, shadow_strength);

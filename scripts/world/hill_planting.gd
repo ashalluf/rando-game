@@ -14,13 +14,18 @@ extends RefCounted
 ## Everything takes TRUE world XZ, like the shader (`world_pos.xz + world_offset`).
 
 ## terrain.gdshader: how much of the ground is chaparral, and how much more the north faces carry.
-const CHAPARRAL_AMOUNT := 0.45
-const NORTH_BRUSH := 0.25
+const CHAPARRAL_AMOUNT := 0.66
+const NORTH_BRUSH := 0.3
+## terrain.gdshader: brush in the gullies, grass on the gentle ground, scree and crest rock.
+const DRAIN_BRUSH := 0.3
+const GENTLE_GRASS := 0.4
+const GULLY_SCREE := 0.5
+const CREST_ROCK := 0.8
 ## terrain.gdshader: the slopes (1 - normal.y) where bare dirt and rock take over.
-const DIRT_SLOPE_START := 0.36
-const DIRT_SLOPE_END := 0.56
-const ROCK_SLOPE_START := 0.45
-const ROCK_SLOPE_END := 0.66
+const DIRT_SLOPE_START := 0.42
+const DIRT_SLOPE_END := 0.62
+const ROCK_SLOPE_START := 0.5
+const ROCK_SLOPE_END := 0.72
 const TRAIL_AMOUNT := 0.8
 
 ## The shader's uniforms this file mirrors, by name, for the smoke test.
@@ -29,6 +34,8 @@ const MIRRORED := {
 	"dirt_slope_start": DIRT_SLOPE_START, "dirt_slope_end": DIRT_SLOPE_END,
 	"rock_slope_start": ROCK_SLOPE_START, "rock_slope_end": ROCK_SLOPE_END,
 	"trail_amount": TRAIL_AMOUNT,
+	"drain_brush": DRAIN_BRUSH, "gentle_grass": GENTLE_GRASS,
+	"gully_scree": GULLY_SCREE, "crest_rock": CREST_ROCK,
 }
 
 
@@ -70,22 +77,28 @@ static func _smooth(e0: float, e1: float, x: float) -> float:
 ##   rocky  0..1  rock outcrop
 ##   north  -1..1 which way the slope faces (+1 north)
 ##   slope  1 - normal.y
-## At the scale of a stand, not of one bush: the shader's per-bush octave is left out, it only
-## rags the stand's edge. `trails` false skips the metre-wide trails (the far tier's mounds are
-## wider than one).
-static func ground(w: Vector2, grad: Vector2, trails: bool = true) -> Dictionary:
+## The per-bush octave is in: the shader's stand edges are ragged at the scale of one bush.
+## `trails` false skips the metre-wide trails (the far tier's mounds are wider than one).
+## `drain` is MacroMap.drainage_at(w) (-1 spur crest .. +1 gully), which the shader gets
+## through the terrain's vertex colour.
+static func ground(w: Vector2, grad: Vector2, trails: bool = true, drain: float = 0.0) -> Dictionary:
 	var n := Vector3(-grad.x, 1.0, -grad.y).normalized()
 	var slope := 1.0 - clampf(n.y, 0.0, 1.0)
 	var flat := Vector2(n.x, n.z).length()
 	var north := -n.z / maxf(flat, 0.001) * _smooth(0.02, 0.12, slope)
 	var hill := vnoise(w * 0.0028)
 	var patchy := vnoise(w * 0.011) * 0.65 + vnoise(w * 0.037 + Vector2(13.1, 13.1)) * 0.35
-	var coverage := CHAPARRAL_AMOUNT + north * NORTH_BRUSH + (hill - 0.5) * 0.3
+	var gentle := 1.0 - _smooth(0.06, 0.22, slope)
+	var south := maxf(-north, 0.0)
+	var coverage := CHAPARRAL_AMOUNT + maxf(north, 0.0) * NORTH_BRUSH - south * 0.1 \
+			+ drain * DRAIN_BRUSH - gentle * (0.5 + 0.5 * south) * GENTLE_GRASS + (hill - 0.5) * 0.2
 	var th := 0.5 + (coverage - 0.5) * 0.45
-	var frag := patchy * 0.8 + vnoise(w * 0.12 + Vector2(17.0, 17.0)) * 0.2
+	var bush := vnoise(w * 0.29 + Vector2(3.7, 3.7))
+	var frag := patchy * 0.35 + vnoise(w * 0.12 + Vector2(17.0, 17.0)) * 0.35 + (bush - 0.5) * 0.3 + 0.15
 	# The shader's stand edge is 0.09 wide in `frag`; as a 0..1 share it is the same test, softer.
 	var brush := _smooth(th + 0.09, th - 0.09, frag)
 	var bare := _smooth(DIRT_SLOPE_START, DIRT_SLOPE_END, slope + (patchy - 0.5) * 0.3)
+	bare = maxf(bare, _smooth(0.3, 0.8, drain) * _smooth(0.32, 0.48, slope) * GULLY_SCREE)
 	if trails:
 		var tn := vnoise(w * 0.0065 + Vector2(41.0, 41.0))
 		# A trail is about a metre wide; anything within a couple of metres of one stays clear.
@@ -95,6 +108,7 @@ static func ground(w: Vector2, grad: Vector2, trails: bool = true) -> Dictionary
 	var crag := vnoise(w * 0.021 + Vector2(29.0, 29.0))
 	var rocky := _smooth(ROCK_SLOPE_START, ROCK_SLOPE_END, slope + (crag - 0.5) * 0.22)
 	rocky = maxf(rocky, _smooth(0.78, 0.86, crag * 0.7 + patchy * 0.3) * _smooth(0.10, 0.22, slope))
+	rocky = maxf(rocky, _smooth(0.2, 0.7, -drain) * _smooth(0.14, 0.3, slope) * _smooth(0.42, 0.62, crag * 0.6 + bush * 0.4) * CREST_ROCK)
 	return {"brush": brush, "bare": bare, "rocky": rocky, "north": north, "slope": slope}
 
 
