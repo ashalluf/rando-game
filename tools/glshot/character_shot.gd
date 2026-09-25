@@ -9,7 +9,11 @@ extends SceneTree
 ##
 ## Env: MODEL (rigged .glb), OUT (png), CLIP (default the walk), PHASE (0..1 through the clip -
 ## 0.25 is a full stride with the arms at the ends of their swing, which is where a bad arm
-## pose is worst), YAW (degrees to orbit the camera; 0 is front-on, 90 is the side).
+## pose is worst), YAW (degrees to orbit the camera; 0 is front-on, 90 is the side),
+## LOOK (a crowd look, Pedestrian.character_material - without it the rig keeps the model's
+## plain material and character.gdshader is not in the picture), CAM_DIST / CAM_Y / AIM_Y
+## (metres; 0.9 / 1.62 / 1.58 frames a face), SUN_YAW (degrees to turn the sun round the rig;
+## 180 puts it behind, for the skin's backlight).
 ## The rig fixes are applied exactly as the game applies them (Pedestrian.prepare_rig and
 ## fix_arm_pose), loaded dynamically because this script compiles before the autoloads exist.
 func _initialize() -> void:
@@ -26,6 +30,22 @@ func _initialize() -> void:
 	if OS.get_environment("YAW") != "":
 		yaw = deg_to_rad(float(OS.get_environment("YAW")))
 
+	var look := -1
+	if OS.get_environment("LOOK") != "":
+		look = int(OS.get_environment("LOOK"))
+	var dist := 3.4
+	if OS.get_environment("CAM_DIST") != "":
+		dist = float(OS.get_environment("CAM_DIST"))
+	var cam_y := 1.05
+	if OS.get_environment("CAM_Y") != "":
+		cam_y = float(OS.get_environment("CAM_Y"))
+	var aim_y := 0.92
+	if OS.get_environment("AIM_Y") != "":
+		aim_y = float(OS.get_environment("AIM_Y"))
+	var sun_yaw := 30.0
+	if OS.get_environment("SUN_YAW") != "":
+		sun_yaw += float(OS.get_environment("SUN_YAW"))
+
 	var root := Node3D.new()
 	get_root().add_child(root)
 	var env := WorldEnvironment.new()
@@ -39,7 +59,7 @@ func _initialize() -> void:
 	env.environment = e
 	root.add_child(env)
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-38.0, 30.0, 0.0)
+	sun.rotation_degrees = Vector3(-38.0, sun_yaw, 0.0)
 	sun.light_energy = 1.3
 	sun.shadow_enabled = true
 	root.add_child(sun)
@@ -61,7 +81,7 @@ func _initialize() -> void:
 	root.add_child(inst)
 	await process_frame
 	var ped_script = load("res://scripts/npc/pedestrian.gd")
-	ped_script.prepare_rig(inst)
+	ped_script.prepare_rig(inst, look)
 	var anims := inst.find_children("*", "AnimationPlayer", true, false)
 	if not anims.is_empty():
 		var ap: AnimationPlayer = anims[0]
@@ -75,10 +95,9 @@ func _initialize() -> void:
 
 	var cam := Camera3D.new()
 	cam.fov = 40.0
-	var dist := 3.4
-	cam.position = Vector3(sin(yaw) * dist, 1.05, cos(yaw) * dist)
+	cam.position = Vector3(sin(yaw) * dist, cam_y, cos(yaw) * dist)
 	root.add_child(cam)
-	cam.look_at(Vector3(0.0, 0.92, 0.0), Vector3.UP)
+	cam.look_at(Vector3(0.0, aim_y, 0.0), Vector3.UP)
 	cam.current = true
 	for i in 12:
 		await process_frame
