@@ -388,6 +388,15 @@ func _drive_streets(delta: float) -> void:
 		var wp := WorldState.to_world(car.global_position)
 		t.along = wp.z if int(t.axis) == CityPlan.AXIS_X else wp.x
 		t.wp = wp
+		# A car on a closed stretch (a landmark's site, CityPlan.road_open) has no business there
+		# and no way on: back to the pool. Nothing the driving does puts one there - turns are
+		# forced off closed roads before the crossing - but a car moved by anything else (an
+		# origin shift from outside the physics tick, a placement) would otherwise drive on
+		# through MacArthur Park's lake. Inside a crossing and short of it always reads open.
+		if not plan.road_open(int(t.axis), int(t.index), float(t.along)):
+			cars.erase(car)
+			_retire(car)
+			continue
 		var key := lane_key(int(t.axis), int(t.index), int(t.dir), float(t.lane))
 		if not groups.has(key):
 			groups[key] = []
