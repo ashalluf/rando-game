@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Shrink the textures embedded in a .glb so game assets stay small.
 
-    python3 tools/shrink_glb.py assets/models/car_sedan.glb [--size 1024] [--quality 85]
+    python3 tools/shrink_glb.py assets/models/car_pickup.glb [--size 1024] [--quality 85]
 
 Every embedded image is resized to at most --size pixels and re-encoded as JPEG (PNG is kept
 only when the image has transparency). The file is rewritten in place; the mesh is untouched.

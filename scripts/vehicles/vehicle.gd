@@ -10,7 +10,7 @@ enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
-	BodyType.SEDAN: "res://assets/models/car_sedan.glb",
+	BodyType.SEDAN: "res://assets/models/hifi_sedan.glb",
 	BodyType.PICKUP: "res://assets/models/car_pickup.glb",
 	BodyType.VAN: "res://assets/models/car_van.glb",
 	BodyType.SPORTS: "res://assets/models/car_sports.glb",
@@ -21,7 +21,11 @@ const BODY_MODELS := {
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for the single-texture
 ## bodies whose texture does not darken the windows, so the paint shader finds glass by shape.
-const GEO_GLASS_BELTLINE := {BodyType.SEDAN: 0.58, BodyType.PICKUP: 0.60, BodyType.VAN: 0.52}
+const GEO_GLASS_BELTLINE := {BodyType.PICKUP: 0.60, BodyType.VAN: 0.52}
+## Bodies built as ONE surface with each part (paint, glass, rubber, trim, lens, rim) written into
+## the vertex colour and UV (tools/make_hifi_sedan.py; car_paint.gdshader `vertex_slots`): one draw
+## a car like a Meshy body, with real glass and lenses like a hi-fi one.
+const VERTEX_SLOT_BODIES := [BodyType.SEDAN]
 ## The stretch of the body's length (0..1 in model space, which for the van runs nose to tail)
 ## that has side glass: the van is a panel van, glazed only round the cab.
 const GEO_GLASS_SPAN := {BodyType.VAN: Vector2(0.0, 0.36)}
@@ -44,7 +48,7 @@ const BODY_ODDS := {
 ## ride height, and a centimetre out reads as a flat tyre or a floating car - so change it from a
 ## --spawn shot of a parked car, not from arithmetic.
 const WHEEL_POSE := {
-	BodyType.SEDAN: {"x": 0.786, "front": -1.503, "rear": 1.378, "y": 0.093, "r": 0.330, "w": 0.230, "cut": true, "cut_r": 0.342},
+	BodyType.SEDAN: {"x": 0.794, "front": -1.430, "rear": 1.402, "y": 0.092, "r": 0.332, "w": 0.226, "cut": true, "cut_r": 0.346},
 	BodyType.PICKUP: {"x": 0.847, "front": -1.788, "rear": 1.306, "y": 0.225, "r": 0.390, "w": 0.260, "cut": true, "cut_r": 0.402},
 	BodyType.VAN: {"x": 0.816, "front": -1.656, "rear": 1.539, "y": 0.175, "r": 0.360, "w": 0.230, "cut": true, "cut_r": 0.372},
 	BodyType.SPORTS: {"x": 0.803, "front": -1.400, "rear": 1.307, "y": 0.066, "r": 0.330, "w": 0.245, "cut": true, "cut_r": 0.344},
@@ -69,9 +73,9 @@ const WHEEL_POSE := {
 const MODEL_OWN_WHEELS := [BodyType.SUPER, BodyType.HYPER]
 
 ## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
-## All four models come out of Meshy with the nose along +X; -PI/2 puts the nose at -Z, which is
+## The three Meshy models come out with the nose along +X; -PI/2 puts the nose at -Z, which is
 ## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
-const MODEL_YAW := {BodyType.SEDAN: -PI * 0.5, BodyType.PICKUP: -PI * 0.5, BodyType.VAN: -PI * 0.5, BodyType.SPORTS: -PI * 0.5}
+const MODEL_YAW := {BodyType.PICKUP: -PI * 0.5, BodyType.VAN: -PI * 0.5, BodyType.SPORTS: -PI * 0.5}
 const PAINT_SHADER := preload("res://shaders/car_paint.gdshader")
 
 ## How the paint is built, not what colour it is. The clearcoat shader can express all of these
@@ -758,7 +762,8 @@ static func _shared_box(key: StringName, size: Vector3, mat: Material) -> BoxMes
 func _add_night_lights(dims: Dictionary) -> void:
 	var node := MeshInstance3D.new()
 	node.name = "NightLights"
-	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, 0.55 + dims.chassis_h * 0.62)
+	# "lamp_y" where a body's lamps are known (the hi-fi sedan's, between its head and tail lamps).
+	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, float(dims.get("lamp_y", 0.55 + dims.chassis_h * 0.62)))
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# One node per car rather than five: with a hundred and fifty cars on the road the separate
 	# quads were several hundred draw calls on their own. Past this distance the car is a few
@@ -1055,7 +1060,10 @@ func _dims() -> Dictionary:
 		BodyType.HYPER, BodyType.TRACK:
 			return {"length": 4.6, "width": 2.02, "chassis_h": 0.48, "cabin": Vector2(-0.6, 1.5), "cabin_h": 0.48, "wheel_z": 1.35, "track": 1.74, "tyre_r": 0.36, "ride": -0.35}
 		_:
-			return {"length": 4.8, "width": 1.9, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.24}
+			# The sedan. length and width are the model's own (tools/make_hifi_sedan.py), so it
+			# is drawn at scale 1; the physics numbers are the old ones, which the handling and
+			# the smoke test's drive checks are tuned on.
+			return {"length": 4.85, "width": 1.84, "lamp_y": 0.47, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.24}
 
 
 func _add_wheel(pos: Vector3, front: bool) -> void:
@@ -1131,6 +1139,7 @@ func _add_body_model(length: float) -> bool:
 		pm.set_shader_parameter("body_min", aabb.position)
 		pm.set_shader_parameter("body_size", aabb.size)
 		pm.set_shader_parameter("length_is_x", along_x)
+		pm.set_shader_parameter("vertex_slots", VERTEX_SLOT_BODIES.has(body_type))
 		# Glass from the shape where the texture does not mark it (see car_paint.gdshader).
 		if GEO_GLASS_BELTLINE.has(body_type):
 			pm.set_shader_parameter("geo_glass", true)

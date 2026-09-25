@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://dxce72567brai"
-path="res://.godot/imported/car_sedan.glb-f6e658a7c9d4ceab3ed5381c77eb4f9f.scn"
+uid="uid://c04i2w31yf8l6"
+path="res://.godot/imported/hifi_sedan.glb-455f553437bf2425bad2c7fd7512a2db.scn"
 
 [deps]
 
-source_file="res://assets/models/car_sedan.glb"
-dest_files=["res://.godot/imported/car_sedan.glb-f6e658a7c9d4ceab3ed5381c77eb4f9f.scn"]
+source_file="res://assets/models/hifi_sedan.glb"
+dest_files=["res://.godot/imported/hifi_sedan.glb-455f553437bf2425bad2c7fd7512a2db.scn"]
 
 [params]
 
@@ -23,7 +23,7 @@ nodes/root_scale=1.0
 nodes/import_as_skeleton_bones=false
 nodes/use_name_suffixes=true
 nodes/use_node_type_suffixes=true
-meshes/ensure_tangents=true
+meshes/ensure_tangents=false
 meshes/generate_lods=true
 meshes/create_shadow_meshes=true
 meshes/light_baking=1

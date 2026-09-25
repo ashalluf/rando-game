@@ -67,8 +67,9 @@ const POLICE_BLACK := Color(0.030, 0.031, 0.036)
 const POLICE_WHITE := Color(0.93, 0.93, 0.92)
 ## The tactical van at five stars: dark navy all over with a white belt band.
 const HEAVY_PAINT := Color(0.045, 0.060, 0.095)
-## Livery bands along the car (fractions of its length): the doors between them are white.
-const DOOR_BAND := Vector2(0.24, 0.70)
+## Livery bands along the car (fractions of its length from the nose): the doors between them
+## are white. The sedan's own door cuts, as tools/make_hifi_sedan.py prints them.
+const DOOR_BAND := Vector2(0.301, 0.723)
 
 var police: Police
 var mode: Mode = Mode.DISPATCH

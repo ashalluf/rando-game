@@ -34,7 +34,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # body type -> (.glb, length, ride, extra model yaw). Mirrors Vehicle.BODY_MODELS, _dims()
 # and MODEL_YAW; a model whose长 axis is +X gets the yaw, one already along Z gets none.
 CARS = [
-    ("SEDAN", "car_sedan.glb", 4.80, -0.24, -math.pi / 2),
+    ("SEDAN", "hifi_sedan.glb", 4.85, -0.24, 0.0),
     ("PICKUP", "car_pickup.glb", 5.40, -0.16, -math.pi / 2),
     ("VAN", "car_van.glb", 5.20, -0.18, -math.pi / 2),
     ("SPORTS", "car_sports.glb", 4.60, -0.30, -math.pi / 2),

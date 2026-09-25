@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Re-smooth a .glb's vertex normals by angle and weld the vertices that then match.
 
-    python3 tools/smooth_normals.py assets/models/car_sedan.glb [--angle 45] [--material paint]
-    python3 tools/smooth_normals.py assets/models/car_sedan.glb --report
+    python3 tools/smooth_normals.py assets/models/car_pickup.glb [--angle 45] [--material paint]
+    python3 tools/smooth_normals.py assets/models/car_pickup.glb --report
 
 Why: the Meshy car bodies are ~8,000-triangle remeshes exported with their normals split at a
 30 degree crease angle AND along every UV seam. On a mesh that coarse the bend between two big

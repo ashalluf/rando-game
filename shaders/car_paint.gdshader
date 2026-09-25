@@ -96,6 +96,16 @@ uniform vec2 glass_span = vec2(0.0, 1.0);
 uniform float canyon_reflect = 0.4;
 uniform float canyon_rise = 0.45;
 
+// Bodies that carry their parts in the vertex attributes instead of a texture (the hi-fi sedan,
+// tools/make_hifi_sedan.py): COLOR.a is 1 on the bodywork and 0 elsewhere, COLOR.rgb is the part's
+// own linear albedo (glass, rubber, trim, lens, rim), UV.x its roughness and UV.y its metallic,
+// plus 2.0 on a lamp lens, which glows at night. One surface and one draw per car, with real
+// glass rather than glass guessed from a texel's brightness or the body's shape.
+uniform bool vertex_slots = false;
+// How bright a lamp lens glows at full lamp_factor (the additive night quads do the throw).
+uniform float lens_glow = 2.2;
+global uniform float lamp_factor;
+
 varying vec3 world_pos;
 // x = along the car, y = up, z = across, all 0..1 over the body's bounding box.
 varying vec3 body_uv;
@@ -173,9 +183,9 @@ float livery_mask() {
 
 
 void fragment() {
-	vec4 base = texture(albedo_tex, UV);
+	vec4 base = vertex_slots ? vec4(1.0) : texture(albedo_tex, UV);
 	float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
-	float body = smoothstep(dark_below, body_above, lum);
+	float body = vertex_slots ? step(0.5, COLOR.a) : smoothstep(dark_below, body_above, lum);
 	float shape_glass = 0.0;
 	if (geo_glass) {
 		// The bodies are shaded smooth across bends of up to 45 degrees
@@ -207,14 +217,28 @@ void fragment() {
 	}
 	vec3 painted = coat * (0.55 + 0.45 * lum * paint_brightness);
 	vec3 dark = base.rgb * 0.6;
-	ALBEDO = mix(dark, painted, body);
-
 	float glass = max(1.0 - smoothstep(0.02, dark_below, lum), shape_glass);
-	ALBEDO = mix(ALBEDO, vec3(0.018, 0.02, 0.022), shape_glass);
-	float rough = mix(mix(0.6, 0.06, glass), paint_roughness, body);
+	float part_rough = mix(0.6, 0.06, glass);
 	// Glass is not a metal: what it shows is its own specular and the lacquer lobe. At 0.5 metal
 	// every dark trim piece mirrored the sky too.
-	float metal = mix(mix(0.1, 0.0, glass), paint_metallic, body);
+	float part_metal = mix(0.1, 0.0, glass);
+	float lens = 0.0;
+	if (vertex_slots) {
+		dark = COLOR.rgb;
+		lens = step(1.5, UV.y);
+		part_rough = UV.x;
+		part_metal = UV.y - 2.0 * lens;
+		// Only the smooth parts take the lacquer lobe below: glass, lenses, piano black.
+		glass = 1.0 - smoothstep(0.08, 0.2, part_rough);
+	}
+	ALBEDO = mix(dark, painted, body);
+	ALBEDO = mix(ALBEDO, vec3(0.018, 0.02, 0.022), shape_glass);
+	float rough = mix(part_rough, paint_roughness, body);
+	float metal = mix(part_metal, paint_metallic, body);
+	if (lens > 0.0) {
+		vec3 tint = COLOR.rgb / max(max(COLOR.r, COLOR.g), max(COLOR.b, 0.001));
+		EMISSION = tint * lens * lens_glow * lamp_factor;
+	}
 	rough *= mix(1.0, stripe_roughness_mul, livery * body);
 
 	// Panels are never perfectly uniform: a slow ripple in roughness reads as real sheet metal

@@ -298,7 +298,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   every level: TAA at native resolution, FSR 2.2 when `Quality` upscales. MSAA stays off (it
   costs a lot and does nothing for shader aliasing). Car paint is a metallic basecoat under a
   clearcoat lobe with flake (`shaders/car_paint.gdshader`). The single-texture bodies mark
-  glass by a dark texel, but the sedan, pickup and van textures do not (the van's darkest 5 %
+  glass by a dark texel, but the pickup and van textures do not (the van's darkest 5 %
   is 0.49), so those find glass by shape - above `Vehicle.GEO_GLASS_BELTLINE`, tilted between
   roof and door skin - or every white car was one pale ice-sculpture shape. That was only half of
   it: the other half was the sky. The radiance map is what every lacquer, window and puddle
@@ -306,8 +306,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   (which faces a little downward) mirrored pale-blue sky - a dark red pickup read as ice-blue,
   and with the clearcoat off the same car was dark red. `sky.gdshader` now puts the street
   (`reflect_ground`, a warm grey following the horizon's brightness) under the horizon in the
-  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The four Meshy bodies
-  (sedan, pickup, van, sports) were also flat-shaded: ~8k-triangle remeshes exported with the
+  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The three Meshy bodies
+  (pickup, van, sports) were also flat-shaded: ~8k-triangle remeshes exported with the
   normals split at 30 degrees and along every UV seam, so a curved wing was a set of facets and
   the lacquer mirrored each one. `tools/smooth_normals.py` (run once on the `.glb`, then
   `--import`) re-smooths them by angle: triangles joined through bends under 45 degrees share
@@ -316,7 +316,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   creases on purpose; leave them. Smooth normals drift slowly through the glass slope band, so
   the geometric glass test blends over one pixel (`fwidth`), not a fixed 0.04, and
   `Vehicle.GEO_GLASS_SPAN` keeps the van's glass to its cab - its flanks behind the cab turn
-  in like side glass and became one long dark smudge. The basecoat metallic is
+  in like side glass and became one long dark smudge. **The sedan** (the commonest car, and the
+  police cruiser) is `assets/models/hifi_sedan.glb` from `tools/make_hifi_sedan.py`: the
+  hi-fi GT's method (lofted quad cage, subdivision, shutlines, recessed glass, arch lips) with
+  the level-2 shell quadric-decimated to ~20k triangles, 26.7k in all, and ONE surface - its
+  glass, rubber, trim, lenses and baked far wheels live in the vertex attributes (COLOR rgb
+  albedo, COLOR.a paint mask, UV roughness / metallic, +2 on a lens, which glows by
+  `lamp_factor`) and `car_paint.gdshader` reads them when `vertex_slots` is set
+  (`Vehicle.VERTEX_SLOT_BODIES`). So it costs one draw a car like the Meshy body it replaced,
+  with real glass instead of the shape test. Two traps from building it: transferring the
+  full-resolution normals onto the decimated shell (DATA_TRANSFER) smeared a groove wall's
+  normal across whole doors, so it keeps its own angle-shaded normals; and Blender's glTF
+  exporter writes V as 1 - v, so the generator stores 1 - metallic. After a rebuild paste its
+  printed `WHEEL_POSE` row into `Vehicle` and its door band into `PoliceCar.DOOR_BAND`
+  (fractions of the length from the nose, for the white doors). The basecoat metallic is
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.

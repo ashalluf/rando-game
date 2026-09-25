@@ -278,6 +278,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-25 The everyday sedan is a hi-fi body on a traffic budget.** The sedan (a third of
+  traffic and the police cruiser) was an 8k-triangle Meshy remesh: polygonal arch lips and
+  bumper corners, a mottled baked nose. `tools/make_hifi_sedan.py` builds an original mid-size
+  four-door the hi-fi GT's way (lofted quad cage, subdivision, shutlines, recessed glass, arch
+  lips) and decimates the shell to ~20k triangles (26.7k in all, six generated LODs down to
+  400). It is ONE surface: glass, trim, lenses and the baked far wheels are in the vertex
+  attributes that `car_paint.gdshader` reads with `vertex_slots`, so it stays one draw a car.
+  The old `car_sedan.glb` is gone.
 - **2026-09-24 The hills are a Southern-California hillside.** `terrain.gdshader` was one grass
   texture with a second "rock" layer that was really green grass with pebbles (RockyTerrain02),
   and both hill sets were imported without mipmaps, so a range read as a shimmering meadow. It

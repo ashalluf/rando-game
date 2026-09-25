@@ -2235,6 +2235,37 @@ pavement. The rules are in the Shop signs bullet of CLAUDE.md.
   (ground_floor_height - base_y)` plus `band_y = bottom + 0.845 * storefront`, and it changes the
   day look of every raised storefront, so it wants its own before/after.
 
+## 9z. The everyday sedan, 2026-09-25 (agent branch)
+
+The sedan (a third of traffic, and every police cruiser) is now `assets/models/hifi_sedan.glb`,
+built by `tools/make_hifi_sedan.py` (`python3 tools/make_hifi_sedan.py`, ~25 s, then `godot
+--headless --path . --import`). It replaces the Meshy `car_sedan.glb` (removed with its textures
+and thumbnail). Method and traps are in CLAUDE.md's car paint note and the generator's header;
+the short version:
+
+- The hi-fi GT's construction (lofted quad cage from two key tables, `KEYS_LOWER` and
+  `KEYS_UPPER`, level-2 subdivision, creased shutlines for bonnet, four doors and boot, recessed
+  glass cut by booleans, arch lips, sill mouldings, lamps in recesses) with the ~160k-triangle
+  shell quadric-decimated to 20.5k (`SHELL_TRIS`, env `SEDAN_SHELL_TRIS` to try others). 26.7k
+  triangles in all; the importer makes six LODs (13.3k, 6.7k, 3.3k, 1.7k, 0.8k, 0.4k - the old
+  body had one, at 5.1k) and the shadow twin takes them at `BODY_SHADOW_LOD_BIAS`.
+- ONE surface: parts in the vertex attributes, `car_paint.gdshader` `vertex_slots`. Lamp lenses
+  glow by `lamp_factor`. Baked 300-triangle tyres and rims are the far wheel (WHEEL_POSE `cut`).
+- Printed by the run and pasted by hand: the WHEEL_POSE row and `PoliceCar.DOOR_BAND`. The
+  night quads sit at the sedan's lamps through `_dims()["lamp_y"]` (0.47; the old 0.98 put them
+  over the bonnet). The headlight beam quad (`vehicle_lights()`, `0.12 - y`) lies below the
+  road for every body type - found, not fixed.
+- Found, not fixed: `_dims()` collision boxes for every car stand on `base_y` 0.55, so the
+  cabin box floats ~0.5 m above a model's roof (body y 1.25-1.95 against a roof at 1.2).
+- Looks: clean panels, real glass, crisp gaps, round arches, where the Meshy car had a mottled
+  nose, a shape-guessed glass band that ran over its bonnet and faceted arches. The styling is
+  plainer than the Meshy car's (a taller, more upright three-box), which is the next thing to
+  push if the owner wants it sleeker: `KEYS_UPPER` owns the glasshouse and nose.
+- Frame (`still_shot.gd` GEO / SPLIT, `--spawn=589.2,860,0,12,2 --quality=0`, opengl3): whole
+  frame 7.25 M -> 7.16 M triangles (-1.3 %), draws 4,288 both; the Vehicle category 1.394 M ->
+  1.303 M (shadow 366k -> 325k), 473 draws both. Dearer up close, cheaper everywhere else: the
+  old body stopped at one 5.1k LOD, so every far sedan cost 5k.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and

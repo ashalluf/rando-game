@@ -57,7 +57,7 @@ free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy ta
 
 | Model | Files | Credits | Used for | Added |
 |---|---|---|---|---|
-| Sedan | `assets/models/car_sedan.glb` | 30 (+15 for a first low-poly take) | `Vehicle` body, SEDAN | 2026-09-19 |
+| Sedan | ~~`assets/models/car_sedan.glb`~~ (removed 2026-09-25, replaced by `hifi_sedan.glb`, below) | 30 (+15 for a first low-poly take) | was the `Vehicle` body, SEDAN | 2026-09-19 |
 | Pickup | `assets/models/car_pickup.glb` | 30 (+15) | `Vehicle` body, PICKUP | 2026-09-19 |
 | Van | `assets/models/car_van.glb` | 30 (+15) | `Vehicle` body, VAN | 2026-09-19 |
 | Sports | `assets/models/car_sports.glb` | 30 (+15) | `Vehicle` body, SPORTS | 2026-09-19 |
@@ -191,6 +191,7 @@ class instead.
 | `tools/make_exotic_hyper.py` | `exo_hyper_b.glb` | 0.9 MB | `BodyType.TRACK` | 2026-09-21 |
 | `tools/make_hifi_super.py` | `hifi_super_coupe.glb` | 223k tris, 4.9 MB | not wired in yet | 2026-09-21 |
 | `tools/make_hifi_hyper.py` | `hifi_hyper_coupe.glb` | 217k tris, 5.7 MB | not wired in yet | 2026-09-21 |
+| `tools/make_hifi_sedan.py` | `hifi_sedan.glb` | 26.7k tris (LODs 13k / 6.7k / 3.3k / 1.7k / 0.8k / 0.4k), 0.9 MB, one surface | `BodyType.SEDAN` (and the police cruiser) | 2026-09-25 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position
@@ -209,6 +210,16 @@ method.
 Every car model must expose these six material slots, because `Vehicle._add_body_model()` binds
 by name: `paint`, `glass`, `trim`, `tyre`, `light_front`, `light_rear`. Only bodywork goes in
 `paint` - the per-car colour and the clearcoat shader are applied to that slot alone.
+
+The sedan is the exception, on purpose: it is the everyday car (a third of traffic), so its
+generator builds the same slots and then folds them into ONE `paint` surface, with each part in
+the vertex attributes (COLOR_0 rgb = the part's albedo, alpha = 1 on bodywork; TEXCOORD_0 =
+roughness, metallic, +2 on a lamp lens) that `car_paint.gdshader` reads with `vertex_slots` on
+(`Vehicle.VERTEX_SLOT_BODIES`). One draw per car instead of six. It is also the hi-fi method on
+a budget: the level-2 shell (~160k triangles) is quadric-decimated to ~20k, symmetric, and a
+simple tyre and rim are baked into each arch for the far LOD that `Vehicle` tucks into the hub
+up close (WHEEL_POSE `cut`). An original generic mid-size sedan: no real make's grille, lamps
+or badge.
 
 ## Weapon models (our own Blender generator)
 
