@@ -82,3 +82,7 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   every UV seam. tools/smooth_normals.py re-smooths by angle (45 deg), welds, never adds
   vertices. Forward+ sheets `<scratchpad>/smooth/ba_{0..3}.png`. Same triangles, ~0.2 % fewer
   vertices, LODs intact. Follow-up #22 (higher-poly bodies).
+
+## Wave 5 (2026-09-25)
+
+- Regression audit launched on main 75f4795 (every fifth wave).
