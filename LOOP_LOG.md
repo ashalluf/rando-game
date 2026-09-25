@@ -50,3 +50,4 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   night pixel-identical. Forward+ stand-in `<scratchpad>/gh/fwd_sheet.png`, sky probes
   `<scratchpad>/gh/sky_sheet3.png`. Perf: ~25 ALU on sky pixels only while smoggy. Verdict:
   clearly better away from the sun, sideways toward it (hazier, less punchy).
+- Street clutter and golden hour merged; PERF pass 1 and crowd skin/cloth launched.

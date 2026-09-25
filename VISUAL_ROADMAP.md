@@ -23,7 +23,7 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 | 8 | Neon and shop-front glow at night: signage emission, light spill on the pavement | Lighting (building.gdshader shop band, light_pool) | 4 | 3 | 1.2 | 10.0 | todo | |
 | 9 | Puddles and wet decals after rain: persistent dark wet patches, gutter water | Materials (road.gdshader) | 3 | 4 | 1 | 12.0 | todo | road already has mirror puddles when soaked |
 | 10 | Vehicle damage: dents / scratches where hit, cracked glass | Vehicles | 3 | 2 | 1.2 | 5.0 | todo | |
-| 11 | Pedestrian skin / cloth: SSS and cloth sheen like the hero, per-look roughness | Characters (character.gdshader) | 3 | 3 | 1.2 | 7.5 | todo | |
+| 11 | Pedestrian skin / cloth: SSS and cloth sheen like the hero, per-look roughness | Characters (character.gdshader) | 3 | 3 | 1.2 | 7.5 | in-progress | wave 3 |
 | 12 | Post: restrained motion blur and DOF in aim / wheel | Post | 3 | 2 | 2 | 3.0 | todo | Forward+ only |
 | 13 | Land the downtown 1:1 re-lay patch (tools/downtown_relay/relay.patch) | Downtown | 4 | 2 | 1 | 8.0 | todo | HANDOFF 9p; big and risky, give it a wave of its own. As of 2026-09-25 the patch no longer applies cleanly (city_plan, city_streamer, landmarks, macro_map moved): it needs a re-port, not a `git apply` |
 | 14 | Interiors for key buildings (lobbies behind street-level glass) | Interiors | 2 | 2 | 1.5 | 2.7 | todo | |
