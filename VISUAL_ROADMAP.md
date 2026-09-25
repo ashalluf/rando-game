@@ -13,7 +13,7 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 
 | # | Item | Area | Impact | Feas. | Perf | Score | Status | Notes |
 |---|------|------|--------|-------|------|-------|--------|-------|
-| 1 | Hill ground splat: slope/height/noise mix of dry grass, chaparral, rock, dirt, with macro variation | Hills (terrain.gdshader, PropFactory.terrain_material) | 5 | 4 | 1.2 | 16.7 | in-progress | wave 1. Today: one grass texture, rock by slope, snow by height |
+| 1 | Hill ground splat: slope/height/noise mix of dry grass, chaparral, rock, dirt, with macro variation | Hills (terrain.gdshader, PropFactory.terrain_material) | 5 | 4 | 1.2 | 16.7 | done | merged dfdeefa. Terrain shader ~1.8-2x its old cost (7 fetches, 9 noises) |
 | 2 | Vehicle grime: dirt on the lower body and wheel arches, dust on glass, per-car amount | Vehicles (car_paint.gdshader, vehicle.gd) | 3 | 5 | 1 | 15.0 | in-progress | wave 1. Every car is showroom clean today |
 | 3 | Walls and pavements: grime streaks under sills, rain stains, damp kerb line, graffiti tags on low walls | Materials (building.gdshader) | 4 | 4 | 1.1 | 14.5 | in-progress | wave 1 |
 | 4 | MacArthur Park on (build 253) | Density / landmark | 3 | 3 | 1 | 9.0 | done | build 254. Three causes found (forced turn; tests re-centring outside the physics tick; seed-rebuild check zeroing the offset) |
@@ -30,6 +30,8 @@ esplanade sunset, hero close-up). History and numbers are in LOOP_LOG.md.
 | 15 | Park lawns: less saturated, drier LA-autumn variation, worn paths under trees; jacaranda reads navy in the harness | Materials (lawn.gdshader, grass) | 3 | 3 | 1 | 9.0 | reverted | a drier, greyer park lawn tint barely moved the frame: the blade-grass multimesh (its own colour, chunk._add_grass) is what fills the near lawn. Redo as a blade-colour + lawn pass together |
 | 16 | Road patch decals read as dark square holes (seen at Westlake, `park_camp.png`): feather their edges, match the asphalt tone | Materials (street_detail.gd `_road_wear`, road.gdshader) | 3 | 5 | 1 | 15.0 | done | build 257 (ec65e50): road_patch.gdshader |
 | 17 | Hill road cuts and the pass are sheer vertical terrain walls with black holes at their feet (hills bookmark, `base_18c1bcb/hills2.png`): slope the cut banks, close the gaps | Hills (city_chunk _build_terrain / HillRoads.carve) | 5 | 3 | 1 | 15.0 | in-progress | wave 3. High priority: the first thing you see flying into the hills |
+| 18 | Mipmaps on: about a dozen Poly Haven sets (facade and street sets) are imported with mipmaps off, against the CLAUDE.md rule - shimmer at distance and wasted bandwidth. Switch the .imports (compress/mode=2, mipmaps/generate=true), drop the unused RockyTerrain02 | Materials / perf (assets/textures/*.import) | 4 | 5 | 0.8 | 25.0 | todo | found by the hills agent; pure import settings |
+| 19 | Hill chaparral stands read as cloud shadows at mid distance; the gold still leans orange (opengl3). Tune `chaparral_amount`, `north_brush`, `chaparral_color` against a Mac/Forward+ look | Hills (terrain.gdshader) | 3 | 4 | 1 | 12.0 | todo | NEEDS MAC CHECK first |
 
 ## NEEDS MAC CHECK
 
