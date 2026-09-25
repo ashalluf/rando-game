@@ -74,3 +74,6 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   up close), `cmp3_city_brick.png` (no difference at 40 m). +90-120 ALU per wall pixel.
 - Render lock: `flock ... xvfb-run` handed the lock fd to Xvfb, and an orphaned Xvfb held every
   render for a while. bookmarks.sh now uses `flock -o` (the child never inherits the lock).
+- **Texture mipmaps** (roadmap #18) - merged cb4e4e3 - done, clearly better at distance. A/B
+  `<scratchpad>/mip/brick_crop.png` (brick mid-rise across the street: speckle -> even brick),
+  high-frequency energy -3 %. 14 sets switched, RockyTerrain02 dropped (unused). Gate 456/456.
