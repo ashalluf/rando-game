@@ -40,13 +40,13 @@ extends RefCounted
 
 ## Share of downtown streets that carry the big camps (hashed per road), and the odds that a block
 ## face on one of them, or on any other downtown street, has a camp at all.
-const CAMP_STREET_SHARE := 0.42
-const FACE_ODDS_CAMP_STREET := 0.8
-const FACE_ODDS := 0.22
+const CAMP_STREET_SHARE := 0.7
+const FACE_ODDS_CAMP_STREET := 0.98
+const FACE_ODDS := 0.72
 ## Most camps on one block, pieces in one chunk, and people at them in one chunk (outside skid
 ## row; skid row's are the SKID_ ones, and a block between gets a value between).
-const MAX_CAMPS := 3
-const MAX_ITEMS := 44
+const MAX_CAMPS := 4
+const MAX_ITEMS := 300
 const MAX_SLEEPERS := 9
 ## Skid row: east of downtown's centre, in downtown radii (MacroMap.downtown_radius), the field
 ## ramps in between SKID_EAST.x and .y and out again between .z and .w; north-south it is centred
@@ -62,9 +62,9 @@ const SKID_PATCH := Vector2(0.55, 1.3)
 const SKID_MIN := 0.35
 const SKID_FACE_ODDS := 0.95
 const SKID_MAX_CAMPS := 4
-const SKID_MAX_ITEMS := 72
+const SKID_MAX_ITEMS := 380
 const SKID_MAX_SLEEPERS := 16
-const SKID_RUN_LENGTH := Vector2(20.0, 64.0)
+const SKID_RUN_SHARE := Vector2(1.0, 1.0)
 ## At full skid-row strength, the odds that the next unit of a run is one of PEOPLE_UNITS.
 const SKID_PEOPLE_BIAS := 0.35
 ## Somebody pushing a loaded cart round the block: the odds of one on any block with camps along
@@ -80,7 +80,7 @@ const PARK_EDGE_ODDS := 0.7
 ## per deck segment and side the odds of a row, the deck height it needs over the ground, how
 ## far inside the pillar line the row's back stands, and the room kept round each pillar.
 const UNDERPASS_REACH := 2.2
-const UNDERPASS_ODDS := 0.7
+const UNDERPASS_ODDS := 0.95
 const UNDERPASS_CLEARANCE := 5.5
 const UNDERPASS_INSET := 1.0
 const PILLAR_CLEAR := 2.0
@@ -97,21 +97,37 @@ const CROWD_RESERVE := 0.2
 const FACES := 1
 const UNDERPASS := 2
 ## Metres of a block face kept clear at each corner (the crossing and its kerb ramps).
-const CORNER_CLEAR := 9.0
-## How long a camp runs along the face (metres, min and max).
-const RUN_LENGTH := Vector2(9.0, 32.0)
+const CORNER_CLEAR := 8.0
+## How much of a face's usable length (between the corner clearances) a camp runs along: on an
+## ordinary downtown street, on one of the camp streets (CAMP_STREET_SHARE), and on skid row
+## (SKID_RUN_SHARE) - where it is the whole face, wall to wall.
+const RUN_SHARE := Vector2(0.55, 0.95)
+const CAMP_STREET_RUN_SHARE := Vector2(0.85, 1.0)
+## Shortest run worth laying (metres).
+const RUN_MIN := 9.0
+## Gap between one unit and the next along the wall (metres, min and max): tents pitched side by
+## side, guy lines crossing.
+const UNIT_GAP := Vector2(0.05, 0.35)
 ## Clear pavement kept round anything already on the pavement (lamps, hydrants, meters, signs,
 ## shelters, trash cans), metres.
 const PROP_CLEAR := 1.3
 ## Metres of pavement kept open at the kerb side for people walking by. Walkers on a block with
 ## camps keep to this strip too (CityChunk._pedestrian_steps narrows their ring).
-const PATH_KEEP := 2.3
+const PATH_KEEP := 2.1
+## The kerb row (_build_kerb_row): how far in from the kerb its pieces stand (their centre, m),
+## the odds that the next stretch has a cluster (an ordinary camp street, skid row), the gap after
+## a stretch without one or after a cluster (m), and what goes there - only things shallow enough
+## to leave the walkers' strip (1 m in from the kerb and on) clear.
+const KERB_ROW_OFFSET := 0.45
+const KERB_ROW_ODDS := Vector2(0.45, 0.8)
+const KERB_ROW_SKIP := Vector2(1.5, 5.0)
+const KERB_PIECES := ["cart", "loaded_cart", "loaded_cart", "bag_trash", "bag_trash", "box", "bundle", "bag_duffel", "bicycle", "bike_frame"]
 ## Gap between a piece's back and the wall, and where the wall is taken to be when no building
 ## stands behind (an empty lot, a yard): this many metres in from the kerb.
 const WALL_BACK := 0.25
 const NO_WALL_DEPTH := 5.4
 ## A doorway gap every so often along a run (metres of wall between them, and the gap's width).
-const DOOR_EVERY := Vector2(7.0, 12.0)
+const DOOR_EVERY := Vector2(9.0, 16.0)
 const DOOR_GAP := Vector2(1.6, 2.6)
 ## Draw distances (m): tents and tarps, and the small things.
 const DRAW_DISTANCE := 190.0
@@ -166,7 +182,7 @@ const PIECES := {
 ## What a camp is made of, as weighted "units" laid one after another along the wall. A unit is a
 ## main piece and the clutter that sits with it.
 const UNITS := [
-	["tent", 30], ["tent_tarp", 12], ["mound", 8], ["cart", 10], ["bed", 11], ["sit", 9],
+	["tent", 46], ["tent_tarp", 16], ["mound", 10], ["cart", 10], ["bed", 11], ["sit", 9],
 	["bags", 8], ["bike", 6], ["parts", 3], ["slump", 6], ["chair", 5], ["group", 4], ["bundle", 4],
 ]
 ## The units with somebody in them, which skid row leans toward (SKID_PEOPLE_BIAS).
@@ -367,18 +383,29 @@ static func _clear_of(occupied: Array, p: Vector2, half: float) -> bool:
 	return true
 
 
-## One camp along one block face.
+## True when the road on face `e` of block (ix, iz) is one of the streets that carry the big
+## camps (hashed per road, the same roll _faces() makes).
+static func _camp_street(plan: CityPlan, ix: int, iz: int, e: int) -> bool:
+	var axis: int = CityPlan.AXIS_Z if e < 2 else CityPlan.AXIS_X
+	var index: int = [iz, iz + 1, ix, ix + 1][e]
+	return _hash01([plan.seed, "camp_street", axis, index]) < CAMP_STREET_SHARE
+
+
+## One camp along one block face: the row against the wall, then (on the camp streets and skid
+## row) the belongings lined along the kerb between the lamps and meters, the walkers' strip left
+## open between the two.
 static func _build_run(chunk: CityChunk, walls: Array[Rect2], edge: Array, face: int, rng: RandomNumberGenerator, occupied: Array, items: Array, sleepers: Array, skid: float) -> void:
 	var a: Vector2 = edge[0]
 	var b: Vector2 = edge[1]
 	var inward: Vector2 = edge[2]
 	var length := a.distance_to(b)
 	var usable := length - CORNER_CLEAR * 2.0
-	if usable < RUN_LENGTH.x:
+	if usable < RUN_MIN:
 		return
 	var dir := (b - a) / length
-	var lengths := RUN_LENGTH.lerp(SKID_RUN_LENGTH, skid)
-	var run := minf(rng.randf_range(lengths.x, lengths.y), usable)
+	var street := _camp_street(chunk.plan, chunk.ix, chunk.iz, face)
+	var shares := (CAMP_STREET_RUN_SHARE if street else RUN_SHARE).lerp(SKID_RUN_SHARE, clampf(skid / SKID_MIN, 0.0, 1.0))
+	var run := clampf(usable * rng.randf_range(shares.x, shares.y), minf(RUN_MIN, usable), usable)
 	var t := CORNER_CLEAR + rng.randf_range(0.0, usable - run)
 	var t_end := t + run
 	var next_door := t + rng.randf_range(DOOR_EVERY.x, DOOR_EVERY.y)
@@ -397,11 +424,43 @@ static func _build_run(chunk: CityChunk, walls: Array[Rect2], edge: Array, face:
 			break
 		var mid := a + dir * (t + width * 0.5)
 		var depth := _wall_depth(walls, mid, inward)
-		if not _clear_of(occupied, mid, width * 0.5) or depth - WALL_BACK - PATH_KEEP < 0.8:
-			t += width
+		if not _clear_of(occupied, mid + inward * (depth - 1.0), width * 0.5) or depth - WALL_BACK - PATH_KEEP < 0.8:
+			t += 0.8
 			continue
 		_lay_unit(chunk, unit, a, dir, inward, t, width, depth, basis, yaw, rng, items, sleepers, face, camp_id)
-		t += width + rng.randf_range(0.15, 0.6)
+		t += width + rng.randf_range(UNIT_GAP.x, UNIT_GAP.y)
+	if street or skid >= SKID_MIN * 0.5:
+		_build_kerb_row(chunk, a, dir, inward, CORNER_CLEAR, length - CORNER_CLEAR, rng, occupied, items, face, camp_id, skid)
+
+
+## Along the kerb: carts, bikes, bags and bundles in clusters between the street furniture, never
+## deeper than KERB_ROW_DEPTH so the walkers' strip behind them stays open.
+static func _build_kerb_row(chunk: CityChunk, a: Vector2, dir: Vector2, inward: Vector2, t0: float, t1: float, rng: RandomNumberGenerator, occupied: Array, items: Array, face: int, camp_id: Array, skid: float) -> void:
+	var odds := lerpf(KERB_ROW_ODDS.x, KERB_ROW_ODDS.y, clampf(skid, 0.0, 1.0))
+	# Side-on along the kerb: local +Z toward the kerb, so a quarter turn lays a cart along it.
+	var along := Basis(Vector3.UP, atan2(-inward.x, -inward.y))
+	var t := t0 + rng.randf_range(0.5, 3.0)
+	while t < t1 - 1.2 and items[0] < items[1]:
+		if rng.randf() >= odds:
+			t += rng.randf_range(KERB_ROW_SKIP.x, KERB_ROW_SKIP.y)
+			continue
+		# A cluster: two to five things side by side.
+		var n := rng.randi_range(2, 5)
+		for i in n:
+			var piece: String = KERB_PIECES[rng.randi() % KERB_PIECES.size()]
+			var spec: Dictionary = PIECES[piece]
+			var long_side: bool = piece in ["cart", "loaded_cart", "bicycle", "bike_frame"]
+			var w: float = float(spec.d) if long_side else float(spec.w)
+			if t + w > t1:
+				break
+			var p := a + dir * (t + w * 0.5) + inward * KERB_ROW_OFFSET
+			if _clear_of(occupied, p, w * 0.5):
+				var bb := along * Basis(Vector3.UP, PI * 0.5 + rng.randf_range(-0.12, 0.12)) if long_side else along * Basis(Vector3.UP, rng.randf_range(-0.4, 0.4))
+				if piece == "bicycle":
+					bb = bb * Basis(Vector3.BACK, -deg_to_rad(rng.randf_range(6.0, 12.0)))
+				_place(chunk, piece, p, bb, rng, items, face, camp_id)
+			t += w + rng.randf_range(0.05, 0.3)
+		t += rng.randf_range(KERB_ROW_SKIP.x, KERB_ROW_SKIP.y)
 
 
 ## Rows under a freeway deck crossing this block: along each segment whose middle is over the

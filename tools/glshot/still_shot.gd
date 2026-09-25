@@ -38,6 +38,8 @@ extends SceneTree
 ## its red, and for `crossing` people out on the crosswalk in front of it (see _stage_street for
 ## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES). With --hour=21 it is the lit heads
 ## at night.
+## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
+## above the ground there.
 ## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
 ## camera pass and the shadow passes); SPLIT=1 then hides one category at a time (cars, people,
 ## buildings, trees, props, far city, ...) with the world held still and prints what each costs,
@@ -585,6 +587,9 @@ func _eye(player: Node3D, fov: float) -> void:
 	var world_state := root.get_node_or_null("/root/WorldState")
 	var offset: Vector3 = world_state.get("world_offset") if world_state else Vector3.ZERO
 	var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float()) - offset
+	# EYE_AGL=1: the height is above the ground there (the city's own plan height), not absolute.
+	if OS.get_environment("EYE_AGL") == "1" and current_scene and current_scene.get("plan") != null:
+		at.y += float(current_scene.get("plan").height_at(Vector2(p[0].to_float(), p[2].to_float())))
 	var player_cam := get_root().get_camera_3d() if _eye_cam == null else null
 	if _eye_cam == null:
 		_eye_cam = Camera3D.new()
