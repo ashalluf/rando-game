@@ -156,6 +156,7 @@ func _test_city() -> void:
 		if node is TrashCan:
 			cans += 1
 	_check(cans > 0, "trash cans are physics props (%d)" % cans)
+	_check_street_clutter(city)
 
 	# Breaking a lamp: it disappears, drops debris, and is remembered.
 	var home_key: Vector2i = plan.block_index_at(Vector2.ZERO)
@@ -535,6 +536,8 @@ func _test_city() -> void:
 			"StreetDetail.POLE_ODDS": StreetDetail.POLE_ODDS.size(),
 			"StreetDetail.LOADING_ODDS": StreetDetail.LOADING_ODDS.size(),
 			"StreetDetail.METER_ODDS": StreetDetail.METER_ODDS.size(),
+			"StreetClutter.BOARD_ODDS": StreetClutter.BOARD_ODDS.size(),
+			"StreetClutter.LITTER_PER_M": StreetClutter.LITTER_PER_M.size(),
 		}
 		var short_tables := ""
 		for table_name in per_district:
@@ -2301,6 +2304,41 @@ func _check_hero(avatar: Node) -> void:
 			if c.get_class() == "SkeletonModifier3D" and c.get_script() != null and str(c.get_script().resource_path).ends_with("aim_twist.gd"):
 				twist_ok = true
 	_check(twist_ok, "the aiming stance twist sits on the hero's skeleton")
+
+
+## Street clutter (StreetClutter): news boxes and magazine racks, A-frames and gutter litter
+## are batched (one single-surface mesh on the clutter shader per kind), cheap, and the boxes and
+## boards are breakable props with a shape each.
+func _check_street_clutter(city: Node) -> void:
+	var instances := {}
+	var bad_mesh := ""
+	for n in city.find_children("Batch_sc_*", "MultiMeshInstance3D", true, false):
+		var mm := (n as MultiMeshInstance3D).multimesh
+		var kind := str(n.name).trim_prefix("Batch_")
+		instances[kind] = int(instances.get(kind, 0)) + mm.instance_count
+		var mesh := mm.mesh
+		var tris: int = mesh.surface_get_array_len(0) / 3 if mesh and mesh.get_surface_count() > 0 else 0
+		var budget := 500 if kind.begins_with(StreetClutter.K_LITTER) else 1000
+		if mesh == null or mesh.get_surface_count() != 1 or not (mesh.surface_get_material(0) is ShaderMaterial) or tris > budget or tris < 50:
+			bad_mesh += " %s(%d tris)" % [kind, tris]
+	var litter := 0
+	for k in instances:
+		if str(k).begins_with(StreetClutter.K_LITTER):
+			litter += int(instances[k])
+	_check(int(instances.get(StreetClutter.K_NEWS, 0)) + int(instances.get(StreetClutter.K_RACK, 0)) > 5 and litter > 50,
+		"streets carry news boxes, racks and gutter litter (%s)" % str(instances))
+	_check(bad_mesh == "", "street clutter meshes are one clutter-shader surface within budget%s" % bad_mesh)
+	var boxed := 0
+	var shapeless := 0
+	for chunk in city.get_children():
+		if chunk.get("prop_records") == null:
+			continue
+		for r in chunk.prop_records:
+			if r.kind == "newsbox" or r.kind == "aboard":
+				boxed += 1
+				if r.shapes.is_empty():
+					shapeless += 1
+	_check(boxed > 5 and shapeless == 0, "news boxes and A-frames are breakable props with shapes (%d, %d without)" % [boxed, shapeless])
 
 
 ## Instances in a building's facade-kit batches (MultiMeshBatch names them Batch_<key>) whose

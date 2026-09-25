@@ -34,7 +34,7 @@ Quaternius). Record every pack here.
 | AerialAsphalt01 (`aerial_asphalt_01`) | https://polyhaven.com/a/aerial_asphalt_01 | CC0 1.0 | second asphalt look, per road | 2026-09-19 |
 | LargeSquarePattern01, GravelConcrete03 (`large_square_pattern_01`, `gravel_concrete_03`) | https://polyhaven.com/a/large_square_pattern_01 etc. | CC0 1.0 | sidewalk pavers and plain concrete sidewalks, per block | 2026-09-19 |
 | Fabric036 (1K JPG: Color, NormalGL, Roughness) | https://ambientcg.com/a/Fabric036 | CC0 1.0 | facade kit: shop awning canvas (`fabric`) | 2026-09-24 |
-| Metal016 | https://ambientcg.com/a/Metal016 | CC0 1.0 | facade kit: painted steel - AC units, rooftop units, vents, fire escapes, railings (`metal_painted`) | 2026-09-24 |
+| Metal016 | https://ambientcg.com/a/Metal016 | CC0 1.0 | facade kit: painted steel - AC units, rooftop units, vents, fire escapes, railings (`metal_painted`); detail on the street clutter's painted steel (news boxes, racks, A-frames) | 2026-09-24 |
 | Planks023A | https://ambientcg.com/a/Planks023A | CC0 1.0 | facade kit: rooftop water tank staves and roof (`planks`) | 2026-09-24 |
 | ClayRoofTiles02 (Poly Haven `clay_roof_tiles_02`, 1K JPG, Diffuse/nor_gl/Rough renamed to Color/NormalGL/Roughness) | https://polyhaven.com/a/clay_roof_tiles_02 | CC0 1.0 | Esplanade replica: the houses' hipped and gabled barrel-tile roofs (`roof_clay`, tinted per house) | 2026-09-24 |
 | Fabric048 | https://ambientcg.com/a/Fabric048 | CC0 1.0 | encampment kit: tent nylon, camp chair and duffel canvas (`camp_nylon`) | 2026-09-24 |

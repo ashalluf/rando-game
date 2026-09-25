@@ -760,7 +760,13 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `StreetProps` body, which routes `take_hit()` to the chunk. Physics props (trash cans) are
   `TrashCan` RigidBody3D nodes in the `physics_prop` group. Street furniture and markings live in
   `StreetDetail` (`scripts/world/street_detail.gd`, static, seeded per block and intersection);
-  street names come from `CityPlan.road_name()`.
+  street names come from `CityPlan.road_name()`. The pavement clutter is `StreetClutter`
+  (`scripts/world/street_clutter.gd`, called last from `StreetDetail.build_block()`): coin-op
+  news boxes and free-magazine racks in rows near a corner, chalkboard A-frames on shop blocks,
+  litter and dead leaves in the gutters - meshes built in code at real size on one shader
+  (`shaders/street_clutter.gdshader`: paint from INSTANCE_CUSTOM, printed front pages, covers and
+  chalk from the vertex alpha), one draw per kind a chunk. StreetDetail still makes the news
+  boxes' old rng rolls and hands them over; everything else is hash-seeded.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
