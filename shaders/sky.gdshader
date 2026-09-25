@@ -44,6 +44,18 @@ uniform vec3 twilight_band : source_color = vec3(0.44, 0.28, 0.54);
 uniform float twilight_amount : hint_range(0.0, 1.0) = 0.0;
 uniform float twilight_falloff : hint_range(0.02, 0.6) = 0.16;
 uniform float twilight_band_height : hint_range(0.0, 1.0) = 0.26;
+/// How much of the cool band there is (0..1). It is the earth's shadow, so it only exists once
+/// the sun is on or under the horizon: DayNight holds it off while the sun is still well up.
+uniform float twilight_band_gain : hint_range(0.0, 1.0) = 1.0;
+
+// --- Smog -------------------------------------------------------------------------------------
+/// The basin's smog layer at golden hour (DayNight drives all four; `smog` is 0 by day and night,
+/// which skips the whole block). A lid of lit haze from the horizon up to `smog_top` (the sine
+/// of its elevation): brown-grey away from the sun, glowing orange-pink toward it and low down.
+uniform float smog = 0.0;
+uniform vec3 smog_color : source_color = vec3(0.64, 0.54, 0.47);
+uniform vec3 smog_glow : source_color = vec3(1.0, 0.58, 0.40);
+uniform float smog_top = 0.075;
 
 // --- Moon -------------------------------------------------------------------------------------
 /// Direction toward the moon, its tint, its apparent radius in radians (the real moon is about
@@ -192,7 +204,31 @@ void sky() {
 		col = mix(col, twilight_warm, clamp(warm * twilight_amount, 0.0, 1.0) * (1.0 - below * 0.45));
 		float bh = (up - twilight_band_height) / 0.24;
 		float band = exp(-bh * bh) * (0.26 + 0.46 * (1.0 - toward));
-		col = mix(col, twilight_band, clamp(band * twilight_amount, 0.0, 1.0));
+		col = mix(col, twilight_band, clamp(band * twilight_amount * twilight_band_gain, 0.0, 1.0));
+	}
+
+	// --- Smog ------------------------------------------------------------------------------
+	// A Los Angeles evening is not a clear horizon. The basin sits under an inversion, and with
+	// the sun low the air under it is a pale brown-grey lid a few degrees deep - glowing orange
+	// and pink toward the sun, densest at the horizon, with a soft but definite top and clear
+	// sky above it. Below the horizon it is the same air seen against the far land.
+	// Its whole cost is this block, skipped outside golden hour.
+	float smog_sun = 0.0;
+	if (smog > 0.002) {
+		float hup = max(up, 0.0);
+		float lid = 1.0 - smoothstep(smog_top * 0.5, smog_top * 1.2, hup);
+		float dens = lid * (0.62 + 0.38 * exp(-hup / (smog_top * 0.35)));
+		vec2 dh = dir.xz;
+		vec2 sh = sdir.xz;
+		float azs = dot(dh, sh) * inversesqrt(max(dot(dh, dh) * dot(sh, sh), 1e-8));
+		float toward_s = max(azs, 0.0);
+		toward_s *= toward_s;
+		// Warm at the bottom and toward the sun, brown-grey higher up and round the back.
+		float warm_s = exp(-hup / (smog_top * 0.45)) * (0.30 + 0.70 * toward_s);
+		vec3 smog_col = mix(smog_color, smog_glow, clamp(warm_s, 0.0, 1.0));
+		col = mix(col, smog_col, clamp(dens * smog, 0.0, 1.0));
+		// How deep in the layer the sun itself is, for its disc and halo below.
+		smog_sun = smog * (1.0 - smoothstep(0.0, smog_top * 1.25, sdir.y));
 	}
 
 	// --- Sun -------------------------------------------------------------------------------
@@ -207,11 +243,16 @@ void sky() {
 	// 0.008 by five. It goes in before the disc is mixed over the top, so the inner half of the
 	// lobe is hidden by the disc and what is left is a halo hugging its edge.
 	col += sun_light * exp(-ang / 0.018) * 1.8 * sun_glow * sun_up * horizon_cut;
+	// A sun down in the smog is diffused: a wider, softer glow round it, and the disc itself
+	// dimmer and redder (the long path through the haze takes the blue out first).
+	col += smog_glow * pow(max(cos_sun, 0.0), 14.0) * 0.55 * smog_sun * sun_up * horizon_cut;
+	// Only the disc: the clouds stand above the layer and still see the sun's own colour.
+	vec3 disc_light = sun_light * mix(vec3(1.0), vec3(1.0, 0.62, 0.42) * 0.55, smog_sun);
 	float disc = 1.0 - smoothstep(sun_size * 0.82, sun_size * 1.02, ang);
 	// Limb darkening: the edge of the disc is dimmer than the middle, which is most of why a
 	// real sun reads as a sphere and a painted circle does not.
 	float limb = 1.0 - 0.40 * smoothstep(0.5, 1.0, ang / max(sun_size, 1e-4));
-	col = mix(col, sun_light * 7.0 * limb, disc * sun_up * horizon_cut);
+	col = mix(col, disc_light * 7.0 * limb, disc * sun_up * horizon_cut);
 
 	// --- Moon ------------------------------------------------------------------------------
 	// Its own body, not the sun's disc redrawn: much smaller, much sharper, with maria and a

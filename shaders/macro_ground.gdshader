@@ -37,6 +37,14 @@ uniform vec3 haze_color : source_color = vec3(0.70, 0.78, 0.88);
 uniform float haze_start = 4500.0;
 uniform float haze_end = 7400.0;
 uniform float haze_strength : hint_range(0.0, 1.0) = 0.45;
+// Golden-hour smog (DayNight, through CityStreamer.set_ground_smog; 0 outside golden hour, which
+// skips it): lit haze under the basin's inversion lid. Far land low down goes into it and peaks
+// above `smog_lid` metres stand clear of it, which is how the mountains round Los Angeles look
+// on an evening. Depth fog alone greys a mountain evenly from foot to crest.
+uniform float smog = 0.0;
+uniform vec3 smog_color : source_color = vec3(0.64, 0.54, 0.47);
+uniform float smog_lid = 380.0;
+uniform float smog_reach = 3200.0;
 // The plane's own rim. It is 14 km across and the camera now draws to 12 km, so from any height
 // its edge was a hard line with the sky's under-horizon colour beyond it - seen from the hills as
 // a pale slab laid across the sea. Between these two horizontal distances from the camera it
@@ -438,6 +446,12 @@ void fragment() {
 	float dim = mix(1.0, 0.16, night_factor);
 	vec3 albedo = mix(base, haze_color, hz) * dim;
 	vec3 emitted = mix(base * lit, haze_color, hz) * dim + glow * (1.0 - hz);
+	if (smog > 0.002) {
+		float under = 1.0 - smoothstep(smog_lid * 0.35, smog_lid, world_pos.y);
+		float sm = smog * under * (1.0 - exp(-dist / smog_reach));
+		albedo = mix(albedo, smog_color * dim, sm);
+		emitted = mix(emitted, smog_color * dim, sm);
+	}
 
 	// Beyond the detail band this plane is a painted horizon, not a surface: past the near band
 	// it is EMITTED at face value, so the sun, sky, self-shadow and cloud terms computed above

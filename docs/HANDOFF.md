@@ -2011,6 +2011,36 @@ Exposition Boulevard, so the entrance faces the street it faces in life.
   and it adds five no-shadow lights). The smoke run's "Cannot set a buffer on a Multimesh" traces
   through `masjid_checks.gd` are section 10 item 8's headless noise, from the chunks it streams.
 
+## 9w. Golden hour and the smog, 2026-09-25 (agent branch)
+
+The ask: late afternoon should read like Los Angeles - a warm low sun, an orange-to-pink band
+along the horizon fading into a pale brown-grey smog layer over the basin (thick at the horizon
+and against the mountains, thin overhead), warm distance haze, long warm shadows with a blue fill.
+Midday and night must not move. The rules are in the Day/night bullet of CLAUDE.md.
+
+- **What was wrong.** With the sun ten degrees up (17:36) the sky was already the SUNSET: the
+  `dusk` blend is 0.73 there, so the zenith had gone to the dusky violet `dusk_sky_top`, the
+  horizon to peach, and the earth's-shadow band (`sunset_band`, violet) stood 17 degrees up all
+  round - a sky that only exists once the sun is down. Since the ambient IS the sky, every
+  shadow took that lavender. And there was no smog at all: the horizon was a clean gradient.
+- **What changed.** `DayNight.golden` (0..1, sun elevation only) and `sun_high` (1 from about
+  ten degrees up, 0 on the horizon). While the sun is clearly up the zenith and horizon hold back
+  most of their dusk colour (`golden_blue_top`, `golden_pale_horizon`) and the violet band is
+  off (`twilight_band_gain`); on the horizon and after, everything is exactly as before. The sky
+  shader draws the smog lid (`smog*` uniforms; one branch on a uniform, ~25 ALU on sky pixels
+  and radiance texels, only at golden hour) and diffuses and reddens the sun disc inside it; the
+  far ground takes the same colour under `smog_lid` metres (mountain feet in it, crests clear);
+  the depth fog goes toward the smog colour and 1.45x thicker (`fog_gain`, applied by Weather).
+  Sunrise gets `smog_morning` (0.45) of it; weather removes it.
+- **Measuring it.** A Forward+ city shot no longer fits this box: lavapipe peaked at 13.9 GB for
+  the 80 m aerial and 13.7 GB for the avenue even at `--quality=1`, and the memory cgroup every
+  agent's shell shares is 14.3 GB, so all of them were OOM-killed. The Forward+ judgement was a
+  light probe instead: the city's own Environment and Sun, a DayNight, Weather's clear-sky fog
+  numbers applied by hand, and a field of grey boxes to 7 km, which fits easily. Sky-only probes on
+  Compatibility are cheaper still for the sky itself. Neither shows the far ground's smog lid.
+- **Needs the Mac.** Not seen on the real city in Forward+ at all: the far ground's smog under
+  `smog_lid`, the lid against the real mountains, volumetric fog over the real streets.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and

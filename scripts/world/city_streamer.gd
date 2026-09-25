@@ -962,6 +962,13 @@ func set_ground_haze(color: Color, sun_direction: Vector3) -> void:
 		_ground_material.set_shader_parameter("sun_dir", sun_direction)
 
 
+## DayNight's golden-hour smog on the far land: how much (0 off) and its lit colour.
+func set_ground_smog(amount: float, color: Color) -> void:
+	if _ground_material:
+		_ground_material.set_shader_parameter("smog", amount)
+		_ground_material.set_shader_parameter("smog_color", color)
+
+
 ## Where the horizon plane's rim hands over to the sky, as fractions of its half-size (see
 ## edge_start in macro_ground.gdshader).
 const GROUND_EDGE_FADE := Vector2(0.72, 0.98)

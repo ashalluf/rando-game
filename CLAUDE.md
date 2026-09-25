@@ -251,6 +251,21 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   the sun and darkening where there is more of it in the way, which is what gives them bright
   shoulders and grey undersides; above them is a sheared cirrus deck. Both cost three extra
   noise taps, so `Quality` clears `cloud_detail` on the web and below MEDIUM.
+  **Golden hour is the smog** (Los Angeles evening): `DayNight.golden` (0..1 off the sun's
+  elevation only - `golden_elevation` ramps it in between about 27 and 10 degrees up,
+  `golden_set_elevation` out a few minutes after sunset - so midday and night are untouched)
+  drives a lid of lit haze in the sky shader (`smog`, `smog_color` brown-grey away from the sun,
+  `smog_glow` orange-pink toward it and low down, `smog_top` its height as a sine; it also
+  diffuses and reddens the sun disc sitting in it), the same colour on the far land under
+  `smog_lid` metres (`macro_ground.gdshader`, via `CityStreamer.set_ground_smog()`, so mountain
+  feet sink into it and crests stand clear), the depth-fog colour (`golden_fog_smog`) and its
+  density (`fog_gain`, which Weather multiplies in like `haze_gain`). `sky_tint` and the ground
+  haze follow what the sky really draws at the horizon. Sunrise gets `smog_morning` of it, and
+  weather (`weather_darken`) takes it all away. Every piece works on Compatibility. The sunset
+  colours wait for the sunset: while the sun is clearly up (`sun_high`, 1 from ten degrees) the
+  zenith and horizon keep most of their day colour (`golden_blue_top`, `golden_pale_horizon`)
+  and the violet earth's-shadow band is off (`twilight_band_gain`) - at 17:36 the sky used to be
+  a full sunset already, and the ambient, which is the sky, turned every shadow lavender.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
