@@ -77,3 +77,8 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 - **Texture mipmaps** (roadmap #18) - merged cb4e4e3 - done, clearly better at distance. A/B
   `<scratchpad>/mip/brick_crop.png` (brick mid-rise across the street: speckle -> even brick),
   high-frequency energy -3 %. 14 sets switched, RockyTerrain02 dropped (unused). Gate 456/456.
+- **Car body faceting** (roadmap #21) - merged 331e450 (gate pending at writing) - clearly
+  better. Root cause: the four Meshy bodies were exported with normals split at 30 deg and on
+  every UV seam. tools/smooth_normals.py re-smooths by angle (45 deg), welds, never adds
+  vertices. Forward+ sheets `<scratchpad>/smooth/ba_{0..3}.png`. Same triangles, ~0.2 % fewer
+  vertices, LODs intact. Follow-up #22 (higher-poly bodies).
