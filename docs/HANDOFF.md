@@ -2133,9 +2133,9 @@ What that says, for whoever picks the next performance pass:
   lighter twins. The cause is known (9f): a batch takes one LOD for every instance from its
   bounds, so every tree in the chunk the camera stands in draws LOD0 (40-60k triangles a tree)
   into the camera and all cascades. Smaller tree cells fix it at the price of draw calls.
-- **Pedestrians downtown (1.88 M):** the 60-140 m band sits on the unwelded models' 4,150
-  triangle LOD floor; the welded far body starts at 140 m. Moving it closer is a visible-risk
-  call (it smears the texture seams), not a free win.
+- **Pedestrians downtown (1.88 M -> 1.10 M, done):** the 45-140 m band sat on the unwelded
+  models' LOD floor (8,300 triangles a figure for most models at this camera); it now wears a
+  welded middle body of ~2,070 from `mid_body_range` (50 m), see the next subsection.
 - **Far city (0.7-1.3 M, few draws):** mostly the 24-triangle canopy blobs across the basin.
   Tiles whose blocks are all under chunks are only ~2 of 81 near downtown, so hiding them buys
   little.
@@ -2177,6 +2177,30 @@ foliage and its shadows, rain, the hero's idle - and the merged geometry itself 
 (freeway: the big-box store 0.08 % of pixels over 8/255; the road under downtown noon 0.000 %,
 max 2; hills without the sky and the hero, 0.058 mean abs). Renders and diff images of this pass
 were in the agent's scratchpad, not the repo; `MERGE_STATIC=0` reproduces the "before" side.
+
+### Pedestrian middle body (2026-09-25)
+
+`Pedestrian.far_mesh(mesh, cap)` now builds two welded bodies per model on the loading screen:
+`mid_triangles` (~2,070) worn from `mid_body_range` (50 m; 35 m below MEDIUM) and `far_triangles`
+(~515, was ~1,040 and in practice drawn at an 18-35 triangle LOD - see CLAUDE.md) from
+`lod_far`. downtown_noon (opengl3, 1280x720, `--quality=0`, SPLIT=1), before on 1cbeedf:
+
+| | before | after |
+|---|---|---|
+| Frame triangles | 8,228,872 | 7,443,628 (-785k, -9.5 %) |
+| Camera pass | 5,540,097 | 4,754,853 |
+| Shadow pass | 2,688,773 | 2,688,773 (the bodies cast no shadow; tier starts past 45 m) |
+| Pedestrians (+ hero) | 1,881,692 | 1,096,448 (-42 %) |
+| Draws / objects | 4,307 / 4,334 | 4,307 / 4,334 |
+
+Loading screen: building both bodies for all nine models costs 900 ms on this box against
+485 ms for the old far body alone (+415 ms, CPU; the Mac is quicker). The look, judged at
+1920x1080 FOV 75 against the model at 15-140 m: the model's own mips turn its many small UV
+islands into brown speckle past ~35 m, so the welded bodies (flat texel per mis-mapped
+triangle) show the clothes' real colours better than the model does at that range - a yellow
+blazer stays yellow at 70 m. Up close (under 10 m) a welded body's face is visibly faceted,
+which is why it only starts at 50 m. In the downtown bookmark the only visible change is a few
+far figures a shade more saturated.
 
 ## 10. Suggested next steps, in order of impact
 

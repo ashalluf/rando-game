@@ -13,7 +13,11 @@ extends SceneTree
 ## LOOK (a crowd look, Pedestrian.character_material - without it the rig keeps the model's
 ## plain material and character.gdshader is not in the picture), CAM_DIST / CAM_Y / AIM_Y
 ## (metres; 0.9 / 1.62 / 1.58 frames a face), SUN_YAW (degrees to turn the sun round the rig;
-## 180 puts it behind, for the skin's backlight).
+## 180 puts it behind, for the skin's backlight). FOV (default 40; the game camera is 75).
+## BODY=mid|far swaps the skinned mesh for the welded middle / far body (Pedestrian.far_mesh at
+## mid_triangles / far_triangles) and BIAS sets the mesh LOD bias (the game uses 0.45 from
+## shadow_range), to judge a distance tier against the model's own LODs: FOV=75 and CAM_DIST
+## 50-140 at 1920x1080 is the street camera, then crop the figure and scale it up.
 ## The rig fixes are applied exactly as the game applies them (Pedestrian.prepare_rig and
 ## fix_arm_pose), loaded dynamically because this script compiles before the autoloads exist.
 func _initialize() -> void:
@@ -93,8 +97,19 @@ func _initialize() -> void:
 		else:
 			print("character_shot: no clip ", clip, " in ", ap.get_animation_list())
 
+	var body := OS.get_environment("BODY")
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if OS.get_environment("BIAS") != "":
+			mi.lod_bias = float(OS.get_environment("BIAS"))
+		if mi.skin and body != "":
+			var cap: int = ped_script.get("mid_triangles") if body == "mid" else ped_script.get("far_triangles")
+			var t0 := Time.get_ticks_msec()
+			mi.mesh = ped_script.far_mesh(mi.mesh, cap)
+			print("character_shot: %s body %d triangles, built in %d ms" % [body,
+				mi.mesh.surface_get_array_index_len(0) / 3, Time.get_ticks_msec() - t0])
 	var cam := Camera3D.new()
-	cam.fov = 40.0
+	cam.fov = float(OS.get_environment("FOV")) if OS.get_environment("FOV") != "" else 40.0
 	cam.position = Vector3(sin(yaw) * dist, cam_y, cos(yaw) * dist)
 	root.add_child(cam)
 	cam.look_at(Vector3(0.0, aim_y, 0.0), Vector3.UP)
