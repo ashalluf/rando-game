@@ -59,10 +59,11 @@ never gated. `wt/vehicle-grime` and `wt/wall-weathering` were judged not clearly
 **The autonomous loop** (optional). The owner ran an orchestrator loop: parallel agents in git
 worktrees (`/home/user/wt/<slug>`, branches `wt/<slug>`), each owning one roadmap item, merged
 to main one at a time after a full check and screenshot review. A Stop hook
-(`.claude/hooks/keep-going.sh`, registered in `.claude/settings.json`) blocks stopping unless
-a `STOP` file exists in the repo root (git-ignored). A fresh clone has no STOP file, so the
-hook WILL keep a new session running until you `touch STOP`, or the owner says to remove the
-hook. Agents dropped every render into a shared scratch `screens/` folder that the
+(`.claude/hooks/keep-going.sh` + `.claude/settings.json`, blocking stops unless a `STOP` file
+exists in the repo root) kept it going. Those files were never committed, so a fresh clone
+does not have them; recreate them only if the owner asks for the loop again (the brief is in
+the owner's original orchestrator prompt, and the wave protocol is at the top of
+VISUAL_ROADMAP.md). Agents dropped every render into a shared scratch `screens/` folder that the
 orchestrator forwarded to the owner.
 
 How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every agent):
