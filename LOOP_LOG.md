@@ -36,3 +36,8 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 ## Wave 3 (2026-09-25)
 
 - Hill road cut banks (roadmap #17) launched. New hills bookmark baseline: `<scratchpad>/bookmarks/base_18c1bcb/hills2.png`.
+
+- **Street clutter** (roadmap #7) - merged 20e2169 - done, clearly better. Before
+  `<scratchpad>/sc/before/{box,news,board,corner}.png`, after `<scratchpad>/sc/after3/`, A/B
+  `<scratchpad>/sc/box_ab.png`, `board_ab.png`. geo_count street view 576.4,860.5: 4.641 M ->
+  4.652 M tris (+0.23 %), 2169 -> 2190 draws (+1 %). Gate on the merged tree 456/456.
