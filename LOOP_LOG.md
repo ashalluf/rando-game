@@ -86,7 +86,7 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 ## Wave 5 (2026-09-25)
 
 - Regression audit launched on main 75f4795 (every fifth wave).
-- **PERF pass 1** - merged b612d55 (gate pending at writing). Static boxes per chunk and far
+- **PERF pass 1** - merged b612d55, gate 456/456. Static boxes per chunk and far
   landmark primitives merged into one mesh per material: draws hills 1,202 -> 942 (-21.6 %),
   downtown 4,679 -> 4,313 (-7.8 %), freeway 6,661 -> 6,485 (-2.6 %), triangles unchanged;
   pixel diffs only on clock-driven things (`<scratchpad>/perf/*_diff.png`). Baseline table in
