@@ -440,6 +440,18 @@ const PALM_DEAD_STEPS := 38
 ## Length segments in one leaflet. A leaflet that is a single quad cannot droop or come to a
 ## point; a frond of flat quads reads as a comb, which is what the old crown did edge-on.
 const PALM_LEAFLET_SEGMENTS := 4
+## The far palm (palm(v, true), drawn past MultiMeshBatch.far_start): the same tree from the
+## same random stream - every frond where it was, at the same reach, droop and colour - with
+## FAR_STRIDE neighbouring leaflets drawn as one blade as wide as all of them (the same leaf
+## area, so the crown keeps its density), two segments a leaflet, and a coarser trunk. About a
+## sixth of the triangles. A palm's generated LODs cannot do this: the simplifier will not
+## merge separate leaflet cards, so they stopped at ~10k triangles.
+const PALM_FAR_STRIDE := 3
+const PALM_FAR_LEAFLET_SEGMENTS := 2
+const PALM_FAR_TRUNK_RINGS := 10
+const PALM_FAR_TRUNK_SIDES := 7
+## Near palm mesh -> its far version (see far_foliage()).
+static var _far_foliage: Dictionary = {}
 ## Which way each palm variant's trunk leans, as a yaw in radians, filled in by palm() as it
 ## builds. A street palm's crown is three metres across and its trunk leans up to another 1.5 m,
 ## so on a four-metre pavement with the building on the lot line the crown WILL reach the wall -
@@ -456,8 +468,8 @@ static func palm_lean(variant: int) -> float:
 	return _palm_lean.get(variant, 0.0)
 
 
-static func palm(variant: int) -> Mesh:
-	var key := "palm_%d" % variant
+static func palm(variant: int, far: bool = false) -> Mesh:
+	var key := ("palm_far_%d" if far else "palm_%d") % variant
 	if _cache.has(key):
 		return _cache[key]
 	var rng := RandomNumberGenerator.new()
@@ -474,8 +486,8 @@ static func palm(variant: int) -> Mesh:
 	var lean := rng.randf_range(0.4, 1.5)
 	# Yaw of that lean in the mesh's own space, so an instance can rotate it to point at the road.
 	_palm_lean[variant] = atan2(lean_dir.x, lean_dir.z)
-	var segments := PALM_TRUNK_RINGS
-	var sides := PALM_TRUNK_SIDES
+	var segments := PALM_FAR_TRUNK_RINGS if far else PALM_TRUNK_RINGS
+	var sides := PALM_FAR_TRUNK_SIDES if far else PALM_TRUNK_SIDES
 	# Grey-tan, not chocolate: a Washingtonia trunk is the colour of dry rope.
 	var bark := Color(0.46, 0.41, 0.33)
 
@@ -537,6 +549,9 @@ static func palm(variant: int) -> Mesh:
 			var tip0 := e0 + bl + bh
 			var tip1 := e1 + bl + bh
 			var boot := bark * rng.randf_range(0.76, 1.02)
+			if far:
+				# The random stream is still drawn from above, so every frond stays put.
+				continue
 			var nt := (Vector3.UP * 0.85 + bd).normalized()
 			_quad(st, e0, e1, tip1, tip0, boot, nt, nt)
 			var under := Vector3(0.0, -0.045 * (height / 14.0), 0.0)
@@ -548,7 +563,7 @@ static func palm(variant: int) -> Mesh:
 	var r_top: float = radius.call(1.0, segments)
 	var shaft_h := maxf(0.38, height * 0.038)
 	var shaft := Color(0.33, 0.36, 0.23)
-	var shaft_rings := 7
+	var shaft_rings := 2 if far else 7
 	for i in shaft_rings:
 		var u0 := float(i) / shaft_rings
 		var u1 := float(i + 1) / shaft_rings
@@ -571,18 +586,20 @@ static func palm(variant: int) -> Mesh:
 		# and every palm on the street is the same tree. Real crowns carry fronds of several
 		# ages at once: new ones held up, old ones nearly horizontal.
 		var yaw := TAU * f / fronds + rng.randf_range(-0.30, 0.30)
-		_palm_frond(st, crown, yaw, rng.randf_range(3.1, 6.1), rng.randf_range(-0.35, 1.05), rng, false)
+		_palm_frond(st, crown, yaw, rng.randf_range(3.1, 6.1), rng.randf_range(-0.35, 1.05), rng, false, far)
 	# A skirt of dead fronds hanging under the crown.
 	for f in rng.randi_range(4, 7):
 		var yaw := rng.randf_range(0.0, TAU)
-		_palm_frond(st, top + Vector3(0.0, -0.25, 0.0), yaw, rng.randf_range(2.0, 3.0), -1.25, rng, true)
+		_palm_frond(st, top + Vector3(0.0, -0.25, 0.0), yaw, rng.randf_range(2.0, 3.0), -1.25, rng, true, far)
 	# Coconuts clustered under the crown. Round ones: an eight-triangle octahedron at arm's
 	# length is a cut gemstone, not a fruit.
 	for c in rng.randi_range(4, 8):
 		var a := rng.randf_range(0.0, TAU)
 		var at := top + Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.15, 0.45) + Vector3(0.0, -0.35, 0.0)
 		var cr := rng.randf_range(0.13, 0.19)
-		_sphere_into(st, at, Vector3(cr, cr * 1.18, cr), Color(0.40, 0.30, 0.17) * rng.randf_range(0.85, 1.12))
+		var nut := Color(0.40, 0.30, 0.17) * rng.randf_range(0.85, 1.12)
+		if not far:
+			_sphere_into(st, at, Vector3(cr, cr * 1.18, cr), nut)
 
 	# No generate_normals() here. Flat per-triangle normals are what made the crown read as a
 	# folded paper fan: every leaflet caught the light at its own angle, so the canopy was a
@@ -599,11 +616,16 @@ static func palm(variant: int) -> Mesh:
 	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays(), [], {}, foliage_material())
 	im.generate_lods(25.0, 60.0, [])
 	var mesh := im.get_mesh()
+	_cache[key] = mesh
+	if far:
+		# Its own shadow caster: lighter than the near palm's shadow twin already.
+		return mesh
 	_build_shadow_proxy(im, mesh, 0.45, 0.45)
 	var proxy := shadow_proxy(mesh)
 	if proxy:
 		proxy.surface_set_material(0, foliage_material())
-	_cache[key] = mesh
+	_foliage[mesh] = true
+	_far_foliage[mesh] = palm(variant, true)
 	return mesh
 
 
@@ -616,7 +638,7 @@ static func palm(variant: int) -> Mesh:
 ## each one overlap its neighbours into a solid sheet, and the crown reads as a green paper fan
 ## rather than a tree. Folding them, and jittering the fold per leaflet, is what opens daylight
 ## between the blades and gives the canopy its depth.
-static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float, rise: float, rng: RandomNumberGenerator, dead: bool) -> void:
+static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float, rise: float, rng: RandomNumberGenerator, dead: bool, far: bool = false) -> void:
 	var out := Vector3(cos(yaw), 0.0, sin(yaw))
 	var side := Vector3(-out.z, 0.0, out.x)
 	# Dense: a real frond carries fifty-odd leaflets a side, close enough at the rib that the
@@ -634,12 +656,16 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 	var fold_tip := rng.randf_range(0.08, 0.34)
 	var rachis := func(t: float) -> Vector3:
 		return base + out * (reach * t) + Vector3(0.0, rise * t - droop * t * t, 0.0)
+	var stride := PALM_FAR_STRIDE if far else 1
 	for i in steps:
 		var t0 := float(i) / steps
-		var t1 := float(i + 1) / steps
+		var t1 := float(mini(i + stride, steps)) / steps
+		# Far: only every stride-th leaflet pair is drawn, spanning the rachis of all of them,
+		# but every one still draws its random numbers, so the next frond comes out the same.
+		var emit := i % stride == 0
 		var p0: Vector3 = rachis.call(t0)
 		var p1: Vector3 = rachis.call(t1)
-		var along := p1 - p0
+		var along: Vector3 = (rachis.call(float(i + 1) / steps) as Vector3) - p0
 		# Longest a third of the way out, short at the crown and short again at the tip, so the
 		# frond has a leaf shape instead of a rectangular comb.
 		var blade := reach * 0.30 * (0.22 + 0.78 * sin(pow(t0, 0.72) * PI))
@@ -656,9 +682,13 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 			# soft mass rather than a pile of lit facets catching the sun at their own angles.
 			var nrm := (Vector3.UP * 1.7 + blade_dir * 0.45).normalized()
 			# Tips curl further down the further out along the frond they sit.
-			_palm_leaflet(st, p0, p1 + along * 0.06, blade_dir, blade, blade * (0.16 + 0.42 * t0), tone, nrm)
+			if emit:
+				_palm_leaflet(st, p0, p1 + along * 0.06, blade_dir, blade, blade * (0.16 + 0.42 * t0), tone, nrm,
+					PALM_FAR_LEAFLET_SEGMENTS if far else PALM_LEAFLET_SEGMENTS)
 		# The rachis itself, as a shallow V in section rather than a flat ribbon, so the frond
 		# still reads when the light is edge-on to it.
+		if not emit:
+			continue
 		var rib_n := (Vector3.UP + out * 0.3).normalized()
 		var rib_w := side * (0.030 * (1.0 - t0 * 0.55))
 		var keel := Vector3(0.0, -0.05 * (1.0 - t0 * 0.5), 0.0)
@@ -672,20 +702,20 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 ## bend: a frond of straight quads is a comb, and the droop of the outer leaflets is most of
 ## what gives a palm crown its shape against the sky.
 static func _palm_leaflet(st: SurfaceTool, a: Vector3, b: Vector3, dir: Vector3, length: float,
-		curl: float, colour: Color, nrm: Vector3) -> void:
+		curl: float, colour: Color, nrm: Vector3, segments: int = PALM_LEAFLET_SEGMENTS) -> void:
 	var mid := (a + b) * 0.5
 	var half := (b - a) * 0.5
 	var prev_a := a
 	var prev_b := b
-	for seg in PALM_LEAFLET_SEGMENTS:
-		var u := float(seg + 1) / float(PALM_LEAFLET_SEGMENTS)
+	for seg in segments:
+		var u := float(seg + 1) / float(segments)
 		# Width runs out to nothing at the tip; the drop is the leaflet's own droop.
 		var w := 1.0 - pow(u, 0.8)
 		var c := mid + dir * (length * u) + Vector3(0.0, -curl * u * u, 0.0)
 		var tone := colour * (1.0 - 0.12 * u)
 		var na := c - half * w
 		var nb := c + half * w
-		if seg == PALM_LEAFLET_SEGMENTS - 1:
+		if seg == segments - 1:
 			# The tip: one triangle closing on the point.
 			for v: Vector3 in [prev_a, prev_b, c]:
 				st.set_color(tone)
@@ -1211,6 +1241,33 @@ static func shadow_proxy(mesh: Mesh) -> Mesh:
 	return _shadow_proxies.get(mesh)
 
 
+## Foliage meshes (trees, palms, bushes, the planting), which MultiMeshBatch splits into cells
+## when a batch of them is heavy enough (see MultiMeshBatch.cell_min_tris).
+static var _foliage: Dictionary = {}
+
+
+static func lod_cells(mesh: Mesh) -> bool:
+	return _foliage.has(mesh)
+
+
+## The coarse stand-in MultiMeshBatch draws past far_start for a foliage mesh, or null (only the
+## palms have one: see PALM_FAR_STRIDE).
+static func far_foliage(mesh: Mesh) -> Mesh:
+	return _far_foliage.get(mesh)
+
+
+## Full-detail triangles of `mesh`, all surfaces (indexed or not).
+static func mesh_triangles(mesh: Mesh) -> int:
+	var am := mesh as ArrayMesh
+	if am == null:
+		return 0
+	var tris := 0
+	for s in am.get_surface_count():
+		var n := am.surface_get_array_index_len(s)
+		tris += (n if n > 0 else am.surface_get_array_len(s)) / 3
+	return tris
+
+
 ## Builds `mesh`'s shadow stand-in from the LODs `im` generated: per surface, the coarsest LOD
 ## that keeps `leaf_share` of a leaf surface's triangles (leaf cards thin out fast, and a sparse
 ## canopy casts a sparse shadow) or `wood_share` of a trunk's or twigs'. It shares the vertex
@@ -1415,6 +1472,7 @@ static func model_shrub(variant: int) -> Mesh:
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:
 			(mat as StandardMaterial3D).vertex_color_use_as_albedo = true
+	_foliage[mesh] = true
 	return mesh
 
 
@@ -1586,6 +1644,7 @@ static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT, budget:
 	if proxy:
 		for i in mesh.get_surface_count():
 			proxy.surface_set_material(i, mesh.surface_get_material(i))
+	_foliage[mesh] = true
 	return mesh
 
 
@@ -1612,6 +1671,7 @@ static func _plant_material(mesh: Mesh) -> Mesh:
 				continue
 			sm.vertex_color_use_as_albedo = true
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_foliage[mesh] = true
 	return mesh
 
 

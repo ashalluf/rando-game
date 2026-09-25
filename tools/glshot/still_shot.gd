@@ -53,6 +53,18 @@ func _initialize() -> void:
 	if OS.get_environment("MERGE_STATIC") == "0":
 		(load("res://scripts/world/city_chunk.gd") as GDScript).set("merge_boxes", false)
 		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("merge_enabled", false)
+	# TREE_CELLS=0: every foliage batch one node again, as before it was split into cells
+	# (MultiMeshBatch.cell_split). TREE_CELL_<NAME>=value sets that knob (cell_size, cell_range,
+	# cell_min_tris, cell_max, cell_lod_scale) for tuning.
+	var mmb := load("res://scripts/util/multimesh_batch.gd") as GDScript
+	if OS.get_environment("TREE_EST") != "":
+		mmb.set("debug_record", true)
+	if OS.get_environment("TREE_CELLS") == "0":
+		mmb.set("cell_split", false)
+	for knob in ["cell_size", "cell_range", "cell_min_tris", "cell_max", "cell_lod_scale"]:
+		var v := OS.get_environment("TREE_" + knob.to_upper())
+		if v != "":
+			mmb.set(knob, str_to_var(v))
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	var frames := _env_int("FRAMES", 30)
 	var hold := Vector3.INF
@@ -259,13 +271,17 @@ func _initialize() -> void:
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "still.png"
-	get_root().get_texture().get_image().save_png(out)
-	print("saved ", out)
+	var img := get_root().get_texture().get_image()
+	if img:
+		img.save_png(out)
+		print("saved ", out)
 	# The frame's cost, split into the camera's pass and the shadow passes (the counters are
 	# real here: this runs under opengl3 or vulkan, never --headless). SPLIT=1 then hides one
 	# category at a time, the world held still, as tools/tri_split.gd does - so every bookmark
 	# still also gives a cost table for the exact frame it shot.
 	await _geo_report("GEO")
+	if OS.get_environment("TREE_EST") != "":
+		load(OS.get_environment("TREE_EST")).estimate(current_scene, get_root().get_camera_3d())
 	if OS.get_environment("SPLIT") == "1":
 		await _geo_split(player, anchor, hold, boost, fov)
 	quit()
@@ -337,7 +353,7 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				return "FarCity"
 			"CityChunk":
 				var nm := String(gi.name)
-				for k in ["tree", "palm", "bush", "shrub", "flower", "plant", "gclump", "Planting"]:
+				for k in ["tree", "palm", "bush", "shrub", "flower", "plant", "gclump", "Planting", "hill_"]:
 					if nm.contains(k):
 						return "Trees"
 				if nm.contains("grass"):

@@ -1459,6 +1459,7 @@ func _test_city() -> void:
 				palm_blocks += 1
 				break
 	_check(palm_blocks > 0, "palm-lined blocks in the loaded city (%d)" % palm_blocks)
+	_check_foliage_cells(city)
 	minimap.queue_redraw()
 	await _ticks(3)
 	var env: Environment = city.get_node("WorldEnvironment").environment
@@ -2459,6 +2460,37 @@ func _kit_count(b: Node, prefix: String) -> int:
 func _ticks(n: int) -> void:
 	for i in n:
 		await get_tree().physics_frame
+
+
+## Heavy foliage batches are split into cells (MultiMeshBatch.build()): every instance is in
+## exactly one cell, at the index local_of says, the cells and their shadow twins hang off the
+## whole batch as visibility children, and the whole batch hands over to them within
+## cell_range. Structure only: instance transforms read back as identity under --headless.
+func _check_foliage_cells(city: Node) -> void:
+	var split := 0
+	var bad := 0
+	for n in city.find_children("Batch_*", "MultiMeshInstance3D", true, false):
+		var whole := n as MultiMeshInstance3D
+		if not whole.has_meta("cells"):
+			continue
+		split += 1
+		var cells: Array = whole.get_meta("cells")
+		var cell_of: PackedInt32Array = whole.get_meta("cell_of")
+		var local_of: PackedInt32Array = whole.get_meta("local_of")
+		var total := 0
+		for c: MultiMeshInstance3D in cells:
+			total += c.multimesh.instance_count
+			if c.get_node_or_null(c.visibility_parent) != whole:
+				bad += 1
+			var twin := c.get_meta("shadow_twin") as Node3D if c.has_meta("shadow_twin") else null
+			if twin and twin.get_node_or_null(twin.visibility_parent) != whole:
+				bad += 1
+		if total != whole.multimesh.instance_count or cell_of.size() != total or whole.visibility_range_begin <= 0.0:
+			bad += 1
+		for i in cell_of.size():
+			if local_of[i] >= (cells[cell_of[i]] as MultiMeshInstance3D).multimesh.instance_count:
+				bad += 1
+	_check(split > 0 and bad == 0, "heavy tree batches are split into cells near the camera (%d batches, %d faults)" % [split, bad])
 
 
 func _check(ok: bool, label: String) -> void:
