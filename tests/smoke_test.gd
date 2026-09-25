@@ -366,6 +366,7 @@ func _test_city() -> void:
 		var hill_chunk: Node3D = city.chunks.get(hill_key)
 		_check(hill_chunk != null and hill_chunk.zone == MacroMap.Zone.HILLS and hill_chunk.has_node("Terrain"), "hill chunk has a terrain tile")
 		_check_hill_planting(hill_chunk, plan)
+		_check_hill_props_grounded(city, plan)
 		await _wait_for_floor(player, 240)
 		var ground_h: float = _world_state().to_world(player.global_position).y
 		_check(player.is_on_floor() and ground_h > 20.0, "player stands on the hills at %.0f m" % ground_h)
@@ -2338,6 +2339,46 @@ func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
 		north_brush += float(HillPlanting.ground(w, Vector2(0.0, 0.5)).brush)
 		south_brush += float(HillPlanting.ground(w, Vector2(0.0, -0.5)).brush)
 	_check(north_brush > south_brush * 1.3, "north faces carry more brush than south faces (%.0f vs %.0f of 400)" % [north_brush, south_brush])
+
+
+## A hill chunk's rocks, shrubs and planting stand on the terrain it draws. They are placed at
+## MacroMap.height_at(), which already includes the relief, and the chunk's batch used to add the
+## relief again: on the valley flank (the plateau under the front range's inland side) every
+## prop floated 15-135 m over the ground. Built to just before its finish, so the batch is still
+## data (MultiMesh transforms read back as identity under --headless).
+func _check_hill_props_grounded(city: Node, plan: CityPlan) -> void:
+	var macro := plan.macro
+	var spot := Vector2.INF
+	for p: Vector2 in [Vector2(0.0, -1800.0), Vector2(450.0, -1700.0), Vector2(-500.0, -1900.0), Vector2(800.0, -1850.0)]:
+		var bk: Vector2i = plan.block_index_at(p)
+		var rect: Rect2 = plan.block(bk.x, bk.y).rect
+		if macro.zone_at(rect.get_center()) == MacroMap.Zone.HILLS and macro.relief_at(p) > 20.0:
+			spot = p
+			break
+	_check(spot != Vector2.INF, "a hill chunk stands on raised relief to check its props on")
+	if spot == Vector2.INF:
+		return
+	var k: Vector2i = plan.block_index_at(spot)
+	var ch = load("res://scripts/world/city_chunk.gd").new()
+	ch.plan = plan
+	ch.ix = k.x
+	ch.iz = k.y
+	ch.level = 0
+	ch.style = city.chunk_style()
+	ch.begin_build()
+	while ch._step < ch._steps.size() - 1:
+		ch.build_step()
+	var count := 0
+	var worst := 0.0
+	var data: Dictionary = ch._batch.data()
+	for key: String in data:
+		for xf: Transform3D in data[key].xforms:
+			count += 1
+			var dy := xf.origin.y - plan.height_at(Vector2(xf.origin.x, xf.origin.z))
+			if absf(dy) > absf(worst):
+				worst = dy
+	ch.free()
+	_check(count > 100 and absf(worst) < 3.0, "hill props stand on the ground over %.0f m of relief (%d props, worst %+.1f m)" % [macro.relief_at(spot), count, worst])
 
 
 func _wait_for_floor(player: CharacterBody3D, max_ticks: int) -> void:

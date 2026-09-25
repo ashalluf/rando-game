@@ -251,6 +251,21 @@ func _run_or_defer(work: Callable) -> void:
 		pass
 
 
+## `step` with the batch's relief lift switched off while it runs. The hill steps place their
+## rocks, planting, pads and palms at MacroMap.height_at(), which already includes the relief
+## (_gy: the inland valley's plateau, the rolling ground up the lower slopes), so the batch adding
+## _gy again floated all of it by exactly that much - 15 m at the foot of the front range's
+## valley flank, 75 m further up. Only these steps: anything else in a hill chunk (the replica's
+## hill route, which places through ReplicaBuilder.rel()) is still lifted. Returns what the step
+## returns, so a step that runs again (_plant_hills) keeps doing so.
+func _on_map_ground(step: Callable) -> Callable:
+	return func() -> Variant:
+		_batch.ground = Callable()
+		var done: Variant = step.call()
+		_batch.ground = _gy
+		return done
+
+
 ## The steps a build is made of: roads, the block's pavement, then each building, the street
 ## furniture, the parked cars, each pedestrian, the crossing, the freeway, and the finish. Each
 ## is small next to the old all-in-one build, which was a hundred milliseconds on a slow machine.
@@ -292,7 +307,7 @@ func begin_build() -> void:
 				_steps.append(_build_beach.bind(block))
 				_steps.append(_build_hill_roads)
 		MacroMap.Zone.HILLS:
-			_steps.append_array([_build_terrain, _build_hill_roads, _build_mansions, _scatter_hills, _plant_hills])
+			_steps.append_array([_build_terrain, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
 		MacroMap.Zone.BEACH:
 			if replica_role == 0:
 				_steps.append(_build_roads.bind(block))
