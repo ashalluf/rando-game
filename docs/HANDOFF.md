@@ -2023,6 +2023,93 @@ Exposition Boulevard, so the entrance faces the street it faces in life.
   and it adds five no-shadow lights). The smoke run's "Cannot set a buffer on a Multimesh" traces
   through `masjid_checks.gd` are section 10 item 8's headless noise, from the chunks it streams.
 
+## 9w. Frame cost baseline (2026-09-25)
+
+The yardstick the visual waves are judged against (north star: 60 fps at 1440p on the owner's
+Mac, 30 the floor). Measured on 20e2169 (street clutter just merged) with the new GEO / `SPLIT=1`
+report of `tools/glshot/still_shot.gd`, which every bookmark now prints for the exact frame it
+shoots: `SPLIT=1 GODOT=... tools/glshot/bookmarks.sh <dir> <names>`, then `grep -E '^(GEO|SPLIT)'
+<dir>/<name>.log`. opengl3 / llvmpipe, 1280x720 window, `--quality=0` (HIGH). Read the columns
+right: triangles include the shadow passes; the GL renderer does NOT count shadow draw calls,
+so "draws" is the camera pass only - on Forward+ every opaque draw also has a depth pre-pass
+twin and one more per shadow cascade it falls in. The counts are steady run to run: downtown
+noon and downtown night rain (same camera, other hour and weather) differ by 2.6k triangles
+and 6 draws.
+
+| Bookmark | Triangles (camera / shadow) | Draws | Objects |
+|---|---|---|---|
+| downtown_noon | 8.24 M (5.55 / 2.69) | 4,679 | 4,706 |
+| downtown_night_rain | 8.24 M (5.55 / 2.69) | 4,685 | 4,712 |
+| freeway | 8.68 M (5.39 / 3.29) | 6,661 | 6,781 |
+| esplanade_sunset | 3.19 M (1.84 / 1.35) | 1,309 | 1,309 |
+| hills | 1.60 M (1.30 / 0.30) | 1,202 | 1,203 |
+
+Where it goes (`SPLIT`: that category hidden, same frozen frame; triangles, of which shadow,
+and draws):
+
+| Category | downtown_noon | freeway | esplanade_sunset | hills |
+|---|---|---|---|---|
+| Trees, palms, planting | 1.97 M (1.14 sh), 454 | **3.40 M (1.95 sh)**, 735 | **1.98 M (1.18 sh)**, 639 | 0.51 M (0.21 sh), 32 |
+| Pedestrians (+ hero) | **1.88 M** (0.34 sh), 510 | 0.51 M, 440 | 0.04 M, 8 | 0.07 M, 23 |
+| Vehicles | 1.64 M (0.48 sh), 528 | 1.09 M (0.16 sh), 408 | 0.07 M, 27 | ~0, 5 |
+| Far city (Skyline) | 1.33 M, 125 | 1.32 M, 197 | 0.69 M, 114 | **0.81 M**, 120 |
+| Street props | 0.71 M (0.35 sh), **1,252** | 0.89 M (0.31 sh), **1,348** | 0.12 M, 281 | ~0, 51 |
+| Buildings | 0.23 M, 445 | 0.95 M (0.58 sh), **2,526** | 0.01 M, 24 | 0, 0 |
+| Chunk meshes (ground, freeway, boxes) | 0.37 M, 806 | 0.47 M, 908 | 0.24 M, 171 | 0.20 M, 401 |
+| Landmarks | 0.07 M, 524 | 0.09 M, 235 | ~0, 20 | 0.01 M, **569** |
+| Far ground (LOD chunks) | 0.32 M, 109 | 0.11 M, 79 | 0.02 M, 25 | 0, 0 |
+
+What that says, for whoever picks the next performance pass:
+- **Triangles: foliage first.** Trees are the biggest category on three of the four views (39 %
+  of the freeway frame, 62 % of the esplanade), and more than half of it is SHADOW even with the
+  lighter twins. The cause is known (9f): a batch takes one LOD for every instance from its
+  bounds, so every tree in the chunk the camera stands in draws LOD0 (40-60k triangles a tree)
+  into the camera and all cascades. Smaller tree cells fix it at the price of draw calls.
+- **Pedestrians downtown (1.88 M):** the 60-140 m band sits on the unwelded models' 4,150
+  triangle LOD floor; the welded far body starts at 140 m. Moving it closer is a visible-risk
+  call (it smears the texture seams), not a free win.
+- **Far city (0.7-1.3 M, few draws):** mostly the 24-triangle canopy blobs across the basin.
+  Tiles whose blocks are all under chunks are only ~2 of 81 near downtown, so hiding them buys
+  little.
+- **Draw calls: street props (1,250-1,350 a street frame, a key per batch per chunk) and
+  buildings (2,526 on the freeway - several meshes each)** are now the biggest draw sinks.
+- Forward+ (lavapipe) per-pass timings were not re-taken: both lavapipe runs of this session
+  were OOM-killed (the memory cgroup is shared by every agent on the box).
+  `tools/gpu_profile.gd` now also prints the camera / shadow split and honours `MERGE_STATIC`, for a quieter box.
+
+### What landed with it: static boxes merged into one draw per material
+
+`CityChunk._add_slab()` built every solid box (big-box walls, their pilasters, base bands and
+parapets, planters, port and airport pads, the crane) as its own MeshInstance3D - 300-530 of them
+in every bookmark's streamed ring, most in the LOD chunks, each a draw call and each casting into
+the far cascades. The far landmarks were the same: 802 nodes across the basin, mostly boxes and
+cylinders (the hills sign 129, the campus hall 106, the pier 71, the mall 61, the ship 51...),
+which on the hills bookmark were 569 of the frame's 1,202 draws for 9k triangles. Now a chunk
+accumulates its boxes per material and commits one mesh each at the finish (`_commit_boxes()`),
+and `MultiMeshBatch.merge_meshes()` merges each far landmark's plain primitives the same way
+(802 nodes -> 337; opaque BaseMaterial3D, auto-named, unscripted nodes only; shader materials
+such as the ridge sign's rigid seat are left alone because they can read MODEL_MATRIX). The
+vertices are the
+primitives' own, moved (normals by the inverse transpose), so nothing about the picture changes;
+`MERGE_STATIC=0` on `still_shot.gd` / `gpu_profile.gd` turns both off for the A/B.
+
+| Bookmark | Draws before -> after | Objects before -> after | Triangles before -> after |
+|---|---|---|---|
+| hills | 1,202 -> 942 (-21.6 %) | 1,203 -> 943 | 1,600,573 -> 1,600,573 |
+| downtown_noon | 4,679 -> 4,313 (-7.8 %) | 4,706 -> 4,340 | 8,236,628 -> 8,239,364 |
+| downtown_night_rain | 4,685 -> 4,319 (-7.8 %) | 4,712 -> 4,346 | 8,239,244 -> 8,241,980 |
+| freeway | 6,661 -> 6,485 (-2.6 %) | 6,781 -> 6,605 | 8,683,165 -> 8,686,153 |
+| esplanade_sunset | 1,309 -> 1,309 (none in view) | 1,309 -> 1,309 | 3,188,697 -> 3,188,697 |
+
+Camera-pass draws only; the shadow and depth pre-pass draws of the same boxes go too, which the
+GL counters cannot show. Triangles move by +0.03 % because a merged mesh is culled as one box.
+Pixel diffs (before on 20e2169 or `MERGE_STATIC=0`, after on this commit): the only differences
+are things that move with the clock - clouds and their reflection in the glass, wind-swayed
+foliage and its shadows, rain, the hero's idle - and the merged geometry itself is identical
+(freeway: the big-box store 0.08 % of pixels over 8/255; the road under downtown noon 0.000 %,
+max 2; hills without the sky and the hero, 0.058 mean abs). Renders and diff images of this pass
+were in the agent's scratchpad, not the repo; `MERGE_STATIC=0` reproduces the "before" side.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
