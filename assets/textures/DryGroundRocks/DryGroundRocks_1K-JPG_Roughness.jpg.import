@@ -2,9 +2,9 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cc2mqeckv6yqb"
-path.s3tc="res://.godot/imported/AerialGrassRock_1K-JPG_NormalGL.jpg-d233f3bce5d827c52cd75efd33ddc972.s3tc.ctex"
-path.etc2="res://.godot/imported/AerialGrassRock_1K-JPG_NormalGL.jpg-d233f3bce5d827c52cd75efd33ddc972.etc2.ctex"
+uid="uid://bedvjmv2t2huc"
+path.s3tc="res://.godot/imported/DryGroundRocks_1K-JPG_Roughness.jpg-6a602f65f9c27a5a9afa9aadf0950396.s3tc.ctex"
+path.etc2="res://.godot/imported/DryGroundRocks_1K-JPG_Roughness.jpg-6a602f65f9c27a5a9afa9aadf0950396.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -12,8 +12,8 @@ metadata={
 
 [deps]
 
-source_file="res://assets/textures/AerialGrassRock/AerialGrassRock_1K-JPG_NormalGL.jpg"
-dest_files=["res://.godot/imported/AerialGrassRock_1K-JPG_NormalGL.jpg-d233f3bce5d827c52cd75efd33ddc972.s3tc.ctex", "res://.godot/imported/AerialGrassRock_1K-JPG_NormalGL.jpg-d233f3bce5d827c52cd75efd33ddc972.etc2.ctex"]
+source_file="res://assets/textures/DryGroundRocks/DryGroundRocks_1K-JPG_Roughness.jpg"
+dest_files=["res://.godot/imported/DryGroundRocks_1K-JPG_Roughness.jpg-6a602f65f9c27a5a9afa9aadf0950396.s3tc.ctex", "res://.godot/imported/DryGroundRocks_1K-JPG_Roughness.jpg-6a602f65f9c27a5a9afa9aadf0950396.etc2.ctex"]
 
 [params]
 
@@ -23,7 +23,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=0
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1

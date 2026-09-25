@@ -11,6 +11,8 @@ const TEXTURE_SETS := {
 	"asphalt": "Asphalt033", "brick": "Bricks104", "concrete": "Concrete034", "grass": "Grass004",
 	"sand": "Ground054", "metal": "MetalPlates006", "paving": "PavingStones138", "rock": "Rock064",
 	"hill": "AerialGrassRock", "hill_rock": "RockyTerrain02",
+	# Hill ground splat (Poly Haven): bare dirt / decomposed granite, and the rock outcrops.
+	"hill_dirt": "DryGroundRocks", "hill_outcrop": "RockFace",
 	# Street surface sets (Poly Haven), picked per road and per block for variety.
 	"asphalt_aerial": "AerialAsphalt01", "pavers": "LargeSquarePattern01", "sidewalk": "GravelConcrete03",
 	# Facade sets (Poly Haven), picked per building by Building._apply_wall_texture().
@@ -146,15 +148,21 @@ static func road(set_key: String, scale_m: float, tint: Color, seed_value: int, 
 	return mat
 
 
+## The hills' ground (shaders/terrain.gdshader): dry grass, chaparral, dirt and rock outcrops
+## splatted by slope, aspect and noise. One material for every hill chunk and the Esplanade
+## bluff; CityStreamer keeps its `world_offset` current.
 static func terrain_material() -> ShaderMaterial:
 	if _cache.has("terrain_mat"):
 		return _cache["terrain_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/terrain.gdshader")
-	mat.set_shader_parameter("grass_albedo", texture("hill", "Color"))
-	mat.set_shader_parameter("grass_normal", texture("hill", "NormalGL"))
-	mat.set_shader_parameter("rock_albedo", texture("hill_rock", "Color"))
-	mat.set_shader_parameter("rock_normal", texture("hill_rock", "NormalGL"))
+	mat.set_shader_parameter("grass_albedo", texture("grass", "Color"))
+	mat.set_shader_parameter("grass_normal", texture("grass", "NormalGL"))
+	mat.set_shader_parameter("mottle_albedo", texture("hill", "Color"))
+	mat.set_shader_parameter("dirt_albedo", texture("hill_dirt", "Color"))
+	mat.set_shader_parameter("dirt_normal", texture("hill_dirt", "NormalGL"))
+	mat.set_shader_parameter("rock_albedo", texture("hill_outcrop", "Color"))
+	mat.set_shader_parameter("rock_normal", texture("hill_outcrop", "NormalGL"))
 	_cache["terrain_mat"] = mat
 	return mat
 

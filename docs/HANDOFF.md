@@ -2041,6 +2041,9 @@ Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept becaus
    `macro_ground.gdshader` / `MacroMap.bake()` (far) and whether the bands are the carved hill
    roads and mansion pads. Real LA hills are dusty grey-green chaparral in the folds and pale
    gold grass on the open slopes.
+   *Near half done 2026-09-24:* `terrain.gdshader` is now a dry grass / chaparral / dirt / rock
+   splat by slope, aspect and noise (GAME_PLAN decisions log). Still to judge on Forward+, and
+   the far half (`macro_ground.gdshader`, the bake's bands) is untouched.
 5. **The hero up close.** The jacket collar clips into the neck when aiming (the AK side shot
    in the scratchpad showed black shards over the throat) and the hair cards read blocky at
    face distance. The AAA pass branch (section 0) was on exactly this.
