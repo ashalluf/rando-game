@@ -109,6 +109,16 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 ## Share of those awnings in striped canvas.
 @export var kit_stripe_chance: float = 0.35
 
+@export_group("Street at night")
+## How much light an open shop throws on the pavement in front of it (the additive pool's
+## alpha at the wall, before the shop's own brightness).
+@export var shop_spill_strength: float = 0.55
+## How far that pool reaches out from the wall (metres), and how much wider than the shop it is.
+@export var shop_spill_reach: float = 5.5
+@export var shop_spill_widen: float = 1.2
+## Channel letters' glow once the lamps are on (the lit names over the dark boards).
+@export var shop_letter_glow: float = 2.4
+
 var shape: Shape
 var window_style: WindowStyle
 var finish: Finish
@@ -122,6 +132,10 @@ var parts: Array[Dictionary] = []
 var facade_color: Color = Color.GRAY
 ## Concrete plinth under the building (meters), covering the slope of the sidewalk beneath it.
 var plinth_depth: float = 0.0
+## The pools of light open shops throw on the pavement after dark, as [Transform3D, Color] in
+## this building's space: a flat quad for PropFactory.shop_spill(), centred on the foot of the
+## shopfront. The chunk batches them (CityChunk._add_shop_spill()); its y is ignored.
+var shop_pools: Array = []
 
 static var _prop_materials: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
@@ -412,6 +426,9 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	mat.set_shader_parameter("seed", float(seed % 1000))
 	mat.set_shader_parameter("roof_style", roof_style)
 	mat.set_shader_parameter("shop_span", _shop_spans())
+	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
+	# dark for channel letters where there are letters to light.
+	mat.set_shader_parameter("sign_letters", not OS.has_feature("web"))
 	# Base, shaft, crown. The shader lays a stone base course over the bottom floors and shifts
 	# the tone of the top ones; _add_facade_details caps both with a real band at the same
 	# height, so the two have to be asked for from the same place.
@@ -498,6 +515,74 @@ func _shop_spans() -> Vector4:
 	for i in 4:
 		v[i] = float(2 + absi(hash([seed, "shop_span", i])) % 3)
 	return v
+
+
+## A shop's night, rolled from integers exactly as shaders/building.gdshader rolls it (its
+## `shop_hash`, same constants, same salts), so what Building puts in front of a shop - the
+## spill of its light, the colour of its name - agrees with what the shader draws in it.
+## Salts: 1 open, 2-3 light colour, 4 brightness, 5-7 neon (has, colour, shape), 8 shutter,
+## 9 sign off, 10 channel letters, 11 letter colour, 12-13 shutter finish.
+## The shader's lights for an open shop (its shop_tone()): warm, neutral, cool, pink, teal.
+const SHOP_TONES := [Color(1.0, 0.70, 0.42), Color(1.0, 0.91, 0.78), Color(0.78, 0.90, 1.0),
+	Color(1.0, 0.50, 0.80), Color(0.55, 1.0, 0.88)]
+## The shader's neon_color(): pink, cyan, warm white, red, violet.
+const NEON_COLORS := [Color(1.0, 0.16, 0.55), Color(0.10, 0.85, 1.0), Color(1.0, 0.72, 0.45),
+	Color(1.0, 0.10, 0.06), Color(0.55, 0.25, 1.0)]
+## The shader's letter_color(): the channel letters after dark.
+const LETTER_COLORS := [Color(1.0, 0.86, 0.66), Color(1.0, 0.14, 0.10), Color(0.70, 0.90, 1.0),
+	Color(1.0, 0.62, 0.18), Color(1.0, 0.30, 0.62), Color(0.30, 1.0, 0.45)]
+
+
+## a * b mod 2^32, without ever leaving 64-bit range (the shader's uint multiply).
+static func _mul32(a: int, b: int) -> int:
+	return (a * (b & 0xFFFF) + (((a * (b >> 16)) & 0xFFFF) << 16)) & 0xFFFFFFFF
+
+
+static func shop_hash(shop: int, salt: int) -> int:
+	var h := (_mul32(shop, 747796405) + _mul32(salt, 2891336453)) & 0xFFFFFFFF
+	h ^= h >> 16
+	h = _mul32(h, 2246822519)
+	h ^= h >> 13
+	h = _mul32(h, 3266489917)
+	h ^= h >> 16
+	return h
+
+
+## 0..255, the shader's shop_byte().
+static func shop_byte(shop: int, salt: int) -> int:
+	return shop_hash(shop, salt) >> 24
+
+
+## The shader's shop key: its `seed` uniform (seed % 1000), the face (1..4) and the shop's index
+## along the wall, counted the way the shader counts `u`.
+func shop_key(face_id: int, shop: int) -> int:
+	return (absi(seed % 1000) * 8 + face_id) * 1024 + shop
+
+
+static func shop_open(key: int) -> bool:
+	return shop_byte(key, 1) < 158
+
+
+## The light an open shop throws, its tone at its brightness, pulled toward its neon if it has
+## one (the neon's bay is only one of its windows, so not all the way).
+static func shop_light(key: int) -> Color:
+	var b := shop_byte(key, 2)
+	var tone: Color = SHOP_TONES[0 if b < 97 else (1 if b < 174 else (2 if b < 230 else (3 if shop_byte(key, 3) < 128 else 4)))]
+	var bright := 0.6 + 0.7 * float(shop_byte(key, 4)) / 255.0
+	if shop_byte(key, 5) < 90:
+		tone = tone.lerp(NEON_COLORS[shop_byte(key, 6) % 5], 0.4)
+	return Color(tone.r, tone.g, tone.b, bright / 1.3)
+
+
+## The material for a shop's raised name, matching its board in the shader: cream letters by day
+## everywhere (as they always were); after dark a lit channel letter over a dark board, a dark
+## letter over a lit lightbox, or a plain one on a board a closed shop has left off.
+func shop_letters(key: int) -> Material:
+	if not shop_open(key) and shop_byte(key, 9) < 150:
+		return PropFactory.shop_sign_material(-1, 0.0)
+	if shop_byte(key, 10) >= 110:
+		return PropFactory.shop_sign_material(shop_byte(key, 11) % LETTER_COLORS.size(), shop_letter_glow)
+	return PropFactory.shop_sign_material(-2, 0.0)
 
 
 func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefront: float, floor_h: float, rows: int, cols_x: int, cols_z: int, style: Dictionary, cut_x: float = 0.0, cut_z: float = 0.0) -> void:
@@ -787,7 +872,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				var sign_mesh := MeshInstance3D.new()
 				sign_mesh.name = "Sign%d" % run
 				sign_mesh.mesh = PropFactory.text_mesh(text, SIGN_HEIGHT)
-				sign_mesh.material_override = PropFactory.sign_material()
+				sign_mesh.material_override = shop_letters(shop_key(face_index + 1, run))
 				# Rough advance width for this font, so a long name is shrunk to fit its run
 				# instead of running across the shop next door.
 				var wide := float(text.length()) * SIGN_HEIGHT * 0.62
@@ -802,6 +887,25 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				sign_mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				sign_mesh.visibility_range_end = SIGN_DRAW_DISTANCE
 				add_child(sign_mesh)
+		# The spill of each open shop's light on the pavement in front of it, on the same runs
+		# and the same rolls as the shader's lit shops (shop_key). Not gated on the web: it is
+		# an additive quad, which is what lights the web's streets anyway.
+		if storefront > 0.0 and shape != Shape.WAREHOUSE and bottom < 0.01:
+			var span: float = spans[face_index]
+			var runs := int(float(cols) / span)
+			for run in runs:
+				var key := shop_key(face_index + 1, run)
+				if not shop_open(key):
+					continue
+				var u_s := (float(run) + 0.5) * span * pitch
+				var along := size_u * 0.5 - u_s
+				# Keep it off the cut corners: a shop there is narrower than its run.
+				if absf(along) > size_u * 0.5 - cut:
+					continue
+				var wide := span * pitch * shop_spill_widen
+				var light := shop_light(key)
+				var xf := Transform3D(Basis(a * wide, n * (2.0 * shop_spill_reach), a.cross(n)), fc + a * along + n * 0.15)
+				shop_pools.append([xf, Color(light.r, light.g, light.b, light.a * shop_spill_strength)])
 		if has_fins:
 			var bw: float = minf(pitch * 0.94, 3.2)
 			var run_h := fin_top - fin_bottom

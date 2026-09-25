@@ -86,8 +86,16 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 ## Wave 5 (2026-09-25)
 
 - Regression audit launched on main 75f4795 (every fifth wave).
-- **PERF pass 1** - merged b612d55 (gate pending at writing). Static boxes per chunk and far
+- **PERF pass 1** - merged b612d55, gate 456/456. Static boxes per chunk and far
   landmark primitives merged into one mesh per material: draws hills 1,202 -> 942 (-21.6 %),
   downtown 4,679 -> 4,313 (-7.8 %), freeway 6,661 -> 6,485 (-2.6 %), triangles unchanged;
   pixel diffs only on clock-driven things (`<scratchpad>/perf/*_diff.png`). Baseline table in
   HANDOFF 9x. Found: trees (#23) and mid-range pedestrians (#24) are the triangle hogs.
+- **Container restart** (~10:30): all five agents were killed. Night shopfronts had finished;
+  re-lay, hill vegetation, pedestrian LOD and the audit were relaunched to resume from their
+  worktrees.
+- **Night shopfronts** (roadmap #8) - merged 5340b9b, gate 459/459. Root cause: an
+  open shop fell through to a flat `lit_color` branch, so every tower base was one white band.
+  Crop `<scratchpad>/nshop/cmp_rain_base2.png`, full `after2/night_rain.png`. geo_count night
+  avenue +1 draw, +78 tris. Brightness p95 night rain 153 -> 128 (the white band came down);
+  noon identical. Clearly better at tower bases, modest on side streets. NEEDS MAC CHECK.
