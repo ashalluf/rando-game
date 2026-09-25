@@ -6,15 +6,21 @@
 # With no names it shoots all seven: downtown_noon, downtown_night_rain, hills, freeway, masjid,
 # esplanade_sunset, hero. Each is `<out_dir>/<name>.png`, 960x540 (the hero 720x720), through
 # the opengl3 (Compatibility) renderer under Xvfb + llvmpipe: judge geometry and materials on
-# them, not lighting - see forward_shot.sh for the real Forward+ look. Every render takes the
-# shared lock `$LOCK` (default /tmp/rando_render.lock) so two agents never run two cities at once
-# (each is several GB of RAM). Set FORWARD=1 to render through lavapipe (Forward+, ~6 min each).
+# them, not lighting - see forward_shot.sh for the real Forward+ look. Every render takes a
+# shared lock so the box never runs more cities than it has RAM for: opengl3 renders (~3.5 GB)
+# take the second lane, /tmp/rando_render_gl.lock; FORWARD=1 (lavapipe, Forward+, ~6-7 GB,
+# ~6 min each) takes /tmp/rando_render.lock, the lane every lavapipe render uses, so two never
+# run at once. `$LOCK` overrides either.
 set -u
 OUT=${1:?usage: bookmarks.sh <out_dir> [bookmark ...]}
 shift
 GODOT=${GODOT:?set GODOT to the Godot 4.7.2 binary}
-LOCK=${LOCK:-/tmp/rando_render.lock}
 FORWARD=${FORWARD:-0}
+if [ "$FORWARD" = "1" ]; then
+	LOCK=${LOCK:-/tmp/rando_render.lock}
+else
+	LOCK=${LOCK:-/tmp/rando_render_gl.lock}
+fi
 mkdir -p "$OUT"
 cd "$(dirname "$0")/../.."
 
