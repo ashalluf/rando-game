@@ -62,6 +62,14 @@ uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
 uniform bool uv_facade = false;
 // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
 global uniform float night_factor;
+// max(night_factor, the storm's darkness): the street lamps' switch. Street level - shop lights,
+// neon, signs, shutters - follows it, like the pools of light Building lays in front of the shops.
+global uniform float lamp_factor;
+// Building places raised shop names in front of the sign bands (not on the web). Some shops'
+// bands are dark boards with lit channel letters: where the letters exist the board only glows
+// round them (and stands in for them past their draw distance); without them the board draws a
+// lit stand-in strip of their colour itself.
+uniform bool sign_letters = false;
 // The sky colour DayNight publishes, exactly as it writes it. Godot stores both an sRGB and a
 // linear copy of a `color` global, but the index a material hands the shader is always the sRGB
 // one - the compiler never offsets it by the hint (material_storage.cpp), and the GLES3 backend
@@ -145,6 +153,98 @@ float hash21(vec2 p) {
 
 float hash31(vec3 p) {
 	return hash21(vec2(hash21(p.xy), p.z));
+}
+
+// ---- Street level after dark ---------------------------------------------------------------
+// Each shop's night is rolled from INTEGERS: whether it is open, the colour of its lights, a neon
+// piece in its window, a roll-down shutter, what kind of sign it has. Building rolls the very same
+// numbers (Building.shop_byte()) to put the spill of an open shop's light on the pavement in front
+// of it and to colour its name; a float hash like hash21 cannot be reproduced off the GPU, a 32-bit
+// integer one can, to the last bit. Keep this, the salts and the palettes below in step with
+// Building (tests/smoke_test.gd checks the palettes against the constants there).
+uint shop_hash(uint shop, uint salt) {
+	uint h = shop * 747796405u + salt * 2891336453u;
+	h ^= h >> 16u;
+	h *= 2246822519u;
+	h ^= h >> 13u;
+	h *= 3266489917u;
+	h ^= h >> 16u;
+	return h;
+}
+
+// 0..255.
+uint shop_byte(uint shop, uint salt) {
+	return shop_hash(shop, salt) >> 24u;
+}
+
+// What lights an open shop: warm incandescent, neutral LED, cool fluorescent, now and then a
+// coloured one. Building.SHOP_TONES.
+vec3 shop_tone(uint shop) {
+	uint b = shop_byte(shop, 2u);
+	if (b < 97u) return vec3(1.0, 0.70, 0.42);
+	if (b < 174u) return vec3(1.0, 0.91, 0.78);
+	if (b < 230u) return vec3(0.78, 0.90, 1.0);
+	return shop_byte(shop, 3u) < 128u ? vec3(1.0, 0.50, 0.80) : vec3(0.55, 1.0, 0.88);
+}
+
+// Neon tube colours: pink, cyan, warm white, red, violet. Building.NEON_COLORS.
+vec3 neon_color(uint i) {
+	if (i == 0u) return vec3(1.0, 0.16, 0.55);
+	if (i == 1u) return vec3(0.10, 0.85, 1.0);
+	if (i == 2u) return vec3(1.0, 0.72, 0.45);
+	if (i == 3u) return vec3(1.0, 0.10, 0.06);
+	return vec3(0.55, 0.25, 1.0);
+}
+
+// Channel-letter colours after dark. Building.LETTER_COLORS.
+vec3 letter_color(uint i) {
+	if (i == 0u) return vec3(1.0, 0.86, 0.66);
+	if (i == 1u) return vec3(1.0, 0.14, 0.10);
+	if (i == 2u) return vec3(0.70, 0.90, 1.0);
+	if (i == 3u) return vec3(1.0, 0.62, 0.18);
+	if (i == 4u) return vec3(1.0, 0.30, 0.62);
+	return vec3(0.30, 1.0, 0.45);
+}
+
+// Distance from p to a box of half size b centred on the origin, corners rounded by r.
+float sd_round_box(vec2 p, vec2 b, float r) {
+	vec2 q = abs(p) - b + r;
+	return length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+}
+
+// Distance to y = y0 + amp * sin(x * k + ph), for |x| < half_w, divided by the slope so the tube
+// keeps its width round the bends.
+float sd_wave(vec2 p, float y0, float amp, float k, float ph, float half_w) {
+	float s = p.x * k + ph;
+	float c = cos(s);
+	float d = abs(p.y - y0 - amp * sin(s)) / sqrt(1.0 + amp * amp * k * k * c * c);
+	return max(d, abs(p.x) - half_w);
+}
+
+// A neon piece hung behind a shop window, in metres on the pane (origin at its bottom left), as
+// a distance to the tube. Four shapes: a capsule "open" sign with a script line in it, a tube run
+// round the whole window, a script word with an underline, a ring over a bar.
+float neon_shape(vec2 p, vec2 pane, uint shape) {
+	if (shape == 1u) {
+		return abs(sd_round_box(p - pane * 0.5, pane * 0.5 - vec2(0.12), 0.06));
+	}
+	if (shape == 2u) {
+		vec2 q = p - vec2(pane.x * 0.5, pane.y * 0.66);
+		float hw = min(pane.x * 0.34, 0.9);
+		float d = sd_wave(q, 0.0, 0.10, 9.0 + 3.0 * sin(q.x * 4.0), 0.4, hw);
+		vec2 under = vec2(max(abs(q.x) - hw * 0.8, 0.0), q.y + 0.24);
+		return min(d, length(under));
+	}
+	if (shape == 3u) {
+		vec2 c = vec2(pane.x * 0.5, pane.y * 0.70);
+		float ring = abs(length(p - c) - 0.24);
+		vec2 bar = vec2(max(abs(p.x - c.x) - 0.30, 0.0), p.y - c.y + 0.40);
+		return min(ring, length(bar));
+	}
+	vec2 c = vec2(pane.x * 0.5, pane.y * 0.72);
+	vec2 hs = vec2(min(0.70, pane.x * 0.36), 0.24);
+	float box = abs(sd_round_box(p - c, hs, 0.20));
+	return min(box, sd_wave(p - c, 0.0, 0.08, 22.0, 0.0, hs.x - 0.16));
 }
 
 
@@ -265,6 +365,8 @@ vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float r
 
 void fragment() {
 	vec3 n = normalize(local_normal);
+	// Metres a pixel covers here, taken in uniform control flow for the neon tubes' width.
+	float px_m = length(fwidth(world_pos));
 	vec3 albedo = facade_color;
 	float rough = 0.85;
 	float metal = 0.0;
@@ -363,6 +465,16 @@ void fragment() {
 		bool bulkhead = false;
 		bool door_bay = false;
 		float shop_seed = 0.0;
+		// The shop's integer key for its night rolls (shop_hash), whether it is open after dark,
+		// whether this bay is the one its neon hangs in, and where along the shop's run we are.
+		uint shop_key = 0u;
+		bool shop_open = true;
+		bool neon_bay = false;
+		bool shutter = false;
+		float shop_u = 0.5;
+		float shop_w = 1.0;
+		// Street level switches with the lamps (lamp_factor), not with night_factor alone.
+		float shop_on = clamp(lamp_factor, 0.0, 1.0);
 		// Window opening in cell units (centre and half size), kept so the fake interior knows
 		// where the hole in the wall is.
 		vec2 win_c = vec2(0.5, 0.52);
@@ -381,6 +493,22 @@ void fragment() {
 			bulkhead = fv < low && abs(fu - 0.5) < 0.46;
 			win_c = vec2(0.5, (low + 0.74) * 0.5);
 			win_h = vec2(0.44, (0.74 - low) * 0.5);
+			// Building.shop_key(): the same three integers, packed the same way.
+			shop_key = (uint(abs(seed) + 0.5) * 8u + uint(face_id)) * 1024u + uint(max(shop_id, 0.0));
+			// About 62 % open after dark.
+			shop_open = shop_byte(shop_key, 1u) < 158u;
+			// The neon hangs in the bay after the door.
+			float bay = col - shop_id * span;
+			neon_bay = abs(bay - mod(floor(shop_seed * span) + 1.0, span)) < 0.5;
+			shop_u = (u - shop_id * span * pitch) / (span * pitch);
+			shop_w = span * pitch;
+			// Over half the closed shops pull a roll-down shutter over the whole front at dusk,
+			// and it goes up in the morning, so the day never sees one.
+			if (!shop_open && shop_byte(shop_key, 8u) < 140u && shop_on > 0.5) {
+				shutter = fv < 0.745 && abs(fu - 0.5) < 0.46;
+				glass = glass && !shutter;
+				bulkhead = bulkhead && !shutter;
+			}
 		} else if (window_style == 0) {
 			glass = abs(fu - 0.5) < 0.27 && abs(fv - 0.52) < 0.25;
 		} else if (window_style == 1) {
@@ -489,9 +617,9 @@ void fragment() {
 			// A shop is not rolled bay by bay. lit_ratio runs 0.15..0.5 and a shop is 2-4 bays, so
 			// a restaurant came out with one of its windows lit and the rest black, which reads as
 			// a bug rather than as an open shop. The whole unit is open or closed off one hash of
-			// shop_seed - about 55 % open - and shop_seed already carries face_id and the seed, so
-			// it costs no rng roll and nothing downstream moves.
-			bool lit = storefront ? hash21(vec2(shop_seed, 41.3)) > 0.45 : (run_k < ratio || k < ratio * 0.16);
+			// the shop's integer key (shop_open, about 62 %), which carries face_id and the seed, so
+			// it costs no rng roll, nothing downstream moves, and Building knows the answer too.
+			bool lit = storefront ? shop_open : (run_k < ratio || k < ratio * 0.16);
 			float room_seed = hash31(vec3(col, row, face_id * 17.0 + seed)) * 97.0;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
 			vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
@@ -602,6 +730,7 @@ void fragment() {
 			// curtain-wall towers read as see-through cages from a distance.
 			rough = 0.32;
 			metal = 0.2;
+			float shop_bars = 0.0;
 			if (storefront) {
 				// Anodised shopfront framing: jambs, a centre mullion, the transom above the
 				// display, and a kick plate at the bottom of the door. A shop window with no
@@ -614,6 +743,7 @@ void fragment() {
 					bars += step(0.40, fv) * step(fv, 0.425);   // push bar
 				}
 				bars = clamp(bars, 0.0, 1.0);
+				shop_bars = bars;
 				vec3 mullion = mix(vec3(0.11, 0.11, 0.12), vec3(0.55, 0.56, 0.58), step(0.6, shop_seed));
 				albedo = mix(albedo, mullion, bars);
 				reflected *= 1.0 - bars;
@@ -628,8 +758,18 @@ void fragment() {
 				// downtown facade read as a random checkerboard of gold and black rectangles
 				// with none of the interior mapping or the sky reflection visible through it.
 				// A real office window shows nothing from the street in daylight.
-				float on = night_factor;
-				if (room_lamp >= 0.0 && !storefront) {
+				float on = storefront ? shop_on : night_factor;
+				if (room_lamp >= 0.0 && storefront) {
+					// An open shop after dark is the same traced room lit by its own lights, in
+					// its own colour and at its own level (shop_tone): a warm deli beside a cold
+					// white phone shop beside a dim bar. One building-wide lit_color at one
+					// strength, flat over the glass, turned every tower base into a single white
+					// fluorescent band.
+					float bright = 0.6 + 0.7 * float(shop_byte(shop_key, 4u)) / 255.0;
+					vec3 lit_room = room_raw * shop_tone(shop_key) * room_lamp * bright;
+					albedo = mix(albedo, albedo * 0.35, on);
+					emission = lit_room * lit_strength * 2.5 * on;
+				} else if (room_lamp >= 0.0) {
 					// The room itself, lit by its own ceiling: panels, a bright upper wall, a
 					// dim floor, a glowing blind, a dark desk line. It used to be one flat
 					// lit_color tile, and a tower after dark read as a checkerboard of them.
@@ -642,8 +782,43 @@ void fragment() {
 				}
 				metal = mix(metal, 0.0, on);
 				rough = mix(rough, 0.5, on);
+			} else if (storefront && room_lamp >= 0.0) {
+				// A closed shop with no shutter: dark, but for the night light at the back.
+				emission = room_raw * vec3(0.72, 0.86, 1.0) * room_lamp * 0.06 * shop_on;
+			}
+			if (storefront && lit && neon_bay && shop_byte(shop_key, 5u) < 90u) {
+				// Neon hung just behind the glass in a third of the open shops: pink, cyan, warm
+				// white, red or violet, one of four shapes, drawn as a distance to the tube so it
+				// stays a thin bright line at any range (widened to a pixel and dimmed to match
+				// once it is thinner than one) with a soft glow round it on the glass.
+				vec2 pane = 2.0 * win_h * vec2(pitch, ground_floor_height);
+				vec2 wn = pane_w.x >= 0.0 ? pane_w : clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
+				float d = neon_shape(wn * pane, pane, shop_byte(shop_key, 7u) & 3u);
+				float tube = max(0.02, px_m * 0.8);
+				float core = (1.0 - smoothstep(tube * 0.5, tube, d)) * (0.02 / tube);
+				float halo = exp(-d / 0.10);
+				vec3 nc = neon_color(shop_byte(shop_key, 6u) % 5u) * (1.0 - shop_bars) * shop_on;
+				emission += nc * (core * 7.0 + halo * 0.45);
+				albedo = mix(albedo, nc, core * 0.6);
 			}
 			emission += reflected;
+		} else if (shutter) {
+			// A roll-down shutter: galvanised slats, a few painted, a bottom rail and the guide
+			// channels up the sides. Lit by the street, not by anything of its own.
+			float slat = fract(v / 0.085);
+			float rib = smoothstep(0.0, 0.2, slat) * (1.0 - smoothstep(0.7, 1.0, slat));
+			vec3 steel = mix(vec3(0.36, 0.37, 0.38), vec3(0.24, 0.25, 0.27), float(shop_byte(shop_key, 12u)) / 255.0);
+			uint paint = shop_byte(shop_key, 13u);
+			if (paint < 40u) {
+				steel = vec3(0.10, 0.20, 0.14);
+			} else if (paint < 70u) {
+				steel = vec3(0.12, 0.14, 0.24);
+			}
+			albedo = steel * mix(0.62, 1.0, rib);
+			float rail = clamp(step(fv, 0.035) + step(0.44, abs(fu - 0.5)), 0.0, 1.0);
+			albedo = mix(albedo, steel * 0.45, rail);
+			rough = 0.55;
+			metal = 0.45;
 		} else if (reveal_face) {
 			// A jamb, the sill or the head of the opening, reached by the traced view ray. The
 			// wall's own material on a punched window, the frame colour on a curtain wall; a
@@ -683,8 +858,30 @@ void fragment() {
 			// bleed curve and the bright ones near the top of it, which is the spread that reads
 			// as a row of separate businesses rather than as one lit stripe.
 			float band = face * (0.75 + 0.5 * hash21(vec2(shop_seed, 29.3)));
-			emission = box * 2.4 * night_factor * band;
-			albedo = mix(albedo, box, 0.55 * night_factor * face);
+			// Not every board is a lightbox. A closed shop leaves its sign off as often as not
+			// (an open one never does), and where Building has put the raised name in front of
+			// the band, over half the boards are dark with the letters lit instead - channel
+			// letters (Building.shop_letters()), with a glow of their colour on the board round
+			// them. Every band lit alike read as one white stripe along the street.
+			bool sign_off = !shop_open && shop_byte(shop_key, 9u) < 150u;
+			bool channel = shop_byte(shop_key, 10u) >= 110u;
+			if (sign_off) {
+				albedo *= mix(1.0, 0.7, shop_on);
+			} else if (channel) {
+				vec3 lc = letter_color(shop_byte(shop_key, 11u) % 6u);
+				float mid = 1.0 - smoothstep(0.18, 0.34, abs((fv - 0.76) / 0.17 - 0.5));
+				float run = 1.0 - smoothstep(0.30, 0.40, abs(shop_u - 0.5));
+				// The letters stop drawing at Building.SIGN_DRAW_DISTANCE; before they go the
+				// board takes over with a stand-in for them, a broken strip of their colour. With
+				// no letters at all (the web, the landmark towers) the stand-in is the name.
+				float far = sign_letters ? smoothstep(58.0, 74.0, length(VERTEX)) : 1.0;
+				float glyph = step(0.4, hash21(vec2(floor(shop_u * shop_w / 0.24), shop_seed * 7.0)));
+				emission = lc * shop_on * face * mid * run * (0.30 + far * glyph * 2.2);
+				albedo *= mix(1.0, 0.55, shop_on);
+			} else {
+				emission = box * 2.4 * shop_on * band;
+				albedo = mix(albedo, box, 0.55 * shop_on * face);
+			}
 
 		} else if (bulkhead) {
 			// The panelled base under a display window: stall risers are always a different

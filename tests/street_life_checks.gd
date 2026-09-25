@@ -150,7 +150,11 @@ func _live_queues() -> void:
 				for b in range(a + 1, g.size()):
 					var ta: Dictionary = g[a].traffic
 					var tb: Dictionary = g[b].traffic
-					worst = minf(worst, absf(float(ta.along) - float(tb.along)) - float(ta.half) - float(tb.half))
+					var gap := absf(float(ta.along) - float(tb.along)) - float(ta.half) - float(tb.half)
+					if gap < -0.05 and gap < worst:
+						# Which two and where, so a failure on CI says what happened.
+						printerr("street life: overlap %.2f m at frame %d: %s vs %s" % [gap, i, str(ta), str(tb)])
+					worst = minf(worst, gap)
 	_check(worst > -0.05, "live street traffic never drives into the car in front (tightest gap %.2f m, %d stopped samples)" % [worst if worst < INF else 99.0, stopped])
 
 

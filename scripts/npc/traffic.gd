@@ -528,21 +528,36 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	var wp: Vector3 = t.wp
 	if int(t.turn) == 2 and to_centre > 0.0 and step >= to_centre:
 		# A dead end both ways: back the way it came, on the other carriageway, a little short of
-		# the crossing so it is not reached again at once.
-		t.dir = -dir
-		t.lane = _lane_offset(axis, index, -dir)
-		t.turn = 0
-		t.node = Vector2i(-999999, -999999)
+		# the crossing so it is not reached again at once - once that carriageway has room there.
+		# It used to be dropped in unasked, so two cars U-turning back to back landed one inside
+		# the other (CI 279: a -3.8 m gap).
+		var back_lane := _lane_offset(axis, index, -dir)
 		var at := cross_pos - dir * 0.5
-		var back := Vector2(plan.road_pos(axis, index) + t.lane, at) if axis == CityPlan.AXIS_X else Vector2(at, plan.road_pos(axis, index) + t.lane)
-		_place(car, WorldState.to_local(Vector3(back.x, 0.55 + _relief(back), back.y)), _heading(axis, -dir), 0.0)
-		return
-	if int(t.turn) != 0 and to_centre > 0.0 and step >= to_centre:
+		var back_key := lane_key(axis, index, -dir, back_lane)
+		if _group_clear(groups, back_key, at, half + 4.4):
+			t.dir = -dir
+			t.lane = back_lane
+			t.turn = 0
+			t.node = Vector2i(-999999, -999999)
+			t.along = at
+			_join_group(groups, back_key, car)
+			var back := Vector2(plan.road_pos(axis, index) + t.lane, at) if axis == CityPlan.AXIS_X else Vector2(at, plan.road_pos(axis, index) + t.lane)
+			_place(car, WorldState.to_local(Vector3(back.x, 0.55 + _relief(back), back.y)), _heading(axis, -dir), 0.0)
+			return
+		new_along = along + float(dir) * maxf(to_centre - 0.05, 0.0)
+		t.v = 0.0
+		car.traffic_speed = 0.0
+	elif int(t.turn) != 0 and to_centre > 0.0 and step >= to_centre:
 		# At the centre of the intersection: onto the cross street, if its lane has room here.
 		var new_dir: int = t.turn
 		var lane := _lane_offset(cross_axis, cross_index, new_dir)
 		var at_along := wp.x if cross_axis == CityPlan.AXIS_Z else wp.z
-		if _group_clear(groups, lane_key(cross_axis, cross_index, new_dir, lane), at_along, half + 4.4):
+		var new_key := lane_key(cross_axis, cross_index, new_dir, lane)
+		if _group_clear(groups, new_key, at_along, half + 4.4):
+			# Counted in its new lane at once: `groups` is built at the start of the tick, and a
+			# second car turning into the same lane in the same tick saw it empty.
+			t.along = at_along
+			_join_group(groups, new_key, car)
 			t.axis = cross_axis
 			t.index = cross_index
 			t.dir = new_dir
@@ -608,6 +623,13 @@ func _must_stop(t: Dictionary, node: Vector2i, axis: int, to_line: float, v: flo
 				return false
 		return true
 	return false
+
+
+## Counts `car` in lane group `key` for the rest of this tick (it has just entered that lane).
+func _join_group(groups: Dictionary, key: int, car: Vehicle) -> void:
+	if not groups.has(key):
+		groups[key] = []
+	(groups[key] as Array).append(car)
 
 
 ## True when no car of lane group `key` is within `clear` metres of `along` (this tick's groups).

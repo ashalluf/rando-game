@@ -120,7 +120,8 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   blocky - with a `--texture-prompt` for skin and fabric. The existing
   cars, pedestrians and jets were made with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
-  `python3 tools/shrink_glb.py assets/models/<name>.glb`, commit the `.glb`, its `.json`, the
+  `python3 tools/shrink_glb.py assets/models/<name>.glb` (a hard-surface model like a car also
+  gets `python3 tools/smooth_normals.py assets/models/<name>.glb`, see the car paint note), commit the `.glb`, its `.json`, the
   extracted `_N.jpg` textures and all `.import` files, and add a row to `docs/ASSETS.md`.
   **Owner's rule: every Meshy prompt asks for the most ultra-realistic result possible** (the
   tool appends that wording itself; never pass `--plain` or ask for cartoon / low-poly looks).
@@ -166,7 +167,7 @@ scripts/               player, weapons, world, vehicles, npc, util, ui
 shaders/
 assets/                textures/ (CC0 sets) and models/ (Meshy .glb + .json)
 tests/                 headless smoke test and check script
-tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
+tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (screenshot harness)
 ```
 
 ## Conventions
@@ -305,7 +306,17 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (which faces a little downward) mirrored pale-blue sky - a dark red pickup read as ice-blue,
   and with the clearcoat off the same car was dark red. `sky.gdshader` now puts the street
   (`reflect_ground`, a warm grey following the horizon's brightness) under the horizon in the
-  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The basecoat metallic is
+  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The four Meshy bodies
+  (sedan, pickup, van, sports) were also flat-shaded: ~8k-triangle remeshes exported with the
+  normals split at 30 degrees and along every UV seam, so a curved wing was a set of facets and
+  the lacquer mirrored each one. `tools/smooth_normals.py` (run once on the `.glb`, then
+  `--import`) re-smooths them by angle: triangles joined through bends under 45 degrees share
+  one angle-weighted normal, sharper bends stay hard, UV seams no longer crease, no triangle
+  is added (`--report` prints the crease table). The exotics are Blender-built with their
+  creases on purpose; leave them. Smooth normals drift slowly through the glass slope band, so
+  the geometric glass test blends over one pixel (`fwidth`), not a fixed 0.04, and
+  `Vehicle.GEO_GLASS_SPAN` keeps the van's glass to its cab - its flanks behind the cab turn
+  in like side glass and became one long dark smudge. The basecoat metallic is
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.
@@ -598,6 +609,22 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   `Building.SHOP_NAMES` and are original, never a real brand. Note the shader measures its `u`
   the opposite way round the box from the script's `a` on every face, so a run's centre has to
   be mirrored.
+  **Street level at night** (the storefront row is a patchwork, not one lit band): each shop's
+  night is rolled from INTEGERS - `shop_hash()` in `building.gdshader`, `Building.shop_hash()` /
+  `shop_byte()` / `shop_key()` bit for bit (a float hash cannot be reproduced off the GPU), salts
+  listed on `Building.shop_hash` - so the script knows what the shader draws. About 62 % of shops
+  are open: their traced room is lit in its own `shop_tone()` (warm, neutral, cool, now and then
+  pink or teal) at its own brightness, and a third hang a neon piece (`neon_shape()`, four
+  shapes, `neon_color()`) in the bay after the door. Closed ones are dark with a night light, and
+  over half pull a roll-down shutter (only while `lamp_factor` > 0.5, so never by day). Sign
+  bands: a closed shop leaves its lightbox off as often as not, and over half the boards are
+  dark with lit channel letters (`Building.shop_letters()` -> `PropFactory.shop_sign_material()`,
+  cream by day as before); the board draws a lit stand-in strip of their colour where there are
+  no letters (`sign_letters` false: the web, landmark towers) and past the letters' cull. Open shops
+  throw their light on the pavement: `Building.shop_pools` -> `CityChunk._add_shop_spill()`, ONE
+  additive batch per chunk (`PropFactory.shop_spill()`, `light_pool.gdshader`), knobs
+  `shop_spill_*` on Building. All of it runs off `lamp_factor`. The palettes are written in
+  both places; the smoke test reads the shader's copies back.
 - Night lighting: the city has no real lights except the sun, so at night it was pitch black.
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick
@@ -1384,10 +1411,23 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   opens maximised, and on a Retina Mac "native" was 3456 x 2234 - 7.7 million pixels through
   SDFGI, SSR, SSIL and volumetric fog - so the 3D scene now renders at most the budget and FSR
   2.2 scales it to the window. The HUD's quality line shows the 3D resolution in use.
-  Past `lod_far` (140 m) a pedestrian swaps to a welded far body (`Pedestrian.far_mesh()`, at
-  most `far_triangles`, built during loading): the models are unwelded, so the importer's LODs
-  stop at ~4,150 of 16,600 triangles and a figure eleven pixels tall still cost 4k; welded,
-  the simplifier goes down to a few hundred. Street frame 7.7 M -> 6.6 M.
+  Past `Pedestrian.mid_body_range` (50 m) a pedestrian swaps to a welded middle body (at most
+  `mid_triangles`, ~2,070) and past `lod_far` (140 m) to a welded far body (at most
+  `far_triangles`, ~515), both from `Pedestrian.far_mesh()` and built during loading (~45 ms a
+  model more than the far body alone cost): the models are unwelded, so the importer's LODs
+  stop at 8,300 / 5,500 of 16,600 triangles and at 1080p most of the 45-140 m crowd drew 8,300
+  a figure; welded, the simplifier goes as low as asked. Three traps, all paid for: welding
+  keeps one UV per position, so each body triangle takes back the seam copies of its corners
+  from one UV island, closest together (`_unweld()`); a triangle that still spans two islands,
+  or stretches over more than `STRETCH_LIMIT` times the atlas its size should, takes ONE
+  corner's texel on all three corners (interpolated, it smeared face and shoe across a white
+  top); and the bodies have NO LODs of their own - the simplifier's errors are in the mesh's
+  metres, the renderer weighs them by the instance's 0.01 armature scale, and the old far body
+  was drawn at its last level, an 18-35 triangle stick. Past ~35 m the model itself turns to
+  brown speckle (its tiny UV islands bleed together in the mips), so the welded bodies read
+  truer to the close-up clothes than the model does at that range. Judge a body against the
+  model with `character_shot.gd` (`BODY=mid|far`, `FOV=75`, `CAM_DIST` 15-140, crop and scale
+  up). Downtown bookmark: crowd 1.88 M -> 1.10 M triangles, frame 8.23 M -> 7.44 M (HANDOFF 9x).
   Pedestrians cast shadows only inside `Pedestrian.shadow_range` (45 m) and drop to coarser
   mesh LODs with distance (`LOD_BIAS`): on a downtown street the crowd was 6.4 of 15.7 million
   triangles a frame, most of it shadow passes of 16k-triangle rigs; now 2.4. Cars do the same
@@ -1421,6 +1461,14 @@ tools/                 meshy.py, shrink_glb.py, webshot/ (screenshot harness)
   (the physics body is untouched), and see the physics-layers note on masks. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
   objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
   frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
+  **Static boxes are never a node each.** `CityChunk._add_slab()` merges a chunk's solid boxes
+  (big-box walls, pilasters, parapets, planters, yard pads) into one mesh per material at the
+  finish (`_commit_boxes()`), and `MultiMeshBatch.merge_meshes()` does the same for the far
+  landmarks' primitives: 300-530 box nodes a view and ~800 far-landmark nodes were a draw call
+  each, and again per shadow cascade (hills bookmark 1,202 -> 942 draws, same triangles). It
+  only merges opaque BaseMaterial3D / world-mapped materials and auto-named, unscripted nodes;
+  `MERGE_STATIC=0` on `still_shot.gd` is the A/B, and its GEO / `SPLIT=1` lines are the frame
+  cost of any bookmark (baseline table in docs/HANDOFF.md 9x).
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in
   `CityChunk._road_look`): tiled asphalt plus world-space mottling, resurfacing patches on a
   jittered grid with darker seams, ridged-noise cracks and sparse oil staining, so the road never

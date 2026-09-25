@@ -63,3 +63,52 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
   `<scratchpad>/crowd/cmp6.png`, `cmp_faces_fp.png`. Screen-space SSS blurred the photo-baked
   eyes and stubble; the vinyl look comes from lighting baked into the textures. Kept the
   character_shot.gd LOOK fix (9ad44e7).
+
+## Wave 4 (2026-09-25)
+
+- Launched: downtown 1:1 re-lay (roadmap #13), hill vegetation (#6).
+- **Vehicle grime** (roadmap #2) - not merged. Close-ups `<scratchpad>/grime/m2/z_sedan.png`,
+  `z_pickup.png` (dirt 0 / 0.3 / 1). Real but subtle at the median car, ~+190 ALU per car
+  fragment (paint code ~90 before). Found: the body meshes' faceting is the louder tell (#21).
+- **Wall weathering** (roadmap #3) - not merged. `<scratchpad>/ww/cmp3_brick_close.png` (better
+  up close), `cmp3_city_brick.png` (no difference at 40 m). +90-120 ALU per wall pixel.
+- Render lock: `flock ... xvfb-run` handed the lock fd to Xvfb, and an orphaned Xvfb held every
+  render for a while. bookmarks.sh now uses `flock -o` (the child never inherits the lock).
+- **Texture mipmaps** (roadmap #18) - merged cb4e4e3 - done, clearly better at distance. A/B
+  `<scratchpad>/mip/brick_crop.png` (brick mid-rise across the street: speckle -> even brick),
+  high-frequency energy -3 %. 14 sets switched, RockyTerrain02 dropped (unused). Gate 456/456.
+- **Car body faceting** (roadmap #21) - merged 331e450, gate 456/456 - clearly
+  better. Root cause: the four Meshy bodies were exported with normals split at 30 deg and on
+  every UV seam. tools/smooth_normals.py re-smooths by angle (45 deg), welds, never adds
+  vertices. Forward+ sheets `<scratchpad>/smooth/ba_{0..3}.png`. Same triangles, ~0.2 % fewer
+  vertices, LODs intact. Follow-up #22 (higher-poly bodies).
+
+## Wave 5 (2026-09-25)
+
+- Regression audit launched on main 75f4795 (every fifth wave).
+- **PERF pass 1** - merged b612d55, gate 456/456. Static boxes per chunk and far
+  landmark primitives merged into one mesh per material: draws hills 1,202 -> 942 (-21.6 %),
+  downtown 4,679 -> 4,313 (-7.8 %), freeway 6,661 -> 6,485 (-2.6 %), triangles unchanged;
+  pixel diffs only on clock-driven things (`<scratchpad>/perf/*_diff.png`). Baseline table in
+  HANDOFF 9x. Found: trees (#23) and mid-range pedestrians (#24) are the triangle hogs.
+- **Container restart** (~10:30): all five agents were killed. Night shopfronts had finished;
+  re-lay, hill vegetation, pedestrian LOD and the audit were relaunched to resume from their
+  worktrees.
+- **Night shopfronts** (roadmap #8) - merged 5340b9b, gate 459/459. Root cause: an
+  open shop fell through to a flat `lit_color` branch, so every tower base was one white band.
+  Crop `<scratchpad>/nshop/cmp_rain_base2.png`, full `after2/night_rain.png`. geo_count night
+  avenue +1 draw, +78 tris. Brightness p95 night rain 153 -> 128 (the white band came down);
+  noon identical. Clearly better at tower bases, modest on side streets. NEEDS MAC CHECK.
+- **CI 279 red -> 280 green** (dc83d4f): "live street traffic never drives into the car in
+  front" failed at -3.8 m. Real bug on the park's closed roads: dead-end U-turns were dropped
+  onto the other carriageway unasked, and two cars could turn into one lane in the same tick.
+  Both now wait / register at once. Shotgun wound check made robust (strongest of 5 tries).
+- **Pedestrian middle body** (roadmap #24, PERF) - merged 35efe0a, gate 459/459. Downtown noon
+  crowd 1.88 M -> 1.10 M triangles (-42 %), frame 8.23 M -> 7.44 M (-9.5 %), draws and shadow
+  pass unchanged. Bookmark crop `<scratchpad>/ped/city_ab3_C.png` (no visible change). Loading
+  +415 ms CPU. Also fixed: the old far body had its own LOD chain and drew as an 18-35 triangle
+  stick.
+
+## Wave 6 (2026-09-25)
+
+- Launched: wet streets that dry believably (#9). Tree LOD (#23) waits for hill vegetation (same batching code).

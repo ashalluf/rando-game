@@ -230,6 +230,7 @@ func _apply_population() -> void:
 	# Far pedestrians update less often on the low levels.
 	Pedestrian.lod_mid = 60.0 if level <= Level.MEDIUM else 35.0
 	Pedestrian.lod_far = 140.0 if level <= Level.MEDIUM else 80.0
+	Pedestrian.mid_body_range = 50.0 if level <= Level.MEDIUM else 35.0
 	Pedestrian.shadow_range = 45.0 if level <= Level.MEDIUM else 20.0
 
 
