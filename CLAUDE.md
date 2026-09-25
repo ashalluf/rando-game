@@ -1415,6 +1415,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   (the physics body is untouched), and see the physics-layers note on masks. The HUD shows the level and a frame-time line (cpu / physics / gpu ms, draws,
   objects, tris): ask the owner for a screenshot of it before guessing at lag. Building window
   frames are flat quads drawn out to `Building.FRAME_DRAW_DISTANCE`.
+  **Static boxes are never a node each.** `CityChunk._add_slab()` merges a chunk's solid boxes
+  (big-box walls, pilasters, parapets, planters, yard pads) into one mesh per material at the
+  finish (`_commit_boxes()`), and `MultiMeshBatch.merge_meshes()` does the same for the far
+  landmarks' primitives: 300-530 box nodes a view and ~800 far-landmark nodes were a draw call
+  each, and again per shadow cascade (hills bookmark 1,202 -> 942 draws, same triangles). It
+  only merges opaque BaseMaterial3D / world-mapped materials and auto-named, unscripted nodes;
+  `MERGE_STATIC=0` on `still_shot.gd` is the A/B, and its GEO / `SPLIT=1` lines are the frame
+  cost of any bookmark (baseline table in docs/HANDOFF.md 9x).
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in
   `CityChunk._road_look`): tiled asphalt plus world-space mottling, resurfacing patches on a
   jittered grid with darker seams, ridged-noise cracks and sparse oil staining, so the road never

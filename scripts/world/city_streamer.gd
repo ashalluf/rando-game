@@ -259,6 +259,9 @@ func _build_far_landmarks() -> void:
 		_far_landmarks[lm.id] = holder
 		if lm.id == "sign":
 			_seat_far_sign(holder, lm.anchor)
+		# Far copies are built box by box (a pier, a mall, a ship are dozens of them) and never
+		# change after this: one draw per material instead of one per box.
+		MultiMeshBatch.merge_meshes(holder)
 
 
 ## The far ridge sign stands on the far ground, not the real one. It is built level with the
