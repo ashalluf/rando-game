@@ -1741,7 +1741,7 @@ geographically sound", "you should also have macarthur park".
 **LANDED (2026-09-25, branch wt/downtown-relay).** The re-lay (`tools/downtown_relay/relay.patch`,
 a diff against 006e57c) no longer applied - main had MacArthur Park on, the masjid replica with
 its sanctuary, the Esplanade's coast and headland, the distance tiers - so it was ported by hand
-and gated; the headless check passes (464 checks), `tests/downtown_checks.gd` included. What
+and gated; the headless check passes (467 checks after merging main at 6330409), `tests/downtown_checks.gd` included. What
 moved, and what differs from the patch:
 
 - **Downtown**: the real grid pinned on every seed, the 19 towers and 9 civic sites on their
@@ -1785,11 +1785,52 @@ the port heading south both times); city hall's roof probe reads the tower's pos
 builder (`LandmarkCivicCenter._hall_tower()`; the turned, bigger site moved it 10 m off the old
 probe point); "no deck crosses the core" is measured east of Figueroa (the core rect starts at
 the 110, which is Bunker Hill's real west edge). `street_life_checks` prints what stood round
-the cruiser when it pulls up off its kerb point: in the gate runs it stopped 0.2, 2.5, 0.2 and
-once 4.2 m off (the limit is 3.0; main stops 0.6 m off every time) - watch it.
+the cruiser when it pulls up off its kerb point: in the early gate runs it stopped 0.2, 2.5, 0.2
+and once 4.2 m off (the limit is 3.0); 73553af also accepts the kerb nearest where the player
+ends up (block 0,0 is 100 x 200 m now and he can be nudged while the cruiser follows him), and
+the last two gates read 0.6 m, as main does - watch it.
 
 Consequence to know: a pinned road runs the whole map, so every block between z -1726 and 2000,
 anywhere in the basin, has downtown's street spacing (164-437 m) on that axis.
+
+**What it costs** (geo_count, opengl3, 800 x 600, `--quality=0`; main = 6330409 with the perf
+pass and the pedestrian middle body, branch = the same merged in). Downtown against downtown:
+
+| View | main | branch | change |
+|---|---|---|---|
+| Avenue (main `589.2,860,0,12,2`, branch `2359.4,880,0,12,2`) | 5.67 M / 4,137 draws / 17.0 k objects | 5.90 M / 4,930 / 21.1 k | +4 % tris, +19 % draws |
+| South-west aerial (main `-50,1250,-43,5,80`, branch `1450,2150,-38,4,140`) | 9.95 M / 5,352 / 17.7 k | 7.25 M / 9,006 / 25.3 k | -27 % tris, +68 % draws |
+| Same spot, old avenue `589.2,860` | 5.67 M / 4,137 | 7.31 M / 6,447 | (now plain midtown) |
+| Same spot, old aerial `-50,1250` | 9.95 M / 5,352 | 4.54 M / 3,451 | |
+| Same spot, new avenue `2359.4,880` | 1.38 M / 985 | 5.90 M / 4,930 | (was the edge of town) |
+| Same spot, new aerial `1450,2150` | 3.14 M / 3,948 | 7.25 M / 9,006 | (was industrial) |
+
+`SPLIT=1` on `still_shot.gd` (960 x 540, same vantages) puts all of the rise in **Building**:
+avenue 445 -> 3,343 draws (every other category went down: cars -325, people -148, props -515),
+aerial 1,445 -> 5,664 draws (1,151 -> 9,906 building nodes; everything else flat or down). The
+avenue is lined by the 1:1 core's infill towers where the old one looked at the named towers
+(Landmark draws); the aerial looks over the 25-block full ring of dense midtown between the 110
+and the masjid, which on main was the industrial quarter (warehouses: a few big boxes) - the
+patch put industrial east of the 110 only, as it is in reality. Triangles are flat or down; the
+draw calls are the known building draw sink of 9x (several meshes per building), now in more
+of the frame. Also know: `MacroMap.midtown_radius` is a 1,700 m BAND round downtown's 2.3 x 3.8
+km extent (it was an 800 m disc round one point), so MIDTOWN round downtown covers ~30 km2 where
+it covered 2, and `TrafficManager.density_at()` runs at full density over the same band. It was
+sized to reach MacArthur Park and Koreatown to the west; the south and east of real downtown
+are low-rise, so a narrower band there (west 1,700, elsewhere ~800, which keeps the masjid's
+block, 703 m out, midtown) is the cheap next step if the Mac's frame rate over South LA drops.
+The per-building merge (9x) is the real fix for the draws.
+
+Stills (opengl3, noon, in the landing session's scratchpad `dt/stills/`, B_ = main, A_ =
+branch): aerial `B_aerial` / `A_aerial` (spawns above), avenue `B_avenue` / `A_avenue`, civic
+`A_civic2` `--spawn=2600,-450,-50,-14,220` (city hall behind Grand Park; `B_civic2` at
+`300,654`), arena `A_arena3` `--spawn=2330,1560,43,-18,110` (`B_arena3` at `543.6,659.4`),
+masjid `A_masjid` (`1880.7,2809.6,-31.8,-23.7,32`, downtown's skyline behind it the way it
+stands from Exposition) / `B_masjid` (`-272,252`), MacArthur `A_macarthur`
+`--spawn=300,528,0,-35,120` / `B_macarthur` `308.5,163`. Seen: the arena is a 74 m drum on a
+240 x 330 m block of bare plaza (the builder is still a third of real size - below), and north
+of the civic centre the embayment leaves the back range at the far-ground rim fade, where it
+reads as a pale, half-transparent ridge in the opengl3 stills.
 
 What is left: interiors; Bunker Hill as a hill; Little Tokyo and the east side as real streets;
 the real 110/101/10 interchange ramps; the civic builders at real size (the arena's
