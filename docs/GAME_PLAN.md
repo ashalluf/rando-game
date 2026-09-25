@@ -278,6 +278,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-25 The hills are planted where the ground is painted.** `HillPlanting` reproduces
+  `terrain.gdshader`'s brush / dirt / rock splat on the CPU (numbers checked against the shader
+  source), and both tiers plant from it: FULL hill chunks put budgeted searsia stands on the
+  painted chaparral (thickest on north faces), oaks in the hollows, lone shrubs on the grass and
+  nothing on rock, cuts or trails; the far tier draws low draped mounds and dark oak clumps from
+  the same field instead of ten round clumps anywhere on a block. The far canopy shader's normals
+  are corrected for squashed instances, and the horizon ground carries more scrub on north faces.
 - **2026-09-24 The hills are a Southern-California hillside.** `terrain.gdshader` was one grass
   texture with a second "rock" layer that was really green grass with pebbles (RockyTerrain02),
   and both hill sets were imported without mipmaps, so a range read as a shimmering meadow. It

@@ -36,7 +36,7 @@ How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every age
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
 Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
-day's work is in 9t (distance), 9s (1:1 downtown research), 9r (MacArthur Park, encampments),
+day's work is in 9z (hill planting, 2026-09-25), 9t (distance), 9s (1:1 downtown research), 9r (MacArthur Park, encampments),
 9q (street life), 9p (the Esplanade), 9o (civic set), 9n (skyline), 9m (sound), 9l (how the
 day ran), 9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the
 index.
@@ -2234,6 +2234,50 @@ pavement. The rules are in the Shop signs bullet of CLAUDE.md.
   (0.845 of the world height) was written to match it. The fix is `(world_y - base_y) /
   (ground_floor_height - base_y)` plus `band_y = bottom + 0.845 * storefront`, and it changes the
   day look of every raised storefront, so it wants its own before/after.
+
+## 9z. Hill planting on the painted ground, 2026-09-25 (agent branch)
+
+The ask: the hills' planting read as sparse dark dots and lollipop blobs over the new dry-grass /
+chaparral / dirt / rock ground. Chaparral should be dense low dark-olive masses on the north
+faces and in the gullies, oaks at the gully feet, single shrubs on the grass, nothing on rock
+or cuts, and the range from the basin should read as brush-covered.
+
+- **One field, two sides.** `HillPlanting` (`scripts/world/hill_planting.gd`) is the terrain
+  shader's splat in GDScript: same `hash12t`, same value noise, same octaves and offsets, same
+  thresholds (`MIRRORED`, checked against the shader source by the smoke test). So a shrub is
+  planted exactly where the shader paints a brush stand, and never on what it paints as rock,
+  a cut or a trail. `hollow()` (mean ground round a point minus the point, per metre) finds
+  the gullies and slope feet. Across the front range the field puts brush on 68 % of the
+  north faces and 27 % of the south ones.
+- **Near (FULL hill chunks).** `CityChunk._plant_hills`, a new build step after
+  `_scatter_hills` (its own rng per grid row; three rows a step, about 1 ms each on this box):
+  a jittered 6.2 m grid; stand points get the searsia scan cut to ~3k triangles
+  (`PropFactory.model_chaparral()`), wide, leaning into the slope, no shadow (the painted stand
+  is the shade); deep hollows get an oak (`model_hill_oak()`, the island tree cut to ~20k,
+  a few a block, with shadows); open grass a rare lone shrub. About 100-140 shrubs a block on a
+  north face. Heights come off the chunk's own terrain grid (`_terrain_height`), not
+  `height_at()`.
+  Tints are over 1 (`1.75..2.15` brush, `1.35..1.6` oaks): the searsia's leaves are small
+  sprites on a black atlas and tree_a's atlas is 75 % black, the mips average that in, and at
+  the first tints (0.8) the stands and oaks were black shapes from twenty metres.
+- **Far (Skyline).** `_add_hills` asks the same field on a 30 m height lattice: 28 tries a
+  block, low mounds draped on the slope that grow into one mass in a stand's heart, dark oaks in
+  the hollows, none on roads, pads, rock or cuts. `far_canopy.gdshader` now fixes the normals
+  of squashed clumps (the renderer turns MultiMesh normals by the instance basis, not its
+  inverse transpose, so a mound two or three times wider than tall drew black) - this also
+  lights the far city's street-tree blobs correctly. `macro_ground.gdshader` puts more scrub on
+  north faces (`north_scrub`).
+- **Cost** (opengl3 geo counts, one run of six views in order, main 940bac8 -> this):
+  hills bookmark 1.593 M -> 1.666 M triangles (+4.5 %), 989 -> 986 draws; basin 8.72 -> 8.82 M
+  (+1.2 %), 4843 -> 4840 draws; downtown avenue 8.73 -> 8.84 M (+1.2 %), 4704 -> 4702 draws. Down
+  among the stands it costs more: north face +14 % triangles / +5 % draws, gully +15 % / +10 %,
+  a low slope view +22 % / +9 % (every FULL hill chunk adds a shrub batch and an oak batch with
+  its shadow twin). Widening the shrubs afterwards changed no count.
+  A far hill block costs ~1 ms to build instead of 0.2 (25 height samples plus the field), which
+  is ~2 s more on the loading screen's whole-basin build on this box.
+- **Needs the Mac.** Forward+ look of the stands (shrub colour under the real sky light, and
+  whether the stands want their shadows back), the far mounds with correct normals at golden
+  hour.
 
 ## 10. Suggested next steps, in order of impact
 

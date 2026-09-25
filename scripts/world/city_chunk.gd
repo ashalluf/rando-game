@@ -19,6 +19,21 @@ const SIDEWALK_TOP := 0.25
 ## map (2.9 M triangles against downtown's 8 M), so they carry half as much again.
 @export var hill_scatter_min: int = 150
 @export var hill_scatter_max: int = 230
+## Hill planting (_plant_hills, on the ground HillPlanting reads out of the terrain shader):
+## metres between the points of the jittered grid a FULL hill chunk tries a plant at. A
+## chaparral stand gets a shrub at most of its points, so this is the stand's density.
+@export var hill_brush_spacing: float = 6.2
+## Share of a stand's grid points that carry a shrub, and the shrubs' height range in metres
+## (chaparral is head-high to twice that; the wide low shape is most of what reads as brush).
+@export var hill_brush_fill: float = 0.8
+@export var hill_brush_height: Vector2 = Vector2(1.9, 3.4)
+## How much of a hollow (HillPlanting.hollow(), metres per metre) a point needs before an oak or
+## sycamore stands there, the odds it does in the deepest hollows, and their heights.
+@export var hill_oak_hollow: float = 0.09
+@export var hill_oak_chance: float = 0.3
+@export var hill_oak_height: Vector2 = Vector2(6.0, 9.0)
+## Odds of a lone shrub (sage, buckwheat) at a point of open dry grass.
+@export var hill_sage_chance: float = 0.05
 
 @export_group("Geometry budget")
 ## Quads across a hill chunk's terrain tile: one for a chunk a hill road crosses (the carved
@@ -277,7 +292,7 @@ func begin_build() -> void:
 				_steps.append(_build_beach.bind(block))
 				_steps.append(_build_hill_roads)
 		MacroMap.Zone.HILLS:
-			_steps.append_array([_build_terrain, _build_hill_roads, _build_mansions, _scatter_hills])
+			_steps.append_array([_build_terrain, _build_hill_roads, _build_mansions, _scatter_hills, _plant_hills])
 		MacroMap.Zone.BEACH:
 			if replica_role == 0:
 				_steps.append(_build_roads.bind(block))
@@ -950,6 +965,8 @@ func _build_terrain() -> void:
 			st.add_index(d)
 			st.add_index(c)
 	st.generate_normals()
+	# Kept for the planting, which reads slopes and hollows off the very surface drawn.
+	_terrain_grid = {"heights": heights, "n": n, "area": area}
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Terrain"
 	mesh.mesh = st.commit()
@@ -1043,6 +1060,129 @@ func _scatter_hills() -> void:
 	for v in 5:
 		_batch.set_no_shadow("tuft_%d" % v)
 		_batch.set_no_shadow("scrub_%d" % v)
+
+
+## The terrain tile's heights ({"heights", "n", "area"}, _build_terrain) for the planting.
+var _terrain_grid: Dictionary = {}
+## Where _plant_hills has got to (grid rows done) and what it has planted: kind -> count, and
+## "points" [Vector2 world XZ, kind] for the checks.
+var _plant_row: int = 0
+var hill_planting: Dictionary = {}
+## Grid rows _plant_hills does per build step (a row is ~20 points, about 1 ms on a slow machine).
+const PLANT_ROWS_PER_STEP := 3
+
+
+## The drawn terrain's height at `p` (true world XZ): the tile's own grid, bilinear, or the map
+## off the tile.
+func _terrain_height(p: Vector2) -> float:
+	if _terrain_grid.is_empty():
+		return plan.height_at(p)
+	var area: Rect2 = _terrain_grid.area
+	var n: int = _terrain_grid.n
+	var u := (p.x - area.position.x) / area.size.x * n
+	var v := (p.y - area.position.y) / area.size.y * n
+	if u < 0.0 or v < 0.0 or u > n or v > n:
+		return plan.height_at(p)
+	var i := mini(int(u), n - 1)
+	var j := mini(int(v), n - 1)
+	var fu := u - i
+	var fv := v - j
+	var h: PackedFloat32Array = _terrain_grid.heights
+	var a := h[j * (n + 1) + i]
+	var b := h[j * (n + 1) + i + 1]
+	var c := h[(j + 1) * (n + 1) + i]
+	var d := h[(j + 1) * (n + 1) + i + 1]
+	return lerpf(lerpf(a, b, fu), lerpf(c, d, fu), fv)
+
+
+## Chaparral stands, oaks in the hollows, lone shrubs on the grass: a jittered grid over a FULL
+## hill chunk, each point planted by what the terrain shader paints there (HillPlanting), so the
+## shrubs stand on the painted brush, thickest on the north faces, and nothing grows on the rock
+## or the bare cuts. A private random stream (never the chunk's), a few grid rows a build step.
+func _plant_hills() -> bool:
+	if level != Level.FULL or capturing:
+		return true
+	var area := owned_rect()
+	var step := hill_brush_spacing
+	var nx := maxi(1, int(area.size.x / step))
+	var nz := maxi(1, int(area.size.y / step))
+	if _plant_row == 0:
+		hill_planting = {"chaparral": 0, "oak": 0, "sage": 0, "points": []}
+	var segs := _hill_segments()
+	var pads := plan.macro.hill_roads.mansions_in(area.grow(HillRoads.PAD_RADIUS + 6.0))
+	var height := Callable(self, "_terrain_height")
+	var chap := PropFactory.model_chaparral()
+	var chap_h := PropFactory.chaparral_height()
+	var points: Array = hill_planting.points
+	var stop := mini(nz, _plant_row + PLANT_ROWS_PER_STEP)
+	for j in range(_plant_row, stop):
+		# One stream per row, so a row plants the same whatever step it lands in.
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([plan.seed, ix, iz, "hill_planting", j])
+		for i in nx:
+			var p := area.position + Vector2((i + rng.randf_range(0.1, 0.9)) * area.size.x / nx, (j + rng.randf_range(0.1, 0.9)) * area.size.y / nz)
+			var roll := rng.randf()
+			var yaw := rng.randf_range(0.0, TAU)
+			var size := rng.randf()
+			var tone := rng.randf()
+			if _near_hill_road(p, segs, 3.0) or _near_pad(p, pads, 5.0):
+				continue
+			var h := _terrain_height(p)
+			if h < 1.5:
+				continue
+			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
+				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25
+			var g := HillPlanting.ground(p, grad)
+			# Nothing on the rock or the bare cuts and trails.
+			if float(g.rocky) > 0.3 or float(g.bare) > 0.4:
+				continue
+			var hollow := HillPlanting.hollow(p, h, 14.0, height)
+			var wet := clampf((hollow - hill_oak_hollow) / (hill_oak_hollow * 2.0), 0.0, 1.0)
+			var at := Vector3(p.x, h, p.y)
+			if wet > 0.0 and float(g.slope) < 0.4 and roll < hill_oak_chance * wet:
+				var v := int(tone * 10.0) % PropFactory.HILL_OAKS.size()
+				var s := lerpf(hill_oak_height.x, hill_oak_height.y, size) / PropFactory.hill_oak_height(v)
+				# Dark, glossy evergreen oak green. Over 1: the leaf atlas is three quarters black
+				# background, which the mip chain averages into the leaves, so at a few tens of
+				# metres a canopy tinted below 1 drew as a black hole in the hillside.
+				var tint := Color(1.35, 1.4, 0.85).lerp(Color(1.6, 1.62, 1.0), tone)
+				var variety := Color(rng.randf(), rng.randf(), rng.randf_range(0.0, 0.5), 0.0)
+				_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
+				hill_planting.oak += 1
+				points.append([p, "oak"])
+				continue
+			# Hollows carry the brush thicker, on any face.
+			var brush := clampf(float(g.brush) + wet * 0.3, 0.0, 1.0)
+			if brush > 0.5 and roll < hill_brush_fill:
+				# Wide and low, leaning into the slope a little, buried at the downhill edge.
+				var s := lerpf(hill_brush_height.x, hill_brush_height.y, size * size) / chap_h
+				var up := Vector3(-grad.x, 1.0, -grad.y).normalized().lerp(Vector3.UP, 0.6).normalized()
+				var tilt := Basis(Quaternion(Vector3.UP, up)) * Basis(Vector3.UP, yaw)
+				# Dark olive, warmer than the scan's sage-green leaves (which read blue-grey on a hill),
+				# and over 1 for the same reason as the oaks: the searsia's leaves are small sprites
+				# on a black atlas, and at 0.8 a stand was black from twenty metres.
+				var tint := Color(1.75, 1.7, 1.05).lerp(Color(2.15, 2.05, 1.3), tone)
+				# Few leaves thinned out: a stand is dense. Half as wide again as tall, so the shrubs of
+				# a stand close up into one mass at no extra triangles (at 1.15 they stood apart as dots).
+				var variety := Color(rng.randf() * 0.3, rng.randf(), rng.randf(), 0.0)
+				_batch.add("hill_chaparral", chap, Transform3D(tilt.scaled(Vector3(s * 1.45, s, s * 1.45)), at - Vector3(0.0, 0.2 + float(g.slope) * 1.5, 0.0)), tint, variety)
+				hill_planting.chaparral += 1
+				points.append([p, "chaparral"])
+			elif brush < 0.35 and roll > 1.0 - hill_sage_chance:
+				# A lone grey-green shrub out on the straw.
+				var s := lerpf(1.0, 1.7, size) / chap_h
+				var tint := Color(1.9, 1.95, 1.6)
+				_batch.add("hill_chaparral", chap, Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s * 1.1, s, s * 1.1)), at - Vector3(0.0, 0.15, 0.0)), tint, Color(rng.randf(), rng.randf(), 0.8, 0.0))
+				hill_planting.sage += 1
+				points.append([p, "sage"])
+	_plant_row = stop
+	if _plant_row < nz:
+		return false
+	# The stands cast no shadow: a hundred-odd shrubs a block went into every cascade, and the
+	# painted brush under them is already the shade between the bushes. The oaks, a few a
+	# block, keep theirs.
+	_batch.set_no_shadow("hill_chaparral")
+	return true
 
 
 ## A lawn tint, from watered green to burnt tan. The old range was all lush, so from the air
