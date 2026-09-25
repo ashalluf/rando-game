@@ -337,6 +337,13 @@ func block(ix: int, iz: int) -> Dictionary:
 	# with it the block seed and everything built from it, is the same as it always was.
 	if macro and Landmarks.claims(rect):
 		kind = BlockKind.BUILDINGS
+	# A shopping plaza or a big-box store lays one building across most of its block and knows
+	# nothing of the freeway, so a deck crossing the block went straight through it. Such a block
+	# is ordinary lots instead, and CityChunk keeps every lot out from under the deck. After the
+	# roll, like the overrides above.
+	if (kind == BlockKind.MALL or kind == BlockKind.BIGBOX) and macro and macro.freeway \
+			and macro.freeway.blocks_rect(rect, 3.0):
+		kind = BlockKind.BUILDINGS
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
 	# Ground a landmark owns outright (a replica area's site): the chunk builds that instead.
 	var site := site_at_block(ix, iz)

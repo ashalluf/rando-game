@@ -199,6 +199,77 @@ func run(t: Node, city: Node3D) -> void:
 		if not (cross > masjid.y + LandmarkMasjidOmar.BLD_OFFSET.z + LandmarkMasjidOmar.SITE_Z1 + 40.0):
 			mq += " not north of the 105 (z %.0f there)" % cross
 	_check(mq == "", "the masjid stands south of downtown where the real one does: west of the 110, between the 10 and the 105%s" % mq)
+	_freeways_clear(plan, city)
+
+
+## No freeway deck, pillar or off-ramp passes through anything built downtown (owner, 2026-09-25:
+## "theres freeways in downtown going straight thru buildings"). Walks every deck segment within
+## 800 m of downtown's extent, captures the LOD build of every block the deck or a ramp crosses
+## (CityChunk.capturing: the very boxes the far city and the LOD chunk draw - every building
+## part, plinth, big-box wall and pad; the FULL chunk builds the same lots) and tests each box
+## over 2.5 m tall against the corridors, then the named towers' plans and the civic sites.
+func _freeways_clear(plan: CityPlan, city: Node3D) -> void:
+	var fw: Freeway = plan.macro.freeway
+	var region := DowntownReal.game_extent().grow(800.0)
+	var style: Dictionary = city.call("chunk_style")
+	var blocks := {}
+	var segs := 0
+	for route: Dictionary in fw.routes:
+		var pts: PackedVector2Array = route.points
+		var half: float = float(route.width) * 0.5 + 3.0
+		for si in pts.size() - 1:
+			var mid := (pts[si] + pts[si + 1]) * 0.5
+			if not region.has_point(mid):
+				continue
+			segs += 1
+			var along := (pts[si + 1] - pts[si]).normalized()
+			var across := Vector2(-along.y, along.x) * half
+			for q: Vector2 in [pts[si], mid, mid + across, mid - across]:
+				blocks[plan.block_index_at(q)] = true
+	for r: Dictionary in fw.ramps:
+		if region.has_point(r.pos):
+			for q: Vector2 in Freeway.ramp_path(r):
+				blocks[plan.block_index_at(q)] = true
+	var hits: Array[String] = []
+	var boxes := 0
+	for k: Vector2i in blocks:
+		var zone := plan.macro.zone_at((plan.block(k.x, k.y).rect as Rect2).get_center())
+		if zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.PORT:
+			continue
+		var cap := CityChunk.new()
+		cap.plan = plan
+		cap.ix = k.x
+		cap.iz = k.y
+		cap.level = CityChunk.Level.LOD
+		cap.style = style
+		cap.capturing = true
+		cap.build()
+		var xforms: Array = (cap.captured.get("batch", {}) as Dictionary).get("lod_box", {"xforms": []}).xforms.duplicate()
+		for box: Array in cap.captured.get("boxes", []):
+			xforms.append(box[0])
+		cap.free()
+		for xf: Transform3D in xforms:
+			var bb := xf * AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)
+			if bb.size.y < 2.5:
+				continue
+			boxes += 1
+			var foot := Rect2(bb.position.x, bb.position.z, bb.size.x, bb.size.z)
+			if fw.blocks_rect(foot, 0.0) and hits.size() < 6:
+				hits.append("block %s box at (%.0f, %.0f)" % [k, foot.get_center().x, foot.get_center().y])
+	for lm in Landmarks.all():
+		var id: String = lm.id
+		var foot := Rect2()
+		if id.begins_with("dt_"):
+			foot = LandmarkDowntown.footprint(lm)
+		elif CivicSites.SITES.has(id):
+			foot = CivicSites.site(plan, id).world
+		else:
+			continue
+		if fw.blocks_rect(foot, 0.0):
+			hits.append(id)
+	_check(segs > 100 and boxes > 500 and hits.is_empty(),
+		"no freeway deck, pillar or ramp downtown passes through a building, tower or civic site (%d segments, %d blocks, %d boxes)%s" \
+		% [segs, blocks.size(), boxes, (": " + ", ".join(hits)) if not hits.is_empty() else ""])
 
 
 ## The named route's points, or [].

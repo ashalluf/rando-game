@@ -21,6 +21,13 @@ const DECK_RISE := 9.5
 ## elevated section read as a retaining wall from the side rather than a deck on legs.
 const PILLAR_SPACING := 72.0
 const GANTRY_SPACING := 340.0
+## Off-ramps (CityChunk._build_freeway_ramps(), ramp_path()): how far along the route one runs
+## from the deck edge to the street, how wide it is, how far out to its side it bows, and in how
+## many straight pieces it is built.
+const RAMP_RUN := 78.0
+const RAMP_WIDTH := 9.0
+const RAMP_BOW := 10.0
+const RAMP_STEPS := 13
 ## Points are this far apart along a route; the deck is built from them directly.
 const STEP := 24.0
 const CELL := 160.0
@@ -400,8 +407,56 @@ func ramps_in(rect: Rect2) -> Array[Dictionary]:
 	return out
 
 
+## True if any part of the world rect `rect` comes within `margin` metres of the deck's edge (the
+## deck and its pillars are the route's width about the centre line) or of an off-ramp. What
+## keeps a building's whole footprint out from under the freeway: testing only a lot's centre let
+## the corner of a 60 m downtown lot stand 25 m into the deck, and nothing at all looked at the
+## ramps, which peel off the deck edge and bow up to RAMP_BOW metres out over the lots.
+func blocks_rect(rect: Rect2, margin: float) -> bool:
+	for s in segments_in(rect.grow(margin)):
+		if segment_rect_distance(s.a, s.b, rect) < float(s.width) * 0.5 + margin:
+			return true
+	for r in ramps_in(rect.grow(RAMP_RUN + RAMP_BOW + margin)):
+		var path := ramp_path(r)
+		for k in path.size() - 1:
+			if segment_rect_distance(path[k], path[k + 1], rect) < RAMP_WIDTH * 0.5 + margin:
+				return true
+	return false
+
+
+## An off-ramp's centre line in world XZ, RAMP_STEPS + 1 points from where it leaves the deck edge
+## to where it lands on the street: RAMP_RUN metres along the route, bowed RAMP_BOW metres out to
+## the ramp's side on the way. CityChunk builds the ramp on exactly these points.
+static func ramp_path(r: Dictionary) -> PackedVector2Array:
+	var start: Vector2 = r.pos
+	var yaw: float = r.yaw
+	var out := Vector2(-sin(yaw), -cos(yaw))
+	var side := Vector2(-out.y, out.x)
+	var path := PackedVector2Array()
+	for k in RAMP_STEPS + 1:
+		var t := float(k) / RAMP_STEPS
+		path.append(start + out * (RAMP_RUN * t) + side * (RAMP_BOW * sin(t * PI) * float(r.side)))
+	return path
+
+
+## Metres between segment a-b and a world rect (0 where they touch or overlap).
+static func segment_rect_distance(a: Vector2, b: Vector2, r: Rect2) -> float:
+	if r.has_point(a) or r.has_point(b):
+		return 0.0
+	var corners := [r.position, Vector2(r.end.x, r.position.y), r.end, Vector2(r.position.x, r.end.y)]
+	for i in 4:
+		if Geometry2D.segment_intersects_segment(a, b, corners[i], corners[(i + 1) % 4]) != null:
+			return 0.0
+	var best := INF
+	for c: Vector2 in corners:
+		best = minf(best, (Geometry2D.get_closest_point_to_segment(c, a, b) - c).length())
+	for p: Vector2 in [a, b]:
+		best = minf(best, (p.clamp(r.position, r.end) - p).length())
+	return best
+
+
 ## True if `pos` is under the deck within `margin` metres of a route centre line. Used to keep
-## buildings, trees and lamps out from under the freeway.
+## trees, lamps and poles out from under the freeway (buildings go by blocks_rect()).
 func blocks(pos: Vector2, margin: float) -> bool:
 	var key := Vector2i(floori(pos.x / CELL), floori(pos.y / CELL))
 	if not _cells.has(key):

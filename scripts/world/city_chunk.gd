@@ -1786,12 +1786,15 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# What stands on this lot (a house, a pad, or the freeway corridor above it): the
 	# suburban lawn grass keeps out of these.
 	_lot_rects.append(Rect2(center - (lot.size as Vector2) * 0.5 - Vector2(0.4, 0.4), (lot.size as Vector2) + Vector2(0.8, 0.8)))
-	if lot.edge and pads > 0.0 and rng.randf() < pads and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0:
-		Commercial.build_pad(self, lot, rng)
+	var pad: bool = lot.edge and pads > 0.0 and rng.randf() < pads and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0
+	# Nothing gets built in the corridor the freeway flies over - no part of the lot, pads
+	# included. Checked here, after the pad roll, so skipping a lot does not shift the chunk rng
+	# for the lots after it. It tested the lot's centre alone (14 m either side of the deck),
+	# which let the corner of a big lot stand well into the deck and its pillars.
+	if _under_freeway(center, 14.0) or _lot_under_freeway(lot):
 		return
-	# Nothing gets built in the corridor the freeway flies over. Checked here, after the
-	# pad roll, so skipping a lot does not shift the chunk rng for the lots after it.
-	if _under_freeway(center, 14.0):
+	if pad:
+		Commercial.build_pad(self, lot, rng)
 		return
 	var building := BUILDING_SCENE.instantiate() as Building
 	building.seed = lot.seed
@@ -2893,12 +2896,24 @@ func _add_shape(size: Vector3, pos: Vector3, yaw: float = 0.0) -> CollisionShape
 
 # --- Freeway ---------------------------------------------------------------------------------
 
+## Metres kept between a lot and the deck's edge (the pillars stand inside the deck's width).
+const LOT_FREEWAY_MARGIN := 3.0
+
 ## True where the freeway deck flies over, plus `margin` metres either side.
 func _under_freeway(pos: Vector2, margin: float) -> bool:
 	if plan.macro == null or plan.macro.freeway == null:
 		return false
 	return plan.macro.freeway.blocks(pos, margin)
 
+
+
+## True when any part of a lot (CityPlan.lots()) is under the freeway deck or within
+## LOT_FREEWAY_MARGIN of its edge.
+func _lot_under_freeway(lot: Dictionary) -> bool:
+	if plan.macro == null or plan.macro.freeway == null:
+		return false
+	var size: Vector2 = lot.size
+	return plan.macro.freeway.blocks_rect(Rect2((lot.center as Vector2) - size * 0.5, size), LOT_FREEWAY_MARGIN)
 
 
 ## Deck segments of the freeway crossing this chunk.
@@ -3109,11 +3124,11 @@ func _build_freeway_ramps() -> void:
 		var start: Vector2 = r.pos
 		var yaw: float = r.yaw
 		var out := Vector2(-sin(yaw), -cos(yaw))
-		var side := Vector2(-out.y, out.x)
 		var top_y: float = r.top
-		var run := 78.0
-		var steps := 13
-		var width := 9.0
+		var run := Freeway.RAMP_RUN
+		var steps := Freeway.RAMP_STEPS
+		var width := Freeway.RAMP_WIDTH
+		var path := Freeway.ramp_path(r)
 		var prev := start
 		var prev_y := top_y - Freeway.DECK_THICKNESS * 0.5
 		var ground_end := plan.height_at(start + out * run) + 0.12
@@ -3121,7 +3136,7 @@ func _build_freeway_ramps() -> void:
 			var t := float(k) / steps
 			# Ease out at both ends so the ramp meets the deck and the street smoothly.
 			var ease := t * t * (3.0 - 2.0 * t)
-			var p: Vector2 = start + out * (run * t) + side * (10.0 * sin(t * PI) * float(r.side))
+			var p: Vector2 = path[k]
 			var y := lerpf(top_y - Freeway.DECK_THICKNESS * 0.5, ground_end, ease)
 			var d: Vector2 = p - prev
 			if d.length() < 0.2:
