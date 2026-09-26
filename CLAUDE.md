@@ -821,7 +821,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   landmarks) and `height_at()` includes it. In a chunk, sample it only through `_gy()`: the
   multimesh batch adds it to every instance, `_add_slab()` builds relief-following grids for thin
   city ground, `_add_prop()` lifts shapes; nodes you add yourself (bodies, buildings) need
-  `+ _gy(x, z)` explicitly. Never add it twice. `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
+  `+ _gy(x, z)` explicitly. Never add it twice. The hill steps are the other way round: they
+  place at `height_at()`, which already includes the relief (the valley plateau and the rolling
+  ground up the lower slopes), so they run with the batch's lift off (`_on_map_ground()`);
+  with it on, 700 of 1,597 hill chunks floated their rocks and planting up to 144 m in the air
+  (`tools/float_probe/hill_float_probe.tscn` measures every hill chunk in a `REGION`). `CityPlan.macro` holds it; `zone_at()` / `height_at()` on
   the plan go through it. `height_at()` is the terrain with hill roads and mansion pads carved in
   (`raw_height_at()` is the noise alone); `MacroMap.hill_roads` (`HillRoads`, seeded polylines
   with grade-limited height profiles, `carve()`, `segments_in()`, `mansions_in()`) is what hill
