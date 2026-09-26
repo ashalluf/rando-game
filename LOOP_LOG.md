@@ -140,3 +140,11 @@ Baseline bookmarks for main 18c1bcb: `<scratchpad>/bookmarks/base_18c1bcb/`.
 - **Session ended by the owner** (2026-09-25 ~15:30). Agents stopped; unfinished branches
   pushed as wt/downtown-relay, wt/sedan-body, wt/downtown-homeless, wt/street-wear,
   wt/tree-lod, wt/wet-streets (see HANDOFF section 00). STOP file created.
+
+## Wave 7 (2026-09-25, resumed at the owner's request)
+
+- Owner: screenshots nonstop, work faster, downtown encampments x20, hills "look like garbage".
+  Launched: encampments x20 (wt/downtown-homeless), real mountains (wt/real-mountains), port
+  to Palos Verdes' east flank + freeway clearance (wt/downtown-relay). Agents drop every render
+  in `<scratchpad>/screens/`, forwarded to the owner as they land.
+- **Stopped at the owner's request** (wave 7). Unfinished work pushed: wt/downtown-relay (port moved to San Pedro Bay east of Palos Verdes, 110 clear of buildings; arena-district plazas still empty), wt/real-mountains (ridged heightfield, rounded summits, far-range banding fixed, chaparral palette - pass 2, not gated), wt/downtown-homeless (x20 encampments, WIP). STOP file set.
