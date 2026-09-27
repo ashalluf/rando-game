@@ -857,6 +857,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   screen read, half the cap (`full_detail`). Densities per district are the consts at the top.
   `STREET_WEAR=0` in the environment turns it off (the A/B); `SHOTS=` on `still_shot.gd` takes
   several EYE views and hours from one load. Checks: `tests/street_wear_checks.gd`.
+  **Ground nobody builds on is never left as bare paving** (from the air it read as empty tan
+  squares): a freeway corridor lot (`_under_freeway` / `_lot_under_freeway`) gets ivy ground cover
+  and shrubs off the deck's footprint (`_build_corridor_lot`), a PLAZA block raised beds, tree rows
+  and benches round its fountain (`_furnish_plaza`), and the strip under the airport's final
+  approach (`MacroMap.runway_clear_zone()`, where `CityPlan.lots()` drops every lot) is long-term
+  parking (`_build_approach_parking`: stall rows, ArenaGrounds' cheap static cars, half as many
+  on LOD chunks). All three use a private rng after the block rng's own rolls, so nothing else in
+  the chunk moves; never add rolls on the block rng for new filler.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.

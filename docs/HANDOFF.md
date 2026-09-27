@@ -34,6 +34,18 @@ merged into one branch and gated together (499 checks) before the push:
   dark shell over the near hill tiles was traced with debug renders in a separate worktree
   (`HIDE=Ground`, the plane's and the tiles' albedo / normals / coverage emitted as colour):
   see 9ab's follow-up note for what it turned out to be.
+- **Pushed to main after the owner's "push to main always"** (builds 294-300): the far-ground seam
+  fix (the plane's SPECULAR 0.15 lost Godot's grazing sky sheen; it now matches the tiles where
+  the renderer lights it, and draws their stands), a third erosion order in the heights, trees and
+  palms kept off freeway decks, ivy on freeway corridor lots, furnished plazas, airport long-term
+  parking under the approach, the road shader mapping vertical faces side-on (the Esplanade's
+  seat wall was vertical streaks), the tree LOD ladders (agent, wt/tree-lod-2: -23..-38 % tree
+  triangles, crowns back on 60-200 m street trees) and new loft-and-subdivide car bodies (agent,
+  wt/cars-aaa: sedan, a new crossover body type, pickup; every traffic car sat 15-27 cm above the
+  road until `Vehicle.road_lift()`). Forward+ (lavapipe) city stills are killed by the box's
+  memory at 12 GB even with `LIGHT_WORLD=1`; use opengl3 stills and ask the owner for Mac shots.
+  Stale class cache trap: after merging a branch that adds a `class_name`, run `--import` before
+  any still, or the city renders as a bare plane (Parse Error: Identifier not declared).
 Tools added: `tools/terrain_preview/` (mountains top-down in seconds), still_shot `HIDE=`.
 Cloud sessions cannot be messaged back; read their state with get_session and their shots
 branches. Pushes were blocked by the auto-mode safety check until the owner said to push.
