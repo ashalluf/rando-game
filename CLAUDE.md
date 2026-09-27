@@ -849,8 +849,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   headland south-west - composed with `max()` so ranges meet in ridges rather than adding into a
   dome. The knobs are the `*_start_z` / `*_full_z` / `*_height` exports at the top of `MacroMap`.
   **The ranges are eroded** (owner, 2026-09-25: "the hills look like garbage, not real
-  mountains"): each is a SMOOTH base (`_range_heights_at()`, `_range_noise`, three octaves from
-  `range_wavelength`) with erosion noise cut into it (`_erode()` / `_erosion_filter()`, after
+  mountains"): each is a SMOOTH base (`_range_heights_at()`, `_range_noise`: the map noise's first two
+  octaves only, so the summits stay where the sign, the observatory and the hill roads were laid
+  out round them - a fresh noise put the sign behind a crest) with erosion noise cut into it (`_erode()` / `_erosion_filter()`, after
   Fewes): stripes that run DOWN each slope over a jittered grid of cells, the slope taken from
   the base (over `EROSION_SLOPE_STEP` either side, so they follow the landforms, not every bump)
   plus the walls of the coarser orders, so every order branches off the one above - canyons

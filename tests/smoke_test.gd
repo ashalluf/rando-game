@@ -402,8 +402,11 @@ func _test_city() -> void:
 		player.global_position = under
 		player.velocity = Vector3.ZERO
 		await _ticks(30)
-		var lifted_y: float = _world_state().to_world(player.global_position).y
-		_check(lifted_y > macro.height_at(Vector2(hill.x, hill.z)) - 3.0, "player under a hill is lifted onto it (y %.0f)" % lifted_y)
+		# Against the ground where the player is now: the eroded flanks are steep enough (the
+		# test spot is ~50 degrees) that he slides a few metres downhill after the lift.
+		var lifted: Vector3 = _world_state().to_world(player.global_position)
+		var ground_there: float = macro.height_at(Vector2(lifted.x, lifted.z))
+		_check(lifted.y > ground_there - 3.0, "player under a hill is lifted onto it (y %.0f, ground %.0f)" % [lifted.y, ground_there])
 
 	# The basin is ringed by mountains, and the inland valley is a city floor at altitude.
 	if macro:
@@ -2334,9 +2337,14 @@ func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
 	var on_rock := 0
 	for rec in points:
 		var p: Vector2 = rec[0]
-		var grad := Vector2(plan.height_at(p + Vector2(2.0, 0.0)) - plan.height_at(p - Vector2(2.0, 0.0)),
-			plan.height_at(p + Vector2(0.0, 2.0)) - plan.height_at(p - Vector2(0.0, 2.0))) * 0.25
-		var g := HillPlanting.ground(p, grad, true, plan.macro.drainage_at(p))
+		# The slope and drainage off the chunk's own tile - the surface the shader paints (its
+		# normal is the mesh's, the drainage its vertex colour) and the planting reads. Measured
+		# exactly over 2 m instead, the eroded slopes differ from the drawn 5 m grid by enough
+		# to put a shrub the painted ground calls brush on "rock".
+		var th := func(q: Vector2) -> float: return chunk.call("_terrain_height", q, "heights")
+		var grad := Vector2(th.call(p + Vector2(2.0, 0.0)) - th.call(p - Vector2(2.0, 0.0)),
+			th.call(p + Vector2(0.0, 2.0)) - th.call(p - Vector2(0.0, 2.0))) * 0.25
+		var g := HillPlanting.ground(p, grad, true, chunk.call("_terrain_height", p, "drains"))
 		if float(g.rocky) > 0.45 or float(g.bare) > 0.55:
 			on_rock += 1
 		if rec[1] == "chaparral":

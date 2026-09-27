@@ -2391,6 +2391,52 @@ cost besides the palms' near levels. Their generated LODs carry the same kind of
 switches); roadmap #36. A leaf-card thinning ladder like this one, or measured geometric errors
 written back as the LOD edges, is the next step. Web: the ladder works on Compatibility as is.
 
+## 9ab. Real mountains, pass 1, 2026-09-27 (roadmap #34; owner: "the hills look like garbage")
+
+What was wrong, in the order it showed:
+- **Contour stripes on every far range** (the loudest tell, seen from the whole basin). The far
+  ground read the bake's height with smoothstep-weighted bilinear, whose derivative is ZERO at
+  every texel centre, so the normal went flat every 31 m and each range was a staircase of
+  terraces. `macro_sample()` (macro_relief.gdshaderinc) is now a cubic B-spline with its
+  analytic derivative (16 fetches); colour stays hardware bilinear. Stripes gone.
+- **Shapes: cones, then combed streaks.** The range bases used the map's four-octave noise plus
+  a second octave at 2.7x (a couple of hundred metres of bumps at every scale); the WIP cut a
+  ridged noise stretched along the slope into that, which read as parallel combing. Now each
+  range is a smooth base (`_range_noise`: the map noise's first two octaves, so the summits
+  stay put - a fresh noise moved them and hid the ridge sign behind a crest) with erosion noise cut in
+  (`MacroMap._erode()` / `_erosion_filter()`, after Fewes): gullies that run down each slope and
+  branch off the coarser ones - canyons 440 m apart and their tributaries, up to ~130 m deep on
+  the front range, weaker on summits and benches. Two orders in the height, two finer ones as
+  shading (`shaders/erosion.gdshaderinc`, near terrain and far ground, off with ground_detail).
+  `tools/terrain_preview/terrain_preview.tscn` shows it top-down in seconds.
+- **Near hills lit like plastic.** The terrain mesh has no UVs or tangents, so its NORMAL_MAP
+  did nothing. terrain.gdshader now builds its detail as world-XZ slopes (ground normal maps,
+  brush canopy bumps, fine erosion) and sets NORMAL. Stands follow the land (`topo_weight` 0.8,
+  was 0.45 - noise-led camouflage blobs), canyons darker (`drain_shade`), shrub models stop at
+  110 m (they drew as black dashes past that).
+- **Far ground denser:** GROUND_SUBDIVISIONS 200 -> 320 (44 m a vertex; ridges three km out
+  were straight facets). Crags 70 -> 40 m. The plane's sink and crag fade now use distance
+  across the ground (from the air the 3D distance put crags right over the streamed chunks).
+
+Cost (this box, contended): a height in the eroded hills ~20-40 us, so the bake at load went
+7.6 -> 12 s and a FULL hill tile's heights 14 -> 28 ms - now sampled a few rows a build step
+(`CityChunk._sample_terrain()`, 2.5 ms budget); the planting and Skyline read the drainage off
+their grids instead of calling `drainage_at()` again. Far ground +125k triangles (206k in all,
+no shadow pass). Hill roads and estates planned: unchanged (28 / 318). The ridge sign has a calm
+strip the length of its name (`_calm_spots`), everything else is eroded to within 90 m of a
+landmark's box.
+
+Still wrong / next (needs the Mac, Forward+):
+- **The far ground is painted much darker than the streamed hill tiles** (it was on main too):
+  from the air the plane's ranges are dark brown and the chunks tan, a hard colour seam at the
+  edge of the streamed ring. The plane's `dry_grass_color` / `scrub_color` and its painted light
+  have to be matched to terrain.gdshader under the real renderer - a Mac screenshot from the air
+  over the front range (`--spawn=700,-300,0,-14,500`) would settle it.
+- From the city the front range is front-lit in the afternoon and reads flat on opengl3 (crop
+  std 3.9/255). Judge on Forward+ first; if still flat, more canyon shade on the far ground.
+- The bake could be threaded (height_at writes last_drain, and ReplicaAreas/HillRoads have lazy
+  caches, so it is not thread-safe as it stands).
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and

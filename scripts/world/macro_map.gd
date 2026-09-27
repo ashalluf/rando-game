@@ -182,11 +182,13 @@ var erosion_branch: float = 1.6
 ## Metres either side the range's slope is measured over, for the direction the gullies run:
 ## wide, so they follow the range's big landforms rather than every bump of the base noise.
 const EROSION_SLOPE_STEP := 70.0
-## The ranges' big landforms (the erosion carves everything finer): a smooth fractal, three
-## octaves from `range_wavelength` metres. The old bases used the map's own four-octave noise
-## plus a second one at 2.7 times the frequency, a couple of hundred metres of bumps at every
-## scale, and read as a field of cones whatever was cut into them.
-var range_wavelength: float = 1500.0
+## The ranges' big landforms (the erosion carves everything finer): the map's own noise with
+## only its first two octaves, so every summit, saddle and spur stands where it always did - the
+## ridge sign on its south face, the observatory on its peak, the hill roads along the same
+## ridges - and only the small lumps are gone. The old bases took all four octaves plus a second
+## noise at 2.7 times the frequency, a couple of hundred metres of bumps at every scale, and
+## read as a field of cones whatever was cut into them. (A fresh noise moved the summits: the
+## sign ended up behind a crest.)
 var _range_noise: FastNoiseLite
 ## The drainage at the point raw_height_at() last looked at: +1 on a gully's line, -1 on a spur's
 ## crest, 0 off the eroded ranges (and on the headland). The hills' ground reads it
@@ -221,11 +223,10 @@ func setup() -> void:
 	_noise.frequency = 0.0012
 	_noise.fractal_octaves = 4
 	_range_noise = FastNoiseLite.new()
-	_range_noise.seed = seed + 3571
+	_range_noise.seed = seed
 	_range_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	_range_noise.frequency = 1.0 / range_wavelength
-	_range_noise.fractal_octaves = 3
-	_range_noise.fractal_gain = 0.45
+	_range_noise.frequency = _noise.frequency
+	_range_noise.fractal_octaves = 2
 	_relief = FastNoiseLite.new()
 	_relief.seed = seed + 7919
 	_relief.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -503,9 +504,11 @@ func _range_heights_at(pos: Vector2) -> Vector3:
 	var front := smoothstep(hills_start_z, hills_full_z, pos.y) * (1.0 - smoothstep(valley_from_z, valley_to_z, pos.y))
 	var back := smoothstep(back_start_z, back_full_z, pos.y)
 	var east := smoothstep(east_start_x, east_full_x, pos.x)
-	return Vector3(front * hills_height * (0.66 + 0.4 * n),
-		back * back_height * (0.66 + 0.4 * n),
-		east * east_height * (0.64 + 0.4 * n))
+	# Two octaves come out about a quarter stronger than four (FastNoiseLite normalises by the
+	# octaves it sums), hence 0.3 where the old bases had 0.38 - 0.42.
+	return Vector3(front * hills_height * (0.64 + 0.3 * n),
+		back * back_height * (0.62 + 0.34 * n),
+		east * east_height * (0.62 + 0.32 * n))
 
 
 ## A range's height `h` with its canyons cut in: `depth` metres ridge to floor for the main
