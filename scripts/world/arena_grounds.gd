@@ -166,85 +166,152 @@ static func _car(batch: MultiMeshBatch, rng: RandomNumberGenerator, at: Vector3,
 	batch.add("gar_car_%d" % v, mesh, Transform3D(Basis(Vector3.UP, yaw), at), paint)
 
 
-## A parked car for the static batches, nose along -Z, wheels on y 0, about 4.6 m long: a
-## chamfered body, a tapered glasshouse with dark glass, wheels, lamps - ~260 triangles, painted
-## by the instance colour (the dark parts stay dark under any paint). The generated traffic
-## bodies are 8,000+ triangles and their LODs stop at half that, so the first version, with the
-## real bodies, cost 3 million triangles for 250 parked cars; a car park seen from the street or
-## the air needs the silhouette and the paint, not the panel gaps. `v` stretches it into a
-## longer, taller body (0 saloon, 1 pickup-like, 2 van-like, 3 low coupe).
+## A parked car for the static batches, nose along -Z, wheels on y 0: ~400 triangles, painted by
+## the instance colour (the dark parts - glass, tyres, bumpers, grille - stay dark under any
+## paint). The generated traffic bodies are 8,000+ triangles and their LODs stop at half that,
+## so the first version, with the real bodies, cost 3 million triangles for 250 parked cars; a
+## car park needs the silhouette, the paint and the few things the eye checks - a body that
+## narrows and drops to its nose and tail, a raked glasshouse on pillars, dark wheel wells,
+## bumpers, lamps and mirrors - not the panel gaps. The first code car was a painted brick with a
+## glass box on it, and with LotFill a car park on half the blocks downtown, a street of them read
+## as toys. `v` is the body: 0 saloon, 1 pickup, 2 SUV / van, 3 low coupe.
 static func car_mesh(v: int) -> Mesh:
 	if _car_cache.has(v):
 		return _car_cache[v]
-	var dims := [Vector4(4.6, 1.8, 0.72, 0.5), Vector4(5.3, 1.9, 0.9, 0.52), Vector4(5.0, 1.95, 0.95, 0.85), Vector4(4.4, 1.85, 0.6, 0.42)][clampi(v, 0, 3)] as Vector4
-	var length := dims.x
-	var width := dims.y
-	var body_h := dims.z
-	var cab_h := dims.w
+	# length, width, body height (sill to shoulder), glasshouse height, bonnet length, boot length
+	var dims := [[4.7, 1.82, 0.62, 0.52, 1.25, 0.9], [5.4, 1.95, 0.78, 0.6, 1.5, 1.85], [4.9, 1.95, 0.8, 0.85, 1.0, 0.35], [4.45, 1.86, 0.52, 0.44, 1.35, 0.8]][clampi(v, 0, 3)] as Array
+	var length: float = dims[0]
+	var width: float = dims[1]
+	var body_h: float = dims[2]
+	var cab_h: float = dims[3]
+	var bonnet: float = dims[4]
+	var boot: float = dims[5]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
 	var paint := Color.WHITE
 	var glass := Color(0.05, 0.06, 0.07)
-	var dark := Color(0.06, 0.06, 0.06)
-	var y0 := 0.32
+	var dark := Color(0.07, 0.07, 0.075)
+	var trim := Color(0.14, 0.14, 0.15)
+	var y0 := 0.3
 	var y1 := y0 + body_h
 	var hl := length * 0.5
 	var hw := width * 0.5
-	var ch := 0.12 # chamfer on the body's top edges
-	# Body: an octagonal section extruded along z (vertical sides, chamfered shoulders).
-	var sec := [Vector2(-hw, y0), Vector2(hw, y0), Vector2(hw, y1 - ch), Vector2(hw - ch, y1), Vector2(-hw + ch, y1), Vector2(-hw, y1 - ch)]
-	for i in sec.size():
-		var a: Vector2 = sec[i]
-		var b: Vector2 = sec[(i + 1) % sec.size()]
-		var n := Vector3(b.y - a.y, -(b.x - a.x), 0.0).normalized()
-		if n.dot(Vector3((a.x + b.x) * 0.5, (a.y + b.y) * 0.5 - (y0 + y1) * 0.5, 0.0)) < 0.0:
-			n = -n
-		_quad_c(st, Vector3(a.x, a.y, -hl), Vector3(b.x, b.y, -hl), Vector3(b.x, b.y, hl), Vector3(a.x, a.y, hl), n, paint)
-	for zs: float in [-1.0, 1.0]:
-		var nose := hl * zs
-		var pts: Array[Vector3] = []
-		for q: Vector2 in sec:
-			pts.append(Vector3(q.x, q.y, nose))
-		var c := Vector3(0.0, (y0 + y1) * 0.5, nose)
-		for i in pts.size():
-			_tri_c(st, c, pts[i], pts[(i + 1) % pts.size()], Vector3(0.0, 0.0, zs), paint)
-		# Lamps: a light strip across each end.
-		var lamp := Color(1.0, 0.95, 0.85) if zs < 0.0 else Color(0.7, 0.05, 0.04)
-		_quad_c(st, Vector3(-hw + 0.1, y1 - 0.3, nose + zs * 0.01), Vector3(hw - 0.1, y1 - 0.3, nose + zs * 0.01),
-			Vector3(hw - 0.1, y1 - 0.16, nose + zs * 0.01), Vector3(-hw + 0.1, y1 - 0.16, nose + zs * 0.01), Vector3(0.0, 0.0, zs), lamp)
-	# Glasshouse: a tapered box, set back from the nose, glass on every face and a painted roof.
-	var cab_len := length * (0.46 if v != 2 else 0.78)
-	var cab_z := -length * 0.04 if v != 2 else length * 0.08
-	var bot_half := Vector2(hw - 0.08, cab_len * 0.5)
-	var top_half := Vector2(hw - 0.22, cab_len * 0.5 - (0.45 if v != 2 else 0.15))
-	var yb := y1
+	# The body: rings along z, each an eight-point section - a dark rocker / bumper band up to
+	# `band`, the flank, a rounded shoulder and the top - narrower and lower toward the ends.
+	var band := y0 + 0.2
+	var zs := [-hl, -hl + 0.22, -hl + 0.7, -hl + bonnet, hl - boot, hl - 0.7, hl - 0.22, hl]
+	var rings: Array = []
+	for z: float in zs:
+		var e := minf(z + hl, hl - z) # distance from the nearer end
+		var w := hw * (0.9 + 0.1 * smoothstep(0.0, 0.7, e))
+		var top := y1
+		if z < -hl + bonnet:
+			top = y1 - 0.12 * (1.0 - smoothstep(0.0, bonnet, z + hl)) # the bonnet drops to the nose
+		elif z > hl - boot:
+			top = y1 - 0.05 * smoothstep(hl - boot, hl, z)
+		top -= 0.1 * (1.0 - smoothstep(0.0, 0.22, e)) # the bumper face rolls under
+		var sh := 0.1
+		rings.append([Vector3(-w, y0, z), Vector3(-w, band, z), Vector3(-w, top - sh, z), Vector3(-w + sh, top, z),
+			Vector3(w - sh, top, z), Vector3(w, top - sh, z), Vector3(w, band, z), Vector3(w, y0, z)])
+	for k in rings.size() - 1:
+		var a: Array = rings[k]
+		var b: Array = rings[k + 1]
+		for i in 7:
+			var p0: Vector3 = a[i]
+			var p1: Vector3 = a[i + 1]
+			var q0: Vector3 = b[i]
+			var q1: Vector3 = b[i + 1]
+			var n := (q0 - p0).cross(p1 - p0).normalized()
+			if n.dot(Vector3((p0.x + p1.x) * 0.5, (p0.y + p1.y) * 0.5 - (y0 + y1) * 0.5, 0.0)) < 0.0:
+				n = -n
+			var col := dark if i == 0 or i == 6 else paint
+			_quad_c(st, p0, p1, q1, q0, n, col)
+		# The underside.
+		_quad_c(st, a[0], a[7], b[7], b[0], Vector3.DOWN, dark)
+	for end in 2:
+		var ring: Array = rings[0] if end == 0 else rings[rings.size() - 1]
+		var zn := -1.0 if end == 0 else 1.0
+		var c := Vector3(0.0, (y0 + y1) * 0.5, (ring[0] as Vector3).z)
+		for i in 8:
+			var col := dark if i == 0 or i == 7 or i == 6 else paint
+			_tri_c(st, c, ring[i], ring[(i + 1) % 8], Vector3(0.0, 0.0, zn), col)
+		# Lamps at the corners, a grille or a plate between them, on the end face.
+		var face_z := (ring[0] as Vector3).z + zn * 0.012
+		var ew := (ring[7] as Vector3).x
+		var ly := (ring[2] as Vector3).y
+		var lamp := Color(1.0, 0.96, 0.86) if end == 0 else Color(0.75, 0.05, 0.04)
+		for sx: float in [-1.0, 1.0]:
+			var x0 := sx * (ew - 0.08)
+			var x1 := sx * (ew - 0.46)
+			_quad_c(st, Vector3(x0, ly - 0.14, face_z), Vector3(x1, ly - 0.14, face_z), Vector3(x1, ly - 0.01, face_z), Vector3(x0, ly - 0.01, face_z), Vector3(0.0, 0.0, zn), lamp)
+		var mid := trim if end == 0 else Color(0.78, 0.78, 0.74)
+		var gw := ew - 0.55 if end == 0 else 0.26
+		_quad_c(st, Vector3(-gw, band + 0.03, face_z), Vector3(gw, band + 0.03, face_z), Vector3(gw, ly - 0.05, face_z), Vector3(-gw, ly - 0.05, face_z), Vector3(0.0, 0.0, zn), mid)
+	# Wheel wells: dark arches on the flanks behind the wheels.
+	var axles := [-hl + 0.9, hl - 0.95]
+	for wz: float in axles:
+		for sx: float in [-1.0, 1.0]:
+			var x := sx * (hw + 0.004)
+			_quad_c(st, Vector3(x, y0 - 0.02, wz - 0.48), Vector3(x, y0 - 0.02, wz + 0.48), Vector3(x, y0 + 0.5, wz + 0.4), Vector3(x, y0 + 0.5, wz - 0.4), Vector3(sx, 0.0, 0.0), dark)
+	# The glasshouse: a raked screen, side glass on pillars, the rear glass and a painted roof.
+	var cab0 := -hl + bonnet - 0.05 # foot of the windscreen
+	var cab1 := hl - boot + (0.05 if v != 1 else -0.1) # foot of the rear glass
+	if v == 1:
+		cab1 = cab0 + 1.75
+	var rake := 0.6 if v != 2 else 0.35
+	var rear_rake := 0.35 if v != 2 else 0.08
+	var top_w := hw - 0.2
+	var bot_w := hw - 0.06
 	var yt := y1 + cab_h
-	var b0 := [Vector3(-bot_half.x, yb, cab_z - bot_half.y), Vector3(bot_half.x, yb, cab_z - bot_half.y), Vector3(bot_half.x, yb, cab_z + bot_half.y), Vector3(-bot_half.x, yb, cab_z + bot_half.y)]
-	var t0 := [Vector3(-top_half.x, yt, cab_z - top_half.y), Vector3(top_half.x, yt, cab_z - top_half.y), Vector3(top_half.x, yt, cab_z + top_half.y), Vector3(-top_half.x, yt, cab_z + top_half.y)]
-	var outs := [Vector3(0, 0.4, -1), Vector3(1, 0.3, 0), Vector3(0, 0.4, 1), Vector3(-1, 0.3, 0)]
+	var b0 := [Vector3(-bot_w, y1, cab0), Vector3(bot_w, y1, cab0), Vector3(bot_w, y1, cab1), Vector3(-bot_w, y1, cab1)]
+	var t0 := [Vector3(-top_w, yt, cab0 + rake), Vector3(top_w, yt, cab0 + rake), Vector3(top_w, yt, cab1 - rear_rake), Vector3(-top_w, yt, cab1 - rear_rake)]
+	var outs := [Vector3(0, 0.6, -1), Vector3(1, 0.25, 0), Vector3(0, 0.6, 1), Vector3(-1, 0.25, 0)]
 	for i in 4:
 		var j := (i + 1) % 4
 		_quad_c(st, b0[i], b0[j], t0[j], t0[i], (outs[i] as Vector3).normalized(), glass)
 	_quad_c(st, t0[0], t0[1], t0[2], t0[3], Vector3.UP, paint)
+	# Pillars on the side glass (A, B and C), a hair proud of it.
+	for sx: float in [-1.0, 1.0]:
+		var side := 1 if sx > 0.0 else 3
+		var bi: Vector3 = b0[1] if sx > 0.0 else b0[0]
+		var bj: Vector3 = b0[2] if sx > 0.0 else b0[3]
+		var ti: Vector3 = t0[1] if sx > 0.0 else t0[0]
+		var tj: Vector3 = t0[2] if sx > 0.0 else t0[3]
+		var n: Vector3 = (outs[side] as Vector3).normalized()
+		for f: float in ([0.0, 0.5, 1.0] if v != 2 else [0.0, 0.36, 0.7, 1.0]):
+			var pb := bi.lerp(bj, f)
+			var pt := ti.lerp(tj, f)
+			var half := 0.07 if f > 0.0 and f < 1.0 else 0.1
+			var db := (bj - bi).normalized() * half
+			var dt := (tj - ti).normalized() * half
+			_quad_c(st, pb - db + n * 0.006, pb + db + n * 0.006, pt + dt + n * 0.006, pt - dt + n * 0.006, n, paint)
+		# A mirror on the door at the foot of the A pillar.
+		var m := Vector3(sx * (hw + 0.1), y1 + 0.08, cab0 + 0.25)
+		_quad_c(st, m + Vector3(-0.1 * sx, -0.06, 0.0), m + Vector3(0.1 * sx, -0.06, 0.0), m + Vector3(0.1 * sx, 0.07, 0.0), m + Vector3(-0.1 * sx, 0.07, 0.0), Vector3(0.0, 0.0, -1.0), paint)
+		_quad_c(st, m + Vector3(-0.1 * sx, -0.06, 0.05), m + Vector3(0.1 * sx, -0.06, 0.05), m + Vector3(0.1 * sx, 0.07, 0.05), m + Vector3(-0.1 * sx, 0.07, 0.05), Vector3(0.0, 0.0, 1.0), glass)
 	# The bed of a pickup is open: a dark tray behind the cab.
 	if v == 1:
-		_quad_c(st, Vector3(-hw + 0.1, y1 + 0.005, cab_z + bot_half.y + 0.1), Vector3(hw - 0.1, y1 + 0.005, cab_z + bot_half.y + 0.1),
-			Vector3(hw - 0.1, y1 + 0.005, hl - 0.1), Vector3(-hw + 0.1, y1 + 0.005, hl - 0.1), Vector3.UP, dark)
-	# Wheels: eight-sided drums at the four corners, their faces just proud of the body side.
+		_quad_c(st, Vector3(-hw + 0.12, y1 + 0.006, cab1 + 0.1), Vector3(hw - 0.12, y1 + 0.006, cab1 + 0.1),
+			Vector3(hw - 0.12, y1 + 0.006, hl - 0.12), Vector3(-hw + 0.12, y1 + 0.006, hl - 0.12), Vector3.UP, dark)
+	# Wheels: ten-sided tyres with a pale rim face, just proud of the flanks.
 	var r := 0.34
-	for wz: float in [-hl + 0.85, hl - 0.85]:
+	for wz: float in axles:
 		for wx: float in [-1.0, 1.0]:
 			var cx := wx * (hw - 0.1)
-			for k in 8:
-				var a0 := TAU * float(k) / 8.0
-				var a1 := TAU * float(k + 1) / 8.0
+			for k in 10:
+				var a0 := TAU * float(k) / 10.0
+				var a1 := TAU * float(k + 1) / 10.0
 				var p0 := Vector3(0.0, r + sin(a0) * r, wz + cos(a0) * r)
 				var p1 := Vector3(0.0, r + sin(a1) * r, wz + cos(a1) * r)
-				var o := Vector3(cx + wx * 0.12, 0.0, 0.0)
+				var o := Vector3(cx + wx * 0.13, 0.0, 0.0)
 				var ii := Vector3(cx - wx * 0.12, 0.0, 0.0)
 				_quad_c(st, p0 + o, p1 + o, p1 + ii, p0 + ii, Vector3(0.0, sin((a0 + a1) * 0.5), cos((a0 + a1) * 0.5)), dark)
-				_tri_c(st, Vector3(o.x, r, wz), p0 + o, p1 + o, Vector3(wx, 0.0, 0.0), Color(0.16, 0.16, 0.17))
+				var hub := Vector3(o.x, r, wz)
+				var q0 := hub + (p0 + o - hub) * 0.62
+				var q1 := hub + (p1 + o - hub) * 0.62
+				_tri_c(st, hub, q0, q1, Vector3(wx, 0.0, 0.0), Color(0.5, 0.51, 0.53))
+				_quad_c(st, q0, p0 + o, p1 + o, q1, Vector3(wx, 0.0, 0.0), dark)
 	var mat := StandardMaterial3D.new()
 	mat.vertex_color_use_as_albedo = true
 	mat.roughness = 0.32
@@ -258,7 +325,7 @@ static func car_mesh(v: int) -> Mesh:
 	sh.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var unit := BoxMesh.new()
 	unit.size = Vector3.ONE
-	for b: Array in [[Vector3(width, body_h, length), Vector3(0.0, (y0 + y1) * 0.5, 0.0)], [Vector3(width - 0.3, cab_h, cab_len), Vector3(0.0, y1 + cab_h * 0.5, cab_z)]]:
+	for b: Array in [[Vector3(width, body_h, length), Vector3(0.0, (y0 + y1) * 0.5, 0.0)], [Vector3(width - 0.3, cab_h, cab1 - cab0), Vector3(0.0, y1 + cab_h * 0.5, (cab0 + cab1) * 0.5)]]:
 		sh.append_from(unit, 0, Transform3D(Basis().scaled(b[0]), b[1]))
 	PropFactory._shadow_proxies[mesh] = sh.commit()
 	return mesh

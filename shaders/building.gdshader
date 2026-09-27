@@ -564,7 +564,7 @@ void fragment() {
 			float band = mod(q.y - 1.0, 17.8);
 			float in_row = step(band, 5.4) + step(12.4, band);
 			float line = step(abs(fract(q.x / 2.7 + 0.5) - 0.5) * 2.7, 0.06) * in_row;
-			vec3 deck = vec3(0.50, 0.50, 0.49) * (0.88 + 0.2 * hash21(floor(q * 0.35) + seed));
+			vec3 deck = vec3(0.36, 0.36, 0.355) * (0.86 + 0.24 * hash21(floor(q * 0.35) + seed));
 			float oil = smoothstep(0.5, 0.0, length(vec2(fract(q.x / 2.7) - 0.5, (mod(band, 12.4) - 2.7) / 2.7))) * in_row;
 			deck *= 1.0 - 0.3 * oil * hash21(vec2(floor(q.x / 2.7), floor(q.y / 8.9)) + seed);
 			deck = mix(deck, vec3(0.86, 0.85, 0.80), line);

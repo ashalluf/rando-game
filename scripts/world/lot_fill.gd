@@ -41,6 +41,9 @@ const PAVINGS := [
 ## The colour each paving and the asphalt is recorded in for the far ground (a slab's tint).
 const PAVING_FAR := [Color(0.62, 0.61, 0.60), Color(0.50, 0.50, 0.50), Color(0.72, 0.66, 0.58), Color(0.66, 0.65, 0.62)]
 const ASPHALT_FAR := Color(0.36, 0.36, 0.38)
+const LAWN_FAR := Color(0.36, 0.52, 0.26)
+## Blade grass on a plaza lawn, as CityChunk._add_grass()'s density.
+const LAWN_GRASS := 1.0
 ## Most trees one chunk's forecourts plant, and the most parked cars its car parks hold: trees are
 ## the frame's biggest single cost, a static car ~260 triangles.
 const MAX_TREES := 10
@@ -59,8 +62,11 @@ const BOLLARD_ODDS := 0.3
 const BOLLARD_RUN := 9
 ## A planter's kerb height, and the depth of the strip a narrow leftover gets.
 const PLANTER_HEIGHT := 0.55
-## Forecourt pieces at least this deep (metres) are a plaza: a feature in the middle.
+## Forecourt pieces at least this deep (metres) are a plaza: a feature in the middle on a cross
+## of walks this wide, and a lawn in each quarter (at these odds; else a raised planter).
 const PLAZA_DEPTH := 11.0
+const PLAZA_WALK := 3.2
+const LAWN_ODDS := 0.7
 ## Odds a plaza's feature is a reflecting pool (else a bronze on a plinth), and that it has one.
 const POOL_ODDS := 0.5
 const FEATURE_ODDS := 0.7
@@ -113,6 +119,8 @@ static func _paving_for(ch: CityChunk) -> int:
 
 
 static func _material(ch: CityChunk, kind: String) -> Material:
+	if kind == "lawn":
+		return _lawn_material(ch)
 	if kind == "asphalt":
 		return PropFactory.road("asphalt", 7.0, Color(0.6, 0.6, 0.62), hash([ch.plan.seed, "lot_asphalt"]), 0.0, 0.7)
 	var p: Array = PAVINGS[int(kind.substr(6))]
@@ -135,10 +143,10 @@ static func _ground(ch: CityChunk, r: Rect2, kind: String) -> void:
 	# only the car parks' asphalt, which changes how a block reads from the air, goes in. And a
 	# slab under 6 m would not join the merged far ground at all (CityChunk._add_slab() makes it a
 	# box of its own material: a draw).
-	if kind != "asphalt" or maxf(r.size.x, r.size.y) < 6.0:
+	if (kind != "asphalt" and kind != "lawn") or maxf(r.size.x, r.size.y) < 6.0:
 		return
-	var lift := ASPHALT_LIFT if kind == "asphalt" else PAVING_LIFT
-	var far: Color = ASPHALT_FAR if kind == "asphalt" else PAVING_FAR[int(kind.substr(6))]
+	var lift := ASPHALT_LIFT if kind == "asphalt" or kind == "lawn" else PAVING_LIFT
+	var far: Color = ASPHALT_FAR if kind == "asphalt" else (LAWN_FAR if kind == "lawn" else PAVING_FAR[int(kind.substr(6))])
 	var c := r.get_center()
 	ch._add_slab(Vector3(c.x, CityChunk.SIDEWALK_TOP + lift - 0.02, c.y), Vector3(r.size.x, 0.04, r.size.y), far, false, _material(ch, kind))
 
@@ -150,7 +158,7 @@ static func commit(ch: CityChunk) -> void:
 	for kind: String in kinds:
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var lift := ASPHALT_LIFT if kind == "asphalt" else PAVING_LIFT
+		var lift := ASPHALT_LIFT if kind == "asphalt" or kind == "lawn" else PAVING_LIFT
 		for r: Rect2 in ch._fill_ground[kind]:
 			var nx := 1
 			var nz := 1
@@ -210,6 +218,8 @@ static func after_building(ch: CityChunk, lot: Dictionary, bld: Building) -> voi
 	var rng := _rng(ch, "forecourt", lot.seed)
 	if bld.podium_kind == 2:
 		_roof_deck(ch, bld, centre, rng)
+	elif bld.podium_kind == 1:
+		_roof_garden(ch, bld, centre, rng)
 	for r: Rect2 in _minus(cell.grow(-0.4), keep, 0.3):
 		forecourt(ch, r, rng)
 
@@ -291,6 +301,23 @@ static func _roof_deck(ch: CityChunk, bld: Building, centre: Vector2, rng: Rando
 
 ## A static parked car (ArenaGrounds.car_mesh()): a saloon or the taller van-like body - two kinds,
 ## two draws a chunk; the paint is what varies.
+## A retail podium's roof is the tower's amenity deck (Building leaves it bare of plant): the
+## forecourt's planters, benches and a pool, round the tower.
+static func _roof_garden(ch: CityChunk, bld: Building, centre: Vector2, rng: RandomNumberGenerator) -> void:
+	var pod: Dictionary = bld.parts[0]
+	var size: Vector3 = pod.size
+	var top := CityChunk.SIDEWALK_TOP + size.y
+	var deck := Rect2(centre.x - size.x * 0.5, centre.y - size.z * 0.5, size.x, size.z).grow(-1.4)
+	var towers: Array[Rect2] = []
+	for i in range(1, bld.parts.size()):
+		var s: Vector3 = bld.parts[i].size
+		var c: Vector3 = bld.parts[i].center
+		if c.y - s.y * 0.5 <= size.y + 0.05:
+			towers.append(Rect2(centre.x + c.x - s.x * 0.5, centre.y + c.z - s.z * 0.5, s.x, s.z))
+	for r: Rect2 in _minus(deck, towers, 1.5):
+		forecourt(ch, r, rng, top)
+
+
 static func _car(ch: CityChunk, rng: RandomNumberGenerator, at: Vector3, yaw: float) -> void:
 	var v := 0 if rng.randf() < 0.62 else 2
 	var paint: Color = ArenaGrounds.CAR_PAINTS[rng.randi() % ArenaGrounds.CAR_PAINTS.size()]
@@ -306,13 +333,16 @@ static func _car(ch: CityChunk, rng: RandomNumberGenerator, at: Vector3, yaw: fl
 ## strip gets bollards and a hedge planter along it, a deeper one raised planters with benches
 ## facing them, a plaza a feature in the middle - a reflecting pool or a bronze on a plinth - and
 ## planters round it with a tree or two.
-static func forecourt(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator) -> void:
+## `roof_y` >= 0 lays it on a roof at that height (a podium's garden: no street side, no bollards).
+static func forecourt(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, roof_y: float = -1.0) -> void:
 	var short := minf(r.size.x, r.size.y)
 	var long := maxf(r.size.x, r.size.y)
 	if short < 1.6 or long < 4.0:
 		return
 	var long_x := r.size.x >= r.size.y
-	var street := _street_side(ch, r)
+	var roof := roof_y >= 0.0
+	var y0 := roof_y if roof else CityChunk.SIDEWALK_TOP + PAVING_LIFT
+	var street := -1 if roof else _street_side(ch, r)
 	if short < 4.5:
 		# A strip: now and then bollards along the street side, a hedge planter behind them if
 		# it fits.
@@ -321,7 +351,7 @@ static func forecourt(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator) -> vo
 		if short >= 2.6 and rng.randf() < 0.7:
 			var pr := _inset_along(r, long_x, 1.0, 1.2)
 			pr = _thin_to(pr, long_x, minf(1.3, short - 1.2))
-			_planter(ch, pr, rng, false)
+			_planter(ch, pr, rng, false, y0)
 		return
 	if short < PLAZA_DEPTH:
 		# Planters down the middle of the piece, a bench facing each from the open side.
@@ -338,40 +368,50 @@ static func forecourt(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator) -> vo
 				pr = Rect2(r.position.x + a, r.get_center().y - depth * 0.5, b - a, depth)
 			else:
 				pr = Rect2(r.get_center().x - depth * 0.5, r.position.y + a, depth, b - a)
-			_planter(ch, pr, rng, rng.randf() < 0.55)
+			_planter(ch, pr, rng, rng.randf() < 0.55, y0)
 			if rng.randf() < 0.6:
 				var side := 1.0 if rng.randf() < 0.5 else -1.0
 				var pc := pr.get_center()
 				var off := depth * 0.5 + 0.9
-				var at := Vector3(pc.x, CityChunk.SIDEWALK_TOP + PAVING_LIFT, pc.y + side * off) if long_x else Vector3(pc.x + side * off, CityChunk.SIDEWALK_TOP + PAVING_LIFT, pc.y)
+				var at := Vector3(pc.x, y0, pc.y + side * off) if long_x else Vector3(pc.x + side * off, y0, pc.y)
 				var face := Vector2(0.0, side) if long_x else Vector2(side, 0.0)
 				if r.has_point(Vector2(at.x, at.z)):
 					ch._add_bench(at, atan2(-face.x, -face.y))
 		if street >= 0 and rng.randf() < BOLLARD_ODDS:
 			_bollards(ch, r, street, rng)
 		return
-	# A plaza: a feature in the middle, planters at the corners, benches round the feature.
+	# A plaza: a feature in the middle on a cross of walks, a lawn in each quarter (with a tree
+	# and a few benches along its walk side) or, now and then, a raised planter instead; a big
+	# plaza of bare paving was what this is here to get rid of.
 	var c := r.get_center()
+	var feature := Vector2(minf(r.size.x * 0.3, 12.0), minf(r.size.y * 0.3, 12.0))
 	if rng.randf() < FEATURE_ODDS:
-		if rng.randf() < POOL_ODDS:
-			_pool(ch, Rect2(c - r.size * 0.22, r.size * 0.44))
+		if rng.randf() < POOL_ODDS or roof:
+			_pool(ch, Rect2(c - feature * 0.5, feature), y0, roof)
 		else:
-			_bronze(ch, c, rng)
-	var pw := clampf(r.size.x * 0.22, 2.0, 7.0)
-	var pd := clampf(r.size.y * 0.22, 2.0, 7.0)
+			_bronze(ch, c, rng, y0)
+	var walk := PLAZA_WALK * 0.5
 	for sx: float in [-1.0, 1.0]:
 		for sz: float in [-1.0, 1.0]:
-			if rng.randf() < 0.25:
+			# The quarter between the walks and the plaza's edge, 1.5 m in from the edge.
+			var inner_x := maxf(walk, feature.x * 0.5 + 1.2)
+			var inner_z := maxf(walk, feature.y * 0.5 + 1.2)
+			var x0 := c.x + sx * inner_x
+			var x1 := c.x + sx * (r.size.x * 0.5 - 1.5)
+			var z0 := c.y + sz * inner_z
+			var z1 := c.y + sz * (r.size.y * 0.5 - 1.5)
+			var q := Rect2(minf(x0, x1), minf(z0, z1), absf(x1 - x0), absf(z1 - z0))
+			if q.size.x < 3.0 or q.size.y < 3.0:
 				continue
-			var pc := c + Vector2(sx * (r.size.x * 0.5 - pw * 0.5 - 1.2), sz * (r.size.y * 0.5 - pd * 0.5 - 1.2))
-			_planter(ch, Rect2(pc - Vector2(pw, pd) * 0.5, Vector2(pw, pd)), rng, rng.randf() < 0.6)
-	for i in 4:
-		if rng.randf() < 0.4:
-			continue
-		var ang := float(i) * PI * 0.5 + PI * 0.25 * float(int(rng.randf() < 0.5))
-		var d := minf(r.size.x, r.size.y) * 0.34
-		var at := Vector3(c.x + cos(ang) * d, CityChunk.SIDEWALK_TOP + PAVING_LIFT, c.y + sin(ang) * d)
-		ch._add_bench(at, atan2(cos(ang), sin(ang)))
+			if rng.randf() < LAWN_ODDS:
+				_lawn(ch, q, rng, y0, roof)
+			else:
+				_planter(ch, q.grow(-0.6), rng, rng.randf() < 0.6, y0)
+			# A bench on the lawn's walk side, facing across the walk.
+			if rng.randf() < 0.7:
+				var bz := c.y + sz * (inner_z - 0.8)
+				var bx := lerpf(q.position.x, q.end.x, 0.5)
+				ch._add_bench(Vector3(bx, y0, bz), atan2(0.0, sz))
 	if street >= 0:
 		_bollards(ch, r, street, rng)
 
@@ -430,25 +470,25 @@ static func _thin_to(r: Rect2, long_x: bool, depth: float) -> Rect2:
 ## A raised planter over `r`: a precast kerb (the plinths' concrete, so it merges into their
 ## mesh), planted soil, shrubs and grasses, and a tree in the middle if `tree` and the chunk's
 ## budget allows.
-static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: bool) -> void:
+static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: bool, base: float = CityChunk.SIDEWALK_TOP + PAVING_LIFT) -> void:
 	if r.size.x < 0.9 or r.size.y < 0.9:
 		return
 	var c := r.get_center()
 	var h := PLANTER_HEIGHT
-	var base := CityChunk.SIDEWALK_TOP + PAVING_LIFT
 	ch._add_slab(Vector3(c.x, base + h * 0.5, c.y), Vector3(r.size.x, h, r.size.y), Color(0.7, 0.7, 0.68), true, Building.plinth_material())
-	var soil_top := base + h - 0.04
-	ch._merge_box(ArenaGrounds.ground_cover(), Vector3(r.size.x - 0.36, 0.04, r.size.y - 0.36), Vector3(c.x, soil_top - 0.02 + ch._gy(c.x, c.y), c.y))
+	# The planted top stands a hair proud of the kerb box (which is solid), inside its rim.
+	var soil_top := base + h + 0.012
+	ch._merge_box(ArenaGrounds.ground_cover(), Vector3(r.size.x - 0.4, 0.04, r.size.y - 0.4), Vector3(c.x, soil_top - 0.02 + ch._gy(c.x, c.y), c.y))
 	var inner := r.grow(-0.35)
 	var area := inner.size.x * inner.size.y
 	var clump := absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_clump"])) % PropFactory.GRASS_CLUMPS.size()
 	var has_tree := tree and ch._fill_trees < MAX_TREES and minf(r.size.x, r.size.y) >= 1.4
-	for k in clampi(int(area / 1.6), 1, 14):
+	for k in clampi(int(area / 1.1), 1, 18):
 		var p := Vector2(rng.randf_range(inner.position.x, inner.end.x), rng.randf_range(inner.position.y, inner.end.y))
 		if has_tree and p.distance_to(c) < 0.9:
 			continue
 		var at := Vector3(p.x, soil_top, p.y)
-		if k % 3 == 0:
+		if k % 4 == 0:
 			var sc := rng.randf_range(0.8, 1.3)
 			ch._batch.add("gclump_%d" % clump, PropFactory.model_grass_clump(clump), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), at),
 				Color(rng.randf_range(0.9, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.9, 1.05)))
@@ -465,14 +505,11 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 ## another - planted with CityChunk._add_bush()'s eight-way roll, the planters alone put up to
 ## sixteen new draws on a chunk).
 static func _shrub(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> void:
-	var pick := absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_shrub"])) % (4 + PropFactory.BUSHES.size())
-	var sc := rng.randf_range(0.65, 1.15)
+	var pick := absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_shrub"])) % PropFactory.BUSHES.size()
+	var sc := rng.randf_range(0.9, 1.4)
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
-	if pick < 4:
-		ch._batch.add("shrub_%d" % pick, PropFactory.model_shrub(pick), Transform3D(basis, at), tint)
-	else:
-		ch._batch.add("bush_%d" % (pick - 4), PropFactory.model_bush(pick - 4), Transform3D(basis, at), tint)
+	ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, at), tint)
 
 
 ## A planter's tree: the block's own street tree (CityChunk._tree_bias, the species its street
@@ -486,11 +523,29 @@ static func _tree(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> voi
 
 
 ## A shallow reflecting pool over `r`: a stone kerb and a dark still surface (merged boxes).
-static func _pool(ch: CityChunk, r: Rect2) -> void:
+## A lawn panel over `r`: its own ground kind (one merged mesh a chunk; on a roof a thin slab),
+## a tree in the middle if the budget allows, grass tufts over it.
+static func _lawn(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, base: float, roof: bool) -> void:
+	var c := r.get_center()
+	if roof:
+		ch._merge_box(_lawn_material(ch), Vector3(r.size.x, 0.06, r.size.y), Vector3(c.x, base + 0.03 + ch._gy(c.x, c.y), c.y))
+	else:
+		_ground(ch, r, "lawn")
+	if ch._fill_trees < MAX_TREES and minf(r.size.x, r.size.y) >= 4.0:
+		ch._fill_trees += 1
+		_tree(ch, Vector3(c.x, base + 0.02, c.y), rng)
+	if not roof:
+		ch._add_grass(r.grow(-0.3), LAWN_GRASS)
+
+
+static func _lawn_material(ch: CityChunk) -> Material:
+	return PropFactory.lawn(Color(0.34, 0.50, 0.22), hash([ch.plan.seed, "lot_lawn"]), 0.4, 2.2)
+
+
+static func _pool(ch: CityChunk, r: Rect2, base: float = CityChunk.SIDEWALK_TOP + PAVING_LIFT, swim: bool = false) -> void:
 	if r.size.x < 3.0 or r.size.y < 3.0:
 		return
 	var c := r.get_center()
-	var base := CityChunk.SIDEWALK_TOP + PAVING_LIFT
 	var kerb := 0.45
 	var t := 0.4
 	for side in 4:
@@ -498,7 +553,19 @@ static func _pool(ch: CityChunk, r: Rect2) -> void:
 		var pos := c + (Vector2(0.0, (r.size.y - t) * 0.5 * (1.0 if side == 0 else -1.0)) if horiz else Vector2((r.size.x - t) * 0.5 * (1.0 if side == 2 else -1.0), 0.0))
 		var size := Vector3(r.size.x, kerb, t) if horiz else Vector3(t, kerb, r.size.y - t * 2.0)
 		ch._add_slab(Vector3(pos.x, base + kerb * 0.5, pos.y), size, Color(0.7, 0.7, 0.68), true, Building.plinth_material())
-	ch._merge_box(_dark_material(), Vector3(r.size.x - t * 2.0, 0.06, r.size.y - t * 2.0), Vector3(c.x, base + kerb - 0.12 + ch._gy(c.x, c.y), c.y))
+	ch._merge_box(_swim_material() if swim else _dark_material(), Vector3(r.size.x - t * 2.0, 0.06, r.size.y - t * 2.0), Vector3(c.x, base + kerb - 0.12 + ch._gy(c.x, c.y), c.y))
+
+
+static var _swim: StandardMaterial3D = null
+
+
+## A podium's roof pool is a swimming pool: pale tiles under clear water.
+static func _swim_material() -> StandardMaterial3D:
+	if _swim == null:
+		_swim = StandardMaterial3D.new()
+		_swim.albedo_color = Color(0.16, 0.52, 0.60)
+		_swim.roughness = 0.3
+	return _swim
 
 
 static var _dark: StandardMaterial3D = null
@@ -517,8 +584,7 @@ static func _dark_material() -> StandardMaterial3D:
 
 ## An abstract bronze on a granite plinth: a leaning column of turned blocks (the shapes are
 ## invented), in the chunk's batch.
-static func _bronze(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator) -> void:
-	var base := CityChunk.SIDEWALK_TOP + PAVING_LIFT
+static func _bronze(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator, base: float = CityChunk.SIDEWALK_TOP + PAVING_LIFT) -> void:
 	var ph := 1.3
 	ch._add_slab(Vector3(at.x, base + ph * 0.5, at.y), Vector3(2.0, ph, 2.0), Color(0.3, 0.3, 0.31), true, _dark_material())
 	var bronze := PropFactory.box("fill_bronze", Vector3.ONE, Color(0.36, 0.24, 0.14))

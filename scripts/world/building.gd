@@ -1898,8 +1898,9 @@ static func _apply_wall_texture(mat: ShaderMaterial, wall_finish: int, warehouse
 func _build_roof_props() -> void:
 	for i in parts.size():
 		var part: Dictionary = parts[i]
-		# A parking deck's roof is its top deck (LotFill parks cars on it), not a plant deck.
-		if is_parking(part):
+		# A podium's roof is its top deck of parked cars or the tower's garden (LotFill), not
+		# a plant deck.
+		if int(part.get("podium", 0)) > 0:
 			continue
 		var size: Vector3 = part.size
 		var center: Vector3 = part.center
