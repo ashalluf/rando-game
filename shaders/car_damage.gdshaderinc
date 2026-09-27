@@ -78,7 +78,7 @@ float cd_crack_web(vec3 p, vec3 c, vec3 n, float radius, float seed, float px, o
 	float to_spoke = min(fa, 1.0 - fa) * sector * r;
 	float near_k = fa < 0.5 ? k : k + 1.0;
 	float reach = radius * (0.45 + 0.55 * cd_hash21(vec2(near_k, seed)));
-	float w = 0.0009 * (1.0 - 0.6 * r / radius);
+	float w = 0.0016 * (1.0 - 0.6 * r / radius);
 	float lines = cd_line(to_spoke, w, px) * (1.0 - smoothstep(reach * 0.8, reach, r));
 	// Rings: a chord across this wedge at each ring radius, drawn in some wedges only.
 	float mid = (k + 0.5) / spokes * 6.2831853 - (wig + seed * 3.0) / spokes * 6.2831853;
@@ -88,10 +88,11 @@ float cd_crack_web(vec3 p, vec3 c, vec3 n, float radius, float seed, float px, o
 		float h = cd_hash21(vec2(k * 1.31 + fj * 7.7, seed));
 		float rj = radius * (0.10 + 0.19 * fj + 0.07 * h);
 		if (h > 0.28 && rj < radius * 0.9) {
-			lines = max(lines, cd_line(abs(along - rj * cos(sector * 0.5)), 0.0007, px) * step(r, rj * 1.25));
+			lines = max(lines, cd_line(abs(along - rj * cos(sector * 0.5)), 0.0011, px) * step(r, rj * 1.25));
 		}
 	}
-	float hub = 1.0 - smoothstep(radius * 0.035, radius * 0.08, r);
+	// The pulverised star round the hole: white, a few centimetres across.
+	float hub = 1.0 - smoothstep(radius * 0.05, radius * 0.11 + (cd_noise3(vec3(ang * 3.0, seed, 1.0)) - 0.5) * radius * 0.05, r);
 	facet = (vec2(cd_hash21(vec2(k, seed + 3.0)), cd_hash21(vec2(k + 11.0, seed))) - 0.5)
 		* (1.0 - smoothstep(radius * 0.4, radius, r));
 	return max(lines, hub);

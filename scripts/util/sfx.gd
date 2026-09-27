@@ -473,6 +473,8 @@ func _build_synth() -> void:
 	_put("siren", _siren_wail(4.0), true)
 	_put("jet_loop", _jet_loop(1.6), true)
 	_put("rotor_loop", _rotor_loop(1.2), true)
+	# Synthesised only (no CC0 take yet): a burning car (CarDamage).
+	_put("fire_loop", _fire_loop(2.4), true)
 
 
 func _put(key: String, samples: PackedFloat32Array, looping: bool = false) -> void:
@@ -627,6 +629,36 @@ func _skid_loop(seconds: float) -> PackedFloat32Array:
 		band = lerpf(band, last, 0.25) # a second pole: leaves a narrow noise band
 		var squeal := sin(TAU * (1250.0 + 90.0 * sin(TAU * 7.0 * t)) * t)
 		out[i] = (last - band) * 0.8 + squeal * 0.18
+	return out
+
+
+## A car on fire: a low roar that breathes, with crackles (short bright clicks) scattered through
+## it. The end is cross-faded into the start so the loop has no seam.
+func _fire_loop(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var low := 0.0
+	var mid := 0.0
+	for i in n:
+		var t := float(i) / MIX_RATE
+		var w := _rng.randf_range(-1.0, 1.0)
+		low = lerpf(low, w, 0.025)
+		mid = lerpf(mid, w, 0.25)
+		var breath := 0.78 + 0.22 * sin(TAU * 3.0 * t / seconds) * sin(TAU * 2.0 * t / seconds + 0.7)
+		out[i] = low * 2.6 * breath + (mid - low) * 0.1
+	var pops := int(seconds * 28.0)
+	for k in pops:
+		var at := _rng.randi_range(0, n - 1)
+		var amp := pow(_rng.randf(), 2.2) * 0.85
+		var span := int(MIX_RATE * _rng.randf_range(0.002, 0.014))
+		for j in span:
+			if at + j < n:
+				out[at + j] += amp * _rng.randf_range(-1.0, 1.0) * exp(-float(j) / maxf(float(span) * 0.3, 1.0))
+	var fade := int(0.05 * MIX_RATE)
+	for j in fade:
+		var f := float(j) / float(fade)
+		out[n - fade + j] = lerpf(out[n - fade + j], out[j], f)
 	return out
 
 

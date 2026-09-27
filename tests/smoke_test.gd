@@ -1629,6 +1629,9 @@ func _test_city() -> void:
 	# Air traffic: its checks live in their own file, loaded here so it compiles after the
 	# autoloads (tests/air_traffic_checks.gd).
 	await load("res://tests/air_traffic_checks.gd").new().run(self, city)
+	# Car damage (tests/car_damage_checks.gd): holes, glass, lamps, crashes, a rocket to a wreck,
+	# blame, the caps, the driven car, a pooled cruiser - on a deck high over the street.
+	await load("res://tests/car_damage_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)

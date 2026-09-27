@@ -601,6 +601,41 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Parking and traffic lanes come from `CityPlan.parking_offset()` / `lane_center()`: the parking
   lane was 4.4 m wide and the kerb-side traffic lane ran 13 cm from the parked cars, so traffic
   plowed through them.
+- Car damage (roadmap #10): `CarDamage` (`scripts/vehicles/car_damage.gd`), a node the car makes
+  on its FIRST hit - an undamaged car has none, keeps the shared `car_paint.gdshader` and the
+  model's own glass and lamp materials, and costs what it did (the only per-car addition is
+  `Vehicle._crash_watch()`, one velocity subtraction a tick in the car's existing script).
+  **One entry point: `Vehicle.take_hit(shape, damage, dir, at, kind)`** with `HIT_BULLET` /
+  `HIT_PELLET` (the weapon's own damage: rifle `fire_ray`, shotgun `fire_pellet`, police
+  rounds under `Police.innocent`), `HIT_BLAST` (`damage` is the falloff at the car, `at` the
+  centre: `Explosion.blast()`, once per car, not once per collision shape), `HIT_CRASH`
+  (`damage` = m/s over `crash_min_dv` / `landing_min_dv`: the crash watch, a velocity change in
+  one step; call `hold_crash_watch()` before changing a car's velocity on purpose - jumps,
+  respawns, blasts do) and `HIT_PROP`. A traffic car goes physical first. Rounds are traced
+  onto the real body mesh (`TriangleMesh`, cached per mesh; face -> slot), so a hole lands on
+  the skin, a round in the glass slot crazes or shatters that pane and one in a lamp breaks
+  it. The paint is copied onto `car_paint_damage.gdshader` (the same `car_paint.gdshaderinc`
+  with `CAR_DAMAGE` defined: holes with a bright torn rim and chipped halo, crumpled dents
+  displaced in the vertex shader, blast scorch, the burn front from the engine bay in bands of
+  blistered paint, soot and rust / ash bare steel) on the car's body meshes AND its shadow
+  twins; the glass slot onto `car_glass_damage.gdshader` (panes = the glass surface's connected
+  pieces, measured once per mesh: tempered side and rear glass crazes then falls out as cubes,
+  the windscreen only collects webs, lamp lenses go with their lamp; an empty frame shows a
+  traced cabin - dash, seats, headrests, the far window's daylight - at `cabin_light`); the
+  lamp slots onto `car_lamp_damage.gdshader`; the night glow is
+  `PropFactory.vehicle_lights(..., broken)`, one shared mesh per combination. Health
+  (`max_health` 1000): smoke past `smoke_at`, fire past `fire_at`, `burn_seconds` later (a
+  `quick_fuse` after a rocket-sized hit) `explode()`: the driver is thrown out, the car's own
+  `Explosion.blast(..., exclude)` is the player's crime unless the police lit it
+  (`blame_police`), the wreck is tossed, burnt out, sat on charred rims, burns, smokes, and is
+  PhysicsBudget debris for `wreck_lifetime` (`register_debris(body, lifetime)`). Caps (static):
+  `max_burning`, `max_smoking`, `max_wrecks`, `max_glass_bursts`. A wreck cannot be driven
+  (`is_wreck()`), a pooled cruiser is `repair()`ed, a burnt cruiser leaves the police
+  (`Police.car_wrecked`), the flyable jets opt out (`can_take_damage()`). Stills:
+  `DAMAGE=holes,glass,dents,smoke,burning,wreck` on `tools/glshot/car_shot.gd` (views `door`,
+  `glass`, `screen`, `cabin`); checks: `tests/car_damage_checks.gd`. Traps: a `--script` tool
+  that names `CarDamage` as a type compiles it before the Sfx autoload exists (load it by path);
+  `Explosion.blast()` still pushes a car once per collision shape (2-3x a rocket's 30 m/s).
 - Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
   `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`

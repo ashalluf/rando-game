@@ -53,10 +53,13 @@ func can_spawn() -> bool:
 
 
 ## Mark a body (or a ragdoll root) as short-lived debris and start its lifetime clock.
-func register_debris(body: Node3D) -> void:
+## `lifetime` (seconds) overrides debris_lifetime for this body (a car wreck stays longer).
+func register_debris(body: Node3D, lifetime: float = -1.0) -> void:
 	body.add_to_group(PROP_GROUP)
 	body.add_to_group(DEBRIS_GROUP)
 	body.set_meta("spawn_time", _now())
+	if lifetime > 0.0:
+		body.set_meta("debris_life", lifetime)
 
 
 ## Frees the oldest debris until there is room for `count` more bodies.
@@ -84,7 +87,7 @@ func _run_checks() -> void:
 			continue
 		if node.is_in_group(DEBRIS_GROUP):
 			var born: float = node.get_meta("spawn_time", now)
-			if now - born > debris_lifetime:
+			if now - born > float(node.get_meta("debris_life", debris_lifetime)):
 				node.queue_free()
 				continue
 		var body := node as RigidBody3D

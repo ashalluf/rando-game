@@ -796,8 +796,29 @@ func _on_bumper_hit(body: Node3D) -> void:
 			(body as Player).take_damage(ram_damage * clampf(speed / 20.0, 0.5, 1.5), global_position, "ram")
 
 
+## Burnt out: the lights and the siren die with it and the police let it go (Police.car_wrecked).
+func _become_wreck() -> void:
+	super._become_wreck()
+	mode = Mode.PARKED
+	roadblock = false
+	if police:
+		police.car_wrecked(self)
+	crew_aboard = 0
+	crew_alive = 0
+	var bar := get_node_or_null("LightBar") as Node3D
+	if bar:
+		bar.visible = false
+	if _bar_light:
+		_bar_light.visible = false
+		_bar_light.light_energy = 0.0
+	if _siren:
+		_siren.stop()
+
+
 ## Taken off the street for reuse: back to a wheel-less kinematic body, nothing playing.
 func strip_for_pool() -> void:
+	# A cruiser shot up on its way in goes back into the pool as new.
+	repair()
 	if _siren:
 		_siren.stop()
 	for w in wheels:

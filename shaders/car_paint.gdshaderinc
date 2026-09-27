@@ -327,8 +327,9 @@ void fragment() {
 		float n2 = cd_noise3(local_rest * 9.0);
 		float n3 = cd_fbm3(local_rest * 0.9 + 4.0);
 		vec3 soot = vec3(0.026, 0.023, 0.020);
-		vec3 rust = mix(vec3(0.24, 0.10, 0.04), vec3(0.40, 0.19, 0.08), n2);
-		vec3 ash = mix(vec3(0.40, 0.38, 0.35), vec3(0.58, 0.56, 0.52), n2);
+		// Burnt steel: rust brown and dull grey-brown, pale ash where it burnt hottest.
+		vec3 rust = mix(vec3(0.17, 0.085, 0.045), vec3(0.30, 0.16, 0.085), n2);
+		vec3 ash = mix(vec3(0.30, 0.285, 0.265), vec3(0.50, 0.48, 0.45), n2);
 		vec3 bare_c = mix(rust, ash, smoothstep(0.38, 0.62, n3));
 		// Temper colours where the steel got hot but kept its skin: straw to blue.
 		vec3 temper = mix(vec3(0.50, 0.38, 0.16), vec3(0.16, 0.20, 0.38), n2);
@@ -345,8 +346,10 @@ void fragment() {
 		cc_keep *= 1.0 - smoothstep(0.04, 0.3, heat);
 		spec_keep = mix(1.0, 0.75, smoothstep(0.3, 0.8, heat));
 		// Blistered paint: bumps in the ring where it cooked but did not burn off.
-		vec3 bl = vec3(cd_noise3(local_rest * 70.0), cd_noise3(local_rest * 70.0 + 5.0), cd_noise3(local_rest * 70.0 + 9.0)) - 0.5;
-		dn += bl * 0.5 * smoothstep(0.08, 0.3, heat) * (1.0 - smoothstep(0.45, 0.62, heat));
+		// (Rotated off the noise lattice, or the blisters line up in a grid.)
+		vec3 bp = mat3(vec3(0.8, 0.36, -0.48), vec3(-0.6, 0.48, -0.64), vec3(0.0, 0.8, 0.6)) * local_rest * 38.0;
+		vec3 bl = vec3(cd_noise3(bp), cd_noise3(bp + 5.3), cd_noise3(bp + 9.7)) - 0.5;
+		dn += bl * 0.22 * smoothstep(0.08, 0.3, heat) * (1.0 - smoothstep(0.45, 0.62, heat)) * (1.0 - smoothstep(0.004, 0.012, px));
 	}
 	// Bullet holes: a punched black hole, a ring of bright torn steel, primer and flecks of
 	// metal where the paint flaked off round it, and the metal pushed in round the hole.

@@ -30,7 +30,8 @@ static var last_blast_world: Vector3 = Vector3.ZERO
 
 
 ## `launch_speed` is the velocity change at the center for props (scaled by falloff, not mass).
-static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float, player_launch_speed: float) -> int:
+## `exclude` is left alone (a car's own blast: CarDamage throws the wreck itself).
+static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float, player_launch_speed: float, exclude: Object = null) -> int:
 	blast_count += 1
 	last_blast_world = WorldState.to_world(at)
 	var shape := SphereShape3D.new()
@@ -41,10 +42,11 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 	query.collision_mask = Player.BLAST_MASK
 	var results := node.get_world_3d().direct_space_state.intersect_shape(query, 256)
 	var affected := 0
+	var cars_hit := {}
 	for result in results:
 		var collider: Object = result.collider
 		var target := collider as Node3D
-		if target == null:
+		if target == null or collider == exclude:
 			continue
 		var offset := target.global_position - at
 		if target is CharacterBody3D:
@@ -54,6 +56,13 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 		var dir := (offset + Vector3.UP * radius * up_bias).normalized() if dist > 0.01 else Vector3.UP
 		if collider is Vehicle:
 			(collider as Vehicle).drop_out_of_traffic()
+			# Damage once per car (the query returns one result per collision shape), by how
+			# close the blast came to the car's body rather than to its origin.
+			if not cars_hit.has(collider):
+				cars_hit[collider] = true
+				var reach := clampf(1.0 - maxf(dist - 1.2, 0.0) / radius, 0.0, 1.0)
+				if reach > 0.0:
+					(collider as Vehicle).take_hit(result.get("shape", -1), reach, dir, at, Vehicle.HIT_BLAST)
 		if collider is Pedestrian:
 			# Close to the blast people come apart: up to three limbs at the centre, one at the
 			# edge of `gib_reach`, none past it (owner, 2026-09-23: "limbs flying off").

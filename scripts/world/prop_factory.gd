@@ -1087,20 +1087,31 @@ static func foliage_textured(src: StandardMaterial3D, blossom: Color = Color.TRA
 ## both in the car's body space (a body's `ride`: its model's bottom is on the road).
 ## `tail_y` is the tail lamps' height when it is not the headlamps' (a modern car carries its
 ## tail lamps a good 25 cm higher).
-static func vehicle_lights(width: float, length: float, y: float, ground: float = -0.24, tail_y: float = NAN) -> Mesh:
+## `broken`: lamps shot out or crushed (CarDamage.LAMP_* bits: 1 left head, 2 right head, 4 left
+## tail, 8 right tail) are left out, and the beam goes with the headlamps. One shared mesh per
+## combination, so a damaged car costs no more than a whole one.
+static func vehicle_lights(width: float, length: float, y: float, ground: float = -0.24, tail_y: float = NAN, broken: int = 0) -> Mesh:
 	if is_nan(tail_y):
 		tail_y = y
-	var key := "car_lights_%.2f_%.2f_%.2f_%.2f_%.2f" % [width, length, y, ground, tail_y]
+	var key := "car_lights_%.2f_%.2f_%.2f_%.2f_%.2f_%d" % [width, length, y, ground, tail_y, broken]
 	if _cache.has(key):
 		return _cache[key]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var head := Color(1.0, 0.95, 0.82, 1.0)
 	var tail := Color(1.0, 0.16, 0.10, 0.78)
+	var heads := 0
 	for side: float in [-1.0, 1.0]:
 		var x := side * (width * 0.5 - 0.26)
-		_light_quad(st, Vector3(x, y, -length * 0.5 - 0.06), Vector3(0.62, 0.0, 0.0), Vector3(0.0, 0.34, 0.0), head)
-		_light_quad(st, Vector3(x, tail_y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail)
+		var left := side < 0.0
+		if broken & (1 if left else 2) == 0:
+			heads += 1
+			_light_quad(st, Vector3(x, y, -length * 0.5 - 0.06), Vector3(0.62, 0.0, 0.0), Vector3(0.0, 0.34, 0.0), head)
+		if broken & (4 if left else 8) == 0:
+			_light_quad(st, Vector3(x, tail_y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail)
+	if broken & 15 == 15:
+		# Nothing left to draw: a degenerate quad keeps the mesh valid (the node is hidden).
+		_light_quad(st, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Color(0, 0, 0, 0))
 	# The beam on the road: a wide wedge lying flat in front of the car.
 	# Its UVs sit in 2..3 instead of 0..1, which is how light_pool.gdshader tells it from a
 	# round lamp pool and draws a fan instead of a blob.
@@ -1109,7 +1120,8 @@ static func vehicle_lights(width: float, length: float, y: float, ground: float 
 	# 12 cm over the road. It was `0.12 - y`, a leftover from when each light was its own node
 	# at the lamp's height, which laid the beam 0.6 m UNDER the road on every car, so no car
 	# ever lit the street at night (found by the sedan session, wt/sedan-body).
-	_light_quad(st, Vector3(0.0, ground + 0.12, -length * 0.5 - 3.4), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 9.0), Color(1.0, 0.94, 0.80, 0.62), 2.0)
+	if heads > 0:
+		_light_quad(st, Vector3(0.0, ground + 0.12, -length * 0.5 - 3.4), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 9.0), Color(1.0, 0.94, 0.80, 0.62 * float(heads) * 0.5), 2.0)
 	var mesh := st.commit()
 	mesh.surface_set_material(0, light_pool_material())
 	_cache[key] = mesh

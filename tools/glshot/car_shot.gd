@@ -16,6 +16,11 @@ extends SceneTree
 ## several types side by side for one comparison frame (the camera then frames the row), and
 ## `--each=0,8,1` shoots every view of each type in turn in one launch ($OUT_t<type>_<view>.png),
 ## so a whole before/after set costs one wait for the render lock.
+## Damage (CarDamage.stage(), real rounds and blasts through the game's own paths):
+## `DAMAGE=holes,glass,dents,smoke,burning,wreck` (any mix) stages it once the car has settled,
+## `WAIT=n` physics frames after that (default 30; the burning and wreck stages pre-warm their
+## smoke and fire), and the views `door` (the shot-up door and wing up close), `glass` (the side
+## windows), `screen` (the windscreen) and `cabin` (into an empty frame) frame it.
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
 ## autoloads exist (CLAUDE.md).
 
@@ -171,6 +176,18 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		cars.append(car)
 	for i in 120:
 		await physics_frame
+	var damage := OS.get_environment("DAMAGE")
+	if damage != "":
+		for car in cars:
+			car.call("damage_state").call("stage", damage)
+		var wait := OS.get_environment("WAIT")
+		for i in (wait.to_int() if wait != "" else 30):
+			await physics_frame
+		for car in cars:
+			var dmg: Object = car.call("damage_state")
+			print("DAMAGE type %d: health %.0f state %d holes %d panes %s lamps %d" % [int(car.get("body_type")),
+					float(dmg.get("health")), int(dmg.get("state")), int(dmg.get("holes_made")),
+					str(dmg.get("pane_state")), int(dmg.get("lamps_broken"))])
 	for i in 3:
 		await process_frame
 	# Where the physics wheels meet the road in body space: that is the body's `ride`, and the
@@ -208,6 +225,18 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				"close":
 					at = Vector3(3.2, 0.7, -3.6)
 					target = Vector3(0.9, 0.3, -1.5)
+				"door":
+					at = Vector3(3.4, 0.95, -1.6)
+					target = Vector3(0.9, 0.45, -0.6)
+				"glass":
+					at = Vector3(4.2, 1.35, 0.4)
+					target = Vector3(0.8, 0.95, 0.05)
+				"screen":
+					at = Vector3(1.6, 2.1, -5.2)
+					target = Vector3(0.0, 0.95, -1.0)
+				"cabin":
+					at = Vector3(2.6, 1.25, -0.3)
+					target = Vector3(0.0, 0.85, -0.3)
 				"far":
 					# Past Vehicle.body_far_distance, with a narrow lens: the far twin.
 					at = Vector3(26.0, 5.0, -36.0)
