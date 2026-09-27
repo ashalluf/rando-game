@@ -46,6 +46,9 @@ extends SceneTree
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
 ## HIDE=Ground,Chunk_* hides every node whose name matches (String.match) just before the shot,
 ## to tell which layer a surface belongs to.
+## PALM_AB=1 prints the same frame's GEO again with every palm at full detail (its level 0 and
+## no LODs, in the view and the shadow) and saves that frame as <OUT>_palmfull.png: the A/B of
+## the palms' hand-built LOD ladder (PropFactory.PALM_LEVELS) with the clock held still.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -274,13 +277,41 @@ func _initialize() -> void:
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "still.png"
-	get_root().get_texture().get_image().save_png(out)
-	print("saved ", out)
+	var img := get_root().get_texture().get_image()
+	if img:
+		img.save_png(out)
+		print("saved ", out)
 	# The frame's cost, split into the camera's pass and the shadow passes (the counters are
 	# real here: this runs under opengl3 or vulkan, never --headless). SPLIT=1 then hides one
 	# category at a time, the world held still, as tools/tri_split.gd does - so every bookmark
 	# still also gives a cost table for the exact frame it shot.
 	await _geo_report("GEO")
+	if OS.get_environment("PALM_AB") == "1":
+		# Every palm drawn at full detail (its level 0 with no LODs), in the view and the shadow,
+		# for the same frame: what the hand-built ladder (PropFactory.PALM_LEVELS) changes.
+		var factory = load("res://scripts/world/prop_factory.gd")
+		var swap := {}
+		for v in factory.PALM_VARIANTS:
+			var full := ArrayMesh.new()
+			full.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, factory._palm_level(v, factory.PALM_LEVELS[0]))
+			full.surface_set_material(0, factory.foliage_material())
+			var mesh: Mesh = factory.palm(v)
+			swap[mesh] = full
+			if factory.shadow_proxy(mesh):
+				swap[factory.shadow_proxy(mesh)] = full
+		var back := {}
+		for n in current_scene.find_children("*", "MultiMeshInstance3D", true, false):
+			var mm := (n as MultiMeshInstance3D).multimesh
+			if mm and swap.has(mm.mesh):
+				back[mm] = mm.mesh
+				mm.mesh = swap[mm.mesh]
+		await _geo_report("GEO palms full (%d batches)" % back.size())
+		img = get_root().get_texture().get_image()
+		if img:
+			img.save_png(out.get_basename() + "_palmfull.png")
+		for mm: MultiMesh in back:
+			mm.mesh = back[mm]
+		await _geo_report("GEO palms ladder")
 	if OS.get_environment("SPLIT") == "1":
 		await _geo_split(player, anchor, hold, boost, fov)
 	quit()
@@ -352,7 +383,7 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				return "FarCity"
 			"CityChunk":
 				var nm := String(gi.name)
-				for k in ["tree", "palm", "bush", "shrub", "flower", "plant", "gclump", "Planting"]:
+				for k in ["tree", "palm", "bush", "shrub", "flower", "plant", "gclump", "Planting", "hill_"]:
 					if nm.contains(k):
 						return "Trees"
 				if nm.contains("grass"):

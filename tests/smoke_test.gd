@@ -1467,6 +1467,7 @@ func _test_city() -> void:
 				palm_blocks += 1
 				break
 	_check(palm_blocks > 0, "palm-lined blocks in the loaded city (%d)" % palm_blocks)
+	_check_palm_ladder()
 	minimap.queue_redraw()
 	await _ticks(3)
 	var env: Environment = city.get_node("WorldEnvironment").environment
@@ -2514,6 +2515,63 @@ func _kit_count(b: Node, prefix: String) -> int:
 func _ticks(n: int) -> void:
 	for i in n:
 		await get_tree().physics_frame
+
+
+## The palms' hand-built LOD ladder (PropFactory.PALM_LEVELS): every variant carries each
+## coarser level as a LOD at its own error, fewer triangles each step, with a shadow twin that
+## starts at PALM_SHADOW_LEVEL; and every level is the same tree - the same crown extents, leaf
+## area and tone - which only holds while each level draws the same random numbers in the same
+## order (skip one and every frond after it moves).
+func _check_palm_ladder() -> void:
+	var levels: Array = PropFactory.PALM_LEVELS
+	var faults: Array[String] = []
+	var far_share := 0.0
+	for v in PropFactory.PALM_VARIANTS:
+		var mesh: Mesh = PropFactory.palm(v)
+		var surf := RenderingServer.mesh_get_surface(mesh.get_rid(), 0)
+		var lods: Array = surf.get("lods", [])
+		if lods.size() != levels.size() - 1:
+			faults.append("palm %d has %d LODs" % [v, lods.size()])
+			continue
+		var bytes_per_index: float = float((surf.get("index_data", PackedByteArray()) as PackedByteArray).size()) / maxf(float(surf.get("index_count", 1)), 1.0)
+		var prev := int(surf.get("index_count", 0)) / 3
+		for l in lods.size():
+			var tris := int((lods[l]["index_data"] as PackedByteArray).size() / bytes_per_index) / 3
+			if not is_equal_approx(float(lods[l]["edge_length"]), float(levels[l + 1].edge)) or tris >= prev:
+				faults.append("palm %d LOD %d (edge %.2f, %d tris after %d)" % [v, l, lods[l]["edge_length"], tris, prev])
+			prev = tris
+		far_share = maxf(far_share, float(prev) / maxf(float(surf.get("index_count", 0)) / 3.0, 1.0))
+		var shadow: Mesh = PropFactory.shadow_proxy(mesh)
+		var shadow_surf := RenderingServer.mesh_get_surface(shadow.get_rid(), 0) if shadow else {}
+		if shadow == null or (shadow_surf.get("lods", []) as Array).size() != levels.size() - 1 - PropFactory.PALM_SHADOW_LEVEL:
+			faults.append("palm %d shadow twin" % v)
+		var ref := _palm_level_stats(v, 0)
+		for l in range(1, levels.size()):
+			var st := _palm_level_stats(v, l)
+			var drift: float = maxf((st.box.position - ref.box.position).abs()[(st.box.position - ref.box.position).abs().max_axis_index()],
+				(st.box.end - ref.box.end).abs()[(st.box.end - ref.box.end).abs().max_axis_index()])
+			var tone_ratio: float = st.tone.g / ref.tone.g
+			if drift > float(levels[l].edge) or absf(st.area / ref.area - 1.0) > 0.08 or absf(tone_ratio - 1.0) > 0.025:
+				faults.append("palm %d level %d drifts %.2f m, area %.2f, tone %.3f" % [v, l, drift, st.area / ref.area, tone_ratio])
+	_check(faults.is_empty() and far_share < 0.02, "every palm carries its own LOD ladder down to %.1f %% of its triangles, each level the same tree %s" % [far_share * 100.0, faults])
+
+
+## A palm level's extents, leaf area and area-weighted tone.
+func _palm_level_stats(variant: int, level: int) -> Dictionary:
+	var arr: Array = PropFactory._palm_level(variant, PropFactory.PALM_LEVELS[level])
+	var vx: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var ix: PackedInt32Array = arr[Mesh.ARRAY_INDEX]
+	var col: PackedColorArray = arr[Mesh.ARRAY_COLOR]
+	var area := 0.0
+	var tone := Color(0.0, 0.0, 0.0, 0.0)
+	var box := AABB(vx[ix[0]], Vector3.ZERO)
+	for t in range(0, ix.size(), 3):
+		var a := 0.5 * (vx[ix[t + 1]] - vx[ix[t]]).cross(vx[ix[t + 2]] - vx[ix[t]]).length()
+		area += a
+		tone += col[ix[t]] * a
+		for k in 3:
+			box = box.expand(vx[ix[t + k]])
+	return {"area": area, "tone": tone / maxf(area, 0.0001), "box": box}
 
 
 func _check(ok: bool, label: String) -> void:

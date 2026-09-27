@@ -1062,7 +1062,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   in and trap cars against the kerb. Landmarks plant palms through `PropFactory.palm()` too
   (the boardwalk batches them as `palm_<variant>`); their old hand-built stick-and-frond palms
   are kept only for the far version, where they read as a silhouette and nothing more. Up close
-  they looked like spiders.
+  they looked like spiders. `palm()` builds the tree at every level of `PALM_LEVELS` from one
+  random stream (see the Performance note): anything added to it must draw its random numbers
+  at every level, whether that level draws the part or not, or every frond after it moves.
 - Replica areas (see the technical rule): `ReplicaAreas` (`scripts/world/replica_areas.gd`,
   `MacroMap.replica`, built in `MacroMap.setup()` before the hill roads, `fit_hill_profile()`
   after) holds each area as a table - today only `ESPLANADE`: Knob Hill down the Redondo
@@ -1470,9 +1472,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   timings under lavapipe) put the opaque pass, the depth pre-pass and the directional shadows at
   ~90 % of a frame, so it is triangles, not effects; `tools/tri_split.gd` then showed trees were
   the biggest single cost, 2.4 of their 3.2 M triangles in the shadow cascades - a batch takes
-  one LOD for every instance from its nearest point (and distance 0 whenever the camera's plane
-  crosses its box), so every tree in the blocks around the player went into all four cascades
-  at full detail. Now every imported model and the palms get `PropFactory.shadow_proxy()` - the
+  one LOD for every instance from its bounding box (distance 0 while the camera is inside it),
+  so every tree in the blocks around the player went into all four cascades at full detail. Now every imported model and the palms get `PropFactory.shadow_proxy()` - the
   coarsest generated LOD that keeps 45 % of a leaf surface or 25 % of anything else, with the
   same materials so cut-out and sway still match - and `MultiMeshBatch.build()` draws it as a
   SHADOWS_ONLY twin (`BatchShadow_<key>`, sharing the instance buffer; `hide_instance()` hides
@@ -1481,7 +1482,25 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   the body mesh at `Vehicle.BODY_SHADOW_LOD_BIAS` (a car's box is small, so plain LOD bias
   works there). Palms had no LODs at all until this (22.6k triangles at any range). Lettering
   (`text_` batches) casts nothing. Street frame 9.4 M -> 7.7 M triangles with no visible change
-  (before/after renders in the handoff). Never run two lavapipe renders at once: each city is
+  (before/after renders in the handoff).
+  **Palms carry a hand-built LOD ladder** (`PropFactory.PALM_LEVELS`, 2026-09-27). The
+  simplifier cannot thin a palm - it will not merge separate leaflet cards - so its LODs stopped
+  at ~10k of ~24k triangles and reported ~1.6 m of error, which the renderer only accepts past
+  ~560 m at 960 px: every palm in the city drew at full detail, and MacArthur Park's ring (in the
+  LOD chunks) cost ~2 M triangles from the masjid. Each level is the same tree from the same
+  random stream with `stride` neighbouring leaflets merged into one blade of the same area,
+  fewer leaflet segments, a coarser trunk, and the boots, coconuts and rib dropped far out
+  (22.6-27k, 8-10k, 4-5k, ~500 and ~200 triangles). All levels share one vertex buffer, the
+  coarser ones as the LODs, each at an `edge` that is its real geometric departure in metres, so
+  Godot switches them under a pixel by its own rule; the shadow twin is the same ladder from
+  `PALM_SHADOW_LEVEL` (1). The smoke test checks every level's crown extents, leaf area and tone
+  against level 0, and `PALM_AB=1` on `still_shot.gd` renders the same frame again with
+  full-detail palms (`<OUT>_palmfull.png`). Frames -7 to -23 % at the bookmarks, same draws
+  (HANDOFF 9aa). **Foliage batches split into distance cells were tried and measured worse**
+  (the wt/tree-lod WIP, 69c6662): the cells drew +650 k triangles and +54 draws on the freeway
+  bookmark against the same batches whole (a whole batch's LOD distance is not its box's
+  nearest point, and a block-wide box usually ends up coarser than per-tree), and nothing on
+  the other bookmarks. Do not bring it back without a `GEO` A/B. Never run two lavapipe renders at once: each city is
   6-7 GB of RAM and the box has 16. Occlusion culling is on
   (`rendering/occlusion_culling/use_occlusion_culling`): one `OccluderInstance3D` per chunk made
   of its building boxes (`CityChunk._build_occluder()`), inset by `OCCLUDER_INSET` so it never
