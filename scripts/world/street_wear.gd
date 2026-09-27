@@ -198,6 +198,11 @@ static func _put(ctx: Dictionary, mode: int, cell: int, center: Vector3, right: 
 ## width, which only matters for the bend).
 static func _put_basis(ctx: Dictionary, mode: int, cell: int, center: Vector3, basis: Basis, color: Color, pal: int, tear: int,
 		seed01: float, bend: float = 0.0) -> int:
+	# The cap holds here, where every piece is added: _ok() checks it before a run starts, but a
+	# run of layered pieces (grime lengths, a buffed patch and its new tags, a pole's flyers) can
+	# carry a chunk a few past it. -1 is "not placed" (hide_instance() ignores it).
+	if int(ctx.count) >= (MAX_PER_CHUNK if full_detail else MAX_PER_CHUNK / 2):
+		return -1
 	var chunk: CityChunk = ctx.chunk
 	var at := center - Vector3(0.0, chunk._gy(center.x, center.z), 0.0)
 	var custom := Color(float(mode * 100 + cell), seed01, bend, float(pal + 16 * clampi(tear, 0, 7)))
@@ -737,7 +742,8 @@ static func _props(ctx: Dictionary, edges: Array, district: int) -> void:
 				return 0.098 - 0.0152 * y if kind == "lamp" else 0.168 - 0.05 * (y - 0.44) / 7.1
 			added = _pole(ctx, rng, pos, radius, mean * rng.randf_range(0.4, 1.6), kind == "lamp")
 		for index: int in added:
-			(r.instances as Array).append([KEY, index])
+			if index >= 0:
+				(r.instances as Array).append([KEY, index])
 
 
 ## Stickers (and now and then a flyer or a small tag) round a pole whose foot is at `foot` (true
