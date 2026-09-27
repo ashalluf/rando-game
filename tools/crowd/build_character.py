@@ -311,6 +311,29 @@ if cover:
         if any(v.index in keep_v for v in f.verts):
             ring.update(v.index for v in f.verts)
     kill = [f for f in bm.faces if not any(v.index in ring for v in f.verts)]
+    # The covered skin that is kept (the ring inside each garment edge, and what a V-neck or an
+    # open collar keeps under its panels) is tucked in a few millimetres: it sat 5 mm under the
+    # shirt, and a walk's chest and shoulder turn pushed skin triangles out through the shirt
+    # as pale slivers on the chest. The tuck is a SMOOTH field (the covered flag averaged over
+    # `cover_tuck_smooth` neighbour passes), never a step at the garment edge: moved as a step,
+    # every neckline, cuff and hem became a 6 mm crease, the importer's LODs kept far more
+    # triangles to hold it, and the downtown crowd drew 46 % more (355k -> 519k).
+    tuck = CFG.get("cover_tuck", 0.006)
+    passes = CFG.get("cover_tuck_smooth", 4)
+    tucked = 0
+    if tuck > 0.0:
+        wt = [1.0 if c else 0.0 for c in covered]
+        nbr = [[e.other_vert(v).index for e in v.link_edges] for v in bm.verts]
+        for _i in range(passes):
+            wt = [0.5 * wt[i] + 0.5 * (sum(wt[j] for j in nb) / len(nb) if nb else wt[i]) for i, nb in enumerate(nbr)]
+        inv = body.matrix_world.inverted()
+        for v in bm.verts:
+            if wt[v.index] > 0.01 and v.index in ring:
+                w = body.matrix_world @ v.co
+                n = (body.matrix_world.to_3x3() @ v.normal).normalized()
+                v.co = inv @ (w - n * tuck * wt[v.index])
+                tucked += 1
+    print("CROWD tucked %d skin vertices up to %.1f mm under the garments (smooth, %d passes)" % (tucked, tuck * 1000, passes))
     before = len(bm.faces)
     bmesh.ops.delete(bm, geom=kill, context='FACES')
     loose = [v for v in bm.verts if not v.link_faces]

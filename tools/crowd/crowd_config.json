@@ -469,6 +469,7 @@
   {
    "name": "crowd_j",
    "about": "white man in his fifties, heavy, close-cropped: denim shirt, jeans, brown shoes",
+   "cover_tuck": 0.014,
    "phenotype": {
     "gender": 1.0,
     "age": 0.76,

@@ -1618,6 +1618,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   cornea (`eye_roughness`). Skin gets Forward+ subsurface scattering (`skin_sss`,
   `Pedestrian.CROWD_SKIN_SSS`; `sss_mode_skin`, the Compatibility renderer ignores it) and a warm
   `skin_backlight`. A crop without a hair mesh gets a 512 px hair atlas (brows and lashes).
+  The photo's skin relief is on the head only (on the body it was JPEG noise turned into lumpy
+  skin). Brows are shaded round the hair colour from their own mean and their fringe is let
+  through the cut coloured toward the skin (`BROW_*` in crowd_atlas.py): cut as they came, every
+  brow was a solid near-black bar. crowd_atlas.py re-reads the config's look keys (`_LOOK`), so
+  `FROM=crowd_atlas tools/crowd/build.sh` is enough after a change to them - before, the atlas
+  plan's copy from the last Blender run won and a tuned `skin_normal_strength` never landed.
+  The covered skin that is kept (the ring inside each garment edge, the chest under a V-neck or
+  an open collar) is tucked up to `cover_tuck` (6 mm; 14 mm on crowd_j) in along its normal by
+  `build_character.py`: at 5 mm under the shirt, a walk's chest turn pushed skin triangles out
+  as pale slivers. **The tuck is a smooth field** (the covered flag averaged over
+  `cover_tuck_smooth` neighbour passes): moved as a step it made every neckline, cuff and hem a
+  crease, the importer's LODs held far more triangles for it and the downtown crowd drew 46 %
+  more (355k -> 519k); smoothed it measures flat. Anything else that reshapes a crowd body must
+  stay smooth for the same reason - measure the pedestrians' `SPLIT=1` line after it.
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):

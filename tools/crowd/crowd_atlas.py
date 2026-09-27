@@ -28,8 +28,21 @@ import texlib as T  # noqa: E402
 
 NAME = sys.argv[1]
 PLAN = json.load(open(C.work(NAME, "atlas.json")))
+# The look keys are read again from crowd_config.json, so `FROM=crowd_atlas tools/crowd/build.sh`
+# picks up a change to them without the Blender step. (Until this, the plan's copy from the last
+# Blender build won and a tuned skin_normal_strength never reached the atlas.) Stubble or a beard
+# on someone who had neither needs the full build: the beard zone is found in Blender.
+_LOOK = ("hair_rgb", "skin", "skin_blend", "skin_tone", "skin_normal_strength", "garment_ao", "dye",
+         "dye_contrast", "stubble", "beard", "beard_rgb")
+_CFG = C.character(NAME)
+for _k in _LOOK:
+    if _k in _CFG:
+        PLAN[_k] = _CFG[_k]
 PAD = PLAN["pad"]
 _cache = {}
+BROW_DARKEN = 0.8      # a brow's mean against the hair colour
+BROW_ALPHA_GAIN = 1.7  # the fringe let through the hair's cut (crowd_hair.gdshader alpha_cut 0.42)
+BROW_SOLID = 0.75      # source alpha from which a brow texel is all brow; below it, toward the skin
 
 
 def skin_source():
@@ -131,7 +144,7 @@ def compose(rects, size, what, mode, background):
 def skin_relief(alb, cov_skin, strength):
     """Height from the skin photo's own fine detail (a band-pass of its luminance) -> normal."""
     lum = alb[..., :3].mean(-1)
-    hp = T.blur(lum, 1.0) - T.blur(lum, 5.0)
+    hp = T.blur(lum, 1.6) - T.blur(lum, 6.0)
     return T.height_to_normal(hp * cov_skin, strength * 40.0)
 
 
@@ -299,12 +312,17 @@ T.save(alb, C.work(NAME, "body.jpg"), None, 92)
 
 nrm_img, _ = compose(PLAN["body"], S, "normal", "RGB", (128, 128, 255))
 nrm = np.asarray(nrm_img).astype(np.float32) / 255.0 * 2.0 - 1.0
+# The photo's own relief on the head only (creases, the lips, the ears); on the body it was JPEG
+# noise amplified into lumpy skin. The body's skin is flat here and gets the tiling pores.
 cov_skin = np.zeros((S, S), np.float32)
+cov_head = np.zeros((S, S), np.float32)
 for r in PLAN["body"]:
     if r["kind"] == "skin":
         dx, dy = r["dest"]
         cov_skin[dy:dy + r["h"], dx:dx + r["w"]] = 1.0
-relief = skin_relief(np.asarray(body).astype(np.float32) / 255.0, cov_skin, PLAN["skin_normal_strength"])
+        if r["part"] == "skin_head":
+            cov_head[dy:dy + r["h"], dx:dx + r["w"]] = 1.0
+relief = skin_relief(np.asarray(body).astype(np.float32) / 255.0, cov_head, PLAN["skin_normal_strength"])
 sk = cov_skin[..., None] > 0.5
 nrm = np.where(sk, relief, nrm)
 nrm /= np.linalg.norm(nrm, axis=-1, keepdims=True) + 1e-6
@@ -338,10 +356,37 @@ if PLAN["hair"]:
         dyed_rgb = np.clip(np.array(PLAN["hair_rgb"], np.float32) / 255.0 * shade, 0.0, 1.0)
         take = np.zeros(a.shape[:2], bool)
         for r in PLAN["hair"]:
-            if r["kind"] in ("hair", "brows"):
+            if r["kind"] == "hair":
                 dx, dy = r["dest"]
                 take[dy:dy + r["h"], dx:dx + r["w"]] = True
         a[..., :3] = np.where(take[..., None], dyed_rgb, a[..., :3])
+    # Brows. Cut out at the hair's threshold, a photographed brow came out as a solid near-black
+    # bar (its texels are a third as bright as the hair, and only its dense core passes the cut).
+    # Here each brow is shaded round the hair colour from ITS OWN mean (a redhead's brows are
+    # auburn, a grey head's grey), a little darker than the hair, and its thin fringe is let
+    # through the cut but coloured toward the skin, i.e. the blend the card would have drawn,
+    # baked - so the edge is soft and the hairs thin out instead of stopping.
+    body_skin = np.zeros(alb.shape[:2], bool)
+    for r in PLAN["body"]:
+        if r["kind"] == "skin" and r["part"] != "skin_head":
+            dx, dy = r["dest"]
+            body_skin[dy:dy + r["h"], dx:dx + r["w"]] = True
+    body_skin &= cov
+    skin_rgb = np.median(alb[body_skin], axis=0) if body_skin.any() else np.array([0.7, 0.55, 0.45], np.float32)
+    brow_rgb = np.array(PLAN.get("hair_rgb") or [30, 24, 20], np.float32) / 255.0 * BROW_DARKEN
+    for r in PLAN["hair"]:
+        if r["kind"] != "brows":
+            continue
+        dx, dy = r["dest"]
+        s = a[dy:dy + r["h"], dx:dx + r["w"]]
+        lum = s[..., :3] @ np.array([0.299, 0.587, 0.114], np.float32)
+        m = s[..., 3] > 0.3
+        mean = float(lum[m].mean()) if m.any() else 0.1
+        col = np.clip(brow_rgb * np.clip(lum / max(mean, 0.01), 0.55, 1.5)[..., None], 0.0, 1.0)
+        al = np.clip(s[..., 3] * BROW_ALPHA_GAIN, 0.0, 1.0)
+        k = np.clip(s[..., 3] / BROW_SOLID, 0.0, 1.0)[..., None] ** 0.8
+        s[..., :3] = col * k + skin_rgb[None, None, :] * (1.0 - k)
+        s[..., 3] = al
     solid = a[..., 3] > 0.35
     rgb = T.dilate(a[..., :3], solid, 24)
     out = np.concatenate([rgb, a[..., 3:4]], -1)
