@@ -48,6 +48,8 @@ extends SceneTree
 ## like tools/tri_split.gd but on the bookmark's exact frame. MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
+## LIGHT_WORLD=1 loads a smaller world (far city LIGHT_FAR m, default 2500; LOD ring LIGHT_LOD
+## blocks, default 4; fewer people and cars) so a Forward+ still under lavapipe fits in RAM.
 ## HIDE=Ground,Chunk_* hides every node whose name matches (String.match) just before the shot,
 ## to tell which layer a surface belongs to.
 ## PALM_AB=1 prints the same frame's GEO again with every palm at full detail (its level 0 and
@@ -62,7 +64,21 @@ func _initialize() -> void:
 	if OS.get_environment("MERGE_STATIC") == "0":
 		(load("res://scripts/world/city_chunk.gd") as GDScript).set("merge_boxes", false)
 		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("merge_enabled", false)
-	change_scene_to_file("res://scenes/levels/city.tscn")
+	if OS.get_environment("LIGHT_WORLD") == "1":
+		# A smaller world for Forward+ (lavapipe) stills: a whole city under lavapipe grows past
+		# the box's RAM (killed at 12 GB, HIGH and MEDIUM alike), so the far city, the LOD ring
+		# and the crowd and traffic caps come down before the streamer's _ready builds anything.
+		var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
+		city.set("far_city_radius", _env_float("LIGHT_FAR", 2500.0))
+		city.set("far_city_immediate_radius", _env_float("LIGHT_FAR", 2500.0))
+		city.set("lod_radius_blocks", _env_int("LIGHT_LOD", 4))
+		city.set("keep_radius_blocks", _env_int("LIGHT_LOD", 4))
+		city.set("max_pedestrians", 160)
+		city.set("traffic_cars", 40)
+		root.add_child.call_deferred(city)
+		set_deferred("current_scene", city)
+	else:
+		change_scene_to_file("res://scenes/levels/city.tscn")
 	var frames := _env_int("FRAMES", 30)
 	var hold := Vector3.INF
 	for arg in OS.get_cmdline_user_args():
