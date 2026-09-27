@@ -28,10 +28,12 @@ func run(t: Node, city: Node3D) -> void:
 
 
 func _downtown(city: Node3D, plan: CityPlan) -> void:
-	var centre := plan.block_index_at(Vector2(589.0, 860.0))
+	# Round the map's downtown anchor, and wide: the 1:1 re-lay put the civic sites, the park and
+	# the towers' blocks where the old bookmark's block ring was.
+	var centre := plan.block_index_at(plan.macro.downtown_center if plan.macro else Vector2(589.0, 860.0))
 	var keys: Array[Vector2i] = []
-	for dz in range(-2, 3):
-		for dx in range(-2, 3):
+	for dz in range(-5, 6):
+		for dx in range(-5, 6):
 			var k := centre + Vector2i(dx, dz)
 			var b := plan.block(k.x, k.y)
 			if int(b.district) == CityPlan.District.DOWNTOWN and int(b.kind) == CityPlan.BlockKind.BUILDINGS and not b.has("site") \

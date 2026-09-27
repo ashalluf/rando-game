@@ -309,7 +309,7 @@ func begin_build() -> void:
 			# can hold a slice of its sea cliffs, which nobody built - the hill chunk next door
 			# ended in a straight wall of terrain along the chunk line.
 			if _headland_shore(true):
-				_steps.append(_build_terrain)
+				_steps.append_array([_sample_terrain, _build_terrain])
 			# The waterline does not respect the zone grid: a chunk whose centre is out to sea
 			# can still have the shore running through its landward edge, and before this those
 			# bands showed as dark gaps between one beach and the next.
@@ -1028,6 +1028,11 @@ func _sample_terrain() -> bool:
 
 
 func _build_terrain() -> void:
+	# Its heights come from _sample_terrain, a step of its own before it; run it here if a
+	# caller only listed this one.
+	if _tile_heights.is_empty() or _tile_row <= _tile_n:
+		while not _sample_terrain():
+			pass
 	var area := owned_rect()
 	var n := _tile_n
 	var heights := _tile_heights
