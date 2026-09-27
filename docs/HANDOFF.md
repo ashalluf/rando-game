@@ -28,6 +28,12 @@ merged into one branch and gated together (499 checks) before the push:
 - **Downtown 1:1 re-lay, port on San Pedro Bay, freeways clear of buildings, arena district**
   (9ad, owner ask #3): the embayment shift now lives in `MacroMap._range_heights_at()` so it
   applies under the erosion. Arena district +9-18 % triangles there.
+- **Later the same day** (local, after the merge): the erosion no longer pinches every summit
+  into a star (`_erode()` amplitude goes to zero with the base slope, each finer order fades
+  where the coarser walls cancel the slope; same in `erosion.gdshaderinc`). The far ground's
+  dark shell over the near hill tiles was traced with debug renders in a separate worktree
+  (`HIDE=Ground`, the plane's and the tiles' albedo / normals / coverage emitted as colour):
+  see 9ab's follow-up note for what it turned out to be.
 Tools added: `tools/terrain_preview/` (mountains top-down in seconds), still_shot `HIDE=`.
 Cloud sessions cannot be messaged back; read their state with get_session and their shots
 branches. Pushes were blocked by the auto-mode safety check until the owner said to push.
