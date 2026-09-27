@@ -2216,6 +2216,65 @@ func _build_plaza(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	for dx: float in [-1.0, 1.0]:
 		for dz: float in [-1.0, 1.0]:
 			_add_lamp(Vector3(center.x + dx * inner.size.x * 0.3, SIDEWALK_TOP + 0.04, center.y + dz * inner.size.y * 0.3))
+	_furnish_plaza(inner, basin_r)
+
+
+## A whole block of paving round one fountain read as an empty tan square from the street and
+## the air. So the plaza gets what real ones have: a raised planting bed in each quadrant (ground
+## cover, shrubs, a tree or two), a row of trees in grates down the promenade along each long
+## side, and benches facing the beds. Everything from a private rng (after the block rng's own
+## rolls above), so no roll the chunk made before moves, and nothing inside `keep` of the
+## fountain's ring or of the four lamps.
+func _furnish_plaza(inner: Rect2, basin_r: float) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([plan.seed, ix, iz, "plaza_furniture"])
+	var center := inner.get_center()
+	var keep := basin_r + 9.0
+	var curb := Color(0.62, 0.6, 0.56)
+	var lawn := PropFactory.lawn(Color(0.40, 0.52, 0.24), hash([plan.seed, ix, iz, "plaza_bed"]), 0.2, 0.0)
+	# The beds: one per quadrant, between the fountain's ring and the promenade.
+	var bw := clampf(inner.size.x * 0.24, 8.0, 26.0)
+	var bd := clampf(inner.size.y * 0.24, 8.0, 26.0)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			var off := Vector2(sx * maxf(keep + bw * 0.5, inner.size.x * 0.26), sz * maxf(keep * 0.7 + bd * 0.5, inner.size.y * 0.26))
+			var c := center + off
+			var bed := Rect2(c - Vector2(bw, bd) * 0.5, Vector2(bw, bd))
+			if not inner.grow(-7.0).encloses(bed):
+				continue
+			# A low stone curb round a lawn, 45 cm up, which you can sit on.
+			for e in 4:
+				var horiz := e < 2
+				var side_len := bw if horiz else bd
+				var pos := c + (Vector2(0.0, (bd * 0.5) * (1.0 if e == 0 else -1.0)) if horiz else Vector2((bw * 0.5) * (1.0 if e == 2 else -1.0), 0.0))
+				_add_slab(Vector3(pos.x, SIDEWALK_TOP + 0.22, pos.y), Vector3(side_len + 0.5 if horiz else 0.5, 0.45, 0.5 if horiz else side_len + 0.5), curb)
+			_add_slab(Vector3(c.x, SIDEWALK_TOP + 0.4, c.y), Vector3(bw - 0.5, 0.04, bd - 0.5), style.grass, false, lawn)
+			var inside := bed.grow(-1.2)
+			_scatter_ground_cover(inside, rng, 0.8)
+			for i in clampi(int(bw * bd / 40.0), 2, 10):
+				var p := Vector2(rng.randf_range(inside.position.x, inside.end.x), rng.randf_range(inside.position.y, inside.end.y))
+				_add_bush(Vector3(p.x, SIDEWALK_TOP + 0.42, p.y), rng)
+			var trees := 1 if bw * bd < 200.0 else 2
+			for i in trees:
+				var p := inside.get_center() + Vector2(rng.randf_range(-0.25, 0.25) * inside.size.x, rng.randf_range(-0.25, 0.25) * inside.size.y)
+				_add_tree(Vector3(p.x, SIDEWALK_TOP + 0.42, p.y), rng)
+			# Benches along the bed's side that faces the fountain.
+			var face := Vector2(0.0, -sz)
+			var edge_p := c + Vector2(0.0, -sz * (bd * 0.5 + 1.4))
+			for k in 2:
+				var bp := edge_p + Vector2((float(k) - 0.5) * bw * 0.5, 0.0)
+				_add_bench(Vector3(bp.x, SIDEWALK_TOP + 0.04, bp.y), atan2(-face.x, -face.y))
+	# Trees in grates down the promenade along the two long sides.
+	var long_x := inner.size.x >= inner.size.y
+	var run := inner.size.x if long_x else inner.size.y
+	var n := int((run - 16.0) / PLAZA_TREE_STEP)
+	for side: float in [-1.0, 1.0]:
+		for i in n:
+			var t := -run * 0.5 + 8.0 + (float(i) + 0.5) * (run - 16.0) / float(maxi(n, 1))
+			var across := ((inner.size.y if long_x else inner.size.x) * 0.5 - 4.5) * side
+			var p := center + (Vector2(t, across) if long_x else Vector2(across, t))
+			_batch.add("tree_grate", PropFactory.box("tree_grate", Vector3(1.6, 0.03, 1.6), Color(0.12, 0.12, 0.13)), Transform3D(Basis(), Vector3(p.x, SIDEWALK_TOP + 0.045, p.y)))
+			_add_tree(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), rng)
 
 
 func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGenerator, block_district: int = 0) -> void:
@@ -3024,6 +3083,8 @@ const TREE_FREEWAY_MARGIN := 5.0
 ## shrub per this many square metres of it.
 const CORRIDOR_IVY := Color(0.27, 0.40, 0.17)
 const CORRIDOR_SHRUB_AREA := 55.0
+## Metres between the trees down a plaza's promenades (_furnish_plaza).
+const PLAZA_TREE_STEP := 9.0
 const PALM_FREEWAY_MARGIN := 2.0
 
 ## True where the freeway deck flies over, plus `margin` metres either side.
