@@ -32,14 +32,18 @@ var frame_seconds: float = 1.0 / 60.0
 var cut: bool = false
 ## A camera that moves further than this in one frame is taken as a cut (metres).
 var max_camera_jump: float = 30.0
-## True paints each pixel's blur as a colour instead (red / green = its x / y streak, blue = its
-## tile's): the proof that the velocities are what they should be.
-var debug_view: bool = false
+## 1 paints each pixel's blur as a colour instead (red / green = its x / y streak, blue = its
+## tile's); 2 paints the linear depth (red), the engine's own velocity (green) and the sky
+## (blue). The proof that the inputs are what they should be.
+var debug_view: int = 0
 
 ## True once the kernels compiled; false on a renderer without a RenderingDevice.
 var ready: bool = false
-## Frames the effect actually blurred (tests and tools read it).
+## Frames the effect actually blurred, and how far (metres) and how much (radians) the camera
+## moved into the last one: tools print them.
 var frames_drawn: int = 0
+var last_moved: float = 0.0
+var last_turned: float = 0.0
 
 var _rd: RenderingDevice
 var _shaders: Array[RID] = []
@@ -116,6 +120,8 @@ func _render_callback(_callback_type: int, render_data: RenderData) -> void:
 	cam_projection.z.x = 0.0
 	cam_projection.z.y = 0.0
 	var moved := cam_transform.origin.distance_to(_prev_transform.origin)
+	last_moved = moved
+	last_turned = (_prev_transform.basis.inverse() * cam_transform.basis).get_rotation_quaternion().get_angle()
 	var valid := _has_prev and not cut and moved <= max_camera_jump
 	var reprojection := Projection.IDENTITY
 	if valid:
@@ -162,7 +168,7 @@ func _render_callback(_callback_type: int, render_data: RenderData) -> void:
 		push.append_array([col.x, col.y, col.z, col.w])
 	push.append_array([float(size.x), float(size.y), scale, threshold_px * res_scale, max_radius,
 			depth_a, depth_b, soft_z, float(clampi(samples, 4, 32)), float(_frame % 1024),
-			1.0, float(tile), 1.0 if debug_view else 0.0, 0.0, 0.0, 0.0])
+			1.0, float(tile), float(debug_view), 0.0, 0.0, 0.0])
 	var push_bytes := push.to_byte_array()
 
 	# One compute list per kernel: the render graph then orders them by the images they share.

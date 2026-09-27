@@ -18,7 +18,8 @@ extends SceneTree
 ## short run shows the effect doing nothing - and TAA needs a few frames to settle), DT the simulated frame time (1/60 by default: a software frame takes
 ## seconds, so the effect is told the frame time the Mac would have), STRENGTH, SHUTTER,
 ## MAX_PX, THRESHOLD, SAMPLES the effect's knobs; DEBUG=1 paints the blur vectors instead
-## (red / green = each pixel's x / y streak, blue = its tile neighbourhood's, all over the cap). With --gpu-profile, prints
+## (red / green = each pixel's x / y streak, blue = its tile neighbourhood's, all over the cap),
+## DEBUG=2 the inputs (red = log distance, green = the engine's velocity, blue = sky). With --gpu-profile, prints
 ## GPU_PROFILE_BEGIN/END round the last SAMPLES_GPU frames for tools/gpu_profile.py.
 ## Prints MB_FRAMES (frames the effect blurred) so a run that silently did nothing shows.
 
@@ -56,7 +57,7 @@ func _initialize() -> void:
 		_effect.max_blur_px = float(_env("MAX_PX", "40"))
 		_effect.threshold_px = float(_env("THRESHOLD", "3"))
 		_effect.samples = int(_env("SAMPLES", "12"))
-		_effect.debug_view = _env("DEBUG", "0") == "1"
+		_effect.debug_view = int(_env("DEBUG", "0"))
 		var compositor := Compositor.new()
 		compositor.compositor_effects = [_effect]
 		_cam.compositor = compositor
@@ -70,16 +71,18 @@ func _initialize() -> void:
 			vp.use_taa = false
 		_:
 			vp.use_taa = true
+	if _env("ENGINE_MV", "0") == "1":
+		vp.debug_draw = Viewport.DEBUG_DRAW_MOTION_VECTORS
 	var dt := float(_env("DT", str(1.0 / 60.0)))
 	var speed := float(_env("SPEED", "45"))
 	var rate := float(_env("RATE", "5"))
 	# Godot compiles the motion-vector pipelines in the background the first time they are
 	# needed, and draws without velocity until they are ready: warm up before judging anything.
-	var frames := int(_env("WARMUP", "30")) + int(_env("FRAMES", "10"))
+	var total := int(_env("WARMUP", "30")) + int(_env("FRAMES", "10"))
 	var gpu_samples := int(_env("SAMPLES_GPU", "4"))
 	var t := 0.0
-	for i in frames:
-		if i == frames - gpu_samples:
+	for i in total:
+		if i == total - gpu_samples:
 			print("GPU_PROFILE_BEGIN")
 		t += dt
 		match mode:
@@ -96,14 +99,18 @@ func _initialize() -> void:
 				_mover.position.x = -30.0 + speed * t
 		if _effect:
 			_effect.frame_seconds = dt
-		await process_frame
+		if i < total - 1:
+			await process_frame
+	# The capture must be the frame drawn from the last move: wait for THIS frame's draw, not
+	# the next process step (a frame drawn after the camera stopped has no velocity at all).
 	await RenderingServer.frame_post_draw
 	print("GPU_PROFILE_END")
 	var img := vp.get_texture().get_image()
 	var out := _env("OUT", "/tmp/motion_blur_shot.png")
 	img.save_png(out)
-	print("MB_FRAMES %d  mode=%s aa=%s mb=%s -> %s" % [_effect.frames_drawn if _effect else -1,
-			mode, _env("AA", "taa"), _env("MB", "1"), out])
+	print("MB_FRAMES %d  mode=%s aa=%s mb=%s moved=%.3f m turned=%.4f rad -> %s" % [
+			_effect.frames_drawn if _effect else -1, mode, _env("AA", "taa"), _env("MB", "1"),
+			_effect.last_moved if _effect else 0.0, _effect.last_turned if _effect else 0.0, out])
 	quit()
 
 

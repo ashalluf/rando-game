@@ -58,7 +58,9 @@ func _initialize() -> void:
 				player.global_position = start + forward * speed * t
 			"whip":
 				rig.call("set_look", yaw + rate * t, pitch)
-		await process_frame
+		if i < total - 1:
+			await process_frame
+	# Capture the frame drawn from the last move (see motion_blur_shot.gd).
 	await RenderingServer.frame_post_draw
 	var img := root.get_texture().get_image()
 	var out := _env("OUT", "/tmp/post_room_shot.png")

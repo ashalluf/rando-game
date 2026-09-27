@@ -43,7 +43,7 @@ layout(push_constant, std430) uniform Params {
 	float frame; // frame counter, moves the noise so TAA integrates it
 	float camera_valid; // 1 when last frame's camera is known (no cut)
 	float tile; // tile size in pixels
-	float debug; // 1 paints each pixel's blur (red / green = x / y, blue = the tile's) instead
+	float debug; // 1 paints the blur vectors, 2 the depth and the engine's own velocity (gather)
 	float pad0;
 	float pad1;
 	float pad2;
@@ -65,6 +65,7 @@ void main() {
 	}
 	float depth = texelFetch(depth_buffer, pos, 0).x;
 	vec2 velocity = imageLoad(velocity_buffer, pos).xy;
+	float engine_px = length(velocity * params.size); // what the engine wrote (debug view 2)
 	vec2 uv = (vec2(pos) + 0.5) / params.size;
 	// No velocity of its own: FSR's (-1, -1) marker, or the sky (depth 0). Take the camera's.
 	if ((velocity.x <= -0.99 && velocity.y <= -0.99) || depth <= 0.0) {
@@ -85,7 +86,7 @@ void main() {
 		radius = vec2(0.0);
 	}
 	float linear_depth = params.depth_b / (depth + params.depth_a);
-	imageStore(blur_image, pos, vec4(radius, linear_depth, 0.0));
+	imageStore(blur_image, pos, vec4(radius, linear_depth, engine_px));
 	imageStore(color_copy, pos, imageLoad(color_image, pos));
 }
 
@@ -219,7 +220,16 @@ void main() {
 	ivec2 tile = clamp(ivec2((vec2(pos) + wobble) / params.tile), ivec2(0), grid - 1);
 	vec2 vn = imageLoad(neighbor_image, tile).xy;
 	float vn_len = length(vn);
+	if (params.debug > 1.5) {
+		// 2: red = log distance (1 m .. 10 km), green = the engine's own velocity (20 px = 1),
+		// blue = sky (depth 0). Tells a missing velocity buffer from a missing depth buffer.
+		vec4 b = imageLoad(blur_image, pos);
+		imageStore(color_image, pos, vec4(clamp(log(max(b.z, 1.0)) / log(10000.0), 0.0, 1.0),
+				clamp(b.w / 20.0, 0.0, 1.0), b.z > params.depth_b / params.depth_a * 0.99 ? 1.0 : 0.0, 1.0));
+		return;
+	}
 	if (params.debug > 0.5) {
+		// 1: red / green = this pixel's streak x / y, blue = its tile neighbourhood's (cap = 1).
 		vec2 own = imageLoad(blur_image, pos).xy / params.max_radius;
 		imageStore(color_image, pos, vec4(abs(own), vn_len / params.max_radius, 1.0));
 		return;
