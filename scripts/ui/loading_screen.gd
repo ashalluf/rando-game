@@ -110,6 +110,14 @@ func run(city: Node3D) -> void:
 	PropFactory.model_chaparral()
 	for v in PropFactory.HILL_OAKS.size():
 		PropFactory.model_hill_oak(v)
+	# Every tree species on its LOD ladder (FoliageLod: thinned copies of the leaf cards and
+	# twigs, 0.1-0.5 s a species on a slow machine), so the first block of one - a hill tree on
+	# the way up a slope - does not pay for it. Most are built already by the blocks round the
+	# spawn; this is the rest.
+	for v in PropFactory.CITY_TREES.size():
+		PropFactory.model_tree(v)
+	for v in PropFactory.HILL_TREES.size():
+		PropFactory.model_hill_tree(v)
 	# Cutting a character's limbs apart takes tens of milliseconds the first time for each
 	# model, which is a hitch on the first rocket into a crowd; here it is part of the wait.
 	var models: Array = Pedestrian.MODELS

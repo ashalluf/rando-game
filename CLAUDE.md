@@ -1596,7 +1596,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   ~90 % of a frame, so it is triangles, not effects; `tools/tri_split.gd` then showed trees were
   the biggest single cost, 2.4 of their 3.2 M triangles in the shadow cascades - a batch takes
   one LOD for every instance from its bounding box (distance 0 while the camera is inside it),
-  so every tree in the blocks around the player went into all four cascades at full detail. Now every imported model and the palms get `PropFactory.shadow_proxy()` - the
+  so every tree in the blocks around the player went into all four cascades at full detail. Now every imported model and the palms get `PropFactory.shadow_proxy()` (the
+  scanned trees' comes from their measured ladder, see below) - the
   coarsest generated LOD that keeps 45 % of a leaf surface or 25 % of anything else, with the
   same materials so cut-out and sway still match - and `MultiMeshBatch.build()` draws it as a
   SHADOWS_ONLY twin (`BatchShadow_<key>`, sharing the instance buffer; `hide_instance()` hides
@@ -1619,7 +1620,40 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   `PALM_SHADOW_LEVEL` (1). The smoke test checks every level's crown extents, leaf area and tone
   against level 0, and `PALM_AB=1` on `still_shot.gd` renders the same frame again with
   full-detail palms (`<OUT>_palmfull.png`). Frames -7 to -23 % at the bookmarks, same draws
-  (HANDOFF 9aa). **Foliage batches split into distance cells were tried and measured worse**
+  (HANDOFF 9aa). **The scanned trees carry measured ladders** (`FoliageLod`,
+  `scripts/world/foliage_lod.gd`, 2026-09-27, roadmap #36). `generate_lods()`'s errors on the Poly
+  Haven trees were wrong both ways: the trunks and the jacaranda's 30k-triangle twig cards said
+  3-10 times their real departure and never switched, while the leaf cards said 7-24 cm as the
+  simplifier DELETED cards (tree_a's leaves kept 71 % of their cover at the first LOD and 0 % at
+  the last, from ~85 m at 960 px: canopies thinned and went bare with distance, and so did their
+  old shadow stand-ins). Now each of `PropFactory.foliage_ladder_files()` (CITY_TREES and
+  HILL_TREES at full size; the budgeted chaparral and gully oaks and the knee-high plants keep
+  the generated LODs - for those a cover-keeping ladder measured MORE expensive) gets, per
+  surface, a ladder from a table (`scripts/world/foliage_lod_table.gd`) that
+  `tools/foliage_lods.gd` measures and writes: the candidates are the generated levels and
+  THINNED copies of surfaces made of many small pieces (every stride-th leaf card or twig in
+  Morton order, the phase that keeps the tone, each grown so the level's textured cover - area
+  times the atlas cut-out - is exactly level 0's, slid back inside the surface's bounds; limbs
+  never thinned); each is measured by exact point-to-triangle distance both ways, its edge is
+  the larger 98th percentile, a leaf surface may not lose 15 % of its cover, a thinned level may
+  not move its 1 %/99 % outline more than its edge, and the trade-off front is kept. One vertex
+  buffer per surface, the coarser levels its LODs, as the palms. A batch of these scales its LOD
+  edges by its biggest instance (`lod_bias`, `MultiMeshBatch.build()`: a batch picks its LOD
+  from the node's scale only; street trees are planted at 0.5-1.5x, landmark groves up to
+  3.6x); the shadow twin starts at the coarsest level under `FoliageLod.SHADOW_EDGE` (0.22 m at
+  the species' tallest street planting, `PropFactory.foliage_planted_scale()`) and runs at
+  `SHADOW_LOD_SCALE` (0.5) of the batch's bias (a 0.9-degree sun gives a crown a 10-20 cm
+  penumbra; the cars' twins run at 0.3). **Re-run `tools/foliage_lods.gd` (about five minutes) whenever a tree `.glb` is
+  re-exported or the engine is upgraded**: `FoliageLod.build()` falls back to the generated LODs
+  when the table stops matching and `_check_foliage_ladders()` fails. The ladders are warmed on
+  the loading screen (0.1-0.5 s a species here). `TREE_AB=1` on `still_shot.gd` draws the same
+  frame on the old meshes (`<OUT>_treeold.png`) and prints `TRUE` lines (every instance counted,
+  see measurement trap 3); `TREE_AB=2` adds per-species and shadow-bias parts. Trees, every
+  instance counted: downtown noon 5.47 -> 3.41 M (-38 %), freeway 11.38 -> 8.80 M (-23 %),
+  masjid 8.11 -> 5.75 M (-29 %), camera pass -34 to -44 %, same draws (the engine's GEO, which
+  counts a LOD'd batch as one instance: -3.5 to -4.2 % of the whole frame; HANDOFF 9af); and the
+  crowns 60-200 m away that the old leaf LODs had stripped to bare twigs are back.
+  **Foliage batches split into distance cells were tried and measured worse**
   (the wt/tree-lod WIP, 69c6662): the cells drew +650 k triangles and +54 draws on the freeway
   bookmark against the same batches whole (a whole batch's LOD distance is not its box's
   nearest point, and a block-wide box usually ends up coarser than per-tree), and nothing on
@@ -1740,7 +1774,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
   window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
   plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.
-- **Two measurement traps, each of which has already cost a session.** Both fail by reporting
+- **Three measurement traps, each of which has already cost a session.** All fail by reporting
   success, which is the worst way to fail.
   1. **Godot serves a CACHED import of a `.glb`.** Rebuild a model, render it, and you are
      looking at the *old* file. Run `godot --headless --path . --import` between writing the
@@ -1750,7 +1784,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
      exactly zero - `RENDER_TOTAL_PRIMITIVES_IN_FRAME`, draw calls, objects, all of them. A
      geometry change of any size measures as no change at all. `MultiMesh.get_instance_transform()`
      is the same trap: it returns identity under `--headless`, so a check that reads instance
-     transforms back out measures nothing and reports a clean bill of health.
+     transforms back out measures nothing and reports a clean bill of health (and a MultiMesh's
+     box is empty there, and its `buffer` reads back empty).
+  3. **The renderer's triangle counter does not count MultiMesh instances the same way twice.**
+     Compatibility adds a surface that HAS LODs once per draw call, whatever its instance count,
+     and a surface with NO LODs once per instance (`rasterizer_scene_gles3.cpp`,
+     `_fill_render_list`). So every LOD'd batch - trees, palms, street props - counts as ONE
+     instance in `GEO` / `SPLIT` / the HUD, and a change that gives a surface its first LOD, or
+     takes its last one away, moves the count by the batch's instance count while the GPU does
+     the same work (Forward+ does the same). It cost the tree-LOD pass (HANDOFF 9af) a false
+     +2.5 M on the freeway bookmark; the tree ladders now end every surface with a copy of its
+     last level at an edge nothing reaches (`FoliageLod.COUNTER_EDGE`) so they count like
+     every other LOD'd batch. Compare foliage with `TREE_AB` on `still_shot.gd`, whose `TRUE`
+     lines count every instance at the LOD the renderer picks (frustum-culled, shadows per
+     cascade).
   `tools/geo_count.gd` counts triangles, draw calls and objects for one frame and has the working
   invocation in its header: it must run under `--rendering-driver opengl3` with Xvfb, never
   `--headless`. `AB=Batch_sig_*,BatchShadow_sig_*` counts the same frozen frame again with the

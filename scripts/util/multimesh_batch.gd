@@ -83,6 +83,16 @@ func build(parent: Node3D) -> Dictionary:
 		var node := MultiMeshInstance3D.new()
 		node.name = "Batch_" + key
 		node.multimesh = mm
+		# A batch picks its LOD from the node's scale, never its instances', so a mesh whose LOD
+		# edges are measured metres (the scanned plants' ladders, FoliageLod) is only honest for
+		# instances at their native size. Street trees are planted at up to 1.5x, the jacaranda at
+		# 0.5-0.67x and the landmark groves' at up to 3.6x: scale the edges by the batch's biggest.
+		if (batch.mesh as Mesh).has_meta("foliage_ladder"):
+			var biggest := 0.0
+			for x: Transform3D in xforms:
+				var sc := x.basis.get_scale()
+				biggest = maxf(biggest, maxf(sc.x, maxf(sc.y, sc.z)))
+			node.lod_bias = maxf(biggest, 0.01)
 		# Foliage casts its shadow from a lighter twin (PropFactory.shadow_proxy()): same
 		# instances, same materials, a quarter of the triangles, drawn into the shadow maps only.
 		var proxy: Mesh = null if batch.no_shadow else PropFactory.shadow_proxy(batch.mesh)
@@ -105,6 +115,7 @@ func build(parent: Node3D) -> Dictionary:
 			twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 			# The tree itself already feeds the global illumination; this is only its shadow.
 			twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+			twin.lod_bias = node.lod_bias * (FoliageLod.SHADOW_LOD_SCALE if (batch.mesh as Mesh).has_meta("foliage_ladder") else 1.0)
 			var shadow_distance: float = batch.get("shadow_distance", 0.0)
 			_set_draw_distance(twin, minf(draw_distance, shadow_distance) if draw_distance > 0.0 and shadow_distance > 0.0 else maxf(draw_distance, shadow_distance))
 			parent.add_child(twin)
