@@ -122,6 +122,10 @@ uniform float rock_slope_start : hint_range(0.0, 1.0) = 0.24;
 uniform float rock_slope_end : hint_range(0.0, 1.0) = 0.60;
 // How much of a hillside the chaparral covers.
 uniform float scrub_amount : hint_range(0.0, 1.0) = 0.70;
+// How much more of it the north-facing slopes carry, and how much less the south ones: the shaded
+// side of a Californian hill is brush and the sunny side grass (terrain.gdshader's north_brush,
+// which the near hills and their planting use).
+uniform float north_scrub : hint_range(0.0, 0.5) = 0.2;
 // How strongly the drainage lines green up and darken the gullies.
 uniform float gully_amount : hint_range(0.0, 1.0) = 0.55;
 // Metres above sea level the snow line sits.
@@ -313,7 +317,8 @@ void fragment() {
 			// Chaparral: one dominant scrub patch per hillside rather than an even sprinkle,
 			// over parched grass. Southern California, so gold and olive over grey rock.
 			float clump = vnoise(w * 0.0042) * 0.65 + vnoise(w * 0.019) * 0.35;
-			float scrub = smoothstep(0.34, 0.68, clump) * scrub_amount;
+			float north = -n.z / max(length(n.xz), 0.001) * smoothstep(0.02, 0.12, slope);
+			float scrub = smoothstep(0.34, 0.68, clump + north * north_scrub) * scrub_amount;
 			vec3 nat = mix(dry_grass_color, scrub_color, scrub);
 			// Individual bushes, but only once they are bigger than a couple of pixels.
 			float bush = smoothstep(7.0, 2.0, fp) * smoothstep(0.45, 0.85, vnoise(w * 0.33));
