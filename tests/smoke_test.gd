@@ -1393,6 +1393,18 @@ func _test_city() -> void:
 			weather._process(0.1)
 		_check(not weather._rain.emitting, "clear weather turns the rain off")
 		_check(weather.drying > 0.0, "the streets start drying unevenly once the rain stops (drying %.2f)" % weather.drying)
+		var spray = weather.get_node_or_null("TyreSpray")
+		_check(spray != null, "Weather builds the tyre spray pool")
+		if spray:
+			spray.wetness = 1.0
+			spray._scan(1.0)
+			spray._process(0.016)
+			spray.wetness = 0.0
+			spray._process(0.3)
+			var dry_quiet := true
+			for p in spray._pool:
+				dry_quiet = dry_quiet and not p.emitting
+			_check(dry_quiet, "no tyre spray on a dry street")
 	# Ground surfaces are textured: either a triplanar PBR material or the road/pavement wear
 	# shader, which carries its own albedo texture.
 	var road_textured := false

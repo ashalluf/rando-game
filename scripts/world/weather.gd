@@ -95,11 +95,15 @@ var wetness: float = 0.0
 ## the `road_drying` global). Only the SHAPE of the wetness changes with it; how much water is
 ## left is still `wetness`.
 var drying: float = 0.0
+## `--wetness=` holds the streets at that wetness (and its drying state) for stills; -1 is off.
+var _wet_hold: float = -1.0
 var _previous: State = State.CLEAR
 var _timer: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var _rain: CPUParticles3D
 var _splash: CPUParticles3D
+## Spray behind the tyres of cars on a wet street (TyreSpray).
+var _spray: TyreSpray
 var _curtain: MeshInstance3D
 var _curtain_mat: ShaderMaterial
 var _lens: CanvasLayer
@@ -153,6 +157,9 @@ func _ready() -> void:
 	_push_ocean_shape.call_deferred()
 	_build_rain()
 	_build_splashes()
+	_spray = TyreSpray.new()
+	_spray.name = "TyreSpray"
+	add_child(_spray)
 	_build_curtain()
 	_build_lens()
 	_build_flash_light()
@@ -167,8 +174,11 @@ func _ready() -> void:
 	var forced_wet := _wetness_override()
 	if forced_wet >= 0.0:
 		wetness = forced_wet
+		# Held there: a still's loading frames are seconds long each, and would dry it at once.
+		_wet_hold = forced_wet
 		drying = 1.0 if forced_wet > _rain_level(state) * 1.2 else 0.0
 	RenderingServer.global_shader_parameter_set("road_drying", drying)
+	RenderingServer.global_shader_parameter_set("rain_intensity", 0.0)
 
 
 func _wetness_override() -> float:
@@ -532,6 +542,9 @@ func _process(delta: float) -> void:
 		# overhead is a white veil over everything.
 		_env.volumetric_fog_density = vol * (_daynight.get("haze_gain") if _daynight else 1.0)
 	wave_scale = waves
+	if absf(rain - rain_level) > 0.001 or (rain == 0.0 and rain_level != 0.0):
+		# Raindrops ringing the puddles and the gutter run (road.gdshader).
+		RenderingServer.global_shader_parameter_set("rain_intensity", rain)
 	rain_level = rain
 	RenderingServer.global_shader_parameter_set("wave_scale", waves)
 	RenderingServer.global_shader_parameter_set("wind_factor", 1.0 + 3.0 * rain + (2.0 if state == State.STORM else 0.0) * blend)
@@ -543,12 +556,19 @@ func _process(delta: float) -> void:
 	# Streets soak through while it rains and dry out slowly afterwards, rather than tracking the
 	# rain instantly: a shower that stops does not leave dry tarmac behind it.
 	var wet_target := clampf(rain * 1.2, 0.0, 1.0)
+	if _wet_hold >= 0.0:
+		wet_target = _wet_hold
 	var soak := delta / maxf(soak_seconds, 0.01) if wet_target > wetness else delta / maxf(dry_seconds, 0.01)
 	wetness = move_toward(wetness, wet_target, soak)
 	PropFactory.set_wetness(wetness)
+	if _spray:
+		_spray.wetness = wetness
+		_spray.low_detail = _low_detail
 	# Rain wets a street evenly; once the water is leaving it dries unevenly. Switched over a few
 	# seconds rather than snapped, so a shower that starts again does not flash the street.
 	var drying_target := 1.0 if wet_target < wetness - 0.001 else (0.0 if wet_target > 0.001 else drying)
+	if _wet_hold >= 0.0:
+		drying_target = drying
 	var was_drying := drying
 	drying = move_toward(drying, drying_target, delta / maxf(drying_switch_seconds, 0.01))
 	if absf(drying - was_drying) > 0.0:

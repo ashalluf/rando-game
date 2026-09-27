@@ -2367,6 +2367,26 @@ a band of running water to the end. The rules are in the Road surfaces bullet of
 - **Needs the Mac.** On Forward+ the gutter band and the drying puddles go through SSR: check the
   kerb water mirrors the shopfronts without a hard seam, and that the drying street at night
   still holds the lit windows in its puddles.
+- **Finished 2026-09-27** (the branch above was an ungated WIP; this pass gated it and added):
+  - `--wetness=` did nothing in a still: the loading frames are seconds long each and dried the
+    street before the first frame. It now HOLDS the wetness and drying state (`_wet_hold`).
+  - Raindrop rings in the puddles and the gutter while it rains (`rain_intensity` global,
+    `rain_ripples()` in road.gdshader). The normal is now a slope sum (asphalt + gutter flow +
+    rings) with `NORMAL_MAP_DEPTH` 1; a dry street measures the same as main.
+  - The night city in the water (`mirrored_city()`): puddles at your feet mirror what is above
+    the frame, which SSR cannot see, so on every renderer they were black. Emitted by Fresnel
+    and `lamp_factor`; on Forward+ at `mirror_forward` 0.5 because SSR adds on top. The wet film
+    gets only sparse shop-front streaks - the first version streaked every front and combed the
+    whole street with even stripes.
+  - Tyre spray (`TyreSpray`, a pool of 6 mist emitters Weather hands to the fastest cars near the
+    player on a wet street). Judged only in a stand-in scene (`build/`, not committed): a faint
+    veil behind the car. Needs the Mac at speed.
+  - Cost: `tools/road_cost.gd` (one full-screen street slab, llvmpipe, ratios only). The WIP as
+    left was +40 % on a wet road fragment against main's wet road; skipping the gutter noise and
+    run-off fetch away from the kerb and the wheel-track noise outside the travel lanes brought
+    it to raining +10 %, drying +8 %, night rain +18 % (the mirror is the extra 8 %); a dry
+    street costs what main's does. Geometry: none (GEO lines equal within streaming noise).
+  - Shots: branch `shots/wet` (before/after sheets and a README).
 
 ## 10. Suggested next steps, in order of impact
 

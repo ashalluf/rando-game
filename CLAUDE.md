@@ -1494,7 +1494,26 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   and replica pieces get the noise alone. All of it is behind `ground_detail` (the web and low
   levels keep the even look) and `road_wetness` > 0.01 (nothing runs on a dry street; set_wetness
   always pushes the final 0). Force it for stills with `--wetness=0.45 --weather=clear` (web
-  `wetness=`), which starts that wet and already drying.
+  `wetness=`), which starts that wet and already drying and HOLDS it there (`Weather._wet_hold`:
+  a still's loading frames are seconds long each and dried the street before the first frame).
+  **Rain rings the standing water**: while `rain_intensity` (a global, Weather's `rain_level`)
+  is up, puddles and the gutter run get three offset layers of expanding raindrop rings in the
+  normal (`rain_ripples()`, `ripple_*`), faded out once a ring is under a few pixels.
+  **At night the water mirrors a city**: SSR only mirrors what is on screen, and a puddle at
+  your feet mirrors the facades above the frame, so it fell back to the night sky and read as a
+  black hole (the web and the low levels have no SSR at all). `mirrored_city()` looks the
+  reflected ray up in a procedural street canyon (lit shop fronts along the foot, office windows
+  above, the roofline) and EMITS it by Fresnel and `lamp_factor`: sharp in puddles and the
+  gutter, and on the wet film only the brighter shop fronts, as streaks toward the viewer
+  broken up by the tarmac (`mirror_*`). Forward+ adds its SSR on top, so there it runs at
+  `mirror_forward` (0.5, via `CURRENT_RENDERER`); it fades out by `mirror_fade` metres. The
+  normal is now built as a slope (`NORMAL_MAP_DEPTH` 1, xy scaled by hand), so mixing the
+  asphalt, the gutter and the rings is a sum; a dry street draws the same as before.
+  `tools/road_cost.gd` times one full-screen street slab in each weather (read the ratios).
+  **Tyre spray**: `TyreSpray` (`scripts/world/tyre_spray.gd`, built by Weather) is a pool of
+  six mist emitters (three on the web, none at LOWEST) handed every `scan_interval` to the
+  fastest grounded cars within `reach` of the player on a wet street, riding each car's rear
+  axle; speed comes from true-world position deltas, so it works for kinematic traffic too.
   Pavements use the same shader with `joints` (expansion-joint spacing in metres) and a lower
   `wear`, so they read as poured slabs rather than a grey plane. It also kills the visible tile
   grid, which is the first thing the eye finds on a plaza or a long pavement: it samples the
