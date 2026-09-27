@@ -14,13 +14,16 @@ extends RefCounted
 ## Everything takes TRUE world XZ, like the shader (`world_pos.xz + world_offset`).
 
 ## terrain.gdshader: how much of the ground is chaparral, and how much more the north faces carry.
-const CHAPARRAL_AMOUNT := 0.66
+const CHAPARRAL_AMOUNT := 0.62
 const NORTH_BRUSH := 0.3
 ## terrain.gdshader: brush in the gullies, grass on the gentle ground, scree and crest rock.
-const DRAIN_BRUSH := 0.3
-const GENTLE_GRASS := 0.4
+const DRAIN_BRUSH := 0.45
+const GENTLE_GRASS := 0.35
 const GULLY_SCREE := 0.5
 const CREST_ROCK := 0.8
+## terrain.gdshader: how much the land decides the stands against the patch noise.
+const TOPO_WEIGHT := 0.8
+const SOUTH_GRASS := 0.08
 ## terrain.gdshader: the slopes (1 - normal.y) where bare dirt and rock take over.
 const DIRT_SLOPE_START := 0.42
 const DIRT_SLOPE_END := 0.62
@@ -35,7 +38,8 @@ const MIRRORED := {
 	"rock_slope_start": ROCK_SLOPE_START, "rock_slope_end": ROCK_SLOPE_END,
 	"trail_amount": TRAIL_AMOUNT,
 	"drain_brush": DRAIN_BRUSH, "gentle_grass": GENTLE_GRASS,
-	"gully_scree": GULLY_SCREE, "crest_rock": CREST_ROCK,
+	"gully_scree": GULLY_SCREE, "crest_rock": CREST_ROCK, "topo_weight": TOPO_WEIGHT,
+	"south_grass": SOUTH_GRASS,
 }
 
 
@@ -90,11 +94,11 @@ static func ground(w: Vector2, grad: Vector2, trails: bool = true, drain: float 
 	var patchy := vnoise(w * 0.011) * 0.65 + vnoise(w * 0.037 + Vector2(13.1, 13.1)) * 0.35
 	var gentle := 1.0 - _smooth(0.06, 0.22, slope)
 	var south := maxf(-north, 0.0)
-	var coverage := CHAPARRAL_AMOUNT + maxf(north, 0.0) * NORTH_BRUSH - south * 0.1 \
+	var coverage := CHAPARRAL_AMOUNT + maxf(north, 0.0) * NORTH_BRUSH - south * SOUTH_GRASS \
 			+ drain * DRAIN_BRUSH - gentle * (0.5 + 0.5 * south) * GENTLE_GRASS + (hill - 0.5) * 0.2
-	var th := 0.5 + (coverage - 0.5) * 0.45
+	var th := 0.5 + (coverage - 0.5) * TOPO_WEIGHT
 	var bush := vnoise(w * 0.29 + Vector2(3.7, 3.7))
-	var frag := patchy * 0.35 + vnoise(w * 0.12 + Vector2(17.0, 17.0)) * 0.35 + (bush - 0.5) * 0.3 + 0.15
+	var frag := patchy * 0.2 + vnoise(w * 0.12 + Vector2(17.0, 17.0)) * 0.3 + (bush - 0.5) * 0.35 + 0.25
 	# The shader's stand edge is 0.09 wide in `frag`; as a 0..1 share it is the same test, softer.
 	var brush := _smooth(th + 0.09, th - 0.09, frag)
 	var bare := _smooth(DIRT_SLOPE_START, DIRT_SLOPE_END, slope + (patchy - 0.5) * 0.3)

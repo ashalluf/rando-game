@@ -26,12 +26,14 @@ uniform float macro_span = 16000.0;
 uniform float macro_height = 1600.0;
 // The lift fades in over this range, so near the player - where the streamed chunks build the
 // real ground - the plane stays flat and out of their way.
-uniform float lift_start = 500.0;
-uniform float lift_end = 1600.0;
+uniform float lift_start = 900.0;
+uniform float lift_end = 1900.0;
 // The scene's origin has been shifted this far; local + offset is the true world position.
 uniform vec2 world_offset = vec2(0.0);
 // Metres of crag the fractal adds on the mountains, on top of the baked shape.
-uniform float relief_amplitude = 70.0;
+// Lower since the ranges carry their own canyons (MacroMap erosion) in the bake: seventy metres
+// of ridged noise on top stood up as spikes along every skyline.
+uniform float relief_amplitude = 40.0;
 // Wavelength of its first octave, in metres; every octave after is half of it.
 uniform float relief_wavelength = 900.0;
 // How hard a slope damps the octaves under it, which is what turns noise into eroded land.
@@ -135,34 +137,59 @@ vec3 relief_fbm(vec2 p, int octaves, float fp) {
 }
 
 
-// The baked map, reconstructed smoothly. The hardware's bilinear filter is only C0, so every
-// 62 m texel came out as a flat facet with a crease round it and the derivative of the height
-// was a staircase. Interpolating the same four texels with smoothstep weights is C1, and the
-// same weights differentiate analytically, which is where the macro half of the normal comes
-// from. Returns the colour in .rgb and the height (0..1) in .a; `grad` gets d(height)/d(metre).
+// The baked map, reconstructed smoothly. Returns the colour in .rgb and the height (0..1) in
+// .a; `grad` gets d(height)/d(metre), which is where the macro half of the normal comes from.
+//
+// The height is a cubic B-spline over the 4 x 4 texels round the point, with its derivative
+// from the same weights. Hardware bilinear is only C0 (a crease round every texel), and the
+// smoothstep-weighted bilinear that replaced it is C1 but its derivative is ZERO at every texel
+// centre, so the slope - and with it the normal - fell flat once every 31 m: every range was
+// drawn as a staircase of little terraces, which read from the basin as zig-zag contour lines
+// across the mountains. The B-spline is C2 with a true slope everywhere; it is also a slight
+// blur (a 1-4-1 kernel), which is what a bake that averages each texel is anyway. The water
+// test stays on the colour's bilinear alpha (exactly 0 on the sea), so the coast does not move.
+vec4 bspline_w(float t) {
+	float s = 1.0 - t;
+	float t2 = t * t;
+	return vec4(s * s * s, 3.0 * t2 * t - 6.0 * t2 + 4.0, -3.0 * t2 * t + 3.0 * t2 + 3.0 * t + 1.0, t2 * t) / 6.0;
+}
+
+
+vec4 bspline_dw(float t) {
+	float s = 1.0 - t;
+	return vec4(-0.5 * s * s, 1.5 * t * t - 2.0 * t, -1.5 * t * t + t + 0.5, 0.5 * t * t);
+}
+
+
 vec4 macro_sample(vec2 uv, out vec2 grad) {
-	vec2 ts = vec2(textureSize(macro_tex, 0));
+	vec2 ts = vec2(textureSize(macro_height_tex, 0));
 	vec2 t = uv * ts - vec2(0.5);
 	vec2 i = floor(t);
 	vec2 f = t - i;
-	vec2 wt = f * f * (3.0 - 2.0 * f);
-	vec2 dw = 6.0 * f * (1.0 - f);
 	ivec2 hi = ivec2(ts) - ivec2(1);
-	ivec2 b = ivec2(i);
-	ivec2 b10 = clamp(b + ivec2(1, 0), ivec2(0), hi);
-	ivec2 b01 = clamp(b + ivec2(0, 1), ivec2(0), hi);
-	ivec2 b11 = clamp(b + ivec2(1, 1), ivec2(0), hi);
-	b = clamp(b, ivec2(0), hi);
-	vec4 c00 = vec4(texelFetch(macro_tex, b, 0).rgb, texelFetch(macro_height_tex, b, 0).r);
-	vec4 c10 = vec4(texelFetch(macro_tex, b10, 0).rgb, texelFetch(macro_height_tex, b10, 0).r);
-	vec4 c01 = vec4(texelFetch(macro_tex, b01, 0).rgb, texelFetch(macro_height_tex, b01, 0).r);
-	vec4 c11 = vec4(texelFetch(macro_tex, b11, 0).rgb, texelFetch(macro_height_tex, b11, 0).r);
-	float k1 = c10.a - c00.a;
-	float k2 = c01.a - c00.a;
-	float k3 = c00.a - c10.a - c01.a + c11.a;
+	ivec2 b = ivec2(i) - ivec2(1);
+	vec4 wx = bspline_w(f.x);
+	vec4 wy = bspline_w(f.y);
+	vec4 dx = bspline_dw(f.x);
+	vec4 dy = bspline_dw(f.y);
+	float h = 0.0;
+	vec2 g = vec2(0.0);
+	for (int y = 0; y < 4; y++) {
+		vec4 row;
+		for (int x = 0; x < 4; x++) {
+			row[x] = texelFetch(macro_height_tex, clamp(b + ivec2(x, y), ivec2(0), hi), 0).r;
+		}
+		float rw = dot(row, wx);
+		h += rw * wy[y];
+		g.x += dot(row, dx) * wy[y];
+		g.y += rw * dy[y];
+	}
 	vec2 mpt = vec2(macro_span) / ts;
-	grad = vec2(dw.x * (k1 + k3 * wt.y), dw.y * (k2 + k3 * wt.x)) / mpt;
-	return mix(mix(c00, c10, wt.x), mix(c01, c11, wt.x), wt.y);
+	grad = g / mpt;
+	// Colour with the hardware's bilinear filter. Its alpha is only the water test now (exactly
+	// 0 on the sea, so bilinear draws the coast where it always was); the height is the spline.
+	vec4 col = texture(macro_tex, uv);
+	return vec4(col.rgb, col.a < 0.0005 ? 0.0 : max(h, 0.0006));
 }
 
 
@@ -212,14 +239,19 @@ float far_ground_lift(vec3 wp, vec3 cam, out vec4 m, out vec2 mg, out float wet,
 	// plane goes 24 m down, which is under the deepest storm trough. Over land it does not
 	// move, so the coast keeps its shape.
 	wet = 1.0 - step(0.0005, baked);
-	d = distance(wp, cam);
+	// Distance ACROSS the ground, not through the air. The streamed chunks cover a ring round
+	// the player whatever his height, and measured in 3D a camera 500 m up had every point of
+	// that ring 500 m+ away: the plane stopped sinking and its crags came in right over the
+	// chunks, and from the air dark smooth mountains draped themselves over the real hills,
+	// cutting through them wherever the plane's averaged shape stood above the carved canyons.
+	d = distance(wp.xz, cam.xz);
 
 	// Stand the land up, everywhere, not just in the distance. Fading the lift in with distance
 	// works only while the ground the player is on is at sea level: over the inland valley, which
 	// is a city 130 m up, it left this plane down at zero and the valley was ringed by a grey
 	// wall where the plane's surface cut across the hillsides.
 	float lift = baked * macro_height;
-	// The crags. The mesh is 70 m a vertex, so only the coarse end of the fractal can move
+	// The crags. The mesh is 44 m a vertex, so only the coarse end of the fractal can move
 	// geometry at all - asking for detail finer than that just aliases, and the rest of it comes
 	// back in the fragment shader as a normal, which is what really lights a mountain. Faded in
 	// with distance, because near the camera the streamed chunks are the ground and this has to
@@ -239,6 +271,6 @@ float far_ground_lift(vec3 wp, vec3 cam, out vec4 m, out vec2 mg, out float wet,
 // centimetres of clearance out where it is the ground itself. The whole transition happens
 // inside the streamed radius, so the step never shows.
 float far_ground_sink(float d, float wet) {
-	float near = 1.0 - smoothstep(300.0, 900.0, d);
-	return wet * 24.0 + (1.0 - wet) * (near * 30.0 + 5.0);
+	float near = 1.0 - smoothstep(500.0, 1150.0, d);
+	return wet * 24.0 + (1.0 - wet) * (near * 34.0 + 5.0);
 }

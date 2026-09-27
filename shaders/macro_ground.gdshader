@@ -126,6 +126,15 @@ uniform float scrub_amount : hint_range(0.0, 1.0) = 0.85;
 // side of a Californian hill is brush and the sunny side grass (terrain.gdshader's north_brush,
 // which the near hills and their planting use).
 uniform float north_scrub : hint_range(0.0, 0.5) = 0.3;
+// The near hills' stand rule (terrain.gdshader: chaparral_amount, drain_brush, gentle_grass),
+// here as the share of the ground the brush covers rather than stand by stand: the same land -
+// aspect, the baked drainage (MacroMap.bake_height's G), gentle ground - decides it, so a range
+// wears the same brush on both sides of the streamed chunks' edge.
+uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.62;
+uniform float drain_brush : hint_range(0.0, 1.0) = 0.45;
+uniform float south_grass : hint_range(0.0, 1.0) = 0.08;
+uniform float drain_shade : hint_range(0.0, 1.0) = 0.3;
+uniform float gentle_grass : hint_range(0.0, 1.0) = 0.35;
 // How strongly the drainage lines green up and darken the gullies.
 uniform float gully_amount : hint_range(0.0, 1.0) = 0.55;
 // Metres above sea level the snow line sits.
@@ -169,6 +178,8 @@ uniform float urban_parallax : hint_range(0.0, 1.0) = 0.42;
 uniform float sea_glitter : hint_range(0.0, 4.0) = 1.6;
 // Metres across one swell out here, where the real ocean chunks have long since stopped.
 uniform float sea_swell = 46.0;
+
+#include "res://shaders/erosion.gdshaderinc"
 
 varying vec3 world_pos;
 
@@ -301,8 +312,15 @@ void fragment() {
 		// The crags only exist in the geometry past `lift_start`, so the normal only carries
 		// its full share of them past it too - a normal describing a surface the vertices never
 		// built is a surface that lights one way and silhouettes another.
-		float far = mix(0.35, 1.0, smoothstep(lift_start, lift_end, dist));
+		float far = mix(0.35, 1.0, smoothstep(lift_start, lift_end, length(world_pos.xz - eye.xz)));
 		vec2 grad = mg * macro_height + fb.yz * (amp_m * far);
+		// The gullies finer than the bake's (terrain.gdshader draws the same up close).
+		vec3 ero = vec3(0.0);
+		if (rich && m.a > 0.02) {
+			float steep = smoothstep(0.08, 0.45, length(grad));
+			ero = erosion_detail(w, grad, 14.0 * steep, 110.0, fp);
+			grad += ero.xy;
+		}
 		n = normalize(vec3(-grad.x, 1.0, -grad.y));
 		float slope = 1.0 - clamp(n.y, 0.0, 1.0);
 		float height_m = m.a * macro_height + (fb.x - 0.5) * amp_m;
@@ -316,11 +334,16 @@ void fragment() {
 		if (land > 0.004) {
 			// Chaparral: one dominant scrub patch per hillside rather than an even sprinkle,
 			// over parched grass. Southern California, so gold and olive over grey rock.
-			float clump = vnoise(w * 0.0042) * 0.65 + vnoise(w * 0.019) * 0.35;
 			float north = -n.z / max(length(n.xz), 0.001) * smoothstep(0.02, 0.12, slope);
-			// Chaparral is the dominant cover, the grass the exception: on the gentle sunny ground.
+			// Chaparral is the dominant cover, the grass the exception: on the gentle sunny ground
+			// and the spur crests. Up close a stand is where a patch noise (sd ~0.1) falls under a
+			// threshold set by the land; averaged over a pixel that is a smooth share of it.
 			float gentle = 1.0 - smoothstep(0.06, 0.22, slope);
-			float scrub = smoothstep(0.26, 0.60, clump + north * north_scrub - gentle * 0.25) * scrub_amount;
+			float south = max(-north, 0.0);
+			float mdrain = texture(macro_height_tex, uv).g * 2.0 - 1.0;
+			float cover = chaparral_amount + max(north, 0.0) * north_scrub - south * south_grass + mdrain * drain_brush
+				- gentle * (0.5 + 0.5 * south) * gentle_grass + (vnoise(w * 0.0028) - 0.5) * 0.2;
+			float scrub = smoothstep(0.25, 0.75, cover) * scrub_amount;
 			vec3 nat = mix(dry_grass_color, scrub_color, scrub);
 			// Individual bushes, but only once they are bigger than a couple of pixels.
 			float bush = smoothstep(7.0, 2.0, fp) * smoothstep(0.45, 0.85, vnoise(w * 0.33));
@@ -332,6 +355,9 @@ void fragment() {
 			vec2 across = vec2(-fall.y, fall.x);
 			float streak = vnoise(vec2(dot(w, fall) * 0.0032, dot(w, across) * 0.021));
 			float gully = smoothstep(0.42, 0.10, fb.x) * smoothstep(0.35, 0.72, streak) * gully_amount;
+			// And the canyons the height field itself was cut with, which hold the densest brush
+			// and the oaks.
+			gully = max(gully, smoothstep(0.35, 0.95, mdrain) * gully_amount * 0.7);
 			nat = mix(nat, scrub_color * 0.85, gully);
 			// Rock on the steep faces, with bedding planes picked out by world height, and a
 			// scree fan in the band just below where the rock takes over.
@@ -348,6 +374,9 @@ void fragment() {
 			nat = mix(nat, snow_color, snow);
 			// Keep some of the baked map's own colour so beaches, the port apron and the
 			// district tints still show through rather than every flat becoming the same gold.
+			// Dark canyons, lighter spur crests (terrain.gdshader's drain_shade and erosion_shade).
+			nat *= mix(1.0, 1.0 - drain_shade, smoothstep(0.15, 0.9, mdrain)) * (1.0 + drain_shade * 0.3 * smoothstep(0.2, 0.8, -mdrain));
+			nat *= 1.0 - 0.2 * clamp(ero.z, -0.5, 1.0);
 			float natural_mix = smoothstep(0.004, 0.06, m.a) * 0.88 + 0.12;
 			base = mix(base, nat, land * natural_mix);
 		}

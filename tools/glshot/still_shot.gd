@@ -44,6 +44,8 @@ extends SceneTree
 ## like tools/tri_split.gd but on the bookmark's exact frame. MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
+## HIDE=Ground,Chunk_* hides every node whose name matches (String.match) just before the shot,
+## to tell which layer a surface belongs to.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -256,6 +258,19 @@ func _initialize() -> void:
 	var day := current_scene.get_node_or_null("DayNight") if current_scene else null
 	if day:
 		print("clock ", day.clock_text())
+	# HIDE=pattern,pattern hides every node whose name matches one of them (String.match
+	# wildcards: Ground, Chunk_*, Skyline) for the shot, so a layer can be told apart from the
+	# ones behind it - which tier a surface in the frame belongs to, say.
+	var hide_env := OS.get_environment("HIDE")
+	if hide_env != "" and current_scene:
+		var hidden := 0
+		for pat in hide_env.split(","):
+			for n in current_scene.find_children(pat, "Node3D", true, false):
+				(n as Node3D).visible = false
+				hidden += 1
+		print("HIDE %s: %d nodes" % [hide_env, hidden])
+		for i in 3:
+			await process_frame
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "still.png"

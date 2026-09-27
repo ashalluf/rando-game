@@ -833,7 +833,7 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 			var step: float = lat.step
 			var grad := Vector2(_lattice_height(lat, p + Vector2(step, 0.0)) - _lattice_height(lat, p - Vector2(step, 0.0)),
 				_lattice_height(lat, p + Vector2(0.0, step)) - _lattice_height(lat, p - Vector2(0.0, step))) / (2.0 * step)
-			var g := HillPlanting.ground(p, grad, false, _plan.macro.drainage_at(p))
+			var g := HillPlanting.ground(p, grad, false, _lattice_height(lat, p, "d"))
 			if float(g.rocky) > 0.3 or float(g.bare) > 0.4:
 				continue
 			var hollow := HillPlanting.hollow(p, gy, step * 1.5, _lat_h.bind(lat))
@@ -916,23 +916,28 @@ func _hill_lattice(rect: Rect2, macro: MacroMap) -> Dictionary:
 	var n := cells + 1
 	var origin := rect.position
 	var h := PackedFloat32Array()
+	var d := PackedFloat32Array()
 	h.resize(n * n)
+	d.resize(n * n)
 	for j in n:
 		for i in n:
 			h[j * n + i] = macro.height_at(origin + Vector2(i, j) * step)
-	return {"origin": origin, "step": step, "n": n, "h": h}
+			# The drainage that height_at() left, so the planting need not work the eroded
+			# height out a second time at every try (MacroMap.drainage_at()).
+			d[j * n + i] = macro.last_drain
+	return {"origin": origin, "step": step, "n": n, "h": h, "d": d}
 
 
 func _lat_h(p: Vector2, lat: Dictionary) -> float:
 	return _lattice_height(lat, p)
 
 
-static func _lattice_height(lat: Dictionary, p: Vector2) -> float:
+static func _lattice_height(lat: Dictionary, p: Vector2, field: String = "h") -> float:
 	var n: int = lat.n
 	var q: Vector2 = (p - (lat.origin as Vector2)) / float(lat.step)
 	var i := clampi(int(floor(q.x)), 0, n - 2)
 	var j := clampi(int(floor(q.y)), 0, n - 2)
 	var fu := clampf(q.x - i, 0.0, 1.0)
 	var fv := clampf(q.y - j, 0.0, 1.0)
-	var h: PackedFloat32Array = lat.h
+	var h: PackedFloat32Array = lat[field]
 	return lerpf(lerpf(h[j * n + i], h[j * n + i + 1], fu), lerpf(h[(j + 1) * n + i], h[(j + 1) * n + i + 1], fu), fv)

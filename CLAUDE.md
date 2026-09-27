@@ -848,6 +848,26 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   on its inland side, a higher back range behind the valley, an east range, and the peninsula
   headland south-west - composed with `max()` so ranges meet in ridges rather than adding into a
   dome. The knobs are the `*_start_z` / `*_full_z` / `*_height` exports at the top of `MacroMap`.
+  **The ranges are eroded** (owner, 2026-09-25: "the hills look like garbage, not real
+  mountains"): each is a SMOOTH base (`_range_heights_at()`, `_range_noise`, three octaves from
+  `range_wavelength`) with erosion noise cut into it (`_erode()` / `_erosion_filter()`, after
+  Fewes): stripes that run DOWN each slope over a jittered grid of cells, the slope taken from
+  the base (over `EROSION_SLOPE_STEP` either side, so they follow the landforms, not every bump)
+  plus the walls of the coarser orders, so every order branches off the one above - canyons
+  `erosion_spacing` apart and their tributaries, `erosion_depth` / `back_erosion_depth` of the
+  range deep, weaker on summits and benches. The old bases used the map's own noise plus a
+  second octave at 2.7 times the frequency and read as fields of cones; the first erosion pass
+  stretched a ridged noise along the slope and read as combed streaks. `last_drain` (-1 spur
+  crest .. +1 gully floor) is what the erosion leaves for the ground: the hill tiles' vertex
+  colour, `bake_height`'s G channel for the far ground, HillPlanting. Only `erosion_octaves` (2)
+  orders are in the height; `shaders/erosion.gdshaderinc` draws two finer ones as shading on
+  the near terrain and the far ground. A height in the hills costs 20-40 us on the build box,
+  so a hill tile samples its heights a few rows a build step (`CityChunk._sample_terrain()`),
+  the planting reads the drainage off the tile and Skyline off its lattice, never
+  `drainage_at()` again. Look at a change in seconds, before any render, with
+  `tools/terrain_preview/terrain_preview.tscn` (a top-down hillshade with the drainage tinted;
+  `BENCH=1` times the setup, the bake and a hill tile; `PROBE=x,z;...` prints heights and
+  zones; it prints the hill roads and estates planned).
   The front range's fade-out window **is** the valley's fade-in window (`valley_from_z` ..
   `valley_to_z`) on purpose: the range has to reach zero before the valley starts, or `zone_at()`
   calls the valley floor HILLS and no city is ever built on it. So the valley floor is past
@@ -912,18 +932,24 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   `lift_start` and `lift_end` so the near ground stays flat and meets the streamed chunks, with
   two octaves of ridged noise breaking the 256 px bake into crags. A flat plane cannot give a
   silhouette, and the silhouette is the whole point of a ring of mountains. `GROUND_SUBDIVISIONS`
-  is 200 so there are vertices to displace, and `CityStreamer` snaps the plane's position to that
+  is 320 (44 m a vertex; at 200 the ridges three kilometres out were straight facets and the
+  peaks cones) so there are vertices to displace, and `CityStreamer` snaps the plane's position to that
   vertex grid **in world space** - without the snap the peaks swim as the follower slides.
   That grid is `CityStreamer.ground_step()`, `ground_size / (GROUND_SUBDIVISIONS + 1)`: a
   PlaneMesh with N subdivisions has N + 1 quads, and snapping by `/ N` slid every vertex 35 cm
   per step. The plane's height code (bake sample, crags, sink) lives in
   `shaders/macro_relief.gdshaderinc` so anything that must stand on the far ground computes
   the same surface: `shaders/far_canopy.gdshader` (Skyline's hill planting) seats each clump on
-  it, interpolating across the plane's own 70 m triangles; the far hill houses ride in the same
+  it, interpolating across the plane's own 44 m triangles; the far hill houses ride in the same
   MultiMesh, and the far ridge sign uses its `rigid` mode (one shift for the whole name, from
   `Landmarks.sign_line()`, so it stays level). Placed at `MacroMap.height_at()`
   instead, the clumps hung in the sky above every ridge - the bake averages a ridge down and the
   crags move it tens of metres, so the real height is not the height that is drawn.
+  The bake's height is read as a **cubic B-spline** (`macro_sample()`, 16 texel fetches with
+  its analytic derivative), never smoothstep-weighted bilinear: those weights have a ZERO
+  derivative at every texel centre, so the normal went flat once every 31 m and every range was
+  drawn as a staircase of terraces - from the basin, zig-zag contour lines across the
+  mountains. The colour stays hardware bilinear, and its alpha is only the water test.
   `built_amount()` stays in `macro_ground.gdshader`: the smoke test reads its thresholds from it.
   Before this the plane was 4 km of flat green and its own edge was the horizon.
   **The plane and its collision are separate nodes** (`Ground`, drawn, slides with the player;
@@ -1492,7 +1518,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   brightness swings, snow only above the far ground's `snow_line`. Its colours are LINEAR and sit
   in `macro_ground.gdshader`'s natural range so a range matches across the horizon handoff, and
   it reads TRUE world XZ (`world_offset`, pushed by `CityStreamer`) so nothing jumps on a
-  re-centre. Keep all of it subtle: the first
+  re-centre. The stands follow the land (`topo_weight`: aspect, the erosion's drainage in
+  COLOR.g, gentle ground; the patch noise only rags their edges - at 0.45 it drew camouflage
+  blobs over the hill regardless of its shape), canyons are shaded darker (`drain_shade`,
+  `erosion_shade`), and the detail is lit: **the terrain mesh has no UVs and so no tangents,
+  and a NORMAL_MAP without tangents does nothing** - every hillside was smooth plastic between
+  its vertices. The shader works its detail out as world-XZ slopes (the ground textures' normal
+  maps, `nm_slope()`; the brush canopy's own bumps from the noise that places the bushes,
+  `brush_relief` / `leaf_relief`; the fine erosion orders) and sets NORMAL itself. Past
+  `CityChunk.hill_brush_distance` (110 m) the shrub models are not drawn: their alpha-cut leaves
+  mip to a few dark texels and a stand drew as black dashes; out there the painted stands are
+  the brush. Keep all of it subtle: the first
   pass used strong patch blends and dark joints and the ground read as a printed pattern rather
   than a surface.
   The "patch" batch (resurfacing patches, oil, wheel tracks, braking polish, locate paint -

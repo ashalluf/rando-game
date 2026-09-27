@@ -160,24 +160,34 @@ var hill_roads: HillRoads
 var freeway: Freeway
 
 var _noise: FastNoiseLite
-## Erosion detail on the three ranges (not the headland, which is shaped to photographs): a
-## ridged fractal stretched across the range so its crests run DOWN the slopes as spurs off the
-## main ridge, and two orders of V-shaped gullies between them. See `_erode()`.
-var _ridge: FastNoiseLite
-var _gully: FastNoiseLite
-## Share of a range's full height the ridged spurs swing it by, either way: the front and east
-## ranges (the Santa Monica Mountains and their like - rounded summits, the relief is the
-## canyons cutting DOWN, not spikes going up) and the back range (the San Gabriels, steeper).
-var ridge_amount: float = 0.12
-var back_ridge_amount: float = 0.26
-## How much longer the spurs and gullies run down the slope than across it.
-var ridge_stretch: float = 0.42
-## Gully depths as a share of the range's full height: the main canyons and their tributaries.
-var gully_depth: float = 0.09
-var rill_depth: float = 0.022
-## Metres across one main canyon's catchment, and one tributary's.
-var gully_spacing: float = 210.0
-var rill_spacing: float = 75.0
+## Erosion on the three ranges (not the headland, which is shaped to photographs): erosion
+## noise (see `_erosion_filter()`), gullies that run DOWN each slope and branch off the ones
+## above them, so a range is a crest with spurs and canyons falling off it rather than a field
+## of cones, or of parallel combed streaks as the first pass drew it.
+## Canyon depth, ridge to floor, as a share of the range's full height: the front and east
+## ranges (the Santa Monica Mountains' like - rounded summits, deep canyons) and the back range
+## (the San Gabriels, more cut up).
+var erosion_depth: float = 0.24
+var back_erosion_depth: float = 0.26
+## Metres between the main canyons; every finer order is half the one above it.
+var erosion_spacing: float = 440.0
+## Orders of gullies worked out here, in the height itself. terrain.gdshader and
+## macro_ground.gdshader add the finer ones as shading only.
+var erosion_octaves: int = 2
+## Each order's depth against the one above it.
+var erosion_gain: float = 0.5
+## How much a gully's own walls turn the finer gullies into it (0: every order runs straight
+## down the underlying range; higher: tributaries branch into the canyons).
+var erosion_branch: float = 1.6
+## Metres either side the range's slope is measured over, for the direction the gullies run:
+## wide, so they follow the range's big landforms rather than every bump of the base noise.
+const EROSION_SLOPE_STEP := 70.0
+## The ranges' big landforms (the erosion carves everything finer): a smooth fractal, three
+## octaves from `range_wavelength` metres. The old bases used the map's own four-octave noise
+## plus a second one at 2.7 times the frequency, a couple of hundred metres of bumps at every
+## scale, and read as a field of cones whatever was cut into them.
+var range_wavelength: float = 1500.0
+var _range_noise: FastNoiseLite
 ## The drainage at the point raw_height_at() last looked at: +1 on a gully's line, -1 on a spur's
 ## crest, 0 off the eroded ranges (and on the headland). The hills' ground reads it
 ## (CityChunk._build_terrain puts it in the vertex colour for terrain.gdshader, HillPlanting
@@ -185,9 +195,12 @@ var rill_spacing: float = 75.0
 ## height field cut. See drainage_at().
 var last_drain: float = 0.0
 var _erode_drain: float = 0.0
-## Landmarks standing in the mountains ([anchor, radius]): the erosion is eased off round them,
-## so the ridge sign's letters stand on one ridge rather than on legs over a gully.
+## Landmarks standing in the mountains ([anchor, half size]): the erosion is eased off over a box
+## round each and CALM_FADE metres past it, so the ridge sign's letters stand on one ridge
+## rather than on legs over a gully, and no spur rises in front of them. A disc the landmark's
+## whole radius wide (400 m for the sign) left the hill under it a smooth dome.
 var _calm_spots: Array = []
+const CALM_FADE := 90.0
 
 ## Rolling ground through the city: hills and slopes between the blocks (owner's request,
 ## 2026-09-19). Peak height in meters; zero on the beach, in the bay, in the flat zones
@@ -207,19 +220,12 @@ func setup() -> void:
 	_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	_noise.frequency = 0.0012
 	_noise.fractal_octaves = 4
-	_ridge = FastNoiseLite.new()
-	_ridge.seed = seed + 3571
-	_ridge.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	_ridge.fractal_type = FastNoiseLite.FRACTAL_RIDGED
-	_ridge.frequency = 1.0 / 720.0
-	_ridge.fractal_octaves = 4
-	_ridge.fractal_lacunarity = 2.07
-	_ridge.fractal_gain = 0.42
-	_gully = FastNoiseLite.new()
-	_gully.seed = seed + 6163
-	_gully.noise_type = FastNoiseLite.TYPE_SIMPLEX
-	_gully.fractal_type = FastNoiseLite.FRACTAL_NONE
-	_gully.frequency = 1.0
+	_range_noise = FastNoiseLite.new()
+	_range_noise.seed = seed + 3571
+	_range_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
+	_range_noise.frequency = 1.0 / range_wavelength
+	_range_noise.fractal_octaves = 3
+	_range_noise.fractal_gain = 0.45
 	_relief = FastNoiseLite.new()
 	_relief.seed = seed + 7919
 	_relief.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -230,7 +236,12 @@ func setup() -> void:
 	_calm_spots = []
 	for lm in _landmarks:
 		if raw_height_at(lm.anchor) > 3.0:
-			_calm_spots.append([lm.anchor, minf(float(lm.radius), 200.0)])
+			# [anchor, half size x, half size z]: a box, so the ridge sign's long row of
+			# letters gets a calm strip the length of the name and no wider than it needs.
+			var half := Vector2.ONE * minf(float(lm.radius), 120.0) * 0.5
+			if lm.id == "sign":
+				half = Vector2(Landmarks.SIGN_SPAN * 0.5 + 40.0, 110.0)
+			_calm_spots.append([lm.anchor, half])
 	# The replica first: it draws the coast from the Redondo pier to Malaga Cove, and everything
 	# below - the headland's shore mask, the hill roads, the freeways - reads coast_x(). Its hill
 	# part is then fitted to the headland's terrain, which needs the coast.
@@ -414,17 +425,26 @@ func raw_height_at(pos: Vector2) -> float:
 	var n2 := _noise.get_noise_2dv(pos * 2.7 + Vector2(913.0, -457.0))
 	var h := 0.0
 
+	# The three ranges, taken with max() so they meet in ridges rather than adding into a dome.
+	# Each is a smooth base (_range_heights) with erosion cut into it; the erosion needs the
+	# direction each base falls, so the bases are also looked at a few metres east and south.
+	var bases := _range_heights_at(pos)
+	var front_h: float = bases.x
+	var back_h: float = bases.y
+	var east_h: float = bases.z
+	var drain := 0.0
+	var eroded := front_h > 12.0 or back_h > 12.0 or east_h > 12.0
+	var bx := Vector3.ZERO
+	var bz := Vector3.ZERO
+	if eroded:
+		bx = (_range_heights_at(pos + Vector2(EROSION_SLOPE_STEP, 0.0)) - _range_heights_at(pos - Vector2(EROSION_SLOPE_STEP, 0.0))) / (2.0 * EROSION_SLOPE_STEP)
+		bz = (_range_heights_at(pos + Vector2(0.0, EROSION_SLOPE_STEP)) - _range_heights_at(pos - Vector2(0.0, EROSION_SLOPE_STEP))) / (2.0 * EROSION_SLOPE_STEP)
+
 	# The front range, walling off the basin, fading out again on its inland side so the valley
 	# behind it is open ground.
-	var front := smoothstep(hills_start_z, hills_full_z, pos.y) * (1.0 - smoothstep(valley_from_z, valley_to_z, pos.y))
-	var front_h := front * (hills_height * (0.62 + 0.38 * n) + 60.0 * n2)
-	var warp := Vector2(n, n2) * 150.0
-	var zfall := Vector2.ZERO
-	var drain := 0.0
 	_erode_drain = 0.0
 	if front_h > 12.0:
-		zfall = _erosion(pos + warp, false)
-		front_h = _erode(front_h, hills_height, zfall, pos, ridge_amount)
+		front_h = _erode(front_h, hills_height * erosion_depth, pos, Vector2(bx.x, bz.x))
 	# The pass: inside it the front range drops to a canyon floor. Blended with smoothstep and
 	# taken with minf so it only ever cuts the range down, never raises ground outside it.
 	var notch := smoothstep(pass_width, pass_width * 0.3, absf(pos.x - pass_center_x))
@@ -434,24 +454,17 @@ func raw_height_at(pos: Vector2) -> float:
 		drain = _erode_drain * (1.0 - notch)
 
 	# The back range beyond the valley: the real wall.
-	var back := smoothstep(back_start_z, back_full_z, pos.y)
-	var back_h := back * (back_height * (0.58 + 0.42 * n) + 110.0 * n2)
 	_erode_drain = 0.0
 	if back_h > 12.0:
-		if zfall == Vector2.ZERO:
-			zfall = _erosion(pos + warp, false)
-		back_h = _erode(back_h, back_height, zfall, pos, back_ridge_amount)
+		back_h = _erode(back_h, back_height * back_erosion_depth, pos, Vector2(bx.y, bz.y))
 	if back_h > h:
 		h = back_h
 		drain = _erode_drain
 
-	# The eastern range, closing the bowl. Its crest runs north-south, so its spurs and gullies
-	# run east-west.
-	var east := smoothstep(east_start_x, east_full_x, pos.x)
-	var east_h := east * (east_height * (0.6 + 0.4 * n) + 55.0 * n2)
+	# The eastern range, closing the bowl.
 	_erode_drain = 0.0
 	if east_h > 12.0:
-		east_h = _erode(east_h, east_height, _erosion(pos + warp, true), pos, ridge_amount)
+		east_h = _erode(east_h, east_height * erosion_depth, pos, Vector2(bx.z, bz.z))
 	if east_h > h:
 		h = east_h
 		drain = _erode_drain
@@ -484,43 +497,100 @@ func drainage_at(pos: Vector2) -> float:
 	return last_drain
 
 
-## The erosion fields at `q` (already domain-warped): x is the ridged spur field, centred on
-## zero, y how deep in a gully `q` sits (0 on the watersheds, 1 on a gully's line). `x_fall` for
-## a range whose slopes fall east-west (the east range); the others fall north-south. Stretched
-## along the fall line, because on a real range the spurs and the canyons between them both run
-## down the slope, off a crest that runs across it.
-func _erosion(q: Vector2, x_fall: bool) -> Vector2:
-	var a := Vector2(q.x * ridge_stretch, q.y) if x_fall else Vector2(q.x, q.y * ridge_stretch)
-	var r := _ridge.get_noise_2dv(a) + 0.05
-	# Round the summits off: the ridged fractal's crests are creases, which stood up as needles.
-	# Compressing the top half keeps the spur lines and lowers what stands proud of them.
-	if r > 0.0:
-		r = r / (1.0 + 1.8 * r)
-	# Gullies: the zero lines of a noise are a network of meandering lines, and |noise| is a V
-	# across each. Two orders of them - canyons, and the rills that feed them - at two spacings
-	# and a slight skew to each other, so the small ones run into the big ones.
-	var g1 := absf(_gully.get_noise_2d(a.x / gully_spacing, a.y / gully_spacing))
-	var g2 := absf(_gully.get_noise_2d(a.x / rill_spacing + 0.37 * a.y / rill_spacing + 71.0, a.y / rill_spacing - 13.0))
-	var v1 := maxf(0.0, 1.0 - g1 / 0.55)
-	var v2 := maxf(0.0, 1.0 - g2 / 0.5)
-	return Vector2(r, v1 + v2 * (rill_depth / maxf(gully_depth, 0.001)) * (1.0 - v1))
+## The three ranges' smooth bases at `pos` (x front, y back, z east), before any erosion.
+func _range_heights_at(pos: Vector2) -> Vector3:
+	var n := _range_noise.get_noise_2dv(pos)
+	var front := smoothstep(hills_start_z, hills_full_z, pos.y) * (1.0 - smoothstep(valley_from_z, valley_to_z, pos.y))
+	var back := smoothstep(back_start_z, back_full_z, pos.y)
+	var east := smoothstep(east_start_x, east_full_x, pos.x)
+	return Vector3(front * hills_height * (0.66 + 0.4 * n),
+		back * back_height * (0.66 + 0.4 * n),
+		east * east_height * (0.64 + 0.4 * n))
 
 
-## A range's height `h` (of full height `full`) with the erosion field `e` cut into it. Nothing
-## changes on the range's first dozen metres, so its foot - which decides HILLS against CITY in
-## zone_at() - stays where it was; the carving grows with the height and never takes more than
-## half of it, so no gully digs a hole down to the city floor.
-func _erode(h: float, full: float, e: Vector2, pos: Vector2, ridge: float) -> float:
+## A range's height `h` with its canyons cut in: `depth` metres ridge to floor for the main
+## ones, `slope` the base range's fall (metres per metre). Nothing changes on the range's first
+## dozen metres, so its foot - which decides HILLS against CITY in zone_at() - stays where it
+## was; the carving grows with the height and with the steepness (summits and benches stay
+## rounded, the flanks are cut up, as on a real range) and never takes more than half of it,
+## so no gully digs a hole down to the city floor. Leaves the drainage in _erode_drain.
+func _erode(h: float, depth: float, pos: Vector2, slope: Vector2) -> float:
 	var t := smoothstep(12.0, 160.0, h)
 	for spot: Array in _calm_spots:
 		var a: Vector2 = spot[0]
-		var r: float = spot[1]
-		if absf(pos.x - a.x) < r + 160.0 and absf(pos.y - a.y) < r + 160.0:
-			t *= 0.3 + 0.7 * smoothstep(r * 0.6, r + 160.0, pos.distance_to(a))
-	var up := h + t * full * ridge * e.x * clampf(h / full * 1.6, 0.0, 1.0)
-	var cut := t * full * gully_depth * e.y
-	_erode_drain = t * (clampf(e.y * 1.3, 0.0, 1.0) - smoothstep(0.17, 0.27, e.x))
-	return maxf(up - cut, h * 0.5)
+		var half: Vector2 = spot[1]
+		var dx := absf(pos.x - a.x) - half.x
+		var dz := absf(pos.y - a.y) - half.y
+		if dx < CALM_FADE and dz < CALM_FADE:
+			t *= 0.15 + 0.85 * smoothstep(0.0, CALM_FADE, Vector2(maxf(dx, 0.0), maxf(dz, 0.0)).length())
+	var amp := depth * 0.5 * t * (0.45 + 0.55 * smoothstep(0.08, 0.5, slope.length()))
+	if amp < 0.01:
+		_erode_drain = 0.0
+		return h
+	var e := _erosion_filter(pos, slope, amp)
+	# Gully floor -1, spur crest +1, as a share of what the orders could add up to at most.
+	var v := e.x / (amp * (1.0 + erosion_gain))
+	_erode_drain = t * clampf(-v * 1.5, -1.0, 1.0)
+	return maxf(h + e.x, h * 0.5)
+
+
+## Erosion noise (after Fewes's "terrain erosion noise"): a sum of stripes that run DOWN the
+## local slope over a jittered grid of cells, each cell's stripes weighted by closeness, so they
+## meander and merge like gullies instead of running in parallel. The slope they run down is the
+## base range's plus the walls of the coarser orders already cut (`erosion_branch`), which is
+## what makes each order branch off the one above it. `amp` metres for the main order, each
+## finer one `erosion_gain` of the last at half the spacing. Returns the height change in
+## metres in .x and its slope (metres per metre) in .yz.
+func _erosion_filter(pos: Vector2, slope: Vector2, amp: float) -> Vector3:
+	var out := Vector3.ZERO
+	var a := amp
+	var cell := erosion_spacing
+	for o in erosion_octaves:
+		var d := slope + Vector2(out.y, out.z) * erosion_branch
+		# Along the contour: the stripes vary across it, so they run downhill.
+		var dir := Vector2(d.y, -d.x)
+		var l := dir.length()
+		dir = dir / l if l > 0.00001 else Vector2(1.0, 0.0)
+		var e := _erosion_cells(pos.x / cell, pos.y / cell, dir, o)
+		out += Vector3(e.x * a, e.y * a / cell, e.z * a / cell)
+		a *= erosion_gain
+		cell *= 0.5
+	return out
+
+
+## One order of erosion noise at `p` (in cells): the 4 x 4 jittered cells round it, each a cosine
+## across `dir`, blended by a Gaussian of the distance. .x the value (-1..1), .yz its derivative
+## per cell (the weights' own slope left out, as in the original). The Gaussian is cut at 1.1
+## cells, lowered by its value there so it still reaches zero smoothly: about half the cells are
+## further than that, and skipping their sine and cosine halves the cost of a height in the hills.
+func _erosion_cells(px: float, py: float, dir: Vector2, order: int) -> Vector3:
+	var ix := floori(px)
+	var iy := floori(py)
+	var fx := px - ix
+	var fy := py - iy
+	var vx := 0.0
+	var vy := 0.0
+	var vz := 0.0
+	var wt := 0.0
+	var salt := seed * 7919 + order * 104729
+	for j in range(-2, 2):
+		for i in range(-2, 2):
+			var hsh := ((ix - i) * 374761393 + (iy - j) * 668265263 + salt) & 0xffffffff
+			hsh = ((hsh ^ (hsh >> 13)) * 1274126177) & 0xffffffff
+			hsh = hsh ^ (hsh >> 16)
+			var ppx := fx + i - float(hsh & 0xffff) / 131070.0
+			var ppy := fy + j - float((hsh >> 16) & 0xffff) / 131070.0
+			var d2 := ppx * ppx + ppy * ppy
+			if d2 > 1.21:
+				continue
+			var w := exp(-d2 * 2.0) - 0.0889
+			wt += w
+			var mag := (ppx * dir.x + ppy * dir.y) * TAU
+			var sn := sin(mag) * TAU * w
+			vx += cos(mag) * w
+			vy -= sn * dir.x
+			vz -= sn * dir.y
+	return Vector3(vx, vy, vz) / maxf(wt, 0.0001)
 
 
 ## Palos Verdes. Heights from the shore inward: sea cliffs right at the water on the ocean side
@@ -789,6 +859,15 @@ const BAKE_MAX_SIZE := 512
 const BAKE_JITTER := 0.07
 
 
+## The land height of the last bake() alone, as a float image: R is metres / BAKE_HEIGHT_SCALE
+## (0 on water, like the colour image's alpha), G the drainage (last_drain) mapped to 0..1, which
+## macro_ground.gdshader paints the brush in the gullies from, as terrain.gdshader does up close.
+## The colour image's alpha is 8 bits, 6.3 m a step at this scale, and every step came out as a
+## contour line across the far ranges; the shaders take the height from here (macro_height_tex)
+## and only the water test from the alpha.
+var bake_height: Image
+
+
 ## Paints the whole basin into one small image, so the ground plane beyond the streamed chunks
 ## can show the actual map instead of a flat green table out to the horizon: ocean to the west,
 ## the mountains to the north, the airport, the city sprawl, the freeways. RGB is the ground
@@ -799,26 +878,20 @@ const BAKE_JITTER := 0.07
 ##
 ## `span` is how many metres across the image covers, centred on `centre` in world XZ; `size` is
 ## what the caller thinks it wants, and BAKE_UPSCALE is how much finer it actually gets.
-## The land height of the last bake() alone, as a float image (metres / BAKE_HEIGHT_SCALE, 0 on
-## water, like the colour image's alpha). The alpha is 8 bits, which is 6.3 m a step at this
-## scale: a C1 reconstruction of a staircase puts all of each step's slope into a thin line, and
-## the far ranges were drawn as a stack of contour lines, every 6 m of height, like a topo model.
-## The shaders take the height from here (macro_height_tex) and only the water test from alpha.
-var bake_height: Image
-
-
 func bake(centre: Vector2, span: float, size: int) -> Image:
 	var res := size if OS.has_feature("web") else mini(size * BAKE_UPSCALE, BAKE_MAX_SIZE)
 	var img := Image.create(res, res, false, Image.FORMAT_RGBA8)
 	# Half floats on the web, where 32-bit float textures need not filter; 0.4 m a step at the
 	# back range's crest, against 6.3 m in the alpha.
-	bake_height = Image.create(res, res, false, Image.FORMAT_RH if OS.has_feature("web") else Image.FORMAT_RF)
+	bake_height = Image.create(res, res, false, Image.FORMAT_RGH if OS.has_feature("web") else Image.FORMAT_RGF)
 	var step := span / float(res)
 	var origin := centre - Vector2(span, span) * 0.5
 	for py in res:
 		for px in res:
 			var pos := origin + Vector2((float(px) + 0.5) * step, (float(py) + 0.5) * step)
 			var h := height_at(pos)
+			# Every raw_height_at() under that height_at() was at `pos`, so this is its drainage.
+			var drain := last_drain
 			var zone := zone_at(pos)
 			var col: Color
 			match zone:
@@ -860,10 +933,10 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 							col = BAKE_SUBURB
 			if zone == Zone.OCEAN:
 				col.a = 0.0
-				bake_height.set_pixel(px, py, Color(0.0, 0.0, 0.0))
+				bake_height.set_pixel(px, py, Color(0.0, 0.5, 0.0))
 			else:
 				col.a = clampf(maxf(h, 0.0) / BAKE_HEIGHT_SCALE, 0.004, 1.0)
-				bake_height.set_pixel(px, py, Color(col.a, 0.0, 0.0))
+				bake_height.set_pixel(px, py, Color(col.a, drain * 0.5 + 0.5, 0.0))
 				# The freeways, drawn last so they cross districts and hills alike.
 				if freeway and freeway.blocks(pos, BAKE_FREEWAY_MARGIN):
 					col = Color(BAKE_FREEWAY.r, BAKE_FREEWAY.g, BAKE_FREEWAY.b, col.a)

@@ -27,6 +27,11 @@ const SIDEWALK_TOP := 0.25
 ## (chaparral is head-high to twice that; the wide low shape is most of what reads as brush).
 @export var hill_brush_fill: float = 0.8
 @export var hill_brush_height: Vector2 = Vector2(1.9, 3.4)
+## Metres out to which a chunk's shrubs are drawn (to the nearest point of the chunk). Past a
+## hundred metres a shrub's alpha-cut leaves mip away to a few dark texels and every stand drew
+## as a scatter of black dashes over the hill; out there the terrain shader's painted stands,
+## with their own canopy relief, are the brush.
+@export var hill_brush_distance: float = 110.0
 ## How much of a hollow (HillPlanting.hollow(), metres per metre) a point needs before an oak or
 ## sycamore stands there, the odds it does in the deepest hollows, and their heights.
 @export var hill_oak_hollow: float = 0.09
@@ -307,7 +312,7 @@ func begin_build() -> void:
 				_steps.append(_build_beach.bind(block))
 				_steps.append(_build_hill_roads)
 		MacroMap.Zone.HILLS:
-			_steps.append_array([_build_terrain, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
+			_steps.append_array([_sample_terrain, _build_terrain, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
 		MacroMap.Zone.BEACH:
 			if replica_role == 0:
 				_steps.append(_build_roads.bind(block))
@@ -945,30 +950,61 @@ func _add_lifeguard_tower(at: Vector3, yaw: float) -> void:
 
 
 ## Terrain tile over the whole owned area, colored by height, with heightmap collision.
+## The terrain tile's heights and drainage, sampled a few rows a call (a build step that runs
+## again until it is done): a height in the eroded mountains costs 20-40 us here, and a FULL
+## tile's 1,089-2,401 of them in one step was a 30-90 ms frame whenever a hill chunk streamed in.
+var _tile_n: int = 0
+var _tile_row: int = 0
+var _tile_heights := PackedFloat32Array()
+var _tile_drains := PackedFloat32Array()
+## Microseconds of sampling a call takes before it hands the frame back.
+const TERRAIN_SAMPLE_BUDGET_US := 2500
+
+
+func _sample_terrain() -> bool:
+	var area := owned_rect()
+	if _tile_heights.is_empty():
+		# Finer tile where a hill road passes, so the carved road bed reads cleanly. The whole
+		# grid is several times what it was: a ridge is read as a silhouette against the sky and
+		# an eight-metre quad gives a mountain a faceted, folded-paper edge no shading can hide.
+		var has_road := _hill_segments().size() > 0
+		_tile_n = (terrain_subdiv_road if has_road else terrain_subdiv) if level == Level.FULL else terrain_subdiv_lod
+		_tile_heights.resize((_tile_n + 1) * (_tile_n + 1))
+		_tile_drains.resize((_tile_n + 1) * (_tile_n + 1))
+		_tile_row = 0
+	var n := _tile_n
+	var t0 := Time.get_ticks_usec()
+	while _tile_row <= n:
+		var j := _tile_row
+		for i in n + 1:
+			var x := area.position.x + area.size.x * i / n
+			var z := area.position.y + area.size.y * j / n
+			_tile_heights[j * (n + 1) + i] = plan.height_at(Vector2(x, z))
+			# The drainage the height_at() just above left (MacroMap.last_drain).
+			_tile_drains[j * (n + 1) + i] = plan.macro.last_drain if plan.macro else 0.0
+		_tile_row += 1
+		if Time.get_ticks_usec() - t0 > TERRAIN_SAMPLE_BUDGET_US:
+			break
+	return _tile_row > n
+
+
 func _build_terrain() -> void:
 	var area := owned_rect()
-	# Finer tile where a hill road passes, so the carved road bed reads cleanly. The whole grid
-	# is several times what it was: a ridge is read as a silhouette against the sky and an
-	# eight-metre quad gives a mountain a faceted, folded-paper edge no shading can hide.
-	var has_road := _hill_segments().size() > 0
-	var n := (terrain_subdiv_road if has_road else terrain_subdiv) if level == Level.FULL else terrain_subdiv_lod
-	var heights := PackedFloat32Array()
-	heights.resize((n + 1) * (n + 1))
+	var n := _tile_n
+	var heights := _tile_heights
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for j in n + 1:
 		for i in n + 1:
 			var x := area.position.x + area.size.x * i / n
 			var z := area.position.y + area.size.y * j / n
-			var h := plan.height_at(Vector2(x, z))
-			heights[j * (n + 1) + i] = h
+			var h := heights[j * (n + 1) + i]
 			# COLOR.r is the height (0..1 over 40..940 m), COLOR.g the drainage the height field
-			# was cut with (MacroMap.last_drain, left by the height_at() just above: 0 a spur's
-			# crest, 0.5 open slope, 1 a gully's line), which terrain.gdshader paints brush,
-			# scree and rock from - the same field HillPlanting plants by.
+			# was cut with (0 a spur's crest, 0.5 open slope, 1 a gully's line), which
+			# terrain.gdshader paints brush, scree and rock from - the same field HillPlanting
+			# plants by.
 			var t := clampf((h - 40.0) / 900.0, 0.0, 1.0)
-			var drain := plan.macro.last_drain if plan.macro else 0.0
-			st.set_color(Color(t, drain * 0.5 + 0.5, 0.0, 1.0))
+			st.set_color(Color(t, _tile_drains[j * (n + 1) + i] * 0.5 + 0.5, 0.0, 1.0))
 			st.add_vertex(Vector3(x, h, z))
 	for j in n:
 		for i in n:
@@ -984,7 +1020,7 @@ func _build_terrain() -> void:
 			st.add_index(c)
 	st.generate_normals()
 	# Kept for the planting, which reads slopes and hollows off the very surface drawn.
-	_terrain_grid = {"heights": heights, "n": n, "area": area}
+	_terrain_grid = {"heights": heights, "drains": _tile_drains, "n": n, "area": area}
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Terrain"
 	mesh.mesh = st.commit()
@@ -1092,20 +1128,20 @@ const PLANT_ROWS_PER_STEP := 3
 
 ## The drawn terrain's height at `p` (true world XZ): the tile's own grid, bilinear, or the map
 ## off the tile.
-func _terrain_height(p: Vector2) -> float:
+func _terrain_height(p: Vector2, field: String = "heights") -> float:
 	if _terrain_grid.is_empty():
-		return plan.height_at(p)
+		return plan.height_at(p) if field == "heights" else plan.macro.drainage_at(p)
 	var area: Rect2 = _terrain_grid.area
 	var n: int = _terrain_grid.n
 	var u := (p.x - area.position.x) / area.size.x * n
 	var v := (p.y - area.position.y) / area.size.y * n
 	if u < 0.0 or v < 0.0 or u > n or v > n:
-		return plan.height_at(p)
+		return plan.height_at(p) if field == "heights" else plan.macro.drainage_at(p)
 	var i := mini(int(u), n - 1)
 	var j := mini(int(v), n - 1)
 	var fu := u - i
 	var fv := v - j
-	var h: PackedFloat32Array = _terrain_grid.heights
+	var h: PackedFloat32Array = _terrain_grid[field]
 	var a := h[j * (n + 1) + i]
 	var b := h[j * (n + 1) + i + 1]
 	var c := h[(j + 1) * (n + 1) + i]
@@ -1150,7 +1186,8 @@ func _plant_hills() -> bool:
 				continue
 			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
 				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25
-			var g := HillPlanting.ground(p, grad, true, plan.macro.drainage_at(p))
+			# The drainage off the tile's own grid, as the shader gets it through the vertex colour.
+			var g := HillPlanting.ground(p, grad, true, _terrain_height(p, "drains"))
 			# Nothing on the rock or the bare cuts and trails.
 			if float(g.rocky) > 0.3 or float(g.bare) > 0.4:
 				continue
@@ -1200,6 +1237,7 @@ func _plant_hills() -> bool:
 	# painted brush under them is already the shade between the bushes. The oaks, a few a
 	# block, keep theirs.
 	_batch.set_no_shadow("hill_chaparral")
+	_batch.set_draw_distance("hill_chaparral", hill_brush_distance)
 	return true
 
 

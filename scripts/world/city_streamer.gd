@@ -106,7 +106,7 @@ extends Node3D
 ## Subdivisions of the ground follower (PlaneMesh.subdivide_*). The plane's world position is
 ## snapped to its vertex spacing so its vertices land on fixed world points; without that the
 ## lifted mountains swim as you walk. N subdivisions make N + 1 quads - see ground_step().
-const GROUND_SUBDIVISIONS := 200
+const GROUND_SUBDIVISIONS := 320
 
 @export_group("Street life")
 @export var lamp_spacing: float = 24.0
@@ -1005,13 +1005,14 @@ func _build_ground() -> void:
 	mesh.material_override = _ground_material
 	# One flat quad 14 km across would z-fight and shade badly at this size; a few subdivisions
 	# cost nothing and keep the interpolated world position honest.
-	# Enough vertices to carry a mountain silhouette: 14 km over 200 quads is 70 m a vertex,
-	# which is plenty for a range three kilometres out.
+	# Enough vertices to carry a mountain silhouette: 14 km over 321 quads is 44 m a vertex.
+	# At 70 m (200) a range three kilometres out drew its ridges as straight facets 15 px long,
+	# and the peaks as cones.
 	plane.subdivide_width = GROUND_SUBDIVISIONS
 	plane.subdivide_depth = GROUND_SUBDIVISIONS
 	mesh.extra_cull_margin = ground_size
 	# It never casts. It is a 14 km plane under everything, so the only thing it could shadow is
-	# itself - but at 200 x 200 quads it is 80,000 triangles, and it was being drawn into all
+	# itself - but at 321 x 321 quads it is 206,000 triangles, and it was being drawn into all
 	# four shadow cascades every frame for nothing. It still RECEIVES, which is what matters.
 	mesh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_ground.add_child(mesh)

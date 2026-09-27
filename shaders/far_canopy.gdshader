@@ -18,12 +18,12 @@ render_mode cull_back;
 uniform float plane_y = 0.0;
 // Where the plane's vertices are: its centre (local XZ, CityStreamer.update_streaming), half its
 // size, and the spacing (CityStreamer.ground_step()). The plane is drawn as flat triangles
-// between vertices 70 m apart, and over a ridge those chords run well under the smooth height
+// between vertices 44 m apart, and over a ridge those chords run well under the smooth height
 // function - so a clump seated on the function still stood clear of the ridge the eye sees.
 // The clump has to follow the same triangles.
 uniform vec2 plane_origin = vec2(0.0);
 uniform float plane_half = 7000.0;
-uniform float plane_step = 69.65;
+uniform float plane_step = 43.61;
 // How far into the ground a clump's base goes, as a fraction of its height, so a clump on a
 // slope does not show daylight under its downhill side.
 uniform float bury = 0.25;
