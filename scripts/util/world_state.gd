@@ -3,7 +3,12 @@ extends Node
 ## - Which props were destroyed in which chunk (keyed by chunk key, then prop id).
 ## - The world origin offset: local position + world_offset = true world position.
 
-var world_offset: Vector3 = Vector3.ZERO
+## Every change also goes to the `origin_shift` shader global, so a shader holding TRUE world
+## positions can find them in the shifted scene (shaders/facade_detail.gdshader).
+var world_offset: Vector3 = Vector3.ZERO:
+	set(value):
+		world_offset = value
+		RenderingServer.global_shader_parameter_set("origin_shift", value)
 ## Seed the next city scene should use (set by the pause menu), or -1 for the scene's own.
 var pending_seed: int = -1
 var _destroyed: Dictionary = {}

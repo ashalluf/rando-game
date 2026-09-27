@@ -1982,10 +1982,10 @@ func _test_buildings() -> void:
 			var frame_top: float = (b.get_node("Frames").multimesh.get_aabb() as AABB).end.y
 			if frame_top > b.height + 0.5:
 				frames_fit = false
-			if b.has_node("Details"):
-				var detail_top: float = (b.get_node("Details").multimesh.get_aabb() as AABB).end.y
-				if detail_top > b.height + 0.5:
-					frames_fit = false
+			# The bands share their MultiMesh with the parapet, which does stand above the roof,
+			# so the building keeps the bands' own top.
+			if float(b.get("details_top")) > b.height + 0.5:
+				frames_fit = false
 	_check(framed > 0, "buildings carry real window frames (%d)" % framed)
 	# Shop names on the storefront sign bands, lined up with the shader's shop runs.
 	var named := 0
@@ -2143,10 +2143,11 @@ func _test_buildings() -> void:
 			add_child(kb)
 			var found: Array = []
 			for child in kb.get_children():
-				if child is MeshInstance3D and not (child is MultiMeshInstance3D):
-					var mi := child as MeshInstance3D
-					if str(mi.name).begins_with("Sign") or mi.mesh == PropFactory.model_ac(false) or mi.mesh == PropFactory.model_ac(true):
-						found.append(mi.position)
+				if child is MeshInstance3D and str((child as Node).name).begins_with("Sign"):
+					found.append((child as MeshInstance3D).position)
+			# The rooftop units are one MultiMesh per model, which reads back as identity under
+			# --headless, so the building keeps where it put them.
+			found.append_array(kb.roof_unit_spots)
 			spots.append(found)
 			kb.free()
 		same = same and spots[0] == spots[1] and not (spots[0] as Array).is_empty()

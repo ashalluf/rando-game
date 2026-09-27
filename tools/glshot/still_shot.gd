@@ -45,7 +45,13 @@ extends SceneTree
 ## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
 ## camera pass and the shadow passes); SPLIT=1 then hides one category at a time (cars, people,
 ## buildings, trees, props, far city, ...) with the world held still and prints what each costs,
-## like tools/tri_split.gd but on the bookmark's exact frame. MERGE_STATIC=0 builds the chunks'
+## like tools/tri_split.gd but on the bookmark's exact frame, then the Building category again by
+## node kind (BSPLIT lines: walls, facade detail, kit, roof plant, rooftop units, shop names).
+## DIFF=1 makes a frame that renders the same twice, for before/after pixel diffs: shader TIME
+## held at zero, the clock of day held at --hour, the signals on a fixed clock, and people, cars,
+## aircraft, particles and the player hidden (two runs differ in a handful of pixels by 1-2/255).
+## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
+## MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
 ## LIGHT_WORLD=1 loads a smaller world (far city LIGHT_FAR m, default 2500; LOD ring LIGHT_LOD
@@ -62,6 +68,14 @@ extends SceneTree
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
+	# DIFF=1: a frame that renders the same twice, for before/after pixel diffs. Shader TIME is
+	# held at zero (it only ever runs to the rollover, so a microsecond one keeps clouds, sway,
+	# water and the film grain at their first instant), the global rng is seeded, the clock of
+	# day is held at --hour, and everything that moves by itself - people, cars, aircraft,
+	# particles, the player - is hidden for the shot (_diff_freeze()).
+	if OS.get_environment("DIFF") == "1":
+		ProjectSettings.set_setting("rendering/limits/time/time_rollover_secs", 0.000001)
+		seed(12345)
 	# MERGE_STATIC=0: the chunks' solid boxes and the far landmarks' boxes one node each, as
 	# before they were merged (the A/B of that change). Through the script resources, not the
 	# class names: CityChunk uses autoloads, and this script compiles before they exist.
@@ -110,6 +124,10 @@ func _initialize() -> void:
 			player = get_first_node_in_group("player") as Node3D
 			if player:
 				anchor = player.global_position
+		if OS.get_environment("DIFF") == "1":
+			var day_n := scene.get_node_or_null("DayNight")
+			if day_n:
+				day_n.call("set_paused", true)
 		_pose(player, anchor, hold, boost, fov)
 	var traffic_node := current_scene.get_node_or_null("Traffic") if current_scene else null
 	if traffic_node:
@@ -263,6 +281,8 @@ func _initialize() -> void:
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.
 	Engine.time_scale = float(OS.get_environment("TIME_SCALE")) if OS.get_environment("TIME_SCALE") != "" else 0.0005
+	if OS.get_environment("DIFF") == "1":
+		_diff_freeze(player)
 	for i in _env_int("SETTLE", 6):
 		await process_frame
 		_pose(player, anchor, hold, boost, fov)
@@ -310,6 +330,8 @@ func _initialize() -> void:
 	# category at a time, the world held still, as tools/tri_split.gd does - so every bookmark
 	# still also gives a cost table for the exact frame it shot.
 	await _geo_report("GEO")
+	if OS.get_environment("ROOF_TRIS") == "1":
+		_roof_unit_tris()
 	if OS.get_environment("PALM_AB") == "1":
 		# Every palm drawn at full detail (its level 0 with no LODs), in the view and the shadow,
 		# for the same frame: what the hand-built ladder (PropFactory.PALM_LEVELS) changes.
@@ -644,6 +666,126 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 		print("SPLIT %-12s nodes %5d  tris %9d (%4.1f%%)  draws %5d  objects %5d  | shadow tris %9d draws %5d" % [
 			c, list.size(), base[0] - hidden[0], 100.0 * (base[0] - hidden[0]) / maxf(base[0], 1),
 			base[1] - hidden[1], base[2] - hidden[2], base[4] - hidden[4], base[6] - hidden[6]])
+	# The Building category again, by the kind of node under a Building: its box parts, the
+	# facade MultiMeshes, the kit batches, the shop names, the roof plant.
+	var sub := {}
+	for gi: GeometryInstance3D in nodes["Building"]:
+		if is_instance_valid(gi):
+			var k := _building_part_kind(gi)
+			if not sub.has(k):
+				sub[k] = []
+			(sub[k] as Array).append(gi)
+	var kinds := sub.keys()
+	kinds.sort()
+	for k: String in kinds:
+		var list: Array = sub[k]
+		for gi: GeometryInstance3D in list:
+			gi.visible = false
+		var hidden := await _geo_report("  (hidden Building/%s)" % k)
+		for gi: GeometryInstance3D in list:
+			gi.visible = true
+		print("BSPLIT %-24s nodes %5d  tris %9d  draws %5d  objects %5d  | camera draws %5d  shadow draws %5d" % [
+			k, list.size(), base[0] - hidden[0], base[1] - hidden[1], base[2] - hidden[2],
+			base[5] - hidden[5], base[6] - hidden[6]])
+
+
+## ROOF_TRIS=1: what the rooftop air-conditioning units really cost the camera pass, counted per
+## instance by the renderer's LOD rule (see _true_tris: the counters count a LOD'd MultiMesh
+## surface once), as one MultiMesh per building picks its LOD (from the batch's box) and as the
+## node per unit it used to be would have (each from its own box).
+func _roof_unit_tris() -> void:
+	var cam := get_root().get_camera_3d()
+	var vp := get_root()
+	var threshold := vp.mesh_lod_threshold / maxf(float(vp.get_visible_rect().size.x), 1.0)
+	var multiplier := cam.get_camera_projection().get_lod_multiplier()
+	var planes := cam.get_frustum()
+	var batch := 0
+	var single := 0
+	var units := 0
+	for n in current_scene.find_children("RoofUnits*", "MultiMeshInstance3D", true, false):
+		var node := n as MultiMeshInstance3D
+		if not node.is_visible_in_tree():
+			continue
+		var mm := node.multimesh
+		var box: AABB = node.global_transform * node.get_aabb()
+		if not _box_in_frustum(box, planes):
+			continue
+		batch += _lod_tris(mm.mesh, box, cam.global_position, node.lod_bias, multiplier, threshold) * mm.instance_count
+		var xforms := _roof_xforms(node)
+		for i in mm.instance_count:
+			var ib: AABB = node.global_transform * ((xforms[i] as Transform3D) * mm.mesh.get_aabb())
+			if _box_in_frustum(ib, planes):
+				single += _lod_tris(mm.mesh, ib, cam.global_position, 1.0, multiplier, threshold)
+				units += 1
+	print("ROOF_TRIS %d units in view: %d triangles as per-building MultiMeshes, %d as a node each" % [units, batch, single])
+
+
+## A MultiMesh's instance transforms from its buffer (get_instance_transform is identity headless;
+## this runs under a real renderer, but the buffer is what the renderer draws).
+static func _roof_xforms(node: MultiMeshInstance3D) -> Array:
+	var mm := node.multimesh
+	var buf := mm.buffer
+	var stride := buf.size() / maxi(mm.instance_count, 1)
+	var out: Array = []
+	for i in mm.instance_count:
+		var o := i * stride
+		out.append(Transform3D(Vector3(buf[o], buf[o + 4], buf[o + 8]), Vector3(buf[o + 1], buf[o + 5], buf[o + 9]),
+			Vector3(buf[o + 2], buf[o + 6], buf[o + 10]), Vector3(buf[o + 3], buf[o + 7], buf[o + 11])))
+	return out
+
+
+## DIFF=1: the clock of day back on --hour and held, the signals on one fixed clock, and the
+## things that move by themselves hidden (see _initialize).
+func _diff_freeze(player: Node3D) -> void:
+	var day := current_scene.get_node_or_null("DayNight")
+	if day:
+		day.call("set_paused", true)
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--hour="):
+				day.set("hour", fmod(arg.trim_prefix("--hour=").to_float(), 24.0))
+	(load("res://scripts/world/traffic_signals.gd") as GDScript).set("clock", 0.0)
+	RenderingServer.global_shader_parameter_set("signal_clock", 0.0)
+	var hidden := 0
+	for g in ["pedestrian", "police", "vehicle", "police_car", "debris", "gib", "player"]:
+		for n in get_nodes_in_group(g):
+			if n is Node3D:
+				(n as Node3D).visible = false
+				hidden += 1
+	for cls in ["GPUParticles3D", "CPUParticles3D"]:
+		for n in current_scene.find_children("*", cls, true, false):
+			(n as Node3D).visible = false
+			hidden += 1
+	for nm in ["AirTraffic"]:
+		var n := current_scene.get_node_or_null(nm)
+		if n is Node3D:
+			(n as Node3D).visible = false
+			hidden += 1
+	if player:
+		player.visible = false
+	print("DIFF: %d moving things hidden, clock held at %s" % [hidden, day.call("clock_text") if day else "?"])
+
+
+## What a node under a Building is, for the BSPLIT lines.
+static func _building_part_kind(gi: GeometryInstance3D) -> String:
+	var nm := String(gi.name)
+	if gi is MultiMeshInstance3D:
+		if nm.begins_with("BatchShadow_kit_"):
+			return "kit shadow twins"
+		if nm.begins_with("Batch_kit_surround"):
+			return "kit surrounds"
+		if nm.begins_with("Batch_kit_"):
+			return "kit other"
+		return "mm " + nm.rstrip("0123456789")
+	var mi := gi as MeshInstance3D
+	if mi == null:
+		return "other " + gi.get_class()
+	if nm.begins_with("Sign"):
+		return "shop names"
+	if mi.material_override is ShaderMaterial:
+		return "box parts"
+	if mi.mesh is PrimitiveMesh:
+		return "primitives"
+	return "mesh " + nm.rstrip("0123456789")
 
 
 func _split_category(gi: GeometryInstance3D) -> String:

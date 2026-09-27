@@ -20,8 +20,8 @@ extends RefCounted
 ##
 ## Where: the walls come from the chunk's Building nodes - every ground-floor part face that is
 ## the first wall seen from the kerb of one of the block's four streets - and the window, door and
-## sign-band layout is worked out exactly as shaders/building.gdshader draws it (its uniforms are
-## read back off the part's material), so paint never lands on glass. Stickers ride the props they
+## sign-band layout is worked out exactly as shaders/building.gdshader draws it (from the numbers
+## Building keeps on each part for it), so paint never lands on glass. Stickers ride the props they
 ## are on (hidden with them when the prop breaks). Freeway columns are found the way
 ## CityChunk._build_freeway() places them. How much: TAGS_PER_M and friends per CityPlan.District
 ## (most in INDUSTRIAL and DOWNTOWN, little in SUBURBS and CAMPUS), more on side streets than on
@@ -372,33 +372,31 @@ static func _ground_parts(chunk: CityChunk) -> Array:
 		var bld := c as Building
 		if bld == null or absf(bld.rotation.y) > 0.001:
 			continue
-		for n in bld.get_children():
-			var mi := n as MeshInstance3D
-			if mi == null or not (mi.material_override is ShaderMaterial):
+		# Each part's wall numbers, as Building worked them out for the shader (Building._build_part()).
+		for part: Dictionary in bld.parts:
+			if not part.has("floor_h"):
 				continue
-			var mat := mi.material_override as ShaderMaterial
-			if mat.shader != Building.SHADER:
+			var size: Vector3 = part.size
+			var mid: Vector3 = part.center
+			if mid.y - size.y * 0.5 > 0.05 or size.y < 2.5:
 				continue
-			var size: Vector3 = mat.get_shader_parameter("part_size")
-			if mi.position.y - size.y * 0.5 > 0.05 or size.y < 2.5:
-				continue
-			var center := bld.position + mi.position
+			var center := bld.position + mid
 			out.append({
 				"building": bld,
 				"rect": Rect2(Vector2(center.x, center.z) - Vector2(size.x, size.z) * 0.5, Vector2(size.x, size.z)),
 				"center": center,
 				"size": size,
-				"base": bld.position.y + mi.position.y - size.y * 0.5,
-				"top": bld.position.y + mi.position.y + size.y * 0.5,
-				"pitch_x": float(mat.get_shader_parameter("window_pitch_x")),
-				"pitch_z": float(mat.get_shader_parameter("window_pitch_z")),
-				"floor_h": float(mat.get_shader_parameter("floor_height")),
-				"gfh": float(mat.get_shader_parameter("ground_floor_height")),
-				"storefront": bool(mat.get_shader_parameter("has_storefront")),
+				"base": bld.position.y + mid.y - size.y * 0.5,
+				"top": bld.position.y + mid.y + size.y * 0.5,
+				"pitch_x": float(part.pitch_x),
+				"pitch_z": float(part.pitch_z),
+				"floor_h": float(part.floor_h),
+				"gfh": float(part.gfh),
+				"storefront": bool(part.storefront),
 				"style": int(bld.window_style),
-				"spans": mat.get_shader_parameter("shop_span") as Vector4,
-				"seed": float(mat.get_shader_parameter("seed")),
-				"boxy": mi.mesh is BoxMesh,
+				"spans": bld._shop_spans(),
+				"seed": float(bld.seed % 1000),
+				"boxy": bool(part.boxy),
 				"warehouse": bld.shape == Building.Shape.WAREHOUSE,
 				"facade": bld.facade_color,
 			})

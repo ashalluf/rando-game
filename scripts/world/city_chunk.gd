@@ -1921,7 +1921,13 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	var base := Vector3(center.x, SIDEWALK_TOP, center.y)
 	building.position = base + Vector3(0.0, g, 0.0)
 	if level == Level.FULL:
+		# Its plinth joins the chunk's merged boxes (Building.plinth_in_chunk).
+		building.plinth_in_chunk = merge_boxes and not _boxes_committed
 		add_child(building)
+		if building.plinth_in_chunk:
+			var plinth := building.plinth_box()
+			if not plinth.is_empty():
+				_merge_box(Building.plinth_material(), plinth[0], building.position + (plinth[1] as Vector3))
 		building_count += 1
 	else:
 		# Far away: just the boxes, in the facade color, no props. They do get plain box
