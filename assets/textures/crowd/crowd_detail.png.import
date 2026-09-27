@@ -2,21 +2,18 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cgvenp5i4k02t"
-path.s3tc="res://.godot/imported/crowd_j_body_nrm.jpg-4e07596306259199dd78299799248ec0.s3tc.ctex"
-path.etc2="res://.godot/imported/crowd_j_body_nrm.jpg-4e07596306259199dd78299799248ec0.etc2.ctex"
+uid="uid://cbphr0w5v06im"
+path.s3tc="res://.godot/imported/crowd_detail.png-38ecd1061b375d60e8dd128e08a76297.s3tc.ctex"
+path.etc2="res://.godot/imported/crowd_detail.png-38ecd1061b375d60e8dd128e08a76297.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
 }
-generator_parameters={
-"md5": "ed22058cb3baa35afb18ba98429131f1"
-}
 
 [deps]
 
-source_file="res://assets/models/crowd_j_body_nrm.jpg"
-dest_files=["res://.godot/imported/crowd_j_body_nrm.jpg-4e07596306259199dd78299799248ec0.s3tc.ctex", "res://.godot/imported/crowd_j_body_nrm.jpg-4e07596306259199dd78299799248ec0.etc2.ctex"]
+source_file="res://assets/textures/crowd/crowd_detail.png"
+dest_files=["res://.godot/imported/crowd_detail.png-38ecd1061b375d60e8dd128e08a76297.s3tc.ctex", "res://.godot/imported/crowd_detail.png-38ecd1061b375d60e8dd128e08a76297.etc2.ctex"]
 
 [params]
 
@@ -26,7 +23,7 @@ compress/lossy_quality=0.7
 compress/uastc_level=0
 compress/rdo_quality_loss=0.0
 compress/hdr_compression=1
-compress/normal_map=1
+compress/normal_map=2
 compress/channel_pack=0
 mipmaps/generate=true
 mipmaps/limit=-1
