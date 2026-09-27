@@ -129,11 +129,12 @@ void fragment() {
 	float patchy = broad.y;
 	// Single bushes are ~3 m across: past a metre a pixel they would only sparkle, so they
 	// fade to their average there.
-	float bush_fade = 1.0 - smoothstep(0.5, 2.0, length(fwidth(w)));
+	// (A value-noise cell under ~3 pixels aliases into a grid of squares, so both fade by then.)
+	float bush_fade = hill_bush_fade(length(fwidth(w)));
 	vec3 bush_n = noisedt(w * 0.29 + 3.7);
 	float bush = mix(0.5, bush_n.x, bush_fade);
 	// Tufts and clumps a metre across, faded out sooner still.
-	float leaf_fade = 1.0 - smoothstep(0.12, 0.5, length(fwidth(w)));
+	float leaf_fade = hill_fine_fade(length(fwidth(w)));
 	vec3 leaf_n = noisedt(w * 0.9 + 51.0);
 	float leaf = mix(0.5, leaf_n.x, leaf_fade);
 	float tuft = bush * 0.6 + leaf * 0.4;
@@ -158,7 +159,11 @@ void fragment() {
 	vec2 duv = w / dirt_scale;
 	vec3 d = texture(dirt_albedo, duv).rgb;
 	vec3 dirt = mix(dirt_color * clamp(luma(d) / dirt_mean_luma, 0.3, 2.0), d * (luma(dirt_color) / dirt_mean_luma), dirt_keep_hue);
-	grass = mix(grass, dirt, smoothstep(0.4, 0.25, tuft) * bare_between);
+	// The dirt between the tufts: a narrow cut of the tuft noise, widened by what has faded out of
+	// it and by how fast it changes across a pixel - cut sharp from the air, the half-resolved
+	// cells drew a grid of brown squares across every grassy bench.
+	float tuft_aa = fwidth(tuft) + (1.0 - leaf_fade) * 0.12 + (1.0 - bush_fade) * 0.2;
+	grass = mix(grass, dirt, smoothstep(0.4 + tuft_aa, 0.25 - tuft_aa, tuft) * bare_between);
 
 	// ---- chaparral: stands of dark brush, thicker on the shaded side, sage dotted between ---
 	// `coverage` is the share of the ground the brush takes here; the threshold is where the
@@ -172,6 +177,9 @@ void fragment() {
 	// their average, then the gaps between the bushes of a stand, where the straw shows
 	// through, and single shrubs out in the open grass.
 	float mid_fade = hill_mid_fade(length(fwidth(w)));
+	// The stand's own 1.1 m octave: the leaf clumps' noise, faded sooner (hill_fine_fade()).
+	float fine_fade = leaf_fade;
+	float fine = leaf;
 	float clump = mix(0.5, vnoiset(w * 0.12 + 17.0), mid_fade);
 	float th = hill_stand_threshold(slope, north, drain, hill);
 	// Shrub crowns 2.6 m apart: a stand's edge runs round them, and inside it they are lit as
@@ -186,7 +194,7 @@ void fragment() {
 	if (crown_fade > 0.0) {
 		crowns = hill_crowns(w);
 	}
-	float stand = hill_stand(th, hill_stand_crowned(hill_stand_noise(patchy, clump, bush, leaf), crowns.x, crown_fade), bush, hill_stand_edge(leaf_fade, bush_fade, mid_fade));
+	float stand = hill_stand(th, hill_stand_crowned(hill_stand_noise(patchy, clump, bush, fine), crowns.x, crown_fade), bush, hill_stand_edge(fine_fade, bush_fade, mid_fade));
 	float sage = hill_sage(bush, bush_fade);
 	float brush = max(stand, sage);
 	// Crowns with shade between them, leaf clumps on those, the blade grain on those, and the

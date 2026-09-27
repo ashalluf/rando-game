@@ -151,7 +151,7 @@ void fragment() {
 
 	// ---- the painted ground under this fragment (terrain.gdshader's own terms) --------------
 	float fw = length(fwidth(w));
-	float bush_fade = 1.0 - smoothstep(0.5, 2.0, fw);
+	float bush_fade = hill_bush_fade(fw);
 	float bush = mix(0.5, vnoiset(w * 0.29 + 3.7), bush_fade);
 	float mid_fade = hill_mid_fade(fw);
 	float mid = mix(0.5, vnoiset(w * 0.12 + 17.0), mid_fade);
