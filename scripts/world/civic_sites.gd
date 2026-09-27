@@ -173,6 +173,7 @@ static func build(id: String, parent: Node3D, statics: StaticBody3D, plan: CityP
 	match id:
 		"arena", "live_plaza", "live_hotel", "convention_center":
 			LandmarkArenaDistrict.build(id, info.local, info.y0, pivot, body, detailed)
+			ArenaGrounds.build_leftovers(plan, id, info, pivot, body, detailed)
 		_:
 			LandmarkCivicCenter.build(id, info.local, info.y0, pivot, body, detailed)
 	ctx = {}

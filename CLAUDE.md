@@ -1190,13 +1190,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   crown), `convention_center` (white hall, two tilted green-glass pavilions). The blocks round
   them are filled, not paved (owner, 2026-09-25): `ArenaGrounds` (`scripts/world/arena_grounds.gd`)
   has the pieces - a multi-storey car park (`garage()`: decks, spandrels, cores, roof stalls,
-  static parked cars from `car_mesh()`, a light copy of the traffic bodies at `CAR_BUDGET`
-  triangles), raised planting beds (`bed()`), tree groves with ring benches (`bosque()`) and bronze
+  static parked cars from `car_mesh()`, a ~260-triangle code car: the traffic bodies' LODs stop
+  at 4,000+ triangles and 250 of them cost 3 M), surface lots, raised planting beds (`bed()`),
+  tree groves with ring benches (`bosque()`, 12-14 m apart, trees gone at 280 m) and bronze
   figures on plinths (`sculpture()`) - and the builders lay them out: the arena at real size
   (`ARENA_RADII` 54 x 45, drum to 40 m) toward Figueroa, the car park west of it, the star plaza
   on its north front, palms in beds along Figueroa, a service drive and berm south; the plaza's
   theatre and cinema block at real depth with a grove in the south of the plaza; the hotel podium
-  filling its block; beds along the convention centre's front. North-east,
+  filling its footprint; beds along the convention centre's front. A site keeps its table
+  footprint (the real building's point, held by the tolerance check), so the rest of each block
+  is `ArenaGrounds.leftovers()` (block less every district site in it, built by the first site in
+  `CivicSites.ORDER`) filled by `build_leftovers()` from `CivicSites.build()`: the arena block's
+  north strip a grove, its south a surface lot, a car park west of the hotel, a second hall
+  south of the convention centre. North-east,
   `LandmarkCivicCenter` (`landmark_civic_center.gd`): `ziggurat_hall` (CITY HALL - on its real
   block, turned to face its real street, floodlit), `civic_park` (CIVIC PARK: fountain
   terrace, lawn, pink furniture), `concert_hall` (SYMPHONY HALL, steel sails from

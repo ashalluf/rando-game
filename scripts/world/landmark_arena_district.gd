@@ -234,7 +234,7 @@ static func _arena_grounds(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D
 	# A grove at the north-west corner, between the plaza and the car park.
 	var grove := Rect2(Vector2(s.position.x + 4.0, s.position.y + 5.0), Vector2(garage.end.x - s.position.x - 6.0, garage.position.y - s.position.y - 12.0))
 	if grove.size.x > 12.0 and grove.size.y > 8.0:
-		ArenaGrounds.bosque(g, batch, grove, y0, 9.0, 51)
+		ArenaGrounds.bosque(g, batch, grove, y0, 14.0, 51)
 	# Raised beds with palms along Figueroa, south of the corner plaza.
 	var east := Rect2(Vector2(c.x + reach.x + 5.0, c.y - reach.y * 0.35), Vector2(ARENA_EAST_SETBACK - 12.0, s.end.y - 10.0 - (c.y - reach.y * 0.35)))
 	if east.size.x > 3.0:
@@ -527,7 +527,7 @@ static func _plaza_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D,
 				Color(1.0, 1.0, 1.0), Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.4, 1.0)))
 	var gz := _plaza_grove_z(p)
 	if gz < p.end.y - 12.0:
-		ArenaGrounds.bosque(g, batch, Rect2(Vector2(p.position.x + 8.0, gz), Vector2(p.size.x - 16.0, p.end.y - gz - 4.0)), y0, 9.0, 83)
+		ArenaGrounds.bosque(g, batch, Rect2(Vector2(p.position.x + 8.0, gz), Vector2(p.size.x - 16.0, p.end.y - gz - 4.0)), y0, 12.0, 83)
 	var cafe := PropFactory.model_cafe_set()
 	for i in maxi(2, int(nb.size.x / 9.0)):
 		var cx := nb.position.x + 4.0 + float(i) * 8.5

@@ -2432,6 +2432,43 @@ or cuts, and the range from the basin should read as brush-covered.
   whether the stands want their shadows back), the far mounds with correct normals at golden
   hour.
 
+## 9aa. The port on the bay, freeways clear, the arena district filled (2026-09-27, wt/downtown-relay)
+
+Owner asks: the San Pedro port stood on an inland harbour in the middle of the city; freeways
+drove through buildings downtown; the arena district's civic blocks (grown at 1:1) were bare
+paving. On `wt/downtown-relay`, on top of the 1:1 re-lay (9s), merged with main, gate green.
+
+- **Port.** `MacroMap.port_rect` (2750, 5935, 630 x 560) on San Pedro Bay just east of the Palos
+  Verdes headland's land end, its south third out in the bay, the berth (`harbor_rect`) and the
+  cargo ship (3065, 6522) off its south quay. `bay_east_x` 1600 -> 4700 so the bay wraps the
+  headland's south and east; Long Beach's sand east of the port (`bay_beach_depth`). The old
+  inland harbour (z 3300) is city. The 110 runs on nearly due south from the 10 to the port's
+  north-west corner. Hill/sea chunks on the headland's elliptical shore build both terrain and
+  water (`CityChunk._headland_shore()`), or the shore showed as a wall along the chunk line.
+  Check: `_port_on_the_bay()` in `tests/downtown_checks.gd` (no enclosed water anywhere in the
+  basin, the old harbour is city, open sea off the whole south quay out past the bay mouth, the
+  headland within 1.2 km west, the 110 ends at the gate).
+- **Freeways.** `Freeway.blocks_rect()`: no lot, plaza or big-box part within 3 m of a deck or
+  ramp (commit 2ed81e1); the 405 stops `AIRPORT_KEEP` short of the airport; the 105 keeps its
+  line south of downtown. Check: every deck segment within 800 m of downtown against every
+  captured box, the towers, civic sites, the masjid, the airport and the port.
+- **Arena district.** `ArenaGrounds` (`scripts/world/arena_grounds.gd`): multi-storey car park
+  (`garage()`), planting beds, bosques with ring benches, bronze figures, surface lots, a second
+  exhibition hall. The arena is real size (glass radii 54 x 45, drum 40 m) with a four-level car
+  park on its west. A civic site keeps its table footprint (centred on the real building, which
+  the tolerance check holds), so the REST of each block is `ArenaGrounds.leftovers()` (the block
+  less every district site in it, owned by the first site in `CivicSites.ORDER`) filled by
+  `build_leftovers()`: the arena block's north strip is a grove, beds and figures, its south a
+  surface lot; west of the hotel a five-level car park; south of the convention centre a second
+  hall. Parked cars are a ~260-triangle code car (`car_mesh()`), not the traffic bodies: those
+  are 8,000+ triangles with LODs that stop at half, and 250 of them cost 3 M triangles.
+- **Cost** (opengl3 GEO, triangles, same cameras): arena corner 6.57 M -> 7.79 M (+18 %), the
+  aerial 6.12 M -> 6.78 M (+11 %), district top-down 4.79 M -> 5.23 M (+9 %), the plaza from the street 6.52 M -> 7.42 M (+14 %); draw calls +1-11 %; most of it trees (+0.5 M, two
+  thirds shadow) and the bigger arena. Trees in the groves are spaced 12-14 m and drop out at
+  280 m. Stills and sheets: branch `shots/relay`.
+- NOT done: the port's containers and cranes are still primitive boxes (roadmap #35); garage
+  interiors read as dark bands from the street (the spandrels hide the cars inside, as in life).
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
