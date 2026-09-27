@@ -74,7 +74,7 @@ uniform float pixel_angle = 0.0016;
 // ---- lighting -----------------------------------------------------------------------------
 // Direct sunlight on this plane. It is lit by hand past the near band: see the ALBEDO/EMISSION
 // split at the bottom for why.
-// The far plane is EMITTED past near_fade_end * 1.8, so the scene's DirectionalLight never
+// The far plane is EMITTED past paint_start .. paint_end, so the scene's DirectionalLight never
 // touches it and this IS its sun. Keep it equal to DayNight.day_sun_energy or the land past
 // 600 m runs darker than the streamed chunks it butts against.
 uniform float sun_strength = 1.30;
@@ -113,7 +113,17 @@ uniform float cloud_speed = 7.0;
 uniform vec3 rock_color : source_color = vec3(0.100, 0.096, 0.088);
 uniform vec3 scree_color : source_color = vec3(0.150, 0.130, 0.100);
 uniform vec3 scrub_color : source_color = vec3(0.042, 0.047, 0.029);
-uniform vec3 dry_grass_color : source_color = vec3(0.092, 0.078, 0.044);
+uniform vec3 dry_grass_color : source_color = vec3(0.138, 0.117, 0.068);
+// The grass above is the near hills' own (terrain.gdshader's straw, averaged over its tufts and
+// bare ground) so the plane matches the streamed tiles where the renderer lights both; the
+// painted band beyond keeps the darker look it was tuned to by this much.
+uniform float paint_gain : hint_range(0.3, 1.0) = 0.66;
+// Metres (from the camera) over which the plane hands from lit by the renderer, like the
+// streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
+// edge lit two different ways: at 200 - 600 m the hand-over fell inside it, and from the air the
+// plane's hills were a dark brown shell against the tan streamed tiles, cut along their edges.
+uniform float paint_start = 900.0;
+uniform float paint_end = 2300.0;
 uniform vec3 snow_color : source_color = vec3(0.58, 0.60, 0.66);
 // The light the ground in front of a slope bounces back up into it. A hue, not an albedo.
 uniform vec3 bounce_color : source_color = vec3(0.62, 0.52, 0.34);
@@ -276,6 +286,8 @@ void fragment() {
 	// `base` is the unlit surface colour and `lit` the light falling on it. They are kept apart
 	// because this plane is lit two different ways at once: see the ALBEDO/EMISSION split below.
 	vec3 base;
+	// `base` for the painted band: the natural ground at paint_gain (see dry_grass_color).
+	vec3 base_e;
 	vec3 lit = vec3(1.0);
 	// Light the far city makes itself, which is all there is to see out there after dark.
 	vec3 glow = vec3(0.0);
@@ -303,6 +315,7 @@ void fragment() {
 		base += vec3(1.0, 0.94, 0.82) * (glare * sea_glitter + glint * sea_glitter * 6.0)
 			* (1.0 - night_factor) * cloud_shade(w, L);
 		rough = 0.22;
+		base_e = base;
 	} else {
 		// ---- the surface, at every scale between the bake's 62 m and about a metre ----------
 		// The derivative comes out of the same evaluation, so this is ONE fractal, not four.
@@ -330,6 +343,7 @@ void fragment() {
 		// Start from the baked district colour so the map still reads as the map, then put the
 		// slope-aware material on top. Before this everything was shaded as if it were level.
 		base = m.rgb;
+		base_e = m.rgb;
 		float land = 1.0 - built;
 		if (land > 0.004) {
 			// Chaparral: one dominant scrub patch per hillside rather than an even sprinkle,
@@ -379,6 +393,7 @@ void fragment() {
 			nat *= 1.0 - 0.2 * clamp(ero.z, -0.5, 1.0);
 			float natural_mix = smoothstep(0.004, 0.06, m.a) * 0.88 + 0.12;
 			base = mix(base, nat, land * natural_mix);
+			base_e = mix(base_e, nat * paint_gain, land * natural_mix);
 		}
 
 		// ---- built-up ground ------------------------------------------------------------
@@ -423,6 +438,7 @@ void fragment() {
 			city = mix(city, city_street_color, street * 0.85 + avenue * 0.5);
 			city *= 1.0 - band * 0.45;
 			base = mix(base, city, built);
+			base_e = mix(base_e, city, built);
 			// Street lights on the grid, windows on the blocks, brighter downtown than out in
 			// the suburbs. One noise tap decides which lots are lit at all, so the field reads
 			// as a scatter of points rather than as an even orange wash.
@@ -483,7 +499,7 @@ void fragment() {
 	float hz = smoothstep(haze_start, haze_end, dist) * haze_strength;
 	float dim = mix(1.0, 0.16, night_factor);
 	vec3 albedo = mix(base, haze_color, hz) * dim;
-	vec3 emitted = mix(base * lit, haze_color, hz) * dim + glow * (1.0 - hz);
+	vec3 emitted = mix(base_e * lit, haze_color, hz) * dim + glow * (1.0 - hz);
 	if (smog > 0.002) {
 		float under = 1.0 - smoothstep(smog_lid * 0.35, smog_lid, world_pos.y);
 		float sm = smog * under * (1.0 - exp(-dist / smog_reach));
@@ -495,11 +511,11 @@ void fragment() {
 	// it is EMITTED at face value, so the sun, sky, self-shadow and cloud terms computed above
 	// are the final answer and a blue midday ambient cannot wash grass, sand and tarmac into
 	// one grey-blue. The Environment's aerial-perspective fog still does the distance wash on
-	// top of it. Inside the near band it goes through ALBEDO instead and the renderer lights it,
+	// top of it. Nearer (paint_start) it goes through ALBEDO instead and the renderer lights it,
 	// so it matches the streamed chunks it is butted up against. Splitting the colour into an
 	// unlit `base` and a `lit` term is what lets one shader do both without double-lighting the
 	// near ground or leaving the far ground at the mercy of the ambient.
-	float painted = smoothstep(near_fade_end * 0.6, near_fade_end * 1.8, dist);
+	float painted = smoothstep(paint_start, paint_end, dist);
 	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - eye.xz));
 	ALBEDO = albedo * (1.0 - painted) * (1.0 - rim);
 	EMISSION = mix(emitted * painted, sky_tint.rgb, rim);
