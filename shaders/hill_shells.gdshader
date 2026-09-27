@@ -154,7 +154,7 @@ void fragment() {
 	float bush_fade = 1.0 - smoothstep(0.5, 2.0, fw);
 	float bush = mix(0.5, vnoiset(w * 0.29 + 3.7), bush_fade);
 	float mid = vnoiset(w * 0.12 + 17.0);
-	float crown_fade = 1.0 - smoothstep(0.35, 1.3, fw);
+	float crown_fade = 1.0 - smoothstep(0.06, 0.2, fw);
 	vec3 crowns = hill_crowns(w);
 	float stand = hill_stand(v_field.x, hill_stand_crowned(hill_stand_noise(patchy, mid, bush), crowns.x, crown_fade), bush);
 	float sage = hill_sage(bush, bush_fade);

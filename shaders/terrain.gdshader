@@ -178,7 +178,9 @@ void fragment() {
 	// Off with ground_detail (the web, below MEDIUM): eight hashes a pixel, and there the edge
 	// runs along the plain stand noise (HillPlanting plants by the crowned edge, a crown's width
 	// off at most).
-	float crown_fade = (1.0 - smoothstep(0.35, 1.3, length(fwidth(w)))) * step(0.5, ground_detail);
+	// Full to ~40 m, gone by ~120 m (720 rows; twice that on the Mac): resolved further out,
+	// the jittered domes read as bubble wrap across a canyon.
+	float crown_fade = (1.0 - smoothstep(0.06, 0.2, length(fwidth(w)))) * step(0.5, ground_detail);
 	vec3 crowns = vec3(CROWN_MEAN, 0.0, 0.0);
 	if (crown_fade > 0.0) {
 		crowns = hill_crowns(w);
@@ -189,7 +191,7 @@ void fragment() {
 	// Crowns with shade between them, leaf clumps on those, the blade grain on those, and the
 	// clumps of bushes that still read from across a canyon once the crowns are gone.
 	// (Both tones average ~0.88, so a stand keeps its brightness as the crowns fade out.)
-	float crown_tone = mix(mix(0.45, 1.3, bush), mix(0.58, 1.3, crowns.x) * mix(0.85, 1.12, bush), crown_fade);
+	float crown_tone = mix(mix(0.45, 1.3, bush), mix(0.64, 1.24, crowns.x) * mix(0.85, 1.12, bush), crown_fade);
 	vec3 chap = mix(chaparral_color, sage_color, smoothstep(-0.05, 0.05, sage - stand))
 		* crown_tone * mix(0.5, 1.4, leaf) * mix(0.72, 1.22, clump) * (0.65 + 0.35 * gl);
 	grass = mix(grass, chap, brush);

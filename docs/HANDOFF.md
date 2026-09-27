@@ -3160,3 +3160,106 @@ realistic people at "AAA studio PS5 quality", made with the hero's pipeline.
   (tree LOD ladders, new car bodies) and was not merged into this branch here; nothing in it
   touches the crowd files, the likely conflicts are CLAUDE.md, loading_screen.gd and
   smoke_test.gd (adjacent hunks).
+
+## 9ai. The hill ground from standing height, 2026-09-27 (agent branch `wt/hill-ground`; roadmap #19, #33, #34)
+
+The ask: a player who lands on a hill saw smooth plastic ground with camouflage blobs of dark
+olive brush and tan grass, a few rocks and almost no vegetation.
+
+- **Hill shells** (`HillShells`, `scripts/world/hill_shells.gd`; `shaders/hill_shells.gdshader`).
+  Every FULL hill chunk draws its terrain mesh again as 16 lifted layers: a MultiMesh of that one
+  mesh with identity instances, the layer's height in `INSTANCE_CUSTOM.r`. One draw per tile, no
+  vertex or index memory of its own, 0.3 ms to build. A fragment is kept only where a blade of
+  dry grass (a 2 x 5 cm cell in the frame of a slow lean field, tapering, bent over with height,
+  swayed by `wind_factor`, a 5 cm thatch mat at the roots, 0.55 m at the tallest) or the brush
+  understory (the painted crowns grown into low mounds of 3 cm leaves, 0.42 m; the lone sage
+  dots into paler round bushes) reaches that high. The first version built a per-tile ArrayMesh
+  with 16 copies of the vertices and a LOD ladder of index prefixes: its `add_surface_from_arrays`
+  alone was 3-7 ms, over the step budget; the MultiMesh costs nothing.
+- **One splat, three readers.** The splat's maths moved to `shaders/hill_splat.gdshaderinc`
+  (uniform defaults, noise, `hill_stand_threshold/stand/sage/brush/bare/rocky/crowns`), included
+  by `terrain.gdshader` and the shells; `HillPlanting` mirrors it (the smoke test reads the include
+  for `MIRRORED` and the new `MIRRORED_CONSTS`). The shells work the slow terms out per vertex
+  (~3 m apart; those noises vary over 25 m and more) and the edge-raggers per fragment.
+- **Keep-out.** `_mark_shell_ground` (a build step before the terrain mesh, a few obstacles a
+  call) writes a signed distance to the nearest hill road + shoulder, mansion pad or landmark into
+  the terrain's COLOR.b (0.5 at the edge, so it interpolates straight); the ridge sign is exempt
+  (its 400 m radius is reserved lots, the letters stand on legs). Replica chunks build no shells.
+- **LOD.** Layers are stored bit-reversed, so any power-of-two prefix is spread evenly up the
+  canopy; `visible_instance_count` is 16 / 8 / 4 / 0 with the camera 40 / 65 / 90 m from the tile's
+  box (checked five times a second per tile), and the shader thins them from 35 to 75 m. Past a
+  pixel a blade or leaf only aliases (moire in the first renders, "sequins" on the brush), so there
+  a layer is kept by its average cover, dithered per pixel and coloured by the layer's height - TAA
+  resolves it on the Mac; opengl3 stills show it as grain.
+- **Shrub crowns in the paint.** `hill_crowns()`: a dome per jittered 2.6 m cell, big and small,
+  never reaching past the four cells searched (so none is cut off straight). A stand's edge runs
+  round them (`crown_edge` 0.06) and inside they are shaded as domes (`crown_relief`); they fade
+  out from a 0.06 m to a 0.2 m pixel footprint (full to ~40 m, gone by ~120 m at 720 rows;
+  resolved further out they read as bubble wrap from across a canyon); off with `ground_detail`. The lone sage and
+  buckwheat dots are painted `sage_color` (paler grey-green): in chaparral's colour they were
+  dark polka dots across the straw.
+- **A hitch removed.** `_scatter_hills` asked `MacroMap.height_at()` about a thousand times in
+  one step (20-40 us each in the eroded hills): 57 ms mean, 75 ms worst per hill chunk on this box.
+  It now reads the tile's own grid (`_terrain_height`, also the surface drawn and collided with)
+  and runs 60 tries a step with its rng kept between calls (same stream, same rolls): 3.6 calls of
+  3.6 ms. The props-on-the-ground check now measures against the tile grid.
+- **Quality.** `CityChunk.shells_enabled` is false on the web and below MEDIUM (set by `Quality`,
+  which also hides built shells via group `hill_shells`).
+
+Numbers (opengl3 / llvmpipe, 1280x720, `--quality=0`, still_shot GEO of the exact frame; before =
+mountains 7a84542 in a separate worktree):
+
+| View | Before tris / draws | After tris / draws | Change |
+|---|---|---|---|
+| ridge, EYE -400,3,-1250 (AGL) | 1,213,599 / 469 | 1,338,332 / 465 | +124.7k (+10.3 %) |
+| slope to the city, EYE -150,2.5,-1100 | 3,026,761 / 927 | 3,232,947 / 927 | +206.2k (+6.8 %) |
+| grass between stands, EYE 608,1.7,-1018 | 1,839,034 / 861 | 2,047,108 / 869 | +208.1k (+11.3 %) |
+| open grass, EYE 780,1.7,-1402 | 2,675,326 / 1,134 | 2,854,903 / 1,141 | +179.6k (+6.7 %) |
+| high flank, EYE -352,1.7,-1369 | 3,181,416 / 1,213 | 3,264,902 / 1,213 | +83.5k (+2.6 %) |
+| hills bookmark (--spawn=300,-650,0,-6,260) | 1,962,821 / 1,132 | 1,980,267 / 1,132 | +17.4k (+0.9 %) |
+
+A tile is 2,048 triangles (4,608 where a hill road crosses it), so 16 layers are 33k / 74k.
+`tools/geo_count.gd` at the hills bookmark (its own frame, 90 frames in): 5,667,443 -> 5,690,211
+triangles (+0.4 %), 4,129 draws both.
+GPU (Forward+ under lavapipe, hill_ground_shot.gd `PROFILE=4`, a ground view the shells fill
+most of, measured before the shells took the painted texture tone - two fetches a visible pixel
+more in the colour pass): frame 4,085 -> 4,198 ms (+2.8 %): the depth pre-pass +46 %, the opaque
+pass -24 % (the shells hide the far heavier terrain shader behind them). Read the shares, not the
+milliseconds.
+
+Build steps (`tools/hill_step_bench/`, headless, 36 hill chunks of the front range, this contended
+box): `_mark_shell_ground` 0.40 ms mean (worst 0.76), `_build_hill_shells` 0.34 ms (0.30 worst
+after the first chunk, which loads the shader: 6.2 ms), `_scatter_hills` 57 ms -> 3.6 ms a call.
+Pre-existing and untouched: `_build_terrain` ~5 ms mean (9 worst), `_build_mansions`' first
+call ~400 ms (loads the Building scene).
+
+Tools: `tools/glshot/hill_ground_shot.tscn` builds the real hill chunks round an EYE with the city's
+WorldEnvironment and sun, a minute a shot instead of eight (`AB=1` saves each frame again without
+the shells, `DEBUG_SEQ=1,3`, `SHELL_DEBUG`, `PROFILE=n` under `--gpu-profile`); its sky and
+exposure are not DayNight's, so judge colour in the city. Screens (agent scratch `screens/`):
+`hillground_{before,after,ab}_{ridge,slope,stands,grass,flank}.jpg`, `hillground_*_hills.jpg`. `tools/hill_step_bench/hill_step_bench.tscn` times every hill build
+step.
+
+Traps: a MultiMesh without `use_colors` hands the Compatibility shader a COLOR that is not the
+vertex colour (the keep-out read "never grow" and nothing drew); `return` is not allowed in
+`fragment()`. **The painted straw is not `straw_color`**: terrain.gdshader multiplies it by its
+grass texture's and aerial mottle's light and dark (`gl`), which average well over one, so shells
+coloured from `straw_color` came out at a third of the ground's brightness (sRGB 97 against 192 in
+the city) - it looked like a lighting bug and was chased through normals, shadows, the Compatibility
+renderer's additive shadow pass and every shader output before a probe mode (debug_mode 3: the
+kept fragments in the painted colour on the slope normal) matched the ground exactly once it had
+`gl`. The shells now sample the same two textures. Also: the harness first lit everything with
+the scene's own level sun (the streamer turns it in `_ready`), which grazes every up-facing
+surface; it now applies `sun_rotation_degrees`.
+
+Still open / needs the Mac (Forward+ with TAA at 60 fps is where this is meant to be judged):
+- The grass is calibrated to the painted straw on opengl3 (a little darker, as grass with depth
+  is); check `grass_gain` / `root_shadow` against a Mac screenshot. The dither grain should
+  resolve under TAA; if it shimmers, raise `blade_cell` or pull `fade_end` in.
+- The brush understory reads as dark textured cushions following the stand shapes; the 3D shrubs
+  (6.2 m grid) are still too sparse to make a continuous canopy at ground level, and more of them
+  cost 2,200 triangles each. A cheaper near shrub (or impostor) is the next lever.
+- The crowns fade out by ~120 m (720 rows, twice that at 1440p) because further out they read as
+  bubble wrap (a first fade at a 0.5 m footprint left them on every hill in view); past that the stands are the old smooth paint with a scalloped edge, and from
+  across a canyon they can still read as camouflage. The far answer is real geometry (a cheap
+  near-far shrub, roadmap #6) rather than more paint.

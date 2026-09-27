@@ -1152,6 +1152,46 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   mounds on the stands, taller dark oaks in the hollows, colours lifted from the
   terrain's `chaparral_color` (`HILL_BRUSH_COLOR`). Past that, `macro_ground.gdshader` biases its scrub to
   the north faces (`north_scrub`) the way the near ground does.
+  **The near hill ground grows out of the paint (hill shells).** The splat's maths lives in
+  `shaders/hill_splat.gdshaderinc` (uniforms, noise, `hill_stand_threshold()`, `hill_brush()`,
+  `hill_bare()`, `hill_rocky()`, `hill_crowns()`), included by `terrain.gdshader` AND by
+  `shaders/hill_shells.gdshader`; the smoke test reads the include for `HillPlanting.MIRRORED` /
+  `MIRRORED_CONSTS`. Every FULL hill chunk draws its terrain mesh again as `HillShells.LAYERS`
+  (16) thin lifted layers (`HillShells`, `scripts/world/hill_shells.gd`): a MultiMesh of that
+  one mesh with identity instances whose `INSTANCE_CUSTOM.r` is the layer's height, so it costs
+  one draw, no memory and ~0.3 ms to build (`CityChunk._build_hill_shells`). The vertex shader
+  lifts each layer (grass span 0.55 m, the brush understory 0.42 m where a stand is likely), the
+  fragment shader keeps a fragment only where a blade (a 2 x 5 cm cell in the frame of a slow
+  lean field, tapering, bent over with height and swayed by the wind, a thatch mat at the
+  roots) or the brush understory (the painted shrub crowns grown into low mounds of 3 cm leaves;
+  the lone sage dots into paler round bushes) reaches that high, and nothing on rock, cuts,
+  trails, roads, pads or landmarks: `_mark_shell_ground` (a build step before the mesh)
+  writes a signed keep-out distance into the terrain's COLOR.b (0.5 at the edge; the terrain
+  shader ignores it). Layers are stored bit-reversed so any power-of-two prefix is spread evenly
+  up the canopy, and `visible_instance_count` is the LOD (`HillShells.LAYER_REACH`: 16 within
+  40 m of the tile, 8 to 65, 4 to 90, none past; the shader thins them from `fade_start` 35 m to
+  `fade_end` 75 m). Blades and leaves under a pixel only alias (moire, sequins), so past that a
+  layer is kept by its average cover, dithered per pixel, coloured by the layer's height (TAA
+  resolves it; compat stills show it as grain). The understory stays low on purpose: a metre of
+  shells seen from the side is a stack of slices and read as velvet pillows; the 3D shrubs are
+  the canopy. No shadow, no GI. Off on the web and below MEDIUM (`CityChunk.shells_enabled`,
+  set by `Quality`, which also hides the built ones - group `hill_shells`). **Trap:** a MultiMesh
+  without `use_colors` hands the Compatibility renderer's shader a COLOR that is not the vertex
+  colour; the shells set white instance colours or their keep-out reads as "never grow". And
+  the painted straw is `straw_color` times the terrain's grass texture and mottle (`gl`), not
+  `straw_color`: the shells sample the same two textures (copies of their tile sizes and mean
+  lumas sit in hill_shells.gdshader; keep them equal), or they draw a third as bright. The
+  painted stands carry **shrub crowns** (`hill_crowns()`: a dome per jittered 2.6 m cell,
+  0.64-1.24 cells across, 0.55-1 tall, never reaching past the four cells searched): the stand
+  edge runs round them (`crown_edge`) and inside a stand they are lit as domes with shade
+  between them (`crown_relief`), faded out from a pixel footprint of 0.06 to 0.2 m (gone by ~120 m
+  at 720 rows: resolved across a canyon they read as bubble wrap), off with `ground_detail`; `HillPlanting.crown()` is the same
+  field (`CROWN_MEAN` is its measured mean, which the edge push is centred on). The lone sage
+  dots are painted `sage_color` (grey-green, paler), not chaparral: they read as polka dots.
+  `_scatter_hills` reads heights off the tile grid and runs `SCATTER_PER_STEP` tries a step
+  (it asked `height_at()` ~1,000 times in one step: a 60 ms hitch per hill chunk). Judge any of it fast with `tools/glshot/hill_ground_shot.tscn` (the real hill chunks
+  round an EYE, lit by the city's environment, a minute a shot; `SHELL_DEBUG`, `NOSHELLS`,
+  `PROFILE` under Forward+) and time the steps with `tools/hill_step_bench/hill_step_bench.tscn`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and
