@@ -209,7 +209,9 @@ func _rocket_to_wreck() -> void:
 			"a rocket next to a car sets it burning on the short fuse (state %d, %.1f s)" % [dmg.state if dmg else -1, dmg._fuse if dmg else -1.0])
 	_check(CarDamage.counts().burning >= 1, "it counts as burning")
 	var t := 0
+	var before := r.linear_velocity
 	while t < 150 and not r.is_wreck():
+		before = r.linear_velocity
 		await _tree.physics_frame
 		t += 1
 	_check(r.is_wreck() and Explosion.blast_count == blasts + 2, "it blows up %d ticks later: its own blast, and a wreck (blasts %d)" % [t, Explosion.blast_count - blasts])
@@ -217,16 +219,19 @@ func _rocket_to_wreck() -> void:
 	_check(r.is_in_group("debris") and is_equal_approx(float(r.get_meta("debris_life", 0.0)), dmg.wreck_lifetime)
 			and paint != null and is_equal_approx(float(paint.get_shader_parameter("burnt")), 1.0),
 			"the wreck is burnt out and PhysicsBudget frees it after %.0f s" % dmg.wreck_lifetime)
-	var up := r.linear_velocity.y
+	# The toss happens in the frame it blows up (up to toss_speed, less whatever it already had).
+	var up := r.linear_velocity.y - before.y
 	await _ticks(40)
 	var finite := r.global_position.is_finite() and r.linear_velocity.is_finite() and r.global_basis.x.is_finite()
-	_check(finite and up > 2.0, "the blast throws the wreck up (%.1f m/s) and it stays finite" % up)
+	_check(finite and up > 3.0, "the blast throws the wreck up (+%.1f m/s) and it stays finite" % up)
 	var landed := 0
 	while landed < 480 and (r.linear_velocity.length() > 0.5 or r.global_position.y > _top.y + 3.0):
 		await _tree.physics_frame
 		landed += 1
 	var over := r.global_position.y - _top.y
-	_check(r.global_position.is_finite() and over > -0.2 and over < 1.6, "the wreck comes down and rests on the deck (%.2f m over it, %d ticks)" % [over, landed])
+	# On its rims, its side or its roof (the toss spins it).
+	_check(r.global_position.is_finite() and over > -0.2 and over < 2.6 and r.linear_velocity.length() < 1.0,
+			"the wreck comes down and rests on the deck (%.2f m over it, %d ticks)" % [over, landed])
 	var hp_before := dmg.health
 	r.take_hit(-1, 10.0, Vector3.DOWN, r.global_position + Vector3.UP, Vehicle.HIT_BULLET)
 	_check(dmg.health == hp_before and r.is_wreck(), "a wreck takes no more damage")

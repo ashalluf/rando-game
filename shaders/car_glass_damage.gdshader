@@ -42,6 +42,8 @@ uniform float burnt = 0.0;
 // How bright the cabin behind an empty frame is, against the sky it is lit by (emitted, like the
 // buildings' glass mirror, so it follows DayNight's sky_tint into the night).
 uniform float cabin_light = 4.0;
+// A cabin on fire (the wreck): an orange flicker on everything inside, hottest low down.
+uniform float cabin_fire = 0.0;
 
 varying vec3 lp;
 varying vec3 ln;
@@ -142,12 +144,17 @@ vec3 cabin_view(vec3 o, vec3 d) {
 	furniture(o, inv, vec3(cabin_lo.x, fy, front_end), vec3(cabin_hi.x, belt_y + 0.05, front_end + back * 0.42), 0.6, best, best_n, best_shade);
 	// Light in a cabin comes in through the windows: the tops of things catch it, the sides
 	// facing the open frame a little, everything else sits in the dark.
+	float flicker = 0.0;
+	if (cabin_fire > 0.0) {
+		flicker = cabin_fire * (0.55 + 0.45 * cd_noise3(vec3(TIME * 7.0, o.x * 3.0, o.z * 3.0)));
+	}
+	vec3 fire_c = vec3(1.9, 0.55, 0.12);
 	if (best_shade >= 0.0) {
 		vec3 h = o + d * best;
 		vec3 fabric = mix(vec3(0.13, 0.125, 0.12), vec3(0.016, 0.014, 0.012), char_);
 		fabric *= 0.8 + 0.4 * cd_noise3(h * 40.0);
 		float lit = 0.2 + 0.55 * max(best_n.y, 0.0) + 0.3 * max(dot(best_n, -d), 0.0);
-		return fabric * sky * lit * best_shade;
+		return fabric * sky * lit * best_shade * cabin_light + fire_c * flicker * (0.35 + 0.4 * max(best_n.y, 0.0));
 	}
 	vec3 e = o + d * t_exit;
 	int axis = (tf.x < tf.y && tf.x < tf.z) ? 0 : (tf.y < tf.z ? 1 : 2);
@@ -160,21 +167,22 @@ vec3 cabin_view(vec3 o, vec3 d) {
 		}
 		if (far_i < 0 && pane_count > 0 && char_ < 0.5) {
 			// Between the far panes: a pillar.
-			return vec3(0.03, 0.029, 0.028) * sky * 0.6;
+			return vec3(0.03, 0.029, 0.028) * sky * 0.6 * cabin_light;
 		}
 		open = max(open, char_);
 		float lift = smoothstep(belt_y, cabin_hi.y, e.y);
-		return sky * open * (0.45 + 0.3 * lift);
+		// The day outside, about as bright as the sky behind the car: not lifted like the cabin.
+		return sky * open * (0.3 + 0.2 * lift) + fire_c * flicker * 0.25;
 	}
 	if (axis == 1 && d.y > 0.0) {
 		// The headliner, or the bare roof skin once it has burnt away.
 		vec3 roof = mix(vec3(0.34, 0.33, 0.31), vec3(0.03, 0.025, 0.02), char_);
-		return roof * sky * 0.14;
+		return roof * sky * 0.14 * cabin_light + fire_c * flicker * 0.5;
 	}
 	// Door cards and the floor.
 	float low = smoothstep(cabin_lo.y, belt_y, e.y);
 	vec3 trim = mix(vec3(0.08, 0.077, 0.074), vec3(0.01, 0.009, 0.008), char_);
-	return trim * sky * (0.3 + 0.7 * low);
+	return trim * sky * (0.3 + 0.7 * low) * cabin_light + fire_c * flicker * (1.0 - 0.6 * low);
 }
 
 
@@ -224,7 +232,7 @@ void fragment() {
 			tilt = (t * tl.x + b * tl.y) * 0.6;
 		} else {
 			vec3 rd = normalize(lp - cam_local);
-			emit = cabin_view(lp, rd) * cabin_light;
+			emit = cabin_view(lp, rd);
 			alb = vec3(0.0);
 			rough = 1.0;
 			metal = 0.0;

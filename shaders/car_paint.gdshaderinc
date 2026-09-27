@@ -312,7 +312,8 @@ void fragment() {
 	if (burnt > 0.0) {
 		float dist = distance(local_rest, burn_origin);
 		heat = clamp((burn_reach - dist) / max(burn_reach * 0.35, 0.15) + (stain_n - 0.5) * 0.9, 0.0, 1.0);
-		heat *= mix(0.62, 1.0, smoothstep(0.06, 0.42, body_uv.y + (stain_n - 0.5) * 0.25));
+		// While it burns the sills stay cooler; burnt out, the whole shell has had it.
+		heat *= mix(mix(0.62, 0.9, smoothstep(0.6, 1.0, burnt)), 1.0, smoothstep(0.06, 0.42, body_uv.y + (stain_n - 0.5) * 0.25));
 	}
 	for (int i = 0; i < scorch_count && i < 4; i++) {
 		float r = max(scorches[i].w, 0.05);
@@ -330,7 +331,8 @@ void fragment() {
 		// Burnt steel: rust brown and dull grey-brown, pale ash where it burnt hottest.
 		vec3 rust = mix(vec3(0.17, 0.085, 0.045), vec3(0.30, 0.16, 0.085), n2);
 		vec3 ash = mix(vec3(0.30, 0.285, 0.265), vec3(0.50, 0.48, 0.45), n2);
-		vec3 bare_c = mix(rust, ash, smoothstep(0.38, 0.62, n3));
+		// Ash greys the roof and the bonnet most (the paint there burns hottest, and it lies on top).
+		vec3 bare_c = mix(rust, ash, clamp(smoothstep(0.38, 0.62, n3) + facing.y * 0.4 - 0.1, 0.0, 1.0));
 		// Temper colours where the steel got hot but kept its skin: straw to blue.
 		vec3 temper = mix(vec3(0.50, 0.38, 0.16), vec3(0.16, 0.20, 0.38), n2);
 		vec3 c = ALBEDO;

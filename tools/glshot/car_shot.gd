@@ -98,6 +98,10 @@ func _initialize() -> void:
 	world.add_child(we)
 	RenderingServer.global_shader_parameter_set("night_factor", 1.0 if night else 0.0)
 	RenderingServer.global_shader_parameter_set("lamp_factor", 1.0 if night else 0.0)
+	# The sky's colour as DayNight publishes it (the empty frames' cabin and the building glass are
+	# lit by it); the project default is a day sky.
+	if night:
+		RenderingServer.global_shader_parameter_set("sky_tint", Color(0.03, 0.035, 0.05))
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-44.0, -130.0, 0.0)

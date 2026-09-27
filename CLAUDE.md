@@ -635,6 +635,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `DAMAGE=holes,glass,dents,smoke,burning,wreck` on `tools/glshot/car_shot.gd` (views `door`,
   `glass`, `screen`, `cabin`); checks: `tests/car_damage_checks.gd`. Traps: a `--script` tool
   that names `CarDamage` as a type compiles it before the Sfx autoload exists (load it by path);
+  setting a `CPUParticles3D`'s `amount` restarts it (every particle gone), so a fire resized
+  every frame drew nothing - change amounts in steps, only when they change; a crash watch
+  without its contact ray takes every scripted velocity reset for a crash;
   `Explosion.blast()` still pushes a car once per collision shape (2-3x a rocket's 30 m/s).
 - Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at

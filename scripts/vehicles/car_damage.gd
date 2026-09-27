@@ -147,6 +147,7 @@ var _smoke: CPUParticles3D
 var _fire: CPUParticles3D
 var _fire_light: OmniLight3D
 var _fire_sound: AudioStreamPlayer3D
+var _fire_size: float = -1.0
 var _staged: bool = false
 ## While a still is staged, hits leave marks but do not move the health.
 var _stage_hold: bool = false
@@ -399,7 +400,7 @@ func _add_crack(p: Vector3, n: Vector3, world_r: float) -> void:
 		_cracks[_crack_next] = v
 		_crack_n[_crack_next] = nv
 		_crack_next = (_crack_next + 1) % CRACK_CAP
-	Sfx.play("glass", _mesh_to_world(p), -12.0, randf_range(1.1, 1.4))
+	_glass_sound(_mesh_to_world(p), -12.0, randf_range(1.1, 1.4))
 
 
 func _set_pane(i: int, s: float) -> void:
@@ -412,11 +413,23 @@ func _set_pane(i: int, s: float) -> void:
 	var c: Vector3 = ((pane[0] as Vector3) + (pane[1] as Vector3)) * 0.5
 	if s >= 2.0 and was < 2.0:
 		_glass_burst(c, pane[2], pane[1] - pane[0], 1.0 if int(pane[3]) != 2 else 0.3)
-		Sfx.play("glass", _mesh_to_world(c), -2.0, randf_range(0.9, 1.1))
+		_glass_sound(_mesh_to_world(c), -2.0, randf_range(0.9, 1.1))
 	elif s >= 1.0 and was < 1.0:
 		_glass_burst(c, pane[2], pane[1] - pane[0], 0.25)
-		Sfx.play("glass", _mesh_to_world(c), -8.0, randf_range(1.0, 1.25))
+		_glass_sound(_mesh_to_world(c), -8.0, randf_range(1.0, 1.25))
 	_mark_dirty()
+
+
+## Glass breaking, at most one sound a car every 70 ms (nine pellets are one crash of glass).
+func _glass_sound(at: Vector3, db: float, pitch: float) -> void:
+	var now := Time.get_ticks_msec()
+	if now - _glass_ms < 70:
+		return
+	_glass_ms = now
+	Sfx.play("glass", at, db, pitch)
+
+
+var _glass_ms: int = -1000
 
 
 func _pane_at(p: Vector3, n: Vector3) -> int:
@@ -439,6 +452,8 @@ func _glass_burst(c: Vector3, n: Vector3, size: Vector3, amount: float) -> void:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.explosiveness = 0.9
+	# Centimetre cubes: a shadow each is four more draws (the cascades) for nothing you can see.
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	p.amount = WeaponFX._count(maxi(6, int(70.0 * amount)))
 	p.lifetime = 1.3
 	p.lifetime_randomness = 0.3
@@ -497,7 +512,7 @@ func _break_lamps(bits: int) -> void:
 		var bit := (LAMP_HEAD_L if c.x < 0.0 else LAMP_HEAD_R) if c.z < 0.0 else (LAMP_TAIL_L if c.x < 0.0 else LAMP_TAIL_R)
 		if bits & bit:
 			_set_pane(i, 2.0)
-	Sfx.play("glass", car.global_position, -10.0, 1.5)
+	_glass_sound(car.global_position, -10.0, 1.5)
 	_mark_dirty()
 
 
@@ -541,7 +556,8 @@ func _blast(center: Vector3, falloff: float) -> float:
 ## the threshold it went (m/s).
 func _crash(at: Vector3, dir: Vector3, over: float) -> float:
 	var inv := car.global_transform.affine_inverse()
-	var body_at: Vector3 = inv * at
+	# `at` is on what the car hit; the dent goes on the car's side of it.
+	var body_at: Vector3 = _box_point_toward(inv * at)
 	var push_body: Vector3 = (car.global_basis.inverse() * dir).normalized()
 	var p := _to_mesh * body_at
 	var r := (crash_dent_radius.x + crash_dent_radius.y * over)
@@ -599,19 +615,6 @@ func _box_point_toward(p: Vector3) -> Vector3:
 	return q
 
 
-## Where a crash touched, in scene space: the point of the car's box on the side the velocity
-## change came from.
-func contact_from(dv: Vector3) -> Vector3:
-	var d: Vector3 = (car.global_basis.inverse() * -dv).normalized()
-	var c := Vector3(0.0, (_ride + _top) * 0.5, 0.0)
-	var half := Vector3(_width * 0.5, (_top - _ride) * 0.5, _len * 0.5)
-	var t := INF
-	for a in 3:
-		if absf(d[a]) > 1e-4:
-			t = minf(t, half[a] / absf(d[a]))
-	return car.global_transform * (c + d * t)
-
-
 # --- Fire, the blast, the wreck -----------------------------------------------------------------
 
 func _start_smoke() -> void:
@@ -623,6 +626,7 @@ func _start_smoke() -> void:
 	_smokers.append(self)
 	_smoke = CPUParticles3D.new()
 	_smoke.name = "EngineSmoke"
+	_smoke.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	_smoke.amount = 26
 	_smoke.lifetime = 3.6
 	_smoke.lifetime_randomness = 0.3
@@ -669,7 +673,11 @@ func _tint_smoke() -> void:
 		k = 1.0
 	var grey := lerpf(0.42, 0.05, k)
 	_smoke.color = Color(grey, grey * 0.97, grey * 0.94, lerpf(0.35, 0.9, k))
-	_smoke.amount = WeaponFX._count(int(lerpf(18.0, 48.0, k)))
+	# In steps: setting the amount restarts the system, and a round a tenth of a second would
+	# keep the column from ever rising.
+	var want := WeaponFX._count(18 + 10 * int(round(k * 3.0)))
+	if want != _smoke.amount:
+		_smoke.amount = want
 	_smoke.initial_velocity_max = lerpf(1.6, 3.4, k)
 	_smoke.scale_amount_max = lerpf(1.0, 1.5, k)
 
@@ -722,6 +730,7 @@ func _start_fire(size: float) -> void:
 	if _fire == null:
 		_fire = CPUParticles3D.new()
 		_fire.name = "EngineFire"
+		_fire.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_fire.local_coords = false
 		_fire.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 		_fire.direction = Vector3.UP
@@ -741,7 +750,7 @@ func _start_fire(size: float) -> void:
 		_fire.angle_min = -180.0
 		_fire.angle_max = 180.0
 		var quad := QuadMesh.new()
-		quad.size = Vector2(0.8, 1.2)
+		quad.size = Vector2(1.1, 1.2)
 		# The flame's root at the particle.
 		quad.center_offset = Vector3(0.0, 0.6, 0.0)
 		quad.material = flame_material()
@@ -763,7 +772,11 @@ func _start_fire(size: float) -> void:
 		_fire_sound.unit_size = 6.0
 		add_child(_fire_sound)
 		_fire_sound.play()
-	_fire.amount = WeaponFX._count(int(12.0 + 14.0 * size))
+	# The amount only once: setting it restarts the system (every particle gone), so a fire resized
+	# every frame drew nothing.
+	if _fire.amount <= 8:
+		_fire.amount = WeaponFX._count(26)
+	_fire_size = size
 	_fire.lifetime = 0.7 + 0.3 * size
 	_fire.initial_velocity_min = 0.1
 	_fire.initial_velocity_max = 0.3 + 0.3 * size
@@ -771,9 +784,12 @@ func _start_fire(size: float) -> void:
 	_fire.scale_amount_max = 0.65 + 0.45 * size
 	var over := _bonnet()
 	if state == State.WRECK:
-		# The whole shell burns once it has gone up: the cabin as well as the bay.
-		_fire.emission_box_extents = Vector3(_width * 0.34, 0.12, _len * 0.3)
-		over = Vector3(0.0, _ride + (_top - _ride) * 0.45, 0.0)
+		# The bay and the scuttle burn on the outside; the cabin burns inside, seen through the
+		# empty frames (the glass shader's cabin_fire).
+		_fire.emission_box_extents = Vector3(_width * 0.34, 0.08, _len * 0.2)
+		over.z = lerpf(_engine_z, 0.0, 0.35)
+		if _glass:
+			_glass.set_shader_parameter("cabin_fire", size)
 	else:
 		_fire.emission_box_extents = Vector3(_width * 0.3, 0.05, _len * 0.13)
 	_fire.position = over
@@ -806,14 +822,15 @@ func _process(delta: float) -> void:
 			_stop_fire()
 		elif _fire:
 			busy = true
-			_start_fire(clampf(1.0 - _wreck_t / wreck_fire_seconds, 0.25, 1.0))
+			# Dying down in steps (each resize is a few property sets, not a restart).
+			var want := snappedf(clampf(1.0 - _wreck_t / wreck_fire_seconds, 0.25, 1.0), 0.25)
+			if absf(want - _fire_size) > 0.01:
+				_start_fire(want)
 		if _smoke and _wreck_t > wreck_fire_seconds + wreck_smoke_seconds:
 			_smoke.emitting = false
 			_smokers.erase(self)
 		elif _smoke:
 			busy = true
-	elif state == State.SMOKING:
-		busy = _smoke != null
 	if _fire_light:
 		_fire_light.light_energy = (2.2 + 1.2 * sin(Time.get_ticks_msec() * 0.021) + 0.8 * sin(Time.get_ticks_msec() * 0.057)) \
 			* (1.0 if state == State.BURNING else clampf(1.0 - _wreck_t / wreck_fire_seconds, 0.2, 1.0))
@@ -822,6 +839,8 @@ func _process(delta: float) -> void:
 
 
 func _stop_fire() -> void:
+	if _glass:
+		_glass.set_shader_parameter("cabin_fire", 0.0)
 	if _fire:
 		_fire.emitting = false
 		var f := _fire
@@ -878,6 +897,7 @@ func become_wreck() -> void:
 	lamps_broken = LAMP_HEAD_L | LAMP_HEAD_R | LAMP_TAIL_L | LAMP_TAIL_R
 	_ensure_paint()
 	_ensure_glass()
+	_ensure_lamps()
 	_set_burn(1.0, _len * 1.5)
 	_char_parts_of_car()
 	car._become_wreck()
@@ -1117,8 +1137,6 @@ func _push() -> void:
 			_paint.set_shader_parameter("cracks", _cracks)
 		if _glass == null:
 			_paint.set_shader_parameter("glass_gone", _side_gone())
-		if not _burn_set_once and state == State.BURNING:
-			_burn_set_once = true
 	if _glass:
 		_glass.set_shader_parameter("pane_count", _panes.size())
 		if not _panes.is_empty():
@@ -1146,9 +1164,6 @@ func _push() -> void:
 		var r := LAMP_HEAD_R if front else LAMP_TAIL_R
 		# The lamp on the car's left (body -x) is the mesh's -x side for every glass-slot body.
 		m.set_shader_parameter("broken", Vector2(1.0 if lamps_broken & l else 0.0, 1.0 if lamps_broken & r else 0.0))
-
-
-var _burn_set_once: bool = false
 
 
 ## For a single-texture body: which sides have lost their glass (front, rear, left, right).
