@@ -175,7 +175,7 @@ func _roofs(plan: CityPlan, _entries: Dictionary) -> Array:
 	var a := CivicSites.site(plan, "arena")
 	out.append(["arena", CivicSites.to_world(a, LandmarkArenaDistrict._arena_centre(a.local)), float(a.y0) + LandmarkArenaDistrict.DRUM_TOP])
 	var hall := CivicSites.site(plan, "ziggurat_hall")
-	out.append(["ziggurat_hall", CivicSites.to_world(hall, Vector2(0.0, 6.0)), float(hall.y0) + 110.0])
+	out.append(["ziggurat_hall", CivicSites.to_world(hall, LandmarkCivicCenter._hall_tower(hall.local)), float(hall.y0) + 110.0])
 	var hotel := CivicSites.site(plan, "live_hotel")
 	out.append(["live_hotel", CivicSites.to_world(hotel, Vector2(-4.0, -2.0)), float(hotel.y0) + 150.0])
 	var st := CivicSites.site(plan, "pueblo_station")

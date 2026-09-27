@@ -359,9 +359,26 @@ func _police_route() -> void:
 			parked = true
 			break
 	var gap := INF
+	# Against the kerb nearest the player where he stands at the end as well: on the real downtown
+	# grid block (0, 0) is 100 x 200 m and he can be nudged several metres during the forty
+	# seconds (off a building he landed against), and the cruiser follows him, as it should.
+	var pe: Vector3 = _ws.to_world(player.global_position)
+	var stop_end := StreetRoute.kerb_stop(_plan, Vector2(pe.x, pe.z), 13.0)
 	if car and is_instance_valid(car) and not stop.is_empty():
 		var cw: Vector3 = _ws.to_world(car.global_position)
 		gap = Vector2(cw.x, cw.z).distance_to(stop.stop)
+		if not stop_end.is_empty():
+			gap = minf(gap, Vector2(cw.x, cw.z).distance_to(stop_end.stop))
+	if gap >= 3.0 and car and is_instance_valid(car):
+		# What stood in the way: the car's own goal against the test's, and every body near it.
+		var cw: Vector3 = _ws.to_world(car.global_position)
+		var near := ""
+		for b in _tree.root.find_children("*", "PhysicsBody3D", true, false):
+			if b != car and (b as Node3D).global_position.distance_to(car.global_position) < 9.0:
+				near += " %s(%s)" % [b.name, str(_ws.to_world((b as Node3D).global_position).round())]
+		printerr("police route: car at %s mode %d, its stop %s, the check's %s, player at %s; near:%s" % [str(cw.round()),
+			int(car.get("mode")), str((car.get("_dest") as Dictionary).get("stop", "-")), str(stop.get("stop", "-")),
+			str(_ws.to_world(player.global_position).round()), near])
 	_check(parked and gap < 3.0 and samples > 30 and off == 0 and (police.get("officers") as Array).size() > 0,
 		"a cruiser reaches a player mid-block by road and pulls up at the nearest kerb (%.1f m from it, %d of %d samples off the road)" % [gap, off, samples])
 	police.call("clear")

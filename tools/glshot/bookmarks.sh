@@ -26,11 +26,11 @@ cd "$(dirname "$0")/../.."
 
 # name | extra env | game args (spawn is x,z,yaw,pitch[,height])
 BOOKMARKS=(
-	"downtown_noon||--spawn=589.2,860,0,12,2 --hour=12 --weather=clear"
-	"downtown_night_rain||--spawn=589.2,860,0,12,2 --hour=21.5 --weather=rain"
+	"downtown_noon||--spawn=2359.4,880,0,12,2 --hour=12 --weather=clear"
+	"downtown_night_rain||--spawn=2359.4,880,0,12,2 --hour=21.5 --weather=rain"
 	"hills||--spawn=300,-650,0,-6,260 --hour=15 --weather=clear"
-	"freeway||--spawn=200,712,-90,-4,30 --hour=13 --weather=clear"
-	"masjid||--spawn=-272,252,-31.8,-23.7,32 --hour=11 --weather=clear"
+	"freeway||--spawn=200,1088,-90,-4,30 --hour=13 --weather=clear"
+	"masjid||--spawn=1880.7,2809.6,-31.8,-23.7,32 --hour=11 --weather=clear"
 	"esplanade_sunset|EYE=-441.66,9.94,3534.58,-178,-1.5 FOV=44|--spawn=-441.7,3534.6,-178,-1.5 --hour=18.6 --weather=clear"
 	"hero|||"
 )

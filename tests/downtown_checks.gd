@@ -8,7 +8,7 @@ extends RefCounted
 ## few metres a block's pavement clamps them by); a few real distances survive the turn onto the
 ## game's axes; and the frame round the area is the real one - the 110 down the west edge, the
 ## 101 across the north, the 10 to the south, the hills behind the civic centre, the airport to
-## the south-west.
+## the south-west, the masjid on Exposition to the south.
 
 var _t: Node
 
@@ -149,11 +149,14 @@ func run(t: Node, city: Node3D) -> void:
 			south = true
 	if not south:
 		frame += " no 10 south of Venice at Broadway"
-	# No freeway deck runs through the core: the old cross route cut the Financial District.
+	# No freeway deck runs through the core east of Figueroa: the old cross route cut the Financial
+	# District. (The core rects start at the 110 - Bunker Hill's west side is the freeway's cut - so
+	# the deck along their west edge is the real one.)
 	for r: Rect2 in macro.downtown_core:
+		var east := Rect2(Vector2(maxf(r.position.x, fig + 20.0), r.position.y), Vector2(r.end.x - maxf(r.position.x, fig + 20.0), r.size.y))
 		for i in 12:
 			for j in 12:
-				var p := r.position + r.size * Vector2((float(i) + 0.5) / 12.0, (float(j) + 0.5) / 12.0)
+				var p := east.position + east.size * Vector2((float(i) + 0.5) / 12.0, (float(j) + 0.5) / 12.0)
 				if fw.blocks(p, 0.0) and not frame.contains("core"):
 					frame += " a deck crosses the core at %s" % p
 	_check(frame == "", "downtown sits in its real frame: freeways round it, hills behind, the airport south-west%s" % frame)
@@ -168,6 +171,186 @@ func run(t: Node, city: Node3D) -> void:
 	var real_along := DowntownReal.grid_uv(DowntownReal.real_en(DowntownReal.POINTS.macarthur_park)).x
 	mac_ok = mac_ok and absf(along - (DowntownReal.AVENUES[3].u - real_along)) < 40.0
 	_check(mac_ok, "MacArthur Park's sides are real roads, %.0f m west of Figueroa along Wilshire" % along)
+
+	# Masjid Omar ibn Al-Khattab (LandmarkMasjidOmar) is where the real one is relative to downtown:
+	# grid-south of Pershing Square below Venice, on the real building's line to within 60 m (its
+	# real point is past the port, so the distance south is compressed), west of the 110, south of
+	# where the 10 leaves it, north of the 105 - the real order.
+	var masjid := Vector2.INF
+	for lm in Landmarks.all():
+		if lm.id == "masjid_omar":
+			masjid = lm.anchor
+	var mq := ""
+	var real_m := DowntownReal.game_xz(LandmarkMasjidOmar.REAL_LATLON)
+	if masjid == Vector2.INF:
+		mq = " not in the landmark table"
+	else:
+		if absf(masjid.x - real_m.x) > 60.0:
+			mq += " %.0f m off its real line (x %.0f, real %.0f)" % [absf(masjid.x - real_m.x), masjid.x, real_m.x]
+		if masjid.y < venice + 200.0:
+			mq += " not south of Venice Blvd"
+		var at_110 := _route_x_at(fw, "110", masjid.y)
+		if not (masjid.x + 60.0 < at_110):
+			mq += " not west of the 110 (x %.0f there)" % at_110
+		var ten: PackedVector2Array = _route(fw, "10")
+		if ten.is_empty() or masjid.y < ten[0].y:
+			mq += " not south of the 10"
+		var cross := _route_z_at(fw, "105", masjid.x)
+		if not (cross > masjid.y + LandmarkMasjidOmar.BLD_OFFSET.z + LandmarkMasjidOmar.SITE_Z1 + 40.0):
+			mq += " not north of the 105 (z %.0f there)" % cross
+	_check(mq == "", "the masjid stands south of downtown where the real one does: west of the 110, between the 10 and the 105%s" % mq)
+	_freeways_clear(plan, city)
+	_port_on_the_bay(plan)
+
+
+## The port is where the real one is (owner, 2026-09-25: "the san pedro pier is in the middle of
+## the damn city with water ... it should be on the east side of palos verdes"): on San Pedro Bay
+## just east of the headland, its quay on open sea, the 110 ending at its gate - and nowhere in
+## the basin is there enclosed water any more.
+func _port_on_the_bay(plan: CityPlan) -> void:
+	var m: MacroMap = plan.macro
+	var bad := ""
+	# No inland water: every ocean sample in the basin is the sea itself (west of the coast) or
+	# the bay round the headland, reached from open sea (south of bay_z) by water.
+	var wet := 0
+	for zi in range(-1000, int(m.bay_z) - 150, 50):
+		for xi in range(-400, 4700, 50):
+			var q := Vector2(float(xi), float(zi))
+			if m.zone_at(q) == MacroMap.Zone.OCEAN and q.x > m.coast_x(q.y) + 300.0 and m.headland_dist(q) > 300.0:
+				wet += 1
+	if wet > 0:
+		bad += " %d inland water samples" % wet
+	for old: Vector2 in [Vector2(2400.0, 3430.0), Vector2(2400.0, 3150.0)]:
+		if m.zone_at(old) != MacroMap.Zone.CITY:
+			bad += " the old harbour at %s is %s" % [old, MacroMap.zone_name(m.zone_at(old))]
+	var port := m.port_rect
+	if m.zone_at(port.get_center()) != MacroMap.Zone.PORT:
+		bad += " the port rect is not port"
+	# The quay faces open sea: water off the whole south quay, and due south of it all the way
+	# out past the bay's mouth.
+	for f: float in [0.1, 0.5, 0.9]:
+		var x := lerpf(port.position.x, port.end.x, f)
+		for z in range(int(port.end.y) + 30, int(m.bay_z) + 1500, 100):
+			if m.zone_at(Vector2(x, float(z))) != MacroMap.Zone.OCEAN:
+				bad += " dry at (%.0f, %d) south of the quay" % [x, z]
+				break
+	# East of the headland: its land within 1.2 km west of the port, none of it under the port.
+	var headland_west := false
+	for dx in range(50, 1250, 50):
+		if m.headland_dist(Vector2(port.position.x - float(dx), port.get_center().y)) < 0.0:
+			headland_west = true
+	if not headland_west or m.headland_dist(port.get_center()) < 0.0:
+		bad += " not just east of the headland"
+	var ends := _route(m.freeway, "110")
+	if ends.is_empty() or port.grow(200.0).has_point(ends[ends.size() - 1]) == false:
+		bad += " the 110 does not end at the port (%s)" % (ends[ends.size() - 1] if not ends.is_empty() else "none")
+	_check(bad == "", "the port is on San Pedro Bay east of the headland, its quay on open sea, the 110 at its gate, and no inland water (port %s)%s" % [port, bad])
+
+
+## No freeway deck, pillar or off-ramp passes through anything built downtown (owner, 2026-09-25:
+## "theres freeways in downtown going straight thru buildings"). Walks every deck segment within
+## 800 m of downtown's extent, captures the LOD build of every block the deck or a ramp crosses
+## (CityChunk.capturing: the very boxes the far city and the LOD chunk draw - every building
+## part, plinth, big-box wall and pad; the FULL chunk builds the same lots) and tests each box
+## over 2.5 m tall against the corridors, then the named towers' plans and the civic sites.
+func _freeways_clear(plan: CityPlan, city: Node3D) -> void:
+	var fw: Freeway = plan.macro.freeway
+	var region := DowntownReal.game_extent().grow(800.0)
+	var style: Dictionary = city.call("chunk_style")
+	var blocks := {}
+	var segs := 0
+	for route: Dictionary in fw.routes:
+		var pts: PackedVector2Array = route.points
+		var half: float = float(route.width) * 0.5 + 3.0
+		for si in pts.size() - 1:
+			var mid := (pts[si] + pts[si + 1]) * 0.5
+			if not region.has_point(mid):
+				continue
+			segs += 1
+			var along := (pts[si + 1] - pts[si]).normalized()
+			var across := Vector2(-along.y, along.x) * half
+			for q: Vector2 in [pts[si], mid, mid + across, mid - across]:
+				blocks[plan.block_index_at(q)] = true
+	for r: Dictionary in fw.ramps:
+		if region.has_point(r.pos):
+			for q: Vector2 in Freeway.ramp_path(r):
+				blocks[plan.block_index_at(q)] = true
+	var hits: Array[String] = []
+	var boxes := 0
+	for k: Vector2i in blocks:
+		var zone := plan.macro.zone_at((plan.block(k.x, k.y).rect as Rect2).get_center())
+		if zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.PORT:
+			continue
+		var cap := CityChunk.new()
+		cap.plan = plan
+		cap.ix = k.x
+		cap.iz = k.y
+		cap.level = CityChunk.Level.LOD
+		cap.style = style
+		cap.capturing = true
+		cap.build()
+		var xforms: Array = (cap.captured.get("batch", {}) as Dictionary).get("lod_box", {"xforms": []}).xforms.duplicate()
+		for box: Array in cap.captured.get("boxes", []):
+			xforms.append(box[0])
+		cap.free()
+		for xf: Transform3D in xforms:
+			var bb := xf * AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)
+			if bb.size.y < 2.5:
+				continue
+			boxes += 1
+			var foot := Rect2(bb.position.x, bb.position.z, bb.size.x, bb.size.z)
+			if fw.blocks_rect(foot, 0.0) and hits.size() < 6:
+				hits.append("block %s box at (%.0f, %.0f)" % [k, foot.get_center().x, foot.get_center().y])
+	for lm in Landmarks.all():
+		var id: String = lm.id
+		var foot := Rect2()
+		if id.begins_with("dt_"):
+			foot = LandmarkDowntown.footprint(lm)
+		elif CivicSites.SITES.has(id):
+			foot = CivicSites.site(plan, id).world
+		elif id == "masjid_omar":
+			var m := Vector2(lm.anchor) + Vector2(LandmarkMasjidOmar.BLD_OFFSET.x, LandmarkMasjidOmar.BLD_OFFSET.z)
+			foot = Rect2(m.x + LandmarkMasjidOmar.SITE_X0, m.y + LandmarkMasjidOmar.SITE_Z0,
+				LandmarkMasjidOmar.SITE_X1 - LandmarkMasjidOmar.SITE_X0, LandmarkMasjidOmar.SITE_Z1 - LandmarkMasjidOmar.SITE_Z0)
+		else:
+			continue
+		if fw.blocks_rect(foot, 0.0):
+			hits.append(id)
+	# Out in the basin: no deck over the airport (its terminal, its runways - the 405 used to cross
+	# all three at nine metres, in the jets' way) or the port.
+	for named in [["airport", plan.macro.airport_rect], ["port", plan.macro.port_rect]]:
+		if fw.blocks_rect(named[1] as Rect2, 0.0):
+			hits.append(str(named[0]))
+	_check(segs > 100 and boxes > 500 and hits.is_empty(),
+		"no freeway deck, pillar or ramp downtown passes through a building, tower, civic site or the masjid, nor over the airport or the port (%d segments, %d blocks, %d boxes)%s" \
+		% [segs, blocks.size(), boxes, (": " + ", ".join(hits)) if not hits.is_empty() else ""])
+
+
+## The named route's points, or [].
+func _route(fw: Freeway, number: String) -> PackedVector2Array:
+	for route: Dictionary in fw.routes:
+		if str(route.name).begins_with(number + " "):
+			return route.points
+	return PackedVector2Array()
+
+
+## World x where the named route crosses z (the first crossing), or INF.
+func _route_x_at(fw: Freeway, number: String, z: float) -> float:
+	var pts := _route(fw, number)
+	for i in pts.size() - 1:
+		if (pts[i].y - z) * (pts[i + 1].y - z) <= 0.0 and pts[i].y != pts[i + 1].y:
+			return lerpf(pts[i].x, pts[i + 1].x, (z - pts[i].y) / (pts[i + 1].y - pts[i].y))
+	return INF
+
+
+## World z where the named route crosses x (the southernmost crossing), or -INF.
+func _route_z_at(fw: Freeway, number: String, x: float) -> float:
+	var pts := _route(fw, number)
+	var best := -INF
+	for i in pts.size() - 1:
+		if (pts[i].x - x) * (pts[i + 1].x - x) <= 0.0 and pts[i].x != pts[i + 1].x:
+			best = maxf(best, lerpf(pts[i].y, pts[i + 1].y, (x - pts[i].x) / (pts[i + 1].x - pts[i].x)))
+	return best
 
 
 func _pin_pos(axis: int, road_name: String) -> float:

@@ -127,7 +127,7 @@ What changed in `Pedestrian` (scripts/npc/pedestrian.gd; the knobs are the "Loco
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
 Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
-day's work is in 9z (hill planting, 2026-09-25), 9t (distance), 9s (1:1 downtown research), 9r (MacArthur Park, encampments),
+day's work is in 9z (hill planting, 2026-09-25), 9t (distance), 9s (1:1 downtown, landed 2026-09-25), 9r (MacArthur Park, encampments),
 9q (street life), 9p (the Esplanade), 9o (civic set), 9n (skyline), 9m (sound), 9l (how the
 day ran), 9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the
 index.
@@ -174,10 +174,11 @@ inside one of them means its own section - the headers below are the authority.)
   its closed roads is found. At merge its closed-road turning rules were ported into street
   life's new car-following model in `traffic.gd` (a closed road ahead forces a turn, or a U-turn
   at a dead end: `t.turn == 2`) - untested with the park on.
-- **Merged: the 1:1 downtown research, data only** (9s). `scripts/world/downtown_real.gd`
-  (geocoded anchors, the fitted grid: avenues 37.86 degrees east of north, 2.0 m RMS), the full
-  re-lay as `tools/downtown_relay/relay.patch` (never smoke-tested), its checks as a text file.
-  Nothing calls the data yet. Landing the re-lay is item 2 of section 10.
+- **Landed: downtown at 1:1** (9s, 2026-09-25). The re-lay in `tools/downtown_relay/relay.patch`
+  was ported by hand onto main (MacArthur Park on, the masjid, the Esplanade, the distance tiers)
+  and gated: the real street grid pinned on every seed, the towers and civic buildings on their
+  geocoded points, the 110 / 101 / 10 on their real lines, the park on its real streets, the
+  masjid moved south to where the real one is relative to downtown. 9s has what moved.
 - **Merged: the distance** (9t). Four tiers that always cover the view to 12 km: near chunks,
   far chunks, the far city (every block within 7 km, recorded from the far chunk's own build)
   and the horizon plane; per-block dissolve handoff. At merge the far-city capture was made to
@@ -1823,15 +1824,115 @@ as the street a realistic LA game shows, never as a joke; the code's words are n
 - **The smoke test** (`tests/westlake_checks.gd`, ~30-60 s on a busy box) re-centres the origin
   on every teleport and waits idle frames before a physics query, for the two reasons in its
   `_go()`; copy that pattern for any check that teleports far and then casts rays.
-## 9s. Downtown at 1:1: the research, the fit, and a re-lay waiting to land (2026-09-24, agent branch)
+## 9s. Downtown at 1:1: the research, the fit, and the re-lay (researched 2026-09-24, landed 2026-09-25)
 
 Owner: "I want the whole downtown landscape to become a 1:1 replica ... This should be
-geographically sound", "you should also have macarthur park". The session ended before the
-re-lay could be gated, so what is on main is **data only**: `scripts/world/downtown_real.gd`
-(`DowntownReal`), which nothing calls yet. The re-lay itself was written and probed headless (it
-compiles and lays out as described below) but never ran through the smoke test; it is kept as
-`tools/downtown_relay/relay.patch` (a `git diff` against 006e57c, the civic merge) with its
-draft checks `tools/downtown_relay/downtown_checks.gd.txt`.
+geographically sound", "you should also have macarthur park".
+
+**LANDED (2026-09-25, branch wt/downtown-relay).** The re-lay (`tools/downtown_relay/relay.patch`,
+a diff against 006e57c) no longer applied - main had MacArthur Park on, the masjid replica with
+its sanctuary, the Esplanade's coast and headland, the distance tiers - so it was ported by hand
+and gated; the headless check passes (472 checks after merging main at f9f3129), `tests/downtown_checks.gd` included. What
+moved, and what differs from the patch:
+
+- **Downtown**: the real grid pinned on every seed, the 19 towers and 9 civic sites on their
+  geocoded points (worst tower 13.8 m off, the pavement clamp; civic within their tolerances),
+  district and core from `DowntownReal`, relief off inside it, all crossings signalled.
+- **The masjid** moved south: anchor (1917, 2722.8), the block west of Georgia St, its south
+  road (the default seed's 24 m boulevard at z 2785.1) playing Exposition. The patch kept it at
+  (-235.7, 139) - 3 km due west of Pershing Square and west of MacArthur Park, i.e. in
+  Koreatown - which contradicts reality (the real one is 4.9 km grid-south, by USC, on Georgia's
+  line). Now: on the real line within 40 m, west of the 110, south of where the 10 leaves it,
+  north of the 105, distance south compressed (the real point is past the port). Sanctuary zone,
+  collision and far copy are built at the anchor, so they moved with it; `tests/masjid_checks.gd`
+  passes unchanged, and `downtown_checks.gd` holds the place.
+- **MacArthur Park**: SITE from `DowntownReal.MACARTHUR` (Park View x 100, Alvarado x 487, 6th
+  z 200.2, Wilshire z 312.7, 7th z 404; anchor (293.5, 312.7)). The lake half is 69 m deep and
+  the fields half 90 m, because downtown's 6th-Wilshire-7th spacing is used there (the real
+  streets fan out west of the 110: the real park is 310 m across, ours 204 m kerb to kerb).
+- **Freeways**: the patch's alignments, plus `Freeway._spline()` made centripetal - the uniform
+  Catmull-Rom looped the 110 back on itself at the four-level interchange and near Olympic and
+  Pico (with a 230 m span next to a 2 km one). The 10 gets its real bend north toward the East LA
+  interchange (it was a ruler-straight line). The 105 now swings wide round the masjid's
+  neighbourhood - down the west side of the 110 corridor, then east just north of the port - so
+  north to south it is the real order: the 10, the masjid, the 105.
+- **Port** at the foot of the 110 (x 2050-2750, z 3000-3560), cargo ship (2400, 3420), as in the
+  patch. Industrial is east of the 110 only (`industrial_corner` (2150, 2300); the patch had
+  (1100, 2300), which made USC / Exposition and the Torrance plain warehouses).
+- **Airport approach**: `downwind_x` 1250 and `approach_clear_length` 1150 (the patch's).
+- **The north**: the east range out to x 5000, the embayment above the civic centre (patch).
+- **Streaming**: the LOD ring stops `lod_reach_metres()` (840 m) out and a LOD chunk left 150 m
+  past it is RETIRED (the far city covers the block, per block) - the patch freed it, which the
+  distance tiers no longer allow. And a block of the FULL ring further than
+  `full_reach_metres()` (240 m, two ordinary blocks) is a LOD chunk: two of downtown's
+  125 x 200 m blocks each way is 2.6 times the full-detail area, and at Flower and Olympic the
+  frame had 78 % more draw calls than the old avenue before this (73553af).
+- **Names**: a seeded street never takes a real downtown name (no second Olive St).
+
+Checks changed, and why: the LOD count at the spawn (the pinned streets cross the whole map, so
+blocks round the spawn are 200-440 m deep and the ring stops at 840 m); "every freeway route
+curves" now measures the most the heading turns (the real 110 leaves the four-level and meets
+the port heading south both times); city hall's roof probe reads the tower's position from the
+builder (`LandmarkCivicCenter._hall_tower()`; the turned, bigger site moved it 10 m off the old
+probe point); "no deck crosses the core" is measured east of Figueroa (the core rect starts at
+the 110, which is Bunker Hill's real west edge). `street_life_checks` prints what stood round
+the cruiser when it pulls up off its kerb point: in the early gate runs it stopped 0.2, 2.5, 0.2
+and once 4.2 m off (the limit is 3.0); 73553af also accepts the kerb nearest where the player
+ends up (block 0,0 is 100 x 200 m now and he can be nudged while the cruiser follows him), and
+the last gates read 0.6 m, as main does - watch it. Main's hill-planting check ("nothing
+planted on rock or bare cuts") recomputed each shrub's slope from the analytic `height_at()`;
+at its hill spot on the 1:1 map two of 445 shrubs read as rock that way and not on the drawn
+terrain grid, which is what the planting and the shader use - it now asks the chunk for
+`_terrain_height()` (1143a72).
+
+Consequence to know: a pinned road runs the whole map, so every block between z -1726 and 2000,
+anywhere in the basin, has downtown's street spacing (164-437 m) on that axis.
+
+**What it costs** (geo_count, opengl3, 800 x 600, `--quality=0`; main = 6330409 with the perf
+pass and the pedestrian middle body, branch = the same merged in). Downtown against downtown:
+
+| View | main | branch | change |
+|---|---|---|---|
+| Avenue (main `589.2,860,0,12,2`, branch `2359.4,880,0,12,2`) | 5.67 M / 4,137 draws / 17.0 k objects | 5.90 M / 4,930 / 21.1 k | +4 % tris, +19 % draws |
+| South-west aerial (main `-50,1250,-43,5,80`, branch `1450,2150,-38,4,140`) | 9.95 M / 5,352 / 17.7 k | 7.25 M / 9,006 / 25.3 k | -27 % tris, +68 % draws |
+| Same spot, old avenue `589.2,860` | 5.67 M / 4,137 | 7.31 M / 6,447 | (now plain midtown) |
+| Same spot, old aerial `-50,1250` | 9.95 M / 5,352 | 4.54 M / 3,451 | |
+| Same spot, new avenue `2359.4,880` | 1.38 M / 985 | 5.90 M / 4,930 | (was the edge of town) |
+| Same spot, new aerial `1450,2150` | 3.14 M / 3,948 | 7.25 M / 9,006 | (was industrial) |
+
+`SPLIT=1` on `still_shot.gd` (960 x 540, same vantages) puts all of the rise in **Building**:
+avenue 445 -> 3,343 draws (every other category went down: cars -325, people -148, props -515),
+aerial 1,445 -> 5,664 draws (1,151 -> 9,906 building nodes; everything else flat or down). The
+avenue is lined by the 1:1 core's infill towers where the old one looked at the named towers
+(Landmark draws); the aerial looks over the 25-block full ring of dense midtown between the 110
+and the masjid, which on main was the industrial quarter (warehouses: a few big boxes) - the
+patch put industrial east of the 110 only, as it is in reality. Triangles are flat or down; the
+draw calls are the known building draw sink of 9x (several meshes per building), now in more
+of the frame. Also know: `MacroMap.midtown_radius` is a 1,700 m BAND round downtown's 2.3 x 3.8
+km extent (it was an 800 m disc round one point), so MIDTOWN round downtown covers ~30 km2 where
+it covered 2, and `TrafficManager.density_at()` runs at full density over the same band. It was
+sized to reach MacArthur Park and Koreatown to the west; the south and east of real downtown
+are low-rise, so a narrower band there (west 1,700, elsewhere ~800, which keeps the masjid's
+block, 703 m out, midtown) is the cheap next step if the Mac's frame rate over South LA drops.
+The per-building merge (9x) is the real fix for the draws.
+
+Stills (opengl3, noon, in the landing session's scratchpad `dt/stills/`, B_ = main, A_ =
+branch): aerial `B_aerial` / `A_aerial` (spawns above), avenue `B_avenue` / `A_avenue`, civic
+`A_civic2` `--spawn=2600,-450,-50,-14,220` (city hall behind Grand Park; `B_civic2` at
+`300,654`), arena `A_arena3` `--spawn=2330,1560,43,-18,110` (`B_arena3` at `543.6,659.4`),
+masjid `A_masjid` (`1880.7,2809.6,-31.8,-23.7,32`, downtown's skyline behind it the way it
+stands from Exposition) / `B_masjid` (`-272,252`), MacArthur `A_macarthur`
+`--spawn=300,528,0,-35,120` / `B_macarthur` `308.5,163`. Seen: the arena is a 74 m drum on a
+240 x 330 m block of bare plaza (the builder is still a third of real size - below), and north
+of the civic centre the embayment leaves the back range at the far-ground rim fade, where it
+reads as a pale, half-transparent ridge in the opengl3 stills.
+
+What is left: interiors; Bunker Hill as a hill; Little Tokyo and the east side as real streets;
+the real 110/101/10 interchange ramps; the civic builders at real size (the arena's
+`ARENA_RADII` is 36-37 m against the real ~90); a Forward+ golden-hour still of the new skyline
+(NEEDS MAC CHECK - a full city on lavapipe runs out of memory on the shared box).
+
+The research as it was written before the landing:
 
 **The fit.** 93 Nominatim queries (strictly one per 1.2-3 s, the IP is shared and 429s came
 often; every answer is in `tools/downtown_relay/geocode_cache.json`, so NOTHING needs re-querying):
@@ -1896,7 +1997,7 @@ block and the geocoded point is a POI, so they are placed by `at`), 16 x 18 repl
 lots, 52 infill lots over 130 m (after lowering the non-core band to 14-80 m and the core to
 30-190 m with bigger core lots - with the old bands it was 301), MacroMap setup 180 ms.
 
-**How the next session lands it, step by step.**
+**How it was to be landed, step by step** (done, 2026-09-25; kept for the record).
 1. Merge origin/main; `git apply --3way tools/downtown_relay/relay.patch` and resolve (it touches
    city_plan, macro_map, freeway, landmark_downtown, civic_sites, landmarks, air_traffic, traffic,
    city_streamer, smoke_test).
@@ -2142,9 +2243,10 @@ Exposition Boulevard, so the entrance faces the street it faces in life.
   `Weapon.tick()`; CLAUDE.md has the whole rule. `tests/masjid_checks.gd` covers the building
   (streams in, door open, pane closed, both floors) and the rule (on it, across it, beside it
   with a blast, from inside it through a real rifle, away from it, a rocket fizzling).
-- **Stills:** `<scratchpad>/masjid/` (aerial, street, entrance, hall), opengl3. Views: aerial
-  `--spawn=-272,252,-31.8,-23.7,32`, entrance `-238.75,221.5,0,12,1.7`, prayer hall
-  `-251.35,200.5,0,8,2.6`, all `--hour=11`. Not yet seen on Forward+.
+- **Stills:** `<scratchpad>/masjid/` (aerial, street, entrance, hall), opengl3. Views (since the
+  1:1 downtown moved it, 9s): aerial `--spawn=1880.7,2809.6,-31.8,-23.7,32`, entrance
+  `1913.95,2779.1,0,12,1.7`, prayer hall `1901.35,2758.1,0,8,2.6`, all `--hour=11` (before it:
+  `-272,252`, `-238.75,221.5`, `-251.35,200.5`). Not yet seen on Forward+.
 - **Not done:** the east wing's rooms are one lobby and one domed hall (the real plan is not
   public); no ablution room; the parking lot has no cars. The exterior mesh is 50.7k triangles and the
   collision 9.1k (both counted by the smoke test); the frame cost is not measured -
@@ -2559,6 +2661,43 @@ is not measurable here. Screens: branch `shots/wear`. **Needs the Mac:** how the
 screen-grain and roughness read under Forward+ light, and whether grime wants to be lighter.
 Next: tags on the night roll-down shutters (building shader), more storefront-level paint.
 
+## 9ad. The port on the bay, freeways clear, the arena district filled (2026-09-27, wt/downtown-relay)
+
+Owner asks: the San Pedro port stood on an inland harbour in the middle of the city; freeways
+drove through buildings downtown; the arena district's civic blocks (grown at 1:1) were bare
+paving. On `wt/downtown-relay`, on top of the 1:1 re-lay (9s), merged with main, gate green.
+
+- **Port.** `MacroMap.port_rect` (2750, 5935, 630 x 560) on San Pedro Bay just east of the Palos
+  Verdes headland's land end, its south third out in the bay, the berth (`harbor_rect`) and the
+  cargo ship (3065, 6522) off its south quay. `bay_east_x` 1600 -> 4700 so the bay wraps the
+  headland's south and east; Long Beach's sand east of the port (`bay_beach_depth`). The old
+  inland harbour (z 3300) is city. The 110 runs on nearly due south from the 10 to the port's
+  north-west corner. Hill/sea chunks on the headland's elliptical shore build both terrain and
+  water (`CityChunk._headland_shore()`), or the shore showed as a wall along the chunk line.
+  Check: `_port_on_the_bay()` in `tests/downtown_checks.gd` (no enclosed water anywhere in the
+  basin, the old harbour is city, open sea off the whole south quay out past the bay mouth, the
+  headland within 1.2 km west, the 110 ends at the gate).
+- **Freeways.** `Freeway.blocks_rect()`: no lot, plaza or big-box part within 3 m of a deck or
+  ramp (commit 2ed81e1); the 405 stops `AIRPORT_KEEP` short of the airport; the 105 keeps its
+  line south of downtown. Check: every deck segment within 800 m of downtown against every
+  captured box, the towers, civic sites, the masjid, the airport and the port.
+- **Arena district.** `ArenaGrounds` (`scripts/world/arena_grounds.gd`): multi-storey car park
+  (`garage()`), planting beds, bosques with ring benches, bronze figures, surface lots, a second
+  exhibition hall. The arena is real size (glass radii 54 x 45, drum 40 m) with a four-level car
+  park on its west. A civic site keeps its table footprint (centred on the real building, which
+  the tolerance check holds), so the REST of each block is `ArenaGrounds.leftovers()` (the block
+  less every district site in it, owned by the first site in `CivicSites.ORDER`) filled by
+  `build_leftovers()`: the arena block's north strip is a grove, beds and figures, its south a
+  surface lot; west of the hotel a five-level car park; south of the convention centre a second
+  hall. Parked cars are a ~260-triangle code car (`car_mesh()`), not the traffic bodies: those
+  are 8,000+ triangles with LODs that stop at half, and 250 of them cost 3 M triangles.
+- **Cost** (opengl3 GEO, triangles, same cameras): arena corner 6.57 M -> 7.79 M (+18 %), the
+  aerial 6.12 M -> 6.78 M (+11 %), district top-down 4.79 M -> 5.23 M (+9 %), the plaza from the street 6.52 M -> 7.42 M (+14 %); draw calls +1-11 %; most of it trees (+0.5 M, two
+  thirds shadow) and the bigger arena. Trees in the groves are spaced 12-14 m and drop out at
+  280 m. Stills and sheets: branch `shots/relay`.
+- NOT done: the port's containers and cranes are still primitive boxes (roadmap #35); garage
+  interiors read as dark bands from the street (the spandrels hide the cars inside, as in life).
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
@@ -2567,18 +2706,10 @@ Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept becaus
 1. **MacArthur Park is on** (9r). What is left there is 9r's own list: the Blender bake of the
    encampment kit, nobody having seen the poses move, the police cruiser that can start inside
    a crossing next to the park. The hero pass that used to be item 1 is merged (section 0).
-2. **The 1:1 downtown re-lay** (owner: "the whole downtown landscape ... a 1:1 replica"). The
-   real positions live in `LandmarkDowntown.TOWERS` (`real`, `real_plan`, `real_grid()`) and
-   `CivicSites.SITES` (`real_en()`, `real_grid()`), both in metres east/north of
-   `LandmarkDowntown.REAL_ORIGIN`; the geocoded points and the fitted grid are in
-   `scripts/world/downtown_real.gd`, and a complete but never smoke-tested re-lay is
-   `tools/downtown_relay/relay.patch` (9s says how to land it and which checks will move). The job: rotate the real grid onto the game
-   axes, lay real block spacing and street order into `CityPlan.PINNED_ROADS`, grow
-   `MacroMap.downtown_core` and the DOWNTOWN district to the real core (about 2.5 x 3 km), move
-   both tables' anchors to their real blocks, put MacArthur Park at Wilshire and Alvarado west
-   of the 110, and pin a freeway route to the 110's alignment if it can be done inside the
-   freeway rules. Nominatim geocodes landmarks and street addresses from this box (1 request a
-   second, cache the results, credit OpenStreetMap in ASSETS.md); Overpass is not reachable.
+2. **The 1:1 downtown re-lay - LANDED 2026-09-25** (9s). What is left of it: Bunker Hill as a
+   hill, Little Tokyo and the east side as real streets, the real interchange ramps, the civic
+   builders at real size (the arena is a third of its real width in its real 240 x 330 m block),
+   and a look at the new skyline on Forward+ at golden hour (NEEDS MAC CHECK).
 3. **Judge today's work on Forward+.** Almost everything merged on 2026-09-24 was judged on the
    opengl3 preview, because the shared render lock was saturated: the night GI change (was
    night paving orange from SDFGI bouncing emission?), the skyline's crowns at dusk, the civic
@@ -2643,7 +2774,7 @@ pedestrian, take a car across town and into the hills, get out on a slope, fly a
 airport, watch a sunset (Esc shows the clock). Tell me what looks or feels wrong."
 
 
-## 9za. Downtown encampments x20, 2026-09-27 (agent branch `wt/downtown-homeless`)
+## 9ae. Downtown encampments x20, 2026-09-27 (agent branch `wt/downtown-homeless`)
 
 Owner: "downtown needs way more homeless people - whatever you think it should be, multiply by
 20". The branch's earlier WIP (two ungated commits) had already made the camps denser: a

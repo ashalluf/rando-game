@@ -29,32 +29,36 @@ extends RefCounted
 const SITE := {
 	"id": "macarthur_park",
 	"name": "MacArthur Park",
-	# The real place (WGS84, approximate: the park's centre) and the downtown reference point the
-	# real offset is measured from.
-	"latlon": Vector2(34.05861, -118.27750),
+	# The real place (WGS84: the park's OSM centroid, DowntownReal.POINTS.macarthur_park) and the
+	# downtown reference point the real offset is measured from (DowntownReal.REAL_ORIGIN).
+	"latlon": Vector2(34.0588418, -118.2776964),
 	"downtown_ref": "Pershing Square",
-	"downtown_ref_latlon": Vector2(34.04817, -118.25256),
-	# Real offset from the downtown reference in metres, in GAME axes: +x east, +z SOUTH (north is
-	# -Z). (-118.27750 + 118.25256) deg x 92,230 m/deg of longitude at 34.05 N, and
-	# (34.05861 - 34.04817) deg x 110,900 m/deg of latitude.
-	"real_offset_m": Vector2(-2300.0, -1158.0),
+	"downtown_ref_latlon": Vector2(34.0483957, -118.2530218),
+	# Real offset from the downtown reference in metres, compass axes: +x east, +z SOUTH (north is
+	# -Z), untouched by the grid's turn (DowntownReal.real_en(): 92,332 m/deg of longitude and
+	# 110,923 m/deg of latitude at 34.05 N). Turned onto the grid it is 2,510 m grid-west and
+	# 483 m grid-south of Pershing Square; the park is placed on the straightened Wilshire (below).
+	"real_offset_m": Vector2(-2278.0, -1159.0),
 	# Real extent: along Wilshire (Park View to Alvarado) x across it (6th to 7th), and area.
 	"real_size_m": Vector2(460.0, 310.0),
 	"real_area_acres": 35.0,
-	# Compass heading of Wilshire through the park, travelling west. The real grid here is turned;
-	# the game's grid is not (yet), so in game Wilshire runs along -X (`yaw_deg` 0).
+	# Compass heading of Wilshire through the park, travelling west. The game turns the whole real
+	# grid onto its axes (DowntownReal.GRID_BEARING_DEG), so in game Wilshire runs along -X
+	# (`yaw_deg` 0); the 8-degree bend west of the 110 is straightened out.
 	"real_wilshire_heading_deg": 297.0,
 	# Lake: about 14 ft (4.3 m) deep and spring fed; the fountain is one tall jet in the middle.
 	"real_lake_depth_m": 4.3,
-	# --- In game, today's compressed map --------------------------------------------------------
-	# The site CityPlan snaps to whole blocks: desired edges (world x of Park View and Alvarado,
-	# world z of 6th and 7th) and the desired Wilshire centreline, which is kept open. The lake half
-	# is the bigger one on this grid because the roads fall that way; both halves are the real
-	# ~150 m in the table above.
-	"anchor": Vector2(302.0, -52.0),
-	"west_x": 87.0, "east_x": 517.0,
-	"north_z": -214.0, "south_z": 86.0,
-	"wilshire_z": -104.0,
+	# --- In game: downtown at 1:1 (DowntownReal.MACARTHUR) --------------------------------------
+	# The site CityPlan snaps to whole blocks: the edges are the real streets, pinned (world x of
+	# Park View and Alvarado, world z of 6th and 7th) and the Wilshire centreline, which is kept
+	# open - DowntownReal's grid metres through its GAME_ANCHOR (2800, 102.7): west_u -2700,
+	# east_u -2313, north_v 97.5, south_v 301.3, wilshire_v 210. The park is at its true distance
+	# along the straightened Wilshire from downtown, 280 m grid-north of the real one (the real
+	# streets bend 8 degrees west of the 110; see DowntownReal's header).
+	"anchor": Vector2(293.5, 312.7),
+	"west_x": 100.0, "east_x": 487.0,
+	"north_z": 200.2, "south_z": 404.0,
+	"wilshire_z": 312.7,
 	"yaw_deg": 0.0,
 	"streets": {"west": "PARK VIEW ST", "east": "ALVARADO ST", "north": "6TH ST",
 		"middle": "WILSHIRE BLVD", "south": "7TH ST"},
