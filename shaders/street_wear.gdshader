@@ -199,13 +199,21 @@ void fragment() {
 			float h = sw_hash(id);
 			vec2 at = id + 0.2 + 0.6 * vec2(sw_hash(id + 7.3), sw_hash(id + 3.1));
 			float r = (0.011 + 0.017 * sw_hash(id + 1.7)) / 0.22;
-			float d = length(gc - at);
-			float disc = 1.0 - smoothstep(r * 0.75, r, d);
-			float present = step(h, age * rim);
+			// Trodden flat into a blob, not a coin: the outline wanders with the angle, and the
+			// edge is thin enough to let the slab through. Perfect round black discs at 0.95
+			// read as a pavement full of drilled holes.
+			vec2 dv = gc - at;
+			float ang = atan(dv.y, dv.x);
+			float wob = 0.78 + 0.22 * sin(ang * 3.0 + h * 40.0) + 0.12 * sin(ang * 5.0 + h * 17.0);
+			float d = length(dv) / wob;
+			float disc = 1.0 - smoothstep(r * 0.45, r * 1.05, d);
+			float present = step(h, age * rim * 0.7);
 			float sharp = clamp(r * 0.22 / px * 2.0 - 0.5, 0.0, 1.0);
-			a = mix(0.08 * age * rim, disc * present * 0.95, sharp);
+			a = mix(0.06 * age * rim, disc * present * mix(0.55, 0.85, sw_hash(id + 5.2)), sharp);
 			float fresh = step(0.93, sw_hash(id + 9.9));
-			alb = mix(main_c * (0.7 + 0.5 * sw_hash(id + 4.4)), sw_col(vec3(0.62, 0.55, 0.56)), fresh * sharp);
+			// Most of it weathers to a grey a little darker than the slab; some stays black.
+			vec3 old_gum = mix(main_c, sw_col(vec3(0.30, 0.29, 0.28)), sw_hash(id + 4.4) * 0.8);
+			alb = mix(old_gum, sw_col(vec3(0.62, 0.55, 0.56)), fresh * sharp);
 			rough = mix(0.8, 0.45, disc * sharp);
 			grain = 0.5;
 		} else {
