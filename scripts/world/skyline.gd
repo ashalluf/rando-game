@@ -770,6 +770,9 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 			spots.append(a.lerp(c, (float(i) + 0.5) / float(maxi(n, 1))))
 	for i in spots.size():
 		var p: Vector2 = spots[i]
+		# Not under a freeway deck, as the chunks do (CityChunk._add_tree()).
+		if ch._under_freeway(p, CityChunk.TREE_FREEWAY_MARGIN):
+			continue
 		var hs := hash([_plan.seed, "tree", k, i])
 		var v: float = float(absi(hs) % 1000) / 1000.0
 		var gy := ch._gy(p.x, p.y) + CityChunk.SIDEWALK_TOP

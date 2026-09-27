@@ -973,6 +973,9 @@ func _add_palm(at: Vector3, rng: RandomNumberGenerator, collide: bool = true, le
 		# the boulevard turns into a row of shrubs.
 		s = minf(s, maxf(0.55, _room_for_canopy(Vector2(at.x, at.z)) / PALM_CROWN_R))
 	var tint := Color(rng.randf_range(0.88, 1.12), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.08))
+	# Not through a freeway deck (see _add_tree). After the rolls, so the rng stream is the same.
+	if _under_freeway(Vector2(at.x, at.z), PALM_FREEWAY_MARGIN):
+		return
 	_batch.add("palm_%d" % variant, PropFactory.palm(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint)
 	if collide:
 		_add_shape(Vector3(0.5, 9.0 * s, 0.5), at + Vector3(0.0, 4.5 * s, 0.0))
@@ -2652,6 +2655,11 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 		rng.randf_range(0.0, 1.0),
 		rng.randf_range(0.0, 1.0),
 		rng.randf_range(0.25, 1.0))
+	# Never under a freeway deck: nine metres up, a park or plaza tree's canopy came up through
+	# the carriageway and stood in the lanes. Skipped after every roll it makes, so the rng
+	# stream, and so everything planted after it, is the same as before.
+	if _under_freeway(Vector2(at.x, at.z), TREE_FREEWAY_MARGIN):
+		return
 	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
 
 
@@ -2984,6 +2992,10 @@ func _add_shape(size: Vector3, pos: Vector3, yaw: float = 0.0) -> CollisionShape
 
 ## Metres kept between a lot and the deck's edge (the pillars stand inside the deck's width).
 const LOT_FREEWAY_MARGIN := 3.0
+## ... between a tree's trunk and the deck's edge, about a canopy's radius, and a palm's (its
+## crown stands clear above the deck, so it may lean over the barrier as real ones do).
+const TREE_FREEWAY_MARGIN := 5.0
+const PALM_FREEWAY_MARGIN := 2.0
 
 ## True where the freeway deck flies over, plus `margin` metres either side.
 func _under_freeway(pos: Vector2, margin: float) -> bool:
