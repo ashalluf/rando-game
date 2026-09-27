@@ -3361,7 +3361,11 @@ opt out (`Aircraft.can_take_damage()`), the scripted air traffic keeps its own.
   the police (`Police.car_wrecked`); one shot up and pooled is `repair()`ed.
 - **Cost**: an undamaged car is unchanged - shared shader, no node, no draw, no script beyond the
   crash watch. A damaged car draws what it drew (the same surfaces, other materials); a burning
-  one adds its smoke and flame particles (two draws) and, on desktop, one light. Caps:
+  one adds its smoke and flame particles (two draws) and, on desktop, one light. Measured with
+  `GEO=1` on car_shot.gd (one sedan, opengl3): whole 40 draws / 173,478 triangles; shot up
+  (holes, glass, dents) once its glass cubes have landed 40 / 173,472; burning 42 / 173,626; the
+  wreck 37 / 173,216 (lamps, calipers and livery prop gone). While a burst of glass is in the air
+  it is one more draw (it casts no shadow: with shadows eight bursts were +32 draws). Caps:
   `max_burning` 6 (past it a car smokes just short of catching), `max_smoking` 10,
   `max_wrecks` 10, `max_glass_bursts` 8. The damage shader loops over its holes per pixel only on
   damaged cars; the flames, glass cubes and smoke are warmed on the loading screen.

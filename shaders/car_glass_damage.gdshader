@@ -163,7 +163,8 @@ vec3 cabin_view(vec3 o, vec3 d) {
 		int far_i = find_pane(e, axis == 0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0));
 		float open = 1.0;
 		if (far_i >= 0 && pane_lo[far_i].w < 1.5) {
-			open = 0.3;
+			// Still glazed: tinted, but you see the street through it.
+			open = 0.6;
 		}
 		if (far_i < 0 && pane_count > 0 && char_ < 0.5) {
 			// Between the far panes: a pillar.
@@ -172,7 +173,7 @@ vec3 cabin_view(vec3 o, vec3 d) {
 		open = max(open, char_);
 		float lift = smoothstep(belt_y, cabin_hi.y, e.y);
 		// The day outside, about as bright as the sky behind the car: not lifted like the cabin.
-		return sky * open * (0.3 + 0.2 * lift) + fire_c * flicker * 0.25;
+		return sky * open * (0.35 + 0.25 * lift) + fire_c * flicker * 0.25;
 	}
 	if (axis == 1 && d.y > 0.0) {
 		// The headliner, or the bare roof skin once it has burnt away.
