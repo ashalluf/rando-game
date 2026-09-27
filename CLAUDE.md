@@ -1681,6 +1681,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   six mist emitters (three on the web, none at LOWEST) handed every `scan_interval` to the
   fastest grounded cars within `reach` of the player on a wet street, riding each car's rear
   axle; speed comes from true-world position deltas, so it works for kinematic traffic too.
+  **Vertical faces** (kerb faces, seat walls, steps, slab edges) wear the same material, so the
+  shader maps a face steeper than 60 degrees side-on (along it and down it) and keeps water,
+  street glow and the night mirror off it. It tells a wall by the face's own normal from the
+  screen derivatives, not the mesh normal: the replica's walkway shares a smooth group, which
+  averages a wall's normals with the ground on top, and mapped from above every wall was a band
+  of vertical streaks.
   Pavements use the same shader with `joints` (expansion-joint spacing in metres) and a lower
   `wear`, so they read as poured slabs rather than a grey plane. It also kills the visible tile
   grid, which is the first thing the eye finds on a plaza or a long pavement: it samples the

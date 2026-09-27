@@ -196,7 +196,17 @@ void vertex() {
 
 
 void fragment() {
-	vec2 w = world_pos.xz;
+	// Kerb faces, seat walls, steps and slab edges wear the same material as the ground on top,
+	// and mapped from above a vertical face drew every texel as a streak down its whole height
+	// (the Esplanade walkway's seat wall was a band of vertical smears). A face steeper than
+	// 60 degrees is mapped side-on instead - along the face and down it - and holds no water.
+	// The face's own normal from the screen derivatives, not the mesh's: meshes built with a
+	// shared smooth group (the replica's walkway) average a wall's normals with the ground on top
+	// of it, and read by those a seat wall never counted as a wall.
+	vec3 wn = normalize(cross(dFdy(world_pos), dFdx(world_pos)));
+	float side = step(abs(wn.y), 0.5);
+	vec2 along = normalize(vec2(-wn.z, wn.x) + vec2(1.0e-4, 0.0));
+	vec2 w = mix(world_pos.xz, vec2(dot(world_pos.xz, along), -world_pos.y), side);
 	vec2 uv = w / tex_scale;
 	vec3 base = texture(albedo_tex, uv).rgb * tint;
 	float rough = texture(rough_tex, uv).r;
@@ -359,6 +369,8 @@ void fragment() {
 		float cover = mix(0.80, 0.52, pw) + (joint_spacing > 0.01 ? 0.08 : 0.0);
 		puddle = smoothstep(cover, cover + 0.05, pn) * pw;
 	}
+	puddle *= 1.0 - side;
+	gutter *= 1.0 - side;
 	base *= mix(1.0, 0.62, damp);
 	float standing = max(puddle, gutter);
 	base *= 1.0 - 0.35 * standing;
@@ -389,7 +401,7 @@ void fragment() {
 	NORMAL_MAP = vec3(slope * 0.5 + 0.5, 1.0);
 	NORMAL_MAP_DEPTH = 1.0;
 	vec3 glow = vec3(0.0);
-	if (lamp_axis > 0 && lamp_factor > 0.001) {
+	if (lamp_axis > 0 && lamp_factor > 0.001 && side < 0.5) {
 		float far = smoothstep(street_glow_near, street_glow_far, length(VERTEX));
 		if (far > 0.0) {
 			glow = street_glow(plan_pos, slab_uv, lamp_axis) * street_glow_level() * far;
@@ -401,7 +413,7 @@ void fragment() {
 	// at all. So the standing water mirrors a street canyon built from the reflected ray (lit shop
 	// fronts along the bottom, office windows above, the roofline), sharp in puddles and the
 	// gutter, and the wet film carries the same lights smeared into streaks toward the viewer.
-	if (wet > 0.01 && lamp_factor > 0.05 && ground_detail > 0.5) {
+	if (wet > 0.01 && lamp_factor > 0.05 && ground_detail > 0.5 && side < 0.5) {
 		vec3 to_frag = normalize(world_pos - CAMERA_POSITION_WORLD);
 		vec3 n = normalize(vec3(-slope.x * 0.6, 1.0, -slope.y * 0.6));
 		vec3 r = reflect(to_frag, n);
