@@ -442,6 +442,27 @@ def islands(o):
     return out
 
 
+def island_side(o, faces, dom):
+    """Top or bottom for one garment island, by the same vote garment_regions() makes."""
+    gcfg = CFG["garments"].get(KIND[o.name][1], {})
+    rule = gcfg.get("regions", "auto")
+    if rule in ("keep", "top", "bottom"):
+        return rule
+    top = bottom = hips = 0
+    for fi in faces:
+        for vi in o.data.polygons[fi].vertices:
+            d = dom[vi] or ""
+            if d == "Hips":
+                hips += 1
+            elif d.endswith(("UpLeg", "Leg", "Foot", "ToeBase")):
+                bottom += 1
+            elif d.startswith(("Spine", "Shoulder", "Arm", "ForeArm", "Hand", "neck", "Head")) or d.endswith(("Spine", "Shoulder", "Arm", "ForeArm", "Hand", "neck", "Head")):
+                top += 1
+    if gcfg.get("hips", "bottom") == "top":
+        return "bottom" if bottom > top + hips else "top"
+    return "bottom" if bottom + hips > top else "top"
+
+
 def image_size(path):
     img = bpy.data.images.load(path, check_existing=True)
     return img.size[0], img.size[1]
@@ -511,6 +532,7 @@ def plan_atlas(objs, size, which):
             bm.faces.ensure_lookup_table()
             head_faces = {f.index for f in bm.faces if region_of(f, dl) == "head"}
             bm.free()
+        gdom = dominant_groups(o) if k == "garment" else None
         mine = []
         for i, s in enumerate(isl):
             part = k
@@ -518,7 +540,7 @@ def plan_atlas(objs, size, which):
                 part = "skin_head"
             mine.append({"obj": o.name, "island": i, "part": part, "src": src, "src_size": [sw, sh],
                          "bbox": list(s["bbox"]), "faces": list(s["faces"]), "normal": IMAGES[o.name]["normal"],
-                         "ao": IMAGES[o.name]["ao"]})
+                         "ao": IMAGES[o.name]["ao"], "side": island_side(o, s["faces"], gdom) if gdom else ""})
         # Islands that share texture (hair cards reuse strips of one photo, mirrored sleeves and
         # shoes share a side) are one rect: copying the texture once per island only wasted atlas.
         # Islands whose rects touch merge too, so one garment piece is never cut in two.
@@ -529,7 +551,10 @@ def plan_atlas(objs, size, which):
             for a in range(len(mine)):
                 for b in range(a + 1, len(mine)):
                     A, B = mine[a]["bbox"], mine[b]["bbox"]
-                    if mine[a]["part"] == mine[b]["part"] and A[0] - margin < B[2] and B[0] - margin < A[2] \
+                    # never across the top / bottom split: a tee touching its shorts in the
+                    # texture would take the shorts' colour
+                    if mine[a]["part"] == mine[b]["part"] and mine[a]["side"] == mine[b]["side"] \
+                            and A[0] - margin < B[2] and B[0] - margin < A[2] \
                             and A[1] - margin < B[3] and B[1] - margin < A[3]:
                         mine[a]["bbox"] = [min(A[0], B[0]), min(A[1], B[1]), max(A[2], B[2]), max(A[3], B[3])]
                         mine[a]["faces"] += mine[b]["faces"]
