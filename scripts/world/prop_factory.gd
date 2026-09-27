@@ -1660,8 +1660,88 @@ static func model_grass_clump(variant: int) -> Mesh:
 	return _tree_mesh(GRASS_CLUMPS[clampi(variant, 0, GRASS_CLUMPS.size() - 1)])
 
 
+## The scanned plants on FoliageLod's measured ladders (see scripts/world/foliage_lod.gd): the
+## city and hill trees at full size. The two budgeted cuts (the chaparral and the gully oaks,
+## whose look was tuned on their cut) keep the generated LODs, and so do the knee-high plants
+## (BUSHES, PLANTS, FLOWERS, GRASS_CLUMPS): measured, a ladder that keeps their cover cost MORE
+## than the generated LODs that thin them out (+0.24 M triangles at the downtown bookmark,
+## HANDOFF 9af) - a bush half a metre across is a few pixels by the time those thin it.
+static func foliage_ladder_files() -> Array:
+	var files: Array = []
+	for list: Array in [CITY_TREES, HILL_TREES]:
+		files.append_array(list)
+	return files
+
+
+## The biggest scale a scanned plant is planted at in the streets and parks: the tallest of its
+## CITY_TREE_TARGET / HILL_TREE_TARGET over its native height, 1.45 for the knee-high planting.
+## The shadow twin's start is judged at this size (FoliageLod.SHADOW_EDGE); the LOD switches
+## themselves use each batch's own biggest instance (MultiMeshBatch.build()).
+static func foliage_planted_scale(file: String) -> float:
+	var v := CITY_TREES.find(file)
+	if v >= 0:
+		return CITY_TREE_TARGET[v].y / float(CITY_TREE_HEIGHT[v])
+	v = HILL_TREES.find(file)
+	if v >= 0:
+		return HILL_TREE_TARGET[v].y / float(HILL_TREE_HEIGHT[v])
+	return 1.45
+
+
+## False rebuilds the scanned plants the old way (generated LODs at the simplifier's own errors,
+## the shadow stand-in cut from them) - the A/B for still_shot.gd's TREE_AB.
+static var foliage_ladders := true
+
+
+## A scanned plant's surfaces merged exactly as model_mesh() merges them, LODs generated, or null.
+static func foliage_importer(path: String) -> ImporterMesh:
+	if not ResourceLoader.exists(path):
+		return null
+	var scene: PackedScene = load(path)
+	var root: Node = scene.instantiate()
+	var importer := ImporterMesh.new()
+	_merge_into(root, root, importer, [], [], Transform3D.IDENTITY, {})
+	root.free()
+	if importer.get_surface_count() == 0:
+		return null
+	importer.generate_lods(25.0, 60.0, [])
+	return importer
+
+
+## `file` on its FoliageLod ladder (and its shadow twin), or on the generated LODs when the
+## table has no entry for it or no longer matches it (FoliageLod.build(); the smoke test fails
+## then - run tools/foliage_lods.gd).
+static func _foliage_mesh(file: String) -> Mesh:
+	var key := "foliage_ladder_" + file
+	if _cache.has(key):
+		return _cache[key]
+	var mesh: Mesh = null
+	var entry: Dictionary = FoliageLodTable.TABLE.get(file, {})
+	if not entry.is_empty():
+		var im := foliage_importer(MODEL_DIR + file)
+		var built: Array = FoliageLod.build(im, entry, foliage_planted_scale(file)) if im else []
+		if built.is_empty():
+			push_warning("PropFactory: %s does not match FoliageLodTable; run tools/foliage_lods.gd" % file)
+		else:
+			mesh = built[0]
+			mesh.set_meta("foliage_ladder", true)
+			if built[1] != null:
+				_shadow_proxies[mesh] = built[1]
+	if mesh == null:
+		mesh = model_mesh(MODEL_DIR + file)
+	_cache[key] = mesh
+	return mesh
+
+
+## Leaf materials a model flags OPAQUE although its atlas is shot on black (see _tree_mesh()).
+const MISLABELLED_LEAVES := ["flower_gazania", "grass_bermuda_01"]
+
+
 static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT, budget: int = 0) -> Mesh:
-	var mesh := model_mesh(MODEL_DIR + file, [], [], Transform3D.IDENTITY, {}, true, budget)
+	var mesh: Mesh
+	if budget == 0 and foliage_ladders:
+		mesh = _foliage_mesh(file)
+	else:
+		mesh = model_mesh(MODEL_DIR + file, [], [], Transform3D.IDENTITY, {}, true, budget)
 	for i in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:
@@ -1673,7 +1753,7 @@ static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT, budget:
 			# black cards. Every other OPAQUE surface across the 26 foliage models measures 0.2% or
 			# less - the pine twig and the pachira leaves are OPAQUE too and measure 0.000, their
 			# UVs never touch the padding - so this is a two-name exception and not a rule.
-			var mislabelled := sm.resource_name == "flower_gazania" or sm.resource_name == "grass_bermuda_01"
+			var mislabelled: bool = sm.resource_name in MISLABELLED_LEAVES
 			if sm.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED or mislabelled:
 				# The leaf cards: onto the swaying shader, which does the scissor itself.
 				mesh.surface_set_material(i, foliage_textured(sm, blossom))

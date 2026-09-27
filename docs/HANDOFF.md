@@ -2831,3 +2831,94 @@ it lacked was the cost: every person was a live RoughSleeper (237 rigs round ski
   live rigs by distance would fix it); the camp kit is still ~18 MultiMesh keys a chunk; some
   walkers near camps read oddly in stills (arms held out) - not traced, may be the standing
   people's idle clip. Screenshots: branch `shots/homeless`.
+
+## 9af. The scanned trees' measured LOD ladders, 2026-09-27 (agent branch `wt/tree-lod-2`; roadmap #36)
+
+**What was wrong.** The imported Poly Haven trees took `ImporterMesh.generate_lods()` as it
+came, and its errors (the simplifier's quadric error with the normals weighed in, scaled by the
+mesh size) are wrong both ways on a tree: the trunks and the jacaranda's 30k-triangle twig
+cards said 3-10 times their real departure and never switched (5.2 m on the jacaranda's first
+twig LOD), while the leaf cards said 7-24 cm as the simplifier DELETED cards - tree_a's leaves
+kept 71 % of their cover at the first LOD and 0 % at the last, which they took from ~85 m at
+960 px. Canopies thinned and went bare with distance, and so did their shadows: the old
+stand-ins were a 45 %-of-triangles cut of those same LODs (tree_a's shadow had 71 % of the
+canopy's cover, and its own generated LODs thinned it further).
+
+**What landed.**
+- `FoliageLod` (`scripts/world/foliage_lod.gd`) builds, per surface of each tree, a ladder the
+  table `scripts/world/foliage_lod_table.gd` names, and `tools/foliage_lods.gd` measures and
+  writes that table (`godot --headless --path . --script tools/foliage_lods.gd`, ~5 min;
+  `REPORT=1` prints the candidates). Candidates: the generated levels, and THINNED copies of any
+  surface of 200+ small pieces (leaf cards, twigs) - every stride-th piece (2..32) in Morton
+  order, at the phase that keeps the tone, each grown about its centre so the level's textured
+  cover (area times the atlas cut-out) is exactly level 0's, slid back inside the surface's
+  bounds; pieces over 3x the median size (limbs) are never thinned. Each is measured against the
+  full surface by exact point-to-triangle distance both ways (2,000 area-spread points each way);
+  its edge is the larger 98th percentile. Rules: a leaf surface (or one mostly cards) may not
+  lose 15 % of its cover (that throws out every generated leaf LOD), a thinned level may not move
+  its 1 %/99 % outline further than its edge, and the trade-off front is kept with steps of at
+  least 30 %. All levels in one vertex buffer, the coarser ones as LODs, as the palms (9aa).
+- `MultiMeshBatch.build()` sets a ladder batch's `lod_bias` to its biggest instance's scale (a
+  batch picks its LOD from the node's scale only; street trees are planted at 0.5-1.5x, the
+  landmark groves up to 3.6x), and the shadow twin's to `FoliageLod.SHADOW_LOD_SCALE` (0.5) of
+  that. The twin itself starts at the coarsest level under `SHADOW_EDGE` (0.22 m at the
+  species' tallest street planting, `PropFactory.foliage_planted_scale()`).
+- Trees only (`PropFactory.foliage_ladder_files()`: CITY_TREES, HILL_TREES). The knee-high
+  plants were measured on ladders too and came out MORE expensive (+0.24 M at downtown noon),
+  because their generated LODs save by dropping cover; they keep them, as do the budgeted
+  chaparral and gully oaks (their look was tuned on their cut).
+- The loading screen builds every species' ladder (tree builds 2.2 s in all here against 0.9 s
+  for the generated LODs alone; most are already built by the blocks round the spawn).
+- Smoke checks: `_check_foliage_ladders()` (the table still matches every model, LODs at the
+  table's edges with falling counts, the shadow twin where it should start, every thinned level
+  within 2 % of level 0's cover and 2.5 % of its tone, its outline within its edge) and the
+  street-tree batches' bias.
+
+**The counter trap** (CLAUDE.md measurement trap 3). The first A/B said the ladders ADDED
+triangles (+0.23 M at downtown noon, +2.5 M on the freeway). They did not: both renderers count
+a surface with LODs once per draw call and a surface without LODs once per instance, and the
+shadow twins' last levels had no LOD below them where every old stand-in surface had some - so
+the same batch counted as one tree before and as forty after. Every ladder surface (and twin
+surface) now ends with a copy of its last level, one triangle short, at an edge nothing reaches
+(`FoliageLod.COUNTER_EDGE`, 1e6 m): it never draws, and the HUD and `GEO` count the trees the
+way they count every other LOD'd batch (one instance a batch - an undercount everywhere, but
+the same one on both sides). `TREE_AB=1` on `still_shot.gd` now prints `TRUE` lines that
+count every instance at the LOD the renderer picks (its own rule, frustum
+culled, shadows once per cascade slice the batch meets - on a controlled scene within one
+cascade of the renderer's own draw count); `TREE_AB=2` adds each species alone and the shadow
+bias variants. The palms' numbers in 9aa were taken with the same counter (their surfaces all
+have LODs both sides, so they counted one palm per batch both sides: the real saving was larger).
+
+**Numbers** (opengl3 / llvmpipe, 1280x720 window, `--quality=0`, the same frozen frame drawn on
+the old meshes and on the ladders; trees only, every instance counted):
+
+| Bookmark | Before (camera / shadow) | After (camera / shadow) | Change | Engine GEO, whole frame |
+|---|---|---|---|---|
+| downtown_noon | 5.47 M (2.26 / 3.21) | 3.41 M (1.44 / 1.98) | -2.06 M (-38 %) | 7.80 M -> 7.52 M (-3.5 %) |
+| freeway | 11.38 M (5.61 / 5.77) | 8.80 M (3.72 / 5.08) | -2.58 M (-23 %) | 7.20 M -> 6.90 M (-4.2 %) |
+| masjid | 8.11 M (3.71 / 4.41) | 5.75 M (2.09 / 3.66) | -2.36 M (-29 %) | 8.86 M -> 8.50 M (-4.1 %) |
+| hills | no tree batch in view or in a shadow slice from 260 m up | | 0 | 1.96 M -> 1.96 M |
+| civic centre (`--spawn=2600,-450,-50,-4,60`) | 5.58 M (1.90 / 3.69) | 3.88 M (1.27 / 2.61) | -1.70 M (-31 %) | |
+
+Draws and objects are unchanged everywhere (same batches, same twins). The engine GEO column
+counts every LOD'd batch as one instance (trap 3), so it moves by far less than the work does;
+it is there so this row compares with the 9x / 9aa tables. The shadow twins' 0.5
+bias is worth -0.42 M at downtown noon and -1.14 M on the freeway (TRUE, the same frame at
+bias 1); at bias 1 the freeway's tree shadows would cost 0.45 M MORE than the old stand-ins,
+which thinned away with distance. Per species at downtown noon (each alone put back on the old
+mesh): the jacaranda saves 0.87 M, tree_b 0.41 M, tree_c 0.25 M, tree_a 0.11 M.
+
+**Look.** The same frozen frame on both meshes (`TREE_AB`, so the foliage sway cannot differ):
+downtown noon 0.28/255 mean difference, 0.46 % of pixels over 24/255 - the canopies'
+self-shadow pattern (the twin is now a cover-keeping thinned level) and sub-pixel speckle on the
+furthest crowns; the near tree and its shadow on the pavement are the same at viewing size.
+The one change you can see is the fix: from the civic-centre still, the street trees 60-200 m
+away were bare trunks on the old meshes (their leaf LOD had reached 0 % cover) and have their
+crowns back, and so do the far crowns round the masjid. Renders: `trees2_*.jpg` in the agent's scratch `screens/`.
+
+**Still open.** The knee-high plants still thin with distance (their generated LODs); a
+cover-keeping ladder for them needs thinning that works on a few dozen pieces a surface. The
+jacaranda's twig surface stops at 13.9k triangles (its limbs are never thinned, the generated
+levels past the first lose its twig cards' cover, and the coarse thinned levels moved its
+outline); thinning the cards over a generated LOD of the limbs would take it lower. The budgeted chaparral and gully oaks are untouched. Web: LODs work on
+Compatibility as they are; not tried in a browser.

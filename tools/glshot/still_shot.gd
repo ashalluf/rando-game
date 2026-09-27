@@ -53,6 +53,10 @@ extends SceneTree
 ## PALM_AB=1 prints the same frame's GEO again with every palm at full detail (its level 0 and
 ## no LODs, in the view and the shadow) and saves that frame as <OUT>_palmfull.png: the A/B of
 ## the palms' hand-built LOD ladder (PropFactory.PALM_LEVELS) with the clock held still.
+## TREE_AB=1 does the same for the scanned trees, bushes and flowers: the frame again with every
+## one of them on the old generated LODs (the simplifier's own errors, the old shadow stand-ins,
+## no instance-scale LOD bias), saved as <OUT>_treeold.png, then back on FoliageLod's ladders.
+## TREE_AB=2 adds the parts: no instance bias, lower shadow-twin bias, old shadows, per group.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -316,6 +320,8 @@ func _initialize() -> void:
 		for mm: MultiMesh in back:
 			mm.mesh = back[mm]
 		await _geo_report("GEO palms ladder")
+	if OS.get_environment("TREE_AB") in ["1", "2"]:
+		await _tree_ab(out)
 	if OS.get_environment("SPLIT") == "1":
 		await _geo_split(player, anchor, hold, boost, fov)
 	# SHOTS="x,y,z,yaw,pitch@hour;..." takes more EYE shots from the same load (the load is most
@@ -346,6 +352,231 @@ func _initialize() -> void:
 		print("saved ", more, " at ", bits[0], " hour ", bits[1] if bits.size() > 1 else "-")
 		await _geo_report("GEO_%d" % k)
 	quit()
+
+
+## TREE_AB: every batch of a scanned plant on its FoliageLod ladder redrawn with the old mesh
+## (PropFactory.foliage_ladders off: the generated LODs at the simplifier's errors, the old
+## shadow stand-in), lod bias 1 as before, for one frame; then everything put back.
+## TREE_AB=2 also prints, for the same frame: the ladders with no instance-scale bias, the
+## shadow twins at the tree's own LOD bias and at 0.3 of it (FoliageLod.SHADOW_LOD_SCALE is
+## 0.5), the old shadows under the new trees, and each group of
+## plants (the five city trees, the hill trees, the bushes, the rest) put back on its old mesh
+## alone - what each part of the change costs or saves.
+func _tree_ab(out: String) -> void:
+	var factory = load("res://scripts/world/prop_factory.gd")
+	var getters := [["model_tree", factory.CITY_TREES], ["model_hill_tree", factory.HILL_TREES],
+		["model_bush", factory.BUSHES], ["model_plant", factory.PLANTS],
+		["model_flower", factory.FLOWERS], ["model_grass_clump", factory.GRASS_CLUMPS]]
+	var swap := {}
+	var file_of := {}
+	for g: Array in getters:
+		for v in (g[1] as Array).size():
+			factory.foliage_ladders = true
+			var now: Mesh = factory.call(g[0], v)
+			factory.foliage_ladders = false
+			var old: Mesh = factory.call(g[0], v)
+			if now != old and now.has_meta("foliage_ladder"):
+				swap[now] = old
+				file_of[now] = g[1][v]
+	factory.foliage_ladders = true
+	var entries: Array = []
+	for n in current_scene.find_children("Batch_*", "MultiMeshInstance3D", true, false):
+		var node := n as MultiMeshInstance3D
+		var mm := node.multimesh
+		if mm == null or not swap.has(mm.mesh):
+			continue
+		var twin: MultiMeshInstance3D = node.get_meta("shadow_twin") if node.has_meta("shadow_twin") else null
+		entries.append({"node": node, "new": mm.mesh, "old": swap[mm.mesh], "twin": twin,
+			"twin_mesh": twin.multimesh.mesh if twin else null, "old_proxy": factory.shadow_proxy(swap[mm.mesh]),
+			"bias": node.lod_bias, "twin_factor": twin.lod_bias / maxf(node.lod_bias, 1e-6) if twin else 1.0,
+			"cast": node.cast_shadow, "file": file_of[mm.mesh]})
+	for e: Dictionary in entries:
+		_ab_set(e, true, true, 1.0, 1.0)
+	await _geo_report("GEO trees old (%d batches)" % entries.size())
+	_true_tris("TRUE trees old", entries)
+	var img := get_root().get_texture().get_image()
+	if img:
+		img.save_png(out.get_basename() + "_treeold.png")
+	for e: Dictionary in entries:
+		_ab_set(e, false, false, e.bias, e.twin_factor)
+	await _geo_report("GEO trees ladder")
+	_true_tris("TRUE trees ladder", entries)
+	if OS.get_environment("TREE_AB") == "2":
+		for e: Dictionary in entries:
+			_ab_set(e, false, false, 1.0, e.twin_factor)
+		await _geo_report("GEO ab ladders, no instance bias")
+		for f in [1.0, 0.3]:
+			for e: Dictionary in entries:
+				_ab_set(e, false, false, e.bias, f)
+			await _geo_report("GEO ab ladders, shadow twin bias x%.1f" % f)
+			_true_tris("TRUE ab ladders, shadow twin bias x%.1f" % f, entries)
+		for e: Dictionary in entries:
+			_ab_set(e, false, true, e.bias, 1.0)
+		await _geo_report("GEO ab ladders, old shadows")
+		var groups := {"tree_a": ["tree_a.glb"], "tree_b": ["tree_b.glb"], "tree_c": ["tree_c.glb"], "tree_d": ["tree_d.glb"],
+			"jacaranda": ["tree_jacaranda.glb"], "hill trees": factory.HILL_TREES, "bushes": factory.BUSHES}
+		var grouped := []
+		for gname: String in groups:
+			grouped.append_array(groups[gname])
+		groups["plants, flowers, grass"] = []
+		for e: Dictionary in entries:
+			if not grouped.has(e.file) and not (groups["plants, flowers, grass"] as Array).has(e.file):
+				groups["plants, flowers, grass"].append(e.file)
+		for gname: String in groups:
+			var n := 0
+			for e: Dictionary in entries:
+				var inside: bool = (groups[gname] as Array).has(e.file)
+				n += 1 if inside else 0
+				_ab_set(e, inside, inside, 1.0 if inside else e.bias, 1.0 if inside else e.twin_factor)
+			if n > 0:
+				_true_tris("TRUE ab only %s old (%d batches)" % [gname, n], entries)
+		for e: Dictionary in entries:
+			_ab_set(e, false, false, e.bias, e.twin_factor)
+	for e: Dictionary in entries:
+		if e.has("extra"):
+			(e.extra as Node).queue_free()
+
+
+## What the TREE_AB batches really cost the frame, counted the way the GPU draws them: every
+## instance. The renderer's own counters cannot be used for this: Compatibility adds a surface
+## that has LODs ONCE per draw call, whatever its instance count, and one without LODs once per
+## instance (rasterizer_scene_gles3.cpp, _fill_render_list), so a batch of forty trees counts as
+## one tree or as forty depending on whether its last level happens to have a LOD below it -
+## which is exactly what differs between the old meshes and the ladders. So: each batch's LOD per
+## surface by the renderer's rule (distance from the camera to the batch's box, times the lod
+## bias, against the viewport's mesh_lod_threshold in pixels), times its instances; in the view
+## if its box meets the camera frustum; in the shadow once per cascade whose slice sphere it
+## meets, swept 150 m back towards the sun (4 splits at the Sun's split distances, out to its
+## max distance) - on a controlled scene that draws each batch into the same number of cascades
+## as the renderer does.
+func _true_tris(label: String, entries: Array) -> void:
+	var cam := get_root().get_camera_3d()
+	var vp := get_root()
+	var width := float(vp.get_visible_rect().size.x)
+	var threshold := vp.mesh_lod_threshold / maxf(width, 1.0)
+	var multiplier := cam.get_camera_projection().get_lod_multiplier()
+	var planes := cam.get_frustum()
+	var sun: DirectionalLight3D = null
+	for n in current_scene.find_children("*", "DirectionalLight3D", true, false):
+		if (n as DirectionalLight3D).shadow_enabled:
+			sun = n
+			break
+	# Each cascade's slice of the view frustum (its own near and far at the split distances),
+	# and the way to the sun: a caster between the slice and the sun shades it too.
+	var slices: Array = []
+	var to_sun := Vector3.UP
+	if sun:
+		to_sun = sun.global_transform.basis.z
+		var splits := [0.0, sun.directional_shadow_split_1, sun.directional_shadow_split_2, sun.directional_shadow_split_3, 1.0]
+		var far := sun.directional_shadow_max_distance
+		var fwd := -cam.global_transform.basis.z
+		for k in 4:
+			var near_d := maxf(float(splits[k]) * far, cam.near)
+			var far_d := float(splits[k + 1]) * far
+			var pl: Array = [planes[2], planes[3], planes[4], planes[5]]
+			pl.append(Plane(-fwd, cam.global_position + fwd * near_d))
+			pl.append(Plane(fwd, cam.global_position + fwd * far_d))
+			slices.append(pl)
+	var cam_tris := 0
+	var shadow_tris := 0
+	for e: Dictionary in entries:
+		var node: MultiMeshInstance3D = e.node
+		if not node.is_visible_in_tree():
+			continue
+		var box: AABB = node.global_transform * node.get_aabb()
+		var n := node.multimesh.instance_count
+		var reach := Vector3.ZERO.max(box.position - cam.global_position).max(cam.global_position - box.end).length()
+		if node.visibility_range_end > 0.0 and reach > node.visibility_range_end:
+			continue
+		if node.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY and _box_in_frustum(box, planes):
+			cam_tris += _lod_tris(node.multimesh.mesh, box, cam.global_position, node.lod_bias, multiplier, threshold) * n
+		var casters: Array = []
+		if node.cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			casters.append(node)
+		for extra: Variant in [e.twin, e.get("extra")]:
+			if extra != null and (extra as GeometryInstance3D).is_visible_in_tree():
+				casters.append(extra)
+		var swept := box.merge(AABB(box.position - to_sun * 150.0, box.size))
+		var cascades := 0
+		for sl: Array in slices:
+			if _box_in_frustum(swept, sl):
+				cascades += 1
+		for caster: MultiMeshInstance3D in casters:
+			if cascades > 0:
+				shadow_tris += _lod_tris(caster.multimesh.mesh, box, cam.global_position, caster.lod_bias, multiplier, threshold) * n * cascades
+	print("%s camera tris=%d shadow tris=%d total=%d (every instance counted; %d batches)" % [label, cam_tris, shadow_tris, cam_tris + shadow_tris, entries.size()])
+
+
+## One instance's triangles of `mesh` at the LOD the renderer picks for a batch with box `box`.
+static func _lod_tris(mesh: Mesh, box: AABB, eye: Vector3, bias: float, multiplier: float, threshold: float) -> int:
+	var d := Vector3.ZERO.max(box.position - eye).max(eye - box.end).length()
+	var tot := 0
+	for s in mesh.get_surface_count():
+		var surf := RenderingServer.mesh_get_surface(mesh.get_rid(), s)
+		var count := int(surf.get("index_count", 0))
+		var per := float((surf.get("index_data", PackedByteArray()) as PackedByteArray).size()) / maxf(float(count), 1.0)
+		var pick := count
+		for lod: Dictionary in surf.get("lods", []):
+			if float(lod.edge_length) * bias / maxf(d * multiplier, 1e-6) <= threshold:
+				pick = int(float((lod.index_data as PackedByteArray).size()) / per)
+			else:
+				break
+		tot += pick / 3
+	return tot
+
+
+static func _box_in_frustum(box: AABB, planes: Array) -> bool:
+	for pl: Plane in planes:
+		var outside := true
+		for i in 8:
+			if not pl.is_point_over(box.get_endpoint(i)):
+				outside = false
+				break
+		if outside:
+			return false
+	return true
+
+
+## One TREE_AB batch drawn with its old or new mesh in the view and in the shadow, at lod bias
+## `bias` (the twin at `bias * twin_factor`).
+func _ab_set(e: Dictionary, camera_old: bool, shadow_old: bool, bias: float, twin_factor: float) -> void:
+	var node: MultiMeshInstance3D = e.node
+	node.multimesh.mesh = e.old if camera_old else e.new
+	node.lod_bias = 1.0 if camera_old else bias
+	var twin: MultiMeshInstance3D = e.twin
+	var old_shadow: Mesh = e.old_proxy
+	if twin:
+		twin.visible = true
+		if shadow_old:
+			twin.multimesh.mesh = old_shadow if old_shadow else e.old
+			twin.lod_bias = 1.0
+		else:
+			twin.multimesh.mesh = e.twin_mesh
+			twin.lod_bias = bias * twin_factor
+		return
+	# The ladder casts from the batch itself; the old mesh had a stand-in.
+	if shadow_old and old_shadow:
+		if not e.has("extra"):
+			var extra := MultiMeshInstance3D.new()
+			extra.name = "TreeAbShadow"
+			var emm := MultiMesh.new()
+			emm.transform_format = MultiMesh.TRANSFORM_3D
+			emm.use_colors = true
+			emm.use_custom_data = true
+			emm.mesh = old_shadow
+			emm.instance_count = node.multimesh.instance_count
+			emm.buffer = node.multimesh.buffer
+			extra.multimesh = emm
+			extra.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+			node.add_sibling(extra)
+			extra.transform = node.transform
+			e.extra = extra
+		(e.extra as Node3D).visible = true
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	else:
+		if e.has("extra"):
+			(e.extra as Node3D).visible = false
+		node.cast_shadow = e.cast
 
 
 func _geo_counts() -> Array:

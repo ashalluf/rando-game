@@ -1513,6 +1513,18 @@ func _test_city() -> void:
 				break
 	_check(palm_blocks > 0, "palm-lined blocks in the loaded city (%d)" % palm_blocks)
 	_check_palm_ladder()
+	_check_foliage_ladders()
+	# A batch of a laddered plant scales its LOD edges by its biggest instance (MultiMeshBatch):
+	# street trees are always planted at a height of their own, never at 1.0.
+	var biased := 0
+	var tree_batches := 0
+	for n in city.find_children("Batch_tree_*", "MultiMeshInstance3D", true, false):
+		var mmi := n as MultiMeshInstance3D
+		if mmi.multimesh and mmi.multimesh.mesh and mmi.multimesh.mesh.has_meta("foliage_ladder"):
+			tree_batches += 1
+			if not is_equal_approx(mmi.lod_bias, 1.0) and mmi.lod_bias > 0.2 and mmi.lod_bias < 5.0:
+				biased += 1
+	_check(tree_batches > 0 and biased == tree_batches, "street-tree batches scale their LOD edges by their biggest tree (%d of %d)" % [biased, tree_batches])
 	minimap.queue_redraw()
 	await _ticks(3)
 	var env: Environment = city.get_node("WorldEnvironment").environment
@@ -2577,6 +2589,128 @@ func _kit_count(b: Node, prefix: String) -> int:
 func _ticks(n: int) -> void:
 	for i in n:
 		await get_tree().physics_frame
+
+
+## The scanned trees' measured ladders (FoliageLod; the table tools/foliage_lods.gd writes):
+## every model still matches its table entry (a re-exported model or a new engine's simplifier
+## has to re-run the tool), each surface carries the table's levels as LODs at the table's edges
+## with fewer triangles each step, the shadow twin starts where FoliageLod.shadow_level() says,
+## and every THINNED level is the same canopy - its outline within its edge, its textured cover
+## (area times the atlas' own cut-out, sampled per triangle) within 2 % of level 0's and its
+## tone within 2.5 %.
+func _check_foliage_ladders() -> void:
+	var faults: Array[String] = []
+	var worst := {"cover": 0.0, "tone": 0.0}
+	var thin_levels := 0
+	var images := {}
+	for f: String in PropFactory.foliage_ladder_files():
+		var entry: Dictionary = FoliageLodTable.TABLE.get(f, {})
+		var mesh: Mesh = PropFactory._foliage_mesh(f)
+		if entry.is_empty() or not mesh.has_meta("foliage_ladder"):
+			faults.append("%s is not on its ladder" % f)
+			continue
+		var shadow: Mesh = PropFactory.shadow_proxy(mesh)
+		var surfaces: Array = entry.surfaces
+		for s in mesh.get_surface_count():
+			var spec: Dictionary = surfaces[s]
+			var surf := RenderingServer.mesh_get_surface(mesh.get_rid(), s)
+			var lods: Array = surf.get("lods", [])
+			var levels: Array = spec.levels
+			# The levels, then the counter's copy of the last one (FoliageLod.COUNTER_EDGE).
+			var per_index: float = float((surf.get("index_data", PackedByteArray()) as PackedByteArray).size()) / maxf(float(surf.get("index_count", 1)), 1.0)
+			var before_counter: int = (lods[-2]["index_data"] as PackedByteArray).size() if lods.size() > 1 else (surf.get("index_data", PackedByteArray()) as PackedByteArray).size()
+			if lods.size() != levels.size() + 1 or int(surf.get("index_count", 0)) / 3 != int(spec.tris) \
+					or not is_equal_approx(float(lods[-1]["edge_length"]), FoliageLod.COUNTER_EDGE) \
+					or (lods[-1]["index_data"] as PackedByteArray).size() != before_counter - int(3.0 * per_index):
+				faults.append("%s s%d has %d LODs for %d levels" % [f, s, lods.size(), levels.size()])
+				continue
+			var arrays := mesh.surface_get_arrays(s)
+			var vx: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV] if arrays[Mesh.ARRAY_TEX_UV] != null else PackedVector2Array()
+			var wide := vx.size() > 65535
+			var img := _albedo_image(mesh.surface_get_material(s), images)
+			var ref := _cover_stats(vx, uv, arrays[Mesh.ARRAY_INDEX], img)
+			var outline := FoliageLod.outline(vx, arrays[Mesh.ARRAY_INDEX])
+			var prev := int(spec.tris)
+			for l in levels.size():
+				var idx := _lod_indices(lods[l]["index_data"], wide)
+				var tris := idx.size() / 3
+				var edge := float(levels[l][3])
+				if not is_equal_approx(float(lods[l]["edge_length"]), edge) or tris != int(levels[l][2]) or tris >= prev:
+					faults.append("%s s%d LOD %d (edge %.3f, %d tris after %d)" % [f, s, l, lods[l]["edge_length"], tris, prev])
+				prev = tris
+				if levels[l][0] != "thin":
+					continue
+				# A thinned level's outline stays within its departure (FoliageLod.outline()).
+				var drift := FoliageLod.outline_drift(outline, FoliageLod.outline(vx, idx))
+				if drift > edge + 0.002:
+					faults.append("%s s%d LOD %d outline moved %.3f m (edge %.3f)" % [f, s, l, drift, edge])
+				thin_levels += 1
+				var st := _cover_stats(vx, uv, idx, img)
+				var cover: float = absf(st.cover / maxf(ref.cover, 1e-9) - 1.0)
+				var tone: float = absf(st.tone.get_luminance() / maxf(ref.tone.get_luminance(), 1e-6) - 1.0)
+				worst.cover = maxf(worst.cover, cover)
+				worst.tone = maxf(worst.tone, tone)
+				if cover > 0.02 or tone > 0.025:
+					faults.append("%s s%d thin %d: cover %+.3f, tone %+.3f" % [f, s, levels[l][1], cover, tone])
+			var first: int = FoliageLod.shadow_level(levels, PropFactory.foliage_planted_scale(f))
+			if first >= 0:
+				var ss := RenderingServer.mesh_get_surface(shadow.get_rid(), s) if shadow else {}
+				if ss.is_empty() or int(ss.get("index_count", 0)) / 3 != int(levels[first][2]) or (ss.get("lods", []) as Array).size() != levels.size() - first:
+					faults.append("%s s%d shadow twin" % [f, s])
+	_check(faults.is_empty() and thin_levels > 20, "every scanned tree carries its measured LOD ladder; %d thinned levels keep the canopy (worst cover %.1f %%, tone %.1f %%) %s" % [
+		thin_levels, worst.cover * 100.0, worst.tone * 100.0, faults])
+
+
+## A surface's source albedo (the JPG the import came from, read raw: the imported texture is
+## VRAM-compressed), or null. Cached per path.
+func _albedo_image(mat: Material, cache: Dictionary) -> Image:
+	var tex: Texture2D = null
+	if mat is ShaderMaterial:
+		tex = (mat as ShaderMaterial).get_shader_parameter("albedo_tex")
+	elif mat is BaseMaterial3D:
+		tex = (mat as BaseMaterial3D).albedo_texture
+	if tex == null or tex.resource_path == "":
+		return null
+	if not cache.has(tex.resource_path):
+		cache[tex.resource_path] = Image.load_from_file(ProjectSettings.globalize_path(tex.resource_path))
+	return cache[tex.resource_path]
+
+
+## LOD index bytes as indices (16-bit below 65,536 vertices, 32-bit above).
+func _lod_indices(bytes: PackedByteArray, wide: bool) -> PackedInt32Array:
+	if wide:
+		return bytes.to_int32_array()
+	var out := PackedInt32Array()
+	out.resize(bytes.size() / 2)
+	for i in out.size():
+		out[i] = bytes.decode_u16(i * 2)
+	return out
+
+
+## Textured cover of some triangles - area times the atlas' cut-out at each triangle's UV centre
+## (the black background the leaves were shot on counts as nothing, as in foliage_tex.gdshader) -
+## its mean colour, and the triangles' bounds.
+func _cover_stats(vx: PackedVector3Array, uv: PackedVector2Array, ix: PackedInt32Array, img: Image) -> Dictionary:
+	var cover := 0.0
+	var tone := Color(0.0, 0.0, 0.0, 0.0)
+	var box := AABB(vx[ix[0]], Vector3.ZERO)
+	var w := img.get_width() if img else 1
+	var h := img.get_height() if img else 1
+	for t in range(0, ix.size(), 3):
+		var a := vx[ix[t]]
+		var b := vx[ix[t + 1]]
+		var c := vx[ix[t + 2]]
+		box = box.expand(a).expand(b).expand(c)
+		var area := 0.5 * (b - a).cross(c - a).length()
+		var col := Color.WHITE
+		if img and not uv.is_empty():
+			var m := (uv[ix[t]] + uv[ix[t + 1]] + uv[ix[t + 2]]) / 3.0
+			col = img.get_pixel(posmod(int(m.x * w), w), posmod(int(m.y * h), h))
+		var k := area * FoliageLod.cutout(col)
+		cover += k
+		tone += col * k
+	return {"cover": cover, "tone": tone / maxf(cover, 1e-9), "box": box}
 
 
 ## The palms' hand-built LOD ladder (PropFactory.PALM_LEVELS): every variant carries each
