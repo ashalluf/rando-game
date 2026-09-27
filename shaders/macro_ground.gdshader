@@ -282,6 +282,9 @@ void fragment() {
 	vec3 sky = mix(sky_tint.rgb, vec3(1.0), 0.12);
 	float water = 1.0 - step(0.0005, m.a);
 	float near = (1.0 - smoothstep(near_fade_start, near_fade_end, dist)) * (1.0 - water);
+	// How much of this point is painted by hand rather than lit by the renderer (see the split
+	// at the bottom).
+	float painted = smoothstep(paint_start, paint_end, dist);
 
 	// `base` is the unlit surface colour and `lit` the light falling on it. They are kept apart
 	// because this plane is lit two different ways at once: see the ALBEDO/EMISSION split below.
@@ -292,7 +295,12 @@ void fragment() {
 	// Light the far city makes itself, which is all there is to see out there after dark.
 	vec3 glow = vec3(0.0);
 	vec3 n = vec3(0.0, 1.0, 0.0);
-	float rough = 0.95;
+	// The near hills' own roughness (terrain.gdshader), so the renderer gives both the same
+	// sheen where it lights both.
+	float rough = 0.93;
+	// The share of the renderer's direct sun this point keeps: the baked ridges' shadows, which
+	// the renderer's own shadow maps stop drawing 500 m out (see the lighting block).
+	float shade = 1.0;
 
 	if (water > 0.5) {
 		// The sea is not a flat blue field. Looked down on it is nearly black and takes its
@@ -361,7 +369,9 @@ void fragment() {
 			vec3 nat = mix(dry_grass_color, scrub_color, scrub);
 			// Individual bushes, but only once they are bigger than a couple of pixels.
 			float bush = smoothstep(7.0, 2.0, fp) * smoothstep(0.45, 0.85, vnoise(w * 0.33));
-			nat = mix(nat, scrub_color * 0.8, bush * 0.45);
+			// Only in the painted band: the near hills' tiles have no such speckle, and it
+			// darkened the plane where it meets them.
+			nat = mix(nat, scrub_color * 0.8, bush * 0.45 * painted);
 			// Drainage. The fractal's LOW values are its valleys, so they are already where the
 			// water would run; streak a noise that is six times longer downhill than across
 			// along the fall line, and green up what it finds.
@@ -372,7 +382,10 @@ void fragment() {
 			// And the canyons the height field itself was cut with, which hold the densest brush
 			// and the oaks.
 			gully = max(gully, smoothstep(0.35, 0.95, mdrain) * gully_amount * 0.7);
-			nat = mix(nat, scrub_color * 0.85, gully);
+			// Painted band only, like the bushes: the tiles' canyons come from the same
+			// drainage through the coverage (drain_brush) and drain_shade below, and this on top
+			// counted them twice where the two meet.
+			nat = mix(nat, scrub_color * 0.85, gully * painted);
 			// Rock on the steep faces, with bedding planes picked out by world height, and a
 			// scree fan in the band just below where the rock takes over.
 			float rocky = smoothstep(rock_slope_start, rock_slope_end, slope);
@@ -473,13 +486,24 @@ void fragment() {
 			}
 			sun_vis = mix(1.0, sun_vis, shadow_strength);
 		}
+		float ridge_vis = sun_vis;
 		sun_vis *= cloud_shade(w, L);
 		float ndl = max(dot(n, L), 0.0);
 		// Sky fill from above, warm bounce from below: a slope facing away from the sun is lit
 		// by the sky and by the ground in front of it, not by a flat grey constant.
-		lit = sun_color * mix(vec3(1.0), sky, 0.18) * (sun_strength * ndl * sun_vis)
-			+ sky * (ambient_strength * (0.55 + 0.45 * n.y))
+		vec3 sun_in = sun_color * mix(vec3(1.0), sky, 0.18) * (sun_strength * ndl);
+		vec3 fill = sky * (ambient_strength * (0.55 + 0.45 * n.y))
 			+ bounce_color * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
+		lit = sun_in * sun_vis + fill;
+		// Where the renderer lights this plane its shadow maps have run out (500 m), so the
+		// ridges threw no shadow between there and the painted band. Take the direct share the
+		// march says is blocked off the albedo: not the clouds (the tiles beside it have none),
+		// and faded in past the streamed ring's edge, so no shadow stops at a tile's side.
+		float sun_l = dot(sun_in, vec3(0.3333));
+		float fill_l = dot(fill, vec3(0.3333));
+		float full = mix(1.0, (sun_l * ridge_vis + fill_l) / max(sun_l + fill_l, 0.0001),
+			smoothstep(paint_start, paint_start + 700.0, dist));
+		shade = full;
 	}
 
 	// Under the player's feet this is just ground, so the real texture takes over, tinted by
@@ -498,7 +522,7 @@ void fragment() {
 
 	float hz = smoothstep(haze_start, haze_end, dist) * haze_strength;
 	float dim = mix(1.0, 0.16, night_factor);
-	vec3 albedo = mix(base, haze_color, hz) * dim;
+	vec3 albedo = mix(base * shade, haze_color, hz) * dim;
 	vec3 emitted = mix(base_e * lit, haze_color, hz) * dim + glow * (1.0 - hz);
 	if (smog > 0.002) {
 		float under = 1.0 - smoothstep(smog_lid * 0.35, smog_lid, world_pos.y);
@@ -515,13 +539,16 @@ void fragment() {
 	// so it matches the streamed chunks it is butted up against. Splitting the colour into an
 	// unlit `base` and a `lit` term is what lets one shader do both without double-lighting the
 	// near ground or leaving the far ground at the mercy of the ambient.
-	float painted = smoothstep(paint_start, paint_end, dist);
 	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - eye.xz));
 	ALBEDO = albedo * (1.0 - painted) * (1.0 - rim);
 	EMISSION = mix(emitted * painted, sky_tint.rgb, rim);
-	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25);
+	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25 * painted);
 	METALLIC = 0.0;
-	SPECULAR = mix(0.15, 0.55, water);
+	// The tiles' default 0.5 where the renderer lights this plane: at 0.15 Godot also cuts the
+	// grazing sky reflection (it reads an F0 under 0.02 as occluded), and that sheen alone put
+	// the plane at two thirds of the tiles' brightness with the same albedo and normal. Back to
+	// 0.15 where it is painted, so a blue midday sky does not wash the far land grey.
+	SPECULAR = mix(mix(0.5, 0.15, painted), 0.55, water);
 	NORMAL = normalize((VIEW_MATRIX * vec4(mix(vec3(0.0, 1.0, 0.0), n, 1.0 - near * 0.85), 0.0)).xyz);
 	NORMAL_MAP = nm;
 	NORMAL_MAP_DEPTH = near * 0.7;
