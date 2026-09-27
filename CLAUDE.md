@@ -896,14 +896,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   is the tower's garden (lawns, planters, a turquoise pool); some lots are **surface car parks**
   (`CityPlan.lots()` `"parking"`: DISTRICTS `surface_lots` / `core_surface_lots`, a hash, only
   under `SURFACE_LOT_MAX_HEIGHT`; stall rows, ArenaGrounds' static cars (`car_mesh()`, ~400
-  triangles, two kinds, a two-box shadow twin to `CAR_SHADOW_DISTANCE`), a pay booth, light poles in the street lamps' batch without their
-  OmniLight, a wall / hedge / chain-link (`shaders/chain_link.gdshader`) on the street sides); a
+  triangles, two kinds, a two-box shadow twin to `CAR_SHADOW_DISTANCE`), a pay booth, light
+  poles in the street lamps' batch without their OmniLight, a wall / hedge / chain-link
+  (`shaders/chain_link.gdshader`) on the street sides); a
   parking podium gets its drive-in (asphalt out to the kerb) and cars and light poles on its roof
   deck; and the cells a landmark's square dropped (`CityPlan.dropped_cells()`) are forecourt
   round the landmark (a downtown tower's own footprint kept 4 m clear) or a car park. Every
-  roll is a private rng of seed + lot, never the block rng or `Building._rng`. FULL chunks merge
-  each paving kind into ONE mesh (`LotFill.commit()`, no shadow, one quad a rect where the
-  relief is planar); LOD chunks and the far city lay only the car parks' asphalt and the lawns
+  roll is a private rng of seed + lot, never the block rng or `Building._rng`. A FULL chunk's
+  pavings, asphalt, lawns, planted tops, pools and polished stone are ONE mesh on ONE material
+  (`LotFill.commit()`, `shaders/lot_ground.gdshader`, the kind in the vertex colour; no shadow,
+  one quad a rect where the relief is planar, appended unindexed); LOD chunks and the far city lay only the car parks' asphalt and the lawns
   (the forecourt paving reads as pavement from there) and the podium boxes come with the parts.
   AirTraffic skips car-park lots. Look at it with `tools/glshot/still_shot.gd` (`SPLIT=1` has a
   LotFill line) and measure it with `tools/lot_coverage.gd`.
