@@ -124,6 +124,17 @@ uniform float paint_gain : hint_range(0.3, 1.0) = 0.66;
 // plane's hills were a dark brown shell against the tan streamed tiles, cut along their edges.
 uniform float paint_start = 900.0;
 uniform float paint_end = 2300.0;
+// terrain.gdshader's own numbers, for the band where this plane meets the streamed hill tiles
+// and draws their stands, straw and slopes rather than a smoothed average of them (see
+// `stands` in the natural ground): keep them equal to the terrain's.
+uniform vec3 straw_color : source_color = vec3(0.150, 0.124, 0.074);
+uniform vec3 straw_green_color : source_color = vec3(0.106, 0.100, 0.064);
+uniform float topo_weight : hint_range(0.0, 1.0) = 0.8;
+uniform float tile_dirt_slope_start = 0.42;
+uniform float tile_dirt_slope_end = 0.62;
+uniform float tile_rock_slope_start = 0.5;
+uniform float tile_rock_slope_end = 0.72;
+uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
 uniform vec3 snow_color : source_color = vec3(0.58, 0.60, 0.66);
 // The light the ground in front of a slope bounces back up into it. A hue, not an albedo.
 uniform vec3 bounce_color : source_color = vec3(0.62, 0.52, 0.34);
@@ -356,17 +367,39 @@ void fragment() {
 		if (land > 0.004) {
 			// Chaparral: one dominant scrub patch per hillside rather than an even sprinkle,
 			// over parched grass. Southern California, so gold and olive over grey rock.
-			float north = -n.z / max(length(n.xz), 0.001) * smoothstep(0.02, 0.12, slope);
+			// The coverage reads the land's own slope, like the tiles do off their mesh: without
+			// the crags and fine gullies, which only exist as shading, and which in the band
+			// beside the tiles made every slope steeper than the tile next to it. Out in the
+			// painted band the full normal, as before.
+			vec3 nc = normalize(mix(vec3(-mg.x * macro_height, 1.0, -mg.y * macro_height), vec3(-grad.x, 1.0, -grad.y), painted));
+			float cslope = 1.0 - clamp(nc.y, 0.0, 1.0);
+			float north = -nc.z / max(length(nc.xz), 0.001) * smoothstep(0.02, 0.12, cslope);
 			// Chaparral is the dominant cover, the grass the exception: on the gentle sunny ground
 			// and the spur crests. Up close a stand is where a patch noise (sd ~0.1) falls under a
 			// threshold set by the land; averaged over a pixel that is a smooth share of it.
-			float gentle = 1.0 - smoothstep(0.06, 0.22, slope);
+			float gentle = 1.0 - smoothstep(0.06, 0.22, cslope);
 			float south = max(-north, 0.0);
 			float mdrain = texture(macro_height_tex, uv).g * 2.0 - 1.0;
 			float cover = chaparral_amount + max(north, 0.0) * north_scrub - south * south_grass + mdrain * drain_brush
 				- gentle * (0.5 + 0.5 * south) * gentle_grass + (vnoise(w * 0.0028) - 0.5) * 0.2;
-			float scrub = smoothstep(0.25, 0.75, cover) * scrub_amount;
-			vec3 nat = mix(dry_grass_color, scrub_color, scrub);
+			// The stands, exactly as terrain.gdshader draws them: its threshold on the same
+			// patch noise at the same world point, so a stand that runs off a streamed tile
+			// carries on across the plane instead of turning into a smooth brown average at the
+			// tile's edge. Each noise that has gone under a few pixels drops to its mean and
+			// widens the edge by what it spread, so far out this is the smooth share again.
+			float hillv = vnoise(w * 0.0028);
+			float patchy = vnoise(w * 0.011) * 0.65 + vnoise(w * 0.037 + vec2(13.1)) * 0.35;
+			float f8 = 1.0 - smoothstep(2.0, 6.0, fp);
+			float f30 = 1.0 - smoothstep(8.0, 30.0, fp);
+			float frag = mix(0.5, patchy, f30) * 0.2 + mix(0.5, vnoise(w * 0.12 + vec2(17.0)), f8) * 0.3 + 0.25;
+			float th = 0.5 + (cover - 0.5) * topo_weight;
+			float edge = 0.045 + (1.0 - f8) * 0.1 + (1.0 - f30) * 0.07;
+			float stands = smoothstep(th + edge, th - edge, frag);
+			float scrub = mix(stands, smoothstep(0.25, 0.75, cover) * scrub_amount, painted);
+			// The tiles' straw, greener on some hillsides and low down (their `green`).
+			float greenv = clamp(smoothstep(0.3, 0.75, hillv) * 0.8 + (1.0 - smoothstep(60.0, 260.0, height_m)) * 0.25, 0.0, 1.0);
+			vec3 straw = mix(straw_color, straw_green_color, greenv * 0.8);
+			vec3 nat = mix(mix(straw, dry_grass_color, painted), scrub_color, scrub);
 			// Individual bushes, but only once they are bigger than a couple of pixels.
 			float bush = smoothstep(7.0, 2.0, fp) * smoothstep(0.45, 0.85, vnoise(w * 0.33));
 			// Only in the painted band: the near hills' tiles have no such speckle, and it
@@ -388,9 +421,13 @@ void fragment() {
 			nat = mix(nat, scrub_color * 0.85, gully * painted);
 			// Rock on the steep faces, with bedding planes picked out by world height, and a
 			// scree fan in the band just below where the rock takes over.
-			float rocky = smoothstep(rock_slope_start, rock_slope_end, slope);
+			// Beside the tiles, their dirt and rock slopes (on the land's own slope); out in the
+			// painted band the steeper, craggier bands this plane was tuned with.
+			float rocky = mix(smoothstep(tile_rock_slope_start, tile_rock_slope_end, cslope),
+				smoothstep(rock_slope_start, rock_slope_end, slope), painted);
 			float strata = vnoise(vec2(dot(w, across) * 0.006, height_m * 0.055));
-			float scree = smoothstep(rock_slope_start * 0.45, rock_slope_start, slope) * (1.0 - rocky);
+			float scree = mix(smoothstep(tile_dirt_slope_start, tile_dirt_slope_end, cslope),
+				smoothstep(rock_slope_start * 0.45, rock_slope_start, slope), painted) * (1.0 - rocky);
 			nat = mix(nat, scree_color * (0.82 + 0.36 * vnoise(w * 0.05)), scree * 0.7);
 			// Faint: bedding picked out by height at full strength drew every range as a stack
 			// of contour lines.
@@ -404,6 +441,8 @@ void fragment() {
 			// Dark canyons, lighter spur crests (terrain.gdshader's drain_shade and erosion_shade).
 			nat *= mix(1.0, 1.0 - drain_shade, smoothstep(0.15, 0.9, mdrain)) * (1.0 + drain_shade * 0.3 * smoothstep(0.2, 0.8, -mdrain));
 			nat *= 1.0 - 0.2 * clamp(ero.z, -0.5, 1.0);
+			// And the tiles' hillside-scale variation, so no two slopes are one flat tone.
+			nat *= 1.0 + (hillv - 0.5) * 2.0 * macro_variation + (patchy - 0.5) * macro_variation * 0.6;
 			float natural_mix = smoothstep(0.004, 0.06, m.a) * 0.88 + 0.12;
 			base = mix(base, nat, land * natural_mix);
 			base_e = mix(base_e, nat * paint_gain, land * natural_mix);

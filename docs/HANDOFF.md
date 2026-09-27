@@ -2602,11 +2602,18 @@ strip the length of its name (`_calm_spots`), everything else is eroded to withi
 landmark's box.
 
 Still wrong / next (needs the Mac, Forward+):
-- **The far ground is painted much darker than the streamed hill tiles** (it was on main too):
-  from the air the plane's ranges are dark brown and the chunks tan, a hard colour seam at the
-  edge of the streamed ring. The plane's `dry_grass_color` / `scrub_color` and its painted light
-  have to be matched to terrain.gdshader under the real renderer - a Mac screenshot from the air
-  over the front range (`--spawn=700,-300,0,-14,500`) would settle it.
+- ~~The far ground is painted much darker than the streamed hill tiles~~ - FIXED later the same
+  day (68604d4 and the commit after it). Traced in a worktree of its own with debug renders
+  that emit, on both the plane and the tiles, the albedo, the normal, the coverage (brush /
+  slope / drainage as RGB) and then a flat 0.1 grey: albedo, normals and brush share all matched
+  across the seam, but lit with the same grey the plane came out at 0.64 of the tiles. It was the
+  plane's SPECULAR 0.15 (Godot scales the grazing sky reflection by clamp(50 * F0, 0, 1), so an
+  F0 under 0.02 loses most of it); with the tiles' 0.5 / 0.93 it was 0.90. The plane also draws
+  the tiles' stands now, and ridge shadows past 500 m. Measured at the sign hill (linear
+  brightness, plane / tile): 0.45 -> 0.66 -> 0.64 with the stands, the hard edge mostly gone
+  (`<scratchpad>/mt/seam3/crop_ab.jpg`). What is left is resolution: the bake's slope and
+  drainage are smoother than a tile's mesh, so the small benches that grow grass on a tile read
+  as brush on the plane. Still wants a Mac aerial to confirm under Forward+.
 - From the city the front range is front-lit in the afternoon and reads flat on opengl3 (crop
   std 3.9/255). Judge on Forward+ first; if still flat, more canyon shade on the far ground.
 - The bake could be threaded (height_at writes last_drain, and ReplicaAreas/HillRoads have lazy

@@ -976,6 +976,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   mountains. The colour stays hardware bilinear, and its alpha is only the water test.
   `built_amount()` stays in `macro_ground.gdshader`: the smoke test reads its thresholds from it.
   Before this the plane was 4 km of flat green and its own edge was the horizon.
+  **Where it meets the streamed hill tiles** the plane is lit by the renderer (ALBEDO) out to
+  `paint_start` (900 m) and painted by hand (EMISSION, its own sun, sky and ridge-shadow march)
+  past `paint_end`; in the lit band it has to BE a tile. So there it takes the tiles' SPECULAR
+  0.5 and roughness 0.93 - at 0.15 Godot reads the F0 as occluded and drops the grazing sky
+  reflection, and with the same albedo and normal the plane lit at two thirds of the tiles (found
+  by emitting albedo, normals, coverage and a flat grey on both in a debug render) - draws the
+  tiles' own stands (terrain.gdshader's threshold on the same noise at the same world point, its
+  straw, dirt and rock slopes, off the bake's smooth slope rather than the crag normal), and
+  takes the ridge shadows it marches off its direct share (`shade`), since the renderer's shadow
+  maps stop at 500 m. The bush speckle and gully streaks are painted-band only. Numbers copied
+  from terrain.gdshader (`straw_color`, `topo_weight`, `tile_*_slope_*`, `macro_variation`) must
+  stay equal to its own.
   **The plane and its collision are separate nodes** (`Ground`, drawn, slides with the player;
   `GroundBody`, a 14 km box, moved only when the player is `GROUND_BODY_REACH` of it from its
   centre). Moving a static body makes Godot Physics wake every body touching it - on any
