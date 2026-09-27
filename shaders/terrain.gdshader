@@ -13,9 +13,12 @@ shader_type spatial;
 // Snow only above `snow_line`, the same line the far ground (macro_ground.gdshader) uses.
 // Textures and noise are in TRUE world XZ (`world_offset`, pushed by CityStreamer as it does
 // for the far ground), so nothing jumps when the origin re-centres. Layer colours are LINEAR.
+// Which patch is which is hill_splat.gdshaderinc, shared with the hill shells (the grass and
+// brush understory grown out of this paint near the camera) and mirrored by HillPlanting.
 // Cost: 7 texture fetches a fragment and nine value noises (8 and ten with ground_detail), two
-// of them with their derivatives for the brush canopy's relief, and two orders of erosion noise
-// (16 cells each, faded out once a gully is under a few pixels).
+// of them with their derivatives for the brush canopy's relief, two orders of erosion noise
+// (16 cells each, faded out once a gully is under a few pixels) and, with ground_detail, the
+// shrub crowns (four cells, eight hashes).
 
 uniform sampler2D grass_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D grass_normal : hint_normal, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -36,13 +39,10 @@ uniform float rock_scale = 7.0;
 // Each texture's mean luminance (linear), so recolouring keeps its detail at the colour asked.
 uniform float grass_mean_luma = 0.145;
 uniform float mottle_mean_luma = 0.126;
+// (hill_shells.gdshader keeps copies of grass_scale, mottle_scale and the two mean lumas, and
+// the same two textures: keep them equal.)
 uniform float dirt_mean_luma = 0.203;
 uniform float rock_mean_luma = 0.072;
-// Straw on a pale, burnt hillside and on a greener, later-drying one (LINEAR albedo).
-uniform vec3 straw_color = vec3(0.150, 0.124, 0.074);
-uniform vec3 straw_green_color = vec3(0.106, 0.100, 0.064);
-// Chaparral: the brush with the shade between the bushes (LINEAR).
-uniform vec3 chaparral_color = vec3(0.050, 0.056, 0.036);
 // Decomposed granite and dirt (LINEAR), and how much of the dirt texture's own orange survives.
 uniform vec3 dirt_color = vec3(0.150, 0.126, 0.094);
 uniform float dirt_keep_hue : hint_range(0.0, 1.0) = 0.25;
@@ -51,33 +51,17 @@ uniform float bare_between : hint_range(0.0, 1.0) = 0.7;
 // Rock outcrops, buff sandstone going grey (LINEAR), and how much of the texture's hue stays.
 uniform vec3 rock_color = vec3(0.112, 0.106, 0.096);
 uniform float rock_keep_hue : hint_range(0.0, 1.0) = 0.15;
-// How much of the ground is chaparral, and how much more of it the north-facing slopes carry.
-// Chaparral is the hills' DOMINANT cover (the grass is the exception, on gentle south slopes).
-uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.62;
-uniform float north_brush : hint_range(0.0, 1.0) = 0.3;
-// How much more brush the gullies carry and how much less the spur crests (the drainage the
-// height field was cut with, MacroMap.last_drain, in COLOR.g), and how much less the gentle
-// ground carries - benches and saddles are where the grass is.
-uniform float drain_brush : hint_range(0.0, 1.0) = 0.45;
-uniform float gentle_grass : hint_range(0.0, 1.0) = 0.35;
-// How much brush the sunny side loses (south faces are grass and sage between the stands).
-uniform float south_grass : hint_range(0.0, 1.0) = 0.08;
 // How much darker a canyon's floor is than the slopes, and how much lighter the spur crests:
 // the brush is densest and tallest down there and the light gets in least. It draws the
 // drainage network at every distance, even front-lit at noon when the slopes shade flat.
 uniform float drain_shade : hint_range(0.0, 1.0) = 0.3;
-// Scree and dirt down the steep gullies, and rock breaking out along the spur crests.
-uniform float gully_scree : hint_range(0.0, 1.0) = 0.5;
-uniform float crest_rock : hint_range(0.0, 1.0) = 0.8;
-// How much the land (aspect, drainage, gentle ground) decides where the stands are, against the
-// patch noise. At 0.45 the noise had as much say as the land and the stands came out as blobs
-// laid over the hill regardless of its shape - camouflage. The noise now only rags the edges.
-uniform float topo_weight : hint_range(0.0, 1.0) = 0.8;
 // Metres of canopy relief a stand of brush has (its bushes and the gaps between them), and of
 // leaf clumps on the bushes. They go into the normal, which is what makes brush read as bushes
 // from across a canyon instead of a dark stain on a smooth slope.
 uniform float brush_relief = 1.1;
 uniform float leaf_relief = 0.3;
+// How steeply a shrub crown's flanks turn from the light (slope at its rim).
+uniform float crown_relief = 1.3;
 // How hard the ground textures' own normal maps bend the light.
 uniform float detail_normal : hint_range(0.0, 2.0) = 1.0;
 // The gullies finer than the height field's own (shaders/erosion.gdshaderinc): metres deep
@@ -85,17 +69,6 @@ uniform float detail_normal : hint_range(0.0, 2.0) = 1.0;
 uniform float erosion_amp = 7.0;
 uniform float erosion_cell = 55.0;
 uniform float erosion_shade : hint_range(0.0, 1.0) = 0.2;
-// Single shrubs (sage, buckwheat) dotted through the open grass.
-uniform float sage_amount : hint_range(0.0, 1.0) = 0.5;
-// Slope (1 - normal.y) where bare dirt starts and has taken over, and where rock does. The
-// ranges are steep (median slope 0.14, 31 degrees; 0.30 is the steepest quarter, 0.45 the
-// steepest tenth), so most of a hillside stays grass and brush, as the real ones do.
-uniform float dirt_slope_start : hint_range(0.0, 1.0) = 0.42;
-uniform float dirt_slope_end : hint_range(0.0, 1.0) = 0.62;
-uniform float rock_slope_start : hint_range(0.0, 1.0) = 0.5;
-uniform float rock_slope_end : hint_range(0.0, 1.0) = 0.72;
-// Fire roads and foot trails across the open slopes; 0 turns them off.
-uniform float trail_amount : hint_range(0.0, 1.0) = 0.8;
 // Brightness swing between one hillside and the next, so a range is never one tile.
 uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
 // Metres above sea level the snow starts: the far ground's `snow_line`, keep them equal.
@@ -105,6 +78,7 @@ uniform float snow_line = 1150.0;
 // rotated and at another scale and cross-faded on slow noise, which kills the visible tiling.
 global uniform float ground_detail;
 
+#include "res://shaders/hill_splat.gdshaderinc"
 #include "res://shaders/erosion.gdshaderinc"
 
 varying vec3 world_pos;
@@ -116,39 +90,6 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = MODEL_NORMAL_MATRIX * NORMAL;
 	drain = COLOR.g * 2.0 - 1.0;
-}
-
-
-float hash12t(vec2 p) {
-	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
-	p3 += dot(p3, p3.yzx + 33.33);
-	return fract((p3.x + p3.y) * p3.z);
-}
-
-
-float vnoiset(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash12t(i), hash12t(i + vec2(1.0, 0.0)), f.x),
-		mix(hash12t(i + vec2(0.0, 1.0)), hash12t(i + vec2(1.0, 1.0)), f.x), f.y);
-}
-
-
-// Value noise with its derivative: .x the value, .yz d(value)/d(p) (see macro_relief).
-vec3 noisedt(vec2 x) {
-	vec2 i = floor(x);
-	vec2 f = x - i;
-	vec2 u = f * f * (3.0 - 2.0 * f);
-	vec2 du = 6.0 * f * (1.0 - f);
-	float a = hash12t(i);
-	float b = hash12t(i + vec2(1.0, 0.0));
-	float c = hash12t(i + vec2(0.0, 1.0));
-	float d = hash12t(i + vec2(1.0, 1.0));
-	float k1 = b - a;
-	float k2 = c - a;
-	float k3 = a - b - c + d;
-	return vec3(a + k1 * u.x + k2 * u.y + k3 * u.x * u.y, du.x * (k1 + k3 * u.y), du.y * (k2 + k3 * u.x));
 }
 
 
@@ -170,9 +111,10 @@ float luma(vec3 c) {
 void fragment() {
 	vec2 w = world_pos.xz + world_offset;
 	vec3 wn = normalize(world_nrm);
-	float slope = 1.0 - clamp(wn.y, 0.0, 1.0);
 	// +1 on a slope facing north (normal toward -Z), -1 facing south, 0 on the flat.
-	float north = -wn.z / max(length(wn.xz), 0.001) * smoothstep(0.02, 0.12, slope);
+	vec2 aspect = hill_aspect(wn);
+	float slope = aspect.x;
+	float north = aspect.y;
 	// The fine gullies: on the flanks, not on the summits, benches and valley floors.
 	vec2 fall = -wn.xz / max(wn.y, 0.25);
 	// Off with ground_detail (the web, and below MEDIUM), like the second grass fetch.
@@ -182,8 +124,9 @@ void fragment() {
 	}
 
 	// ---- noise: hillside, patch and bush scales ---------------------------------------------
-	float hill = vnoiset(w * 0.0028);
-	float patchy = vnoiset(w * 0.011) * 0.65 + vnoiset(w * 0.037 + 13.1) * 0.35;
+	vec2 broad = hill_broad(w);
+	float hill = broad.x;
+	float patchy = broad.y;
 	// Single bushes are ~3 m across: past a metre a pixel they would only sparkle, so they
 	// fade to their average there.
 	float bush_fade = 1.0 - smoothstep(0.5, 2.0, length(fwidth(w)));
@@ -224,36 +167,40 @@ void fragment() {
 	// The stands follow the land, not a blob noise: brush fills the gullies and the north faces,
 	// the grass holds the gentle ground and the sunny side, and the patch noise only rags the
 	// edge, with most of its weight at the scale of single bushes.
-	float gentle = 1.0 - smoothstep(0.06, 0.22, slope);
-	// The sunny side loses less brush than the shaded side gains: from the basin the south
-	// faces are what you see, and they are brush with grass between, not grass with brush.
-	float south = max(-north, 0.0);
-	float coverage = chaparral_amount + max(north, 0.0) * north_brush - south * south_grass
-		+ drain * drain_brush - gentle * (0.5 + 0.5 * south) * gentle_grass + (hill - 0.5) * 0.2;
-	float th = 0.5 + (coverage - 0.5) * topo_weight;
-	float frag = patchy * 0.2 + vnoiset(w * 0.12 + 17.0) * 0.3 + (bush - 0.5) * 0.35 + 0.25;
-	float brush = smoothstep(th + 0.045, th - 0.045, frag);
-	// Gaps between the bushes of a stand, where the straw shows through, and single shrubs out
-	// in the open grass.
-	brush *= smoothstep(0.12, 0.3, bush);
-	brush = max(brush, mix(0.05, smoothstep(0.76, 0.84, bush), bush_fade) * sage_amount);
-	// Single bushes with shade between them, leaf clumps on those, the blade grain on those.
-	// Clumps of bushes, 8 m across, which still read from across a canyon once the single bushes
-	// have faded to their average.
+	// (hill_splat.gdshaderinc: the same maths the shells and HillPlanting use.) Clumps of bushes,
+	// 8 m across, which still read from across a canyon once the single bushes have faded to
+	// their average, then the gaps between the bushes of a stand, where the straw shows
+	// through, and single shrubs out in the open grass.
 	float clump = vnoiset(w * 0.12 + 17.0);
-	vec3 chap = chaparral_color * mix(0.45, 1.3, bush) * mix(0.5, 1.4, leaf) * mix(0.72, 1.22, clump) * (0.65 + 0.35 * gl);
+	float th = hill_stand_threshold(slope, north, drain, hill);
+	// Shrub crowns 2.6 m apart: a stand's edge runs round them, and inside it they are lit as
+	// domes with shade between them. Gone to their average once one is under a few pixels.
+	// Off with ground_detail (the web, below MEDIUM): eight hashes a pixel, and there the edge
+	// runs along the plain stand noise (HillPlanting plants by the crowned edge, a crown's width
+	// off at most).
+	// Full to ~40 m, gone by ~120 m (720 rows; twice that on the Mac): resolved further out,
+	// the jittered domes read as bubble wrap across a canyon.
+	float crown_fade = (1.0 - smoothstep(0.06, 0.2, length(fwidth(w)))) * step(0.5, ground_detail);
+	vec3 crowns = vec3(CROWN_MEAN, 0.0, 0.0);
+	if (crown_fade > 0.0) {
+		crowns = hill_crowns(w);
+	}
+	float stand = hill_stand(th, hill_stand_crowned(hill_stand_noise(patchy, clump, bush), crowns.x, crown_fade), bush);
+	float sage = hill_sage(bush, bush_fade);
+	float brush = max(stand, sage);
+	// Crowns with shade between them, leaf clumps on those, the blade grain on those, and the
+	// clumps of bushes that still read from across a canyon once the crowns are gone.
+	// (Both tones average ~0.88, so a stand keeps its brightness as the crowns fade out.)
+	float crown_tone = mix(mix(0.45, 1.3, bush), mix(0.64, 1.24, crowns.x) * mix(0.85, 1.12, bush), crown_fade);
+	vec3 chap = mix(chaparral_color, sage_color, smoothstep(-0.05, 0.05, sage - stand))
+		* crown_tone * mix(0.5, 1.4, leaf) * mix(0.72, 1.22, clump) * (0.65 + 0.35 * gl);
 	grass = mix(grass, chap, brush);
 
 	// ---- dirt: steep cuts and road banks, the odd bare patch, trails -----------------------
-	float bare = smoothstep(dirt_slope_start, dirt_slope_end, slope + (patchy - 0.5) * 0.3);
-	// Scree fans down the steep gullies.
-	bare = max(bare, smoothstep(0.3, 0.8, drain) * smoothstep(0.32, 0.48, slope) * gully_scree);
-	// Trails: one contour of a slow noise, about a metre wide, only on some hillsides and off the
-	// steep ground. fwidth keeps it a line rather than a stair of pixels from far off.
+	// Scree fans down the steep gullies; trails, one contour of a slow noise about a metre wide.
 	float tn = vnoiset(w * 0.0065 + 41.0);
-	float trail = 1.0 - smoothstep(0.0035, 0.0035 + fwidth(tn) * 1.5, abs(tn - 0.5));
-	trail *= smoothstep(0.55, 0.7, vnoiset(w * 0.0021 + 7.0)) * (1.0 - smoothstep(0.18, 0.30, slope)) * trail_amount;
-	bare = max(bare, trail * 0.9);
+	float trail = hill_trail(tn, fwidth(tn), vnoiset(w * 0.0021 + 7.0), slope);
+	float bare = hill_bare(slope, patchy, drain, trail);
 	vec3 albedo = mix(grass, dirt, bare);
 
 	// ---- rock: outcrops on the steepest faces, and a few breaking through on the ridges ----
@@ -261,11 +208,7 @@ void fragment() {
 	vec3 r = texture(rock_albedo, ruv).rgb;
 	vec3 rock = mix(rock_color * clamp(luma(r) / rock_mean_luma, 0.3, 2.2), r * (luma(rock_color) / rock_mean_luma), rock_keep_hue);
 	float crag = vnoiset(w * 0.021 + 29.0);
-	float rocky = smoothstep(rock_slope_start, rock_slope_end, slope + (crag - 0.5) * 0.22);
-	rocky = max(rocky, smoothstep(0.78, 0.86, crag * 0.7 + patchy * 0.3) * smoothstep(0.10, 0.22, slope));
-	// Rock along the spur crests, broken into outcrops.
-	rocky = max(rocky, smoothstep(0.2, 0.7, -drain) * smoothstep(0.14, 0.3, slope)
-		* smoothstep(0.42, 0.62, crag * 0.6 + bush * 0.4) * crest_rock);
+	float rocky = hill_rocky(slope, crag, patchy, drain, bush);
 	albedo = mix(albedo, rock, rocky);
 
 	// ---- the drainage: dark canyons, lighter spur crests -------------------------------------
@@ -291,7 +234,8 @@ void fragment() {
 	// A normal map's slopes are dimensionless, so its tile size does not enter.
 	ds *= detail_normal;
 	// Bushes: a canopy brush_relief high over the gaps, leaf clumps on top, only in the stands.
-	vec2 canopy = (bush_n.yz * 0.29 * brush_relief * bush_fade + leaf_n.yz * 0.9 * leaf_relief * leaf_fade)
+	vec2 canopy = (bush_n.yz * 0.29 * brush_relief * bush_fade + leaf_n.yz * 0.9 * leaf_relief * leaf_fade
+		- crowns.yz * crown_relief * crown_fade * step(0.001, crowns.x))
 		* brush * (1.0 - bare) * (1.0 - rocky);
 	ds = (ds + canopy) * (1.0 - snow * 0.7) + ero.xy;
 	float ny = max(wn.y, 0.25);

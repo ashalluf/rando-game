@@ -385,6 +385,7 @@ func _test_city() -> void:
 		var hill_chunk: Node3D = city.chunks.get(hill_key)
 		_check(hill_chunk != null and hill_chunk.zone == MacroMap.Zone.HILLS and hill_chunk.has_node("Terrain"), "hill chunk has a terrain tile")
 		_check_hill_planting(hill_chunk, plan)
+		_check_hill_shells(hill_chunk, city, plan)
 		_check_hill_props_grounded(city, plan)
 		await _wait_for_floor(player, 240)
 		var ground_h: float = _world_state().to_world(player.global_position).y
@@ -2411,13 +2412,20 @@ func _double_jump_and_measure(player: CharacterBody3D, ground_y: float) -> float
 ## shader's numbers (read back out of its source here), a FULL hill chunk plants chaparral on
 ## the painted stands and nothing on rock or bare cuts, and the north faces carry more brush.
 func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
-	var src := FileAccess.get_file_as_string("res://shaders/terrain.gdshader")
+	# The splat's numbers live in hill_splat.gdshaderinc, which terrain.gdshader and the hill
+	# shells both include.
+	var src := FileAccess.get_file_as_string("res://shaders/terrain.gdshader") + FileAccess.get_file_as_string("res://shaders/hill_splat.gdshaderinc")
 	var mismatched: Array[String] = []
 	for uname: String in HillPlanting.MIRRORED:
 		var re := RegEx.create_from_string("uniform float " + uname + "\\b[^=]*=\\s*([0-9.]+)")
 		var m := re.search(src)
 		if m == null or absf(m.get_string(1).to_float() - float(HillPlanting.MIRRORED[uname])) > 1e-6:
 			mismatched.append(uname)
+	for cname: String in HillPlanting.MIRRORED_CONSTS:
+		var re := RegEx.create_from_string("const float " + cname + "\\s*=\\s*([0-9.]+)")
+		var m := re.search(src)
+		if m == null or absf(m.get_string(1).to_float() - float(HillPlanting.MIRRORED_CONSTS[cname])) > 1e-6:
+			mismatched.append(cname)
 	_check(mismatched.is_empty(), "HillPlanting mirrors terrain.gdshader's numbers (%s)" % (", ".join(mismatched) if mismatched else "all match"))
 	if chunk == null:
 		return
@@ -2455,6 +2463,97 @@ func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
 	_check(north_brush > south_brush * 1.3, "north faces carry more brush than south faces (%.0f vs %.0f of 400)" % [north_brush, south_brush])
 
 
+## The hill shells (HillShells, hill_shells.gdshader): a FULL hill chunk draws its terrain mesh
+## again as HillShells.LAYERS lifted layers, one MultiMesh of identity instances, casting no
+## shadow; the layers are stored so every power-of-two prefix is spread evenly up the canopy
+## (the distance LOD draws a prefix); fewer layers further out and none past the fade; the shells
+## share the terrain's splat; and they keep off the hill roads (the terrain's COLOR.b).
+func _check_hill_shells(chunk: Node3D, city: Node, plan: CityPlan) -> void:
+	var shells: MultiMeshInstance3D = chunk.get_node_or_null("HillShells") if chunk else null
+	var terrain: MeshInstance3D = chunk.get_node_or_null("Terrain") if chunk else null
+	var ok: bool = shells != null and terrain != null and shells.multimesh != null \
+		and shells.multimesh.instance_count == HillShells.LAYERS and shells.multimesh.mesh == terrain.mesh \
+		and shells.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and shells.is_in_group("hill_shells")
+	_check(ok, "a FULL hill chunk grows shells from its terrain mesh (%d layers, no shadow)" % (shells.multimesh.instance_count if shells and shells.multimesh else 0))
+	var spread := true
+	for prefix: int in [2, 4, 8, HillShells.LAYERS]:
+		var hs: Array[float] = []
+		for k in prefix:
+			hs.append(HillShells.layer_height(k))
+		hs.sort()
+		for k in prefix:
+			spread = spread and absf(hs[k] - (float(k) + 0.5) / float(prefix)) < 0.5 / float(prefix) + 1e-4 \
+				and (k == 0 or absf(hs[k] - hs[k - 1] - 1.0 / float(prefix)) < 1e-4)
+	_check(spread, "every power-of-two prefix of the shell layers is spread evenly up the canopy")
+	_check(HillShells.layers_at(0.0) == HillShells.LAYERS and HillShells.layers_at(55.0) < HillShells.LAYERS \
+		and HillShells.layers_at(55.0) > 0 and HillShells.layers_at(200.0) == 0, "the shells draw fewer layers with distance and none far out")
+	var shell_src := FileAccess.get_file_as_string("res://shaders/hill_shells.gdshader")
+	var terrain_src := FileAccess.get_file_as_string("res://shaders/terrain.gdshader")
+	var inc := "#include \"res://shaders/hill_splat.gdshaderinc\""
+	_check(shell_src.contains(inc) and terrain_src.contains(inc) and shell_src.contains("hill_stand(") and terrain_src.contains("hill_stand(") and shell_src.contains("hill_crowns(") and terrain_src.contains("hill_crowns("),
+		"the shells and the terrain paint from the same splat")
+	# Keep-out: build a chunk a hill road crosses up to its terrain and read the mesh's COLOR.b.
+	var hr = plan.macro.hill_roads if plan.macro else null
+	var road_chunk = null
+	var probe := Vector2.INF
+	if hr:
+		for road in hr.roads:
+			var pts: PackedVector2Array = road.get("points", PackedVector2Array())
+			if pts.size() < 8 or not road.get("draw", true):
+				continue
+			var mid := pts[pts.size() / 2]
+			var k: Vector2i = plan.block_index_at(mid)
+			if plan.zone_at((plan.block(k.x, k.y).rect as Rect2).get_center()) != MacroMap.Zone.HILLS:
+				continue
+			road_chunk = load("res://scripts/world/city_chunk.gd").new()
+			road_chunk.plan = plan
+			road_chunk.ix = k.x
+			road_chunk.iz = k.y
+			road_chunk.level = 0
+			road_chunk.style = city.chunk_style()
+			road_chunk.begin_build()
+			while road_chunk._terrain_mesh == null and road_chunk._step < road_chunk._steps.size() - 1:
+				road_chunk.build_step()
+			probe = mid
+			break
+	if road_chunk == null or road_chunk._terrain_mesh == null:
+		_check(false, "a hill road chunk to check the shells' keep-out on")
+		if road_chunk:
+			road_chunk.free()
+		return
+	var arr: Array = (road_chunk._terrain_mesh as Mesh).surface_get_arrays(0)
+	var on_road := 0
+	var road_bad := 0
+	var clear_bad := 0
+	var clear_n := 0
+	if arr.size() > 0:
+		var vs: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var cs: PackedColorArray = arr[Mesh.ARRAY_COLOR]
+		var segs: Array = road_chunk._hill_segments()
+		var marks: Array = road_chunk._shell_marks(road_chunk.owned_rect())
+		for i in vs.size():
+			var p := Vector2(vs[i].x, vs[i].z)
+			var inside := false
+			for seg in segs:
+				if p.distance_to(Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)) < float(seg.width) * 0.5:
+					inside = true
+			var free := true
+			for m: Array in marks:
+				if p.distance_to(Geometry2D.get_closest_point_to_segment(p, m[0], m[1])) < float(m[2]) + 0.5:
+					free = false
+			if inside:
+				on_road += 1
+				if cs[i].b >= 0.5:
+					road_bad += 1
+			elif free and vs[i].y > 1.5:
+				clear_n += 1
+				if cs[i].b <= 0.5:
+					clear_bad += 1
+	road_chunk.free()
+	_check(on_road > 0 and road_bad == 0 and clear_n > 0 and clear_bad == 0,
+		"the shells keep off the hill road at %.0f,%.0f (%d road vertices, %d marked to grow; %d of %d clear ones barred)" % [probe.x, probe.y, on_road, road_bad, clear_bad, clear_n])
+
+
 ## A hill chunk's rocks, shrubs and planting stand on the terrain it draws. They are placed at
 ## MacroMap.height_at(), which already includes the relief, and the chunk's batch used to add the
 ## relief again: on the valley flank (the plateau under the front range's inland side) every
@@ -2488,7 +2587,10 @@ func _check_hill_props_grounded(city: Node, plan: CityPlan) -> void:
 	for key: String in data:
 		for xf: Transform3D in data[key].xforms:
 			count += 1
-			var dy := xf.origin.y - plan.height_at(Vector2(xf.origin.x, xf.origin.z))
+			# Against the surface the chunk draws (its tile grid, which is also what it collides
+			# with): on the carved road banks and the sharpest gullies the exact height is a few
+			# metres off the 3 m grid, and a prop on the exact height would float or sink by that.
+			var dy: float = xf.origin.y - float(ch._terrain_height(Vector2(xf.origin.x, xf.origin.z)))
 			if absf(dy) > absf(worst):
 				worst = dy
 	ch.free()

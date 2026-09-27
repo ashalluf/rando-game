@@ -167,6 +167,21 @@ static func terrain_material() -> ShaderMaterial:
 	return mat
 
 
+## The hills' near grass and brush understory (shaders/hill_shells.gdshader), drawn as lifted
+## layers of each FULL hill tile (CityChunk._build_hill_shells). Its splat uniforms are the
+## terrain's own defaults (hill_splat.gdshaderinc); CityStreamer keeps `world_offset` current.
+static func hill_shell_material() -> ShaderMaterial:
+	if _cache.has("hill_shell_mat"):
+		return _cache["hill_shell_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/hill_shells.gdshader")
+	# The painted straw's own light and dark, so the grass carries the ground's tone.
+	mat.set_shader_parameter("grass_albedo", texture("grass", "Color"))
+	mat.set_shader_parameter("mottle_albedo", texture("hill", "Color"))
+	_cache["hill_shell_mat"] = mat
+	return mat
+
+
 static func material(color: Color, roughness: float = 0.85, unshaded: bool = false) -> StandardMaterial3D:
 	var key := "m%d_%d_%d" % [color.to_rgba32(), int(roughness * 100), int(unshaded)]
 	if _cache.has(key):
