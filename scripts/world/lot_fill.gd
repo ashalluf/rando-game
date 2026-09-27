@@ -228,26 +228,23 @@ static func commit(ch: CityChunk) -> void:
 				nx = clampi(ceili(r.size.x / step), 1, 60)
 				nz = clampi(ceili(r.size.y / step), 1, 60)
 			st.append_from(ch._grid_mesh(r, CityChunk.SIDEWALK_TOP + lift, lift + 0.02, nx, nz, true, id_color), 0, Transform3D.IDENTITY)
+	# The boxes go in unindexed like the grids: a SurfaceTool that is handed an indexed mesh after
+	# unindexed ones keeps only the indexed triangles, and every grid vanished (the car parks
+	# drew as the bare pavement under them).
 	var unit := CityChunk.unit_box_arrays()
+	var uv: PackedVector3Array = unit[0]
+	var un: PackedVector3Array = unit[1]
+	var ut: PackedVector2Array = unit[3]
+	var ui: PackedInt32Array = unit[4]
 	for b: Array in ch._fill_boxes:
 		var size: Vector3 = b[0]
 		var at: Vector3 = b[1]
-		var arrays := []
-		arrays.resize(Mesh.ARRAY_MAX)
-		var verts := PackedVector3Array()
-		for v: Vector3 in unit[0]:
-			verts.append(v * size + at)
-		var cols := PackedColorArray()
-		cols.resize(verts.size())
-		cols.fill(Color(float(b[2]) / 16.0, 0.0, 0.0, 1.0))
-		arrays[Mesh.ARRAY_VERTEX] = verts
-		arrays[Mesh.ARRAY_NORMAL] = unit[1]
-		arrays[Mesh.ARRAY_TEX_UV] = unit[3]
-		arrays[Mesh.ARRAY_COLOR] = cols
-		arrays[Mesh.ARRAY_INDEX] = unit[4]
-		var box := ArrayMesh.new()
-		box.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-		st.append_from(box, 0, Transform3D.IDENTITY)
+		st.set_color(Color(float(b[2]) / 16.0, 0.0, 0.0, 1.0))
+		for i: int in ui:
+			st.set_normal(un[i])
+			st.set_uv(ut[i])
+			st.set_color(Color(float(b[2]) / 16.0, 0.0, 0.0, 1.0))
+			st.add_vertex(uv[i] * size + at)
 	var mi := MeshInstance3D.new()
 	mi.name = "LotFill"
 	mi.mesh = st.commit()
