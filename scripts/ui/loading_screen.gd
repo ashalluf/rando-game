@@ -190,6 +190,8 @@ func _warm_shaders() -> void:
 	# The port's kit: its meshes built here (a crane is ~20 ms of GDScript a pose) and its two
 	# shaders drawn through a MultiMesh, the only way the containers and gantries are drawn.
 	effects.append_array(PortKit.warm())
+	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
+	effects.append_array(CarDamage.warm_materials())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

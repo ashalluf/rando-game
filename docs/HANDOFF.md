@@ -3307,3 +3307,70 @@ realistic people at "AAA studio PS5 quality", made with the hero's pipeline.
   (tree LOD ladders, new car bodies) and was not merged into this branch here; nothing in it
   touches the crowd files, the likely conflicts are CLAUDE.md, loading_screen.gd and
   smoke_test.gd (adjacent hunks).
+
+## 9aj. Car damage, 2026-09-27 (agent branch `wt/car-damage`; roadmap #10)
+
+Before this a car took no damage at all: rounds and rockets only knocked it out of the traffic.
+Now every car (traffic, parked, police, the one you drive) has a damage model; the flyable jets
+opt out (`Aircraft.can_take_damage()`), the scripted air traffic keeps its own.
+- **One entry point, `Vehicle.take_hit(shape, damage, dir, at, kind)`**: `HIT_BULLET` from
+  `AssaultRifle.fire_ray`, `HIT_PELLET` from `Shotgun.fire_pellet` (per pellet; the uniforms are
+  pushed once a frame), police rounds under `Police.innocent`, `HIT_BLAST` from
+  `Explosion.blast()` (once per car - the query returns a result per collision shape - with
+  the falloff measured to the body rather than the origin), `HIT_CRASH` from the crash watch.
+- **Crashes** are a velocity change in one physics step (`Vehicle._crash_watch()`, one
+  subtraction a tick in the car's existing script; `crash_min_dv` 8 m/s sideways,
+  `landing_min_dv` 20 m/s straight up, because cars are flown and dropped all the time) that
+  a ray finds something at, the way the car was going. Without the ray every script that sets
+  a car's velocity is a crash: the smoke test zeroes a car's flight speed and it blew up on the
+  quick fuse (two checks failed that way). `hold_crash_watch()` before a deliberate change (the
+  jump does it). A crash never takes the quick fuse.
+- **Where a round lands** is traced onto the real body mesh (`TriangleMesh`, built once per mesh,
+  face index -> slot by the surfaces' face counts): paint gets a hole, the glass slot a crack or a
+  pane, a lamp slot breaks that lamp. The collision boxes are centimetres off the skin, and a hole
+  3D-tested in the shader against a point 3 cm off the surface never shows.
+- **Look**: `car_paint.gdshader` is now `car_paint.gdshaderinc`; `car_paint_damage.gdshader` is
+  the same file with `CAR_DAMAGE` defined, so an undamaged car compiles exactly the old shader.
+  A car's paint material is copied onto it on the first hit (every uniform carried over) and set
+  on its body meshes and shadow twins. Holes (40, recycled): black hole, torn bright steel ring,
+  primer and metal flecks where the paint chipped, the metal pushed in. Dents (8): vertex
+  displacement with a crumple noise and a normal rebuilt from the offset. Scorch (4). Burn: bands
+  out from the engine bay - cooked paint, soot, temper colours, rust / ash bare steel - with the
+  sills kept cooler. Glass slot: `car_glass_damage.gdshader`; the panes are the glass surface's
+  connected pieces (union-find on welded positions, one pass per mesh, cached; the windscreen is
+  the biggest forward-facing pane ahead of the middle - raked screens face mostly up - and lamp
+  lenses are the small pieces at the ends). Tempered panes craze (Voronoi cubes, milky past a few
+  pixels a cube) and fall out as a burst of glinting cubes, the windscreen collects webs, lamp
+  lenses go with their lamp. An empty frame draws the cabin traced in body space: dash, two front
+  seats, the rear bench, headrests, the headliner, the far window's daylight (or its pillar),
+  emitted at `cabin_light` x `sky_tint`. Lamps: `car_lamp_damage.gdshader`; the night glow is
+  `PropFactory.vehicle_lights(..., broken)`, one cached mesh per combination.
+- **Fire**: smoke past `smoke_at` (grey to black), fire past `fire_at` for `burn_seconds`
+  (6-9 s; `quick_fuse` 0.9-1.7 s after a hit of `quick_fuse_damage`), then `explode()`: the
+  driver is put out, `Explosion.blast(..., exclude = the car)` under `Police.innocent =
+  blame_police` (the last hit's), a police car reported as `police_car` when it is the player's,
+  the wreck tossed up to `toss_speed` (not on top of a rocket's throw). Flames are
+  `shaders/car_fire.gdshader`: each particle a procedural tongue of flame on an upright quad,
+  animated by scrolling noise - the blast's fireball puffs read as popcorn over a bonnet. An
+  OmniLight flickers under it on desktop, the synthesised `fire_loop` plays (no CC0 take yet).
+- **Wreck**: burnt = 1, every pane gone, lamps out, trim / tyre / chrome and the far twin's
+  parts on shared charred materials, the physics wheels at 0.7 of their radius and the visible
+  ones scaled to rims in a charred metal (the car sits down on them), burning for
+  `wreck_fire_seconds`, smoking for `wreck_smoke_seconds`, freed by PhysicsBudget after
+  `wreck_lifetime` (`register_debris(body, lifetime)`, the `debris_life` meta). A cruiser leaves
+  the police (`Police.car_wrecked`); one shot up and pooled is `repair()`ed.
+- **Cost**: an undamaged car is unchanged - shared shader, no node, no draw, no script beyond the
+  crash watch. A damaged car draws what it drew (the same surfaces, other materials); a burning
+  one adds its smoke and flame particles (two draws) and, on desktop, one light. Caps:
+  `max_burning` 6 (past it a car smokes just short of catching), `max_smoking` 10,
+  `max_wrecks` 10, `max_glass_bursts` 8. The damage shader loops over its holes per pixel only on
+  damaged cars; the flames, glass cubes and smoke are warmed on the loading screen.
+- **Tools**: `DAMAGE=holes,glass,dents,smoke,burning,wreck` on `tools/glshot/car_shot.gd` stages
+  it through `CarDamage.stage()` (real rounds and crashes through the game's paths), views
+  `door`, `glass`, `screen`, `cabin`; `GEO=1` prints the frame's draws. Checks:
+  `tests/car_damage_checks.gd`, 30 on a deck 250 m over the street (smoke test 536).
+- **Open**: needs a Mac look at the flames and smoke under AgX + TAA (these stills are the
+  Compatibility path), and at holes from 5-15 m. `Explosion.blast()` still pushes a car once per
+  collision shape (2-3x a rocket's 30 m/s: cars fly very high); left as it was, it is feel. No
+  flat tyres from rounds yet, no torn-off panels, no damage on the crowd's cheap parked cars
+  (`ArenaGrounds.car_mesh()` statics).

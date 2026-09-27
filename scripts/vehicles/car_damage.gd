@@ -180,7 +180,7 @@ func attach(to: Vehicle) -> void:
 	_width = float(d.width)
 	_ride = float(d.get("ride", car.model_bottom_y))
 	_top = car._model_top_y if car._has_model else 0.55 + float(d.chassis_h) + float(d.cabin_h)
-	_engine_z = _len * (0.22 if MID_ENGINE.has(car.body_type) else -0.33)
+	_engine_z = _len * (0.22 if MID_ENGINE.has(car.body_type) else -0.34)
 	for m in car._body_meshes:
 		if is_instance_valid(m) and not String(m.name).ends_with("_far"):
 			_mesh = m
@@ -439,7 +439,7 @@ func _glass_burst(c: Vector3, n: Vector3, size: Vector3, amount: float) -> void:
 	var p := CPUParticles3D.new()
 	p.one_shot = true
 	p.explosiveness = 0.9
-	p.amount = maxi(6, int(70.0 * amount))
+	p.amount = WeaponFX._count(maxi(6, int(70.0 * amount)))
 	p.lifetime = 1.3
 	p.lifetime_randomness = 0.3
 	p.local_coords = false
@@ -644,7 +644,7 @@ func _start_smoke() -> void:
 	curve.add_point(Vector2(0.4, 1.4))
 	curve.add_point(Vector2(1.0, 3.6))
 	_smoke.scale_amount_curve = curve
-	_smoke.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.75), Color(1, 1, 1, 0.45), Color(1, 1, 1, 0.0)])
+	_smoke.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.0), Color(1, 1, 1, 0.8), Color(1, 1, 1, 0.7), Color(1, 1, 1, 0.4), Color(1, 1, 1, 0.0)])
 	_smoke.angle_min = -180.0
 	_smoke.angle_max = 180.0
 	var quad := QuadMesh.new()
@@ -669,15 +669,28 @@ func _tint_smoke() -> void:
 		k = 1.0
 	var grey := lerpf(0.42, 0.05, k)
 	_smoke.color = Color(grey, grey * 0.97, grey * 0.94, lerpf(0.35, 0.9, k))
-	_smoke.amount = int(lerpf(18.0, 48.0, k))
+	_smoke.amount = WeaponFX._count(int(lerpf(18.0, 48.0, k)))
 	_smoke.initial_velocity_max = lerpf(1.6, 3.4, k)
 	_smoke.scale_amount_max = lerpf(1.0, 1.5, k)
 
 
-## Where the smoke and fire come out: over the engine bay.
+## Where the smoke and fire come out: on the skin over the engine bay (the bonnet, or the engine
+## cover behind a mid-engined cabin), found by tracing down onto the model once.
 func _bonnet() -> Vector3:
+	if _bonnet_at != Vector3.INF:
+		return _bonnet_at
 	var y := _ride + (_top - _ride) * (0.62 if not MID_ENGINE.has(car.body_type) else 0.55)
-	return Vector3(0.0, y, _engine_z)
+	var tri := _tri_for(_mesh)
+	if tri.size() > 0 and tri[0] != null:
+		var o := _to_mesh * Vector3(0.0, _top + 1.0, _engine_z)
+		var r: Dictionary = (tri[0] as TriangleMesh).intersect_ray(o, (_to_mesh.basis * Vector3.DOWN).normalized())
+		if not r.is_empty():
+			y = (_to_mesh.affine_inverse() * (r.position as Vector3)).y - 0.06
+	_bonnet_at = Vector3(0.0, y, _engine_z)
+	return _bonnet_at
+
+
+var _bonnet_at: Vector3 = Vector3.INF
 
 
 func _ignite(quick: bool) -> void:
@@ -750,7 +763,7 @@ func _start_fire(size: float) -> void:
 		_fire_sound.unit_size = 6.0
 		add_child(_fire_sound)
 		_fire_sound.play()
-	_fire.amount = int(10.0 + 12.0 * size)
+	_fire.amount = WeaponFX._count(int(12.0 + 14.0 * size))
 	_fire.lifetime = 0.7 + 0.3 * size
 	_fire.initial_velocity_min = 0.1
 	_fire.initial_velocity_max = 0.3 + 0.3 * size
@@ -762,7 +775,7 @@ func _start_fire(size: float) -> void:
 		_fire.emission_box_extents = Vector3(_width * 0.34, 0.12, _len * 0.3)
 		over = Vector3(0.0, _ride + (_top - _ride) * 0.45, 0.0)
 	else:
-		_fire.emission_box_extents = Vector3(_width * 0.28, 0.06, _len * 0.1)
+		_fire.emission_box_extents = Vector3(_width * 0.3, 0.05, _len * 0.13)
 	_fire.position = over
 	if _fire_light:
 		_fire_light.position = over + Vector3(0.0, 0.6, 0.0)
@@ -949,6 +962,12 @@ static func wreck_wheel_material() -> StandardMaterial3D:
 
 
 static var _flame_mat: ShaderMaterial
+
+
+## What the loading screen draws once so the first car fire, glass burst and smoke do not compile
+## mid-game (the damage shaders themselves are .gdshader files it compiles anyway).
+static func warm_materials() -> Array:
+	return [flame_material(), _glass_bits_material(), WeaponFX.smoke_material()]
 
 
 ## The flames' material (shaders/car_fire.gdshader), shared by every fire.

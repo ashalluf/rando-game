@@ -20,7 +20,8 @@ extends SceneTree
 ## `DAMAGE=holes,glass,dents,smoke,burning,wreck` (any mix) stages it once the car has settled,
 ## `WAIT=n` physics frames after that (default 30; the burning and wreck stages pre-warm their
 ## smoke and fire), and the views `door` (the shot-up door and wing up close), `glass` (the side
-## windows), `screen` (the windscreen) and `cabin` (into an empty frame) frame it.
+## windows), `screen` (the windscreen) and `cabin` (into an empty frame) frame it. `GEO=1` prints
+## each view's draws, objects and triangles (a damaged car's cost against a whole one).
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
 ## autoloads exist (CLAUDE.md).
 
@@ -251,6 +252,12 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		var path := "%s_%s.png" % [out, view]
 		get_root().get_texture().get_image().save_png(path)
 		print("saved ", path)
+		if OS.get_environment("GEO") != "":
+			# The frame's cost (opengl3 only; --headless reads zero): draws, objects, triangles.
+			print("GEO %s draws %d objects %d tris %d" % [view,
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
 	for car in cars:
 		car.queue_free()
 	await process_frame
