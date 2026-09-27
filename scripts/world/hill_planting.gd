@@ -15,11 +15,11 @@ extends RefCounted
 ## Everything takes TRUE world XZ, like the shader (`world_pos.xz + world_offset`).
 
 ## terrain.gdshader: how much of the ground is chaparral, and how much more the north faces carry.
-const CHAPARRAL_AMOUNT := 0.62
+const CHAPARRAL_AMOUNT := 0.8
 const NORTH_BRUSH := 0.3
 ## terrain.gdshader: brush in the gullies, grass on the gentle ground, scree and crest rock.
 const DRAIN_BRUSH := 0.45
-const GENTLE_GRASS := 0.35
+const GENTLE_GRASS := 0.55
 const GULLY_SCREE := 0.5
 const CREST_ROCK := 0.8
 ## terrain.gdshader: how much the land decides the stands against the patch noise.
@@ -36,6 +36,12 @@ const TRAIL_AMOUNT := 0.8
 const CROWN_EDGE := 0.06
 const CROWN_CELL := 2.6
 const CROWN_MEAN := 0.35
+## hill_splat.gdshaderinc: the stand noise's octave weights and bias (hill_stand_noise()).
+const STAND_PATCH_W := 0.2
+const STAND_MID_W := 0.1
+const STAND_BUSH_W := 0.4
+const STAND_FINE_W := 0.3
+const STAND_BIAS := 0.35
 
 ## The shader's uniforms this file mirrors, by name, for the smoke test.
 const MIRRORED := {
@@ -48,7 +54,9 @@ const MIRRORED := {
 	"south_grass": SOUTH_GRASS, "crown_edge": CROWN_EDGE,
 }
 ## The shader constants this file mirrors, by name, for the smoke test.
-const MIRRORED_CONSTS := {"CROWN_CELL": CROWN_CELL, "CROWN_MEAN": CROWN_MEAN}
+const MIRRORED_CONSTS := {"CROWN_CELL": CROWN_CELL, "CROWN_MEAN": CROWN_MEAN,
+	"STAND_PATCH_W": STAND_PATCH_W, "STAND_MID_W": STAND_MID_W, "STAND_BUSH_W": STAND_BUSH_W,
+	"STAND_FINE_W": STAND_FINE_W, "STAND_BIAS": STAND_BIAS}
 
 
 ## hill_splat.gdshaderinc hash12t().
@@ -103,10 +111,11 @@ static func ground(w: Vector2, grad: Vector2, trails: bool = true, drain: float 
 	var gentle := 1.0 - _smooth(0.06, 0.22, slope)
 	var south := maxf(-north, 0.0)
 	var coverage := CHAPARRAL_AMOUNT + maxf(north, 0.0) * NORTH_BRUSH - south * SOUTH_GRASS \
-			+ drain * DRAIN_BRUSH - gentle * (0.5 + 0.5 * south) * GENTLE_GRASS + (hill - 0.5) * 0.2
+			+ drain * DRAIN_BRUSH - gentle * GENTLE_GRASS + (hill - 0.5) * 0.2
 	var th := 0.5 + (coverage - 0.5) * TOPO_WEIGHT
 	var bush := vnoise(w * 0.29 + Vector2(3.7, 3.7))
-	var frag := patchy * 0.2 + vnoise(w * 0.12 + Vector2(17.0, 17.0)) * 0.3 + (bush - 0.5) * 0.35 + 0.25
+	var frag := patchy * STAND_PATCH_W + vnoise(w * 0.12 + Vector2(17.0, 17.0)) * STAND_MID_W \
+			+ (bush - 0.5) * STAND_BUSH_W + (vnoise(w * 0.9 + Vector2(51.0, 51.0)) - 0.5) * STAND_FINE_W + STAND_BIAS
 	# The stand's edge runs round the shrub crowns (the shader's hill_stand_crowned(), resolved).
 	frag -= (crown(w) - CROWN_MEAN) * CROWN_EDGE
 	# The shader's stand edge is 0.09 wide in `frag`; as a 0..1 share it is the same test, softer.

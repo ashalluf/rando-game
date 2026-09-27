@@ -20,13 +20,13 @@ uniform vec3 chaparral_color = vec3(0.050, 0.056, 0.036);
 uniform vec3 sage_color = vec3(0.082, 0.086, 0.064);
 // How much of the ground is chaparral, and how much more of it the north-facing slopes carry.
 // Chaparral is the hills' DOMINANT cover (the grass is the exception, on gentle south slopes).
-uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.62;
+uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.8;
 uniform float north_brush : hint_range(0.0, 1.0) = 0.3;
 // How much more brush the gullies carry and how much less the spur crests (the drainage the
 // height field was cut with, MacroMap.last_drain, in COLOR.g), and how much less the gentle
 // ground carries - benches and saddles are where the grass is.
 uniform float drain_brush : hint_range(0.0, 1.0) = 0.45;
-uniform float gentle_grass : hint_range(0.0, 1.0) = 0.35;
+uniform float gentle_grass : hint_range(0.0, 1.0) = 0.55;
 // How much brush the sunny side loses (south faces are grass and sage between the stands).
 uniform float south_grass : hint_range(0.0, 1.0) = 0.08;
 // Scree and dirt down the steep gullies, and rock breaking out along the spur crests.
@@ -56,6 +56,20 @@ uniform float crown_edge : hint_range(0.0, 0.3) = 0.06;
 // the plane), which the edge push is centred on so the stands keep their share of the ground.
 const float CROWN_CELL = 2.6;
 const float CROWN_MEAN = 0.35;
+// The stand noise's octaves (hill_stand_noise()): the patch octaves (90 and 27 m), the 8 m
+// clumps and the single bushes (3 m), and the bias that keeps its mean at 0.5. The clumps had
+// 0.3 and the bushes 0.35: wherever the threshold sat in the middle of the noise (every sunny
+// face, every edge of a stand) the ground split into 8-20 m rounded blobs, and from across a
+// canyon the hills wore leopard-spot camouflage. With the weight at the scale of one shrub the
+// same edge is a scatter of single bushes thinning out into the grass, as a real one is. But a
+// 3 m value noise cut by a threshold is itself a field of smooth round blobs, and from 150 m (the
+// shrub crowns gone) that WAS the leopard: a 1.1 m octave (`fine`, the leaf clumps' noise) rags
+// every edge into a fractal one.
+const float STAND_PATCH_W = 0.2;
+const float STAND_MID_W = 0.1;
+const float STAND_BUSH_W = 0.4;
+const float STAND_FINE_W = 0.3;
+const float STAND_BIAS = 0.35;
 
 
 float hash12t(vec2 p) {
@@ -114,21 +128,44 @@ float hill_stand_threshold(float slope, float north, float drain, float hill) {
 	float gentle = 1.0 - smoothstep(0.06, 0.22, slope);
 	float south = max(-north, 0.0);
 	float coverage = chaparral_amount + max(north, 0.0) * north_brush - south * south_grass
-		+ drain * drain_brush - gentle * (0.5 + 0.5 * south) * gentle_grass + (hill - 0.5) * 0.2;
+		+ drain * drain_brush - gentle * gentle_grass + (hill - 0.5) * 0.2;
 	return 0.5 + (coverage - 0.5) * topo_weight;
 }
 
 
 // The stand noise: the patch octaves, the 8 m clumps (`mid`, vnoiset(w * 0.12 + 17.0)) and the
 // single bushes (`bush`, the 3 m octave), which rag a stand's edge at the scale of one shrub.
-float hill_stand_noise(float patchy, float mid, float bush) {
-	return patchy * 0.2 + mid * 0.3 + (bush - 0.5) * 0.35 + 0.25;
+float hill_stand_noise(float patchy, float mid, float bush, float fine) {
+	return patchy * STAND_PATCH_W + mid * STAND_MID_W + (bush - 0.5) * STAND_BUSH_W
+		+ (fine - 0.5) * STAND_FINE_W + STAND_BIAS;
+}
+
+
+// Half the width of a stand's edge, in stand noise: its own 0.045 plus a share of the spread of
+// every octave that has faded to its average (`fine_fade`, `bush_fade`, `mid_fade`: 1 resolved,
+// 0 gone). A hillside too far off to resolve an octave then draws the SHARE of brush it would
+// have left, as a tone, not the coarser octaves' blobs with a hard rim.
+float hill_stand_edge(float fine_fade, float bush_fade, float mid_fade) {
+	return 0.045 + (1.0 - fine_fade) * STAND_FINE_W * 0.3 + (1.0 - bush_fade) * STAND_BUSH_W * 0.3
+		+ (1.0 - mid_fade) * STAND_MID_W * 0.3;
+}
+
+
+// The 1.1 m octave's fade (terrain.gdshader's leaf clumps, the same noise).
+float hill_fine_fade(float fw) {
+	return 1.0 - smoothstep(0.12, 0.5, fw);
+}
+
+
+// The 8 m clumps' fade: gone to their average once a cell is a couple of pixels across.
+float hill_mid_fade(float fw) {
+	return 1.0 - smoothstep(1.5, 5.0, fw);
 }
 
 
 // The chaparral stand alone, with the gaps between its bushes where the straw shows through.
-float hill_stand(float th, float stand, float bush) {
-	return smoothstep(th + 0.045, th - 0.045, stand) * smoothstep(0.12, 0.3, bush);
+float hill_stand(float th, float stand, float bush, float edge) {
+	return smoothstep(th + edge, th - edge, stand) * smoothstep(0.12, 0.3, bush);
 }
 
 
@@ -141,8 +178,8 @@ float hill_sage(float bush, float bush_fade) {
 // How much of the ground is brush: the stand, the gaps between its bushes where the straw shows
 // through, and the single shrubs out in the open grass. `bush_fade` is how resolved the single
 // bushes are (0 once they are under a pixel).
-float hill_brush(float th, float stand, float bush, float bush_fade) {
-	return max(hill_stand(th, stand, bush), hill_sage(bush, bush_fade));
+float hill_brush(float th, float stand, float bush, float fine_fade, float bush_fade, float mid_fade) {
+	return max(hill_stand(th, stand, bush, hill_stand_edge(fine_fade, bush_fade, mid_fade)), hill_sage(bush, bush_fade));
 }
 
 

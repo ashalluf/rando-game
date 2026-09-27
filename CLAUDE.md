@@ -1918,7 +1918,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   it reads TRUE world XZ (`world_offset`, pushed by `CityStreamer`) so nothing jumps on a
   re-centre. The stands follow the land (`topo_weight`: aspect, the erosion's drainage in
   COLOR.g, gentle ground; the patch noise only rags their edges - at 0.45 it drew camouflage
-  blobs over the hill regardless of its shape), canyons are shaded darker (`drain_shade`,
+  blobs over the hill regardless of its shape). **Leopard spots, twice more** (2026-09-27): a
+  threshold sitting at the stand noise's mean splits the ground 50/50 into that noise's blobs,
+  so the land has to push it off the mean nearly everywhere - `chaparral_amount` 0.8 (steep
+  faces are brush with small openings), `gentle_grass` 0.55 on ALL gentle ground (benches and
+  valley floors are grass; it used to be halved off the sunny side, so flat ground was half and
+  half) - and the octaves that decide an edge must be fine: the stand noise
+  (`hill_stand_noise()`, weights `STAND_*_W` in hill_splat.gdshaderinc, mirrored and checked) is
+  0.2 patch, 0.1 of the 8 m clumps, 0.4 of the 3 m bushes and 0.3 of a 1.1 m octave, because a
+  3 m value noise cut by a threshold is itself round blobs, and from 150 m, once the shrub
+  crowns are gone, that WAS the leopard. As each octave fades it widens the edge by its spread
+  (`hill_stand_edge()`), so a hillside too far off to resolve it draws the brush SHARE as a tone.
+  `macro_ground.gdshader` copies the result for its lit band. Canyons are shaded darker (`drain_shade`,
   `erosion_shade`), and the detail is lit: **the terrain mesh has no UVs and so no tangents,
   and a NORMAL_MAP without tangents does nothing** - every hillside was smooth plastic between
   its vertices. The shader works its detail out as world-XZ slopes (the ground textures' normal
