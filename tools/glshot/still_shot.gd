@@ -65,9 +65,13 @@ extends SceneTree
 ## one of them on the old generated LODs (the simplifier's own errors, the old shadow stand-ins,
 ## no instance-scale LOD bias), saved as <OUT>_treeold.png, then back on FoliageLod's ladders.
 ## TREE_AB=2 adds the parts: no instance bias, lower shadow-twin bias, old shadows, per group.
-## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
+## MOTION_BLUR=1 leaves the camera's motion blur on (Forward+ only; off by default so a still
+## is sharp). Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
+	# Stills are sharp: no motion blur (CameraPost; Forward+ only) unless MOTION_BLUR=1.
+	if OS.get_environment("MOTION_BLUR") != "1":
+		Engine.set_meta("postfx_motion_blur", 0.0)
 	# DIFF=1: a frame that renders the same twice, for before/after pixel diffs. Shader TIME is
 	# held at zero (it only ever runs to the rollover, so a microsecond one keeps clouds, sway,
 	# water and the film grain at their first instant), the global rng is seeded, the clock of

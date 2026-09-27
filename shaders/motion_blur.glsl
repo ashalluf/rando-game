@@ -43,6 +43,10 @@ layout(push_constant, std430) uniform Params {
 	float frame; // frame counter, moves the noise so TAA integrates it
 	float camera_valid; // 1 when last frame's camera is known (no cut)
 	float tile; // tile size in pixels
+	float debug; // 1 paints each pixel's blur (red / green = x / y, blue = the tile's) instead
+	float pad0;
+	float pad1;
+	float pad2;
 }
 params;
 
@@ -215,6 +219,11 @@ void main() {
 	ivec2 tile = clamp(ivec2((vec2(pos) + wobble) / params.tile), ivec2(0), grid - 1);
 	vec2 vn = imageLoad(neighbor_image, tile).xy;
 	float vn_len = length(vn);
+	if (params.debug > 0.5) {
+		vec2 own = imageLoad(blur_image, pos).xy / params.max_radius;
+		imageStore(color_image, pos, vec4(abs(own), vn_len / params.max_radius, 1.0));
+		return;
+	}
 	if (vn_len < 0.5) {
 		return; // nothing near here moves: the pixel stays exactly as rendered
 	}

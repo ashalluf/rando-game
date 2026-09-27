@@ -370,6 +370,36 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   grows with the square of the radius (`lens_fringe`), and a luminance film grain re-rolled at
   24 fps (`film_grain`). Every lens and film stock does these; keep each subtle enough that you
   cannot point at it (0 turns any of them off).
+- Motion blur and depth of field (VISUAL_ROADMAP #12, 2026-09-27): both belong to `CameraPost`
+  (`scripts/player/camera_post.gd`), the `Post` node under the player's CameraRig (so the test
+  room has it too); every knob is an export there. **Motion blur** is `MotionBlurEffect`
+  (`scripts/util/motion_blur_effect.gd` + `shaders/motion_blur.glsl`, an RDShaderFile whose five
+  `#[versions]` are the kernels: prepare, tile max x / y, neighbour max, gather - McGuire 2012
+  with Guertin 2014's alternate taps), a CompositorEffect on the player camera's `compositor`,
+  built only where `CameraPost.supported()` (Forward+ with a RenderingDevice) - never on
+  Compatibility, the web, the opengl3 stills or headless. It runs at POST_TRANSPARENT: HDR, the
+  internal resolution, BEFORE TAA / FSR 2.2 (the last callback Godot has; TAA cleans its noise
+  and the tonemapper sees a streaked highlight). Frame-rate independent: the velocity is one
+  frame's displacement, times `shutter / reference_fps / frame_seconds`, where frame_seconds is
+  the UNSCALED process delta (the wheel's slow motion blurs less, like a high-speed camera);
+  lengths are in 1080-line pixels scaled to the internal resolution; `velocity_threshold_px` is
+  a soft knee (walking stays sharp), `max_blur_px` the cap. Traps: with FSR 2.2 - which the
+  pixel budget turns on at HIGH on a Retina Mac - the engine writes velocity only for MOVING
+  objects and clears the rest to (-1, -1), and the sky writes none in either mode; both are
+  rebuilt in the shader from depth and the camera's reprojection. `RenderSceneDataRD
+  .get_cam_projection()` is already corrected (y flipped, reverse-Z in 0..1, the TAA jitter in
+  its z column, which is zeroed), and its z row gives linear depth (`b / (depth + a)`). A camera
+  that jumps over `max_camera_jump` or an origin re-centre (`effect.cut`) skips that frame, or
+  the whole picture smears once. Quality: on at HIGH and MEDIUM. `-- --motionblur=0|1|<scale>`;
+  `still_shot.gd` / `city_shot.gd` turn it off (`Engine.set_meta("postfx_motion_blur", 0)`)
+  unless `MOTION_BLUR=1`; the HUD's FULL line says `+mblur` while it runs. Prove a change with
+  `tools/glshot/motion_blur_shot.gd` (a small street through lavapipe Forward+; `DEBUG=1` paints
+  the vectors, `AA=fsr` the FSR path). **Depth of field** is Godot's far blur on the camera's
+  CameraAttributesPractical (only the dof_* fields; the auto exposure shares the resource), three
+  states eased on the REAL clock: ambient (the old CameraRig focus that opens with altitude,
+  HIGH only), aim (`LockOn.aiming`: blur from `focus + max(aim_dof_margin_min, focus *
+  aim_dof_margin)`, focus = the locked target or the crosshair hit, HIGH and MEDIUM) and the
+  weapon wheel (from `wheel_dof_distance`, amount `wheel_dof_amount`). Compatibility has no DOF.
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair, the round minimap and
   the wanted stars and health bar (`WantedHud`, see the Police note).
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and

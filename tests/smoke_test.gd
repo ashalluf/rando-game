@@ -86,6 +86,7 @@ func _run() -> void:
 	Input.action_release("respawn")
 	_check(player.global_position.distance_to(Vector3(0, 1, 0)) < 2.0, "respawn returns to spawn")
 
+	await _check_camera_post(player)
 	await _test_weapons(player)
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
@@ -2663,6 +2664,70 @@ func _kit_count(b: Node, prefix: String) -> int:
 		if child is MultiMeshInstance3D and str(child.name).begins_with(prefix):
 			n += (child as MultiMeshInstance3D).multimesh.instance_count
 	return n
+
+
+## The camera's post (CameraPost, VISUAL_ROADMAP #12): the motion blur is never built here (the
+## headless dummy renderer has no RenderingDevice), the effect constructs as a harmless no-op
+## without one, and the depth of field moves between its three states - the ambient far blur,
+## the aim blur (hold alt_fire) and the weapon wheel's - and Quality's say turns it off.
+## Looked up untyped: CameraPost reads WorldState, which this script must not name.
+func _check_camera_post(player: Player) -> void:
+	var post = player.get_node_or_null("CameraRig/Post")
+	_check(post != null and post.is_in_group("camera_post"), "the camera rig has its Post node")
+	if post == null:
+		return
+	var cam: Camera3D = player.camera
+	_check(post.effect == null and cam.compositor == null,
+		"no motion blur compositor without a RenderingDevice (headless)")
+	var mb: CompositorEffect = load("res://scripts/util/motion_blur_effect.gd").new()
+	_check(not mb.get("ready") and not mb.enabled and mb.needs_motion_vectors,
+		"MotionBlurEffect constructs disabled where it cannot run")
+	var attrs := cam.attributes as CameraAttributesPractical
+	await _real_seconds(0.1)
+	_check(attrs.dof_blur_far_enabled and is_equal_approx(attrs.dof_blur_amount, post.dof_amount),
+		"ambient far blur on at HIGH (amount %.3f)" % attrs.dof_blur_amount)
+	# Aim: a gentle blur past what the crosshair is on.
+	Input.action_press("alt_fire")
+	await _real_seconds(0.5)
+	var aim_amount := attrs.dof_blur_amount
+	var aim_far := attrs.dof_blur_far_distance
+	Input.action_release("alt_fire")
+	_check(player.lock_on != null and absf(aim_amount - post.aim_dof_amount) < 0.002
+		and aim_far > post.aim_dof_margin_min and aim_far < post.dof_ground_distance,
+		"holding aim blurs past the focus (amount %.3f from %.1f m)" % [aim_amount, aim_far])
+	await _real_seconds(0.5)
+	_check(absf(attrs.dof_blur_amount - post.dof_amount) < 0.002, "letting go of aim eases back")
+	# The weapon wheel: a stronger blur of the world past the player.
+	Input.action_press("weapon_wheel")
+	await _real_seconds(0.4)
+	var wheel_amount := attrs.dof_blur_amount
+	var wheel_far := attrs.dof_blur_far_distance
+	Input.action_release("weapon_wheel")
+	_check(absf(wheel_amount - post.wheel_dof_amount) < 0.002 and absf(wheel_far - post.wheel_dof_distance) < 0.5,
+		"the weapon wheel blurs the world (amount %.3f from %.1f m)" % [wheel_amount, wheel_far])
+	for i in 60:
+		if Engine.time_scale == 1.0:
+			break
+		await _real_seconds(0.05)
+	await _real_seconds(0.3)
+	_check(Engine.time_scale == 1.0 and absf(attrs.dof_blur_amount - post.dof_amount) < 0.002,
+		"closing the wheel restores time and the ambient blur")
+	# Quality: MEDIUM keeps the aim / wheel blur but drops the ambient one; LOW drops it all.
+	post.apply_quality(1)
+	await _real_seconds(0.1)
+	_check(not attrs.dof_blur_far_enabled and post.motion_blur_allowed, "MEDIUM: no ambient far blur, motion blur allowed")
+	post.apply_quality(2)
+	Input.action_press("alt_fire")
+	await _real_seconds(0.4)
+	Input.action_release("alt_fire")
+	_check(not attrs.dof_blur_far_enabled and not post.motion_blur_allowed, "LOW: no depth of field or motion blur")
+	post.apply_quality(0)
+	await _real_seconds(0.4)
+
+
+## Waits real seconds (the weapon wheel slows game time, and the post eases on the real clock).
+func _real_seconds(seconds: float) -> void:
+	await get_tree().create_timer(seconds, true, false, true).timeout
 
 
 func _ticks(n: int) -> void:

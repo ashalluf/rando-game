@@ -179,8 +179,11 @@ func _push_motion_blur(frame_seconds: float) -> void:
 	if effect == null:
 		return
 	var strength := motion_blur_strength * (_override if _override > 0.0 else 1.0)
-	effect.enabled = motion_blur_enabled and motion_blur_allowed and _override != 0.0 \
+	var on := motion_blur_enabled and motion_blur_allowed and _override != 0.0 \
 			and strength > 0.0 and shutter > 0.0
+	if effect.enabled != on:
+		effect.enabled = on
+		effect.cut = true # the history is stale by the time it comes back on
 	effect.strength = strength
 	effect.shutter = shutter
 	effect.reference_fps = reference_fps

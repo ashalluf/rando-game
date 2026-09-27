@@ -13,10 +13,12 @@ extends SceneTree
 ## a car-sized box crossing at SPEED), still (nothing moves: must equal MB=0 exactly);
 ## MB=0 builds no effect (the "before"); AA=taa (default) | fsr (0.6 scale, FSR 2.2, whose
 ## velocity buffer holds only moving objects - the camera part is rebuilt in the shader) | none;
-## FRAMES frames rendered while moving (default 10: motion vectors need a previous frame and
-## TAA a few to settle), DT the simulated frame time (1/60 by default: a software frame takes
+## WARMUP + FRAMES frames rendered while moving (defaults 30 + 10: the engine compiles its
+## motion-vector pipelines in the background and draws NO velocity until they are ready - a
+## short run shows the effect doing nothing - and TAA needs a few frames to settle), DT the simulated frame time (1/60 by default: a software frame takes
 ## seconds, so the effect is told the frame time the Mac would have), STRENGTH, SHUTTER,
-## MAX_PX, THRESHOLD, SAMPLES the effect's knobs. With --gpu-profile, prints
+## MAX_PX, THRESHOLD, SAMPLES the effect's knobs; DEBUG=1 paints the blur vectors instead
+## (red / green = each pixel's x / y streak, blue = its tile neighbourhood's, all over the cap). With --gpu-profile, prints
 ## GPU_PROFILE_BEGIN/END round the last SAMPLES_GPU frames for tools/gpu_profile.py.
 ## Prints MB_FRAMES (frames the effect blurred) so a run that silently did nothing shows.
 
@@ -54,6 +56,7 @@ func _initialize() -> void:
 		_effect.max_blur_px = float(_env("MAX_PX", "40"))
 		_effect.threshold_px = float(_env("THRESHOLD", "3"))
 		_effect.samples = int(_env("SAMPLES", "12"))
+		_effect.debug_view = _env("DEBUG", "0") == "1"
 		var compositor := Compositor.new()
 		compositor.compositor_effects = [_effect]
 		_cam.compositor = compositor
@@ -70,7 +73,9 @@ func _initialize() -> void:
 	var dt := float(_env("DT", str(1.0 / 60.0)))
 	var speed := float(_env("SPEED", "45"))
 	var rate := float(_env("RATE", "5"))
-	var frames := int(_env("FRAMES", "10"))
+	# Godot compiles the motion-vector pipelines in the background the first time they are
+	# needed, and draws without velocity until they are ready: warm up before judging anything.
+	var frames := int(_env("WARMUP", "30")) + int(_env("FRAMES", "10"))
 	var gpu_samples := int(_env("SAMPLES_GPU", "4"))
 	var t := 0.0
 	for i in frames:

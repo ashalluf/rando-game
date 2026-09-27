@@ -32,6 +32,9 @@ var frame_seconds: float = 1.0 / 60.0
 var cut: bool = false
 ## A camera that moves further than this in one frame is taken as a cut (metres).
 var max_camera_jump: float = 30.0
+## True paints each pixel's blur as a colour instead (red / green = its x / y streak, blue = its
+## tile's): the proof that the velocities are what they should be.
+var debug_view: bool = false
 
 ## True once the kernels compiled; false on a renderer without a RenderingDevice.
 var ready: bool = false
@@ -159,7 +162,7 @@ func _render_callback(_callback_type: int, render_data: RenderData) -> void:
 		push.append_array([col.x, col.y, col.z, col.w])
 	push.append_array([float(size.x), float(size.y), scale, threshold_px * res_scale, max_radius,
 			depth_a, depth_b, soft_z, float(clampi(samples, 4, 32)), float(_frame % 1024),
-			1.0, float(tile)])
+			1.0, float(tile), 1.0 if debug_view else 0.0, 0.0, 0.0, 0.0])
 	var push_bytes := push.to_byte_array()
 
 	# One compute list per kernel: the render graph then orders them by the images they share.
