@@ -102,6 +102,9 @@ func _initialize() -> void:
 		var mi := node as MeshInstance3D
 		if OS.get_environment("BIAS") != "":
 			mi.lod_bias = float(OS.get_environment("BIAS"))
+		if body != "" and ped_script.is_hair(mi):
+			mi.visible = false # the welded bodies stand in without the hair cards, as in the game
+			continue
 		if mi.skin and body != "":
 			var cap: int = ped_script.get("mid_triangles") if body == "mid" else ped_script.get("far_triangles")
 			var t0 := Time.get_ticks_msec()
