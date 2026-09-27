@@ -13,7 +13,7 @@ const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Ape
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
 	BodyType.PICKUP: "res://assets/models/road_pickup.glb",
-	BodyType.VAN: "res://assets/models/car_van.glb",
+	BodyType.VAN: "res://assets/models/road_van.glb",
 	BodyType.SPORTS: "res://assets/models/car_sports.glb",
 	BodyType.SUPER: "res://assets/models/hifi_super_coupe.glb",
 	BodyType.SPIDER: "res://assets/models/exo_super_spider.glb",
@@ -21,12 +21,13 @@ const BODY_MODELS := {
 	BodyType.TRACK: "res://assets/models/exo_hyper_b.glb",
 	BodyType.CROSSOVER: "res://assets/models/road_crossover.glb",
 }
-## Belt line (bottom of the side glass, as a fraction of body height) for the single-texture
-## bodies whose texture does not darken the windows, so the paint shader finds glass by shape.
-const GEO_GLASS_BELTLINE := {BodyType.VAN: 0.52}
-## The stretch of the body's length (0..1 in model space, which for the van runs nose to tail)
-## that has side glass: the van is a panel van, glazed only round the cab.
-const GEO_GLASS_SPAN := {BodyType.VAN: Vector2(0.0, 0.36)}
+## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
+## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
+## needs it now: the Meshy van (panel sides, glazed only round the cab - hence GEO_GLASS_SPAN,
+## the stretch of the length with glass) was the last, and every road_* body has a glass slot.
+## Kept for any single-texture body that comes back.
+const GEO_GLASS_BELTLINE := {}
+const GEO_GLASS_SPAN := {}
 ## How often each body type turns up, in parts per thousand. Exotics are deliberately rare: a
 ## street where every fourth car is a hypercar reads as a toy box, and the whole reason they land
 ## is that they are unusual. Must sum to 1000.
@@ -50,8 +51,8 @@ const BODY_ODDS := {
 ## --spawn shot of a parked car, not from arithmetic.
 const WHEEL_POSE := {
 	BodyType.SEDAN: {"x": 0.797, "front": -1.495, "rear": 1.335, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
-	BodyType.PICKUP: {"x": 0.880, "front": -1.895, "rear": 1.705, "y": 0.184, "r": 0.390, "w": 0.260, "baked": true},
-	BodyType.VAN: {"x": 0.816, "front": -1.656, "rear": 1.539, "y": 0.175, "r": 0.360, "w": 0.230, "cut": true, "cut_r": 0.372},
+	BodyType.PICKUP: {"x": 0.880, "front": -1.989, "rear": 1.621, "y": 0.184, "r": 0.390, "w": 0.260, "baked": true},
+	BodyType.VAN: {"x": 0.865, "front": -1.971, "rear": 1.689, "y": 0.164, "r": 0.360, "w": 0.235, "baked": true},
 	BodyType.SPORTS: {"x": 0.803, "front": -1.400, "rear": 1.307, "y": 0.066, "r": 0.330, "w": 0.245, "cut": true, "cut_r": 0.344},
 	BodyType.SUPER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
 	BodyType.SPIDER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
@@ -77,7 +78,7 @@ const MODEL_OWN_WHEELS := [BodyType.SUPER, BodyType.HYPER]
 ## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
 ## All four models come out of Meshy with the nose along +X; -PI/2 puts the nose at -Z, which is
 ## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
-const MODEL_YAW := {BodyType.VAN: -PI * 0.5, BodyType.SPORTS: -PI * 0.5}
+const MODEL_YAW := {BodyType.SPORTS: -PI * 0.5}
 const PAINT_SHADER := preload("res://shaders/car_paint.gdshader")
 
 ## How the paint is built, not what colour it is. The clearcoat shader can express all of these
@@ -481,13 +482,15 @@ func exit_candidates() -> Array[Vector3]:
 	]
 
 
-## How high this car's origin sits over the road when it rests on its springs: -`ride`, the
-## body-space height of the road under a parked car (tools/glshot/car_shot.gd prints it).
+## How high this car's origin sits over the road when it rests on its springs: -`road`, the
+## body-space height of the road under a parked car (tools/glshot/car_shot.gd prints it), or
+## -`ride` for a body without one.
 ## Traffic places its kinematic cars this high over the road. They used to go a flat 0.55 m over
 ## the relief (0.45 m over the road top, 0.71 m over a freeway deck) whatever the body, so every
 ## street car's tyres hung 15-27 cm clear of the asphalt and every freeway car's ~0.5 m.
 func road_lift() -> float:
-	return -float(_dims().get("ride", model_bottom_y))
+	var d := _dims()
+	return -float(d.get("road", d.get("ride", model_bottom_y)))
 
 
 func is_traffic() -> bool:
@@ -725,7 +728,11 @@ func _build() -> void:
 	_wheel_slots = []
 	for front: bool in [true, false]:
 		for side: float in [-1.0, 1.0]:
-			_wheel_slots.append([Vector3(side * float(dims.get("track", 1.62)) * 0.5, base_y - 0.1, (-wheel_z if front else wheel_z)), front])
+			# "wheel_front" / "wheel_rear" put the physics wheels under a long body's own axles,
+			# which are not symmetric about its middle (the van's front axle is 0.28 m further
+			# out than its rear one); everything else uses +-wheel_z.
+			var wz: float = float(dims.get("wheel_front", wheel_z)) if front else float(dims.get("wheel_rear", wheel_z))
+			_wheel_slots.append([Vector3(side * float(dims.get("track", 1.62)) * 0.5, base_y - 0.1, (-wz if front else wz)), front])
 	# Real VehicleWheel3D nodes on a frozen body divide by zero inside the engine, so a
 	# kinematic traffic car gets none until it goes physical (CLAUDE.md). The VISIBLE wheels are
 	# the same either way: they are plain nodes this script drives, so traffic and driven cars
@@ -797,7 +804,7 @@ func _add_night_lights(dims: Dictionary) -> void:
 	# prints them); the old formula put the glow a metre up on a model car.
 	var lamp_y := float(dims.get("lamp_y", 0.55 + dims.chassis_h * 0.62))
 	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, lamp_y,
-			float(dims.get("ride", model_bottom_y)), float(dims.get("tail_y", lamp_y)))
+			float(dims.get("road", dims.get("ride", model_bottom_y))), float(dims.get("tail_y", lamp_y)))
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# One node per car rather than five: with a hundred and fifty cars on the road the separate
 	# quads were several hundred draw calls on their own. Past this distance the car is a few
@@ -1085,16 +1092,20 @@ func _focus_point() -> Vector3:
 ## were parked at width * 0.5 - 0.05, which on a 2.1 m body is a 2.0 m track, and the radius was
 ## a flat 0.42 (an 0.84 m wheel). A real car runs a 1.55-1.75 m track on 0.63-0.72 m wheels, so
 ## every body built to fit those wheels had to be flared out past 2.2 m wide and still looked
-## like it was on tractor tyres. "ride" is where the bottom of the body model sits: a van cannot
+## like it was on tractor tyres. "road" is where the road is in body space under a parked car
+## on its springs (tools/glshot/car_shot.gd prints it as CONTACT; traffic stands its cars on it,
+## road_lift()), and "ride" is where the bottom of the body model sits - the same, less however
+## far the model's lowest point is off its own ground (a road_* body's far-twin tyres stop 2 cm
+## short of it). "lamp_y" / "tail_y" put the night glows at the lamps. A van cannot
 ## share a saloon's ride height without looking slammed.
 func _dims() -> Dictionary:
 	match body_type:
 		BodyType.PICKUP:
-			return {"length": 5.854, "width": 2.03, "lamp_y": 0.84, "tail_y": 0.90, "chassis_h": 0.8, "cabin": Vector2(-1.4, 1.8), "cabin_h": 0.75, "wheel_z": 1.75, "track": 1.72, "tyre_r": 0.37, "ride": -0.206}
+			return {"length": 6.082, "width": 2.03, "lamp_y": 0.88, "tail_y": 0.96, "chassis_h": 0.8, "cabin": Vector2(-1.4, 1.8), "cabin_h": 0.75, "wheel_z": 1.75, "wheel_front": 1.96, "wheel_rear": 1.62, "track": 1.72, "tyre_r": 0.37, "ride": -0.185, "road": -0.206}
 		BodyType.CROSSOVER:
-			return {"length": 4.633, "width": 1.86, "lamp_y": 0.65, "tail_y": 0.85, "chassis_h": 0.75, "cabin": Vector2(-1.1, 2.6), "cabin_h": 0.8, "wheel_z": 1.34, "track": 1.60, "tyre_r": 0.36, "ride": -0.196}
+			return {"length": 4.633, "width": 1.86, "lamp_y": 0.65, "tail_y": 0.85, "chassis_h": 0.75, "cabin": Vector2(-1.1, 2.6), "cabin_h": 0.8, "wheel_z": 1.34, "track": 1.60, "tyre_r": 0.36, "ride": -0.176, "road": -0.196}
 		BodyType.VAN:
-			return {"length": 5.2, "width": 2.0, "chassis_h": 0.8, "cabin": Vector2(-2.0, 4.4), "cabin_h": 1.2, "wheel_z": 1.65, "track": 1.70, "tyre_r": 0.35, "ride": -0.18}
+			return {"length": 5.944, "width": 2.03, "lamp_y": 0.674, "tail_y": 0.864, "chassis_h": 0.8, "cabin": Vector2(-2.0, 4.4), "cabin_h": 1.2, "wheel_z": 1.65, "wheel_front": 1.95, "wheel_rear": 1.67, "track": 1.70, "tyre_r": 0.36, "ride": -0.176, "road": -0.196}
 		BodyType.SPORTS:
 			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
 		BodyType.SUPER, BodyType.SPIDER:
@@ -1105,7 +1116,7 @@ func _dims() -> Dictionary:
 			# The sedan. length / width / lamp heights are the model's own
 			# (tools/make_road_cars.py prints them), so it is drawn at scale 1; the physics
 			# numbers are the old ones, which the handling and the smoke test's drives are tuned on.
-			return {"length": 4.946, "width": 1.84, "lamp_y": 0.453, "tail_y": 0.775, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.177}
+			return {"length": 4.946, "width": 1.84, "lamp_y": 0.453, "tail_y": 0.775, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.158, "road": -0.177}
 
 
 func _add_wheel(pos: Vector3, front: bool) -> void:

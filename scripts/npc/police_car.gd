@@ -195,7 +195,8 @@ func _build_light_bar() -> void:
 	# Just behind the middle of the car, where every model's roof is (see _add_livery_props).
 	bar.position = Vector3(0.0, top - 0.02, length * 0.05)
 	if heavy:
-		bar.position.z = -length * 0.28
+		# On the flat roof just behind the high roof's raked front (road_van).
+		bar.position.z = -length * 0.17
 		bar.scale = Vector3(1.25, 1.0, 1.0)
 	add_child(bar)
 	if not OS.has_feature("web"):

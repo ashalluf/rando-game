@@ -117,9 +117,9 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   People are the one exception because no CC0 source has realistic rigged humans: Poly Haven
   has none and Quaternius' are stylised low-poly, which breaks the realism rule. Generate
   characters at `--polycount 16000` - the default 8000 is what made the first three look
-  blocky - with a `--texture-prompt` for skin and fabric. The van, the sports car,
-  pedestrians and jets were made with the owner's Meshy account (the sedan, crossover and pickup
-  are now Blender-built, see the car paint note): `python3 tools/meshy.py gen <name> "<prompt>"
+  blocky - with a `--texture-prompt` for skin and fabric. The sports car,
+  pedestrians and jets were made with the owner's Meshy account (the sedan, crossover, pickup
+  and van are now Blender-built, see the car paint note): `python3 tools/meshy.py gen <name> "<prompt>"
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
   `python3 tools/shrink_glb.py assets/models/<name>.glb` (a hard-surface model like a car also
   gets `python3 tools/smooth_normals.py assets/models/<name>.glb`, see the car paint note), commit the `.glb`, its `.json`, the
@@ -317,17 +317,30 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   is added (`--report` prints the crease table). The exotics are Blender-built with their
   creases on purpose; leave them. Smooth normals drift slowly through the glass slope band, so
   the geometric glass test blends over one pixel (`fwidth`), not a fixed 0.04, and
-  `Vehicle.GEO_GLASS_SPAN` keeps the van's glass to its cab - its flanks behind the cab turn
-  in like side glass and became one long dark smudge. **The everyday bodies - sedan, compact
-  crossover (`BodyType.CROSSOVER`, the commonest car in `BODY_ODDS`), full-size pickup - are
-  Blender-built** by `tools/make_road_cars.py` (`tools/road_cars_setup.sh` fetches Blender 4.2
-  into the ignored `build/car_src/`; run it `blender -b --factory-startup -P
-  tools/make_road_cars.py -- sedan crossover pickup [--render]`, then `--import`). The shape is
+  `Vehicle.GEO_GLASS_SPAN` kept the Meshy van's glass to its cab (both tables are empty now,
+  kept for any single-texture body that comes back). **The everyday bodies - sedan, compact
+  crossover (`BodyType.CROSSOVER`, the commonest car in `BODY_ODDS`), full-size pickup,
+  high-roof panel van - are Blender-built** by `tools/make_road_cars.py`
+  (`tools/road_cars_setup.sh` fetches Blender 4.2 into the ignored `build/car_src/`; run it
+  `blender -b --factory-startup -P tools/make_road_cars.py -- sedan crossover pickup van
+  [--render]`, then `--import`). The shape is
   PROFILE CURVES (side view: roofline, rail/pillar line, belt, shoulder, sill, floor; plan view:
   width; insets for the shoulder shelf, tumblehome and sill tuck) lofted through eight-anchor
   sections into a quad cage, capped by a rolled rim and a domed Coons patch, subdivided at
   level 2 with a creased shoulder. The rail anchor IS the glasshouse line (roof side, A- and
-  C-pillar), so windows are regions between rings. Arches, windows, lamp pockets, grilles and
+  C-pillar), so windows are regions between rings. A flat-roofed body (the van) adds a ninth
+  anchor, the roof edge (`roof_z` / `roof_w`, at `ROOF_J`), and pins the side's and the roof's
+  tangents (`tangent_over`, weighted by `over_w`) - with the default bisector tangents a tall
+  flat side bowed in 12 cm and the roof sagged. **Every profile must have keys to both ends of
+  the car**: `Mono` extrapolates linearly past its last key, and a two-key weight curve
+  extrapolated to 11.7. A sharp corner in the side profile (the pickup's roof edge over its
+  near-vertical back, the header, the cowl) needs `extra_stations` either side of it and a
+  `station_creases` loop at it, or subdivision rolls it off over the station spacing; extra
+  stations clear the evenly spaced ones near them but never each other (they used to, which is
+  why the first pickup's cab back was a long roll). Parts placed in an end view whose rays miss
+  or spread over half a metre in depth are dropped and logged (a ray past a rounded corner runs
+  on down the flank and made a streak along the van); bumpers are `wrap_band()`, one grid of
+  horizontal rays across the face, radiating round each corner and along each flank. Arches, windows, lamp pockets, grilles and
   4 mm panel gaps are booleans after subdivision (guarded: a result that loses most of the mesh
   is rolled back and logged; gaps are cut one strip at a time with the hole-tolerant solver -
   a union of strips, or V-profiles meeting edge on edge, left the body open and every later
@@ -338,10 +351,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   also holds a `<name>_far` twin (~8k triangles, `paint_far` + one vertex-coloured `parts`
   surface, `Vehicle.PARTS_SHADER`) drawn past `Vehicle.body_far_distance` (30 m) - seven
   surfaces are seven draws plus seven depth pre-pass draws a car - and only the twin has a baked
-  wheel (WHEEL_POSE `"baked"`: no runtime tuck). `ride` in `_dims()` is where the physics wheels
-  touch the road in body space, and traffic places its kinematic cars `Vehicle.road_lift()`
-  (= -ride) over the road (a flat 0.55 m once made every traffic car float 15-27 cm);
-  `tools/glshot/car_shot.gd` prints it (CONTACT) for a parked car
+  wheel (WHEEL_POSE `"baked"`: no runtime tuck). `road` in `_dims()` is where the physics wheels
+  touch the road in body space and `ride` where the model's bottom goes (road plus the far
+  tyres' 2 cm gap; with ride = road the whole car sat 2 cm low); traffic places its kinematic
+  cars `Vehicle.road_lift()` (= -road) over the road (a flat 0.55 m once made every traffic car
+  float 15-27 cm). A long body's physics wheels can sit under its own asymmetric axles
+  (`wheel_front` / `wheel_rear`; the van and the pickup). `tools/glshot/car_shot.gd` prints the
+  contact (CONTACT) for a parked car (`--police --heavy` is the tactical van)
   and shoots front3/rear3/side/close/far views of any types in one launch (`--each=0,8,1`).
   The basecoat metallic is
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way

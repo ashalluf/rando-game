@@ -278,6 +278,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-27 (later) The van is Blender-built too, and the pickup looks like a truck.** The
+  lead's follow-up: the pickup's cab read as a low sedan greenhouse on a long body; it is now a
+  tall square cab (roof 1.98 m, belt 1.38 m, near-vertical back), a flat bonnet 1.30 m high at
+  the front over an upright face with the lamps set into a big grille surround, and a 1.71 m bed
+  with squared rails level with the belt. `road_van` (a 5.94 m high-roof panel van, sliding
+  door and track on the kerb side, barn doors, glass only at the cab) replaces the last Meshy
+  road body (`car_van`, whose grille also carried a badge-like shape); `BodyType.VAN` keeps its
+  slot and odds, and the police tactical van is built on it. docs/HANDOFF.md 000d.
+
 - **2026-09-27 The everyday cars are Blender-built, and the crossover joins the traffic.** The
   lead's brief for the owner's "AAA studio PS5 quality": the Meshy sedan and pickup were
   crumpled remeshes. `tools/make_road_cars.py` builds `road_sedan`, `road_crossover` and
