@@ -132,12 +132,16 @@ var parts: Array[Dictionary] = []
 var facade_color: Color = Color.GRAY
 ## Concrete plinth under the building (meters), covering the slope of the sidewalk beneath it.
 var plinth_depth: float = 0.0
+## Set by CityChunk before the building enters the tree: the plinth is drawn among the chunk's
+## merged boxes (CityChunk._merge_box(), its world-mapped concrete is the same wherever the box
+## sits) and the building keeps only its collision. A plinth per building was a draw call per
+## building, for a box that is mostly under the pavement.
+var plinth_in_chunk: bool = false
 ## The pools of light open shops throw on the pavement after dark, as [Transform3D, Color] in
 ## this building's space: a flat quad for PropFactory.shop_spill(), centred on the foot of the
 ## shopfront. The chunk batches them (CityChunk._add_shop_spill()); its y is ignored.
 var shop_pools: Array = []
 
-static var _prop_materials: Dictionary = {}
 var _rng := RandomNumberGenerator.new()
 var _generated: bool = false
 ## Roof covering for this building (see shaders/building.gdshader `roof_style`).
@@ -184,6 +188,26 @@ var _kit_cornice_color: Color = Color.WHITE
 var _kit_iron: float = 0.125
 ## Collision for what stands on the kit (balcony slabs, fire-escape landings), as one trimesh.
 var _kit_solids := PackedVector3Array()
+## The roof plant while generating: every box and cylinder _prop_box() / _prop_cylinder() lays,
+## as [Transform3D in this building's space, the primitive's surface arrays, its sRGB colour,
+## roughness, metallic, unshaded]. _commit_roof() merges them into ONE mesh (see there).
+var _roof_prims: Array = []
+## Rooftop air-conditioning units while generating: model variant (rusted) -> [Transform3D], one
+## MultiMesh per variant (_commit_roof()).
+var _roof_units: Dictionary = {}
+## Where each rooftop unit stands (building space), in the order they were placed: the layout
+## tests compare it with the kit on and off, and a MultiMesh cannot be read back headless.
+var roof_unit_spots: Array[Vector3] = []
+## The building's walls while generating: every box part goes into ONE mesh under ONE
+## material (_part_material(), _append_part(), _commit_parts()), its own sizes riding in the
+## vertices (see shaders/building.gdshader `part_attributes`).
+var _part_mat: ShaderMaterial = null
+var _part_acc: Dictionary = {}
+## The facade detail MultiMeshes while generating, by node name (_add_details()).
+var _details: Dictionary = {}
+## Top of the highest wall band or cornice box (building space): they sit on the walls and never
+## stand above the roof, which the smoke test checks (the parapet shares their MultiMesh).
+var details_top: float = 0.0
 
 
 func _ready() -> void:
@@ -201,30 +225,55 @@ func generate() -> void:
 	_kit = MultiMeshBatch.new() if kit_enabled else null
 	if _kit:
 		_pick_kit(style)
+	_roof_prims.clear()
+	_roof_units.clear()
+	roof_unit_spots.clear()
+	_part_mat = null
+	_part_acc = {}
+	_details.clear()
+	detail_record.clear()
+	details_top = 0.0
 	for part in parts:
 		_build_part(part, style)
+	_commit_parts()
+	_commit_details()
 	_build_plinth()
 	_build_roof_props()
+	_commit_roof()
 	_finish_kit()
 
 
 func _build_plinth() -> void:
-	if plinth_depth <= 0.05 or footprint.x <= 0.0:
+	var box_at := plinth_box()
+	if box_at.is_empty():
 		return
-	var size := Vector3(footprint.x + 0.3, plinth_depth, footprint.y + 0.3)
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.material_override = PropFactory.pbr("concrete", 3.0, Color(0.72, 0.72, 0.7))
-	mesh.position = Vector3(0.0, 0.02 - plinth_depth * 0.5, 0.0)
-	add_child(mesh)
+	var size: Vector3 = box_at[0]
+	var at: Vector3 = box_at[1]
+	if not plinth_in_chunk:
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = size
+		mesh.mesh = box
+		mesh.material_override = plinth_material()
+		mesh.position = at
+		add_child(mesh)
 	var shape := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
 	box_shape.size = size
 	shape.shape = box_shape
-	shape.position = mesh.position
+	shape.position = at
 	add_child(shape)
+
+
+## The plinth's box in this building's space, [size, centre], or [] for none.
+func plinth_box() -> Array:
+	if plinth_depth <= 0.05 or footprint.x <= 0.0:
+		return []
+	return [Vector3(footprint.x + 0.3, plinth_depth, footprint.y + 0.3), Vector3(0.0, 0.02 - plinth_depth * 0.5, 0.0)]
+
+
+static func plinth_material() -> Material:
+	return PropFactory.pbr("concrete", 3.0, Color(0.72, 0.72, 0.7))
 
 
 ## Picks everything and lays out the parts without creating any nodes. Returns the style.
@@ -406,51 +455,44 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 		cut_x = size.x / float(cols_x)
 		cut_z = size.z / float(cols_z)
 
-	var mat := ShaderMaterial.new()
-	mat.shader = SHADER
-	mat.set_shader_parameter("facade_color", style.facade)
-	mat.set_shader_parameter("accent_color", style.accent)
-	mat.set_shader_parameter("facade_finish", finish)
-	mat.set_shader_parameter("window_style", window_style)
-	mat.set_shader_parameter("window_tint", style.tint)
-	mat.set_shader_parameter("lit_color", style.lit)
-	mat.set_shader_parameter("lit_ratio", style.lit_ratio)
-	mat.set_shader_parameter("window_pitch_x", size.x / cols_x)
-	mat.set_shader_parameter("window_pitch_z", size.z / cols_z)
-	mat.set_shader_parameter("floor_height", floor_h)
+	# The material is the building's, made with its first part; what differs part to part rides
+	# in the vertices (_append_part()). Every value is worked out exactly as it was when each part
+	# had a material of its own, so the shader sees the same numbers.
+	var mat := _part_material(style)
+	var pitch_x := size.x / cols_x
+	var pitch_z := size.z / cols_z
 	# The shader counts floors from world Y, so the base has to include where this building sits.
-	mat.set_shader_parameter("ground_floor_height", position.y + bottom + storefront)
-	mat.set_shader_parameter("base_y", position.y + bottom)
-	mat.set_shader_parameter("has_storefront", storefront > 0.0)
-	mat.set_shader_parameter("part_size", size)
-	mat.set_shader_parameter("seed", float(seed % 1000))
-	mat.set_shader_parameter("roof_style", roof_style)
-	mat.set_shader_parameter("shop_span", _shop_spans())
-	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
-	# dark for channel letters where there are letters to light.
-	mat.set_shader_parameter("sign_letters", not OS.has_feature("web"))
+	var ground_floor := position.y + bottom + storefront
+	var base_y := position.y + bottom
 	# Base, shaft, crown. The shader lays a stone base course over the bottom floors and shifts
 	# the tone of the top ones; _add_facade_details caps both with a real band at the same
 	# height, so the two have to be asked for from the same place.
 	var base_h := _base_course_height(size, style, storefront, on_ground)
-	mat.set_shader_parameter("base_height", base_h)
 	if base_h > 0.0:
 		mat.set_shader_parameter("base_color", (style.facade as Color).lerp(Color(0.62, 0.60, 0.56), 0.6).darkened(0.08))
+	var crown := 100000.0
 	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE:
-		mat.set_shader_parameter("crown_start", position.y + bottom + size.y - 1.6 * floor_h)
+		crown = position.y + bottom + size.y - 1.6 * floor_h
 		mat.set_shader_parameter("crown_shade", 1.09 if absi(hash([seed, "crown"])) % 2 == 0 else 0.92)
-	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
-
-	var mesh := MeshInstance3D.new()
+	var arrays: Array
 	if cut_x > 0.0:
-		mesh.mesh = _prism_mesh(size, cut_x, cut_z)
+		arrays = _prism_arrays(size, cut_x, cut_z)
 	else:
 		var box := BoxMesh.new()
 		box.size = size
-		mesh.mesh = box
-	mesh.material_override = mat
-	mesh.position = center
-	add_child(mesh)
+		arrays = box.get_mesh_arrays()
+	_append_part(arrays, center, [storefront > 0.0, size, base_h, pitch_x, pitch_z, floor_h, ground_floor, base_y, crown])
+	# What street_wear.gd needs to know about this part's wall, as the shader draws it.
+	part.pitch_x = pitch_x
+	part.pitch_z = pitch_z
+	part.floor_h = floor_h
+	part.gfh = ground_floor
+	part.storefront = storefront > 0.0
+	part.boxy = cut_x <= 0.0
+	part.base_h = base_h
+	part.base_y = base_y
+	part.crown = crown
+	part.cut = Vector2(cut_x, cut_z)
 
 	var shape_node := CollisionShape3D.new()
 	if cut_x > 0.0:
@@ -464,6 +506,116 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	shape_node.position = center
 	add_child(shape_node)
 	_add_facade_details(size, center, bottom, storefront, floor_h, rows, cols_x, cols_z, style, cut_x, cut_z)
+
+
+## The one material every box part of this building wears: everything the parts share, set
+## once. part_attributes tells the shader to take the rest from the vertices.
+func _part_material(style: Dictionary) -> ShaderMaterial:
+	if _part_mat != null:
+		return _part_mat
+	var mat := ShaderMaterial.new()
+	mat.shader = SHADER
+	mat.set_shader_parameter("part_attributes", true)
+	mat.set_shader_parameter("facade_color", style.facade)
+	mat.set_shader_parameter("accent_color", style.accent)
+	mat.set_shader_parameter("facade_finish", finish)
+	mat.set_shader_parameter("window_style", window_style)
+	mat.set_shader_parameter("window_tint", style.tint)
+	mat.set_shader_parameter("lit_color", style.lit)
+	mat.set_shader_parameter("lit_ratio", style.lit_ratio)
+	mat.set_shader_parameter("seed", float(seed % 1000))
+	mat.set_shader_parameter("roof_style", roof_style)
+	mat.set_shader_parameter("shop_span", _shop_spans())
+	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
+	# dark for channel letters where there are letters to light.
+	mat.set_shader_parameter("sign_letters", not OS.has_feature("web"))
+	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
+	_part_mat = mat
+	return mat
+
+
+## Vertex layout of the merged walls: four RGBA float customs (shaders/building.gdshader).
+const PART_FORMAT := (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT) \
+	| (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM1_SHIFT) \
+	| (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM2_SHIFT) \
+	| (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM3_SHIFT)
+
+
+## One box part into the building's walls. `arrays` is the part's own mesh (a BoxMesh's, or the
+## cut-cornered prism's) centred on the origin; it goes in moved to `center`, and every vertex
+## carries what used to be that part's own uniforms: CUSTOM0 its position in the part (the
+## VERTEX the shader used to see) and has_storefront, CUSTOM1 part_size and base_height, CUSTOM2
+## the two window pitches, floor_height and ground_floor_height, CUSTOM3 base_y and crown_start.
+## `p` is [storefront, size, base_h, pitch_x, pitch_z, floor_h, ground_floor, base_y, crown].
+func _append_part(arrays: Array, center: Vector3, p: Array) -> void:
+	var verts: PackedVector3Array = _part_acc.get(Mesh.ARRAY_VERTEX, PackedVector3Array())
+	var norms: PackedVector3Array = _part_acc.get(Mesh.ARRAY_NORMAL, PackedVector3Array())
+	var tans: PackedFloat32Array = _part_acc.get(Mesh.ARRAY_TANGENT, PackedFloat32Array())
+	var uvs: PackedVector2Array = _part_acc.get(Mesh.ARRAY_TEX_UV, PackedVector2Array())
+	var idx: PackedInt32Array = _part_acc.get(Mesh.ARRAY_INDEX, PackedInt32Array())
+	var c0: PackedFloat32Array = _part_acc.get(Mesh.ARRAY_CUSTOM0, PackedFloat32Array())
+	var c1: PackedFloat32Array = _part_acc.get(Mesh.ARRAY_CUSTOM1, PackedFloat32Array())
+	var c2: PackedFloat32Array = _part_acc.get(Mesh.ARRAY_CUSTOM2, PackedFloat32Array())
+	var c3: PackedFloat32Array = _part_acc.get(Mesh.ARRAY_CUSTOM3, PackedFloat32Array())
+	# The locals must be the only references while they grow, or every append copies the array.
+	_part_acc.clear()
+	var base := verts.size()
+	var src: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var size: Vector3 = p[1]
+	var shop := 1.0 if p[0] else 0.0
+	# The part's own numbers are the same on every one of its vertices.
+	var row1 := PackedFloat32Array([size.x, size.y, size.z, p[2]])
+	var row2 := PackedFloat32Array([p[3], p[4], p[5], p[6]])
+	var row3 := PackedFloat32Array([p[7], p[8], 0.0, 0.0])
+	for v: Vector3 in src:
+		verts.append(v + center)
+		c0.append(v.x)
+		c0.append(v.y)
+		c0.append(v.z)
+		c0.append(shop)
+		c1.append_array(row1)
+		c2.append_array(row2)
+		c3.append_array(row3)
+	norms.append_array(arrays[Mesh.ARRAY_NORMAL])
+	tans.append_array(arrays[Mesh.ARRAY_TANGENT])
+	uvs.append_array(arrays[Mesh.ARRAY_TEX_UV])
+	if arrays[Mesh.ARRAY_INDEX] == null:
+		for k in src.size():
+			idx.append(base + k)
+	else:
+		for k: int in arrays[Mesh.ARRAY_INDEX]:
+			idx.append(base + k)
+	_part_acc[Mesh.ARRAY_VERTEX] = verts
+	_part_acc[Mesh.ARRAY_NORMAL] = norms
+	_part_acc[Mesh.ARRAY_TANGENT] = tans
+	_part_acc[Mesh.ARRAY_TEX_UV] = uvs
+	_part_acc[Mesh.ARRAY_INDEX] = idx
+	_part_acc[Mesh.ARRAY_CUSTOM0] = c0
+	_part_acc[Mesh.ARRAY_CUSTOM1] = c1
+	_part_acc[Mesh.ARRAY_CUSTOM2] = c2
+	_part_acc[Mesh.ARRAY_CUSTOM3] = c3
+
+
+## The walls, built: one mesh, one material, one draw call for every box part of the building.
+## Each part used to be its own MeshInstance3D with its own ShaderMaterial (2026-09-19 decision:
+## the Compatibility renderer has no per-instance uniforms, so the part's sizes were baked into
+## its material) - up to six draws a building, and six more in every shadow pass. The sizes now
+## ride in the vertices instead, which every renderer has.
+func _commit_parts() -> void:
+	if _part_acc.is_empty():
+		return
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	for a: int in _part_acc:
+		arrays[a] = _part_acc[a]
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], {}, PART_FORMAT)
+	var node := MeshInstance3D.new()
+	node.name = "Walls"
+	node.mesh = mesh
+	node.material_override = _part_mat
+	add_child(node)
+	_part_acc = {}
 
 
 ## Shop awnings. Kept to the colours canvas actually comes in: deep reds, greens, navies and
@@ -990,17 +1142,11 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		_kit_runs("coping", center, size, cut_x, cut_z, coping_y, 1.0,
 			_kit_trim if masonry else (style.facade as Color).lightened(0.12))
 	if not frames.is_empty():
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		# Where the kit gives the window a real sill, the frame goes without its box one.
-		mm.mesh = PropFactory.window_frame(sill and kit_surround == "")
-		mm.instance_count = frames.size()
 		# Per-window tint. A wall of identical frames is the loudest "these were stamped out"
 		# tell on a close facade; real frames differ in how they have weathered, and a few have
 		# been repainted. Hashed rather than drawn from _rng so the seeded layout is untouched.
+		var tints: Array = []
 		for i in frames.size():
-			mm.set_instance_transform(i, frames[i])
 			var h := float(absi(hash(i * 2654435761 + seed)) % 1000) / 1000.0
 			var h2 := float(absi(hash(i * 40503 + seed * 7)) % 1000) / 1000.0
 			var c := frame_color.lightened(0.16 * (h * 2.0 - 1.0)) if h > 0.5 else frame_color.darkened(0.30 * (1.0 - h * 2.0))
@@ -1008,14 +1154,10 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			c = Color(c.r * (0.97 + 0.06 * h2), c.g, c.b * (1.03 - 0.09 * h2))
 			if h2 < 0.08:
 				c = c.darkened(0.30)
-			mm.set_instance_color(i, c)
-		var node := MultiMeshInstance3D.new()
-		node.name = "Frames"
-		node.multimesh = mm
-		# Past this distance the shader's painted frames carry the look on their own.
-		node.visibility_range_end = FRAME_DRAW_DISTANCE
-		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(node)
+			tints.append(c)
+		# Where the kit gives the window a real sill, the frame goes without its box one. Past
+		# FRAME_DRAW_DISTANCE the shader's painted frames carry the look on their own.
+		_add_details("Frames", PropFactory.window_frame(sill and kit_surround == ""), frames, tints, FRAME_DRAW_DISTANCE, false)
 	if not escapes.is_empty():
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -1041,51 +1183,124 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		node.visibility_range_end = FRAME_DRAW_DISTANCE * 2.0
 		add_child(node)
 	if not fins.is_empty():
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.mesh = _bay_cheeks()
-		mm.instance_count = fins.size()
+		var fin_xf: Array = []
+		var fin_tints: Array = []
 		for i in fins.size():
-			mm.set_instance_transform(i, fins[i][0])
+			fin_xf.append(fins[i][0])
 			# A touch of drift per run, so a row of bays is not one colour stamped four times.
 			var h := float(absi(hash([seed, "fin", i])) % 1000) * 0.001
-			mm.set_instance_color(i, (fins[i][1] as Color).lightened(0.10 * (h - 0.5)))
-		var node := MultiMeshInstance3D.new()
-		node.name = "Bays"
-		node.multimesh = mm
-		node.visibility_range_end = relief_draw_distance
-		add_child(node)
+			fin_tints.append((fins[i][1] as Color).lightened(0.10 * (h - 0.5)))
+		_add_details("Bays", _bay_cheeks(), fin_xf, fin_tints, relief_draw_distance, true)
+	# The parapet and the bands share the unit box, and so one MultiMesh: the parapet keeps its
+	# own, longer reach, because the roofline is silhouette - eight boxes that are what the
+	# skyline is made of.
 	if not caps.is_empty():
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.mesh = PropFactory.unit_box()
-		mm.instance_count = caps.size()
-		for i in caps.size():
-			mm.set_instance_transform(i, caps[i][0])
-			mm.set_instance_color(i, caps[i][1])
-		var node := MultiMeshInstance3D.new()
-		node.name = "Parapet"
-		node.multimesh = mm
-		# The roofline is silhouette, so it is worth drawing well past the wall detail: it is
-		# eight boxes and it is what the skyline is made of.
-		node.visibility_range_end = relief_draw_distance * 2.0
-		add_child(node)
+		_add_details("Details", PropFactory.unit_box(), caps.map(func(e: Array) -> Transform3D: return e[0]),
+			caps.map(func(e: Array) -> Color: return e[1]), relief_draw_distance * 2.0, true)
 	if not boxes.is_empty():
+		_add_details("Details", PropFactory.unit_box(), boxes.map(func(e: Array) -> Transform3D: return e[0]),
+			boxes.map(func(e: Array) -> Color: return e[1]), relief_draw_distance, true)
+		for e: Array in boxes:
+			details_top = maxf(details_top, ((e[0] as Transform3D) * AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)).end.y)
+
+
+## One part's worth of a facade detail MultiMesh (window frames, bands, parapet, bay cheeks), into
+## the building's one node of that name (_commit_details()). These used to be a MultiMesh per
+## part - a five-tier setback carried five of each - and a node's visibility range is measured
+## from the camera to the centre of its bounds, so each part keeps the centre and range its own
+## node would have had, and every instance carries which part it belongs to
+## (shaders/facade_detail.gdshader): the details on each part still stop drawing where they did.
+func _add_details(node_name: String, mesh: Mesh, xforms: Array, colors: Array, range_m: float, shadow: bool) -> void:
+	# The part's node's bounds, worked out as the renderer works out a MultiMesh's AABB.
+	var mesh_box := mesh.get_aabb()
+	var box := AABB()
+	for i in xforms.size():
+		var b: AABB = (xforms[i] as Transform3D) * mesh_box
+		box = b if i == 0 else box.merge(b)
+	if not _details.has(node_name):
+		_details[node_name] = {"mesh": mesh, "shadow": shadow, "xforms": [], "colors": [], "custom": [], "parts": []}
+	var d: Dictionary = _details[node_name]
+	var part := float((d.parts as Array).size())
+	for i in xforms.size():
+		(d.xforms as Array).append(xforms[i])
+		(d.colors as Array).append(colors[i])
+		(d.custom as Array).append(Color(part, 0.0, 0.0, 0.0))
+	(d.parts as Array).append([box, range_m])
+	if keep_records:
+		detail_record.append([node_name, mesh, xforms.duplicate(), colors.duplicate(), range_m, shadow])
+
+
+## Most parts one detail node can tell apart (the shader's part_ref array): two a part for the
+## unit boxes (bands, parapet), six parts at most.
+const DETAIL_PARTS := 16
+
+
+## The facade detail nodes, one per kind per building. Each gets its own material holding every
+## part's bounds centre in TRUE world space (the `origin_shift` global brings it into the shifted
+## scene) and its range. The node's own visibility range only drops the set once every part is
+## past its own reach (its range plus how far its centre is from the node's), so it never hides
+## what the per-instance test would still draw.
+func _commit_details() -> void:
+	var to_true := global_transform if is_inside_tree() else transform
+	var world_state := get_node_or_null("/root/WorldState") if is_inside_tree() else null
+	if world_state:
+		to_true.origin += world_state.get("world_offset") as Vector3
+	for node_name: String in _details:
+		var d: Dictionary = _details[node_name]
+		var xforms: Array = d.xforms
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
-		mm.mesh = PropFactory.unit_box()
-		mm.instance_count = boxes.size()
-		for i in boxes.size():
-			mm.set_instance_transform(i, boxes[i][0])
-			mm.set_instance_color(i, boxes[i][1])
+		mm.use_custom_data = true
+		mm.mesh = d.mesh
+		mm.instance_count = xforms.size()
+		for i in xforms.size():
+			mm.set_instance_transform(i, xforms[i])
+			mm.set_instance_color(i, d.colors[i])
+			mm.set_instance_custom_data(i, d.custom[i])
+		var parts_d: Array = d.parts
+		var whole := AABB()
+		var refs := PackedVector4Array()
+		refs.resize(DETAIL_PARTS)
+		var reach := 0.0
+		for k in parts_d.size():
+			var part_box: AABB = parts_d[k][0]
+			whole = part_box if k == 0 else whole.merge(part_box)
+		for k in mini(parts_d.size(), DETAIL_PARTS):
+			var centre: Vector3 = (parts_d[k][0] as AABB).get_center()
+			var at := to_true * centre
+			refs[k] = Vector4(at.x, at.y, at.z, float(parts_d[k][1]))
+			reach = maxf(reach, float(parts_d[k][1]) + centre.distance_to(whole.get_center()))
 		var node := MultiMeshInstance3D.new()
-		node.name = "Details"
+		node.name = node_name
 		node.multimesh = mm
-		node.visibility_range_end = relief_draw_distance
+		node.material_override = _detail_material(d.mesh, refs)
+		# A little over, so float rounding in the bounds can never cut in before the shader does.
+		node.visibility_range_end = reach + 0.5
+		if not d.shadow:
+			node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
+	_details.clear()
+
+
+## shaders/facade_detail.gdshader standing in for the StandardMaterial3D on `mesh` (one of
+## PropFactory.material()'s), its numbers copied across, with this building's part centres.
+static func _detail_material(mesh: Mesh, refs: PackedVector4Array) -> ShaderMaterial:
+	if _detail_shader == null:
+		_detail_shader = load("res://shaders/facade_detail.gdshader")
+	var mat := ShaderMaterial.new()
+	mat.shader = _detail_shader
+	var src := mesh.surface_get_material(0) as StandardMaterial3D
+	if src:
+		mat.set_shader_parameter("albedo", src.albedo_color)
+		mat.set_shader_parameter("roughness", src.roughness)
+		mat.set_shader_parameter("metallic", src.metallic)
+		mat.set_shader_parameter("specular", src.metallic_specular)
+	mat.set_shader_parameter("part_ref", refs)
+	return mat
+
+
+static var _detail_shader: Shader = null
 
 
 # --- Facade kit ----------------------------------------------------------------------------------
@@ -1343,7 +1558,7 @@ static func _footprint_polygon(size: Vector3, cut_x: float, cut_z: float) -> Pac
 ## flat underside. Built here instead of a BoxMesh so a chamfered part is still one mesh under
 ## one building shader (which reads the diagonal walls off their normals). Normals are flat per
 ## face and the UVs run in metres, so the wall normal maps still have tangents to work in.
-static func _prism_mesh(size: Vector3, cut_x: float, cut_z: float) -> Mesh:
+static func _prism_arrays(size: Vector3, cut_x: float, cut_z: float) -> Array:
 	var poly := _footprint_polygon(size, cut_x, cut_z)
 	var hy := size.y * 0.5
 	var st := SurfaceTool.new()
@@ -1373,7 +1588,7 @@ static func _prism_mesh(size: Vector3, cut_x: float, cut_z: float) -> Mesh:
 		_prism_vertex(st, Vector3.DOWN, Vector3(q2.x, -hy, q2.y), q2)
 		_prism_vertex(st, Vector3.DOWN, Vector3(q1.x, -hy, q1.y), q1)
 	st.generate_tangents()
-	return st.commit()
+	return st.commit_to_arrays()
 
 
 static func _prism_vertex(st: SurfaceTool, n: Vector3, p: Vector3, uv: Vector2) -> void:
@@ -1650,13 +1865,15 @@ func _rect_free(rect: Rect2, placed: Array[Rect2], part_index: int, part_center:
 func _build_prop(kind: String, at: Vector3) -> void:
 	match kind:
 		"ac":
-			# Real unit (Poly Haven), scaled up to rooftop size, on a concrete pad.
-			var unit := MeshInstance3D.new()
-			unit.mesh = PropFactory.model_ac(_rng.randf() < 0.35)
-			unit.position = at + Vector3(0.0, 0.1, 0.0)
-			unit.scale = Vector3.ONE * 1.7
-			unit.rotation.y = _rng.randf_range(0.0, TAU)
-			add_child(unit)
+			# Real unit (Poly Haven), scaled up to rooftop size, on a concrete pad. The two
+			# rolls stay in this order (variant, then turn): every roll after them depends on it.
+			var rusted := _rng.randf() < 0.35
+			var spot := at + Vector3(0.0, 0.1, 0.0)
+			var turn := Basis.from_euler(Vector3(0.0, _rng.randf_range(0.0, TAU), 0.0))
+			if not _roof_units.has(rusted):
+				_roof_units[rusted] = []
+			(_roof_units[rusted] as Array).append(Transform3D(turn * Basis.from_scale(Vector3.ONE * 1.7), spot))
+			roof_unit_spots.append(spot)
 			_prop_box(Vector3(1.6, 0.1, 1.6), Color(0.6, 0.6, 0.58), at + Vector3(0.0, 0.05, 0.0))
 			_prop_collision(Vector3(1.4, 1.6, 1.4), at + Vector3(0.0, 0.8, 0.0))
 		"vents":
@@ -1673,32 +1890,25 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			var metal := Color(0.63, 0.64, 0.66)
 			for k in 6:
 				var along := dir * (-3.0 + float(k) * 1.2)
-				var duct := _prop_box(Vector3(1.2, 0.55, 0.62), metal, at + along + Vector3(0.0, 0.85, 0.0))
-				duct.rotation.y = yaw
+				_prop_box(Vector3(1.2, 0.55, 0.62), metal, at + along + Vector3(0.0, 0.85, 0.0), Vector3(0.0, yaw, 0.0))
 				# Legs.
 				for side: float in [-0.22, 0.22]:
 					_prop_box(Vector3(0.08, 0.6, 0.08), Color(0.35, 0.35, 0.37), at + along + across * side + Vector3(0.0, 0.3, 0.0))
-			var elbow := _prop_box(Vector3(0.7, 1.4, 0.62), metal, at + dir * 3.5 + Vector3(0.0, 1.2, 0.0))
-			elbow.rotation.y = yaw
+			_prop_box(Vector3(0.7, 1.4, 0.62), metal, at + dir * 3.5 + Vector3(0.0, 1.2, 0.0), Vector3(0.0, yaw, 0.0))
 		"solar":
 			# Tilted panel rows on low frames, facing south.
 			var tilt := _rng.randf_range(0.30, 0.48)
 			for rowi in 2:
 				for coli in 3:
 					var p := at + Vector3(-1.8 + float(coli) * 1.8, 0.0, -1.1 + float(rowi) * 2.2)
-					var panel := _prop_box(Vector3(1.65, 0.06, 1.0), Color(0.07, 0.09, 0.16), p + Vector3(0.0, 0.55, 0.0))
-					panel.rotation.x = -tilt
+					_prop_box(Vector3(1.65, 0.06, 1.0), Color(0.07, 0.09, 0.16), p + Vector3(0.0, 0.55, 0.0), Vector3(-tilt, 0.0, 0.0))
 					_prop_box(Vector3(0.06, 0.4, 0.06), Color(0.5, 0.5, 0.52), p + Vector3(-0.7, 0.2, 0.3))
 					_prop_box(Vector3(0.06, 0.6, 0.06), Color(0.5, 0.5, 0.52), p + Vector3(0.7, 0.3, -0.3))
 		"skylight":
 			# A raised kerb with a pale glazed cap.
 			_prop_box(Vector3(2.4, 0.35, 2.4), Color(0.55, 0.55, 0.57), at + Vector3(0.0, 0.18, 0.0))
-			var glass := _prop_box(Vector3(2.1, 0.12, 2.1), Color(0.62, 0.72, 0.78), at + Vector3(0.0, 0.42, 0.0))
-			var gm := StandardMaterial3D.new()
-			gm.albedo_color = Color(0.62, 0.72, 0.78)
-			gm.roughness = 0.12
-			gm.metallic = 0.1
-			glass.material_override = gm
+			# The glazing: glossy and a touch metallic.
+			_prop_box(Vector3(2.1, 0.12, 2.1), Color(0.62, 0.72, 0.78), at + Vector3(0.0, 0.42, 0.0), Vector3.ZERO, Transform3D.IDENTITY, 0.12, 0.1)
 		"cooling_tower":
 			_prop_cylinder(1.25, 1.9, Color(0.58, 0.59, 0.60), at + Vector3(0.0, 0.95, 0.0))
 			_prop_cylinder(1.3, 0.18, Color(0.40, 0.41, 0.43), at + Vector3(0.0, 1.95, 0.0))
@@ -1722,34 +1932,31 @@ func _build_prop(kind: String, at: Vector3) -> void:
 					for dz in [-1.0, 1.0]:
 						_prop_cylinder(0.08, 3.0, leg_color, at + Vector3(dx * 1.1, 1.5, dz * 1.1))
 				_prop_cylinder(1.6, 3.0, Color(0.55, 0.38, 0.22), at + Vector3(0.0, 4.5, 0.0))
-				_prop_cylinder(1.75, 1.2, Color(0.4, 0.28, 0.18), at + Vector3(0.0, 6.6, 0.0), null, 0.0)
+				_prop_cylinder(1.75, 1.2, Color(0.4, 0.28, 0.18), at + Vector3(0.0, 6.6, 0.0), Transform3D.IDENTITY, 0.0)
 			_prop_collision(Vector3(3.2, 7.2, 3.2), at + Vector3(0.0, 3.6, 0.0))
 		"spire":
 			# Skyline spire with a lit tip: base cone, long mast, blinking-red beacon.
 			var h := _rng.randf_range(0.18, 0.3) * maxf(height, 60.0)
-			_prop_cylinder(1.4, 3.0, Color(0.7, 0.7, 0.74), at + Vector3(0.0, 1.5, 0.0), null, 0.5)
-			_prop_cylinder(0.35, h, Color(0.8, 0.8, 0.84), at + Vector3(0.0, 3.0 + h * 0.5, 0.0), null, 0.08)
-			var tip := _prop_box(Vector3(0.6, 0.6, 0.6), Color(1.0, 0.2, 0.15), at + Vector3(0.0, 3.0 + h + 0.3, 0.0))
-			tip.material_override = WeaponFX.unshaded(Color(1.0, 0.25, 0.2))
+			_prop_cylinder(1.4, 3.0, Color(0.7, 0.7, 0.74), at + Vector3(0.0, 1.5, 0.0), Transform3D.IDENTITY, 0.5)
+			_prop_cylinder(0.35, h, Color(0.8, 0.8, 0.84), at + Vector3(0.0, 3.0 + h * 0.5, 0.0), Transform3D.IDENTITY, 0.08)
+			# The beacon, unshaded.
+			_prop_box(Vector3(0.6, 0.6, 0.6), Color(1.0, 0.25, 0.2), at + Vector3(0.0, 3.0 + h + 0.3, 0.0), Vector3.ZERO, Transform3D.IDENTITY, 0.8, 0.0, true)
 			_prop_collision(Vector3(2.8, 3.0, 2.8), at + Vector3(0.0, 1.5, 0.0))
 		"antenna":
 			var h := _rng.randf_range(6.0, 14.0)
 			_prop_cylinder(0.08, h, Color(0.75, 0.75, 0.78), at + Vector3(0.0, h * 0.5, 0.0))
 			_prop_box(Vector3(1.6, 0.06, 0.06), Color(0.75, 0.75, 0.78), at + Vector3(0.0, h * 0.7, 0.0))
 			_prop_box(Vector3(0.06, 0.06, 1.2), Color(0.75, 0.75, 0.78), at + Vector3(0.0, h * 0.85, 0.0))
-			var tip := _prop_box(Vector3(0.25, 0.25, 0.25), Color(1.0, 0.2, 0.15), at + Vector3(0.0, h + 0.1, 0.0))
-			tip.material_override = WeaponFX.unshaded(Color(1.0, 0.2, 0.15))
+			_prop_box(Vector3(0.25, 0.25, 0.25), Color(1.0, 0.2, 0.15), at + Vector3(0.0, h + 0.1, 0.0), Vector3.ZERO, Transform3D.IDENTITY, 0.8, 0.0, true)
 		"billboard":
 			var panel_color: Color = FLAT_COLORS[_rng.randi() % FLAT_COLORS.size()]
 			var stripe := Color(_rng.randf(), _rng.randf(), _rng.randf()).lightened(0.2)
 			var yaw := (PI * 0.5 if _rng.randf() < 0.5 else 0.0) + (PI if _rng.randf() < 0.5 else 0.0)
-			var pivot := Node3D.new()
-			pivot.position = at
-			pivot.rotation.y = yaw
-			add_child(pivot)
-			_prop_box(Vector3(6.0, 3.0, 0.2), panel_color, Vector3(0.0, 4.0, 0.0), pivot)
-			_prop_box(Vector3(5.6, 1.0, 0.24), stripe, Vector3(0.0, 4.3, 0.0), pivot)
-			_prop_box(Vector3(2.4, 0.7, 0.24), stripe.darkened(0.4), Vector3(-1.4, 3.2, 0.0), pivot)
+			# Laid out square to its own frame, which stands at `at` turned by `yaw`.
+			var pivot := Transform3D(Basis.from_euler(Vector3(0.0, yaw, 0.0)), at)
+			_prop_box(Vector3(6.0, 3.0, 0.2), panel_color, Vector3(0.0, 4.0, 0.0), Vector3.ZERO, pivot)
+			_prop_box(Vector3(5.6, 1.0, 0.24), stripe, Vector3(0.0, 4.3, 0.0), Vector3.ZERO, pivot)
+			_prop_box(Vector3(2.4, 0.7, 0.24), stripe.darkened(0.4), Vector3(-1.4, 3.2, 0.0), Vector3.ZERO, pivot)
 			for dx in [-2.3, 2.3]:
 				_prop_cylinder(0.1, 2.5, Color(0.3, 0.3, 0.32), Vector3(dx, 1.25, 0.0), pivot)
 			var shape_node := CollisionShape3D.new()
@@ -1761,40 +1968,165 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			add_child(shape_node)
 
 
-static func _prop_material(color: Color) -> StandardMaterial3D:
-	var key := color.to_rgba32()
-	if _prop_materials.has(key):
-		return _prop_materials[key]
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = color
-	mat.roughness = 0.8
-	_prop_materials[key] = mat
-	return mat
+## A box of roof plant: `size`, `color` (sRGB, as a StandardMaterial3D's albedo_color), centred at
+## `pos` turned by the Euler angles `rot` (what a Node3D's `rotation` would be), inside `frame`
+## (building space). `rough` / `metal` are its material's; `unshaded` draws it unlit (beacons).
+## Nothing is made here: _commit_roof() merges the lot into one mesh.
+func _prop_box(size: Vector3, color: Color, pos: Vector3, rot: Vector3 = Vector3.ZERO, frame: Transform3D = Transform3D.IDENTITY,
+		rough: float = 0.8, metal: float = 0.0, unshaded: bool = false) -> void:
+	var key := "box %s" % size
+	if not _prim_arrays.has(key):
+		var box := BoxMesh.new()
+		box.size = size
+		_prim_arrays[key] = box.get_mesh_arrays()
+	_roof_prims.append([frame * Transform3D(Basis.from_euler(rot), pos), _prim_arrays[key], color, rough, metal, unshaded])
 
 
-func _prop_box(size: Vector3, color: Color, pos: Vector3, parent: Node3D = null) -> MeshInstance3D:
-	var mesh := MeshInstance3D.new()
-	var box := BoxMesh.new()
-	box.size = size
-	mesh.mesh = box
-	mesh.material_override = _prop_material(color)
-	mesh.position = pos
-	(parent if parent else self).add_child(mesh)
-	return mesh
+## A cylinder of roof plant (a cone where `top_radius` is 0), as _prop_box().
+func _prop_cylinder(radius: float, h: float, color: Color, pos: Vector3, frame: Transform3D = Transform3D.IDENTITY, top_radius: float = -1.0) -> void:
+	var top := radius if top_radius < 0.0 else top_radius
+	var key := "cylinder %s %s %s" % [radius, top, h]
+	if not _prim_arrays.has(key):
+		var cyl := CylinderMesh.new()
+		cyl.bottom_radius = radius
+		cyl.top_radius = top
+		cyl.height = h
+		cyl.radial_segments = 10
+		_prim_arrays[key] = cyl.get_mesh_arrays()
+	_roof_prims.append([frame * Transform3D(Basis(), pos), _prim_arrays[key], color, 0.8, 0.0, false])
 
 
-func _prop_cylinder(radius: float, h: float, color: Color, pos: Vector3, parent: Node3D = null, top_radius: float = -1.0) -> MeshInstance3D:
-	var mesh := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.bottom_radius = radius
-	cyl.top_radius = radius if top_radius < 0.0 else top_radius
-	cyl.height = h
-	cyl.radial_segments = 10
-	mesh.mesh = cyl
-	mesh.material_override = _prop_material(color)
-	mesh.position = pos
-	(parent if parent else self).add_child(mesh)
-	return mesh
+## Surface arrays of every primitive the roof plant has used (BoxMesh / CylinderMesh
+## get_mesh_arrays(), by size), shared by every building.
+static var _prim_arrays: Dictionary = {}
+## Tools only (tools/building_merge_probe.gd): keep what each building merged - its roof
+## primitives on `roof_record`, its facade detail per part on `detail_record` ([node name, mesh,
+## transforms, colours, range, shadow]) - so the probe can rebuild the old nodes from them.
+static var keep_records: bool = false
+var roof_record: Array = []
+var detail_record: Array = []
+## The unshaded beacon materials, one per colour, and the plant's one material.
+static var _beacon_materials: Dictionary = {}
+static var _roof_material: ShaderMaterial = null
+
+
+## The roof plant, built. Every box and cylinder on a roof used to be a MeshInstance3D with a flat
+## StandardMaterial3D - a duct run was nineteen nodes, a solar array eighteen - and each one was a
+## draw call, and another in every shadow pass it fell in: on the downtown bookmark they and the
+## plinths were 1,611 of the frame's 5,815 draws. Now they are ONE mesh per building, moved into
+## building space, whose vertices carry what each material said (shaders/roof_plant.gdshader: the
+## albedo and roughness in CUSTOM0, the metallic in UV.x), with a surface of its own for each
+## colour of unshaded beacon. The rooftop air-conditioning units (a real model, with LODs) go into
+## one MultiMesh per variant instead of a node each: they now share the LOD of the building's
+## nearest unit, never a coarser one than they had.
+func _commit_roof() -> void:
+	if not _roof_prims.is_empty():
+		var lit := {}      # the plant, one surface
+		var beacons := {}  # beacon colour -> its own unshaded surface
+		var beacon_colors := {}
+		for prim: Array in _roof_prims:
+			var into := lit
+			if prim[5]:
+				var ck := (prim[2] as Color).to_rgba32()
+				if not beacons.has(ck):
+					beacons[ck] = {}
+					beacon_colors[ck] = prim[2]
+				into = beacons[ck]
+			_append_prim(into, prim, not prim[5])
+		var mesh := ArrayMesh.new()
+		if not lit.is_empty():
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _prim_surface(lit), [], {},
+				Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM0_SHIFT)
+			if _roof_material == null:
+				_roof_material = ShaderMaterial.new()
+				_roof_material.shader = load("res://shaders/roof_plant.gdshader")
+			mesh.surface_set_material(mesh.get_surface_count() - 1, _roof_material)
+		for ck: int in beacons:
+			mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, _prim_surface(beacons[ck]))
+			if not _beacon_materials.has(ck):
+				_beacon_materials[ck] = WeaponFX.unshaded(beacon_colors[ck])
+			mesh.surface_set_material(mesh.get_surface_count() - 1, _beacon_materials[ck])
+		var node := MeshInstance3D.new()
+		node.name = "RoofPlant"
+		node.mesh = mesh
+		add_child(node)
+	if keep_records:
+		roof_record = _roof_prims.duplicate()
+	_roof_prims.clear()
+	for rusted: bool in _roof_units:
+		var xforms: Array = _roof_units[rusted]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = PropFactory.model_ac(rusted)
+		mm.instance_count = xforms.size()
+		for i in xforms.size():
+			mm.set_instance_transform(i, xforms[i])
+		var units := MultiMeshInstance3D.new()
+		units.name = "RoofUnitsRusted" if rusted else "RoofUnits"
+		units.multimesh = mm
+		add_child(units)
+	_roof_units.clear()
+
+
+## One primitive into a growing surface (`acc`, array index -> packed array): positions and
+## normals moved into building space, indices offset. `lit` puts its material in CUSTOM0 (the
+## albedo as _roof_albedo() gives it, the roughness) and UV.x (the metallic); a beacon keeps the
+## primitive's own UVs.
+static func _append_prim(acc: Dictionary, prim: Array, lit: bool) -> void:
+	var xf: Transform3D = prim[0]
+	var arrays: Array = prim[1]
+	var verts: PackedVector3Array = acc.get(Mesh.ARRAY_VERTEX, PackedVector3Array())
+	var norms: PackedVector3Array = acc.get(Mesh.ARRAY_NORMAL, PackedVector3Array())
+	var uvs: PackedVector2Array = acc.get(Mesh.ARRAY_TEX_UV, PackedVector2Array())
+	var idx: PackedInt32Array = acc.get(Mesh.ARRAY_INDEX, PackedInt32Array())
+	var custom: PackedFloat32Array = acc.get(Mesh.ARRAY_CUSTOM0, PackedFloat32Array())
+	# The locals must be the only references while they grow, or every append copies the array.
+	acc.clear()
+	var base := verts.size()
+	var src: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var nb := xf.basis.inverse().transposed()
+	for v: Vector3 in src:
+		verts.append(xf * v)
+	for nv: Vector3 in arrays[Mesh.ARRAY_NORMAL]:
+		norms.append((nb * nv).normalized())
+	for k: int in arrays[Mesh.ARRAY_INDEX]:
+		idx.append(base + k)
+	if lit:
+		var c := _roof_albedo(prim[2])
+		var rough: float = prim[3]
+		var metal: float = prim[4]
+		var row := PackedFloat32Array([c.r, c.g, c.b, rough])
+		for k in src.size():
+			uvs.append(Vector2(metal, 0.0))
+			custom.append_array(row)
+		acc[Mesh.ARRAY_CUSTOM0] = custom
+	else:
+		uvs.append_array(arrays[Mesh.ARRAY_TEX_UV])
+	acc[Mesh.ARRAY_VERTEX] = verts
+	acc[Mesh.ARRAY_NORMAL] = norms
+	acc[Mesh.ARRAY_TEX_UV] = uvs
+	acc[Mesh.ARRAY_INDEX] = idx
+
+
+## A roof prop's albedo as its StandardMaterial3D's shader would have received it: the renderers
+## on RenderingDevice (Forward+, Mobile) convert a source_color uniform to linear with
+## Color.srgb_to_linear(), Compatibility hands it over verbatim (drivers/gles3 material_storage),
+## so the vertex carries whichever the shader would have seen.
+static func _roof_albedo(c: Color) -> Color:
+	if _roof_linear < 0:
+		_roof_linear = 0 if RenderingServer.get_current_rendering_method() == "gl_compatibility" else 1
+	return c.srgb_to_linear() if _roof_linear == 1 else c
+
+
+static var _roof_linear: int = -1
+
+
+static func _prim_surface(acc: Dictionary) -> Array:
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	for a: int in acc:
+		out[a] = acc[a]
+	return out
 
 
 func _prop_collision(size: Vector3, pos: Vector3) -> void:

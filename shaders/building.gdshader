@@ -136,6 +136,23 @@ uniform float interior_exposure = 0.40;
 uniform float room_depth = 3.2;
 uniform bool interior_enabled = true;
 
+// A building's box parts merged into ONE mesh under ONE material (Building._commit_parts()): the
+// values that differ part to part come from the vertices instead of the uniforms above, as 32-bit
+// floats, exactly the numbers the uniforms used to carry. CUSTOM0.xyz is the vertex's position in
+// its own part (what VERTEX was when every part was its own mesh) and .w has_storefront, CUSTOM1
+// part_size and base_height, CUSTOM2 window_pitch_x, window_pitch_z, floor_height and
+// ground_floor_height, CUSTOM3.xy base_y and crown_start. Off (the landmark towers), the uniforms.
+uniform bool part_attributes = false;
+// Whichever of the two it is, flat so the numbers arrive untouched.
+varying flat vec3 pt_size;
+varying flat vec2 pt_pitch;
+varying flat float pt_floor;
+varying flat float pt_ground;
+varying flat float pt_shop;
+varying flat float pt_base_y;
+varying flat float pt_base_h;
+varying flat float pt_crown;
+
 varying vec3 local_pos;
 varying vec3 local_normal;
 varying vec3 world_pos;
@@ -249,7 +266,27 @@ float neon_shape(vec2 p, vec2 pane, uint shape) {
 
 
 void vertex() {
-	local_pos = VERTEX;
+	if (part_attributes) {
+		local_pos = CUSTOM0.xyz;
+		pt_shop = CUSTOM0.w;
+		pt_size = CUSTOM1.xyz;
+		pt_base_h = CUSTOM1.w;
+		pt_pitch = CUSTOM2.xy;
+		pt_floor = CUSTOM2.z;
+		pt_ground = CUSTOM2.w;
+		pt_base_y = CUSTOM3.x;
+		pt_crown = CUSTOM3.y;
+	} else {
+		local_pos = VERTEX;
+		pt_shop = has_storefront ? 1.0 : 0.0;
+		pt_size = part_size;
+		pt_base_h = base_height;
+		pt_pitch = vec2(window_pitch_x, window_pitch_z);
+		pt_floor = floor_height;
+		pt_ground = ground_floor_height;
+		pt_base_y = base_y;
+		pt_crown = crown_start;
+	}
 	local_normal = NORMAL;
 	vec4 wp = MODEL_MATRIX * vec4(VERTEX, 1.0);
 	world_y = wp.y;
@@ -380,7 +417,7 @@ void fragment() {
 
 	if (abs(n.y) > 0.5) {
 		// Roof, with a lighter parapet ring around the edge.
-		vec2 edge = part_size.xz * 0.5 - abs(local_pos.xz);
+		vec2 edge = pt_size.xz * 0.5 - abs(local_pos.xz);
 		float parapet = 1.0 - step(0.7, min(edge.x, edge.y));
 		if (uv_facade) {
 			parapet = 1.0 - step(0.5, UV.x);
@@ -420,7 +457,7 @@ void fragment() {
 		bool chamfer = !uv_facade && abs(n.x) > 0.35 && abs(n.z) > 0.35;
 		if (uv_facade) {
 			u = UV.x;
-			pitch = window_pitch_x;
+			pitch = pt_pitch.x;
 			// 1..4, so the shop spans and every per-face hash below still index sanely.
 			face_id = 1.0 + mod(floor(UV.y + 0.5), 4.0);
 			// A face index of 100 or more is blank wall - a parapet lip, a mechanical floor, a
@@ -428,31 +465,31 @@ void fragment() {
 			chamfer = UV.y > 99.0;
 		} else if (chamfer) {
 			vec2 along = normalize(vec2(-n.z, n.x));
-			u = dot(local_pos.xz, along) + 0.5 * (part_size.x + part_size.z);
-			pitch = window_pitch_x;
+			u = dot(local_pos.xz, along) + 0.5 * (pt_size.x + pt_size.z);
+			pitch = pt_pitch.x;
 			face_id = 5.0;
 		} else if (abs(n.x) > 0.5) {
-			u = local_pos.z * sign(n.x) + part_size.z * 0.5;
-			pitch = window_pitch_z;
+			u = local_pos.z * sign(n.x) + pt_size.z * 0.5;
+			pitch = pt_pitch.y;
 			face_id = n.x > 0.0 ? 1.0 : 2.0;
 		} else {
-			u = local_pos.x * sign(-n.z) + part_size.x * 0.5;
-			pitch = window_pitch_x;
+			u = local_pos.x * sign(-n.z) + pt_size.x * 0.5;
+			pitch = pt_pitch.x;
 			face_id = n.z > 0.0 ? 3.0 : 4.0;
 		}
 		float v = world_y;
 		float col = floor(u / pitch);
 		float fu = fract(u / pitch);
-		bool storefront = has_storefront && v < ground_floor_height;
+		bool storefront = pt_shop > 0.5 && v < pt_ground;
 		float row;
 		float fv;
 		if (storefront) {
 			row = -1.0;
-			fv = v / ground_floor_height;
+			fv = v / pt_ground;
 		} else {
-			float vv = v - ground_floor_height;
-			row = floor(vv / floor_height);
-			fv = fract(vv / floor_height);
+			float vv = v - pt_ground;
+			row = floor(vv / pt_floor);
+			fv = fract(vv / pt_floor);
 		}
 
 		// Window mask for this style.
@@ -553,7 +590,7 @@ void fragment() {
 		float recess_shade = 0.0;
 		float reveal_deep = 0.0;
 		if (glass && window_recess > 0.0) {
-			float cell_h = storefront ? ground_floor_height : floor_height;
+			float cell_h = storefront ? pt_ground : pt_floor;
 			// Curtain walls are near flush (only the mullion caps stand proud), ribbon glass
 			// and shopfronts a little deeper, punched and slot windows the full reveal.
 			float depth = window_recess * (storefront ? 0.6 : (window_style == 2 ? 0.25 : (window_style == 1 ? 0.5 : (window_style == 3 ? 1.1 : 1.0))));
@@ -631,7 +668,7 @@ void fragment() {
 				vec3 tan_dir = normalize(world_tangent - world_normal * dot(world_tangent, world_normal));
 				vec3 ray = vec3(dot(to_frag, tan_dir) * u_sign, dot(to_frag, up), -dot(to_frag, world_normal));
 				float wide = max(2.0 * win_h.x * pitch, 0.2);
-				float high = max(2.0 * win_h.y * (storefront ? ground_floor_height : floor_height), 0.2);
+				float high = max(2.0 * win_h.y * (storefront ? pt_ground : pt_floor), 0.2);
 				float depth_t = 0.0;
 				// Offices are full of blinds; a shop window with a blind in it is not a shop.
 				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, storefront ? 0.10 : 0.72, depth_t, room_lamp);
@@ -791,7 +828,7 @@ void fragment() {
 				// white, red or violet, one of four shapes, drawn as a distance to the tube so it
 				// stays a thin bright line at any range (widened to a pixel and dimmed to match
 				// once it is thinner than one) with a soft glow round it on the glass.
-				vec2 pane = 2.0 * win_h * vec2(pitch, ground_floor_height);
+				vec2 pane = 2.0 * win_h * vec2(pitch, pt_ground);
 				vec2 wn = pane_w.x >= 0.0 ? pane_w : clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
 				float d = neon_shape(wn * pane, pane, shop_byte(shop_key, 7u) & 3u);
 				float tube = max(0.02, px_m * 0.8);
@@ -940,8 +977,8 @@ void fragment() {
 			// The bottom storeys in a heavier material with deep horizontal joints, and a
 			// shade change over the top ones. Both go in before the grime, so dirt still runs
 			// down over the stone the way it does over the wall above it.
-			float base_up = v - base_y;
-			if (base_height > 0.01 && base_up < base_height) {
+			float base_up = v - pt_base_y;
+			if (pt_base_h > 0.01 && base_up < pt_base_h) {
 				float course = fract(base_up / 0.92);
 				float block = fract((u + floor(base_up / 0.92) * 0.46) / 1.84);
 				float joint = clamp(step(course, 0.05) + step(block, 0.018), 0.0, 1.0);
@@ -951,7 +988,7 @@ void fragment() {
 				metal = 0.0;
 				wall_nm_weight *= 0.4;
 			}
-			albedo *= mix(1.0, crown_shade, step(crown_start, v));
+			albedo *= mix(1.0, crown_shade, step(pt_crown, v));
 
 			// --- Weathering ------------------------------------------------------------
 			// Grime is most of what separates a rendered box from a photographed building.
@@ -959,13 +996,13 @@ void fragment() {
 			// streaks that run past the floor below, and soot collects at street level.
 			// The old version banded the streaks into hard 33 cm blocks that reset at every
 			// floor line, which read as a pattern rather than as dirt.
-			float ground_dirt = 1.0 - smoothstep(0.0, 6.5, v - base_y);
+			float ground_dirt = 1.0 - smoothstep(0.0, 6.5, v - pt_base_y);
 			ground_dirt *= 0.65 + 0.35 * hash21(vec2(floor(u * 1.7), face_id) + seed);
 
 			// Metres below the nearest sill above this point. Measured on absolute height, so a
 			// streak keeps running across the floor line instead of restarting at it.
-			float sill_y = ground_floor_height + floor((v - ground_floor_height) / floor_height) * floor_height + 0.22 * floor_height;
-			float below = v < sill_y ? sill_y - v : sill_y + floor_height - v;
+			float sill_y = pt_ground + floor((v - pt_ground) / pt_floor) * pt_floor + 0.22 * pt_floor;
+			float below = v < sill_y ? sill_y - v : sill_y + pt_floor - v;
 			float run = 1.0 - smoothstep(0.0, 2.6, below);
 			run *= smoothstep(0.0, 0.12, below);   // the sill itself stays clean
 

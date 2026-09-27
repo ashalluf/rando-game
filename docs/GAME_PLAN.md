@@ -1720,6 +1720,11 @@ already mapped so milestone 2 is script-only.
   renderer, which has no per-instance shader uniforms, so each box part gets its own material with
   its exact size, window pitch and floor height baked in. Fine for a block; when the city gets big
   (milestone 5) far buildings should move to MultiMesh with INSTANCE_CUSTOM data.
+  **Overturned 2026-09-27** (branch `wt/building-draws`, docs/HANDOFF.md 9ai): buildings were 57 %
+  of the downtown frame's draw calls. A building's parts are now ONE mesh under ONE material, the
+  per-part numbers carried as vertex attributes (float CUSTOM0-3), which every renderer has; the
+  facade detail, roof plant and rooftop units are merged per building too. Per-building, not per
+  chunk, so culling and the distance fades still work building by building.
 - **2026-09-19 Floors count from world Y, columns from local axes.** Ground is flat, so world Y
   keeps floors aligned across parts and rotated buildings still get straight window columns.
 - **2026-09-19 Window grid is fitted, never cut.** The Building script rounds the box size to a
