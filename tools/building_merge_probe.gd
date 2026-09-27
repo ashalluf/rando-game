@@ -22,7 +22,8 @@ extends SceneTree
 ## moves exactly as a re-centre does. OUT_DIR=path saves every image. The rooftop units are the
 ## one intended difference: one MultiMesh picks its LOD from its whole box, so a far unit can
 ## be drawn finer (never coarser). DIST=35,230,... picks the distances, NIGHT=0 skips the night,
-## ONLY=1,2 the buildings (indices into SEEDS).
+## ONLY=1,2 the buildings (indices into SEEDS); SEEDS=2:0,13:0 other buildings (seed:shape);
+## ELEV=0.8 looks down on the roofs (camera height per metre of distance, default 0.12).
 ## Building is loaded, not named: it reaches the autoloads, and this script compiles before them.
 
 const SEEDS := [[3301, 5], [4417, 5], [5023, 3], [6121, 2], [7717, 4], [8819, 6], [9901, 0]]
@@ -68,10 +69,14 @@ func _initialize() -> void:
 	root.get_node("WorldState").set("world_offset", Vector3(1234.5, 0.0, -987.25))
 	var out_dir := OS.get_environment("OUT_DIR")
 	var only := Array(OS.get_environment("ONLY").split(",", false)).map(func(t: String) -> int: return t.to_int())
-	for si in SEEDS.size():
+	var seeds: Array = SEEDS
+	if OS.get_environment("SEEDS") != "":
+		seeds = Array(OS.get_environment("SEEDS").split(",")).map(func(t: String) -> Array: return [t.get_slice(":", 0).to_int(), t.get_slice(":", 1).to_int()])
+	var elev := float(OS.get_environment("ELEV")) if OS.get_environment("ELEV") != "" else 0.12
+	for si in seeds.size():
 		if not only.is_empty() and not only.has(si):
 			continue
-		var spec: Array = SEEDS[si]
+		var spec: Array = seeds[si]
 		var b: Node3D = scene.instantiate()
 		b.set("seed", spec[0])
 		b.set("force_shape", spec[1])
@@ -102,7 +107,7 @@ func _initialize() -> void:
 				var height: float = b.get("height")
 				var mid := Vector3(0.0, height * 0.45, 0.0)
 				var dir := Vector3(0.62, 0.0, 0.78).normalized()
-				cam.position = mid + dir * dist + Vector3(0.0, 2.0 + dist * 0.12, 0.0)
+				cam.position = mid + dir * dist + Vector3(0.0, 2.0 + dist * elev, 0.0)
 				cam.look_at(mid)
 				cam.fov = clampf(2.0 * rad_to_deg(atan(height * 0.7 / dist)), 12.0, 75.0)
 				_show(b, olds, [])
@@ -119,8 +124,11 @@ func _initialize() -> void:
 				var line := ""
 				for kind: String in KINDS:
 					_show(b, olds, [kind])
-					var k := _compare(a, await _grab())
+					var ki := await _grab()
+					var k := _compare(a, ki)
 					line += "  %s %d (%d)" % [kind, k[0], k[2]]
+					if out_dir != "" and k[2] > 0:
+						ki.save_png("%s/b%d_%s_%d_old_%s.png" % [out_dir, si, "n" if night else "d", int(dist), kind])
 				print("PROBE   by kind swapped alone, px differ (> 2/255):%s" % line)
 				if shift_on:
 					# Move the whole scene the way a re-centre does: the building, the camera and
