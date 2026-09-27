@@ -84,6 +84,46 @@ How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every age
   `WorldState.world_offset` back after its second city - both used to throw traffic and far
   chunks hundreds of metres.
 
+## 00a. Crowd animation (2026-09-27, branch `wt/crowd-anim`, VISUAL_ROADMAP #28)
+
+What changed in `Pedestrian` (scripts/npc/pedestrian.gd; the knobs are the "Locomotion" and
+"Head look" export groups):
+- **The clips' real ground speeds were measured** (`tools/crowd/clip_probe.tscn`: how fast a
+  planted foot travels under the in-place clip). The walk is ~0.75 m/s at speed_scale 1 (3
+  strides in its 4.2 s), the run ~2.75; the code assumed 1.3 and 5.0 and multiplied the cadence
+  by a random `_gait`, so every walker's feet slid at ~0.76 m/s. Now `WALK_CLIP_SPEED` 0.8 (the
+  slide minimum in the lab), `RUN_CLIP_SPEED` 2.75, the rate is speed / (clip speed x the
+  build's depth scale), and `_gait` only varies the idle. Walk paces are 1.05-1.5 m/s (the
+  clip's step is 0.5 m; 2.6 m/s would be four steps a second), the panic run 4.4 +-12 %.
+- **Speed is eased** (`_speed`, `walk_accel` / `stop_decel` / `run_accel`) and the body only moves
+  the way it FACES (`_steer()`: capped `turn_rate`, slower into bends); a turn over
+  `pivot_angle` from below `pivot_speed` is stepped round on the spot (`_pivoting`, walk clip at
+  `pivot_cadence`). Pauses are rolled a leg ahead (`_pause_next`) so walkers slow into them;
+  kerb waits turn on the spot (`_turn_on_spot()`).
+- **The clip follows the speed** (`_animate_gait()` / `_set_clip()`): idle, walk, run with
+  hysteresis and cross-fades; walk<->run keeps the same foot (`WALK_LEFT_DOWN`, `RUN_LEFT_DOWN`,
+  `WALK_CYCLES`), a walk starts on a footfall. Past lod_mid swaps cut instead of fading.
+  `_play_walk()` / `_play_run()` are gone; `_play_idle()` stands someone still (staging).
+- **Heads look** (`_post_pose()`, people within `look_range` 26 m only, i.e. strides 1-2): after
+  the clip poses the rig, neck (40 %) and head (60 %) turn to a gunshot/blast (`_scare()` sets
+  `_look_threat` for `look_threat_seconds`), else a car passing within `look_car_range`
+  (`_nearby_cars()`, one shared survey of the `vehicle` group every 15 ticks), else the player
+  within `look_player_range`. Same place scales the arm swing per person about the clip mean
+  (`arm_swing_spread`) and tips `head_down_share` of people's heads down. `RoughSleeper` opts out
+  (`_head_look_ok()`), officers use Avatar and never reach it.
+- Far updates are de-synchronised (`_lod_tick` starts at a random phase), so a crowd spawned
+  together no longer spikes one tick in eight.
+- Checks: `tests/crowd_anim_checks.gd` (start, rate match, about-turn pivot, no sideways
+  motion, idle, head turn). The panic check waits 30 ticks (people now accelerate).
+- Lab: `tools/crowd/crowd_lab.tscn` - MODE=film SCENARIO=turn|start|look|crowd (opengl3 frames),
+  MODE=bench (CPU per physics tick; note Performance.TIME_PHYSICS_PROCESS is the WORST tick of
+  the last second, not a mean - the lab times the tick itself), MODE=skate (planted-foot slide).
+- Cost (median of 3, ms per physics tick per 100 people): near 2.98 -> 3.90, 50 m 1.02 -> 1.09,
+  100 m 0.64 -> 0.74, 200 m 0.40 -> 0.49. The near cost is mostly the head/arm pass (~6 us a
+  person) and steering. Not done: the player's Avatar still uses 1.3 / 5.0 (the player moves at
+  12 m/s, outside any human gait); no foot IK on slopes or kerbs.
+- CLAUDE.md's NPC note still describes the old `_gait` cadence spread; update it when merging.
+
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
 Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The

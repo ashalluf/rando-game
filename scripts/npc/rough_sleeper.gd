@@ -163,6 +163,8 @@ func _ready() -> void:
 	if _anim.has_animation(IDLE_CLIP):
 		_anim.play(IDLE_CLIP, 0.0)
 		_anim.seek(0.6, true)
+		_clip = IDLE_CLIP
+		_speed = 0.0
 	var n := _skel.get_bone_count()
 	_base_rot.resize(n)
 	_base_pos.resize(n)
@@ -392,6 +394,8 @@ func _settle() -> void:
 	if _anim and _anim.has_animation(IDLE_CLIP):
 		_anim.play(IDLE_CLIP, 0.0)
 		_anim.seek(0.6, true)
+		_clip = IDLE_CLIP
+		_speed = 0.0
 	_weight = 1.0
 	_apply(1.0)
 
@@ -421,6 +425,11 @@ func _scare(at: Vector3) -> void:
 
 
 ## True while they hold their pose at their spot (the smoke test reads it).
+## The pose is held over the clip here; turning the head on top of it would fight it.
+func _head_look_ok() -> bool:
+	return false
+
+
 func is_posed() -> bool:
 	return _state == State.POSED or _state == State.COWER
 
