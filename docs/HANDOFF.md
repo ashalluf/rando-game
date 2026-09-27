@@ -38,6 +38,44 @@ Tools added: `tools/terrain_preview/` (mountains top-down in seconds), still_sho
 Cloud sessions cannot be messaged back; read their state with get_session and their shots
 branches. Pushes were blocked by the auto-mode safety check until the owner said to push.
 
+## 000c. Everyday car bodies (2026-09-27, branch `wt/cars-aaa`, VISUAL_ROADMAP #22)
+
+The owner wants "AAA studio PS5 quality"; the Meshy sedan / pickup were crumpled remeshes and the
+Blender sedan on `wt/sedan-body` read as a boxy 1980s car. New: `tools/make_road_cars.py`
+(Blender 4.2 headless, `tools/road_cars_setup.sh` fetches it into `build/car_src/`), three
+original bodies: `road_sedan.glb` (4.95 m fastback, replaces `car_sedan`, also the police
+cruiser: `PoliceCar.DOOR_BAND` now 0.300-0.707), `road_crossover.glb` (4.63 m, NEW
+`BodyType.CROSSOVER`, appended so no index moves, 220 of `BODY_ODDS`' 1000 - the commonest car in
+LA) and `road_pickup.glb` (5.85 m crew cab, replaces `car_pickup`). `car_sedan.glb` /
+`car_pickup.glb` are unreferenced now but still in the tree (delete if the new ones stay).
+- **Method** (what the last attempt got wrong): the shape is profile curves - a side view
+  (roofline, the rail/pillar line, belt, shoulder, sill, floor), a plan view (width) and a few
+  insets - lofted through eight-anchor sections into a quad cage, level-2 subdivision, creased
+  shoulder; everything else is booleans after subdivision (arches, windows, lamp pockets,
+  grilles, 4 mm panel gaps) plus raycast-placed parts. Proportions came from moving the cowl to
+  0.48 m behind the front axle (it started 0.70 m: a long RWD bonnet), a fastback deck of 0.4 m
+  (a 0.76 m deck read as a notchback), a lower nose and a plan-tapered tail. Cycles previews:
+  `--render` (studio gradient, far wheels borrowed for the stance).
+- **Budget**: 50-53k triangles per full model (seven slots, importer LODs) and an ~8k far twin
+  with two surfaces (paint + vertex-coloured parts) drawn past `Vehicle.body_far_distance`
+  (30 m). geo_count at the avenue (`--spawn=2359.4,880,0,12,2`, opengl3 800x600, `AB=BodyModel`):
+  4.23 M tris / 4,059 draws before, 4.06 M / 4,167 after; the car bodies' own share 458k / 127
+  draws -> 267k / 219. The gap cuts were the expensive part (10.6k triangles at 2 cm steps with a
+  box profile; 4 cm steps now).
+- **Traffic floated** (found on the way, fixed): street traffic placed every body 0.55 m over the
+  relief (0.45 m over the road top), the replica lanes 0.55 m over the road, freeway cars 0.71 m
+  over the deck - whatever the body. A parked physics car rests with its origin 0.17-0.30 m over
+  the road, so every traffic car's tyres hung 15-27 cm clear of the asphalt (freeway ~0.5 m).
+  Now `Vehicle.road_lift()` (= -`ride`, measured: `car_shot.gd` prints CONTACT) at every
+  placement; `tests/street_life_checks.gd` checks it. `ride` values for the new bodies are the
+  measured contacts (sedan -0.177, crossover -0.196, pickup -0.206).
+- Booleans are guarded (a result that loses most of the mesh is rolled back and logged) and
+  panel gaps go one strip at a time with the hole-tolerant solver: a union of all strips once
+  deleted a whole body, and V-profile gaps meeting edge on edge left it open for every later cut.
+- Shots: `tools/glshot/car_shot.gd --each=0,8,1 --views=front3,rear3,side,close,far` (one lock
+  wait for a whole set; `--police`, `--night`). Honest verdicts are in the branch report; the
+  crossover's and pickup's faces are the weakest parts (plain egg-crate grilles).
+
 ## 00. START HERE - handoff to the next account (2026-09-25, newest)
 
 The owner ended work on the previous account on 2026-09-25 and asked for this handoff. Read

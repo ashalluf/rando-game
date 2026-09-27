@@ -278,6 +278,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-27 The everyday cars are Blender-built, and the crossover joins the traffic.** The
+  lead's brief for the owner's "AAA studio PS5 quality": the Meshy sedan and pickup were
+  crumpled remeshes. `tools/make_road_cars.py` builds `road_sedan`, `road_crossover` and
+  `road_pickup` as profile-curve lofted subdivision cages (original designs, seven material
+  slots, a two-surface far twin past 30 m). The compact crossover is a new `BodyType.CROSSOVER`,
+  appended to the enum so no stored index changes, at 220 of `BODY_ODDS`' 1000 because it is the
+  commonest car on a Los Angeles street (sedan 250, sports 145, pickup 150, van 115). Traffic
+  cars now stand on the road at their own ride height (`Vehicle.road_lift()`); they floated
+  15-27 cm. Branch `wt/cars-aaa`; see docs/HANDOFF.md 000c.
+
 - **2026-09-25 The port is on San Pedro Bay, and no freeway runs through anything.** Owner:
   "the san pedro pier is in the middle of the damn city with water ... it should be on the east
   side of palos verdes where it is in real life", and "theres freeways in downtown going straight

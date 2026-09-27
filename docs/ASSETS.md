@@ -57,8 +57,8 @@ free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy ta
 
 | Model | Files | Credits | Used for | Added |
 |---|---|---|---|---|
-| Sedan | `assets/models/car_sedan.glb` | 30 (+15 for a first low-poly take) | `Vehicle` body, SEDAN | 2026-09-19 |
-| Pickup | `assets/models/car_pickup.glb` | 30 (+15) | `Vehicle` body, PICKUP | 2026-09-19 |
+| Sedan | `assets/models/car_sedan.glb` | 30 (+15 for a first low-poly take) | nothing since 2026-09-27 (replaced by `road_sedan.glb`) | 2026-09-19 |
+| Pickup | `assets/models/car_pickup.glb` | 30 (+15) | nothing since 2026-09-27 (replaced by `road_pickup.glb`) | 2026-09-19 |
 | Van | `assets/models/car_van.glb` | 30 (+15) | `Vehicle` body, VAN | 2026-09-19 |
 | Sports | `assets/models/car_sports.glb` | 30 (+15) | `Vehicle` body, SPORTS | 2026-09-19 |
 | Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 44 (+29) | `Pedestrian` | 2026-09-19 |
@@ -191,6 +191,9 @@ class instead.
 | `tools/make_exotic_hyper.py` | `exo_hyper_b.glb` | 0.9 MB | `BodyType.TRACK` | 2026-09-21 |
 | `tools/make_hifi_super.py` | `hifi_super_coupe.glb` | 223k tris, 4.9 MB | not wired in yet | 2026-09-21 |
 | `tools/make_hifi_hyper.py` | `hifi_hyper_coupe.glb` | 217k tris, 5.7 MB | not wired in yet | 2026-09-21 |
+| `tools/make_road_cars.py` | `road_sedan.glb` | 53k tris + 8k far twin | `BodyType.SEDAN` (and the police cruiser) | 2026-09-27 |
+| `tools/make_road_cars.py` | `road_crossover.glb` | 50k tris + 8k far twin | `BodyType.CROSSOVER` | 2026-09-27 |
+| `tools/make_road_cars.py` | `road_pickup.glb` | 51k tris + 8k far twin | `BodyType.PICKUP` | 2026-09-27 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position
@@ -205,6 +208,14 @@ That last one matters. The `exo_*` bodies have no wheel arches at all - their ow
 the front tyre standing 11.8 cm proud of the bodywork with bare sky above its outer 12 cm, and
 called it "wheels bolted onto the outside of a slab". Anything new should follow the `hifi_*`
 method.
+
+The `road_*` bodies (2026-09-27) are the everyday cars: original generic 2020s designs (a
+midsize fastback sedan, a compact crossover, a crew-cab full-size pickup), no source asset at
+all - Blender 4.2 run headless on our own script (`tools/road_cars_setup.sh` fetches it). They
+are the `hifi_*` idea with the shape driven by profile curves (side view, plan view, section
+insets) instead of a key table, the arches, windows, pockets and panel gaps cut after
+subdivision, a seventh slot (`chrome`), no wheel in the full model (the game draws its generated
+wheels there) and a two-surface far twin with the far wheel (see CLAUDE.md, car paint note).
 
 Every car model must expose these six material slots, because `Vehicle._add_body_model()` binds
 by name: `paint`, `glass`, `trim`, `tyre`, `light_front`, `light_rear`. Only bodywork goes in

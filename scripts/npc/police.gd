@@ -924,7 +924,7 @@ func _dispatch() -> void:
 	else:
 		p.y += lane
 	var h := traffic._relief(p) if traffic else (plan.macro.relief_at(p) if plan.macro else 0.0)
-	_enter_at(car, Transform3D(Basis(Vector3.UP, car._heading(pick[0], pick[2])), WorldState.to_local(Vector3(p.x, 0.55 + h, p.y))))
+	_enter_at(car, Transform3D(Basis(Vector3.UP, car._heading(pick[0], pick[2])), WorldState.to_local(Vector3(p.x, h + CityChunk.ROAD_TOP + car.road_lift(), p.y))))
 	cruisers.append(car)
 	dispatched += 1
 

@@ -1082,8 +1082,12 @@ static func foliage_textured(src: StandardMaterial3D, blossom: Color = Color.TRA
 ## five MeshInstance3D per car across a hundred and fifty cars. Colours ride in the vertex
 ## colour; see shaders/light_pool.gdshader. `y` is the lamps' height and `ground` the road's,
 ## both in the car's body space (a body's `ride`: its model's bottom is on the road).
-static func vehicle_lights(width: float, length: float, y: float, ground: float = -0.24) -> Mesh:
-	var key := "car_lights_%.2f_%.2f_%.2f_%.2f" % [width, length, y, ground]
+## `tail_y` is the tail lamps' height when it is not the headlamps' (a modern car carries its
+## tail lamps a good 25 cm higher).
+static func vehicle_lights(width: float, length: float, y: float, ground: float = -0.24, tail_y: float = NAN) -> Mesh:
+	if is_nan(tail_y):
+		tail_y = y
+	var key := "car_lights_%.2f_%.2f_%.2f_%.2f_%.2f" % [width, length, y, ground, tail_y]
 	if _cache.has(key):
 		return _cache[key]
 	var st := SurfaceTool.new()
@@ -1093,7 +1097,7 @@ static func vehicle_lights(width: float, length: float, y: float, ground: float 
 	for side: float in [-1.0, 1.0]:
 		var x := side * (width * 0.5 - 0.26)
 		_light_quad(st, Vector3(x, y, -length * 0.5 - 0.06), Vector3(0.62, 0.0, 0.0), Vector3(0.0, 0.34, 0.0), head)
-		_light_quad(st, Vector3(x, y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail)
+		_light_quad(st, Vector3(x, tail_y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail)
 	# The beam on the road: a wide wedge lying flat in front of the car.
 	# Its UVs sit in 2..3 instead of 0..1, which is how light_pool.gdshader tells it from a
 	# round lamp pool and draws a fan instead of a blob.

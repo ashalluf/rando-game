@@ -200,6 +200,18 @@ func _red_and_green() -> void:
 	_check(all_stopped and not over_line and float(front.along) + float(front.half) > line - 3.0,
 		"a car stops at the red and the queue waits behind it (front nose %.1f m short of the line, over it %s)" % [line - float(front.along) - float(front.half), over_line])
 	_check(worst > -0.05 and worst < 6.0, "a fast car does not drive through the stopped queue (tightest gap %.2f m)" % worst)
+	# Each car stands on the asphalt at its own ride height (Vehicle.road_lift()): traffic used to
+	# place every body a flat 0.45 m over the road top, so the tyres hung 15-27 cm clear of it.
+	var space := queue[0].get_world_3d().direct_space_state
+	var worst_lift := 0.0
+	for car in queue:
+		var p: Vector3 = car.global_position
+		var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(p + Vector3.UP * 0.2, p + Vector3.DOWN * 2.0, 1))
+		if hit.is_empty():
+			worst_lift = INF
+			continue
+		worst_lift = maxf(worst_lift, absf(p.y - (hit.position as Vector3).y - car.road_lift()))
+	_check(worst_lift < 0.04, "street traffic stands on the road at its own ride height (worst %.3f m off)" % worst_lift)
 	TrafficSignals.force(_plan, node.x, node.y, CityPlan.AXIS_X, TrafficSignals.Light.GREEN, 0.2)
 	var went := false
 	for i in 60 * 6:

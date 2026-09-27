@@ -117,8 +117,9 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   People are the one exception because no CC0 source has realistic rigged humans: Poly Haven
   has none and Quaternius' are stylised low-poly, which breaks the realism rule. Generate
   characters at `--polycount 16000` - the default 8000 is what made the first three look
-  blocky - with a `--texture-prompt` for skin and fabric. The existing
-  cars, pedestrians and jets were made with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
+  blocky - with a `--texture-prompt` for skin and fabric. The van, the sports car,
+  pedestrians and jets were made with the owner's Meshy account (the sedan, crossover and pickup
+  are now Blender-built, see the car paint note): `python3 tools/meshy.py gen <name> "<prompt>"
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
   `python3 tools/shrink_glb.py assets/models/<name>.glb` (a hard-surface model like a car also
   gets `python3 tools/smooth_normals.py assets/models/<name>.glb`, see the car paint note), commit the `.glb`, its `.json`, the
@@ -167,7 +168,7 @@ scripts/               player, weapons, world, vehicles, npc, util, ui
 shaders/
 assets/                textures/ (CC0 sets) and models/ (Meshy .glb + .json)
 tests/                 headless smoke test and check script
-tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (screenshot harness)
+tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_cars.py, webshot/ (screenshot harness)
 ```
 
 ## Conventions
@@ -299,16 +300,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   every level: TAA at native resolution, FSR 2.2 when `Quality` upscales. MSAA stays off (it
   costs a lot and does nothing for shader aliasing). Car paint is a metallic basecoat under a
   clearcoat lobe with flake (`shaders/car_paint.gdshader`). The single-texture bodies mark
-  glass by a dark texel, but the sedan, pickup and van textures do not (the van's darkest 5 %
-  is 0.49), so those find glass by shape - above `Vehicle.GEO_GLASS_BELTLINE`, tilted between
+  glass by a dark texel, but the van's texture does not (its darkest 5 %
+  is 0.49), so it finds glass by shape - above `Vehicle.GEO_GLASS_BELTLINE`, tilted between
   roof and door skin - or every white car was one pale ice-sculpture shape. That was only half of
   it: the other half was the sky. The radiance map is what every lacquer, window and puddle
   mirrors, and the drawn sky fades to haze over 27 degrees below the horizon, so every car door
   (which faces a little downward) mirrored pale-blue sky - a dark red pickup read as ice-blue,
   and with the clearcoat off the same car was dark red. `sky.gdshader` now puts the street
   (`reflect_ground`, a warm grey following the horizon's brightness) under the horizon in the
-  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The four Meshy bodies
-  (sedan, pickup, van, sports) were also flat-shaded: ~8k-triangle remeshes exported with the
+  cubemap pass only (`AT_CUBEMAP_PASS`); the sky you see is unchanged. The Meshy bodies
+  (van, sports; the sedan and pickup were too) were also flat-shaded: ~8k-triangle remeshes exported with the
   normals split at 30 degrees and along every UV seam, so a curved wing was a set of facets and
   the lacquer mirrored each one. `tools/smooth_normals.py` (run once on the `.glb`, then
   `--import`) re-smooths them by angle: triangles joined through bends under 45 degrees share
@@ -317,7 +318,32 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   creases on purpose; leave them. Smooth normals drift slowly through the glass slope band, so
   the geometric glass test blends over one pixel (`fwidth`), not a fixed 0.04, and
   `Vehicle.GEO_GLASS_SPAN` keeps the van's glass to its cab - its flanks behind the cab turn
-  in like side glass and became one long dark smudge. The basecoat metallic is
+  in like side glass and became one long dark smudge. **The everyday bodies - sedan, compact
+  crossover (`BodyType.CROSSOVER`, the commonest car in `BODY_ODDS`), full-size pickup - are
+  Blender-built** by `tools/make_road_cars.py` (`tools/road_cars_setup.sh` fetches Blender 4.2
+  into the ignored `build/car_src/`; run it `blender -b --factory-startup -P
+  tools/make_road_cars.py -- sedan crossover pickup [--render]`, then `--import`). The shape is
+  PROFILE CURVES (side view: roofline, rail/pillar line, belt, shoulder, sill, floor; plan view:
+  width; insets for the shoulder shelf, tumblehome and sill tuck) lofted through eight-anchor
+  sections into a quad cage, capped by a rolled rim and a domed Coons patch, subdivided at
+  level 2 with a creased shoulder. The rail anchor IS the glasshouse line (roof side, A- and
+  C-pillar), so windows are regions between rings. Arches, windows, lamp pockets, grilles and
+  4 mm panel gaps are booleans after subdivision (guarded: a result that loses most of the mesh
+  is rolled back and logged; gaps are cut one strip at a time with the hole-tolerant solver -
+  a union of strips, or V-profiles meeting edge on edge, left the body open and every later
+  cut deleted the car). Glass, lamps, mirrors, handles, trims are separate parts placed by
+  raycast. Seven slots (`paint`, `glass`, `trim`, `chrome`, `tyre`, `light_front`,
+  `light_rear`); only `paint*` takes the paint shader, and on Compatibility `chrome` is swapped
+  for a satin grey (`Vehicle._part_material()`, a metal has nothing to mirror there). Each .glb
+  also holds a `<name>_far` twin (~8k triangles, `paint_far` + one vertex-coloured `parts`
+  surface, `Vehicle.PARTS_SHADER`) drawn past `Vehicle.body_far_distance` (30 m) - seven
+  surfaces are seven draws plus seven depth pre-pass draws a car - and only the twin has a baked
+  wheel (WHEEL_POSE `"baked"`: no runtime tuck). `ride` in `_dims()` is where the physics wheels
+  touch the road in body space, and traffic places its kinematic cars `Vehicle.road_lift()`
+  (= -ride) over the road (a flat 0.55 m once made every traffic car float 15-27 cm);
+  `tools/glshot/car_shot.gd` prints it (CONTACT) for a parked car
+  and shoots front3/rear3/side/close/far views of any types in one launch (`--each=0,8,1`).
+  The basecoat metallic is
   kept low (`Vehicle.FINISHES`): the mirror is the lacquer's job. `Vehicle.PAINTS` is weighted the way
   a real car park looks (mostly white/black/grey/silver). Grass is tapered curved blades whose
   normals are bent toward up so a lawn lights as a carpet, not as a pile of lit slivers.

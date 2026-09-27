@@ -3,34 +3,39 @@ extends VehicleBody3D
 ## Arcade car: bouncy, grippy, overpowered, with a nitro. Built from boxes in code with a body
 ## type, a paint color and an optional add-on. Press interact next to it to drive.
 
-enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK }
+## CROSSOVER is last so every older index (and every seed that rolled one) keeps its meaning.
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
-const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS"]
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
-	BodyType.SEDAN: "res://assets/models/car_sedan.glb",
-	BodyType.PICKUP: "res://assets/models/car_pickup.glb",
+	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
+	BodyType.PICKUP: "res://assets/models/road_pickup.glb",
 	BodyType.VAN: "res://assets/models/car_van.glb",
 	BodyType.SPORTS: "res://assets/models/car_sports.glb",
 	BodyType.SUPER: "res://assets/models/hifi_super_coupe.glb",
 	BodyType.SPIDER: "res://assets/models/exo_super_spider.glb",
 	BodyType.HYPER: "res://assets/models/hifi_hyper_coupe.glb",
 	BodyType.TRACK: "res://assets/models/exo_hyper_b.glb",
+	BodyType.CROSSOVER: "res://assets/models/road_crossover.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for the single-texture
 ## bodies whose texture does not darken the windows, so the paint shader finds glass by shape.
-const GEO_GLASS_BELTLINE := {BodyType.SEDAN: 0.58, BodyType.PICKUP: 0.60, BodyType.VAN: 0.52}
+const GEO_GLASS_BELTLINE := {BodyType.VAN: 0.52}
 ## The stretch of the body's length (0..1 in model space, which for the van runs nose to tail)
 ## that has side glass: the van is a panel van, glazed only round the cab.
 const GEO_GLASS_SPAN := {BodyType.VAN: Vector2(0.0, 0.36)}
 ## How often each body type turns up, in parts per thousand. Exotics are deliberately rare: a
 ## street where every fourth car is a hypercar reads as a toy box, and the whole reason they land
 ## is that they are unusual. Must sum to 1000.
+## The compact crossover is the commonest car on a Los Angeles street, so it takes the largest
+## share, mostly from the sports car and the van.
 const BODY_ODDS := {
-	BodyType.SEDAN: 300, BodyType.PICKUP: 190, BodyType.VAN: 175, BodyType.SPORTS: 215,
+	BodyType.SEDAN: 250, BodyType.PICKUP: 150, BodyType.VAN: 115, BodyType.SPORTS: 145,
 	BodyType.SUPER: 45, BodyType.SPIDER: 25, BodyType.HYPER: 30, BodyType.TRACK: 20,
+	BodyType.CROSSOVER: 220,
 }
 ## Where a generated wheel sits in body space, per body type: `x` half-track, `front` / `rear`
 ## the axle positions along the car, `y` the hub height, `r` the tyre radius and `w` the section
@@ -44,14 +49,15 @@ const BODY_ODDS := {
 ## ride height, and a centimetre out reads as a flat tyre or a floating car - so change it from a
 ## --spawn shot of a parked car, not from arithmetic.
 const WHEEL_POSE := {
-	BodyType.SEDAN: {"x": 0.786, "front": -1.503, "rear": 1.378, "y": 0.093, "r": 0.330, "w": 0.230, "cut": true, "cut_r": 0.342},
-	BodyType.PICKUP: {"x": 0.847, "front": -1.788, "rear": 1.306, "y": 0.225, "r": 0.390, "w": 0.260, "cut": true, "cut_r": 0.402},
+	BodyType.SEDAN: {"x": 0.797, "front": -1.495, "rear": 1.335, "y": 0.168, "r": 0.345, "w": 0.235, "baked": true},
+	BodyType.PICKUP: {"x": 0.880, "front": -1.895, "rear": 1.705, "y": 0.184, "r": 0.390, "w": 0.260, "baked": true},
 	BodyType.VAN: {"x": 0.816, "front": -1.656, "rear": 1.539, "y": 0.175, "r": 0.360, "w": 0.230, "cut": true, "cut_r": 0.372},
 	BodyType.SPORTS: {"x": 0.803, "front": -1.400, "rear": 1.307, "y": 0.066, "r": 0.330, "w": 0.245, "cut": true, "cut_r": 0.344},
 	BodyType.SUPER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
 	BodyType.SPIDER: {"x": 0.850, "front": -1.320, "rear": 1.320, "y": -0.040, "r": 0.355, "w": 0.250, "rw": 0.295},
 	BodyType.HYPER: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
 	BodyType.TRACK: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
+	BodyType.CROSSOVER: {"x": 0.800, "front": -1.351, "rear": 1.339, "y": 0.164, "r": 0.360, "w": 0.230, "baked": true},
 }
 ## The sizes above deliberately land on six distinct (radius, section width) pairs across the
 ## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
@@ -71,7 +77,7 @@ const MODEL_OWN_WHEELS := [BodyType.SUPER, BodyType.HYPER]
 ## Extra yaw per model so its nose points at -Z (Meshy models come out along +X or -X).
 ## All four models come out of Meshy with the nose along +X; -PI/2 puts the nose at -Z, which is
 ## the physics forward (owner, 2026-09-20: traffic drove backwards with +PI/2).
-const MODEL_YAW := {BodyType.SEDAN: -PI * 0.5, BodyType.PICKUP: -PI * 0.5, BodyType.VAN: -PI * 0.5, BodyType.SPORTS: -PI * 0.5}
+const MODEL_YAW := {BodyType.VAN: -PI * 0.5, BodyType.SPORTS: -PI * 0.5}
 const PAINT_SHADER := preload("res://shaders/car_paint.gdshader")
 
 ## How the paint is built, not what colour it is. The clearcoat shader can express all of these
@@ -229,6 +235,11 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 ## How far over the road a model car's collision starts (m): its underbody, with room left for
 ## the suspension to compress on a landing before the box meets the road.
 @export var collision_clearance: float = 0.34
+## Past this many metres a body with a far twin (the road_* bodies: two surfaces, ~7k triangles,
+## every part but the paint in one vertex-coloured surface) draws that instead of its full model
+## (seven surfaces, ~50k triangles with its own LODs). Seven surfaces are seven draws, and seven
+## more in the depth pre-pass, per car.
+@export var body_far_distance: float = 30.0
 ## Past this many meters a livery's roof prop (taxi sign, van vent, amber beacon) stops drawing.
 ## It is one draw call per car and at that range it is a couple of pixels.
 @export var livery_prop_distance: float = 140.0
@@ -468,6 +479,15 @@ func exit_candidates() -> Array[Vector3]:
 		base + fwd * 4.0,
 		global_position + Vector3.UP * 2.5,
 	]
+
+
+## How high this car's origin sits over the road when it rests on its springs: -`ride`, the
+## body-space height of the road under a parked car (tools/glshot/car_shot.gd prints it).
+## Traffic places its kinematic cars this high over the road. They used to go a flat 0.55 m over
+## the relief (0.45 m over the road top, 0.71 m over a freeway deck) whatever the body, so every
+## street car's tyres hung 15-27 cm clear of the asphalt and every freeway car's ~0.5 m.
+func road_lift() -> float:
+	return -float(_dims().get("ride", model_bottom_y))
 
 
 func is_traffic() -> bool:
@@ -773,8 +793,11 @@ static func _shared_box(key: StringName, size: Vector3, mat: Material) -> BoxMes
 func _add_night_lights(dims: Dictionary) -> void:
 	var node := MeshInstance3D.new()
 	node.name = "NightLights"
-	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, 0.55 + dims.chassis_h * 0.62,
-			float(dims.get("ride", model_bottom_y)))
+	# "lamp_y" / "tail_y" where a body's own lamps are known (the road_* bodies, whose generator
+	# prints them); the old formula put the glow a metre up on a model car.
+	var lamp_y := float(dims.get("lamp_y", 0.55 + dims.chassis_h * 0.62))
+	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, lamp_y,
+			float(dims.get("ride", model_bottom_y)), float(dims.get("tail_y", lamp_y)))
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# One node per car rather than five: with a hundred and fifty cars on the road the separate
 	# quads were several hundred draw calls on their own. Past this distance the car is a few
@@ -811,7 +834,9 @@ func _add_generated_wheels() -> void:
 	# model to hand over to - their arches were simply empty before this - so theirs have to keep
 	# drawing, and the far mesh is cheap enough that letting the rarest eighth of the fleet run
 	# to two and a half times the distance costs a handful of draws.
-	_wheel_far_end = wheel_draw_distance if bool(pose.get("cut", false)) else wheel_draw_distance * 2.6
+	# "baked": the road_* bodies carry their far wheel in the far twin only (no tuck needed).
+	var handed_over := bool(pose.get("cut", false)) or bool(pose.get("baked", false))
+	_wheel_far_end = wheel_draw_distance if handed_over else wheel_draw_distance * 2.6
 	_wheel_meshes = []
 	for front: bool in [true, false]:
 		var w: float = float(pose.w) if front else float(pose.get("rw", pose.w))
@@ -963,6 +988,10 @@ func _make_body_shadows() -> void:
 		twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 		twin.lod_bias = BODY_SHADOW_LOD_BIAS
 		twin.custom_aabb = m.custom_aabb
+		# The shadow hands over with the body: a near model's twin stops where its far twin
+		# starts, or both cast from 30 m to the shadow distance.
+		twin.visibility_range_begin = m.visibility_range_begin
+		twin.visibility_range_end = m.visibility_range_end
 		m.add_child(twin)
 		_body_shadows.append(twin)
 
@@ -1061,7 +1090,9 @@ func _focus_point() -> Vector3:
 func _dims() -> Dictionary:
 	match body_type:
 		BodyType.PICKUP:
-			return {"length": 5.4, "width": 2.0, "chassis_h": 0.8, "cabin": Vector2(-1.4, 1.8), "cabin_h": 0.75, "wheel_z": 1.75, "track": 1.72, "tyre_r": 0.37, "ride": -0.16}
+			return {"length": 5.854, "width": 2.03, "lamp_y": 0.84, "tail_y": 0.90, "chassis_h": 0.8, "cabin": Vector2(-1.4, 1.8), "cabin_h": 0.75, "wheel_z": 1.75, "track": 1.72, "tyre_r": 0.37, "ride": -0.206}
+		BodyType.CROSSOVER:
+			return {"length": 4.633, "width": 1.86, "lamp_y": 0.65, "tail_y": 0.85, "chassis_h": 0.75, "cabin": Vector2(-1.1, 2.6), "cabin_h": 0.8, "wheel_z": 1.34, "track": 1.60, "tyre_r": 0.36, "ride": -0.196}
 		BodyType.VAN:
 			return {"length": 5.2, "width": 2.0, "chassis_h": 0.8, "cabin": Vector2(-2.0, 4.4), "cabin_h": 1.2, "wheel_z": 1.65, "track": 1.70, "tyre_r": 0.35, "ride": -0.18}
 		BodyType.SPORTS:
@@ -1071,7 +1102,10 @@ func _dims() -> Dictionary:
 		BodyType.HYPER, BodyType.TRACK:
 			return {"length": 4.6, "width": 2.02, "chassis_h": 0.48, "cabin": Vector2(-0.6, 1.5), "cabin_h": 0.48, "wheel_z": 1.35, "track": 1.74, "tyre_r": 0.36, "ride": -0.35}
 		_:
-			return {"length": 4.8, "width": 1.9, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.24}
+			# The sedan. length / width / lamp heights are the model's own
+			# (tools/make_road_cars.py prints them), so it is drawn at scale 1; the physics
+			# numbers are the old ones, which the handling and the smoke test's drives are tuned on.
+			return {"length": 4.946, "width": 1.84, "lamp_y": 0.453, "tail_y": 0.775, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.177}
 
 
 func _add_wheel(pos: Vector3, front: bool) -> void:
@@ -1110,9 +1144,17 @@ func _add_body_model(length: float) -> bool:
 	var aabb := AABB()
 	var first := true
 	var painted_mats: Array[ShaderMaterial] = []
+	# One paint material per car, shared by the full model and its far twin.
+	var painted: ShaderMaterial = null
+	var near_meshes: Array[MeshInstance3D] = []
+	var far_mesh: MeshInstance3D = null
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		_body_meshes.append(m)
+		if String(m.name).ends_with("_far"):
+			far_mesh = m
+		else:
+			near_meshes.append(m)
 		var box := m.mesh.get_aabb()
 		aabb = box if first else aabb.merge(box)
 		first = false
@@ -1129,12 +1171,20 @@ func _add_body_model(length: float) -> bool:
 			# A multi-slot body paints only the slot called "paint"; a single-slot body is a
 			# Meshy car and the one surface IS the bodywork.
 			if m.mesh.get_surface_count() > 1 and not String(sm.resource_name).begins_with("paint"):
+				var part := _part_material(sm)
+				if part != null:
+					m.set_surface_override_material(si, part)
 				continue
-			var painted := _paint_material(sm.albedo_texture, sm.normal_texture)
-			painted_mats.append(painted)
+			if painted == null or m.mesh.get_surface_count() == 1:
+				painted = _paint_material(sm.albedo_texture, sm.normal_texture)
+				painted_mats.append(painted)
 			m.set_surface_override_material(si, painted)
 	if first:
 		return false
+	if far_mesh != null:
+		far_mesh.visibility_range_begin = body_far_distance
+		for m in near_meshes:
+			m.visibility_range_end = body_far_distance
 	# Longest horizontal axis is the length; scale so it matches our chassis.
 	var along_x := aabb.size.x >= aabb.size.z
 	var model_len := aabb.size.x if along_x else aabb.size.z
@@ -1219,6 +1269,49 @@ func _tuck_model_wheels(inst: Node3D) -> void:
 		# it through the spokes from any angle the player can stand at.
 		m.mesh = PropFactory.tuck_body_wheels(m.mesh, key, to_body, cuts,
 				minf(disc_r * 0.88 / maxf(r, 0.01), 0.45), 0.15, gen_hw * 0.90)
+
+
+const PARTS_SHADER := """
+shader_type spatial;
+render_mode cull_back;
+// Vertex colours from the glTF are linear already.
+void fragment() {
+	ALBEDO = COLOR.rgb;
+	ROUGHNESS = clamp(COLOR.a, 0.04, 1.0);
+	METALLIC = 0.0;
+	SPECULAR = 0.5;
+}
+"""
+
+
+## The shared stand-in for a multi-slot body's part material, or null to keep the model's own.
+## Chrome is a mirror on Forward+, and the Compatibility renderer (the web build and every
+## opengl3 screenshot) has no radiance map for a metal to reflect, so there it comes back black:
+## a bright satin grey stands in. Built once per slot and shared by every car.
+static var _part_mats: Dictionary = {}
+
+
+static func _part_material(src: StandardMaterial3D) -> Material:
+	var slot := String(src.resource_name)
+	if slot == "parts":
+		# A far twin's folded parts: albedo in the vertex colour, roughness in its alpha.
+		if not _part_mats.has(slot):
+			var sh := Shader.new()
+			sh.code = PARTS_SHADER
+			var pm := ShaderMaterial.new()
+			pm.shader = sh
+			_part_mats[slot] = pm
+		return _part_mats[slot]
+	if slot != "chrome" or PropFactory.has_reflections():
+		return null
+	if not _part_mats.has(slot):
+		var m := StandardMaterial3D.new()
+		m.resource_name = slot
+		m.albedo_color = Color(0.70, 0.71, 0.73)
+		m.metallic = 0.0
+		m.roughness = 0.28
+		_part_mats[slot] = m
+	return _part_mats[slot]
 
 
 ## One car's paint: the base colour, the finish's uniform set and the livery graphic. Every car
