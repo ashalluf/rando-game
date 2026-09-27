@@ -29,6 +29,12 @@ const CAR_PAINTS := [Color(0.92, 0.92, 0.9), Color(0.92, 0.92, 0.9), Color(0.08,
 static var _car_cache: Dictionary = {}
 
 
+## What a bed is planted with under its shrubs: low green ground cover (the lawn shader, drier
+## and without mower stripes). Bare dark soil read as empty boxes from across the street.
+static func ground_cover() -> Material:
+	return PropFactory.lawn(Color(0.36, 0.48, 0.24), 6173, 0.45, 0.0)
+
+
 static func _concrete(y0: float) -> ShaderMaterial:
 	return LandmarkMats.facade("grounds_concrete", "concrete", 3.5,
 		{"tint": Color(0.78, 0.77, 0.74), "roughness": 0.88, "joint_spacing": Vector2(GARAGE_BAY, GARAGE_STOREY), "joint_width": 0.025,
@@ -292,7 +298,7 @@ static func _edge_point(r: Rect2, side: int, f: float, inset: float) -> Vector2:
 static func bed(g: LandmarkGeo, batch: MultiMeshBatch, statics: StaticBody3D, r: Rect2, y0: float, seed_value: int,
 		tree_every: float = 11.0, palms: bool = false, benches: bool = true) -> void:
 	g.use("bed_kerb", _concrete(y0))
-	g.use("bed_soil", LandmarkMats.plain("bed_soil", Color(0.24, 0.19, 0.14), 0.95))
+	g.use("bed_soil", ground_cover())
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var h := 0.5
@@ -644,7 +650,7 @@ static func surface_lot(g: LandmarkGeo, batch: MultiMeshBatch, pivot: Node3D, r:
 	g.use("lot_asphalt", LandmarkMats.paving("asphalt", 4.0, Color(0.6, 0.6, 0.61), seed_value, 0.0, 0.45))
 	g.use("gar_paint", LandmarkMats.plain("gar_paint", Color(0.92, 0.9, 0.84), 0.7))
 	g.use("bed_kerb", _concrete(y0))
-	g.use("bed_soil", LandmarkMats.plain("bed_soil", Color(0.24, 0.19, 0.14), 0.95))
+	g.use("bed_soil", ground_cover())
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	g.cap("lot_asphalt", LandmarkGeo.ccw(LandmarkArenaDistrict._rect_poly(r)), y0 + 0.045)
