@@ -151,9 +151,17 @@ float hill_stand_edge(float fine_fade, float bush_fade, float mid_fade) {
 }
 
 
-// The 1.1 m octave's fade (terrain.gdshader's leaf clumps, the same noise).
+// The 3 m bushes' fade: from ~11 pixels a cell to gone at ~3 (it ran out to 1.7, and the cells
+// showed as squares on the way).
+float hill_bush_fade(float fw) {
+	return 1.0 - smoothstep(0.3, 1.2, fw);
+}
+
+
+// The 1.1 m octave's fade: gone once a cell is under ~4 pixels. Faded like the leaf clumps'
+// relief (0.12..0.5) it aliased into a field of square blocks at a stand's edge from the air.
 float hill_fine_fade(float fw) {
-	return 1.0 - smoothstep(0.12, 0.5, fw);
+	return 1.0 - smoothstep(0.08, 0.3, fw);
 }
 
 
@@ -164,8 +172,11 @@ float hill_mid_fade(float fw) {
 
 
 // The chaparral stand alone, with the gaps between its bushes where the straw shows through.
+// The edge also widens by how fast the stand noise changes from one pixel to the next, so where an
+// octave is on its way out the threshold blurs instead of cutting the noise's cells into squares.
 float hill_stand(float th, float stand, float bush, float edge) {
-	return smoothstep(th + edge, th - edge, stand) * smoothstep(0.12, 0.3, bush);
+	float e = edge + fwidth(stand) * 0.7;
+	return smoothstep(th + e, th - e, stand) * smoothstep(0.12, 0.3, bush);
 }
 
 
