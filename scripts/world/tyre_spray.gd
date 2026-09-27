@@ -102,12 +102,15 @@ func _process(delta: float) -> void:
 		_scan(wet)
 	for i in _pool.size():
 		var p := _pool[i]
-		var car: Node3D = _cars[i]
-		if car == null or not is_instance_valid(car) or not car.is_inside_tree() or wet <= 0.0:
+		# Untyped until checked: assigning a freed car (its chunk streamed out) to a typed variable
+		# is a script error of its own, before is_instance_valid() gets to look at it.
+		var held: Variant = _cars[i]
+		if not is_instance_valid(held) or not (held as Node3D).is_inside_tree() or wet <= 0.0:
 			if p.emitting:
 				p.emitting = false
 			_cars[i] = null
 			continue
+		var car: Node3D = held
 		var speed: float = _speed.get(car.get_instance_id(), 0.0)
 		var amount := wet * clampf((speed - min_speed) / maxf(full_speed - min_speed, 0.1), 0.0, 1.0)
 		var rear := 1.4

@@ -200,8 +200,9 @@ func _ready() -> void:
 		if not is_instance_valid(mi) or mi.mesh == null:
 			continue
 		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D
-		if src and src.albedo_texture:
+		if src and src.albedo_texture and not is_hair(mi):
 			mi.material_override = worn_material(src.albedo_texture, _look)
+	plain_hair(_visual, WORN_HAIR)
 	_fit_shape()
 	if _skel == null or _anim == null:
 		return
@@ -620,13 +621,18 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 			for node in doll._rig.find_children("*", "MeshInstance3D", true, false):
 				var mi := node as MeshInstance3D
 				var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh else null
-				if src and src.albedo_texture and mi.skin:
+				if src and src.albedo_texture and mi.skin and not is_hair(mi):
 					mi.material_override = worn_material(src.albedo_texture, _look)
+			plain_hair(doll._rig, WORN_HAIR)
 
 
 ## A crowd look worn down by months outdoors: the garments muted to greys, browns and faded
 ## darks, grime through the cloth (heaviest at the cuffs, the knees and the seat), rougher. The
 ## person's own face, skin and hair are left exactly as they are.
+## How dull and dry a crowd rig's hair cards go on someone living outdoors (Pedestrian.plain_hair).
+const WORN_HAIR := 0.6
+
+
 static func worn_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	var key := "%d_%d" % [albedo.get_instance_id(), look]
 	if _worn.has(key):

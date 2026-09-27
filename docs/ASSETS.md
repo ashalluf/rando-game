@@ -61,18 +61,18 @@ free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy ta
 | Pickup | `assets/models/car_pickup.glb` | 30 (+15) | `Vehicle` body, PICKUP | 2026-09-19 |
 | Van | `assets/models/car_van.glb` | 30 (+15) | `Vehicle` body, VAN | 2026-09-19 |
 | Sports | `assets/models/car_sports.glb` | 30 (+15) | `Vehicle` body, SPORTS | 2026-09-19 |
-| Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 44 (+29) | `Pedestrian` | 2026-09-19 |
+| Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 44 (+29) | **unused** | 2026-09-19 |
 | Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 44 (+29) | **unused** | 2026-09-19 |
-| Pedestrian C (older man, shirt) | `pedestrian_c.glb`, `pedestrian_c_anim.glb` (same clips) | 44 (+29) | `Pedestrian` | 2026-09-19 |
-| Pedestrian D (young man, vest, white sneakers) | `pedestrian_d_anim.glb` (rigged, same clips, 16k faces) | 44 | `Pedestrian`, the player's body | 2026-09-22 |
-| Pedestrian E (woman, denim jacket) | `pedestrian_e_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
-| Pedestrian F (older man, grey suit) | `pedestrian_f_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
-| Pedestrian G (woman, white top, ponytail) | `pedestrian_g_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
-| Pedestrian H (older man, jacket, khakis) | `pedestrian_h_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
-| Pedestrian I (young man, cap) | `pedestrian_i_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
-| Pedestrian J (Black man, grey hoodie, jeans) | `pedestrian_j_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
-| Pedestrian K (Black woman, yellow blazer) | `pedestrian_k_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
-| Pedestrian L (Latino man, navy shirt, cargo trousers) | `pedestrian_l_anim.glb` (same) | 44 | `Pedestrian` | 2026-09-22 |
+| Pedestrian C (older man, shirt) | `pedestrian_c.glb`, `pedestrian_c_anim.glb` (same clips) | 44 (+29) | **unused** | 2026-09-19 |
+| Pedestrian D (young man, vest, white sneakers) | `pedestrian_d_anim.glb` (rigged, same clips, 16k faces) | 44 | the clip source the hero and the crowd are retargeted from (not loaded since 2026-09-27) | 2026-09-22 |
+| Pedestrian E (woman, denim jacket) | `pedestrian_e_anim.glb` (same) | 44 | **unused** since 2026-09-27 (the crowd below) | 2026-09-22 |
+| Pedestrian F (older man, grey suit) | `pedestrian_f_anim.glb` (same) | 44 | **unused** since 2026-09-27 (the crowd below) | 2026-09-22 |
+| Pedestrian G (woman, white top, ponytail) | `pedestrian_g_anim.glb` (same) | 44 | **unused** since 2026-09-27 (the crowd below) | 2026-09-22 |
+| Pedestrian H (older man, jacket, khakis) | `pedestrian_h_anim.glb` (same) | 44 | **unused** since 2026-09-27 (the crowd below) | 2026-09-22 |
+| Pedestrian I (young man, cap) | `pedestrian_i_anim.glb` (same) | 44 | **unused** since 2026-09-27 (the crowd below) | 2026-09-22 |
+| Pedestrian J (Black man, grey hoodie, jeans) | `pedestrian_j_anim.glb` (same) | 44 | **unused** since 2026-09-27 (the crowd below) | 2026-09-22 |
+| Pedestrian K (Black woman, yellow blazer) | `pedestrian_k_anim.glb` (same) | 44 | **unused** since 2026-09-27 (the crowd below) | 2026-09-22 |
+| Pedestrian L (Latino man, navy shirt, cargo trousers) | `pedestrian_l_anim.glb` (same) | 44 | **unused** since 2026-09-27 (the crowd below) | 2026-09-22 |
 | Private jet | `assets/models/jet_private.glb` | 30 | `Aircraft` PRIVATE | 2026-09-19 |
 | Airliner | `assets/models/jet_airliner.glb` | 30 | `Aircraft` AIRLINER | 2026-09-19 |
 
@@ -291,6 +291,43 @@ in 15 surfaces, one skinned mesh. His shadow is `hero_shadow`, 9.0k triangles in
 Textures: 2K skin albedo and wrinkle normal, 2K tracksuit albedo and rest and bent fold
 normals; 1K or smaller for everything else (skin roughness and mask, hair atlas, shoes), plus
 the tiling `hero_x_skin_detail` (pores, stubble) and `hero_x_pile` (velour).
+
+## The crowd (Blender + MPFB2, CC0 assets)
+
+`assets/models/crowd_a.glb` .. `crowd_l.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
+`_hair.png` Godot extracts from them) are the pedestrians (`Pedestrian.MODELS`), built by
+`tools/crowd/` with the hero's toolchain: Blender 4.2 LTS, the MPFB 2.0.17 add-on and the CC0
+MakeHuman system asset pack, which `tools/hero/setup.sh` downloads into the ignored
+`build/hero_src/` (nothing of MPFB's GPL code ships; its assets and output are CC0). They replace
+the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer loaded.
+
+| Part | Source | License |
+|---|---|---|
+| Base mesh, body/face shape targets, "mixamo" rig and weights | MPFB 2.0.17 | CC0 |
+| Skins, eyes (`low-poly` + an eye material), eyebrows, eyelashes, clothes (`male_casualsuit01..06`, `male_elegantsuit01`, `male_worksuit01`, `female_casualsuit01/02`, `female_elegantsuit01`, `female_sportsuit01`), shoes (`shoes01..06`), hair (`afro01`, `braid01`, `long01`, `ponytail01`, `short01..04`) and their textures | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
+| Skin blends, garment dyes, printed logos painted out, the painted scalp and crops, skin relief maps, the atlases, relaxed hands, bind pose, the region colours | Our own scripts (`tools/crowd/*.py`) | ours |
+| Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` (`tools/hero/retarget_lib.py`) | ours |
+
+| Model | Person | MakeHuman assets |
+|---|---|---|
+| `crowd_a.glb` | young Black man, slim and athletic: white tee, jeans, white sneakers, close crop | young_african_male, eyes `low-poly` + brown, eyebrow001, eyelashes01, male_casualsuit06, shoes05, no hair mesh (a painted crop) |
+| `crowd_b.glb` | Latino man in his forties, heavy-set: work overalls over a tee, boots, short dark hair | middleage_caucasian_male 45% + middleage_african_male 35% + middleage_asian_male 20%, eyes `low-poly` + brown, eyebrow010, eyelashes01, male_worksuit01, shoes03, short04 |
+| `crowd_c.glb` | white woman in her seventies, slight and short: striped blouse, grey skirt, flat shoes, short grey hair | old_caucasian_female, eyes `low-poly` + lightblue, eyebrow007, eyelashes01, female_elegantsuit01, shoes04, short03; skin toned down |
+| `crowd_d.glb` | young East Asian woman: tee dyed rust, jeans, navy sneakers, ponytail | young_asian_female, eyes `low-poly` + brown, eyebrow002, eyelashes01, female_casualsuit01, shoes06, ponytail01; top dyed |
+| `crowd_e.glb` | Black woman in her forties, heavy: tee dyed mustard, denim shorts, white sneakers, natural hair | middleage_african_female, eyes `low-poly` + brown, eyebrow003, eyelashes01, female_casualsuit02, shoes05, afro01; top dyed |
+| `crowd_f.glb` | young white man, tall: olive field jacket, jeans, grey sneakers, short brown hair | young_caucasian_male, eyes `low-poly` + bluegreen, eyebrow006, eyelashes01, male_casualsuit05, shoes02, short04 |
+| `crowd_g.glb` | Black man in his seventies: dark suit, dress shoes, short grey hair | old_african_male, eyes `low-poly` + brown, eyebrow009, eyelashes01, male_elegantsuit01, shoes04, short01 |
+| `crowd_h.glb` | East Asian man in his forties: striped shirt, jeans, brown leather shoes, short side part | middleage_asian_male, eyes `low-poly` + brown, eyebrow004, eyelashes01, male_casualsuit03, shoes01, short03 |
+| `crowd_i.glb` | young white woman, slim: tee dyed heather grey, black leggings, white sneakers, long hair | young_caucasian_female, eyes `low-poly` + green, eyebrow005, eyelashes01, female_sportsuit01, shoes05, long01; top dyed |
+| `crowd_j.glb` | white man in his fifties, heavy, close-cropped: denim shirt, jeans, brown shoes | middleage_caucasian_male, eyes `low-poly` + blue, eyebrow011, eyelashes01, male_casualsuit01, shoes01, no hair mesh (a painted crop) |
+| `crowd_k.glb` | young Latina woman: tee dyed teal, jeans, navy sneakers, braid | young_caucasian_female 45% + young_african_female 35% + young_asian_female 20%, eyes `low-poly` + brown, eyebrow002, eyelashes01, female_casualsuit01, shoes06, braid01; top dyed |
+| `crowd_l.glb` | East Asian man in his seventies: long-sleeve tee dyed maroon, jeans, black shoes, short grey hair | old_asian_male, eyes `low-poly` + brown, eyebrow008, eyelashes01, male_casualsuit02, shoes04, short01; top dyed |
+
+Each is ONE skinned `Body` (skin, eyes, clothes, shoes; 10.5-12.7k triangles, one 2K colour atlas
+and a 1K normal atlas, the vertex colour carrying the skin / top / bottom / hair split) and a
+`Hair` mesh of cut-out cards, brows and lashes (0.4-3.8k triangles, one 1K RGBA atlas): 11-16.6k
+triangles a person, 24 bones, the three clips. The MakeHuman T-shirts carry the MakeHuman logo;
+it is painted out of every atlas (`crowd_config.json` "garments" -> "erase").
 
 ## Street prop models (Poly Haven, CC0)
 

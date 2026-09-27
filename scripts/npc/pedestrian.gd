@@ -7,23 +7,28 @@ extends CharacterBody3D
 const SHIRTS := [Color(0.9, 0.3, 0.3), Color(0.3, 0.5, 0.9), Color(0.95, 0.85, 0.3), Color(0.4, 0.75, 0.45), Color(0.9, 0.9, 0.9), Color(0.6, 0.35, 0.7), Color(0.95, 0.55, 0.2)]
 const PANTS := [Color(0.2, 0.25, 0.4), Color(0.15, 0.15, 0.17), Color(0.5, 0.4, 0.3), Color(0.35, 0.35, 0.38)]
 const SKINS := [Color(0.95, 0.8, 0.65), Color(0.85, 0.65, 0.5), Color(0.6, 0.42, 0.3), Color(0.4, 0.28, 0.2)]
-## Generated rigged characters (see docs/ASSETS.md). Each has Idle, Casual_Walk_inplace and
-## run_fast_3_inplace clips. Missing files fall back to the box person.
-## These are the second generation (2026-09-22, owner: "we need entirely new assets for the
-## humans"), made at twice the first set's polycount. The first set - a, b and c - is no longer
-## loaded: b came back unclothed, and a and c are visibly lower-detail than the people walking
-## next to them, which reads worse in a crowd than having fewer faces. Their files stay so the
-## decision is visible.
+## The crowd (see docs/ASSETS.md): real people built by tools/crowd with the hero's pipeline -
+## MPFB humans (Blender) of every age, build and complexion, in CC0 MakeHuman clothes, shoes and
+## hair, on the crowd's 24-bone rig with the Idle, Casual_Walk_inplace and run_fast_3_inplace clips.
+## Each is one opaque Body (one 2K atlas, its vertex colour saying what is skin, top, bottom and
+## hair, so a look recolours exactly) plus a Hair mesh of cut-out cards (is_hair()), about 15k
+## triangles in all. They replaced the nine generated rigs (pedestrian_d..l, 2026-09-22), whose
+## look was baked into one photo texture and read as plastic mannequins however it was shaded;
+## those files stay (the hero's clips are retargeted from pedestrian_d's) but are not loaded.
+## Missing files fall back to the box person.
 const MODELS := [
-	"res://assets/models/pedestrian_d_anim.glb",
-	"res://assets/models/pedestrian_e_anim.glb",
-	"res://assets/models/pedestrian_f_anim.glb",
-	"res://assets/models/pedestrian_g_anim.glb",
-	"res://assets/models/pedestrian_h_anim.glb",
-	"res://assets/models/pedestrian_i_anim.glb",
-	"res://assets/models/pedestrian_j_anim.glb",
-	"res://assets/models/pedestrian_k_anim.glb",
-	"res://assets/models/pedestrian_l_anim.glb",
+	"res://assets/models/crowd_a.glb",
+	"res://assets/models/crowd_b.glb",
+	"res://assets/models/crowd_c.glb",
+	"res://assets/models/crowd_d.glb",
+	"res://assets/models/crowd_e.glb",
+	"res://assets/models/crowd_f.glb",
+	"res://assets/models/crowd_g.glb",
+	"res://assets/models/crowd_h.glb",
+	"res://assets/models/crowd_i.glb",
+	"res://assets/models/crowd_j.glb",
+	"res://assets/models/crowd_k.glb",
+	"res://assets/models/crowd_l.glb",
 ]
 ## Ground speed (m/s) the walk clip is authored for at speed_scale 1: how fast a planted foot
 ## travels backwards under the in-place clip (tools/crowd/clip_probe.tscn, 0.70-0.77 on every
@@ -531,6 +536,11 @@ func _add_accessory(inst: Node3D) -> void:
 	# already under it, and paying a second draw call per wearer for that is not worth it.
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	# A beanie is pulled down over the hair: the crowd rigs' hair cards would stand out through it.
+	if kind == Accessory.BEANIE:
+		for hmi in inst.find_children("Hair*", "MeshInstance3D", true, false):
+			(hmi as MeshInstance3D).visible = false
+			hmi.set_meta("under_hat", true)
 	# The bone as it stands in the walk clip, not as it stands in the bind pose (see _add_model).
 	var pose := skel.get_bone_global_pose(idx)
 	var at: Vector3 = pose.origin + (ACC_OFFSET[kind] as Vector3) * unit
@@ -877,15 +887,160 @@ static func _thigh_angle(a: Animation, skel: Skeleton3D, tracks: Dictionary, thi
 ## same texture (a shiny, self-lit mannequin): make it plain skin and cloth. The material is
 ## shared by every instance of the model.
 static func prepare_rig(inst: Node3D, look: int = -1) -> void:
-	for mi in inst.find_children("*", "MeshInstance3D", true, false):
-		(mi as MeshInstance3D).custom_aabb = AABB(Vector3(-150.0, -10.0, -150.0), Vector3(300.0, 260.0, 300.0))
-		var mat := (mi as MeshInstance3D).mesh.surface_get_material(0) as StandardMaterial3D
+	var body_mat: ShaderMaterial = null
+	var hairs: Array[MeshInstance3D] = []
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		mi.custom_aabb = AABB(Vector3(-150.0, -10.0, -150.0), Vector3(300.0, 260.0, 300.0))
+		if is_hair(mi):
+			hairs.append(mi)
+			continue
+		var mat := mi.mesh.surface_get_material(0) as StandardMaterial3D
 		if mat and mat.metallic_texture == null:
 			mat.metallic = 0.0
 			mat.roughness = 0.85
 			mat.emission_enabled = false
+		if mat and mat.albedo_texture and mi.skin:
+			_note_rig(mi, mat)
 		if look >= 0 and mat:
-			(mi as MeshInstance3D).material_override = character_material(mat.albedo_texture, look)
+			mi.material_override = character_material(mat.albedo_texture, look)
+			if mi.material_override and body_mat == null:
+				body_mat = mi.material_override as ShaderMaterial
+	# The crowd rigs' hair cards: cut out on their own shader in the look's hair colour (the
+	# same colour the look gives the scalp under them), and never in a shadow pass - a head's
+	# shadow is the same shape without them, and alpha-tested cards are what a shadow pass pays
+	# most for.
+	for mi in hairs:
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D
+		if src and src.albedo_texture:
+			mi.material_override = hair_material(src.albedo_texture, body_mat)
+
+
+## The crowd rigs built by tools/crowd carry their hair cards, brows and lashes as a second skinned
+## mesh, "Hair", next to the opaque "Body". Everything that swaps a rig's material, cuts its limbs
+## or bakes it into a figure works on the body alone; the hair keeps its own material (and goes
+## with the head when a limb hider collapses the head bone).
+static func is_hair(mi: MeshInstance3D) -> bool:
+	return mi != null and String(mi.name).begins_with("Hair")
+
+
+## Puts every hair mesh of `inst` back in its photographed colour: for the looks (a uniform, a
+## rough sleeper's worn clothes) that keep the person's own hair on the body. `grime` dulls and
+## dries it (a rough sleeper's).
+static func plain_hair(inst: Node, grime: float = 0.0) -> void:
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if is_hair(mi):
+			var src := mi.mesh.surface_get_material(0) as StandardMaterial3D
+			if src and src.albedo_texture:
+				mi.material_override = hair_material(src.albedo_texture, null, grime)
+
+
+## What the region-masked rigs (tools/crowd) need beyond their colour texture, keyed by it:
+## "normal" (the glTF material's normal map) and "means" (the mean texture value of the top, the
+## bottom and the hair regions, gamma space: what the shader keeps a recolour's shading round).
+static var _rig_info: Dictionary = {}
+static var _hair_means: Dictionary = {}
+static var _hair_looks: Dictionary = {}
+
+
+## Remembers a region-masked rig's extras the first time one is prepared (a colour array on the
+## skinned surface is what marks one; the older single-texture rigs have none).
+static func _note_rig(mi: MeshInstance3D, mat: StandardMaterial3D) -> void:
+	var tex := mat.albedo_texture
+	if _rig_info.has(tex) or mi.mesh == null or mi.mesh.get_surface_count() == 0:
+		return
+	if mi.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR == 0:
+		return
+	_rig_info[tex] = {"normal": mat.normal_texture, "means": _region_means(mi.mesh, tex)}
+
+
+## Mean gamma-space texture value under each region (top, bottom, hair) of a masked rig, sampled
+## at the centres of a spread of its triangles. The defaults when there is no mesh or image data
+## (the headless check's dummy renderer).
+static func _region_means(mesh: Mesh, tex: Texture2D) -> Vector3:
+	var out := Vector3(0.5, 0.35, 0.18)
+	var arrays := mesh.surface_get_arrays(0)
+	if arrays.is_empty() or arrays[Mesh.ARRAY_COLOR] == null or arrays[Mesh.ARRAY_TEX_UV] == null \
+			or arrays[Mesh.ARRAY_INDEX] == null:
+		return out
+	var img := tex.get_image()
+	if img == null or img.is_empty():
+		return out
+	if img.is_compressed():
+		img = img.duplicate() as Image
+		img.decompress()
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var index: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var w := img.get_width()
+	var h := img.get_height()
+	var sum := Vector3.ZERO
+	var cnt := Vector3.ZERO
+	for t in range(0, index.size() / 3, 3):
+		var a := index[t * 3]
+		var b := index[t * 3 + 1]
+		var c := index[t * 3 + 2]
+		var uv := (uvs[a] + uvs[b] + uvs[c]) / 3.0
+		var col := (colors[a] + colors[b] + colors[c]) / 3.0
+		var px := img.get_pixel(clampi(int(uv.x * w), 0, w - 1), clampi(int(uv.y * h), 0, h - 1))
+		var val := maxf(px.r, maxf(px.g, px.b))
+		var wt := Vector3(col.r, col.g, col.b)
+		sum += wt * val
+		cnt += wt
+	for k in 3:
+		if cnt[k] > 2.0:
+			out[k] = sum[k] / cnt[k]
+	return out
+
+
+## Mean brightness of a hair atlas' opaque texels (the hair shader's recolour is a ratio to it).
+static func _hair_mean(tex: Texture2D) -> float:
+	if _hair_means.has(tex):
+		return _hair_means[tex]
+	var mean := 0.2
+	var img := tex.get_image()
+	if img != null and not img.is_empty():
+		if img.is_compressed():
+			img = img.duplicate() as Image
+			img.decompress()
+		var sum := 0.0
+		var n := 0.0
+		var step := maxi(img.get_width() / 128, 1)
+		for y in range(0, img.get_height(), step):
+			for x in range(0, img.get_width(), step):
+				var c := img.get_pixel(x, y)
+				if c.a > 0.6:
+					sum += c.r * 0.299 + c.g * 0.587 + c.b * 0.114
+					n += 1.0
+		if n > 10.0:
+			mean = sum / n
+	_hair_means[tex] = mean
+	return mean
+
+
+## The hair cards' material for a look: the hair colour and strength of `look_mat` (the body's
+## character material, so the cards match the scalp under them), or the photographed colour when
+## there is none. Shared by every wearer of that look.
+static func hair_material(albedo: Texture2D, look_mat: ShaderMaterial, grime: float = 0.0) -> ShaderMaterial:
+	var color := Color(0.05, 0.04, 0.035)
+	var strength := 0.0
+	if look_mat:
+		color = look_mat.get_shader_parameter("hair_color")
+		strength = look_mat.get_shader_parameter("hair_strength")
+	var key := "%d_%s_%.3f_%.2f" % [albedo.get_instance_id(), color.to_html(), strength, grime]
+	if _hair_looks.has(key):
+		return _hair_looks[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/crowd_hair.gdshader")
+	mat.set_shader_parameter("albedo_tex", albedo)
+	mat.set_shader_parameter("atlas_mean", _hair_mean(albedo))
+	mat.set_shader_parameter("hair_color", color)
+	mat.set_shader_parameter("hair_strength", strength)
+	mat.set_shader_parameter("grime", grime)
+	_hair_looks[key] = mat
+	return mat
 
 
 ## Character materials, shared by look so a crowd of hundreds still uses a handful of materials.
@@ -988,6 +1143,14 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	# (pedestrian_a_anim_texture_0.jpg -> pedestrian_a_nrm.png). Rigs without one keep
 	# normal_strength at the shader's 0.0 and render off the mesh normal exactly as before.
 	var nrm := _normal_map_for(albedo)
+	var info: Dictionary = _rig_info.get(albedo, {})
+	if not info.is_empty():
+		mat.set_shader_parameter("region_mask", 1.0)
+		var means: Vector3 = info.means
+		mat.set_shader_parameter("top_mean", means.x)
+		mat.set_shader_parameter("bottom_mean", means.y)
+		mat.set_shader_parameter("hair_mean", means.z)
+		nrm = info.normal
 	if nrm != null:
 		mat.set_shader_parameter("normal_tex", nrm)
 		mat.set_shader_parameter("normal_strength", NORMAL_STRENGTH)
@@ -1048,6 +1211,10 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 	# for every look, so a Black woman in her own blazer came out blonde and a grey-haired man
 	# came out black-haired - a recolour on a photographed person reads as a wig.
 	mat.set_shader_parameter("hair_strength", 0.0 if plain else rng.randf_range(0.75, 1.0))
+	# The crowd rigs keep their own hair: each was given a colour that suits the person (a grey head
+	# on the elderly, black on most), and a rolled one put white brows on a young man.
+	if not info.is_empty():
+		mat.set_shader_parameter("hair_strength", 0.0)
 	mat.set_shader_parameter("skin_tint", SKIN_TINTS[look % SKIN_TINTS.size()])
 	# Every threshold the shader compares a texture value against, moved into this renderer's
 	# colour space (see _texture_value). Cheaper than converting the sample per pixel, and the
@@ -1595,7 +1762,12 @@ func _update_lod() -> void:
 	if tier != _draw_tier:
 		_draw_tier = tier
 		for mi in _meshes:
-			if is_instance_valid(mi):
+			if is_instance_valid(mi) and is_hair(mi):
+				# The welded middle and far bodies have no cards: the scalp under them is
+				# painted in the hair colour, which is all a head is past mid_body_range.
+				mi.visible = tier < 2 and not mi.has_meta("under_hat")
+				mi.lod_bias = LOD_BIAS[tier]
+			elif is_instance_valid(mi):
 				mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if tier == 0 \
 					else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 				mi.lod_bias = LOD_BIAS[tier]
@@ -1874,7 +2046,7 @@ static func warm_far_mesh(path: String, host: Node) -> void:
 	host.add_child(inst)
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var mesh := (mi as MeshInstance3D).mesh
-		if (mi as MeshInstance3D).skin:
+		if (mi as MeshInstance3D).skin and not is_hair(mi as MeshInstance3D):
 			far_mesh(mesh, mid_triangles)
 			far_mesh(mesh, far_triangles)
 			_welds.erase(mesh)

@@ -88,12 +88,14 @@ func run(city: Node3D) -> void:
 	# per model and pose: a few tens of milliseconds each, done here rather than by the first
 	# downtown chunks.
 	var kinds: Array = CampFigure.kinds()
+	var t_camp := Time.get_ticks_usec()
 	for i in kinds.size():
 		if i % 6 == 0:
 			_step("Preparing people", 0.3 + 0.25 * float(i) / float(maxi(kinds.size(), 1)))
 			await _frames(1)
 		var k: Array = kinds[i]
 		CampFigure.mesh_for(CampFigure.seed_for(k[0], k[1], k[2]), k[1])
+	t_camp = Time.get_ticks_usec() - t_camp
 	_step("Building the city", 0.55)
 	await _frames(1)
 	_preload_world(city)
@@ -113,11 +115,17 @@ func run(city: Node3D) -> void:
 	# Cutting a character's limbs apart takes tens of milliseconds the first time for each
 	# model, which is a hitch on the first rocket into a crowd; here it is part of the wait.
 	var models: Array = Pedestrian.MODELS
+	var t_rigs := 0
 	for i in models.size():
 		_step("Preparing people (%d/%d)" % [i + 1, models.size()], 0.9 + 0.1 * float(i) / float(maxi(models.size(), 1)))
 		await _frames(1)
+		var t0 := Time.get_ticks_usec()
 		Ragdoll.warm_limbs(models[i], self)
 		Pedestrian.warm_far_mesh(models[i], self)
+		t_rigs += Time.get_ticks_usec() - t0
+	# The people's share of the wait (the camp figures, then every rig's limbs and welded bodies),
+	# for measuring a change of models: the rest of the loading screen does not depend on them.
+	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()

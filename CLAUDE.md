@@ -112,12 +112,12 @@ build. To export locally, install the macOS template from the 4.7.2 `export_temp
   `docs/ASSETS.md`. Physics ones use `PhysicsProp` (`scripts/world/physics_prop.gd`).
   Trees, bushes and rocks come from Poly Haven too but must go through
   `tools/decimate_tree.py` first (leaf cards, decimated trunks and twigs; see its docstring).
-  **Meshy is retired (owner, 2026-09-19) EXCEPT for characters (owner, 2026-09-22: "we need
-  entirely new assets for the humans").** Cars, jets, props and scenery stay Poly Haven / code.
-  People are the one exception because no CC0 source has realistic rigged humans: Poly Haven
-  has none and Quaternius' are stylised low-poly, which breaks the realism rule. Generate
-  characters at `--polycount 16000` - the default 8000 is what made the first three look
-  blocky - with a `--texture-prompt` for skin and fabric. The existing
+  **Meshy is retired (owner, 2026-09-19), people included since 2026-09-27**: the crowd is
+  built by `tools/crowd/` from CC0 MakeHuman assets with the hero's MPFB pipeline (see the
+  Characters note), because the Meshy people (pedestrian_d..l, 2026-09-22) had their look baked
+  into one photo texture and read as plastic mannequins whatever the shader did. Their files stay
+  (the hero's and the crowd's clips are retargeted from `pedestrian_d_anim.glb`) but are not
+  loaded. Cars, jets, props and scenery stay Poly Haven / code. The existing
   cars, pedestrians and jets were made with the owner's Meshy account: `python3 tools/meshy.py gen <name> "<prompt>"
   [--rig h --anims ids]` (key from `MESHY_API_KEY` or `MESHY_KEY_FILE`, never in the repo), then
   `python3 tools/shrink_glb.py assets/models/<name>.glb` (a hard-surface model like a car also
@@ -452,8 +452,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   (`scripts/npc/police_officer.gd`, extends Pedestrian, so it is shot, knocked, gibbed and
   ragdolled like anyone; takes `hits_to_down` rounds): an `Avatar` body (so `Avatar.hold_gun`'s
   IK holds its `PoliceGun`), a navy recolour through the character shader
-  (`uniform_material()`, only on the rigs in `OFFICER_MODELS` - k's yellow blazer and h and l's khakis do not take
-  it) and a peaked cap; COVER at the ends of its cruiser, ENGAGE, SEARCH the area, REBOARD when
+  (`uniform_material()`, only on the rigs in `OFFICER_MODELS` - people in trousers with short
+  hair; the crowd's region colours recolour any garment exactly) and a peaked cap (the hair
+  cards are hidden under it); COVER at the ends of its cruiser, ENGAGE, SEARCH the area, REBOARD when
   recalled; it fires only with an open line from the muzzle (`_line_of_fire()`: the first
   version emptied its gun into the cruiser it hid behind) and steps out sideways when blocked;
   its rounds go through `WeaponFX.tracer/flash/impact`. A knock-down is pinned on the player a
@@ -1481,6 +1482,37 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   average build and took in the hero's collar and shoulders; his jacket's tan yokes passed
   every colour test for skin. Like limb cutting, the bake needs mesh data, so it does nothing
   under the headless dummy renderer.
+  **The crowd** (owner, 2026-09-27: real people, "AAA studio PS5 quality"): `Pedestrian.MODELS`
+  is twelve rigs, `assets/models/crowd_a..l.glb`, built by **`tools/crowd/`** with the hero's
+  toolchain (`tools/hero/setup.sh` fetches Blender 4.2, MPFB 2 and the CC0 MakeHuman pack):
+  `tools/crowd/build.sh [names]` runs, per character of `tools/crowd/crowd_config.json`,
+  `build_character.py` (Blender: the MPFB human from a phenotype, targets and skin - or a blend
+  of skins for a complexion the pack lacks - in library clothes, shoes, hair, brows and lashes;
+  bound with the hero's lowered arms and a relaxed hand baked in, the finger bones folded into
+  the hands; hidden skin deleted; cut to per-part triangle budgets, ~11-12.7k body + up to 3.8k
+  hair; every texture's islands cropped and skyline-packed into a 2K body atlas and a 1K hair
+  atlas, garments optionally dyed, logos painted out; soles on y 0, cm under 0.01, +Z),
+  `crowd_atlas.py` (python3: composes the atlases, skin relief from the skin photo, the scalp
+  under the hair painted in the hair colour) and `crowd_export.py` (Blender: the hero's retarget,
+  `tools/hero/retarget_lib.py`, and the .glb) - a minute or two each. Then `godot --headless
+  --path . --import`, `python3 tools/fix_texture_imports.py assets/models` (put back any
+  unrelated `.import` it touches), commit the `.glb`, the extracted `crowd_*_body.jpg`,
+  `_body_nrm.jpg`, `_hair.png` and every `.import`. The contract every crowd system keeps (checked
+  by `_check_crowd_rigs()` in the smoke test): the 24 crowd bones and three clips; ONE skinned
+  **Body** surface on character.gdshader whose vertex colour says what each vertex is - R top
+  garment, G bottom garment, B hair (the painted scalp), A skin, none of them shoes / eyes - so
+  the shader recolours a look exactly (`region_mask`, with the source's shading kept as a ratio
+  to each region's mean, `Pedestrian._region_means()`) and a garment can be marked `keep` (the
+  overalls); and a **Hair** mesh of cut-out cards on `shaders/crowd_hair.gdshader`
+  (`Pedestrian.hair_material()`, the look's hair colour, never in a shadow pass). The crowd keeps
+  its own hair colours (`hair_strength` 0 on those looks). Everything that swaps a rig's
+  material, cuts limbs, welds the middle / far bodies or bakes a camp figure works on the body
+  and skips `Pedestrian.is_hair()`; past `mid_body_range` the hair is hidden (the painted scalp
+  is the hair out there), under a beanie or a police cap too; `plain_hair()` puts the
+  photographed colour back for a uniform or a rough sleeper (dulled, `WORN_HAIR`). Judge rigs
+  with `tools/glshot/crowd_lineup.gd` (several side by side, `SHOTS=` for several views from one
+  load, `BODY=mid|far`) as well as `character_shot.gd`. Adding a person: a row in
+  crowd_config.json, `build.sh <name>`, add it to `MODELS`.
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
