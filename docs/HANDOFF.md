@@ -5,6 +5,33 @@ or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadm
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
 
+## 000. Session of 2026-09-27 (newest - read this first, then 00)
+
+One orchestrating session plus a local agent and six cloud sessions (one machine each, a
+`wt/<slug>` branch each, screenshots on orphan `shots/<slug>` branches). Everything below was
+merged into one branch and gated together (499 checks) before the push:
+- **Mountains pass 1** (9ab): erosion-noise ranges, B-spline far heights (the contour stripes
+  are gone), lit hill detail, far ground at 44 m. Open: the far ground is painted darker than
+  the near hill tiles - needs a Mac screenshot from the air (`--spawn=700,-300,0,-14,500`).
+- **Palms' LOD ladder** (9aa): -7..-23 % triangles at the bookmarks, same draws.
+- **Crowd animation** (wt/crowd-anim): stride-matched gait, eased starts/stops, pivots, head
+  look. +~0.5 ms a physics tick for a near crowd.
+- **Wet streets** (9za): puddles mirror the lit city at night, rain rings, patchy drying, tyre
+  spray. Dry weather costs what it did.
+- **Headlight beams** now lie on the road (they were 0.6 m under it on every car) and model
+  cars' collision fits the body - ported from wt/sedan-body WITHOUT its new sedan body, which
+  still read dated; that branch stays parked.
+- **Street wear** (9ac): original generated tags, posters, stickers, wall grime, gum (the gum
+  reworked: it read as drilled holes). The per-chunk cap now holds in `_put_basis()`.
+- **Encampments x20** (9ae, owner ask #2): skid row ~340 people (was 8), 3,637 camp pieces;
+  cart pushers ported onto the new crowd gait (`RoughSleeper._animate_gait()`).
+- **Downtown 1:1 re-lay, port on San Pedro Bay, freeways clear of buildings, arena district**
+  (9ad, owner ask #3): the embayment shift now lives in `MacroMap._range_heights_at()` so it
+  applies under the erosion. Arena district +9-18 % triangles there.
+Tools added: `tools/terrain_preview/` (mountains top-down in seconds), still_shot `HIDE=`.
+Cloud sessions cannot be messaged back; read their state with get_session and their shots
+branches. Pushes were blocked by the auto-mode safety check until the owner said to push.
+
 ## 00. START HERE - handoff to the next account (2026-09-25, newest)
 
 The owner ended work on the previous account on 2026-09-25 and asked for this handoff. Read
