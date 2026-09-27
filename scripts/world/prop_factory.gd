@@ -949,8 +949,10 @@ static func fire_escape() -> Mesh:
 
 ## The pool of light a lamp throws on the pavement: a unit quad lying flat, additive and
 ## unshaded (see shaders/light_pool.gdshader). Instances scale it to the pool's diameter.
-static func light_pool(tint: Color = Color(1.0, 0.84, 0.58), strength: float = 1.0) -> Mesh:
+static func light_pool(tint: Color = Color(1.0, 0.84, 0.58), strength: float = 1.0, falloff: float = 2.4) -> Mesh:
 	var key := "light_pool_%d_%.2f" % [tint.to_rgba32(), strength]
+	if falloff != 2.4:
+		key += "_%.2f" % falloff
 	if _cache.has(key):
 		return _cache[key]
 	var mesh := QuadMesh.new()
@@ -960,6 +962,7 @@ static func light_pool(tint: Color = Color(1.0, 0.84, 0.58), strength: float = 1
 	mat.shader = load("res://shaders/light_pool.gdshader")
 	mat.set_shader_parameter("tint", tint)
 	mat.set_shader_parameter("strength", strength)
+	mat.set_shader_parameter("falloff", falloff)
 	mesh.material = mat
 	_cache[key] = mesh
 	return mesh
@@ -1173,8 +1176,26 @@ static func lifeguard_ramp() -> Mesh:
 	return box("lifeguard_ramp", Vector3(1.0, 0.1, 4.2), Color(0.8, 0.78, 0.7))
 
 
+## An ISO container (PortKit.container_mesh(): 40 ft, and by its instance scale 20 ft and
+## high-cube, with its LOD ladder and container.gdshader), centred on its box. Its shadow is
+## cast by a plain box twin (PortKit.container_shadow_mesh()).
 static func container() -> Mesh:
-	return box("container", Vector3(12.0, 2.6, 2.4), Color(0.9, 0.9, 0.9))
+	if _cache.has("container"):
+		return _cache["container"]
+	var mesh := PortKit.container_mesh()
+	_shadow_proxies[mesh] = PortKit.container_shadow_mesh()
+	_cache["container"] = mesh
+	return mesh
+
+
+## A rubber-tyred yard gantry (PortKit.rtg_mesh()), its shadow from its own ladder's level 1.
+static func rtg() -> Mesh:
+	if _cache.has("rtg"):
+		return _cache["rtg"]
+	var mesh := PortKit.rtg_mesh()
+	_shadow_proxies[mesh] = PortKit.rtg_shadow_mesh()
+	_cache["rtg"] = mesh
+	return mesh
 
 
 static func unit_box() -> Mesh:

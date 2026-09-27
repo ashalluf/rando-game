@@ -788,6 +788,27 @@ func _test_city() -> void:
 		city.update_streaming(true)
 		var port_chunk: Node3D = city.chunks.get(plan.block_index_at(port))
 		_check(port_chunk != null and port_chunk.zone == MacroMap.Zone.PORT and port_chunk.has_node("Batch_container"), "port chunk has container stacks")
+		# The container kit (PortKit): an ISO 40 ft box with its LOD ladder and a box shadow
+		# twin; 20 ft pairs among the stacks (the same mesh at L20 / L40 in x); the stacks
+		# stand on the yard, not in it.
+		var cmesh: Mesh = PropFactory.container()
+		var cbox: AABB = cmesh.get_aabb()
+		var clods: Array = RenderingServer.mesh_get_surface(cmesh.get_rid(), 0).get("lods", [])
+		_check(cbox.size.is_equal_approx(Vector3(PortKit.L40, PortKit.H_STD, PortKit.W)) and clods.size() == 2 and PropFactory.shadow_proxy(cmesh) != null,
+			"containers are ISO 40 ft boxes with a two-step LOD ladder and a shadow twin (%s, %d LODs)" % [cbox.size, clods.size()])
+		if port_chunk != null and port_chunk.has_node("Batch_container"):
+			var cmm: MultiMesh = (port_chunk.get_node("Batch_container") as MultiMeshInstance3D).multimesh
+			_check(cmm.instance_count > 60 and cmm.use_custom_data, "port chunk stacks %d containers with livery data" % cmm.instance_count)
+		# The quay: every chunk along the harbour carries ship-to-shore cranes.
+		var quay_cranes := 0
+		var quay_chunks := 0
+		for ch in city.chunks.values():
+			if ch.zone == MacroMap.Zone.PORT and macro.zone_at(Vector2(ch.owned_rect().get_center().x, ch.owned_rect().end.y + 30.0)) == MacroMap.Zone.OCEAN:
+				quay_chunks += 1
+				for n in ch.get_children():
+					if String(n.name).begins_with("StsCrane"):
+						quay_cranes += 1
+		_check(quay_chunks == 0 or quay_cranes == quay_chunks * 2, "every quay chunk stands two gantry cranes (%d on %d)" % [quay_cranes, quay_chunks])
 
 	# Cars: parked in the streets, drivable.
 	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))

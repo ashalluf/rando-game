@@ -179,6 +179,9 @@ func _warm_shaders() -> void:
 		effects.append_array(PropFactory.kit_materials())
 	# The encampment kit, likewise (Encampment; only ever drawn through the chunks' batches).
 	effects.append_array(PropFactory.camp_materials())
+	# The port's kit: its meshes built here (a crane is ~20 ms of GDScript a pose) and its two
+	# shaders drawn through a MultiMesh, the only way the containers and gantries are drawn.
+	effects.append_array(PortKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
