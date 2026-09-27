@@ -252,7 +252,7 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
 	# Placed where it belongs before it enters the tree (_enter_at()).
-	_enter_at(car, WorldState.to_local(Vector3(pos2.x, 0.55 + _relief(pos2), pos2.y)), _heading(axis, dir), 0.0)
+	_enter_at(car, WorldState.to_local(Vector3(pos2.x, _relief(pos2) + CityChunk.ROAD_TOP + car.road_lift(), pos2.y)), _heading(axis, dir), 0.0)
 	car.traffic_speed = car.traffic.speed
 	cars.append(car)
 
@@ -314,7 +314,7 @@ func place_car(axis: int, index: int, dir: int, lane_n: int, along: float, speed
 		car.traffic.no_turns = true
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	_enter_at(car, WorldState.to_local(Vector3(pos2.x, 0.55 + _relief(pos2), pos2.y)), _heading(axis, dir), 0.0)
+	_enter_at(car, WorldState.to_local(Vector3(pos2.x, _relief(pos2) + CityChunk.ROAD_TOP + car.road_lift(), pos2.y)), _heading(axis, dir), 0.0)
 	car.traffic_speed = speed
 	cars.append(car)
 	return car
@@ -543,7 +543,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			t.along = at
 			_join_group(groups, back_key, car)
 			var back := Vector2(plan.road_pos(axis, index) + t.lane, at) if axis == CityPlan.AXIS_X else Vector2(at, plan.road_pos(axis, index) + t.lane)
-			_place(car, WorldState.to_local(Vector3(back.x, 0.55 + _relief(back), back.y)), _heading(axis, -dir), 0.0)
+			_place(car, WorldState.to_local(Vector3(back.x, _relief(back) + CityChunk.ROAD_TOP + car.road_lift(), back.y)), _heading(axis, -dir), 0.0)
 			return
 		new_along = along + float(dir) * maxf(to_centre - 0.05, 0.0)
 		t.v = 0.0
@@ -568,7 +568,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			var road := plan.road_pos(cross_axis, cross_index)
 			# Rebuild the world position on the new road, keeping the intersection's coordinate.
 			var pos2 := Vector2(wp.x, road + lane) if cross_axis == CityPlan.AXIS_Z else Vector2(road + lane, wp.z)
-			_place(car, WorldState.to_local(Vector3(pos2.x, 0.55 + _relief(pos2), pos2.y)), _heading(cross_axis, new_dir), 0.0)
+			_place(car, WorldState.to_local(Vector3(pos2.x, _relief(pos2) + CityChunk.ROAD_TOP + car.road_lift(), pos2.y)), _heading(cross_axis, new_dir), 0.0)
 			return
 		if t.get("forced", false):
 			# The road ahead is closed and the lane it must turn into is taken: wait at the centre
@@ -586,7 +586,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	var here := _relief(Vector2(new_wp.x, new_wp.z))
 	var forward := Vector3(0.0, 0.0, dir) if axis == CityPlan.AXIS_X else Vector3(dir, 0.0, 0.0)
 	var ahead_h := _relief(Vector2(new_wp.x + forward.x * 4.0, new_wp.z + forward.z * 4.0))
-	new_wp.y = 0.55 + here
+	new_wp.y = here + CityChunk.ROAD_TOP + car.road_lift()
 	_place(car, WorldState.to_local(new_wp), _heading(axis, dir), atan2(ahead_h - here, 4.0))
 
 
@@ -779,7 +779,7 @@ func _spawn_loop_car(loop_index: int, t: float) -> void:
 	car.traffic = {"loop": loop_index, "t": t, "speed": loop_speed * _rng.randf_range(0.85, 1.1)}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
-	_enter_at(car, WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y)), atan2(-dir2.x, -dir2.y), 0.0)
+	_enter_at(car, WorldState.to_local(Vector3(pos2.x, macro.dropoff_top + car.road_lift(), pos2.y)), atan2(-dir2.x, -dir2.y), 0.0)
 	car.traffic_speed = car.traffic.speed
 	loop_cars.append(car)
 
@@ -813,7 +813,7 @@ func _drive_loops(delta: float) -> void:
 			var at := _loop_point(loop, car.traffic.t)
 			var pos2: Vector2 = at[0]
 			var dir2: Vector2 = at[1]
-			_place(car, WorldState.to_local(Vector3(pos2.x, 0.55 + macro.dropoff_top, pos2.y)), atan2(-dir2.x, -dir2.y), 0.0)
+			_place(car, WorldState.to_local(Vector3(pos2.x, macro.dropoff_top + car.road_lift(), pos2.y)), atan2(-dir2.x, -dir2.y), 0.0)
 
 
 # --- Freeway traffic ------------------------------------------------------------------------
@@ -937,7 +937,7 @@ func _freeway_xform(car: Vehicle, fw: Freeway) -> Transform3D:
 	var step := 2.5 * float(car.traffic.dir)
 	var ahead: float = (fw.point_at(car.traffic.fw, car.traffic.t + step)[0] as Vector3).y
 	var behind: float = (fw.point_at(car.traffic.fw, car.traffic.t - step)[0] as Vector3).y
-	return Transform3D(Basis.from_euler(Vector3(atan2(ahead - behind, 5.0), atan2(-heading.x, -heading.y), 0.0)), WorldState.to_local(Vector3(p.x + nrm.x, p.y + 0.71, p.z + nrm.y)))
+	return Transform3D(Basis.from_euler(Vector3(atan2(ahead - behind, 5.0), atan2(-heading.x, -heading.y), 0.0)), WorldState.to_local(Vector3(p.x + nrm.x, p.y + car.road_lift(), p.z + nrm.y)))
 
 
 ## Cruise, closing up on whatever is ahead in the same lane and direction.

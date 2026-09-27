@@ -190,7 +190,7 @@ func _spawn(s: float, dir: int, lane: int, force: bool = false) -> void:
 	car.freeze = true
 	# Its transform before it enters the tree: a kinematic body that appears at the origin and is
 	# then moved reads the jump as velocity (see AirTraffic._place_before_entry()).
-	car.transform = global_transform.affine_inverse() * _transform_at(s, dir, lane)
+	car.transform = global_transform.affine_inverse() * _transform_at(s, dir, lane, car.road_lift())
 	if car.get_parent() == null:
 		add_child(car)
 	car.traffic_speed = cruise
@@ -209,13 +209,18 @@ func _retire(car: Vehicle) -> void:
 
 # --- Driving -------------------------------------------------------------------------------------
 
-func _transform_at(s: float, dir: int, lane: int) -> Transform3D:
+## lane_point() is LANE_LIFT over the road top; a car goes its own road_lift() over it.
+const LANE_LIFT := 0.55
+
+
+func _transform_at(s: float, dir: int, lane: int, lift: float = LANE_LIFT) -> Transform3D:
 	var p := lane_point(s, dir, lane)
 	var q := lane_point(s + 1.5 * dir, dir, lane)
 	var fwd := q - p
 	if fwd.length_squared() < 0.0001:
 		fwd = Vector3(0, 0, -1)
-	return Transform3D(Basis.looking_at(fwd.normalized(), Vector3.UP), WorldState.to_local(p))
+	return Transform3D(Basis.looking_at(fwd.normalized(), Vector3.UP),
+			WorldState.to_local(p + Vector3.UP * (lift - LANE_LIFT)))
 
 
 func _drive(delta: float) -> void:
@@ -259,4 +264,4 @@ func _drive(delta: float) -> void:
 		t.speed = speed
 		t.lane = lane
 		car.traffic_speed = speed
-		car.global_transform = _transform_at(s, dir, lane)
+		car.global_transform = _transform_at(s, dir, lane, car.road_lift())
