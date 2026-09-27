@@ -2005,9 +2005,14 @@ def crossover_details(s, sec, surf, body, parts):
             lens = rect_grid(xc - 0.024, xc + 0.024, 0.827, 0.845, 1, 3)
             applied(bmp, surf, "front", lens if side > 0 else mirror2(lens), -0.0115, LIGHT_F)
     # Upper grille: a tall trapezoid between the lamps with an egg-crate in it.
-    mouth = rounded_outline([(-0.36, 0.790), (0.36, 0.790), (0.47, 0.530), (-0.47, 0.530)], 0.05)
+    # A shield: narrow under the lamp band, fullest a third of the way down.
+    mouth = rounded_outline([(-0.33, 0.785), (0.33, 0.785), (0.48, 0.655), (0.43, 0.530),
+                             (-0.43, 0.530), (-0.48, 0.655)], 0.04)
     boolean(body, extrude_cutter(mouth, "y", 2.18, 3.2))
-    eggcrate(bmp, -0.50, 0.50, 0.530, 0.790, 2.27, 2.20, 30, 8, thick=0.0045)
+    eggcrate(bmp, -0.50, 0.50, 0.530, 0.785, 2.27, 2.20, 30, 8, thick=0.0045)
+    # The gloss black band that joins the lamps across the nose.
+    band = blade_grid(-0.405, 0.405, 0.848, 0.848, 0.030, 0.030, 2, 16)
+    applied(bmp, surf, "front", band, 0.0025, GLASS, thickness=0.004)
     # Lower intake in the black lower bumper.
     low = rounded_outline([(-0.46, 0.440), (0.46, 0.440), (0.42, 0.370), (-0.42, 0.370)], 0.02)
     boolean(body, extrude_cutter(low, "y", 2.16, 3.2))

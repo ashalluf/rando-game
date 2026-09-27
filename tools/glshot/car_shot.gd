@@ -159,8 +159,10 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			car.call("setup", types[i], paint, 0)
 			if finish >= 0 or livery > 0:
 				car.call("setup_look", maxi(finish, 1), livery, Color(0.07, 0.07, 0.08))
-		# Parked, like a street car: a physics body left to settle on its springs.
-		car.position = Vector3((float(i) - float(types.size() - 1) * 0.5) * spacing, 0.9, 0.0)
+		# Parked, like a street car: a physics body left to settle on its springs. A cruiser is
+		# kinematic until it engages, so it is stood on the road at its ride height instead.
+		car.position = Vector3((float(i) - float(types.size() - 1) * 0.5) * spacing,
+				float(car.call("road_lift")) if police else 0.9, 0.0)
 		world.add_child(car)
 		cars.append(car)
 	for i in 120:
