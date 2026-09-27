@@ -1881,6 +1881,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# for the lots after it. It tested the lot's centre alone (14 m either side of the deck),
 	# which let the corner of a big lot stand well into the deck and its pillars.
 	if _under_freeway(center, 14.0) or _lot_under_freeway(lot):
+		_build_corridor_lot(lot)
 		return
 	if pad:
 		Commercial.build_pad(self, lot, rng)
@@ -2037,6 +2038,30 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 	# Flowering ground cover over the whole park: this is where a park stops being bare grass.
 	_scatter_ground_cover(inner.grow(-2.0), rng, 1.0)
 	_add_grass(inner.grow(-1.0), 1.0, path_w * 0.5 + 0.3)
+
+
+## Freeway right-of-way: a lot the deck flies over or passes within LOT_FREEWAY_MARGIN of is never
+## built on, and it used to be left as the block's bare paving - every block a freeway crossed was
+## an empty tan plaza either side of the deck. Real ones are banks of ivy and iceplant with
+## oleander and other shrubs along them: so an ivy ground cover over the lot and, on FULL chunks,
+## shrubs everywhere except under the deck itself (shade and pillars). A private rng from the
+## lot's own seed, so neither the chunk rng nor anything built after this moves.
+func _build_corridor_lot(lot: Dictionary) -> void:
+	var size: Vector2 = lot.size
+	var center: Vector2 = lot.center
+	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(maxf(size.x - 1.0, 0.5), 0.04, maxf(size.y - 1.0, 0.5)),
+		style.grass, false, PropFactory.lawn(CORRIDOR_IVY, hash([plan.seed, "corridor_ivy"]), 0.12, 0.0))
+	if level != Level.FULL or capturing:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([plan.seed, ix, iz, lot.seed, "corridor"])
+	var rect := Rect2(center - size * 0.5, size).grow(-1.2)
+	var n := clampi(int(rect.size.x * rect.size.y / CORRIDOR_SHRUB_AREA), 0, 60)
+	for i in n:
+		var p := Vector2(rng.randf_range(rect.position.x, rect.end.x), rng.randf_range(rect.position.y, rect.end.y))
+		if _under_freeway(p, 1.5):
+			continue
+		_add_bush(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), rng)
 
 
 func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
@@ -2995,6 +3020,10 @@ const LOT_FREEWAY_MARGIN := 3.0
 ## ... between a tree's trunk and the deck's edge, about a canopy's radius, and a palm's (its
 ## crown stands clear above the deck, so it may lean over the barrier as real ones do).
 const TREE_FREEWAY_MARGIN := 5.0
+## The ground cover on a freeway corridor lot (_build_corridor_lot), a deep ivy green, and one
+## shrub per this many square metres of it.
+const CORRIDOR_IVY := Color(0.27, 0.40, 0.17)
+const CORRIDOR_SHRUB_AREA := 55.0
 const PALM_FREEWAY_MARGIN := 2.0
 
 ## True where the freeway deck flies over, plus `margin` metres either side.
