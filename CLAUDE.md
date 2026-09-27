@@ -882,6 +882,28 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   parking (`_build_approach_parking`: stall rows, ArenaGrounds' cheap static cars, half as many
   on LOD chunks). All three use a private rng after the block rng's own rolls, so nothing else in
   the chunk moves; never add rolls on the block rng for new filler.
+  **Nor is a downtown or midtown lot** (`LotFill`, `scripts/world/lot_fill.gd`, 2026-09-27):
+  towers stood alone on their lots and 44 % of the financial core's buildable ground (31 % of
+  the rest of downtown, 54 % of midtown) was the block's bare paving (`tools/lot_coverage.gd`
+  measures it; `FILL=0` is the before). Now a slender tower on a big lot stands on a **podium**
+  (`Building._add_podium()`, see the Buildings note); what a building leaves of its lot, out to
+  the lot's grid cell (`lot.cell`, the lot plus half the gap), is a **forecourt** in the block's
+  own paving look (`LotFill.PAVINGS`, one a block) - raised planters (the plinths' concrete, so
+  they merge into that mesh) with one shrub species a chunk and the block's street tree
+  (`MAX_TREES` a chunk), benches, a short run of bollards (`BOLLARD_ODDS`, `BOLLARD_RUN`), a
+  reflecting pool or a bronze in a plaza-sized piece; some lots are **surface car parks**
+  (`CityPlan.lots()` `"parking"`: DISTRICTS `surface_lots` / `core_surface_lots`, a hash, only
+  under `SURFACE_LOT_MAX_HEIGHT`; stall rows, ArenaGrounds' static cars in two kinds with a
+  two-box shadow twin, a pay booth, light poles in the street lamps' batch without their
+  OmniLight, a wall / hedge / chain-link (`shaders/chain_link.gdshader`) on the street sides); a
+  parking podium gets its drive-in (asphalt out to the kerb, a lit P sign) and cars on its roof
+  deck; and the cells a landmark's square dropped (`CityPlan.dropped_cells()`) are forecourt
+  round the landmark (a downtown tower's own footprint kept 4 m clear) or a car park. Every
+  roll is a private rng of seed + lot, never the block rng or `Building._rng`. FULL chunks merge
+  each paving kind into ONE mesh (`LotFill.commit()`, no shadow, one quad a rect where the
+  relief is planar); LOD chunks and the far city lay only the car parks' asphalt (the forecourt
+  paving reads as pavement from there) and the podium boxes come with the parts. AirTraffic
+  skips car-park lots.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
@@ -1532,6 +1554,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   each: the shop names and the kit batches (one per kind already). Prove a change here with
   `tools/building_merge_probe.gd` (rebuilds the old nodes from `Building.keep_records`, diffs
   them, and splits the difference by kind; `SHIFT=1` shows what an origin re-centre alone flips).
+  **Podiums** (2026-09-27): where CityChunk sets `podium_lot` (LotFill's districts),
+  `_add_podium()` - after `_layout_parts()`, before `_pick_style()`, from hashes of the seed only,
+  so no `_rng` roll and no colour moves - gives a tower whose ground parts cover under
+  `podium_max_cover` of a big lot a base part (`parts[0]`, `"podium"`: 1 retail and lobby storeys
+  in the building's finish, 2 a parking deck) filling `podium_fill` of the lot, lifts every
+  ground part onto it (tops unchanged) and slides the tower off centre. A parking deck is drawn
+  by `building.gdshader` from CUSTOM3.z (`garage_*` uniforms: precast spandrels, columns on the
+  bay lines, the deck behind traced - floor stalls and nose-in cars, the next deck's lit
+  underside, the far side open to the day -, the drive-in bay `garage_entry` on `street_face`,
+  and a roof that is itself a deck of stalls); it gets no facade details, kit or roof plant, its
+  storey is `GARAGE_STOREY` and its far box is its concrete (`part_lod_color()`). StreetWear only
+  paints its spandrels.
 - Facade kit (owner, 2026-09-24: "it must look like RDR2, not San Andreas"): real moulded geometry
   on the buildings near the camera, modelled by `tools/facade_kit.py` in Blender
   (`blender -b --python tools/facade_kit.py`, then `--import`) into `assets/models/facade_kit.glb`,

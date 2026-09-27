@@ -252,6 +252,15 @@ static func car_mesh(v: int) -> Mesh:
 	st.set_material(mat)
 	var mesh := st.commit()
 	_car_cache[v] = mesh
+	# Its shadow is cast by two boxes (body and glasshouse, 24 triangles): a car park's worth of
+	# the full car in every cascade was most of LotFill's shadow cost.
+	var sh := SurfaceTool.new()
+	sh.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var unit := BoxMesh.new()
+	unit.size = Vector3.ONE
+	for b: Array in [[Vector3(width, body_h, length), Vector3(0.0, (y0 + y1) * 0.5, 0.0)], [Vector3(width - 0.3, cab_h, cab_len), Vector3(0.0, y1 + cab_h * 0.5, cab_z)]]:
+		sh.append_from(unit, 0, Transform3D(Basis().scaled(b[0]), b[1]))
+	PropFactory._shadow_proxies[mesh] = sh.commit()
 	return mesh
 
 

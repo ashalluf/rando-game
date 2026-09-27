@@ -30,7 +30,8 @@ const DISTRICTS := [CityPlan.District.DOWNTOWN, CityPlan.District.MIDTOWN]
 ## pavement slab (metres).
 const PAVING_LIFT := 0.04
 const ASPHALT_LIFT := 0.05
-## Forecourt paving looks: [texture set, metres a tile, tint]. A block uses two of them, a lot one.
+## Forecourt paving looks: [texture set, metres a tile, tint].
+## (A block uses one of them.)
 const PAVINGS := [
 	["paving", 2.2, Color(0.80, 0.79, 0.78)],
 	["pavers", 1.25, Color(0.66, 0.65, 0.64)],
@@ -44,10 +45,18 @@ const ASPHALT_FAR := Color(0.36, 0.36, 0.38)
 ## the frame's biggest single cost, a static car ~260 triangles.
 const MAX_TREES := 10
 const MAX_CARS := 170
+## How far the parked cars cast shadows (metres): a static car has no LODs, and its shadow a
+## few pixels long is not worth it in the far cascades.
+const CAR_SHADOW_DISTANCE := 70.0
 ## Share of a car park's stalls that are taken (a range, hashed per lot).
 const CAR_FILL := Vector2(0.55, 0.92)
 ## Share of a parking podium's roof stalls that are taken.
 const ROOF_FILL := 0.45
+## Odds a strip or a planted piece of forecourt gets bollards along its street side (a plaza
+## always does), and the most in one run: a frontage of them on every lot was two thousand
+## bollards in a street view, each in every shadow cascade.
+const BOLLARD_ODDS := 0.3
+const BOLLARD_RUN := 9
 ## A planter's kerb height, and the depth of the strip a narrow leftover gets.
 const PLANTER_HEIGHT := 0.55
 ## Forecourt pieces at least this deep (metres) are a plaza: a feature in the middle.
@@ -98,25 +107,21 @@ static func _cell(lot: Dictionary) -> Rect2:
 	return Rect2((lot.center as Vector2) - size * 0.5, size)
 
 
-## Which of PAVINGS a lot's forecourt wears: one of the block's two.
-static func _paving_for(ch: CityChunk, lot_seed: int) -> int:
-	var first := absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_paving"])) % PAVINGS.size()
-	var second := (first + 1 + absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_paving2"])) % (PAVINGS.size() - 1)) % PAVINGS.size()
-	return first if absi(hash([lot_seed, "paving"])) % 2 == 0 else second
+## Which of PAVINGS a block's forecourts wear (one a block: each look is a draw call a chunk).
+static func _paving_for(ch: CityChunk) -> int:
+	return absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_paving"])) % PAVINGS.size()
 
 
 static func _material(ch: CityChunk, kind: String) -> Material:
 	if kind == "asphalt":
 		return PropFactory.road("asphalt", 7.0, Color(0.6, 0.6, 0.62), hash([ch.plan.seed, "lot_asphalt"]), 0.0, 0.7)
-	if kind == "apron":
-		return PropFactory.road("concrete", 3.0, Color(0.86, 0.85, 0.82), hash([ch.plan.seed, "lot_apron"]), 1.5, 0.25)
 	var p: Array = PAVINGS[int(kind.substr(6))]
 	return PropFactory.road(p[0], p[1], p[2], hash([ch.plan.seed, "lot_paving", kind]), 0.0, 0.2)
 
 
 ## One rect of fill ground: a FULL chunk collects it into the kind's merged mesh (commit()); a LOD
 ## chunk or the far city's capture lays it as a slab (the merged far ground, or captured.ground).
-## `kind` is "paving<N>", "asphalt" or "apron".
+## `kind` is "paving<N>" or "asphalt".
 static func _ground(ch: CityChunk, r: Rect2, kind: String) -> void:
 	if r.size.x < 0.5 or r.size.y < 0.5:
 		return
@@ -125,8 +130,15 @@ static func _ground(ch: CityChunk, r: Rect2, kind: String) -> void:
 			ch._fill_ground[kind] = []
 		(ch._fill_ground[kind] as Array).append(r)
 		return
+	# From afar the forecourt paving is the pavement's colour give or take, and every slab is
+	# more of the merged far ground's triangles (a LOD chunk grids it at 8 m, whatever it is):
+	# only the car parks' asphalt, which changes how a block reads from the air, goes in. And a
+	# slab under 6 m would not join the merged far ground at all (CityChunk._add_slab() makes it a
+	# box of its own material: a draw).
+	if kind != "asphalt" or maxf(r.size.x, r.size.y) < 6.0:
+		return
 	var lift := ASPHALT_LIFT if kind == "asphalt" else PAVING_LIFT
-	var far: Color = ASPHALT_FAR if kind == "asphalt" else (PAVING_FAR[0] if kind == "apron" else PAVING_FAR[int(kind.substr(6))])
+	var far: Color = ASPHALT_FAR if kind == "asphalt" else PAVING_FAR[int(kind.substr(6))]
 	var c := r.get_center()
 	ch._add_slab(Vector3(c.x, CityChunk.SIDEWALK_TOP + lift - 0.02, c.y), Vector3(r.size.x, 0.04, r.size.y), far, false, _material(ch, kind))
 
@@ -140,16 +152,37 @@ static func commit(ch: CityChunk) -> void:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 		var lift := ASPHALT_LIFT if kind == "asphalt" else PAVING_LIFT
 		for r: Rect2 in ch._fill_ground[kind]:
-			var step := ch.ground_grid_step if CityChunk._detail() >= 1.0 else ch.ground_grid_step * 2.0
-			var nx := clampi(ceili(r.size.x / step), 1, 60)
-			var nz := clampi(ceili(r.size.y / step), 1, 60)
+			var nx := 1
+			var nz := 1
+			# Downtown's relief is off and elsewhere it rolls over hundreds of metres, so most
+			# rects are flat or a plane: one quad then, the relief grid only where it bends.
+			if not _planar(ch, r):
+				var step := ch.ground_grid_step if CityChunk._detail() >= 1.0 else ch.ground_grid_step * 2.0
+				nx = clampi(ceili(r.size.x / step), 1, 60)
+				nz = clampi(ceili(r.size.y / step), 1, 60)
 			st.append_from(ch._grid_mesh(r, CityChunk.SIDEWALK_TOP + lift, lift + 0.02, nx, nz), 0, Transform3D.IDENTITY)
 		var mi := MeshInstance3D.new()
 		mi.name = "LotFill_" + kind
 		mi.mesh = st.commit()
 		mi.material_override = _material(ch, kind)
+		# Four centimetres proud of the pavement: its shadow is nothing, and in every cascade.
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ch.add_child(mi)
 	ch._fill_ground.clear()
+
+
+## True when the relief under `r` is a plane to within a centimetre (its centre and edge middles
+## where the corners' bilinear puts them).
+static func _planar(ch: CityChunk, r: Rect2) -> bool:
+	var h00 := ch._gy(r.position.x, r.position.y)
+	var h10 := ch._gy(r.end.x, r.position.y)
+	var h01 := ch._gy(r.position.x, r.end.y)
+	var h11 := ch._gy(r.end.x, r.end.y)
+	for f: Vector2 in [Vector2(0.5, 0.5), Vector2(0.5, 0.0), Vector2(0.5, 1.0), Vector2(0.0, 0.5), Vector2(1.0, 0.5)]:
+		var want := lerpf(lerpf(h00, h10, f.x), lerpf(h01, h11, f.x), f.y)
+		if absf(ch._gy(r.position.x + r.size.x * f.x, r.position.y + r.size.y * f.y) - want) > 0.01:
+			return false
+	return true
 
 
 # --- A building's lot -------------------------------------------------------------------------
@@ -166,7 +199,7 @@ static func after_building(ch: CityChunk, lot: Dictionary, bld: Building) -> voi
 		if c.y - size.y * 0.5 > 0.05:
 			continue
 		holes.append(Rect2(centre.x + c.x - size.x * 0.5, centre.y + c.z - size.z * 0.5, size.x, size.z))
-	var paving := "paving%d" % _paving_for(ch, int(lot.seed))
+	var paving := "paving%d" % _paving_for(ch)
 	_ground(ch, cell, paving)
 	var keep: Array[Rect2] = holes.duplicate()
 	var entry := bld.garage_entry()
@@ -181,8 +214,8 @@ static func after_building(ch: CityChunk, lot: Dictionary, bld: Building) -> voi
 		forecourt(ch, r, rng)
 
 
-## The drive-in of a parking podium: asphalt from the opening out to the cell's edge, and a
-## concrete apron across the pavement when the cell ends at the block's edge. Returns the
+## The drive-in of a parking podium: asphalt from the opening out to the cell's edge, and on
+## across the pavement to the kerb when the cell ends at the block's edge. Returns the
 ## driveway's rect (the forecourt keeps off it). A lit P sign over the opening.
 static func _driveway(ch: CityChunk, cell: Rect2, centre: Vector2, entry: Dictionary) -> Rect2:
 	var at: Vector3 = entry.at
@@ -204,11 +237,11 @@ static func _driveway(ch: CityChunk, cell: Rect2, centre: Vector2, entry: Dictio
 	if absf(n.x) > 0.5:
 		var edge := inner.end.x if n.x > 0.0 else inner.position.x
 		if absf((cell.end.x if n.x > 0.0 else cell.position.x) - edge) < 0.5:
-			_ground(ch, Rect2(edge if n.x > 0.0 else edge - sw, r.position.y, sw, w), "apron")
+			_ground(ch, Rect2(edge if n.x > 0.0 else edge - sw, r.position.y, sw, w), "asphalt")
 	else:
 		var edge := inner.end.y if n.z > 0.0 else inner.position.y
 		if absf((cell.end.y if n.z > 0.0 else cell.position.y) - edge) < 0.5:
-			_ground(ch, Rect2(r.position.x, edge if n.z > 0.0 else edge - sw, w, sw), "apron")
+			_ground(ch, Rect2(r.position.x, edge if n.z > 0.0 else edge - sw, w, sw), "asphalt")
 	if ch.level == CityChunk.Level.FULL and not ch.capturing and not OS.has_feature("web"):
 		var yaw := atan2(n.x, n.z)
 		var sign_at := Vector3(p.x, CityChunk.SIDEWALK_TOP + Building.GARAGE_STOREY + 0.55, p.y) + n * 0.12
@@ -256,12 +289,14 @@ static func _roof_deck(ch: CityChunk, bld: Building, centre: Vector2, rng: Rando
 		k += 1
 
 
+## A static parked car (ArenaGrounds.car_mesh()): a saloon or the taller van-like body - two kinds,
+## two draws a chunk; the paint is what varies.
 static func _car(ch: CityChunk, rng: RandomNumberGenerator, at: Vector3, yaw: float) -> void:
-	var v := rng.randi() % ArenaGrounds.CAR_KINDS
-	if rng.randf() < 0.5:
-		v = 0
+	var v := 0 if rng.randf() < 0.62 else 2
 	var paint: Color = ArenaGrounds.CAR_PAINTS[rng.randi() % ArenaGrounds.CAR_PAINTS.size()]
-	ch._batch.add("apark_car_%d" % v, ArenaGrounds.car_mesh(v), Transform3D(Basis(Vector3.UP, yaw), at + Vector3(0.0, 0.005, 0.0)), paint)
+	var key := "apark_car_%d" % v
+	ch._batch.add(key, ArenaGrounds.car_mesh(v), Transform3D(Basis(Vector3.UP, yaw), at + Vector3(0.0, 0.005, 0.0)), paint)
+	ch._batch.set_shadow_distance(key, CAR_SHADOW_DISTANCE)
 	ch._fill_cars += 1
 
 
@@ -279,8 +314,9 @@ static func forecourt(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator) -> vo
 	var long_x := r.size.x >= r.size.y
 	var street := _street_side(ch, r)
 	if short < 4.5:
-		# A strip: bollards along the street side, a hedge planter behind them if it fits.
-		if street >= 0:
+		# A strip: now and then bollards along the street side, a hedge planter behind them if
+		# it fits.
+		if street >= 0 and rng.randf() < BOLLARD_ODDS:
 			_bollards(ch, r, street, rng)
 		if short >= 2.6 and rng.randf() < 0.7:
 			var pr := _inset_along(r, long_x, 1.0, 1.2)
@@ -311,7 +347,7 @@ static func forecourt(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator) -> vo
 				var face := Vector2(0.0, side) if long_x else Vector2(side, 0.0)
 				if r.has_point(Vector2(at.x, at.z)):
 					ch._add_bench(at, atan2(-face.x, -face.y))
-		if street >= 0 and rng.randf() < 0.6:
+		if street >= 0 and rng.randf() < BOLLARD_ODDS:
 			_bollards(ch, r, street, rng)
 		return
 	# A plaza: a feature in the middle, planters at the corners, benches round the feature.
@@ -352,19 +388,21 @@ static func _street_side(ch: CityChunk, r: Rect2) -> int:
 	return best
 
 
-## Bollards every 1.8 m along side `side` of `r`, 0.5 m in.
+## A run of bollards along side `side` of `r`, 0.5 m in: at most BOLLARD_RUN of them, 2 m apart,
+## in front of the middle of the frontage (the doors), one left out for the way through.
 static func _bollards(ch: CityChunk, r: Rect2, side: int, rng: RandomNumberGenerator) -> void:
 	var top := CityChunk.SIDEWALK_TOP + PAVING_LIFT
 	var along_x := side <= 1
 	var length := r.size.x if along_x else r.size.y
-	var n := int((length - 1.0) / 1.8)
+	var n := mini(int((length - 1.0) / 2.0), BOLLARD_RUN)
 	if n < 2:
 		return
+	var start := (length - float(n) * 2.0) * 0.5
 	var skip := rng.randi() % n
 	for i in n:
 		if i == skip and n > 4:
 			continue
-		var t := 0.5 + (float(i) + 0.5) * (length - 1.0) / float(n)
+		var t := start + (float(i) + 0.5) * 2.0
 		var q: Vector2
 		match side:
 			0:
@@ -415,12 +453,36 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 			ch._batch.add("gclump_%d" % clump, PropFactory.model_grass_clump(clump), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), at),
 				Color(rng.randf_range(0.9, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.9, 1.05)))
 		else:
-			ch._add_bush(at, rng)
+			_shrub(ch, at, rng)
 	ch._batch.set_no_shadow("gclump_%d" % clump)
 	ch._batch.set_draw_distance("gclump_%d" % clump, ch.clump_distance)
 	if has_tree:
 		ch._fill_trees += 1
-		ch._add_tree(Vector3(c.x, soil_top, c.y), rng)
+		_tree(ch, Vector3(c.x, soil_top, c.y), rng)
+
+
+## A shrub in a planter: ONE species a chunk (a batch key is a draw call, and its shadow twin
+## another - planted with CityChunk._add_bush()'s eight-way roll, the planters alone put up to
+## sixteen new draws on a chunk).
+static func _shrub(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> void:
+	var pick := absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_shrub"])) % (4 + PropFactory.BUSHES.size())
+	var sc := rng.randf_range(0.65, 1.15)
+	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
+	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
+	if pick < 4:
+		ch._batch.add("shrub_%d" % pick, PropFactory.model_shrub(pick), Transform3D(basis, at), tint)
+	else:
+		ch._batch.add("bush_%d" % (pick - 4), PropFactory.model_bush(pick - 4), Transform3D(basis, at), tint)
+
+
+## A planter's tree: the block's own street tree (CityChunk._tree_bias, the species its street
+## already plants, so usually no new batch), at a planter's size.
+static func _tree(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> void:
+	var variant := clampi(ch._tree_bias, 0, PropFactory.CITY_TREES.size() - 1)
+	var s := PropFactory.city_tree_scale(variant, PropFactory.city_tree_height(variant, rng) * 0.8)
+	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
+	var variety := Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.25, 1.0))
+	ch._batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s, s)), at), tint, variety)
 
 
 ## A shallow reflecting pool over `r`: a stone kerb and a dark still surface (merged boxes).
@@ -436,19 +498,21 @@ static func _pool(ch: CityChunk, r: Rect2) -> void:
 		var pos := c + (Vector2(0.0, (r.size.y - t) * 0.5 * (1.0 if side == 0 else -1.0)) if horiz else Vector2((r.size.x - t) * 0.5 * (1.0 if side == 2 else -1.0), 0.0))
 		var size := Vector3(r.size.x, kerb, t) if horiz else Vector3(t, kerb, r.size.y - t * 2.0)
 		ch._add_slab(Vector3(pos.x, base + kerb * 0.5, pos.y), size, Color(0.7, 0.7, 0.68), true, Building.plinth_material())
-	ch._merge_box(_water_material(), Vector3(r.size.x - t * 2.0, 0.06, r.size.y - t * 2.0), Vector3(c.x, base + kerb - 0.12 + ch._gy(c.x, c.y), c.y))
+	ch._merge_box(_dark_material(), Vector3(r.size.x - t * 2.0, 0.06, r.size.y - t * 2.0), Vector3(c.x, base + kerb - 0.12 + ch._gy(c.x, c.y), c.y))
 
 
-static var _water: StandardMaterial3D = null
+static var _dark: StandardMaterial3D = null
 
 
-static func _water_material() -> StandardMaterial3D:
-	if _water == null:
-		_water = StandardMaterial3D.new()
-		_water.albedo_color = Color(0.05, 0.08, 0.09)
-		_water.roughness = 0.04
-		_water.metallic = 0.1
-	return _water
+## Everything dark and glossy the fill builds - still water, polished granite, a booth's glass -
+## is one material, so one merged mesh (a draw) a chunk.
+static func _dark_material() -> StandardMaterial3D:
+	if _dark == null:
+		_dark = StandardMaterial3D.new()
+		_dark.albedo_color = Color(0.06, 0.075, 0.08)
+		_dark.roughness = 0.1
+		_dark.metallic = 0.15
+	return _dark
 
 
 ## An abstract bronze on a granite plinth: a leaning column of turned blocks (the shapes are
@@ -456,7 +520,7 @@ static func _water_material() -> StandardMaterial3D:
 static func _bronze(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator) -> void:
 	var base := CityChunk.SIDEWALK_TOP + PAVING_LIFT
 	var ph := 1.3
-	ch._add_slab(Vector3(at.x, base + ph * 0.5, at.y), Vector3(2.0, ph, 2.0), Color(0.3, 0.3, 0.31), true, _granite_material())
+	ch._add_slab(Vector3(at.x, base + ph * 0.5, at.y), Vector3(2.0, ph, 2.0), Color(0.3, 0.3, 0.31), true, _dark_material())
 	var bronze := PropFactory.box("fill_bronze", Vector3.ONE, Color(0.36, 0.24, 0.14))
 	var yaw := rng.randf() * TAU
 	var p := Vector3(at.x, base + ph, at.y)
@@ -470,16 +534,6 @@ static func _bronze(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator) -> v
 		ch._batch.add("fill_bronze", bronze, Transform3D(b.scaled_local(Vector3(w, l, w * 0.7)), p + dir * l * 0.5), Color(0.36, 0.24, 0.14))
 		p += dir * l * 0.9
 
-
-static var _granite: StandardMaterial3D = null
-
-
-static func _granite_material() -> StandardMaterial3D:
-	if _granite == null:
-		_granite = StandardMaterial3D.new()
-		_granite.albedo_color = Color(0.16, 0.16, 0.17)
-		_granite.roughness = 0.3
-	return _granite
 
 
 # --- Surface car parks --------------------------------------------------------------------------
@@ -536,13 +590,12 @@ static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:
 				var nose := Vector2(0.0, row.y) if along_x else Vector2(row.y, 0.0)
 				var yaw := atan2(-nose.x, -nose.y) + rng.randf_range(-0.05, 0.05)
 				_car(ch, rng, Vector3(cp.x, top, cp.y), yaw)
-	# Light masts down the aisles.
-	var mast := PropFactory.cylinder("lm_mast", 0.2, 1.0, LandmarkArenaDistrict.STEEL_DARK, 0.13, 10)
+	# Light poles down the aisles.
 	for a: float in aisles:
-		var m := maxi(1, int(U / 34.0))
+		var m := maxi(1, int(U / 30.0))
 		for j in m:
 			var q: Vector2 = to_world.call(U * (float(j) + 0.5) / float(m), a)
-			LandmarkArenaDistrict._mast(ch._batch, Vector3(q.x, top, q.y), 9.0, mast)
+			_lamp(ch, Vector3(q.x, top, q.y))
 	# The street sides: a way in at the first aisle's end, a pay booth beside it, and the edging.
 	var street := _street_side(ch, cell)
 	var gate := Vector2.INF
@@ -572,6 +625,17 @@ static func _car_park(ch: CityChunk, cell: Rect2, key: int) -> void:
 			_edge_run(ch, cell, side, gate, "hedge", rng)
 		else:
 			_edge_run(ch, cell, side, gate, "fence", rng)
+
+
+## A light pole: the street lamp and its pool of light, in the street lamps' own batches (no draw
+## call of its own) - but without the street lamp's OmniLight3D, which a car park's worth of
+## poles would multiply; the additive pool carries the night.
+static func _lamp(ch: CityChunk, at: Vector3) -> void:
+	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(CityChunk.LAMP_POOL_SIZE * 1.3, 1.0, CityChunk.LAMP_POOL_SIZE * 1.3)), at + Vector3(0.0, 0.05, 0.0))
+	ch._add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
+		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), ch._lamp_tint],
+		["lamp_pool", PropFactory.light_pool(), pool],
+	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
 
 
 ## How far side `side` of `r` is from the block's inner edge on that side.
@@ -621,7 +685,7 @@ static func _edge_run(ch: CityChunk, r: Rect2, side: int, gate: Vector2, kind: S
 
 
 ## Chain-link along a run: galvanised posts every 3 m with a top rail, and the mesh between them
-## (shaders/chain_link.gdshader, one quad a panel) - two batches a chunk.
+## (shaders/chain_link.gdshader, one quad a panel) - two batches a chunk (the rails are posts).
 static func _fence(ch: CityChunk, c: Vector2, length: float, along_x: bool, base: float) -> void:
 	var n := maxi(1, ceili(length / 3.0))
 	var panel := length / float(n)
@@ -634,8 +698,9 @@ static func _fence(ch: CityChunk, c: Vector2, length: float, along_x: bool, base
 	for i in n:
 		var q := c + dir * (-length * 0.5 + (float(i) + 0.5) * panel)
 		ch._batch.add("fence_mesh", chain_link_panel(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(panel, 1.0, 1.0)), Vector3(q.x, base, q.y)))
-		ch._batch.add("fence_rail", post, Transform3D((Basis(Vector3.UP, yaw) * Basis(Vector3.FORWARD, PI * 0.5)).scaled_local(Vector3(1.0, panel, 1.0)), Vector3(q.x, base + FENCE_HEIGHT, q.y)))
+		ch._batch.add("fence_post", post, Transform3D((Basis(Vector3.UP, yaw) * Basis(Vector3.FORWARD, PI * 0.5)).scaled_local(Vector3(1.0, panel, 1.0)), Vector3(q.x, base + FENCE_HEIGHT, q.y)))
 	ch._batch.set_no_shadow("fence_mesh")
+	ch._batch.set_shadow_distance("fence_post", 40.0)
 
 
 static var _chain_link: ArrayMesh = null
@@ -671,20 +736,9 @@ static func _booth(ch: CityChunk, gate: Vector2, street: int, rng: RandomNumberG
 	var base := CityChunk.SIDEWALK_TOP + ASPHALT_LIFT
 	var mat := Building.plinth_material()
 	ch._add_slab(Vector3(c.x, base + 0.5, c.y), Vector3(1.9, 1.0, 1.9), Color(0.7, 0.7, 0.68), true, mat)
-	ch._merge_box(_glass_material(), Vector3(1.8, 1.1, 1.8), Vector3(c.x, base + 1.55 + ch._gy(c.x, c.y), c.y))
+	ch._merge_box(_dark_material(), Vector3(1.8, 1.1, 1.8), Vector3(c.x, base + 1.55 + ch._gy(c.x, c.y), c.y))
 	ch._add_slab(Vector3(c.x, base + 2.25, c.y), Vector3(2.5, 0.3, 2.5), Color(0.7, 0.7, 0.68), false, mat)
 
-
-static var _glass: StandardMaterial3D = null
-
-
-static func _glass_material() -> StandardMaterial3D:
-	if _glass == null:
-		_glass = StandardMaterial3D.new()
-		_glass.albedo_color = Color(0.07, 0.09, 0.1)
-		_glass.roughness = 0.12
-		_glass.metallic = 0.3
-	return _glass
 
 
 # --- What a landmark's square left -------------------------------------------------------------
@@ -722,7 +776,7 @@ static func leftovers(ch: CityChunk, block: Dictionary) -> void:
 			if piece.size.x >= 24.0 and piece.size.y >= 18.0 and rng.randf() < LEFTOVER_PARK_ODDS:
 				_car_park(ch, piece, hash([k, "leftover_park"]))
 				continue
-			var paving := "paving%d" % _paving_for(ch, k)
+			var paving := "paving%d" % _paving_for(ch)
 			_ground(ch, piece, paving)
 			if ch.level == CityChunk.Level.FULL and not ch.capturing:
 				forecourt(ch, piece.grow(-0.4), rng)

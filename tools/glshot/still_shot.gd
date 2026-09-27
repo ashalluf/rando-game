@@ -639,7 +639,7 @@ func _geo_report(label: String) -> Array:
 	return c
 
 
-const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
 func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
@@ -815,6 +815,11 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				# Encampment pieces and the static figures at them (Encampment, CampFigure).
 				if nm.begins_with("Batch_camp") or nm.begins_with("BatchShadow_camp"):
 					return "Camp"
+				# The lot fill's own ground and the batches only it uses (LotFill; its planting,
+				# lamps, benches and bollards share the street's batches and count there).
+				if nm.begins_with("LotFill") or nm.contains("apark_car") or nm.contains("pstripe") or nm.contains("fence_") \
+						or nm.contains("gar_sign") or nm.contains("fill_bronze"):
+					return "LotFill"
 				if nm.begins_with("Batch"):
 					return "StreetProps"
 				return "Other"
