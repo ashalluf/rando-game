@@ -75,13 +75,15 @@ const SKID_PUSHERS := 2
 ## and pushers one chunk can have.
 const PEOPLE_STEPS := SKID_MAX_SLEEPERS + SKID_PUSHERS + 1
 ## The people who sit, lie or slump are static figures (CampFigure: baked once per model and
-## pose, drawn in the chunk's batch, woken into a live RoughSleeper when something reaches
+## pose, merged into one mesh a chunk, woken into a live RoughSleeper when something reaches
 ## them). Most of them one chunk draws (outside skid row, on skid row), how many of the models
-## one chunk dresses them in (each model and pose is a draw call), and their draw distance (m).
+## one chunk dresses them in (each model is a draw call), and their draw distance (m).
 const MAX_FIGURES := 9
 const SKID_MAX_FIGURES := 18
-const FIGURE_MODELS := 4
-const FIGURE_DRAW_DISTANCE := 140.0
+const FIGURE_MODELS := 3
+## The web build (lower crowd caps everywhere) draws this share of them.
+const WEB_FIGURE_SHARE := 0.5
+const FIGURE_DRAW_DISTANCE := 110.0
 ## Faces across the road from MacArthur Park (its site, CityPlan.sites()): the odds of a camp.
 const PARK_EDGE_ODDS := 0.7
 ## Freeway underpasses within this many downtown radii of the centre (or on skid row) get camps:
@@ -129,7 +131,7 @@ const PATH_KEEP := 2.1
 const KERB_ROW_OFFSET := 0.45
 const KERB_ROW_ODDS := Vector2(0.45, 0.8)
 const KERB_ROW_SKIP := Vector2(1.5, 5.0)
-const KERB_PIECES := ["cart", "loaded_cart", "loaded_cart", "bag_trash", "bag_trash", "box", "bundle", "bag_duffel", "bicycle", "bike_frame"]
+const KERB_PIECES := ["cart", "loaded_cart", "bags_pile", "bag_trash", "bag_trash", "box", "bundle", "bag_duffel", "bicycle", "bike_frame"]
 ## Gap between a piece's back and the wall, and where the wall is taken to be when no building
 ## stands behind (an empty lot, a yard): this many metres in from the kerb.
 const WALL_BACK := 0.25
@@ -137,9 +139,15 @@ const NO_WALL_DEPTH := 5.4
 ## A doorway gap every so often along a run (metres of wall between them, and the gap's width).
 const DOOR_EVERY := Vector2(9.0, 16.0)
 const DOOR_GAP := Vector2(1.6, 2.6)
-## Draw distances (m): tents and tarps, and the small things.
-const DRAW_DISTANCE := 190.0
-const SMALL_DRAW_DISTANCE := 120.0
+## Draw distances (m): tents and tarps, and the small things. A batch is one node per chunk, so
+## these drop whole chunks' camps, not single pieces.
+const DRAW_DISTANCE := 150.0
+const SMALL_DRAW_DISTANCE := 85.0
+## Pieces that cast no shadow: flat or knee-high, their shadow is a few pixels under them, and
+## with twenty times the camps their shadow twins were a third of all the camps' draws.
+## Past this (m) the camp pieces' shadows are not drawn at all (the pieces still are).
+const SHADOW_DISTANCE := 70.0
+const NO_SHADOW := ["cardboard", "bedding", "mattress", "bike_wheel", "box", "bag_duffel", "bundle", "bag_trash"]
 
 ## Faded tent colours (a tent sold bright and left out for a year), tarp colours, trash-bag
 ## colours, bike paints, blanket and duffel colours. The shader bleaches them further per instance.
@@ -331,13 +339,18 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, out_sleeper
 	for key: String in PIECES:
 		var k := "camp_" + key
 		chunk._batch.set_draw_distance(k, DRAW_DISTANCE if PIECES[key].far else SMALL_DRAW_DISTANCE)
+		if key in NO_SHADOW:
+			chunk._batch.set_no_shadow(k)
+		else:
+			chunk._batch.set_shadow_distance(k, SHADOW_DISTANCE)
 	# Standing people stay live (they idle, turn, talk); everyone sitting, lying or slumped is a
 	# static figure until something reaches them.
 	var live: Array = []
 	var posed: Array = []
 	for s: Dictionary in sleepers:
 		(live if int(s.pose) == RoughSleeper.Pose.STAND else posed).append(s)
-	_add_figures(chunk, rect, _thin(posed, roundi(lerpf(MAX_FIGURES, SKID_MAX_FIGURES, skid))))
+	var figure_cap := roundi(lerpf(MAX_FIGURES, SKID_MAX_FIGURES, skid) * (WEB_FIGURE_SHARE if OS.has_feature("web") else 1.0))
+	_add_figures(chunk, rect, _thin(posed, figure_cap))
 	out_sleepers.append_array(_thin(live, roundi(lerpf(MAX_SLEEPERS, SKID_MAX_SLEEPERS, skid))))
 	# Somebody pushing their cart round the block's pavement (the walkers' strip, like a walker).
 	if not faces.is_empty():
@@ -361,15 +374,16 @@ static func _thin(list: Array, cap: int) -> Array:
 
 ## The static figures (CampFigure) for `list`: each one's model from the few this chunk uses,
 ## hashed from the seed, the block and its place in the list; its pose, spot and facing as the
-## camp laid them. A batch instance where there is mesh data, and always its body.
+## camp laid them. Drawn merged (CampFigureMesh) where there is mesh data; always its body.
 static func _add_figures(chunk: CityChunk, rect: Rect2, list: Array) -> void:
 	var plan: CityPlan = chunk.plan
 	var n := Pedestrian.MODELS.size()
 	var first := absi(hash([plan.seed, "camp_models", chunk.ix, chunk.iz]))
 	var models: Array = []
 	for i in mini(FIGURE_MODELS, n):
-		# Stride 2 through nine models: four different ones.
+		# Stride 2 through nine models: different ones.
 		models.append((first + i * 2) % n)
+	var merged: CampFigureMesh = null
 	for i in list.size():
 		var s: Dictionary = list[i]
 		var at: Vector2 = s.at
@@ -390,14 +404,19 @@ static func _add_figures(chunk: CityChunk, rect: Rect2, list: Array) -> void:
 		fig.lift = lift
 		fig.ring = rect
 		fig.sidewalk = PATH_KEEP + 1.0
+		var xf := Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, chunk.ground_y(at.x, at.y) + lift, at.y))
 		var mesh := CampFigure.mesh_for(seed_value, pk)
 		if mesh:
-			var key := "campfig_%d_%d" % [seed_value, pk]
-			var index := chunk._batch.add(key, mesh, Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, CityChunk.SIDEWALK_TOP + lift, at.y)))
-			chunk._batch.set_draw_distance(key, FIGURE_DRAW_DISTANCE)
-			fig.instance = [key, index]
-		fig.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, chunk.ground_y(at.x, at.y) + lift, at.y))
+			if merged == null:
+				merged = CampFigureMesh.new()
+				merged.name = "CampFigureMesh"
+				merged.draw_distance = FIGURE_DRAW_DISTANCE
+			fig.figure_mesh = merged
+			fig.figure_index = merged.add(mesh, CampFigure.shadow_for(mesh), xf)
+		fig.transform = xf
 		chunk.add_child(fig)
+	if merged:
+		chunk.add_child(merged)
 
 
 ## The chunk's build step for the `index`th person build_block queued (nothing when there is none).

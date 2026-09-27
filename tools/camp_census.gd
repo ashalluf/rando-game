@@ -49,6 +49,9 @@ func _initialize() -> void:
 				people += 1
 			elif child.get_script() and str(child.get_script().get_global_name()) == "CampFigure":
 				bodies += 1
+			elif child.get_script() and str(child.get_script().get_global_name()) == "CampFigureMesh":
+				figures += (child.get("entries") as Array).size()
+				kinds += 1
 		var block: Dictionary = plan.block(k.x, k.y)
 		if int(block.district) == 0 and int(block.kind) == 0:
 			totals.downtown_blocks += 1

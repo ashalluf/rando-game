@@ -7,9 +7,9 @@ extends StaticBody3D
 ## AnimationPlayer, a script ticking every physics step and a spent place in the crowd cap: two
 ## hundred of them round skid row cost what two hundred walkers do. So each (model, pose) is
 ## posed ONCE on a real RoughSleeper, its welded middle body (Pedestrian.far_mesh(), the one a
-## walker wears past 50 m) is skinned on the CPU into a plain mesh in the worn look, and every
-## figure of that kind in a chunk is one instance of it: a skid-row block's forty people are a
-## dozen draw calls, their shadows from the far body (PropFactory.shadow_proxy()).
+## walker wears past 50 m) is skinned on the CPU into a plain mesh in the worn look, and a
+## chunk's figures are merged into one mesh (CampFigureMesh): a skid-row block's eighteen people
+## are a draw call per model it uses, their shadows one more from the far bodies.
 ##
 ## This body is only the figure's collision (the npc layer, like a walker's: bullets, blasts and
 ## car bumpers find it) and what turns it back into a person: shot, knocked, or near enough to
@@ -26,9 +26,11 @@ extends StaticBody3D
 static var wake_on_alarm: int = 4
 static var wake_reach: float = 26.0
 
-## The chunk it belongs to, its batch instance ([key, index]), and the person it stands for.
+## The chunk it belongs to, where it is drawn (its chunk's merged figures, and its index there),
+## and the person it stands for.
 var chunk: Node
-var instance: Array = []
+var figure_mesh: CampFigureMesh
+var figure_index: int = -1
 var pose: int = RoughSleeper.Pose.SIT
 var seed_value: int = 0
 var home := Vector2.ZERO
@@ -42,7 +44,10 @@ var _awake: bool = false
 ## "model|pose|variant".
 static var _baked: Dictionary = {}
 static var _seeds: Dictionary = {}
+## Each baked figure's far body, the one its shadow is drawn from.
+static var _shadows: Dictionary = {}
 static var _host: Node3D
+static var _acc_chance: float = -1.0
 
 
 func _init() -> void:
@@ -89,9 +94,8 @@ func wake() -> RoughSleeper:
 		return null
 	_awake = true
 	collision_layer = 0
-	var nodes: Dictionary = chunk.get("_mm_nodes")
-	if nodes and not instance.is_empty():
-		MultiMeshBatch.hide_instance(nodes.get(instance[0]) as MultiMeshInstance3D, int(instance[1]))
+	if figure_mesh and is_instance_valid(figure_mesh):
+		figure_mesh.hide_figure(figure_index)
 	if chunk.has_method("_take_crowd_room"):
 		chunk._take_crowd_room()
 	var ped := RoughSleeper.new()
@@ -121,9 +125,9 @@ static func wake_near(tree: SceneTree, at: Vector3, radius: float) -> void:
 		(near[i][1] as CampFigure).wake()
 
 
-## A seed that dresses a RoughSleeper as model `model` (index into Pedestrian.MODELS) with the
-## pose variant `variant` (RoughSleeper: the seed's parity), searched once and remembered: the
-## figure and the person it wakes into are the same person.
+## A seed that dresses a RoughSleeper as model `model` (index into Pedestrian.MODELS), in that
+## model's one look, with the pose variant `variant` (RoughSleeper: the seed's parity), searched
+## once and remembered: the figure and the person it wakes into are the same person.
 static func seed_for(model: int, pose_kind: int, variant: int) -> int:
 	var key := "%d|%d|%d" % [model, pose_kind, variant]
 	if _seeds.has(key):
@@ -134,17 +138,45 @@ static func seed_for(model: int, pose_kind: int, variant: int) -> int:
 			models += 1
 	var found := variant
 	if models > 0:
-		for k in 4000:
-			var s := 7919 * (k + 1) + pose_kind * 131 + variant
+		# One look per model (the character shader's clothing hue): every pose of a model then
+		# shares one material, so a chunk's merged figures are a draw per model, not per figure.
+		var look := (model * 7 + 3) % Pedestrian.CHARACTER_LOOKS
+		var fallback := -1
+		for k in 60000:
+			var s := 7919 * (k + 1) + pose_kind * 131
 			if absi(s) % 2 != variant:
 				s += 1
 			var style := RandomNumberGenerator.new()
 			style.seed = hash([s, "style"])
-			if style.randi() % models == model % models:
-				found = s
-				break
+			if style.randi() % models != model % models:
+				continue
+			if fallback < 0:
+				fallback = s
+			if style.randi() % Pedestrian.CHARACTER_LOOKS != look:
+				continue
+			# And bare-headed with no pack: an accessory is a material of its own. Pedestrian's
+			# _add_model() draws five more (height, widths, lean, gait) before _add_accessory()
+			# rolls; if that order ever changes this only costs a draw call, never a wrong person.
+			for r in 5:
+				style.randf()
+			if style.randf() < _accessory_chance():
+				continue
+			found = s
+			fallback = -1
+			break
+		if fallback >= 0:
+			found = fallback
 	_seeds[key] = found
 	return found
+
+
+## RoughSleeper's accessory_chance (an export, so read off an instance once).
+static func _accessory_chance() -> float:
+	if _acc_chance < 0.0:
+		var p := RoughSleeper.new()
+		_acc_chance = p.accessory_chance
+		p.free()
+	return _acc_chance
 
 
 ## The figure mesh for a person of `seed` in `pose_kind` (in their local space: feet at the
@@ -177,7 +209,7 @@ static func mesh_for(seed: int, pose_kind: int) -> Mesh:
 	if near:
 		var far := _bake(ped, Pedestrian.far_triangles)
 		if far:
-			PropFactory._shadow_proxies[near] = far
+			_shadows[near] = far
 	_host.remove_child(ped)
 	ped.free()
 	_baked[key] = near
@@ -285,6 +317,11 @@ static func kinds() -> Array:
 			for v in (2 if pk == RoughSleeper.Pose.SIT else 1):
 				out.append([m, pk, v])
 	return out
+
+
+## The shadow body of a baked figure mesh (null if none).
+static func shadow_for(mesh: Mesh) -> Mesh:
+	return _shadows.get(mesh)
 
 
 ## Bakes every kind now (the loading screen), so no chunk stalls on its first figure.

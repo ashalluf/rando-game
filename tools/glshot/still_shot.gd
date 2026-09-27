@@ -295,7 +295,7 @@ func _geo_report(label: String) -> Array:
 	return c
 
 
-const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
 func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
@@ -337,6 +337,8 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				return "Pedestrian"
 			"Skyline":
 				return "FarCity"
+			"CampFigureMesh":
+				return "Camp"
 			"CityChunk":
 				var nm := String(gi.name)
 				for k in ["tree", "palm", "bush", "shrub", "flower", "plant", "gclump", "Planting"]:
@@ -346,6 +348,9 @@ func _split_category(gi: GeometryInstance3D) -> String:
 					return "Grass"
 				if nm.contains("FarGround"):
 					return "FarGround"
+				# Encampment pieces and the static figures at them (Encampment, CampFigure).
+				if nm.begins_with("Batch_camp") or nm.begins_with("BatchShadow_camp"):
+					return "Camp"
 				if nm.begins_with("Batch"):
 					return "StreetProps"
 				return "Other"
