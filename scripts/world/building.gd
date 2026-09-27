@@ -563,12 +563,19 @@ func _append_part(arrays: Array, center: Vector3, p: Array) -> void:
 	var src: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var size: Vector3 = p[1]
 	var shop := 1.0 if p[0] else 0.0
+	# The part's own numbers are the same on every one of its vertices.
+	var row1 := PackedFloat32Array([size.x, size.y, size.z, p[2]])
+	var row2 := PackedFloat32Array([p[3], p[4], p[5], p[6]])
+	var row3 := PackedFloat32Array([p[7], p[8], 0.0, 0.0])
 	for v: Vector3 in src:
 		verts.append(v + center)
-		c0.append_array([v.x, v.y, v.z, shop])
-		c1.append_array([size.x, size.y, size.z, p[2]])
-		c2.append_array([p[3], p[4], p[5], p[6]])
-		c3.append_array([p[7], p[8], 0.0, 0.0])
+		c0.append(v.x)
+		c0.append(v.y)
+		c0.append(v.z)
+		c0.append(shop)
+		c1.append_array(row1)
+		c2.append_array(row2)
+		c3.append_array(row3)
 	norms.append_array(arrays[Mesh.ARRAY_NORMAL])
 	tans.append_array(arrays[Mesh.ARRAY_TANGENT])
 	uvs.append_array(arrays[Mesh.ARRAY_TEX_UV])
@@ -2088,9 +2095,10 @@ static func _append_prim(acc: Dictionary, prim: Array, lit: bool) -> void:
 		var c := _roof_albedo(prim[2])
 		var rough: float = prim[3]
 		var metal: float = prim[4]
+		var row := PackedFloat32Array([c.r, c.g, c.b, rough])
 		for k in src.size():
 			uvs.append(Vector2(metal, 0.0))
-			custom.append_array([c.r, c.g, c.b, rough])
+			custom.append_array(row)
 		acc[Mesh.ARRAY_CUSTOM0] = custom
 	else:
 		uvs.append_array(arrays[Mesh.ARRAY_TEX_UV])

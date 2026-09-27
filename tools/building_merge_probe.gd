@@ -21,7 +21,8 @@ extends SceneTree
 ## rounding (a z-fight's winner, a shadow contact, a pixel on a window edge), which merging
 ## moves exactly as a re-centre does. OUT_DIR=path saves every image. The rooftop units are the
 ## one intended difference: one MultiMesh picks its LOD from its whole box, so a far unit can
-## be drawn finer (never coarser). DIST=35,230,... picks the distances, NIGHT=0 skips the night.
+## be drawn finer (never coarser). DIST=35,230,... picks the distances, NIGHT=0 skips the night,
+## ONLY=1,2 the buildings (indices into SEEDS).
 ## Building is loaded, not named: it reaches the autoloads, and this script compiles before them.
 
 const SEEDS := [[3301, 5], [4417, 5], [5023, 3], [6121, 2], [7717, 4], [8819, 6], [9901, 0]]
@@ -66,7 +67,10 @@ func _initialize() -> void:
 	# true world space and must come back through the origin_shift global.
 	root.get_node("WorldState").set("world_offset", Vector3(1234.5, 0.0, -987.25))
 	var out_dir := OS.get_environment("OUT_DIR")
+	var only := Array(OS.get_environment("ONLY").split(",", false)).map(func(t: String) -> int: return t.to_int())
 	for si in SEEDS.size():
+		if not only.is_empty() and not only.has(si):
+			continue
 		var spec: Array = SEEDS[si]
 		var b: Node3D = scene.instantiate()
 		b.set("seed", spec[0])
