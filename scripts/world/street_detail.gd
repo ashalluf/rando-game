@@ -90,17 +90,12 @@ const METER_INSET := 0.7
 const METER_ODDS := [0.75, 0.4, 0.0, 0.0, 0.0, 0.8]
 const METER_DRAW_DISTANCE := 140.0
 
-## Polished wheel tracks: piece length, wheel gauge, strip width, and their shade of the road
-## (road_patch.gdshader: 1.0 is the road itself). Polished tarmac is only a little darker and
-## glossier than the lane between the wheels. It was 0.5, written for the old flat grey patch
-## box: on the textured patch that is half the road's brightness, and every street wore two
-## pairs of black skid stripes down its whole length.
-const WHEEL_TRACK_PIECE := 14.0
+## Wheel gauge and strip width of the braking polish by the stop lines (_junction_wear).
+## The long polished wheel tracks down every lane are gone: laid as "patch" strips they never
+## matched the road's own colour (road.gdshader mottles and tints the tarmac in ways the patch
+## shader does not), so at a shade of 0.5 they were black skid stripes and at 0.9 tan ones.
 const WHEEL_TRACK_GAUGE := 1.72
-const WHEEL_TRACK_WIDTH := 0.5
-const WHEEL_TRACK_SHADE := 0.9
-## Chance a road shows wheel polish at all.
-const WHEEL_TRACK_ODDS := 0.7
+const WHEEL_TRACK_WIDTH := 0.46
 ## Shade range of an oil stain (the same patch mesh, much darker).
 const OIL_SHADE := Vector2(0.11, 0.22)
 ## Spray-painted utility locate marks, the ones every resurfaced street has near the kerb.
@@ -108,7 +103,6 @@ const LOCATE_COLORS := [Color(1.7, 0.7, 0.1), Color(0.25, 0.7, 1.9), Color(1.6, 
 const LOCATE_ODDS := 0.45
 
 ## Heights above ROAD_TOP of the flat markings, so they layer instead of fighting.
-const Y_WHEEL_TRACK := 0.0045
 const Y_OIL := 0.0055
 const Y_LOCATE := 0.007
 
@@ -162,9 +156,8 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 			var p := Vector2(rng.randf_range(c.x - s.x * 0.5 + 2.0, c.x + s.x * 0.5 - 2.0), rng.randf_range(c.y - s.y * 0.5 + 3.0, c.y + s.y * 0.5 - 3.0))
 			var shade := 0.55 + rng.randf() * 0.7
 			batch.add("patch", PropFactory.patch(), Transform3D(Basis(Vector3.UP, rng.randf_range(-0.1, 0.1)).scaled_local(Vector3(w, 1.0, d)), Vector3(p.x, road_top + 0.003, p.y)), Color(shade, shade, shade))
-	# Wear: polished wheel tracks down the lanes, oil where cars park, locate paint by the kerb.
-	# All of it rides in the "patch" batch, so it is free in draw calls and tilts with the road.
-	_wheel_tracks(chunk, roads)
+	# Wear: oil where cars park, locate paint by the kerb. It rides in the "patch" batch, so it is
+	# free in draw calls and tilts with the road.
 	_road_wear(chunk, edges)
 	batch.set_no_shadow("patch")
 	# Overhead power and telecom lines. Replaces the old per-block pole run, which picked an
@@ -656,43 +649,6 @@ static func _parking_meters(chunk: CityChunk, edges: Array, district: int) -> vo
 			], [[Vector3(0.2, 1.4, 0.2), at + Vector3(0.0, 0.7, 0.0), yaw]])
 			t += METER_SPACING
 	chunk._batch.set_draw_distance("meter", METER_DRAW_DISTANCE)
-
-
-## Polished strips where the wheels run. Real asphalt is worn lighter and smoother along the
-## wheel paths and darker between them; this is the cheapest thing that stops a carriageway
-## reading as one flat surface with paint on it. Pieces are short so they tilt with the relief.
-static func _wheel_tracks(chunk: CityChunk, roads: Array) -> void:
-	var batch: MultiMeshBatch = chunk._batch
-	var road_top: float = CityChunk.ROAD_TOP
-	for r in roads.size():
-		var c: Vector2 = roads[r][0]
-		var s: Vector2 = roads[r][1]
-		var along_z := r == 0
-		var width: float = s.x if along_z else s.y
-		var span: float = s.y if along_z else s.x
-		if _hash01([chunk.plan.seed, "tracks", chunk.ix, chunk.iz, r]) > WHEEL_TRACK_ODDS:
-			continue
-		var rng := _rng_for([chunk.plan.seed, "trackshade", chunk.ix, chunk.iz, r])
-		var u0: float = (c.y if along_z else c.x) - span * 0.5
-		# Down the lanes the traffic really drives (CityPlan.lane_center), not the quarter widths:
-		# on an avenue those put a wheel path on the centre line and another in the parking lane.
-		var lanes := 2 if width > chunk.plan.street_width + 1.0 else 1
-		var centres: Array[float] = []
-		for side: float in [-1.0, 1.0]:
-			for n in lanes:
-				centres.append(side * CityPlan.lane_center(width, lanes, n))
-		for lane: float in centres:
-			for wheel: float in [-1.0, 1.0]:
-				var off := lane + wheel * WHEEL_TRACK_GAUGE * 0.5
-				var t := 0.0
-				while t < span - 0.5:
-					var piece := minf(WHEEL_TRACK_PIECE, span - t)
-					var u := u0 + t + piece * 0.5
-					var p := Vector2(c.x + off, u) if along_z else Vector2(u, c.y + off)
-					var basis := Basis(Vector3.UP, 0.0 if along_z else PI * 0.5).scaled_local(Vector3(WHEEL_TRACK_WIDTH, 1.0, piece))
-					var shade := WHEEL_TRACK_SHADE * rng.randf_range(0.9, 1.12)
-					batch.add("patch", PropFactory.patch(), Transform3D(basis, Vector3(p.x, road_top + Y_WHEEL_TRACK, p.y)), Color(shade, shade, shade * 1.02))
-					t += piece
 
 
 ## Oil where cars park and the spray-painted locate marks a resurfaced street keeps for years.
