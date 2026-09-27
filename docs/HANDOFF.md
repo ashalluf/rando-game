@@ -2831,3 +2831,56 @@ it lacked was the cost: every person was a live RoughSleeper (237 rigs round ski
   live rigs by distance would fix it); the camp kit is still ~18 MultiMesh keys a chunk; some
   walkers near camps read oddly in stills (arms held out) - not traced, may be the standing
   people's idle clip. Screenshots: branch `shots/homeless`.
+
+
+## 9af. The container terminal's kit, 2026-09-27 (agent branch `wt/port-assets`; roadmap #35)
+
+The port on San Pedro Bay (9ad) was still the old primitives: 12 m boxes in six flat colours in
+single file, orange slab cranes, a white concrete sheet, a box hull half on the quay. All of it is
+now built in code by `PortKit` (`scripts/world/port_kit.gd`); no model files.
+
+- **Containers**: ISO 668 boxes, one mesh with a hand-built LOD ladder (568 / 142 / 12
+  triangles) and a box shadow twin. 20 ft and high-cube boxes are the same mesh scaled - the
+  vertex shader keeps every vertex near an end at its distance from that end - so the far city,
+  the MultiMesh bounds and collision need nothing extra. `shaders/container.gdshader`: ISO
+  corrugation (a normal tilt with a three-step parallax march; the flutes hide the grooves at a
+  grazing angle), invented liveries and a stroke font (`port_lettering.gdshaderinc`: RANDO,
+  KAVELL, TORVAN, ZEPRA, OLVANA, MERIDU, two leasing pools, old brown boxes; owner codes, serials
+  and size codes on doors and sides, a CSC plate), rust streaks, repaint patches, road dirt,
+  dents, a wet sheen. Two piles abreast a slot, 22 % 20 ft pairs, 45 % high-cubes.
+- **Layout kept**: rows, columns, the 30 % truck lanes, the 35 % empty slots, the heights and the
+  per-box colour roll are the old rolls in the old order on the block rng; the colour roll now
+  picks the shipping line of that hue. Everything new is a private stream.
+- **Cranes**: ten ship-to-shore cranes (two a quay chunk; 30.48 m gauge, 60 m outreach, girders
+  at 44-47.6 m, A-frame to 80 m, bogies, stairs, lift, machinery house, trolley, cab, spreader;
+  3.8k / 1.7k / 0.7k triangles). The three within 95 m of the ship work it (boom down, trolley
+  out, a box on most spreaders); the rest stand with booms raised. Built at FULL and LOD; the
+  far city draws each as 12 boxes. Yard gantries (RTG, 1.4k triangles) straddle three rows in
+  most inland chunks, legs in the 3.9 m aisles. High masts (FULL only), crane rails, a coping
+  with bollards and fenders, yard slot outlines, lane dashes, apron lanes. At night the masts
+  and cranes lay soft additive light pools on the yard and the apron (FULL and LOD), crane
+  cabs, floodlights and the ship's windows glow; by day the pools cost nothing.
+- **The ship**: `cargo_ship` moved 6522 -> 6541 (its landward 12 m stood on the yard). A lofted
+  hull (flared bow, forecastle, sheer, navy topsides, boot-top, a white sheer line, RANDO in 4 m
+  letters down both sides), hatch covers, lashing bridges, a breakwater, the accommodation block
+  with window rows lit at night, bridge wings, radar mast, funnel with a teal band, a freefall
+  lifeboat. Its deck cargo is the real container mesh, three abreast in each old slot.
+- **Streaming cost**: the port block is three build steps now (yard and stacks, paint, cranes),
+  every piece lifted by the slab's single relief lift instead of sampling the relief per piece
+  (the paint alone sampled it ~2,000 times), and the kit's meshes are built on the loading screen
+  (`PortKit.warm()`, ~100 ms). A FULL port chunk: 2.5 ms -> 3.3 ms total, worst step 3.2 ms ->
+  1.9 ms; LOD: 1.3 -> 1.0 ms (headless, this box).
+- **Frame cost** (`tools/geo_count.gd`, opengl3 800x600, same spawns, before -> after): the
+  port from 60 m up (`--spawn=3065,6300,0,-10,60`) 1.31 M -> 1.40 M triangles (+7.5 %), 1,221
+  -> 1,265 draws; a far aerial (`--spawn=2400,5550,-135,-24,350`) 2.43 M -> 2.46 M (+1.2 %),
+  3,068 -> 3,067 draws; standing in the stacks (`--spawn=3003,6256,-78,3,2`) 767 k -> 906 k
+  (+18 %), 640 -> 694 draws. The last is the camera's own chunk drawing all ~260 of its boxes
+  at the full level (a MultiMesh takes one LOD from its bounds, and the camera is inside them):
+  ~150 k triangles, small next to a downtown frame's 7-9 M. Splitting a chunk's boxes into two
+  batches would halve that for +2 draws a chunk.
+- **Not judged**: everything here was seen on the opengl3 preview only (the lavapipe Forward+
+  path is OOM-killed on a city). Needs the Mac: the corrugation's normal tilt under real sun and
+  SSR, the roof bleaching, the night look (cab glass, floodlights, masts, accommodation windows),
+  and whether the yard tint (0.44) wants to go darker. A container at arm's length is still
+  flat-faced corrugation (a normal trick with parallax, no geometry). Straddle carriers, trucks
+  and moving cranes are not done. `tools/glshot/port_shot.gd` shows the kit alone in seconds.

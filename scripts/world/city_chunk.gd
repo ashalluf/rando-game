@@ -637,8 +637,8 @@ const PORT_PAINT_YELLOW := Color(0.95, 0.72, 0.12)
 
 ## The port block as three build steps sharing `st`: the yard and its stacks, the paint, then
 ## the gantries or the quay with its cranes. One step used to hold all of it, and at full detail
-## that was 16-26 ms against a street chunk's 3; split, flat-shortcut and warmed, no step costs
-## more than a street chunk's worst.
+## that was 16-26 ms against a street chunk's 3; split, lifted once (_port_lift) and warmed
+## (PortKit.warm()), no step costs more than the old port's worst.
 func _port_steps(block: Dictionary) -> Array[Callable]:
 	var st := {"block": block}
 	return [_port_yard.bind(st), _port_paint.bind(st), _port_kit.bind(st)]
@@ -724,23 +724,41 @@ func _port_kit(st: Dictionary) -> void:
 		if level == Level.FULL:
 			for i in 2:
 				_add_lamp(Vector3(area.position.x + 4.0 + i * (area.size.x - 8.0), 0.2, area.position.y + 4.0))
+		var mp := Vector3(area.position.x + 3.0, PORT_YARD_TOP, area.position.y + 2.2)
 		if level == Level.FULL and not capturing:
 			# A high mast by the chunk's north-west corner, in the gap between the stacks (a pole
 			# 40 cm thick is a pixel from the LOD ring, so the LOD chunks leave it out).
-			var mp := Vector3(area.position.x + 3.0, PORT_YARD_TOP, area.position.y + 2.2)
 			_batch.add("port_mast", PortKit.mast_mesh(), Transform3D(Basis(), mp))
-			_add_shape(Vector3(0.9, PortKit.MAST_H, 0.9), mp + Vector3(0.0, PortKit.MAST_H * 0.5 + _pgy(mp.x, mp.z), 0.0)))
+			_add_shape(Vector3(0.9, PortKit.MAST_H, 0.9), mp + Vector3(0.0, PortKit.MAST_H * 0.5 + _pgy(mp.x, mp.z), 0.0))
+		if not capturing:
+			# The mast's light on the yard after dark (the additive night quad the street lamps
+			# use; nothing by day). A terminal at night is floodlit, and from the air the lit
+			# yard is what reads, so the LOD chunks keep the pool without the pole.
+			_add_port_pool(mp, PORT_MAST_POOL))
 	if level != Level.FULL:
 		# A gantry's shadow past the full ring is a smudge; skip its twin's draws.
 		_batch.set_no_shadow("rtg")
+	_batch.set_no_shadow("port_pool")
+
+
+## Diameters (m) of the night light pools under a high mast and under a crane's portal.
+const PORT_MAST_POOL := 92.0
+const PORT_CRANE_POOL := 60.0
+
+
+## An additive pool of floodlight on the yard at `at`, `size` across (PropFactory.light_pool(),
+## laid flat the way _add_lamp() lays a street lamp's).
+func _add_port_pool(at: Vector3, size: float) -> void:
+	var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(at.x, PORT_YARD_TOP + 0.07, at.z))
+	# A soft falloff: floodlights 34 m up light the yard evenly, not in a hot spot like a street
+	# lamp's.
+	_batch.add("port_pool", PropFactory.light_pool(Color(1.0, 0.9, 0.74), 0.5, 1.5), xf)
 
 
 ## One stack slot: the rolled `height` of boxes in the row line, a second pile abreast (most
 ## slots) a box higher or lower, each pile 40 ft boxes or pairs of 20s, some of them high-cubes.
-## `picks` are the old per-box colour rolls, which choose the first pile's liveries. Returns
-## the stack's top.
-func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGenerator) -> float:
-	var top := 0.0
+## `picks` are the old per-box colour rolls, which choose the first pile's liveries.
+func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGenerator) -> void:
 	var single := kit.randf() < 0.15
 	var offsets: Array[float] = [0.0]
 	if not single:
@@ -766,8 +784,6 @@ func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGe
 			y += hgt
 		if level == Level.FULL:
 			_add_shape(Vector3(PortKit.L40, y - PORT_YARD_TOP, PortKit.W), Vector3(p.x, (PORT_YARD_TOP + y) * 0.5 + _pgy(p.x, z), z))
-		top = maxf(top, y)
-	return top
 
 
 ## The livery for an old colour roll: the shipping line of that hue, now and then a leasing
@@ -932,6 +948,8 @@ func _build_sts_crane(at: Vector3, working: bool, ship_z: float, kit: RandomNumb
 	add_child(crane)
 	if carrying:
 		_add_container(at + Vector3(0.0, spreader_y - PortKit.H_STD * 0.5 - 0.03, trolley_z), true, false, kit.randf() < 0.5, livery, kit)
+	# Its floodlights on the apron after dark.
+	_add_port_pool(at + Vector3(0.0, 0.0, 6.0), PORT_CRANE_POOL)
 	if level == Level.FULL:
 		for s: Array in PortKit.sts_shapes(raised):
 			_add_shape_xf(s[0], Transform3D(Basis(), base) * (s[1] as Transform3D))

@@ -859,7 +859,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   it, raised elsewhere; built at FULL and LOD, and as boxes in the far city (`sts_far_boxes()`
   into `captured.boxes`). Yard gantries (`PropFactory.rtg()`) straddle three rows with their legs
   in the aisles; `PORT_APRON` of the quay chunks stays clear for the rails, coping, bollards,
-  fenders and lanes. The ship (`cargo_ship`, now 7 m off the quay, not on it) is
+  fenders and lanes. After dark the masts and cranes throw additive light pools on the yard
+  (`port_pool`, `light_pool()` with a soft falloff) at FULL and LOD. The port block is three
+  build steps, and every piece is lifted by the slab's single relief lift (`_port_lift`) - the
+  paint alone sampled the relief ~2,000 times; `PortKit.warm()` builds the kit's meshes on the
+  loading screen (a crane pose is ~20 ms of GDScript). The ship (`cargo_ship`, now 7 m off the quay, not on it) is
   `PortKit.ship_mesh()`. Look at a change in seconds with `tools/glshot/port_shot.gd` (the kit
   alone; `SHIP=1`, `RAISED=1`, `LOD=n`, `WEAR`).
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,

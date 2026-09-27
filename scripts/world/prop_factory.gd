@@ -949,8 +949,10 @@ static func fire_escape() -> Mesh:
 
 ## The pool of light a lamp throws on the pavement: a unit quad lying flat, additive and
 ## unshaded (see shaders/light_pool.gdshader). Instances scale it to the pool's diameter.
-static func light_pool(tint: Color = Color(1.0, 0.84, 0.58), strength: float = 1.0) -> Mesh:
+static func light_pool(tint: Color = Color(1.0, 0.84, 0.58), strength: float = 1.0, falloff: float = 2.4) -> Mesh:
 	var key := "light_pool_%d_%.2f" % [tint.to_rgba32(), strength]
+	if falloff != 2.4:
+		key += "_%.2f" % falloff
 	if _cache.has(key):
 		return _cache[key]
 	var mesh := QuadMesh.new()
@@ -960,6 +962,7 @@ static func light_pool(tint: Color = Color(1.0, 0.84, 0.58), strength: float = 1
 	mat.shader = load("res://shaders/light_pool.gdshader")
 	mat.set_shader_parameter("tint", tint)
 	mat.set_shader_parameter("strength", strength)
+	mat.set_shader_parameter("falloff", falloff)
 	mesh.material = mat
 	_cache[key] = mesh
 	return mesh
