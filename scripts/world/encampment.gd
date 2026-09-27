@@ -47,7 +47,7 @@ const FACE_ODDS := 0.72
 ## row; skid row's are the SKID_ ones, and a block between gets a value between).
 const MAX_CAMPS := 4
 const MAX_ITEMS := 300
-const MAX_SLEEPERS := 9
+const MAX_SLEEPERS := 2
 ## Skid row: east of downtown's centre, in downtown radii (MacroMap.downtown_radius), the field
 ## ramps in between SKID_EAST.x and .y and out again between .z and .w; north-south it is centred
 ## SKID_SOUTH radii south of the centre (+z), full within SKID_SPAN.x radii and gone past .y. Each
@@ -63,7 +63,7 @@ const SKID_MIN := 0.35
 const SKID_FACE_ODDS := 0.95
 const SKID_MAX_CAMPS := 4
 const SKID_MAX_ITEMS := 380
-const SKID_MAX_SLEEPERS := 16
+const SKID_MAX_SLEEPERS := 5
 const SKID_RUN_SHARE := Vector2(1.0, 1.0)
 ## At full skid-row strength, the odds that the next unit of a run is one of PEOPLE_UNITS.
 const SKID_PEOPLE_BIAS := 0.35
@@ -71,9 +71,17 @@ const SKID_PEOPLE_BIAS := 0.35
 ## its faces, and up to this many more at full skid-row strength.
 const PUSHER_ODDS := 0.3
 const SKID_PUSHERS := 2
-## Build steps a chunk queues for its people (CityChunk: one person a step): the most people and
-## pushers one chunk can have.
+## Build steps a chunk queues for its people (CityChunk: one person a step): the most live people
+## and pushers one chunk can have.
 const PEOPLE_STEPS := SKID_MAX_SLEEPERS + SKID_PUSHERS + 1
+## The people who sit, lie or slump are static figures (CampFigure: baked once per model and
+## pose, drawn in the chunk's batch, woken into a live RoughSleeper when something reaches
+## them). Most of them one chunk draws (outside skid row, on skid row), how many of the models
+## one chunk dresses them in (each model and pose is a draw call), and their draw distance (m).
+const MAX_FIGURES := 9
+const SKID_MAX_FIGURES := 18
+const FIGURE_MODELS := 4
+const FIGURE_DRAW_DISTANCE := 140.0
 ## Faces across the road from MacArthur Park (its site, CityPlan.sites()): the odds of a camp.
 const PARK_EDGE_ODDS := 0.7
 ## Freeway underpasses within this many downtown radii of the centre (or on skid row) get camps:
@@ -323,7 +331,14 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, out_sleeper
 	for key: String in PIECES:
 		var k := "camp_" + key
 		chunk._batch.set_draw_distance(k, DRAW_DISTANCE if PIECES[key].far else SMALL_DRAW_DISTANCE)
-	out_sleepers.append_array(_thin(sleepers, roundi(lerpf(MAX_SLEEPERS, SKID_MAX_SLEEPERS, skid))))
+	# Standing people stay live (they idle, turn, talk); everyone sitting, lying or slumped is a
+	# static figure until something reaches them.
+	var live: Array = []
+	var posed: Array = []
+	for s: Dictionary in sleepers:
+		(live if int(s.pose) == RoughSleeper.Pose.STAND else posed).append(s)
+	_add_figures(chunk, rect, _thin(posed, roundi(lerpf(MAX_FIGURES, SKID_MAX_FIGURES, skid))))
+	out_sleepers.append_array(_thin(live, roundi(lerpf(MAX_SLEEPERS, SKID_MAX_SLEEPERS, skid))))
 	# Somebody pushing their cart round the block's pavement (the walkers' strip, like a walker).
 	if not faces.is_empty():
 		var pushers := roundi(skid * SKID_PUSHERS)
@@ -342,6 +357,47 @@ static func _thin(list: Array, cap: int) -> Array:
 	for k in cap:
 		out.append(list[floori(float(k) * list.size() / float(cap))])
 	return out
+
+
+## The static figures (CampFigure) for `list`: each one's model from the few this chunk uses,
+## hashed from the seed, the block and its place in the list; its pose, spot and facing as the
+## camp laid them. A batch instance where there is mesh data, and always its body.
+static func _add_figures(chunk: CityChunk, rect: Rect2, list: Array) -> void:
+	var plan: CityPlan = chunk.plan
+	var n := Pedestrian.MODELS.size()
+	var first := absi(hash([plan.seed, "camp_models", chunk.ix, chunk.iz]))
+	var models: Array = []
+	for i in mini(FIGURE_MODELS, n):
+		# Stride 2 through nine models: four different ones.
+		models.append((first + i * 2) % n)
+	for i in list.size():
+		var s: Dictionary = list[i]
+		var at: Vector2 = s.at
+		var yaw: float = s.yaw
+		var lift: float = s.get("lift", 0.0)
+		var pk := int(s.pose)
+		var h := absi(hash([plan.seed, "camp_figure", chunk.ix, chunk.iz, i]))
+		var model: int = models[h % models.size()]
+		var variant := (h / 7) % 2 if pk == RoughSleeper.Pose.SIT else 0
+		var seed_value := CampFigure.seed_for(model, pk, variant)
+		var fig := CampFigure.new()
+		fig.name = "CampFigure_%d" % i
+		fig.chunk = chunk
+		fig.pose = pk
+		fig.seed_value = seed_value
+		fig.home = at
+		fig.yaw = yaw
+		fig.lift = lift
+		fig.ring = rect
+		fig.sidewalk = PATH_KEEP + 1.0
+		var mesh := CampFigure.mesh_for(seed_value, pk)
+		if mesh:
+			var key := "campfig_%d_%d" % [seed_value, pk]
+			var index := chunk._batch.add(key, mesh, Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, CityChunk.SIDEWALK_TOP + lift, at.y)))
+			chunk._batch.set_draw_distance(key, FIGURE_DRAW_DISTANCE)
+			fig.instance = [key, index]
+		fig.transform = Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, chunk.ground_y(at.x, at.y) + lift, at.y))
+		chunk.add_child(fig)
 
 
 ## The chunk's build step for the `index`th person build_block queued (nothing when there is none).

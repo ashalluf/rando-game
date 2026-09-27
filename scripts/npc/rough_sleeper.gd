@@ -351,37 +351,42 @@ func _apply(w: float) -> void:
 ## The collision capsule shaped to the pose: short and forward for a sitter, laid along the body
 ## for someone lying down, bent forward for a slump. Bullets and blasts find them by it.
 func _fit_shape() -> void:
+	var fit := pose_capsule(pose, _home_yaw)
+	if fit.is_empty():
+		# Upright: the walker's own capsule.
+		return
 	for c in get_children():
 		var cs := c as CollisionShape3D
 		if cs == null or not (cs.shape is CapsuleShape3D):
 			continue
-		var cap := CapsuleShape3D.new()
-		cap.radius = 0.32
-		var fwd := Vector3(-sin(_home_yaw), 0.0, -cos(_home_yaw))
-		match pose:
-			Pose.STAND, Pose.PUSH:
-				# Upright: the walker's own capsule.
-				return
-			Pose.SIT:
-				cap.height = 1.05
-				cs.position = Vector3(0.0, 0.52, 0.0) + fwd * 0.18
-				cs.rotation = Vector3.ZERO
-			Pose.CHAIR:
-				cap.height = 1.3
-				cs.position = Vector3(0.0, 0.72, 0.0) + fwd * 0.12
-				cs.rotation = Vector3.ZERO
-			Pose.LIE:
-				cap.radius = 0.28
-				cap.height = 1.7
-				cs.position = Vector3(0.0, 0.3, 0.0) - fwd * 0.05
-				# Laid along the body, which lies across the rig's left-right axis.
-				cs.rotation = Vector3(0.0, _home_yaw, PI * 0.5)
-			_:
-				cap.height = 1.5
-				cs.position = Vector3(0.0, 0.75, 0.0) + fwd * 0.2
-				cs.rotation = Vector3.ZERO
-		cs.shape = cap
+		cs.shape = fit.shape
+		cs.position = fit.position
+		cs.rotation = fit.rotation
 		break
+
+
+## The capsule for a pose facing `yaw` ({shape, position, rotation}; {} for the upright ones).
+## CampFigure uses the same one, so a batched figure is hit where a live one would be.
+static func pose_capsule(pose_kind: int, yaw: float) -> Dictionary:
+	var cap := CapsuleShape3D.new()
+	cap.radius = 0.32
+	var fwd := Vector3(-sin(yaw), 0.0, -cos(yaw))
+	match pose_kind:
+		Pose.STAND, Pose.PUSH:
+			return {}
+		Pose.SIT:
+			cap.height = 1.05
+			return {"shape": cap, "position": Vector3(0.0, 0.52, 0.0) + fwd * 0.18, "rotation": Vector3.ZERO}
+		Pose.CHAIR:
+			cap.height = 1.3
+			return {"shape": cap, "position": Vector3(0.0, 0.72, 0.0) + fwd * 0.12, "rotation": Vector3.ZERO}
+		Pose.LIE:
+			cap.radius = 0.28
+			cap.height = 1.7
+			# Laid along the body, which lies across the rig's left-right axis.
+			return {"shape": cap, "position": Vector3(0.0, 0.3, 0.0) - fwd * 0.05, "rotation": Vector3(0.0, yaw, PI * 0.5)}
+	cap.height = 1.5
+	return {"shape": cap, "position": Vector3(0.0, 0.75, 0.0) + fwd * 0.2, "rotation": Vector3.ZERO}
 
 
 func _physics_process(delta: float) -> void:

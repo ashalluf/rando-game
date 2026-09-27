@@ -1575,6 +1575,8 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 	var r2 := radius * radius
 	var fresh: Array = []
 	var heard := 0
+	# The nearest static figures at the camps become people first, so they hear it too.
+	CampFigure.wake_near(tree, at, radius)
 	for n in tree.get_nodes_in_group("pedestrian"):
 		var p := n as Pedestrian
 		if p == null or p._down or not p.is_inside_tree():

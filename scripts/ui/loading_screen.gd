@@ -84,6 +84,16 @@ func run(city: Node3D) -> void:
 	await _frames(2)
 	_step("Compiling shaders", 0.05)
 	await _warm_shaders()
+	# The people at the camps who sit, lie or slump are baked static figures (CampFigure), one
+	# per model and pose: a few tens of milliseconds each, done here rather than by the first
+	# downtown chunks.
+	var kinds: Array = CampFigure.kinds()
+	for i in kinds.size():
+		if i % 6 == 0:
+			_step("Preparing people", 0.3 + 0.25 * float(i) / float(maxi(kinds.size(), 1)))
+			await _frames(1)
+		var k: Array = kinds[i]
+		CampFigure.mesh_for(CampFigure.seed_for(k[0], k[1], k[2]), k[1])
 	_step("Building the city", 0.55)
 	await _frames(1)
 	_preload_world(city)
