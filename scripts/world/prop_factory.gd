@@ -175,6 +175,9 @@ static func hill_shell_material() -> ShaderMaterial:
 		return _cache["hill_shell_mat"]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/hill_shells.gdshader")
+	# The painted straw's own light and dark, so the grass carries the ground's tone.
+	mat.set_shader_parameter("grass_albedo", texture("grass", "Color"))
+	mat.set_shader_parameter("mottle_albedo", texture("hill", "Color"))
 	_cache["hill_shell_mat"] = mat
 	return mat
 

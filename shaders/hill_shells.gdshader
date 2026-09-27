@@ -30,6 +30,16 @@ render_mode cull_back, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 
 // How far the scene's origin has been shifted (CityStreamer sets it, as for the terrain).
 uniform vec2 world_offset = vec2(0.0);
+// The painted ground's own grass texture and aerial mottle (PropFactory.hill_shell_material()
+// hands over the terrain's), at terrain.gdshader's tile sizes and mean lumas: the painted straw
+// is straw_color times their light and dark, which averages well over straw_color itself, and
+// shells coloured by straw_color alone came out a third as bright as the ground they grow from.
+uniform sampler2D grass_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D mottle_albedo : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float grass_scale = 3.5;
+uniform float mottle_scale = 13.0;
+uniform float grass_mean_luma = 0.145;
+uniform float mottle_mean_luma = 0.126;
 // Metres of the tallest grass (knee-high wild oats and brome) and of the brush understory, the
 // low tangle of leaves and litter the 3D shrubs of a stand stand in (kept low: a metre of shells
 // seen from the side is a stack of slices, and the shrubs are the canopy).
@@ -56,8 +66,8 @@ uniform float root_shadow : hint_range(0.0, 1.0) = 0.38;
 // Straw tips: paler and greyer than the stems (sun-bleached seed heads).
 uniform float tip_bleach : hint_range(0.0, 1.0) = 0.45;
 // Brightness of the grass and the brush against the painted ground's own colours.
-uniform float grass_gain = 1.85;
-uniform float brush_gain = 1.55;
+uniform float grass_gain = 1.25;
+uniform float brush_gain = 1.35;
 // Sideways bend at the top of the grass in the wind, metres.
 uniform float wind_bend = 0.07;
 // Light through the thin blades from behind (see grass.gdshader).
@@ -65,8 +75,10 @@ uniform float translucency : hint_range(0.0, 1.0) = 0.3;
 uniform float scatter_gain : hint_range(0.0, 4.0) = 1.6;
 // No shells above this height (the terrain's snow line).
 uniform float top_line = 1100.0;
-// 1 draws every layer solid, coloured by its height (r), where it may grow (g) and the fade (b):
-// for tools/glshot/hill_ground_shot.gd (SHELL_DEBUG=1).
+// For tools/glshot/hill_ground_shot.gd (SHELL_DEBUG / DEBUG_SEQ): 1 draws every layer solid in
+// its height (r), where it may grow (g) and the fade (b); 2 solid in the keep tests; 3 shades the
+// kept fragments in the painted straw's own colour on the slope's normal (lit like the ground
+// under them, or the lighting is off).
 uniform int debug_mode = 0;
 
 global uniform float wind_factor;
@@ -106,6 +118,11 @@ void vertex() {
 }
 
 
+float shell_luma(vec3 c) {
+	return dot(c, vec3(0.2126, 0.7152, 0.0722));
+}
+
+
 // A 2D hash for jittering cells.
 vec2 hash22s(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * vec3(0.1031, 0.1030, 0.0973));
@@ -121,7 +138,7 @@ void fragment() {
 	float lh = layer * span;
 	float dist = distance(world_pos, CAMERA_POSITION_WORLD);
 	float fade = 1.0 - smoothstep(fade_start, fade_end, dist);
-	bool shaded = debug_mode == 0;
+	bool shaded = debug_mode == 0 || debug_mode == 3;
 	if (shaded && (v_site.y < 0.5 || fade <= 0.0 || world_pos.y < 1.5 || world_pos.y > top_line)) {
 		discard;
 	}
@@ -266,7 +283,15 @@ void fragment() {
 	}
 
 	// ---- colour and light ---------------------------------------------------------------------
-	vec3 up_n = normalize(mix(wn, vec3(0.0, 1.0, 0.0), 0.55));
+	// The painted ground's light and dark (terrain.gdshader's `gl`), so the shells carry its tone.
+	float gtex = clamp(shell_luma(texture(grass_albedo, w / grass_scale).rgb) / grass_mean_luma, 0.3, 2.0);
+	float mot = clamp(shell_luma(texture(mottle_albedo, w / mottle_scale).rgb) / mottle_mean_luma, 0.4, 1.8);
+	float gl = gtex * mot;
+	// The grass is lit on the slope's own normal, tilted a little per blade: bent toward straight
+	// up (as the lawn blades are), a slope facing the sun got a fraction of the light the painted
+	// ground under it gets, and the whole hillside went dark brown.
+	vec2 bj = (hash22s(floor(w / blade_cell) + 5.0) - 0.5) * 0.35;
+	vec3 up_n = normalize(wn + vec3(bj.x, 0.0, bj.y));
 	vec3 n;
 	vec3 col;
 	float ao;
@@ -275,14 +300,14 @@ void fragment() {
 		// Crowns lit as domes (their flanks turn from the light), each leaf tilted its own way.
 		vec2 tilt = (hash22s(floor(w / leaf_size) + 9.1) - 0.5) * 0.9;
 		n = normalize(wn + vec3(dome_off.x + tilt.x, 0.0, dome_off.y + tilt.y) * 1.1);
-		col = mix(chaparral_color, sage_color, step(in_stand, in_sage)) * brush_gain * mix(0.62, 1.4, leaf_rand) * mix(0.8, 1.15, mid) * mix(0.85, 1.12, bush);
+		col = mix(chaparral_color, sage_color, step(in_stand, in_sage)) * brush_gain * mix(0.62, 1.4, leaf_rand) * mix(0.8, 1.15, mid) * mix(0.85, 1.12, bush) * (0.65 + 0.35 * gl);
 		// Deeper inside the mass is darker: the light gets in only a few centimetres.
 		ao = mix(1.0 - root_shadow, 1.0, exp(-dome_depth * 7.0));
 		through = 0.1;
 	} else {
 		n = up_n;
 		float green = clamp(smoothstep(0.3, 0.75, v_field.z) * 0.8 + (1.0 - smoothstep(60.0, 260.0, world_pos.y)) * 0.25, 0.0, 1.0);
-		col = mix(straw_color, straw_green_color, green * 0.8) * grass_gain * mix(0.78, 1.25, blade_rand);
+		col = mix(straw_color, straw_green_color, green * 0.8) * gl * grass_gain * mix(0.78, 1.25, blade_rand);
 		// Sun-bleached seed heads at the top of the blade.
 		col = mix(col, vec3(dot(col, vec3(0.33))) * 1.3, tip_bleach * smoothstep(0.55, 1.0, blade_t));
 		ao = mix(1.0 - root_shadow, 1.0, smoothstep(0.0, 0.7, blade_t));
@@ -296,7 +321,13 @@ void fragment() {
 	vec3 to_cam = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	float facing = clamp(dot(to_cam, -normalize(sun_direction)), 0.0, 1.0);
 	BACKLIGHT = ALBEDO * through * (1.0 + scatter_gain * pow(facing, 5.0));
-	if (!shaded) {
+	if (debug_mode == 3) {
+		// Lighting probe: the painted straw's own colour, the terrain's normal.
+		ALBEDO = straw_color * gl;
+		NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
+		BACKLIGHT = vec3(0.0);
+		AO = 1.0;
+	} else if (!shaded) {
 		ALBEDO = vec3(0.0);
 		BACKLIGHT = vec3(0.0);
 		EMISSION = debug_mode == 1 ? vec3(layer, v_site.y, fade)

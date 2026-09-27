@@ -13,7 +13,9 @@ extends Node
 ## EYE=x,y,z,yaw,pitch (TRUE world; y is metres over the ground there), FOV (vertical), OUT,
 ## FRAMES (default 12), BLOCKS (chunks each way round the eye, default 1), SUN=pitch,yaw degrees,
 ## SHOTS="x,y,z,yaw,pitch;..." more eyes from the same build (OUT_1.png, ...), NOSHELLS=1 hides
-## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), GEO=1 prints each frame's triangles and draws, SHELL_DEBUG=1 draws
+## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
+## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
+## triangles and draws, SHELL_DEBUG=1 draws
 ## the shells solid (hill_shells.gdshader debug_mode), PROFILE=n profiles n frames with the shells
 ## and n without (run with --gpu-profile under Forward+; see the block after the shot).
 
@@ -39,6 +41,10 @@ func _ready() -> void:
 			add_child(n)
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	var sun_env := OS.get_environment("SUN")
+	# The streamer turns the sun in its _ready (the scene's own rotation is level, shining north,
+	# and lights every up-facing surface at a grazing angle); do the same, or SUN=pitch,yaw.
+	if sun:
+		sun.rotation_degrees = city.get("sun_rotation_degrees")
 	if sun and sun_env != "":
 		var sp := sun_env.split(",")
 		sun.rotation_degrees = Vector3(sp[0].to_float(), sp[1].to_float(), 0.0)
@@ -86,6 +92,13 @@ func _ready() -> void:
 		var file := out if k == 0 else out.get_basename() + "_%d.png" % k
 		get_viewport().get_texture().get_image().save_png(file)
 		print("saved ", file)
+		# DEBUG_SEQ=1,3: the same frame again with the shells in each debug_mode (<name>_dbgN.png).
+		for m in OS.get_environment("DEBUG_SEQ").split(",", false):
+			PropFactory.hill_shell_material().set_shader_parameter("debug_mode", int(m))
+			for i in 3:
+				await get_tree().process_frame
+			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_dbg%s.png" % m)
+			PropFactory.hill_shell_material().set_shader_parameter("debug_mode", 0)
 		# AB=1: the same frame again without the shells, saved beside it (<name>_noshells.png).
 		if OS.get_environment("AB") == "1":
 			get_tree().call_group("hill_shells", "set_visible", false)

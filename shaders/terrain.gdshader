@@ -39,6 +39,8 @@ uniform float rock_scale = 7.0;
 // Each texture's mean luminance (linear), so recolouring keeps its detail at the colour asked.
 uniform float grass_mean_luma = 0.145;
 uniform float mottle_mean_luma = 0.126;
+// (hill_shells.gdshader keeps copies of grass_scale, mottle_scale and the two mean lumas, and
+// the same two textures: keep them equal.)
 uniform float dirt_mean_luma = 0.203;
 uniform float rock_mean_luma = 0.072;
 // Decomposed granite and dirt (LINEAR), and how much of the dirt texture's own orange survives.
