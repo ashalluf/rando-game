@@ -36,8 +36,8 @@ shotgun and police checks).
    banks, floating props, planting field), before/after at the hills bookmark and from the
    basin, merge.
 2. **Downtown needs ~20x more homeless encampments** ("whatever you think it should be,
-   multiply by 20"). Branch `wt/downtown-homeless` (WIP, NOT gated, barely started this
-   round): Encampment density/caps, a skid-row band, people against walls, cart pushers.
+   multiply by 20"). Branch `wt/downtown-homeless`: DONE and gated 2026-09-27, ready to merge
+   (section 9za): skid-row band, 20x the people as batched static figures, cart pushers.
    Depict with dignity; never near places of worship; use the pedestrian middle body and
    batched static figures to keep the frame cost sane.
 3. **San Pedro port must be on the east side of Palos Verdes, not in the middle of the city**
@@ -2412,3 +2412,35 @@ The 2026-09-21 list:
 "Grab build-N from the Releases page (or the browser build with ?showroom). Walk, shoot a
 pedestrian, take a car across town and into the hills, get out on a slope, fly a jet from the
 airport, watch a sunset (Esc shows the clock). Tell me what looks or feels wrong."
+
+
+## 9za. Downtown encampments x20, 2026-09-27 (agent branch `wt/downtown-homeless`)
+
+Owner: "downtown needs way more homeless people - whatever you think it should be, multiply by
+20". The branch's earlier WIP (two ungated commits) had already made the camps denser: a
+skid-row band east of the centre (`Encampment.skid_row()`), whole faces wall to wall there, a
+kerb row of carts and bags, camps under the freeway decks near downtown and across from
+MacArthur Park, new poses (CHAIR, STAND, PUSH with a loaded cart) and two new kit pieces. What
+it lacked was the cost: every person was a live RoughSleeper (237 rigs round skid row).
+
+- **Static figures** (`CampFigure`, `CampFigureMesh`): everyone sitting, lying or slumped is
+  baked once per (model, pose) - a RoughSleeper posed off-screen, its welded middle body skinned
+  on the CPU - and a chunk's figures are merged into ONE mesh (a surface per material; seeds are
+  searched so each model has one look and no cap or pack, so three surfaces a chunk) plus a
+  one-surface shadow twin from the far bodies (shadows stop at 60 m). A round, a blast, a bumper
+  or gunfire nearby (`Pedestrian.alarm()` -> `CampFigure.wake_near()`, the nearest four within
+  26 m) wakes a figure into the live RoughSleeper with the same seed, pose and spot; the mesh
+  is rebuilt without it. The loading screen bakes all 45 kinds. Standing people and cart pushers
+  stay live, capped per chunk and under the crowd cap.
+- **Numbers** (tools/camp_census.gd, 25 detailed chunks): skid row 339 people (8 on main),
+  downtown centre 165 (10), the noon bookmark's block 61 (9); pieces round skid row 110 -> 3,637.
+  GEO (opengl3): downtown_noon 7.63 M -> 7.59 M tris, 4,285 -> 4,213 draws; a skid-row street
+  6.33 M -> 6.63 M (+4.7 %), 4,413 -> 4,664 draws (+5.7 %); skid-row corner 5.28 M -> 5.57 M,
+  3,026 -> 3,312 draws. The first cut (a MultiMesh per model and pose) was 722 camp draws at
+  the corner; merging, one look per model, no shadow on flat pieces, a 70 m shadow distance and
+  fewer loaded carts brought it to ~480. `SPLIT=1` on still_shot.gd now has a Camp category.
+- **Not done / to judge on the Mac**: figures within a few metres are the ~2k-triangle middle
+  body (fine at street distance, a little flat at arm's length - promoting the nearest few to
+  live rigs by distance would fix it); the camp kit is still ~18 MultiMesh keys a chunk; some
+  walkers near camps read oddly in stills (arms held out) - not traced, may be the standing
+  people's idle clip. Screenshots: branch `shots/homeless`.
