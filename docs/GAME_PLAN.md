@@ -278,6 +278,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-27 Cinematic post: per-pixel motion blur, and depth of field while aiming and in the
+  wheel (VISUAL_ROADMAP #12).** A Forward+ CompositorEffect (`MotionBlurEffect`) blurs along the
+  velocity buffer before TAA / FSR 2.2, scaled to a fixed 180-degree shutter at 60 fps so every
+  frame rate blurs alike, with a soft threshold so walking stays crisp: speed and camera whips
+  read, the player and the gun ride with the camera and stay sharp. The depth of field keeps the
+  old ambient far blur and adds a gentle blur past the aim target and a strong one under the
+  weapon wheel. Both live in `CameraPost` on the player camera; neither exists on the web.
+  docs/HANDOFF.md 9al.
+
 - **2026-09-27 The crowd is real people, built like the hero.** The nine Meshy pedestrians read
   as plastic mannequins (their look is baked into one photo texture; roadmap #11 showed shading
   cannot fix it). The crowd is now twelve MPFB humans from CC0 MakeHuman assets, built by
@@ -285,6 +294,12 @@ already mapped so milestone 2 is script-only.
   shoes and hair, on the crowd's 24-bone rig and clips. Each is one opaque body whose vertex
   colour marks skin / top / bottom / hair (exact recolours) plus a cut-out hair mesh; cheaper than
   the old rigs (downtown pedestrians -52 % triangles). Meshy is now used for nothing.
+
+- **2026-09-27 (later) The crowd up close is atlas work, not extra geometry.** Faces, beards,
+  brows, folds, trouser colours and fabric detail all go into each rig's own atlases and one
+  shared 1K detail texture (roadmap #38); no draw, triangle or material is added for them. The
+  next real step up close is our own garments (the hero's tracksuit route) for the commonest
+  outfits, not more shader work on the MakeHuman clothes.
 
 - **2026-09-27 (later) The van is Blender-built too, and the pickup looks like a truck.** The
   lead's follow-up: the pickup's cab read as a low sedan greenhouse on a long body; it is now a

@@ -13,6 +13,10 @@ extends SceneTree
 ## so lighting is flatter than the Mac build; judge geometry and materials. A shot takes a minute or
 ## two on llvmpipe.
 func _initialize() -> void:
+	# Stills are sharp: no motion blur (CameraPost) unless MOTION_BLUR=1 asks for it. It only
+	# exists on Forward+ (forward_shot.sh); a frame here covers seconds of the harness clock.
+	if OS.get_environment("MOTION_BLUR") != "1":
+		Engine.set_meta("postfx_motion_blur", 0.0)
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	var frames := 40
 	var f := OS.get_environment("FRAMES")

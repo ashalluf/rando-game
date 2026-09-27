@@ -43,6 +43,58 @@ import addon_utils  # noqa: E402
 addon_utils.enable("bl_ext.user_default.mpfb", default_set=True)
 from bl_ext.user_default.mpfb.services.humanservice import HumanService  # noqa: E402
 
+# ---- the face: MPFB's own face targets, rolled per character ----------------------------------------
+# Every MakeHuman head starts from the same average face; with only the phenotype sliders set, a
+# crowd of them read as siblings. Each pair is one signed modifier (the first name is its negative
+# side); "{s}" pairs are set the same on the left and the right. The ones that pushed a face into
+# caricature at any size (eye spacing, head height, brow angle) are left out. `face_var` scales the roll,
+# `face_seed` picks another face, and anything in "targets" overrides a rolled value.
+FACE_PAIRS = [
+    ("nose-scale-horiz-decr", "nose-scale-horiz-incr"), ("nose-scale-vert-decr", "nose-scale-vert-incr"),
+    ("nose-scale-depth-decr", "nose-scale-depth-incr"), ("nose-hump-decr", "nose-hump-incr"),
+    ("nose-point-width-decr", "nose-point-width-incr"), ("nose-nostrils-width-decr", "nose-nostrils-width-incr"),
+    ("nose-trans-down", "nose-trans-up"), ("nose-volume-decr", "nose-volume-incr"), ("nose-point-down", "nose-point-up"),
+    ("chin-width-decr", "chin-width-incr"), ("chin-prominent-decr", "chin-prominent-incr"),
+    ("chin-height-decr", "chin-height-incr"), ("chin-bones-decr", "chin-bones-incr"), ("chin-jaw-drop-decr", "chin-jaw-drop-incr"),
+    ("head-scale-horiz-decr", "head-scale-horiz-incr"),
+    ("head-fat-decr", "head-fat-incr"), ("head-oval", "head-square"),
+    ("{s}-cheek-bones-decr", "{s}-cheek-bones-incr"), ("{s}-cheek-volume-decr", "{s}-cheek-volume-incr"),
+    ("{s}-cheek-inner-decr", "{s}-cheek-inner-incr"),
+    ("{s}-eye-scale-decr", "{s}-eye-scale-incr"), ("{s}-eye-height2-decr", "{s}-eye-height2-incr"),
+    ("{s}-eye-bag-decr", "{s}-eye-bag-incr"),
+    ("{s}-eye-corner1-down", "{s}-eye-corner1-up"), ("{s}-eye-eyefold-down", "{s}-eye-eyefold-up"),
+    ("mouth-scale-horiz-decr", "mouth-scale-horiz-incr"), ("mouth-lowerlip-volume-decr", "mouth-lowerlip-volume-incr"),
+    ("mouth-upperlip-volume-decr", "mouth-upperlip-volume-incr"), ("mouth-angles-down", "mouth-angles-up"),
+    ("mouth-trans-down", "mouth-trans-up"), ("mouth-cupidsbow-decr", "mouth-cupidsbow-incr"),
+    ("{s}-ear-scale-decr", "{s}-ear-scale-incr"), ("{s}-ear-flap-decr", "{s}-ear-flap-incr"),
+    ("{s}-ear-lobe-decr", "{s}-ear-lobe-incr"),
+    ("eyebrows-trans-down", "eyebrows-trans-up"), ("forehead-trans-backward", "forehead-trans-forward"),
+]
+
+
+def face_targets():
+    import random
+    import bl_ext.user_default.mpfb as mpfb_mod
+    tdir = os.path.join(os.path.dirname(mpfb_mod.__file__), "data", "targets")
+    have = set()
+    for root, _dirs, files in os.walk(tdir):
+        have.update(f[:-len(".target.gz")] for f in files if f.endswith(".target.gz"))
+    rng = random.Random(str(CFG.get("face_seed", NAME)))
+    var = CFG.get("face_var", 0.35)
+    out = {}
+    for lo, hi in FACE_PAIRS:
+        v = rng.uniform(-1.0, 1.0) * var
+        for sd in (("l", "r") if "{s}" in lo else ("",)):
+            name = (hi if v > 0 else lo).format(s=sd)
+            if name in have:
+                out[name] = abs(v)
+            else:
+                print("CROWD no face target", name)
+    for t, v in CFG.get("targets", []):
+        out[t] = v
+    return out
+
+
 info = HumanService._create_default_human_info_dict()
 ph = {"gender": 0.5, "age": 0.5, "muscle": 0.5, "weight": 0.5, "proportions": 0.5, "height": 0.5,
       "cupsize": 0.5, "firmness": 0.5}
@@ -52,7 +104,7 @@ info.update({
     "eyebrows": CFG.get("eyebrows", ""), "eyelashes": CFG.get("eyelashes", ""), "hair": CFG.get("hair", ""),
     "teeth": "", "tongue": "", "clothes": CFG["clothes"], "skin_mhmat": CFG["skin"][0] + ".mhmat",
     "skin_material_type": CFG["skin_material_type"], "eyes_material_type": CFG["eyes_material_type"],
-    "targets": [{"target": t, "value": v} for t, v in CFG.get("targets", [])],
+    "targets": [{"target": t, "value": v} for t, v in face_targets().items()],
 })
 settings = HumanService.get_default_deserialization_settings()
 settings["subdiv_levels"] = 0
@@ -259,6 +311,29 @@ if cover:
         if any(v.index in keep_v for v in f.verts):
             ring.update(v.index for v in f.verts)
     kill = [f for f in bm.faces if not any(v.index in ring for v in f.verts)]
+    # The covered skin that is kept (the ring inside each garment edge, and what a V-neck or an
+    # open collar keeps under its panels) is tucked in a few millimetres: it sat 5 mm under the
+    # shirt, and a walk's chest and shoulder turn pushed skin triangles out through the shirt
+    # as pale slivers on the chest. The tuck is a SMOOTH field (the covered flag averaged over
+    # `cover_tuck_smooth` neighbour passes), never a step at the garment edge: moved as a step,
+    # every neckline, cuff and hem became a 6 mm crease, the importer's LODs kept far more
+    # triangles to hold it, and the downtown crowd drew 46 % more (355k -> 519k).
+    tuck = CFG.get("cover_tuck", 0.006)
+    passes = CFG.get("cover_tuck_smooth", 4)
+    tucked = 0
+    if tuck > 0.0:
+        wt = [1.0 if c else 0.0 for c in covered]
+        nbr = [[e.other_vert(v).index for e in v.link_edges] for v in bm.verts]
+        for _i in range(passes):
+            wt = [0.5 * wt[i] + 0.5 * (sum(wt[j] for j in nb) / len(nb) if nb else wt[i]) for i, nb in enumerate(nbr)]
+        inv = body.matrix_world.inverted()
+        for v in bm.verts:
+            if wt[v.index] > 0.01 and v.index in ring:
+                w = body.matrix_world @ v.co
+                n = (body.matrix_world.to_3x3() @ v.normal).normalized()
+                v.co = inv @ (w - n * tuck * wt[v.index])
+                tucked += 1
+    print("CROWD tucked %d skin vertices up to %.1f mm under the garments (smooth, %d passes)" % (tucked, tuck * 1000, passes))
     before = len(bm.faces)
     bmesh.ops.delete(bm, geom=kill, context='FACES')
     loose = [v for v in bm.verts if not v.link_faces]
@@ -331,6 +406,64 @@ for _ in range(CFG.get("hairline_soften", 2)):
     scalp = [0.5 * s + 0.5 * (sum(scalp[j] for j in nbr[i]) / len(nbr[i]) if nbr[i] else s) for i, s in enumerate(scalp)]
 print("CROWD scalp under the hair: %d vertices" % sum(1 for s in scalp if s > 0.5))
 
+# ---- where a beard grows (painted into the atlas by crowd_atlas.py: stubble or a beard) ------------
+# In the head's own frame round the eyes, scaled by the eye-to-chin distance: the moustache under
+# the nose, the lips left clear, a cheek line from the mouth corners up to the sideburns in front
+# of the ears, and under the jaw down the front of the neck. Soft-edged by a few millimetres.
+def smooth01(a, b, x):
+    t = min(max((x - a) / (b - a), 0.0), 1.0)
+    return t * t * (3.0 - 2.0 * t)
+
+
+beard = [0.0] * len(body.data.vertices)
+if CFG.get("stubble", 0.0) > 0.0 or CFG.get("beard", 0.0) > 0.0:
+    eyes_o = next(o for o in meshes if KIND[o.name][0] == "eyes")
+    ev = [eyes_o.matrix_world @ v.co for v in eyes_o.data.vertices]
+    E = sum(ev, Vector()) / len(ev)
+    dom = dominant_groups(body)
+    pts = [(v.index, body.matrix_world @ v.co) for v in body.data.vertices]
+    mid = [w.z for i, w in pts if dom[i] in HEAD_BONES and abs(w.x - E.x) < 0.012 and w.y < E.y + 0.01]
+    chin_z = min(mid) if mid else E.z - 0.125
+    hs = max((E.z - chin_z) / 0.125, 0.7)
+    UP = [(0.0, -0.050), (0.018, -0.054), (0.030, -0.078), (0.046, -0.066), (0.058, -0.040), (0.068, -0.010), (0.085, 0.012)]
+    ears = body.vertex_groups.get("ears")
+    # MPFB's own "lips" group: kept clear, and where the mouth really is after the face targets
+    # moved it (the table above is for the average face, mouth 71 mm under the eyes)
+    lips = body.vertex_groups.get("lips")
+    lipw = [0.0] * len(body.data.vertices)
+    if lips is not None:
+        for v in body.data.vertices:
+            for g in v.groups:
+                if g.group == lips.index:
+                    lipw[v.index] = g.weight
+    lp = [w for i, w in pts if lipw[i] > 0.5]
+    mouth_dz = ((sum(lp, Vector()) / len(lp)).z - E.z) / hs + 0.071 if lp else 0.0
+    UP = [(ax_, z_ + (mouth_dz if ax_ < 0.05 else mouth_dz * 0.5)) for ax_, z_ in UP]
+    for i, w in pts:
+        d = dom[i]
+        if d not in HEAD_BONES and d != "neck":
+            continue
+        v = body.data.vertices[i]
+        if ears is not None and any(g.group == ears.index and g.weight > 0.2 for g in v.groups):
+            continue
+        rel = (w - E) / hs
+        ax, z, y = abs(rel.x), rel.z, rel.y
+        k = next((j for j in range(1, len(UP)) if ax <= UP[j][0]), len(UP) - 1)
+        t = min(max((ax - UP[k - 1][0]) / max(UP[k][0] - UP[k - 1][0], 1e-6), 0.0), 1.0)
+        zu = UP[k - 1][1] + (UP[k][1] - UP[k - 1][1]) * t
+        wv = 1.0 - smooth01(zu - 0.004, zu + 0.004, z)
+        # not behind the sideburns, not low down the neck, not its back
+        wv *= 1.0 - smooth01(0.045, 0.06, y)
+        wv *= smooth01(-0.215, -0.19, z)
+        if d == "neck":
+            wv *= 1.0 - smooth01(-0.01, 0.02, y)
+        # the lips stay clear
+        lx, lz = ax / 0.027, (z + 0.071 - mouth_dz) / 0.0125
+        wv *= smooth01(0.85, 1.15, math.sqrt(lx * lx + lz * lz))
+        wv *= 1.0 - min(lipw[i] * 1.5, 1.0)
+        beard[i] = wv
+    print("CROWD beard zone: %d vertices (eye-to-chin %.3f m)" % (sum(1 for b in beard if b > 0.5), E.z - chin_z))
+
 # ---- triangle budgets --------------------------------------------------------------------------------
 def decimate_faces(o, pick, ratio):
     if ratio >= 0.999:
@@ -351,6 +484,8 @@ def decimate_faces(o, pick, ratio):
 # The scalp weight rides along as a vertex attribute so the decimation interpolates it.
 att = body.data.attributes.new("crowd_scalp", 'FLOAT', 'POINT')
 att.data.foreach_set("value", scalp)
+att = body.data.attributes.new("crowd_beard", 'FLOAT', 'POINT')
+att.data.foreach_set("value", beard)
 
 BONE_NAMES = {b.name for b in arm.data.bones}
 group_names = {g.index: g.name for g in body.vertex_groups if g.name in BONE_NAMES}
@@ -398,6 +533,8 @@ for o in meshes:
     print("CROWD budget", o.name, tris(o))
 scalp = [0.0] * len(body.data.vertices)
 body.data.attributes["crowd_scalp"].data.foreach_get("value", scalp)
+beard = [0.0] * len(body.data.vertices)
+body.data.attributes["crowd_beard"].data.foreach_get("value", beard)
 
 # ---- UV islands and the atlas plan ---------------------------------------------------------------------
 def islands(o):
@@ -613,6 +750,9 @@ def apply_uvs(rects, size):
 body_parts = [o for o in meshes if KIND[o.name][0] in ("skin", "eyes", "garment", "shoes", "hat")]
 hair_parts = [o for o in meshes if KIND[o.name][0] in ("hair", "brows", "lashes")]
 body_rects = plan_atlas(body_parts, ATL["size"], "body")
+# brows and lashes alone (a painted crop) need a fraction of the hair atlas
+if not any(KIND[o.name][0] == "hair" for o in hair_parts):
+    ATL["hair_size"] = min(ATL["hair_size"], 512)
 hair_rects = plan_atlas(hair_parts, ATL["hair_size"], "hair") if hair_parts else []
 
 # ---- the vertex colour: R top, G bottom, B hair, A skin -----------------------------------------------
@@ -659,6 +799,28 @@ def garment_regions(o, rects):
     return region
 
 
+# What each garment is woven from, which the character shader's tiling detail follows. It rides
+# in the region channel's level (R for the top, G for the bottom): 1.0 jersey, 0.85 denim, 0.70
+# woven (shirting, suiting, canvas); a garment the looks must not recolour ("keep") sits 0.45
+# lower (0.55 / 0.40 / 0.25) in R. Eyes are B and A both full (nothing else can be: the scalp
+# blend has B + A = 1). See region_mask in shaders/character.gdshader.
+FABRIC_LEVEL = {"jersey": 1.0, "denim": 0.85, "woven": 0.70}
+FABRIC_DEFAULT = {
+    "male_casualsuit01": ("woven", "denim"), "male_casualsuit02": ("jersey", "denim"),
+    "male_casualsuit03": ("woven", "denim"), "male_casualsuit04": ("jersey", "denim"),
+    "male_casualsuit05": ("woven", "denim"), "male_casualsuit06": ("jersey", "denim"),
+    "male_elegantsuit01": ("woven", "woven"), "male_worksuit01": ("denim", "denim", "denim"),
+    "female_casualsuit01": ("jersey", "denim"), "female_casualsuit02": ("jersey", "denim"),
+    "female_elegantsuit01": ("woven", "woven"), "female_sportsuit01": ("jersey", "jersey"),
+}
+
+
+def fabric_of(asset, side):
+    g = CFG["garments"].get(asset, {}).get("fabric", {})
+    d = FABRIC_DEFAULT.get(asset, ("jersey", "denim"))
+    return g.get(side, d[0] if side == "top" else (d[1] if side == "bottom" else d[-1]))
+
+
 REGIONS = {o.name: garment_regions(o, body_rects) for o in body_parts if KIND[o.name][0] == "garment"}
 for r in body_rects:
     if r["obj"] in REGIONS:
@@ -677,9 +839,17 @@ for o in body_parts + hair_parts:
                 c = (0.0, 0.0, s, 1.0 - s)
             elif k == "garment":
                 rg = region.get(p.index)
-                c = (1.0, 0.0, 0.0, 0.0) if rg == "top" else ((0.0, 0.0, 0.0, 0.0) if rg == "keep" else (0.0, 1.0, 0.0, 0.0))
+                asset = KIND[o.name][1]
+                if rg == "keep":
+                    c = (FABRIC_LEVEL[fabric_of(asset, "keep")] - 0.45, 0.0, 0.0, 0.0)
+                elif rg == "top":
+                    c = (FABRIC_LEVEL[fabric_of(asset, "top")], 0.0, 0.0, 0.0)
+                else:
+                    c = (0.0, FABRIC_LEVEL[fabric_of(asset, "bottom")], 0.0, 0.0)
             elif k in ("hair", "brows", "lashes"):
                 c = (0.0, 0.0, 1.0, 0.0)
+            elif k == "eyes":
+                c = (0.0, 0.0, 1.0, 1.0)
             else:
                 c = (0.0, 0.0, 0.0, 0.0)
             data[li].color = c
@@ -688,19 +858,132 @@ apply_uvs(body_rects, ATL["size"])
 if hair_rects:
     apply_uvs(hair_rects, ATL["hair_size"])
 
+# ---- UV2: metric detail coordinates (1 unit = 1 m of surface) --------------------------------------
+# The character shader tiles skin pores and fabric weave on these, so a pore or a denim twill is
+# the same size on the face (which has four times the atlas density) as on a hand or a leg. Per
+# atlas rect: the rect's atlas UV scaled by sqrt(surface area / UV area), plus a random offset so
+# neighbouring rects do not line up. Same orientation as UV1, so the tangents serve both.
+import random as _random  # noqa: E402
+
+_r = _random.Random(NAME)
+by_obj = {}
+for r in body_rects:
+    by_obj.setdefault(r["obj"], []).append(r)
+for on, rs in by_obj.items():
+    o = bpy.data.objects[on]
+    me = o.data
+    uv1 = me.uv_layers[0].data
+    det = me.uv_layers.new(name="detail")
+    uv2 = det.data
+    mw = o.matrix_world
+    for r in rs:
+        a3 = a2 = 0.0
+        for fi in r["faces"]:
+            pl = me.polygons[fi]
+            vs = [mw @ me.vertices[vi].co for vi in pl.vertices]
+            us = [uv1[li].uv.copy() for li in pl.loop_indices]
+            for j in range(1, len(vs) - 1):
+                a3 += ((vs[j] - vs[0]).cross(vs[j + 1] - vs[0])).length * 0.5
+                e1, e2 = us[j] - us[0], us[j + 1] - us[0]
+                a2 += abs(e1.x * e2.y - e1.y * e2.x) * 0.5
+        k = math.sqrt(a3 / a2) if a2 > 1e-12 else 1.0
+        ox, oy = _r.random(), _r.random()
+        for fi in r["faces"]:
+            for li in me.polygons[fi].loop_indices:
+                u, v = uv1[li].uv
+                uv2[li].uv = (u * k + ox, v * k + oy)
+    me.uv_layers.active_index = 0
+    me.uv_layers[0].active_render = True
+
+# ---- the garments' fold field data (crowd_atlas.py turns it into fold normals) ----------------------
+# Every garment triangle's atlas UVs, rest-pose corners and normals (metres, Blender space, the
+# figure facing -Y), whether it hangs off the arms and torso (the fold field's "jacket") or the
+# legs, and its garment's fold gain; plus the landmarks tools/hero/folds.py measures from.
+import numpy as np  # noqa: E402
+
+F_uv, F_p, F_n, F_j, F_g = [], [], [], [], []
+LEGS = ("UpLeg", "Leg", "Foot", "ToeBase")
+for o in body_parts:
+    if KIND[o.name][0] != "garment":
+        continue
+    me = o.data
+    me.calc_loop_triangles()
+    uv1 = me.uv_layers[0].data
+    mw = o.matrix_world
+    nm = mw.to_3x3()
+    region = REGIONS.get(o.name, {})
+    dom = dominant_groups(o)
+    gain = CFG["garments"].get(KIND[o.name][1], {}).get("fold_gain", 1.0) * CFG.get("fold_gain", 1.0)
+    for t in me.loop_triangles:
+        rg = region.get(t.polygon_index, "top")
+        if rg == "keep":
+            legs = sum(1 for vi in t.vertices if (dom[vi] or "").endswith(LEGS)) >= 2
+            jacket = not legs
+        else:
+            jacket = rg == "top"
+        F_uv.append([list(uv1[li].uv) for li in t.loops])
+        F_p.append([list(mw @ me.vertices[vi].co) for vi in t.vertices])
+        F_n.append([list((nm @ me.vertices[vi].normal).normalized()) for vi in t.vertices])
+        F_j.append(jacket)
+        F_g.append(gain)
+if F_uv:
+    P_all = np.array(F_p)
+    Jm = np.array(F_j)
+
+    def bone_head(n):
+        return list(arm.matrix_world @ arm.data.bones[n].head_local)
+    L = {n: bone_head(n) for n in ("LeftArm", "LeftForeArm", "LeftHand", "RightArm", "RightForeArm", "RightHand",
+                                    "LeftUpLeg", "LeftLeg", "LeftFoot", "RightUpLeg", "RightLeg", "RightFoot", "Hips")}
+    L["Spine2"] = bone_head("Spine")  # the chest (MPFB's Spine2 is the game's "Spine")
+    top_pts = P_all[Jm].reshape(-1, 3) if Jm.any() else np.zeros((0, 3))
+    bot_pts = P_all[~Jm].reshape(-1, 3) if (~Jm).any() else np.zeros((0, 3))
+    # the top's hem: the lowest point of it on the torso (not the hanging sleeves)
+    sh_x = abs(L["LeftArm"][0])
+    torso = top_pts[np.abs(top_pts[:, 0]) < sh_x * 0.75] if len(top_pts) else top_pts
+    L["z_hem"] = float(torso[:, 2].min()) if len(torso) else L["Hips"][2]
+    # sleeves: stacking above the cuff only when the sleeve runs past the elbow
+    ends = []
+    for sd in ("Left", "Right"):
+        sh, el, wr = (np.array(L[sd + n]) for n in ("Arm", "ForeArm", "Hand"))
+        same = top_pts[(top_pts[:, 0] > 0) == (sh[0] > 0)] if len(top_pts) else top_pts
+        ax = (wr - el) / np.linalg.norm(wr - el)
+        u = (same - el) @ ax if len(same) else np.array([-1.0])
+        reach = float(u.max()) if len(u) else -1.0
+        L1, L2 = np.linalg.norm(el - sh), np.linalg.norm(wr - el)
+        # folds.py stacks from (arm length - sleeve_end) to the cuff and past it, so a sleeve that
+        # stops above the elbow gets a sleeve_end far negative: no stacking anywhere on it
+        ends.append(L2 - reach if reach > 0.08 else -10.0)
+    L["sleeve_end"] = float(max(ends)) if min(ends) < -5.0 and max(ends) < -5.0 else float(min(e for e in ends if e > -5.0) if any(e > -5.0 for e in ends) else -10.0)
+    # trousers: ankle stacking only on long ones
+    knee_z = min(L["LeftLeg"][2], L["RightLeg"][2])
+    low = float(bot_pts[:, 2].min()) if len(bot_pts) else 0.0
+    L["z_pants_end"] = low if (len(bot_pts) and low < knee_z - 0.25) else -10.0
+    np.savez_compressed(C.work(NAME, "folds.npz"), uv=np.array(F_uv, np.float32), p=P_all.astype(np.float32),
+                        n=np.array(F_n, np.float32), jacket=Jm, gain=np.array(F_g, np.float32))
+    with open(C.work(NAME, "fold_landmarks.json"), "w") as f:
+        json.dump(L, f)
+    print("CROWD folds: %d garment triangles, hem z %.2f, sleeve end %.2f, trouser end %.2f" % (
+        len(F_uv), L["z_hem"], L["sleeve_end"], L["z_pants_end"]))
+
 # the scalp painted into the atlas for the looks that keep the model's own hair (crowd_atlas.py)
 scalp_tris = []
 uvl = body.data.uv_layers.active.data
 body.data.calc_loop_triangles()
+beard_tris = []
 for t in body.data.loop_triangles:
     w = [scalp[body.data.loops[li].vertex_index] for li in t.loops]
     if max(w) > 0.02:
         scalp_tris.append([[list(uvl[li].uv) for li in t.loops], w])
+    wb = [beard[body.data.loops[li].vertex_index] for li in t.loops]
+    if max(wb) > 0.02:
+        beard_tris.append([[list(uvl[li].uv) for li in t.loops], wb])
 
 plan = {"name": NAME, "size": ATL["size"], "normal_size": ATL["normal_size"], "hair_size": ATL["hair_size"],
         "pad": ATL["pad"], "hair_rgb": CFG.get("hair_rgb"), "skin": CFG["skin"], "skin_blend": CFG.get("skin_blend"),
         "skin_normal_strength": CFG.get("skin_normal_strength", 2.0), "garment_ao": CFG.get("garment_ao", 0.5),
         "garments": CFG["garments"], "scalp_tris": scalp_tris, "dye": CFG.get("dye", {}), "skin_tone": CFG.get("skin_tone"),
+        "beard_tris": beard_tris, "stubble": CFG.get("stubble", 0.0), "beard": CFG.get("beard", 0.0),
+        "beard_rgb": CFG.get("beard_rgb"), "dye_contrast": CFG.get("dye_contrast", {}),
         "body": [{k: v for k, v in r.items() if k != "faces"} | {"kind": KIND[r["obj"]][0], "asset": KIND[r["obj"]][1]} for r in body_rects],
         "hair": [{k: v for k, v in r.items() if k != "faces"} | {"kind": KIND[r["obj"]][0], "asset": KIND[r["obj"]][1]} for r in hair_rects]}
 with open(C.work(NAME, "atlas.json"), "w") as f:
@@ -721,10 +1004,14 @@ def join(objs, name):
     for p in o.data.polygons:
         p.material_index = 0
         p.use_smooth = True
-    for a in [a for a in o.data.attributes if a.name == "crowd_scalp"]:
-        o.data.attributes.remove(a)
-    while len(o.data.uv_layers) > 1:
+    for an in ("crowd_scalp", "crowd_beard"):
+        a = o.data.attributes.get(an)
+        if a is not None:
+            o.data.attributes.remove(a)
+    keep = 2 if "detail" in o.data.uv_layers else 1
+    while len(o.data.uv_layers) > keep:
         o.data.uv_layers.remove(o.data.uv_layers[-1])
+    o.data.uv_layers.active_index = 0
     bones = {b.name for b in arm.data.bones}
     for g in list(o.vertex_groups):
         if g.name not in bones:

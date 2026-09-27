@@ -27,7 +27,7 @@
    "scale": {
     "skin_head": 1.0,
     "skin": 0.62,
-    "eyes": 0.5,
+    "eyes": 0.75,
     "garment": 0.62,
     "shoes": 0.45,
     "hat": 0.45,
@@ -36,8 +36,9 @@
     "lashes": 0.3
    }
   },
-  "skin_normal_strength": 1.2,
-  "garment_ao": 0.55
+  "skin_normal_strength": 0.5,
+  "garment_ao": 0.55,
+  "face_var": 0.35
  },
  "characters": [
   {
@@ -80,7 +81,20 @@
      0.2
     ]
    ],
-   "buzz": true
+   "buzz": true,
+   "stubble": 0.3,
+   "beard_rgb": [
+    14,
+    11,
+    10
+   ],
+   "dye": {
+    "bottom": [
+     44,
+     56,
+     88
+    ]
+   }
   },
   {
    "name": "crowd_b",
@@ -135,6 +149,12 @@
     24,
     18,
     15
+   ],
+   "stubble": 0.75,
+   "beard_rgb": [
+    22,
+    17,
+    14
    ]
   },
   {
@@ -173,7 +193,8 @@
     0.78,
     0.72,
     0.68
-   ]
+   ],
+   "face_var": 0.3
   },
   {
    "name": "crowd_d",
@@ -205,6 +226,11 @@
      150,
      62,
      44
+    ],
+    "bottom": [
+     36,
+     36,
+     40
     ]
    },
    "targets": [],
@@ -212,7 +238,11 @@
     28,
     20,
     16
-   ]
+   ],
+   "face_var": 0.3,
+   "dye_contrast": {
+    "bottom": 0.8
+   }
   },
   {
    "name": "crowd_e",
@@ -251,7 +281,8 @@
     20,
     16,
     14
-   ]
+   ],
+   "face_var": 0.3
   },
   {
    "name": "crowd_f",
@@ -289,7 +320,23 @@
      "chin-prominent-incr",
      0.3
     ]
-   ]
+   ],
+   "stubble": 0.5,
+   "beard_rgb": [
+    70,
+    50,
+    34
+   ],
+   "dye": {
+    "bottom": [
+     124,
+     106,
+     78
+    ]
+   },
+   "dye_contrast": {
+    "bottom": 0.85
+   }
   },
   {
    "name": "crowd_g",
@@ -313,15 +360,22 @@
    "eyebrows": "eyebrow009.mhclo",
    "hair": "short01.mhclo",
    "hair_rgb": [
-    150,
-    146,
-    140
+    128,
+    124,
+    118
    ],
    "clothes": [
     "male_elegantsuit01.mhclo",
     "shoes04.mhclo"
    ],
-   "targets": []
+   "targets": [],
+   "beard": 0.55,
+   "stubble": 0.3,
+   "beard_rgb": [
+    118,
+    114,
+    108
+   ]
   },
   {
    "name": "crowd_h",
@@ -353,7 +407,23 @@
     "male_casualsuit03.mhclo",
     "shoes01.mhclo"
    ],
-   "targets": []
+   "targets": [],
+   "stubble": 0.12,
+   "beard_rgb": [
+    20,
+    17,
+    15
+   ],
+   "dye": {
+    "bottom": [
+     108,
+     110,
+     116
+    ]
+   },
+   "dye_contrast": {
+    "bottom": 0.8
+   }
   },
   {
    "name": "crowd_i",
@@ -393,11 +463,13 @@
     96,
     66,
     40
-   ]
+   ],
+   "face_var": 0.3
   },
   {
    "name": "crowd_j",
    "about": "white man in his fifties, heavy, close-cropped: denim shirt, jeans, brown shoes",
+   "cover_tuck": 0.014,
    "phenotype": {
     "gender": 1.0,
     "age": 0.76,
@@ -433,7 +505,20 @@
      0.3
     ]
    ],
-   "hairline": 0.095
+   "hairline": 0.095,
+   "stubble": 0.62,
+   "beard_rgb": [
+    66,
+    58,
+    52
+   ],
+   "dye": {
+    "bottom": [
+     38,
+     46,
+     70
+    ]
+   }
   },
   {
    "name": "crowd_k",
@@ -486,7 +571,8 @@
     22,
     16,
     13
-   ]
+   ],
+   "face_var": 0.3
   },
   {
    "name": "crowd_l",
@@ -523,9 +609,23 @@
      104,
      36,
      44
+    ],
+    "bottom": [
+     54,
+     54,
+     58
     ]
    },
-   "targets": []
+   "targets": [],
+   "stubble": 0.2,
+   "beard_rgb": [
+    130,
+    126,
+    120
+   ],
+   "dye_contrast": {
+    "bottom": 0.8
+   }
   }
  ],
  "garments": {
@@ -537,7 +637,8 @@
      0.87,
      0.31
     ]
-   ]
+   ],
+   "fold_gain": 0.75
   },
   "female_casualsuit02": {
    "erase": [
@@ -547,7 +648,8 @@
      0.87,
      0.31
     ]
-   ]
+   ],
+   "fold_gain": 0.75
   },
   "male_casualsuit02": {
    "erase": [
@@ -557,7 +659,8 @@
      0.63,
      0.24
     ]
-   ]
+   ],
+   "fold_gain": 0.75
   },
   "male_casualsuit04": {
    "erase": [
@@ -589,7 +692,8 @@
      0.76,
      0.18
     ]
-   ]
+   ],
+   "fold_gain": 0.75
   },
   "male_worksuit01": {
    "regions": "keep"
@@ -599,6 +703,9 @@
   },
   "male_elegantsuit01": {
    "hips": "top"
+  },
+  "female_sportsuit01": {
+   "fold_gain": 0.75
   }
  }
 }

@@ -941,6 +941,10 @@ static func plain_hair(inst: Node, grime: float = 0.0) -> void:
 ## "normal" (the glTF material's normal map) and "means" (the mean texture value of the top, the
 ## bottom and the hair regions, gamma space: what the shader keeps a recolour's shading round).
 static var _rig_info: Dictionary = {}
+## The crowd rigs' tiling surface detail (character.gdshader detail_tex) and their skin's Forward+
+## subsurface strength.
+const CROWD_DETAIL := "res://assets/textures/crowd/crowd_detail.png"
+const CROWD_SKIN_SSS := 0.35
 static var _hair_means: Dictionary = {}
 static var _hair_looks: Dictionary = {}
 
@@ -986,7 +990,8 @@ static func _region_means(mesh: Mesh, tex: Texture2D) -> Vector3:
 		var col := (colors[a] + colors[b] + colors[c]) / 3.0
 		var px := img.get_pixel(clampi(int(uv.x * w), 0, w - 1), clampi(int(uv.y * h), 0, h - 1))
 		var val := maxf(px.r, maxf(px.g, px.b))
-		var wt := Vector3(col.r, col.g, col.b)
+		# The region levels also carry the fabric (0.25-1.0): weigh by which region, not how much.
+		var wt := Vector3(1.0 if col.r > 0.1 else 0.0, 1.0 if col.g > 0.1 else 0.0, col.b * (1.0 - clampf(col.b + col.a - 1.0, 0.0, 1.0)))
 		sum += wt * val
 		cnt += wt
 	for k in 3:
@@ -1151,6 +1156,12 @@ static func character_material(albedo: Texture2D, look: int) -> ShaderMaterial:
 		mat.set_shader_parameter("bottom_mean", means.y)
 		mat.set_shader_parameter("hair_mean", means.z)
 		nrm = info.normal
+		# Pores, knit, twill and weave (tools/crowd/make_detail.py), the skin's subsurface warmth
+		# on Forward+, the wet eye: one shared texture and a few numbers, nothing per look.
+		if ResourceLoader.exists(CROWD_DETAIL):
+			mat.set_shader_parameter("detail_tex", load(CROWD_DETAIL))
+			mat.set_shader_parameter("detail_strength", 1.0)
+		mat.set_shader_parameter("skin_sss", CROWD_SKIN_SSS)
 	if nrm != null:
 		mat.set_shader_parameter("normal_tex", nrm)
 		mat.set_shader_parameter("normal_strength", NORMAL_STRENGTH)
