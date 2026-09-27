@@ -90,13 +90,15 @@ const METER_INSET := 0.7
 const METER_ODDS := [0.75, 0.4, 0.0, 0.0, 0.0, 0.8]
 const METER_DRAW_DISTANCE := 140.0
 
-## Polished wheel tracks: piece length, wheel gauge, strip width, and how much lighter than a
-## neutral patch they are (the patch mesh is mid grey, the asphalt under it is much darker, so
-## anything near 0.5 sits just off the road's own value). Keep it subtle.
+## Polished wheel tracks: piece length, wheel gauge, strip width, and their shade of the road
+## (road_patch.gdshader: 1.0 is the road itself). Polished tarmac is only a little darker and
+## glossier than the lane between the wheels. It was 0.5, written for the old flat grey patch
+## box: on the textured patch that is half the road's brightness, and every street wore two
+## pairs of black skid stripes down its whole length.
 const WHEEL_TRACK_PIECE := 14.0
 const WHEEL_TRACK_GAUGE := 1.72
-const WHEEL_TRACK_WIDTH := 0.46
-const WHEEL_TRACK_SHADE := 0.5
+const WHEEL_TRACK_WIDTH := 0.5
+const WHEEL_TRACK_SHADE := 0.9
 ## Chance a road shows wheel polish at all.
 const WHEEL_TRACK_ODDS := 0.7
 ## Shade range of an oil stain (the same patch mesh, much darker).
@@ -672,9 +674,16 @@ static func _wheel_tracks(chunk: CityChunk, roads: Array) -> void:
 			continue
 		var rng := _rng_for([chunk.plan.seed, "trackshade", chunk.ix, chunk.iz, r])
 		var u0: float = (c.y if along_z else c.x) - span * 0.5
-		for lane: float in [-1.0, 1.0]:
+		# Down the lanes the traffic really drives (CityPlan.lane_center), not the quarter widths:
+		# on an avenue those put a wheel path on the centre line and another in the parking lane.
+		var lanes := 2 if width > chunk.plan.street_width + 1.0 else 1
+		var centres: Array[float] = []
+		for side: float in [-1.0, 1.0]:
+			for n in lanes:
+				centres.append(side * CityPlan.lane_center(width, lanes, n))
+		for lane: float in centres:
 			for wheel: float in [-1.0, 1.0]:
-				var off := lane * width * 0.25 + wheel * WHEEL_TRACK_GAUGE * 0.5
+				var off := lane + wheel * WHEEL_TRACK_GAUGE * 0.5
 				var t := 0.0
 				while t < span - 0.5:
 					var piece := minf(WHEEL_TRACK_PIECE, span - t)
