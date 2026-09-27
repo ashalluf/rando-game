@@ -890,20 +890,23 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the lot's grid cell (`lot.cell`, the lot plus half the gap), is a **forecourt** in the block's
   own paving look (`LotFill.PAVINGS`, one a block) - raised planters (the plinths' concrete, so
   they merge into that mesh) with one shrub species a chunk and the block's street tree
-  (`MAX_TREES` a chunk), benches, a short run of bollards (`BOLLARD_ODDS`, `BOLLARD_RUN`), a
-  reflecting pool or a bronze in a plaza-sized piece; some lots are **surface car parks**
+  (`MAX_TREES` a chunk), benches, a short run of bollards (`BOLLARD_ODDS`, `BOLLARD_RUN`), and
+  in a plaza-sized piece (`PLAZA_DEPTH`) a reflecting pool or a bronze on a cross of walks with a
+  lawn in each quarter (`LAWN_ODDS`, its own ground kind, laid far too); a retail podium's roof
+  is the tower's garden (lawns, planters, a turquoise pool); some lots are **surface car parks**
   (`CityPlan.lots()` `"parking"`: DISTRICTS `surface_lots` / `core_surface_lots`, a hash, only
-  under `SURFACE_LOT_MAX_HEIGHT`; stall rows, ArenaGrounds' static cars in two kinds with a
-  two-box shadow twin, a pay booth, light poles in the street lamps' batch without their
+  under `SURFACE_LOT_MAX_HEIGHT`; stall rows, ArenaGrounds' static cars (`car_mesh()`, ~400
+  triangles, two kinds, a two-box shadow twin to `CAR_SHADOW_DISTANCE`), a pay booth, light poles in the street lamps' batch without their
   OmniLight, a wall / hedge / chain-link (`shaders/chain_link.gdshader`) on the street sides); a
-  parking podium gets its drive-in (asphalt out to the kerb, a lit P sign) and cars on its roof
+  parking podium gets its drive-in (asphalt out to the kerb) and cars and light poles on its roof
   deck; and the cells a landmark's square dropped (`CityPlan.dropped_cells()`) are forecourt
   round the landmark (a downtown tower's own footprint kept 4 m clear) or a car park. Every
   roll is a private rng of seed + lot, never the block rng or `Building._rng`. FULL chunks merge
   each paving kind into ONE mesh (`LotFill.commit()`, no shadow, one quad a rect where the
-  relief is planar); LOD chunks and the far city lay only the car parks' asphalt (the forecourt
-  paving reads as pavement from there) and the podium boxes come with the parts. AirTraffic
-  skips car-park lots.
+  relief is planar); LOD chunks and the far city lay only the car parks' asphalt and the lawns
+  (the forecourt paving reads as pavement from there) and the podium boxes come with the parts.
+  AirTraffic skips car-park lots. Look at it with `tools/glshot/still_shot.gd` (`SPLIT=1` has a
+  LotFill line) and measure it with `tools/lot_coverage.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
@@ -1563,9 +1566,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   by `building.gdshader` from CUSTOM3.z (`garage_*` uniforms: precast spandrels, columns on the
   bay lines, the deck behind traced - floor stalls and nose-in cars, the next deck's lit
   underside, the far side open to the day -, the drive-in bay `garage_entry` on `street_face`,
-  and a roof that is itself a deck of stalls); it gets no facade details, kit or roof plant, its
-  storey is `GARAGE_STOREY` and its far box is its concrete (`part_lod_color()`). StreetWear only
-  paints its spandrels.
+  and a roof that is itself a deck of stalls); it gets no facade details or kit, its storey is
+  `GARAGE_STOREY` and its far box is its concrete (`part_lod_color()`). StreetWear only paints its
+  spandrels. No podium roof gets roof plant: LotFill parks cars on a deck and lays a garden on a
+  retail one.
 - Facade kit (owner, 2026-09-24: "it must look like RDR2, not San Andreas"): real moulded geometry
   on the buildings near the camera, modelled by `tools/facade_kit.py` in Blender
   (`blender -b --python tools/facade_kit.py`, then `--import`) into `assets/models/facade_kit.glb`,

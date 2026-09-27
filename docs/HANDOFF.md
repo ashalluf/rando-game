@@ -3307,3 +3307,99 @@ realistic people at "AAA studio PS5 quality", made with the hero's pipeline.
   (tree LOD ladders, new car bodies) and was not merged into this branch here; nothing in it
   touches the crowd files, the likely conflicts are CLAUDE.md, loading_screen.gd and
   smoke_test.gd (adjacent hunks).
+
+## 9aj. Lots filled, not paved: podiums, forecourts, car parks, 2026-09-27 (agent branch `wt/lot-fill`)
+
+The brief: downtown towers stood on a sea of bare beige paving - from the street a vast empty
+plaza, from the air towers scattered on tan concrete. Measured first (`tools/lot_coverage.gd`,
+headless, rasterises every BUILDINGS block's inner rect on a 1 m grid; `FILL=0` is the before):
+
+| Block ground (inside the pavement ring) | bare before | bare after | built before -> after | notes |
+|---|---|---|---|---|
+| Financial core (65 blocks) | 44.0 % | 2.2 % | 46.9 -> 60.1 % | forecourt 25.6 %, car parks 3.0 % |
+| Rest of downtown (147) | 30.8 % | 2.7 % | 54.9 -> 49.3 % | forecourt 25.1 %, car parks 8.5 % |
+| Midtown (324, west of the 110) | 53.6 % | 5.4 % | 40.7 -> 41.4 % | forecourt 38.8 %, car parks 8.8 % |
+
+Where the bare ground came from: TOWER and CROWN shapes covered 23 % and 30 % of their lots
+(`minf(lot) * 0.45-0.75` square in the middle; 3 of the 8 core shapes, and midtown's TOWER at
+26 %), SLAB 73-76 %; the gaps between lots (a lot is its grid cell less a 2-5 m gap downtown,
+3-8 m midtown: 11 % of the core, 15 % of the rest, 34 % of midtown); and the lots a landmark's
+square pushed out of the grid (19 % of the core: a downtown tower's radius square drops every
+lot it touches and only its footprint was built). Now (`LotFill`, `scripts/world/lot_fill.gd`):
+
+- **Podiums** (`Building._add_podium()`): a tower whose ground parts cover under 55 % of a lot
+  (16 m+ short side, 28 m+ tall) gets a base filling 88-98 % of it, a parking deck or 1-3
+  retail storeys, the tower lifted onto it and slid off centre. TOWER lots now 82 % covered in
+  the core (70 % in midtown), CROWN 82 %; 79 podiums in the core, 401 in midtown. Hashes of the
+  seed only, after the layout's rolls: nothing of the building's colours or any other building
+  moves, and the far box follows through `parts`. The parking deck is all shader
+  (`building.gdshader`, CUSTOM3.z): spandrels, columns on the bay lines, the deck traced behind
+  the opening (stall lines and nose-in cars on the floor, lamps under the next deck that light
+  up at night, the far side open to the day), a drive-in bay on the street face
+  (`garage_entry`) and a roof deck with painted stalls.
+- **Forecourts**: each lot's ground out to its grid cell (`lot.cell`) in one of four paving looks
+  a block; raised planters, benches, a short run of bollards, and in plaza-sized pieces a
+  reflecting pool or a bronze on a cross of walks with lawns in the quarters. A retail podium's
+  roof is the tower's garden (lawns, planters, a turquoise pool).
+- **Surface car parks**: `CityPlan.lots()` marks some lots `"parking"` (DISTRICTS
+  `surface_lots` 13 % downtown, 4 % in the core, 10 % midtown; only under 55 m of massing):
+  asphalt, stall rows and aisles, ArenaGrounds' static cars, a pay booth, light poles, a low
+  wall / hedge / chain-link on the street sides. A parking podium gets its drive-in (asphalt to
+  the kerb) and cars and light poles on its roof deck.
+- **What a landmark's square left** (`CityPlan.dropped_cells()`, the same walk as `lots()`):
+  forecourt round the landmark (a downtown tower's own footprint kept 4 m clear) or a car park.
+- **The code car** (`ArenaGrounds.car_mesh()`, also the arena district's and the airport's
+  parked cars) rebuilt at ~400 triangles with a two-box shadow twin: the old painted brick read
+  as toys once a car park stood on half the blocks.
+
+### Frame cost
+
+opengl3 at 1280x720, `--quality=0`, noon, clear (`still_shot.gd`; before = this branch's base,
+f17726e). The draws that are left are content where there was none (the fill's own ground is
+ONE mesh and material a chunk, `shaders/lot_ground.gdshader`); the triangles are the retail
+podiums' facades and kit, the parked cars (~400 each, box shadows to 70 m), the planters'
+bushes and trees (one species a chunk, `MAX_TREES` 10), and the lawns.
+
+| Bookmark | triangles before -> after | draws before -> after |
+|---|---|---|
+| Flower at Olympic, `--spawn=2359.4,880,0,12,2` | 6,083,678 -> 6,772,741 (+11.3 %) | 3,382 -> 3,487 (+3.1 %) |
+| South-west aerial, `--spawn=1450,2150,-38,4,140` | 5,072,188 -> 5,414,891 (+6.8 %) | 3,205 -> 3,270 (+2.0 %) |
+| Top-down, `EYE=2300,420,800,0,-89.9` | 2,775,281 -> 3,111,162 (+12.1 %) | 2,464 -> 2,645 (+7.3 %) |
+
+The first cut was +385 draws / +1.7 M triangles on the street bookmark; SPLIT (still_shot.gd now
+has a LotFill line) and a census of the full chunks' nodes found the causes, in the traps
+below. The podiums also occlude: the street bookmark's Landmark category fell from 234 to 127
+draws.
+
+### Traps
+
+- A planter built as a solid kerb box hides a soil box placed below its top: the planted top has
+  to stand a hair proud of the kerb (it did not, and every planter was a white slab with weeds).
+- `CityChunk._add_bush()` rolls one of eight species; a batch key is a draw and its shadow twin
+  another, so the planters alone put up to sixteen new draws on a chunk. Planting code that is
+  not the street's own should pick ONE species a chunk.
+- A bollard is a 72-triangle cylinder with no LODs, counted and drawn per instance in every
+  cascade: a frontage of them on every lot was ~2,000 in one street view (+0.5 M triangles).
+- On a LOD chunk every ground slab is gridded at 8 m whatever it is, and a slab under 6 m
+  becomes a box of its own material (a draw). The far tiers take only what changes the read
+  from there: asphalt and lawns.
+- The podium's rolls must not come from `Building._rng`: `plan_only()` feeds the colours from
+  it right after the layout, so the podium is decided from `hash([seed, tag])` in between.
+- A `SurfaceTool` handed an indexed mesh (`append_from()` of a BoxMesh's arrays) after unindexed
+  ones keeps only the indexed triangles: the merged fill mesh lost every grid and the car parks
+  drew as the pavement under them. Append everything unindexed.
+- `CityChunk._add_slab()` treats anything 0.5 m tall or less and 6 m long as ground and lays a
+  relief grid NODE for it: a pool's 0.45 m kerbs were four draws each. Solid furniture goes into
+  the merged boxes directly (`LotFill._solid()`).
+- The Poly Haven asphalt, grass and paving textures are world-mapped in `lot_ground.gdshader`
+  from the chunk-space position (true world inside a chunk), never the world position, or they
+  swim on every origin re-centre.
+
+### Not done / next
+
+- Look at it on the Mac (Forward+): the garage interior's exposure by day and its lamps at
+  night, the chain-link's dither under TAA, the plaza lawns' colour.
+- Retail podium roofs carry no mechanical plant now; a few packaged units among the planters
+  would be truer. Beach town (67 % bare) and campus blocks were left as they were.
+- The code car is still a code car up close; a real ~2k-triangle parked-car body with LODs
+  would be the next step for car parks seen from the pavement.

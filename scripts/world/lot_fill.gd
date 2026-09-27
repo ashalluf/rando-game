@@ -369,6 +369,18 @@ static func _roof_deck(ch: CityChunk, bld: Building, centre: Vector2, rng: Rando
 					continue
 				var yaw := (PI if half == 0 else 0.0) + rng.randf_range(-0.04, 0.04)
 				_car(ch, rng, Vector3(centre.x + local.x, top, centre.y + local.y), yaw)
+		# Light poles down the aisle (the deck is dark at night without them), off the tower.
+		var aisle_z := band + STALL.y + AISLE * 0.5
+		if aisle_z < size.z - 2.0:
+			var poles := maxi(1, int(size.x / 28.0))
+			for j in poles:
+				var local := Vector2(size.x * (float(j) + 0.5) / float(poles) - size.x * 0.5, aisle_z - size.z * 0.5)
+				var clear := true
+				for t: Rect2 in towers:
+					if t.grow(1.0).has_point(local):
+						clear = false
+				if clear:
+					_lamp(ch, Vector3(centre.x + local.x, top, centre.y + local.y))
 		k += 1
 
 
