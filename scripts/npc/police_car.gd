@@ -67,8 +67,9 @@ const POLICE_BLACK := Color(0.030, 0.031, 0.036)
 const POLICE_WHITE := Color(0.93, 0.93, 0.92)
 ## The tactical van at five stars: dark navy all over with a white belt band.
 const HEAVY_PAINT := Color(0.045, 0.060, 0.095)
-## Livery bands along the car (fractions of its length): the doors between them are white.
-const DOOR_BAND := Vector2(0.24, 0.70)
+## Livery bands along the car (fractions of its length from the nose): the doors between them
+## are white. The sedan's own door cuts (tools/make_road_cars.py, the sedan's grooves).
+const DOOR_BAND := Vector2(0.300, 0.707)
 
 var police: Police
 var mode: Mode = Mode.DISPATCH
@@ -452,14 +453,14 @@ func _drive_lane(delta: float) -> void:
 			else:
 				# Onto the cross street, keeping the coordinate the car is already at.
 				at = Vector2(road + lane, wp.z) if n_axis == CityPlan.AXIS_X else Vector2(wp.x, road + lane)
-			_place(Vector3(at.x, 0.55 + _relief(at), at.y), _heading(n_axis, n_dir), 0.0)
+			_place(Vector3(at.x, _relief(at) + CityChunk.ROAD_TOP + road_lift(), at.y), _heading(n_axis, n_dir), 0.0)
 			return
 	var lane_pos: float = _plan.road_pos(axis, index) + lateral
 	var p2 := Vector2(lane_pos, new_along) if axis == CityPlan.AXIS_X else Vector2(new_along, lane_pos)
 	var forward := Vector2(0.0, dir) if axis == CityPlan.AXIS_X else Vector2(dir, 0.0)
 	var here := _relief(p2)
 	var ahead := _relief(p2 + forward * 4.0)
-	_place(Vector3(p2.x, 0.55 + here, p2.y), _heading(axis, dir), atan2(ahead - here, 4.0))
+	_place(Vector3(p2.x, here + CityChunk.ROAD_TOP + road_lift(), p2.y), _heading(axis, dir), atan2(ahead - here, 4.0))
 
 
 ## Arrived at the kerb by the player: off the lanes into physics, braked, and the crew gets out
