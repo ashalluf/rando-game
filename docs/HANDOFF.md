@@ -2328,6 +2328,29 @@ the short version:
   1.303 M (shadow 366k -> 325k), 473 draws both. Dearer up close, cheaper everywhere else: the
   old body stopped at one 5.1k LOD, so every far sedan cost 5k.
 
+### 9z, continued: the 2026-09-27 styling pass and the beams (VISUAL_ROADMAP #22, #26)
+
+- The first two passes still read dated: flat slab fascias with a crisp rim, lamps sitting on
+  the roll into the bonnet (a black sliver from any height), a pocket-and-bar door handle. Now:
+  the last half metre of both ends tapers in plan and bows out (`NOSE_DOME`, `TAIL_DOME`), the
+  vertical face runs up to `zw` 0.605 (nose) / 0.875 (tail) so lamps sit on it, the headlamps
+  are a piano-black visor band across the nose with a white LED strip (glows by `lamp_factor`)
+  over three projector eyes each side, a low wide grille (0.265-0.44 m), flush handles, a
+  stronger shoulder (`SHOULDER_RIDGE` 0.021), fuller arch lips, larger tail wedges joined by a
+  full-width bar. Lamps are APPLIED panels (`LAMP_PROUD` 2.5 mm): boolean pockets that thin came
+  out of the decimation as crumpled dents.
+- Honest verdict: cleaner and far more legible than the WIP and than the mottled Meshy nose,
+  and the lamp signature reads at street distance, but the silhouette is still more upright
+  than the Meshy car's fastback. Next lever if the owner wants it sleeker: lower the nose
+  (`KEYS_LOWER` zw / `KEYS_UPPER` zbl at the front rows) and rake the windscreen (`A_PILLAR`,
+  `COWL`).
+- Night glow quads: `vehicle_lights(..., tail_y)`; the sedan's `_dims()` gives `lamp_y` 0.32
+  and `tail_y` 0.61 (body space). The other model cars still use the primitive height.
+- Budget: 27.45k triangles (was 26.8k), ONE surface, same LOD chain. WHEEL_POSE and
+  `PoliceCar.DOOR_BAND` repasted from the run.
+- Look at it fast with `tools/glshot/sedan_shot.gd` (one car on a plane, 20 s a shot: `--view`
+  front3 / rear3 / side / front / rear, or `--cam` / `--look`; `--night`, `--police`).
+
 ## 9za. Hill planting on the painted ground, 2026-09-25 (agent branch)
 
 The ask: the hills' planting read as sparse dark dots and lollipop blobs over the new dry-grass /

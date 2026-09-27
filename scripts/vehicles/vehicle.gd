@@ -48,7 +48,7 @@ const BODY_ODDS := {
 ## ride height, and a centimetre out reads as a flat tyre or a floating car - so change it from a
 ## --spawn shot of a parked car, not from arithmetic.
 const WHEEL_POSE := {
-	BodyType.SEDAN: {"x": 0.800, "front": -1.441, "rear": 1.381, "y": 0.090, "r": 0.330, "w": 0.225, "cut": true, "cut_r": 0.344},
+	BodyType.SEDAN: {"x": 0.798, "front": -1.436, "rear": 1.376, "y": 0.089, "r": 0.329, "w": 0.224, "cut": true, "cut_r": 0.343},
 	BodyType.PICKUP: {"x": 0.847, "front": -1.788, "rear": 1.306, "y": 0.225, "r": 0.390, "w": 0.260, "cut": true, "cut_r": 0.402},
 	BodyType.VAN: {"x": 0.816, "front": -1.656, "rear": 1.539, "y": 0.175, "r": 0.360, "w": 0.230, "cut": true, "cut_r": 0.372},
 	BodyType.SPORTS: {"x": 0.803, "front": -1.400, "rear": 1.307, "y": 0.066, "r": 0.330, "w": 0.245, "cut": true, "cut_r": 0.344},
@@ -777,9 +777,10 @@ static func _shared_box(key: StringName, size: Vector3, mat: Material) -> BoxMes
 func _add_night_lights(dims: Dictionary) -> void:
 	var node := MeshInstance3D.new()
 	node.name = "NightLights"
-	# "lamp_y" where a body's lamps are known (the hi-fi sedan's, between its head and tail lamps).
-	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, float(dims.get("lamp_y", 0.55 + dims.chassis_h * 0.62)),
-			float(dims.get("ride", model_bottom_y)))
+	# "lamp_y" / "tail_y" where a body's lamps are known (the hi-fi sedan's).
+	var lamp_y := float(dims.get("lamp_y", 0.55 + dims.chassis_h * 0.62))
+	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, lamp_y,
+			float(dims.get("ride", model_bottom_y)), float(dims.get("tail_y", lamp_y)))
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# One node per car rather than five: with a hundred and fifty cars on the road the separate
 	# quads were several hundred draw calls on their own. Past this distance the car is a few
@@ -1079,7 +1080,7 @@ func _dims() -> Dictionary:
 			# The sedan. length and width are the model's own (tools/make_hifi_sedan.py), so it
 			# is drawn at scale 1; the physics numbers are the old ones, which the handling and
 			# the smoke test's drive checks are tuned on.
-			return {"length": 4.85, "width": 1.86, "lamp_y": 0.53, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.24}
+			return {"length": 4.85, "width": 1.86, "lamp_y": 0.32, "tail_y": 0.61, "chassis_h": 0.7, "cabin": Vector2(-1.0, 2.4), "cabin_h": 0.7, "wheel_z": 1.5, "track": 1.62, "tyre_r": 0.34, "ride": -0.24}
 
 
 func _add_wheel(pos: Vector3, front: bool) -> void:

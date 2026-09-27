@@ -49,8 +49,16 @@ baked into each arch, about 300 triangles a wheel, and the arch itself is a blin
 behind them.
 
 ORIGINAL DESIGN. A generic 2020s mid-size family sedan - a class, not a copy of any car. No
-manufacturer's badge, grille shape or light signature: the grille is a plain slatted mouth, the
-lamps are tapered blades, the badge recesses are empty.
+manufacturer's badge, grille shape or light signature: the nose is a piano-black visor band
+running between the headlamp housings, each with a slim LED strip over three projector eyes; the
+grille is a plain low wide mouth; the tail is two wedge lamps joined by a thin full-width bar.
+Lamps are laid ON the skin (LAMP_PROUD), not in boolean pockets: after the decimation a pocket
+that thin pinched the panel round it into a crumpled dent.
+
+THIRD PASS (2026-09-27): the ends were flat slabs. They now taper in plan (the last 0.5 m of
+KEYS_LOWER / KEYS_UPPER) and bow out (NOSE_DOME, TAIL_DOME); the vertical part of each fascia
+runs higher (zw at the ends) so the lamps sit on a face rather than on the roll into the bonnet
+and deck; flush door handles; a stronger shoulder ridge; fuller arch lips.
 
 THE STANCE
 ----------
@@ -87,7 +95,7 @@ SLOTS = [
     ("glass",       (0.016, 0.018, 0.021), 0.04, 0.00, False),
     ("trim",        (0.030, 0.030, 0.032), 0.48, 0.00, False),
     ("tyre",        (0.026, 0.026, 0.028), 0.88, 0.00, False),
-    ("light_front", (0.30, 0.31, 0.33),    0.08, 0.60, True),
+    ("light_front", (0.82, 0.84, 0.88),    0.12, 0.00, True),
     ("light_rear",  (0.42, 0.018, 0.022),  0.08, 0.10, True),
     ("rim",         (0.50, 0.51, 0.53),    0.30, 0.85, False),
     ("gloss",       (0.012, 0.012, 0.013), 0.10, 0.00, False),
@@ -117,10 +125,10 @@ ANCHOR_J = [0.0, 2.0, 4.0, 7.0, 10.0, 13.0, 16.0, 19.0, 22.0]
 # the wheels. Each column is a monotone cubic along f.
 KEYS_LOWER = [
     # f        zb     ub     us     zs     uh     zh     uw     zw
-    (2.380, 0.215, 0.450, 0.660, 0.235, 0.775, 0.360, 0.795, 0.540),
-    (2.250, 0.185, 0.505, 0.740, 0.212, 0.868, 0.365, 0.882, 0.575),
-    (2.100, 0.165, 0.525, 0.760, 0.200, 0.908, 0.372, 0.918, 0.615),
-    (1.850, 0.155, 0.540, 0.782, 0.200, 0.920, 0.380, 0.925, 0.660),
+    (2.380, 0.215, 0.400, 0.590, 0.235, 0.690, 0.380, 0.712, 0.605),
+    (2.250, 0.185, 0.480, 0.705, 0.212, 0.815, 0.375, 0.832, 0.618),
+    (2.100, 0.165, 0.515, 0.748, 0.200, 0.884, 0.375, 0.896, 0.638),
+    (1.850, 0.155, 0.538, 0.780, 0.200, 0.916, 0.380, 0.921, 0.660),
     (1.450, 0.150, 0.555, 0.800, 0.200, 0.922, 0.385, 0.926, 0.695),
     (1.100, 0.150, 0.560, 0.808, 0.205, 0.920, 0.392, 0.925, 0.712),
     (0.700, 0.150, 0.562, 0.815, 0.210, 0.918, 0.400, 0.924, 0.728),
@@ -129,16 +137,16 @@ KEYS_LOWER = [
     (-1.350, 0.152, 0.558, 0.814, 0.210, 0.920, 0.400, 0.925, 0.795),
     (-1.600, 0.160, 0.552, 0.803, 0.212, 0.918, 0.400, 0.923, 0.802),
     (-1.850, 0.170, 0.532, 0.788, 0.220, 0.908, 0.400, 0.918, 0.808),
-    (-2.050, 0.190, 0.508, 0.762, 0.240, 0.893, 0.410, 0.907, 0.810),
-    (-2.220, 0.220, 0.482, 0.735, 0.268, 0.875, 0.420, 0.892, 0.808),
-    (-2.370, 0.250, 0.452, 0.695, 0.295, 0.845, 0.430, 0.862, 0.800),
+    (-2.050, 0.190, 0.505, 0.758, 0.240, 0.888, 0.410, 0.902, 0.810),
+    (-2.220, 0.220, 0.470, 0.715, 0.268, 0.852, 0.425, 0.868, 0.848),
+    (-2.370, 0.250, 0.420, 0.640, 0.295, 0.772, 0.440, 0.790, 0.875),
 ]
 KEYS_UPPER = [
     # f        ubl    zbl     um     zm     ur     zr     zt
-    (2.380, 0.775, 0.672, 0.630, 0.708, 0.385, 0.721, 0.726),
-    (2.250, 0.862, 0.703, 0.718, 0.735, 0.415, 0.747, 0.751),
-    (2.100, 0.898, 0.735, 0.745, 0.766, 0.425, 0.779, 0.783),
-    (1.850, 0.903, 0.775, 0.755, 0.806, 0.432, 0.820, 0.824),
+    (2.380, 0.695, 0.672, 0.560, 0.708, 0.350, 0.721, 0.726),
+    (2.250, 0.815, 0.703, 0.672, 0.735, 0.400, 0.747, 0.751),
+    (2.100, 0.877, 0.735, 0.730, 0.766, 0.422, 0.779, 0.783),
+    (1.850, 0.899, 0.775, 0.753, 0.806, 0.432, 0.820, 0.824),
     (1.450, 0.902, 0.820, 0.760, 0.848, 0.435, 0.862, 0.866),
     (1.200, 0.900, 0.846, 0.760, 0.873, 0.435, 0.887, 0.891),
     (1.000, 0.897, 0.870, 0.765, 0.898, 0.448, 0.912, 0.917),
@@ -152,15 +160,19 @@ KEYS_UPPER = [
     (-1.350, 0.875, 0.976, 0.748, 1.130, 0.612, 1.262, 1.288),
     (-1.650, 0.869, 0.998, 0.725, 1.102, 0.562, 1.182, 1.198),
     (-1.950, 0.862, 1.030, 0.703, 1.082, 0.502, 1.103, 1.108),
-    (-2.150, 0.857, 1.050, 0.692, 1.082, 0.462, 1.093, 1.098),
-    (-2.260, 0.855, 1.054, 0.682, 1.080, 0.432, 1.088, 1.093),
-    (-2.370, 0.845, 1.042, 0.668, 1.068, 0.407, 1.076, 1.080),
+    (-2.150, 0.852, 1.050, 0.688, 1.082, 0.460, 1.093, 1.098),
+    (-2.260, 0.832, 1.054, 0.665, 1.080, 0.425, 1.088, 1.093),
+    (-2.370, 0.775, 1.042, 0.620, 1.068, 0.390, 1.076, 1.080),
 ]
 
 F_NOSE = 2.380
 F_TAIL = -2.370
-ROLL_R = 0.024        # radius of the fillet that rolls the nose and tail rims into the fascias
-ROLL_STEPS = 2
+ROLL_R = 0.032        # radius of the fillet that rolls the nose and tail rims into the fascias
+ROLL_STEPS = 3
+## How far the middle of each fascia bows out past its rim (m). A flat cap read as a slab
+## bolted across the end of the car; a modern nose and tail are convex both ways.
+NOSE_DOME = 0.022
+TAIL_DOME = 0.018
 
 FRONT_AXLE = 1.450
 REAR_AXLE = -1.370
@@ -180,7 +192,7 @@ GAP_DEPTH = 0.005
 
 # (f0, j_lo, j_hi): a gap running across the car at station f0, over that ring span.
 TRANS_GAPS = [
-    (2.290, 14.5, 22.0),    # bonnet front edge, over the headlamps
+    (2.200, 14.5, 22.0),    # bonnet front edge, over the headlamps
     (0.915, 14.5, 22.0),    # bonnet rear edge, at the cowl
     (0.985, 4.60, 13.05),   # front door front cut, behind the front arch
     (-0.140, 4.60, 13.05),  # front / rear door split, under the B-pillar
@@ -190,7 +202,7 @@ TRANS_GAPS = [
 ]
 # (j0, f_lo, f_hi): a gap running along the car at ring j0, over that station span.
 LONG_GAPS = [
-    (14.5, 0.915, 2.290),    # bonnet side, where the wing top turns over
+    (14.5, 0.915, 2.200),    # bonnet side, where the wing top turns over
     (14.5, -2.290, -1.975),  # boot lid side
     (13.05, -1.050, 0.985),  # door tops (the belt line)
     (4.60, -1.050, 0.985),   # door bottoms, at the sill step
@@ -198,7 +210,7 @@ LONG_GAPS = [
 
 SHOULDER_J = 10.0
 SHOULDER_CREASE = 1.0
-SHOULDER_RIDGE = 0.014
+SHOULDER_RIDGE = 0.021
 SHOULDER_FADE = (2.08, 2.33)
 
 # --- the glasshouse -----------------------------------------------------------------------------
@@ -728,7 +740,7 @@ def build_body(mats):
                 continue
             quad(bm, verts[i][k], verts[i][k2], verts[i + 1][k2], verts[i + 1][k], face_mat(i, k))
 
-    for end, sign, dome in ((0, 1.0, 0.015), (len(stations) - 1, -1.0, 0.012)):
+    for end, sign, dome in ((0, 1.0, NOSE_DOME), (len(stations) - 1, -1.0, TAIL_DOME)):
         rim = verts[end]
         prev = rim
         out = outlines[end]
@@ -1013,14 +1025,26 @@ def build_glasshouse(surf, mats):
 # --- lamps --------------------------------------------------------------------------------------
 ## (x_inboard, x_outboard, z_centre in, z_centre out, height in, height out, end, material,
 ## mirrored). Tapered blades, as on the GT: a lamp that narrows toward one end reads as designed.
+## The headlamp is a smoked (piano black) housing with a slim LED strip along its top edge and
+## projector cups under it - the 2020s signature. A plain grey lens the colour of the paint
+## vanished into a white car at any distance.
 LAMP_SPECS = [
-    (0.330, 0.790, 0.660, 0.684, 0.056, 0.034, 1.0, LIGHT_F, True),
-    (0.250, 0.870, 0.905, 0.890, 0.045, 0.125, -1.0, LIGHT_R, True),
-    (-0.260, 0.260, 0.905, 0.905, 0.030, 0.030, -1.0, LIGHT_R, False),
+    (0.300, 0.742, 0.556, 0.570, 0.064, 0.050, 1.0, GLOSS, True),
+    (0.235, 0.880, 0.852, 0.838, 0.056, 0.112, -1.0, LIGHT_R, True),
+    (-0.240, 0.240, 0.858, 0.858, 0.022, 0.022, -1.0, LIGHT_R, False),
+    # the black visor band joining the headlamps across the nose
+    (-0.330, 0.330, 0.560, 0.560, 0.048, 0.048, 1.0, GLOSS, False),
+]
+## The LED strips laid in the headlamp housings (same columns; not cut, they sit in the recess).
+DRL_SPECS = [
+    (0.316, 0.732, 0.579, 0.586, 0.012, 0.011, 1.0, LIGHT_F, True),
 ]
 LAMP_INSET_X = 0.016
 LAMP_INSET_Z = 0.010
 LAMP_DEPTH = 0.008
+## Lamps are laid ON the skin, this far proud, not in cut pockets: after the shell is decimated a
+## boolean pocket this thin pinched the panel round it into a crumpled dent.
+LAMP_PROUD = 0.0025
 FASCIA_LIMIT = 2.0
 
 
@@ -1052,8 +1076,8 @@ def lamp_grid(surf, spec, side, cols, rows, sx=0.0, sz=0.0):
     return pts
 
 
-def lamp_instances():
-    for spec in LAMP_SPECS:
+def lamp_instances(specs=None):
+    for spec in (LAMP_SPECS if specs is None else specs):
         for side in ((1.0, -1.0) if spec[8] else (1.0,)):
             yield spec, side
 
@@ -1078,27 +1102,35 @@ def build_lamps(surf, mats):
     bm = bmesh.new()
     for spec, side in lamp_instances():
         end = spec[6]
-        cols, rows = 10, 2
-        pts = lamp_grid(surf, spec, side, cols, rows)
+        cols, rows = 14, 2
+        pts = lamp_grid(surf, spec, side, cols, rows, LAMP_INSET_X * 0.5, 0.0)
         if pts is None:
             print("  lamp missed the fascia:", spec[:2], side)
             continue
         nv = Vector((0.0, end, 0.0))
-        grid_patch(bm, [p - nv * LAMP_DEPTH for p in pts], rows + 1, cols + 1, spec[7])
+        grid_patch(bm, [p + nv * LAMP_PROUD for p in pts], rows + 1, cols + 1, spec[7])
+    for spec, side in lamp_instances(DRL_SPECS):
+        pts = lamp_grid(surf, spec, side, 12, 1)
+        if pts is None:
+            print("  DRL missed the fascia:", spec[:2], side)
+            continue
+        nv = Vector((0.0, spec[6], 0.0))
+        grid_patch(bm, [p + nv * (LAMP_PROUD + 0.0015) for p in pts], 2, 13, spec[7])
     # Two projector cups behind each headlamp lens, and a dark bezel strip under them: the lamp
     # needs something in it or the lens reads as a painted shape.
     for side in (1.0, -1.0):
-        for x0 in (0.430, 0.540, 0.650):
+        xi, xo, zi, zo = LAMP_SPECS[0][:4]
+        for x0 in (0.400, 0.505, 0.610):
             x = side * x0
-            z0 = 0.660 + (0.684 - 0.660) * (x0 - 0.330) / (0.790 - 0.330)
+            z0 = zi + (zo - zi) * (x0 - xi) / (xo - xi) - 0.010
             loc = fascia_hit(surf, x, z0, 1.0)
             if loc is None:
                 continue
-            fy = loc.y - LAMP_DEPTH - 0.004
+            fy = loc.y + LAMP_PROUD + 0.0012
             n_seg = 12
-            ring = [bm.verts.new((x + 0.016 * math.cos(a), fy, z0 + 0.012 * math.sin(a)))
+            ring = [bm.verts.new((x + 0.017 * math.cos(a), fy, z0 + 0.013 * math.sin(a)))
                     for a in [2 * math.pi * q / n_seg for q in range(n_seg)]]
-            deep = [bm.verts.new((x + 0.011 * math.cos(a), fy - 0.018, z0 + 0.008 * math.sin(a)))
+            deep = [bm.verts.new((x + 0.011 * math.cos(a), fy + 0.0008, z0 + 0.0085 * math.sin(a)))
                     for a in [2 * math.pi * q / n_seg for q in range(n_seg)]]
             for q in range(n_seg):
                 q2 = (q + 1) % n_seg
@@ -1174,7 +1206,7 @@ def build_arch_lips(surf, mats):
             n = 22
             for k in range(n + 1):
                 a = math.radians(-6.0 + 192.0 * k / n)
-                rr = radius + 0.007
+                rr = radius + 0.010
                 f = f_c + rr * math.cos(a)
                 z = AXLE_Z + rr * math.sin(a)
                 loc, _nor = surf.hit(Vector((side * 1.6, f, z)), Vector((-side, 0, 0)), back=0.0)
@@ -1183,8 +1215,8 @@ def build_arch_lips(surf, mats):
                 path.append(Vector((loc.x, f, z)))
             if len(path) > 3:
                 sweep_tube(bm, path,
-                           lambda i, n=len(path): 0.0105 * (0.45 + 0.55 * math.sin(math.pi * i / (n - 1))),
-                           PAINT, segs=6, caps=True)
+                           lambda i, n=len(path): 0.0150 * (0.40 + 0.60 * math.sin(math.pi * i / (n - 1))),
+                           PAINT, segs=8, caps=True)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return new_object("hifi_sedan_archlips", bm, mats)
 
@@ -1199,17 +1231,25 @@ def build_handles_and_flap(surf, mats):
             up = n.cross(tan_f).normalized()
             if up.z < 0:
                 up = -up
-            hw, hh = 0.095, 0.030
-            rim = [c + tan_f * sx * hw + up * sz * hh for sx, sz in ((-1, -1), (1, -1), (1, 1), (-1, 1))]
-            vr = [bm.verts.new(p + n * 0.001) for p in rim]
-            vd = [bm.verts.new(p - n * 0.020) for p in rim]
-            for k in range(4):
-                k2 = (k + 1) % 4
-                quad(bm, vr[k], vr[k2], vd[k2], vd[k], TRIM)
-            bm.faces.new(vd).material_index = TRIM
-            # A body-coloured pull bar standing off the dark pocket, the ordinary sedan handle.
-            bar = [c + tan_f * t * 0.080 + up * 0.006 + n * 0.006 for t in (-1.0, -0.5, 0.0, 0.5, 1.0)]
-            sweep_tube(bm, bar, 0.0115, PAINT, segs=6, caps=True)
+            # A flush handle: a body-coloured paddle lying in the door skin, ringed by a dark
+            # shutline and a shallow finger scoop under its trailing end. The pocket-and-bar
+            # handle was the most 2005 thing on the car.
+            hw, hh = 0.088, 0.017
+            n_seg = 20
+            outer, inner, pad = [], [], []
+            for k in range(n_seg):
+                a = 2 * math.pi * k / n_seg
+                ca, sa = math.cos(a), math.sin(a)
+                # a stadium: straight top and bottom, round ends
+                d = tan_f * (math.copysign(abs(ca) ** 0.35, ca) * hw) + up * (sa * hh)
+                outer.append(bm.verts.new(c + d * 1.06 + n * 0.0012))
+                inner.append(bm.verts.new(c + d * 1.06 - n * 0.004))
+                pad.append(bm.verts.new(c + d + n * 0.0016))
+            for k in range(n_seg):
+                k2 = (k + 1) % n_seg
+                quad(bm, outer[k], outer[k2], inner[k2], inner[k], TRIM)
+                quad(bm, inner[k], inner[k2], pad[k2], pad[k], TRIM)
+            bm.faces.new(pad).material_index = PAINT
         if side > 0:
             # Fuel flap on the right rear quarter: a rounded-square groove, nothing in it.
             fc, fn = surf.on_body(-1.690, 11.55, side)
@@ -1277,9 +1317,8 @@ def slats(bm, x0, x1, z0, z1, f_front, depth, n, mat=TRIM, thick=0.010, uprights
 ## intake at each corner of the bumper. Pockets POCKET deep behind the fascia, each placed off
 ## the fascia where it is (a box placed off a guessed station missed the nose entirely).
 MOUTHS = [
-    (0.305, 0.652, 0.676, 0.0, False),
-    (0.560, 0.330, 0.495, 0.0, False),
-    (0.050, 0.300, 0.390, 0.650, True),
+        (0.585, 0.265, 0.440, 0.0, False),
+    (0.042, 0.255, 0.390, 0.640, True),
 ]
 POCKET = 0.045
 
@@ -1309,13 +1348,13 @@ def build_front_end(surf, mats):
     # Chin spoiler along the bottom rim of the nose.
     build_lip(bm, 0.40, 5.0, 1.0, 0.030, 0.010, 0.016)
     # Badge recess on the nose between the slot and the grille: a recess, and nothing in it.
-    loc = fascia_hit(surf, 0.0, 0.590, 1.0)
+    loc = None  # no badge: the lamp band and the grille meet
     if loc:
         n_seg = 16
         outer, inner = [], []
         for k in range(n_seg):
             a = 2 * math.pi * k / n_seg
-            d = Vector((0.046 * math.cos(a), 0.0, 0.024 * math.sin(a)))
+            d = Vector((0.040 * math.cos(a), 0.0, 0.020 * math.sin(a)))
             outer.append(bm.verts.new(loc + d + Vector((0, 0.001, 0))))
             inner.append(bm.verts.new(loc + d * 0.86 - Vector((0, 0.006, 0))))
         for k in range(n_seg):
@@ -1347,7 +1386,7 @@ def build_rear_end(surf, mats):
             quad(bm, outer[k], outer[k2], inner[k2], inner[k], RIM)
             quad(bm, inner[k], inner[k2], deep[k2], deep[k], TRIM)
         bm.faces.new(deep).material_index = TRIM
-    loc = fascia_hit(surf, 0.0, 0.985, -1.0, limit=1.9)
+    loc = fascia_hit(surf, 0.0, 0.935, -1.0, limit=1.9)
     if loc:
         n_seg = 16
         outer, inner = [], []
@@ -1419,14 +1458,14 @@ def build():
     surf0 = Surface(body)
     for cutter in mouth_cutters(surf0, mats):
         boolean(body, cutter)
-    for w, h, z, r in ((1.380, 0.125, 0.320, 0.012), (0.540, 0.125, 0.745, 0.010)):
+    for w, h, z, r in ((1.380, 0.125, 0.320, 0.012), (0.540, 0.125, 0.700, 0.010)):
         loc = fascia_hit(surf0, 0.0, z, -1.0, limit=1.9)
         if loc is not None:
             boolean(body, box_cutter((w, 0.40, h), (0.0, loc.y + 0.030 - 0.20, z), mats, r))
     bevel(body, 0.004, segments=1, angle=42.0)
 
     surf = Surface(body)
-    for cutter in dlo_cutters(surf, mats) + [lamp_cutter(surf, mats)]:
+    for cutter in dlo_cutters(surf, mats):
         boolean(body, cutter)
     full = decimate(body, SHELL_TRIS)
     print("shell: %d triangles subdivided -> %d decimated" % (full, tri_count(body)))
