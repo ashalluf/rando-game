@@ -818,7 +818,7 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				# The lot fill's own ground and the batches only it uses (LotFill; its planting,
 				# lamps, benches and bollards share the street's batches and count there).
 				if nm.begins_with("LotFill") or nm.contains("apark_car") or nm.contains("pstripe") or nm.contains("fence_") \
-						or nm.contains("gar_sign") or nm.contains("fill_bronze"):
+						or nm.contains("fill_bronze"):
 					return "LotFill"
 				if nm.begins_with("Batch"):
 					return "StreetProps"

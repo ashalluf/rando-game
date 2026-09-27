@@ -32,11 +32,12 @@ const PAVING_LIFT := 0.04
 const ASPHALT_LIFT := 0.05
 ## Forecourt paving looks: [texture set, metres a tile, tint].
 ## (A block uses one of them.)
+## None of them is the public pavement's pale tan, or a forecourt reads as more bare pavement.
 const PAVINGS := [
-	["paving", 2.2, Color(0.80, 0.79, 0.78)],
-	["pavers", 1.25, Color(0.66, 0.65, 0.64)],
-	["paving", 1.6, Color(0.96, 0.87, 0.75)],
-	["pavers", 1.8, Color(0.86, 0.84, 0.80)],
+	["paving", 2.2, Color(0.72, 0.72, 0.72)],
+	["pavers", 1.25, Color(0.62, 0.61, 0.60)],
+	["paving", 1.6, Color(0.64, 0.68, 0.73)],
+	["pavers", 1.5, Color(0.80, 0.55, 0.45)],
 ]
 ## What each vertex of the fill mesh is, in shaders/lot_ground.gdshader's COLOR.r (16ths): the
 ## four pavings are 0-3.
@@ -46,7 +47,7 @@ const KIND_SOIL := 6
 const KIND_DARK := 7
 const KIND_SWIM := 8
 ## The colour each paving and the asphalt is recorded in for the far ground (a slab's tint).
-const PAVING_FAR := [Color(0.62, 0.61, 0.60), Color(0.50, 0.50, 0.50), Color(0.72, 0.66, 0.58), Color(0.66, 0.65, 0.62)]
+const PAVING_FAR := [Color(0.56, 0.56, 0.56), Color(0.47, 0.47, 0.46), Color(0.50, 0.53, 0.57), Color(0.60, 0.43, 0.36)]
 const ASPHALT_FAR := Color(0.36, 0.36, 0.38)
 const LAWN_FAR := Color(0.36, 0.52, 0.26)
 ## Most trees one chunk's forecourts plant, and the most parked cars its car parks hold: trees are
@@ -154,6 +155,16 @@ static func _ground(ch: CityChunk, r: Rect2, kind: String) -> void:
 	var far: Color = ASPHALT_FAR if kind == "asphalt" else (LAWN_FAR if kind == "lawn" else PAVING_FAR[int(kind.substr(6))])
 	var c := r.get_center()
 	ch._add_slab(Vector3(c.x, CityChunk.SIDEWALK_TOP + lift - 0.02, c.y), Vector3(r.size.x, 0.04, r.size.y), far, false, _material(ch, kind))
+
+
+## A solid box in the chunk's merged boxes, with collision, always as a box: CityChunk._add_slab()
+## takes anything 0.5 m tall or less and 6 m long for ground and lays a relief grid of its own
+## (a node and a draw each - a pool's kerbs were four).
+static func _solid(ch: CityChunk, pos: Vector3, size: Vector3, mat: Material, collide: bool = true) -> void:
+	var lifted := pos + Vector3(0.0, ch._gy(pos.x, pos.z), 0.0)
+	ch._merge_box(mat, size, lifted)
+	if collide:
+		ch._add_shape(size, lifted)
 
 
 ## A box in the fill mesh (planted soil, water, polished stone, glass): FULL chunks only, placed
@@ -296,7 +307,7 @@ static func after_building(ch: CityChunk, lot: Dictionary, bld: Building) -> voi
 
 ## The drive-in of a parking podium: asphalt from the opening out to the cell's edge, and on
 ## across the pavement to the kerb when the cell ends at the block's edge. Returns the
-## driveway's rect (the forecourt keeps off it). A lit P sign over the opening.
+## driveway's rect (the forecourt keeps off it).
 static func _driveway(ch: CityChunk, cell: Rect2, centre: Vector2, entry: Dictionary) -> Rect2:
 	var at: Vector3 = entry.at
 	var n: Vector3 = entry.normal
@@ -322,11 +333,6 @@ static func _driveway(ch: CityChunk, cell: Rect2, centre: Vector2, entry: Dictio
 		var edge := inner.end.y if n.z > 0.0 else inner.position.y
 		if absf((cell.end.y if n.z > 0.0 else cell.position.y) - edge) < 0.5:
 			_ground(ch, Rect2(r.position.x, edge if n.z > 0.0 else edge - sw, w, sw), "asphalt")
-	if ch.level == CityChunk.Level.FULL and not ch.capturing and not OS.has_feature("web"):
-		var yaw := atan2(n.x, n.z)
-		var sign_at := Vector3(p.x, CityChunk.SIDEWALK_TOP + Building.GARAGE_STOREY + 0.55, p.y) + n * 0.12
-		ch._batch.add("gar_sign", Signage.text_mesh("P  PARKING", 0.9, Signage.Letters.LIT), Transform3D(Basis(Vector3.UP, yaw), sign_at), Color(0.55, 0.8, 1.0))
-		ch._batch.set_no_shadow("gar_sign")
 	return r
 
 
@@ -545,7 +551,7 @@ static func _planter(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, tree: 
 		return
 	var c := r.get_center()
 	var h := PLANTER_HEIGHT
-	ch._add_slab(Vector3(c.x, base + h * 0.5, c.y), Vector3(r.size.x, h, r.size.y), Color(0.7, 0.7, 0.68), true, Building.plinth_material())
+	_solid(ch, Vector3(c.x, base + h * 0.5, c.y), Vector3(r.size.x, h, r.size.y), Building.plinth_material())
 	# The planted top stands a hair proud of the kerb box (which is solid), inside its rim.
 	var soil_top := base + h + 0.012
 	_box(ch, Vector3(r.size.x - 0.4, 0.04, r.size.y - 0.4), Vector3(c.x, soil_top - 0.02 + ch._gy(c.x, c.y), c.y), KIND_SOIL)
@@ -612,7 +618,7 @@ static func _pool(ch: CityChunk, r: Rect2, base: float = CityChunk.SIDEWALK_TOP 
 		var horiz := side < 2
 		var pos := c + (Vector2(0.0, (r.size.y - t) * 0.5 * (1.0 if side == 0 else -1.0)) if horiz else Vector2((r.size.x - t) * 0.5 * (1.0 if side == 2 else -1.0), 0.0))
 		var size := Vector3(r.size.x, kerb, t) if horiz else Vector3(t, kerb, r.size.y - t * 2.0)
-		ch._add_slab(Vector3(pos.x, base + kerb * 0.5, pos.y), size, Color(0.7, 0.7, 0.68), true, Building.plinth_material())
+		_solid(ch, Vector3(pos.x, base + kerb * 0.5, pos.y), size, Building.plinth_material())
 	_box(ch, Vector3(r.size.x - t * 2.0, 0.06, r.size.y - t * 2.0), Vector3(c.x, base + kerb - 0.12 + ch._gy(c.x, c.y), c.y), KIND_SWIM if swim else KIND_DARK)
 
 
@@ -780,7 +786,7 @@ static func _edge_run(ch: CityChunk, r: Rect2, side: int, gate: Vector2, kind: S
 		match kind:
 			"wall":
 				var size := Vector3(len, WALL_HEIGHT, 0.3) if along_x else Vector3(0.3, WALL_HEIGHT, len)
-				ch._add_slab(Vector3(c.x, base + WALL_HEIGHT * 0.5, c.y), size, Color(0.7, 0.7, 0.68), true, Building.plinth_material())
+				_solid(ch, Vector3(c.x, base + WALL_HEIGHT * 0.5, c.y), size, Building.plinth_material())
 			"hedge":
 				var pr := Rect2(c - Vector2(len, 1.0) * 0.5, Vector2(len, 1.0)) if along_x else Rect2(c - Vector2(1.0, len) * 0.5, Vector2(1.0, len))
 				_planter(ch, pr, rng, false)
@@ -839,9 +845,9 @@ static func _booth(ch: CityChunk, gate: Vector2, street: int, rng: RandomNumberG
 	var c := gate + inward * 3.0 + side * 4.6
 	var base := CityChunk.SIDEWALK_TOP + ASPHALT_LIFT
 	var mat := Building.plinth_material()
-	ch._add_slab(Vector3(c.x, base + 0.5, c.y), Vector3(1.9, 1.0, 1.9), Color(0.7, 0.7, 0.68), true, mat)
+	_solid(ch, Vector3(c.x, base + 0.5, c.y), Vector3(1.9, 1.0, 1.9), mat)
 	_box(ch, Vector3(1.8, 1.1, 1.8), Vector3(c.x, base + 1.55 + ch._gy(c.x, c.y), c.y), KIND_DARK)
-	ch._add_slab(Vector3(c.x, base + 2.25, c.y), Vector3(2.5, 0.3, 2.5), Color(0.7, 0.7, 0.68), false, mat)
+	_solid(ch, Vector3(c.x, base + 2.25, c.y), Vector3(2.5, 0.3, 2.5), mat, false)
 
 
 
