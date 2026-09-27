@@ -44,6 +44,9 @@ extends SceneTree
 ## like tools/tri_split.gd but on the bookmark's exact frame. MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
+## PALM_AB=1 prints the same frame's GEO again with every palm at full detail (its level 0 and
+## no LODs, in the view and the shadow) and saves that frame as <OUT>_palmfull.png: the A/B of
+## the palms' hand-built LOD ladder (PropFactory.PALM_LEVELS) with the clock held still.
 ## Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
 func _initialize() -> void:
@@ -53,18 +56,6 @@ func _initialize() -> void:
 	if OS.get_environment("MERGE_STATIC") == "0":
 		(load("res://scripts/world/city_chunk.gd") as GDScript).set("merge_boxes", false)
 		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("merge_enabled", false)
-	# TREE_CELLS=0: every foliage batch one node again, as before it was split into cells
-	# (MultiMeshBatch.cell_split). TREE_CELL_<NAME>=value sets that knob (cell_size, cell_range,
-	# cell_min_tris, cell_max, cell_lod_scale) for tuning.
-	var mmb := load("res://scripts/util/multimesh_batch.gd") as GDScript
-	if OS.get_environment("TREE_EST") != "":
-		mmb.set("debug_record", true)
-	if OS.get_environment("TREE_CELLS") == "0":
-		mmb.set("cell_split", false)
-	for knob in ["cell_size", "cell_range", "cell_min_tris", "cell_max", "cell_lod_scale"]:
-		var v := OS.get_environment("TREE_" + knob.to_upper())
-		if v != "":
-			mmb.set(knob, str_to_var(v))
 	change_scene_to_file("res://scenes/levels/city.tscn")
 	var frames := _env_int("FRAMES", 30)
 	var hold := Vector3.INF
@@ -280,8 +271,32 @@ func _initialize() -> void:
 	# category at a time, the world held still, as tools/tri_split.gd does - so every bookmark
 	# still also gives a cost table for the exact frame it shot.
 	await _geo_report("GEO")
-	if OS.get_environment("TREE_EST") != "":
-		load(OS.get_environment("TREE_EST")).estimate(current_scene, get_root().get_camera_3d())
+	if OS.get_environment("PALM_AB") == "1":
+		# Every palm drawn at full detail (its level 0 with no LODs), in the view and the shadow,
+		# for the same frame: what the hand-built ladder (PropFactory.PALM_LEVELS) changes.
+		var factory = load("res://scripts/world/prop_factory.gd")
+		var swap := {}
+		for v in factory.PALM_VARIANTS:
+			var full := ArrayMesh.new()
+			full.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, factory._palm_level(v, factory.PALM_LEVELS[0]))
+			full.surface_set_material(0, factory.foliage_material())
+			var mesh: Mesh = factory.palm(v)
+			swap[mesh] = full
+			if factory.shadow_proxy(mesh):
+				swap[factory.shadow_proxy(mesh)] = full
+		var back := {}
+		for n in current_scene.find_children("*", "MultiMeshInstance3D", true, false):
+			var mm := (n as MultiMeshInstance3D).multimesh
+			if mm and swap.has(mm.mesh):
+				back[mm] = mm.mesh
+				mm.mesh = swap[mm.mesh]
+		await _geo_report("GEO palms full (%d batches)" % back.size())
+		img = get_root().get_texture().get_image()
+		if img:
+			img.save_png(out.get_basename() + "_palmfull.png")
+		for mm: MultiMesh in back:
+			mm.mesh = back[mm]
+		await _geo_report("GEO palms ladder")
 	if OS.get_environment("SPLIT") == "1":
 		await _geo_split(player, anchor, hold, boost, fov)
 	quit()

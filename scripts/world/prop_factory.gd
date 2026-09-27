@@ -440,18 +440,33 @@ const PALM_DEAD_STEPS := 38
 ## Length segments in one leaflet. A leaflet that is a single quad cannot droop or come to a
 ## point; a frond of flat quads reads as a comb, which is what the old crown did edge-on.
 const PALM_LEAFLET_SEGMENTS := 4
-## The far palm (palm(v, true), drawn past MultiMeshBatch.far_start): the same tree from the
-## same random stream - every frond where it was, at the same reach, droop and colour - with
-## FAR_STRIDE neighbouring leaflets drawn as one blade as wide as all of them (the same leaf
-## area, so the crown keeps its density), two segments a leaflet, and a coarser trunk. About a
-## sixth of the triangles. A palm's generated LODs cannot do this: the simplifier will not
-## merge separate leaflet cards, so they stopped at ~10k triangles.
-const PALM_FAR_STRIDE := 3
-const PALM_FAR_LEAFLET_SEGMENTS := 2
-const PALM_FAR_TRUNK_RINGS := 10
-const PALM_FAR_TRUNK_SIDES := 7
-## Near palm mesh -> its far version (see far_foliage()).
-static var _far_foliage: Dictionary = {}
+## A palm's LOD ladder is built by hand, because the simplifier cannot thin one: the leaflets
+## are separate cards, which it will not merge, so its generated LODs stopped at ~10k of the
+## ~24k triangles and reported so much error doing it that the renderer only took the first
+## past ~560 m (960 px wide; ~1.2 km on a 1440p screen). Every palm in the city, and the whole
+## of MacArthur Park's ring from across downtown, drew at full detail.
+## Each level is the same tree from the same random stream - every frond where it was, at the
+## same reach, droop, fold and colour - with `stride` neighbouring leaflets drawn as one blade
+## as wide as all of them (the same leaf area, so the crown keeps its density and its tone),
+## fewer segments a leaflet, a coarser trunk, and the small parts dropped. `edge` is the
+## level's largest departure from the full palm in metres (the width of `stride` leaflets, a
+## chord across a leaflet's curl, a dropped boot or coconut), handed to the renderer as that
+## LOD's error, so it switches where the difference is under a pixel (Viewport
+## mesh_lod_threshold) - the rule it applies to every generated LOD. Level 0 is the full palm.
+const PALM_LEVELS := [
+	{"stride": 1, "segments": PALM_LEAFLET_SEGMENTS, "rings": PALM_TRUNK_RINGS, "sides": PALM_TRUNK_SIDES, "shaft": 7, "boots": true, "nuts": 10, "rib": true, "edge": 0.0},
+	{"stride": 2, "segments": 3, "rings": 20, "sides": 10, "shaft": 3, "boots": true, "nuts": 6, "rib": true, "edge": 0.22},
+	{"stride": 3, "segments": 2, "rings": 10, "sides": 7, "shaft": 2, "boots": true, "nuts": 4, "rib": true, "edge": 0.35},
+	{"stride": 6, "segments": 1, "rings": 6, "sides": 5, "shaft": 1, "boots": false, "nuts": 0, "rib": false, "edge": 0.7},
+	{"stride": 15, "segments": 1, "rings": 4, "sides": 4, "shaft": 1, "boots": false, "nuts": 0, "rib": false, "edge": 1.6},
+]
+## The level a palm's shadow twin starts at (its own base, the coarser levels its LODs). Two
+## leaflets a blade is a fifth of a metre at most, which a shadow map cannot show; the generated
+## stand-in this replaces kept 45 % of the triangles by deleting leaflets, and two of the six
+## palms had no stand-in at all and cast their full 20-23k triangles into every cascade.
+const PALM_SHADOW_LEVEL := 1
+## Leaflet tone on the levels that leave the rib out (see _palm_frond()).
+const PALM_RIBLESS_TONE := 0.97
 ## Which way each palm variant's trunk leans, as a yaw in radians, filled in by palm() as it
 ## builds. A street palm's crown is three metres across and its trunk leans up to another 1.5 m,
 ## so on a four-metre pavement with the building on the lot line the crown WILL reach the wall -
@@ -468,10 +483,50 @@ static func palm_lean(variant: int) -> float:
 	return _palm_lean.get(variant, 0.0)
 
 
-static func palm(variant: int, far: bool = false) -> Mesh:
-	var key := ("palm_far_%d" if far else "palm_%d") % variant
+static func palm(variant: int) -> Mesh:
+	var key := "palm_%d" % variant
 	if _cache.has(key):
 		return _cache[key]
+	var levels: Array = []
+	for lv: Dictionary in PALM_LEVELS:
+		levels.append(_palm_level(variant, lv))
+	# Wind sway lives in the vertex shader (shaders/foliage.gdshader), so a palm-lined street
+	# moves without any per-tree work on the CPU. Backface culling stays off: leaflets are
+	# single-sided.
+	var mesh := _palm_ladder(levels, 0)
+	var proxy := _palm_ladder(levels, PALM_SHADOW_LEVEL)
+	_shadow_proxies[mesh] = proxy
+	_cache[key] = mesh
+	return mesh
+
+
+## Levels `first`.. of a palm as one mesh: their vertices one after another in a single
+## buffer, level `first`'s triangles as the base and each coarser level's as a LOD at its
+## `edge`. One buffer, so a MultiMesh draws any level of any instance with no second node.
+static func _palm_ladder(levels: Array, first: int) -> ArrayMesh:
+	var arrays: Array = (levels[first] as Array).duplicate(true)
+	var lods := {}
+	var offset: int = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	for l in range(first + 1, levels.size()):
+		var src: Array = levels[l]
+		for slot in Mesh.ARRAY_MAX:
+			if slot == Mesh.ARRAY_INDEX or arrays[slot] == null:
+				continue
+			arrays[slot].append_array(src[slot])
+		var idx: PackedInt32Array = (src[Mesh.ARRAY_INDEX] as PackedInt32Array).duplicate()
+		for i in idx.size():
+			idx[i] += offset
+		lods[float(PALM_LEVELS[l].edge)] = idx
+		offset += (src[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods)
+	mesh.surface_set_material(0, foliage_material())
+	return mesh
+
+
+## One level of palm `variant` (PALM_LEVELS), as indexed surface arrays. Every level draws
+## the same random numbers in the same order whatever it leaves out, so the fronds line up.
+static func _palm_level(variant: int, lv: Dictionary) -> Array:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7000 + variant
 	var st := SurfaceTool.new()
@@ -486,8 +541,8 @@ static func palm(variant: int, far: bool = false) -> Mesh:
 	var lean := rng.randf_range(0.4, 1.5)
 	# Yaw of that lean in the mesh's own space, so an instance can rotate it to point at the road.
 	_palm_lean[variant] = atan2(lean_dir.x, lean_dir.z)
-	var segments := PALM_FAR_TRUNK_RINGS if far else PALM_TRUNK_RINGS
-	var sides := PALM_FAR_TRUNK_SIDES if far else PALM_TRUNK_SIDES
+	var segments: int = lv.rings
+	var sides: int = lv.sides
 	# Grey-tan, not chocolate: a Washingtonia trunk is the colour of dry rope.
 	var bark := Color(0.46, 0.41, 0.33)
 
@@ -515,6 +570,11 @@ static func palm(variant: int, far: bool = false) -> Mesh:
 		# The lattice indices are scaled back to the 22 x 10 grid it was tuned on. Alternating
 		# per quad at 40 x 18 would put the diamonds below a pixel at any distance and shimmer.
 		var li := int(float(i) * 22.0 / float(segments))
+		# A coarser level's rings are taller than the scar bands and the lattice: it wears
+		# their average tone, the way the full trunk reads from where that level is drawn.
+		var coarse := segments < PALM_TRUNK_RINGS
+		if coarse:
+			shade0 = bark * 0.98
 		for k in sides:
 			var a0 := TAU * k / sides
 			var a1 := TAU * (k + 1) / sides
@@ -525,6 +585,8 @@ static func palm(variant: int, far: bool = false) -> Mesh:
 			# Break the perfect alternation so it is a lattice, not a checker.
 			if (li * 3 + lk * 5) % 7 == 0:
 				lattice = 0.96
+			if coarse:
+				lattice = 0.955
 			# The pattern wears away toward the base, where the trunk has gone smooth and grey.
 			lattice = lerpf(1.0, lattice, smoothstep(0.08, 0.35, t0))
 			_quad(st, c0 + d0 * r0, c0 + d1 * r0, c1 + d1 * r1, c1 + d0 * r1, shade0 * lattice, d0, d1)
@@ -549,8 +611,8 @@ static func palm(variant: int, far: bool = false) -> Mesh:
 			var tip0 := e0 + bl + bh
 			var tip1 := e1 + bl + bh
 			var boot := bark * rng.randf_range(0.76, 1.02)
-			if far:
-				# The random stream is still drawn from above, so every frond stays put.
+			if not lv.boots:
+				# The random numbers are drawn above all the same, so every frond stays put.
 				continue
 			var nt := (Vector3.UP * 0.85 + bd).normalized()
 			_quad(st, e0, e1, tip1, tip0, boot, nt, nt)
@@ -563,7 +625,7 @@ static func palm(variant: int, far: bool = false) -> Mesh:
 	var r_top: float = radius.call(1.0, segments)
 	var shaft_h := maxf(0.38, height * 0.038)
 	var shaft := Color(0.33, 0.36, 0.23)
-	var shaft_rings := 2 if far else 7
+	var shaft_rings: int = lv.shaft
 	for i in shaft_rings:
 		var u0 := float(i) / shaft_rings
 		var u1 := float(i + 1) / shaft_rings
@@ -586,47 +648,31 @@ static func palm(variant: int, far: bool = false) -> Mesh:
 		# and every palm on the street is the same tree. Real crowns carry fronds of several
 		# ages at once: new ones held up, old ones nearly horizontal.
 		var yaw := TAU * f / fronds + rng.randf_range(-0.30, 0.30)
-		_palm_frond(st, crown, yaw, rng.randf_range(3.1, 6.1), rng.randf_range(-0.35, 1.05), rng, false, far)
+		_palm_frond(st, crown, yaw, rng.randf_range(3.1, 6.1), rng.randf_range(-0.35, 1.05), rng, false, lv)
 	# A skirt of dead fronds hanging under the crown.
 	for f in rng.randi_range(4, 7):
 		var yaw := rng.randf_range(0.0, TAU)
-		_palm_frond(st, top + Vector3(0.0, -0.25, 0.0), yaw, rng.randf_range(2.0, 3.0), -1.25, rng, true, far)
+		_palm_frond(st, top + Vector3(0.0, -0.25, 0.0), yaw, rng.randf_range(2.0, 3.0), -1.25, rng, true, lv)
 	# Coconuts clustered under the crown. Round ones: an eight-triangle octahedron at arm's
-	# length is a cut gemstone, not a fruit.
+	# length is a cut gemstone, not a fruit - up close; the coarser levels round them off less.
+	var nut_sectors: int = lv.nuts
 	for c in rng.randi_range(4, 8):
 		var a := rng.randf_range(0.0, TAU)
 		var at := top + Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.15, 0.45) + Vector3(0.0, -0.35, 0.0)
 		var cr := rng.randf_range(0.13, 0.19)
 		var nut := Color(0.40, 0.30, 0.17) * rng.randf_range(0.85, 1.12)
-		if not far:
-			_sphere_into(st, at, Vector3(cr, cr * 1.18, cr), nut)
+		if nut_sectors > 0:
+			_sphere_into(st, at, Vector3(cr, cr * 1.18, cr), nut, nut_sectors, maxi(3, nut_sectors * 7 / 10))
 
 	# No generate_normals() here. Flat per-triangle normals are what made the crown read as a
 	# folded paper fan: every leaflet caught the light at its own angle, so the canopy was a
 	# mess of bright and black shards. Every part sets its own smooth normal instead, the same
 	# trick the grass blades use.
-	# Indexed and given LODs like every imported model. It had none: 22,600 triangles per palm
-	# at any distance, in the view and in every shadow cascade, down a whole boulevard of them.
-	# The renderer only switches LOD below a pixel of error, so up close nothing changes.
+	# Indexed, with a hand-built LOD ladder (PALM_LEVELS). It had none at first: 22,600
+	# triangles per palm at any distance, in the view and in every shadow cascade, down a whole
+	# boulevard of them; then only the simplifier's, which could not thin it.
 	st.index()
-	var im := ImporterMesh.new()
-	# Wind sway lives in the vertex shader (shaders/foliage.gdshader), so a palm-lined street
-	# moves without any per-tree work on the CPU. Backface culling stays off: leaflets are
-	# single-sided.
-	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, st.commit_to_arrays(), [], {}, foliage_material())
-	im.generate_lods(25.0, 60.0, [])
-	var mesh := im.get_mesh()
-	_cache[key] = mesh
-	if far:
-		# Its own shadow caster: lighter than the near palm's shadow twin already.
-		return mesh
-	_build_shadow_proxy(im, mesh, 0.45, 0.45)
-	var proxy := shadow_proxy(mesh)
-	if proxy:
-		proxy.surface_set_material(0, foliage_material())
-	_foliage[mesh] = true
-	_far_foliage[mesh] = palm(variant, true)
-	return mesh
+	return st.commit_to_arrays()
 
 
 ## One frond: a rachis arcing out and drooping, carrying a folded rank of narrow leaflets.
@@ -638,7 +684,7 @@ static func palm(variant: int, far: bool = false) -> Mesh:
 ## each one overlap its neighbours into a solid sheet, and the crown reads as a green paper fan
 ## rather than a tree. Folding them, and jittering the fold per leaflet, is what opens daylight
 ## between the blades and gives the canopy its depth.
-static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float, rise: float, rng: RandomNumberGenerator, dead: bool, far: bool = false) -> void:
+static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float, rise: float, rng: RandomNumberGenerator, dead: bool, lv: Dictionary) -> void:
 	var out := Vector3(cos(yaw), 0.0, sin(yaw))
 	var side := Vector3(-out.z, 0.0, out.x)
 	# Dense: a real frond carries fifty-odd leaflets a side, close enough at the rib that the
@@ -656,24 +702,32 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 	var fold_tip := rng.randf_range(0.08, 0.34)
 	var rachis := func(t: float) -> Vector3:
 		return base + out * (reach * t) + Vector3(0.0, rise * t - droop * t * t, 0.0)
-	var stride := PALM_FAR_STRIDE if far else 1
+	var stride: int = lv.stride
+	var segments: int = lv.segments
 	for i in steps:
 		var t0 := float(i) / steps
-		var t1 := float(mini(i + stride, steps)) / steps
-		# Far: only every stride-th leaflet pair is drawn, spanning the rachis of all of them,
-		# but every one still draws its random numbers, so the next frond comes out the same.
+		# A coarser level draws only every stride-th leaflet pair, spanning the rachis of the
+		# whole group and shaped as the group's middle one, but every leaflet still draws its
+		# random numbers, so the next frond comes out the same.
+		var group := mini(stride, steps - i)
+		var t1 := float(i + group) / steps
+		var tm := (float(i) + 0.5 * float(group - 1)) / steps
 		var emit := i % stride == 0
 		var p0: Vector3 = rachis.call(t0)
 		var p1: Vector3 = rachis.call(t1)
 		var along: Vector3 = (rachis.call(float(i + 1) / steps) as Vector3) - p0
 		# Longest a third of the way out, short at the crown and short again at the tip, so the
 		# frond has a leaf shape instead of a rectangular comb.
-		var blade := reach * 0.30 * (0.22 + 0.78 * sin(pow(t0, 0.72) * PI))
-		var tone := colour * (0.78 + 0.42 * t0) * rng.randf_range(0.90, 1.10)
+		var blade := reach * 0.30 * (0.22 + 0.78 * sin(pow(tm, 0.72) * PI))
+		var tone := colour * (0.78 + 0.42 * tm) * rng.randf_range(0.90, 1.10)
+		if not lv.rib:
+			# The dark rib the leaflets hid part of is gone: its share of the crown's tone goes
+			# into them, or the far crown comes out 3 % lighter than the near one.
+			tone *= PALM_RIBLESS_TONE
 		for dir: float in [1.0, -1.0]:
 			# The fold, jittered per leaflet: neighbours at slightly different angles are what
 			# let the light through instead of shingling into a sheet.
-			var ang := lerpf(fold_base, fold_tip, t0) * rng.randf_range(0.72, 1.28)
+			var ang := lerpf(fold_base, fold_tip, tm) * rng.randf_range(0.72, 1.28)
 			# Swept FORWARD, toward the tip of the frond, the way a feather's barbs lie. Swept
 			# back - which is what this did - points every leaflet at the trunk and the frond
 			# reads as a fishbone laid the wrong way round.
@@ -683,11 +737,11 @@ static func _palm_frond(st: SurfaceTool, base: Vector3, yaw: float, reach: float
 			var nrm := (Vector3.UP * 1.7 + blade_dir * 0.45).normalized()
 			# Tips curl further down the further out along the frond they sit.
 			if emit:
-				_palm_leaflet(st, p0, p1 + along * 0.06, blade_dir, blade, blade * (0.16 + 0.42 * t0), tone, nrm,
-					PALM_FAR_LEAFLET_SEGMENTS if far else PALM_LEAFLET_SEGMENTS)
+				_palm_leaflet(st, p0, p1 + along * 0.06, blade_dir, blade, blade * (0.16 + 0.42 * tm), tone, nrm, segments)
 		# The rachis itself, as a shallow V in section rather than a flat ribbon, so the frond
-		# still reads when the light is edge-on to it.
-		if not emit:
+		# still reads when the light is edge-on to it. Six centimetres across, so the far
+		# levels leave it out: the leaflets cover it.
+		if not emit or not lv.rib:
 			continue
 		var rib_n := (Vector3.UP + out * 0.3).normalized()
 		var rib_w := side * (0.030 * (1.0 - t0 * 0.55))
@@ -713,6 +767,14 @@ static func _palm_leaflet(st: SurfaceTool, a: Vector3, b: Vector3, dir: Vector3,
 		var w := 1.0 - pow(u, 0.8)
 		var c := mid + dir * (length * u) + Vector3(0.0, -curl * u * u, 0.0)
 		var tone := colour * (1.0 - 0.12 * u)
+		if segments != PALM_LEAFLET_SEGMENTS:
+			# A coarser leaflet takes the tone the full one averages over the same stretch
+			# (the middle of a quad, a third of the way into the tip, each shifted by the
+			# eighth the full leaflet's segment-end tones sit past their middles): taken at
+			# the segment's end, a one-piece leaflet was all tip and the far crown 6 % darker.
+			var u0 := float(seg) / float(segments)
+			var at := (u0 + (u - u0) / 3.0) if seg == segments - 1 else (u0 + u) * 0.5
+			tone = colour * (1.0 - 0.12 * minf(1.0, at + 0.5 / float(PALM_LEAFLET_SEGMENTS)))
 		var na := c - half * w
 		var nb := c + half * w
 		if seg == segments - 1:
@@ -1241,33 +1303,6 @@ static func shadow_proxy(mesh: Mesh) -> Mesh:
 	return _shadow_proxies.get(mesh)
 
 
-## Foliage meshes (trees, palms, bushes, the planting), which MultiMeshBatch splits into cells
-## when a batch of them is heavy enough (see MultiMeshBatch.cell_min_tris).
-static var _foliage: Dictionary = {}
-
-
-static func lod_cells(mesh: Mesh) -> bool:
-	return _foliage.has(mesh)
-
-
-## The coarse stand-in MultiMeshBatch draws past far_start for a foliage mesh, or null (only the
-## palms have one: see PALM_FAR_STRIDE).
-static func far_foliage(mesh: Mesh) -> Mesh:
-	return _far_foliage.get(mesh)
-
-
-## Full-detail triangles of `mesh`, all surfaces (indexed or not).
-static func mesh_triangles(mesh: Mesh) -> int:
-	var am := mesh as ArrayMesh
-	if am == null:
-		return 0
-	var tris := 0
-	for s in am.get_surface_count():
-		var n := am.surface_get_array_index_len(s)
-		tris += (n if n > 0 else am.surface_get_array_len(s)) / 3
-	return tris
-
-
 ## Builds `mesh`'s shadow stand-in from the LODs `im` generated: per surface, the coarsest LOD
 ## that keeps `leaf_share` of a leaf surface's triangles (leaf cards thin out fast, and a sparse
 ## canopy casts a sparse shadow) or `wood_share` of a trunk's or twigs'. It shares the vertex
@@ -1472,7 +1507,6 @@ static func model_shrub(variant: int) -> Mesh:
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:
 			(mat as StandardMaterial3D).vertex_color_use_as_albedo = true
-	_foliage[mesh] = true
 	return mesh
 
 
@@ -1644,7 +1678,6 @@ static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT, budget:
 	if proxy:
 		for i in mesh.get_surface_count():
 			proxy.surface_set_material(i, mesh.surface_get_material(i))
-	_foliage[mesh] = true
 	return mesh
 
 
@@ -1671,7 +1704,6 @@ static func _plant_material(mesh: Mesh) -> Mesh:
 				continue
 			sm.vertex_color_use_as_albedo = true
 			sm.cull_mode = BaseMaterial3D.CULL_DISABLED
-	_foliage[mesh] = true
 	return mesh
 
 

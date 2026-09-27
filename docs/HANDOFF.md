@@ -52,7 +52,7 @@ shotgun and police checks).
 **Other parked branches** (pushed; merge one at a time after a full check, or delete):
 `wt/sedan-body` (Blender-built hi-fi sedan, gated at 97274c0; WIP styling pass - the first
 shape read dated; also fixes the headlight beam below the road and the cabin collision box
-above the roof), `wt/tree-lod` (trees + MacArthur's far palms, the biggest triangle cost),
+above the roof), `wt/tree-lod` (palm LOD ladder: -7 to -23 % frame triangles, gated 2026-09-27, see 9aa),
 `wt/wet-streets` (streets that dry believably), `wt/street-wear` (graffiti/posters). All WIP,
 never gated. `wt/vehicle-grime` and `wt/wall-weathering` were judged not clearly better.
 
@@ -2184,6 +2184,8 @@ What that says, for whoever picks the next performance pass:
   lighter twins. The cause is known (9f): a batch takes one LOD for every instance from its
   bounds, so every tree in the chunk the camera stands in draws LOD0 (40-60k triangles a tree)
   into the camera and all cascades. Smaller tree cells fix it at the price of draw calls.
+  (Tried 2026-09-27: they did not - more triangles AND more draws. The real waste was the palms;
+  see 9aa.)
 - **Pedestrians downtown (1.88 M -> 1.10 M, done):** the 45-140 m band sat on the unwelded
   models' LOD floor (8,300 triangles a figure for most models at this camera); it now wears a
   welded middle body of ~2,070 from `mid_body_range` (50 m), see the next subsection.
@@ -2329,6 +2331,65 @@ or cuts, and the range from the basin should read as brush-covered.
 - **Needs the Mac.** Forward+ look of the stands (shrub colour under the real sky light, and
   whether the stands want their shadows back), the far mounds with correct normals at golden
   hour.
+
+## 9aa. The palms' LOD ladder, 2026-09-27 (agent branch wt/tree-lod; roadmap #23, #32)
+
+**What it was.** The branch held an unfinished WIP (69c6662) that split every heavy foliage
+batch into distance cells (k-d split of the instance origins, `visibility_parent` hierarchy,
+per-cell `lod_bias`), on the theory that a batch draws all its trees at the LOD of the camera's
+distance to its box, so the trees of the block you stand in all draw full detail. Measured with
+an in-process A/B (the same frozen frame drawn with the cells, then with the same batches
+whole): freeway **+650 k triangles and +54 draws with the cells**, downtown noon +5 k (only 3
+batches big enough to split - street trees are spread over 5 species and 6 palm variants, so
+most batches are a handful of trees already), hills 0 (camera 260 m up, every batch past the
+cell range). A whole batch's LOD distance is not its box's nearest point: for a block-wide box
+it lands coarser than per-tree, so cells mostly ADD detail. The cells were dropped.
+
+**What the triangles really were.** The palms. `PropFactory.palm()` was 20-27k triangles, and
+its generated LODs could not thin it: the simplifier will not merge separate leaflet cards, so
+the first LOD kept ~10k and reported ~1.6 m of error, which the renderer only accepts past
+~560 m at 960 px (~1.2 km at 1440p). Every street palm, and MacArthur Park's whole ring in the
+LOD chunks, drew full detail, and two of the six variants had no shadow stand-in at all.
+
+**What landed.** A hand-built ladder, `PropFactory.PALM_LEVELS`: the same tree from the same
+random stream at five levels - `stride` neighbouring leaflets merged into one blade of the same
+area, fewer leaflet segments, coarser trunk, boots / coconuts / rib dropped far out, the coarse
+levels' tones matched to level 0 (a one-piece leaflet took the tip's tone; the rib's dark share
+goes into the leaflets). Triangles per level for the six variants: 20.3-27.3k, 7.8-10.5k,
+3.8-5.1k, 406-528, 176-226. All levels live in ONE vertex buffer; the coarser ones are the
+mesh's LODs, each at `edge` = its real geometric departure (0.22, 0.35, 0.7, 1.6 m: the width of
+the merged leaflets, the dropped parts), so Godot switches under a pixel by its own rule and no
+node, draw or script is added. The shadow twin is the ladder from level 1. Building the six
+palms takes 650 ms (was 700: no simplifier pass). Smoke check `_check_palm_ladder()`: every
+variant has the four LODs at those edges with falling triangle counts, a shadow twin, and every
+level keeps level 0's crown extents (within its edge), leaf area (8 %) and tone (2.5 %).
+
+**Numbers** (opengl3 / llvmpipe, `--quality=0`, bookmarks.sh with `SPLIT=1 PALM_AB=1`; before =
+origin/main 8b264d1 in a separate worktree, after = this branch; draws = camera pass):
+
+| Bookmark | Before tris (camera / shadow) | After tris (camera / shadow) | Change | Draws before / after |
+|---|---|---|---|---|
+| downtown_noon | 7,545,694 (4.86 / 2.69 M) | 7,025,920 (4.64 / 2.39 M) | -519,774 (-6.9 %) | 4,307 / 4,307 |
+| freeway | 8,966,903 (5.67 / 3.30 M) | 7,738,005 (5.17 / 2.57 M) | -1,228,898 (-13.7 %) | 6,489 / 6,489 |
+| masjid | 14,968,754 (10.81 / 4.16 M) | 12,795,652 (9.37 / 3.43 M) | -2,173,102 (-14.5 %) | 5,274 / 5,274 |
+| hills | 1,664,763 (1.37 / 0.30 M) | 1,279,843 (1.14 / 0.14 M) | -384,920 (-23.1 %) | 725 / 725 |
+
+Trees category (SPLIT): downtown 1.97 -> 1.45 M, freeway 3.42 -> 2.23 M, masjid 4.92 -> 2.75 M
+(the hills row is not comparable: main's split did not count the `hill_*` batches as trees).
+Objects and nodes unchanged. For scale, the same frames with every palm at full detail and no
+LODs at all (`PALM_AB`): downtown 8.13 M, freeway 13.68 M, masjid 22.80 M, hills 2.73 M.
+
+**Look.** Judged on the same frozen frame with and without the ladder (`PALM_AB=1`, which saves
+`<name>_palmfull.png`; runs a minute apart cannot be compared, the foliage sway runs on the
+render clock): near palms are identical (level 0), palm shadows identical at a glance, far palms
+keep their crown shape, density and colour (crown mean within 1.5/255), and the only difference
+is which pixels the sub-pixel leaflets happen to cover - the same shimmer the sway makes frame to
+frame. Renders: `treelod_*` in the agent's scratch `screens/`.
+
+**Still open.** The imported trees (`tree_a..d`, jacaranda) are what is left of the foliage
+cost besides the palms' near levels. Their generated LODs carry the same kind of inflated error (the jacaranda's 30k-triangle surface reports 5.2 m at its first LOD, so it never
+switches); roadmap #36. A leaf-card thinning ladder like this one, or measured geometric errors
+written back as the LOD edges, is the next step. Web: the ladder works on Compatibility as is.
 
 ## 10. Suggested next steps, in order of impact
 
