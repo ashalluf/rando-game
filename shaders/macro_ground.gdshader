@@ -151,11 +151,11 @@ uniform float north_scrub : hint_range(0.0, 0.5) = 0.3;
 // here as the share of the ground the brush covers rather than stand by stand: the same land -
 // aspect, the baked drainage (MacroMap.bake_height's G), gentle ground - decides it, so a range
 // wears the same brush on both sides of the streamed chunks' edge.
-uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.62;
+uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.8;
 uniform float drain_brush : hint_range(0.0, 1.0) = 0.45;
 uniform float south_grass : hint_range(0.0, 1.0) = 0.08;
 uniform float drain_shade : hint_range(0.0, 1.0) = 0.3;
-uniform float gentle_grass : hint_range(0.0, 1.0) = 0.35;
+uniform float gentle_grass : hint_range(0.0, 1.0) = 0.55;
 // How strongly the drainage lines green up and darken the gullies.
 uniform float gully_amount : hint_range(0.0, 1.0) = 0.55;
 // Metres above sea level the snow line sits.
@@ -381,7 +381,7 @@ void fragment() {
 			float south = max(-north, 0.0);
 			float mdrain = texture(macro_height_tex, uv).g * 2.0 - 1.0;
 			float cover = chaparral_amount + max(north, 0.0) * north_scrub - south * south_grass + mdrain * drain_brush
-				- gentle * (0.5 + 0.5 * south) * gentle_grass + (vnoise(w * 0.0028) - 0.5) * 0.2;
+				- gentle * gentle_grass + (vnoise(w * 0.0028) - 0.5) * 0.2;
 			// The stands, exactly as terrain.gdshader draws them: its threshold on the same
 			// patch noise at the same world point, so a stand that runs off a streamed tile
 			// carries on across the plane instead of turning into a smooth brown average at the
@@ -391,9 +391,12 @@ void fragment() {
 			float patchy = vnoise(w * 0.011) * 0.65 + vnoise(w * 0.037 + vec2(13.1)) * 0.35;
 			float f8 = 1.0 - smoothstep(2.0, 6.0, fp);
 			float f30 = 1.0 - smoothstep(8.0, 30.0, fp);
-			float frag = mix(0.5, patchy, f30) * 0.2 + mix(0.5, vnoise(w * 0.12 + vec2(17.0)), f8) * 0.3 + 0.25;
+			// hill_splat.gdshaderinc's hill_stand_noise() with the single bushes and the fine octave
+			// at their average (STAND_PATCH_W 0.2, STAND_MID_W 0.1, STAND_BIAS 0.35) and its
+			// hill_stand_edge() (STAND_BUSH_W 0.4 and STAND_FINE_W 0.3 faded: 0.21 of edge).
+			float frag = mix(0.5, patchy, f30) * 0.2 + mix(0.5, vnoise(w * 0.12 + vec2(17.0)), f8) * 0.1 + 0.35;
 			float th = 0.5 + (cover - 0.5) * topo_weight;
-			float edge = 0.045 + (1.0 - f8) * 0.1 + (1.0 - f30) * 0.07;
+			float edge = 0.045 + 0.21 + (1.0 - f8) * 0.03 + (1.0 - f30) * 0.07;
 			float stands = smoothstep(th + edge, th - edge, frag);
 			float scrub = mix(stands, smoothstep(0.25, 0.75, cover) * scrub_amount, painted);
 			// The tiles' straw, greener on some hillsides and low down (their `green`).

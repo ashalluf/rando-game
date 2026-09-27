@@ -13,7 +13,7 @@ extends SceneTree
 ## default 0.25) and PHASE_STEP (added per person so the row is not in step), YAW (degrees the
 ## camera orbits; 90 is the side), CAM_DIST / CAM_Y / AIM_Y / FOV, BODY=mid|far (the welded middle
 ## / far bodies, hair cards hidden, as the game draws them past mid_body_range), SUN_YAW, SKY=1 for
-## a brighter outdoor fill, SHOTS="name,yaw,dist,cam_y,aim_y,fov,aim_x;..." for several views from one
+## a brighter outdoor fill, MAT_PARAM=name=value[;...] to A/B a character-shader uniform, LIGHT=street for a darker ground and AgX nearer the game's grade, SHOTS="name,yaw,dist,cam_y,aim_y,fov,aim_x;..." for several views from one
 ## load (OUT_<name>.png each; empty fields keep the values above). Applies the rigs exactly as the game does (Pedestrian.prepare_rig and
 ## fix_arm_pose), loaded dynamically because this compiles before the autoloads exist.
 func _initialize() -> void:
@@ -48,6 +48,13 @@ func _initialize() -> void:
 	e.ambient_light_color = Color(0.75, 0.78, 0.84)
 	e.ambient_light_energy = 0.8 if OS.get_environment("SKY") == "1" else 0.6
 	e.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	var street := OS.get_environment("LIGHT") == "street"
+	if street:
+		# LIGHT=street: nearer the game's grade - AgX, a dimmer sky fill, a tarmac-dark ground.
+		e.tonemap_mode = Environment.TONE_MAPPER_AGX
+		e.ambient_light_color = Color(0.62, 0.70, 0.82)
+		e.ambient_light_energy = 0.45
+		e.background_color = Color(0.55, 0.62, 0.72)
 	env.environment = e
 	root.add_child(env)
 	var sun := DirectionalLight3D.new()
@@ -60,7 +67,7 @@ func _initialize() -> void:
 	plane.size = Vector2(40.0, 40.0)
 	ground.mesh = plane
 	var gm := StandardMaterial3D.new()
-	gm.albedo_color = Color(0.46, 0.46, 0.47)
+	gm.albedo_color = Color(0.2, 0.2, 0.21) if street else Color(0.46, 0.46, 0.47)
 	ground.material_override = gm
 	root.add_child(ground)
 
@@ -88,6 +95,16 @@ func _initialize() -> void:
 				ap.pause()
 		for node in inst.find_children("*", "MeshInstance3D", true, false):
 			var mi := node as MeshInstance3D
+			# MAT_PARAM=name=value[;name=value]: set character-shader uniforms on every body (A/B);
+			# a value with commas is a colour.
+			for kv in OS.get_environment("MAT_PARAM").split(";", false):
+				var parts := kv.split("=")
+				var sm := mi.material_override as ShaderMaterial
+				if parts.size() == 2 and sm and not ped_script.is_hair(mi):
+					sm = sm.duplicate() as ShaderMaterial
+					var f := parts[1].split(",")
+					sm.set_shader_parameter(parts[0], Color(float(f[0]), float(f[1]), float(f[2])) if f.size() >= 3 else float(parts[1]))
+					mi.material_override = sm
 			if body != "" and ped_script.is_hair(mi):
 				mi.visible = false
 			elif mi.skin and body != "":

@@ -359,6 +359,12 @@ and a 1K normal atlas, the vertex colour carrying the skin / top / bottom / hair
 triangles a person, 24 bones, the three clips. The MakeHuman T-shirts carry the MakeHuman logo;
 it is painted out of every atlas (`crowd_config.json` "garments" -> "erase").
 
+The crowd's tiling surface detail, `assets/textures/crowd/crowd_detail.png` (1024 px, four
+512 px tiles: skin pores, jersey knit, denim twill, plain weave), is drawn procedurally by
+`tools/crowd/make_detail.py` (numpy, no source images; ours). The garment folds baked into each
+`crowd_*_body_nrm.jpg` come from our own fold field (`tools/hero/folds.py`), the stubble and
+beards painted into the atlases from our own code (`tools/crowd/crowd_atlas.py`).
+
 ## Street prop models (Poly Haven, CC0)
 
 Downloaded from the open Poly Haven API (`https://api.polyhaven.com/files/<id>`, glTF at 1K) and
