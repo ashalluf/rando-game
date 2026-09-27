@@ -1085,7 +1085,9 @@ func _test_city() -> void:
 					runner = p
 		if runner != null:
 			Pedestrian.alarm(get_tree(), runner.global_position + Vector3(3.0, 0.0, 0.0), 15.0, 2, true)
-			await _ticks(12)
+			# Half a second: people now turn and pull away (Pedestrian.run_accel) rather than
+			# jump to a sprint on the tick the shot goes off.
+			await _ticks(30)
 			var flat_speed := Vector2(runner.velocity.x, runner.velocity.z).length() if is_instance_valid(runner) else 0.0
 			_check(is_instance_valid(runner) and float(runner.get("_panic_left")) > 0.0 and flat_speed > float(runner.get("walk_speed")) * 1.5,
 				"a gunshot sends the people near it running (%.1f m/s)" % flat_speed)
@@ -1501,6 +1503,8 @@ func _test_city() -> void:
 	# re-centring check, and every position test after that point is in a frame that disagrees
 	# with the nodes.
 	await load("res://tests/street_life_checks.gd").new().run(self, city)
+	# Crowd animation (VISUAL_ROADMAP #28): starts, stops, turns, stride and head look.
+	await load("res://tests/crowd_anim_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")

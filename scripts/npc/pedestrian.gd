@@ -25,13 +25,21 @@ const MODELS := [
 	"res://assets/models/pedestrian_k_anim.glb",
 	"res://assets/models/pedestrian_l_anim.glb",
 ]
-## Walking speed (m/s) at which the walk clip plays at its natural pace.
-const WALK_CLIP_SPEED := 1.3
+## Ground speed (m/s) the walk clip is authored for at speed_scale 1: how fast a planted foot
+## travels backwards under the in-place clip (tools/crowd/clip_probe.tscn, 0.70-0.77 on every
+## rig). It was taken as 1.3, so every walker's feet slid forward at half the body's speed.
+const WALK_CLIP_SPEED := 0.8
 const WALK_CLIP := "Casual_Walk_inplace"
 const IDLE_CLIP := "Idle"
-## The run cycle the player's avatar uses too, and the speed it plays at its natural pace.
+## The run cycle the player's avatar uses too, and its authored ground speed (measured the same
+## way, 2.65-3.0; it was taken as 5.0).
 const RUN_CLIP := "run_fast_3_inplace"
-const RUN_CLIP_SPEED := 5.0
+const RUN_CLIP_SPEED := 2.75
+## Where the left foot lands in each clip (fraction of the clip) and how many strides the walk
+## clip holds, so a change between walk and run carries on with the same foot instead of popping.
+const WALK_CYCLES := 3.0
+const WALK_LEFT_DOWN := 0.03
+const RUN_LEFT_DOWN := 0.17
 
 @export var walk_speed: float = 1.8
 ## Anything moving faster than this that touches us knocks us over (m/s).
@@ -43,8 +51,8 @@ const RUN_CLIP_SPEED := 5.0
 @export var pause_chance: float = 0.28
 ## How long a pause lasts (seconds, min and max).
 @export var pause_seconds: Vector2 = Vector2(1.4, 5.5)
-## Spread of the walk cadence: the clip plays between these multiples of the rate its speed asks
-## for, so two people walking at the same speed do not step in the same rhythm.
+## Spread of the idle's rate. It used to scale the walk cadence too, off the rate the speed
+## asks for, which slid the feet; a walker's cadence now comes from its pace and build.
 @export var gait_spread: Vector2 = Vector2(0.84, 1.20)
 ## How far the torso leans, in degrees. Positive stoops forward. Rolled per character.
 @export var lean_spread: Vector2 = Vector2(-1.5, 4.5)
@@ -54,8 +62,8 @@ const RUN_CLIP_SPEED := 5.0
 @export var accessory_chance: float = 0.42
 ## Metres past which a pedestrian's accessory stops drawing.
 @export var accessory_distance: float = 60.0
-## Running pace when frightened (m/s).
-@export var run_speed: float = 5.2
+## Running pace when frightened (m/s); each person runs within 12 % of it.
+@export var run_speed: float = 4.4
 ## How long a scare lasts (seconds, min and max). Another shot while running starts it again.
 @export var panic_seconds: Vector2 = Vector2(7.0, 12.0)
 ## Share of the walkers who, reaching a spot on their pavement, head for the nearest crosswalk
@@ -70,6 +78,47 @@ const RUN_CLIP_SPEED := 5.0
 @export var kerb_spread: float = 1.1
 ## Seconds a walker stands at a stop-sign crosswalk before stepping out (min and max).
 @export var stop_sign_patience: Vector2 = Vector2(0.8, 2.6)
+
+@export_group("Locomotion")
+## Pulling away from a standstill (m/s per second): the first steps are short and slow.
+@export var walk_accel: float = 1.9
+## Slowing to a stop (m/s per second): the last steps shorten instead of the feet sliding.
+@export var stop_decel: float = 2.6
+## A frightened person's acceleration (m/s per second).
+@export var run_accel: float = 8.0
+## Most a walker turns while walking (degrees a second); the body goes the way it faces, so a
+## tighter turn is taken slower, never slid sideways.
+@export var turn_rate: float = 200.0
+## Turn rate while running from something (degrees a second).
+@export var run_turn_rate: float = 520.0
+## A turn sharper than this (degrees) from below `pivot_speed` (m/s) is taken standing: stop,
+## step round on the spot at `pivot_rate` (degrees a second), then set off.
+@export var pivot_angle: float = 100.0
+@export var pivot_speed: float = 0.5
+@export var pivot_rate: float = 150.0
+## Walk clip rate while stepping round on the spot.
+@export var pivot_cadence: float = 0.9
+## Above this speed (m/s) the run clip takes over from the walk.
+@export var run_clip_from: float = 2.9
+## Spread of the arm swing, as a multiple of the clip's (rolled per person).
+@export var arm_swing_spread: Vector2 = Vector2(0.7, 1.35)
+## Share of people who walk with their head down (a phone, their feet).
+@export var head_down_share: float = 0.14
+
+@export_group("Head look")
+## People within this distance of the player turn their heads to things (metres). Past it the
+## pose is the clip's, which is what the middle and far bodies show anyway.
+@export var look_range: float = 26.0
+## A car passing within this distance catches the eye (metres), if it is doing over 3 m/s.
+@export var look_car_range: float = 11.0
+## The player walking within this distance of somebody is looked at (metres).
+@export var look_player_range: float = 7.0
+## Seconds a gunshot or a blast holds everyone's eyes.
+@export var look_threat_seconds: float = 2.4
+## Furthest the head turns from the body (degrees), and how fast it gets there (1/s).
+@export var look_max_yaw: float = 72.0
+@export var look_speed: float = 5.0
+@export_group("")
 
 ## Crossing to the next block: walking to the kerb, waiting there, on the crosswalk.
 enum Cross { NONE, TO_KERB, WAIT, CROSSING }
@@ -115,6 +164,46 @@ static var _last_scream_ms: int = -100000
 ## Shortest gap between two screams anywhere (milliseconds).
 static var scream_gap_ms: int = 140
 
+## Locomotion state: current ground speed along the facing, the clip in use, standing turn.
+var _speed: float = 0.0
+var _clip: String = ""
+## Which of the three clips this rig has (looked up once: has_animation() is a string lookup).
+var _has_walk: bool = false
+var _has_run: bool = false
+var _has_idle: bool = false
+var _pivoting: bool = false
+## The turn rates and pivot angle above in radians (worked out once, in _ready()).
+var _turn_rad: float = 0.0
+var _run_turn_rad: float = 0.0
+var _pivot_rate_rad: float = 0.0
+var _pivot_rad: float = 0.0
+var _faced: bool = false
+var _run_pace: float = 4.4
+## A pause rolled at the start of a leg, taken at its end, so the walker slows into it.
+var _pause_next: float = 0.0
+## Everything this file's animation work rolls (arm swing, head, idle seek, LOD phase): its
+## own stream, so it moves nothing else.
+var _anim_rng := RandomNumberGenerator.new()
+var _head_skel: Skeleton3D
+var _look_bones := PackedInt32Array()
+var _arm_bones := PackedInt32Array()
+var _arm_swing: float = 1.0
+var _posture_pitch: float = 0.0
+var _look_near: bool = false
+var _look_yaw: float = 0.0
+var _look_pitch: float = 0.0
+var _look_point := Vector3.INF
+var _look_threat := Vector3.INF
+var _look_hold: float = 0.0
+var _look_scan: float = 0.0
+## Moving cars near the player, [position, velocity], shared by the whole crowd and refreshed
+## a few times a second (_nearby_cars()).
+static var _cars: Array = []
+static var _cars_tick: int = -1000
+static var _cars_prev: Dictionary = {}
+## Per model: the walk clip's mean upper-arm rotations, what the swing is scaled about.
+static var _arm_means: Dictionary = {}
+
 var ring: Rect2
 var shirt: Color
 var pants: Color
@@ -137,6 +226,9 @@ var _lod_tick: int = 0
 var _lod_timer: float = 0.0
 ## Cadence multiplier on the walk clip for this character.
 var _gait: float = 1.0
+## The build's stride (the visual's depth scale) and the clip rate last set.
+var _stride: float = 1.0
+var _rate: float = -1.0
 ## Seconds left standing still; 0 means walking.
 var _pause_left: float = 0.0
 ## Everything cosmetic (look, gait, lean, accessory, pauses) rolls on its own stream, so adding
@@ -152,7 +244,17 @@ func setup(block_rect: Rect2, sidewalk: float, seed_value: int) -> void:
 	shirt = SHIRTS[_rng.randi() % SHIRTS.size()]
 	pants = PANTS[_rng.randi() % PANTS.size()]
 	skin = SKINS[_rng.randi() % SKINS.size()]
-	walk_speed = _rng.randf_range(1.4, 2.6)
+	# 1.05-1.5 m/s: a city pace. The clip's step is 0.5 m, so matched to the stride 2.6 m/s
+	# would take four steps a second.
+	walk_speed = _rng.randf_range(1.05, 1.5)
+	_speed = walk_speed
+	_anim_rng.seed = hash([seed_value, "anim"])
+	_run_pace = run_speed * _anim_rng.randf_range(0.88, 1.12)
+	_arm_swing = _anim_rng.randf_range(arm_swing_spread.x, arm_swing_spread.y)
+	_posture_pitch = -deg_to_rad(_anim_rng.randf_range(16.0, 24.0)) if _anim_rng.randf() < head_down_share \
+		else deg_to_rad(_anim_rng.randf_range(-3.0, 3.0))
+	# Everybody's far updates on a different tick, not all a crowd's on the same one.
+	_lod_tick = _anim_rng.randi() % 8
 	_target = _random_ring_point(sidewalk)
 	_sidewalk = sidewalk
 	_way.seed = hash([seed_value, "way"])
@@ -164,6 +266,10 @@ var _sidewalk: float = 4.0
 
 func _ready() -> void:
 	add_to_group("pedestrian")
+	_turn_rad = deg_to_rad(turn_rate)
+	_run_turn_rad = deg_to_rad(run_turn_rate)
+	_pivot_rate_rad = deg_to_rad(pivot_rate)
+	_pivot_rad = deg_to_rad(pivot_angle)
 	collision_layer = 8 # the npc layer: bullets, blasts and bumpers look for it
 	collision_mask = 1
 	floor_snap_length = 0.4
@@ -224,15 +330,19 @@ func _add_model() -> bool:
 	# so a negative X rotation tips the head forward.
 	_visual.rotation.x = -deg_to_rad(_style.randf_range(lean_spread.x, lean_spread.y))
 	_gait = _style.randf_range(gait_spread.x, gait_spread.y)
+	_stride = _visual.scale.z
 	_anim = inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 	if _anim:
 		fix_arm_pose(_anim, path)
+		_has_walk = _anim.has_animation(WALK_CLIP)
+		_has_run = _anim.has_animation(RUN_CLIP)
+		_has_idle = _anim.has_animation(IDLE_CLIP)
 		for clip in _anim.get_animation_list():
 			_anim.get_animation(clip).loop_mode = Animation.LOOP_LINEAR
 		# Advanced by hand in _physics_process so far pedestrians can animate less often.
 		_anim.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 		if _anim.has_animation(WALK_CLIP):
-			_play_walk(0.0)
+			_set_clip(WALK_CLIP, 0.0)
 			# Pose the rig at the top of the walk before hanging anything off its bones. The
 			# clip holds the spine seven degrees off the bind pose the whole way round, so a
 			# backpack lined up against the bind pose rides tilted back and floating off the
@@ -243,22 +353,122 @@ func _add_model() -> bool:
 		# Start everyone at a different point in the cycle. A crowd stepping in perfect
 		# unison is the most obvious tell that they are all the same model.
 		_anim.seek(_style.randf() * _anim.get_animation(WALK_CLIP).length, true)
+		_anim.speed_scale = walk_speed / (WALK_CLIP_SPEED * _stride)
+	var found := inst.find_children("*", "Skeleton3D", true, false)
+	if not found.is_empty():
+		_head_skel = found[0]
+		for bone in ["neck", "Head"]:
+			_look_bones.append(_head_skel.find_bone(bone))
+		for bone in ["LeftArm", "RightArm"]:
+			_arm_bones.append(_head_skel.find_bone(bone))
+		if -1 in _look_bones:
+			_look_bones.clear()
+		if -1 in _arm_bones or _anim == null:
+			_arm_bones.clear()
+		elif not _arm_means.has(path):
+			_arm_means[path] = _clip_means(_anim, _head_skel, WALK_CLIP, _arm_bones)
 	return true
 
 
-## Starts (or returns to) the walk cycle at this character's own cadence.
-func _play_walk(blend: float = 0.25) -> void:
-	if _anim == null or not _anim.has_animation(WALK_CLIP):
-		return
-	_anim.play(WALK_CLIP, blend)
-	_anim.speed_scale = walk_speed / WALK_CLIP_SPEED * _gait
-
-
+## Stands this character still (staging and tests): the clip follows the speed.
 func _play_idle() -> void:
-	if _anim == null or not _anim.has_animation(IDLE_CLIP):
+	_speed = 0.0
+	_set_clip(IDLE_CLIP, 0.3)
+
+
+## Idle, walk or run from the speed this person actually covers the ground at, with the clip's
+## rate matched to it so the planted foot stays planted (a taller or longer-legged build takes
+## longer steps, so fewer of them), and a standing turn stepped round on the spot.
+func _animate_gait() -> void:
+	if _anim == null:
 		return
-	_anim.play(IDLE_CLIP, 0.3)
-	_anim.speed_scale = _gait
+	var rate := _gait
+	if _pivoting and _speed < 0.35 and _has_walk:
+		_set_clip(WALK_CLIP, 0.3)
+		rate = pivot_cadence
+	elif _speed > run_clip_from - (0.4 if _clip == RUN_CLIP else 0.0) and _has_run:
+		_set_clip(RUN_CLIP, 0.3)
+		rate = _speed / (RUN_CLIP_SPEED * _stride)
+	elif _speed > (0.22 if _clip == IDLE_CLIP else 0.1) or not _has_idle:
+		_set_clip(WALK_CLIP, 0.35)
+		rate = maxf(_speed, 0.4) / (WALK_CLIP_SPEED * _stride)
+	else:
+		_set_clip(IDLE_CLIP, 0.45)
+	if absf(rate - _rate) > 0.005:
+		_rate = rate
+		_anim.speed_scale = rate
+
+
+## Cross-fades to `clip` (once; asking again does nothing). Walk and run swap on the same foot,
+## a walk starts on a footfall and an idle somewhere of its own.
+func _set_clip(clip: String, blend: float) -> void:
+	if clip == _clip or _anim == null or not _anim.has_animation(clip):
+		return
+	# Past lod_mid a cross-fade is two clips evaluated at 15 Hz for a figure a few dozen pixels
+	# tall: cut instead (still on the same foot).
+	if _lod_stride >= 4:
+		blend = 0.0
+	var from := _clip
+	var t := _anim.current_animation_position if _anim.current_animation != "" else 0.0
+	var from_len := _anim.get_animation(from).length if from != "" and _anim.has_animation(from) else 1.0
+	_clip = clip
+	_anim.play(clip, blend)
+	var length := _anim.get_animation(clip).length
+	var phase := -1.0
+	if from == WALK_CLIP:
+		phase = fposmod((t / from_len - WALK_LEFT_DOWN) * WALK_CYCLES, 1.0)
+	elif from == RUN_CLIP:
+		phase = fposmod(t / from_len - RUN_LEFT_DOWN, 1.0)
+	if clip == RUN_CLIP:
+		_anim.seek(fposmod(maxf(phase, 0.0) + RUN_LEFT_DOWN, 1.0) * length, false)
+	elif clip == WALK_CLIP:
+		var cycle := float(_anim_rng.randi() % int(WALK_CYCLES))
+		_anim.seek(fposmod((maxf(phase, 0.0) + cycle) / WALK_CYCLES + WALK_LEFT_DOWN, 1.0) * length, false)
+	else:
+		_anim.seek(_anim_rng.randf() * length, false)
+
+
+## Turns toward `to_goal` and eases the speed toward `want`; returns the ground velocity, which
+## is always along the way the body faces. A sharp turn from a near standstill is taken on the
+## spot (pivot), a bend is taken slower, and a frightened person turns and bolts at once.
+func _steer(to_goal: Vector2, want: float, delta: float, panicking: bool) -> Vector2:
+	var yaw := _visual.rotation.y
+	if to_goal.length_squared() > 1e-4:
+		var goal_yaw := atan2(-to_goal.x, -to_goal.y)
+		if not _faced:
+			yaw = goal_yaw
+			_faced = true
+		var err := angle_difference(yaw, goal_yaw)
+		var a := absf(err)
+		if panicking:
+			_pivoting = false
+		elif a > _pivot_rad and _speed < pivot_speed:
+			_pivoting = true
+		elif a < 0.21: # 12 degrees
+			_pivoting = false
+		var rate := (_run_turn_rad if panicking else (_pivot_rate_rad if _pivoting else _turn_rad)) * delta
+		if a > 1e-4:
+			yaw = wrapf(yaw + clampf(err, -rate, rate), -PI, PI)
+			_visual.rotation.y = yaw
+		if _pivoting:
+			want = 0.0
+		elif not panicking and a > 0.02:
+			want *= clampf(1.0 - a * 0.382, 0.2, 1.0) # none by 150 degrees
+	var accel := run_accel if panicking else (walk_accel if want > _speed else stop_decel)
+	_speed = move_toward(_speed, want, accel * delta)
+	return Vector2(-sin(yaw), -cos(yaw)) * _speed
+
+
+## Steps round to face `yaw` where it stands (and lets any speed it still has run out).
+func _turn_on_spot(yaw: float, delta: float) -> void:
+	var err := angle_difference(_visual.rotation.y, yaw)
+	_pivoting = absf(err) > deg_to_rad(20.0) or (_pivoting and absf(err) > deg_to_rad(4.0))
+	var rate := deg_to_rad(pivot_rate) * delta
+	_visual.rotation.y = wrapf(_visual.rotation.y + clampf(err, -rate, rate), -PI, PI)
+	if _speed > 0.0:
+		_speed = move_toward(_speed, 0.0, stop_decel * delta)
+		var f := Vector2(-sin(_visual.rotation.y), -cos(_visual.rotation.y)) * _speed * delta
+		position += Vector3(f.x, 0.0, f.y)
 
 
 ## Caps, beanies and backpacks, built in code the way the street props are and hung off the rig's
@@ -1052,6 +1262,13 @@ func _physics_process(delta: float) -> void:
 	delta *= _lod_stride
 	if _anim:
 		_anim.advance(delta)
+	_walk(delta)
+	_animate_gait()
+	if _look_near:
+		_post_pose(delta)
+
+
+func _walk(delta: float) -> void:
 	var panicking := _panic_left > 0.0
 	if panicking:
 		_panic_left -= delta
@@ -1063,11 +1280,18 @@ func _physics_process(delta: float) -> void:
 			_scream_in = -1.0
 			if _cross != Cross.CROSSING:
 				_go_to(_random_ring_point(_sidewalk))
-			_play_walk()
 	# Standing still: waiting at a kerb, looking in a window, checking a phone. A crowd where
 	# every single person walks without ever stopping reads as a conveyor belt.
 	if _pause_left > 0.0:
 		_pause_left -= delta
+		if _speed > 0.02:
+			# The last short step or two of a stop, not a freeze on the spot.
+			_speed = move_toward(_speed, 0.0, stop_decel * delta)
+			var f := Vector2(-sin(_visual.rotation.y), -cos(_visual.rotation.y)) * _speed
+			_move(f, delta)
+			return
+		_speed = 0.0
+		_pivoting = false
 		velocity.x = 0.0
 		velocity.z = 0.0
 		# Someone standing on the pavement does not need a collision solve every step: only a
@@ -1075,8 +1299,6 @@ func _physics_process(delta: float) -> void:
 		if not _kinematic and not is_on_floor():
 			velocity.y -= 30.0 * delta
 			move_and_slide()
-		if _pause_left <= 0.0:
-			_play_walk()
 		return
 	if _cross == Cross.WAIT:
 		_wait_at_kerb(delta)
@@ -1096,7 +1318,9 @@ func _physics_process(delta: float) -> void:
 		_route.remove_at(0)
 		goal = _target if _route.is_empty() else _route[0]
 		to_target = goal - here
-	if to_target.length() < 1.0:
+	# A leg that ends standing (a kerb, a pause) is walked into slowly and ended close.
+	var stops := _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0)
+	if to_target.length() < (0.35 if stops else 1.0):
 		if _cross == Cross.TO_KERB:
 			_arrive_at_kerb()
 			return
@@ -1106,15 +1330,42 @@ func _physics_process(delta: float) -> void:
 			pass
 		else:
 			_go_to(_random_ring_point(_sidewalk))
-			if _anim and _anim.has_animation(IDLE_CLIP) and _style.randf() < pause_chance:
-				_pause_left = _style.randf_range(pause_seconds.x, pause_seconds.y)
-				_play_idle()
+			if _pause_next > 0.0:
+				_pause_left = _pause_next
+				_pause_next = 0.0
+			# Rolled now, taken at the end of the new leg, so the walker slows into it.
+			if _has_idle and _style.randf() < pause_chance:
+				_pause_next = _style.randf_range(pause_seconds.x, pause_seconds.y)
 		goal = _target if _route.is_empty() else _route[0]
 		to_target = goal - here
-	var dir := to_target.normalized() if to_target.length() > 0.001 else Vector2(0.0, -1.0)
-	var speed := run_speed if panicking else walk_speed
-	velocity.x = dir.x * speed
-	velocity.z = dir.y * speed
+		stops = _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0)
+	var want := _run_pace if panicking else walk_speed
+	if stops:
+		want = minf(want, sqrt(2.0 * stop_decel * maxf(to_target.length() - 0.2, 0.0)) + 0.15)
+	var v := _steer(to_target, want, delta, panicking)
+	_move(v, delta)
+	if not _kinematic:
+		# Walked square into something flat - a bus shelter, a news box, a parked car over the
+		# kerb - since walkers keep to the pavement band now: somewhere else, not the same spot
+		# marched on for ever.
+		var real := get_real_velocity()
+		if _speed > 0.5 and Vector2(real.x, real.z).length() < _speed * 0.25:
+			_walk_stuck_t += delta
+			if _walk_stuck_t > 0.8:
+				_walk_stuck_t = 0.0
+				_go_to(_flee_point() if panicking else _random_ring_point(_sidewalk))
+		else:
+			_walk_stuck_t = 0.0
+	if _anim == null:
+		_bob += delta * _speed * 4.0
+		_visual.position.y = absf(sin(_bob)) * 0.06
+
+
+## Moves along the ground at `v` (m/s, XZ): placed directly out of the player's reach, through
+## move_and_slide inside it.
+func _move(v: Vector2, delta: float) -> void:
+	velocity.x = v.x
+	velocity.z = v.y
 	if _kinematic:
 		# Out of reach of the player: walk the pavement directly, on the chunk's own ground
 		# height, with no collision solve. The ring is open pavement, so the path is the same
@@ -1128,21 +1379,139 @@ func _physics_process(delta: float) -> void:
 		else:
 			velocity.y = 0.0
 		move_and_slide()
-		# Walked square into something flat - a bus shelter, a news box, a parked car over the
-		# kerb - since walkers keep to the pavement band now: somewhere else, not the same spot
-		# marched on for ever.
-		var real := get_real_velocity()
-		if Vector2(real.x, real.z).length() < speed * 0.25:
-			_walk_stuck_t += delta
-			if _walk_stuck_t > 0.8:
-				_walk_stuck_t = 0.0
-				_go_to(_flee_point() if panicking else _random_ring_point(_sidewalk))
-		else:
-			_walk_stuck_t = 0.0
-	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.y), 1.0 - exp(-(14.0 if panicking else 8.0) * delta))
-	if _anim == null:
-		_bob += delta * speed * 4.0
-		_visual.position.y = absf(sin(_bob)) * 0.06
+
+
+## After the clip has posed the rig (near people only): the arm swing scaled to this person's
+## own, and the head (and a little of the neck) turned to whatever is going on nearby.
+func _post_pose(delta: float) -> void:
+	if _head_skel == null:
+		return
+	if _arm_bones.size() == 2 and _clip == WALK_CLIP and absf(_arm_swing - 1.0) > 0.02:
+		var means: Array = _arm_means.get(_model_path, [])
+		for i in mini(means.size(), 2):
+			var mean: Quaternion = means[i]
+			var dq := mean.inverse() * _head_skel.get_bone_pose_rotation(_arm_bones[i])
+			if dq.w < 0.0:
+				dq = -dq
+			var axis := Vector3(dq.x, dq.y, dq.z)
+			if axis.length_squared() > 1e-8:
+				var ang := 2.0 * atan2(axis.length(), dq.w)
+				_head_skel.set_bone_pose_rotation(_arm_bones[i], mean * Quaternion(axis.normalized(), ang * _arm_swing))
+	if _look_bones.size() != 2:
+		return
+	_look_hold = maxf(_look_hold - delta, 0.0)
+	_look_scan -= delta
+	if _look_scan <= 0.0:
+		_look_scan = 0.3 + _anim_rng.randf() * 0.25
+		_pick_look()
+	var want_yaw := 0.0
+	var want_pitch := _posture_pitch
+	var face := _visual.global_rotation.y
+	if _look_point != Vector3.INF:
+		var d := _look_point - (global_position + Vector3.UP * 1.55 * _visual.scale.y)
+		var rel := angle_difference(face, atan2(-d.x, -d.z))
+		if absf(rel) < deg_to_rad(115.0):
+			var reach := deg_to_rad(look_max_yaw)
+			want_yaw = clampf(rel, -reach, reach)
+			want_pitch = clampf(atan2(d.y, Vector2(d.x, d.z).length()), -0.45, 0.35)
+	var k := 1.0 - exp(-look_speed * delta)
+	_look_yaw = lerpf(_look_yaw, want_yaw, k)
+	_look_pitch = lerpf(_look_pitch, want_pitch, k)
+	if absf(_look_yaw) + absf(_look_pitch) < 0.003:
+		return
+	# Built in skeleton space round the world's up and the head's right, then handed to each
+	# bone in its parent's frame; the neck takes 40 % of the turn and the head the rest.
+	var to_skel := _head_skel.global_basis.orthonormalized().inverse()
+	var up := (to_skel * Vector3.UP).normalized()
+	var right := (to_skel * Vector3(cos(face), 0.0, -sin(face))).normalized()
+	for i in 2:
+		var bone := _look_bones[i]
+		var share := 0.4 if i == 0 else 0.6
+		var parent := _head_skel.get_bone_parent(bone)
+		var pq := _head_skel.get_bone_global_pose(parent).basis.orthonormalized().get_rotation_quaternion() \
+			if parent >= 0 else Quaternion.IDENTITY
+		var r := Quaternion(up, _look_yaw * share) * Quaternion(right, _look_pitch * share)
+		_head_skel.set_bone_pose_rotation(bone, (pq.inverse() * r * pq * _head_skel.get_bone_pose_rotation(bone)).normalized())
+
+
+## What this person looks at next: a gunshot or blast they just heard, else a car going by
+## close, else the player walking past; nothing (straight ahead) most of the time.
+func _pick_look() -> void:
+	_look_point = Vector3.INF
+	if _look_hold > 0.0 and _look_threat != Vector3.INF:
+		_look_point = _look_threat
+		return
+	var me := global_position
+	var best := look_car_range * look_car_range
+	for car: Array in _nearby_cars(get_tree()):
+		var at: Vector3 = car[0]
+		var vel: Vector3 = car[1]
+		var d2 := at.distance_squared_to(me)
+		if d2 < best and vel.length_squared() > 9.0:
+			best = d2
+			_look_point = at + vel * 0.12 + Vector3.UP * 0.6
+	if _look_point != Vector3.INF:
+		return
+	if is_instance_valid(_player) and _player.global_position.distance_squared_to(me) < look_player_range * look_player_range:
+		_look_point = _player.global_position + Vector3.UP * 1.5
+
+
+## Moving cars within reach of the player, [position, velocity], worked out once every quarter
+## second for the whole crowd (velocity from the last survey, so kinematic traffic counts too).
+static func _nearby_cars(tree: SceneTree) -> Array:
+	var tick := Engine.get_physics_frames()
+	if tick - _cars_tick < 15:
+		return _cars
+	var dt := float(tick - _cars_tick) / float(Engine.physics_ticks_per_second)
+	_cars_tick = tick
+	_cars = []
+	var centre: Vector3 = _player.global_position if is_instance_valid(_player) else Vector3.INF
+	var seen := {}
+	for n in tree.get_nodes_in_group("vehicle"):
+		var car := n as Node3D
+		if car == null or not car.is_inside_tree():
+			continue
+		var at := car.global_position
+		if centre != Vector3.INF and at.distance_squared_to(centre) > 2500.0:
+			continue
+		var id := car.get_instance_id()
+		var vel := Vector3.ZERO
+		if _cars_prev.has(id) and dt < 1.0:
+			vel = (at - (_cars_prev[id] as Vector3)) / dt
+			if vel.length_squared() > 1600.0: # an origin shift, not a car doing 144 km/h
+				vel = Vector3.ZERO
+		seen[id] = at
+		_cars.append([at, vel])
+	_cars_prev = seen
+	return _cars
+
+
+## The walk clip's mean rotation for each of `bones` (sign-aligned quaternion average of the
+## keys), what the arm swing is scaled about.
+static func _clip_means(anim: AnimationPlayer, skel: Skeleton3D, clip: String, bones: PackedInt32Array) -> Array:
+	var out: Array = []
+	if not anim.has_animation(clip):
+		return out
+	var a := anim.get_animation(clip)
+	for bone in bones:
+		var name := skel.get_bone_name(bone)
+		var sum := Vector4.ZERO
+		var first := Quaternion.IDENTITY
+		for t in a.get_track_count():
+			if a.track_get_type(t) != Animation.TYPE_ROTATION_3D or String(a.track_get_path(t).get_concatenated_subnames()) != name:
+				continue
+			for k in a.track_get_key_count(t):
+				var q: Quaternion = a.track_get_key_value(t, k)
+				if k == 0:
+					first = q
+				if first.dot(q) < 0.0:
+					q = -q
+				sum += Vector4(q.x, q.y, q.z, q.w)
+		if sum.length_squared() < 1e-8:
+			return []
+		sum = sum.normalized()
+		out.append(Quaternion(sum.x, sum.y, sum.z, sum.w))
+	return out
 
 
 ## Far pedestrians move and animate every 2nd (past physics_range), 4th (past lod_mid) or 8th
@@ -1193,6 +1562,11 @@ var _kinematic: bool = false
 var _hit_shape: CollisionShape3D
 
 
+## Whether the head may be turned over the clip (a subclass that poses the rig itself says no).
+func _head_look_ok() -> bool:
+	return true
+
+
 func _update_lod() -> void:
 	if not is_instance_valid(_player):
 		_player = get_tree().get_first_node_in_group("player") as Node3D
@@ -1204,6 +1578,7 @@ func _update_lod() -> void:
 	# A figure forty metres off moves 6 cm between updates at walking pace, which nobody can see,
 	# and the crowd's scripts were 12 ms of every physics step at every-step-to-60-metres.
 	_lod_stride = 1 if d < physics_range else (2 if d < lod_mid else (4 if d < lod_far else 8))
+	_look_near = d < look_range and _head_skel != null and _head_look_ok()
 	var kinematic := d > physics_range and not _down
 	if kinematic != _kinematic:
 		_kinematic = kinematic
@@ -1601,14 +1976,16 @@ func _scare(at: Vector3) -> void:
 	var local := (get_parent() as Node3D).to_local(at) if get_parent() is Node3D else at
 	_threat = Vector2(local.x, local.z)
 	_pause_left = 0.0
+	_pause_next = 0.0
+	_look_threat = at
+	_look_hold = look_threat_seconds
+	_look_scan = 0.0
 	# Panic wins over waiting to cross: back along this block's pavement at a run. Somebody
 	# already out in the road keeps going, at a run, and flees on the far side.
 	if _cross == Cross.TO_KERB or _cross == Cross.WAIT:
 		_cross = Cross.NONE
-	if calm:
-		if _cross != Cross.CROSSING:
-			_go_to(_flee_point())
-		_play_run()
+	if calm and _cross != Cross.CROSSING:
+		_go_to(_flee_point())
 
 
 ## Heads for `target` on this block's pavement, going round the ring (not through the block).
@@ -1783,7 +2160,6 @@ func _arrive_at_kerb() -> void:
 	_cross = Cross.WAIT
 	_cross_wait = 0.0
 	velocity = Vector3.ZERO
-	_play_idle()
 
 
 ## Standing at the kerb: at a signal until the walking figure comes up, at a stop sign for a
@@ -1801,13 +2177,12 @@ func _wait_at_kerb(delta: float) -> void:
 	else:
 		go = _cross_wait >= _cross_patience
 	var across := (_cross_to - _cross_from).normalized()
-	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-across.x, -across.y), 1.0 - exp(-6.0 * delta))
+	_turn_on_spot(atan2(-across.x, -across.y), delta)
 	if go:
 		_start_crossing()
 	elif _cross_wait > 75.0:
 		_cross = Cross.NONE
 		_go_to(_random_ring_point(_sidewalk))
-		_play_walk()
 
 
 func _start_crossing() -> void:
@@ -1815,11 +2190,7 @@ func _start_crossing() -> void:
 	if not _on_crosswalk:
 		_on_crosswalk = true
 		_crosswalks[_cross_key] = int(_crosswalks.get(_cross_key, 0)) + 1
-	if _panic_left > 0.0:
-		_play_run()
-	elif _anim and _anim.has_animation(WALK_CLIP):
-		_anim.play(WALK_CLIP, 0.25)
-		_anim.speed_scale = walk_speed * cross_pace / WALK_CLIP_SPEED * _gait
+	_pivoting = false
 
 
 func _leave_crosswalk() -> void:
@@ -1839,10 +2210,10 @@ func _leave_crosswalk() -> void:
 func _walk_crossing(delta: float, panicking: bool) -> void:
 	var here := Vector2(position.x, position.z)
 	var to := _cross_to - here
-	var speed := run_speed if panicking else walk_speed * cross_pace
-	var step := speed * delta
 	var across := (_cross_to - _cross_from).normalized()
-	if to.length() <= step + 0.05:
+	var v := _steer(to, _run_pace if panicking else walk_speed * cross_pace, delta, panicking)
+	var step := v.length() * delta
+	if to.length() <= step + 0.05 or to.dot(across) <= 0.0:
 		position = Vector3(_cross_to.x, _ground_y(_cross_to.x, _cross_to.y, position.y), _cross_to.y)
 		_leave_crosswalk()
 		_cross = Cross.NONE
@@ -1853,18 +2224,15 @@ func _walk_crossing(delta: float, panicking: bool) -> void:
 			_go_to(_flee_point())
 		else:
 			_go_to(_random_ring_point(_sidewalk))
-			_play_walk()
 		return
-	var dir := to.normalized()
-	var at := here + dir * step
+	var at := here + v * delta
 	var y := _ground_y(at.x, at.y, position.y)
 	# On the carriageway (inside the kerbs), the ground is the road, a kerb's height lower.
 	var off := absf((at.x if absf(across.x) > 0.5 else at.y) - _cross_road.x)
 	if off < _cross_road.y:
 		y -= CityChunk.SIDEWALK_TOP - CityChunk.ROAD_TOP
 	position = Vector3(at.x, y, at.y)
-	velocity = Vector3(dir.x * speed, 0.0, dir.y * speed)
-	_visual.rotation.y = lerp_angle(_visual.rotation.y, atan2(-dir.x, -dir.y), 1.0 - exp(-10.0 * delta))
+	velocity = Vector3(v.x, 0.0, v.y)
 
 
 func _exit_tree() -> void:
@@ -1880,17 +2248,6 @@ func _flee_point() -> Vector2:
 		if p.distance_squared_to(_threat) > best.distance_squared_to(_threat):
 			best = p
 	return best
-
-
-func _play_run() -> void:
-	if _anim == null:
-		return
-	if _anim.has_animation(RUN_CLIP):
-		_anim.play(RUN_CLIP, 0.2)
-		_anim.speed_scale = run_speed / RUN_CLIP_SPEED * _gait
-	elif _anim.has_animation(WALK_CLIP):
-		_anim.play(WALK_CLIP, 0.2)
-		_anim.speed_scale = run_speed / WALK_CLIP_SPEED * _gait
 
 
 ## Screams now if nobody else in the crowd has just started one, else a moment later.
