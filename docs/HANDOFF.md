@@ -46,6 +46,17 @@ merged into one branch and gated together (499 checks) before the push:
   memory at 12 GB even with `LIGHT_WORLD=1`; use opengl3 stills and ask the owner for Mac shots.
   Stale class cache trap: after merging a branch that adds a `class_name`, run `--import` before
   any still, or the city renders as a bare plane (Parse Error: Identifier not declared).
+- **Hill ground merged, then the leopard spots** (build 305 pushed the hill-ground branch: shell
+  grass and brush understory up close). The brush stands still read as round tan-and-olive
+  camouflage from 100-500 m. A red/blue debug render (grass red, brush blue; then the fades and
+  the threshold as colour) showed it was the stand noise itself - the 3 m bush octave is
+  resolved out to ~500 m, and a thresholded 3 m value noise is round blobs - on ground where the
+  threshold sat at the noise's mean. Fixed by moving the threshold off the mean with the land
+  (brush-dominant steep faces, grass on every gentle bench) and ragging edges with a 1.1 m
+  octave; each octave widens the edge as it fades (CLAUDE.md, terrain note). A CPU top-down of
+  `HillPlanting.ground()` (near and "far" mode) made the loop seconds instead of renders; the
+  script is in the session scratchpad, not the repo. Before/after: hills 150 m out and at ground
+  level, EYE=-400,70,-1380,0,-12 / -250,2,-1560,-30,4 on `hill_ground_shot.tscn`.
 Tools added: `tools/terrain_preview/` (mountains top-down in seconds), still_shot `HIDE=`.
 Cloud sessions cannot be messaged back; read their state with get_session and their shots
 branches. Pushes were blocked by the auto-mode safety check until the owner said to push.
@@ -3308,7 +3319,327 @@ realistic people at "AAA studio PS5 quality", made with the hero's pipeline.
   touches the crowd files, the likely conflicts are CLAUDE.md, loading_screen.gd and
   smoke_test.gd (adjacent hunks).
 
-## 9aj. Car damage, 2026-09-27 (agent branch `wt/car-damage`; roadmap #10)
+## 9ak. The hill ground from standing height, 2026-09-27 (agent branch `wt/hill-ground`; roadmap #19, #33, #34)
+
+The ask: a player who lands on a hill saw smooth plastic ground with camouflage blobs of dark
+olive brush and tan grass, a few rocks and almost no vegetation.
+
+- **Hill shells** (`HillShells`, `scripts/world/hill_shells.gd`; `shaders/hill_shells.gdshader`).
+  Every FULL hill chunk draws its terrain mesh again as 16 lifted layers: a MultiMesh of that one
+  mesh with identity instances, the layer's height in `INSTANCE_CUSTOM.r`. One draw per tile, no
+  vertex or index memory of its own, 0.3 ms to build. A fragment is kept only where a blade of
+  dry grass (a 2 x 5 cm cell in the frame of a slow lean field, tapering, bent over with height,
+  swayed by `wind_factor`, a 5 cm thatch mat at the roots, 0.55 m at the tallest) or the brush
+  understory (the painted crowns grown into low mounds of 3 cm leaves, 0.42 m; the lone sage
+  dots into paler round bushes) reaches that high. The first version built a per-tile ArrayMesh
+  with 16 copies of the vertices and a LOD ladder of index prefixes: its `add_surface_from_arrays`
+  alone was 3-7 ms, over the step budget; the MultiMesh costs nothing.
+- **One splat, three readers.** The splat's maths moved to `shaders/hill_splat.gdshaderinc`
+  (uniform defaults, noise, `hill_stand_threshold/stand/sage/brush/bare/rocky/crowns`), included
+  by `terrain.gdshader` and the shells; `HillPlanting` mirrors it (the smoke test reads the include
+  for `MIRRORED` and the new `MIRRORED_CONSTS`). The shells work the slow terms out per vertex
+  (~3 m apart; those noises vary over 25 m and more) and the edge-raggers per fragment.
+- **Keep-out.** `_mark_shell_ground` (a build step before the terrain mesh, a few obstacles a
+  call) writes a signed distance to the nearest hill road + shoulder, mansion pad or landmark into
+  the terrain's COLOR.b (0.5 at the edge, so it interpolates straight); the ridge sign is exempt
+  (its 400 m radius is reserved lots, the letters stand on legs). Replica chunks build no shells.
+- **LOD.** Layers are stored bit-reversed, so any power-of-two prefix is spread evenly up the
+  canopy; `visible_instance_count` is 16 / 8 / 4 / 0 with the camera 40 / 65 / 90 m from the tile's
+  box (checked five times a second per tile), and the shader thins them from 35 to 75 m. Past a
+  pixel a blade or leaf only aliases (moire in the first renders, "sequins" on the brush), so there
+  a layer is kept by its average cover, dithered per pixel and coloured by the layer's height - TAA
+  resolves it on the Mac; opengl3 stills show it as grain.
+- **Shrub crowns in the paint.** `hill_crowns()`: a dome per jittered 2.6 m cell, big and small,
+  never reaching past the four cells searched (so none is cut off straight). A stand's edge runs
+  round them (`crown_edge` 0.06) and inside they are shaded as domes (`crown_relief`); they fade
+  out from a 0.06 m to a 0.2 m pixel footprint (full to ~40 m, gone by ~120 m at 720 rows;
+  resolved further out they read as bubble wrap from across a canyon); off with `ground_detail`. The lone sage and
+  buckwheat dots are painted `sage_color` (paler grey-green): in chaparral's colour they were
+  dark polka dots across the straw.
+- **A hitch removed.** `_scatter_hills` asked `MacroMap.height_at()` about a thousand times in
+  one step (20-40 us each in the eroded hills): 57 ms mean, 75 ms worst per hill chunk on this box.
+  It now reads the tile's own grid (`_terrain_height`, also the surface drawn and collided with)
+  and runs 60 tries a step with its rng kept between calls (same stream, same rolls): 3.6 calls of
+  3.6 ms. The props-on-the-ground check now measures against the tile grid.
+- **Quality.** `CityChunk.shells_enabled` is false on the web and below MEDIUM (set by `Quality`,
+  which also hides built shells via group `hill_shells`).
+
+Numbers (opengl3 / llvmpipe, 1280x720, `--quality=0`, still_shot GEO of the exact frame; before =
+mountains 7a84542 in a separate worktree):
+
+| View | Before tris / draws | After tris / draws | Change |
+|---|---|---|---|
+| ridge, EYE -400,3,-1250 (AGL) | 1,213,599 / 469 | 1,338,332 / 465 | +124.7k (+10.3 %) |
+| slope to the city, EYE -150,2.5,-1100 | 3,026,761 / 927 | 3,232,947 / 927 | +206.2k (+6.8 %) |
+| grass between stands, EYE 608,1.7,-1018 | 1,839,034 / 861 | 2,047,108 / 869 | +208.1k (+11.3 %) |
+| open grass, EYE 780,1.7,-1402 | 2,675,326 / 1,134 | 2,854,903 / 1,141 | +179.6k (+6.7 %) |
+| high flank, EYE -352,1.7,-1369 | 3,181,416 / 1,213 | 3,264,902 / 1,213 | +83.5k (+2.6 %) |
+| hills bookmark (--spawn=300,-650,0,-6,260) | 1,962,821 / 1,132 | 1,980,267 / 1,132 | +17.4k (+0.9 %) |
+
+A tile is 2,048 triangles (4,608 where a hill road crosses it), so 16 layers are 33k / 74k.
+`tools/geo_count.gd` at the hills bookmark (its own frame, 90 frames in): 5,667,443 -> 5,690,211
+triangles (+0.4 %), 4,129 draws both.
+GPU (Forward+ under lavapipe, hill_ground_shot.gd `PROFILE=4`, a ground view the shells fill
+most of, measured before the shells took the painted texture tone - two fetches a visible pixel
+more in the colour pass): frame 4,085 -> 4,198 ms (+2.8 %): the depth pre-pass +46 %, the opaque
+pass -24 % (the shells hide the far heavier terrain shader behind them). Read the shares, not the
+milliseconds.
+
+Build steps (`tools/hill_step_bench/`, headless, 36 hill chunks of the front range, this contended
+box): `_mark_shell_ground` 0.40 ms mean (worst 0.76), `_build_hill_shells` 0.34 ms (0.30 worst
+after the first chunk, which loads the shader: 6.2 ms), `_scatter_hills` 57 ms -> 3.6 ms a call.
+Pre-existing and untouched: `_build_terrain` ~5 ms mean (9 worst), `_build_mansions`' first
+call ~400 ms (loads the Building scene).
+
+Tools: `tools/glshot/hill_ground_shot.tscn` builds the real hill chunks round an EYE with the city's
+WorldEnvironment and sun, a minute a shot instead of eight (`AB=1` saves each frame again without
+the shells, `DEBUG_SEQ=1,3`, `SHELL_DEBUG`, `PROFILE=n` under `--gpu-profile`); its sky and
+exposure are not DayNight's, so judge colour in the city. Screens (agent scratch `screens/`):
+`hillground_{before,after,ab}_{ridge,slope,stands,grass,flank}.jpg`, `hillground_*_hills.jpg`. `tools/hill_step_bench/hill_step_bench.tscn` times every hill build
+step.
+
+Traps: a MultiMesh without `use_colors` hands the Compatibility shader a COLOR that is not the
+vertex colour (the keep-out read "never grow" and nothing drew); `return` is not allowed in
+`fragment()`. **The painted straw is not `straw_color`**: terrain.gdshader multiplies it by its
+grass texture's and aerial mottle's light and dark (`gl`), which average well over one, so shells
+coloured from `straw_color` came out at a third of the ground's brightness (sRGB 97 against 192 in
+the city) - it looked like a lighting bug and was chased through normals, shadows, the Compatibility
+renderer's additive shadow pass and every shader output before a probe mode (debug_mode 3: the
+kept fragments in the painted colour on the slope normal) matched the ground exactly once it had
+`gl`. The shells now sample the same two textures. Also: the harness first lit everything with
+the scene's own level sun (the streamer turns it in `_ready`), which grazes every up-facing
+surface; it now applies `sun_rotation_degrees`.
+
+Still open / needs the Mac (Forward+ with TAA at 60 fps is where this is meant to be judged):
+- The grass is calibrated to the painted straw on opengl3 (a little darker, as grass with depth
+  is); check `grass_gain` / `root_shadow` against a Mac screenshot. The dither grain should
+  resolve under TAA; if it shimmers, raise `blade_cell` or pull `fade_end` in.
+- The brush understory reads as dark textured cushions following the stand shapes; the 3D shrubs
+  (6.2 m grid) are still too sparse to make a continuous canopy at ground level, and more of them
+  cost 2,200 triangles each. A cheaper near shrub (or impostor) is the next lever.
+- The crowns fade out by ~120 m (720 rows, twice that at 1440p) because further out they read as
+  bubble wrap (a first fade at a 0.5 m footprint left them on every hill in view); past that the stands are the old smooth paint with a scalloped edge, and from
+  across a canyon they can still read as camouflage. The far answer is real geometry (a cheap
+  near-far shrub, roadmap #6) rather than more paint.
+
+## 9aj. The crowd up close, 2026-09-27 (agent branch `wt/crowd-detail`; roadmap #38)
+
+The ask, after 9ah: the next real gain is close-up quality - faces (skin detail and warmth, eyes
+that catch light, brows, stubble variety, less generic proportions) and garments (fabric detail,
+folds, jeans that are not all bright blue) - with performance flat.
+
+- **Faces.** `build_character.py` rolls MPFB's own face targets per person (`FACE_PAIRS`: nose,
+  jaw and chin, cheeks, eye size, lids and bags, mouth and lips, ears, brows, forehead;
+  `face_var` 0.35, 0.3 for most women; `face_seed`). The first roll (0.55, with eye spacing, head
+  height and brow angle in the pool) made caricatures and was cut back. Men carry **stubble or a
+  beard** painted into the atlas over a beard zone found on the head in the eyes' frame, scaled
+  by the eye-to-chin distance, with MPFB's `lips` group kept clear and used to find where the face
+  targets moved the mouth (`stubble`, `beard`, `beard_rgb`): stubble is a cool shadow over the
+  skin (the first version laid the beard's brown on and read as orange smudges); a beard is
+  opaque hair colour with soft strand shading (a sharp grain sparkled like frost). Eyes carry a
+  flag in the vertex colour (B + A full) and get a glossy cornea (`eye_roughness` 0.06, specular
+  0.55); the eye atlas scale went 0.5 -> 0.75. Skin: Forward+ subsurface scattering
+  (`skin_sss`, `sss_mode_skin`; the Compatibility renderer prints one warning per compile and
+  ignores it, as it already did for the hero), a softly warm `skin_backlight` (at 1.0/0.42/0.28 it
+  turned every face orange on the opengl3 path - measured by A/B, `MAT_PARAM=` on
+  crowd_lineup.gd), and the tiling pore tile of the detail texture. The skin relief from the
+  photo (a band-pass of its luminance turned into a normal) is on the head only and gentler
+  (`skin_normal_strength` 1.2 -> 0.5): on the body it was JPEG noise amplified into lumpy skin, and
+  at 1.2 the faces read pock-marked. **Brows** were a solid near-black bar on everyone: their
+  texels are a third as bright as the hair and only the dense core passes the cards' alpha cut.
+  `crowd_atlas.py` now shades each brow round the hair colour from its own mean (`BROW_DARKEN`
+  0.8: a redhead's brows are auburn, a grey head's grey) and lets the fringe through the cut
+  (`BROW_ALPHA_GAIN` 1.7) coloured toward the body's median skin (below `BROW_SOLID`), which is
+  the blend the card would have drawn, baked.
+- **Garments.** Folds from `tools/hero/folds.py` (the hero's fold field, reused as it is):
+  `build_character.py` dumps every garment triangle's atlas UVs, rest-pose corners and normals
+  plus the landmarks the field needs (bones, the top's hem, whether sleeves pass the elbow and
+  trousers the knee), `crowd_atlas.py` rasterises them at the normal atlas' size, evaluates the
+  field (elbow rings and cuff stacking, hem blousing, chest drape, knee and ankle folds, hip
+  creases, seat folds), adds the slopes to the garments' own normal maps and darkens the valleys
+  a little in the colour. `fold_gain` per garment (0.75 on the jersey tees). Trousers are dyed
+  per person, keeping the photo's fades as shading (`dye.bottom`, `dye_contrast`): dark indigo
+  (a, j), black (d), khaki (f), grey (h), charcoal (l); e and k keep the washed photo. The body
+  mesh carries **UV2 in metres** (per atlas rect: its UV times sqrt(surface area / UV area),
+  randomly offset), on which character.gdshader tiles `assets/textures/crowd/crowd_detail.png`
+  (`tools/crowd/make_detail.py`, procedural: skin, jersey knit, denim twill with slub streaks,
+  plain weave; RG normal, B roughness, A tone) with one `textureGrad` fetch. The fabric rides in
+  the region colour's level (R or G: 1.0 jersey, 0.85 denim, 0.70 woven; "keep" 0.45 lower in R),
+  with per-fabric roughness and rim sheen. Honest note: at 2-4 m the tiling detail is nearly
+  invisible (A/B at 1.1 m: `detail_strength=0` vs 1 differ by under a grey level); what reads at
+  street distance is the folds, the trouser colours and the fabric roughness / sheen.
+  **Skin through the shirt.** The covered skin the builder keeps (the ring inside every garment
+  edge, and the chest under a V-neck or an open collar) sat about 5 mm under the cloth, and a
+  walk's chest turn pushed a skin triangle out through the shirt front as a pale sliver on crowd_c
+  and crowd_j (the "button" noted in 9ah was this). `build_character.py` now tucks the skin under
+  the garments up to `cover_tuck` (6 mm; 14 mm on crowd_j's open-collar denim shirt) along its
+  normals, as a SMOOTH field (the covered flag averaged over four neighbour passes, so it ramps
+  in across the garment edge). The first version moved the covered vertices as a step, and it
+  cost: every neckline, cuff and hem became a 6 mm crease, the importer's generated LODs kept far
+  more triangles to hold it, and the downtown pedestrians went 355,311 -> 519,163 triangles
+  (+46 %; frame 6.83 -> 7.00 M) with the base meshes the same size. Smoothed: 355,294.
+  crowd_c's sliver is gone; crowd_j keeps a smaller one (72 bright pixels at 1.5 m against 173
+  untucked): that skin is visible through his open collar in the rest pose, so it is not
+  covered and cannot be tucked without denting the collar. A known flaw.
+- **Cost.** Geometry and draws flat. `tools/geo_count.gd` at the downtown bookmark (800x600):
+  4,934,170 -> 4,934,065 triangles, 5,333 draws and 21,546 objects both. `still_shot.gd SPLIT=1`
+  downtown_noon: pedestrians 354,583 (78,318 shadow) -> 355,294 (78,386) triangles, 343 draws
+  both; frame 6,831,626 -> 6,832,349. The four street views on Flower (eye level, 1280x720):
+  4.891 / 5.920 / 6.809 / 6.205 M -> 4.897 / 5.920 / 6.816 / 6.205 M, draws identical. Textures:
+  +1.4 MB (the 1024 px detail texture, VRAM-compressed), -2 MB (the two crops without a hair mesh
+  get a 512 px hair atlas); body atlases unchanged in size. Loading (`people_load_bench.gd`, the
+  people's share of the loading screen): rigs 12 in 917-975 ms either side; camp figures 60 swing 568-853 ms run to run on this loaded box, so the totals (before 1,602 and 1,606 ms, after 1,485, 1,685 and 1,804 ms) show no change beyond that noise. Smoke test 506 checks.
+- **Judged** (opengl3 lineups at 1.6-3 m and the street; `tools/glshot/crowd_lineup.gd`, which now
+  takes `LIGHT=street` and `MAT_PARAM=` A/Bs). What reads at 2-4 m: the beards and stubble, the
+  brows, the dark / khaki / grey trousers, the folds at elbows, knees, ankles and cuffs, and the
+  per-fabric roughness and sheen; the faces differ from each other more. What does not: the
+  tiling pores and weave (under a grey level at 1.1 m in the A/B - the atlas' own photo detail is
+  what is visible), and the faces are still MakeHuman-grade (soft painted skin, generic
+  expressions, thin hair cards) - better, not PS5. Forward+ subsurface and the wet eyes are
+  unverified here (Compatibility ignores SSS): NEEDS MAC CHECK.
+- **How to rebuild.** `tools/crowd/build.sh [names]` as before (all twelve ~25 min on a loaded
+  box); `FROM=crowd_atlas tools/crowd/build.sh` redoes only the atlases and the export (~15 min
+  for twelve) after a change to crowd_atlas.py or the config's look keys; `python3
+  tools/crowd/make_detail.py` rewrites the detail texture (then import, and keep its `.import`
+  at `compress/normal_map=2` - it is not a two-channel normal map). The shared build dir can be
+  pointed elsewhere with `HERO_BUILD`.
+- **Traps.** (1) Removing Blender attributes from a list of references removes the wrong ones
+  after the first (the list goes stale): look each up by name. (2) A full disk mid-build
+  (other agents' renders share it) killed a background render job silently; the glbs and atlases
+  were checked afterwards (header length vs file size, every image decodes). (3) The atlas plan
+  (`WORK/<name>/atlas.json`) is written by the Blender step; until `_LOOK` the atlas step read
+  the look keys only from there, so config changes between Blender runs silently did nothing
+  (two rounds of `skin_normal_strength` tuning and a softer grey for crowd_g never landed; the lumpy skin went away only when
+  the relief left the body). (4) A step in a crowd body's surface is a triangle cost you cannot
+  see in the base mesh: the glb had the same triangle count, the importer's LODs did not (the
+  tuck above). Measure `SPLIT=1`'s Pedestrian line after any reshaping. (5) One headless check
+  crashed (signal 11 in the street-life checks, "caller thread can't call propagate_notification"
+  on /root) on a tree that passed when re-run unchanged (and again after the final rebuild):
+  an engine flake under load, not the crowd.
+- **Next.** (1) Our own garments (the hero's tracksuit route: modelled, UV'd, analytic folds)
+  for the three or four most common outfits - the MakeHuman clothes' soft photographed textures
+  are now the weakest part up close. (2) Painted brows and lip colour into the skin atlas instead
+  of cards (needs the brow cards projected onto the head's UVs in the Blender step). (3) A
+  shared face-detail normal (nasolabial folds, eyelid creases, age lines by the character's age)
+  on the head rect, which the photo band-pass cannot give without its noise. (4) Check the
+  Forward+ SSS and the eye clearcoat on the Mac; if the skin reads waxy, `CROWD_SKIN_SSS` 0.35 is
+  the knob.
+
+## 9al. Motion blur and depth of field, 2026-09-27 (agent branch `wt/post-fx`; roadmap #12)
+
+The brief: restrained per-pixel motion blur and depth of field while aiming and in the weapon
+wheel, Forward+ only. Both live in `CameraPost` (`scripts/player/camera_post.gd`), the new
+`Post` node under the player's CameraRig in `player.tscn`, so the city and the test room get it;
+CLAUDE.md's "Motion blur and depth of field" note is the reference.
+
+### What it does
+
+- **Motion blur**: `MotionBlurEffect` (`scripts/util/motion_blur_effect.gd`), a CompositorEffect
+  on the player camera's `compositor`, six compute kernels in `shaders/motion_blur.glsl` (one
+  RDShaderFile, `#[versions]`): prepare (velocity -> blur radius in pixels, linear depth), tile
+  max in x then y (tile = the longest radius), neighbour max (3 x 3, diagonals only when they
+  point in), gather (McGuire 2012 with Guertin 2014's taps alternating between the
+  neighbourhood's velocity and the pixel's own, interleaved-gradient jitter stepped per frame for
+  TAA) into a result image, and resolve (the result back into the frame only where a tile
+  blurred - the first version copied the whole frame every frame, a third of its idle cost). POST_TRANSPARENT is the last callback Godot has, so it runs on the HDR frame at the
+  internal resolution before TAA / FSR 2.2 and the tonemapper - the right order: TAA averages the
+  jitter, and a streaked highlight goes through AgX as light.
+- **Frame-rate independent**: length = one frame's displacement x `shutter / reference_fps /
+  frame_seconds`, frame_seconds the UNSCALED process delta (so the wheel's 0.25 time scale gives a
+  quarter of the blur, as a high-speed camera would). Lengths are in pixels of a 1080-line frame,
+  scaled to the internal resolution, so every quality level and the Mac's FSR-upscaled HIGH blur
+  alike. `velocity_threshold_px` (3) is subtracted first as a soft knee: walking stays sharp.
+- **Depth of field**: Godot's far blur on the camera's CameraAttributesPractical, three states
+  blended on the real clock - ambient (the old CameraRig focus, moved over unchanged: 260 m +
+  14 m per metre of altitude, amount 0.04, HIGH only), aim (hold alt_fire: blur from 35 % past
+  the locked target or the crosshair hit, at least 4 m, amount 0.06; HIGH and MEDIUM) and the
+  weapon wheel (from 8 m, amount 0.16; HIGH and MEDIUM). Compatibility has no depth of field.
+- **Quality** hands `CameraPost.apply_quality(level)` the level instead of setting the DOF flag
+  itself: motion blur and the aim / wheel blur on at HIGH and MEDIUM, off at LOW and LOWEST.
+
+### Traps (each cost time here)
+
+1. **FSR 2.2 leaves most of the velocity buffer empty.** With `SCALING_3D_MODE_FSR2` the engine
+   renders motion vectors only for MOVING objects and clears everything else to (-1, -1) - FSR
+   derives the camera's motion itself. The pixel budget turns FSR on at HIGH on a Retina Mac, so
+   that is the Mac's normal path. The sky writes no velocity in either mode. Both are rebuilt in
+   the prepare kernel from depth and the camera's reprojection, which the effect keeps itself
+   (last frame's `get_cam_transform()` / `get_cam_projection()`).
+2. **`get_cam_projection()` is the corrected projection**: y flipped, reverse-Z remapped to 0..1,
+   and the TAA jitter in its z column (zeroed before use, or a still camera reprojects to a
+   sub-pixel wobble). Its z row gives linear depth directly: `d = b / L - a`.
+3. **A shot tool must capture the frame drawn from the last move.** `await process_frame` after
+   the last move, then `frame_post_draw`, captures a frame drawn after the camera stopped: zero
+   velocity, and the effect looks like it does nothing (it cost two rounds of renders). And the
+   engine compiles its motion-vector pipelines in the background and draws NO velocity until
+   they are ready, so warm up (the tools do 30 frames).
+4. An origin re-centre or a respawn moves the camera a kilometre in a frame; every moving
+   object's velocity is garbage in that frame too, so the whole frame is skipped (`effect.cut`,
+   set by CameraPost when `WorldState.world_offset` changes, and `max_camera_jump`).
+
+### How it was verified (Forward+ under lavapipe; the city does not fit, so small scenes)
+
+- `tools/glshot/motion_blur_shot.gd`: a code-built street (checker road, rows of columns, blocks,
+  sky, a capsule "player" with a gun riding with the camera). Before/after at 45 m/s, 1/60 s
+  frames, mean |RGB diff| out of 765: forward flight 15.5 (no AA), 12.2 (TAA), 15.2 (FSR 2.2 at
+  0.6); a 5 rad/s camera orbit 13.2 (TAA); nothing moving 0.00 (the effect leaves a still frame
+  bit-identical). The near ground and columns streak radially, the far street, the player and
+  the gun stay sharp, the capsule does not smear onto the road behind it. `DEBUG=1` shows the
+  radial field on the TAA path and a uniform sideways field (sky included) on the FSR path - the
+  camera part rebuilt from depth where the engine wrote (-1, -1). A car-sized box crossing at
+  45 m/s 20 m away gets its ~3 px of edge blur (small by design: half a frame's travel, less
+  the threshold).
+- `tools/glshot/post_room_shot.gd`: the test room with the real player, camera rig, CameraPost
+  and HUD (effect built and drawing, 38/38 frames): a 280 deg/s whip blurs the world and not the
+  hero; aim starts the far blur at 36 m with the crosshair's hit at 27 m; the wheel blurs from 8 m under its
+  glass. The same script under `--rendering-driver opengl3`: no effect built, DOF fields set,
+  no errors. Headless (smoke test): no compositor, the effect constructs disabled, the DOF moves
+  between its states and Quality turns it off.
+- Screenshots: `postfx_street_*`, `postfx_room_*`, `postfx_debug_*`, `postfx_moving_box_crop`.
+
+### Cost
+
+`--gpu-profile` on the street at 1920x1080 under lavapipe (read the ratios, not the ms - the box
+was shared, and the same frame's TAA pass measured 97 to 152 ms between runs). The effect is the
+"Process Post Transparent Compositor Effects" segment, against Godot's own TAA pass in the same
+frame:
+
+| Case | effect / TAA |
+|---|---|
+| Forward flight, nearly every pixel blurred, 12 taps | 110 / 97-107 ms, then 158 / 152 ms (1.0-1.1x) |
+| The same, 8 taps | 106 / 115 ms (0.9x) |
+| Nothing moving, first version (full-frame copy) | 35 / 103 ms (0.34x) |
+| Nothing moving, with the resolve pass | 38 / 147 ms (0.26x) |
+
+So at worst it costs what TAA costs, and on a still frame a quarter of that; TAA at that size is
+a fraction of a millisecond on a real GPU. The resolve version renders bit-identical frames to
+the copying one. Knobs that cut it further: `samples` (8 is fine under TAA) and
+`velocity_threshold_px` (more tiles take the early out).
+
+### Knobs (CameraPost exports)
+
+Motion blur: `motion_blur_enabled`, `motion_blur_strength` (1), `shutter` (0.5 = 180 degrees),
+`reference_fps` (60), `max_blur_px` (40, 1080-line pixels), `velocity_threshold_px` (3),
+`samples` (12), `depth_tolerance` (0.06 of the distance), `max_camera_jump` (30 m). DOF:
+`dof_ground_distance` / `dof_altitude_gain` / `dof_lerp_speed` / `dof_amount` (ambient),
+`aim_dof_*` (enabled, amount 0.06, margin 0.35 / 4 m, transition 1.0 / 10 m, no-hit focus 150 m,
+focus speed 8), `wheel_dof_*` (enabled, 8 m, 14 m, 0.16), `aim_ease_seconds` 0.25,
+`wheel_ease_seconds` 0.15. Debug: `fixed_frame_seconds`. Switch: `-- --motionblur=0|1|<scale>`.
+
+### Not done / next
+
+- Look at it on the Mac (Forward+, FSR at HIGH): a boost down a street, a fast flight low over
+  the city, a car at speed, a mouse flick, then aim and the wheel. If it reads too strong, lower
+  `motion_blur_strength` or `shutter`; too weak at speed, lower `velocity_threshold_px`. The
+  explosion camera shake is blurred too (it is camera motion); if that reads as smear rather
+  than concussion, cap the shake's share (not done).
+- Physics interpolation is off and the player moves on physics ticks: on a machine rendering
+  faster than 60 Hz uncapped (Quality caps desktop at 60) frames with no tick would carry no
+  blur. Not an issue at the cap.
+- Transparent things (particles, glass) write no velocity: they take the blur of what is behind
+  them. The web and the opengl3 stills show none of this.
+
+## 9an. Car damage, 2026-09-27 (agent branch `wt/car-damage`; roadmap #10)
 
 Before this a car took no damage at all: rounds and rockets only knocked it out of the traffic.
 Now every car (traffic, parked, police, the one you drive) has a damage model; the flyable jets

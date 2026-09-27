@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, sss_mode_skin;
 
 // Shared material for the rigged characters (pedestrians, ragdolls, the player's avatar).
 //
@@ -164,6 +164,32 @@ uniform float bottom_mean = 0.5;
 uniform float hair_mean = 0.2;
 // Roughness of what is none of the four (shoes, eyes, a hat's band).
 uniform float other_roughness = 0.55;
+// On the crowd rigs the region level also says what a garment is made of (R for the top, G for
+// the bottom): 1.0 jersey, 0.85 denim, 0.70 woven; a garment the looks must leave alone ("keep")
+// sits 0.45 lower in R. Eyes are B and A both full. tools/crowd/build_character.py writes it.
+// Tiling surface detail on those rigs (tools/crowd/make_detail.py: skin pores, jersey knit, denim
+// twill and slubs, a plain weave), sampled on UV2 - metric coordinates, 1 unit = 1 m of surface -
+// so a thread is the same size on every part. RG normal, B roughness offset, A albedo multiplier;
+// 0.5 is neutral in each. detail_strength 0 (the older rigs) skips it.
+uniform sampler2D detail_tex : filter_linear_mipmap_anisotropic, repeat_enable;
+uniform float detail_strength = 0.0;
+// How hard the detail's slopes add to the rig's own normal map, and how much of its tone and
+// roughness it gives.
+uniform float detail_normal = 0.6;
+uniform float detail_tone = 1.4;
+uniform float detail_rough = 1.0;
+// Metres a tile of skin, jersey, denim and woven covers.
+const vec4 DETAIL_METRES = vec4(0.05, 0.06, 0.08, 0.05);
+// Roughness each fabric adds to cloth_roughness (jersey, denim, woven), and its sheen: a knit's
+// fuzz and a wool's nap throw a rim of light at grazing angles; that rim is most of why cloth
+// does not read as vinyl.
+const vec3 FABRIC_ROUGH = vec3(0.04, -0.05, -0.1);
+const vec3 FABRIC_SHEEN = vec3(0.16, 0.06, 0.1);
+// Forward+ subsurface scattering on the skin (the Compatibility renderer ignores it and keeps
+// the warm BACKLIGHT below), and the wet eye: a glossy cornea is what makes an eye catch light.
+uniform float skin_sss = 0.0;
+uniform vec3 skin_backlight : source_color = vec3(1.0, 0.7, 0.58);
+uniform float eye_roughness = 0.06;
 
 // Height up the body, 0 at the soles and 1 at the crown.
 varying float v_height;
@@ -266,14 +292,21 @@ void fragment() {
 	float is_hair;
 	float lower;
 	float is_other = 0.0;
+	float eye = 0.0;
+	float keep = 0.0;
+	float fabric = 0.0;
 	if (region_mask > 0.5) {
-		// Exact, from the vertex colour (see region_mask).
-		is_skin = COLOR.a;
-		is_cloth = clamp(COLOR.r + COLOR.g, 0.0, 1.0);
-		is_hair = COLOR.b;
+		// Exact, from the vertex colour (see region_mask): the level of R or G is the fabric.
+		float c = COLOR.r + COLOR.g;
+		eye = clamp(COLOR.b + COLOR.a - 1.0, 0.0, 1.0);
+		is_skin = COLOR.a * (1.0 - eye);
+		is_hair = COLOR.b * (1.0 - eye);
+		is_cloth = smoothstep(0.12, 0.2, c);
+		keep = is_cloth * (1.0 - step(0.625, c));
+		fabric = clamp(floor((1.0 - (c + keep * 0.45)) / 0.15 + 0.5), 0.0, 2.0);
 		head = 0.0;
-		lower = COLOR.g / max(COLOR.r + COLOR.g, 1e-4);
-		is_other = clamp(1.0 - COLOR.r - COLOR.g - COLOR.b - COLOR.a, 0.0, 1.0);
+		lower = COLOR.g / max(c, 1e-4);
+		is_other = clamp(1.0 - is_cloth - is_skin - is_hair - eye, 0.0, 1.0);
 	} else {
 		float hue_dist = abs(fract(hsv.x - skin_hue + 0.5) - 0.5);
 		float warm = 1.0 - smoothstep(cloth_guard, cloth_guard * 2.0, hue_dist);
@@ -323,7 +356,7 @@ void fragment() {
 	}
 	// The head is excluded: without this the hair takes the shirt colour, and everybody in the
 	// city walks around with hair that matches what they are wearing.
-	float garment_mix = is_cloth * mix(cloth_strength, pants_strength, lower) * (1.0 - head);
+	float garment_mix = is_cloth * mix(cloth_strength, pants_strength, lower) * (1.0 - head) * (1.0 - keep);
 	if (piping > 0.0) {
 		// The shoes are not part of the tracksuit.
 		garment_mix *= 1.0 - smoothstep(0.55, 0.85, v_bind.z);
@@ -348,6 +381,20 @@ void fragment() {
 		stripe *= smoothstep(0.55, 0.85, v_pipe.y) * smoothstep(0.3, 0.6, v_pipe.z) * (1.0 - is_skin) * (1.0 - head) * piping;
 		albedo = mix(albedo, piping_color * clamp(0.62 + 0.55 * gz, 0.6, 1.05), stripe);
 	}
+	// The tiling detail: skin on the skin (and the painted scalp), the garment's fabric on cloth,
+	// nothing on eyes and shoes. One fetch: the tile is picked per pixel, and the gradients come
+	// from the unwrapped coordinates so a tile's edge never drops a mip level.
+	vec4 det = vec4(0.5);
+	if (detail_strength > 0.0) {
+		float on_skin = step(0.5, is_skin + is_hair);
+		float tile = on_skin > 0.5 ? 0.0 : fabric + 1.0;
+		float metres = tile < 0.5 ? DETAIL_METRES.x : (tile < 1.5 ? DETAIL_METRES.y : (tile < 2.5 ? DETAIL_METRES.z : DETAIL_METRES.w));
+		vec2 duv = UV2 / metres;
+		vec2 origin = vec2(mod(tile, 2.0), floor(tile * 0.5)) * 0.5;
+		det = textureGrad(detail_tex, origin + fract(duv) * 0.5, dFdx(duv) * 0.5, dFdy(duv) * 0.5);
+		det = mix(vec4(0.5), det, max(on_skin, step(0.5, is_cloth)) * detail_strength);
+		albedo *= 1.0 + (det.a - 0.5) * detail_tone;
+	}
 	ALBEDO = albedo * mix(vec3(1.0), skin_tint, is_skin);
 	float grimed = 0.0;
 	if (grime > 0.0) {
@@ -371,6 +418,11 @@ void fragment() {
 
 	ROUGHNESS = mix(mix(cloth_roughness, skin_roughness, is_skin), hair_roughness, is_hair * hair_strength);
 	ROUGHNESS = mix(ROUGHNESS, other_roughness, is_other);
+	if (region_mask > 0.5) {
+		ROUGHNESS += is_cloth * (fabric < 0.5 ? FABRIC_ROUGH.x : (fabric < 1.5 ? FABRIC_ROUGH.y : FABRIC_ROUGH.z));
+		ROUGHNESS = clamp(ROUGHNESS + (det.b - 0.5) * detail_rough, 0.05, 1.0);
+		ROUGHNESS = mix(ROUGHNESS, eye_roughness, eye);
+	}
 	ROUGHNESS = min(ROUGHNESS + grimed * 0.08, 1.0);
 	// Soaked cloth is wet, and wet is glossy.
 	ROUGHNESS = mix(ROUGHNESS, 0.24, soak);
@@ -383,17 +435,27 @@ void fragment() {
 	SPECULAR = mix(0.50, 0.42, is_skin);
 	// Velour's pile scatters rather than mirrors; its shine is the rim below, not a hot spot.
 	SPECULAR = mix(SPECULAR, 0.28, clamp(velour * 2.0, 0.0, 1.0) * garment_mix);
+	SPECULAR = mix(SPECULAR, 0.55, eye);
 	// The baked relief. normal_strength is 0 for any rig with no map, and at 0 Godot blends
 	// straight back to the geometric normal, so an unbound sampler here is harmless rather
 	// than a white wall of noise. Declaring these two uniforms without ever sampling them -
 	// which is how this landed the first time - renders exactly the flat mannequin it was
 	// meant to fix, and looks from the outside like the feature is in.
 	NORMAL_MAP = texture(normal_tex, UV).rgb;
+	if (detail_strength > 0.0) {
+		// Slopes added (Godot rebuilds z from xy): the rig's folds and relief, then the weave.
+		vec2 nxy = NORMAL_MAP.xy * 2.0 - 1.0 + (det.rg * 2.0 - 1.0) * detail_normal;
+		NORMAL_MAP = vec3(nxy * 0.5 + 0.5, 1.0);
+	}
 	NORMAL_MAP_DEPTH = normal_strength;
 	// Thin extremities catch light from behind the way real skin does.
-	BACKLIGHT = vec3(skin_subsurface * is_skin * 0.5);
+	BACKLIGHT = (region_mask > 0.5 ? skin_backlight : vec3(1.0)) * skin_subsurface * is_skin * 0.5;
+	SSS_STRENGTH = skin_sss * is_skin;
 	// Velour pile: Godot's rim lobe is exactly the brighter-at-grazing sheen, tinted mostly by
 	// the fabric's own colour.
 	RIM = velour * garment_mix;
+	if (region_mask > 0.5) {
+		RIM = max(RIM, is_cloth * (fabric < 0.5 ? FABRIC_SHEEN.x : (fabric < 1.5 ? FABRIC_SHEEN.y : FABRIC_SHEEN.z)));
+	}
 	RIM_TINT = 0.6;
 }

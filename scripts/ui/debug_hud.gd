@@ -97,6 +97,9 @@ func _process(_delta: float) -> void:
 		stats.text += "   quality %s" % quality.level_name()
 		if quality.render_pixels.x > 0:
 			stats.text += " (3D %dx%d)" % [quality.render_pixels.x, quality.render_pixels.y]
+		var post := get_tree().get_first_node_in_group("camera_post")
+		if post and post.has_method("motion_blur_active") and post.motion_blur_active():
+			stats.text += " +mblur"
 	# Where the frame time goes (ms): script + engine on the CPU, physics, GPU render, and how
 	# much the renderer draws. Screenshot this line when reporting lag.
 	var cpu_ms := Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0

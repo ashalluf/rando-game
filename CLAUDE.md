@@ -370,6 +370,37 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   grows with the square of the radius (`lens_fringe`), and a luminance film grain re-rolled at
   24 fps (`film_grain`). Every lens and film stock does these; keep each subtle enough that you
   cannot point at it (0 turns any of them off).
+- Motion blur and depth of field (VISUAL_ROADMAP #12, 2026-09-27): both belong to `CameraPost`
+  (`scripts/player/camera_post.gd`), the `Post` node under the player's CameraRig (so the test
+  room has it too); every knob is an export there. **Motion blur** is `MotionBlurEffect`
+  (`scripts/util/motion_blur_effect.gd` + `shaders/motion_blur.glsl`, an RDShaderFile whose six
+  `#[versions]` are the kernels: prepare, tile max x / y, neighbour max, gather, resolve -
+  McGuire 2012 with Guertin 2014's alternate taps; gather writes a result image and resolve
+  copies it back only where a tile blurred, so a still frame copies nothing), a CompositorEffect on the player camera's `compositor`,
+  built only where `CameraPost.supported()` (Forward+ with a RenderingDevice) - never on
+  Compatibility, the web, the opengl3 stills or headless. It runs at POST_TRANSPARENT: HDR, the
+  internal resolution, BEFORE TAA / FSR 2.2 (the last callback Godot has; TAA cleans its noise
+  and the tonemapper sees a streaked highlight). Frame-rate independent: the velocity is one
+  frame's displacement, times `shutter / reference_fps / frame_seconds`, where frame_seconds is
+  the UNSCALED process delta (the wheel's slow motion blurs less, like a high-speed camera);
+  lengths are in 1080-line pixels scaled to the internal resolution; `velocity_threshold_px` is
+  a soft knee (walking stays sharp), `max_blur_px` the cap. Traps: with FSR 2.2 - which the
+  pixel budget turns on at HIGH on a Retina Mac - the engine writes velocity only for MOVING
+  objects and clears the rest to (-1, -1), and the sky writes none in either mode; both are
+  rebuilt in the shader from depth and the camera's reprojection. `RenderSceneDataRD
+  .get_cam_projection()` is already corrected (y flipped, reverse-Z in 0..1, the TAA jitter in
+  its z column, which is zeroed), and its z row gives linear depth (`b / (depth + a)`). A camera
+  that jumps over `max_camera_jump` or an origin re-centre (`effect.cut`) skips that frame, or
+  the whole picture smears once. Quality: on at HIGH and MEDIUM. `-- --motionblur=0|1|<scale>`;
+  `still_shot.gd` / `city_shot.gd` turn it off (`Engine.set_meta("postfx_motion_blur", 0)`)
+  unless `MOTION_BLUR=1`; the HUD's FULL line says `+mblur` while it runs. Prove a change with
+  `tools/glshot/motion_blur_shot.gd` (a small street through lavapipe Forward+; `DEBUG=1` paints
+  the vectors, `AA=fsr` the FSR path). **Depth of field** is Godot's far blur on the camera's
+  CameraAttributesPractical (only the dof_* fields; the auto exposure shares the resource), three
+  states eased on the REAL clock: ambient (the old CameraRig focus that opens with altitude,
+  HIGH only), aim (`LockOn.aiming`: blur from `focus + max(aim_dof_margin_min, focus *
+  aim_dof_margin)`, focus = the locked target or the crosshair hit, HIGH and MEDIUM) and the
+  weapon wheel (from `wheel_dof_distance`, amount `wheel_dof_amount`). Compatibility has no DOF.
 - HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair, the round minimap and
   the wanted stars and health bar (`WantedHud`, see the Police note).
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
@@ -1190,6 +1221,46 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   mounds on the stands, taller dark oaks in the hollows, colours lifted from the
   terrain's `chaparral_color` (`HILL_BRUSH_COLOR`). Past that, `macro_ground.gdshader` biases its scrub to
   the north faces (`north_scrub`) the way the near ground does.
+  **The near hill ground grows out of the paint (hill shells).** The splat's maths lives in
+  `shaders/hill_splat.gdshaderinc` (uniforms, noise, `hill_stand_threshold()`, `hill_brush()`,
+  `hill_bare()`, `hill_rocky()`, `hill_crowns()`), included by `terrain.gdshader` AND by
+  `shaders/hill_shells.gdshader`; the smoke test reads the include for `HillPlanting.MIRRORED` /
+  `MIRRORED_CONSTS`. Every FULL hill chunk draws its terrain mesh again as `HillShells.LAYERS`
+  (16) thin lifted layers (`HillShells`, `scripts/world/hill_shells.gd`): a MultiMesh of that
+  one mesh with identity instances whose `INSTANCE_CUSTOM.r` is the layer's height, so it costs
+  one draw, no memory and ~0.3 ms to build (`CityChunk._build_hill_shells`). The vertex shader
+  lifts each layer (grass span 0.55 m, the brush understory 0.42 m where a stand is likely), the
+  fragment shader keeps a fragment only where a blade (a 2 x 5 cm cell in the frame of a slow
+  lean field, tapering, bent over with height and swayed by the wind, a thatch mat at the
+  roots) or the brush understory (the painted shrub crowns grown into low mounds of 3 cm leaves;
+  the lone sage dots into paler round bushes) reaches that high, and nothing on rock, cuts,
+  trails, roads, pads or landmarks: `_mark_shell_ground` (a build step before the mesh)
+  writes a signed keep-out distance into the terrain's COLOR.b (0.5 at the edge; the terrain
+  shader ignores it). Layers are stored bit-reversed so any power-of-two prefix is spread evenly
+  up the canopy, and `visible_instance_count` is the LOD (`HillShells.LAYER_REACH`: 16 within
+  40 m of the tile, 8 to 65, 4 to 90, none past; the shader thins them from `fade_start` 35 m to
+  `fade_end` 75 m). Blades and leaves under a pixel only alias (moire, sequins), so past that a
+  layer is kept by its average cover, dithered per pixel, coloured by the layer's height (TAA
+  resolves it; compat stills show it as grain). The understory stays low on purpose: a metre of
+  shells seen from the side is a stack of slices and read as velvet pillows; the 3D shrubs are
+  the canopy. No shadow, no GI. Off on the web and below MEDIUM (`CityChunk.shells_enabled`,
+  set by `Quality`, which also hides the built ones - group `hill_shells`). **Trap:** a MultiMesh
+  without `use_colors` hands the Compatibility renderer's shader a COLOR that is not the vertex
+  colour; the shells set white instance colours or their keep-out reads as "never grow". And
+  the painted straw is `straw_color` times the terrain's grass texture and mottle (`gl`), not
+  `straw_color`: the shells sample the same two textures (copies of their tile sizes and mean
+  lumas sit in hill_shells.gdshader; keep them equal), or they draw a third as bright. The
+  painted stands carry **shrub crowns** (`hill_crowns()`: a dome per jittered 2.6 m cell,
+  0.64-1.24 cells across, 0.55-1 tall, never reaching past the four cells searched): the stand
+  edge runs round them (`crown_edge`) and inside a stand they are lit as domes with shade
+  between them (`crown_relief`), faded out from a pixel footprint of 0.06 to 0.2 m (gone by ~120 m
+  at 720 rows: resolved across a canyon they read as bubble wrap), off with `ground_detail`; `HillPlanting.crown()` is the same
+  field (`CROWN_MEAN` is its measured mean, which the edge push is centred on). The lone sage
+  dots are painted `sage_color` (grey-green, paler), not chaparral: they read as polka dots.
+  `_scatter_hills` reads heights off the tile grid and runs `SCATTER_PER_STEP` tries a step
+  (it asked `height_at()` ~1,000 times in one step: a 60 ms hitch per hill chunk). Judge any of it fast with `tools/glshot/hill_ground_shot.tscn` (the real hill chunks
+  round an EYE, lit by the city's environment, a minute a shot; `SHELL_DEBUG`, `NOSHELLS`,
+  `PROFILE` under Forward+) and time the steps with `tools/hill_step_bench/hill_step_bench.tscn`.
 - Lawns: `PropFactory.lawn()` + `shaders/lawn.gdshader`, not a plain tiled texture - a 5 m tile
   mips down to one flat green rectangle from thirty metres up, and the grass-blade multimesh only
   reaches a few dozen metres. Dry/watered patches, mower stripes angled per lawn, worn dirt, and
@@ -1651,8 +1722,45 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   is the hair out there), under a beanie or a police cap too; `plain_hair()` puts the
   photographed colour back for a uniform or a rough sleeper (dulled, `WORN_HAIR`). Judge rigs
   with `tools/glshot/crowd_lineup.gd` (several side by side, `SHOTS=` for several views from one
-  load, `BODY=mid|far`) as well as `character_shot.gd`. Adding a person: a row in
-  crowd_config.json, `build.sh <name>`, add it to `MODELS`.
+  load, `BODY=mid|far`, `LIGHT=street` for AgX and a tarmac ground) as well as
+  `character_shot.gd`. Adding a person: a row in crowd_config.json, `build.sh <name>`, add it to
+  `MODELS`; `FROM=crowd_atlas build.sh` redoes only the atlases and the export.
+  **Close-up detail** (owner, 2026-09-27: faces and garments at 2-4 m): faces are not the
+  average MakeHuman head - `build_character.py` rolls MPFB's own face targets (nose, jaw, chin,
+  cheeks, eyes, mouth, ears, brows, forehead; `FACE_PAIRS`, `face_var`, `face_seed`, explicit
+  "targets" win); men get **stubble or a beard** painted into the atlas over a beard zone worked
+  out on the head round the eyes (`stubble`, `beard`, `beard_rgb`; stubble is a cool shadow, not
+  the beard colour laid on - brown paint read as orange smudges); trousers are **dyed** per
+  person (`dye` / `dye_contrast`: dark indigo, black, grey, charcoal, khaki, or the washed
+  photo); **garment folds** are `tools/hero/folds.py`'s field (elbow and cuff stacking, hem
+  blousing, knee and ankle folds, hip creases) evaluated on every garment texel from the
+  triangles and landmarks `build_character.py` dumps (`folds.npz`, `fold_landmarks.json`), added
+  to the garments' own normal maps and darkening their valleys (`fold_gain` per garment). The
+  body mesh carries **UV2 in metres** (1 unit = 1 m of surface, per atlas rect), on which
+  character.gdshader tiles `assets/textures/crowd/crowd_detail.png` (`tools/crowd/make_detail.py`:
+  skin pores and mottle, jersey knit and heather, denim twill and slub streaks, a plain weave;
+  RG normal, B roughness, A tone; `detail_strength`, `detail_normal`, `detail_tone`,
+  `detail_rough`) with one fetch. What a garment is made of rides in its region level: R or G
+  at 1.0 jersey, 0.85 denim, 0.70 woven, a "keep" garment 0.45 lower in R (build_character's
+  `FABRIC_DEFAULT`, "fabric" per garment in the config), each fabric with its own roughness and
+  rim sheen (`FABRIC_ROUGH` / `FABRIC_SHEEN`); eyes are B + A both full and get a wet, glossy
+  cornea (`eye_roughness`). Skin gets Forward+ subsurface scattering (`skin_sss`,
+  `Pedestrian.CROWD_SKIN_SSS`; `sss_mode_skin`, the Compatibility renderer ignores it) and a warm
+  `skin_backlight`. A crop without a hair mesh gets a 512 px hair atlas (brows and lashes).
+  The photo's skin relief is on the head only (on the body it was JPEG noise turned into lumpy
+  skin). Brows are shaded round the hair colour from their own mean and their fringe is let
+  through the cut coloured toward the skin (`BROW_*` in crowd_atlas.py): cut as they came, every
+  brow was a solid near-black bar. crowd_atlas.py re-reads the config's look keys (`_LOOK`), so
+  `FROM=crowd_atlas tools/crowd/build.sh` is enough after a change to them - before, the atlas
+  plan's copy from the last Blender run won and a tuned `skin_normal_strength` never landed.
+  The covered skin that is kept (the ring inside each garment edge, the chest under a V-neck or
+  an open collar) is tucked up to `cover_tuck` (6 mm; 14 mm on crowd_j) in along its normal by
+  `build_character.py`: at 5 mm under the shirt, a walk's chest turn pushed skin triangles out
+  as pale slivers. **The tuck is a smooth field** (the covered flag averaged over
+  `cover_tuck_smooth` neighbour passes): moved as a step it made every neckline, cuff and hem a
+  crease, the importer's LODs held far more triangles for it and the downtown crowd drew 46 %
+  more (355k -> 519k); smoothed it measures flat. Anything else that reshapes a crowd body must
+  stay smooth for the same reason - measure the pedestrians' `SPLIT=1` line after it.
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
@@ -1916,7 +2024,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   it reads TRUE world XZ (`world_offset`, pushed by `CityStreamer`) so nothing jumps on a
   re-centre. The stands follow the land (`topo_weight`: aspect, the erosion's drainage in
   COLOR.g, gentle ground; the patch noise only rags their edges - at 0.45 it drew camouflage
-  blobs over the hill regardless of its shape), canyons are shaded darker (`drain_shade`,
+  blobs over the hill regardless of its shape). **Leopard spots, twice more** (2026-09-27): a
+  threshold sitting at the stand noise's mean splits the ground 50/50 into that noise's blobs,
+  so the land has to push it off the mean nearly everywhere - `chaparral_amount` 0.8 (steep
+  faces are brush with small openings), `gentle_grass` 0.55 on ALL gentle ground (benches and
+  valley floors are grass; it used to be halved off the sunny side, so flat ground was half and
+  half) - and the octaves that decide an edge must be fine: the stand noise
+  (`hill_stand_noise()`, weights `STAND_*_W` in hill_splat.gdshaderinc, mirrored and checked) is
+  0.2 patch, 0.1 of the 8 m clumps, 0.4 of the 3 m bushes and 0.3 of a 1.1 m octave, because a
+  3 m value noise cut by a threshold is itself round blobs, and from 150 m, once the shrub
+  crowns are gone, that WAS the leopard. As each octave fades it widens the edge by its spread
+  (`hill_stand_edge()`), so a hillside too far off to resolve it draws the brush SHARE as a tone.
+  `macro_ground.gdshader` copies the result for its lit band. Canyons are shaded darker (`drain_shade`,
   `erosion_shade`), and the detail is lit: **the terrain mesh has no UVs and so no tangents,
   and a NORMAL_MAP without tangents does nothing** - every hillside was smooth plastic between
   its vertices. The shader works its detail out as world-XZ slopes (the ground textures' normal

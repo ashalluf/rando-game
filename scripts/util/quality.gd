@@ -4,9 +4,11 @@ extends Node
 ## then "still super laggy"). Watches the frame rate after the city has streamed in and steps
 ## down one level at a time until the game runs smoothly. Each level cuts render effects AND
 ## the crowd / traffic caps, because the populated city is CPU work, not just GPU work:
-##   HIGH    everything on (SDFGI global illumination, volumetric fog, depth of field)
-##   MEDIUM  no SDFGI, no volumetric fog, no depth of field, shorter shadows
-##   LOW     also no indirect light and no reflections; FSR 2.2 upscaling, 60 % of people and cars
+##   HIGH    everything on (SDFGI global illumination, volumetric fog, depth of field, motion blur)
+##   MEDIUM  no SDFGI, no volumetric fog, no ambient far blur (the aim / wheel blur and the
+##           motion blur stay), shorter shadows
+##   LOW     also no indirect light, no reflections, no motion blur and no depth of field;
+##           FSR 2.2 upscaling, 60 % of people and cars
 ##   LOWEST  more aggressive upscaling, no ambient occlusion, 35 % of people and cars
 ## Antialiasing is temporal at every level: TAA at native resolution on HIGH and MEDIUM, and FSR
 ## 2.2 (which does its own temporal pass) when upscaling. That is what consoles do, and it looks
@@ -162,6 +164,12 @@ func _apply_render() -> void:
 	# roads fill the bottom of every outdoor frame.
 	RenderingServer.global_shader_parameter_set("ground_detail",
 		1.0 if level <= Level.MEDIUM and not OS.has_feature("web") else 0.0)
+	# The hill shells (CityChunk._build_hill_shells: the near dry grass and brush understory,
+	# the hill tile drawn again sixteen times) go with it: built only while it is on, and the
+	# ones already built hide when it goes.
+	CityChunk.shells_enabled = level <= Level.MEDIUM and not OS.has_feature("web")
+	if is_inside_tree():
+		get_tree().call_group("hill_shells", "set_visible", CityChunk.shells_enabled)
 	# Real street lamps are the first thing to go when frames get tight; the additive pools of
 	# light on the pavement stay, so the street is still readable.
 	var dn := get_parent().get_node_or_null("DayNight")
@@ -173,9 +181,15 @@ func _apply_render() -> void:
 		if not viewport.size_changed.is_connected(_apply_scale):
 			viewport.size_changed.connect(_apply_scale)
 		_apply_scale()
-		var cam := viewport.get_camera_3d()
-		if cam and cam.attributes is CameraAttributesPractical:
-			(cam.attributes as CameraAttributesPractical).dof_blur_far_enabled = level == Level.HIGH
+		# The depth of field and the motion blur belong to the camera's CameraPost: ambient far
+		# blur on HIGH, the aim / weapon-wheel blur and the motion blur down to MEDIUM.
+		var post := get_tree().get_first_node_in_group("camera_post")
+		if post and post.has_method("apply_quality"):
+			post.apply_quality(int(level))
+		else:
+			var cam := viewport.get_camera_3d()
+			if cam and cam.attributes is CameraAttributesPractical:
+				(cam.attributes as CameraAttributesPractical).dof_blur_far_enabled = level == Level.HIGH
 
 
 ## Resolution the 3D scene renders at: this level's render_scale, capped by its pixel_budget.
