@@ -226,6 +226,9 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 @export_group("Model")
 ## Where the generated model's tire bottoms sit in body space (meters). Raise if the car floats.
 @export var model_bottom_y: float = -0.27
+## How far over the road a model car's collision starts (m): its underbody, with room left for
+## the suspension to compress on a landing before the box meets the road.
+@export var collision_clearance: float = 0.34
 ## Past this many meters a livery's roof prop (taxi sign, van vent, amber beacon) stops drawing.
 ## It is one draw call per car and at that range it is a couple of pixels.
 @export var livery_prop_distance: float = 140.0
@@ -397,6 +400,10 @@ var _was_airborne: bool = false
 var _air_time: float = 0.0
 ## True when a generated body model is used: box parts then only provide collision.
 var _has_model: bool = false
+## The primitive car's collision stack (bottom, top in body y) and where it goes on a model car
+## (see _build). Equal ranges leave the boxes where they are, which is what aircraft get.
+var _fit_from := Vector2(0.0, 1.0)
+var _fit_to := Vector2(0.0, 1.0)
 ## Top of the generated model in body space, measured from its own bounding box, so a roof prop
 ## sits on the actual roof instead of on a guess. Only valid once _add_body_model() has run.
 var _model_top_y: float = 1.6
@@ -637,6 +644,14 @@ func _build() -> void:
 	var cabin: Vector2 = dims.cabin # x = start z (front negative), y = length, along the car
 	var base_y := 0.55
 	_has_model = _add_body_model(length)
+	if _has_model:
+		# The collision boxes below are laid out for the primitive car, standing on base_y with
+		# the cabin on top, which put them 0.8 m over the road and the cabin box half a metre
+		# above a model's roof. Squeeze that same stack onto the model: from collision_clearance
+		# over the road (the underbody, clear of the suspension's travel) to its roof.
+		var floor_y := float(dims.get("ride", model_bottom_y)) + collision_clearance
+		_fit_from = Vector2(base_y, base_y + chassis_h + float(dims.cabin_h))
+		_fit_to = Vector2(floor_y, maxf(_model_top_y, floor_y + 0.5))
 	var trim := Color(0.12, 0.12, 0.14)
 	var glass := Color(0.35, 0.5, 0.65)
 	# Chassis.
@@ -758,7 +773,8 @@ static func _shared_box(key: StringName, size: Vector3, mat: Material) -> BoxMes
 func _add_night_lights(dims: Dictionary) -> void:
 	var node := MeshInstance3D.new()
 	node.name = "NightLights"
-	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, 0.55 + dims.chassis_h * 0.62)
+	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, 0.55 + dims.chassis_h * 0.62,
+			float(dims.get("ride", model_bottom_y)))
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# One node per car rather than five: with a hundred and fifty cars on the road the separate
 	# quads were several hundred draw calls on their own. Past this distance the car is a few
@@ -1252,6 +1268,9 @@ func _box(size: Vector3, pos: Vector3, color: Color, collide: bool, glow: bool =
 		mesh.position = pos
 		add_child(mesh)
 	if collide:
+		var k := (_fit_to.y - _fit_to.x) / maxf(_fit_from.y - _fit_from.x, 0.01)
+		size.y *= k
+		pos.y = _fit_to.x + (pos.y - _fit_from.x) * k
 		var shape := CollisionShape3D.new()
 		var bs := BoxShape3D.new()
 		bs.size = size

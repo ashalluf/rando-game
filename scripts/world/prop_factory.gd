@@ -1080,9 +1080,10 @@ static func foliage_textured(src: StandardMaterial3D, blossom: Color = Color.TRA
 ## Every light on one car in a single mesh: two headlights, two tail lights and the beam they
 ## throw on the road ahead, in car-local space (forward is -Z). One mesh, one draw, instead of
 ## five MeshInstance3D per car across a hundred and fifty cars. Colours ride in the vertex
-## colour; see shaders/light_pool.gdshader.
-static func vehicle_lights(width: float, length: float, y: float) -> Mesh:
-	var key := "car_lights_%.2f_%.2f_%.2f" % [width, length, y]
+## colour; see shaders/light_pool.gdshader. `y` is the lamps' height and `ground` the road's,
+## both in the car's body space (a body's `ride`: its model's bottom is on the road).
+static func vehicle_lights(width: float, length: float, y: float, ground: float = -0.24) -> Mesh:
+	var key := "car_lights_%.2f_%.2f_%.2f_%.2f" % [width, length, y, ground]
 	if _cache.has(key):
 		return _cache[key]
 	var st := SurfaceTool.new()
@@ -1098,7 +1099,10 @@ static func vehicle_lights(width: float, length: float, y: float) -> Mesh:
 	# round lamp pool and draws a fan instead of a blob.
 	# Nine metres, not eleven: the further the flat quad reaches, the more a change of grade
 	# ahead of the car puts its far end under the road, where it is cut off along a hard line.
-	_light_quad(st, Vector3(0.0, 0.12 - y, -length * 0.5 - 3.4), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 9.0), Color(1.0, 0.94, 0.80, 0.62), 2.0)
+	# 12 cm over the road. It was `0.12 - y`, a leftover from when each light was its own node
+	# at the lamp's height, which laid the beam 0.6 m UNDER the road on every car, so no car
+	# ever lit the street at night (found by the sedan session, wt/sedan-body).
+	_light_quad(st, Vector3(0.0, ground + 0.12, -length * 0.5 - 3.4), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 9.0), Color(1.0, 0.94, 0.80, 0.62), 2.0)
 	var mesh := st.commit()
 	mesh.surface_set_material(0, light_pool_material())
 	_cache[key] = mesh
