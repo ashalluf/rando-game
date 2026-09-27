@@ -133,8 +133,9 @@ func _add_model() -> bool:
 		var mi := node as MeshInstance3D
 		_meshes.append(mi)
 		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh else null
-		if src and src.albedo_texture:
+		if src and src.albedo_texture and not is_hair(mi):
 			mi.material_override = uniform_material(src.albedo_texture, heavy)
+	plain_hair(body)
 	# Pose the rig in its idle before hanging the cap off the head bone (see Pedestrian._add_model:
 	# the clips hold the bones off the bind pose, and a cap lined up on the bind pose rides tilted).
 	var anim := body.find_child("AnimationPlayer", true, false) as AnimationPlayer
@@ -153,14 +154,15 @@ func _add_model() -> bool:
 	return true
 
 
-## The rigs that take the uniform cleanly (judged in standoff stills): not the hero's own (d),
-## not e (its sleeves are painted skin from the elbow down), not i (it has a cap of its own), not
-## k (its yellow blazer stays yellow under the recolour and read as a hi-vis vest), and not h or
-## l (khaki and cargo trousers sit on a skin hue, so the shader leaves them tan under a navy top).
+## The rigs that wear the uniform: the crowd's region colours recolour any garment exactly, so
+## these are picked for the person, not the texture - trousers rather than a skirt or shorts,
+## short or cropped hair under the cap.
 const OFFICER_MODELS := [
-	"res://assets/models/pedestrian_f_anim.glb",
-	"res://assets/models/pedestrian_g_anim.glb",
-	"res://assets/models/pedestrian_j_anim.glb",
+	"res://assets/models/crowd_a.glb",
+	"res://assets/models/crowd_d.glb",
+	"res://assets/models/crowd_f.glb",
+	"res://assets/models/crowd_h.glb",
+	"res://assets/models/crowd_j.glb",
 ]
 
 
@@ -226,6 +228,11 @@ func _add_cap(inst: Node3D) -> void:
 		unit *= node.transform.basis.get_scale().y
 		node = node.get_parent() as Node3D
 	unit = 1.0 / maxf(unit, 0.0001)
+	# The crowd rigs' hair cards would stand out through the cap; the scalp under them is
+	# painted in the hair colour, which is what shows under a cap's band anyway.
+	for hmi in inst.find_children("Hair*", "MeshInstance3D", true, false):
+		(hmi as MeshInstance3D).visible = false
+		hmi.set_meta("under_hat", true)
 	var att := BoneAttachment3D.new()
 	skel.add_child(att)
 	att.bone_name = "Head"
@@ -548,6 +555,7 @@ func _dress_ragdoll(doll: Ragdoll) -> void:
 	for node in rig.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
 		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh else null
-		if src and src.albedo_texture and mi.skin:
+		if src and src.albedo_texture and mi.skin and not is_hair(mi):
 			mi.material_override = uniform_material(src.albedo_texture, heavy)
+	plain_hair(rig)
 	_add_cap(rig)

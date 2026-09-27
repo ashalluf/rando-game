@@ -1262,6 +1262,8 @@ func _test_city() -> void:
 	for ped in get_tree().get_nodes_in_group("pedestrian"):
 		for mi in (ped as Node).find_children("*", "MeshInstance3D", true, false):
 			var ov := (mi as MeshInstance3D).material_override
+			if str(mi.name).begins_with("Hair"):
+				continue # a crowd rig's hair cards, on their own shader
 			if ov is ShaderMaterial:
 				shaded += 1
 				outfits[Vector3(ov.get_shader_parameter("cloth_hue"), ov.get_shader_parameter("cloth_sat"), ov.get_shader_parameter("cloth_strength"))] = true
@@ -1317,13 +1319,14 @@ func _test_city() -> void:
 	for ped in get_tree().get_nodes_in_group("pedestrian"):
 		for mi in (ped as Node).find_children("*", "MeshInstance3D", true, false):
 			var ov2 := (mi as MeshInstance3D).material_override
-			if ov2 is ShaderMaterial:
+			if ov2 is ShaderMaterial and not str(mi.name).begins_with("Hair"):
 				tones[ov2.get_shader_parameter("skin_tint")] = true
 	_check(tones.size() >= 4, "the crowd has %d skin tones" % tones.size())
 	_check(heights.size() >= 5, "the crowd has %d different heights" % heights.size())
 	var avatar: Node = player.get_node_or_null("Visual/Avatar")
 	_check(avatar != null and avatar.find_child("AnimationPlayer", true, false) != null and not player.get_node("Visual/Body").visible, "the player wears the animated character, capsule hidden")
 	_check_hero(avatar)
+	_check_crowd_rigs()
 	var traffic_node: Node3D = city.get_node("Traffic")
 	var moving: int = traffic_node.cars.size()
 	_check(moving >= 4, "traffic cars are driving (%d)" % moving)
@@ -2513,6 +2516,60 @@ func traffic_cars_for_lights(city: Node) -> Array:
 			if out.size() >= 3:
 				break
 	return out
+
+
+## The crowd rigs built by tools/crowd (MPFB humans in CC0 MakeHuman clothes): the contract every
+## crowd system relies on - the 24 bones and three clips, one skinned Body carrying the region
+## colours the character shader recolours by, the hair cards on a mesh of their own and on their
+## own shader, and the triangle budget (LOD0 under 20k with the hair).
+func _check_crowd_rigs() -> void:
+	var ped_script: GDScript = load("res://scripts/npc/pedestrian.gd")
+	var names := ["Hips", "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase", "RightUpLeg", "RightLeg", "RightFoot",
+		"RightToeBase", "Spine02", "Spine01", "Spine", "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand",
+		"RightShoulder", "RightArm", "RightForeArm", "RightHand", "neck", "Head", "head_end", "headfront"]
+	var rigs := 0
+	var bad: Array = []
+	for path: String in ped_script.MODELS:
+		if not path.get_file().begins_with("crowd_"):
+			continue
+		rigs += 1
+		var rig: Node3D = (load(path) as PackedScene).instantiate()
+		add_child(rig)
+		ped_script.prepare_rig(rig, 1)
+		var sk: Skeleton3D = rig.find_child("Skeleton3D", true, false)
+		var anim: AnimationPlayer = rig.find_child("AnimationPlayer", true, false)
+		var why := ""
+		if sk == null or sk.get_bone_count() != names.size():
+			why += " bones %d" % (sk.get_bone_count() if sk else 0)
+		else:
+			for n in names:
+				if sk.find_bone(n) < 0:
+					why += " no " + n
+		if anim == null or not (anim.has_animation("Idle") and anim.has_animation("Casual_Walk_inplace") and anim.has_animation("run_fast_3_inplace")):
+			why += " clips"
+		var tris := 0
+		var body_ok := false
+		var hair_ok := true
+		for mi: MeshInstance3D in rig.find_children("*", "MeshInstance3D", true, false):
+			for sidx in mi.mesh.get_surface_count():
+				tris += mi.mesh.surface_get_array_index_len(sidx) / 3
+			var ov := mi.material_override as ShaderMaterial
+			if ped_script.is_hair(mi):
+				hair_ok = ov != null and str(ov.shader.resource_path).ends_with("crowd_hair.gdshader") \
+					and mi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			elif mi.skin != null:
+				body_ok = mi.mesh.get_surface_count() == 1 and mi.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR != 0 \
+					and ov != null and float(ov.get_shader_parameter("region_mask")) > 0.5
+		if not body_ok:
+			why += " body (one surface, region colours, masked look)"
+		if not hair_ok:
+			why += " hair material"
+		if tris > 20000:
+			why += " %d triangles" % tris
+		if why != "":
+			bad.append(path.get_file() + ":" + why)
+		rig.queue_free()
+	_check(rigs >= 8 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
 
 
 ## The Blender-built hero (tools/hero/): the rig contract the clips and the gun hands rely on,

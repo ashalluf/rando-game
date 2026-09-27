@@ -278,6 +278,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-27 The crowd is real people, built like the hero.** The nine Meshy pedestrians read
+  as plastic mannequins (their look is baked into one photo texture; roadmap #11 showed shading
+  cannot fix it). The crowd is now twelve MPFB humans from CC0 MakeHuman assets, built by
+  `tools/crowd/` with the hero's toolchain: every age, build and complexion, library clothes,
+  shoes and hair, on the crowd's 24-bone rig and clips. Each is one opaque body whose vertex
+  colour marks skin / top / bottom / hair (exact recolours) plus a cut-out hair mesh; cheaper than
+  the old rigs (downtown pedestrians -52 % triangles). Meshy is now used for nothing.
+
 - **2026-09-27 (later) The van is Blender-built too, and the pickup looks like a truck.** The
   lead's follow-up: the pickup's cab read as a low sedan greenhouse on a long body; it is now a
   tall square cab (roof 1.98 m, belt 1.38 m, near-vertical back), a flat bonnet 1.30 m high at

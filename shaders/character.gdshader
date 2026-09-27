@@ -150,6 +150,21 @@ uniform vec3 wound_blood = vec3(0.34, 0.022, 0.018);
 uniform float grime = 0.0;
 uniform vec3 grime_color = vec3(0.22, 0.18, 0.13);
 
+// The crowd rigs built by tools/crowd carry what every vertex is in its colour - R the top
+// garment, G the bottom garment, B hair (the scalp under the hair cards), A skin; none of the four
+// is eyes, shoes, a hat - so the look recolours exactly what it should instead of guessing from
+// the texture's hue and brightness. 1 for those rigs (Pedestrian.prepare_rig finds the colour
+// array), 0 for the older single-texture rigs, which keep every test below.
+uniform float region_mask = 0.0;
+// Mean texture value (gamma space) of each region on this rig, measured at load
+// (Pedestrian._region_means): a recoloured garment keeps the source's shading as the ratio to its
+// own mean, so a white tee and dark jeans both keep their folds at any new colour.
+uniform float top_mean = 0.5;
+uniform float bottom_mean = 0.5;
+uniform float hair_mean = 0.2;
+// Roughness of what is none of the four (shoes, eyes, a hat's band).
+uniform float other_roughness = 0.55;
+
 // Height up the body, 0 at the soles and 1 at the crown.
 varying float v_height;
 varying vec3 v_pipe;
@@ -245,27 +260,42 @@ void fragment() {
 	// skin that is strongly lit or deep in shadow, which is what turned faces and hands pink,
 	// and hue plus saturation alone lets a brown garment on brown skin pass, which left one of
 	// the two rigs - half the crowd - in a single colour from soles to crown.
-	float hue_dist = abs(fract(hsv.x - skin_hue + 0.5) - 0.5);
-	float warm = 1.0 - smoothstep(cloth_guard, cloth_guard * 2.0, hue_dist);
-	float is_skin = warm * smoothstep(0.10, 0.19, hsv.y) * smoothstep(skin_value_lo, skin_value_hi, hsv.z);
-	if (piping > 0.0) {
-		is_skin *= smoothstep(0.04, 0.2, v_bind.x + v_bind.y);
-	}
-	// Very dark pixels are seams, folds and shadow; leave them their own colour.
-	float is_cloth = (1.0 - is_skin) * smoothstep(cloth_value_lo, cloth_value_hi, hsv.z);
+	float is_skin;
+	float is_cloth;
+	float head;
+	float is_hair;
+	float lower;
+	float is_other = 0.0;
+	if (region_mask > 0.5) {
+		// Exact, from the vertex colour (see region_mask).
+		is_skin = COLOR.a;
+		is_cloth = clamp(COLOR.r + COLOR.g, 0.0, 1.0);
+		is_hair = COLOR.b;
+		head = 0.0;
+		lower = COLOR.g / max(COLOR.r + COLOR.g, 1e-4);
+		is_other = clamp(1.0 - COLOR.r - COLOR.g - COLOR.b - COLOR.a, 0.0, 1.0);
+	} else {
+		float hue_dist = abs(fract(hsv.x - skin_hue + 0.5) - 0.5);
+		float warm = 1.0 - smoothstep(cloth_guard, cloth_guard * 2.0, hue_dist);
+		is_skin = warm * smoothstep(0.10, 0.19, hsv.y) * smoothstep(skin_value_lo, skin_value_hi, hsv.z);
+		if (piping > 0.0) {
+			is_skin *= smoothstep(0.04, 0.2, v_bind.x + v_bind.y);
+		}
+		// Very dark pixels are seams, folds and shadow; leave them their own colour.
+		is_cloth = (1.0 - is_skin) * smoothstep(cloth_value_lo, cloth_value_hi, hsv.z);
 
-	float head = smoothstep(hair_line - hair_blend, hair_line + hair_blend, v_height);
-	if (piping > 0.0) {
-		head = smoothstep(0.35, 0.75, v_bind.x);
+		head = smoothstep(hair_line - hair_blend, hair_line + hair_blend, v_height);
+		if (piping > 0.0) {
+			head = smoothstep(0.35, 0.75, v_bind.x);
+		}
+		// On the head, hair is the dark half and the face is the bright half. Testing for darkness
+		// directly is the only thing that finds it: hair is warm and saturated, so it passes the
+		// skin test, and a gate of the form (1.0 - is_skin) on its own collapses to nothing.
+		is_hair = head * (1.0 - is_skin) * (1.0 - smoothstep(hair_value_lo, hair_value_hi, hsv.z));
+		// Below the waistband is the lower garment, above it the top. Feathered, because a hard
+		// plane across the hips reads as a seam in the wrong place on a body of the wrong height.
+		lower = 1.0 - smoothstep(waist - waist_blend, waist + waist_blend, v_height);
 	}
-	// On the head, hair is the dark half and the face is the bright half. Testing for darkness
-	// directly is the only thing that finds it: hair is warm and saturated, so it passes the
-	// skin test, and a gate of the form (1.0 - is_skin) on its own collapses to nothing.
-	float is_hair = head * (1.0 - is_skin) * (1.0 - smoothstep(hair_value_lo, hair_value_hi, hsv.z));
-	// Below the waistband is the lower garment, above it the top. Feathered, because a hard
-	// plane across the hips reads as a seam in the wrong place on a body of the wrong height.
-	float lower = 1.0 - smoothstep(waist - waist_blend, waist + waist_blend, v_height);
-
 	// Recolour rather than hue-rotate. The source outfits are mostly grey and olive, and
 	// rotating the hue of a desaturated pixel changes nothing, so a rotation left every
 	// character wearing the same clothes.
@@ -281,6 +311,10 @@ void fragment() {
 	// so no multiplier reaches a pale chino, and every pedestrian in the city wore black.
 	float gz = value_is_linear > 0.5 ? to_gamma(hsv.z) : hsv.z;
 	float shade = mix(1.0, clamp(0.55 + 1.30 * gz, 0.35, 1.35), cloth_shade_keep);
+	if (region_mask > 0.5) {
+		float mean = mix(top_mean, bottom_mean, lower);
+		shade = mix(1.0, clamp(gz / max(mean, 0.02), 0.35, 1.6), cloth_shade_keep);
+	}
 	vec3 top_target = hsv_to_rgb(vec3(cloth_hue, cloth_sat, min(cloth_value * shade, 0.96)));
 	vec3 low_target = hsv_to_rgb(vec3(pants_hue, pants_sat, min(pants_value * shade, 0.96)));
 	vec3 garment = mix(top_target, low_target, lower);
@@ -298,6 +332,9 @@ void fragment() {
 	vec3 albedo = mix(base, garment, garment_mix);
 	// The replacement hair keeps the source's own shading so it still reads as strands.
 	float hair_shade = clamp(hair_shade_bias + hair_shade_gain * gz, 0.0, 1.5);
+	if (region_mask > 0.5) {
+		hair_shade = clamp(gz / max(hair_mean, 0.02), 0.4, 1.6);
+	}
 	albedo = mix(albedo, hair_color * hair_shade, is_hair * hair_strength);
 	if (piping > 0.0) {
 		// Distance from the nearer stripe's centre line, anti-aliased by the screen rate of the
@@ -333,6 +370,7 @@ void fragment() {
 	}
 
 	ROUGHNESS = mix(mix(cloth_roughness, skin_roughness, is_skin), hair_roughness, is_hair * hair_strength);
+	ROUGHNESS = mix(ROUGHNESS, other_roughness, is_other);
 	ROUGHNESS = min(ROUGHNESS + grimed * 0.08, 1.0);
 	// Soaked cloth is wet, and wet is glossy.
 	ROUGHNESS = mix(ROUGHNESS, 0.24, soak);

@@ -3074,3 +3074,89 @@ now built in code by `PortKit` (`scripts/world/port_kit.gd`); no model files.
   and whether the yard tint (0.44) wants to go darker. A container at arm's length is still
   flat-faced corrugation (a normal trick with parallax, no geometry). Straddle carriers, trucks
   and moving cranes are not done. `tools/glshot/port_shot.gd` shows the kit alone in seconds.
+## 9ah. The crowd, real people, 2026-09-27 (agent branch `wt/crowd-humans`)
+
+The ask: replace the nine Meshy pedestrians (pedestrian_d..l), which read as plastic mannequins
+(roadmap #11: the look is baked into their single photo texture and no shader fixes it), with
+realistic people at "AAA studio PS5 quality", made with the hero's pipeline.
+
+- **What shipped.** Twelve people, `assets/models/crowd_a..l.glb` (the roster with each one's
+  CC0 sources is in docs/ASSETS.md "The crowd"): young to elderly, men and women, slim to heavy,
+  1.55-1.84 m, Black, white, East Asian and two Latino complexions (blends of the pack's skins).
+  `Pedestrian.MODELS` is now only these; `OFFICER_MODELS` is five of them (trousers, short hair).
+- **How they are built** (`tools/crowd/`, CLAUDE.md "The crowd" has the commands): per row of
+  `crowd_config.json`, `build_character.py` makes the MPFB human (phenotype, targets, skin, eyes,
+  brows, lashes, library clothes, shoes and hair), binds it like the hero (arms lowered, elbows
+  opened) with a relaxed hand baked in and the finger bones folded into the hands (24 bones),
+  deletes MakeHuman's masked skin and whatever a garment covers, cuts every part to a triangle
+  budget (head and hands keep most of the skin's), then plans the atlases: every source texture's
+  used islands (overlapping ones merged: hair cards share strips) cropped, scaled per part and
+  skyline-packed into a 2K body atlas and a 1K hair atlas. `crowd_atlas.py` composes them (skin
+  blends, dyes, logos painted out, garment AO multiplied in, skin relief from the photo's own
+  detail, the scalp under the hair painted in the hair colour); `crowd_export.py` retargets
+  idle / walk / run with the hero's code (moved into `tools/hero/retarget_lib.py`, `retarget.py`
+  calls it; the crowd's idle has its legs settled 65 % back to its own straight stance, see
+  below) and writes the .glb. All twelve: about 25 minutes on a loaded 4-core box.
+- **The contract** (checked by `_check_crowd_rigs()` in the smoke test): one skinned `Body`
+  surface whose vertex colour is the region split (R top, G bottom, B hair / painted scalp,
+  A skin; none = shoes, eyes, and garments marked `keep` like the overalls), and a `Hair` mesh of
+  cut-out cards on `shaders/crowd_hair.gdshader`. `character.gdshader`'s new `region_mask` path
+  recolours a look exactly from that split, keeping the source's shading as a ratio to each
+  region's mean (`Pedestrian._region_means()`, measured once per rig at load; defaults under the
+  dummy renderer). The crowd keeps its own hair colours. Every system that swaps materials, cuts
+  limbs (`Ragdoll.dismember`, `warm_limbs`), welds middle / far bodies (`far_mesh`, `warm_far_mesh`),
+  stains a body or bakes camp figures skips `Pedestrian.is_hair()`; the hair is hidden past
+  `mid_body_range`, under a beanie and under the police cap; police and rough sleepers get
+  `plain_hair()` (the sleepers' dulled, `RoughSleeper.WORN_HAIR`).
+- **Measured.** All on this box (opengl3 / llvmpipe, `--quality=0`), before = the base commit
+  74c8567 with the nine generated rigs, after = this branch:
+  | | before | after |
+  |---|---|---|
+  | downtown_noon (SPLIT, 1280x720): frame triangles | 7,790,383 | 7,398,767 (-5.0 %) |
+  | - of which pedestrians | 734,703 (266k shadow) | 354,583 (78k shadow), -52 % |
+  | - draws / objects | 5,725 / 5,822 | 5,740 / 5,837 (+15: the hair cards) |
+  | geo_count at `--spawn=2359.4,880,0,12,2` (800x600) | 5,815,164 tris, 5,199 draws | 5,440,633 tris (-6.4 %), 5,214 draws |
+  | Street at eye level, same spot, 4 views (still_shot EYE / SHOTS) | 5.62 / 6.64 / 7.71 / 7.12 M | 5.33 / 6.45 / 7.40 / 6.76 M (-3 to -5 %), +5 to +16 draws |
+  | People's share of the loading screen (`tools/crowd/people_load_bench.gd`) | 9 rigs 1,295 ms + 45 camp figures 684 ms = 1,980 ms | 12 rigs 1,052 ms + 60 camp figures 788 ms = 1,841 ms |
+  LOD0 is 10.5-12.7k triangles of body plus 0.4-3.8k of hair (the old rigs were 16.6k in one
+  piece whose importer LODs stopped at 8.3k: these are welded, so the generated LODs go lower,
+  and the shadow pass loses the hair entirely). The welded middle / far bodies build from the new
+  rigs unchanged; side by side at 60 m (FOV 75) with the full model they read the same, the hair
+  standing in as the painted scalp. Texture memory: a 2K colour + 1K normal + 1K RGBA hair atlas
+  per person (about 5.6 MB of VRAM each, S3TC / RGTC with mips: ~67 MB for twelve, against ~18 MB
+  for the nine old rigs' 1K colour and normal maps).
+  Repo: +49 MB of assets (the glbs embed their atlases and Godot extracts copies).
+- **Judged** (opengl3 stills and `tools/glshot/crowd_lineup.gd`, the new side-by-side tool with
+  `SHOTS=` for several views per load and `BODY=mid|far`): at street distance (5-30 m) they read as people - real
+  proportions and builds, a range of ages and complexions, clothes that sit on the body, and the
+  exact recolour gives a varied street without the old rigs' printed-on look; the Meshy rigs had
+  more high-frequency texture (a photographed beard, a creased jacket), which at 10 m some will
+  prefer. Up close the MakeHuman faces and garments are "good 2014 game", not PS5: soft
+  textures, generic faces, relaxed-but-stiff hands, the photographed tees and jeans. Hair cards
+  read well on the afro, braid, ponytail and long styles; short02 read as a cap and was dropped
+  for a painted crop. The light skins run pale in the flat harness light; the elderly woman's
+  skin is toned down (`skin_tone`). None of it has been seen on Forward+ or the owner's Mac.
+- **Traps found on the way.** (1) The Meshy clips copied bone-for-bone into a body bound standing
+  straight give an idle with the legs apart and the knees bent (the source rigs are bound that
+  way, their idle hips ride 4-9 cm high, and ours had to drop 11 cm to plant the feet): the
+  retarget now takes `settle_legs` per clip. (2) MPFB bodies carry a `scalp` vertex group, so a
+  mesh attribute cannot be called "scalp" (Blender refuses the name, silently: the layer is
+  None). (3) Hair cards reuse strips of one photo across many islands: packed island by island,
+  a braid's texture went into the atlas 100 times at a fifth of its resolution. (4) A MakeHuman
+  garment's pocket flaps and waistband follow the hips alone, so a top/bottom split by bones
+  needs a per-garment rule (`"hips": "top"` for a jacket over jeans). (5) The palm twist of
+  `fix_arm_pose` (32 + 28 degrees) was checked against 0, -65 and +120 on these rigs from the
+  front and the side (`twist` probe renders): the existing numbers put the backs of the hands
+  outward, which is right; what reads as clawed is only the curl.
+- **Not done / next.** (1) Look at it on the Mac (Forward+, AgX, auto exposure): skin
+  tone, hair, the hands. (2) The biggest visual gains left are in textures, not geometry:
+  delit, higher-detail garment textures (our own garments the way tools/hero/tracksuit.py
+  makes the tracksuit - hoodies, chinos, dresses), a pore / crease detail map on the faces like
+  the hero's, beards. (3) More people: every row of crowd_config.json is a minute or two; the
+  pack has six suits for men, four for women, ten hair styles - more variety needs our own
+  garments. (4) The web build: every glb embeds its atlases (and the old rigs are still in the
+  export), about +49 MB; an export exclude filter for the unused `pedestrian_[a-l]*` and
+  `tools/shrink_glb.py`-style JPEG bodies would claw most back. (5) Branch `mountains` moved on
+  (tree LOD ladders, new car bodies) and was not merged into this branch here; nothing in it
+  touches the crowd files, the likely conflicts are CLAUDE.md, loading_screen.gd and
+  smoke_test.gd (adjacent hunks).

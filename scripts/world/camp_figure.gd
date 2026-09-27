@@ -226,7 +226,9 @@ static func _bake(ped: RoughSleeper, triangles: int) -> ArrayMesh:
 	var skinned := false
 	for node in ped.find_children("*", "MeshInstance3D", true, false):
 		var mi := node as MeshInstance3D
-		if mi.mesh == null or not mi.visible:
+		# A crowd rig's hair cards stay out of the figure: its body has the scalp painted in the
+		# hair colour, and the cards would need a cut-out surface of their own in every chunk.
+		if mi.mesh == null or not mi.visible or Pedestrian.is_hair(mi):
 			continue
 		var skel := mi.get_node_or_null(mi.skeleton) as Skeleton3D if mi.skin else null
 		if mi.skin and skel:

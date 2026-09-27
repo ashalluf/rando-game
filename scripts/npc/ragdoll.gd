@@ -302,7 +302,7 @@ func _stain_material() -> ShaderMaterial:
 	for mi in _rig.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		var shared := m.material_override as ShaderMaterial
-		if m.skin == null or shared == null:
+		if m.skin == null or shared == null or Pedestrian.is_hair(m):
 			continue
 		if _stain_mat == null:
 			_stain_mat = shared.duplicate() as ShaderMaterial
@@ -349,7 +349,7 @@ func dismember(count: int, impulse: Vector3) -> int:
 	var skel := _rig.find_child("Skeleton3D", true, false) as Skeleton3D
 	var source: MeshInstance3D = null
 	for mi in _rig.find_children("*", "MeshInstance3D", true, false):
-		if (mi as MeshInstance3D).skin != null:
+		if (mi as MeshInstance3D).skin != null and not Pedestrian.is_hair(mi as MeshInstance3D):
 			source = mi
 			break
 	if skel == null or source == null:
@@ -475,7 +475,7 @@ static func warm_limbs(path: String, host: Node) -> void:
 	var skel := inst.find_child("Skeleton3D", true, false) as Skeleton3D
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
-		if skel and m.skin and m.mesh:
+		if skel and m.skin and m.mesh and not Pedestrian.is_hair(m):
 			_limb_mesh(m, skel, "head")
 			break
 	inst.queue_free()
