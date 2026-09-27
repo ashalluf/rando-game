@@ -154,7 +154,10 @@ vec3 cabin_view(vec3 o, vec3 d) {
 		vec3 fabric = mix(vec3(0.13, 0.125, 0.12), vec3(0.016, 0.014, 0.012), char_);
 		fabric *= 0.8 + 0.4 * cd_noise3(h * 40.0);
 		float lit = 0.2 + 0.55 * max(best_n.y, 0.0) + 0.3 * max(dot(best_n, -d), 0.0);
-		return fabric * sky * lit * best_shade * cabin_light + fire_c * flicker * (0.35 + 0.4 * max(best_n.y, 0.0));
+		// The fire's light moves over the seats in patches, not as a flat wash.
+		float patch = cd_noise3(h * 4.0 + vec3(0.0, TIME * 1.3, 0.0));
+		return fabric * sky * lit * best_shade * cabin_light
+				+ fire_c * flicker * (0.15 + 0.5 * max(best_n.y, 0.0)) * (0.3 + 0.9 * patch * patch);
 	}
 	vec3 e = o + d * t_exit;
 	int axis = (tf.x < tf.y && tf.x < tf.z) ? 0 : (tf.y < tf.z ? 1 : 2);

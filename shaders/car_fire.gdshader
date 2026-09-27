@@ -68,10 +68,11 @@ void fragment() {
 	float dens = body * tip * root * tongues;
 	// Hottest low in the middle of the flame; orange through most of it, red and soot at the tips.
 	float h = clamp(dens * (1.1 - uv.y) - 0.12, 0.0, 1.0);
-	vec3 c = mix(vec3(0.45, 0.05, 0.008), vec3(1.5, 0.36, 0.035), smoothstep(0.04, 0.3, h));
-	// Held under ~2: AgX takes anything much brighter toward a pale pink-white.
-	c = mix(c, vec3(1.75, 0.72, 0.1), smoothstep(0.45, 0.8, h));
-	c = mix(c, vec3(2.0, 1.2, 0.38), smoothstep(0.9, 1.0, h));
+	// Kept yellow rather than bright: AgX takes a bright red-heavy orange to salmon pink, so the
+	// heat goes into the green (yellow-orange core), not into the level.
+	vec3 c = mix(vec3(0.5, 0.07, 0.008), vec3(1.25, 0.42, 0.04), smoothstep(0.04, 0.3, h));
+	c = mix(c, vec3(1.45, 0.82, 0.12), smoothstep(0.42, 0.78, h));
+	c = mix(c, vec3(1.6, 1.15, 0.3), smoothstep(0.88, 1.0, h));
 	c = mix(vec3(0.03, 0.024, 0.02), c, smoothstep(0.02, 0.15, h));
 	ALBEDO = c * heat * COLOR.rgb;
 	ALPHA = smoothstep(0.0, 0.7, dens) * 0.92 * COLOR.a;
