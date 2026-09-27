@@ -286,6 +286,12 @@ already mapped so milestone 2 is script-only.
   colour marks skin / top / bottom / hair (exact recolours) plus a cut-out hair mesh; cheaper than
   the old rigs (downtown pedestrians -52 % triangles). Meshy is now used for nothing.
 
+- **2026-09-27 (later) The crowd up close is atlas work, not extra geometry.** Faces, beards,
+  brows, folds, trouser colours and fabric detail all go into each rig's own atlases and one
+  shared 1K detail texture (roadmap #38); no draw, triangle or material is added for them. The
+  next real step up close is our own garments (the hero's tracksuit route) for the commonest
+  outfits, not more shader work on the MakeHuman clothes.
+
 - **2026-09-27 (later) The van is Blender-built too, and the pickup looks like a truck.** The
   lead's follow-up: the pickup's cab read as a low sedan greenhouse on a long body; it is now a
   tall square cab (roof 1.98 m, belt 1.38 m, near-vertical back), a flat bonnet 1.30 m high at

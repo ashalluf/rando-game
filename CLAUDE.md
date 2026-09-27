@@ -1653,8 +1653,45 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   is the hair out there), under a beanie or a police cap too; `plain_hair()` puts the
   photographed colour back for a uniform or a rough sleeper (dulled, `WORN_HAIR`). Judge rigs
   with `tools/glshot/crowd_lineup.gd` (several side by side, `SHOTS=` for several views from one
-  load, `BODY=mid|far`) as well as `character_shot.gd`. Adding a person: a row in
-  crowd_config.json, `build.sh <name>`, add it to `MODELS`.
+  load, `BODY=mid|far`, `LIGHT=street` for AgX and a tarmac ground) as well as
+  `character_shot.gd`. Adding a person: a row in crowd_config.json, `build.sh <name>`, add it to
+  `MODELS`; `FROM=crowd_atlas build.sh` redoes only the atlases and the export.
+  **Close-up detail** (owner, 2026-09-27: faces and garments at 2-4 m): faces are not the
+  average MakeHuman head - `build_character.py` rolls MPFB's own face targets (nose, jaw, chin,
+  cheeks, eyes, mouth, ears, brows, forehead; `FACE_PAIRS`, `face_var`, `face_seed`, explicit
+  "targets" win); men get **stubble or a beard** painted into the atlas over a beard zone worked
+  out on the head round the eyes (`stubble`, `beard`, `beard_rgb`; stubble is a cool shadow, not
+  the beard colour laid on - brown paint read as orange smudges); trousers are **dyed** per
+  person (`dye` / `dye_contrast`: dark indigo, black, grey, charcoal, khaki, or the washed
+  photo); **garment folds** are `tools/hero/folds.py`'s field (elbow and cuff stacking, hem
+  blousing, knee and ankle folds, hip creases) evaluated on every garment texel from the
+  triangles and landmarks `build_character.py` dumps (`folds.npz`, `fold_landmarks.json`), added
+  to the garments' own normal maps and darkening their valleys (`fold_gain` per garment). The
+  body mesh carries **UV2 in metres** (1 unit = 1 m of surface, per atlas rect), on which
+  character.gdshader tiles `assets/textures/crowd/crowd_detail.png` (`tools/crowd/make_detail.py`:
+  skin pores and mottle, jersey knit and heather, denim twill and slub streaks, a plain weave;
+  RG normal, B roughness, A tone; `detail_strength`, `detail_normal`, `detail_tone`,
+  `detail_rough`) with one fetch. What a garment is made of rides in its region level: R or G
+  at 1.0 jersey, 0.85 denim, 0.70 woven, a "keep" garment 0.45 lower in R (build_character's
+  `FABRIC_DEFAULT`, "fabric" per garment in the config), each fabric with its own roughness and
+  rim sheen (`FABRIC_ROUGH` / `FABRIC_SHEEN`); eyes are B + A both full and get a wet, glossy
+  cornea (`eye_roughness`). Skin gets Forward+ subsurface scattering (`skin_sss`,
+  `Pedestrian.CROWD_SKIN_SSS`; `sss_mode_skin`, the Compatibility renderer ignores it) and a warm
+  `skin_backlight`. A crop without a hair mesh gets a 512 px hair atlas (brows and lashes).
+  The photo's skin relief is on the head only (on the body it was JPEG noise turned into lumpy
+  skin). Brows are shaded round the hair colour from their own mean and their fringe is let
+  through the cut coloured toward the skin (`BROW_*` in crowd_atlas.py): cut as they came, every
+  brow was a solid near-black bar. crowd_atlas.py re-reads the config's look keys (`_LOOK`), so
+  `FROM=crowd_atlas tools/crowd/build.sh` is enough after a change to them - before, the atlas
+  plan's copy from the last Blender run won and a tuned `skin_normal_strength` never landed.
+  The covered skin that is kept (the ring inside each garment edge, the chest under a V-neck or
+  an open collar) is tucked up to `cover_tuck` (6 mm; 14 mm on crowd_j) in along its normal by
+  `build_character.py`: at 5 mm under the shirt, a walk's chest turn pushed skin triangles out
+  as pale slivers. **The tuck is a smooth field** (the covered flag averaged over
+  `cover_tuck_smooth` neighbour passes): moved as a step it made every neckline, cuff and hem a
+  crease, the importer's LODs held far more triangles for it and the downtown crowd drew 46 %
+  more (355k -> 519k); smoothed it measures flat. Anything else that reshapes a crowd body must
+  stay smooth for the same reason - measure the pedestrians' `SPLIT=1` line after it.
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):

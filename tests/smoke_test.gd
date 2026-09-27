@@ -2663,6 +2663,10 @@ func _check_crowd_rigs() -> void:
 			elif mi.skin != null:
 				body_ok = mi.mesh.get_surface_count() == 1 and mi.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_COLOR != 0 \
 					and ov != null and float(ov.get_shader_parameter("region_mask")) > 0.5
+				# the metric UV2 the tiling pores and weave ride on, and the detail itself
+				if mi.mesh.surface_get_format(0) & Mesh.ARRAY_FORMAT_TEX_UV2 == 0 or ov == null \
+						or float(ov.get_shader_parameter("detail_strength")) <= 0.0 or ov.get_shader_parameter("detail_tex") == null:
+					why += " detail (UV2, detail_tex)"
 		if not body_ok:
 			why += " body (one surface, region colours, masked look)"
 		if not hair_ok:
@@ -2672,7 +2676,7 @@ func _check_crowd_rigs() -> void:
 		if why != "":
 			bad.append(path.get_file() + ":" + why)
 		rig.queue_free()
-	_check(rigs >= 8 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	_check(rigs >= 8 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
 
 
 ## The Blender-built hero (tools/hero/): the rig contract the clips and the gun hands rely on,

@@ -4,6 +4,7 @@
 #
 #   tools/crowd/build.sh                  every character
 #   tools/crowd/build.sh crowd_c crowd_f  just those
+#   FROM=crowd_atlas tools/crowd/build.sh  from the atlas step on (the .blend from the last build)
 #
 # Per character, three steps (a minute or two each):
 #   build_character.py (Blender)   MPFB human, clothes, hair, bind pose, budgets, atlas plan
@@ -32,7 +33,10 @@ fi
 FILTER='^(CROWD|RETARGET|EXPORTED|ATLAS)|Traceback|Error'
 for n in "${NAMES[@]}"; do
 	mkdir -p "$HERO_BUILD/crowd/$n"
+	started=0
 	for s in build_character crowd_atlas crowd_export; do
+		if [ "$s" = "${FROM:-build_character}" ]; then started=1; fi
+		[ $started = 1 ] || continue
 		log="$HERO_BUILD/crowd/$n/$s.log"
 		status=0
 		if [ $s = crowd_atlas ]; then
