@@ -875,7 +875,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   the base (over `EROSION_SLOPE_STEP` either side, so they follow the landforms, not every bump)
   plus the walls of the coarser orders, so every order branches off the one above - canyons
   `erosion_spacing` apart and their tributaries, `erosion_depth` / `back_erosion_depth` of the
-  range deep, weaker on summits and benches. The old bases used the map's own noise plus a
+  range deep, and NONE where the ground has no downhill (the base's summits and saddles, or a spot
+  where a coarser order's wall cancels the slope): the stripes' direction spins round such a
+  point, and with the old 45 % floor every summit was a star of pinched wedges (`smoothstep(0.02,
+  0.32, |slope|)` on the amplitude, `smoothstep(0.02, 0.2, |d|)` per order, the same in
+  `erosion.gdshaderinc`). The old bases used the map's own noise plus a
   second octave at 2.7 times the frequency and read as fields of cones; the first erosion pass
   stretched a ridged noise along the slope and read as combed streaks. `last_drain` (-1 spur
   crest .. +1 gully floor) is what the erosion leaves for the ground: the hill tiles' vertex

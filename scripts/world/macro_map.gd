@@ -573,7 +573,10 @@ func _erode(h: float, depth: float, pos: Vector2, slope: Vector2) -> float:
 		var dz := absf(pos.y - a.y) - half.y
 		if dx < CALM_FADE and dz < CALM_FADE:
 			t *= 0.15 + 0.85 * smoothstep(0.0, CALM_FADE, Vector2(maxf(dx, 0.0), maxf(dz, 0.0)).length())
-	var amp := depth * 0.5 * t * (0.45 + 0.55 * smoothstep(0.08, 0.5, slope.length()))
+	# Nothing on the summits and saddles of the base: the stripes run down the slope, and where
+	# there is none their direction spins round the point and every order converged on it as a
+	# star of pinched wedges. Real divides are where erosion cuts least anyway.
+	var amp := depth * 0.5 * t * smoothstep(0.02, 0.32, slope.length())
 	if amp < 0.01:
 		_erode_drain = 0.0
 		return h
@@ -601,8 +604,11 @@ func _erosion_filter(pos: Vector2, slope: Vector2, amp: float) -> Vector3:
 		var dir := Vector2(d.y, -d.x)
 		var l := dir.length()
 		dir = dir / l if l > 0.00001 else Vector2(1.0, 0.0)
+		# The same where a coarser order's wall cancels the slope it is cut into: a point with no
+		# downhill, which the finer order pinched into a star.
+		var fade := smoothstep(0.02, 0.2, l)
 		var e := _erosion_cells(pos.x / cell, pos.y / cell, dir, o)
-		out += Vector3(e.x * a, e.y * a / cell, e.z * a / cell)
+		out += Vector3(e.x * a, e.y * a / cell, e.z * a / cell) * fade
 		a *= erosion_gain
 		cell *= 0.5
 	return out

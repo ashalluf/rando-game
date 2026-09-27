@@ -56,9 +56,12 @@ vec3 erosion_detail(vec2 w, vec2 slope, float amp, float cell, float fp) {
 		vec2 dir = vec2(d.y, -d.x);
 		float l = length(dir);
 		dir = l > 0.00001 ? dir / l : vec2(1.0, 0.0);
+		// No stripes where there is no downhill (a summit, or a coarser wall cancelling the
+		// slope): their direction spins round such a point and pinches into a star.
+		float f = vis * smoothstep(0.02, 0.2, l);
 		vec3 e = erosion_cells(w / c, dir);
-		acc.xy += e.yz * (a / c) * vis;
-		acc.z += -e.x * vis * a;
+		acc.xy += e.yz * (a / c) * f;
+		acc.z += -e.x * f * a;
 		wsum += a;
 		a *= 0.5;
 		c *= 0.5;
