@@ -40,6 +40,10 @@ const SOUND_SPEED := 343.0
 ## again. Drying is much slower than soaking, which is why the city stays shiny after a shower.
 @export var soak_seconds: float = 16.0
 @export var dry_seconds: float = 80.0
+## Seconds for the street to switch between the even soak of falling rain and the uneven drying
+## after it (the `road_drying` shader global: gutters, low spots and puddles hold their water,
+## wheel tracks and pavements dry first - road.gdshader).
+@export var drying_switch_seconds: float = 6.0
 @export_group("Storm")
 @export var lightning_gap: Vector2 = Vector2(3.0, 11.0)
 ## Length of one stroke of a flash (a strike is two to four of them).
@@ -87,11 +91,19 @@ var rain_level: float = 0.0
 ## How wet the streets are (0 dry, 1 soaked). Lags the rain: it builds while it rains and dries
 ## off slowly afterwards, so a shower leaves the city shining for a while.
 var wetness: float = 0.0
+## 0 while rain is wetting the streets evenly, 1 while they are drying out after it (published as
+## the `road_drying` global). Only the SHAPE of the wetness changes with it; how much water is
+## left is still `wetness`.
+var drying: float = 0.0
+## `--wetness=` holds the streets at that wetness (and its drying state) for stills; -1 is off.
+var _wet_hold: float = -1.0
 var _previous: State = State.CLEAR
 var _timer: float = 0.0
 var _rng := RandomNumberGenerator.new()
 var _rain: CPUParticles3D
 var _splash: CPUParticles3D
+## Spray behind the tyres of cars on a wet street (TyreSpray).
+var _spray: TyreSpray
 var _curtain: MeshInstance3D
 var _curtain_mat: ShaderMaterial
 var _lens: CanvasLayer
@@ -145,6 +157,9 @@ func _ready() -> void:
 	_push_ocean_shape.call_deferred()
 	_build_rain()
 	_build_splashes()
+	_spray = TyreSpray.new()
+	_spray.name = "TyreSpray"
+	add_child(_spray)
 	_build_curtain()
 	_build_lens()
 	_build_flash_light()
@@ -154,6 +169,31 @@ func _ready() -> void:
 	# Start as wet as the weather we start in. Soaking from dry took soak_seconds, so a game that
 	# opened in rain spent its first quarter-minute on dry tarmac under a downpour.
 	wetness = clampf(_rain_level(state) * 1.2, 0.0, 1.0)
+	# `--wetness=0.5` (web `wetness=0.5`) starts the streets that wet and already drying: the
+	# after-the-rain look for stills, with `--weather=clear`.
+	var forced_wet := _wetness_override()
+	if forced_wet >= 0.0:
+		wetness = forced_wet
+		# Held there: a still's loading frames are seconds long each, and would dry it at once.
+		_wet_hold = forced_wet
+		drying = 1.0 if forced_wet > _rain_level(state) * 1.2 else 0.0
+	RenderingServer.global_shader_parameter_set("road_drying", drying)
+	RenderingServer.global_shader_parameter_set("rain_intensity", 0.0)
+
+
+func _wetness_override() -> float:
+	var text := ""
+	if OS.has_feature("web"):
+		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
+		if search is String:
+			for part in (search as String).trim_prefix("?").split("&"):
+				if part.begins_with("wetness="):
+					text = part.trim_prefix("wetness=")
+	else:
+		for arg in OS.get_cmdline_user_args():
+			if arg.begins_with("--wetness="):
+				text = arg.trim_prefix("--wetness=")
+	return clampf(text.to_float(), 0.0, 1.0) if text.is_valid_float() else -1.0
 
 
 func _apply_override() -> void:
@@ -502,6 +542,9 @@ func _process(delta: float) -> void:
 		# overhead is a white veil over everything.
 		_env.volumetric_fog_density = vol * (_daynight.get("haze_gain") if _daynight else 1.0)
 	wave_scale = waves
+	if absf(rain - rain_level) > 0.001 or (rain == 0.0 and rain_level != 0.0):
+		# Raindrops ringing the puddles and the gutter run (road.gdshader).
+		RenderingServer.global_shader_parameter_set("rain_intensity", rain)
 	rain_level = rain
 	RenderingServer.global_shader_parameter_set("wave_scale", waves)
 	RenderingServer.global_shader_parameter_set("wind_factor", 1.0 + 3.0 * rain + (2.0 if state == State.STORM else 0.0) * blend)
@@ -513,9 +556,23 @@ func _process(delta: float) -> void:
 	# Streets soak through while it rains and dry out slowly afterwards, rather than tracking the
 	# rain instantly: a shower that stops does not leave dry tarmac behind it.
 	var wet_target := clampf(rain * 1.2, 0.0, 1.0)
+	if _wet_hold >= 0.0:
+		wet_target = _wet_hold
 	var soak := delta / maxf(soak_seconds, 0.01) if wet_target > wetness else delta / maxf(dry_seconds, 0.01)
 	wetness = move_toward(wetness, wet_target, soak)
 	PropFactory.set_wetness(wetness)
+	if _spray:
+		_spray.wetness = wetness
+		_spray.low_detail = _low_detail
+	# Rain wets a street evenly; once the water is leaving it dries unevenly. Switched over a few
+	# seconds rather than snapped, so a shower that starts again does not flash the street.
+	var drying_target := 1.0 if wet_target < wetness - 0.001 else (0.0 if wet_target > 0.001 else drying)
+	if _wet_hold >= 0.0:
+		drying_target = drying
+	var was_drying := drying
+	drying = move_toward(drying, drying_target, delta / maxf(drying_switch_seconds, 0.01))
+	if absf(drying - was_drying) > 0.0:
+		RenderingServer.global_shader_parameter_set("road_drying", drying)
 	# Rain follows the player.
 	if _rain:
 		# Changing amount restarts the emitter (and turns it on), so only touch it when it changes.

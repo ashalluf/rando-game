@@ -25,6 +25,10 @@ global uniform float road_wetness;
 
 varying vec3 world_pos;
 varying vec2 local_pos;
+// Only with it on does the street dry unevenly (road.gdshader); off, everything dries evenly.
+global uniform float ground_detail;
+
+#include "res://shaders/wet_drying.gdshaderinc"
 
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -76,11 +80,17 @@ void fragment() {
 	float rough = mix(0.62, 0.9, smoothstep(0.2, 0.9, shade));
 
 	float wet = clamp(road_wetness, 0.0, 1.0);
-	base *= mix(1.0, 0.62, wet);
+	// Drying after the rain, in step with the tarmac round it (wet_drying.gdshaderinc). Most of
+	// what rides this batch lies where the wheels run, so it holds a little less water.
+	vec2 fd = vec2(wet);
+	if (wet > 0.01 && ground_detail > 0.5 && road_drying > 0.0) {
+		fd = wet_film_damp(wet, wet_hold_noise(world_pos.xz) - 0.1);
+	}
+	base *= mix(1.0, 0.62, fd.y);
 	ALBEDO = base;
 	ALPHA = a;
-	ROUGHNESS = clamp(mix(rough, 0.07, wet), 0.02, 1.0);
-	SPECULAR = mix(0.5, 0.85, wet);
+	ROUGHNESS = clamp(mix(rough, 0.07, fd.x), 0.02, 1.0);
+	SPECULAR = mix(0.5, 0.85, fd.x);
 	NORMAL_MAP = texture(normal_tex, uv).rgb;
-	NORMAL_MAP_DEPTH = 0.8 * (1.0 - 0.6 * wet);
+	NORMAL_MAP_DEPTH = 0.8 * (1.0 - 0.6 * fd.x);
 }

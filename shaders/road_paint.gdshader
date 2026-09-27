@@ -21,6 +21,10 @@ uniform vec3 asphalt : source_color = vec3(0.30, 0.30, 0.31);
 global uniform float road_wetness;
 
 varying vec3 world_pos;
+// Only with it on does the street dry unevenly (road.gdshader); off, everything dries evenly.
+global uniform float ground_detail;
+
+#include "res://shaders/wet_drying.gdshaderinc"
 
 
 float hash12(vec2 p) {
@@ -83,8 +87,13 @@ void fragment() {
 	col *= mix(1.0, 0.72, dirty * grime * 2.0);
 	col *= 1.0 - grime * 0.35 * grain;
 	float wet = clamp(road_wetness, 0.0, 1.0);
-	ALBEDO = col * mix(1.0, 0.85, wet);
+	// Drying after the rain, in step with the tarmac under it (wet_drying.gdshaderinc).
+	vec2 fd = vec2(wet);
+	if (wet > 0.01 && ground_detail > 0.5 && road_drying > 0.0) {
+		fd = wet_film_damp(wet, wet_hold_noise(world_pos.xz));
+	}
+	ALBEDO = col * mix(1.0, 0.85, fd.y);
 	// Road paint is smoother than the tarmac around it, and wet it shines.
-	ROUGHNESS = mix(0.66, 0.12, wet);
+	ROUGHNESS = mix(0.66, 0.12, fd.x);
 	SPECULAR = 0.5;
 }
