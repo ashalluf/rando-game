@@ -69,6 +69,12 @@ func setup_aircraft(k: Kind) -> void:
 	body_type = BodyType.SEDAN
 
 
+## The flyable jets take no car damage (CarDamage is for cars; the scripted air traffic has its
+## own, AmbientCraft.take_hit).
+func can_take_damage() -> bool:
+	return false
+
+
 func display_name() -> String:
 	return KIND_NAMES[kind]
 

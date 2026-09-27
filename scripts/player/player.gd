@@ -206,6 +206,7 @@ func recover_from_fall() -> void:
 
 func _lift_vehicle_onto_ground() -> void:
 	vehicle.global_position.y = _surface_height_at(vehicle.global_position) + 1.5
+	vehicle.hold_crash_watch(3)
 	vehicle.linear_velocity = Vector3.ZERO
 	vehicle.angular_velocity = Vector3.ZERO
 
@@ -279,7 +280,7 @@ func _try_enter_vehicle() -> void:
 		var car := node as Vehicle
 		if car == null or car.driver != null:
 			continue
-		if car.is_traffic():
+		if car.is_traffic() or car.is_wreck():
 			continue
 		var d := car.global_position.distance_to(global_position) - maxf(car.enter_radius - enter_range, 0.0)
 		if d < best_d:

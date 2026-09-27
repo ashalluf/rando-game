@@ -235,6 +235,8 @@ func fire_pellet(from: Vector3, dir: Vector3, people: Dictionary = {}) -> Dictio
 			_gather(people, hit.collider, dir, hit.position)
 		if hit.collider is Vehicle:
 			(hit.collider as Vehicle).drop_out_of_traffic(dir * pellet_force)
+			# A pellet hole, a crazed window, a broken lamp (CarDamage).
+			(hit.collider as Vehicle).take_hit(hit.get("shape", -1), pellet_damage, dir, hit.position, Vehicle.HIT_PELLET)
 		WeaponFX.impact(self, hit.position, Color(1.0, 0.85, 0.5), hit.normal, hit.collider)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color, 0.05, 0.012)
 	return hit

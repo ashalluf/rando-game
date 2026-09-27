@@ -214,6 +214,17 @@ static func car_hit(car: Node3D) -> void:
 	p.report_crime("police_car" if car is PoliceCar else "car_wreck", WorldState.to_world(car.global_position), 1.0)
 
 
+## A cruiser burnt out (CarDamage): it is nobody's unit any more. Its crew on foot fight on without
+## it (no car to take cover at or climb back into); anyone still inside is gone with it.
+func car_wrecked(car: PoliceCar) -> void:
+	cruisers.erase(car)
+	for o in officers:
+		if is_instance_valid(o) and o.car == car:
+			o.car = null
+	car.crew_alive = maxi(car.crew_alive - car.crew_aboard, 0)
+	car.crew_aboard = 0
+
+
 ## A crime at `world_pos` (true world position). `kind` is one of gunfire, explosion, assault,
 ## cop_down, cop_hit, car_wreck, police_car (anything else counts as assault); `severity` scales
 ## its heat.
@@ -1004,3 +1015,4 @@ func stage_for_shot(n_stars: int, scene: String) -> void:
 		var car := spawn_cruiser(at, yaw, "pursue" if scene == "pursuit" else "parked", n_stars >= heavy_stars and i == 1)
 		if scene == "pursuit":
 			car.linear_velocity = -car.global_basis.z * 14.0
+			car.hold_crash_watch(3)
