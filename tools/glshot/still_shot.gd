@@ -40,6 +40,8 @@ extends SceneTree
 ## at night.
 ## SHOTS="x,y,z,yaw,pitch@hour;..." then takes more EYE shots from the same load, saved as OUT
 ## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost).
+## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
+## above the ground there.
 ## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
 ## camera pass and the shadow passes); SPLIT=1 then hides one category at a time (cars, people,
 ## buildings, trees, props, far city, ...) with the world held still and prints what each costs,
@@ -368,7 +370,7 @@ func _geo_report(label: String) -> Array:
 	return c
 
 
-const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
 func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
@@ -410,6 +412,8 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				return "Pedestrian"
 			"Skyline":
 				return "FarCity"
+			"CampFigureMesh":
+				return "Camp"
 			"CityChunk":
 				var nm := String(gi.name)
 				for k in ["tree", "palm", "bush", "shrub", "flower", "plant", "gclump", "Planting", "hill_"]:
@@ -419,6 +423,9 @@ func _split_category(gi: GeometryInstance3D) -> String:
 					return "Grass"
 				if nm.contains("FarGround"):
 					return "FarGround"
+				# Encampment pieces and the static figures at them (Encampment, CampFigure).
+				if nm.begins_with("Batch_camp") or nm.begins_with("BatchShadow_camp"):
+					return "Camp"
 				if nm.begins_with("Batch"):
 					return "StreetProps"
 				return "Other"
@@ -660,6 +667,9 @@ func _eye(player: Node3D, fov: float) -> void:
 	var world_state := root.get_node_or_null("/root/WorldState")
 	var offset: Vector3 = world_state.get("world_offset") if world_state else Vector3.ZERO
 	var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float()) - offset
+	# EYE_AGL=1: the height is above the ground there (the city's own plan height), not absolute.
+	if OS.get_environment("EYE_AGL") == "1" and current_scene and current_scene.get("plan") != null:
+		at.y += float(current_scene.get("plan").height_at(Vector2(p[0].to_float(), p[2].to_float())))
 	var player_cam := get_root().get_camera_3d() if _eye_cam == null else null
 	if _eye_cam == null:
 		_eye_cam = Camera3D.new()

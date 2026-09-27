@@ -43,6 +43,13 @@ func data() -> Dictionary:
 	return _batches
 
 
+## Stops drawing this batch's shadow twin past `meters` (the batch itself keeps its own draw
+## distance): small things whose shadow is a few pixels long a street away.
+func set_shadow_distance(key: String, meters: float) -> void:
+	if _batches.has(key):
+		_batches[key].shadow_distance = meters
+
+
 func set_no_shadow(key: String) -> void:
 	if _batches.has(key):
 		_batches[key].no_shadow = true
@@ -98,7 +105,8 @@ func build(parent: Node3D) -> Dictionary:
 			twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
 			# The tree itself already feeds the global illumination; this is only its shadow.
 			twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
-			_set_draw_distance(twin, draw_distance)
+			var shadow_distance: float = batch.get("shadow_distance", 0.0)
+			_set_draw_distance(twin, minf(draw_distance, shadow_distance) if draw_distance > 0.0 and shadow_distance > 0.0 else maxf(draw_distance, shadow_distance))
 			parent.add_child(twin)
 			node.set_meta("shadow_twin", twin)
 	_batches.clear()

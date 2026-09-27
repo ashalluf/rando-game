@@ -1250,22 +1250,42 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   it and the GroundBody (`_sink`), removed on exit or when the chunk unloads. Keep `FLOOR_Y`
   above `under_city_ground()`'s 1.5 m or the player standing in the lake is lifted out.
   Encampments: `Encampment` (`scripts/world/encampment.gd`, static, a step after
-  `_build_sidewalk_props`) on DOWNTOWN `BUILDINGS` blocks only, some streets far more than
-  others (`CAMP_STREET_SHARE`, `FACE_ODDS*`), runs laid along the building line (walls from
-  `StreetDetail._footprints()`) with doorway gaps, corner and prop clearance and a kerb-side
-  `PATH_KEEP` the block's walkers keep to. **Every roll is a hash of seed, block and face,
-  never the chunk rng.** Pieces are `PropFactory.encampment(piece)` from
-  `assets/models/encampment_kit.glb` (`tools/encampment_kit.py`, Blender), batched as
+  `_build_sidewalk_props`) on DOWNTOWN `BUILDINGS` blocks, far denser since the owner's
+  "multiply by 20" (2026-09-27): some streets far more than others (`CAMP_STREET_SHARE`,
+  `FACE_ODDS*`), a **skid-row band** east of the centre (`skid_row()`, in downtown radii from
+  `MacroMap.downtown_center`, patchy per block, spilling into the midtown and industrial blocks
+  beside it: whole faces wall to wall, a kerb row of carts and bags, higher caps), camps under
+  the freeway decks near downtown (`_build_underpass()`), the faces across from MacArthur Park,
+  and never within `WORSHIP_CLEAR` (160 m) of a landmark whose id names a place of worship. Runs
+  are laid along the building line (walls from `StreetDetail._footprints()`) with doorway gaps,
+  corner and prop clearance and a kerb-side `PATH_KEEP` the block's walkers keep to.
+  **Every roll is a hash of seed, block and face, never the chunk rng.** Pieces are
+  `PropFactory.encampment(piece)` from `assets/models/encampment_kit.glb`
+  (`tools/encampment_kit.py`, Blender; now with a loaded cart and a roped bundle), batched as
   `camp_<piece>` with colour and a per-instance sun-bleach in the instance custom
   (`shaders/encampment*.gdshader`); each knockable piece is an `EncampmentItem` static body
-  (props + npc layers, mask 0: bullets, blasts and bumpers hit it) that turns into a
-  `PhysicsProp` debris copy when hit and stays gone (WorldState). Caps `MAX_ITEMS` 34 /
-  `MAX_SLEEPERS` 6 a chunk, FULL chunks only, `DRAW_DISTANCE` 190 / 120 m. The people are
-  `RoughSleeper` (`scripts/npc/rough_sleeper.gd`, extends Pedestrian, so shot, knocked, bled and
-  ragdolled like anyone, and counted in the crowd cap through `take_crowd_room()`): poses SIT,
-  LIE and SLUMP held by overriding bone poses over a paused idle clip, solved per rig from its
-  own rest pose (aim a bone's child direction, like `fix_arm_pose()`), with breathing and sway;
-  gunfire makes the sitting and lying get up and FLEE (then RETURN and settle) and the slumped
+  (props + npc layers, mask 0) that turns into a `PhysicsProp` debris copy when hit and stays
+  gone (WorldState). Caps per chunk `MAX_ITEMS` / `SKID_MAX_ITEMS`, FULL chunks only,
+  `DRAW_DISTANCE` 190 / 120 m. **The people come in two kinds.** Everyone sitting, lying or
+  slumped is a `CampFigure` (`scripts/world/camp_figure.gd`): each (model, pose) is posed once
+  on a real RoughSleeper and its welded middle body (`Pedestrian.far_mesh()`) skinned on the CPU
+  into a plain mesh in the worn look (the loading screen bakes all 45), and a chunk's figures
+  are merged into ONE `CampFigureMesh` (`SurfaceTool.append_from()`, a surface per material,
+  plus a one-surface shadows-only twin from the far bodies, shadows to 60 m). Seeds are searched
+  so each model has one look and no cap or pack (`CampFigure.seed_for()`), so a chunk using
+  `FIGURE_MODELS` (3) models is three draws; up to `MAX_FIGURES` / `SKID_MAX_FIGURES` a chunk,
+  half on the web. Flat camp pieces cast no shadow (`NO_SHADOW`), the rest to `SHADOW_DISTANCE`
+  (`MultiMeshBatch.set_shadow_distance()`). A figure's body is on the npc
+  layer; a round, a blast, a bumper, or an alarm (`Pedestrian.alarm()` -> `wake_near()`, the
+  nearest `wake_on_alarm`) **wakes** it: the merged mesh is rebuilt without it and a live RoughSleeper with the same
+  seed, pose and spot takes its place and the hit. Standing people (in twos and threes, by a
+  bundle) and cart pushers (`Pose.PUSH`, walking the walkers' strip) stay live `RoughSleeper`s
+  (`scripts/npc/rough_sleeper.gd`, extends Pedestrian, so shot, knocked, bled and ragdolled like
+  anyone), capped by `MAX_SLEEPERS` / `SKID_MAX_SLEEPERS` and counted in the crowd cap through
+  `take_crowd_room()` - walkers near downtown leave `CROWD_RESERVE` of the cap for them. Poses
+  SIT, LIE, SLUMP, CHAIR are held by overriding bone poses over a paused idle clip, solved per rig
+  from its own rest pose (aim a bone's child direction, like `fix_arm_pose()`); gunfire makes the
+  sitting and lying get up and FLEE (then RETURN and settle) and the slumped
   COWER in place. Worn clothes are `RoughSleeper.worn_material()` - the character shader's
   `grime` uniform (dirt low on the body, never on skin). Depict it as the street, never as a joke.
 - Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six

@@ -180,74 +180,96 @@ func _camps(city: Node3D, plan: CityPlan, player: Node3D) -> void:
 	var wrong := 0
 	var over_cap := 0
 	var sleepers: Array = []
+	var figures: Array = []
 	for k in city.chunks:
 		var c: Node3D = city.chunks[k]
 		if c.level != 0:
 			continue
 		var items := 0
 		var people := 0
+		var figs := 0
 		for child in c.get_children():
 			if child is EncampmentItem:
 				items += 1
 			elif child is RoughSleeper:
 				people += 1
 				sleepers.append(child)
+			elif child is CampFigure:
+				figs += 1
+				figures.append(child)
 		var batch := 0
 		for child in c.get_children():
 			if child is MultiMeshInstance3D and str(child.name).begins_with("Batch_camp_"):
 				batch += (child as MultiMeshInstance3D).multimesh.instance_count
 		var block := plan.block(k.x, k.y)
-		if int(block.district) != CityPlan.District.DOWNTOWN or int(block.kind) != CityPlan.BlockKind.BUILDINGS:
-			if items > 0 or batch > 0 or people > 0:
+		# Camps only where the hashes put them: downtown blocks of buildings, and the skid-row
+		# band's blocks beside them.
+		if int(block.kind) != CityPlan.BlockKind.BUILDINGS or Encampment.block_flags(plan, k.x, k.y) == 0:
+			if items > 0 or batch > 0 or people > 0 or figs > 0:
 				wrong += 1
 		elif batch > 0:
 			camp_chunks += 1
-		if batch > Encampment.MAX_ITEMS or people > Encampment.MAX_SLEEPERS:
+		if batch > Encampment.SKID_MAX_ITEMS or people > Encampment.SKID_MAX_SLEEPERS + Encampment.SKID_PUSHERS + 1 \
+				or figs > Encampment.SKID_MAX_FIGURES:
 			over_cap += 1
 		items_total += items
 	_t._check(camp_chunks >= 1 and items_total >= 4, "downtown chunks get encampments (%d chunks, %d knockable pieces)" % [camp_chunks, items_total])
 	_t._check(wrong == 0, "no encampments outside downtown blocks of buildings (%d chunks wrong)" % wrong)
 	_t._check(over_cap == 0 and _tree.get_nodes_in_group("pedestrian").size() <= int(city.max_pedestrians) + 2,
 		"encampments stay under their caps and the crowd cap (%d over)" % over_cap)
-	_t._check(sleepers.size() >= 1, "people at the camps (%d)" % sleepers.size())
-	if sleepers.is_empty():
-		return
-	# They hold their poses: nobody at a camp walks.
+	_t._check(figures.size() >= 4, "people sitting, lying and slumped at the camps (%d figures, %d live)" % [figures.size(), sleepers.size()])
+	# The live ones who stand at their camp stay there; the cart pushers walk their block.
 	var start := {}
-	var kinds := {}
 	for s in sleepers:
 		start[s] = (s as Node3D).global_position
-		kinds[int(s.pose)] = true
 	await _t._ticks(30)
 	var moved := 0
-	var posed := 0
-	var alive := 0
+	var standing := 0
 	for s in sleepers:
-		if not is_instance_valid(s):
+		if not is_instance_valid(s) or int(s.pose) != RoughSleeper.Pose.STAND:
 			continue
-		alive += 1
+		standing += 1
 		if (s as Node3D).global_position.distance_to(start[s]) > 0.05:
 			moved += 1
-		if s.is_posed():
-			posed += 1
-	_t._check(moved == 0 and posed == alive and alive > 0, "the people at the camps hold their poses and do not walk (%d moved, %d posed, %d poses)" % [moved, posed, kinds.size()])
-	var worn := false
-	for s in sleepers:
-		if not is_instance_valid(s):
-			continue
-		for mi in (s as Node).find_children("*", "MeshInstance3D", true, false):
-			var m := (mi as MeshInstance3D).material_override as ShaderMaterial
-			if m and float(m.get_shader_parameter("grime")) > 0.3:
-				worn = true
-	_t._check(worn, "their clothes wear the worn, dirty look")
-	# Gunfire: someone sitting or lying gets up and goes; someone slumped cowers where they stand.
-	var one: Node3D = sleepers[0]
-	Pedestrian.alarm(_tree, one.global_position + Vector3(4.0, 0.0, 0.0), 12.0, 0, true, "")
+	_t._check(moved == 0, "the people standing at the camps stay put (%d of %d moved)" % [moved, standing])
+	# Gunfire wakes the nearest figures into people: someone sitting or lying gets up and goes;
+	# someone slumped cowers where they stand. A figure keeps its model, pose and spot.
+	if figures.is_empty():
+		return
+	var fig: CampFigure = figures[0]
+	var home: Vector2 = fig.home
+	var fig_pose := fig.pose
+	var parent := fig.get_parent()
+	Pedestrian.alarm(_tree, fig.global_position + Vector3(4.0, 0.0, 0.0), 12.0, 0, true, "")
 	await _t._ticks(20)
-	if is_instance_valid(one):
+	var one: RoughSleeper = null
+	for child in parent.get_children():
+		if child is RoughSleeper and int(child.pose) == fig_pose and ((child as RoughSleeper)._home as Vector2).distance_to(home) < 0.01:
+			one = child
+	_t._check(one != null and (not is_instance_valid(fig) or fig.is_queued_for_deletion()),
+		"a nearby shot wakes the figure into a person in the same pose and spot")
+	if one:
 		var state: int = int(one.get("_state"))
 		var ok: bool = state == RoughSleeper.State.COWER if int(one.pose) == RoughSleeper.Pose.SLUMP else (state == RoughSleeper.State.FLEE or state == RoughSleeper.State.RETURN)
 		_t._check(ok, "a nearby shot sends them running, or cowering if slumped (pose %d, state %d)" % [int(one.pose), state])
+		var worn := false
+		for mi in one.find_children("*", "MeshInstance3D", true, false):
+			var m := (mi as MeshInstance3D).material_override as ShaderMaterial
+			if m and float(m.get_shader_parameter("grime")) > 0.3:
+				worn = true
+		_t._check(worn, "their clothes wear the worn, dirty look")
+	# A round into a figure puts the person down (a ragdoll), whatever the crowd cap says.
+	var target: CampFigure = null
+	for f in figures:
+		if is_instance_valid(f) and not f.is_queued_for_deletion() and f.collision_layer != 0:
+			target = f
+			break
+	if target:
+		var dolls_before := _tree.get_nodes_in_group("debris").size()
+		target.shot(target.global_position + Vector3(0.0, 0.6, 0.0), Vector3(1.0, 0.0, 0.0), Vector3(3.0, 1.0, 0.0), 1.0)
+		await _t._ticks(3)
+		_t._check(not is_instance_valid(target) and _tree.get_nodes_in_group("debris").size() > dolls_before,
+			"a shot figure goes down like anyone")
 	# A blast scatters a camp: its pieces are thrown as bodies and stay gone.
 	var item: EncampmentItem = null
 	for k in city.chunks:
