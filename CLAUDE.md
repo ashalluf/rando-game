@@ -813,6 +813,24 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   (`shaders/street_clutter.gdshader`: paint from INSTANCE_CUSTOM, printed front pages, covers and
   chalk from the vertex alpha), one draw per kind a chunk. StreetDetail still makes the news
   boxes' old rng rolls and hands them over; everything else is hash-seeded.
+  **Street wear** (`StreetWear`, `scripts/world/street_wear.gd`, a build step of every FULL
+  chunk after everything it lies on): spray tags, throw-ups and roller letters with buff-out
+  patches over some, wheat-paste runs and flyers, stickers on lamp / signal / utility poles and
+  signal cabinets, freeway columns, grime along the foot of every street wall and gum and stains
+  in patches on the pavement - ONE shadowless transparent batch (`wear`) a chunk on
+  `shaders/street_wear.gdshader`, faded out by `DRAW_DISTANCE` (120 m). The art is original,
+  drawn by `tools/make_street_wear.py` into two atlases (`assets/textures/street_wear/`: abstract
+  letter scribbles, invented gigs and lost-pet bills, invented stickers); grime and gum are
+  procedural. Walls are read off the chunk's Building parts and the window / door / sign-band
+  layout is worked out as `building.gdshader` draws it (`_paintable()`), so posters never land
+  on glass; tags may run over `TAG_SLACK` of glass and frame. **Measure heights from the
+  pavement, never the building base** (`floor_of` in `_wall_run()`): on a slope a building's base
+  is up to a metre under the pavement, and the first version buried every low tag and all the
+  grime. Every roll is a hash of seed + block / face / prop, never the chunk rng. Nothing within
+  `WORSHIP_MARGIN` of a place of worship (`WORSHIP_IDS`). Web: no grime or pavement patches, no
+  screen read, half the cap (`full_detail`). Densities per district are the consts at the top.
+  `STREET_WEAR=0` in the environment turns it off (the A/B); `SHOTS=` on `still_shot.gd` takes
+  several EYE views and hours from one load. Checks: `tests/street_wear_checks.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.

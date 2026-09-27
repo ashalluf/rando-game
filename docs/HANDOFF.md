@@ -2535,6 +2535,30 @@ a band of running water to the end. The rules are in the Road surfaces bullet of
     street costs what main's does. Geometry: none (GEO lines equal within streaming noise).
   - Shots: branch `shots/wet` (before/after sheets and a README).
 
+## 9ac. Street wear, 2026-09-27 (agent branch wt/street-wear)
+
+VISUAL_ROADMAP #27. `StreetWear` (see the CLAUDE.md note under City) lays tags, throw-ups,
+roller letters, buff-outs, wheat-paste runs, pole flyers and stickers, freeway-column paint,
+grime along the foot of every street wall and gum / spill patches on the pavement, as ONE
+transparent batch a FULL chunk. Art is original and generated (`tools/make_street_wear.py`;
+the atlas preview goes to `build/`). Findings worth keeping:
+- **The first version was invisible** and looked like a shader or batch bug; it was placement.
+  On a slope a building's base sits up to a metre under the pavement and everything was
+  measured from the base, so the grime and every low tag were under the paving. Heights now
+  come from the pavement at the wall (`floor_of`), grime is laid in 6 m lengths that each
+  follow it.
+- Downtown shop fronts are glass to a 0.6 m bulkhead, so an all-wall rule found almost no room:
+  tags now go on the shop piers (`PIER_TAG_SHARE`) and may run over `TAG_SLACK` of glass/frame.
+- Instance custom data reads back as zero under `--headless`, so the smoke test counts modes
+  from the chunk meta `street_wear_modes`.
+- `still_shot.gd` `SHOTS="x,y,z,yaw,pitch@hour;..."` takes several views from one load (a load
+  is most of a shot's 8 minutes on this box).
+Numbers: downtown blocks 150-250 instances, industrial ~300, cap 520. Frame cost on the
+bookmarks: +2 draw calls, +6-8k triangles (~0.1 %); the transparent overdraw of grime strips
+is not measurable here. Screens: branch `shots/wear`. **Needs the Mac:** how the paint's
+screen-grain and roughness read under Forward+ light, and whether grime wants to be lighter.
+Next: tags on the night roll-down shutters (building shader), more storefront-level paint.
+
 ## 10. Suggested next steps, in order of impact
 
 Rewritten at the 2026-09-24 wrap-up. The 2026-09-21 list follows it, kept because items 1 and
