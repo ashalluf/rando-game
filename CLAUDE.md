@@ -1156,7 +1156,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   third built out into the bay, the harbour (the berth, `harbor_rect`) off its south quay and the
   cargo ship at (3065, 6522). The bay (`bay_z` 6300, `bay_east_x` 4700) wraps the headland's
   south and east and is open sea; east of the port its north shore is Long Beach's sand
-  (`bay_beach_depth`). There is no inland water anywhere: the old harbour at z 3300 is city now.
+  (`bay_beach_depth`). There is no inland water anywhere: the old harbour at z 3300 is city now (all of it checked by `_port_on_the_bay()` in `tests/downtown_checks.gd`).
   The ocean shader gets `bay_east_x` from `Weather._push_ocean_shape()`. Industrial is east of the
   110 below z 2300 (`industrial_corner` (2150, 2300)) all the way down to the port, and the Arts
   District east of Vignes; the
@@ -1187,7 +1187,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   `arena` (RANDO ARENA: oval bowl on a stepped podium, glass ring leaning out, banded metal drum,
   domed roof you can land on, corner marquee with LED screens), `live_plaza` (STARLIGHT PLAZA with
   the STARLIGHT THEATER, screens, neon, crowd), `live_hotel` (HOTEL ALTAIR, 200 m slab with a lit
-  crown), `convention_center` (white hall, two tilted green-glass pavilions). North-east,
+  crown), `convention_center` (white hall, two tilted green-glass pavilions). The blocks round
+  them are filled, not paved (owner, 2026-09-25): `ArenaGrounds` (`scripts/world/arena_grounds.gd`)
+  has the pieces - a multi-storey car park (`garage()`: decks, spandrels, cores, roof stalls,
+  static parked cars from `car_mesh()`, a light copy of the traffic bodies at `CAR_BUDGET`
+  triangles), raised planting beds (`bed()`), tree groves with ring benches (`bosque()`) and bronze
+  figures on plinths (`sculpture()`) - and the builders lay them out: the arena at real size
+  (`ARENA_RADII` 54 x 45, drum to 40 m) toward Figueroa, the car park west of it, the star plaza
+  on its north front, palms in beds along Figueroa, a service drive and berm south; the plaza's
+  theatre and cinema block at real depth with a grove in the south of the plaza; the hotel podium
+  filling its block; beds along the convention centre's front. North-east,
   `LandmarkCivicCenter` (`landmark_civic_center.gd`): `ziggurat_hall` (CITY HALL - on its real
   block, turned to face its real street, floodlit), `civic_park` (CIVIC PARK: fountain
   terrace, lawn, pink furniture), `concert_hall` (SYMPHONY HALL, steel sails from

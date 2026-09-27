@@ -200,6 +200,51 @@ func run(t: Node, city: Node3D) -> void:
 			mq += " not north of the 105 (z %.0f there)" % cross
 	_check(mq == "", "the masjid stands south of downtown where the real one does: west of the 110, between the 10 and the 105%s" % mq)
 	_freeways_clear(plan, city)
+	_port_on_the_bay(plan)
+
+
+## The port is where the real one is (owner, 2026-09-25: "the san pedro pier is in the middle of
+## the damn city with water ... it should be on the east side of palos verdes"): on San Pedro Bay
+## just east of the headland, its quay on open sea, the 110 ending at its gate - and nowhere in
+## the basin is there enclosed water any more.
+func _port_on_the_bay(plan: CityPlan) -> void:
+	var m: MacroMap = plan.macro
+	var bad := ""
+	# No inland water: every ocean sample in the basin is the sea itself (west of the coast) or
+	# the bay round the headland, reached from open sea (south of bay_z) by water.
+	var wet := 0
+	for zi in range(-1000, int(m.bay_z) - 150, 50):
+		for xi in range(-400, 4700, 50):
+			var q := Vector2(float(xi), float(zi))
+			if m.zone_at(q) == MacroMap.Zone.OCEAN and q.x > m.coast_x(q.y) + 300.0 and m.headland_dist(q) > 300.0:
+				wet += 1
+	if wet > 0:
+		bad += " %d inland water samples" % wet
+	for old: Vector2 in [Vector2(2400.0, 3430.0), Vector2(2400.0, 3150.0)]:
+		if m.zone_at(old) != MacroMap.Zone.CITY:
+			bad += " the old harbour at %s is %s" % [old, MacroMap.zone_name(m.zone_at(old))]
+	var port := m.port_rect
+	if m.zone_at(port.get_center()) != MacroMap.Zone.PORT:
+		bad += " the port rect is not port"
+	# The quay faces open sea: water off the whole south quay, and due south of it all the way
+	# out past the bay's mouth.
+	for f: float in [0.1, 0.5, 0.9]:
+		var x := lerpf(port.position.x, port.end.x, f)
+		for z in range(int(port.end.y) + 30, int(m.bay_z) + 1500, 100):
+			if m.zone_at(Vector2(x, float(z))) != MacroMap.Zone.OCEAN:
+				bad += " dry at (%.0f, %d) south of the quay" % [x, z]
+				break
+	# East of the headland: its land within 1.2 km west of the port, none of it under the port.
+	var headland_west := false
+	for dx in range(50, 1250, 50):
+		if m.headland_dist(Vector2(port.position.x - float(dx), port.get_center().y)) < 0.0:
+			headland_west = true
+	if not headland_west or m.headland_dist(port.get_center()) < 0.0:
+		bad += " not just east of the headland"
+	var ends := _route(m.freeway, "110")
+	if ends.is_empty() or port.grow(200.0).has_point(ends[ends.size() - 1]) == false:
+		bad += " the 110 does not end at the port (%s)" % (ends[ends.size() - 1] if not ends.is_empty() else "none")
+	_check(bad == "", "the port is on San Pedro Bay east of the headland, its quay on open sea, the 110 at its gate, and no inland water (port %s)%s" % [port, bad])
 
 
 ## No freeway deck, pillar or off-ramp passes through anything built downtown (owner, 2026-09-25:

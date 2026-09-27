@@ -34,17 +34,25 @@ const HOTEL_NAME := "HOTEL ALTAIR"
 const CONVENTION_NAME := "CONVENTION CENTER"
 
 # --- Arena ----------------------------------------------------------------------------------
-## Oval radii at the foot of the glass (metres), before fitting to the block.
-const ARENA_RADII := Vector2(36.0, 37.0)
+## Oval radii at the foot of the glass (metres), before fitting to the block. The real bowl is
+## about 125 x 105 m over its drum and 45 m to the roof; it was built at a third of that (36 x 37,
+## drum to 30 m) and stood small on a 240 x 200 m block of bare paving.
+const ARENA_RADII := Vector2(54.0, 45.0)
 ## The podium: three steps of STEP_RISE, each STEP_TREAD deep; the outermost reaches PODIUM_OUT
 ## beyond the foot of the glass.
 const STEP_RISE := 0.4
 const STEP_TREAD := 0.8
 const PODIUM_OUT := 4.0
 ## Top of the glass ring, top of the drum, rise of the roof dome (metres above the plaza).
-const GLASS_TOP := 17.0
-const DRUM_TOP := 30.0
-const ROOF_RISE := 4.5
+const GLASS_TOP := 22.0
+const DRUM_TOP := 40.0
+const ROOF_RISE := 6.0
+## The arena block around the bowl (the real one's layout, ArenaGrounds' pieces): the bowl stands
+## toward Figueroa (east) with `ARENA_EAST_SETBACK` metres of planting and palms between it and
+## the kerb, the star plaza of bronze figures on its north front, the car park on the west side
+## (Georgia St) and the service drive and a planted berm along the south.
+const ARENA_EAST_SETBACK := 26.0
+const GARAGE_LEVELS := 4
 ## How far the glass leans out between its foot and its head, and how far the drum overhangs it.
 const GLASS_LEAN := 3.0
 const DRUM_OVERHANG := 1.2
@@ -100,7 +108,7 @@ static func crowds(id: String, s: Rect2) -> Array:
 		"live_plaza":
 			# Clear of the planters down both edges of the plaza.
 			var p := _plaza_open(s)
-			var r := Rect2(p.position + Vector2(5.5, 3.0), p.size - Vector2(11.0, 5.0))
+			var r := Rect2(p.position + Vector2(5.5, 3.0), Vector2(p.size.x - 11.0, _plaza_grove_z(p) - p.position.y - 6.0))
 			return [[r, minf(r.size.x, r.size.y) * 0.5, 46]]
 		"convention_center":
 			var f := Rect2(s.position + Vector2(s.size.x * 0.28, 3.5), Vector2(s.size.x * 0.44, _convention_front(s) - 5.5))
@@ -122,7 +130,7 @@ static func _arena_radii(s: Rect2) -> Vector2:
 static func _arena_centre(s: Rect2) -> Vector2:
 	var r := _arena_radii(s)
 	var reach := r + Vector2(PODIUM_OUT, PODIUM_OUT)
-	var c := s.get_center() + Vector2(-5.0, 4.0)
+	var c := Vector2(s.end.x - reach.x - ARENA_EAST_SETBACK, s.get_center().y + 6.0)
 	c.x = clampf(c.x, s.position.x + reach.x, s.end.x - reach.x)
 	c.y = clampf(c.y, s.position.y + reach.y, s.end.y - reach.y)
 	return c
@@ -198,10 +206,61 @@ static func _arena(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, d
 		g.box("metal", at - Vector3(n.x, 0.0, n.y) * 0.25, Vector3(size.x + 0.8, size.y + 0.8, 0.5), Color(0.25, 0.26, 0.28), LandmarkGeo.yaw(face_yaw), 0.08 if detailed else 0.0)
 		LedScreen.add(g, "led_drum_%d" % i, at + Vector3(n.x, 0.0, n.y) * 0.02, size, face_yaw, screens[i][2], float(i) * 1.7 + 0.3)
 	_marquee(g, batch, s, y0, statics, detailed)
+	_arena_grounds(g, batch, parent, statics, s, c, r0, y0, detailed)
 	g.commit(parent, "Arena")
 	g.commit_collision(statics)
 	batch.build(parent)
 	_occluder(parent, [[Vector3(c.x, y0 + DRUM_TOP * 0.5, c.y), Vector3(r0.x * 1.35, DRUM_TOP - 2.0, r0.y * 1.35)]])
+
+
+## The rest of the arena block (ArenaGrounds): the car park west of the bowl, the star plaza on its
+## north front, planted beds with palms along Figueroa, a grove at the north-west corner and the
+## service drive with a planted berm along the south. The car park is built far as well (it is a
+## big building); the planting only near.
+static func _arena_grounds(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D, statics: StaticBody3D, s: Rect2, c: Vector2, r0: Vector2,
+		y0: float, detailed: bool) -> void:
+	var reach := r0 + Vector2.ONE * PODIUM_OUT
+	var garage := _arena_garage(s, c, r0)
+	if garage.size.x > 30.0 and garage.size.y > 40.0:
+		ArenaGrounds.garage(g, batch, parent, statics, garage, GARAGE_LEVELS, y0, detailed, 4471, 3)
+	if not detailed:
+		return
+	# The star plaza: bronze figures on plinths across the arena's north front, inside the ring
+	# the crowd walks (crowds()).
+	var front_z := (s.position.y + c.y - reach.y) * 0.5
+	for i in 5:
+		var fx := lerpf(c.x - reach.x * 0.45, c.x + reach.x * 0.45, float(i) / 4.0)
+		ArenaGrounds.sculpture(g, statics, Vector2(fx, front_z + (3.0 if i % 2 == 1 else -3.0)), y0, 3301 + i * 17)
+	# A grove at the north-west corner, between the plaza and the car park.
+	var grove := Rect2(Vector2(s.position.x + 4.0, s.position.y + 5.0), Vector2(garage.end.x - s.position.x - 6.0, garage.position.y - s.position.y - 12.0))
+	if grove.size.x > 12.0 and grove.size.y > 8.0:
+		ArenaGrounds.bosque(g, batch, grove, y0, 9.0, 51)
+	# Raised beds with palms along Figueroa, south of the corner plaza.
+	var east := Rect2(Vector2(c.x + reach.x + 5.0, c.y - reach.y * 0.35), Vector2(ARENA_EAST_SETBACK - 12.0, s.end.y - 10.0 - (c.y - reach.y * 0.35)))
+	if east.size.x > 3.0:
+		ArenaGrounds.bed(g, batch, statics, Rect2(east.position + Vector2(east.size.x * 0.5 - 3.0, 0.0), Vector2(6.0, east.size.y)), y0, 61, 14.0, true)
+	# The service drive along the south: asphalt with a painted edge, and a planted berm between
+	# it and the street, broken where the trucks turn in.
+	var south := Rect2(Vector2(garage.end.x + 6.0, c.y + reach.y + 4.0), Vector2(s.end.x - garage.end.x - 10.0, s.end.y - c.y - reach.y - 6.0))
+	if south.size.y > 14.0:
+		g.use("drive", LandmarkMats.paving("asphalt", 4.0, Color(0.55, 0.55, 0.56), 7331, 0.0, 0.4))
+		var drive := Rect2(south.position, Vector2(south.size.x, 11.0))
+		g.cap("drive", LandmarkGeo.ccw(_rect_poly(drive)), y0 + 0.045)
+		var berm_z := drive.end.y + 3.0
+		var berm_d := minf(8.0, south.end.y - berm_z - 1.0)
+		if berm_d > 3.0:
+			var half := (south.size.x - 16.0) * 0.5
+			ArenaGrounds.bed(g, batch, statics, Rect2(Vector2(south.position.x, berm_z), Vector2(half, berm_d)), y0, 71, 10.0)
+			ArenaGrounds.bed(g, batch, statics, Rect2(Vector2(south.position.x + half + 16.0, berm_z), Vector2(half, berm_d)), y0, 73, 10.0)
+
+
+## The car park's footprint on the arena block: west of the bowl, from behind the grove to the
+## south street.
+static func _arena_garage(s: Rect2, c: Vector2, r0: Vector2) -> Rect2:
+	var reach := r0 + Vector2.ONE * PODIUM_OUT
+	var x1 := c.x - reach.x - 12.0
+	var z0 := s.position.y + clampf(s.size.y * 0.2, 20.0, 42.0)
+	return Rect2(Vector2(s.position.x + 3.0, z0), Vector2(x1 - s.position.x - 3.0, s.end.y - 6.0 - z0))
 
 
 ## The arena's near detail: glass fins, a transom, entrance canopies, doors, rooftop plant,
@@ -320,10 +379,18 @@ static func _arc_letters(batch: MultiMeshBatch, key: String, text: String, c: Ve
 ## Where the open plaza is on the plaza block: between the theatre (west) and the restaurant
 ## strip (east), south of the cinema block, open to the street facing the arena.
 static func _plaza_open(s: Rect2) -> Rect2:
-	var theater_w := clampf(s.size.x * 0.33, 18.0, 32.0)
-	var north_d := clampf(s.size.y * 0.28, 10.0, 17.0)
-	var east_w := clampf(s.size.x * 0.2, 10.0, 18.0)
+	# The real theatre is a 7,000-seat hall and the cinema block a full-height complex: at 1:1 the
+	# block is 145 x 174 m, and the old caps (32, 17, 18 m) left a 95 x 156 m field of paving.
+	var theater_w := clampf(s.size.x * 0.36, 18.0, 52.0)
+	var north_d := clampf(s.size.y * 0.26, 10.0, 42.0)
+	var east_w := clampf(s.size.x * 0.2, 10.0, 26.0)
 	return Rect2(Vector2(s.position.x + theater_w, s.position.y + north_d), Vector2(s.size.x - theater_w - east_w, s.size.y - north_d))
+
+
+## Where the grove starts on the plaza: its south part, toward the arena, is a grid of trees with
+## ring benches; the event plaza in front of the screens stays open.
+static func _plaza_grove_z(p: Rect2) -> float:
+	return p.position.y + p.size.y * (0.58 if p.size.y > 70.0 else 1.0)
 
 
 static func _live_plaza(s: Rect2, y0: float, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
@@ -352,7 +419,7 @@ static func _live_plaza(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 	# The theatre: a big dark box with a full-height glass lobby on the plaza side, a canopy and
 	# a giant LED column on its plaza corner.
 	var th := Rect2(s.position, Vector2(p.position.x - s.position.x - 1.0, s.size.y - 3.0))
-	var th_h := 24.0
+	var th_h := 30.0
 	g.box("dark", Vector3(th.get_center().x - 2.0, y0 + th_h * 0.5, th.get_center().y), Vector3(th.size.x - 4.0, th_h, th.size.y), Color.WHITE, Basis(), 0.25 if detailed else 0.0, false, 0.0)
 	LandmarkGeo.shape_box(statics, Vector3(th.get_center().x - 2.0, y0 + th_h * 0.5, th.get_center().y), Vector3(th.size.x - 4.0, th_h, th.size.y))
 	var lobby_x := th.end.x - 4.0
@@ -375,7 +442,7 @@ static func _live_plaza(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 	# The cinema block along the north side: restaurants at the foot, the plaza's wall of screens
 	# above them.
 	var nb := Rect2(Vector2(p.position.x, s.position.y), Vector2(s.end.x - p.position.x, p.position.y - s.position.y))
-	var nb_h := 21.0
+	var nb_h := 28.0
 	g.box("dark", Vector3(nb.get_center().x, y0 + nb_h * 0.5, nb.get_center().y), Vector3(nb.size.x, nb_h, nb.size.y), Color(0.9, 0.9, 0.95), Basis(), 0.2 if detailed else 0.0)
 	LandmarkGeo.shape_box(statics, Vector3(nb.get_center().x, y0 + nb_h * 0.5, nb.get_center().y), Vector3(nb.size.x, nb_h, nb.size.y))
 	var face_z := nb.end.y + 0.02
@@ -458,6 +525,9 @@ static func _plaza_detail(g: LandmarkGeo, batch: MultiMeshBatch, parent: Node3D,
 			var sc := PropFactory.city_tree_scale(v, rng.randf_range(6.5, 8.5))
 			batch.add("tree_%d" % v, PropFactory.model_tree(v), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), Vector3(x, y0 + 0.7, z)),
 				Color(1.0, 1.0, 1.0), Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.4, 1.0)))
+	var gz := _plaza_grove_z(p)
+	if gz < p.end.y - 12.0:
+		ArenaGrounds.bosque(g, batch, Rect2(Vector2(p.position.x + 8.0, gz), Vector2(p.size.x - 16.0, p.end.y - gz - 4.0)), y0, 9.0, 83)
 	var cafe := PropFactory.model_cafe_set()
 	for i in maxi(2, int(nb.size.x / 9.0)):
 		var cx := nb.position.x + 4.0 + float(i) * 8.5
@@ -475,7 +545,8 @@ static func _live_hotel(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 	var batch := MultiMeshBatch.new()
 	var c := s.get_center()
 	# The podium: glass-fronted lobby floors and ballroom panels, the porte-cochère on the east.
-	var pod := Vector3(minf(s.size.x - 6.0, 60.0), HOTEL_PODIUM, minf(s.size.y - 6.0, 44.0))
+	# The podium fills the block less the porte-cochère's drive (east) and a planted strip (west).
+	var pod := Vector3(minf(s.size.x - 22.0, 80.0), HOTEL_PODIUM, minf(s.size.y - 10.0, 60.0))
 	Landmarks._facade_box(parent, statics, pod, Vector3(c.x, y0 + pod.y * 0.5, c.y), Color(0.34, 0.37, 0.42), Building.Finish.GLASS, Building.WindowStyle.RIBBON, 6.0)
 	# The slab: slim, long east-west, dark blue curtain wall, set to the west of the podium so its
 	# lit crown stands over the corner.
@@ -529,6 +600,10 @@ static func _live_hotel(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 		for dz: float in [-6.5, 6.5]:
 			g.cylinder("metal", Vector3(pc.x + 3.2, y0, pc.z + dz), 0.25, 5.6, 10)
 		batch.add("hotel_pool", PropFactory.light_pool(Color(1.0, 0.88, 0.7), 1.2), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(8.0, 1.0, 16.0)), Vector3(pc.x, y0 + 0.05, pc.z)))
+		# A planted strip with palms along the podium's west side.
+		var west := Rect2(Vector2(s.position.x + 2.0, c.y - pod.z * 0.5), Vector2(c.x - pod.x * 0.5 - s.position.x - 4.0, pod.z))
+		if west.size.x > 3.0:
+			ArenaGrounds.bed(g, batch, statics, west, y0, 97, 12.0, true, false)
 		batch.add("hotel_name_low", Signage.text_mesh(HOTEL_NAME, 0.9, Signage.Letters.LIT),
 			Transform3D(_face(-PI * 0.5, 1.0), pc + Vector3(4.1, 0.0, 0.0)), Color(1.0, 0.92, 0.8))
 		batch.set_no_shadow("hotel_name_low")
@@ -616,6 +691,12 @@ static func _convention(s: Rect2, y0: float, parent: Node3D, statics: StaticBody
 			var at := Vector3(fx, y0, s.position.y + front - 1.0)
 			batch.add("conv_pole", pole, Transform3D(Basis().scaled(Vector3(1.0, 12.0, 1.0)), at + Vector3(0.0, 6.0, 0.0)))
 			g.box("frame", at + Vector3(0.0, 10.6, -0.95), Vector3(0.05, 2.4, 1.8), flag_cols[i % flag_cols.size()])
+		# Raised beds with trees along the street edge either side of the crowd's walk.
+		for side: float in [-1.0, 1.0]:
+			var bx0 := s.get_center().x + side * s.size.x * 0.235
+			var bx1 := s.get_center().x + side * s.size.x * 0.38
+			var br := Rect2(Vector2(minf(bx0, bx1), s.position.y + 2.0), Vector2(absf(bx1 - bx0), 3.6))
+			ArenaGrounds.bed(g, batch, statics, br, y0, 111 + int(side), 10.0)
 		var mast := PropFactory.cylinder("lm_mast", 0.2, 1.0, STEEL_DARK, 0.13, 10)
 		for fx: float in [s.position.x + 8.0, s.end.x - 8.0]:
 			_mast(batch, Vector3(fx, y0, s.position.y + 4.0), 10.0, mast)
