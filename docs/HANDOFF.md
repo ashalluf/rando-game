@@ -3160,3 +3160,107 @@ realistic people at "AAA studio PS5 quality", made with the hero's pipeline.
   (tree LOD ladders, new car bodies) and was not merged into this branch here; nothing in it
   touches the crowd files, the likely conflicts are CLAUDE.md, loading_screen.gd and
   smoke_test.gd (adjacent hunks).
+
+
+## 9aj. The crowd up close, 2026-09-27 (agent branch `wt/crowd-detail`; roadmap #38)
+
+The ask, after 9ah: the next real gain is close-up quality - faces (skin detail and warmth, eyes
+that catch light, brows, stubble variety, less generic proportions) and garments (fabric detail,
+folds, jeans that are not all bright blue) - with performance flat.
+
+- **Faces.** `build_character.py` rolls MPFB's own face targets per person (`FACE_PAIRS`: nose,
+  jaw and chin, cheeks, eye size, lids and bags, mouth and lips, ears, brows, forehead;
+  `face_var` 0.35, 0.3 for most women; `face_seed`). The first roll (0.55, with eye spacing, head
+  height and brow angle in the pool) made caricatures and was cut back. Men carry **stubble or a
+  beard** painted into the atlas over a beard zone found on the head in the eyes' frame, scaled
+  by the eye-to-chin distance, with MPFB's `lips` group kept clear and used to find where the face
+  targets moved the mouth (`stubble`, `beard`, `beard_rgb`): stubble is a cool shadow over the
+  skin (the first version laid the beard's brown on and read as orange smudges); a beard is
+  opaque hair colour with soft strand shading (a sharp grain sparkled like frost). Eyes carry a
+  flag in the vertex colour (B + A full) and get a glossy cornea (`eye_roughness` 0.06, specular
+  0.55); the eye atlas scale went 0.5 -> 0.75. Skin: Forward+ subsurface scattering
+  (`skin_sss`, `sss_mode_skin`; the Compatibility renderer prints one warning per compile and
+  ignores it, as it already did for the hero), a softly warm `skin_backlight` (at 1.0/0.42/0.28 it
+  turned every face orange on the opengl3 path - measured by A/B, `MAT_PARAM=` on
+  crowd_lineup.gd), and the tiling pore tile of the detail texture. The skin relief from the
+  photo (a band-pass of its luminance turned into a normal) is on the head only and gentler
+  (`skin_normal_strength` 1.2 -> 0.5): on the body it was JPEG noise amplified into lumpy skin, and
+  at 1.2 the faces read pock-marked. **Brows** were a solid near-black bar on everyone: their
+  texels are a third as bright as the hair and only the dense core passes the cards' alpha cut.
+  `crowd_atlas.py` now shades each brow round the hair colour from its own mean (`BROW_DARKEN`
+  0.8: a redhead's brows are auburn, a grey head's grey) and lets the fringe through the cut
+  (`BROW_ALPHA_GAIN` 1.7) coloured toward the body's median skin (below `BROW_SOLID`), which is
+  the blend the card would have drawn, baked.
+- **Garments.** Folds from `tools/hero/folds.py` (the hero's fold field, reused as it is):
+  `build_character.py` dumps every garment triangle's atlas UVs, rest-pose corners and normals
+  plus the landmarks the field needs (bones, the top's hem, whether sleeves pass the elbow and
+  trousers the knee), `crowd_atlas.py` rasterises them at the normal atlas' size, evaluates the
+  field (elbow rings and cuff stacking, hem blousing, chest drape, knee and ankle folds, hip
+  creases, seat folds), adds the slopes to the garments' own normal maps and darkens the valleys
+  a little in the colour. `fold_gain` per garment (0.75 on the jersey tees). Trousers are dyed
+  per person, keeping the photo's fades as shading (`dye.bottom`, `dye_contrast`): dark indigo
+  (a, j), black (d), khaki (f), grey (h), charcoal (l); e and k keep the washed photo. The body
+  mesh carries **UV2 in metres** (per atlas rect: its UV times sqrt(surface area / UV area),
+  randomly offset), on which character.gdshader tiles `assets/textures/crowd/crowd_detail.png`
+  (`tools/crowd/make_detail.py`, procedural: skin, jersey knit, denim twill with slub streaks,
+  plain weave; RG normal, B roughness, A tone) with one `textureGrad` fetch. The fabric rides in
+  the region colour's level (R or G: 1.0 jersey, 0.85 denim, 0.70 woven; "keep" 0.45 lower in R),
+  with per-fabric roughness and rim sheen. Honest note: at 2-4 m the tiling detail is nearly
+  invisible (A/B at 1.1 m: `detail_strength=0` vs 1 differ by under a grey level); what reads at
+  street distance is the folds, the trouser colours and the fabric roughness / sheen.
+  **Skin through the shirt.** The covered skin the builder keeps (the ring inside every garment
+  edge, and the chest under a V-neck or an open collar) sat about 5 mm under the cloth, and a
+  walk's chest turn pushed a skin triangle out through the shirt front as a pale sliver on crowd_c
+  and crowd_j (the "button" noted in 9ah was this). `build_character.py` now tucks the skin under
+  the garments up to `cover_tuck` (6 mm; 14 mm on crowd_j's open-collar denim shirt) along its
+  normals, as a SMOOTH field (the covered flag averaged over four neighbour passes, so it ramps
+  in across the garment edge). The first version moved the covered vertices as a step, and it
+  cost: every neckline, cuff and hem became a 6 mm crease, the importer's generated LODs kept far
+  more triangles to hold it, and the downtown pedestrians went 355,311 -> 519,163 triangles
+  (+46 %; frame 6.83 -> 7.00 M) with the base meshes the same size. Smoothed: 355,294.
+  crowd_c's sliver is gone; crowd_j keeps a smaller one (72 bright pixels at 1.5 m against 173
+  untucked): that skin is visible through his open collar in the rest pose, so it is not
+  covered and cannot be tucked without denting the collar. A known flaw.
+- **Cost.** Geometry and draws flat. `tools/geo_count.gd` at the downtown bookmark (800x600):
+  4,934,170 -> 4,934,065 triangles, 5,333 draws and 21,546 objects both. `still_shot.gd SPLIT=1`
+  downtown_noon: pedestrians 354,583 (78,318 shadow) -> 355,294 (78,386) triangles, 343 draws
+  both; frame 6,831,626 -> 6,832,349. The four street views on Flower (eye level, 1280x720):
+  4.891 / 5.920 / 6.809 / 6.205 M -> 4.897 / 5.920 / 6.816 / 6.205 M, draws identical. Textures:
+  +1.4 MB (the 1024 px detail texture, VRAM-compressed), -2 MB (the two crops without a hair mesh
+  get a 512 px hair atlas); body atlases unchanged in size. Loading (`people_load_bench.gd`, the
+  people's share of the loading screen): rigs 12 in 917-975 ms either side; camp figures 60 swing 568-853 ms run to run on this loaded box, so the totals (before 1,602 and 1,606 ms, after 1,485, 1,685 and 1,804 ms) show no change beyond that noise. Smoke test 506 checks.
+- **Judged** (opengl3 lineups at 1.6-3 m and the street; `tools/glshot/crowd_lineup.gd`, which now
+  takes `LIGHT=street` and `MAT_PARAM=` A/Bs). What reads at 2-4 m: the beards and stubble, the
+  brows, the dark / khaki / grey trousers, the folds at elbows, knees, ankles and cuffs, and the
+  per-fabric roughness and sheen; the faces differ from each other more. What does not: the
+  tiling pores and weave (under a grey level at 1.1 m in the A/B - the atlas' own photo detail is
+  what is visible), and the faces are still MakeHuman-grade (soft painted skin, generic
+  expressions, thin hair cards) - better, not PS5. Forward+ subsurface and the wet eyes are
+  unverified here (Compatibility ignores SSS): NEEDS MAC CHECK.
+- **How to rebuild.** `tools/crowd/build.sh [names]` as before (all twelve ~25 min on a loaded
+  box); `FROM=crowd_atlas tools/crowd/build.sh` redoes only the atlases and the export (~15 min
+  for twelve) after a change to crowd_atlas.py or the config's look keys; `python3
+  tools/crowd/make_detail.py` rewrites the detail texture (then import, and keep its `.import`
+  at `compress/normal_map=2` - it is not a two-channel normal map). The shared build dir can be
+  pointed elsewhere with `HERO_BUILD`.
+- **Traps.** (1) Removing Blender attributes from a list of references removes the wrong ones
+  after the first (the list goes stale): look each up by name. (2) A full disk mid-build
+  (other agents' renders share it) killed a background render job silently; the glbs and atlases
+  were checked afterwards (header length vs file size, every image decodes). (3) The atlas plan
+  (`WORK/<name>/atlas.json`) is written by the Blender step; until `_LOOK` the atlas step read
+  the look keys only from there, so config changes between Blender runs silently did nothing
+  (two rounds of `skin_normal_strength` tuning and a softer grey for crowd_g never landed; the lumpy skin went away only when
+  the relief left the body). (4) A step in a crowd body's surface is a triangle cost you cannot
+  see in the base mesh: the glb had the same triangle count, the importer's LODs did not (the
+  tuck above). Measure `SPLIT=1`'s Pedestrian line after any reshaping. (5) One headless check
+  crashed (signal 11 in the street-life checks, "caller thread can't call propagate_notification"
+  on /root) on a tree that passed when re-run unchanged (and again after the final rebuild):
+  an engine flake under load, not the crowd.
+- **Next.** (1) Our own garments (the hero's tracksuit route: modelled, UV'd, analytic folds)
+  for the three or four most common outfits - the MakeHuman clothes' soft photographed textures
+  are now the weakest part up close. (2) Painted brows and lip colour into the skin atlas instead
+  of cards (needs the brow cards projected onto the head's UVs in the Blender step). (3) A
+  shared face-detail normal (nasolabial folds, eyelid creases, age lines by the character's age)
+  on the head rect, which the photo band-pass cannot give without its noise. (4) Check the
+  Forward+ SSS and the eye clearcoat on the Mac; if the skin reads waxy, `CROWD_SKIN_SSS` 0.35 is
+  the knob.
