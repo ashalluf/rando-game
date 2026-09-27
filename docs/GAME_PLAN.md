@@ -278,6 +278,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-27 Cinematic post: per-pixel motion blur, and depth of field while aiming and in the
+  wheel (VISUAL_ROADMAP #12).** A Forward+ CompositorEffect (`MotionBlurEffect`) blurs along the
+  velocity buffer before TAA / FSR 2.2, scaled to a fixed 180-degree shutter at 60 fps so every
+  frame rate blurs alike, with a soft threshold so walking stays crisp: speed and camera whips
+  read, the player and the gun ride with the camera and stay sharp. The depth of field keeps the
+  old ambient far blur and adds a gentle blur past the aim target and a strong one under the
+  weapon wheel. Both live in `CameraPost` on the player camera; neither exists on the web.
+  docs/HANDOFF.md 9aj.
+
 - **2026-09-27 The crowd is real people, built like the hero.** The nine Meshy pedestrians read
   as plastic mannequins (their look is baked into one photo texture; roadmap #11 showed shading
   cannot fix it). The crowd is now twelve MPFB humans from CC0 MakeHuman assets, built by

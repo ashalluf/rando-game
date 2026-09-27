@@ -4,7 +4,7 @@ extends CompositorEffect
 ## POST_TRANSPARENT: it runs on the HDR frame at the internal resolution, after the transparent
 ## pass and BEFORE TAA / FSR 2.2 (the last callback Godot offers), which is where the temporal
 ## pass cleans up its noise and the tonemapper sees a blurred highlight as a streak of light.
-## The five compute kernels are in `shaders/motion_blur.glsl` (see its header). `CameraPost`
+## The six compute kernels are in `shaders/motion_blur.glsl` (see its header). `CameraPost`
 ## (scripts/player/camera_post.gd) builds this only when the renderer has a RenderingDevice
 ## (never on Compatibility / the web / the headless check) and sets its knobs every frame.
 ##
@@ -15,7 +15,7 @@ extends CompositorEffect
 
 const SHADER_PATH := "res://shaders/motion_blur.glsl"
 const CONTEXT := &"motion_blur"
-const KERNELS: Array[StringName] = [&"prepare", &"tile_x", &"tile_y", &"neighbor", &"gather"]
+const KERNELS: Array[StringName] = [&"prepare", &"tile_x", &"tile_y", &"neighbor", &"gather", &"resolve"]
 
 # Knobs; CameraPost owns the tunable copies (its @exports) and writes these every frame.
 var strength: float = 1.0
@@ -146,7 +146,7 @@ func _render_callback(_callback_type: int, render_data: RenderData) -> void:
 		_size = size
 	var grid := Vector2i((size.x + tile - 1) / tile, (size.y + tile - 1) / tile)
 	var blur := _texture(buffers, &"blur", RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, size)
-	var copy := _texture(buffers, &"copy", RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, size)
+	var result := _texture(buffers, &"result", RenderingDevice.DATA_FORMAT_R16G16B16A16_SFLOAT, size)
 	var tile_x := _texture(buffers, &"tile_x", RenderingDevice.DATA_FORMAT_R16G16_SFLOAT, Vector2i(grid.x, size.y))
 	var tiles := _texture(buffers, &"tiles", RenderingDevice.DATA_FORMAT_R16G16_SFLOAT, grid)
 	var neighbors := _texture(buffers, &"neighbors", RenderingDevice.DATA_FORMAT_R16G16_SFLOAT, grid)
@@ -173,13 +173,13 @@ func _render_callback(_callback_type: int, render_data: RenderData) -> void:
 
 	# One compute list per kernel: the render graph then orders them by the images they share.
 	_rd.draw_command_begin_label("Motion Blur", Color(0.9, 0.6, 0.2))
-	_dispatch(0, [_sampled(0, depth), _image(1, velocity), _image(2, color), _image(3, blur),
-			_image(4, copy)], push_bytes, size)
+	_dispatch(0, [_sampled(0, depth), _image(1, velocity), _image(2, blur)], push_bytes, size)
 	_dispatch(1, [_image(0, blur), _image(1, tile_x)], push_bytes, Vector2i(grid.x, size.y))
 	_dispatch(2, [_image(0, tile_x), _image(1, tiles)], push_bytes, grid)
 	_dispatch(3, [_image(0, tiles), _image(1, neighbors)], push_bytes, grid)
-	_dispatch(4, [_image(0, copy), _image(1, blur), _image(2, neighbors), _image(3, color)],
+	_dispatch(4, [_image(0, color), _image(1, blur), _image(2, neighbors), _image(3, result)],
 			push_bytes, size)
+	_dispatch(5, [_image(0, result), _image(1, neighbors), _image(2, color)], push_bytes, size)
 	_rd.draw_command_end_label()
 	frames_drawn += 1
 

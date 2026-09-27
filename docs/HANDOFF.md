@@ -3307,3 +3307,117 @@ realistic people at "AAA studio PS5 quality", made with the hero's pipeline.
   (tree LOD ladders, new car bodies) and was not merged into this branch here; nothing in it
   touches the crowd files, the likely conflicts are CLAUDE.md, loading_screen.gd and
   smoke_test.gd (adjacent hunks).
+
+## 9aj. Motion blur and depth of field, 2026-09-27 (agent branch `wt/post-fx`; roadmap #12)
+
+The brief: restrained per-pixel motion blur and depth of field while aiming and in the weapon
+wheel, Forward+ only. Both live in `CameraPost` (`scripts/player/camera_post.gd`), the new
+`Post` node under the player's CameraRig in `player.tscn`, so the city and the test room get it;
+CLAUDE.md's "Motion blur and depth of field" note is the reference.
+
+### What it does
+
+- **Motion blur**: `MotionBlurEffect` (`scripts/util/motion_blur_effect.gd`), a CompositorEffect
+  on the player camera's `compositor`, six compute kernels in `shaders/motion_blur.glsl` (one
+  RDShaderFile, `#[versions]`): prepare (velocity -> blur radius in pixels, linear depth), tile
+  max in x then y (tile = the longest radius), neighbour max (3 x 3, diagonals only when they
+  point in), gather (McGuire 2012 with Guertin 2014's taps alternating between the
+  neighbourhood's velocity and the pixel's own, interleaved-gradient jitter stepped per frame for
+  TAA) into a result image, and resolve (the result back into the frame only where a tile
+  blurred - the first version copied the whole frame every frame, a third of its idle cost). POST_TRANSPARENT is the last callback Godot has, so it runs on the HDR frame at the
+  internal resolution before TAA / FSR 2.2 and the tonemapper - the right order: TAA averages the
+  jitter, and a streaked highlight goes through AgX as light.
+- **Frame-rate independent**: length = one frame's displacement x `shutter / reference_fps /
+  frame_seconds`, frame_seconds the UNSCALED process delta (so the wheel's 0.25 time scale gives a
+  quarter of the blur, as a high-speed camera would). Lengths are in pixels of a 1080-line frame,
+  scaled to the internal resolution, so every quality level and the Mac's FSR-upscaled HIGH blur
+  alike. `velocity_threshold_px` (3) is subtracted first as a soft knee: walking stays sharp.
+- **Depth of field**: Godot's far blur on the camera's CameraAttributesPractical, three states
+  blended on the real clock - ambient (the old CameraRig focus, moved over unchanged: 260 m +
+  14 m per metre of altitude, amount 0.04, HIGH only), aim (hold alt_fire: blur from 35 % past
+  the locked target or the crosshair hit, at least 4 m, amount 0.06; HIGH and MEDIUM) and the
+  weapon wheel (from 8 m, amount 0.16; HIGH and MEDIUM). Compatibility has no depth of field.
+- **Quality** hands `CameraPost.apply_quality(level)` the level instead of setting the DOF flag
+  itself: motion blur and the aim / wheel blur on at HIGH and MEDIUM, off at LOW and LOWEST.
+
+### Traps (each cost time here)
+
+1. **FSR 2.2 leaves most of the velocity buffer empty.** With `SCALING_3D_MODE_FSR2` the engine
+   renders motion vectors only for MOVING objects and clears everything else to (-1, -1) - FSR
+   derives the camera's motion itself. The pixel budget turns FSR on at HIGH on a Retina Mac, so
+   that is the Mac's normal path. The sky writes no velocity in either mode. Both are rebuilt in
+   the prepare kernel from depth and the camera's reprojection, which the effect keeps itself
+   (last frame's `get_cam_transform()` / `get_cam_projection()`).
+2. **`get_cam_projection()` is the corrected projection**: y flipped, reverse-Z remapped to 0..1,
+   and the TAA jitter in its z column (zeroed before use, or a still camera reprojects to a
+   sub-pixel wobble). Its z row gives linear depth directly: `d = b / L - a`.
+3. **A shot tool must capture the frame drawn from the last move.** `await process_frame` after
+   the last move, then `frame_post_draw`, captures a frame drawn after the camera stopped: zero
+   velocity, and the effect looks like it does nothing (it cost two rounds of renders). And the
+   engine compiles its motion-vector pipelines in the background and draws NO velocity until
+   they are ready, so warm up (the tools do 30 frames).
+4. An origin re-centre or a respawn moves the camera a kilometre in a frame; every moving
+   object's velocity is garbage in that frame too, so the whole frame is skipped (`effect.cut`,
+   set by CameraPost when `WorldState.world_offset` changes, and `max_camera_jump`).
+
+### How it was verified (Forward+ under lavapipe; the city does not fit, so small scenes)
+
+- `tools/glshot/motion_blur_shot.gd`: a code-built street (checker road, rows of columns, blocks,
+  sky, a capsule "player" with a gun riding with the camera). Before/after at 45 m/s, 1/60 s
+  frames, mean |RGB diff| out of 765: forward flight 15.5 (no AA), 12.2 (TAA), 15.2 (FSR 2.2 at
+  0.6); a 5 rad/s camera orbit 13.2 (TAA); nothing moving 0.00 (the effect leaves a still frame
+  bit-identical). The near ground and columns streak radially, the far street, the player and
+  the gun stay sharp, the capsule does not smear onto the road behind it. `DEBUG=1` shows the
+  radial field on the TAA path and a uniform sideways field (sky included) on the FSR path - the
+  camera part rebuilt from depth where the engine wrote (-1, -1). A car-sized box crossing at
+  45 m/s 20 m away gets its ~3 px of edge blur (small by design: half a frame's travel, less
+  the threshold).
+- `tools/glshot/post_room_shot.gd`: the test room with the real player, camera rig, CameraPost
+  and HUD (effect built and drawing, 38/38 frames): a 280 deg/s whip blurs the world and not the
+  hero; aim starts the far blur at 36 m with the crosshair's hit at 27 m; the wheel blurs from 8 m under its
+  glass. The same script under `--rendering-driver opengl3`: no effect built, DOF fields set,
+  no errors. Headless (smoke test): no compositor, the effect constructs disabled, the DOF moves
+  between its states and Quality turns it off.
+- Screenshots: `postfx_street_*`, `postfx_room_*`, `postfx_debug_*`, `postfx_moving_box_crop`.
+
+### Cost
+
+`--gpu-profile` on the street at 1920x1080 under lavapipe (read the ratios, not the ms - the box
+was shared, and the same frame's TAA pass measured 97 to 152 ms between runs). The effect is the
+"Process Post Transparent Compositor Effects" segment, against Godot's own TAA pass in the same
+frame:
+
+| Case | effect / TAA |
+|---|---|
+| Forward flight, nearly every pixel blurred, 12 taps | 110 / 97-107 ms, then 158 / 152 ms (1.0-1.1x) |
+| The same, 8 taps | 106 / 115 ms (0.9x) |
+| Nothing moving, first version (full-frame copy) | 35 / 103 ms (0.34x) |
+| Nothing moving, with the resolve pass | 38 / 147 ms (0.26x) |
+
+So at worst it costs what TAA costs, and on a still frame a quarter of that; TAA at that size is
+a fraction of a millisecond on a real GPU. The resolve version renders bit-identical frames to
+the copying one. Knobs that cut it further: `samples` (8 is fine under TAA) and
+`velocity_threshold_px` (more tiles take the early out).
+
+### Knobs (CameraPost exports)
+
+Motion blur: `motion_blur_enabled`, `motion_blur_strength` (1), `shutter` (0.5 = 180 degrees),
+`reference_fps` (60), `max_blur_px` (40, 1080-line pixels), `velocity_threshold_px` (3),
+`samples` (12), `depth_tolerance` (0.06 of the distance), `max_camera_jump` (30 m). DOF:
+`dof_ground_distance` / `dof_altitude_gain` / `dof_lerp_speed` / `dof_amount` (ambient),
+`aim_dof_*` (enabled, amount 0.06, margin 0.35 / 4 m, transition 1.0 / 10 m, no-hit focus 150 m,
+focus speed 8), `wheel_dof_*` (enabled, 8 m, 14 m, 0.16), `aim_ease_seconds` 0.25,
+`wheel_ease_seconds` 0.15. Debug: `fixed_frame_seconds`. Switch: `-- --motionblur=0|1|<scale>`.
+
+### Not done / next
+
+- Look at it on the Mac (Forward+, FSR at HIGH): a boost down a street, a fast flight low over
+  the city, a car at speed, a mouse flick, then aim and the wheel. If it reads too strong, lower
+  `motion_blur_strength` or `shutter`; too weak at speed, lower `velocity_threshold_px`. The
+  explosion camera shake is blurred too (it is camera motion); if that reads as smear rather
+  than concussion, cap the shake's share (not done).
+- Physics interpolation is off and the player moves on physics ticks: on a machine rendering
+  faster than 60 Hz uncapped (Quality caps desktop at 60) frames with no tick would carry no
+  blur. Not an issue at the cap.
+- Transparent things (particles, glass) write no velocity: they take the blur of what is behind
+  them. The web and the opengl3 stills show none of this.

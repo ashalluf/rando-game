@@ -373,9 +373,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
 - Motion blur and depth of field (VISUAL_ROADMAP #12, 2026-09-27): both belong to `CameraPost`
   (`scripts/player/camera_post.gd`), the `Post` node under the player's CameraRig (so the test
   room has it too); every knob is an export there. **Motion blur** is `MotionBlurEffect`
-  (`scripts/util/motion_blur_effect.gd` + `shaders/motion_blur.glsl`, an RDShaderFile whose five
-  `#[versions]` are the kernels: prepare, tile max x / y, neighbour max, gather - McGuire 2012
-  with Guertin 2014's alternate taps), a CompositorEffect on the player camera's `compositor`,
+  (`scripts/util/motion_blur_effect.gd` + `shaders/motion_blur.glsl`, an RDShaderFile whose six
+  `#[versions]` are the kernels: prepare, tile max x / y, neighbour max, gather, resolve -
+  McGuire 2012 with Guertin 2014's alternate taps; gather writes a result image and resolve
+  copies it back only where a tile blurred, so a still frame copies nothing), a CompositorEffect on the player camera's `compositor`,
   built only where `CameraPost.supported()` (Forward+ with a RenderingDevice) - never on
   Compatibility, the web, the opengl3 stills or headless. It runs at POST_TRANSPARENT: HDR, the
   internal resolution, BEFORE TAA / FSR 2.2 (the last callback Godot has; TAA cleans its noise

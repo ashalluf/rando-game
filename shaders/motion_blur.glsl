@@ -5,6 +5,7 @@ tile_x = "#define MODE_TILE_X";
 tile_y = "#define MODE_TILE_Y";
 neighbor = "#define MODE_NEIGHBOR";
 gather = "#define MODE_GATHER";
+resolve = "#define MODE_RESOLVE";
 
 #[compute]
 
@@ -18,12 +19,13 @@ gather = "#define MODE_GATHER";
 // 2012, "A Reconstruction Filter for Plausible Motion Blur", with the tile and neighbour maxima
 // and the sample alternation of Guertin et al. 2014:
 //   prepare   the engine's velocity (UV units a frame) -> a blur radius in pixels at a FIXED
-//             exposure (so 20 fps and 60 fps blur alike), soft threshold, clamp; linear depth;
-//             and a copy of the colour to gather from
+//             exposure (so 20 fps and 60 fps blur alike), soft threshold, clamp; linear depth
 //   tile_x/y  the longest radius in each tile x tile block (tile = the longest radius)
 //   neighbor  the longest of each tile's 3 x 3 neighbours, so blur reaches past a silhouette
 //   gather    taps along the neighbourhood's velocity (and the pixel's own), weighted by depth
-//             and by whether each tap's blur really covers this pixel
+//             and by whether each tap's blur really covers this pixel, into a result image
+//   resolve   the result back into the frame, only where a tile blurred: nothing is copied
+//             where nothing moves (a full-frame copy was a third of the idle cost)
 // Traps: with FSR 2.2 the engine writes velocity only for MOVING objects and clears the rest to
 // (-1, -1) (FSR derives the camera motion itself); the sky writes none at all. Both are rebuilt
 // here from depth and the camera's reprojection. Depth is reverse-Z, 0 at the far plane.
@@ -54,9 +56,7 @@ params;
 
 layout(set = 0, binding = 0) uniform sampler2D depth_buffer;
 layout(rg16f, set = 0, binding = 1) uniform restrict readonly image2D velocity_buffer;
-layout(rgba16f, set = 0, binding = 2) uniform restrict readonly image2D color_image;
-layout(rgba16f, set = 0, binding = 3) uniform restrict writeonly image2D blur_image;
-layout(rgba16f, set = 0, binding = 4) uniform restrict writeonly image2D color_copy;
+layout(rgba16f, set = 0, binding = 2) uniform restrict writeonly image2D blur_image;
 
 void main() {
 	ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
@@ -87,7 +87,6 @@ void main() {
 	}
 	float linear_depth = params.depth_b / (depth + params.depth_a);
 	imageStore(blur_image, pos, vec4(radius, linear_depth, engine_px));
-	imageStore(color_copy, pos, imageLoad(color_image, pos));
 }
 
 #endif
@@ -185,18 +184,31 @@ void main() {
 
 #endif
 
-#ifdef MODE_GATHER
-
-layout(rgba16f, set = 0, binding = 0) uniform restrict readonly image2D color_copy;
-layout(rgba16f, set = 0, binding = 1) uniform restrict readonly image2D blur_image;
-layout(rg16f, set = 0, binding = 2) uniform restrict readonly image2D neighbor_image;
-layout(rgba16f, set = 0, binding = 3) uniform restrict writeonly image2D color_image;
+#if defined(MODE_GATHER) || defined(MODE_RESOLVE)
 
 // Interleaved gradient noise (Jimenez 2014), stepped per frame so TAA averages it away.
 float ign(vec2 p) {
 	p += 5.588238 * mod(params.frame, 64.0);
 	return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
 }
+
+// The tile whose neighbourhood a pixel blurs by, looked up a little jittered so tile edges do
+// not show as a grid. Gather and resolve must agree on it exactly.
+ivec2 blur_tile(ivec2 pos, float noise) {
+	int t = int(params.tile);
+	ivec2 grid = (ivec2(params.size) + t - 1) / t;
+	vec2 wobble = (vec2(noise, ign(vec2(pos.y, pos.x) + 17.0)) - 0.5) * params.tile * 0.5;
+	return clamp(ivec2((vec2(pos) + wobble) / params.tile), ivec2(0), grid - 1);
+}
+
+#endif
+
+#ifdef MODE_GATHER
+
+layout(rgba16f, set = 0, binding = 0) uniform restrict readonly image2D color_image;
+layout(rgba16f, set = 0, binding = 1) uniform restrict readonly image2D blur_image;
+layout(rg16f, set = 0, binding = 2) uniform restrict readonly image2D neighbor_image;
+layout(rgba16f, set = 0, binding = 3) uniform restrict writeonly image2D result_image;
 
 float cone(float dist, float radius) {
 	return clamp(1.0 - dist / radius, 0.0, 1.0);
@@ -212,32 +224,27 @@ void main() {
 	if (any(greaterThanEqual(pos, size))) {
 		return;
 	}
-	int t = int(params.tile);
-	ivec2 grid = (size + t - 1) / t;
 	float noise = ign(vec2(pos));
-	// Jitter the tile lookup a little so tile edges do not show as a grid.
-	vec2 wobble = (vec2(noise, ign(vec2(pos.y, pos.x) + 17.0)) - 0.5) * params.tile * 0.5;
-	ivec2 tile = clamp(ivec2((vec2(pos) + wobble) / params.tile), ivec2(0), grid - 1);
-	vec2 vn = imageLoad(neighbor_image, tile).xy;
+	vec2 vn = imageLoad(neighbor_image, blur_tile(pos, noise)).xy;
 	float vn_len = length(vn);
 	if (params.debug > 1.5) {
 		// 2: red = log distance (1 m .. 10 km), green = the engine's own velocity (20 px = 1),
 		// blue = sky (depth 0). Tells a missing velocity buffer from a missing depth buffer.
 		vec4 b = imageLoad(blur_image, pos);
-		imageStore(color_image, pos, vec4(clamp(log(max(b.z, 1.0)) / log(10000.0), 0.0, 1.0),
+		imageStore(result_image, pos, vec4(clamp(log(max(b.z, 1.0)) / log(10000.0), 0.0, 1.0),
 				clamp(b.w / 20.0, 0.0, 1.0), b.z > params.depth_b / params.depth_a * 0.99 ? 1.0 : 0.0, 1.0));
 		return;
 	}
 	if (params.debug > 0.5) {
 		// 1: red / green = this pixel's streak x / y, blue = its tile neighbourhood's (cap = 1).
 		vec2 own = imageLoad(blur_image, pos).xy / params.max_radius;
-		imageStore(color_image, pos, vec4(abs(own), vn_len / params.max_radius, 1.0));
+		imageStore(result_image, pos, vec4(abs(own), vn_len / params.max_radius, 1.0));
 		return;
 	}
 	if (vn_len < 0.5) {
-		return; // nothing near here moves: the pixel stays exactly as rendered
+		return; // nothing near here moves: resolve leaves the pixel exactly as rendered
 	}
-	vec4 cx = imageLoad(color_copy, pos);
+	vec4 cx = imageLoad(color_image, pos);
 	vec3 bx = imageLoad(blur_image, pos).xyz;
 	vec2 vx = bx.xy;
 	float zx = bx.z;
@@ -265,9 +272,29 @@ void main() {
 		float alpha = front * cone(dist, vy_len) + back * cone(dist, vx_len)
 				+ cylinder(dist, vy_len) * cylinder(dist, vx_len) * 2.0;
 		weight += alpha;
-		sum += alpha * imageLoad(color_copy, ypos).rgb;
+		sum += alpha * imageLoad(color_image, ypos).rgb;
 	}
-	imageStore(color_image, pos, vec4(sum / weight, cx.a));
+	imageStore(result_image, pos, vec4(sum / weight, cx.a));
+}
+
+#endif
+
+#ifdef MODE_RESOLVE
+
+layout(rgba16f, set = 0, binding = 0) uniform restrict readonly image2D result_image;
+layout(rg16f, set = 0, binding = 1) uniform restrict readonly image2D neighbor_image;
+layout(rgba16f, set = 0, binding = 2) uniform restrict writeonly image2D color_image;
+
+void main() {
+	ivec2 pos = ivec2(gl_GlobalInvocationID.xy);
+	if (any(greaterThanEqual(pos, ivec2(params.size)))) {
+		return;
+	}
+	vec2 vn = imageLoad(neighbor_image, blur_tile(pos, ign(vec2(pos)))).xy;
+	if (params.debug < 0.5 && length(vn) < 0.5) {
+		return; // gather wrote nothing here
+	}
+	imageStore(color_image, pos, imageLoad(result_image, pos));
 }
 
 #endif
