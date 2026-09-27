@@ -76,10 +76,12 @@ func build(parent: Node3D) -> Dictionary:
 		mm.use_custom_data = true
 		mm.mesh = batch.mesh
 		mm.instance_count = xforms.size()
-		for i in xforms.size():
-			mm.set_instance_transform(i, xforms[i])
-			mm.set_instance_color(i, batch.colors[i])
-			mm.set_instance_custom_data(i, batch.custom[i])
+		# The instance data is written as one buffer, which the shadow twin below takes as it is.
+		# The twin used to copy `mm.buffer` back out: under the headless dummy renderer that reads
+		# empty (6,500 "different size" errors a smoke test, and twins with no instances), and on a
+		# real renderer it may be a read back from the GPU in the middle of a chunk build.
+		var buf := _instance_buffer(xforms, batch.colors, batch.custom)
+		mm.buffer = buf
 		var node := MultiMeshInstance3D.new()
 		node.name = "Batch_" + key
 		node.multimesh = mm
@@ -108,7 +110,7 @@ func build(parent: Node3D) -> Dictionary:
 			twin_mm.use_custom_data = true
 			twin_mm.mesh = proxy
 			twin_mm.instance_count = mm.instance_count
-			twin_mm.buffer = mm.buffer
+			twin_mm.buffer = buf
 			var twin := MultiMeshInstance3D.new()
 			twin.name = "BatchShadow_" + key
 			twin.multimesh = twin_mm
@@ -133,6 +135,40 @@ static func _set_draw_distance(node: GeometryInstance3D, draw_distance: float) -
 
 ## Hides one instance of a built batch (collapses it to nothing far below the world), and its
 ## shadow twin's copy with it, or a felled tree would leave its shadow standing.
+## A MultiMesh buffer for TRANSFORM_3D with colours and custom data: per instance the basis
+## rows with the origin in the fourth column (12 floats), then the colour and the custom data
+## (4 floats each) - the layout MultiMesh.buffer documents.
+static func _instance_buffer(xforms: Array, colors: Array, custom: Array) -> PackedFloat32Array:
+	var buf := PackedFloat32Array()
+	buf.resize(xforms.size() * 20)
+	for i in xforms.size():
+		var t: Transform3D = xforms[i]
+		var c: Color = colors[i]
+		var d: Color = custom[i]
+		var o := i * 20
+		buf[o] = t.basis.x.x
+		buf[o + 1] = t.basis.y.x
+		buf[o + 2] = t.basis.z.x
+		buf[o + 3] = t.origin.x
+		buf[o + 4] = t.basis.x.y
+		buf[o + 5] = t.basis.y.y
+		buf[o + 6] = t.basis.z.y
+		buf[o + 7] = t.origin.y
+		buf[o + 8] = t.basis.x.z
+		buf[o + 9] = t.basis.y.z
+		buf[o + 10] = t.basis.z.z
+		buf[o + 11] = t.origin.z
+		buf[o + 12] = c.r
+		buf[o + 13] = c.g
+		buf[o + 14] = c.b
+		buf[o + 15] = c.a
+		buf[o + 16] = d.r
+		buf[o + 17] = d.g
+		buf[o + 18] = d.b
+		buf[o + 19] = d.a
+	return buf
+
+
 static func hide_instance(node: MultiMeshInstance3D, index: int) -> void:
 	if node and index >= 0 and index < node.multimesh.instance_count:
 		var gone := Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0.0, -10000.0, 0.0))
