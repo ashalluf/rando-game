@@ -452,7 +452,7 @@ static func _wall_run(ctx: Dictionary, part: Dictionary, n: Vector3, a: Vector2,
 	var tag_hi := REACH
 	if part.storefront:
 		var ground := float(floor_of.call((piece.x + piece.y) * 0.5))
-		tag_hi = clampf(0.15 * float(part.gfh) - 0.1 - ground + 0.35, 0.7, REACH)
+		tag_hi = clampf(float(part.base) + 0.15 * (float(part.gfh) - float(part.base)) - 0.1 - ground + 0.35, 0.7, REACH)
 	for i in tags:
 		if not piers.is_empty() and rng.randf() < PIER_TAG_SHARE:
 			var pu: float = piers[rng.randi() % piers.size()]
@@ -644,26 +644,6 @@ static func _piers(part: Dictionary, face: int) -> Array:
 	return out
 
 
-## float32 arithmetic, so hash21 below comes out as the GPU computes it.
-static func _f(x: float) -> float:
-	var a := PackedFloat32Array([x])
-	return a[0]
-
-
-static func _fract(x: float) -> float:
-	return _f(x - floorf(x))
-
-
-## building.gdshader's hash21, in float32.
-static func _hash21(p: Vector2) -> float:
-	var x := _fract(_f(p.x * _f(123.34)))
-	var y := _fract(_f(p.y * _f(456.21)))
-	var d := _f(_f(x * _f(x + _f(45.32))) + _f(y * _f(y + _f(45.32))))
-	x = _f(x + d)
-	y = _f(y + d)
-	return _fract(_f(x * y))
-
-
 ## Whether the shader draws plain wall at (u, v) on this face: not glass, not a door, not the
 ## shop sign band, not a cut corner. Margins keep paint off the window frames and surrounds.
 static func _paintable(part: Dictionary, face: int, u: float, v: float) -> bool:
@@ -677,19 +657,21 @@ static func _paintable(part: Dictionary, face: int, u: float, v: float) -> bool:
 	var fu := u / pitch - col
 	var mu := 0.14 / pitch
 	if part.storefront and v < float(part.gfh):
-		var fv := v / float(part.gfh)
+		# The storefront is measured from the part's base, as the shader measures it.
+		var sf_h := maxf(float(part.gfh) - float(part.base), 0.5)
+		var fv := (v - float(part.base)) / sf_h
 		if fv > 0.72:
 			return false
-		var face_id := float(face + 1)
+		var face_id := face + 1
 		var span: float = maxf((part.spans as Vector4)[face], 1.0)
 		var shop_id := floorf(col / span)
-		var shop_seed := _hash21(Vector2(_f(shop_id * 1.7) + float(part.seed), _f(face_id * 13.0) + float(part.seed)))
-		var door := absf(col - (shop_id * span + floorf(shop_seed * span))) < 0.5
-		var low := 0.05 if door else 0.15
-		# Door bays count as glass to the pavement whatever the hash says, a hair either way.
-		if door:
-			low = 0.0
-		var mv := 0.1 / float(part.gfh)
+		# The door bay off the shop's integer key (ShopfrontKit.door_index(), the shader's salt 15).
+		var bld: Building = part.building
+		var key := bld.shop_key(face_id, int(maxf(shop_id, 0.0)))
+		var door := absf(col - (shop_id * span + float(ShopfrontKit.door_index(key, int(span + 0.5))))) < 0.5
+		# A door bay is glass to the pavement.
+		var low := 0.0 if door else 0.15
+		var mv := 0.1 / sf_h
 		if fv > low - mv and absf(fu - 0.5) < 0.44 + mu:
 			return false
 		# Not across a pier between shops (it stands in front of the wall).

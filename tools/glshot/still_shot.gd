@@ -38,7 +38,7 @@ extends SceneTree
 ## its red, and for `crossing` people out on the crosswalk in front of it (see _stage_street for
 ## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES). With --hour=21 it is the lit heads
 ## at night.
-## SHOTS="x,y,z,yaw,pitch@hour;..." then takes more EYE shots from the same load, saved as OUT
+## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
 ## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost).
 ## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
 ## above the ground there.
@@ -366,7 +366,7 @@ func _initialize() -> void:
 		await _tree_ab(out)
 	if OS.get_environment("SPLIT") == "1":
 		await _geo_split(player, anchor, hold, boost, fov)
-	# SHOTS="x,y,z,yaw,pitch@hour;..." takes more EYE shots from the same load (the load is most
+	# SHOTS="x,y,z,yaw,pitch@hour[@fov];..." takes more EYE shots from the same load (the load is most
 	# of a shot's eight minutes): each moves the free camera there, sets the hour, streams the
 	# chunks round it in at once, runs SHOT_FRAMES frames and saves OUT with _1, _2, ... added.
 	var shots_env := OS.get_environment("SHOTS")
@@ -376,9 +376,12 @@ func _initialize() -> void:
 		k += 1
 		var bits := entry.split("@")
 		OS.set_environment("EYE", bits[0])
-		if bits.size() > 1 and day:
+		if bits.size() > 1 and day and bits[1] != "":
 			day.set("hour", bits[1].to_float())
 		Engine.time_scale = 1.0
+		# A third field is this shot's own field of view ("x,y,z,yaw,pitch@hour@fov").
+		if bits.size() > 2:
+			fov = bits[2].to_float()
 		_eye(player, fov)
 		if streamer and streamer.has_method("update_streaming"):
 			streamer.call("update_streaming", true)

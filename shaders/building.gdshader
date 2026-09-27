@@ -60,6 +60,22 @@ uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
 // bays, so no window straddles a corner), UV.y the face's index, and the wall runs along
 // (-n.z, 0, n.x). On a roof, UV.x is 0 on the parapet ring and 1 inside it.
 uniform bool uv_facade = false;
+// Street level with the facade kit's real storefronts (Building.kit_enabled: never the web).
+// ShopfrontKit puts frames, doors, transoms and mullions exactly where this shader paints them;
+// within shop_paint_near metres the painted ones give way to the geometry, and from
+// shop_paint_far on they carry the look alone (the pieces stand 7 cm proud of the paint, which
+// is under a pixel there).
+uniform bool shop_kit = false;
+uniform float shop_paint_near = 45.0;
+uniform float shop_paint_far = 70.0;
+// Curtain walls as the far shader draws them (building_lod.gdshader, vis_lo / vis_hi 0.08 /
+// 0.93): vision glass between two thin transom lines, and over each slab edge a spandrel panel
+// that is not glass - a darker or a paler panel by the far shader's own roll (`lod_seed`, its
+// building seed, (seed % 997) / 997), so a tower keeps its banding across the handoff. The lines
+// wear `mullion_color`, which is what the kit's caps (ShopfrontKit "cap_v" / "cap_h") are painted.
+uniform bool curtain_spandrel = false;
+uniform vec3 mullion_color : source_color = vec3(0.58, 0.59, 0.62);
+uniform float lod_seed = 0.0;
 // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
 global uniform float night_factor;
 // max(night_factor, the storm's darkness): the street lamps' switch. Street level - shop lights,
@@ -221,6 +237,200 @@ vec3 letter_color(uint i) {
 	if (i == 3u) return vec3(1.0, 0.62, 0.18);
 	if (i == 4u) return vec3(1.0, 0.30, 0.62);
 	return vec3(0.30, 1.0, 0.45);
+}
+
+// Storefront frame finishes: black anodised, dark bronze, clear anodised, white, champagne.
+// ShopfrontKit.FRAME_COLORS (Building.SHOP_FRAME_COLORS), picked per shop by shop_frame_index().
+vec3 shop_frame_color(uint i) {
+	if (i == 0u) return vec3(0.07, 0.07, 0.075);
+	if (i == 1u) return vec3(0.20, 0.15, 0.11);
+	if (i == 2u) return vec3(0.58, 0.59, 0.60);
+	if (i == 3u) return vec3(0.86, 0.86, 0.84);
+	return vec3(0.62, 0.55, 0.43);
+}
+
+// ShopfrontKit.frame_index(): salt 14.
+uint shop_frame_index(uint shop) {
+	uint b = shop_byte(shop, 14u);
+	return b < 77u ? 0u : (b < 141u ? 1u : (b < 205u ? 2u : (b < 230u ? 3u : 4u)));
+}
+
+// A door's framing, painted: `p` in metres from the opening's corner at the pavement on
+// ShopfrontKit's low edge (the high end of `u`), `w` the opening's width. The members of the
+// kit's "door" piece at the same places: the transom bar at door-head height, then a pair of
+// glazed leaves (stiles, meeting stiles, top and kick rails) or one leaf beside a fixed mullion
+// and a sidelight. 1 on a member, 2 on a handle or push bar.
+float door_member(vec2 p, float w, bool single) {
+	if (p.y > 2.38 && p.y < 2.50) {
+		return 1.0;
+	}
+	if (p.y >= 2.50) {
+		return 0.0;
+	}
+	float m = step(p.y, 0.28) + step(2.28, p.y);
+	if (single) {
+		if (p.x < 0.95) {
+			m += step(p.x, 0.10) + step(0.85, p.x);
+			if (p.y > 0.97 && p.y < 1.03 && p.x > 0.14 && p.x < 0.81) {
+				return 2.0;
+			}
+		} else if (p.x < 1.01) {
+			m = 1.0;
+		} else {
+			m = step(p.y, 0.28);
+		}
+	} else {
+		float d = abs(p.x - w * 0.5);
+		m += step(p.x, 0.10) + step(w - 0.10, p.x) + step(d, 0.06);
+		if (abs(d - 0.12) < 0.014 && p.y > 0.78 && p.y < 1.38) {
+			return 2.0;
+		}
+	}
+	return clamp(m, 0.0, 1.0);
+}
+
+// A display bay's framing, painted: the jambs' and head's lap over the glass edge, the transom at
+// door-head height (`glass_low` metres above the pavement is where the glass starts), and a
+// centre mullion in some shops - ShopfrontKit's "bay" piece.
+float bay_member(vec2 p, vec2 size, bool split, float glass_low) {
+	float m = step(p.x, 0.012) + step(size.x - 0.012, p.x) + step(size.y - 0.012, p.y) + step(p.y, 0.012);
+	float t0 = 2.38 - glass_low;
+	m += step(t0, p.y) * step(p.y, t0 + 0.12);
+	if (split) {
+		m += step(abs(p.x - size.x * 0.5), 0.03);
+	}
+	return clamp(m, 0.0, 1.0);
+}
+
+// An invented capital letter, drawn from strokes the way sans-serif capitals are made (stems,
+// bars, a bowl, diagonals), one of sixteen shapes by `id`: at the size of a shop window's vinyl
+// it reads as lettering without spelling anything. `g` is the position in the letter's cell
+// (0..1); 1 on a stroke.
+float fake_glyph(vec2 g, float id) {
+	float sw = 0.17;
+	float x0 = 0.12;
+	float x1 = 0.88;
+	float in_x = step(x0, g.x) * step(g.x, x1);
+	float in_y = step(0.0, g.y) * step(g.y, 1.0);
+	float lft = step(x0, g.x) * step(g.x, x0 + sw) * in_y;
+	float rgt = step(x1 - sw, g.x) * step(g.x, x1) * in_y;
+	float ctr = step(abs(g.x - 0.5), sw * 0.5) * in_y;
+	float top = step(1.0 - sw, g.y) * in_y * in_x;
+	float mid = step(abs(g.y - 0.5), sw * 0.5) * in_x;
+	float bot = step(g.y, sw) * in_y * in_x;
+	float d1 = step(abs((g.x - x0) / (x1 - x0) - g.y), sw * 1.2) * in_x * in_y;
+	float d2 = step(abs((g.x - x0) / (x1 - x0) - (1.0 - g.y)), sw * 1.2) * in_x * in_y;
+	float ring = step(abs(length((g - 0.5) / vec2(0.38, 0.5)) - 0.84), sw * 1.1) * in_y;
+	float up = step(0.5, g.y);
+	int k = int(mod(floor(id * 7.31 + hash21(vec2(id, 4.7)) * 16.0), 16.0));
+	float m = 0.0;
+	if (k == 0) { // H
+		m = lft + rgt + mid;
+	} else if (k == 1) { // F
+		m = lft + top + mid;
+	} else if (k == 2) { // E
+		m = lft + top + bot + mid;
+	} else if (k == 3) { // O
+		m = ring;
+	} else if (k == 4) { // N
+		m = lft + rgt + d1;
+	} else if (k == 5) { // T
+		m = ctr + top;
+	} else if (k == 6) { // L
+		m = lft + bot;
+	} else if (k == 7) { // U
+		m = lft + rgt + bot;
+	} else if (k == 8) { // X
+		m = d1 + d2;
+	} else if (k == 9) { // S
+		m = top + mid + bot + lft * up + rgt * (1.0 - up);
+	} else if (k == 10) { // C
+		m = ring * step(g.x, 0.72);
+	} else if (k == 11) { // P
+		m = lft + top + mid + rgt * up;
+	} else if (k == 12) { // A
+		m = lft + top + mid + rgt;
+	} else if (k == 13) { // Y
+		m = ctr + d2 * up + d1 * up;
+	} else if (k == 14) { // M-ish
+		m = lft + rgt + ring * step(0.5, g.y) * step(abs(g.x - 0.5), 0.3);
+	} else { // D
+		m = lft + top + bot + rgt * step(0.2, g.y) * step(g.y, 0.8);
+	}
+	return clamp(m, 0.0, 1.0);
+}
+
+// What is stuck on the inside of a shop window, in metres on the pane (`p` from its bottom corner
+// on the low edge, `pane` its size): vinyl lettering across a display window, a poster or two in
+// one bay, and on a door the opening hours and an OPEN plate. rgb the colour, a its cover (0
+// where the glass is clear). Finer than a pixel it fades to its average, or it would alias.
+vec4 shop_decal(vec2 p, vec2 pane, uint shop, float bay, bool door, float glass_low, float px_m) {
+	vec4 out_c = vec4(0.0);
+	float fade = 1.0 - smoothstep(0.012, 0.03, px_m);
+	if (!door) {
+		// Vinyl lettering at eye height, centred, in white or gold.
+		if (shop_byte(shop, 20u) < 100u) {
+			float y0 = 1.50 - glass_low;
+			float lh = 0.15;
+			float lw = 0.12;
+			float n_letters = clamp(floor(pane.x * 0.62 / lw), 3.0, 14.0);
+			float x0 = (pane.x - n_letters * lw) * 0.5;
+			vec2 q = vec2((p.x - x0) / lw, (p.y - y0) / lh);
+			if (q.x > 0.0 && q.x < n_letters && q.y > 0.0 && q.y < 1.0) {
+				float li = floor(q.x);
+				// A word break now and then.
+				float space = step(0.84, hash21(vec2(li + bay * 17.0, float(shop % 997u) * 0.13)));
+				float on = fake_glyph(vec2(fract(q.x) * 1.15 - 0.075, q.y), li + bay * 31.0 + float(shop % 1024u)) * (1.0 - space);
+				vec3 ink = shop_byte(shop, 23u) < 90u ? vec3(0.86, 0.68, 0.30) : vec3(0.93, 0.93, 0.90);
+				out_c = vec4(ink, mix(0.30 * (1.0 - space), on, fade) * 0.95);
+			}
+		}
+		// A poster (two, sometimes) low in one bay of the shop.
+		if (shop_byte(shop, 21u) < 120u && abs(bay - float(shop_byte(shop, 22u) % 3u)) < 0.5) {
+			for (int k = 0; k < 2; k++) {
+				if (k == 1 && shop_byte(shop, 24u) < 150u) {
+					break;
+				}
+				vec2 size = vec2(0.46, 0.64);
+				vec2 at = vec2(0.14 + float(k) * 0.56, 0.30);
+				vec2 q = (p - at) / size;
+				if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0) {
+					float h = hash21(vec2(float(shop % 1021u) + float(k) * 7.0, bay));
+					vec3 paper = mix(vec3(0.92, 0.90, 0.84), vec3(0.85, 0.20, 0.14), step(0.5, h));
+					paper = mix(paper, vec3(0.10, 0.22, 0.42), step(0.8, h));
+					vec3 art = mix(vec3(0.12, 0.12, 0.13), vec3(0.95, 0.72, 0.20), step(0.45, hash21(vec2(h, 3.3))));
+					vec3 c = paper;
+					float border = step(q.x, 0.035) + step(0.965, q.x) + step(q.y, 0.025) + step(0.975, q.y);
+					if (q.y > 0.42 && q.y < 0.92 && q.x > 0.1 && q.x < 0.9) {
+						c = art;
+					} else if (q.y < 0.36 && q.y > 0.08 && q.x > 0.12 && q.x < 0.88) {
+						// Lines of print.
+						float line = step(0.5, fract(q.y * 9.0)) * step(0.3, hash21(vec2(floor(q.y * 9.0), h)));
+						c = mix(paper, vec3(0.08), line * fade);
+					}
+					c = mix(c, vec3(0.94, 0.93, 0.90), clamp(border, 0.0, 1.0));
+					out_c = vec4(c, 1.0);
+				}
+			}
+		}
+	} else {
+		// On the door: the opening hours at eye height on the hinge side, an OPEN plate above.
+		bool single = pane.x >= 1.45 && shop_byte(shop, 18u) < 120u;
+		float hx = single ? 0.62 : pane.x * 0.5 - 0.36;
+		vec2 q = (p - vec2(hx, 1.40)) / vec2(0.17, 0.23);
+		if (q.x > 0.0 && q.x < 1.0 && q.y > 0.0 && q.y < 1.0) {
+			float line = step(0.55, fract(q.y * 8.0)) * step(0.15, q.x) * step(q.x, 0.85) * step(0.1, q.y) * step(q.y, 0.8);
+			out_c = vec4(mix(vec3(0.93, 0.93, 0.91), vec3(0.12), line * fade), 1.0);
+		}
+		if (shop_byte(shop, 25u) < 160u) {
+			vec2 o = (p - vec2(hx - 0.03, 1.72)) / vec2(0.26, 0.10);
+			if (o.x > 0.0 && o.x < 1.0 && o.y > 0.0 && o.y < 1.0) {
+				float letters = fake_glyph(vec2(fract(o.x * 4.0), (o.y - 0.15) / 0.7), floor(o.x * 4.0) + 3.0) * step(0.15, o.y) * step(o.y, 0.85);
+				out_c = vec4(mix(vec3(0.78, 0.07, 0.06), vec3(0.96), mix(0.3, letters, fade)), 1.0);
+			}
+		}
+	}
+	return out_c;
 }
 
 // Distance from p to a box of half size b centred on the origin, corners rounded by r.
@@ -481,11 +691,16 @@ void fragment() {
 		float col = floor(u / pitch);
 		float fu = fract(u / pitch);
 		bool storefront = pt_shop > 0.5 && v < pt_ground;
+		// The storefront's height, from the part's own base. The storefront used to be measured as
+		// a ratio of WORLD height (v / pt_ground), which is the same thing only on a building that
+		// stands at y 0: one standing 3 m up the city's rolling ground got a squashed shopfront, and
+		// one on the valley floor no glass at all and its shop names at knee height.
+		float sf_h = max(pt_ground - pt_base_y, 0.5);
 		float row;
 		float fv;
 		if (storefront) {
 			row = -1.0;
-			fv = v / pt_ground;
+			fv = (v - pt_base_y) / sf_h;
 		} else {
 			float vv = v - pt_ground;
 			row = floor(vv / pt_floor);
@@ -510,6 +725,15 @@ void fragment() {
 		bool shutter = false;
 		float shop_u = 0.5;
 		float shop_w = 1.0;
+		// The door bay is a deep recessed entry in some shops (ShopfrontKit.recessed()); the framing
+		// strip between bays and the sill and head round the glass (shop_frame) wear the shop's
+		// frame finish, `frame_col`; `shop_bay` is the bay's place in its shop. On a curtain wall
+		// with `curtain_spandrel`, the panel over the slab edge.
+		bool recess_door = false;
+		bool shop_frame = false;
+		bool spandrel = false;
+		vec3 frame_col = vec3(0.3);
+		float shop_bay = 0.0;
 		// Street level switches with the lamps (lamp_factor), not with night_factor alone.
 		float shop_on = clamp(lamp_factor, 0.0, 1.0);
 		// Window opening in cell units (centre and half size), kept so the fake interior knows
@@ -522,29 +746,58 @@ void fragment() {
 			float span = max(shop_span[int(face_id) - 1], 1.0);
 			float shop_id = floor(col / span);
 			shop_seed = hash21(vec2(shop_id * 1.7, face_id * 13.0) + seed);
-			door_bay = abs(col - (shop_id * span + floor(shop_seed * span))) < 0.5;
-			// The door runs to the pavement; a display window sits on a bulkhead.
-			float low = door_bay ? 0.05 : 0.15;
-			glass = fv > low && fv < 0.74 && abs(fu - 0.5) < 0.44;
-			fascia = fv >= 0.76 && fv < 0.93;
-			bulkhead = fv < low && abs(fu - 0.5) < 0.46;
-			win_c = vec2(0.5, (low + 0.74) * 0.5);
-			win_h = vec2(0.44, (0.74 - low) * 0.5);
 			// Building.shop_key(): the same three integers, packed the same way.
 			shop_key = (uint(abs(seed) + 0.5) * 8u + uint(face_id)) * 1024u + uint(max(shop_id, 0.0));
+			// Which bay is the door comes off the integer key (ShopfrontKit.door_index(), salt 15)
+			// so the kit's door piece stands in it; whether it is a recessed entry off salt 16.
+			float bay = col - shop_id * span;
+			shop_bay = bay;
+			float door_i = float(shop_byte(shop_key, 15u) % uint(span + 0.5));
+			door_bay = abs(bay - door_i) < 0.5;
+			recess_door = door_bay && shop_byte(shop_key, 16u) < 72u;
+			// The door runs to the pavement; a display window sits on a bulkhead.
+			float low = door_bay ? 0.0 : 0.15;
+			glass = fv > low && fv < 0.74 && abs(fu - 0.5) < 0.44;
+			fascia = fv >= 0.76 && fv < 0.93;
+			// Up to the foot of the sill (ShopfrontKit's is 45 mm tall under the glass).
+			bulkhead = fv < low - 0.045 / sf_h && abs(fu - 0.5) < 0.46;
+			// The framing between two bays and the sill and head, where ShopfrontKit's jambs, sill
+			// and head stand: in the frame finish at every range (the pieces' jambs cover 65 mm of
+			// it either side, and the strip between them is the same colour).
+			float lap_v = 0.012 / sf_h;
+			shop_frame = !glass && !bulkhead && fv < 0.74 + 0.06 / sf_h && fv >= low - 0.045 / sf_h
+				&& (abs(fu - 0.5) >= 0.44 || fv >= 0.74 || fv <= low + lap_v);
+			frame_col = shop_frame_color(shop_frame_index(shop_key));
+			win_c = vec2(0.5, (low + 0.74) * 0.5);
+			win_h = vec2(0.44, (0.74 - low) * 0.5);
 			// About 62 % open after dark.
 			shop_open = shop_byte(shop_key, 1u) < 158u;
 			// The neon hangs in the bay after the door.
-			float bay = col - shop_id * span;
-			neon_bay = abs(bay - mod(floor(shop_seed * span) + 1.0, span)) < 0.5;
+			neon_bay = abs(bay - mod(door_i + 1.0, span)) < 0.5;
 			shop_u = (u - shop_id * span * pitch) / (span * pitch);
 			shop_w = span * pitch;
 			// Over half the closed shops pull a roll-down shutter over the whole front at dusk,
 			// and it goes up in the morning, so the day never sees one.
 			if (!shop_open && shop_byte(shop_key, 8u) < 140u && shop_on > 0.5) {
 				shutter = fv < 0.745 && abs(fu - 0.5) < 0.46;
+				// A third of them are a scissor gate instead: a lattice of flat bars and diagonal
+				// links you see the dark shop through, with a rail top and bottom. Only the bars
+				// are drawn as the shutter; between them the glass and the bulkhead stay.
+				if (shutter && shop_byte(shop_key, 26u) < 90u) {
+					float gs = (fu - 0.5) * pitch;
+					float gt = (v - pt_base_y);
+					float post = step(0.40, abs(fract(gs / 0.115) - 0.5));
+					float d1 = step(abs(fract((gs + gt * 0.55) / 0.23) - 0.5), 0.045);
+					float d2 = step(abs(fract((gs - gt * 0.55) / 0.23) - 0.5), 0.045);
+					float rails = step(gt, 0.06) + step(0.745 * sf_h - 0.07, gt);
+					float bar = clamp(post + d1 + d2 + rails, 0.0, 1.0);
+					// Finer than a pixel: keep a see-through average instead of aliasing.
+					bar = mix(bar, 0.42, smoothstep(0.012, 0.03, px_m));
+					shutter = bar > 0.5;
+				}
 				glass = glass && !shutter;
 				bulkhead = bulkhead && !shutter;
+				shop_frame = shop_frame && !shutter;
 			}
 		} else if (window_style == 0) {
 			glass = abs(fu - 0.5) < 0.27 && abs(fv - 0.52) < 0.25;
@@ -555,10 +808,21 @@ void fragment() {
 			win_c = vec2(0.5, 0.55);
 			win_h = vec2(0.47, 0.27);
 		} else if (window_style == 2) {
-			frame = fu < 0.05 || fv < 0.06;
-			glass = !frame;
-			win_c = vec2(0.525, 0.53);
-			win_h = vec2(0.475, 0.47);
+			if (curtain_spandrel) {
+				// Vision glass between transom lines at 0.08 and 0.93 of the floor, the spandrel
+				// panel over the slab edge between them (building_lod.gdshader's curtain wall,
+				// and where ShopfrontKit's transom caps stand).
+				frame = fu < 0.05 || abs(fv - 0.08) < 0.0125 || abs(fv - 0.93) < 0.0125;
+				spandrel = !frame && (fv < 0.0675 || fv > 0.9425);
+				glass = !frame && !spandrel;
+				win_c = vec2(0.525, 0.505);
+				win_h = vec2(0.475, 0.4125);
+			} else {
+				frame = fu < 0.05 || fv < 0.06;
+				glass = !frame;
+				win_c = vec2(0.525, 0.53);
+				win_h = vec2(0.475, 0.47);
+			}
 		} else {
 			glass = abs(fu - 0.5) < 0.16 && abs(fv - 0.5) < 0.40;
 			win_c = vec2(0.5, 0.5);
@@ -589,11 +853,16 @@ void fragment() {
 		vec2 pane_w = vec2(-1.0);
 		float recess_shade = 0.0;
 		float reveal_deep = 0.0;
+		// Where the traced ray met a reveal, in metres in the opening (from its low-u, bottom
+		// corner) and how deep: a recessed entry's floor, returns and soffit are drawn from it.
+		vec2 reveal_q = vec2(0.0);
+		float reveal_d = 0.0;
 		if (glass && window_recess > 0.0) {
-			float cell_h = storefront ? pt_ground : pt_floor;
+			float cell_h = storefront ? sf_h : pt_floor;
 			// Curtain walls are near flush (only the mullion caps stand proud), ribbon glass
-			// and shopfronts a little deeper, punched and slot windows the full reveal.
-			float depth = window_recess * (storefront ? 0.6 : (window_style == 2 ? 0.25 : (window_style == 1 ? 0.5 : (window_style == 3 ? 1.1 : 1.0))));
+			// and shopfronts a little deeper, punched and slot windows the full reveal. A
+			// recessed entry is 1.1 m deep: the door stands at the back of a lobby.
+			float depth = window_recess * (storefront ? (recess_door ? 5.5 : 0.6) : (window_style == 2 ? 0.25 : (window_style == 1 ? 0.5 : (window_style == 3 ? 1.1 : 1.0))));
 			depth *= 1.0 - smoothstep(recess_fade_start, recess_fade_end, length(VERTEX));
 			vec2 size = 2.0 * win_h * vec2(pitch, cell_h);
 			vec2 p = (vec2(fu, fv) - (win_c - win_h)) * vec2(pitch, cell_h);
@@ -617,6 +886,8 @@ void fragment() {
 					reveal_face = true;
 					reveal_normal = side_n;
 					reveal_deep = clamp(d_here / depth, 0.0, 1.0);
+					reveal_q = q;
+					reveal_d = d_here;
 				} else {
 					pane_w = clamp(q / size, vec2(0.0), vec2(1.0));
 				}
@@ -668,7 +939,7 @@ void fragment() {
 				vec3 tan_dir = normalize(world_tangent - world_normal * dot(world_tangent, world_normal));
 				vec3 ray = vec3(dot(to_frag, tan_dir) * u_sign, dot(to_frag, up), -dot(to_frag, world_normal));
 				float wide = max(2.0 * win_h.x * pitch, 0.2);
-				float high = max(2.0 * win_h.y * (storefront ? pt_ground : pt_floor), 0.2);
+				float high = max(2.0 * win_h.y * (storefront ? sf_h : pt_floor), 0.2);
 				float depth_t = 0.0;
 				// Offices are full of blinds; a shop window with a blind in it is not a shop.
 				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, storefront ? 0.10 : 0.72, depth_t, room_lamp);
@@ -769,23 +1040,47 @@ void fragment() {
 			metal = 0.2;
 			float shop_bars = 0.0;
 			if (storefront) {
-				// Anodised shopfront framing: jambs, a centre mullion, the transom above the
-				// display, and a kick plate at the bottom of the door. A shop window with no
-				// framing in it is the tell that a street was drawn rather than built.
-				float mx = abs(fu - 0.5);
-				float bars = step(mx, 0.028) + step(0.405, mx);
-				bars += step(0.655, fv) * step(fv, 0.705);
+				// What is stuck on the glass (drawn on the traced pane, so it sits on the inside
+				// of the glass with the parallax the glass has), then the framing.
+				vec2 pane_m = 2.0 * win_h * vec2(pitch, sf_h);
+				vec2 wd = pane_w.x >= 0.0 ? pane_w : clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
+				// Metres from the pane's corner on ShopfrontKit's low edge (the high end of u).
+				vec2 pk = vec2((1.0 - wd.x) * pane_m.x, wd.y * pane_m.y);
+				float glass_low = (win_c.y - win_h.y) * sf_h;
+				vec4 deco = shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m);
+				albedo = mix(albedo, deco.rgb, deco.a);
+				reflected *= 1.0 - 0.55 * deco.a;
+				room_raw *= 1.0 - deco.a;
+				// Anodised shopfront framing: the laps of the jambs and head, the transom at
+				// door-head height, a centre mullion in some shops, and on a door its leaves,
+				// kick rails and handles. ShopfrontKit's pieces stand exactly here in real
+				// geometry near the camera (shop_kit), so the painting gives way to them within
+				// shop_paint_near metres; a recessed entry's door, at the back of its lobby, is
+				// always painted (on the traced pane).
+				float paint = shop_kit ? smoothstep(shop_paint_near, shop_paint_far, length(VERTEX)) : 1.0;
+				float bars = 0.0;
+				float handle = 0.0;
 				if (door_bay) {
-					bars += step(fv, 0.13);
-					bars += step(0.40, fv) * step(fv, 0.425);   // push bar
+					bool single = pane_m.x >= 1.45 && shop_byte(shop_key, 18u) < 120u;
+					vec2 dp = recess_door ? pk : vec2((win_c.x + win_h.x - fu) * pitch, fv * sf_h);
+					float dm = door_member(dp, pane_m.x, single);
+					bars = min(dm, 1.0);
+					handle = step(1.5, dm);
+					if (!recess_door) {
+						bars *= paint;
+						handle *= paint;
+					}
+				} else {
+					vec2 bp = vec2((win_c.x + win_h.x - fu) * pitch, (fv - (win_c.y - win_h.y)) * sf_h);
+					bars = bay_member(bp, pane_m, shop_byte(shop_key, 17u) < 128u, glass_low) * paint;
 				}
-				bars = clamp(bars, 0.0, 1.0);
 				shop_bars = bars;
-				vec3 mullion = mix(vec3(0.11, 0.11, 0.12), vec3(0.55, 0.56, 0.58), step(0.6, shop_seed));
+				vec3 mullion = mix(frame_col, vec3(0.62, 0.63, 0.64), handle);
 				albedo = mix(albedo, mullion, bars);
 				reflected *= 1.0 - bars;
+				room_raw *= 1.0 - bars;
 				rough = mix(rough, 0.42, bars);
-				metal = mix(metal, 0.65, bars);
+				metal = mix(metal, 0.5, bars);
 			}
 			if (lit) {
 				float glow = 0.55 + 0.45 * hash31(vec3(col + 3.0, row + 7.0, face_id + seed));
@@ -828,7 +1123,7 @@ void fragment() {
 				// white, red or violet, one of four shapes, drawn as a distance to the tube so it
 				// stays a thin bright line at any range (widened to a pixel and dimmed to match
 				// once it is thinner than one) with a soft glow round it on the glass.
-				vec2 pane = 2.0 * win_h * vec2(pitch, pt_ground);
+				vec2 pane = 2.0 * win_h * vec2(pitch, sf_h);
 				vec2 wn = pane_w.x >= 0.0 ? pane_w : clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
 				float d = neon_shape(wn * pane, pane, shop_byte(shop_key, 7u) & 3u);
 				float tube = max(0.02, px_m * 0.8);
@@ -839,6 +1134,11 @@ void fragment() {
 				albedo = mix(albedo, nc, core * 0.6);
 			}
 			emission += reflected;
+		} else if (shutter && shop_byte(shop_key, 26u) < 90u) {
+			// A scissor gate's bars (the gaps between them fell through to the glass above).
+			albedo = vec3(0.16, 0.16, 0.17);
+			rough = 0.5;
+			metal = 0.55;
 		} else if (shutter) {
 			// A roll-down shutter: galvanised slats, a few painted, a bottom rail and the guide
 			// channels up the sides. Lit by the street, not by anything of its own.
@@ -856,15 +1156,66 @@ void fragment() {
 			albedo = mix(albedo, steel * 0.45, rail);
 			rough = 0.55;
 			metal = 0.45;
+		} else if (reveal_face && recess_door) {
+			// A recessed entry's lobby, reached by the traced view ray: a mosaic floor with a
+			// border, polished stone returns, a dark soffit with a downlight that comes on with
+			// the street.
+			if (reveal_normal.y > 0.5) {
+				vec2 t = vec2(reveal_q.x, reveal_d);
+				vec2 g = fract(t / 0.03);
+				float grout = step(g.x, 0.12) + step(g.y, 0.12);
+				vec2 edge = min(t, vec2(2.0 * win_h.x * pitch, 5.5 * window_recess) - t);
+				float border = step(0.06, min(edge.x, edge.y)) * step(min(edge.x, edge.y), 0.15);
+				vec3 tile = mix(vec3(0.82, 0.80, 0.74), vec3(0.08, 0.08, 0.09), border);
+				tile *= 0.9 + 0.2 * hash21(floor(t / 0.03) + seed);
+				albedo = mix(tile, tile * 0.55, clamp(grout, 0.0, 1.0) * (1.0 - smoothstep(0.004, 0.012, px_m)));
+				rough = 0.45;
+			} else if (reveal_normal.y < -0.5) {
+				albedo = vec3(0.12, 0.115, 0.11);
+				rough = 0.8;
+				float lamp = 1.0 - smoothstep(0.05, 0.08, length(vec2(reveal_q.x - win_h.x * pitch, reveal_d - 2.75 * window_recess)));
+				emission = vec3(1.0, 0.85, 0.62) * lamp * 3.0 * shop_on;
+			} else {
+				uint stone_k = shop_byte(shop_key, 27u);
+				vec3 stone = stone_k < 90u ? vec3(0.07, 0.09, 0.08) : (stone_k < 170u ? vec3(0.80, 0.78, 0.73) : vec3(0.30, 0.22, 0.18));
+				float vein = hash21(floor(vec2(reveal_d, reveal_q.y) * vec2(8.0, 3.0)) + seed) * 0.12;
+				albedo = stone * (0.94 + vein);
+				albedo = mix(albedo, albedo * 0.6, step(fract(reveal_d / 0.55), 0.02));
+				rough = 0.22;
+			}
+			albedo *= mix(1.0, 0.6, reveal_deep * 0.7);
+			albedo *= mix(1.0, 0.5, recess_shade);
 		} else if (reveal_face) {
 			// A jamb, the sill or the head of the opening, reached by the traced view ray. The
-			// wall's own material on a punched window, the frame colour on a curtain wall; a
-			// little darker toward the glass, where less sky reaches.
-			vec3 base = window_style == 2 ? accent_color : mix(facade_color, accent_color, 0.25);
+			// wall's own material on a punched window, the frame colour on a curtain wall or a
+			// shopfront; a little darker toward the glass, where less sky reaches.
+			vec3 base = window_style == 2 ? (curtain_spandrel ? mullion_color : accent_color) : mix(facade_color, accent_color, 0.25);
+			if (storefront) {
+				base = frame_col;
+			}
 			albedo = base * mix(1.0, 0.62, reveal_deep);
 			albedo *= mix(1.0, 0.45, recess_shade);
-			rough = 0.8;
-			metal = window_style == 2 ? 0.3 : 0.0;
+			rough = storefront ? 0.45 : 0.8;
+			metal = (window_style == 2 || storefront) ? 0.3 : 0.0;
+		} else if (spandrel) {
+			// The panel over the slab edge: opaque glass, pale or dark by the far shader's roll,
+			// catching a dimmer, blurrier sky than the vision glass.
+			float pale = step(0.55, hash21(vec2(lod_seed * 53.0, 7.9)));
+			albedo = mix(facade_color * 0.62 + vec3(0.012), facade_color * 1.02 + vec3(0.075), pale);
+			albedo *= 0.95 + 0.10 * hash21(vec2(col * 0.5, row) + seed);
+			vec3 to_s = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+			vec3 rs = reflect(to_s, world_normal);
+			vec3 sky_s = mix(street_reflect, mix(sky_horizon, sky_zenith, smoothstep(0.0, 0.55, rs.y)), smoothstep(-0.22, 0.10, rs.y));
+			float fres_s = pow(1.0 - clamp(-dot(to_s, world_normal), 0.0, 1.0), 4.0);
+			float sky_now_s = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
+			emission = sky_s * mix(0.10, 0.45, fres_s) * reflect_emit * reflect_energy * sky_now_s * (1.0 - 0.85 * night_factor) * mix(0.8, 0.45, pale);
+			rough = 0.38;
+			metal = 0.25;
+		} else if (shop_frame) {
+			// The framing strip between two display bays, the sill, the head: the shop's frame.
+			albedo = frame_col * (0.94 + 0.08 * hash21(vec2(col, face_id) + seed));
+			rough = 0.42;
+			metal = 0.45;
 		} else if (fascia) {
 			// Sign band. Each shop paints it its own colour, which is what makes a block read
 			// as a row of businesses rather than one long building with a stripe on it.
@@ -930,7 +1281,7 @@ void fragment() {
 			albedo = base_col * mix(0.72, 1.0, panel);
 			rough = 0.6;
 		} else if (frame) {
-			albedo = accent_color;
+			albedo = (window_style == 2 && curtain_spandrel) ? mullion_color : accent_color;
 			rough = 0.6;
 			metal = 0.2;
 		} else if (reveal) {

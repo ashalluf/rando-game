@@ -108,6 +108,21 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 @export var kit_awning_chance: float = 0.8
 ## Share of those awnings in striped canvas.
 @export var kit_stripe_chance: float = 0.35
+## Real storefronts (ShopfrontKit): frames round every display window, doors, piers, sign-board
+## trims and blade signs draw out to this distance (metres, the building's node); the building
+## shader's painted frames give way to them within `shop_paint_near` of the camera and carry the
+## look alone from `shop_paint_far`. Keep shop_paint_far well inside the kit's reach.
+@export var kit_shopfront_distance: float = 100.0
+@export var shop_paint_near: float = 45.0
+@export var shop_paint_far: float = 70.0
+## Share of glass, panel and plain buildings without a canopy that hang awnings over their shops
+## (masonry ones roll their own, see has_awnings).
+@export var kit_awning_building_chance: float = 0.5
+## Share of shops with a projecting blade sign (0..1).
+@export var kit_blade_chance: float = 0.24
+## Curtain-wall mullion and transom caps: each instance stops drawing past this distance from the
+## camera (the shader's per-instance cull; they are one draw a tower).
+@export var kit_mullion_distance: float = 175.0
 
 @export_group("Street at night")
 ## How much light an open shop throws on the pavement in front of it (the additive pool's
@@ -188,6 +203,14 @@ var _kit_cornice_color: Color = Color.WHITE
 var _kit_iron: float = 0.125
 ## Collision for what stands on the kit (balcony slabs, fire-escape landings), as one trimesh.
 var _kit_solids := PackedVector3Array()
+## The blade signs' names while generating: [text, Transform3D of the board's middle (x along the
+## board's thickness, z out of the wall), board height, letters' material]; _commit_blade_texts()
+## merges them into one mesh per material.
+var _blade_texts: Array = []
+## How many storefront pieces (frames, doors, piers, trims, blade signs) and curtain-wall caps the
+## kit laid on this building: the layout tests read these (a MultiMesh reads back empty headless).
+var shop_piece_count: int = 0
+var cap_piece_count: int = 0
 ## The roof plant while generating: every box and cylinder _prop_box() / _prop_cylinder() lays,
 ## as [Transform3D in this building's space, the primitive's surface arrays, its sRGB colour,
 ## roughness, metallic, unshaded]. _commit_roof() merges them into ONE mesh (see there).
@@ -233,6 +256,9 @@ func generate() -> void:
 	_details.clear()
 	detail_record.clear()
 	details_top = 0.0
+	_blade_texts.clear()
+	shop_piece_count = 0
+	cap_piece_count = 0
 	for part in parts:
 		_build_part(part, style)
 	_commit_parts()
@@ -241,6 +267,7 @@ func generate() -> void:
 	_build_roof_props()
 	_commit_roof()
 	_finish_kit()
+	_commit_blade_texts()
 
 
 func _build_plinth() -> void:
@@ -529,6 +556,15 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
 	# dark for channel letters where there are letters to light.
 	mat.set_shader_parameter("sign_letters", not OS.has_feature("web"))
+	# Real storefronts in front of the painted ones near the camera, when the kit is on.
+	mat.set_shader_parameter("shop_kit", kit_enabled)
+	mat.set_shader_parameter("shop_paint_near", shop_paint_near)
+	mat.set_shader_parameter("shop_paint_far", shop_paint_far)
+	# A curtain wall draws its spandrels and thin transom lines in the frame paint (the kit's caps
+	# stand on those lines), and rolls its spandrel pale or dark as the far shader does.
+	mat.set_shader_parameter("curtain_spandrel", window_style == WindowStyle.CURTAIN)
+	mat.set_shader_parameter("mullion_color", frame_paint())
+	mat.set_shader_parameter("lod_seed", float(seed % 997) / 997.0)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 	_part_mat = mat
 	return mat
@@ -636,11 +672,33 @@ const MAX_FRAME_CELLS := 7000
 const WINDOW_RECTS := {
 	WindowStyle.PUNCHED: [0.5, 0.52, 0.27, 0.25],
 	WindowStyle.RIBBON: [0.5, 0.55, 0.47, 0.27],
-	WindowStyle.CURTAIN: [0.525, 0.53, 0.475, 0.47],
+	# The vision glass between the curtain wall's transom lines (`curtain_spandrel`).
+	WindowStyle.CURTAIN: [0.525, 0.505, 0.475, 0.4125],
 	WindowStyle.NARROW: [0.5, 0.5, 0.16, 0.40],
 }
 ## Window frames are drawn out to this distance (meters); cornices and awnings 1.6x that.
 const FRAME_DRAW_DISTANCE := 240.0
+## Window frame paints per finish, one per building (hashed): the frames are the sashes and the
+## glazing frames, and they used to be one pale grey or off-white everywhere, drawn as flat quads a
+## tenth of the window wide - which from the street read as outlines on a drawing. White and cream
+## sashes, black steel, dark green and bronze on brick; the rest on painted and precast walls;
+## clear and dark anodised on glass (that choice is also the curtain wall's mullion colour).
+const FRAME_PAINTS := {
+	Finish.BRICK: [Color(0.80, 0.78, 0.73), Color(0.84, 0.82, 0.76), Color(0.11, 0.12, 0.11),
+		Color(0.10, 0.19, 0.14), Color(0.25, 0.18, 0.13)],
+	Finish.FLAT: [Color(0.86, 0.85, 0.82), Color(0.12, 0.12, 0.13), Color(0.28, 0.21, 0.16),
+		Color(0.50, 0.51, 0.52), Color(0.78, 0.75, 0.68)],
+	Finish.PANELS: [Color(0.20, 0.20, 0.22), Color(0.25, 0.19, 0.14), Color(0.50, 0.51, 0.53),
+		Color(0.10, 0.10, 0.11)],
+	Finish.GLASS: [Color(0.58, 0.59, 0.62), Color(0.15, 0.15, 0.16), Color(0.29, 0.23, 0.17),
+		Color(0.45, 0.43, 0.39)],
+}
+## Face width of a window frame (metres), per window style: a sash on a punched window, the
+## mullion of a ribbon, the glazing frame of a curtain wall.
+const FRAME_WIDTH := {WindowStyle.PUNCHED: 0.06, WindowStyle.RIBBON: 0.05, WindowStyle.CURTAIN: 0.045, WindowStyle.NARROW: 0.055}
+## The storefront frame finishes, the shader's shop_frame_color() (ShopfrontKit.FRAME_COLORS; the
+## smoke test reads the shader's copy back).
+const SHOP_FRAME_COLORS := ShopfrontKit.FRAME_COLORS
 
 
 ## Real geometry on the facade so the box stops reading as a box: a window frame (and sill) at
@@ -673,7 +731,11 @@ func _shop_spans() -> Vector4:
 ## `shop_hash`, same constants, same salts), so what Building puts in front of a shop - the
 ## spill of its light, the colour of its name - agrees with what the shader draws in it.
 ## Salts: 1 open, 2-3 light colour, 4 brightness, 5-7 neon (has, colour, shape), 8 shutter,
-## 9 sign off, 10 channel letters, 11 letter colour, 12-13 shutter finish.
+## 9 sign off, 10 channel letters, 11 letter colour, 12-13 shutter finish; the real storefront
+## (ShopfrontKit.SALT_*): 14 frame finish, 15 door bay, 16 recessed entry, 17 centre mullion,
+## 18 single door; the shader's alone: 20 vinyl lettering, 21-22 poster (has, bay), 23 lettering
+## ink, 24 second poster, 25 OPEN plate, 26 scissor gate, 27 a recessed entry's stone; Building's
+## alone: 30 blade sign, 31 its colour.
 ## The shader's lights for an open shop (its shop_tone()): warm, neutral, cool, pink, teal.
 const SHOP_TONES := [Color(1.0, 0.70, 0.42), Color(1.0, 0.91, 0.78), Color(0.78, 0.90, 1.0),
 	Color(1.0, 0.50, 0.80), Color(0.55, 1.0, 0.88)]
@@ -737,6 +799,12 @@ func shop_letters(key: int) -> Material:
 	return PropFactory.shop_sign_material(-2, 0.0)
 
 
+## This building's window frame paint (FRAME_PAINTS, hashed on the seed: no _rng roll).
+func frame_paint() -> Color:
+	var paints: Array = FRAME_PAINTS.get(finish, FRAME_PAINTS[Finish.FLAT])
+	return paints[absi(hash([seed, "frame paint"])) % paints.size()]
+
+
 func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefront: float, floor_h: float, rows: int, cols_x: int, cols_z: int, style: Dictionary, cut_x: float = 0.0, cut_z: float = 0.0) -> void:
 	# Face normal, along-the-wall axis (UP x normal, so the instance basis stays right-handed
 	# and the flat frame quads face out), wall length, columns, and how much a cut corner takes
@@ -759,19 +827,10 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var hx: float = rect[2]
 	var hy: float = rect[3]
 	var sill := window_style == WindowStyle.PUNCHED or window_style == WindowStyle.NARROW
-	var frame_color := Color(0.25, 0.25, 0.27)
-	match finish:
-		Finish.BRICK:
-			# Off-white, not paper white: a pure-white surround blew out against brick and
-			# read as polystyrene stuck on the wall.
-			frame_color = Color(0.80, 0.78, 0.73)
-		Finish.PANELS:
-			frame_color = Color(0.2, 0.2, 0.22)
-		Finish.GLASS:
-			# Anodised aluminium, not a dark line. At 0.14 the frames were darker than the
-			# panes they surround, so the grid a curtain-wall tower is made of was drawn and
-			# then invisible - and a mullion catching the sun is most of what says "glass".
-			frame_color = Color(0.58, 0.59, 0.62)
+	# One paint a building (frame_paint()): off-white rather than paper white on brick (pure white
+	# blew out and read as polystyrene), and on glass anodised aluminium rather than a dark line -
+	# at 0.14 the frames were darker than their panes and the grid a curtain wall is made of went.
+	var frame_color := frame_paint()
 	var cells := (2 * cols_x + 2 * cols_z) * rows
 	var frames: Array[Transform3D] = []
 	var boxes: Array = []   # [Transform3D, Color]
@@ -900,6 +959,13 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	# The kit's window surround for this building ("" for none), and its mesh.
 	var kit_surround := _kit_surround if _kit != null else ""
 	var surround_mesh: Mesh = PropFactory.facade_kit(kit_surround) if kit_surround != "" else null
+	# A curtain wall with the kit wears real mullion and transom caps (ShopfrontKit.curtain_face())
+	# instead of the flat frames, which near the camera read as outlines drawn on the glass.
+	var curtain_caps := _kit != null and window_style == WindowStyle.CURTAIN
+	# Shops without an awning roll of their own (glass, panel and plain buildings) may hang them
+	# anyway, per building by hash: the has_awnings roll above stays as it was.
+	var kit_awnings_extra := _kit != null and storefront > 0.0 and shape != Shape.WAREHOUSE and not has_canopy \
+		and not has_awnings and _kit_hash("awning building") < kit_awning_building_chance
 	var face_index := -1
 	for face in faces:
 		face_index += 1
@@ -937,12 +1003,16 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			var wall := Basis(a, Vector3.UP, n)
 			var ac_ok := _kit != null and window_style == WindowStyle.PUNCHED and residential and w >= 0.8
 			for col in range(skip, cols - skip):
-				var u := -size_u * 0.5 + (col + cx) * pitch
+				# The shader counts `u` from the other end of the wall (see the signs below), so
+				# the window's centre is mirrored: `1 - cx`, which is `cx` itself on every style
+				# but the curtain wall (whose frames used to sit 9 cm off its glass).
+				var u := -size_u * 0.5 + (col + 1.0 - cx) * pitch
 				for row in rows:
 					var v := bottom + storefront + (row + cy) * floor_h
 					if v + h * 0.5 > top - 0.3:
 						continue
-					frames.append(Transform3D(Basis(a * w, Vector3.UP * h, n * 0.1), fc + a * u + Vector3(0.0, v, 0.0) + n * 0.02))
+					if not curtain_caps:
+						frames.append(Transform3D(Basis(a * w, Vector3.UP * h, n * 0.1), fc + a * u + Vector3(0.0, v, 0.0) + n * 0.02))
 					if surround:
 						_kit.add("kit_%s_%d" % [kit_surround, row / KIT_SURROUND_BAND_ROWS], surround_mesh,
 							Transform3D(wall, fc + a * u + Vector3(0.0, v, 0.0)), _kit_trim, slices)
@@ -952,6 +1022,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 						var unit: Color = [Color(0.86, 0.85, 0.80), Color(0.78, 0.76, 0.70), Color(0.70, 0.71, 0.72)][absi(hash([seed, "ac colour", col, row])) % 3]
 						_kit.add("kit_ac_window", PropFactory.facade_kit("ac_window"),
 							Transform3D(wall, fc + a * (u + off) + Vector3(0.0, v - h * 0.5, 0.0)), unit, Color(_kit_iron, 0.0, 0.0, 0.0))
+		if curtain_caps:
+			ShopfrontKit.curtain_face(self, _kit, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, floor_h, rows, top, frame_color)
 		if has_escape and face_index == escape_face and cols - 2 * skip >= 2:
 			# `bay` is 1-based: bay 1 sits on column 0, because `eu` below offsets by bay - 0.5.
 			# A chamfer takes exactly one column off each end of the wall (cut == pitch), so
@@ -1002,13 +1074,19 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			for pu in stops:
 				boxes.append([Transform3D(Basis(a * 0.5, Vector3.UP * (storefront - 0.10), n * 0.5),
 					fc + a * pu + Vector3(0.0, bottom + (storefront - 0.10) * 0.5, 0.0) + n * 0.14), accent.lightened(0.05)])
+			# The real storefront round the shader's painted one: frames, doors, pier cladding,
+			# sign-board trims and blade signs (ShopfrontKit), placed off the same shop rolls.
+			if _kit != null:
+				ShopfrontKit.storefront_face(self, _kit, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom,
+					storefront, spans[face_index], stops, masonry, floor_h, top, accent.lightened(0.05))
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
 		# actual name on it, lined up with the same shop runs (`shop_span`). One per face:
 		# every run would be four names on a wall the player can only read one of.
 		if storefront > 0.0 and shape != Shape.WAREHOUSE and signs_on:
 			var span: float = spans[face_index]
 			var runs := int(float(cols) / span)
-			var band_y := 0.845 * (position.y + bottom + storefront) - position.y
+			# 0.845 of the storefront up from the part's base, where the shader's sign band is.
+			var band_y := bottom + 0.845 * storefront
 			var last_name := -1
 			for run in runs:
 				var name_i := absi(hash([seed, "sign_name", face_index, run * 7919])) % SHOP_NAMES.size()
@@ -1095,6 +1173,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 						_kit_solid_box(kxf, Vector3(0.0, -0.08, 0.585), Vector3(2.24, 0.16, 1.27))
 					else:
 						balconies.append(bxf)
+		if kit_awnings_extra:
+			_kit_awnings(face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index])
 		if has_awnings:
 			if _kit != null:
 				_kit_awnings(face_index, fc, a, n, size_u, cols, pitch, cut, bottom, storefront, spans[face_index])
@@ -1157,7 +1237,16 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			tints.append(c)
 		# Where the kit gives the window a real sill, the frame goes without its box one. Past
 		# FRAME_DRAW_DISTANCE the shader's painted frames carry the look on their own.
-		_add_details("Frames", PropFactory.window_frame(sill and kit_surround == ""), frames, tints, FRAME_DRAW_DISTANCE, false)
+		# Thin frames of a real section (FRAME_WIDTH) with their inside faces, and a sash bar in
+		# some punched windows: the old flat quads were a tenth of the window wide.
+		var fw := float(FRAME_WIDTH[window_style])
+		var open_w := maxf(2.0 * hx * float(style.pitch), 0.3)
+		var open_h := maxf(2.0 * hy * float(style.floor), 0.3)
+		var sash := 0
+		if window_style == WindowStyle.PUNCHED or window_style == WindowStyle.NARROW:
+			var sr := _kit_hash("sash")
+			sash = 0 if sr < 0.35 else (1 if sr < 0.8 or window_style == WindowStyle.NARROW else 2)
+		_add_details("Frames", ShopfrontKit.window_frame(sill and kit_surround == "", fw / open_w, fw / open_h, sash), frames, tints, FRAME_DRAW_DISTANCE, false)
 	if not escapes.is_empty():
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -1370,6 +1459,21 @@ func _finish_kit() -> void:
 			d = kit_ac_distance
 		elif key.begins_with("kit_vent") or key == "kit_water_tank" or key == "kit_hvac":
 			d = kit_roof_distance
+		elif key.begins_with("kit_shop_"):
+			# Storefront pieces: the frames, doors, piers and trims are a few centimetres proud,
+			# their shadow a line the painted reveal already draws; the blade signs stand out
+			# over the pavement and keep theirs.
+			# The node's range is measured to its centre: it must still draw wherever a shop of
+			# this building is inside shop_paint_far, where the painting has given way to it.
+			d = maxf(kit_shopfront_distance, shop_paint_far + footprint.length() * 0.5 + 8.0)
+			if key != "kit_shop_blade":
+				_kit.set_no_shadow(key)
+		elif key.begins_with("kit_cap_"):
+			PropFactory.kit_material("kit_mullion").set_shader_parameter("cull_distance", kit_mullion_distance)
+			# The caps cull per instance in the shader (kit_mullion's cull_distance); the node only
+			# drops the lot once the nearest of them could no longer draw.
+			d = kit_mullion_distance + maxf(footprint.x, footprint.y) + height
+			_kit.set_no_shadow(key)
 		_kit.set_draw_distance(key, d)
 	_kit.build(self)
 	_kit = null
@@ -1381,6 +1485,33 @@ func _finish_kit() -> void:
 		concave.set_faces(_kit_solids)
 		shape_node.shape = concave
 		add_child(shape_node)
+
+
+## The blade signs' names (ShopfrontKit.storefront_face() recorded them), both faces of every
+## board, merged into ONE mesh per letters' material: a building's blade signs are a draw or two,
+## not a node per sign. Stops drawing where the shop names do.
+func _commit_blade_texts() -> void:
+	if _blade_texts.is_empty():
+		return
+	var by_mat := {}
+	for e: Array in _blade_texts:
+		var mat: Material = e[3]
+		if not by_mat.has(mat):
+			by_mat[mat] = SurfaceTool.new()
+			(by_mat[mat] as SurfaceTool).begin(Mesh.PRIMITIVE_TRIANGLES)
+		ShopfrontKit.blade_letters(by_mat[mat], str(e[0]), e[1], float(e[2]))
+	var k := 0
+	for mat: Material in by_mat:
+		var st: SurfaceTool = by_mat[mat]
+		var node := MeshInstance3D.new()
+		node.name = "BladeText%d" % k
+		node.mesh = st.commit()
+		node.material_override = mat
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.visibility_range_end = SIGN_DRAW_DISTANCE
+		add_child(node)
+		k += 1
+	_blade_texts.clear()
 
 
 ## A box of collision (in `xform`'s space: centre and size) for something the player can land
@@ -1477,7 +1608,18 @@ func _kit_cornice_scale(size: Vector3) -> float:
 ## (`shop_span`, measured from the far end of the wall - see the sign code), stopping short of
 ## the piers between them. Colour, stripes and whether a shop has one at all are hashed per shop.
 func _kit_awnings(face_index: int, fc: Vector3, a: Vector3, n: Vector3, size_u: float, cols: int, pitch: float, cut: float, bottom: float, storefront: float, span: float) -> void:
-	var mesh := PropFactory.facade_kit("awning")
+	# One shape a building (a row of shops under one landlord hangs the same kind), by hash: the
+	# Blender kit's sloped canvas, a round dome, a retractable one on folding arms, or a flat metal
+	# canopy on tie rods (the glass and panel blocks' usual choice).
+	var sr := _kit_hash("awning shape")
+	var glassy := finish == Finish.GLASS or finish == Finish.PANELS
+	var shape_key := "awning"
+	if glassy:
+		shape_key = "awning_flat" if sr < 0.55 else ("awning_roller" if sr < 0.85 else "awning")
+	else:
+		shape_key = "awning" if sr < 0.4 else ("awning_dome" if sr < 0.65 else ("awning_roller" if sr < 0.9 else "awning_flat"))
+	var mesh: Mesh = PropFactory.facade_kit("awning") if shape_key == "awning" else ShopfrontKit.mesh(shape_key)
+	var batch_key := "kit_" + shape_key
 	var runs := ceili(float(cols) / span)
 	for run in runs:
 		var hi_u := size_u * 0.5 - float(run) * span * pitch
@@ -1492,8 +1634,12 @@ func _kit_awnings(face_index: int, fc: Vector3, a: Vector3, n: Vector3, size_u: 
 			continue
 		var colour: Color = AWNING_COLORS[absi(hash([seed, "awning colour", shop])) % AWNING_COLORS.size()]
 		var striped := 1.0 if _kit_hash("awning stripes", shop) < kit_stripe_chance else 0.0
+		if shape_key == "awning_flat":
+			# A metal canopy is the shop's frame metal, not canvas.
+			colour = ShopfrontKit.FRAME_COLORS[ShopfrontKit.frame_index(shop_key(face_index + 1, run))]
+			striped = 0.0
 		var at := fc + a * ((hi_u + lo_u) * 0.5) + Vector3(0.0, bottom + storefront * 0.745, 0.0)
-		_kit.add("kit_awning", mesh, Transform3D(Basis(a, Vector3.UP, n), at), colour,
+		_kit.add(batch_key, mesh, Transform3D(Basis(a, Vector3.UP, n), at), colour,
 			Color(_kit_iron, striped, (width - 1.0) * 0.5, 0.0))
 
 

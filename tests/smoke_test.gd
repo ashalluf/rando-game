@@ -2030,7 +2030,8 @@ func _test_buildings() -> void:
 	# out of its source. A drift here puts a pink spill in front of a white shop, or a pool of light
 	# in front of a shuttered one.
 	var night_why := ""
-	for pair: Array in [["shop_tone", Building.SHOP_TONES], ["neon_color", Building.NEON_COLORS], ["letter_color", Building.LETTER_COLORS]]:
+	for pair: Array in [["shop_tone", Building.SHOP_TONES], ["neon_color", Building.NEON_COLORS], ["letter_color", Building.LETTER_COLORS],
+			["shop_frame_color", Building.SHOP_FRAME_COLORS]]:
 		var at := Building.SHADER.code.find("vec3 %s(uint" % pair[0])
 		var body := Building.SHADER.code.substr(at, Building.SHADER.code.find("\n}", at) - at)
 		var vx := RegEx.new()
@@ -2093,14 +2094,12 @@ func _test_buildings() -> void:
 	for eb in sample:
 		if (eb.has_node("FireEscape") and eb.get_node("FireEscape").multimesh.instance_count > 0) or _kit_count(eb, "Batch_kit_fe_") > 0:
 			with_escapes += 1
-		# Every part adds its own frames node, and the second one onwards is renamed on adding,
-		# so find them by their mesh rather than their name.
+		# The building's one frames node (its mesh is the building's own thin section now,
+		# ShopfrontKit.window_frame(), so it is found by name).
 		var frames_n := 0
 		for fc in eb.get_children():
-			if fc is MultiMeshInstance3D:
-				var fm: Mesh = (fc as MultiMeshInstance3D).multimesh.mesh
-				if fm == PropFactory.window_frame(true) or fm == PropFactory.window_frame(false):
-					frames_n += (fc as MultiMeshInstance3D).multimesh.instance_count
+			if fc is MultiMeshInstance3D and str((fc as Node).name).begins_with("Frames"):
+				frames_n += (fc as MultiMeshInstance3D).multimesh.instance_count
 		var surround_n := _kit_count(eb, "Batch_kit_surround")
 		if surround_n > 0:
 			surrounded += 1
@@ -2179,6 +2178,7 @@ func _test_buildings() -> void:
 		same = same and spots[0] == spots[1] and not (spots[0] as Array).is_empty()
 	Building.kit_enabled = kit_was
 	_check(same, "the facade kit leaves the seeded layout alone (roof units and shop names unmoved)")
+	_test_shopfront_kit(escape_scene)
 	_check(frames_fit, "window frames and cornices stay within the building height")
 	_check(looks.size() >= 5, "buildings vary (%d distinct looks)" % looks.size())
 
@@ -2192,6 +2192,127 @@ func _test_buildings() -> void:
 	_check(a.footprint == c.footprint and a.height == c.height and a.shape == c.shape, "same seed gives the same building")
 	a.queue_free()
 	c.queue_free()
+
+
+## The real storefronts and curtain-wall caps (ShopfrontKit): they go on with the kit and only
+## with it, they stand where the shader paints the same frames (the same integer rolls, the same
+## layout numbers), and the anchored slicing puts a door's members where a door's members go on
+## any width. A MultiMesh reads back empty headless, so the building counts what it laid.
+func _test_shopfront_kit(scene: PackedScene) -> void:
+	var why := ""
+	var kit_was := Building.kit_enabled
+	for on in [false, true]:
+		Building.kit_enabled = on
+		var shops := 0
+		var caps := 0
+		var blades := 0
+		for si in [3, 7, 11, 19]:
+			for fin in [Building.Finish.BRICK, Building.Finish.GLASS]:
+				var kb: Building = scene.instantiate()
+				kb.seed = si
+				kb.lot_size = Vector2(30.0, 30.0)
+				kb.min_height = 26.0
+				kb.max_height = 40.0
+				kb.finish_options.assign([fin])
+				kb.position = Vector3(5000.0, 0.0, 5000.0)
+				add_child(kb)
+				shops += kb.shop_piece_count
+				caps += kb.cap_piece_count
+				for child in kb.get_children():
+					if str((child as Node).name).begins_with("BladeText"):
+						blades += 1
+				kb.free()
+		if on and (shops < 40 or caps < 40):
+			why += " kit on: %d storefront pieces, %d caps" % [shops, caps]
+		if not on and (shops + caps + blades) > 0:
+			why += " kit off still laid %d pieces" % (shops + caps + blades)
+		if on:
+			print("shopfront kit: %d storefront pieces, %d caps, %d blade-sign name meshes on 8 blocks" % [shops, caps, blades])
+	Building.kit_enabled = kit_was
+	# The shader's copies of the storefront rolls and layout numbers.
+	var code := Building.SHADER.code
+	for needle: String in ["fv = (v - pt_base_y) / sf_h", "shop_byte(shop_key, 15u)",
+			"shop_byte(shop_key, 16u) < %du" % ShopfrontKit.RECESS_BYTE, "shop_byte(shop_key, 17u) < %du" % ShopfrontKit.MULLION_BYTE,
+			"pane_m.x >= %.2f && shop_byte(shop_key, 18u) < %du" % [ShopfrontKit.SINGLE_MIN_WIDTH, ShopfrontKit.SINGLE_BYTE],
+			"b < 77u ? 0u : (b < 141u ? 1u : (b < 205u ? 2u : (b < 230u ? 3u : 4u)))",
+			"p.y > %.2f && p.y < %.2f" % [ShopfrontKit.TRANSOM_LOW, ShopfrontKit.TRANSOM_HIGH],
+			"float low = door_bay ? 0.0 : %.2f;" % ShopfrontKit.GLASS_LOW, "abs(fu - 0.5) < %.2f" % ShopfrontKit.GLASS_HALF,
+			"abs(fv - %.2f) < 0.0125 || abs(fv - %.2f) < 0.0125" % [ShopfrontKit.CURTAIN_SILL, ShopfrontKit.CURTAIN_HEAD]]:
+		if code.find(needle) < 0:
+			why += " shader lacks '%s'" % needle
+	var kit_inc := FileAccess.get_file_as_string("res://shaders/facade_kit.gdshaderinc")
+	if kit_inc.find("float kit_anchor(") < 0 or kit_inc.find("cull_distance") < 0:
+		why += " the kit shader has no anchors"
+	# The door on a 1.9 x 3.33 m opening, placed the way the kit shader places it: the meeting
+	# stiles stay at the middle, the transom at door-head height above the threshold, the jambs
+	# outside the opening.
+	var door := ShopfrontKit.mesh("door")
+	var ex := (1.9 - 1.0) * 0.5
+	var ey := (3.33 - 1.0) * 0.5
+	var transom_lo := 1e9
+	var gap := 1e9
+	var meeting := false
+	var outer := 0.0
+	for si in door.get_surface_count():
+		var arr := door.surface_get_arrays(si)
+		var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var uv2s: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV2]
+		for i in verts.size():
+			var code_i := int(uv2s[i].y - 0.5)
+			var p := ShopfrontKit.place(verts[i], code_i, ex, ey, 0.0)
+			var y_up := p.y + 0.5 + ey
+			# The pair meets in the middle whatever the width: a 6 mm gap between the leaves,
+			# and each meeting stile's outer edge 60 mm off the centre line.
+			if code_i & ShopfrontKit.OPT_NOT_G and p != Vector3.ZERO:
+				gap = minf(gap, absf(p.x))
+				if absf(absf(p.x) - ShopfrontKit.MEETING) < 0.001:
+					meeting = true
+			if code_i < 16 and y_up > 2.3 and y_up < 2.6 and absf(p.x) < 1.0:
+				transom_lo = minf(transom_lo, y_up)
+			outer = maxf(outer, absf(p.x))
+	if absf(gap - 0.003) > 0.001 or not meeting or absf(transom_lo - ShopfrontKit.TRANSOM_LOW) > 0.005 \
+			or absf(outer - (0.95 + ShopfrontKit.JAMB)) > 0.02:
+		why += " door placed wrong (gap %.3f, meeting stile %s, transom %.3f, outer %.3f)" % [gap, meeting, transom_lo, outer]
+	# Every piece placed on a made-up wall (20 m, ten 2 m bays, a 4.5 m storefront, six 3.5 m
+	# floors above) and run through the kit shader's placement with the INSTANCE_CUSTOM it was
+	# given: the storefront stays in the storefront and on the wall, the blade signs between it
+	# and the roof, the caps on the curtain wall between the storefront and the roof. (A cap
+	# added with MultiMeshBatch's default custom, Color.BLACK, is sliced a metre up by its alpha
+	# and stood a whole band above the roof.)
+	var probe_b: Building = scene.instantiate()
+	probe_b.seed = 7
+	var batch := MultiMeshBatch.new()
+	var wall_top := 4.5 + 6.0 * 3.5
+	var stops: Array[float] = [10.0, 4.0, -2.0, -8.0, -10.0]
+	ShopfrontKit.storefront_face(probe_b, batch, 1, Vector3(0.0, 0.0, 10.0), Vector3(1, 0, 0), Vector3(0, 0, 1), 20.0, 10, 2.0, 0.0,
+		0.0, 4.5, 3.0, stops, true, 3.5, wall_top, Color.GRAY)
+	ShopfrontKit.curtain_face(probe_b, batch, Vector3(0.0, 0.0, 10.0), Vector3(1, 0, 0), Vector3(0, 0, 1), 20.0, 10, 2.0, 0.0,
+		0.0, 4.5, 3.5, 6, wall_top, Color.GRAY)
+	var data := batch.data()
+	for key: String in data:
+		var d: Dictionary = data[key]
+		var lo_y := 4.5 - 0.02 if key.begins_with("kit_cap") else (4.5 + 0.2 if key == "kit_shop_blade" else -0.06)
+		var hi_y := wall_top - 0.29 if key.begins_with("kit_cap") else (wall_top if key == "kit_shop_blade" else 4.5)
+		var worst := ""
+		var m: Mesh = d.mesh
+		for i in (d.xforms as Array).size():
+			var xf: Transform3D = d.xforms[i]
+			var c: Color = d.custom[i]
+			for si in m.get_surface_count():
+				var arr := m.surface_get_arrays(si)
+				var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+				var uv2s: PackedVector2Array = arr[Mesh.ARRAY_TEX_UV2]
+				for vi in verts.size():
+					var pl := ShopfrontKit.place(verts[vi], int(uv2s[vi].y - 0.5), c.b, c.a, c.g, c.r)
+					if pl == Vector3.ZERO:
+						continue
+					var wp := xf * pl
+					if wp.y < lo_y or wp.y > hi_y or absf(wp.x) > 10.6 or wp.z < 9.99:
+						worst = " %s at %s" % [key, wp]
+		if worst != "":
+			why += worst
+	probe_b.free()
+	_check(why == "", "real storefronts and curtain-wall caps go on with the kit, where the shader paints them%s" % why)
 
 
 func _test_weapons(player: Player) -> void:

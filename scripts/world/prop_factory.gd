@@ -2316,6 +2316,13 @@ const KIT_MATERIALS := {
 	"kit_dark": {"set": "metal_painted", "tile": 0.8, "tint": 1, "base": Color(0.07, 0.07, 0.075), "rough": 0.62, "metal": 0.25, "detail": 0.30, "ao": 0.5},
 	"kit_fabric": {"set": "fabric", "tile": 0.45, "tint": 0, "rough": 0.93, "detail": 0.65, "ao": 0.7, "two_side": true, "stripes": true},
 	"kit_wood": {"set": "planks", "tile": 1.6, "tint": 1, "base": Color(0.58, 0.50, 0.42), "rough": 0.90, "detail": 0.9, "ao": 0.5, "swap_uv": true},
+	# The code-built pieces (ShopfrontKit): anodised storefront framing in the shop's finish; the
+	# curtain-wall caps, which cull themselves per instance past Building.kit_mullion_distance
+	# (set on the material by Building - one value city-wide); a blade sign's board, a lightbox
+	# after dark.
+	"kit_alu": {"set": "metal_painted", "tile": 0.7, "tint": 0, "rough": 0.36, "metal": 0.45, "detail": 0.25, "ao": 0.5},
+	"kit_mullion": {"set": "metal_painted", "tile": 0.7, "tint": 0, "rough": 0.34, "metal": 0.45, "detail": 0.2, "ao": 0.3, "cull": 175.0},
+	"kit_sign": {"set": "metal_painted", "tile": 0.6, "tint": 0, "rough": 0.45, "metal": 0.1, "detail": 0.3, "ao": 0.3, "glow": 2.2},
 }
 const KIT_TEXTURE_MEAN := {
 	"concrete": [Color(0.482, 0.482, 0.482), Color(0.723, 0.723, 0.723)],
@@ -2351,6 +2358,7 @@ const KIT_PIECES := ["cornice_classic", "cornice_bracket", "cornice_simple", "co
 static func kit_materials() -> Array:
 	for piece: String in KIT_PIECES:
 		facade_kit(piece)
+	ShopfrontKit.warm()
 	var out: Array = []
 	for mat_name: String in KIT_MATERIALS:
 		out.append(kit_material(mat_name))
@@ -2385,6 +2393,8 @@ static func kit_material(mat_name: String) -> ShaderMaterial:
 	mat.set_shader_parameter("mitre", spec.get("mitre", false))
 	mat.set_shader_parameter("slice", not spec.get("mitre", false))
 	mat.set_shader_parameter("stripes", spec.get("stripes", false))
+	mat.set_shader_parameter("cull_distance", spec.get("cull", 0.0))
+	mat.set_shader_parameter("night_glow", spec.get("glow", 0.0))
 	_cache[key] = mat
 	return mat
 

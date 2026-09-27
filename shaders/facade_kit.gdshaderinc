@@ -17,6 +17,19 @@
 //   its edge - so lugs, lintels, jambs and the awning's cheeks keep their real size on every
 //   window and shop width, in one mesh and one draw call per building.
 // * UV in metres follows both, so the stone does not stretch with the piece.
+// * ANCHORS (the code-built storefront and curtain-wall pieces, scripts/world/shopfront_kit.gd).
+//   UV2.y - 1 is a per-vertex code: bits 0-1 the x mode, bits 2-3 the y mode, where mode 0 is the
+//   three-slice above, 1 moves with the low edge (-0.5 - extra), 2 with the high edge and 3 stays
+//   where it is (a centre member). So a door's meeting stiles stay at the middle, its handles at
+//   hand height above the threshold and a transom bar at door-head height whatever the opening,
+//   and a bar can stretch between two anchors. Bit 4 keeps a vertex only on instances whose
+//   INSTANCE_CUSTOM.g is over 0.5, bit 5 only on the others (bits 6 and 7 the same on .r), so one
+//   mesh holds two layouts (a display bay with and without its centre mullion, a pair of doors or
+//   one with a sidelight). ShopfrontKit.place() is this in GDScript, for the tests.
+//   The glTF pieces carry UV2.y = 1 (code 0), so none of this touches them.
+// * DISTANCE (`cull_distance`, the curtain-wall caps): an instance whose origin is further than
+//   this from the main camera collapses, in the shadow passes too, so a tower's caps are one draw
+//   and still stop drawing floor by floor up it.
 //
 // Colour: the texture is detail (divided by its own mean), the tint is the colour, and where the
 // tint comes from is `tint_source`: 0 the instance COLOR (the building's trim, a shop's awning),
@@ -63,6 +76,12 @@ uniform float grime = 0.35;
 uniform bool stripes = false;
 uniform vec3 stripe_color : source_color = vec3(0.86, 0.83, 0.76);
 uniform float stripe_width = 0.24;
+// Instances whose origin is further than this from the main camera collapse (0 = never).
+uniform float cull_distance = 0.0;
+// A lightbox (the blade signs): after the street lamps come on, vertex alpha times
+// INSTANCE_CUSTOM.r (the shop is lit) glows in the tint at this strength.
+uniform float night_glow = 0.0;
+global uniform float lamp_factor;
 // Never set from script: 0.5 authored as sRGB decodes to 0.214 on Forward+ and stays 0.5 on
 // Compatibility (shaders/foliage_tex.gdshader has the probe this copies).
 uniform vec3 color_space_probe : source_color = vec3(0.5, 0.5, 0.5);
@@ -71,9 +90,24 @@ varying vec3 v_tint;
 varying vec3 v_world_normal;
 varying vec3 v_world_pos;
 varying float v_stripe;
+varying float v_glow;
 
 float kit_slice(float x, float extra) {
 	return abs(x) < 0.5 ? x * (1.0 + 2.0 * extra) : x + sign(x) * extra;
+}
+
+// One coordinate of an anchored vertex (see ANCHORS in the header).
+float kit_anchor(float x, float extra, int mode) {
+	if (mode == 1) {
+		return x - extra;
+	}
+	if (mode == 2) {
+		return x + extra;
+	}
+	if (mode == 3) {
+		return x;
+	}
+	return kit_slice(x, extra);
 }
 
 vec3 kit_to_linear(vec3 c) {
@@ -90,11 +124,29 @@ void vertex() {
 			VERTEX.x -= VERTEX.z * c.r;
 		}
 	} else if (slice) {
-		VERTEX.x = kit_slice(VERTEX.x, c.b);
-		UV.x = kit_slice(UV.x, c.b);
+		int code = int(clamp(UV2.y - 0.5, 0.0, 255.0));
+		int mx = code % 4;
+		int my = (code / 4) % 4;
+		VERTEX.x = kit_anchor(VERTEX.x, c.b, mx);
+		UV.x = kit_anchor(UV.x, c.b, mx);
 		// Front faces carry v = 1 + y (the glTF V flip on Blender's v = -y).
-		VERTEX.y = kit_slice(VERTEX.y, c.a);
-		UV.y = kit_slice(UV.y - 1.0, c.a) + 1.0;
+		VERTEX.y = kit_anchor(VERTEX.y, c.a, my);
+		UV.y = kit_anchor(UV.y - 1.0, c.a, my) + 1.0;
+		// The optional layouts: bits 4 and 5 on INSTANCE_CUSTOM.g, 6 and 7 on .r.
+		if (code >= 16) {
+			bool g_on = (code / 16) % 2 == 1;
+			bool g_off = (code / 32) % 2 == 1;
+			bool r_on = (code / 64) % 2 == 1;
+			bool r_off = (code / 128) % 2 == 1;
+			if ((g_on && c.g < 0.5) || (g_off && c.g >= 0.5) || (r_on && c.r < 0.5) || (r_off && c.r >= 0.5)) {
+				VERTEX = vec3(0.0);
+			}
+		}
+	}
+	if (cull_distance > 0.0 && MAIN_CAM_INV_VIEW_MATRIX != mat4(1.0)) {
+		if (distance(MAIN_CAM_INV_VIEW_MATRIX[3].xyz, MODEL_MATRIX[3].xyz) > cull_distance) {
+			VERTEX = vec3(0.0);
+		}
 	}
 	// Instances scale runs along x and balconies / fire escapes a little in every axis; keep
 	// the texture in metres through that.
@@ -111,6 +163,7 @@ void vertex() {
 	}
 	v_tint = tint;
 	v_stripe = c.g;
+	v_glow = COLOR.a * c.r;
 	v_world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	v_world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -149,4 +202,9 @@ void fragment() {
 	AO_LIGHT_AFFECT = 0.25;
 	ROUGHNESS = clamp(rough + up * grime * 0.1, 0.04, 1.0);
 	METALLIC = metallic;
+	if (night_glow > 0.0) {
+		// Normalised to the brightest channel, so a deep red board still reaches the bloom.
+		vec3 box = v_tint / max(max(v_tint.r, max(v_tint.g, v_tint.b)), 0.02);
+		EMISSION = box * night_glow * clamp(lamp_factor, 0.0, 1.0) * clamp(v_glow, 0.0, 1.0);
+	}
 }
