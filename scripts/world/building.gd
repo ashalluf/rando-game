@@ -109,6 +109,26 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 ## Share of those awnings in striped canvas.
 @export var kit_stripe_chance: float = 0.35
 
+@export_group("Podium")
+## A slender tower on a big lot stands on a base that fills most of it, the way downtown towers
+## sit on parking decks and retail podiums (_add_podium(); only where CityChunk sets
+## `podium_lot`: downtown and midtown lots). The odds a tower that qualifies gets one, and of
+## those the share whose base is a parking deck (the rest are lobby and retail storeys).
+@export var podium_chance: float = 0.85
+@export var podium_parking_share: float = 0.5
+## Qualifies: the parts standing on the ground cover at most this share of the lot, the building
+## is at least this tall (metres) and the lot's short side at least this long.
+@export var podium_max_cover: float = 0.55
+@export var podium_min_height: float = 28.0
+@export var podium_min_lot: float = 16.0
+## How much of the lot's width and depth the base takes (a range, hashed per building).
+@export var podium_fill: Vector2 = Vector2(0.88, 0.98)
+## Decks above the ground deck of a parking base, and storeys above the shop floor of a retail
+## one (ranges; the base never takes more than podium_max_share of the building's height).
+@export var podium_decks: Vector2i = Vector2i(2, 5)
+@export var podium_storeys: Vector2i = Vector2i(1, 3)
+@export var podium_max_share: float = 0.4
+
 @export_group("Street at night")
 ## How much light an open shop throws on the pavement in front of it (the additive pool's
 ## alpha at the wall, before the shop's own brightness).
@@ -132,6 +152,21 @@ var parts: Array[Dictionary] = []
 var facade_color: Color = Color.GRAY
 ## Concrete plinth under the building (meters), covering the slope of the sidewalk beneath it.
 var plinth_depth: float = 0.0
+## Set by CityChunk before plan_only() / the tree (downtown and midtown lots): the building may
+## stand on a podium that fills most of its lot (_add_podium()). After plan_only(), the kind it
+## got: 0 none, 1 retail and lobby storeys, 2 a parking deck (its part carries "podium": kind).
+var podium_lot: bool = false
+var podium_kind: int = 0
+## Set by CityChunk with podium_lot: the face that looks at the nearest street, as the shader
+## counts faces (1 +X, 2 -X, 3 +Z, 4 -Z). A parking base's drive-in is on it (garage_entry()).
+var street_face: int = 0
+## Storey and spandrel of a parking deck (the shader's floor height and garage_spandrel), and its
+## bay (the column pitch): ArenaGrounds' car park's numbers.
+const GARAGE_STOREY := 3.2
+const GARAGE_SPANDREL := 1.1
+const GARAGE_BAY := 8.1
+## A parking deck's concrete, hashed per building: plain, warm, cool, painted.
+const GARAGE_CONCRETE := [Color(0.62, 0.61, 0.58), Color(0.66, 0.62, 0.55), Color(0.56, 0.58, 0.60), Color(0.78, 0.77, 0.74)]
 ## Set by CityChunk before the building enters the tree: the plinth is drawn among the chunk's
 ## merged boxes (CityChunk._merge_box(), its world-mapped concrete is the same wherever the box
 ## sits) and the building keeps only its collision. A plinth per building was a draw call per
@@ -304,6 +339,9 @@ func plan_only() -> Dictionary:
 	_chamfered = shape != Shape.WAREHOUSE and shape != Shape.L_SHAPE \
 		and float(absi(hash([seed, "chamfer"])) % 1000) * 0.001 < chamfer_chance
 	_layout_parts()
+	# After the layout's rolls and before the style's, and from hashes only, so no roll of
+	# this building's _rng moves: its colours and its far box stay what they were.
+	_add_podium()
 	var style := _pick_style()
 	facade_color = style.facade
 	return style
@@ -385,6 +423,126 @@ func _layout_parts() -> void:
 			_add_part(Vector3(lot.x * arm, h * _rng.randf_range(0.7, 1.0), lot.y), Vector2(sx * lot.x * (1.0 - arm) * 0.5, 0.0), 0.0)
 
 
+## A 0..1 hash of this building's seed and `tag` (never _rng, see _add_podium()).
+func _hash01(tag: String) -> float:
+	return float(absi(hash([seed, tag])) % 100003) / 100003.0
+
+
+## The base a slender tower on a big lot stands on (see the Podium exports): a part at the bottom
+## filling most of the lot - a parking deck (open sides between spandrels, drawn by the shader
+## from CUSTOM3.z) or lobby and retail storeys in the building's own finish - with every part
+## that stood on the ground lifted onto it (its top unchanged) and the whole tower slid off
+## centre on it. Real downtown towers take the ground this way; standing alone on their lots they
+## left most of every block bare paving. Hashes of the seed only: no _rng roll moves, so the
+## building keeps its colours and every building after it keeps everything. The far box
+## (CityChunk's LOD path reads `parts`) and everything else that reads `parts` follow by itself.
+func _add_podium() -> void:
+	podium_kind = 0
+	if not podium_lot or shape == Shape.WAREHOUSE or parts.is_empty():
+		return
+	var cover := 0.0
+	var ext := Rect2()
+	for i in parts.size():
+		var size: Vector3 = parts[i].size
+		var c: Vector3 = parts[i].center
+		var r := Rect2(c.x - size.x * 0.5, c.z - size.z * 0.5, size.x, size.z)
+		ext = r if i == 0 else ext.merge(r)
+		if c.y - size.y * 0.5 < 0.01:
+			cover += size.x * size.z
+	if cover > lot_size.x * lot_size.y * podium_max_cover or height < podium_min_height or minf(lot_size.x, lot_size.y) < podium_min_lot:
+		return
+	if _hash01("podium") >= podium_chance:
+		return
+	var parking := _hash01("podium_kind") < podium_parking_share
+	var pw := lot_size.x * lerpf(podium_fill.x, podium_fill.y, _hash01("podium_w"))
+	var pd := lot_size.y * lerpf(podium_fill.x, podium_fill.y, _hash01("podium_d"))
+	if pw < ext.size.x + 2.0 or pd < ext.size.y + 2.0:
+		return
+	var top_cap := height * podium_max_share
+	var ph: float
+	if parking:
+		# The ground deck plus `decks` above it, and the top spandrel as the roof deck's parapet.
+		var decks := podium_decks.x + int(_hash01("podium_levels") * float(podium_decks.y - podium_decks.x + 1))
+		decks = mini(decks, floori((top_cap - GARAGE_SPANDREL) / GARAGE_STOREY) - 1)
+		if decks < 1:
+			return
+		ph = GARAGE_STOREY * float(decks + 1) + GARAGE_SPANDREL
+	else:
+		var storeys := podium_storeys.x + int(_hash01("podium_levels") * float(podium_storeys.y - podium_storeys.x + 1))
+		ph = minf(storefront_height + 4.2 * float(storeys), top_cap)
+		if ph < storefront_height + 4.0:
+			return
+	# Slide the tower toward one side or corner of its base (up to most of the room there is).
+	var room := Vector2(pw - ext.size.x, pd - ext.size.y) * 0.5 - Vector2(1.0, 1.0)
+	var off := Vector2((_hash01("podium_x") - 0.5) * 1.6 * maxf(room.x, 0.0), (_hash01("podium_z") - 0.5) * 1.6 * maxf(room.y, 0.0))
+	off -= ext.get_center()
+	for part: Dictionary in parts:
+		var size: Vector3 = part.size
+		var c: Vector3 = part.center
+		c += Vector3(off.x, 0.0, off.y)
+		if c.y - size.y * 0.5 < 0.01:
+			size.y -= ph
+			c.y += ph * 0.5
+		part.size = size
+		part.center = c
+	podium_kind = 2 if parking else 1
+	parts.insert(0, {"size": Vector3(pw, ph, pd), "center": Vector3(0.0, ph * 0.5, 0.0), "podium": podium_kind})
+	footprint = Vector2.ZERO
+	for part: Dictionary in parts:
+		var size: Vector3 = part.size
+		var c: Vector3 = part.center
+		footprint.x = maxf(footprint.x, (absf(c.x) + size.x * 0.5) * 2.0)
+		footprint.y = maxf(footprint.y, (absf(c.z) + size.z * 0.5) * 2.0)
+
+
+## A parking base's drive-in: the face (street_face, else hashed), the bay (the middle one of that
+## face, counted as the shader counts them) and the foot of the opening's centre in this
+## building's space, with the face's outward normal. {} without a parking base.
+func garage_entry() -> Dictionary:
+	if podium_kind != 2:
+		return {}
+	var part: Dictionary = parts[0]
+	var size: Vector3 = part.size
+	var c: Vector3 = part.center
+	var face := street_face if street_face >= 1 and street_face <= 4 else 1 + absi(hash([seed, "garage_entry"])) % 4
+	var along := size.z if face <= 2 else size.x
+	var cols := maxi(1, roundi(along / GARAGE_BAY))
+	var pitch := along / float(cols)
+	var col := cols / 2
+	var u := (float(col) + 0.5) * pitch
+	var at: Vector3
+	var n: Vector3
+	match face:
+		1:
+			at = Vector3(size.x * 0.5, 0.0, u - size.z * 0.5)
+			n = Vector3.RIGHT
+		2:
+			at = Vector3(-size.x * 0.5, 0.0, size.z * 0.5 - u)
+			n = Vector3.LEFT
+		3:
+			at = Vector3(size.x * 0.5 - u, 0.0, size.z * 0.5)
+			n = Vector3.BACK
+		_:
+			at = Vector3(u - size.x * 0.5, 0.0, -size.z * 0.5)
+			n = Vector3.FORWARD
+	return {"face": face, "col": col, "at": at + Vector3(c.x, c.y - size.y * 0.5, c.z), "normal": n, "width": pitch - 0.64}
+
+
+## True for a part that is a parking deck (see _add_podium()).
+static func is_parking(part: Dictionary) -> bool:
+	return int(part.get("podium", 0)) == 2
+
+
+## The colour a part's far box is drawn in (CityChunk's LOD path): a parking deck in its concrete.
+func part_lod_color(part: Dictionary) -> Color:
+	return garage_concrete() if is_parking(part) else facade_color
+
+
+## This building's parking-deck concrete.
+func garage_concrete() -> Color:
+	return GARAGE_CONCRETE[absi(hash([seed, "garage_concrete"])) % GARAGE_CONCRETE.size()]
+
+
 func _add_part(size: Vector3, offset: Vector2, bottom: float) -> void:
 	parts.append({"size": size, "center": Vector3(offset.x, bottom + size.y * 0.5, offset.y)})
 	footprint.x = maxf(footprint.x, (absf(offset.x) + size.x * 0.5) * 2.0)
@@ -440,18 +598,25 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	var center: Vector3 = part.center
 	var bottom := center.y - size.y * 0.5
 	var on_ground := bottom < 0.01
-	var storefront := storefront_height if allow_storefront and shape != Shape.WAREHOUSE and on_ground and size.y > storefront_height + 3.0 else 0.0
+	# A parking deck (_add_podium()): no shopfront, its decks at the car park's storey and its
+	# columns at the car park's bay; the shader draws the rest.
+	var parking := is_parking(part)
+	var storefront := storefront_height if allow_storefront and shape != Shape.WAREHOUSE and on_ground and size.y > storefront_height + 3.0 and not parking else 0.0
 	var usable := size.y - storefront
 	var rows := maxi(1, roundi(usable / style.floor))
 	var floor_h := usable / rows
-	var cols_x := maxi(1, roundi(size.x / style.pitch))
-	var cols_z := maxi(1, roundi(size.z / style.pitch))
+	var pitch_w: float = GARAGE_BAY if parking else style.pitch
+	var cols_x := maxi(1, roundi(size.x / pitch_w))
+	var cols_z := maxi(1, roundi(size.z / pitch_w))
+	if parking:
+		floor_h = GARAGE_STOREY
+		rows = ceili(size.y / GARAGE_STOREY)
 	# Cut corners. Exactly one window bay comes off each end of each wall, so the grid the
 	# shader draws still lands on whole cells either side of the cut and no half window is left
 	# hanging on a corner. Only on a part wide enough to lose a bay and still read as a wall.
 	var cut_x := 0.0
 	var cut_z := 0.0
-	if _chamfered and cols_x >= 6 and cols_z >= 6 and minf(size.x, size.z) > 10.0:
+	if _chamfered and not parking and cols_x >= 6 and cols_z >= 6 and minf(size.x, size.z) > 10.0:
 		cut_x = size.x / float(cols_x)
 		cut_z = size.z / float(cols_z)
 
@@ -467,11 +632,11 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	# Base, shaft, crown. The shader lays a stone base course over the bottom floors and shifts
 	# the tone of the top ones; _add_facade_details caps both with a real band at the same
 	# height, so the two have to be asked for from the same place.
-	var base_h := _base_course_height(size, style, storefront, on_ground)
+	var base_h := 0.0 if parking else _base_course_height(size, style, storefront, on_ground)
 	if base_h > 0.0:
 		mat.set_shader_parameter("base_color", (style.facade as Color).lerp(Color(0.62, 0.60, 0.56), 0.6).darkened(0.08))
 	var crown := 100000.0
-	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE:
+	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
 		crown = position.y + bottom + size.y - 1.6 * floor_h
 		mat.set_shader_parameter("crown_shade", 1.09 if absi(hash([seed, "crown"])) % 2 == 0 else 0.92)
 	var arrays: Array
@@ -481,7 +646,7 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 		var box := BoxMesh.new()
 		box.size = size
 		arrays = box.get_mesh_arrays()
-	_append_part(arrays, center, [storefront > 0.0, size, base_h, pitch_x, pitch_z, floor_h, ground_floor, base_y, crown])
+	_append_part(arrays, center, [storefront > 0.0, size, base_h, pitch_x, pitch_z, floor_h, ground_floor, base_y, crown, parking])
 	# What street_wear.gd needs to know about this part's wall, as the shader draws it.
 	part.pitch_x = pitch_x
 	part.pitch_z = pitch_z
@@ -493,6 +658,7 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	part.base_y = base_y
 	part.crown = crown
 	part.cut = Vector2(cut_x, cut_z)
+	part.parking = parking
 
 	var shape_node := CollisionShape3D.new()
 	if cut_x > 0.0:
@@ -505,7 +671,9 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 		shape_node.shape = box_shape
 	shape_node.position = center
 	add_child(shape_node)
-	_add_facade_details(size, center, bottom, storefront, floor_h, rows, cols_x, cols_z, style, cut_x, cut_z)
+	# A parking deck has no windows, bands, bays or kit: the shader draws all of it.
+	if not parking:
+		_add_facade_details(size, center, bottom, storefront, floor_h, rows, cols_x, cols_z, style, cut_x, cut_z)
 
 
 ## The one material every box part of this building wears: everything the parts share, set
@@ -525,6 +693,11 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	mat.set_shader_parameter("lit_ratio", style.lit_ratio)
 	mat.set_shader_parameter("seed", float(seed % 1000))
 	mat.set_shader_parameter("roof_style", roof_style)
+	if podium_kind == 2:
+		mat.set_shader_parameter("garage_color", garage_concrete())
+		mat.set_shader_parameter("garage_spandrel", GARAGE_SPANDREL)
+		var entry := garage_entry()
+		mat.set_shader_parameter("garage_entry", Vector2(float(entry.face), float(entry.col)))
 	mat.set_shader_parameter("shop_span", _shop_spans())
 	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
 	# dark for channel letters where there are letters to light.
@@ -566,7 +739,7 @@ func _append_part(arrays: Array, center: Vector3, p: Array) -> void:
 	# The part's own numbers are the same on every one of its vertices.
 	var row1 := PackedFloat32Array([size.x, size.y, size.z, p[2]])
 	var row2 := PackedFloat32Array([p[3], p[4], p[5], p[6]])
-	var row3 := PackedFloat32Array([p[7], p[8], 0.0, 0.0])
+	var row3 := PackedFloat32Array([p[7], p[8], 1.0 if p.size() > 9 and p[9] else 0.0, 0.0])
 	for v: Vector3 in src:
 		verts.append(v + center)
 		c0.append(v.x)
@@ -1725,6 +1898,9 @@ static func _apply_wall_texture(mat: ShaderMaterial, wall_finish: int, warehouse
 func _build_roof_props() -> void:
 	for i in parts.size():
 		var part: Dictionary = parts[i]
+		# A parking deck's roof is its top deck (LotFill parks cars on it), not a plant deck.
+		if is_parking(part):
+			continue
 		var size: Vector3 = part.size
 		var center: Vector3 = part.center
 		var top := center.y + size.y * 0.5

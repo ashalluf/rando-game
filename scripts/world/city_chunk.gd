@@ -120,6 +120,11 @@ var _mm_nodes: Dictionary = {}
 var _statics: StreetProps
 ## Footprints of the lots this chunk built on, so lawn grass can keep out of the houses.
 var _lot_rects: Array[Rect2] = []
+## LotFill's state while building: the fill ground by kind (merged at the finish, FULL only), and
+## the trees and parked cars its forecourts and car parks have spent of their caps.
+var _fill_ground: Dictionary = {}
+var _fill_trees: int = 0
+var _fill_cars: int = 0
 
 ## Dissolve state, driven by CityStreamer when this chunk is being replaced by a detailed one.
 ## Block index the streaming window was centred on when this chunk was built. Only used to
@@ -429,6 +434,7 @@ func _finish_build() -> void:
 		if text_key.begins_with("text_"):
 			_batch.set_no_shadow(text_key)
 	_add_shop_spill()
+	LotFill.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	_mm_nodes = _batch.build(self)
@@ -1884,6 +1890,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 				steps.append(_block_lawn.bind(rect, rng))
 			steps.append_array(_lot_steps(rect, params, rng))
 			steps.append(_build_approach_parking.bind(rect))
+			# What a landmark's square pushed out of the lot grid, less the landmark: forecourt
+			# round it or a car park (LotFill; its own rolls).
+			if LotFill.wanted(self, district):
+				steps.append(func() -> void: LotFill.leftovers(self, block))
 			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
 			# whole block, so the footprints the lots just recorded are what the grass has to
 			# stay out of; a suburb whose lawns are flat green paint is the tell.
@@ -2173,12 +2183,22 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if _under_freeway(center, 14.0) or _lot_under_freeway(lot):
 		_build_corridor_lot(lot)
 		return
+	var fill := LotFill.wanted(self, district)
+	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
+	if fill and lot.get("parking", false):
+		LotFill.surface_lot(self, lot)
+		return
 	if pad:
 		Commercial.build_pad(self, lot, rng)
 		return
 	var building := BUILDING_SCENE.instantiate() as Building
 	building.seed = lot.seed
 	building.lot_size = lot.size
+	# Downtown and midtown: a slender tower may stand on a podium filling its lot, its drive-in on
+	# the street side (Building._add_podium()).
+	building.podium_lot = fill
+	if fill:
+		building.street_face = LotFill.street_face(self, lot)
 	# Downtown core: the skyline climbs toward the center (supertalls in the middle).
 	var boost := plan.macro.skyline_boost(center) if plan.macro else 0.0
 	# Handing the whole district band to each building made every lot an independent uniform
@@ -2218,6 +2238,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 			if not plinth.is_empty():
 				_merge_box(Building.plinth_material(), plinth[0], building.position + (plinth[1] as Vector3))
 		building_count += 1
+		if fill:
+			LotFill.after_building(self, lot, building)
 	else:
 		# Far away: just the boxes, in the facade color, no props. They do get plain box
 		# collision so a fast car cannot drive into a footprint and get shot through the
@@ -2228,13 +2250,17 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		for part in building.parts:
 			var size: Vector3 = part.size
 			var part_center: Vector3 = part.center
+			# A parking podium in its concrete with ribbon openings, barely lit (Building._add_podium()).
+			var part_custom := Color(1.0 / 4.0, 0.06, custom.b, 0.0) if Building.is_parking(part) else custom
 			# The batch adds the relief itself; the shape needs it explicitly.
-			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(size), base + part_center), building.facade_color, custom)
+			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(size), base + part_center), building.part_lod_color(part), part_custom)
 			_add_lod_shape(size, building.position + part_center)
 			_occluder_boxes.append([Transform3D(Basis(), building.position), part_center, size])
 		var fp: Vector2 = building.footprint
 		if fp.x > 0.0 and building.plinth_depth > 0.05:
 			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
+		if fill:
+			LotFill.after_building(self, lot, building)
 		building.free()
 		building_count += 1
 

@@ -426,6 +426,9 @@ func _lots(ix: int, iz: int) -> Array:
 	var rect: Rect2 = b.rect
 	if macro.zone_at(rect.get_center()) == MacroMap.Zone.CITY:
 		for lot in plan.lots(ix, iz):
+			# A surface car park (LotFill) has nothing standing on it.
+			if lot.get("parking", false):
+				continue
 			var centre: Vector2 = lot.center
 			var size: Vector2 = lot.size
 			var h: float = float(lot.height) if lot.has("height") else plan.lot_height(int(lot.seed), int(b.district), macro.skyline_boost(centre))
