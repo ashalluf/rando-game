@@ -82,8 +82,8 @@ uniform float leaf_relief = 0.3;
 uniform float detail_normal : hint_range(0.0, 2.0) = 1.0;
 // The gullies finer than the height field's own (shaders/erosion.gdshaderinc): metres deep
 // for the first order, metres between its gullies, and how much darker a gully floor is.
-uniform float erosion_amp = 14.0;
-uniform float erosion_cell = 110.0;
+uniform float erosion_amp = 7.0;
+uniform float erosion_cell = 55.0;
 uniform float erosion_shade : hint_range(0.0, 1.0) = 0.2;
 // Single shrubs (sage, buckwheat) dotted through the open grass.
 uniform float sage_amount : hint_range(0.0, 1.0) = 0.5;

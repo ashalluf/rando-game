@@ -1,6 +1,6 @@
 // Erosion noise, the GPU half. MacroMap._erosion_filter() cuts the mountains' main canyons and
-// their first tributaries into the height itself (440 m and 220 m apart); the orders finer than
-// that - gullies 110 m and 55 m apart - are drawn here, as shading only, on the near terrain
+// two orders of tributaries into the height itself (440, 220 and 110 m apart); the orders finer
+// than that - gullies 55 m and 27 m apart - are drawn here, as shading only, on the near terrain
 // (terrain.gdshader) and the far ground (macro_ground.gdshader). Each order is a sum of cosine
 // stripes running DOWN the local slope over a jittered grid of cells, blended by closeness, so
 // they meander and merge like gullies; the slope they run down includes the walls of the orders

@@ -883,9 +883,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   second octave at 2.7 times the frequency and read as fields of cones; the first erosion pass
   stretched a ridged noise along the slope and read as combed streaks. `last_drain` (-1 spur
   crest .. +1 gully floor) is what the erosion leaves for the ground: the hill tiles' vertex
-  colour, `bake_height`'s G channel for the far ground, HillPlanting. Only `erosion_octaves` (2)
-  orders are in the height; `shaders/erosion.gdshaderinc` draws two finer ones as shading on
-  the near terrain and the far ground. A height in the hills costs 20-40 us on the build box,
+  colour, `bake_height`'s G channel for the far ground, HillPlanting. Only `erosion_octaves` (3:
+  440, 220 and 110 m) orders are in the height; `shaders/erosion.gdshaderinc` draws two finer
+  ones (55 and 27 m) as shading on the near terrain and the far ground. A height in the hills costs 20-40 us on the build box,
   so a hill tile samples its heights a few rows a build step (`CityChunk._sample_terrain()`),
   the planting reads the drainage off the tile and Skyline off its lattice, never
   `drainage_at()` again. Look at a change in seconds, before any render, with

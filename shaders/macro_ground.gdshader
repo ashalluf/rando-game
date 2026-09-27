@@ -350,7 +350,7 @@ void fragment() {
 		vec3 ero = vec3(0.0);
 		if (rich && m.a > 0.02) {
 			float steep = smoothstep(0.08, 0.45, length(grad));
-			ero = erosion_detail(w, grad, 14.0 * steep, 110.0, fp);
+			ero = erosion_detail(w, grad, 7.0 * steep, 55.0, fp);
 			grad += ero.xy;
 		}
 		n = normalize(vec3(-grad.x, 1.0, -grad.y));

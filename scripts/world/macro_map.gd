@@ -212,7 +212,7 @@ var back_erosion_depth: float = 0.26
 var erosion_spacing: float = 440.0
 ## Orders of gullies worked out here, in the height itself. terrain.gdshader and
 ## macro_ground.gdshader add the finer ones as shading only.
-var erosion_octaves: int = 2
+var erosion_octaves: int = 3
 ## Each order's depth against the one above it.
 var erosion_gain: float = 0.5
 ## How much a gully's own walls turn the finer gullies into it (0: every order runs straight
@@ -582,7 +582,7 @@ func _erode(h: float, depth: float, pos: Vector2, slope: Vector2) -> float:
 		return h
 	var e := _erosion_filter(pos, slope, amp)
 	# Gully floor -1, spur crest +1, as a share of what the orders could add up to at most.
-	var v := e.x / (amp * (1.0 + erosion_gain))
+	var v := e.x / (amp * (1.0 - pow(erosion_gain, erosion_octaves)) / (1.0 - erosion_gain))
 	_erode_drain = t * clampf(-v * 1.5, -1.0, 1.0)
 	return maxf(h + e.x, h * 0.5)
 
