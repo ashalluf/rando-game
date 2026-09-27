@@ -3319,7 +3319,7 @@ realistic people at "AAA studio PS5 quality", made with the hero's pipeline.
   touches the crowd files, the likely conflicts are CLAUDE.md, loading_screen.gd and
   smoke_test.gd (adjacent hunks).
 
-## 9ai. The hill ground from standing height, 2026-09-27 (agent branch `wt/hill-ground`; roadmap #19, #33, #34)
+## 9ak. The hill ground from standing height, 2026-09-27 (agent branch `wt/hill-ground`; roadmap #19, #33, #34)
 
 The ask: a player who lands on a hill saw smooth plastic ground with camouflage blobs of dark
 olive brush and tan grass, a few rocks and almost no vegetation.
