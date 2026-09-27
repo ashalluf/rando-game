@@ -2872,9 +2872,10 @@ now built in code by `PortKit` (`scripts/world/port_kit.gd`); no model files.
   1.9 ms; LOD: 1.3 -> 1.0 ms (headless, this box).
 - **Frame cost** (`tools/geo_count.gd`, opengl3 800x600, same spawns, before -> after): the
   port from 60 m up (`--spawn=3065,6300,0,-10,60`) 1.31 M -> 1.40 M triangles (+7.5 %), 1,221
-  -> 1,265 draws; a far aerial (`--spawn=2400,5550,-135,-24,350`) 2.43 M -> 2.46 M (+1.2 %),
-  3,068 -> 3,067 draws; standing in the stacks (`--spawn=3003,6256,-78,3,2`) 767 k -> 906 k
-  (+18 %), 640 -> 694 draws. The last is the camera's own chunk drawing all ~260 of its boxes
+  -> 1,283 draws; a far aerial (`--spawn=2400,5550,-135,-24,350`) 2.43 M -> 2.46 M (+1.2 %),
+  3,068 -> 3,079 draws; standing in the stacks (`--spawn=3003,6256,-78,3,2`) 767 k -> 895 k
+  (+17 %), 640 -> 706 draws (about 18 of the new draws are the night pools, which draw by day
+  at zero alpha). The stacks case is the camera's own chunk drawing all ~260 of its boxes
   at the full level (a MultiMesh takes one LOD from its bounds, and the camera is inside them):
   ~150 k triangles, small next to a downtown frame's 7-9 M. Splitting a chunk's boxes into two
   batches would halve that for +2 draws a chunk.
