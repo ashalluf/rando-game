@@ -109,6 +109,12 @@ void vertex() {
 		// A canopy is darker low down and on its flanks than on top. Read before the move below,
 		// while VERTEX is still the unit box's own -0.5 .. 0.5.
 		shade = mix(0.72, 1.0, clamp(VERTEX.y + 0.5, 0.0, 1.0)) * mix(0.85, 1.0, max(NORMAL.y, 0.0));
+		// The renderer turns a MultiMesh instance's normals by its basis as it stands, not by the
+		// basis' inverse transpose, so on a squashed clump (a chaparral mound is two or three times
+		// wider than it is tall) they came out lying almost flat and its sunlit top drew nearly
+		// black. Dividing by the scale squared first makes that transform give the true normal.
+		vec3 sc = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
+		NORMAL = normalize(NORMAL / max(sc * sc, vec3(1e-4)));
 	}
 	fade = rigid ? 1.0 : COLOR.a;
 	vec3 at = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;

@@ -365,6 +365,8 @@ func _test_city() -> void:
 		var hill_key: Vector2i = plan.block_index_at(Vector2(hill.x, hill.z))
 		var hill_chunk: Node3D = city.chunks.get(hill_key)
 		_check(hill_chunk != null and hill_chunk.zone == MacroMap.Zone.HILLS and hill_chunk.has_node("Terrain"), "hill chunk has a terrain tile")
+		_check_hill_planting(hill_chunk, plan)
+		_check_hill_props_grounded(city, plan)
 		await _wait_for_floor(player, 240)
 		var ground_h: float = _world_state().to_world(player.global_position).y
 		_check(player.is_on_floor() and ground_h > 20.0, "player stands on the hills at %.0f m" % ground_h)
@@ -1128,12 +1130,19 @@ func _test_city() -> void:
 		# The body the rifle put down stains round its wounds and bleeds into a pool under it once
 		# it lies still (a few seconds; the checks above have used some of them).
 		if hit_a_person:
+			# Up to 7 s: a body still sliding on a sloped street pools only once it is 3.5 s old
+			# (Ragdoll's fallback), and 3 s from here missed that on a loaded CI runner.
 			var pooled := false
-			for i in 180:
+			for i in 420:
 				pooled = int(WeaponFX.blood_stats.pools) > int(blood_before.pools)
 				if pooled:
 					break
 				await _ticks(1)
+			if not pooled:
+				for n in get_tree().get_nodes_in_group("debris"):
+					if n is Ragdoll and not (n as Ragdoll).bodies.is_empty():
+						var rb: RigidBody3D = (n as Ragdoll).bodies[0]
+						printerr("blood: no pool - ragdoll at %s, speed %.2f, age %.1f" % [str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(), float(n.get("_age"))])
 			_check(pooled, "a body shot down bleeds into a pool under it")
 			var stained := false
 			for n in get_tree().get_nodes_in_group("debris"):
@@ -1772,14 +1781,21 @@ func _test_police(city: Node3D, player: Player) -> void:
 	# street makes sure somebody has a clear line even if the first car stopped round a corner.
 	var street: Vector3 = ws.to_world(player.global_position) + Vector3(0.0, 0.0, -20.0)
 	police.call("spawn_cruiser", street + Vector3(0.0, 1.0, 0.0), PI * 0.5, "parked")
+	# What this checks is that officers' rounds reach and hurt the player, not how often they
+	# hit: at the default accuracy a round at 20 m lands about 3 times in 10, and the five or
+	# six rounds that fit in the window all missed on CI 286 (0.7^5, one run in six). So the
+	# officers aim well here, and the window is longer; the accuracy goes back after.
+	var saved_accuracy: float = float(police.get("accuracy_base"))
+	police.set("accuracy_base", 4.0)
 	var hurt := false
-	for i in 600:
+	for i in 900:
 		await get_tree().physics_frame
 		if i % 20 == 0:
 			police.call("report_sighting")
 		if float(health.health) < float(health.max_health) - 0.5:
 			hurt = true
 			break
+	police.set("accuracy_base", saved_accuracy)
 	var officers: Array = police.get("officers")
 	_check(officers.size() > 0, "officers get out of their cruisers (%d)" % officers.size())
 	if officers.size() > 0:
@@ -2296,6 +2312,89 @@ func _double_jump_and_measure(player: CharacterBody3D, ground_y: float) -> float
 			break
 	Input.action_release("jump")
 	return peak
+
+
+## The hills' planting stands where the terrain shader paints brush: HillPlanting mirrors the
+## shader's numbers (read back out of its source here), a FULL hill chunk plants chaparral on
+## the painted stands and nothing on rock or bare cuts, and the north faces carry more brush.
+func _check_hill_planting(chunk: Node3D, plan: CityPlan) -> void:
+	var src := FileAccess.get_file_as_string("res://shaders/terrain.gdshader")
+	var mismatched: Array[String] = []
+	for uname: String in HillPlanting.MIRRORED:
+		var re := RegEx.create_from_string("uniform float " + uname + "\\b[^=]*=\\s*([0-9.]+)")
+		var m := re.search(src)
+		if m == null or absf(m.get_string(1).to_float() - float(HillPlanting.MIRRORED[uname])) > 1e-6:
+			mismatched.append(uname)
+	_check(mismatched.is_empty(), "HillPlanting mirrors terrain.gdshader's numbers (%s)" % (", ".join(mismatched) if mismatched else "all match"))
+	if chunk == null:
+		return
+	var planted: Dictionary = chunk.get("hill_planting")
+	var points: Array = planted.get("points", [])
+	var chaparral := 0
+	var on_brush := 0
+	var on_rock := 0
+	for rec in points:
+		var p: Vector2 = rec[0]
+		var grad := Vector2(plan.height_at(p + Vector2(2.0, 0.0)) - plan.height_at(p - Vector2(2.0, 0.0)),
+			plan.height_at(p + Vector2(0.0, 2.0)) - plan.height_at(p - Vector2(0.0, 2.0))) * 0.25
+		var g := HillPlanting.ground(p, grad)
+		if float(g.rocky) > 0.45 or float(g.bare) > 0.55:
+			on_rock += 1
+		if rec[1] == "chaparral":
+			chaparral += 1
+			if float(g.brush) > 0.3:
+				on_brush += 1
+	_check(chaparral >= 20 and chunk.has_node("Batch_hill_chaparral"), "a hill chunk plants chaparral stands (%d shrubs, %d oaks, %d lone shrubs)" % [chaparral, planted.get("oak", 0), planted.get("sage", 0)])
+	_check(on_rock == 0, "nothing planted on rock or bare cuts (%d of %d)" % [on_rock, points.size()])
+	_check(on_brush >= chaparral * 0.75, "the chaparral stands on the painted brush (%d of %d)" % [on_brush, chaparral])
+	# The field itself: the shaded side is brush, the sunny side grass.
+	var north_brush := 0.0
+	var south_brush := 0.0
+	for i in 400:
+		var w := Vector2(float(i % 20) * 37.0, float(i / 20) * 41.0)
+		north_brush += float(HillPlanting.ground(w, Vector2(0.0, 0.5)).brush)
+		south_brush += float(HillPlanting.ground(w, Vector2(0.0, -0.5)).brush)
+	_check(north_brush > south_brush * 1.3, "north faces carry more brush than south faces (%.0f vs %.0f of 400)" % [north_brush, south_brush])
+
+
+## A hill chunk's rocks, shrubs and planting stand on the terrain it draws. They are placed at
+## MacroMap.height_at(), which already includes the relief, and the chunk's batch used to add the
+## relief again: on the valley flank (the plateau under the front range's inland side) every
+## prop floated 15-135 m over the ground. Built to just before its finish, so the batch is still
+## data (MultiMesh transforms read back as identity under --headless).
+func _check_hill_props_grounded(city: Node, plan: CityPlan) -> void:
+	var macro := plan.macro
+	var spot := Vector2.INF
+	for p: Vector2 in [Vector2(0.0, -1800.0), Vector2(450.0, -1700.0), Vector2(-500.0, -1900.0), Vector2(800.0, -1850.0)]:
+		var bk: Vector2i = plan.block_index_at(p)
+		var rect: Rect2 = plan.block(bk.x, bk.y).rect
+		if macro.zone_at(rect.get_center()) == MacroMap.Zone.HILLS and macro.relief_at(p) > 20.0:
+			spot = p
+			break
+	_check(spot != Vector2.INF, "a hill chunk stands on raised relief to check its props on")
+	if spot == Vector2.INF:
+		return
+	var k: Vector2i = plan.block_index_at(spot)
+	var ch = load("res://scripts/world/city_chunk.gd").new()
+	ch.plan = plan
+	ch.ix = k.x
+	ch.iz = k.y
+	ch.level = 0
+	ch.style = city.chunk_style()
+	ch.begin_build()
+	while ch._step < ch._steps.size() - 1:
+		ch.build_step()
+	var count := 0
+	var worst := 0.0
+	var data: Dictionary = ch._batch.data()
+	for key: String in data:
+		for xf: Transform3D in data[key].xforms:
+			count += 1
+			var dy := xf.origin.y - plan.height_at(Vector2(xf.origin.x, xf.origin.z))
+			if absf(dy) > absf(worst):
+				worst = dy
+	ch.free()
+	_check(count > 100 and absf(worst) < 3.0, "hill props stand on the ground over %.0f m of relief (%d props, worst %+.1f m)" % [macro.relief_at(spot), count, worst])
 
 
 func _wait_for_floor(player: CharacterBody3D, max_ticks: int) -> void:

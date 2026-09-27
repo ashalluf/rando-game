@@ -40,8 +40,26 @@ extends Node3D
 
 ## Blocks per tile edge. Bigger means fewer draw calls and coarser culling granularity.
 const TILE_BLOCKS := 6
-## Vegetation clumps on a hill block at full cover, falling to zero at the rock line.
-const HILL_CLUMPS := 10
+## Points a hill block tries a planting at (HillPlanting reads what the terrain paints there: a
+## chaparral stand gets a low mound of brush, a hollow an oak, rock and bare cuts nothing), at
+## full cover, falling to zero at the rock line. It was ten tall round clumps anywhere on the
+## block, which from the basin read as dots on a bare hill rather than as brush.
+const HILL_TRIES := 28
+## A far chaparral mound: radius and height ranges in metres, and the oaks'.
+## A mound grows toward the top of its range deeper into a stand, so a stand's heart is one
+## overlapping mass and its edge a few loose shrubs; and nothing below `HILL_MOUND_MIN` brush.
+const HILL_MOUND_RADIUS := Vector2(4.5, 11.0)
+const HILL_MOUND_MIN := 0.6
+const HILL_MOUND_HEIGHT := Vector2(2.0, 3.4)
+const HILL_OAK_RADIUS := Vector2(3.5, 5.5)
+const HILL_OAK_HEIGHT := Vector2(5.5, 8.0)
+## Chaparral and oak canopy colours (LINEAR, what far_canopy.gdshader multiplies its shade by):
+## the terrain shader's `chaparral_color` lifted about threefold, since a mound's top is sunlit
+## brush where the painted stand averages in the shade between the bushes (at half this, the
+## mounds measured 44/255 against the painted stand's 78 and read as holes in the hill). The
+## oaks darker and greener.
+const HILL_BRUSH_COLOR := Color(0.15, 0.16, 0.085)
+const HILL_OAK_COLOR := Color(0.11, 0.14, 0.065)
 ## Street trees: metres between them along a kerb (the chunks plant every
 ## CityStreamer.tree_spacing x CityChunk.street_tree_spacing, about 10 m) - the far city plants
 ## the same rows at the district's own odds, and a park at one canopy per PARK_TREE_AREA m2.
@@ -790,27 +808,68 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 	var center := rect.get_center()
 	var elev: float = macro.height_at(center)
 	var cover_amount: float = clampf(1.0 - (elev - 60.0) / 520.0, 0.0, 1.0)
-	var clumps: int = int(round(cover_amount * float(HILL_CLUMPS)))
 	var veg: Array = _work.veg
 	var veg_colors: Array = _work.veg_colors
 	var veg_custom: Array = _work.veg_custom
-	for i in clumps:
-		var hs := hash([_plan.seed, "veg", int(center.x), int(center.y), i])
-		var p := _spot(rect, hs)
-		# Only a first guess at the height where the far plane is the ground: far_canopy.gdshader
-		# moves the clump onto the ground the plane really draws there, which on a ridge is tens
-		# of metres lower than height_at(). Under a LOD chunk this IS the ground (its terrain is
-		# height_at()), and the shader leaves it here.
-		var gy: float = macro.height_at(p)
-		# Wide and low: a canopy clump, not a post. At this distance the silhouette is all that
-		# survives, and a tall thin box reads as a pole.
-		var r: float = 7.0 + float(absi(hash([hs, "r"])) % 9)
-		var th: float = 4.0 + float(absi(hash([hs, "t"])) % 6)
-		veg.append(Transform3D(
-			Basis(Vector3.UP, float(absi(hs) % 628) * 0.01).scaled(Vector3(r, th, r * 0.85)),
-			Vector3(p.x, gy + th * 0.45, p.y)))
-		veg_colors.append(_scrub(hs, cover_amount))
-		veg_custom.append(Color(0.0, 0.0, 0.0, 0.0))
+	if cover_amount > 0.0:
+		# The block's heights on a coarse lattice: slopes and hollows come off it, so a block is
+		# 25 height samples rather than a dozen per point.
+		var lat := _hill_lattice(rect, macro)
+		var segs: Array[Dictionary] = []
+		var pads: Array[Dictionary] = []
+		if macro.hill_roads:
+			segs = macro.hill_roads.segments_in(rect.grow(12.0))
+			pads = macro.hill_roads.mansions_in(rect.grow(HillRoads.PAD_RADIUS + 10.0))
+		for i in HILL_TRIES:
+			var hs := hash([_plan.seed, "veg", int(center.x), int(center.y), i])
+			if _roll(hs, "c") > cover_amount:
+				continue
+			var p := _spot(rect, hs)
+			if _on_hill_road(p, segs, pads):
+				continue
+			var gy: float = _lattice_height(lat, p)
+			if gy < 1.5:
+				continue
+			var step: float = lat.step
+			var grad := Vector2(_lattice_height(lat, p + Vector2(step, 0.0)) - _lattice_height(lat, p - Vector2(step, 0.0)),
+				_lattice_height(lat, p + Vector2(0.0, step)) - _lattice_height(lat, p - Vector2(0.0, step))) / (2.0 * step)
+			var g := HillPlanting.ground(p, grad, false)
+			if float(g.rocky) > 0.3 or float(g.bare) > 0.4:
+				continue
+			var hollow := HillPlanting.hollow(p, gy, step * 1.5, _lat_h.bind(lat))
+			var wet := clampf((hollow - 0.03) / 0.06, 0.0, 1.0)
+			var up := Vector3(-grad.x, 1.0, -grad.y).normalized().lerp(Vector3.UP, 0.35).normalized()
+			var basis := Basis(Quaternion(Vector3.UP, up)) * Basis(Vector3.UP, float(absi(hs) % 628) * 0.01)
+			var size := _roll(hs, "s")
+			var tone := _roll(hs, "v")
+			var r: float
+			var th: float
+			var col: Color
+			if wet > 0.0 and float(g.slope) < 0.4 and _roll(hs, "o") < 0.45 * wet:
+				# An oak or sycamore in the hollow: taller, rounder, darker.
+				r = lerpf(HILL_OAK_RADIUS.x, HILL_OAK_RADIUS.y, size)
+				th = lerpf(HILL_OAK_HEIGHT.x, HILL_OAK_HEIGHT.y, size)
+				col = HILL_OAK_COLOR * lerpf(0.85, 1.2, tone)
+				basis = Basis(Vector3.UP, float(absi(hs) % 628) * 0.01)
+			elif clampf(float(g.brush) + wet * 0.3, 0.0, 1.0) > HILL_MOUND_MIN:
+				# A mound of chaparral, draped on the slope, biggest in the heart of the stand.
+				var deep := clampf((float(g.brush) + wet * 0.3 - HILL_MOUND_MIN) / (1.0 - HILL_MOUND_MIN), 0.0, 1.0)
+				r = lerpf(HILL_MOUND_RADIUS.x, HILL_MOUND_RADIUS.y, clampf(deep * 0.7 + size * 0.3, 0.0, 1.0))
+				th = lerpf(HILL_MOUND_HEIGHT.x, HILL_MOUND_HEIGHT.y, _roll(hs, "t"))
+				col = HILL_BRUSH_COLOR * lerpf(0.8, 1.25, tone)
+				# Sage-grey on some stands, olive on others, as they dry out up the slope.
+				col = col.lerp(Color(col.r * 1.25, col.g * 1.1, col.b * 1.3), _roll(hs, "g") * (1.0 - cover_amount))
+			else:
+				continue
+			# Alpha is the block's dissolve (far_canopy.gdshader dithers below 1), not part of the tint.
+			col.a = 1.0
+			# Only a first guess at the height where the far plane is the ground: far_canopy.gdshader
+			# moves the clump onto the ground the plane really draws there, which on a ridge is tens
+			# of metres lower than height_at(). Under a LOD chunk this IS the ground (its terrain is
+			# height_at()), and the shader leaves it here.
+			veg.append(Transform3D(basis.scaled(Vector3(r, th, r * 0.85)), Vector3(p.x, gy + th * 0.3, p.y)))
+			veg_colors.append(col)
+			veg_custom.append(Color(0.0, 0.0, 0.0, 0.0))
 	if macro.hill_roads == null:
 		return
 	var houses: Array = _work.houses
@@ -832,11 +891,48 @@ func _spot(rect: Rect2, hs: int) -> Vector2:
 		rect.size.y * float(absi(hash([hs, "z"])) % 1000) / 1000.0)
 
 
-## Hill planting, matching the bands the terrain and macro-ground shaders already use: olive
-## chaparral low down, greyer sage as it dries out with height, so the far hills do not read as
-## one flat green.
-func _scrub(hs: int, cover_amount: float) -> Color:
-	var v: float = float(absi(hash([hs, "v"])) % 1000) / 1000.0
-	var lush := Color(0.155, 0.205, 0.105).lerp(Color(0.225, 0.255, 0.130), v)
-	var dry := Color(0.235, 0.230, 0.145).lerp(Color(0.285, 0.275, 0.185), v)
-	return dry.lerp(lush, clampf(cover_amount, 0.0, 1.0))
+## Is `p` on (or within a mound's reach of) a hill road or an estate pad?
+static func _on_hill_road(p: Vector2, segs: Array[Dictionary], pads: Array[Dictionary]) -> bool:
+	for seg in segs:
+		var closest := Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)
+		if p.distance_to(closest) < float(seg.width) * 0.5 + 6.0:
+			return true
+	for m in pads:
+		if p.distance_to(m.pos) < HillRoads.PAD_RADIUS + 6.0:
+			return true
+	return false
+
+
+## 0..1 from a hash and a tag.
+static func _roll(hs: int, tag: String) -> float:
+	return float(absi(hash([hs, tag])) % 1000) / 1000.0
+
+
+## Heights over `rect` on a lattice of about 30 m: {"origin", "step", "n" (points a side), "h"
+## (PackedFloat32Array)}. A far hill block used to cost a dozen height samples; this is 25.
+func _hill_lattice(rect: Rect2, macro: MacroMap) -> Dictionary:
+	var cells := maxi(2, int(ceil(maxf(rect.size.x, rect.size.y) / 30.0)))
+	var step := maxf(rect.size.x, rect.size.y) / cells
+	var n := cells + 1
+	var origin := rect.position
+	var h := PackedFloat32Array()
+	h.resize(n * n)
+	for j in n:
+		for i in n:
+			h[j * n + i] = macro.height_at(origin + Vector2(i, j) * step)
+	return {"origin": origin, "step": step, "n": n, "h": h}
+
+
+func _lat_h(p: Vector2, lat: Dictionary) -> float:
+	return _lattice_height(lat, p)
+
+
+static func _lattice_height(lat: Dictionary, p: Vector2) -> float:
+	var n: int = lat.n
+	var q: Vector2 = (p - (lat.origin as Vector2)) / float(lat.step)
+	var i := clampi(int(floor(q.x)), 0, n - 2)
+	var j := clampi(int(floor(q.y)), 0, n - 2)
+	var fu := clampf(q.x - i, 0.0, 1.0)
+	var fv := clampf(q.y - j, 0.0, 1.0)
+	var h: PackedFloat32Array = lat.h
+	return lerpf(lerpf(h[j * n + i], h[j * n + i + 1], fu), lerpf(h[(j + 1) * n + i], h[(j + 1) * n + i + 1], fu), fv)

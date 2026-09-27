@@ -1160,8 +1160,10 @@ const TRI_BUDGET := {
 }
 
 
-static func model_mesh(path: String, include: PackedStringArray = [], exclude: PackedStringArray = [], xform: Transform3D = Transform3D.IDENTITY, overrides: Dictionary = {}, proxy: bool = true) -> Mesh:
+static func model_mesh(path: String, include: PackedStringArray = [], exclude: PackedStringArray = [], xform: Transform3D = Transform3D.IDENTITY, overrides: Dictionary = {}, proxy: bool = true, budget_override: int = 0) -> Mesh:
 	var key := "model_%s_%s_%s_%s" % [path, ",".join(include), ",".join(exclude), var_to_str(xform)]
+	if budget_override > 0:
+		key += "_b%d" % budget_override
 	if _cache.has(key):
 		return _cache[key]
 	var mesh: ArrayMesh = ArrayMesh.new()
@@ -1176,6 +1178,8 @@ static func model_mesh(path: String, include: PackedStringArray = [], exclude: P
 			var budget: int = TRI_BUDGET.get(path.get_file(), 0)
 			if include.size() == 1:
 				budget = TRI_BUDGET.get(path.get_file() + ":" + include[0], budget)
+			if budget_override > 0:
+				budget = budget_override
 			if budget > 0:
 				importer = _within_budget(importer, budget)
 			mesh = importer.get_mesh()
@@ -1496,6 +1500,38 @@ static func model_hill_tree(variant: int) -> Mesh:
 	return _tree_mesh(HILL_TREES[v])
 
 
+## The hills' planting (CityChunk._plant_hills), on the ground HillPlanting reads out of the
+## terrain shader. Chaparral is the searsia scan: a dense, small-leaved evergreen sumac, which
+## is what the brush on a Californian hillside is (laurel sumac, toyon, scrub oak), where the fir
+## and the pine are not. A stand is a hundred of these a block, so it is taken down to
+## CHAPARRAL_BUDGET triangles (its second LOD: 16k is a film asset) - a batch draws every
+## instance at the LOD of its nearest point, and the camera is usually inside the block.
+const CHAPARRAL_BUDGET := 2200
+## Gully oaks: the broad, spreading city tree (CITY_TREES 0), at a budget of its own. A handful
+## a block, in the hollows and at the foot of the slopes. One species, not two: each is a batch
+## of three surfaces plus its shadow twin in every FULL hill chunk, which is draw calls.
+const HILL_OAKS := [0]
+const HILL_OAK_BUDGET := 14000
+
+
+static func model_chaparral() -> Mesh:
+	return _tree_mesh(HILL_TREES[3], Color.TRANSPARENT, CHAPARRAL_BUDGET)
+
+
+## Native height in metres of the chaparral model (HILL_TREE_HEIGHT of the searsia).
+static func chaparral_height() -> float:
+	return float(HILL_TREE_HEIGHT[3])
+
+
+static func model_hill_oak(variant: int) -> Mesh:
+	var v: int = HILL_OAKS[clampi(variant, 0, HILL_OAKS.size() - 1)]
+	return _tree_mesh(CITY_TREES[v], Color.TRANSPARENT, HILL_OAK_BUDGET)
+
+
+static func hill_oak_height(variant: int) -> float:
+	return float(CITY_TREE_HEIGHT[HILL_OAKS[clampi(variant, 0, HILL_OAKS.size() - 1)]])
+
+
 ## Bushes, tropical plants, flowering ground cover and grass clumps - all CC0 Poly Haven, all
 ## through the same leaf handling as the trees (alpha-scissor leaves onto the swaying foliage
 ## shader, everything else double-sided). These exist to put colour and variation at knee height,
@@ -1527,8 +1563,8 @@ static func model_grass_clump(variant: int) -> Mesh:
 	return _tree_mesh(GRASS_CLUMPS[clampi(variant, 0, GRASS_CLUMPS.size() - 1)])
 
 
-static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT) -> Mesh:
-	var mesh := model_mesh(MODEL_DIR + file, [], [], Transform3D.IDENTITY, {}, true)
+static func _tree_mesh(file: String, blossom: Color = Color.TRANSPARENT, budget: int = 0) -> Mesh:
+	var mesh := model_mesh(MODEL_DIR + file, [], [], Transform3D.IDENTITY, {}, true, budget)
 	for i in mesh.get_surface_count():
 		var mat := mesh.surface_get_material(i)
 		if mat is StandardMaterial3D:

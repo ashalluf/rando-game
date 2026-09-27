@@ -1,19 +1,70 @@
-# Handoff: Rando Game (written 2026-09-19; section 00 is the newest state, 2026-09-25)
+# Handoff: Rando Game (written 2026-09-19; section 00 is the newest state and the handoff to the next account, 2026-09-25)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
 
-## 00. The orchestrator loop (2026-09-25, newest)
+## 00. START HERE - handoff to the next account (2026-09-25, newest)
 
-Since 2026-09-24 evening the owner runs an autonomous loop: parallel agents in git worktrees
-(`/home/user/wt/<slug>`, branches `wt/<slug>`), each owning one visual item, merged to main one
-at a time after a full headless check and a before/after screenshot review. Its memory is two
-files at the repo root: **VISUAL_ROADMAP.md** (ranked backlog, statuses, NEEDS MAC CHECK,
-WAITING ON ASH) and **LOOP_LOG.md** (append-only history with screenshot paths and perf
-deltas). Read both before starting anything visual. Items judged "not clearly better" are not
-merged; their branches are kept (wt/vehicle-grime, wt/wall-weathering) and the log says why.
+The owner ended work on the previous account on 2026-09-25 and asked for this handoff. Read
+this section, then CLAUDE.md (the rulebook), VISUAL_ROADMAP.md (ranked backlog) and
+LOOP_LOG.md (what was tried, merged or reverted, with numbers), then the dated sections below.
+
+**The owner and how they work.** Ash plays on a Mac from the GitHub release
+(https://github.com/ashalluf/rando-game/releases/latest) and prompts from a phone. Rules that
+matter most: push straight to `main` (no PRs); run `tests/headless_check.sh` before every push
+and confirm the CI build goes green; **send screenshots constantly** - every change, before and
+after, without being asked (the owner's most repeated request: "SCREENSHOTS"); keep messages
+short; work fast and in parallel. The north star is 2026 PS5-tier photorealism (GTA VI /
+Spider-Man 2 street level) at 60 fps on the Mac, 30 fps floor. Masjid Omar ibn Al-Khattab keeps
+its no-fire sanctuary and is always treated respectfully. Real place layouts are fine; real
+business names and logos are not.
+
+**State of main.** Green (CI build 290, 72b1247; 291 is docs only). Merged this session:
+MacArthur Park on; road patch decals; street clutter; golden-hour LA smog; hill ground splat;
+hill road cut banks; hill planting; floating hill props fix (relief added twice); texture
+mipmaps; smoothed car normals; perf pass (static boxes merged); pedestrian middle body;
+night shopfronts and neon; several CI fixes (traffic U-turn overlap, flaky blood-pool,
+shotgun and police checks).
+
+**The owner's open asks, in priority order** (all started, none on main yet):
+1. **The hills "look like garbage, not real mountains".** Branch `wt/real-mountains`
+   (1 WIP commit, NOT gated): ridged heightfield with canyons, rounded summits, far-range
+   contour banding fixed (float height bake), chaparral-dominant grey-olive palette. Last
+   render: `hills_02_rounder_chaparral`. Next: finish, run the full check (hill checks: cut
+   banks, floating props, planting field), before/after at the hills bookmark and from the
+   basin, merge.
+2. **Downtown needs ~20x more homeless encampments** ("whatever you think it should be,
+   multiply by 20"). Branch `wt/downtown-homeless` (WIP, NOT gated, barely started this
+   round): Encampment density/caps, a skid-row band, people against walls, cart pushers.
+   Depict with dignity; never near places of worship; use the pedestrian middle body and
+   batched static figures to keep the frame cost sane.
+3. **San Pedro port must be on the east side of Palos Verdes, not in the middle of the city**
+   and **no freeway may go through buildings.** Branch `wt/downtown-relay` (15 commits): the
+   downtown 1:1 re-lay itself is done and was gated green on the branch (up to 0aa7731); on top,
+   WIP (NOT gated): the port and harbour moved onto San Pedro Bay east of the peninsula (inland
+   harbour removed) and the 110 clear of every building, plus a started smoke check. Still to
+   do: finish and gate those, fill the empty paved plazas around the arena district (civic
+   sites' blocks grew at 1:1 and are mostly bare), merge main in, run the full check, merge.
+   The port's containers and cranes are still primitive boxes (roadmap #35).
+
+**Other parked branches** (pushed; merge one at a time after a full check, or delete):
+`wt/sedan-body` (Blender-built hi-fi sedan, gated at 97274c0; WIP styling pass - the first
+shape read dated; also fixes the headlight beam below the road and the cabin collision box
+above the roof), `wt/tree-lod` (trees + MacArthur's far palms, the biggest triangle cost),
+`wt/wet-streets` (streets that dry believably), `wt/street-wear` (graffiti/posters). All WIP,
+never gated. `wt/vehicle-grime` and `wt/wall-weathering` were judged not clearly better.
+
+**The autonomous loop** (optional). The owner ran an orchestrator loop: parallel agents in git
+worktrees (`/home/user/wt/<slug>`, branches `wt/<slug>`), each owning one roadmap item, merged
+to main one at a time after a full check and screenshot review. A Stop hook
+(`.claude/hooks/keep-going.sh` + `.claude/settings.json`, blocking stops unless a `STOP` file
+exists in the repo root) kept it going. Those files were never committed, so a fresh clone
+does not have them; recreate them only if the owner asks for the loop again (the brief is in
+the owner's original orchestrator prompt, and the wave protocol is at the top of
+VISUAL_ROADMAP.md). Agents dropped every render into a shared scratch `screens/` folder that the
+orchestrator forwarded to the owner.
 
 How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every agent):
 - `tools/glshot/bookmarks.sh <dir> [names]` renders the seven fixed cameras (downtown noon,
@@ -36,7 +87,7 @@ How the box copes (4 cores, 16 GB, one 14.3 GB memory cgroup shared by every age
 ## 0. Start here (wrap-up of 2026-09-24, the newest state)
 
 Read this section first, then CLAUDE.md, docs/GAME_PLAN.md and the dated sections below. The
-day's work is in 9t (distance), 9s (1:1 downtown research), 9r (MacArthur Park, encampments),
+day's work is in 9z (hill planting, 2026-09-25), 9t (distance), 9s (1:1 downtown research), 9r (MacArthur Park, encampments),
 9q (street life), 9p (the Esplanade), 9o (civic set), 9n (skyline), 9m (sound), 9l (how the
 day ran), 9j (blood), 9i (facade kit), 9h (police), 9k (sky), 9g (guns). This section is the
 index.
@@ -2235,7 +2286,51 @@ pavement. The rules are in the Shop signs bullet of CLAUDE.md.
   (ground_floor_height - base_y)` plus `band_y = bottom + 0.845 * storefront`, and it changes the
   day look of every raised storefront, so it wants its own before/after.
 
-## 9z. Wet streets that dry believably, 2026-09-25 (agent branch)
+## 9z. Hill planting on the painted ground, 2026-09-25 (agent branch)
+
+The ask: the hills' planting read as sparse dark dots and lollipop blobs over the new dry-grass /
+chaparral / dirt / rock ground. Chaparral should be dense low dark-olive masses on the north
+faces and in the gullies, oaks at the gully feet, single shrubs on the grass, nothing on rock
+or cuts, and the range from the basin should read as brush-covered.
+
+- **One field, two sides.** `HillPlanting` (`scripts/world/hill_planting.gd`) is the terrain
+  shader's splat in GDScript: same `hash12t`, same value noise, same octaves and offsets, same
+  thresholds (`MIRRORED`, checked against the shader source by the smoke test). So a shrub is
+  planted exactly where the shader paints a brush stand, and never on what it paints as rock,
+  a cut or a trail. `hollow()` (mean ground round a point minus the point, per metre) finds
+  the gullies and slope feet. Across the front range the field puts brush on 68 % of the
+  north faces and 27 % of the south ones.
+- **Near (FULL hill chunks).** `CityChunk._plant_hills`, a new build step after
+  `_scatter_hills` (its own rng per grid row; three rows a step, about 1 ms each on this box):
+  a jittered 6.2 m grid; stand points get the searsia scan cut to ~3k triangles
+  (`PropFactory.model_chaparral()`), wide, leaning into the slope, no shadow (the painted stand
+  is the shade); deep hollows get an oak (`model_hill_oak()`, the island tree cut to ~20k,
+  a few a block, with shadows); open grass a rare lone shrub. About 100-140 shrubs a block on a
+  north face. Heights come off the chunk's own terrain grid (`_terrain_height`), not
+  `height_at()`.
+  Tints are over 1 (`1.75..2.15` brush, `1.35..1.6` oaks): the searsia's leaves are small
+  sprites on a black atlas and tree_a's atlas is 75 % black, the mips average that in, and at
+  the first tints (0.8) the stands and oaks were black shapes from twenty metres.
+- **Far (Skyline).** `_add_hills` asks the same field on a 30 m height lattice: 28 tries a
+  block, low mounds draped on the slope that grow into one mass in a stand's heart, dark oaks in
+  the hollows, none on roads, pads, rock or cuts. `far_canopy.gdshader` now fixes the normals
+  of squashed clumps (the renderer turns MultiMesh normals by the instance basis, not its
+  inverse transpose, so a mound two or three times wider than tall drew black) - this also
+  lights the far city's street-tree blobs correctly. `macro_ground.gdshader` puts more scrub on
+  north faces (`north_scrub`).
+- **Cost** (opengl3 geo counts, one run of six views in order, main 940bac8 -> this):
+  hills bookmark 1.593 M -> 1.666 M triangles (+4.5 %), 989 -> 986 draws; basin 8.72 -> 8.82 M
+  (+1.2 %), 4843 -> 4840 draws; downtown avenue 8.73 -> 8.84 M (+1.2 %), 4704 -> 4702 draws. Down
+  among the stands it costs more: north face +14 % triangles / +5 % draws, gully +15 % / +10 %,
+  a low slope view +22 % / +9 % (every FULL hill chunk adds a shrub batch and an oak batch with
+  its shadow twin). Widening the shrubs afterwards changed no count.
+  A far hill block costs ~1 ms to build instead of 0.2 (25 height samples plus the field), which
+  is ~2 s more on the loading screen's whole-basin build on this box.
+- **Needs the Mac.** Forward+ look of the stands (shrub colour under the real sky light, and
+  whether the stands want their shadows back), the far mounds with correct normals at golden
+  hour.
+
+## 9za. Wet streets that dry believably, 2026-09-25 (agent branch)
 
 The ask: wetness was one global (`road_wetness`) laid evenly over every road, so when the rain
 stopped the whole street dried as one sheet. Real streets after rain dry from the wheel tracks
