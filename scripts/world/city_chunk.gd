@@ -2080,8 +2080,12 @@ func _build_approach_parking(rect: Rect2) -> void:
 	var c := area.get_center()
 	_add_slab(Vector3(c.x, SIDEWALK_TOP + 0.02, c.y), Vector3(area.size.x, 0.04, area.size.y), Color(0.4, 0.4, 0.42), false,
 		PropFactory.road("asphalt", 7.0, Color(0.62, 0.62, 0.64), hash([plan.seed, ix, iz, "approach_park"]), 0.0, 0.6))
-	if level != Level.FULL or capturing:
+	# The far (LOD) chunks park cars too, fewer and without the stall paint: from the air an empty
+	# asphalt block reads as a hole in the city. Never in the far city's capture.
+	if capturing:
 		return
+	var full := level == Level.FULL
+	var max_cars := APPROACH_PARK_MAX_CARS if full else APPROACH_PARK_MAX_CARS / 2
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([plan.seed, ix, iz, "approach_park"])
 	var stall := ArenaGrounds.STALL
@@ -2100,9 +2104,10 @@ func _build_approach_parking(rect: Rect2) -> void:
 						free = false
 						break
 				if free:
-					_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)),
-						Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(x, SIDEWALK_TOP + 0.05, zc)))
-					if cars < APPROACH_PARK_MAX_CARS and rng.randf() < 0.72:
+					if full:
+						_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)),
+							Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(x, SIDEWALK_TOP + 0.05, zc)))
+					if cars < max_cars and rng.randf() < (0.72 if full else 0.5):
 						var v := rng.randi() % ArenaGrounds.CAR_KINDS
 						var paint: Color = ArenaGrounds.CAR_PAINTS[rng.randi() % ArenaGrounds.CAR_PAINTS.size()]
 						var yaw := (0.0 if half == 0 else PI) + rng.randf_range(-0.04, 0.04)
@@ -2111,7 +2116,7 @@ func _build_approach_parking(rect: Rect2) -> void:
 						cars += 1
 				x += stall.x
 		# A lamp on every other aisle.
-		if int((z - area.position.y) / pitch) % 2 == 0:
+		if full and int((z - area.position.y) / pitch) % 2 == 0:
 			_add_lamp(Vector3(c.x, SIDEWALK_TOP + 0.04, z + stall.y * 2.0 + 3.5))
 		z += pitch
 
