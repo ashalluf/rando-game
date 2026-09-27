@@ -55,7 +55,9 @@ static func _list() -> Array[Dictionary]:
 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
 		# Moored along the port's south quay in San Pedro Bay (MacroMap.port_rect / harbor_rect), on
 		# the headland's east flank where the real Port of Los Angeles is.
-		{"id": "cargo_ship", "anchor": Vector2(3065.0, 6522.0), "radius": 100.0},
+		# z 6541: the quay face is z 6519 (port_rect's south edge), so the 30 m hull lies 7 m off
+		# it, against the fenders. At 6522 its landward 12 m stood on the yard.
+		{"id": "cargo_ship", "anchor": Vector2(3065.0, 6541.0), "radius": 100.0},
 		# The LA set. Anchors are placed the way the real chain runs: the boardwalk on the sand
 		# at Venice, a straight pier off Manhattan Beach, the timber horseshoe at Redondo where
 		# the coast meets the headland, the enclosed mall inland behind them, a corner coffee
@@ -728,18 +730,33 @@ static func _build_hangars(anchor: Vector2, parent: Node3D, statics: StaticBody3
 ## A container ship moored in the harbor, bow pointing west.
 static func _build_cargo_ship(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
 	var at := Vector3(anchor.x, 0.0, anchor.y)
-	var hull := Color(0.55, 0.15, 0.12)
-	_box(parent, statics, Vector3(180.0, 12.0, 30.0), at + Vector3(0.0, 2.0, 0.0), hull, true)
-	var bow := _box(parent, statics, Vector3(24.0, 12.0, 24.0), at + Vector3(-92.0, 2.0, 0.0), hull, true)
-	bow.rotation.y = PI * 0.25
-	_box(parent, statics, Vector3(182.0, 1.0, 32.0), at + Vector3(0.0, 8.5, 0.0), Color(0.3, 0.3, 0.32), true)
-	# Bridge at the stern, funnel, containers on deck.
-	_box(parent, statics, Vector3(14.0, 22.0, 26.0), at + Vector3(78.0, 20.0, 0.0), Color(0.92, 0.92, 0.9), true)
-	_box(parent, null, Vector3(16.0, 3.0, 28.0), at + Vector3(78.0, 32.0, 0.0), Color(0.25, 0.4, 0.55), false)
-	_cyl(parent, statics, 3.0, 10.0, at + Vector3(84.0, 36.0, 0.0), Color(0.85, 0.65, 0.2))
-	var colors := [Color(0.8, 0.25, 0.2), Color(0.2, 0.45, 0.75), Color(0.85, 0.6, 0.15), Color(0.3, 0.6, 0.35)]
+	# The hull, deck, hatch covers, lashing bridges, accommodation and funnel: one code-built
+	# mesh with its LOD ladder (PortKit.ship_mesh()). The collision is the old boxes.
+	var ship := MeshInstance3D.new()
+	ship.name = "CargoShip"
+	ship.mesh = PortKit.ship_mesh()
+	ship.position = at
+	parent.add_child(ship)
+	if statics:
+		_shape(statics, Vector3(180.0, 12.0, 30.0), at + Vector3(0.0, 2.0, 0.0))
+		var bow_shape := CollisionShape3D.new()
+		var bow_box := BoxShape3D.new()
+		bow_box.size = Vector3(17.0, 12.0, 17.0)
+		bow_shape.shape = bow_box
+		bow_shape.transform = Transform3D(Basis(Vector3.UP, PI * 0.25), at + Vector3(-90.0, 2.0, 0.0))
+		statics.add_child(bow_shape)
+		_shape(statics, Vector3(182.0, 1.0, 30.0), at + Vector3(0.0, 8.5, 0.0))
+		_shape(statics, Vector3(12.0, 21.0, 22.0), at + Vector3(78.0, PortKit.SHIP_DECK_Y + 10.5, 0.0))
+		_shape(statics, Vector3(4.5, 27.0, 7.6), at + Vector3(86.75, PortKit.SHIP_DECK_Y + 13.5, 0.0))
+	# Containers on deck: each 7.2 m slot of the old boxes is three 40 ft boxes abreast
+	# (PortKit), one MultiMesh with a box shadow twin. The old rolls (seed 4242) still pick the
+	# heights and the line of each tier; liveries and wear come from their own stream.
+	var colors := 4
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
+	var kit := RandomNumberGenerator.new()
+	kit.seed = 4243
+	var batch := MultiMeshBatch.new()
 	var stacks := 10 if detailed else 5
 	var stack_step := 14.0 if detailed else 28.0
 	for i in stacks:
@@ -748,9 +765,15 @@ static func _build_cargo_ship(anchor: Vector2, parent: Node3D, statics: StaticBo
 			var z := (row - 1) * 8.0
 			var height := rng.randi_range(2, 4) if detailed else 3
 			for h in height:
-				_box(parent, null, Vector3(12.0, 2.6, 2.4 * 3.0), at + Vector3(x, 9.0 + 1.3 + h * 2.6, z), colors[rng.randi() % colors.size()], false)
+				var pick: int = rng.randi() % colors
+				for k in 3:
+					var livery: int = PortKit.COLOR_TO_LIVERY[pick] if kit.randf() < 0.7 else kit.randi() % PortKit.LIVERY_COUNT
+					var look := PortKit.container_look(livery, kit)
+					var centre := at + Vector3(x, 9.0 + PortKit.H_STD * (h + 0.5), z + (k - 1) * (PortKit.W + 0.05))
+					batch.add("container", PropFactory.container(), PortKit.container_xform(centre, true, false, kit.randf() < 0.5), look[0], look[1])
 			if statics:
 				_shape(statics, Vector3(12.0, 2.6 * height, 7.2), at + Vector3(x, 9.0 + 1.3 * height, z))
+	batch.build(parent)
 
 
 # --- Building-shader helpers -----------------------------------------------------------------

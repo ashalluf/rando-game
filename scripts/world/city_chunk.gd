@@ -334,7 +334,7 @@ func begin_build() -> void:
 		MacroMap.Zone.AIRPORT:
 			_steps.append(_build_airport)
 		MacroMap.Zone.PORT:
-			_steps.append(_build_port.bind(block))
+			_steps.append_array(_port_steps(block))
 		_:
 			if _owns_shoreline():
 				_steps.append(_build_beach.bind(block))
@@ -387,7 +387,7 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 			if replica_role == 0 and not block.has("site"):
 				_steps.append_array(_block_steps(block))
 		MacroMap.Zone.PORT:
-			_steps.append(_build_port.bind(block))
+			_steps.append_array(_port_steps(block))
 		MacroMap.Zone.AIRPORT:
 			_steps.append(_build_airport)
 	_steps.append(func() -> void: captured.batch = _batch.data())
@@ -615,55 +615,326 @@ func _on_runway(p: Vector2) -> bool:
 	return false
 
 
-func _build_port(block: Dictionary) -> void:
+## The container terminal (PortKit builds the pieces). The yard's rows, columns, skipped truck
+## lanes and stack heights are still the old port's rolls on the block's own rng, made in the
+## old order, so every stack stands where it stood; everything new - liveries, 20 ft pairs,
+## high-cubes, the second box of a row, the gantries - draws from a private stream (`kit`).
+## The far city replays this in capture mode and gets the same boxes.
+const PORT_YARD_TOP := 0.2
+## Yard concrete tint. At 0.78 the terminal read as a white sheet from the air, far brighter
+## than the streets round it; real terminal paving is mid-grey concrete and asphalt.
+const PORT_YARD_TINT := Color(0.44, 0.44, 0.43)
+## Two boxes abreast in each row, centred this far either side of the row line (a 0.2 m gap).
+const PORT_ROW_OFFSET := 1.32
+## Metres of the quay chunks kept clear of stacks, back from the quay edge: the crane rails
+## (the waterside one STS_QUAY_SETBACK in, the landside one a gauge behind it) and the lanes
+## the trucks load in under the cranes.
+const PORT_APRON := 42.0
+const PORT_COLOR_ROLLS := 6
+const PORT_PAINT_WHITE := Color(0.92, 0.92, 0.88)
+const PORT_PAINT_YELLOW := Color(0.95, 0.72, 0.12)
+
+
+## The port block as three build steps sharing `st`: the yard and its stacks, the paint, then
+## the gantries or the quay with its cranes. One step used to hold all of it, and at full detail
+## that was 16-26 ms against a street chunk's 3; split, flat-shortcut and warmed, no step costs
+## more than a street chunk's worst.
+func _port_steps(block: Dictionary) -> Array[Callable]:
+	var st := {"block": block}
+	return [_port_yard.bind(st), _port_paint.bind(st), _port_kit.bind(st)]
+
+
+## The height the port's pieces stand at above the plan: the relief at the chunk's centre, the
+## same single lift the yard slab gets (_add_slab lifts a box by its centre), so the stacks, the
+## paint and the cranes stand on the slab wherever it is. MacroMap flattens the relief to nothing
+## over the port rect and the bay, so this is ~0 - but the paint alone sampled it ~2,000 times
+## (five a line, for the tilt), 5-15 ms a chunk.
+var _port_lift := 0.0
+
+
+func _pgy(_x: float, _z: float) -> float:
+	return _port_lift
+
+
+## Runs `work` with the batch lifting everything by `_port_lift` (and tilting nothing).
+func _port_run(work: Callable) -> void:
+	var lift := _batch.ground
+	_batch.ground = _pgy
+	work.call()
+	_batch.ground = lift
+
+
+func _port_yard(st: Dictionary) -> void:
+	var block: Dictionary = st.block
 	var area := owned_rect()
 	var c := area.get_center()
-	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, Color(0.78, 0.78, 0.76), hash([plan.seed, ix, iz, "yard"]), 6.0, 0.6))
+	_port_lift = _gy(c.x, c.y)
+	_add_slab(Vector3(c.x, 0.1, c.y), Vector3(area.size.x, 0.2, area.size.y), style.concrete, level == Level.FULL, PropFactory.road("concrete", 5.0, PORT_YARD_TINT, hash([plan.seed, ix, iz, "yard"]), 6.0, 0.6))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
-	# Container stacks in rows, colored per box.
-	var colors := [Color(0.8, 0.25, 0.2), Color(0.2, 0.45, 0.75), Color(0.85, 0.6, 0.15), Color(0.3, 0.6, 0.35), Color(0.6, 0.6, 0.62), Color(0.55, 0.3, 0.55)]
-	var rows := int(area.size.y / 9.0)
-	var cols := int(area.size.x / 14.0)
-	var origin := Vector2(area.position.x + 8.0, area.position.y + 6.0)
-	for r in rows:
-		if rng.randf() < 0.3:
-			continue # an empty lane for trucks
-		for col in cols:
-			if rng.randf() < 0.35:
-				continue
-			var height := rng.randi_range(1, 3)
-			var p := origin + Vector2(col * 14.0, r * 9.0)
-			if p.x + 6.0 > area.end.x - 4.0 or p.y + 1.2 > area.end.y - 4.0:
-				continue
-			for h in height:
-				var col_color: Color = colors[rng.randi() % colors.size()]
-				_batch.add("container", PropFactory.container(), Transform3D(Basis(), Vector3(p.x, 0.2 + 1.3 + h * 2.6, p.y)), col_color)
-			if level == Level.FULL:
-				_add_shape(Vector3(12.0, 2.6 * height, 2.4), Vector3(p.x, 0.2 + 1.3 * height, p.y))
-	# A gantry crane on the quay: a chunk with the harbour's water off its south edge.
+	var kit := RandomNumberGenerator.new()
+	kit.seed = hash([plan.seed, ix, iz, "port_kit"])
 	var macro: MacroMap = plan.macro
-	if level == Level.FULL and macro.zone_at(Vector2(c.x, area.end.y + 30.0)) == MacroMap.Zone.OCEAN:
-		_build_crane(Vector3(c.x, 0.2, area.end.y - 18.0))
+	st.area = area
+	st.kit = kit
+	st.quay = macro.zone_at(Vector2(c.x, area.end.y + 30.0)) == MacroMap.Zone.OCEAN
+	st.apron_z = area.end.y - PORT_APRON if st.quay else INF
+	st.rows = int(area.size.y / 9.0)
+	st.cols = int(area.size.x / 14.0)
+	st.origin = Vector2(area.position.x + 8.0, area.position.y + 6.0)
+	var lanes: Array[int] = []
+	st.lanes = lanes
+	_port_run(func() -> void:
+		var rows: int = st.rows
+		var cols: int = st.cols
+		var origin: Vector2 = st.origin
+		for r in rows:
+			if rng.randf() < 0.3:
+				lanes.append(r) # an empty lane for trucks
+				continue
+			for col in cols:
+				if rng.randf() < 0.35:
+					continue
+				var height := rng.randi_range(1, 3)
+				var p := origin + Vector2(col * 14.0, r * 9.0)
+				if p.x + 6.0 > area.end.x - 4.0 or p.y + 1.2 > area.end.y - 4.0:
+					continue
+				var picks: Array[int] = []
+				for h in height:
+					picks.append(rng.randi() % PORT_COLOR_ROLLS)
+				if p.y + PORT_ROW_OFFSET + PortKit.W * 0.5 > float(st.apron_z):
+					continue
+				_port_stack(p, height, picks, kit))
+
+
+func _port_paint(st: Dictionary) -> void:
+	if level != Level.FULL or capturing:
+		return
+	_port_run(func() -> void: _paint_port_yard(st.area, st.origin, st.rows, st.cols, st.lanes, st.apron_z))
+
+
+func _port_kit(st: Dictionary) -> void:
+	var area: Rect2 = st.area
+	var kit: RandomNumberGenerator = st.kit
+	_port_run(func() -> void:
+		if st.quay:
+			_build_quay(area, kit)
+		else:
+			_place_rtg(area, st.origin, st.rows, st.cols, kit)
+		if level == Level.FULL:
+			for i in 2:
+				_add_lamp(Vector3(area.position.x + 4.0 + i * (area.size.x - 8.0), 0.2, area.position.y + 4.0))
+		if level == Level.FULL and not capturing:
+			# A high mast by the chunk's north-west corner, in the gap between the stacks (a pole
+			# 40 cm thick is a pixel from the LOD ring, so the LOD chunks leave it out).
+			var mp := Vector3(area.position.x + 3.0, PORT_YARD_TOP, area.position.y + 2.2)
+			_batch.add("port_mast", PortKit.mast_mesh(), Transform3D(Basis(), mp))
+			_add_shape(Vector3(0.9, PortKit.MAST_H, 0.9), mp + Vector3(0.0, PortKit.MAST_H * 0.5 + _pgy(mp.x, mp.z), 0.0)))
+	if level != Level.FULL:
+		# A gantry's shadow past the full ring is a smudge; skip its twin's draws.
+		_batch.set_no_shadow("rtg")
+
+
+## One stack slot: the rolled `height` of boxes in the row line, a second pile abreast (most
+## slots) a box higher or lower, each pile 40 ft boxes or pairs of 20s, some of them high-cubes.
+## `picks` are the old per-box colour rolls, which choose the first pile's liveries. Returns
+## the stack's top.
+func _port_stack(p: Vector2, height: int, picks: Array[int], kit: RandomNumberGenerator) -> float:
+	var top := 0.0
+	var single := kit.randf() < 0.15
+	var offsets: Array[float] = [0.0]
+	if not single:
+		offsets = [-PORT_ROW_OFFSET, PORT_ROW_OFFSET]
+	# Boxes in a row mostly face one way.
+	var row_flip := kit.randf() < 0.5
+	for li in offsets.size():
+		var z := p.y + offsets[li]
+		var n := height if li == 0 else clampi(height + kit.randi_range(-1, 1), 1, 4)
+		var twenty := kit.randf() < 0.22
+		var y := PORT_YARD_TOP
+		for h in n:
+			var hc := kit.randf() < (0.1 if twenty else 0.45)
+			var hgt := PortKit.H_HC if hc else PortKit.H_STD
+			var pick: int = picks[h] if li == 0 and h < picks.size() else kit.randi() % PORT_COLOR_ROLLS
+			if twenty:
+				for e: float in [-1.0, 1.0]:
+					var cx := p.x + e * (PortKit.L20 + PortKit.PAIR_GAP) * 0.5
+					var liv := _port_livery(pick if e < 0.0 else kit.randi() % PORT_COLOR_ROLLS, kit)
+					_add_container(Vector3(cx, y + hgt * 0.5, z), false, hc, row_flip != (kit.randf() < 0.2), liv, kit)
+			else:
+				_add_container(Vector3(p.x, y + hgt * 0.5, z), true, hc, row_flip != (kit.randf() < 0.15), _port_livery(pick, kit), kit)
+			y += hgt
+		if level == Level.FULL:
+			_add_shape(Vector3(PortKit.L40, y - PORT_YARD_TOP, PortKit.W), Vector3(p.x, (PORT_YARD_TOP + y) * 0.5 + _pgy(p.x, z), z))
+		top = maxf(top, y)
+	return top
+
+
+## The livery for an old colour roll: the shipping line of that hue, now and then a leasing
+## pool's plain box or an old brown one instead.
+func _port_livery(pick: int, kit: RandomNumberGenerator) -> int:
+	var r := kit.randf()
+	if r < 0.14:
+		return 6
+	if r < 0.24:
+		return 7
+	if r < 0.29:
+		return 8
+	return PortKit.COLOR_TO_LIVERY[pick]
+
+
+func _add_container(centre: Vector3, forty: bool, high_cube: bool, flip: bool, livery: int, kit: RandomNumberGenerator) -> void:
+	var look := PortKit.container_look(livery, kit)
+	_batch.add("container", PropFactory.container(), PortKit.container_xform(centre, forty, high_cube, flip), look[0], look[1])
+
+
+## A painted line on the yard from `a` to `b` (plan XZ), through the road-paint batch.
+func _port_line(a: Vector2, b: Vector2, width: float, color: Color) -> void:
+	var d := b - a
+	var length := d.length()
+	if length < 0.01:
+		return
+	# The stripe mesh is 0.6 m across and 3 m long in its own Z: scale it in its own frame
+	# first, then turn its length onto the line.
+	var basis := Basis(Vector3.UP, atan2(d.x, d.y)) * Basis().scaled(Vector3(width / 0.6, 1.0, length / 3.0))
+	var mid := (a + b) * 0.5
+	_batch.add("stripe", PropFactory.stripe(), Transform3D(basis, Vector3(mid.x, PORT_YARD_TOP + 0.011, mid.y)), color)
+
+
+## Slot outlines round every stack slot, dashed centre lines down the truck lanes.
+func _paint_port_yard(area: Rect2, origin: Vector2, rows: int, cols: int, lanes: Array[int], apron_z: float) -> void:
+	var half_w := PORT_ROW_OFFSET + PortKit.W * 0.5 + 0.15
+	var half_l := PortKit.L40 * 0.5 + 0.2
+	for r in rows:
+		var z := origin.y + r * 9.0
+		if z + half_w > area.end.y - 1.0 or z + half_w > apron_z:
+			continue
+		if lanes.has(r):
+			var x := area.position.x + 2.0
+			while x < area.end.x - 5.0:
+				_port_line(Vector2(x, z), Vector2(x + 3.0, z), 0.15, PORT_PAINT_YELLOW)
+				x += 7.0
+			continue
+		for col in cols:
+			var px := origin.x + col * 14.0
+			if px + half_l > area.end.x - 1.0:
+				continue
+			for s: float in [-1.0, 1.0]:
+				_port_line(Vector2(px - half_l, z + s * half_w), Vector2(px + half_l, z + s * half_w), 0.12, PORT_PAINT_WHITE)
+				_port_line(Vector2(px + s * half_l, z - half_w), Vector2(px + s * half_l, z + half_w), 0.12, PORT_PAINT_WHITE)
+
+
+## A yard gantry (most chunks away from the quay) straddling three rows over one column, its
+## legs in the aisles between the rows.
+func _place_rtg(area: Rect2, origin: Vector2, rows: int, cols: int, kit: RandomNumberGenerator) -> void:
+	if rows < 3 or cols < 1 or kit.randf() > 0.8:
+		return
+	var reach := PortKit.RTG_SPAN * 0.5 + 0.6
+	for attempt in 6:
+		var r0 := kit.randi_range(0, rows - 3)
+		var col := kit.randi_range(0, cols - 1)
+		var flip := kit.randf() < 0.5
+		var p := origin + Vector2(col * 14.0, (r0 + 1) * 9.0)
+		if p.x - 4.8 < area.position.x + 0.5 or p.x + 4.8 > area.end.x - 0.5:
+			continue
+		if p.y - reach - 2.0 < area.position.y + 0.5 or p.y + reach > area.end.y - 0.5:
+			continue
+		var xf := Transform3D(Basis(Vector3.UP, PI) if flip else Basis(), Vector3(p.x, PORT_YARD_TOP, p.y))
+		_batch.add("rtg", PropFactory.rtg(), xf)
+		if level == Level.FULL:
+			var lift := Transform3D(Basis(), Vector3(0.0, _pgy(p.x, p.y), 0.0))
+			for s: Array in PortKit.rtg_shapes():
+				_add_shape_xf(s[0], lift * xf * (s[1] as Transform3D))
+		return
+
+
+## The south quay: two ship-to-shore cranes per chunk on their rails, and at full detail the
+## rails, the coping with its bollards and fenders, and the apron's paint.
+func _build_quay(area: Rect2, kit: RandomNumberGenerator) -> void:
+	var qz := area.end.y
+	var macro: MacroMap = plan.macro
+	var ship := _moored_ship()
+	var crane_z := qz - PortKit.STS_QUAY_SETBACK - PortKit.STS_GAUGE * 0.5
+	for k in 2:
+		var x := area.position.x + area.size.x * (0.25 + 0.5 * k)
+		if macro.zone_at(Vector2(x, qz + 30.0)) != MacroMap.Zone.OCEAN:
+			continue
+		var working := ship.x < INF and absf(x - ship.x) < 95.0
+		_build_sts_crane(Vector3(x, PORT_YARD_TOP, crane_z), working, ship.y - crane_z, kit, k)
+	if level != Level.FULL or capturing:
+		return
+	var cx := area.get_center().x
+	var w := area.size.x
+	# Crane rails on their concrete beams, the waterside one near the edge.
+	for zr: float in [qz - PortKit.STS_QUAY_SETBACK, qz - PortKit.STS_QUAY_SETBACK - PortKit.STS_GAUGE]:
+		_add_slab(Vector3(cx, PORT_YARD_TOP + 0.004, zr), Vector3(w, 0.012, 1.1), Color(0.6, 0.6, 0.58), false)
+		_add_slab(Vector3(cx, PORT_YARD_TOP + 0.03, zr), Vector3(w, 0.06, 0.14), Color(0.23, 0.22, 0.21), false)
+	# The coping along the edge, a yellow line on it, bollards on it and fenders on its face.
+	var cope_h := 0.3
+	_add_slab(Vector3(cx, PORT_YARD_TOP + cope_h * 0.5, qz - 0.6), Vector3(w, cope_h, 1.2), Color(0.64, 0.63, 0.6))
+	_port_line(Vector2(area.position.x, qz - 0.15), Vector2(area.end.x, qz - 0.15), 0.25, PORT_PAINT_YELLOW)
+	var x := area.position.x + 8.0
+	while x < area.end.x - 2.0:
+		var at := Vector3(x, PORT_YARD_TOP + cope_h, qz - 0.75)
+		_batch.add("port_bollard", PortKit.bollard_mesh(), Transform3D(Basis(), at))
+		_add_shape(Vector3(0.6, 0.8, 0.6), at + Vector3(0.0, 0.4 + _pgy(x, at.z), 0.0))
+		_batch.add("port_fender", PortKit.fender_mesh(), Transform3D(Basis(), Vector3(x + 8.0, PORT_YARD_TOP + 0.1, qz)))
+		x += 16.0
+	# The apron: the yellow keep-clear line inside the waterside rail and the truck lanes'
+	# dashed lines between the rails.
+	var lane_x0 := area.position.x + 1.0
+	_port_line(Vector2(area.position.x, qz - 1.6), Vector2(area.end.x, qz - 1.6), 0.15, PORT_PAINT_YELLOW)
+	for k in range(1, 6):
+		var z := qz - PortKit.STS_QUAY_SETBACK - k * PortKit.STS_GAUGE / 6.0
+		var dx := lane_x0
+		while dx < area.end.x - 4.0:
+			_port_line(Vector2(dx, z), Vector2(dx + 4.0, z), 0.13, PORT_PAINT_WHITE)
+			dx += 9.0
+
+
+## The moored container ship's anchor (plan XZ), or INF when there is none.
+func _moored_ship() -> Vector2:
+	for lm in Landmarks.all():
+		if lm.id == "cargo_ship":
+			return lm.anchor
+	return Vector2(INF, INF)
+
+
+## One ship-to-shore crane on the quay at `at` (its frame's origin). A crane over the moored
+## ship (`working`) has its boom down and its trolley out over the ship, the spreader part way
+## down, most with a box on it; the rest have their booms raised and their trolleys parked. The
+## far city gets it as a dozen boxes. (`ship_z`, the ship's centre line in the crane frame, is
+## what the working poses were chosen for: about 40 m out.)
+func _build_sts_crane(at: Vector3, working: bool, ship_z: float, kit: RandomNumberGenerator, index: int) -> void:
+	var raised := not working
+	var trolley_z := PortKit.STS_PARKED.x
+	var spreader_y := PortKit.STS_PARKED.y
+	var carrying := false
+	if working:
+		# One of a few poses over the ship (PortKit.STS_WORK_POSES, warmed on the loading screen
+		# so no crane builds its mesh mid-flight); the trolley nearest the ship's centre line.
+		var pose: Vector2 = PortKit.STS_WORK_POSES[kit.randi() % PortKit.STS_WORK_POSES.size()]
+		trolley_z = pose.x
+		spreader_y = pose.y
+		carrying = kit.randf() < 0.65
+	var livery := _port_livery(kit.randi() % PORT_COLOR_ROLLS, kit)
+	var base := at + Vector3(0.0, _pgy(at.x, at.z), 0.0)
+	if capturing:
+		for fb: Array in PortKit.sts_far_boxes(raised):
+			var xf := Transform3D(Basis(), base) * (fb[1] as Transform3D)
+			captured.boxes.append([Transform3D(xf.basis * Basis().scaled(fb[0]), xf.origin), fb[2]])
+		return
+	var crane := MeshInstance3D.new()
+	# Named, so it is never mistaken for an auto-named box to merge, and a check can count it.
+	crane.name = "StsCrane%d" % index
+	crane.mesh = PortKit.sts_mesh(raised, trolley_z, spreader_y)
+	crane.position = base
+	add_child(crane)
+	if carrying:
+		_add_container(at + Vector3(0.0, spreader_y - PortKit.H_STD * 0.5 - 0.03, trolley_z), true, false, kit.randf() < 0.5, livery, kit)
 	if level == Level.FULL:
-		for i in 2:
-			_add_lamp(Vector3(area.position.x + 4.0 + i * (area.size.x - 8.0), 0.2, area.position.y + 4.0))
-
-
-func _build_crane(at: Vector3) -> void:
-	var steel := Color(0.85, 0.45, 0.15)
-	var h := 40.0
-	for dx: float in [-14.0, 14.0]:
-		for dz: float in [-6.0, 6.0]:
-			_add_slab(at + Vector3(dx, h * 0.5, dz), Vector3(1.4, h, 1.4), steel)
-	_add_slab(at + Vector3(0.0, h + 0.5, -6.0), Vector3(30.0, 1.5, 1.5), steel)
-	_add_slab(at + Vector3(0.0, h + 0.5, 6.0), Vector3(30.0, 1.5, 1.5), steel)
-	# Boom out over the water (+Z), and a trolley with a hanging container.
-	_add_slab(at + Vector3(0.0, h + 0.5, 30.0), Vector3(3.0, 2.0, 60.0), steel)
-	_add_slab(at + Vector3(0.0, h - 1.5, 26.0), Vector3(4.0, 1.5, 4.0), Color(0.3, 0.3, 0.32))
-	_add_slab(at + Vector3(0.0, h - 9.0, 26.0), Vector3(0.2, 14.0, 0.2), Color(0.2, 0.2, 0.2), false)
-	_batch.add("container", PropFactory.container(), Transform3D(Basis(Vector3.UP, PI * 0.5), at + Vector3(0.0, h - 17.0, 26.0)), Color(0.2, 0.45, 0.75))
-	_add_slab(at + Vector3(0.0, 4.0, 0.0), Vector3(6.0, 8.0, 5.0), Color(0.3, 0.3, 0.32))
+		for s: Array in PortKit.sts_shapes(raised):
+			_add_shape_xf(s[0], Transform3D(Basis(), base) * (s[1] as Transform3D))
 
 
 # --- Ocean, beach, hills ---------------------------------------------------------------
@@ -2978,6 +3249,18 @@ func _add_shape(size: Vector3, pos: Vector3, yaw: float = 0.0) -> CollisionShape
 	shape.rotation.y = yaw
 	_statics.add_child(shape)
 	return shape
+
+
+## A collision box with any transform (chunk frame): tilted struts, a raised crane boom.
+func _add_shape_xf(size: Vector3, xf: Transform3D) -> void:
+	if _statics == null:
+		return
+	var shape := CollisionShape3D.new()
+	var box := BoxShape3D.new()
+	box.size = size
+	shape.shape = box
+	shape.transform = xf
+	_statics.add_child(shape)
 
 
 # --- Freeway ---------------------------------------------------------------------------------

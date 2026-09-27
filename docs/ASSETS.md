@@ -267,6 +267,23 @@ hotel, the convention centre, city hall, the park, the museum, the station) is b
 |---|---|---|---|---|
 | `concert_hall.glb` | `ConcertHall` (12 sails, the auditorium core and its base, the entrance glazing), `Collision` (never drawn: a trimesh shape) | 36.2k drawn; 0.7k collision | `LandmarkCivicCenter` (`concert_hall`) | 2026-09-24 |
 
+## Port kit (built in code)
+
+The container terminal's pieces (2026-09-27, roadmap #35) are generated at run time by
+`scripts/world/port_kit.gd` - no model files, no textures, no external input. ISO 668 container
+dimensions; the shipping lines on the boxes and the ship (RANDO, KAVELL, TORVAN, ZEPRA, OLVANA,
+MERIDU, two leasing pools), their marks, owner codes and colour schemes are invented for this
+game, drawn by `shaders/container.gdshader` / `port_steel.gdshader` from the stroke font in
+`shaders/port_lettering.gdshaderinc`.
+
+| Mesh | Built by | Triangles (LOD ladder) | Used for | Added |
+|---|---|---|---|---|
+| ISO container (20/40 ft, high-cube by instance scale) | `PortKit.container_mesh()` | 568 / 142 / 12, box shadow twin | port stacks, the ship's deck cargo, crane spreaders | 2026-09-27 |
+| Ship-to-shore gantry crane | `PortKit.sts_mesh()` | 3.8k / 1.7k / 0.7k per pose | the south quay | 2026-09-27 |
+| Rubber-tyred yard gantry | `PortKit.rtg_mesh()` | 1.4k / 0.7k / 0.4k | over the yard's stacks | 2026-09-27 |
+| Container ship hull, accommodation, hatch covers | `PortKit.ship_mesh()` | see `_ship_level()` | `cargo_ship` landmark | 2026-09-27 |
+| High mast, bollard, cell fender | `PortKit.mast_mesh()` etc. | 158, 110, 52 | yard and quay | 2026-09-27 |
+
 ## The hero (Blender + MPFB2, CC0 assets)
 
 `assets/models/hero.glb` (and the `hero_hero_*` textures Godot extracts from it, plus the

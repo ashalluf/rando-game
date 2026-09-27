@@ -834,6 +834,34 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
+- Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
+  `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
+  **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck
+  lanes, the 35 % empty slots, stack heights, one colour roll a box, which now picks the box's
+  shipping line); everything new - the second pile abreast (`PORT_ROW_OFFSET`, leaving 3.9 m
+  aisles), 20 ft pairs, high-cubes, door facing, liveries, wear, gantries, crane poses - comes from
+  a private `hash([seed, ix, iz, "port_kit"])` stream, and the far city replays it in capture
+  mode. **A container is ONE mesh** (`PropFactory.container()`) with a hand-built ladder (568 /
+  142 / 12 triangles: castings, rails, posts, recessed panels, doors with bars, keepers, handles
+  and hinges; then frame and panels; then a box) and a box shadow twin pulled in behind its
+  panels (a proxy face in front of a lit face shadows it). **20 ft and high-cube boxes are the
+  same mesh scaled** (`PortKit.container_xform()`): `shaders/container.gdshader` moves every
+  vertex within 1.3 m of an end back to its distance from that end, so castings and doors keep
+  their size while the MultiMesh bounds, the far city's box and the collision see the true size;
+  never scale an instance in z. The shader draws the ISO corrugation (a normal tilt with a short
+  parallax march - the mesh has no tangents), the liveries (instance COLOR is the paint from
+  `PortKit.LIVERY_PAINT`, INSTANCE_CUSTOM is livery / 16, wear, seed, 1; ink, names, marks and
+  owner codes are in `shaders/port_lettering.gdshaderinc` under the same index, a stroke font
+  shared with the ship's hull; every line is invented), ID codes, rust streaks, repaint patches,
+  dirt and dents. **Cranes**: two ship-to-shore cranes a quay chunk (`PortKit.sts_mesh()`, one
+  merged mesh per pose, 3.8k / 1.7k / 0.7k triangles, `shaders/port_steel.gdshader`: vertex
+  colour plus a finish in UV2.x), boom down with the trolley over the moored ship within 95 m of
+  it, raised elsewhere; built at FULL and LOD, and as boxes in the far city (`sts_far_boxes()`
+  into `captured.boxes`). Yard gantries (`PropFactory.rtg()`) straddle three rows with their legs
+  in the aisles; `PORT_APRON` of the quay chunks stays clear for the rails, coping, bollards,
+  fenders and lanes. The ship (`cargo_ship`, now 7 m off the quay, not on it) is
+  `PortKit.ship_mesh()`. Look at a change in seconds with `tools/glshot/port_shot.gd` (the kit
+  alone; `SHIP=1`, `RAISED=1`, `LOD=n`, `WEAR`).
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
   port), land height and district for any world XZ. The city itself rolls: `relief_at()` is the
   gentle height field under the blocks (zero on beaches, flat zones, mountain hills and around
@@ -1202,7 +1230,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, webshot/ (scr
   is (owner, 2026-09-25: "it should be on the east side of palos verdes"): on San Pedro Bay at
   the foot of the 110, just east of the headland's land end, x 2750-3380, z 5935-6495, its south
   third built out into the bay, the harbour (the berth, `harbor_rect`) off its south quay and the
-  cargo ship at (3065, 6522). The bay (`bay_z` 6300, `bay_east_x` 4700) wraps the headland's
+  cargo ship at (3065, 6541). The bay (`bay_z` 6300, `bay_east_x` 4700) wraps the headland's
   south and east and is open sea; east of the port its north shore is Long Beach's sand
   (`bay_beach_depth`). There is no inland water anywhere: the old harbour at z 3300 is city now (all of it checked by `_port_on_the_bay()` in `tests/downtown_checks.gd`).
   The ocean shader gets `bay_east_x` from `Weather._push_ocean_shape()`. Industrial is east of the
