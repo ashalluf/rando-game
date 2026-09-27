@@ -1594,6 +1594,7 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			if params.get("lawn", false):
 				steps.append(_block_lawn.bind(rect, rng))
 			steps.append_array(_lot_steps(rect, params, rng))
+			steps.append(_build_approach_parking.bind(rect))
 			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
 			# whole block, so the footprints the lots just recorded are what the grass has to
 			# stay out of; a suburb whose lawns are flat green paint is the tell.
@@ -2050,7 +2051,7 @@ func _build_corridor_lot(lot: Dictionary) -> void:
 	var size: Vector2 = lot.size
 	var center: Vector2 = lot.center
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(maxf(size.x - 1.0, 0.5), 0.04, maxf(size.y - 1.0, 0.5)),
-		style.grass, false, PropFactory.lawn(CORRIDOR_IVY, hash([plan.seed, "corridor_ivy"]), 0.12, 0.0))
+		style.grass, false, PropFactory.lawn(CORRIDOR_IVY, hash([plan.seed, "corridor_ivy"]), 0.0, 0.0))
 	if level != Level.FULL or capturing:
 		return
 	var rng := RandomNumberGenerator.new()
@@ -2062,6 +2063,57 @@ func _build_corridor_lot(lot: Dictionary) -> void:
 		if _under_freeway(p, 1.5):
 			continue
 		_add_bush(Vector3(p.x, SIDEWALK_TOP + 0.04, p.y), rng)
+
+
+## Under the final approach (MacroMap.runway_clear_zone()) CityPlan.lots() builds nothing, and
+## the lots it drops were left as the block's bare paving - by the airport, a row of empty tan
+## blocks either side of the 105. It is the airport's long-term parking instead, as the land
+## under the real one's approach is: asphalt, double rows of stalls on 7 m aisles, cars packed in
+## (ArenaGrounds' static ~260-triangle cars in the chunk batch - nothing taller than a car under
+## the glide path) and lamps on the aisles. Stalls keep off the lots left standing. Its own rng.
+func _build_approach_parking(rect: Rect2) -> void:
+	if plan.macro == null:
+		return
+	var area := rect.grow(-plan.sidewalk_width - 1.0).intersection(plan.macro.runway_clear_zone().grow(APPROACH_PARK_REACH))
+	if area.size.x < 20.0 or area.size.y < 14.0:
+		return
+	var c := area.get_center()
+	_add_slab(Vector3(c.x, SIDEWALK_TOP + 0.02, c.y), Vector3(area.size.x, 0.04, area.size.y), Color(0.4, 0.4, 0.42), false,
+		PropFactory.road("asphalt", 7.0, Color(0.62, 0.62, 0.64), hash([plan.seed, ix, iz, "approach_park"]), 0.0, 0.6))
+	if level != Level.FULL or capturing:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([plan.seed, ix, iz, "approach_park"])
+	var stall := ArenaGrounds.STALL
+	var pitch := stall.y * 2.0 + 7.0
+	var cars := 0
+	var z := area.position.y + 3.5
+	while z + stall.y * 2.0 < area.end.y - 1.0:
+		for half in 2:
+			var zc := z + stall.y * (0.5 + float(half))
+			var x := area.position.x + 2.0
+			while x + stall.x < area.end.x - 2.0:
+				var bay := Rect2(Vector2(x, zc - stall.y * 0.5), stall)
+				var free := true
+				for r: Rect2 in _lot_rects:
+					if r.intersects(bay):
+						free = false
+						break
+				if free:
+					_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)),
+						Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(x, SIDEWALK_TOP + 0.05, zc)))
+					if cars < APPROACH_PARK_MAX_CARS and rng.randf() < 0.72:
+						var v := rng.randi() % ArenaGrounds.CAR_KINDS
+						var paint: Color = ArenaGrounds.CAR_PAINTS[rng.randi() % ArenaGrounds.CAR_PAINTS.size()]
+						var yaw := (0.0 if half == 0 else PI) + rng.randf_range(-0.04, 0.04)
+						_batch.add("apark_car_%d" % v, ArenaGrounds.car_mesh(v), Transform3D(Basis(Vector3.UP, yaw),
+							Vector3(x + stall.x * 0.5, SIDEWALK_TOP + 0.045, zc)), paint)
+						cars += 1
+				x += stall.x
+		# A lamp on every other aisle.
+		if int((z - area.position.y) / pitch) % 2 == 0:
+			_add_lamp(Vector3(c.x, SIDEWALK_TOP + 0.04, z + stall.y * 2.0 + 3.5))
+		z += pitch
 
 
 func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
@@ -3081,8 +3133,12 @@ const LOT_FREEWAY_MARGIN := 3.0
 const TREE_FREEWAY_MARGIN := 5.0
 ## The ground cover on a freeway corridor lot (_build_corridor_lot), a deep ivy green, and one
 ## shrub per this many square metres of it.
-const CORRIDOR_IVY := Color(0.27, 0.40, 0.17)
+const CORRIDOR_IVY := Color(0.21, 0.33, 0.14)
 const CORRIDOR_SHRUB_AREA := 55.0
+## How far past the approach clear zone the long-term parking reaches (the lots CityPlan drops are
+## every lot the zone touches, so they run on past it), and the most parked cars in one chunk.
+const APPROACH_PARK_REACH := 22.0
+const APPROACH_PARK_MAX_CARS := 260
 ## Metres between the trees down a plaza's promenades (_furnish_plaza).
 const PLAZA_TREE_STEP := 9.0
 const PALM_FREEWAY_MARGIN := 2.0
