@@ -123,6 +123,7 @@ var _lot_rects: Array[Rect2] = []
 ## LotFill's state while building: the fill ground by kind (merged at the finish, FULL only), and
 ## the trees and parked cars its forecourts and car parks have spent of their caps.
 var _fill_ground: Dictionary = {}
+var _fill_boxes: Array = []
 var _fill_trees: int = 0
 var _fill_cars: int = 0
 
