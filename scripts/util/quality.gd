@@ -162,6 +162,12 @@ func _apply_render() -> void:
 	# roads fill the bottom of every outdoor frame.
 	RenderingServer.global_shader_parameter_set("ground_detail",
 		1.0 if level <= Level.MEDIUM and not OS.has_feature("web") else 0.0)
+	# The hill shells (CityChunk._build_hill_shells: the near dry grass and brush understory,
+	# the hill tile drawn again sixteen times) go with it: built only while it is on, and the
+	# ones already built hide when it goes.
+	CityChunk.shells_enabled = level <= Level.MEDIUM and not OS.has_feature("web")
+	if is_inside_tree():
+		get_tree().call_group("hill_shells", "set_visible", CityChunk.shells_enabled)
 	# Real street lamps are the first thing to go when frames get tight; the additive pools of
 	# light on the pavement stay, so the street is still readable.
 	var dn := get_parent().get_node_or_null("DayNight")

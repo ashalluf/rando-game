@@ -39,6 +39,13 @@ const SIDEWALK_TOP := 0.25
 @export var hill_oak_height: Vector2 = Vector2(6.0, 9.0)
 ## Odds of a lone shrub (sage, buckwheat) at a point of open dry grass.
 @export var hill_sage_chance: float = 0.05
+## Hill shells (_build_hill_shells, shaders/hill_shells.gdshader): a FULL hill tile drawn again
+## as thin lifted layers that grow the knee-high dry grass and the brush understory out of the
+## painted ground near the camera. Metres the shells keep clear of a hill road's edge and of a
+## mansion pad's rim (the asphalt and the paving lie on the carved ground, so a shell would grow
+## straight through them).
+@export var shell_road_margin: float = 1.2
+@export var shell_pad_margin: float = 1.5
 
 @export_group("Geometry budget")
 ## Quads across a hill chunk's terrain tile: one for a chunk a hill road crosses (the carved
@@ -321,7 +328,7 @@ func begin_build() -> void:
 			# sea chunks built: its terrain ran down to sea level with no water over it.
 			if _headland_shore(false):
 				_steps.append(_build_water)
-			_steps.append_array([_sample_terrain, _build_terrain, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
+			_steps.append_array([_sample_terrain, _mark_shell_ground, _build_terrain, _build_hill_shells, _build_hill_roads, _on_map_ground(_build_mansions), _on_map_ground(_scatter_hills), _on_map_ground(_plant_hills)])
 		MacroMap.Zone.BEACH:
 			if replica_role == 0:
 				_steps.append(_build_roads.bind(block))
@@ -1340,7 +1347,14 @@ func _build_terrain() -> void:
 			# terrain.gdshader paints brush, scree and rock from - the same field HillPlanting
 			# plants by.
 			var t := clampf((h - 40.0) / 900.0, 0.0, 1.0)
-			st.set_color(Color(t, _tile_drains[j * (n + 1) + i] * 0.5 + 0.5, 0.0, 1.0))
+			# COLOR.b is where the hill shells may grow (hill_shells.gdshader): 0.5 at the edge
+			# of a road, pad or landmark (_mark_shell_ground), over it outside. A distance, so
+			# the edge interpolates straight across a quad.
+			var keep := 0.0
+			if not _shell_clear.is_empty():
+				keep = clampf(0.5 + _shell_clear[j * (n + 1) + i] / (2.0 * SHELL_CLEAR_SPAN), 0.0, 1.0)
+				_shell_any = _shell_any or (keep > 0.5 and h > 1.5)
+			st.set_color(Color(t, _tile_drains[j * (n + 1) + i] * 0.5 + 0.5, keep, 1.0))
 			st.add_vertex(Vector3(x, h, z))
 	for j in n:
 		for i in n:
@@ -1360,6 +1374,8 @@ func _build_terrain() -> void:
 	var mesh := MeshInstance3D.new()
 	mesh.name = "Terrain"
 	mesh.mesh = st.commit()
+	# The shells (_build_hill_shells) draw this very mesh again.
+	_terrain_mesh = mesh.mesh
 	mesh.material_override = PropFactory.terrain_material()
 	add_child(mesh)
 	# Collision on the same grid as the mesh, so a fast car never outruns the detailed chunks
@@ -1400,24 +1416,35 @@ func _hill_segments() -> Array[Dictionary]:
 
 ## Asphalt strips following the carved road beds, clipped to this chunk.
 ## Boulders, shrubs, dry scrub and grass tufts over a hill chunk, kept off the roads and the
-## mansion pads. Rocks prefer steep ground and get collision.
-func _scatter_hills() -> void:
+## mansion pads. Rocks prefer steep ground and get collision. Heights come off the tile's own
+## grid (_terrain_height), the surface drawn and collided with: MacroMap.height_at() is 20-40 us
+## in the eroded hills and this step asked it about a thousand times - a 60 ms frame every time
+## a hill chunk streamed in - and it is not the surface drawn anyway (a rock on the exact
+## height could stand a metre proud of the 3 m grid's face, or sink into it).
+## A build step that runs again until done, SCATTER_PER_STEP tries a call, the same one random
+## stream throughout (kept in _scatter_rng), so it scatters exactly what it did in one go.
+func _scatter_hills() -> bool:
 	if level != Level.FULL:
-		return
+		return true
 	var area := owned_rect()
-	var rng := RandomNumberGenerator.new()
-	rng.seed = hash([plan.seed, ix, iz, "hills"])
+	if _scatter_rng == null:
+		_scatter_rng = RandomNumberGenerator.new()
+		_scatter_rng.seed = hash([plan.seed, ix, iz, "hills"])
+		_scatter_left = _scatter_rng.randi_range(hill_scatter_min, hill_scatter_max)
+	var rng := _scatter_rng
 	var segs := _hill_segments()
 	var pads := plan.macro.hill_roads.mansions_in(area.grow(HillRoads.PAD_RADIUS + 6.0))
-	for i in rng.randi_range(hill_scatter_min, hill_scatter_max):
+	var tries := mini(_scatter_left, SCATTER_PER_STEP)
+	_scatter_left -= tries
+	for i in tries:
 		var p := Vector2(rng.randf_range(area.position.x + 1.0, area.end.x - 1.0), rng.randf_range(area.position.y + 1.0, area.end.y - 1.0))
 		if _near_hill_road(p, segs, 2.5) or _near_pad(p, pads, 4.0):
 			continue
-		var h := plan.height_at(p)
+		var h := _terrain_height(p)
 		if h < 1.5:
 			continue
-		var hx := plan.height_at(p + Vector2(1.0, 0.0)) - plan.height_at(p - Vector2(1.0, 0.0))
-		var hz := plan.height_at(p + Vector2(0.0, 1.0)) - plan.height_at(p - Vector2(0.0, 1.0))
+		var hx := _terrain_height(p + Vector2(1.0, 0.0)) - _terrain_height(p - Vector2(1.0, 0.0))
+		var hz := _terrain_height(p + Vector2(0.0, 1.0)) - _terrain_height(p - Vector2(0.0, 1.0))
 		var slope := Vector2(hx, hz).length() * 0.5
 		var at := Vector3(p.x, h, p.y)
 		var yaw := rng.randf_range(0.0, TAU)
@@ -1446,10 +1473,120 @@ func _scatter_hills() -> void:
 				var v := rng.randi() % 5
 				var sc := rng.randf_range(1.4, 2.6)
 				var tint := Color(rng.randf_range(0.95, 1.1), rng.randf_range(0.9, 1.05), rng.randf_range(0.7, 0.9))
-				_batch.add("tuft_%d" % v, PropFactory.model_grass_tuft(v), Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc)), Vector3(q.x, plan.height_at(q) - 0.02, q.y)), tint)
+				_batch.add("tuft_%d" % v, PropFactory.model_grass_tuft(v), Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc)), Vector3(q.x, _terrain_height(q) - 0.02, q.y)), tint)
+	if _scatter_left > 0:
+		return false
 	for v in 5:
 		_batch.set_no_shadow("tuft_%d" % v)
 		_batch.set_no_shadow("scrub_%d" % v)
+	return true
+
+
+## _scatter_hills' random stream and the tries it has left; tries per build step (~4 ms of
+## rocks with their collision shapes, shrubs and tuft clusters on a slow machine).
+var _scatter_rng: RandomNumberGenerator = null
+var _scatter_left: int = 0
+const SCATTER_PER_STEP := 60
+
+
+## Metres of clearance the shells' per-vertex keep-out distance (the terrain's COLOR.b) spans
+## each side of the edge of a road, pad or landmark.
+const SHELL_CLEAR_SPAN := 4.0
+## False on the web, and below MEDIUM (Quality): no shells are built, and the built ones hide.
+static var shells_enabled: bool = not OS.has_feature("web")
+## Where _mark_shell_ground has got to: the obstacles still to mark, the clearance so far (signed
+## metres per tile vertex, positive where shells may grow), and whether any vertex is clear.
+var _shell_todo: Array = []
+var _shell_clear := PackedFloat32Array()
+var _shell_marked: bool = false
+var _shell_any: bool = false
+## The terrain tile's mesh (_build_terrain), which the shells draw again.
+var _terrain_mesh: Mesh = null
+## The shells' node, when built.
+var hill_shell_node: HillShells = null
+## Microseconds of obstacle marking a call does before it hands the frame back.
+const SHELL_MARK_BUDGET_US := 2000
+## Landmarks the shells grow round as usual: the ridge letters stand on legs two metres and more
+## over the slope, and that landmark's 400 m radius is the lots it reserves, not built ground.
+const SHELL_FREE_LANDMARKS := ["sign"]
+
+
+## Where the shells must not grow round this tile: a hill road and its shoulder, a mansion pad,
+## a landmark's ground ([a, b, reach]: a segment, or a point when a == b, and how far round it).
+func _shell_marks(area: Rect2) -> Array:
+	var marks: Array = []
+	for seg in _hill_segments():
+		marks.append([seg.a, seg.b, float(seg.width) * 0.5 + shell_road_margin])
+	if plan.macro and plan.macro.hill_roads:
+		for m in plan.macro.hill_roads.mansions_in(area.grow(HillRoads.PAD_RADIUS + SHELL_CLEAR_SPAN + shell_pad_margin)):
+			marks.append([m.pos, m.pos, HillRoads.PAD_RADIUS + shell_pad_margin])
+	for lm in Landmarks.all():
+		var r: float = float(lm.get("radius", 0.0))
+		var at: Vector2 = lm.anchor
+		if r > 0.0 and not SHELL_FREE_LANDMARKS.has(lm.id) and area.grow(r + SHELL_CLEAR_SPAN).has_point(at):
+			marks.append([at, at, r])
+	return marks
+
+
+## Lowers `clear` (per tile vertex) round one obstacle: only the vertices within its reach and
+## SHELL_CLEAR_SPAN are visited. The same vertex positions _build_terrain lays.
+func _shell_clear_mark(clear: PackedFloat32Array, mark: Array, n: int, area: Rect2) -> void:
+	var cell := area.size / float(n)
+	var a: Vector2 = mark[0]
+	var b: Vector2 = mark[1]
+	var reach: float = mark[2]
+	var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - Vector2.ONE * (reach + SHELL_CLEAR_SPAN)
+	var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) + Vector2.ONE * (reach + SHELL_CLEAR_SPAN)
+	var i0 := clampi(floori((lo.x - area.position.x) / cell.x), 0, n)
+	var i1 := clampi(ceili((hi.x - area.position.x) / cell.x), 0, n)
+	var j0 := clampi(floori((lo.y - area.position.y) / cell.y), 0, n)
+	var j1 := clampi(ceili((hi.y - area.position.y) / cell.y), 0, n)
+	for j in range(j0, j1 + 1):
+		for i in range(i0, i1 + 1):
+			var p := Vector2(area.position.x + area.size.x * i / n, area.position.y + area.size.y * j / n)
+			var d := p.distance_to(Geometry2D.get_closest_point_to_segment(p, a, b)) - reach
+			var k := j * (n + 1) + i
+			if d < clear[k]:
+				clear[k] = d
+
+
+## The shells' keep-out, a build step between the tile's heights and its mesh (which carries it
+## in COLOR.b), a few obstacles a call. Nothing random.
+func _mark_shell_ground() -> bool:
+	if level != Level.FULL or capturing or not shells_enabled:
+		return true
+	var area := owned_rect()
+	var n := _tile_n
+	if not _shell_marked:
+		_shell_marked = true
+		# A replica area's hill route lays its own road, walks and walls over the tile
+		# (ReplicaBuilder); the painted ground is left as it is there.
+		if ReplicaBuilder.wanted(self):
+			return true
+		_shell_clear.resize((n + 1) * (n + 1))
+		_shell_clear.fill(SHELL_CLEAR_SPAN)
+		_shell_todo = _shell_marks(area)
+	var t0 := Time.get_ticks_usec()
+	while not _shell_todo.is_empty() and Time.get_ticks_usec() - t0 < SHELL_MARK_BUDGET_US:
+		_shell_clear_mark(_shell_clear, _shell_todo.pop_back(), n, area)
+	return _shell_todo.is_empty()
+
+
+## The tile drawn again HillShells.LAYERS times as thin lifted layers (hill_shells.gdshader):
+## the dry grass and the brush understory grow out of the ground the terrain shader paints.
+## It is the terrain's own mesh in a MultiMesh of one identity instance per layer (the layer's
+## height in the instance's custom data), so it costs no vertex or index memory and a few
+## microseconds to build; HillShells draws fewer layers as the camera moves away. No rng.
+func _build_hill_shells() -> void:
+	if level != Level.FULL or capturing or not shells_enabled or _terrain_mesh == null or not _shell_any:
+		return
+	var lo := INF
+	var hi := -INF
+	for h in _tile_heights:
+		lo = minf(lo, h)
+		hi = maxf(hi, h)
+	hill_shell_node = HillShells.make(_terrain_mesh, owned_rect(), lo, hi)
+	add_child(hill_shell_node)
 
 
 ## The terrain tile's heights ({"heights", "n", "area"}, _build_terrain) for the planting.

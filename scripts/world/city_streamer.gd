@@ -631,6 +631,7 @@ func update_streaming(immediate: bool) -> void:
 	if offset_xz != _terrain_offset:
 		_terrain_offset = offset_xz
 		PropFactory.terrain_material().set_shader_parameter("world_offset", offset_xz)
+		PropFactory.hill_shell_material().set_shader_parameter("world_offset", offset_xz)
 	var wp := world_position(local)
 	var here := plan.block_index_at(Vector2(wp.x, wp.z))
 	_center_block = here
