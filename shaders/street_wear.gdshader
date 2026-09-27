@@ -15,6 +15,10 @@ render_mode blend_mix, depth_draw_never, cull_back, diffuse_burley, specular_sch
 //   g = a per-instance seed 0..1, b = the bend (width / radius, 0 = flat: wrapped round a pole by
 //   the vertex shader), a = second-colour palette index + 16 * tear level (0..7). All small
 //   integers or 0..1, so they survive half-float instance data.
+//   Mode 4 is grime along the foot of a wall (COLOR a = strength) and mode 5 a pavement patch
+//   lying flat (cell 0 gum, 1 a stain; COLOR a = density / strength): both are procedural and
+//   measured in metres (v_size, the instance's scale), so a 40 m wall or a 3 m patch keeps the
+//   grain of a real one.
 // * The mesh is a unit strip (x -0.5..0.5, y -0.5..0.5, facing +Z) of a few columns so it can bend;
 //   the instance basis is (right * w, up * h, normal * w).
 // * The paint takes on the grain of what it is painted on: the wall's own luminance detail is
@@ -28,6 +32,9 @@ uniform sampler2D paper_atlas : source_color, filter_linear_mipmap_anisotropic, 
 uniform sampler2D screen_tex : hint_screen_texture, filter_linear, repeat_disable;
 uniform bool use_screen = true;
 uniform float depth_pull = 0.0025;
+// Distance (m) the batch stops drawing at (StreetWear.DRAW_DISTANCE): everything thins out over
+// the last quarter of it, so nothing pops when the batch's own visibility range ends.
+uniform float fade_end = 120.0;
 uniform vec3 color_space_probe : source_color = vec3(0.5, 0.5, 0.5);
 
 // Second colours: outlines, and the colours tags come in. sRGB.
@@ -39,6 +46,7 @@ const vec3 PALETTE[12] = vec3[12](
 varying flat vec4 v_col;
 varying flat vec4 v_custom;
 varying flat float v_fwd;
+varying flat vec2 v_size;
 
 vec3 sw_linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
@@ -70,6 +78,7 @@ void vertex() {
 	v_col = COLOR;
 	v_custom = INSTANCE_CUSTOM;
 	v_fwd = color_space_probe.r < 0.35 ? 1.0 : 0.0;
+	v_size = vec2(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz));
 	float k = INSTANCE_CUSTOM.b;
 	if (k > 0.001) {
 		// Round a pole: the strip's x becomes an arc of k radians (x runs in units of the width,
@@ -160,6 +169,61 @@ void fragment() {
 		// The paste: glossier where it soaked through.
 		rough = mix(0.88, 0.55, smoothstep(0.55, 0.8, sw_noise(uv * 5.0 + seed * 2.0)));
 		grain = 0.35;
+	} else if (mode > 3.5 && mode < 4.5) {
+		// Grime: splash-back and soot at the foot of the wall, darkest at the pavement, running up
+		// in streaks, its top edge ragged, faded in at both ends.
+		vec2 m = vec2(uv.x * v_size.x, (1.0 - uv.y) * v_size.y);
+		float streak = sw_fbm(vec2(m.x * 1.7, m.y * 0.35) + seed);
+		float blotch = sw_fbm(m * vec2(0.45, 0.9) + seed * 1.7);
+		float top = v_size.y * (0.45 + 0.75 * blotch);
+		float body = 1.0 - smoothstep(top * 0.3, top, m.y + (streak - 0.5) * 0.25 * v_size.y);
+		float splash = 1.0 - smoothstep(0.0, 0.18, m.y);
+		float ends = smoothstep(0.0, 1.2, m.x) * smoothstep(0.0, 1.2, v_size.x - m.x);
+		a = age * ends * clamp(body * (0.45 + 0.8 * streak) + splash * 0.5 * (0.6 + 0.8 * blotch), 0.0, 1.0);
+		alb = main_c * (0.8 + 0.4 * blotch);
+		rough = 0.9;
+		spec = 0.3;
+		grain = 1.0;
+	} else if (mode > 4.5) {
+		// Lying on the pavement, measured in metres from the patch's centre.
+		vec2 m = (uv - 0.5) * v_size;
+		// The patch has no edge: its density falls off toward the rim.
+		float rim = 1.0 - smoothstep(0.25, 0.5, max(abs(uv.x - 0.5), abs(uv.y - 0.5)) + (sw_noise(m * 1.3 + seed) - 0.5) * 0.2);
+		float px = max(length(fwidth(m)), 1e-4);
+		if (cell < 0.5) {
+			// Gum: flattened discs, black with age, a few fresh pale ones, on a 0.22 m jittered grid.
+			// A disc under a pixel fades to the faint smudge the field makes from a distance,
+			// or the pavement would sparkle.
+			vec2 gc = m / 0.22 + seed;
+			vec2 id = floor(gc);
+			float h = sw_hash(id);
+			vec2 at = id + 0.2 + 0.6 * vec2(sw_hash(id + 7.3), sw_hash(id + 3.1));
+			float r = (0.011 + 0.017 * sw_hash(id + 1.7)) / 0.22;
+			float d = length(gc - at);
+			float disc = 1.0 - smoothstep(r * 0.75, r, d);
+			float present = step(h, age * rim);
+			float sharp = clamp(r * 0.22 / px * 2.0 - 0.5, 0.0, 1.0);
+			a = mix(0.08 * age * rim, disc * present * 0.95, sharp);
+			float fresh = step(0.93, sw_hash(id + 9.9));
+			alb = mix(main_c * (0.7 + 0.5 * sw_hash(id + 4.4)), sw_col(vec3(0.62, 0.55, 0.56)), fresh * sharp);
+			rough = mix(0.8, 0.45, disc * sharp);
+			grain = 0.5;
+		} else {
+			// A stain: a soaked blotch, a darker tide mark at its rim, splash drops round it.
+			float n = sw_fbm(m * 1.6 + seed) + sw_noise(m * 6.0 + seed * 2.0) * 0.18;
+			float r = length(m / (v_size * 0.5));
+			// Falls to nothing well inside the quad, so no stain is cut off by its edge.
+			float f = n * 0.9 - r * 1.15 + 0.3;
+			float blot = smoothstep(0.0, 0.05, f);
+			float tide = smoothstep(0.0, 0.03, f) * (1.0 - smoothstep(0.03, 0.12, f));
+			vec2 dc = m / 0.12 + seed;
+			float drop = (1.0 - smoothstep(0.1, 0.22, length(fract(dc) - 0.5))) * step(0.85, sw_hash(floor(dc))) * (1.0 - smoothstep(0.3, 0.7, r));
+			a = age * clamp(blot * 0.75 + tide * 0.5 + drop * 0.7, 0.0, 1.0);
+			alb = main_c * (1.0 - tide * 0.35);
+			rough = mix(0.85, 0.6, blot);
+			grain = 0.8;
+		}
+		a *= cell < 0.5 ? rim : 1.0;
 	} else {
 		// A sticker: vinyl, a little scuffed, sometimes half scraped off.
 		vec2 c = vec2(mod(cell, 16.0), floor(cell / 16.0));
@@ -190,6 +254,8 @@ void fragment() {
 		float ratio = clamp(under / max(around, 0.01), 0.65, 1.35);
 		alb *= mix(1.0, ratio, grain);
 	}
+	float dist = length(VERTEX);
+	a *= 1.0 - smoothstep(fade_end * 0.75, fade_end, dist);
 	ALBEDO = alb;
 	ALPHA = clamp(a, 0.0, 1.0);
 	ROUGHNESS = rough;

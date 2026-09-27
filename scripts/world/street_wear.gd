@@ -37,9 +37,9 @@ extends RefCounted
 
 ## Tags per metre of visible ground-floor wall, by CityPlan.District
 ## (DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS, BEACHTOWN).
-const TAGS_PER_M := [0.055, 0.022, 0.004, 0.08, 0.006, 0.02]
+const TAGS_PER_M := [0.2, 0.06, 0.008, 0.24, 0.01, 0.05]
 ## Wheat-paste poster runs per metre of wall.
-const POSTERS_PER_M := [0.018, 0.008, 0.0008, 0.012, 0.004, 0.007]
+const POSTERS_PER_M := [0.05, 0.016, 0.001, 0.03, 0.005, 0.012]
 ## Stickers per pole (lamp, signal, utility) and per signal cabinet, on average.
 const STICKERS_PER_POLE := [4.5, 2.2, 0.35, 3.0, 1.2, 2.2]
 ## Chance a freeway column face carries paint, by the district under it.
@@ -56,11 +56,26 @@ const ROLLER_SHARE := 0.08
 const CORNER_CLEAR := 2.5
 ## How far behind the kerb a wall still counts as street frontage.
 const MAX_SETBACK := 22.0
+## Share of a tag that may run over a window, frame or door (the rest must be wall).
+const TAG_SLACK := 0.3
+## Share of a shop front's tags that go on the piers between the shops.
+const PIER_TAG_SHARE := 0.45
 ## Highest a hand reaches with a can (metres above the pavement).
 const REACH := 2.7
 ## Most wear instances in one chunk.
-const MAX_PER_CHUNK := 360
+const MAX_PER_CHUNK := 520
 const DRAW_DISTANCE := 120.0
+## Chance a visible wall stretch is grimy at its foot (splash-back, soot, dog and mop lines),
+## by district.
+const GRIME_ODDS := [0.85, 0.6, 0.2, 0.95, 0.3, 0.5]
+## Grime is laid in lengths of about this many metres, each on the pavement under it.
+const GRIME_LENGTH := 6.0
+## How dark the grime gets at the pavement (0..1 alpha), by district.
+const GRIME_STRENGTH := [0.55, 0.42, 0.25, 0.62, 0.28, 0.38]
+## Gum and stain patches per metre of pavement edge, by district.
+const SPOTS_PER_M := [0.3, 0.12, 0.02, 0.1, 0.05, 0.1]
+## Share of pavement patches that are a stain (spilt coffee, soda, oil) rather than gum.
+const STAIN_SHARE := 0.3
 ## Places of worship (Landmarks ids): nothing within their radius plus this margin.
 const WORSHIP_IDS := ["masjid_omar"]
 const WORSHIP_MARGIN := 40.0
@@ -70,6 +85,11 @@ const MODE_TAG := 0
 const MODE_BUFF := 1
 const MODE_POSTER := 2
 const MODE_STICKER := 3
+const MODE_GRIME := 4
+const MODE_SPOT := 5
+## Pavement spot cells (procedural, no atlas): chewing gum pressed into the slabs, a stain.
+const SPOT_GUM := 0
+const SPOT_STAIN := 1
 ## Atlas cells (tools/make_street_wear.py): tags 0-7 handstyles, 8-13 throw-ups, 14-15 rollers;
 ## 16 posters; 32 stickers.
 const HANDSTYLES := 8
@@ -99,6 +119,9 @@ const BUFF_COLORS := [
 
 ## Off: build() adds nothing (the "before" side of an A/B; STREET_WEAR=0 in the environment).
 static var enabled: bool = OS.get_environment("STREET_WEAR") != "0"
+## The web build keeps the paint and paper but drops the big see-through layers (grime, pavement
+## patches), reads no screen texture and halves the cap.
+static var full_detail: bool = not OS.has_feature("web")
 
 static var _mesh: ArrayMesh = null
 static var _material: ShaderMaterial = null
@@ -111,12 +134,14 @@ static func build(chunk: CityChunk) -> void:
 	if not enabled or chunk.level != CityChunk.Level.FULL or chunk.capturing:
 		return
 	var plan: CityPlan = chunk.plan
-	var ctx := {"chunk": chunk, "count": 0, "points": [], "blocked": _worship_near(plan, chunk.owned_rect())}
+	var ctx := {"chunk": chunk, "count": 0, "points": [], "modes": {}, "blocked": _worship_near(plan, chunk.owned_rect())}
 	var block := plan.block(chunk.ix, chunk.iz)
 	var district := int(block.district)
 	if chunk.zone == MacroMap.Zone.CITY and not block.has("site"):
 		var rect: Rect2 = block.rect
 		var edges := CityChunk._sidewalk_edges(rect)
+		if full_detail:
+			_pavement(ctx, edges, district)
 		if int(block.kind) == CityPlan.BlockKind.BUILDINGS:
 			_walls(ctx, edges, district)
 		_props(ctx, edges, district)
@@ -126,6 +151,8 @@ static func build(chunk: CityChunk) -> void:
 		chunk._batch.set_no_shadow(KEY)
 		chunk._batch.set_draw_distance(KEY, DRAW_DISTANCE)
 	chunk.set_meta("street_wear", PackedVector2Array(ctx.points))
+	# How many of each MODE_*, for the smoke test (instance data reads back empty under --headless).
+	chunk.set_meta("street_wear_modes", ctx.modes)
 
 
 ## Whether anything may be painted at `p` (chunk-local, which is true world XZ): not within a
@@ -148,7 +175,7 @@ static func _worship_near(_plan: CityPlan, rect: Rect2) -> Array:
 
 
 static func _ok(ctx: Dictionary, p: Vector2) -> bool:
-	if int(ctx.count) >= MAX_PER_CHUNK:
+	if int(ctx.count) >= (MAX_PER_CHUNK if full_detail else MAX_PER_CHUNK / 2):
 		return false
 	for b: Array in ctx.blocked:
 		if p.distance_to(b[0]) < float(b[1]):
@@ -160,17 +187,24 @@ static func _ok(ctx: Dictionary, p: Vector2) -> bool:
 ## so it is taken off here); `right` and `normal` are unit and horizontal-ish, `w` / `h` metres.
 static func _put(ctx: Dictionary, mode: int, cell: int, center: Vector3, right: Vector3, normal: Vector3, w: float, h: float,
 		color: Color, age: float, pal: int, tear: int, seed01: float, bend: float = 0.0, roll: float = 0.0) -> int:
-	var chunk: CityChunk = ctx.chunk
 	var up := Vector3.UP
 	if roll != 0.0:
 		right = right.rotated(normal, roll)
 		up = up.rotated(normal, roll)
-	var basis := Basis(right * w, up * h, normal * w)
+	return _put_basis(ctx, mode, cell, center, Basis(right * w, up * h, normal * w), Color(color.r, color.g, color.b, age), pal, tear, seed01, bend)
+
+
+## `_put` with the instance basis given: x the width, y the height, z the facing (scaled by the
+## width, which only matters for the bend).
+static func _put_basis(ctx: Dictionary, mode: int, cell: int, center: Vector3, basis: Basis, color: Color, pal: int, tear: int,
+		seed01: float, bend: float = 0.0) -> int:
+	var chunk: CityChunk = ctx.chunk
 	var at := center - Vector3(0.0, chunk._gy(center.x, center.z), 0.0)
 	var custom := Color(float(mode * 100 + cell), seed01, bend, float(pal + 16 * clampi(tear, 0, 7)))
-	var index := chunk._batch.add(KEY, mesh(), Transform3D(basis, at), Color(color.r, color.g, color.b, clampf(age, 0.0, 1.0)), custom)
+	var index := chunk._batch.add(KEY, mesh(), Transform3D(basis, at), Color(color.r, color.g, color.b, clampf(color.a, 0.0, 1.0)), custom)
 	ctx.count = int(ctx.count) + 1
 	(ctx.points as Array).append(Vector2(center.x, center.z))
+	ctx.modes[mode] = int((ctx.modes as Dictionary).get(mode, 0)) + 1
 	return index
 
 
@@ -188,7 +222,7 @@ static func _hash01(parts: Array) -> float:
 ## the next is clean).
 static func _street_factor(plan: CityPlan, axis: int, index: int) -> float:
 	var f := AVENUE if plan.road_width(axis, index) > plan.street_width + 1.0 else SIDE_STREET
-	return f * (0.3 + 1.5 * _hash01([plan.seed, "wear_street", axis, index]))
+	return f * (0.7 + 1.1 * _hash01([plan.seed, "wear_street", axis, index]))
 
 
 static func _poisson(rng: RandomNumberGenerator, mean: float) -> int:
@@ -196,6 +230,62 @@ static func _poisson(rng: RandomNumberGenerator, mean: float) -> int:
 	if rng.randf() < mean - float(n):
 		n += 1
 	return n
+
+
+# --- Pavement ----------------------------------------------------------------------------------
+
+## Gum pressed black into the slabs and the odd stain, in patches along each pavement: most near
+## the corners (where people wait to cross) and the kerb, some along the shop fronts.
+static func _pavement(ctx: Dictionary, edges: Array, district: int) -> void:
+	var chunk: CityChunk = ctx.chunk
+	var plan: CityPlan = chunk.plan
+	var roads := [[CityPlan.AXIS_Z, chunk.iz], [CityPlan.AXIS_Z, chunk.iz + 1], [CityPlan.AXIS_X, chunk.ix], [CityPlan.AXIS_X, chunk.ix + 1]]
+	var walk := plan.sidewalk_width
+	for e in edges.size():
+		var a: Vector2 = edges[e][0]
+		var b: Vector2 = edges[e][1]
+		var inward: Vector2 = edges[e][2]
+		var length := a.distance_to(b)
+		if length < 10.0 or walk < 1.6:
+			continue
+		var dir := (b - a) / length
+		var rng := _rng_for([plan.seed, "wear_pave", chunk.ix, chunk.iz, e])
+		var count := _poisson(rng, length * float(SPOTS_PER_M[district]) * _street_factor(plan, roads[e][0], roads[e][1]) * rng.randf_range(0.6, 1.4))
+		for i in count:
+			var stain := rng.randf() < STAIN_SHARE
+			var w := rng.randf_range(0.7, 1.4) if stain else rng.randf_range(1.4, 3.0)
+			var d := minf(rng.randf_range(0.9, 2.4) if stain else rng.randf_range(1.0, 2.2), walk - 0.5)
+			var s: float
+			if rng.randf() < 0.45:
+				s = rng.randf_range(1.5, 12.0) if rng.randf() < 0.5 else length - rng.randf_range(1.5, 12.0)
+			else:
+				s = rng.randf_range(2.0, length - 2.0)
+			s = clampf(s, w * 0.5 + 0.5, length - w * 0.5 - 0.5)
+			var into := rng.randf_range(0.35 + d * 0.5, walk - 0.25 - d * 0.5)
+			var q := a + dir * s + inward * into
+			if not _ok(ctx, q):
+				return
+			var gy := chunk._gy(q.x, q.y)
+			# Lie on the relief: the patch's up is the ground's normal there.
+			var gx := (chunk._gy(q.x + 1.0, q.y) - chunk._gy(q.x - 1.0, q.y)) * 0.5
+			var gz := (chunk._gy(q.x, q.y + 1.0) - chunk._gy(q.x, q.y - 1.0)) * 0.5
+			var up := Vector3(-gx, 1.0, -gz).normalized()
+			var along := Vector3(dir.x, 0.0, dir.y)
+			along = (along - up * along.dot(up)).normalized()
+			var fwd := up.cross(along)
+			var centre := Vector3(q.x, CityChunk.SIDEWALK_TOP + gy + 0.012, q.y)
+			var basis := Basis(along * w, fwd * d, up * w)
+			var color: Color
+			var cell := SPOT_GUM
+			if stain:
+				cell = SPOT_STAIN
+				color = [Color(0.2, 0.13, 0.07), Color(0.12, 0.11, 0.1), Color(0.26, 0.1, 0.08), Color(0.3, 0.26, 0.2)][rng.randi() % 4]
+				color.a = rng.randf_range(0.4, 0.75)
+			else:
+				color = Color(0.16, 0.155, 0.15)
+				# Density of the gum: thick where people stand.
+				color.a = rng.randf_range(0.45, 0.95)
+			_put_basis(ctx, MODE_SPOT, cell, centre, basis, color, 0, 0, rng.randf())
 
 
 # --- Walls -------------------------------------------------------------------------------------
@@ -323,7 +413,7 @@ static func _wall_run(ctx: Dictionary, part: Dictionary, n: Vector3, a: Vector2,
 	if part.warehouse:
 		factor *= 1.8
 	elif part.storefront:
-		factor *= 0.8
+		factor *= 1.0
 	var right := Vector3.UP.cross(n)
 	# From a point along the kerb to the wall face's (u, world point).
 	var at_s := func(s: float, v: float) -> Vector3:
@@ -331,15 +421,54 @@ static func _wall_run(ctx: Dictionary, part: Dictionary, n: Vector3, a: Vector2,
 		return Vector3(q.x, v, q.y) + n * 0.012
 	var u_of := func(p: Vector3) -> float:
 		return _u_on_face(part, face, p)
+	# The pavement at the wall: on a slope a building's base sits up to a metre under it (its
+	# plinth fills the gap), so everything is measured up from whichever is higher.
+	var floor_of := func(s: float) -> float:
+		var q := a + dir * s + inward * depth
+		return maxf(float(part.base), CityChunk.SIDEWALK_TOP + chunk._gy(q.x, q.y))
+	# Grime along the foot of the wall, under everything painted on it, in lengths that each
+	# follow the pavement.
+	if full_detail and rng.randf() < float(GRIME_ODDS[district]) * minf(1.0, 0.5 + 0.4 * street):
+		var gh := rng.randf_range(0.3, 0.5) if part.storefront else (rng.randf_range(0.9, 1.5) if part.warehouse else rng.randf_range(0.5, 1.0))
+		var tone := Color(0.09, 0.08, 0.07).lerp(Color(0.2, 0.17, 0.13), rng.randf())
+		tone.a = float(GRIME_STRENGTH[district]) * rng.randf_range(0.6, 1.2)
+		var pieces := maxi(1, ceili(run / GRIME_LENGTH))
+		var len_each := run / float(pieces)
+		for k in pieces:
+			var sm := piece.x + len_each * (float(k) + 0.5)
+			var gc: Vector3 = at_s.call(sm, float(floor_of.call(sm)) + gh * 0.5 - 0.03)
+			if not _ok(ctx, Vector2(gc.x, gc.z)):
+				break
+			# Overlapping a little, so the joins do not show.
+			_put(ctx, MODE_GRIME, 0, gc - n * 0.004, right, n, len_each + (0.8 if pieces > 1 else 0.0), gh, tone, tone.a, 0, 0, rng.randf())
 	# Tags, some buffed over, some tagged again on the buff.
 	var tags := _poisson(rng, run * float(TAGS_PER_M[district]) * factor * rng.randf_range(0.5, 1.5))
+	var piers: Array = _piers(part, face) if part.storefront else []
+	# A shop front is glass down to its bulkhead: tags go on the bulkhead (running up onto the
+	# glass), and on the piers between the shops.
+	var tag_hi := REACH
+	if part.storefront:
+		var ground := float(floor_of.call((piece.x + piece.y) * 0.5))
+		tag_hi = clampf(0.15 * float(part.gfh) - 0.1 - ground + 0.35, 0.7, REACH)
 	for i in tags:
+		if not piers.is_empty() and rng.randf() < PIER_TAG_SHARE:
+			var pu: float = piers[rng.randi() % piers.size()]
+			var pp := _face_point(part, face, pu, 0.0)
+			var ps := (Vector2(pp.x, pp.z) - a).dot(dir)
+			if ps < piece.x or ps > piece.y:
+				continue
+			var pw := rng.randf_range(0.32, 0.46)
+			var pc := Vector3(pp.x, float(floor_of.call(ps)) + rng.randf_range(0.5, 1.9), pp.z) + n * 0.404
+			if not _ok(ctx, Vector2(pc.x, pc.z)):
+				return
+			_put(ctx, MODE_TAG, rng.randi() % HANDSTYLES, pc, right, n, pw, pw * 0.5, TAG_COLORS[rng.randi() % TAG_COLORS.size()], rng.randf() * rng.randf(), 0, 0, rng.randf(), 0.0, rng.randf_range(-0.12, 0.12))
+			continue
 		var roll := rng.randf()
 		var kind := 0 if roll > THROWUP_SHARE + ROLLER_SHARE else (1 if roll > ROLLER_SHARE else 2)
 		if kind == 2 and not (part.warehouse or district == CityPlan.District.INDUSTRIAL):
 			kind = 1
 		var w := rng.randf_range(0.7, 1.5) if kind == 0 else (rng.randf_range(1.2, 2.3) if kind == 1 else rng.randf_range(2.0, 3.6))
-		var spot := _find_spot(rng, part, face, at_s, u_of, piece, w, w * 0.5, part.base + 0.2, part.base + REACH)
+		var spot := _find_spot(rng, part, face, at_s, u_of, piece, w, w * 0.5, 0.15, tag_hi, floor_of, TAG_SLACK)
 		if spot.is_empty():
 			continue
 		var c: Vector3 = spot[0]
@@ -368,7 +497,6 @@ static func _wall_run(ctx: Dictionary, part: Dictionary, n: Vector3, a: Vector2,
 					_put(ctx, MODE_TAG, rng.randi() % HANDSTYLES, bc + n * 0.002 + right * rng.randf_range(-0.1, 0.1), right, n, tw, tw * 0.5, TAG_COLORS[rng.randi() % TAG_COLORS.size()], 0.0, 0, 0, rng.randf())
 	# Wheat-paste: on the shop piers, or a run on a bare stretch of wall.
 	var posters := _poisson(rng, run * float(POSTERS_PER_M[district]) * factor * rng.randf_range(0.5, 1.5))
-	var piers: Array = _piers(part, face) if part.storefront else []
 	for i in posters:
 		if not piers.is_empty() and rng.randf() < 0.7:
 			var pu: float = piers[rng.randi() % piers.size()]
@@ -376,13 +504,13 @@ static func _wall_run(ctx: Dictionary, part: Dictionary, n: Vector3, a: Vector2,
 			var s := (Vector2(p.x, p.z) - a).dot(dir)
 			if s < piece.x or s > piece.y:
 				continue
-			var bottom: float = float(part.base) + rng.randf_range(0.8, 1.2)
+			var bottom: float = float(floor_of.call(s)) + rng.randf_range(0.8, 1.2)
 			_paste(ctx, rng, Vector3(p.x, 0.0, p.z) + n * 0.395, right, n, 1, rng.randi_range(1, 3), bottom, 0.44, part.base + (part.gfh - part.base) * 0.6)
 		else:
 			var cols := rng.randi_range(1, 4)
 			var pw := 0.46
 			var rows := 1 + int(rng.randf() < 0.3)
-			var spot := _find_spot(rng, part, face, at_s, u_of, piece, pw * cols + 0.1, 0.62 * rows + 0.1, part.base + 0.7, part.base + 2.6)
+			var spot := _find_spot(rng, part, face, at_s, u_of, piece, pw * cols + 0.1, 0.62 * rows + 0.1, 0.7, 2.6, floor_of)
 			if spot.is_empty():
 				continue
 			var c: Vector3 = spot[0]
@@ -418,35 +546,42 @@ static func _paste(ctx: Dictionary, rng: RandomNumberGenerator, center: Vector3,
 			_put(ctx, MODE_POSTER, which, c, right, n, pw, ph, Color.WHITE, age + rng.randf() * 0.15, 0, tear, rng.randf(), 0.0, rng.randf_range(-0.012, 0.012))
 
 
-## A place on the wall for a w x h rectangle between v_lo and v_hi (world heights) on the kerb
-## stretch `piece`, clear of every window, door and sign band: [centre, width] or [] after a few
+## A place on the wall for a w x h rectangle between lo and hi metres above the pavement
+## (`floor_of`: kerb distance -> pavement height at the wall) on the kerb stretch `piece`, clear of every window, door and sign band: [centre, width] or [] after a few
 ## tries (each smaller than the last).
 static func _find_spot(rng: RandomNumberGenerator, part: Dictionary, face: int, at_s: Callable, u_of: Callable, piece: Vector2,
-		w: float, h: float, v_lo: float, v_hi: float) -> Array:
+		w: float, h: float, lo: float, hi: float, floor_of: Callable, slack: float = 0.0) -> Array:
 	var right := Vector3.UP.cross(_normal(face))
 	for attempt in 7:
 		var ww := w * pow(0.85, attempt)
 		var hh := h * pow(0.85, attempt)
-		if piece.y - piece.x < ww + 0.2 or v_hi - v_lo < hh:
+		if piece.y - piece.x < ww + 0.2 or hi - lo < hh:
 			continue
 		var s := rng.randf_range(piece.x + ww * 0.5 + 0.1, piece.y - ww * 0.5 - 0.1)
-		var v := rng.randf_range(v_lo + hh * 0.5, v_hi - hh * 0.5)
+		# The higher pavement under either end, so no corner goes under it.
+		var ground := maxf(float(floor_of.call(s - ww * 0.5)), float(floor_of.call(s + ww * 0.5)))
+		var v := ground + rng.randf_range(lo + hh * 0.5, hi - hh * 0.5)
 		if rng.randf() < 0.6:
 			# Most tags sit low, at the height of an arm swinging a can.
-			v = minf(v, v_lo + hh * 0.5 + rng.randf_range(0.0, 0.9))
+			v = minf(v, ground + lo + hh * 0.5 + rng.randf_range(0.0, 0.9))
 		var c: Vector3 = at_s.call(s, v)
-		if _rect_clear(part, face, u_of, c, right, ww, hh):
+		if _rect_clear(part, face, u_of, c, right, ww, hh, slack):
 			return [c, ww]
 	return []
 
 
-## True when every sample of the w x h rectangle centred on `c` is paintable wall.
-static func _rect_clear(part: Dictionary, face: int, u_of: Callable, c: Vector3, right: Vector3, w: float, h: float) -> bool:
+## True when the w x h rectangle centred on `c` is paintable wall: every sample of it, or all
+## but `slack` of them (a tag runs over a window frame or the glass as readily as the wall).
+static func _rect_clear(part: Dictionary, face: int, u_of: Callable, c: Vector3, right: Vector3, w: float, h: float, slack: float = 0.0) -> bool:
+	var bad := 0
+	var allowed := int(slack * 20.0)
 	for i in 5:
 		for j in 4:
 			var p := c + right * ((float(i) / 4.0 - 0.5) * w) + Vector3(0.0, (float(j) / 3.0 - 0.5) * h, 0.0)
 			if not _paintable(part, face, u_of.call(p), p.y):
-				return false
+				bad += 1
+				if bad > allowed:
+					return false
 	return true
 
 
@@ -796,5 +931,6 @@ static func material() -> ShaderMaterial:
 	_material.shader = load("res://shaders/street_wear.gdshader")
 	_material.set_shader_parameter("tag_atlas", load("res://assets/textures/street_wear/street_wear_tags.png"))
 	_material.set_shader_parameter("paper_atlas", load("res://assets/textures/street_wear/street_wear_paper.png"))
-	_material.set_shader_parameter("use_screen", true)
+	_material.set_shader_parameter("use_screen", full_detail)
+	_material.set_shader_parameter("fade_end", DRAW_DISTANCE)
 	return _material

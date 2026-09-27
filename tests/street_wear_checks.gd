@@ -16,7 +16,8 @@ var _t: Node
 func run(t: Node, city: Node3D) -> void:
 	_t = t
 	var plan: CityPlan = city.plan
-	var per_district := [StreetWear.TAGS_PER_M, StreetWear.POSTERS_PER_M, StreetWear.STICKERS_PER_POLE, StreetWear.PILLAR_ODDS]
+	var per_district := [StreetWear.TAGS_PER_M, StreetWear.POSTERS_PER_M, StreetWear.STICKERS_PER_POLE, StreetWear.PILLAR_ODDS,
+		StreetWear.GRIME_ODDS, StreetWear.GRIME_STRENGTH, StreetWear.SPOTS_PER_M]
 	var short := 0
 	for table: Array in per_district:
 		if table.size() != CityPlan.District.size():
@@ -39,6 +40,7 @@ func _downtown(city: Node3D, plan: CityPlan) -> void:
 	_t._check(keys.size() >= 3, "downtown has blocks of buildings to wear (%d)" % keys.size())
 	var total := 0
 	var worst := 0
+	var modes := {}
 	var batch_ok := true
 	var same := true
 	for k in keys.slice(0, 3):
@@ -48,6 +50,8 @@ func _downtown(city: Node3D, plan: CityPlan) -> void:
 		total += pts.size()
 		worst = maxi(worst, pts.size())
 		var node := chunk.get_node_or_null("Batch_" + StreetWear.KEY) as MultiMeshInstance3D
+		for m in (chunk.get_meta("street_wear_modes", {}) as Dictionary):
+			modes[m] = true
 		if pts.size() > 0:
 			var mesh: Mesh = node.multimesh.mesh if node else null
 			batch_ok = batch_ok and node != null and node.multimesh.instance_count == pts.size() and mesh.get_surface_count() == 1 \
@@ -65,6 +69,9 @@ func _downtown(city: Node3D, plan: CityPlan) -> void:
 		same = same and _signature(bare) == sig and bare.get_node_or_null("Batch_" + StreetWear.KEY) == null
 		bare.get_parent().remove_child(bare)
 		bare.free()
+	var kinds := [StreetWear.MODE_TAG, StreetWear.MODE_POSTER, StreetWear.MODE_STICKER, StreetWear.MODE_GRIME, StreetWear.MODE_SPOT]
+	var missing := kinds.filter(func(m: int) -> bool: return not modes.has(m))
+	_t._check(missing.is_empty(), "downtown wear has tags, posters, stickers, wall grime and pavement gum (missing modes %s)" % [missing])
 	_t._check(total >= 40, "downtown blocks carry tags, posters and stickers (%d on 3 blocks)" % total)
 	_t._check(batch_ok, "a chunk's wear is one shadowless batch on the wear shader, faded at %d m" % int(StreetWear.DRAW_DISTANCE))
 	_t._check(worst <= StreetWear.MAX_PER_CHUNK, "wear stays within its per-chunk cap (%d)" % worst)

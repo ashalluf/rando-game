@@ -695,7 +695,6 @@ def main():
     tags.save(os.path.join(OUT_DIR, "street_wear_tags.png"), optimize=True)
     paper.save(os.path.join(OUT_DIR, "street_wear_paper.png"), optimize=True)
     if "--preview" in sys.argv:
-        pass
         prev = Image.new("RGB", (2048, 2048), (128, 124, 118))
         t = np.asarray(tags).astype(np.float32) / 255.0
         col = np.full(t.shape[:2] + (3,), (128, 124, 118), np.float32)
@@ -704,7 +703,10 @@ def main():
         col = col * (1 - t[..., 2:3]) + 255 * t[..., 2:3]
         prev.paste(Image.fromarray(col.astype(np.uint8)), (0, 0))
         prev.paste(paper, (0, 1024), paper)
-        prev.save(os.path.join(OUT_DIR, "street_wear_preview.png"))
+        # Never next to the atlases: that folder ships in the game.
+        build = os.path.join(HERE, "..", "build")
+        os.makedirs(build, exist_ok=True)
+        prev.save(os.path.join(build, "street_wear_preview.png"))
     print("wrote", OUT_DIR)
 
 
