@@ -1550,8 +1550,28 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   what the player sees while flying, so they are worth the geometry.
 - Buildings: `Building` (`scripts/world/building.gd`, scene `scenes/props/building.tscn`) is a
   StaticBody3D. Set `seed`, `lot_size`, `min_height`, `max_height` before adding it to the tree; it
-  generates in `_ready()`. Every box part uses `shaders/building.gdshader` with its own
-  ShaderMaterial (see the decisions log for why). Rooftop props are primitives built in code.
+  generates in `_ready()`. **A building is a handful of draw calls, not one per piece**
+  (2026-09-27; it was 57 % of the downtown frame's draws). Its box parts are ONE mesh (`Walls`)
+  under ONE ShaderMaterial on `shaders/building.gdshader`: what differs part to part (size,
+  window pitches, floor heights, storefront, base course, crown) rides in the vertices as float
+  CUSTOM0-3 (`part_attributes`; the landmark towers leave it off and keep the uniforms), and
+  each part's numbers are also kept on `Building.parts` (StreetWear reads them there). The facade
+  detail is one MultiMesh per kind (`Frames`, `Details` - the bands and the parapet -, `Bays`) on
+  `shaders/facade_detail.gdshader`, which keeps every part's OLD visibility range per instance:
+  a node's range is measured to the centre of its bounds, so each instance carries its part
+  index and the material holds the parts' centres in TRUE world space (`part_ref`), brought into
+  the shifted scene by the `origin_shift` global that `WorldState.world_offset` pushes on every
+  change - never per-instance positions, which the Compatibility renderer packs into half
+  floats. The roof boxes and cylinders are one mesh (`RoofPlant`, `shaders/roof_plant.gdshader`,
+  the material in the vertices), the rooftop air conditioners one MultiMesh per model (they
+  share the LOD of the building's nearest unit, never a coarser one), and the plinth goes into
+  the chunk's merged boxes (`plinth_in_chunk`). Both replacement shaders are the
+  StandardMaterial3D they stand for, line for line, down to the unset textures it samples; a
+  colour in a vertex is handed over as the renderer would hand the uniform (RD linearises
+  `source_color`, Compatibility passes it verbatim: `Building._roof_albedo()`). Still one node
+  each: the shop names and the kit batches (one per kind already). Prove a change here with
+  `tools/building_merge_probe.gd` (rebuilds the old nodes from `Building.keep_records`, diffs
+  them, and splits the difference by kind; `SHIFT=1` shows what an origin re-centre alone flips).
 - Facade kit (owner, 2026-09-24: "it must look like RDR2, not San Andreas"): real moulded geometry
   on the buildings near the camera, modelled by `tools/facade_kit.py` in Blender
   (`blender -b --python tools/facade_kit.py`, then `--import`) into `assets/models/facade_kit.glb`,
@@ -1828,7 +1848,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   each, and again per shadow cascade (hills bookmark 1,202 -> 942 draws, same triangles). It
   only merges opaque BaseMaterial3D / world-mapped materials and auto-named, unscripted nodes;
   `MERGE_STATIC=0` on `still_shot.gd` is the A/B, and its GEO / `SPLIT=1` lines are the frame
-  cost of any bookmark (baseline table in docs/HANDOFF.md 9x).
+  cost of any bookmark (baseline table in docs/HANDOFF.md 9x). **Nor are a building's pieces**
+  (2026-09-27, see the Buildings note): buildings went from 3,344 to 869 of the downtown frame's
+  draws (5,815 -> 3,360), 3,270 -> 858 on the freeway (docs/HANDOFF.md 9ai). `SPLIT=1` also
+  prints `BSPLIT` lines, the Building category by kind of node. For a before/after pixel diff
+  shoot both sides with `DIFF=1` on `still_shot.gd` (shader TIME, the clock and the signals held,
+  everything that moves by itself hidden - two plain runs differ in 41 % of their pixels) and
+  compare with `tools/glshot/img_diff.py`. **Trap:** on the Compatibility renderer a MultiMesh's
+  INSTANCE_CUSTOM and instance COLOR arrive as half floats; never put a position in them.
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in
   `CityChunk._road_look`): tiled asphalt plus world-space mottling, resurfacing patches on a
   jittered grid with darker seams, ridged-noise cracks and sparse oil staining, so the road never

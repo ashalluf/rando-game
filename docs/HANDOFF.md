@@ -2516,6 +2516,153 @@ blazer stays yellow at 70 m. Up close (under 10 m) a welded body's face is visib
 which is why it only starts at 50 m. In the downtown bookmark the only visible change is a few
 far figures a shade more saturated.
 
+## 9ai. Buildings in a handful of draws, 2026-09-27 (agent branch `wt/building-draws`)
+
+The brief: 60 fps on the owner's Mac. At the downtown street bookmark the frame issued 5,815 draw
+calls and 3,344 of them (57 %) were buildings, from 5,304 nodes. `SPLIT=1` on `still_shot.gd` now
+also breaks the Building category down by kind of node (its `BSPLIT` lines), and that said where:
+
+| Kind (camera-pass draws) | Downtown before | after | Freeway before | after |
+|---|---|---|---|---|
+| Roof boxes and cylinders (a node each) | 1,611 | 99 (`RoofPlant`) | 1,793 | 81 |
+| Rooftop air conditioners (a model, a node each) | 858 | 228 (`RoofUnits`, `RoofUnitsRusted`) | 736 | 256 |
+| Facade detail MultiMeshes (one per PART) | 337 | 107 (`Frames`, `Details`, `Bays`) | 262 | 103 |
+| Box parts (a mesh and a ShaderMaterial per part) | 184 | 81 (`Walls`) | 138 | 77 |
+| Facade kit batches (already one per kind) | 366 | 364 | 341 | 341 |
+| Shop names (untouched; small kinds move by a few dozen between plain runs) | 19 | 3 | 7 | 0 |
+| **Building category** | **3,344** | **869** | **3,270** | **858** |
+| Other (the plinths went into the chunk's merged boxes) | 254 | 274 | 472 | 485 |
+
+The whole frame, opengl3 at 960x540, `--quality=0`. The DIFF columns are the same frame with
+everything that moves by itself hidden (see the traps), which is what the pixel diffs compare:
+
+| Bookmark | draws before -> after | objects | triangles (GEO) |
+|---|---|---|---|
+| Downtown noon | 5,815 -> 3,360 (-42 %) | 5,913 -> 3,395 | 7,272,923 -> 6,520,175 |
+| Downtown night rain | 5,818 -> 3,363 | 5,916 -> 3,398 | 7,275,377 -> 6,522,629 |
+| Freeway | 6,045 -> 3,646 (-40 %) | 6,184 -> 3,699 | 7,005,369 -> 6,399,787 |
+| Masjid | 6,025 -> 4,258 (-29 %) | 6,084 -> 4,293 | 8,299,676 -> 7,910,719 |
+| Downtown noon, DIFF | 5,183 -> 2,733 | 5,279 -> 2,766 | 6,007,927 -> 5,257,598 |
+| Downtown night, DIFF | 5,185 -> 2,735 | 5,281 -> 2,768 | 6,008,121 -> 5,257,792 |
+| Freeway, DIFF | 5,604 -> 3,206 | 5,741 -> 3,257 | 6,450,760 -> 5,845,190 |
+| Masjid, DIFF | 5,429 -> 3,666 | 5,484 -> 3,697 | 7,459,922 -> 7,071,013 |
+
+The GEO triangle count undercounts a LOD'd MultiMesh (the counter counts its surface once), so
+the rooftop units' real camera-pass cost is counted per instance by `ROOF_TRIS=1`: downtown
+322,093 -> 409,132, freeway 261,207 -> 268,356, masjid 103,899 -> 182,354 (see below). Building
+generation costs 4-13 % more CPU per building headless (about even for the towers).
+
+### What changed
+
+- **Walls: one mesh, one material a building.** The 2026-09-19 reason for a ShaderMaterial per
+  part (Compatibility has no per-instance uniforms) is answered by vertex data instead, which every
+  renderer has: `Building._append_part()` puts each part's BoxMesh (or chamfered prism) into one
+  ArrayMesh at its centre and every vertex carries what that part's uniforms said, as 32-bit floats
+  - CUSTOM0 the position in its own part (the VERTEX the shader saw) and has_storefront, CUSTOM1
+  part_size and base_height, CUSTOM2 the pitches, floor_height, ground_floor_height, CUSTOM3 base_y
+  and crown_start. `building.gdshader` takes them through flat varyings when `part_attributes` is
+  on; the landmark towers leave it off. The numbers are computed by the same expressions as before,
+  so the shader sees the same floats. StreetWear read each part's numbers back off its material;
+  they are on `Building.parts` now.
+- **Facade detail: one MultiMesh per kind a building** (`Frames`, `Details` = bands + parapet,
+  `Bays`) on `shaders/facade_detail.gdshader`. The catch is the distance fade: a node's visibility
+  range is measured from the camera to the CENTRE of its bounds (renderer_scene_cull.cpp, checked
+  with a probe), so a node for the whole building would have moved every part's pop distance. Each
+  instance carries its part index, the material holds each part's old bounds centre in TRUE world
+  space plus its range (`part_ref`, `DETAIL_PARTS` 16), and an instance past its own part's range
+  collapses to a point - in the shadow passes too, measured from MAIN_CAM_INV_VIEW_MATRIX as the
+  culling was; the SDFGI voxeliser (identity main camera, and it ignored ranges before) is left
+  alone. The node keeps a range that only drops the set once every part is past its own reach.
+  True world, because the scene is re-centred: the new `origin_shift` global (vec3, project.godot)
+  is pushed by a setter on `WorldState.world_offset`, so anything that sets the offset keeps it in
+  step.
+- **Roof plant: one mesh a building** (`RoofPlant`, `shaders/roof_plant.gdshader`): every box and
+  cylinder `_build_prop()` laid (a duct run was nineteen nodes, a solar array eighteen), moved into
+  building space, the material in the vertices (albedo and roughness in CUSTOM0, metallic in UV.x),
+  with the unshaded beacons in a surface of their own. The rooftop air conditioners are one
+  MultiMesh per model variant; their rolls are made in the old order.
+- **Plinths** go into the chunk's merged boxes (`Building.plinth_in_chunk`, `CityChunk._merge_box`):
+  world-triplanar concrete, the same wherever the box sits; the building keeps the collision.
+
+Both replacement shaders are StandardMaterial3D's own generated code for those materials (from
+the 4.7.2 source, `BaseMaterial3D::_update_shader`), line for line, down to the unset textures it
+samples - replicating "ALBEDO = colour; ROUGHNESS = r" by hand was 1/255 off, because the
+roughness hint's default texture is not white. A colour carried in a vertex has to arrive as the
+renderer would have handed the uniform: RD converts a `source_color` uniform to linear on the CPU,
+**Compatibility passes it verbatim** (drivers/gles3 material_storage has the conversion commented
+out), so `Building._roof_albedo()` asks `RenderingServer.get_current_rendering_method()`. A probe
+frame against frame: 0 pixels differ on opengl3.
+
+### What is not identical, and why
+
+City frames, `DIFF=1`, 1280x720 opengl3, before against after (two DIFF runs of the same tree
+differ in 7 pixels, by 1-2):
+
+| Bookmark | mean | p99 | p99.9 | max | pixels > 0 | > 2 | > 8 | > 32 |
+|---|---|---|---|---|---|---|---|---|
+| Downtown noon | 0.042 | 0 | 5 | 117 | 4,812 (0.52 %) | 1,230 | 793 | 428 |
+| Downtown night rain | 0.017 | 0 | 1 | 201 | 2,983 (0.32 %) | 761 | 422 | 107 |
+| Freeway | 0.017 | 0 | 1 | 148 | 1,646 (0.18 %) | 534 | 335 | 173 |
+| Masjid | 0.029 | 0 | 3 | 145 | 2,145 (0.23 %) | 995 | 643 | 317 |
+
+The heatmaps put every one of those pixels on three things, and `tools/building_merge_probe.gd`
+(one building at a time, the old nodes rebuilt from the same data beside the new ones, each kind
+swapped back alone, at 35-250 m, day and night) says which:
+
+- **Rooftop units, the one intended difference.** A MultiMesh takes one LOD for all its
+  instances from its whole box, so a far unit is drawn at the LOD of the building's nearest
+  unit: the same or finer, never coarser. 600-1,100 px a building at 230-250 m in the probe, on
+  both renderers; the triangle cost is the ROOF_TRIS numbers above. Keeping the units a node each
+  would make them exact and cost about 630 draws downtown (buildings about 1,500 instead of 869).
+- **Depth ties on the Compatibility renderer.** Coincident faces - the cornice's box band inside
+  the kit moulding where both still draw, a billboard's stripe on its panel at 300 m - are
+  decided by draw order there (GEQUAL, later wins), and a new shader changes the order. On
+  Forward+ (lavapipe, one building) the detail swap is 0 pixels; on opengl3 it is 14-2,257 px a
+  building, all on such seams. The stripe is geometrically in front, so where it now wins it is
+  the right answer.
+- **Float rounding on window edges.** The walls' merged mesh puts each part at its centre inside
+  the building's space instead of in a node of its own, so a window edge a hair from a pixel
+  centre can land the other side: at most 1,127 px a building on Forward+, of which 6 by more
+  than 2/255. The roof plant: at most 14 px on Forward+, none by more than 2/255; 92 on opengl3.
+  For scale, moving the OLD nodes by a re-centre (`SHIFT=1`) flips 34,000-98,000 px of the same
+  building on opengl3; merged against old, 600-3,400.
+
+The web (Compatibility) is the opengl3 path above, so it draws the same. The merged detail node
+is one box for the occlusion culler where it was one per part, so a building half behind another
+now draws all of its detail (its triangles fell anyway, and the tie-breaks above show nothing
+else moved).
+
+### Traps found on the way
+
+- **Compatibility packs a MultiMesh's INSTANCE_CUSTOM and instance COLOR into half floats**
+  (`unpackHalf2x16` in drivers/gles3 scene.glsl); RD keeps them 32-bit. A per-instance position in
+  INSTANCE_CUSTOM is off by centimetres on the web, which moved pop distances - hence the part
+  table in a uniform array and a part index (a small integer, exact in a half) per instance.
+- **`NODE_POSITION_WORLD` in a GLES3 vertex shader is the multimesh INSTANCE's origin**
+  (`model_matrix[3]` after the instance transform is folded in); there is no node transform.
+- **A node's visibility range is measured to the centre of its world AABB**, not its origin.
+- **`load("res://scripts/world/building.gd")` first, from a `--script` tool, walks into a preload
+  cycle** ("building.tscn referenced non-existent resource ... building.gd"); load the scene first.
+- **A script error in a `--script` tool's coroutine does not quit**: the tree keeps rendering and
+  holds the render lock until the outer `timeout`. `building_merge_probe.gd` has a watchdog timer.
+- **Two still_shot runs of the same bookmark differ in 41 % of pixels** (clouds, sway, film grain,
+  traffic, the clock, all on real time). `DIFF=1` fixes that: shader TIME held at zero through a
+  microsecond `time_rollover_secs`, the clock paused at `--hour`, the signals on a fixed clock,
+  people, cars, aircraft, particles and the player hidden. Two DIFF runs differ in 7 pixels by 1-2.
+
+### How to check it again
+
+    # after (this branch) and before (its parent), same bookmark, same settings
+    env OUT=a.png FRAMES=45 DIFF=1 [SPLIT=1] [ROOF_TRIS=1] LIBGL_ALWAYS_SOFTWARE=1 flock -o /tmp/rando_render_gl.lock \
+      xvfb-run -a -s "-screen 0 1280x720x24" godot --rendering-driver opengl3 --display-driver x11 \
+      --audio-driver Dummy --path . --script tools/glshot/still_shot.gd --resolution 960x540 \
+      -- --spawn=2359.4,880,0,12,2 --hour=12 --weather=clear --nohud --quality=0
+    python3 tools/glshot/img_diff.py before.png after.png heat.png
+    # the merge itself, one building at a time, old nodes rebuilt from the same data:
+    LIBGL_ALWAYS_SOFTWARE=1 flock -o /tmp/rando_render_gl.lock xvfb-run -a -s "-screen 0 1280x720x24" \
+      godot --rendering-driver opengl3 --display-driver x11 --audio-driver Dummy --path . \
+      --script tools/building_merge_probe.gd --resolution 640x360   # SHIFT=1, DIST=, ONLY=, NIGHT=0, SEEDS=, ELEV=
+
 ## 9y. Street level at night, 2026-09-25 (agent branch)
 
 The ask: downtown at 21:30 in the rain read as one flat white fluorescent band along every tower

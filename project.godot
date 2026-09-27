@@ -221,6 +221,10 @@ sun_direction={
 "type": "vec3",
 "value": Vector3(0.4, 0.7, 0.3)
 }
+origin_shift={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
 wave_scale={
 "type": "float",
 "value": 1.0
