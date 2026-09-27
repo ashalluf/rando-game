@@ -46,6 +46,17 @@ merged into one branch and gated together (499 checks) before the push:
   memory at 12 GB even with `LIGHT_WORLD=1`; use opengl3 stills and ask the owner for Mac shots.
   Stale class cache trap: after merging a branch that adds a `class_name`, run `--import` before
   any still, or the city renders as a bare plane (Parse Error: Identifier not declared).
+- **Hill ground merged, then the leopard spots** (build 305 pushed the hill-ground branch: shell
+  grass and brush understory up close). The brush stands still read as round tan-and-olive
+  camouflage from 100-500 m. A red/blue debug render (grass red, brush blue; then the fades and
+  the threshold as colour) showed it was the stand noise itself - the 3 m bush octave is
+  resolved out to ~500 m, and a thresholded 3 m value noise is round blobs - on ground where the
+  threshold sat at the noise's mean. Fixed by moving the threshold off the mean with the land
+  (brush-dominant steep faces, grass on every gentle bench) and ragging edges with a 1.1 m
+  octave; each octave widens the edge as it fades (CLAUDE.md, terrain note). A CPU top-down of
+  `HillPlanting.ground()` (near and "far" mode) made the loop seconds instead of renders; the
+  script is in the session scratchpad, not the repo. Before/after: hills 150 m out and at ground
+  level, EYE=-400,70,-1380,0,-12 / -250,2,-1560,-30,4 on `hill_ground_shot.tscn`.
 Tools added: `tools/terrain_preview/` (mountains top-down in seconds), still_shot `HIDE=`.
 Cloud sessions cannot be messaged back; read their state with get_session and their shots
 branches. Pushes were blocked by the auto-mode safety check until the owner said to push.

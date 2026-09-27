@@ -104,8 +104,8 @@ void vertex() {
 	float th = hill_stand_threshold(aspect.x, aspect.y, drain, broad.x);
 	// The canopy's top here: the understory's height where a stand is likely, the grass's
 	// elsewhere (the stand noise without its single-bush octave, with a wider edge for it).
-	float stand = broad.y * 0.2 + vnoiset(w * 0.12 + 17.0) * 0.3 + 0.25;
-	float span = mix(grass_height, brush_height, smoothstep(th + 0.2, th - 0.08, stand));
+	float stand = broad.y * STAND_PATCH_W + vnoiset(w * 0.12 + 17.0) * STAND_MID_W + STAND_BIAS;
+	float span = mix(grass_height, brush_height, smoothstep(th + 0.25, th - 0.12, stand));
 	// A little lower out where the shells are thinning, so the last of them sink into the ground.
 	float dist = distance(ground, INV_VIEW_MATRIX[3].xyz);
 	span *= mix(1.0, 0.6, smoothstep(fade_start, fade_end, dist));
@@ -153,10 +153,13 @@ void fragment() {
 	float fw = length(fwidth(w));
 	float bush_fade = 1.0 - smoothstep(0.5, 2.0, fw);
 	float bush = mix(0.5, vnoiset(w * 0.29 + 3.7), bush_fade);
-	float mid = vnoiset(w * 0.12 + 17.0);
+	float mid_fade = hill_mid_fade(fw);
+	float mid = mix(0.5, vnoiset(w * 0.12 + 17.0), mid_fade);
+	float fine_fade = hill_fine_fade(fw);
+	float fine = mix(0.5, vnoiset(w * 0.9 + 51.0), fine_fade);
 	float crown_fade = 1.0 - smoothstep(0.06, 0.2, fw);
 	vec3 crowns = hill_crowns(w);
-	float stand = hill_stand(v_field.x, hill_stand_crowned(hill_stand_noise(patchy, mid, bush), crowns.x, crown_fade), bush);
+	float stand = hill_stand(v_field.x, hill_stand_crowned(hill_stand_noise(patchy, mid, bush, fine), crowns.x, crown_fade), bush, hill_stand_edge(fine_fade, bush_fade, mid_fade));
 	float sage = hill_sage(bush, bush_fade);
 	float brush = max(stand, sage);
 	float trail = hill_trail(v_noise.x, fwidth(v_noise.x), v_noise.y, slope);

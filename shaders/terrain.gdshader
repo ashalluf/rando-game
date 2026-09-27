@@ -171,7 +171,8 @@ void fragment() {
 	// 8 m across, which still read from across a canyon once the single bushes have faded to
 	// their average, then the gaps between the bushes of a stand, where the straw shows
 	// through, and single shrubs out in the open grass.
-	float clump = vnoiset(w * 0.12 + 17.0);
+	float mid_fade = hill_mid_fade(length(fwidth(w)));
+	float clump = mix(0.5, vnoiset(w * 0.12 + 17.0), mid_fade);
 	float th = hill_stand_threshold(slope, north, drain, hill);
 	// Shrub crowns 2.6 m apart: a stand's edge runs round them, and inside it they are lit as
 	// domes with shade between them. Gone to their average once one is under a few pixels.
@@ -185,7 +186,7 @@ void fragment() {
 	if (crown_fade > 0.0) {
 		crowns = hill_crowns(w);
 	}
-	float stand = hill_stand(th, hill_stand_crowned(hill_stand_noise(patchy, clump, bush), crowns.x, crown_fade), bush);
+	float stand = hill_stand(th, hill_stand_crowned(hill_stand_noise(patchy, clump, bush, leaf), crowns.x, crown_fade), bush, hill_stand_edge(leaf_fade, bush_fade, mid_fade));
 	float sage = hill_sage(bush, bush_fade);
 	float brush = max(stand, sage);
 	// Crowns with shade between them, leaf clumps on those, the blade grain on those, and the
