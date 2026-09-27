@@ -12,7 +12,7 @@ extends SceneTree
 ## narrow lens: the far twin), `--cam=x,y,z
 ## --look=x,y,z` for one custom view (the car's nose points -Z, its centre is the origin),
 ## `--fov=`, `--paint=#rrggbb`, `--finish=N` (Vehicle.Finish), `--livery=N` (Vehicle.Livery),
-## `--police` (the cruiser), `--night` (lamps lit, beams on the road), `--row=0,8,1` lines up
+## `--police` (the cruiser; with `--heavy` the tactical van), `--night` (lamps lit, beams on the road), `--row=0,8,1` lines up
 ## several types side by side for one comparison frame (the camera then frames the row), and
 ## `--each=0,8,1` shoots every view of each type in turn in one launch ($OUT_t<type>_<view>.png),
 ## so a whole before/after set costs one wait for the render lock.
@@ -35,6 +35,7 @@ func _initialize() -> void:
 	var fov := 38.0
 	var night := false
 	var police := false
+	var heavy := false
 	var row := PackedInt32Array()
 	var each := PackedInt32Array()
 	for arg in OS.get_cmdline_user_args():
@@ -65,6 +66,8 @@ func _initialize() -> void:
 			night = true
 		elif arg == "--police":
 			police = true
+		elif arg == "--heavy":
+			heavy = true
 	var root := get_root()
 	var world := Node3D.new()
 	root.add_child(world)
@@ -136,7 +139,7 @@ func _initialize() -> void:
 		else:
 			for t in row:
 				types.append(t)
-		await _shoot(world, cam, types, views, out, paint, finish, livery, police, cam_at, look)
+		await _shoot(world, cam, types, views, out, paint, finish, livery, police, cam_at, look, heavy)
 	else:
 		for t in each:
 			await _shoot(world, cam, [t], views, "%s_t%d" % [out, t], paint, finish, livery, police, cam_at, look)
@@ -144,7 +147,8 @@ func _initialize() -> void:
 
 
 func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedStringArray, out: String,
-		paint: Color, finish: int, livery: int, police: bool, cam_at: Vector3, look: Vector3) -> void:
+		paint: Color, finish: int, livery: int, police: bool, cam_at: Vector3, look: Vector3,
+		heavy: bool = false) -> void:
 	var fov: float = cam.get_meta("fov", 38.0)
 	var spacing := 6.2
 	var cars: Array[Node3D] = []
@@ -152,7 +156,7 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		var car: Node3D
 		if police:
 			var rng := RandomNumberGenerator.new()
-			car = load("res://scripts/npc/police_car.gd").call("make", false, rng)
+			car = load("res://scripts/npc/police_car.gd").call("make", heavy, rng)
 			car.set("police", null)
 		else:
 			car = load("res://scripts/vehicles/vehicle.gd").new()
@@ -181,8 +185,10 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			mean += y
 		if not ys.is_empty():
 			mean /= ys.size()
-		print("CONTACT type %d: %d wheels down, road at body y %.3f (dims ride %.3f)" % [
-				int(car.get("body_type")), ys.size(), mean, float(car.call("_dims").get("ride", -0.27))])
+		var d: Dictionary = car.call("_dims")
+		print("CONTACT type %d: %d wheels down, road at body y %.3f (dims road %.3f, ride %.3f)" % [
+				int(car.get("body_type")), ys.size(), mean, float(d.get("road", d.get("ride", -0.27))),
+				float(d.get("ride", -0.27))])
 	var wide := types.size() > 1
 	for view in views:
 		var at := cam_at

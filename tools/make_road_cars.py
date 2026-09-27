@@ -173,6 +173,9 @@ def curve(v):
 #   j = 4 shoulder (widest)  j = 5 belt         j = 6 rail          j = 7 roof centreline
 # Forward of the cowl and aft of the deck the rail anchor lies on the bonnet / boot lid crown.
 N_ANCHORS = 8
+## Where a flat-roofed body's ninth anchor (the roof edge, profile `roof_w` / `roof_z`) sits in
+## ring coordinates, between the rail (6) and the roof centreline (7).
+ROOF_J = 6.5
 
 
 class Section:
@@ -219,8 +222,49 @@ class Section:
         w2 = w4 - c["sill_in"](f)
         z0 = c["floor_z"](f)
         w1 = w2 - c["floor_in"](f)
-        return [(0.0, z0), (w1, z0 + 0.012), (w2, z2), (w3, z3), (w4, z4), (w5, z5), (w6, z6),
-                (0.0, z7)]
+        P = [(0.0, z0), (w1, z0 + 0.012), (w2, z2), (w3, z3), (w4, z4), (w5, z5), (w6, z6)]
+        if "roof_z" in c:
+            # A ninth anchor at j = ROOF_J: the edge of a flat roof (a van). Inside the glasshouse
+            # it is its own line; on the bonnet it sits between the rail and the crown.
+            g = self.gh_weight(f)
+            ow, oz = w6 * 0.5, z6 + (z7 - z6) * 0.75
+            rw, rz = c["roof_w"](f), c["roof_z"](f)
+            P.append((ow + (rw - ow) * g, oz + (rz - oz) * g))
+        P.append((0.0, z7))
+        return P
+
+    def params(self):
+        """The ring coordinate of each anchor."""
+        if "roof_z" in self.c:
+            return [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, ROOF_J, 7.0]
+        return [0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
+
+    def tangents_at(self, f, P):
+        """tangents(), with the spec's per-anchor overrides blended in by the glasshouse weight
+        (a van's flat side runs straight up into its roof edge, and its roof is flat)."""
+        T = self.tangents(P)
+        over = self.s.get("tangent_over", {})
+        if not over:
+            return T
+        g = self.c["over_w"](f) if "over_w" in self.c else self.gh_weight(f)
+        g = min(max(g, 0.0), 1.0)
+        for k, (ox, oz) in over.items():
+            tx = T[k][0] + (ox - T[k][0]) * g
+            tz = T[k][1] + (oz - T[k][1]) * g
+            lt = math.hypot(tx, tz) or 1.0
+            T[k] = (tx / lt, tz / lt)
+        return T
+
+    def j_at_z(self, f, z, j_lo=5.0, j_hi=6.9):
+        """The ring coordinate where the section reaches height z, between j_lo and j_hi."""
+        a, b = j_lo, j_hi
+        for _ in range(28):
+            m = (a + b) * 0.5
+            if self.eval(f, m)[1] < z:
+                a = m
+            else:
+                b = m
+        return (a + b) * 0.5
 
     @staticmethod
     def tangents(P):
@@ -251,10 +295,13 @@ class Section:
     def eval(self, f, j):
         """(u, z, nu, nz): the point on the section at ring j and its outward 2D normal."""
         P = self.anchors(f)
-        T = self.tangents(P)
+        T = self.tangents_at(f, P)
+        J = self.params()
         jv = min(max(j, 0.0), N_ANCHORS - 1.0)
-        k = min(int(jv), N_ANCHORS - 2)
-        s = jv - k
+        k = 0
+        while k < len(J) - 2 and jv > J[k + 1]:
+            k += 1
+        s = (jv - J[k]) / (J[k + 1] - J[k])
         d = math.hypot(P[k + 1][0] - P[k][0], P[k + 1][1] - P[k][1])
         ten = self.s.get("tension", 1.0) * d
         s2, s3 = s * s, s * s * s
@@ -615,9 +662,13 @@ def station_list(spec):
     n = max(2, int(round((hi - lo) / spec["mid_step"])))
     for i in range(1, n):
         st.add(round(lo + (hi - lo) * i / n, 5))
-    for f in spec.get("extra_stations", []):
+    # Extra stations push out the evenly spaced ones near them, but never each other: they come
+    # in clusters round a corner, and when each one cleared its neighbours only the last of a
+    # cluster survived - the first pickup's cab back was a long roll for exactly that reason.
+    extras = [round(f, 5) for f in spec.get("extra_stations", [])]
+    for f in extras:
         st = {s for s in st if abs(s - f) > spec["mid_step"] * 0.3}
-        st.add(round(f, 5))
+    st.update(extras)
     return sorted(st, reverse=True)
 
 
@@ -725,6 +776,20 @@ def build_body(spec, sec):
                 fm = (stations[i] + stations[i + 1]) * 0.5
                 if f_lo <= fm <= f_hi:
                     set_crease(verts[i][k % K], verts[i + 1][k % K], value)
+
+    # Creases across the car along a station loop: (f, value, j_lo, j_hi), f one of the
+    # stations. Subdivision pulls the surface inside the cage, so a sharp corner in the side
+    # profile (a truck's roof edge over a near-vertical back) comes out as a long roll unless the
+    # loop at the corner is creased (and held by close stations either side).
+    for f0, value, j_lo, j_hi in spec.get("station_creases", []):
+        near = min(range(len(stations)), key=lambda i: abs(stations[i] - f0))
+        if abs(stations[near] - f0) > 1e-4:
+            continue
+        for k in range(K):
+            k2 = (k + 1) % K
+            j = (rings[loop_ring[k]] + rings[loop_ring[k2]]) * 0.5
+            if j_lo <= j <= j_hi:
+                set_crease(verts[near][k], verts[near][k2], value)
 
     ob = new_object("body", bm)
     subsurf(ob)
@@ -1109,6 +1174,30 @@ def build(spec, detail=True):
     for o in parts:
         o.data.calc_loop_triangles()
         log("part %-14s %6d triangles" % (o.name, len(o.data.loop_triangles)))
+        if os.environ.get("PROBE_PROFILE") and o.name == "body":
+            prof = {}
+            for v in o.data.vertices:
+                k = round(v.co.y * 10.0) / 10.0
+                prof[k] = max(prof.get(k, -9.0), v.co.z)
+            log("  PROFILE " + " ".join("%.1f:%.2f" % (k, prof[k]) for k in sorted(prof)))
+        if os.environ.get("PROBE_SLOT"):
+            want = int(os.environ["PROBE_SLOT"])
+            cs = []
+            for poly in o.data.polygons:
+                if poly.material_index == want:
+                    cs.append(poly.center.copy())
+            if cs:
+                ys = sorted(c.y for c in cs)
+                log("  SLOT %d in %s: %d faces, y %.2f..%.2f, e.g. %s" % (
+                    want, o.name, len(cs), ys[0], ys[-1],
+                    [tuple(round(v, 2) for v in c) for c in cs[:: max(1, len(cs) // 6)]]))
+        if os.environ.get("PROBE_BOX"):
+            x0, y0, z0, x1, y1, z1 = [float(v) for v in os.environ["PROBE_BOX"].split(",")]
+            hits = [v.co for v in o.data.vertices
+                    if x0 <= v.co.x <= x1 and y0 <= v.co.y <= y1 and z0 <= v.co.z <= z1]
+            if hits:
+                log("  PROBE %s: %d verts in box, e.g. %s" % (o.name, len(hits),
+                                                          [tuple(round(c, 3) for c in h) for h in hits[:4]]))
     ob = join(parts)
     ob.name = "road_" + spec["name"]
     ob.data.name = ob.name
@@ -1266,7 +1355,7 @@ def export(objs, path):
         bpy.ops.export_scene.gltf(export_colors=True, **kw)
 
 
-def report(ob, spec):
+def report(ob, spec, far=None):
     me = ob.data
     me.calc_loop_triangles()
     tris = len(me.loop_triangles)
@@ -1282,16 +1371,26 @@ def report(ob, spec):
     print("== %s: %d triangles  L=%.3f  W(body)=%.3f  W(mirrors)=%.3f  H=%.3f  y %.3f..%.3f"
           % (spec["name"], tris, L, body_w, max(xs) - min(xs), max(zs) - min(zs), min(ys), max(ys)))
     print("   triangles per slot: %s" % counts)
-    # Vehicle body space: the model is centred on its bounding box and its bottom sits at `ride`.
+    # Vehicle body space: the model is centred on the bounding box of EVERY mesh in the file (the
+    # far twin's wheels included, whose tyres are the lowest thing) and that box's bottom sits at
+    # `ride`.
+    bottom = min(zs)
+    if far is not None:
+        fz = [v.co.z for v in far.data.vertices]
+        fy = [v.co.y for v in far.data.vertices]
+        bottom = min(bottom, min(fz))
+        ys = ys + fy
     cy = (max(ys) + min(ys)) * 0.5
-    ride = spec["ride"]
+    road = spec["road"]
     front = -(spec["front_axle"] - cy)
     rear = -(spec["rear_axle"] - cy)
     print('   WHEEL_POSE: {"x": %.3f, "front": %.3f, "rear": %.3f, "y": %.3f, "r": %.3f, "w": %.3f, '
           '"baked": true}'
-          % (spec["wheel_x"], front, rear, ride + spec["axle_z"], spec["wheel_r"],
+          % (spec["wheel_x"], front, rear, road + spec["axle_z"], spec["wheel_r"],
              spec["wheel_w"]))
-    print("   lamps: set _dims lamp_y / tail_y from the lamp centres less `ride` (%.3f)" % ride)
+    print('   _dims: "ride": %.3f, "road": %.3f (model bottom z %.3f; body y = model z + road)'
+          % (road + bottom, road, bottom))
+    print("   lamps: _dims lamp_y / tail_y = the lamp centres' model z + road")
     print("   _dims: length %.3f width %.3f height %.3f" % (L, body_w, max(zs) - min(zs)))
     return tris
 
@@ -1399,13 +1498,16 @@ def render_previews(ob, name, views, paint=PREVIEW_PAINT, samples=24, res=(960, 
 
 def default_views(spec):
     L = spec["length"]
+    # Framed for a 4.9 m, 1.45 m car; anything bigger (the van) pulls the camera back to fit.
+    k = max(1.0, L / 4.9, spec.get("height", 1.45) / 1.45 * 0.85)
+    zc = 0.62 * max(1.0, spec.get("height", 1.45) / 1.45)
     return [
-        ("front3", (5.2, L * 0.5 + 4.6, 1.55), (0.0, 0.25, 0.62), 50),
-        ("rear3", (-5.0, -L * 0.5 - 4.4, 1.75), (0.0, -0.25, 0.70), 50),
-        ("side", (9.5, 0.0, 0.85), (0.0, 0.0, 0.72), 55),
-        ("front", (0.0, L * 0.5 + 7.5, 1.05), (0.0, 0.0, 0.62), 60),
-        ("rear", (0.0, -L * 0.5 - 7.5, 1.15), (0.0, 0.0, 0.70), 60),
-        ("top", (4.5, 3.0, 5.5), (0.0, 0.0, 0.5), 45),
+        ("front3", (5.2 * k, L * 0.5 + 4.6 * k, 1.55 * k), (0.0, 0.25, zc), 50),
+        ("rear3", (-5.0 * k, -L * 0.5 - 4.4 * k, 1.75 * k), (0.0, -0.25, zc * 1.1), 50),
+        ("side", (9.5 * k, 0.0, 0.85 * k), (0.0, 0.0, zc * 1.15), 55),
+        ("front", (0.0, L * 0.5 + 7.5 * k, 1.05 * k), (0.0, 0.0, zc), 60),
+        ("rear", (0.0, -L * 0.5 - 7.5 * k, 1.15 * k), (0.0, 0.0, zc * 1.1), 60),
+        ("top", (4.5 * k, 3.0 * k, 5.5 * k), (0.0, 0.0, 0.5 * k), 45),
     ]
 
 
@@ -1454,15 +1556,24 @@ def rim_walls(bm, top, bottom, nrm, nr, nc, mat):
 
 
 def hits_2d(surf, view, grid2d, side=1.0):
-    """Surface points and normals for a grid of 2D points in a view, or None if any ray misses."""
+    """Surface points and normals for a grid of 2D points in a view, or None if any ray misses -
+    or if the hits spread more than half a metre in depth: a ray just past a rounded corner goes
+    on down the flank, and a part laid over hits like that is a streak along the car."""
     pts, nrm = [], []
     for row in grid2d:
         for a, b in row:
             hit = surface_path(surf, view, [(a, b), (a, b)], side)
             if not hit:
+                log("  part dropped: a %s-view ray at (%.2f, %.2f) missed the body" % (view, a, b))
                 return None
             pts.append(hit[0][0])
             nrm.append(hit[0][1])
+    axis = {"front": 1, "rear": 1, "side": 0, "top": 2}[view]
+    depth = [p[axis] for p in pts]
+    if max(depth) - min(depth) > 0.5:
+        log("  part dropped: its %s-view hits spread %.2f m deep (from %s)"
+            % (view, max(depth) - min(depth), tuple(round(v, 2) for v in grid2d[0][0])))
+        return None
     return pts, nrm
 
 
@@ -1504,6 +1615,56 @@ def fj_applied(bm, surf, f_lo, f_hi, j_lo, j_hi, rows, cols, proud, mat, side=1.
     if thickness > 0.0:
         rim_walls(bm, top, [p - n * thickness for p, n in zip(pts, nrm)], nrm, rows + 1,
                   cols + 1, rim if rim is not None else mat)
+    return True
+
+
+def wrap_band(bm, surf, end, z0, z1, proud, mat, reach=0.30, corner_r=0.20, thickness=0.05,
+              rows=3, n_front=10, n_corner=6, n_side=5):
+    """A bumper that wraps round the corners: one grid from the end of one flank, round its
+    corner, across the face and round to the other flank. Each column is a horizontal ray -
+    along the car across the face, radiating from a corner centre round the corner, across the
+    car along the flank - so the band follows the plan outline instead of being a flat plate
+    whose outer rays miss the corner. `end` +1 the nose, -1 the tail."""
+    zm = (z0 + z1) * 0.5
+    face, _n = surf.ray((0.0, end * 8.0, zm), (0.0, -end, 0.0), 16.0)
+    if face is None:
+        log("  bumper dropped: no face at z %.2f" % zm)
+        return False
+    flank, _n = surf.ray((4.0, face.y - end * (corner_r + reach + 0.1), zm), (-1.0, 0.0, 0.0), 8.0)
+    if flank is None:
+        log("  bumper dropped: no flank at z %.2f" % zm)
+        return False
+    xc = flank.x - corner_r
+    fc = face.y - end * corner_r
+    rays = []
+    for k in range(n_front + 1):
+        x = xc * k / n_front
+        rays.append(((x, face.y + end * 3.0), (0.0, -end)))
+    for k in range(1, n_corner):
+        a = math.pi * 0.5 * k / n_corner
+        d = (math.sin(a), end * math.cos(a))
+        rays.append(((xc + d[0] * 3.0, fc + d[1] * 3.0), (-d[0], -d[1])))
+    for k in range(n_side + 1):
+        f = fc - end * reach * k / n_side
+        rays.append(((xc + 3.0, f), (-1.0, 0.0)))
+    grid = []
+    for r in range(rows + 1):
+        z = z0 + (z1 - z0) * r / rows
+        row = []
+        for (ox, oy), (dx, dy) in rays:
+            loc, nor = surf.ray((ox, oy, z), (dx, dy, 0.0), 6.0)
+            if loc is None:
+                log("  bumper dropped: a ray at z %.2f missed" % z)
+                return False
+            row.append((loc, nor))
+        # Mirror onto the other side: columns run from its flank round to the centre.
+        left = [(Vector((-p.x, p.y, p.z)), Vector((-n.x, n.y, n.z))) for p, n in reversed(row[1:])]
+        grid.append(left + row)
+    nr, nc = len(grid), len(grid[0])
+    pts = [p for row in grid for p, _n in row]
+    nrm = [n for row in grid for _p, n in row]
+    top = oriented_grid(bm, [p + n * proud for p, n in zip(pts, nrm)], nrm, nr, nc, mat)
+    rim_walls(bm, top, [p - n * thickness for p, n in zip(pts, nrm)], nrm, nr, nc, mat)
     return True
 
 
@@ -1559,7 +1720,7 @@ def arch_lips(bm, surf, s, width=0.026, height=0.009, mat=PAINT, a0=-10.0, a1=19
             rings = sweep(bm, pts, prof, mat, closed_profile=True, caps=True, normals=nrm)
 
 
-def mirror(parts, surf, s, side, root_f, root_j, head, size, glass_mat=CHROME):
+def mirror(parts, surf, s, side, root_f, root_j, head, size, glass_mat=CHROME, head_mat=PAINT):
     """A wing mirror on a stalk: a painted head (a bevelled box under one subdivision level, which
     stays a mirror and does not melt into a ball), a black stalk and a glass on its rear face."""
     bm = bmesh.new()
@@ -1574,7 +1735,7 @@ def mirror(parts, surf, s, side, root_f, root_j, head, size, glass_mat=CHROME):
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     parts.append(new_object("mirror_stalk", bm))
     hb = bmesh.new()
-    add_box(hb, size, hc, PAINT)
+    add_box(hb, size, hc, head_mat)
     bmesh.ops.recalc_face_normals(hb, faces=hb.faces)
     hob = new_object("mirror_head", hb)
     mod = hob.modifiers.new("bev", 'BEVEL')
@@ -1618,7 +1779,7 @@ def sedan():
         "front_axle": 1.50, "rear_axle": -1.33, "axle_z": 0.345,
         "wheel_r": 0.345, "wheel_w": 0.235, "wheel_x": 0.797,
         "arch_r": 0.388, "arch_r_rear": 0.388, "arch_in": 0.56,
-        "ride": -0.177, "belt_probe_z": 0.9,
+        "road": -0.177, "belt_probe_z": 0.9,
         "cowl": 1.02, "deck": -1.96, "gh_blend_front": 0.14, "gh_blend_rear": 0.12,
         "crown_at": 0.60, "tension": 1.0, "under_j": 1.0,
         "rings": [0.0, 1.0, 1.6, 2.0, 2.4, 2.85, 3.35, 3.8, 3.92, 4.0, 4.08, 4.5, 5.0, 5.5,
@@ -1870,7 +2031,7 @@ def crossover():
         "front_axle": 1.37, "rear_axle": -1.32, "axle_z": 0.360,
         "wheel_r": 0.360, "wheel_w": 0.230, "wheel_x": 0.800,
         "arch_r": 0.412, "arch_r_rear": 0.412, "arch_in": 0.57,
-        "ride": -0.196, "belt_probe_z": 1.0,
+        "road": -0.196, "belt_probe_z": 1.0,
         "cowl": 1.04, "deck": -2.20, "gh_blend_front": 0.14, "gh_blend_rear": 0.05,
         "crown_at": 0.60, "tension": 1.0, "under_j": 1.0,
         "rings": [0.0, 1.0, 1.6, 2.0, 2.4, 2.85, 3.35, 3.8, 3.92, 4.0, 4.08, 4.5, 5.0, 5.5,
@@ -2126,62 +2287,77 @@ SPECS["crossover"] = crossover
 # --- the full-size pickup -----------------------------------------------------------------------------
 
 def pickup():
-    s = {"name": "pickup", "length": 5.80}
+    """A crew-cab full-size pickup. The proportions are the class's, not a sedan's (the first
+    pass read as a sedan greenhouse on a long body): a TALL square cab (roof 1.98 m, beltline
+    1.38 m, a near-vertical back), a long flat bonnet high at the front (1.30 m) over an upright
+    face, and one horizontal line from the bonnet edge along the belt to the bed rails."""
+    s = {"name": "pickup", "length": 5.90}
     s.update({
-        "nose": 2.825, "tail": -2.86,
-        "front_axle": 1.92, "rear_axle": -1.68, "axle_z": 0.390,
+        "nose": 2.905, "tail": -2.995,
+        "front_axle": 1.95, "rear_axle": -1.66, "axle_z": 0.390,
         "wheel_r": 0.390, "wheel_w": 0.260, "wheel_x": 0.880,
-        "arch_r": 0.452, "arch_r_rear": 0.452, "arch_in": 0.62,
-        "ride": -0.206, "belt_probe_z": 1.25,
-        "cowl": 1.06, "deck": -1.10, "gh_blend_front": 0.14, "gh_blend_rear": 0.05,
+        "arch_r": 0.455, "arch_r_rear": 0.455, "arch_in": 0.62,
+        "road": -0.206, "belt_probe_z": 1.30,
+        "cowl": 1.12, "deck": -1.105, "gh_blend_front": 0.14, "gh_blend_rear": 0.03,
         "crown_at": 0.60, "tension": 1.0, "under_j": 1.0,
-        "rings": [0.0, 1.0, 1.6, 2.0, 2.4, 2.85, 3.35, 3.8, 3.92, 4.0, 4.08, 4.5, 5.0, 5.5,
-                  6.1, 6.6, 7.0],
-        "end_steps": [0.0, 0.012, 0.03, 0.055, 0.09, 0.135, 0.19, 0.26, 0.34],
-        "mid_step": 0.30,
-        "extra_stations": [1.06, -0.99, -1.02, -1.05, -1.08, -1.11, -1.14, -1.18],
-        "creases": [(4.0, 0.6, -3.0, 3.0)],
-        "nose_cap": {"steps": 3, "roll": lambda j: 0.050, "dome": 0.030,
-                     "lean": lambda co: 0.030 * ramp(co.z, 1.0, 0.55)},
-        "tail_cap": {"steps": 3, "roll": lambda j: 0.030, "dome": 0.012},
+        "rings": [0.0, 1.0, 1.6, 2.1, 2.85, 3.35, 3.8, 3.92, 4.0, 4.08, 4.5, 4.9, 5.0,
+                  5.1, 5.6, 6.2, 7.0],
+        "end_steps": [0.0, 0.012, 0.03, 0.06, 0.10, 0.16, 0.24],
+        "mid_step": 0.50,
+        # Holding stations either side of every corner in the side profile (the cowl, the
+        # header, the roof edge over the back), each corner loop creased below.
+        "extra_stations": [1.16, 1.12, 1.08, 0.88, 0.60, 0.535, 0.48, -0.925, -0.96, -0.995,
+                           -1.035, -1.07, -1.095, -1.115, -1.14, -1.18],
+        "station_creases": [(1.12, 0.6, 5.2, 7.0), (0.535, 0.6, 5.6, 7.0),
+                            (-0.96, 0.75, 5.6, 7.0)],
+        # The shoulder, and the belt made crisp along the bonnet's edge and the bed rails, so the
+        # truck's one horizontal line is a line and not a roll.
+        "creases": [(4.0, 0.6, -3.1, 3.1), (5.0, 0.85, 1.14, 3.1), (5.0, 0.85, -3.1, -1.13)],
+        "nose_cap": {"steps": 3, "roll": lambda j: 0.034, "dome": 0.018},
+        "tail_cap": {"steps": 3, "roll": lambda j: 0.024, "dome": 0.008},
         "sculpt": [
-            (3.0, -3.0, 0.0, 3.97, 4.03, 0.10, 0.005),
-            (1.30, 2.55, 0.25, 6.40, 7.0, 0.30, 0.018),
+            (3.0, -3.0, 0.0, 3.97, 4.03, 0.10, 0.004),
+            # the power dome on the bonnet, and the lower door feature
+            (1.35, 2.60, 0.22, 6.30, 7.0, 0.30, 0.022),
+            (1.00, -1.00, 0.30, 2.50, 2.95, 0.30, -0.008),
         ],
         "profile": {
-            "top": [(2.825, 1.150), (2.80, 1.170), (2.72, 1.188), (2.55, 1.205), (2.20, 1.232),
-                    (1.80, 1.258), (1.40, 1.280), (1.15, 1.294), (1.06, 1.305), (0.98, 1.355),
-                    (0.85, 1.450), (0.70, 1.560), (0.55, 1.668), (0.42, 1.768), (0.34, 1.828),
-                    (0.26, 1.870), (0.15, 1.900), (-0.05, 1.918), (-0.40, 1.925),
-                    (-0.75, 1.918), (-0.93, 1.905), (-0.99, 1.885), (-1.02, 1.840),
-                    (-1.045, 1.740), (-1.07, 1.600), (-1.095, 1.460), (-1.115, 1.370),
-                    (-1.13, 1.342), (-1.16, 1.335), (-2.00, 1.335), (-2.75, 1.335),
-                    (-2.86, 1.330)],
-            "rail_z": [(1.15, 1.300), (1.06, 1.318), (0.95, 1.380), (0.80, 1.480),
-                       (0.65, 1.585), (0.50, 1.685), (0.38, 1.765), (0.28, 1.815), (0.15, 1.845),
-                       (-0.10, 1.860), (-0.50, 1.862), (-0.85, 1.852), (-0.97, 1.838),
-                       (-1.01, 1.800), (-1.04, 1.700), (-1.07, 1.560), (-1.095, 1.430),
-                       (-1.12, 1.350), (-1.16, 1.328)],
-            "rail_w": [(1.15, 0.930), (1.06, 0.925), (0.80, 0.905), (0.40, 0.885),
-                       (0.0, 0.876), (-0.60, 0.876), (-1.00, 0.880), (-1.10, 0.905),
-                       (-1.20, 0.930)],
-            "belt_z": [(2.825, 1.100), (2.70, 1.140), (2.40, 1.180), (2.00, 1.210),
-                       (1.50, 1.245), (1.06, 1.275), (0.50, 1.290), (-0.50, 1.305),
-                       (-1.00, 1.315), (-1.20, 1.322), (-2.70, 1.326), (-2.86, 1.318)],
-            "belt_in": 0.045,
-            "shoulder_z": [(2.825, 0.960), (2.60, 1.050), (2.20, 1.100), (1.50, 1.120),
-                           (0.0, 1.130), (-1.50, 1.140), (-2.70, 1.150), (-2.86, 1.140)],
-            "width": [(2.825, 0.860), (2.81, 0.905), (2.77, 0.945), (2.70, 0.975),
-                      (2.55, 0.998), (2.30, 1.008), (1.92, 1.012), (1.40, 1.008),
-                      (0.50, 1.004), (-0.50, 1.004), (-1.20, 1.008), (-1.68, 1.012),
-                      (-2.30, 1.010), (-2.70, 1.004), (-2.82, 0.990), (-2.86, 0.965)],
-            "low_z": 0.70,
-            "low_in": 0.02,
-            "sill_z": [(2.825, 0.520), (2.60, 0.460), (2.20, 0.440), (1.92, 0.440),
-                       (0.0, 0.430), (-1.68, 0.440), (-2.30, 0.500), (-2.86, 0.600)],
-            "sill_in": 0.05,
-            "floor_z": [(2.825, 0.500), (2.60, 0.400), (2.20, 0.320), (1.92, 0.285),
-                        (0.0, 0.275), (-1.68, 0.285), (-2.30, 0.470), (-2.86, 0.580)],
+            "top": [(2.905, 1.268), (2.885, 1.288), (2.85, 1.298), (2.70, 1.310), (2.40, 1.326),
+                    (2.00, 1.340), (1.60, 1.352), (1.35, 1.360), (1.20, 1.366), (1.12, 1.378),
+                    (1.05, 1.440), (0.95, 1.535), (0.85, 1.630), (0.75, 1.725), (0.66, 1.810),
+                    (0.60, 1.868), (0.55, 1.908), (0.50, 1.936), (0.42, 1.956), (0.25, 1.970),
+                    (-0.20, 1.978), (-0.70, 1.976), (-0.90, 1.968), (-0.96, 1.958),
+                    (-1.00, 1.936), (-1.025, 1.895), (-1.045, 1.820), (-1.06, 1.730),
+                    (-1.075, 1.620), (-1.09, 1.500), (-1.105, 1.418), (-1.12, 1.390),
+                    (-1.15, 1.384), (-2.00, 1.384), (-2.95, 1.384), (-2.995, 1.380)],
+            "rail_z": [(1.20, 1.366), (1.12, 1.376), (1.05, 1.432), (0.95, 1.522),
+                       (0.85, 1.614), (0.75, 1.704), (0.66, 1.784), (0.60, 1.836), (0.55, 1.870),
+                       (0.48, 1.892), (0.30, 1.906), (-0.30, 1.912), (-0.80, 1.908),
+                       (-0.93, 1.900), (-0.98, 1.884), (-1.01, 1.850), (-1.035, 1.790),
+                       (-1.055, 1.700), (-1.07, 1.600), (-1.085, 1.490), (-1.10, 1.410),
+                       (-1.12, 1.386)],
+            "rail_w": [(1.20, 0.955), (1.12, 0.950), (0.80, 0.935), (0.50, 0.922),
+                       (0.0, 0.918), (-0.70, 0.918), (-1.00, 0.922), (-1.10, 0.950),
+                       (-1.20, 0.975)],
+            "belt_z": [(2.905, 1.250), (2.88, 1.270), (2.80, 1.280), (2.40, 1.302),
+                       (2.00, 1.318), (1.60, 1.332), (1.20, 1.346), (0.60, 1.360),
+                       (0.00, 1.368), (-0.60, 1.374), (-1.10, 1.378), (-2.90, 1.380),
+                       (-2.995, 1.376)],
+            "belt_in": [(2.905, 0.012), (1.20, 0.014), (0.0, 0.022), (-1.10, 0.014),
+                        (-2.995, 0.010)],
+            "shoulder_z": [(2.905, 1.080), (2.70, 1.150), (2.30, 1.185), (1.50, 1.200),
+                           (0.0, 1.205), (-1.50, 1.210), (-2.80, 1.212), (-2.995, 1.205)],
+            "width": [(2.905, 0.940), (2.895, 0.972), (2.87, 0.992), (2.80, 1.004),
+                      (2.55, 1.010), (2.30, 1.012), (1.95, 1.014), (1.40, 1.010),
+                      (0.50, 1.006), (-0.50, 1.006), (-1.20, 1.008), (-1.66, 1.012),
+                      (-2.40, 1.010), (-2.85, 1.004), (-2.96, 0.994), (-2.995, 0.975)],
+            "low_z": 0.78,
+            "low_in": 0.012,
+            "sill_z": [(2.905, 0.440), (2.70, 0.450), (2.30, 0.450), (1.95, 0.445),
+                       (0.0, 0.435), (-1.66, 0.445), (-2.40, 0.500), (-2.995, 0.490)],
+            "sill_in": 0.045,
+            "floor_z": [(2.905, 0.420), (2.70, 0.380), (2.30, 0.330), (1.95, 0.290),
+                        (0.0, 0.280), (-1.66, 0.290), (-2.40, 0.460), (-2.995, 0.470)],
             "floor_in": 0.12,
         },
     })
@@ -2204,87 +2380,96 @@ def pickup_windows(s, sec):
 
     return [
         {"name": "windscreen", "centre": True, "rows": 16, "cols": 12,
-         "f": lambda j: (0.250, 1.030), "j": screen_j(0.065), "cut_shrink_j": 0.02},
+         "f": lambda j: (0.530, 1.090), "j": screen_j(0.065), "cut_shrink_j": 0.02},
         {"name": "front", "centre": False, "rows": 8, "cols": 14,
-         "f": lambda j: (-0.070, 1.000), "j": side_j, "cut_shrink_j": 0.035},
+         "f": lambda j: (-0.065, 1.075), "j": side_j, "cut_shrink_j": 0.035},
         {"name": "rear", "centre": False, "rows": 8, "cols": 12,
-         "f": lambda j: (-0.895, -0.165), "j": side_j, "cut_shrink_j": 0.035},
+         "f": lambda j: (-0.905, -0.165), "j": side_j, "cut_shrink_j": 0.035},
     ]
 
 
 def pickup_details(s, sec, surf, body, parts):
     wins = pickup_windows(s, sec)
     cut_windows(body, surf, wins)
-    # The bed: hollowed out of the loft, liner-black walls and floor from the cutter; and the gap
-    # between the cab and the bed, right through the body above the frame.
+    # The bed: hollowed out of the loft (1.71 m inside, rails 10 cm thick), liner-black walls
+    # and floor from the cutter; and the gap between the cab and the bed, right through the body
+    # above the frame.
     bed = bmesh.new()
-    add_box(bed, (1.812, 1.60, 1.6), (0.0, -2.0, 0.86 + 0.8), TRIM)
+    add_box(bed, (1.812, 1.71, 1.6), (0.0, -2.07, 0.86 + 0.8), TRIM)
     boolean(body, new_object("cut_bed", bed))
     gap = bmesh.new()
-    add_box(gap, (2.6, 0.024, 1.6), (0.0, -1.172, 0.66 + 0.8), TRIM)
+    add_box(gap, (2.6, 0.024, 1.6), (0.0, -1.130, 0.66 + 0.8), TRIM)
     boolean(body, new_object("cut_cabgap", gap))
     # The rear window: the cab back is near vertical, so a straight pocket through it.
-    rw = rounded_outline([(-0.62, 1.745), (0.62, 1.745), (0.65, 1.445), (-0.65, 1.445)], 0.05)
-    boolean(body, extrude_cutter(rw, "y", -1.40, -1.00, mat=TYRE))
-    rwg = poly_grid([(x * 0.67 / 6.0, 1.428) for x in range(-6, 7)],
-                    [(x * 0.64 / 6.0, 1.762) for x in range(-6, 7)], 4)
+    rw = rounded_outline([(-0.60, 1.855), (0.60, 1.855), (0.63, 1.505), (-0.63, 1.505)], 0.05)
+    boolean(body, extrude_cutter(rw, "y", -1.40, -0.995, mat=TYRE))
+    rwg = poly_grid([(x * 0.65 / 6.0, 1.488) for x in range(-6, 7)],
+                    [(x * 0.62 / 6.0, 1.872) for x in range(-6, 7)], 4)
     bmr = bmesh.new()
     applied(bmr, surf, "rear", rwg, -0.010, GLASS)
     for x in (-0.22, 0.22):
-        applied(bmr, surf, "rear", rect_grid(x - 0.012, x + 0.012, 1.445, 1.745, 3, 1), -0.006,
+        applied(bmr, surf, "rear", rect_grid(x - 0.012, x + 0.012, 1.505, 1.855, 3, 1), -0.006,
                 TRIM)
     parts.append(new_object("rear_window", bmr))
 
     bmc = bmesh.new()
     bmp = bmesh.new()
-    # Headlamps: at the top corners of the face, a C of LED round a projector.
-    lamp = blade_grid(0.60, 0.955, 1.050, 1.040, 0.105, 0.120, 3, 14)
-    for side in (1.0, -1.0):
-        g = lamp if side > 0 else mirror2(lamp)
-        res = hits_2d(surf, "front", g, 1.0)
-        if res:
-            pts, nrm = res
-            grid_solid(bmc, [p + n * 0.03 for p, n in zip(pts, nrm)],
-                       [p - n * 0.020 for p, n in zip(pts, nrm)], len(g), len(g[0]), TRIM)
-            oriented_grid(bmp, [p - n * 0.017 for p, n in zip(pts, nrm)], nrm, len(g), len(g[0]),
-                          GLASS)
-        for zc in (1.093, 1.000):
-            bar = blade_grid(0.61, 0.945, zc, zc, 0.011, 0.011, 1, 12)
-            applied(bmp, surf, "front", bar if side > 0 else mirror2(bar), -0.012, LIGHT_F)
-        vert = blade_grid(0.935, 0.948, 1.046, 1.046, 0.100, 0.100, 2, 1)
-        applied(bmp, surf, "front", vert if side > 0 else mirror2(vert), -0.012, LIGHT_F)
-        eye = rect_grid(0.70, 0.80, 1.022, 1.072, 1, 3)
-        applied(bmp, surf, "front", eye if side > 0 else mirror2(eye), -0.014, CHROME)
-        lens = rect_grid(0.715, 0.785, 1.030, 1.064, 1, 3)
-        applied(bmp, surf, "front", lens if side > 0 else mirror2(lens), -0.0125, LIGHT_F)
-    # The big grille between and below the lamps, with a satin frame round it.
-    mouth = rounded_outline([(-0.57, 1.100), (0.57, 1.100), (0.57, 0.660), (-0.57, 0.660)], 0.05)
-    boolean(body, extrude_cutter(mouth, "y", 2.74, 3.4))
-    eggcrate(bmp, -0.59, 0.59, 0.660, 1.100, 2.86, 2.78, 12, 4, thick=0.012)
-    for k in range(3):
-        z = 0.770 + 0.110 * k
-        add_box(bmp, (1.16, 0.035, 0.024), (0.0, 2.855, z), CHROME)
-    frame = [(0.60, 1.125), (0.60, 0.635), (-0.60, 0.635), (-0.60, 1.125), (0.60, 1.125)]
+    # The face: one big grille opening between the lamps and the bumper, the lamps set into its
+    # top corners, a heavy satin surround and a satin crossbar tying the lamps together.
+    mouth = rounded_outline([(-0.80, 1.222), (0.80, 1.222), (0.80, 0.655), (-0.80, 0.655)], 0.045)
+    boolean(body, extrude_cutter(mouth, "y", 2.80, 3.5))
+    eggcrate(bmp, -0.81, 0.81, 0.655, 1.222, 2.905, 2.845, 26, 9, thick=0.010)
+    # Two more satin slats across the lower grille.
+    for z in (0.760, 0.865):
+        add_box(bmp, (1.56, 0.03, 0.028), (0.0, 2.918, z), CHROME)
+    frame = [(0.835, 1.250), (0.835, 0.628), (-0.835, 0.628), (-0.835, 1.250), (0.835, 1.250)]
     fp = surface_path(surf, "front", frame, 1.0, step=0.03)
     if len(fp) > 4:
-        prof = [(-0.018, -0.004), (-0.012, 0.014), (0.012, 0.014), (0.018, -0.004)]
+        prof = [(-0.030, -0.004), (-0.022, 0.020), (0.022, 0.020), (0.030, -0.004)]
         sweep(bmp, [p for p, _n in fp], prof, CHROME, normals=[n for _p, n in fp])
-    # Front bumper: a satin blade right across, proud of the face.
-    bump = rect_grid(-0.93, 0.93, 0.43, 0.62, 3, 28)
-    applied(bmp, surf, "front", bump, 0.040, CHROME, thickness=0.06)
-    lowb = rect_grid(-0.80, 0.80, 0.34, 0.43, 1, 20)
-    applied(bmp, surf, "front", lowb, 0.020, TRIM, thickness=0.04)
+    bar = rect_grid(-0.51, 0.51, 0.975, 1.030, 1, 12)
+    applied(bmp, surf, "front", bar, 0.006, CHROME, thickness=0.07)
     for side in (1.0, -1.0):
-        fog = rect_grid(0.70, 0.82, 0.49, 0.54, 1, 3)
-        applied(bmp, surf, "front", fog if side > 0 else mirror2(fog), 0.042, LIGHT_F)
-    # Rear step bumper and the plate recess in it.
-    rb = rect_grid(-0.98, 0.98, 0.48, 0.70, 3, 28)
-    applied(bmp, surf, "rear", rb, 0.050, CHROME, thickness=0.07)
+        def sd(g, side=side):
+            return g if side > 0 else mirror2(g)
+        # The lamp: a gloss black block in the corner of the opening...
+        applied(bmp, surf, "front", sd(rect_grid(0.500, 0.800, 0.880, 1.215, 4, 6)), 0.004,
+                GLASS, thickness=0.07)
+        # ...an L of LED along its top and down its outer edge...
+        applied(bmp, surf, "front", sd(rect_grid(0.515, 0.785, 1.186, 1.202, 1, 8)), 0.010,
+                LIGHT_F)
+        applied(bmp, surf, "front", sd(rect_grid(0.769, 0.785, 0.900, 1.186, 5, 1)), 0.010,
+                LIGHT_F)
+        # ...two projector eyes, and an amber-less clear bar for the indicator.
+        for xc in (0.570, 0.665):
+            applied(bmp, surf, "front", sd(rect_grid(xc - 0.042, xc + 0.042, 1.060, 1.165, 2, 3)),
+                    0.008, CHROME)
+            applied(bmp, surf, "front", sd(rect_grid(xc - 0.031, xc + 0.031, 1.071, 1.154, 2, 3)),
+                    0.0095, LIGHT_F)
+        # The indicator and a second LED line below the eyes.
+        applied(bmp, surf, "front", sd(rect_grid(0.520, 0.750, 0.990, 1.008, 1, 6)), 0.009,
+                LIGHT_F)
+        applied(bmp, surf, "front", sd(rect_grid(0.520, 0.750, 0.905, 0.945, 1, 6)), 0.008,
+                CHROME)
+    # Bumper: a massive satin blade right across, proud of the face, a black valance under it.
+    wrap_band(bmp, surf, 1.0, 0.470, 0.645, 0.050, CHROME, reach=0.26, corner_r=0.14,
+              thickness=0.07)
+    wrap_band(bmp, surf, 1.0, 0.440, 0.470, 0.030, TRIM, reach=0.20, corner_r=0.14,
+              thickness=0.05, rows=1)
     for side in (1.0, -1.0):
-        flush_handle(bmc, bmp, surf, 0.30, 1.170, side, length=0.19, height=0.045)
-        flush_handle(bmc, bmp, surf, -0.60, 1.175, side, length=0.19, height=0.045)
+        fog = rect_grid(0.66, 0.80, 0.530, 0.580, 1, 3)
+        applied(bmp, surf, "front", fog if side > 0 else mirror2(fog), 0.052, LIGHT_F)
+        hook = rect_grid(0.40, 0.48, 0.448, 0.466, 1, 2)
+        applied(bmp, surf, "front", hook if side > 0 else mirror2(hook), 0.040, CHROME,
+                thickness=0.03)
+    # Rear step bumper.
+    wrap_band(bmp, surf, -1.0, 0.500, 0.710, 0.055, CHROME, reach=0.16, corner_r=0.10,
+              thickness=0.075)
+    for side in (1.0, -1.0):
+        flush_handle(bmc, bmp, surf, 0.33, 1.245, side, length=0.19, height=0.045)
+        flush_handle(bmc, bmp, surf, -0.56, 1.250, side, length=0.19, height=0.045)
     # Tailgate handle recess.
-    th = rect_grid(-0.13, 0.13, 1.20, 1.25, 1, 4)
+    th = rect_grid(-0.13, 0.13, 1.265, 1.315, 1, 4)
     res = hits_2d(surf, "rear", th, 1.0)
     if res:
         pts, nrm = res
@@ -2296,26 +2481,26 @@ def pickup_details(s, sec, surf, body, parts):
     paths = []
     fa, ra, R = s["front_axle"], s["rear_axle"], s["arch_r"]
     for side in (1.0, -1.0):
-        paths.append(surface_path(surf, "side", [(1.06, 1.27), (1.05, 1.00), (1.04, 0.75),
-                                                  (1.035, 0.50)], side))
-        paths.append(surface_path(surf, "side", [(-0.115, 1.30), (-0.115, 0.50)], side))
-        paths.append(surface_path(surf, "side", [(-1.00, 1.31), (-1.00, 0.50)], side))
-        paths.append(surface_path(surf, "side", [(1.035, 0.50), (-1.00, 0.50)], side))
-        paths.append(fj_path(surf, [(1.07, 5.40), (2.80, 5.40)], side))
-        paths.append(fj_path(surf, [(2.80, 5.40), (2.80, 7.0)], side))
+        paths.append(surface_path(surf, "side", [(1.080, 1.340), (1.070, 1.00), (1.062, 0.75),
+                                                  (1.058, 0.50)], side))
+        paths.append(surface_path(surf, "side", [(-0.115, 1.360), (-0.115, 0.50)], side))
+        paths.append(surface_path(surf, "side", [(-0.985, 1.370), (-0.985, 0.50)], side))
+        paths.append(surface_path(surf, "side", [(1.058, 0.50), (-0.985, 0.50)], side))
+        paths.append(fj_path(surf, [(1.14, 5.40), (2.875, 5.40)], side))
+        paths.append(fj_path(surf, [(2.875, 5.40), (2.875, 7.0)], side))
     # Tailgate outline on the back.
-    paths.append(surface_path(surf, "rear", [(0.86, 1.31), (0.86, 0.73), (0.0, 0.73),
-                                              (-0.86, 0.73), (-0.86, 1.31)], 1.0))
-    flap = circle_path(-1.45, 1.05, 0.080, 5.0, 352.0, 24)
+    paths.append(surface_path(surf, "rear", [(0.87, 1.372), (0.87, 0.74), (0.0, 0.74),
+                                              (-0.87, 0.74), (-0.87, 1.372)], 1.0))
+    flap = circle_path(-1.50, 1.12, 0.080, 5.0, 352.0, 24)
     paths.append(surface_path(surf, "side", flap, -1.0, step=0.015))
     cut_grooves(body, paths)
 
     parts.append(build_glass(surf, wins, 0.008))
     bmt = bmesh.new()
     for side in (1.0, -1.0):
-        fj_applied(bmt, surf, -0.165, -0.070, lambda f: sec.j_along(f, 5.0, 0.020),
-                   lambda f: sec.j_along(f, 6.0, 0.018, -1.0), 6, 3, 0.002, GLASS, side,
-                   thickness=0.006)
+        fj_applied(bmt, surf, -0.165, -0.065, lambda f: sec.j_along(f, 5.0, 0.020),
+                   lambda f: sec.j_along(f, 6.0, 0.018, -1.0), 12, 3, 0.004, GLASS, side,
+                   thickness=0.008)
         # Running board between the arches.
         rb_path = surface_path(surf, "side", [(fa - R - 0.10, 0.47), (ra + R + 0.10, 0.47)], side,
                                step=0.08)
@@ -2326,26 +2511,248 @@ def pickup_details(s, sec, surf, body, parts):
             for k in (1, len(rb_path) - 2):
                 p, n = rb_path[k]
                 add_box(bmt, (0.12, 0.06, 0.04), p + n * 0.05 + Vector((0, 0, -0.01)), TRIM)
-        # Bed rail caps.
-        fj_applied(bmt, surf, -2.80, -1.21, lambda f: sec.j_along(f, 5.0, -0.012),
-                   lambda f: sec.j_along(f, 5.0, 0.040), 1, 20, 0.004, TRIM, side, thickness=0.008)
+        # Bed rail caps over the whole (squared) rail top.
+        fj_applied(bmt, surf, -2.93, -1.22, lambda f: sec.j_along(f, 5.0, 0.004),
+                   lambda f: sec.j_along(f, 5.0, 0.092), 1, 24, 0.004, TRIM, side,
+                   thickness=0.008)
         # Vertical tail lamps on the bed's rear corners.
-        tl = rect_grid(0.835, 0.950, 0.93, 1.29, 4, 3)
+        tl = rect_grid(0.845, 0.955, 0.985, 1.345, 4, 3)
         applied(bmt, surf, "rear", tl if side > 0 else mirror2(tl), 0.004, LIGHT_R, thickness=0.008)
-        tls = rect_grid(0.865, 0.925, 0.945, 1.00, 1, 2)
+        tls = rect_grid(0.875, 0.925, 1.000, 1.055, 1, 2)
         applied(bmt, surf, "rear", tls if side > 0 else mirror2(tls), 0.0055, LIGHT_F)
-    fj_applied(bmt, surf, 1.030, 1.100, lambda f: sec.j_along(f, 5.0, 0.03), 7.0, 12, 3, 0.003,
+    fj_applied(bmt, surf, 1.090, 1.160, lambda f: sec.j_along(f, 5.0, 0.03), 7.0, 12, 3, 0.003,
                TRIM, 1.0, thickness=0.006, centre=True)
-    cladding(bmt, surf, s, width=0.095, height=0.022)
+    cladding(bmt, surf, s, width=0.100, height=0.024)
     bmesh.ops.remove_doubles(bmt, verts=bmt.verts, dist=1e-6)
     parts.append(new_object("trims", bmt))
     bmesh.ops.remove_doubles(bmp, verts=bmp.verts, dist=1e-6)
     parts.append(new_object("inserts", bmp))
     for side in (1.0, -1.0):
-        mirror(parts, surf, s, side, 0.93, 5.05, (1.12, 0.90, 1.40), (0.26, 0.10, 0.20))
+        mirror(parts, surf, s, side, 0.99, 5.05, (1.14, 0.96, 1.50), (0.26, 0.10, 0.22))
 
 
 SPECS["pickup"] = pickup
+
+
+# --- the high-roof delivery van -----------------------------------------------------------------------
+
+def van():
+    """A high-roof panel van: a short sloped bonnet, a steep windscreen that runs on up a raked
+    roof fairing into a flat roof, a tall box body with flat sides and tight roof edges (the
+    ninth section anchor, `roof_z` / `roof_w`, with the side's and the roof's tangents pinned),
+    a sliding door on the kerb side with its track, rear barn doors, glass only at the cab."""
+    s = {"name": "van", "length": 5.93, "height": 2.55}
+    # (5.70 m between the end stations; the rolled ends and the bumpers make it 5.94.)
+    s.update({
+        "nose": 2.965, "tail": -2.730,
+        "front_axle": 2.10, "rear_axle": -1.56, "axle_z": 0.360,
+        "wheel_r": 0.360, "wheel_w": 0.235, "wheel_x": 0.865,
+        "arch_r": 0.425, "arch_r_rear": 0.425, "arch_in": 0.60,
+        "road": -0.196, "belt_probe_z": 1.2,
+        "cowl": 2.28, "deck": -2.730, "gh_blend_front": 0.12, "gh_blend_rear": 0.02,
+        "crown_at": 0.60, "tension": 1.0, "under_j": 1.0,
+        "rings": [0.0, 1.0, 1.6, 2.1, 2.85, 3.4, 3.92, 4.0, 4.08, 4.6, 5.0, 5.5, 6.0, 6.25,
+                  6.5, 6.75, 7.0],
+        "end_steps": [0.0, 0.012, 0.03, 0.06, 0.10, 0.16, 0.24],
+        "mid_step": 0.52,
+        "extra_stations": [2.40, 2.34, 2.28, 2.22, 2.00, 1.80, 1.74, 1.68, 1.55, 1.42, 1.34,
+                           1.26],
+        "creases": [(4.0, 0.5, -3.0, 3.0), (5.0, 0.45, -2.72, 2.20)],
+        "station_creases": [(2.28, 0.5, 5.2, 7.0), (1.74, 0.45, 6.0, 7.0)],
+        "tangent_over": {6: (-0.06, 1.0), 7: (-1.0, 0.0)},
+        "nose_cap": {"steps": 3, "roll": lambda j: 0.050, "dome": 0.030,
+                     "lean": lambda co: 0.025 * ramp(co.z, 0.90, 0.55)},
+        "tail_cap": {"steps": 3, "roll": lambda j: 0.055, "dome": 0.010},
+        "sculpt": [
+            (3.0, -3.0, 0.0, 3.97, 4.03, 0.10, 0.004),
+        ],
+        "profile": {
+            "top": [(2.965, 0.955), (2.94, 0.975), (2.88, 0.995), (2.75, 1.030), (2.60, 1.075),
+                    (2.45, 1.130), (2.34, 1.180), (2.28, 1.215), (2.20, 1.343), (2.10, 1.503),
+                    (2.00, 1.663), (1.90, 1.823), (1.82, 1.951), (1.76, 2.045), (1.72, 2.098),
+                    (1.66, 2.160), (1.58, 2.240), (1.50, 2.320), (1.42, 2.400), (1.36, 2.470),
+                    (1.30, 2.520), (1.22, 2.545), (1.00, 2.552), (-2.665, 2.552),
+                    (-2.730, 2.540)],
+            "rail_z": [(2.36, 1.18), (2.28, 1.205), (2.20, 1.328), (2.10, 1.488), (2.00, 1.648),
+                       (1.90, 1.808), (1.80, 1.965), (1.74, 2.050), (1.70, 2.095),
+                       (1.62, 2.170), (1.55, 2.240), (1.48, 2.300), (1.40, 2.360),
+                       (1.32, 2.398), (1.22, 2.415), (-2.665, 2.415), (-2.730, 2.405)],
+            "rail_w": [(2.36, 0.955), (2.28, 0.950), (2.00, 0.935), (1.74, 0.925),
+                       (1.60, 0.945), (1.40, 0.965), (1.00, 0.972), (-2.665, 0.972),
+                       (-2.730, 0.955)],
+            "roof_z": [(2.36, 1.190), (2.28, 1.212), (2.20, 1.337), (2.00, 1.657),
+                       (1.80, 1.978), (1.74, 2.060), (1.66, 2.150), (1.55, 2.265),
+                       (1.45, 2.380), (1.36, 2.465), (1.28, 2.518), (1.18, 2.538),
+                       (1.00, 2.541), (-2.665, 2.541), (-2.730, 2.529)],
+            "roof_w": [(2.36, 0.62), (2.00, 0.62), (1.74, 0.64), (1.60, 0.80), (1.45, 0.86),
+                       (1.30, 0.885), (-2.665, 0.885), (-2.730, 0.870)],
+            "over_w": [(2.965, 0.0), (1.82, 0.0), (1.58, 1.0), (-2.730, 1.0)],
+            "belt_z": [(2.965, 0.930), (2.85, 0.985), (2.60, 1.070), (2.40, 1.150),
+                       (2.28, 1.195), (2.00, 1.230), (1.30, 1.255), (0.00, 1.265),
+                       (-2.665, 1.270), (-2.730, 1.262)],
+            "belt_in": 0.020,
+            "shoulder_z": [(2.965, 0.780), (2.70, 0.900), (2.30, 0.980), (1.80, 1.020),
+                           (-2.730, 1.040)],
+            "width": [(2.965, 0.905), (2.95, 0.950), (2.91, 0.985), (2.82, 1.002),
+                      (2.60, 1.010), (2.10, 1.015), (-2.565, 1.015), (-2.665, 1.008),
+                      (-2.710, 0.990), (-2.730, 0.955)],
+            "low_z": 0.70,
+            "low_in": 0.012,
+            "sill_z": [(2.965, 0.350), (2.75, 0.400), (2.10, 0.415), (0.00, 0.400),
+                       (-1.56, 0.410), (-2.40, 0.430), (-2.730, 0.360)],
+            "sill_in": 0.045,
+            "floor_z": [(2.965, 0.330), (2.60, 0.320), (2.10, 0.285), (0.00, 0.275),
+                        (-1.56, 0.285), (-2.40, 0.330), (-2.730, 0.340)],
+            "floor_in": 0.12,
+        },
+    })
+    s["details"] = van_details
+    return s
+
+
+def van_windows(s, sec):
+    belt_gap = 0.024
+
+    def side_j(f):
+        lo = sec.j_along(f, 5.0, belt_gap)
+        # The cab's side glass stops at 2.02 m: above it is the high roof's panel.
+        hi = min(sec.j_at_z(f, 2.02), sec.j_along(f, 6.0, 0.022, -1.0))
+        if hi < lo:
+            lo = hi = (lo + hi) * 0.5
+        return lo, hi
+
+    def screen_j(pillar):
+        return lambda f: (sec.j_along(f, 6.0, pillar), 7.0)
+
+    return [
+        {"name": "windscreen", "centre": True, "rows": 16, "cols": 12,
+         "f": lambda j: (1.765, 2.262), "j": screen_j(0.060), "cut_shrink_j": 0.02},
+        {"name": "cab", "centre": False, "rows": 8, "cols": 12,
+         "f": lambda j: (1.300, 2.240), "j": side_j, "cut_shrink_j": 0.035},
+    ]
+
+
+def van_details(s, sec, surf, body, parts):
+    wins = van_windows(s, sec)
+    cut_windows(body, surf, wins)
+    fa, ra, R = s["front_axle"], s["rear_axle"], s["arch_r"]
+
+    bmc = bmesh.new()
+    bmp = bmesh.new()
+    # Headlamps: swept-up blades flanking the grille under the bonnet's edge.
+    lamp = blade_grid(0.52, 0.905, 0.858, 0.890, 0.085, 0.115, 3, 16)
+    for side in (1.0, -1.0):
+        g = lamp if side > 0 else mirror2(lamp)
+        res = hits_2d(surf, "front", g, 1.0)
+        if res:
+            pts, nrm = res
+            grid_solid(bmc, [p + n * 0.03 for p, n in zip(pts, nrm)],
+                       [p - n * 0.020 for p, n in zip(pts, nrm)], len(g), len(g[0]), TRIM)
+            oriented_grid(bmp, [p - n * 0.017 for p, n in zip(pts, nrm)], nrm, len(g), len(g[0]),
+                          GLASS)
+        drl = blade_grid(0.535, 0.890, 0.884, 0.928, 0.011, 0.013, 1, 16)
+        applied(bmp, surf, "front", drl if side > 0 else mirror2(drl), -0.012, LIGHT_F)
+        for xc in (0.62, 0.72):
+            eye = rect_grid(xc - 0.034, xc + 0.034, 0.838, 0.872, 1, 3)
+            applied(bmp, surf, "front", eye if side > 0 else mirror2(eye), -0.014, CHROME)
+            lens = rect_grid(xc - 0.024, xc + 0.024, 0.844, 0.866, 1, 3)
+            applied(bmp, surf, "front", lens if side > 0 else mirror2(lens), -0.0125, LIGHT_F)
+    # Grille: a wide mouth between the lamps, egg-crate in it, a satin bar across its top.
+    mouth = rounded_outline([(-0.50, 0.905), (0.50, 0.905), (0.56, 0.600), (-0.56, 0.600)], 0.045)
+    boolean(body, extrude_cutter(mouth, "y", 2.84, 3.4))
+    eggcrate(bmp, -0.58, 0.58, 0.600, 0.905, 2.955, 2.895, 26, 6, thick=0.008)
+    bar = rect_grid(-0.50, 0.50, 0.870, 0.895, 1, 12)
+    applied(bmp, surf, "front", bar, 0.004, CHROME, thickness=0.05)
+    # Black bumper right across, fogs and a satin skid strip in it.
+    wrap_band(bmp, surf, 1.0, 0.365, 0.600, 0.045, TRIM, reach=0.30, corner_r=0.20,
+              thickness=0.06)
+    skid = rect_grid(-0.40, 0.40, 0.385, 0.405, 1, 10)
+    applied(bmp, surf, "front", skid, 0.048, CHROME, thickness=0.01)
+    for side in (1.0, -1.0):
+        fog = rect_grid(0.72, 0.86, 0.430, 0.475, 1, 3)
+        applied(bmp, surf, "front", fog if side > 0 else mirror2(fog), 0.047, LIGHT_F)
+    # Rear: black bumper with a step, the plate recess on the left door, handles, hinges.
+    wrap_band(bmp, surf, -1.0, 0.380, 0.600, 0.050, TRIM, reach=0.24, corner_r=0.12,
+              thickness=0.065)
+    step = rect_grid(-0.36, 0.36, 0.585, 0.600, 1, 8)
+    applied(bmp, surf, "rear", step, 0.052, CHROME, thickness=0.01)
+    plate = rect_grid(-0.52, -0.22, 0.800, 0.950, 2, 6)
+    res = hits_2d(surf, "rear", plate, 1.0)
+    if res:
+        pts, nrm = res
+        grid_solid(bmc, [p + n * 0.02 for p, n in zip(pts, nrm)],
+                   [p - n * 0.010 for p, n in zip(pts, nrm)], 3, 7, TRIM)
+    for x0, x1 in ((0.05, 0.17), (-0.17, -0.05)):
+        applied(bmp, surf, "rear", rect_grid(x0, x1, 1.285, 1.320, 1, 3), 0.006, TRIM,
+                thickness=0.012)
+    for side in (1.0, -1.0):
+        for zc in (0.95, 1.95):
+            applied(bmp, surf, "rear", rect_grid(side * 0.735, side * 0.765, zc - 0.05, zc + 0.05,
+                                                 1, 1), 0.010, TRIM, thickness=0.02)
+    for side in (1.0, -1.0):
+        flush_handle(bmc, bmp, surf, 1.44, 1.10, side, length=0.16, height=0.040, mat=TRIM)
+    flush_handle(bmc, bmp, surf, 1.06, 1.08, 1.0, length=0.16, height=0.040, mat=TRIM)
+    tidy(bmc)
+    boolean(body, new_object("cut_pockets", bmc))
+
+    paths = []
+    for side in (1.0, -1.0):
+        # The cab door: down the front edge and round the arch, along the sill, up the B-pillar,
+        # and along the top of its frame to the A-pillar.
+        arc = circle_path(fa, s["axle_z"], R + 0.050, 84.0, 172.0, 12)
+        front = [(2.225, 1.205), (2.17, 0.95)] + arc + [(1.27, 0.42)]
+        paths.append(surface_path(surf, "side", front, side))
+        paths.append(surface_path(surf, "side", [(1.27, 0.42), (1.27, 2.065)], side))
+        paths.append(surface_path(surf, "side", [(1.27, 2.065), (1.705, 2.065)], side))
+        # Bonnet sides and front edge.
+        paths.append(fj_path(surf, [(2.30, 5.40), (2.935, 5.40)], side))
+        paths.append(fj_path(surf, [(2.935, 5.40), (2.935, 7.0)], side))
+    # The sliding door on the kerb side (+x).
+    paths.append(surface_path(surf, "side", [(1.18, 0.42), (1.18, 2.10), (-0.32, 2.10),
+                                              (-0.32, 0.42), (1.18, 0.42)], 1.0))
+    # The barn doors: their outline and the split down the middle.
+    paths.append(surface_path(surf, "rear", [(0.775, 0.605), (0.775, 2.300), (-0.775, 2.300),
+                                              (-0.775, 0.605)], 1.0))
+    paths.append(surface_path(surf, "rear", [(0.0, 0.605), (0.0, 2.300)], 1.0))
+    flap = circle_path(1.08, 1.02, 0.070, 5.0, 352.0, 24)
+    paths.append(surface_path(surf, "side", flap, -1.0, step=0.015))
+    cut_grooves(body, paths)
+
+    parts.append(build_glass(surf, wins, 0.008))
+    bmt = bmesh.new()
+    for side in (1.0, -1.0):
+        # Rubbing strip along the lower flanks, in black plastic.
+        for f0, f1 in ((fa - R - 0.05, ra + R + 0.05), (ra - R - 0.05, -2.68)):
+            strip = surface_path(surf, "side", [(f0, 0.690), (f1, 0.690)], side, step=0.10)
+            if len(strip) > 2:
+                prof = [(-0.055, -0.004), (-0.045, 0.010), (0.045, 0.010), (0.055, -0.004)]
+                sweep(bmt, [p for p, _n in strip], prof, TRIM, normals=[n for _p, n in strip])
+        # Tail lamps: tall pillars in the rear corners, a clear reverse segment in each.
+        tl = rect_grid(0.800, 0.895, 0.660, 1.460, 6, 3)
+        applied(bmt, surf, "rear", tl if side > 0 else mirror2(tl), 0.004, LIGHT_R, thickness=0.008)
+        rev = rect_grid(0.815, 0.880, 0.900, 0.990, 1, 2)
+        applied(bmt, surf, "rear", rev if side > 0 else mirror2(rev), 0.0055, LIGHT_F)
+    # The sliding door's track along the kerb-side rear quarter.
+    track = surface_path(surf, "side", [(-0.30, 1.300), (-1.12, 1.300)], 1.0, step=0.08)
+    if len(track) > 2:
+        prof = [(-0.010, -0.004), (-0.010, 0.012), (0.010, 0.012), (0.010, -0.004)]
+        sweep(bmt, [p for p, _n in track], prof, TRIM, normals=[n for _p, n in track])
+    # High-level brake lamp over the barn doors, and the cowl panel.
+    applied(bmt, surf, "rear", rect_grid(-0.16, 0.16, 2.420, 2.460, 1, 6), 0.004, LIGHT_R,
+            thickness=0.008)
+    fj_applied(bmt, surf, 2.245, 2.325, lambda f: sec.j_along(f, 5.0, 0.03), 7.0, 12, 3, 0.003,
+               TRIM, 1.0, thickness=0.006, centre=True)
+    cladding(bmt, surf, s, width=0.080, height=0.018)
+    bmesh.ops.remove_doubles(bmt, verts=bmt.verts, dist=1e-6)
+    parts.append(new_object("trims", bmt))
+    bmesh.ops.remove_doubles(bmp, verts=bmp.verts, dist=1e-6)
+    parts.append(new_object("inserts", bmp))
+    for side in (1.0, -1.0):
+        mirror(parts, surf, s, side, 2.20, 5.10, (1.19, 2.21, 1.56), (0.20, 0.10, 0.32),
+               head_mat=TRIM)
+
+
+SPECS["van"] = van
 
 
 def main():
@@ -2357,14 +2764,16 @@ def main():
     for name in names:
         spec = SPECS[name]()
         ob = build(spec, detail)
-        report(ob, spec)
         path = os.path.join(OUT_DIR, "road_%s.glb" % name)
+        far = build_far(ob, spec)
+        far.data.calc_loop_triangles()
+        report(ob, spec, far)
+        print("   far twin: %d triangles" % len(far.data.loop_triangles))
         if "--noexport" not in argv:
-            far = build_far(ob, spec)
-            far.data.calc_loop_triangles()
-            print("   far twin: %d triangles" % len(far.data.loop_triangles))
             export([ob, far], path)
             print("wrote", path)
+        # Out of the scene before any preview: it sits exactly over the full model.
+        bpy.data.objects.remove(far, do_unlink=True)
         if do_render:
             views = default_views(spec)
             if only_views:

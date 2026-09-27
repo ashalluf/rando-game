@@ -59,7 +59,7 @@ free plan: CC BY 4.0). Each `.json` next to a model records its prompt, Meshy ta
 |---|---|---|---|---|
 | Sedan | `assets/models/car_sedan.glb` | 30 (+15 for a first low-poly take) | nothing since 2026-09-27 (replaced by `road_sedan.glb`) | 2026-09-19 |
 | Pickup | `assets/models/car_pickup.glb` | 30 (+15) | nothing since 2026-09-27 (replaced by `road_pickup.glb`) | 2026-09-19 |
-| Van | `assets/models/car_van.glb` | 30 (+15) | `Vehicle` body, VAN | 2026-09-19 |
+| Van | `assets/models/car_van.glb` | 30 (+15) | nothing since 2026-09-27 (replaced by `road_van.glb`) | 2026-09-19 |
 | Sports | `assets/models/car_sports.glb` | 30 (+15) | `Vehicle` body, SPORTS | 2026-09-19 |
 | Pedestrian A (man, t-shirt) | `assets/models/pedestrian_a.glb`, `pedestrian_a_anim.glb` (rigged: Idle, Casual_Walk_inplace, run_fast_3_inplace) | 44 (+29) | `Pedestrian` | 2026-09-19 |
 | Pedestrian B (woman, hoodie) | `pedestrian_b.glb`, `pedestrian_b_anim.glb` (same clips) | 44 (+29) | **unused** | 2026-09-19 |
@@ -193,7 +193,8 @@ class instead.
 | `tools/make_hifi_hyper.py` | `hifi_hyper_coupe.glb` | 217k tris, 5.7 MB | not wired in yet | 2026-09-21 |
 | `tools/make_road_cars.py` | `road_sedan.glb` | 53k tris + 8k far twin | `BodyType.SEDAN` (and the police cruiser) | 2026-09-27 |
 | `tools/make_road_cars.py` | `road_crossover.glb` | 50k tris + 8k far twin | `BodyType.CROSSOVER` | 2026-09-27 |
-| `tools/make_road_cars.py` | `road_pickup.glb` | 51k tris + 8k far twin | `BodyType.PICKUP` | 2026-09-27 |
+| `tools/make_road_cars.py` | `road_pickup.glb` | 56k tris + 8k far twin (reworked the same day: tall square cab, high flat bonnet, 1.71 m bed) | `BodyType.PICKUP` | 2026-09-27 |
+| `tools/make_road_cars.py` | `road_van.glb` | 51k tris + 8k far twin | `BodyType.VAN` (and the police tactical van) | 2026-09-27 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position
@@ -210,7 +211,8 @@ called it "wheels bolted onto the outside of a slab". Anything new should follow
 method.
 
 The `road_*` bodies (2026-09-27) are the everyday cars: original generic 2020s designs (a
-midsize fastback sedan, a compact crossover, a crew-cab full-size pickup), no source asset at
+midsize fastback sedan, a compact crossover, a crew-cab full-size pickup, a high-roof panel van),
+no source asset at
 all - Blender 4.2 run headless on our own script (`tools/road_cars_setup.sh` fetches it). They
 are the `hifi_*` idea with the shape driven by profile curves (side view, plan view, section
 insets) instead of a key table, the arches, windows, pockets and panel gaps cut after

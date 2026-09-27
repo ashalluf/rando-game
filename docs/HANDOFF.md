@@ -38,6 +38,42 @@ Tools added: `tools/terrain_preview/` (mountains top-down in seconds), still_sho
 Cloud sessions cannot be messaged back; read their state with get_session and their shots
 branches. Pushes were blocked by the auto-mode safety check until the owner said to push.
 
+## 000d. Pickup reworked, van rebuilt (2026-09-27, branch `wt/cars-aaa`, after the 000c merge)
+
+The lead's follow-up to 000c. Both in `tools/make_road_cars.py` (`-- pickup van`).
+- **Pickup proportions.** The merged pickup read as a low rounded sedan greenhouse on a long body
+  with a flat box for a face. Now: roof 1.98 m, belt 1.38 m, a near-vertical cab back and a
+  square roof edge; a flat bonnet 1.30 m high at the front, its edge and the bed rails creased
+  into ONE horizontal line with the belt; an upright face with the lamps set into the top
+  corners of a big grille surround, a satin crossbar and slats; wrap-round chrome bumpers; a
+  1.71 m bed with squared rails. 5.9 m between the end stations (6.08 m over the bumpers).
+- **Why the first cab looked like a sedan's**: `station_list()` let every extra station clear
+  its neighbours within 0.3 of the mid step, so of a cluster of stations placed round the cab
+  back only the LAST survived and subdivision rolled the corner off over 0.3 m. Fixed (extras
+  never clear each other); the sedan and the crossover are unchanged by it (same triangles),
+  their extras were far apart. Corners in the side profile now get holding stations and
+  `station_creases`.
+- **road_van** (5.94 m, 2.03 m, 2.55 m) replaces `car_van` (the last Meshy road body; its grille
+  also carried a badge-like shape). A ninth section anchor (the flat roof's edge) with pinned
+  tangents gives flat sides and a tight roof edge; short sloped bonnet, steep screen running on
+  up a raked roof fairing, sliding door + track on the kerb side (+x), barn doors with hinges,
+  tall corner tail lamps, black wrap-round bumpers and rubbing strips, glass only at the cab
+  (a real glass slot, so `GEO_GLASS_BELTLINE` / `GEO_GLASS_SPAN` are empty now). `BodyType.VAN`
+  keeps its slot and odds; its physics wheels sit under its own axles (`wheel_front` /
+  `wheel_rear`, 3.66 m wheelbase), and the police tactical van's light bar moved from
+  `-length * 0.28` (over the new screen, where it floated - it floated on the Meshy van too) to
+  `-length * 0.17`, on the flat roof.
+- **`road` vs `ride`** in `Vehicle._dims()`: `road` is the measured wheel contact (what traffic
+  stands cars on), `ride` the model's bottom = road + the far twin's 2 cm tyre gap. With the two
+  equal (000c) every road_* body sat 2 cm low against its generated wheels.
+- **Silent part drops**: end-view parts whose rays missed (the first pickup's bumpers and valance
+  never existed; the van's tail lamps smeared a red streak down the flank) are now dropped AND
+  logged; bumpers are `wrap_band()`.
+- Numbers: pickup 55.8k triangles, van 51.1k, each + a 7.9k far twin. geo_count at the avenue
+  (`--spawn=2359.4,880,0,12,2`, opengl3 800x600, `AB=BodyModel`): 3.92 M tris / 4,167 draws on
+  the merge (fe72497) -> 3.87 M / 4,178; the car bodies' own share 266k / 219 -> 213k / 230.
+  505 checks pass.
+
 ## 000c. Everyday car bodies (2026-09-27, branch `wt/cars-aaa`, VISUAL_ROADMAP #22)
 
 The owner wants "AAA studio PS5 quality"; the Meshy sedan / pickup were crumpled remeshes and the
