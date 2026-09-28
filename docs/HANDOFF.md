@@ -3776,10 +3776,31 @@ opt out (`Aircraft.can_take_damage()`), the scripted air traffic keeps its own.
   (6-9 s; `quick_fuse` 0.9-1.7 s after a hit of `quick_fuse_damage`), then `explode()`: the
   driver is put out, `Explosion.blast(..., exclude = the car)` under `Police.innocent =
   blame_police` (the last hit's), a police car reported as `police_car` when it is the player's,
-  the wreck tossed up to `toss_speed` (not on top of a rocket's throw). Flames are
-  `shaders/car_fire.gdshader`: each particle a procedural tongue of flame on an upright quad,
-  animated by scrolling noise - the blast's fireball puffs read as popcorn over a bonnet. An
-  OmniLight flickers under it on desktop, the synthesised `fire_loop` plays (no CC0 take yet).
+  the wreck tossed up to `toss_speed` (not on top of a rocket's throw). An OmniLight flickers
+  under it on desktop (a random walk plus a shimmer, `fire_light_energy`), the synthesised
+  `fire_loop` plays (no CC0 take yet).
+- **The fire's look** (second pass, the lead: the first flames read as cartoon candle tongues):
+  the explosion's `fire_puff.gdshader` (density = heat) on the car's own material
+  (`CarDamage.fire_material()`: `core_heat` 1.4, `soft_distance` 0.35 - at the blast's 2.6 m
+  the bonnet under the fire faded every flame out), in four systems while it burns: a billowing
+  body out of the engine bay (emitted just under the skin, so it rolls out of the shut lines),
+  tall-quad tongues off the bonnet's edges and up the windscreen (`EMISSION_SHAPE_DIRECTED_POINTS`
+  along `_lick_lines()`), embers, and - after `spread_share` of the burn, or at once on the
+  wreck - flames out of the cabin's empty frames, up the windscreen and over the roof
+  (`_cabin_lines()`, from the panes; the side glass pops when it spreads), with the cabin glowing
+  through the frames. The grey wisps give way at ignition to the fire's own smoke: black, opaque
+  where it leaves the flames, its first moments glowing the fire's colour (what shows of the
+  column at night), drawn behind the fire. A one-shot whoomph of flame as it catches.
+  **Colour, measured**: an unshaded colour chart through car_shot's AgX showed a red-heavy colour
+  (green under ~0.35 of red) going salmon pink once brighter than ~1 - the pink the first flames
+  had at night - while green at half of red goes cream-yellow bright and deep orange dim. The
+  shader multiplies one ramp colour by the density, so a puff's core and edge share that ratio:
+  the ramp holds green / red at ~0.5 while it is bright and only drops toward red as it dims.
+  Web: the plain puff material, half the particles, no light. Cost (`GEO=1`, one sedan, opengl3):
+  whole 40 draws; burning 44 (bay flames, tongues, embers, smoke); a blaze 52 while the popped
+  side glass is still in the air (the cabin's flames are one more draw, the cube bursts the
+  rest, gone in two seconds); the burning wreck 40. `max_burning` (6) caps the fires at once.
+  Stills: `cardmg_fire_*` before/after in the screens folder of the session.
 - **Wreck**: burnt = 1, every pane gone, lamps out, trim / tyre / chrome and the far twin's
   parts on shared charred materials, the physics wheels at 0.7 of their radius and the visible
   ones scaled to rims in a charred metal (the car sits down on them), burning for

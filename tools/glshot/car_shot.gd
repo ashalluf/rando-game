@@ -21,7 +21,8 @@ extends SceneTree
 ## `WAIT=n` physics frames after that (default 30; the burning and wreck stages pre-warm their
 ## smoke and fire), and the views `door` (the shot-up door and wing up close), `glass` (the side
 ## windows), `screen` (the windscreen) and `cabin` (into an empty frame) frame it. `GEO=1` prints
-## each view's draws, objects and triangles (a damaged car's cost against a whole one).
+## each view's draws, objects and triangles (a damaged car's cost against a whole one); `HIDE=`
+## names of the car's nodes to hide (EngineFire, FireLicks, CabinFire, FireEmbers, FireSmoke).
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
 ## autoloads exist (CLAUDE.md).
 
@@ -188,6 +189,14 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		var wait := OS.get_environment("WAIT")
 		for i in (wait.to_int() if wait != "" else 30):
 			await physics_frame
+		# HIDE=EngineFire,FireLicks,... hides those nodes of the car (to tell the fire's systems apart).
+		var hide := OS.get_environment("HIDE")
+		if hide != "":
+			for car in cars:
+				for n in hide.split(","):
+					var node := car.find_child(n, true, false) as Node3D
+					if node:
+						node.visible = false
 		for car in cars:
 			var dmg: Object = car.call("damage_state")
 			print("DAMAGE type %d: health %.0f state %d holes %d panes %s lamps %d" % [int(car.get("body_type")),
