@@ -198,13 +198,15 @@ func _initialize() -> void:
 			elapsed += get_root().get_process_delta_time()
 			_pose(player, anchor, hold, boost, fov)
 	# BOOST=fly: really boost along the camera for FLY_TIME seconds of game time (default 1.2),
-	# the clock slowed to FLY_SCALE (default 0.02, about one physics tick a software frame) so the
-	# trail is laid down at the rate a real frame rate lays it, then shoot from behind as usual.
+	# the clock slowed to FLY_SCALE so the trail is laid down at the rate a real frame rate lays
+	# it, then shoot from behind as usual. Godot caps a frame at eight physics ticks however long
+	# it really takes, so the default 0.125 is one tick a (slow) software frame; 0.02 was a sixth
+	# of a tick and a flight took twenty minutes.
 	if OS.get_environment("BOOST") == "fly" and player:
 		_flying = true
 		player.set("velocity", Vector3.ZERO)
 		Input.action_press("boost")
-		Engine.time_scale = _env_float("FLY_SCALE", 0.02)
+		Engine.time_scale = _env_float("FLY_SCALE", 0.125)
 		var flown := 0.0
 		var fly_time := _env_float("FLY_TIME", 1.2)
 		var fly_frames := 0

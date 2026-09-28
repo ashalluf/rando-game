@@ -47,8 +47,9 @@ func _initialize() -> void:
 	elif mode == "wheel":
 		Input.action_press("weapon_wheel")
 	elif mode == "boost":
-		# The real boost (BoostTrail and all), the clock slowed to BOOST_SCALE so a software frame
-		# is about one physics tick, flown for BOOST_TIME seconds of game time before the shot.
+		# The real boost (BoostTrail and all), the clock slowed to BOOST_SCALE (default 0.02: the
+		# room renders fast; in a slow scene 0.125 is a tick a frame, since Godot caps a frame at
+		# eight ticks), flown for BOOST_TIME seconds of game time before the shot.
 		player.global_position.y += float(_env("START_Y", "0"))
 		Input.action_press("boost")
 		Engine.time_scale = float(_env("BOOST_SCALE", "0.02"))
