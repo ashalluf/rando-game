@@ -4068,7 +4068,8 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
 - **Glass you see into.** Every body with a glass slot (the four road_* bodies and the four
   exotics; the Meshy sports car has its glass in the paint and stays as it was) wears
   `shaders/car_glass.gdshader` on it - ONE material per body type (`CarCabin.glass_material()`,
-  from `Vehicle._add_cabin_glass()` after the wheel tuck), shared by every car of it. Still
+  from `Vehicle._add_cabin_glass()` after the wheel tuck), shared by every car of it with nobody
+  inside (occupied cars wear a copy, below). Still
   opaque: the model's own glass colour, roughness and metal, so the renderer's reflection is what
   it was, and the cabin behind the pane emitted over it, dimmed by Fresnel (the reflected share
   is the renderer's), the pane's tint and `through_light`. Tints (`pane_n.w`, CarCabin
@@ -4094,10 +4095,18 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   because the bodies' cabins are about 10 cm lower than a real car's and a real-sized person
   put his head through the roof. Skin, tops (weighted like a street: mostly dark and neutral),
   hair, trouser colours, sleeves and build all rolled per car.
-- **Who sits where, with no material per car.** Four `instance uniform`s on the body mesh
-  (`occupant_top` / `_skin` / `_hair` / `_mate`, `instance_index` 0-3, the same in both shaders,
-  so they carry onto the damage glass when CarDamage swaps it in), set by `CarCabin.seat()` from
-  `Vehicle._update_occupant()`: seats in `occupant_top.a` (bit 0 driver, bit 1 front passenger).
+- **Who sits where.** Four uniforms (`occupant_top` / `_skin` / `_hair` / `_mate`; seats in
+  `occupant_top.a`, bit 0 driver, bit 1 front passenger) set by `CarCabin.seat()` from
+  `Vehicle._update_occupant()`: a car nobody is in stays on the body's shared glass, an occupied
+  car gets its own copy (`_glass_own`, made once, kept through the pool), a damaged car's go on
+  CarDamage's glass (forced when it swaps in, and after `repair()`). **This was first built with
+  `instance uniform`s** (one material for every car, as asked) and the downtown still logged 267
+  "Too many instances using shader instance variables" errors: each instance using them takes a
+  16-item block of the global shader buffer, which the Compatibility renderer caps at 4096 items
+  (WebGL2 only guarantees a quarter of that), and ~300 cars plus their shadow twins did not fit.
+  Forward+ (65,536 items) would have held it, the web would not. A per-car copy costs a
+  ShaderMaterial (~1 KB of uniforms) per occupied car and nothing per draw - every car already
+  binds its own paint material.
   A car given `traffic` (the setter) gets a driver, re-rolled each time it leaves the pool, with
   a passenger in 22 % (`PASSENGER_SHARE`); he stays when a hit knocks the car out of traffic and
   is gone once it catches fire (`_abandoned()`); the player at the wheel is the player (the
@@ -4125,7 +4134,10 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   glass slot) - 70 m for the exotics, which have no twin. Past `cabin_detail` (12 m) the small
   parts leave the trace. Under llvmpipe the close-up views ran 1.3-1.8x slower, but that box's
   timings swung by 50 % between identical runs with four agents on it; read it on the Mac.
-CITYCOST
+  Downtown bookmark (`still_shot.gd --spawn=2359.4,880,0,12,2 --hour=12 --weather=clear --nohud
+  --quality=0`, 1280x720, opengl3, `SPLIT=1`), `CAR_GLASS=0` against on: identical - GEO
+  6,944,352 triangles / 3,526 draws / 3,559 objects both, the Vehicle category 441,873 triangles
+  (6.4 %) / 271 draws (shadow 152,236) both. Memory: one ShaderMaterial per occupied car.
 - **Tools.** `tools/glshot/car_shot.gd`: `OCCUPANT=npc[:seed]|pair[:seed]|player|none`, views
   `driver`, `inside`, `street`, `chase`, `CABIN_DEBUG=1` (a flat colour per body part - how the
   figure's layout was fixed), `CAR_GLASS=0` (also on `still_shot.gd`: the model's own opaque glass,

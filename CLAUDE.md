@@ -654,8 +654,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   pieces, `CarCabin`'s, measured once per body type: tempered side and rear glass crazes then
   falls out as cubes, the windscreen only collects webs, lamp lenses go with their lamp; an
   empty frame shows the traced cabin of `car_cabin.gdshaderinc` at `cabin_light`, what is still
-  whole shows it through its tint like the intact glass; the occupants carry over, being the
-  body mesh's instance uniforms, and leave when it catches fire); the
+  whole shows it through its tint like the intact glass; the occupants move onto it - it takes
+  the same occupant uniforms - and leave when it catches fire); the
   lamp slots onto `car_lamp_damage.gdshader`; the night glow is
   `PropFactory.vehicle_lights(..., broken)`, one shared mesh per combination. Health
   (`max_health` 1000): smoke past `smoke_at`, fire past `fire_at`, `burn_seconds` later (a
@@ -683,8 +683,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
 - Car glass and drivers (2026-09-28: "every car on the street reads as a sealed toy, and traffic
   drives itself"): `CarCabin` (`scripts/vehicles/car_cabin.gd`). Every body with a glass slot
   (the road_* bodies, the exotics; the Meshy sports car has its glass in the paint and stays
-  opaque) wears `shaders/car_glass.gdshader` on it, ONE material per body type
-  (`CarCabin.glass_material()`, set by `Vehicle._add_cabin_glass()` after the wheel tuck): still
+  opaque) wears `shaders/car_glass.gdshader` on it, ONE shared material per body type while
+  nobody is inside (`CarCabin.glass_material()`, set by `Vehicle._add_cabin_glass()` after the
+  wheel tuck): still
   opaque (no transparent pass, nothing to sort), the model's own glass colour / roughness / metal
   so the renderer's reflection is what it was, and the cabin behind the pane EMITTED over it -
   `shaders/car_cabin.gdshaderinc`, the trace the damage glass had, moved into an include both
@@ -703,11 +704,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   0.17), a two-seater's engine cover 0.1, mirrors and badges (`TINY_PANE`) and lamps nothing.
   Past `cabin_detail` (12 m) the lever, screen, wheel hub / spokes / column and thighs leave the
   trace; past `body_far_distance` (30 m) the far twin (no glass slot) draws anyway; exotics fade
-  to plain glass by `cabin_far`. **Who sits there is per car and costs no material**: four
-  `instance uniform`s (`occupant_top` / `_skin` / `_hair` / `_mate`, instance_index 0-3, the
-  same in both shaders so they carry onto the damage glass) set on the body meshes by
-  `CarCabin.seat()` from `Vehicle._update_occupant()` - seats in `occupant_top.a` (bit 0 the
-  driver, bit 1 the front passenger). Traced people (`person()`: head with hair / a cap / long
+  to plain glass by `cabin_far`. **Who sits there** is four uniforms (`occupant_top` / `_skin` /
+  `_hair` / `_mate`; seats in `occupant_top.a`, bit 0 the driver, bit 1 the front passenger) set
+  by `CarCabin.seat()` from `Vehicle._update_occupant()` / `_apply_occupant()`: an empty car on
+  the shared material, an occupied one on its own copy (`_glass_own`, made once and kept), a
+  damaged one on CarDamage's glass (`_update_occupant(true)` when that swaps in or out); shadow
+  twins keep what they have. **Never `instance uniform`s here**: each instance using them takes a
+  16-item block of the global shader buffer, which the Compatibility renderer caps at 4096 items
+  (WebGL2 can give a quarter of that) - with every car and its shadow twin on them a downtown
+  still logged 267 allocation errors. Traced people (`person()`: head with hair / a cap / long
   hair by style and a darker eye band, neck, shoulders, chest, thighs, arms whose elbows bend to
   hands at ten to two on the rim, or in the lap for a passenger), laid out from the side glass
   down (crown just under `side_top`, shoulders a hand over the door line) because the bodies'
@@ -725,8 +730,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shorter than `REAR_SEATS_SPAN`; the dash face at least `DASH_TO_SEAT` ahead of the front row),
   per body type, with the stand-in panes where the headless
   dummy keeps no mesh data. Stills: `OCCUPANT=npc[:seed]|pair[:seed]|player|none` on
-  `tools/glshot/car_shot.gd`, views `driver` and `inside`, `CABIN_DEBUG=1` paints the body
-  parts, `CAR_GLASS=0` (also on `still_shot.gd`) is the A/B, `TIME=n` a view's frame time.
+  `tools/glshot/car_shot.gd`, views `driver`, `inside`, `street`, `chase`, `CABIN_DEBUG=1`
+  paints the body parts, `CAR_GLASS=0` (also on `still_shot.gd`) is the A/B, `TIME=n` a view's
+  frame time.
   Checks: `tests/car_cabin_checks.gd`.
 - Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
