@@ -41,9 +41,15 @@ const ENGINE_T := 0.1
 const SIDE_BY_SEAT := -1.0
 ## Bodies with privacy glass behind the front seats.
 const PRIVACY_BODIES := [Vehicle.BodyType.CROSSOVER, Vehicle.BodyType.PICKUP, Vehicle.BodyType.VAN]
-## A car whose side glass is shorter than this (m) has no back seats: the two-seat exotics and the
-## panel van's cab. The bench is left out of its cabin.
+## The two-seat exotics: no back seats, and the glass behind the cabin is an engine cover.
+const TWO_SEATERS := [Vehicle.BodyType.SUPER, Vehicle.BodyType.SPIDER, Vehicle.BodyType.HYPER, Vehicle.BodyType.TRACK]
+## A car whose side glass is shorter than this (m) has no back seats either (the panel van's
+## cab). The bench is left out of its cabin.
 const REAR_SEATS_SPAN := 1.35
+## A piece of glass whose box has a diagonal under this (m) is a mirror or a badge, not a window:
+## it lets nothing through and does not size the cabin (the exotics' mirror glass is in their
+## glass slot, a metre out from the cabin).
+const TINY_PANE := 0.3
 ## The front seat backs stand this far behind the windscreen's foot (m), inside the side glass.
 ## The old rule - just behind the middle of the side glass - assumed two rows of doors: it sat the
 ## saloon's driver behind the B-pillar (only his arms showed in the front window) and put the
@@ -118,6 +124,7 @@ static func context(car: Vehicle, mesh_to_car: Transform3D, has_model: bool = tr
 		"width": float(d.width),
 		"scale": maxf(mesh_to_car.basis.get_scale().x, 1e-4),
 		"privacy": PRIVACY_BODIES.has(car.body_type),
+		"two_seat": TWO_SEATERS.has(car.body_type),
 	}
 
 
@@ -225,6 +232,13 @@ static func _components(verts: PackedVector3Array, idx: PackedInt32Array, ctx: D
 		list.append([box.position, box.end, n, kind, box.size.x * box.size.y * box.size.z])
 	if screen >= 0:
 		list[screen][3] = KIND_SCREEN
+		# A windscreen modelled as two shells (the hypercar's) is one windscreen.
+		var sc: Vector3 = (list[screen][0] + list[screen][1]) * 0.5
+		var ss: Vector3 = list[screen][1] - list[screen][0]
+		for e: Array in list:
+			var ec: Vector3 = (e[0] + e[1]) * 0.5
+			if int(e[3]) == KIND_TEMPERED and ec.distance_to(sc) < 0.04 / scale and ((e[1] - e[0]) as Vector3).distance_to(ss) < 0.06 / scale:
+				e[3] = KIND_SCREEN
 	# Biggest first to keep, then smallest first so the shader finds a small pane before the big
 	# one whose box holds it.
 	list.sort_custom(func(a, b): return a[4] > b[4])
@@ -280,7 +294,7 @@ static func cabin(panes: Array, ctx: Dictionary) -> Dictionary:
 	var fwd := (to_mesh.basis * Vector3.FORWARD).normalized()
 	var ahead := fwd.z < 0.0
 	for p: Array in panes:
-		if int(p[3]) == KIND_LAMP:
+		if int(p[3]) == KIND_LAMP or _tiny(p, scale):
 			continue
 		lo = lo.min(p[0])
 		hi = hi.max(p[1])
@@ -320,7 +334,7 @@ static func cabin(panes: Array, ctx: Dictionary) -> Dictionary:
 	if cowl != INF:
 		front_row = cowl + back * COWL_TO_SEAT / scale
 	front_row = back * clampf(back * front_row, back * a + 0.45 / scale, back * b - 0.05 / scale)
-	var rear_seats := absf(b - a) * scale > REAR_SEATS_SPAN
+	var rear_seats: bool = absf(b - a) * scale > REAR_SEATS_SPAN and not bool(ctx.get("two_seat", false))
 	# No back seats: the bench goes well behind the cabin, where no ray through the glass reaches.
 	var rear_row := lerpf(a, b, 0.9) if rear_seats else front_row + back * 3.0 / scale
 	out.seat_z = Vector2(front_row, rear_row)
@@ -342,7 +356,7 @@ static func _tint(panes: Array, data: Dictionary, ctx: Dictionary) -> void:
 	for p: Array in panes:
 		var kind := int(p[3])
 		var n: Vector3 = p[2]
-		if kind == KIND_LAMP:
+		if kind == KIND_LAMP or _tiny(p, float(ctx.scale)):
 			p[4] = 0.0
 		elif kind == KIND_SCREEN:
 			p[4] = SCREEN_T
@@ -352,6 +366,10 @@ static func _tint(panes: Array, data: Dictionary, ctx: Dictionary) -> void:
 			p[4] = ENGINE_T
 		else:
 			p[4] = PRIVACY_T if privacy else REAR_SCREEN_T
+
+
+static func _tiny(p: Array, scale: float) -> bool:
+	return ((p[1] as Vector3) - (p[0] as Vector3)).length() * scale < TINY_PANE
 
 
 # --- Materials -----------------------------------------------------------------------------------

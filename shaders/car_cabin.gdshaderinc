@@ -15,6 +15,7 @@
 
 global uniform vec4 sky_tint;
 global uniform float night_factor;
+global uniform float lamp_factor;
 
 // Panes: pane_lo xyz / pane_hi xyz the box, pane_lo.w the state (0 whole, 1 crazed, 2 gone),
 // pane_hi.w the kind (0 tempered, 1 laminated windscreen, 2 a lamp cover), pane_n xyz the mean
@@ -42,6 +43,9 @@ uniform vec2 side_t = vec2(0.6, 0.48);
 uniform float cabin_light = 4.0;
 // The instruments and the centre screen after dark, while somebody is in the driver's seat.
 uniform float dash_glow = 1.0;
+// After dark the street lamps light the cabin a little through the glass (times lamp_factor),
+// and the street shows in the far windows: without it a car at night was a black box.
+uniform vec3 street_light = vec3(0.07, 0.048, 0.026);
 // People against the seats: the fabric's cabin_light is set for dark cloth, and at it a face or a
 // white shirt glowed like the day outside.
 uniform float people_light = 0.5;
@@ -397,7 +401,7 @@ vec3 cabin_view(vec3 o, vec3 d) {
 	vec3 t2 = (cabin_hi - o) * inv;
 	vec3 tf = max(t1, t2);
 	float t_exit = max(min(min(tf.x, tf.y), tf.z), 0.0);
-	vec3 sky = sky_tint.rgb;
+	vec3 sky = sky_tint.rgb + street_light * lamp_factor;
 	float char_ = burnt;
 	float cx = (cabin_hi.x + cabin_lo.x) * 0.5;
 	float half_w = (cabin_hi.x - cabin_lo.x) * 0.5;
@@ -524,7 +528,7 @@ vec3 cabin_view(vec3 o, vec3 d) {
 				c += vec3(0.4, 0.52, 0.72) * glow * 0.45;
 			} else if (best_mat >= CAB_SKIN) {
 				// The dash lights the faces over it, faintly.
-				c += alb * vec3(0.3, 0.45, 0.8) * glow * 0.35 * max(-best_n.z * back, 0.0);
+				c += alb * vec3(0.3, 0.45, 0.8) * glow * 1.2 * max(-best_n.z * back, 0.0);
 			}
 		}
 		return c;
@@ -562,14 +566,15 @@ vec3 cabin_view(vec3 o, vec3 d) {
 
 // What whole glass at `p` (on pane `i`, normal `n`, seen along unit `d` from `dist` away) lets
 // through: the cabin, dimmed by the pane's tint and by the share Fresnel turns back as reflection
-// - the renderer's own specular draws that half. Nothing for a lamp cover, and past cabin_far
-// the plain dark glass.
+// - the renderer's own specular draws that half. Nothing through a lamp cover or a mirror, and
+// past cabin_far the plain dark glass.
 vec3 glass_view(vec3 p, vec3 d, vec3 n, int i, float dist) {
-	if (dist > cabin_far || (i >= 0 && pane_hi[i].w > 1.5)) {
+	float t = pane_t(i, p);
+	if (dist > cabin_far || t <= 0.0 || (i >= 0 && pane_hi[i].w > 1.5)) {
 		return vec3(0.0);
 	}
 	float c = abs(dot(d, n));
 	float f = 0.04 + 0.96 * pow(1.0 - c, 5.0);
 	float fade = 1.0 - smoothstep(cabin_far * 0.8, cabin_far, dist);
-	return cabin_view(p, d) * glass_tint * pane_t(i, p) * (1.0 - f) * fade;
+	return cabin_view(p, d) * glass_tint * t * (1.0 - f) * fade;
 }
