@@ -346,7 +346,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   a union of strips, or V-profiles meeting edge on edge, left the body open and every later
   cut deleted the car). Glass, lamps, mirrors, handles, trims are separate parts placed by
   raycast. Seven slots (`paint`, `glass`, `trim`, `chrome`, `tyre`, `light_front`,
-  `light_rear`); only `paint*` takes the paint shader, and on Compatibility `chrome` is swapped
+  `light_rear`); only `paint*` takes the paint shader, `glass` takes the cabin glass (see Car
+  glass and drivers), and on Compatibility `chrome` is swapped
   for a satin grey (`Vehicle._part_material()`, a metal has nothing to mirror there). Each .glb
   also holds a `<name>_far` twin (~8k triangles, `paint_far` + one vertex-coloured `parts`
   surface, `Vehicle.PARTS_SHADER`) drawn past `Vehicle.body_far_distance` (30 m) - seven
@@ -633,8 +634,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   lane was 4.4 m wide and the kerb-side traffic lane ran 13 cm from the parked cars, so traffic
   plowed through them.
 - Car damage (roadmap #10): `CarDamage` (`scripts/vehicles/car_damage.gd`), a node the car makes
-  on its FIRST hit - an undamaged car has none, keeps the shared `car_paint.gdshader` and the
-  model's own glass and lamp materials, and costs what it did (the only per-car addition is
+  on its FIRST hit - an undamaged car has none, keeps the shared `car_paint.gdshader`, its body's
+  shared cabin glass and the model's own lamp materials, and costs what it did (the only per-car addition is
   `Vehicle._crash_watch()`, one velocity subtraction a tick in the car's existing script).
   **One entry point: `Vehicle.take_hit(shape, damage, dir, at, kind)`** with `HIT_BULLET` /
   `HIT_PELLET` (the weapon's own damage: rifle `fire_ray`, shotgun `fire_pellet`, police
@@ -650,9 +651,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   displaced in the vertex shader, blast scorch, the burn front from the engine bay in bands of
   blistered paint, soot and rust / ash bare steel) on the car's body meshes AND its shadow
   twins; the glass slot onto `car_glass_damage.gdshader` (panes = the glass surface's connected
-  pieces, measured once per mesh: tempered side and rear glass crazes then falls out as cubes,
-  the windscreen only collects webs, lamp lenses go with their lamp; an empty frame shows a
-  traced cabin - dash, seats, headrests, the far window's daylight - at `cabin_light`); the
+  pieces, `CarCabin`'s, measured once per body type: tempered side and rear glass crazes then
+  falls out as cubes, the windscreen only collects webs, lamp lenses go with their lamp; an
+  empty frame shows the traced cabin of `car_cabin.gdshaderinc` at `cabin_light`, what is still
+  whole shows it through its tint like the intact glass; the occupants carry over, being the
+  body mesh's instance uniforms, and leave when it catches fire); the
   lamp slots onto `car_lamp_damage.gdshader`; the night glow is
   `PropFactory.vehicle_lights(..., broken)`, one shared mesh per combination. Health
   (`max_health` 1000): smoke past `smoke_at`, fire past `fire_at`, `burn_seconds` later (a
@@ -677,6 +680,52 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   every frame drew nothing - change amounts in steps, only when they change; a crash watch
   without its contact ray takes every scripted velocity reset for a crash;
   `Explosion.blast()` still pushes a car once per collision shape (2-3x a rocket's 30 m/s).
+- Car glass and drivers (2026-09-28: "every car on the street reads as a sealed toy, and traffic
+  drives itself"): `CarCabin` (`scripts/vehicles/car_cabin.gd`). Every body with a glass slot
+  (the road_* bodies, the exotics; the Meshy sports car has its glass in the paint and stays
+  opaque) wears `shaders/car_glass.gdshader` on it, ONE material per body type
+  (`CarCabin.glass_material()`, set by `Vehicle._add_cabin_glass()` after the wheel tuck): still
+  opaque (no transparent pass, nothing to sort), the model's own glass colour / roughness / metal
+  so the renderer's reflection is what it was, and the cabin behind the pane EMITTED over it -
+  `shaders/car_cabin.gdshaderinc`, the trace the damage glass had, moved into an include both
+  shaders use (`#define CABIN_FIRE` for the damage's `burnt` / `cabin_fire`), traced in the
+  body's mesh space so it has true parallax: dash (instrument cluster and centre screen glowing
+  after dark while somebody is at the wheel, `dash_glow`), steering wheel on the driver's side
+  (left-hand drive, `driver_side`, column raked up), console and gear lever, two front seats and
+  the rear bench with headrests, headliner, door cards, the far windows letting the day in (and
+  the street at night, `street_light` x `lamp_factor`). Through whole glass it is dimmed by
+  Fresnel (the renderer draws the reflected share), `glass_tint`, `through_light` (0.45: on
+  Forward+ it read as bright as the paint at cabin_light) and the pane's own tint in
+  `pane_n.w`: windscreen 0.8, front side glass 0.6, rear side 0.48 (privacy 0.17 on the
+  crossover, pickup and van: `side_t`, picked per fragment by which side of the front seat backs
+  it is, since the pickup's two door windows are one piece of glass), rear screen 0.42 (privacy
+  0.17), a two-seater's engine cover 0.1, mirrors and badges (`TINY_PANE`) and lamps nothing.
+  Past `cabin_detail` (12 m) the lever, screen, wheel hub / spokes / column and thighs leave the
+  trace; past `body_far_distance` (30 m) the far twin (no glass slot) draws anyway; exotics fade
+  to plain glass by `cabin_far`. **Who sits there is per car and costs no material**: four
+  `instance uniform`s (`occupant_top` / `_skin` / `_hair` / `_mate`, instance_index 0-3, the
+  same in both shaders so they carry onto the damage glass) set on the body meshes by
+  `CarCabin.seat()` from `Vehicle._update_occupant()` - seats in `occupant_top.a` (bit 0 the
+  driver, bit 1 the front passenger). Traced people (`person()`: head with hair / a cap / long
+  hair by style and a darker eye band, neck, shoulders, chest, thighs, arms whose elbows bend to
+  hands at ten to two on the rim, or in the lap for a passenger), laid out from the side glass
+  down (crown just under `side_top`, shoulders a hand over the door line) because the bodies'
+  cabins are 10 cm lower than a real one's, lit like the seats at `people_light`. Rules
+  (`Vehicle._cabin_seats()`): a car given `traffic` gets a driver (`_npc_driver`, a look from
+  `_occupant_seed`, re-rolled each time it comes out of the pool; `PASSENGER_SHARE` 22 % carry a
+  passenger), who stays when a hit knocks it out of traffic and gets out when it catches fire
+  (`_abandoned()`); the player at the wheel is the player (`driver` setter; the hero himself is
+  hidden in a car, `CarCabin.player_look()`), and the car he leaves is empty; a parked car is
+  empty; `PoliceCar` seats its crew from `crew_aboard` (a setter), driver and passenger in
+  uniform and cap. `CarCabin.measure()` (was CarDamage's `_measure_panes` / `_set_cabin`) keeps
+  the panes, the cabin box, `belt_y`, `side_top`, the seat rows (front row `COWL_TO_SEAT` 0.95 m
+  behind the windscreen's foot - the old middle-of-the-side-glass rule sat the saloon's driver
+  behind the B-pillar and the van's seat under its dash; no back seats on a two-seater or a cab
+  shorter than `REAR_SEATS_SPAN`), per body type, with the stand-in panes where the headless
+  dummy keeps no mesh data. Stills: `OCCUPANT=npc[:seed]|pair[:seed]|player|none` on
+  `tools/glshot/car_shot.gd`, views `driver` and `inside`, `CABIN_DEBUG=1` paints the body
+  parts, `CAR_GLASS=0` (also on `still_shot.gd`) is the A/B, `TIME=n` a view's frame time.
+  Checks: `tests/car_cabin_checks.gd`.
 - Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
   `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`

@@ -24,10 +24,11 @@ extends SceneTree
 ## each view's draws, objects and triangles (a damaged car's cost against a whole one); `HIDE=`
 ## names of the car's nodes to hide (EngineFire, FireLicks, CabinFire, FireEmbers, FireSmoke).
 ## Occupants (CarCabin, the traced people behind the glass): `OCCUPANT=npc` (a traffic driver;
-## `npc:<seed>` picks who, a seed with a passenger adds one), `OCCUPANT=player` (the hero at the
+## `npc:<seed>` picks who, a seed with a passenger adds one; `pair:<seed>` always seats a front
+## passenger too), `OCCUPANT=player` (the hero at the
 ## wheel), `OCCUPANT=none` empties a cruiser (whose crew is aboard by default); the views
-## `driver` (in at the driver's window, the car's left) and `inside` (through the windscreen,
-## close) frame them; `CABIN_DEBUG=1` paints each part of the people its own flat colour.
+## `driver` (in at the driver's window, the car's left), `inside` (through the windscreen,
+## close), `street` (a pedestrian's eye 10 m off) and `chase` (behind and above) frame them; `CABIN_DEBUG=1` paints each part of the people its own flat colour.
 ## `CAR_GLASS=0` puts the car back on its model's own opaque glass (the A/B); `TIME=n` prints each
 ## view's frame time over n frames (the software renderer's fragment cost, which GEO cannot see).
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
@@ -199,6 +200,10 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				car.set("_npc_driver", true)
 				car.set("_occupant_seed", parts[1].to_int() if parts.size() > 1 else 7)
 				car.call("_update_occupant")
+			elif occupant.begins_with("pair"):
+				# A driver and a front passenger, whatever the seed would roll.
+				var parts := occupant.split(":")
+				cabin.call("seat", car.get("_glass_meshes"), 3, cabin.call("npc_look", parts[1].to_int() if parts.size() > 1 else 7))
 			elif occupant == "player":
 				cabin.call("seat", car.get("_glass_meshes"), 1, cabin.call("player_look"))
 			elif occupant == "none":
@@ -287,6 +292,14 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				"inside":
 					at = Vector3(-0.9, 1.7, -4.4)
 					target = Vector3(-0.2, 0.95, -0.4)
+				"street":
+					# A pedestrian's eye across the street, the driver's side toward it.
+					at = Vector3(-6.5, 1.7, -7.5)
+					target = Vector3(0.0, 0.8, -0.3)
+				"chase":
+					# Behind and above, where the player's camera follows a car.
+					at = Vector3(1.2, 2.6, 8.5)
+					target = Vector3(0.0, 0.9, -1.0)
 				"far":
 					# Past Vehicle.body_far_distance, with a narrow lens: the far twin.
 					at = Vector3(26.0, 5.0, -36.0)

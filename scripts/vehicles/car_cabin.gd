@@ -460,6 +460,7 @@ static func police_look(heavy: bool, seed: int) -> Dictionary:
 		"skin": SKINS[absi(hash([seed, 2])) % SKINS.size()],
 		"hair": PoliceOfficer.CAP_COLOR if not heavy else Color(0.05, 0.05, 0.055),
 		"style": Hair.CAP,
+		"uniform": true,
 		"mate": top,
 		"mate_skin": _roll(seed, 7),
 		"passenger": true,
@@ -485,7 +486,7 @@ static func seat(meshes: Array, seats: int, look: Dictionary) -> void:
 	var a := Vector4(top.r, top.g, top.b, float(seats))
 	var b := Vector4(skin.r, skin.g, skin.b, float(look.style))
 	var c := Vector4(hair.r, hair.g, hair.b, float(look.seed))
-	var d := Vector4(mate.r, mate.g, mate.b, float(look.mate_skin))
+	var d := Vector4(mate.r, mate.g, mate.b, minf(float(look.mate_skin), 0.99) + (2.0 if look.get("uniform", false) else 0.0))
 	for m in meshes:
 		var mi := m as MeshInstance3D
 		if mi == null or not is_instance_valid(mi):

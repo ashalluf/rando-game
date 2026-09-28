@@ -4060,3 +4060,81 @@ frames, blade signs, dome and retractable awnings and a shop at night. The lead 
 - The landmark towers (TowerMesh, `uv_facade`) keep their own curtain walls: no caps, no
   spandrel (they are a replica's facades, tuned there).
 - Bulkheads are still painted; a raised panel under the sill would add another depth cue.
+
+## 9as. Car glass and drivers, 2026-09-28 (agent branch `wt/car-glass`)
+
+Every intact car window used to be the model's own opaque dark glass, so every car on the street
+was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
+- **Glass you see into.** Every body with a glass slot (the four road_* bodies and the four
+  exotics; the Meshy sports car has its glass in the paint and stays as it was) wears
+  `shaders/car_glass.gdshader` on it - ONE material per body type (`CarCabin.glass_material()`,
+  from `Vehicle._add_cabin_glass()` after the wheel tuck), shared by every car of it. Still
+  opaque: the model's own glass colour, roughness and metal, so the renderer's reflection is what
+  it was, and the cabin behind the pane emitted over it, dimmed by Fresnel (the reflected share
+  is the renderer's), the pane's tint and `through_light`. Tints (`pane_n.w`, CarCabin
+  constants): windscreen 0.8, front side glass 0.6, rear side 0.48 or privacy 0.17 behind the
+  front seats of the crossover, pickup and van (picked per fragment: the pickup's two door
+  windows are one piece of glass), rear screen 0.42 / privacy 0.17, a two-seater's engine cover
+  0.1, mirror glass and lamps nothing.
+- **One cabin, shared with the damage.** The trace CarDamage's shattered windows had
+  (`cabin_view()`) is now `shaders/car_cabin.gdshaderinc`, included by both glass shaders
+  (`#define CABIN_FIRE` gives the damage its `burnt` / `cabin_fire`; without it they are
+  constants). New in it: the steering wheel (a raked washer rim with hub, spokes and column) in
+  front of the driver's seat - the car's left, left-hand drive -, a centre console with a gear
+  lever, a centre screen, the instrument cluster and screen glowing after dark while somebody is
+  at the wheel (`dash_glow`), and the street lamps lighting the cabin and the far windows at night
+  (`street_light` x `lamp_factor`). The damage glass is the same shader as before otherwise: the
+  crazed sheet, the webs, the empty frame's cabin at `cabin_light`; what is still whole now shows
+  the cabin through its tint like the intact glass (it was opaque, so the first round would have
+  turned every window of a car black).
+- **People.** `person()` in the include: head (hair by style - short, long, shaved, a cap - with
+  a darker eye band), neck, shoulders, chest, thighs, and arms whose elbows bend down and out to
+  hands at ten to two on the rim (a passenger's in the lap). Laid out from the top of the side
+  glass down (`side_top`: the crown just under it, the shoulders a hand over the door line),
+  because the bodies' cabins are about 10 cm lower than a real car's and a real-sized person
+  put his head through the roof. Skin, tops (weighted like a street: mostly dark and neutral),
+  hair, trouser colours, sleeves and build all rolled per car.
+- **Who sits where, with no material per car.** Four `instance uniform`s on the body mesh
+  (`occupant_top` / `_skin` / `_hair` / `_mate`, `instance_index` 0-3, the same in both shaders,
+  so they carry onto the damage glass when CarDamage swaps it in), set by `CarCabin.seat()` from
+  `Vehicle._update_occupant()`: seats in `occupant_top.a` (bit 0 driver, bit 1 front passenger).
+  A car given `traffic` (the setter) gets a driver, re-rolled each time it leaves the pool, with
+  a passenger in 22 % (`PASSENGER_SHARE`); he stays when a hit knocks the car out of traffic and
+  is gone once it catches fire (`_abandoned()`); the player at the wheel is the player (the
+  `driver` setter; the hero himself is hidden in a car, so this is him, in his black tracksuit),
+  and the car he gets out of is empty; parked cars are empty; a cruiser seats its crew from
+  `crew_aboard` (a setter), in uniform and cap, emptying as they get out.
+- **Measured once per body type.** `CarCabin.measure()` - CarDamage's `_measure_panes()` /
+  `_components()` / `_stand_in_panes()` / `_set_cabin()` moved there - keeps the panes, the cabin
+  box, the door line, `side_top` and the seat rows per body type; CarDamage reads the same data
+  (`CarCabin.for_car()`). Fixes on the way, which the damaged look shares: the front row sits
+  `COWL_TO_SEAT` (0.95 m) behind the windscreen's foot (the middle-of-the-side-glass rule put the
+  saloon's driver behind the B-pillar - only his arms showed in the front window - and the van's
+  seat under its dash); no back seats in the two-seaters or the van's cab; the hypercar's
+  double-shell windscreen is one windscreen (the inner shell was classed as an engine cover and
+  drew the screen black); the exotics' mirror glass (in their glass slot, a metre outboard) no
+  longer sizes the cabin. Headless (no mesh data): the stand-in panes, as before.
+- **Cost.** No node, draw or triangle per car: GEO identical with and without it (car_shot,
+  one sedan: 40 draws / 171,714 triangles either way; the city numbers below). What it costs is
+  the glass's fragments: the cabin trace (13 boxes, the wheel, up to two people of 11
+  primitives each behind one box test) on the glass of cars within 30 m (the far twin has no
+  glass slot) - 70 m for the exotics, which have no twin. Past `cabin_detail` (12 m) the small
+  parts leave the trace. Under llvmpipe the close-up views ran 1.3-1.8x slower, but that box's
+  timings swung by 50 % between identical runs with four agents on it; read it on the Mac.
+CITYCOST
+- **Tools.** `tools/glshot/car_shot.gd`: `OCCUPANT=npc[:seed]|pair[:seed]|player|none`, views
+  `driver`, `inside`, `street`, `chase`, `CABIN_DEBUG=1` (a flat colour per body part - how the
+  figure's layout was fixed), `CAR_GLASS=0` (also on `still_shot.gd`: the model's own opaque glass,
+  the A/B), `TIME=n` (a view's frame time). Checks: `tests/car_cabin_checks.gd` (the shared
+  material per body type, street cars occupied and parked ones empty across the city, a traffic
+  driver staying when knocked out of traffic and carrying onto the damage glass, leaving a
+  burning car, the player at the wheel, a cruiser's crew, the tints).
+- **Look at it on the Mac (Forward+).** The balance of cabin against reflection is set on
+  Forward+ car_shot stills (`through_light` 0.45); the Compatibility stills draw the car bodies
+  brighter, so the cabin reads darker there. The night look (the faces lit by the dash, the
+  street in the far windows) is subtle on purpose.
+- **Not done.** The sports car (single-texture Meshy body, glass in the paint) and the lot fill's
+  cheap static cars have no cabin. Nobody is seen in an open car (the spider) except through its
+  windscreen - there is no glass elsewhere to draw them on. Occupants are not shot or thrown
+  out: a round through an empty frame passes them, and a carjacked NPC simply vanishes when the
+  player takes the seat.

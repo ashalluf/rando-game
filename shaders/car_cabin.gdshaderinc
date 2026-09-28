@@ -74,7 +74,7 @@ const float cabin_fire = 0.0;
 // Who is in the car (CarCabin.seat()): top's colour (linear) and in .a the seats taken (bit 0
 // the driver's, bit 1 the front passenger's); skin and in .a the hair style (0 short, 1 long,
 // 2 shaved, 3 a cap); hair (or the cap) and in .a a 0..1 seed; the passenger's top and in .a
-// their skin tone (0 fair .. 1 dark).
+// their skin tone (0 fair .. 1 dark), plus 2 when they wear the driver's cap (a uniform).
 instance uniform vec4 occupant_top : instance_index(0) = vec4(0.0);
 instance uniform vec4 occupant_skin : instance_index(1) = vec4(0.0);
 instance uniform vec4 occupant_hair : instance_index(2) = vec4(0.0);
@@ -344,12 +344,14 @@ vec3 person_albedo(int mat, vec4 aux, float back) {
 	float style = occupant_skin.a;
 	float seed = occupant_hair.a;
 	if (mate) {
-		// The passenger: their own top and skin; hair from the seed.
+		// The passenger: their own top and skin, hair from the seed, the driver's cap only in a
+		// uniform (occupant_mate.a over 2).
 		top = occupant_mate.rgb;
-		skin = mix(vec3(0.8, 0.56, 0.43), vec3(0.05, 0.028, 0.016), occupant_mate.a);
+		skin = mix(vec3(0.8, 0.56, 0.43), vec3(0.05, 0.028, 0.016), fract(occupant_mate.a));
 		seed = fract(seed * 7.31 + 0.37);
-		hair = mix(vec3(0.004, 0.003, 0.002), vec3(0.09, 0.05, 0.025), fract(seed * 3.7));
-		style = style > 2.5 ? 3.0 : (seed > 0.55 ? 1.0 : 0.0);
+		bool cap = occupant_mate.a > 1.5;
+		hair = cap ? hair : mix(vec3(0.004, 0.003, 0.002), vec3(0.09, 0.05, 0.025), fract(seed * 3.7));
+		style = cap ? 3.0 : (seed > 0.55 ? 1.0 : 0.0);
 	}
 	if (cabin_debug) {
 		// Neck green, shoulders blue, chest white, upper arms cyan, forearms magenta, thighs
