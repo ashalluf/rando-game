@@ -3700,7 +3700,11 @@ opt out (`Aircraft.can_take_damage()`), the scripted air traffic keeps its own.
   had at night - while green at half of red goes cream-yellow bright and deep orange dim. The
   shader multiplies one ramp colour by the density, so a puff's core and edge share that ratio:
   the ramp holds green / red at ~0.5 while it is bright and only drops toward red as it dims.
-  Web: the plain puff material, half the particles, no light.
+  Web: the plain puff material, half the particles, no light. Cost (`GEO=1`, one sedan, opengl3):
+  whole 40 draws; burning 44 (bay flames, tongues, embers, smoke); a blaze 52 while the popped
+  side glass is still in the air (the cabin's flames are one more draw, the cube bursts the
+  rest, gone in two seconds); the burning wreck 40. `max_burning` (6) caps the fires at once.
+  Stills: `cardmg_fire_*` before/after in the screens folder of the session.
 - **Wreck**: burnt = 1, every pane gone, lamps out, trim / tyre / chrome and the far twin's
   parts on shared charred materials, the physics wheels at 0.7 of their radius and the visible
   ones scaled to rims in a charred metal (the car sits down on them), burning for
