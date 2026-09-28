@@ -196,6 +196,8 @@ func _fire(aim: Dictionary) -> void:
 		var knock := Vector3.ZERO if down else dir * (knock_base + knock_per_pellet * n) + Vector3.UP * (4.0 + n)
 		WeaponFX.bullet_wound(self, {"collider": person, "position": people[person][2]}, dir,
 			blood_per_pellet * n, knock)
+	if not people.is_empty():
+		Crosshair.mark_hit(true)
 	WeaponFX.flash(self, muzzle.global_position, Color(1.0, 0.72, 0.35), flash_size, flash_life)
 	player.camera_rig.shake(shake_amount)
 	Sfx.play("shotgun", muzzle.global_position, 2.0, randf_range(0.95, 1.05))
@@ -237,6 +239,7 @@ func fire_pellet(from: Vector3, dir: Vector3, people: Dictionary = {}) -> Dictio
 			(hit.collider as Vehicle).drop_out_of_traffic(dir * pellet_force)
 			# A pellet hole, a crazed window, a broken lamp (CarDamage).
 			(hit.collider as Vehicle).take_hit(hit.get("shape", -1), pellet_damage, dir, hit.position, Vehicle.HIT_PELLET)
+			Crosshair.mark_hit(false)
 		WeaponFX.impact(self, hit.position, Color(1.0, 0.85, 0.5), hit.normal, hit.collider)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color, 0.05, 0.012)
 	return hit

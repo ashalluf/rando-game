@@ -46,6 +46,21 @@ func _initialize() -> void:
 		Input.action_press("alt_fire")
 	elif mode == "wheel":
 		Input.action_press("weapon_wheel")
+	elif mode == "hurt":
+		# Two hits from either side and front-left, health left low, and a hit marker (DamageHud,
+		# Crosshair.mark_hit): the frame a firefight leaves on screen.
+		var health: Node = player.get("health")
+		var p0: Vector3 = player.global_position
+		var fwd3 := Vector3(-sin(deg_to_rad(yaw)), 0.0, -cos(deg_to_rad(yaw)))
+		var right3 := fwd3.cross(Vector3.UP)
+		health.call("take_damage", 90.0, p0 + right3 * 12.0)
+		health.call("take_damage", 70.0, p0 + fwd3 * 10.0 - right3 * 8.0)
+		health.call("take_damage", 40.0, p0 - fwd3 * 10.0)
+		# Loaded, not named: this script compiles before the autoloads exist, and the crosshair
+		# names Player, which uses them.
+		load("res://scripts/ui/crosshair.gd").mark_hit(true)
+		for i in 3:
+			await process_frame
 	elif mode == "pause":
 		# The pause menu over the room (the room has no DayNight or Weather, so its pickers
 		# have nothing to drive here; the look is what this is for).

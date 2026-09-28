@@ -170,5 +170,18 @@ func fire_ray(from: Vector3, dir: Vector3) -> Dictionary:
 			# A hole in the paint, a crazed or shattered window, a broken lamp (CarDamage).
 			(hit.collider as Vehicle).take_hit(hit.get("shape", -1), bullet_damage, dir, hit.position, Vehicle.HIT_BULLET)
 		WeaponFX.impact(self, hit.position)
+		_mark(hit.collider)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color)
 	return hit
+
+
+## The crosshair's hit marker: red for a person (or a body already down), white for a car or an
+## aircraft; nothing for walls and the street.
+func _mark(collider: Object) -> void:
+	if collider == null or not is_instance_valid(collider):
+		return
+	var doll: Node = (collider as Node).get_parent() if collider is RigidBody3D else null
+	if collider.has_method("knock") or (doll != null and doll.has_method("fling")):
+		Crosshair.mark_hit(true)
+	elif collider is Vehicle or collider.has_method("take_hit"):
+		Crosshair.mark_hit(false)

@@ -412,6 +412,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `glass_hud.gdshader` mode 1 with no fill - with the gun's silhouette from the wheel's static
   icons, its name, an infinity sign and a chip per slot; it pops on a change; the stars hang
   under it via `panel_rect()`). The old text list (`$Weapon`) is hidden and only a fallback.
+  Combat feedback: the crosshair (`Crosshair`, `scripts/ui/crosshair.gd`) flashes a hit marker
+  when a round lands (`Crosshair.mark_hit(person)`, called by the rifle's `_mark()` and the
+  shotgun: red for a person or a body, white for a car or an aircraft), and `DamageHud`
+  (`scripts/ui/damage_hud.gd` + `shaders/damage_hud.gdshader`, the HUD's first child, built by
+  DebugHud) blooms the screen edges dark red on each hit, draws a red arc on a ring round the
+  crosshair toward whoever fired (from `PlayerHealth.hit_taken(amount, from)`), and pulses the
+  edges like a heartbeat under `low_health`. `post_room_shot.gd MODE=hurt` shows both.
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
   what the game looks like while playing), FULL (plus the stats line, the frame-time breakdown
   and the control hints) and HIDDEN. `-- --nohud` starts HIDDEN (the screenshot harness),

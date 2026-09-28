@@ -22,6 +22,11 @@ var weapon_hud: WeaponHud
 
 func _ready() -> void:
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+	# Being hurt: red edges, the arc toward the shooter, the low-health heartbeat - under the rest.
+	var damage := DamageHud.new()
+	damage.name = "DamageHud"
+	add_child(damage)
+	move_child(damage, 0)
 	weapon_hud = WeaponHud.new()
 	weapon_hud.name = "WeaponHud"
 	add_child(weapon_hud)
