@@ -22,6 +22,23 @@ Newest. Read this, then 0000 (which is still the full state as of the morning).
   afternoon. Now east - south at 56 degrees - west (`DayNight._arc_basis()`, `latitude_degrees`).
   Every shadow in every bookmark moved: midday shadows now fall north and are longer.
 
+**Then, also from the lead** (each its own push, each passing the check):
+- **Brass**: the AK throws a spent case every round (`BrassCasings`, one MultiMesh, simulated in
+  GDScript, a tink on the bounce).
+- **Pause menu**: frosted glass over the blurred frozen game, with TIME OF DAY presets, WEATHER
+  (held or Auto; `Weather.force_state()`), GRAPHICS (held or Auto; `Quality.force_level()`), the
+  seed, and a controls card. `post_room_shot.gd MODE=pause`.
+- **Combat feedback**: hit markers on the crosshair (`Crosshair.mark_hit()`), red edges and a
+  direction arc toward whoever shot you, a low-health heartbeat (`DamageHud`,
+  `PlayerHealth.hit_taken`). `MODE=hurt`.
+- **Superhero landings** (`LandingFX`): dust ring and camera kick from a jump, a crater and a
+  shockwave that knocks people and props from a drop of ~30 m. `MODE=land`.
+- **Bullet impact sounds by surface** (Sfx `hit_*`, Kenney's CC0 impacts) and a real brass tink.
+- The ocean no longer swells up through the beach (blobs of water on the sand).
+- Test-room modes on `post_room_shot.gd` (boost, fire, hurt, land, pause) render in a minute or
+  two, against 5-25 minutes for a city still while the render lock is busy: prefer them for
+  anything that does not need the city.
+
 **Agents running in worktrees when this was written** (each reports back with before/after
 stills; merge main into the branch in its worktree, check, fast-forward, push):
 - `wt/crowd-garments`: our own tee / trousers / shirt / jacket for the crowd (the patch in
