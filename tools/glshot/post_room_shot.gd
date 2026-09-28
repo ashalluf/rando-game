@@ -86,6 +86,14 @@ func _initialize() -> void:
 	elif mode == "fire":
 		# Hold the trigger for FIRE_TIME seconds of game time with the clock at FIRE_SCALE: the
 		# muzzle flash, tracers, impacts and the rifle's spent cases (BrassCasings) in flight.
+		# WEAPON=n switches to that slot first (2 the rocket launcher, 3 the shotgun).
+		if _env("WEAPON", "") != "":
+			var slot := "weapon_%s" % _env("WEAPON", "1")
+			Input.action_press(slot)
+			await process_frame
+			Input.action_release(slot)
+			for i in 10:
+				await process_frame
 		if _env("AIM", "0") == "1":
 			Input.action_press("alt_fire")
 			for i in 20:

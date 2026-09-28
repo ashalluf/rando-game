@@ -9,7 +9,7 @@ extends Control
 ## Built in code by DebugHud; scales with the window height, like the stars under it.
 
 ## Panel size at 1080 lines (px) and its margin from the top right corner.
-@export var panel_size: Vector2 = Vector2(330.0, 80.0)
+@export var panel_size: Vector2 = Vector2(360.0, 80.0)
 @export var margin: float = 16.0
 ## How long the pop on a weapon change lasts (s) and how far the icon swells (fraction).
 @export var pop_time: float = 0.28
@@ -107,6 +107,11 @@ func _draw_ink() -> void:
 	var name_px := int(round(17.0 * s))
 	var name := _shown.display_name.to_upper()
 	var name_w := _tracked_width(_font, name, name_px, 1.2 * s)
+	# A long name ("ROCKET LAUNCHER") shrinks to fit between the hairline and the edge.
+	var room := right - (split_x + 14.0 * s)
+	if name_w > room:
+		name_px = maxi(7, int(floor(name_px * room / name_w)))
+		name_w = _tracked_width(_font, name, name_px, 1.2 * s)
 	_tracked(_font, name, Vector2(right - name_w, size.y * 0.42), name_px, 1.2 * s, ink)
 	# One chip per slot, the equipped one lit, and the infinity sign before them.
 	var chip := 17.0 * s
