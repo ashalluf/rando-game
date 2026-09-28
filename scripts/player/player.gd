@@ -170,6 +170,8 @@ func _physics_process(delta: float) -> void:
 		_apply_horizontal(delta, on_floor, move_dir)
 	_handle_jump(on_floor)
 
+	# How fast we are coming down, for what the landing does to the ground (LandingFX).
+	var fall_speed := -velocity.y
 	move_and_slide()
 	_push_props(delta)
 	_track_jump_peak(on_floor, is_on_floor())
@@ -183,8 +185,11 @@ func _physics_process(delta: float) -> void:
 		_boost_sound.play()
 	elif not _boosting and _boost_sound.playing:
 		_boost_sound.stop()
-	if is_on_floor() and not on_floor and velocity.length() > 1.0:
-		Sfx.play("land", global_position, -6.0)
+	if is_on_floor() and not on_floor:
+		if fall_speed >= LandingFX.dust_speed:
+			LandingFX.land(self, global_position, get_floor_normal(), fall_speed)
+		elif velocity.length() > 1.0:
+			Sfx.play("land", global_position, -6.0)
 
 	if global_position.y < kill_y or Input.is_action_just_pressed("respawn"):
 		respawn()

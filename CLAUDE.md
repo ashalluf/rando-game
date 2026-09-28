@@ -824,6 +824,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   ring on take-off and again at `boom_share` of top speed; all dimmed by `night_factor`. The
   puff texture's shade averages ~0.65, so the vapour colours sit OVER 1 to read white. Judge it
   with `post_room_shot.gd MODE=boost` (seconds) or `still_shot.gd BOOST=fly` (the city).
+- Landings (`LandingFX`, `scripts/player/landing_fx.gd`, static; the player calls `land()` with
+  the fall speed it had before `move_and_slide()`): a normal 12 m jump already lands at ~47 m/s
+  (fall gravity is 1.6x), so the scale runs from there to `full_speed` (85): dust from
+  `dust_speed` (22), a ring of it racing out along the ground and a camera kick that grow, and
+  from `slam_speed` (72, a drop of ~30 m) grit, a crater of cracks (a Decal: Forward+ only) and a
+  shockwave that knocks the people, props and loose cars within `slam_radius` (a police crime
+  like any knock). `post_room_shot.gd MODE=land` (`DROP`, `LAND_AFTER`) shows it.
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`

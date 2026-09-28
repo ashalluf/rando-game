@@ -61,6 +61,19 @@ func _initialize() -> void:
 		load("res://scripts/ui/crosshair.gd").mark_hit(true)
 		for i in 3:
 			await process_frame
+	elif mode == "land":
+		# Dropped from DROP metres (default 40: a full slam), the clock at a tick a frame, the shot
+		# LAND_AFTER seconds of game time after touching down (LandingFX: dust ring, crater, shove).
+		player.global_position.y += float(_env("DROP", "40"))
+		Engine.time_scale = 0.125
+		var after := 0.0
+		for i in 2000:
+			await process_frame
+			if player.is_on_floor():
+				after += root.get_process_delta_time()
+				if after >= float(_env("LAND_AFTER", "0.15")):
+					break
+		Engine.time_scale = 0.0005
 	elif mode == "pause":
 		# The pause menu over the room (the room has no DayNight or Weather, so its pickers
 		# have nothing to drive here; the look is what this is for).
