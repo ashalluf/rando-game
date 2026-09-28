@@ -5,7 +5,34 @@ or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadm
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
 
-## 0000. Handoff of 2026-09-28 (newest - read this first, then 000 and 00)
+## 00000. The same day, continued (2026-09-28, the owner came back: "make the graphics a million times better")
+
+Newest. Read this, then 0000 (which is still the full state as of the morning).
+
+**Shipped from the lead's branch** (`wt/boost-fx`):
+- **Boost trail** (`BoostTrail`, CLAUDE.md "The boost"): the solid cyan spheres are gone - a
+  vapour contrail, a wake of mist off the body toward the camera, streaks of air, dust off the
+  ground on a low pass, a vapour ring at take-off and at top speed. Knobs at the top of
+  `scripts/player/boost_trail.gd` (`vapour_alpha`, `wake_alpha`, `streak_alpha`, `dust_reach`).
+  Tools: `post_room_shot.gd MODE=boost` (test room, seconds), `still_shot.gd BOOST=fly`.
+- **Weapon panel** (`WeaponHud`): the "[1] AK-47 [2] Rocket Launcher [3] Shotgun" text line is
+  a glass pill with the gun's silhouette, name, infinity sign and slot chips.
+- **The sun on the real LA path** (found by the hills agent): it rose SSE, stood ENE at noon 85
+  degrees up and was due NORTH at 15:00, so the mountain faces the city looks at were backlit all
+  afternoon. Now east - south at 56 degrees - west (`DayNight._arc_basis()`, `latitude_degrees`).
+  Every shadow in every bookmark moved: midday shadows now fall north and are longer.
+
+**Agents running in worktrees when this was written** (each reports back with before/after
+stills; merge main into the branch in its worktree, check, fast-forward, push):
+- `wt/crowd-garments`: our own tee / trousers / shirt / jacket for the crowd (the patch in
+  `docs/wip/` continued).
+- `wt/lot-fill-2`: no bare ground outside downtown/midtown (beach town, campus, freeway sides,
+  the empty block south-east of MacArthur Park).
+- `wt/hills-air`: the mountains from the air (the dark dashes were Skyline's far chaparral
+  mounds; the far ground's colours were linearised twice on Forward+).
+- `wt/car-glass`: see-through car windows with a traced cabin, and drivers in traffic.
+
+## 0000. Handoff of 2026-09-28 (read after 00000, then 000 and 00)
 
 The owner is moving to another account; this is where everything stands. **`main` is the whole
 state** (32fdd30, build 313 in CI at the time of writing; builds 304-312 green). Nothing is left on

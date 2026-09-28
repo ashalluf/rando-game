@@ -249,7 +249,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   a ShaderMaterial on the Environment's Sky: gradient, sun disc, FBM clouds, stars; colors set per
   hour via `set_shader_parameter`) and the `night_factor` shader global (`[shader_globals]` in
   project.godot). Shaders that should react to night read it with
-  `global uniform float night_factor;`. Clouds are lit by stepping the same noise field toward
+  `global uniform float night_factor;`. **The sun rides the real Los Angeles path**
+  (`_arc_basis()`: the circle tilted by `latitude_degrees` 34 and `sun_declination_degrees` 0):
+  up due east at 6:00, due south 56 degrees up at noon, down due west at 18:00;
+  `sun_rotation_z_degrees` turns the whole path. It used to swing from SSE through ENE at noon
+  (85 degrees up) to due NORTH mid-afternoon, which backlit every mountain face the city looks
+  at. The golden hour, dusk and night still run off the clock (`elevation` is `sin(t * PI)`). Clouds are lit by stepping the same noise field toward
   the sun and darkening where there is more of it in the way, which is what gives them bright
   shoulders and grey undersides; above them is a sheared cirrus deck. Both cost three extra
   noise taps, so `Quality` clears `cloud_detail` on the web and below MEDIUM.
@@ -401,8 +406,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   HIGH only), aim (`LockOn.aiming`: blur from `focus + max(aim_dof_margin_min, focus *
   aim_dof_margin)`, focus = the locked target or the crosshair hit, HIGH and MEDIUM) and the
   weapon wheel (from `wheel_dof_distance`, amount `wheel_dof_amount`). Compatibility has no DOF.
-- HUD: `scenes/ui/debug_hud.tscn` holds the stats, weapon list, crosshair, the round minimap and
-  the wanted stars and health bar (`WantedHud`, see the Police note).
+- HUD: `scenes/ui/debug_hud.tscn` holds the stats, crosshair, the round minimap and the wanted
+  stars and health bar (`WantedHud`, see the Police note), and `DebugHud` adds the weapon panel
+  (`WeaponHud`, `scripts/ui/weapon_hud.gd`, top right: a pill of the wheel's smoked glass -
+  `glass_hud.gdshader` mode 1 with no fill - with the gun's silhouette from the wheel's static
+  icons, its name, an infinity sign and a chip per slot; it pops on a change; the stars hang
+  under it via `panel_rect()`). The old text list (`$Weapon`) is hidden and only a fallback.
   F1 cycles three modes (`DebugHud.Mode`): CLEAN (crosshair, minimap, weapons - the default, and
   what the game looks like while playing), FULL (plus the stats line, the frame-time breakdown
   and the control hints) and HIDDEN. `-- --nohud` starts HIDDEN (the screenshot harness),
@@ -792,6 +801,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   It needs no per-model numbers (`ARM_SPREAD` is there for a bulky jacket). Do not go back to
   rotating fixed amounts off the keys: that is what the old `ARM_DROP` did and every rig
   needed its own guess. Judge it with `tools/glshot/character_shot.gd`, front AND side.
+- The boost (`BoostTrail`, `scripts/player/boost_trail.gd`, a child of the player that
+  `Player` drives with `drive()` every tick; it replaced a stream of solid cyan spheres): a
+  world-space vapour trail on WeaponFX's smoke material that widens and thins behind, a WAKE of
+  mist streaming off the body in the player's own space (at 45 m/s the contrail is behind a chase
+  camera within a tenth of a second, so the wake is what the camera sees), camera-facing streaks
+  of air stretched along their velocity (`shaders/boost_streak.gdshader`, `particle_flag_align_y`,
+  warmed on the loading screen), dust ripped off the ground within `dust_reach`, and a vapour
+  ring on take-off and again at `boom_share` of top speed; all dimmed by `night_factor`. The
+  puff texture's shade averages ~0.65, so the vapour colours sit OVER 1 to read white. Judge it
+  with `post_room_shot.gd MODE=boost` (seconds) or `still_shot.gd BOOST=fly` (the city).
 - Effects: `WeaponFX` builds everything in code (tracers, muzzle flash, impacts, explosions).
   An explosion is layered: an `OmniLight3D` flash, a white-hot core, alpha-blended fireball
   puffs, slow smoke, additive sparks, a ground shockwave ring, lit debris, a scorch `Decal`
