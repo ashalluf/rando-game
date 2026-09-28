@@ -99,6 +99,10 @@ const CAP_BAND_ROWS := 4
 const NO_SLICE := Color(0.0, 0.0, 0.0, 0.0)
 
 static var _cache: Dictionary = {}
+## Off: Building lays none of these pieces (the painted storefront and frames carry it, as on the
+## web) and hangs only the Blender kit's awning - the A/B of this kit (still_shot.gd
+## STOREFRONT_KIT=0). Set before the buildings generate.
+static var enabled: bool = true
 
 
 ## Which of FRAME_COLORS a shop's frames are (the shader's thresholds).
@@ -717,12 +721,14 @@ static func _face_names(b: Building, face_index: int, runs: int) -> Array:
 	return out
 
 
-## A flat name for a blade sign's face (cached per text and size): PropFactory.text_mesh()'s,
-## without its 1 cm of depth and with coarser curves. Each face has its own letters, so nothing
-## sees their backs, and the sides and the fine curves were ten times the triangles (2,548 for
-## "PHARMACY" against 216) - twelve blade-sign names in reach cost 140 k triangles.
-static func _flat_text(text: String, height: float) -> Mesh:
-	var key := "text_%s_%.2f" % [text, height]
+## A flat name for a blade sign's face, as CPU arrays (cached per text and size): positions,
+## normals and indices of PropFactory.text_mesh()'s letters without their 1 cm of depth and with
+## coarser curves. Each face has its own letters, so nothing sees their backs, and the sides and
+## the fine curves were ten times the triangles (2,548 for "PHARMACY" against 216) - twelve names
+## in reach cost 140 k triangles. Taken with get_mesh_arrays() once: SurfaceTool.append_from()
+## reads a mesh back from the renderer, which was 3 ms a building headless alone.
+static func _text_geo(text: String, height: float) -> Array:
+	var key := "textgeo_%s_%.2f" % [text, height]
 	if _cache.has(key):
 		return _cache[key]
 	var tm := TextMesh.new()
@@ -733,19 +739,57 @@ static func _flat_text(text: String, height: float) -> Mesh:
 	tm.curve_step = 2.0
 	tm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	_cache[key] = tm
-	return tm
+	var arr := tm.get_mesh_arrays()
+	var geo := [arr[Mesh.ARRAY_VERTEX], arr[Mesh.ARRAY_NORMAL], arr[Mesh.ARRAY_INDEX]]
+	_cache[key] = geo
+	return geo
 
 
-## A blade sign's name on both faces of its board, into `st`: `xform` is the board's middle
+## A building's blade-sign names growing, one per letters' material (Building._commit_blade_texts()).
+class TextAcc:
+	var verts := PackedVector3Array()
+	var norms := PackedVector3Array()
+	var idx := PackedInt32Array()
+
+	func add(geo: Array, xf: Transform3D) -> void:
+		var src_v: PackedVector3Array = geo[0]
+		var src_n: PackedVector3Array = geo[1]
+		var src_i = geo[2]
+		var base := verts.size()
+		var nb := xf.basis.orthonormalized()
+		for v in src_v:
+			verts.append(xf * v)
+		for nv in src_n:
+			norms.append(nb * nv)
+		if src_i == null or (src_i as PackedInt32Array).is_empty():
+			for k in src_v.size():
+				idx.append(base + k)
+		else:
+			for k: int in src_i:
+				idx.append(base + k)
+
+	func commit() -> ArrayMesh:
+		var mesh := ArrayMesh.new()
+		if idx.is_empty():
+			return mesh
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		arrays[Mesh.ARRAY_NORMAL] = norms
+		arrays[Mesh.ARRAY_INDEX] = idx
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		return mesh
+
+
+## A blade sign's name on both faces of its board, into `acc`: `xform` is the board's middle
 ## (x through its thickness, y up, z out of the wall), `hgt` its height. A short name stacks its
 ## letters, the old theatre way; a long one runs up the board, reading bottom to top.
-static func blade_letters(st: SurfaceTool, text: String, xform: Transform3D, hgt: float) -> void:
+static func blade_letters(acc: TextAcc, text: String, xform: Transform3D, hgt: float) -> void:
 	var face_x := 0.07 + 0.008 + 0.006
 	var room := hgt - 0.34
 	var stacked := text.length() <= 6 and text.find(" ") < 0
 	for s: float in [1.0, -1.0]:
-		# Letter +X to the viewer's right, +Y up, +Z out of the face (see the notes on handedness).
+		# Letter +X to the viewer's right, +Y up, +Z out of the face.
 		var upright := Basis(Vector3(0.0, 0.0, -s), Vector3.UP, Vector3(s, 0.0, 0.0))
 		var along_up := Basis(Vector3.UP, Vector3(0.0, 0.0, s), Vector3(s, 0.0, 0.0))
 		if stacked:
@@ -753,14 +797,12 @@ static func blade_letters(st: SurfaceTool, text: String, xform: Transform3D, hgt
 			var step := room / maxf(float(text.length()), 1.0)
 			for i in text.length():
 				var y := room * 0.5 - step * (float(i) + 0.5)
-				st.append_from(_flat_text(text[i], cap), 0,
-					xform * Transform3D(upright, Vector3(s * face_x, y, 0.0)))
+				acc.add(_text_geo(text[i], cap), xform * Transform3D(upright, Vector3(s * face_x, y, 0.0)))
 		else:
 			var cap := 0.24
 			var wide := float(text.length()) * cap * 0.62
 			var fit := minf(1.0, room / maxf(wide, 0.01))
-			st.append_from(_flat_text(text, cap), 0,
-				xform * Transform3D(along_up.scaled_local(Vector3(fit, fit, 1.0)), Vector3(s * face_x, 0.0, 0.0)))
+			acc.add(_text_geo(text, cap), xform * Transform3D(along_up.scaled_local(Vector3(fit, fit, 1.0)), Vector3(s * face_x, 0.0, 0.0)))
 
 
 ## The curtain wall of one face of a part: a mullion cap on every painted mullion line (the

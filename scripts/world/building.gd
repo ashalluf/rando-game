@@ -557,7 +557,7 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	# dark for channel letters where there are letters to light.
 	mat.set_shader_parameter("sign_letters", not OS.has_feature("web"))
 	# Real storefronts in front of the painted ones near the camera, when the kit is on.
-	mat.set_shader_parameter("shop_kit", kit_enabled)
+	mat.set_shader_parameter("shop_kit", kit_enabled and ShopfrontKit.enabled)
 	mat.set_shader_parameter("shop_paint_near", shop_paint_near)
 	mat.set_shader_parameter("shop_paint_far", shop_paint_far)
 	# A curtain wall draws its spandrels and thin transom lines in the frame paint (the kit's caps
@@ -961,10 +961,10 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 	var surround_mesh: Mesh = PropFactory.facade_kit(kit_surround) if kit_surround != "" else null
 	# A curtain wall with the kit wears real mullion and transom caps (ShopfrontKit.curtain_face())
 	# instead of the flat frames, which near the camera read as outlines drawn on the glass.
-	var curtain_caps := _kit != null and window_style == WindowStyle.CURTAIN
+	var curtain_caps := _kit != null and ShopfrontKit.enabled and window_style == WindowStyle.CURTAIN
 	# Shops without an awning roll of their own (glass, panel and plain buildings) may hang them
 	# anyway, per building by hash: the has_awnings roll above stays as it was.
-	var kit_awnings_extra := _kit != null and storefront > 0.0 and shape != Shape.WAREHOUSE and not has_canopy \
+	var kit_awnings_extra := _kit != null and ShopfrontKit.enabled and storefront > 0.0 and shape != Shape.WAREHOUSE and not has_canopy \
 		and not has_awnings and _kit_hash("awning building") < kit_awning_building_chance
 	var face_index := -1
 	for face in faces:
@@ -1076,7 +1076,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 					fc + a * pu + Vector3(0.0, bottom + (storefront - 0.10) * 0.5, 0.0) + n * 0.14), accent.lightened(0.05)])
 			# The real storefront round the shader's painted one: frames, doors, pier cladding,
 			# sign-board trims and blade signs (ShopfrontKit), placed off the same shop rolls.
-			if _kit != null:
+			if _kit != null and ShopfrontKit.enabled:
 				ShopfrontKit.storefront_face(self, _kit, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom,
 					storefront, spans[face_index], stops, masonry, floor_h, top, accent.lightened(0.05))
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
@@ -1497,15 +1497,13 @@ func _commit_blade_texts() -> void:
 	for e: Array in _blade_texts:
 		var mat: Material = e[3]
 		if not by_mat.has(mat):
-			by_mat[mat] = SurfaceTool.new()
-			(by_mat[mat] as SurfaceTool).begin(Mesh.PRIMITIVE_TRIANGLES)
+			by_mat[mat] = ShopfrontKit.TextAcc.new()
 		ShopfrontKit.blade_letters(by_mat[mat], str(e[0]), e[1], float(e[2]))
 	var k := 0
 	for mat: Material in by_mat:
-		var st: SurfaceTool = by_mat[mat]
 		var node := MeshInstance3D.new()
 		node.name = "BladeText%d" % k
-		node.mesh = st.commit()
+		node.mesh = (by_mat[mat] as ShopfrontKit.TextAcc).commit()
 		node.material_override = mat
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		node.visibility_range_end = SIGN_DRAW_DISTANCE
@@ -1614,9 +1612,9 @@ func _kit_awnings(face_index: int, fc: Vector3, a: Vector3, n: Vector3, size_u: 
 	var sr := _kit_hash("awning shape")
 	var glassy := finish == Finish.GLASS or finish == Finish.PANELS
 	var shape_key := "awning"
-	if glassy:
+	if ShopfrontKit.enabled and glassy:
 		shape_key = "awning_flat" if sr < 0.55 else ("awning_roller" if sr < 0.85 else "awning")
-	else:
+	elif ShopfrontKit.enabled:
 		shape_key = "awning" if sr < 0.4 else ("awning_dome" if sr < 0.65 else ("awning_roller" if sr < 0.9 else "awning_flat"))
 	var mesh: Mesh = PropFactory.facade_kit("awning") if shape_key == "awning" else ShopfrontKit.mesh(shape_key)
 	var batch_key := "kit_" + shape_key

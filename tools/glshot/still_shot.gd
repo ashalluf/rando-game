@@ -52,7 +52,8 @@ extends SceneTree
 ## held at zero, the clock of day held at --hour, the signals on a fixed clock, and people, cars,
 ## aircraft, particles and the player hidden (two runs differ in a handful of pixels by 1-2/255).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
-## MERGE_STATIC=0 builds the chunks'
+## STOREFRONT_KIT=0 builds the buildings without ShopfrontKit's storefront pieces, awnings and
+## curtain-wall caps (the A/B of that kit). MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
 ## LIGHT_WORLD=1 loads a smaller world (far city LIGHT_FAR m, default 2500; LOD ring LIGHT_LOD
@@ -84,6 +85,9 @@ func _initialize() -> void:
 	# MERGE_STATIC=0: the chunks' solid boxes and the far landmarks' boxes one node each, as
 	# before they were merged (the A/B of that change). Through the script resources, not the
 	# class names: CityChunk uses autoloads, and this script compiles before they exist.
+	# STOREFRONT_KIT=0: the buildings without ShopfrontKit's pieces (the A/B of that kit).
+	if OS.get_environment("STOREFRONT_KIT") == "0":
+		(load("res://scripts/world/shopfront_kit.gd") as GDScript).set("enabled", false)
 	if OS.get_environment("MERGE_STATIC") == "0":
 		(load("res://scripts/world/city_chunk.gd") as GDScript).set("merge_boxes", false)
 		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("merge_enabled", false)
