@@ -1,11 +1,102 @@
-# Handoff: Rando Game (written 2026-09-19; section 00 is the newest state and the handoff to the next account, 2026-09-25)
+# Handoff: Rando Game (written 2026-09-19; section 0000 is the newest state and the handoff to the next account, 2026-09-28)
 
 This is the narrative handoff for whoever picks the project up next, from any Claude Code account
 or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadmap plus the
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
 
-## 000. Session of 2026-09-27 (newest - read this first, then 00)
+## 0000. Handoff of 2026-09-28 (newest - read this first, then 000 and 00)
+
+The owner is moving to another account; this is where everything stands. **`main` is the whole
+state** (32fdd30, build 313 in CI at the time of writing; builds 304-312 green). Nothing is left on
+a branch that matters: every agent branch below was merged and its worktree deleted. The one
+unfinished piece is a patch in `docs/wip/` (see "In flight").
+
+**Shipped in the second half of 2026-09-27** (each has its own section below; the numbers are the
+section, not the build):
+- **Buildings in a handful of draws** (9ai): walls, facade detail and roof plant merged per
+  building - downtown frame 5,815 -> 3,360 draws, same picture.
+- **Road stripes gone**: the long "polished wheel track" strips drew as black (then tan) skid
+  stripes down every avenue - the patch shader never matches the road's own tarmac. Removed;
+  the braking polish at stop lines stays (`StreetDetail`).
+- **Hill ground from standing height** (9ak): shell grass and a brush understory on the near
+  hills, the splat shared by the terrain and the shells (`hill_splat.gdshaderinc`).
+- **Hills without leopard spots** (000's last bullets; CLAUDE.md terrain note): the brush
+  threshold is pushed off the noise mean by the land (steep faces brush, gentle ground grass),
+  a 1.1 m octave rags the edges, every octave widens the edge as it fades, the tuft dirt and the
+  stand edge are anti-aliased (no grid of squares from the air).
+- **Crowd close-up** (9aj): face shapes, stubble / beards, brows in the hair colour, folds,
+  per-person trouser dyes, no skin through shirts.
+- **Motion blur and depth of field** (9al): a CompositorEffect on Forward+ only (off on the web
+  and in stills), gentle far blur while aiming, strong blur behind the weapon wheel.
+  Knobs on the player's `CameraRig/Post` (`motion_blur_strength`, `shutter`, `max_blur_px`).
+- **MultiMesh batches write one buffer** that the shadow twin shares (no GPU read-back; the
+  headless check lost 6,500 error lines).
+- **Lots filled, not paved** (9am): podiums (parking decks, retail), forecourts, lawns, pools,
+  surface car parks; downtown bare lot ground 44 % -> 2 %, midtown 54 % -> 5 %.
+- **Car damage** (9an): `Vehicle.take_hit()` from every gun, blast and crash; bullet holes,
+  dents, crazed and shattered glass with a traced cabin behind, broken lamps, smoke, fire
+  (the explosion's `fire_puff` shader, spreading to the cabin), explosion, burnt wreck.
+  Knobs in `scripts/vehicles/car_damage.gd`.
+- **Street-level facades with depth** (9ao): `ShopfrontKit` - real shop frames and doors, pier
+  cladding, awnings, lit blade signs, glass posters, recessed entries, curtain-wall caps, thin
+  real window frames above.
+
+**In flight (not on main):** `docs/wip/crowd-garments.patch` - our own garments for the crowd
+(tee, trousers / jeans / shorts, button shirt, zip jacket) modelled the way the hero's tracksuit
+is, in `tools/crowd/garments.py` (1,400 lines) wired into `build_character.py`. It was stopped
+mid-way (it was on the trouser legs below the ankle) and is NOT runnable as is: it calls a
+`garment_paint.py` that was never written, and its config change strips one character's library
+clothes without giving it an `"outfit"`. Read `docs/wip/README.md` before applying it. This is
+the recommended next job: the crowd-detail pass concluded that shader work on the MakeHuman
+clothes has hit its ceiling and only real garments move the crowd further.
+
+**Needs the owner's eyes on the Mac (Forward+)** - none of this can be judged in the opengl3
+stills: the motion blur's strength and the aim / wheel depth of field; car fire and smoke at night;
+the crowd's skin subsurface and wet eyes; the parking decks' exposure and the car parks'
+chain-link dither; the hills' colours from the air; the storefronts' metal frames and glass
+decals. Ask for screenshots with the HUD's FULL mode (F1) so the frame-time line is in them.
+
+**Known and left alone:**
+- `Explosion.blast()` shoves a car once per collision shape, so rockets throw cars 2-3x harder
+  than `launch_speed` says. That is feel, not a bug; change it only if the owner asks.
+- The SUPER body's wheel arches render empty in `car_shot.gd` (seen by the car-damage pass).
+- Beach town blocks (~67 % bare ground) and campus blocks were left out of the lot fill.
+- Retail podium roofs have no mechanical plant; crowd_j still shows a small sliver of skin at
+  the shirt front; the lot fill's cheap code car is plain up close.
+
+**How this session worked** (it keeps paying off; the traps are the expensive part):
+- The lead worked on a local branch `mountains` in `/home/user/rando-game` and pushed
+  `mountains:main` after every green check (owner: "push to main always"). Each big job was a
+  background agent in its own worktree (`git worktree add /home/user/wt/<slug> -b wt/<slug>
+  mountains`, plus a copy of `.godot`), committing only there; the lead reviewed the screenshots,
+  merged main INTO the agent's branch in its worktree (resolving conflicts there), ran the check
+  there, then fast-forwarded `mountains` and pushed.
+- **Agents all number their HANDOFF section "the next free one"**, so two or three branches
+  arrive claiming the same `9a?`. Renumber on merge (this session: 9ai twice, 9aj three times).
+- **Re-import after every merge that adds a `class_name`** (`godot --headless --path . --import`)
+  before any still in that checkout, or the city renders as a bare plane with floating cars and
+  people ("Parse Error: Identifier ... not declared"). CI always imports, so builds are fine -
+  it cost one false alarm this session. The same goes for a fresh worktree.
+- **A container restart kills every background process and agent** (it happened once); files
+  survive, uncommitted work survives only on disk. Agents now commit in small steps; resume one
+  by messaging it with where its worktree stands.
+- Renders: one opengl3 still at a time under `flock -o /tmp/rando_render_gl.lock`; NEVER a
+  lavapipe (Forward+) render of the city (OOM at ~12 GB), only small scenes; NEVER `pkill` by
+  name (other agents run the same binaries). Four cores, so two or three agents at once is the
+  practical limit. Each worktree with its `.godot` is ~1.3-1.5 GB; the disk hit 94 % once.
+- Quick loops that beat renders: `tools/lot_coverage.gd` (bare ground per district, headless),
+  `tools/glshot/hill_ground_shot.tscn` (hill chunks alone, a minute a shot), a CPU top-down of
+  `HillPlanting.ground()` for the brush pattern (seconds), `car_shot.gd DAMAGE=...`,
+  `tools/glshot/post_room_shot.gd` / `motion_blur_shot.gd` (lavapipe, small scenes),
+  `still_shot.gd DIFF=1` + `tools/glshot/img_diff.py` for pixel A/Bs.
+
+**Next, in order:** finish the crowd garments (the patch); fill the beach town and campus
+blocks the way the lot fill did downtown; get Mac screenshots and tune the Forward+-only looks
+listed above; then the roadmap's open rows (#14 interiors behind street glass, #20 front range
+roads and estates).
+
+## 000. Session of 2026-09-27 (read after 0000, then 00)
 
 One orchestrating session plus a local agent and six cloud sessions (one machine each, a
 `wt/<slug>` branch each, screenshots on orphan `shots/<slug>` branches). Everything below was

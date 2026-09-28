@@ -1,4 +1,34 @@
-# Work in flight when the session of 2026-09-21 was paused
+# Work in flight
+
+## crowd-garments.patch  (2026-09-28; tools/crowd/garments.py, build_character.py, crowd_config.json)
+
+Our own garments for the crowd, stopped part-way when the session was handed to another account.
+The goal and the plan are in the header of `tools/crowd/garments.py` (after applying): a crew-neck
+tee, trousers (jeans, chinos, leggings, denim shorts), a button shirt and a zip jacket, each a
+SHELL grown off the bound body (inherits its UVs and weights), shaped to hang like cloth, every
+opening cut by planes and hemmed with a real cross-section, collars / cuffs / waistbands / placket /
+zip as swept bands with a profile; a character with an `"outfit"` in `tools/crowd/crowd_config.json`
+wears these instead of MakeHuman's library clothes. The crowd contract in CLAUDE.md (The crowd)
+still has to hold: 24 bones and three clips, ONE Body surface with the R/G/B/A region vertex
+colours, the hair mesh, welded mid / far bodies, camp figure bakes, the police recolour.
+
+State when stopped: the shell / cut / hem / band code for all four garments is written but was
+never run to the end; the builder was on the trouser legs below the missing ankle skin.
+**Not runnable as is:** `garments.py` calls `garment_paint.py` (the texel painter
+`crowd_atlas.py` is meant to use for the virtual atlas regions) which was never written, and the
+config change removes one character's `male_casualsuit06.mhclo` without adding an `"outfit"`
+for it (that character would build with no clothes). Apply with `git apply
+docs/wip/crowd-garments.patch`, then: write `garment_paint.py`, give the characters outfits, run
+`tools/crowd/build.sh <name>` one character at a time (Blender 4.2 via `tools/hero/setup.sh`),
+judge with `tools/glshot/crowd_lineup.gd` against the current crowd, and keep the frame cost flat.
+
+## Older patches (2026-09-21) - reference only
+
+`wheels-in-flight.patch` and `signs-in-flight.patch` predate the Blender-built car bodies (which
+carry their own wheels and far twins) and the one-mesh-per-building rewrite of `Building`; they
+will not apply to today's `main`. Read them for the ideas, not the diffs.
+
+### The 2026-09-21 notes, as they were
 
 Three agent fleets were running and were stopped mid-task. Their finished output is on `main`;
 what was still half-written is here as patches, so nothing was lost and nothing half-finished

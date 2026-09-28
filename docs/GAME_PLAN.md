@@ -278,6 +278,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-28 The hills are brush where the land says so, grass on the benches.** The brush
+  stands read as leopard-spot camouflage from 100-500 m because the threshold sat at the stand
+  noise's mean over whole hillsides. The land now decides: `chaparral_amount` 0.8 (steep faces
+  are brush with small openings), `gentle_grass` 0.55 on all gentle ground, and the edge is
+  ragged at the scale of single shrubs (a 1.1 m octave) and softens into a tone as each octave
+  fades with distance. Mirrored in `HillPlanting` and the far ground; checked by the smoke test.
+  docs/HANDOFF.md 000 / 0000; CLAUDE.md terrain note.
+
+- **2026-09-28 Unfinished agent work goes to `docs/wip/` as a patch, never to `main` half-done**
+  (the crowd garments, handed to the next account). Same rule as 2026-09-21.
+
 - **2026-09-27 Cinematic post: per-pixel motion blur, and depth of field while aiming and in the
   wheel (VISUAL_ROADMAP #12).** A Forward+ CompositorEffect (`MotionBlurEffect`) blurs along the
   velocity buffer before TAA / FSR 2.2, scaled to a fixed 180-degree shutter at 60 fps so every
