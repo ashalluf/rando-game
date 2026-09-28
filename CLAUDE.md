@@ -691,7 +691,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   are open: their traced room is lit in its own `shop_tone()` (warm, neutral, cool, now and then
   pink or teal) at its own brightness, and a third hang a neon piece (`neon_shape()`, four
   shapes, `neon_color()`) in the bay after the door. Closed ones are dark with a night light, and
-  over half pull a roll-down shutter (only while `lamp_factor` > 0.5, so never by day). Sign
+  over half pull a roll-down shutter (only while `lamp_factor` > 0.5, so never by day; a third
+  of those a see-through scissor gate instead), and the door bay itself is now an integer roll
+  too (salt 15), so the kit's door stands in it (see Storefronts and curtain walls). Sign
   bands: a closed shop leaves its lightbox off as often as not, and over half the boards are
   dark with lit channel letters (`Building.shop_letters()` -> `PropFactory.shop_sign_material()`,
   cream by day as before); the board draws a lit stand-in strip of their colour where there are
@@ -1633,6 +1635,50 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   are one trimesh per building (`KitSolids`). Baked AO lives in UV2.x as occlusion, and is off
   on `kit_iron`, whose thin bars bury their only vertices in the rails they meet. The kit is off
   on the web (`Building.kit_enabled`), where the boxes and painted frames stand in for it.
+- Storefronts and curtain walls (owner, 2026-09-27: "next level ... AAA studio quality"): the
+  kit's code-built half, `ShopfrontKit` (`scripts/world/shopfront_kit.gd`), meshes built in
+  GDScript in the kit's frame and conventions, wearing `PropFactory.kit_material()` and added
+  to the building's one kit batch (a key each: `kit_shop_bay`, `kit_shop_door`,
+  `kit_shop_pier(_metal)`, `kit_shop_fascia`, `kit_shop_blade`, `kit_awning_dome/_flat/_roller`,
+  `kit_cap_v`, `kit_cap_h`): a frame round every display window (jambs, head, sloped sill, the
+  transom at door-head height, a centre mullion in some shops), a door in every door bay (a pair
+  of glazed leaves with pull handles, or one leaf with a push bar beside a sidelight), cladding
+  on every pier box (plinth, shaft, capital), a trim round every sign board, blade signs with
+  the shop's name up both faces (a lightbox after dark as the shop's board is), awnings in four
+  shapes (one per building by hash), and on a curtain wall mullion and transom caps. The kit
+  shader grew **anchors** for them: UV2.y - 1 is a per-vertex code (bits 0-1 x, 2-3 y: 0 the
+  slice, 1 moves with the low edge, 2 with the high edge, 3 stays at the centre; bits 4-7 keep a
+  vertex only where INSTANCE_CUSTOM.g / .r is or is not set, so one mesh holds two layouts), so a
+  door's meeting stiles stay in the middle, its handles at hand height and its transom at door
+  height on any opening. The glTF pieces carry UV2.y = 1 (code 0) and are untouched;
+  `ShopfrontKit.place()` is the shader's placement in GDScript (the smoke test checks a door
+  with it). The caps cull per instance (`cull_distance` on `kit_mullion`, set from
+  `Building.kit_mullion_distance`), so a tower's caps are two draws and still stop floor by
+  floor. **The storefront pieces stand exactly where `building.gdshader` paints the same
+  frames**: which bay is the door, whether it is a recessed entry, the centre mullion, the door
+  layout and the frame finish all come from `Building.shop_byte()` with salts 14-18 shared
+  with the shader (`ShopfrontKit.SALT_*`; the smoke test reads the shader's thresholds back),
+  and the painted frames give way to the geometry within `shop_paint_near` (45 m) and carry the
+  look alone from `shop_paint_far` (70 m) - the pieces draw to `kit_shopfront_distance` (100 m,
+  the building's node), so past 70 m both draw and the 7 cm between them is under a pixel. A
+  recessed entry (28 % of door bays) is the shader alone at every range: a 1.1 m traced lobby
+  with a mosaic floor, stone returns, a soffit downlight and the painted door at the back. The
+  shader also puts vinyl lettering, posters, opening hours and OPEN plates on the glass (on the
+  traced pane, so they parallax with it), scissor gates on some closed shops at night, and
+  measures the storefront from the part's base (it used to be a ratio of WORLD height, which
+  squashed or erased every shopfront standing off y 0; StreetWear's `_paintable()` and the
+  shop names follow). Curtain walls (`curtain_spandrel`) have the far shader's vision band and
+  spandrel (0.08 / 0.93 of the floor, pale or dark by its roll through `lod_seed`) and thin
+  lines in the frame paint where the caps stand; with the kit on they wear no flat `Frames`.
+  The `Frames` everywhere else are `ShopfrontKit.window_frame()`: a real 45-60 mm section
+  (`Building.FRAME_WIDTH`) with its inside faces, a sash bar in most punched windows, one paint
+  a building (`Building.FRAME_PAINTS`). Knobs on Building: `kit_shopfront_distance`,
+  `shop_paint_near` / `_far`, `kit_awning_building_chance`, `kit_blade_chance`,
+  `kit_mullion_distance`; `ShopfrontKit.enabled` (off: none of these pieces, the A/B -
+  `STOREFRONT_KIT=0` on `still_shot.gd`). The blade-sign names are flat text merged on the CPU
+  (`ShopfrontKit.TextAcc`): never `SurfaceTool.append_from()` a mesh per building (a read-back
+  from the renderer). Look with `tools/glshot/still_shot.gd` `EYE=` / `SHOTS=` (a third `@fov`
+  field per shot); `building_shot.gd` for one building.
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,

@@ -3638,3 +3638,146 @@ focus speed 8), `wheel_dof_*` (enabled, 8 m, 14 m, 0.16), `aim_ease_seconds` 0.2
   blur. Not an issue at the cap.
 - Transparent things (particles, glass) write no velocity: they take the blur of what is behind
   them. The web and the opengl3 stills show none of this.
+
+## 9am. Street-level facades with real depth, 2026-09-27 (agent branch `wt/facade-depth`; roadmap #39)
+
+The brief (owner: "next level ... AAA studio quality"): on a downtown pavement the buildings read
+as CG boxes - a shopfront was a painted sign band over dark flat glass between flat grey pier
+boxes, a curtain-wall tower a flat grid of painted panes, and the upper floors' window frames
+thick pale flat outlines that read as a drawing. CLAUDE.md's "Storefronts and curtain walls"
+note is the reference; this is the story and the numbers.
+
+### What it does
+
+- **`ShopfrontKit`** (`scripts/world/shopfront_kit.gd`): the facade kit's code-built half, built
+  in GDScript in the kit's own frame and conventions (x along the wall, y up, z out; UV (x, 1+y)
+  in metres; UV2.x occlusion) on `PropFactory.kit_material()` - new materials `kit_alu`
+  (anodised framing, tinted per instance), `kit_mullion` (the caps, culled per instance) and
+  `kit_sign` (a blade sign's lightbox) - into each building's one kit batch. Pieces: `bay` (a
+  display window's frame: jambs and head lapping the glass 12 mm, a sloped sill, the transom at
+  door-head height, a centre mullion as an optional layout), `door` (frame, threshold, transom;
+  a pair of glazed leaves with pull handles OR one leaf with a push bar beside a fixed mullion
+  and a sidelight, both in the mesh), `pier` / `pier_metal` (plinth, chamfered shaft, capital
+  over the pier box), `fascia` (a trim round the sign board with a drip flashing), `blade` (a
+  projecting board on two brackets, the name up both faces), `awning_dome`, `awning_flat` (a
+  metal canopy on tie rods), `awning_roller` (cassette, sloped canvas, valance, folding arms),
+  `cap_v` / `cap_h` (curtain-wall mullion and transom caps).
+- **Anchors in the kit shader.** The three-slice alone cannot keep a door's meeting stiles in
+  the middle or its handles at hand height: everything inside the unit opening stretches. UV2.y
+  - 1 is now a per-vertex code (x mode + 4 x y mode: 0 slice, 1 moves with the low edge, 2 the
+  high edge, 3 stays at the centre; bits 4-7 keep a vertex only where INSTANCE_CUSTOM.g / .r is
+  or is not set, so one mesh holds two layouts - one draw for every door on a building, pairs
+  and singles alike). The glTF pieces all carry UV2.y = 1 (code 0, checked), so the Blender kit
+  is untouched. `ShopfrontKit.place()` is the same placement in GDScript; the smoke test places
+  a door with it on a 1.9 x 3.33 m opening and checks the 6 mm meeting gap, the stiles, the
+  transom at 2.38 m and the jambs.
+- **The pieces stand where the shader paints the same frames.** The door bay (it was a float
+  hash of `shop_seed`, which no CPU can reproduce), whether it is a recessed entry, the centre
+  mullion, the door layout and the frame finish are all `Building.shop_byte()` rolls (salts
+  14-18, `ShopfrontKit.SALT_*`); the transom is at 2.38-2.50 m above the pavement in both; the
+  jambs lap the glass where the shader's bars are. The painted frames are hidden inside
+  `shop_paint_near` (45 m) and fully back by `shop_paint_far` (70 m); the pieces draw to
+  `kit_shopfront_distance` (100 m, raised per building to shop_paint_far + half its footprint
+  diagonal + 8 m, because a node's range is measured to its centre). Past 70 m both draw, 7 cm
+  apart - under a pixel there. The strip of wall between two display bays, the sill and the
+  head are now painted in the shop's frame finish at every range, so the storefront reads as one
+  framed glazing system instead of glass holes in a stone wall.
+- **Recessed entries** (28 % of door bays) are the shader alone, at every range: the door bay's
+  traced recess is 1.1 m deep, with a mosaic floor and border, polished stone returns (three
+  stones), a dark soffit with a downlight that comes on with the street lamps, and the door
+  painted at the back of the lobby (its own frame, leaves, handles, the hours plate) with the
+  shop's room behind it. No geometry, because the wall is a box: nothing can stand inside it.
+- **On the glass** (traced pane, so it sits on the inside of the glass with its parallax):
+  vinyl lettering (invented capitals built from strokes, white or gold, 39 % of shops), one or
+  two posters in one bay (47 %), and on the door an opening-hours plate and an OPEN plate. They
+  fade to their average coverage once a stroke is under a pixel. Lit shops show them as
+  silhouettes against the room at night.
+- **Scissor gates**: a third of the shutters a closed shop pulls at night are a see-through
+  lattice (posts, diagonal links, rails) over the dark shop; the bars fade to 42 % cover when
+  finer than a pixel.
+- **Awnings**: one shape a building (`_kit_awnings`: canvas slope / dome / retractable / flat
+  metal canopy, glass and panel blocks lean to the metal canopy), colour and stripes per shop as
+  before; glass, panel and plain blocks without a canopy now hang them too (half of them, by
+  hash - the `has_awnings` roll is untouched).
+- **Blade signs** (24 % of shops, on the pier at one end of the shop, above the sign band): the
+  board in one of eight paints, the shop's own name (Building's own name roll, replayed) stacked
+  letter by letter when short, running up the board when long, on both faces - flat letters
+  merged on the CPU into ONE mesh per letters' material per building (`BladeText*`, culled at
+  SIGN_DRAW_DISTANCE). After
+  dark it is lit exactly as the shop's fascia is (`shop_letters()`): a lightbox, or dark behind
+  lit channel letters, or off with a closed shop.
+- **Curtain walls** (`curtain_spandrel` on every CURTAIN-style Building): the far shader's
+  layout (vision glass 0.08-0.93 of the floor, building_lod.gdshader's `vis_lo` / `vis_hi`), a
+  spandrel panel over each slab edge rolled pale or dark by the far shader's own hash (through
+  `lod_seed`, (seed % 997) / 997) with a dimmer reflection, and thin transom lines in the
+  building's frame paint. With the kit, `cap_v` on every mullion line (CAP_BAND_ROWS 4 floors an
+  instance) and `cap_h` on both transom lines of every floor; the flat `Frames` are dropped on
+  those walls. The caps collapse per instance past `kit_mullion_distance` (175 m) in the vertex
+  shader, shadow passes too, so a tower's caps are two draws.
+- **Window frames** everywhere else (`Frames`): `ShopfrontKit.window_frame()` - bars of a real
+  section (`FRAME_WIDTH`: 60 mm punched, 55 slot, 50 ribbon, 45 curtain) worked out per building
+  from its pitch and floor height, with the faces that look into the opening, and a sash bar
+  (a meeting rail, or a rail and a muntin) in most punched and slot windows; one paint a
+  building from `FRAME_PAINTS` (white, cream, black, green and bronze on brick; the anodised
+  range on glass). The curtain-wall frames' centre was mirrored wrong (9 cm off the glass) and
+  is fixed (`col + 1 - cx`, identical on every other style).
+- **The storefront is measured from the part's base.** `building.gdshader` used `v / pt_ground`,
+  a ratio of WORLD height: right only for a building standing at y 0. Every building on the
+  rolling ground had a squashed shopfront and one 20 m up had no glass at all and its shop names
+  at knee height. Now `(v - base) / storefront`; the shop names (`band_y`), StreetWear's
+  `_paintable()` and its tag reach follow (StreetWear's float hash emulation of the old door bay
+  is gone with it). Downtown sits at y 0.25, so there it moved by about 5 cm.
+
+### Cost
+
+opengl3, `DIFF=1`, before = the parent commit (2fa67b9), after = this branch, same frames:
+
+| Frame | triangles before -> after | draws before -> after |
+|---|---|---|
+| Downtown bookmark, 960x540 (`--spawn=2359.4,880,0,12,2`) | 5,181,266 -> 5,330,346 (+2.9 %) | 2,733 -> 2,769 (+1.3 %) |
+| - its Building category (`SPLIT=1`) | 1,077,558 -> 1,226,078 | 857 -> 893 |
+| South-west aerial, 960x540 (`--spawn=1450,2150,-38,4,140`) | 4,666,147 -> 4,673,339 (+0.2 %) | 2,769 -> 2,774 |
+| Flower St storefronts, 1280x720 (`EYE=2366,1.7,880,-55,6`) | 3,084,918 -> 3,143,592 (+1.9 %) | 1,340 -> 1,363 |
+| The tower from its foot (`EYE=2366,1.7,860,-80,35`, FOV 70) | 1,997,742 -> 2,023,368 (+1.3 %) | 901 -> 927 |
+| Brick block on Broadway at 5th (`EYE=2977,1.7,-12,25,5`) | 4,255,296 -> 4,423,902 (+4.0 %) | 2,396 -> 2,443 |
+| The same at 21:00 | 4,247,684 -> 4,432,066 (+4.3 %) | 2,384 -> 2,478 |
+
+The new `BSPLIT` kinds at the downtown bookmark: storefront pieces 29,930 triangles, curtain-wall
+caps 101,492, awnings 17,052, blade-sign names 4,300 (per-kind draw deltas there do not add up
+and are not worth quoting; the Building total is +36). The GEO counter includes the triangles of
+the layout an instance does not show (collapsed, never rasterised) and of culled caps.
+
+Generation (headless, 48 buildings of all four finishes, 20-60 m, the same machine, pieces on
+against `ShopfrontKit.enabled` off): about +2 ms a building, 12-15 ms -> 14-17 ms. It was +6 ms
+before the blade-sign names stopped using `SurfaceTool.append_from()` (a read-back of the text
+mesh from the renderer per letter; now CPU arrays taken once per name, `ShopfrontKit.TextAcc`) and
+flat, coarse-curved text (12 names in reach at the bookmark were 141,880 triangles; now 10,660).
+`STOREFRONT_KIT=0` on `still_shot.gd` is the A/B switch.
+
+### Screenshots
+
+Before / after pairs at eye level (opengl3, the harness): storefronts on Flower St, the tower from
+its foot, a brick block in the historic core by day and at 21:00, the storefronts at 21:00, down
+Flower St, and from 28 m up at 60-120 m (the handoff); close-ups of a recessed entry, doors and
+frames, blade signs, dome and retractable awnings and a shop at night. The lead has them as
+`facade_*.jpg`.
+
+### Traps
+
+- A `--script` tool that loads `building.tscn` in `_initialize()` compiles the Building chain
+  before the autoloads exist and silently runs without ShopfrontKit: its buildings had no
+  storefront pieces and the painted frames showed at any range. `building_shot.gd` now loads
+  the scene after three frames; do the same in any new tool.
+- `_bar()`'s bevel insets the front face from each end of the bar: a rail's front face near the
+  centre line ends 8 mm further from it than the rail does. Measure a member by its sides.
+- MultiMesh bounds come from the mesh's box: a sliced piece draws up to its opening past it, so
+  every sliced piece carries a `custom_aabb` grown by what it can stretch (a 12 m sign board,
+  a 4.4 m pier), and the caps, which are scaled rather than sliced, none.
+
+### Not done / next
+
+- Look at it on the Mac: the metal framing (`kit_alu` metal 0.45) and the vinyl and posters
+  under Forward+ light, the blade signs and gates at night, the spandrels in the sun.
+- The landmark towers (TowerMesh, `uv_facade`) keep their own curtain walls: no caps, no
+  spandrel (they are a replica's facades, tuned there).
+- Bulkheads are still painted; a raised panel under the sill would add another depth cue.
