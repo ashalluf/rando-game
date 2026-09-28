@@ -203,18 +203,16 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			elif occupant.begins_with("pair"):
 				# A driver and a front passenger, whatever the seed would roll.
 				var parts := occupant.split(":")
-				cabin.call("seat", car.get("_glass_meshes"), 3, cabin.call("npc_look", parts[1].to_int() if parts.size() > 1 else 7))
+				car.call("_apply_occupant", 3, cabin.call("npc_look", parts[1].to_int() if parts.size() > 1 else 7))
 			elif occupant == "player":
-				cabin.call("seat", car.get("_glass_meshes"), 1, cabin.call("player_look"))
+				car.call("_apply_occupant", 1, cabin.call("player_look"))
 			elif occupant == "none":
-				cabin.call("seat", car.get("_glass_meshes"), 0, cabin.call("player_look"))
-			print("OCCUPANT type %d: seats %d" % [int(car.get("body_type")), int(car.call("cabin_seats"))])
+				car.call("_apply_occupant", 0, cabin.call("player_look"))
+			print("OCCUPANT type %d: seats %d" % [int(car.get("body_type")), int(cabin.call("seats_of", car.call("cabin_glass")))])
 			if OS.get_environment("CABIN_DEBUG") != "":
-				for m: MeshInstance3D in car.get("_glass_meshes"):
-					for si in m.mesh.get_surface_count():
-						var sm := m.get_surface_override_material(si) as ShaderMaterial
-						if sm != null and sm.shader == cabin.get("GLASS_SHADER"):
-							sm.set_shader_parameter("cabin_debug", true)
+				var sm := car.call("cabin_glass") as ShaderMaterial
+				if sm != null:
+					sm.set_shader_parameter("cabin_debug", true)
 	for i in 120:
 		await physics_frame
 	var damage := OS.get_environment("DAMAGE")

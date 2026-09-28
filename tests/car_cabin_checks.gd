@@ -2,12 +2,13 @@ extends RefCounted
 ## Car glass and the people behind it (scripts/vehicles/car_cabin.gd) for tests/smoke_test.gd.
 ## Loaded at run time (not named there), so it compiles after the autoloads and can name Vehicle,
 ## CarCabin, CarDamage and PoliceCar freely. On a platform 300 m over the street, like the car
-## damage checks. Checks: every glass-slot body wears the cabin glass, one material per body type
-## whoever is inside; a parked car is empty and a traffic car has somebody at the wheel (the
-## instance uniform on its body mesh says so), who stays when a hit knocks it out of the traffic
-## and whose seat carries over onto the damage glass, and who gets out when it catches fire; the
-## player at the wheel is the player; a cruiser seats its crew until they are out; privacy glass
-## is darker than a saloon's rear glass; and the traffic and parked cars in the city agree.
+## damage checks. Checks: every glass-slot body wears the cabin glass - the body type's one shared
+## material while nobody is inside, the car's own copy of it (same shader) while somebody is; a
+## parked car is empty and a traffic car has somebody at the wheel (its glass's occupant uniforms
+## say so), who stays when a hit knocks it out of the traffic and moves onto the damage glass, and
+## who gets out when it catches fire; the player at the wheel is the player and the car he leaves
+## goes back to the shared glass; a cruiser seats its crew until they are out; privacy glass is
+## darker than a saloon's rear glass; and the traffic and parked cars in the city agree.
 
 var _t: Node
 var _tree: SceneTree
@@ -103,24 +104,16 @@ static func glass_of(car: Vehicle) -> Material:
 	return null
 
 
-## The seats the body mesh's instance uniform holds (occupant_top.a), -1 with no glass mesh.
+## The seats the car's glass shows (occupant_top.a on whatever glass it wears), -1 with no glass.
 static func seats_of(car: Vehicle) -> int:
-	if car._glass_meshes.is_empty():
+	if car._glass_slots.is_empty():
 		return -1
-	var m: MeshInstance3D = car._glass_meshes[0]
-	var v: Variant = m.get_instance_shader_parameter(&"occupant_top")
-	if v == null:
-		v = m.get("instance_shader_parameters/occupant_top")
-	if v == null:
-		return 0
-	return roundi((v as Vector4).w)
+	return CarCabin.seats_of(car.cabin_glass())
 
 
 func _top_of(car: Vehicle) -> Vector4:
-	var m: MeshInstance3D = car._glass_meshes[0]
-	var v: Variant = m.get_instance_shader_parameter(&"occupant_top")
-	if v == null:
-		v = m.get("instance_shader_parameters/occupant_top")
+	var m := car.cabin_glass() as ShaderMaterial
+	var v: Variant = m.get_shader_parameter("occupant_top") if m else null
 	return v if v is Vector4 else Vector4.ZERO
 
 
@@ -139,12 +132,15 @@ func _city_cars() -> void:
 		if car == null or car is Aircraft or car._glass_meshes.is_empty() or car._damage != null or car.driver != null:
 			continue
 		var g := glass_of(car) as ShaderMaterial
-		if g == null or g.shader != CarCabin.GLASS_SHADER:
+		if g == null or g.shader != CarCabin.GLASS_SHADER or car._glass_shared == null:
 			wrong_glass += 1
 			continue
 		if not mats.has(car.body_type):
-			mats[car.body_type] = g
-		elif mats[car.body_type] != g:
+			mats[car.body_type] = car._glass_shared
+		elif mats[car.body_type] != car._glass_shared:
+			split += 1
+		# Nobody inside: the shared glass itself; somebody: the car's own copy.
+		if (seats_of(car) == 0) != (g == car._glass_shared):
 			split += 1
 		if car is PoliceCar:
 			continue
@@ -157,7 +153,7 @@ func _city_cars() -> void:
 			if seats_of(car) == 0:
 				parked_empty += 1
 	_check(wrong_glass == 0 and split == 0 and mats.size() > 0,
-			"every glass-slot car in the city wears its body's one cabin glass (%d body types, %d wrong, %d split)" % [mats.size(), wrong_glass, split])
+			"every glass-slot car in the city wears the cabin glass: its body's shared one when empty, a copy when not (%d body types, %d wrong, %d split)" % [mats.size(), wrong_glass, split])
 	_check(traffic_in == traffic_n and parked_empty == parked_n and parked_n > 0,
 			"street cars have a driver (%d/%d), parked cars are empty (%d/%d)" % [traffic_in, traffic_n, parked_empty, parked_n])
 
@@ -168,8 +164,8 @@ func _parked_and_shared() -> void:
 	var c := _car(-10.0, Vehicle.BodyType.CROSSOVER)
 	await _ticks(10)
 	var ga := glass_of(a) as ShaderMaterial
-	_check(ga != null and ga.shader == CarCabin.GLASS_SHADER and glass_of(b) == ga and glass_of(c) != ga and glass_of(c) != null,
-			"the glass slot wears the cabin glass, one material per body type")
+	_check(ga != null and ga.shader == CarCabin.GLASS_SHADER and glass_of(b) == ga and ga == a._glass_shared and glass_of(c) != ga and glass_of(c) != null,
+			"the glass slot of a parked car wears its body type's one shared cabin glass")
 	_check(seats_of(a) == 0 and a.cabin_seats() == 0, "a parked car is empty (seats %d)" % seats_of(a))
 	var twin_ok := false
 	for tw in a._body_shadows:
@@ -183,9 +179,11 @@ func _parked_and_shared() -> void:
 func _traffic_driver() -> void:
 	var car := _car(0.0, Vehicle.BodyType.SEDAN, true)
 	await _ticks(5)
-	var g := glass_of(car)
-	_check((seats_of(car) & 1) != 0 and (car.cabin_seats() & 1) != 0 and _top_of(car).w >= 1.0,
-			"a traffic car has a driver in its cabin (seats %d)" % seats_of(car))
+	var g := glass_of(car) as ShaderMaterial
+	_check((seats_of(car) & 1) != 0 and (car.cabin_seats() & 1) != 0 and _top_of(car).w >= 1.0
+			and g != null and g != car._glass_shared and g.shader == CarCabin.GLASS_SHADER
+			and CarCabin.seats_of(car._glass_shared) == 0,
+			"a traffic car has a driver in its cabin, on its own copy of the glass (seats %d; the shared glass stays empty)" % seats_of(car))
 	car.drop_out_of_traffic()
 	await _ticks(5)
 	_check((seats_of(car) & 1) != 0, "the driver stays at the wheel when a hit knocks the car out of traffic")
@@ -197,7 +195,7 @@ func _traffic_driver() -> void:
 	var dmg := car._damage
 	var g2 := glass_of(car) as ShaderMaterial
 	_check(dmg != null and g2 != null and g2 != g and g2.shader == CarDamage.GLASS_DAMAGE_SHADER and (seats_of(car) & 1) != 0,
-			"the damage glass keeps the driver (the instance uniform is the body mesh's, not the material's)")
+			"the driver moves onto the damage glass with the first hit")
 	var tints_ok := false
 	var nn: Variant = g2.get_shader_parameter("pane_n") if g2 else null
 	if nn is PackedVector4Array and not (nn as PackedVector4Array).is_empty():
@@ -229,7 +227,8 @@ func _player_at_wheel(player: Player) -> void:
 			"the player at the wheel is the one in the cabin (seats %d)" % seats_of(car))
 	player.exit_vehicle()
 	await _ticks(2)
-	_check(seats_of(car) == 0, "the car the player leaves is empty")
+	_check(seats_of(car) == 0 and glass_of(car) == car._glass_shared,
+			"the car the player leaves is empty, back on the shared glass")
 	player.global_position = _top + Vector3(0.0, 1.2, 34.0)
 	player.velocity = Vector3.ZERO
 

@@ -5,8 +5,8 @@
 // in - and whoever sits in the front seats. Shared by car_glass.gdshader (every intact window)
 // and car_glass_damage.gdshader (a damaged car's glass: the cabin through an empty frame and
 // through what is still whole). CarCabin (scripts/vehicles/car_cabin.gd) measures the numbers
-// once per body model; who sits where is per car, in the instance uniforms (CarCabin.seat()), so
-// every car of a body type shares one material.
+// once per body model; who sits where is per car (the occupant uniforms, CarCabin.seat()): a car
+// with nobody in it wears its body type's one shared material, an occupied car a copy of it.
 //
 // Define CABIN_FIRE before including it for `burnt` and `cabin_fire` uniforms (the damage);
 // without it they are 0 and the compiler drops what they drive.
@@ -78,10 +78,14 @@ const float cabin_fire = 0.0;
 // the driver's, bit 1 the front passenger's); skin and in .a the hair style (0 short, 1 long,
 // 2 shaved, 3 a cap); hair (or the cap) and in .a a 0..1 seed; the passenger's top and in .a
 // their skin tone (0 fair .. 1 dark), plus 2 when they wear the driver's cap (a uniform).
-instance uniform vec4 occupant_top : instance_index(0) = vec4(0.0);
-instance uniform vec4 occupant_skin : instance_index(1) = vec4(0.0);
-instance uniform vec4 occupant_hair : instance_index(2) = vec4(0.0);
-instance uniform vec4 occupant_mate : instance_index(3) = vec4(0.0);
+// Plain uniforms on a per-car copy of the material, not `instance uniform`s: every instance that
+// uses those takes a 16-item block of the global shader buffer, which the Compatibility renderer
+// caps at 4096 items (WebGL2 may give a quarter of that) - the city's ~300 cars and their shadow
+// twins overflowed it (267 allocation errors in one downtown still).
+uniform vec4 occupant_top = vec4(0.0);
+uniform vec4 occupant_skin = vec4(0.0);
+uniform vec4 occupant_hair = vec4(0.0);
+uniform vec4 occupant_mate = vec4(0.0);
 
 // What a cabin hit is (the furniture's `mat`).
 const int CAB_FABRIC = 0;

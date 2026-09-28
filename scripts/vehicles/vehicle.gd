@@ -460,13 +460,19 @@ var _damage: CarDamage = null
 var _crash_v: Vector3 = Vector3.ZERO
 var _crash_hold: int = 0
 var _night_lights: MeshInstance3D
-## The body meshes wearing the cabin glass (CarCabin), whose instance uniforms say who is inside.
+## The body meshes wearing the cabin glass (CarCabin), and the glass surfaces on them as
+## [MeshInstance3D, surface index].
 var _glass_meshes: Array[MeshInstance3D] = []
+var _glass_slots: Array = []
+## The body type's shared cabin glass (worn while nobody is inside) and this car's own copy of it
+## (made the first time somebody is, and kept for the next time).
+var _glass_shared: ShaderMaterial
+var _glass_own: ShaderMaterial
 ## Somebody from the traffic is at the wheel (see `traffic`), and who (a seed for CarCabin).
 var _npc_driver: bool = false
 var _occupant_seed: int = 0
 var _occupant_rolls: int = 0
-## What the instance uniforms were last set to (seats and look), so they are set on a change only.
+## What the occupant uniforms were last set to (seats and look), so they are set on a change only.
 var _occupant_key: int = -1
 
 
@@ -699,7 +705,7 @@ func repair() -> void:
 	remove_child(_damage)
 	_damage.queue_free()
 	_damage = null
-	_update_occupant()
+	_update_occupant(true)
 
 
 func is_airborne() -> bool:
@@ -1428,7 +1434,9 @@ func _add_cabin_glass(holder: Node3D, meshes: Array[MeshInstance3D]) -> void:
 				continue
 			var to_car := holder.transform * CarCabin.chain(m, holder)
 			var data := CarCabin.measure(body_type, m.mesh, CarCabin.context(self, to_car))
-			m.set_surface_override_material(si, CarCabin.glass_material(body_type, src, data))
+			_glass_shared = CarCabin.glass_material(body_type, src, data)
+			m.set_surface_override_material(si, _glass_shared)
+			_glass_slots.append([m, si])
 			if not _glass_meshes.has(m):
 				_glass_meshes.append(m)
 
@@ -1457,23 +1465,53 @@ func _cabin_look() -> Dictionary:
 	return CarCabin.npc_look(_occupant_seed)
 
 
-## Puts _cabin_seats() and _cabin_look() on the glass's instance uniforms, when they change.
-func _update_occupant() -> void:
-	if _glass_meshes.is_empty():
+## Puts _cabin_seats() and _cabin_look() on the car's glass, when they change (`force` after the
+## glass itself changed: CarDamage swapping its own in, or taking it off again).
+func _update_occupant(force: bool = false) -> void:
+	if _glass_slots.is_empty():
 		return
 	var seats := _cabin_seats()
 	var key := seats
 	if seats != 0:
 		key = seats | ((2 if driver != null else 1) << 2) | ((_occupant_seed & 0xffffff) << 4)
-	if key == _occupant_key:
+	if key == _occupant_key and not force:
 		return
 	_occupant_key = key
-	CarCabin.seat(_glass_meshes, seats, _cabin_look())
+	_apply_occupant(seats, _cabin_look())
+
+
+## Seats `look` on the glass the car wears: CarDamage's glass once it has one; otherwise this car's
+## own copy of the body's glass when anybody is inside, and the shared one when nobody is (so a
+## street of parked cars stays one material per body type). The shadow twins keep what they have:
+## a shadow is the same whoever sits inside. Tools stage a look with it directly.
+func _apply_occupant(seats: int, look: Dictionary) -> void:
+	var dmg_glass: ShaderMaterial = _damage._glass if _damage != null and is_instance_valid(_damage) else null
+	if dmg_glass != null:
+		CarCabin.seat(dmg_glass, seats, look)
+		return
+	var mat := _glass_shared
+	if seats != 0:
+		if _glass_own == null and _glass_shared != null:
+			_glass_own = _glass_shared.duplicate() as ShaderMaterial
+		mat = _glass_own
+		CarCabin.seat(mat, seats, look)
+	for slot: Array in _glass_slots:
+		var m := slot[0] as MeshInstance3D
+		if is_instance_valid(m) and m.get_surface_override_material(slot[1]) != mat:
+			m.set_surface_override_material(slot[1], mat)
+
+
+## The glass material the car wears now (the shared one, its own copy, or CarDamage's), for tests.
+func cabin_glass() -> Material:
+	if _glass_slots.is_empty():
+		return null
+	var slot: Array = _glass_slots[0]
+	return (slot[0] as MeshInstance3D).get_surface_override_material(slot[1])
 
 
 ## Who is in the car now, for tests and tools: CarCabin's seat bits (0 nobody).
 func cabin_seats() -> int:
-	return _cabin_seats() if not _glass_meshes.is_empty() else 0
+	return _cabin_seats() if not _glass_slots.is_empty() else 0
 
 
 ## Shrinks the wheels baked into the body model down inside the generated wheel that is drawn

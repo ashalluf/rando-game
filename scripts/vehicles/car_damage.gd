@@ -1371,6 +1371,9 @@ func _ensure_glass() -> void:
 			_glass.set_shader_parameter("glass_metallic", src.metallic)
 			CarCabin.apply(_glass, _cabin, pane_state)
 		_swap(_mesh, si, _glass)
+	# Whoever is inside moves onto this glass (its occupant uniforms, CarCabin.seat()).
+	if _glass != null:
+		car._update_occupant(true)
 	_mark_dirty()
 
 

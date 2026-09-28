@@ -12,10 +12,14 @@ extends RefCounted
 ## the door line and the two rows of seats. Mesh data is not kept by the headless dummy renderer,
 ## so there (and for a body with no glass slot) four stand-in panes round the glasshouse do.
 ##
-## Who is in it is per car and costs no material: four `instance uniform`s on the body mesh
-## (seat()), so every car of a body type shares ONE glass material. Traffic has a driver (a
-## passenger now and then), a cruiser its crew, the car the player drives the player; parked
-## cars are empty, and a car that catches fire is abandoned (Vehicle._cabin_seats()).
+## Who is in it is per car: four occupant uniforms (seat()). A car nobody is in wears its body
+## type's ONE shared glass material; an occupied car a copy of it (Vehicle._apply_occupant()), and
+## a damaged car CarDamage's own glass, which takes the same uniforms. Not `instance uniform`s:
+## each instance using those reserves a 16-item block of the global shader buffer, which the
+## Compatibility renderer caps at 4096 items (the web may give a quarter), and the city's ~300
+## cars with their shadow twins overflowed it. Traffic has a driver (a passenger now and then), a
+## cruiser its crew, the car the player drives the player; parked cars are empty, and a car that
+## catches fire is abandoned (Vehicle._cabin_seats()).
 
 const GLASS_SHADER := preload("res://shaders/car_glass.gdshader")
 const PANE_CAP := 16
@@ -483,25 +487,29 @@ static func player_look() -> Dictionary:
 	}
 
 
-## Puts `seats` (bit 0 the driver's, bit 1 the front passenger's; 0 nobody) and `look` on the
-## body meshes' instance uniforms. The glass material stays the body's shared one.
-static func seat(meshes: Array, seats: int, look: Dictionary) -> void:
+## Puts `seats` (bit 0 the driver's, bit 1 the front passenger's; 0 nobody) and `look` into a glass
+## material's occupant uniforms (the car's own copy, or CarDamage's glass).
+static func seat(mat: ShaderMaterial, seats: int, look: Dictionary) -> void:
+	if mat == null:
+		return
 	var top: Color = (look.top as Color).srgb_to_linear()
 	var skin: Color = (look.skin as Color).srgb_to_linear()
 	var hair: Color = (look.hair as Color).srgb_to_linear()
 	var mate: Color = (look.mate as Color).srgb_to_linear()
-	var a := Vector4(top.r, top.g, top.b, float(seats))
-	var b := Vector4(skin.r, skin.g, skin.b, float(look.style))
-	var c := Vector4(hair.r, hair.g, hair.b, float(look.seed))
-	var d := Vector4(mate.r, mate.g, mate.b, minf(float(look.mate_skin), 0.99) + (2.0 if look.get("uniform", false) else 0.0))
-	for m in meshes:
-		var mi := m as MeshInstance3D
-		if mi == null or not is_instance_valid(mi):
-			continue
-		mi.set_instance_shader_parameter(&"occupant_top", a)
-		mi.set_instance_shader_parameter(&"occupant_skin", b)
-		mi.set_instance_shader_parameter(&"occupant_hair", c)
-		mi.set_instance_shader_parameter(&"occupant_mate", d)
+	mat.set_shader_parameter("occupant_top", Vector4(top.r, top.g, top.b, float(seats)))
+	mat.set_shader_parameter("occupant_skin", Vector4(skin.r, skin.g, skin.b, float(look.style)))
+	mat.set_shader_parameter("occupant_hair", Vector4(hair.r, hair.g, hair.b, float(look.seed)))
+	mat.set_shader_parameter("occupant_mate", Vector4(mate.r, mate.g, mate.b,
+			minf(float(look.mate_skin), 0.99) + (2.0 if look.get("uniform", false) else 0.0)))
+
+
+## The seats a glass material shows (occupant_top.a), for tests and tools.
+static func seats_of(mat: Material) -> int:
+	var sm := mat as ShaderMaterial
+	if sm == null:
+		return 0
+	var v: Variant = sm.get_shader_parameter("occupant_top")
+	return roundi((v as Vector4).w) if v is Vector4 else 0
 
 
 static func _roll(seed: int, salt: int) -> float:

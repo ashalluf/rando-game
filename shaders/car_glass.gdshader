@@ -2,14 +2,15 @@ shader_type spatial;
 render_mode cull_disabled;
 
 // The glass slot of every generated car body (CarCabin.glass_material(): one material per body
-// model, shared by every car of it). Still opaque - no transparent pass, nothing to sort - but no
-// longer a sealed dark shell: the model's own dark tinted glass reflects exactly as it did (the
-// renderer's specular, the same albedo, roughness and metal), and over it the cabin behind the
-// pane is emitted (car_cabin.gdshaderinc), traced in the body's own space so it has true
-// parallax, dimmed by the pane's tint (the windscreen clearest, privacy glass in the back of a
-// crossover, pickup or van dark) and by what Fresnel sends back as reflection. Whoever sits in
-// the front is in the instance uniforms (CarCabin.seat()). A damaged car swaps this for
-// car_glass_damage.gdshader, which draws the same cabin.
+// model, shared by every car with nobody in it). Still opaque - no transparent pass, nothing to
+// sort - but no longer a sealed dark shell: the model's own dark tinted glass reflects exactly as
+// it did (the renderer's specular, the same albedo, roughness and metal), and over it the cabin
+// behind the pane is emitted (car_cabin.gdshaderinc), traced in the body's own space so it has
+// true parallax, dimmed by the pane's tint (the windscreen clearest, privacy glass in the back of
+// a crossover, pickup or van dark) and by what Fresnel sends back as reflection. Whoever sits in
+// the front is in the occupant uniforms (CarCabin.seat()): a car nobody is in wears the shared
+// material, an occupied one its own copy. A damaged car swaps this for car_glass_damage.gdshader,
+// which draws the same cabin.
 
 #include "res://shaders/car_cabin.gdshaderinc"
 
