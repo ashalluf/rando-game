@@ -64,6 +64,15 @@ enum State { DAMAGED, SMOKING, BURNING, WRECK }
 @export var wreck_smoke_seconds: float = 45.0
 @export var wreck_lifetime: float = 150.0
 
+@export_group("Fire look")
+## Scale on every flame, lick and smoke puff of a car fire.
+@export var flame_size: float = 1.0
+## Energy of the flickering light under a fire (desktop; the web has none).
+@export var fire_light_energy: float = 3.4
+## Share of a burn after which the fire takes the cabin: the side glass pops and flames roll out
+## of the empty frames and over the roof.
+@export var spread_share: float = 0.45
+
 @export_group("Marks")
 ## Radius of a rifle round's hole and a pellet's (m); the chipped paint round one runs to twice it.
 @export var hole_radius: float = 0.0075
@@ -144,10 +153,17 @@ var _fuse: float = -1.0
 var _burn_t: float = 0.0
 var _wreck_t: float = 0.0
 var _smoke: CPUParticles3D
-var _fire: CPUParticles3D
+## The fire: billowing flame over the engine bay, tongues licking off the bonnet's edges and up
+## the windscreen, flames out of the cabin's empty frames and over the roof once it has spread,
+## and embers. All four exist only while the car burns.
+var _flames: CPUParticles3D
+var _licks: CPUParticles3D
+var _cabin_fire: CPUParticles3D
+var _embers: CPUParticles3D
 var _fire_light: OmniLight3D
 var _fire_sound: AudioStreamPlayer3D
 var _fire_size: float = -1.0
+var _flick: float = 0.5
 var _staged: bool = false
 ## While a still is staged, hits leave marks but do not move the health.
 var _stage_hold: bool = false
@@ -624,10 +640,14 @@ func _start_smoke() -> void:
 	if _smokers.size() >= max_smoking:
 		return
 	_smokers.append(self)
+	if state == State.BURNING or state == State.WRECK:
+		_smoke = _fire_smoke()
+		return
+	# Wisps out of the bonnet's shut lines: grey at first, darker as it gets worse.
 	_smoke = CPUParticles3D.new()
 	_smoke.name = "EngineSmoke"
 	_smoke.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	_smoke.amount = 26
+	_smoke.amount = WeaponFX._count(26)
 	_smoke.lifetime = 3.6
 	_smoke.lifetime_randomness = 0.3
 	_smoke.local_coords = false
@@ -664,22 +684,75 @@ func _start_smoke() -> void:
 	set_process(true)
 
 
-## Pale grey wisps at first, thick black once it is burning.
+## Pale grey wisps at first, darker as the car gets closer to catching. (The fire's own smoke is
+## another system, _fire_smoke().)
 func _tint_smoke() -> void:
-	if _smoke == null:
+	if _smoke == null or state == State.BURNING or state == State.WRECK:
 		return
 	var k := clampf(1.0 - (health / max_health - fire_at) / maxf(smoke_at - fire_at, 0.01), 0.0, 1.0)
-	if state == State.BURNING or state == State.WRECK:
-		k = 1.0
-	var grey := lerpf(0.42, 0.05, k)
-	_smoke.color = Color(grey, grey * 0.97, grey * 0.94, lerpf(0.35, 0.9, k))
-	# In steps: setting the amount restarts the system, and a round a tenth of a second would
-	# keep the column from ever rising.
-	var want := WeaponFX._count(18 + 10 * int(round(k * 3.0)))
-	if want != _smoke.amount:
-		_smoke.amount = want
-	_smoke.initial_velocity_max = lerpf(1.6, 3.4, k)
-	_smoke.scale_amount_max = lerpf(1.0, 1.5, k)
+	var grey := lerpf(0.42, 0.12, k)
+	_smoke.color = Color(grey, grey * 0.97, grey * 0.94, lerpf(0.35, 0.8, k))
+	_smoke.initial_velocity_max = lerpf(1.6, 2.6, k)
+
+
+## The fire's smoke: dense and black, thickest right where it leaves the tops of the flames, then
+## rising, widening and thinning. Drawn behind the fire (WeaponFX.smoke_material(),
+## render_priority -1), so the flames stand in front of it wherever they overlap.
+func _fire_smoke() -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.name = "FireSmoke"
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.amount = WeaponFX._count(64)
+	p.lifetime = 5.5
+	p.lifetime_randomness = 0.12
+	p.local_coords = false
+	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	p.direction = Vector3.UP
+	p.spread = 14.0
+	p.initial_velocity_min = 1.3
+	p.initial_velocity_max = 2.6
+	p.gravity = Vector3(0.5, 1.5, 0.0)
+	p.damping_min = 0.15
+	p.damping_max = 0.45
+	p.scale_amount_min = 0.95 * flame_size
+	p.scale_amount_max = 1.35 * flame_size
+	var curve := Curve.new()
+	curve.max_value = 4.0
+	curve.add_point(Vector2(0.0, 0.8))
+	curve.add_point(Vector2(0.25, 1.5))
+	curve.add_point(Vector2(1.0, 3.6))
+	p.scale_amount_curve = curve
+	# Opaque as it leaves the fire, thinning as it rises and spreads. Its first moments glow the
+	# fire's colour (the colour times `color` below, ~0.3): the underside of a car fire's smoke is
+	# lit by it, which at night is most of what shows of the column.
+	p.color_ramp = WeaponFX._ramp([Color(8.0, 3.4, 1.1, 0.6), Color(1.6, 1.15, 1.0, 0.97), Color(1, 1, 1, 0.92),
+		Color(1, 1, 1, 0.62), Color(1, 1, 1, 0.26), Color(1, 1, 1, 0.0)])
+	p.color = Color(0.035, 0.032, 0.03, 1.0)
+	p.angle_min = -180.0
+	p.angle_max = 180.0
+	var quad := QuadMesh.new()
+	quad.size = Vector2.ONE
+	quad.material = WeaponFX.smoke_material()
+	p.mesh = quad
+	p.custom_aabb = AABB(Vector3(-20.0, -2.0, -20.0), Vector3(40.0, 36.0, 40.0))
+	if _staged:
+		p.preprocess = 5.0
+	add_child(p)
+	_place_fire_smoke(p)
+	set_process(true)
+	return p
+
+
+## Over the bay while only the engine burns; over the bay and the cabin once the fire has spread.
+func _place_fire_smoke(p: CPUParticles3D) -> void:
+	var b := _bonnet()
+	var top := 0.95 * flame_size
+	if _cabin_fire != null:
+		p.position = Vector3(0.0, maxf(b.y, _top - 0.2) + top * 0.7, lerpf(b.z, 0.0, 0.5))
+		p.emission_box_extents = Vector3(_width * 0.34, 0.2, _len * 0.28)
+	else:
+		p.position = b + Vector3(0.0, top, 0.0)
+		p.emission_box_extents = Vector3(_width * 0.28, 0.15, _len * 0.1)
 
 
 ## Where the smoke and fire come out: on the skin over the engine bay (the bonnet, or the engine
@@ -718,84 +791,296 @@ func _ignite(quick: bool) -> void:
 	state = State.BURNING
 	_fuse = randf_range(quick_fuse.x, quick_fuse.y) if quick else randf_range(burn_seconds.x, burn_seconds.y)
 	_burn_t = 0.0
+	# The grey wisps give way to the fire's own black smoke.
+	_retire_particles(_smoke, 4.0)
+	_smoke = null
+	_smokers.erase(self)
 	_start_smoke()
 	_start_fire(1.0)
+	if not _staged and is_inside_tree():
+		# The whoomph as it catches: one rolling puff of flame out of the bay.
+		var at: Vector3 = car.global_transform * (_bonnet() + Vector3(0.0, 0.2, 0.0))
+		WeaponFX._puff_layer(WeaponFX.fx_parent(car), at, WeaponFX._count(14), 1.0 * flame_size, 0.75,
+				1.2, 3.2, 3.0, _flame_ramp(), false, 70.0, 1.5, Basis(), 0.0, 0.35, 1.0, false,
+				_flame_variety(), fire_material())
+		Sfx.play("explosion", at, -16.0, 1.7)
 	_ensure_paint()
 	set_process(true)
 
 
+## Lets a particle system's last particles live out and then frees it.
+func _retire_particles(p: CPUParticles3D, after: float) -> void:
+	if p == null or not is_instance_valid(p):
+		return
+	p.emitting = false
+	var tw := p.create_tween()
+	tw.tween_interval(after)
+	tw.tween_callback(p.queue_free)
+
+
+## The flames' colour over a puff's life, fed to shaders/fire_puff.gdshader, which multiplies it
+## by the billow's density (dense middle hot, thin edge cool) - so a puff's core and edge share
+## one green-to-red ratio and differ only in level. Measured through AgX (an unshaded colour chart
+## in car_shot's environment): a red-heavy colour (green under ~0.35 of red) turns salmon pink
+## once it is brighter than ~1, which is what the old flames read as at night, while an orange
+## with green at half of red goes cream-yellow when bright and deep orange when dim - how a real
+## flame reads. So the young fire is green / red 0.5 (cores ~1.8, cream-yellow; the body ~0.8,
+## orange), and only the dim, dying end drops toward red. Blue stays near a twentieth of red.
+static func _flame_ramp() -> Gradient:
+	# Gone by the end of its rise: a puff still half opaque as it drifts off reads as a loose blob
+	# floating beside the car rather than the top of a flame.
+	return WeaponFX._ramp([Color(1.25, 0.64, 0.07, 0.0), Color(1.3, 0.66, 0.07, 0.95),
+		Color(1.05, 0.48, 0.05, 0.9), Color(0.65, 0.25, 0.03, 0.6), Color(0.3, 0.09, 0.015, 0.22),
+		Color(0.06, 0.04, 0.025, 0.0)])
+
+
+## Hotter and cooler lumps in one fire.
+static func _flame_variety() -> Gradient:
+	return WeaponFX._ramp([Color(1.2, 1.12, 1.0), Color(1.0, 1.0, 1.0), Color(0.72, 0.6, 0.5)])
+
+
+## One flame system: puffs of `quad_size` (tall for tongues, square for the body) on the car
+## fire's material, spun only within `angle` degrees of upright.
+func _flame_system(sys_name: String, amount: int, quad_size: Vector2, angle: float) -> CPUParticles3D:
+	var p := CPUParticles3D.new()
+	p.name = sys_name
+	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	p.amount = WeaponFX._count(amount)
+	p.local_coords = false
+	p.direction = Vector3.UP
+	p.color_ramp = _flame_ramp()
+	p.color_initial_ramp = _flame_variety()
+	p.angle_min = -angle
+	p.angle_max = angle
+	var curve := Curve.new()
+	curve.add_point(Vector2(0.0, 0.35))
+	curve.add_point(Vector2(0.22, 1.0))
+	curve.add_point(Vector2(0.6, 0.8))
+	curve.add_point(Vector2(1.0, 0.3))
+	p.scale_amount_curve = curve
+	var quad := QuadMesh.new()
+	quad.size = quad_size
+	# The root of a tongue at the particle, the rest of it above.
+	quad.center_offset = Vector3(0.0, (quad_size.y - quad_size.x) * 0.5, 0.0)
+	quad.material = fire_material()
+	p.mesh = quad
+	# The particles are in world space and a fire's box is a car or two across; set it or the
+	# whole fire can vanish (CLAUDE.md, effects).
+	p.custom_aabb = AABB(Vector3(-10.0, -3.0, -10.0), Vector3(20.0, 16.0, 20.0))
+	if _staged:
+		p.preprocess = 1.5
+	add_child(p)
+	return p
+
+
+## Points (and the way flames leave them) along lines in body space: [from, to, normal, count].
+static func _points_on(lines: Array) -> Array:
+	var pts := PackedVector3Array()
+	var nrm := PackedVector3Array()
+	for l: Array in lines:
+		var n: int = l[3]
+		for i in n:
+			var t := (float(i) + 0.5) / float(n)
+			pts.append((l[0] as Vector3).lerp(l[1], t))
+			nrm.append((l[2] as Vector3).normalized())
+	return [pts, nrm]
+
+
+## The bonnet's edges and the scuttle under the windscreen, where flames lick out of the bay.
+func _lick_lines() -> Array:
+	var b := _bonnet()
+	var hw := _width * 0.36
+	var back := 1.0 if not MID_ENGINE.has(car.body_type) else -1.0
+	var front_z := b.z - back * _len * 0.13
+	var rear_z := b.z + back * _len * 0.15
+	var y := b.y + 0.03
+	# No front edge: tongues off the nose drifted out past the bumper and hung in the air in
+	# front of the car as loose puffs. The body of the fire covers the front of the bay.
+	var mid_z := lerpf(front_z, rear_z, 0.35)
+	return [
+		# The scuttle: up the windscreen (or up the rear screen of a mid-engined car).
+		[Vector3(-hw, y, rear_z), Vector3(hw, y, rear_z), Vector3(0.0, 0.75, back * 0.66), 8],
+		# The wing seams, straight up, and the shut lines down the middle.
+		[Vector3(-hw, y, mid_z), Vector3(-hw, y, rear_z), Vector3(-0.12, 1.0, 0.0), 3],
+		[Vector3(hw, y, mid_z), Vector3(hw, y, rear_z), Vector3(0.12, 1.0, 0.0), 3],
+		[Vector3(-hw * 0.3, y, mid_z), Vector3(hw * 0.3, y, rear_z), Vector3(0.0, 1.0, 0.0), 4],
+	]
+
+
+## The cabin's empty frames (the side glass's bottom edges, just outside the car), the foot of
+## the windscreen and the roof: where a burning cabin's flames show.
+func _cabin_lines() -> Array:
+	var lines: Array = []
+	var inv := _to_mesh.affine_inverse()
+	var fwd := Vector3.FORWARD
+	for pane: Array in _panes:
+		var kind: int = pane[3]
+		if kind == 2:
+			continue
+		var a: Vector3 = inv * (pane[0] as Vector3)
+		var c: Vector3 = inv * (pane[1] as Vector3)
+		var lo := a.min(c)
+		var hi := a.max(c)
+		var n: Vector3 = (inv.basis * (pane[2] as Vector3)).normalized()
+		# The stand-in panes (no mesh data, or a single-texture body) span the whole car: keep
+		# their lines to where a cabin is.
+		var stand_in := hi.z - lo.z > _len * 0.8 or (kind == 1 and hi.z - lo.z > _len * 0.35)
+		if kind == 1:
+			# The windscreen: from its foot up the glass.
+			var up := Vector3(0.0, hi.y - lo.y, -fwd.z * (hi.z - lo.z)).normalized()
+			var foot_z := lo.z if fwd.z < 0.0 else hi.z
+			if stand_in:
+				foot_z = -_len * 0.2
+				up = Vector3(0.0, 0.75, 0.66)
+			lines.append([Vector3(lo.x + 0.1, lo.y + 0.04, foot_z), Vector3(hi.x - 0.1, lo.y + 0.04, foot_z), up, 5])
+		elif absf(n.x) > 0.5:
+			var side := signf(n.x)
+			var x := (hi.x if side > 0.0 else lo.x) + side * 0.14
+			var z0 := lo.z + 0.08
+			var z1 := hi.z - 0.08
+			if stand_in:
+				z0 = -_len * 0.2
+				z1 = _len * 0.3
+			var cnt := clampi(int((z1 - z0) / 0.22), 2, 6)
+			lines.append([Vector3(x, lo.y + 0.08, z0), Vector3(x, lo.y + 0.08, z1), Vector3(side * 0.55, 0.85, 0.0), cnt + 1])
+	# Over the roof.
+	var zc := lerpf(_bonnet().z, 0.0, 0.8)
+	lines.append([Vector3(-_width * 0.2, _top - 0.02, zc - 0.5), Vector3(_width * 0.2, _top - 0.02, zc + 0.5), Vector3(0.0, 1.0, 0.0), 3])
+	return lines
+
+
+## Starts or resizes the fire (`size` 0..1). Particle counts are set once, when a system is made:
+## setting a CPUParticles3D's amount restarts it, every particle gone (CLAUDE.md, car damage), so
+## a fire dies down by its sizes, speeds and alpha instead.
 func _start_fire(size: float) -> void:
 	if not is_inside_tree():
 		return
-	if _fire == null:
-		_fire = CPUParticles3D.new()
-		_fire.name = "EngineFire"
-		_fire.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		_fire.local_coords = false
-		_fire.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
-		_fire.direction = Vector3.UP
-		_fire.spread = 10.0
-		_fire.gravity = Vector3(0.0, 0.9, 0.0)
-		_fire.damping_min = 0.2
-		_fire.damping_max = 0.6
-		var curve := Curve.new()
-		curve.add_point(Vector2(0.0, 0.45))
-		curve.add_point(Vector2(0.3, 1.0))
-		curve.add_point(Vector2(1.0, 0.5))
-		_fire.scale_amount_curve = curve
-		# Each particle is a whole tongue of flame (shaders/car_fire.gdshader animates it); the
-		# ramp only fades it in and out.
-		_fire.color_ramp = WeaponFX._ramp([Color(1, 1, 1, 0.0), Color(1, 1, 1, 1.0), Color(0.95, 0.9, 0.85, 0.9), Color(0.7, 0.6, 0.5, 0.0)])
-		_fire.color_initial_ramp = WeaponFX._ramp([Color(1.15, 1.1, 1.0), Color(1.0, 1.0, 1.0), Color(0.8, 0.72, 0.65)])
-		_fire.angle_min = -180.0
-		_fire.angle_max = 180.0
-		var quad := QuadMesh.new()
-		quad.size = Vector2(1.1, 1.2)
-		# The flame's root at the particle.
-		quad.center_offset = Vector3(0.0, 0.6, 0.0)
-		quad.material = flame_material()
-		_fire.mesh = quad
-		_fire.custom_aabb = AABB(Vector3(-8.0, -2.0, -8.0), Vector3(16.0, 14.0, 16.0))
+	var fs := flame_size
+	if _flames == null:
+		# The body of the fire: billowing flame rolling up out of the engine bay. Emitted just
+		# under the skin, so it comes out of the shut lines rather than floating on the paint.
+		_flames = _flame_system("EngineFire", 40, Vector2.ONE, 180.0)
+		_flames.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		_flames.spread = 22.0
+		_flames.lifetime = 0.85
+		_flames.lifetime_randomness = 0.4
+		_flames.damping_min = 0.8
+		_flames.damping_max = 1.5
+		# Tongues of flame licking off the bonnet's edges and up the windscreen.
+		_licks = _flame_system("FireLicks", 20, Vector2(0.55, 1.2), 12.0)
+		_licks.emission_shape = CPUParticles3D.EMISSION_SHAPE_DIRECTED_POINTS
+		var lp := _points_on(_lick_lines())
+		_licks.emission_points = lp[0]
+		_licks.emission_normals = lp[1]
+		_licks.spread = 12.0
+		_licks.lifetime = 0.7
+		_licks.lifetime_randomness = 0.35
+		_licks.damping_min = 0.4
+		_licks.damping_max = 0.9
+		# Embers and sparks riding the heat up out of it.
+		_embers = CPUParticles3D.new()
+		_embers.name = "FireEmbers"
+		_embers.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_embers.amount = WeaponFX._count(18)
+		_embers.lifetime = 2.2
+		_embers.lifetime_randomness = 0.5
+		_embers.local_coords = false
+		_embers.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+		_embers.direction = Vector3.UP
+		_embers.spread = 32.0
+		_embers.initial_velocity_min = 1.5
+		_embers.initial_velocity_max = 4.2
+		_embers.gravity = Vector3(0.6, 0.9, 0.0)
+		_embers.damping_min = 0.2
+		_embers.damping_max = 0.7
+		_embers.scale_amount_min = 0.03
+		_embers.scale_amount_max = 0.07
+		# Orange, not white: an HDR start bloomed every ember into a star.
+		_embers.color_ramp = WeaponFX._ramp([Color(1.4, 0.76, 0.08, 1.0), Color(1.0, 0.44, 0.04, 1.0),
+			Color(0.55, 0.17, 0.02, 0.7), Color(0.2, 0.05, 0.01, 0.0)])
+		var eq := QuadMesh.new()
+		eq.size = Vector2.ONE
+		eq.material = WeaponFX._puff_material(true)
+		_embers.mesh = eq
+		_embers.custom_aabb = AABB(Vector3(-15.0, -2.0, -15.0), Vector3(30.0, 24.0, 30.0))
 		if _staged:
-			_fire.preprocess = 1.5
-		add_child(_fire)
+			_embers.preprocess = 2.0
+		add_child(_embers)
 		if not WeaponFX._web():
 			_fire_light = OmniLight3D.new()
-			_fire_light.light_color = Color(1.0, 0.55, 0.22)
-			_fire_light.omni_range = 9.0
+			_fire_light.light_color = Color(1.0, 0.47, 0.15)
+			_fire_light.omni_range = 11.0
+			_fire_light.omni_attenuation = 1.4
 			_fire_light.shadow_enabled = false
 			_fire_light.distance_fade_enabled = true
-			_fire_light.distance_fade_begin = 80.0
+			_fire_light.distance_fade_begin = 90.0
 			_fire_light.distance_fade_length = 30.0
 			add_child(_fire_light)
 		_fire_sound = Sfx.loop_player("fire_loop", -3.0)
 		_fire_sound.unit_size = 6.0
 		add_child(_fire_sound)
 		_fire_sound.play()
-	# The amount only once: setting it restarts the system (every particle gone), so a fire resized
-	# every frame drew nothing.
-	if _fire.amount <= 8:
-		_fire.amount = WeaponFX._count(26)
 	_fire_size = size
-	_fire.lifetime = 0.7 + 0.3 * size
-	_fire.initial_velocity_min = 0.1
-	_fire.initial_velocity_max = 0.3 + 0.3 * size
-	_fire.scale_amount_min = 0.4 + 0.25 * size
-	_fire.scale_amount_max = 0.65 + 0.45 * size
-	var over := _bonnet()
-	if state == State.WRECK:
-		# The bay and the scuttle burn on the outside; the cabin burns inside, seen through the
-		# empty frames (the glass shader's cabin_fire).
-		_fire.emission_box_extents = Vector3(_width * 0.34, 0.08, _len * 0.2)
-		over.z = lerpf(_engine_z, 0.0, 0.35)
+	var b := _bonnet()
+	_flames.position = b + Vector3(0.0, -0.06, 0.0)
+	_flames.emission_box_extents = Vector3(_width * 0.3, 0.04, _len * 0.12)
+	_flames.initial_velocity_min = 0.35 * fs
+	_flames.initial_velocity_max = (0.8 + 0.6 * size) * fs
+	_flames.gravity = Vector3(0.25, 1.4 + 0.8 * size, 0.0)
+	_flames.scale_amount_min = (0.45 + 0.25 * size) * fs
+	_flames.scale_amount_max = (0.75 + 0.5 * size) * fs
+	_flames.color = Color(1, 1, 1, clampf(0.45 + 0.55 * size, 0.0, 1.0))
+	_licks.initial_velocity_min = (0.35 + 0.3 * size) * fs
+	_licks.initial_velocity_max = (0.8 + 0.7 * size) * fs
+	_licks.gravity = Vector3(0.1, 1.5, 0.0)
+	_licks.scale_amount_min = (0.3 + 0.2 * size) * fs
+	_licks.scale_amount_max = (0.5 + 0.35 * size) * fs
+	_licks.color = Color(1, 1, 1, clampf(0.35 + 0.65 * size, 0.0, 1.0))
+	_embers.position = b + Vector3(0.0, 0.3, 0.0)
+	_embers.emission_box_extents = Vector3(_width * 0.3, 0.1, _len * 0.14)
+	_embers.color = Color(1, 1, 1, clampf(size * 1.2, 0.2, 1.0))
+	if _cabin_fire != null:
+		_cabin_fire.initial_velocity_min = (0.3 + 0.3 * size) * fs
+		_cabin_fire.initial_velocity_max = (0.8 + 0.7 * size) * fs
+		_cabin_fire.scale_amount_min = (0.45 + 0.25 * size) * fs
+		_cabin_fire.scale_amount_max = (0.75 + 0.5 * size) * fs
+		_cabin_fire.color = Color(1, 1, 1, clampf(0.35 + 0.65 * size, 0.0, 1.0))
 		if _glass:
 			_glass.set_shader_parameter("cabin_fire", size)
-	else:
-		_fire.emission_box_extents = Vector3(_width * 0.3, 0.05, _len * 0.13)
-	_fire.position = over
 	if _fire_light:
-		_fire_light.position = over + Vector3(0.0, 0.6, 0.0)
-	_fire.emitting = true
+		_fire_light.position = b + Vector3(0.0, 0.9, 0.0) if _cabin_fire == null else Vector3(0.0, _top + 0.4, lerpf(b.z, 0.0, 0.5))
+	_flames.emitting = true
+	_licks.emitting = true
+	_embers.emitting = true
+
+
+## The fire takes the cabin: the side glass pops, flames roll out of the empty frames, up the
+## windscreen and over the roof, and the inside glows through the frames (car_glass_damage's
+## cabin_fire).
+func _spread_to_cabin(size: float) -> void:
+	if _cabin_fire != null or not is_inside_tree():
+		return
+	for i in _panes.size():
+		if int(_panes[i][3]) == 0:
+			_set_pane(i, 2.0)
+	_ensure_glass()
+	_cabin_fire = _flame_system("CabinFire", 36, Vector2(0.6, 1.25), 14.0)
+	_cabin_fire.emission_shape = CPUParticles3D.EMISSION_SHAPE_DIRECTED_POINTS
+	var cp := _points_on(_cabin_lines())
+	_cabin_fire.emission_points = cp[0]
+	_cabin_fire.emission_normals = cp[1]
+	_cabin_fire.spread = 14.0
+	# Short and slow, so the flames stay a sheet over the frames and the roof instead of puffs
+	# rising off it.
+	_cabin_fire.lifetime = 0.65
+	_cabin_fire.lifetime_randomness = 0.35
+	_cabin_fire.damping_min = 0.6
+	_cabin_fire.damping_max = 1.2
+	_cabin_fire.gravity = Vector3(0.15, 1.8, 0.0)
+	_cabin_fire.emitting = true
+	if _smoke != null:
+		_place_fire_smoke(_smoke)
+	_start_fire(size)
 
 
 func _process(delta: float) -> void:
@@ -814,13 +1099,15 @@ func _process(delta: float) -> void:
 		_fuse -= delta
 		# The fire spreads from the bay as it burns, and cooks the paint round it.
 		_set_burn(minf(0.3 * _burn_t / maxf(burn_seconds.x, 1.0), 0.3), 0.5 + _burn_t * 0.18)
+		if _cabin_fire == null and _burn_t > spread_share * (_burn_t + maxf(_fuse, 0.0)):
+			_spread_to_cabin(1.0)
 		if _fuse <= 0.0:
 			explode()
 	elif state == State.WRECK:
 		_wreck_t += delta
-		if _fire and _wreck_t > wreck_fire_seconds:
+		if _flames and _wreck_t > wreck_fire_seconds:
 			_stop_fire()
-		elif _fire:
+		elif _flames:
 			busy = true
 			# Dying down in steps (each resize is a few property sets, not a restart).
 			var want := snappedf(clampf(1.0 - _wreck_t / wreck_fire_seconds, 0.25, 1.0), 0.25)
@@ -832,8 +1119,11 @@ func _process(delta: float) -> void:
 		elif _smoke:
 			busy = true
 	if _fire_light:
-		_fire_light.light_energy = (2.2 + 1.2 * sin(Time.get_ticks_msec() * 0.021) + 0.8 * sin(Time.get_ticks_msec() * 0.057)) \
-			* (1.0 if state == State.BURNING else clampf(1.0 - _wreck_t / wreck_fire_seconds, 0.2, 1.0))
+		# Flicker: a fast random walk plus a quicker shimmer, no two frames alike.
+		_flick = lerpf(_flick, randf(), 1.0 - exp(-delta * 14.0))
+		var t := Time.get_ticks_msec() * 0.001
+		var level := 1.0 if state == State.BURNING else clampf(1.0 - _wreck_t / wreck_fire_seconds, 0.2, 1.0)
+		_fire_light.light_energy = fire_light_energy * level * (0.62 + 0.5 * _flick + 0.12 * sin(t * 29.0))
 	if not busy:
 		set_process(false)
 
@@ -841,13 +1131,12 @@ func _process(delta: float) -> void:
 func _stop_fire() -> void:
 	if _glass:
 		_glass.set_shader_parameter("cabin_fire", 0.0)
-	if _fire:
-		_fire.emitting = false
-		var f := _fire
-		var tw := f.create_tween()
-		tw.tween_interval(1.5)
-		tw.tween_callback(f.queue_free)
-		_fire = null
+	for p in [_flames, _licks, _cabin_fire, _embers]:
+		_retire_particles(p, 2.5)
+	_flames = null
+	_licks = null
+	_cabin_fire = null
+	_embers = null
 	if _fire_light:
 		_fire_light.queue_free()
 		_fire_light = null
@@ -901,9 +1190,13 @@ func become_wreck() -> void:
 	_set_burn(1.0, _len * 1.5)
 	_char_parts_of_car()
 	car._become_wreck()
+	if _smoke != null and _smoke.name == "EngineSmoke":
+		_retire_particles(_smoke, 4.0)
+		_smoke = null
+		_smokers.erase(self)
 	_start_smoke()
-	_tint_smoke()
 	_start_fire(1.0)
+	_spread_to_cabin(1.0)
 	_prune(_wrecks)
 	_wrecks.append(car)
 	while _wrecks.size() > max_wrecks:
@@ -981,21 +1274,39 @@ static func wreck_wheel_material() -> StandardMaterial3D:
 	return _char_metal
 
 
-static var _flame_mat: ShaderMaterial
+static var _fire_mat: Material
 
 
 ## What the loading screen draws once so the first car fire, glass burst and smoke do not compile
 ## mid-game (the damage shaders themselves are .gdshader files it compiles anyway).
 static func warm_materials() -> Array:
-	return [flame_material(), _glass_bits_material(), WeaponFX.smoke_material()]
+	return [fire_material(), _glass_bits_material(), WeaponFX.smoke_material(), WeaponFX._puff_material(true)]
 
 
-## The flames' material (shaders/car_fire.gdshader), shared by every fire.
-static func flame_material() -> ShaderMaterial:
-	if _flame_mat == null:
-		_flame_mat = ShaderMaterial.new()
-		_flame_mat.shader = preload("res://shaders/car_fire.gdshader")
-	return _flame_mat
+## The flames' material, shared by every car fire: the explosion's fireball shader
+## (shaders/fire_puff.gdshader - the billow's density is its heat, so dense lumps burn yellow and
+## thin edges cool to soot) with the car's own numbers: a sustained fire is not a blast's
+## white-hot core, and its soft-particle fade is short because it burns ON the car - at the
+## blast's 2.6 m the bonnet under it faded every flame out, and at 0.35 m the flames hugging the
+## doors out of the empty frames were a tenth of themselves. The web keeps the plain puff (the
+## shader reads the depth buffer), as WeaponFX does.
+static func fire_material() -> Material:
+	if _fire_mat != null:
+		return _fire_mat
+	if WeaponFX._web():
+		_fire_mat = WeaponFX._puff_material(false)
+		return _fire_mat
+	var m := ShaderMaterial.new()
+	m.shader = preload("res://shaders/fire_puff.gdshader")
+	m.set_shader_parameter("puff_tex", WeaponFX.puff_texture())
+	# Held well under the blast's 1.9: over ~2 in the dense middle AgX takes the whole fire to
+	# pale beige in daylight and peach at night.
+	m.set_shader_parameter("core_heat", 1.4)
+	m.set_shader_parameter("edge_cool", 0.42)
+	m.set_shader_parameter("soot", 0.55)
+	m.set_shader_parameter("soft_distance", 0.15)
+	_fire_mat = m
+	return _fire_mat
 
 
 static func _glass_bits_material() -> StandardMaterial3D:
@@ -1464,11 +1775,13 @@ func stage(what: String) -> void:
 	_stage_hold = false
 	if parts.has("smoke"):
 		_hurt(health - max_health * smoke_at + 50.0)
-	if parts.has("burning"):
+	if parts.has("burning") or parts.has("blaze"):
 		_hurt(max_health)
 		_fuse = 1e9
 		_burn_t = 4.0
 		_set_burn(0.3, 1.4)
+		if parts.has("blaze"):
+			_spread_to_cabin(1.0)
 	if parts.has("wreck"):
 		become_wreck()
 		_wreck_t = 3.0

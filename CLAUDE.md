@@ -662,8 +662,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   PhysicsBudget debris for `wreck_lifetime` (`register_debris(body, lifetime)`). Caps (static):
   `max_burning`, `max_smoking`, `max_wrecks`, `max_glass_bursts`. A wreck cannot be driven
   (`is_wreck()`), a pooled cruiser is `repair()`ed, a burnt cruiser leaves the police
-  (`Police.car_wrecked`), the flyable jets opt out (`can_take_damage()`). Stills:
-  `DAMAGE=holes,glass,dents,smoke,burning,wreck` on `tools/glshot/car_shot.gd` (views `door`,
+  (`Police.car_wrecked`), the flyable jets opt out (`can_take_damage()`). The fire is the
+  explosion's `fire_puff.gdshader` on `CarDamage.fire_material()` (short soft fade, lower heat):
+  a billowing body out of the bay, tongues off the bonnet's edges and up the windscreen, flames out
+  of the cabin's empty frames after `spread_share` of the burn, embers, black smoke opaque where
+  it leaves the flames, a flickering light (desktop); the plain puff on the web. **Flame colours
+  hold green at ~half of red while bright**: through AgX a red-heavy colour brighter than ~1
+  turns salmon pink (measured with an unshaded colour chart), and fire_puff gives a puff's core
+  and edge the same ratio. Stills:
+  `DAMAGE=holes,glass,dents,smoke,burning,blaze,wreck` on `tools/glshot/car_shot.gd` (views `door`,
   `glass`, `screen`, `cabin`); checks: `tests/car_damage_checks.gd`. Traps: a `--script` tool
   that names `CarDamage` as a type compiles it before the Sfx autoload exists (load it by path);
   setting a `CPUParticles3D`'s `amount` restarts it (every particle gone), so a fire resized

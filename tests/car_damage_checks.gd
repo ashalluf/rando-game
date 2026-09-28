@@ -44,6 +44,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _first_hit_and_rounds()
 	await _crash()
 	await _rocket_to_wreck()
+	await _fire_stages()
 	await _blame_and_caps()
 	await _driven_car(player)
 	await _pooled_cruiser()
@@ -235,6 +236,39 @@ func _rocket_to_wreck() -> void:
 	var hp_before := dmg.health
 	r.take_hit(-1, 10.0, Vector3.DOWN, r.global_position + Vector3.UP, Vehicle.HIT_BULLET)
 	_check(dmg.health == hp_before and r.is_wreck(), "a wreck takes no more damage")
+
+
+## The fire's stages: the engine bay (flames, licks, embers, the black smoke replacing the grey
+## wisps), the cabin (flames out of the frames, the side glass popped, the glow inside), and the
+## wreck's fire burning out (every flame system, the light and the burning count gone).
+func _fire_stages() -> void:
+	var c := _car(-44.0)
+	await _ticks(20)
+	c.take_hit(-1, 900.0, Vector3.DOWN, c.global_position + Vector3.UP)
+	var d: CarDamage = c._damage
+	d._fuse = 1e6
+	_check(d._flames != null and d._licks != null and d._embers != null and d._cabin_fire == null
+			and d._smoke != null and d._smoke.name == "FireSmoke",
+			"a car on fire burns in the engine bay: flames, licks, embers, black smoke")
+	d._spread_to_cabin(1.0)
+	var popped := 0
+	var tempered := 0
+	for i in d._panes.size():
+		if int(d._panes[i][3]) == 0:
+			tempered += 1
+			if d.pane_state[i] >= 2.0:
+				popped += 1
+	var glow := float(d._glass.get_shader_parameter("cabin_fire")) if d._glass else 0.0
+	_check(d._cabin_fire != null and d._cabin_fire.emission_points.size() > 4 and popped == tempered and glow > 0.9,
+			"the fire takes the cabin: %d flame points out of the frames, %d of %d panes popped, the cabin glows" % [
+			d._cabin_fire.emission_points.size() if d._cabin_fire else 0, popped, tempered])
+	var burning: int = CarDamage.counts().burning
+	d.become_wreck()
+	d._wreck_t = d.wreck_fire_seconds + 0.1
+	for i in 3:
+		await _tree.process_frame
+	_check(d._flames == null and d._cabin_fire == null and d._fire_light == null and int(CarDamage.counts().burning) == burning - 1,
+			"the wreck's fire burns out: every flame system and the light gone, one fewer burning")
 
 
 func _blame_and_caps() -> void:
