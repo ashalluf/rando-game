@@ -59,10 +59,15 @@ func _run() -> void:
 	Input.action_press("move_back")
 	Input.action_press("boost")
 	var boost_speed := await _run_and_measure_speed(player, 90)
+	# The boost's trail (BoostTrail: vapour, wake, streaks, dust) runs while boosting at speed.
+	var trail: Node = player.get_node_or_null("BoostTrail")
+	var trailing: bool = trail != null and bool(trail.call("is_trailing"))
 	Input.action_release("boost")
 	Input.action_release("move_back")
 	_check(boost_speed > player.walk_speed + 15.0 and boost_speed <= player.boost_max_speed + 0.5,
 		"boost speed reaches %.1f (cap %.1f)" % [boost_speed, player.boost_max_speed])
+	await _ticks(2)
+	_check(trailing and not bool(trail.call("is_trailing")), "the boost trail runs while boosting and stops on release")
 	await _ticks(90)
 
 	# Full jump, holding the button through the apex.

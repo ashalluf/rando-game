@@ -192,6 +192,8 @@ func _warm_shaders() -> void:
 	effects.append_array(PortKit.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
+	# The boost's streaks of air (BoostTrail), so the first boost does not stall.
+	effects.append(BoostTrail.streak_material())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

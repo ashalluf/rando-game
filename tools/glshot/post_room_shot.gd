@@ -9,7 +9,8 @@ extends SceneTree
 ##
 ## Env: OUT png path; MODE still | run (the player carried along at SPEED m/s, the camera
 ## following as in play) | whip (the view turning RATE degrees a second, a mouse flick) | aim
-## (hold aim: the far blur past the crosshair's target) | wheel (the weapon wheel open);
+## (hold aim: the far blur past the crosshair's target) | wheel (the weapon wheel open) | boost
+## (really boosting along the view: BOOST_TIME, BOOST_SCALE; the player's BoostTrail);
 ## MB=0 turns the motion blur off (the "before"); AA=taa (default) | fsr | none; YAW / PITCH the
 ## view (degrees); WARMUP + FRAMES frames (the engine compiles its motion-vector pipelines in the
 ## background, and draws no velocity until they are ready); DT the frame time the blur is told
@@ -45,6 +46,19 @@ func _initialize() -> void:
 		Input.action_press("alt_fire")
 	elif mode == "wheel":
 		Input.action_press("weapon_wheel")
+	elif mode == "boost":
+		# The real boost (BoostTrail and all), the clock slowed to BOOST_SCALE so a software frame
+		# is about one physics tick, flown for BOOST_TIME seconds of game time before the shot.
+		player.global_position.y += float(_env("START_Y", "0"))
+		Input.action_press("boost")
+		Engine.time_scale = float(_env("BOOST_SCALE", "0.02"))
+		var flown := 0.0
+		var frames := 0
+		while flown < float(_env("BOOST_TIME", "1.2")):
+			await process_frame
+			flown += root.get_process_delta_time()
+			frames += 1
+		print("boost: %d frames, %.2f s, %.1f m/s at %s" % [frames, flown, (player.get("velocity") as Vector3).length(), player.global_position])
 	var speed := float(_env("SPEED", "45"))
 	var rate := float(_env("RATE", "280"))
 	var start := player.global_position
