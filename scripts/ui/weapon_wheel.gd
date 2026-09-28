@@ -462,7 +462,7 @@ func _text(ci: CanvasItem, font: Font, text: String, at: Vector2, px: int, color
 
 
 ## Draws an icon from the 100 x 40 box, `width` pixels wide, centred on `at`.
-func _draw_icon(ci: CanvasItem, shapes: Array, at: Vector2, width: float, color: Color) -> void:
+static func _draw_icon(ci: CanvasItem, shapes: Array, at: Vector2, width: float, color: Color) -> void:
 	var s := width / 100.0
 	var origin := at - Vector2(50.0, 20.0) * s
 	var shadow := Color(0, 0, 0, 0.22)
@@ -499,7 +499,7 @@ func _draw_icon(ci: CanvasItem, shapes: Array, at: Vector2, width: float, color:
 					ci.draw_colored_polygon(pts, Color(0.05, 0.06, 0.08, 0.45))
 
 
-func _icon_for(weapon: Weapon) -> Array:
+static func _icon_for(weapon: Weapon) -> Array:
 	if _icons.is_empty():
 		_build_icons()
 	var key := ""
