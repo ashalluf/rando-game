@@ -695,7 +695,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the rear bench with headrests, headliner, door cards, the far windows letting the day in (and
   the street at night, `street_light` x `lamp_factor`). Through whole glass it is dimmed by
   Fresnel (the renderer draws the reflected share), `glass_tint`, `through_light` (0.45: on
-  Forward+ it read as bright as the paint at cabin_light) and the pane's own tint in
+  Forward+ it read as bright as the paint at cabin_light; `through_light_compat` 0.9 on the
+  Compatibility renderer, which lights the paint far brighter) and the pane's own tint in
   `pane_n.w`: windscreen 0.8, front side glass 0.6, rear side 0.48 (privacy 0.17 on the
   crossover, pickup and van: `side_t`, picked per fragment by which side of the front seat backs
   it is, since the pickup's two door windows are one piece of glass), rear screen 0.42 (privacy
@@ -721,7 +722,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the panes, the cabin box, `belt_y`, `side_top`, the seat rows (front row `COWL_TO_SEAT` 0.95 m
   behind the windscreen's foot - the old middle-of-the-side-glass rule sat the saloon's driver
   behind the B-pillar and the van's seat under its dash; no back seats on a two-seater or a cab
-  shorter than `REAR_SEATS_SPAN`), per body type, with the stand-in panes where the headless
+  shorter than `REAR_SEATS_SPAN`; the dash face at least `DASH_TO_SEAT` ahead of the front row),
+  per body type, with the stand-in panes where the headless
   dummy keeps no mesh data. Stills: `OCCUPANT=npc[:seed]|pair[:seed]|player|none` on
   `tools/glshot/car_shot.gd`, views `driver` and `inside`, `CABIN_DEBUG=1` paints the body
   parts, `CAR_GLASS=0` (also on `still_shot.gd`) is the A/B, `TIME=n` a view's frame time.

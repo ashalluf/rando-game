@@ -4113,7 +4113,11 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   seat under its dash); no back seats in the two-seaters or the van's cab; the hypercar's
   double-shell windscreen is one windscreen (the inner shell was classed as an engine cover and
   drew the screen black); the exotics' mirror glass (in their glass slot, a metre outboard) no
-  longer sizes the cabin. Headless (no mesh data): the stand-in panes, as before.
+  longer sizes the cabin; the cabin reaches forward until the dash face is `DASH_TO_SEAT`
+  (0.72 m) ahead of the front seats (the supercars' short side windows sit well back, and the
+  wheel was in the driver's chest; the road bodies already met it). Measuring takes 1-12 ms once
+  per body type (the super coupe's 7k-triangle glass the most). Headless (no mesh data): the
+  stand-in panes, as before.
 - **Cost.** No node, draw or triangle per car: GEO identical with and without it (car_shot,
   one sedan: 40 draws / 171,714 triangles either way; the city numbers below). What it costs is
   the glass's fragments: the cabin trace (13 boxes, the wheel, up to two people of 11
@@ -4130,9 +4134,12 @@ CITYCOST
   driver staying when knocked out of traffic and carrying onto the damage glass, leaving a
   burning car, the player at the wheel, a cruiser's crew, the tints).
 - **Look at it on the Mac (Forward+).** The balance of cabin against reflection is set on
-  Forward+ car_shot stills (`through_light` 0.45); the Compatibility stills draw the car bodies
-  brighter, so the cabin reads darker there. The night look (the faces lit by the dash, the
-  street in the far windows) is subtle on purpose.
+  Forward+ car_shot stills (`through_light` 0.45: at 1.0 the seats measured 110/255 against the
+  paint's 156); the Compatibility renderer lights the paint much brighter (the same car's bonnet
+  ~240), so it has its own `through_light_compat` (0.9, `CURRENT_RENDERER`). The night look (the
+  faces lit by the dash, the street in the far windows) is subtle on purpose. The empty frames
+  of a shot-up car keep the damage pass's `cabin_light` 4 untouched (asked to stay the same); on
+  Forward+ they read brighter than the paint, which is worth a look on the Mac.
 - **Not done.** The sports car (single-texture Meshy body, glass in the paint) and the lot fill's
   cheap static cars have no cabin. Nobody is seen in an open car (the spider) except through its
   windscreen - there is no glass elsewhere to draw them on. Occupants are not shot or thrown
