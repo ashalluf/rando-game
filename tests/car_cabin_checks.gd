@@ -227,8 +227,13 @@ func _player_at_wheel(player: Player) -> void:
 			"the player at the wheel is the one in the cabin (seats %d)" % seats_of(car))
 	player.exit_vehicle()
 	await _ticks(2)
-	_check(seats_of(car) == 0 and glass_of(car) == car._glass_shared,
-			"the car the player leaves is empty, back on the shared glass")
+	var dmg_info := ""
+	if car._damage != null:
+		dmg_info = " (hit %d times: health %.0f, state %d, holes %d, panes %s)" % [car._damage.hits_taken, car._damage.health,
+				car._damage.state, car._damage.holes_made, str(car._damage.pane_state)]
+	# Back on the shared glass - or, if something has hit it, on its damage glass - with nobody in.
+	_check(seats_of(car) == 0 and (glass_of(car) == car._glass_shared or (car._damage != null and glass_of(car) == car._damage._glass)),
+			"the car the player leaves is empty, back on its shared glass%s" % dmg_info)
 	player.global_position = _top + Vector3(0.0, 1.2, 34.0)
 	player.velocity = Vector3.ZERO
 
