@@ -24,10 +24,15 @@ func _initialize() -> void:
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-50, 30, 0)
 	root3d.add_child(sun)
+	# The autoloads exist only after the first frames, and the Building's class chain (PropFactory,
+	# ShopfrontKit...) compiles against them: loaded in _initialize(), it ran without its storefront
+	# pieces. So wait, then load the scene; the class is reached through its script resource.
+	for i in 3:
+		await process_frame
 	var scene := load("res://scenes/props/building.tscn") as PackedScene
 	# KIT=0 renders the building without the facade kit, for a before / after of the same seed.
 	if OS.get_environment("KIT") == "0":
-		Building.kit_enabled = false
+		(load("res://scripts/world/building.gd") as GDScript).set("kit_enabled", false)
 	var b := scene.instantiate()
 	b.seed = _env_int("BSEED", 7)
 	var lot := float(_env_int("LOT", 30))

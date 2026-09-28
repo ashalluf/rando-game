@@ -46,7 +46,8 @@ extends SceneTree
 ## camera pass and the shadow passes); SPLIT=1 then hides one category at a time (cars, people,
 ## buildings, trees, props, far city, ...) with the world held still and prints what each costs,
 ## like tools/tri_split.gd but on the bookmark's exact frame, then the Building category again by
-## node kind (BSPLIT lines: walls, facade detail, kit, roof plant, rooftop units, shop names).
+## node kind (BSPLIT lines: walls, facade detail, kit (surrounds, storefronts, awnings, curtain caps,
+## the rest), roof plant, rooftop units, shop and blade-sign names).
 ## DIFF=1 makes a frame that renders the same twice, for before/after pixel diffs: shader TIME
 ## held at zero, the clock of day held at --hour, the signals on a fixed clock, and people, cars,
 ## aircraft, particles and the player hidden (two runs differ in a handful of pixels by 1-2/255).
@@ -780,6 +781,12 @@ static func _building_part_kind(gi: GeometryInstance3D) -> String:
 			return "kit shadow twins"
 		if nm.begins_with("Batch_kit_surround"):
 			return "kit surrounds"
+		if nm.begins_with("Batch_kit_shop_"):
+			return "kit storefronts"
+		if nm.begins_with("Batch_kit_awning"):
+			return "kit awnings"
+		if nm.begins_with("Batch_kit_cap_"):
+			return "kit curtain caps"
 		if nm.begins_with("Batch_kit_"):
 			return "kit other"
 		return "mm " + nm.rstrip("0123456789")
@@ -788,6 +795,8 @@ static func _building_part_kind(gi: GeometryInstance3D) -> String:
 		return "other " + gi.get_class()
 	if nm.begins_with("Sign"):
 		return "shop names"
+	if nm.begins_with("BladeText"):
+		return "blade sign names"
 	if mi.material_override is ShaderMaterial:
 		return "box parts"
 	if mi.mesh is PrimitiveMesh:

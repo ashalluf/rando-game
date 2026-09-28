@@ -717,11 +717,31 @@ static func _face_names(b: Building, face_index: int, runs: int) -> Array:
 	return out
 
 
+## A flat name for a blade sign's face (cached per text and size): PropFactory.text_mesh()'s,
+## without its 1 cm of depth and with coarser curves. Each face has its own letters, so nothing
+## sees their backs, and the sides and the fine curves were ten times the triangles (2,548 for
+## "PHARMACY" against 216) - twelve blade-sign names in reach cost 140 k triangles.
+static func _flat_text(text: String, height: float) -> Mesh:
+	var key := "text_%s_%.2f" % [text, height]
+	if _cache.has(key):
+		return _cache[key]
+	var tm := TextMesh.new()
+	tm.text = text
+	tm.font_size = 48
+	tm.pixel_size = height / 48.0
+	tm.depth = 0.0
+	tm.curve_step = 2.0
+	tm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_cache[key] = tm
+	return tm
+
+
 ## A blade sign's name on both faces of its board, into `st`: `xform` is the board's middle
 ## (x through its thickness, y up, z out of the wall), `hgt` its height. A short name stacks its
 ## letters, the old theatre way; a long one runs up the board, reading bottom to top.
 static func blade_letters(st: SurfaceTool, text: String, xform: Transform3D, hgt: float) -> void:
-	var face_x := 0.07 + 0.008 + 0.012
+	var face_x := 0.07 + 0.008 + 0.006
 	var room := hgt - 0.34
 	var stacked := text.length() <= 6 and text.find(" ") < 0
 	for s: float in [1.0, -1.0]:
@@ -733,13 +753,13 @@ static func blade_letters(st: SurfaceTool, text: String, xform: Transform3D, hgt
 			var step := room / maxf(float(text.length()), 1.0)
 			for i in text.length():
 				var y := room * 0.5 - step * (float(i) + 0.5)
-				st.append_from(PropFactory.text_mesh(text[i], cap), 0,
+				st.append_from(_flat_text(text[i], cap), 0,
 					xform * Transform3D(upright, Vector3(s * face_x, y, 0.0)))
 		else:
 			var cap := 0.24
 			var wide := float(text.length()) * cap * 0.62
 			var fit := minf(1.0, room / maxf(wide, 0.01))
-			st.append_from(PropFactory.text_mesh(text, cap), 0,
+			st.append_from(_flat_text(text, cap), 0,
 				xform * Transform3D(along_up.scaled_local(Vector3(fit, fit, 1.0)), Vector3(s * face_x, 0.0, 0.0)))
 
 
