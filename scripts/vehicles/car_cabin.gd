@@ -55,6 +55,10 @@ const TINY_PANE := 0.3
 ## saloon's driver behind the B-pillar (only his arms showed in the front window) and put the
 ## van's seat under its dash.
 const COWL_TO_SEAT := 0.95
+## The dash's face stands at least this far ahead of the front seat backs (m); the dash is
+## DASH_DEPTH deep (the trace's own number, car_cabin.gdshaderinc).
+const DASH_TO_SEAT := 0.72
+const DASH_DEPTH := 0.42
 
 ## One in this many traffic cars carries a front passenger (Los Angeles drives alone).
 const PASSENGER_SHARE := 0.22
@@ -131,8 +135,8 @@ static func context(car: Vehicle, mesh_to_car: Transform3D, has_model: bool = tr
 	}
 
 
-## The same frame for a car already in the tree, from its first near body mesh (CarDamage), and
-## the key its measurement is cached under (null for a car without a model).
+## measure() for a car already built (CarDamage), from its first near body mesh: the body type's
+## cached measurement, or a fresh stand-in one for a car without a model.
 static func for_car(car: Vehicle) -> Dictionary:
 	var mesh: MeshInstance3D = null
 	for m in car._body_meshes:
@@ -321,13 +325,6 @@ static func cabin(panes: Array, ctx: Dictionary) -> Dictionary:
 	var belt := side_lo.y
 	var floor_y := belt - 0.55 / scale
 	var inset := 0.06 / scale
-	# Along the car (z): the side glass, a little more under the windscreen for the dash.
-	var z_front := (side_lo.z - 0.25 / scale) if ahead else (side_hi.z + 0.25 / scale)
-	var z_rear := (side_hi.z + 0.1 / scale) if ahead else (side_lo.z - 0.1 / scale)
-	out.cabin_lo = Vector3(side_lo.x + inset, floor_y, minf(z_front, z_rear))
-	out.cabin_hi = Vector3(side_hi.x - inset, hi.y, maxf(z_front, z_rear))
-	out.belt_y = belt
-	out.side_top = side_hi.y
 	# Two rows of seat backs: COWL_TO_SEAT behind the windscreen's foot (just behind the middle
 	# of the side glass without one), and near the rear end of the side glass.
 	var a := side_lo.z if ahead else side_hi.z
@@ -342,6 +339,16 @@ static func cabin(panes: Array, ctx: Dictionary) -> Dictionary:
 	var rear_row := lerpf(a, b, 0.9) if rear_seats else front_row + back * 3.0 / scale
 	out.seat_z = Vector2(front_row, rear_row)
 	out.rear_seats = rear_seats
+	# Along the car (z): the side glass, a little more under the windscreen for the dash - and far
+	# enough forward that the dash's face stands DASH_TO_SEAT ahead of the front seats (the
+	# supercars' short side windows sit well back: the wheel was in the driver's chest).
+	var z_front := a - back * 0.25 / scale
+	z_front = back * minf(back * z_front, back * front_row - (DASH_TO_SEAT + DASH_DEPTH) / scale)
+	var z_rear := b + back * 0.1 / scale
+	out.cabin_lo = Vector3(side_lo.x + inset, floor_y, minf(z_front, z_rear))
+	out.cabin_hi = Vector3(side_hi.x - inset, hi.y, maxf(z_front, z_rear))
+	out.belt_y = belt
+	out.side_top = side_hi.y
 	var left := to_mesh.basis * Vector3.LEFT
 	out.driver_side = signf(left.x) if absf(left.x) > 0.5 else -1.0
 	var privacy: bool = ctx.get("privacy", false)

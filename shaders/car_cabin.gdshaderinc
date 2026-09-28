@@ -53,8 +53,11 @@ uniform float people_light = 0.5;
 uniform vec3 glass_tint = vec3(0.84, 0.91, 0.88);
 // The cabin seen through whole glass against cabin_light (which an empty frame shows at full):
 // through the glass it read as bright as the paint outside on Forward+, where a real cabin by
-// day is a dark room with the sky mirrored over it.
+// day is a dark room with the sky mirrored over it. The Compatibility renderer (the web, the
+// opengl3 stills) lights the paint about half as bright again, and at the same number the
+// people behind the glass were lost: it has its own.
 uniform float through_light = 0.45;
+uniform float through_light_compat = 0.9;
 // Past this distance (mesh units, metres on every body) the glass is plain dark glass.
 uniform float cabin_far = 70.0;
 // Past this distance the small things are left out of the trace (the gear lever, the screen,
@@ -293,7 +296,9 @@ void person(vec3 o, vec3 d, vec3 inv, float sx, float back, float fs, float who,
 	float yc = belt_y - 0.42;
 	float zb = seat_z.x;
 	float fw = -back;
-	float crown = min(side_top - 0.025, belt_y + 0.47 * fs);
+	// The crown: under the top of the side glass (further under in a low cabin, whose window top
+	// slopes down fast behind its highest point), never higher than a real person's.
+	float crown = min(side_top - 0.025 - (1.0 - fs) * 0.25, belt_y + 0.47 * fs);
 	// Most rays miss the whole figure: one box first.
 	vec3 bn;
 	vec3 blo = vec3(sx - 0.32, yc - 0.02, zb + back * 0.06);
@@ -592,5 +597,10 @@ vec3 glass_view(vec3 p, vec3 d, vec3 n, int i, float dist) {
 	float c = abs(dot(d, n));
 	float f = 0.04 + 0.96 * pow(1.0 - c, 5.0);
 	float fade = 1.0 - smoothstep(cabin_far * 0.8, cabin_far, dist);
-	return cabin_view(p, d, dist) * glass_tint * (t * through_light * (1.0 - f) * fade);
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	float lift = through_light_compat;
+#else
+	float lift = through_light;
+#endif
+	return cabin_view(p, d, dist) * glass_tint * (t * lift * (1.0 - f) * fade);
 }
