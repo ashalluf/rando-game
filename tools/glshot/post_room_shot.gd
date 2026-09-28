@@ -9,7 +9,8 @@ extends SceneTree
 ##
 ## Env: OUT png path; MODE still | run (the player carried along at SPEED m/s, the camera
 ## following as in play) | whip (the view turning RATE degrees a second, a mouse flick) | aim
-## (hold aim: the far blur past the crosshair's target) | wheel (the weapon wheel open);
+## (hold aim: the far blur past the crosshair's target) | wheel (the weapon wheel open) | boost
+## (really boosting along the view: BOOST_TIME, BOOST_SCALE; the player's BoostTrail);
 ## MB=0 turns the motion blur off (the "before"); AA=taa (default) | fsr | none; YAW / PITCH the
 ## view (degrees); WARMUP + FRAMES frames (the engine compiles its motion-vector pipelines in the
 ## background, and draws no velocity until they are ready); DT the frame time the blur is told
@@ -45,6 +46,72 @@ func _initialize() -> void:
 		Input.action_press("alt_fire")
 	elif mode == "wheel":
 		Input.action_press("weapon_wheel")
+	elif mode == "hurt":
+		# Two hits from either side and front-left, health left low, and a hit marker (DamageHud,
+		# Crosshair.mark_hit): the frame a firefight leaves on screen.
+		var health: Node = player.get("health")
+		var p0: Vector3 = player.global_position
+		var fwd3 := Vector3(-sin(deg_to_rad(yaw)), 0.0, -cos(deg_to_rad(yaw)))
+		var right3 := fwd3.cross(Vector3.UP)
+		health.call("take_damage", 90.0, p0 + right3 * 12.0)
+		health.call("take_damage", 70.0, p0 + fwd3 * 10.0 - right3 * 8.0)
+		health.call("take_damage", 40.0, p0 - fwd3 * 10.0)
+		# Loaded, not named: this script compiles before the autoloads exist, and the crosshair
+		# names Player, which uses them.
+		load("res://scripts/ui/crosshair.gd").mark_hit(true)
+		for i in 3:
+			await process_frame
+	elif mode == "land":
+		# Dropped from DROP metres (default 40: a full slam), the clock at a tick a frame, the shot
+		# LAND_AFTER seconds of game time after touching down (LandingFX: dust ring, crater, shove).
+		player.global_position.y += float(_env("DROP", "40"))
+		Engine.time_scale = 0.125
+		var after := 0.0
+		for i in 2000:
+			await process_frame
+			if player.is_on_floor():
+				after += root.get_process_delta_time()
+				if after >= float(_env("LAND_AFTER", "0.15")):
+					break
+		Engine.time_scale = 0.0005
+	elif mode == "pause":
+		# The pause menu over the room (the room has no DayNight or Weather, so its pickers
+		# have nothing to drive here; the look is what this is for).
+		var menu: Node = (load("res://scenes/ui/pause_menu.tscn") as PackedScene).instantiate()
+		level.add_child(menu)
+		await process_frame
+		menu.call("open")
+		for i in 12:
+			await process_frame
+	elif mode == "fire":
+		# Hold the trigger for FIRE_TIME seconds of game time with the clock at FIRE_SCALE: the
+		# muzzle flash, tracers, impacts and the rifle's spent cases (BrassCasings) in flight.
+		if _env("AIM", "0") == "1":
+			Input.action_press("alt_fire")
+			for i in 20:
+				await process_frame
+		Input.action_press("fire")
+		Engine.time_scale = float(_env("FIRE_SCALE", "0.05"))
+		var fired := 0.0
+		while fired < float(_env("FIRE_TIME", "0.6")):
+			await process_frame
+			fired += root.get_process_delta_time()
+		Input.action_release("fire")
+		Engine.time_scale = float(_env("FIRE_AFTER_SCALE", "0.0005"))
+	elif mode == "boost":
+		# The real boost (BoostTrail and all), the clock slowed to BOOST_SCALE (default 0.02: the
+		# room renders fast; in a slow scene 0.125 is a tick a frame, since Godot caps a frame at
+		# eight ticks), flown for BOOST_TIME seconds of game time before the shot.
+		player.global_position.y += float(_env("START_Y", "0"))
+		Input.action_press("boost")
+		Engine.time_scale = float(_env("BOOST_SCALE", "0.02"))
+		var flown := 0.0
+		var frames := 0
+		while flown < float(_env("BOOST_TIME", "1.2")):
+			await process_frame
+			flown += root.get_process_delta_time()
+			frames += 1
+		print("boost: %d frames, %.2f s, %.1f m/s at %s" % [frames, flown, (player.get("velocity") as Vector3).length(), player.global_position])
 	var speed := float(_env("SPEED", "45"))
 	var rate := float(_env("RATE", "280"))
 	var start := player.global_position

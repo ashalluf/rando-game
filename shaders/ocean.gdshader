@@ -346,8 +346,13 @@ vec2 shore_distance(vec2 p) {
 		// Inside the bay the land is east and north of the water, not the main shoreline.
 		d = min(bay_east_x - p.x, p.y - bay_z);
 	}
+	// Just landward of the shoreline is the beach: no swell. A sea chunk that owns the shoreline
+	// lays its water plane over its whole rect, sand included, and this used to say 300 m (open
+	// sea) there, so full-height swells pushed up through the beach as blobs of water on the sand.
+	// Further in (round the headland, where cx is its far west tip) it stays open sea and the
+	// headland's own distance below does the tapering, as before.
 	if (d < 0.0) {
-		d = 300.0;
+		d = d > -300.0 ? 0.0 : 300.0;
 	}
 	float pen = headland_dist(p) - 2.0;
 	return vec2(min(d, max(pen, 0.0)), off);

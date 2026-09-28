@@ -13,6 +13,9 @@ extends Node
 
 signal health_changed(health: float, max_health: float)
 signal downed_changed(downed: bool)
+## Every hit: how much and where it came from (Vector3.INF when nobody knows; DamageHud draws
+## the arc toward it).
+signal hit_taken(amount: float, from: Vector3)
 
 @export_group("Health")
 ## Full health.
@@ -78,6 +81,7 @@ func take_damage(amount: float, from: Vector3 = Vector3.INF, kind: String = "bul
 	if from != Vector3.INF:
 		_hit_from = from
 	health_changed.emit(health, max_health)
+	hit_taken.emit(amount, from)
 	if _player.camera_rig and _player.camera_rig.has_method("shake"):
 		_player.camera_rig.shake(0.12 if kind == "bullet" else 0.4)
 	if health <= 0.0:

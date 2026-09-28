@@ -8,7 +8,8 @@ extends SceneTree
 ##     -- --spawn=1150,255,90,-6,140 --hour=18.2 --nohud --quality=0
 ##
 ## Env: OUT png path; FRAMES frames at normal speed first (streaming, exposure, GI; default 30);
-## FOV camera field of view; BOOST=1 poses the player mid-boost (held in place); FX_AT=metres
+## FOV camera field of view; BOOST=1 poses the player mid-boost (held in place), BOOST=fly really
+## flies them (FLY_TIME, FLY_SCALE; see the block before the HUD); FX_AT=metres
 ## puts an explosion that far ahead of the camera (FX_SIDE metres to the right), which really
 ## launches what it hits, and FX_TIME seconds into it is when the shot is taken (0.25 = fireball
 ## at its biggest); then SETTLE frames (default 6) with the clock all but frozen (TIME_SCALE,
@@ -200,6 +201,26 @@ func _initialize() -> void:
 			await process_frame
 			elapsed += get_root().get_process_delta_time()
 			_pose(player, anchor, hold, boost, fov)
+	# BOOST=fly: really boost along the camera for FLY_TIME seconds of game time (default 1.2),
+	# the clock slowed to FLY_SCALE so the trail is laid down at the rate a real frame rate lays
+	# it, then shoot from behind as usual. Godot caps a frame at eight physics ticks however long
+	# it really takes, so the default 0.125 is one tick a (slow) software frame; 0.02 was a sixth
+	# of a tick and a flight took twenty minutes.
+	if OS.get_environment("BOOST") == "fly" and player:
+		_flying = true
+		player.set("velocity", Vector3.ZERO)
+		Input.action_press("boost")
+		Engine.time_scale = _env_float("FLY_SCALE", 0.125)
+		var flown := 0.0
+		var fly_time := _env_float("FLY_TIME", 1.2)
+		var fly_frames := 0
+		while flown < fly_time:
+			await process_frame
+			flown += get_root().get_process_delta_time()
+			fly_frames += 1
+			if fly_frames % 20 == 0:
+				print("fly: frame %d, %.2f s, %.1f m/s" % [fly_frames, flown, (player.get("velocity") as Vector3).length()])
+		print("fly: %.2f s at %.1f m/s, now at %s" % [flown, (player.get("velocity") as Vector3).length(), player.global_position])
 	# HUD=1 with --nohud: skip the loading screen (which --nohud does) but put the HUD back up for
 	# the shot, in its CLEAN mode - without --nohud the loading screen fills the first hundred frames.
 	if OS.get_environment("HUD") == "1" and current_scene:
@@ -1050,7 +1071,7 @@ static func _env_float(key: String, fallback: float) -> float:
 ## Keeps the player where the shot wants them: at the --spawn height, and for BOOST held in
 ## place mid-boost (the boost itself would carry them off between software frames).
 func _pose(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
-	if player == null:
+	if player == null or _flying:
 		return
 	_eye(player, fov)
 	if boost:
@@ -1073,6 +1094,8 @@ func _pose(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: flo
 ## --spawn does), the player hidden - for matching a reference photograph from a fixed viewpoint
 ## (a Street View car's lens is about 2.5 m above the road). FOV is the vertical field of view.
 var _eye_cam: Camera3D
+## BOOST=fly is under way: the pose no longer pins the player.
+var _flying: bool = false
 
 
 func _eye(player: Node3D, fov: float) -> void:

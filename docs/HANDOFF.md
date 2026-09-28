@@ -5,7 +5,51 @@ or as a person. `CLAUDE.md` is the rulebook and `docs/GAME_PLAN.md` is the roadm
 decisions log; both stay the source of truth. This file is the story: where things stand, how
 the day-to-day work goes, what is fragile, what to do next. Read all three before touching code.
 
-## 0000. Handoff of 2026-09-28 (newest - read this first, then 000 and 00)
+## 00000. The same day, continued (2026-09-28, the owner came back: "make the graphics a million times better")
+
+Newest. Read this, then 0000 (which is still the full state as of the morning).
+
+**Shipped from the lead's branch** (`wt/boost-fx`):
+- **Boost trail** (`BoostTrail`, CLAUDE.md "The boost"): the solid cyan spheres are gone - a
+  vapour contrail, a wake of mist off the body toward the camera, streaks of air, dust off the
+  ground on a low pass, a vapour ring at take-off and at top speed. Knobs at the top of
+  `scripts/player/boost_trail.gd` (`vapour_alpha`, `wake_alpha`, `streak_alpha`, `dust_reach`).
+  Tools: `post_room_shot.gd MODE=boost` (test room, seconds), `still_shot.gd BOOST=fly`.
+- **Weapon panel** (`WeaponHud`): the "[1] AK-47 [2] Rocket Launcher [3] Shotgun" text line is
+  a glass pill with the gun's silhouette, name, infinity sign and slot chips.
+- **The sun on the real LA path** (found by the hills agent): it rose SSE, stood ENE at noon 85
+  degrees up and was due NORTH at 15:00, so the mountain faces the city looks at were backlit all
+  afternoon. Now east - south at 56 degrees - west (`DayNight._arc_basis()`, `latitude_degrees`).
+  Every shadow in every bookmark moved: midday shadows now fall north and are longer.
+
+**Then, also from the lead** (each its own push, each passing the check):
+- **Brass**: the AK throws a spent case every round (`BrassCasings`, one MultiMesh, simulated in
+  GDScript, a tink on the bounce).
+- **Pause menu**: frosted glass over the blurred frozen game, with TIME OF DAY presets, WEATHER
+  (held or Auto; `Weather.force_state()`), GRAPHICS (held or Auto; `Quality.force_level()`), the
+  seed, and a controls card. `post_room_shot.gd MODE=pause`.
+- **Combat feedback**: hit markers on the crosshair (`Crosshair.mark_hit()`), red edges and a
+  direction arc toward whoever shot you, a low-health heartbeat (`DamageHud`,
+  `PlayerHealth.hit_taken`). `MODE=hurt`.
+- **Superhero landings** (`LandingFX`): dust ring and camera kick from a jump, a crater and a
+  shockwave that knocks people and props from a drop of ~30 m. `MODE=land`.
+- **Bullet impact sounds by surface** (Sfx `hit_*`, Kenney's CC0 impacts) and a real brass tink.
+- The ocean no longer swells up through the beach (blobs of water on the sand).
+- Test-room modes on `post_room_shot.gd` (boost, fire, hurt, land, pause) render in a minute or
+  two, against 5-25 minutes for a city still while the render lock is busy: prefer them for
+  anything that does not need the city.
+
+**Agents running in worktrees when this was written** (each reports back with before/after
+stills; merge main into the branch in its worktree, check, fast-forward, push):
+- `wt/crowd-garments`: our own tee / trousers / shirt / jacket for the crowd (the patch in
+  `docs/wip/` continued).
+- `wt/lot-fill-2`: no bare ground outside downtown/midtown (beach town, campus, freeway sides,
+  the empty block south-east of MacArthur Park).
+- `wt/hills-air`: the mountains from the air (the dark dashes were Skyline's far chaparral
+  mounds; the far ground's colours were linearised twice on Forward+).
+- `wt/car-glass`: see-through car windows with a traced cabin, and drivers in traffic.
+
+## 0000. Handoff of 2026-09-28 (read after 00000, then 000 and 00)
 
 The owner is moving to another account; this is where everything stands. **`main` is the whole
 state** (32fdd30, build 313 in CI at the time of writing; builds 304-312 green). Nothing is left on

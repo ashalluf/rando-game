@@ -21,6 +21,9 @@ extends Weapon
 const MODEL_PATH := "res://assets/models/weapon_ak47.glb"
 ## The muzzle, for a model without its own Muzzle node.
 const MODEL_MUZZLE := Vector3(0.0, 0.0, -0.55)
+## The ejection port in the gun's own space: the right of the receiver, just behind the charging
+## handle, where the spent case comes out.
+const EJECT_PORT := Vector3(0.03, 0.035, -0.03)
 
 # Walnut, not orange: the old 0.55 / 0.32 / 0.14 blew out to bright orange in sunlight, and the
 # rifle is on screen in every single frame of this game.
@@ -140,6 +143,9 @@ func _fire(aim: Dictionary) -> void:
 	fire_ray(aim.origin, dir)
 	WeaponFX.flash(self, muzzle.global_position)
 	Sfx.play("shot", muzzle.global_position, -4.0)
+	# The spent case out of the port on the right of the receiver (BrassCasings).
+	var carry: Vector3 = player.velocity if player else Vector3.ZERO
+	BrassCasings.eject(self, global_transform * EJECT_PORT, global_basis.x.normalized(), global_basis.y.normalized(), carry)
 
 
 ## Fires one hitscan bullet from `from` along `dir`. Public so tests can call it.
@@ -164,5 +170,18 @@ func fire_ray(from: Vector3, dir: Vector3) -> Dictionary:
 			# A hole in the paint, a crazed or shattered window, a broken lamp (CarDamage).
 			(hit.collider as Vehicle).take_hit(hit.get("shape", -1), bullet_damage, dir, hit.position, Vehicle.HIT_BULLET)
 		WeaponFX.impact(self, hit.position)
+		_mark(hit.collider)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color)
 	return hit
+
+
+## The crosshair's hit marker: red for a person (or a body already down), white for a car or an
+## aircraft; nothing for walls and the street.
+func _mark(collider: Object) -> void:
+	if collider == null or not is_instance_valid(collider):
+		return
+	var doll: Node = (collider as Node).get_parent() if collider is RigidBody3D else null
+	if collider.has_method("knock") or (doll != null and doll.has_method("fling")):
+		Crosshair.mark_hit(true)
+	elif collider is Vehicle or collider.has_method("take_hit"):
+		Crosshair.mark_hit(false)

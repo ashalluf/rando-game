@@ -395,6 +395,7 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | 75 CC0 breaking/falling/hit SFX (rubberduck) | https://opengameart.org/content/75-cc0-breaking-falling-hit-sfx | CC0 1.0 | `assets/audio/break_0..2, glass_0..2` | 2026-09-21 |
 | Crash collision (qubodup) | https://opengameart.org/content/crash-collision | CC0 1.0 | `assets/audio/crash_0` | 2026-09-21 |
 | Impact Sounds (Kenney) | https://kenney.nl/assets/impact-sounds | CC0 1.0 | `assets/audio/crash_1..2` | 2026-09-21 |
+| Impact Sounds (Kenney) | https://kenney.nl/assets/impact-sounds | CC0 1.0 | `assets/audio/hit_concrete_0..2` (impactMining 000/002/004), `hit_metal_0..2` (impactMetal_light 000/002/004), `hit_glass_0..2` (impactGlass_light 000/002/004), `hit_wood_0..2` (impactPlank_medium 000/002/004), `hit_dirt_0..2` (impactSoft_medium 000/002/004), `hit_flesh_0..2` (impactPunch_medium 000/002/004), `casing_0..1` (impactMetal_light 001/003, played pitched up) - as supplied | 2026-09-28 |
 | 37 hits/punches (qubodup) | https://opengameart.org/content/37-hitspunches | CC0 1.0 | `assets/audio/land_0..1, thud_0..1` | 2026-09-21 |
 | Fantozzi's Footsteps (qubodup) | https://opengameart.org/content/fantozzis-footsteps-grasssand-stone | CC0 1.0 | `assets/audio/footstep_0..5` | 2026-09-21 |
 | Car sound effects pack (GGBotNet) | https://opengameart.org/content/car-sound-effects-pack-low-quality | CC0 1.0 | `assets/audio/horn_0, engine_loop_0` | 2026-09-21 |

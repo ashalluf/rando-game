@@ -59,10 +59,15 @@ func _run() -> void:
 	Input.action_press("move_back")
 	Input.action_press("boost")
 	var boost_speed := await _run_and_measure_speed(player, 90)
+	# The boost's trail (BoostTrail: vapour, wake, streaks, dust) runs while boosting at speed.
+	var trail: Node = player.get_node_or_null("BoostTrail")
+	var trailing: bool = trail != null and bool(trail.call("is_trailing"))
 	Input.action_release("boost")
 	Input.action_release("move_back")
 	_check(boost_speed > player.walk_speed + 15.0 and boost_speed <= player.boost_max_speed + 0.5,
 		"boost speed reaches %.1f (cap %.1f)" % [boost_speed, player.boost_max_speed])
+	await _ticks(2)
+	_check(trailing and not bool(trail.call("is_trailing")), "the boost trail runs while boosting and stops on release")
 	await _ticks(90)
 
 	# Full jump, holding the button through the apex.
@@ -1586,6 +1591,31 @@ func _test_city() -> void:
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
+	# Its pickers: rain held at once (and the streets soaked), then back to rolling; a graphics
+	# level held, then back to adapting; the clock jumped.
+	var menu_weather: Node = city.get_node_or_null("Weather")
+	var menu_day: Node = city.get_node_or_null("DayNight")
+	if menu_weather and menu_day:
+		var saved_weather := {}
+		for key in ["state", "_previous", "blend", "wetness", "drying", "_forced", "_timer"]:
+			saved_weather[key] = menu_weather.get(key)
+		var was_hour: float = float(menu_day.get("hour"))
+		var was_quality: int = int(city.get_node("Quality").get("level"))
+		var was_quality_forced: bool = bool(city.get_node("Quality").call("is_forced"))
+		menu.call("_set_weather", 3)
+		var rain_held: bool = int(menu_weather.get("state")) == 2 and bool(menu_weather.call("is_forced")) and float(menu_weather.get("wetness")) > 0.5
+		menu.call("_set_weather", 0)
+		menu.call("_set_hour", 21.5)
+		var night_now: bool = absf(float(menu_day.get("hour")) - 21.5) < 0.01
+		# The level in force now, held (a lower one would trim the crowd under the later checks).
+		menu.call("_set_graphics", was_quality + 1)
+		var low_held: bool = int(city.get_node("Quality").get("level")) == was_quality and bool(city.get_node("Quality").call("is_forced"))
+		_check(rain_held and not bool(menu_weather.call("is_forced")) and night_now and low_held,
+			"the pause menu holds the weather, jumps the clock and holds a graphics level")
+		for key in saved_weather:
+			menu_weather.set(key, saved_weather[key])
+		menu_day.set("hour", was_hour)
+		city.get_node("Quality").set("_forced", was_quality_forced)
 	menu.close()
 	_check(not get_tree().paused, "resume unpauses")
 	_world_state().pending_seed = 4321

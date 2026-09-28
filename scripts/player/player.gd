@@ -99,7 +99,7 @@ var _takeoff_y: float = 0.0
 var _current_peak: float = 0.0
 var _spawn_transform: Transform3D
 var _boosting: bool = false
-var _boost_fx: CPUParticles3D
+var _boost_fx: BoostTrail
 var _boost_sound: AudioStreamPlayer3D
 ## Physics frames to skip world queries after an origin shift (the broadphase lags a frame).
 var _query_hold: int = 0
@@ -170,6 +170,8 @@ func _physics_process(delta: float) -> void:
 		_apply_horizontal(delta, on_floor, move_dir)
 	_handle_jump(on_floor)
 
+	# How fast we are coming down, for what the landing does to the ground (LandingFX).
+	var fall_speed := -velocity.y
 	move_and_slide()
 	_push_props(delta)
 	_track_jump_peak(on_floor, is_on_floor())
@@ -178,13 +180,16 @@ func _physics_process(delta: float) -> void:
 		avatar.drive(delta, horizontal_speed(), is_on_floor(), velocity.y, _boosting)
 		var gun: Weapon = weapon_manager.current if weapon_manager and weapon_manager.visible else null
 		avatar.hold_gun(gun, _aim_timer > 0.0 or (lock_on != null and lock_on.aiming), delta)
-	_boost_fx.emitting = _boosting
+	_boost_fx.drive(_boosting, velocity, boost_max_speed)
 	if _boosting and not _boost_sound.playing:
 		_boost_sound.play()
 	elif not _boosting and _boost_sound.playing:
 		_boost_sound.stop()
-	if is_on_floor() and not on_floor and velocity.length() > 1.0:
-		Sfx.play("land", global_position, -6.0)
+	if is_on_floor() and not on_floor:
+		if fall_speed >= LandingFX.dust_speed:
+			LandingFX.land(self, global_position, get_floor_normal(), fall_speed)
+		elif velocity.length() > 1.0:
+			Sfx.play("land", global_position, -6.0)
 
 	if global_position.y < kill_y or Input.is_action_just_pressed("respawn"):
 		respawn()
@@ -571,24 +576,8 @@ func _build_avatar() -> void:
 
 
 func _build_boost_fx() -> void:
-	_boost_fx = CPUParticles3D.new()
-	_boost_fx.emitting = false
-	_boost_fx.amount = 48
-	_boost_fx.lifetime = 0.35
-	_boost_fx.local_coords = false
-	_boost_fx.direction = Vector3(0.0, 0.0, 1.0)
-	_boost_fx.spread = 12.0
-	_boost_fx.initial_velocity_min = 9.0
-	_boost_fx.initial_velocity_max = 14.0
-	_boost_fx.gravity = Vector3.ZERO
-	_boost_fx.scale_amount_min = 0.4
-	_boost_fx.scale_amount_max = 1.0
-	var puff := SphereMesh.new()
-	puff.radius = 0.16
-	puff.height = 0.32
-	puff.radial_segments = 6
-	puff.rings = 3
-	puff.material = WeaponFX.unshaded(Color(0.45, 0.9, 1.0))
-	_boost_fx.mesh = puff
-	_boost_fx.position = Vector3(0.0, 0.8, 0.45)
-	visual.add_child(_boost_fx)
+	_boost_fx = BoostTrail.new()
+	_boost_fx.name = "BoostTrail"
+	# Chest height; the trail works out its own offsets from the direction of travel.
+	_boost_fx.position = Vector3(0.0, 0.95, 0.0)
+	add_child(_boost_fx)

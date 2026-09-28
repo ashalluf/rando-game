@@ -87,6 +87,15 @@ const SAMPLES := {
 		"gore_6.ogg"],
 	# A real police wail recorded in the street (public domain): one cycle, looped.
 	"siren": ["siren_0.ogg"],
+	# Bullet impacts by surface (WeaponFX.impact()) and a spent case on the ground (BrassCasings):
+	# Kenney's Impact Sounds (CC0).
+	"hit_concrete": ["hit_concrete_0.ogg", "hit_concrete_1.ogg", "hit_concrete_2.ogg"],
+	"hit_metal": ["hit_metal_0.ogg", "hit_metal_1.ogg", "hit_metal_2.ogg"],
+	"hit_glass": ["hit_glass_0.ogg", "hit_glass_1.ogg", "hit_glass_2.ogg"],
+	"hit_wood": ["hit_wood_0.ogg", "hit_wood_1.ogg", "hit_wood_2.ogg"],
+	"hit_dirt": ["hit_dirt_0.ogg", "hit_dirt_1.ogg", "hit_dirt_2.ogg"],
+	"hit_flesh": ["hit_flesh_0.ogg", "hit_flesh_1.ogg", "hit_flesh_2.ogg"],
+	"casing": ["casing_0.ogg", "casing_1.ogg"],
 }
 
 ## Loudest-50 ms level of every take above, in dB, in the same order, measured off the committed
@@ -119,6 +128,13 @@ const SAMPLE_LOUDNESS_DB := {
 	"yelp": [-13.93, -13.96, -13.96, -14.10, -14.21, -14.11, -14.01],
 	"gore": [-11.97, -13.00, -13.86, -12.48, -14.75, -12.11, -11.95],
 	"siren": [-7.74],
+	"hit_concrete": [-8.91, -11.72, -8.43],
+	"hit_metal": [-12.70, -13.98, -14.45],
+	"hit_glass": [-15.20, -13.82, -14.37],
+	"hit_wood": [-12.01, -9.16, -13.45],
+	"hit_dirt": [-10.64, -9.93, -9.89],
+	"hit_flesh": [-8.56, -9.17, -9.04],
+	"casing": [-13.15, -11.68],
 }
 
 ## Sample names that have to loop. Set on the stream in code rather than in the .import file, so
@@ -475,6 +491,14 @@ func _build_synth() -> void:
 	_put("rotor_loop", _rotor_loop(1.2), true)
 	# Synthesised only (no CC0 take yet): a burning car (CarDamage).
 	_put("fire_loop", _fire_loop(2.4), true)
+	# A spent rifle case hitting the ground (BrassCasings) and bullet impacts by surface.
+	_put("casing", _tink(0.22))
+	_put("hit_concrete", _noise_burst(0.12, 45.0, 0.7, 0.5))
+	_put("hit_metal", _tink(0.3))
+	_put("hit_glass", _noise_burst(0.2, 18.0, 0.6, 0.85))
+	_put("hit_wood", _thud(0.1, 220.0, 0.6))
+	_put("hit_dirt", _noise_burst(0.1, 50.0, 0.6, 0.2))
+	_put("hit_flesh", _thud(0.12, 110.0, 0.8))
 
 
 func _put(key: String, samples: PackedFloat32Array, looping: bool = false) -> void:
@@ -524,6 +548,23 @@ func _wav(samples: PackedFloat32Array, looping: bool = false, gain: float = 1.0)
 		wav.loop_begin = 0
 		wav.loop_end = samples.size()
 	return wav
+
+
+## A small brass case hitting pavement: a tick of noise and a few inharmonic partials ringing
+## out fast, the highest dying first (a thin-walled tube's modes, roughly).
+func _tink(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var partials := [[3150.0, 38.0, 0.55], [4880.0, 52.0, 0.4], [6710.0, 70.0, 0.3], [8420.0, 95.0, 0.18]]
+	for i in n:
+		var t := float(i) / MIX_RATE
+		var v := 0.0
+		for p: Array in partials:
+			v += sin(TAU * float(p[0]) * t) * exp(-float(p[1]) * t) * float(p[2])
+		v += _rng.randf_range(-1.0, 1.0) * exp(-900.0 * t) * 0.6
+		out[i] = v * 0.8
+	return out
 
 
 func _noise_burst(seconds: float, decay: float, gain: float, smooth: float) -> PackedFloat32Array:

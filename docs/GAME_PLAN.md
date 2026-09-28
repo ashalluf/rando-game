@@ -278,6 +278,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
+  west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
+  in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
+  bookmarks' shadows, which all moved.
+- **2026-09-28 The boost reads as a superhero's flight, not a particle demo**: vapour, a wake off
+  the body, streaks of air, dust, a take-off ring (`BoostTrail`); the HUD's weapon line became a
+  glass panel (`WeaponHud`).
 - **2026-09-28 The hills are brush where the land says so, grass on the benches.** The brush
   stands read as leopard-spot camouflage from 100-500 m because the threshold sat at the stand
   noise's mean over whole hillsides. The land now decides: `chaparral_amount` 0.8 (steep faces

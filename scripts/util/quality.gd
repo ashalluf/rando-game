@@ -127,6 +127,25 @@ func _process(delta: float) -> void:
 		apply_level((level + 1) as Level)
 
 
+## The pause menu's graphics picker: hold `new_level` (-1: back to adapting to the frame rate,
+## starting again from `start_level`).
+func force_level(new_level: int) -> void:
+	if new_level < 0:
+		_forced = false
+		_time = 0.0
+		_frames = 0
+		apply_level(start_level)
+		set_process(not OS.has_feature("web") and DisplayServer.get_name() != "headless")
+		return
+	_forced = true
+	apply_level(clampi(new_level, 0, Level.LOWEST) as Level)
+
+
+## True while a level is held (force_level() or --quality).
+func is_forced() -> bool:
+	return _forced
+
+
 func level_name() -> String:
 	return ["high", "medium", "low", "lowest"][level]
 

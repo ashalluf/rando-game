@@ -1,6 +1,6 @@
 extends CanvasLayer
 ## The HUD. F1 cycles three modes:
-##   CLEAN   crosshair, minimap and weapon list only. What the game looks like while playing.
+##   CLEAN   crosshair, minimap and the weapon panel only. What the game looks like while playing.
 ##   FULL    plus the stats line, the frame-time breakdown and the control hints.
 ##   HIDDEN  nothing, for screenshots.
 ## It starts CLEAN: the debug block is genuinely useful (screenshot the frame line when
@@ -16,10 +16,22 @@ var mode: Mode = Mode.CLEAN
 var _player: Player
 ## The weapon the list was last written for, so it is rebuilt only on a switch.
 var _labelled_weapon: Weapon
+## The glass weapon panel (top right) that stands in for the text list in every mode.
+var weapon_hud: WeaponHud
 
 
 func _ready() -> void:
 	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+	# Being hurt: red edges, the arc toward the shooter, the low-health heartbeat - under the rest.
+	var damage := DamageHud.new()
+	damage.name = "DamageHud"
+	add_child(damage)
+	move_child(damage, 0)
+	weapon_hud = WeaponHud.new()
+	weapon_hud.name = "WeaponHud"
+	add_child(weapon_hud)
+	move_child(weapon_hud, weapon_label.get_index())
+	weapon_label.visible = false
 	if OS.has_feature("web"):
 		hints.text = "Click the game to grab the mouse.\n"
 		# ?nohud in the page URL hides the overlay (used by the screenshot harness).
@@ -62,9 +74,11 @@ func _process(_delta: float) -> void:
 		_player = get_tree().get_first_node_in_group("player") as Player
 		if _player == null:
 			return
-	# The weapon list shows in CLEAN mode too (it used to be filled only in FULL, so CLEAN
-	# showed "..." in its place).
-	_update_weapon_label()
+	# The weapon panel (WeaponHud) draws itself; the old text list stays only as the fallback
+	# for a HUD built without it.
+	if weapon_hud == null:
+		weapon_label.visible = true
+		_update_weapon_label()
 	if mode != Mode.FULL:
 		return
 	var budget := get_node_or_null("/root/PhysicsBudget")

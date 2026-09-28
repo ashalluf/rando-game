@@ -8,7 +8,15 @@ extends Node
 ## fast") a sunset was over in under a minute and a whole day in eight.
 @export var day_length_seconds: float = 2880.0
 @export var start_hour: float = 9.0
-@export var sun_rotation_z_degrees: float = 35.0
+## Turns the whole sun path about the vertical, degrees (0: it rises due east, stands due south
+## at noon and sets due west, as it does over Los Angeles; game north is map north).
+@export var sun_rotation_z_degrees: float = 0.0
+## Latitude the sun path is worked out for (Los Angeles is 34 N): it sets how far south of
+## overhead the noon sun stands (90 - latitude + declination degrees up).
+@export var latitude_degrees: float = 34.0
+## The sun's declination, degrees: 0 at the equinoxes, +23.4 midsummer, -23.4 midwinter. 0 keeps
+## sunrise at 6:00 due east and sunset at 18:00 due west, which the clock's day assumes.
+@export var sun_declination_degrees: float = 0.0
 @export var day_sun_color: Color = Color(1.0, 0.94, 0.82)
 @export var dusk_sun_color: Color = Color(1.0, 0.6, 0.35)
 @export var night_sun_color: Color = Color(0.62, 0.72, 1.0)
@@ -230,11 +238,23 @@ func _apply_override() -> void:
 ## The arc a body rides across the sky. `u` is 0 at its rise, 0.5 at its peak and 1 at its set,
 ## and the basis' +Z points back at the body (a light shines along -Z), so it stays continuous
 ## below the horizon instead of having to be special-cased at night.
+##
+## The real path over a latitude: a circle tilted toward the equator, so the sun rises in the
+## east, crosses the SOUTHERN sky and sets in the west (north of the Tropic of Cancer it never
+## stands in the north). It used to swing 180 degrees round from south-south-east through
+## east-north-east at noon to due north mid-afternoon, 85 degrees up, so every south face of the
+## mountains - the faces the city looks at - was backlit all afternoon.
 func _arc_basis(u: float) -> Basis:
-	var elevation := sin(u * PI)
-	var pitch := deg_to_rad(-elevation * 85.0)
-	var yaw := deg_to_rad(180.0 * u + sun_rotation_z_degrees)
-	return Basis.from_euler(Vector3(pitch, yaw, 0.0))
+	var h := (u - 0.5) * PI # hour angle: -90 degrees at the rise, 0 at the peak, +90 at the set
+	var phi := deg_to_rad(latitude_degrees)
+	var dec := deg_to_rad(sun_declination_degrees)
+	var east := -cos(dec) * sin(h)
+	var north := cos(phi) * sin(dec) - sin(phi) * cos(dec) * cos(h)
+	var up := sin(phi) * sin(dec) + cos(phi) * cos(dec) * cos(h)
+	# Game axes: +X east, -Z north.
+	var d := Vector3(east, up, -north).normalized()
+	d = d.rotated(Vector3.UP, deg_to_rad(sun_rotation_z_degrees))
+	return _look_basis(d)
 
 
 ## A basis whose +Z points along `d`, for aiming the light at the moon.

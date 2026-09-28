@@ -101,7 +101,14 @@ func _layout() -> void:
 	var w := 5.0 * 2.0 * r + 4.0 * gap + 20.0
 	var h := 2.0 * r + 20.0
 	_stars.size = Vector2(w, h)
-	_stars.position = Vector2(view.x - star_margin.x - w + 10.0, star_margin.y)
+	var top := star_margin.y
+	# Under the weapon panel when there is one (WeaponHud), right-aligned with it.
+	var panel := get_parent().get_node_or_null("WeaponHud") if get_parent() else null
+	if panel and panel.has_method("panel_rect"):
+		var pr: Rect2 = panel.call("panel_rect")
+		if pr.size.y > 0.0:
+			top = pr.end.y + 4.0
+	_stars.position = Vector2(view.x - star_margin.x - w + 10.0, top)
 	_stars_mat.set_shader_parameter("rect_px", _stars.size)
 	_stars_mat.set_shader_parameter("star_r", r)
 	_stars_mat.set_shader_parameter("star_gap", gap)
