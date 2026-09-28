@@ -28,6 +28,8 @@ extends SceneTree
 ## wheel), `OCCUPANT=none` empties a cruiser (whose crew is aboard by default); the views
 ## `driver` (in at the driver's window, the car's left) and `inside` (through the windscreen,
 ## close) frame them; `CABIN_DEBUG=1` paints each part of the people its own flat colour.
+## `CAR_GLASS=0` puts the car back on its model's own opaque glass (the A/B); `TIME=n` prints each
+## view's frame time over n frames (the software renderer's fragment cost, which GEO cannot see).
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
 ## autoloads exist (CLAUDE.md).
 
@@ -80,6 +82,9 @@ func _initialize() -> void:
 			police = true
 		elif arg == "--heavy":
 			heavy = true
+	# CAR_GLASS=0: the model's own opaque glass, nobody inside (CarCabin's A/B).
+	if OS.get_environment("CAR_GLASS") == "0":
+		(load("res://scripts/vehicles/car_cabin.gd") as GDScript).set("enabled", false)
 	var root := get_root()
 	var world := Node3D.new()
 	root.add_child(world)
@@ -296,6 +301,14 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		var path := "%s_%s.png" % [out, view]
 		get_root().get_texture().get_image().save_png(path)
 		print("saved ", path)
+		if OS.get_environment("TIME") != "":
+			# Frame time over TIME=n frames of this view (a software renderer: the fragment cost
+			# of what is on screen shows here, where GEO counts only geometry).
+			var n := OS.get_environment("TIME").to_int()
+			var t0 := Time.get_ticks_usec()
+			for i in n:
+				await process_frame
+			print("TIME %s %.2f ms a frame over %d" % [view, float(Time.get_ticks_usec() - t0) / 1000.0 / float(n), n])
 		if OS.get_environment("GEO") != "":
 			# The frame's cost (opengl3 only; --headless reads zero): draws, objects, triangles.
 			print("GEO %s draws %d objects %d tris %d" % [view,

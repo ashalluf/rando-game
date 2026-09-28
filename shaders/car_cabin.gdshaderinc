@@ -51,8 +51,15 @@ uniform vec3 street_light = vec3(0.07, 0.048, 0.026);
 uniform float people_light = 0.5;
 // The glass's own colour on what it lets through (linear).
 uniform vec3 glass_tint = vec3(0.84, 0.91, 0.88);
+// The cabin seen through whole glass against cabin_light (which an empty frame shows at full):
+// through the glass it read as bright as the paint outside on Forward+, where a real cabin by
+// day is a dark room with the sky mirrored over it.
+uniform float through_light = 0.45;
 // Past this distance (mesh units, metres on every body) the glass is plain dark glass.
 uniform float cabin_far = 70.0;
+// Past this distance the small things are left out of the trace (the gear lever, the screen,
+// the wheel's hub, spokes and column, the people's thighs): a few pixels each out there.
+uniform float cabin_detail = 12.0;
 
 #ifdef CABIN_FIRE
 // 0 .. 1: every pane gone and the cabin burnt out.
@@ -281,7 +288,7 @@ float ring_hit(vec3 o, vec3 d, vec3 c, vec3 n, float rad, float rw, float tw, ou
 // shows in a car window: the crown just under the top of the glass, the shoulders a hand over the
 // door line, the neck whatever is between (a low car's driver sits low); `fs` scales the build
 // (narrower in a small cabin, and by the seed). `who` 0 the driver, 1 the passenger.
-void person(vec3 o, vec3 d, vec3 inv, float sx, float back, float fs, float who, bool drive, vec3 wc, vec3 wu, vec3 wv, float wr, inout float best, inout vec3 best_n, inout float best_shade, inout int best_mat, inout vec4 best_aux) {
+void person(vec3 o, vec3 d, vec3 inv, float sx, float back, float fs, float who, bool drive, bool close_up, vec3 wc, vec3 wu, vec3 wv, float wr, inout float best, inout vec3 best_n, inout float best_shade, inout int best_mat, inout vec4 best_aux) {
 	// The cushion's top and the seat back's face.
 	float yc = belt_y - 0.42;
 	float zb = seat_z.x;
@@ -307,7 +314,9 @@ void person(vec3 o, vec3 d, vec3 inv, float sx, float back, float fs, float who,
 	ell_keep(o, d, vec3(sx, shy - chest_h * 0.8, zb + fw * 0.12 * fs), vec3(0.165 * fs, chest_h, 0.115 * fs), CAB_CHEST, who, best, best_n, best_shade, best_mat, best_aux);
 	for (int k = 0; k < 2; k++) {
 		float s = k == 0 ? -1.0 : 1.0;
-		cap_keep(o, d, vec3(sx + s * 0.09 * fs, yc + 0.08, zb + fw * 0.12), vec3(sx + s * 0.11 * fs, yc + 0.12, zb + fw * 0.5), 0.075 * fs, CAB_LEGS, who, best, best_n, best_shade, best_mat, best_aux);
+		if (close_up) {
+			cap_keep(o, d, vec3(sx + s * 0.09 * fs, yc + 0.08, zb + fw * 0.12), vec3(sx + s * 0.11 * fs, yc + 0.12, zb + fw * 0.5), 0.075 * fs, CAB_LEGS, who, best, best_n, best_shade, best_mat, best_aux);
+		}
 		vec3 sh = vec3(sx + s * 0.185 * fs, shy - 0.01, zb + fw * 0.1 * fs);
 		vec3 hand = drive ? wc + wr * (s * 0.86 * wu + 0.5 * wv) : vec3(sx + s * 0.13 * fs, yc + 0.18, zb + fw * 0.36);
 		// The elbow: bent down and out by as much as the arm's length allows.
@@ -393,8 +402,9 @@ vec3 person_albedo(int mat, vec4 aux, float back) {
 // What a ray from `o` along `d` sees in the cabin: the dash, two front seats and the rear bench
 // with their headrests, the wheel, console and lever, whoever is in the front, the headliner, the
 // door cards and floor, and - out through the glass on the far side - the day (dimmed by that
-// pane's tint while it is still in).
-vec3 cabin_view(vec3 o, vec3 d) {
+// pane's tint while it is still in). `dist` is how far the camera is (cabin_detail).
+vec3 cabin_view(vec3 o, vec3 d, float dist) {
+	bool close_up = dist < cabin_detail;
 	vec3 safe = vec3(abs(d.x) < 1e-4 ? 1e-4 : d.x, abs(d.y) < 1e-4 ? 1e-4 : d.y, abs(d.z) < 1e-4 ? 1e-4 : d.z);
 	vec3 inv = 1.0 / safe;
 	vec3 t1 = (cabin_lo - o) * inv;
@@ -434,10 +444,12 @@ vec3 cabin_view(vec3 o, vec3 d) {
 	// The centre console with the gear lever, and the screen in the middle of the dash.
 	float dash_rear = front_end + back * 0.42;
 	furniture(o, inv, vec3(cx - 0.1, fy, dash_rear - back * 0.05), vec3(cx + 0.1, belt_y - 0.36, seat_z.x + back * 0.03), 1.0, CAB_PLASTIC, best, best_n, best_shade, best_mat);
-	float zg = seat_z.x - back * 0.42;
-	cap_keep(o, d, vec3(cx, belt_y - 0.36, zg), vec3(cx, belt_y - 0.25, zg - back * 0.02), 0.011, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
-	cap_keep(o, d, vec3(cx, belt_y - 0.235, zg - back * 0.022), vec3(cx, belt_y - 0.225, zg - back * 0.024), 0.022, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
-	furniture(o, inv, vec3(cx - 0.11, belt_y - 0.17, dash_rear - back * 0.01), vec3(cx + 0.11, belt_y - 0.03, dash_rear + back * 0.012), 1.0, CAB_SCREEN, best, best_n, best_shade, best_mat);
+	if (close_up) {
+		float zg = seat_z.x - back * 0.42;
+		cap_keep(o, d, vec3(cx, belt_y - 0.36, zg), vec3(cx, belt_y - 0.25, zg - back * 0.02), 0.011, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
+		cap_keep(o, d, vec3(cx, belt_y - 0.235, zg - back * 0.022), vec3(cx, belt_y - 0.225, zg - back * 0.024), 0.022, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
+		furniture(o, inv, vec3(cx - 0.11, belt_y - 0.17, dash_rear - back * 0.01), vec3(cx + 0.11, belt_y - 0.03, dash_rear + back * 0.012), 1.0, CAB_SCREEN, best, best_n, best_shade, best_mat);
+	}
 	// The steering wheel in front of the driver's seat, its column raked up toward the driver.
 	float sx = cx + driver_side * (half_w + 0.03) * 0.5;
 	float zw = mix(seat_z.x - back * 0.7, dash_rear + back * 0.22, 0.5);
@@ -460,18 +472,20 @@ vec3 cabin_view(vec3 o, vec3 d) {
 			best_shade = 1.0;
 			best_mat = CAB_PLASTIC;
 		}
-		// The hub, and the spokes across and down to the rim.
-		t = ring_hit(o, d, wc - wn * 0.02, wn, 0.035, 0.035, 0.03, rn);
-		if (t >= 0.0 && t < best) {
-			best = t;
-			best_n = rn;
-			best_shade = 1.0;
-			best_mat = CAB_PLASTIC;
+		if (close_up) {
+			// The hub, and the spokes across and down to the rim.
+			t = ring_hit(o, d, wc - wn * 0.02, wn, 0.035, 0.035, 0.03, rn);
+			if (t >= 0.0 && t < best) {
+				best = t;
+				best_n = rn;
+				best_shade = 1.0;
+				best_mat = CAB_PLASTIC;
+			}
+			cap_keep(o, d, wc - wu * wr, wc + wu * wr, 0.013, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
+			cap_keep(o, d, wc, wc - wv * wr, 0.013, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
+			// The column into the dash.
+			cap_keep(o, d, wc - wn * 0.03, wc - wn * 0.3, 0.032, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
 		}
-		cap_keep(o, d, wc - wu * wr, wc + wu * wr, 0.013, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
-		cap_keep(o, d, wc, wc - wv * wr, 0.013, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
-		// The column into the dash.
-		cap_keep(o, d, wc - wn * 0.03, wc - wn * 0.3, 0.032, CAB_PLASTIC, 0.0, best, best_n, best_shade, best_mat, best_aux);
 	}
 	// Whoever is in the front seats, scaled to the headroom.
 	float seats = occupant_top.a;
@@ -479,11 +493,11 @@ vec3 cabin_view(vec3 o, vec3 d) {
 		float fs = clamp((side_top - belt_y) / 0.42, 0.8, 1.0) * mix(0.94, 1.04, occupant_hair.a);
 		float bit0 = mod(seats, 2.0);
 		if (bit0 > 0.5) {
-			person(o, d, inv, sx, back, fs, 0.0, true, wc, wu, wv, wr, best, best_n, best_shade, best_mat, best_aux);
+			person(o, d, inv, sx, back, fs, 0.0, true, close_up, wc, wu, wv, wr, best, best_n, best_shade, best_mat, best_aux);
 		}
 		if (seats > 1.5) {
 			float px = cx - driver_side * (half_w + 0.03) * 0.5;
-			person(o, d, inv, px, back, fs * 0.97, 1.0, false, wc, wu, wv, wr, best, best_n, best_shade, best_mat, best_aux);
+			person(o, d, inv, px, back, fs * 0.97, 1.0, false, close_up, wc, wu, wv, wr, best, best_n, best_shade, best_mat, best_aux);
 		}
 	}
 	// Light in a cabin comes in through the windows: the tops of things catch it, the sides
@@ -576,5 +590,5 @@ vec3 glass_view(vec3 p, vec3 d, vec3 n, int i, float dist) {
 	float c = abs(dot(d, n));
 	float f = 0.04 + 0.96 * pow(1.0 - c, 5.0);
 	float fade = 1.0 - smoothstep(cabin_far * 0.8, cabin_far, dist);
-	return cabin_view(p, d) * glass_tint * t * (1.0 - f) * fade;
+	return cabin_view(p, d, dist) * glass_tint * (t * through_light * (1.0 - f) * fade);
 }

@@ -53,7 +53,8 @@ extends SceneTree
 ## aircraft, particles and the player hidden (two runs differ in a handful of pixels by 1-2/255).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
 ## STOREFRONT_KIT=0 builds the buildings without ShopfrontKit's storefront pieces, awnings and
-## curtain-wall caps (the A/B of that kit). MERGE_STATIC=0 builds the chunks'
+## curtain-wall caps (the A/B of that kit). CAR_GLASS=0 puts every car back on its model's own
+## opaque glass with nobody inside (CarCabin's A/B). MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
 ## LIGHT_WORLD=1 loads a smaller world (far city LIGHT_FAR m, default 2500; LOD ring LIGHT_LOD
@@ -88,6 +89,9 @@ func _initialize() -> void:
 	# STOREFRONT_KIT=0: the buildings without ShopfrontKit's pieces (the A/B of that kit).
 	if OS.get_environment("STOREFRONT_KIT") == "0":
 		(load("res://scripts/world/shopfront_kit.gd") as GDScript).set("enabled", false)
+	# CAR_GLASS=0: every car on its model's own opaque glass, nobody inside (CarCabin's A/B).
+	if OS.get_environment("CAR_GLASS") == "0":
+		(load("res://scripts/vehicles/car_cabin.gd") as GDScript).set("enabled", false)
 	if OS.get_environment("MERGE_STATIC") == "0":
 		(load("res://scripts/world/city_chunk.gd") as GDScript).set("merge_boxes", false)
 		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("merge_enabled", false)

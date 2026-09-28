@@ -83,6 +83,9 @@ const PLAYER_TOP := Color(0.035, 0.035, 0.04)
 const PLAYER_SKIN := Color(0.8, 0.6, 0.47)
 const PLAYER_HAIR := Color(0.05, 0.04, 0.03)
 
+## Off: every car keeps its model's own opaque glass and nobody sits in it (the A/B of this file;
+## CAR_GLASS=0 on tools/glshot/still_shot.gd and car_shot.gd).
+static var enabled: bool = true
 ## Measured bodies: body key -> the data measure() returns.
 static var _cache: Dictionary = {}
 ## Glass materials: body key -> ShaderMaterial (one per body model, shared by every car of it).

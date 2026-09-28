@@ -83,8 +83,9 @@ void fragment() {
 			rough = 0.2;
 			tilt = (t * tl.x + b * tl.y) * 0.6;
 		} else {
-			vec3 rd = normalize(lp - cam_local);
-			emit = cabin_view(lp, rd);
+			vec3 to = lp - cam_local;
+			float dist = length(to);
+			emit = cabin_view(lp, to / max(dist, 1e-5), dist);
 			alb = vec3(0.0);
 			rough = 1.0;
 			metal = 0.0;

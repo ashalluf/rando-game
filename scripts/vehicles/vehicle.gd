@@ -1417,6 +1417,8 @@ func _add_body_model(length: float) -> bool:
 ## glass you see the cabin through). After the wheel tuck, which swaps the meshes for their final
 ## ones. The far twin has no glass slot and keeps its folded parts.
 func _add_cabin_glass(holder: Node3D, meshes: Array[MeshInstance3D]) -> void:
+	if not CarCabin.enabled:
+		return
 	for m in meshes:
 		if m.mesh == null:
 			continue
