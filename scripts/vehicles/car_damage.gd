@@ -104,7 +104,6 @@ const HOLE_CAP := 40
 const DENT_CAP := 8
 const CRACK_CAP := 12
 const SCORCH_CAP := 4
-const PANE_CAP := 16
 const PAINT_DAMAGE_SHADER := preload("res://shaders/car_paint_damage.gdshader")
 const GLASS_DAMAGE_SHADER := preload("res://shaders/car_glass_damage.gdshader")
 const LAMP_DAMAGE_SHADER := preload("res://shaders/car_lamp_damage.gdshader")
@@ -147,6 +146,8 @@ var _glass: ShaderMaterial
 var _lamp_mats: Array[ShaderMaterial] = []
 ## Panes: [lo (mesh), hi (mesh), outward normal (mesh), kind 0 tempered / 1 windscreen / 2 lamp].
 var _panes: Array = []
+## CarCabin.for_car(): the panes, the cabin box, the seats.
+var _cabin: Dictionary = {}
 var _pane_fall: PackedFloat32Array = PackedFloat32Array()
 var _dirty: bool = false
 var _fuse: float = -1.0
@@ -181,7 +182,6 @@ static var _bursts: int = 0
 ## Per mesh RID: [TriangleMesh or null, face offsets per surface (PackedInt32Array), slot names].
 static var _tri_cache: Dictionary = {}
 ## Per mesh RID: the panes measured off its glass surface.
-static var _pane_cache: Dictionary = {}
 static var _char_soot: StandardMaterial3D
 static var _char_metal: StandardMaterial3D
 static var _char_parts: ShaderMaterial
@@ -205,7 +205,10 @@ func attach(to: Vehicle) -> void:
 	if _mesh != null and _mesh.is_inside_tree() and car.is_inside_tree():
 		_to_mesh = _mesh.global_transform.affine_inverse() * car.global_transform
 		_mesh_scale = maxf(_mesh.global_transform.basis.get_scale().x / maxf(car.global_transform.basis.get_scale().x, 1e-4), 1e-4)
-	_panes = _measure_panes()
+	# The panes and the cabin behind them, measured once per body model and shared with the
+	# intact glass (CarCabin).
+	_cabin = CarCabin.for_car(car)
+	_panes = _cabin.panes
 	pane_state.resize(_panes.size())
 	pane_state.fill(0.0)
 	_pane_fall.resize(_panes.size())
@@ -789,6 +792,8 @@ func _ignite(quick: bool) -> void:
 		return
 	_burning.append(self)
 	state = State.BURNING
+	# Whoever was sitting in it gets out (the glass draws the cabin empty from now on).
+	car._update_occupant()
 	_fuse = randf_range(quick_fuse.x, quick_fuse.y) if quick else randf_range(burn_seconds.x, burn_seconds.y)
 	_burn_t = 0.0
 	# The grey wisps give way to the fire's own black smoke.
@@ -1364,7 +1369,7 @@ func _ensure_glass() -> void:
 			_glass.set_shader_parameter("glass_albedo", Color(src.albedo_color.r, src.albedo_color.g, src.albedo_color.b))
 			_glass.set_shader_parameter("glass_roughness", src.roughness)
 			_glass.set_shader_parameter("glass_metallic", src.metallic)
-			_set_cabin()
+			CarCabin.apply(_glass, _cabin, pane_state)
 		_swap(_mesh, si, _glass)
 	_mark_dirty()
 
@@ -1461,7 +1466,7 @@ func _push() -> void:
 				var n: Vector3 = p[2]
 				lo.append(Vector4(a.x, a.y, a.z, pane_state[i]))
 				hi.append(Vector4(b.x, b.y, b.z, float(p[3])))
-				nn.append(Vector4(n.x, n.y, n.z, 0.0))
+				nn.append(Vector4(n.x, n.y, n.z, float(p[4])))
 			_glass.set_shader_parameter("pane_lo", lo)
 			_glass.set_shader_parameter("pane_hi", hi)
 			_glass.set_shader_parameter("pane_n", nn)
@@ -1497,164 +1502,6 @@ func _side_gone() -> Vector4:
 
 
 # --- Panes and the cabin ---------------------------------------------------------------------------
-
-## The model's panes: the glass surface's connected pieces (one pass over its triangles, cached per
-## mesh), or - with no glass surface or no mesh data - four stand-ins round the glasshouse (the
-## windscreen, the rear screen and each side), found by the shader from their boxes and normals.
-func _measure_panes() -> Array:
-	if _mesh == null or _mesh.mesh == null:
-		return _stand_in_panes()
-	var key := _mesh.mesh.get_rid()
-	if _pane_cache.has(key):
-		return _pane_cache[key]
-	var panes := []
-	for si in _mesh.mesh.get_surface_count():
-		var src := _mesh.mesh.surface_get_material(si)
-		if src == null or String(src.resource_name) != "glass":
-			continue
-		var arr := _mesh.mesh.surface_get_arrays(si)
-		if arr.is_empty() or arr[Mesh.ARRAY_VERTEX] == null:
-			continue
-		panes = _components(arr[Mesh.ARRAY_VERTEX], arr[Mesh.ARRAY_INDEX] if arr[Mesh.ARRAY_INDEX] != null else PackedInt32Array())
-	if panes.is_empty():
-		panes = _stand_in_panes()
-	_pane_cache[key] = panes
-	return panes
-
-
-func _components(verts: PackedVector3Array, idx: PackedInt32Array) -> Array:
-	if idx.is_empty():
-		idx = PackedInt32Array(range(verts.size()))
-	var key_of := {}
-	var parent := PackedInt32Array()
-	var vid := PackedInt32Array()
-	vid.resize(verts.size())
-	for i in verts.size():
-		var k := Vector3i((verts[i] * 500.0).round())
-		if not key_of.has(k):
-			key_of[k] = parent.size()
-			parent.append(parent.size())
-		vid[i] = key_of[k]
-	for t in range(0, idx.size() - 2, 3):
-		var a := _find(parent, vid[idx[t]])
-		var b := _find(parent, vid[idx[t + 1]])
-		var c := _find(parent, vid[idx[t + 2]])
-		parent[b] = a
-		parent[_find(parent, c)] = a
-	var center := _to_mesh * Vector3(0.0, (_ride + _top) * 0.5, 0.0)
-	var boxes := {}
-	var norms := {}
-	for t in range(0, idx.size() - 2, 3):
-		var p0 := verts[idx[t]]
-		var p1 := verts[idx[t + 1]]
-		var p2 := verts[idx[t + 2]]
-		var r := _find(parent, vid[idx[t]])
-		var n := (p1 - p0).cross(p2 - p0)
-		var fc := (p0 + p1 + p2) / 3.0
-		if n.dot(fc - center) < 0.0:
-			n = -n
-		norms[r] = (norms.get(r, Vector3.ZERO) as Vector3) + n
-		var box: AABB = boxes[r] if boxes.has(r) else AABB(p0, Vector3.ZERO)
-		box = box.expand(p0).expand(p1).expand(p2)
-		boxes[r] = box
-	var list := []
-	var fwd := _mesh_forward()
-	var ends := _len * 0.5 / _mesh_scale
-	var screen := -1
-	var screen_score := 0.2
-	for r in boxes:
-		var box: AABB = boxes[r]
-		var n: Vector3 = (norms[r] as Vector3).normalized()
-		var c := box.get_center()
-		var along := (c - _mesh_center()).dot(fwd)
-		var kind := 0
-		var body_c := _to_mesh.affine_inverse() * c
-		if absf(along) > ends - 0.45 / _mesh_scale and body_c.y < _ride + (_top - _ride) * 0.75:
-			# Lamp glass, at either end below the glasshouse.
-			kind = 2
-		elif along > 0.0 and n.y > 0.1:
-			# The windscreen: the biggest pane ahead of the middle that faces forward (raked
-			# screens face mostly up: the sedan's is 24 degrees off the roof's normal).
-			var score := n.dot(fwd) * sqrt(box.size.x * maxf(box.size.y, box.size.z))
-			if score > screen_score:
-				screen_score = score
-				screen = list.size()
-		list.append([box.position, box.end, n, kind, box.size.x * box.size.y * box.size.z])
-	if screen >= 0:
-		list[screen][3] = 1
-	# Biggest first to keep, then smallest first so the shader finds a small pane before the big
-	# one whose box holds it.
-	list.sort_custom(func(a, b): return a[4] > b[4])
-	if list.size() > PANE_CAP:
-		list.resize(PANE_CAP)
-	list.sort_custom(func(a, b): return a[4] < b[4])
-	var out := []
-	for e: Array in list:
-		out.append([e[0], e[1], e[2], e[3]])
-	return out
-
-
-static func _find(parent: PackedInt32Array, x: int) -> int:
-	while parent[x] != x:
-		parent[x] = parent[parent[x]]
-		x = parent[x]
-	return x
-
-
-func _stand_in_panes() -> Array:
-	var belt := _ride + (_top - _ride) * 0.6
-	var hw := _width * 0.5
-	var hl := _len * 0.5
-	var out := []
-	for spec: Array in [
-		[Vector3(-hw, belt, -hl), Vector3(hw, _top, -hl * 0.1), Vector3(0.0, 0.5, -0.87), 1],
-		[Vector3(-hw, belt, hl * 0.1), Vector3(hw, _top, hl), Vector3(0.0, 0.5, 0.87), 0],
-		[Vector3(-hw, belt, -hl), Vector3(0.0, _top, hl), Vector3(-1.0, 0.2, 0.0), 0],
-		[Vector3(0.0, belt, -hl), Vector3(hw, _top, hl), Vector3(1.0, 0.2, 0.0), 0],
-	]:
-		var a: Vector3 = _to_mesh * (spec[0] as Vector3)
-		var b: Vector3 = _to_mesh * (spec[1] as Vector3)
-		out.append([a.min(b), a.max(b), (_to_mesh.basis * (spec[2] as Vector3)).normalized(), spec[3]])
-	return out
-
-
-## The cabin box the glass shader traces into: across and along from the side glass (plus the dash
-## under the windscreen), up to the roof, down to the floor half a metre under the door line.
-func _set_cabin() -> void:
-	var lo := Vector3.INF
-	var hi := -Vector3.INF
-	var side_lo := Vector3.INF
-	var side_hi := -Vector3.INF
-	var fwd := _mesh_forward()
-	for p: Array in _panes:
-		if int(p[3]) == 2:
-			continue
-		lo = lo.min(p[0])
-		hi = hi.max(p[1])
-		var n: Vector3 = p[2]
-		if absf(n.dot(fwd)) < 0.5 and absf(n.y) < 0.8:
-			side_lo = side_lo.min(p[0])
-			side_hi = side_hi.max(p[1])
-	if lo == Vector3.INF:
-		return
-	if side_lo == Vector3.INF:
-		side_lo = lo
-		side_hi = hi
-	var belt := side_lo.y
-	var floor_y := belt - 0.55 / _mesh_scale
-	var inset := 0.06 / _mesh_scale
-	var ahead := fwd.z < 0.0
-	# Along the car (z): the side glass, a little more under the windscreen for the dash.
-	var z_front := (side_lo.z - 0.25 / _mesh_scale) if ahead else (side_hi.z + 0.25 / _mesh_scale)
-	var z_rear := (side_hi.z + 0.1 / _mesh_scale) if ahead else (side_lo.z - 0.1 / _mesh_scale)
-	_glass.set_shader_parameter("cabin_lo", Vector3(side_lo.x + inset, floor_y, minf(z_front, z_rear)))
-	_glass.set_shader_parameter("cabin_hi", Vector3(side_hi.x - inset, hi.y, maxf(z_front, z_rear)))
-	_glass.set_shader_parameter("belt_y", belt)
-	# Two rows of seat backs: just behind the middle of the side glass, and near its rear end.
-	var a := side_lo.z if ahead else side_hi.z
-	var b := side_hi.z if ahead else side_lo.z
-	_glass.set_shader_parameter("seat_z", Vector2(lerpf(a, b, 0.52), lerpf(a, b, 0.9)))
-
 
 func _mesh_forward() -> Vector3:
 	return (_to_mesh.basis * Vector3.FORWARD).normalized()

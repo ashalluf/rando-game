@@ -23,6 +23,11 @@ extends SceneTree
 ## windows), `screen` (the windscreen) and `cabin` (into an empty frame) frame it. `GEO=1` prints
 ## each view's draws, objects and triangles (a damaged car's cost against a whole one); `HIDE=`
 ## names of the car's nodes to hide (EngineFire, FireLicks, CabinFire, FireEmbers, FireSmoke).
+## Occupants (CarCabin, the traced people behind the glass): `OCCUPANT=npc` (a traffic driver;
+## `npc:<seed>` picks who, a seed with a passenger adds one), `OCCUPANT=player` (the hero at the
+## wheel), `OCCUPANT=none` empties a cruiser (whose crew is aboard by default); the views
+## `driver` (in at the driver's window, the car's left) and `inside` (through the windscreen,
+## close) frame them; `CABIN_DEBUG=1` paints each part of the people its own flat colour.
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
 ## autoloads exist (CLAUDE.md).
 
@@ -180,6 +185,26 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				float(car.call("road_lift")) if police else 0.9, 0.0)
 		world.add_child(car)
 		cars.append(car)
+	var occupant := OS.get_environment("OCCUPANT")
+	if occupant != "":
+		var cabin: GDScript = load("res://scripts/vehicles/car_cabin.gd")
+		for car in cars:
+			if occupant.begins_with("npc"):
+				var parts := occupant.split(":")
+				car.set("_npc_driver", true)
+				car.set("_occupant_seed", parts[1].to_int() if parts.size() > 1 else 7)
+				car.call("_update_occupant")
+			elif occupant == "player":
+				cabin.call("seat", car.get("_glass_meshes"), 1, cabin.call("player_look"))
+			elif occupant == "none":
+				cabin.call("seat", car.get("_glass_meshes"), 0, cabin.call("player_look"))
+			print("OCCUPANT type %d: seats %d" % [int(car.get("body_type")), int(car.call("cabin_seats"))])
+			if OS.get_environment("CABIN_DEBUG") != "":
+				for m: MeshInstance3D in car.get("_glass_meshes"):
+					for si in m.mesh.get_surface_count():
+						var sm := m.get_surface_override_material(si) as ShaderMaterial
+						if sm != null and sm.shader == cabin.get("GLASS_SHADER"):
+							sm.set_shader_parameter("cabin_debug", true)
 	for i in 120:
 		await physics_frame
 	var damage := OS.get_environment("DAMAGE")
@@ -251,6 +276,12 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				"cabin":
 					at = Vector3(2.6, 1.25, -0.3)
 					target = Vector3(0.0, 0.85, -0.3)
+				"driver":
+					at = Vector3(-3.1, 1.4, -0.1)
+					target = Vector3(-0.3, 0.95, -0.35)
+				"inside":
+					at = Vector3(-0.9, 1.7, -4.4)
+					target = Vector3(-0.2, 0.95, -0.4)
 				"far":
 					# Past Vehicle.body_far_distance, with a narrow lens: the far twin.
 					at = Vector3(26.0, 5.0, -36.0)

@@ -1,49 +1,30 @@
 shader_type spatial;
 render_mode cull_disabled;
 
-// The glass slot of a damaged car (CarDamage swaps it in the first time a window is hit; an
-// undamaged car keeps the model's own plain glass material). Opaque, like every car window in
-// this game, so a window that is gone is not a hole: it is drawn as the cabin seen through the
-// empty frame - traced in the body's own space, so it has true parallax - with the far windows
-// letting the day in above the door line, the seat backs and headrests cutting across them.
+// The glass slot of a damaged car (CarDamage swaps it in the first time a window is hit, in
+// place of the body's shared car_glass.gdshader). Opaque, like the intact glass, so a window that
+// is gone is not a hole: it is drawn as the cabin seen through the empty frame - traced in the
+// body's own space (car_cabin.gdshaderinc, the cabin the intact glass draws), so it has true
+// parallax - with the far windows letting the day in above the door line, the seat backs and
+// headrests cutting across them. What is still whole draws the cabin through its tint the way
+// the intact glass does, under the cracks.
 //
-// The panes are the glass surface's connected pieces (CarDamage measures them once per model):
+// The panes are the glass surface's connected pieces (CarCabin measures them once per model):
 // an AABB and a mean normal each, smallest first, so a fragment finds its pane in a few tests.
 // Side and rear glass is tempered - it crazes into small cubes on the first round and falls out
 // on the next - and the windscreen is laminated, so it only collects spider webs.
 
-#include "res://shaders/car_damage.gdshaderinc"
-
-global uniform vec4 sky_tint;
-global uniform float night_factor;
+#define CABIN_FIRE
+#include "res://shaders/car_cabin.gdshaderinc"
 
 // The model's own glass material.
 uniform vec3 glass_albedo : source_color = vec3(0.14, 0.155, 0.175);
 uniform float glass_roughness = 0.05;
 uniform float glass_metallic = 0.0;
-// Panes: pane_lo xyz / pane_hi xyz the box, pane_lo.w the state (0 whole, 1 crazed, 2 gone),
-// pane_hi.w the kind (0 tempered, 1 laminated windscreen, 2 a lamp cover), pane_n the mean normal.
-uniform int pane_count = 0;
-uniform vec4 pane_lo[16];
-uniform vec4 pane_hi[16];
-uniform vec4 pane_n[16];
 // Spider webs: xyz the hit, w the web's radius; crack_n xyz the glass normal there, w a seed.
 uniform int crack_count = 0;
 uniform vec4 cracks[12];
 uniform vec4 crack_n[12];
-// The cabin behind the glass, in mesh space: the box, the door line (bottom of the side glass)
-// and where the two rows of seat backs stand along the car (z).
-uniform vec3 cabin_lo = vec3(-0.75, 0.4, -1.0);
-uniform vec3 cabin_hi = vec3(0.75, 1.4, 1.2);
-uniform float belt_y = 0.95;
-uniform vec2 seat_z = vec2(0.0, 1.0);
-// 0 .. 1: every pane gone and the cabin burnt out.
-uniform float burnt = 0.0;
-// How bright the cabin behind an empty frame is, against the sky it is lit by (emitted, like the
-// buildings' glass mirror, so it follows DayNight's sky_tint into the night).
-uniform float cabin_light = 4.0;
-// A cabin on fire (the wreck): an orange flicker on everything inside, hottest low down.
-uniform float cabin_fire = 0.0;
 
 varying vec3 lp;
 varying vec3 ln;
@@ -54,139 +35,6 @@ void vertex() {
 	lp = VERTEX;
 	ln = NORMAL;
 	cam_local = (inverse(MODEL_MATRIX) * vec4(INV_VIEW_MATRIX[3].xyz, 1.0)).xyz;
-}
-
-
-int find_pane(vec3 p, vec3 n) {
-	for (int i = 0; i < pane_count && i < 16; i++) {
-		vec3 lo = pane_lo[i].xyz - vec3(0.012);
-		vec3 hi = pane_hi[i].xyz + vec3(0.012);
-		if (all(greaterThanEqual(p, lo)) && all(lessThanEqual(p, hi)) && abs(dot(n, pane_n[i].xyz)) > 0.3) {
-			return i;
-		}
-	}
-	return -1;
-}
-
-
-// A box hit by a ray (`inv_d` = 1 / direction): the distance in, or -1, and the face's normal.
-float box_hit(vec3 o, vec3 inv_d, vec3 lo, vec3 hi, out vec3 nrm) {
-	vec3 t1 = (lo - o) * inv_d;
-	vec3 t2 = (hi - o) * inv_d;
-	vec3 tn = min(t1, t2);
-	vec3 tf = max(t1, t2);
-	float t_near = max(max(tn.x, tn.y), tn.z);
-	float t_far = min(min(tf.x, tf.y), tf.z);
-	nrm = vec3(0.0, 1.0, 0.0);
-	if (t_near > t_far || t_far < 0.0) {
-		return -1.0;
-	}
-	if (tn.x >= tn.y && tn.x >= tn.z) {
-		nrm = vec3(-sign(inv_d.x), 0.0, 0.0);
-	} else if (tn.y >= tn.z) {
-		nrm = vec3(0.0, -sign(inv_d.y), 0.0);
-	} else {
-		nrm = vec3(0.0, 0.0, -sign(inv_d.z));
-	}
-	return max(t_near, 0.0);
-}
-
-
-// Keeps the nearest of the cabin's furniture boxes.
-void furniture(vec3 o, vec3 inv_d, vec3 lo, vec3 hi, float shade, inout float best, inout vec3 best_n, inout float best_shade) {
-	vec3 n;
-	float t = box_hit(o, inv_d, min(lo, hi), max(lo, hi), n);
-	if (t >= 0.0 && t < best) {
-		best = t;
-		best_n = n;
-		best_shade = shade;
-	}
-}
-
-
-// What a ray from `o` along `d` sees in the cabin: the dash, two front seats and the rear bench
-// with their headrests, the headliner, the door cards and floor, and - out through the glass on
-// the far side - the day (dimmed where that pane is still in).
-vec3 cabin_view(vec3 o, vec3 d) {
-	vec3 safe = vec3(abs(d.x) < 1e-4 ? 1e-4 : d.x, abs(d.y) < 1e-4 ? 1e-4 : d.y, abs(d.z) < 1e-4 ? 1e-4 : d.z);
-	vec3 inv = 1.0 / safe;
-	vec3 t1 = (cabin_lo - o) * inv;
-	vec3 t2 = (cabin_hi - o) * inv;
-	vec3 tf = max(t1, t2);
-	float t_exit = max(min(min(tf.x, tf.y), tf.z), 0.0);
-	vec3 sky = sky_tint.rgb;
-	float char_ = burnt;
-	float cx = (cabin_hi.x + cabin_lo.x) * 0.5;
-	float half_w = (cabin_hi.x - cabin_lo.x) * 0.5;
-	// The rear of the car is +z when the seat rows run that way.
-	float back = seat_z.y > seat_z.x ? 1.0 : -1.0;
-	float fy = cabin_lo.y;
-	float front_end = back > 0.0 ? cabin_lo.z : cabin_hi.z;
-	float best = t_exit;
-	vec3 best_n = vec3(0.0);
-	float best_shade = -1.0;
-	for (int s = -1; s <= 1; s += 2) {
-		float fs = float(s);
-		float xa = cx + fs * 0.1;
-		float xb = cx + fs * (half_w - 0.07);
-		float mid = (xa + xb) * 0.5;
-		// Front seat: backrest, cushion, headrest.
-		furniture(o, inv, vec3(xa, fy, seat_z.x), vec3(xb, belt_y + 0.1, seat_z.x + back * 0.13), 0.9, best, best_n, best_shade);
-		furniture(o, inv, vec3(xa, fy, seat_z.x), vec3(xb, belt_y - 0.42, seat_z.x - back * 0.5), 0.8, best, best_n, best_shade);
-		if (char_ < 0.5) {
-			furniture(o, inv, vec3(mid - 0.12, belt_y + 0.14, seat_z.x + back * 0.03), vec3(mid + 0.12, belt_y + 0.32, seat_z.x + back * 0.12), 1.0, best, best_n, best_shade);
-			furniture(o, inv, vec3(mid - 0.12, belt_y + 0.1, seat_z.y + back * 0.03), vec3(mid + 0.12, belt_y + 0.27, seat_z.y + back * 0.12), 1.0, best, best_n, best_shade);
-		}
-	}
-	// Rear bench and the dash.
-	furniture(o, inv, vec3(cabin_lo.x + 0.03, fy, seat_z.y), vec3(cabin_hi.x - 0.03, belt_y + 0.06, seat_z.y + back * 0.14), 0.85, best, best_n, best_shade);
-	furniture(o, inv, vec3(cabin_lo.x + 0.03, fy, seat_z.y), vec3(cabin_hi.x - 0.03, belt_y - 0.44, seat_z.y - back * 0.5), 0.75, best, best_n, best_shade);
-	furniture(o, inv, vec3(cabin_lo.x, fy, front_end), vec3(cabin_hi.x, belt_y + 0.05, front_end + back * 0.42), 0.6, best, best_n, best_shade);
-	// Light in a cabin comes in through the windows: the tops of things catch it, the sides
-	// facing the open frame a little, everything else sits in the dark.
-	float flicker = 0.0;
-	if (cabin_fire > 0.0) {
-		flicker = cabin_fire * (0.55 + 0.45 * cd_noise3(vec3(TIME * 7.0, o.x * 3.0, o.z * 3.0)));
-	}
-	vec3 fire_c = vec3(1.9, 0.55, 0.12);
-	if (best_shade >= 0.0) {
-		vec3 h = o + d * best;
-		vec3 fabric = mix(vec3(0.13, 0.125, 0.12), vec3(0.016, 0.014, 0.012), char_);
-		fabric *= 0.8 + 0.4 * cd_noise3(h * 40.0);
-		float lit = 0.2 + 0.55 * max(best_n.y, 0.0) + 0.3 * max(dot(best_n, -d), 0.0);
-		// The fire's light moves over the seats in patches, not as a flat wash.
-		float patch = cd_noise3(h * 4.0 + vec3(0.0, TIME * 1.3, 0.0));
-		return fabric * sky * lit * best_shade * cabin_light
-				+ fire_c * flicker * (0.15 + 0.5 * max(best_n.y, 0.0)) * (0.3 + 0.9 * patch * patch);
-	}
-	vec3 e = o + d * t_exit;
-	int axis = (tf.x < tf.y && tf.x < tf.z) ? 0 : (tf.y < tf.z ? 1 : 2);
-	if (axis != 1 && e.y > belt_y + 0.01) {
-		// Out through the far glass (or the screens, front and back).
-		int far_i = find_pane(e, axis == 0 ? vec3(1.0, 0.0, 0.0) : vec3(0.0, 0.0, 1.0));
-		float open = 1.0;
-		if (far_i >= 0 && pane_lo[far_i].w < 1.5) {
-			// Still glazed: tinted, but you see the street through it.
-			open = 0.6;
-		}
-		if (far_i < 0 && pane_count > 0 && char_ < 0.5) {
-			// Between the far panes: a pillar.
-			return vec3(0.03, 0.029, 0.028) * sky * 0.6 * cabin_light;
-		}
-		open = max(open, char_);
-		float lift = smoothstep(belt_y, cabin_hi.y, e.y);
-		// The day outside, about as bright as the sky behind the car: not lifted like the cabin.
-		return sky * open * (0.35 + 0.25 * lift) + fire_c * flicker * 0.25;
-	}
-	if (axis == 1 && d.y > 0.0) {
-		// The headliner, or the bare roof skin once it has burnt away.
-		vec3 roof = mix(vec3(0.34, 0.33, 0.31), vec3(0.03, 0.025, 0.02), char_);
-		return roof * sky * 0.14 * cabin_light + fire_c * flicker * 0.5;
-	}
-	// Door cards and the floor.
-	float low = smoothstep(cabin_lo.y, belt_y, e.y);
-	vec3 trim = mix(vec3(0.08, 0.077, 0.074), vec3(0.01, 0.009, 0.008), char_);
-	return trim * sky * (0.3 + 0.7 * low) * cabin_light + fire_c * flicker * (1.0 - 0.6 * low);
 }
 
 
@@ -275,6 +123,12 @@ void fragment() {
 		// only catches whatever lights it.
 		alb = mix(alb, vec3(0.7, 0.72, 0.74), lines * 0.85);
 		rough = mix(rough, 0.4, lines);
+		// The cabin through it, as the intact glass draws it: hardly at all through a crazed
+		// sheet, not through the cracks.
+		vec3 to = lp - cam_local;
+		float dist = length(to);
+		emit = glass_view(lp, to / max(dist, 1e-5), n, pi, dist) * (state > 0.5 ? 0.15 : 1.0) * (1.0 - lines)
+				* (1.0 - clamp(burnt * 2.0, 0.0, 1.0));
 	}
 	// Soot on whatever glass survives a fire.
 	alb *= 1.0 - 0.8 * clamp(burnt * 2.0, 0.0, 1.0);

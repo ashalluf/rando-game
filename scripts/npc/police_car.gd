@@ -75,8 +75,12 @@ var police: Police
 var mode: Mode = Mode.DISPATCH
 ## Where the cruiser is heading (true world XZ), set by the Police node.
 var goal: Vector2 = Vector2.ZERO
-## Officers inside, and still alive (in the car or out of it).
-var crew_aboard: int = 2
+## Officers inside, and still alive (in the car or out of it). The ones inside sit in the glass's
+## cabin (CarCabin): the driver, and the front passenger while there are two or more.
+var crew_aboard: int = 2:
+	set(v):
+		crew_aboard = v
+		_update_occupant()
 var crew_alive: int = 2
 ## Five-star tactical unit: a van, three officers with carbines.
 var heavy: bool = false
@@ -169,6 +173,22 @@ func _paint_material(albedo: Texture2D, normal: Texture2D) -> ShaderMaterial:
 		mat.set_shader_parameter("door_band", DOOR_BAND)
 		mat.set_shader_parameter("roof_from", 0.84)
 	return mat
+
+
+## The crew in the front seats while they are aboard (the tactical van's third sits in the back,
+## where it has no glass); the player alone once he takes it.
+func _cabin_seats() -> int:
+	if driver != null:
+		return 1
+	if _abandoned() or crew_aboard <= 0:
+		return 0
+	return 3 if crew_aboard >= 2 else 1
+
+
+func _cabin_look() -> Dictionary:
+	if driver != null:
+		return CarCabin.player_look()
+	return CarCabin.police_look(heavy, hash([_phase, 41]))
 
 
 # --- Light bar -------------------------------------------------------------------------------

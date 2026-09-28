@@ -372,12 +372,27 @@ var finish: Finish = Finish.METALLIC
 var livery: Livery = Livery.NONE
 ## Second colour: racing stripes, the two-tone lower body, a fleet band, the taxi checker.
 var trim_color: Color = Color(0.92, 0.92, 0.93)
-## The Player driving, or null.
-var driver: Node3D
+## The Player driving, or null. Setting it seats him in the glass's cabin (CarCabin) in place of
+## whoever the traffic had at the wheel.
+var driver: Node3D:
+	set(v):
+		driver = v
+		if v != null:
+			_npc_driver = false
+		_update_occupant()
 ## How close the player has to be to get in (meters from the origin; big for aircraft).
 var enter_radius: float = 4.5
-## Traffic state while driven by the TrafficManager (empty otherwise).
-var traffic: Dictionary = {}
+## Traffic state while driven by the TrafficManager (empty otherwise). A car given traffic gets a
+## driver in its cabin (a new one each time it comes out of the pool), who stays at the wheel when
+## a hit knocks it out of the traffic.
+var traffic: Dictionary = {}:
+	set(v):
+		traffic = v
+		if not v.is_empty() and driver == null and (not _npc_driver or not is_inside_tree()):
+			_npc_driver = true
+			_occupant_seed = hash([paint, body_type, wheel_style, _occupant_rolls])
+			_occupant_rolls += 1
+		_update_occupant()
 var traffic_speed: float = 0.0
 var wheels: Array[VehicleWheel3D] = []
 ## Spoke pattern (PropFactory.WHEEL_FACES) and finish (PropFactory.WHEEL_KITS). -1 means "work
@@ -445,6 +460,14 @@ var _damage: CarDamage = null
 var _crash_v: Vector3 = Vector3.ZERO
 var _crash_hold: int = 0
 var _night_lights: MeshInstance3D
+## The body meshes wearing the cabin glass (CarCabin), whose instance uniforms say who is inside.
+var _glass_meshes: Array[MeshInstance3D] = []
+## Somebody from the traffic is at the wheel (see `traffic`), and who (a seed for CarCabin).
+var _npc_driver: bool = false
+var _occupant_seed: int = 0
+var _occupant_rolls: int = 0
+## What the instance uniforms were last set to (seats and look), so they are set on a change only.
+var _occupant_key: int = -1
 
 
 func setup(type: BodyType, color: Color, extra: Addon) -> void:
@@ -647,6 +670,7 @@ func _set_lamps_broken(bits: int) -> void:
 ## rims charred.
 func _become_wreck() -> void:
 	set_meta("wreck", true)
+	_update_occupant()
 	if _night_lights:
 		_night_lights.visible = false
 	if _engine_sound:
@@ -675,6 +699,7 @@ func repair() -> void:
 	remove_child(_damage)
 	_damage.queue_free()
 	_damage = null
+	_update_occupant()
 
 
 func is_airborne() -> bool:
@@ -900,6 +925,8 @@ func _build() -> void:
 		_add_generated_wheels()
 	_add_night_lights(dims)
 	_add_livery_props(dims)
+	_occupant_key = -1
+	_update_occupant()
 
 
 ## The one piece of geometry a livery needs: a lit taxi sign, a van's roof vent pod, a service
@@ -1381,8 +1408,70 @@ func _add_body_model(length: float) -> bool:
 	# wheels and all, and taking them out first would move the bottom of the box and change the
 	# car's scale and ride height.
 	_tuck_model_wheels(inst)
+	_add_cabin_glass(holder, near_meshes)
 	add_child(holder)
 	return true
+
+
+## The glass slot of each near body mesh onto the body's shared cabin glass (CarCabin: tinted
+## glass you see the cabin through). After the wheel tuck, which swaps the meshes for their final
+## ones. The far twin has no glass slot and keeps its folded parts.
+func _add_cabin_glass(holder: Node3D, meshes: Array[MeshInstance3D]) -> void:
+	for m in meshes:
+		if m.mesh == null:
+			continue
+		for si in m.mesh.get_surface_count():
+			var src := m.mesh.surface_get_material(si) as StandardMaterial3D
+			if src == null or String(src.resource_name) != "glass":
+				continue
+			var to_car := holder.transform * CarCabin.chain(m, holder)
+			var data := CarCabin.measure(body_type, m.mesh, CarCabin.context(self, to_car))
+			m.set_surface_override_material(si, CarCabin.glass_material(body_type, src, data))
+			if not _glass_meshes.has(m):
+				_glass_meshes.append(m)
+
+
+## Who the cabin glass draws inside (CarCabin): bit 0 the driver's seat, bit 1 the front
+## passenger's. The player at the wheel; a traffic driver (and now and then a passenger), who
+## stays in a car knocked out of the traffic and gets out when it catches fire; nobody in a
+## parked car. PoliceCar seats its crew.
+func _cabin_seats() -> int:
+	if driver != null:
+		return 1
+	if not _npc_driver or _abandoned():
+		return 0
+	return 3 if CarCabin.npc_look(_occupant_seed).passenger else 1
+
+
+## True once the car is on fire or burnt out: nobody stays in it.
+func _abandoned() -> bool:
+	return _damage != null and is_instance_valid(_damage) and _damage.state >= CarDamage.State.BURNING
+
+
+## The look of whoever _cabin_seats() puts in (CarCabin.npc_look()).
+func _cabin_look() -> Dictionary:
+	if driver != null:
+		return CarCabin.player_look()
+	return CarCabin.npc_look(_occupant_seed)
+
+
+## Puts _cabin_seats() and _cabin_look() on the glass's instance uniforms, when they change.
+func _update_occupant() -> void:
+	if _glass_meshes.is_empty():
+		return
+	var seats := _cabin_seats()
+	var key := seats
+	if seats != 0:
+		key = seats | ((2 if driver != null else 1) << 2) | ((_occupant_seed & 0xffffff) << 4)
+	if key == _occupant_key:
+		return
+	_occupant_key = key
+	CarCabin.seat(_glass_meshes, seats, _cabin_look())
+
+
+## Who is in the car now, for tests and tools: CarCabin's seat bits (0 nobody).
+func cabin_seats() -> int:
+	return _cabin_seats() if not _glass_meshes.is_empty() else 0
 
 
 ## Shrinks the wheels baked into the body model down inside the generated wheel that is drawn

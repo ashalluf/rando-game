@@ -1634,6 +1634,9 @@ func _test_city() -> void:
 	# Car damage (tests/car_damage_checks.gd): holes, glass, lamps, crashes, a rocket to a wreck,
 	# blame, the caps, the driven car, a pooled cruiser - on a deck high over the street.
 	await load("res://tests/car_damage_checks.gd").new().run(self, city)
+	# Car glass and who sits behind it (tests/car_cabin_checks.gd): the shared cabin glass, the
+	# traffic's drivers, the player at the wheel, a cruiser's crew, the tints.
+	await load("res://tests/car_cabin_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
