@@ -199,7 +199,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
 - Autoloads: `PhysicsBudget` (`scripts/util/physics_budget.gd`), `WorldState`
   (`scripts/util/world_state.gd`), `Sfx` (`scripts/util/sfx.gd`:
   `Sfx.play(name, position)`, `Sfx.loop_player(name)`).
-  Sound is **real CC0 recordings** (`assets/audio/`, 111 clips - the siren is public domain - sources in `docs/ASSETS.md`) with
+  Sound is **real CC0 recordings** (`assets/audio/`, 131 clips - the siren is public domain - sources in `docs/ASSETS.md`) with
   the old synthesis kept as the fallback: `_build_synth()` fills every name first and
   `_load_samples()` replaces only the names whose files load, so a missing or unimported file
   degrades to a tone rather than to silence (the ambience names are the exception: their
@@ -219,7 +219,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Sfx.bus_for(name)` routes: the ambience names plus rain, wind, ambience_city and thunder go to
   Ambience, everything else (guns, blasts, engines, voices) to World. `Sfx.take(name)` hands a
   caller that owns its player a take and its trim. Web builds (sample playback) skip bus effects
-  and play the plain mix.
+  and play the plain mix. Bullet impacts sound by surface (`WeaponFX._impact_sound()`: Sfx
+  `hit_concrete` / `hit_metal` / `hit_glass` / `hit_wood` / `hit_dirt` / `hit_flesh`, Kenney's
+  CC0 impacts, at most `impact_sound_budget` a tenth of a second), and spent cases tink
+  (`casing`, a light metal impact pitched up).
 - Ambience (owner, 2026-09-24: "the city should SOUND like a real city, AAA-style"): `Ambience`
   (`scripts/util/ambience.gd`), a Node in `city.tscn`. Beds (stereo, non-positional: `city` by day,
   `city_far` - real downtown LA night traffic - by night and from the hills and the air, near

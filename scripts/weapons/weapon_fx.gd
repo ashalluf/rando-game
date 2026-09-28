@@ -898,6 +898,7 @@ static func impact(node: Node, at: Vector3, color: Color = Color(1.0, 0.85, 0.5)
 	var look: Dictionary = SURFACES[surf]
 	var aim := _basis_up(n)
 	var origin := at + n * 0.04
+	_impact_sound(surf, at, now)
 
 	_impact_times.append(now)
 	_puff_layer(parent, origin, _count(int(look["dust_count"])), float(look["dust_size"]),
@@ -925,6 +926,26 @@ static func impact(node: Node, at: Vector3, color: Color = Color(1.0, 0.85, 0.5)
 ## build) skips them. Parented to whatever was hit, so a hole in a car drives away with it and
 ## a hole in a chunk dies when the chunk unloads. The pool is capped: an unlimited number of
 ## decals is a frame-rate cliff in a city the player can shoot at for an hour.
+## The round landing, by what it hit: a chip off concrete, a ping off metal, glass, a thunk in wood,
+## a puff of dirt, a thud in a body (Sfx hit_*, Kenney's CC0 impacts). At most
+## `impact_sound_budget` in any tenth of a second, so a shotgun's nine pellets and a long burst
+## stay a clatter rather than a wall.
+static var impact_sound_budget: int = 4
+static var _impact_sound_times: Array[float] = []
+const _IMPACT_SOUNDS := ["hit_concrete", "hit_metal", "hit_glass", "hit_wood", "hit_dirt", "hit_flesh"]
+
+
+static func _impact_sound(surf: Surface, at: Vector3, now: float) -> void:
+	while not _impact_sound_times.is_empty() and now - _impact_sound_times[0] > 0.1:
+		_impact_sound_times.pop_front()
+	if _impact_sound_times.size() >= impact_sound_budget:
+		return
+	_impact_sound_times.append(now)
+	var sound: String = _IMPACT_SOUNDS[clampi(int(surf), 0, _IMPACT_SOUNDS.size() - 1)]
+	var vol := -9.0 if surf == Surface.METAL or surf == Surface.GLASS else -11.0
+	Sfx.play(sound, at, vol, randf_range(0.9, 1.15))
+
+
 static func bullet_hole(node: Node, at: Vector3, normal: Vector3, surf: Surface, collider: Object = null) -> void:
 	if RenderingServer.get_rendering_device() == null:
 		return

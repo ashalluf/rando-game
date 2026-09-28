@@ -120,7 +120,8 @@ func _process(delta: float) -> void:
 				p.y = _ground[i]
 				if v.y < -0.9:
 					# The first hit rings; later ones are softer.
-					Sfx.play("casing", to_global(p), -14.0 if absf(v.y) > 2.0 else -20.0, randf_range(0.85, 1.25))
+					# A light metal impact pitched up to a small brass case's tink.
+					Sfx.play("casing", to_global(p), -14.0 if absf(v.y) > 2.0 else -20.0, randf_range(1.6, 2.2))
 					v.y = -v.y * bounce
 					v.x *= ground_friction
 					v.z *= ground_friction
