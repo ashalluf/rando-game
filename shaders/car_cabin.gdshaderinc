@@ -45,7 +45,7 @@ uniform float cabin_light = 4.0;
 uniform float dash_glow = 1.0;
 // After dark the street lamps light the cabin a little through the glass (times lamp_factor),
 // and the street shows in the far windows: without it a car at night was a black box.
-uniform vec3 street_light = vec3(0.07, 0.048, 0.026);
+uniform vec3 street_light = vec3(0.04, 0.028, 0.015);
 // People against the seats: the fabric's cabin_light is set for dark cloth, and at it a face or a
 // white shirt glowed like the day outside.
 uniform float people_light = 0.5;
