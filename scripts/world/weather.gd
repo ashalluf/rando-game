@@ -740,6 +740,31 @@ func state_name() -> String:
 	return STATE_NAMES[state]
 
 
+## The pause menu's weather picker: switch to state `s` and hold it (-1: let it roll again).
+## `instant` skips the blend, and a wetter state soaks the streets at once (as a game that
+## opens in rain does); a drier one leaves them to dry off as usual.
+func force_state(s: int, instant: bool = true) -> void:
+	if s < 0:
+		_forced = false
+		_timer = _rng.randf_range(state_length.x, state_length.y)
+		return
+	_forced = true
+	if s == int(state) and blend >= 1.0:
+		return
+	_previous = s as State if instant else state
+	state = s as State
+	blend = 1.0 if instant else 0.0
+	if instant:
+		wetness = maxf(wetness, clampf(_rain_level(state) * 1.2, 0.0, 1.0))
+	if state == State.STORM:
+		_next_flash = 2.0
+
+
+## True while the weather is held by force_state() or --weather (not rolling on its own).
+func is_forced() -> bool:
+	return _forced
+
+
 static func _rain_level(s: State) -> float:
 	return [0.0, 0.0, 0.7, 1.0][s]
 

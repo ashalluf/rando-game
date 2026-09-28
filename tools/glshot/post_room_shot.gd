@@ -46,6 +46,15 @@ func _initialize() -> void:
 		Input.action_press("alt_fire")
 	elif mode == "wheel":
 		Input.action_press("weapon_wheel")
+	elif mode == "pause":
+		# The pause menu over the room (the room has no DayNight or Weather, so its pickers
+		# have nothing to drive here; the look is what this is for).
+		var menu: Node = (load("res://scenes/ui/pause_menu.tscn") as PackedScene).instantiate()
+		level.add_child(menu)
+		await process_frame
+		menu.call("open")
+		for i in 12:
+			await process_frame
 	elif mode == "fire":
 		# Hold the trigger for FIRE_TIME seconds of game time with the clock at FIRE_SCALE: the
 		# muzzle flash, tracers, impacts and the rifle's spent cases (BrassCasings) in flight.

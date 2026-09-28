@@ -448,8 +448,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   glass so white glyphs read on anything, a lens and clearer frost at the rim, a magnifying
   centre disc, a specular hairline. Icons: `_build_icons()`, one per weapon class name. Shoot it
   with `WHEEL=<index>` on `tools/glshot/still_shot.gd` (no `--nohud`).
-- Pause menu (`scenes/ui/pause_menu.tscn`) owns Esc: pause, mouse release, seed rebuild via
-  `WorldState.pending_seed` + `reload_current_scene()`.
+- Pause menu (`scenes/ui/pause_menu.tscn`, built in code by `scripts/ui/pause_menu.gd`) owns
+  Esc: pause, mouse release, the frozen frame blurred and darkened behind it
+  (`shaders/pause_backdrop.gdshader`, screen mips), a column of frosted chips in 1080-line units
+  scaled to the window - Resume; TIME OF DAY presets (sets `DayNight.hour` and redraws at once,
+  the tree being paused); WEATHER (`Weather.force_state()`: instant, a wetter state soaks the
+  streets at once; Auto lets it roll); GRAPHICS (`Quality.force_level()`; Auto adapts again);
+  the seed and Rebuild (`WorldState.pending_seed` + `reload_current_scene()`); Quit - and a
+  CONTROLS card on the right. `post_room_shot.gd MODE=pause` shows it in seconds.
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
   `next_weapon`, `prev_weapon` (mouse wheel only), `weapon_1..3`, `weapon_wheel` (Tab / gamepad
