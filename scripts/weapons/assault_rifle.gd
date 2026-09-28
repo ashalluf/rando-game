@@ -161,6 +161,8 @@ func fire_ray(from: Vector3, dir: Vector3) -> Dictionary:
 		WeaponFX.bullet_wound(self, hit, dir, blood_strength, dir * 14.0 + Vector3.UP * 5.0)
 		if hit.collider is Vehicle:
 			(hit.collider as Vehicle).drop_out_of_traffic(dir * impact_force)
+			# A hole in the paint, a crazed or shattered window, a broken lamp (CarDamage).
+			(hit.collider as Vehicle).take_hit(hit.get("shape", -1), bullet_damage, dir, hit.position, Vehicle.HIT_BULLET)
 		WeaponFX.impact(self, hit.position)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color)
 	return hit

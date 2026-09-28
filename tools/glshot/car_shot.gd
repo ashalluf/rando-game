@@ -16,6 +16,13 @@ extends SceneTree
 ## several types side by side for one comparison frame (the camera then frames the row), and
 ## `--each=0,8,1` shoots every view of each type in turn in one launch ($OUT_t<type>_<view>.png),
 ## so a whole before/after set costs one wait for the render lock.
+## Damage (CarDamage.stage(), real rounds and blasts through the game's own paths):
+## `DAMAGE=holes,glass,dents,smoke,burning,wreck` (any mix) stages it once the car has settled,
+## `WAIT=n` physics frames after that (default 30; the burning and wreck stages pre-warm their
+## smoke and fire), and the views `door` (the shot-up door and wing up close), `glass` (the side
+## windows), `screen` (the windscreen) and `cabin` (into an empty frame) frame it. `GEO=1` prints
+## each view's draws, objects and triangles (a damaged car's cost against a whole one); `HIDE=`
+## names of the car's nodes to hide (EngineFire, FireLicks, CabinFire, FireEmbers, FireSmoke).
 ## Nothing here may name Vehicle or PoliceCar as a TYPE: this script is compiled before the
 ## autoloads exist (CLAUDE.md).
 
@@ -92,6 +99,10 @@ func _initialize() -> void:
 	world.add_child(we)
 	RenderingServer.global_shader_parameter_set("night_factor", 1.0 if night else 0.0)
 	RenderingServer.global_shader_parameter_set("lamp_factor", 1.0 if night else 0.0)
+	# The sky's colour as DayNight publishes it (the empty frames' cabin and the building glass are
+	# lit by it); the project default is a day sky.
+	if night:
+		RenderingServer.global_shader_parameter_set("sky_tint", Color(0.03, 0.035, 0.05))
 
 	var sun := DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-44.0, -130.0, 0.0)
@@ -171,6 +182,26 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		cars.append(car)
 	for i in 120:
 		await physics_frame
+	var damage := OS.get_environment("DAMAGE")
+	if damage != "":
+		for car in cars:
+			car.call("damage_state").call("stage", damage)
+		var wait := OS.get_environment("WAIT")
+		for i in (wait.to_int() if wait != "" else 30):
+			await physics_frame
+		# HIDE=EngineFire,FireLicks,... hides those nodes of the car (to tell the fire's systems apart).
+		var hide := OS.get_environment("HIDE")
+		if hide != "":
+			for car in cars:
+				for n in hide.split(","):
+					var node := car.find_child(n, true, false) as Node3D
+					if node:
+						node.visible = false
+		for car in cars:
+			var dmg: Object = car.call("damage_state")
+			print("DAMAGE type %d: health %.0f state %d holes %d panes %s lamps %d" % [int(car.get("body_type")),
+					float(dmg.get("health")), int(dmg.get("state")), int(dmg.get("holes_made")),
+					str(dmg.get("pane_state")), int(dmg.get("lamps_broken"))])
 	for i in 3:
 		await process_frame
 	# Where the physics wheels meet the road in body space: that is the body's `ride`, and the
@@ -208,6 +239,18 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				"close":
 					at = Vector3(3.2, 0.7, -3.6)
 					target = Vector3(0.9, 0.3, -1.5)
+				"door":
+					at = Vector3(3.4, 0.95, -1.6)
+					target = Vector3(0.9, 0.45, -0.6)
+				"glass":
+					at = Vector3(4.2, 1.35, 0.4)
+					target = Vector3(0.8, 0.95, 0.05)
+				"screen":
+					at = Vector3(1.6, 2.1, -5.2)
+					target = Vector3(0.0, 0.95, -1.0)
+				"cabin":
+					at = Vector3(2.6, 1.25, -0.3)
+					target = Vector3(0.0, 0.85, -0.3)
 				"far":
 					# Past Vehicle.body_far_distance, with a narrow lens: the far twin.
 					at = Vector3(26.0, 5.0, -36.0)
@@ -222,6 +265,12 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		var path := "%s_%s.png" % [out, view]
 		get_root().get_texture().get_image().save_png(path)
 		print("saved ", path)
+		if OS.get_environment("GEO") != "":
+			# The frame's cost (opengl3 only; --headless reads zero): draws, objects, triangles.
+			print("GEO %s draws %d objects %d tris %d" % [view,
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME),
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_OBJECTS_IN_FRAME),
+					RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME)])
 	for car in cars:
 		car.queue_free()
 	await process_frame

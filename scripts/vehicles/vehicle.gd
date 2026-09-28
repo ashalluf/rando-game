@@ -339,6 +339,15 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 ## Bank angle the car rolls into while turning in the air (radians).
 @export var fly_bank: float = 0.5
 
+@export_group("Damage")
+## A hard crash: a change of velocity of more than this (m/s) in one physics step, sideways or
+## along the car, dents it and costs health (CarDamage.crash_damage_per_dv per m/s over it).
+## Gentle bumps and kerbs stay far under it.
+@export var crash_min_dv: float = 8.0
+## The same for a landing (straight up): cars are flown and dropped from a great height all the
+## time, so only a real slam counts.
+@export var landing_min_dv: float = 20.0
+
 @export_group("Suspension")
 ## Soft springs plus a low center of mass keep the car flat and planted. Stiffer bounces.
 @export var suspension_stiffness: float = 60.0
@@ -422,6 +431,20 @@ var _model_top_y: float = 1.6
 ## Livery roof props are one shared mesh per kind, so a hundred and fifty cars cost a hundred
 ## and fifty draws, not a hundred and fifty meshes.
 static var _livery_meshes: Dictionary = {}
+
+## Kinds of hit for take_hit() (the same as CarDamage.Hit).
+const HIT_PROP := 0
+const HIT_BULLET := 1
+const HIT_PELLET := 2
+const HIT_BLAST := 3
+const HIT_CRASH := 4
+## The car's damage (scripts/vehicles/car_damage.gd), made on the first hit; null on every car that
+## has never been hit, which is what keeps an undamaged car at exactly its old cost.
+var _damage: CarDamage = null
+## Last step's velocity and a few steps of grace, for the crash watch (_crash_watch()).
+var _crash_v: Vector3 = Vector3.ZERO
+var _crash_hold: int = 0
+var _night_lights: MeshInstance3D
 
 
 func setup(type: BodyType, color: Color, extra: Addon) -> void:
@@ -524,6 +547,136 @@ func drop_out_of_traffic(impulse: Vector3 = Vector3.ZERO) -> void:
 		apply_central_impulse(impulse)
 
 
+## THE way anything damages a car (duck-typed like every other take_hit): `damage` is the weapon's
+## own number for a round (HIT_BULLET / HIT_PELLET) or a prop hit (HIT_PROP), the blast's falloff
+## at the car for HIT_BLAST (and `at` the blast's centre), the velocity change past crash_min_dv
+## in m/s for HIT_CRASH (`at` where it touched); `dir` is the way the round, the blast or the crash
+## went and `at` a scene point on the car (INF: its middle). A traffic car goes physical first. The
+## first hit makes the car's CarDamage, which does the rest (see there).
+func take_hit(_shape_index: int, damage: float, dir: Vector3, at: Vector3 = Vector3.INF, kind: int = HIT_PROP) -> void:
+	if not can_take_damage():
+		return
+	if at == Vector3.INF:
+		at = global_position + global_basis.y * 0.6
+	if is_traffic() and kind != HIT_CRASH:
+		drop_out_of_traffic()
+	damage_state().hit(kind, at, dir, damage)
+
+
+## This car's damage, made now if it has none yet.
+func damage_state() -> CarDamage:
+	if _damage == null or not is_instance_valid(_damage):
+		_damage = CarDamage.new()
+		_damage.attach(self)
+		add_child(_damage)
+	return _damage
+
+
+## True once it has burnt out: nobody can drive it and it never takes damage again.
+func is_wreck() -> bool:
+	return _damage != null and is_instance_valid(_damage) and _damage.state == CarDamage.State.WRECK
+
+
+## Aircraft override this: the flyable jets keep their own (no) damage.
+func can_take_damage() -> bool:
+	return true
+
+
+## Skips the crash watch for `ticks` physics steps: something is about to change the car's
+## velocity on purpose (a jump, a blast, a respawn), which is not a crash.
+func hold_crash_watch(ticks: int = 2) -> void:
+	_crash_hold = maxi(_crash_hold, ticks)
+	_crash_v = linear_velocity
+
+
+## A hard crash, from the change in velocity over one physics step - no contact monitoring, so it
+## costs a car nothing but this subtraction (and a car past PhysicsBudget.vehicle_script_radius,
+## whose script is off, is not watched at all). Kinematic traffic never crashes.
+func _crash_watch() -> void:
+	if is_traffic() or freeze:
+		_crash_hold = 2
+		return
+	var v := linear_velocity
+	var dv := v - _crash_v
+	_crash_v = v
+	if _crash_hold > 0:
+		_crash_hold -= 1
+		return
+	if dv.length_squared() < crash_min_dv * crash_min_dv or not can_take_damage():
+		return
+	var up := maxf(dv.y, 0.0)
+	var side := Vector3(dv.x, minf(dv.y, 0.0), dv.z).length()
+	var over := maxf(side - crash_min_dv, up - landing_min_dv)
+	if over <= 0.0:
+		return
+	# Only a crash if the car really ran into something the way it was going: a script that sets
+	# the velocity (a respawn, a test putting a car back) is not one. One ray, only past the
+	# threshold.
+	var at := _crash_contact(-dv.normalized())
+	if at == Vector3.INF:
+		return
+	take_hit(-1, over, dv, at, HIT_CRASH)
+
+
+## What the car ran into along `dir` (the way it was going), within a metre of its body: the
+## point, or INF.
+func _crash_contact(dir: Vector3) -> Vector3:
+	if not is_inside_tree():
+		return Vector3.INF
+	var d := _dims()
+	var reach := absf(dir.dot(global_basis.x)) * float(d.width) * 0.5 + absf(dir.dot(global_basis.z)) * float(d.length) * 0.5 \
+			+ absf(dir.dot(global_basis.y)) * 0.8 + 1.0
+	var from := global_position + global_basis.y * 0.45
+	var q := PhysicsRayQueryParameters3D.create(from, from + dir * reach, 1 | 4 | 16, [get_rid()])
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	return hit.position if not hit.is_empty() else Vector3.INF
+
+
+## CarDamage broke lamps (bits of CarDamage.LAMP_*): the night glow loses them.
+func _set_lamps_broken(bits: int) -> void:
+	if _night_lights == null or not is_instance_valid(_night_lights):
+		return
+	var d := _dims()
+	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
+	_night_lights.mesh = PropFactory.vehicle_lights(d.width, d.length, lamp_y,
+			float(d.get("road", d.get("ride", model_bottom_y))), float(d.get("tail_y", lamp_y)), bits)
+	_night_lights.visible = bits != 15
+
+
+## Burnt out (CarDamage.become_wreck): no lights, no engine, the tyres burnt down to the rims, the
+## rims charred.
+func _become_wreck() -> void:
+	set_meta("wreck", true)
+	if _night_lights:
+		_night_lights.visible = false
+	if _engine_sound:
+		_engine_sound.stop()
+	var livery := get_node_or_null("LiveryProp") as Node3D
+	if livery:
+		livery.visible = false
+	var pose := _wheel_pose()
+	var rim := 0.7
+	for w in wheels:
+		if is_instance_valid(w):
+			w.wheel_radius = maxf(float(pose.get("r", w.wheel_radius)) * rim, 0.12)
+			w.wheel_friction_slip = 1.2
+	for rig: Array in _wheel_rigs:
+		(rig[0] as Node3D).scale = Vector3(0.92, rim, rim)
+		(rig[1] as MeshInstance3D).material_override = CarDamage.wreck_wheel_material()
+		(rig[2] as MeshInstance3D).visible = false
+
+
+## Takes every mark off again (a cruiser going back into the police pool).
+func repair() -> void:
+	if _damage == null or not is_instance_valid(_damage):
+		_damage = null
+		return
+	_damage.restore()
+	remove_child(_damage)
+	_damage.queue_free()
+	_damage = null
+
+
 func is_airborne() -> bool:
 	for w in wheels:
 		if w.is_in_contact():
@@ -583,6 +736,7 @@ func _physics_process(delta: float) -> void:
 		if airborne and linear_velocity.y < 0.0:
 			apply_central_impulse(Vector3.UP * -linear_velocity.y * mass)
 		apply_central_impulse(Vector3.UP * boost_up * mass)
+		hold_crash_watch(3)
 		angular_velocity = Vector3.ZERO
 		Sfx.play("jump", global_position, -2.0, 0.7)
 	var steer_factor := lerpf(1.0, steer_min_factor, clampf(absf(speed) / (steer_full_speed * 3.0), 0.0, 1.0))
@@ -811,6 +965,7 @@ func _add_night_lights(dims: Dictionary) -> void:
 	# pixels and its lights are not worth one.
 	node.visibility_range_end = 160.0
 	add_child(node)
+	_night_lights = node
 
 
 func _add_real_wheels() -> void:
@@ -1004,6 +1159,7 @@ func _make_body_shadows() -> void:
 
 
 func _update_wheels(delta: float) -> void:
+	_crash_watch()
 	if _wheel_rigs.is_empty():
 		if not _body_meshes.is_empty():
 			_update_body_tier(global_position.distance_to(_focus_point()))

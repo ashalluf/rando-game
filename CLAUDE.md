@@ -632,6 +632,51 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Parking and traffic lanes come from `CityPlan.parking_offset()` / `lane_center()`: the parking
   lane was 4.4 m wide and the kerb-side traffic lane ran 13 cm from the parked cars, so traffic
   plowed through them.
+- Car damage (roadmap #10): `CarDamage` (`scripts/vehicles/car_damage.gd`), a node the car makes
+  on its FIRST hit - an undamaged car has none, keeps the shared `car_paint.gdshader` and the
+  model's own glass and lamp materials, and costs what it did (the only per-car addition is
+  `Vehicle._crash_watch()`, one velocity subtraction a tick in the car's existing script).
+  **One entry point: `Vehicle.take_hit(shape, damage, dir, at, kind)`** with `HIT_BULLET` /
+  `HIT_PELLET` (the weapon's own damage: rifle `fire_ray`, shotgun `fire_pellet`, police
+  rounds under `Police.innocent`), `HIT_BLAST` (`damage` is the falloff at the car, `at` the
+  centre: `Explosion.blast()`, once per car, not once per collision shape), `HIT_CRASH`
+  (`damage` = m/s over `crash_min_dv` / `landing_min_dv`: the crash watch, a velocity change in
+  one step; call `hold_crash_watch()` before changing a car's velocity on purpose - jumps,
+  respawns, blasts do) and `HIT_PROP`. A traffic car goes physical first. Rounds are traced
+  onto the real body mesh (`TriangleMesh`, cached per mesh; face -> slot), so a hole lands on
+  the skin, a round in the glass slot crazes or shatters that pane and one in a lamp breaks
+  it. The paint is copied onto `car_paint_damage.gdshader` (the same `car_paint.gdshaderinc`
+  with `CAR_DAMAGE` defined: holes with a bright torn rim and chipped halo, crumpled dents
+  displaced in the vertex shader, blast scorch, the burn front from the engine bay in bands of
+  blistered paint, soot and rust / ash bare steel) on the car's body meshes AND its shadow
+  twins; the glass slot onto `car_glass_damage.gdshader` (panes = the glass surface's connected
+  pieces, measured once per mesh: tempered side and rear glass crazes then falls out as cubes,
+  the windscreen only collects webs, lamp lenses go with their lamp; an empty frame shows a
+  traced cabin - dash, seats, headrests, the far window's daylight - at `cabin_light`); the
+  lamp slots onto `car_lamp_damage.gdshader`; the night glow is
+  `PropFactory.vehicle_lights(..., broken)`, one shared mesh per combination. Health
+  (`max_health` 1000): smoke past `smoke_at`, fire past `fire_at`, `burn_seconds` later (a
+  `quick_fuse` after a rocket-sized hit) `explode()`: the driver is thrown out, the car's own
+  `Explosion.blast(..., exclude)` is the player's crime unless the police lit it
+  (`blame_police`), the wreck is tossed, burnt out, sat on charred rims, burns, smokes, and is
+  PhysicsBudget debris for `wreck_lifetime` (`register_debris(body, lifetime)`). Caps (static):
+  `max_burning`, `max_smoking`, `max_wrecks`, `max_glass_bursts`. A wreck cannot be driven
+  (`is_wreck()`), a pooled cruiser is `repair()`ed, a burnt cruiser leaves the police
+  (`Police.car_wrecked`), the flyable jets opt out (`can_take_damage()`). The fire is the
+  explosion's `fire_puff.gdshader` on `CarDamage.fire_material()` (short soft fade, lower heat):
+  a billowing body out of the bay, tongues off the bonnet's edges and up the windscreen, flames out
+  of the cabin's empty frames after `spread_share` of the burn, embers, black smoke opaque where
+  it leaves the flames, a flickering light (desktop); the plain puff on the web. **Flame colours
+  hold green at ~half of red while bright**: through AgX a red-heavy colour brighter than ~1
+  turns salmon pink (measured with an unshaded colour chart), and fire_puff gives a puff's core
+  and edge the same ratio. Stills:
+  `DAMAGE=holes,glass,dents,smoke,burning,blaze,wreck` on `tools/glshot/car_shot.gd` (views `door`,
+  `glass`, `screen`, `cabin`); checks: `tests/car_damage_checks.gd`. Traps: a `--script` tool
+  that names `CarDamage` as a type compiles it before the Sfx autoload exists (load it by path);
+  setting a `CPUParticles3D`'s `amount` restarts it (every particle gone), so a fire resized
+  every frame drew nothing - change amounts in steps, only when they change; a crash watch
+  without its contact ray takes every scripted velocity reset for a crash;
+  `Explosion.blast()` still pushes a car once per collision shape (2-3x a rocket's 30 m/s).
 - Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
   `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
@@ -915,6 +960,33 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   parking (`_build_approach_parking`: stall rows, ArenaGrounds' cheap static cars, half as many
   on LOD chunks). All three use a private rng after the block rng's own rolls, so nothing else in
   the chunk moves; never add rolls on the block rng for new filler.
+  **Nor is a downtown or midtown lot** (`LotFill`, `scripts/world/lot_fill.gd`, 2026-09-27):
+  towers stood alone on their lots and 44 % of the financial core's buildable ground (31 % of
+  the rest of downtown, 54 % of midtown) was the block's bare paving (`tools/lot_coverage.gd`
+  measures it; `FILL=0` is the before). Now a slender tower on a big lot stands on a **podium**
+  (`Building._add_podium()`, see the Buildings note); what a building leaves of its lot, out to
+  the lot's grid cell (`lot.cell`, the lot plus half the gap), is a **forecourt** in the block's
+  own paving look (`LotFill.PAVINGS`, one a block) - raised planters (the plinths' concrete, so
+  they merge into that mesh) with one shrub species a chunk and the block's street tree
+  (`MAX_TREES` a chunk), benches, a short run of bollards (`BOLLARD_ODDS`, `BOLLARD_RUN`), and
+  in a plaza-sized piece (`PLAZA_DEPTH`) a reflecting pool or a bronze on a cross of walks with a
+  lawn in each quarter (`LAWN_ODDS`, its own ground kind, laid far too); a retail podium's roof
+  is the tower's garden (lawns, planters, a turquoise pool); some lots are **surface car parks**
+  (`CityPlan.lots()` `"parking"`: DISTRICTS `surface_lots` / `core_surface_lots`, a hash, only
+  under `SURFACE_LOT_MAX_HEIGHT`; stall rows, ArenaGrounds' static cars (`car_mesh()`, ~400
+  triangles, two kinds, a two-box shadow twin to `CAR_SHADOW_DISTANCE`), a pay booth, light
+  poles in the street lamps' batch without their OmniLight, a wall / hedge / chain-link
+  (`shaders/chain_link.gdshader`) on the street sides); a
+  parking podium gets its drive-in (asphalt out to the kerb) and cars and light poles on its roof
+  deck; and the cells a landmark's square dropped (`CityPlan.dropped_cells()`) are forecourt
+  round the landmark (a downtown tower's own footprint kept 4 m clear) or a car park. Every
+  roll is a private rng of seed + lot, never the block rng or `Building._rng`. A FULL chunk's
+  pavings, asphalt, lawns, planted tops, pools and polished stone are ONE mesh on ONE material
+  (`LotFill.commit()`, `shaders/lot_ground.gdshader`, the kind in the vertex colour; no shadow,
+  one quad a rect where the relief is planar, appended unindexed); LOD chunks and the far city lay only the car parks' asphalt and the lawns
+  (the forecourt paving reads as pavement from there) and the podium boxes come with the parts.
+  AirTraffic skips car-park lots. Look at it with `tools/glshot/still_shot.gd` (`SPLIT=1` has a
+  LotFill line) and measure it with `tools/lot_coverage.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
@@ -1605,6 +1677,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   each: the shop names and the kit batches (one per kind already). Prove a change here with
   `tools/building_merge_probe.gd` (rebuilds the old nodes from `Building.keep_records`, diffs
   them, and splits the difference by kind; `SHIFT=1` shows what an origin re-centre alone flips).
+  **Podiums** (2026-09-27): where CityChunk sets `podium_lot` (LotFill's districts),
+  `_add_podium()` - after `_layout_parts()`, before `_pick_style()`, from hashes of the seed only,
+  so no `_rng` roll and no colour moves - gives a tower whose ground parts cover under
+  `podium_max_cover` of a big lot a base part (`parts[0]`, `"podium"`: 1 retail and lobby storeys
+  in the building's finish, 2 a parking deck) filling `podium_fill` of the lot, lifts every
+  ground part onto it (tops unchanged) and slides the tower off centre. A parking deck is drawn
+  by `building.gdshader` from CUSTOM3.z (`garage_*` uniforms: precast spandrels, columns on the
+  bay lines, the deck behind traced - floor stalls and nose-in cars, the next deck's lit
+  underside, the far side open to the day -, the drive-in bay `garage_entry` on `street_face`,
+  and a roof that is itself a deck of stalls); it gets no facade details or kit, its storey is
+  `GARAGE_STOREY` and its far box is its concrete (`part_lod_color()`). StreetWear only paints its
+  spandrels. No podium roof gets roof plant: LotFill parks cars on a deck and lays a garden on a
+  retail one.
 - Facade kit (owner, 2026-09-24: "it must look like RDR2, not San Andreas"): real moulded geometry
   on the buildings near the camera, modelled by `tools/facade_kit.py` in Blender
   (`blender -b --python tools/facade_kit.py`, then `--import`) into `assets/models/facade_kit.glb`,

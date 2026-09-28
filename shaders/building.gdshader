@@ -157,8 +157,22 @@ uniform bool interior_enabled = true;
 // floats, exactly the numbers the uniforms used to carry. CUSTOM0.xyz is the vertex's position in
 // its own part (what VERTEX was when every part was its own mesh) and .w has_storefront, CUSTOM1
 // part_size and base_height, CUSTOM2 window_pitch_x, window_pitch_z, floor_height and
-// ground_floor_height, CUSTOM3.xy base_y and crown_start. Off (the landmark towers), the uniforms.
+// ground_floor_height, CUSTOM3.xy base_y and crown_start, CUSTOM3.z 1 on a parking deck. Off (the
+// landmark towers), the uniforms.
 uniform bool part_attributes = false;
+// A parking-deck part (a tower's podium, Building._add_podium(); CUSTOM3.z): open sides between
+// precast spandrels, perimeter columns on the bay lines (the part's window pitch), the decks behind
+// them traced like the rooms are (floor with stalls and parked cars, the next deck's underside with
+// its lights, the far side open to the day), and a roof that is itself a deck. Its concrete, and
+// the spandrel's height in metres; the floor height is the deck's storey.
+uniform vec3 garage_color : source_color = vec3(0.62, 0.61, 0.58);
+uniform float garage_spandrel = 1.1;
+// How far the far side of a deck is (metres), and how much of the stalls along its edge are taken.
+uniform float garage_depth = 17.0;
+uniform float garage_fill = 0.62;
+// The drive-in: face (as face_id counts them) and bay (Building.garage_entry(), which LotFill
+// lays the driveway to); 0 on the face turns it off.
+uniform vec2 garage_entry = vec2(0.0);
 // Whichever of the two it is, flat so the numbers arrive untouched.
 varying flat vec3 pt_size;
 varying flat vec2 pt_pitch;
@@ -168,6 +182,7 @@ varying flat float pt_shop;
 varying flat float pt_base_y;
 varying flat float pt_base_h;
 varying flat float pt_crown;
+varying flat float pt_park;
 
 varying vec3 local_pos;
 varying vec3 local_normal;
@@ -486,6 +501,7 @@ void vertex() {
 		pt_ground = CUSTOM2.w;
 		pt_base_y = CUSTOM3.x;
 		pt_crown = CUSTOM3.y;
+		pt_park = CUSTOM3.z;
 	} else {
 		local_pos = VERTEX;
 		pt_shop = has_storefront ? 1.0 : 0.0;
@@ -496,6 +512,7 @@ void vertex() {
 		pt_ground = ground_floor_height;
 		pt_base_y = base_y;
 		pt_crown = crown_start;
+		pt_park = 0.0;
 	}
 	local_normal = NORMAL;
 	vec4 wp = MODEL_MATRIX * vec4(VERTEX, 1.0);
@@ -610,6 +627,100 @@ vec3 room_interior(vec2 w, vec3 dir, float wide, float high, float deep, float r
 }
 
 
+// The inside of a parking deck seen through its open side (see garage_color). `p` is where the
+// view ray crosses the opening, in metres: x along the wall, y above the top of the spandrel; `r`
+// the ray in wall space (x along the wall, y up, z into the deck). The ray goes on to the deck
+// floor (the spandrel's height below the opening), the next deck's underside (`open_h` up) or the
+// far side, `garage_depth` in, whose own opening shows the day (`sky` comes back 1 there). Cars
+// stand nose-in in the stalls along the edge (2.7 m, most of them taken), seen as their fronts and
+// roofs over the spandrel. `light` is how much of the deck's light reaches the point: the lamps
+// under every deck, strongest at the fittings, and the day at both open sides.
+vec3 garage_interior(vec2 p, vec3 r, float open_h, float sp_h, float bay, float g_seed, out float light, out float sky, out float fitting) {
+	light = 0.0;
+	sky = 0.0;
+	fitting = 0.0;
+	float t = 1e6;
+	int surface = 0; // 0 far side, 1 floor, 2 ceiling, 3 car front, 4 car roof
+	if (r.z > 1e-4) {
+		t = garage_depth / r.z;
+	}
+	if (r.y < -1e-4) {
+		float tf = (-sp_h - p.y) / r.y;
+		if (tf < t) { t = tf; surface = 1; }
+	}
+	if (r.y > 1e-4) {
+		float tc = (open_h - p.y) / r.y;
+		if (tc < t) { t = tc; surface = 2; }
+	}
+	// The row of cars along the edge: noses 0.7 m in, 4.6 m long, 1.45 m tall, 1.85 m wide.
+	float car_top = -sp_h + 1.45;
+	float stall = 0.0;
+	if (r.z > 1e-4) {
+		float tz = 0.7 / r.z;
+		vec2 q = p + r.xy * tz;
+		stall = floor(q.x / 2.7);
+		bool taken = hash21(vec2(stall, g_seed)) < garage_fill;
+		if (tz < t && taken && q.y < car_top && abs(fract(q.x / 2.7) - 0.5) * 2.7 < 0.92) {
+			t = tz;
+			surface = 3;
+		}
+	}
+	if (r.y < -1e-4 && p.y > car_top) {
+		float ty = (car_top - p.y) / r.y;
+		vec2 q = p + r.xy * ty;
+		float qz = r.z * ty;
+		float st = floor(q.x / 2.7);
+		if (ty < t && qz > 0.7 && qz < 5.3 && hash21(vec2(st, g_seed)) < garage_fill && abs(fract(q.x / 2.7) - 0.5) * 2.7 < 0.86) {
+			t = ty;
+			surface = 4;
+			stall = st;
+		}
+	}
+	vec3 hit = vec3(p, 0.0) + r * t;
+	// Daylight comes in at both open sides and is weakest mid-deck.
+	float mid = clamp(hit.z / garage_depth, 0.0, 1.0);
+	float daylight = 0.25 + 0.75 * abs(mid * 2.0 - 1.0);
+	vec3 col;
+	if (surface == 0) {
+		// The far side: its own spandrel and columns, and the day through its opening.
+		bool opening = hit.y > 0.0 && hit.y < open_h && min(fract(hit.x / bay), 1.0 - fract(hit.x / bay)) * bay > 0.35;
+		col = garage_color * 0.7;
+		sky = opening ? 1.0 : 0.0;
+		light = 0.6;
+	} else if (surface == 1) {
+		// Sealed concrete, the stall lines along the edge and down the far side, oil in the bays.
+		col = vec3(0.26, 0.26, 0.27) * (0.85 + 0.3 * hash21(floor(hit.xz * 0.7) + g_seed));
+		float in_row = step(0.3, hit.z) * step(hit.z, 5.6) + step(garage_depth - 5.6, hit.z) * step(hit.z, garage_depth - 0.3);
+		float line = step(abs(fract(hit.x / 2.7 + 0.5) - 0.5) * 2.7, 0.06) * in_row;
+		col = mix(col, vec3(0.78, 0.77, 0.72), line);
+		float oil = smoothstep(0.55, 0.0, length(vec2(fract(hit.x / 2.7) - 0.5, (hit.z - 3.0) / 2.7))) * in_row;
+		col *= 1.0 - 0.35 * oil * hash21(vec2(floor(hit.x / 2.7), g_seed + 5.0));
+		light = daylight;
+	} else if (surface == 2) {
+		// The next deck's underside: drop beams on the bay lines, a lamp in every half bay.
+		col = garage_color * 0.62;
+		float beam = step(min(fract(hit.x / bay), 1.0 - fract(hit.x / bay)) * bay, 0.3);
+		col *= 1.0 - 0.35 * beam;
+		vec2 lamp_cell = vec2(fract(hit.x / (bay * 0.5)) - 0.5, fract(hit.z / 6.0) - 0.5) * vec2(bay * 0.5, 6.0);
+		fitting = step(abs(lamp_cell.x), 0.6) * step(abs(lamp_cell.y), 0.09);
+		light = daylight;
+	} else {
+		// A parked car: the paint a real car park shows, glass darker, lit a little from above.
+		float k = hash21(vec2(stall, g_seed + 3.0));
+		vec3 paint = k < 0.28 ? vec3(0.80, 0.80, 0.78) : (k < 0.52 ? vec3(0.05, 0.05, 0.06) : (k < 0.76 ? vec3(0.48, 0.49, 0.51) : (k < 0.88 ? vec3(0.42, 0.07, 0.07) : vec3(0.10, 0.17, 0.32))));
+		if (surface == 3) {
+			// The nose: grille and lamps low, the windscreen above the bonnet line.
+			bool glass = hit.y > car_top - 0.5;
+			col = glass ? vec3(0.04, 0.05, 0.06) : paint;
+			col = hit.y < -sp_h + 0.45 ? vec3(0.06) : col;
+		} else {
+			col = paint * 1.1;
+		}
+		light = daylight * 0.9;
+	}
+	return col;
+}
+
 void fragment() {
 	vec3 n = normalize(local_normal);
 	// Metres a pixel covers here, taken in uniform control flow for the neon tubes' width.
@@ -655,6 +766,21 @@ void fragment() {
 			rough = 0.95;
 		}
 		albedo = mix(surface, facade_color * 0.9, parapet);
+		if (pt_park > 0.5) {
+			// A parking deck's roof is its top deck: sealed concrete, stall lines in double rows
+			// either side of 7 m drive aisles (LotFill parks its roof cars in the same stalls),
+			// oil in the bays, the parapet in the deck's concrete.
+			vec2 q = local_pos.xz + pt_size.xz * 0.5;
+			float band = mod(q.y - 1.0, 17.8);
+			float in_row = step(band, 5.4) + step(12.4, band);
+			float line = step(abs(fract(q.x / 2.7 + 0.5) - 0.5) * 2.7, 0.06) * in_row;
+			vec3 deck = vec3(0.36, 0.36, 0.355) * (0.86 + 0.24 * hash21(floor(q * 0.35) + seed));
+			float oil = smoothstep(0.5, 0.0, length(vec2(fract(q.x / 2.7) - 0.5, (mod(band, 12.4) - 2.7) / 2.7))) * in_row;
+			deck *= 1.0 - 0.3 * oil * hash21(vec2(floor(q.x / 2.7), floor(q.y / 8.9)) + seed);
+			deck = mix(deck, vec3(0.86, 0.85, 0.80), line);
+			albedo = mix(deck, garage_color, parapet);
+			rough = 0.9;
+		}
 	} else {
 		// Which wall are we on, and how far along it (u) and up it (v)?
 		float u;
@@ -665,6 +791,10 @@ void fragment() {
 		// It is built as a solid corner pier instead, which is what a chamfered corner usually
 		// is, so all it needs is somewhere sane to sample the wall texture from.
 		bool chamfer = !uv_facade && abs(n.x) > 0.35 && abs(n.z) > 0.35;
+		// A parking deck's wall (see garage_color): open between spandrels and columns.
+		bool garage = pt_park > 0.5 && !chamfer;
+		bool garage_open = false;
+		bool garage_column = false;
 		if (uv_facade) {
 			u = UV.x;
 			pitch = pt_pitch.x;
@@ -742,6 +872,16 @@ void fragment() {
 		vec2 win_h = vec2(0.27, 0.25);
 		if (chamfer) {
 			// Solid pier: no glass, no shopfront. Falls through to the wall finish below.
+		} else if (garage) {
+			// Spandrel up to garage_spandrel, then the open band to the slab edge; a column on
+			// every bay line, set back behind the spandrels. One bay on one face of the ground
+			// deck is the drive-in, open to the pavement under its clearance header.
+			float sp = garage_spandrel / pt_floor;
+			garage_column = min(fu, 1.0 - fu) * pitch < 0.32;
+			garage_open = fv > sp && fv < 0.965 && !garage_column;
+			if (row == 0.0 && face_id == garage_entry.x && abs(col - garage_entry.y) < 0.5 && !garage_column) {
+				garage_open = fv > 0.02 && fv < 0.74;
+			}
 		} else if (storefront) {
 			float span = max(shop_span[int(face_id) - 1], 1.0);
 			float shop_id = floor(col / span);
@@ -831,7 +971,7 @@ void fragment() {
 
 		// Reveal: the wall band right around a punched or slot window (sill, jambs, lintel).
 		bool reveal = false;
-		if (!chamfer && !storefront && (window_style == 0 || window_style == 3)) {
+		if (!chamfer && !garage && !storefront && (window_style == 0 || window_style == 3)) {
 			float hw = window_style == 0 ? 0.27 : 0.16;
 			float hh = window_style == 0 ? 0.25 : 0.40;
 			float cy = window_style == 0 ? 0.52 : 0.5;
@@ -903,7 +1043,35 @@ void fragment() {
 			}
 		}
 
-		if (glass) {
+		if (garage_open) {
+			// The deck behind the open side, traced (garage_interior()). Under a deck the sun
+			// does not reach, so almost none of it is lit as paint: what is seen is the day
+			// coming in at the sides, the far side's opening, and the lamps, which run day and
+			// night and are all of it after dark.
+			vec3 eye_g = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+			vec3 to_g = normalize(world_pos - eye_g);
+			vec3 tan_g = normalize(world_tangent - world_normal * dot(world_tangent, world_normal));
+			vec3 ray_g = vec3(dot(to_g, tan_g) * u_sign, to_g.y, -dot(to_g, world_normal));
+			// Heights from the top of the spandrel (the drive-in's opening starts below it).
+			float bottom_y = garage_spandrel;
+			vec2 gp = vec2(u, fv * pt_floor - bottom_y);
+			float g_light;
+			float g_sky;
+			float g_fit;
+			vec3 gcol = garage_interior(gp, ray_g, 0.965 * pt_floor - bottom_y, bottom_y, pitch, seed + row * 7.13 + face_id * 3.7, g_light, g_sky, g_fit);
+			float day = 1.0 - night_factor;
+			float sky_now = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
+			float lamps = 0.3 + 0.7 * lamp_factor;
+			albedo = gcol * 0.1;
+			emission = gcol * g_light * (day * sky_now * 0.30 + lamps * 0.22);
+			emission += vec3(0.92, 0.97, 1.0) * g_fit * (0.8 + 2.2 * lamp_factor);
+			if (g_sky > 0.5) {
+				albedo = vec3(0.0);
+				emission = mix(vec3(0.02, 0.025, 0.03), sky_tint.rgb * 0.75, day);
+			}
+			rough = 0.9;
+			metal = 0.0;
+		} else if (glass) {
 			vec3 reflected = vec3(0.0);
 			// The room behind the glass as traced, before the daylight exposure, and how its
 			// own lights fall on it (room_interior). Used to light an occupied room after dark.
@@ -1323,6 +1491,26 @@ void fragment() {
 			} else {
 				albedo = facade_color * tex * (use_wall_texture ? 1.3 : 1.0);
 				rough = 0.85 * tex_rough;
+			}
+			if (garage) {
+				// A parking deck's precast: spandrel panels with a joint every half bay and a
+				// drip groove under the top edge, the slab edge under the next spandrel, and the
+				// columns a shade darker, standing back in the deck's shadow. Its own concrete,
+				// not the tower's finish (no brick or glass texture on it).
+				float span = pitch * 0.5;
+				vec3 conc = garage_color * (0.92 + 0.14 * hash21(vec2(floor(u / span), row) + seed));
+				float joint = step(abs(fract(u / span + 0.5) - 0.5) * span, 0.012);
+				float sp_top = garage_spandrel / pt_floor;
+				float drip = step(abs(fv - sp_top + 0.07 / pt_floor), 0.015 / pt_floor);
+				float slab = step(0.965, fv);
+				conc *= 1.0 - 0.35 * max(joint, drip) - 0.12 * slab;
+				if (garage_column) {
+					conc *= fv > sp_top ? 0.7 : 1.0;
+				}
+				albedo = conc;
+				rough = 0.88;
+				metal = 0.0;
+				wall_nm_weight = 0.0;
 			}
 			// --- Base, shaft, crown ----------------------------------------------------
 			// The bottom storeys in a heavier material with deep horizontal joints, and a

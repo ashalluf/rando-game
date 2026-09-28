@@ -52,6 +52,11 @@ const DISTRICTS := {
 		"tree_weights": [0.16, 0.24, 0.44, 0.12, 0.04], "jacarandas": 0.05,
 		"lamp_tint": Color(1.0, 1.0, 1.0),
 		"mall": 0.0, "bigbox": 0.0, "pads": 0.0, "lawn": false, "people": 46, "parked": 15, "palms": 0.22,
+		# Surface car parks (LotFill.surface_lot()): the share of lots that are one instead of a
+		# building - the historic core and South Park are full of them, the financial core far less
+		# ("core_surface_lots", lerped in by the boost) - and only on lots whose massing is under
+		# SURFACE_LOT_MAX_HEIGHT, so the skyline keeps its towers.
+		"surface_lots": 0.13, "core_surface_lots": 0.04,
 	},
 	District.MIDTOWN: {
 		"height": Vector2(12.0, 45.0), "lot": Vector2(20.0, 32.0), "gap": Vector2(3.0, 8.0),
@@ -63,6 +68,7 @@ const DISTRICTS := {
 		"tree_weights": [0.32, 0.30, 0.15, 0.18, 0.05], "jacarandas": 0.08,
 		"lamp_tint": Color(0.8, 0.86, 0.8),
 		"mall": 0.08, "bigbox": 0.03, "pads": 0.12, "lawn": false, "people": 20, "parked": 12, "palms": 0.34,
+		"surface_lots": 0.10,
 	},
 	District.SUBURBS: {
 		"height": Vector2(5.0, 14.0), "lot": Vector2(14.0, 22.0), "gap": Vector2(6.0, 14.0),
@@ -113,6 +119,9 @@ const DISTRICTS := {
 		"mall": 0.04, "bigbox": 0.1, "pads": 0.08, "lawn": false, "people": 3, "parked": 5, "palms": 0.04,
 	},
 }
+
+## The tallest massing a lot may have and still be rolled a surface car park (metres).
+const SURFACE_LOT_MAX_HEIGHT := 55.0
 
 var seed: int = 0
 var block_size_range: Vector2 = Vector2(70.0, 120.0)
@@ -557,7 +566,24 @@ static func district_name(d: District) -> String:
 ##
 ## Not cached: it is pure arithmetic, a chunk asks once, and a cache across the thousands of
 ## blocks the far tier walks would cost more memory than the work it saves.
+##
+## Each lot also carries its "cell" (the grid cell it stands in, the lot plus half the gap to its
+## neighbours: LotFill paves out to it) and "parking" (the lot is a surface car park, not a
+## building: the district's "surface_lots" odds, a hash of the lot, so no roll moves).
 func lots(ix: int, iz: int) -> Array[Dictionary]:
+	return _lot_grid(ix, iz, null)
+
+
+## The grid cells of the lots lots() leaves out of a block for a landmark's square (not the
+## airport's clear zone, which is parked on), as Rect2s: LotFill makes forecourt of what of them
+## the landmark does not stand on. The same walk as lots(), rolls and all.
+func dropped_cells(ix: int, iz: int) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	_lot_grid(ix, iz, out)
+	return out
+
+
+func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	# A replica block's lots are the replica's own (its frontage houses and their seeded
 	# backfill), so every tier that asks - LOD chunks, the far skyline, the air traffic's
 	# obstacle map - sees the same houses the detailed chunk builds (ReplicaAreas.block_lots()).
@@ -565,7 +591,8 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 		var replica_lots: Variant = macro.replica.block_lots(self, ix, iz)
 		if replica_lots != null:
 			var typed: Array[Dictionary] = []
-			typed.assign(replica_lots)
+			if dropped == null:
+				typed.assign(replica_lots)
 			return typed
 	var b := block(ix, iz)
 	# A landmark's site builds its own ground; nothing of the block's is built there.
@@ -593,6 +620,7 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 	if macro and params.has("core_courtyard"):
 		courtyard = lerpf(courtyard, float(params.core_courtyard), macro.skyline_boost(rect.get_center()))
 	var blocked: Array[Rect2] = []
+	var clear_zone := Rect2()
 	if macro:
 		for lm in Landmarks.all():
 			# A replica area's own blocks are handled above; its radius is for the relief and the map.
@@ -606,6 +634,10 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 		var clear: Rect2 = macro.runway_clear_zone()
 		if clear.intersects(rect):
 			blocked.append(clear)
+			clear_zone = clear
+	var surface_odds: float = float(params.get("surface_lots", 0.0))
+	if macro and params.has("core_surface_lots"):
+		surface_odds = lerpf(surface_odds, float(params.core_surface_lots), macro.skyline_boost(rect.get_center()))
 	var out: Array[Dictionary] = []
 	for lx in nx:
 		for lz in nz:
@@ -619,12 +651,22 @@ func lots(ix: int, iz: int) -> Array[Dictionary]:
 			var lot_seed := rng.randi()
 			var lot_rect := Rect2(lot_center - lot_size * 0.5, lot_size)
 			var hit := false
+			var by_zone := false
 			for bl in blocked:
 				if bl.intersects(lot_rect):
 					hit = true
+					by_zone = by_zone or bl == clear_zone
+			var cell_rect := Rect2(lot_center - cell * 0.5, cell)
 			if hit:
+				if dropped != null and not by_zone:
+					(dropped as Array).append(cell_rect)
 				continue
-			out.append({"seed": lot_seed, "size": lot_size, "center": lot_center, "edge": edge, "yard": yard})
+			var parking := false
+			if surface_odds > 0.0 and not yard and lot_size.x >= 16.0 and lot_size.y >= 14.0 \
+					and float(absi(hash([seed, lot_seed, "surface_lot"])) % 10007) / 10007.0 < surface_odds:
+				var boost := macro.skyline_boost(lot_center) if macro else 0.0
+				parking = lot_height(lot_seed, b.district, boost) < SURFACE_LOT_MAX_HEIGHT
+			out.append({"seed": lot_seed, "size": lot_size, "center": lot_center, "edge": edge, "yard": yard, "cell": cell_rect, "parking": parking})
 	return out
 
 

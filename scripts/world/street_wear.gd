@@ -398,6 +398,7 @@ static func _ground_parts(chunk: CityChunk) -> Array:
 				"seed": float(bld.seed % 1000),
 				"boxy": bool(part.boxy),
 				"warehouse": bld.shape == Building.Shape.WAREHOUSE,
+				"parking": bool(part.get("parking", false)),
 				"facade": bld.facade_color,
 			})
 	return out
@@ -683,6 +684,10 @@ static func _paintable(part: Dictionary, face: int, u: float, v: float) -> bool:
 	var vv := v - float(part.gfh)
 	var fv2 := vv / fh - floorf(vv / fh)
 	var mv2 := 0.16 / fh
+	# A parking deck (Building._add_podium()): only its spandrels, never across a column or the
+	# open band above.
+	if part.get("parking", false):
+		return fv2 < (Building.GARAGE_SPANDREL - 0.12) / fh and fv2 > mv2 and minf(fu, 1.0 - fu) * pitch > 0.45
 	match int(part.style):
 		0:
 			return not (absf(fu - 0.5) < 0.27 + mu and absf(fv2 - 0.52) < 0.25 + mv2)

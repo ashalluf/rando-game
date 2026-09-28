@@ -3639,7 +3639,195 @@ focus speed 8), `wheel_dof_*` (enabled, 8 m, 14 m, 0.16), `aim_ease_seconds` 0.2
 - Transparent things (particles, glass) write no velocity: they take the blur of what is behind
   them. The web and the opengl3 stills show none of this.
 
-## 9am. Street-level facades with real depth, 2026-09-27 (agent branch `wt/facade-depth`; roadmap #39)
+## 9am. Lots filled, not paved: podiums, forecourts, car parks, 2026-09-27 (agent branch `wt/lot-fill`)
+
+The brief: downtown towers stood on a sea of bare beige paving - from the street a vast empty
+plaza, from the air towers scattered on tan concrete. Measured first (`tools/lot_coverage.gd`,
+headless, rasterises every BUILDINGS block's inner rect on a 1 m grid; `FILL=0` is the before):
+
+| Block ground (inside the pavement ring) | bare before | bare after | built before -> after | notes |
+|---|---|---|---|---|
+| Financial core (65 blocks) | 44.0 % | 2.2 % | 46.9 -> 60.1 % | forecourt 25.6 %, car parks 3.0 % |
+| Rest of downtown (147) | 30.8 % | 2.7 % | 54.9 -> 49.3 % | forecourt 25.1 %, car parks 8.5 % |
+| Midtown (324, west of the 110) | 53.6 % | 5.4 % | 40.7 -> 41.4 % | forecourt 38.8 %, car parks 8.8 % |
+
+Where the bare ground came from: TOWER and CROWN shapes covered 23 % and 30 % of their lots
+(`minf(lot) * 0.45-0.75` square in the middle; 3 of the 8 core shapes, and midtown's TOWER at
+26 %), SLAB 73-76 %; the gaps between lots (a lot is its grid cell less a 2-5 m gap downtown,
+3-8 m midtown: 11 % of the core, 15 % of the rest, 34 % of midtown); and the lots a landmark's
+square pushed out of the grid (19 % of the core: a downtown tower's radius square drops every
+lot it touches and only its footprint was built). Now (`LotFill`, `scripts/world/lot_fill.gd`):
+
+- **Podiums** (`Building._add_podium()`): a tower whose ground parts cover under 55 % of a lot
+  (16 m+ short side, 28 m+ tall) gets a base filling 88-98 % of it, a parking deck or 1-3
+  retail storeys, the tower lifted onto it and slid off centre. TOWER lots now 82 % covered in
+  the core (70 % in midtown), CROWN 82 %; 79 podiums in the core, 401 in midtown. Hashes of the
+  seed only, after the layout's rolls: nothing of the building's colours or any other building
+  moves, and the far box follows through `parts`. The parking deck is all shader
+  (`building.gdshader`, CUSTOM3.z): spandrels, columns on the bay lines, the deck traced behind
+  the opening (stall lines and nose-in cars on the floor, lamps under the next deck that light
+  up at night, the far side open to the day), a drive-in bay on the street face
+  (`garage_entry`) and a roof deck with painted stalls.
+- **Forecourts**: each lot's ground out to its grid cell (`lot.cell`) in one of four paving looks
+  a block; raised planters, benches, a short run of bollards, and in plaza-sized pieces a
+  reflecting pool or a bronze on a cross of walks with lawns in the quarters. A retail podium's
+  roof is the tower's garden (lawns, planters, a turquoise pool).
+- **Surface car parks**: `CityPlan.lots()` marks some lots `"parking"` (DISTRICTS
+  `surface_lots` 13 % downtown, 4 % in the core, 10 % midtown; only under 55 m of massing):
+  asphalt, stall rows and aisles, ArenaGrounds' static cars, a pay booth, light poles, a low
+  wall / hedge / chain-link on the street sides. A parking podium gets its drive-in (asphalt to
+  the kerb) and cars and light poles on its roof deck.
+- **What a landmark's square left** (`CityPlan.dropped_cells()`, the same walk as `lots()`):
+  forecourt round the landmark (a downtown tower's own footprint kept 4 m clear) or a car park.
+- **The code car** (`ArenaGrounds.car_mesh()`, also the arena district's and the airport's
+  parked cars) rebuilt at ~400 triangles with a two-box shadow twin: the old painted brick read
+  as toys once a car park stood on half the blocks.
+
+### Frame cost
+
+opengl3 at 1280x720, `--quality=0`, noon, clear (`still_shot.gd`; before = this branch's base,
+f17726e). The draws that are left are content where there was none (the fill's own ground is
+ONE mesh and material a chunk, `shaders/lot_ground.gdshader`); the triangles are the retail
+podiums' facades and kit, the parked cars (~400 each, box shadows to 70 m), the planters'
+bushes and trees (one species a chunk, `MAX_TREES` 10), and the lawns.
+
+| Bookmark | triangles before -> after | draws before -> after |
+|---|---|---|
+| Flower at Olympic, `--spawn=2359.4,880,0,12,2` | 6,083,678 -> 6,772,741 (+11.3 %) | 3,382 -> 3,487 (+3.1 %) |
+| South-west aerial, `--spawn=1450,2150,-38,4,140` | 5,072,188 -> 5,414,891 (+6.8 %) | 3,205 -> 3,270 (+2.0 %) |
+| Top-down, `EYE=2300,420,800,0,-89.9` | 2,775,281 -> 3,111,162 (+12.1 %) | 2,464 -> 2,645 (+7.3 %) |
+
+The first cut was +385 draws / +1.7 M triangles on the street bookmark; SPLIT (still_shot.gd now
+has a LotFill line) and a census of the full chunks' nodes found the causes, in the traps
+below. The podiums also occlude: the street bookmark's Landmark category fell from 234 to 127
+draws.
+
+### Traps
+
+- A planter built as a solid kerb box hides a soil box placed below its top: the planted top has
+  to stand a hair proud of the kerb (it did not, and every planter was a white slab with weeds).
+- `CityChunk._add_bush()` rolls one of eight species; a batch key is a draw and its shadow twin
+  another, so the planters alone put up to sixteen new draws on a chunk. Planting code that is
+  not the street's own should pick ONE species a chunk.
+- A bollard is a 72-triangle cylinder with no LODs, counted and drawn per instance in every
+  cascade: a frontage of them on every lot was ~2,000 in one street view (+0.5 M triangles).
+- On a LOD chunk every ground slab is gridded at 8 m whatever it is, and a slab under 6 m
+  becomes a box of its own material (a draw). The far tiers take only what changes the read
+  from there: asphalt and lawns.
+- The podium's rolls must not come from `Building._rng`: `plan_only()` feeds the colours from
+  it right after the layout, so the podium is decided from `hash([seed, tag])` in between.
+- A `SurfaceTool` handed an indexed mesh (`append_from()` of a BoxMesh's arrays) after unindexed
+  ones keeps only the indexed triangles: the merged fill mesh lost every grid and the car parks
+  drew as the pavement under them. Append everything unindexed.
+- `CityChunk._add_slab()` treats anything 0.5 m tall or less and 6 m long as ground and lays a
+  relief grid NODE for it: a pool's 0.45 m kerbs were four draws each. Solid furniture goes into
+  the merged boxes directly (`LotFill._solid()`).
+- The Poly Haven asphalt, grass and paving textures are world-mapped in `lot_ground.gdshader`
+  from the chunk-space position (true world inside a chunk), never the world position, or they
+  swim on every origin re-centre.
+
+### Not done / next
+
+- Look at it on the Mac (Forward+): the garage interior's exposure by day and its lamps at
+  night, the chain-link's dither under TAA, the plaza lawns' colour.
+- Retail podium roofs carry no mechanical plant now; a few packaged units among the planters
+  would be truer. Beach town (67 % bare) and campus blocks were left as they were.
+- The code car is still a code car up close; a real ~2k-triangle parked-car body with LODs
+  would be the next step for car parks seen from the pavement.
+
+## 9an. Car damage, 2026-09-27 (agent branch `wt/car-damage`; roadmap #10)
+
+Before this a car took no damage at all: rounds and rockets only knocked it out of the traffic.
+Now every car (traffic, parked, police, the one you drive) has a damage model; the flyable jets
+opt out (`Aircraft.can_take_damage()`), the scripted air traffic keeps its own.
+- **One entry point, `Vehicle.take_hit(shape, damage, dir, at, kind)`**: `HIT_BULLET` from
+  `AssaultRifle.fire_ray`, `HIT_PELLET` from `Shotgun.fire_pellet` (per pellet; the uniforms are
+  pushed once a frame), police rounds under `Police.innocent`, `HIT_BLAST` from
+  `Explosion.blast()` (once per car - the query returns a result per collision shape - with
+  the falloff measured to the body rather than the origin), `HIT_CRASH` from the crash watch.
+- **Crashes** are a velocity change in one physics step (`Vehicle._crash_watch()`, one
+  subtraction a tick in the car's existing script; `crash_min_dv` 8 m/s sideways,
+  `landing_min_dv` 20 m/s straight up, because cars are flown and dropped all the time) that
+  a ray finds something at, the way the car was going. Without the ray every script that sets
+  a car's velocity is a crash: the smoke test zeroes a car's flight speed and it blew up on the
+  quick fuse (two checks failed that way). `hold_crash_watch()` before a deliberate change (the
+  jump does it). A crash never takes the quick fuse.
+- **Where a round lands** is traced onto the real body mesh (`TriangleMesh`, built once per mesh,
+  face index -> slot by the surfaces' face counts): paint gets a hole, the glass slot a crack or a
+  pane, a lamp slot breaks that lamp. The collision boxes are centimetres off the skin, and a hole
+  3D-tested in the shader against a point 3 cm off the surface never shows.
+- **Look**: `car_paint.gdshader` is now `car_paint.gdshaderinc`; `car_paint_damage.gdshader` is
+  the same file with `CAR_DAMAGE` defined, so an undamaged car compiles exactly the old shader.
+  A car's paint material is copied onto it on the first hit (every uniform carried over) and set
+  on its body meshes and shadow twins. Holes (40, recycled): black hole, torn bright steel ring,
+  primer and metal flecks where the paint chipped, the metal pushed in. Dents (8): vertex
+  displacement with a crumple noise and a normal rebuilt from the offset. Scorch (4). Burn: bands
+  out from the engine bay - cooked paint, soot, temper colours, rust / ash bare steel - with the
+  sills kept cooler. Glass slot: `car_glass_damage.gdshader`; the panes are the glass surface's
+  connected pieces (union-find on welded positions, one pass per mesh, cached; the windscreen is
+  the biggest forward-facing pane ahead of the middle - raked screens face mostly up - and lamp
+  lenses are the small pieces at the ends). Tempered panes craze (Voronoi cubes, milky past a few
+  pixels a cube) and fall out as a burst of glinting cubes, the windscreen collects webs, lamp
+  lenses go with their lamp. An empty frame draws the cabin traced in body space: dash, two front
+  seats, the rear bench, headrests, the headliner, the far window's daylight (or its pillar),
+  emitted at `cabin_light` x `sky_tint`. Lamps: `car_lamp_damage.gdshader`; the night glow is
+  `PropFactory.vehicle_lights(..., broken)`, one cached mesh per combination.
+- **Fire**: smoke past `smoke_at` (grey to black), fire past `fire_at` for `burn_seconds`
+  (6-9 s; `quick_fuse` 0.9-1.7 s after a hit of `quick_fuse_damage`), then `explode()`: the
+  driver is put out, `Explosion.blast(..., exclude = the car)` under `Police.innocent =
+  blame_police` (the last hit's), a police car reported as `police_car` when it is the player's,
+  the wreck tossed up to `toss_speed` (not on top of a rocket's throw). An OmniLight flickers
+  under it on desktop (a random walk plus a shimmer, `fire_light_energy`), the synthesised
+  `fire_loop` plays (no CC0 take yet).
+- **The fire's look** (second pass, the lead: the first flames read as cartoon candle tongues):
+  the explosion's `fire_puff.gdshader` (density = heat) on the car's own material
+  (`CarDamage.fire_material()`: `core_heat` 1.4, `soft_distance` 0.35 - at the blast's 2.6 m
+  the bonnet under the fire faded every flame out), in four systems while it burns: a billowing
+  body out of the engine bay (emitted just under the skin, so it rolls out of the shut lines),
+  tall-quad tongues off the bonnet's edges and up the windscreen (`EMISSION_SHAPE_DIRECTED_POINTS`
+  along `_lick_lines()`), embers, and - after `spread_share` of the burn, or at once on the
+  wreck - flames out of the cabin's empty frames, up the windscreen and over the roof
+  (`_cabin_lines()`, from the panes; the side glass pops when it spreads), with the cabin glowing
+  through the frames. The grey wisps give way at ignition to the fire's own smoke: black, opaque
+  where it leaves the flames, its first moments glowing the fire's colour (what shows of the
+  column at night), drawn behind the fire. A one-shot whoomph of flame as it catches.
+  **Colour, measured**: an unshaded colour chart through car_shot's AgX showed a red-heavy colour
+  (green under ~0.35 of red) going salmon pink once brighter than ~1 - the pink the first flames
+  had at night - while green at half of red goes cream-yellow bright and deep orange dim. The
+  shader multiplies one ramp colour by the density, so a puff's core and edge share that ratio:
+  the ramp holds green / red at ~0.5 while it is bright and only drops toward red as it dims.
+  Web: the plain puff material, half the particles, no light. Cost (`GEO=1`, one sedan, opengl3):
+  whole 40 draws; burning 44 (bay flames, tongues, embers, smoke); a blaze 52 while the popped
+  side glass is still in the air (the cabin's flames are one more draw, the cube bursts the
+  rest, gone in two seconds); the burning wreck 40. `max_burning` (6) caps the fires at once.
+  Stills: `cardmg_fire_*` before/after in the screens folder of the session.
+- **Wreck**: burnt = 1, every pane gone, lamps out, trim / tyre / chrome and the far twin's
+  parts on shared charred materials, the physics wheels at 0.7 of their radius and the visible
+  ones scaled to rims in a charred metal (the car sits down on them), burning for
+  `wreck_fire_seconds`, smoking for `wreck_smoke_seconds`, freed by PhysicsBudget after
+  `wreck_lifetime` (`register_debris(body, lifetime)`, the `debris_life` meta). A cruiser leaves
+  the police (`Police.car_wrecked`); one shot up and pooled is `repair()`ed.
+- **Cost**: an undamaged car is unchanged - shared shader, no node, no draw, no script beyond the
+  crash watch. A damaged car draws what it drew (the same surfaces, other materials); a burning
+  one adds its smoke and flame particles (two draws) and, on desktop, one light. Measured with
+  `GEO=1` on car_shot.gd (one sedan, opengl3): whole 40 draws / 173,478 triangles; shot up
+  (holes, glass, dents) once its glass cubes have landed 40 / 173,472; burning 42 / 173,626; the
+  wreck 37 / 173,216 (lamps, calipers and livery prop gone). While a burst of glass is in the air
+  it is one more draw (it casts no shadow: with shadows eight bursts were +32 draws). Caps:
+  `max_burning` 6 (past it a car smokes just short of catching), `max_smoking` 10,
+  `max_wrecks` 10, `max_glass_bursts` 8. The damage shader loops over its holes per pixel only on
+  damaged cars; the flames, glass cubes and smoke are warmed on the loading screen.
+- **Tools**: `DAMAGE=holes,glass,dents,smoke,burning,wreck` on `tools/glshot/car_shot.gd` stages
+  it through `CarDamage.stage()` (real rounds and crashes through the game's paths), views
+  `door`, `glass`, `screen`, `cabin`; `GEO=1` prints the frame's draws. Checks:
+  `tests/car_damage_checks.gd`, 30 on a deck 250 m over the street (smoke test 536).
+- **Open**: needs a Mac look at the flames and smoke under AgX + TAA (these stills are the
+  Compatibility path), and at holes from 5-15 m. `Explosion.blast()` still pushes a car once per
+  collision shape (2-3x a rocket's 30 m/s: cars fly very high); left as it was, it is feel. No
+  flat tyres from rounds yet, no torn-off panels, no damage on the crowd's cheap parked cars
+  (`ArenaGrounds.car_mesh()` statics).
+
+## 9ao. Street-level facades with real depth, 2026-09-27 (agent branch `wt/facade-depth`; roadmap #40)
 
 The brief (owner: "next level ... AAA studio quality"): on a downtown pavement the buildings read
 as CG boxes - a shopfront was a painted sign band over dark flat glass between flat grey pier

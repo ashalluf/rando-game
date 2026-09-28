@@ -502,6 +502,11 @@ func _shoot(target: Vector3, dist: float) -> void:
 					# The car soaks most of it (PlayerHealth.in_car_factor does the rest).
 					police.hit_player(bullet_damage, from)
 				(c as RigidBody3D).apply_impulse(dir * 8.0, (hit.position as Vector3) - (c as RigidBody3D).global_position)
+				if c is Vehicle:
+					# Their round in a car is their doing if it ever burns (CarDamage.blame_police).
+					Police.innocent = true
+					(c as Vehicle).take_hit(hit.get("shape", -1), bullet_damage, dir, hit.position, Vehicle.HIT_BULLET)
+					Police.innocent = false
 			elif c.has_method("take_hit"):
 				c.take_hit(hit.get("shape", -1), 8.0, dir)
 			elif c.has_method("knock"):
