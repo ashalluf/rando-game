@@ -475,6 +475,8 @@ func _build_synth() -> void:
 	_put("rotor_loop", _rotor_loop(1.2), true)
 	# Synthesised only (no CC0 take yet): a burning car (CarDamage).
 	_put("fire_loop", _fire_loop(2.4), true)
+	# Synthesised only: a spent rifle case hitting the ground (BrassCasings).
+	_put("casing", _tink(0.22))
 
 
 func _put(key: String, samples: PackedFloat32Array, looping: bool = false) -> void:
@@ -524,6 +526,23 @@ func _wav(samples: PackedFloat32Array, looping: bool = false, gain: float = 1.0)
 		wav.loop_begin = 0
 		wav.loop_end = samples.size()
 	return wav
+
+
+## A small brass case hitting pavement: a tick of noise and a few inharmonic partials ringing
+## out fast, the highest dying first (a thin-walled tube's modes, roughly).
+func _tink(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var partials := [[3150.0, 38.0, 0.55], [4880.0, 52.0, 0.4], [6710.0, 70.0, 0.3], [8420.0, 95.0, 0.18]]
+	for i in n:
+		var t := float(i) / MIX_RATE
+		var v := 0.0
+		for p: Array in partials:
+			v += sin(TAU * float(p[0]) * t) * exp(-float(p[1]) * t) * float(p[2])
+		v += _rng.randf_range(-1.0, 1.0) * exp(-900.0 * t) * 0.6
+		out[i] = v * 0.8
+	return out
 
 
 func _noise_burst(seconds: float, decay: float, gain: float, smooth: float) -> PackedFloat32Array:

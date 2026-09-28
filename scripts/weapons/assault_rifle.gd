@@ -21,6 +21,9 @@ extends Weapon
 const MODEL_PATH := "res://assets/models/weapon_ak47.glb"
 ## The muzzle, for a model without its own Muzzle node.
 const MODEL_MUZZLE := Vector3(0.0, 0.0, -0.55)
+## The ejection port in the gun's own space: the right of the receiver, just behind the charging
+## handle, where the spent case comes out.
+const EJECT_PORT := Vector3(0.03, 0.035, -0.03)
 
 # Walnut, not orange: the old 0.55 / 0.32 / 0.14 blew out to bright orange in sunlight, and the
 # rifle is on screen in every single frame of this game.
@@ -140,6 +143,9 @@ func _fire(aim: Dictionary) -> void:
 	fire_ray(aim.origin, dir)
 	WeaponFX.flash(self, muzzle.global_position)
 	Sfx.play("shot", muzzle.global_position, -4.0)
+	# The spent case out of the port on the right of the receiver (BrassCasings).
+	var carry: Vector3 = player.velocity if player else Vector3.ZERO
+	BrassCasings.eject(self, global_transform * EJECT_PORT, global_basis.x.normalized(), global_basis.y.normalized(), carry)
 
 
 ## Fires one hitscan bullet from `from` along `dir`. Public so tests can call it.

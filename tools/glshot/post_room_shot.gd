@@ -46,6 +46,21 @@ func _initialize() -> void:
 		Input.action_press("alt_fire")
 	elif mode == "wheel":
 		Input.action_press("weapon_wheel")
+	elif mode == "fire":
+		# Hold the trigger for FIRE_TIME seconds of game time with the clock at FIRE_SCALE: the
+		# muzzle flash, tracers, impacts and the rifle's spent cases (BrassCasings) in flight.
+		if _env("AIM", "0") == "1":
+			Input.action_press("alt_fire")
+			for i in 20:
+				await process_frame
+		Input.action_press("fire")
+		Engine.time_scale = float(_env("FIRE_SCALE", "0.05"))
+		var fired := 0.0
+		while fired < float(_env("FIRE_TIME", "0.6")):
+			await process_frame
+			fired += root.get_process_delta_time()
+		Input.action_release("fire")
+		Engine.time_scale = float(_env("FIRE_AFTER_SCALE", "0.0005"))
 	elif mode == "boost":
 		# The real boost (BoostTrail and all), the clock slowed to BOOST_SCALE (default 0.02: the
 		# room renders fast; in a slow scene 0.125 is a tick a frame, since Godot caps a frame at

@@ -893,7 +893,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   hit them at once - one `WeaponFX.bullet_wound()` each at `blood_per_pellet` a pellet, so a
   close blast is a far heavier wound than a rifle round - a heavy flash and camera shake, then the pump strokes back and home
   (`pump_amount()`), a spent shell is thrown out of the port as debris and the left hand rides
-  the forend (the script moves `grip_left`). Sfx `shotgun` (three real CC0 pump guns) and `pump`.
+  the forend (the script moves `grip_left`). The rifle throws a brass case out of
+  `AssaultRifle.EJECT_PORT` every round (`BrassCasings`, `scripts/weapons/brass_casings.gd`: ONE
+  MultiMesh for every case in the scene, simulated in GDScript - a gravity arc, one ground ray
+  per case, bounces with a synthesised Sfx `casing` tink, rest, shrink away - never ten rigid
+  bodies a second; its buffer is written whole on the CPU each frame). `post_room_shot.gd
+  MODE=fire` (`AIM=1` over the shoulder) shows it in seconds. Sfx `shotgun` (three real CC0 pump guns) and `pump`.
   **The guns are real models** (owner, 2026-09-24: "What are these horrible assets ... I need it to
   look like RDR2"), built, UV-unwrapped and texture-baked by `tools/make_weapons.py` in Blender:
   `blender -b -t 2 --factory-startup -P tools/make_weapons.py -- [ak47] [rocket_launcher]
