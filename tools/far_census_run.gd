@@ -88,6 +88,41 @@ func run(tree: SceneTree) -> void:
 					(tile[key] as Node).free()
 			count._tiles[t] = null
 	var meshes := {"unit_box": box_mesh_tris}
+	# The LOD ring round the eye (CityStreamer.lod_radius_blocks, seven blocks): every city block's
+	# LOD build, which the capture is, counted the same way - the LOD chunks draw ALL of a
+	# building's roof plant, the far city only its silhouettes.
+	var ring := {"parts": 0, "plain": 0, "plant_small": 0, "plant_big": 0, "old_facade": 0}
+	var here: Vector2i = plan.block_index_at(eye)
+	var t1 := Time.get_ticks_usec()
+	var ring_blocks := 0
+	for dx in range(-7, 8):
+		for dz in range(-7, 8):
+			var k := Vector2i(here.x + dx, here.y + dz)
+			var b := plan.block(k.x, k.y)
+			if plan.zone_at((b.rect as Rect2).get_center()) != MacroMap.Zone.CITY:
+				continue
+			var cap := CityChunk.new()
+			cap.plan = plan
+			cap.ix = k.x
+			cap.iz = k.y
+			cap.level = CityChunk.Level.LOD
+			cap.style = s.chunk_style()
+			cap.capturing = true
+			cap.build()
+			ring_blocks += 1
+			for c: Color in (cap.captured.batch.get("lod_box", {"custom": []}) as Dictionary).custom:
+				if c.a < -0.5:
+					ring.parts += 1
+				elif c.a > 3.5:
+					ring["plant_big" if c.g > 0.5 else "plant_small"] += 1
+				elif c.a > 0.5:
+					ring.plain += 1
+				else:
+					ring.old_facade += 1
+			cap.free()
+	var ring_ms := float(Time.get_ticks_usec() - t1) / 1000.0
+	var ring_total: int = ring.parts + ring.plain + ring.plant_small + ring.plant_big + ring.old_facade
+	print("FAR_CENSUS lod_ring blocks=%d instances=%d tris=%d %s build_ms=%.0f" % [ring_blocks, ring_total, ring_total * box_mesh_tris, str(ring), ring_ms])
 	print("FAR_CENSUS eye=%s radius=%.0f blocks=%d tiles=%d build_ms=%.0f static_mem_mb=%.1f" % [str(eye), radius, sky.blocks_built, tiles, ms, (mem1 - mem0) / 1048576.0])
 	print("FAR_CENSUS boxes facade=%d facade_v2=%d plain=%d plate=%d deck=%d other=%d box_tris=%d veg=%d houses=%d meshes=%s" % [kinds.facade, kinds.facade_v2, kinds.plain, kinds.plate, kinds.deck, kinds.other, box_tris, veg, houses, str(meshes)])
 	s.free()

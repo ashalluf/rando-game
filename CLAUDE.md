@@ -1414,7 +1414,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The far city IS the LOD chunk's city: `CityChunk.capturing` runs the LOD block build (same
   steps, same rng) and records slabs and boxes into `captured` instead of building them, and
   Skyline takes the `lod_box` batch as it is - anything added to the block build shows in the
-  far city with no far-city code. Around it: one plate per block over `CityPlan.owned_rect()`
+  far city with no far-city code - less the roof plant under a pixel out there (the coded far
+  buildings, `FarBuilding`, in the far-buildings note below). Around it: one plate per block over `CityPlan.owned_rect()`
   (`INSTANCE_CUSTOM.a` 2, roads painted by the shader from the widths in .r/.g, linear colours
   from `CityChunk.far_tint()`, the numbers the LOD chunks' ground uses; outside the city, where
   a chunk draws its ground as a box in a `road()` material, `PropFactory.far_albedo()` - the
@@ -2448,9 +2449,39 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   colour on Forward+ (`building_lod.gdshader` `instance_color_is_srgb`, set by
   `PropFactory.building_lod_material()`): it was declared and never set, so the whole far city
   was drawn 1.4-4.3x brighter than the same buildings up close on the Mac.
-  Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
-  window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
-  plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.
+  **Far buildings are coded copies of the near ones** (2026-10-04, GAME_PLAN G7, docs/HANDOFF.md
+  9az): `FarBuilding` (`scripts/world/far_building.gd`) turns a planned Building into the LOD
+  chunk's `lod_box` instances (which the far city captures as they are): each part one box with
+  the near building's whole facade in its CODE - window style, finish, roof covering, wall
+  texture set, palette indices of its glass tint, lit colour and frame paint, storefront and
+  shop runs, bays and storeys (`Building.part_grid()`, the one function the near walls use too),
+  base course, crown, seed - its plinth folded into the parts on the ground and its parapet's
+  height on top; then its roof plant as boxes, the very units the near building builds
+  (`Building.roof_plan()`: the plant rolls on its own stream, `_roof_rng`, so its layout is known
+  without building the facade). The LOD chunks draw every unit; the far city keeps only
+  `FarBuilding.SILHOUETTE` (bulkheads, tanks, cooling towers, billboards, spires and antennas
+  with their red beacons, masts drawn at least `mast_min_px` wide) and prints the rest
+  (`print_small_plant` on its own material, `PropFactory.building_lod_material(true)`).
+  `building_lod.gdshader`'s coded branch draws the near wall cell for cell (the same `u`, bays,
+  storeys, window masks, spandrels, shops and their night rolls, base course, crown, grime, the
+  wall texture's mean), faded to the cell's average past a few pixels - its lit offices too.
+  **The code rides in the instance transform**: a part's basis is diagonal, so its six
+  off-diagonal entries carry 20-bit codes as code * 2^-28 (exact in float32, and a 4 mm shear the
+  bounds can ignore), and the shader rebuilds the box from the diagonal (`skip_vertex_transform`)
+  - because Compatibility hands INSTANCE_CUSTOM and COLOR over as half floats. Proven bit-exact on
+  both renderers (HANDOFF 9az). Rules: never rotate a coded part (houses and estates use the old
+  path, INSTANCE_CUSTOM.a 0); anything the near and far shaders must agree on rolls from INTEGERS
+  (`shaders/window_lights.gdshaderinc`: lit offices, spandrels; the shop rolls) - a float hash of
+  the same inputs is only as exact as two compilers' instruction scheduling; a colour the far shader
+  copies from Building goes through `cs_as_uniform()` (color_space.gdshaderinc: the near shader's
+  own space, decoded on Forward+, raw on Compatibility) and its palette copies are checked by
+  `tests/far_city_checks.gd`. A shader parameter may not share a uniform's name (building.gdshader
+  has `seed` and `lit_ratio`): the compile fails and every building turns blank white.
+  `tools/glshot/far_building_shot.gd` renders a row of buildings near and far from one camera,
+  `far_pair.py` compares them building by building; `tools/far_census.gd` counts the far city and
+  the LOD ring and times their build (`FAR_CODED=0|1`). The old path (no code) still draws the
+  replica houses, estates, slabs and plates: its window grid sampled with a view-direction offset,
+  per-room brightness, slab-edge bands, reveal shading and a vertical gradient.
 - **Four measurement traps, each of which has already cost a session.** All fail by reporting
   success, which is the worst way to fail.
   1. **Godot serves a CACHED import of a `.glb`.** Rebuild a model, render it, and you are
@@ -2462,7 +2493,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
      geometry change of any size measures as no change at all. `MultiMesh.get_instance_transform()`
      is the same trap: it returns identity under `--headless`, so a check that reads instance
      transforms back out measures nothing and reports a clean bill of health (and a MultiMesh's
-     box is empty there, and its `buffer` reads back empty).
+     box is empty there, and its `buffer` reads back empty). It does PARSE shaders, though: a
+     Godot shader-language error prints `SHADER ERROR` on load even headless, which
+     `tools/shader_check.gd` uses as a ten-second compile check (GPU-side GLSL errors still need
+     a real renderer).
   3. **The renderer's triangle counter does not count MultiMesh instances the same way twice.**
      Compatibility adds a surface that HAS LODs once per draw call, whatever its instance count,
      and a surface with NO LODs once per instance (`rasterizer_scene_gles3.cpp`,
