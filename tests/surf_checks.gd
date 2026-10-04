@@ -78,7 +78,7 @@ func _mirrors() -> void:
 		if m == null or absf(m.get_string(1).to_float() - float(pair[1])) > 0.0001:
 			why += " " + str(pair[0])
 	for snippet in ["float bore = 0.5 * sqrt(max(sig, 0.0)) + 0.5 * smoothstep(0.80, 1.0, sig);",
-			"return env * smoothstep(0.0, 4.0, s);", "float start = max(surf_extra.z, brk * 1.4);"]:
+			"return env * smoothstep(3.0, 10.0, s);", "float start = max(surf_extra.z, brk * 1.4);"]:
 		if not inc.contains(str(snippet)):
 			why += " [" + str(snippet) + "]"
 	var sea := FileAccess.get_file_as_string("res://shaders/ocean.gdshader")

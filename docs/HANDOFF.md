@@ -4341,8 +4341,12 @@ block's rect only, and the sea chunk's flat water plane showed through the road 
 - Storm: the beach view and the bluff with `--weather=storm`.
 All in one load with `SHOTS=` (see the README for the exact command).
 
-**Cost.** See the GEO lines in the README; the ocean adds no geometry (same plane), the sand
-mesh is three more rows a chunk, the spray one draw and ~20 quads per FULL shoreline chunk. ALU:
+**Cost** (`tools/geo_count.gd`, opengl3 960x540, `--hour=12 --weather=clear`, before -> after):
+beach z 800 `--spawn=-732,800,105,-4` 543,392 tris / 427 draws -> 544,032 / 431; Esplanade bluff
+`--spawn=-458,3380,100,-14,15` 1,445,798 / 932 -> 1,446,070 / 937; by the Manhattan pier
+`--spawn=-712,1000,130,-2` 815,832 / 1,893 -> 816,472 / 1,896. So +0.1 % triangles and +3 to +5
+draws (the spray, one a shoreline chunk; the sand over the street strips). The ocean adds no
+geometry (same plane), the sand one more row point and the strip rows. ALU:
 the surf's vertex work runs only inside the zone (2 extra shore distances and 2 surf
 evaluations a vertex there); the fragment's whitewater only inside it; the night lights only at
 night; kelp only where `ground_detail` is on.
@@ -4354,7 +4358,10 @@ night; kelp only where `ground_detail` is on.
   the stills hold TIME nearly still); judge it on the Mac at the beach.
 - The surf runs wherever there is a shore distance: the headland's cliffs get it too (plausible),
   the harbour basin by the port may show a faint surf line near the bay's north shore.
-- Where the sea plane meets the sand there is still a short stair-step line under some angles
-  (the coarse water mesh crossing a 2-degree sand slope); the matched colours hide most of it.
+- Where the sea plane met the sand they z-fought in a dashed band along every beach (a flat
+  plane over a 3.7 % ramp, centimetres apart for metres). Fixed twice over: the sand falls
+  faster for its last 3.5 m under the water (`CityChunk.SAND_STEEP_*`) and the sea plane dips
+  0.35 m under the sand landward of the waterline (down only - it can never lift water through
+  the beach). A thin line can still show at very grazing angles.
 - The far plane (past ~470 m) still paints its own surf band from the bake; there is no
   breaking surf in the far tier.

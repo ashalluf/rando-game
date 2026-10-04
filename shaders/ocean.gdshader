@@ -469,7 +469,10 @@ void vertex() {
 	vec3 sdx = vec3(0.0);
 	vec3 sdz = vec3(0.0);
 	land_dir = vec2(1.0, 0.0);
-	surf_phi = 0.0;
+	// On EVERY vertex, zone or not: the fragment shader reads the phase interpolated, and a
+	// triangle with 0 at one corner and a few hundred periods at another painted its whitewater
+	// in nested zigzag stripes along every waterline.
+	surf_phi = surf_phase(p, sd.x, TIME) / TAU;
 	base_p = p;
 	float zone = max(surf_extra.z, 1.0);
 	if (sd.x > 0.01 && sd.x < zone) {
@@ -484,7 +487,6 @@ void vertex() {
 			float sig;
 			float st;
 			float g;
-			surf_phi = surf_phase(p, sd.x, TIME) / TAU;
 			float h = surf_height_at(p, sd.x, surf_phi, lip, u, sig, st, g);
 			float lip2;
 			float h2 = surf_height(p, sd.x + 0.4, TIME, lip2, u, sig, st, g);
@@ -534,6 +536,22 @@ void vertex() {
 	disp += sdisp;
 	ddx += sdx;
 	ddz += sdz;
+	// The ground follower (CityStreamer's plane, y 0) is drawn as LAND for up to a bake texel
+	// (62 m) seaward of the coast - it only sinks where the bake says water - so near the shore
+	// a trough that dipped below it showed the plane through the sea in nested zigzags along the
+	// water's triangles. Near the shore the surface is held over it by a smooth floor (troughs
+	// there go flat-bottomed, as they do in a real surf zone).
+	float near_shore = 1.0 - smoothstep(70.0, 110.0, sd.x);
+	if (near_shore > 0.0) {
+		float lo = -0.10;
+		float k = 0.12;
+		float hk = clamp(0.5 + 0.5 * (disp.y - lo) / k, 0.0, 1.0);
+		float held = mix(lo, disp.y, hk) + k * hk * (1.0 - hk);
+		float slope = mix(1.0, hk, near_shore);
+		disp.y = mix(disp.y, held, near_shore);
+		ddx.y *= slope;
+		ddz.y *= slope;
+	}
 	VERTEX += disp;
 
 	// The normal, out of the same derivatives. Without a real normal the sea moved but was lit
@@ -679,8 +697,11 @@ void fragment() {
 		float st2;
 		float env = surf_envelope(shore, g, sig, st2);
 		float shape = surf_profile(u, steep);
-		vec2 tang = vec2(-land_dir.y, land_dir.x);
-		float along = dot(base_p, tang);
+		// Along the shore: true-world z. (Projecting the world position onto the interpolated
+		// shore tangent multiplied a few hundred metres by a direction that turns between two
+		// vertices, and striped every waterline triangle.) The coast runs north-south wherever
+		// there is surf worth looking at; round the headland the foam texture just lies askew.
+		float along = base_p.y;
 		// Peaks and shoulders: along each crest the wave goes over sooner in some places than in
 		// others, so it breaks in sections and peels along the line rather than all at once.
 		float peel = surf_noise(vec2(along / 45.0, nw * 0.71));
@@ -854,8 +875,9 @@ void fragment() {
 		if (den > 0.05) {
 			float t = (max(shore, 0.0) + city_front) / den;
 			vec3 hit = wp3 + refl * t;
-			vec2 tang = vec2(-land_dir.y, land_dir.x);
-			float al = dot(hit.xz, tang);
+			vec2 tang = normalize(vec2(-land_dir.y, land_dir.x) + vec2(0.0, 0.0001));
+			// Measured from this fragment, not from the world origin (see `along` above).
+			float al = dot(hit.xz - wp3.xz, tang) + w.y;
 			float cell = floor(al / 5.0);
 			float block = floor(al / 40.0);
 			float hb = 6.0 + 30.0 * pow(hash12(vec2(block, 3.7)), 2.4);

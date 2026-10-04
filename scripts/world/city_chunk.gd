@@ -1064,12 +1064,19 @@ const SAND_CUSP := 0.12
 ## grass - so it rides the vertex colour. These multiply into the albedo: 1.0 is exactly the
 ## sand that was there before and every other value only darkens it.
 const SAND_TONES: Array[Color] = [
-	Color(0.44, 0.48, 0.52), Color(0.54, 0.56, 0.59), Color(0.84, 0.81, 0.75),
+	Color(0.44, 0.48, 0.52), Color(0.50, 0.53, 0.56), Color(0.54, 0.56, 0.59), Color(0.84, 0.81, 0.75),
 	Color(1.0, 1.0, 1.0), Color(0.90, 0.90, 0.88),
 ]
+## The sand falls away fast under the water (SAND_STEEP_AT metres seaward of the waterline it is
+## at SAND_STEEP_Y, and SAND_LOW at SAND_WET): the surf's troughs and its held-down mean level
+## (surf.gdshaderinc) reach well below the old 0.75 m at 26 m out, so the sand poked up through
+## the inner surf zone and z-fought it in nested zigzags, and where the flat sea plane crossed a
+## 3.7 % ramp the two lay centimetres apart over metres.
+const SAND_STEEP_AT := 3.5
+const SAND_STEEP_Y := -0.6
 ## Bands across the profile the dry sand's collider is cut into.
 const SAND_COLLIDER_BANDS := 5
-const SAND_LOW := -0.75
+const SAND_LOW := -3.0
 const SAND_EDGE := 0.22
 const SAND_HIGH := 0.5
 
@@ -1244,6 +1251,7 @@ func _build_sand(rect: Rect2, strip_from: float = INF) -> void:
 		# reaches, the berm crest, and the backshore falling away behind it.
 		var row: Array[Vector3] = [
 			Vector3(water_x - SAND_WET, SAND_LOW, z),
+			Vector3(water_x - SAND_STEEP_AT, SAND_STEEP_Y, z),
 			Vector3(water_x, SAND_EDGE, z),
 			Vector3(water_x + SAND_SWASH, _sand_y(z, SAND_SWASH / maxf(width, 1.0)), z),
 			Vector3(water_x + width * SAND_BERM_AT, _sand_y(z, SAND_BERM_AT), z),

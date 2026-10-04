@@ -95,7 +95,10 @@ float surf_envelope(float s, float g, out float sig, out float steep) {
 	float unbroken = rise * rise * (0.55 + 0.45 * steep);
 	float bore = 0.5 * sqrt(max(sig, 0.0)) + 0.5 * smoothstep(0.80, 1.0, sig);
 	float env = sig >= 1.0 ? unbroken : bore;
-	return env * smoothstep(0.0, 4.0, s);
+	// Flat for the last few metres: the water plane meets the sand there, and any height left in
+	// it saws their intersection into teeth along the 1 m mesh. The whitewater (painted) and the
+	// swash on the sand carry the motion over that last stretch instead.
+	return env * smoothstep(3.0, 10.0, s);
 }
 
 

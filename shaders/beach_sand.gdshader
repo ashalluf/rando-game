@@ -106,12 +106,13 @@ void fragment() {
 		float lw = mix(0.05, 0.16, px);
 		float lines = 1.0 - smoothstep(lw * 0.4, lw, abs(web - 0.5));
 		lines = mix(lines, 0.3, px * px);
-		float fizz = rich ? smoothstep(0.80, 0.92, surf_noise(tw * 9.0 + vec2(TIME * 0.5, 0.0))) : 0.0;
-		fizz = mix(fizz, 0.08, px);
+		float fizz = rich ? smoothstep(0.86, 0.95, surf_noise(tw * 16.0 + vec2(TIME * 0.5, 0.0))) : 0.0;
+		fizz *= smoothstep(0.3, 0.7, surf_noise(tw * 1.1 + 4.0));
+		fizz = mix(fizz, 0.04, clamp(px * 2.0, 0.0, 1.0));
 		// The foam line itself (the last ~30 cm of the sheet), and the web behind it.
 		float line = smoothstep(0.86, 0.95, front) * mix(0.75, 1.0, surf_noise(tw * vec2(0.8, 3.0)));
 		float edge = max(line, lines * pow(front, 1.5) * 0.85);
-		float bubbles = sh * max(rush, 0.0) * fizz * 0.5;
+		float bubbles = sh * max(rush, 0.0) * fizz * 0.35;
 		lace = clamp(max(edge, bubbles), 0.0, 1.0);
 		lace *= 1.0 - smoothstep(swash_distance * 0.5, swash_distance, dist);
 	}

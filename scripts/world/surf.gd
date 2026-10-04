@@ -48,7 +48,7 @@ static func envelope(shape: Vector4, extra: Vector4, s: float, g: float) -> Vect
 	var unbroken := rise * rise * (0.55 + 0.45 * steep)
 	var bore := 0.5 * sqrt(maxf(sig, 0.0)) + 0.5 * smoothstep(0.80, 1.0, sig)
 	var env := unbroken if sig >= 1.0 else bore
-	return Vector3(env * smoothstep(0.0, 4.0, s), sig, steep)
+	return Vector3(env * smoothstep(3.0, 10.0, s), sig, steep)
 
 
 ## The height of the biggest face of a wave of gain g, metres, at s metres offshore (the crest,
