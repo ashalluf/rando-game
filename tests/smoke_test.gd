@@ -1680,6 +1680,9 @@ func _test_city() -> void:
 	# them out to the horizon, no block drawn twice, consistent handoff distances, and a streaming
 	# queue ordered by the view.
 	await load("res://tests/distance_checks.gd").new().run(self, city)
+	# The mountains from the air (tests/hill_air_checks.gd): the hill ground works in linear on
+	# both renderers, the horizon plane paints the tiles' own field, the far tier no brush mounds.
+	load("res://tests/hill_air_checks.gd").new().run(self, city)
 	# Masjid Omar ibn Al-Khattab and the sanctuary rule (tests/masjid_checks.gd): it streams in
 	# modelled and enterable, and no gun fires at it, across it or inside it.
 	await load("res://tests/masjid_checks.gd").new().run(self, city)
