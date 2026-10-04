@@ -189,13 +189,28 @@ static func mesh_for(seed: int, pose_kind: int) -> Mesh:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null or tree.root == null:
 		return null
-	_baked[key] = null
 	if _host == null or not is_instance_valid(_host):
 		_host = Node3D.new()
 		_host.name = "CampFigureBake"
 		# Far under the city, out of every view and query, for the frame a bake takes.
 		_host.position = Vector3(0.0, -5000.0, 0.0)
-		tree.root.add_child(_host)
+	if not _host.is_inside_tree():
+		# Under the WorldState autoload, not the root: while the city's own _ready() runs (a
+		# --spawn builds its first ring there, and every tool adds the city from _initialize())
+		# the root is busy setting up its children and add_child() fails, and a host left out of
+		# the tree failed every later bake too - no posed figure for the whole session. The
+		# autoloads are done with their children by then, and outlive a scene reload.
+		var parent: Node = tree.root.get_node_or_null("WorldState")
+		if parent == null or not parent.is_inside_tree():
+			parent = tree.root
+		if _host.get_parent() != null:
+			_host.get_parent().remove_child(_host)
+		parent.add_child(_host)
+		if not _host.is_inside_tree():
+			# Still refused: no figure this time, and nothing cached, so the next ask (the loading
+			# screen's warm()) bakes it.
+			return null
+	_baked[key] = null
 	var ped := RoughSleeper.new()
 	ped.setup_sleeper(Rect2(0.0, 0.0, 10.0, 10.0), 2.0, seed, pose_kind, Vector2.ZERO, 0.0)
 	_host.add_child(ped)
