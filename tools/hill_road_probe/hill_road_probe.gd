@@ -16,6 +16,11 @@ func _ready() -> void:
 	var macro := MacroMap.new()
 	var seed_env := OS.get_environment("SEED")
 	macro.seed = int(seed_env) if seed_env != "" else city.world_seed
+	var plan := CityPlan.new()
+	plan.seed = macro.seed
+	for key in ["block_size_range", "street_width", "avenue_width", "sidewalk_width", "downtown_radius", "midtown_radius"]:
+		plan.set(key, city.get(key))
+	plan.macro = macro
 	city.free()
 	var t0 := Time.get_ticks_msec()
 	macro.setup()
@@ -24,8 +29,14 @@ func _ready() -> void:
 	var kept := 0
 	var front_roads := 0
 	var length := 0.0
+	var drives := 0
+	var pins := 0
 	for road in hr.roads:
 		var pts: PackedVector2Array = road.points
+		if road.get("drive", false):
+			drives += 1
+			continue
+		pins += int(road.get("hairpins", 0))
 		if pts.size() >= 2:
 			kept += 1
 			var l := 0.0
@@ -40,7 +51,41 @@ func _ready() -> void:
 	for m in hr.mansions:
 		if (m.pos as Vector2).y < -700.0 and (m.pos as Vector2).y > -2600.0:
 			front += 1
-	print("COUNT %d roads (%d kept, %d on the front range), %.1f km, %d estates (%d on the front range)" % [hr.roads.size(), kept, front_roads, length / 1000.0, hr.mansions.size(), front])
+	print("COUNT %d roads (%d kept, %d on the front range, %d hairpins), %.1f km, %d driveways, %d estates (%d on the front range)" % [hr.roads.size() - drives, kept, front_roads, pins, length / 1000.0, drives, hr.mansions.size(), front])
+	# Estates and road pieces in a chunk that is not a hill chunk are never built (only hill chunks
+	# build hill roads and estates; a chunk's zone is its block centre's).
+	var orphan_pads := 0
+	for m in hr.mansions:
+		var k := plan.block_index_at(m.pos)
+		if plan.zone_at((plan.block(k.x, k.y).rect as Rect2).get_center()) != MacroMap.Zone.HILLS:
+			orphan_pads += 1
+	var orphan_segs := 0
+	var segs := 0
+	var old_orphans := {}
+	for road in hr.roads:
+		var pts: PackedVector2Array = road.points
+		var old_road: bool = not road.get("switchback", false) and not road.get("drive", false)
+		for i in pts.size() - 1:
+			if old_road:
+				var k0 := plan.block_index_at(pts[i].lerp(pts[i + 1], 0.5))
+				if plan.zone_at((plan.block(k0.x, k0.y).rect as Rect2).get_center()) != MacroMap.Zone.HILLS:
+					old_orphans[road.name] = old_orphans.get(road.name, 0) + 1
+				continue
+			segs += 1
+			var k := plan.block_index_at(pts[i].lerp(pts[i + 1], 0.5))
+			if plan.zone_at((plan.block(k.x, k.y).rect as Rect2).get_center()) != MacroMap.Zone.HILLS:
+				orphan_segs += 1
+	print("ORPHANS %d estates and %d of %d new road segments fall in chunks that are not hill chunks; older roads: %s" % [orphan_pads, orphan_segs, segs, old_orphans])
+	if OS.get_environment("LIST") == "1":
+		for road in hr.roads:
+			if road.has("pin_points"):
+				for q: Vector2 in road.pin_points:
+					print("PIN %s %.0f,%.0f ground %.0f" % [road.name, q.x, q.y, macro.height_at(q)])
+		var n := 0
+		for m in hr.mansions:
+			if (m.pos as Vector2).y < -700.0 and (m.pos as Vector2).y > -2600.0:
+				var dp: Vector2 = m.get("drive_from", m.pos)
+				print("ESTATE %.0f,%.0f h %.1f road %d drive %.0f m (drive_h %.1f)" % [m.pos.x, m.pos.y, m.height, m.road, dp.distance_to(m.pos), m.get("drive_h", 0.0)])
 	if OS.get_environment("STEEP") != "0":
 		_steep(macro, hr)
 	var out := OS.get_environment("OUT")
@@ -58,10 +103,13 @@ func _steep(macro: MacroMap, hr: HillRoads) -> void:
 	for road in hr.roads:
 		var pts: PackedVector2Array = road.points
 		var reach: float = road.width * 0.5 + HillRoads.BANK_REACH
+		var new: bool = road.get("switchback", false) or road.get("drive", false)
 		for i in pts.size() - 1:
-			spots.append([pts[i], pts[i + 1], reach])
+			spots.append([pts[i], pts[i + 1], reach, new])
 	for m in hr.mansions:
-		spots.append([m.pos, m.pos, HillRoads.PAD_RADIUS + HillRoads.BANK_REACH])
+		spots.append([m.pos, m.pos, HillRoads.PAD_RADIUS + HillRoads.BANK_REACH, m.has("drive_from") and hr.roads[m.road].get("switchback", false)])
+	var new_carved := 0
+	var new_steep := 0
 	for s: Array in spots:
 		var a: Vector2 = s[0]
 		var b: Vector2 = s[1]
@@ -85,10 +133,17 @@ func _steep(macro: MacroMap, hr: HillRoads) -> void:
 				if absf(h - natural) < 0.25:
 					continue
 				carved += 1
+				if s[3]:
+					new_carved += 1
 				var gx := (macro.height_at(p + Vector2(2.0, 0.0)) - macro.height_at(p - Vector2(2.0, 0.0))) / 4.0
 				var gz := (macro.height_at(p + Vector2(0.0, 2.0)) - macro.height_at(p - Vector2(0.0, 2.0))) / 4.0
 				if Vector2(gx, gz).length() > tan(deg_to_rad(60.0)):
 					steep += 1
+					if s[3]:
+						new_steep += 1
+						if OS.get_environment("STEEP_LIST") == "1":
+							print("STEEPCELL %.0f,%.0f slope %.0f deg, carved %.1f m" % [p.x, p.y, rad_to_deg(atan(Vector2(gx, gz).length())), h - natural])
+	print("STEEP_NEW %d of %d carved cells of the switchbacks, driveways and their estates steeper than 60 degrees (%.2f %%)" % [new_steep, new_carved, 100.0 * new_steep / maxf(new_carved, 1.0)])
 	print("STEEP %d of %d carved cells steeper than 60 degrees (%.2f %%)" % [steep, carved, 100.0 * steep / maxf(carved, 1.0)])
 
 

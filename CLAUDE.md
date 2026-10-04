@@ -1150,7 +1150,34 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   degrees almost everywhere, so of its canyon roads only the one up the pass survives (with its
   estates) and the rest are stubs; a branch ramps at up to `JUNCTION_GRADE` for its first
   `JUNCTION_RUN` metres to meet its parent. The walks, branch points and mansion rolls are
-  still made, so the rng stream (and the headland's estates after it) does not move. Chunks
+  still made, so the rng stream (and the headland's estates after it) does not move.
+  **The front range's drives and estates are switchbacks** (roadmap #20, 2026-10-04): after
+  everything above (own rngs, so nothing above moves), `_add_switchbacks()` grows a network of
+  contour-following drives off the kept roads and off each other (`_walk_switchback()`: legs
+  across the slope climbing `SB_GRADE` 8.5 %, hairpins of `HAIRPIN_RADIUS` 13 m turned uphill
+  only on a slope, a slow wander on flat ground, the bed benched `SB_BENCH` into the hillside,
+  every step asked `_sb_daylight()` before it is taken, the whole drive trimmed by
+  `_earthwork_ok()` like any road), plus `Valley Vista Dr` along the inland foot
+  (`_add_north_foot_drive()`, kept in the runs its banks pass). Beds, including pads, keep
+  `BANK_SEPARATION` (1.5 m per metre of height between them) apart rim to rim, or carve() is left
+  two banks that cannot both hold - a step. Estates line them (`_place_estates()` /
+  `_try_estate()`): a pad of `ESTATE_RADII` (17 m, or a 13 m compact one) beside the road or up a
+  4-26 m driveway at up to `DRIVE_GRADE`; a long driveway is a road of its own (`"drive": true`,
+  carved, not drawn as asphalt), and a mansion records `drive_from` / `drive_h` / `radius`
+  (`carve()` and `_pad_ok()` read the radius). The ground is read off a 12 m lattice while they
+  are laid out (`GCACHE_STEP`, `_ground_cached2()`): a walk asks for the same hectares hundreds of
+  times. Drives and estates stay where the mountains stand `SB_MIN_RAW` over the plain, so their
+  chunk is a hill chunk (a chunk's zone is its block centre's). The south face toward the city
+  stays bare: it is steeper than 45 degrees almost everywhere, where neither bank ever meets the
+  ground. `tools/hill_road_probe/hill_road_probe.tscn` counts roads, hairpins and estates, the
+  carved cells steeper than 60 degrees (`STEEP`) and the pieces that fall outside hill chunks, and
+  draws a slope map with the roads (`OUT=`; `SB_DEBUG=1` adds every walk tried); seconds, headless.
+  Estates are built by `CityChunk._build_mansions()`: pad, walls, gate piers, gate, pool and
+  coping are oriented boxes merged into the chunk's boxes (`_merge_box_xf()`), the driveways one
+  strip a chunk, and each side's wall is what the ground beyond it makes it (garden wall, a
+  retaining wall holding the cut, or one dropping down the fill). Hill road strips are mitred at
+  their joints (`HillRoads._mitre()`, `na` / `nb` in `segments_in()`) and each edge vertex sits on
+  the carved ground, so hairpins have no wedge gaps and forks no steps. Chunks
   build water, sand or terrain for non-city
   zones; the water surface is at y 0.15 (above the ground follower plane). To start
   somewhere else for testing: web `?spawn=x,z,yaw,pitch[,y]`, desktop `-- --spawn=x,z,yaw,pitch[,y]`.
