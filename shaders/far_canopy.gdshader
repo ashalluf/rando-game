@@ -12,6 +12,10 @@ render_mode cull_back;
 // same code the plane lifts itself with (the include), with the same inputs, so the two cannot
 // drift apart.
 #include "res://shaders/macro_relief.gdshaderinc"
+// The instance colours are LINEAR (Skyline's palettes): cs_out() hands them to the renderer in
+// its own space, so the web draws them as the Mac does (raw, they were drawn as sRGB numbers there,
+// three times too dark against the near trees and the far ground).
+#include "res://shaders/color_space.gdshaderinc"
 
 // World Y of the ground follower plane itself, before its vertex shader lifts it. CityStreamer
 // keeps the plane at 0.
@@ -135,7 +139,8 @@ void fragment() {
 			discard;
 		}
 	}
-	ALBEDO = tint * shade * (1.0 - rim);
+	// rigid_color is a source_color uniform, already in the renderer's own space.
+	ALBEDO = (rigid ? tint * shade : cs_out(tint * shade)) * (1.0 - rim);
 	EMISSION = sky_tint.rgb * rim;
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;

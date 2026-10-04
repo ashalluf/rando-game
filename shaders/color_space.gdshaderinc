@@ -1,0 +1,54 @@
+// Which colour space this renderer works in, for shaders that do arithmetic on colours rather
+// than pass one straight through.
+//
+// The two renderers disagree (the repo's two-renderer probe, foliage_tex.gdshader's header,
+// re-run for the hills on 2026-10-04 - HANDOFF 9ap):
+//   * Forward+ (the Mac) decodes `source_color` uniforms (their defaults too) and `source_color`
+//     textures from sRGB to linear, and lights in linear.
+//   * Compatibility (the web build, the opengl3 stills) hands both over RAW and lights the raw
+//     numbers: it works in sRGB.
+//   * Plain uniforms, vertex colours and MultiMesh instance colours arrive raw on both.
+// So a number in a plain uniform means a LINEAR albedo on Forward+ and an sRGB one on
+// Compatibility, and a `source_color` uniform written as a linear number is decoded a SECOND
+// time on Forward+: 0.150 becomes 0.020, seven times darker and far more saturated. That was the
+// horizon plane's whole palette until 2026-10-04 - the far mountains drew near-black olive on the
+// Mac against the near hills' straw.
+//
+// The rule for any shader that includes this: work in LINEAR on both renderers - colour
+// constants in plain uniforms written as linear numbers, every `source_color` texture sample and
+// uniform passed through cs_in() - and hand the renderer its own space at the very end with
+// cs_out() (ALBEDO, EMISSION, BACKLIGHT). On Forward+ both are no-ops; on Compatibility they are
+// the sRGB transfer function, so the web draws the albedo the Mac does.
+// Include it once per shader (it declares a uniform). Shader includes use // comments.
+
+// Never set from script. 0.5 authored as sRGB decodes to 0.214 on a renderer that decodes, so a
+// value still near 0.5 means this one did not.
+uniform vec3 color_space_probe : source_color = vec3(0.5, 0.5, 0.5);
+
+
+bool cs_linear_renderer() {
+	return color_space_probe.r < 0.35;
+}
+
+
+vec3 cs_srgb_to_linear(vec3 c) {
+	return mix(c / 12.92, pow((max(c, vec3(0.0)) + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
+
+
+vec3 cs_linear_to_srgb(vec3 c) {
+	c = max(c, vec3(0.0));
+	return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+}
+
+
+// A `source_color` texture sample or uniform, as linear light, on either renderer.
+vec3 cs_in(vec3 c) {
+	return cs_linear_renderer() ? c : cs_srgb_to_linear(c);
+}
+
+
+// A linear albedo or emission, in the space this renderer lights and writes.
+vec3 cs_out(vec3 c) {
+	return cs_linear_renderer() ? c : cs_linear_to_srgb(c);
+}

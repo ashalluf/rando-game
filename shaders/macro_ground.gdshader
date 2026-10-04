@@ -19,6 +19,8 @@ render_mode cull_back;
 // macro_height, lift_start, lift_end, world_offset, relief_*, flats_amplitude, detail_lod) live
 // in the include, so Skyline's far planting sits on exactly this surface.
 #include "res://shaders/macro_relief.gdshaderinc"
+// Linear on both renderers (cs_in / cs_out): see the natural ground's colours below.
+#include "res://shaders/color_space.gdshaderinc"
 
 // Close to the camera the plane is the ground the player is standing on, so a real texture
 // takes over, tinted by whatever the macro map says is there.
@@ -104,16 +106,16 @@ uniform float cloud_height = 900.0;
 uniform float cloud_speed = 7.0;
 
 // ---- natural ground -------------------------------------------------------------------------
-// These are LINEAR values, not what a colour picker would show, because that is what the
-// baked map decodes to: `macro_tex` is a source_color sampler, so MacroMap's Color(0.216, ...)
-// arrives here as 0.038. Writing these the way they look in a picker makes the synthesized
-// hillsides four or five times brighter than the basin they stand in, with a hard bright line
-// along the foot of every range. The numbers below sit inside the range MacroMap's own palette
-// decodes to - see the comment on BAKE_GRASS there.
-uniform vec3 rock_color : source_color = vec3(0.100, 0.096, 0.088);
-uniform vec3 scree_color : source_color = vec3(0.150, 0.130, 0.100);
-uniform vec3 scrub_color : source_color = vec3(0.042, 0.047, 0.029);
-uniform vec3 dry_grass_color : source_color = vec3(0.138, 0.117, 0.068);
+// These are LINEAR albedos, in PLAIN uniforms (no source_color): the shader works in linear on
+// both renderers (color_space.gdshaderinc) - the baked map's sRGB palette is decoded with cs_in()
+// - and hands the renderer its own space at the end. Until 2026-10-04 they carried source_color,
+// so Forward+ decoded the linear numbers a second time (0.150 straw arrived as 0.020) and the far
+// mountains drew near-black olive on the Mac against the near hills' straw, while Compatibility,
+// which decodes nothing, looked fine in every opengl3 still (HANDOFF 9ap).
+uniform vec3 rock_color = vec3(0.100, 0.096, 0.088);
+uniform vec3 scree_color = vec3(0.150, 0.130, 0.100);
+uniform vec3 scrub_color = vec3(0.042, 0.047, 0.029);
+uniform vec3 dry_grass_color = vec3(0.138, 0.117, 0.068);
 // The grass above is the near hills' own (terrain.gdshader's straw, averaged over its tufts and
 // bare ground) so the plane matches the streamed tiles where the renderer lights both; the
 // painted band beyond keeps the darker look it was tuned to by this much.
@@ -127,15 +129,15 @@ uniform float paint_end = 2300.0;
 // terrain.gdshader's own numbers, for the band where this plane meets the streamed hill tiles
 // and draws their stands, straw and slopes rather than a smoothed average of them (see
 // `stands` in the natural ground): keep them equal to the terrain's.
-uniform vec3 straw_color : source_color = vec3(0.150, 0.124, 0.074);
-uniform vec3 straw_green_color : source_color = vec3(0.106, 0.100, 0.064);
+uniform vec3 straw_color = vec3(0.150, 0.124, 0.074);
+uniform vec3 straw_green_color = vec3(0.106, 0.100, 0.064);
 uniform float topo_weight : hint_range(0.0, 1.0) = 0.8;
 uniform float tile_dirt_slope_start = 0.42;
 uniform float tile_dirt_slope_end = 0.62;
 uniform float tile_rock_slope_start = 0.5;
 uniform float tile_rock_slope_end = 0.72;
 uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
-uniform vec3 snow_color : source_color = vec3(0.58, 0.60, 0.66);
+uniform vec3 snow_color = vec3(0.58, 0.60, 0.66);
 // The light the ground in front of a slope bounces back up into it. A hue, not an albedo.
 uniform vec3 bounce_color : source_color = vec3(0.62, 0.52, 0.34);
 // Slope at which bare rock starts and finishes taking over from the scrub.
@@ -168,15 +170,15 @@ uniform float city_block = 104.0;
 uniform float city_street = 13.0;
 // One block in this many is an avenue, in each direction.
 uniform float city_avenue_every = 6.0;
-uniform vec3 city_street_color : source_color = vec3(0.0125, 0.0125, 0.0143);
+uniform vec3 city_street_color = vec3(0.0125, 0.0125, 0.0143);
 // A flat white single-ply roof. Six times the district's own value, which is why a real city
 // sparkles from the air.
-uniform vec3 white_roof_color : source_color = vec3(0.22, 0.22, 0.21);
+uniform vec3 white_roof_color = vec3(0.22, 0.22, 0.21);
 // How much the roofs vary block to block. This is most of what makes sprawl read as sprawl.
 uniform float roof_variation : hint_range(0.0, 1.0) = 0.62;
 // How far a block throws its shadow into the street behind it, as a fraction of a block.
 uniform float block_shadow : hint_range(0.0, 1.0) = 0.55;
-uniform vec3 canopy_color : source_color = vec3(0.022, 0.030, 0.012);
+uniform vec3 canopy_color = vec3(0.022, 0.030, 0.012);
 // At night the built-up ground out there is not dark ground, it is a field of orange points.
 uniform vec3 city_light_color : source_color = vec3(1.0, 0.70, 0.36);
 uniform float city_light_strength : hint_range(0.0, 3.0) = 0.30;
@@ -240,7 +242,7 @@ void vertex() {
 		// chunks the plane stands the built-up ground up by a few storeys, which is what gives
 		// the far city an edge against the hills behind it.
 		float slope = clamp(length(mg) * macro_height, 0.0, 1.0);
-		lift += urban_lift * built_amount(m.rgb, slope, m.a * macro_height)
+		lift += urban_lift * built_amount(cs_in(m.rgb), slope, m.a * macro_height)
 			* smoothstep(urban_lift_start, urban_lift_end, d) * (1.0 - wet);
 	}
 	float off = lift - far_ground_sink(d, wet);
@@ -274,6 +276,17 @@ void fragment() {
 	vec2 uv = macro_uv(w);
 	vec2 mg = vec2(0.0);
 	vec4 m = macro_sample(uv, mg);
+	// The bake is an sRGB palette (MacroMap.BAKE_*): linear from here on, on either renderer.
+	m.rgb = cs_in(m.rgb);
+	// The same for every source_color input this shader does arithmetic with.
+	vec3 haze = cs_in(haze_color);
+	vec3 sun_c = cs_in(sun_color);
+	vec3 bounce_c = cs_in(bounce_color);
+	vec3 city_light_c = cs_in(city_light_color);
+	vec3 smog_c = cs_in(smog_color);
+	// The sky's horizon colour, as the renderer has it (for the rim, which hands over to the sky
+	// itself) and as linear light (for the fill).
+	vec3 sky_ws = sky_tint.rgb;
 
 	vec3 eye = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	vec3 view = normalize(world_pos - eye);
@@ -290,7 +303,7 @@ void fragment() {
 	float fp = max(dist * pixel_angle * graze, 0.02);
 	bool rich = ground_detail > 0.5;
 	vec3 L = normalize(sun_dir);
-	vec3 sky = mix(sky_tint.rgb, vec3(1.0), 0.12);
+	vec3 sky = mix(cs_in(sky_ws), vec3(1.0), 0.12);
 	float water = 1.0 - step(0.0005, m.a);
 	float near = (1.0 - smoothstep(near_fade_start, near_fade_end, dist)) * (1.0 - water);
 	// How much of this point is painted by hand rather than lit by the renderer (see the split
@@ -330,7 +343,7 @@ void fragment() {
 		vec3 refl = reflect(view, n);
 		float glare = pow(max(dot(refl, L), 0.0), 70.0);
 		float glint = pow(max(dot(refl, L), 0.0), 900.0) * chop;
-		base = mix(m.rgb, haze_color, clamp(0.10 + 0.78 * fres, 0.0, 0.92));
+		base = mix(m.rgb, haze, clamp(0.10 + 0.78 * fres, 0.0, 0.92));
 		base += vec3(1.0, 0.94, 0.82) * (glare * sea_glitter + glint * sea_glitter * 6.0)
 			* (1.0 - night_factor) * cloud_shade(w, L);
 		rough = 0.22;
@@ -502,7 +515,7 @@ void fragment() {
 			// MacroMap bakes the denser districts darker, so the darker the ground the more
 			// lit it gets: downtown blazes, the far suburbs are a sparse orange dust.
 			float density = clamp((0.042 - dot(m.rgb, vec3(0.3333))) / 0.013, 0.30, 1.0);
-			glow = city_light_color * (city_light_strength * built * density
+			glow = city_light_c * (city_light_strength * built * density
 				* (lamps + windows * 0.85) * smoothstep(0.08, 0.55, night_factor));
 		}
 
@@ -533,9 +546,9 @@ void fragment() {
 		float ndl = max(dot(n, L), 0.0);
 		// Sky fill from above, warm bounce from below: a slope facing away from the sun is lit
 		// by the sky and by the ground in front of it, not by a flat grey constant.
-		vec3 sun_in = sun_color * mix(vec3(1.0), sky, 0.18) * (sun_strength * ndl);
+		vec3 sun_in = sun_c * mix(vec3(1.0), sky, 0.18) * (sun_strength * ndl);
 		vec3 fill = sky * (ambient_strength * (0.55 + 0.45 * n.y))
-			+ bounce_color * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
+			+ bounce_c * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
 		lit = sun_in * sun_vis + fill;
 		// Where the renderer lights this plane its shadow maps have run out (500 m), so the
 		// ridges threw no shadow between there and the painted band. Take the direct share the
@@ -556,7 +569,7 @@ void fragment() {
 		// Use the detail texture for its light and shade only, not its colour: it is a grass
 		// photograph, and letting its green through painted a green verge along the beach and
 		// over the sea. The synthesized ground colour stays in charge.
-		vec3 detail = texture(near_albedo, w / near_scale).rgb;
+		vec3 detail = cs_in(texture(near_albedo, w / near_scale).rgb);
 		float lum = dot(detail, vec3(0.3333));
 		base = mix(base, base * (0.70 + 0.62 * lum), near);
 		nm = mix(nm, texture(near_normal, w / near_scale).rgb, near);
@@ -564,13 +577,13 @@ void fragment() {
 
 	float hz = smoothstep(haze_start, haze_end, dist) * haze_strength;
 	float dim = mix(1.0, 0.16, night_factor);
-	vec3 albedo = mix(base * shade, haze_color, hz) * dim;
-	vec3 emitted = mix(base_e * lit, haze_color, hz) * dim + glow * (1.0 - hz);
+	vec3 albedo = mix(base * shade, haze, hz) * dim;
+	vec3 emitted = mix(base_e * lit, haze, hz) * dim + glow * (1.0 - hz);
 	if (smog > 0.002) {
 		float under = 1.0 - smoothstep(smog_lid * 0.35, smog_lid, world_pos.y);
 		float sm = smog * under * (1.0 - exp(-dist / smog_reach));
-		albedo = mix(albedo, smog_color * dim, sm);
-		emitted = mix(emitted, smog_color * dim, sm);
+		albedo = mix(albedo, smog_c * dim, sm);
+		emitted = mix(emitted, smog_c * dim, sm);
 	}
 
 	// Beyond the detail band this plane is a painted horizon, not a surface: past the near band
@@ -582,8 +595,9 @@ void fragment() {
 	// unlit `base` and a `lit` term is what lets one shader do both without double-lighting the
 	// near ground or leaving the far ground at the mercy of the ambient.
 	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - eye.xz));
-	ALBEDO = albedo * (1.0 - painted) * (1.0 - rim);
-	EMISSION = mix(emitted * painted, sky_tint.rgb, rim);
+	// Linear up to here; the renderer's own space from here (a no-op on Forward+).
+	ALBEDO = cs_out(albedo * (1.0 - painted) * (1.0 - rim));
+	EMISSION = mix(cs_out(emitted * painted), sky_ws, rim);
 	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25 * painted);
 	METALLIC = 0.0;
 	// The tiles' default 0.5 where the renderer lights this plane: at 0.15 Godot also cuts the

@@ -41,24 +41,19 @@ extends Node3D
 ## Blocks per tile edge. Bigger means fewer draw calls and coarser culling granularity.
 const TILE_BLOCKS := 6
 ## Points a hill block tries a planting at (HillPlanting reads what the terrain paints there: a
-## chaparral stand gets a low mound of brush, a hollow an oak, rock and bare cuts nothing), at
-## full cover, falling to zero at the rock line. It was ten tall round clumps anywhere on the
-## block, which from the basin read as dots on a bare hill rather than as brush.
+## hollow on a gentle canyon floor gets an oak or a sycamore, everything else nothing). At full
+## cover, falling to zero at the rock line.
+## The far tier plants NO chaparral (2026-10-04). It drew a low mound of brush on every stand,
+## 9-22 m across and 2-3 m tall: from the air, a kilometre or two out, each was a 6 x 3 pixel
+## blob, lit by the renderer against a far ground that paints its own light and its ridges'
+## shadows - the dark dashes across every range. The brush out there is the ground's: the tiles'
+## stands and the horizon plane's, on the same field, with their light and shade.
 const HILL_TRIES := 28
-## A far chaparral mound: radius and height ranges in metres, and the oaks'.
-## A mound grows toward the top of its range deeper into a stand, so a stand's heart is one
-## overlapping mass and its edge a few loose shrubs; and nothing below `HILL_MOUND_MIN` brush.
-const HILL_MOUND_RADIUS := Vector2(4.5, 11.0)
-const HILL_MOUND_MIN := 0.72
-const HILL_MOUND_HEIGHT := Vector2(2.0, 3.4)
+## The oaks' radius and height ranges in metres.
 const HILL_OAK_RADIUS := Vector2(3.5, 5.5)
 const HILL_OAK_HEIGHT := Vector2(5.5, 8.0)
-## Chaparral and oak canopy colours (LINEAR, what far_canopy.gdshader multiplies its shade by):
-## the terrain shader's `chaparral_color` lifted about threefold, since a mound's top is sunlit
-## brush where the painted stand averages in the shade between the bushes (at half this, the
-## mounds measured 44/255 against the painted stand's 78 and read as holes in the hill). The
-## oaks darker and greener.
-const HILL_BRUSH_COLOR := Color(0.17, 0.18, 0.12)
+## The oak canopy colour (LINEAR, what far_canopy.gdshader multiplies its shade by): the live
+## oaks' and sycamores' darker, greener green against the dusty chaparral round them.
 const HILL_OAK_COLOR := Color(0.11, 0.14, 0.065)
 ## Street trees: metres between them along a kerb (the chunks plant every
 ## CityStreamer.tree_spacing x CityChunk.street_tree_spacing, about 10 m) - the far city plants
@@ -841,29 +836,14 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 				continue
 			var hollow := HillPlanting.hollow(p, gy, step * 1.5, _lat_h.bind(lat))
 			var wet := clampf((hollow - 0.03) / 0.06, 0.0, 1.0)
-			var up := Vector3(-grad.x, 1.0, -grad.y).normalized().lerp(Vector3.UP, 0.35).normalized()
-			var basis := Basis(Quaternion(Vector3.UP, up)) * Basis(Vector3.UP, float(absi(hs) % 628) * 0.01)
-			var size := _roll(hs, "s")
-			var tone := _roll(hs, "v")
-			var r: float
-			var th: float
-			var col: Color
-			if wet > 0.0 and float(g.slope) < 0.4 and _roll(hs, "o") < 0.45 * wet:
-				# An oak or sycamore in the hollow: taller, rounder, darker.
-				r = lerpf(HILL_OAK_RADIUS.x, HILL_OAK_RADIUS.y, size)
-				th = lerpf(HILL_OAK_HEIGHT.x, HILL_OAK_HEIGHT.y, size)
-				col = HILL_OAK_COLOR * lerpf(0.85, 1.2, tone)
-				basis = Basis(Vector3.UP, float(absi(hs) % 628) * 0.01)
-			elif clampf(float(g.brush) + wet * 0.3, 0.0, 1.0) > HILL_MOUND_MIN:
-				# A mound of chaparral, draped on the slope, biggest in the heart of the stand.
-				var deep := clampf((float(g.brush) + wet * 0.3 - HILL_MOUND_MIN) / (1.0 - HILL_MOUND_MIN), 0.0, 1.0)
-				r = lerpf(HILL_MOUND_RADIUS.x, HILL_MOUND_RADIUS.y, clampf(deep * 0.7 + size * 0.3, 0.0, 1.0))
-				th = lerpf(HILL_MOUND_HEIGHT.x, HILL_MOUND_HEIGHT.y, _roll(hs, "t"))
-				col = HILL_BRUSH_COLOR * lerpf(0.8, 1.25, tone)
-				# Sage-grey on some stands, olive on others, as they dry out up the slope.
-				col = col.lerp(Color(col.r * 1.25, col.g * 1.1, col.b * 1.3), _roll(hs, "g") * (1.0 - cover_amount))
-			else:
+			if not (wet > 0.0 and float(g.slope) < 0.4 and _roll(hs, "o") < 0.45 * wet):
 				continue
+			# An oak or sycamore in the hollow: taller, rounder, darker than the brush round it.
+			var size := _roll(hs, "s")
+			var r := lerpf(HILL_OAK_RADIUS.x, HILL_OAK_RADIUS.y, size)
+			var th := lerpf(HILL_OAK_HEIGHT.x, HILL_OAK_HEIGHT.y, size)
+			var col := HILL_OAK_COLOR * lerpf(0.85, 1.2, _roll(hs, "v"))
+			var basis := Basis(Vector3.UP, float(absi(hs) % 628) * 0.01)
 			# Alpha is the block's dissolve (far_canopy.gdshader dithers below 1), not part of the tint.
 			col.a = 1.0
 			# Only a first guess at the height where the far plane is the ground: far_canopy.gdshader

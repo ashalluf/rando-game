@@ -12,7 +12,11 @@ extends Node
 ##
 ## EYE=x,y,z,yaw,pitch (TRUE world; y is metres over the ground there), FOV (vertical), OUT,
 ## FRAMES (default 12), BLOCKS (chunks each way round the eye, default 1), SUN=pitch,yaw degrees,
-## SHOTS="x,y,z,yaw,pitch;..." more eyes from the same build (OUT_1.png, ...), NOSHELLS=1 hides
+## SHOTS="x,y,z,yaw,pitch;..." more eyes from the same build (OUT_1.png, ...), LOD=n adds a ring of
+## LOD chunks out to n blocks, CENTRE=x,z builds the chunks round that point instead of the eye,
+## GROUND=1 adds the horizon plane (CityStreamer's own material and bake) so the seam between the
+## tiles and the far ground can be judged without the city (small enough for lavapipe), HILLS_ONLY=1
+## builds only the hill blocks of the ring, NOSHELLS=1 hides
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
 ## triangles and draws, SHELL_DEBUG=1 draws
@@ -65,25 +69,61 @@ func _ready() -> void:
 	var chunk_script: GDScript = load("res://scripts/world/city_chunk.gd")
 	var blocks := int(OS.get_environment("BLOCKS")) if OS.get_environment("BLOCKS") != "" else 1
 	var out := OS.get_environment("OUT") if OS.get_environment("OUT") != "" else "hill_ground.png"
+	# LOD=n: a ring of LOD chunks out to n blocks round the FULL ones (the game's second tier).
+	var lod_blocks := int(OS.get_environment("LOD")) if OS.get_environment("LOD") != "" else blocks
+	# GROUND=1: the horizon plane too (CityStreamer's own ground material and bake), so the seam
+	# between the hill tiles and the far ground can be judged without the city.
+	var ground: MeshInstance3D = null
+	var ground_mat: ShaderMaterial = null
+	if OS.get_environment("GROUND") == "1":
+		city.set("plan", plan)
+		ground_mat = city.call("_build_ground_material")
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(city.ground_size, city.ground_size)
+		var subdiv: int = (city.get_script() as GDScript).get_script_constant_map()["GROUND_SUBDIVISIONS"]
+		plane.subdivide_width = subdiv
+		plane.subdivide_depth = subdiv
+		ground = MeshInstance3D.new()
+		ground.name = "Ground"
+		ground.mesh = plane
+		ground.material_override = ground_mat
+		ground.extra_cull_margin = city.ground_size
+		ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(ground)
+		if sun:
+			ground_mat.set_shader_parameter("sun_dir", sun.global_basis.z)
 	for k in eyes.size():
 		var p: PackedStringArray = (eyes[k] as String).split(",")
 		var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float())
 		at.y += plan.height_at(Vector2(at.x, at.z))
-		var home: Vector2i = plan.block_index_at(Vector2(at.x, at.z))
-		for dz in range(-blocks, blocks + 1):
-			for dx in range(-blocks, blocks + 1):
+		# CENTRE=x,z: the chunks are built round this point instead of the eye (to look at a ring's
+		# edge from outside it).
+		var centre := Vector2(at.x, at.z)
+		if OS.get_environment("CENTRE") != "":
+			var cp := OS.get_environment("CENTRE").split(",")
+			centre = Vector2(cp[0].to_float(), cp[1].to_float())
+		var home: Vector2i = plan.block_index_at(centre)
+		for dz in range(-lod_blocks, lod_blocks + 1):
+			for dx in range(-lod_blocks, lod_blocks + 1):
 				var bk := Vector2i(home.x + dx, home.y + dz)
 				if built.has(bk):
+					continue
+				# HILLS_ONLY=1: hill blocks only (the city's blocks are the slow part of a build, and
+				# the horizon plane draws them anyway).
+				if OS.get_environment("HILLS_ONLY") == "1" and plan.zone_at((plan.block(bk.x, bk.y).rect as Rect2).get_center()) != MacroMap.Zone.HILLS:
 					continue
 				var ch = chunk_script.new()
 				ch.plan = plan
 				ch.ix = bk.x
 				ch.iz = bk.y
-				ch.level = 0
+				ch.level = 0 if maxi(absi(dx), absi(dz)) <= blocks else 1
 				ch.style = style
 				add_child(ch)
 				ch.build()
 				built[bk] = ch
+		if ground:
+			var gstep: float = city.call("ground_step")
+			ground.position = Vector3(snappedf(at.x, gstep), 0.0, snappedf(at.z, gstep))
 		if OS.get_environment("NOSHELLS") == "1":
 			get_tree().call_group("hill_shells", "set_visible", false)
 		cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
