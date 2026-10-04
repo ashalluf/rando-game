@@ -4290,3 +4290,71 @@ On a GPU that is ALU on storefront pixels only; it has not been profiled on the 
 - The midtown oblique shot was not rendered (the render job hit its time limit); its night pair
   shows both shops closed, so the night comparison is downtown's.
 
+
+## 9au. The Pacific and the beach, 2026-10-04 (agent branch `wt/ocean`)
+
+The brief (lead, from the owner's "make the graphics a million times better"): make the coast
+read like Santa Monica / Redondo in a 2026 game - breaking surf along the whole waterline, the
+swash running up the sand and draining back, colour by depth, kelp, sun glitter, the backs of
+waves glowing at golden hour, the pier and the city in the water at night, storm surf, spray.
+CLAUDE.md's "Surf and beach" note is the reference; this is the story.
+
+**What was there.** Gerstner swells with crest foam and a fresnel sky mix; the "surf" was two
+bands of `sin(shore)` foam sliding toward the sand and a 14 m white wash painted over the last
+of the water, so from standing height the near sea was a white smear. The sky reflection was in
+ALBEDO, so it was lit by the sun: fine at noon, black at sunset (the golden-hour still was a
+brown-black sea under an orange sky) and nothing at night (the pier stood over a black void).
+And every street that ran into the sea left a hole in the beach: the sand was laid over the
+block's rect only, and the sea chunk's flat water plane showed through the road strip - the
+"beach at noon" bookmark first landed the camera standing in one, up to its knees in sea.
+
+**What it is now.**
+- One wave model, `shaders/surf.gdshaderinc` (header explains it), shared by the ocean, the sand
+  and the spray and mirrored by `Surf` (scripts/world/surf.gd). Waves are crests parallel to the
+  shore, each with its own height (sets of bigger waves, sections along the shore), standing up
+  to a break point that grows with the wave, throwing a lip there and running in as a bore that
+  shrinks to nothing at the waterline. Weather sets two globals from the wave scale
+  (`Surf.params()`), so a storm is 2.9 m surf breaking 103 m out, a clear day 0.9 m at 38 m.
+- Ocean vertex: the surf's height and lip in the zone (the way to the land is the gradient of
+  `shore_distance()`), with analytic derivatives so the normal and the fold see it; the swell
+  hands down to 30 % there. Fragment: whitewater from the same wave (bore face, trail, lip,
+  feathering, a warped net of old lace), breaking in sections that peel along the crest, the
+  light through each standing face (warm jade when backlit at golden hour), kelp beds, sandy
+  shallows that match the swash sheet at the seam. The mirror is EMITTED and the body lit.
+- At night (`lamp_factor`) the piers' lamp rows (`Weather.pier_light_lines()`: the old pier,
+  Manhattan's two rows, Redondo's horseshoe as two legs and three chords) and a wall of city
+  light `city_front` inland are mirrored by intersecting the reflected ray with their vertical
+  plane, smeared into columns by the ripple the pixel cannot resolve.
+- Sand: `shaders/beach_sand.gdshader`, the old pbr sand plus the swash (sheet, foam line and
+  web, fizz, wet glossy sand after it, rain through `road_wetness`). UV2 on the sand mesh is the
+  metres from the waterline. The sand now covers the +Z street strip and dips under its road.
+- Spray: one MultiMesh of quads per FULL shoreline chunk, puffed in the shader as each wave
+  breaks; between waves every quad is transparent.
+
+**Stills** (opengl3, 960x540, `still_shot.gd`; `shots/ocean` branch, README there):
+- Esplanade bluff looking down: `EYE=-458,15.5,3380,100,-14 FOV=60 --spawn=-458,3380,100,-14
+  --hour=12`, and zoomed `-458,15.5,3380,100,-9` at FOV 28.
+- Beach at noon near the waterline: `EYE=-732,2.1,800,105,-4` (z 800, 6 m up the sand).
+- Golden hour toward the sun: `-732,2.1,800,92,-1` at `--hour=18` and at 17.6 (at 18:00 the sun
+  is on the horizon due west, so 17.6 is the one with the glitter path).
+- The pier at night: `-712,2.2,1000,130,-2` at 21.5 (Manhattan pier).
+- Storm: the beach view and the bluff with `--weather=storm`.
+All in one load with `SHOTS=` (see the README for the exact command).
+
+**Cost.** See the GEO lines in the README; the ocean adds no geometry (same plane), the sand
+mesh is three more rows a chunk, the spray one draw and ~20 quads per FULL shoreline chunk. ALU:
+the surf's vertex work runs only inside the zone (2 extra shore distances and 2 surf
+evaluations a vertex there); the fragment's whitewater only inside it; the night lights only at
+night; kelp only where `ground_detail` is on.
+
+**Not done / not verified.**
+- Forward+ (Mac): the emitted reflection's exposure against the lit sand, SSR on the swash sheet
+  doubling the emitted mirror, TAA on the lace. Opengl3 only here.
+- The spray is hard to see in a 1 fps harness still (each puff lives 2.6 s of shader TIME and
+  the stills hold TIME nearly still); judge it on the Mac at the beach.
+- The surf runs wherever there is a shore distance: the headland's cliffs get it too (plausible),
+  the harbour basin by the port may show a faint surf line near the bay's north shore.
+- Where the sea plane meets the sand there is still a short stair-step line under some angles
+  (the coarse water mesh crossing a 2-degree sand slope); the matched colours hide most of it.
+- The far plane (past ~470 m) still paints its own surf band from the bake; there is no
+  breaking surf in the far tier.

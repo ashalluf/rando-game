@@ -98,8 +98,8 @@ uniform float weather_dark : hint_range(0.0, 1.0) = 0.0;
 // the sun is low behind it (surf_backlight, scaled up toward golden hour by surf_golden).
 uniform vec3 whitewater_color = vec3(0.80, 0.85, 0.88);
 uniform vec3 surf_face_color = vec3(0.030, 0.200, 0.170);
-uniform float surf_backlight = 1.4;
-uniform float surf_golden = 3.0;
+uniform float surf_backlight = 1.0;
+uniform float surf_golden = 1.2;
 // How much of the inner surf zone keeps a lace of old foam between the bores (0..1).
 uniform float surf_lace = 0.55;
 // Kelp beds (LINEAR): dark olive-brown patches that sit a little off the surf, calm the chop over
@@ -703,7 +703,7 @@ void fragment() {
 		float bore_face = front ? smoothstep(0.05, 0.45, face_m) : 0.0;
 		float trail = front ? 0.0 : exp(-back_m / (4.0 + 6.0 * g));
 		float bore = broken * density * max(bore_face * smoothstep(0.18, 0.55, tex + 0.25 * face_m),
-			trail * smoothstep(0.40, 0.72, tex + 0.22 * trail));
+			trail * smoothstep(0.50, 0.64, tex + 0.15 * trail));
 		float at_break = smoothstep(0.82, 1.0, sig) * (1.0 - smoothstep(1.0, 1.15, sig));
 		float lip = at_break * smoothstep(0.72, 0.97, shape) * (front ? 1.0 : smoothstep(0.06, 0.0, u))
 			* smoothstep(0.2, 0.5, tex);
@@ -714,10 +714,13 @@ void fragment() {
 		vec2 lp = vec2(along, shore) * 0.55 + vec2(0.0, TIME * 0.04);
 		vec2 warp = vec2(surf_noise(lp * 0.21 + 3.0), surf_noise(lp * 0.21 + 7.0)) - 0.5;
 		float ln = surf_noise(lp + warp * 2.6);
-		float lw = mix(0.035, 0.12, fade_fine);
+		// Lines under a pixel (by the screen derivative, so grazing views fade too) are their
+		// average.
+		float lpx = clamp((length(fwidth(lp)) - 0.12) / 0.4, 0.0, 1.0);
+		float lw = mix(0.035, 0.12, lpx);
 		float lace_line = 1.0 - smoothstep(lw * 0.35, lw, abs(ln - 0.5));
+		lace_line = mix(lace_line, 0.16, lpx);
 		lace_line *= smoothstep(0.38, 0.62, surf_noise(lp * 0.13 + 11.0));
-		lace_line = mix(lace_line, 0.16, smoothstep(60.0, 160.0, dist));
 		float inner = 1.0 - smoothstep(surf_shape.w * 0.7, surf_shape.w * 1.15, shore);
 		float lace = lace_line * inner * surf_lace * (0.45 + 0.55 * exp(-back_m / 14.0)) * (front ? 0.5 : 1.0);
 		ww = clamp(max(max(bore, lip), max(feather, lace)), 0.0, 1.0) * (0.85 + 0.15 * sea);
@@ -725,7 +728,7 @@ void fragment() {
 			* smoothstep(0.1, 0.5, menv * g);
 		// Lit through by the sun: green water filtering whatever colour the sun is, so the golden
 		// hour's glow is a warm jade rather than a neon teal.
-		vec3 through = surf_face_color * mix(vec3(1.0), vec3(1.6, 0.95, 0.55), golden);
+		vec3 through = mix(surf_face_color, vec3(0.16, 0.17, 0.05), golden * 0.7);
 		col = mix(col, surf_face_color * sky_light, face_glow * 0.55 * (1.0 - night_factor));
 		glow += through * face_glow * surf_backlight * (0.25 + back * (1.0 + surf_golden * golden))
 			* (1.0 - night_factor);

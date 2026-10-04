@@ -126,6 +126,9 @@ float surf_height_at(vec2 p, float s, float phi, out float lip, out float u, out
 	float at_break = smoothstep(0.80, 1.0, sig) * (1.0 - smoothstep(1.0, 1.25, sig));
 	float face = u > 0.70 ? smoothstep(0.70, 1.0, u) : smoothstep(0.12, 0.0, u);
 	lip = surf_extra.y * h0 * g * at_break * face * smoothstep(0.35, 1.0, shape);
+	// Never thrown further than the face is wide: past that the mesh folds through itself and
+	// a far break line is drawn as a row of torn rectangles.
+	lip = min(lip, 0.35 * wf * max(surf_shape.y, 1.0));
 	// Mean level is held: the troughs sit a fifth of the mean face under it.
 	return h0 * (g * env * shape - 0.22 * mean_env);
 }
@@ -167,7 +170,9 @@ float surf_swash(vec2 p, float up, float t, out float front, out float wet, out 
 				sheet = depth;
 				rush = x < 0.327 ? 1.0 : -1.0;
 			}
-			front = max(front, 1.0 - smoothstep(0.0, 0.9 + 0.5 * g, d));
+			// 1 at the edge, falling to 0 three metres behind it: the foam line and the web of
+			// bubbles it trails.
+			front = max(front, 1.0 - smoothstep(0.0, 2.0 + 1.0 * g, d));
 			wet = 1.0;
 		} else if (up < reach && x > 0.327) {
 			// Uncovered on the way back down: when did the edge pass here?

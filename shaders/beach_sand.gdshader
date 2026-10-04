@@ -97,8 +97,10 @@ void fragment() {
 		// Foam: a thin web of bubble lines along the moving edge (thin lines where warped noise
 		// crosses its middle, never blobs), a fine fizz through the uprush. Under a pixel both
 		// are drawn as their average.
-		float px = clamp(dist / 60.0, 0.0, 1.0);
 		vec2 wp = tw * 2.4 + vec2(rush * TIME * 0.8, 0.0);
+		// How many web cells a pixel spans (the screen derivative, so a grazing view, where a
+		// pixel is long down the beach, fades as it should).
+		float px = clamp((length(fwidth(wp)) - 0.25) / 0.6, 0.0, 1.0);
 		vec2 warp = vec2(surf_noise(wp * 0.37 + 2.0), surf_noise(wp * 0.37 + 6.0)) - 0.5;
 		float web = surf_noise(wp + warp * 2.2);
 		float lw = mix(0.05, 0.16, px);
@@ -106,8 +108,9 @@ void fragment() {
 		lines = mix(lines, 0.3, px * px);
 		float fizz = rich ? smoothstep(0.80, 0.92, surf_noise(tw * 9.0 + vec2(TIME * 0.5, 0.0))) : 0.0;
 		fizz = mix(fizz, 0.08, px);
-		float band = front * front;
-		float edge = band * max(lines, smoothstep(0.85, 1.0, front) * 0.55);
+		// The foam line itself (the last ~30 cm of the sheet), and the web behind it.
+		float line = smoothstep(0.86, 0.95, front) * mix(0.75, 1.0, surf_noise(tw * vec2(0.8, 3.0)));
+		float edge = max(line, lines * pow(front, 1.5) * 0.85);
 		float bubbles = sh * max(rush, 0.0) * fizz * 0.5;
 		lace = clamp(max(edge, bubbles), 0.0, 1.0);
 		lace *= 1.0 - smoothstep(swash_distance * 0.5, swash_distance, dist);

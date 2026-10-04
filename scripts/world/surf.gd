@@ -15,7 +15,7 @@ const LENGTH := 24.0
 const PERIOD := 8.0
 const BREAK := 38.0
 const RUNUP := 12.0
-const LIP := 0.85
+const LIP := 0.6
 const SWASH_PERIODS := 1.3
 ## GLSL surf_wave_gain(): a wave's height share runs from H_LO to H_LO + H_SPAN.
 const H_LO := 0.62

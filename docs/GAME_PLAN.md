@@ -278,6 +278,14 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-04 The coast has breaking surf, a swash on the sand and lights in the water at night**
+  (owner: "make the graphics a million times better"; lead: "the Pacific and the beach, AAA").
+  One wave model (`shaders/surf.gdshaderinc`, `Surf`) drives the ocean's surf, the sand's swash
+  and the spray, from shader TIME and two globals Weather sets from the wave scale - storm surf
+  in storms. The sea's sky reflection is emitted, not lit (the sunset sea was black). Lamps on the
+  piers and the city are mirrored on the water at night. The sand now covers every street end
+  along the coast. Particles were not used: the spray is one MultiMesh of shader-driven quads a
+  shoreline chunk. HANDOFF 9au, CLAUDE.md "Surf and beach".
 - **2026-10-04 Shops have rooms behind their glass, traced, not modelled (VISUAL_ROADMAP #14).**
   Each storefront is one room the width of the shop with its fittings (shelves, racks, tables,
   washers, barber chairs, a teller line; a double-height lobby with a lift bank in towers over
