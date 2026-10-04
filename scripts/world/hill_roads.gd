@@ -134,14 +134,42 @@ func build(macro: MacroMap, seed_value: int) -> void:
 	# 4. The coast highway, last so that its height profile is smoothed against a shoreline the
 	#    other roads have already settled against.
 	_add_coast_highway(macro)
-	# 5. Switchback drives (roadmap #20): the canyon roads above walk straight up the front range
-	#    and are trimmed to stubs, so the range's drives and estates come from roads that follow
-	#    the contours instead. Their own rng, after everything else, so nothing above moves.
+	_index()
+
+
+## 5. Switchback drives (roadmap #20): the canyon roads above walk straight up the front range and
+## are trimmed to stubs, so the range's drives and estates come from roads that follow the
+## contours instead. Their own rng, after everything else, so nothing above moves. Called by
+## MacroMap.setup() once the freeway is planned (`fw`, may be null), which they keep clear of:
+## the freeway's deck height follows height_at(), so it is planned over the roads above, and these
+## stay FW_CLEAR (pads their own reach) off its deck and ramps so their carving never reaches under it.
+func add_switchbacks(seed_value: int, fw: Freeway) -> void:
+	_fw = fw
 	var t_sb := Time.get_ticks_usec()
 	_add_switchbacks(seed_value)
 	if OS.get_environment("SB_DEBUG") != "":
 		print("SBTOTAL %d ms" % ((Time.get_ticks_usec() - t_sb) / 1000))
+	_fw = null
+	_fw_cells.clear()
 	_index()
+
+
+## (a drive's carving reaches half its width plus BANK_REACH; a pad's, its radius plus BANK_REACH)
+const FW_CLEAR := 15.0
+var _fw: Freeway
+var _fw_cells: Dictionary = {}
+
+
+## Whether `q` is within FW_CLEAR of the freeway's deck or a ramp (per GCACHE_STEP cell, cached).
+func _fw_blocked(q: Vector2) -> bool:
+	if _fw == null:
+		return false
+	var key := Vector2i(floori(q.x / GCACHE_STEP), floori(q.y / GCACHE_STEP))
+	var v: Variant = _fw_cells.get(key)
+	if v == null:
+		v = _fw.blocks_rect(Rect2(Vector2(key) * GCACHE_STEP, Vector2.ONE * GCACHE_STEP), FW_CLEAR)
+		_fw_cells[key] = v
+	return v
 
 
 ## How far out the headland's ring road runs, as a share of the ellipse (1 is the shore), and how
@@ -709,7 +737,7 @@ const SB_MIN_RAW := 14.0
 func _sb_hill_ground(q: Vector2) -> float:
 	if _gcache_on:
 		var rg := _ground_cached2(q)
-		if rg.x <= SB_MIN_RAW or q.x < _macro.coast_x(q.y) or _macro.in_bay(q):
+		if rg.x <= SB_MIN_RAW or q.x < _macro.coast_x(q.y) or _macro.in_bay(q) or _fw_blocked(q):
 			return NAN
 		return rg.y
 	var raw := _macro.raw_height_at(q)
@@ -921,13 +949,15 @@ func _hairpin(pts: PackedVector2Array, hs: PackedFloat32Array, p: Vector2, headi
 	var piece := PI * HAIRPIN_RADIUS / HAIRPIN_PIECES
 	var zz := z
 	for k in range(1, HAIRPIN_PIECES + 1):
-		var a := a0 + side * PI * k / HAIRPIN_PIECES
+		# Round the centre the way that carries on along `dir` at the start (orthogonal() is the
+		# clockwise normal in x/z, so a turn to that side runs the angle down).
+		var a := a0 - side * PI * k / HAIRPIN_PIECES
 		var q := centre + Vector2.from_angle(a) * HAIRPIN_RADIUS
 		var g := _sb_hill_ground(q)
 		zz += SB_GRADE * piece
 		if is_nan(g) or _sb_near_self(q, pts, hs, 3, zz) or _sb_near_roads(q, SB_CLEAR_OTHER - 6.0, parent, SB_CLEAR_PARENT if pts.size() > 3 else 0.0, zz, SB_WIDTH * 0.5):
 			return {}
-		var tangent := Vector2.from_angle(a + side * PI * 0.5)
+		var tangent := Vector2.from_angle(a - side * PI * 0.5)
 		if not _sb_daylight(q, tangent, zz, g, SB_WIDTH * 0.5):
 			return {}
 		out_pts.append(q)
@@ -1130,7 +1160,7 @@ func _add_runs(road_name: String, pts: PackedVector2Array, heights: PackedFloat3
 	var ok := PackedByteArray()
 	ok.resize(pts.size())
 	for i in pts.size():
-		ok[i] = 1 if _earthwork_ok(pts, heights, i, width * 0.5, false) == 0 else 0
+		ok[i] = 1 if not is_nan(_sb_hill_ground(pts[i])) and _earthwork_ok(pts, heights, i, width * 0.5, false) == 0 else 0
 	var i := 0
 	while i < pts.size():
 		if ok[i] == 0:
@@ -1248,6 +1278,8 @@ func _try_estate(ri: int, p: Vector2, bed: float, out: Vector2, half: float, dri
 	if is_nan(g):
 		return false
 	var h := clampf(g, bed - DRIVE_GRADE * drive, bed + DRIVE_GRADE * drive)
+	if _fw and _fw.blocks_rect(Rect2(pos, Vector2.ZERO).grow(radius), FW_CLEAR):
+		return false
 	if _near_pad_hash(pos, h, radius):
 		_why[0] += 1
 		return false
@@ -1268,3 +1300,5 @@ func _try_estate(ri: int, p: Vector2, bed: float, out: Vector2, half: float, dri
 		"drive_from": from, "drive_h": bed, "radius": radius})
 	_pad_hash_add(pos, h, radius)
 	return true
+
+

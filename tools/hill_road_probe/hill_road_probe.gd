@@ -81,11 +81,35 @@ func _ready() -> void:
 			if road.has("pin_points"):
 				for q: Vector2 in road.pin_points:
 					print("PIN %s %.0f,%.0f ground %.0f" % [road.name, q.x, q.y, macro.height_at(q)])
-		var n := 0
+		var dump := OS.get_environment("DUMP")
+		for road in hr.roads:
+			if road.name == dump:
+				for i in (road.points as PackedVector2Array).size():
+					print("PT %d %.0f,%.0f bed %.1f" % [i, road.points[i].x, road.points[i].y, road.heights[i]])
 		for m in hr.mansions:
 			if (m.pos as Vector2).y < -700.0 and (m.pos as Vector2).y > -2600.0:
 				var dp: Vector2 = m.get("drive_from", m.pos)
 				print("ESTATE %.0f,%.0f h %.1f road %d drive %.0f m (drive_h %.1f)" % [m.pos.x, m.pos.y, m.height, m.road, dp.distance_to(m.pos), m.get("drive_h", 0.0)])
+	# The freeway deck's clearance over the ground across its width (the deck is planned on the
+	# ground before the switchbacks are carved).
+	if macro.freeway:
+		var worst := INF
+		var at := Vector2.ZERO
+		for route in macro.freeway.routes:
+			var fp: PackedVector2Array = route.points
+			var fh: PackedFloat32Array = route.heights
+			for i in fp.size() - 1:
+				var d := (fp[i + 1] - fp[i]).normalized()
+				var n := Vector2(-d.y, d.x)
+				for o: float in [-15.0, 0.0, 15.0]:
+					var q := fp[i] + n * o
+					if macro.raw_height_at(q) <= 0.5:
+						continue
+					var c: float = fh[i] - macro.height_at(q)
+					if c < worst:
+						worst = c
+						at = q
+		print("DECK lowest clearance over the hills %.1f m at %s" % [worst, at])
 	if OS.get_environment("STEEP") != "0":
 		_steep(macro, hr)
 	var out := OS.get_environment("OUT")
@@ -199,6 +223,9 @@ func _map(macro: MacroMap, hr: HillRoads, out: String) -> void:
 		lines.append([wp, Color(0.9, 0.1, 0.9)])
 	for road in hr.roads:
 		lines.append([road.points, Color.BLACK])
+	if macro.freeway:
+		for route in macro.freeway.routes:
+			lines.append([route.points, Color(1.0, 1.0, 1.0)])
 	for line: Array in lines:
 		var pts: PackedVector2Array = line[0]
 		for i in pts.size() - 1:

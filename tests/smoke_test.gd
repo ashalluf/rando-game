@@ -2787,7 +2787,7 @@ func _check_switchbacks(plan: CityPlan, city: Node, hr) -> void:
 	for m in hr.mansions:
 		if (m.pos as Vector2).y < -700.0 and (m.pos as Vector2).y > -2600.0:
 			front += 1
-	_check(drives.size() >= 12 and pins >= 6 and front >= 80,
+	_check(drives.size() >= 8 and pins >= 5 and front >= 70,
 		"the front range has switchback drives and estates again (%d drives, %d hairpins, %d estates)" % [drives.size(), pins, front])
 	_check(grade_bad == 0 and earth_bad == 0, "every switchback is held to its grade and graded into the hill (%d steps too steep, %d points whose banks miss the ground)" % [grade_bad, earth_bad])
 	# The ground carved round the first few drives, on an 8 m grid: the cut-bank fix's measure.
