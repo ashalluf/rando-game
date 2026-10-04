@@ -5490,7 +5490,7 @@ level the far city is mostly hidden: 0.5 % of pixels move.
   boundary on Compatibility; TAA settles it on Forward+).
 - Shadow cost of the LOD ring's roof units: they cast with the rest of the `lod_box` batch; the
   geo_count shadow lines above are what it costs at these three views.
-## 9be. Houses in the suburbs and the beach town, 2026-10-04 (agent branch `wt/houses`; VISUAL_ROADMAP #47)
+## 9be. Houses in the suburbs and the beach town, 2026-10-04 (agent branch `wt/houses`; VISUAL_ROADMAP #50)
 
 The brief: every house lot in SUBURBS and BEACHTOWN was a flat-roofed `Building` box with a
 storefront band (9az's "not done"), and the suburbs were 82 % bare lawn by `tools/lot_coverage.gd`

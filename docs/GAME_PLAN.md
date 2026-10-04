@@ -304,6 +304,19 @@ already mapped so milestone 2 is script-only.
   Blender: the fit has to be per rig and is measured from the rig, which a modelled .glb per rig
   and kind (48 files to rebuild with every crowd change) would not be. Cost: ~0.8 s more on the
   loading screen here (the hats and the pressed hair for 12 rigs, built once). See HANDOFF 9bg.
+- **2026-10-04 Street vendors: code-built stands, hash-placed by place and hour, real people at
+  them (VISUAL_ROADMAP #50).** Nothing on the pavements sold anything. `StreetVendors` builds taco
+  trucks, fruit / elote / bacon-wrapped hot dog / paleta carts, market umbrellas and flower and
+  balloon stands in code at real size on one shader (one batch per kind a chunk), with invented
+  names and menus in real lettering (TextMesh). Who works where is a pure function of seed, block,
+  face and the hour the chunk is built at: trucks at the kerb at night (some at lunch, most on the
+  industrial blocks), carts by day, hot dogs round the arena and downtown at night, paletas in the
+  parks, the most across from MacArthur Park. The truck is a static prop that never breaks (it
+  sparks); a cart is an EncampmentItem, so it tips over and stays gone. A crowd rig works each
+  stand (`StreetVendor`, the life clips) and walkers stop at its queue (`Pedestrian._plan_queue()`).
+  The block's own random stream is untouched: a parked car in a truck's stretch is skipped after
+  its rolls and counted as parked. Trucks are not Vehicles (the big-vehicles work owns those), and
+  they do not arrive or leave while a chunk stays built - the hour is read when it builds.
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
   (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed
@@ -321,7 +334,7 @@ already mapped so milestone 2 is script-only.
   (`window_lights.gdshaderinc`). The near roofs and office lights got a new random arrangement
   once. Per-block dissolve unchanged; draws unchanged (no new MultiMesh). docs/HANDOFF.md 9bd,
   CLAUDE.md "Far buildings are coded copies of the near ones".
-- **2026-10-04 Real houses in the suburbs and the beach town (VISUAL_ROADMAP #47).** (owner: "make
+- **2026-10-04 Real houses in the suburbs and the beach town (VISUAL_ROADMAP #50).** (owner: "make
   the graphics a million times better"; agent branch `wt/houses`, docs/HANDOFF.md 9be.) Every house
   lot there was a flat-roofed `Building` box with a storefront band. `HouseKit` plans a Los Angeles
   house per lot and `HouseBuild` builds it in code, ReplicaHouses-style (walls cut round openings,

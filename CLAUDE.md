@@ -2439,7 +2439,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
   `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
   checks: `tests/crowd_hat_checks.gd`.
-- Street vendors (VISUAL_ROADMAP #47, 2026-10-04: "taco trucks at night, fruit carts under
+- Street vendors (VISUAL_ROADMAP #50, 2026-10-04: "taco trucks at night, fruit carts under
   umbrellas"): `StreetVendors` (`scripts/world/street_vendors.gd`, static) - taco trucks at the
   kerb with a lit menu board, the serving window open under its propped flap, a lit kitchen
   inside, a generator on the back (Sfx `generator`, a real CC0 loop); fruit and elote carts under
