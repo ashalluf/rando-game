@@ -767,7 +767,8 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 	if fd >= 1.0 and roll < EDGE_HEDGE:
 		for span: Vector2 in _spans(0.25, U - 0.25, openings):
 			if roll < EDGE_WALL:
-				var h := lerpf(LOW_WALL.x, LOW_WALL.y, _h01([plan.seed, key, "wall_h"]))
+				# Lower along a walk street, where the gardens are the street.
+				var h := lerpf(LOW_WALL.x, LOW_WALL.y, _h01([plan.seed, key, "wall_h"])) * (0.75 if lp.walk_front else 1.0)
 				_wall_run(ch, f, Vector2(span.x, 0.15), Vector2(span.y, 0.15), h, 0.24, W_STUCCO, paint)
 				# A cap course a hair wider, in the trim colour.
 				_wall_run(ch, f, Vector2(span.x, 0.15), Vector2(span.y, 0.15), 0.07, 0.3, W_STUCCO, paint.lightened(0.25), h)

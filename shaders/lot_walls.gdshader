@@ -123,14 +123,14 @@ void fragment() {
 		// missed, the normal jittered leaf by leaf so the face breaks up in the light, the sheared
 		// top a little lighter. (Kept fine and low in contrast: at 60 cm the lumps read as
 		// camouflage paint.)
-		float lumps = vnoise(uv * 2.1) * 0.6 + vnoise(uv * 5.3) * 0.4;
-		float leaves = vnoise(uv * 31.0) * 0.6 + vnoise(uv * 67.0) * 0.4;
-		float px = smoothstep(0.06, 0.015, fwidth(uv.x) * 4.0);
-		float gaps = smoothstep(0.42, 0.22, leaves) * px;
+		float lumps = vnoise(uv * 2.6) * 0.5 + vnoise(uv * 6.5) * 0.5;
+		float leaves = vnoise(uv * 19.0) * 0.6 + vnoise(uv * 43.0) * 0.4;
+		float px = smoothstep(0.14, 0.035, fwidth(uv.x) * 4.0);
+		float gaps = smoothstep(0.42, 0.2, leaves) * px;
 		float g = dot(texture(grass_tex, uv / 0.35).rgb, vec3(0.33));
-		albedo = paint * (0.7 + 0.6 * g) * (0.82 + 0.3 * lumps) * (1.0 - 0.45 * gaps) * (top ? 1.1 : 1.0);
-		vec3 jitter = vec3(vnoise(uv * 27.0 + 3.1), vnoise(uv * 27.0 + 7.7), vnoise(uv * 27.0 + 1.3)) - 0.5;
-		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(world_n + jitter * 0.7 * px), 0.0)).xyz);
+		albedo = paint * (0.7 + 0.6 * g) * (0.8 + 0.32 * lumps) * (1.0 - 0.38 * gaps) * (top ? 1.1 : 1.0);
+		vec3 jitter = vec3(vnoise(uv * 7.0 + 3.1), vnoise(uv * 7.0 + 7.7), vnoise(uv * 7.0 + 1.3)) - 0.5;
+		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(world_n + jitter * 0.5), 0.0)).xyz);
 		rough = 0.92;
 		wet_k = 0.3;
 	} else if (kind < 5.5) {

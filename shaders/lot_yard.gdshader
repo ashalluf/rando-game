@@ -130,8 +130,10 @@ void fragment() {
 		wet_k = 0.7;
 	} else if (kind < 3.5) {
 		// Brick pavers, laid in rows on sand.
+		// (Sampled once: the rotated second sample tiled() blends in crosses a pattern like this
+		// with a diagonal hatch.)
 		vec2 q = variant > 0.5 ? p.yx : p;
-		albedo = tiled(brick_tex, q, 1.6) * brick_tint * mottle;
+		albedo = texture(brick_tex, q / 1.6).rgb * brick_tint * mottle;
 		nm = texture(brick_nrm, q / 1.6).rgb;
 		if (variant > 0.5) {
 			nm.xy = nm.yx;
