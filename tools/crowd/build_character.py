@@ -229,9 +229,29 @@ hf.parent = head
 bpy.ops.object.mode_set(mode='OBJECT')
 print("CROWD bones", len(arm.data.bones))
 
+# ---- our own garments (tools/crowd/garments.py), built on the bound body ------------------------------
+# A character with an "outfit" wears garments modelled here the way the hero's tracksuit is (shells
+# grown off the body, every edge cut and hemmed, collars and waistbands with a real cross-section)
+# instead of MakeHuman's library clothes; its "clothes" then list only the shoes.
+if os.environ.get("CROWD_STAGE0"):
+    bpy.ops.wm.save_as_mainfile(filepath=C.work(NAME, "stage0.blend"))
+OWN = []
+if CFG.get("outfit"):
+    import garments  # noqa: E402
+    OWN = garments.build(body, arm, CFG, NAME)
+    meshes += OWN
+
 # ---- what each object is ----------------------------------------------------------------------------
+def own(o):
+    """The crowd_own record of one of our own garment parts (garments.py), or None."""
+    v = o.get("crowd_own")
+    return json.loads(v) if v else None
+
+
 def kind_of(o):
     n = o.name.split(".", 1)[1] if "." in o.name else o.name
+    if own(o):
+        return "garment", "own_" + n
     if o == body:
         return "skin", n
     if n in ("low-poly", "high-poly"):
@@ -275,6 +295,13 @@ def images_of(o):
 
 
 IMAGES = {o.name: images_of(o) for o in meshes}
+# Our own garments are painted texel by texel by crowd_atlas.py (garment_paint.py), so their
+# atlas "source" is virtual: the shells in the body's UV layout at the skin's 2048 px, the swept
+# bands in their own metric UVs at the shell's density.
+for o in OWN:
+    span = o.get("crowd_uv_span")
+    size = 2048 if span is None else max(16, int(round(span * o["crowd_px_per_m"])))
+    IMAGES[o.name] = {"diffuse": "virtual:%d:%d" % (size, size), "normal": None, "ao": None}
 if CFG.get("eye_color"):
     for o in meshes:
         if KIND[o.name][0] == "eyes":
@@ -525,8 +552,10 @@ for o in meshes:
     if k in ("skin", "eyes"):
         continue
     b = BUDGET.get(k)
+    if own(o):
+        continue
     if k == "garment":
-        b = BUDGET["garment"] / max(1, sum(1 for x in meshes if KIND[x.name][0] == "garment"))
+        b = BUDGET["garment"] / max(1, sum(1 for x in meshes if KIND[x.name][0] == "garment" and not own(x)))
     if b and tris(o) > b:
         decimate_faces(o, lambda f, dl: True, b / tris(o))
 for o in meshes:
@@ -581,6 +610,8 @@ def islands(o):
 
 def island_side(o, faces, dom):
     """Top or bottom for one garment island, by the same vote garment_regions() makes."""
+    if own(o):
+        return own(o)["region"]
     gcfg = CFG["garments"].get(KIND[o.name][1], {})
     rule = gcfg.get("regions", "auto")
     if rule in ("keep", "top", "bottom"):
@@ -601,6 +632,8 @@ def island_side(o, faces, dom):
 
 
 def image_size(path):
+    if str(path).startswith("virtual:"):
+        return tuple(int(x) for x in path.split(":")[1:3])
     img = bpy.data.images.load(path, check_existing=True)
     return img.size[0], img.size[1]
 
@@ -762,6 +795,8 @@ TOP_BONES = ("Spine", "Shoulder", "Arm", "ForeArm", "Hand", "neck", "Head")
 
 def garment_regions(o, rects):
     """Top or bottom per face: each island by the bones its faces follow (legs -> bottom)."""
+    if own(o):
+        return {p.index: own(o)["region"] for p in o.data.polygons}
     gcfg = CFG["garments"].get(KIND[o.name][1], {})
     rule = gcfg.get("regions", "auto")
     # Parts that follow the hips alone (a waistband, a jacket's pocket flaps) go with the trousers
@@ -816,11 +851,14 @@ FABRIC_DEFAULT = {
 
 
 def fabric_of(asset, side):
+    if asset in OWN_FABRIC:
+        return OWN_FABRIC[asset]
     g = CFG["garments"].get(asset, {}).get("fabric", {})
     d = FABRIC_DEFAULT.get(asset, ("jersey", "denim"))
     return g.get(side, d[0] if side == "top" else (d[1] if side == "bottom" else d[-1]))
 
 
+OWN_FABRIC = {KIND[o.name][1]: own(o)["fabric"] for o in OWN}
 REGIONS = {o.name: garment_regions(o, body_rects) for o in body_parts if KIND[o.name][0] == "garment"}
 for r in body_rects:
     if r["obj"] in REGIONS:
@@ -840,7 +878,9 @@ for o in body_parts + hair_parts:
             elif k == "garment":
                 rg = region.get(p.index)
                 asset = KIND[o.name][1]
-                if rg == "keep":
+                if rg == "other":
+                    c = (0.0, 0.0, 0.0, 0.0)
+                elif rg == "keep":
                     c = (FABRIC_LEVEL[fabric_of(asset, "keep")] - 0.45, 0.0, 0.0, 0.0)
                 elif rg == "top":
                     c = (FABRIC_LEVEL[fabric_of(asset, "top")], 0.0, 0.0, 0.0)
@@ -903,6 +943,53 @@ import numpy as np  # noqa: E402
 
 F_uv, F_p, F_n, F_j, F_g = [], [], [], [], []
 LEGS = ("UpLeg", "Leg", "Foot", "ToeBase")
+
+
+def lip_faces(o):
+    a = o.data.attributes.get("crowd_lip")
+    if a is None:
+        return set()
+    vals = [0] * len(o.data.polygons)
+    a.data.foreach_get("value", vals)
+    return {i for i, v in enumerate(vals) if v}
+
+
+def vertex_ao(o, bvh, rays=24, reach=0.22):
+    """Ambient occlusion per vertex (rest pose) against the whole character: cosine-weighted
+    rays over the normal's hemisphere, the fraction that escape within `reach`."""
+    import random
+    rng = random.Random(7)
+    dirs = []
+    for _ in range(rays):
+        u, v = rng.random(), rng.random()
+        r, th = math.sqrt(u), 2 * math.pi * v
+        dirs.append(Vector((r * math.cos(th), r * math.sin(th), math.sqrt(max(0.0, 1 - u)))))
+    mw = o.matrix_world
+    nm = mw.to_3x3()
+    out = []
+    for vtx in o.data.vertices:
+        n = (nm @ vtx.normal).normalized()
+        t = n.orthogonal().normalized()
+        b = n.cross(t)
+        p = mw @ vtx.co + n * 0.002
+        hit = 0
+        for d in dirs:
+            w = t * d.x + b * d.y + n * d.z
+            if bvh.ray_cast(p, w, reach)[0] is not None:
+                hit += 1
+        out.append(1.0 - hit / rays)
+    return out
+
+
+OWN_T = {"uv": [], "p": [], "n": [], "guv": [], "part": [], "ao": []}
+if OWN:
+    _all = [o for o in body_parts]
+    _v, _f = [], []
+    for o in _all:
+        base = len(_v)
+        _v += [o.matrix_world @ v.co for v in o.data.vertices]
+        _f += [tuple(base + i for i in p.vertices) for p in o.data.polygons]
+    AO_BVH = BVHTree.FromPolygons(_v, _f)
 for o in body_parts:
     if KIND[o.name][0] != "garment":
         continue
@@ -914,7 +1001,27 @@ for o in body_parts:
     region = REGIONS.get(o.name, {})
     dom = dominant_groups(o)
     gain = CFG["garments"].get(KIND[o.name][1], {}).get("fold_gain", 1.0) * CFG.get("fold_gain", 1.0)
+    rec = own(o)
+    lips = lip_faces(o) if rec else set()
+    if rec:
+        # our own: the painter gets every non-lip triangle; the fold field only the shells
+        gspec = CFG["outfit"][rec["gid"]]
+        gain = gspec.get("fold_gain", 1.0) * CFG.get("fold_gain", 1.0) if rec["part"] == "shell" else 0.0
+        ga = me.attributes.get("crowd_guv")
+        ao = vertex_ao(o, AO_BVH)
+        pidx = OWN.index(o)
+        for t in me.loop_triangles:
+            if t.polygon_index in lips:
+                continue
+            OWN_T["uv"].append([list(uv1[li].uv) for li in t.loops])
+            OWN_T["p"].append([list(mw @ me.vertices[vi].co) for vi in t.vertices])
+            OWN_T["n"].append([list((nm @ me.vertices[vi].normal).normalized()) for vi in t.vertices])
+            OWN_T["guv"].append([list(ga.data[li].vector)[:2] if ga is not None else [0.0, 0.0] for li in t.loops])
+            OWN_T["part"].append(pidx)
+            OWN_T["ao"].append([ao[vi] for vi in t.vertices])
     for t in me.loop_triangles:
+        if rec and (gain <= 0.0 or t.polygon_index in lips or region.get(t.polygon_index) == "other"):
+            continue
         rg = region.get(t.polygon_index, "top")
         if rg == "keep":
             legs = sum(1 for vi in t.vertices if (dom[vi] or "").endswith(LEGS)) >= 2
@@ -964,6 +1071,11 @@ if F_uv:
         json.dump(L, f)
     print("CROWD folds: %d garment triangles, hem z %.2f, sleeve end %.2f, trouser end %.2f" % (
         len(F_uv), L["z_hem"], L["sleeve_end"], L["z_pants_end"]))
+if OWN:
+    np.savez_compressed(C.work(NAME, "own.npz"), **{k: np.array(v, np.float32 if k != "part" else np.int32) for k, v in OWN_T.items()})
+    with open(C.work(NAME, "own_parts.json"), "w") as f:
+        json.dump([dict(own(o), name=o.name) for o in OWN], f)
+    print("CROWD own garments: %d triangles to paint over %d parts" % (len(OWN_T["part"]), len(OWN)))
 
 # the scalp painted into the atlas for the looks that keep the model's own hair (crowd_atlas.py)
 scalp_tris = []
@@ -1004,7 +1116,7 @@ def join(objs, name):
     for p in o.data.polygons:
         p.material_index = 0
         p.use_smooth = True
-    for an in ("crowd_scalp", "crowd_beard"):
+    for an in ("crowd_scalp", "crowd_beard", "orig", "crowd_lip", "crowd_guv", "zone"):
         a = o.data.attributes.get(an)
         if a is not None:
             o.data.attributes.remove(a)

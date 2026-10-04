@@ -68,7 +68,6 @@
     12
    ],
    "clothes": [
-    "male_casualsuit06.mhclo",
     "shoes05.mhclo"
    ],
    "targets": [
@@ -88,13 +87,27 @@
     11,
     10
    ],
-   "dye": {
-    "bottom": [
-     44,
-     56,
-     88
-    ]
-   }
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      44,
+      56,
+      88
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "regular",
+     "color": [
+      226,
+      224,
+      218
+     ]
+    }
+   ]
   },
   {
    "name": "crowd_b",
@@ -218,21 +231,8 @@
    "eyebrows": "eyebrow002.mhclo",
    "hair": "ponytail01.mhclo",
    "clothes": [
-    "female_casualsuit01.mhclo",
     "shoes06.mhclo"
    ],
-   "dye": {
-    "top": [
-     150,
-     62,
-     44
-    ],
-    "bottom": [
-     36,
-     36,
-     40
-    ]
-   },
    "targets": [],
    "hair_rgb": [
     28,
@@ -240,9 +240,33 @@
     16
    ],
    "face_var": 0.3,
-   "dye_contrast": {
-    "bottom": 0.8
-   }
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "slim",
+     "color": [
+      36,
+      36,
+      40
+     ],
+     "wash": 0.12,
+     "fade_color": [
+      96,
+      96,
+      104
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "color": [
+      150,
+      62,
+      44
+     ]
+    }
+   ]
   },
   {
    "name": "crowd_e",
@@ -266,23 +290,43 @@
    "eyebrows": "eyebrow003.mhclo",
    "hair": "afro01.mhclo",
    "clothes": [
-    "female_casualsuit02.mhclo",
     "shoes05.mhclo"
    ],
-   "dye": {
-    "top": [
-     196,
-     150,
-     52
-    ]
-   },
    "targets": [],
    "hair_rgb": [
     20,
     16,
     14
    ],
-   "face_var": 0.3
+   "face_var": 0.3,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "shorts",
+     "color": [
+      62,
+      86,
+      126
+     ],
+     "wash": 0.5,
+     "above_knee": 0.14,
+     "fade_color": [
+      140,
+      168,
+      200
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "regular",
+     "color": [
+      196,
+      150,
+      52
+     ]
+    }
+   ]
   },
   {
    "name": "crowd_f",
@@ -448,23 +492,37 @@
    "eyebrows": "eyebrow005.mhclo",
    "hair": "long01.mhclo",
    "clothes": [
-    "female_sportsuit01.mhclo",
     "shoes05.mhclo"
    ],
-   "dye": {
-    "top": [
-     150,
-     150,
-     152
-    ]
-   },
    "targets": [],
    "hair_rgb": [
     96,
     66,
     40
    ],
-   "face_var": 0.3
+   "face_var": 0.3,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "leggings",
+     "color": [
+      26,
+      26,
+      28
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "color": [
+      150,
+      150,
+      152
+     ],
+     "heather": true
+    }
+   ]
   },
   {
    "name": "crowd_j",
@@ -556,23 +614,42 @@
    "eyebrows": "eyebrow002.mhclo",
    "hair": "braid01.mhclo",
    "clothes": [
-    "female_casualsuit01.mhclo",
     "shoes06.mhclo"
    ],
-   "dye": {
-    "top": [
-     40,
-     112,
-     118
-    ]
-   },
    "targets": [],
    "hair_rgb": [
     22,
     16,
     13
    ],
-   "face_var": 0.3
+   "face_var": 0.3,
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      72,
+      100,
+      142
+     ],
+     "wash": 0.6,
+     "fade_color": [
+      150,
+      176,
+      206
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "short",
+     "fit": "fitted",
+     "color": [
+      40,
+      112,
+      118
+     ]
+    }
+   ]
   },
   {
    "name": "crowd_l",
@@ -601,21 +678,8 @@
     112
    ],
    "clothes": [
-    "male_casualsuit02.mhclo",
     "shoes04.mhclo"
    ],
-   "dye": {
-    "top": [
-     104,
-     36,
-     44
-    ],
-    "bottom": [
-     54,
-     54,
-     58
-    ]
-   },
    "targets": [],
    "stubble": 0.2,
    "beard_rgb": [
@@ -623,9 +687,27 @@
     126,
     120
    ],
-   "dye_contrast": {
-    "bottom": 0.8
-   }
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "chinos",
+     "color": [
+      58,
+      58,
+      62
+     ]
+    },
+    {
+     "type": "tee",
+     "sleeve": "long",
+     "fit": "regular",
+     "color": [
+      104,
+      36,
+      44
+     ]
+    }
+   ]
   }
  ],
  "garments": {
