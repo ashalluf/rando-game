@@ -682,6 +682,11 @@ func fire(kind: String, eye: Vector3, w: Vector3) -> void:
 			dir = flat.normalized().rotated(Vector3.UP, _rng.randf_range(-0.6, 0.6))
 	var up: Vector2 = info.up
 	var at := eye + dir * _rng.randf_range(range_m.x, range_m.y) + Vector3.UP * _rng.randf_range(up.x, up.y)
+	# A gull call comes from a real gull when one is in earshot (Birds), not from thin air.
+	if kind == "gull":
+		var real := Birds.gull_at(eye, range_m.y)
+		if real != Vector3.INF:
+			at = real
 	var v := _free_shot()
 	v.stop()
 	v.stream = got[0]

@@ -56,6 +56,8 @@ extends SceneTree
 ## LIFE_REPORT=1 lists the people within 80 m of the camera doing something (crowd life), with
 ## true world positions to frame an EYE on; LIFE_FOCUS=jog|dog|talk|sit|stand|lean|window frames the
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
+## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
+## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
 ## INDUSTRIAL=0 builds the industrial district without Industrial (Building warehouses on bare
 ## paving: the A/B of the warehouses, docks and yards).
@@ -329,6 +331,21 @@ func _initialize() -> void:
 				_pose(player, anchor, hold, boost, fov)
 		else:
 			print("AIR: no AirTraffic in the scene")
+	# BIRD=ground|flush|wire: birds for the shot (Birds.stage_for_shot): a flock of BIRD_SPECIES
+	# (default pigeon; crow for a wire) BIRD_DIST metres ahead of the camera (default 9) on the
+	# ground, the same flock bursting up BIRD_FLY seconds after the camera flushed it (default
+	# 0.7), or BIRD_COUNT crows on the power line nearest that point. BIRDS=0 removes every bird.
+	var bird_env := OS.get_environment("BIRD")
+	if bird_env != "" and current_scene:
+		var birds_node := current_scene.get_node_or_null("Birds")
+		var bcam := get_root().get_camera_3d()
+		if birds_node and bcam:
+			birds_node.call("stage_for_shot", bird_env, bcam, _env_float("BIRD_DIST", 9.0), OS.get_environment("BIRD_SPECIES"), _env_int("BIRD_COUNT", 24), _env_float("BIRD_FLY", 0.7))
+			for i in 2:
+				await process_frame
+				_pose(player, anchor, hold, boost, fov)
+		else:
+			print("BIRD: no Birds node or camera")
 	# STREET=queue|crossing: a signalised junction ahead of the camera, a queue at its red, and
 	# for `crossing` people out on the crosswalk in front of it (see _stage_street).
 	var street_env := OS.get_environment("STREET")

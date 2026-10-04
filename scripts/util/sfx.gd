@@ -99,6 +99,13 @@ const SAMPLES := {
 	"hit_dirt": ["hit_dirt_0.ogg", "hit_dirt_1.ogg", "hit_dirt_2.ogg"],
 	"hit_flesh": ["hit_flesh_0.ogg", "hit_flesh_1.ogg", "hit_flesh_2.ogg"],
 	"casing": ["casing_0.ogg", "casing_1.ogg"],
+	# The city's birds (Birds): rock doves cooing and a flock's wing claps taking off, crows,
+	# house sparrows, a gull's call close by. Public-domain field recordings (docs/ASSETS.md).
+	"pigeon_coo": ["pigeon_coo_0.ogg", "pigeon_coo_1.ogg", "pigeon_coo_2.ogg", "pigeon_coo_3.ogg"],
+	"wings": ["wings_0.ogg", "wings_1.ogg", "wings_2.ogg", "wings_3.ogg"],
+	"crow": ["crow_0.ogg", "crow_1.ogg", "crow_2.ogg", "crow_3.ogg"],
+	"sparrow": ["sparrow_0.ogg", "sparrow_1.ogg"],
+	"gull_close": ["gull_close_0.ogg", "gull_close_1.ogg"],
 }
 
 ## Loudest-50 ms level of every take above, in dB, in the same order, measured off the committed
@@ -139,6 +146,11 @@ const SAMPLE_LOUDNESS_DB := {
 	"hit_dirt": [-10.64, -9.93, -9.89],
 	"hit_flesh": [-8.56, -9.17, -9.04],
 	"casing": [-13.15, -11.68],
+	"pigeon_coo": [-10.08, -6.31, -9.63, -7.81],
+	"wings": [-21.93, -20.80, -23.89, -21.29],
+	"crow": [-11.77, -11.39, -10.98, -8.73],
+	"sparrow": [-12.15, -11.52],
+	"gull_close": [-10.40, -9.05],
 }
 
 ## Sample names that have to loop. Set on the stream in code rather than in the .import file, so
@@ -504,6 +516,12 @@ func _build_synth() -> void:
 	_put("hit_wood", _thud(0.1, 220.0, 0.6))
 	_put("hit_dirt", _noise_burst(0.1, 50.0, 0.6, 0.2))
 	_put("hit_flesh", _thud(0.12, 110.0, 0.8))
+	# Birds: a low warble for a coo, a burst of claps, harsh caws, chirps.
+	_put("pigeon_coo", _sweep(0.6, 420.0, 330.0, 0.4))
+	_put("wings", _noise_burst(0.8, 4.0, 0.5, 0.3))
+	_put("crow", _sweep(0.35, 1300.0, 900.0, 0.5))
+	_put("sparrow", _chirps(0.8, 4, 3000.0, 4500.0))
+	_put("gull_close", _chirps(1.2, 3, 1400.0, 2200.0))
 
 
 func _put(key: String, samples: PackedFloat32Array, looping: bool = false) -> void:

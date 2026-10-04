@@ -171,6 +171,9 @@ func fire_ray(from: Vector3, dir: Vector3) -> Dictionary:
 			(hit.collider as Vehicle).take_hit(hit.get("shape", -1), bullet_damage, dir, hit.position, Vehicle.HIT_BULLET)
 		WeaponFX.impact(self, hit.position)
 		_mark(hit.collider)
+	# A bird on the line drops (Birds; no crime, nobody saw a pigeon).
+	if Birds.hit_ray(from, end):
+		Crosshair.mark_hit(false)
 	WeaponFX.tracer(self, muzzle.global_position, end, tracer_color)
 	return hit
 

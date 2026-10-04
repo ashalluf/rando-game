@@ -1707,6 +1707,9 @@ func _test_city() -> void:
 	# The big vehicles (tests/big_vehicle_checks.gd): the bus, the box truck and the semi built,
 	# hit, the trailer's swing, the bus lines and stops, a bus at its stop, a queue behind a semi.
 	await load("res://tests/big_vehicle_checks.gd").new().run(self, city)
+	# The city's birds (tests/bird_checks.gd): meshes, survey, a flock flushed and landing,
+	# alarms, shots and blasts.
+	await load("res://tests/bird_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
