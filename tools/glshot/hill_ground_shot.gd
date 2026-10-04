@@ -12,12 +12,37 @@ extends Node
 ##
 ## EYE=x,y,z,yaw,pitch (TRUE world; y is metres over the ground there), FOV (vertical), OUT,
 ## FRAMES (default 12), BLOCKS (chunks each way round the eye, default 1), SUN=pitch,yaw degrees,
-## SHOTS="x,y,z,yaw,pitch;..." more eyes from the same build (OUT_1.png, ...), NOSHELLS=1 hides
+## SHOTS="x,y,z,yaw,pitch;..." more eyes from the same build (OUT_1.png, ...), LOD=n adds a ring of
+## LOD chunks out to n blocks, CENTRE=x,z builds the chunks round that point instead of the eye,
+## GROUND=1 adds the horizon plane (CityStreamer's own material and bake) so the seam between the
+## tiles and the far ground can be judged without the city (small enough for lavapipe), HILLS_ONLY=1
+## builds only the hill blocks of the ring, PAINT_AB=1 saves each frame again with the plane all lit
+## and all painted (_lit, _painted: its paint_gain), MASKS=1 saves it again without the plane,
+## without the chunks and without either (_noground, _nochunks, _none: which pixel is which tier), NOFOG=1 turns the scene's
+## fog off, DAYNIGHT=1 runs the city's DayNight held at `-- --hour=h` (the game's sun, sky, ambient
+## and exposure, not the scene file's defaults), NOSHELLS=1 hides
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
 ## triangles and draws, SHELL_DEBUG=1 draws
 ## the shells solid (hill_shells.gdshader debug_mode), PROFILE=n profiles n frames with the shells
 ## and n without (run with --gpu-profile under Forward+; see the block after the shot).
+
+## The horizon plane's material (GROUND=1), for DayNight's haze and smog (DAYNIGHT=1).
+var _ground_mat: ShaderMaterial
+
+
+## DayNight calls these on its parent, which in the city is the streamer (DAYNIGHT=1).
+func set_ground_haze(color: Color, sun_direction: Vector3) -> void:
+	if _ground_mat:
+		_ground_mat.set_shader_parameter("haze_color", color)
+		_ground_mat.set_shader_parameter("sun_dir", sun_direction)
+
+
+func set_ground_smog(amount: float, color: Color) -> void:
+	if _ground_mat:
+		_ground_mat.set_shader_parameter("smog", amount)
+		_ground_mat.set_shader_parameter("smog_color", color)
+
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -39,6 +64,13 @@ func _ready() -> void:
 			city.remove_child(n)
 			n.owner = null
 			add_child(n)
+	# NOFOG=1: no distance or volumetric fog (DayNight is not here to set them, and the scene's own
+	# values haze a measurement of the ground's colours).
+	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if we and we.environment and OS.get_environment("NOFOG") == "1":
+		we.environment = we.environment.duplicate()
+		we.environment.fog_enabled = false
+		we.environment.volumetric_fog_enabled = false
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	var sun_env := OS.get_environment("SUN")
 	# The streamer turns the sun in its _ready (the scene's own rotation is level, shining north,
@@ -50,6 +82,17 @@ func _ready() -> void:
 		sun.rotation_degrees = Vector3(sp[0].to_float(), sp[1].to_float(), 0.0)
 	if sun:
 		RenderingServer.global_shader_parameter_set("sun_direction", sun.global_basis.z)
+	# DAYNIGHT=1: the city's DayNight runs here too, held at --hour (pass it after `--`), so the
+	# sun, the sky, the ambient and the exposure are the game's at that hour rather than the
+	# scene file's defaults (the sun at 1.0 against the game's 1.3, the ambient at 1.0 against
+	# 0.3) - which is what a measurement of the painted band against the lit one needs.
+	if OS.get_environment("DAYNIGHT") == "1":
+		var dn: Node = city.get_node_or_null("DayNight")
+		if dn:
+			city.remove_child(dn)
+			dn.owner = null
+			add_child(dn)
+			dn.call("set_paused", true)
 	if OS.get_environment("SHELL_DEBUG") != "":
 		PropFactory.hill_shell_material().set_shader_parameter("debug_mode", int(OS.get_environment("SHELL_DEBUG")))
 	var style: Dictionary = city.chunk_style()
@@ -65,25 +108,62 @@ func _ready() -> void:
 	var chunk_script: GDScript = load("res://scripts/world/city_chunk.gd")
 	var blocks := int(OS.get_environment("BLOCKS")) if OS.get_environment("BLOCKS") != "" else 1
 	var out := OS.get_environment("OUT") if OS.get_environment("OUT") != "" else "hill_ground.png"
+	# LOD=n: a ring of LOD chunks out to n blocks round the FULL ones (the game's second tier).
+	var lod_blocks := int(OS.get_environment("LOD")) if OS.get_environment("LOD") != "" else blocks
+	# GROUND=1: the horizon plane too (CityStreamer's own ground material and bake), so the seam
+	# between the hill tiles and the far ground can be judged without the city.
+	var ground: MeshInstance3D = null
+	var ground_mat: ShaderMaterial = null
+	if OS.get_environment("GROUND") == "1":
+		city.set("plan", plan)
+		ground_mat = city.call("_build_ground_material")
+		_ground_mat = ground_mat
+		var plane := PlaneMesh.new()
+		plane.size = Vector2(city.ground_size, city.ground_size)
+		var subdiv: int = (city.get_script() as GDScript).get_script_constant_map()["GROUND_SUBDIVISIONS"]
+		plane.subdivide_width = subdiv
+		plane.subdivide_depth = subdiv
+		ground = MeshInstance3D.new()
+		ground.name = "Ground"
+		ground.mesh = plane
+		ground.material_override = ground_mat
+		ground.extra_cull_margin = city.ground_size
+		ground.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(ground)
+		if sun:
+			ground_mat.set_shader_parameter("sun_dir", sun.global_basis.z)
 	for k in eyes.size():
 		var p: PackedStringArray = (eyes[k] as String).split(",")
 		var at := Vector3(p[0].to_float(), p[1].to_float(), p[2].to_float())
 		at.y += plan.height_at(Vector2(at.x, at.z))
-		var home: Vector2i = plan.block_index_at(Vector2(at.x, at.z))
-		for dz in range(-blocks, blocks + 1):
-			for dx in range(-blocks, blocks + 1):
+		# CENTRE=x,z: the chunks are built round this point instead of the eye (to look at a ring's
+		# edge from outside it).
+		var centre := Vector2(at.x, at.z)
+		if OS.get_environment("CENTRE") != "":
+			var cp := OS.get_environment("CENTRE").split(",")
+			centre = Vector2(cp[0].to_float(), cp[1].to_float())
+		var home: Vector2i = plan.block_index_at(centre)
+		for dz in range(-lod_blocks, lod_blocks + 1):
+			for dx in range(-lod_blocks, lod_blocks + 1):
 				var bk := Vector2i(home.x + dx, home.y + dz)
 				if built.has(bk):
+					continue
+				# HILLS_ONLY=1: hill blocks only (the city's blocks are the slow part of a build, and
+				# the horizon plane draws them anyway).
+				if OS.get_environment("HILLS_ONLY") == "1" and plan.zone_at((plan.block(bk.x, bk.y).rect as Rect2).get_center()) != MacroMap.Zone.HILLS:
 					continue
 				var ch = chunk_script.new()
 				ch.plan = plan
 				ch.ix = bk.x
 				ch.iz = bk.y
-				ch.level = 0
+				ch.level = 0 if maxi(absi(dx), absi(dz)) <= blocks else 1
 				ch.style = style
 				add_child(ch)
 				ch.build()
 				built[bk] = ch
+		if ground:
+			var gstep: float = city.call("ground_step")
+			ground.position = Vector3(snappedf(at.x, gstep), 0.0, snappedf(at.z, gstep))
 		if OS.get_environment("NOSHELLS") == "1":
 			get_tree().call_group("hill_shells", "set_visible", false)
 		cam.global_transform = Transform3D(Basis.from_euler(Vector3(deg_to_rad(p[4].to_float()), deg_to_rad(p[3].to_float()), 0.0)), at)
@@ -99,6 +179,38 @@ func _ready() -> void:
 				await get_tree().process_frame
 			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_dbg%s.png" % m)
 			PropFactory.hill_shell_material().set_shader_parameter("debug_mode", 0)
+		# PAINT_AB=1 (with GROUND=1): the same frame again with the whole horizon plane lit by the
+		# renderer (<name>_lit.png) and painted by hand (<name>_painted.png) - macro_ground's
+		# paint_debug - which is how its paint_gain is measured.
+		if ground_mat and OS.get_environment("PAINT_AB") == "1":
+			for mode: int in [0, 1]:
+				ground_mat.set_shader_parameter("paint_debug", mode)
+				for i in 3:
+					await get_tree().process_frame
+				get_viewport().get_texture().get_image().save_png(file.get_basename() + ("_lit.png" if mode == 0 else "_painted.png"))
+			ground_mat.set_shader_parameter("paint_debug", -1)
+		# MASKS=1 (with GROUND=1): the same frame again without the plane (<name>_noground.png) and
+		# without the chunks (<name>_nochunks.png), so a script can tell which pixels are which tier.
+		if ground and OS.get_environment("MASKS") == "1":
+			ground.visible = false
+			for i in 3:
+				await get_tree().process_frame
+			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_noground.png")
+			ground.visible = true
+			for ch: Node3D in built.values():
+				ch.visible = false
+			for i in 3:
+				await get_tree().process_frame
+			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_nochunks.png")
+			ground.visible = false
+			for i in 3:
+				await get_tree().process_frame
+			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_none.png")
+			ground.visible = true
+			for ch: Node3D in built.values():
+				ch.visible = true
+			for i in 3:
+				await get_tree().process_frame
 		# AB=1: the same frame again without the shells, saved beside it (<name>_noshells.png).
 		if OS.get_environment("AB") == "1":
 			get_tree().call_group("hill_shells", "set_visible", false)

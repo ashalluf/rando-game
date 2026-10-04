@@ -279,7 +279,7 @@ already mapped so milestone 2 is script-only.
 ## Decisions log
 
 - **2026-10-04 No bare ground outside downtown and midtown either** (agent branch, the yard
-  pass; docs/HANDOFF.md 9at). Beach-town lots are houses with yards (driveways, front gardens,
+  pass; docs/HANDOFF.md 9av). Beach-town lots are houses with yards (driveways, front gardens,
   low walls and pickets, lot-line fences, back yards, courtyards) and some blocks a walk street;
   campus blocks are quads, walks, a car park and service yards; the freeway's right of way in
   every district is ivy, hedge and tree rows, sound walls and the odd maintenance yard (`YardFill`).
@@ -291,6 +291,28 @@ already mapped so milestone 2 is script-only.
   (`CityPlan.block()` `"was_plaza"`, after the roll: the 100 x 180 m square of bare paving south
   of MacArthur Park was "the empty block south-east of MacArthur Park"); and **the campus hall's
   sixteen ball-on-a-stick trees are the chunk's street tree** when a chunk builds it.
+- **2026-10-04 The mountains from the air are one ground, in linear light on both renderers.**
+  (owner: "make the graphics a million times better"; agent branch, docs/HANDOFF.md 9au.) Two
+  bugs: the horizon plane kept its own copies of the hill colours as `source_color` uniforms,
+  which Forward+ decodes a second time (0.150 straw arrived as 0.020: far ranges near-black olive
+  on the Mac, fine in every opengl3 still), and Skyline drew a low chaparral mound on every far
+  stand, which from the air read as dark dashes across every range. Decided: every hill shader
+  works in linear on both renderers (`shaders/color_space.gdshaderinc`, `cs_in()` / `cs_out()`),
+  the horizon plane includes the near tiles' own splat (no copies to drift), and the far tier
+  plants only the hollows' oaks. And the ranges read as Los Angeles' do: gold grass on the open
+  south slopes and spurs, dusty grey-green chaparral in the folds and on the north faces, pale
+  rock on the crests (`south_grass` 0.35, `drain_brush` 0.6, new straw / chaparral / dirt / rock).
+  A colour change is proven on Forward+ with a small lavapipe scene
+  (`hill_ground_shot.tscn GROUND=1 MASKS=1 NOFOG=1`), never on the opengl3 stills alone.
+
+- **2026-10-04 Shops have rooms behind their glass, traced, not modelled (VISUAL_ROADMAP #14).**
+  Each storefront is one room the width of the shop with its fittings (shelves, racks, tables,
+  washers, barber chairs, a teller line; a double-height lobby with a lift bank in towers over
+  30 m), ray-traced against boxes and rows of boxes in `shaders/shop_interior.gdshaderinc`, and
+  it is the room the shop's NAME says (a BAKERY has a counter and tables). Chosen over real
+  low-poly interiors behind the glass: the traced room has true parallax at zero triangles and
+  zero draw calls (the frame-cost budget is the binding constraint downtown), and nothing has to
+  stream or fade. Cost is ALU on storefront glass pixels only. docs/HANDOFF.md 9at.
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
