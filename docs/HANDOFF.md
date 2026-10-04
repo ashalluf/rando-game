@@ -5973,14 +5973,17 @@ omni), the hot dog cart's bulbs too. The truck's generator hums (`Sfx` "generato
 `STREET_VENDORS=0`): the night truck view 5,787,253 -> 5,868,306 tris (+1.4 %), 2,954 -> 2,974
 draws; the day fruit cart view 5,634,670 -> 5,860,288 (+4.0 %, mostly the vendor and the two
 customers standing in shadow range in front of the camera), 3,022 -> 3,061 draws. Cart draw
-distance then cut 150 -> 120 m and their shadows 70 -> 45 m (FRUIT_AFTER below). A chunk with
+distance then cut 150 -> 120 m and their shadows 70 -> 45 m afterwards (not re-measured). A chunk with
 vendors adds at most one draw per kind plus its shadow twin, one omni per truck or hot dog cart.
 
 **Stills** (`shots/vendors`): `truck_night` (EL REY DEL ASADA downtown at 21:00, people waiting
 at the window, the pool on the pavement), `fruit_day` (a fruit cart under its umbrella at noon,
-vendor and two customers), `hotdog_arena` (a bacon-dog cart with its bulbs near the arena at
-21:00), `paleta_park` (a paleta cart on a park's edge at 14:00), `stand_day` / `stand_night` (the
-stands alone, `tools/glshot/vendor_shot.gd`), and the `*_before` frames with the vendors off.
+vendor and two customers), `paleta_park` (a paleta cart on a park's edge at 14:00, vendor and
+two customers), `stand_day` / `stand_night` / `stand_carts` (the stands alone,
+`tools/glshot/vendor_shot.gd`: the hot dog cart's bulbs and the lit truck at night), and the
+`*_before` frames with the vendors off. The arena hot dog still in the city was framed on a cart
+that its face's camp pieces had pushed out (no cart in frame); its reshoot was lost to a
+container restart - frame one with `tools/vendor_probe.gd KIND=hotdog --spawn=2300,1150,0,0`.
 
 **Not done / not verified.** The Mac (Forward+): the lightbox and kitchen emission under AgX
 and the umbrellas' backlight. Vendors appear and leave only when a chunk is built (the hour is
