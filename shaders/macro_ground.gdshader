@@ -121,6 +121,10 @@ uniform float cloud_speed = 7.0;
 // its albedo so the band past paint_end comes out as bright as the renderer lights the band
 // before paint_start (measured on Forward+ with paint_debug, HANDOFF 9at).
 uniform float paint_gain : hint_range(0.3, 1.5) = 0.66;
+// The same for the Compatibility renderer alone (the web, the opengl3 stills), on top of
+// paint_gain: it lights the band before paint_start in sRGB numbers and treats EMISSION its own
+// way, so the two bands need their own ratio there (measured the same way, HANDOFF 9at).
+uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.0;
 // Metres (from the camera) over which the plane hands from lit by the renderer, like the
 // streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
 // edge lit two different ways: at 200 - 600 m the hand-over fell inside it, and from the air the
@@ -298,12 +302,16 @@ void fragment() {
 	// at the bottom).
 	float painted = paint_debug < 0 ? smoothstep(paint_start, paint_end, dist) : float(paint_debug);
 
-	// `base` is the unlit surface colour and `lit` the light falling on it. They are kept apart
-	// because this plane is lit two different ways at once: see the ALBEDO/EMISSION split below.
+	// `base` is the unlit surface colour (linear) and `lit_ws` the light falling on it. They are
+	// kept apart because this plane is lit two different ways at once: see the ALBEDO/EMISSION
+	// split below.
 	vec3 base;
 	// `base` for the painted band: the natural ground at paint_gain.
 	vec3 base_e;
-	vec3 lit = vec3(1.0);
+	// The painted band's light in the space the renderer lights in: on Forward+ linear, on
+	// Compatibility the raw numbers - sun and sky colours as that renderer takes them - so the
+	// painted band is lit the way it lights the band before it (in sRGB numbers).
+	vec3 lit_ws = vec3(1.0);
 	// Light the far city makes itself, which is all there is to see out there after dark.
 	vec3 glow = vec3(0.0);
 	vec3 n = vec3(0.0, 1.0, 0.0);
@@ -535,7 +543,10 @@ void fragment() {
 		vec3 sun_in = sun_c * mix(vec3(1.0), sky, 0.18) * (sun_strength * ndl);
 		vec3 fill = sky * (ambient_strength * (0.55 + 0.45 * n.y))
 			+ bounce_c * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
-		lit = sun_in * sun_vis + fill;
+		vec3 sky_w = cs_out(sky);
+		vec3 fill_w = sky_w * (ambient_strength * (0.55 + 0.45 * n.y))
+			+ cs_out(bounce_c) * (bounce_strength * max(-dot(n, vec3(L.x, -L.y, L.z)), 0.0));
+		lit_ws = cs_out(sun_c) * mix(vec3(1.0), sky_w, 0.18) * (sun_strength * ndl) * sun_vis + fill_w;
 		// Where the renderer lights this plane its shadow maps have run out (500 m), so the
 		// ridges threw no shadow between there and the painted band. Take the direct share the
 		// march says is blocked off the albedo: not the clouds (the tiles beside it have none),
@@ -564,12 +575,18 @@ void fragment() {
 	float hz = smoothstep(haze_start, haze_end, dist) * haze_strength;
 	float dim = mix(1.0, 0.16, night_factor);
 	vec3 albedo = mix(base * shade, haze, hz) * dim;
-	vec3 emitted = mix(base_e * lit, haze, hz) * dim + glow * (1.0 - hz);
+	// The painted band in the renderer's own space (see lit_ws).
+	vec3 emitted = mix(cs_out(base_e) * lit_ws, cs_out(haze), hz) * dim + cs_out(glow) * (1.0 - hz);
 	if (smog > 0.002) {
 		float under = 1.0 - smoothstep(smog_lid * 0.35, smog_lid, world_pos.y);
 		float sm = smog * under * (1.0 - exp(-dist / smog_reach));
 		albedo = mix(albedo, smog_c * dim, sm);
-		emitted = mix(emitted, smog_c * dim, sm);
+		emitted = mix(emitted, cs_out(smog_c) * dim, sm);
+	}
+	// Compatibility does not add EMISSION at face value (HANDOFF 9at: 0.25 emitted over a lit
+	// 0.25 albedo drew 0.35, not 0.5); this is its painted band measured against its lit one.
+	if (!cs_linear_renderer()) {
+		emitted *= compat_paint_gain;
 	}
 
 	// Beyond the detail band this plane is a painted horizon, not a surface: past the near band
@@ -581,9 +598,10 @@ void fragment() {
 	// unlit `base` and a `lit` term is what lets one shader do both without double-lighting the
 	// near ground or leaving the far ground at the mercy of the ambient.
 	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - eye.xz));
-	// Linear up to here; the renderer's own space from here (a no-op on Forward+).
+	// The albedo is linear up to here, and goes to the renderer's own space (a no-op on Forward+);
+	// the emission is in it already.
 	ALBEDO = cs_out(albedo * (1.0 - painted) * (1.0 - rim));
-	EMISSION = mix(cs_out(emitted * painted), sky_ws, rim);
+	EMISSION = mix(emitted * painted, sky_ws, rim);
 	ROUGHNESS = mix(rough, 1.0, (1.0 - near) * 0.25 * painted);
 	METALLIC = 0.0;
 	// The tiles' default 0.5 where the renderer lights this plane: at 0.15 Godot also cuts the
