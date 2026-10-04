@@ -490,6 +490,9 @@ static func _footprints(chunk: CityChunk) -> Array[Rect2]:
 			if mid.y - size.y * 0.5 > 0.05:
 				continue
 			out.append(Rect2(o + Vector2(mid.x, mid.z) - Vector2(size.x, size.z) * 0.5, Vector2(size.x, size.z)))
+	# The industrial district's warehouses are not Building nodes (Industrial).
+	if not chunk._ind.is_empty():
+		out.append_array(chunk._ind.foot)
 	return out
 
 
