@@ -342,6 +342,7 @@ static func plinth_material() -> Material:
 func plan_only() -> Dictionary:
 	_generated = true
 	parts.clear()
+	_blocker_part = -1
 	footprint = Vector2.ZERO
 	height = 0.0
 	_rng.seed = seed
@@ -2345,17 +2346,30 @@ func _rect_free(rect: Rect2, placed: Array[Rect2], part_index: int, part_center:
 	for other in placed:
 		if rect.intersects(other.grow(0.4)):
 			return false
-	# Stay clear of any taller part standing on this roof.
-	var top: float = parts[part_index].center.y + parts[part_index].size.y * 0.5
-	for j in parts.size():
-		if j == part_index or parts[j].center.y + parts[j].size.y * 0.5 <= top:
-			continue
-		var s: Vector3 = parts[j].size
-		var c: Vector3 = parts[j].center
-		var footprint_rect := Rect2(Vector2(c.x - s.x * 0.5, c.z - s.z * 0.5) - Vector2(part_center.x, part_center.z), Vector2(s.x, s.z)).grow(0.8)
+	# Stay clear of any taller part standing on this roof. The footprints are worked out once per
+	# roof (they were rebuilt on every one of up to forty tries, and the far boxes replay every
+	# building's roof: Building.roof_plan()), the same rects as before.
+	if _blocker_part != part_index or _blocker_centre != part_center:
+		_blocker_part = part_index
+		_blocker_centre = part_center
+		_blockers.clear()
+		var top: float = parts[part_index].center.y + parts[part_index].size.y * 0.5
+		for j in parts.size():
+			if j == part_index or parts[j].center.y + parts[j].size.y * 0.5 <= top:
+				continue
+			var s: Vector3 = parts[j].size
+			var c: Vector3 = parts[j].center
+			_blockers.append(Rect2(Vector2(c.x - s.x * 0.5, c.z - s.z * 0.5) - Vector2(part_center.x, part_center.z), Vector2(s.x, s.z)).grow(0.8))
+	for footprint_rect in _blockers:
 		if rect.intersects(footprint_rect):
 			return false
 	return true
+
+
+## _rect_free()'s cache: the taller parts' footprints round one part's roof.
+var _blocker_part: int = -1
+var _blocker_centre: Vector3 = Vector3.ZERO
+var _blockers: Array[Rect2] = []
 
 
 func _build_prop(kind: String, at: Vector3) -> void:

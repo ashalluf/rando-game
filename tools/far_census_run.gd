@@ -38,8 +38,11 @@ func run(tree: SceneTree) -> void:
 	sky.build_near(eye, 10.0)
 	var mem0 := Performance.get_monitor(Performance.MEMORY_STATIC)
 	var t0 := Time.get_ticks_usec()
+	var cpu0 := _cpu_ms()
 	sky.build_near(eye, radius)
 	var ms := float(Time.get_ticks_usec() - t0) / 1000.0
+	# This process's own CPU time: the wall clock on a box shared with other renders is noise.
+	var cpu := _cpu_ms() - cpu0
 	var mem1 := Performance.get_monitor(Performance.MEMORY_STATIC)
 	# Second pass, counting: the same tiles built again by hand, read just before each is committed
 	# (a committed tile keeps only its colours).
@@ -94,6 +97,7 @@ func run(tree: SceneTree) -> void:
 	var ring := {"parts": 0, "plain": 0, "plant_small": 0, "plant_big": 0, "old_facade": 0}
 	var here: Vector2i = plan.block_index_at(eye)
 	var t1 := Time.get_ticks_usec()
+	var ring_cpu0 := _cpu_ms()
 	var ring_blocks := 0
 	for dx in range(-7, 8):
 		for dz in range(-7, 8):
@@ -121,14 +125,26 @@ func run(tree: SceneTree) -> void:
 					ring.old_facade += 1
 			cap.free()
 	var ring_ms := float(Time.get_ticks_usec() - t1) / 1000.0
+	var ring_cpu := _cpu_ms() - ring_cpu0
 	var ring_total: int = ring.parts + ring.plain + ring.plant_small + ring.plant_big + ring.old_facade
-	print("FAR_CENSUS lod_ring blocks=%d instances=%d tris=%d %s build_ms=%.0f" % [ring_blocks, ring_total, ring_total * box_mesh_tris, str(ring), ring_ms])
-	print("FAR_CENSUS eye=%s radius=%.0f blocks=%d tiles=%d build_ms=%.0f static_mem_mb=%.1f" % [str(eye), radius, sky.blocks_built, tiles, ms, (mem1 - mem0) / 1048576.0])
+	print("FAR_CENSUS lod_ring blocks=%d instances=%d tris=%d %s build_ms=%.0f cpu_ms=%.0f" % [ring_blocks, ring_total, ring_total * box_mesh_tris, str(ring), ring_ms, ring_cpu])
+	print("FAR_CENSUS eye=%s radius=%.0f blocks=%d tiles=%d build_ms=%.0f cpu_ms=%.0f static_mem_mb=%.1f" % [str(eye), radius, sky.blocks_built, tiles, ms, cpu, (mem1 - mem0) / 1048576.0])
 	print("FAR_CENSUS boxes facade=%d facade_v2=%d plain=%d plate=%d deck=%d other=%d box_tris=%d veg=%d houses=%d meshes=%s" % [kinds.facade, kinds.facade_v2, kinds.plain, kinds.plate, kinds.deck, kinds.other, box_tris, veg, houses, str(meshes)])
 	s.free()
 	sky.queue_free()
 	count.queue_free()
 	tree.quit()
+
+
+## User + system CPU time of this process in ms (/proc/self/stat; Linux only, -1 elsewhere).
+static func _cpu_ms() -> float:
+	var f := FileAccess.open("/proc/self/stat", FileAccess.READ)
+	if f == null:
+		return -1.0
+	# get_line(), not get_as_text(): procfs files report a size of 0.
+	var fields := f.get_line().split(")")[-1].strip_edges().split(" ")
+	# After the ")" that closes the command name: state is field 0, utime 11, stime 12 (clock ticks).
+	return (fields[11].to_float() + fields[12].to_float()) * 10.0
 
 
 static func _tris(mesh: Mesh) -> int:

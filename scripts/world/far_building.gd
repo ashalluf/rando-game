@@ -134,42 +134,45 @@ static func plant(prop: Array, building_height: float) -> Array:
 	var rolls: Dictionary = prop[2]
 	var big := 1.0 if SILHOUETTE.has(kind) else 0.0
 	var out: Array = []
-	var unit := func(size: Vector3, centre: Vector3, colour: Color, plant_kind: int = Plant.UNIT, yaw: float = 0.0) -> void:
-		var basis := Basis(Vector3.UP, yaw).scaled_local(size) if yaw != 0.0 else Basis.from_scale(size)
-		out.append([Transform3D(basis, at + centre), colour, Color(float(plant_kind), big, 0.0, PLANT_FLAG)])
 	match kind:
 		"ac":
 			var rusted: bool = rolls.get("rusted", false)
-			unit.call(Vector3(1.4, 1.5, 1.4), Vector3(0.0, 0.85, 0.0), Color(0.52, 0.45, 0.38) if rusted else Color(0.74, 0.74, 0.72), Plant.UNIT, float(rolls.get("yaw", 0.0)))
+			_unit(out, at, big, Vector3(1.4, 1.5, 1.4), Vector3(0.0, 0.85, 0.0), Color(0.52, 0.45, 0.38) if rusted else Color(0.74, 0.74, 0.72), Plant.UNIT, float(rolls.get("yaw", 0.0)))
 		"vents":
-			unit.call(Vector3(7.0, 0.7, 0.9), Vector3(0.0, 0.35, 0.0), Color(0.62, 0.63, 0.64))
+			_unit(out, at, big, Vector3(7.0, 0.7, 0.9), Vector3(0.0, 0.35, 0.0), Color(0.62, 0.63, 0.64))
 		"ducts":
 			var yaw: float = rolls.get("yaw", 0.0)
 			# The run lies along (cos, sin) of its heading in x / z, from -3.6 to +3.8 m.
-			unit.call(Vector3(7.4, 1.15, 0.62), Vector3(cos(yaw), 0.0, sin(yaw)) * 0.1 + Vector3(0.0, 0.58, 0.0), Color(0.63, 0.64, 0.66), Plant.UNIT, -yaw)
+			_unit(out, at, big, Vector3(7.4, 1.15, 0.62), Vector3(cos(yaw), 0.0, sin(yaw)) * 0.1 + Vector3(0.0, 0.58, 0.0), Color(0.63, 0.64, 0.66), Plant.UNIT, -yaw)
 		"solar":
-			unit.call(Vector3(5.3, 0.5, 3.2), Vector3(0.0, 0.45, 0.0), Color(0.07, 0.09, 0.16), Plant.GLAZING)
+			_unit(out, at, big, Vector3(5.3, 0.5, 3.2), Vector3(0.0, 0.45, 0.0), Color(0.07, 0.09, 0.16), Plant.GLAZING)
 		"skylight":
-			unit.call(Vector3(2.4, 0.48, 2.4), Vector3(0.0, 0.24, 0.0), Color(0.60, 0.68, 0.72), Plant.GLAZING)
+			_unit(out, at, big, Vector3(2.4, 0.48, 2.4), Vector3(0.0, 0.24, 0.0), Color(0.60, 0.68, 0.72), Plant.GLAZING)
 		"cooling_tower":
-			unit.call(Vector3(2.5, 2.1, 2.5), Vector3(0.0, 1.05, 0.0), Color(0.58, 0.59, 0.60))
+			_unit(out, at, big, Vector3(2.5, 2.1, 2.5), Vector3(0.0, 1.05, 0.0), Color(0.58, 0.59, 0.60))
 		"bulkhead":
-			unit.call(Vector3(3.2, 2.6, 3.2), Vector3(0.0, 1.3, 0.0), Color(0.55, 0.55, 0.53))
+			_unit(out, at, big, Vector3(3.2, 2.6, 3.2), Vector3(0.0, 1.3, 0.0), Color(0.55, 0.55, 0.53))
 		"water_tower":
 			# The tank on its stand; the legs are four 12 cm posts, under a pixel past the FULL ring.
-			unit.call(Vector3(3.1, 3.6, 3.1), Vector3(0.0, 4.7, 0.0), Color(0.46, 0.34, 0.22))
+			_unit(out, at, big, Vector3(3.1, 3.6, 3.1), Vector3(0.0, 4.7, 0.0), Color(0.46, 0.34, 0.22))
 		"spire":
 			var h: float = rolls.get("h", 0.2 * maxf(building_height, 60.0))
-			unit.call(Vector3(2.2, 3.0, 2.2), Vector3(0.0, 1.5, 0.0), Color(0.70, 0.70, 0.74))
-			unit.call(Vector3(0.6, h + 0.6, 0.6), Vector3(0.0, 3.0 + (h + 0.6) * 0.5, 0.0), Color(0.80, 0.80, 0.84), Plant.BEACON_MAST)
+			_unit(out, at, big, Vector3(2.2, 3.0, 2.2), Vector3(0.0, 1.5, 0.0), Color(0.70, 0.70, 0.74))
+			_unit(out, at, big, Vector3(0.6, h + 0.6, 0.6), Vector3(0.0, 3.0 + (h + 0.6) * 0.5, 0.0), Color(0.80, 0.80, 0.84), Plant.BEACON_MAST)
 		"antenna":
 			var h: float = rolls.get("h", 10.0)
-			unit.call(Vector3(0.16, h + 0.25, 0.16), Vector3(0.0, (h + 0.25) * 0.5, 0.0), Color(0.75, 0.75, 0.78), Plant.BEACON_MAST)
+			_unit(out, at, big, Vector3(0.16, h + 0.25, 0.16), Vector3(0.0, (h + 0.25) * 0.5, 0.0), Color(0.75, 0.75, 0.78), Plant.BEACON_MAST)
 		"billboard":
 			var yaw: float = rolls.get("yaw", 0.0)
 			var paint: Color = rolls.get("color", Color(0.8, 0.76, 0.68))
-			unit.call(Vector3(6.0, 3.0, 0.24), Basis(Vector3.UP, yaw) * Vector3(0.0, 4.0, 0.0), paint, Plant.PANEL, yaw)
+			_unit(out, at, big, Vector3(6.0, 3.0, 0.24), Basis(Vector3.UP, yaw) * Vector3(0.0, 4.0, 0.0), paint, Plant.PANEL, yaw)
 	return out
+
+
+## One plant box into `out`: `size`, its centre `centre` from the prop's foot `at`, turned `yaw`.
+static func _unit(out: Array, at: Vector3, big: float, size: Vector3, centre: Vector3, colour: Color, plant_kind: int = Plant.UNIT, yaw: float = 0.0) -> void:
+	var basis := Basis(Vector3.UP, yaw).scaled_local(size) if yaw != 0.0 else Basis.from_scale(size)
+	out.append([Transform3D(basis, at + centre), colour, Color(float(plant_kind), big, 0.0, PLANT_FLAG)])
 
 
 ## A diagonal basis of `size` carrying six 20-bit codes in its off-diagonals.
