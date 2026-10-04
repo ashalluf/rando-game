@@ -954,9 +954,11 @@ def lip_faces(o):
     return {i for i, v in enumerate(vals) if v}
 
 
-def vertex_ao(o, bvh, rays=24, reach=0.22):
+def vertex_ao(o, bvh, rays=24, reach=0.22, skip=()):
     """Ambient occlusion per vertex (rest pose) against the whole character: cosine-weighted
-    rays over the normal's hemisphere, the fraction that escape within `reach`."""
+    rays over the normal's hemisphere, the fraction that escape within `reach`. The normals are
+    the faces' outside `skip` (a hem's turned lip): averaged with the lip, an edge vertex's normal
+    tipped into the cloth, every ray hit, and the hems wore black zigzags."""
     import random
     rng = random.Random(7)
     dirs = []
@@ -966,9 +968,16 @@ def vertex_ao(o, bvh, rays=24, reach=0.22):
         dirs.append(Vector((r * math.cos(th), r * math.sin(th), math.sqrt(max(0.0, 1 - u)))))
     mw = o.matrix_world
     nm = mw.to_3x3()
+    acc = [Vector() for _ in o.data.vertices]
+    for p in o.data.polygons:
+        if p.index in skip:
+            continue
+        for vi in p.vertices:
+            acc[vi] += p.normal * p.area
     out = []
     for vtx in o.data.vertices:
-        n = (nm @ vtx.normal).normalized()
+        n0 = acc[vtx.index] if acc[vtx.index].length > 1e-12 else vtx.normal
+        n = (nm @ n0).normalized()
         t = n.orthogonal().normalized()
         b = n.cross(t)
         p = mw @ vtx.co + n * 0.002
@@ -981,7 +990,7 @@ def vertex_ao(o, bvh, rays=24, reach=0.22):
     return out
 
 
-OWN_T = {"uv": [], "p": [], "n": [], "guv": [], "part": [], "ao": []}
+OWN_T = {"uv": [], "p": [], "n": [], "guv": [], "part": [], "ao": [], "zone": []}
 if OWN:
     _all = [o for o in body_parts]
     _v, _f = [], []
@@ -1008,7 +1017,12 @@ for o in body_parts:
         gspec = CFG["outfit"][rec["gid"]]
         gain = gspec.get("fold_gain", 1.0) * CFG.get("fold_gain", 1.0) if rec["part"] == "shell" else 0.0
         ga = me.attributes.get("crowd_guv")
-        ao = vertex_ao(o, AO_BVH)
+        # which part of a top each face is (0 torso, 1 left sleeve, 2 right sleeve; garments.py)
+        za = me.attributes.get("zone")
+        zone = [0] * len(me.polygons)
+        if za is not None and za.domain == 'FACE':
+            za.data.foreach_get("value", zone)
+        ao = vertex_ao(o, AO_BVH, skip=lips)
         pidx = OWN.index(o)
         for t in me.loop_triangles:
             if t.polygon_index in lips:
@@ -1019,6 +1033,7 @@ for o in body_parts:
             OWN_T["guv"].append([list(ga.data[li].vector)[:2] if ga is not None else [0.0, 0.0] for li in t.loops])
             OWN_T["part"].append(pidx)
             OWN_T["ao"].append([ao[vi] for vi in t.vertices])
+            OWN_T["zone"].append(zone[t.polygon_index])
     for t in me.loop_triangles:
         if rec and (gain <= 0.0 or t.polygon_index in lips or region.get(t.polygon_index) == "other"):
             continue
@@ -1072,7 +1087,7 @@ if F_uv:
     print("CROWD folds: %d garment triangles, hem z %.2f, sleeve end %.2f, trouser end %.2f" % (
         len(F_uv), L["z_hem"], L["sleeve_end"], L["z_pants_end"]))
 if OWN:
-    np.savez_compressed(C.work(NAME, "own.npz"), **{k: np.array(v, np.float32 if k != "part" else np.int32) for k, v in OWN_T.items()})
+    np.savez_compressed(C.work(NAME, "own.npz"), **{k: np.array(v, np.int32 if k in ("part", "zone") else np.float32) for k, v in OWN_T.items()})
     with open(C.work(NAME, "own_parts.json"), "w") as f:
         json.dump([dict(own(o), name=o.name) for o in OWN], f)
     print("CROWD own garments: %d triangles to paint over %d parts" % (len(OWN_T["part"]), len(OWN)))

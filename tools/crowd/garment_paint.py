@@ -160,6 +160,8 @@ class Texels:
         self.G = np.einsum("nk,nkd->nd", w, g[t])
         self.ao = np.einsum("nk,nk->n", w, ao[t])
         self.part = part[t]
+        # which part of a top: 0 torso, 1 left sleeve, 2 right sleeve (garments.py's "zone")
+        self.zone = Z["zone"][t] if "zone" in Z.files else np.zeros(len(t), np.int32)
         # metres per texel, per triangle
         e1, e2 = p[:, 1] - p[:, 0], p[:, 2] - p[:, 0]
         a3 = 0.5 * np.linalg.norm(np.cross(e1, e2), axis=1)
@@ -293,10 +295,12 @@ def paint_top_seams(pt, B, X, sel, L, spec, thread, kind):
     for side, sg in (("Left", 1.0), ("Right", -1.0)):
         s_arm, rdir, rl, ax = B.limb(P, side + "Arm", side + "ForeArm")
         on_side = (P[:, 0] * sg) > 0
-        # sleeve vs body: past the armhole plane, a few cm outward of the joint
+        # sleeve vs body by the shell's own zones (garments.py); by the armhole plane alone, the
+        # whole torso under a 45-degree bind-pose arm counted as sleeve
         arm_s = s_arm - 0.01
-        sleeve = on_side & (arm_s > 0.0)
-        torso = ~sleeve
+        zone = X.zone[sel]
+        sleeve = on_side & (zone == (1 if side == "Left" else 2))
+        torso = ~sleeve & (zone == 0)
         # side seam: where the torso's mid-depth plane meets its side, below the armpit
         m = torso & on_side & (np.abs(P[:, 0]) > 0.06) & (P[:, 2] < armpit_z)
         if m.any():
@@ -612,7 +616,7 @@ def paint_trousers(pt, B, X, sel, L, spec, outfit_color):
 
 
 # ---- shirt and jacket ---------------------------------------------------------------------------
-def body_uv(B, P):
+def body_uv(B, P, zone):
     """Pattern coordinates that follow the body (metres): round the torso and up it, or round
     each arm and along it past the armhole (so a stripe runs down the body and down the sleeve,
     as cloth is cut)."""
@@ -623,7 +627,7 @@ def body_uv(B, P):
         m = (P[:, 0] * sg) > 0
         s1, rd1, r1, ax1 = B.limb(P[m], side + "Arm", side + "ForeArm")
         s2, rd2, r2, ax2 = B.limb(P[m], side + "ForeArm", side + "Hand")
-        on = s1 > 0.01
+        on = zone[m] == (1 if side == "Left" else 2)
         fore = s2 > 0.0
         # azimuth round the arm from its front
         fwd = np.array([0.0, -1.0, 0.0])
@@ -642,12 +646,12 @@ def body_uv(B, P):
     return u, v
 
 
-def pattern(pt, B, P, spec):
+def pattern(pt, B, P, spec, zone):
     """Stripes or a check woven into the cloth (colours sRGB), on body-following coordinates."""
     pat = spec.get("pattern")
     if not pat:
         return
-    u, v = body_uv(B, P)
+    u, v = body_uv(B, P, zone)
     kind = pat.get("type", "stripes")
     c2 = pat.get("color", [240, 240, 236])
     per = pat.get("period", 0.012)
@@ -674,7 +678,10 @@ def paint_shirt(pt, B, X, pidx, parts, L, spec):
     shell = np.isin(X.part, [k for k in pidx if parts[k]["part"] == "shell"])
     P = X.P[sel_all]
     sub = _Sub(pt, sel_all)
-    pattern(sub, B, P, spec)
+    zone = X.zone[sel_all].copy()
+    cuffs = np.isin(X.part[sel_all], [k for k in pidx if parts[k]["part"] == "cuff"])
+    zone[cuffs] = np.where(P[cuffs, 0] > 0, 1, 2)
+    pattern(sub, B, P, spec, zone)
     sub.shade(1.0 + 0.04 * fbm(P, 0.025, 2, seed=51))
     sub.commit()
     thread = spec.get("thread")

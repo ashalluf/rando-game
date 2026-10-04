@@ -237,17 +237,26 @@ def push_out(P, bvhs, clearance, dirs=None, reach=0.08):
     for bvh in bvhs:
         for i in range(len(out)):
             if dirs is not None:
+                # Only the surface right under the point counts: cast inward and accept an
+                # outward-facing hit (the point is outside, `stand` above it); otherwise the point
+                # is inside and leaves through the nearest wall along the direction. Cast from
+                # `reach` outside back in, a point in a fold - the crotch, the armpit - met the
+                # other thigh or the torso's side first and was thrown out past it: the jeans'
+                # crotch crumpled and a fin stood off every armpit.
                 d = Vector(dirs[i])
                 if d.length < 1e-6:
                     continue
                 d.normalize()
                 p = Vector(out[i])
-                hit = bvh.ray_cast(p + d * reach, -d, reach * 2.0)
-                if hit[0] is None:
+                hin = bvh.ray_cast(p, -d, reach)
+                if hin[0] is not None and Vector(hin[1]).dot(d) > 0.0:
+                    stand = (p - hin[0]).dot(d)
+                    if stand < cl[i]:
+                        out[i] = np.array(p + d * (cl[i] - stand))
                     continue
-                stand = (p - hit[0]).dot(d)
-                if stand < cl[i]:
-                    out[i] = np.array(p + d * (cl[i] - stand))
+                hout = bvh.ray_cast(p, d, reach)
+                if hout[0] is not None and Vector(hout[1]).dot(d) > 0.0:
+                    out[i] = np.array(hout[0] + d * cl[i])
                 continue
             loc, nrm, _idx, dist = bvh.find_nearest(Vector(out[i]))
             if loc is None:
@@ -1323,26 +1332,31 @@ def build_top_shell(ctx, g, gid, kind):
     w_sl = smooth_field(w_sl, nbr, 4)
     # 1. offset: the torso off the body by the fit, the sleeves rounded into tubes that start at
     #    the shoulder joint (rounding the joint itself puffed every cap into a shoulder pad)
-    Pt = base + nrm * off_t
+    # over the shoulders the cloth lies close (off_shoulder), whatever the fit below the chest
+    wsh = smoothstep(CHEST[2] + 0.02, CHEST[2] + 0.1, base[:, 2])
+    Pt = base + nrm * (off_t * (1.0 - wsh) + g.get("off_shoulder", 0.005) * wsh)[:, None]
     Ps = Pt.copy()
     for side, sg in SIDES:
         sh, el, wr = B.B(side + "Arm"), B.B(side + "ForeArm"), B.B(side + "Hand")
         L1 = np.linalg.norm(el - sh)
         sel_up = (w_sl > 0.01) & ((base[:, 0] * sg) > 0)
+        # Close over the cap, easing out toward the hem: cloth that stands off the shoulder in
+        # the bind pose is carried out sideways by the blend skinning when the arm comes down
+        # (the first tee wore its sleeves as padded boxes).
         if ends[side][0] == "up":
             s_end = ends[side][3]
-            e0, fl = g.get("sleeve_ease", 0.008), g.get("sleeve_flare", 0.007)
-            ease = lambda s, s_end=s_end, e0=e0, fl=fl: 0.002 + (e0 + fl * float(np.clip(s / s_end, 0, 1))) * float(smoothstep(0.08, 0.5, s / s_end))
-            rnd = lambda s, s_end=s_end: 0.6 * float(smoothstep(0.1, 0.55, s / s_end))
+            e0, fl = g.get("sleeve_ease", 0.004), g.get("sleeve_flare", 0.008)
+            ease = lambda s, s_end=s_end, e0=e0, fl=fl: 0.0015 + (e0 + fl * float(np.clip(s / s_end, 0, 1))) * float(smoothstep(0.15, 0.7, s / s_end))
+            rnd = lambda s, s_end=s_end: 0.7 * float(smoothstep(0.15, 0.6, s / s_end))
         else:
-            ease = lambda s, L1=L1: 0.002 + g.get("sleeve_ease", 0.008) * float(smoothstep(0.08, 0.5, s / L1))
-            rnd = lambda s, L1=L1: 0.55 * float(smoothstep(0.1, 0.5, s / L1))
+            ease = lambda s, L1=L1: 0.0015 + g.get("sleeve_ease", 0.006) * float(smoothstep(0.15, 0.6, s / L1))
+            rnd = lambda s, L1=L1: 0.6 * float(smoothstep(0.15, 0.55, s / L1))
         s_up, _, _, _ = limb_frame(base, sh, el)
         # the slices measured on the arm's own skin, past the armpit (the chest wall and the
         # shoulder's side of the joint made every sleeve a bell)
         on_arm = sel_up & np.array([x in (side + "Arm", side + "ForeArm") for x in vd]) & (s_up > 0.03)
-        Ps = tube(Ps, sel_up & (s_up < L1 + 0.02), sh, el, ease, rnd, widen=g.get("sleeve_taper", 0.12),
-                  widen_from=0.08, stat=on_arm, pct=90.0)
+        Ps = tube(Ps, sel_up & (s_up < L1 + 0.02), sh, el, ease, rnd, widen=g.get("sleeve_taper", 0.3),
+                  widen_from=0.08, stat=on_arm, pct=75.0)
         if ends[side][0] == "fore":
             s_fo, _, _, _ = limb_frame(base, el, wr)
             on_fo = sel_up & (s_fo > -0.02)
@@ -1363,15 +1377,17 @@ def build_top_shell(ctx, g, gid, kind):
     z_env_top = CHEST[2] + g.get("envelope_top", 0.05)
     tv = B.Vs[torso_idx & (V[:, 2] > z_hem - 0.08) & (V[:, 2] < z_env_top + 0.04)]
     env = Envelope(tv, z_hem - 0.08, z_env_top + 0.03, off_t, slope=slope, z_hang=CHEST[2] + g.get("hang_from", 0.0))
-    fade = 1.0 - smoothstep(z_env_top - 0.06, z_env_top, Pn[:, 2])
+    # faded out over 11 cm from below the chest: over 6 cm the step to the close shoulders was
+    # steep enough that the decimated cloth folded along it, a sawtooth across the shoulder blades
+    fade = 1.0 - smoothstep(CHEST[2] - 0.04, z_env_top + 0.02, Pn[:, 2])
     wt = np.clip((1.0 - w_sl) * fade, 0.0, 1.0)
     for i in np.where(wt > 1e-3)[0]:
         Pn[i] = Pn[i] * (1.0 - wt[i]) + env.place(Pn[i]) * wt[i]
-    Pn = taubin(Pn, nbr, bound, 3)
+    Pn = taubin(Pn, nbr, bound, 8)
     # 4. clear the (smoothed) body and whatever the top goes over
     Pn = push_out(Pn, [B.bvh_s], 0.006, dirs=nrm)
     if ctx.layers:
-        Pn = push_out(Pn, [bvh_of(ctx.layers)], 0.007, dirs=nrm)
+        Pn = push_out(Pn, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), dirs=nrm)
     set_positions(o, Pn)
     # which part of the top each face is (0 torso, 1 left sleeve, 2 right sleeve), for the cuts
     zl = o.data.attributes.new("zone", 'INT', 'FACE')
@@ -1428,12 +1444,17 @@ def tee(ctx, g, gid):
     keep_largest_part(o)
     subdivide(o, 1)
     decimate(o, g.get("tris", 1900))
-    clear_of(o, [B.bvh] + ([bvh_of(ctx.layers)] if ctx.layers else []), 0.005)
+    clear_of(o, [B.bvh], 0.005)
+    if ctx.layers:
+        # a little more over the layer under it, which is skinned differently
+        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010))
     L["hems"] = top_lips(ctx, o, L, hem=(0.003, 0.018), sleeve=(0.003, 0.016))
     smooth_weights(o, 6, where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.13,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
     off_the_head(o, 0.35)
-    move_weight(o, list(LEG_UP), "Hips", 0.6)
+    # the hem follows the thighs about as the waistband under it does (moved to the hips, the
+    # tee's front lifted off the jeans at every stride and showed a dark gap)
+    move_weight(o, list(LEG_UP), "Hips", g.get("hem_hips", 0.25))
     mark(o, "tee", "shell", "top", g.get("fabric", "jersey"), gid)
     edge_pts = neck_loop(o, CHEST[2])
     collar = collar_rib(ctx, "tee_collar", axis, edge_pts, g.get("collar_h", 0.017), gid, "tee", "top", g.get("fabric", "jersey"))
@@ -1550,7 +1571,7 @@ def cut_curve(o, centre_y_fn, zfn, z_lo, z_hi, zone=None, n=48, r_ref=0.15):
     bm.free()
 
 
-def front_line(ctx, o, z_top, z_bot, x=0.0, step=0.012):
+def front_line(ctx, o, z_top, z_bot, x=0.0, step=0.025):
     """Points down the front of a shell at x (cast from in front), with its normals: [(p, n)]."""
     bvh = bvh_of([o])
     out = []
@@ -1649,7 +1670,7 @@ def cuff_bands(ctx, o, L, g, gid, garment, kind, fabric, region="top"):
             w = g.get("cuff_len", 0.058)
             prof = lambda k, r, d, a, w=w: [(r - 0.003, -0.008), (r + 0.0005, 0.0), (r - 0.001, 0.004), (r - 0.0015, w - 0.003),
                                             (r - 0.0025, w), (r - 0.0045, w - 0.0015), (r - 0.0048, 0.002)]
-        band = edge_band(ctx, "%s_cuff_%s" % (garment, side[0]), pts, centre, ax, np.array([0.0, -1.0, 0.0]), prof, n=28)
+        band = edge_band(ctx, "%s_cuff_%s" % (garment, side[0]), pts, centre, ax, np.array([0.0, -1.0, 0.0]), prof, n=18)
         finish_band(ctx, band, garment, "cuff", region, fabric, gid, lambda c, el=el, ax=ax: tuple(el + ax * ((np.array(c) - el) @ ax)))
         out.append(band)
     return out
@@ -1689,8 +1710,11 @@ def shirt(ctx, g, gid):
     cut_neck(o, axis, radius, L["neck_back"], L["neck_front"], NECK[1] + 0.06, NECK[1] - 0.07, CHEST[2] + 0.02)
     keep_largest_part(o)
     subdivide(o, 1)
-    decimate(o, g.get("tris", 2000))
-    clear_of(o, [B.bvh] + ([bvh_of(ctx.layers)] if ctx.layers else []), 0.005)
+    decimate(o, g.get("tris", 1800))
+    clear_of(o, [B.bvh], 0.005)
+    if ctx.layers:
+        # a little more over the layer under it, which is skinned differently
+        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010))
     P, nbr, bound = mesh_arrays(o)
     set_positions(o, smooth_edge(P, nbr, bound, P[:, 2] < CHEST[2] - 0.1, 6))
     L["z_side"] = z_side
@@ -1710,7 +1734,7 @@ def shirt(ctx, g, gid):
     smooth_weights(o, 6, where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.13,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
     off_the_head(o, 0.35)
-    move_weight(o, list(LEG_UP), "Hips", 0.6)
+    move_weight(o, list(LEG_UP), "Hips", g.get("hem_hips", 0.25))
     fabric = g.get("fabric", "woven")
     mark(o, "shirt", "shell", "top", fabric, gid)
     parts = [o]
@@ -1721,7 +1745,7 @@ def shirt(ctx, g, gid):
     gap = g.get("collar_gap", 0.18)     # radians either side of the front centre left open
     stand_h, th = g.get("stand_h", 0.03), 0.0018
     frames, profs = [], []
-    nf = 46
+    nf = 32
     for j in range(nf):
         a = gap + (2 * math.pi - 2 * gap) * j / (nf - 1)
         t = a / (2 * math.pi) * 72
@@ -1760,7 +1784,7 @@ def shirt(ctx, g, gid):
             ns.append(best[1])
             zb -= spacing
         if cs:
-            bt = discs(ctx, "shirt_buttons", cs, ns, 0.0055, 0.0018)
+            bt = discs(ctx, "shirt_buttons", cs, ns, 0.0055, 0.0018, seg=6)
             weights_from_body(ctx, bt)
             mark(bt, "shirt", "buttons", "other", fabric, gid)
             parts.append(bt)
@@ -1800,13 +1824,16 @@ def jacket(ctx, g, gid):
     cut_neck(o, axis, radius, L["neck_back"], L["neck_front"], NECK[1] + 0.06, NECK[1] - 0.07, CHEST[2] + 0.02)
     keep_largest_part(o)
     subdivide(o, 1)
-    decimate(o, g.get("tris", 2000))
-    clear_of(o, [B.bvh] + ([bvh_of(ctx.layers)] if ctx.layers else []), 0.006)
+    decimate(o, g.get("tris", 1800))
+    clear_of(o, [B.bvh], 0.006)
+    if ctx.layers:
+        # a little more over the layer under it, which is skinned differently
+        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010))
     L["hems"] = top_lips(ctx, o, L, hem=(0.003, 0.012), sleeve=(0.003, 0.012))
     smooth_weights(o, 6, where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.13,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
     off_the_head(o, 0.35)
-    move_weight(o, list(LEG_UP), "Hips", 0.6)
+    move_weight(o, list(LEG_UP), "Hips", g.get("hem_hips", 0.25))
     fabric = g.get("fabric", "woven")
     rib = g.get("rib_fabric", "jersey")
     mark(o, "jacket", "shell", "top", fabric, gid)
@@ -1817,7 +1844,7 @@ def jacket(ctx, g, gid):
     if hp is not None:
         c0 = np.array([0.0, ty(L["z_hem"]), float(hp[:, 2].mean())])
         hb = edge_band(ctx, "jacket_band", hp, c0, np.array([0.0, 0.0, -1.0]), np.array([0.0, -1.0, 0.0]),
-                       lambda k, r, d, a: rib_profile(r, band, g.get("band_pull", 0.012)), n=56)
+                       lambda k, r, d, a: rib_profile(r, band, g.get("band_pull", 0.012)), n=40)
         finish_band(ctx, hb, "jacket", "band", "top", rib, gid, lambda c: (0.0, ty(c.z), c.z))
         parts.append(hb)
     parts += cuff_bands(ctx, o, L, g, gid, "jacket", "rib", rib)
@@ -1852,7 +1879,7 @@ def jacket(ctx, g, gid):
             if n.y > 0:
                 n = -n
             line.append((np.array(hit[0]), np.array(n.normalized())))
-        z -= 0.012
+        z -= 0.025
     if len(line) > 3:
         tape = strip(ctx, "jacket_zip_tape", line, 0.026, 0.0012)
         finish_band(ctx, tape, "jacket", "zip_tape", "top", fabric, gid, lambda c: (0.0, ty(c.z), c.z))
@@ -2079,8 +2106,9 @@ def flatten_crotch(body, arm):
     hips = np.array(amw @ arm.data.bones["Hips"].head_local)
     up = np.array(amw @ arm.data.bones["LeftUpLeg"].head_local)
     z_c = up[2] - 0.07
-    w = (1.0 - smoothstep(0.035, 0.085, np.abs(V[:, 0]))) * smoothstep(z_c - 0.09, z_c - 0.05, V[:, 2]) \
-        * (1.0 - smoothstep(z_c + 0.08, z_c + 0.13, V[:, 2])) * (1.0 - smoothstep(hips[1] - 0.04, hips[1] + 0.01, V[:, 1]))
+    # the front of the bulge only, never the inner thighs under the crotch
+    w = (1.0 - smoothstep(0.035, 0.085, np.abs(V[:, 0]))) * smoothstep(z_c - 0.03, z_c, V[:, 2]) \
+        * (1.0 - smoothstep(z_c + 0.08, z_c + 0.13, V[:, 2])) * (1.0 - smoothstep(hips[1] - 0.06, hips[1] - 0.02, V[:, 1]))
     if w.max() <= 0.0:
         return
     nbr = [[] for _ in V]
@@ -2089,14 +2117,78 @@ def flatten_crotch(body, arm):
         nbr[a].append(c)
         nbr[c].append(a)
     P = V.copy()
+    side = np.sign(V[:, 0])
     for _ in range(60):
         avg = np.array([P[n].mean(0) if n else P[i] for i, n in enumerate(nbr)])
         P = P + 0.5 * w[:, None] * (avg - P)
+        # no vertex crosses the midline: its weights are its own leg's (moved across, the left
+        # thigh's vertices followed the left leg on the right of the fly, a spike at each stride)
+        P[:, 0] = np.where(side != 0, side * np.maximum(P[:, 0] * side, np.minimum(np.abs(V[:, 0]), 0.002)), P[:, 0])
     mwi = np.array(mw.inverted())
     loc = (np.c_[P, np.ones(len(P))] @ mwi.T)[:, :3]
     me.vertices.foreach_set("co", loc.astype(np.float32).ravel())
     me.update()
     print("CROWD crotch flattened (%d vertices moved, at most %.1f mm)" % (int((w > 0.01).sum()), np.linalg.norm(P - V, axis=1).max() * 1000))
+
+
+def hide_under(lower, uppers, axis_y, reach=0.05, margin=0.06):
+    """Faces of a lower layer (trousers) that a garment over them hides, deleted: every corner
+    has the upper layer within `reach` of it, outward from the torso's axis (so the waistband's
+    turned lip counts as hidden too), and none lies within `margin` of a corner that shows, so a
+    walk's sway never opens a gap. The two layers are skinned differently (the trousers follow
+    the thighs, the tee the hips and spine), and the jeans' waistband poked out through the
+    tee's front at every stride; hidden, it costs nothing and cannot."""
+    bvh = bvh_of(uppers)
+    P, nbr, bound = mesh_arrays(lower)
+    covered = np.zeros(len(P), bool)
+    for i, p in enumerate(P):
+        loc, _n, _i, dist = bvh.find_nearest(Vector(p), reach)
+        if loc is None:
+            continue
+        rad = np.array([p[0], p[1] - axis_y(p[2]), 0.0])
+        if np.linalg.norm(rad) > 1e-6 and (np.array(loc) - p) @ rad > 0:
+            covered[i] = True
+    show = P[~covered]
+    far = covered.copy()
+    if len(show):
+        for i in np.where(covered)[0]:
+            far[i] = np.min(np.linalg.norm(show - P[i], axis=1)) > margin
+    # What stays under the upper layer moves with it: its weights blended toward the nearest
+    # upper vertex's, fully by `margin` under the edge. With their own (the thighs'), the jeans'
+    # front pockets pushed out through the tee at every stride.
+    depth = np.zeros(len(P))
+    if len(show):
+        for i in np.where(covered)[0]:
+            depth[i] = np.min(np.linalg.norm(show - P[i], axis=1))
+    UP = np.array([o.matrix_world @ v.co for o in uppers for v in o.data.vertices])
+    UW = []
+    for o in uppers:
+        names = {g.index: g.name for g in o.vertex_groups}
+        for v in o.data.vertices:
+            UW.append({names[g.group]: g.weight for g in v.groups if g.group in names})
+    lnames = {g.index: g.name for g in lower.vertex_groups}
+    for i in (int(k) for k in np.where(covered & ~far)[0]):
+        t = float(smoothstep(0.0, margin, depth[i]))
+        if t <= 0.0:
+            continue
+        j = int(np.argmin(np.linalg.norm(UP - P[i], axis=1)))
+        v = lower.data.vertices[i]
+        own = {lnames[g.group]: g.weight for g in v.groups if g.group in lnames}
+        for n in set(own) | set(UW[j]):
+            w = own.get(n, 0.0) * (1.0 - t) + UW[j].get(n, 0.0) * t
+            vg = lower.vertex_groups.get(n) or lower.vertex_groups.new(name=n)
+            if w > 1e-4:
+                vg.add([i], w, 'REPLACE')
+            elif n in own:
+                vg.remove([i])
+    bm = bmesh.new()
+    bm.from_mesh(lower.data)
+    kill = [f for f in bm.faces if all(far[v.index] for v in f.verts)]
+    bmesh.ops.delete(bm, geom=kill, context='FACES')
+    bmesh.ops.delete(bm, geom=[v for v in bm.verts if not v.link_faces], context='VERTS')
+    bm.to_mesh(lower.data)
+    bm.free()
+    return len(kill)
 
 
 def build(body, arm, cfg, name):
@@ -2123,6 +2215,25 @@ def build(body, arm, cfg, name):
         ctx.meta["garments"].append(L)
         print("CROWD garment %s (%s): %s" % (g["type"], g.get("style", g.get("sleeve", "")),
                                                ", ".join("%s %d tris" % (o.name, tris(o)) for o in objs)))
+    # Cloth bends more smoothly than skin (and before the layers are tied together below, or the
+    # blur spreads the thighs' weights back up under the tee): every shell's weights blurred a little, and the
+    # trousers' a lot round the crotch, where the two thighs pull the cloth apart (with the
+    # skin's own weights the front of the crotch was pinched into a spike at every stride).
+    for o in ctx.parts:
+        rec = json.loads(o["crowd_own"])
+        if rec["part"] != "shell":
+            continue
+        smooth_weights(o, cfg.get("cloth_weight_blur", 3))
+        if rec["garment"] == "trousers":
+            cz = ctx.body.crotch_z
+            smooth_weights(o, 12, where=lambda c, cz=cz: abs(c.x) < 0.15 and cz - 0.14 < c.z < cz + 0.12,
+                           names=["LeftUpLeg", "RightUpLeg", "Hips", "Spine02"])
+    region = {o.name: json.loads(o["crowd_own"])["region"] for o in ctx.parts}
+    uppers = [o for o in ctx.parts if region[o.name] == "top"]
+    for lo in [o for o in ctx.parts if region[o.name] == "bottom"]:
+        if uppers:
+            n = hide_under(lo, uppers, B_torso_y(ctx.body), cfg.get("hide_reach", 0.05))
+            print("CROWD %s: %d faces hidden under the top removed, %d tris left" % (lo.name, n, tris(lo)))
     with open(C.work(name, "garments.json"), "w") as f:
         json.dump(ctx.meta, f)
     return ctx.parts

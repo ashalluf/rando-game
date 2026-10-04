@@ -356,7 +356,6 @@
     34
    ],
    "clothes": [
-    "male_casualsuit05.mhclo",
     "shoes02.mhclo"
    ],
    "targets": [
@@ -371,16 +370,31 @@
     50,
     34
    ],
-   "dye": {
-    "bottom": [
-     124,
-     106,
-     78
-    ]
-   },
-   "dye_contrast": {
-    "bottom": 0.85
-   }
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "chinos",
+     "color": [
+      150,
+      128,
+      92
+     ]
+    },
+    {
+     "type": "jacket",
+     "color": [
+      78,
+      84,
+      58
+     ],
+     "rib_fabric": "jersey",
+     "zip_color": [
+      38,
+      38,
+      36
+     ]
+    }
+   ]
   },
   {
    "name": "crowd_g",
@@ -448,7 +462,6 @@
     16
    ],
    "clothes": [
-    "male_casualsuit03.mhclo",
     "shoes01.mhclo"
    ],
    "targets": [],
@@ -458,16 +471,49 @@
     17,
     15
    ],
-   "dye": {
-    "bottom": [
-     108,
-     110,
-     116
-    ]
-   },
-   "dye_contrast": {
-    "bottom": 0.8
-   }
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      96,
+      98,
+      104
+     ],
+     "wash": 0.3,
+     "fade_color": [
+      150,
+      152,
+      158
+     ],
+     "thread": [
+      150,
+      150,
+      150
+     ]
+    },
+    {
+     "type": "shirt",
+     "sleeve": "long",
+     "fit": "regular",
+     "color": [
+      236,
+      238,
+      242
+     ],
+     "pattern": {
+      "type": "stripes",
+      "color": [
+       70,
+       96,
+       150
+      ],
+      "period": 0.009,
+      "width": 0.3,
+      "strength": 0.85
+     }
+    }
+   ]
   },
   {
    "name": "crowd_i",
@@ -554,7 +600,6 @@
     72
    ],
    "clothes": [
-    "male_casualsuit01.mhclo",
     "shoes01.mhclo"
    ],
    "targets": [
@@ -570,13 +615,45 @@
     58,
     52
    ],
-   "dye": {
-    "bottom": [
-     38,
-     46,
-     70
-    ]
-   }
+   "outfit": [
+    {
+     "type": "trousers",
+     "style": "jeans",
+     "color": [
+      34,
+      42,
+      64
+     ],
+     "wash": 0.2,
+     "fade_color": [
+      90,
+      110,
+      150
+     ]
+    },
+    {
+     "type": "shirt",
+     "sleeve": "rolled",
+     "fit": "loose",
+     "color": [
+      104,
+      132,
+      168
+     ],
+     "pattern": {
+      "type": "check",
+      "color": [
+       128,
+       154,
+       186
+      ],
+      "period": 0.0016,
+      "width": 0.5,
+      "strength": 0.25
+     },
+     "pocket": true
+    }
+   ]
   },
   {
    "name": "crowd_k",
