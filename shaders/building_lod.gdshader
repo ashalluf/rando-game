@@ -180,6 +180,11 @@ uniform float small_plant_density = 0.45;
 // A mast is drawn at least this many pixels wide (its true width is a fifth of one a kilometre
 // out), and its aviation beacon glows this bright after dark (the near one is an unshaded red).
 uniform float mast_min_px = 0.75;
+// How bright a lit office and an open shop glow on a coded part: what building.gdshader's traced
+// rooms come to on average (room paint ~0.4 x its lamps ~0.6 x lit_strength 0.8 x 2.0; a shop at
+// x 2.5 in its own tone). Measured against it with tools/glshot/far_building_shot.gd NIGHT=1.
+uniform float lit_room_level = 0.40;
+uniform float lit_shop_level = 0.45;
 uniform float beacon_energy = 3.0;
 
 varying vec3 local_pos;
@@ -568,7 +573,7 @@ void fragment() {
 			// A window frame's least width in metres: about 0.8 px while a bay is several pixels
 			// (the near walls' real frame quads read as a full line there), its painted width once
 			// the cells are going to their average anyway.
-			float frame_px = mpp * 0.8 * (1.0 - smoothstep(0.5, 1.2, mpp));
+			float frame_px = mpp * 0.6 * (1.0 - smoothstep(0.3, 0.8, mpp));
 			bool glass = false;
 			bool frame = false;
 			bool spandrel = false;
@@ -685,7 +690,8 @@ void fragment() {
 			if (storefront) {
 				room = vec3(0.22, 0.20, 0.17) * (0.7 + 0.6 * shop_seed);
 			}
-			vec3 glass_col = mix(room, sky_ref, mirror * (1.0 - reflect_emit)) + glare;
+			// No glare lobe: the near glass has none, its flare is the renderer's own specular.
+			vec3 glass_col = mix(room, sky_ref, mirror * (1.0 - reflect_emit));
 			// The wall's finish (building.gdshader: brick and panels round their mean, a glass
 			// building's opaque panels at 0.6 of its colour) and its rows, faded with distance.
 			// The near wall is the facade times its photographed texture (building.gdshader), so
@@ -771,14 +777,14 @@ void fragment() {
 				cell = glass_col;
 				rough = 0.18;
 				spec = 0.42;
-				e_cell += glare * 0.20 * max(dot(world_normal, sun_n), 0.0) + refl_emit;
+				e_cell += refl_emit;
 				// After dark: the same windows building.gdshader lights, in the building's own light.
 				bool lit = storefront ? shop_open : window_lit(sd, face_id, row, col, lit_ratio_p);
 				float on = storefront ? lamp_factor : night_factor;
 				if (lit && on > 0.001) {
-					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * 0.75 : lit_c * window_glow(sd, face_id, row, col);
+					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * lit_shop_level : lit_c * window_glow(sd, face_id, row, col) * lit_room_level;
 					cell = mix(cell, cell * 0.35, on);
-					e_cell += light * on * 1.9;
+					e_cell += light * on;
 				}
 			} else if (frame) {
 				cell = ws == 2 ? frame_c : accent;
@@ -826,9 +832,9 @@ void fragment() {
 					e_mean = vec3(0.92, 0.97, 1.0) * 0.06 * (0.3 + 0.7 * lamp_factor) * glaze_frac;
 				} else if (storefront) {
 					// About 62 % of the shops open, in their own light, and their sign boards.
-					e_mean = vec3(0.55, 0.50, 0.42) * lamp_factor + refl_emit * glaze_frac;
+					e_mean = vec3(1.0, 0.92, 0.80) * (lit_shop_level * 0.32 + 0.20) * lamp_factor + refl_emit * glaze_frac;
 				} else {
-					e_mean = lit_c * 0.78 * 1.9 * lit_ratio_p * 0.98 * glaze_frac * night_factor + refl_emit * glaze_frac;
+					e_mean = lit_c * 0.78 * lit_room_level * lit_ratio_p * 0.98 * glaze_frac * night_factor + refl_emit * glaze_frac;
 				}
 				emission += mix(e_mean, e_cell, band_fade);
 			} else {
