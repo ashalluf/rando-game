@@ -4,11 +4,13 @@ extends VehicleBody3D
 ## type, a paint color and an optional add-on. Press interact next to it to drive.
 
 ## CROSSOVER is last so every older index (and every seed that rolled one) keeps its meaning.
-enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER }
+## BUS, BOX_TRUCK and SEMI (BigVehicles) come after it for the same reason; random_car() never
+## rolls them - TrafficManager spawns them on purpose.
+enum BodyType { SEDAN, PICKUP, VAN, SPORTS, SUPER, SPIDER, HYPER, TRACK, CROSSOVER, BUS, BOX_TRUCK, SEMI }
 enum Addon { NONE, ROOF_RACK, SPOILER, LIGHT_BAR }
 
 ## Original names. Nothing here is or imitates a real manufacturer's model.
-const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover"]
+const BODY_NAMES := ["Sedan", "Pickup", "Van", "Sports", "Vantari", "Vantari Aperta", "Kestrel", "Kestrel RS", "Crossover", "City Bus", "Box Truck", "Semi"]
 ## Generated body models per type (see docs/ASSETS.md). Missing files fall back to the box car.
 const BODY_MODELS := {
 	BodyType.SEDAN: "res://assets/models/road_sedan.glb",
@@ -20,6 +22,9 @@ const BODY_MODELS := {
 	BodyType.HYPER: "res://assets/models/hifi_hyper_coupe.glb",
 	BodyType.TRACK: "res://assets/models/exo_hyper_b.glb",
 	BodyType.CROSSOVER: "res://assets/models/road_crossover.glb",
+	BodyType.BUS: "res://assets/models/road_bus.glb",
+	BodyType.BOX_TRUCK: "res://assets/models/road_box_truck.glb",
+	BodyType.SEMI: "res://assets/models/road_semi.glb",
 }
 ## Belt line (bottom of the side glass, as a fraction of body height) for a single-texture body
 ## whose texture does not darken the windows, so the paint shader finds glass by shape. No body
@@ -59,6 +64,15 @@ const WHEEL_POSE := {
 	BodyType.HYPER: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
 	BodyType.TRACK: {"x": 0.870, "front": -1.350, "rear": 1.350, "y": -0.050, "r": 0.355, "w": 0.250, "rw": 0.295},
 	BodyType.CROSSOVER: {"x": 0.800, "front": -1.351, "rear": 1.339, "y": 0.164, "r": 0.360, "w": 0.230, "baked": true},
+	# The big vehicles (tools/make_big_vehicles.py prints these): truck wheels on every axle
+	# (BigVehicles.add_wheels), duals `dual_x` out on the driven and trailer axles, one mesh a pair.
+	BodyType.BUS: {"x": 1.035, "front": -3.587, "rear": 3.263, "y": 0.200, "r": 0.500, "w": 0.300, "baked": true,
+			"axles": [[-3.587, false], [3.263, true]], "dual_x": 0.935, "dual_gap": 0.330},
+	BodyType.BOX_TRUCK: {"x": 0.860, "front": -3.397, "rear": 2.403, "y": 0.180, "r": 0.440, "w": 0.235, "baked": true,
+			"axles": [[-3.397, false], [2.403, true]], "dual_x": 0.800, "dual_gap": 0.270},
+	BodyType.SEMI: {"x": 1.035, "front": -3.176, "rear": 2.984, "y": 0.210, "r": 0.510, "w": 0.290, "baked": true,
+			"axles": [[-3.176, false], [2.324, true], [3.644, true]], "dual_x": 0.920, "dual_gap": 0.320,
+			"trailer_axles": [[12.75], [14.0]]},
 }
 ## The sizes above deliberately land on six distinct (radius, section width) pairs across the
 ## eight body types. Every extra pair is another five meshes (one per spoke pattern) times two
@@ -513,6 +527,8 @@ func _ready() -> void:
 	collision_layer = 4
 	collision_mask = _mask()
 	mass = 1200.0
+	if BigVehicles.is_big(body_type):
+		BigVehicles.tune(self)
 	angular_damp = 0.5
 	linear_damp = 0.05
 	center_of_mass_mode = RigidBody3D.CENTER_OF_MASS_MODE_CUSTOM
@@ -682,7 +698,7 @@ func _set_lamps_broken(bits: int) -> void:
 		return
 	var d := _dims()
 	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
-	_night_lights.mesh = PropFactory.vehicle_lights(d.width, d.length, lamp_y,
+	_night_lights.mesh = PropFactory.vehicle_lights(d.width, float(d.get("light_len", d.length)), lamp_y,
 			float(d.get("road", d.get("ride", model_bottom_y))), float(d.get("tail_y", lamp_y)), bits)
 	_lamp_bits = bits
 	_refresh_lights()
@@ -1006,8 +1022,10 @@ func _add_night_lights(dims: Dictionary) -> void:
 	# "lamp_y" / "tail_y" where a body's own lamps are known (the road_* bodies, whose generator
 	# prints them); the old formula put the glow a metre up on a model car.
 	var lamp_y := float(dims.get("lamp_y", 0.55 + dims.chassis_h * 0.62))
-	node.mesh = PropFactory.vehicle_lights(dims.width, dims.length, lamp_y,
+	node.mesh = PropFactory.vehicle_lights(dims.width, float(dims.get("light_len", dims.length)), lamp_y,
 			float(dims.get("road", dims.get("ride", model_bottom_y))), float(dims.get("tail_y", lamp_y)))
+	# A semi's lamps run the whole rig (its tail lamps are on the trailer's back).
+	node.position.z = float(dims.get("light_z", 0.0))
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# One node per car rather than five: with a hundred and fifty cars on the road the separate
 	# quads were several hundred draw calls on their own. Past this distance the car is a few
@@ -1101,7 +1119,7 @@ func headlight_transform(dip: float) -> Transform3D:
 func tail_point() -> Vector3:
 	var d := _dims()
 	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
-	return Vector3(0.0, float(d.get("tail_y", lamp_y)) - 0.1, float(d.length) * 0.5 + 0.35)
+	return Vector3(0.0, float(d.get("tail_y", lamp_y)) - 0.1, float(d.get("light_len", d.length)) * 0.5 + float(d.get("light_z", 0.0)) + 0.35)
 
 
 ## Puts the state on the lamps: visible while running, one of PropFactory's shared state
@@ -1138,6 +1156,9 @@ func _add_real_wheels() -> void:
 ## drive traffic and driven cars down one path.
 func _add_generated_wheels() -> void:
 	var pose := _wheel_pose()
+	if pose.has("axles"):
+		BigVehicles.add_wheels(self, pose)
+		return
 	if wheel_style < 0:
 		wheel_style = absi(hash([body_type, paint.to_rgba32(), 41])) % PropFactory.WHEEL_FACES.size()
 	if wheel_kit < 0:
@@ -1339,7 +1360,7 @@ func _update_wheels(delta: float) -> void:
 		_wheel_near = near
 		for rig: Array in _wheel_rigs:
 			var mi := rig[1] as MeshInstance3D
-			mi.mesh = _wheel_meshes[0 if rig[4] else 1][0 if near else 1]
+			mi.mesh = rig[6 if near else 7] if rig.size() > 7 else _wheel_meshes[0 if rig[4] else 1][0 if near else 1]
 			# The far wheel drops its shadow as well as its triangles: a shadow pass is a second
 			# draw call per wheel, and a wheel's own shadow at forty metres is under the car.
 			mi.cast_shadow = (GeometryInstance3D.SHADOW_CASTING_SETTING_ON if near
@@ -1417,6 +1438,19 @@ func _dims() -> Dictionary:
 			return {"length": 4.633, "width": 1.86, "lamp_y": 0.65, "tail_y": 0.85, "chassis_h": 0.75, "cabin": Vector2(-1.1, 2.6), "cabin_h": 0.8, "wheel_z": 1.34, "track": 1.60, "tyre_r": 0.36, "ride": -0.176, "road": -0.196}
 		BodyType.VAN:
 			return {"length": 5.944, "width": 2.03, "lamp_y": 0.674, "tail_y": 0.864, "chassis_h": 0.8, "cabin": Vector2(-2.0, 4.4), "cabin_h": 1.2, "wheel_z": 1.65, "wheel_front": 1.95, "wheel_rear": 1.67, "track": 1.70, "tyre_r": 0.36, "ride": -0.176, "road": -0.196}
+		BodyType.BUS:
+			return {"length": 12.704, "width": 2.59, "lamp_y": 0.48, "tail_y": 1.0, "chassis_h": 1.0, "cabin": Vector2(-6.1, 12.2), "cabin_h": 1.3, "wheel_z": 3.4, "wheel_front": 3.587, "wheel_rear": 3.263, "track": 2.07, "tyre_r": 0.461, "ride": -0.273, "road": -0.300,
+					"letter_at": Vector3(1.297, 2.40, -1.39), "letter_size": 0.22}
+		BodyType.BOX_TRUCK:
+			return {"length": 8.946, "width": 2.46, "lamp_y": 0.89, "tail_y": 0.92, "chassis_h": 1.0, "cabin": Vector2(-4.4, 8.8), "cabin_h": 1.4, "wheel_z": 2.9, "wheel_front": 3.397, "wheel_rear": 2.403, "track": 1.72, "tyre_r": 0.424, "ride": -0.236, "road": -0.260,
+					"letter_at": Vector3(1.236, 2.30, 1.22), "letter_size": 0.42}
+		BodyType.SEMI:
+			# The tractor is the body (its origin, its length); the trailer hangs off the kingpin
+			# (BigVehicles.Hitch), 16.15 m of it, its back end 15.25 m behind the pin.
+			return {"length": 8.908, "width": 2.49, "lamp_y": 0.82, "tail_y": 0.70, "chassis_h": 1.1, "cabin": Vector2(-4.4, 5.6), "cabin_h": 1.6, "wheel_z": 3.0, "wheel_front": 3.176, "wheel_rear": 2.984, "track": 2.07, "tyre_r": 0.463, "ride": -0.272, "road": -0.300,
+					"kingpin": Vector3(0.0, 0.92, 2.874), "trailer_axle": 13.375, "trailer_rear": 15.25, "trailer_floor": -0.18,
+					"light_len": 22.584, "light_z": 6.838,
+					"letter_at": Vector3(1.31, 1.48, 7.175), "letter_size": 0.62}
 		BodyType.SPORTS:
 			return {"length": 4.6, "width": 1.9, "chassis_h": 0.55, "cabin": Vector2(-0.9, 2.0), "cabin_h": 0.55, "wheel_z": 1.45, "track": 1.64, "tyre_r": 0.34, "ride": -0.30}
 		BodyType.SUPER, BodyType.SPIDER:
@@ -1470,16 +1504,28 @@ func _add_body_model(length: float) -> bool:
 	var painted: ShaderMaterial = null
 	var near_meshes: Array[MeshInstance3D] = []
 	var far_mesh: MeshInstance3D = null
+	var far_meshes: Array[MeshInstance3D] = []
+	# A semi's trailer and a bus's door leaves are their own nodes (BigVehicles.fit() moves them);
+	# the body is centred and scaled on everything else.
+	var trailer: Array = []
+	var doors: Array = []
 	for mi in inst.find_children("*", "MeshInstance3D", true, false):
 		var m := mi as MeshInstance3D
 		_body_meshes.append(m)
-		if String(m.name).ends_with("_far"):
+		var nm := String(m.name)
+		if nm.ends_with("_far"):
 			far_mesh = m
+			far_meshes.append(m)
 		else:
 			near_meshes.append(m)
-		var box := m.mesh.get_aabb()
-		aabb = box if first else aabb.merge(box)
-		first = false
+		if nm.contains("_trailer"):
+			trailer.append(m)
+		elif nm.begins_with("door_"):
+			doors.append(m)
+		else:
+			var box := m.mesh.get_aabb()
+			aabb = box if first else aabb.merge(box)
+			first = false
 		# Per SURFACE, not material_override. The Meshy bodies are one surface with the paint
 		# baked into the albedo, so overriding the whole instance was right for them. The
 		# generated bodies carry six named slots - paint, glass, trim, tyre, light_front,
@@ -1504,7 +1550,8 @@ func _add_body_model(length: float) -> bool:
 	if first:
 		return false
 	if far_mesh != null:
-		far_mesh.visibility_range_begin = body_far_distance
+		for fm in far_meshes:
+			fm.visibility_range_begin = body_far_distance
 		for m in near_meshes:
 			m.visibility_range_end = body_far_distance
 	# Longest horizontal axis is the length; scale so it matches our chassis.
@@ -1538,6 +1585,8 @@ func _add_body_model(length: float) -> bool:
 	_tuck_model_wheels(inst)
 	_add_cabin_glass(holder, near_meshes)
 	add_child(holder)
+	if BigVehicles.is_big(body_type):
+		BigVehicles.fit(self, holder, trailer, doors)
 	return true
 
 
