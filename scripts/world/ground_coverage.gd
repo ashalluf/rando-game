@@ -40,7 +40,7 @@ static func make_plan(seed_value: int) -> CityPlan:
 	return plan
 
 
-## Every BUILDINGS block whose centre is in `area`: one line per row (district, FREEWAY,
+## Every BUILDINGS block whose centre is in `area`: one line per row (district, FREEWAY, ROW_CELLS,
 ## MACARTHUR_SE), then the shapes and the podiums. {"lines": [String], "rows": {row: {"blocks",
 ## "lots_n", "frac": {kind: 0..1}}}}.
 ## `fill`: 0 neither fill (the city before LotFill), 1 LotFill only (before YardFill), 2 both.
@@ -64,6 +64,7 @@ static func report(seed_value: int, area: Rect2, fill: int, grid: float = 1.0) -
 			var rows: Array[String] = [res.row]
 			if res.freeway:
 				rows.append("FREEWAY")
+				rows.append("ROW_CELLS")
 			if se.has(Vector2i(bx, bz)):
 				rows.append("MACARTHUR_SE")
 			for row in rows:
@@ -71,12 +72,13 @@ static func report(seed_value: int, area: Rect2, fill: int, grid: float = 1.0) -
 					tot[row] = {"blocks": 0, "cells": 0, "lots": 0.0, "lots_n": 0, "lot_built": 0.0, "k": [0, 0, 0, 0, 0, 0, 0]}
 				var t: Dictionary = tot[row]
 				t.blocks += 1
-				t.cells += int(res.cells)
 				t.lots += float(res.lots)
 				t.lots_n += int(res.lots_n)
 				t.lot_built += float(res.lot_built)
+				var ks: Array = res.row_k if row == "ROW_CELLS" else res.k
 				for k in KINDS.size():
-					t.k[k] += int(res.k[k])
+					t.k[k] += int(ks[k])
+					t.cells += int(ks[k])
 			for sk: String in res.shapes:
 				if not shape_cov.has(sk):
 					shape_cov[sk] = [0, 0.0]
@@ -277,6 +279,21 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 	for k in painted.size():
 		counts[painted[k]] += 1
 	out["k"] = counts
+	# The same counted inside the right of way's cells alone (the ROW row).
+	var row_k := [0, 0, 0, 0, 0, 0, 0]
+	if not corridor.is_empty():
+		var grid_info := YardFill.lot_grid(plan, bx, bz, plan.lots(bx, bz))
+		var cells_r: Array[Rect2] = []
+		for lot: Dictionary in corridor:
+			cells_r.append(YardFill.cell_rect(grid_info, YardFill.cell_index(grid_info, lot.center)))
+		for j in gz:
+			for i in gx:
+				var p := inner.position + Vector2((i + 0.5) * grid, (j + 0.5) * grid)
+				for r: Rect2 in cells_r:
+					if r.has_point(p):
+						row_k[painted[j * gx + i]] += 1
+						break
+	out["row_k"] = row_k
 	return out
 
 

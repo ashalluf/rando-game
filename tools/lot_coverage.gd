@@ -19,8 +19,9 @@ extends SceneTree
 ## FILL=lot keeps LotFill and leaves YardFill out (the city before the yards).
 ## Replica blocks (the Esplanade's: ReplicaBuilder builds them) are left out.
 ## Rows: one per district (DOWNTOWN split into _core and _rest), FREEWAY (every block a corridor lot
-## stands in, whatever its district: the same blocks again) and MACARTHUR_SE (the block south-east
-## of MacArthur Park's site, and the plaza south of it). Also the shapes' own coverage of their lot
+## stands in, whatever its district: the same blocks again), ROW_CELLS (only the ground inside
+## those corridor lots' cells) and MACARTHUR_SE (the plaza the roll put across the street from
+## MacArthur Park's site, buildings since the yard pass). Also the shapes' own coverage of their lot
 ## and the podiums built. Headless is fine: nothing is drawn.
 ##
 ##   godot --headless --path . --script tools/lot_coverage.gd
