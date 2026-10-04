@@ -4813,3 +4813,167 @@ night; kelp only where `ground_detail` is on.
   it is not in.
 - The far plane (past ~470 m) still paints its own surf band from the bake; there is no
   breaking surf in the far tier.
+
+
+## 9az. The far city's buildings: coded copies of the near ones, 2026-10-04 (agent branch; GAME_PLAN G7, VISUAL_ROADMAP #43)
+
+G7's last open item was "real impostors for the far city's towers instead of shaded boxes". Every
+building past the FULL ring (the LOD chunks, and the far city, which captures their build) was its
+parts as boxes on `building_lod.gdshader`, which GUESSED the facade: typology from the facade
+colour, its own window grid, its own lit-window hash, its own roof roll. So at the LOD line
+(200 m) a building kept its massing and changed in almost everything else - another window grid,
+other offices lit at night, a white roof turning black, a light panel building classed as stone,
+a stucco block with a curtain grid drawn as punched stone - and on the Mac every far wall was
+brighter than the near one (the near wall is the facade times its photographed texture; the far
+one was the bare facade: plaster about 2x, the metal sets about 12x).
+
+**Why not baked impostors.** The far city holds 22,472 facade parts (census below), all unique.
+An octahedral set of 8 x 8 views at 64 px a building is ~63 GB of atlas, a 16-view 32 px card set
+~3.9 GB, and either needs every near building generated and rendered at load (at the ~10 ms a
+near building takes, a quarter of an hour). A far building IS a box - its silhouette is its
+parts - so the win is the box drawn from the near building's own data: still 12 triangles, no
+texture memory, the real sun, the per-block dissolve and the capture untouched. Impostors stay
+where a box cannot carry the detail (trees, landmark crowns), which have their own far meshes.
+
+**What it is now** (rules in CLAUDE.md, "Far buildings are coded copies of the near ones"):
+- `FarBuilding.boxes()` (`scripts/world/far_building.gd`) turns a planned Building into its far
+  boxes: each part one box whose basis carries six 20-bit codes in its off-diagonals - seed,
+  finish, window style, roof covering, wall texture set, glass tint / lit colour / frame paint
+  palette indices, crown shade, warehouse, storefront, parking deck, cut corners, crown, shop
+  runs per face, bays per wall, storeys, base course, lit ratio, tall-tower lobby, plinth depth,
+  parapet rise - then its roof plant, one box a unit. The plinth (one instance a building) is
+  folded into the parts on the ground; the parapet's height is on top of the part.
+- `Building.part_grid()` is the near walls' own grid (rows, bays, storefront, cut corners, base
+  course, crown) and both use it; `Building.parapet_rise()`, `crown_shade()`, `base_color()`.
+- The roof plant rolls on its own stream (`_roof_rng`, from the seed): it was the last thing on
+  `_rng`, after the facade details' per-bay balcony rolls, so nothing short of building the facade
+  could say what stood on a roof. `Building.roof_plan()` replays the layout without a node
+  (0.13 ms a building after `_rect_free` stopped rebuilding the taller parts' footprints on every
+  try). The near roofs got a new random arrangement once; the kit on/off check still holds.
+- Lit offices and pale/dark spandrels roll from integers in `shaders/window_lights.gdshaderinc`,
+  included by both building shaders (they were float hashes of different inputs). The near
+  office pattern changed once (a new roll); the far one is now the same pattern.
+- `building_lod.gdshader`'s coded branch draws the near wall cell for cell: the near `u` per face,
+  bays and storeys from the code, the four window masks, curtain transoms and spandrels, punched
+  reveals, shops with door bays, shop frames, sign bands (lightboxes or lit letters after dark),
+  bulkheads, shutters, lobbies, parking decks open between spandrels with their lamps, base
+  course, crown, grime, the wall texture's measured mean (`wall_tex_mean()`), cut-corner piers,
+  the plinth's concrete, the parapet band; roofs in the near covering with its parapet ring; glass
+  mirroring what the near glass mirrors (its default sky, the fake city opposite, the street - the
+  far path's bare sky gradient drew panes 2-5x brighter); frames as antialiased coverage at least
+  half a pixel wide near the handoff. Past a few pixels a cell goes to its own average, albedo and
+  lit-office share, so a far tower at night glows with its lit fraction instead of sparkling.
+- The LOD chunks build every roof unit; Skyline keeps `FarBuilding.SILHOUETTE` (stair bulkheads,
+  water tanks, cooling towers, billboards, spires and antennas with their red beacons - masts at
+  least `mast_min_px` wide, never wider than `mast_max_width`) and prints the small plant
+  (`print_small_plant`, on its own material instance: `PropFactory.building_lod_material(true)`).
+- The old path stays for what is not a Building (replica houses, estates, slabs, plates, decks).
+- `FarBuilding.enabled` (`FAR_CODED=0` in the environment turns it off) is the A/B on one tree.
+
+**The code is exact on both renderers.** Compatibility packs INSTANCE_CUSTOM and COLOR into half
+floats, so the code rides in the transform. Probe (`<scratchpad>/impostors/probe/shear_probe.gd`):
+548 instances, six codes each up to 2^20 - 1 as code * 2^-28, under a node offset like Skyline's,
+the shader green where all six decode right: opengl3 183,790 green px and 0 red; lavapipe
+Forward+ 183,790 green and 0 red. `tests/far_city_checks.gd` checks the round trip in GDScript.
+
+**Near against far, the same buildings at 200 m** (`tools/glshot/far_building_shot.gd` + `far_pair.py`,
+six seeded buildings - stucco, brick, panel and three glass towers on podium lots - from one
+camera, luminance of each building far / near; `<scratchpad>/impostors/pair/`):
+
+| Pass | opengl3 day | opengl3 night | Forward+ day | Forward+ night |
+|---|---|---|---|---|
+| first coded version (p1) | mean 1.04 (0.65-1.25), but panes 28-77 /255 against 5-16 | 6.18 (4.4-8.6) | - | - |
+| final (p5 opengl3, v5 Forward+) | 0.88 / 1.07 / 0.71 / 1.10 / 1.00 / 0.56, mean 0.89 | 0.85 / 0.89 / 0.88 / 0.54 / 1.04 / 0.73, mean 0.82 | 0.88 / 0.91 / 0.84 / 1.18 / 1.11 / 0.82, mean 0.96 | 1.26 / 1.40 / 1.15 / 0.97 / 1.18 / 1.03, mean 1.16 |
+
+(buildings in order: stucco setback, brick, panel-on-podium glass, dark glass tower on a podium,
+pale curtain setback, dark curtain tower). Mean absolute difference per pixel went from 24-38 to
+16-30 /255 by day, and the share of pixels more than 24/255 off from 36-70 % to 14-47 %; what is
+left is pattern (the near fins, frame quads and traced rooms), not level. On the way: the far
+glass mirrored a bare sky gradient (panes 2-5x the near), the far lit offices were at the flat
+tile's old 1.9 (4-9x the near traced rooms), the far walls took no wall texture mean, the far
+shop frames fell through to the wall finish (black on glass buildings), the curtain mullions
+aliased away; each fixed and measured again (`p1`..`p5`, `v3`, `v5` in the pair folder).
+
+The lit offices are the same windows near and far, every one (`p3_n1_crop.png`, `v3_n1_crop.png`).
+What the far copy still does not have: the near glass towers' fins and frame quads (rolled on
+`_rng` in the facade details, so not in the code), which leave the two dark curtain towers
+0.56-0.71 of the near on opengl3 and ~0.82-0.86 on Forward+; cut-corner GEOMETRY (the cut bay
+is drawn as the pier, but the box's corner is square); balconies, fire escapes, awnings, the
+facade kit (all under a few pixels past 200 m).
+
+**Cost.** Draws: no new MultiMesh anywhere (the plant rides in each chunk's `lod_box` batch and in
+the far city's tile MultiMesh). Instances and build (`tools/far_census.gd`, headless, process CPU
+time, whole basin from (1900, 500), FAR_CODED 0 / 1):
+
+| | old boxes | coded |
+|---|---|---|
+| far city boxes (7 km) | 54,933 = 22,472 facades + 28,093 plain + 3,387 plates + 981 decks | 49,347 = 22,472 coded parts + 13,428 plain + 9,079 silhouette units + plates + decks |
+| far city box triangles (all drawn) | 659,196 | 592,164 (-10 %) |
+| LOD ring, 225 blocks round the eye | 3,603 instances (43k tris) | 14,540 (174k tris): 2,419 parts, 1,482 silhouette units, 10,639 small units |
+| far city build at load, CPU | 44.2 s | 49.7 s (+12 %; FarBuilding.boxes() 0.22 ms a building) |
+| LOD block build, CPU (225 blocks) | 1.1 s | 1.9-2.4 s (+4-6 ms a block, spread over its lot steps) |
+| static memory after the far city | 58 MB | 58 MB; GPU instance buffers 4.4 -> 3.9 MB (80 B an instance on Forward+) |
+
+geo_count (opengl3 800x600, `--hour=14 --weather=clear --quality=0`, before = this tree with
+FAR_CODED=0, so main's merges are on both sides):
+
+| View | before (FAR_CODED=0) | after | change |
+|---|---|---|---|
+| aerial `--spawn=700,-300,0,-14,500` | 6,280,170 tris / 4,339 draws / 4,392 objects | 6,288,078 / 4,339 / 4,392 | +0.13 % tris, same draws |
+| SW skyline `--spawn=1450,2150,-38,4,140` | 7,283,742 / 5,834 / 5,884 | 7,296,702 / 5,834 / 5,884 | +0.18 % tris, same draws |
+| street, the x 1589.6 avenue north `--spawn=1589.6,2232,0,3` | 6,791,287 / 4,360 / 4,394 | 6,799,795 / 4,360 / 4,394 | +0.13 % tris, same draws |
+
+The same frames through `still_shot.gd` (EYE cameras, GEO lines in `*_stills.log`): aerial
+1,494,592 -> 1,474,804 tris (352 -> 353 draws), SW 3,793,235 -> 3,802,271 (2,133 both, shadow
+996,723 -> 1,009,287), SW night 3,566,913 -> 3,572,385 (1,874 both), street 8,301,020 ->
+8,320,208 (4,148 both), street night 8,714,279 -> 8,731,583 (4,501 both). The LOD ring's roof
+units cast with the rest of its batch: about +13k shadow triangles at the SW view.
+
+Stills (opengl3 960x540, `DIFF=1`, 14:00 and 21:00, one load each, `<scratchpad>/impostors/shots/`,
+`pair_<view>.png` is before | after): before = `beforeab_aerial_day{,_1.._5}.png` (this tree, FAR_CODED=0), after =
+`after2_aerial_day{,_1.._5}.png`, in order aerial 14:00 / 21:00, SW 14:00 / 21:00, street 14:00 /
+21:00; `pair_<view>.png` side by side, `stack_<view>.png` stacked. Grey p1/p5/p50/p95/p99, before
+-> after (and the share of pixels that moved more than 8/255):
+
+| Still | before | after | moved |
+|---|---|---|---|
+| aerial day | 72/99/158/186/209 | 72/96/157/180/204 | 10.7 % |
+| aerial night | 9/15/28/92/147 | 9/15/27/80/129 | 10.2 % |
+| SW day | 48/74/156/200/212 | 48/72/153/188/209 | 15.6 % |
+| SW night | 8/11/28/133/213 | 8/11/28/103/151 | 14.9 % |
+| street day | 20/34/140/180/203 | 20/34/140/180/202 | 0.5 % |
+| street night | 7/9/37/98/160 | 7/9/37/98/159 | 0.5 % |
+
+What they show: the LOD and far blocks lose their pastel, too-bright walls (the old boxes skipped
+the near walls' texture mean, so a LOD block beside a FULL one was visibly whiter) and take the
+near buildings' tones, roofs and roof plant; the skyline gets its real masts and spires; at night
+the far city drops to the near rooms' level (the old far boxes lit their windows about five times
+brighter than the near buildings - in the before frame the LOD towers out-glow the FULL ones in
+front of them), so the far skyline at night is darker and calmer than it was. That is the match
+the task asked for; if the owner wants the old sparkle back it is one knob, `lit_room_level`
+in building_lod.gdshader, at the price of the far towers outshining the near ones. At street
+level the far city is mostly hidden: 0.5 % of pixels move.
+
+**Traps found.**
+- A shader parameter may not share a uniform's name: building.gdshader has `seed` and
+  `lit_ratio`, and the include's parameters of those names failed its compile. Headless DOES
+  parse shaders and prints `SHADER ERROR` (`tools/shader_check.gd`, ten seconds); only GPU-side
+  GLSL errors need a renderer.
+- `VIEWPORT_SIZE` read 0 in the far shader's vertex stage in the city: the first mast widening
+  divided by it and drew every antenna a kilometre out a kilometre and a half wide. The pair scene
+  never showed it.
+- The near wall is facade x texture x 1.3 (Building.WALL_TEXTURE_MEAN is NOT divided out by the
+  building shader, whatever its comment says): anything that must match a near wall's average
+  multiplies by the set's mean in the renderer's space.
+- A `--script` tool that names Building, CityPlan or Skyline fails to compile before the autoloads
+  exist and then HANGS; `tools/far_census.gd` loads its body at run time.
+- procfs files report a size of 0: `FileAccess.get_as_text()` reads nothing, `get_line()` works.
+
+**Not verified.**
+- The Mac. Forward+ was proven in the small pair scene only (lavapipe cannot hold the city); the
+  city stills are opengl3. Ask for a Mac shot from the SW view (`--spawn=1450,2150,-38,4,140`) by
+  day and at 21:00, and one from the air (`--spawn=700,-300,0,-14,500`), with F1 FULL.
+- The silhouette plant and beacons in motion (a mast's least width flickers as it crosses a pixel
+  boundary on Compatibility; TAA settles it on Forward+).
+- Shadow cost of the LOD ring's roof units: they cast with the rest of the `lod_box` batch; the
+  geo_count shadow lines above are what it costs at these three views.
