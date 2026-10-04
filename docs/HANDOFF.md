@@ -5490,3 +5490,151 @@ level the far city is mostly hidden: 0.5 % of pixels move.
   boundary on Compatibility; TAA settles it on Forward+).
 - Shadow cost of the LOD ring's roof units: they cast with the rest of the `lod_box` batch; the
   geo_count shadow lines above are what it costs at these three views.
+## 9be. Houses in the suburbs and the beach town, 2026-10-04 (agent branch `wt/houses`; VISUAL_ROADMAP #47)
+
+The brief: every house lot in SUBURBS and BEACHTOWN was a flat-roofed `Building` box with a
+storefront band (9az's "not done"), and the suburbs were 82 % bare lawn by `tools/lot_coverage.gd`
+- from the street and from the air the least real part of the city. Make them read as Los Angeles
+neighbourhoods: real house geometry in the styles LA has, yards like 9az's in the suburbs too, a
+cheap pitched-roof version for the LOD chunks and the far city.
+
+**What it does** (rules in CLAUDE.md, "Nor are the houses boxes", after the YardFill paragraph):
+- `HouseKit` (`scripts/world/house_kit.gd`) plans a house per lot, PURE (hashes of the seed and
+  the lot; the chunk's and the block's rngs untouched), in the lot's yard frame (u along the street,
+  v back from the front edge; `YardFill.lot_front()` says which way it faces: the nearest street,
+  or the walk street). Six types, odds per district:
+  - **Ranch**: one long storey, hipped (60 %) or gabled shingle roof (clay on a fifth) with deep
+    eaves, a two- or one-car garage wing at one end (a little forward on some), a front-gabled
+    wing on the other end on 45 %, stucco or lap siding / board and batten, a shed porch or a stoop,
+    a brick chimney on half, vents, solar panels on 30 %.
+  - **Spanish revival**: white stucco, a low clay roof with short eaves, a front-gabled wing with an
+    arched picture window, an arched front door with a fanlight, a stucco chimney with a tiled hood;
+    one storey, two on the taller lots.
+  - **Craftsman bungalow**: front-gabled, narrow and deep, lap siding (board and batten on a
+    quarter) in sage / slate / olive / brown / mustard with cream trim, rafter tails under 0.75-0.95
+    m eaves, a porch across the front under its own gable on tapered columns standing on brick
+    piers, gridded upper sashes, gable vents, a drive down the side to the back yard.
+  - **Mid-century**: a flat roof on a 1.0-1.5 m overhang or a butterfly roof, a clerestory band on
+    the street face and a wall of glass at the back, a carport on steel posts (45 %) or a garage in
+    stained vertical boards, a bright front door under a flat canopy, a breeze-block screen beside
+    the entry on 55 %.
+  - **Stucco box**: two storeys (three by the beach on the taller lots), the garage in the front
+    face, a hipped clay or shingle roof or a flat one behind a coped parapet, an iron balcony over
+    the door with a slider onto it.
+  - **Dingbat** (the beach town only): two or three storeys over open tuck-under carport bays, a
+    lobby door at one end, a flat roof behind a parapet.
+- **The cells the lot grid left empty** get a house each (`HouseKit.extra_lots()`): CityPlan's lot
+  walk rolls a gap per cell and drops any cell it leaves under 6 m, which in the suburbs (14 m gaps
+  on 14-22 m cells) was two cells in five - the green squares between the boxes in every aerial.
+  Hash-seeded after every rolled lot, so nothing the plan decides moves; never on a landmark's
+  square, the approach clear zone or the right of way. Suburban lots 2,984 -> 4,308 basin-wide.
+- `HouseBuild` (`scripts/world/house_build.gd`) builds it: walls cut round every opening on a cell
+  grid (ReplicaHouses' method) with reveals, framed glass on `house_glass.gdshader` (lit at night),
+  sills, muntins, the craftsman's casings; arches fill their spandrels and the reveal follows the
+  curve; sectional garage doors with raised panels (a row of lights on a craftsman's or a Spanish
+  house's); doors with panels, a knob and a wall lamp; hip, gable (gable-end walls in the wing's
+  cladding, barge boards, a louvred vent), flat-with-parapet, deck and butterfly roofs; porches,
+  stoops, canopies; chimneys; pipe and box vents; solar racks on the roof face that looks most to
+  the south, standing off it on a frame; balconies. New shaders: `house_shingle.gdshader` (courses
+  of three-tab or laminated shingles, a shadow line under every butt, granules, streaks),
+  `house_siding.gdshader` (lap / board and batten / stained tongue and groove), and
+  `house_breeze.gdshader` (the breeze-block screen, cut out per pixel, dithered to its share far
+  off). All colour work through `color_space.gdshaderinc`.
+- **One mesh per material per FULL chunk** (13 names at most), collision on one `Houses` body,
+  each house's wings in the occluder. A suburban FULL block is ~19-22 k triangles of houses
+  (26-32 houses), 4-7 ms of GDScript a house in its lot step, the commit 2-7 ms (26 cold, the
+  materials' first load): `_tri()` writes each triangle's normal and tangent itself because
+  `generate_normals()` / `generate_tangents()` over the chunk cost 10-30 ms in one step.
+- **LOD chunks and the far city**: a `lod_box` per wing plus, for a pitched wing, two tilted roof
+  slabs in the roof colour and a gable prism in the wall colour (CLAUDE.md has the two traps), so
+  Skyline draws the roofscape with no code of its own.
+- **YardFill fills the suburbs** (`YardFill.SUBURB` odds on the beach plan): driveways to the garage
+  doors, front walks to the porches, mostly open front lawns (the block's own lawn and its blades;
+  lawn pieces are not laid there), drought gardens, beds along the house fronts, block-wall or
+  timber fences, back lawns with pools on half the deep ones (on a concrete apron), trees, palms,
+  bins, cars in the drives. The yard reads the house: its facing, the drive's span and end (the
+  garage door), the front door. The walk street is worked out from the lot rects now
+  (`YardFill.walk_for()`), so a house knows it fronts one before the block step runs.
+
+**Coverage** (`tools/lot_coverage.gd`, whole basin `RECT=-3000,-3000,8000,8000`, seed 1337;
+before = main c848ad4, after = this branch):
+
+| Row | bare before -> after | built before -> after | lots before -> after |
+|---|---|---|---|
+| Suburbs (330 blocks) | 82.5 % -> 4.6 % | 15.6 % -> 33.2 % | 2,984 -> 4,308 |
+| Beach town (71 blocks) | 3.7 % -> 3.8 % | 38.3 % -> 32.5 % | 865 -> 865 |
+
+(The beach town's yards were already filled by 9az; its houses are a little smaller than the boxes
+were, and the difference is garden.) Types basin-wide: suburbs ranch 1,420, Spanish 898, stucco box
+651, craftsman 646, mid-century 508; beach town stucco box 248, Spanish 167, craftsman 107,
+mid-century 93, dingbat 86, ranch 77.
+
+**Frame cost.** opengl3, 1280x720, `--quality=0`, noon; before = main c848ad4 (the `base`
+worktree), after = this branch. `tools/geo_count.gd` (the player at `--spawn`, 90 frames, the
+player camera):
+
+| Bookmark (`--spawn`) | triangles before -> after | draws before -> after | objects before -> after |
+|---|---|---|---|
+| Suburb corner `-290,307,-60,-3` | 8,897,807 -> 6,553,716 (-26 %) | 5,938 -> 5,388 (-9 %) | 17,755 -> 17,185 |
+| Suburb street `-250,306,35,-3` | 7,467,853 -> 5,976,479 (-20 %) | 3,973 -> 3,456 (-13 %) | 15,771 -> 15,238 |
+| Beach town `-648,60,140,-3` | 8,723,426 -> 7,411,528 (-15 %) | 4,372 -> 2,437 (-44 %) | 12,522 -> 10,514 |
+
+`tools/glshot/block_shot.tscn` (the FULL blocks round the suburb alone, no far city; `GEO=1`):
+aerial `-270,60,360,25,-35` 6,823,811 / 1,873 -> 4,411,477 / 1,647 (houses and yards; with
+`YARD_FILL=0` 5,263,183 / 1,598), street `-262,1.7,304,20,-4` 6,085,359 / 1,787 -> 4,498,385 / 1,466.
+A house is ~660-830 triangles and its whole chunk's houses ~13 draws, where each `Building` box
+was its walls, facade detail, bays, roof plant and storefront kit (a handful of draws and thousands
+of triangles each). The one view that costs more is a high aerial over the LOD ring
+(`still_shot.gd` EYE `-300,320,600,-30,-24` over spawn `-300,350`): 2,390,872 / 854 -> 2,881,406 /
+1,066 - the roof slabs and gable prisms (three boxes a pitched wing) and the 44 % more suburban
+houses in the LOD chunks and the far city, plus the yards' planting batches in the FULL chunks
+below. The street-level stills' own GEO lines agree (suburb corner 7.77 M / 3,541 -> 6.37 M /
+3,065; beach street 7.19 M / 2,212 -> 6.68 M / 1,134; those "before" stills are from 96f86f1, the
+commit this branch started on).
+
+Build time (headless, `HouseKit.build()` + plan per lot): 3-7 ms a house in its lot step on this
+box, a suburban block's 26-32 houses 83-98 ms spread over that many steps; the finish's commit
+2-7 ms (26 ms on the first chunk, the materials' first load).
+
+**Stills** (branch `shots/houses`, README there): before/after of the suburb street corner, the
+suburb aerial, the beach street and the beach aerial, each at noon and at 18:24; after-only
+close-ups of a ranch house (noon and dusk), garages and drives, a mid-century house, a stucco box,
+a craftsman by the beach and the beach roofscape (`block_shot.tscn`); the far tier from 320 m.
+
+**Tools and checks.** `still_shot.gd` / `block_shot.tscn` `HOUSES=0` (the A/B: Building boxes on
+the house lots, as before); `tools/lot_coverage.gd` counts the houses' footprints and the extra
+lots (SHAPE lines `house_<type>`). `tests/house_checks.gd` (in the smoke test, 17 checks): the
+plans over the suburbs and the beach town west of downtown (pure, inside their yards, wings apart,
+every type, heights, the yard's drive ending at the garage door), FULL suburban and beach blocks
+(one mesh per material, collision on one body, no Building boxes, yards laid), the same blocks
+captured for the far city (a box per wing, tilted slabs per pitched wing), and the kit off giving
+Building boxes with nothing else moved. `tests/lot_fill_checks.gd`'s beach plan reads the houses.
+
+**Traps.**
+- A tilted box in the `lod_box` batch must show its LOCAL X face: building_lod.gdshader decides a
+  roof by the LOCAL normal (any +-Y face is a flat roof and gets membrane, gravel and plant painted
+  on it). And its basis must be rotation x scale: a MultiMesh instance's normal goes through the
+  basis, not its inverse transpose, so a skewed box lights wrong.
+- A front wing's gable roof pokes its back gable end up through the main roof (a dark notch from
+  the street): its roof runs back `roof_back` into the main roof; the walls stay where they were.
+- The lot grid's dropped cells are dropped BEFORE their seed roll, so they cannot be restored in
+  CityPlan without moving every later lot's seed; they are rebuilt beside it instead
+  (`extra_lots()`).
+- `taken` spans for openings must reset per floor, or the garage and the front door blank the
+  storey above them.
+- `generate_normals()` / `generate_tangents()` on a chunk's whole house mesh: 10-30 ms in one
+  finish step. Write them per triangle.
+
+**Not done / not verified.**
+- Judged in opengl3 stills only: the shingle and siding normal maps, the clay roofs, the glass and
+  the stucco under Forward+ (the Mac) are not seen. The shaders work in linear through
+  `color_space.gdshaderinc` but nobody has looked at them on Forward+.
+- No dormers, no second-storey craftsman, no Monterey balconies, no tile "eyebrows" over Spanish
+  windows, no wrought-iron grilles, no garage-door windows on the stucco boxes, no gutters or
+  downspouts, no mailboxes at the drive, no porch lights that light anything.
+- The houses' walls are axis-aligned like the lots; the far tier draws hip roofs as gables.
+- `still_shot.gd SPLIT=1` fails on these bookmarks with "Trying to assign invalid previously freed
+  instance" at `_geo_split` (line 806, both before and after: a pre-existing tool bug), so the
+  high aerial's increase is not split by category.
+- Nobody walks the drives or the walk streets; parked cars in the drives are the yard's
+  (LotFill's static cars).

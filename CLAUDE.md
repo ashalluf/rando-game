@@ -1276,6 +1276,49 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `YARD_FILL=0` on `still_shot.gd` and `tools/glshot/block_shot.tscn` (a few FULL blocks alone,
   a minute or two a shot) is the A/B; it does not undo the beach town's lower heights
   (DISTRICTS) or the plaza. Checks: `tests/lot_fill_checks.gd`.
+  **Nor are the houses boxes** (HouseKit + HouseBuild, 2026-10-04, docs/HANDOFF.md 9be; the house pass: every house lot in the suburbs and the
+  beach town was a flat-roofed `Building` box with a storefront band). `HouseKit`
+  (`scripts/world/house_kit.gd`) PLANS a Los Angeles house per lot - RANCH, SPANISH revival,
+  CRAFTSMAN bungalow, MIDCENTURY, STUCCO_BOX, DINGBAT (the beach town's tuck-under apartment),
+  cumulative odds per district (`SUBURB_STYLES`, `BEACH_STYLES`) - and `HouseBuild`
+  (`scripts/world/house_build.gd`) builds it. **The plan is pure** (`plan_house(plan, bx, bz,
+  lot, district)`: hashes of seed + lot, never a chunk or block rng): it is laid in the lot's
+  yard frame (`YardFill.lot_front()` + `YardFill._frame()`: `u` along the street, `v` back from
+  the front edge; the front of a wing is its low-v face) within setbacks (`SUBURB_FRONT` / `_BACK`
+  / `_SIDE`, `BEACH_*`), as wings (main, garage, carport, a front `wing` whose roof runs back
+  into the main roof, `roof_back`), a porch / stoop / canopy (`_fit_porch()` keeps it clear of
+  the other wings), the garage door's span, the drive (`drive`, `drive_v`), the front door
+  (`door_u`, `door_v`), chimney, vents, solar, a breeze-block screen, colours. YardFill reads
+  the house (`HouseKit.yard_entry()`): the driveway runs from the kerb to the garage door, the
+  front walk to the porch or stoop, the yard faces the way the house does; GroundCoverage and the
+  smoke test ask the same plan. **Cells the lot grid leaves empty** (CityPlan's gap roll drops a
+  cell under 6 m: two in five in the suburbs) get a house of their own on a synthetic lot
+  (`HouseKit.extra_lots()`, hash-seeded, after every rolled lot; not on a landmark's square, the
+  approach clear zone or the freeway's right of way). **FULL chunks**: every house of the chunk
+  is ONE mesh per material (`HouseKit.MATS`: stucco `h_wall`, `h_siding` on
+  `shaders/house_siding.gdshader` - lap / board and batten / stained tongue and groove by
+  COLOR.a -, `h_brick`, `h_trim`, `h_door`, `h_metal`, `h_dark`, clay `h_roof` (ReplicaHouses'
+  material, UV in metres), `h_shingle` on `shaders/house_shingle.gdshader` (courses, three-tab or
+  laminated by COLOR.a, granules, streaks), `h_flat`, `glass` (`house_glass.gdshader`), `h_solar`,
+  `h_breeze` on `shaders/house_breeze.gdshader`), built into per-chunk SurfaceTools during the
+  lot steps and committed at the finish (`HouseKit.commit()`), collision on one `Houses`
+  StaticBody3D. `HouseBuild._tri()` writes each triangle's flat normal and its tangent from the
+  UVs itself: `generate_normals()` / `generate_tangents()` over a chunk's houses cost 10-30 ms in
+  one step. Walls are cut round every opening (`_wall()`, ReplicaHouses' cell grid), arches fill
+  their spandrels and follow the curve with the reveal (`_arch()`). **LOD chunks and the far
+  city** (capture mode) get one `lod_box` per wing (window style 1, as ReplicaHouses') and, for a
+  pitched wing, two tilted slabs in the roof colour (`CLAY_FAR` or the shingle) over a prism in
+  the wall colour - a box turned 45 degrees about the ridge - that closes the gable ends, so the
+  far city draws the roofscape with no code of its own. **Traps:** a slab must lie on its local X
+  face (building_lod.gdshader paints any local +-Y face as a flat roof with plant on it), and its
+  basis must be rotation times scale, never scale times rotation (a MultiMesh normal is not the
+  inverse transpose, so a skewed box lights wrong). The suburbs' yards are YardFill's beach plan
+  with `YardFill.SUBURB` odds; the block's own lawn is the lawn (lawn pieces are not laid there,
+  the rest is laid at `PATH_LIFT` and added to `_lot_rects` so the blades keep off it); a
+  suburban pool sits in the lawn on a concrete apron. The walk street is now worked out from the
+  lot rects (`YardFill.walk_for()`, pure), so a house knows it fronts one before the block step.
+  `HouseKit.enabled` false (the A/B; `HOUSES=0` on `still_shot.gd`) builds `Building` boxes on
+  the house lots again. Checks: `tests/house_checks.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
