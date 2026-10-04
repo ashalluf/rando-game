@@ -278,6 +278,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-04 No bare ground outside downtown and midtown either** (agent branch, the yard
+  pass; docs/HANDOFF.md 9at). Beach-town lots are houses with yards (driveways, front gardens,
+  low walls and pickets, lot-line fences, back yards, courtyards) and some blocks a walk street;
+  campus blocks are quads, walks, a car park and service yards; the freeway's right of way in
+  every district is ivy, hedge and tree rows, sound walls and the odd maintenance yard (`YardFill`).
+  Measured by `GroundCoverage` / `tools/lot_coverage.gd`, checked by the smoke test. Three calls
+  made on the way, each reversible: **the beach town is two and three storeys** (DISTRICTS
+  BEACHTOWN height 5.5-12.5 m, was 6-18: the brief was "low stucco houses", and four- and
+  five-storey blocks on every lot read as a downtown by the sea; finishes mostly FLAT, the
+  stucco); **a PLAZA rolled across the street from a landmark's site is buildings**
+  (`CityPlan.block()` `"was_plaza"`, after the roll: the 100 x 180 m square of bare paving south
+  of MacArthur Park was "the empty block south-east of MacArthur Park"); and **the campus hall's
+  sixteen ball-on-a-stick trees are the chunk's street tree** when a chunk builds it.
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

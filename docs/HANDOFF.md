@@ -4201,3 +4201,73 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   windscreen - there is no glass elsewhere to draw them on. Occupants are not shot or thrown
   out: a round through an empty frame passes them, and a carjacked NPC simply vanishes when the
   player takes the seat.
+
+## 9at. No bare ground outside downtown and midtown: yards, the campus, the freeway's right of way, 2026-10-04 (agent branch `wt/lot-fill-2`)
+
+The brief (00000): fill the beach town (9am's "not done"), the campus blocks, the freeway sides
+and the empty block south-east of MacArthur Park, each the way the real place looks. This redoes
+a branch lost to a container restart. Measured with `tools/lot_coverage.gd`, which now runs on
+`GroundCoverage` (`scripts/world/ground_coverage.gd`, the same code the smoke test calls):
+`FILL=lot` is the city before this branch (LotFill on, YardFill off), `FILL=1` after, `FILL=0`
+neither. Replica blocks (the Esplanade's: ReplicaBuilder builds them) are left out now; the
+campus hall's footprint counts as built.
+
+COVERAGE_TABLE
+
+**What it does** (`YardFill`, `scripts/world/yard_fill.gd`; the rules are the CLAUDE.md bullet
+after LotFill's):
+- **Beach town.** Every lot with a house gets its yard out to its grid cell, planned in the lot's
+  street frame from the plan and the house's ground footprint: a driveway on one side of the
+  frontage (32 % of lots; a static car in some), a front walk to the middle of the house, the
+  front garden (lawn 34 %, decomposed granite with gazania 40 %, brick or saltillo 18 %, paved
+  the rest) with a mulch bed of shrubs along the house, the street line edged with a low stucco
+  wall (cap course in a lighter trim), white pickets or a clipped hedge, open at the drive and the
+  walk; timber (or stucco) fences down the lot lines from the house front back and along the
+  back; the back yard lawn, deck, tile, concrete or decomposed granite (a pool in the few deep
+  enough); an L's inner corner a saltillo courtyard with a fountain and two palms (the courtyard
+  apartment); wheelie bins in the side yard. 29 of the 67 non-replica beach blocks get a **walk
+  street**: the row boundary along x where every column leaves the widest gap between its two
+  rows of houses (at least `WALK_MIN`), a brick or concrete path with lamps down it, the houses
+  along it fronting it with their gardens and low walls. The cells the boardwalk's, the piers'
+  and the mall's squares dropped are beach car parks (LotFill's) or pocket parks (lawn, a walk,
+  palms, benches, a clipped hedge), trimmed off the sand and the boardwalk's shops.
+- **The beach town is lower** (DISTRICTS BEACHTOWN height 5.5-12.5 m, was 6-18; finishes mostly
+  FLAT): "low stucco houses" - the old band put four- and five-storey blocks on every lot.
+- **Campus.** The campus hall's square drops every lot of the four blocks round it, which were
+  plain lawn; now its free ground (less `Landmarks.campus_footprint()`) is quads (walks corner to
+  corner as ribbons and one across, trees along them, lamps, benches round the crossing, shrubs
+  along the edges), one surface car park a block (no longer than `CAMPUS_PARK_MAX`), service
+  yards (a block-wall dumpster bay, a transformer, pallets) and small lawns with a tree; every
+  campus building gets an entry walk from its street face to the pavement, an apron at the door
+  and shrubs either side. The hall's sixteen primitive ball trees are the chunk's street tree.
+- **The freeway's right of way** (every district): the corridor lots' cells, not just the lots
+  (the gaps between them were bare paving), in ivy that fades to compacted dirt in the deck's
+  shade (per vertex, `BARE_FADE`); oleander hedge rows `HEDGE_OFFSET` beyond the deck edge and a
+  tree row at `ROW_TREE_OFFSET`, off the ramps; shrub clumps further out; a 4.2 m split-face
+  sound wall in 6 m panels between pilasters (creeping fig up its foot) on every cell edge that
+  meets a house lot in the residential districts, chain-link on the street side and elsewhere;
+  in 40 % of blocks a maintenance yard under the deck (gravel, k-rail, a container, a crew
+  truck, a light). It replaces `_build_corridor_lot`'s ivy slab per lot (a ground-grid NODE, a
+  draw each - block -6,0 had 21) and its eight-species shrub scatter.
+- **MacArthur SE.** The empty block was a PLAZA roll south of the park's east half: 100 x 180 m
+  of paving with one fountain and no beds (the beds' rule never fits that shape). A plaza rolled
+  across the street from a landmark's site is buildings now (`CityPlan.block()`, after the roll,
+  `"was_plaza"`), filled like the rest of midtown - Westlake is dense apartments and shops round
+  the park, not a second square.
+
+**Cost.** GEO_TABLE
+
+**Traps.**
+- Godot's front faces are clockwise to the viewer: a quad listed counter-clockwise from outside
+  is laid 0-2-1, 0-3-2 (`_wall_tris`), and the ribbon tests the cross product's sign.
+- Ground pieces must never overlap (identical surfaces at the same height z-fight once the
+  variants differ): the campus entry walk stops where its apron starts, a pocket park's lawn is
+  cut round its walk, the walk street's gardens run up to the path rather than under a strip.
+- A beach yard's planting was the slowest step of a block's build: the dressing runs through
+  `CityChunk._run_or_defer()` in 2.5 ms slices before the finish.
+- A Godot `RandomNumberGenerator.randf_range(a, b)` with a > b still returns a value (between
+  them): STEPPED's 15 m floor over the beach town's 12.5 m top gives 12.5-15 m.
+- `as Array[Rect2]` on an array literal is not a safe way to make a typed argument; a typed local
+  is (`_less()`, `_defer1()`).
+
+**Not done / not verified.** NOTDONE

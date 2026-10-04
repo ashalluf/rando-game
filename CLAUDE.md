@@ -1057,8 +1057,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_WEAR=0` in the environment turns it off (the A/B); `SHOTS=` on `still_shot.gd` takes
   several EYE views and hours from one load. Checks: `tests/street_wear_checks.gd`.
   **Ground nobody builds on is never left as bare paving** (from the air it read as empty tan
-  squares): a freeway corridor lot (`_under_freeway` / `_lot_under_freeway`) gets ivy ground cover
-  and shrubs off the deck's footprint (`_build_corridor_lot`), a PLAZA block raised beds, tree rows
+  squares): a freeway corridor lot (`_under_freeway` / `_lot_under_freeway`) is the right of way,
+  filled out to its cell by YardFill (below; `_build_corridor_lot` hands it over and keeps the old
+  ivy-and-shrubs only for `YardFill.enabled` false), a PLAZA block raised beds, tree rows
   and benches round its fountain (`_furnish_plaza`), and the strip under the airport's final
   approach (`MacroMap.runway_clear_zone()`, where `CityPlan.lots()` drops every lot) is long-term
   parking (`_build_approach_parking`: stall rows, ArenaGrounds' cheap static cars, half as many
@@ -1091,6 +1092,47 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (the forecourt paving reads as pavement from there) and the podium boxes come with the parts.
   AirTraffic skips car-park lots. Look at it with `tools/glshot/still_shot.gd` (`SPLIT=1` has a
   LotFill line) and measure it with `tools/lot_coverage.gd`.
+  **Nor are the yards outside them** (`YardFill`, `scripts/world/yard_fill.gd`, 2026-10-04; beach
+  town 56 % bare -> 5 %, campus 93 % -> 1 %, docs/HANDOFF.md 9at). A BEACHTOWN lot's cell less its
+  house is a yard planned in the lot's street frame (u along the street, v back from it): a
+  driveway to the kerb (`DRIVE_*`, a static car in some), a front walk, a front garden (lawn,
+  decomposed granite with gazania, brick or saltillo; a mulch bed of shrubs along the house), a
+  low stucco wall / white pickets / clipped hedge on the street line, timber or stucco fences down
+  the lot lines from the house front back (built by the lot on the -x / -z side of a shared line,
+  so once), a back yard (lawn, deck, tile, concrete; a pool now and then), an L's inner corner a
+  tiled courtyard with a fountain; a **walk street** (`WALK_*`) cuts some blocks along x between
+  two rows of houses that front it; the cells a landmark's square dropped are beach car parks
+  (LotFill's) or pocket parks (`beach_dropped()`, trimmed off the sand and the boardwalk's shops).
+  A CAMPUS block's free ground (the campus hall's square drops most lots; `Landmarks.campus_footprint()`)
+  is quads (diagonal walks as ribbons, a cross walk, trees along them, lamps, benches), one car
+  park a block (`CAMPUS_PARK_MAX`), service yards (block-wall bays, dumpsters, a transformer), and
+  every building gets an entry walk to the pavement with an apron and shrubs by the door. The
+  freeway's **right of way** in every district is its corridor lots' cells: ivy, fading to bare
+  dirt in the deck's shade (per vertex, `BARE_FADE`), oleander hedge rows and a tree row parallel
+  to the deck, a split-face sound wall (`SOUND_WALL`, creeping fig up its foot) where it meets a
+  house lot in `SOUND_DISTRICTS`, chain-link elsewhere and on the street, and in some blocks a
+  maintenance yard (gravel, k-rail, a container, a crew truck). **Plans are pure** (`beach_block()`,
+  `campus_block()`, `corridor_block()`: the plan, the block, each lot's ground footprint), which
+  is how `GroundCoverage` (`scripts/world/ground_coverage.gd`, behind `tools/lot_coverage.gd`:
+  `FILL=0|lot|1`) and the smoke test ask the chunk's own question; the chunk records its lots'
+  footprints (`record_lot()`) and runs `block_step()` after the lots, laying the ground at once
+  (the lawn's grass keeps off it through `_lot_rects`) and the walls, planting and props as
+  time-sliced steps before the finish (`_defer()`, so the block's own props keep their ids).
+  Every roll is a hash of seed + lot / block, never the chunk rng. A FULL chunk's yard ground is
+  ONE mesh (`YardGround`, `shaders/lot_yard.gdshader`, kind in COLOR.r, a variant in COLOR.g, no
+  shadow) and everything upright ONE casting mesh (`YardWalls`, `shaders/lot_walls.gdshader`,
+  kind in COLOR.a, paint in COLOR.rgb - linear on Forward+ - UV in face metres, UV2.x the
+  height); pickets and chain-link are cut out by the shader. Two shaders, not more kinds in
+  `lot_ground`: one shader sampling both texture sets passes what the Compatibility renderer
+  leaves a material. Planting goes in batches a chunk already has, under per-chunk budgets
+  (`MAX_SHRUBS` / `SHRUB_TRIS` - one shrub species a chunk, LotFill's pick where it runs too and
+  else one of the cheap two, `CHEAP_BUSHES` -, `MAX_TREES` of the block's street tree,
+  `MAX_PALMS` of one variant, `FLOWER_TRIS` of one flower). LOD chunks and the far city get the
+  lawns and the ivy as slabs, nothing else. A PLAZA rolled across the street from a landmark's
+  site is buildings (`CityPlan.block()` `"was_plaza"`: the empty square south of MacArthur Park).
+  `YARD_FILL=0` on `still_shot.gd` and `tools/glshot/block_shot.tscn` (a few FULL blocks alone,
+  a minute or two a shot) is the A/B; it does not undo the beach town's lower heights
+  (DISTRICTS) or the plaza. Checks: `tests/lot_fill_checks.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.

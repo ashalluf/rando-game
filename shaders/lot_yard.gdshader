@@ -26,11 +26,11 @@ uniform vec3 lawn_dry : source_color = vec3(0.62, 0.60, 0.36);
 uniform vec3 concrete_tint : source_color = vec3(0.86, 0.85, 0.82);
 uniform vec3 dg_tint : source_color = vec3(1.08, 0.96, 0.80);
 uniform vec3 brick_tint : source_color = vec3(0.92, 0.78, 0.70);
-uniform vec3 tile_tint : source_color = vec3(0.78, 0.44, 0.30);
+uniform vec3 tile_tint : source_color = vec3(0.70, 0.47, 0.37);
 uniform vec3 deck_tint : source_color = vec3(1.25, 1.02, 0.80);
 uniform vec3 mulch_tint : source_color = vec3(0.42, 0.28, 0.20);
 uniform vec3 ivy_tint : source_color = vec3(0.17, 0.27, 0.11);
-uniform vec3 dirt_tint : source_color = vec3(0.80, 0.70, 0.58);
+uniform vec3 dirt_tint : source_color = vec3(0.60, 0.57, 0.52);
 uniform vec3 gravel_tint : source_color = vec3(0.78, 0.76, 0.72);
 // Metres a concrete slab runs between tooled joints, and a saltillo tile's side.
 uniform float joint_spacing = 1.5;
@@ -78,6 +78,14 @@ float joints(vec2 p, float spacing, float w) {
 	// Faded out once a joint is under a pixel: a grid of moire lines from the air.
 	float fade = 1.0 - smoothstep(0.02, 0.06, max(fw.x, fw.y) / spacing * 4.0);
 	return max(j.x, j.y) * fade;
+}
+
+// The same along one axis.
+float joint1(float x, float spacing, float w) {
+	float g = abs(fract(x / spacing + 0.5) - 0.5) * spacing;
+	float fw = max(fwidth(x), 0.0005);
+	float fade = 1.0 - smoothstep(0.02, 0.06, fw / spacing * 4.0);
+	return (1.0 - smoothstep(w * 0.5, w * 0.5 + fw, g)) * fade;
 }
 
 void vertex() {
@@ -144,7 +152,7 @@ void fragment() {
 		// A timber deck: boards along x or z by the variant, silvered toward the edges of the yard.
 		vec2 q = variant > 0.5 ? p.yx : p;
 		vec3 w = texture(planks_tex, vec2(q.x / 2.4, q.y / 0.6)).rgb;
-		float gap = joints(vec2(q.y + 0.05, 0.0), 0.14, 0.008);
+		float gap = joint1(q.y + 0.05, 0.14, 0.008);
 		albedo = w * deck_tint * (1.0 - 0.55 * gap) * mottle;
 		rough = 0.78;
 	} else if (kind < 6.5) {

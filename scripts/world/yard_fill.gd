@@ -109,7 +109,7 @@ const HEDGE_HEIGHT := Vector2(0.9, 1.3)
 const FENCE_HEIGHT := 1.8
 const FENCE_STUCCO := 0.32
 ## Odds an L-shaped building's inner corner is a tiled courtyard with a fountain (else a lawn).
-const COURT_TILE := 0.7
+const COURT_TILE := 0.5
 ## The depth of the mulch bed along a house front (metres).
 const BED_DEPTH := 0.95
 ## Stucco paints (the walls take one each), timbers, the pickets' white, the hedges' green.
@@ -537,7 +537,7 @@ static func _beach_lot(plan: CityPlan, grid: Dictionary, e: Dictionary, walk: Re
 			pieces.append([drive, G_CONCRETE, _h01([plan.seed, key, "age"]) * 0.6, "drive"])
 	# The front walk: from the front edge to the middle of the house front (clear of the drive).
 	var front_style := _h01([plan.seed, key, "front"])
-	var path_kind := G_CONCRETE if front_style < FRONT_LAWN else (G_BRICK if front_style < FRONT_DG else G_TILE)
+	var path_kind := G_CONCRETE if front_style < FRONT_DG else (G_BRICK if front_style < FRONT_PATIO else G_CONCRETE)
 	var walk_r := Rect2()
 	if fd >= 1.2:
 		var cu := clampf((bu0 + bu1) * 0.5, 1.0, U - 1.0)

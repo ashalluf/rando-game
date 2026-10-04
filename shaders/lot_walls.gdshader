@@ -119,11 +119,16 @@ void fragment() {
 		}
 		albedo *= 1.0 - 0.18 * foot;
 	} else if (kind < 4.5) {
-		// A clipped hedge: dense leaf texture, darker in the hollows, lighter on the sheared top.
-		vec2 q = top ? uv : uv;
-		float lumps = vnoise(q * 1.6) * 0.5 + vnoise(q * 4.3) * 0.3 + vnoise(q * 11.0) * 0.2;
-		vec3 g = texture(grass_tex, q / 0.9).rgb;
-		albedo = paint * (0.5 + 0.9 * g) * (0.55 + 0.75 * lumps) * (top ? 1.15 : 1.0);
+		// A clipped hedge: dense leaves with dark gaps between them, lumpy where the shears
+		// missed, the normal jittered leaf by leaf so the face breaks up in the light, the sheared
+		// top a little lighter.
+		float lumps = vnoise(uv * 1.6) * 0.5 + vnoise(uv * 4.3) * 0.3 + vnoise(uv * 11.0) * 0.2;
+		float leaves = vnoise(uv * 23.0);
+		float gaps = smoothstep(0.42, 0.18, leaves) * smoothstep(0.08, 0.02, fwidth(uv.x) * 4.0);
+		vec3 g = texture(grass_tex, uv / 0.9).rgb;
+		albedo = paint * (0.45 + 0.85 * g) * (0.5 + 0.8 * lumps) * (1.0 - 0.65 * gaps) * (top ? 1.12 : 1.0);
+		vec3 jitter = vec3(vnoise(uv * 9.0 + 3.1), vnoise(uv * 9.0 + 7.7), vnoise(uv * 9.0 + 1.3)) - 0.5;
+		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(world_n + jitter * 0.9), 0.0)).xyz);
 		rough = 0.92;
 		wet_k = 0.3;
 	} else if (kind < 5.5) {
