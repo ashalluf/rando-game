@@ -19,12 +19,30 @@ extends Node
 ## builds only the hill blocks of the ring, PAINT_AB=1 saves each frame again with the plane all lit
 ## and all painted (_lit, _painted: its paint_gain), MASKS=1 saves it again without the plane,
 ## without the chunks and without either (_noground, _nochunks, _none: which pixel is which tier), NOFOG=1 turns the scene's
-## fog off (DayNight is not here to set it), NOSHELLS=1 hides
+## fog off, DAYNIGHT=1 runs the city's DayNight held at `-- --hour=h` (the game's sun, sky, ambient
+## and exposure, not the scene file's defaults), NOSHELLS=1 hides
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
 ## triangles and draws, SHELL_DEBUG=1 draws
 ## the shells solid (hill_shells.gdshader debug_mode), PROFILE=n profiles n frames with the shells
 ## and n without (run with --gpu-profile under Forward+; see the block after the shot).
+
+## The horizon plane's material (GROUND=1), for DayNight's haze and smog (DAYNIGHT=1).
+var _ground_mat: ShaderMaterial
+
+
+## DayNight calls these on its parent, which in the city is the streamer (DAYNIGHT=1).
+func set_ground_haze(color: Color, sun_direction: Vector3) -> void:
+	if _ground_mat:
+		_ground_mat.set_shader_parameter("haze_color", color)
+		_ground_mat.set_shader_parameter("sun_dir", sun_direction)
+
+
+func set_ground_smog(amount: float, color: Color) -> void:
+	if _ground_mat:
+		_ground_mat.set_shader_parameter("smog", amount)
+		_ground_mat.set_shader_parameter("smog_color", color)
+
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -64,6 +82,17 @@ func _ready() -> void:
 		sun.rotation_degrees = Vector3(sp[0].to_float(), sp[1].to_float(), 0.0)
 	if sun:
 		RenderingServer.global_shader_parameter_set("sun_direction", sun.global_basis.z)
+	# DAYNIGHT=1: the city's DayNight runs here too, held at --hour (pass it after `--`), so the
+	# sun, the sky, the ambient and the exposure are the game's at that hour rather than the
+	# scene file's defaults (the sun at 1.0 against the game's 1.3, the ambient at 1.0 against
+	# 0.3) - which is what a measurement of the painted band against the lit one needs.
+	if OS.get_environment("DAYNIGHT") == "1":
+		var dn: Node = city.get_node_or_null("DayNight")
+		if dn:
+			city.remove_child(dn)
+			dn.owner = null
+			add_child(dn)
+			dn.call("set_paused", true)
 	if OS.get_environment("SHELL_DEBUG") != "":
 		PropFactory.hill_shell_material().set_shader_parameter("debug_mode", int(OS.get_environment("SHELL_DEBUG")))
 	var style: Dictionary = city.chunk_style()
@@ -88,6 +117,7 @@ func _ready() -> void:
 	if OS.get_environment("GROUND") == "1":
 		city.set("plan", plan)
 		ground_mat = city.call("_build_ground_material")
+		_ground_mat = ground_mat
 		var plane := PlaneMesh.new()
 		plane.size = Vector2(city.ground_size, city.ground_size)
 		var subdiv: int = (city.get_script() as GDScript).get_script_constant_map()["GROUND_SUBDIVISIONS"]
