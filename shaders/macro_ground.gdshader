@@ -270,7 +270,6 @@ void fragment() {
 	vec3 haze = cs_in(haze_color);
 	vec3 sun_c = cs_in(sun_color);
 	vec3 bounce_c = cs_in(bounce_color);
-	vec3 city_light_c = cs_in(city_light_color);
 	vec3 smog_c = cs_in(smog_color);
 	// The sky's horizon colour as linear light (for the fill) and in the renderer's own space (for
 	// the rim, which hands over to the sky itself). `sky_tint` is a `color` global, and those
@@ -313,7 +312,9 @@ void fragment() {
 	// painted band is lit the way it lights the band before it (in sRGB numbers).
 	vec3 lit_ws = vec3(1.0);
 	// Light the far city makes itself, which is all there is to see out there after dark.
-	vec3 glow = vec3(0.0);
+	// (Its colour is city_light_color - a source_color uniform, so already in the renderer's own
+	// space, as the emission is: this is how much of it.)
+	float glow = 0.0;
 	vec3 n = vec3(0.0, 1.0, 0.0);
 	// The near hills' own roughness (terrain.gdshader), so the renderer gives both the same
 	// sheen where it lights both.
@@ -509,7 +510,7 @@ void fragment() {
 			// MacroMap bakes the denser districts darker, so the darker the ground the more
 			// lit it gets: downtown blazes, the far suburbs are a sparse orange dust.
 			float density = clamp((0.042 - dot(m.rgb, vec3(0.3333))) / 0.013, 0.30, 1.0);
-			glow = city_light_c * (city_light_strength * built * density
+			glow = (city_light_strength * built * density
 				* (lamps + windows * 0.85) * smoothstep(0.08, 0.55, night_factor));
 		}
 
@@ -576,7 +577,7 @@ void fragment() {
 	float dim = mix(1.0, 0.16, night_factor);
 	vec3 albedo = mix(base * shade, haze, hz) * dim;
 	// The painted band in the renderer's own space (see lit_ws).
-	vec3 emitted = mix(cs_out(base_e) * lit_ws, cs_out(haze), hz) * dim + cs_out(glow) * (1.0 - hz);
+	vec3 emitted = mix(cs_out(base_e) * lit_ws, cs_out(haze), hz) * dim + city_light_color * (glow * (1.0 - hz));
 	if (smog > 0.002) {
 		float under = 1.0 - smoothstep(smog_lid * 0.35, smog_lid, world_pos.y);
 		float sm = smog * under * (1.0 - exp(-dist / smog_reach));
