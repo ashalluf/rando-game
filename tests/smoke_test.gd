@@ -400,6 +400,8 @@ func _test_city() -> void:
 		var hr = macro.hill_roads
 		_check(hr != null and hr.roads.size() >= 12 and hr.mansions.size() >= 20, "hill roads and mansions planned (%d roads, %d lots)" % [hr.roads.size() if hr else 0, hr.mansions.size() if hr else 0])
 		if hr:
+			_check_switchbacks(plan, city, hr)
+		if hr:
 			var road0: Dictionary = hr.roads[0]
 			var rp: Vector2 = road0.points[6]
 			var rh: float = road0.heights[6]
@@ -1667,12 +1669,18 @@ func _test_city() -> void:
 	# Car glass and who sits behind it (tests/car_cabin_checks.gd): the shared cabin glass, the
 	# traffic's drivers, the player at the wheel, a cruiser's crew, the tints.
 	await load("res://tests/car_cabin_checks.gd").new().run(self, city)
+	# Car lamps and headlights (tests/car_lights_checks.gd): parked dark, brake, indicators,
+	# hazards, reverse, and CarLights' budgeted spot lights.
+	await load("res://tests/car_lights_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
 	# The Esplanade replica (tests/replica_checks.gd): the road, the coast, the lots, one replica
 	# chunk and its traffic.
 	await load("res://tests/replica_checks.gd").new().run(self, city)
+	# The surf and the beach (tests/surf_checks.gd): the surf model against the weather, no swell
+	# through the sand, the shader mirrors, the piers' lights, a shoreline chunk's sand and spray.
+	await load("res://tests/surf_checks.gd").new().run(self, city)
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)
@@ -2757,6 +2765,112 @@ func _check_hill_shells(chunk: Node3D, city: Node, plan: CityPlan) -> void:
 	road_chunk.free()
 	_check(on_road > 0 and road_bad == 0 and clear_n > 0 and clear_bad == 0,
 		"the shells keep off the hill road at %.0f,%.0f (%d road vertices, %d marked to grow; %d of %d clear ones barred)" % [probe.x, probe.y, on_road, road_bad, clear_bad, clear_n])
+
+
+## The front range's switchback drives and their estates (HillRoads, roadmap #20): there are
+## enough of them and they turn in hairpins; every one is graded as #17's cut banks require -
+## held to its grade, its banks meeting the ground at every point, and the ground carved round it
+## almost never steeper than 60 degrees; estates stand clear of each other and of every road;
+## and a chunk holding an estate up a driveway builds its driveway, walls and house.
+func _check_switchbacks(plan: CityPlan, city: Node, hr) -> void:
+	var drives: Array = []
+	var pins := 0
+	var grade_bad := 0
+	var earth_bad := 0
+	for road in hr.roads:
+		if not road.get("switchback", false):
+			continue
+		drives.append(road)
+		pins += int(road.get("hairpins", 0))
+		var pts: PackedVector2Array = road.points
+		var hs: PackedFloat32Array = road.heights
+		for i in range(1, pts.size()):
+			var limit := (HillRoads.JUNCTION_GRADE if i <= 2 else HillRoads.MAX_GRADE) * pts[i].distance_to(pts[i - 1]) + 0.01
+			if absf(hs[i] - hs[i - 1]) > limit:
+				grade_bad += 1
+			# The drives are laid out on a 12 m lattice of the ground (HillRoads.GCACHE_STEP), so
+			# the exact ground is allowed a metre and a half more slack than the layout had.
+			if hr._earthwork_ok(pts, hs, i, float(road.width) * 0.5, false, pts[0], HillRoads.EARTHWORK_SLACK + 1.5) != 0:
+				earth_bad += 1
+	var front := 0
+	for m in hr.mansions:
+		if (m.pos as Vector2).y < -700.0 and (m.pos as Vector2).y > -2600.0:
+			front += 1
+	_check(drives.size() >= 8 and pins >= 5 and front >= 70,
+		"the front range has switchback drives and estates again (%d drives, %d hairpins, %d estates)" % [drives.size(), pins, front])
+	_check(grade_bad == 0 and earth_bad == 0, "every switchback is held to its grade and graded into the hill (%d steps too steep, %d points whose banks miss the ground)" % [grade_bad, earth_bad])
+	# The ground carved round the first few drives, on an 8 m grid: the cut-bank fix's measure.
+	var carved := 0
+	var steep := 0
+	var seen := {}
+	for road in drives.slice(0, 6):
+		var pts: PackedVector2Array = road.points
+		var reach: float = float(road.width) * 0.5 + HillRoads.BANK_REACH
+		for i in pts.size() - 1:
+			var a := pts[i]
+			var b := pts[i + 1]
+			var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - Vector2.ONE * reach
+			var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) + Vector2.ONE * reach
+			for cx in range(floori(lo.x / 8.0), floori(hi.x / 8.0) + 1):
+				for cz in range(floori(lo.y / 8.0), floori(hi.y / 8.0) + 1):
+					if seen.has(Vector2i(cx, cz)):
+						continue
+					seen[Vector2i(cx, cz)] = true
+					var p := Vector2((cx + 0.5) * 8.0, (cz + 0.5) * 8.0)
+					var raw := plan.macro.raw_height_at(p)
+					if raw <= 0.5 or absf(plan.height_at(p) - raw - plan.macro.relief_at(p)) < 0.25:
+						continue
+					carved += 1
+					var g := Vector2(plan.height_at(p + Vector2(2, 0)) - plan.height_at(p - Vector2(2, 0)),
+						plan.height_at(p + Vector2(0, 2)) - plan.height_at(p - Vector2(0, 2))) / 4.0
+					if g.length() > tan(deg_to_rad(60.0)):
+						steep += 1
+	_check(carved > 500 and steep <= carved * 0.015, "the ground carved round the switchbacks is graded, not cliffs (%d of %d cells steeper than 60 degrees)" % [steep, carved])
+	# Estates on the drives: clear of each other and of the roads.
+	var overlap := 0
+	var on_road := 0
+	var with_drive: Dictionary = {}
+	var mine: Array = []
+	for m in hr.mansions:
+		if m.has("radius"):
+			mine.append(m)
+	for i in mine.size():
+		var a: Dictionary = mine[i]
+		for j in range(i + 1, mine.size()):
+			var b: Dictionary = mine[j]
+			if (a.pos as Vector2).distance_to(b.pos) < float(a.radius) + float(b.radius) + 1.0:
+				overlap += 1
+		for seg in hr.segments_in(Rect2(a.pos - Vector2.ONE * 40.0, Vector2.ONE * 80.0)):
+			if seg.drive:
+				continue
+			var d := (a.pos as Vector2).distance_to(Geometry2D.get_closest_point_to_segment(a.pos, seg.a, seg.b))
+			if d < float(a.radius) + float(seg.width) * 0.5 + 1.0:
+				on_road += 1
+		if with_drive.is_empty() and (a.drive_from as Vector2).distance_to(a.pos) > float(a.radius) + 10.0:
+			with_drive = a
+	_check(mine.size() > 0 and overlap == 0 and on_road == 0, "estates on the drives stand clear of each other and of the roads (%d estates, %d overlaps, %d on a road)" % [mine.size(), overlap, on_road])
+	if with_drive.is_empty():
+		_check(false, "an estate up a driveway to build")
+		return
+	var k: Vector2i = plan.block_index_at(with_drive.pos)
+	var chunk = load("res://scripts/world/city_chunk.gd").new()
+	chunk.plan = plan
+	chunk.ix = k.x
+	chunk.iz = k.y
+	chunk.level = 0
+	chunk.style = city.chunk_style()
+	chunk.begin_build()
+	var guard := 0
+	while not chunk.build_step() and guard < 400:
+		guard += 1
+	var names := {}
+	for child in chunk.get_children():
+		names[String(child.name).rstrip("0123456789")] = true
+		if child is StaticBody3D and child.get("lot_size") != null:
+			names["Building"] = true
+	chunk.free()
+	_check(names.has("Driveways") and names.has("Building") and names.has("Boxes"),
+		"a chunk with an estate up a driveway builds its driveway, house and walls (%s)" % ", ".join(names.keys()))
 
 
 ## A hill chunk's rocks, shrubs and planting stand on the terrain it draws. They are placed at

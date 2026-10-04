@@ -1,26 +1,10 @@
 # Work in flight
 
-## crowd-garments.patch  (2026-09-28; tools/crowd/garments.py, build_character.py, crowd_config.json)
+## crowd-garments.patch - landed 2026-10-04
 
-Our own garments for the crowd, stopped part-way when the session was handed to another account.
-The goal and the plan are in the header of `tools/crowd/garments.py` (after applying): a crew-neck
-tee, trousers (jeans, chinos, leggings, denim shorts), a button shirt and a zip jacket, each a
-SHELL grown off the bound body (inherits its UVs and weights), shaped to hang like cloth, every
-opening cut by planes and hemmed with a real cross-section, collars / cuffs / waistbands / placket /
-zip as swept bands with a profile; a character with an `"outfit"` in `tools/crowd/crowd_config.json`
-wears these instead of MakeHuman's library clothes. The crowd contract in CLAUDE.md (The crowd)
-still has to hold: 24 bones and three clips, ONE Body surface with the R/G/B/A region vertex
-colours, the hair mesh, welded mid / far bodies, camp figure bakes, the police recolour.
-
-State when stopped: the shell / cut / hem / band code for all four garments is written but was
-never run to the end; the builder was on the trouser legs below the missing ankle skin.
-**Not runnable as is:** `garments.py` calls `garment_paint.py` (the texel painter
-`crowd_atlas.py` is meant to use for the virtual atlas regions) which was never written, and the
-config change removes one character's `male_casualsuit06.mhclo` without adding an `"outfit"`
-for it (that character would build with no clothes). Apply with `git apply
-docs/wip/crowd-garments.patch`, then: write `garment_paint.py`, give the characters outfits, run
-`tools/crowd/build.sh <name>` one character at a time (Blender 4.2 via `tools/hero/setup.sh`),
-judge with `tools/glshot/crowd_lineup.gd` against the current crowd, and keep the frame cost flat.
+Finished and landed on the branch `worktree-agent-ab30bcf7c66c96fb9` (docs/HANDOFF.md 9av,
+CLAUDE.md "Our own garments"): `tools/crowd/garments.py` and `garment_paint.py`, eight of the
+twelve people in our own garments (f went back to library clothes at review). The patch file is gone; the code is in `tools/crowd/`.
 
 ## Older patches (2026-09-21) - reference only
 

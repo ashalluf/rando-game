@@ -336,22 +336,23 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | Base mesh, body/face shape targets, "mixamo" rig and weights | MPFB 2.0.17 | CC0 |
 | Skins, eyes (`low-poly` + an eye material), eyebrows, eyelashes, clothes (`male_casualsuit01..06`, `male_elegantsuit01`, `male_worksuit01`, `female_casualsuit01/02`, `female_elegantsuit01`, `female_sportsuit01`), shoes (`shoes01..06`), hair (`afro01`, `braid01`, `long01`, `ponytail01`, `short01..04`) and their textures | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
 | Skin blends, garment dyes, printed logos painted out, the painted scalp and crops, skin relief maps, the atlases, relaxed hands, bind pose, the region colours | Our own scripts (`tools/crowd/*.py`) | ours |
+| Our own garments (tee, jeans / slim / chinos / leggings / denim shorts, button shirt, zip jacket): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
 | Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` (`tools/hero/retarget_lib.py`) | ours |
 
 | Model | Person | MakeHuman assets |
 |---|---|---|
-| `crowd_a.glb` | young Black man, slim and athletic: white tee, jeans, white sneakers, close crop | young_african_male, eyes `low-poly` + brown, eyebrow001, eyelashes01, male_casualsuit06, shoes05, no hair mesh (a painted crop) |
+| `crowd_a.glb` | young Black man, slim and athletic: white tee, mid-wash jeans, white sneakers, close crop | young_african_male, eyes `low-poly` + brown, eyebrow001, eyelashes01, shoes05, no hair mesh (a painted crop); our own tee and jeans |
 | `crowd_b.glb` | Latino man in his forties, heavy-set: work overalls over a tee, boots, short dark hair | middleage_caucasian_male 45% + middleage_african_male 35% + middleage_asian_male 20%, eyes `low-poly` + brown, eyebrow010, eyelashes01, male_worksuit01, shoes03, short04 |
 | `crowd_c.glb` | white woman in her seventies, slight and short: striped blouse, grey skirt, flat shoes, short grey hair | old_caucasian_female, eyes `low-poly` + lightblue, eyebrow007, eyelashes01, female_elegantsuit01, shoes04, short03; skin toned down |
-| `crowd_d.glb` | young East Asian woman: tee dyed rust, jeans, navy sneakers, ponytail | young_asian_female, eyes `low-poly` + brown, eyebrow002, eyelashes01, female_casualsuit01, shoes06, ponytail01; top dyed |
-| `crowd_e.glb` | Black woman in her forties, heavy: tee dyed mustard, denim shorts, white sneakers, natural hair | middleage_african_female, eyes `low-poly` + brown, eyebrow003, eyelashes01, female_casualsuit02, shoes05, afro01; top dyed |
+| `crowd_d.glb` | young East Asian woman: fitted rust tee, black slim jeans, navy sneakers, ponytail | young_asian_female, eyes `low-poly` + brown, eyebrow002, eyelashes01, shoes06, ponytail01; our own tee and slim jeans |
+| `crowd_e.glb` | Black woman in her forties, heavy: mustard tee, denim shorts, white sneakers, natural hair | middleage_african_female, eyes `low-poly` + brown, eyebrow003, eyelashes01, shoes05, afro01; our own tee and denim shorts |
 | `crowd_f.glb` | young white man, tall: olive field jacket, jeans, grey sneakers, short brown hair | young_caucasian_male, eyes `low-poly` + bluegreen, eyebrow006, eyelashes01, male_casualsuit05, shoes02, short04 |
 | `crowd_g.glb` | Black man in his seventies: dark suit, dress shoes, short grey hair | old_african_male, eyes `low-poly` + brown, eyebrow009, eyelashes01, male_elegantsuit01, shoes04, short01 |
-| `crowd_h.glb` | East Asian man in his forties: striped shirt, jeans, brown leather shoes, short side part | middleage_asian_male, eyes `low-poly` + brown, eyebrow004, eyelashes01, male_casualsuit03, shoes01, short03 |
-| `crowd_i.glb` | young white woman, slim: tee dyed heather grey, black leggings, white sneakers, long hair | young_caucasian_female, eyes `low-poly` + green, eyebrow005, eyelashes01, female_sportsuit01, shoes05, long01; top dyed |
-| `crowd_j.glb` | white man in his fifties, heavy, close-cropped: denim shirt, jeans, brown shoes | middleage_caucasian_male, eyes `low-poly` + blue, eyebrow011, eyelashes01, male_casualsuit01, shoes01, no hair mesh (a painted crop) |
-| `crowd_k.glb` | young Latina woman: tee dyed teal, jeans, navy sneakers, braid | young_caucasian_female 45% + young_african_female 35% + young_asian_female 20%, eyes `low-poly` + brown, eyebrow002, eyelashes01, female_casualsuit01, shoes06, braid01; top dyed |
-| `crowd_l.glb` | East Asian man in his seventies: long-sleeve tee dyed maroon, jeans, black shoes, short grey hair | old_asian_male, eyes `low-poly` + brown, eyebrow008, eyelashes01, male_casualsuit02, shoes04, short01; top dyed |
+| `crowd_h.glb` | East Asian man in his forties: blue-and-white pinstripe button shirt, grey jeans, brown leather shoes, short side part | middleage_asian_male, eyes `low-poly` + brown, eyebrow004, eyelashes01, shoes01, short03; our own shirt and jeans |
+| `crowd_i.glb` | young white woman, slim: fitted heather-grey tee, black leggings, white sneakers, long hair | young_caucasian_female, eyes `low-poly` + green, eyebrow005, eyelashes01, shoes05, long01; our own tee and leggings |
+| `crowd_j.glb` | white man in his fifties, heavy, close-cropped: chambray shirt with the sleeves rolled, dark jeans, brown shoes | middleage_caucasian_male, eyes `low-poly` + blue, eyebrow011, eyelashes01, shoes01, no hair mesh (a painted crop); our own shirt and jeans |
+| `crowd_k.glb` | young Latina woman: fitted teal tee, light-wash jeans, navy sneakers, braid | young_caucasian_female 45% + young_african_female 35% + young_asian_female 20%, eyes `low-poly` + brown, eyebrow002, eyelashes01, shoes06, braid01; our own tee and jeans |
+| `crowd_l.glb` | East Asian man in his seventies: maroon long-sleeve tee, charcoal chinos, black shoes, short grey hair | old_asian_male, eyes `low-poly` + brown, eyebrow008, eyelashes01, shoes04, short01; our own long-sleeve tee and chinos |
 
 Each is ONE skinned `Body` (skin, eyes, clothes, shoes; 10.5-12.7k triangles, one 2K colour atlas
 and a 1K normal atlas, the vertex colour carrying the skin / top / bottom / hair split) and a
