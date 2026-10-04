@@ -54,7 +54,8 @@ extends SceneTree
 ## held at zero, the clock of day held at --hour, the signals on a fixed clock, and people, cars,
 ## aircraft, particles and the player hidden (two runs differ in a handful of pixels by 1-2/255).
 ## LIFE_REPORT=1 lists the people within 80 m of the camera doing something (crowd life), with
-## true world positions to frame an EYE on; CROWD_LIFE=0 turns the crowd's life off (the A/B).
+## true world positions to frame an EYE on; LIFE_FOCUS=jog|dog|talk|sit|stand|lean|window frames the
+## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
 ## YARD_FILL=0 builds the city without YardFill (beach-town yards, the campus's ground, the
 ## freeway's right of way: the A/B; SPLIT counts its two meshes in the LotFill line).
@@ -370,6 +371,46 @@ func _initialize() -> void:
 		print("HIDE %s: %d nodes" % [hide_env, hidden])
 		for i in 3:
 			await process_frame
+	# LIFE_FOCUS=jog|dog|talk|sit|stand|lean|window: the camera moves to frame the nearest person
+	# (within 120 m) doing that, from LIFE_FOCUS_DIST metres (default 5) off their right front.
+	var focus := OS.get_environment("LIFE_FOCUS")
+	if focus != "" and current_scene:
+		var acts_by := {"stand": 1, "lean": 2, "window": 3, "talk": 4, "sit": 5}
+		var cam0 := get_root().get_camera_3d()
+		var best: Node3D = null
+		var best_d := 120.0
+		for n in get_nodes_in_group("pedestrian"):
+			var p := n as Node3D
+			var ok := false
+			match focus:
+				"jog":
+					ok = bool(p.get("_jogger"))
+				"dog":
+					ok = bool(p.get("_dog_walker"))
+				_:
+					ok = p.get("_act") != null and int(p.get("_act")) == int(acts_by.get(focus, -1)) and int(p.get("_stage")) == 2
+			if ok and cam0 and p.global_position.distance_to(cam0.global_position) < best_d:
+				best_d = p.global_position.distance_to(cam0.global_position)
+				best = p
+		if best:
+			var vis: Node3D = best.get("_visual")
+			var yaw := vis.global_rotation.y if vis else 0.0
+			var fwd := Vector3(-sin(yaw), 0.0, -cos(yaw))
+			var right := Vector3(cos(yaw), 0.0, -sin(yaw))
+			var dist := _env_float("LIFE_FOCUS_DIST", 5.0)
+			var target := best.global_position + Vector3.UP * 1.0
+			var cam_at := best.global_position + (fwd * 0.8 + right * 0.6).normalized() * dist + Vector3.UP * 1.6
+			var d := target - cam_at
+			var cyaw := rad_to_deg(atan2(-d.x, -d.z))
+			var cpitch := rad_to_deg(atan2(d.y, Vector2(d.x, d.z).length()))
+			var world: Vector3 = root.get_node("/root/WorldState").to_world(cam_at)
+			OS.set_environment("EYE", "%.2f,%.2f,%.2f,%.2f,%.2f" % [world.x, world.y, world.z, cyaw, cpitch])
+			print("LIFE focus %s at %s, eye %s" % [focus, root.get_node("/root/WorldState").to_world(best.global_position), OS.get_environment("EYE")])
+			_eye(player, _env_float("FOV", 45.0))
+			for i in 4:
+				await process_frame
+		else:
+			print("LIFE focus %s: nobody in range" % focus)
 	# LIFE_REPORT=1: every pedestrian within 80 m of the camera that is doing something (crowd
 	# life: Pedestrian._act, CrowdLife.Act) with its true world position, to frame a shot on.
 	if OS.get_environment("LIFE_REPORT") == "1":
