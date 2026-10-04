@@ -5081,10 +5081,26 @@ lamps, hangars - and nothing at night: the whole field was black from the air.
 **Stills** (shots/airport branch; same cameras before and after, opengl3, 1600 x 900):
 the apron at noon `EYE=-360,1.7,762,42,4`; the terminal from the drop-off
 `-330,1.7,606,195,12`; the aerial `-260,330,1230,8,-36`; night with an airliner on final
-`EYE=1100,200,1250,71,-8 AIR=final AIR_DIST=480 --hour=22 FOV=50`.
+`EYE=1100,200,1250,71,-8 AIR=final AIR_DIST=480 --hour=22 FOV=50`; and two more at night: short
+final over the approach lights `EYE=420,160,1120,70,-14 AIR=final AIR_DIST=200 FOV=55`, the apron
+from over the taxiway `EYE=-262,40,812,42,-17`.
 
-**Frame cost** (still_shot.gd GEO, same frames on main 040beaf and this branch; see the table
-filled in at the end of the section).
+**Frame cost** (still_shot.gd GEO on opengl3 1600 x 900, the same frames on main 96f86f1 and
+this branch; triangles / draw calls, camera + shadow passes):
+
+| View | main | wt/airport | change |
+|---|---|---|---|
+| apron at noon, standing | 1.853 M / 1,706 | 2.032 M / 1,766 | +9.7 % / +3.5 % |
+| terminal from the drop-off | 3.032 M / 855 | 3.180 M / 972 | +4.9 % / +13.7 % |
+| aerial over the field | 1.346 M / 856 | 1.404 M / 943 | +4.3 % / +10.2 % |
+| night, airliner on final (1.4 km) | 0.905 M / 285 | 0.919 M / 310 | +1.5 % / +8.8 % |
+| apron at night from 40 m | 1.739 M / 1,509 | 1.874 M / 1,593 | +7.8 % / +5.6 % |
+| night, short final (close) | 1.421 M / 1,081 | 1.473 M / 1,143 | +3.7 % / +5.7 % |
+
+A gate's trucks are one instance of one mesh per service variant and a chunk's painted texts one
+mesh per colour (the first pass was eight batches and a dozen TextMesh nodes a chunk: the
+drop-off view was +22 % draws). The field's ~640 lights are one draw. The parked airliners are
+one MultiMesh per concourse half (8k-triangle model with its imported LODs).
 
 **Checks**: `tests/airport_checks.gd` (layout, flyable jets' clearances, painted runway under the
 touchdown, the lights mesh and its kinds, far copies and parked jets, a FULL chunk's paint and
