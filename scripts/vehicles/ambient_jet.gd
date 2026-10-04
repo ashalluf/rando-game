@@ -183,6 +183,12 @@ func _build_model() -> void:
 		inst.position = -(inst.transform.basis * Vector3(centre.x, aabb.position.y, centre.z))
 		_visual.add_child(inst)
 		_model_height = aabb.size.y * s
+		if kind == Aircraft.Kind.AIRLINER:
+			# An invented airline's livery, painted from the model's own shape (the model's
+			# texture reads as camouflage): AirportTerminal.livery_material().
+			var livery := AirportTerminal.livery_material(_rng.randi() % Airport.LIVERIES)
+			for mi in inst.find_children("*", "MeshInstance3D", true, false):
+				(mi as MeshInstance3D).material_override = livery
 	_adopt_meshes(_visual)
 	var h := _model_height
 	_box_shape(Vector3(length * 0.12, length * 0.12, length * 0.92), Vector3(0.0, h * 0.34, 0.0))

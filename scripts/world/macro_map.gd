@@ -177,21 +177,31 @@ var terminal_loops: Array = [
 ## z 3300) is gone.
 var port_rect: Rect2 = Rect2(2750.0, 5935.0, 630.0, 560.0)
 var harbor_rect: Rect2 = Rect2(2750.0, 6520.0, 630.0, 260.0)
-## Runway center lines (z) and width inside the airport rect.
-var runway_zs: PackedFloat32Array = PackedFloat32Array([780.0, 870.0, 960.0])
-var runway_width: float = 55.0
+## Runway center lines (z) and width inside the airport rect: a parallel pair, 27R / 09L (the
+## north one, z 870) and 27L / 09R (z 960). 45 m is a real long runway's 150 ft. There used to be
+## a third runway at z 780, 55 m wide like the others, which nothing flew from: it is the
+## parallel taxiway now (taxiway_z), between the apron and the runways, as at a real field.
+var runway_zs: PackedFloat32Array = PackedFloat32Array([870.0, 960.0])
+var runway_width: float = 45.0
+## The parallel taxiway along the apron's south edge (Airport lays it, its lights and paint).
+var taxiway_z: float = 780.0
+var taxiway_width: float = 24.0
 ## The runway arrivals land on (an index into runway_zs; AirTraffic flies to it), and the
 ## runway protection zone off its east end: no lot is built in it (CityPlan.lots()), because the
 ## final approach crosses the city there at three degrees - ten to forty metres up - and a
 ## midtown block puts twenty-metre buildings under it. The south runway, because the hangars
-## stand across the east ends of the other two.
-var arrival_runway: int = 2
+## stand across the east end of the north one.
+var arrival_runway: int = 1
+## The runway departures roll down (westbound, lining up just short of the hangars).
+var departure_runway: int = 0
 ## 1150, not 700: the final now turns in over Westlake (AirTraffic.downwind_x), west of downtown.
 var approach_clear_length: float = 1150.0
 var approach_clear_half_width: float = 45.0
-## Where flyable jets wait on the apron (world XZ, nose toward +X) and what kind each is.
-## Staggered so no jet sits in another's taxi lane.
-var apron_spots: Array = [[Vector2(-440.0, 700.0), 0], [Vector2(-350.0, 730.0), 1], [Vector2(-255.0, 670.0), 0]]
+## Where flyable jets wait (world XZ), what kind each is, and optionally the yaw (default -PI / 2,
+## nose toward +X). The gates along the concourse hold the parked airliners (Airport.gates(),
+## static): these are the ones the player can take - on the parallel taxiway (a straight 550 m
+## run east, clear of every gate's tail) and on the remote stands either end of the concourse.
+var apron_spots: Array = [[Vector2(-560.0, 780.0), 0], [Vector2(-75.0, 712.0), 1], [Vector2(-614.0, 716.0), 0, PI]]
 
 ## Roads and mansion pads carved into the hills (built in setup()).
 var hill_roads: HillRoads
