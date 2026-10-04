@@ -89,8 +89,11 @@ What only the owner can supply, and why each one multiplies everything below:
 - [ ] **G7. Performance, throughout.** Generated occluders, far-building impostors, texture
   streaming, profiled on the owner's Mac every push: the look at 60 fps, not 15. (Done
   2026-09-24: the level-of-detail hierarchy - FULL, LOD, a whole-basin far city handed over per
-  block, the horizon - with view-weighted streaming; see the decisions log. Still to do: real
-  impostors for the far city's towers instead of shaded boxes.)
+  block, the horizon - with view-weighted streaming; see the decisions log. Done 2026-10-04:
+  the far city's buildings are coded copies of the near ones instead of guessed shaded boxes -
+  the near building's own facade, roof, lit offices and roof plant - which beat baked impostors
+  for a city of unique boxes; docs/HANDOFF.md 9az. Still to do: cut-corner geometry on the far
+  boxes, the landmark towers' far meshes checked against their near ones the same way.)
 - [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
 
 ## Owner requests queued
@@ -280,6 +283,24 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
+  Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
+  (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed
+  at the LOD line in all but its massing, and on the Mac its walls drew 1.5-2x the near
+  brightness (the near wall is the facade times its photographed texture). Baked impostors were
+  costed and rejected: 22,472 unique facade parts in the far city, ~63 GB of octahedral atlas or
+  ~3.9 GB of cards, and every near building rendered at load. Instead `FarBuilding` gives each
+  part box the near building's own data - window style, finish, roof, wall texture set, palette
+  indices, shops, bays, storeys, base, crown, plinth, parapet, seed - as six 20-bit codes in its
+  basis's off-diagonals (Compatibility's instance colour and custom data are half floats; the
+  transform is not), and `building_lod.gdshader` draws the near wall cell for cell from it. The
+  roof plant rolls on its own stream so its layout is known without building the facade
+  (`Building.roof_plan()`), and is drawn as boxes (all of it in the LOD ring, the silhouettes in
+  the far city); lit offices and spandrels roll from integers shared by both shaders
+  (`window_lights.gdshaderinc`). The near roofs and office lights got a new random arrangement
+  once. Per-block dissolve unchanged; draws unchanged (no new MultiMesh). docs/HANDOFF.md 9az,
+  CLAUDE.md "Far buildings are coded copies of the near ones".
 
 - **2026-10-04 The crowd wears our own garments, modelled and painted, not photographed.**
   The crowd-detail pass found the ceiling of shader work on MakeHuman's library clothes (soft
