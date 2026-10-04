@@ -361,6 +361,7 @@
     34
    ],
    "clothes": [
+    "male_casualsuit05.mhclo",
     "shoes02.mhclo"
    ],
    "targets": [
@@ -375,31 +376,16 @@
     50,
     34
    ],
-   "outfit": [
-    {
-     "type": "trousers",
-     "style": "chinos",
-     "color": [
-      150,
-      128,
-      92
-     ]
-    },
-    {
-     "type": "jacket",
-     "color": [
-      78,
-      84,
-      58
-     ],
-     "rib_fabric": "jersey",
-     "zip_color": [
-      38,
-      38,
-      36
-     ]
-    }
-   ]
+   "dye": {
+    "bottom": [
+     124,
+     106,
+     78
+    ]
+   },
+   "dye_contrast": {
+    "bottom": 0.85
+   }
   },
   {
    "name": "crowd_g",

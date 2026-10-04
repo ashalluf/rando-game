@@ -3,8 +3,8 @@
 ## crowd-garments.patch - landed 2026-10-04
 
 Finished and landed on the branch `worktree-agent-ab30bcf7c66c96fb9` (docs/HANDOFF.md 9av,
-CLAUDE.md "Our own garments"): `tools/crowd/garments.py` and `garment_paint.py`, nine of the
-twelve people in our own garments. The patch file is gone; the code is in `tools/crowd/`.
+CLAUDE.md "Our own garments"): `tools/crowd/garments.py` and `garment_paint.py`, eight of the
+twelve people in our own garments (f went back to library clothes at review). The patch file is gone; the code is in `tools/crowd/`.
 
 ## Older patches (2026-09-21) - reference only
 

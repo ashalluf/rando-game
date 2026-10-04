@@ -86,14 +86,10 @@ section, not the build):
   cladding, awnings, lit blade signs, glass posters, recessed entries, curtain-wall caps, thin
   real window frames above.
 
-**In flight (not on main):** `docs/wip/crowd-garments.patch` - our own garments for the crowd
-(tee, trousers / jeans / shorts, button shirt, zip jacket) modelled the way the hero's tracksuit
-is, in `tools/crowd/garments.py` (1,400 lines) wired into `build_character.py`. It was stopped
-mid-way (it was on the trouser legs below the ankle) and is NOT runnable as is: it calls a
-`garment_paint.py` that was never written, and its config change strips one character's library
-clothes without giving it an `"outfit"`. Read `docs/wip/README.md` before applying it. This is
-the recommended next job: the crowd-detail pass concluded that shader work on the MakeHuman
-clothes has hit its ceiling and only real garments move the crowd further.
+**Landed (9av):** our own garments for the crowd (tee, trousers / jeans / slim / chinos / leggings
+/ shorts, button shirt, zip jacket), modelled by `tools/crowd/garments.py` and painted by
+`tools/crowd/garment_paint.py`; eight of the twelve people wear them. The patch that carried them
+(`docs/wip/crowd-garments.patch`) is gone.
 
 **Needs the owner's eyes on the Mac (Forward+)** - none of this can be judged in the opengl3
 stills: the motion blur's strength and the aim / wheel depth of field; car fire and smoke at night;
@@ -4451,7 +4447,7 @@ killing a waiting flock whose child already started leaves the render running wi
 
 After 9aj the crowd's faces held up at 2 m and its clothes did not: MakeHuman's library garments
 are soft photographs (one V-neck on every tee, the same jeans wash on half the crowd), and the
-shader had nothing left to pull out of them. Nine of the twelve people now wear garments modelled
+shader had nothing left to pull out of them. Eight of the twelve people now wear garments modelled
 on their own bodies and painted texel by texel; the patch that started it
 (`docs/wip/crowd-garments.patch`) is gone, its code is `tools/crowd/garments.py` and
 `tools/crowd/garment_paint.py`.
@@ -4463,7 +4459,6 @@ on their own bodies and painted texel by texel; the patch that started it
 | a | white crew tee (regular), mid-wash indigo jeans |
 | d | rust fitted tee, black slim jeans with a grey fade and grey thread |
 | e | mustard tee, washed denim shorts above the knee |
-| f | olive zip jacket (jersey rib collar, cuffs and band), khaki chinos |
 | h | white button shirt with blue pinstripes, long sleeves and cuffs, grey washed jeans |
 | i | heather-grey fitted tee, black leggings |
 | j | chambray shirt, sleeves rolled, chest pocket, loose; dark jeans |
@@ -4471,9 +4466,16 @@ on their own bodies and painted texel by texel; the patch that started it
 | l | burgundy long-sleeved tee, charcoal chinos |
 
 b (overalls), c (blouse and skirt) and g (suit) stay in MakeHuman's clothes: there is no garment
-of ours for a bib, a skirt or a tailored jacket yet. A row opts in with an `"outfit"` list in
-`tools/crowd/crowd_config.json` (its `"clothes"` then hold only the shoes); the keys are in the
-header of garments.py.
+of ours for a bib, a skirt or a tailored jacket yet. **f went back to his library clothes at the
+lead's review**: built in our olive zip jacket and khaki chinos he read plainer than his tailored
+jacket with lapels and pockets over a striped shirt. The jacket builder and painter stay
+(`garments.jacket()`, `garment_paint.paint_jacket()`), worn by nobody; f's outfit was
+`[{"type": "trousers", "style": "chinos", "color": [150, 128, 92]}, {"type": "jacket",
+"color": [78, 84, 58], "rib_fabric": "jersey", "zip_color": [38, 38, 36]}]`, which is how to
+put it on somebody.
+
+A row opts in with an `"outfit"` list in `tools/crowd/crowd_config.json` (its `"clothes"` then
+hold only the shoes); the keys are in the header of garments.py.
 
 ### How
 
@@ -4517,8 +4519,8 @@ header of garments.py.
 ### Cost
 
 Body triangles per rig (LOD 0, the hair unchanged): a 12,215 -> 12,537, d 11,954 -> 12,505,
-e 12,735 -> 12,851, f 10,985 -> 13,093, h 11,071 -> 12,611, i 11,421 -> 12,407, j 11,061 ->
-12,841, k 11,954 -> 12,515, l 10,526 -> 11,662 (b, c, g untouched). The shells are decimated to
+e 12,735 -> 12,851, h 11,071 -> 12,611, i 11,421 -> 12,407, j 11,061 -> 12,841, k 11,954 ->
+12,515, l 10,526 -> 11,662 (b, c, f, g in library clothes). The shells are decimated to
 per-garment budgets and kept smooth (the 9aj lesson: a step in a crowd body is what the importer's
 LODs keep). Downtown bookmark (`tools/geo_count.gd --spawn=2359.4,880,0,12,2 --quality=0`,
 800x600, opengl3, `AB=Body,Hair`, the same frozen frame with every Body and Hair node hidden),
@@ -4530,8 +4532,10 @@ the 28105b5 rigs swapped in against these:
 | after | 5,997,007 | 4,196 | 20,280 | 298,034 triangles, 315 draws |
 
 +27,602 triangles, 0.46 % of the frame (the crowd's own share +10 %), draws and objects
-unchanged; the welded mid / far bodies are capped by `mid_triangles` / `far_triangles` as before,
-so the difference is the near people. If it has to be zero, the lever is each garment's `tris`
+unchanged. That was measured with f in the zip jacket (+2,108 triangles on his body); with f
+back in his library clothes the cost is lower still and was not measured again. The welded mid /
+far bodies are capped by `mid_triangles` / `far_triangles` as before, so the difference is the
+near people. If it has to be zero, the lever is each garment's `tris`
 (1,800-1,900 a shell today) - a full Blender rebuild of the rows that change.
 
 ### Judged
@@ -4540,10 +4544,10 @@ Every fix in Cycles previews first (front, side, back, torso, sleeves, feet; fla
 textured), then `crowd_lineup.gd` (`LIGHT=street`) against the 28105b5 rigs: a close shot per
 person front and side (`SHOTS=`, `TURN=90`) and the whole crowd front and side. What reads at
 2-4 m: turned hems, crew rib collars, the shirt's collar points, placket and buttons, the rolled
-sleeves, the jacket's rib bands and zip, the jeans' wash, pockets, yoke and inseam, a break over
-the shoe. The police recolour (look 1 with `uniform_material()`'s numbers through `MAT_PARAM`)
-turns a, d, f, h and j navy as before; h's pinstripe shows through the navy as the old h's
-stripes did. The lead's review of the first shirt (blue swirl bands across chest and back) was
+sleeves, the jeans' wash, pockets, yoke and inseam, a break over the shoe. The police recolour
+(look 1 with `uniform_material()`'s numbers through `MAT_PARAM`) turns a, d, f, h and j navy as
+before (f was shot in the jacket he no longer wears); h's pinstripe shows through the navy as the
+old h's stripes did. The lead's review of the first shirt (blue swirl bands across chest and back) was
 the painter's sleeve test - fixed by the `zone` attribute below; the dark V nicks at the tee hem
 were the jeans poking through - fixed by `hide_under`.
 
@@ -4578,7 +4582,8 @@ were the jeans poking through - fixed by `hide_under`.
 
 ### Not done / next
 
-- b, c and g: an overall bib, a skirt and a blazer would finish the set.
+- b, c and g: an overall bib, a skirt and a blazer would finish the set; a tailored jacket with
+  lapels and pockets (f's look) is the garment most worth building next.
 - Long-sleeved tops show faint horizontal creases across the shoulder blades (the fold field
   over the shell's own shading), the ankle stacking on jeans is a little regular, and e's back
   hem has a small step where the tail meets the side. None reads past 3 m.

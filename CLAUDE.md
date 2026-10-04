@@ -1930,7 +1930,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `build_character.py` (Blender: the MPFB human from a phenotype, targets and skin - or a blend
   of skins for a complexion the pack lacks - in library clothes, shoes, hair, brows and lashes;
   bound with the hero's lowered arms and a relaxed hand baked in, the finger bones folded into
-  the hands; hidden skin deleted; cut to per-part triangle budgets, ~11-13.1k body + up to 3.8k
+  the hands; hidden skin deleted; cut to per-part triangle budgets, ~11-12.9k body + up to 3.8k
   hair; every texture's islands cropped and skyline-packed into a 2K body atlas and a 1K hair
   atlas, garments optionally dyed, logos painted out; soles on y 0, cm under 0.01, +Z),
   `crowd_atlas.py` (python3: composes the atlases, skin relief from the skin photo, the scalp
@@ -1982,7 +1982,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   gentle with a floor (`own_ao`), being baked on a coarse shell in a pose the game never shows;
   and the fold field's ankle stack is the hero's gathered track pant, which on hemmed jeans read
   as jogger cuffs, so crowd_atlas.py scales it per trouser style (`ankle_stack` / `ankle_reach`).
-  A body in our garments is 11.7-13.1k triangles (10.5-12.7k in the library clothes).
+  A body in our garments is 11.7-12.9k triangles (10.5-12.7k in the library clothes). Eight
+  people wear them (a, d, e, h, i, j, k, l); b, c, f and g keep library clothes - f's tailored
+  jacket over a striped shirt read richer than our zip jacket, which is built but worn by nobody.
   Judge with `tools/crowd/preview.sh` first (Blender Cycles, no render lock, seconds: `FLAT=1`
   geometry only, `REGION=1` which mesh is which - green on a top is the trousers, black is skin)
   and finish with `crowd_lineup.gd` (`TURN=90` shows a row in profile).

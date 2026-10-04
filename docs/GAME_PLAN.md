@@ -283,10 +283,12 @@ already mapped so milestone 2 is script-only.
   photographed textures, one V-neck on every tee). `tools/crowd/garments.py` models a tee,
   trousers (jeans, slim, chinos, leggings, denim shorts), a button shirt and a zip jacket on each
   body, and `tools/crowd/garment_paint.py` paints every texel of them from what the garment is
-  at that point (seams, topstitching, pockets, waistbands, denim wear, woven stripes); nine of the
-  twelve people wear them, dressed the way their rows say (a, d, e, f, h, i, j, k, l). The
+  at that point (seams, topstitching, pockets, waistbands, denim wear, woven stripes); eight of the
+  twelve people wear them, dressed the way their rows say (a, d, e, h, i, j, k, l). The
   overalls (b), the blouse and skirt (c) and the suit (g) stay MakeHuman's until there is a
-  garment of ours for each. The crowd contract is unchanged (one Body surface, region colours,
+  garment of ours for each, and so does f (lead review): his tailored jacket with lapels and
+  pockets over a striped shirt read richer than our plain zip jacket, which stays in the code
+  unworn. The crowd contract is unchanged (one Body surface, region colours,
   the hair mesh, 24 bones and three clips), so no game code changed. docs/HANDOFF.md 9av,
   CLAUDE.md "Our own garments".
 
