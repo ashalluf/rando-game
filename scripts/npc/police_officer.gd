@@ -51,6 +51,7 @@ const UNIFORM_TOP := Color(0.11, 0.14, 0.26)
 const UNIFORM_TROUSERS := Color(0.07, 0.085, 0.16)
 const HEAVY_TOP := Color(0.07, 0.075, 0.085)
 const HEAVY_TROUSERS := Color(0.05, 0.055, 0.065)
+## The cap's navy: CrowdHat.POLICE_NAVY is the same colour, and CarCabin's traced crews wear it.
 const CAP_COLOR := Color(0.07, 0.08, 0.14)
 
 var police: Police
@@ -84,7 +85,6 @@ var _stuck_t: float = 0.0
 var _hold_t: float = 0.0
 var _peek_side: float = 1.0
 static var _uniform_mats: Dictionary = {}
-static var _cap_mesh: Mesh
 ## Rounds fired and rounds that reached the player, over the whole session (the smoke test and
 ## tuning read them).
 static var rounds_fired: int = 0
@@ -211,72 +211,13 @@ static func uniform_material(albedo: Texture2D, is_heavy: bool) -> ShaderMateria
 	return mat
 
 
-## A peaked cap on the head bone, built the way Pedestrian's caps are (one shared mesh, the
-## part colours in the vertex colour). The tactical unit goes without (no helmet is built yet).
+## The peaked cap (CrowdHat.Kind.PEAKED: a black braid band fitted to this rig's head, a flared
+## navy crown, a patent peak, a chin strap and a badge), with the hair pressed under it. The
+## tactical unit goes without (no helmet is built yet).
 func _add_cap(inst: Node3D) -> void:
 	if heavy:
 		return
-	var skel := inst.find_child("Skeleton3D", true, false) as Skeleton3D
-	if skel == null:
-		return
-	var idx := skel.find_bone("Head")
-	if idx < 0:
-		return
-	var unit := 1.0
-	var node: Node3D = skel
-	while node != null and node != inst:
-		unit *= node.transform.basis.get_scale().y
-		node = node.get_parent() as Node3D
-	unit = 1.0 / maxf(unit, 0.0001)
-	# The crowd rigs' hair cards would stand out through the cap; the scalp under them is
-	# painted in the hair colour, which is what shows under a cap's band anyway.
-	for hmi in inst.find_children("Hair*", "MeshInstance3D", true, false):
-		(hmi as MeshInstance3D).visible = false
-		hmi.set_meta("under_hat", true)
-	var att := BoneAttachment3D.new()
-	skel.add_child(att)
-	att.bone_name = "Head"
-	var mi := MeshInstance3D.new()
-	mi.name = "Cap"
-	mi.mesh = cap_mesh()
-	mi.material_override = PropFactory.material(Color(1, 1, 1), 0.6)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.visibility_range_end = accessory_distance
-	var pose := skel.get_bone_global_pose(idx)
-	var at: Vector3 = pose.origin + Vector3(0.0, 0.0, -0.012) * unit
-	mi.transform = pose.affine_inverse() * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), at)
-	att.add_child(mi)
-
-
-## Band, a crown that flares out to a flat top, a black peak and a small gold badge: the
-## silhouette that reads as a police cap from across a street.
-static func cap_mesh() -> Mesh:
-	if _cap_mesh != null:
-		return _cap_mesh
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	st.set_smooth_group(0)
-	_acc_tube(st, 0.092, 0.140, 0.108, 0.124, CAP_COLOR, 20)
-	_flare(st, 0.140, 0.182, Vector2(0.108, 0.124), Vector2(0.132, 0.150), CAP_COLOR.lightened(0.06), 20)
-	_acc_dome(st, Vector3(0.0, 0.182, 0.0), Vector3(0.132, 0.012, 0.150), CAP_COLOR.lightened(0.06), 20, 2)
-	st.set_smooth_group(0xFFFFFFFF)
-	_acc_brim(st, 0.098, 0.182, 0.100, 0.028, 0.010, Color(0.02, 0.02, 0.025), 12)
-	_acc_box(st, Vector3(0.0, 0.150, 0.146), Vector3(0.034, 0.036, 0.010), Color(0.80, 0.62, 0.22))
-	st.generate_normals()
-	_cap_mesh = st.commit()
-	return _cap_mesh
-
-
-## An open band that widens from radii `r0` at `y0` to `r1` at `y1`.
-static func _flare(st: SurfaceTool, y0: float, y1: float, r0: Vector2, r1: Vector2, colour: Color, seg: int) -> void:
-	for s in seg:
-		var u0 := TAU * float(s) / float(seg)
-		var u1 := TAU * float(s + 1) / float(seg)
-		var a0 := Vector3(sin(u0) * r0.x, y0, cos(u0) * r0.y)
-		var b0 := Vector3(sin(u1) * r0.x, y0, cos(u1) * r0.y)
-		var a1 := Vector3(sin(u0) * r1.x, y1, cos(u0) * r1.y)
-		var b1 := Vector3(sin(u1) * r1.x, y1, cos(u1) * r1.y)
-		_acc_quad(st, a0, a1, b1, b0, colour)
+	CrowdHat.dress(inst, _model_path, CrowdHat.Kind.PEAKED, 0, accessory_distance)
 
 
 ## Not frightened by gunfire: an officer is what the gunfire is about.

@@ -20,6 +20,7 @@ extends SceneTree
 ## 50-140 at 1920x1080 is the street camera, then crop the figure and scale it up.
 ## The rig fixes are applied exactly as the game applies them (Pedestrian.prepare_rig and
 ## fix_arm_pose), loaded dynamically because this script compiles before the autoloads exist.
+## HAT=cap|beanie|bucket|police (HAT_PICK=n) puts on the crowd's headwear (CrowdHat.dress).
 func _initialize() -> void:
 	var model := OS.get_environment("MODEL")
 	if model == "":
@@ -96,6 +97,12 @@ func _initialize() -> void:
 			ap.pause()
 		else:
 			print("character_shot: no clip ", clip, " in ", ap.get_animation_list())
+	# HAT=cap|beanie|bucket|police (HAT_PICK=n the colourway): the crowd's headwear, put on as
+	# Pedestrian does (CrowdHat.dress).
+	var hats := {"cap": 0, "beanie": 1, "bucket": 2, "police": 3}
+	if hats.has(OS.get_environment("HAT")):
+		var pick := int(OS.get_environment("HAT_PICK")) if OS.get_environment("HAT_PICK") != "" else 3
+		load("res://scripts/npc/crowd_hat.gd").dress(inst, model, hats[OS.get_environment("HAT")], pick, 200.0)
 
 	var body := OS.get_environment("BODY")
 	for node in inst.find_children("*", "MeshInstance3D", true, false):

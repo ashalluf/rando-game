@@ -2283,7 +2283,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   its own hair colours (`hair_strength` 0 on those looks). Everything that swaps a rig's
   material, cuts limbs, welds the middle / far bodies or bakes a camp figure works on the body
   and skips `Pedestrian.is_hair()`; past `mid_body_range` the hair is hidden (the painted scalp
-  is the hair out there), under a beanie or a police cap too; `plain_hair()` puts the
+  is the hair out there), and under a hat it is pressed flat or hidden (see Headwear); `plain_hair()` puts the
   photographed colour back for a uniform or a rough sleeper (dulled, `WORN_HAIR`). Judge rigs
   with `tools/glshot/crowd_lineup.gd` (several side by side, `SHOTS=` for several views from one
   load, `BODY=mid|far`, `LIGHT=street` for AgX and a tarmac ground) as well as
@@ -2403,6 +2403,42 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
   (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
   `tests/crowd_life_checks.gd`; time it with MODE=bench.
+- Headwear (2026-10-04: the old box caps "read as plastic bowls"): `CrowdHat`
+  (`scripts/npc/crowd_hat.gd`) builds a six-panel cotton baseball cap (button, sweatband, a bill
+  with a taped edge, a strap and slide buckle across the opening at the back), a cuffed 2x2-rib
+  beanie with a little slouch, a twill bucket hat and the police peaked cap (black braid band,
+  flared navy crown, patent peak, chin strap, badge), each **modelled round the rig's own head**:
+  `tools/crowd/hat_fit.gd` (opengl3 under Xvfb, never --headless: it needs mesh data; seconds)
+  measures every crowd rig into `scripts/npc/crowd_hat_table.gd` (`CrowdHatTable`: eye centre,
+  ear tops, a centre, the skull's radius on a 17 x 32 grid of directions with the ears put back
+  on the skull, the hair's thickness over it), and the hats are built in the HEAD FRAME (metres,
+  skeleton axes, origin at the Head bone's rest) from it: the band edge at a height over the eyes
+  per kind (`EDGE`, never below the ear tops plus `EAR_CLEAR`), the cloth `standoff()` off the
+  skull (cloth, room for the pressed hair, the cap's structured front, the beanie's slouch).
+  **Rerun hat_fit.gd whenever a crowd rig is rebuilt** (`REPORT=1` builds every hat on every
+  rig and measures it against the real head: how close the outside comes to the skin, the gap at
+  the band; the smoke test fails when the table misses a rig). Everything up close is
+  `shaders/crowd_hat.gdshader` on the mesh's coordinates - twill, panel seams with topstitching
+  and eyelets, rows of stitching round a bill, the stockinette knit and rib, the crown's
+  decreases, a bucket's vent eyelets, one of three small original embroidered marks (never a team
+  or a brand) or a woven label - each faded to its average under a pixel, both faces drawn (the
+  inside is the lining: no inner geometry), colourways muted (`CAP_COLORS` ...). A hat is one
+  mesh per rig and kind with three levels in one buffer (every 1st / 2nd / 4th row and column of
+  its grids, `LEVEL_EDGES`; cap 1,812 / 464 / 121 triangles, the others 1.6-2k / 430-520 / 110-150), one material per colourway, one draw
+  per wearer, never in a shadow pass, gone past `accessory_distance`. **The hair is pressed, not
+  hidden** (`pressed_hair()`): vertices under the crown moved inside it, easing out over a few
+  centimetres below the band so hair shows at the back and sides, strands far off the scalp (a
+  ponytail through the opening, a braid) left alone, triangles left wholly inside and the cards
+  that would hang in front of the face (a fringe) dropped; one copy per hair mesh, rig and kind.
+  No mesh data (the headless check) or a rig marked `"hide"` (hair too thick to press) hides the
+  cards as before. `Pedestrian._add_accessory()` makes the same three `_style` rolls as the box
+  hats did (CampFigure.seed_for() depends on them; a bucket hat is the top tenth of the old cap
+  roll), the ragdoll a hatted person becomes wears it too (`_dress_doll()`), a rough sleeper's is
+  the worn colourway (`material(kind, pick, true)`: dulled, faded, grime), `PoliceOfficer` uses
+  `CrowdHat.Kind.PEAKED`. The loading screen builds them all (`CrowdHat.warm()` from
+  `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
+  `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
+  checks: `tests/crowd_hat_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

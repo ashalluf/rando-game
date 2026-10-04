@@ -129,10 +129,12 @@ func run(city: Node3D) -> void:
 		await _frames(1)
 		var t0 := Time.get_ticks_usec()
 		Ragdoll.warm_limbs(models[i], self)
-		Pedestrian.warm_far_mesh(models[i], self)
+		# The welded bodies, and the hats fitted to this rig's head (the police cap too for the
+		# rigs that wear the uniform).
+		Pedestrian.warm_far_mesh(models[i], self, models[i] in PoliceOfficer.OFFICER_MODELS)
 		t_rigs += Time.get_ticks_usec() - t0
-	# The people's share of the wait (the camp figures, then every rig's limbs and welded bodies),
-	# for measuring a change of models: the rest of the loading screen does not depend on them.
+	# The people's share of the wait (the camp figures, then every rig's limbs, welded bodies and
+	# hats), for measuring a change of models: the rest of the loading screen does not depend on them.
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
 	_step("Ready", 1.0)
 	await _frames(2)
