@@ -4340,7 +4340,7 @@ and as the rim colour, and the far boxes' rim takes the same colour (`building_l
 the plane, the far canopy and the far city all fade to the horizon the sky actually draws (raw,
 it was up to a stop brighter on the Mac). The painted band (past `paint_end`) is lit in the
 renderer's own space (`lit_ws`), and its gain was measured, not guessed: `paint_gain` 0.66 ->
-1.42 and `compat_paint_gain` 1.05 (see below).
+1.42 and `compat_paint_gain` 1.2 (see below).
 
 **One ground, no copies.** The plane now includes `hill_splat.gdshaderinc`: the stand rule,
 `hill_rocky()` (crest rock) and `hill_bare()`, and the colours (`straw_color`, `chaparral_color`,
@@ -4382,12 +4382,37 @@ plane, the front range from (300, 400 m up, -300) looking north and from (300, 9
 after; the far view's 1.15 is the paint ramp, where the plane is lit by its own light.)
 Painted band / lit band, the same pixels (`paint_measure.py`): Forward+ 0.63-0.73 at the old 0.66
 (and the plane was decoded twice on top), 0.81-0.83 at 0.97, 1.10 / 0.92 (mean 1.01) at 1.42;
-opengl3 0.51-0.55 at the start, 0.89 / 0.70 at 1.42 x 1.05, so `compat_paint_gain` went to 1.36
-(COMPAT_FINAL). Before/after frames: `<scratchpad>/hillsair/seam/dn_before_vk.png` /
-`dn_after6_vk.png` (Forward+, the game's light), `dn_before_gl.png` / `dn_after6_gl.png` (opengl3),
-and the `_1` views (900 m up).
+opengl3 0.51-0.55 at the start, 0.89 / 0.70 at 1.42 x 1.05 (seam from 900 m 1.00), 1.22 / 0.92
+at 1.36 (seam 1.27): `compat_paint_gain` is 1.2, between them, not rendered again. The two views
+disagree by 20-30 % on Compatibility whatever the gain (its light passes add in linear, its
+albedo is lit in sRGB numbers), so one number cannot be exact there; on Forward+ they agree.
+Before/after frames: `<scratchpad>/hillsair/seam/dn_before_vk.png` / `dn_after6_vk.png`
+(Forward+, the game's light), `dn_before_gl.png` / `dn_after6_gl.png` (opengl3), and the `_1`
+views (900 m up).
 
-City stills (opengl3, DIFF=1, 14:00, `<scratchpad>/hillsair/shots.sh`, 1280x720) - STILLS_TABLE.
+City stills (opengl3, `DIFF=1`, 14:00, clear, one load, `<scratchpad>/hillsair/shots.sh`; before =
+this branch's base 28105b5, after = 7414f46 with `compat_paint_gain` 1.36), in
+`<scratchpad>/hillsair/shots/`, grey p1/p5/p50/p95/p99 and std of a box over the ranges:
+
+| Still | Box | Before | After |
+|---|---|---|---|
+| `*_aerial` front range from 500 m (EYE 700,500,-300,0,-14) | back range | 101/103/129/166/177, std 22.6 | 108/114/159/178/184, std 19.3 |
+| same | sign hill + foothills (tiles and plane) | 70/89/107/174/203, std 26.1 | 84/115/157/180/205, std 20.5 |
+| `*_aerial_1` high air 900 m (500,900,300,0,-28) | front range | 81/87/98/145/206, std 23.0 | 91/102/162/189/207, std 24.9 |
+| `*_aerial_2` street, avenue north (714.1,2.5,-100,0,5) | mountains over the street | 14/34/107/182/200 | 14/34/123/183/200 |
+| `*_aerial_3` the range face 140 m up, looking east | whole frame | 51/74/123/194/215 | 60/91/155/195/215 |
+| `*_aerial_4` hills bookmark (300,250,-650,0,-6) | sign hill | 73/83/103/161/188, std 24.7 | 101/119/152/175/189, std 17.7 |
+| `*_aerial_5` the back range from the valley (900,300,-2000,0,-4) | ranges | 81/85/106/174/193 | 89/96/154/181/195 |
+
+What they show: no dashes (`before_aerial_4`: rows of them over the sign hill; after: a few
+oaks in the hollows), no tide-line where the tiles meet the plane (`before_aerial`,
+`before_aerial_1`: pale tan tiles against a dark brown plane), the back range no longer a dark
+monolith. What they do NOT show is the Mac: on Compatibility the albedo is lit in sRGB numbers,
+so a mid albedo under a 1.3 sun comes out paler than Forward+ draws it (the small scene: the same
+tiles 172/157/126 on opengl3, 140/121/97 on Forward+), and the ranges read pale and low in
+contrast in these stills (the hills bookmark's std 24.7 -> 17.7). Before, opengl3's tiles were
+as pale (their textures' luma ratios were two to three times too high) and the plane dark; the
+plane now matches them. Judge contrast on Forward+.
 
 geo_count at the front-range aerial (`--spawn=700,-300,0,-14,500 --hour=14 --quality=0`, 800x600):
 6,434,032 triangles / 4,380 draws / 4,429 objects before, 6,280,384 / 4,376 / 4,425 after
@@ -4396,6 +4421,13 @@ geo_count at the front-range aerial (`--spawn=700,-300,0,-14,500 --hour=14 --qua
 ALU only and on Forward+ nothing: `cs_in` / `cs_out` compile out; the plane's natural ground
 evaluates the splat's functions instead of its own copies of them (about the same), plus the
 crest-rock cell noise and two fades.
+
+Checks: `tests/hill_air_checks.gd` (loaded by the smoke test after the distance checks): the
+four hill shaders include the colour-space include and call `cs_out`, the plane's only
+`source_color` colours are the five sRGB-authored ones, the splat has none, the renderer test is
+`CURRENT_RENDERER`, the far boxes decode their instance colour where the renderer decodes the
+near ones, the plane includes the splat and redeclares none of its 25 uniforms, and far hill
+blocks on the front range plant no clump lower than an oak. The headless check passes (579).
 
 **Not verified.** The Forward+ look of the whole city from the air (lavapipe cannot hold it):
 the small scene proves the seam and the colour space, not the final grade under the player
