@@ -764,11 +764,16 @@ func _test_city() -> void:
 		await _test_downtown(city, plan, player)
 		# Downtown at 1:1 (DowntownReal): the real grid, the real distances, the real frame.
 		await load("res://tests/downtown_checks.gd").new().run(self, city)
-		var runway := Vector2(-300.0, 760.0)
+		var runway := Vector2(-300.0, macro.runway_zs[0])
 		player.global_position = _world_state().to_local(Vector3(runway.x, 2.0, runway.y))
 		city.update_streaming(true)
 		var airport_chunk: Node3D = city.chunks.get(plan.block_index_at(runway))
-		_check(airport_chunk != null and airport_chunk.zone == MacroMap.Zone.AIRPORT and airport_chunk.has_node("Runway") and airport_chunk.building_count == 0, "airport chunk has a runway and no buildings")
+		# The field's ground is a partition merged into the chunk's boxes (Airport.ground_pieces()).
+		var has_runway := false
+		if airport_chunk:
+			for piece: Array in Airport.ground_pieces(macro, airport_chunk.owned_rect()):
+				has_runway = has_runway or int(piece[2]) == Airport.G_RUNWAY
+		_check(airport_chunk != null and airport_chunk.zone == MacroMap.Zone.AIRPORT and has_runway and airport_chunk.building_count == 0, "airport chunk has a runway and no buildings")
 		# The terminal drop-off: a loop of crawling cars and a crowd on the curb.
 		var curb_c: Vector2 = macro.terminal_curb.get_center()
 		player.global_position = _world_state().to_local(Vector3(curb_c.x, 2.0, curb_c.y + 20.0))

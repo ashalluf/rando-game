@@ -294,6 +294,26 @@ already mapped so milestone 2 is script-only.
   (`CityPlan.block()` `"was_plaza"`, after the roll: the 100 x 180 m square of bare paving south
   of MacArthur Park was "the empty block south-east of MacArthur Park"); and **the campus hall's
   sixteen ball-on-a-stick trees are the chunk's street tree** when a chunk builds it.
+
+- **2026-10-04 The airport is a major international field, all of it original.** (lead brief
+  from the owner's "make the graphics a million times better" and "commercial jets taking off and
+  landing at LAX"; agent branch `wt/airport`, docs/HANDOFF.md 9ba.) Before: one 740 x 390 m slab
+  of grey tarmac with three faint runways, a box terminal, a cylinder tower and a saucer on
+  sticks. Now a big field's FORMS with invented names: the parallel runway pair 27L / 27R (the old
+  third runway, which nothing flew from, is the parallel taxiway), cross taxiways, infield grass,
+  a curved concourse of nine gates with jet bridges docked to parked airliners in six invented
+  liveries, a head house under a wing roof that reaches out over the drop-off, a control tower,
+  an arch landmark, a multi-storey car park and a rental lot, ground service equipment and crew
+  at every attended gate, full apron / taxiway / runway paint, fences, blast fences and navaids,
+  and at night every airfield light (edges, centre lines, thresholds, stop bars, an approach
+  light system with its sequenced flasher, PAPI, floodlight masts, the rotating beacon) in one
+  billboard mesh. The airfield's ground is a partition, never stacked slabs (stacked, every
+  runway z-fought into grey streaks from the air). Found on the way: every "all-round" billboard
+  light in the game (aircraft nav lights, strobes, tower obstruction lights) only faced north,
+  because Godot stores a zero normal as (0, 0, -1); aimed lights now flag themselves in UV2.y.
+  Layout in `Airport`, buildings in `AirportTerminal`, hardware in `AirportKit` (CLAUDE.md
+  "Airport").
+
 - **2026-10-04 The crowd wears our own garments, modelled and painted, not photographed.**
   The crowd-detail pass found the ceiling of shader work on MakeHuman's library clothes (soft
   photographed textures, one V-neck on every tee). `tools/crowd/garments.py` models a tee,

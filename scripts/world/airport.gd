@@ -213,7 +213,7 @@ static func grass_rects(macro: MacroMap) -> Array[Rect2]:
 
 ## Apron concrete: pale poured slabs on 7.5 m joints, worn and stained (road.gdshader).
 static func apron_material(seed_value: int) -> ShaderMaterial:
-	return PropFactory.road("concrete", 6.0, Color(0.64, 0.64, 0.62), seed_value, 7.5, 0.55)
+	return PropFactory.road("concrete", 6.0, Color(0.58, 0.58, 0.56), seed_value, 7.5, 0.55)
 
 
 ## Runway and taxiway asphalt: darker, grooved-looking, wear and patches.
@@ -244,28 +244,44 @@ static func build_chunk(ch: CityChunk) -> void:
 	var seed_value: int = ch.plan.seed
 	var full := ch.level == CityChunk.Level.FULL
 	var c := area.get_center()
-	ch._add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), ch.style.tarmac, full,
-		apron_material(hash([seed_value, ch.ix, ch.iz, "lot"])))
-	# The parallel taxiway, the cross taxiways, the grass, then the runways on top.
-	var tx := taxiway_x(macro)
-	_ground(ch, area, Rect2(tx.x, macro.taxiway_z - macro.taxiway_width * 0.5, tx.y - tx.x, macro.taxiway_width), TAXI_TOP,
-		ch.style.runway, taxiway_material(hash([seed_value, "taxi"])))
-	var south: float = macro.runway_zs[macro.runway_zs.size() - 1] - macro.runway_width * 0.5
-	for cx: float in CONNECTOR_XS:
-		_ground(ch, area, Rect2(cx - CONNECTOR_WIDTH * 0.5, macro.taxiway_z, CONNECTOR_WIDTH, south - macro.taxiway_z + 2.0), CONNECTOR_TOP,
-			ch.style.runway, taxiway_material(hash([seed_value, "taxi"])))
-	for g in grass_rects(macro):
-		_ground(ch, area, g, GRASS_TOP, GRASS_COLOR, grass_material())
-	for rw: Array in runways(macro):
-		var z: float = rw[0]
-		_ground(ch, area, Rect2(float(rw[1]), z - macro.runway_width * 0.5, float(rw[2]) - float(rw[1]), macro.runway_width), RUNWAY_TOP,
-			ch.style.runway, runway_material(hash([seed_value, "runway", z])))
+	# The ground is a PARTITION of the chunk - apron, taxiways, grass, runways side by side, never
+	# one slab laid over another: two surfaces a few centimetres apart z-fight from a few hundred
+	# metres up (the depth buffer's step there is tens of centimetres), and the first version of
+	# this, runways on an apron slab, drew every runway as grey streaks from the air. One
+	# collision box under all of it at the apron's top.
+	if full and not ch.capturing:
+		ch._add_shape(Vector3(area.size.x, 0.1, area.size.y), Vector3(c.x, 0.05, c.y))
+	for piece: Array in ground_pieces(macro, area):
+		var r: Rect2 = piece[0]
+		var top: float = piece[1]
+		var kind: int = piece[2]
+		var mat: Material
+		var col: Color = ch.style.runway
+		match kind:
+			G_APRON:
+				mat = apron_material(hash([seed_value, ch.ix, ch.iz, "lot"]))
+				col = ch.style.tarmac
+			G_GRASS:
+				mat = grass_material()
+				col = GRASS_COLOR
+			G_TAXI:
+				mat = taxiway_material(hash([seed_value, "taxi"]))
+			_:
+				mat = runway_material(hash([seed_value, "runway", kind]))
+		var rc := r.get_center()
+		ch._add_slab(Vector3(rc.x, top - 0.05, rc.y), Vector3(r.size.x, 0.1, r.size.y), col, false, mat)
 	if ch.capturing:
 		return
 	_masts(ch, area, macro)
 	_fences(ch, area, macro)
 	_navaids(ch, area, macro)
 	if not full:
+		# From the air a runway is its paint: the LOD ring keeps the big markings (no rubber, no
+		# taxiway lines), lifted a little higher off the asphalt so they do not z-fight with it
+		# from a few hundred metres up.
+		_paint_lift = 0.03
+		_paint_runways(ch, area, macro, true)
+		_paint_lift = 0.002
 		return
 	_paint_runways(ch, area, macro)
 	_paint_taxiways(ch, area, macro)
@@ -274,15 +290,105 @@ static func build_chunk(ch: CityChunk) -> void:
 	_gate_service(ch, area, seed_value)
 
 
-## A ground slab clipped to the chunk (thin: merged into the chunk's boxes, and recorded by the
-## far city's capture with its far colour).
-static func _ground(ch: CityChunk, area: Rect2, r: Rect2, top: float, color: Color, mat: Material) -> void:
-	var clip := r.intersection(area)
-	if clip.size.x <= 0.05 or clip.size.y <= 0.05:
-		return
-	var cc := clip.get_center()
-	var thick := top - 0.1 + 0.004
-	ch._add_slab(Vector3(cc.x, top - thick * 0.5, cc.y), Vector3(clip.size.x, thick, clip.size.y), color, false, mat)
+## Ground kinds (ground_pieces()): the apron, the infield grass, a taxiway, a runway.
+const G_APRON := 0
+const G_GRASS := 1
+const G_TAXI := 2
+const G_RUNWAY := 3
+
+
+## The field's ground over `area` as disjoint rects [rect, top, kind]: every edge of every
+## feature that crosses the area cuts it into a grid, each cell takes the highest feature over its
+## centre (runway over taxiway over grass over apron), and runs of equal cells are merged into
+## strips along x and then into blocks down z.
+static func ground_pieces(macro: MacroMap, area: Rect2) -> Array:
+	var feats: Array = []
+	var tx := taxiway_x(macro)
+	feats.append([Rect2(tx.x, macro.taxiway_z - macro.taxiway_width * 0.5, tx.y - tx.x, macro.taxiway_width), TAXI_TOP, G_TAXI])
+	var south: float = macro.runway_zs[macro.runway_zs.size() - 1] - macro.runway_width * 0.5
+	for cx: float in CONNECTOR_XS:
+		feats.append([Rect2(cx - CONNECTOR_WIDTH * 0.5, macro.taxiway_z, CONNECTOR_WIDTH, south - macro.taxiway_z + 2.0), CONNECTOR_TOP, G_TAXI])
+	for g in grass_rects(macro):
+		feats.append([g, GRASS_TOP, G_GRASS])
+	for rw: Array in runways(macro):
+		var z: float = rw[0]
+		feats.append([Rect2(float(rw[1]), z - macro.runway_width * 0.5, float(rw[2]) - float(rw[1]), macro.runway_width), RUNWAY_TOP, G_RUNWAY])
+	var xs := [area.position.x, area.end.x]
+	var zs := [area.position.y, area.end.y]
+	var hits: Array = []
+	for f: Array in feats:
+		var r: Rect2 = f[0]
+		if not r.intersects(area):
+			continue
+		hits.append(f)
+		for x: float in [r.position.x, r.end.x]:
+			if x > area.position.x and x < area.end.x:
+				xs.append(x)
+		for z: float in [r.position.y, r.end.y]:
+			if z > area.position.y and z < area.end.y:
+				zs.append(z)
+	xs.sort()
+	zs.sort()
+	# Each row of cells as runs [x0, x1, feature index or -1].
+	var rows: Array = []
+	for j in zs.size() - 1:
+		var z0: float = zs[j]
+		var z1: float = zs[j + 1]
+		if z1 - z0 < 0.01:
+			continue
+		var runs: Array = []
+		for i in xs.size() - 1:
+			var x0: float = xs[i]
+			var x1: float = xs[i + 1]
+			if x1 - x0 < 0.01:
+				continue
+			var p := Vector2((x0 + x1) * 0.5, (z0 + z1) * 0.5)
+			var best := -1
+			for k in hits.size():
+				if (hits[k][0] as Rect2).has_point(p) and (best < 0 or int(hits[k][2]) >= int(hits[best][2])):
+					best = k
+			var key := -1 if best < 0 else best
+			if not runs.is_empty() and int(runs[runs.size() - 1][2]) == key:
+				runs[runs.size() - 1][1] = x1
+			else:
+				runs.append([x0, x1, key])
+		rows.append([z0, z1, runs])
+	# Merge rows with the same runs down z.
+	var out: Array = []
+	var open: Dictionary = {}
+	for row: Array in rows:
+		var next_open: Dictionary = {}
+		for run: Array in row[2]:
+			var rk := "%.3f_%.3f_%d" % [run[0], run[1], run[2]]
+			if open.has(rk):
+				var o: Array = open[rk]
+				o[1] = row[1]
+				next_open[rk] = o
+			else:
+				next_open[rk] = [row[0], row[1], run]
+		for rk: String in open:
+			if not next_open.has(rk):
+				out.append(open[rk])
+		open = next_open
+	for rk: String in open:
+		out.append(open[rk])
+	var pieces: Array = []
+	for o: Array in out:
+		var run: Array = o[2]
+		var k: int = run[2]
+		var rect := Rect2(float(run[0]), float(o[0]), float(run[1]) - float(run[0]), float(o[1]) - float(o[0]))
+		if k < 0:
+			pieces.append([rect, macro.tarmac_top, G_APRON])
+		else:
+			pieces.append([rect, float(hits[k][1]), int(hits[k][2])])
+	# Apron first: the far city's plate reads the first ground of a block as its base and the rest
+	# as strips laid into it (Skyline._add_plate()).
+	pieces.sort_custom(func(pa: Array, pb: Array) -> bool: return int(pa[2]) < int(pb[2]))
+	return pieces
+
+
+## How far paint sits proud of the surface it is on (the stripe box is 2 cm thick).
+static var _paint_lift := 0.002
 
 
 ## A painted line from `a` to `b` (world XZ) on a surface whose top is `top`, `width` wide, only the
@@ -316,7 +422,7 @@ static func _line(ch: CityChunk, area: Rect2, a: Vector2, b: Vector2, width: flo
 	var seg := length * (t1 - t0)
 	var yaw := atan2(d.x, d.y)
 	ch._batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(width / 0.6, 1.0, seg / 3.0)),
-		Vector3(mid.x, top + 0.002, mid.y)), col)
+		Vector3(mid.x, top + _paint_lift, mid.y)), col)
 
 
 ## A dashed line: `dash` painted, `gap` bare.
@@ -355,12 +461,12 @@ static func _paint_text(ch: CityChunk, area: Rect2, text: String, at: Vector2, r
 	mi.mesh = PropFactory.text_mesh(text, height)
 	mi.material_override = PropFactory.material(col, 0.85)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.transform = Transform3D(Basis(Vector3(right.x, 0.0, right.y), Vector3(up.x, 0.0, up.y), Vector3.UP), Vector3(at.x, top + 0.006, at.y))
+	mi.transform = Transform3D(Basis(Vector3(right.x, 0.0, right.y), Vector3(up.x, 0.0, up.y), Vector3.UP), Vector3(at.x, top + _paint_lift + 0.004, at.y))
 	mi.visibility_range_end = 900.0
 	ch.add_child(mi)
 
 
-static func _paint_runways(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
+static func _paint_runways(ch: CityChunk, area: Rect2, macro: MacroMap, lod: bool = false) -> void:
 	var hw := macro.runway_width * 0.5
 	var top := RUNWAY_TOP
 	for rw: Array in runways(macro):
@@ -390,6 +496,8 @@ static func _paint_runways(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 						_line(ch, area, Vector2(x_end + inward * float(zone[0]), lz), Vector2(x_end + inward * (float(zone[0]) + 22.0), lz), 1.8, top, WHITE)
 			for side: float in [-1.0, 1.0]:
 				_line(ch, area, Vector2(x_end + inward * 140.0, z + side * 9.0), Vector2(x_end + inward * 182.0, z + side * 9.0), 6.0, top, WHITE)
+		if lod:
+			continue
 		# Rubber on the touchdown zone of the arrival end (east of the south runway; both ends of
 		# the north one get a little from the occasional landing the other way).
 		var rng := RandomNumberGenerator.new()
@@ -581,8 +689,9 @@ static func _navaids(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 		var p := Vector2(lx + 1.0, az + (float(k) - 6.5) * 2.4)
 		if area.has_point(p):
 			ch._batch.add("ap_ils", AirportKit.localizer(), Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(p.x, y, p.y)))
-	# Glide slope beside the touchdown point (the aim point is AirTraffic.aim_inset in from the end).
-	var gs := Vector2(float(arr[2]) - 170.0, az - hw - 46.0)
+	# Glide slope beside the touchdown zone, on the grass north of the runway (the aim point is
+	# AirTraffic.aim_inset in from the end; the PAPI stands just short of it).
+	var gs := Vector2(float(arr[2]) - 245.0, az - hw - 14.0)
 	if area.has_point(gs):
 		ch._batch.add("ap_gs", AirportKit.glide_slope(), Transform3D(Basis(), Vector3(gs.x, y, gs.y)))
 	# Windsocks by both runways' touchdown zones, on the grass.
@@ -593,7 +702,7 @@ static func _navaids(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 	for spot: Array in papi_spots(macro):
 		var p: Vector2 = spot[0]
 		if area.has_point(p):
-			ch._batch.add("ap_papi", AirportKit.papi(), Transform3D(Basis(Vector3.UP, PI * 0.5), Vector3(p.x, y, p.y)))
+			ch._batch.add("ap_papi", AirportKit.papi(), Transform3D(Basis(Vector3.UP, -PI * 0.5), Vector3(p.x, y, p.y)))
 
 
 static func windsock_spots(macro: MacroMap) -> Array[Vector2]:
@@ -604,14 +713,15 @@ static func windsock_spots(macro: MacroMap) -> Array[Vector2]:
 	return out
 
 
-## Four PAPI units a runway, on the left of a pilot landing west (the south side), beside the aim
-## point: [position, transition angle].
+## The arrival runway's four PAPI units beside the aim point, on the grass to its north (the
+## pilot's right: the fence is too close on the left): [position, transition angle], the unit
+## nearest the runway set highest.
 static func papi_spots(macro: MacroMap) -> Array:
 	var out: Array = []
 	var hw := macro.runway_width * 0.5
 	var arr: Array = runways(macro)[macro.arrival_runway]
 	for k in 4:
-		out.append([Vector2(float(arr[2]) - 175.0, float(arr[0]) + hw + 12.0 + float(k) * 9.0), 2.5 + float(k) * 0.33])
+		out.append([Vector2(float(arr[2]) - 175.0, float(arr[0]) - hw - 12.0 - float(k) * 6.0), 3.5 - float(k) * 0.33])
 	return out
 
 
@@ -685,7 +795,37 @@ static func _gate_service(ch: CityChunk, area: Rect2, seed_value: int) -> void:
 		for spot: Vector2 in [Vector2(24.0, 17.2), Vector2(24.0, -17.2), Vector2(-1.4, 1.6), Vector2(12.5, 5.6), Vector2(12.5, -5.6), Vector2(39.0, 0.0)]:
 			ch._batch.add("ap_cone", AirportKit.cone(), Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at.call(spot.x, spot.y)))
 	ch._batch.set_shadow_distance("ap_cone", 30.0)
+	_staging(ch, area, seed_value)
 	_crew(ch, area, seed_value)
+
+
+## Equipment parked at both ends of the concourse between turnarounds: rows of baggage carts,
+## tugs, a spare belt loader and pushback, along the apron's back.
+static func _staging(ch: CityChunk, area: Rect2, seed_value: int) -> void:
+	var rf := apron_face()
+	for end: float in [-1.0, 1.0]:
+		var a := end * (CONCOURSE_ARC + 0.012)
+		var n := arc_normal(a)
+		var t := arc_tangent(a) * end
+		var base := arc_point(a, rf - 6.0) + t * 8.0
+		if not area.has_point(base):
+			continue
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([seed_value, "staging", end])
+		var face_t := Basis(Vector3.UP, atan2(-t.x, -t.y))
+		for row in 3:
+			for k in 4:
+				if rng.randf() < 0.2:
+					continue
+				var p := base + n * (float(row) * 4.0 + 6.0) + t * (float(k) * 3.9)
+				ch._batch.add("ap_cart", AirportKit.vehicle("cart"), Transform3D(face_t, Vector3(p.x, 0.1, p.y)), Color.WHITE, AirportKit.cart_tint(rng.randi()))
+		for k in 3:
+			var p := base + n * 20.0 + t * (float(k) * 5.0)
+			ch._batch.add("ap_bagtug", AirportKit.vehicle("baggage_tug"), Transform3D(face_t, Vector3(p.x, 0.1, p.y)), Color.WHITE, AirportKit.livery_yellow())
+		var pb := base + n * 26.0 + t * 4.0
+		ch._batch.add("ap_belt", AirportKit.vehicle("belt_loader"), Transform3D(face_t, Vector3(pb.x, 0.1, pb.y)), Color.WHITE, AirportKit.livery_yellow())
+		var pt := base + n * 26.0 + t * 14.0
+		ch._batch.add("ap_tug", AirportKit.vehicle("pushback"), Transform3D(face_t, Vector3(pt.x, 0.1, pt.y)), Color.WHITE, AirportKit.livery_white())
 
 
 ## Ground crew: a few people in hi-vis walking round each attended stand (ApronCrew, an ordinary

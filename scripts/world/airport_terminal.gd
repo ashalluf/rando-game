@@ -235,6 +235,24 @@ static func build_concourse(parent: Node3D, statics: StaticBody3D, macro: MacroM
 	g.band("glass", c, rc1, rc1, y0 + h + 0.5, y0 + h + 2.6, t0, t1, segs, Color.WHITE)
 	g.band("glass", c, rc0, rc0, y0 + h + 0.5, y0 + h + 2.6, t0, t1, segs, Color.WHITE, false, true)
 	g.ring_flat("steel", c, rc0 - Vector2(0.5, 0.5), rc1 + Vector2(0.5, 0.5), y0 + h + 2.6, t0, t1, segs, Color.WHITE)
+	# Depth on the apron face: a steel fin every 9 m standing proud of the glass, and a sunshade
+	# band of louvres across the departures level (flat glass a whole concourse long read as one
+	# sheet of plastic).
+	var a_from := PI * 0.5 - t1
+	var a_to := PI * 0.5 - t0
+	var rf := r + hw
+	var n_fins := int((a_to - a_from) * rf / 9.0)
+	for i in n_fins + 1:
+		var a := lerpf(a_from, a_to, float(i) / float(maxi(n_fins, 1)))
+		var nrm := Airport.arc_normal(a)
+		var p := Airport.arc_point(a, rf + 0.35)
+		g.box("metal", Vector3(p.x, y0 + h * 0.5, p.y), Vector3(0.35, h - 0.4, 0.7), Color(0.86, 0.87, 0.89), Basis(Vector3.UP, atan2(nrm.x, nrm.y)), 0.03 if detailed else 0.0)
+	if detailed:
+		var rl := Vector2(rf + 1.1, rf + 1.1)
+		for k in 3:
+			var yl := y0 + 9.6 + float(k) * 0.42
+			g.ring_flat("metal", c, ro, rl, yl, t0, t1, segs, Color(0.82, 0.83, 0.85))
+			g.ring_flat("metal", c, ro, rl, yl - 0.06, t0, t1, segs, Color(0.6, 0.61, 0.63), false, true)
 	# The end wall at the outer end of this half.
 	var t_end := t1 if west else t0
 	var e0 := LandmarkGeo.ell(c, ri, t_end)

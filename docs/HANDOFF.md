@@ -5016,3 +5016,85 @@ brick normal maps only show in real light).
   origin) and the smoke test's spawn do not, or the check's `is_inside_tree` tripwire would
   fail. Fix there: re-add the host whenever it is not inside the tree, and when that fails
   (the root busy) return null without caching the key, so the loading screen's warm-up bakes it.
+
+## 9ba. The airport as a major international field, 2026-10-04 (agent branch `wt/airport`; VISUAL_ROADMAP #43)
+
+The brief (lead, from the owner's "make the graphics a million times better" and "commercial jets
+taking off and landing at LAX"): the airport as a 2026 game shows one, from the ground and from
+the air - terminals, airside clutter, the field's lights at night, landside. Everything original
+(invented airlines and names), a big field's real FORMS. CLAUDE.md's "Airport" note is the
+reference; this is the story.
+
+**What was there.** One 740 x 390 m slab of road-shader asphalt at a tint of 1.25 (from the air a
+pale grey sheet), three 55 m "runways" as flat-colour boxes 2 cm proud of it that barely showed,
+a box hall with ribbon windows, a cylinder tower, a saucer on four sticks behind the hall, four
+grey boxes for jet bridges with nothing docked, three flyable jets parked sideways, three street
+lamps, hangars - and nothing at night: the whole field was black from the air.
+
+**What it is now** (three files; layout, buildings, hardware):
+- **Layout** (`Airport`, everything from MacroMap's numbers): the runways are the parallel pair
+  27R (z 870) and 27L (z 955, moved from 960 so its south edge lights stand inside the fence),
+  45 m wide; the old third runway at z 780, which nothing flew from, is the parallel taxiway
+  (`MacroMap.taxiway_z`); `departure_runway` names 27R (AirTraffic read `zs[1]`). Three cross
+  taxiways (`CONNECTOR_XS`), infield grass between (lawn shader, very dry), concrete apron. The
+  concourse is an arc convex to the apron (`ARC_CENTRE` (-350, -330), radius 1030 m to its centre
+  line, x -575 .. -125) with nine gates 46 m apart (stands 11-19; 17 empty, its bridge parked back).
+- **Ground** is a PARTITION (`Airport.ground_pieces()`): every feature edge cuts the chunk into a
+  grid, each cell takes the highest feature, runs merge into strips. The first pass laid runways
+  ON an apron slab, 3 cm apart, and from 300 m up every runway was grey streaks (the depth
+  buffer's step there is tens of centimetres: measured, see the top-down still in the shots).
+  Runway paint at LOD is lifted 3 cm for the same reason.
+- **Buildings** (`AirportTerminal`, landmarks, far copies kept): the head house - a glazed hall
+  whose roof rises off the airside and sweeps out over the drop-off lanes like a wing on
+  branching tree columns standing on the curb, a slatted soffit lit at night, the name on the
+  fascia, lit DEPARTURES boards on the trunks; the two concourse halves (service level, glazed
+  departures level with curtain_glass's lit interior, steel fins every 9 m and a louvre band,
+  a clerestory, the gate numbers lit); a jet bridge at every gate (rotunda, two telescoping
+  sections sloping down to the cab at the forward-left door, drive column and bogie); the parked
+  airliners as ONE MultiMesh of the airliner model on `airliner_livery.gdshader`; the control
+  tower (ribbed shaft, lit glass cab with consoles, rotating beacon); the "skyhook" - two
+  parabolic arches crossing over a lit glass disc restaurant, floodlit, on a palm-ringed plaza
+  (the saucer's idea done properly); the multi-storey car park and the rental lot (ArenaGrounds).
+- **Liveries**: the Meshy airliner texture reads as camouflage, so the livery shader ignores it
+  and paints by region in the model's own units (white top, belly, cheatline, a window row each
+  side, doors, cockpit glazing, the fin and its mark, nacelles, grey wings) - six invented
+  airlines. The air traffic's airliners and the flyable one wear them too.
+- **Airside** (`AirportKit`, code-built, real sizes, one shader): pushback, belt loader, baggage
+  tug and its carts, catering truck with its box lifted to the rear door, fuel truck, GPU,
+  cones, at every attended gate (`gates()[i].service` picks the trucks), staging rows at the
+  concourse ends, 2-3 `ApronCrew` in hi-vis per gate; floodlight masts with night pools; the
+  perimeter fence with barbed outriggers and the airside line either side of the terminal; blast
+  fences at the runway ends, the localizer array, the glide-slope mast, windsocks, the PAPI.
+  Paint: thresholds, designators, touchdown zones, aiming points, centre and edge lines, rubber;
+  taxiway centre / edge lines, lead-off curves, hold-short bars; lead-in lines, stop bars, stand
+  numbers, red restraint envelopes, the service road.
+- **Night**: ~640 field lights in ONE billboard mesh on aircraft_lights.gdshader (new kinds:
+  field light, the approach lights' rabbit, rotating beacon, PAPI whose colour is the eye's angle).
+- **Found on the way, game-wide**: every "all-round" billboard light faced NORTH. The aircraft
+  lights shader read "zero normal = all round", but Godot cannot store a zero normal (a probe:
+  `SurfaceTool.set_normal(Vector3.ZERO)` comes back (0, 0, -1)), so nav lights, strobes and every
+  downtown tower's obstruction lights showed at full only from the north and at 6 % elsewhere. An
+  aimed light now adds 100 to its UV2.y code (AmbientCraft, Airport); all-round lights leave it.
+  Also: AIR=final stills fade the staged jet in at once (`AirTraffic._shown()`), and the still's
+  AIR line prints world positions.
+
+**Stills** (shots/airport branch; same cameras before and after, opengl3, 1600 x 900):
+the apron at noon `EYE=-360,1.7,762,42,4`; the terminal from the drop-off
+`-330,1.7,606,195,12`; the aerial `-260,330,1230,8,-36`; night with an airliner on final
+`EYE=1100,200,1250,71,-8 AIR=final AIR_DIST=480 --hour=22 FOV=50`.
+
+**Frame cost** (still_shot.gd GEO, same frames on main 040beaf and this branch; see the table
+filled in at the end of the section).
+
+**Checks**: `tests/airport_checks.gd` (layout, flyable jets' clearances, painted runway under the
+touchdown, the lights mesh and its kinds, far copies and parked jets, a FULL chunk's paint and
+trucks, the crew); smoke test's airport chunk check reads the ground partition; distance checks
+pick a field block no cross taxiway cuts.
+
+**Not done / open**: no taxiing jets or pushbacks in motion (the parked jets are static meshes;
+the flyable ones are where they were, on the taxiway and the remote stands); no cargo apron;
+gate signs and the terminal name are TextMesh (a draw each, detailed only); the concourse
+interior is curtain_glass's generic trace (no gate lounges); the arrival jet's approach path is
+lifted to ~60 m over the city by the clearance field, higher than a 3 degree slope near the
+fence. NEEDS MAC CHECK: the glass interiors' exposure, the livery shader on Forward+, the field
+lights' size and glow under AgX and auto exposure (all judged on opengl3 only).

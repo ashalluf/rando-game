@@ -178,10 +178,10 @@ var terminal_loops: Array = [
 var port_rect: Rect2 = Rect2(2750.0, 5935.0, 630.0, 560.0)
 var harbor_rect: Rect2 = Rect2(2750.0, 6520.0, 630.0, 260.0)
 ## Runway center lines (z) and width inside the airport rect: a parallel pair, 27R / 09L (the
-## north one, z 870) and 27L / 09R (z 960). 45 m is a real long runway's 150 ft. There used to be
+## north one, z 870) and 27L / 09R (z 955, so its south edge lights stay inside the fence). 45 m is a real long runway's 150 ft. There used to be
 ## a third runway at z 780, 55 m wide like the others, which nothing flew from: it is the
 ## parallel taxiway now (taxiway_z), between the apron and the runways, as at a real field.
-var runway_zs: PackedFloat32Array = PackedFloat32Array([870.0, 960.0])
+var runway_zs: PackedFloat32Array = PackedFloat32Array([870.0, 955.0])
 var runway_width: float = 45.0
 ## The parallel taxiway along the apron's south edge (Airport lays it, its lights and paint).
 var taxiway_z: float = 780.0
