@@ -4201,3 +4201,92 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   windscreen - there is no glass elsewhere to draw them on. Occupants are not shot or thrown
   out: a round through an empty frame passes them, and a carjacked NPC simply vanishes when the
   player takes the seat.
+
+
+## 9at. Shop interiors behind street-level glass, 2026-10-04 (agent branch `wt/interiors`; roadmap #14)
+
+The brief: at street level the storefronts (9ao) showed glass with nothing real behind it - each
+bay was its own small empty "office" box from `room_interior()`. Now every shop is a room you can
+read from the pavement, by day and at night. CLAUDE.md's "Shop interiors" note is the reference.
+
+### What it does
+
+- **One room per shop**, the width of the whole shop (2-4 bays), 6-9.5 m deep (salt 45), ceiling
+  at 0.86 of the storefront; traced per pixel by `shop_interior()` in
+  `shaders/shop_interior.gdshaderinc`, included by `building.gdshader` and called from the glass
+  branch for storefront panes (offices above keep `room_interior()`). The ray starts where it
+  crosses the (recessed) pane, in the shop's frame (x along `u`, so the bay's offset is added).
+- **Fittings are boxes and rows of boxes** (`shop_row()`: the row's slab, then an analytic step to
+  the next item's near side - a row of 6 tables is one call; `shop_row_z()` swaps axes). Kinds:
+  retail (back and side wall shelving of rolled product facings - runs of the same pack, price
+  rails - gondolas with end caps, a counter, chillers glowing on a grocer's back wall), clothing
+  (two racks of garments with ragged hems, cubbies of folded stacks, a display table, two dressed
+  mannequins on stands in the window), cafe (two rows of tables with pedestals and chairs facing
+  the street, the counter with a lit cake case, a back bar with a chalk menu board, pendants on
+  cords), restaurant (tablecloths, a buttoned banquette, framed pictures, pendants over the
+  tables), laundromat (washers and dryers on the back wall and an island, portholes with drums,
+  LEDs, a folding table), barber (chairs on chrome pedestals facing a mirror run, the counter, a
+  waiting bench), bank (teller counter with monitors, a desk, stanchions) and lobby (below).
+  Floors by kind (planks, checker vinyl, polished stone slabs, tile), walls with a wainscot and
+  hung pictures, contact shadows under the rows near the glass, ceiling fixtures (fluorescent
+  runs, downlights, linear slots). Detail finer than a pixel fades to its average; the pixel
+  size grows with the ray's depth.
+- **The room is what the sign says.** `Building.shop_names()` is the sign roll (now one
+  function), `SHOP_NAME_ROOMS` maps every name to a room (BAKERY, PIZZA, BOBA -> cafe; SUSHI, DELI
+  -> restaurant; LAUNDRY; BARBER, NAILS & SPA, TATTOO -> barber; BANK, DENTAL, TAX PRO -> bank;
+  THRIFT, DRY CLEAN -> clothing; the rest retail), and `shop_room_codes()` packs the first 7 shops
+  of each face into the `shop_rooms` ivec4 uniform (4 bits each). Past 7, and on the landmark
+  towers, the hash `shop_room_kind()` (salt 40) decides.
+- **Tower lobbies.** The middle shop of most faces (salt 44, 75 %) of a building over 30 m
+  (`tower_height` = `Building.height`; the ground part of a tower is often a low tier, so the
+  part's height cannot say) is a double-height lobby, 13 m deep: polished stone floor and walls,
+  a row of columns, a lit reception desk, planters with plants against the side walls, a bench,
+  and the lift bank on the back wall (steel doors, frames, amber indicators). It is lit all night
+  (no shutter), has no neon or posters, its sign shows a street number (multiples of 25) instead
+  of a shop name, and it throws a pool of light on the pavement (`shop_is_lobby()` mirrors the
+  shader).
+- **Light.** By day the room is lit from the front (faces toward the street and tops brighter,
+  falling off inward), times the old storefront exposure, plus a little of its own light
+  (`shop_day_light` 0.30) so a shop in shade is not a black hole. After dark, open shops use the
+  old lit-room path with each surface's `lamp` and the room's colour - `room_tone()`: cafes and
+  restaurants warm, laundromats cold or neutral, banks and lobbies neutral-warm, barbers bright;
+  retail keeps the shop's own roll - and `Building.room_tone()` colours the pavement spill the
+  same. Practical glows (`shop_glow`): pendant bulbs, chillers, cake case, till, washer LEDs,
+  desk light strips, lift indicators, ceiling fittings. Closed shops stay dark (the old night
+  light at the back), shutters and gates as before.
+- **Cost guard.** Past `shop_fittings_distance` (80 m) only the room is traced.
+
+### Numbers
+
+geo_count (still_shot GEO, opengl3, same frames before/after; `tools/glshot/shop_probe.gd` found the
+storefronts):
+
+| View | before tris / draws | after tris / draws |
+|---|---|---|
+| Flower at Olympic, east side, noon (`EYE=2373,1.7,858,-90,-2`) | 2,866,214 / 1,507 | 2,866,220 / 1,507 |
+| same, oblique (`2372.5,1.7,885,-125,-2`) | 3,051,561 / 1,693 | 3,051,565 / 1,693 |
+| same, 21:00 | 2,961,974 / 1,526 | 2,961,980 / 1,526 |
+| oblique, 21:00 | 3,227,171 / 1,755 | 3,227,175 / 1,755 |
+| west side (`2344,1.7,883.6,90,-2`), noon | 3,081,345 / 1,632 | 3,081,357 / 1,632 |
+| west side, 21:00 | 3,226,254 / 1,715 | 3,226,266 / 1,715 |
+| midtown (`1069.5,1.7,265.8,-90,-2`), noon | 5,377,621 / 2,459 | 5,377,635 / 2,459 |
+| midtown, 21:00 | 5,306,502 / 2,415 | 5,306,516 / 2,415 |
+
+The few triangles are the lobbies' street numbers (shorter or longer text than the shop name).
+Shader cost: `building_shot.gd BENCH=20` on a frame two thirds shop glass, llvmpipe, measured while
+the headless check ran (noisy): ~110 ms -> ~131 ms (~+18 %), before the 80 m fittings cut-off.
+On a GPU that is ALU on storefront pixels only; it has not been profiled on the Mac.
+
+### Not done / to check
+
+- **Needs the owner's Mac (Forward+)**: the rooms' daytime exposure under AgX and auto exposure
+  (judged only in opengl3 stills), and whether shop glass reflections over them read right.
+- The lobby rule counts shops from the ground part's face length in the shader and from `runs` in
+  Building: on a face with cut corners they can disagree, so a lobby's pavement pool can sit one
+  shop off (rare). ShopfrontKit's blade signs still carry a shop name on a lobby.
+- No people inside (the crowd is outside), no real geometry: a camera pressed to the glass sees the
+  boxes' hard edges. Real low-poly interiors within ~15 m would be the next step if the owner wants
+  more.
+- The midtown oblique shot was not rendered (the render job hit its time limit); its night pair
+  shows both shops closed, so the night comparison is downtown's.
+
