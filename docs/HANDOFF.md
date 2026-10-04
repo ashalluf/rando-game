@@ -4201,3 +4201,120 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   windscreen - there is no glass elsewhere to draw them on. Occupants are not shot or thrown
   out: a round through an empty frame passes them, and a carjacked NPC simply vanishes when the
   player takes the seat.
+
+## 9at. The mountains from the air, 2026-10-04 (agent branch; owner: "make the graphics a million times better")
+
+Redone from scratch after the first attempt (`wt/hills-air`) was lost to a container restart
+before it was pushed. Two bugs, then the look.
+
+**Bug 1: the dark dashes were Skyline's far chaparral mounds.** `Skyline._add_hills` put a low
+squashed blob (9-22 m across, 2-3.4 m tall, `HILL_MOUND_*`) on every far stand, up to 28 a hill
+block, under the LOD chunks too (they plant nothing, so the far tier's planting stays). From the
+air at 1-2 km each was a 6 x 3 pixel blob, lit by the renderer against a far ground that paints
+its own light and its ridges' shadows: rows of dark dashes over every range (`before_aerial_4`
+below). Removed; the far tier plants only the oaks and sycamores in the hollows (`HILL_OAK_*`,
+unchanged rolls), and the brush out there is the ground's own (the LOD tiles' stands and the
+horizon plane's, the same field). Fewer instances, so it costs less.
+
+**Bug 2: the far ground's colours were linearised twice on Forward+.** Proven with a probe (one
+unshaded quad per input, 0.5 in, read back; `<scratchpad>/hillsair/cs_probe3.gd`, `cs_probe4.gd`):
+
+| Input | Forward+ (lavapipe) | Compatibility (opengl3) |
+|---|---|---|
+| `source_color` uniform, default 0.5 | 127 (decoded) | 128 (raw) |
+| plain uniform, default 0.5 | 187 (raw = linear) | 128 |
+| Color SET from script, `source_color` / plain uniform | 127 / 127 (both decoded!) | 128 / 128 |
+| `source_color` ImageTexture (the bake) / plain | 127 / 187 | 127 / 127 |
+| imported JPG, `source_color` / plain (mean texel) | (107,98,33) / (173,166,100) | (107,97,31) both |
+| `color` shader global (`sky_tint`) | 187 (raw!) | 128 |
+| vertex COLOR, MultiMesh instance COLOR | 187 / 188 (raw) | 127 / 128 |
+| StandardMaterial albedo_color | 128 (decoded) | 128 |
+| lit ALBEDO 0.25 x sun 1, no ambient | 137 (= 0.25 linear) | 64 (= 0.25 raw) |
+| lit ALBEDO 0.25 + EMISSION 0.25 | 188 (0.5) | 89 (passes add in linear) |
+
+So Compatibility decodes nothing and lights the raw numbers (sRGB), Forward+ decodes
+`source_color` inputs and lights in linear. `macro_ground.gdshader` wrote its natural colours
+as LINEAR numbers (its own comment said so: "MacroMap's Color(0.216) arrives as 0.038") but
+declared them `source_color`, so Forward+ decoded them again: straw 0.150 -> 0.020, rock 0.100
+-> 0.010, seven to ten times too dark, and the plane on the Mac drew near-black olive ranges
+against the near hills' straw. On opengl3 nothing decodes, which is why every still looked
+right. (The terrain had the opposite trap on opengl3: its textures arrive raw, so its luma
+ratios against LINEAR means came out two to three times too bright, then clamped - the web's
+near hills were pale tan against a dark plane, `nf_before_gl_1` below.) Same family as the far
+boxes' `instance_color_is_srgb` (fixed before; now checked by the smoke test too).
+
+**The fix: every hill shader works in linear on both renderers.** `shaders/color_space.gdshaderinc`
+(`cs_in()` on every `source_color` input, `cs_out()` on ALBEDO / EMISSION / BACKLIGHT, the
+renderer told at compile time by `CURRENT_RENDERER`; no-ops on Forward+, the sRGB curve on
+Compatibility), included by `macro_ground`, `terrain`, `hill_shells` and `far_canopy`. The plane's
+linear colours lost `source_color`; `sky_tint` (raw on both) is decoded where it is used as light
+and as the rim colour, and the far boxes' rim takes the same colour (`building_lod.gdshader`), so
+the plane, the far canopy and the far city all fade to the horizon the sky actually draws (raw,
+it was up to a stop brighter on the Mac). The painted band (past `paint_end`) is lit in the
+renderer's own space (`lit_ws`), and its gain was measured, not guessed: `paint_gain` 0.66 ->
+1.42 and `compat_paint_gain` 1.05 (see below).
+
+**One ground, no copies.** The plane now includes `hill_splat.gdshaderinc`: the stand rule,
+`hill_rocky()` (crest rock) and `hill_bare()`, and the colours (`straw_color`, `chaparral_color`,
+`dirt_color`, `rock_color`, `snow_color`, `drain_shade`, `macro_variation` moved there from
+terrain.gdshader) are the tiles' own uniforms, with every octave a far pixel cannot resolve at
+its mean and the edge widened by what it spread; `FAR_CHAP_TONE` / `FAR_BARE_SHARE` are the
+tiles' straw and brush as they average from afar, `FAR_TONE` 0.91 the measured remainder. The
+painted band draws the stands too (mottled by the 27 m and 90 m patch octaves while they
+resolve) instead of a smooth share, plus crest rock and the craggy faces (`far_rock_slope_*`).
+`tests/hill_air_checks.gd` fails if a copy of a splat uniform reappears in the plane.
+
+**The look: Los Angeles ranges.** `south_grass` 0.08 -> 0.35, `drain_brush` 0.45 -> 0.6 (splat
+and HillPlanting): measured over 3,111 points of the front range (`share_probe.gd`), the south
+faces - what the whole basin looks at - go from 86 % brush (one olive-brown tone) to 54 %:
+gullies 97 %, mid-slopes 51 %, spurs 6 %; north faces stay 89 %, east/west 46 %. So a south face
+is gold ribs and dark folds, as the real front ranges are from the city. Colours (linear): straw
+(0.150, 0.124, 0.074) -> (0.200, 0.158, 0.076) pale gold, chaparral (0.050, 0.056, 0.036) ->
+(0.046, 0.058, 0.040) dusty grey-green, sage (0.082, 0.086, 0.064) -> (0.085, 0.097, 0.075),
+dirt (0.150, 0.126, 0.094) -> (0.205, 0.176, 0.133) and rock (0.112, 0.106, 0.096) -> (0.172,
+0.164, 0.150) pale, so crests and fire cuts read as pale rock rather than dark scars.
+
+**Measured (small scenes; the city does not fit lavapipe).** `tools/glshot/hill_ground_shot.tscn`
+grew what it took: `GROUND=1` (the horizon plane, CityStreamer's own material and bake), `LOD=n`
+(a LOD ring), `CENTRE=x,z`, `HILLS_ONLY=1`, `MASKS=1` (the frame again without the plane, without
+the chunks, without either: which pixel is which tier), `NOFOG=1`, `DAYNIGHT=1` (the city's
+DayNight held at `-- --hour`, so the light is the game's: the scene file alone has the sun at
+1.0 and the ambient at 1.0 against the game's 1.3 and 0.3), `PAINT_AB=1` (the plane all lit /
+all painted, via `paint_debug`). The scene: FULL 3x3 and LOD to 6 blocks round (300, -1500), the
+plane, the front range from (300, 400 m up, -300) looking north and from (300, 900 m up, 600);
+14:00, no fog. Seam = linear luminance of the plane over the tiles along their shared edge
+(`<scratchpad>/hillsair/seam_measure.py`):
+
+| Seam, plane / tile | Forward+ before | Forward+ after | opengl3 before | opengl3 after |
+|---|---|---|---|---|
+| 400 m up, the range's flank 0.6-1.2 km off | 0.37 | 1.07 | 0.59 | 1.05 |
+| 900 m up, 1.5-2.5 km off (in the paint ramp) | 0.57 | FINAL_VK1 | 0.32 | FINAL_GL1 |
+
+Painted band / lit band, the same pixels (`paint_measure.py`): Forward+ 0.63-0.73 at the old 0.66
+(and the plane was decoded twice on top), 0.81-0.83 at 0.97, PAINT_FINAL_VK at 1.42; opengl3
+0.51-0.55, then 0.79-0.93, PAINT_FINAL_GL at 1.05. Before/after frames:
+`<scratchpad>/hillsair/seam/dn_before_vk.png` / `dn_after5_vk.png` (Forward+, game light),
+`dn_before_gl.png` / `dn_after5_gl.png` (opengl3), and the `_1` views.
+
+City stills (opengl3, DIFF=1, 14:00, `<scratchpad>/hillsair/shots.sh`, 1280x720) - STILLS_TABLE.
+
+geo_count at the front-range aerial (`--spawn=700,-300,0,-14,500 --hour=14 --quality=0`, 800x600):
+6,434,032 triangles / 4,380 draws / 4,429 objects before, GEO_AFTER after.
+
+**Not verified.** The Forward+ look of the whole city from the air (lavapipe cannot hold it):
+the small scene proves the seam and the colour space, not the final grade under the player
+camera's auto exposure, SDFGI over the real basin, or the aerial-perspective fog. Ask the owner
+for a Mac shot from `--spawn=700,-300,0,-14,500` and from a street looking north
+(`--spawn=714.1,-100,0,5`). The painted band's gain was measured at 14:00 only; at golden hour
+the renderer's light and the plane's own (`sun_strength`, `ambient_strength`) may part again.
+The far oaks are still lit by the renderer in ridge shadow. The spiky back-range summits are the
+height field's erosion (9ab), untouched here.
+
+**Traps found.** A Color set from script is decoded on Forward+ even into a plain `vec3` uniform
+(only a Vector3 is not); `color` shader globals arrive raw on both. On Compatibility the light
+passes add in linear (0.25 + 0.25 drew 0.35), so EMISSION and the renderer's lit albedo do not
+mix the way the sRGB numbers suggest - measure, do not derive. A probe camera that shows two of
+ten quads reads two cases ten times (the first probe "proved" Forward+ decodes nothing); a seam
+mask built from "changes when the chunks are hidden" misses exactly the good seams, where the
+plane below is the same colour (`_none.png`, the frame with neither, fixes it). And `flock -o`:
+killing a waiting flock whose child already started leaves the render running without the lock.
