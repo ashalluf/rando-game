@@ -105,7 +105,8 @@ decals. Ask for screenshots with the HUD's FULL mode (F1) so the frame-time line
 - `Explosion.blast()` shoves a car once per collision shape, so rockets throw cars 2-3x harder
   than `launch_speed` says. That is feel, not a bug; change it only if the owner asks.
 - The SUPER body's wheel arches render empty in `car_shot.gd` (seen by the car-damage pass).
-- Beach town blocks (~67 % bare ground) and campus blocks were left out of the lot fill.
+- Beach town blocks (~67 % bare ground) and campus blocks were left out of the lot fill (filled
+  since: 9at, YardFill).
 - Retail podium roofs have no mechanical plant; crowd_j still shows a small sliver of skin at
   the shirt front; the lot fill's cheap code car is plain up close.
 
@@ -1808,7 +1809,17 @@ session needs to know:
   5 pooled one-shot voices, 3 traffic voices, 2 pass-by voices. The survey measured 0.9 ms
   headless; per frame it only eases gains and moves at most nine voices. Bus effects: one reverb,
   two low-passes (switched off when open), one compressor.
-- **Not done / not verified.** The web build plays the plain mix (sample playback skips bus
+- **Tools and checks.** `tools/lot_coverage.gd` (`FILL=0|lot|1`, rows per district, FREEWAY,
+ROW_CELLS, MACARTHUR_SE); `tools/glshot/block_shot.tscn` (a few FULL blocks alone, `EYE`,
+`SHOTS`, `BLOCKS`, `GEO=1`, `YARD_FILL=0`); `still_shot.gd` `YARD_FILL=0` (the A/B; `SPLIT=1`
+counts `YardGround` / `YardWalls` in the LotFill line). `tests/lot_fill_checks.gd` (25 checks in
+the smoke test): bare share before and after round the bookmarks, the right of way out to its
+cells, the shader kind tables, the campus plan, the MacArthur plaza, the beach plans (walk
+streets, drives, house heights, no yard piece under a house or on another), one mesh each on the
+right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
+meshes, and a beach and a freeway block built with the fill off being the same block.
+
+**Not done / not verified.** The web build plays the plain mix (sample playback skips bus
   effects: no reverb, no muffle, no ducker). Traffic voices ride only the TrafficManager's street
   and freeway cars - parked cars, police and the airport loop are silent unless driven (the police
   have sirens). The pass-by timing is maths on positions sampled every 0.15 s; it has never been
@@ -1881,7 +1892,17 @@ the table is `ReplicaAreas.ESPLANADE`. What a next session needs to know:
   free camera; heights are the road top + 2.5 m (a Street View lens), recomputed if the profile
   changes. Frame cost: `tools/geo_count.gd` at `--spawn=-449.3,3375.8,-173,-5` with and without
   `-- --no-replica` (MacroMap then builds the seeded city in its place).
-- **Not done / not verified.** The Knob Hill end is a kerb and
+- **Tools and checks.** `tools/lot_coverage.gd` (`FILL=0|lot|1`, rows per district, FREEWAY,
+ROW_CELLS, MACARTHUR_SE); `tools/glshot/block_shot.tscn` (a few FULL blocks alone, `EYE`,
+`SHOTS`, `BLOCKS`, `GEO=1`, `YARD_FILL=0`); `still_shot.gd` `YARD_FILL=0` (the A/B; `SPLIT=1`
+counts `YardGround` / `YardWalls` in the LotFill line). `tests/lot_fill_checks.gd` (25 checks in
+the smoke test): bare share before and after round the bookmarks, the right of way out to its
+cells, the shader kind tables, the campus plan, the MacArthur plaza, the beach plans (walk
+streets, drives, house heights, no yard piece under a house or on another), one mesh each on the
+right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
+meshes, and a beach and a freeway block built with the fill off being the same block.
+
+**Not done / not verified.** The Knob Hill end is a kerb and
   a pavement (the grid's streets run past it); north of it the pier plaza is the seeded
   landmark's. The roundabout's inside (west) corner, where the ocean-side lines of a right turn
   fold, is covered by the ring's planting rather than modelled. The car park's sea wall is ~5 m
@@ -1964,7 +1985,17 @@ session needs to know:
   at dusk 3.7 M / 2,321, plaza at night 3.1 M / 1,570. The same-camera before/after (`tools/horizon_probe.gd`, 800x600, spawn
   352,405 facing the arena) has only its before side, 5.33 M / 4,054 draws on the parent
   commit: the after run was OOM-killed and then timed out on the shared box. Take it first.
-- **Not done / not verified.** Only judged on the opengl3 path (Compatibility): no Forward+
+- **Tools and checks.** `tools/lot_coverage.gd` (`FILL=0|lot|1`, rows per district, FREEWAY,
+ROW_CELLS, MACARTHUR_SE); `tools/glshot/block_shot.tscn` (a few FULL blocks alone, `EYE`,
+`SHOTS`, `BLOCKS`, `GEO=1`, `YARD_FILL=0`); `still_shot.gd` `YARD_FILL=0` (the A/B; `SPLIT=1`
+counts `YardGround` / `YardWalls` in the LotFill line). `tests/lot_fill_checks.gd` (25 checks in
+the smoke test): bare share before and after round the bookmarks, the right of way out to its
+cells, the shader kind tables, the campus plan, the MacArthur plaza, the beach plans (walk
+streets, drives, house heights, no yard piece under a house or on another), one mesh each on the
+right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
+meshes, and a beach and a freeway block built with the fill off being the same block.
+
+**Not done / not verified.** Only judged on the opengl3 path (Compatibility): no Forward+
   render yet, so SSR on the steel and glass, SDFGI under the arena's canopy and the night
   floodlights under AgX are unseen. A detailed landmark is built in ONE chunk step. Warm
   (caches full) on this shared, loaded box: museum 68 ms (its veil is 12.9k triangles), arena
@@ -3866,7 +3897,8 @@ draws.
 - Look at it on the Mac (Forward+): the garage interior's exposure by day and its lamps at
   night, the chain-link's dither under TAA, the plaza lawns' colour.
 - Retail podium roofs carry no mechanical plant now; a few packaged units among the planters
-  would be truer. Beach town (67 % bare) and campus blocks were left as they were.
+  would be truer. Beach town (67 % bare) and campus blocks were left as they were (since filled:
+  9at).
 - The code car is still a code car up close; a real ~2k-triangle parked-car body with LODs
   would be the next step for car parks seen from the pavement.
 
@@ -4202,7 +4234,7 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   out: a round through an empty frame passes them, and a carjacked NPC simply vanishes when the
   player takes the seat.
 
-## 9at. No bare ground outside downtown and midtown: yards, the campus, the freeway's right of way, 2026-10-04 (agent branch `wt/lot-fill-2`)
+## 9at. No bare ground outside downtown and midtown: yards, the campus, the freeway's right of way, 2026-10-04 (agent branch `worktree-agent-afdcc0e44305064bc`, the brief's `wt/lot-fill-2`)
 
 The brief (00000): fill the beach town (9am's "not done"), the campus blocks, the freeway sides
 and the empty block south-east of MacArthur Park, each the way the real place looks. This redoes
@@ -4270,7 +4302,40 @@ after LotFill's):
   `"was_plaza"`), filled like the rest of midtown - Westlake is dense apartments and shops round
   the park, not a second square.
 
-**Cost.** GEO_TABLE
+**Cost.** opengl3, 1280x720, `--quality=0`, noon, clear; before = the base commit (28105b5) from a
+snapshot, after = this branch; each a live frame, so the traffic and the crowd differ by a few
+cars and people between the two. `still_shot.gd` (the stills' own GEO line, free camera):
+
+| Bookmark (`EYE`, y over the ground) | triangles before -> after | draws before -> after |
+|---|---|---|
+| Beach street `-652,2,95,70,-5` | 7,560,781 -> 7,678,515 (+1.6 %) | 2,670 -> 2,680 (+0.4 %) |
+| Beach air `-610,110,210,35,-39.3` | 6,637,558 -> 6,906,284 (+4.0 %) | 6,176 -> 6,139 (-0.6 %) |
+| Campus street `-545,2,-405,36.3,-3` | 9,270,150 -> 7,066,094 (-23.8 %) | 1,970 -> 1,971 |
+| Campus air `-480,140,-330,37.9,-31.5` | 2,369,945 -> 2,456,929 (+3.7 %) | 1,645 -> 1,654 (+0.5 %) |
+| Freeway street `-461,2,195,30.4,-3` | 8,599,037 -> 7,924,945 (-7.8 %) | 4,385 -> 4,362 (-0.5 %) |
+| Freeway air `-420,100,220,35.3,-34.2` | 5,479,307 -> 5,556,345 (+1.4 %) | 5,093 -> 5,031 (-1.2 %) |
+| MacArthur SE street `412,2,404,145.6,-3` | 5,107,407 -> 6,286,138 (+23.1 %) | 3,171 -> 3,784 (+19.3 %) |
+| MacArthur SE air `560,160,700,31.3,-30.7` | 3,549,857 -> 3,690,498 (+4.0 %) | 2,538 -> 2,905 (+14.5 %) |
+
+`tools/geo_count.gd` (the player standing there, `--spawn=x,z,yaw,pitch`, 90 frames after the
+load, the player camera):
+
+| Bookmark (`--spawn`) | triangles before -> after | draws before -> after | objects before -> after |
+|---|---|---|---|
+| Beach town `-648,60,140,-3` | 8,779,945 -> 8,855,948 (+0.9 %) | 3,706 -> 3,802 (+2.6 %) | 3,780 -> 3,881 (+2.7 %) |
+| Campus `-545,-405,36.3,-3` | 10,083,563 -> 5,012,178 (-50.3 %) | 2,837 -> 2,856 (+0.7 %) | 2,855 -> 2,874 (+0.7 %) |
+| Freeway side `-461,195,30.4,-3` | 9,025,099 -> 8,255,749 (-8.5 %) | 5,447 -> 5,408 (-0.7 %) | 5,564 -> 5,520 (-0.8 %) |
+MACROW
+
+The stills render the same frame twice to the triangle (the after beach shots were rendered
+twice, an hour apart: identical GEO lines), so these differences are the change, not noise.
+
+The campus and freeway street frames got cheaper: the walks, car parks and the right of way's
+cells keep the block lawn's blade grass off them (`_lot_rects`), and the corridor's ivy is now in
+the yard mesh instead of a ground-grid node per lot. MacArthur's rise is new content - a block of
+midtown buildings, forecourts and parked cars where there was one empty square - not the yards.
+The yards themselves cost two draws a FULL chunk (the ground, the walls) plus the walls' shadow
+casters, and their planting rides batches the chunk mostly has already.
 
 **Traps.**
 - Godot's front faces are clockwise to the viewer: a quad listed counter-clockwise from outside
@@ -4278,12 +4343,29 @@ after LotFill's):
 - Ground pieces must never overlap (identical surfaces at the same height z-fight once the
   variants differ): the campus entry walk stops where its apron starts, a pocket park's lawn is
   cut round its walk, the walk street's gardens run up to the path rather than under a strip.
-- A beach yard's planting was the slowest step of a block's build: the dressing runs through
-  `CityChunk._run_or_defer()` in 2.5 ms slices before the finish.
+- A beach block's twenty-odd yards dressed in one build step would be one long step: the walls,
+  planting and props run through `CityChunk._run_or_defer()` in 2.5 ms slices before the finish
+  (headless, a FULL beach block's build is ~0-75 ms longer with the yards, its slowest step the
+  same as without; LOD +3-8 ms).
+- The hedge took three passes: plain grass texture and flat lighting read as a painted green box,
+  60 cm noise lumps and an 11 cm normal jitter as camouflage; it is fine leaves, faint lumps and a
+  7 cm jitter now (in the last block shots, `hedge3*.png`; the city stills show the second).
+- A patterned texture (brick, planks) must not go through `tiled()`'s rotated second sample: it
+  crosses the courses with a diagonal hatch.
 - A Godot `RandomNumberGenerator.randf_range(a, b)` with a > b still returns a value (between
   them): STEPPED's 15 m floor over the beach town's 12.5 m top gives 12.5-15 m.
 - `as Array[Rect2]` on an array literal is not a safe way to make a typed argument; a typed local
   is (`_less()`, `_defer1()`).
+
+**Tools and checks.** `tools/lot_coverage.gd` (`FILL=0|lot|1`, rows per district, FREEWAY,
+ROW_CELLS, MACARTHUR_SE); `tools/glshot/block_shot.tscn` (a few FULL blocks alone, `EYE`,
+`SHOTS`, `BLOCKS`, `GEO=1`, `YARD_FILL=0`); `still_shot.gd` `YARD_FILL=0` (the A/B; `SPLIT=1`
+counts `YardGround` / `YardWalls` in the LotFill line). `tests/lot_fill_checks.gd` (25 checks in
+the smoke test): bare share before and after round the bookmarks, the right of way out to its
+cells, the shader kind tables, the campus plan, the MacArthur plaza, the beach plans (walk
+streets, drives, house heights, no yard piece under a house or on another), one mesh each on the
+right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
+meshes, and a beach and a freeway block built with the fill off being the same block.
 
 **Not done / not verified.** Looked at in opengl3 stills only (city `still_shot.gd`, `tools/glshot/block_shot.tscn`): the
 walls, hedges, tile, decks, ivy and dirt on the Mac's Forward+ are not judged (the paint goes in

@@ -1093,7 +1093,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   AirTraffic skips car-park lots. Look at it with `tools/glshot/still_shot.gd` (`SPLIT=1` has a
   LotFill line) and measure it with `tools/lot_coverage.gd`.
   **Nor are the yards outside them** (`YardFill`, `scripts/world/yard_fill.gd`, 2026-10-04; beach
-  town 56 % bare -> 5 %, campus 93 % -> 1 %, docs/HANDOFF.md 9at). A BEACHTOWN lot's cell less its
+  town 56 % bare -> 4 %, campus 74 % -> 1 %, the right of way's cells 23 % -> 0, docs/HANDOFF.md 9at). A BEACHTOWN lot's cell less its
   house is a yard planned in the lot's street frame (u along the street, v back from it): a
   driveway to the kerb (`DRIVE_*`, a static car in some), a front walk, a front garden (lawn,
   decomposed granite with gazania, brick or saltillo; a mulch bed of shrubs along the house), a
@@ -2339,9 +2339,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   invocation in its header: it must run under `--rendering-driver opengl3` with Xvfb, never
   `--headless`. `AB=Batch_sig_*,BatchShadow_sig_*` counts the same frozen frame again with the
   matching nodes hidden, so one kind of geometry's cost comes out of one run. Measure a geometry change before and after with it rather than arguing about it.
-- Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
-  `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
-  Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.
+- Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
+  `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
+  furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
+  OpenGL renderer under Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.
   **Those are the Compatibility renderer**, though - no SDFGI, no SSR, no TAA, no volumetric fog,
   flat lighting - so they are NOT what the owner's Mac draws, and judging a lighting or material
   change on one is judging the wrong renderer. `tools/glshot/forward_shot.sh` runs the real
