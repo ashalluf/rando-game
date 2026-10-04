@@ -3964,9 +3964,12 @@ func _build_freeway() -> void:
 		# Deck top.
 		for v: Vector3 in [l0, r1, r0, l0, l1, r1]:
 			top.add_vertex(v)
-		# Underside and the two edge fascias, so it is solid from below and from the street.
+		# Underside and the two edge fascias, so it is solid from below and from the street. The
+		# underside takes `_ribbon`'s plain winding, which faces a horizontal quad DOWN (see
+		# `_bar_flat`); it used to pass `flip` and face up, so from the street the deck was not
+		# there at all and its traffic drove across the sky.
 		var concrete := Color(0.62, 0.61, 0.59)
-		_ribbon(body, l0 + down, r0 + down, r1 + down, l1 + down, concrete * 0.82, true)
+		_ribbon(body, l0 + down, r0 + down, r1 + down, l1 + down, concrete * 0.82)
 		_ribbon(body, l0, l0 + down, l1 + down, l1, concrete)
 		_ribbon(body, r0, r1, r1 + down, r0 + down, concrete)
 		# Barriers along both edges.
@@ -4039,14 +4042,23 @@ func _ribbon(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, co
 
 
 ## A box running from p0 to p1, `wide` across (a world-space half-offset) and `h` tall.
+##
+## Each side is wound to face out of the box. The fixed order faced every side INWARD whenever
+## `wide` lies to the right of p0 -> p1, which is how every barrier calls it: from outside you
+## saw the far side's inner face through the near one.
 func _bar(st: SurfaceTool, p0: Vector3, p1: Vector3, wide: Vector2, h: float, col: Color) -> void:
 	var w := Vector3(wide.x, 0.0, wide.y)
 	var up := Vector3(0.0, h, 0.0)
 	var corners := [p0 - w, p0 + w, p1 + w, p1 - w]
+	var centre := (p0 + p1) * 0.5
 	for i in 4:
 		var c0: Vector3 = corners[i]
 		var c1: Vector3 = corners[(i + 1) % 4]
-		_ribbon(st, c0, c1, c1 + up, c0 + up, col)
+		# Godot's front face is clockwise, so the plain order faces against (c1 - c0) x up.
+		var out := (c0 + c1) * 0.5 - centre
+		var facing := -(c1 - c0).cross(up)
+		# (A flat bar - the gantry posts are 1 cm long - has no outside; leave it as it was.)
+		_ribbon(st, c0, c1, c1 + up, c0 + up, col, facing.normalized().dot(out) < -0.001)
 	# Same winding fix as _bar_flat: the cap is a horizontal quad and has to face up.
 	_ribbon(st, corners[0] + up, corners[1] + up, corners[2] + up, corners[3] + up, col.lightened(0.08), true)
 
@@ -4065,10 +4077,14 @@ func _bar_flat(st: SurfaceTool, p0: Vector3, p1: Vector3, wide: Vector2, col: Co
 ## A pair of columns and a crossbeam carrying the deck.
 func _pillar(st: SurfaceTool, base: Vector3, cap_y: float, nrm: Vector2, deck_w: float) -> void:
 	var col := Color(0.58, 0.57, 0.55)
+	# A column is 1.6 m square, along the route and across it. It used to run along world X,
+	# so on a route heading north or south (nrm along X too) it had no depth: a 3.2 m wall,
+	# edge-on from the side of the road.
+	var along := Vector3(-nrm.y, 0.0, nrm.x).normalized() * 0.8
 	for side: float in [-1.0, 1.0]:
 		var e := nrm * (deck_w * 0.26) * side
 		var p := base + Vector3(e.x, 0.0, e.y)
-		_bar(st, p + Vector3(-0.8, 0.0, 0.0), p + Vector3(0.8, 0.0, 0.0), nrm * 0.8, cap_y - base.y, col)
+		_bar(st, p - along, p + along, nrm.normalized() * 0.8, cap_y - base.y, col)
 	# The headstock across the top of the columns.
 	var cap := Vector3(base.x, cap_y - 1.1, base.y)
 	var arm := Vector3(nrm.x, 0.0, nrm.y) * (deck_w * 0.34)
@@ -4142,7 +4158,8 @@ func _build_freeway_ramps() -> void:
 			for v: Vector3 in [l0, r1, r0, l0, l1, r1]:
 				deck.add_vertex(v)
 			var drop := Vector3(0.0, -0.7, 0.0)
-			_ribbon(body, l0 + drop, r0 + drop, r1 + drop, l1 + drop, Color(0.5, 0.49, 0.47), true)
+			# Plain winding faces down: the underside (it faced up, like the deck's).
+			_ribbon(body, l0 + drop, r0 + drop, r1 + drop, l1 + drop, Color(0.5, 0.49, 0.47))
 			_ribbon(body, l0, l0 + drop, l1 + drop, l1, Color(0.6, 0.59, 0.57))
 			_ribbon(body, r0, r1, r1 + drop, r0 + drop, Color(0.6, 0.59, 0.57))
 			for s: float in [-1.0, 1.0]:
