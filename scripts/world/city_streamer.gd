@@ -997,7 +997,7 @@ func _build_ground_material() -> ShaderMaterial:
 	_canopy_material.set_shader_parameter("plane_half", ground_size * 0.5)
 	_canopy_material.set_shader_parameter("plane_step", ground_step())
 	# The plane's rim hands over to the sky, and the far city fades out on the same numbers.
-	for m: ShaderMaterial in [mat, _canopy_material, PropFactory.building_lod_material()]:
+	for m: ShaderMaterial in [mat, _canopy_material, PropFactory.building_lod_material(), PropFactory.building_lod_material(true)]:
 		m.set_shader_parameter("edge_start", ground_size * 0.5 * GROUND_EDGE_FADE.x)
 		m.set_shader_parameter("edge_end", ground_size * 0.5 * GROUND_EDGE_FADE.y)
 	_far_ground_materials = [_canopy_material]

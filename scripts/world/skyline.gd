@@ -520,8 +520,9 @@ func _box_node(t: Vector2i, xforms: Array, colors: Array, customs: Array) -> Mul
 	node.name = "Sky_%d_%d" % [t.x, t.y]
 	node.multimesh = mm
 	# The same shader the LOD boxes use, so a far tower is drawn exactly as it will be when its
-	# LOD chunk arrives - same facade, same glazing, same lit windows at night.
-	node.material_override = PropFactory.building_lod_material()
+	# LOD chunk arrives - same facade, same glazing, same lit windows at night. Its own instance of
+	# the material only because out here the small roof plant is printed rather than built.
+	node.material_override = PropFactory.building_lod_material(true)
 	# Never casts: everything within shadow reach is covered by chunks, which cast their own.
 	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	node.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
@@ -566,10 +567,14 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 	var customs: Array = _work.customs
 	# The ground first, so a block's plate is the first of its instances.
 	_add_plate(k, zone, cap.get("ground", []), ch)
-	# The LOD boxes: every building part and plinth, exactly as the chunk batches them.
+	# The LOD boxes: every building part, exactly as the chunk batches them (FarBuilding: coded
+	# with the near building's facade), and the roof plant that still makes a silhouette from out
+	# here - the rest is under a pixel past the LOD ring, and building_lod.gdshader prints it.
 	if batch.has("lod_box"):
 		var lb: Dictionary = batch["lod_box"]
 		for i in (lb.xforms as Array).size():
+			if not FarBuilding.far_keeps(lb.custom[i]):
+				continue
 			xforms.append(lb.xforms[i])
 			colors.append(lb.colors[i])
 			customs.append(lb.custom[i])

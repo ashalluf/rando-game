@@ -59,3 +59,14 @@ vec3 cs_in(vec3 c) {
 vec3 cs_out(vec3 c) {
 	return cs_linear_renderer() ? c : cs_linear_to_srgb(c);
 }
+
+
+// An sRGB-authored colour as a `source_color` uniform set from script reaches a shader on this
+// renderer: decoded on Forward+, raw on Compatibility - the renderer's own space, the one every
+// StandardMaterial and building.gdshader work in. For a shader that has to draw exactly what one
+// of those draws from a colour it is handed some other way (a MultiMesh instance colour, a
+// palette copied into the shader): building_lod.gdshader, the far copies of the near buildings.
+// Not for linear-on-both shaders, which take cs_in() and hand back cs_out().
+vec3 cs_as_uniform(vec3 srgb) {
+	return cs_linear_renderer() ? cs_srgb_to_linear(srgb) : srgb;
+}

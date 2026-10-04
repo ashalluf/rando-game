@@ -620,7 +620,13 @@ func _pick_style() -> Dictionary:
 	}
 
 
-func _build_part(part: Dictionary, style: Dictionary) -> void:
+## A part's window grid and bands, as the near walls draw them (`_build_part`) and the far boxes
+## repeat them (FarBuilding): `storefront` (its height, 0 for none), `rows`, `floor_h`, `cols_x`,
+## `cols_z` (whole bays per wall), `cut_x` / `cut_z` (a cut corner's bay, 0 for none), `base_h`
+## (the stone base course, metres above the part's bottom), `crown` (where the crown floors start
+## above the part's bottom, -1 for none), `parking`, `on_ground`. One function, so a far tower
+## cannot drift a bay or a floor off the near one.
+func part_grid(part: Dictionary, style: Dictionary) -> Dictionary:
 	var size: Vector3 = part.size
 	var center: Vector3 = part.center
 	var bottom := center.y - size.y * 0.5
@@ -646,6 +652,49 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	if _chamfered and not parking and cols_x >= 6 and cols_z >= 6 and minf(size.x, size.z) > 10.0:
 		cut_x = size.x / float(cols_x)
 		cut_z = size.z / float(cols_z)
+	# Base, shaft, crown. The shader lays a stone base course over the bottom floors and shifts
+	# the tone of the top ones; _add_facade_details caps both with a real band at the same
+	# height, so the two have to be asked for from the same place.
+	var base_h := 0.0 if parking else _base_course_height(size, style, storefront, on_ground)
+	var crown := -1.0
+	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
+		crown = size.y - 1.6 * floor_h
+	return {"storefront": storefront, "rows": rows, "floor_h": floor_h, "cols_x": cols_x, "cols_z": cols_z,
+		"cut_x": cut_x, "cut_z": cut_z, "base_h": base_h, "crown": crown, "parking": parking, "on_ground": on_ground}
+
+
+## The crown floors' shade (building.gdshader `crown_shade`): lighter or darker, by a hash.
+func crown_shade() -> float:
+	return 1.09 if absi(hash([seed, "crown"])) % 2 == 0 else 0.92
+
+
+## The stone base course's colour (building.gdshader `base_color`).
+static func base_color(style: Dictionary) -> Color:
+	return (style.facade as Color).lerp(Color(0.62, 0.60, 0.56), 0.6).darkened(0.08)
+
+
+## The parapet a part's roof edge carries (`_add_facade_details`' cap bands: the band, and the
+## coping's lip over it), its height in metres over the roof, 0 where there is none.
+func parapet_rise(part: Dictionary) -> float:
+	if is_parking(part) or parapet_height <= 0.02 or not _roof_edge_free(part.center, part.size):
+		return 0.0
+	return parapet_height * (0.7 if finish == Finish.GLASS else 1.0) + 0.11
+
+
+func _build_part(part: Dictionary, style: Dictionary) -> void:
+	var size: Vector3 = part.size
+	var center: Vector3 = part.center
+	var bottom := center.y - size.y * 0.5
+	var on_ground := bottom < 0.01
+	var parking := is_parking(part)
+	var grid := part_grid(part, style)
+	var storefront: float = grid.storefront
+	var rows: int = grid.rows
+	var floor_h: float = grid.floor_h
+	var cols_x: int = grid.cols_x
+	var cols_z: int = grid.cols_z
+	var cut_x: float = grid.cut_x
+	var cut_z: float = grid.cut_z
 
 	# The material is the building's, made with its first part; what differs part to part rides
 	# in the vertices (_append_part()). Every value is worked out exactly as it was when each part
@@ -656,16 +705,13 @@ func _build_part(part: Dictionary, style: Dictionary) -> void:
 	# The shader counts floors from world Y, so the base has to include where this building sits.
 	var ground_floor := position.y + bottom + storefront
 	var base_y := position.y + bottom
-	# Base, shaft, crown. The shader lays a stone base course over the bottom floors and shifts
-	# the tone of the top ones; _add_facade_details caps both with a real band at the same
-	# height, so the two have to be asked for from the same place.
-	var base_h := 0.0 if parking else _base_course_height(size, style, storefront, on_ground)
+	var base_h: float = grid.base_h
 	if base_h > 0.0:
-		mat.set_shader_parameter("base_color", (style.facade as Color).lerp(Color(0.62, 0.60, 0.56), 0.6).darkened(0.08))
+		mat.set_shader_parameter("base_color", base_color(style))
 	var crown := 100000.0
-	if size.y > 22.0 and finish != Finish.GLASS and shape != Shape.WAREHOUSE and not parking:
-		crown = position.y + bottom + size.y - 1.6 * floor_h
-		mat.set_shader_parameter("crown_shade", 1.09 if absi(hash([seed, "crown"])) % 2 == 0 else 0.92)
+	if float(grid.crown) >= 0.0:
+		crown = position.y + bottom + float(grid.crown)
+		mat.set_shader_parameter("crown_shade", crown_shade())
 	var arrays: Array
 	if cut_x > 0.0:
 		arrays = _prism_arrays(size, cut_x, cut_z)
@@ -739,7 +785,6 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 	# stand on those lines), and rolls its spandrel pale or dark as the far shader does.
 	mat.set_shader_parameter("curtain_spandrel", window_style == WindowStyle.CURTAIN)
 	mat.set_shader_parameter("mullion_color", frame_paint())
-	mat.set_shader_parameter("lod_seed", float(seed % 997) / 997.0)
 	_apply_wall_texture(mat, finish, shape == Shape.WAREHOUSE, style.wall_set, style.weathering)
 	_part_mat = mat
 	return mat
@@ -2135,9 +2180,43 @@ static func _apply_wall_texture(mat: ShaderMaterial, wall_finish: int, warehouse
 
 # --- Rooftop props ------------------------------------------------------------
 
+## The roof plant's own random stream (see _build_roof_props()).
+var _roof_rng := RandomNumberGenerator.new()
+## What _build_roof_props() put on the roofs, in building space: [kind, at (the prop's foot on
+## the roof), rolls (Dictionary: what the prop rolled for itself - a spire's height, a duct
+## run's heading, a billboard's turn and paint), the index of the part it stands on].
+## FarBuilding draws the far boxes from it.
+var roof_props: Array = []
+var _roof_part: int = -1
+## Set by roof_plan(): the rolls and the layout without a node, a mesh or a shape.
+var _roof_plan_only: bool = false
+
+
+## The roof plant's layout without building it - exactly what generate() would put on the roofs,
+## since the plant rolls on a stream of its own (_roof_rng) from the parts alone. For the far
+## boxes (FarBuilding.plant()), after plan_only().
+func roof_plan() -> Array:
+	_roof_plan_only = true
+	_roof_units.clear()
+	roof_unit_spots.clear()
+	_build_roof_props()
+	_roof_plan_only = false
+	_roof_prims.clear()
+	_roof_units.clear()
+	return roof_props
+
+
+## The rooftop plant. It rolls on its own stream, seeded from the building's seed alone: it used
+## to take the next numbers off `_rng` after the facade details had taken theirs (balconies roll
+## per bay), so nothing short of building the whole facade could say what stood on a roof, and
+## the far boxes printed a guessed pattern that changed at the LOD line. It was the last thing on
+## `_rng`, so moving it moves nothing else.
 func _build_roof_props() -> void:
+	_roof_rng.seed = hash([seed, "roof plant"])
+	roof_props.clear()
 	for i in parts.size():
 		var part: Dictionary = parts[i]
+		_roof_part = i
 		# A podium's roof is its top deck of parked cars or the tower's garden (LotFill), not
 		# a plant deck.
 		if int(part.get("podium", 0)) > 0:
@@ -2159,42 +2238,42 @@ func _build_roof_props() -> void:
 		# Real roofs are crowded. Scale the plant with the roof's area rather than using a flat
 		# count, so a big podium does not get the same two units as a narrow tower.
 		var roof_area := area.x * area.y
-		var ac_count := clampi(roundi(roof_area / 90.0) + _rng.randi_range(1, 3), 1, 9)
+		var ac_count := clampi(roundi(roof_area / 90.0) + _roof_rng.randi_range(1, 3), 1, 9)
 		if not is_top:
 			ac_count = clampi(ac_count / 2, 0, 4)
 		var wants: Array[String] = []
 		for k in ac_count:
 			wants.append("ac")
-		if roof_area > 55.0 and _rng.randf() < 0.55:
+		if roof_area > 55.0 and _roof_rng.randf() < 0.55:
 			wants.append("ducts")
-		if is_top and roof_area > 70.0 and _rng.randf() < 0.45:
+		if is_top and roof_area > 70.0 and _roof_rng.randf() < 0.45:
 			wants.append("solar")
-		if is_top and roof_area > 40.0 and _rng.randf() < 0.4:
+		if is_top and roof_area > 40.0 and _roof_rng.randf() < 0.4:
 			wants.append("skylight")
-		if is_top and roof_area > 80.0 and _rng.randf() < 0.3:
+		if is_top and roof_area > 80.0 and _roof_rng.randf() < 0.3:
 			wants.append("cooling_tower")
 		if is_top and shape == Shape.WAREHOUSE:
 			wants.append("vents")
-			if _rng.randf() < 0.5:
+			if _roof_rng.randf() < 0.5:
 				wants.append("vents")
 		elif is_top:
-			if _rng.randf() < 0.6:
+			if _roof_rng.randf() < 0.6:
 				wants.append("bulkhead")
-			if _rng.randf() < 0.35 and height > 10.0:
+			if _roof_rng.randf() < 0.35 and height > 10.0:
 				wants.append("water_tower")
-			if shape == Shape.CROWN or (height > 140.0 and _rng.randf() < 0.7):
+			if shape == Shape.CROWN or (height > 140.0 and _roof_rng.randf() < 0.7):
 				wants.append("spire")
-			elif _rng.randf() < 0.5 and height > 25.0:
+			elif _roof_rng.randf() < 0.5 and height > 25.0:
 				wants.append("antenna")
-			if _rng.randf() < 0.35 and height < 35.0 and area.x > 8.0:
+			if _roof_rng.randf() < 0.35 and height < 35.0 and area.x > 8.0:
 				wants.append("billboard")
 		for kind in wants:
 			var prop_size := _prop_footprint(kind)
 			while tries < 40:
 				tries += 1
 				var pos := Vector2(
-					_rng.randf_range(-area.x * 0.5 + prop_size.x * 0.5, area.x * 0.5 - prop_size.x * 0.5),
-					_rng.randf_range(-area.y * 0.5 + prop_size.y * 0.5, area.y * 0.5 - prop_size.y * 0.5))
+					_roof_rng.randf_range(-area.x * 0.5 + prop_size.x * 0.5, area.x * 0.5 - prop_size.x * 0.5),
+					_roof_rng.randf_range(-area.y * 0.5 + prop_size.y * 0.5, area.y * 0.5 - prop_size.y * 0.5))
 				var rect := Rect2(pos - prop_size * 0.5, prop_size)
 				if _rect_free(rect, placed, i, center):
 					placed.append(rect)
@@ -2280,13 +2359,19 @@ func _rect_free(rect: Rect2, placed: Array[Rect2], part_index: int, part_center:
 
 
 func _build_prop(kind: String, at: Vector3) -> void:
+	# What this prop rolls for itself, for roof_props (FarBuilding draws its far box from it).
+	var rolls := {}
+	roof_props.append([kind, at, rolls, _roof_part])
 	match kind:
 		"ac":
 			# Real unit (Poly Haven), scaled up to rooftop size, on a concrete pad. The two
 			# rolls stay in this order (variant, then turn): every roll after them depends on it.
-			var rusted := _rng.randf() < 0.35
+			var rusted := _roof_rng.randf() < 0.35
 			var spot := at + Vector3(0.0, 0.1, 0.0)
-			var turn := Basis.from_euler(Vector3(0.0, _rng.randf_range(0.0, TAU), 0.0))
+			var ac_yaw := _roof_rng.randf_range(0.0, TAU)
+			var turn := Basis.from_euler(Vector3(0.0, ac_yaw, 0.0))
+			rolls.rusted = rusted
+			rolls.yaw = ac_yaw
 			if not _roof_units.has(rusted):
 				_roof_units[rusted] = []
 			(_roof_units[rusted] as Array).append(Transform3D(turn * Basis.from_scale(Vector3.ONE * 1.7), spot))
@@ -2295,13 +2380,14 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			_prop_collision(Vector3(1.4, 1.6, 1.4), at + Vector3(0.0, 0.8, 0.0))
 		"vents":
 			for k in 5:
-				if _kit != null:
+				if _kit != null and not _roof_plan_only:
 					_kit_vent(at + Vector3(-3.0 + k * 1.5, 0.0, 0.0), _kit_hash("vent", roundi(at.x * 7.0) + k) < 0.6, _kit_hash("vent yaw", k) * TAU)
 				else:
 					_prop_box(Vector3(1.2, 0.8, 1.2), Color(0.6, 0.6, 0.58), at + Vector3(-3.0 + k * 1.5, 0.4, 0.0))
 		"ducts":
 			# A run of insulated duct on short legs, with an elbow turning up at one end.
-			var yaw := _rng.randf_range(0.0, TAU)
+			var yaw := _roof_rng.randf_range(0.0, TAU)
+			rolls.yaw = yaw
 			var dir := Vector3(cos(yaw), 0.0, sin(yaw))
 			var across := Vector3(-dir.z, 0.0, dir.x)
 			var metal := Color(0.63, 0.64, 0.66)
@@ -2314,7 +2400,8 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			_prop_box(Vector3(0.7, 1.4, 0.62), metal, at + dir * 3.5 + Vector3(0.0, 1.2, 0.0), Vector3(0.0, yaw, 0.0))
 		"solar":
 			# Tilted panel rows on low frames, facing south.
-			var tilt := _rng.randf_range(0.30, 0.48)
+			var tilt := _roof_rng.randf_range(0.30, 0.48)
+			rolls.tilt = tilt
 			for rowi in 2:
 				for coli in 3:
 					var p := at + Vector3(-1.8 + float(coli) * 1.8, 0.0, -1.1 + float(rowi) * 2.2)
@@ -2337,7 +2424,8 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			_prop_box(Vector3(0.9, 2.0, 0.1), Color(0.25, 0.25, 0.28), at + Vector3(0.6, 1.0, 1.62))
 			_prop_collision(Vector3(3.2, 2.6, 3.2), at + Vector3(0.0, 1.3, 0.0))
 		"water_tower":
-			if _kit != null:
+			rolls.kit = _kit != null
+			if _kit != null and not _roof_plan_only:
 				# The kit's timber tank on its braced steel stand, turned by a hash of where it
 				# stands (no _rng: the roll count must not change).
 				var yaw := _kit_hash("tank", roundi(at.x * 13.0 + at.z * 7.0)) * TAU
@@ -2353,22 +2441,28 @@ func _build_prop(kind: String, at: Vector3) -> void:
 			_prop_collision(Vector3(3.2, 7.2, 3.2), at + Vector3(0.0, 3.6, 0.0))
 		"spire":
 			# Skyline spire with a lit tip: base cone, long mast, blinking-red beacon.
-			var h := _rng.randf_range(0.18, 0.3) * maxf(height, 60.0)
+			var h := _roof_rng.randf_range(0.18, 0.3) * maxf(height, 60.0)
+			rolls.h = h
 			_prop_cylinder(1.4, 3.0, Color(0.7, 0.7, 0.74), at + Vector3(0.0, 1.5, 0.0), Transform3D.IDENTITY, 0.5)
 			_prop_cylinder(0.35, h, Color(0.8, 0.8, 0.84), at + Vector3(0.0, 3.0 + h * 0.5, 0.0), Transform3D.IDENTITY, 0.08)
 			# The beacon, unshaded.
 			_prop_box(Vector3(0.6, 0.6, 0.6), Color(1.0, 0.25, 0.2), at + Vector3(0.0, 3.0 + h + 0.3, 0.0), Vector3.ZERO, Transform3D.IDENTITY, 0.8, 0.0, true)
 			_prop_collision(Vector3(2.8, 3.0, 2.8), at + Vector3(0.0, 1.5, 0.0))
 		"antenna":
-			var h := _rng.randf_range(6.0, 14.0)
+			var h := _roof_rng.randf_range(6.0, 14.0)
+			rolls.h = h
 			_prop_cylinder(0.08, h, Color(0.75, 0.75, 0.78), at + Vector3(0.0, h * 0.5, 0.0))
 			_prop_box(Vector3(1.6, 0.06, 0.06), Color(0.75, 0.75, 0.78), at + Vector3(0.0, h * 0.7, 0.0))
 			_prop_box(Vector3(0.06, 0.06, 1.2), Color(0.75, 0.75, 0.78), at + Vector3(0.0, h * 0.85, 0.0))
 			_prop_box(Vector3(0.25, 0.25, 0.25), Color(1.0, 0.2, 0.15), at + Vector3(0.0, h + 0.1, 0.0), Vector3.ZERO, Transform3D.IDENTITY, 0.8, 0.0, true)
 		"billboard":
-			var panel_color: Color = FLAT_COLORS[_rng.randi() % FLAT_COLORS.size()]
-			var stripe := Color(_rng.randf(), _rng.randf(), _rng.randf()).lightened(0.2)
-			var yaw := (PI * 0.5 if _rng.randf() < 0.5 else 0.0) + (PI if _rng.randf() < 0.5 else 0.0)
+			var panel_color: Color = FLAT_COLORS[_roof_rng.randi() % FLAT_COLORS.size()]
+			var stripe := Color(_roof_rng.randf(), _roof_rng.randf(), _roof_rng.randf()).lightened(0.2)
+			var yaw := (PI * 0.5 if _roof_rng.randf() < 0.5 else 0.0) + (PI if _roof_rng.randf() < 0.5 else 0.0)
+			rolls.yaw = yaw
+			rolls.color = panel_color
+			if _roof_plan_only:
+				return
 			# Laid out square to its own frame, which stands at `at` turned by `yaw`.
 			var pivot := Transform3D(Basis.from_euler(Vector3(0.0, yaw, 0.0)), at)
 			_prop_box(Vector3(6.0, 3.0, 0.2), panel_color, Vector3(0.0, 4.0, 0.0), Vector3.ZERO, pivot)
@@ -2391,6 +2485,8 @@ func _build_prop(kind: String, at: Vector3) -> void:
 ## Nothing is made here: _commit_roof() merges the lot into one mesh.
 func _prop_box(size: Vector3, color: Color, pos: Vector3, rot: Vector3 = Vector3.ZERO, frame: Transform3D = Transform3D.IDENTITY,
 		rough: float = 0.8, metal: float = 0.0, unshaded: bool = false) -> void:
+	if _roof_plan_only:
+		return
 	var key := "box %s" % size
 	if not _prim_arrays.has(key):
 		var box := BoxMesh.new()
@@ -2401,6 +2497,8 @@ func _prop_box(size: Vector3, color: Color, pos: Vector3, rot: Vector3 = Vector3
 
 ## A cylinder of roof plant (a cone where `top_radius` is 0), as _prop_box().
 func _prop_cylinder(radius: float, h: float, color: Color, pos: Vector3, frame: Transform3D = Transform3D.IDENTITY, top_radius: float = -1.0) -> void:
+	if _roof_plan_only:
+		return
 	var top := radius if top_radius < 0.0 else top_radius
 	var key := "cylinder %s %s %s" % [radius, top, h]
 	if not _prim_arrays.has(key):
@@ -2547,6 +2645,8 @@ static func _prim_surface(acc: Dictionary) -> Array:
 
 
 func _prop_collision(size: Vector3, pos: Vector3) -> void:
+	if _roof_plan_only:
+		return
 	var shape_node := CollisionShape3D.new()
 	var box_shape := BoxShape3D.new()
 	box_shape.size = size

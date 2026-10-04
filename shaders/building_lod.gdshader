@@ -1,5 +1,7 @@
 shader_type spatial;
-render_mode cull_back;
+// skip_vertex_transform: a coded building part (FarBuilding) is rebuilt from its basis's
+// diagonal, because the off-diagonals carry its facade code, not a shear (see vertex()).
+render_mode cull_back, skip_vertex_transform;
 
 // Far buildings: one MultiMesh of unit boxes scaled to each part. Everything here has to come
 // out of the fragment shader - there is no geometry to spend - so the job is to give a box the
@@ -10,7 +12,17 @@ render_mode cull_back;
 // bands, mullions, corner piers, a crown, a parapet) so the eye reads floors and columns rather
 // than a printed grid.
 //
-// Instance COLOR is the facade colour; INSTANCE_CUSTOM is
+// THE FAR CITY'S BUILDINGS (2026-10-04, docs/HANDOFF.md 9av): every Building part is a CODED
+// box (INSTANCE_CUSTOM.a -1, FarBuilding): its basis carries the near building's own facade data
+// in its off-diagonals - window style, finish, roof covering, the palette entries of its glass
+// tint, lit colour and frame paint, storefront and shop runs, bays and storeys (the near walls'
+// own grid, Building.part_grid()), base course, crown, plinth and parapet, its seed for the lit
+// offices (window_lights.gdshaderinc, shared with building.gdshader) - and is drawn here as the
+// near walls draw it, cell for cell, faded to its own average once a cell is under a few pixels.
+// Its roof plant is real boxes (INSTANCE_CUSTOM.a 4). Everything below the coded branch is the
+// older path, for what is not a Building: the replica houses, the estates, slabs, plates, decks.
+//
+// Old path: instance COLOR is the facade colour; INSTANCE_CUSTOM is
 // (window style / 4, lit ratio, seed, plain flag: 1 = no windows, e.g. a plinth).
 // The facade colour is also the typology signal: Building picks it from a palette per finish
 // (GLASS_COLORS are dark, BRICK_COLORS warm, PANEL_COLORS mid grey, FLAT_COLORS bright), so the
@@ -30,8 +42,15 @@ global uniform float night_factor;
 global uniform vec3 sun_direction;
 // The sky colour DayNight is currently showing. What the glazing mirrors.
 global uniform vec4 sky_tint;
-// Whether this renderer needs the instance colour decoded from sRGB. PropFactory sets it from
-// has_reflections(): true on Forward+ and Mobile, false on Compatibility (web, opengl3 shots).
+// Colour space. This shader draws what building.gdshader draws, and that one works in each
+// renderer's own space, like every StandardMaterial: its colours arrive as `source_color`
+// uniforms set from script, decoded on Forward+ and raw on Compatibility. So every colour here
+// that stands for one of the near building's goes through cs_as_uniform() (color_space.gdshaderinc,
+// the renderer told at compile time) - the instance colour, and the palettes the coded parts
+// index (glass tints, lit colours, frame paints, Building's own constants) - and the arithmetic
+// on them is the near shader's arithmetic in the same space, so a far wall and a near wall come
+// out the same on both renderers. `instance_color_is_srgb` (PropFactory sets it from
+// has_reflections()) is the same answer at run time, kept for the material checks.
 // (It was declared for months and never set or read - the far city was drawn 1.4-4.3x brighter
 // than the same buildings up close on the Mac, and changed value as each block crossed the LOD
 // line. Set and applied since the distance pass, 2026-09-24.)
@@ -143,6 +162,25 @@ uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
 uniform vec3 deck_road_color = vec3(0.040, 0.040, 0.044);
 #include "res://shaders/street_glow.gdshaderinc"
+#include "res://shaders/color_space.gdshaderinc"
+// The lit offices and the pale or dark spandrels, rolled exactly as building.gdshader rolls them.
+#include "res://shaders/window_lights.gdshaderinc"
+
+// --- Coded parts (FarBuilding) ---
+// Building's numbers the code does not carry: its storefront height (Building.storefront_height),
+// a parking deck's spandrel and storey (Building.GARAGE_SPANDREL, GARAGE_STOREY).
+uniform float storefront_height = 4.5;
+uniform float garage_spandrel = 1.1;
+uniform float garage_storey = 3.2;
+// The far city's copy (PropFactory.building_lod_material(true)) prints the small roof plant on
+// the coded roofs - the air handlers, ducts and skylights it does not build (FarBuilding.SILHOUETTE)
+// - at this share of the old printed density; the LOD chunks build every unit and print none.
+uniform bool print_small_plant = false;
+uniform float small_plant_density = 0.45;
+// A mast is drawn at least this many pixels wide (its true width is a fifth of one a kilometre
+// out), and its aviation beacon glows this bright after dark (the near one is an unshaded red).
+uniform float mast_min_px = 0.75;
+uniform float beacon_energy = 3.0;
 
 varying vec3 local_pos;
 varying vec3 local_normal;
@@ -152,6 +190,9 @@ varying vec4 tint;
 varying vec3 world_pos;
 varying vec3 world_normal;
 varying vec3 world_tangent;
+// A coded part's six codes (FarBuilding.codes()), exact integers, flat.
+varying flat vec3 codes0;
+varying flat vec3 codes1;
 
 
 float hash21(vec2 p) {
@@ -172,6 +213,98 @@ float detail(float period, float mpp) {
 }
 
 
+// --- Building's palettes, as it wrote them (sRGB numbers; cs_as_uniform() them before use).
+// tests/far_city_checks.gd reads these back out of this source and compares them with Building.
+// Building.WINDOW_TINTS.
+vec3 window_tint_srgb(int i) {
+	if (i == 0) return vec3(0.35, 0.50, 0.65);
+	if (i == 1) return vec3(0.30, 0.55, 0.55);
+	if (i == 2) return vec3(0.45, 0.45, 0.50);
+	if (i == 3) return vec3(0.60, 0.50, 0.35);
+	return vec3(0.40, 0.60, 0.75);
+}
+
+// Building.LIT_COLORS.
+vec3 lit_srgb(int i) {
+	if (i == 0) return vec3(1.0, 0.82, 0.50);
+	if (i == 1) return vec3(1.0, 0.92, 0.70);
+	return vec3(0.85, 0.90, 1.0);
+}
+
+// Building.FRAME_PAINTS[finish][i] (finish 0 flat, 1 brick, 2 panels, 3 glass).
+vec3 frame_paint_srgb(int finish, int i) {
+	if (finish == 1) {
+		if (i == 0) return vec3(0.80, 0.78, 0.73);
+		if (i == 1) return vec3(0.84, 0.82, 0.76);
+		if (i == 2) return vec3(0.11, 0.12, 0.11);
+		if (i == 3) return vec3(0.10, 0.19, 0.14);
+		return vec3(0.25, 0.18, 0.13);
+	}
+	if (finish == 2) {
+		if (i == 0) return vec3(0.20, 0.20, 0.22);
+		if (i == 1) return vec3(0.25, 0.19, 0.14);
+		if (i == 2) return vec3(0.50, 0.51, 0.53);
+		return vec3(0.10, 0.10, 0.11);
+	}
+	if (finish == 3) {
+		if (i == 0) return vec3(0.58, 0.59, 0.62);
+		if (i == 1) return vec3(0.15, 0.15, 0.16);
+		if (i == 2) return vec3(0.29, 0.23, 0.17);
+		return vec3(0.45, 0.43, 0.39);
+	}
+	if (i == 0) return vec3(0.86, 0.85, 0.82);
+	if (i == 1) return vec3(0.12, 0.12, 0.13);
+	if (i == 2) return vec3(0.28, 0.21, 0.16);
+	if (i == 3) return vec3(0.50, 0.51, 0.52);
+	return vec3(0.78, 0.75, 0.68);
+}
+
+// An open shop's light (building.gdshader shop_tone(), the same integer rolls).
+vec3 shop_tone_far(uint shop) {
+	uint b = wl_hash(shop, 2u) >> 24u;
+	if (b < 97u) return vec3(1.0, 0.70, 0.42);
+	if (b < 174u) return vec3(1.0, 0.91, 0.78);
+	if (b < 230u) return vec3(0.78, 0.90, 1.0);
+	return (wl_hash(shop, 3u) >> 24u) < 128u ? vec3(1.0, 0.50, 0.80) : vec3(0.55, 1.0, 0.88);
+}
+
+
+// Rooftop plant printed on a roof: air handlers, cooling towers, duct runs and stair bulkheads as
+// boxes with a cast shadow toward the sun's far side. `p` is metres from the roof centre, `edge`
+// metres in from its nearest edge, `density` the share of 7 m cells that get a unit.
+void print_plant(vec2 p, float edge, float bs, float density, vec3 sun_n, float mpp, inout vec3 surface, inout float rough) {
+	vec2 sun_xz = sun_n.xz;
+	float sun_len = length(sun_xz);
+	vec2 sh_dir = sun_len > 1e-3 ? -sun_xz / sun_len : vec2(0.7, 0.7);
+	vec2 cellf = p / clutter_cell;
+	vec2 cell = floor(cellf);
+	vec2 f = fract(cellf);
+	float ch = hash21(cell * 1.7 + bs * 57.0);
+	if (ch < density && edge > parapet_width + 0.6) {
+		vec2 c0 = vec2(hash21(cell + 1.3), hash21(cell + 7.7)) * 0.30 + 0.35;
+		float wide = step(0.74, hash21(cell + 4.1));
+		vec2 hs = vec2(0.07 + 0.10 * hash21(cell + 3.3), 0.07 + 0.10 * hash21(cell + 9.1));
+		// One in four is a long duct run rather than a unit.
+		hs = mix(hs, vec2(0.26, 0.045), wide);
+		vec2 sh_off = sh_dir * clutter_shadow;
+		vec2 ds = abs(f - c0 - sh_off);
+		float shadow = step(ds.x, hs.x) * step(ds.y, hs.y);
+		vec2 d = abs(f - c0);
+		float inside = step(d.x, hs.x) * step(d.y, hs.y);
+		float fade = detail(clutter_cell * 0.30, mpp);
+		// Galvanised plant reads brighter than membrane and far brighter than bitumen: it
+		// is the sparkle on a roof deck, so it must not end up darker than what it sits on.
+		vec3 unit = mix(vec3(0.62, 0.62, 0.60), vec3(0.80, 0.79, 0.76), hash21(cell + 11.3));
+		// A darker lip round the unit reads as its shaded side without cutting the box in
+		// half on a diagonal, which looked like a hole punched in the roof.
+		float lip = 1.0 - step(max(d.x - hs.x * 0.72, d.y - hs.y * 0.72), 0.0);
+		surface = mix(surface, unit * mix(1.0, 0.76, lip), inside * fade);
+		surface *= mix(1.0, 0.62, clamp(shadow - inside, 0.0, 1.0) * fade);
+		rough = mix(rough, 0.52, inside * fade);
+	}
+}
+
+
 void vertex() {
 	// Per-instance dissolve. The far city (Skyline) writes each block's visibility into its
 	// instances' colour alpha while a chunk takes the block over or hands it back; the LOD chunks'
@@ -182,14 +315,51 @@ void vertex() {
 	}
 	local_pos = VERTEX;
 	local_normal = NORMAL;
-	box_size = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
 	custom = INSTANCE_CUSTOM;
 	tint = COLOR;
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	// Matches how `u` is measured below: local Z on the +-X faces, local X on the +-Z faces.
 	vec3 t_local = abs(NORMAL.x) > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
-	world_tangent = normalize((MODEL_MATRIX * vec4(t_local, 0.0)).xyz);
+	vec3 world;
+	vec3 n_world;
+	if (INSTANCE_CUSTOM.a < -0.5) {
+		// A coded part (FarBuilding): an axis-aligned box whose basis is its size on the diagonal
+		// and its facade code off it, each entry code * 2^-28. Rebuilt from the diagonal alone;
+		// the code goes to the fragment flat and exact (a power-of-two multiply and a round).
+		box_size = vec3(MODEL_MATRIX[0][0], MODEL_MATRIX[1][1], MODEL_MATRIX[2][2]);
+		codes0 = vec3(round(MODEL_MATRIX[0][1] * 268435456.0), round(MODEL_MATRIX[0][2] * 268435456.0), round(MODEL_MATRIX[1][0] * 268435456.0));
+		codes1 = vec3(round(MODEL_MATRIX[1][2] * 268435456.0), round(MODEL_MATRIX[2][0] * 268435456.0), round(MODEL_MATRIX[2][1] * 268435456.0));
+		world = MODEL_MATRIX[3].xyz + VERTEX * box_size;
+		n_world = NORMAL;
+		world_tangent = t_local;
+	} else {
+		codes0 = vec3(0.0);
+		codes1 = vec3(0.0);
+		box_size = vec3(length(MODEL_MATRIX[0].xyz), length(MODEL_MATRIX[1].xyz), length(MODEL_MATRIX[2].xyz));
+		vec3 v_local = VERTEX;
+		// A mast on a roof (FarBuilding.Plant.MAST, BEACON_MAST: an antenna is 16 cm across, a
+		// spire's mast 60) is drawn at least `mast_min_px` wide, or it is gone a few hundred metres
+		// out - and a tower's mast against the sky is most of its silhouette from the basin. Only
+		// in a perspective view: the shadow maps keep its real width.
+		if (INSTANCE_CUSTOM.a > 3.5 && INSTANCE_CUSTOM.r > 0.5 && INSTANCE_CUSTOM.r < 2.5 && PROJECTION_MATRIX[3][3] < 0.5) {
+			float d = length(MODEL_MATRIX[3].xyz - INV_VIEW_MATRIX[3].xyz);
+			float mpp = 2.0 * d / max(PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y, 1.0);
+			float w = mast_min_px * mpp;
+			v_local.xz *= vec2(max(box_size.x, w) / max(box_size.x, 1e-4), max(box_size.z, w) / max(box_size.z, 1e-4));
+		}
+		world = (MODEL_MATRIX * vec4(v_local, 1.0)).xyz;
+		// The renderer's own normal transform, as before skip_vertex_transform: a block plate's
+		// basis is sheared to its slope, and a sheared box's normals are not its basis times the
+		// unit normals.
+		n_world = normalize(MODEL_NORMAL_MATRIX * NORMAL);
+		world_tangent = normalize((MODEL_MATRIX * vec4(t_local, 0.0)).xyz);
+	}
+	world_pos = world;
+	world_normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	if (INSTANCE_CUSTOM.a < -0.5) {
+		world_normal = NORMAL;
+	}
+	VERTEX = (VIEW_MATRIX * vec4(world, 1.0)).xyz;
+	NORMAL = normalize((VIEW_MATRIX * vec4(n_world, 0.0)).xyz);
 }
 
 
@@ -213,9 +383,9 @@ void fragment() {
 	// far city's ground plates already carry linear colours (CityChunk.far_tint), like the LOD
 	// chunks' merged ground, and are left alone.
 	vec3 c_raw = tint.rgb;
-	vec3 c = (instance_color_is_srgb && custom.a < 1.5)
-		? mix(c_raw / 12.92, pow((c_raw + vec3(0.055)) / 1.055, vec3(2.4)), step(vec3(0.04045), c_raw))
-		: c_raw;
+	// Ground plates and decks (.a 2, 3) carry linear colours; everything else is a palette entry
+	// in sRGB numbers, decoded as the near building's uniform would be.
+	vec3 c = (custom.a < 1.5 || custom.a > 3.5) ? cs_as_uniform(c_raw) : c_raw;
 	float bseed = custom.b;
 	vec3 albedo = c;
 	float rough = 0.85;
@@ -234,7 +404,411 @@ void fragment() {
 	vec3 sun_n = normalize(sun_direction);
 	float day = 1.0 - night_factor;
 
-	if (custom.a > 1.5) {
+	if (custom.a < -0.5) {
+		// ================================================== A coded part: the near building ===
+		// FarBuilding's six codes; the bit layout is FarBuilding.boxes() / decode().
+		uint ca = uint(codes0.x + 0.5);
+		uint cb = uint(codes0.y + 0.5);
+		uint cc = uint(codes0.z + 0.5);
+		uint cd = uint(codes1.x + 0.5);
+		uint ce = uint(codes1.y + 0.5);
+		uint cf = uint(codes1.z + 0.5);
+		// building.gdshader's `seed` (Building.seed % 1000), its finish and window style.
+		float sd = float(ca & 1023u);
+		int fin = int((ca >> 10u) & 3u);
+		int ws = int((ca >> 12u) & 3u);
+		int roof_kind = int((ca >> 14u) & 3u);
+		int lit_i = int((ca >> 16u) & 3u);
+		float crown_mul = ((ca >> 19u) & 1u) == 1u ? 1.09 : 0.92;
+		int tint_i = int(cb & 7u);
+		float weather = float((cb >> 3u) & 31u) / 31.0;
+		bool has_sf = ((cb >> 16u) & 1u) == 1u;
+		bool parking = ((cb >> 17u) & 1u) == 1u;
+		bool chamfered = ((cb >> 18u) & 1u) == 1u;
+		bool has_crown = ((cb >> 19u) & 1u) == 1u;
+		float lit_ratio_p = float(cc & 65535u) / 65535.0;
+		bool tall = ((cc >> 16u) & 1u) == 1u;
+		int frame_i = int((cc >> 17u) & 7u);
+		float cols_x = max(float(cd & 127u), 1.0);
+		float cols_z = max(float((cd >> 7u) & 127u), 1.0);
+		float rows_p = max(float(ce & 127u), 1.0);
+		float base_hp = float((ce >> 7u) & 255u) / 10.0;
+		float ext = float(cf & 2047u) / 100.0;
+		float rise = float((cf >> 11u) & 127u) / 100.0;
+		// The part itself inside its box: the plinth under it, the parapet over it.
+		float part_h = box_size.y - ext - rise;
+		float vp = (local_pos.y + 0.5) * box_size.y - ext;
+		float sf_h = has_sf ? storefront_height : 0.0;
+		float floor_hp = parking ? garage_storey : (part_h - sf_h) / rows_p;
+		// The near walls' other colours, worked out from the facade as Building works them out,
+		// in the same space (Building.base_color(), style.accent = facade.darkened(0.55)).
+		vec3 accent = cs_as_uniform(c_raw * 0.45);
+		vec3 tint_c = cs_as_uniform(window_tint_srgb(tint_i));
+		vec3 lit_c = cs_as_uniform(lit_srgb(lit_i));
+		vec3 frame_c = cs_as_uniform(frame_paint_srgb(fin, frame_i));
+		vec3 base_c = cs_as_uniform(mix(c_raw, vec3(0.62, 0.60, 0.56), 0.6) * 0.92);
+		if (n.y > 0.5) {
+			// ------------------------------------------------------------------- Roof -------
+			// building.gdshader's roof, the same covering (Building.roof_style) on the same deck,
+			// its fine pattern faded with distance; the ring is the parapet's top.
+			vec2 p = local_pos.xz * box_size.xz;
+			vec2 e = box_size.xz * 0.5 - abs(p);
+			float edge = min(e.x, e.y);
+			float ring = 1.0 - smoothstep(0.7 - mpp * 0.5, 0.7 + mpp * 0.5, edge);
+			vec3 surface;
+			if (parking) {
+				// The top deck: sealed concrete, stall lines in double rows either side of the
+				// aisles (their 4 % of the deck kept as its tone once they are under a pixel).
+				vec2 q = p + box_size.xz * 0.5;
+				float band = mod(q.y - 1.0, 17.8);
+				float in_row = step(band, 5.4) + step(12.4, band);
+				float line = step(abs(fract(q.x / 2.7 + 0.5) - 0.5) * 2.7, 0.06) * in_row;
+				surface = vec3(0.36, 0.36, 0.355) * (0.86 + 0.24 * hash21(floor(q * 0.35) + sd) * detail(2.9, mpp));
+				surface = mix(surface, vec3(0.86, 0.85, 0.80), mix(0.027, line, detail(0.6, mpp)));
+				surface = mix(surface, c, ring);
+				rough = 0.9;
+			} else {
+				if (roof_kind == 1) {
+					// White single-ply membrane in welded strips, grey where water sits.
+					surface = vec3(0.78, 0.78, 0.76);
+					float strip = fract(p.x * 0.5 + hash21(vec2(sd, 2.0)));
+					surface *= 1.0 - 0.10 * smoothstep(0.06, 0.0, min(strip, 1.0 - strip)) * detail(2.0, mpp);
+					surface *= mix(0.95, 0.86 + 0.18 * hash21(floor(p * 0.35) + sd), detail(2.9, mpp));
+					rough = 0.82;
+				} else if (roof_kind == 2) {
+					// Bitumen: dark, patched, shinier where it has been resealed.
+					surface = vec3(0.14, 0.135, 0.13);
+					float patch = hash21(floor(p * 0.6) + sd);
+					surface *= mix(1.05, 0.8 + 0.5 * patch, detail(1.7, mpp));
+					rough = mix(0.75, mix(0.55, 0.95, patch), detail(1.7, mpp));
+				} else {
+					vec3 gravel = mix(vec3(0.38, 0.37, 0.36), c, 0.25);
+					gravel *= mix(1.0, 0.92 + 0.16 * hash21(floor(p * 1.5) + sd), detail(0.7, mpp));
+					surface = gravel;
+					rough = 0.95;
+				}
+				// The far city builds only the plant that makes a silhouette (FarBuilding); the
+				// air handlers and duct runs are printed, as before. The LOD chunks build them all.
+				if (print_small_plant) {
+					print_plant(p, edge, bseed, clutter_density * small_plant_density, sun_n, mpp, surface, rough);
+				}
+				// The parapet's top, and the shade its inner face throws on the deck.
+				surface = mix(surface, c * 0.9, ring);
+				surface *= mix(1.0, 0.88, (1.0 - ring) * step(0.05, rise) * (1.0 - smoothstep(0.7, 1.9, edge)));
+			}
+			albedo = surface;
+			spec = 0.15;
+		} else if (n.y < -0.5) {
+			// The underside: only ever seen from inside the ground.
+			albedo = c * 0.3;
+		} else {
+			// ------------------------------------------------------------------ Walls -------
+			// Wall space exactly as building.gdshader measures it (its `u` runs against the
+			// tangent on the -X and +Z faces), so cell `col` here is cell `col` there.
+			float uq;
+			float wall_len;
+			float cols;
+			float face_id;
+			if (abs(n.x) > 0.5) {
+				uq = local_pos.z * box_size.z * sign(n.x) + box_size.z * 0.5;
+				wall_len = box_size.z;
+				cols = cols_z;
+				face_id = n.x > 0.0 ? 1.0 : 2.0;
+			} else {
+				uq = local_pos.x * box_size.x * sign(-n.z) + box_size.x * 0.5;
+				wall_len = box_size.x;
+				cols = cols_x;
+				face_id = n.z > 0.0 ? 3.0 : 4.0;
+			}
+			float pitch = wall_len / cols;
+			float col = floor(uq / pitch);
+			float fu = fract(uq / pitch);
+			// A cut corner is a solid pier one bay wide (Building.part_grid()'s cut); out here
+			// it is that bay of the wall, drawn as the pier.
+			bool pier = chamfered && (col < 0.5 || col > cols - 1.5);
+			bool plinth = vp < 0.0;
+			bool parapet_band = vp > part_h;
+			bool storefront = has_sf && vp < sf_h && !plinth;
+			float row;
+			float fv;
+			if (storefront) {
+				row = -1.0;
+				fv = vp / sf_h;
+			} else {
+				float vv = vp - sf_h;
+				row = floor(vv / floor_hp);
+				fv = fract(vv / floor_hp);
+			}
+			bool glass = false;
+			bool frame = false;
+			bool spandrel = false;
+			bool reveal = false;
+			bool fascia = false;
+			bool bulkhead = false;
+			bool g_open = false;
+			bool g_column = false;
+			bool shop_open = true;
+			bool shutter = false;
+			uint shop_key = 0u;
+			float shop_seed = 0.0;
+			// The share of a cell that is glass, for the cell's average past a few pixels.
+			float glaze_frac = 0.0;
+			if (plinth || parapet_band || pier) {
+				// Solid.
+			} else if (parking) {
+				// Open between spandrels and columns (building.gdshader's garage).
+				float sp = garage_spandrel / floor_hp;
+				g_column = min(fu, 1.0 - fu) * pitch < 0.32;
+				g_open = fv > sp && fv < 0.965 && !g_column;
+				glaze_frac = (0.965 - sp) * (1.0 - 0.64 / pitch);
+			} else if (storefront) {
+				// Street level: a shop every few bays, its own sign band, a door bay, a bulkhead,
+				// and at night open (lit in its own light) or shuttered - the near shader's rolls.
+				float span = float(2u + ((cb >> (8u + 2u * uint(face_id - 1.0))) & 3u));
+				float shop_id = floor(col / span);
+				shop_seed = hash21(vec2(shop_id * 1.7, face_id * 13.0) + sd);
+				shop_key = (uint(sd + 0.5) * 8u + uint(face_id)) * 1024u + uint(max(shop_id, 0.0));
+				float bay = col - shop_id * span;
+				float door_i = float((wl_hash(shop_key, 15u) >> 24u) % uint(span + 0.5));
+				bool door_bay = abs(bay - door_i) < 0.5;
+				float low = door_bay ? 0.0 : 0.15;
+				glass = fv > low && fv < 0.74 && abs(fu - 0.5) < 0.44;
+				fascia = fv >= 0.76 && fv < 0.93;
+				bulkhead = fv < low - 0.045 / sf_h && abs(fu - 0.5) < 0.46;
+				shop_open = (wl_hash(shop_key, 1u) >> 24u) < 158u;
+				if (tall) {
+					// Building.shop_is_lobby(): the middle unit of a tall tower's face, lit all night.
+					float n_shops = max(floor(wall_len / (span * pitch) + 0.001), 1.0);
+					if (shop_id == floor((n_shops - 1.0) * 0.5) && (wl_hash(shop_key, 44u) >> 24u) < 192u) {
+						shop_open = true;
+					}
+				}
+				if (!shop_open && (wl_hash(shop_key, 8u) >> 24u) < 140u && lamp_factor > 0.5) {
+					shutter = fv < 0.745 && abs(fu - 0.5) < 0.46;
+					glass = glass && !shutter;
+					bulkhead = bulkhead && !shutter;
+				}
+				glaze_frac = 0.52;
+			} else if (ws == 0) {
+				glass = abs(fu - 0.5) < 0.27 && abs(fv - 0.52) < 0.25;
+				reveal = !glass && abs(fu - 0.5) < 0.32 && abs(fv - 0.52) < 0.30;
+				glaze_frac = 0.27;
+			} else if (ws == 1) {
+				glass = abs(fv - 0.55) < 0.27;
+				frame = glass && abs(fu - 0.5) > 0.47;
+				glass = glass && !frame;
+				glaze_frac = 0.51;
+			} else if (ws == 2) {
+				// The curtain wall: vision glass between thin transoms, the spandrel panel over
+				// each slab edge, a mullion every bay.
+				frame = fu < 0.05 || abs(fv - 0.08) < 0.0125 || abs(fv - 0.93) < 0.0125;
+				spandrel = !frame && (fv < 0.0675 || fv > 0.9425);
+				glass = !frame && !spandrel;
+				glaze_frac = 0.78;
+			} else {
+				glass = abs(fu - 0.5) < 0.16 && abs(fv - 0.5) < 0.40;
+				reveal = !glass && abs(fu - 0.5) < 0.21 && abs(fv - 0.5) < 0.45;
+				glaze_frac = 0.256;
+			}
+			// How much of the storey- and bay-scale pattern a pixel can still resolve.
+			float band_fade = detail(min(floor_hp, pitch * 2.0), mpp);
+			float cell_fade = detail(pitch, mpp);
+
+			// The sky in the glass and the glare path to the sun (as the old path below).
+			vec3 refl = reflect(to_frag, world_normal);
+			vec3 sky_hi = sky_tint.rgb * 1.05;
+			vec3 sky_lo = sky_tint.rgb * 0.50 + vec3(0.05, 0.05, 0.06);
+			vec3 sky_ref = mix(sky_lo, sky_hi, smoothstep(0.0, 0.50, refl.y));
+			sky_ref = mix(vec3(0.055, 0.055, 0.065), sky_ref, smoothstep(-0.22, 0.08, refl.y));
+			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
+			float mirror = mix(glass_mirror_min, glass_mirror_max, fres) * (1.0 - 0.85 * night_factor) * (storefront ? 0.66 : 1.0);
+			float sky_now = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
+			vec3 refl_emit = sky_ref * mirror * reflect_emit * reflect_energy * sky_now;
+			float to_sun = max(dot(refl, sun_n), 0.0);
+			vec3 glare = vec3(1.0, 0.96, 0.88)
+				* (pow(to_sun, glass_glare_tightness) * glass_glare
+					+ pow(to_sun, glass_glare_broad_tightness) * glass_glare_broad) * day;
+			// The room behind the glass as building.gdshader shows it from a distance: an office's
+			// paint at the interior exposure, seen through the building's own glass tint.
+			vec3 room = mix(vec3(0.17, 0.165, 0.16), tint_c * 0.19, 0.28) * (0.55 + 0.9 * hash31(vec3(col * 1.7, row, sd * 31.0)));
+			if (storefront) {
+				room = vec3(0.22, 0.20, 0.17) * (0.7 + 0.6 * shop_seed);
+			}
+			vec3 glass_col = mix(room, sky_ref, mirror * (1.0 - reflect_emit)) + glare;
+			// The wall's finish (building.gdshader: brick and panels round their mean, a glass
+			// building's opaque panels at 0.6 of its colour) and its rows, faded with distance.
+			vec3 wall = c;
+			if (fin == 1) {
+				float brow = floor(vp / 0.25);
+				float bu = fract((uq + mod(brow, 2.0) * 0.3) / 0.6);
+				float mortar = clamp(step(bu, 0.06) + step(fract(vp / 0.25), 0.14), 0.0, 1.0) * detail(0.25, mpp);
+				wall = mix(c * mix(1.0, 0.85 + 0.3 * hash21(vec2(floor((uq + mod(brow, 2.0) * 0.3) / 0.6), brow) + sd), detail(0.6, mpp)), accent, mortar);
+				rough = 0.95;
+			} else if (fin == 2) {
+				float joint = clamp(step(fu, 0.03) + step(fv, 0.04), 0.0, 1.0) * cell_fade;
+				wall = mix(c * mix(1.0, 0.9 + 0.2 * hash21(vec2(col, row) + sd), cell_fade), accent, joint);
+				rough = 0.8;
+			} else if (fin == 3) {
+				float joint = clamp(step(fu, 0.04) + step(fv, 0.05), 0.0, 1.0) * cell_fade;
+				wall = mix(c * 0.6, accent, joint);
+				rough = 0.35;
+				spec = 0.34;
+			} else {
+				rough = 0.85;
+			}
+			if (parking) {
+				// The deck's precast spandrels, a joint every half bay, the columns standing
+				// back in its shadow.
+				float span_g = pitch * 0.5;
+				wall = c * mix(1.0, 0.92 + 0.14 * hash21(vec2(floor(uq / span_g), row) + sd), cell_fade);
+				wall *= 1.0 - 0.12 * step(0.965, fv) * band_fade;
+				if (g_column) {
+					wall *= fv > garage_spandrel / floor_hp ? 0.7 : 1.0;
+				}
+				rough = 0.88;
+			}
+			// Base course, crown.
+			if (base_hp > 0.01 && vp < base_hp) {
+				float course = fract(vp / 0.92);
+				float block = fract((uq + floor(vp / 0.92) * 0.46) / 1.84);
+				float joint = clamp(step(course, 0.05) + step(block, 0.018), 0.0, 1.0) * detail(0.92, mpp);
+				vec3 stone = base_c * mix(0.99, 0.90 + 0.18 * hash21(vec2(floor(vp / 0.92), floor(uq / 1.84)) + sd), detail(0.92, mpp));
+				wall = mix(stone, stone * 0.55, joint);
+				rough = 0.9;
+			}
+			if (has_crown && vp > part_h - 1.6 * floor_hp) {
+				wall *= crown_mul;
+			}
+			// Grime, as building.gdshader lays it (soot at the foot, streaks under the sills),
+			// at its average where a streak is under a pixel.
+			float ground_dirt = 1.0 - smoothstep(0.0, 6.5, vp);
+			float sill_y = sf_h + floor((vp - sf_h) / floor_hp) * floor_hp + 0.22 * floor_hp;
+			float below = vp < sill_y ? sill_y - vp : sill_y + floor_hp - vp;
+			float run = (1.0 - smoothstep(0.0, 2.6, below)) * smoothstep(0.0, 0.12, below);
+			float across = 1.0 - smoothstep(0.22, 0.44, abs(fu - 0.5));
+			float drips = step(0.35, hash21(vec2(col, row + face_id * 3.0) + sd));
+			float streak = mix(0.09, run * across * drips * 0.5, cell_fade);
+			float dirt = weather * clamp(0.55 * ground_dirt + 0.75 * streak, 0.0, 1.0);
+			wall = mix(wall, wall * vec3(0.46, 0.44, 0.42), dirt);
+			rough = min(1.0, rough + 0.18 * dirt);
+
+			vec3 cell = wall;
+			// What this pixel emits as drawn, and what its cell emits on average.
+			vec3 e_cell = vec3(0.0);
+			if (plinth) {
+				// The plinth folded into this part: board-formed concrete down to the ground.
+				vec3 conc = cs_as_uniform(vec3(0.66));
+				cell = conc * (1.0 - 0.13 * smoothstep(0.09, 0.0, min(fract(vp / 1.2), 1.0 - fract(vp / 1.2))) * detail(1.2, mpp));
+				rough = 0.92;
+			} else if (parapet_band) {
+				// The parapet's face (its cap band is the facade lightened, Building's cap_bands).
+				cell = cs_as_uniform(mix(c_raw, vec3(1.0), 0.06));
+				cell *= 1.0 - 0.18 * smoothstep(0.12, 0.0, box_size.y - ext - vp) * detail(0.4, mpp);
+			} else if (pier) {
+				// A cut corner's pier, lit as its own face would be: lighter, it turns to the sky.
+				cell = wall * 1.06;
+			} else if (g_open) {
+				// Inside the deck: dark by day but for the light at the far side, its lamps after dark.
+				cell = c * 0.08;
+				e_cell += vec3(0.92, 0.97, 1.0) * 0.06 * (0.3 + 0.7 * lamp_factor) + sky_tint.rgb * 0.05 * day;
+			} else if (glass) {
+				cell = glass_col;
+				rough = 0.18;
+				spec = 0.42;
+				e_cell += glare * 0.20 * max(dot(world_normal, sun_n), 0.0) + refl_emit;
+				// After dark: the same windows building.gdshader lights, in the building's own light.
+				bool lit = storefront ? shop_open : window_lit(sd, face_id, row, col, lit_ratio_p);
+				float on = storefront ? lamp_factor : night_factor;
+				if (lit && on > 0.001) {
+					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * 0.75 : lit_c * window_glow(sd, face_id, row, col);
+					cell = mix(cell, cell * 0.35, on);
+					e_cell += light * on * 1.9;
+				}
+			} else if (frame) {
+				cell = ws == 2 ? frame_c : accent;
+				rough = 0.6;
+			} else if (spandrel) {
+				float pale = spandrel_pale(sd) ? 1.0 : 0.0;
+				cell = mix(c * 0.62 + vec3(0.012), c * 1.02 + vec3(0.075), pale);
+				cell *= mix(1.0, 0.95 + 0.10 * hash21(vec2(col * 0.5, row) + sd), cell_fade);
+				e_cell += sky_ref * mix(0.10, 0.45, fres) * reflect_emit * reflect_energy * sky_now * (1.0 - 0.85 * night_factor) * mix(0.8, 0.45, pale);
+				rough = 0.38;
+			} else if (reveal) {
+				cell = mix(c, accent, 0.35) * 0.9;
+			} else if (fascia) {
+				// The sign band: each shop's own board, a lightbox or lit letters after dark.
+				vec3 sign_hue = mix(vec3(0.16, 0.18, 0.22), vec3(0.42, 0.20, 0.16), hash21(vec2(shop_seed, 5.3)));
+				sign_hue = mix(sign_hue, vec3(0.18, 0.30, 0.26), step(0.66, hash21(vec2(shop_seed, 9.1))));
+				sign_hue = mix(sign_hue, vec3(0.22, 0.20, 0.26), step(0.86, hash21(vec2(shop_seed, 2.4))));
+				cell = sign_hue;
+				vec3 box = sign_hue / max(max(sign_hue.r, max(sign_hue.g, sign_hue.b)), 0.001);
+				box = mix(box, vec3(1.0, 0.93, 0.80), step(0.66, hash21(vec2(shop_seed, 41.7))));
+				bool sign_off = !shop_open && (wl_hash(shop_key, 9u) >> 24u) < 150u;
+				bool channel = (wl_hash(shop_key, 10u) >> 24u) >= 110u;
+				if (!sign_off) {
+					// Channel letters cover about a third of their board.
+					e_cell += (channel ? box * 0.75 : box * 2.4 * (0.75 + 0.5 * hash21(vec2(shop_seed, 29.3)))) * lamp_factor;
+				}
+				rough = 0.55;
+			} else if (bulkhead) {
+				vec3 base_col = mix(vec3(0.20, 0.19, 0.18), vec3(0.42, 0.34, 0.28), hash21(vec2(shop_seed, 13.7)));
+				cell = mix(base_col, vec3(0.30, 0.33, 0.36), step(0.7, hash21(vec2(shop_seed, 19.3))));
+				rough = 0.6;
+			} else if (shutter) {
+				cell = vec3(0.42, 0.42, 0.40);
+				rough = 0.7;
+			}
+			// Past a few pixels a cell is its own average: the glazing share of the glass over
+			// the wall round it, and of the light - a storey's share of its lit offices, not
+			// whichever one the pixel's centre landed on. This is the mipmap the grid lacks.
+			if (!plinth && !parapet_band && !pier) {
+				vec3 mean_glass = parking ? c * 0.08 : glass_col;
+				vec3 mean_cell = mix(wall, mean_glass, glaze_frac);
+				albedo = mix(mean_cell, cell, mix(0.25, 1.0, band_fade));
+				vec3 e_mean;
+				if (parking) {
+					e_mean = vec3(0.92, 0.97, 1.0) * 0.06 * (0.3 + 0.7 * lamp_factor) * glaze_frac;
+				} else if (storefront) {
+					// About 62 % of the shops open, in their own light, and their sign boards.
+					e_mean = vec3(0.55, 0.50, 0.42) * lamp_factor + refl_emit * glaze_frac;
+				} else {
+					e_mean = lit_c * 0.78 * 1.9 * lit_ratio_p * 0.98 * glaze_frac * night_factor + refl_emit * glaze_frac;
+				}
+				emission += mix(e_mean, e_cell, band_fade);
+			} else {
+				albedo = cell;
+				emission += e_cell;
+			}
+			albedo *= mix(0.88, 1.07, clamp(vp / max(part_h, 1.0), 0.0, 1.0));
+		}
+	} else if (custom.a > 3.5) {
+		// ------------------------------------------------------- Roof plant (FarBuilding) ---
+		// One box a unit, in the unit's own paint: galvanised and lighter on top, a sign's
+		// face, dark glossy glazing, a mast with the aviation beacon the near one carries.
+		int kind = int(custom.r + 0.5);
+		float top_lit = n.y > 0.5 ? 1.12 : (n.y < -0.5 ? 0.6 : 0.92);
+		albedo = c * top_lit;
+		rough = 0.6;
+		spec = 0.3;
+		if (kind == 3) {
+			// Glazing: a skylight, a solar array.
+			vec3 refl = reflect(to_frag, world_normal);
+			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
+			albedo = mix(c, sky_tint.rgb * 0.6, 0.3 + 0.4 * fres);
+			rough = 0.2;
+			spec = 0.5;
+		} else if (kind == 4) {
+			// A billboard: its paint with a band of the advertiser's colour across it.
+			float vv = local_pos.y + 0.5;
+			albedo = mix(c, c * vec3(0.55, 0.60, 0.70), step(0.45, vv) * step(vv, 0.78)) * top_lit;
+			rough = 0.5;
+		}
+		if (kind == 2 && box_size.y - (local_pos.y + 0.5) * box_size.y < 0.6) {
+			// The beacon on the tip, unshaded red like the near one, and brighter after dark.
+			albedo = vec3(0.05);
+			emission += vec3(1.0, 0.25, 0.2) * (0.9 + beacon_energy * night_factor);
+		}
+	} else if (custom.a > 1.5) {
 		// --------------------------------------------------- Ground: plate / freeway deck ---
 		// Far enough away that this is all there is of the streets: a dark carriageway line
 		// between the blocks and, after dark, the sodium glow down it (the same pattern and level
@@ -728,9 +1302,7 @@ void fragment() {
 	// The sky's horizon in this renderer's space: `sky_tint` (a color global) arrives raw on both,
 	// and the sky shader's own horizon is decoded on Forward+ - the plane and the far canopy fade
 	// to the same (HANDOFF 9au).
-	vec3 sky_rim = instance_color_is_srgb
-		? mix(sky_tint.rgb / 12.92, pow((sky_tint.rgb + vec3(0.055)) / 1.055, vec3(2.4)), step(vec3(0.04045), sky_tint.rgb))
-		: sky_tint.rgb;
+	vec3 sky_rim = cs_as_uniform(sky_tint.rgb);
 	emission = mix(emission, sky_rim, rim);
 	ALBEDO = albedo;
 	ROUGHNESS = rough;

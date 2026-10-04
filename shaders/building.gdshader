@@ -78,12 +78,11 @@ uniform float shop_paint_near = 45.0;
 uniform float shop_paint_far = 70.0;
 // Curtain walls as the far shader draws them (building_lod.gdshader, vis_lo / vis_hi 0.08 /
 // 0.93): vision glass between two thin transom lines, and over each slab edge a spandrel panel
-// that is not glass - a darker or a paler panel by the far shader's own roll (`lod_seed`, its
-// building seed, (seed % 997) / 997), so a tower keeps its banding across the handoff. The lines
-// wear `mullion_color`, which is what the kit's caps (ShopfrontKit "cap_v" / "cap_h") are painted.
+// that is not glass - a darker or a paler panel by the roll the far boxes make too
+// (spandrel_pale(), window_lights.gdshaderinc), so a tower keeps its banding across the handoff.
+// The lines wear `mullion_color`, which is what the kit's caps (ShopfrontKit "cap_v" / "cap_h") are painted.
 uniform bool curtain_spandrel = false;
 uniform vec3 mullion_color : source_color = vec3(0.58, 0.59, 0.62);
-uniform float lod_seed = 0.0;
 // 0 by day, 1 at night (set by DayNight). Windows only glow after dark.
 global uniform float night_factor;
 // max(night_factor, the storm's darkness): the street lamps' switch. Street level - shop lights,
@@ -285,6 +284,8 @@ uint shop_frame_index(uint shop) {
 }
 
 #include "res://shaders/shop_interior.gdshaderinc"
+// Which offices are lit and which spandrels are pale, rolled exactly as the far boxes roll them.
+#include "res://shaders/window_lights.gdshaderinc"
 
 // A door's framing, painted: `p` in metres from the opening's corner at the pavement on
 // ShopfrontKit's low edge (the high end of `u`), `w` the opening's width. The members of the
@@ -1114,25 +1115,16 @@ void fragment() {
 			// Light a shop's fittings give off themselves (pendants, chillers, a till, the lift
 			// indicators), from shop_interior().
 			vec3 room_glow = vec3(0.0);
-			// Offices, not bays. A tower after dark does not light up as a checkerboard of
-			// single windows: a tenancy takes a run of three or four bays and leaves them all
-			// on, some floors go dark altogether, and a few are lit end to end because somebody
-			// is cleaning them. Per-bay noise alone is the tell that the lights were rolled
-			// rather than occupied. The far shader already lights whole floors (see the `whole`
-			// term in building_lod.gdshader); this is the near version of the same idea.
-			float floor_k = hash21(vec2(row, seed * 13.0));
-			// 0 on a dark floor, about double on a busy one, 1 on an ordinary one.
-			float floor_mul = floor_k < 0.20 ? 0.0 : (floor_k > 0.88 ? 2.3 : 1.0);
-			float ratio = clamp(lit_ratio * floor_mul, 0.0, 1.0);
-			float run_k = hash31(vec3(floor(col / 3.0), row, face_id * 17.0 + seed));
-			float k = hash31(vec3(col, row, face_id * 31.0 + seed));
-			// The whole office, plus the odd single window inside a dark one.
+			// Offices, not bays: a tenancy's run of three bays lit together, dark floors, busy
+			// floors (window_lit(), window_lights.gdshaderinc). Rolled from integers, and the far
+			// boxes roll the very same windows, so a tower keeps its lit offices across the LOD line.
 			// A shop is not rolled bay by bay. lit_ratio runs 0.15..0.5 and a shop is 2-4 bays, so
 			// a restaurant came out with one of its windows lit and the rest black, which reads as
 			// a bug rather than as an open shop. The whole unit is open or closed off one hash of
 			// the shop's integer key (shop_open, about 62 %), which carries face_id and the seed, so
 			// it costs no rng roll, nothing downstream moves, and Building knows the answer too.
-			bool lit = storefront ? shop_open : (run_k < ratio || k < ratio * 0.16);
+			// window_lights.gdshaderinc, shared with the far boxes (building_lod.gdshader).
+			bool lit = storefront ? shop_open : window_lit(seed, face_id, row, col, lit_ratio);
 			float room_seed = hash31(vec3(col, row, face_id * 17.0 + seed)) * 97.0;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
 			vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
@@ -1301,7 +1293,7 @@ void fragment() {
 				metal = mix(metal, 0.5, bars);
 			}
 			if (lit) {
-				float glow = 0.55 + 0.45 * hash31(vec3(col + 3.0, row + 7.0, face_id + seed));
+				float glow = window_glow(seed, face_id, row, col);
 				// No daytime floor. It used to be 0.12 + 0.88 * night_factor, so at ten in the
 				// morning every window the lit roll picked still carried a warm emission and an
 				// 8 % pull toward lit_color - and lit_ratio runs to half the bays, so a whole
@@ -1425,7 +1417,7 @@ void fragment() {
 		} else if (spandrel) {
 			// The panel over the slab edge: opaque glass, pale or dark by the far shader's roll,
 			// catching a dimmer, blurrier sky than the vision glass.
-			float pale = step(0.55, hash21(vec2(lod_seed * 53.0, 7.9)));
+			float pale = spandrel_pale(seed) ? 1.0 : 0.0;
 			albedo = mix(facade_color * 0.62 + vec3(0.012), facade_color * 1.02 + vec3(0.075), pale);
 			albedo *= 0.95 + 0.10 * hash21(vec2(col * 0.5, row) + seed);
 			vec3 to_s = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);

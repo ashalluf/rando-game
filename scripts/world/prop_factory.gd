@@ -1879,16 +1879,21 @@ static func far_ground_material() -> ShaderMaterial:
 	return mat
 
 
-static func building_lod_material() -> ShaderMaterial:
-	if _cache.has("building_lod_mat"):
-		return _cache["building_lod_mat"]
+## `far_city`: the far city's copy (Skyline), which prints the small roof plant it does not build
+## (FarBuilding.SILHOUETTE); the LOD chunks build all of it and print none. Set the rest of the
+## uniforms on both (CityStreamer does).
+static func building_lod_material(far_city: bool = false) -> ShaderMaterial:
+	var key := "building_lod_far_mat" if far_city else "building_lod_mat"
+	if _cache.has(key):
+		return _cache[key]
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/building_lod.gdshader")
 	# Forward+ decodes the near buildings' source_color facade but never a MultiMesh instance
 	# colour, so the far boxes have to decode theirs or they are drawn up to four times brighter
 	# than the same building up close (see the shader). Compatibility decodes neither.
 	mat.set_shader_parameter("instance_color_is_srgb", has_reflections())
-	_cache["building_lod_mat"] = mat
+	mat.set_shader_parameter("print_small_plant", far_city)
+	_cache[key] = mat
 	return mat
 
 

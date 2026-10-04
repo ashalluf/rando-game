@@ -2383,20 +2383,32 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		# collision so a fast car cannot drive into a footprint and get shot through the
 		# floor when the detailed building appears around it.
 		var lod_style := building.plan_only()
-		# Custom data for shaders/building_lod.gdshader: window style, lit ratio, seed, plain flag.
-		var custom := Color(float(building.window_style) / 4.0, lod_style.lit_ratio, float(building.seed % 997) / 997.0, 0.0)
 		for part in building.parts:
 			var size: Vector3 = part.size
 			var part_center: Vector3 = part.center
-			# A parking podium in its concrete with ribbon openings, barely lit (Building._add_podium()).
-			var part_custom := Color(1.0 / 4.0, 0.06, custom.b, 0.0) if Building.is_parking(part) else custom
-			# The batch adds the relief itself; the shape needs it explicitly.
-			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(size), base + part_center), building.part_lod_color(part), part_custom)
+			# The shape needs the relief explicitly (the batch adds it to what it draws).
 			_add_lod_shape(size, building.position + part_center)
 			_occluder_boxes.append([Transform3D(Basis(), building.position), part_center, size])
-		var fp: Vector2 = building.footprint
-		if fp.x > 0.0 and building.plinth_depth > 0.05:
-			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
+		# What is drawn: the parts coded with the near building's own facade, roof and lights,
+		# the plinth folded into them, and its roof plant (FarBuilding; the far city captures
+		# exactly these). The batch adds the relief at each instance's own origin, but the near
+		# building stands on the relief at the lot's centre, and so must every part and unit of
+		# its far copy - an offset tier used to sit a few centimetres off the one under it.
+		if FarBuilding.enabled:
+			for fb: Array in FarBuilding.boxes(building, lod_style, building.plinth_depth):
+				var xf: Transform3D = fb[0]
+				var at: Vector3 = base + xf.origin
+				at.y += g - _gy(at.x, at.z)
+				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(xf.basis, at), fb[1], fb[2])
+		else:
+			# The old far boxes: the facade colour and a window style (building_lod.gdshader's old path).
+			var custom := Color(float(building.window_style) / 4.0, lod_style.lit_ratio, float(building.seed % 997) / 997.0, 0.0)
+			for part in building.parts:
+				var part_custom := Color(1.0 / 4.0, 0.06, custom.b, 0.0) if Building.is_parking(part) else custom
+				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(part.size), base + (part.center as Vector3)), building.part_lod_color(part), part_custom)
+			var fp: Vector2 = building.footprint
+			if fp.x > 0.0 and building.plinth_depth > 0.05:
+				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
 		if fill:
 			LotFill.after_building(self, lot, building)
 		building.free()
