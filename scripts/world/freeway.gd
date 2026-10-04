@@ -30,6 +30,14 @@ const RAMP_BOW := 10.0
 const RAMP_STEPS := 13
 ## How far outside the airport fence a deck has to end (_drivable()), metres.
 const AIRPORT_KEEP := 60.0
+## Lanes each way, and the cross section they sit in (lane_layout()): the median barrier's half
+## base plus the inner shoulder, the edge barrier's base, the outer shoulder at least, the widest
+## a lane gets. FreewayKit paints these lanes and TrafficManager drives them.
+const LANES := 4
+const LANE_INNER := 1.305
+const LANE_OUTER_INSET := 0.42
+const OUTER_SHOULDER_MIN := 1.2
+const LANE_MAX := 3.6
 ## Points are this far apart along a route; the deck is built from them directly.
 const STEP := 24.0
 const CELL := 160.0
@@ -381,6 +389,22 @@ func _index() -> void:
 					if not _cells.has(key):
 						_cells[key] = []
 					_cells[key].append(Vector2i(ri, si))
+
+
+## Where the lanes are across a deck `width` wide, in metres from the centre line on either
+## carriageway: {"half", "inner" (the yellow edge line), "lane" (lane width), "edge" (the white
+## edge line), "outer" (the edge barrier's toe)}. Lane 0, by the median, is the carpool lane.
+static func lane_layout(width: float) -> Dictionary:
+	var half := width * 0.5
+	var outer := half - LANE_OUTER_INSET
+	var lw := minf(LANE_MAX, (outer - OUTER_SHOULDER_MIN - LANE_INNER) / LANES)
+	return {"half": half, "inner": LANE_INNER, "lane": lw, "edge": LANE_INNER + lw * LANES, "outer": outer}
+
+
+## The middle of lane `lane` (0 by the median) as a fraction of the deck's half width.
+static func lane_fraction(width: float, lane: int) -> float:
+	var lay := lane_layout(width)
+	return (float(lay.inner) + float(lay.lane) * (float(lane) + 0.5)) / float(lay.half)
 
 
 ## Deck segments touching a world rect: [{"a", "b", "ha", "hb", "width", "index", "route"}].
