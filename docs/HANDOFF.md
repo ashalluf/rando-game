@@ -5490,7 +5490,7 @@ level the far city is mostly hidden: 0.5 % of pixels move.
   boundary on Compatibility; TAA settles it on Forward+).
 - Shadow cost of the LOD ring's roof units: they cast with the rest of the `lod_box` batch; the
   geo_count shadow lines above are what it costs at these three views.
-## 9be. Houses in the suburbs and the beach town, 2026-10-04 (agent branch `wt/houses`; VISUAL_ROADMAP #50)
+## 9be. Houses in the suburbs and the beach town, 2026-10-04 (agent branch `wt/houses`; VISUAL_ROADMAP #47)
 
 The brief: every house lot in SUBURBS and BEACHTOWN was a flat-roofed `Building` box with a
 storefront band (9az's "not done"), and the suburbs were 82 % bare lawn by `tools/lot_coverage.gd`
@@ -5908,3 +5908,83 @@ trailers at the docks, no prop batches, the pools shadowless, the warehouses in 
 wall list), the block built with Industrial off keeps every pavement prop where it was, a LOD build
 and the far city's capture draw the warehouses as far boxes. `INDUSTRIAL=0` on `still_shot.gd`,
 `block_shot.tscn` and `tools/geo_count.gd` is the A/B; `industrial_bench.tscn` times the builds.
+
+
+## 9bi. Street vendors: taco trucks, carts, umbrellas and the people at them, 2026-10-04 (agent branch `wt/vendors`; VISUAL_ROADMAP #50)
+
+The brief (lead, from the owner's "make the graphics a million times better"): nothing on our
+pavements sold anything. A real LA street has taco trucks at the kerb at night with a lit menu
+board, a serving window and a generator, fruit and elote carts under big striped umbrellas,
+bacon-wrapped hot dog carts outside the arena and the bars at night, paleta carts in the parks,
+flower and balloon sellers at the downtown corners. CLAUDE.md's "Street vendors" note is the
+reference; this is the story.
+
+**What it is.** `StreetVendors` (`scripts/world/street_vendors.gd`, static) builds every stand in
+code at real size - a 7 m step van (box cut round a 2.7 x 0.95 m serving window, propped flap
+with an LED strip, a lit kitchen inside: hood, plancha with meat on it, fridge, shelves; a steel
+counter outside with salsas, napkins and limes; a menu lightbox with three food pictures and
+real TextMesh lettering; the name along both sides; bonnet, grille, mirrors, wheels, tail lamps,
+a red generator on a rack behind the bumper), a fruit cart (ice tray of mango, watermelon,
+pineapple, cucumber, jicama and papaya spears, cups, chile-lime and chamoy, a cooler), an elote
+cart (the pot of corn with its lid tipped back, the esquites pot, mayo / chile / cotija / butter,
+a hand-lettered card), a hot dog cart (griddle under foil, three rows of bacon-wrapped dogs, a
+heap of onions and peppers, buns, bottles, a propane tank, a light pole with a string of bulbs, a
+cardboard sign), a paleta push cart (printed sides of ice pops, two lids, bells on the handle) and
+a flower stand (buckets of roses, sunflowers and the rest on a slatted stand, foil balloons on
+ribbons) - and a market umbrella shared by the carts. One shader (`street_vendor.gdshader`), one
+batch per kind a chunk. Names and menus are invented (`TRUCKS`: TACOS EL COMPA CHUY, MARISCOS EL
+FARO AZUL, TAQUERÍA LA ESTRELLITA, BIRRIA LA CHAPARRITA, LOS PRIMOS TACOS & MÁS, EL REY DEL
+ASADA). Triangles: truck 7.5k, fruit 4.1k, elote 2.2k, hot dog 3.9k, paleta 0.7k, flowers 7.5k.
+
+**Where and when.** `plan_block(plan, ix, iz, hour)` is pure: each face of a block is a place
+(downtown, midtown, industrial, a park, across from MacArthur Park, within 430 m of the arena, the
+beach town / near the boardwalk) and rolls each kind against `ODDS`; a hashed schedule per vendor
+(`SCHEDULE` +- 1 h; a quarter of trucks, most on the industrial blocks, work lunch) says whether it
+is working at the hour the chunk is built at. Round downtown (9 x 9 blocks) that is 28 trucks at
+21:00 and 7 at 13:00, 52 carts at 21:00 and 74 at 13:00 (smoke test). Trucks park in the chunk's
+own parking lane (+x / +z faces), serving side to the kerb, nose with the traffic; carts stand
+1.55 m in from the kerb, slid along the face to clear lamps, trees, cans and camps.
+
+**How it plays.** A shot truck sparks (a prop on StreetProps classifies as metal) and never
+breaks; a round through the window finds the cook. A cart is an `EncampmentItem`: rounds, a car or
+a blast tip it over as a real body and it stays gone. The cook (`StreetVendor`) stands on the
+truck floor (kinematic, out of the truck's collision) and ducks under the counter at gunfire; a
+cart vendor runs like anyone and walks back after. Walkers near a stand stop at its queue
+(`Pedestrian._plan_queue()`, `QUEUE_SHARE` 0.55, 12-40 s) and the vendor talks to them. After
+dark the truck lights the pavement (a pool in the chunk's `shop_spill` batch and a `lamp_light`
+omni), the hot dog cart's bulbs too. The truck's generator hums (`Sfx` "generator", a CC0 loop,
+38 m reach).
+
+**Traps.**
+- The MultiMesh instance COLOR multiplies every vertex colour in the vertex shader, so it cannot
+  carry the umbrella's second stripe without tinting the pole: the shader has the colours
+  (`CANVAS2`), picked by INSTANCE_CUSTOM.a, and the smoke test checks the copy.
+- A parked car skipped for a truck must still make every roll and count as parked: `_park_car`'s
+  cap short-circuits the rng, so a missing car moved every later roll (and the walkers after).
+- The menu lightbox face sat inside its own frame box and drew dark; and a flap tipped up 18
+  degrees hid the truck's name from the pavement (now 5).
+- The brushed-steel grain at 160 cycles a metre aliased into dark corrugation on every cart: it
+  fades to its mean under a pixel now.
+- The smoke test's shop-spill count and the camp check both counted the vendors (a pool in the
+  same batch; a cart is an EncampmentItem): the chunk now counts its pools (`vendor_pools`
+  meta) and the camp check skips `Vendor_*` items.
+
+**Cost** (`still_shot.gd` GEO, opengl3 1280x720, `--quality=0`, the same EYE with
+`STREET_VENDORS=0`): the night truck view 5,787,253 -> 5,868,306 tris (+1.4 %), 2,954 -> 2,974
+draws; the day fruit cart view 5,634,670 -> 5,860,288 (+4.0 %, mostly the vendor and the two
+customers standing in shadow range in front of the camera), 3,022 -> 3,061 draws. Cart draw
+distance then cut 150 -> 120 m and their shadows 70 -> 45 m (FRUIT_AFTER below). A chunk with
+vendors adds at most one draw per kind plus its shadow twin, one omni per truck or hot dog cart.
+
+**Stills** (`shots/vendors`): `truck_night` (EL REY DEL ASADA downtown at 21:00, people waiting
+at the window, the pool on the pavement), `fruit_day` (a fruit cart under its umbrella at noon,
+vendor and two customers), `hotdog_arena` (a bacon-dog cart with its bulbs near the arena at
+21:00), `paleta_park` (a paleta cart on a park's edge at 14:00), `stand_day` / `stand_night` (the
+stands alone, `tools/glshot/vendor_shot.gd`), and the `*_before` frames with the vendors off.
+
+**Not done / not verified.** The Mac (Forward+): the lightbox and kitchen emission under AgX
+and the umbrellas' backlight. Vendors appear and leave only when a chunk is built (the hour is
+read then), so standing at one corner across dusk does not bring the trucks in. No vendors on
+the boardwalk landmark itself or inside MacArthur Park (its edges only). The vendors wear the
+crowd's clothes (no apron or cap); customers do not carry food away; no steam off the elote pot
+or smoke off the griddle; the balloons are round foil only.

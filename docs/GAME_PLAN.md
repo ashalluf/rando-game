@@ -334,7 +334,7 @@ already mapped so milestone 2 is script-only.
   (`window_lights.gdshaderinc`). The near roofs and office lights got a new random arrangement
   once. Per-block dissolve unchanged; draws unchanged (no new MultiMesh). docs/HANDOFF.md 9bd,
   CLAUDE.md "Far buildings are coded copies of the near ones".
-- **2026-10-04 Real houses in the suburbs and the beach town (VISUAL_ROADMAP #50).** (owner: "make
+- **2026-10-04 Real houses in the suburbs and the beach town (VISUAL_ROADMAP #47).** (owner: "make
   the graphics a million times better"; agent branch `wt/houses`, docs/HANDOFF.md 9be.) Every house
   lot there was a flat-roofed `Building` box with a storefront band. `HouseKit` plans a Los Angeles
   house per lot and `HouseBuild` builds it in code, ReplicaHouses-style (walls cut round openings,
