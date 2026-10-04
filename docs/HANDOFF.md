@@ -4101,6 +4101,79 @@ frames, blade signs, dome and retractable awnings and a shop at night. The lead 
   spandrel (they are a replica's facades, tuned there).
 - Bulkheads are still painted; a raised panel under the sill would add another depth cue.
 
+## 9ay. Front range roads and estates back: switchbacks, 2026-10-04 (agent branch `wt/switchbacks`, VISUAL_ROADMAP #20)
+
+**What it is.** The cut-bank fix (#17) trimmed the canyon roads that walked straight up the
+front range and the estates went with them. They are back as roads that follow the contours:
+`HillRoads.add_switchbacks()` (called by `MacroMap.setup()` after the freeway) grows a network of
+drives off the kept roads and off each other - legs across the slope at 8.5 %, hairpins of 13 m
+turned uphill, a slow wander where the ground is flat, the bed benched into the slope, every step
+asked whether its banks meet the ground before it is taken, and the whole drive trimmed by
+`_earthwork_ok()` like any other road - plus `Valley Vista Dr` along the inland foot. Estates
+(`_place_estates()`) take a 17 m or a compact 13 m pad beside the road or up a 4-26 m driveway
+(a long one is a carved `"drive"` road). The chunk builds each with its driveway, a gate between
+two piers, a pool beside the house and walls that follow the ground: a garden wall, a retaining
+wall holding back a cut, or a tall one dropping down a fill (`CityChunk._build_mansions()`, all
+boxes merged into the chunk's box meshes). Hill road strips are now mitred at their joints and
+their edges sit on the carved ground. Details in CLAUDE.md (the Map note, after the hill roads).
+
+**Where they are, and where they are not.** The pass (west of the freeway; 15 m clear of its
+deck and ramps, pads too), the inland foot and the north flank. NOT the south face toward the
+city: it is steeper than 45 degrees nearly everywhere (`tools/hill_road_probe` map: 37-40 % of
+the hills over 45, the face a solid band), and on ground steeper than a 1:1 cut no bank ever meets
+the ground, so a road there is a cliff whatever the layout. Only terrain changes (gentler
+foothills under the face) or retaining-walled roads would put drives there, and the second breaks
+#17's rule.
+
+**Numbers** (default seed; `tools/hill_road_probe/hill_road_probe.tscn`, headless, seconds):
+
+| | before (28105b5) | after |
+|---|---|---|
+| hill roads (kept) | 28 (20) | 38 (30), 9 driveways |
+| hairpins | 0 | 7 |
+| estates, all / front range | 345 / 31 | 402 / 88 |
+| carved cells steeper than 60 degrees | 0.38 % (285 of 75,387) | 0.36 % (325 of 91,190) |
+| ... of those, round the new drives and estates | - | 0.16 % |
+| freeway deck lowest clearance over the hills | 2.9 m | 2.9 m (unchanged) |
+| MacroMap.setup() | ~1.0 s | ~1.35 s (+~0.4 s: the walks; ground read off a 12 m lattice) |
+
+(The probe's "steeper than 60" counts every 4 m cell the carve moves by more than 0.25 m; #17's
+0.6 % was measured some other way, so compare before against after here, not against 0.6.)
+Frame cost (still_shot / bookmarks GEO, opengl3, 960x540 / 1280x720):
+
+| view | before tris / draws | after tris / draws |
+|---|---|---|
+| hills bookmark | 1,905,603 / 1,063 | 1,913,620 / 1,141 (+0.4 % / +7 %) |
+| aerial over the pass (EYE 1180,424 AGL,-1330) | 1,359,261 / 1,093 | 1,407,347 / 1,259 |
+| switchback at road level (402,1.8,-1873) | 3,746,872 / 1,643 | 4,077,925 / 1,772 |
+| aerial over the west pass (560,260,-1600) | 1,012,307 / 826 | 1,061,056 / 1,017 |
+| north flank from the valley (0,200,-2400) | 3,384,268 / 1,878 | 3,407,623 / 2,002 |
+
+The draws are the estate houses (a Building is a handful of draws) and their palms; the pads,
+walls, gates and pools are merged into the chunk's boxes, and an estate used to be ~8 nodes on
+its own, so the old headland estates got cheaper.
+
+**Stills**: branch `shots/switchbacks` (before/after pairs: aerial over the pass, a switchback at
+road level, the west pass from above, the north flank from the valley, the hills bookmark).
+
+**Checks** (smoke test, `_check_switchbacks()`): enough drives, hairpins and front-range
+estates; every drive held to its grade and its banks meeting the ground (the exact ground, with
+1.5 m more slack than the 12 m lattice the layout used); the carved ground round the first six
+drives under 1.5 % steeper than 60 degrees; estates clear of each other and of every road; a
+chunk with an estate up a driveway builds its driveway, house and walls.
+
+**Traps found.** `Basis.scaled()` scales in GLOBAL axes: an estate's pad / walls / far house box
+on a turned basis came out skewed into long diagonal sticks - use `scaled_local()` (the old far
+hill-house box in `Skyline` and `_build_mansions` had the same bug; both fixed). `Vector2.orthogonal()`
+is the clockwise normal in x/z, so a half circle to that side runs its angle DOWN - the first
+hairpins doubled back on themselves. The layout is greedy and chaotic: a small change anywhere
+(the foot drive's line, a clearance) reshuffles the whole network, so judge a tuning on the probe's
+counts and map, not on one drive.
+
+**Not done.** No drives on the south face (see above). No traffic, parked cars or people on the
+new drives (like every hill road). The houses are the old SLAB villa; no cantilevered decks,
+garages or terraces down the slope. Forward+ look not seen (opengl3 stills only).
+
 ## 9as. Car glass and drivers, 2026-09-28 (agent branch `wt/car-glass`)
 
 Every intact car window used to be the model's own opaque dark glass, so every car on the street

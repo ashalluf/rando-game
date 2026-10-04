@@ -1850,8 +1850,9 @@ func _build_hill_roads() -> void:
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var quads := 0
 	for seg in segs:
-		# The replica's hill route is carved here but drawn by ReplicaBuilder, markings and all.
-		if not seg.get("draw", true):
+		# The replica's hill route is carved here but drawn by ReplicaBuilder, markings and all;
+		# an estate's driveway is carved as a road and drawn with its estate (_build_mansions).
+		if not seg.get("draw", true) or seg.get("drive", false):
 			continue
 		var a: Vector2 = seg.a
 		var b: Vector2 = seg.b
@@ -1861,23 +1862,36 @@ func _build_hill_roads() -> void:
 		var pieces := maxi(1, ceili(seg_len / 6.0))
 		var dir := (b - a) / seg_len
 		var half: float = seg.width * 0.5
-		var normal := Vector2(-dir.y, dir.x) * half
+		# The edges are mitred at the segment's ends (HillRoads._mitre()), so the strip turns a
+		# bend - a hairpin's 30 degrees a piece - without wedges missing from its outside.
+		var na: Vector2 = seg.get("na", Vector2(-dir.y, dir.x)) * half
+		var nb: Vector2 = seg.get("nb", Vector2(-dir.y, dir.x)) * half
+		# Each edge vertex sits on the carved ground under it, not level with the centre line: where
+		# a drive leaves its parent the two strips overlap, and level across each they stood at two
+		# heights with a step between. Consecutive pieces share their edge heights.
+		var prev_end := Vector2(NAN, NAN)
 		for k in pieces:
 			var t0 := float(k) / pieces
 			var t1 := float(k + 1) / pieces
 			var c0 := a.lerp(b, t0)
 			var c1 := a.lerp(b, t1)
 			if not area.has_point(c0.lerp(c1, 0.5)):
+				prev_end = Vector2(NAN, NAN)
 				continue
+			var n0 := na.lerp(nb, t0)
+			var n1 := na.lerp(nb, t1)
 			# 0.26 rather than a hair over the ground: the beach lays a 0.4 m sand slab centred
 			# on zero, so its surface is at 0.2, and the coast highway crossing a beach town
 			# would otherwise be buried in it for the length of the sand.
-			var h0 := plan.height_at(c0) + 0.26
-			var h1 := plan.height_at(c1) + 0.26
-			var v0 := Vector3(c0.x - normal.x, h0, c0.y - normal.y)
-			var v1 := Vector3(c0.x + normal.x, h0, c0.y + normal.y)
-			var v2 := Vector3(c1.x + normal.x, h1, c1.y + normal.y)
-			var v3 := Vector3(c1.x - normal.x, h1, c1.y - normal.y)
+			var e0 := prev_end
+			if is_nan(e0.x):
+				e0 = Vector2(plan.height_at(c0 - n0), plan.height_at(c0 + n0)) + Vector2.ONE * 0.26
+			var e1 := Vector2(plan.height_at(c1 - n1), plan.height_at(c1 + n1)) + Vector2.ONE * 0.26
+			prev_end = e1
+			var v0 := Vector3(c0.x - n0.x, e0.x, c0.y - n0.y)
+			var v1 := Vector3(c0.x + n0.x, e0.y, c0.y + n0.y)
+			var v2 := Vector3(c1.x + n1.x, e1.y, c1.y + n1.y)
+			var v3 := Vector3(c1.x - n1.x, e1.x, c1.y - n1.y)
 			for v in [v0, v2, v1, v0, v3, v2]:
 				st.add_vertex(v)
 			quads += 1
@@ -1891,10 +1905,20 @@ func _build_hill_roads() -> void:
 	add_child(mesh)
 
 
-## Hillside estates: a flat pad cut into the slope with a house, a pool, palms and a low wall.
+## Hillside estates (the Hollywood Hills / Palisades look): a graded pad with a stucco villa on
+## its back half, a pool beside it, a paved motor court at the front, a driveway from the road
+## with a gate between two piers, and round the pad a wall that is whatever the ground makes it -
+## a low garden wall where the pad is level with the hillside, a retaining wall holding the cut
+## bank back where the hillside stands above it, and a tall one dropping down the fill where the
+## pad stands out over the slope. The pad, walls, piers, gate, rim and water go into the chunk's
+## merged boxes (one mesh per material), the driveway into one strip a chunk, so an estate costs
+## its house and its palms in draw calls.
 func _build_mansions() -> void:
 	if plan.macro == null or plan.macro.hill_roads == null:
 		return
+	var drive_st := SurfaceTool.new()
+	drive_st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var drives := 0
 	for m in plan.macro.hill_roads.mansions_in(owned_rect()):
 		var pos: Vector2 = m.pos
 		var h: float = m.height
@@ -1903,20 +1927,14 @@ func _build_mansions() -> void:
 		rng.seed = m.seed
 		var basis := Basis(Vector3.UP, yaw)
 		var at := Vector3(pos.x, h, pos.y)
-		# Pad.
-		var pad := MeshInstance3D.new()
-		var pad_box := BoxMesh.new()
-		pad_box.size = Vector3(30.0, 0.4, 26.0)
-		pad.mesh = pad_box
-		pad.material_override = PropFactory.pbr("paving", 4.0, Color(0.9, 0.88, 0.84))
-		pad.position = at + Vector3(0.0, 0.2, 0.0)
-		pad.rotation.y = yaw
-		add_child(pad)
+		var pad_mat := PropFactory.pbr("pavers", 3.0, Color(0.93, 0.9, 0.85))
+		_merge_box_xf(pad_mat, Transform3D(basis.scaled_local(ESTATE_PAD), at + Vector3(0.0, ESTATE_PAD.y * 0.5, 0.0)))
 		if level != Level.FULL:
-			# Far: the pad and a house box in a warm tone.
-			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(basis.scaled(Vector3(18.0, 7.5, 13.0)), at + basis * Vector3(0.0, 4.15, -4.0)), Color(0.92, 0.88, 0.8))
+			# Far: the pad, the house as a box in a warm tone, the pool.
+			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(basis.scaled_local(Vector3(18.0, 7.5, 13.0)), at + basis * Vector3(0.0, 4.15, -4.0)), Color(0.92, 0.88, 0.8))
 			continue
-		_add_shape(Vector3(30.0, 0.4, 26.0), at + Vector3(0.0, 0.2, 0.0), yaw)
+		_add_shape(ESTATE_PAD, at + Vector3(0.0, ESTATE_PAD.y * 0.5, 0.0), yaw)
+		var top := h + ESTATE_PAD.y
 		# House: a wide low villa on the back half of the pad.
 		var house := BUILDING_SCENE.instantiate() as Building
 		house.seed = m.seed
@@ -1924,52 +1942,142 @@ func _build_mansions() -> void:
 		house.min_height = 6.5
 		house.max_height = 9.5
 		house.force_shape = Building.Shape.SLAB
-		house.finish_options.assign([Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.BRICK])
+		# Rendered stucco mostly, now and then brick, as up in the canyons.
+		house.finish_options.assign([Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.BRICK])
 		house.allow_storefront = false
 		house.lit_ratio_range = Vector2(0.3, 0.6)
-		house.position = at + basis * Vector3(0.0, 0.4, -4.0)
+		house.position = at + basis * Vector3(0.0, ESTATE_PAD.y, -4.0)
 		house.rotation.y = yaw
 		add_child(house)
 		building_count += 1
-		# Pool on the front half, with a pale rim.
-		var pool_c := at + basis * Vector3(rng.randf_range(-4.0, 4.0), 0.4, 6.5)
-		var rim := MeshInstance3D.new()
-		var rim_box := BoxMesh.new()
-		rim_box.size = Vector3(9.0, 0.12, 5.6)
-		rim.mesh = rim_box
-		rim.material_override = PropFactory.material(Color(0.93, 0.92, 0.88), 0.8)
-		rim.position = pool_c + Vector3(0.0, 0.06, 0.0)
-		rim.rotation.y = yaw
-		add_child(rim)
-		var water := MeshInstance3D.new()
-		var water_box := BoxMesh.new()
-		water_box.size = Vector3(8.0, 0.1, 4.6)
-		water.mesh = water_box
-		var wmat := StandardMaterial3D.new()
-		wmat.albedo_color = Color(0.25, 0.65, 0.85)
-		wmat.roughness = 0.05
-		wmat.metallic = 0.2
-		water.material_override = wmat
-		water.position = pool_c + Vector3(0.0, 0.13, 0.0)
-		water.rotation.y = yaw
-		add_child(water)
-		# Low wall around the pad and a few palms.
-		for side: Vector3 in [Vector3(0.0, 0.0, 13.0), Vector3(0.0, 0.0, -13.0), Vector3(15.0, 0.0, 0.0), Vector3(-15.0, 0.0, 0.0)]:
-			var along_x := side.z != 0.0
-			var wsize := Vector3(30.0, 1.0, 0.4) if along_x else Vector3(0.4, 1.0, 26.0)
-			var wpos := at + basis * (side + Vector3(0.0, 0.9, 0.0))
-			var wall := MeshInstance3D.new()
-			var wbox := BoxMesh.new()
-			wbox.size = wsize
-			wall.mesh = wbox
-			wall.material_override = PropFactory.material(Color(0.85, 0.82, 0.76), 0.9)
-			wall.position = wpos
-			wall.rotation.y = yaw
-			add_child(wall)
-			_add_shape(wsize, wpos, yaw)
+		# Pool on the front half, to one side of the motor court, with a pale coping.
+		var pool_x := (1.0 if rng.randf() < 0.5 else -1.0) * rng.randf_range(5.0, 6.5)
+		var pool_c := at + basis * Vector3(pool_x, ESTATE_PAD.y, 6.0)
+		_merge_box_xf(PropFactory.material(Color(0.93, 0.92, 0.88), 0.8), Transform3D(basis.scaled_local(Vector3(6.4, 0.12, 8.4)), pool_c + Vector3(0.0, 0.06, 0.0)))
+		_merge_box_xf(_pool_water(), Transform3D(basis.scaled_local(Vector3(5.4, 0.1, 7.4)), pool_c + Vector3(0.0, 0.13, 0.0)))
+		# Walls round the pad, by what the ground does beyond each side.
+		var wall_kind := rng.randi() % 3
+		var stucco := PropFactory.material(ESTATE_STUCCO[rng.randi() % ESTATE_STUCCO.size()], 0.9)
+		var retain: Material = PropFactory.pbr("rock", 2.5, Color(0.85, 0.8, 0.74)) if wall_kind == 0 else PropFactory.pbr("concrete", 3.0, Color(0.9, 0.88, 0.84))
+		var hx := ESTATE_PAD.x * 0.5
+		var hz := ESTATE_PAD.z * 0.5
+		var gate_gap := 5.2
+		# [centre (local), length, along x?, outward normal (local)]
+		var sides := [[Vector3(0.0, 0.0, -hz), ESTATE_PAD.x, true, Vector3(0, 0, -1)], [Vector3(hx, 0.0, 0.0), ESTATE_PAD.z, false, Vector3(1, 0, 0)],
+			[Vector3(-hx, 0.0, 0.0), ESTATE_PAD.z, false, Vector3(-1, 0, 0)]]
+		# The front wall stands either side of the gate.
+		var half_front := (ESTATE_PAD.x - gate_gap) * 0.5
+		sides.append([Vector3(-(gate_gap * 0.5 + half_front * 0.5), 0.0, hz), half_front, true, Vector3(0, 0, 1)])
+		sides.append([Vector3(gate_gap * 0.5 + half_front * 0.5, 0.0, hz), half_front, true, Vector3(0, 0, 1)])
+		for sd: Array in sides:
+			var c: Vector3 = sd[0]
+			var length: float = sd[1]
+			var along_x: bool = sd[2]
+			var outward: Vector3 = sd[3]
+			# The ground just beyond the side: its middle and both ends, the highest and lowest.
+			var tang := Vector3(1, 0, 0) if along_x else Vector3(0, 0, 1)
+			var hi := -INF
+			var lo := INF
+			for f: float in [-0.45, 0.0, 0.45]:
+				var q := at + basis * (c + outward * 2.5 + tang * length * f)
+				var gq := plan.height_at(Vector2(q.x, q.z))
+				hi = maxf(hi, gq)
+				lo = minf(lo, gq)
+			var thick := 0.5
+			var mat: Material = stucco
+			var y0 := top
+			var y1 := top + 1.1
+			if hi - top > 1.2:
+				# Cut: a retaining wall holding the bank back, up to the ground behind it.
+				mat = retain
+				y1 = top + clampf(hi - top + 0.4, 1.4, 4.5)
+				thick = 0.7
+			elif top - lo > 1.2:
+				# Fill: the wall runs down the bank below the pad, its top a parapet.
+				mat = retain
+				y0 = top - clampf(top - lo + 1.5, 2.0, 8.0)
+				y1 = top + 1.0
+				thick = 0.7
+			var size := Vector3(length, y1 - y0, thick) if along_x else Vector3(thick, y1 - y0, length)
+			var wpos := at + basis * (c - outward * thick * 0.5)
+			wpos.y = (y0 + y1) * 0.5
+			_merge_box_xf(mat, Transform3D(basis.scaled_local(size), wpos))
+			_add_shape(size, wpos, yaw)
+			# A coping on the stucco and retaining walls alike.
+			var cap := Vector3(size.x + 0.1, 0.08, size.z + 0.1)
+			_merge_box_xf(PropFactory.material(Color(0.88, 0.86, 0.82), 0.8), Transform3D(basis.scaled_local(cap), Vector3(wpos.x, y1 + 0.04, wpos.z)))
+		# Gate piers and the gate, across the drive.
+		for sx: float in [-1.0, 1.0]:
+			var pier := at + basis * Vector3(sx * (gate_gap * 0.5 + 0.35), 0.0, hz - 0.35)
+			pier.y = top + 1.2
+			_merge_box_xf(stucco, Transform3D(basis.scaled_local(Vector3(0.75, 2.4, 0.75)), pier))
+			_merge_box_xf(PropFactory.material(Color(0.88, 0.86, 0.82), 0.8), Transform3D(basis.scaled_local(Vector3(0.9, 0.1, 0.9)), pier + Vector3(0.0, 1.25, 0.0)))
+			_add_shape(Vector3(0.75, 2.4, 0.75), pier, yaw)
+		var gate := at + basis * Vector3(0.0, 0.0, hz - 0.35)
+		gate.y = top + 0.95
+		_merge_box_xf(ESTATE_GATE_MATERIAL(), Transform3D(basis.scaled_local(Vector3(gate_gap - 0.1, 1.7, 0.08)), gate))
+		_add_shape(Vector3(gate_gap - 0.1, 1.7, 0.08), gate, yaw)
+		# The driveway: from the road's edge to the gate, laid on the graded ground.
+		var from: Vector2 = m.get("drive_from", pos)
+		var gate2 := Vector2(gate.x, gate.z) + Vector2(basis.z.x, basis.z.z) * 0.4
+		if from.distance_to(gate2) > 1.0:
+			_drive_strip(drive_st, from, gate2, ESTATE_DRIVE_WIDTH)
+			drives += 1
 		for i in rng.randi_range(2, 4):
-			var local := Vector3(rng.randf_range(-13.0, 13.0), 0.4, rng.randf_range(9.0, 12.0) * (1.0 if rng.randf() < 0.7 else -1.0))
+			var local := Vector3(rng.randf_range(-11.0, 11.0), ESTATE_PAD.y, rng.randf_range(-10.0, -9.0) if rng.randf() < 0.5 else rng.randf_range(2.0, 3.0))
 			_add_palm(at + basis * local, rng)
+	if drives > 0:
+		drive_st.generate_normals()
+		var mi := MeshInstance3D.new()
+		mi.name = "Driveways"
+		mi.mesh = drive_st.commit()
+		mi.material_override = PropFactory.pbr("concrete", 4.0, Color(0.86, 0.85, 0.82))
+		add_child(mi)
+
+
+## An estate's pad (x across, z toward the road), its driveway's width, the walls' paints.
+const ESTATE_PAD := Vector3(26.0, 0.4, 22.0)
+const ESTATE_DRIVE_WIDTH := 4.4
+const ESTATE_STUCCO: Array[Color] = [Color(0.94, 0.92, 0.87), Color(0.9, 0.86, 0.78), Color(0.95, 0.94, 0.92), Color(0.84, 0.78, 0.68)]
+static var _pool_water_mat: StandardMaterial3D
+static var _gate_mat: StandardMaterial3D
+
+
+static func _pool_water() -> StandardMaterial3D:
+	if _pool_water_mat == null:
+		_pool_water_mat = StandardMaterial3D.new()
+		_pool_water_mat.albedo_color = Color(0.25, 0.65, 0.85)
+		_pool_water_mat.roughness = 0.05
+		_pool_water_mat.metallic = 0.2
+	return _pool_water_mat
+
+
+static func ESTATE_GATE_MATERIAL() -> StandardMaterial3D:
+	if _gate_mat == null:
+		_gate_mat = StandardMaterial3D.new()
+		_gate_mat.albedo_color = Color(0.09, 0.09, 0.085)
+		_gate_mat.roughness = 0.45
+		_gate_mat.metallic = 0.8
+	return _gate_mat
+
+
+## A strip of driveway from `a` to `b`, `width` wide, lying 0.12 m over the carved ground.
+func _drive_strip(st: SurfaceTool, a: Vector2, b: Vector2, width: float) -> void:
+	var length := a.distance_to(b)
+	var dir := (b - a) / length
+	var n := Vector2(-dir.y, dir.x) * width * 0.5
+	var pieces := maxi(1, ceili(length / 3.0))
+	for k in pieces:
+		var c0 := a.lerp(b, float(k) / pieces)
+		var c1 := a.lerp(b, float(k + 1) / pieces)
+		var h0 := plan.height_at(c0) + 0.12
+		var h1 := plan.height_at(c1) + 0.12
+		var v0 := Vector3(c0.x - n.x, h0, c0.y - n.y)
+		var v1 := Vector3(c0.x + n.x, h0, c0.y + n.y)
+		var v2 := Vector3(c1.x + n.x, h1, c1.y + n.y)
+		var v3 := Vector3(c1.x - n.x, h1, c1.y - n.y)
+		for v in [v0, v2, v1, v0, v3, v2]:
+			st.add_vertex(v)
 
 
 func has_prop(id: String) -> bool:
@@ -3445,6 +3553,48 @@ func _merge_box(mat: Material, size: Vector3, at: Vector3) -> void:
 		verts.append(v * size + at)
 	normals.append_array(unit[1])
 	tangents.append_array(unit[2])
+	uvs.append_array(unit[3])
+	for i: int in unit[4]:
+		idx.append(base + i)
+	acc[0] = verts
+	acc[1] = normals
+	acc[2] = tangents
+	acc[3] = uvs
+	acc[4] = idx
+
+
+## `_merge_box()` for a box with any transform (its basis scaled to the box's size): the hill
+## estates' pads and walls, turned to face their road.
+func _merge_box_xf(mat: Material, xf: Transform3D) -> void:
+	if not merge_boxes or _boxes_committed:
+		var mesh := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		mesh.mesh = box
+		mesh.material_override = mat
+		mesh.transform = xf
+		add_child(mesh)
+		return
+	var unit := unit_box_arrays()
+	var acc: Array = _boxes.get(mat, [])
+	if acc.is_empty():
+		acc = [PackedVector3Array(), PackedVector3Array(), PackedFloat32Array(), PackedVector2Array(), PackedInt32Array()]
+		_boxes[mat] = acc
+	var verts: PackedVector3Array = acc[0]
+	var normals: PackedVector3Array = acc[1]
+	var tangents: PackedFloat32Array = acc[2]
+	var uvs: PackedVector2Array = acc[3]
+	var idx: PackedInt32Array = acc[4]
+	acc.fill(null)
+	var base := verts.size()
+	var rot := xf.basis.orthonormalized()
+	for v: Vector3 in unit[0]:
+		verts.append(xf * v)
+	for nrm: Vector3 in unit[1]:
+		normals.append(rot * nrm)
+	var t: PackedFloat32Array = unit[2]
+	for i in range(0, t.size(), 4):
+		var tv := rot * Vector3(t[i], t[i + 1], t[i + 2])
+		tangents.append_array([tv.x, tv.y, tv.z, t[i + 3]])
 	uvs.append_array(unit[3])
 	for i: int in unit[4]:
 		idx.append(base + i)

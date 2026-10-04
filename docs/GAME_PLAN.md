@@ -334,6 +334,17 @@ already mapped so milestone 2 is script-only.
   reversing lamps, as shared state materials (one draw a car still). Parked cars' lamps are off.
   An unshadowed spot cannot carry a projector in Godot (it draws nothing), so traffic beams are
   soft plain cones. docs/HANDOFF.md 9aw; CLAUDE.md "Car lights".
+- **2026-10-04 The front range gets its drives and estates back as switchbacks, not deeper cuts
+  (VISUAL_ROADMAP #20).** The cut-bank fix (#17) trimmed every canyon road that walked straight
+  up the range. Roads now follow the contours (`HillRoads._add_switchbacks()`: 8.5 % legs,
+  13 m hairpins, a bed benched into the slope, every step graded before it is taken) and grow
+  into a network off each other, with estates on graded pads beside them or up short driveways;
+  `Valley Vista Dr` runs along the inland foot. #17's rule holds: beds keep 1.5 m apart per metre
+  of height between them so no two banks fight, and the carved ground steeper than 60 degrees
+  stays about where it was. The south face toward the city stays bare: it is steeper than 45
+  degrees nearly everywhere, where no graded bank can ever meet the ground; the drives are in the
+  pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
+  walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

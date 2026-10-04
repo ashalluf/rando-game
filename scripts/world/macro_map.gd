@@ -298,6 +298,8 @@ func setup() -> void:
 	var fw := Freeway.new()
 	fw.build(self, seed)
 	freeway = fw
+	# Then the front range's switchback drives and estates, which keep clear of the freeway.
+	hr.add_switchbacks(seed, fw)
 
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.
