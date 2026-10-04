@@ -726,6 +726,8 @@ func _part_material(style: Dictionary) -> ShaderMaterial:
 		var entry := garage_entry()
 		mat.set_shader_parameter("garage_entry", Vector2(float(entry.face), float(entry.col)))
 	mat.set_shader_parameter("shop_span", _shop_spans())
+	mat.set_shader_parameter("shop_rooms", shop_room_codes())
+	mat.set_shader_parameter("tower_height", height)
 	# Whether the raised shop names are drawn (never on the web): the shader only turns boards
 	# dark for channel letters where there are letters to light.
 	mat.set_shader_parameter("sign_letters", not OS.has_feature("web"))
@@ -890,6 +892,61 @@ const SIGN_STANDOFF := 0.14
 const SIGN_DRAW_DISTANCE := 75.0
 
 
+## The shops' names along a face, as indices into SHOP_NAMES: hashed per seed, face and run (no
+## _rng roll), and never the same shop twice side by side - a repeat steps along the list rather
+## than re-rolling, which reads as a bug even though real streets do it. ShopfrontKit's blade
+## signs make the same rolls.
+func shop_names(face_index: int, runs: int) -> Array[int]:
+	var out: Array[int] = []
+	var last_name := -1
+	for run in runs:
+		var name_i := absi(hash([seed, "sign_name", face_index, run * 7919])) % SHOP_NAMES.size()
+		if name_i == last_name:
+			name_i = (name_i + 1) % SHOP_NAMES.size()
+		last_name = name_i
+		out.append(name_i)
+	return out
+
+
+## The room behind each name's glass (ShopRoom), so a BAKERY has a counter and tables, a LAUNDRY
+## washers and a BANK a teller line.
+const SHOP_NAME_ROOMS := {
+	"PHARMACY": ShopRoom.RETAIL, "NAILS & SPA": ShopRoom.BARBER, "DRY CLEAN": ShopRoom.CLOTHING,
+	"PHONE FIX": ShopRoom.RETAIL, "LIQUOR": ShopRoom.RETAIL, "PIZZA": ShopRoom.CAFE,
+	"SUSHI": ShopRoom.RESTAURANT, "TACOS": ShopRoom.CAFE, "COFFEE STOP": ShopRoom.CAFE,
+	"BANK": ShopRoom.BANK, "DONUT HOLE": ShopRoom.CAFE, "SUB STOP": ShopRoom.CAFE,
+	"PET SHOP": ShopRoom.RETAIL, "BARBER": ShopRoom.BARBER, "LAUNDRY": ShopRoom.LAUNDROMAT,
+	"BOBA": ShopRoom.CAFE, "DENTAL": ShopRoom.BANK, "TAX PRO": ShopRoom.BANK,
+	"SMOKE SHOP": ShopRoom.RETAIL, "FLOWERS": ShopRoom.RETAIL, "RECORDS": ShopRoom.RETAIL,
+	"HARDWARE": ShopRoom.RETAIL, "BOOKS": ShopRoom.RETAIL, "BAKERY": ShopRoom.CAFE,
+	"DELI": ShopRoom.RESTAURANT, "OPTICAL": ShopRoom.RETAIL, "SHOE REPAIR": ShopRoom.RETAIL,
+	"TATTOO": ShopRoom.BARBER, "THRIFT": ShopRoom.CLOTHING, "CAMERA": ShopRoom.RETAIL,
+}
+## How many shops a face's room code holds (4 bits each, kept clear of the sign bit).
+const SHOP_ROOM_SLOTS := 7
+
+
+## The shader's `shop_rooms`: per face, the room of each of its first SHOP_ROOM_SLOTS shops as
+## its ShopRoom + 1 in four bits (0 leaves it to the hash, shop_room_kind()).
+func shop_room_codes() -> Vector4i:
+	var v := Vector4i()
+	for face in 4:
+		var names := shop_names(face, SHOP_ROOM_SLOTS)
+		var code := 0
+		for run in SHOP_ROOM_SLOTS:
+			code |= (int(SHOP_NAME_ROOMS[SHOP_NAMES[names[run]]]) + 1) << (4 * run)
+		v[face] = code
+	return v
+
+
+## What is behind shop `shop` on face `face_id` (1..4): the room its name says, past the coded
+## shops the hash's (the shader's own choice, line for line). A tower lobby overrides both.
+func shop_room(face_id: int, shop: int) -> int:
+	if shop < SHOP_ROOM_SLOTS:
+		return SHOP_NAME_ROOMS[SHOP_NAMES[shop_names(face_id - 1, shop + 1)[shop]]]
+	return shop_room_kind(shop_key(face_id, shop))
+
+
 ## How many bays make one shop on each face, matching shaders/building.gdshader's `shop_span`.
 ## Hashed from the seed rather than drawn from _rng: any new call on _rng shifts every block's
 ## layout downstream of it.
@@ -908,7 +965,9 @@ func _shop_spans() -> Vector4:
 ## (ShopfrontKit.SALT_*): 14 frame finish, 15 door bay, 16 recessed entry, 17 centre mullion,
 ## 18 single door; the shader's alone: 20 vinyl lettering, 21-22 poster (has, bay), 23 lettering
 ## ink, 24 second poster, 25 OPEN plate, 26 scissor gate, 27 a recessed entry's stone; Building's
-## alone: 30 blade sign, 31 its colour.
+## alone: 30 blade sign, 31 its colour; the room behind the glass (shaders/shop_interior.gdshaderinc):
+## 40 its kind, 41 which end its counter is at, 42 its walls, 43 its fittings, 44 a tower lobby,
+## 45 its depth.
 ## The shader's lights for an open shop (its shop_tone()): warm, neutral, cool, pink, teal.
 const SHOP_TONES := [Color(1.0, 0.70, 0.42), Color(1.0, 0.91, 0.78), Color(0.78, 0.90, 1.0),
 	Color(1.0, 0.50, 0.80), Color(0.55, 1.0, 0.88)]
@@ -950,13 +1009,51 @@ static func shop_open(key: int) -> bool:
 	return shop_byte(key, 1) < 158
 
 
-## The light an open shop throws, its tone at its brightness, pulled toward its neon if it has
-## one (the neon's bay is only one of its windows, so not all the way).
-static func shop_light(key: int) -> Color:
-	var b := shop_byte(key, 2)
-	var tone: Color = SHOP_TONES[0 if b < 97 else (1 if b < 174 else (2 if b < 230 else (3 if shop_byte(key, 3) < 128 else 4)))]
+## What is behind a shop's glass: the shader's shop_room_kind() (shop_interior.gdshaderinc), line
+## for line. A tower's lobby (shop_is_lobby()) overrides it.
+enum ShopRoom { RETAIL, CLOTHING, CAFE, RESTAURANT, LAUNDROMAT, BARBER, BANK, LOBBY }
+## The kind roll's thresholds (salt 40), in ShopRoom order; the smoke test reads the shader's.
+const SHOP_ROOM_BYTES := [74, 118, 162, 194, 214, 236]
+
+
+static func shop_room_kind(key: int) -> int:
+	var b := shop_byte(key, 40)
+	for i in SHOP_ROOM_BYTES.size():
+		if b < SHOP_ROOM_BYTES[i]:
+			return i
+	return ShopRoom.BANK
+
+
+## Whether shop `shop` of `runs` along a face of a building `tower_height` tall is the tower's
+## lobby (double height, desk, lift bank; lit all night): the middle unit of most faces of a
+## building over 30 m. The shader's `lobby` (building.gdshader), line for line.
+static func shop_is_lobby(key: int, shop: int, runs: int, tower_height: float) -> bool:
+	return tower_height > 30.0 and shop == (maxi(runs, 1) - 1) / 2 and shop_byte(key, 44) < 192
+
+
+## The colour of a room's lights by its kind: the shader's room_tone() (shop_interior.gdshaderinc),
+## line for line; -1 (or a shop) is the shop's own roll.
+static func room_tone(room: int, key: int) -> Color:
+	var b := shop_byte(key, 2) < 128
+	match room:
+		ShopRoom.CAFE, ShopRoom.RESTAURANT:
+			return SHOP_TONES[0] if b else Color(1.0, 0.80, 0.58)
+		ShopRoom.LAUNDROMAT:
+			return SHOP_TONES[2] if b else Color(1.0, 0.97, 0.92)
+		ShopRoom.BANK, ShopRoom.LOBBY:
+			return SHOP_TONES[1] if b else Color(1.0, 0.80, 0.58)
+		ShopRoom.BARBER:
+			return Color(1.0, 0.97, 0.92) if b else SHOP_TONES[2]
+	var r := shop_byte(key, 2)
+	return SHOP_TONES[0 if r < 97 else (1 if r < 174 else (2 if r < 230 else (3 if shop_byte(key, 3) < 128 else 4)))]
+
+
+## The light an open shop throws, its room's tone at its brightness, pulled toward its neon if it
+## has one (the neon's bay is only one of its windows, so not all the way; a lobby has none).
+static func shop_light(key: int, room: int = -1) -> Color:
+	var tone := room_tone(room, key)
 	var bright := 0.6 + 0.7 * float(shop_byte(key, 4)) / 255.0
-	if shop_byte(key, 5) < 90:
+	if room != ShopRoom.LOBBY and shop_byte(key, 5) < 90:
 		tone = tone.lerp(NEON_COLORS[shop_byte(key, 6) % 5], 0.4)
 	return Color(tone.r, tone.g, tone.b, bright / 1.3)
 
@@ -1260,15 +1357,12 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			var runs := int(float(cols) / span)
 			# 0.845 of the storefront up from the part's base, where the shader's sign band is.
 			var band_y := bottom + 0.845 * storefront
-			var last_name := -1
+			var names := shop_names(face_index, runs)
 			for run in runs:
-				var name_i := absi(hash([seed, "sign_name", face_index, run * 7919])) % SHOP_NAMES.size()
-				# Two of the same shop side by side reads as a bug even though real streets do
-				# it; step along the list rather than re-rolling.
-				if name_i == last_name:
-					name_i = (name_i + 1) % SHOP_NAMES.size()
-				last_name = name_i
-				var text: String = SHOP_NAMES[name_i]
+				var text: String = SHOP_NAMES[names[run]]
+				# A tower's lobby carries the building's street number, not a shop's name.
+				if shop_is_lobby(shop_key(face_index + 1, run), run, runs, maxf(height, size.y)):
+					text = str((1 + absi(hash([seed, "street_number", face_index])) % 39) * 25)
 				# The shader measures `u` the opposite way round the box from `a` on every
 				# face, so the run's centre has to be mirrored back.
 				var u_s := (float(run) + 0.5) * span * pitch
@@ -1298,7 +1392,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			var runs := int(float(cols) / span)
 			for run in runs:
 				var key := shop_key(face_index + 1, run)
-				if not shop_open(key):
+				# A tower's lobby is lit all night; every pool is its room's colour (room_tone()).
+				var lobby := shop_is_lobby(key, run, runs, maxf(height, size.y))
+				if not shop_open(key) and not lobby:
 					continue
 				var u_s := (float(run) + 0.5) * span * pitch
 				var along := size_u * 0.5 - u_s
@@ -1306,7 +1402,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				if absf(along) > size_u * 0.5 - cut:
 					continue
 				var wide := span * pitch * shop_spill_widen
-				var light := shop_light(key)
+				var light := shop_light(key, ShopRoom.LOBBY if lobby else shop_room(face_index + 1, run))
 				var xf := Transform3D(Basis(a * wide, n * (2.0 * shop_spill_reach), a.cross(n)), fc + a * along + n * 0.15)
 				shop_pools.append([xf, Color(light.r, light.g, light.b, light.a * shop_spill_strength)])
 		if has_fins:

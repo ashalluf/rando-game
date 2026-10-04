@@ -8,7 +8,7 @@ extends SceneTree
 ##
 ## Env: OUT (png path), BSEED (building seed), FINISH (Building.Finish index), LOT (meters),
 ## HMIN / HMAX (height range), KIT=0 (no facade kit), CAM_POS / CAM_LOOK / CAM_FOV (an exact
-## close-up; see below). This is the Compatibility renderer, like the web build: lighting is
+## close-up; see below), NIGHT=1 (after dark), BENCH=n (time n frames). This is the Compatibility renderer, like the web build: lighting is
 ## flat, judge geometry and materials. ~20 s per shot on llvmpipe.
 func _initialize() -> void:
 	var root3d := Node3D.new()
@@ -69,8 +69,24 @@ func _initialize() -> void:
 		cam.look_at_from_position(Vector3(lot * 2.0, h * 0.9, lot * 3.0), Vector3(0, h * 0.45, 0))
 	cam.far = 2000.0
 	cam.current = true
+	# NIGHT=1: the street after dark (night_factor and lamp_factor at 1, the sky and sun down), for
+	# the shops' lit rooms and signs.
+	if OS.get_environment("NIGHT") == "1":
+		RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+		e.background_color = Color(0.02, 0.025, 0.04)
+		e.ambient_light_color = Color(0.05, 0.06, 0.09)
+		sun.light_energy = 0.05
 	for i in 10:
 		await process_frame
+	# BENCH=n: n more frames timed, for the cost of a shader change on a frame full of facade
+	# (llvmpipe runs the fragment shaders on the CPU inside the frame, so wall time is GPU time).
+	var bench := _env_int("BENCH", 0)
+	if bench > 0:
+		var t0 := Time.get_ticks_usec()
+		for i in bench:
+			await process_frame
+		print("BENCH ms/frame ", snappedf(float(Time.get_ticks_usec() - t0) / 1000.0 / float(bench), 0.1))
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "building_shot.png"

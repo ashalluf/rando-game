@@ -18,13 +18,13 @@ extends RefCounted
 const CHAPARRAL_AMOUNT := 0.8
 const NORTH_BRUSH := 0.3
 ## terrain.gdshader: brush in the gullies, grass on the gentle ground, scree and crest rock.
-const DRAIN_BRUSH := 0.45
+const DRAIN_BRUSH := 0.6
 const GENTLE_GRASS := 0.55
 const GULLY_SCREE := 0.5
 const CREST_ROCK := 0.8
 ## terrain.gdshader: how much the land decides the stands against the patch noise.
 const TOPO_WEIGHT := 0.8
-const SOUTH_GRASS := 0.08
+const SOUTH_GRASS := 0.35
 ## terrain.gdshader: the slopes (1 - normal.y) where bare dirt and rock take over.
 const DIRT_SLOPE_START := 0.42
 const DIRT_SLOPE_END := 0.62

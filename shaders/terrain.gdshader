@@ -43,18 +43,12 @@ uniform float mottle_mean_luma = 0.126;
 // the same two textures: keep them equal.)
 uniform float dirt_mean_luma = 0.203;
 uniform float rock_mean_luma = 0.072;
-// Decomposed granite and dirt (LINEAR), and how much of the dirt texture's own orange survives.
-uniform vec3 dirt_color = vec3(0.150, 0.126, 0.094);
+// How much of the dirt texture's own orange survives (dirt_color is the splat's).
 uniform float dirt_keep_hue : hint_range(0.0, 1.0) = 0.25;
 // How much bare ground shows between the thinnest grass tufts, up close.
 uniform float bare_between : hint_range(0.0, 1.0) = 0.7;
-// Rock outcrops, buff sandstone going grey (LINEAR), and how much of the texture's hue stays.
-uniform vec3 rock_color = vec3(0.112, 0.106, 0.096);
+// How much of the rock texture's hue stays (rock_color is the splat's).
 uniform float rock_keep_hue : hint_range(0.0, 1.0) = 0.15;
-// How much darker a canyon's floor is than the slopes, and how much lighter the spur crests:
-// the brush is densest and tallest down there and the light gets in least. It draws the
-// drainage network at every distance, even front-lit at noon when the slopes shade flat.
-uniform float drain_shade : hint_range(0.0, 1.0) = 0.3;
 // Metres of canopy relief a stand of brush has (its bushes and the gaps between them), and of
 // leaf clumps on the bushes. They go into the normal, which is what makes brush read as bushes
 // from across a canyon instead of a dark stain on a smooth slope.
@@ -69,17 +63,19 @@ uniform float detail_normal : hint_range(0.0, 2.0) = 1.0;
 uniform float erosion_amp = 7.0;
 uniform float erosion_cell = 55.0;
 uniform float erosion_shade : hint_range(0.0, 1.0) = 0.2;
-// Brightness swing between one hillside and the next, so a range is never one tile.
-uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
-// Metres above sea level the snow starts: the far ground's `snow_line`, keep them equal.
-uniform vec3 snow_color = vec3(0.58, 0.60, 0.66);
-uniform float snow_line = 1150.0;
+// (dirt_color, rock_color, drain_shade, macro_variation, snow_color and snow_line are the splat's,
+// hill_splat.gdshaderinc, which the horizon plane reads too.)
 // Same second fetch as the road shader, and the same global switch: the grass is sampled again
 // rotated and at another scale and cross-faded on slow noise, which kills the visible tiling.
 global uniform float ground_detail;
 
 #include "res://shaders/hill_splat.gdshaderinc"
 #include "res://shaders/erosion.gdshaderinc"
+// Linear on both renderers: every texture sample through cs_in(), the albedo out through cs_out().
+// On Compatibility the textures arrived as raw sRGB and the luma ratios below (against LINEAR
+// means) came out two to three times too bright, then clamped - the web's hills were paler than
+// the Mac's and nothing like the horizon plane beside them.
+#include "res://shaders/color_space.gdshaderinc"
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -141,15 +137,15 @@ void fragment() {
 
 	// ---- grass: the lawn texture's blades recoloured to straw, mottled by the aerial scan ---
 	vec2 uv = w / grass_scale;
-	vec3 g = texture(grass_albedo, uv).rgb;
+	vec3 g = cs_in(texture(grass_albedo, uv).rgb);
 	if (ground_detail > 0.5) {
 		vec2 uv2 = (mat2(vec2(0.74, -0.67), vec2(0.67, 0.74)) * w) / (grass_scale * 1.61) + vec2(7.3, 2.9);
 		float blend = smoothstep(0.32, 0.68, vnoiset(w * 0.021 + 5.0));
-		g = mix(g, texture(grass_albedo, uv2).rgb, blend);
+		g = mix(g, cs_in(texture(grass_albedo, uv2).rgb), blend);
 	}
 	// The blades mip away to one flat tone past a few tens of metres; the aerial scan's worn
 	// patches and tufts, at a much larger tile, carry the grain from there out to the LOD ring.
-	float mot = clamp(luma(texture(mottle_albedo, w / mottle_scale).rgb) / mottle_mean_luma, 0.4, 1.8);
+	float mot = clamp(luma(cs_in(texture(mottle_albedo, w / mottle_scale).rgb)) / mottle_mean_luma, 0.4, 1.8);
 	float gl = clamp(luma(g) / grass_mean_luma, 0.3, 2.0) * (1.0 + (mot - 1.0) * mottle_amount);
 	// Greener where the ground holds its water a little longer: some hillsides, and low down.
 	float green = clamp(smoothstep(0.3, 0.75, hill) * 0.8 + (1.0 - smoothstep(60.0, 260.0, world_pos.y)) * 0.25, 0.0, 1.0);
@@ -157,7 +153,7 @@ void fragment() {
 	// these the mipped blades leave the slope one flat tone from twenty metres out.
 	vec3 grass = mix(straw_color, straw_green_color, green * 0.8) * gl * mix(0.78, 1.2, tuft);
 	vec2 duv = w / dirt_scale;
-	vec3 d = texture(dirt_albedo, duv).rgb;
+	vec3 d = cs_in(texture(dirt_albedo, duv).rgb);
 	vec3 dirt = mix(dirt_color * clamp(luma(d) / dirt_mean_luma, 0.3, 2.0), d * (luma(dirt_color) / dirt_mean_luma), dirt_keep_hue);
 	// The dirt between the tufts: a narrow cut of the tuft noise, widened by what has faded out of
 	// it and by how fast it changes across a pixel - cut sharp from the air, the half-resolved
@@ -214,7 +210,7 @@ void fragment() {
 
 	// ---- rock: outcrops on the steepest faces, and a few breaking through on the ridges ----
 	vec2 ruv = w / rock_scale;
-	vec3 r = texture(rock_albedo, ruv).rgb;
+	vec3 r = cs_in(texture(rock_albedo, ruv).rgb);
 	vec3 rock = mix(rock_color * clamp(luma(r) / rock_mean_luma, 0.3, 2.2), r * (luma(rock_color) / rock_mean_luma), rock_keep_hue);
 	float crag = vnoiset(w * 0.021 + 29.0);
 	float rocky = hill_rocky(slope, crag, patchy, drain, bush);
@@ -229,7 +225,7 @@ void fragment() {
 
 	// Snow above the far ground's snow line, and not on the near-vertical faces.
 	float snow = smoothstep(snow_line, snow_line + 270.0, world_pos.y) * (1.0 - smoothstep(0.45, 0.8, slope));
-	ALBEDO = mix(albedo, snow_color, snow);
+	ALBEDO = cs_out(mix(albedo, snow_color, snow));
 
 	// ---- the surface's own relief -----------------------------------------------------------
 	// The terrain mesh has no UVs and so no tangents, and a NORMAL_MAP without tangents does

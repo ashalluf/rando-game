@@ -5,19 +5,42 @@
 // every clump of brush on a painted stand. HillPlanting (scripts/world/hill_planting.gd) is the
 // same maths on the CPU and plants the shrubs and oaks by it; the smoke test reads the numbers
 // below back out of this file and checks they still match HillPlanting.MIRRORED.
-// macro_ground.gdshader keeps its own copy for the band where it meets the tiles (`tile_*`).
+// macro_ground.gdshader (the horizon plane) includes it too: the far ground is this same field with
+// the octaves it cannot resolve at their means, so a range wears the same ground on both sides
+// of the streamed tiles' edge. Change a number here and every hill surface follows.
 //
 // Everything takes TRUE world XZ (`world_pos.xz + world_offset`). Colours are LINEAR.
 // Shader includes use // comments, like any shader file.
 
-// Straw on a pale, burnt hillside and on a greener, later-drying one (LINEAR albedo).
-uniform vec3 straw_color = vec3(0.150, 0.124, 0.074);
-uniform vec3 straw_green_color = vec3(0.106, 0.100, 0.064);
-// Chaparral: the brush with the shade between the bushes (LINEAR).
-uniform vec3 chaparral_color = vec3(0.050, 0.056, 0.036);
+// Straw on a pale, burnt hillside and on a greener, later-drying one (LINEAR albedo): late-summer
+// wild oats, pale gold (2026-10-04: a third brighter and yellower; the old 0.150 / 0.124 / 0.074
+// was a tan that read brown beside the city's concrete once the Mac drew it at its real value).
+uniform vec3 straw_color = vec3(0.200, 0.158, 0.076);
+uniform vec3 straw_green_color = vec3(0.138, 0.127, 0.076);
+// Chaparral: the brush with the shade between the bushes (LINEAR). Dusty grey-green - chamise,
+// scrub oak and ceanothus under a summer's dust - not the olive-brown it was (0.050 / 0.056 /
+// 0.036): greener against the red, more blue in it. Lit by a warm low sun on the Mac it still
+// reads grey-brown if green is not clearly over red.
+uniform vec3 chaparral_color = vec3(0.046, 0.058, 0.040);
 // The sage and buckwheat dotted through the grass: grey-green and paler than the chaparral
 // (LINEAR). Painted in the chaparral's colour they were dark polka dots across the straw.
-uniform vec3 sage_color = vec3(0.082, 0.086, 0.064);
+uniform vec3 sage_color = vec3(0.085, 0.097, 0.075);
+// Decomposed granite and dirt on the cuts and trails, and rock outcrops, buff sandstone going grey
+// (LINEAR albedos; terrain.gdshader carries the textures' grain on them).
+// Pale decomposed granite and grey sandstone / granite, as the fire roads and outcrops of the
+// real ranges show from the air (they were 0.150 / 0.126 / 0.094 and 0.112 / 0.106 / 0.096:
+// darker than the straw, so a ridge's rock read as a dark scar rather than a pale crest).
+uniform vec3 dirt_color = vec3(0.205, 0.176, 0.133);
+uniform vec3 rock_color = vec3(0.172, 0.164, 0.150);
+// Snow above `snow_line` metres (the back range's tops), off the near-vertical faces.
+uniform vec3 snow_color = vec3(0.58, 0.60, 0.66);
+uniform float snow_line = 1150.0;
+// How much darker a canyon's floor is than the slopes, and how much lighter the spur crests:
+// the brush is densest and tallest down there and the light gets in least. It draws the
+// drainage network at every distance, even front-lit at noon when the slopes shade flat.
+uniform float drain_shade : hint_range(0.0, 1.0) = 0.3;
+// Brightness swing between one hillside and the next, so a range is never one tile.
+uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
 // How much of the ground is chaparral, and how much more of it the north-facing slopes carry.
 // Chaparral is the hills' DOMINANT cover (the grass is the exception, on gentle south slopes).
 uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.8;
@@ -25,10 +48,13 @@ uniform float north_brush : hint_range(0.0, 1.0) = 0.3;
 // How much more brush the gullies carry and how much less the spur crests (the drainage the
 // height field was cut with, MacroMap.last_drain, in COLOR.g), and how much less the gentle
 // ground carries - benches and saddles are where the grass is.
-uniform float drain_brush : hint_range(0.0, 1.0) = 0.45;
+uniform float drain_brush : hint_range(0.0, 1.0) = 0.6;
 uniform float gentle_grass : hint_range(0.0, 1.0) = 0.55;
-// How much brush the sunny side loses (south faces are grass and sage between the stands).
-uniform float south_grass : hint_range(0.0, 1.0) = 0.08;
+// How much brush the sunny side loses: the open south slopes and their spurs are gold grass, the
+// folds between them brush (with drain_brush). At 0.08 (and drain_brush 0.45) the front range's
+// south faces - what the whole basin looks at - were 86 % brush and every range one olive-brown
+// tone; now 54 %: gullies 97 %, mid-slopes 51 %, spurs 6 % (front range, HANDOFF 9au).
+uniform float south_grass : hint_range(0.0, 1.0) = 0.35;
 // Scree and dirt down the steep gullies, and rock breaking out along the spur crests.
 uniform float gully_scree : hint_range(0.0, 1.0) = 0.5;
 uniform float crest_rock : hint_range(0.0, 1.0) = 0.8;
@@ -123,8 +149,9 @@ vec2 hill_broad(vec2 w) {
 // takes here (thicker on the shaded side, in the gullies and on the steep ground, thinner on
 // the gentle ground and the sunny side), pulled toward 0.5 by `topo_weight`.
 float hill_stand_threshold(float slope, float north, float drain, float hill) {
-	// The sunny side loses less brush than the shaded side gains: from the basin the south
-	// faces are what you see, and they are brush with grass between, not grass with brush.
+	// The sunny side is grass on its open slopes and spurs and brush in its folds: the drainage
+	// (drain_brush) splits a south face into gold ribs and dark gullies, the way the real front
+	// ranges look from the basin; the shaded side is brush almost everywhere.
 	float gentle = 1.0 - smoothstep(0.06, 0.22, slope);
 	float south = max(-north, 0.0);
 	float coverage = chaparral_amount + max(north, 0.0) * north_brush - south * south_grass

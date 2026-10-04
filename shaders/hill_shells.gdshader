@@ -27,6 +27,8 @@ render_mode cull_back, depth_draw_opaque, diffuse_burley, specular_schlick_ggx;
 // once per pixel, so the test is kept to two value noises and a few hashes.
 
 #include "res://shaders/hill_splat.gdshaderinc"
+// Linear on both renderers, like terrain.gdshader (cs_in on the samples, cs_out at the end).
+#include "res://shaders/color_space.gdshaderinc"
 
 // How far the scene's origin has been shifted (CityStreamer sets it, as for the terrain).
 uniform vec2 world_offset = vec2(0.0);
@@ -287,8 +289,8 @@ void fragment() {
 
 	// ---- colour and light ---------------------------------------------------------------------
 	// The painted ground's light and dark (terrain.gdshader's `gl`), so the shells carry its tone.
-	float gtex = clamp(shell_luma(texture(grass_albedo, w / grass_scale).rgb) / grass_mean_luma, 0.3, 2.0);
-	float mot = clamp(shell_luma(texture(mottle_albedo, w / mottle_scale).rgb) / mottle_mean_luma, 0.4, 1.8);
+	float gtex = clamp(shell_luma(cs_in(texture(grass_albedo, w / grass_scale).rgb)) / grass_mean_luma, 0.3, 2.0);
+	float mot = clamp(shell_luma(cs_in(texture(mottle_albedo, w / mottle_scale).rgb)) / mottle_mean_luma, 0.4, 1.8);
 	float gl = gtex * mot;
 	// The grass is lit on the slope's own normal, tilted a little per blade: bent toward straight
 	// up (as the lawn blades are), a slope facing the sun got a fraction of the light the painted
@@ -316,17 +318,18 @@ void fragment() {
 		ao = mix(1.0 - root_shadow, 1.0, smoothstep(0.0, 0.7, blade_t));
 		through = translucency * (0.3 + 0.9 * blade_t);
 	}
-	ALBEDO = col * ao;
+	vec3 albedo_lin = col * ao;
+	ALBEDO = cs_out(albedo_lin);
 	AO = mix(0.6, 1.0, ao);
 	NORMAL = normalize((VIEW_MATRIX * vec4(n, 0.0)).xyz);
 	ROUGHNESS = keep_brush > 0.5 ? 0.82 : 0.93;
 	SPECULAR = 0.35;
 	vec3 to_cam = normalize((INV_VIEW_MATRIX * vec4(VIEW, 0.0)).xyz);
 	float facing = clamp(dot(to_cam, -normalize(sun_direction)), 0.0, 1.0);
-	BACKLIGHT = ALBEDO * through * (1.0 + scatter_gain * pow(facing, 5.0));
+	BACKLIGHT = cs_out(albedo_lin * through * (1.0 + scatter_gain * pow(facing, 5.0)));
 	if (debug_mode == 3) {
 		// Lighting probe: the painted straw's own colour, the terrain's normal.
-		ALBEDO = straw_color * gl;
+		ALBEDO = cs_out(straw_color * gl);
 		NORMAL = normalize((VIEW_MATRIX * vec4(wn, 0.0)).xyz);
 		BACKLIGHT = vec3(0.0);
 		AO = 1.0;
