@@ -16,7 +16,8 @@ extends Node
 ## LOD chunks out to n blocks, CENTRE=x,z builds the chunks round that point instead of the eye,
 ## GROUND=1 adds the horizon plane (CityStreamer's own material and bake) so the seam between the
 ## tiles and the far ground can be judged without the city (small enough for lavapipe), HILLS_ONLY=1
-## builds only the hill blocks of the ring, NOSHELLS=1 hides
+## builds only the hill blocks of the ring, PAINT_AB=1 saves each frame again with the plane all lit
+## and all painted (_lit, _painted: its paint_gain), NOSHELLS=1 hides
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
 ## triangles and draws, SHELL_DEBUG=1 draws
@@ -139,6 +140,16 @@ func _ready() -> void:
 				await get_tree().process_frame
 			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_dbg%s.png" % m)
 			PropFactory.hill_shell_material().set_shader_parameter("debug_mode", 0)
+		# PAINT_AB=1 (with GROUND=1): the same frame again with the whole horizon plane lit by the
+		# renderer (<name>_lit.png) and painted by hand (<name>_painted.png) - macro_ground's
+		# paint_debug - which is how its paint_gain is measured.
+		if ground_mat and OS.get_environment("PAINT_AB") == "1":
+			for mode: int in [0, 1]:
+				ground_mat.set_shader_parameter("paint_debug", mode)
+				for i in 3:
+					await get_tree().process_frame
+				get_viewport().get_texture().get_image().save_png(file.get_basename() + ("_lit.png" if mode == 0 else "_painted.png"))
+			ground_mat.set_shader_parameter("paint_debug", -1)
 		# AB=1: the same frame again without the shells, saved beside it (<name>_noshells.png).
 		if OS.get_environment("AB") == "1":
 			get_tree().call_group("hill_shells", "set_visible", false)
