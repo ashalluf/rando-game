@@ -29,8 +29,8 @@ float wl_roll(uint key, uint salt) {
 
 
 // The integer key of a storey of one wall of a building, a bay index short.
-uint wl_face_row(float seed, float face, float row) {
-	uint sd = uint(clamp(seed, 0.0, 999.0) + 0.5);
+uint wl_face_row(float b_seed, float face, float row) {
+	uint sd = uint(clamp(b_seed, 0.0, 999.0) + 0.5);
 	uint f = uint(clamp(face, 0.0, 7.0) + 0.5);
 	uint r = uint(clamp(row, 0.0, 255.0));
 	return ((sd * 8u + f) * 256u + r) * 256u;
@@ -39,14 +39,15 @@ uint wl_face_row(float seed, float face, float row) {
 
 // An office tower after dark does not light up as a checkerboard of single windows: a tenancy
 // takes a run of three bays and leaves them all on, some floors go dark altogether, a few are lit
-// end to end because somebody is cleaning them. `lit_ratio` is the building's (Building.style).
-bool window_lit(float seed, float face, float row, float col, float lit_ratio) {
-	uint sd = uint(clamp(seed, 0.0, 999.0) + 0.5);
+// end to end because somebody is cleaning them. `ratio_in` is the building's lit_ratio
+// (Building.style; a parameter may not share a uniform's name, and building.gdshader has one).
+bool window_lit(float b_seed, float face, float row, float col, float ratio_in) {
+	uint sd = uint(clamp(b_seed, 0.0, 999.0) + 0.5);
 	float floor_k = wl_roll(sd * 256u + uint(clamp(row, 0.0, 255.0)), 60u);
 	// 0 on a dark floor, about double on a busy one, 1 on an ordinary one.
 	float floor_mul = floor_k < 0.20 ? 0.0 : (floor_k > 0.88 ? 2.3 : 1.0);
-	float ratio = clamp(lit_ratio * floor_mul, 0.0, 1.0);
-	uint fr = wl_face_row(seed, face, row);
+	float ratio = clamp(ratio_in * floor_mul, 0.0, 1.0);
+	uint fr = wl_face_row(b_seed, face, row);
 	float run_k = wl_roll(fr + uint(clamp(floor(col / 3.0), 0.0, 255.0)), 61u);
 	float k = wl_roll(fr + uint(clamp(col, 0.0, 255.0)), 62u);
 	// The whole office, plus the odd single window inside a dark one.
@@ -55,12 +56,12 @@ bool window_lit(float seed, float face, float row, float col, float lit_ratio) {
 
 
 // How bright a lit window is against its neighbours, 0.55..1.
-float window_glow(float seed, float face, float row, float col) {
-	return 0.55 + 0.45 * wl_roll(wl_face_row(seed, face, row) + uint(clamp(col, 0.0, 255.0)), 64u);
+float window_glow(float b_seed, float face, float row, float col) {
+	return 0.55 + 0.45 * wl_roll(wl_face_row(b_seed, face, row) + uint(clamp(col, 0.0, 255.0)), 64u);
 }
 
 
 // A curtain wall's spandrel panels are the pale one (else the dark one) on 45 % of buildings.
-bool spandrel_pale(float seed) {
-	return wl_roll(uint(clamp(seed, 0.0, 999.0) + 0.5), 63u) >= 0.55;
+bool spandrel_pale(float b_seed) {
+	return wl_roll(uint(clamp(b_seed, 0.0, 999.0) + 0.5), 63u) >= 0.55;
 }

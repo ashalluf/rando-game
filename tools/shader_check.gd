@@ -1,21 +1,20 @@
 extends SceneTree
-## Parses every shader in shaders/ (plus any path given after --) and prints the result, so a
-## typo in a .gdshader is caught in seconds instead of by a six-minute render that comes back
-## blank white. Godot parses a Shader when its code is set, so this needs no renderer.
+## Parses shaders headless and says which fail: Godot's shader compiler runs on load even under the
+## dummy renderer (a SHADER ERROR line names the problem), although no GPU compile happens there.
 ##
-##   godot --headless --path . --script tools/shader_check.gd -- shaders/macro_ground.gdshader
+##   godot --headless --path . --script tools/shader_check.gd [-- res://shaders/a.gdshader ...]
+##
+## With no paths it checks the building shaders. A shader that fails falls back to blank white in
+## the game, which looks like a missing texture, not like an error - and the headless smoke test
+## does not notice it.
+
 func _initialize() -> void:
-	var paths: Array[String] = []
-	for arg in OS.get_cmdline_user_args():
-		if arg.ends_with(".gdshader"):
-			paths.append("res://" + arg.trim_prefix("res://"))
+	var paths := Array(OS.get_cmdline_user_args())
 	if paths.is_empty():
-		for f in DirAccess.get_files_at("res://shaders"):
-			if f.ends_with(".gdshader"):
-				paths.append("res://shaders/" + f)
-	for p in paths:
-		var sh := Shader.new()
-		sh.code = FileAccess.get_file_as_string(p)
-		var names := sh.get_shader_uniform_list()
-		print("OK ", p, " uniforms=", names.size())
+		paths = ["res://shaders/building.gdshader", "res://shaders/building_lod.gdshader"]
+	for p: String in paths:
+		var sh: Shader = load(p)
+		var m := ShaderMaterial.new()
+		m.shader = sh
+		print("SHADER_CHECK %s: %d uniforms (a SHADER ERROR above this line means it failed)" % [p, sh.get_shader_uniform_list().size()])
 	quit()

@@ -25,6 +25,11 @@ func run(tree: SceneTree) -> void:
 	plan.macro = MacroMap.new()
 	plan.macro.seed = s.world_seed
 	plan.macro.setup()
+	# FAR_CODED=0|1 forces the coded far boxes off or on (FarBuilding.enabled), for an A/B.
+	var coded := OS.get_environment("FAR_CODED")
+	if coded != "":
+		FarBuilding.enabled = coded == "1"
+	print("FAR_CENSUS coded far boxes: %s" % str(FarBuilding.enabled))
 	var sky := Skyline.new()
 	root.add_child(sky)
 	sky.setup(plan, s.chunk_style())
