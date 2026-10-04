@@ -53,6 +53,8 @@ extends SceneTree
 ## DIFF=1 makes a frame that renders the same twice, for before/after pixel diffs: shader TIME
 ## held at zero, the clock of day held at --hour, the signals on a fixed clock, and people, cars,
 ## aircraft, particles and the player hidden (two runs differ in a handful of pixels by 1-2/255).
+## LIFE_REPORT=1 lists the people within 80 m of the camera doing something (crowd life), with
+## true world positions to frame an EYE on; CROWD_LIFE=0 turns the crowd's life off (the A/B).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
 ## YARD_FILL=0 builds the city without YardFill (beach-town yards, the campus's ground, the
 ## freeway's right of way: the A/B; SPLIT counts its two meshes in the LotFill line).
@@ -368,6 +370,22 @@ func _initialize() -> void:
 		print("HIDE %s: %d nodes" % [hide_env, hidden])
 		for i in 3:
 			await process_frame
+	# LIFE_REPORT=1: every pedestrian within 80 m of the camera that is doing something (crowd
+	# life: Pedestrian._act, CrowdLife.Act) with its true world position, to frame a shot on.
+	if OS.get_environment("LIFE_REPORT") == "1":
+		var cam := get_root().get_camera_3d()
+		var acts := ["none", "stand", "lean", "window", "talk", "sit"]
+		var counts := {}
+		for n in get_nodes_in_group("pedestrian"):
+			var p := n as Node3D
+			if cam == null or p.global_position.distance_to(cam.global_position) > 80.0:
+				continue
+			var act: int = int(p.get("_act")) if p.get("_act") != null else 0
+			var key: String = acts[act] + ("/jog" if p.get("_jogger") else "") + ("/dog" if p.get("_dog_walker") else "")
+			counts[key] = int(counts.get(key, 0)) + 1
+			if act != 0 or p.get("_jogger") or p.get("_dog_walker"):
+				print("LIFE %s at %s clip %s carry %s" % [key, (get_root().get_node("/root/WorldState").to_world(p.global_position) as Vector3).snapped(Vector3.ONE * 0.1), p.get("_clip"), p.get("_carry")])
+		print("LIFE counts ", counts)
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "still.png"

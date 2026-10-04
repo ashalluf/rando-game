@@ -284,7 +284,12 @@ func _initialize() -> void:
 			var sroot: Node = srcs[c[0]]
 			var src := Rig.new(sroot)
 			var ap: AnimationPlayer = sroot.find_children("*", "AnimationPlayer", true, false)[0]
-			lib.add_animation(c[2], _retarget(src, tgt, ap.get_animation(c[1]), c[2], c[3], fps, c[4] if c.size() > 4 else 1.0, c[5] if c.size() > 5 else 0.0))
+			var clip := _retarget(src, tgt, ap.get_animation(c[1]), c[2], c[3], fps, c[4] if c.size() > 4 else 1.0, c[5] if c.size() > 5 else 0.0)
+			# Godot's own compression (quantised, paged): a third of the memory (6.2 -> 2.0 MB for the twelve rigs), and playback
+			# and *_track_interpolate() read it the same. COMPRESS=0 keeps the plain keys.
+			if OS.get_environment("COMPRESS") != "0":
+				clip.compress()
+			lib.add_animation(c[2], clip)
 		var path := OUT_DIR + rig + "_life.res"
 		var err := ResourceSaver.save(lib, path, ResourceSaver.FLAG_COMPRESS)
 		print("LIFE wrote %s (%s), %d KB" % [path, error_string(err), FileAccess.get_file_as_bytes(path).size() / 1024])

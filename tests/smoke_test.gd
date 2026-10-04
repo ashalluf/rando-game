@@ -1273,7 +1273,8 @@ func _test_city() -> void:
 			var ov := (mi as MeshInstance3D).material_override
 			if str(mi.name).begins_with("Hair"):
 				continue # a crowd rig's hair cards, on their own shader
-			if ov is ShaderMaterial:
+			if ov is ShaderMaterial and ov.get_shader_parameter("cloth_hue") != null:
+				# (not a held prop's material: CrowdLife.prop_material())
 				shaded += 1
 				outfits[Vector3(ov.get_shader_parameter("cloth_hue"), ov.get_shader_parameter("cloth_sat"), ov.get_shader_parameter("cloth_strength"))] = true
 		var vis: Node3D = (ped as Node).get("_visual")
@@ -1590,6 +1591,8 @@ func _test_city() -> void:
 	await load("res://tests/street_life_checks.gd").new().run(self, city)
 	# Crowd animation (VISUAL_ROADMAP #28): starts, stops, turns, stride and head look.
 	await load("res://tests/crowd_anim_checks.gd").new().run(self, city)
+	# Crowd life (GAME_PLAN G5): talking, sitting, carrying, panic over all of it.
+	await load("res://tests/crowd_life_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")

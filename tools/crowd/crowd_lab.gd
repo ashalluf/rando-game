@@ -26,6 +26,7 @@ var _player: Node3D
 var _car: Node3D
 var _peds: Array = []
 var _props_rows: Array = []
+var _dog_legs: Array = []
 var _tick: int = 0
 var _tail: Node
 
@@ -213,6 +214,22 @@ func _film() -> void:
 				_props_rows.append([p, kinds[i]])
 			_player.position = Vector3(0.0, 0.0, -10.0)
 			_camera(Vector3(0.0, 1.4, -4.2), Vector3(0.0, 1.0, 0.0), 40.0)
+		"dog":
+			# Two people walking dogs along the pavement toward the camera's side view.
+			for i in 2:
+				var p := Pedestrian.new()
+				p.setup(rect, 4.0, 90 + i * 17)
+				p.jogger_share = Vector2.ZERO
+				p.dog_share = Vector2.ONE
+				p.life_spawn_chance = 0.0
+				p.pause_chance = 0.0
+				p.cross_chance = 0.0
+				p.position = Vector3(-6.0 - 3.0 * i, 0.0, 0.3 + 0.8 * i)
+				add_child(p)
+				_peds.append(p)
+				_dog_legs.append(p)
+			_player.position = Vector3(0.0, 0.0, -8.0)
+			_camera(Vector3(0.0, 1.3, -5.5), Vector3(0.0, 0.6, 0.5), 50.0)
 		"life":
 			_stage_life(rect)
 			_camera(Vector3(0.0, 2.2, -9.0), Vector3(0.0, 1.0, 1.5), 50.0)
@@ -248,6 +265,8 @@ func _film() -> void:
 				var here := Vector2(lead.position.x, lead.position.z)
 				if here.distance_to(legs[leg]) < 1.2 and leg + 1 < legs.size():
 					leg += 1
+			for p: Pedestrian in _dog_legs:
+				_steer(p, Vector2(30.0, p.position.z))
 			if _scenario == "look":
 				_stage_look(_tick)
 				if OS.get_environment("DEBUG") == "1" and _tick % 30 == 0:

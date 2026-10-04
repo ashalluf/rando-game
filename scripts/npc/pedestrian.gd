@@ -291,7 +291,7 @@ func _ready() -> void:
 	add_child(shape)
 	_visual = Node3D.new()
 	add_child(_visual)
-	if _lives():
+	if _lives() and life_enabled:
 		_roll_life(_life_seed)
 	if _add_model():
 		_add_hit_area()
@@ -2565,6 +2565,8 @@ func shot(at: Vector3, dir: Vector3, impulse: Vector3, strength: float = 1.0) ->
 @export var jog_pace: Vector2 = Vector2(2.6, 3.4)
 @export_group("")
 
+## The whole layer on or off (CROWD_LIFE=0 in the environment: the A/B for stills).
+static var life_enabled: bool = OS.get_environment("CROWD_LIFE") != "0"
 var _life_ok: bool = false
 var _life_near: bool = false
 var _life_rolled: bool = false
@@ -2648,7 +2650,7 @@ func _lives() -> bool:
 ## After _add_model: the rig gets its life clips, and the bones the life poses touch are found.
 func _setup_life() -> void:
 	_born_ms = _life_now_ms()
-	if not _lives() or _anim == null or _head_skel == null:
+	if not _lives() or not life_enabled or _anim == null or _head_skel == null:
 		return
 	_life_ok = CrowdLife.attach(_anim, _model_path)
 	if not _life_ok:
