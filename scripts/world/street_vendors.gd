@@ -65,9 +65,9 @@ const CART_IN := 1.55
 const QUEUE_IN := 2.75
 ## How far each kind draws (m) and casts.
 const TRUCK_DRAW := 230.0
-const CART_DRAW := 150.0
-const UMBRELLA_DRAW := 170.0
-const SHADOW_DISTANCE := 70.0
+const CART_DRAW := 120.0
+const UMBRELLA_DRAW := 140.0
+const SHADOW_DISTANCE := 45.0
 ## Share of the walkers near a free queue spot who go and wait at it (Pedestrian._plan_queue()).
 const QUEUE_SHARE := 0.55
 ## How long a customer waits (s).
