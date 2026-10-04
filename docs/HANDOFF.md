@@ -5031,7 +5031,10 @@ is the reference; this is the story.
 square-ish columns (built as parallelograms off the world X axis, so a diagonal route's columns
 were sheared), and every 340 m two posts, a beam and two blank green boards. No median barrier,
 no lights, nothing on the shoulders. Traffic drove two lanes each way between dashes that did
-not line up with it.
+not line up with it. (Main's e85f2c7, which landed while this was in flight, turned the old
+underside and barriers to face the right way and squared the columns; the kit replaces all of
+that code, so on the rebase its `_build_freeway()` / `_pillar()` / `_bar()` changes were dropped
+in favour of FreewayKit. The bent-cap bug below was still there.)
 
 **What it is now** (`scripts/world/freeway_kit.gd`, `shaders/freeway_structure.gdshader`,
 `shaders/freeway_paint.gdshader`; `CityChunk._build_freeway()` keeps only the collision):
