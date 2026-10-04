@@ -67,6 +67,11 @@ extends SceneTree
 ## spot lights and street-lamp lights, on and in view). MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
+## The frame-cost cuts of HANDOFF 9bf, each with its A/B: SHADOW_REACH=0 casts the facade kit's
+## roofline (cornices, copings) to its draw distance again (MultiMeshBatch.shadow_reach_enabled),
+## GROUND_SHADOW=0 casts the FULL chunks' whole ground grids again (CityChunk.ground_skirt_shadows),
+## LAMPS_AT_ZERO=1 leaves the street lamps' lights shown at zero energy by day
+## (DayNight.hide_dark_lamps).
 ## LIGHT_WORLD=1 loads a smaller world (far city LIGHT_FAR m, default 2500; LOD ring LIGHT_LOD
 ## blocks, default 4; fewer people and cars) so a Forward+ still under lavapipe fits in RAM.
 ## HIDE=Ground,Chunk_* hides every node whose name matches (String.match) just before the shot,
@@ -115,6 +120,7 @@ func _initialize() -> void:
 	if OS.get_environment("MERGE_STATIC") == "0":
 		(load("res://scripts/world/city_chunk.gd") as GDScript).set("merge_boxes", false)
 		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("merge_enabled", false)
+	_audit_toggles()
 	if OS.get_environment("LIGHT_WORLD") == "1":
 		# A smaller world for Forward+ (lavapipe) stills: a whole city under lavapipe grows past
 		# the box's RAM (killed at 12 GB, HIGH and MEDIUM alike), so the far city, the LOD ring
@@ -733,6 +739,18 @@ func _ab_set(e: Dictionary, camera_old: bool, shadow_old: bool, bias: float, twi
 		if e.has("extra"):
 			(e.extra as Node3D).visible = false
 		node.cast_shadow = e.cast
+
+
+## SHADOW_REACH=0, GROUND_SHADOW=0, LAMPS_AT_ZERO=1: the "before" sides of HANDOFF 9bf's cuts.
+## Through the script resources (this compiles before the autoloads Building and DayNight use).
+## Shared with tools/gpu_profile.gd.
+static func _audit_toggles() -> void:
+	if OS.get_environment("SHADOW_REACH") == "0":
+		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("shadow_reach_enabled", false)
+	if OS.get_environment("GROUND_SHADOW") == "0":
+		(load("res://scripts/world/city_chunk.gd") as GDScript).set("ground_skirt_shadows", false)
+	if OS.get_environment("LAMPS_AT_ZERO") == "1":
+		(load("res://scripts/world/day_night.gd") as GDScript).set("hide_dark_lamps", false)
 
 
 func _geo_counts() -> Array:

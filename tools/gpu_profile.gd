@@ -14,15 +14,21 @@ extends SceneTree
 ## LIGHT_WORLD=1 is still_shot.gd's smaller world (far city LIGHT_FAR m, default 2500; LOD ring
 ## LIGHT_LOD blocks, default 4; 160 people, 40 cars): since 2026-10-04 the whole city under
 ## lavapipe grows past 12.7 GB and is OOM-killed on the 14.3 GB box, so a profile needs it.
-## LAMPS_AT_ZERO=1 shows the street lamps' lights at zero energy by day, as they were before
-## DayNight hid them (the A/B of that change).
+## LAMPS_AT_ZERO=1, SHADOW_REACH=0, GROUND_SHADOW=0: the "before" sides of HANDOFF 9bf's cuts
+## (street lamps' lights shown at zero energy by day; the kit's roofline casting to its draw
+## distance; the FULL chunks' whole ground grids casting), as on still_shot.gd.
 func _initialize() -> void:
 	# MERGE_STATIC=0: the chunks' and far landmarks' boxes one node each (see still_shot.gd).
 	if OS.get_environment("MERGE_STATIC") == "0":
 		(load("res://scripts/world/city_chunk.gd") as GDScript).set("merge_boxes", false)
 		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("merge_enabled", false)
+	# The "before" sides of HANDOFF 9bf's cuts, as on still_shot.gd.
 	if OS.get_environment("LAMPS_AT_ZERO") == "1":
 		(load("res://scripts/world/day_night.gd") as GDScript).set("hide_dark_lamps", false)
+	if OS.get_environment("SHADOW_REACH") == "0":
+		(load("res://scripts/util/multimesh_batch.gd") as GDScript).set("shadow_reach_enabled", false)
+	if OS.get_environment("GROUND_SHADOW") == "0":
+		(load("res://scripts/world/city_chunk.gd") as GDScript).set("ground_skirt_shadows", false)
 	if OS.get_environment("LIGHT_WORLD") == "1":
 		var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
 		city.set("far_city_radius", _env_float("LIGHT_FAR", 2500.0))

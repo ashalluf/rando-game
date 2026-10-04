@@ -69,6 +69,10 @@ const SIDEWALK_TOP := 0.25
 ## and flew over holes. The relief rolls over tens of metres; an 8 m chord is under 15 cm off it,
 ## a fraction of a pixel from where these chunks are seen.
 @export var lod_ground_grid_step: float = 8.0
+## FULL chunks' ground slabs cast their shadow from their skirt alone, and the roads none
+## (_add_ground_grid). False casts the whole grid again, the A/B (`GROUND_SHADOW=0` on
+## still_shot.gd).
+static var ground_skirt_shadows: bool = true
 ## Grass tufts per square metre of lawn, and the cap for one patch. A tuft is 160 triangles
 ## (ten creased blades) and covers about a third of a metre, so a lawn costs roughly 300
 ## triangles a square metre - a tenth of what the same ground costs in tree canopy overhead,
@@ -3711,6 +3715,20 @@ func _add_ground_grid(rect: Rect2, top: float, skirt: float, mat: Material, coll
 		mi.mesh = mesh
 		mi.material_override = mat
 		add_child(mi)
+		if ground_skirt_shadows:
+			# A flat slab's top shadows nothing anyone can see - everything near it stands on it -
+			# so only its skirt casts: the kerb face, which is what draws the kerb's shadow on the
+			# road. The road (at ROAD_TOP, nothing under it) casts nothing at all. As one grid of
+			# the top it was ~10k triangles a block into every cascade (HANDOFF 9bf).
+			mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			if top > ROAD_TOP + 0.001:
+				var rim := MeshInstance3D.new()
+				rim.name = "GroundSkirt"
+				rim.mesh = _grid_mesh(rect, top, skirt, nx, nz, false, Color.WHITE, true)
+				rim.material_override = mat
+				rim.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+				rim.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+				add_child(rim)
 	if not (collide and _statics):
 		return
 	var cx := clampi(ceili(rect.size.x / ground_collision_step), 1, 48)
@@ -3729,7 +3747,8 @@ static func far_tint(tint: Color, asphalt: Color) -> Color:
 
 ## One grid of `nx` by `nz` quads over `rect`, following the relief, with the skirt around it.
 ## `colored` gives every vertex `color` (the far chunks' merged ground).
-func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int, colored: bool = false, color: Color = Color.WHITE) -> ArrayMesh:
+## `skirt_only` leaves the top out: the shadow caster of a FULL chunk's ground (_add_ground_grid).
+func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int, colored: bool = false, color: Color = Color.WHITE, skirt_only: bool = false) -> ArrayMesh:
 	var pts := PackedVector3Array()
 	pts.resize((nx + 1) * (nz + 1))
 	for j in nz + 1:
@@ -3745,7 +3764,7 @@ func _grid_mesh(rect: Rect2, top: float, skirt: float, nx: int, nz: int, colored
 	# puts the lamp pools along them). Nothing else on the city ground reads UV: those shaders
 	# all work in world space.
 	var inv := Vector2(1.0 / maxf(rect.size.x, 0.01), 1.0 / maxf(rect.size.y, 0.01))
-	for j in nz:
+	for j in (0 if skirt_only else nz):
 		for i in nx:
 			var a := pts[j * (nx + 1) + i]
 			var b := pts[j * (nx + 1) + i + 1]

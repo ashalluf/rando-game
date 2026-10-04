@@ -50,6 +50,22 @@ func set_shadow_distance(key: String, meters: float) -> void:
 		_batches[key].shadow_distance = meters
 
 
+## Casts this batch's shadow only while one of its instances is within `meters` of the camera,
+## from a SHADOWS_ONLY twin: a batch with a lighter twin (PropFactory.shadow_proxy()) keeps that
+## one, a batch without gets a twin of its own mesh, so up close it casts exactly what it cast
+## before and past the reach nothing. A node's range is measured to the centre of its bounds, so
+## the twin's range is `meters` plus half the diagonal of the instances' bounds. For pieces whose
+## shadow is a line the far cascades cannot hold, or that something cheaper already casts there
+## (the facade kit's roofline). False (static) turns every reach off, the A/B (`SHADOW_REACH=0`
+## on still_shot.gd).
+static var shadow_reach_enabled: bool = true
+
+
+func set_shadow_reach(key: String, meters: float) -> void:
+	if _batches.has(key) and shadow_reach_enabled:
+		_batches[key].shadow_reach = meters
+
+
 func set_no_shadow(key: String) -> void:
 	if _batches.has(key):
 		_batches[key].no_shadow = true
@@ -98,6 +114,11 @@ func build(parent: Node3D) -> Dictionary:
 		# Foliage casts its shadow from a lighter twin (PropFactory.shadow_proxy()): same
 		# instances, same materials, a quarter of the triangles, drawn into the shadow maps only.
 		var proxy: Mesh = null if batch.no_shadow else PropFactory.shadow_proxy(batch.mesh)
+		var reach: float = batch.get("shadow_reach", 0.0)
+		if reach > 0.0 and not batch.no_shadow:
+			if proxy == null:
+				proxy = batch.mesh
+			batch.shadow_distance = reach + _instance_bounds(xforms, batch.mesh).size.length() * 0.5
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if batch.no_shadow or proxy else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		var draw_distance: float = batch.get("draw_distance", 0.0)
 		_set_draw_distance(node, draw_distance)
@@ -124,6 +145,16 @@ func build(parent: Node3D) -> Dictionary:
 			node.set_meta("shadow_twin", twin)
 	_batches.clear()
 	return nodes
+
+
+## The bounds of every instance's copy of `mesh` (for a reach measured to the node's centre).
+static func _instance_bounds(xforms: Array, mesh: Mesh) -> AABB:
+	var box := AABB()
+	var local := mesh.get_aabb()
+	for i in xforms.size():
+		var b: AABB = (xforms[i] as Transform3D) * local
+		box = b if i == 0 else box.merge(b)
+	return box
 
 
 static func _set_draw_distance(node: GeometryInstance3D, draw_distance: float) -> void:
