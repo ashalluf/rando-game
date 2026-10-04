@@ -873,7 +873,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and reverse; a traffic car's brake from its speed falling (> 0.8 m/s2) or standing, held
   0.35 s; its indicator from the turn TrafficManager rolled (`t.turn`, and `t.to_c`, the
   distance to that junction, within `Vehicle.TURN_SIGNAL_DISTANCE`), a U-turn signalling left;
-  hazards on a car knocked out of traffic with its driver in. **A parked car's lamps are off**
+  hazards on a car knocked out of traffic with its driver in. Past PhysicsBudget's
+  `vehicle_script_radius` a car's own step is off, so `TrafficManager._place()` ticks the lamps
+  of the cars it places whose script is off (they froze, blinking or braking for good).
+  **A parked car's lamps are off**
   (`lights_running()`: somebody in the cabin, not a wreck); they used to burn like a moving
   car's. Brake, indicator and reversing lamps show by day (`day_glow`), head / tail / beam
   follow `lamp_factor` as before. **Real lights**: `CarLights` (`scripts/vehicles/car_lights.gd`,
@@ -890,7 +893,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   traffic lights are soft plain cones (`spot_softness`), dipped more. Compatibility ignores
   projectors too. Look with `tools/glshot/car_light_shot.gd` (a small street, lavapipe in a
   minute: `VIEW=chase|side|top|rear`, `NOLIGHTS=1` the before, `BRAKE=1`, `REVERSE=1`,
-  `PSHADOW=0`, `NOCOOKIE=1`); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
+  `PSHADOW=0`, `NOCOOKIE=1`, `AHEAD=1` a car driving away, `OLDMAT=1` the old light_pool
+  material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
   opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
   lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each

@@ -4290,3 +4290,76 @@ On a GPU that is ALU on storefront pixels only; it has not been profiled on the 
 - The midtown oblique shot was not rendered (the render job hit its time limit); its night pair
   shows both shops closed, so the night comparison is downtown's.
 
+
+## 9au. Car lights that light the world, 2026-10-04 (agent branch `wt/carlight`; roadmap #26, #41; GAME_PLAN G4 / G6)
+
+**#26 verified first.** HANDOFF 000 said the beam fix was ported to main: it was. The beam quad
+lies at `ground + 0.12` (12 cm over the road) in `PropFactory.vehicle_lights()`, and it shows in
+every still below. Row #26 is closed.
+
+**What shipped** (CLAUDE.md "Car lights" has the whole contract):
+- **The lamp mesh got a state.** Still one mesh and one draw a car (`vehicle_lights()`), now on
+  `shaders/car_lights.gdshader` with amber indicators at the four corners, reversing lamps and a
+  red wash on the road behind; the part is in the quad's u shift. The car's state is one of a
+  few shared materials (`PropFactory.vehicle_light_material()`: brake x signal x blink phase x
+  reverse, at most 52), never instance uniforms. `Vehicle._tick_lights()` decides it each tick:
+  player brake / handbrake / reverse; traffic brake from its speed falling or standing (held
+  0.35 s); the indicator of the turn TrafficManager rolled (`t.turn`, `t.to_c` - new, the
+  distance to that junction's centre - within 48 m), a U-turn as a left; hazards on a car
+  knocked out of traffic with its driver in. Brake, indicator and reversing lamps show by day.
+- **Parked cars are dark now** (they burned head and tail lamps like moving cars). A car's lamps
+  are on while somebody is in its cabin (`lights_running()`).
+- **Real headlights, Forward+ only**: `CarLights` (one node under the tree root, made by the
+  first Vehicle). The player's car: a 44 m beam with the low-beam cookie (flat cut-off at lamp
+  height, kick up on the right), shadowed at HIGH, and a red OmniLight3D behind for brake /
+  reverse. Traffic: up to `budget` (6 HIGH, 3 MEDIUM, 0 below) running cars within 60 m, nearest
+  first (cars behind the camera count 1.8x further), plain soft cones dipped 7 degrees, faded by
+  distance and on every hand-over. Never on the web or Compatibility (`CarLights.force` for
+  stills).
+- **The trap that cost an hour**: Godot maps a spot light's projector through its shadow matrix,
+  which an unshadowed spot never gets, so a cookie on an unshadowed spot draws NOTHING (lavapipe
+  Forward+: with the player's shadow off its beam vanished; with the cookie removed it came back).
+  Compatibility ignores projectors entirely, so an opengl3 still cannot judge a cookie - my first
+  "fix" to its orientation was made on opengl3 and was wrong. Judge the cookie on
+  `tools/glshot/car_light_shot.gd` under lavapipe (a minute a shot).
+
+**Tools**: `tools/glshot/car_light_shot.gd` (a small night street: the player's car, an oncoming
+traffic car, a parked pickup, a brick wall; `VIEW=chase|side|top|rear`, `NOLIGHTS=1` is the
+before, `BRAKE=1`, `REVERSE=1`, `PSHADOW=0`, `NOCOOKIE=1`). `still_shot.gd`: `CAR_LIGHTS=1` forces
+the spots onto an opengl3 still; a `LIGHTS` line after every GEO (car spots and street-lamp
+omnis, on and in view); `STREET_EYE=1` puts the camera on the pavement behind a `STREET=queue`.
+Checks: `tests/car_lights_checks.gd` (parked dark, shared materials, brake on / held / off,
+indicators against the car's own right on both axes and directions, U-turn, hazards, player
+brake / reverse, broken headlamps, CarLights' budget, reach, player shadow and cookie, day off).
+
+**Cost** (opengl3 counters; the spot lights add no draws or triangles - their cost is per-pixel
+GPU shading on Forward+, which only the Mac can measure; the player's shadowed spot adds one
+shadow pass of what is within 44 m of the bumper):
+| frame (opengl3, 960x540, --hour=22, clear) | before | after | car spots on (in view) | street-lamp lights in view |
+|---|---|---|---|---|
+| braking queue at Flower (still_shot STREET=queue STREET_EYE=1, same frame) | 7,518,784 tris / 2,788 draws | 7,518,768 / 2,778 | 6 (6) | 51 |
+| pavement, Flower at Olympic (still_shot) | 7,056,618 / 3,758 | 7,056,580 / 3,750 | 1 (1) | 126 |
+| geo_count.gd at the avenue bookmark (--spawn=2359.4,880,0,12,2) | 4,751,217 / 3,669 | 4,751,077 / 3,655 | - | - |
+
+The few draws saved are parked cars' lamp meshes, now hidden. Stills (orphan branch
+`shots/carlight`): `street_*`, `queue_*` (opengl3, the spots forced on with `CAR_LIGHTS=1`),
+`wall_chase_*`, `wall_top_*`, `wall_rear_*` (car_light_shot.gd on lavapipe Forward+; `before` is
+`NOLIGHTS=1`, the lamp mesh alone, what the web draws).
+
+**Found on the way**: PhysicsBudget switches off the per-step script of every car past
+`vehicle_script_radius` (100 m) - traffic too - so a traffic car's lamp state froze there (an
+indicator blinking or a brake light on for good). `TrafficManager._place()` now ticks the lamps of
+any car it places whose own script is off. In the queue still two cars pulling away show only a
+faint tail glow: the following car's (forced, opengl3) beam washes their tailgates white; the
+new tail glow measures brighter than the old one on the same car (car_light_shot.gd `OLDMAT=1`
+is that A/B).
+
+**Needs the owner's eyes on the Mac**: beam energy and the cut-off under AgX and the camera's
+auto exposure (`player_energy` 24, `spot_energy` 6 - tuned on lavapipe with a fixed exposure);
+the frame time with six beams downtown (drop `CarLights.budget` if it shows); whether the
+indicators read at 1.5 Hz.
+
+**Not done**: no shadows on traffic beams (cost); no cookie on them (the engine trap above);
+traffic does not signal lane changes or kerb pull-overs for sirens (only turns); the replica
+area's traffic (`ReplicaTraffic`) and the freeway never signal (they roll no turns); far
+headlights past 160 m are still the mesh's glows only.

@@ -28,8 +28,8 @@ uniform float blink_rate = 1.5;
 // How bright the brake, indicator and reversing lamps are by day (lamp_factor 0).
 uniform float day_glow = 1.1;
 // Tail lamp running glow, and how much brighter the brake makes it (both x lamp level).
-uniform float tail_level = 0.55;
-uniform float brake_gain = 2.4;
+uniform float tail_level = 0.75;
+uniform float brake_gain = 2.6;
 
 void fragment() {
 	float part = floor(UV.x * 0.5 + 0.001);

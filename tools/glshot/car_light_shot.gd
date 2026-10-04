@@ -11,7 +11,10 @@ extends SceneTree
 ## Env: OUT png path; NOLIGHTS=1 no CarLights (the lamp mesh alone, what the web draws: the
 ## "before"); BRAKE=1 holds the player's handbrake (brake lamps, the red glow behind); REVERSE=1
 ## reverses; VIEW=chase (default, behind the car toward the wall) | rear (behind, looking back at
-## the tail) | side | top (high, the beams on the road); PSHADOW=0 the player's headlight without its shadow; WALL=metres to the wall (default 16); FRAMES before the shot (default 40).
+## the tail) | side | top (high, the beams on the road); PSHADOW=0 the player's headlight without its shadow; WALL=metres to the wall (default 16); FRAMES before the shot (default 40); AHEAD=1 the traffic car drives
+## away from the camera (its tail lamps); OLDMAT=1 both cars' lamps on the old light_pool material
+## (the A/B of car_lights.gdshader); TYPE the
+## player's body type (Vehicle.BodyType, default 0).
 ## Nothing here names Vehicle or CarLights as a TYPE (compiled before the autoloads exist).
 
 func _env(k: String, d: String) -> String:
@@ -69,8 +72,14 @@ func _initialize() -> void:
 	player.add_to_group("player")
 	world.add_child(player)
 	var vs: GDScript = load("res://scripts/vehicles/vehicle.gd")
-	var mine: Node = _car(world, vs, 0, Color(0.55, 0.06, 0.05), Vector3(1.8, 0.6, 0.0), 0.0, false)
-	var oncoming: Node = _car(world, vs, 8, Color(0.8, 0.8, 0.82), Vector3(-1.8, 0.6, wall_z + 8.0), PI, true)
+	var mine: Node = _car(world, vs, int(_env("TYPE", "0")), Color(0.55, 0.06, 0.05), Vector3(1.8, 0.6, 0.0), 0.0, false)
+	# AHEAD=1: the traffic car drives away from the camera instead, at 8 m/s (its tail lamps).
+	var ahead := _env("AHEAD", "0") == "1"
+	var oncoming: Node = _car(world, vs, 8, Color(0.8, 0.8, 0.82), Vector3(-1.8, 0.6, wall_z + 8.0), 0.0 if ahead else PI, true)
+	if ahead:
+		oncoming.get("traffic").dir = -1
+		oncoming.get("traffic").turn = 0
+		oncoming.set("traffic_speed", 8.0)
 	_car(world, vs, 1, Color(0.1, 0.1, 0.12), Vector3(4.0, 0.6, -6.0), 0.0, false)
 	await physics_frame
 	await physics_frame
@@ -94,6 +103,15 @@ func _initialize() -> void:
 	cam.current = true
 	for i in int(_env("FRAMES", "40")):
 		await process_frame
+	if _env("OLDMAT", "0") == "1":
+		for c in [mine, oncoming]:
+			(c.get_node("NightLights") as MeshInstance3D).material_override = pf.call("light_pool_material")
+	await process_frame
+	await process_frame
+	for c in [mine, oncoming]:
+		var nl: MeshInstance3D = c.get_node_or_null("NightLights")
+		var mat: ShaderMaterial = nl.material_override if nl else null
+		print("LAMPS %s visible=%s brake=%s signal=%s aabb=%s" % [c.call("display_name"), nl.visible if nl else null, mat.get_shader_parameter("brake") if mat else null, mat.get_shader_parameter("signal_side") if mat else null, nl.get_aabb() if nl else null])
 	var out := _env("OUT", "carlight.png")
 	root.get_texture().get_image().save_png(out)
 	print("saved %s, car lights %d, oncoming brake %s signal %s" % [out, int(lights_script.get("active_count")), oncoming.get("light_brake"), oncoming.get("light_signal")])

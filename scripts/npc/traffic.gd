@@ -707,6 +707,11 @@ func _relief_sample(i: int, j: int) -> float:
 ## and caliper meshes - to the renderer and the physics server. Same result, a quarter of the work.
 func _place(car: Vehicle, pos: Vector3, yaw: float, pitch: float) -> void:
 	car.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), pos)
+	# Past PhysicsBudget.vehicle_script_radius a car's own per-step script is off, and with it the
+	# lamps' state (Vehicle._tick_lights): a car that left the radius braking kept its brake lights,
+	# or its indicator, for good. The traffic drives it every tick anyway, so it ticks them here.
+	if not car.is_physics_processing():
+		car._tick_lights(get_physics_process_delta_time())
 
 
 # --- Airport drop-off loop -----------------------------------------------------------------

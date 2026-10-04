@@ -129,7 +129,23 @@ func _states() -> void:
 	a.traffic_speed = 3.0
 	await _ticks(40)
 	_check(not a.light_brake, "and goes off once it pulls away")
-	# Knocked out of the traffic with its driver still in it: hazards.
+	# Out past PhysicsBudget's script radius the car's own step is off; the traffic, which places
+	# it every tick, ticks its lamps instead (they used to freeze in whatever state they had).
+	var traffic: Node = _city.get_node_or_null("Traffic")
+	if traffic:
+		# Synchronous, no frames between: PhysicsBudget switches a near car's script back on.
+		a.set_script_active(false)
+		var off := not a.is_physics_processing()
+		a.traffic_speed = 8.0
+		for i in 40:
+			traffic.call("_place", a, a.global_position, a.rotation.y, 0.0)
+		var cruising := a.light_brake
+		a.traffic_speed = 0.0
+		traffic.call("_place", a, a.global_position, a.rotation.y, 0.0)
+		_check(off and not cruising and a.light_brake,
+				"a traffic car past the script radius still lights its brakes (the traffic ticks its lamps)")
+		a.set_script_active(true)
+
 	b.drop_out_of_traffic()
 	await _ticks(4)
 	_check(b.light_signal == 2 and lamps(b).visible, "a car knocked out of the traffic runs its hazards (signal %d)" % b.light_signal)
