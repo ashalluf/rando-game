@@ -2476,7 +2476,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   copies from Building goes through `cs_as_uniform()` (color_space.gdshaderinc: the near shader's
   own space, decoded on Forward+, raw on Compatibility) and its palette copies are checked by
   `tests/far_city_checks.gd`. A shader parameter may not share a uniform's name (building.gdshader
-  has `seed` and `lit_ratio`): the compile fails and every building turns blank white.
+  has `seed` and `lit_ratio`): the compile fails and every building turns blank white. And
+  `VIEWPORT_SIZE` read 0 in the far shader's vertex stage in the city: the first mast widening
+  divided by it and drew every antenna a kilometre out a kilometre and a half wide (the pair
+  scene showed nothing) - anything sized in pixels in a vertex shader needs a fallback and a cap.
   `tools/glshot/far_building_shot.gd` renders a row of buildings near and far from one camera,
   `far_pair.py` compares them building by building; `tools/far_census.gd` counts the far city and
   the LOD ring and times their build (`FAR_CODED=0|1`). The old path (no code) still draws the
