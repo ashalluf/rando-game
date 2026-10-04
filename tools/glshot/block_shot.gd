@@ -14,12 +14,15 @@ extends Node
 ## EYE=x,y,z,yaw,pitch (TRUE world; y is metres over the ground there; yaw 0 looks north, 90
 ## west), FOV (vertical), OUT, FRAMES (default 10), BLOCKS (chunks each way round each eye,
 ## default 1), SHOTS="x,y,z,yaw,pitch;..." more eyes from the same run (OUT_1.png, ...), GEO=1
-## prints each frame's triangles and draws, YARD_FILL=0 builds without YardFill (the A/B).
+## prints each frame's triangles and draws, YARD_FILL=0 builds without YardFill (the A/B), HOUSES=0
+## the house lots as Building boxes (HouseKit's A/B).
 
 func _ready() -> void:
 	await get_tree().process_frame
 	if OS.get_environment("YARD_FILL") == "0":
 		(load("res://scripts/world/yard_fill.gd") as GDScript).set("enabled", false)
+	if OS.get_environment("HOUSES") == "0":
+		(load("res://scripts/world/house_kit.gd") as GDScript).set("enabled", false)
 	var city: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
 	var plan := CityPlan.new()
 	plan.seed = city.world_seed
