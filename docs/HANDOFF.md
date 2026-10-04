@@ -4375,19 +4375,27 @@ plane, the front range from (300, 400 m up, -300) looking north and from (300, 9
 
 | Seam, plane / tile | Forward+ before | Forward+ after | opengl3 before | opengl3 after |
 |---|---|---|---|---|
-| 400 m up, the range's flank 0.6-1.2 km off | 0.37 | 1.07 | 0.59 | 1.05 |
-| 900 m up, 1.5-2.5 km off (in the paint ramp) | 0.57 | FINAL_VK1 | 0.32 | FINAL_GL1 |
+| 400 m up, the range's flank 0.6-1.2 km off | 0.37 | 1.08 | 0.59 | 1.05 |
+| 900 m up, 1.5-2.5 km off (in the paint ramp) | 0.57 | 1.15 | 0.32 | 1.00 |
 
+(Saturation of the plane against the tiles at the seam, Forward+: 0.68 / 0.80 before, 0.98 / 0.74
+after; the far view's 1.15 is the paint ramp, where the plane is lit by its own light.)
 Painted band / lit band, the same pixels (`paint_measure.py`): Forward+ 0.63-0.73 at the old 0.66
-(and the plane was decoded twice on top), 0.81-0.83 at 0.97, PAINT_FINAL_VK at 1.42; opengl3
-0.51-0.55, then 0.79-0.93, PAINT_FINAL_GL at 1.05. Before/after frames:
-`<scratchpad>/hillsair/seam/dn_before_vk.png` / `dn_after5_vk.png` (Forward+, game light),
-`dn_before_gl.png` / `dn_after5_gl.png` (opengl3), and the `_1` views.
+(and the plane was decoded twice on top), 0.81-0.83 at 0.97, 1.10 / 0.92 (mean 1.01) at 1.42;
+opengl3 0.51-0.55 at the start, 0.89 / 0.70 at 1.42 x 1.05, so `compat_paint_gain` went to 1.36
+(COMPAT_FINAL). Before/after frames: `<scratchpad>/hillsair/seam/dn_before_vk.png` /
+`dn_after6_vk.png` (Forward+, the game's light), `dn_before_gl.png` / `dn_after6_gl.png` (opengl3),
+and the `_1` views (900 m up).
 
 City stills (opengl3, DIFF=1, 14:00, `<scratchpad>/hillsair/shots.sh`, 1280x720) - STILLS_TABLE.
 
 geo_count at the front-range aerial (`--spawn=700,-300,0,-14,500 --hour=14 --quality=0`, 800x600):
-6,434,032 triangles / 4,380 draws / 4,429 objects before, GEO_AFTER after.
+6,434,032 triangles / 4,380 draws / 4,429 objects before, 6,280,384 / 4,376 / 4,425 after
+(-153,648 triangles, -2.4 %: the far chaparral mounds, a blob with no LODs counted per instance;
+-4 draws: hill tiles whose planting is now empty build no planting node). The shaders' extra work is
+ALU only and on Forward+ nothing: `cs_in` / `cs_out` compile out; the plane's natural ground
+evaluates the splat's functions instead of its own copies of them (about the same), plus the
+crest-rock cell noise and two fades.
 
 **Not verified.** The Forward+ look of the whole city from the air (lavapipe cannot hold it):
 the small scene proves the seam and the colour space, not the final grade under the player

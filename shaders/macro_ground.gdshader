@@ -129,7 +129,9 @@ uniform float paint_gain : hint_range(0.3, 2.0) = 1.42;
 // paint_gain: it lights the band before paint_start in sRGB numbers and treats EMISSION its own
 // way, so the two bands need their own ratio there (measured the same way, HANDOFF 9au; there
 // paint_gain is applied before the sRGB curve, so it moves the picture less than this does).
-uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.36;
+// At 1.05 the seam with the tiles from 900 m up was 1.00 and the painted band 0.70-0.89 of the
+// lit one; at 1.36 1.27 and 0.92-1.22: this is between.
+uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.2;
 // Metres (from the camera) over which the plane hands from lit by the renderer, like the
 // streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
 // edge lit two different ways: at 200 - 600 m the hand-over fell inside it, and from the air the
