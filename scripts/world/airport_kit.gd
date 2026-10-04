@@ -34,6 +34,9 @@ const C_RED := Color(0.75, 0.05, 0.03)
 
 static var _cache: Dictionary = {}
 static var _material: ShaderMaterial = null
+## Where the part builders put what they build (a gate set places each vehicle in the stand's
+## frame by setting this; a lone vehicle leaves it at identity).
+static var _xf := Transform3D.IDENTITY
 
 
 static func material() -> ShaderMaterial:
@@ -43,24 +46,10 @@ static func material() -> ShaderMaterial:
 	return _material
 
 
-## Liveries for INSTANCE_CUSTOM (alpha 1 = use it).
-static func livery_white() -> Color:
-	return Color(0.80, 0.81, 0.82, 1.0)
-
-
-static func livery_yellow() -> Color:
-	return Color(0.82, 0.55, 0.04, 1.0)
-
-
-## A baggage cart's curtain: navy, grey, dark green or faded red.
-static func cart_tint(roll: int) -> Color:
-	var tints := [Color(0.03, 0.05, 0.12, 1.0), Color(0.18, 0.19, 0.20, 1.0), Color(0.03, 0.08, 0.05, 1.0), Color(0.22, 0.04, 0.03, 1.0)]
-	return tints[absi(roll) % tints.size()]
-
-
 # --- Mesh building ------------------------------------------------------------------------------
 
 static func _begin() -> SurfaceTool:
+	_xf = Transform3D.IDENTITY
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	return st
@@ -78,10 +67,11 @@ static func _commit(key: String, st: SurfaceTool) -> ArrayMesh:
 static func _tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, n: Vector3, col: Color, kind: float) -> void:
 	var pts := [a, b, c] if (c - a).cross(b - a).dot(n) >= 0.0 else [a, c, b]
 	var cc := Color(col.r, col.g, col.b, kind)
+	var wn := (_xf.basis * n).normalized()
 	for p: Vector3 in pts:
 		st.set_color(cc)
-		st.set_normal(n)
-		st.add_vertex(p)
+		st.set_normal(wn)
+		st.add_vertex(_xf * p)
 
 
 static func _quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, col: Color, kind: float) -> void:
@@ -135,8 +125,8 @@ static func _cyl(st: SurfaceTool, a: Vector3, b: Vector3, r0: float, r1: float, 
 		var order := [0, 1, 2, 0, 2, 3] if (p[1] - p[0]).cross(p[3] - p[0]).dot(d0 + d1) < 0.0 else [0, 2, 1, 0, 3, 2]
 		for k: int in order:
 			st.set_color(cc)
-			st.set_normal(nn[k])
-			st.add_vertex(p[k])
+			st.set_normal((_xf.basis * (nn[k] as Vector3)).normalized())
+			st.add_vertex(_xf * (p[k] as Vector3))
 		if caps:
 			for end in 2:
 				var c: Vector3 = a if end == 0 else b
@@ -166,6 +156,79 @@ static func vehicle(kind: String) -> ArrayMesh:
 	if _cache.has(key):
 		return _cache[key]
 	var st := _begin()
+	_xf = Transform3D.IDENTITY
+	_vehicle(st, kind, C_DARK)
+	return _commit(key, st)
+
+
+## One gate's whole service as ONE mesh, in the stand's frame (x toward the jet's right, z from
+## the nose toward the tail, the nose at the origin): which trucks attend it is `variant` (0..3,
+## Airport.gates()'s `service`; 4 is an empty stand, its tug waiting). A gate is then one
+## instance of one of five meshes - a draw or two a chunk instead of eight batches.
+static func gate_set(variant: int) -> ArrayMesh:
+	var key := "gate_set_%d" % variant
+	if _cache.has(key):
+		return _cache[key]
+	var st := _begin()
+	var put := func(kind: String, along: float, side: float, face_n: float, face_t: float, curtain: Color = C_DARK) -> void:
+		var d := Vector3(face_t, 0.0, face_n)
+		_xf = Transform3D(Basis(Vector3.UP, atan2(-d.x, -d.z)), Vector3(side, 0.0, along))
+		_vehicle(st, kind, curtain)
+	if variant >= 4:
+		put.call("pushback", -1.0, 6.0, 1.0, 0.0)
+	else:
+		put.call("pushback", 2.2, 0.15, 1.0, 0.0)
+		put.call("gpu", 3.0, 4.2, 0.0, 1.0)
+		put.call("belt_loader", 9.0, 5.4, 0.3, -1.0)
+		put.call("baggage_tug", 10.5, 8.6, -1.0, 0.0)
+		var carts := 4 if variant % 2 == 1 else 3
+		for k in carts:
+			put.call("cart", 14.4 + float(k) * 3.9, 8.6 + 0.1 * float(k % 2), -1.0, 0.0, CART_TINTS[(variant + k) % CART_TINTS.size()])
+		if variant & 1:
+			put.call("catering", Airport.JET_LENGTH - 9.0, 4.6, 0.0, -1.0)
+		if variant & 2:
+			put.call("fuel_truck", 17.0, 12.8, 1.0, 0.0)
+		# Cones off both wingtips, the nose, the engines and the tail.
+		var i := 0
+		for spot: Vector2 in [Vector2(24.0, 17.2), Vector2(24.0, -17.2), Vector2(-1.4, 1.6), Vector2(12.5, 5.6), Vector2(12.5, -5.6), Vector2(39.0, 0.0)]:
+			_xf = Transform3D(Basis(Vector3.UP, float(i) * 1.3 + float(variant)), Vector3(spot.y, 0.0, spot.x))
+			_cone(st)
+			i += 1
+	_xf = Transform3D.IDENTITY
+	return _commit(key, st)
+
+
+## The equipment parked at a concourse end, as ONE mesh: three rows of four carts (a few gaps),
+## three baggage tugs, a belt loader and a pushback, x along the concourse, z out over the apron.
+static func staging_set() -> ArrayMesh:
+	if _cache.has("staging_set"):
+		return _cache["staging_set"]
+	var st := _begin()
+	var face := Basis(Vector3.UP, PI * 0.5)
+	var gaps := [2, 7, 9]
+	var i := 0
+	for row in 3:
+		for k in 4:
+			if not gaps.has(i):
+				_xf = Transform3D(face, Vector3(float(k) * 3.9 + 1.0, 0.0, float(row) * 4.0 + 6.0))
+				_vehicle(st, "cart", CART_TINTS[i % CART_TINTS.size()])
+			i += 1
+	for k in 3:
+		_xf = Transform3D(face, Vector3(float(k) * 5.0, 0.0, 20.0))
+		_vehicle(st, "baggage_tug", C_DARK)
+	_xf = Transform3D(face, Vector3(4.0, 0.0, 26.0))
+	_vehicle(st, "belt_loader", C_DARK)
+	_xf = Transform3D(face, Vector3(14.0, 0.0, 26.0))
+	_vehicle(st, "pushback", C_DARK)
+	_xf = Transform3D.IDENTITY
+	return _commit("staging_set", st)
+
+
+## A baggage cart's curtain colours (linear).
+const CART_TINTS := [Color(0.03, 0.05, 0.12), Color(0.18, 0.19, 0.20), Color(0.03, 0.08, 0.05), Color(0.22, 0.04, 0.03)]
+
+
+static func _vehicle(st: SurfaceTool, kind: String, curtain: Color) -> void:
 	match kind:
 		"pushback":
 			# A towbarless tug: a long low slab with a raised cab on one side at the back, a cradle
@@ -198,8 +261,8 @@ static func vehicle(kind: String) -> ArrayMesh:
 			for x: float in [-0.72, 0.72]:
 				for z: float in [-1.42, 1.42]:
 					_box(st, Vector3(x, 1.25, z), Vector3(0.06, 1.3, 0.06), C_GALV, METAL)
-				_box(st, Vector3(x, 1.25, 0.0), Vector3(0.03, 1.15, 2.78), C_DARK, PAINT)
-			_box(st, Vector3(0.0, 1.25, 1.43), Vector3(1.4, 1.15, 0.03), C_DARK, PAINT)
+				_box(st, Vector3(x, 1.25, 0.0), Vector3(0.03, 1.15, 2.78), curtain, PAINT)
+			_box(st, Vector3(0.0, 1.25, 1.43), Vector3(1.4, 1.15, 0.03), curtain, PAINT)
 			_box(st, Vector3(0.0, 1.95, 0.0), Vector3(1.58, 0.08, 3.0), C_GALV, METAL)
 			# A few bags showing at the open front.
 			_box(st, Vector3(-0.3, 0.85, -1.1), Vector3(0.5, 0.5, 0.7), Color(0.05, 0.05, 0.06), RUBBER)
@@ -254,18 +317,22 @@ static func vehicle(kind: String) -> ArrayMesh:
 			_cyl(st, Vector3(0.0, 0.45, -1.05), Vector3(0.0, 0.3, -1.8), 0.04, 0.04, 6, C_DARK, METAL)
 			_cyl(st, Vector3(-0.4, 1.5, 0.6), Vector3(-0.4, 1.7, 0.6), 0.06, 0.06, 6, C_DARK, METAL)
 			_wheels(st, 0.6, -0.6, 0.6, 0.25, 0.16)
-	return _commit(key, st)
 
 
 static func cone() -> ArrayMesh:
 	if _cache.has("cone"):
 		return _cache["cone"]
 	var st := _begin()
+	_xf = Transform3D.IDENTITY
+	_cone(st)
+	return _commit("cone", st)
+
+
+static func _cone(st: SurfaceTool) -> void:
 	_box(st, Vector3(0.0, 0.02, 0.0), Vector3(0.42, 0.04, 0.42), C_DARK, RUBBER)
 	_cyl(st, Vector3(0.0, 0.04, 0.0), Vector3(0.0, 0.32, 0.0), 0.16, 0.11, 10, C_ORANGE, METAL, false)
 	_cyl(st, Vector3(0.0, 0.32, 0.0), Vector3(0.0, 0.46, 0.0), 0.11, 0.075, 10, Color(0.85, 0.85, 0.85), METAL, false)
 	_cyl(st, Vector3(0.0, 0.46, 0.0), Vector3(0.0, 0.72, 0.0), 0.075, 0.025, 10, C_ORANGE, METAL)
-	return _commit("cone", st)
 
 
 ## An apron floodlight mast: a tapered pole, a ladder cage, a head frame with four floods aimed

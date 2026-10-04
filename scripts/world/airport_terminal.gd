@@ -155,6 +155,13 @@ static func build_head_house(parent: Node3D, statics: StaticBody3D, macro: Macro
 			var tip := Vector3(x + b.x, y0 + _roof_y(tz) - ROOF_THICK + 0.05, tz)
 			_strut(g, "metal", top, tip, 0.34, Color(0.88, 0.89, 0.9))
 		x += 30.0
+	# Lit DEPARTURES boards on three of the columns' trunks, over the curb (their dark backs here,
+	# the lettering one mesh below).
+	var boards: Array = []
+	for k in 3:
+		var bx := (hh.position.x + hh.end.x) * 0.5 + (float(k) - 1.0) * 60.0
+		g.box("dark", Vector3(bx, y0 + 7.4, cz - 0.68), Vector3(12.0, 1.5, 0.25), Color.WHITE)
+		boards.append(["DEPARTURES  %s" % ["A", "B", "C"][k], 1.0, Transform3D(Basis(Vector3.UP, PI), Vector3(bx, y0 + 7.4, cz - 0.82))])
 	# Inside, seen through the glass: the check-in islands and the mezzanine edge.
 	if detailed:
 		var ix := hh.position.x + 22.0
@@ -178,6 +185,11 @@ static func build_head_house(parent: Node3D, statics: StaticBody3D, macro: Macro
 		sign.rotation.y = PI
 		sign.rotation.x = -0.24
 		parent.add_child(sign)
+		var dep := MeshInstance3D.new()
+		dep.name = "DeparturesBoards"
+		dep.mesh = Airport.merged_text(boards, LandmarkMats.glow("airport_departures", Color(1.0, 0.82, 0.22)))
+		dep.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(dep)
 	batch.build(parent)
 	_occluder(parent, [[Vector3((hh.position.x + hh.end.x) * 0.5, y0 + 9.0, (hh.position.y + hh.end.y) * 0.5), Vector3(hh.size.x - 4.0, 16.0, hh.size.y - 6.0)]])
 
@@ -283,18 +295,20 @@ static func build_concourse(parent: Node3D, statics: StaticBody3D, macro: MacroM
 		if twin:
 			(twin as MultiMeshInstance3D).material_override = jet_material()
 	if detailed:
+		# The gate numbers over the apron face, lit: one mesh for the half.
+		var items: Array = []
 		for gate in Airport.gates():
 			var a: float = gate.a
 			if (a < 0.0) != west:
 				continue
 			var at := Airport.arc_point(a, r + hw + 0.25)
 			var n: Vector2 = gate.n
-			var sign := MeshInstance3D.new()
-			sign.name = "Gate_" + str(gate.number)
-			sign.mesh = PropFactory.text_mesh(str(gate.number), 1.6)
-			sign.material_override = LandmarkMats.glow("airport_gate_no", Color(1.0, 0.82, 0.25))
-			sign.transform = Transform3D(Basis(Vector3.UP, atan2(n.x, n.y)), Vector3(at.x, y0 + h - 1.6, at.y))
-			parent.add_child(sign)
+			items.append([str(gate.number), 1.6, Transform3D(Basis(Vector3.UP, atan2(n.x, n.y)), Vector3(at.x, y0 + h - 1.6, at.y))])
+		var sign := MeshInstance3D.new()
+		sign.name = "GateNumbers"
+		sign.mesh = Airport.merged_text(items, LandmarkMats.glow("airport_gate_no", Color(1.0, 0.82, 0.25)))
+		sign.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		parent.add_child(sign)
 
 
 ## The airliner model (Aircraft.MODELS AIRLINER) as one mesh, and the transform that parks it:

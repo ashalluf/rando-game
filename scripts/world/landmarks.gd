@@ -698,7 +698,7 @@ static func _build_terminal(_anchor: Vector2, parent: Node3D, statics: StaticBod
 
 
 ## The drop-off loop in front of the terminal: a dark two-way road with a median, lane lines,
-## a raised curb strip along the hall and lit "DEPARTURES" boards on the columns. Traffic crawls the
+## a raised curb strip along the hall (the lit DEPARTURES boards are the head house's). Traffic crawls the
 ## loop lanes from MacroMap.terminal_loops; the crowd on the curb comes from the airport chunk.
 static func _build_dropoff(parent: Node3D, statics: StaticBody3D, macro: MacroMap, detailed: bool) -> void:
 	if macro == null:
@@ -722,20 +722,7 @@ static func _build_dropoff(parent: Node3D, statics: StaticBody3D, macro: MacroMa
 	var cc := curb.get_center()
 	var strip := _box(parent, statics, Vector3(curb.size.x + 20.0, 0.24, curb.size.y + 1.0), Vector3(cc.x, y + 0.12, cc.y + 0.5), Color(0.8, 0.79, 0.76), detailed)
 	strip.material_override = PropFactory.pbr("sidewalk", 3.0, Color(0.95, 0.95, 0.95))
-	if detailed:
-		var board := LandmarkMats.plain("airport_dark", Color(0.06, 0.065, 0.07), 0.5, 0.3)
-		var i := 0
-		# On the tree columns' trunks (AirportTerminal: every 30 m from the hall's west end, z 629).
-		for sx: float in [cc.x - 60.0, cc.x, cc.x + 60.0]:
-			var back := _box(parent, null, Vector3(12.0, 1.5, 0.25), Vector3(sx, y + 7.4, 628.0), Color(0.06, 0.065, 0.07), false)
-			back.material_override = board
-			var sign := MeshInstance3D.new()
-			sign.mesh = PropFactory.text_mesh("DEPARTURES  %s" % ["A", "B", "C"][i], 1.0)
-			sign.material_override = LandmarkMats.glow("airport_departures", Color(1.0, 0.82, 0.22))
-			sign.position = Vector3(sx, y + 7.4, 627.85)
-			sign.rotation.y = PI # TextMesh reads from +Z; the road is on the -Z side
-			parent.add_child(sign)
-			i += 1
+	# The DEPARTURES boards hang on the head house's tree columns (AirportTerminal).
 
 
 ## Three hangars with barrel roofs, a fuel farm and a beacon at the east end of the field.

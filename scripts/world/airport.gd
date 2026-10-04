@@ -281,12 +281,16 @@ static func build_chunk(ch: CityChunk) -> void:
 		# taxiway lines), lifted a little higher off the asphalt so they do not z-fight with it
 		# from a few hundred metres up.
 		_paint_lift = 0.03
+		_texts.clear()
 		_paint_runways(ch, area, macro, true)
+		_commit_texts(ch)
 		_paint_lift = 0.002
 		return
+	_texts.clear()
 	_paint_runways(ch, area, macro)
 	_paint_taxiways(ch, area, macro)
 	_paint_apron(ch, area, macro)
+	_commit_texts(ch)
 	_fixtures(ch, area, macro)
 	_gate_service(ch, area, seed_value)
 
@@ -452,19 +456,69 @@ static func _arc_line(ch: CityChunk, area: Rect2, r: float, a0: float, a1: float
 		_line(ch, area, pa, pb, width, top, col)
 
 
-## Flat painted text (runway designators, stand numbers): one TextMesh laid face up, reading along
-## `right` with its top toward `up` (unit XZ). Only the chunk that owns its centre builds it.
-static func _paint_text(ch: CityChunk, area: Rect2, text: String, at: Vector2, right: Vector2, up: Vector2, height: float, top: float, col: Color) -> void:
+## Flat painted text (runway designators, stand numbers), laid face up, reading along `right` with
+## its top toward `up` (unit XZ). Only the chunk that owns its centre paints it; a chunk's texts
+## are ONE mesh per colour (_commit_texts(), at the end of build_chunk()).
+static var _texts: Array = []
+
+
+static func _paint_text(_ch: CityChunk, area: Rect2, text: String, at: Vector2, right: Vector2, up: Vector2, height: float, top: float, col: Color) -> void:
 	if not area.has_point(at):
 		return
-	var mi := MeshInstance3D.new()
-	mi.name = "Paint_" + text
-	mi.mesh = PropFactory.text_mesh(text, height)
-	mi.material_override = PropFactory.material(col, 0.85)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	mi.transform = Transform3D(Basis(Vector3(right.x, 0.0, right.y), Vector3(up.x, 0.0, up.y), Vector3.UP), Vector3(at.x, top + _paint_lift + 0.004, at.y))
-	mi.visibility_range_end = 900.0
-	ch.add_child(mi)
+	_texts.append([text, height, Transform3D(Basis(Vector3(right.x, 0.0, right.y), Vector3(up.x, 0.0, up.y), Vector3.UP), Vector3(at.x, top + _paint_lift + 0.004, at.y)), col])
+
+
+static func _commit_texts(ch: CityChunk) -> void:
+	var by_col := {}
+	for t: Array in _texts:
+		var key: Color = t[3]
+		if not by_col.has(key):
+			by_col[key] = []
+		(by_col[key] as Array).append(t)
+	for col: Color in by_col:
+		var mi := MeshInstance3D.new()
+		mi.name = "Paint_text"
+		mi.mesh = merged_text(by_col[col], PropFactory.material(col, 0.85))
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mi.visibility_range_end = 900.0
+		ch.add_child(mi)
+	_texts.clear()
+
+
+## Several texts as ONE mesh: each [text, height m, Transform3D] is TextMesh's own geometry (made
+## on the CPU by get_mesh_arrays(), no read-back), placed. A sign a draw call was a dozen draws a
+## chunk for stand numbers and designators alone.
+static func merged_text(items: Array, mat: Material) -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var any := false
+	for it: Array in items:
+		var tm := TextMesh.new()
+		tm.text = it[0]
+		tm.font_size = 48
+		tm.pixel_size = float(it[1]) / 48.0
+		tm.depth = 0.01
+		tm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var arr := tm.get_mesh_arrays()
+		if arr.is_empty():
+			continue
+		var v: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+		var nrm: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+		var idx = arr[Mesh.ARRAY_INDEX]
+		var xf: Transform3D = it[2]
+		var order: PackedInt32Array = idx if idx is PackedInt32Array and not (idx as PackedInt32Array).is_empty() else PackedInt32Array(range(v.size()))
+		for i: int in order:
+			st.set_normal((xf.basis * nrm[i]).normalized())
+			st.add_vertex(xf * v[i])
+			any = true
+	if not any:
+		st.set_normal(Vector3.UP)
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(Vector3.ZERO)
+		st.add_vertex(Vector3.ZERO)
+	st.set_material(mat)
+	return st.commit()
 
 
 static func _paint_runways(ch: CityChunk, area: Rect2, macro: MacroMap, lod: bool = false) -> void:
@@ -757,52 +811,25 @@ static func _fixtures(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 ## truck lifted to the rear door, a fuel truck under the wing, a power unit and cones. Which of the
 ## trucks attend a gate is its `service` roll; the positions are the stand's own frame.
 static func _gate_service(ch: CityChunk, area: Rect2, seed_value: int) -> void:
-	var y := 0.1
 	for g in gates():
 		var centre: Vector2 = g.centre
 		if not area.has_point(centre):
 			continue
-		var rng := RandomNumberGenerator.new()
-		rng.seed = hash([seed_value, "gate", g.number])
 		var n: Vector2 = g.n
 		var t: Vector2 = g.t
 		var nose: Vector2 = g.nose
-		# Stand frame: `along` metres from the nose toward the tail, `side` to the jet's right (+t).
-		var at := func(along: float, side: float) -> Vector3:
-			var p := nose + n * along + t * side
-			return Vector3(p.x, y, p.y)
-		var face := func(dir_n: float, dir_t: float) -> Basis:
-			var d := n * dir_n + t * dir_t
-			return Basis(Vector3.UP, atan2(-d.x, -d.y))
-		var service: int = g.service
-		if bool(g.empty):
-			# An empty stand waiting for its next arrival: the bridge parked back, the tug waiting.
-			ch._batch.add("ap_tug", AirportKit.vehicle("pushback"), Transform3D(face.call(1.0, 0.0), at.call(-1.0, 6.0)), Color.WHITE, AirportKit.livery_white())
-			continue
-		ch._batch.add("ap_tug", AirportKit.vehicle("pushback"), Transform3D(face.call(1.0, 0.0), at.call(2.2, rng.randf_range(-0.3, 0.3))), Color.WHITE, AirportKit.livery_white())
-		ch._batch.add("ap_gpu", AirportKit.vehicle("gpu"), Transform3D(face.call(0.0, 1.0), at.call(3.0, 4.2)))
-		ch._batch.add("ap_belt", AirportKit.vehicle("belt_loader"), Transform3D(face.call(0.3, -1.0), at.call(9.0, 5.4)), Color.WHITE, AirportKit.livery_yellow())
-		# The baggage train: a tug and three to four carts in a line along the side of the jet.
-		var carts := 3 + rng.randi() % 2
-		ch._batch.add("ap_bagtug", AirportKit.vehicle("baggage_tug"), Transform3D(face.call(-1.0, 0.0), at.call(10.5, 8.6)), Color.WHITE, AirportKit.livery_yellow())
-		for k in carts:
-			ch._batch.add("ap_cart", AirportKit.vehicle("cart"), Transform3D(face.call(-1.0, 0.0), at.call(14.4 + float(k) * 3.9, 8.6 + rng.randf_range(-0.15, 0.15))),
-				Color.WHITE, AirportKit.cart_tint(rng.randi()))
-		if service & 1:
-			ch._batch.add("ap_catering", AirportKit.vehicle("catering"), Transform3D(face.call(0.0, -1.0), at.call(JET_LENGTH - 9.0, 4.6)), Color.WHITE, AirportKit.livery_white())
-		if service & 2:
-			ch._batch.add("ap_fuel", AirportKit.vehicle("fuel_truck"), Transform3D(face.call(1.0, 0.0), at.call(17.0, 12.8)), Color.WHITE, AirportKit.livery_white())
-		# Cones off both wingtips, the nose and the engines.
-		for spot: Vector2 in [Vector2(24.0, 17.2), Vector2(24.0, -17.2), Vector2(-1.4, 1.6), Vector2(12.5, 5.6), Vector2(12.5, -5.6), Vector2(39.0, 0.0)]:
-			ch._batch.add("ap_cone", AirportKit.cone(), Transform3D(Basis(Vector3.UP, rng.randf() * TAU), at.call(spot.x, spot.y)))
-	ch._batch.set_shadow_distance("ap_cone", 30.0)
+		# The stand's frame: x toward the jet's right (+t), z from the nose toward the tail (+n).
+		var basis := Basis(Vector3(t.x, 0.0, t.y), Vector3.UP, Vector3(n.x, 0.0, n.y))
+		var variant: int = 4 if bool(g.empty) else int(g.service)
+		ch._batch.add("ap_gate_%d" % variant, AirportKit.gate_set(variant), Transform3D(basis, Vector3(nose.x, 0.1, nose.y)))
+		ch._batch.set_shadow_distance("ap_gate_%d" % variant, 160.0)
 	_staging(ch, area, seed_value)
 	_crew(ch, area, seed_value)
 
 
-## Equipment parked at both ends of the concourse between turnarounds: rows of baggage carts,
-## tugs, a spare belt loader and pushback, along the apron's back.
-static func _staging(ch: CityChunk, area: Rect2, seed_value: int) -> void:
+## Equipment parked at both ends of the concourse between turnarounds (AirportKit.staging_set():
+## rows of baggage carts, tugs, a spare belt loader and pushback), along the apron's back.
+static func _staging(ch: CityChunk, area: Rect2, _seed_value: int) -> void:
 	var rf := apron_face()
 	for end: float in [-1.0, 1.0]:
 		var a := end * (CONCOURSE_ARC + 0.012)
@@ -811,22 +838,14 @@ static func _staging(ch: CityChunk, area: Rect2, seed_value: int) -> void:
 		var base := arc_point(a, rf - 6.0) + t * 8.0
 		if not area.has_point(base):
 			continue
-		var rng := RandomNumberGenerator.new()
-		rng.seed = hash([seed_value, "staging", end])
-		var face_t := Basis(Vector3.UP, atan2(-t.x, -t.y))
-		for row in 3:
-			for k in 4:
-				if rng.randf() < 0.2:
-					continue
-				var p := base + n * (float(row) * 4.0 + 6.0) + t * (float(k) * 3.9)
-				ch._batch.add("ap_cart", AirportKit.vehicle("cart"), Transform3D(face_t, Vector3(p.x, 0.1, p.y)), Color.WHITE, AirportKit.cart_tint(rng.randi()))
-		for k in 3:
-			var p := base + n * 20.0 + t * (float(k) * 5.0)
-			ch._batch.add("ap_bagtug", AirportKit.vehicle("baggage_tug"), Transform3D(face_t, Vector3(p.x, 0.1, p.y)), Color.WHITE, AirportKit.livery_yellow())
-		var pb := base + n * 26.0 + t * 4.0
-		ch._batch.add("ap_belt", AirportKit.vehicle("belt_loader"), Transform3D(face_t, Vector3(pb.x, 0.1, pb.y)), Color.WHITE, AirportKit.livery_yellow())
-		var pt := base + n * 26.0 + t * 14.0
-		ch._batch.add("ap_tug", AirportKit.vehicle("pushback"), Transform3D(face_t, Vector3(pt.x, 0.1, pt.y)), Color.WHITE, AirportKit.livery_white())
+		# Frame: x along the concourse outward (t), z out over the apron (n); left-handed at the
+		# west end, so the set is mirrored there by its basis - harmless for these shapes.
+		var basis := Basis(Vector3(t.x, 0.0, t.y), Vector3.UP, Vector3(n.x, 0.0, n.y))
+		if basis.determinant() < 0.0:
+			basis = Basis(Vector3(-t.x, 0.0, -t.y), Vector3.UP, Vector3(n.x, 0.0, n.y))
+			base += t * 20.0
+		ch._batch.add("ap_staging", AirportKit.staging_set(), Transform3D(basis, Vector3(base.x, 0.1, base.y)))
+		ch._batch.set_shadow_distance("ap_staging", 160.0)
 
 
 ## Ground crew: a few people in hi-vis walking round each attended stand (ApronCrew, an ordinary

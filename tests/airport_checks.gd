@@ -151,10 +151,13 @@ func _chunk(city: Node3D, macro: MacroMap) -> void:
 	if chunk:
 		for n in chunk.get_children():
 			found[String(n.name)] = true
-	var want := ["Batch_stripe", "Batch_ap_tug", "Batch_ap_belt", "Batch_ap_cart", "Batch_ap_cone", "Batch_ap_mast"]
+	var want := ["Batch_stripe", "Batch_ap_gate_", "Batch_ap_mast", "Batch_ap_edge"]
 	var missing: Array = []
 	for w: String in want:
-		if not found.has(w):
+		var hit := false
+		for name: String in found:
+			hit = hit or name.begins_with(w)
+		if not hit:
 			missing.append(w)
 	_t._check(chunk != null and int(chunk.get("level")) == CityChunk.Level.FULL and missing.is_empty(),
 		"a FULL airport chunk paints its stands and parks the ground crews' trucks at its gate (missing: %s)" % [missing])
