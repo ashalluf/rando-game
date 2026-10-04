@@ -14,6 +14,9 @@
 #            fine detail (pores, creases), which the source set has no map for
 #  hair      hair, brows and lashes with their alpha, colours pushed out under the transparent
 #            texels so the mips never pull in black fringes
+#  own       our own garments (tools/crowd/garments.py) have no source photo - their rects are
+#            "virtual" in the plan - and are painted texel by texel by garment_paint.py (seams,
+#            stitching, hems, pockets, fabric), colour and relief, before the folds and AO
 # Writes WORK/<name>/body.jpg, body_nrm.jpg and hair.png (crowd_export.py embeds them).
 import json
 import os
@@ -24,6 +27,7 @@ from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import crowd_common as C  # noqa: E402
+import garment_paint as GP  # noqa: E402
 import texlib as T  # noqa: E402
 
 NAME = sys.argv[1]
@@ -83,6 +87,8 @@ def source(r, what, mode):
     """The rect's source image (diffuse, normal or ao) resized to the plan's scaled size."""
     nw, nh = r["scaled"]
     path = r["src"] if what == "diffuse" else r.get(what)
+    if str(r["src"]).startswith("virtual:"):
+        return None  # our own garments: garment_paint.py paints them
     key = (what, path, nw, nh, r["kind"], mode)
     if key in _cache:
         return _cache[key]
@@ -152,6 +158,10 @@ def skin_relief(alb, cov_skin, strength):
 S = PLAN["size"]
 body, cov = compose(PLAN["body"], S, "diffuse", "RGB", (128, 128, 128))
 alb = np.asarray(body).astype(np.float32) / 255.0
+OWN = GP.paint(NAME, S)
+if OWN is not None:
+    alb[OWN[1]] = OWN[0][OWN[1]]
+    cov = cov | OWN[1]
 if PLAN.get("skin_tone"):
     # a complexion nudged in linear light (the old pale MakeHuman skins read as white paper)
     tone = np.array(PLAN["skin_tone"], np.float32)
@@ -194,6 +204,14 @@ if os.path.exists(C.work(NAME, "folds.npz")):
     import folds as FF  # noqa: E402  (tools/hero)
     Z = np.load(C.work(NAME, "folds.npz"))
     L = json.load(open(C.work(NAME, "fold_landmarks.json")))
+    # Our own trousers (garments.py) are hemmed, not gathered: a break or two over the shoe, not
+    # the track pant's ring stack, which read as jogger cuffs on every pair of jeans. Read from
+    # today's outfit ("ankle_stack" / "ankle_reach" on the trousers override the style's).
+    for _g in _CFG.get("outfit", []):
+        if _g.get("type") == "trousers":
+            _st, _re = {"leggings": (0.2, 0.08), "slim": (0.3, 0.1)}.get(_g.get("style", "jeans"), (0.4, 0.12))
+            L["ankle_stack"] = _g.get("ankle_stack", _st)
+            L["ankle_reach"] = _g.get("ankle_reach", _re)
     NS = PLAN["normal_size"]
     Pm = np.zeros((NS, NS, 3), np.float32)
     Nm = np.zeros((NS, NS, 3), np.float32)
@@ -312,6 +330,8 @@ T.save(alb, C.work(NAME, "body.jpg"), None, 92)
 
 nrm_img, _ = compose(PLAN["body"], S, "normal", "RGB", (128, 128, 255))
 nrm = np.asarray(nrm_img).astype(np.float32) / 255.0 * 2.0 - 1.0
+if OWN is not None:
+    nrm[OWN[3]] = OWN[2][OWN[3]]
 # The photo's own relief on the head only (creases, the lips, the ears); on the body it was JPEG
 # noise amplified into lumpy skin. The body's skin is flat here and gets the tiling pores.
 cov_skin = np.zeros((S, S), np.float32)

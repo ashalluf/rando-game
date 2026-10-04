@@ -38,7 +38,8 @@ extends SceneTree
 ## STREET=queue|crossing stages the signalised junction ahead of the camera: a queue waiting at
 ## its red, and for `crossing` people out on the crosswalk in front of it (see _stage_street for
 ## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES). With --hour=21 it is the lit heads
-## at night.
+## at night. STREET_EYE=1 then moves a free camera onto the pavement behind the queue, looking up
+## it (STREET_EYE_BACK, _SIDE, _TURN, _HEIGHT, _PITCH).
 ## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
 ## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost).
 ## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
@@ -57,7 +58,9 @@ extends SceneTree
 ## freeway's right of way: the A/B; SPLIT counts its two meshes in the LotFill line).
 ## STOREFRONT_KIT=0 builds the buildings without ShopfrontKit's storefront pieces, awnings and
 ## curtain-wall caps (the A/B of that kit). CAR_GLASS=0 puts every car back on its model's own
-## opaque glass with nobody inside (CarCabin's A/B). MERGE_STATIC=0 builds the chunks'
+## opaque glass with nobody inside (CarCabin's A/B). CAR_LIGHTS=1 runs CarLights' real headlights
+## on opengl3 too (Forward+ only in the game); every GEO line is followed by a LIGHTS line (car
+## spot lights and street-lamp lights, on and in view). MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
 ## LIGHT_WORLD=1 loads a smaller world (far city LIGHT_FAR m, default 2500; LOD ring LIGHT_LOD
@@ -96,6 +99,10 @@ func _initialize() -> void:
 	if OS.get_environment("YARD_FILL") == "0":
 		(load("res://scripts/world/yard_fill.gd") as GDScript).set("enabled", false)
 	# CAR_GLASS=0: every car on its model's own opaque glass, nobody inside (CarCabin's A/B).
+	# CAR_LIGHTS=1: CarLights' real headlights on the Compatibility renderer too (they are
+	# Forward+ only in the game), so an opengl3 still shows where they fall.
+	if OS.get_environment("CAR_LIGHTS") == "1":
+		(load("res://scripts/vehicles/car_lights.gd") as GDScript).set("force", true)
 	if OS.get_environment("CAR_GLASS") == "0":
 		(load("res://scripts/vehicles/car_cabin.gd") as GDScript).set("enabled", false)
 	if OS.get_environment("MERGE_STATIC") == "0":
@@ -336,6 +343,10 @@ func _initialize() -> void:
 			var cp: Vector3 = (car as Node3D).global_position
 			if gib_cam.is_position_behind(cp) or cp.distance_to(gib_cam.global_position) > 90.0:
 				continue
+			var nl := car.get_node_or_null("NightLights") as MeshInstance3D
+			if nl:
+				var lm := nl.material_override as ShaderMaterial
+				print("car %s %s lamps visible=%s in_tree=%s brake=%s signal=%s traffic=%s seats=%s" % [car.name, car.call("display_name"), nl.visible, nl.is_visible_in_tree(), lm.get_shader_parameter("brake") if lm else "-", lm.get_shader_parameter("signal_side") if lm else "-", car.call("is_traffic"), car.call("cabin_seats")])
 			for mi in car.find_children("*", "MeshInstance3D", true, false):
 				var m := (mi as MeshInstance3D).get_surface_override_material(0) as ShaderMaterial if (mi as MeshInstance3D).get_surface_override_material_count() > 0 else null
 				if m and m.get_shader_parameter("paint") != null:
@@ -678,7 +689,34 @@ func _geo_report(label: String) -> Array:
 	var c := _geo_counts()
 	print("%s tris=%d draws=%d objects=%d | camera tris=%d draws=%d | shadow tris=%d draws=%d" % [
 		label, c[0], c[1], c[2], c[3], c[5], c[4], c[6]])
+	_light_report(label)
 	return c
+
+
+## The real lights in the frame: CarLights' spots (and how many of them are in view), the street
+## lamps' omni lights in view (their whole range box against the frustum, as the renderer culls).
+func _light_report(label: String) -> void:
+	var cam := get_root().get_camera_3d()
+	if cam == null:
+		return
+	var frustum := cam.get_frustum()
+	var counts := [0, 0, 0, 0] # car lights on, car lights in view, lamps on, lamps in view
+	for n in get_root().find_children("*", "Light3D", true, false):
+		var l := n as Light3D
+		if not l.is_visible_in_tree() or l.light_energy <= 0.0 or l is DirectionalLight3D:
+			continue
+		var car := String(l.get_parent().name) == "CarLights"
+		var reach := (l as SpotLight3D).spot_range if l is SpotLight3D else (l as OmniLight3D).omni_range if l is OmniLight3D else 0.0
+		var inside := true
+		for plane: Plane in frustum:
+			if plane.distance_to(l.global_position) > reach:
+				inside = false
+				break
+		var k := 0 if car else 2
+		counts[k] += 1
+		if inside:
+			counts[k + 1] += 1
+	print("LIGHTS %s car=%d (in view %d) lamps=%d (in view %d)" % [label, counts[0], counts[1], counts[2], counts[3]])
 
 
 const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
@@ -1043,6 +1081,19 @@ func _stage_street(kind: String) -> void:
 			var h: float = traffic.call("_relief", p2)
 			(car as Node3D).global_position = ws.to_local(Vector3(p2.x, 0.55 + h, p2.y))
 			nose = along - float(dir) * (half + float(traffic.get("min_gap")) + rng.randf_range(0.1, 1.4))
+	# STREET_EYE=1: the camera onto the pavement beside the back of the queue, looking up it (a
+	# free EYE camera, STREET_EYE_BACK metres behind the last car, STREET_EYE_SIDE past the kerb).
+	if OS.get_environment("STREET_EYE") == "1":
+		var kerb := signf(_lane_sign(traffic, axis, index, dir))
+		var lateral: float = plan.road_pos(axis, index) + kerb * (width * 0.5 + _env_float("STREET_EYE_SIDE", 1.6))
+		var back := line - float(dir) * (float(per) * 7.0 + _env_float("STREET_EYE_BACK", 8.0))
+		var e2 := Vector2(lateral, back) if axis == 0 else Vector2(back, lateral)
+		var look := Vector3(0.0, 0.0, dir) if axis == 0 else Vector3(dir, 0.0, 0.0)
+		look = look.rotated(Vector3.UP, -kerb * float(dir) * deg_to_rad(_env_float("STREET_EYE_TURN", 9.0)) * (1.0 if axis == 0 else -1.0))
+		var yaw := rad_to_deg(atan2(-look.x, -look.z))
+		OS.set_environment("EYE", "%.2f,%.2f,%.2f,%.2f,%.2f" % [e2.x, _env_float("STREET_EYE_HEIGHT", 1.7), e2.y, yaw, _env_float("STREET_EYE_PITCH", -2.0)])
+		OS.set_environment("EYE_AGL", "1")
+		print("STREET eye ", OS.get_environment("EYE"))
 	var placed := 0
 	if kind == "crossing":
 		# The crosswalk across this road on the near side of the junction, from both kerbs.
@@ -1067,6 +1118,12 @@ func _stage_street(kind: String) -> void:
 				ped.call("cross_now", rng.randf_range(0.08, 0.85))
 				placed += 1
 	print("STREET %s at junction %s: %d lanes, %d walkers on the crosswalk, light %d" % [kind, node, lanes, placed, signals.light(plan, node.x, node.y, axis)])
+
+
+## Which side of the road centre a lane of `dir` traffic drives on (+1 / -1).
+static func _lane_sign(traffic: Node, axis: int, index: int, dir: int) -> float:
+	var off: float = traffic.call("_lane_offset", axis, index, dir)
+	return off if off != 0.0 else 1.0
 
 
 static func _env_float(key: String, fallback: float) -> float:

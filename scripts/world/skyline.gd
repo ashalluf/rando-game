@@ -864,7 +864,7 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 		# `height` is the pad's deck elevation (CityChunk._build_mansions builds on it), the house
 		# 4 m back on the pad, on its 0.4 m pad, 7.5 m tall.
 		var at := Vector3(pos.x, float(m.height), pos.y)
-		houses.append(Transform3D(basis.scaled(Vector3(18.0, 7.5, 13.0)), at + basis * Vector3(0.0, 4.15, -4.0)))
+		houses.append(Transform3D(basis.scaled_local(Vector3(18.0, 7.5, 13.0)), at + basis * Vector3(0.0, 4.15, -4.0)))
 		house_colors.append(Color(0.92, 0.88, 0.8))
 
 

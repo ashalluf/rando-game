@@ -86,14 +86,15 @@ section, not the build):
   cladding, awnings, lit blade signs, glass posters, recessed entries, curtain-wall caps, thin
   real window frames above.
 
-**In flight (not on main):** `docs/wip/crowd-garments.patch` - our own garments for the crowd
-(tee, trousers / jeans / shorts, button shirt, zip jacket) modelled the way the hero's tracksuit
-is, in `tools/crowd/garments.py` (1,400 lines) wired into `build_character.py`. It was stopped
-mid-way (it was on the trouser legs below the ankle) and is NOT runnable as is: it calls a
-`garment_paint.py` that was never written, and its config change strips one character's library
-clothes without giving it an `"outfit"`. Read `docs/wip/README.md` before applying it. This is
-the recommended next job: the crowd-detail pass concluded that shader work on the MakeHuman
-clothes has hit its ceiling and only real garments move the crowd further.
+**Landed (9av):** our own garments for the crowd (tee, trousers / jeans / slim / chinos / leggings
+/ shorts, button shirt, zip jacket), modelled by `tools/crowd/garments.py` and painted by
+`tools/crowd/garment_paint.py`; eight of the twelve people wear them. The patch that carried them
+(`docs/wip/crowd-garments.patch`) is gone.
+
+**Landed (9az):** no bare ground outside downtown and midtown either - `YardFill` gives
+beach-town lots yards and walk streets, campus blocks quads, walks and service yards, and the
+freeway's right of way ivy, hedges, tree rows, sound walls and maintenance yards; beach town
+56 % bare -> 4 %, campus 74 % -> 1 %.
 
 **Needs the owner's eyes on the Mac (Forward+)** - none of this can be judged in the opengl3
 stills: the motion blur's strength and the aim / wheel depth of field; car fire and smoke at night;
@@ -106,7 +107,7 @@ decals. Ask for screenshots with the HUD's FULL mode (F1) so the frame-time line
   than `launch_speed` says. That is feel, not a bug; change it only if the owner asks.
 - The SUPER body's wheel arches render empty in `car_shot.gd` (seen by the car-damage pass).
 - Beach town blocks (~67 % bare ground) and campus blocks were left out of the lot fill (filled
-  since: 9av, YardFill).
+  since: 9az, YardFill).
 - Retail podium roofs have no mechanical plant; crowd_j still shows a small sliver of skin at
   the shirt front; the lot fill's cheap code car is plain up close.
 
@@ -3898,7 +3899,7 @@ draws.
   night, the chain-link's dither under TAA, the plaza lawns' colour.
 - Retail podium roofs carry no mechanical plant now; a few packaged units among the planters
   would be truer. Beach town (67 % bare) and campus blocks were left as they were (since filled:
-  9av).
+  9az).
 - The code car is still a code car up close; a real ~2k-triangle parked-car body with LODs
   would be the next step for car parks seen from the pavement.
 
@@ -4136,6 +4137,79 @@ frames, blade signs, dome and retractable awnings and a shop at night. The lead 
 - The landmark towers (TowerMesh, `uv_facade`) keep their own curtain walls: no caps, no
   spandrel (they are a replica's facades, tuned there).
 - Bulkheads are still painted; a raised panel under the sill would add another depth cue.
+
+## 9ay. Front range roads and estates back: switchbacks, 2026-10-04 (agent branch `wt/switchbacks`, VISUAL_ROADMAP #20)
+
+**What it is.** The cut-bank fix (#17) trimmed the canyon roads that walked straight up the
+front range and the estates went with them. They are back as roads that follow the contours:
+`HillRoads.add_switchbacks()` (called by `MacroMap.setup()` after the freeway) grows a network of
+drives off the kept roads and off each other - legs across the slope at 8.5 %, hairpins of 13 m
+turned uphill, a slow wander where the ground is flat, the bed benched into the slope, every step
+asked whether its banks meet the ground before it is taken, and the whole drive trimmed by
+`_earthwork_ok()` like any other road - plus `Valley Vista Dr` along the inland foot. Estates
+(`_place_estates()`) take a 17 m or a compact 13 m pad beside the road or up a 4-26 m driveway
+(a long one is a carved `"drive"` road). The chunk builds each with its driveway, a gate between
+two piers, a pool beside the house and walls that follow the ground: a garden wall, a retaining
+wall holding back a cut, or a tall one dropping down a fill (`CityChunk._build_mansions()`, all
+boxes merged into the chunk's box meshes). Hill road strips are now mitred at their joints and
+their edges sit on the carved ground. Details in CLAUDE.md (the Map note, after the hill roads).
+
+**Where they are, and where they are not.** The pass (west of the freeway; 15 m clear of its
+deck and ramps, pads too), the inland foot and the north flank. NOT the south face toward the
+city: it is steeper than 45 degrees nearly everywhere (`tools/hill_road_probe` map: 37-40 % of
+the hills over 45, the face a solid band), and on ground steeper than a 1:1 cut no bank ever meets
+the ground, so a road there is a cliff whatever the layout. Only terrain changes (gentler
+foothills under the face) or retaining-walled roads would put drives there, and the second breaks
+#17's rule.
+
+**Numbers** (default seed; `tools/hill_road_probe/hill_road_probe.tscn`, headless, seconds):
+
+| | before (28105b5) | after |
+|---|---|---|
+| hill roads (kept) | 28 (20) | 38 (30), 9 driveways |
+| hairpins | 0 | 7 |
+| estates, all / front range | 345 / 31 | 402 / 88 |
+| carved cells steeper than 60 degrees | 0.38 % (285 of 75,387) | 0.36 % (325 of 91,190) |
+| ... of those, round the new drives and estates | - | 0.16 % |
+| freeway deck lowest clearance over the hills | 2.9 m | 2.9 m (unchanged) |
+| MacroMap.setup() | ~1.0 s | ~1.35 s (+~0.4 s: the walks; ground read off a 12 m lattice) |
+
+(The probe's "steeper than 60" counts every 4 m cell the carve moves by more than 0.25 m; #17's
+0.6 % was measured some other way, so compare before against after here, not against 0.6.)
+Frame cost (still_shot / bookmarks GEO, opengl3, 960x540 / 1280x720):
+
+| view | before tris / draws | after tris / draws |
+|---|---|---|
+| hills bookmark | 1,905,603 / 1,063 | 1,913,620 / 1,141 (+0.4 % / +7 %) |
+| aerial over the pass (EYE 1180,424 AGL,-1330) | 1,359,261 / 1,093 | 1,407,347 / 1,259 |
+| switchback at road level (402,1.8,-1873) | 3,746,872 / 1,643 | 4,077,925 / 1,772 |
+| aerial over the west pass (560,260,-1600) | 1,012,307 / 826 | 1,061,056 / 1,017 |
+| north flank from the valley (0,200,-2400) | 3,384,268 / 1,878 | 3,407,623 / 2,002 |
+
+The draws are the estate houses (a Building is a handful of draws) and their palms; the pads,
+walls, gates and pools are merged into the chunk's boxes, and an estate used to be ~8 nodes on
+its own, so the old headland estates got cheaper.
+
+**Stills**: branch `shots/switchbacks` (before/after pairs: aerial over the pass, a switchback at
+road level, the west pass from above, the north flank from the valley, the hills bookmark).
+
+**Checks** (smoke test, `_check_switchbacks()`): enough drives, hairpins and front-range
+estates; every drive held to its grade and its banks meeting the ground (the exact ground, with
+1.5 m more slack than the 12 m lattice the layout used); the carved ground round the first six
+drives under 1.5 % steeper than 60 degrees; estates clear of each other and of every road; a
+chunk with an estate up a driveway builds its driveway, house and walls.
+
+**Traps found.** `Basis.scaled()` scales in GLOBAL axes: an estate's pad / walls / far house box
+on a turned basis came out skewed into long diagonal sticks - use `scaled_local()` (the old far
+hill-house box in `Skyline` and `_build_mansions` had the same bug; both fixed). `Vector2.orthogonal()`
+is the clockwise normal in x/z, so a half circle to that side runs its angle DOWN - the first
+hairpins doubled back on themselves. The layout is greedy and chaotic: a small change anywhere
+(the foot drive's line, a clearance) reshuffles the whole network, so judge a tuning on the probe's
+counts and map, not on one drive.
+
+**Not done.** No drives on the south face (see above). No traffic, parked cars or people on the
+new drives (like every hill road). The houses are the old SLAB villa; no cantilevered decks,
+garages or terraces down the slope. Forward+ look not seen (opengl3 stills only).
 
 ## 9as. Car glass and drivers, 2026-09-28 (agent branch `wt/car-glass`)
 
@@ -4479,7 +4553,305 @@ mask built from "changes when the chunks are hidden" misses exactly the good sea
 plane below is the same colour (`_none.png`, the frame with neither, fixes it). And `flock -o`:
 killing a waiting flock whose child already started leaves the render running without the lock.
 
-## 9av. No bare ground outside downtown and midtown: yards, the campus, the freeway's right of way, 2026-10-04 (agent branch `worktree-agent-afdcc0e44305064bc`, the brief's `wt/lot-fill-2`)
+## 9av. The crowd in our own garments, 2026-10-04 (agent branch `worktree-agent-ab30bcf7c66c96fb9`)
+
+After 9aj the crowd's faces held up at 2 m and its clothes did not: MakeHuman's library garments
+are soft photographs (one V-neck on every tee, the same jeans wash on half the crowd), and the
+shader had nothing left to pull out of them. Eight of the twelve people now wear garments modelled
+on their own bodies and painted texel by texel; the patch that started it
+(`docs/wip/crowd-garments.patch`) is gone, its code is `tools/crowd/garments.py` and
+`tools/crowd/garment_paint.py`.
+
+### Who wears what
+
+| rig | outfit |
+| --- | --- |
+| a | white crew tee (regular), mid-wash indigo jeans |
+| d | rust fitted tee, black slim jeans with a grey fade and grey thread |
+| e | mustard tee, washed denim shorts above the knee |
+| h | white button shirt with blue pinstripes, long sleeves and cuffs, grey washed jeans |
+| i | heather-grey fitted tee, black leggings |
+| j | chambray shirt, sleeves rolled, chest pocket, loose; dark jeans |
+| k | teal fitted tee, light stonewash jeans |
+| l | burgundy long-sleeved tee, charcoal chinos |
+
+b (overalls), c (blouse and skirt) and g (suit) stay in MakeHuman's clothes: there is no garment
+of ours for a bib, a skirt or a tailored jacket yet. **f went back to his library clothes at the
+lead's review**: built in our olive zip jacket and khaki chinos he read plainer than his tailored
+jacket with lapels and pockets over a striped shirt. The jacket builder and painter stay
+(`garments.jacket()`, `garment_paint.paint_jacket()`), worn by nobody; f's outfit was
+`[{"type": "trousers", "style": "chinos", "color": [150, 128, 92]}, {"type": "jacket",
+"color": [78, 84, 58], "rib_fabric": "jersey", "zip_color": [38, 38, 36]}]`, which is how to
+put it on somebody.
+
+A row opts in with an `"outfit"` list in `tools/crowd/crowd_config.json` (its `"clothes"` then
+hold only the shoes); the keys are in the header of garments.py.
+
+### How
+
+- **Shape** (`garments.py`, inside `build_character.py`'s Blender run, before the cover test).
+  Every garment is a shell grown off a Taubin-smoothed copy of the body (its UVs and weights
+  carried), so it moves with the rig for free. An `Envelope` (a convex hull per centimetre slice
+  about a fitted axis, hung from the chest by a slope, blurred over azimuth and height) gives a
+  top its drape over the chest and shoulder blades instead of the skin's every dip; sleeves and
+  legs are tubes measured on the limb's own vertices. Planes cut the hems, the neck and the
+  sleeves (the sleeve cut only takes faces that are both past the plane and near the upper arm,
+  or a heavy torso lost its side), and every hem is turned in as a lip. Collars (crew rib,
+  stand-and-fall with points, stand), cuffs, rib bands, the placket, the zip tape and teeth are
+  swept bands along a curve; buttons and the zip pull are discs. The shirt tail is a curved cut
+  from tangent planes round the hips.
+- **Layers.** A top is pushed off the trousers by a grown, blurred displacement field
+  (`push_smooth`), the trousers under a top are deleted with a margin whose weights blend to the
+  top's (`hide_under`), and everything clears the body by a few millimetres along rays cast FROM
+  the point. Weights are blurred round the shoulders and the crotch before the trousers are cut.
+- **Paint** (`garment_paint.py`, called by `crowd_atlas.py`). A garment has no source photo: its
+  atlas rect is "virtual" and every texel is painted from what it is in 3D - rasterised from the
+  triangles `build_character.py` dumps (`own.npz`: position, normal, part, zone, AO) -: twin-needle
+  hems, neck coverstitch, rib wales, heathered jersey; on trousers the waistband, belt loops, fly
+  J-stitch, yoke, patch and slant pockets, out- and inseams, hem roping, denim wash with whiskers
+  and knee honeycombs, slub, chino welts and a crease; on shirts the yoke, placket rows, button
+  band stitching, a chest pocket, woven stripes or checks; on the jacket welts, rib wales and zip
+  teeth. A height field gives the normal map at its real scale in metres; 9aj's fold field is
+  added on top (`fold_gain` 0.7). Patterns are box-filtered per texel in metres (`mpp`), which is
+  what keeps a 1.1 cm pinstripe from turning into moire. Colours and patterns re-read the
+  outfit, so a recolour needs only `FROM=crowd_atlas`.
+- **The contract is unchanged.** The garments join the ONE Body surface; R / G carry the top and
+  bottom fabric levels, B the hair, A the skin, and buttons, the zip's teeth and pull are the
+  "other" region (all zero, never recoloured). The welded mid / far bodies, the camp-figure
+  bakes, limb cutting and the police recolour see an ordinary rig: no game code changed. The
+  crowd-rig contract checks pass on all twelve.
+- **Preview without the lock.** `tools/crowd/preview.sh out.png crowd_a,crowd_h front,side,back`
+  renders the built rigs in Blender Cycles in seconds a view (`FLAT=1` geometry only, `REGION=1`
+  the region colours - green on a top is trousers showing through, black is skin; views include
+  `torso` and `sleeve_r`). It is how every fix here was judged before the Godot lineup, because the
+  opengl3 render lock was queued for an hour at a time.
+
+### Cost
+
+Body triangles per rig (LOD 0, the hair unchanged): a 12,215 -> 12,537, d 11,954 -> 12,505,
+e 12,735 -> 12,851, h 11,071 -> 12,611, i 11,421 -> 12,407, j 11,061 -> 12,841, k 11,954 ->
+12,515, l 10,526 -> 11,662 (b, c, f, g in library clothes). The shells are decimated to
+per-garment budgets and kept smooth (the 9aj lesson: a step in a crowd body is what the importer's
+LODs keep). Downtown bookmark (`tools/geo_count.gd --spawn=2359.4,880,0,12,2 --quality=0`,
+800x600, opengl3, `AB=Body,Hair`, the same frozen frame with every Body and Hair node hidden),
+the 28105b5 rigs swapped in against these:
+
+| | frame triangles | draws | objects | the crowd's share (Body + Hair) |
+| --- | --- | --- | --- | --- |
+| before | 5,969,405 | 4,196 | 20,280 | 270,432 triangles, 315 draws |
+| after | 5,997,007 | 4,196 | 20,280 | 298,034 triangles, 315 draws |
+
++27,602 triangles, 0.46 % of the frame (the crowd's own share +10 %), draws and objects
+unchanged. That was measured with f in the zip jacket (+2,108 triangles on his body); with f
+back in his library clothes the cost is lower still and was not measured again. The welded mid /
+far bodies are capped by `mid_triangles` / `far_triangles` as before, so the difference is the
+near people. If it has to be zero, the lever is each garment's `tris`
+(1,800-1,900 a shell today) - a full Blender rebuild of the rows that change.
+
+### Judged
+
+Every fix in Cycles previews first (front, side, back, torso, sleeves, feet; flat, region and
+textured), then `crowd_lineup.gd` (`LIGHT=street`) against the 28105b5 rigs: a close shot per
+person front and side (`SHOTS=`, `TURN=90`) and the whole crowd front and side. What reads at
+2-4 m: turned hems, crew rib collars, the shirt's collar points, placket and buttons, the rolled
+sleeves, the jeans' wash, pockets, yoke and inseam, a break over the shoe. The police recolour
+(look 1 with `uniform_material()`'s numbers through `MAT_PARAM`) turns a, d, f, h and j navy as
+before (f was shot in the jacket he no longer wears); h's pinstripe shows through the navy as the
+old h's stripes did. The lead's review of the first shirt (blue swirl bands across chest and back) was
+the painter's sleeve test - fixed by the `zone` attribute below; the dark V nicks at the tee hem
+were the jeans poking through - fixed by `hide_under`.
+
+### Traps (each cost a round)
+
+- **A push-out ray must start at the point.** Cast inward from outside the cloth, it hits the
+  far side of a fold (crotch, armpit, under the breasts) and throws the vertex through it - the
+  nipple tents and the navel dent were this.
+- **Trousers under a top poke through at every stride** unless they are cut away and their
+  margin takes the top's weights (`hide_under`); clearance alone is not enough, the two layers
+  are skinned to different bones at the hem. Blur weights BEFORE that cut, or the blur pulls the
+  cut edge's weights back to the legs.
+- **The crotch.** Flatten it only on the front and never let a vertex cross the midline: its
+  weights are its own leg's, and one that crossed was dragged by the other leg into a spike.
+- **Stripes swirled** because the painter read sleeve and body from 3D distance (the armpit
+  folds give it both); the shell now writes a `zone` per face (body, left / right sleeve) that
+  the painter reads, and the pattern runs in body coordinates from the torso axis.
+- **The cover test** treated skin in the armpit as uncovered and kept it (pale slivers). For our
+  garments it counts torso skin outward from the torso's axis, and a lone miss among covered
+  neighbours as covered.
+- **AO is baked on a coarse shell in the rest pose** the game never shows, so it is gentle with
+  a floor (`own_ao` 0.32), and the hem lips are left out of its rays (they made zigzags).
+- **The ankle.** 9aj's fold field stacks rings over the ankle, which is right for the hero's
+  gathered track pant and read as jogger cuffs on every hemmed pair in the first lineup.
+  `tools/hero/folds.py` takes `ankle_stack` / `ankle_reach` from the landmarks (absent for the
+  hero: 1.0 / 0.2) and crowd_atlas.py sets them from the trousers' style. Gold thread on black
+  jeans read as a track stripe down the inseam; d has grey.
+- **Blender:** adding a corner attribute reallocates the others, so re-fetch layer handles after
+  each; the glTF importer multiplies the texture by COLOR_0 (the region colours) - a preview has
+  to unplug it; two imports of rigs share datablock names, so preview.py loads each rig into a
+  fresh file.
+
+### Not done / next
+
+- b, c and g: an overall bib, a skirt and a blazer would finish the set; a tailored jacket with
+  lapels and pockets (f's look) is the garment most worth building next.
+- Long-sleeved tops show faint horizontal creases across the shoulder blades (the fold field
+  over the shell's own shading), the ankle stacking on jeans is a little regular, and e's back
+  hem has a small step where the tail meets the side. None reads past 3 m.
+- The garments' AO and folds are baked for the rest pose; nothing moves the fabric in a stride
+  beyond the skinning.
+
+## 9aw. Car lights that light the world, 2026-10-04 (agent branch `wt/carlight`; roadmap #26, #41; GAME_PLAN G4 / G6)
+
+**#26 verified first.** HANDOFF 000 said the beam fix was ported to main: it was. The beam quad
+lies at `ground + 0.12` (12 cm over the road) in `PropFactory.vehicle_lights()`, and it shows in
+every still below. Row #26 is closed.
+
+**What shipped** (CLAUDE.md "Car lights" has the whole contract):
+- **The lamp mesh got a state.** Still one mesh and one draw a car (`vehicle_lights()`), now on
+  `shaders/car_lights.gdshader` with amber indicators at the four corners, reversing lamps and a
+  red wash on the road behind; the part is in the quad's u shift. The car's state is one of a
+  few shared materials (`PropFactory.vehicle_light_material()`: brake x signal x blink phase x
+  reverse, at most 52), never instance uniforms. `Vehicle._tick_lights()` decides it each tick:
+  player brake / handbrake / reverse; traffic brake from its speed falling or standing (held
+  0.35 s); the indicator of the turn TrafficManager rolled (`t.turn`, `t.to_c` - new, the
+  distance to that junction's centre - within 48 m), a U-turn as a left; hazards on a car
+  knocked out of traffic with its driver in. Brake, indicator and reversing lamps show by day.
+- **Parked cars are dark now** (they burned head and tail lamps like moving cars). A car's lamps
+  are on while somebody is in its cabin (`lights_running()`).
+- **Real headlights, Forward+ only**: `CarLights` (one node under the tree root, made by the
+  first Vehicle). The player's car: a 44 m beam with the low-beam cookie (flat cut-off at lamp
+  height, kick up on the right), shadowed at HIGH, and a red OmniLight3D behind for brake /
+  reverse. Traffic: up to `budget` (6 HIGH, 3 MEDIUM, 0 below) running cars within 60 m, nearest
+  first (cars behind the camera count 1.8x further), plain soft cones dipped 7 degrees, faded by
+  distance and on every hand-over. Never on the web or Compatibility (`CarLights.force` for
+  stills).
+- **The trap that cost an hour**: Godot maps a spot light's projector through its shadow matrix,
+  which an unshadowed spot never gets, so a cookie on an unshadowed spot draws NOTHING (lavapipe
+  Forward+: with the player's shadow off its beam vanished; with the cookie removed it came back).
+  Compatibility ignores projectors entirely, so an opengl3 still cannot judge a cookie - my first
+  "fix" to its orientation was made on opengl3 and was wrong. Judge the cookie on
+  `tools/glshot/car_light_shot.gd` under lavapipe (a minute a shot).
+
+**Tools**: `tools/glshot/car_light_shot.gd` (a small night street: the player's car, an oncoming
+traffic car, a parked pickup, a brick wall; `VIEW=chase|side|top|rear`, `NOLIGHTS=1` is the
+before, `BRAKE=1`, `REVERSE=1`, `PSHADOW=0`, `NOCOOKIE=1`). `still_shot.gd`: `CAR_LIGHTS=1` forces
+the spots onto an opengl3 still; a `LIGHTS` line after every GEO (car spots and street-lamp
+omnis, on and in view); `STREET_EYE=1` puts the camera on the pavement behind a `STREET=queue`.
+Checks: `tests/car_lights_checks.gd` (parked dark, shared materials, brake on / held / off,
+indicators against the car's own right on both axes and directions, U-turn, hazards, player
+brake / reverse, broken headlamps, CarLights' budget, reach, player shadow and cookie, day off).
+
+**Cost** (opengl3 counters; the spot lights add no draws or triangles - their cost is per-pixel
+GPU shading on Forward+, which only the Mac can measure; the player's shadowed spot adds one
+shadow pass of what is within 44 m of the bumper):
+| frame (opengl3, 960x540, --hour=22, clear) | before | after | car spots on (in view) | street-lamp lights in view |
+|---|---|---|---|---|
+| braking queue at Flower (still_shot STREET=queue STREET_EYE=1, same frame) | 7,518,784 tris / 2,788 draws | 7,518,768 / 2,778 | 6 (6) | 51 |
+| pavement, Flower at Olympic (still_shot) | 7,056,618 / 3,758 | 7,056,580 / 3,750 | 1 (1) | 126 |
+| geo_count.gd at the avenue bookmark (--spawn=2359.4,880,0,12,2) | 4,751,217 / 3,669 | 4,751,077 / 3,655 | - | - |
+
+The few draws saved are parked cars' lamp meshes, now hidden. Stills (orphan branch
+`shots/carlight`): `street_*`, `queue_*` (opengl3, the spots forced on with `CAR_LIGHTS=1`),
+`wall_chase_*`, `wall_top_*`, `wall_rear_*` (car_light_shot.gd on lavapipe Forward+; `before` is
+`NOLIGHTS=1`, the lamp mesh alone, what the web draws).
+
+**Found on the way**: PhysicsBudget switches off the per-step script of every car past
+`vehicle_script_radius` (100 m) - traffic too - so a traffic car's lamp state froze there (an
+indicator blinking or a brake light on for good). `TrafficManager._place()` now ticks the lamps of
+any car it places whose own script is off. In the queue still two cars pulling away show only a
+faint tail glow: the following car's (forced, opengl3) beam washes their tailgates white; the
+new tail glow measures brighter than the old one on the same car (car_light_shot.gd `OLDMAT=1`
+is that A/B).
+
+**Needs the owner's eyes on the Mac**: beam energy and the cut-off under AgX and the camera's
+auto exposure (`player_energy` 24, `spot_energy` 6 - tuned on lavapipe with a fixed exposure);
+the frame time with six beams downtown (drop `CarLights.budget` if it shows); whether the
+indicators read at 1.5 Hz.
+
+**Not done**: no shadows on traffic beams (cost); no cookie on them (the engine trap above);
+traffic does not signal lane changes or kerb pull-overs for sirens (only turns); the replica
+area's traffic (`ReplicaTraffic`) and the freeway never signal (they roll no turns); far
+headlights past 160 m are still the mesh's glows only.
+
+## 9ax. The Pacific and the beach, 2026-10-04 (agent branch `wt/ocean`)
+
+The brief (lead, from the owner's "make the graphics a million times better"): make the coast
+read like Santa Monica / Redondo in a 2026 game - breaking surf along the whole waterline, the
+swash running up the sand and draining back, colour by depth, kelp, sun glitter, the backs of
+waves glowing at golden hour, the pier and the city in the water at night, storm surf, spray.
+CLAUDE.md's "Surf and beach" note is the reference; this is the story.
+
+**What was there.** Gerstner swells with crest foam and a fresnel sky mix; the "surf" was two
+bands of `sin(shore)` foam sliding toward the sand and a 14 m white wash painted over the last
+of the water, so from standing height the near sea was a white smear. The sky reflection was in
+ALBEDO, so it was lit by the sun: fine at noon, black at sunset (the golden-hour still was a
+brown-black sea under an orange sky) and nothing at night (the pier stood over a black void).
+And every street that ran into the sea left a hole in the beach: the sand was laid over the
+block's rect only, and the sea chunk's flat water plane showed through the road strip - the
+"beach at noon" bookmark first landed the camera standing in one, up to its knees in sea.
+
+**What it is now.**
+- One wave model, `shaders/surf.gdshaderinc` (header explains it), shared by the ocean, the sand
+  and the spray and mirrored by `Surf` (scripts/world/surf.gd). Waves are crests parallel to the
+  shore, each with its own height (sets of bigger waves, sections along the shore), standing up
+  to a break point that grows with the wave, throwing a lip there and running in as a bore that
+  shrinks to nothing at the waterline. Weather sets two globals from the wave scale
+  (`Surf.params()`), so a storm is 2.9 m surf breaking 103 m out, a clear day 0.9 m at 38 m.
+- Ocean vertex: the surf's height and lip in the zone (the way to the land is the gradient of
+  `shore_distance()`), with analytic derivatives so the normal and the fold see it; the swell
+  hands down to 30 % there. Fragment: whitewater from the same wave (bore face, trail, lip,
+  feathering, a warped net of old lace), breaking in sections that peel along the crest, the
+  light through each standing face (warm jade when backlit at golden hour), kelp beds, sandy
+  shallows that match the swash sheet at the seam. The mirror is EMITTED and the body lit.
+- At night (`lamp_factor`) the piers' lamp rows (`Weather.pier_light_lines()`: the old pier,
+  Manhattan's two rows, Redondo's horseshoe as two legs and three chords) and a wall of city
+  light `city_front` inland are mirrored by intersecting the reflected ray with their vertical
+  plane, smeared into columns by the ripple the pixel cannot resolve.
+- Sand: `shaders/beach_sand.gdshader`, the old pbr sand plus the swash (sheet, foam line and
+  web, fizz, wet glossy sand after it, rain through `road_wetness`). UV2 on the sand mesh is the
+  metres from the waterline. The sand now covers the +Z street strip and dips under its road.
+- Spray: one MultiMesh of quads per FULL shoreline chunk, puffed in the shader as each wave
+  breaks; between waves every quad is transparent.
+
+**Stills** (opengl3, 960x540, `still_shot.gd`; `shots/ocean` branch, README there):
+- Esplanade bluff looking down: `EYE=-458,15.5,3380,100,-14 FOV=60 --spawn=-458,3380,100,-14
+  --hour=12`, and zoomed `-458,15.5,3380,100,-9` at FOV 28.
+- Beach at noon near the waterline: `EYE=-732,2.1,800,105,-4` (z 800, 6 m up the sand).
+- Golden hour toward the sun: `-732,2.1,800,92,-1` at `--hour=18` and at 17.6 (at 18:00 the sun
+  is on the horizon due west, so 17.6 is the one with the glitter path).
+- The pier at night: `-712,2.2,1000,130,-2` at 21.5 (Manhattan pier).
+- Storm: the beach view and the bluff with `--weather=storm`.
+All in one load with `SHOTS=` (see the README for the exact command).
+
+**Cost** (`tools/geo_count.gd`, opengl3 960x540, `--hour=12 --weather=clear`, before -> after):
+beach z 800 `--spawn=-732,800,105,-4` 543,392 tris / 427 draws -> 544,032 / 431; Esplanade bluff
+`--spawn=-458,3380,100,-14,15` 1,445,798 / 932 -> 1,446,070 / 937; by the Manhattan pier
+`--spawn=-712,1000,130,-2` 815,832 / 1,893 -> 816,472 / 1,896. So +0.1 % triangles and +3 to +5
+draws (the spray, one a shoreline chunk; the sand over the street strips). The ocean adds no
+geometry (same plane), the sand one more row point and the strip rows. ALU:
+the surf's vertex work runs only inside the zone (2 extra shore distances and 2 surf
+evaluations a vertex there); the fragment's whitewater only inside it; the night lights only at
+night; kelp only where `ground_detail` is on.
+
+**Not done / not verified.**
+- Forward+ (Mac): the emitted reflection's exposure against the lit sand, SSR on the swash sheet
+  doubling the emitted mirror, TAA on the lace. Opengl3 only here.
+- The spray is hard to see in a 1 fps harness still (each puff lives 2.6 s of shader TIME and
+  the stills hold TIME nearly still); judge it on the Mac at the beach.
+- The surf runs wherever there is a shore distance: the headland's cliffs get it too (plausible),
+  the harbour basin by the port may show a faint surf line near the bay's north shore.
+- The waterline was striped in nested zigzags for most of the session, and it was not
+  z-fighting, though it looked exactly like it: the whitewater read the interpolated surf phase,
+  which was 0 on vertices outside the zone and hundreds of periods inside, and the foam texture
+  projected world positions onto an interpolated shore tangent. Fixed (phase on every vertex,
+  foam on true-world z). Along the way: the sea is held over the ground follower near the shore,
+  the surf is flat for its last 3 m, and the sand falls away under the water - all three were
+  real, smaller problems. A dip of the sea plane under the sand was tried and made a sawtooth;
+  it is not in.
+- The far plane (past ~470 m) still paints its own surf band from the bake; there is no
+  breaking surf in the far tier.
+
+## 9az. No bare ground outside downtown and midtown: yards, the campus, the freeway's right of way, 2026-10-04 (agent branch `worktree-agent-afdcc0e44305064bc`, the brief's `wt/lot-fill-2`)
 
 The brief (00000): fill the beach town (9am's "not done"), the campus blocks, the freeway sides
 and the empty block south-east of MacArthur Park, each the way the real place looks. This redoes

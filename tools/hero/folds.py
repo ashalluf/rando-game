@@ -188,10 +188,13 @@ def fields(p, jacket, L, which=("geom", "rest", "bent")):
             wkb = np.exp(-((u - L1) / 0.055) ** 2)
             b += 0.0080 * wkb * np.maximum(0.0, -np.cos(az)) ** 1.4 * ridge(np.sin(2 * np.pi * u / 0.022 + 1.5 * np.sin(az) + 2.4 * k))
             b += 0.0040 * np.exp(-((u - L1 + 0.02) / 0.08) ** 2) * np.maximum(0.0, np.cos(az)) * ridge(np.sin(2 * np.pi * u / 0.05 + 0.8 * k))
-            # ankle stacking over the cuff: the biggest folds on a track pant
+            # ankle stacking over the cuff: the biggest folds on a track pant. A hem that is not
+            # gathered (jeans, chinos: the crowd's own trousers) breaks once or twice over the
+            # shoe instead - "ankle_stack" scales the folds and "ankle_reach" how far up they go
+            # (the hero's landmarks have neither)
             u_end = (L["z_pants_end"] - hip[2]) / (an[2] - hip[2]) * Ltot
-            wa = smoothstep(u_end - 0.20, u_end - 0.02, u)
-            st = 0.0095 * wa * ridge(np.sin(2 * np.pi * u / 0.036 + 1.1 * np.sin(az + 0.7) + 3.0 * k))
+            wa = smoothstep(u_end - L.get("ankle_reach", 0.20), u_end - 0.02, u)
+            st = 0.0095 * L.get("ankle_stack", 1.0) * wa * ridge(np.sin(2 * np.pi * u / 0.036 + 1.1 * np.sin(az + 0.7) + 3.0 * k))
             r += st
             g += 0.5 * st
             # hip crease: diagonals on the front of the upper thigh

@@ -284,6 +284,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shader, foam on the crests, and the sky mixed in by fresnel with a glare path to the sun,
   taken from the `sky_tint` and `sun_direction` shader globals that `DayNight` publishes (water
   is mostly the sky seen in it, and leaving that to reflections gives nothing on the web). Debug `?weather=storm`.
+  **The mirror is EMITTED, the body lit** (2026-10-04): in ALBEDO the sky reflection was
+  multiplied by the sun, so the golden-hour sea was a brown-black sheet under an orange sky.
+  **The surf** (2026-10-04, see the Surf note) breaks along every waterline, and Weather also
+  publishes the `surf_shape` / `surf_extra` globals and hands the ocean the piers' lamp rows
+  (`Weather.pier_light_lines()`) for the night reflections.
   Rain at night is judged by the wet street, so: `Weather` starts as wet as the weather it
   starts in (soaking from dry spent the first 16 s on dry tarmac under a downpour); a soaked
   road is roughness 0.07 with mirror puddles at 0.02 (`road.gdshader`, spreading as it soaks,
@@ -298,6 +303,44 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
   times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
   cloud the sky IS the clouds, so the night cloud colour is what decides it.
+- Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
+  `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
+  by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L
+  + t / T)` (`s` metres offshore, `wob` bends them along the shore), each wave with its own height
+  (sets, sections along the shore) and so its own break point; it stands up, throws a lip at the
+  break, runs in as a bore that shrinks to nothing at the waterline, and the bore that arrives
+  starts the swash up the sand. Everything runs off shader TIME and two globals Weather sets from
+  the wave scale (`Surf.params()`: `surf_shape` = face height, crest spacing, period, break
+  distance; `surf_extra` = run-up, lip throw, zone width, swash length in periods; a clear day
+  0.9 m breaking 38 m out, a storm 2.9 m breaking 103 m out; `Weather.surf_gain` scales the
+  height). **Ocean**: in the zone the vertex shader takes the way to the land from the gradient of
+  `shore_distance()` and adds the surf's height and lip (and its derivatives, so normals and the
+  fold see it), handing the swell down to 30 %; the fragment works the whitewater out from the
+  same wave (the bore's churned face and trail, the lip, feathering, a warped net of old lace),
+  the turquoise light through every standing face (`surf_face_color`, glowing when backlit,
+  `surf_golden` times more at golden hour), kelp beds (`kelp_*`, dark olive, chop calmed, fronds
+  close to), sandy shallows in the last metres, and at night the piers' lamps and the city
+  (`pier_lines` / `pier_info`, `city_front`) mirrored by intersecting the reflected ray with the
+  lamps' vertical plane - lamp_factor gated, emitted, faded with the hand-over. **The surf never
+  lifts the water landward of the waterline** (`shore_distance()` is 0 there and the envelope
+  is 0 at s <= 0; `tests/surf_checks.gd` checks both). **Sand**: `shaders/beach_sand.gdshader`
+  (`PropFactory.beach_sand_material()`), the old pbr sand plus the swash: the sheet (darker,
+  glossy, mirroring the sky by fresnel, its relief drowned), a lace of bubbles on its edge, fizz
+  on the uprush, threads of foam on the drain, and sand that stays dark and glossy for a few
+  seconds after the water leaves (`surf_swash()`'s `wet`); rain darkens it through
+  `road_wetness`. The mesh carries UV2 = (metres landward of the waterline, beach width), rows
+  of constant z running inland along +x. `_build_beach` now also lays the sand over the street
+  strip on the block's +Z side, dipping under the road: every street end along the coast was a
+  hole in the beach showing the sea plane. **Spray**: `CityChunk._build_surf_spray()`, one
+  MultiMesh of quads per FULL shoreline chunk (two per `SPRAY_STEP`: tall spray off the lip and
+  low drifting mist), carried by `shaders/surf_spray.gdshader` out to the break point and puffed
+  when a wave breaks there; transparent between waves, one draw a chunk, no particles. Stills:
+  the bookmarks in docs/HANDOFF.md 9ax; checks: `tests/surf_checks.gd`. **Traps, each found by
+  a striped waterline:** a varying the fragment wraps (`fract(surf_phi)`) must be set on EVERY
+  vertex, never 0 outside the zone; never project world positions (hundreds of metres) onto an
+  interpolated direction (the foam is laid out on true-world z); near the shore the sea is held
+  over the ground follower (y 0, which is drawn as land up to a bake texel out to sea); and the
+  sand under the water falls to `SAND_STEEP_Y` / `SAND_LOW` so no trough meets it.
 - Look (owner, 2026-09-20: "as realistic as possible, like an industry giant made it"). The
   realism settings are deliberate, not defaults: **AgX** filmic tonemapping (not ACES, which
   clips highlights hard), **sky-source ambient** so shadows take the sky's colour instead of a
@@ -860,6 +903,43 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `uv_shift`), and `UV.y > 1.5` is how the shader knows to draw a fan that widens and fades
   along the road instead of a round pool; drawn as a pool, a beam laid flat on the street read
   as a long white smear.
+- Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
+  on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
+  beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
+  behind. Which part a quad is rides in its u (shifted by 2 x the part, `PropFactory.LIGHT_*`;
+  the beam keeps its v + 2). What the car is DOING is the MATERIAL:
+  `PropFactory.vehicle_light_material(brake, signal, phase, reverse)`, one shared copy per
+  combination (blink phase in four buckets so a queue does not flash in step), so a car is still
+  one draw and a street a handful of materials - never instance uniforms (the Compatibility
+  global buffer, see Car glass). `Vehicle._tick_lights()` (from `_update_wheels`, which every
+  driving path calls) works the state out: the player's brake pedal / handbrake (`brake` > 5)
+  and reverse; a traffic car's brake from its speed falling (> 0.8 m/s2) or standing, held
+  0.35 s; its indicator from the turn TrafficManager rolled (`t.turn`, and `t.to_c`, the
+  distance to that junction, within `Vehicle.TURN_SIGNAL_DISTANCE`), a U-turn signalling left;
+  hazards on a car knocked out of traffic with its driver in. Past PhysicsBudget's
+  `vehicle_script_radius` a car's own step is off, so `TrafficManager._place()` ticks the lamps
+  of the cars it places whose script is off (they froze, blinking or braking for good).
+  **A parked car's lamps are off**
+  (`lights_running()`: somebody in the cabin, not a wreck); they used to burn like a moving
+  car's. Brake, indicator and reversing lamps show by day (`day_glow`), head / tail / beam
+  follow `lamp_factor` as before. **Real lights**: `CarLights` (`scripts/vehicles/car_lights.gd`,
+  one node under the tree root, made by the first Vehicle; Forward+ only, never the web or
+  Compatibility unless `CarLights.force`) keeps a pool of SpotLight3Ds on the nearest running
+  traffic cars within `reach` (60 m; `budget` 6 / 3 / 0 / 0 by Quality level), faded by distance
+  and on every hand-over, plus the player's car (longer, brighter, shadowed at HIGH) and a small
+  red OmniLight3D behind it for the brake / reverse. Positions are set from the cars' global
+  transforms each frame, so origin shifts do not touch it; it reads `DayNight.lamp_now` (never
+  the global back from the server). **Trap: a spot's `light_projector` is mapped through its
+  shadow matrix, which an unshadowed spot never gets - a cookie on an unshadowed spot draws
+  NOTHING** (measured on lavapipe Forward+). So only the shadowed player light carries the
+  low-beam cookie (`CarLights.low_beam_cookie()`: flat cut-off with the kick up on the right);
+  traffic lights are soft plain cones (`spot_softness`), dipped more. Compatibility ignores
+  projectors too. Look with `tools/glshot/car_light_shot.gd` (a small street, lavapipe in a
+  minute: `VIEW=chase|side|top|rear`, `NOLIGHTS=1` the before, `BRAKE=1`, `REVERSE=1`,
+  `PSHADOW=0`, `NOCOOKIE=1`, `AHEAD=1` a car driving away, `OLDMAT=1` the old light_pool
+  material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
+  opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
+  lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
@@ -1093,7 +1173,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   AirTraffic skips car-park lots. Look at it with `tools/glshot/still_shot.gd` (`SPLIT=1` has a
   LotFill line) and measure it with `tools/lot_coverage.gd`.
   **Nor are the yards outside them** (`YardFill`, `scripts/world/yard_fill.gd`, 2026-10-04; beach
-  town 56 % bare -> 4 %, campus 74 % -> 1 %, the right of way's cells 23 % -> 0, docs/HANDOFF.md 9av). A BEACHTOWN lot's cell less its
+  town 56 % bare -> 4 %, campus 74 % -> 1 %, the right of way's cells 23 % -> 0, docs/HANDOFF.md 9az). A BEACHTOWN lot's cell less its
   house is a yard planned in the lot's street frame (u along the street, v back from it): a
   driveway to the kerb (`DRIVE_*`, a static car in some), a front walk, a front garden (lawn,
   decomposed granite with gazania, brick or saltillo; a mulch bed of shrubs along the house), a
@@ -1194,7 +1274,34 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   degrees almost everywhere, so of its canyon roads only the one up the pass survives (with its
   estates) and the rest are stubs; a branch ramps at up to `JUNCTION_GRADE` for its first
   `JUNCTION_RUN` metres to meet its parent. The walks, branch points and mansion rolls are
-  still made, so the rng stream (and the headland's estates after it) does not move. Chunks
+  still made, so the rng stream (and the headland's estates after it) does not move.
+  **The front range's drives and estates are switchbacks** (roadmap #20, 2026-10-04): after
+  everything above (own rngs, so nothing above moves), `_add_switchbacks()` grows a network of
+  contour-following drives off the kept roads and off each other (`_walk_switchback()`: legs
+  across the slope climbing `SB_GRADE` 8.5 %, hairpins of `HAIRPIN_RADIUS` 13 m turned uphill
+  only on a slope, a slow wander on flat ground, the bed benched `SB_BENCH` into the hillside,
+  every step asked `_sb_daylight()` before it is taken, the whole drive trimmed by
+  `_earthwork_ok()` like any road), plus `Valley Vista Dr` along the inland foot
+  (`_add_north_foot_drive()`, kept in the runs its banks pass). Beds, including pads, keep
+  `BANK_SEPARATION` (1.5 m per metre of height between them) apart rim to rim, or carve() is left
+  two banks that cannot both hold - a step. Estates line them (`_place_estates()` /
+  `_try_estate()`): a pad of `ESTATE_RADII` (17 m, or a 13 m compact one) beside the road or up a
+  4-26 m driveway at up to `DRIVE_GRADE`; a long driveway is a road of its own (`"drive": true`,
+  carved, not drawn as asphalt), and a mansion records `drive_from` / `drive_h` / `radius`
+  (`carve()` and `_pad_ok()` read the radius). The ground is read off a 12 m lattice while they
+  are laid out (`GCACHE_STEP`, `_ground_cached2()`): a walk asks for the same hectares hundreds of
+  times. Drives and estates stay where the mountains stand `SB_MIN_RAW` over the plain, so their
+  chunk is a hill chunk (a chunk's zone is its block centre's). The south face toward the city
+  stays bare: it is steeper than 45 degrees almost everywhere, where neither bank ever meets the
+  ground. `tools/hill_road_probe/hill_road_probe.tscn` counts roads, hairpins and estates, the
+  carved cells steeper than 60 degrees (`STEEP`) and the pieces that fall outside hill chunks, and
+  draws a slope map with the roads (`OUT=`; `SB_DEBUG=1` adds every walk tried); seconds, headless.
+  Estates are built by `CityChunk._build_mansions()`: pad, walls, gate piers, gate, pool and
+  coping are oriented boxes merged into the chunk's boxes (`_merge_box_xf()`), the driveways one
+  strip a chunk, and each side's wall is what the ground beyond it makes it (garden wall, a
+  retaining wall holding the cut, or one dropping down the fill). Hill road strips are mitred at
+  their joints (`HillRoads._mitre()`, `na` / `nb` in `segments_in()`) and each edge vertex sits on
+  the carved ground, so hairpins have no wedge gaps and forks no steps. Chunks
   build water, sand or terrain for non-city
   zones; the water surface is at y 0.15 (above the ground follower plane). To start
   somewhere else for testing: web `?spawn=x,z,yaw,pitch[,y]`, desktop `-- --spawn=x,z,yaw,pitch[,y]`.
@@ -1974,7 +2081,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `build_character.py` (Blender: the MPFB human from a phenotype, targets and skin - or a blend
   of skins for a complexion the pack lacks - in library clothes, shoes, hair, brows and lashes;
   bound with the hero's lowered arms and a relaxed hand baked in, the finger bones folded into
-  the hands; hidden skin deleted; cut to per-part triangle budgets, ~11-12.7k body + up to 3.8k
+  the hands; hidden skin deleted; cut to per-part triangle budgets, ~11-12.9k body + up to 3.8k
   hair; every texture's islands cropped and skyline-packed into a 2K body atlas and a 1K hair
   atlas, garments optionally dyed, logos painted out; soles on y 0, cm under 0.01, +Z),
   `crowd_atlas.py` (python3: composes the atlases, skin relief from the skin photo, the scalp
@@ -1999,6 +2106,39 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   load, `BODY=mid|far`, `LIGHT=street` for AgX and a tarmac ground) as well as
   `character_shot.gd`. Adding a person: a row in crowd_config.json, `build.sh <name>`, add it to
   `MODELS`; `FROM=crowd_atlas build.sh` redoes only the atlases and the export.
+  **Our own garments** (2026-10-04; the shader work on MakeHuman's photographed clothes had hit
+  its ceiling): a row with an `"outfit"` in crowd_config.json (its `"clothes"` then list only the
+  shoes) wears garments modelled on its own body by `tools/crowd/garments.py` - a crew-neck
+  **tee** (short or long sleeves, fitted / regular / loose), **trousers** (jeans, slim, chinos,
+  leggings, denim shorts), a **button shirt** (stand-and-fall collar with points, placket and
+  buttons, shirt-tail hem, cuffs or rolled sleeves, stripes or a check) and a **zip jacket**
+  (stand collar, zip, rib cuffs and hem band); the keys are in its header. Each is a shell grown
+  off a smoothed copy of the body (its UVs and weights), shaped by an `Envelope` (slice hulls,
+  hung from the chest, blurred) and limb tubes, cut by planes and hemmed with a turned lip;
+  collars, cuffs, bands, placket and zip are swept bands. They have no source photo: their atlas
+  rects are "virtual" and `tools/crowd/garment_paint.py` paints every texel from what the garment
+  is there in 3D (seams, topstitching, hems, waistband and belt loops, pockets, yoke, fly, denim
+  wear and whiskers, rib wales, woven patterns box-filtered per texel) with a height field for the
+  normal map; it re-reads the outfit, so colours and patterns need only `FROM=crowd_atlas`. The
+  contract holds unchanged: the garments join the ONE Body surface with R / G at their fabric's
+  level, buttons and the zip's teeth and pull are the "other" region (no colour, never
+  recoloured), and the mid / far welds, camp figures, limb cuts and the police recolour see an
+  ordinary rig. Rules that cost a debugging round each: a push-out ray must start at the point
+  (cast from outside it jumps a fold - crotch, armpit - and throws the cloth past the far side);
+  a top's push off the trousers is a smooth field (`push_smooth`) and the trousers under a top
+  are cut away with their margin taking the top's weights (`hide_under`), or they poke through
+  at every stride; the male crotch is flattened without letting a vertex cross the midline (its
+  weights are its own leg's); the cover test counts torso skin outward from the torso's axis
+  and a lone miss among covered neighbours (the armpits) as covered; and the garments' AO is
+  gentle with a floor (`own_ao`), being baked on a coarse shell in a pose the game never shows;
+  and the fold field's ankle stack is the hero's gathered track pant, which on hemmed jeans read
+  as jogger cuffs, so crowd_atlas.py scales it per trouser style (`ankle_stack` / `ankle_reach`).
+  A body in our garments is 11.7-12.9k triangles (10.5-12.7k in the library clothes). Eight
+  people wear them (a, d, e, h, i, j, k, l); b, c, f and g keep library clothes - f's tailored
+  jacket over a striped shirt read richer than our zip jacket, which is built but worn by nobody.
+  Judge with `tools/crowd/preview.sh` first (Blender Cycles, no render lock, seconds: `FLAT=1`
+  geometry only, `REGION=1` which mesh is which - green on a top is the trousers, black is skin)
+  and finish with `crowd_lineup.gd` (`TURN=90` shows a row in profile).
   **Close-up detail** (owner, 2026-09-27: faces and garments at 2-4 m): faces are not the
   average MakeHuman head - `build_character.py` rolls MPFB's own face targets (nose, jaw, chin,
   cheeks, eyes, mouth, ears, brows, forehead; `FACE_PAIRS`, `face_var`, `face_seed`, explicit

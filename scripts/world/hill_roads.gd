@@ -14,6 +14,8 @@ const MAX_GRADE := 0.11
 ## once, and not pinned at all it started 11 m above the boulevard (a step in the ground).
 const JUNCTION_GRADE := 0.2
 const JUNCTION_RUN := 150.0
+## How far round a switchback's junction the earthwork check leaves to the parent road.
+const JUNCTION_REACH := 48.0
 ## The coast highway: the one road that runs the whole length of the shore, from the cliffs in
 ## the north, down across the flat beach towns, and up onto the headland in the south. It is the
 ## most recognisable road on a coast like this, so it is laid out along the shoreline itself
@@ -133,6 +135,41 @@ func build(macro: MacroMap, seed_value: int) -> void:
 	#    other roads have already settled against.
 	_add_coast_highway(macro)
 	_index()
+
+
+## 5. Switchback drives (roadmap #20): the canyon roads above walk straight up the front range and
+## are trimmed to stubs, so the range's drives and estates come from roads that follow the
+## contours instead. Their own rng, after everything else, so nothing above moves. Called by
+## MacroMap.setup() once the freeway is planned (`fw`, may be null), which they keep clear of:
+## the freeway's deck height follows height_at(), so it is planned over the roads above, and these
+## stay FW_CLEAR (pads their own reach) off its deck and ramps so their carving never reaches under it.
+func add_switchbacks(seed_value: int, fw: Freeway) -> void:
+	_fw = fw
+	var t_sb := Time.get_ticks_usec()
+	_add_switchbacks(seed_value)
+	if OS.get_environment("SB_DEBUG") != "":
+		print("SBTOTAL %d ms" % ((Time.get_ticks_usec() - t_sb) / 1000))
+	_fw = null
+	_fw_cells.clear()
+	_index()
+
+
+## (a drive's carving reaches half its width plus BANK_REACH; a pad's, its radius plus BANK_REACH)
+const FW_CLEAR := 15.0
+var _fw: Freeway
+var _fw_cells: Dictionary = {}
+
+
+## Whether `q` is within FW_CLEAR of the freeway's deck or a ramp (per GCACHE_STEP cell, cached).
+func _fw_blocked(q: Vector2) -> bool:
+	if _fw == null:
+		return false
+	var key := Vector2i(floori(q.x / GCACHE_STEP), floori(q.y / GCACHE_STEP))
+	var v: Variant = _fw_cells.get(key)
+	if v == null:
+		v = _fw.blocks_rect(Rect2(Vector2(key) * GCACHE_STEP, Vector2.ONE * GCACHE_STEP), FW_CLEAR)
+		_fw_cells[key] = v
+	return v
 
 
 ## How far out the headland's ring road runs, as a share of the ellipse (1 is the shore), and how
@@ -332,7 +369,7 @@ func _height_on(road_index: int, pos: Vector2) -> float:
 ## that have met the natural slope by DAYLIGHT_AT (also checked half way to the next point).
 ## 0 if so, -1 if a cut is too deep, +1 if a fill is. `uphill_only` looks only at cuts - the
 ## boulevard's slide fixes those.
-func _earthwork_ok(pts: PackedVector2Array, hs: PackedFloat32Array, i: int, half: float, uphill_only: bool) -> int:
+func _earthwork_ok(pts: PackedVector2Array, hs: PackedFloat32Array, i: int, half: float, uphill_only: bool, junction := Vector2.INF, slack := EARTHWORK_SLACK) -> int:
 	var j := mini(i + 1, pts.size() - 1)
 	var k := maxi(i - 1, 0)
 	var dir := (pts[j] - pts[k]).normalized()
@@ -353,9 +390,13 @@ func _earthwork_ok(pts: PackedVector2Array, hs: PackedFloat32Array, i: int, half
 		for out: Vector2 in outs:
 			var e := 0.0 if out == Vector2.ZERO else DAYLIGHT_AT
 			var q: Vector2 = spots[n] + out * (half + e)
-			var dh := _macro.raw_height_at(q) + _macro.relief_at(q) - beds[n]
-			var cut_limit := MAX_EARTHWORK if e == 0.0 else CUT_BANK * e + EARTHWORK_SLACK
-			var fill_limit := MAX_EARTHWORK if e == 0.0 else FILL_BANK * e + EARTHWORK_SLACK
+			# Round a branch's junction the parent road's own banks are the grading (a probe from
+			# a drive just leaving a canyon road runs on across the canyon into its far wall).
+			if q.distance_to(junction) < JUNCTION_REACH:
+				continue
+			var dh := _ground(q) - beds[n]
+			var cut_limit := MAX_EARTHWORK if e == 0.0 else CUT_BANK * e + slack
+			var fill_limit := MAX_EARTHWORK if e == 0.0 else FILL_BANK * e + slack
 			if dh > cut_limit:
 				return -1
 			if not uphill_only and -dh > fill_limit:
@@ -392,13 +433,13 @@ func _limit_grade(h: PackedFloat32Array, pts: PackedVector2Array) -> PackedFloat
 
 ## Whether a mansion pad at `pos`, levelled at `h`, can be graded into the ground: its centre
 ## within a storey or so, and banks from its rim that meet the ground inside the probes.
-func _pad_ok(pos: Vector2, h: float) -> bool:
-	if absf(_macro.raw_height_at(pos) + _macro.relief_at(pos) - h) > PAD_EARTHWORK:
+func _pad_ok(pos: Vector2, h: float, radius: float = PAD_RADIUS) -> bool:
+	if absf(_ground(pos) - h) > PAD_EARTHWORK:
 		return false
 	for a in 6:
 		var e := BANK_REACH - BANK_FADE
-		var q := pos + Vector2.from_angle(TAU * a / 6.0) * (PAD_RADIUS + e)
-		var dh := _macro.raw_height_at(q) + _macro.relief_at(q) - h
+		var q := pos + Vector2.from_angle(TAU * a / 6.0) * (radius + e)
+		var dh := _ground(q) - h
 		if dh > CUT_BANK * e + EARTHWORK_SLACK or -dh > FILL_BANK * e + EARTHWORK_SLACK:
 			return false
 	return true
@@ -431,7 +472,8 @@ func _place_mansions(road_index: int, rng: RandomNumberGenerator) -> void:
 						# its pad cannot be graded into, is simply not built.
 						var lot_seed := rng.randi()
 						if i + 1 < kept and _pad_ok(pos, h):
-							mansions.append({"pos": pos, "height": h, "yaw": atan2(-normal.x * side, -normal.y * side), "seed": lot_seed, "road": road_index})
+							mansions.append({"pos": pos, "height": h, "yaw": atan2(-normal.x * side, -normal.y * side), "seed": lot_seed, "road": road_index,
+								"drive_from": p + normal * side * (width * 0.5 - 1.0), "drive_h": h})
 			along += rng.randf_range(44.0, 60.0)
 		else:
 			along -= seg_len
@@ -457,7 +499,7 @@ func _index() -> void:
 					_cells[key].append(Vector2i(ri, si))
 	for mi in mansions.size():
 		var pos: Vector2 = mansions[mi].pos
-		var reach := PAD_RADIUS + BANK_REACH
+		var reach: float = mansions[mi].get("radius", PAD_RADIUS) + BANK_REACH
 		for cx in range(floori((pos.x - reach) / CELL), floori((pos.x + reach) / CELL) + 1):
 			for cz in range(floori((pos.y - reach) / CELL), floori((pos.y + reach) / CELL) + 1):
 				var key := Vector2i(cx, cz)
@@ -503,7 +545,7 @@ func carve(pos: Vector2, raw: float) -> float:
 			shoulders.append(SHOULDER)
 	if has_pads:
 		for mi in _pad_cells[key]:
-			var e: float = pos.distance_to(mansions[mi].pos) - PAD_RADIUS
+			var e: float = pos.distance_to(mansions[mi].pos) - float(mansions[mi].get("radius", PAD_RADIUS))
 			if e >= BANK_REACH:
 				continue
 			if best < 0 or e < outs[best]:
@@ -551,13 +593,34 @@ func segments_in(rect: Rect2) -> Array[Dictionary]:
 					continue
 				seen[ref] = true
 				var road: Dictionary = roads[ref.x]
-				var a: Vector2 = road.points[ref.y]
-				var b: Vector2 = road.points[ref.y + 1]
+				var pts: PackedVector2Array = road.points
+				var a: Vector2 = pts[ref.y]
+				var b: Vector2 = pts[ref.y + 1]
 				var seg_rect := Rect2(Vector2(minf(a.x, b.x), minf(a.y, b.y)), (b - a).abs()).grow(road.width)
 				if seg_rect.intersects(rect):
 					out.append({"a": a, "b": b, "ha": road.heights[ref.y], "hb": road.heights[ref.y + 1], "width": road.width,
-						"draw": road.get("draw", true)})
+						"draw": road.get("draw", true), "drive": road.get("drive", false),
+						"na": _mitre(pts, ref.y), "nb": _mitre(pts, ref.y + 1)})
 	return out
+
+
+## The offset to a road's left edge at its point `i`, per metre of half width: the left normal,
+## mitred between the two segments that meet there, so a strip built from it has no wedge-shaped
+## gaps or overlaps at its bends (a hairpin turns 30 degrees a piece). Capped at a 2.5x mitre.
+static func _mitre(pts: PackedVector2Array, i: int) -> Vector2:
+	var n := pts.size()
+	var d0 := (pts[i] - pts[maxi(i - 1, 0)]).normalized() if i > 0 else Vector2.ZERO
+	var d1 := (pts[mini(i + 1, n - 1)] - pts[i]).normalized() if i < n - 1 else Vector2.ZERO
+	if d0 == Vector2.ZERO:
+		d0 = d1
+	if d1 == Vector2.ZERO:
+		d1 = d0
+	var n0 := Vector2(-d0.y, d0.x)
+	var n1 := Vector2(-d1.y, d1.x)
+	var m := (n0 + n1).normalized()
+	if m == Vector2.ZERO:
+		return n1
+	return m / maxf(m.dot(n1), 0.4)
 
 
 func mansions_in(rect: Rect2) -> Array[Dictionary]:
@@ -566,3 +629,676 @@ func mansions_in(rect: Rect2) -> Array[Dictionary]:
 		if rect.has_point(m.pos):
 			out.append(m)
 	return out
+
+
+# --- Switchbacks -------------------------------------------------------------------------------
+# A switchback drive climbs a slope along its contours at SB_GRADE, the way real hill roads do
+# (the canyon roads above walk straight up the fall line, which no road can be graded into on the
+# front range): it runs a leg across the slope, turns uphill through a hairpin of HAIRPIN_RADIUS,
+# runs back the other way above itself, and so on, for as long as the banks either side of it can
+# meet the ground (the same test the trim uses, `_earthwork_ok()`). Its bed is benched into the
+# hillside by SB_BENCH of the fall across it, which is what lets a 1:1 cut and a 1:1.5 fill both
+# daylight on ground a road laid on the surface could not be graded into. Drives grow off the
+# roads already there and off each other, so a slope gets a network, not one road.
+
+## Step along a leg, metres.
+const SB_STEP := 15.0
+## The grade a leg climbs at; MAX_GRADE is the most any step may take.
+const SB_GRADE := 0.085
+## The most a leg may turn in one step (radians): a 37 m radius at SB_STEP.
+const SB_TURN := 0.4
+## The share of the ground's fall across the road the bed is sunk into the slope by.
+const SB_BENCH := 0.7
+## The hairpin's centre-line radius and how many pieces it is drawn in.
+const HAIRPIN_RADIUS := 13.0
+const HAIRPIN_PIECES := 6
+## A leg's run before it turns, metres (rolled per leg).
+const SB_LEG_MIN := 110.0
+const SB_LEG_MAX := 300.0
+## The most steps a drive takes.
+const SB_MAX_STEPS := 90
+## Width of a switchback drive.
+const SB_WIDTH := 9.0
+## Shortest drive worth keeping (metres of road after the trim).
+const SB_MIN_KEEP := 200.0
+## How close a drive may come to another road's centre line (its parent: SB_CLEAR_PARENT), and
+## to its own earlier legs.
+const SB_CLEAR_OTHER := 55.0
+const SB_CLEAR_PARENT := 24.0
+const SB_CLEAR_SELF := 2.0 * HAIRPIN_RADIUS - 3.0
+## Where drives may branch off a road, metres apart along it, and how many drives at most.
+const SB_START_SPACING := 120.0
+const SB_MAX_ROADS := 48
+## The least slope (rise per metre) a hairpin is turned on: on flatter ground a drive only bends.
+const SB_PIN_MIN_SLOPE := 0.12
+## Only the front range and the pass get drives (the headland has its own lanes): north of here.
+const SB_NORTH_OF := -700.0
+
+var _sb_points: Dictionary = {}
+## Every walk tried, kept or not (SB_DEBUG only), for tools/hill_road_probe.
+var debug_walks: Array = []
+
+
+## The surface a road is graded into: the mountains plus the relief, before any carving. The same
+## as raw_height_at() + relief_at(), with the mountains sampled once.
+func _ground(p: Vector2) -> float:
+	if _gcache_on:
+		return _ground_cached(p)
+	var raw := _macro.raw_height_at(p)
+	return raw + _macro._relief_at(p, raw)
+
+
+## While the switchbacks are laid out, the ground is read off a GCACHE_STEP lattice of exact
+## samples, bilinearly: a walk asks for the same few hectares hundreds of times over, and an exact
+## sample costs 20-40 us. Off for everything else, so the other roads are profiled as they were.
+const GCACHE_STEP := 12.0
+var _gcache_on := false
+var _gcache: Dictionary = {}
+
+
+func _ground_node(key: Vector2i) -> Vector2:
+	var h: Variant = _gcache.get(key)
+	if h == null:
+		var p := Vector2(key) * GCACHE_STEP
+		var raw := _macro.raw_height_at(p)
+		h = Vector2(raw, raw + _macro._relief_at(p, raw))
+		_gcache[key] = h
+	return h
+
+
+## (raw, ground) at `p` off the lattice.
+func _ground_cached2(p: Vector2) -> Vector2:
+	var f := p / GCACHE_STEP
+	var k := Vector2i(floori(f.x), floori(f.y))
+	var t := f - Vector2(k)
+	var a := _ground_node(k).lerp(_ground_node(k + Vector2i(1, 0)), t.x)
+	var b := _ground_node(k + Vector2i(0, 1)).lerp(_ground_node(k + Vector2i(1, 1)), t.x)
+	return a.lerp(b, t.y)
+
+
+func _ground_cached(p: Vector2) -> float:
+	return _ground_cached2(p).y
+
+
+## The surface's gradient at `p`, over 6 m.
+func _ground_grad(p: Vector2) -> Vector2:
+	var d := 6.0
+	return Vector2(_ground(p + Vector2(d, 0.0)) - _ground(p - Vector2(d, 0.0)),
+		_ground(p + Vector2(0.0, d)) - _ground(p - Vector2(0.0, d))) / (2.0 * d)
+
+
+## How high the mountains must rise under a drive or an estate: well inside the hills, so the
+## chunk it falls in is a hill chunk (a chunk's zone is its block centre's) and builds it.
+const SB_MIN_RAW := 14.0
+
+
+## The ground at `q` if it is hill a drive may run on (MacroMap.zone_at()'s HILLS test, with the
+## mountains sampled once), else NAN.
+func _sb_hill_ground(q: Vector2) -> float:
+	if _gcache_on:
+		var rg := _ground_cached2(q)
+		if rg.x <= SB_MIN_RAW or q.x < _macro.coast_x(q.y) or _macro.in_bay(q) or _fw_blocked(q):
+			return NAN
+		return rg.y
+	var raw := _macro.raw_height_at(q)
+	if raw <= SB_MIN_RAW or q.x < _macro.coast_x(q.y) or _macro.in_bay(q):
+		return NAN
+	return raw + _macro._relief_at(q, raw)
+
+
+func _sb_index_road(pts: PackedVector2Array, road_index: int) -> void:
+	var hs: PackedFloat32Array = roads[road_index].heights
+	for i in pts.size():
+		var n := 1 if i == pts.size() - 1 else maxi(1, int(pts[i].distance_to(pts[i + 1]) / 10.0))
+		for k in n:
+			var t := float(k) / n
+			var q := pts[i] if k == 0 else pts[i].lerp(pts[i + 1], t)
+			var hq := hs[i] if k == 0 else lerpf(hs[i], hs[i + 1], t)
+			var key := Vector2i(floori(q.x / 60.0), floori(q.y / 60.0))
+			if not _sb_points.has(key):
+				_sb_points[key] = []
+			_sb_points[key].append(Vector4(q.x, q.y, hq, road_index))
+
+
+## How far apart two beds must stand per metre of height between them, edge to edge: the higher
+## one's fill bank (FILL_BANK) has to reach the lower one's edge, or carve() is left two banks
+## that cannot both hold and the ground between them is a step.
+const BANK_SEPARATION := 1.0 / FILL_BANK
+
+
+## Whether `q` is within `clear` of a road other than `skip` (or `clear_skip` of `skip`). With a
+## `bed` (and the half width `half` of whatever stands at `q`), also whether the banks between it
+## and any road in reach could not be graded (BANK_SEPARATION).
+func _sb_near_roads(q: Vector2, clear: float, skip: int = -2, clear_skip: float = 0.0, bed: float = NAN, half: float = 0.0) -> bool:
+	var c := Vector2i(floori(q.x / 60.0), floori(q.y / 60.0))
+	var check_bed := not is_nan(bed)
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			var key := c + Vector2i(dx, dz)
+			if not _sb_points.has(key):
+				continue
+			for v: Vector4 in _sb_points[key]:
+				var d := q.distance_to(Vector2(v.x, v.y))
+				var ri := int(v.w)
+				if d < (clear_skip if ri == skip else clear):
+					return true
+				if check_bed and d < 60.0:
+					var gap := d - half - float(roads[ri].width) * 0.5
+					if gap < BANK_SEPARATION * absf(bed - v.z) + 1.0:
+						return true
+	return false
+
+
+## The walk's own points so far, by 30 m cell: {cell: [index, ...]}.
+var _walk_cells: Dictionary = {}
+
+
+func _walk_add(pts: PackedVector2Array, i: int) -> void:
+	var key := Vector2i(floori(pts[i].x / 30.0), floori(pts[i].y / 30.0))
+	if not _walk_cells.has(key):
+		_walk_cells[key] = []
+	_walk_cells[key].append(i)
+
+
+func _sb_near_self(q: Vector2, pts: PackedVector2Array, hs: PackedFloat32Array, skip_last: int, bed: float) -> bool:
+	var c := Vector2i(floori(q.x / 30.0), floori(q.y / 30.0))
+	var last := pts.size() - skip_last
+	for dx in range(-2, 3):
+		for dz in range(-2, 3):
+			var key := c + Vector2i(dx, dz)
+			if _walk_cells.has(key):
+				for i: int in _walk_cells[key]:
+					if i >= last:
+						continue
+					var d := q.distance_to(pts[i])
+					if d < SB_CLEAR_SELF or d - SB_WIDTH < BANK_SEPARATION * absf(bed - hs[i]) + 1.0:
+						return true
+	return false
+
+
+## `_earthwork_ok()` for one point of a road being walked: the bed `bed` at `q`, the road running
+## along `dir`, the ground there `g`. Cheaper (no half-way spot) and asked before the point is
+## taken, so the walk turns away from ground it could not grade instead of being trimmed there.
+func _sb_daylight(q: Vector2, dir: Vector2, bed: float, g: float, half: float) -> bool:
+	if absf(g - bed) > MAX_EARTHWORK:
+		return false
+	var nor := dir.orthogonal()
+	for side: float in [-1.0, 1.0]:
+		var dh := _ground(q + nor * side * (half + DAYLIGHT_AT)) - bed
+		if dh > CUT_BANK * DAYLIGHT_AT + EARTHWORK_SLACK or -dh > FILL_BANK * DAYLIGHT_AT + EARTHWORK_SLACK:
+			return false
+	return true
+
+
+## One switchback drive from `start` (on road `parent`, whose bed there is `z0`), leaving it
+## toward `out`, then running along the slope leg by leg, climbing. Returns {"points",
+## "heights", "hairpins"}, the whole walk (the trim comes after).
+func _walk_switchback(start: Vector2, z0: float, out: Vector2, parent: int, rng: RandomNumberGenerator, straight_on: bool = false) -> Dictionary:
+	var half := SB_WIDTH * 0.5
+	var pts := PackedVector2Array([start])
+	var hs := PackedFloat32Array([z0])
+	_walk_cells.clear()
+	_walk_add(pts, 0)
+	var hairpins := 0
+	var pin_at := PackedInt32Array()
+	var p := start
+	var z := z0
+	# Which way along the slope: across the fall line, on the side `out` leans to (a coin if it
+	# leans neither way). The drive leaves its parent at 40 degrees to that, climbing - or, going
+	# on from the end of a road (`straight_on`), straight on.
+	var grad := _ground_grad(start + out * 25.0)
+	var along := grad.orthogonal().normalized()
+	if along == Vector2.ZERO or grad.length() < SB_PIN_MIN_SLOPE:
+		along = out if straight_on else out.orthogonal()
+	if along.dot(out) < -0.2 or (absf(along.dot(out)) <= 0.2 and rng.randf() < 0.5):
+		along = -along
+	var lead := out if straight_on else (along * 0.77 + out * 0.64).normalized()
+	for k in 2:
+		var q := p + lead * SB_STEP
+		var g := _sb_hill_ground(q)
+		if is_nan(g) or _sb_near_roads(q, SB_CLEAR_OTHER, parent, 0.0 if k == 0 else SB_CLEAR_PARENT * 0.5):
+			return {"points": pts, "heights": hs, "hairpins": 0, "pin_at": PackedInt32Array()}
+		var gmax := JUNCTION_GRADE * SB_STEP
+		z = clampf(g, z - gmax, z + gmax)
+		p = q
+		pts.append(p)
+		hs.append(z)
+		_walk_add(pts, pts.size() - 1)
+	var heading := along.angle()
+	var leg := 0.0
+	var leg_target := rng.randf_range(SB_LEG_MIN, SB_LEG_MAX)
+	var drift := 0.0
+	var steps := 0
+	var gmax := MAX_GRADE * SB_STEP
+	while steps < SB_MAX_STEPS:
+		steps += 1
+		var want := z + SB_GRADE * SB_STEP
+		var fall_grad := _ground_grad(p)
+		# On flat ground the climb decides nothing, and a drive left to itself runs dead straight
+		# across a canyon floor: it wanders instead, on a slow random bend.
+		var flat := fall_grad.length() < SB_PIN_MIN_SLOPE
+		drift = clampf(drift + rng.randf_range(-0.1, 0.1), -SB_TURN * 0.5, SB_TURN * 0.5)
+		# Candidates: [score, point, bed, heading].
+		var cands: Array = []
+		for k in range(-6, 7):
+			var th := heading + k * SB_TURN * 0.25
+			var dir := Vector2.from_angle(th)
+			var q := p + dir * SB_STEP
+			var g := _sb_hill_ground(q)
+			if is_nan(g):
+				continue
+			var fall := absf(fall_grad.dot(dir.orthogonal()))
+			var bed := clampf(g - SB_BENCH * fall * half, z - gmax, z + gmax)
+			if _sb_near_self(q, pts, hs, 4, bed) or _sb_near_roads(q, SB_CLEAR_OTHER, parent, SB_CLEAR_PARENT if pts.size() > 3 else 0.0, bed if pts.size() > 5 else NAN, half):
+				continue
+			var turn_cost := 4.0 * absf(k * SB_TURN * 0.25 - drift) if flat else 0.4 * absf(k)
+			cands.append([absf(g - SB_BENCH * fall * half - want) + turn_cost, q, bed, th, g])
+		cands.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+		var took: Array = []
+		for c: Array in cands:
+			if _sb_daylight(c[1], Vector2.from_angle(c[3]), c[2], c[4], half):
+				took = c
+				break
+		# On a slope a leg turns back above itself when it has run its length (or can go no
+		# further); on flat ground there is nothing to climb, so it only turns when it must.
+		var sloped := fall_grad.length() >= SB_PIN_MIN_SLOPE
+		if took.is_empty() or (leg >= leg_target and sloped):
+			# Never two hairpins with no leg between them: that only winds the road on the spot.
+			var pin := _hairpin(pts, hs, p, heading, z, parent) if sloped and leg >= SB_STEP * 3.0 else {}
+			if not pin.is_empty():
+				for i in (pin.points as PackedVector2Array).size():
+					pts.append(pin.points[i])
+					hs.append(pin.heights[i])
+					_walk_add(pts, pts.size() - 1)
+				p = pts[pts.size() - 1]
+				z = hs[hs.size() - 1]
+				heading = pin.heading
+				hairpins += 1
+				pin_at.append(pts.size() - 1)
+				leg = 0.0
+				leg_target = rng.randf_range(SB_LEG_MIN, SB_LEG_MAX)
+				continue
+			if took.is_empty():
+				break
+			# No room to turn here: run on a little and try again.
+			leg_target = leg + SB_STEP * 2.0
+		p = took[1]
+		z = took[2]
+		heading = took[3]
+		pts.append(p)
+		hs.append(z)
+		_walk_add(pts, pts.size() - 1)
+		leg += SB_STEP
+	return {"points": pts, "heights": hs, "hairpins": hairpins, "pin_at": pin_at}
+
+
+## A hairpin off the end `p` of a leg running along `heading` at bed `z`: a half circle turning
+## uphill, its bed rising round it at SB_GRADE. Empty if the ground round it cannot be graded to
+## it or it runs into a road.
+func _hairpin(pts: PackedVector2Array, hs: PackedFloat32Array, p: Vector2, heading: float, z: float, parent: int) -> Dictionary:
+	var dir := Vector2.from_angle(heading)
+	var grad := _ground_grad(p)
+	var left := dir.orthogonal()
+	var side := 1.0 if left.dot(grad) > 0.0 else -1.0
+	var centre := p + left * side * HAIRPIN_RADIUS
+	if _sb_near_roads(centre, SB_CLEAR_OTHER - 6.0, parent, SB_CLEAR_PARENT if pts.size() > 3 else 0.0):
+		return {}
+	var out_pts := PackedVector2Array()
+	var out_hs := PackedFloat32Array()
+	var a0 := (p - centre).angle()
+	var piece := PI * HAIRPIN_RADIUS / HAIRPIN_PIECES
+	var zz := z
+	for k in range(1, HAIRPIN_PIECES + 1):
+		# Round the centre the way that carries on along `dir` at the start (orthogonal() is the
+		# clockwise normal in x/z, so a turn to that side runs the angle down).
+		var a := a0 - side * PI * k / HAIRPIN_PIECES
+		var q := centre + Vector2.from_angle(a) * HAIRPIN_RADIUS
+		var g := _sb_hill_ground(q)
+		zz += SB_GRADE * piece
+		if is_nan(g) or _sb_near_self(q, pts, hs, 3, zz) or _sb_near_roads(q, SB_CLEAR_OTHER - 6.0, parent, SB_CLEAR_PARENT if pts.size() > 3 else 0.0, zz, SB_WIDTH * 0.5):
+			return {}
+		var tangent := Vector2.from_angle(a - side * PI * 0.5)
+		if not _sb_daylight(q, tangent, zz, g, SB_WIDTH * 0.5):
+			return {}
+		out_pts.append(q)
+		out_hs.append(zz)
+	return {"points": out_pts, "heights": out_hs, "heading": heading + PI}
+
+
+## Adds a road whose bed is already laid (`hs`), smoothed and grade-limited, kept from its start
+## only as far as `_earthwork_ok()` passes everywhere on it. Returns its index, or -1 if less
+## than `min_keep` metres of it could be kept (nothing is added then).
+func _add_laid_road(road_name: String, pts: PackedVector2Array, hs: PackedFloat32Array, width: float, min_keep: float) -> int:
+	if pts.size() < 3:
+		return -1
+	var z0 := hs[0]
+	var heights := _limit_grade(_smooth(hs), pts)
+	# The junction stays on its parent's bed, and the lead-in ramps off it.
+	heights[0] = z0
+	for i in range(1, heights.size()):
+		var g := (JUNCTION_GRADE if i <= 2 else MAX_GRADE) * pts[i].distance_to(pts[i - 1])
+		heights[i] = clampf(heights[i], heights[i - 1] - g, heights[i - 1] + g)
+	var keep := pts.size()
+	# The junction itself is on the parent's bed (graded with the parent).
+	for i in range(1, pts.size()):
+		var e := _earthwork_ok(pts, heights, i, width * 0.5, false, pts[0])
+		if e != 0:
+			if OS.get_environment("SB_DEBUG") != "":
+				print("  trim at %d of %d: %d (bed %.1f walked %.1f ground %.1f)" % [i, pts.size(), e, heights[i], hs[i], _ground(pts[i])])
+			keep = i
+			break
+	var kept := pts.slice(0, keep)
+	var length := 0.0
+	for i in kept.size() - 1:
+		length += kept[i].distance_to(kept[i + 1])
+	if keep < 3 or length < min_keep:
+		return -1
+	roads.append({"name": road_name, "points": kept, "heights": heights.slice(0, keep), "width": width,
+		"mansions": true, "planned_points": kept, "switchback": true})
+	_sb_index_road(kept, roads.size() - 1)
+	return roads.size() - 1
+
+
+## Branch points every SB_START_SPACING along road `ri` (from `from` metres in), north of
+## SB_NORTH_OF: [road, point, bed, normal].
+func _sb_starts(ri: int, from: float) -> Array:
+	var out: Array = []
+	var road: Dictionary = roads[ri]
+	var pts: PackedVector2Array = road.points
+	var hs: PackedFloat32Array = road.heights
+	var run := 0.0
+	var next := from
+	for i in pts.size() - 1:
+		var seg := pts[i].distance_to(pts[i + 1])
+		while next < run + seg:
+			var t := (next - run) / seg
+			var at := pts[i].lerp(pts[i + 1], t)
+			if at.y < SB_NORTH_OF:
+				out.append([ri, at, lerpf(hs[i], hs[i + 1], t), (pts[i + 1] - pts[i]).normalized().orthogonal()])
+			next += SB_START_SPACING
+		run += seg
+	return out
+
+
+func _add_switchbacks(seed_value: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value * 31 + 977
+	_sb_points.clear()
+	for ri in roads.size():
+		_sb_index_road(roads[ri].points, ri)
+	var first_new := roads.size()
+	_gcache_on = true
+	var t_foot := Time.get_ticks_usec()
+	_add_north_foot_drive()
+	if OS.get_environment("SB_DEBUG") != "":
+		print("SBFOOT %d ms" % ((Time.get_ticks_usec() - t_foot) / 1000))
+	var queue: Array = []
+	for ri in roads.size():
+		var road: Dictionary = roads[ri]
+		if road.get("draw", true) and road.name != "Pacific Coast Highway":
+			queue.append_array(_sb_ends(ri))
+			queue.append_array(_sb_starts(ri, 60.0))
+	var added := 0
+	var debug := OS.get_environment("SB_DEBUG") != ""
+	var t_walk := 0
+	var t_lay := 0
+	while not queue.is_empty() and added < SB_MAX_ROADS:
+		var s: Array = queue.pop_front()
+		var ri: int = s[0]
+		var at: Vector2 = s[1]
+		var nor: Vector2 = s[3]
+		var straight_on: bool = s.size() == 5 or (s.size() == 6 and s[4])
+		var out := nor
+		if not straight_on:
+			# Leave on the uphill side first; the downhill side is tried after, as its own start.
+			var grad := _ground_grad(at + nor * 20.0) + _ground_grad(at - nor * 20.0)
+			out = nor if grad.dot(nor) > 0.0 else -nor
+			if s.size() == 4:
+				queue.append([ri, at, s[2], -out, false, true])
+			elif s.size() == 6:
+				out = nor
+		if is_nan(_sb_hill_ground(at + out * 25.0)) or _sb_near_roads(at + out * 30.0, SB_CLEAR_OTHER, ri, 0.0 if straight_on else SB_CLEAR_PARENT):
+			continue
+		var t0 := Time.get_ticks_usec()
+		var walk := _walk_switchback(at, s[2], out, ri, rng, straight_on)
+		var t1 := Time.get_ticks_usec()
+		var li := _add_laid_road("Switchback %d" % roads.size(), walk.points, walk.heights, SB_WIDTH, SB_MIN_KEEP)
+		t_walk += t1 - t0
+		t_lay += Time.get_ticks_usec() - t1
+		if debug:
+			debug_walks.append(walk.points)
+			print("SBTRY road %d at %s: walk %d pts %d pins -> %s" % [ri, at, (walk.points as PackedVector2Array).size(), walk.hairpins,
+				"kept %d" % (roads[li].points as PackedVector2Array).size() if li >= 0 else "dropped"])
+		if li < 0:
+			continue
+		var kept: PackedVector2Array = roads[li].points
+		var pins := 0
+		var pin_points := PackedVector2Array()
+		for k: int in walk.pin_at:
+			if k < kept.size():
+				pins += 1
+				pin_points.append(kept[k - HAIRPIN_PIECES / 2])
+		roads[li].hairpins = pins
+		roads[li].pin_points = pin_points
+		added += 1
+		queue.append_array(_sb_ends(li))
+		queue.append_array(_sb_starts(li, 90.0))
+	# Estates along every drive, on graded pads beside it or up / down a driveway.
+	var t_est := Time.get_ticks_usec()
+	var est_rng := RandomNumberGenerator.new()
+	est_rng.seed = seed_value * 53 + 4111
+	for ri in range(first_new, roads.size()):
+		if roads[ri].get("switchback", false):
+			_place_estates(ri, est_rng)
+	_gcache_on = false
+	if debug:
+		print("ESTATE REJECTS pad %d road %d bank %d earthwork %d, %d ms" % (_why + [(Time.get_ticks_usec() - t_est) / 1000]))
+		print("SBTIME walk %d ms, lay %d ms, %d ground nodes" % [t_walk / 1000, t_lay / 1000, _gcache.size()])
+	_gcache.clear()
+
+
+## A road's far end, to go on from: [road, end point, bed, heading, true]. Only a road that ends
+## on the hills (a dead end up a slope), north of SB_NORTH_OF.
+func _sb_ends(ri: int) -> Array:
+	var pts: PackedVector2Array = roads[ri].points
+	var hs: PackedFloat32Array = roads[ri].heights
+	if pts.size() < 2:
+		return []
+	var n := pts.size()
+	var at := pts[n - 1]
+	if at.y >= SB_NORTH_OF or is_nan(_sb_hill_ground(at)):
+		return []
+	return [[ri, at, hs[n - 1], (at - pts[n - 2]).normalized(), true]]
+
+
+## The valley side's foot drive: along the foot of the front range's inland flank, from the pass
+## west, where the range comes down onto the valley floor - the gentle ground the north side's
+## estates stand on. Its line is where the mountains rise NORTH_FOOT_RISE out of the valley, so
+## it follows the range's own outline; it is kept in the runs its banks can be graded along.
+const NORTH_FOOT_RISE := 36.0
+const NORTH_FOOT_FROM_X := -950.0
+const NORTH_FOOT_TO_X := 760.0
+
+
+func _add_north_foot_drive() -> void:
+	var pts := PackedVector2Array()
+	var x := NORTH_FOOT_TO_X
+	while x > NORTH_FOOT_FROM_X:
+		# Walk south from the valley floor until the mountain has risen far enough.
+		var z := _macro.valley_to_z - 300.0
+		var found := NAN
+		while z < _macro.hills_full_z:
+			if _macro.raw_height_at(Vector2(x, z)) > NORTH_FOOT_RISE:
+				# Then back to within a metre and a half of where it crossed.
+				var lo := z - 24.0
+				for k in 4:
+					var mid := (lo + z) * 0.5
+					if _macro.raw_height_at(Vector2(x, mid)) > NORTH_FOOT_RISE:
+						z = mid
+					else:
+						lo = mid
+				found = z
+				break
+			z += 24.0
+		if not is_nan(found):
+			pts.append(Vector2(x, found))
+		x -= 30.0
+	if pts.size() < 4:
+		return
+	# Smooth the line: the outline is ragged where gullies come down.
+	for pass_i in 3:
+		var src := pts.duplicate()
+		for i in range(1, pts.size() - 1):
+			pts[i].y = (src[i - 1].y + 2.0 * src[i].y + src[i + 1].y) * 0.25
+	var heights := _profile(pts, NAN)
+	_add_runs("Valley Vista Dr", pts, heights, 12.0, 300.0)
+
+
+## Adds the stretches of `pts` whose banks can be graded (`_earthwork_ok()`), each at least
+## `min_run` metres, as roads of their own.
+func _add_runs(road_name: String, pts: PackedVector2Array, heights: PackedFloat32Array, width: float, min_run: float) -> void:
+	var ok := PackedByteArray()
+	ok.resize(pts.size())
+	for i in pts.size():
+		ok[i] = 1 if not is_nan(_sb_hill_ground(pts[i])) and _earthwork_ok(pts, heights, i, width * 0.5, false) == 0 else 0
+	var i := 0
+	while i < pts.size():
+		if ok[i] == 0:
+			i += 1
+			continue
+		var j := i
+		while j + 1 < pts.size() and ok[j + 1] == 1:
+			j += 1
+		var run := pts.slice(i, j + 1)
+		var length := 0.0
+		for k in run.size() - 1:
+			length += run[k].distance_to(run[k + 1])
+		if length >= min_run:
+			# The ends of a run are checked again as ends, straight on past them.
+			var hs := heights.slice(i, j + 1)
+			while run.size() >= 2 and _earthwork_ok(run, hs, run.size() - 1, width * 0.5, false) != 0:
+				run = run.slice(0, run.size() - 1)
+				hs = hs.slice(0, hs.size() - 1)
+			while run.size() >= 2 and _earthwork_ok(run, hs, 0, width * 0.5, false) != 0:
+				run = run.slice(1)
+				hs = hs.slice(1)
+			if run.size() >= 4:
+				roads.append({"name": road_name, "points": run, "heights": hs, "width": width, "mansions": true,
+					"planned_points": run, "switchback": true})
+				_sb_index_road(run, roads.size() - 1)
+		i = j + 1
+
+
+
+# --- Estates on the drives -------------------------------------------------------------------
+# The Hollywood Hills / Palisades way: a house on its own graded pad, beside the road where the
+# ground allows, else set back up or down a short steep driveway onto a shelf of the hillside.
+# The driveway is a road of its own (`"drive": true`), so carve() grades it into a ramp between
+# the drive's bed and the pad.
+
+## Spacing of estates along a drive (rolled), metres.
+const ESTATE_SPACING := Vector2(30.0, 42.0)
+## Driveway lengths tried, road edge to pad rim: frontage first, then set back.
+const DRIVE_LENGTHS: Array[float] = [4.0, 14.0, 26.0]
+## The steepest a driveway may climb or fall to its pad.
+const DRIVE_GRADE := 0.2
+const DRIVE_WIDTH := 4.5
+## Pads keep at least this far apart, rim to rim.
+const PAD_GAP := 3.0
+## The pad sizes an estate on a drive is tried at, biggest first: the full estate, and a compact
+## one (a smaller house and pool) for the tighter shelves of the canyons.
+const ESTATE_RADII: Array[float] = [PAD_RADIUS, 13.0]
+
+var _pad_hash: Dictionary = {}
+var _why := [0, 0, 0, 0]
+
+
+func _pad_hash_add(pos: Vector2, h: float, radius: float) -> void:
+	var key := Vector2i(floori(pos.x / 60.0), floori(pos.y / 60.0))
+	if not _pad_hash.has(key):
+		_pad_hash[key] = []
+	_pad_hash[key].append(Vector4(pos.x, pos.y, h, radius))
+
+
+## Whether a pad of `radius` at `pos`, levelled at `h`, would stand too close to another: PAD_GAP
+## between their rims, and further by BANK_SEPARATION per metre of height between them.
+func _near_pad_hash(pos: Vector2, h: float, radius: float) -> bool:
+	var c := Vector2i(floori(pos.x / 60.0), floori(pos.y / 60.0))
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			for q: Vector4 in _pad_hash.get(c + Vector2i(dx, dz), []):
+				var gap := pos.distance_to(Vector2(q.x, q.y)) - radius - q.w
+				if gap < PAD_GAP or gap < BANK_SEPARATION * absf(h - q.z) + 1.0:
+					return true
+	return false
+
+
+func _place_estates(ri: int, rng: RandomNumberGenerator) -> void:
+	if _pad_hash.is_empty():
+		for m in mansions:
+			_pad_hash_add(m.pos, m.height, m.get("radius", PAD_RADIUS))
+	var road: Dictionary = roads[ri]
+	var pts: PackedVector2Array = road.points
+	var hs: PackedFloat32Array = road.heights
+	var half: float = road.width * 0.5
+	var along := rng.randf_range(10.0, 30.0)
+	var i := 0
+	while i < pts.size() - 1:
+		var seg := pts[i + 1] - pts[i]
+		var seg_len := seg.length()
+		if along >= seg_len:
+			along -= seg_len
+			i += 1
+			continue
+		var t := along / seg_len
+		var p := pts[i].lerp(pts[i + 1], t)
+		var bed := lerpf(hs[i], hs[i + 1], t)
+		var normal := Vector2(-seg.y, seg.x) / seg_len
+		for side: float in [-1.0, 1.0]:
+			var lot_seed := rng.randi()
+			if rng.randf() > 0.85:
+				continue
+			var placed := false
+			for radius: float in ESTATE_RADII:
+				for drive: float in DRIVE_LENGTHS:
+					if _try_estate(ri, p, bed, normal * side, half, drive, radius, lot_seed):
+						placed = true
+						break
+				if placed:
+					break
+		along += rng.randf_range(ESTATE_SPACING.x, ESTATE_SPACING.y)
+
+
+## One estate beside road `ri` at `p` (bed `bed`), on the side `out` points to, `drive` metres
+## of driveway off its edge (`half` from the centre line), on a pad of `radius`. False if it
+## does not fit there.
+func _try_estate(ri: int, p: Vector2, bed: float, out: Vector2, half: float, drive: float, radius: float, lot_seed: int) -> bool:
+	var pos := p + out * (half + drive + radius)
+	var g := _sb_hill_ground(pos)
+	if is_nan(g):
+		return false
+	var h := clampf(g, bed - DRIVE_GRADE * drive, bed + DRIVE_GRADE * drive)
+	if _fw and _fw.blocks_rect(Rect2(pos, Vector2.ZERO).grow(radius), FW_CLEAR):
+		return false
+	if _near_pad_hash(pos, h, radius):
+		_why[0] += 1
+		return false
+	if _sb_near_roads(pos, radius + 8.0 + 3.0, ri, radius + half + 2.0, h, radius):
+		_why[1] += 1
+		return false
+	if not _pad_ok(pos, h, radius):
+		_why[3] += 1
+		return false
+	var from := p + out * (half - 1.0)
+	if drive > 5.0:
+		# The driveway, graded as a road from the drive's bed to the pad's.
+		var to := p + out * (half + drive + 2.0)
+		roads.append({"name": "Drive", "points": PackedVector2Array([from, to]), "heights": PackedFloat32Array([bed, h]),
+			"width": DRIVE_WIDTH, "mansions": false, "planned_points": PackedVector2Array([from, to]), "drive": true})
+		_sb_index_road(roads[roads.size() - 1].points, roads.size() - 1)
+	mansions.append({"pos": pos, "height": h, "yaw": atan2(-out.x, -out.y), "seed": lot_seed, "road": ri,
+		"drive_from": from, "drive_h": bed, "radius": radius})
+	_pad_hash_add(pos, h, radius)
+	return true
+
+

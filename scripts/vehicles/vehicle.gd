@@ -449,6 +449,8 @@ static var _livery_meshes: Dictionary = {}
 
 ## Kinds of hit for take_hit() (the same as CarDamage.Hit).
 const HIT_PROP := 0
+## A street car signals its turn once it is this close to the junction's centre (m).
+const TURN_SIGNAL_DISTANCE := 48.0
 const HIT_BULLET := 1
 const HIT_PELLET := 2
 const HIT_BLAST := 3
@@ -460,6 +462,18 @@ var _damage: CarDamage = null
 var _crash_v: Vector3 = Vector3.ZERO
 var _crash_hold: int = 0
 var _night_lights: MeshInstance3D
+## Lamps CarDamage broke (bits of CarDamage.LAMP_*), kept so the glow can be rebuilt.
+var _lamp_bits: int = 0
+## What the lamps show now (see _tick_lights): brake on, indicator (-1 left, 1 right, 2 hazards),
+## reversing. Read by CarLights and the tests.
+var light_brake: bool = false
+var light_signal: int = 0
+var light_reverse: bool = false
+## Material key last put on the lamps, and the brake light's hold (s): a queue's stop-start
+## creep would otherwise flicker it.
+var _light_key: int = -1
+var _brake_hold: float = 0.0
+var _prev_traffic_speed: float = 0.0
 ## The body meshes wearing the cabin glass (CarCabin), and the glass surfaces on them as
 ## [MeshInstance3D, surface index].
 var _glass_meshes: Array[MeshInstance3D] = []
@@ -494,6 +508,7 @@ func setup_look(paint_finish: Finish, car_livery: Livery = Livery.NONE, trim: Co
 func _ready() -> void:
 	add_to_group("vehicle")
 	add_to_group("physics_prop")
+	CarLights.ensure(self)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
 	collision_layer = 4
 	collision_mask = _mask()
@@ -669,7 +684,8 @@ func _set_lamps_broken(bits: int) -> void:
 	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
 	_night_lights.mesh = PropFactory.vehicle_lights(d.width, d.length, lamp_y,
 			float(d.get("road", d.get("ride", model_bottom_y))), float(d.get("tail_y", lamp_y)), bits)
-	_night_lights.visible = bits != 15
+	_lamp_bits = bits
+	_refresh_lights()
 
 
 ## Burnt out (CarDamage.become_wreck): no lights, no engine, the tyres burnt down to the rims, the
@@ -677,8 +693,7 @@ func _set_lamps_broken(bits: int) -> void:
 func _become_wreck() -> void:
 	set_meta("wreck", true)
 	_update_occupant()
-	if _night_lights:
-		_night_lights.visible = false
+	_refresh_lights()
 	if _engine_sound:
 		_engine_sound.stop()
 	var livery := get_node_or_null("LiveryProp") as Node3D
@@ -705,6 +720,7 @@ func repair() -> void:
 	remove_child(_damage)
 	_damage.queue_free()
 	_damage = null
+	_lamp_bits = 0
 	_update_occupant(true)
 
 
@@ -999,6 +1015,111 @@ func _add_night_lights(dims: Dictionary) -> void:
 	node.visibility_range_end = 160.0
 	add_child(node)
 	_night_lights = node
+	_light_key = -1
+	_refresh_lights()
+
+
+## True while somebody is at the wheel of a whole car: its lamps are on. A parked car is dark
+## (its lamps were lit like a moving car's until 2026-10-04), a wreck has none.
+func lights_running() -> bool:
+	if has_meta("wreck") or is_wreck():
+		return false
+	return _cabin_seats() != 0
+
+
+## Works out what the lamps show this tick: the brake light from the brake pedal (the player)
+## or the speed falling (traffic, which is placed, not driven), the reversing lamps, and the
+## indicators from the turn the traffic rolled for the next junction (TrafficManager keeps
+## `turn` and `to_c`, the distance to that junction's centre), hazards on a car knocked out of
+## the traffic with its driver still in it.
+func _tick_lights(delta: float) -> void:
+	if _night_lights == null:
+		return
+	var braking := false
+	var reversing := false
+	var sig := 0
+	if driver != null:
+		var speed := linear_velocity.dot(-global_basis.z)
+		braking = brake > 5.0
+		reversing = engine_force > 0.0 and speed < 1.0
+	elif is_traffic():
+		var v := traffic_speed
+		var decel := (_prev_traffic_speed - v) / maxf(delta, 0.0001)
+		braking = v < 0.3 or decel > 0.8
+		_prev_traffic_speed = v
+		sig = _traffic_signal()
+	elif _npc_driver:
+		braking = linear_velocity.length() < 1.0 or brake > 5.0
+		sig = 2
+	if braking:
+		_brake_hold = 0.35
+	else:
+		_brake_hold = maxf(_brake_hold - delta, 0.0)
+	light_brake = braking or _brake_hold > 0.0
+	light_reverse = reversing
+	light_signal = sig
+	_refresh_lights()
+
+
+## The indicator for the turn a street car has rolled: -1 left, 1 right (a U-turn is a left,
+## the roads drive on the right), 0 none or still far from the junction.
+func _traffic_signal() -> int:
+	var turn := int(traffic.get("turn", 0))
+	if turn == 0 or not traffic.has("axis"):
+		return 0
+	var to_c := float(traffic.get("to_c", INF))
+	if to_c > TURN_SIGNAL_DISTANCE or to_c < -2.0:
+		return 0
+	if turn == 2:
+		return -1
+	var dir := float(traffic.get("dir", 1))
+	var x_road := int(traffic.axis) == CityPlan.AXIS_X
+	var forward := Vector3(0.0, 0.0, dir) if x_road else Vector3(dir, 0.0, 0.0)
+	var after := Vector3(float(turn), 0.0, 0.0) if x_road else Vector3(0.0, 0.0, float(turn))
+	return 1 if after.dot(forward.cross(Vector3.UP)) > 0.0 else -1
+
+
+## True while the car's lamps are on and at least one headlamp is whole (CarLights).
+func has_headlights() -> bool:
+	return _night_lights != null and _night_lights.visible and (_lamp_bits & 3) != 3
+
+
+## How much of the headlight is left: 1 with both lamps, 0.5 with one (CarLights).
+func headlight_share() -> float:
+	return (0.5 if _lamp_bits & 1 == 0 else 0.0) + (0.5 if _lamp_bits & 2 == 0 else 0.0)
+
+
+## Where a headlight sits on the car (body space): between the lamps, just ahead of the bumper,
+## its -Z down the road dipped `dip` degrees.
+func headlight_transform(dip: float) -> Transform3D:
+	var d := _dims()
+	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
+	return Transform3D(Basis(Vector3.RIGHT, -deg_to_rad(dip)), Vector3(0.0, lamp_y, -float(d.length) * 0.5 - 0.1))
+
+
+## Just behind the tail lamps, a little low (body space): where the player's rear glow goes.
+func tail_point() -> Vector3:
+	var d := _dims()
+	var lamp_y := float(d.get("lamp_y", 0.55 + d.chassis_h * 0.62))
+	return Vector3(0.0, float(d.get("tail_y", lamp_y)) - 0.1, float(d.length) * 0.5 + 0.35)
+
+
+## Puts the state on the lamps: visible while running, one of PropFactory's shared state
+## materials. Only touches the node when something changed.
+func _refresh_lights() -> void:
+	if _night_lights == null or not is_instance_valid(_night_lights):
+		return
+	var on := lights_running() and _lamp_bits != 15
+	if _night_lights.visible != on:
+		_night_lights.visible = on
+	if not on:
+		return
+	var phase := int(get_instance_id() % 4)
+	var key := int(light_brake) | (int(light_reverse) << 1) | ((light_signal + 1) << 2) | (phase << 5)
+	if key == _light_key:
+		return
+	_light_key = key
+	_night_lights.material_override = PropFactory.vehicle_light_material(light_brake, light_signal, phase, light_reverse)
 
 
 func _add_real_wheels() -> void:
@@ -1193,6 +1314,7 @@ func _make_body_shadows() -> void:
 
 func _update_wheels(delta: float) -> void:
 	_crash_watch()
+	_tick_lights(delta)
 	if _wheel_rigs.is_empty():
 		if not _body_meshes.is_empty():
 			_update_body_tier(global_position.distance_to(_focus_point()))
@@ -1468,6 +1590,7 @@ func _cabin_look() -> Dictionary:
 ## Puts _cabin_seats() and _cabin_look() on the car's glass, when they change (`force` after the
 ## glass itself changed: CarDamage swapping its own in, or taking it off again).
 func _update_occupant(force: bool = false) -> void:
+	_refresh_lights()
 	if _glass_slots.is_empty():
 		return
 	var seats := _cabin_seats()

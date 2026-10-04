@@ -78,11 +78,14 @@ What only the owner can supply, and why each one multiplies everything below:
   puddles, decals, tyre marks, dense street clutter, alleys, car parks, better trees and weeds.
 - [ ] **G4. Lighting art direction (1-2 months, alongside).** Reflection probes per block, wet
   roads, volumetric clouds, neon and storefronts that light the street, headlights that cast
-  light, and a grade tuned per hour against the G1 references.
+  light, and a grade tuned per hour against the G1 references. (Headlights that cast light:
+  done 2026-10-04, CarLights - Forward+ spot lights on the nearest cars.)
 - [ ] **G5. People (2-4 months).** Properly rigged humans with finger and face bones, a real
   animation library (about fifty clips: idles, turns, phone, talking, waiting to cross), foot
   placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
 - [ ] **G6. Cars (1-2 months).** Interiors, real glass, damage, lights; extend tools/make_*.
+  (Lights done 2026-10-04: real headlights near the camera, brake / indicator / hazard /
+  reversing lamps on every running car, parked cars dark.)
 - [ ] **G7. Performance, throughout.** Generated occluders, far-building impostors, texture
   streaming, profiled on the owner's Mac every push: the look at 60 fps, not 15. (Done
   2026-09-24: the level-of-detail hierarchy - FULL, LOD, a whole-basin far city handed over per
@@ -279,7 +282,7 @@ already mapped so milestone 2 is script-only.
 ## Decisions log
 
 - **2026-10-04 No bare ground outside downtown and midtown either** (agent branch, the yard
-  pass; docs/HANDOFF.md 9av). Beach-town lots are houses with yards (driveways, front gardens,
+  pass; docs/HANDOFF.md 9az). Beach-town lots are houses with yards (driveways, front gardens,
   low walls and pickets, lot-line fences, back yards, courtyards) and some blocks a walk street;
   campus blocks are quads, walks, a car park and service yards; the freeway's right of way in
   every district is ivy, hedge and tree rows, sound walls and the odd maintenance yard (`YardFill`).
@@ -291,6 +294,20 @@ already mapped so milestone 2 is script-only.
   (`CityPlan.block()` `"was_plaza"`, after the roll: the 100 x 180 m square of bare paving south
   of MacArthur Park was "the empty block south-east of MacArthur Park"); and **the campus hall's
   sixteen ball-on-a-stick trees are the chunk's street tree** when a chunk builds it.
+- **2026-10-04 The crowd wears our own garments, modelled and painted, not photographed.**
+  The crowd-detail pass found the ceiling of shader work on MakeHuman's library clothes (soft
+  photographed textures, one V-neck on every tee). `tools/crowd/garments.py` models a tee,
+  trousers (jeans, slim, chinos, leggings, denim shorts), a button shirt and a zip jacket on each
+  body, and `tools/crowd/garment_paint.py` paints every texel of them from what the garment is
+  at that point (seams, topstitching, pockets, waistbands, denim wear, woven stripes); eight of the
+  twelve people wear them, dressed the way their rows say (a, d, e, h, i, j, k, l). The
+  overalls (b), the blouse and skirt (c) and the suit (g) stay MakeHuman's until there is a
+  garment of ours for each, and so does f (lead review): his tailored jacket with lapels and
+  pockets over a striped shirt read richer than our plain zip jacket, which stays in the code
+  unworn. The crowd contract is unchanged (one Body surface, region colours,
+  the hair mesh, 24 bones and three clips), so no game code changed. docs/HANDOFF.md 9av,
+  CLAUDE.md "Our own garments".
+
 - **2026-10-04 The mountains from the air are one ground, in linear light on both renderers.**
   (owner: "make the graphics a million times better"; agent branch, docs/HANDOFF.md 9au.) Two
   bugs: the horizon plane kept its own copies of the hill colours as `source_color` uniforms,
@@ -305,6 +322,14 @@ already mapped so milestone 2 is script-only.
   A colour change is proven on Forward+ with a small lavapipe scene
   (`hill_ground_shot.tscn GROUND=1 MASKS=1 NOFOG=1`), never on the opengl3 stills alone.
 
+- **2026-10-04 The coast has breaking surf, a swash on the sand and lights in the water at night**
+  (owner: "make the graphics a million times better"; lead: "the Pacific and the beach, AAA").
+  One wave model (`shaders/surf.gdshaderinc`, `Surf`) drives the ocean's surf, the sand's swash
+  and the spray, from shader TIME and two globals Weather sets from the wave scale - storm surf
+  in storms. The sea's sky reflection is emitted, not lit (the sunset sea was black). Lamps on the
+  piers and the city are mirrored on the water at night. The sand now covers every street end
+  along the coast. Particles were not used: the spray is one MultiMesh of shader-driven quads a
+  shoreline chunk. HANDOFF 9ax, CLAUDE.md "Surf and beach".
 - **2026-10-04 Shops have rooms behind their glass, traced, not modelled (VISUAL_ROADMAP #14).**
   Each storefront is one room the width of the shop with its fittings (shelves, racks, tables,
   washers, barber chairs, a teller line; a double-height lobby with a lift bank in towers over
@@ -313,6 +338,26 @@ already mapped so milestone 2 is script-only.
   low-poly interiors behind the glass: the traced room has true parallax at zero triangles and
   zero draw calls (the frame-cost budget is the binding constraint downtown), and nothing has to
   stream or fade. Cost is ALU on storefront glass pixels only. docs/HANDOFF.md 9at.
+- **2026-10-04 Car lights light the world (G4 / G6).** On Forward+ the player's car and up to
+  six running traffic cars within 60 m carry real SpotLight3D headlights (`CarLights`: budgeted
+  by Quality, faded by distance and on hand-over, shadows only on the player's car, which also
+  carries the low-beam cookie and a red glow behind); everything else - the web, Compatibility,
+  cars further off - keeps the additive lamp mesh, which now also shows brake lights (traffic
+  slowing or standing), indicators for the turn traffic rolled, hazards on a knocked-out car and
+  reversing lamps, as shared state materials (one draw a car still). Parked cars' lamps are off.
+  An unshadowed spot cannot carry a projector in Godot (it draws nothing), so traffic beams are
+  soft plain cones. docs/HANDOFF.md 9aw; CLAUDE.md "Car lights".
+- **2026-10-04 The front range gets its drives and estates back as switchbacks, not deeper cuts
+  (VISUAL_ROADMAP #20).** The cut-bank fix (#17) trimmed every canyon road that walked straight
+  up the range. Roads now follow the contours (`HillRoads._add_switchbacks()`: 8.5 % legs,
+  13 m hairpins, a bed benched into the slope, every step graded before it is taken) and grow
+  into a network off each other, with estates on graded pads beside them or up short driveways;
+  `Valley Vista Dr` runs along the inland foot. #17's rule holds: beds keep 1.5 m apart per metre
+  of height between them so no two banks fight, and the carved ground steeper than 60 degrees
+  stays about where it was. The south face toward the city stays bare: it is steeper than 45
+  degrees nearly everywhere, where no graded bank can ever meet the ground; the drives are in the
+  pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
+  walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

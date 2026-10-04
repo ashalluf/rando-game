@@ -1115,21 +1115,32 @@ static func vehicle_lights(width: float, length: float, y: float, ground: float 
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var head := Color(1.0, 0.95, 0.82, 1.0)
 	var tail := Color(1.0, 0.16, 0.10, 0.78)
+	var amber := Color(1.0, 0.52, 0.06, 0.9)
+	var white := Color(0.95, 0.97, 1.0, 0.8)
 	var heads := 0
+	var tails := 0
+	# The part each quad is goes in its u (shifted by 2 x the part, see car_lights.gdshader):
+	# 0 head, 1 tail, 2 left indicator, 3 right indicator, 4 reversing lamp, 5 the road behind.
 	for side: float in [-1.0, 1.0]:
 		var x := side * (width * 0.5 - 0.26)
 		var left := side < 0.0
+		var corner := side * (width * 0.5 - 0.1)
+		var turn_part := LIGHT_LEFT if left else LIGHT_RIGHT
 		if broken & (1 if left else 2) == 0:
 			heads += 1
 			_light_quad(st, Vector3(x, y, -length * 0.5 - 0.06), Vector3(0.62, 0.0, 0.0), Vector3(0.0, 0.34, 0.0), head)
+			_light_quad(st, Vector3(corner, y, -length * 0.5 - 0.07), Vector3(0.26, 0.0, 0.0), Vector3(0.0, 0.2, 0.0), amber, 0.0, turn_part)
 		if broken & (4 if left else 8) == 0:
-			_light_quad(st, Vector3(x, tail_y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail)
+			tails += 1
+			_light_quad(st, Vector3(x, tail_y, length * 0.5 + 0.06), Vector3(0.58, 0.0, 0.0), Vector3(0.0, 0.30, 0.0), tail, 0.0, LIGHT_TAIL)
+			_light_quad(st, Vector3(corner, tail_y, length * 0.5 + 0.07), Vector3(0.24, 0.0, 0.0), Vector3(0.0, 0.2, 0.0), amber, 0.0, turn_part)
+			_light_quad(st, Vector3(side * (width * 0.5 - 0.52), tail_y - 0.04, length * 0.5 + 0.07), Vector3(0.2, 0.0, 0.0), Vector3(0.0, 0.14, 0.0), white, 0.0, LIGHT_REVERSE)
 	if broken & 15 == 15:
 		# Nothing left to draw: a degenerate quad keeps the mesh valid (the node is hidden).
 		_light_quad(st, Vector3.ZERO, Vector3.ZERO, Vector3.ZERO, Color(0, 0, 0, 0))
 	# The beam on the road: a wide wedge lying flat in front of the car.
-	# Its UVs sit in 2..3 instead of 0..1, which is how light_pool.gdshader tells it from a
-	# round lamp pool and draws a fan instead of a blob.
+	# Its UVs sit in 2..3 instead of 0..1, which is how car_lights.gdshader tells it from a
+	# round glow and draws a fan instead of a blob.
 	# Nine metres, not eleven: the further the flat quad reaches, the more a change of grade
 	# ahead of the car puts its far end under the road, where it is cut off along a hard line.
 	# 12 cm over the road. It was `0.12 - y`, a leftover from when each light was its own node
@@ -1137,22 +1148,52 @@ static func vehicle_lights(width: float, length: float, y: float, ground: float 
 	# ever lit the street at night (found by the sedan session, wt/sedan-body).
 	if heads > 0:
 		_light_quad(st, Vector3(0.0, ground + 0.12, -length * 0.5 - 3.4), Vector3(width * 2.2, 0.0, 0.0), Vector3(0.0, 0.0, 9.0), Color(1.0, 0.94, 0.80, 0.62 * float(heads) * 0.5), 2.0)
+	# The tail lamps' red on the road behind, a short soft pool that the brake turns up.
+	if tails > 0:
+		_light_quad(st, Vector3(0.0, ground + 0.12, length * 0.5 + 1.3), Vector3(width * 1.3, 0.0, 0.0), Vector3(0.0, 0.0, 2.6), Color(1.0, 0.12, 0.06, 0.5 * float(tails)), 0.0, LIGHT_ROAD_BEHIND)
 	var mesh := st.commit()
-	mesh.surface_set_material(0, light_pool_material())
+	mesh.surface_set_material(0, vehicle_light_material())
 	_cache[key] = mesh
 	return mesh
 
 
+## Parts of PropFactory.vehicle_lights() (car_lights.gdshader reads them from the u shift).
+const LIGHT_TAIL := 1
+const LIGHT_LEFT := 2
+const LIGHT_RIGHT := 3
+const LIGHT_REVERSE := 4
+const LIGHT_ROAD_BEHIND := 5
+
+
+## The lamps' material for one state of the car: `brake` on, `signal_side` (-1 left, 1 right,
+## 2 hazards, 0 none) at blink `phase` (0..3), `reverse` on. One shared copy per combination
+## (at most 2 x 13 x 2), so cars doing the same thing share it and the mesh stays one draw a car.
+static func vehicle_light_material(brake: bool = false, signal_side: int = 0, phase: int = 0, reverse: bool = false) -> ShaderMaterial:
+	if signal_side == 0:
+		phase = 0
+	var key := "car_light_mat_%d_%d_%d_%d" % [int(brake), signal_side, phase, int(reverse)]
+	if _cache.has(key):
+		return _cache[key]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/car_lights.gdshader")
+	mat.set_shader_parameter("brake", 1.0 if brake else 0.0)
+	mat.set_shader_parameter("signal_side", float(signal_side))
+	mat.set_shader_parameter("blink_phase", float(phase) * 0.25)
+	mat.set_shader_parameter("reverse", 1.0 if reverse else 0.0)
+	_cache[key] = mat
+	return mat
+
+
 ## One quad centred at `at`, spanning `u` and `v`, with UVs 0..1 so the light shader's radial
-## falloff works, and `c` in the vertex colour.
-static func _light_quad(st: SurfaceTool, at: Vector3, u: Vector3, v: Vector3, c: Color, uv_shift: float = 0.0) -> void:
+## falloff works, and `c` in the vertex colour. `part` shifts u by 2 x part (car_lights.gdshader).
+static func _light_quad(st: SurfaceTool, at: Vector3, u: Vector3, v: Vector3, c: Color, uv_shift: float = 0.0, part: int = 0) -> void:
 	var corners := [[-0.5, -0.5, Vector2(0.0, 1.0)], [0.5, -0.5, Vector2(1.0, 1.0)],
 		[0.5, 0.5, Vector2(1.0, 0.0)], [-0.5, 0.5, Vector2(0.0, 0.0)]]
 	var order := [0, 1, 2, 0, 2, 3]
 	for i in order:
 		var corner: Array = corners[i]
 		st.set_color(c)
-		st.set_uv(corner[2] + Vector2(0.0, uv_shift))
+		st.set_uv(corner[2] + Vector2(2.0 * part, uv_shift))
 		st.set_normal(Vector3(0.0, 0.0, 1.0))
 		st.add_vertex(at + u * corner[0] + v * corner[1])
 
@@ -2153,6 +2194,42 @@ static func ocean_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/ocean.gdshader")
 	_cache["ocean_mat"] = mat
+	return mat
+
+
+## The spray off the breakers (shaders/surf_spray.gdshader, CityChunk._build_surf_spray()).
+static func surf_spray_material() -> ShaderMaterial:
+	if _cache.has("surf_spray_mat"):
+		return _cache["surf_spray_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/surf_spray.gdshader")
+	_cache["surf_spray_mat"] = mat
+	return mat
+
+
+static func surf_spray_mesh() -> QuadMesh:
+	if _cache.has("surf_spray_mesh"):
+		return _cache["surf_spray_mesh"]
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE
+	_cache["surf_spray_mesh"] = q
+	return q
+
+
+## The beach (shaders/beach_sand.gdshader): the "sand" set as pbr("sand", 2.0, ...) laid it, with
+## the swash of the surf running up it and wet sand behind. The mesh has to carry UV2 (metres
+## landward of the waterline, beach width) and the wet/dry banding in COLOR; CityChunk._build_sand.
+static func beach_sand_material() -> ShaderMaterial:
+	if _cache.has("beach_sand_mat"):
+		return _cache["beach_sand_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/beach_sand.gdshader")
+	mat.set_shader_parameter("albedo_tex", texture("sand", "Color"))
+	mat.set_shader_parameter("normal_tex", texture("sand", "NormalGL"))
+	mat.set_shader_parameter("rough_tex", texture("sand", "Roughness"))
+	mat.set_shader_parameter("tint", Color(1.0, 0.95, 0.85))
+	mat.set_shader_parameter("tile_m", 2.0)
+	_cache["beach_sand_mat"] = mat
 	return mat
 
 

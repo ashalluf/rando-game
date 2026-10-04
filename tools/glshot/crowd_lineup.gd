@@ -13,7 +13,8 @@ extends SceneTree
 ## default 0.25) and PHASE_STEP (added per person so the row is not in step), YAW (degrees the
 ## camera orbits; 90 is the side), CAM_DIST / CAM_Y / AIM_Y / FOV, BODY=mid|far (the welded middle
 ## / far bodies, hair cards hidden, as the game draws them past mid_body_range), SUN_YAW, SKY=1 for
-## a brighter outdoor fill, MAT_PARAM=name=value[;...] to A/B a character-shader uniform, LIGHT=street for a darker ground and AgX nearer the game's grade, SHOTS="name,yaw,dist,cam_y,aim_y,fov,aim_x;..." for several views from one
+## a brighter outdoor fill, TURN (degrees every person turns in place: 90 is the row in profile),
+## MAT_PARAM=name=value[;...] to A/B a character-shader uniform, LIGHT=street for a darker ground and AgX nearer the game's grade, SHOTS="name,yaw,dist,cam_y,aim_y,fov,aim_x;..." for several views from one
 ## load (OUT_<name>.png each; empty fields keep the values above). Applies the rigs exactly as the game does (Pedestrian.prepare_rig and
 ## fix_arm_pose), loaded dynamically because this compiles before the autoloads exist.
 func _initialize() -> void:
@@ -79,6 +80,9 @@ func _initialize() -> void:
 			continue
 		var inst: Node3D = packed.instantiate()
 		inst.position = Vector3(-width * 0.5 + spacing * float(i), 0.0, 0.0)
+		# TURN=degrees turns every person in place (90: the row in profile to a front camera; a
+		# side camera only looks down the row)
+		inst.rotation.y = deg_to_rad(float(OS.get_environment("TURN"))) if OS.get_environment("TURN") != "" else 0.0
 		root.add_child(inst)
 		insts.append([inst, String(models[i]).strip_edges(), int(looks[i % looks.size()]), fposmod(phase + phase_step * float(i), 1.0)])
 	await process_frame
