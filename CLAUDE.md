@@ -874,9 +874,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   PAPI), and FULL the paint (runway thresholds, designators as flat TextMesh, touchdown zone,
   aiming points, centre and edge lines, rubber; taxiway centre and edge lines, lead-off curves,
   hold-short bars; stand lead-in lines, stop bars, numbers, red equipment-restraint envelopes,
-  the service road), the light fixtures and every attended gate's ground service equipment
+  the service road; the texts - designators, stand numbers - ONE mesh per colour a chunk,
+  `Airport.merged_text()`), the light fixtures and every attended gate's ground service equipment
   (pushback, belt loader, baggage tug and carts, catering truck on its scissor lift, fuel
-  truck, GPU, cones) and 2-3 `ApronCrew` (`scripts/npc/apron_crew.gd`, a Pedestrian in hi-vis
+  truck, GPU, cones) as ONE instance of `AirportKit.gate_set(variant)` (one mesh per service
+  variant, built in the stand's frame through `AirportKit._xf`; never `append_from()`, a
+  read-back), the staging rows at the concourse ends (`staging_set()`), and 2-3 `ApronCrew` (`scripts/npc/apron_crew.gd`, a Pedestrian in hi-vis
   on a small ring by the jet, crowd-capped, never crosses). Every roll is a hash, never the
   block rng. **The field's lights** are ONE billboard mesh (`Airport.lights_mesh()`, ~640
   lights) on `aircraft_lights.gdshader`, worn by the `airfield_lights` landmark near and far

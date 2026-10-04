@@ -4,7 +4,7 @@ render_mode cull_back;
 // The airport's small hardware (AirportKit): ground service vehicles, masts, light fixtures,
 // navaids, cones, blast fences. One material for all of it; what each vertex is rides in its
 // vertex colour's alpha, and the vehicles' livery in the instance's INSTANCE_CUSTOM:
-//   a 1.0   painted body: albedo = INSTANCE_CUSTOM.rgb when its alpha is set, else the vertex colour
+//   a 1.0   painted body: albedo = INSTANCE_CUSTOM.rgb when one is set (not black), else the vertex colour
 //   a 0.75  lamp lens: the vertex colour, emitting at night (beacons, cab lamps, fixture lenses)
 //   a 0.5   glass: dark, glossy
 //   a 0.25  rubber / black plastic: rough
@@ -23,7 +23,8 @@ varying float v_kind;
 void vertex() {
 	v_col = COLOR.rgb;
 	v_kind = COLOR.a;
-	if (COLOR.a > 0.9 && INSTANCE_CUSTOM.a > 0.5) {
+	// MultiMeshBatch's default custom is opaque black: only a colour that is set counts.
+	if (COLOR.a > 0.9 && INSTANCE_CUSTOM.a > 0.5 && dot(INSTANCE_CUSTOM.rgb, vec3(1.0)) > 0.001) {
 		v_col = INSTANCE_CUSTOM.rgb;
 	}
 }
