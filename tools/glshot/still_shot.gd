@@ -337,6 +337,17 @@ func _initialize() -> void:
 		for i in _env_int("STREET_FRAMES", 8):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# BIG=bus|semi: a bus standing at its stop (doors open, kneeling) or a semi on the freeway
+	# nearest the camera, and a free camera framing it (see _stage_big).
+	var big_env := OS.get_environment("BIG")
+	if big_env != "" and current_scene:
+		_stage_big(big_env)
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("BIG_FRAMES", 40):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.
@@ -1141,7 +1152,9 @@ func _stage_street(kind: String) -> void:
 	for n in lanes:
 		var nose := line - float(dir) * (0.6 + 2.5 * float(n))
 		for k in per:
-			var car: Node = traffic.call("place_car", axis, index, dir, n, line, 10.0, false)
+			# STREET_BIG=<body type>: the second car of the kerb lane is that big vehicle.
+			var big_kind := _env_int("STREET_BIG", -1) if (k == 1 and n == lanes - 1) else -1
+			var car: Node = traffic.call("place_car", axis, index, dir, n, line, 10.0, false, big_kind)
 			car.traffic.v = 0.0
 			car.set("traffic_speed", 0.0)
 			var half: float = car.traffic.half
@@ -1149,8 +1162,8 @@ func _stage_street(kind: String) -> void:
 			var lane: float = car.traffic.lane
 			var p2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == 0 else Vector2(along, plan.road_pos(axis, index) + lane)
 			var h: float = traffic.call("_relief", p2)
-			(car as Node3D).global_position = ws.to_local(Vector3(p2.x, 0.55 + h, p2.y))
-			nose = along - float(dir) * (half + float(traffic.get("min_gap")) + rng.randf_range(0.1, 1.4))
+			(car as Node3D).global_position = ws.to_local(Vector3(p2.x, 0.1 + float(car.call("road_lift")) + h, p2.y))
+			nose = along - float(dir) * (float(car.traffic.get("rear", half)) + float(traffic.get("min_gap")) + rng.randf_range(0.1, 1.4))
 	# STREET_EYE=1: the camera onto the pavement beside the back of the queue, looking up it (a
 	# free EYE camera, STREET_EYE_BACK metres behind the last car, STREET_EYE_SIDE past the kerb).
 	if OS.get_environment("STREET_EYE") == "1":
@@ -1188,6 +1201,121 @@ func _stage_street(kind: String) -> void:
 				ped.call("cross_now", rng.randf_range(0.08, 0.85))
 				placed += 1
 	print("STREET %s at junction %s: %d lanes, %d walkers on the crosswalk, light %d" % [kind, node, lanes, placed, signals.light(plan, node.x, node.y, axis)])
+
+
+## BIG=bus: the bus stop nearest the camera on a bus line (BigVehicles.block_stop()), a bus
+## standing at it with its doors open, the lane behind it emptied, and EYE set to a camera on the
+## pavement BIG_AHEAD metres (default 11) ahead of its nose looking back at it (BIG_SIDE metres
+## past the kerb, BIG_HEIGHT, BIG_TURN degrees off the kerb line). BIG=semi: a semi on the freeway
+## route nearest the camera (BIG_ROUTE to pick one by name, e.g. "110"), BIG_T metres along from
+## the nearest point, and EYE beside and behind it on the deck (BIG_BACK, BIG_SIDE, BIG_HEIGHT).
+func _stage_big(kind: String) -> void:
+	var scene := current_scene
+	var plan: Variant = scene.get("plan")
+	var traffic := scene.get_node_or_null("Traffic")
+	var cam := get_root().get_camera_3d()
+	if plan == null or traffic == null or cam == null:
+		print("BIG: nothing to stage with")
+		return
+	var ws := root.get_node("/root/WorldState")
+	var bv: GDScript = load("res://scripts/vehicles/big_vehicles.gd")
+	var cp: Vector3 = ws.to_world(cam.global_position)
+	if kind == "semi" or kind == "box_fw":
+		var fw: Variant = plan.macro.freeway
+		var best := -1
+		var best_d := INF
+		var best_t := 0.0
+		for ri in fw.routes.size():
+			if OS.get_environment("BIG_ROUTE") != "" and not String(fw.routes[ri].name).contains(OS.get_environment("BIG_ROUTE")):
+				continue
+			var near: Array = fw.nearest_on(ri, Vector2(cp.x, cp.z))
+			if float(near[1]) < best_d:
+				best_d = float(near[1])
+				best = ri
+				best_t = float(near[0])
+		if best < 0:
+			print("BIG: no freeway")
+			return
+		var t := best_t + _env_float("BIG_T", 0.0)
+		var dir := _env_int("BIG_DIR", 1)
+		var truck: Node3D = traffic.call("place_freeway_car", best, t, dir, 11 if kind == "semi" else 10, _env_float("BIG_SPEED", 0.5))
+		var at: Array = fw.point_at(best, t - float(dir) * _env_float("BIG_BACK", 16.0))
+		var p: Vector3 = at[0]
+		var d2: Vector2 = at[1] * float(dir)
+		var half: float = float(fw.routes[best].width) * 0.5
+		var side := Vector2(-d2.y, d2.x) * _env_float("BIG_SIDE", half * 0.15)
+		var tp: Vector3 = ws.to_world(truck.global_position)
+		var e := Vector3(p.x + side.x, p.y + _env_float("BIG_HEIGHT", 2.2), p.z + side.y)
+		var look := (tp + Vector3(0.0, 1.6, 0.0)) - e
+		var yaw := rad_to_deg(atan2(-look.x, -look.z))
+		var pitch := rad_to_deg(atan2(look.y, Vector2(look.x, look.z).length()))
+		OS.set_environment("EYE", "%.2f,%.2f,%.2f,%.2f,%.2f" % [e.x, e.y, e.z, yaw, pitch])
+		print("BIG %s on %s at t %.0f, eye %s" % [kind, fw.routes[best].name, t, OS.get_environment("EYE")])
+		return
+	# A bus at a stop.
+	var bi: Vector2i = plan.block_index_at(Vector2(cp.x, cp.z))
+	var found := []
+	for axis: int in [0, 1]:
+		var base: int = bi.x if axis == 0 else bi.y
+		var base_k: int = bi.y if axis == 0 else bi.x
+		for di in range(-3, 5):
+			var index: int = base + di
+			for dk in range(-3, 4):
+				var k: int = base_k + dk
+				for dir: int in [1, -1]:
+					var stop: float = bv.call("block_stop", plan, axis, index, k, dir)
+					if is_nan(stop):
+						continue
+					var road: float = plan.road_pos(axis, index)
+					var q := Vector2(road, stop) if axis == 0 else Vector2(stop, road)
+					found.append([q.distance_to(Vector2(cp.x, cp.z)), axis, index, dir, stop])
+	if found.is_empty():
+		print("BIG: no bus stop near the camera")
+		return
+	found.sort_custom(func(a, b): return a[0] < b[0])
+	var pick: Array = found[clampi(_env_int("BIG_PICK", 0), 0, found.size() - 1)]
+	var axis: int = pick[1]
+	var index: int = pick[2]
+	var dir: int = pick[3]
+	var stop: float = pick[4]
+	traffic.set("staged", true)
+	var cars: Array = traffic.get("cars")
+	for c in cars.duplicate():
+		if is_instance_valid(c) and int(c.traffic.get("axis", -1)) == axis and int(c.traffic.get("index", -99999)) == index:
+			cars.erase(c)
+			traffic.call("_retire", c)
+	var width: float = plan.road_width(axis, index)
+	var lanes := 2 if width > float(plan.street_width) + 1.0 else 1
+	var bus: Node = traffic.call("place_car", axis, index, dir, lanes - 1, stop, 0.0, false, 9)
+	var half: float = bus.traffic.half
+	var along := stop - float(dir) * half
+	bus.traffic.v = 0.0
+	bus.traffic.speed = 0.0
+	bus.traffic.shift = float(bv.get("STOP_SHIFT"))
+	bus.traffic.dwell = 1.0
+	bus.traffic.dwell_need = 1e9
+	bus.set("traffic_speed", 0.0)
+	var lane: float = bus.traffic.lane
+	var lat: float = plan.road_pos(axis, index) + lane + signf(lane) * float(bus.traffic.shift)
+	var p2 := Vector2(lat, along) if axis == 0 else Vector2(along, lat)
+	var h: float = traffic.call("_relief", p2)
+	var yaw_b: float = traffic.call("_heading", axis, dir)
+	(bus as Node3D).global_transform = Transform3D(Basis(Vector3.UP, yaw_b), ws.to_local(Vector3(p2.x, 0.1 + float(bus.call("road_lift")) + h, p2.y)))
+	var fit := bus.get_node_or_null("BusFittings")
+	if fit and OS.get_environment("BIG_DOORS") != "0":
+		fit.call("set_doors", true)
+	# The camera: on the pavement ahead of the nose, looking back along the bus.
+	var kerb := signf(lane)
+	var lateral: float = plan.road_pos(axis, index) + kerb * (width * 0.5 + _env_float("BIG_SIDE", 2.4))
+	var ahead := stop + float(dir) * _env_float("BIG_AHEAD", 11.0)
+	var e2 := Vector2(lateral, ahead) if axis == 0 else Vector2(ahead, lateral)
+	var target := p2
+	var look := Vector3(target.x - e2.x, 0.0, target.y - e2.y)
+	look = look.rotated(Vector3.UP, deg_to_rad(_env_float("BIG_TURN", 0.0)))
+	var yaw := rad_to_deg(atan2(-look.x, -look.z))
+	OS.set_environment("EYE", "%.2f,%.2f,%.2f,%.2f,%.2f" % [e2.x, _env_float("BIG_HEIGHT", 1.7), e2.y, yaw, _env_float("BIG_PITCH", 0.0)])
+	OS.set_environment("EYE_AGL", "1")
+	print("BIG bus line %d at stop %.1f on road %d/%d dir %d, eye %s" % [int(bv.call("route_of", plan, axis, index)), stop, axis, index, dir, OS.get_environment("EYE")])
 
 
 ## Which side of the road centre a lane of `dir` traffic drives on (+1 / -1).

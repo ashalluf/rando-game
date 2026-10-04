@@ -5908,3 +5908,61 @@ trailers at the docks, no prop batches, the pools shadowless, the warehouses in 
 wall list), the block built with Industrial off keeps every pavement prop where it was, a LOD build
 and the far city's capture draw the warehouses as far boxes. `INDUSTRIAL=0` on `still_shot.gd`,
 `block_shot.tscn` and `tools/geo_count.gd` is the A/B; `industrial_bench.tscn` times the builds.
+
+## 9bi. Buses and trucks in traffic, 2026-10-04 (agent branch `wt/big-vehicles`; VISUAL_ROADMAP #51)
+
+The brief: a real LA street has city buses, box trucks and delivery vans, and the freeways have
+semis; traffic was all cars. Now: a 40 ft city bus (the invented agency BASIN TRANSIT) running
+lines on the avenues and stopping at its stops, a cab-over box truck (invented fleets) and a
+sleeper semi with a 53 ft dry van, on the streets and the freeways. CLAUDE.md "Big vehicles" is
+the reference; this is the story.
+
+- **Bodies** (`tools/make_big_vehicles.py`, Blender 4.2 on `make_road_cars.py`'s pipeline - it
+  imports that module and reuses the loft, the booleans, the raycast parts, the slots and the far
+  twin; `--render` for Cycles previews). Bus: one flat-roofed loft (the van's ninth anchor and
+  pinned tangents) with the windscreen and the sign window cut into the domed nose cap, window
+  bands with posts and sliding vents, two plug doors on the kerb side (four leaves, own nodes),
+  roof pod, round lamps, a folded bike rack, bull-horn mirrors; 43k triangles + a 10k far twin.
+  Box truck: a cab-over loft plus a bevelled van body with rails, posts, a roll-up door, marker
+  and tail lamps, frame, tank, steps, underride bar; 26k + 10k. Semi: a long-bonnet sleeper loft
+  (the pickup's corners, the van's flat roof), chrome grille and bumper, tanks, stacks, fenders,
+  fifth wheel; 41.5k + 11k, and the trailer (swing doors with lock rods, landing gear, skirts,
+  tandem) as its own node on the kingpin, 1.8k + 3.6k. The cars' probe rays start 3-5 m out,
+  inside a 12 m bus: the module patches `Surface.end_hit` / `side_hit` / `top_hit` to start
+  further out (a dozen parts were dropped as "missed" before that).
+- **In the game** they are Vehicle body types 9-11, so nothing else needed to learn about them;
+  the work was in the contracts: the body is centred and scaled without the doors and the trailer
+  (otherwise the semi's origin sat mid-rig and a snapped turn swung the tractor 7 m sideways);
+  queues measure to a semi's trailer end (`rear`); `tyre_r` is the physics radius that makes a
+  parked one stand where traffic stands it (CONTACT -0.339 -> -0.298 for the bus); the cabin
+  measure called the bus's windscreen a LAMP (big glass at the very end below the belt) and saw no
+  windscreen at all (its normal is nearly level) - both fixed in `CarCabin`, cars unchanged.
+- **Lines and stops** are pure functions (no network, nothing streamed): `route_of()` gives about
+  half the avenues a line number, `block_stop()` a far-side stop on about every other block per
+  direction. The chunk asks the same function for the shelter and for its parked cars (none in the
+  stop's kerb zone, decided after their rolls so nothing moves); the traffic asks it where to pull
+  in. A bus at its stop: pulls 1.4 m toward the kerb, stands, doors swing open, kneels, dwells
+  7-13 s, closes, pulls out.
+- **Trailer**: a tractrix - the trailer's axle is dragged toward the kingpin each tick. Traffic
+  turns are still snapped at the junction's centre (for every vehicle), and this is what makes
+  the semi's look right: the tractor snaps, the trailer swings round behind it.
+- **Frame cost** (`tools/geo_count.gd`, opengl3 800x600, main 96f86f1 vs this branch; traffic
+  differs between runs, so part of the difference is which vehicles happen to be in view):
+  downtown avenue `--spawn=2359.4,880,0,12,2`: 4.56 M tris / 3,488 draws -> 4.92 M / 3,644
+  (+7.8 % / +4.5 %); west freeway `--spawn=200,1088,-90,-4,30`: 3.03 M / 2,923 -> 3.08 M /
+  2,949 (+1.6 % / +0.9 %); by the 110 `--spawn=1930,600,180,-5,14`: 3.72 M / 3,117 -> 3.91 M /
+  3,271 (+5.0 % / +4.9 %). Per vehicle: a near bus is ~43k + 4 wheel rigs (~1.3k each), the
+  lettering 2 draws to 55 m, door leaves 2 surfaces each (they were 4). Build: 2-3 ms warm
+  (smoke check), 40-80 ms the first time a model loads - inside `builds_per_frame` 1.
+- **Checks**: `tests/big_vehicle_checks.gd` (builds, budget, hit -> physics, the trailer's swing,
+  the pool, lines and stops, a bus at its stop, a car behind a semi at a red, a freeway semi).
+- **Stills** (`shots/big-vehicles`): bus at a stop downtown by day and night (`BIG=bus`), a box
+  truck in the queue at a red (`STREET=queue STREET_BIG=10 STREET_EYE=1`), a semi on the 110
+  (`BIG=semi BIG_ROUTE=110`), close-ups of each body (`car_shot.gd --each=9,10,11`), the bus's
+  seat rows and passengers through the side glass (`OCCUPANT=npc`).
+- **Not done / not verified**: no Forward+ look (the LED signs and the lit bus cabin at night
+  NEED A MAC CHECK); the bus's door openings show a black interior (no stairwell or floor); the
+  front indicators are clear lenses; turns are snapped (a real turning radius for long vehicles
+  would need the street traffic to drive arcs); no bus stops in the Esplanade replica's own
+  traffic (ReplicaTraffic has its own cars); the semi's lamp mesh runs straight behind the
+  tractor whatever the trailer's angle; the semis and box trucks never park.

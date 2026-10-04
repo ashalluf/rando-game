@@ -180,6 +180,9 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			var rng := RandomNumberGenerator.new()
 			car = load("res://scripts/npc/police_car.gd").call("make", heavy, rng)
 			car.set("police", null)
+		elif types[i] >= 9:
+			# The big vehicles (BUS 9, BOX_TRUCK 10, SEMI 11) in their own liveries.
+			car = load("res://scripts/vehicles/big_vehicles.gd").call("make", types[i], OS.get_environment("LOOK").to_int())
 		else:
 			car = load("res://scripts/vehicles/vehicle.gd").new()
 			car.call("setup", types[i], paint, 0)
@@ -254,6 +257,24 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 				int(car.get("body_type")), ys.size(), mean, float(d.get("road", d.get("ride", -0.27))),
 				float(d.get("ride", -0.27))])
 	var wide := types.size() > 1
+	# A big vehicle: every view pulled back by its length over a car's, aimed higher.
+	var big := 1.0
+	for car in cars:
+		big = maxf(big, float(car.call("_dims").length) / 4.9)
+	if OS.get_environment("BUS_DOORS") != "":
+		for car in cars:
+			var fit := car.get_node_or_null("BusFittings")
+			if fit:
+				fit.call("show_line", 14, "DOWNTOWN")
+				if OS.get_environment("BUS_DOORS") == "1":
+					fit.call("set_doors", true)
+		for i in 90:
+			await process_frame
+	elif OS.get_environment("BUS_LINE") != "":
+		for car in cars:
+			var fit := car.get_node_or_null("BusFittings")
+			if fit:
+				fit.call("show_line", 14, "DOWNTOWN")
 	for view in views:
 		var at := cam_at
 		var target := look
@@ -305,6 +326,9 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 					at = Vector3(5.0, 1.35, -6.2)
 			if wide:
 				at *= 1.0 + 0.55 * float(types.size() - 1)
+			if big > 1.0 and cam_at == Vector3.INF:
+				at = Vector3(at.x * sqrt(big), at.y * sqrt(big), at.z * big)
+				target = Vector3(target.x, target.y * sqrt(big) * 1.3, target.z * big)
 		cam.fov = 9.0 if view == "far" else fov
 		cam.look_at_from_position(at, target)
 		for i in 4:

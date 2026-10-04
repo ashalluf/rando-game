@@ -1001,6 +1001,48 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
   opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
   lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
+- Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
+  (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
+  BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on
+  the box) and a sleeper semi with a 53 ft dry van (`SEMI`). They ARE Vehicles (appended to
+  `BodyType`, `BODY_ODDS` 0 so `random_car()` never rolls them; `BigVehicles.make(type, look)`
+  builds one), so kinematic traffic, `drop_out_of_traffic()` / `take_hit()`, CarDamage, CarCabin
+  glass and drivers, CarLights, PhysicsBudget and the pools all work unchanged; `tune()` scales
+  mass (x5.5-11) with engine, brakes and suspension. Bodies: `tools/make_big_vehicles.py`
+  (Blender; imports `make_road_cars.py` and reuses its loft, booleans, raycast parts, slots and
+  far twin - run `blender -b --factory-startup -P tools/make_big_vehicles.py -- bus box_truck
+  semi [--render]`, then `--import`; it prints the WHEEL_POSE / `_dims()` rows, the sign rects,
+  the door hinges and the kingpin). Two slots more: `sign` (the bus's LED destination signs,
+  `shaders/bus_sign.gdshader`, 5 x 7 glyphs from `LedScreen.GLYPHS`, one shared material per
+  line and destination, `BigVehicles.sign_material()`) and `glass_door` (plain glass: a door
+  leaf moves, the cabin trace works in the body's space). Extra nodes by name: `door_fa/fb/ra/rb`
+  (each leaf's origin its hinge; `BusFittings` swings them open at a stop and kneels the body
+  toward the kerb), `road_semi_trailer(_far)` (origin the kingpin; `Hitch` moves it onto a pivot
+  and drags the trailer's axle toward the kingpin each tick - a tractrix - so a snapped junction
+  turn swings it round behind, `MAX_ANGLE` 1.35 rad; physical, the rig straightens and is rigid;
+  the trailer's collision is one box on the car moved with the pivot). **The body is centred and
+  scaled without the trailer or the doors** (`_add_body_model()`); a semi's `_dims()` are the
+  tractor's, with `kingpin`, `trailer_rear` (TrafficManager's `rear` extent: a car queues behind
+  the END of the trailer) and `light_len` / `light_z` (the lamp mesh runs the whole rig). Wheels:
+  WHEEL_POSE `axles` ([z, dual]) and `trailer_axles` go to `BigVehicles.add_wheels()`: truck
+  wheels (`wheel_mesh()`: tyre, painted steel or polished disc with ten hand holes, hub, nuts;
+  ~1.3k triangles near, a dual PAIR one mesh), each rig carrying its own near/far mesh at [6]/[7].
+  `_dims()` `tyre_r` for these is the PHYSICS radius, set so a parked one stands where traffic
+  stands it (car_shot.gd CONTACT). Lettering is a shared TextMesh per (name, size, colour) on each
+  side, 55 m, not on the web. **Lines and stops are worked out, never placed**:
+  `route_of(plan, axis, index)` (half the avenues, a hash), `block_stop(plan, axis, index, k,
+  dir)` (where the nose stops on the block between crossings k and k+1, far side, about every
+  other block), `in_stop_zone()` (the chunk's parked cars keep off the stop's kerb, after their
+  rolls), `build_bus_stops()` (a shelter by the front door, from `_build_sidewalk_props`, no
+  rng). TrafficManager: `_street_kind()` (on a line `BUS_SHARE_ON_ROUTE` are buses, in the kerb
+  lane, no turns of their own, signs lit; box trucks and semis a few %, x3 in INDUSTRIAL),
+  `_new_car(kind)` pools by kind, a bus treats its stop as a standing car, pulls `STOP_SHIFT`
+  toward the kerb and dwells (`_bus_dwell`: doors, kneel, `DWELL`), freeway semis and box trucks
+  in the slow lane, gaps counting `rear`. CarCabin draws a bus's rows of seat pairs and
+  passengers (`bus_rows`, `interior_lamp`: the cabin lit after dark) and seats only its driver.
+  Stills: `BIG=bus` (a bus at the stop nearest the camera, doors open, a pavement EYE), `BIG=semi
+  BIG_ROUTE=110` on `still_shot.gd`, `STREET=queue STREET_BIG=10` (a box truck in the queue),
+  `car_shot.gd --each=9,10,11` (`BUS_DOORS=1`). Checks: `tests/big_vehicle_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -

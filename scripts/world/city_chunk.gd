@@ -2423,8 +2423,9 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 		return
 	var car := Vehicle.random_car(rng)
-	if plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0):
-		# After the rolls, so the chunk rng runs the same whether or not the spot is used.
+	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)):
+		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
+		# stop's kerb is kept clear for the bus (BigVehicles).
 		car.free()
 		return
 	var holder: Node = get_parent() if get_parent() else self
@@ -3079,6 +3080,8 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			add_child(can)
 	_build_clutter(rect, edges, params, rng)
 	StreetDetail.build_block(self, rect, edges, params, block_district, rng)
+	# The shelters of the bus lines' stops on this block (hash-seeded, no rng).
+	BigVehicles.build_bus_stops(self, rect, edges)
 
 
 # --- Intersections ---------------------------------------------------------------------
