@@ -2,7 +2,7 @@
 // than pass one straight through.
 //
 // The two renderers disagree (the repo's two-renderer probe, foliage_tex.gdshader's header,
-// re-run for the hills on 2026-10-04 - HANDOFF 9at):
+// re-run for the hills on 2026-10-04 - HANDOFF 9au):
 //   * Forward+ (the Mac) decodes `source_color` uniforms (their defaults too) and `source_color`
 //     textures from sRGB to linear, and lights in linear.
 //   * Compatibility (the web build, the opengl3 stills) hands both over RAW and lights the raw

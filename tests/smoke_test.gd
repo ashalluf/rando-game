@@ -2092,6 +2092,50 @@ func _test_buildings() -> void:
 	if Building.shop_hash(12345, 1) != 2844175535 or Building.shop_byte(4294967295, 11) != 174:
 		night_why += " hash drifted"
 	_check(night_why == "", "Building rolls each shop's night the way the shader does%s" % night_why)
+	# What is behind the glass (shop_interior.gdshaderinc): Building rolls each shop's room and
+	# finds the towers' lobbies the way the shader does, so a lobby's pool of light on the
+	# pavement stands in front of a lobby. The thresholds and the lobby rule are read back out of
+	# the shader's source, and the rooms along the scene's streets must come in every kind.
+	var room_why := ""
+	var inc := FileAccess.get_file_as_string("res://shaders/shop_interior.gdshaderinc")
+	var at_kind := inc.find("uint shop_room_kind(uint key)")
+	var kind_body := inc.substr(at_kind, inc.find("\n}", at_kind) - at_kind)
+	var bx := RegEx.new()
+	bx.compile("if \\(b < ([0-9]+)u\\) return ROOM_")
+	var bytes: Array = []
+	for m: RegExMatch in bx.search_all(kind_body):
+		bytes.append(m.get_string(1).to_int())
+	if at_kind < 0 or kind_body.find("shop_byte(key, 40u)") < 0 or bytes != Building.SHOP_ROOM_BYTES:
+		room_why += " kind thresholds %s" % str(bytes)
+	for needle: String in ["#include \"res://shaders/shop_interior.gdshaderinc\"", "max(tower_height, pt_size.y) > 30.0",
+			"shop_id == floor((n_shops - 1.0) * 0.5) && shop_byte(shop_key, 44u) < 192u", "room_kind = ROOM_LOBBY;"]:
+		if Building.SHADER.code.find(needle) < 0:
+			room_why += " no %s" % needle
+	var kinds := {}
+	var lobbies := 0
+	for name: String in Building.SHOP_NAMES:
+		if not Building.SHOP_NAME_ROOMS.has(name):
+			room_why += " %s has no room" % name
+	for b in get_tree().get_nodes_in_group("building"):
+		for face in 4:
+			for shop in 9:
+				var key: int = b.shop_key(face + 1, shop)
+				kinds[b.shop_room(face + 1, shop)] = true
+				if Building.shop_is_lobby(key, shop, 9, 60.0):
+					lobbies += 1
+		# The shader's copy: the walls' material carries every face's rooms by name.
+		var walls := b.get_node_or_null("Walls") as MeshInstance3D
+		if walls and walls.material_override is ShaderMaterial:
+			var codes: Vector4i = (walls.material_override as ShaderMaterial).get_shader_parameter("shop_rooms")
+			for face in 4:
+				for shop in Building.SHOP_ROOM_SLOTS:
+					if (codes[face] >> (4 * shop)) & 15 != b.shop_room(face + 1, shop) + 1:
+						room_why += " %s face %d shop %d" % [b.name, face + 1, shop]
+	if kinds.size() != Building.ShopRoom.LOBBY or lobbies == 0:
+		room_why += " %d kinds, %d lobbies" % [kinds.size(), lobbies]
+	if Building.shop_is_lobby(12345, 2, 6, 20.0):
+		room_why += " a low part has a lobby"
+	_check(room_why == "", "shops have rooms of every kind behind their glass, rolled the way the shader rolls them%s" % room_why)
 	var spills := 0
 	var spill_closed := 0
 	for b in get_tree().get_nodes_in_group("building"):

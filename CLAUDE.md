@@ -1875,6 +1875,32 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`ShopfrontKit.TextAcc`): never `SurfaceTool.append_from()` a mesh per building (a read-back
   from the renderer). Look with `tools/glshot/still_shot.gd` `EYE=` / `SHOTS=` (a third `@fov`
   field per shot); `building_shot.gd` for one building.
+- Shop interiors (VISUAL_ROADMAP #14, 2026-10-04): behind every storefront's glass is ONE room
+  the width of the whole shop (6-9.5 m deep, a tower lobby 13 m and double height), traced per
+  pixel in `building.gdshader` by `shaders/shop_interior.gdshaderinc` (`shop_interior()`): the
+  room's walls, floor and ceiling fixtures plus its fittings as boxes and ROWS of identical
+  boxes (`shop_row()`: one slab test and an analytic step to the next item, so a row of tables
+  is one call), so they have true parallax. Kinds (`ROOM_*`, mirrored by `Building.ShopRoom`):
+  retail (wall shelving and gondolas of rolled product facings, a counter, chillers), clothing
+  (racks of garments, cubbies, mannequins), cafe (tables, chairs, counter, back bar and menu
+  board, pendants), restaurant (cloths, banquette, pictures, pendants), laundromat (washers and
+  dryers with portholes and LEDs, an island, a folding table), barber (chairs, mirrors, counter,
+  bench), bank (teller line, a desk, stanchions) and lobby (stone, columns, a lit reception
+  desk, a lift bank with indicators, planters, a bench). **The room follows the shop's name**:
+  `Building.shop_names()` (the sign roll, now shared) -> `SHOP_NAME_ROOMS` -> `shop_room_codes()`
+  -> the `shop_rooms` uniform (4 bits a shop, the first `SHOP_ROOM_SLOTS` 7 a face); past those,
+  and on the landmark towers, `shop_room_kind()`'s hash (salt 40). **Lobbies**: the middle shop
+  of most faces of a building over 30 m (`tower_height` uniform = `Building.height`; a tower's
+  ground part is often a low tier) - lit all night, no neon or glass decals, its street number
+  on the sign (`shop_is_lobby()`, mirrored). Light: `room_tone()` per kind (warm cafes, cold
+  laundromats; `Building.room_tone()` colours the pavement spill to match), the day term (the
+  room lit by daylight from the front, falling off inward), the shop's own lights by day
+  (`shop_day_light`) and after dark (the old lit-shop path, `lamp` per surface), and practical
+  glows (`shop_glow`: pendants, chillers, tills, LEDs, lift indicators). Salts 40-45. Detail
+  under a pixel fades to its average (`px` grown with depth). Zero triangles, zero draws: the
+  frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
+  `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
+  (headless) lists the storefronts near a point with an EYE for each face.
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,

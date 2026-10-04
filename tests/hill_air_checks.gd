@@ -1,5 +1,5 @@
 extends RefCounted
-## The mountains from the air (HANDOFF 9at): checks for tests/smoke_test.gd that hold the two
+## The mountains from the air (HANDOFF 9au): checks for tests/smoke_test.gd that hold the two
 ## fixes of 2026-10-04 and the shared ground. Loaded at run time, so it compiles after the
 ## autoloads and can name Skyline and CityChunk. Source reads and bookkeeping only - under
 ## --headless no shader compiles and no pixel can be read, so these guard the contracts that made

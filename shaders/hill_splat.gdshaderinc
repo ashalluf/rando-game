@@ -53,7 +53,7 @@ uniform float gentle_grass : hint_range(0.0, 1.0) = 0.55;
 // How much brush the sunny side loses: the open south slopes and their spurs are gold grass, the
 // folds between them brush (with drain_brush). At 0.08 (and drain_brush 0.45) the front range's
 // south faces - what the whole basin looks at - were 86 % brush and every range one olive-brown
-// tone; now 54 %: gullies 97 %, mid-slopes 51 %, spurs 6 % (front range, HANDOFF 9at).
+// tone; now 54 %: gullies 97 %, mid-slopes 51 %, spurs 6 % (front range, HANDOFF 9au).
 uniform float south_grass : hint_range(0.0, 1.0) = 0.35;
 // Scree and dirt down the steep gullies, and rock breaking out along the spur crests.
 uniform float gully_scree : hint_range(0.0, 1.0) = 0.5;

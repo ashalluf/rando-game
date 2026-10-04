@@ -115,19 +115,19 @@ uniform float cloud_speed = 7.0;
 // Until 2026-10-04 this plane kept copies of those colours AS source_color uniforms, so Forward+
 // decoded the linear numbers a second time (0.150 straw arrived as 0.020) and the far mountains
 // drew near-black olive on the Mac against the near hills' straw, while Compatibility, which
-// decodes nothing, looked right in every opengl3 still (HANDOFF 9at).
+// decodes nothing, looked right in every opengl3 still (HANDOFF 9au).
 //
 // The painted band's light is this shader's own (sun_strength and the fill above); this scales
 // its albedo so the band past paint_end comes out as bright as the renderer lights the band
 // before paint_start. Measured on Forward+ under the game's own day light (hill_ground_shot
 // DAYNIGHT=1 PAINT_AB=1, 14:00, the front range from 400 m and 900 m up): at the old 0.66 the
 // painted band drew 0.63-0.73 of the lit one, at 0.97 still 0.81-0.83 (AgX compresses: the
-// picture moves about half as far as the albedo) (HANDOFF 9at). It was tuned on opengl3 stills,
+// picture moves about half as far as the albedo) (HANDOFF 9au). It was tuned on opengl3 stills,
 // against a plane whose colours Forward+ was decoding twice.
 uniform float paint_gain : hint_range(0.3, 2.0) = 1.42;
 // The same for the Compatibility renderer alone (the web, the opengl3 stills), on top of
 // paint_gain: it lights the band before paint_start in sRGB numbers and treats EMISSION its own
-// way, so the two bands need their own ratio there (measured the same way, HANDOFF 9at).
+// way, so the two bands need their own ratio there (measured the same way, HANDOFF 9au).
 uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.05;
 // Metres (from the camera) over which the plane hands from lit by the renderer, like the
 // streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
@@ -281,7 +281,7 @@ void fragment() {
 	vec3 smog_c = cs_in(smog_color);
 	// The sky's horizon colour as linear light (for the fill) and in the renderer's own space (for
 	// the rim, which hands over to the sky itself). `sky_tint` is a `color` global, and those
-	// arrive RAW on both renderers (probe, HANDOFF 9at) while the sky shader's own horizon is a
+	// arrive RAW on both renderers (probe, HANDOFF 9au) while the sky shader's own horizon is a
 	// source_color uniform that Forward+ decodes: raw, the rim faded to a colour a stop brighter
 	// than the sky it meets, and the fill was that much too bright.
 	vec3 sky_lin = cs_srgb_to_linear(sky_tint.rgb);
@@ -593,7 +593,7 @@ void fragment() {
 		albedo = mix(albedo, smog_c * dim, sm);
 		emitted = mix(emitted, cs_out(smog_c) * dim, sm);
 	}
-	// Compatibility does not add EMISSION at face value (HANDOFF 9at: 0.25 emitted over a lit
+	// Compatibility does not add EMISSION at face value (HANDOFF 9au: 0.25 emitted over a lit
 	// 0.25 albedo drew 0.35, not 0.5); this is its painted band measured against its lit one.
 	if (!cs_linear_renderer()) {
 		emitted *= compat_paint_gain;

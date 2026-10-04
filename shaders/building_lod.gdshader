@@ -727,7 +727,7 @@ void fragment() {
 	albedo *= 1.0 - rim;
 	// The sky's horizon in this renderer's space: `sky_tint` (a color global) arrives raw on both,
 	// and the sky shader's own horizon is decoded on Forward+ - the plane and the far canopy fade
-	// to the same (HANDOFF 9at).
+	// to the same (HANDOFF 9au).
 	vec3 sky_rim = instance_color_is_srgb
 		? mix(sky_tint.rgb / 12.92, pow((sky_tint.rgb + vec3(0.055)) / 1.055, vec3(2.4)), step(vec3(0.04045), sky_tint.rgb))
 		: sky_tint.rgb;
