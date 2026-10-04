@@ -262,7 +262,13 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 		float tx = flip ? W - 2.2 : 0.7;
 		shop_box(ro, rd, inv, vec3(tx, 0.0, 1.15), vec3(tx + 1.5, 0.82, 1.75), SI_COUNTER, best, bn, bid, bcell);
 		// Two mannequins in the window, side on to the street like a dressed window does it.
-		shop_row(ro, rd, inv, vec3(W * 0.5 - 1.6, 0.0, 0.55), vec3(W * 0.5 + 1.6, 1.78, 0.85), 1.6, 0.42, SI_FIGURE, best, bn, bid, bcell);
+		// Head, dressed torso to the knee, and the pole and base it stands on.
+		vec3 m0 = vec3(W * 0.5 - 1.6, 0.0, 0.55);
+		vec3 m1 = vec3(W * 0.5 + 1.6, 0.0, 0.85);
+		shop_row(ro, rd, inv, vec3(m0.x, 1.50, 0.62), vec3(m1.x, 1.74, 0.78), 1.6, 0.17, SI_FIGURE, best, bn, bid, bcell);
+		shop_row(ro, rd, inv, vec3(m0.x, 0.62, m0.z), vec3(m1.x, 1.47, m1.z), 1.6, 0.40, SI_FIGURE, best, bn, bid, bcell);
+		shop_row(ro, rd, inv, vec3(m0.x, 0.0, 0.68), vec3(m1.x, 0.62, 0.72), 1.6, 0.04, SI_LEG, best, bn, bid, bcell);
+		shop_row(ro, rd, inv, vec3(m0.x, 0.0, 0.52), vec3(m1.x, 0.03, 0.88), 1.6, 0.36, SI_LEG, best, bn, bid, bcell);
 	} else if (kind == ROOM_CAFE || kind == ROOM_RESTAURANT) {
 		bool cafe = kind == ROOM_CAFE;
 		float tp = cafe ? 1.85 : 2.05;
@@ -602,10 +608,9 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 		col = mix(vec3(0.70, 0.67, 0.62), vec3(0.22, 0.21, 0.21), step(0.6, wall_k));
 		col *= 0.92 + 0.1 * hash21(vec2(bcell, floor(p.y / 1.5)) + sk);
 	} else if (bid == SI_FIGURE) {
-		// A dressed mannequin: pale head and neck, a garment from the shoulders to the knees,
-		// dark trousers, a stand.
+		// A dressed mannequin: a pale head, a garment from the shoulders to the knees.
 		vec3 dress = product_color(hash21(vec2(bcell, sk + 5.0)));
-		col = p.y > 1.48 ? vec3(0.86, 0.84, 0.80) : (p.y > 0.75 ? dress : (p.y > 0.08 ? vec3(0.08) : vec3(0.5)));
+		col = p.y > 1.48 ? vec3(0.86, 0.84, 0.80) : dress * (0.85 + 0.15 * step(1.1, p.y));
 	}
 
 	// Contact shadows on the floor under the fittings near the glass.
