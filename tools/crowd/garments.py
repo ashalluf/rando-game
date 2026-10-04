@@ -64,13 +64,12 @@
 #   thigh weight moves to the hips, 0.25).
 import json
 import math
-import os
 
 import bmesh
 import bpy
 import mathutils.geometry as MG
 import numpy as np
-from mathutils import Matrix, Vector
+from mathutils import Vector
 from mathutils.bvhtree import BVHTree
 
 import crowd_common as C
@@ -556,7 +555,6 @@ def boundary_loops(bm):
     while left:
         e0 = left.pop()
         loop = [e0.verts[0], e0.verts[1]]
-        cur = e0
         while True:
             v = loop[-1]
             nxt = None
@@ -571,7 +569,6 @@ def boundary_loops(bm):
             if w == loop[0]:
                 break
             loop.append(w)
-            cur = nxt
         loops.append(loop)
     return loops
 
@@ -1239,7 +1236,6 @@ def build_top_shell(ctx, g, gid, kind):
     z_hem = hip_z + g.get("hem", -0.02)
     neck_back = NECK[2] + g.get("neck_back", -0.006)
     neck_front = NECK[2] + g.get("neck_front", -0.058)
-    long_sleeve = g.get("sleeve", "short") != "short"
     # sleeve end: along the upper arm (short) or the forearm (long / rolled)
     ends = {}
     for side, sg in SIDES:
@@ -1657,8 +1653,7 @@ def shirt(ctx, g, gid):
     g.setdefault("neck_front", -0.062)
     g.setdefault("neck_back", -0.004)
     o, L = build_top_shell(ctx, g, gid, "shirt")
-    hip_z = B.B("LeftUpLeg")[2]
-    z_side = hip_z + g.get("hem", 0.0) + tail + 0.01
+    z_side = B.B("LeftUpLeg")[2] + g.get("hem", 0.0) + tail + 0.01
 
     def zfn(a, z_side=z_side):
         c = math.cos(a)
@@ -1882,7 +1877,6 @@ def trousers(ctx, g, gid):
     st.update({k: v for k, v in g.items() if k in st})
     style = g.get("style", "jeans")
     hips = B.B("Hips")
-    hip_z = B.B("LeftUpLeg")[2]
     z_waist = hips[2] + g.get("rise", 0.05)
     tilt = g.get("waist_tilt", 0.018)   # the waistband dips at the front
     crotch = B.crotch_z

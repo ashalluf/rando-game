@@ -28,7 +28,6 @@ import math
 import os
 
 import numpy as np
-from PIL import Image
 
 import crowd_common as C
 import texlib as T
@@ -291,7 +290,6 @@ def paint_top_seams(pt, B, X, sel, L, spec, thread, kind):
     ch = B.B("Spine")
     yc = B.torso_axis_y(P[:, 2])
     armpit_z = ch[2] + 0.03
-    sh_x = abs(B.B("LeftArm")[0])
     for side, sg in (("Left", 1.0), ("Right", -1.0)):
         s_arm, rdir, rl, ax = B.limb(P, side + "Arm", side + "ForeArm")
         on_side = (P[:, 0] * sg) > 0
@@ -397,7 +395,6 @@ def paint_tee(pt, B, X, sel_shell, sel_collar, L, spec):
 def paint_trousers(pt, B, X, sel, L, spec, outfit_color):
     style = L["style"]
     P = X.P[sel]
-    N = X.N[sel]
     mpp = X.mpp[sel]
     sub = _Sub(pt, sel)
     denim = style in ("jeans", "slim", "shorts")
@@ -407,7 +404,6 @@ def paint_trousers(pt, B, X, sel, L, spec, outfit_color):
     co, no = np.array(L["waist_co"]), np.array(L["waist_no"])
     dw = -((P - co) @ no)                 # metres below the waist edge
     th, rr = B.azimuth(P)
-    hips = B.B("Hips")
     front = np.cos(th)                    # 1 front, -1 back
     crotch = B.crotch
     # ---- the cloth itself: denim worn pale where it rubs, slub streaks down the leg
@@ -467,7 +463,6 @@ def paint_trousers(pt, B, X, sel, L, spec, outfit_color):
         sub.shade(1.0 + 0.05 * fbm(P, 0.02, 2, seed=41))
     # ---- waistband: band, topstitching, the seam under it, belt loops
     band = 0.038 if style != "leggings" else 0.055
-    inb = (dw > -0.002) & (dw < band + 0.002)
     if style != "leggings":
         hem_band(sub, np.where(P[:, 2] > crotch, dw, 1.0), band, mpp, rows=(0.0035, band - 0.0035), thread=thread, along=th * rr)
         seam(sub, np.where(P[:, 2] > crotch + 0.04, dw - band, 1.0), mpp, side=-1.0, groove=0.0006, dark=0.2)
@@ -487,7 +482,6 @@ def paint_trousers(pt, B, X, sel, L, spec, outfit_color):
     else:
         seam(sub, np.where(P[:, 2] > crotch + 0.04, dw - band, 1.0), mpp, side=-1.0, rows=(0.004,), groove=0.0005)
     # ---- the fly and the centre seams
-    fx = np.abs(P[:, 0])
     frontish = (front > 0.4)
     if style != "leggings":
         # centre front: the fly's edge, waistband to crotch

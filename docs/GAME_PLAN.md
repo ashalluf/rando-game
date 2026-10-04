@@ -278,6 +278,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-04 The crowd wears our own garments, modelled and painted, not photographed.**
+  The crowd-detail pass found the ceiling of shader work on MakeHuman's library clothes (soft
+  photographed textures, one V-neck on every tee). `tools/crowd/garments.py` models a tee,
+  trousers (jeans, slim, chinos, leggings, denim shorts), a button shirt and a zip jacket on each
+  body, and `tools/crowd/garment_paint.py` paints every texel of them from what the garment is
+  at that point (seams, topstitching, pockets, waistbands, denim wear, woven stripes); nine of the
+  twelve people wear them, dressed the way their rows say (a, d, e, f, h, i, j, k, l). The
+  overalls (b), the blouse and skirt (c) and the suit (g) stay MakeHuman's until there is a
+  garment of ours for each. The crowd contract is unchanged (one Body surface, region colours,
+  the hair mesh, 24 bones and three clips), so no game code changed. docs/HANDOFF.md 9at,
+  CLAUDE.md "Our own garments".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
