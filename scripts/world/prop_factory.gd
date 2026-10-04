@@ -2197,6 +2197,42 @@ static func ocean_material() -> ShaderMaterial:
 	return mat
 
 
+## The spray off the breakers (shaders/surf_spray.gdshader, CityChunk._build_surf_spray()).
+static func surf_spray_material() -> ShaderMaterial:
+	if _cache.has("surf_spray_mat"):
+		return _cache["surf_spray_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/surf_spray.gdshader")
+	_cache["surf_spray_mat"] = mat
+	return mat
+
+
+static func surf_spray_mesh() -> QuadMesh:
+	if _cache.has("surf_spray_mesh"):
+		return _cache["surf_spray_mesh"]
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE
+	_cache["surf_spray_mesh"] = q
+	return q
+
+
+## The beach (shaders/beach_sand.gdshader): the "sand" set as pbr("sand", 2.0, ...) laid it, with
+## the swash of the surf running up it and wet sand behind. The mesh has to carry UV2 (metres
+## landward of the waterline, beach width) and the wet/dry banding in COLOR; CityChunk._build_sand.
+static func beach_sand_material() -> ShaderMaterial:
+	if _cache.has("beach_sand_mat"):
+		return _cache["beach_sand_mat"]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/beach_sand.gdshader")
+	mat.set_shader_parameter("albedo_tex", texture("sand", "Color"))
+	mat.set_shader_parameter("normal_tex", texture("sand", "NormalGL"))
+	mat.set_shader_parameter("rough_tex", texture("sand", "Roughness"))
+	mat.set_shader_parameter("tint", Color(1.0, 0.95, 0.85))
+	mat.set_shader_parameter("tile_m", 2.0)
+	_cache["beach_sand_mat"] = mat
+	return mat
+
+
 ## --- Encampment kit ------------------------------------------------------------------------
 ## The tents, tarps, carts and belongings of a sidewalk encampment, modelled in Blender by
 ## tools/encampment_kit.py (one node per piece in encampment_kit.glb, placed by Encampment). How

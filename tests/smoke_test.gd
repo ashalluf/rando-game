@@ -1676,6 +1676,9 @@ func _test_city() -> void:
 	# The Esplanade replica (tests/replica_checks.gd): the road, the coast, the lots, one replica
 	# chunk and its traffic.
 	await load("res://tests/replica_checks.gd").new().run(self, city)
+	# The surf and the beach (tests/surf_checks.gd): the surf model against the weather, no swell
+	# through the sand, the shader mirrors, the piers' lights, a shoreline chunk's sand and spray.
+	await load("res://tests/surf_checks.gd").new().run(self, city)
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)

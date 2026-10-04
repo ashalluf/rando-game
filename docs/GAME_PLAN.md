@@ -309,6 +309,14 @@ already mapped so milestone 2 is script-only.
   A colour change is proven on Forward+ with a small lavapipe scene
   (`hill_ground_shot.tscn GROUND=1 MASKS=1 NOFOG=1`), never on the opengl3 stills alone.
 
+- **2026-10-04 The coast has breaking surf, a swash on the sand and lights in the water at night**
+  (owner: "make the graphics a million times better"; lead: "the Pacific and the beach, AAA").
+  One wave model (`shaders/surf.gdshaderinc`, `Surf`) drives the ocean's surf, the sand's swash
+  and the spray, from shader TIME and two globals Weather sets from the wave scale - storm surf
+  in storms. The sea's sky reflection is emitted, not lit (the sunset sea was black). Lamps on the
+  piers and the city are mirrored on the water at night. The sand now covers every street end
+  along the coast. Particles were not used: the spray is one MultiMesh of shader-driven quads a
+  shoreline chunk. HANDOFF 9ax, CLAUDE.md "Surf and beach".
 - **2026-10-04 Shops have rooms behind their glass, traced, not modelled (VISUAL_ROADMAP #14).**
   Each storefront is one room the width of the shop with its fittings (shelves, racks, tables,
   washers, barber chairs, a teller line; a double-height lobby with a lift bank in towers over
@@ -325,7 +333,7 @@ already mapped so milestone 2 is script-only.
   slowing or standing), indicators for the turn traffic rolled, hazards on a knocked-out car and
   reversing lamps, as shared state materials (one draw a car still). Parked cars' lamps are off.
   An unshadowed spot cannot carry a projector in Godot (it draws nothing), so traffic beams are
-  soft plain cones. docs/HANDOFF.md 9au; CLAUDE.md "Car lights".
+  soft plain cones. docs/HANDOFF.md 9aw; CLAUDE.md "Car lights".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
