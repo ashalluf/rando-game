@@ -4942,7 +4942,11 @@ load, the player camera):
 | Beach town `-648,60,140,-3` | 8,779,945 -> 8,855,948 (+0.9 %) | 3,706 -> 3,802 (+2.6 %) | 3,780 -> 3,881 (+2.7 %) |
 | Campus `-545,-405,36.3,-3` | 10,083,563 -> 5,012,178 (-50.3 %) | 2,837 -> 2,856 (+0.7 %) | 2,855 -> 2,874 (+0.7 %) |
 | Freeway side `-461,195,30.4,-3` | 9,025,099 -> 8,255,749 (-8.5 %) | 5,447 -> 5,408 (-0.7 %) | 5,564 -> 5,520 (-0.8 %) |
-MACROW
+| MacArthur SE `412,404,145.6,-3` | 6,135,755 -> 7,032,002 (+14.6 %) | 4,595 -> 5,535 (+20.5 %) | 4,665 -> 5,592 (+19.9 %) |
+
+The MacArthur "after" ran once main's shop interiors and hills were merged in; main itself (040beaf,
+from a snapshot) measures 6,091,389 / 4,583 / 4,653 at the same spawn, within 1 % of the base, so
+the rise is this branch's.
 
 The stills render the same frame twice to the triangle (the after beach shots were rendered
 twice, an hour apart: identical GEO lines), so these differences are the change, not noise.
@@ -5002,3 +5006,13 @@ brick normal maps only show in real light).
 - Nobody walks the walk streets (the block's walkers keep to its pavement ring).
 - The far tiers get the lawns and the ivy only; from 200 m up a beach-town block is pale
   concrete and paving between the roofs, which is roughly true.
+- **Seen, not fixed (9ae's code, on main too):** a `--spawn` at the MacArthur SE bookmark builds
+  downtown encampments inside `CityStreamer._ready()`. There `CampFigure.mesh_for()` cannot add
+  its bake host to the root ("Parent node is busy setting up children"), `_bake()` then logs
+  `is_inside_tree()` errors (13 in main's geo_count run, 17 in this branch's; the block itself
+  is midtown and has no camp), and since the host stays valid but out of the tree it is never
+  added again, so every later bake fails the same way and that session has no posed camp
+  figures. Any `--spawn` with a camp in the first FULL ring does it; the default start (the
+  origin) and the smoke test's spawn do not, or the check's `is_inside_tree` tripwire would
+  fail. Fix there: re-add the host whenever it is not inside the tree, and when that fails
+  (the root busy) return null without caching the key, so the loading screen's warm-up bakes it.
