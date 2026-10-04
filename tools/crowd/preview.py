@@ -6,7 +6,7 @@
 #   tools/crowd/preview.sh out.png crowd_a,crowd_h[,path/to/other.glb] [views] [phase]
 #
 # Views: front side back q torso torso_back waist chest chest_l shoulder shoulder_back sleeve
-# sleeve_f legs feet head (default front,side,back); phase 0..1 into CLIP (default the walk at
+# sleeve_f sleeve_r legs feet head (default front,side,back); phase 0..1 into CLIP (default the walk at
 # 0.25). Env: CLIP, RES (width, default 420; height 1.6x), SAMPLES (20), and one of
 #   FLAT=1    every surface flat grey, no normal map: the geometry alone (creases, spikes, folds)
 #   REGION=1  the region vertex colours (R top, G bottom, B hair, A skin as black): which mesh is
