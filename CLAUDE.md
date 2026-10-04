@@ -2338,14 +2338,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   4. **The two renderers disagree about colour space, and every opengl3 still hides it.**
      Forward+ (the Mac) decodes `source_color` uniforms - their defaults too - and `source_color`
      textures from sRGB, and lights in linear; Compatibility (the web, every opengl3 still)
-     decodes nothing and lights the raw numbers. Plain uniforms, vertex colours and MultiMesh
-     instance colours arrive raw on both. So a linear number in a `source_color` uniform is
+     decodes nothing and lights the raw numbers. Plain uniforms' defaults, vertex colours,
+     MultiMesh instance colours and `color` shader globals (`sky_tint`) arrive raw on both; a
+     Color SET from script is decoded on Forward+ even into a plain uniform (a Vector3 is not).
+     So a linear number in a `source_color` uniform is
      decoded TWICE on the Mac and looks right in every still: the horizon plane's whole palette
      was that (0.150 straw drew as 0.020, the far mountains near-black olive against the near
      hills), and so were the far boxes before them (`instance_color_is_srgb`). Any shader that does
      arithmetic on colours includes `shaders/color_space.gdshaderinc` and works in linear on both
      (`cs_in()` on every `source_color` input, plain uniforms written linear, `cs_out()` on
-     ALBEDO / EMISSION / BACKLIGHT): the hill ground, the shells, the plane and the far canopy do.
+     ALBEDO / EMISSION / BACKLIGHT; the renderer is told at compile time by `CURRENT_RENDERER`):
+     the hill ground, the shells, the plane and the far canopy do (docs/HANDOFF.md 9au has the
+     probe table).
      Prove a colour change on Forward+ with a SMALL scene under lavapipe
      (`tools/glshot/hill_ground_shot.tscn GROUND=1 MASKS=1 NOFOG=1` for the hills; the city does
      not fit), never on the opengl3 stills alone.
