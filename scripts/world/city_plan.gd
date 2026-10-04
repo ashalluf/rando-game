@@ -85,10 +85,13 @@ const DISTRICTS := {
 	## small and the setbacks nearly nothing, so it is DENSER than the suburbs while being much
 	## lower, and that combination is what makes one read as a beach town from the street. Salt
 	## air means heavy weathering, and it is the palmiest district on the map.
+	## (2026-10-04, the yard pass: "low stucco houses and courtyard apartments") Two and three
+	## storeys, median about 8 m - it was 6-18 m, four- and five-storey blocks on every lot, which
+	## read as a downtown by the sea - and stucco nearly everywhere (FLAT is the painted render).
 	District.BEACHTOWN: {
-		"height": Vector2(6.0, 18.0), "lot": Vector2(13.0, 24.0), "gap": Vector2(2.0, 6.0),
+		"height": Vector2(5.5, 12.5), "lot": Vector2(13.0, 24.0), "gap": Vector2(2.0, 6.0),
 		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.L_SHAPE, Building.Shape.STEPPED],
-		"finishes": [Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.PANELS, Building.Finish.BRICK],
+		"finishes": [Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.PANELS],
 		"lit": Vector2(0.25, 0.55), "park": 0.07, "plaza": 0.09, "trees": 0.8, "courtyard": 0.3,
 		"cafes": 3, "planters": 3, "clutter": 2, "weathering": Vector2(0.35, 0.85), "line_white": 0.45,
 		"paving": [["sidewalk", 3.0, Color(1.54, 1.53, 1.47)], ["pavers", 2.5, Color(1.13, 1.10, 1.03)]],

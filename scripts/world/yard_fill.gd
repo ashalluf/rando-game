@@ -82,7 +82,7 @@ const WALK_LAMP_STEP := 17.0
 ## parked in it.
 const DRIVE_ODDS := 0.72
 const DRIVE_WIDTH := 3.0
-const DRIVE_MIN_DEPTH := 3.8
+const DRIVE_MIN_DEPTH := 2.6
 const DRIVE_CAR_ODDS := 0.55
 ## The front garden's look, as cumulative odds: lawn, decomposed granite garden, brick or tile
 ## patio, the rest paved.
@@ -96,7 +96,7 @@ const BACK_TILE := 0.75
 const BACK_CONCRETE := 0.9
 ## Odds a back yard big enough (POOL_MIN) has a pool.
 const POOL_ODDS := 0.28
-const POOL_MIN := Vector2(7.5, 5.0)
+const POOL_MIN := Vector2(6.0, 3.4)
 ## The street line's edging, cumulative: a low stucco wall, a picket fence, a clipped hedge, the
 ## rest open.
 const EDGE_WALL := 0.42
@@ -110,6 +110,8 @@ const FENCE_HEIGHT := 1.8
 const FENCE_STUCCO := 0.32
 ## Odds an L-shaped building's inner corner is a tiled courtyard with a fountain (else a lawn).
 const COURT_TILE := 0.7
+## The depth of the mulch bed along a house front (metres).
+const BED_DEPTH := 0.95
 ## Stucco paints (the walls take one each), timbers, the pickets' white, the hedges' green.
 const STUCCO_PAINTS := [Color(0.94, 0.91, 0.85), Color(0.97, 0.96, 0.93), Color(0.87, 0.79, 0.67),
 	Color(0.82, 0.71, 0.60), Color(0.74, 0.81, 0.82), Color(0.90, 0.82, 0.73), Color(0.96, 0.89, 0.77),
@@ -159,7 +161,9 @@ const CENTRE_MARGIN := 14.0
 ## Shrubs a chunk's yards plant (and the triangles they may cost at full detail: a scanned bush is
 ## 3k-27k), trees (the frame's biggest single cost), palms, parked cars, and flowers' triangles.
 const MAX_SHRUBS := 44
-const SHRUB_TRIS := 300000
+const SHRUB_TRIS := 200000
+## The bushes (PropFactory.BUSHES) a yard may plant outside LotFill's districts: the cheap two.
+const CHEAP_BUSHES := [1, 3]
 const MAX_TREES := 9
 const MAX_PALMS := 8
 const MAX_CARS := 26
@@ -558,6 +562,12 @@ static func _beach_lot(plan: CityPlan, grid: Dictionary, e: Dictionary, walk: Re
 		cut.append(drive)
 	if walk_r.size.x > 0.0:
 		cut.append(walk_r)
+	# A planting bed of mulch along the house front, a lawn's or a patio's edge.
+	if fd >= 2.6 and (front_kind == G_LAWN or front_kind == G_BRICK or front_kind == G_TILE):
+		var bed := _fr(f, maxf(bu0, 0.2), fd - BED_DEPTH, minf(bu1, U - 0.2), fd)
+		for r: Rect2 in LotFill._minus(bed, cut, 0.0):
+			pieces.append([r, G_MULCH, 0.5, "bed"])
+		cut.append(bed)
 	for r: Rect2 in LotFill._minus(fzone, cut, 0.0):
 		pieces.append([r, front_kind, _h01([plan.seed, key, "thirst"]), "front"])
 	# The back yard (behind the house) and the side yards (beside it).
@@ -608,11 +618,8 @@ static func _build_beach(ch: CityChunk, bp: Dictionary) -> void:
 	var walk_path: Rect2 = bp.walk_path
 	if walk.size.x > 0.0:
 		var vk := G_BRICK if _h01([ch.plan.seed, ch.ix, ch.iz, "walk_kind"]) < 0.4 else G_CONCRETE
+		# The path; the gardens of the houses along it run up to its edges.
 		_ground(ch, walk_path, vk, 0.5)
-		# The strips either side of the path, between it and the houses' gardens, are planted.
-		for r: Rect2 in _less(walk, walk_path):
-			if full:
-				_ground(ch, r, G_MULCH, 0.5)
 	for lp: Dictionary in bp.lots:
 		for pc: Array in lp.pieces:
 			_ground(ch, pc[0], pc[1], pc[2])
@@ -691,24 +698,13 @@ static func _hedge_run(ch: CityChunk, a: Vector2, b: Vector2) -> void:
 		_box_wall(ch, Vector3(seg, 0.95, 0.8) if along_x else Vector3(0.8, 0.95, seg), Vector3(c.x, CityChunk.SIDEWALK_TOP + LIFT, c.y), W_HEDGE, HEDGE_GREEN)
 
 
-static func _dress_walk(ch: CityChunk, walk: Rect2, path: Rect2) -> void:
-	var rng := _rng(ch.plan, "walk", [ch.ix, ch.iz])
+## A walk street's lamps, staggered down it at the path's edges.
+static func _dress_walk(ch: CityChunk, _walk: Rect2, path: Rect2) -> void:
 	var n := maxi(1, int(path.size.x / WALK_LAMP_STEP))
 	for i in n:
 		var x := path.position.x + path.size.x * (float(i) + 0.5) / float(n)
-		var z := path.position.y - 0.4 if i % 2 == 0 else path.end.y + 0.4
+		var z := path.position.y + 0.35 if i % 2 == 0 else path.end.y - 0.35
 		LotFill._lamp(ch, Vector3(x, CityChunk.SIDEWALK_TOP + LIFT, z))
-	# Low planting in the strips between the path and the garden walls.
-	for side: float in [-1.0, 1.0]:
-		var z := path.position.y - 0.45 if side < 0.0 else path.end.y + 0.45
-		var room := (path.position.y - walk.position.y) if side < 0.0 else (walk.end.y - path.end.y)
-		if room < 0.7:
-			continue
-		var x := walk.position.x + 1.5
-		while x < walk.end.x - 1.5:
-			if rng.randf() < 0.55:
-				_flower(ch, Vector2(x + rng.randf_range(-0.4, 0.4), z + side * rng.randf_range(0.0, room * 0.4)), rng)
-			x += rng.randf_range(0.8, 1.6)
 
 
 static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, corridor_cells: Dictionary) -> void:
@@ -806,16 +802,27 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 		var kind: int = pc[1]
 		match String(pc[3]):
 			"front":
-				_plant_front(ch, f, r, kind, fd, hu, rng)
+				_plant_front(ch, r, kind, rng)
 			"back":
 				_plant_back(ch, r, kind, rng)
 			"court":
 				_dress_court(ch, r, kind, rng)
+			"bed":
+				# Shrubs down the bed, a flower between them.
+				var long := maxf(r.size.x, r.size.y)
+				var n := clampi(int(long / 1.8), 0, 5)
+				for i in n:
+					var t := (float(i) + 0.5) / float(n)
+					var p := Vector2(lerpf(r.position.x, r.end.x, t), r.get_center().y) if r.size.x >= r.size.y else Vector2(r.get_center().x, lerpf(r.position.y, r.end.y, t))
+					if i % 2 == 0:
+						_shrub(ch, p, rng, 0.7)
+					else:
+						_flower(ch, p, rng)
 			"pool":
 				_coping(ch, r)
 	if drive.size.x > 0.0 and _h01([plan.seed, key, "drive_car"]) < DRIVE_CAR_ODDS and ch._yard_cars < MAX_CARS:
 		var dq := _to_frame(f, drive)
-		if dq.size.y >= 5.4:
+		if dq.size.y >= 5.0:
 			var c := _fp(f, dq.get_center().x, maxf(dq.end.y - 3.0, 2.7))
 			var into: Vector2 = f.v
 			ch._yard_cars += 1
@@ -831,21 +838,21 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 
 ## Front garden planting by its look: a lawn gets a tree or a palm and a bed of shrubs along the
 ## house front; a decomposed granite garden gets gazania and the odd shrub and palm; a patio pots.
-static func _plant_front(ch: CityChunk, f: Dictionary, r: Rect2, kind: int, fd: float, hu: Vector2, rng: RandomNumberGenerator) -> void:
+static func _plant_front(ch: CityChunk, r: Rect2, kind: int, rng: RandomNumberGenerator) -> void:
 	var area := r.size.x * r.size.y
 	if area < 3.0:
 		return
 	var c := r.get_center()
 	match kind:
 		G_LAWN:
+			# A palm or a tree on a lawn big enough (the shrubs are in the bed along the house).
 			if minf(r.size.x, r.size.y) >= 3.6 and rng.randf() < 0.6:
 				if rng.randf() < 0.55:
 					_palm(ch, c + Vector2(rng.randf_range(-0.5, 0.5), rng.randf_range(-0.5, 0.5)), rng)
 				else:
 					_tree(ch, c, rng)
-			# Foundation shrubs along the house front.
-			_shrub_row(ch, f, Vector2(maxf(hu.x, 0.3), fd - 0.6), Vector2(hu.y, fd - 0.6), r, 1.7, rng)
 		G_DG:
+			# Gazania over the decomposed granite, a palm or a shrub as its specimen.
 			var n := clampi(int(area / 2.2), 1, 14)
 			for i in n:
 				_flower(ch, Vector2(rng.randf_range(r.position.x + 0.3, r.end.x - 0.3), rng.randf_range(r.position.y + 0.3, r.end.y - 0.3)), rng)
@@ -853,10 +860,6 @@ static func _plant_front(ch: CityChunk, f: Dictionary, r: Rect2, kind: int, fd: 
 				_palm(ch, c, rng)
 			elif area > 6.0:
 				_shrub(ch, c, rng, 0.8)
-		G_BRICK, G_TILE:
-			_shrub_row(ch, f, Vector2(maxf(hu.x, 0.3), fd - 0.5), Vector2(hu.y, fd - 0.5), r, 2.4, rng)
-		_:
-			pass
 
 
 static func _plant_back(ch: CityChunk, r: Rect2, kind: int, rng: RandomNumberGenerator) -> void:
@@ -987,13 +990,16 @@ static func campus_block(plan: CityPlan, bx: int, bz: int, entries: Array) -> Di
 		var cu := (bu0 + bu1) * 0.5
 		# Out to the block's pavement: the frame's front edge is the cell's, so carry on to the inner edge.
 		var reach := _street_reach(inner, cell, side)
-		if bv0 > 0.5:
-			var r := _fr(f, cu - ENTRY_WALK * 0.5, -reach, cu + ENTRY_WALK * 0.5, bv0)
-			out.pieces.append([r, G_CONCRETE, 0.2, "entry"])
-		# A plaza before the door: a wider apron along the face.
+		# A plaza before the door (a wider apron along the face) and the walk out to the street, which
+		# stops where the apron starts so the two never lie on each other.
+		var walk_end := bv0
 		if bv0 > 4.0:
 			var apron := _fr(f, maxf(bu0 - 1.0, 0.0), bv0 - 3.0, minf(bu1 + 1.0, f.U), bv0)
 			out.pieces.append([apron, G_CONCRETE, 0.15, "apron"])
+			walk_end = bv0 - 3.0
+		if walk_end + reach > 0.5:
+			var r := _fr(f, cu - ENTRY_WALK * 0.5, -reach, cu + ENTRY_WALK * 0.5, walk_end)
+			out.pieces.append([r, G_CONCRETE, 0.2, "entry", _fp(f, cu, bv0), f.u])
 		var back: float = float(f.V) - bv1
 		if back >= 7.0 and _h01([plan.seed, lot.seed, "campus_service"]) < SERVICE_ODDS:
 			var su := clampf(cu - 5.0, 0.5, maxf(float(f.U) - 10.5, 0.5))
@@ -1042,7 +1048,14 @@ static func _build_campus(ch: CityChunk, cp: Dictionary) -> void:
 		_ground(ch, pc[0], pc[1], pc[2], PATH_LIFT)
 		ch._lot_rects.append(pc[0])
 	for s: Array in cp.strips:
-		_strip(ch, s[0], s[1], s[2], s[3], 0.3)
+		_strip(ch, s[0], s[1], s[2], s[3], 0.25)
+		# The lawn's blade grass keeps off the walk (its blockers are rects: squares along it).
+		var a: Vector2 = s[0]
+		var b: Vector2 = s[1]
+		var n := maxi(1, ceili(a.distance_to(b) / 2.0))
+		for i in n + 1:
+			var p := a.lerp(b, float(i) / float(n))
+			ch._lot_rects.append(Rect2(p - Vector2(1.8, 1.8), Vector2(3.6, 3.6)))
 	for r: Rect2 in cp.parks:
 		LotFill._car_park(ch, r, hash([ch.ix, ch.iz, r.position, "campus_park"]))
 		ch._lot_rects.append(r)
@@ -1065,7 +1078,17 @@ static func _build_campus(ch: CityChunk, cp: Dictionary) -> void:
 		var r: Rect2 = pc[0]
 		var long_x := r.size.x > r.size.y
 		var len := maxf(r.size.x, r.size.y)
-		var n := clampi(int(len / 11.0), 0, 3)
+		var n := clampi(int(len / 11.0), 1 if len >= 5.0 else 0, 3)
+		# Foundation shrubs along the face either side of the door, where the walk meets the building.
+		if pc.size() >= 6:
+			var door: Vector2 = pc[4]
+			var along: Vector2 = pc[5]
+			var out_dir := Vector2(-along.y, along.x)
+			if (r.get_center() - door).dot(out_dir) < 0.0:
+				out_dir = -out_dir
+			for s: float in [-1.0, 1.0]:
+				for j in 3:
+					_shrub(ch, door + along * s * (ENTRY_WALK * 0.5 + 1.2 + float(j) * 1.7) + out_dir * 0.9, rng, 0.85)
 		for i in n:
 			var t := (float(i) + 0.5) / float(n)
 			for s: float in [-1.0, 1.0]:
@@ -1237,6 +1260,7 @@ static func _build_corridor(ch: CityChunk, cp: Dictionary) -> void:
 	var full := ch.level == CityChunk.Level.FULL and not ch.capturing
 	var yard: Rect2 = cp.yard
 	for r: Rect2 in cp.cells:
+		ch._lot_rects.append(r)
 		if r == yard and full:
 			_ground(ch, r.grow(-0.3), G_GRAVEL, 0.6)
 			ch._yard_ivy.append(r.grow(-0.3))
@@ -1499,21 +1523,10 @@ static func _spans(a: float, b: float, openings: Array[Vector2]) -> Array[Vector
 	return kept
 
 
-## A row of shrubs along a frame line from a to b (u, v), every `step` metres, kept inside `r`.
-static func _shrub_row(ch: CityChunk, f: Dictionary, a: Vector2, b: Vector2, r: Rect2, step: float, rng: RandomNumberGenerator) -> void:
-	var len := absf(b.x - a.x) + absf(b.y - a.y)
-	var n := clampi(int(len / step), 0, 6)
-	for i in n:
-		var t := (float(i) + 0.5) / float(n)
-		var p := _fp(f, lerpf(a.x, b.x, t), lerpf(a.y, b.y, t))
-		if r.grow(-0.2).has_point(p):
-			_shrub(ch, p, rng, 0.75)
-
-
 ## A shrub: ONE species a chunk (LotFill's pick - the forecourt planters' - so a chunk with both
 ## has one batch), within the chunk's count and triangle budget.
 static func _shrub(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator, size: float) -> void:
-	var pick := absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_shrub"])) % PropFactory.BUSHES.size()
+	var pick := _shrub_pick(ch)
 	var mesh := PropFactory.model_bush(pick)
 	var tris := CityChunk._mesh_tris(mesh)
 	if ch._yard_shrubs >= MAX_SHRUBS or (ch._yard_shrubs + 1) * tris > SHRUB_TRIS:
@@ -1523,6 +1536,15 @@ static func _shrub(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator, size:
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc * rng.randf_range(0.85, 1.15), sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
 	ch._batch.add("bush_%d" % pick, mesh, Transform3D(basis, Vector3(at.x, CityChunk.SIDEWALK_TOP + LIFT, at.y)), tint)
+
+
+## Which of PropFactory.BUSHES a chunk's yards plant: where LotFill runs too, its pick (one batch for
+## both); elsewhere one of the two cheap ones (bush_b 8k, sorrel 3k triangles - bush_c is 27k, and a
+## batch draws every instance at the LOD of its nearest one).
+static func _shrub_pick(ch: CityChunk) -> int:
+	if int(ch.plan.block(ch.ix, ch.iz).district) in LotFill.DISTRICTS:
+		return absi(hash([ch.plan.seed, ch.ix, ch.iz, "fill_shrub"])) % PropFactory.BUSHES.size()
+	return CHEAP_BUSHES[absi(hash([ch.plan.seed, ch.ix, ch.iz, "yard_shrub"])) % CHEAP_BUSHES.size()]
 
 
 ## A tree: the block's own street tree (LotFill._tree), within the chunk's budget, never under the deck.
@@ -1609,7 +1631,7 @@ static func commit(ch: CityChunk) -> void:
 			var segs: Array = fw.segments_in(r.grow(30.0)) if fw else []
 			_grid(st, ch, r, CityChunk.SIDEWALK_TOP + LIFT, G_IVY, 0.0, segs)
 		for s: Array in ch._yard_strips:
-			_ribbon(st, ch, s[0], s[1], s[2], CityChunk.SIDEWALK_TOP + PATH_LIFT + 0.004, int(s[3]), float(s[4]))
+			_ribbon(st, ch, s[0], s[1], s[2], CityChunk.SIDEWALK_TOP + PATH_LIFT + 0.01, int(s[3]), float(s[4]))
 		for b: Array in ch._yard_boxes:
 			_ground_box_tris(st, b[0], b[1], int(b[2]))
 		var mi := MeshInstance3D.new()

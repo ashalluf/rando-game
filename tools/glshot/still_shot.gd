@@ -53,6 +53,8 @@ extends SceneTree
 ## held at zero, the clock of day held at --hour, the signals on a fixed clock, and people, cars,
 ## aircraft, particles and the player hidden (two runs differ in a handful of pixels by 1-2/255).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
+## YARD_FILL=0 builds the city without YardFill (beach-town yards, the campus's ground, the
+## freeway's right of way: the A/B; SPLIT counts its two meshes in the LotFill line).
 ## STOREFRONT_KIT=0 builds the buildings without ShopfrontKit's storefront pieces, awnings and
 ## curtain-wall caps (the A/B of that kit). CAR_GLASS=0 puts every car back on its model's own
 ## opaque glass with nobody inside (CarCabin's A/B). MERGE_STATIC=0 builds the chunks'
@@ -90,6 +92,9 @@ func _initialize() -> void:
 	# STOREFRONT_KIT=0: the buildings without ShopfrontKit's pieces (the A/B of that kit).
 	if OS.get_environment("STOREFRONT_KIT") == "0":
 		(load("res://scripts/world/shopfront_kit.gd") as GDScript).set("enabled", false)
+	# YARD_FILL=0: the city without YardFill's yards, campus ground and right of way (the A/B).
+	if OS.get_environment("YARD_FILL") == "0":
+		(load("res://scripts/world/yard_fill.gd") as GDScript).set("enabled", false)
 	# CAR_GLASS=0: every car on its model's own opaque glass, nobody inside (CarCabin's A/B).
 	if OS.get_environment("CAR_GLASS") == "0":
 		(load("res://scripts/vehicles/car_cabin.gd") as GDScript).set("enabled", false)
@@ -862,7 +867,8 @@ func _split_category(gi: GeometryInstance3D) -> String:
 					return "Camp"
 				# The lot fill's own ground and the batches only it uses (LotFill; its planting,
 				# lamps, benches and bollards share the street's batches and count there).
-				if nm.begins_with("LotFill") or nm.contains("apark_car") or nm.contains("pstripe") or nm.contains("fence_") \
+				# YardFill's two meshes (the yards' ground and everything upright) count here too.
+				if nm.begins_with("LotFill") or nm.begins_with("Yard") or nm.contains("apark_car") or nm.contains("pstripe") or nm.contains("fence_") \
 						or nm.contains("fill_bronze"):
 					return "LotFill"
 				if nm.begins_with("Batch"):
