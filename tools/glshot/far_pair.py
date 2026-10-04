@@ -24,12 +24,14 @@ def main(stem):
     near = np.asarray(Image.open(stem + "_near.png").convert("RGB")).astype(float)
     far = np.asarray(Image.open(stem + "_far.png").convert("RGB")).astype(float)
     mask = np.asarray(Image.open(stem + "_mask.png").convert("L")).astype(int)
-    ids = sorted(set((mask[mask > 8] + 10) // 20))
+    # The buildings' flat greys, however this renderer wrote them (Forward+ encodes them to sRGB,
+    # an antialiased edge blends two): every level that covers a real area, in order.
+    values, counts = np.unique(mask[mask > 4], return_counts=True)
+    levels = [int(v) for v, c in zip(values, counts) if c > 300]
     print("%s: building  near lin rgb            far lin rgb             lum far/near  |d| sRGB  >24" % stem)
     lums = []
-    for k in ids:
-        m = (mask + 10) // 20 == k
-        m &= mask > 8
+    for k, level in enumerate(levels, 1):
+        m = mask == level
         if m.sum() < 50:
             continue
         nl = lin(near[m]).mean(axis=0)

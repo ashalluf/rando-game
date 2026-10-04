@@ -565,6 +565,10 @@ void fragment() {
 				row = floor(vv / floor_hp);
 				fv = fract(vv / floor_hp);
 			}
+			// A window frame's least width in metres: about 0.8 px while a bay is several pixels
+			// (the near walls' real frame quads read as a full line there), its painted width once
+			// the cells are going to their average anyway.
+			float frame_px = mpp * 0.8 * (1.0 - smoothstep(0.5, 1.2, mpp));
 			bool glass = false;
 			bool frame = false;
 			bool spandrel = false;
@@ -621,13 +625,14 @@ void fragment() {
 				glaze_frac = 0.27;
 			} else if (ws == 1) {
 				glass = abs(fv - 0.55) < 0.27;
-				frame = glass && abs(fu - 0.5) > 0.47;
+				frame = glass && abs(fu - 0.5) > 0.5 - max(0.03, frame_px / pitch * 0.5);
 				glass = glass && !frame;
 				glaze_frac = 0.51;
 			} else if (ws == 2) {
 				// The curtain wall: vision glass between thin transoms, the spandrel panel over
 				// each slab edge, a mullion every bay.
-				frame = fu < 0.05 || abs(fv - 0.08) < 0.0125 || abs(fv - 0.93) < 0.0125;
+				float fw_v = max(0.0125, frame_px / floor_hp * 0.5);
+				frame = fu < max(0.05, frame_px / pitch) || abs(fv - 0.08) < fw_v || abs(fv - 0.93) < fw_v;
 				spandrel = !frame && (fv < 0.0675 || fv > 0.9425);
 				glass = !frame && !spandrel;
 				glaze_frac = 0.78;
@@ -640,14 +645,32 @@ void fragment() {
 			float band_fade = detail(min(floor_hp, pitch * 2.0), mpp);
 			float cell_fade = detail(pitch, mpp);
 
-			// The sky in the glass and the glare path to the sun (as the old path below).
+			// What the glass mirrors, as building.gdshader has it: its sky (the material's default
+			// zenith and horizon, which nothing sets on a Building), the fake city opposite - two
+			// rows of blocks keyed on the reflected ray's heading, their windows at their average -
+			// and the street below the horizon. Mostly dark: a near pane at a street's distance is
+			// a dark city in a dark room, and the far path's bare sky gradient drew every pane two
+			// to five times brighter than the near one it stood for.
 			vec3 refl = reflect(to_frag, world_normal);
-			vec3 sky_hi = sky_tint.rgb * 1.05;
-			vec3 sky_lo = sky_tint.rgb * 0.50 + vec3(0.05, 0.05, 0.06);
-			vec3 sky_ref = mix(sky_lo, sky_hi, smoothstep(0.0, 0.50, refl.y));
-			sky_ref = mix(vec3(0.055, 0.055, 0.065), sky_ref, smoothstep(-0.22, 0.08, refl.y));
+			vec3 sky_h = cs_as_uniform(vec3(0.42, 0.47, 0.55));
+			vec3 sky_ref = mix(sky_h, cs_as_uniform(vec3(0.26, 0.44, 0.80)), smoothstep(0.0, 0.55, refl.y));
+			{
+				float heading = atan(refl.x, refl.z) * 0.159155;
+				float near_slot = heading * 26.0;
+				float far_slot = heading * 70.0;
+				float near_roof = mix(0.05, 0.42, hash21(vec2(floor(near_slot), 3.7)));
+				float far_roof = mix(0.10, 0.70, hash21(vec2(floor(far_slot), 8.3))) * step(0.55, hash21(vec2(floor(far_slot), 1.9)));
+				float in_near = 1.0 - smoothstep(near_roof - 0.012, near_roof + 0.012, refl.y);
+				float in_far = (1.0 - smoothstep(far_roof - 0.012, far_roof + 0.012, refl.y)) * (1.0 - in_near);
+				vec3 near_wall = mix(vec3(0.16, 0.15, 0.14), vec3(0.09, 0.10, 0.12), hash21(vec2(floor(near_slot), 9.1)));
+				near_wall = mix(near_wall, near_wall * 0.5 + sky_h * 0.12, 0.35);
+				vec3 far_wall = mix(sky_h * 0.55, near_wall, 0.35);
+				sky_ref = mix(sky_ref, far_wall, in_far);
+				sky_ref = mix(sky_ref, near_wall, in_near);
+			}
+			sky_ref = mix(cs_as_uniform(vec3(0.09, 0.09, 0.10)), sky_ref, smoothstep(-0.22, 0.10, refl.y));
 			float fres = pow(1.0 - clamp(-dot(to_frag, world_normal), 0.0, 1.0), 4.0);
-			float mirror = mix(glass_mirror_min, glass_mirror_max, fres) * (1.0 - 0.85 * night_factor) * (storefront ? 0.66 : 1.0);
+			float mirror = mix(0.26, 0.90, fres) * (1.0 - 0.85 * night_factor) * (storefront ? 0.66 : 1.0);
 			float sky_now = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
 			vec3 refl_emit = sky_ref * mirror * reflect_emit * reflect_energy * sky_now;
 			float to_sun = max(dot(refl, sun_n), 0.0);
@@ -655,8 +678,10 @@ void fragment() {
 				* (pow(to_sun, glass_glare_tightness) * glass_glare
 					+ pow(to_sun, glass_glare_broad_tightness) * glass_glare_broad) * day;
 			// The room behind the glass as building.gdshader shows it from a distance: an office's
-			// paint at the interior exposure, seen through the building's own glass tint.
-			vec3 room = mix(vec3(0.17, 0.165, 0.16), tint_c * 0.19, 0.28) * (0.55 + 0.9 * hash31(vec3(col * 1.7, row, sd * 31.0)));
+			// traced paint, blinds and desks (about 0.4 on average) at the interior exposure (0.4),
+			// seen through the building's own glass tint, darker toward the frame and where the
+			// head shades the recess (its 0.45 inset and 0.5 recess shade, about 0.8 over a pane).
+			vec3 room = mix(vec3(0.16, 0.155, 0.15), tint_c * 0.19, 0.28) * 0.8 * (0.55 + 0.9 * hash31(vec3(col * 1.7, row, sd * 31.0)));
 			if (storefront) {
 				room = vec3(0.22, 0.20, 0.17) * (0.7 + 0.6 * shop_seed);
 			}
