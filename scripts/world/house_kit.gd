@@ -110,8 +110,6 @@ const MATS := ["h_wall", "h_siding", "h_brick", "h_trim", "h_door", "h_metal", "
 	"h_flat", "glass", "h_solar", "h_breeze"]
 ## Surfaces whose shadow is only cascade fill (they lie on or in something that casts already).
 const NO_SHADOW := ["glass", "h_solar", "h_dark", "h_breeze"]
-## Surfaces that need tangents (a normal map or the glass's own frame).
-const TANGENTS := ["glass", "h_roof", "h_shingle", "h_siding"]
 
 
 static func wanted(ch: CityChunk, district: int) -> bool:
@@ -630,9 +628,6 @@ static func commit(ch: CityChunk) -> void:
 	ch.remove_meta("house_kit")
 	for name: String in acc.st:
 		var s: SurfaceTool = acc.st[name]
-		s.generate_normals()
-		if name in TANGENTS:
-			s.generate_tangents()
 		var mesh := s.commit()
 		if mesh.get_surface_count() == 0:
 			continue

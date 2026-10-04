@@ -94,8 +94,34 @@ func _tri(name: String, a: Vector3, b: Vector3, c: Vector3, n: Vector3, cl: Colo
 		var tu := ub
 		ub = uc
 		uc = tu
-	s.set_smooth_group(-1)
+	# The normal and the tangent are worked out here (flat, from the triangle and its UVs) rather
+	# than by generate_normals() / generate_tangents() over the chunk's whole mesh at its finish,
+	# which cost 10-30 ms in one step. Godot's front faces are clockwise.
+	var e1 := b - a
+	var e2 := c - a
+	var nn := e2.cross(e1)
+	if nn.length_squared() < 1e-12:
+		return
+	nn = nn.normalized()
+	var d1 := ub - ua
+	var d2 := uc - ua
+	var r := d1.x * d2.y - d2.x * d1.y
+	var tg: Vector3
+	var bs := 1.0
+	if absf(r) > 1e-9:
+		tg = (e1 * d2.y - e2 * d1.y) / r
+		var bt := (e2 * d1.x - e1 * d2.x) / r
+		tg = (tg - nn * nn.dot(tg))
+		if tg.length_squared() < 1e-12:
+			tg = nn.cross(Vector3.UP if absf(nn.y) < 0.9 else Vector3.RIGHT)
+		tg = tg.normalized()
+		bs = -1.0 if nn.cross(tg).dot(bt) < 0.0 else 1.0
+	else:
+		tg = nn.cross(Vector3.UP if absf(nn.y) < 0.9 else Vector3.RIGHT).normalized()
+	var tp := Plane(tg, bs)
 	s.set_color(cl)
+	s.set_normal(nn)
+	s.set_tangent(tp)
 	s.set_uv(ua)
 	s.add_vertex(a)
 	s.set_uv(ub)
