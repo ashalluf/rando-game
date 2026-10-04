@@ -5321,3 +5321,8 @@ within the 26 m look range, which a frozen still does not refresh after `LIFE_FO
 camera: the dog still has no lead in F_dog. `still_shot.gd` gained `LIFE_REPORT=1` (who is
 doing what near the camera, true world positions) and `LIFE_FOCUS=jog|dog|talk|sit|...` (frames
 the nearest such person).
+
+**At merge (lead):** dog walkers are switched OFF (`Pedestrian.dog_share` = 0; the roll is
+still made, so no other person changes). The Shiba is the pack's low-poly flat-shaded model and
+the owner's rule is realistic, high-poly; dog walkers come back with a realistic dog (Blender-
+built like the hero, or a CC0 scan), `CrowdDog.MODEL` swapped and `dog_share` back to (0.12, 0.03).
