@@ -21,6 +21,7 @@ func run(t: Node, city: Node3D) -> void:
 	_shader_ids()
 	_campus_plan(plan)
 	_macarthur(plan)
+	_beach_plan(plan)
 	var beach := _find(plan, CityPlan.District.BEACHTOWN, Vector2(-687.0, 100.0), false)
 	var campus := _find(plan, CityPlan.District.CAMPUS, Vector2(-620.0, -500.0), false)
 	var freeway := _find(plan, -1, Vector2(-503.0, 100.0), true)
@@ -108,6 +109,67 @@ func _campus_plan(plan: CityPlan) -> void:
 					under += 1
 	_t._check(n.quads >= 1 and n.parks >= 1 and n.strips >= 2 and under == 0,
 		"the campus round its hall has quads, walks and a car park, none under the hall (%s)" % [n])
+
+
+## Beach-town yards over a window of blocks, planned from the houses' real footprints: some blocks
+## get a walk street, a good share of lots a driveway, the houses are two and three storeys, and no
+## piece of yard lies under a house, outside its cell or on another piece (identical surfaces at one
+## height z-fight).
+func _beach_plan(plan: CityPlan) -> void:
+	var scene: PackedScene = load("res://scenes/props/building.tscn")
+	var lo: Vector2i = plan.block_index_at(Vector2(-950.0, -750.0))
+	var hi: Vector2i = plan.block_index_at(Vector2(-450.0, 600.0))
+	var walks := 0
+	var lots := 0
+	var drives := 0
+	var bad := 0
+	var heights: Array[float] = []
+	for bx in range(lo.x, hi.x + 1):
+		for bz in range(lo.y, hi.y + 1):
+			var b := plan.block(bx, bz)
+			if int(b.district) != CityPlan.District.BEACHTOWN or int(b.kind) != CityPlan.BlockKind.BUILDINGS \
+					or plan.zone_at((b.rect as Rect2).get_center()) != MacroMap.Zone.CITY:
+				continue
+			var boost := plan.macro.skyline_boost((b.rect as Rect2).get_center())
+			var entries: Array = []
+			for lot: Dictionary in plan.lots(bx, bz):
+				if lot.yard or YardFill.is_corridor(plan, lot):
+					continue
+				var bld: Building = scene.instantiate()
+				bld.seed = lot.seed
+				bld.lot_size = lot.size
+				var target := plan.lot_height(lot.seed, CityPlan.District.BEACHTOWN, boost)
+				bld.min_height = target * 0.88
+				bld.max_height = target
+				bld.shape_options.assign(CityPlan.lot_shapes(CityPlan.District.BEACHTOWN, boost))
+				bld.plan_only()
+				heights.append(bld.height)
+				entries.append({"lot": lot, "parts": YardFill.ground_parts(lot, bld)})
+				bld.free()
+			var bp := YardFill.beach_block(plan, bx, bz, entries)
+			if (bp.walk as Rect2).size.x > 0.0:
+				walks += 1
+			for lp: Dictionary in bp.lots:
+				lots += 1
+				if (lp.drive as Rect2).size.x > 0.0:
+					drives += 1
+				var yard: Rect2 = (lp.full_cell as Rect2).grow(0.05)
+				var pieces: Array = lp.pieces
+				for i in pieces.size():
+					var r: Rect2 = pieces[i][0]
+					if not yard.encloses(r):
+						bad += 1
+					for part: Rect2 in lp.parts:
+						if part.grow(-0.02).intersects(r):
+							bad += 1
+					for j in range(i + 1, pieces.size()):
+						if (pieces[j][0] as Rect2).grow(-0.02).intersects(r):
+							bad += 1
+	heights.sort()
+	var median: float = heights[heights.size() / 2] if not heights.is_empty() else 0.0
+	var top: float = heights.back() if not heights.is_empty() else 0.0
+	_t._check(walks >= 2 and lots > 50 and drives * 5 >= lots and median <= 10.0 and top <= 17.0 and bad == 0,
+		"beach-town yards: %d lots, %d drives, %d walk streets, houses %.1f m median (%.1f m the tallest), %d pieces astray" % [lots, drives, walks, median, top, bad])
 
 
 ## The plaza the roll put across the street from MacArthur Park (a 100 x 180 m square of bare
