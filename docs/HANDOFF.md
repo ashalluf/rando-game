@@ -5225,3 +5225,99 @@ interior is curtain_glass's generic trace (no gate lounges); the arrival jet's a
 lifted to ~60 m over the city by the clearance field, higher than a 3 degree slope near the
 fence. NEEDS MAC CHECK: the glass interiors' exposure, the livery shader on Forward+, the field
 lights' size and glow under AgX and auto exposure (all judged on opengl3 only).
+## 9bc. Crowd life: people who do things, 2026-10-04 (agent branch `wt/crowd-life`; GAME_PLAN G5)
+
+The brief (lead, from the owner's "make the graphics a million times better"): make the street
+feel inhabited the way RDR2 / GTA V does - pairs and threes talking, people on the phone,
+waiting at the crossing, sitting on benches, leaning on walls and smoking, window shopping,
+coffee and bags, joggers on the beach paths and dog walkers. CLAUDE.md's "Crowd life" note is
+the reference; this is the story.
+
+**The clips.** Quaternius' Universal Animation Library 1 and 2 (CC0, the free Standard files,
+`tools/crowd/fetch_life_clips.sh`; itch.io's free download is a CSRF-token POST, scripted there)
+give 14 we use: Idle_Loop, Idle_Talking_Loop, the three sitting clips and Sitting_Exit,
+Jog_Fwd_Loop, Idle_Torch_Loop (only to have it: the cup is now aimed, see below),
+Idle_TalkingPhone_Loop, Idle_FoldArms_Loop, Consume (a sip, a drag), Yes (a nod), Idle_No_Loop,
+Idle_Rail_Loop (kept for a railing lean; not used yet). No smoking or wall-lean clip exists in
+either free library: a smoker stands or leans with the idle and takes the Consume clip to the
+mouth; a wall-leaner folds their arms with their back 30 cm off the wall. `life_clips.gd`
+retargets them **in Godot** onto all twelve rigs (two seconds a rig): Blender's glTF import
+re-orients bones (its bone heuristic), so a clip exported from that skeleton is keyed against
+other bone frames than the ones the game imported. The method is retarget_lib's world delta
+(`R = D * arc(target rest dir -> source rest dir) * target rest`, parent-first), so the
+library's T-pose rest and the crowd's lowered-arm bind never need to agree - every retargeted
+bone direction matched the source to the hundredth (DEBUG=1 prints them). Then two fixes and
+compression:
+- the jog is authored at ~5.7 m/s (a 2.6 m step): under a 3 m/s jogger its legs turned over in
+  slow motion. Each leg bone's rotation is scaled 0.55 about its clip mean: ~3.0 m/s now
+  (`clip_probe.tscn CLIPS=life/jog`, 2.3-3.7 per foot over the rigs).
+- the library stands every idle wide, knees bent, one foot forward - a game hero's ready stance;
+  on a pavement every idler looked about to fight. The legs of the standing clips are settled
+  60 % toward the rig's own stance (retarget_lib's `settle_legs` idea).
+- `Animation.compress()`: 6.2 -> 2.0 MB of clips in memory for twelve rigs, 200 -> 55 KB a file.
+
+**The behaviour** (`Pedestrian` "Life" section, `CrowdLife` for the shared data): who stops, for
+what, how long, is all rolled per person (`hash([seed, "life"])`). Near the player (60 m) at the
+end of a walk (`life_chance` 0.32) or as soon as they appear (`life_spawn_chance` 0.5: a street
+you fly into is already busy), a person TALKs (recruits one or two free walkers on the same
+ring within 14 m into a circle; the speaker is worked out from the clock so the group needs no
+leader; listeners nod and look at the speaker), STANDs (phone clip on a call, the TEXT arms
+with the head down, a coffee with sips, idle / folded arms), SITs (the chunk's benches and the
+bus-stop benches register two places each, `CrowdLife.add_seat()`), LEANs or looks in a
+WINDOW (one world-layer ray to the buildings; no wall, no lean). At the crossing, waiting
+people play the same standing clips. What a walker carries is laid over the walk (a frame of
+the phone clip at the ear; a frame of the talk clip for texting; the coffee forearm aimed
+forward at the waist; a bag held plumb) with a prop in the hand. Joggers (14 % in the suburbs,
+beach town and on the Esplanade, 3 % elsewhere) jog at any range; dog walkers (12 % / 3 %) walk
+a Shiba Inu (Quaternius' Ultimate Animated Animals, CC0) on a red lead to the left hand and stop
+now and then while it sniffs. Panic (`_scare()`) ends every stop at once; out of range a stop
+just ends. Officers and rough sleepers are untouched (`_lives()`).
+
+**Traps, each cost a round:**
+- All life timing is the physics clock (`_life_now_ms()`): on the real clock the 4 s
+  "just appeared" window expired during a slow software render and no still ever showed
+  anyone doing anything (it also keeps the weapon wheel's slow motion honest).
+- A bench is 0.45 m; the clip's chair puts adult hips 10-20 cm higher (and a child's lower).
+  `_sit_pose()` moves the hips onto the bench and re-solves each leg (two-bone, in the plane
+  the clip bent the knee in) so the feet stay where the clip planted them. Checked: hips 0.56 m
+  over the pavement, toe 4 cm.
+- The props are built in a GRIP frame (x thumb, y fingers, z out of the palm) measured on the
+  rigs' rest pose (identical on all twelve to a hundredth): built in the bone frame directly,
+  the phone stood past the fingertips and the bag hung upward from the fist.
+- `fix_arm_pose()` rebuilds the arms of every clip in the player it is given: the life library
+  must be added after it (it is: `_setup_life()` runs after `_add_model()`).
+- The smoke test's outfit tally read `cloth_hue` off every ShaderMaterial on a pedestrian: the
+  props' material has none (it is skipped now).
+
+**Cost.** CPU, `crowd_lab.tscn MODE=bench` (ms per physics tick per 100 people, three runs,
+median; the bench's people all appear at once, so half start a stop): near 6.05 -> 5.48
+(people stopped skip move_and_slide), 50 m 1.84 -> 2.39 (carry overlays and sitters' leg
+solves; the life range is 60 m), 100 m 1.17 -> 1.28, 200 m 0.75 -> 0.77. Memory: +2.0 MB of
+clips, +1.3 MB the dog. Frame (`still_shot.gd` GEO, opengl3 1280x720, the same EYE
+with `CROWD_LIFE=0` and without): the avenue's east pavement 7,755,044 -> 7,783,186 tris
+(+0.4 %), 3,625 -> 3,638 draws; the west pavement 4,202,917 -> 4,306,147 (+2.5 %), 1,719 -> 1,732
+(more people stand inside the shadow range at once); the plaza bench 4,855,309 -> 4,896,898
+(+0.9 %), 1,992 -> 1,997; the Esplanade bookmark identical (2,585,908 / 1,709). A prop is one
+draw, unshadowed, culled past 60 m; a dog ~4k triangles and a skeleton of 46 bones.
+
+**Where to look in the game (motion is the point; stills cannot show it):**
+- Downtown, the avenue under the towers (Flower at Olympic; desktop `-- --spawn=2359.4,880,0,12,2`):
+  walk the east pavement north from the corner - talking groups, people on the phone, a
+  smoker taking drags (an ember after dark), coffee carriers; the west pavement has pairs under
+  the street trees and a bench by the bus stop with people sitting down and getting up.
+- Any bus stop: people sit on its bench, a pair on one bench sometimes talk (sit_talk).
+- The Esplanade (beach path south of the piers; `-- --spawn=-441.7,3534.6,-178,-1.5`): joggers
+  and dog walkers along the ocean-side walkway; the suburbs and beach town blocks have them too.
+- Any signalised crossing: the people waiting shift their weight, fold their arms, check phones.
+- Fire a shot: every group, sitter and leaner bolts at once.
+
+**Not done / next:** no wall-lean or smoking clip exists in the free CC0 libraries (folded arms
+and the Consume clip stand in); Idle_Rail_Loop is in the library unused (the Esplanade's railing
+would suit it); props are dropped, not thrown, when someone is knocked down (they vanish with the
+walker); sitting is benches only (low walls and planters are not registered as seats); the dog is
+the pack's low-poly Shiba, flat-shaded, and walks through people; the lead is a straight
+cylinder. Stills: `shots/crowd-life` (README lists them). The lead in a dog walker's hand only draws
+within the 26 m look range, which a frozen still does not refresh after `LIFE_FOCUS` moves the
+camera: the dog still has no lead in F_dog. `still_shot.gd` gained `LIFE_REPORT=1` (who is
+doing what near the camera, true world positions) and `LIFE_FOCUS=jog|dog|talk|sit|...` (frames
+the nearest such person).

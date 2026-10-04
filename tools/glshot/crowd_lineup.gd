@@ -9,7 +9,8 @@ extends SceneTree
 ##
 ## Env: MODELS (comma list of rigged .glb; default every Pedestrian.MODELS entry), LOOKS (comma
 ## list, used in turn; default 0, which keeps each model's own clothes; -1 leaves the plain glTF
-## material), SPACING (metres between people, default 0.85), CLIP (default the walk), PHASE (0..1,
+## material), SPACING (metres between people, default 0.85), CLIP (default the walk; life/<name> for the
+## everyday clips of tools/crowd/life_clips.gd), PHASE (0..1,
 ## default 0.25) and PHASE_STEP (added per person so the row is not in step), YAW (degrees the
 ## camera orbits; 90 is the side), CAM_DIST / CAM_Y / AIM_Y / FOV, BODY=mid|far (the welded middle
 ## / far bodies, hair cards hidden, as the game draws them past mid_body_range), SUN_YAW, SKY=1 for
@@ -93,6 +94,10 @@ func _initialize() -> void:
 		if not anims.is_empty():
 			var ap: AnimationPlayer = anims[0]
 			ped_script.fix_arm_pose(ap, rec[1])
+			# CLIP=life/<name>: the everyday clips (tools/crowd/life_clips.gd), one library per rig.
+			var life_path := "res://assets/models/crowd_life/%s_life.res" % String(rec[1]).get_file().get_basename()
+			if clip.begins_with("life/") and not ap.has_animation_library("life") and ResourceLoader.exists(life_path):
+				ap.add_animation_library("life", load(life_path))
 			if ap.has_animation(clip):
 				ap.play(clip)
 				ap.seek(ap.get_animation(clip).length * float(rec[3]), true)

@@ -83,6 +83,9 @@ What only the owner can supply, and why each one multiplies everything below:
 - [ ] **G5. People (2-4 months).** Properly rigged humans with finger and face bones, a real
   animation library (about fifty clips: idles, turns, phone, talking, waiting to cross), foot
   placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
+  (Crowd life 2026-10-04: 14 everyday clips from Quaternius' CC0 Universal Animation Library
+  retargeted onto every crowd rig - talking in groups, the phone, texting, benches, leaning,
+  smoking, window shopping, coffee and bags carried, joggers, dog walkers - near the camera.)
 - [ ] **G6. Cars (1-2 months).** Interiors, real glass, damage, lights; extend tools/make_*.
   (Lights done 2026-10-04: real headlights near the camera, brake / indicator / hazard /
   reversing lamps on every running car, parked cars dark.)
@@ -329,6 +332,22 @@ already mapped so milestone 2 is script-only.
   because Godot stores a zero normal as (0, 0, -1); aimed lights now flag themselves in UV2.y.
   Layout in `Airport`, buildings in `AirportTerminal`, hardware in `AirportKit` (CLAUDE.md
   "Airport").
+- **2026-10-04 The crowd lives near the camera (G5).** Within `Pedestrian.life_range` (60 m)
+  of the player people stop to talk in twos and threes (facing each other, a speaker that
+  changes every few seconds, nods), stand on the phone or texting, sit on the chunk's benches
+  and the bus-stop benches, lean on a wall, smoke (an ember at night), look in a shop window,
+  carry a coffee or a shopping bag, wait at the crossing shifting their weight; joggers and dog
+  walkers (a CC0 Shiba Inu on a lead) are commoner in the suburbs, the beach town and on the
+  Esplanade. Every roll is from the person's seed; far people only walk; panic ends it all.
+  The clips are Quaternius' Universal Animation Library 1 and 2 (CC0), retargeted IN GODOT
+  (`tools/crowd/life_clips.gd`), not in Blender: Blender's glTF import re-orients bones, and a
+  clip exported from that skeleton would be relative to other bone frames than the game's. The
+  retarget is retarget_lib's world-delta method, so the library's T-pose rest and the crowd's
+  lowered-arm bind never have to agree (the lesson of `fix_arm_pose()`). Two fixes at retarget
+  time: the jog's leg swing scaled to 0.55 (authored at 5.7 m/s, it turned over in slow motion
+  under a 3 m/s jogger) and the standing clips' legs settled 60 % toward the rig's own stance
+  (the library stands every idle in a knee-bent fighting stance). Sitters' hips are put on the
+  bench by a two-bone leg solve, since the library's chair is higher than a bench.
 
 - **2026-10-04 The crowd wears our own garments, modelled and painted, not photographed.**
   The crowd-detail pass found the ceiling of shader work on MakeHuman's library clothes (soft

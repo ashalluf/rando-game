@@ -2277,6 +2277,49 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   stay smooth for the same reason - measure the pedestrians' `SPLIT=1` line after it.
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
+- Crowd life (GAME_PLAN G5, 2026-10-04: "make the street feel inhabited"): within
+  `Pedestrian.life_range` (60 m) of the player people do more than walk - the "Life" section of
+  `pedestrian.gd`, with the shared data in `CrowdLife` (`scripts/npc/crowd_life.gd`). At the end
+  of a walk (`life_chance`), or at once when they appear (`life_spawn_chance`, so a street you
+  arrive in is already busy), someone stops (`_act`, `CrowdLife.Act`): TALK (`_plan_talk()`
+  recruits one or two free walkers on the same ring within `talk_reach` round a spot, facing
+  its middle; who speaks is worked out from the clock, so the group needs no leader; listeners
+  nod and look at the speaker), STAND (the phone, texting, a coffee, idle, folded arms), SIT
+  (`CrowdLife.add_seat()` registers both places of every FULL chunk bench and bus-stop bench on
+  the chunk; `_plan_sit()` takes the nearest free one, sit_down / sit / sit_talk / stand_up, the
+  hips put on the bench by a two-bone leg solve in `_sit_pose()` because the clip's chair is
+  10-20 cm higher than `SEAT_HEIGHT`), LEAN and WINDOW (one world-layer ray toward the
+  buildings, `_plan_wall()`: no wall, no lean). Each person rolls what they carry
+  (`_carry`: CALL, TEXT, CUP, BAG, SMOKE; `*_share`) and whether they jog or walk a dog
+  (`jogger_share` / `dog_share`, the higher share in SUBURBS, BEACHTOWN and on the Esplanade) on
+  their own stream (`_life`, `hash([seed, "life"])`). Carrying is an arm pose laid over the walk
+  in `_life_pose()` (a frame of the phone or talk clip, or the coffee forearm aimed forward,
+  `CrowdLife.CUP_FOREARM`) and a prop on a BoneAttachment3D (`_hold()`: `CrowdLife.prop_mesh()`
+  in the GRIP frame - x thumb, y fingers, z out of the palm, `grip_basis()` measured on the rigs
+  - on `shaders/crowd_prop.gdshader`, the screen glowing and the cigarette's ember lit by
+  `lamp_factor`; the bag is set plumb every tick). Joggers play `life/jog`
+  (`CrowdLife.JOG_CLIP_SPEED` 3.0) at any range; dog walkers have a `CrowdDog`
+  (`scripts/npc/crowd_dog.gd`, a child of the owner's node, Quaternius' CC0 Shiba Inu,
+  `assets/models/dog_shiba.glb`, a lead to the owner's left hand within the look range).
+  **Dog walkers are off** (`dog_share` 0, lead's call at merge): that Shiba is low-poly and
+  flat-shaded, which breaks the realism rule; turn them back on with a realistic dog.
+  Rules: out of range a stop just ends (`_life_range_changed()`); `_scare()` ends it at once;
+  only plain Pedestrians and ReplicaWalkers live (`_lives()`), never officers or rough
+  sleepers; all life timing is the physics clock (`_life_now_ms()`), never the wall clock (a
+  slow render or the wheel's slow motion). **The clips**: `tools/crowd/life_clips.gd` retargets
+  14 clips from Quaternius' Universal Animation Library 1 and 2 (CC0; `tools/crowd/
+  fetch_life_clips.sh` puts the free Standard files in the ignored `build/ual_src/`) onto every
+  crowd rig IN GODOT, writing `assets/models/crowd_life/<rig>_life.res`, which `CrowdLife.attach()`
+  adds to the rig's AnimationPlayer as the "life" library AFTER `fix_arm_pose()` and the loop
+  loop (never let fix_arm_pose see these clips). Do not retarget in Blender: its glTF import
+  re-orients the bones. The method is retarget_lib's world delta, so neither rest pose matters;
+  per clip it scales the legs' swing about their mean (the jog, 0.55) or settles them toward the
+  rig's stance (every standing clip, 0.6: the library's idles stand like a fighter). Rerun it
+  (two seconds a rig) whenever a crowd rig is rebuilt; add a clip by a row in `CLIPS`. The body
+  contract is untouched (no new bones, the same Body and welded bodies). `CROWD_LIFE=0` in the
+  environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
+  (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
+  `tests/crowd_life_checks.gd`; time it with MODE=bench.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

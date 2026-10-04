@@ -851,3 +851,6 @@ static func _bus_shelter(chunk: CityChunk, p: Vector2, inward: Vector2, dir: Vec
 		["bus_sign", PropFactory.bus_sign(), Transform3D(basis, at + along * 2.6 + Vector3(0.0, 2.7, 0.0))],
 	]
 	chunk._add_prop("bus_stop", at, Color(0.3, 0.3, 0.32), instances, [[Vector3(4.2, 2.6, 1.0), at + back + Vector3(0.0, 1.3, 0.0), yaw]])
+	# People waiting for the bus sit on its bench (Pedestrian's life, CrowdLife).
+	if not chunk.prop_records.is_empty() and chunk.prop_records.back().kind == "bus_stop" and chunk.level == CityChunk.Level.FULL:
+		CrowdLife.add_seat(chunk, at + back * 0.55, yaw, chunk.prop_records.back())

@@ -1,7 +1,7 @@
 extends Node
 ## Measures each crowd rig's walk and run clips: how fast the planted foot travels backwards
 ## (the ground speed the in-place clip was authored for, at speed_scale 1) and the cycle length.
-## Run: godot --headless --path . tools/crowd/clip_probe.tscn
+## Run: godot --headless --path . tools/crowd/clip_probe.tscn (CLIPS=life/jog,... for others)
 func _ready() -> void:
 	await get_tree().process_frame
 	for path in Pedestrian.MODELS:
@@ -11,9 +11,15 @@ func _ready() -> void:
 		for n in inst.find_children("*", "Skeleton3D", true, false): sk = n
 		var ap: AnimationPlayer = inst.find_child("AnimationPlayer", true, false)
 		Pedestrian.fix_arm_pose(ap, path)
+		var life := "res://assets/models/crowd_life/%s_life.res" % path.get_file().get_basename()
+		if ResourceLoader.exists(life):
+			ap.add_animation_library("life", load(life))
 		ap.callback_mode_process = AnimationMixer.ANIMATION_CALLBACK_MODE_PROCESS_MANUAL
 		var out: String = path.get_file()
-		for clip in [Pedestrian.WALK_CLIP, Pedestrian.RUN_CLIP]:
+		var clips := [Pedestrian.WALK_CLIP, Pedestrian.RUN_CLIP]
+		if OS.get_environment("CLIPS") != "":
+			clips = Array(OS.get_environment("CLIPS").split(","))
+		for clip in clips:
 			var a := ap.get_animation(clip)
 			ap.play(clip, 0.0)
 			var n := 160
