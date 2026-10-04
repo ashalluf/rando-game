@@ -831,9 +831,8 @@ func _drive_loops(delta: float) -> void:
 # rather than wrapping. Everything is driven by distance along the route (Freeway.point_at),
 # because the route's points are a fixed step along the drawn curve and not along the ground.
 
-## Middle of each lane, as a fraction of the deck half-width, per direction. Two lanes each way
-## with the median between them.
-const FW_LANES := [0.28, 0.62]
+## The freeway's lanes are Freeway.lane_layout()'s (four each way, the carpool lane by the
+## median), the ones FreewayKit paints.
 
 
 func _freeway() -> Freeway:
@@ -908,7 +907,7 @@ func _fw_anchor(ri: int, here: Vector2) -> float:
 
 func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 	var fw := _freeway()
-	var lane: float = FW_LANES[_rng.randi() % FW_LANES.size()] * float(dir)
+	var lane: float = Freeway.lane_fraction(float(fw.routes[ri].width), _rng.randi() % Freeway.LANES) * float(dir)
 	var car := _new_car()
 	car.traffic = {
 		"fw": ri, "t": t, "dir": dir, "lane": lane,

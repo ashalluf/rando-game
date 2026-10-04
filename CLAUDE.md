@@ -1351,8 +1351,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and Valley - as seeded polylines with a smoothed, grade-limited deck height, exactly the shape
   of data `HillRoads` uses (`segments_in()`, `ramps_in()`, `blocks()`, a cell index). The deck
   rides `DECK_RISE` above the ground on pillars, with barriers, lane paint, overhead sign gantries
-  and off-ramps down to the surface streets. `CityChunk._build_freeway()` builds it in three
-  meshes per chunk (asphalt top, vertex-coloured structure, unshaded paint) plus a `FreewayBody`
+  and off-ramps down to the surface streets. `CityChunk._build_freeway()` builds it with
+  `FreewayKit` (see the Freeway kit note) in four meshes per chunk (asphalt top, structure, paint
+  and sign faces, night light pools) plus a `FreewayBody`
   with one tilted box per segment, and deliberately bypasses `_batch`, because the batch adds the
   ground relief to every instance and the deck is nine metres above it. A segment is built by the
   chunk its **midpoint** falls in, so the deck is built exactly once. `_under_freeway()` keeps
@@ -1367,11 +1368,49 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   two grade-feasible profiles is still grade-feasible, so the deck provably clears the ground
   everywhere and stays drivable. Smoothing and grade-limiting alone do not - they never look at
   the ground, so a rise they cannot follow leaves the deck inside the hillside.
-  **Winding trap:** `CityChunk._ribbon()`'s plain vertex order makes a *horizontal* quad face
-  DOWN. The deck top is built with its own order (`l0, r1, r0`) and faces up; anything flat laid
-  on it - `_bar_flat()`'s lane paint, the cap on `_bar()`'s barriers - has to pass `flip = true`
-  to match, or it is back-facing and culled and you get a deck with no markings at all. That
-  looks exactly like a missing mesh or a z-fight, and is neither.
+  **Winding trap:** the old `CityChunk._ribbon()`'s plain vertex order made a *horizontal* quad
+  face DOWN, so the lane paint was once back-facing and culled - a deck with no markings at all,
+  which looks exactly like a missing mesh or a z-fight. `FreewayKit.tri()` / `quad()` now take
+  the direction each face must face and fix the winding and the normal themselves (LandmarkGeo's
+  rule); never add freeway geometry any other way. The deck top keeps its own order
+  (`l0, r1, r0`).
+  **The freeway kit** (VISUAL_ROADMAP #43, 2026-10-04, `scripts/world/freeway_kit.gd`): per deck
+  segment, a box girder (fascia, cantilever soffit, inclined web, bottom slab), New Jersey
+  barriers at both edges and down the median, and on whole-STEP spacings: bents (`PILLAR_SPACING`:
+  two 1.6 m columns square to the route with flared heads, the bent cap, five bearing pads, a
+  downpipe, two under-deck lights with a pool on the street below), median light standards
+  (`LIGHT_EVERY` segments: a tapered pole, twin arms, cobra heads with a glowing drop lens, a pool
+  on each carriageway - sodium amber or LED white per route), sign gantries (`GANTRY_SPACING`:
+  laced box truss on two laced posts, a catwalk and sign lights, and per carriageway a guide sign
+  - shield, direction, destinations, a down arrow per lane - and an exit sign where an off-ramp
+  is within 1.5 km on that side: street, distance or EXIT ONLY, the exit tab), expansion joints
+  (`JOINT_EVERY_BENTS`), scupper grates every `SCUPPER_SPACING`, the carpool diamond
+  (`DIAMOND_EVERY`), and at FULL only call boxes, CCTV poles, postmile paddles and tyre debris
+  on the shoulders. **Lanes are `Freeway.lane_layout(width)`**: four each way (`LANES`), lane 0
+  by the median the carpool lane behind a double yellow, yellow left edge line with yellow
+  markers, Botts' dots (4 dots and a marker every `BOTTS_CYCLE`) on the next line, a dashed
+  stripe with a marker in each gap on the last, white right edge line; `TrafficManager` drives
+  `Freeway.lane_fraction()` - keep the two together. What a vertex is rides in its colour's
+  alpha (`kind / KIND_SCALE`, `S_*` on `shaders/freeway_structure.gdshader`, `P_*` on
+  `shaders/freeway_paint.gdshader`), its colour sRGB in the rgb (both shaders decode it and work
+  in linear, `color_space.gdshaderinc`). Structure UV is (metres along the route, metres up the
+  feature), which is what puts the barrier joints, the tyre scuffs, the drip streaks, the rust
+  under each scupper (the same `SCUPPER_SPACING` phase as the grates) and the column streaks
+  where they belong. **Retroreflection** (markers, paint beads, sign sheeting) is lit by
+  `lamp_factor` in a cone ahead of the CAMERA (`glint_reach`, `glint_cone`): the headlights are
+  taken to be at the camera, so a free camera at night glints too; markers the cone reaches
+  never draw under about a pixel. Sign faces are also washed by their sign lights at night
+  (`sign_light`). Signs: route numbers are this game's own (`ROUTE_NUMBERS`, never the real
+  route's), destinations invented (`DESTINATIONS`, "Downtown" when the carriageway heads for it),
+  street names the plan's (`sign_case()`); lettering is TextMesh geometry merged into the paint
+  mesh (`text_geo()`, cached per string, coarse curves - it is most of a gantry's triangles), FULL
+  only; an LOD chunk keeps the deck, barriers, bents, blank boards, lights and pools and plain
+  dashed lines (`tests/freeway_kit_checks.gd` holds both to a triangle budget per segment). Off-
+  ramps use `FreewayKit.ramp_piece()` (slab, barriers, edge lines). Hashes only (seed, route,
+  segment), no rng. StreetWear's column tags read the same column frame (`_pillars()`). Stills:
+  the 110 by downtown, `EYE=1989,12.0,160,-6,-3` (north), the gantry at (1986.7, 55.6)
+  `1990,12.5,82,-6,10@13@40` (guide signs) and `1980.5,12.1,27,174,10@13@45` (exit sign), under
+  it on 5th St `2045,1.7,2,60,10` - `--hour=22` for the lights (HANDOFF 9ba).
   Traffic: `TrafficManager` drives the decks from `Freeway.point_at()` / `length_of()` /
   `nearest_on()`, which are distance-parameterised (the route's points are a fixed step along
   the *drawn* curve, not along the ground). Cars carry a signed direction and are recycled at
