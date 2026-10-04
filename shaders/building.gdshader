@@ -54,6 +54,14 @@ uniform int roof_style = 0;
 // Building picks these and places the shop signs in the world from the same numbers, so the
 // names line up with the sign bands drawn here.
 uniform vec4 shop_span = vec4(3.0, 3.0, 3.0, 3.0);
+// The room behind each of a face's first seven shops (x = face 1 .. w = face 4), four bits a
+// shop: its kind + 1 (shop_interior.gdshaderinc's ROOM_*), which Building takes from the shop's
+// name so a BAKERY's glass shows a counter and tables. 0 leaves it to shop_room_kind()'s hash.
+uniform ivec4 shop_rooms = ivec4(0);
+// The whole building's height (its tallest part's top, Building.height): a tower over 30 m has a
+// lobby at street level (the parts' own heights say nothing: a tower's ground part is often a low
+// podium tier). 0 on the landmark towers, which use their part's height.
+uniform float tower_height = 0.0;
 // Walls measured from the mesh instead of from a box. The downtown towers (TowerMesh) are
 // extruded outlines - circles, ellipses, bowed and chamfered plans - and a box's axis test finds
 // no wall on a curve, so there UV.x is metres round the outline (each face a whole number of
@@ -151,6 +159,10 @@ uniform float interior_exposure = 0.40;
 // Fake rooms behind the glass. How deep the virtual room is (meters).
 uniform float room_depth = 3.2;
 uniform bool interior_enabled = true;
+// A shop's own lights by day, over the daylight in its room (shop_interior.gdshaderinc), and how
+// bright its fittings' practical lights (pendants, chillers, tills, lift indicators) are.
+uniform float shop_day_light = 0.30;
+uniform float shop_glow = 1.0;
 
 // A building's box parts merged into ONE mesh under ONE material (Building._commit_parts()): the
 // values that differ part to part come from the vertices instead of the uniforms above, as 32-bit
@@ -269,6 +281,8 @@ uint shop_frame_index(uint shop) {
 	uint b = shop_byte(shop, 14u);
 	return b < 77u ? 0u : (b < 141u ? 1u : (b < 205u ? 2u : (b < 230u ? 3u : 4u)));
 }
+
+#include "res://shaders/shop_interior.gdshaderinc"
 
 // A door's framing, painted: `p` in metres from the opening's corner at the pavement on
 // ShopfrontKit's low edge (the high end of `u`), `w` the opening's width. The members of the
@@ -864,6 +878,10 @@ void fragment() {
 		bool spandrel = false;
 		vec3 frame_col = vec3(0.3);
 		float shop_bay = 0.0;
+		// What kind of room is behind this shop's glass (shop_interior.gdshaderinc), and whether
+		// it is a tower's lobby instead of a shop: the middle unit of most faces of a tall part.
+		uint room_kind = 0u;
+		bool lobby = false;
 		// Street level switches with the lamps (lamp_factor), not with night_factor alone.
 		float shop_on = clamp(lamp_factor, 0.0, 1.0);
 		// Window opening in cell units (centre and half size), kept so the fake interior knows
@@ -912,6 +930,20 @@ void fragment() {
 			win_h = vec2(0.44, (0.74 - low) * 0.5);
 			// About 62 % open after dark.
 			shop_open = shop_byte(shop_key, 1u) < 158u;
+			int room_code = shop_id < 6.5 ? (shop_rooms[int(face_id) - 1] >> (4 * int(shop_id))) & 15 : 0;
+			room_kind = room_code > 0 ? uint(room_code - 1) : shop_room_kind(shop_key);
+			if (max(tower_height, pt_size.y) > 30.0) {
+				// Building.shop_is_lobby() is this, line for line.
+				float face_len = face_id < 2.5 ? pt_size.z : pt_size.x;
+				float n_shops = max(floor(face_len / (span * pitch) + 0.001), 1.0);
+				lobby = uv_facade ? shop_byte(shop_key, 44u) < 64u
+					: (shop_id == floor((n_shops - 1.0) * 0.5) && shop_byte(shop_key, 44u) < 192u);
+			}
+			if (lobby) {
+				// A lobby is lit all night, and has no shutter.
+				room_kind = ROOM_LOBBY;
+				shop_open = true;
+			}
 			// The neon hangs in the bay after the door.
 			neon_bay = abs(bay - mod(door_i + 1.0, span)) < 0.5;
 			shop_u = (u - shop_id * span * pitch) / (span * pitch);
@@ -1077,6 +1109,9 @@ void fragment() {
 			// own lights fall on it (room_interior). Used to light an occupied room after dark.
 			vec3 room_raw = vec3(0.0);
 			float room_lamp = -1.0;
+			// Light a shop's fittings give off themselves (pendants, chillers, a till, the lift
+			// indicators), from shop_interior().
+			vec3 room_glow = vec3(0.0);
 			// Offices, not bays. A tower after dark does not light up as a checkerboard of
 			// single windows: a tenancy takes a run of three or four bays and leaves them all
 			// on, some floors go dark altogether, and a few are lit end to end because somebody
@@ -1109,8 +1144,19 @@ void fragment() {
 				float wide = max(2.0 * win_h.x * pitch, 0.2);
 				float high = max(2.0 * win_h.y * (storefront ? sf_h : pt_floor), 0.2);
 				float depth_t = 0.0;
-				// Offices are full of blinds; a shop window with a blind in it is not a shop.
-				vec3 room = room_interior(w, ray, wide, high, room_depth, room_seed, storefront ? 0.10 : 0.72, depth_t, room_lamp);
+				vec3 room;
+				if (storefront) {
+					// The whole shop is one room behind all its bays, with its fittings in it.
+					float x0 = (shop_bay + win_c.x - win_h.x + w.x * 2.0 * win_h.x) * pitch;
+					float y0 = (win_c.y - win_h.y + w.y * 2.0 * win_h.y) * sf_h;
+					float ceil_h = lobby ? sf_h + 0.85 * pt_floor : 0.86 * sf_h;
+					float deep = lobby ? 13.0 : mix(6.0, 9.5, shop_unit(shop_key, 45u));
+					room = shop_interior(vec3(x0, y0, 0.02), normalize(ray), shop_w, ceil_h, deep, shop_key, room_kind,
+						px_m, length(VERTEX), depth_t, room_lamp, room_glow);
+				} else {
+					// Offices are full of blinds.
+					room = room_interior(w, ray, wide, high, room_depth, room_seed, 0.72, depth_t, room_lamp);
+				}
 				room_raw = room;
 				// Daylight outside is many stops brighter than anything indoors, so the room
 				// arrives dark; at night an unlit room is darker still.
@@ -1215,10 +1261,11 @@ void fragment() {
 				// Metres from the pane's corner on ShopfrontKit's low edge (the high end of u).
 				vec2 pk = vec2((1.0 - wd.x) * pane_m.x, wd.y * pane_m.y);
 				float glass_low = (win_c.y - win_h.y) * sf_h;
-				vec4 deco = shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m);
+				vec4 deco = lobby ? vec4(0.0) : shop_decal(pk, pane_m, shop_key, shop_bay, door_bay, glass_low, px_m);
 				albedo = mix(albedo, deco.rgb, deco.a);
 				reflected *= 1.0 - 0.55 * deco.a;
 				room_raw *= 1.0 - deco.a;
+				room_glow *= 1.0 - deco.a;
 				// Anodised shopfront framing: the laps of the jambs and head, the transom at
 				// door-head height, a centre mullion in some shops, and on a door its leaves,
 				// kick rails and handles. ShopfrontKit's pieces stand exactly here in real
@@ -1247,6 +1294,7 @@ void fragment() {
 				albedo = mix(albedo, mullion, bars);
 				reflected *= 1.0 - bars;
 				room_raw *= 1.0 - bars;
+				room_glow *= 1.0 - bars;
 				rough = mix(rough, 0.42, bars);
 				metal = mix(metal, 0.5, bars);
 			}
@@ -1266,7 +1314,7 @@ void fragment() {
 					// strength, flat over the glass, turned every tower base into a single white
 					// fluorescent band.
 					float bright = 0.6 + 0.7 * float(shop_byte(shop_key, 4u)) / 255.0;
-					vec3 lit_room = room_raw * shop_tone(shop_key) * room_lamp * bright;
+					vec3 lit_room = room_raw * room_tone(room_kind, shop_key) * room_lamp * bright;
 					albedo = mix(albedo, albedo * 0.35, on);
 					emission = lit_room * lit_strength * 2.5 * on;
 				} else if (room_lamp >= 0.0) {
@@ -1286,7 +1334,14 @@ void fragment() {
 				// A closed shop with no shutter: dark, but for the night light at the back.
 				emission = room_raw * vec3(0.72, 0.86, 1.0) * room_lamp * 0.06 * shop_on;
 			}
-			if (storefront && lit && neon_bay && shop_byte(shop_key, 5u) < 90u) {
+			if (storefront && room_lamp >= 0.0) {
+				// A shop is lit inside all day too: a little of its own light over what the day
+				// lights, so one on the shaded side of the street is not a black hole. Then what
+				// its fittings give off, while it is open.
+				emission += room_raw * room_tone(room_kind, shop_key) * room_lamp * shop_day_light * (1.0 - shop_on);
+				emission += room_glow * shop_glow * (lit ? 1.0 : 1.0 - shop_on);
+			}
+			if (storefront && lit && neon_bay && !lobby && shop_byte(shop_key, 5u) < 90u) {
 				// Neon hung just behind the glass in a third of the open shops: pink, cyan, warm
 				// white, red or violet, one of four shapes, drawn as a distance to the tube so it
 				// stays a thin bright line at any range (widened to a pixel and dimmed to match
