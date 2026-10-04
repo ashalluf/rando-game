@@ -27,16 +27,20 @@ uniform sampler2D concrete_rough : filter_linear_mipmap, repeat_enable;
 uniform float tex_metres = 3.0;
 uniform float tex_mean = 0.4818;
 // How much of the scan's variation reaches the albedo (0 = flat vertex colour).
-uniform float tex_detail = 0.65;
+uniform float tex_detail = 0.45;
 // Linear colours the weathering darkens toward.
 uniform vec3 grime_color = vec3(0.075, 0.066, 0.055);
 uniform vec3 rust_color = vec3(0.20, 0.085, 0.030);
 uniform vec3 scuff_color = vec3(0.018, 0.018, 0.019);
+// Exhaust soot under the deck: neutral, not the brown of road grime.
+uniform vec3 soot_color = vec3(0.045, 0.045, 0.047);
 uniform float grime_amount = 0.55;
 uniform float scuff_amount = 0.75;
 uniform float rust_amount = 0.7;
 // Scuppers along the fascia (FreewayKit.SCUPPER_SPACING; grates at along = k * spacing + spacing / 2).
 uniform float scupper_spacing = 12.0;
+// The soffit's plywood formwork panels, metres (along, across).
+uniform vec2 form_panel = vec2(2.44, 1.22);
 // Contraction joints in the slip-formed barrier, metres apart.
 uniform float barrier_joint = 6.1;
 // Lamp lenses: emission at full lamp_factor.
@@ -129,14 +133,27 @@ void fragment() {
 		alb = mix(alb, grime_color, stain * 0.6 + down * 0.15);
 		alb = mix(alb, rust_color, rust * rust_amount);
 	} else if (kind == 4) {
-		// Soffit: soot and damp, efflorescence where the segments meet.
-		// Soft, large: exhaust soot is a haze under the deck, not blotches (a thresholded noise
-		// here read as camouflage from the street).
-		float soot = fbm(obj_pos.xz * 0.03) * 0.7 + vnoise(obj_pos.xz * 0.25) * 0.3;
-		alb = mix(alb * 0.84, grime_color, smoothstep(0.2, 0.95, soot) * 0.32);
-		float seam = 1.0 - smoothstep(0.0, 0.5, abs(mod(along, 24.0) - 12.0) - 11.4);
-		float eff = seam * smoothstep(0.4, 0.75, vnoise(obj_pos.xz * 1.3));
-		alb = mix(alb, vec3(0.62, 0.61, 0.58), eff * 0.5);
+		// Soffit: board-formed concrete seen from the street. Plywood panel seams (FORM_PANEL,
+		// UV.y here is metres across the deck), a tie hole near each panel's corners, soot that
+		// gathers toward the edges where the exhaust rises past the fascia, efflorescence where
+		// the segments meet. The scan stays faint: at its full contrast, seen from below at a
+		// grazing angle, its 3 m blotches read as camouflage.
+		alb = base * mix(1.0, tl, tex_detail * 0.3) * (0.9 + 0.12 * pour) * 0.9;
+		vec2 fp = vec2(along, h) / form_panel;
+		vec2 fw = fwidth(fp) + 0.0001;
+		vec2 seam_d = abs(fract(fp + 0.5) - 0.5) / fw;
+		float seam = (1.0 - clamp(min(seam_d.x, seam_d.y) - 0.5, 0.0, 1.0)) * (1.0 - smoothstep(0.25, 0.6, max(fw.x, fw.y)));
+		alb *= 1.0 - seam * 0.22;
+		vec2 q = abs(fract(fp + 0.5) - 0.5);
+		float hole = (1.0 - smoothstep(0.012, 0.022, length((q - vec2(0.15)) * form_panel)))
+			* (1.0 - smoothstep(0.05, 0.2, max(fw.x, fw.y)));
+		alb *= 1.0 - hole * 0.5;
+		float edge = smoothstep(4.0, 15.0, abs(h));
+		float soot = (vnoise(vec2(along * 0.08, h * 0.15)) * 0.6 + vnoise(vec2(along * 0.6, h * 0.9)) * 0.4);
+		alb = mix(alb, soot_color, clamp(edge * 0.3 + smoothstep(0.55, 0.9, soot) * 0.15, 0.0, 0.5));
+		float joint = 1.0 - smoothstep(0.0, 0.6, abs(mod(along, 24.0) - 12.0) - 11.2);
+		float eff = joint * smoothstep(0.35, 0.7, vnoise(vec2(along * 1.5, h * 0.7)));
+		alb = mix(alb, vec3(0.55, 0.54, 0.51), eff * 0.45);
 		rough = 0.92;
 	} else if (kind == 3) {
 		// Columns and caps: water and rust streaks from the top, splash dirt at the foot.

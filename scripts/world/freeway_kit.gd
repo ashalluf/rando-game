@@ -68,12 +68,15 @@ const SCUPPER_SPACING := 12.0
 const LIGHT_EVERY := 2
 const LIGHT_HEIGHT := 12.5
 const LIGHT_ARM := 2.8
-const POOL_SIZE := Vector2(34.0, 15.0)
+const POOL_SIZE := Vector2(46.0, 16.0)
 ## The pool an under-deck light throws on the street below (metres along, across).
 const UNDER_POOL := Vector2(22.0, 16.0)
-## How strong a pool is (light_pool's COLOR.a): sodium is a dimmer, warmer wash than LED.
-const POOL_SODIUM := 0.42
-const POOL_LED := 0.36
+## How strong a pool is (light_pool's COLOR.a): sodium is a warmer wash than LED. The pool
+## material's strength and falloff (pool_material()).
+const POOL_SODIUM := 0.5
+const POOL_LED := 0.42
+const POOL_STRENGTH := 1.4
+const POOL_FALLOFF := 0.75
 ## The gantry: posts on the edge barriers, truss chord heights, and its signs.
 const GANTRY_LOW := 6.9
 const GANTRY_HIGH := 8.5
@@ -87,6 +90,8 @@ const POSTMILE_EVERY := 7
 
 ## This game's own route numbers, keyed by a word of Freeway's route names.
 const ROUTE_NUMBERS := {"Coast": 47, "Century": 58, "Hollywood": 21, "Harbor": 33, "Santa Monica": 14}
+## Routes lit by sodium lamps (is_sodium()); the rest are LED.
+const SODIUM_ROUTES := ["Harbor", "Hollywood", "Santa Monica"]
 ## Invented destinations a guide sign may name (public words, no real places).
 const DESTINATIONS := ["Civic Center", "Port Terminal", "North Valley", "Canyon Pass", "Beach Cities",
 	"Arts District", "Mesa Flats", "Bay Docks", "Sunset Heights", "Palm Hollow", "Rio Seco",
@@ -105,6 +110,7 @@ const POLE_GREY := Color(0.55, 0.56, 0.56)
 static var _text_cache := {}
 static var _structure_mat: ShaderMaterial
 static var _paint_mat: ShaderMaterial
+static var _pool_mat: ShaderMaterial
 
 var chunk: CityChunk
 var plan: CityPlan
@@ -141,6 +147,19 @@ static func paint_material() -> ShaderMaterial:
 		_paint_mat = ShaderMaterial.new()
 		_paint_mat.shader = load("res://shaders/freeway_paint.gdshader")
 	return _paint_mat
+
+
+## The light pools' material: light_pool.gdshader with a broad, flat falloff. A road light is
+## laid out to light the carriageway evenly; at the city lamps' falloff a 34 m pool was a small
+## bright spot in a dark deck that read as a headlight beam.
+static func pool_material() -> ShaderMaterial:
+	if _pool_mat == null:
+		_pool_mat = ShaderMaterial.new()
+		_pool_mat.shader = load("res://shaders/light_pool.gdshader")
+		_pool_mat.set_shader_parameter("tint", Color(1.0, 1.0, 1.0))
+		_pool_mat.set_shader_parameter("strength", POOL_STRENGTH)
+		_pool_mat.set_shader_parameter("falloff", POOL_FALLOFF)
+	return _pool_mat
 
 
 static func kind_color(c: Color, kind: int) -> Color:
@@ -181,7 +200,7 @@ func quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, want:
 
 ## A cross-section `pts` ((across, up) pairs in the deck frame, metres) swept from a3 to b3.
 ## Each edge faces away from `inside`; `cols[i]` is edge i's kind colour and `flags[i]` its UV2.x.
-## UV is (metres along the route, the profile point's height).
+## UV is (metres along the route, the profile point's height; across the deck on the soffit).
 func extrude(st: SurfaceTool, a3: Vector3, b3: Vector3, nrm: Vector2, run0: float, run1: float,
 		pts: PackedVector2Array, inside: Vector2, cols: Array, flags: PackedFloat32Array) -> void:
 	var n3 := Vector3(nrm.x, 0.0, nrm.y)
@@ -193,9 +212,13 @@ func extrude(st: SurfaceTool, a3: Vector3, b3: Vector3, nrm: Vector2, run0: floa
 		if on.dot((p + q) * 0.5 - inside) < 0.0:
 			on = -on
 		var want := n3 * on.x + Vector3.UP * on.y
+		# The soffit's UV.y is metres ACROSS the deck (its formwork pattern), everything else's the height.
+		var soffit := int(round((cols[i] as Color).a * KIND_SCALE)) == S_SOFFIT
+		var vp := p.x if soffit else p.y
+		var vq := q.x if soffit else q.y
 		quad(st, a3 + n3 * p.x + Vector3.UP * p.y, a3 + n3 * q.x + Vector3.UP * q.y,
 			b3 + n3 * q.x + Vector3.UP * q.y, b3 + n3 * p.x + Vector3.UP * p.y, want, cols[i],
-			Vector2(run0, p.y), Vector2(run0, q.y), Vector2(run1, q.y), Vector2(run1, p.y), Vector2(flags[i], 0.0))
+			Vector2(run0, vp), Vector2(run0, vq), Vector2(run1, vq), Vector2(run1, vp), Vector2(flags[i], 0.0))
 
 
 ## An oriented box: centre, three half-extent vectors. UV is (metres along `ax`, metres up from
@@ -382,6 +405,15 @@ static func route_number(route_name: String) -> int:
 		if route_name.contains(key):
 			return ROUTE_NUMBERS[key]
 	return 90
+
+
+## The older routes keep their high-pressure sodium (the orange glow LA's freeways were known
+## by); the newer ones are LED.
+static func is_sodium(route_name: String) -> bool:
+	for key: String in SODIUM_ROUTES:
+		if route_name.contains(key):
+			return true
+	return false
 
 
 static func cardinal(d: Vector2) -> String:
@@ -614,7 +646,7 @@ func _light_standard(a3: Vector3, dir: Vector2, nrm: Vector2, ri: int) -> void:
 	var base := a3 + Vector3(0.0, BARRIER_H, 0.0)
 	var top_p := a3 + Vector3(0.0, LIGHT_HEIGHT, 0.0)
 	var pole := kind_color(POLE_GREY, S_STEEL)
-	var sodium := hash01([plan.seed, "fw_lamp", ri]) < 0.5
+	var sodium := is_sodium(str(plan.macro.freeway.routes[ri].name))
 	var lamp_col := Color(1.0, 0.66, 0.30) if sodium else Color(0.86, 0.92, 1.0)
 	prism(body, base, top_p, 0.17 if full else 0.2, 0.09, 6 if full else 4, pole)
 	if full:
@@ -966,7 +998,7 @@ func commit(road_mat: Material, prefix := "Freeway") -> void:
 		# Flat paint and sign faces: their shadow is the deck's and the boards'.
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if _glow_any:
-		var gi := _add(prefix + "Glow", glow.commit(), PropFactory.light_pool_material())
+		var gi := _add(prefix + "Glow", glow.commit(), pool_material())
 		gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 

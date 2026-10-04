@@ -281,6 +281,22 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-04 The freeways read like the 110 / 101 / 10 (VISUAL_ROADMAP #43).** (owner: "make
+  the graphics a million times better"; agent branch `wt/freeway-kit`, docs/HANDOFF.md 9ba.)
+  `FreewayKit` builds every deck segment: a box girder, New Jersey barriers at the edges and down
+  a median, bents with flared columns, caps, bearing pads, downpipes and under-deck lights, truss
+  gantries with green guide and exit signs, median light standards whose pools light the deck at
+  night, call boxes, CCTV poles, postmile paddles and tyre debris; Botts' dots and raised markers
+  that glint in a cone ahead of the camera at night, worn paint, the carpool lane's double yellow
+  and diamonds, expansion joints and scupper grates (rust runs down the fascia under each).
+  Decisions: **route numbers on the shields are this game's own** (`FreewayKit.ROUTE_NUMBERS`:
+  Coast 47, Century 58, Hollywood 21, Harbor 33, Santa Monica 14) and the shield an original
+  crest; destinations are invented (plus "Downtown"), exits name the plan's streets. **Four lanes
+  each way** (`Freeway.lane_layout()`), the inner one a carpool lane; traffic now drives the
+  painted lanes (it drove two each way between the old dashes). The deck is four meshes a chunk
+  (the night pools are the fourth, additive). Lettering is geometry at FULL chunks only. No
+  barrier collision was added (the deck's one box per segment is unchanged).
+
 - **2026-10-04 No bare ground outside downtown and midtown either** (agent branch, the yard
   pass; docs/HANDOFF.md 9az). Beach-town lots are houses with yards (driveways, front gardens,
   low walls and pickets, lot-line fences, back yards, courtyards) and some blocks a walk street;
@@ -294,6 +310,7 @@ already mapped so milestone 2 is script-only.
   (`CityPlan.block()` `"was_plaza"`, after the roll: the 100 x 180 m square of bare paving south
   of MacArthur Park was "the empty block south-east of MacArthur Park"); and **the campus hall's
   sixteen ball-on-a-stick trees are the chunk's street tree** when a chunk builds it.
+
 - **2026-10-04 The crowd wears our own garments, modelled and painted, not photographed.**
   The crowd-detail pass found the ceiling of shader work on MakeHuman's library clothes (soft
   photographed textures, one V-neck on every tee). `tools/crowd/garments.py` models a tee,
