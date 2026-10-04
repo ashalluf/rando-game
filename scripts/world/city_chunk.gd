@@ -1118,9 +1118,20 @@ func _owns_shoreline() -> bool:
 func _build_beach(block: Dictionary) -> void:
 	# Under a replica area the grid roads that would cross the sand are not built (the corridor
 	# runs to the sea), so the sand covers the chunk's road strips too.
-	_build_sand(owned_rect() if _replica != null else block.rect)
+	# The street ending at the beach on the block's +Z side is this chunk's too, and the sand has
+	# to run across its strip: built over the block alone, every street end along the coast was a
+	# gap in the beach with the sea plane showing through it (the sea chunk's water lies over its
+	# whole rect, flat at 0.15, sand or not). Over the strip the sand's landward edge dips under
+	# the road instead of standing on it (_build_sand's `strip_from`).
+	if _replica != null:
+		_build_sand(owned_rect())
+	else:
+		var r: Rect2 = block.rect
+		var own := owned_rect()
+		_build_sand(Rect2(r.position.x, r.position.y, r.size.x, maxf(own.end.y - r.position.y, r.size.y)), r.end.y)
 	if level != Level.FULL:
 		return
+	_build_surf_spray(owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y)))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	# The replica's beach under the Esplanade bluff has no palms on the sand (they are up on the
@@ -1143,6 +1154,48 @@ func _build_beach(block: Dictionary) -> void:
 		_add_lifeguard_tower(Vector3(_dry_sand_x(z, across), _sand_y(z, across), z), rng.randf_range(0.0, TAU))
 
 
+## Metres of shoreline between two spray instances (shaders/surf_spray.gdshader).
+const SPRAY_STEP := 7.0
+
+
+## Spray and mist off the breakers along this chunk's stretch of the waterline: one MultiMesh of
+## quads, two per SPRAY_STEP (the tall spray off the lip and the low mist behind it), each at the
+## waterline with the way to the land in its custom data. The shader moves each out to the break
+## point and puffs it as the waves break there, so this costs one draw and never changes.
+func _build_surf_spray(rect: Rect2) -> void:
+	var macro: MacroMap = plan.macro
+	if macro == null:
+		return
+	var count := maxi(1, int(rect.size.y / SPRAY_STEP))
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_custom_data = true
+	mm.instance_count = count * 2
+	mm.mesh = PropFactory.surf_spray_mesh()
+	var lo := Vector3(INF, 0.0, INF)
+	var hi := Vector3(-INF, 0.0, -INF)
+	for i in count:
+		var z := rect.position.y + (float(i) + 0.5) * rect.size.y / count
+		var x := macro.coast_x(z)
+		var slope := (macro.coast_x(z + 1.0) - macro.coast_x(z - 1.0)) * 0.5
+		var land := Vector2(1.0, -slope).normalized()
+		var h := fposmod(sin(z * 12.9898 + x * 78.233) * 43758.5453, 1.0)
+		for kind in 2:
+			mm.set_instance_transform(i * 2 + kind, Transform3D(Basis(), Vector3(x, 0.15, z)))
+			mm.set_instance_custom_data(i * 2 + kind, Color(land.x, land.y, fposmod(h + 0.37 * kind, 1.0), float(kind)))
+		lo = Vector3(minf(lo.x, x), 0.0, minf(lo.z, z))
+		hi = Vector3(maxf(hi.x, x), 0.0, maxf(hi.z, z))
+	var inst := MultiMeshInstance3D.new()
+	inst.name = "SurfSpray"
+	inst.multimesh = mm
+	inst.material_override = PropFactory.surf_spray_material()
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The shader carries every quad out to the break point (up to ~110 m in a storm) and up.
+	var reach := 160.0
+	inst.custom_aabb = AABB(Vector3(lo.x - reach, -2.0, lo.z - 20.0), Vector3(hi.x - lo.x + reach + 40.0, 30.0, hi.z - lo.z + 40.0))
+	add_child(inst)
+
+
 ## Height of the sand at `across` (0 at the waterline, 1 at the town) for a given Z. The berm
 ## wanders along the shore, which is what cusps are; it is a smooth function of z so it carries
 ## across a chunk boundary without a step.
@@ -1154,15 +1207,31 @@ func _sand_y(z: float, across: float) -> float:
 	return lerpf(SAND_EDGE + crest, SAND_HIGH, t * t * (3.0 - 2.0 * t))
 
 
-func _build_sand(rect: Rect2) -> void:
+## `strip_from`: rows past this z are the street strip on the block's +Z side, where the sand's
+## landward edge dips under the road (ROAD_TOP) rather than standing 0.4 m over it.
+## Each vertex carries UV2 = (metres landward of the waterline, beach width) for the swash
+## (shaders/beach_sand.gdshader).
+func _build_sand(rect: Rect2, strip_from: float = INF) -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var macro: MacroMap = plan.macro
-	var steps := maxi(2, ceili(rect.size.y / SAND_STEP))
+	var zs := PackedFloat32Array()
+	var z_end := minf(rect.end.y, strip_from)
+	var steps := maxi(2, ceili((z_end - rect.position.y) / SAND_STEP))
+	for i in steps + 1:
+		zs.append(rect.position.y + (z_end - rect.position.y) * float(i) / steps)
+	if strip_from < rect.end.y - 0.5:
+		var w := rect.end.y - strip_from
+		var edge := minf(2.0, w * 0.3)
+		zs.append(strip_from + edge)
+		zs.append(rect.end.y - edge)
+		zs.append(rect.end.y)
 	var quads := 0
 	var prev: Array[Vector3] = []
-	for i in steps + 1:
-		var z: float = rect.position.y + rect.size.y * float(i) / steps
+	var prev_w := 0.0
+	var prev_x := 0.0
+	for i in zs.size():
+		var z: float = zs[i]
 		var water_x := rect.position.x
 		var inland_x := rect.end.x
 		var width := inland_x - water_x
@@ -1170,6 +1239,7 @@ func _build_sand(rect: Rect2) -> void:
 			water_x = macro.coast_x(z)
 			width = macro.beach_width_at(z)
 			inland_x = water_x + width + SAND_LIP
+		var in_strip := z > strip_from + 0.01 and z < rect.end.y - 0.01
 		# Seaward to landward: the bar under the water, the waterline, the swash the sea still
 		# reaches, the berm crest, and the backshore falling away behind it.
 		var row: Array[Vector3] = [
@@ -1177,7 +1247,7 @@ func _build_sand(rect: Rect2) -> void:
 			Vector3(water_x, SAND_EDGE, z),
 			Vector3(water_x + SAND_SWASH, _sand_y(z, SAND_SWASH / maxf(width, 1.0)), z),
 			Vector3(water_x + width * SAND_BERM_AT, _sand_y(z, SAND_BERM_AT), z),
-			Vector3(inland_x, SAND_HIGH, z),
+			Vector3(inland_x, ROAD_TOP - 0.04 if in_strip else SAND_HIGH, z),
 		]
 		if i > 0:
 			# One strip per band. UVs come from world XZ so the grain runs continuously from one
@@ -1188,25 +1258,29 @@ func _build_sand(rect: Rect2) -> void:
 				var b: Vector3 = prev[k + 1]
 				var c: Vector3 = row[k + 1]
 				var d: Vector3 = row[k]
-				for pair in [[a, SAND_TONES[k]], [b, SAND_TONES[k + 1]], [c, SAND_TONES[k + 1]],
-						[a, SAND_TONES[k]], [c, SAND_TONES[k + 1]], [d, SAND_TONES[k]]]:
+				for pair in [[a, SAND_TONES[k], 0], [b, SAND_TONES[k + 1], 0], [c, SAND_TONES[k + 1], 1],
+						[a, SAND_TONES[k], 0], [c, SAND_TONES[k + 1], 1], [d, SAND_TONES[k], 1]]:
 					var v: Vector3 = pair[0]
+					var this_row: bool = pair[2] == 1
 					st.set_color(pair[1] as Color)
 					st.set_uv(Vector2(v.x, v.z) * SAND_UV_SCALE)
+					st.set_uv2(Vector2(v.x - (water_x if this_row else prev_x), width if this_row else prev_w))
 					st.add_vertex(v)
 				quads += 1
 		prev = row
+		prev_w = width
+		prev_x = water_x
 	if quads > 0:
 		st.generate_normals()
 		st.generate_tangents()
 		var mesh := MeshInstance3D.new()
 		mesh.name = "Sand"
 		mesh.mesh = st.commit()
-		# vertex_color_use_as_albedo, or the wet/dry banding above is computed and thrown away.
-		# 2 m a tile: the set is trodden sand, footprints and all, photographed over about that.
-		# At 5 m every footprint was half a metre across, and under a low sun the beach read as
-		# rippling water.
-		mesh.material_override = PropFactory.pbr("sand", 2.0, Color(1.0, 0.95, 0.85), 1.0, true)
+		# The sand set at 2 m a tile (the set is trodden sand, footprints and all, photographed over
+		# about that; at 5 m every footprint was half a metre across, and under a low sun the beach
+		# read as rippling water), the wet/dry banding above from the vertex colour, and the surf's
+		# swash running up it (PropFactory.beach_sand_material(), shaders/beach_sand.gdshader).
+		mesh.material_override = PropFactory.beach_sand_material()
 		add_child(mesh)
 	if level != Level.FULL:
 		return
@@ -1214,9 +1288,10 @@ func _build_sand(rect: Rect2) -> void:
 	# beach: with a metre of crest in the middle, a flat box leaves the player walking through
 	# the sand on the way up and a foot above it on the way down. Five boxes, not a mesh shape -
 	# the player only ever walks the dry sand and a box stack is cheaper and steadier.
-	var c := rect.get_center()
+	var block_rect := Rect2(rect.position, Vector2(rect.size.x, minf(rect.end.y, strip_from) - rect.position.y))
+	var c := block_rect.get_center()
 	if macro == null:
-		_add_shape(Vector3(rect.size.x, 0.4, rect.size.y), Vector3(c.x, SAND_EDGE - 0.1, c.y))
+		_add_shape(Vector3(block_rect.size.x, 0.4, block_rect.size.y), Vector3(c.x, SAND_EDGE - 0.1, c.y))
 		return
 	var width: float = macro.beach_width_at(c.y) + SAND_LIP
 	var band := width / float(SAND_COLLIDER_BANDS)
@@ -1224,7 +1299,13 @@ func _build_sand(rect: Rect2) -> void:
 		var across := (float(k) + 0.5) / float(SAND_COLLIDER_BANDS)
 		var x := macro.coast_x(c.y) + width * across
 		var y := _sand_y(c.y, across)
-		_add_shape(Vector3(band + 0.2, 0.4, rect.size.y), Vector3(x, y - 0.2, c.y))
+		_add_shape(Vector3(band + 0.2, 0.4, block_rect.size.y), Vector3(x, y - 0.2, c.y))
+	# The street strip: the seaward bands only, where the sand keeps its profile.
+	if strip_from < rect.end.y - 0.5:
+		var sz := (strip_from + rect.end.y) * 0.5
+		for k in 3:
+			var across := (float(k) + 0.5) / float(SAND_COLLIDER_BANDS)
+			_add_shape(Vector3(band + 0.2, 0.4, rect.end.y - strip_from), Vector3(macro.coast_x(sz) + width * across, _sand_y(sz, across) - 0.2, sz))
 
 
 ## X of a point on the dry sand at Z, `across` running 0 at the waterline to 1 at the town.

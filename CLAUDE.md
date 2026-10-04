@@ -284,6 +284,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shader, foam on the crests, and the sky mixed in by fresnel with a glare path to the sun,
   taken from the `sky_tint` and `sun_direction` shader globals that `DayNight` publishes (water
   is mostly the sky seen in it, and leaving that to reflections gives nothing on the web). Debug `?weather=storm`.
+  **The mirror is EMITTED, the body lit** (2026-10-04): in ALBEDO the sky reflection was
+  multiplied by the sun, so the golden-hour sea was a brown-black sheet under an orange sky.
+  **The surf** (2026-10-04, see the Surf note) breaks along every waterline, and Weather also
+  publishes the `surf_shape` / `surf_extra` globals and hands the ocean the piers' lamp rows
+  (`Weather.pier_light_lines()`) for the night reflections.
   Rain at night is judged by the wet street, so: `Weather` starts as wet as the weather it
   starts in (soaking from dry spent the first 16 s on dry tarmac under a downpour); a soaked
   road is roughness 0.07 with mirror puddles at 0.02 (`road.gdshader`, spreading as it soaks,
@@ -298,6 +303,39 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
   times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
   cloud the sky IS the clouds, so the night cloud colour is what decides it.
+- Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
+  `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
+  by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L
+  + t / T)` (`s` metres offshore, `wob` bends them along the shore), each wave with its own height
+  (sets, sections along the shore) and so its own break point; it stands up, throws a lip at the
+  break, runs in as a bore that shrinks to nothing at the waterline, and the bore that arrives
+  starts the swash up the sand. Everything runs off shader TIME and two globals Weather sets from
+  the wave scale (`Surf.params()`: `surf_shape` = face height, crest spacing, period, break
+  distance; `surf_extra` = run-up, lip throw, zone width, swash length in periods; a clear day
+  0.9 m breaking 38 m out, a storm 2.9 m breaking 103 m out; `Weather.surf_gain` scales the
+  height). **Ocean**: in the zone the vertex shader takes the way to the land from the gradient of
+  `shore_distance()` and adds the surf's height and lip (and its derivatives, so normals and the
+  fold see it), handing the swell down to 30 %; the fragment works the whitewater out from the
+  same wave (the bore's churned face and trail, the lip, feathering, a warped net of old lace),
+  the turquoise light through every standing face (`surf_face_color`, glowing when backlit,
+  `surf_golden` times more at golden hour), kelp beds (`kelp_*`, dark olive, chop calmed, fronds
+  close to), sandy shallows in the last metres, and at night the piers' lamps and the city
+  (`pier_lines` / `pier_info`, `city_front`) mirrored by intersecting the reflected ray with the
+  lamps' vertical plane - lamp_factor gated, emitted, faded with the hand-over. **The surf never
+  lifts the water landward of the waterline** (`shore_distance()` is 0 there and the envelope
+  is 0 at s <= 0; `tests/surf_checks.gd` checks both). **Sand**: `shaders/beach_sand.gdshader`
+  (`PropFactory.beach_sand_material()`), the old pbr sand plus the swash: the sheet (darker,
+  glossy, mirroring the sky by fresnel, its relief drowned), a lace of bubbles on its edge, fizz
+  on the uprush, threads of foam on the drain, and sand that stays dark and glossy for a few
+  seconds after the water leaves (`surf_swash()`'s `wet`); rain darkens it through
+  `road_wetness`. The mesh carries UV2 = (metres landward of the waterline, beach width), rows
+  of constant z running inland along +x. `_build_beach` now also lays the sand over the street
+  strip on the block's +Z side, dipping under the road: every street end along the coast was a
+  hole in the beach showing the sea plane. **Spray**: `CityChunk._build_surf_spray()`, one
+  MultiMesh of quads per FULL shoreline chunk (two per `SPRAY_STEP`: tall spray off the lip and
+  low drifting mist), carried by `shaders/surf_spray.gdshader` out to the break point and puffed
+  when a wave breaks there; transparent between waves, one draw a chunk, no particles. Stills:
+  the bookmarks in docs/HANDOFF.md 9au; checks: `tests/surf_checks.gd`.
 - Look (owner, 2026-09-20: "as realistic as possible, like an industry giant made it"). The
   realism settings are deliberate, not defaults: **AgX** filmic tonemapping (not ACES, which
   clips highlights hard), **sky-source ambient** so shadows take the sky's colour instead of a

@@ -62,6 +62,10 @@ const SOUND_SPEED := 343.0
 @export_group("Waves")
 ## Wave scale per state (multiplies the ocean shader's base height).
 @export var wave_scale_by_state: PackedFloat32Array = PackedFloat32Array([1.0, 1.8, 3.2, 6.0])
+## The breaking surf follows the same wave scale (Surf.params(): a clear day is two- to
+## three-foot surf breaking ~40 m out, a storm three metres breaking ~100 m out). This scales its
+## height alone, everywhere at once (0 flattens the surf, 1.5 is a big swell day).
+@export var surf_gain: float = 1.0
 @export_group("Fog")
 ## Depth fog per state. Weather SETS these on the Environment every frame, so whatever
 ## city.tscn says is only what you see before the first frame - tune here, not there.
@@ -248,6 +252,71 @@ func _push_ocean_shape() -> void:
 	if wind.length() < 0.01:
 		wind = Vector2(1.0, 0.3)
 	_ocean.set_shader_parameter("wind_dir", wind.normalized())
+	_push_pier_lights()
+
+
+## The piers' lamp rows, for the ocean shader to mirror at night (ocean.gdshader pier_lines /
+## pier_info): each a line of lamps in true world XZ with its lamp height, spacing, deck height
+## and warmth, worked out from the same constants the piers are built with
+## (Landmarks._build_pier(), LandmarkBeachPiers).
+func _push_pier_lights() -> void:
+	var lines := pier_light_lines()
+	var a := PackedVector4Array()
+	var b := PackedVector4Array()
+	for l: Array in lines:
+		a.append(l[0])
+		b.append(l[1])
+	while a.size() < 10:
+		a.append(Vector4.ZERO)
+		b.append(Vector4.ZERO)
+	_ocean.set_shader_parameter("pier_lines", a)
+	_ocean.set_shader_parameter("pier_info", b)
+	_ocean.set_shader_parameter("pier_count", mini(lines.size(), 10))
+
+
+## [[Vector4(ax, az, bx, bz), Vector4(lamp height, spacing, deck height, warmth)], ...].
+static func pier_light_lines() -> Array:
+	var out: Array = []
+	var deck := LandmarkBeachPiers.DECK_Y
+	var deck_top := deck + LandmarkBeachPiers.DECK_T * 0.5
+	for lm: Dictionary in Landmarks.all():
+		var at: Vector2 = lm.anchor
+		match str(lm.id):
+			"pier":
+				# Ten lamps a side, 26 m apart from 20 m out, 5.5 m over the 6 m deck.
+				for side: float in [-11.0, 11.0]:
+					out.append([Vector4(at.x - 20.0, at.y + side, at.x - 254.0, at.y + side), Vector4(deck + 5.5, 26.0, deck, 0.35)])
+			"manhattan_pier":
+				var n := int((LandmarkBeachPiers.MH_LENGTH - LandmarkBeachPiers.MH_END_RADIUS) / LandmarkBeachPiers.MH_LAMP_STEP)
+				var z := LandmarkBeachPiers.MH_WIDTH * 0.5 - 0.7
+				var y := deck_top + LandmarkBeachPiers.MH_LAMP_H + 0.3
+				for side: float in [-z, z]:
+					out.append([Vector4(at.x - 14.0, at.y + side, at.x - 14.0 - (n - 1) * LandmarkBeachPiers.MH_LAMP_STEP, at.y + side),
+						Vector4(y, LandmarkBeachPiers.MH_LAMP_STEP, deck, 0.15)])
+			"redondo_pier":
+				# The horseshoe's lamps stand on its outer edge, one every other 15 m segment: two
+				# straight legs and three chords round the bend.
+				var root := at.x - LandmarkBeachPiers.RD_ROOT_X
+				var bend := Vector2(root - LandmarkBeachPiers.RD_STRAIGHT, at.y)
+				var r := LandmarkBeachPiers.RD_HALF_SPAN + LandmarkBeachPiers.RD_DECK_W * 0.5 - 1.2
+				var y := deck_top + 5.3
+				var info := Vector4(y, LandmarkBeachPiers.RD_STRAIGHT / LandmarkBeachPiers.RD_STRAIGHT_STEPS * 2.0, deck, 0.6)
+				out.append([Vector4(root - 7.5, at.y - r, bend.x, at.y - r), info])
+				out.append([Vector4(root - 7.5, at.y + r, bend.x, at.y + r), info])
+				for k in 3:
+					var a0 := -PI * 0.5 - PI * float(k) / 3.0
+					var a1 := -PI * 0.5 - PI * float(k + 1) / 3.0
+					var p0 := bend + Vector2(cos(a0), sin(a0)) * r
+					var p1 := bend + Vector2(cos(a1), sin(a1)) * r
+					out.append([Vector4(p0.x, p0.y, p1.x, p1.y), info])
+	return out
+
+
+## The surf's two shader globals for the current sea (Surf.params()).
+func _push_surf(waves: float) -> void:
+	var p := Surf.params(waves, surf_gain)
+	RenderingServer.global_shader_parameter_set("surf_shape", p[0])
+	RenderingServer.global_shader_parameter_set("surf_extra", p[1])
 
 
 func _build_rain() -> void:
@@ -547,6 +616,7 @@ func _process(delta: float) -> void:
 		RenderingServer.global_shader_parameter_set("rain_intensity", rain)
 	rain_level = rain
 	RenderingServer.global_shader_parameter_set("wave_scale", waves)
+	_push_surf(waves)
 	RenderingServer.global_shader_parameter_set("wind_factor", 1.0 + 3.0 * rain + (2.0 if state == State.STORM else 0.0) * blend)
 	# The sea is lit by the sky above it, and DayNight publishes the clear-sky horizon colour
 	# whatever the weather, so the ocean is told how dark it is here.
