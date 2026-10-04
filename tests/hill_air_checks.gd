@@ -49,8 +49,8 @@ func _colour_space() -> void:
 	var splat := FileAccess.get_file_as_string("res://shaders/hill_splat.gdshaderinc")
 	var splat_srgb := re.search_all(splat).size()
 	var probe := FileAccess.get_file_as_string("res://shaders/color_space.gdshaderinc")
-	_t._check(splat_srgb == 0 and probe.contains("uniform vec3 color_space_probe : source_color = vec3(0.5, 0.5, 0.5)") and probe.contains("color_space_probe.r < 0.35"),
-		"the splat's colours are plain linear uniforms and the renderer probe is intact (%d source_color in the splat)" % splat_srgb)
+	_t._check(splat_srgb == 0 and probe.contains("#if CURRENT_RENDERER == RENDERER_COMPATIBILITY"),
+		"the splat's colours are plain linear uniforms and the colour space is told by renderer (%d source_color in the splat)" % splat_srgb)
 	# The precedent: far boxes decode their instance colour where the renderer decodes the near
 	# buildings' (it was declared and never set, CLAUDE.md).
 	var lod_mat := PropFactory.building_lod_material()

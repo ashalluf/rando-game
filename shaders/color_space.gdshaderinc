@@ -24,15 +24,17 @@
 // uniform passed through cs_in() - and hand the renderer its own space at the very end with
 // cs_out() (ALBEDO, EMISSION, BACKLIGHT). On Forward+ both are no-ops; on Compatibility they are
 // the sRGB transfer function, so the web draws the albedo the Mac does.
-// Include it once per shader (it declares a uniform). Shader includes use // comments.
+// Include it once per shader. Shader includes use // comments.
 
-// Never set from script. 0.5 authored as sRGB decodes to 0.214 on a renderer that decodes, so a
-// value still near 0.5 means this one did not.
-uniform vec3 color_space_probe : source_color = vec3(0.5, 0.5, 0.5);
-
-
+// Which renderer this is, at compile time (Godot's own CURRENT_RENDERER, as road.gdshader and the
+// car cabin use it): no uniform, no branch per fragment, nothing to go wrong if a material ever
+// set a probe value. The Mobile renderer is a RenderingDevice one and decodes like Forward+.
 bool cs_linear_renderer() {
-	return color_space_probe.r < 0.35;
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return false;
+#else
+	return true;
+#endif
 }
 
 
