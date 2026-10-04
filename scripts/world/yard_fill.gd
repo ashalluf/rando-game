@@ -32,8 +32,10 @@ extends RefCounted
 ## tools/lot_coverage.gd; the smoke test's "rolls nothing" check).
 static var enabled: bool = true
 
-## Districts whose lots get yards (the freeway's right of way is filled in every district).
-const DISTRICTS := [CityPlan.District.BEACHTOWN, CityPlan.District.CAMPUS]
+## Districts whose lots get yards (the freeway's right of way is filled in every district). The
+## suburbs since the house pass (HouseKit, 2026-10-04): the beach town's yard plan with suburban
+## odds (SUBURB) and the block's own lawn as the lawn.
+const DISTRICTS := [CityPlan.District.BEACHTOWN, CityPlan.District.CAMPUS, CityPlan.District.SUBURBS]
 
 # --- Ground kinds: shaders/lot_yard.gdshader, COLOR.r in 16ths --------------------------------
 const G_LAWN := 0
@@ -121,6 +123,19 @@ const PICKET_WHITE := Color(0.93, 0.93, 0.90)
 const HEDGE_GREEN := Color(0.32, 0.43, 0.22)
 ## Wheelie bins: green waste, blue recycling, black trash (Los Angeles' three).
 const BIN_COLORS := [Color(0.16, 0.36, 0.18), Color(0.12, 0.24, 0.52), Color(0.08, 0.08, 0.09)]
+
+# --- Suburbs --------------------------------------------------------------------------------------
+## The suburbs' yards are the beach town's plan with these odds in place of the beach constants: a
+## front lawn (the block's own lawn shows through: lawn pieces are not laid there), a drought garden
+## of decomposed granite now and then, a pool in half the back yards deep enough, and the street
+## line mostly open (an LA suburb's front lawns run to the pavement); the side and back fences are
+## block walls more often than timber. Keys as the beach constants they stand in for.
+const SUBURB := {"front_lawn": 0.66, "front_dg": 0.84, "front_patio": 0.9, "back_lawn": 0.55, "back_deck": 0.66,
+	"back_tile": 0.78, "back_concrete": 0.92, "pool": 0.5, "edge_wall": 0.1, "edge_picket": 0.18, "edge_hedge": 0.36,
+	"fence_stucco": 0.58, "pool_apron": true}
+const BEACH := {"front_lawn": FRONT_LAWN, "front_dg": FRONT_DG, "front_patio": FRONT_PATIO, "back_lawn": BACK_LAWN,
+	"back_deck": BACK_DECK, "back_tile": BACK_TILE, "back_concrete": BACK_CONCRETE, "pool": POOL_ODDS,
+	"edge_wall": EDGE_WALL, "edge_picket": EDGE_PICKET, "edge_hedge": EDGE_HEDGE, "fence_stucco": FENCE_STUCCO}
 
 # --- Campus ---------------------------------------------------------------------------------------
 ## A piece of campus ground at least this big (metres) is a quad (paths, trees, lamps, benches);
@@ -223,7 +238,7 @@ static func block_step(ch: CityChunk, block: Dictionary) -> void:
 	if not enabled or ch.zone != MacroMap.Zone.CITY:
 		return
 	var district: int = block.district
-	if district == CityPlan.District.BEACHTOWN:
+	if district == CityPlan.District.BEACHTOWN or district == CityPlan.District.SUBURBS:
 		_build_beach(ch, beach_block(ch.plan, ch.ix, ch.iz, ch._yard_lots))
 	elif district == CityPlan.District.CAMPUS:
 		_build_campus(ch, campus_block(ch.plan, ch.ix, ch.iz, ch._yard_lots))
@@ -441,60 +456,118 @@ static func beach_block(plan: CityPlan, bx: int, bz: int, entries: Array) -> Dic
 	for e: Dictionary in entries:
 		lots.append(e.lot)
 	var grid := lot_grid(plan, bx, bz, lots)
-	var inner: Rect2 = grid.inner
-	var walk := Rect2()
-	var walk_path := Rect2()
-	var by_cell := {}
-	for e: Dictionary in entries:
-		by_cell[cell_index(grid, (e.lot as Dictionary).center)] = e
-	# The walk street: the row boundary along x with the widest gap every column leaves between its
-	# two rows' houses, when it is wide enough and the block rolls one.
-	if _h01([plan.seed, bx, bz, "walk"]) < WALK_ODDS and int(grid.nz) >= 3 and int(grid.nx) >= 1:
-		var best := -1.0
-		var best_lo := 0.0
-		var best_hi := 0.0
-		for j in range(1, int(grid.nz)):
-			var line: float = inner.position.y + (grid.cell as Vector2).y * j
-			var lo := line - (grid.cell as Vector2).y * 0.5
-			var hi := line + (grid.cell as Vector2).y * 0.5
-			var ok := true
-			for i in int(grid.nx):
-				var below: Variant = by_cell.get(Vector2i(i, j - 1))
-				var above: Variant = by_cell.get(Vector2i(i, j))
-				# Every cell either side must hold a house (no gaps onto a car park or a pad).
-				if below == null or above == null:
-					ok = false
-					break
-				for r: Rect2 in (below as Dictionary).parts:
-					lo = maxf(lo, r.end.y)
-				for r: Rect2 in (above as Dictionary).parts:
-					hi = minf(hi, r.position.y)
-			if ok and hi - lo > best:
-				best = hi - lo
-				best_lo = lo
-				best_hi = hi
-		if best >= WALK_MIN:
-			walk = Rect2(inner.position.x, best_lo + 0.3, inner.size.x, best - 0.6)
-			var pw := minf(WALK_PATH, walk.size.y * 0.55)
-			walk_path = Rect2(inner.position.x, walk.get_center().y - pw * 0.5, inner.size.x, pw)
+	var wk := walk_for(plan, bx, bz)
+	var walk: Rect2 = wk[0]
+	var walk_path: Rect2 = wk[1]
+	var suburb := int(plan.block(bx, bz).district) == CityPlan.District.SUBURBS
 	var out: Array = []
 	for e: Dictionary in entries:
-		out.append(_beach_lot(plan, grid, e, walk, walk_path))
-	return {"walk": walk, "walk_path": walk_path, "lots": out, "grid": grid, "dropped": beach_dropped(plan, bx, bz)}
+		out.append(_beach_lot(plan, grid, e, walk, walk_path, SUBURB if suburb else BEACH))
+	return {"walk": walk, "walk_path": walk_path, "lots": out, "grid": grid, "dropped": beach_dropped(plan, bx, bz), "suburb": suburb}
 
 
-static func _beach_lot(plan: CityPlan, grid: Dictionary, e: Dictionary, walk: Rect2, walk_path: Rect2) -> Dictionary:
+## A beach block's walk street, [walk, walk_path] (zero rects: none), PURE - from the plan's lots
+## alone, so the houses (HouseKit, built lot by lot before the block step) can face it: the row
+## boundary along x with the widest gap every column leaves between its two rows' lot rects, when
+## it is wide enough and the block rolls one. A cell must hold a house lot either side (not a pocket
+## garden, a car park, the freeway's right of way, or a lot big enough to be rolled a commercial
+## pad - that roll is the chunk's, so such a column has no walk). (It used to measure the gap
+## between the buildings' own parts; the houses are planned inside their cells now, so the lot
+## rects are the gap that is known before them.)
+static var _walks := {}
+
+
+static func walk_for(plan: CityPlan, bx: int, bz: int) -> Array:
+	var key := hash([plan.seed, bx, bz])
+	if _walks.has(key):
+		return _walks[key]
+	var walk := Rect2()
+	var walk_path := Rect2()
+	var b: Dictionary = plan.block(bx, bz)
+	if int(b.district) == CityPlan.District.BEACHTOWN and _h01([plan.seed, bx, bz, "walk"]) < WALK_ODDS:
+		var lots := plan.lots(bx, bz)
+		var grid := lot_grid(plan, bx, bz, lots)
+		var inner: Rect2 = grid.inner
+		var pads: float = float((CityPlan.DISTRICTS[b.district] as Dictionary).get("pads", 0.0))
+		var by_cell := {}
+		for lot: Dictionary in lots:
+			var size: Vector2 = lot.size
+			if lot.yard or lot.get("parking", false) or is_corridor(plan, lot):
+				continue
+			if lot.edge and pads > 0.0 and size.x >= 18.0 and size.y >= 18.0:
+				continue
+			by_cell[cell_index(grid, lot.center)] = Rect2((lot.center as Vector2) - size * 0.5, size)
+		if int(grid.nz) >= 3 and int(grid.nx) >= 1:
+			var best := -1.0
+			var best_lo := 0.0
+			var best_hi := 0.0
+			for j in range(1, int(grid.nz)):
+				var line: float = inner.position.y + (grid.cell as Vector2).y * j
+				var lo := line - (grid.cell as Vector2).y * 0.5
+				var hi := line + (grid.cell as Vector2).y * 0.5
+				var ok := true
+				for i in int(grid.nx):
+					var below: Variant = by_cell.get(Vector2i(i, j - 1))
+					var above: Variant = by_cell.get(Vector2i(i, j))
+					if below == null or above == null:
+						ok = false
+						break
+					lo = maxf(lo, (below as Rect2).end.y)
+					hi = minf(hi, (above as Rect2).position.y)
+				if ok and hi - lo > best:
+					best = hi - lo
+					best_lo = lo
+					best_hi = hi
+			if best >= WALK_MIN:
+				walk = Rect2(inner.position.x, best_lo + 0.3, inner.size.x, best - 0.6)
+				var pw := minf(WALK_PATH, walk.size.y * 0.55)
+				walk_path = Rect2(inner.position.x, walk.get_center().y - pw * 0.5, inner.size.x, pw)
+	if _walks.size() > 4096:
+		_walks.clear()
+	_walks[key] = [walk, walk_path]
+	return _walks[key]
+
+
+## Which way a lot of a yard block faces, PURE: {"side" (the cell edge its street frame's v = 0 is
+## on: 0 -Z, 1 +Z, 2 -X, 3 +X), "yard" (its cell, less the walk street when it fronts one),
+## "walk_front"}. The nearest block edge, or the walk street when the cell runs along one.
+static func lot_front(plan: CityPlan, bx: int, bz: int, lot: Dictionary, grid: Dictionary) -> Dictionary:
+	var inner: Rect2 = grid.inner
+	var cell: Rect2 = lot.get("cell", Rect2((lot.center as Vector2) - (lot.size as Vector2) * 0.5, lot.size))
+	var side := nearest_side(inner, cell)
+	var yard := cell
+	var walk_front := false
+	var wk := walk_for(plan, bx, bz)
+	var walk: Rect2 = wk[0]
+	var walk_path: Rect2 = wk[1]
+	if walk.size.x > 0.0 and walk.intersects(cell):
+		walk_front = true
+		if cell.get_center().y < walk_path.get_center().y:
+			yard = Rect2(cell.position, Vector2(cell.size.x, walk_path.position.y - cell.position.y))
+			side = 1
+		else:
+			yard = Rect2(Vector2(cell.position.x, walk_path.end.y), Vector2(cell.size.x, cell.end.y - walk_path.end.y))
+			side = 0
+	return {"side": side, "yard": yard, "walk_front": walk_front, "cell": cell}
+
+
+static func _beach_lot(plan: CityPlan, grid: Dictionary, e: Dictionary, walk: Rect2, walk_path: Rect2, odds: Dictionary = BEACH) -> Dictionary:
 	var lot: Dictionary = e.lot
 	var inner: Rect2 = grid.inner
 	var cell: Rect2 = lot.get("cell", Rect2((lot.center as Vector2) - (lot.size as Vector2) * 0.5, lot.size))
 	var parts: Array[Rect2] = []
 	parts.assign(e.parts)
+	# A house (HouseKit) says which way it faces, where its garage door and its front door are; the
+	# yard follows it. A building of the old kind faces the nearest street (or the walk street).
+	var house: Dictionary = e.get("house", {})
 	var side := nearest_side(inner, cell)
 	var walk_front := false
-	# A lot the walk street runs along fronts the walk: its yard is the cell less the walk, and its
-	# front edge is the walk path's.
 	var yard := cell
-	if walk.size.x > 0.0 and walk.intersects(cell):
+	if not house.is_empty():
+		side = int(house.side)
+		yard = house.yard
+		walk_front = bool(house.walk_front)
+	elif walk.size.x > 0.0 and walk.intersects(cell):
 		walk_front = true
 		if cell.get_center().y < walk_path.get_center().y:
 			yard = Rect2(cell.position, Vector2(cell.size.x, walk_path.position.y - cell.position.y))
@@ -526,35 +599,55 @@ static func _beach_lot(plan: CityPlan, grid: Dictionary, e: Dictionary, walk: Re
 	var key: int = lot.seed
 	var pieces: Array = []
 	var holes: Array[Rect2] = parts.duplicate()
-	# The driveway: on one side of the frontage, from the front edge to the house.
+	# The driveway: on one side of the frontage, from the front edge to the house - or, for a house,
+	# from the front edge to its garage door (or carport, or down the side of it).
 	var drive := Rect2()
 	var fd := bv0
-	if not walk_front and fd >= DRIVE_MIN_DEPTH and _h01([plan.seed, key, "drive"]) < DRIVE_ODDS:
+	if not house.is_empty():
+		var dr: Vector2 = house.drive
+		if dr.y > dr.x and not walk_front and float(house.drive_v) > 0.5:
+			drive = _fr(f, maxf(dr.x, 0.0), 0.0, minf(dr.y, U), minf(float(house.drive_v), V))
+	elif not walk_front and fd >= DRIVE_MIN_DEPTH and _h01([plan.seed, key, "drive"]) < DRIVE_ODDS:
 		var left := _h01([plan.seed, key, "drive_side"]) < 0.5
 		var du0 := 0.35 if left else U - 0.35 - DRIVE_WIDTH
 		if du0 >= 0.0 and du0 + DRIVE_WIDTH <= U:
 			drive = _fr(f, du0, 0.0, du0 + DRIVE_WIDTH, fd)
-			pieces.append([drive, G_CONCRETE, _h01([plan.seed, key, "age"]) * 0.6, "drive"])
-	# The front walk: from the front edge to the middle of the house front (clear of the drive).
+	if drive.size.x > 0.0:
+		pieces.append([drive, G_CONCRETE, _h01([plan.seed, key, "age"]) * 0.6, "drive"])
+	# The front walk: from the front edge to the middle of the house front (clear of the drive), or
+	# to a house's front door (its porch or stoop).
 	var front_style := _h01([plan.seed, key, "front"])
-	var path_kind := G_CONCRETE if front_style < FRONT_DG else (G_BRICK if front_style < FRONT_PATIO else G_CONCRETE)
+	var path_kind := G_CONCRETE if front_style < float(odds.front_dg) else (G_BRICK if front_style < float(odds.front_patio) else G_CONCRETE)
 	var walk_r := Rect2()
-	if fd >= 1.2:
+	var walk_v := fd
+	if not house.is_empty():
+		walk_v = minf(float(house.door_v), V)
+	if walk_v >= 1.2:
 		var cu := clampf((bu0 + bu1) * 0.5, 1.0, U - 1.0)
+		if not house.is_empty():
+			cu = clampf(float(house.door_u), 0.8, U - 0.8)
 		if drive.size.x > 0.0:
 			var dq := _to_frame(f, drive)
 			if cu > dq.position.x - 1.0 and cu < dq.end.x + 1.0:
 				cu = dq.end.x + 1.4 if dq.position.x < U * 0.5 else dq.position.x - 1.4
 		cu = clampf(cu, 0.8, U - 0.8)
-		walk_r = _fr(f, cu - 0.6, 0.0, cu + 0.6, fd)
-		pieces.append([walk_r, path_kind, 0.3, "path"])
+		walk_r = _fr(f, cu - 0.6, 0.0, cu + 0.6, walk_v)
+		for r: Rect2 in LotFill._minus(walk_r, holes, 0.0):
+			pieces.append([r, path_kind, 0.3, "path"])
+	if not house.is_empty():
+		# The drive and the walk can reach past the house's front line (a garage or a door set
+		# back): nothing else is laid over them.
+		if drive.size.x > 0.0:
+			holes.append(drive)
+		if walk_r.size.x > 0.0:
+			holes.append(walk_r)
 	# The front garden: the rest of the front zone.
 	var front_kind: int
-	if front_style < FRONT_LAWN:
+	if front_style < float(odds.front_lawn):
 		front_kind = G_LAWN
-	elif front_style < FRONT_DG:
+	elif front_style < float(odds.front_dg):
 		front_kind = G_DG
-	elif front_style < FRONT_PATIO:
+	elif front_style < float(odds.front_patio):
 		front_kind = G_BRICK if _h01([plan.seed, key, "patio"]) < 0.5 else G_TILE
 	else:
 		front_kind = G_CONCRETE
@@ -575,28 +668,35 @@ static func _beach_lot(plan: CityPlan, grid: Dictionary, e: Dictionary, walk: Re
 	# The back yard (behind the house) and the side yards (beside it).
 	var back_style := _h01([plan.seed, key, "back"])
 	var back_kind: int
-	if back_style < BACK_LAWN:
+	if back_style < float(odds.back_lawn):
 		back_kind = G_LAWN
-	elif back_style < BACK_DECK:
+	elif back_style < float(odds.back_deck):
 		back_kind = G_DECK
-	elif back_style < BACK_TILE:
+	elif back_style < float(odds.back_tile):
 		back_kind = G_TILE
-	elif back_style < BACK_CONCRETE:
+	elif back_style < float(odds.back_concrete):
 		back_kind = G_CONCRETE
 	else:
 		back_kind = G_DG
 	var bzone := _fr(f, 0.0, bv1, U, V)
 	var pool := Rect2()
 	var bq := _to_frame(f, bzone)
-	if bq.size.y >= POOL_MIN.y + 1.6 and U >= POOL_MIN.x + 2.0 and _h01([plan.seed, key, "pool"]) < POOL_ODDS:
+	if bq.size.y >= POOL_MIN.y + 1.6 and U >= POOL_MIN.x + 2.0 and _h01([plan.seed, key, "pool"]) < float(odds.pool):
 		var pu := (U - POOL_MIN.x) * (0.25 + 0.5 * _h01([plan.seed, key, "pool_u"]))
 		var pv := bv1 + 1.0 + (bq.size.y - POOL_MIN.y - 1.6) * 0.5
 		pool = _fr(f, pu, pv, pu + POOL_MIN.x, pv + POOL_MIN.y)
-		back_kind = G_CONCRETE if back_kind == G_LAWN or back_kind == G_DG else back_kind
+		if not odds.get("pool_apron", false):
+			back_kind = G_CONCRETE if back_kind == G_LAWN or back_kind == G_DG else back_kind
 	var back_cut: Array[Rect2] = holes.duplicate()
 	if pool.size.x > 0.0:
 		back_cut.append(pool)
 		pieces.append([pool, G_POOL, 0.0, "pool"])
+		# A suburban pool sits in the lawn on a concrete deck of its own.
+		if odds.get("pool_apron", false) and back_kind == G_LAWN:
+			var apron := pool.grow(1.2).intersection(bzone)
+			for r: Rect2 in LotFill._minus(apron, back_cut, 0.0):
+				pieces.append([r, G_CONCRETE, 0.15, "apron"])
+			back_cut.append(apron)
 	for r: Rect2 in LotFill._minus(bzone, back_cut, 0.0):
 		pieces.append([r, back_kind, _h01([plan.seed, key, "thirst"]) * 0.8, "back"])
 	for sz: Rect2 in [_fr(f, 0.0, bv0, bu0, bv1), _fr(f, bu1, bv0, U, bv1)]:
@@ -609,7 +709,7 @@ static func _beach_lot(plan: CityPlan, grid: Dictionary, e: Dictionary, walk: Re
 	for r: Rect2 in LotFill._minus(bbox, holes, 0.0):
 		pieces.append([r, court_kind, 0.2, "court"])
 	return {"lot": lot, "cell": yard, "full_cell": cell, "frame": f, "parts": parts, "front": bv0, "back": bv1,
-		"house_u": Vector2(bu0, bu1), "pieces": pieces, "drive": drive, "walk_front": walk_front}
+		"house_u": Vector2(bu0, bu1), "pieces": pieces, "drive": drive, "walk_front": walk_front, "odds": odds}
 
 
 # --- Beach town: the build ------------------------------------------------------------------------------
@@ -622,9 +722,18 @@ static func _build_beach(ch: CityChunk, bp: Dictionary) -> void:
 		var vk := G_BRICK if _h01([ch.plan.seed, ch.ix, ch.iz, "walk_kind"]) < 0.4 else G_CONCRETE
 		# The path; the gardens of the houses along it run up to its edges.
 		_ground(ch, walk_path, vk, 0.5)
+	# In the suburbs the block's lawn (and its blades) is the lawn: the yard lays the rest a little
+	# higher (clear of the lawn slab's top) and keeps the blades off it.
+	var suburb: bool = bp.get("suburb", false)
 	for lp: Dictionary in bp.lots:
 		for pc: Array in lp.pieces:
-			_ground(ch, pc[0], pc[1], pc[2])
+			if suburb:
+				if pc[1] == G_LAWN:
+					continue
+				_ground(ch, pc[0], pc[1], pc[2], PATH_LIFT)
+				ch._lot_rects.append(pc[0])
+			else:
+				_ground(ch, pc[0], pc[1], pc[2])
 	# What a landmark's square left: the beach car parks behind the sand, pocket parks.
 	var k := 0
 	for d: Array in bp.dropped:
@@ -753,9 +862,10 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 	var timber: Color = TIMBERS[absi(hash([plan.seed, key, "timber"])) % TIMBERS.size()]
 	# The street line (or the walk street's edge): a low wall, pickets or a hedge, open at the drive
 	# and the front walk; a walk-street garden always has a low wall or pickets, with a gate.
+	var odds: Dictionary = lp.get("odds", BEACH)
 	var roll := _h01([plan.seed, key, "edge"])
 	if lp.walk_front:
-		roll = roll * EDGE_PICKET
+		roll = roll * float(odds.edge_picket)
 	var openings: Array[Vector2] = []
 	if drive.size.x > 0.0:
 		var dq := _to_frame(f, drive)
@@ -764,15 +874,15 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 		if pc[3] == "path":
 			var pq := _to_frame(f, pc[0])
 			openings.append(Vector2(pq.position.x - 0.05, pq.end.x + 0.05))
-	if fd >= 1.0 and roll < EDGE_HEDGE:
+	if fd >= 1.0 and roll < float(odds.edge_hedge):
 		for span: Vector2 in _spans(0.25, U - 0.25, openings):
-			if roll < EDGE_WALL:
+			if roll < float(odds.edge_wall):
 				# Lower along a walk street, where the gardens are the street.
 				var h := lerpf(LOW_WALL.x, LOW_WALL.y, _h01([plan.seed, key, "wall_h"])) * (0.75 if lp.walk_front else 1.0)
 				_wall_run(ch, f, Vector2(span.x, 0.15), Vector2(span.y, 0.15), h, 0.24, W_STUCCO, paint)
 				# A cap course a hair wider, in the trim colour.
 				_wall_run(ch, f, Vector2(span.x, 0.15), Vector2(span.y, 0.15), 0.07, 0.3, W_STUCCO, paint.lightened(0.25), h)
-			elif roll < EDGE_PICKET:
+			elif roll < float(odds.edge_picket):
 				_wall_run(ch, f, Vector2(span.x, 0.2), Vector2(span.y, 0.2), PICKET_HEIGHT, 0.04, W_PICKET, PICKET_WHITE)
 				_posts(ch, f, span, 0.2, PICKET_HEIGHT + 0.08, 1.8, PICKET_WHITE)
 			else:
@@ -783,7 +893,7 @@ static func _dress_beach_lot(ch: CityChunk, lp: Dictionary, grid: Dictionary, co
 	# the block's edge (a corner lot's side street: a taller stucco wall). Not toward the freeway's
 	# right of way, which builds its own sound wall.
 	var full_cell: Rect2 = lp.full_cell
-	var stucco_fence := _h01([plan.seed, key, "fence"]) < FENCE_STUCCO
+	var stucco_fence := _h01([plan.seed, key, "fence"]) < float(odds.fence_stucco)
 	var ci := cell_index(grid, full_cell.get_center())
 	for edge in 4:
 		# 0 -Z, 1 +Z, 2 -X, 3 +X of the full cell.
