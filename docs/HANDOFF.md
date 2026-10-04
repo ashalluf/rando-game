@@ -5652,8 +5652,9 @@ on a person in crowd-life's stills; make real headwear that fits each rig. CLAUD
 clip's first frame. The crowd rigs' heads sit at different heights over that bone: on most of
 them the cap's peak came out at eye level with the crown pushed back on the skull, the police cap
 floated a few centimetres over the head, and the cap kept its hair cards on, which stood out
-through it. Stills (not committed, the session's scratchpad `caps/`): `before2/` (the same framings as
-`after5/` and `after4/street_*`, drawn with the old code pasted into a scratch copy of crowd_lineup).
+through it. Stills (not committed, the session's scratchpad `caps/`): `before2/close_*.png` (the same
+framings as `after5/close_*.png`, drawn with the old code pasted into a scratch copy of
+crowd_lineup) and `before/lineup_street.png` (the old hats at street range).
 
 **The fit.** `tools/crowd/hat_fit.gd` (opengl3 under Xvfb; it needs mesh data) skins each crowd
 rig's Body and Hair at rest into the HEAD FRAME (metres, skeleton axes, origin at the Head bone's
@@ -5715,14 +5716,20 @@ mark (~60 at most).
 every hair vertex under the crown moved inside the hat's inner surface, easing out over 3.5 cm
 below the band so the hair comes out from under it at the back and sides; a strand more than
 2.6-4 cm off the scalp left alone (crowd_d's ponytail goes out through the cap's opening); the
-triangles left wholly inside dropped (crowd_d's 3,830 hair triangles are 2,519 under the cap,
-crowd_i's 3,829 are 1,801); the importer's hair LODs kept, less the same triangles. A fringe
+triangles left wholly inside dropped (crowd_d's 3,830 hair triangles are 2,250 under the cap,
+crowd_i's 3,829 are 1,565, crowd_k's 3,831 are 3,193); the importer's hair LODs kept, less the same triangles. A fringe
 (a hair card that starts under the crown and hangs in front of the face) is dropped whole, as if
 tucked up under the hat. Three other ways were tried and each was worse: pressed only where it
 was under the hat it bunched into a dark slab over one eye, laid flat on the skin it was an eye
 patch, and slid in whole (by the most any of its vertices stood out of the hat) it still poked
 out through the front of the crown and hung over an eye. Dropped, the scalp painted under it can
-show as a soft smudge of the hair colour on the forehead, which reads as hair under the band. No mesh data (the headless check) hides the
+show as a soft smudge of the hair colour on the forehead, which reads as hair under the band
+(`caps/after5/close_front.png`: crowd_h and crowd_c, over one brow). A "card" is a connected piece
+of the hair mesh, and on four rigs (crowd_c, g, h, l: short crops) the whole scalp of hair is one
+piece that reaches both under the crown and down the forehead, so under any hat it all goes and
+the painted scalp is the hair at the back and sides (it reads as a short crop from behind,
+`after5/close_back.png`); the rigs with separate cards (b, d, e, f, i, k) keep theirs below the
+band. crowd_a and crowd_j have no scalp hair, only brows. No mesh data (the headless check) hides the
 cards as before; a rig whose hair is too thick to press can be marked `"hide"` by the tool (none
 is: crowd_e's natural hair is ~2 cm and presses).
 
@@ -5747,7 +5754,7 @@ the triangles inside the hat dropped. Memory: ~3 MB of hat meshes, ~6 MB of pres
 
 **Judged** (opengl3 lineups, `crowd_lineup.gd HATS=...`, and one Forward+ lavapipe lineup):
 `after5/close_*.png` (four kinds at 1.4-1.9 m: 3/4, front, profile, back, from below),
-`after4/street_*.png` (eight people at 6 and 16 m), `fwd/close_*.png` (Forward+); pairs in
+`after5/street_*.png` (eight people at 6 and 16 m), `fwd/close_*.png` (Forward+); pairs in
 `pairs/`. At street range a cap is a cap - crown down on the forehead, the bill's curve and the
 button read - and a beanie a beanie; up close the seams, the bill's stitching, the knit and the
 rib read, the hair comes out under the band. Not seen on the owner's Mac.
@@ -5763,7 +5770,11 @@ skin there (they now take the crown's columns: the report's last two contacts).
 
 **Not done / next:** the hats cast no shadow (the brief's rule): the brim does not shade the
 eyes, which is now the biggest tell left up close - a SHADOWS_ONLY twin of the bill within ~15 m
-would cost one shadow draw per near wearer; the cards of very thick hair would need `"hide"` (no rig has it); hats never come off (shot or
+would cost one shadow draw per near wearer; a dropped fringe leaves the painted scalp as a dark
+smudge over a brow on crowd_h and crowd_c (the character shader could fade the hair region under
+a hat's front edge, or the brim's shadow would hide it); a one-piece head of hair (c, g, h, l)
+goes whole - splitting a piece by region (drop the part in front of the face below the band,
+press the rest) would keep their hair at the back and sides; the cards of very thick hair would need `"hide"` (no rig has it); hats never come off (shot or
 blasted off, a cap could be debris); the warm could run on worker threads during the city build
 instead of adding ~0.8 s; no cap is worn backwards or tilted; the bucket hat's brim does not
 droop with the wind. Rerun `tools/crowd/hat_fit.gd` whenever a crowd rig is rebuilt.
