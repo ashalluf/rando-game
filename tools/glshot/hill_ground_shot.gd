@@ -17,8 +17,8 @@ extends Node
 ## GROUND=1 adds the horizon plane (CityStreamer's own material and bake) so the seam between the
 ## tiles and the far ground can be judged without the city (small enough for lavapipe), HILLS_ONLY=1
 ## builds only the hill blocks of the ring, PAINT_AB=1 saves each frame again with the plane all lit
-## and all painted (_lit, _painted: its paint_gain), MASKS=1 saves it again without the plane and
-## without the chunks (_noground, _nochunks: which pixel is which tier), NOFOG=1 turns the scene's
+## and all painted (_lit, _painted: its paint_gain), MASKS=1 saves it again without the plane,
+## without the chunks and without either (_noground, _nochunks, _none: which pixel is which tier), NOFOG=1 turns the scene's
 ## fog off (DayNight is not here to set it), NOSHELLS=1 hides
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
@@ -172,6 +172,11 @@ func _ready() -> void:
 			for i in 3:
 				await get_tree().process_frame
 			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_nochunks.png")
+			ground.visible = false
+			for i in 3:
+				await get_tree().process_frame
+			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_none.png")
+			ground.visible = true
 			for ch: Node3D in built.values():
 				ch.visible = true
 			for i in 3:
