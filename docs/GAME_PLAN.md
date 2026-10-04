@@ -303,7 +303,7 @@ already mapped so milestone 2 is script-only.
   The hair is pressed under the hat instead of hidden, so it shows below the band. Code, not
   Blender: the fit has to be per rig and is measured from the rig, which a modelled .glb per rig
   and kind (48 files to rebuild with every crowd change) would not be. Cost: ~0.8 s more on the
-  loading screen here (the hats and the pressed hair for 12 rigs, built once). See HANDOFF 9bf.
+  loading screen here (the hats and the pressed hair for 12 rigs, built once). See HANDOFF 9bg.
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
   (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed

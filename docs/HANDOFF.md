@@ -5492,7 +5492,7 @@ level the far city is mostly hidden: 0.5 % of pixels move.
   geo_count shadow lines above are what it costs at these three views.
 
 
-## 9bf. Real headwear, fitted to each head, 2026-10-04 (agent branch `worktree-agent-a4d942dcfd8aa9ccb`; GAME_PLAN G5)
+## 9bg. Real headwear, fitted to each head, 2026-10-04 (agent branch `worktree-agent-a4d942dcfd8aa9ccb`; GAME_PLAN G5)
 
 The brief (lead): the crowd's caps and beanies read as plastic bowls perched on the crown - a
 smooth half-dome with a thin flat peak in flat saturated blue / green - the most toy-like thing
