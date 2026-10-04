@@ -39,7 +39,7 @@ extends RefCounted
 ## buildings): 548 instances, six codes each, up to 2^20 - 1, under a node offset like Skyline's.
 
 ## The coded far boxes on (CityChunk's LOD path); off draws the old shaded boxes.
-static var enabled: bool = false
+static var enabled: bool = true
 ## Codes ride in the off-diagonals as code * CODE_SCALE.
 const CODE_SCALE := 1.0 / 268435456.0
 ## INSTANCE_CUSTOM.a of a coded part, and of a roof plant box (building_lod.gdshader).
