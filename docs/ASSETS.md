@@ -540,6 +540,30 @@ side ("left/right" below), or by the loop against itself half a turn later (bird
 | PassingCar01.wav (Pingel) | https://freesound.org/s/3179/ | CC0 1.0 | `car_pass_3` 3.45-6.25 s | 2026-09-24 |
 | Passing Car (Wet road) (Breviceps) | https://freesound.org/s/462862/ | CC0 1.0 | `car_pass_wet_0` 1.40-4.20 s | 2026-09-24 |
 
+## City birds (our own code and painter; public-domain recordings)
+
+The birds (`scripts/world/birds.gd`, VISUAL_ROADMAP #47) are built in code by
+`scripts/world/bird_mesh.gd` (lofted bodies, feather cards, legs, eyes at real size; no external
+model) and wear plumage atlases painted procedurally by `tools/birds/make_bird_textures.py`
+(original art, no source photos): `assets/textures/birds/<pigeon|gull|crow|sparrow>_albedo.png`,
+`_normal.png`, `_mask.png`, 1024 px. Added 2026-10-04.
+
+Sounds: freesound.org is blocked from the build box, so these come from field recordings their
+recordists released into the public domain (radio aporee ::: maps uploads on archive.org, each
+item's licence the Creative Commons Public Domain Mark 1.0) and one public-domain Wikimedia
+Commons file. Cut, filtered, peak-normalised mono OGGs; loudest-50 ms levels in
+`Sfx.SAMPLE_LOUDNESS_DB`.
+
+| Recording (author) | Source URL | License | Clips (span used, s) | Added |
+|---|---|---|---|---|
+| Saint-Gilles - Pigeons on the balcony (Flavien Gillié) | https://archive.org/details/aporee_18918_82147 | Public Domain Mark 1.0 | `pigeon_coo_0` 67.35-69.00; `pigeon_coo_1` 43.70-45.65; `pigeon_coo_2` 106.60-108.75; `pigeon_coo_3` 118.70-121.30; `wings_0` 502.62-504.05; `wings_1` 387.10-388.75; `wings_2` 60.60-63.00 | 2026-10-04 |
+| Heraklion, Ekteleseos Martiron square - pigeons (maciej janasik) | https://archive.org/details/aporee_15173_17699 | Public Domain Mark 1.0 | `wings_3` 147.55-149.05 | 2026-10-04 |
+| Chediston Hall Farm - loud crows (Peter Cusack) | https://archive.org/details/aporee_64966_75047 | Public Domain Mark 1.0 | `crow_0` 9.79-11.79; `crow_1` 31.90-34.55 | 2026-10-04 |
+| Crows roost by the River Oker, Braunschweig (Peter Cusack) | https://archive.org/details/aporee_60107_69041 | Public Domain Mark 1.0 | `crow_2` 60.40-62.70 | 2026-10-04 |
+| File:American Crow.ogg (G McGrane) | https://commons.wikimedia.org/wiki/File:American_Crow.ogg | Public domain | `crow_3` 2.15-3.85 | 2026-10-04 |
+| Rue Keyenveld - Sparrows (Flavien Gillié) | https://archive.org/details/aporee_71526_83445 | Public Domain Mark 1.0 | `sparrow_0` 3.85-5.90; `sparrow_1` 8.95-10.95 | 2026-10-04 |
+| Seagull Chatter, The Hague (Thijs Geritz) | https://archive.org/details/aporee_10517_42365 | Public Domain Mark 1.0 | `gull_close_0` 60.55-62.60; `gull_close_1` 105.20-107.80 | 2026-10-04 |
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |

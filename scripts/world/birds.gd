@@ -47,8 +47,8 @@ const PIGEON_MORPHS := [
 @export var spawn_radius: float = 130.0
 @export var despawn_margin: float = 50.0
 ## Birds alive at once at most (desktop / web); Quality takes this down at LOW and LOWEST.
-@export var max_birds: int = 300
-@export var web_max_birds: int = 110
+@export var max_birds: int = 220
+@export var web_max_birds: int = 80
 ## Seconds between surveys of the ground round the player (real clock).
 @export var survey_interval: float = 0.8
 ## Nothing is drawn past this (m); birds past the mid distance get the far mesh.
@@ -70,6 +70,8 @@ const PIGEON_MORPHS := [
 @export var enabled: bool = true
 
 static var _live: Birds = null
+## Set by stage_for_shot(): the player (whom a free still camera drags along) flushes nothing.
+var shot_calm := false
 ## Counted for the checks: takeoffs and kills since the scene started.
 static var flushes: int = 0
 static var kills: int = 0
@@ -81,13 +83,12 @@ var _survey_left := 0.0
 var _rng := RandomNumberGenerator.new()
 var _blast_seen := 0
 var _mm: Dictionary = {} # "species:lod" -> MultiMeshInstance3D
-var _buf: Dictionary = {} # "species:lod" -> PackedFloat32Array being filled
-var _count: Dictionary = {} # "species:lod" -> int
-var _bounds: Dictionary = {} # "species:lod" -> AABB
 var _frame := 0
 var _cap := 300
 var _dead: Array = [] # Bird corpses and falling birds, outside any flock
 var _web := false
+var _car_shape: SphereShape3D
+var _car_query: PhysicsShapeQueryParameters3D
 
 
 class Bird:
@@ -587,10 +588,14 @@ func _tick_flock(f: Flock, dt: float, eye: Vector3) -> void:
 	var k: Dictionary = KINDS[f.species]
 	var to_eye := eye - (f.center if f.state == FlockState.AIR else f.home)
 	var dist := to_eye.length()
-	# Far flocks on the ground tick at a quarter rate (they are a few pixels, barely moving).
-	if f.state != FlockState.AIR and dist > 60.0 and (_frame + f.id) % 4 != 0:
+	# A flock on the ground moves a few centimetres a frame: past 20 m it ticks every other
+	# frame, past 60 m every fourth (a few pixels, barely moving), with the time it skipped.
+	var rate := 1
+	if f.state != FlockState.AIR:
+		rate = 1 if dist < 20.0 else (2 if dist < 60.0 else 4)
+	if (_frame + f.id) % rate != 0:
 		return
-	var step := dt if f.state == FlockState.AIR or dist <= 60.0 else dt * 4.0
+	var step := dt * float(rate)
 	match f.state:
 		FlockState.GROUND, FlockState.PERCHED:
 			_threats(f, step, eye, k)
@@ -609,6 +614,8 @@ func _threats(f: Flock, dt: float, eye: Vector3, k: Dictionary) -> void:
 	var pv: Vector3 = _player.get("velocity") if _player.get("velocity") != null else Vector3.ZERO
 	var speed := pv.length()
 	var reach: float = float(k.flush) + speed * float(k.flush_speed)
+	if shot_calm:
+		reach = -1.0
 	if f.state == FlockState.PERCHED:
 		reach = maxf(reach * 0.7, 2.5)
 	for b: Bird in f.birds:
@@ -624,13 +631,15 @@ func _car_check(f: Flock) -> void:
 	var space := get_world_3d().direct_space_state
 	if space == null:
 		return
-	var shape := SphereShape3D.new()
-	shape.radius = f.radius + 4.5
-	var q := PhysicsShapeQueryParameters3D.new()
-	q.shape = shape
+	if _car_shape == null:
+		_car_shape = SphereShape3D.new()
+		_car_query = PhysicsShapeQueryParameters3D.new()
+		_car_query.collision_mask = 4
+		_car_query.collide_with_areas = false
+	_car_shape.radius = f.radius + 4.5
+	var q := _car_query
+	q.shape = _car_shape
 	q.transform = Transform3D(Basis(), to_global(f.home))
-	q.collision_mask = 4
-	q.collide_with_areas = false
 	var now := Time.get_ticks_msec()
 	var seen := {}
 	for r in space.intersect_shape(q, 8):
@@ -790,7 +799,7 @@ func _ground_flock(f: Flock, dt: float, eye: Vector3, k: Dictionary) -> void:
 					b.pos += sep / dd * (min_sep - dd) * 0.5
 		b.pos.y = lerpf(b.pos.y, b.gy, minf(dt * 10.0, 1.0))
 	# One bird a frame checks the ground under it; a bench or a wall turns it back home.
-	if n > 0 and f.state == FlockState.GROUND and eye.distance_to(f.home) < 70.0:
+	if n > 0 and f.state == FlockState.GROUND and eye.distance_to(f.home) < 70.0 and (_frame + f.id) % 3 == 0:
 		var b: Bird = f.birds[_frame % n]
 		if b.mode != Mode.DEAD:
 			var y := _ground_at(Vector3(b.pos.x, f.ground_y, b.pos.z), 0.45)
@@ -1233,65 +1242,83 @@ func _feathers(at: Vector3, sp: String) -> void:
 func _draw() -> void:
 	var cam := get_viewport().get_camera_3d()
 	var eye := to_local(cam.global_position) if cam else _player_local()
+	# Sort the birds into species x LOD lists first, then write each MultiMesh's buffer in one
+	# pass by index (appending to a packed array held in a dictionary copies it every time).
+	var lists: Dictionary = {}
 	for key: String in _mm:
-		_buf[key] = PackedFloat32Array()
-		_count[key] = 0
-		_bounds[key] = AABB()
+		lists[key] = []
 	for f: Flock in _flocks.values():
 		var k: Dictionary = KINDS[f.species]
+		var near: float = k.near
+		var mid: float = k.mid
+		var keys: Array = _keys_for(f.species)
 		for b: Bird in f.birds:
-			_put(f.species, k, b, eye)
+			var d := b.pos.distance_to(eye)
+			if d < draw_distance:
+				(lists[keys[0 if d < near else (1 if d < mid else 2)]] as Array).append(b)
 	for b: Bird in _dead:
-		_put(b.species, KINDS[b.species], b, eye)
+		var k: Dictionary = KINDS[b.species]
+		var d := b.pos.distance_to(eye)
+		if d < draw_distance:
+			var keys: Array = _keys_for(b.species)
+			(lists[keys[0 if d < float(k.near) else (1 if d < float(k.mid) else 2)]] as Array).append(b)
 	for key: String in _mm:
 		var mmi: MultiMeshInstance3D = _mm[key]
 		var mm := mmi.multimesh
-		var n: int = _count[key]
-		var buf: PackedFloat32Array = _buf[key]
+		var birds: Array = lists[key]
+		var n := birds.size()
 		if n == 0:
-			mm.visible_instance_count = 0
-			mmi.visible = false
+			if mmi.visible:
+				mm.visible_instance_count = 0
+				mmi.visible = false
 			continue
 		if mm.instance_count < n:
 			mm.instance_count = 0
 			mm.instance_count = int(ceil(float(n) / 16.0)) * 16
-		var cap := mm.instance_count
-		if buf.size() < cap * 20:
-			var pad := PackedFloat32Array()
-			pad.resize(cap * 20 - buf.size())
-			buf.append_array(pad)
+		var buf := PackedFloat32Array()
+		buf.resize(mm.instance_count * 20)
+		var lo := Vector3(INF, INF, INF)
+		var hi := -lo
+		var i := 0
+		for b: Bird in birds:
+			var basis := Basis.from_euler(Vector3(b.pitch, b.yaw, b.roll if b.mode == Mode.DEAD else b.bank), EULER_ORDER_YXZ)
+			var sc := b.scale
+			var o := b.pos
+			buf[i] = basis.x.x * sc
+			buf[i + 1] = basis.y.x * sc
+			buf[i + 2] = basis.z.x * sc
+			buf[i + 3] = o.x
+			buf[i + 4] = basis.x.y * sc
+			buf[i + 5] = basis.y.y * sc
+			buf[i + 6] = basis.z.y * sc
+			buf[i + 7] = o.y
+			buf[i + 8] = basis.x.z * sc
+			buf[i + 9] = basis.y.z * sc
+			buf[i + 10] = basis.z.z * sc
+			buf[i + 11] = o.z
+			buf[i + 12] = b.tint.r
+			buf[i + 13] = b.tint.g
+			buf[i + 14] = b.tint.b
+			buf[i + 15] = b.amp
+			buf[i + 16] = b.spread
+			buf[i + 17] = b.phase
+			buf[i + 18] = b.peck
+			buf[i + 19] = b.walk
+			i += 20
+			lo = lo.min(o)
+			hi = hi.max(o)
 		mm.buffer = buf
 		mm.visible_instance_count = n
-		var bb: AABB = _bounds[key]
-		mmi.custom_aabb = bb.grow(1.0)
+		mmi.custom_aabb = AABB(lo, hi - lo).grow(1.0)
 		mmi.visible = true
 
 
-func _put(sp: String, k: Dictionary, b: Bird, eye: Vector3) -> void:
-	var d := b.pos.distance_to(eye)
-	if d > draw_distance:
-		return
-	var lod := 0 if d < float(k.near) else (1 if d < float(k.mid) else 2)
-	var key := "%s:%d" % [sp, lod]
-	var basis := Basis.from_euler(Vector3(b.pitch, b.yaw, b.bank), EULER_ORDER_YXZ)
-	if b.mode == Mode.DEAD:
-		basis = Basis.from_euler(Vector3(b.pitch, b.yaw, b.roll), EULER_ORDER_YXZ)
-	basis = basis.scaled(Vector3.ONE * b.scale)
-	var buf: PackedFloat32Array = _buf[key]
-	var o := b.pos
-	buf.append_array([basis.x.x, basis.y.x, basis.z.x, o.x,
-		basis.x.y, basis.y.y, basis.z.y, o.y,
-		basis.x.z, basis.y.z, basis.z.z, o.z,
-		b.tint.r, b.tint.g, b.tint.b, b.amp,
-		b.spread, b.phase, b.peck, b.walk])
-	_buf[key] = buf
-	_count[key] = int(_count[key]) + 1
-	var bb: AABB = _bounds[key]
-	if int(_count[key]) == 1:
-		bb = AABB(o, Vector3.ZERO)
-	else:
-		bb = bb.expand(o)
-	_bounds[key] = bb
+var _key_cache: Dictionary = {}
+
+func _keys_for(sp: String) -> Array:
+	if not _key_cache.has(sp):
+		_key_cache[sp] = ["%s:0" % sp, "%s:1" % sp, "%s:2" % sp]
+	return _key_cache[sp]
 
 
 func _draw_nothing() -> void:
@@ -1373,6 +1400,7 @@ func stage(species: String, at_global: Vector3, count: int, radius: float = 4.0)
 func stage_for_shot(kind: String, cam: Camera3D, dist: float, species: String, count: int, fly: float) -> int:
 	if not _setup():
 		return 0
+	shot_calm = true
 	var fwd := -cam.global_basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized()
