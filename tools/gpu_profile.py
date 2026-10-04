@@ -16,7 +16,7 @@ for line in sys.stdin:
     if "GPU_PROFILE_END" in line:
         inside = False
         continue
-    if line.startswith("GEO ") or line.startswith("MEM "):
+    if line.startswith("GEO ") or line.startswith("MEM ") or line.startswith("LIGHTS "):
         geo += line + "\n"
     if not inside:
         continue

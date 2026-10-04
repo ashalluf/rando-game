@@ -187,6 +187,11 @@ var lamp_scale: float = 1.0
 ## The lamp level last published as the `lamp_factor` global, for scripts (CarLights): reading a
 ## global shader parameter back from the RenderingServer stalls on the render thread.
 static var lamp_now: float = 0.0
+## Hides the lamp lights while they are at zero (by day, and at every level where Quality zeroes
+## lamp_scale). A light at zero energy still goes into Forward+'s clusters and every pixel near it
+## still runs its attenuation; hidden, the renderer culls it. False is the A/B (gpu_profile.gd
+## LAMPS_AT_ZERO=1).
+static var hide_dark_lamps: bool = true
 var _lamp_level: float = -1.0
 var _lamp_timer: float = 0.0
 ## The sky's horizon colour this frame, published as the `sky_tint` shader global.
@@ -432,8 +437,12 @@ func _apply() -> void:
 	if _lamp_timer <= 0.0 or absf(want - _lamp_level) > 0.04:
 		_lamp_timer = 0.35
 		_lamp_level = want
+		var lit := want > 0.001 or not hide_dark_lamps
 		for light in get_tree().get_nodes_in_group("lamp_light"):
-			(light as OmniLight3D).light_energy = want
+			var l := light as OmniLight3D
+			l.light_energy = want
+			if l.visible != lit:
+				l.visible = lit
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)
 	RenderingServer.global_shader_parameter_set("lamp_factor", lamp_factor)
 	lamp_now = lamp_factor
