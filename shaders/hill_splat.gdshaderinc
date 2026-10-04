@@ -5,7 +5,9 @@
 // every clump of brush on a painted stand. HillPlanting (scripts/world/hill_planting.gd) is the
 // same maths on the CPU and plants the shrubs and oaks by it; the smoke test reads the numbers
 // below back out of this file and checks they still match HillPlanting.MIRRORED.
-// macro_ground.gdshader keeps its own copy for the band where it meets the tiles (`tile_*`).
+// macro_ground.gdshader (the horizon plane) includes it too: the far ground is this same field with
+// the octaves it cannot resolve at their means, so a range wears the same ground on both sides
+// of the streamed tiles' edge. Change a number here and every hill surface follows.
 //
 // Everything takes TRUE world XZ (`world_pos.xz + world_offset`). Colours are LINEAR.
 // Shader includes use // comments, like any shader file.
@@ -18,6 +20,19 @@ uniform vec3 chaparral_color = vec3(0.050, 0.056, 0.036);
 // The sage and buckwheat dotted through the grass: grey-green and paler than the chaparral
 // (LINEAR). Painted in the chaparral's colour they were dark polka dots across the straw.
 uniform vec3 sage_color = vec3(0.082, 0.086, 0.064);
+// Decomposed granite and dirt on the cuts and trails, and rock outcrops, buff sandstone going grey
+// (LINEAR albedos; terrain.gdshader carries the textures' grain on them).
+uniform vec3 dirt_color = vec3(0.150, 0.126, 0.094);
+uniform vec3 rock_color = vec3(0.112, 0.106, 0.096);
+// Snow above `snow_line` metres (the back range's tops), off the near-vertical faces.
+uniform vec3 snow_color = vec3(0.58, 0.60, 0.66);
+uniform float snow_line = 1150.0;
+// How much darker a canyon's floor is than the slopes, and how much lighter the spur crests:
+// the brush is densest and tallest down there and the light gets in least. It draws the
+// drainage network at every distance, even front-lit at noon when the slopes shade flat.
+uniform float drain_shade : hint_range(0.0, 1.0) = 0.3;
+// Brightness swing between one hillside and the next, so a range is never one tile.
+uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
 // How much of the ground is chaparral, and how much more of it the north-facing slopes carry.
 // Chaparral is the hills' DOMINANT cover (the grass is the exception, on gentle south slopes).
 uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.8;

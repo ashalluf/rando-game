@@ -106,62 +106,38 @@ uniform float cloud_height = 900.0;
 uniform float cloud_speed = 7.0;
 
 // ---- natural ground -------------------------------------------------------------------------
-// These are LINEAR albedos, in PLAIN uniforms (no source_color): the shader works in linear on
-// both renderers (color_space.gdshaderinc) - the baked map's sRGB palette is decoded with cs_in()
-// - and hands the renderer its own space at the end. Until 2026-10-04 they carried source_color,
-// so Forward+ decoded the linear numbers a second time (0.150 straw arrived as 0.020) and the far
-// mountains drew near-black olive on the Mac against the near hills' straw, while Compatibility,
-// which decodes nothing, looked fine in every opengl3 still (HANDOFF 9ap).
-uniform vec3 rock_color = vec3(0.100, 0.096, 0.088);
-uniform vec3 scree_color = vec3(0.150, 0.130, 0.100);
-uniform vec3 scrub_color = vec3(0.042, 0.047, 0.029);
-uniform vec3 dry_grass_color = vec3(0.138, 0.117, 0.068);
-// The grass above is the near hills' own (terrain.gdshader's straw, averaged over its tufts and
-// bare ground) so the plane matches the streamed tiles where the renderer lights both; the
-// painted band beyond keeps the darker look it was tuned to by this much.
-uniform float paint_gain : hint_range(0.3, 1.0) = 0.66;
+// The hills' ground is hill_splat.gdshaderinc's, included below - the near tiles' own field and
+// colours (straw_color, chaparral_color, dirt_color, rock_color, snow_color, the stand rule), with
+// the octaves a far pixel cannot resolve at their means - so there is nothing here to keep equal
+// to the terrain any more: it is the same uniform. Its colours are LINEAR albedos in plain
+// uniforms, and this shader works in linear on both renderers (color_space.gdshaderinc): the
+// bake's sRGB palette through cs_in(), the renderer's own space at the end through cs_out().
+// Until 2026-10-04 this plane kept copies of those colours AS source_color uniforms, so Forward+
+// decoded the linear numbers a second time (0.150 straw arrived as 0.020) and the far mountains
+// drew near-black olive on the Mac against the near hills' straw, while Compatibility, which
+// decodes nothing, looked right in every opengl3 still (HANDOFF 9ap).
+//
+// The painted band's light is this shader's own (sun_strength and the fill above); this scales
+// its albedo so the band past paint_end comes out as bright as the renderer lights the band
+// before paint_start (measured on Forward+ with paint_debug, HANDOFF 9ap).
+uniform float paint_gain : hint_range(0.3, 1.5) = 0.66;
 // Metres (from the camera) over which the plane hands from lit by the renderer, like the
 // streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
 // edge lit two different ways: at 200 - 600 m the hand-over fell inside it, and from the air the
 // plane's hills were a dark brown shell against the tan streamed tiles, cut along their edges.
 uniform float paint_start = 900.0;
 uniform float paint_end = 2300.0;
-// terrain.gdshader's own numbers, for the band where this plane meets the streamed hill tiles
-// and draws their stands, straw and slopes rather than a smoothed average of them (see
-// `stands` in the natural ground): keep them equal to the terrain's.
-uniform vec3 straw_color = vec3(0.150, 0.124, 0.074);
-uniform vec3 straw_green_color = vec3(0.106, 0.100, 0.064);
-uniform float topo_weight : hint_range(0.0, 1.0) = 0.8;
-uniform float tile_dirt_slope_start = 0.42;
-uniform float tile_dirt_slope_end = 0.62;
-uniform float tile_rock_slope_start = 0.5;
-uniform float tile_rock_slope_end = 0.72;
-uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
-uniform vec3 snow_color = vec3(0.58, 0.60, 0.66);
+// Debug: -1 as drawn; 0 the whole plane lit by the renderer, 1 the whole plane painted - the same
+// pixel both ways is how paint_gain is measured.
+uniform int paint_debug = -1;
 // The light the ground in front of a slope bounces back up into it. A hue, not an albedo.
 uniform vec3 bounce_color : source_color = vec3(0.62, 0.52, 0.34);
-// Slope at which bare rock starts and finishes taking over from the scrub.
-uniform float rock_slope_start : hint_range(0.0, 1.0) = 0.24;
-uniform float rock_slope_end : hint_range(0.0, 1.0) = 0.60;
-// How much of a hillside the chaparral covers.
-uniform float scrub_amount : hint_range(0.0, 1.0) = 0.85;
-// How much more of it the north-facing slopes carry, and how much less the south ones: the shaded
-// side of a Californian hill is brush and the sunny side grass (terrain.gdshader's north_brush,
-// which the near hills and their planting use).
-uniform float north_scrub : hint_range(0.0, 0.5) = 0.3;
-// The near hills' stand rule (terrain.gdshader: chaparral_amount, drain_brush, gentle_grass),
-// here as the share of the ground the brush covers rather than stand by stand: the same land -
-// aspect, the baked drainage (MacroMap.bake_height's G), gentle ground - decides it, so a range
-// wears the same brush on both sides of the streamed chunks' edge.
-uniform float chaparral_amount : hint_range(0.0, 1.0) = 0.8;
-uniform float drain_brush : hint_range(0.0, 1.0) = 0.45;
-uniform float south_grass : hint_range(0.0, 1.0) = 0.08;
-uniform float drain_shade : hint_range(0.0, 1.0) = 0.3;
-uniform float gentle_grass : hint_range(0.0, 1.0) = 0.55;
-// How strongly the drainage lines green up and darken the gullies.
+// Out in the painted band, on the full normal (the crags'), the slopes where scree and then bare
+// rock take over: the craggy faces a range shows from kilometres off.
+uniform float far_rock_slope_start : hint_range(0.0, 1.0) = 0.24;
+uniform float far_rock_slope_end : hint_range(0.0, 1.0) = 0.60;
+// How strongly the drainage lines darken and brush up the gullies in the painted band.
 uniform float gully_amount : hint_range(0.0, 1.0) = 0.55;
-// Metres above sea level the snow line sits.
-uniform float snow_line = 1150.0;
 
 // ---- built-up ground --------------------------------------------------------------------------
 // Metres across one city block, which sets the grain of the distant sprawl.
@@ -203,6 +179,14 @@ uniform float sea_glitter : hint_range(0.0, 4.0) = 1.6;
 uniform float sea_swell = 46.0;
 
 #include "res://shaders/erosion.gdshaderinc"
+#include "res://shaders/hill_splat.gdshaderinc"
+
+// The near tiles' chaparral and straw as they average from afar, once their crowns, leaf clumps,
+// tufts and bushes are under a pixel (terrain.gdshader with every fade at 0): the brush at
+// crown_tone 0.875 x leaf 0.95 x clump 0.97 of chaparral_color, the straw with the dirt between
+// its thinnest tufts (bare_between 0.7 of a faded tuft's 0.19).
+const float FAR_CHAP_TONE = 0.806;
+const float FAR_BARE_SHARE = 0.13;
 
 varying vec3 world_pos;
 
@@ -308,12 +292,12 @@ void fragment() {
 	float near = (1.0 - smoothstep(near_fade_start, near_fade_end, dist)) * (1.0 - water);
 	// How much of this point is painted by hand rather than lit by the renderer (see the split
 	// at the bottom).
-	float painted = smoothstep(paint_start, paint_end, dist);
+	float painted = paint_debug < 0 ? smoothstep(paint_start, paint_end, dist) : float(paint_debug);
 
 	// `base` is the unlit surface colour and `lit` the light falling on it. They are kept apart
 	// because this plane is lit two different ways at once: see the ALBEDO/EMISSION split below.
 	vec3 base;
-	// `base` for the painted band: the natural ground at paint_gain (see dry_grass_color).
+	// `base` for the painted band: the natural ground at paint_gain.
 	vec3 base_e;
 	vec3 lit = vec3(1.0);
 	// Light the far city makes itself, which is all there is to see out there after dark.
@@ -378,52 +362,48 @@ void fragment() {
 		base_e = m.rgb;
 		float land = 1.0 - built;
 		if (land > 0.004) {
-			// Chaparral: one dominant scrub patch per hillside rather than an even sprinkle,
-			// over parched grass. Southern California, so gold and olive over grey rock.
-			// The coverage reads the land's own slope, like the tiles do off their mesh: without
-			// the crags and fine gullies, which only exist as shading, and which in the band
-			// beside the tiles made every slope steeper than the tile next to it. Out in the
-			// painted band the full normal, as before.
+			// The near tiles' ground (hill_splat.gdshaderinc), at this world point, read off the land:
+			// grass on the open sunny slopes and the spur crests, chaparral in the folds and on the
+			// north faces, rock along the crests, dirt on the cuts. The coverage reads the land's
+			// own slope, as the tiles do off their mesh - without the crags and fine gullies, which
+			// only exist as shading, and which beside the tiles made every slope steeper than the
+			// tile next to it. Out in the painted band, the full normal: aspect and slope change
+			// from one crag to the next, and that is the mottle a range shows from kilometres off.
 			vec3 nc = normalize(mix(vec3(-mg.x * macro_height, 1.0, -mg.y * macro_height), vec3(-grad.x, 1.0, -grad.y), painted));
-			float cslope = 1.0 - clamp(nc.y, 0.0, 1.0);
-			float north = -nc.z / max(length(nc.xz), 0.001) * smoothstep(0.02, 0.12, cslope);
-			// Chaparral is the dominant cover, the grass the exception: on the gentle sunny ground
-			// and the spur crests. Up close a stand is where a patch noise (sd ~0.1) falls under a
-			// threshold set by the land; averaged over a pixel that is a smooth share of it.
-			float gentle = 1.0 - smoothstep(0.06, 0.22, cslope);
-			float south = max(-north, 0.0);
+			vec2 asp = hill_aspect(nc);
+			float cslope = asp.x;
 			float mdrain = texture(macro_height_tex, uv).g * 2.0 - 1.0;
-			float cover = chaparral_amount + max(north, 0.0) * north_scrub - south * south_grass + mdrain * drain_brush
-				- gentle * gentle_grass + (vnoise(w * 0.0028) - 0.5) * 0.2;
-			// The stands, exactly as terrain.gdshader draws them: its threshold on the same
-			// patch noise at the same world point, so a stand that runs off a streamed tile
-			// carries on across the plane instead of turning into a smooth brown average at the
-			// tile's edge. Each noise that has gone under a few pixels drops to its mean and
-			// widens the edge by what it spread, so far out this is the smooth share again.
-			float hillv = vnoise(w * 0.0028);
-			float patchy = vnoise(w * 0.011) * 0.65 + vnoise(w * 0.037 + vec2(13.1)) * 0.35;
+			// The splat's noises with every octave this pixel cannot resolve at its mean (`f*`: 1
+			// resolved, 0 gone - fp is metres a pixel): the 8 m clumps, the 27 m and 90 m patch
+			// octaves, the 48 m outcrop field. Each one that fades widens the stand's edge by its
+			// share of the spread (hill_stand_edge()), so a stand that runs off a streamed tile
+			// carries on across the plane, its ragged edge turning into a SHARE of brush as the
+			// pixels grow, never into blobs with a hard rim.
 			float f8 = 1.0 - smoothstep(2.0, 6.0, fp);
 			float f30 = 1.0 - smoothstep(8.0, 30.0, fp);
-			// hill_splat.gdshaderinc's hill_stand_noise() with the single bushes and the fine octave
-			// at their average (STAND_PATCH_W 0.2, STAND_MID_W 0.1, STAND_BIAS 0.35) and its
-			// hill_stand_edge() (STAND_BUSH_W 0.4 and STAND_FINE_W 0.3 faded: 0.21 of edge).
-			float frag = mix(0.5, patchy, f30) * 0.2 + mix(0.5, vnoise(w * 0.12 + vec2(17.0)), f8) * 0.1 + 0.35;
-			float th = 0.5 + (cover - 0.5) * topo_weight;
-			float edge = 0.045 + 0.21 + (1.0 - f8) * 0.03 + (1.0 - f30) * 0.07;
-			float stands = smoothstep(th + edge, th - edge, frag);
-			float scrub = mix(stands, smoothstep(0.25, 0.75, cover) * scrub_amount, painted);
-			// The tiles' straw, greener on some hillsides and low down (their `green`).
+			float f90 = 1.0 - smoothstep(25.0, 90.0, fp);
+			float f48 = 1.0 - smoothstep(14.0, 48.0, fp);
+			float hillv = vnoiset(w * 0.0028);
+			float patchy = mix(0.5, vnoiset(w * 0.011), f90) * 0.65 + mix(0.5, vnoiset(w * 0.037 + 13.1), f30) * 0.35;
+			float clump = mix(0.5, vnoiset(w * 0.12 + 17.0), f8);
+			float th = hill_stand_threshold(cslope, asp.y, mdrain, hillv);
+			float edge = hill_stand_edge(0.0, 0.0, f8)
+				+ (1.0 - f30) * STAND_PATCH_W * 0.35 * 0.3 + (1.0 - f90) * STAND_PATCH_W * 0.65 * 0.3;
+			float stands = hill_stand(th, hill_stand_noise(patchy, clump, 0.5, 0.5), 0.5, edge);
+			// The tiles' straw and brush as they average from afar (FAR_*), greener on some
+			// hillsides and low down (their `green`).
 			float greenv = clamp(smoothstep(0.3, 0.75, hillv) * 0.8 + (1.0 - smoothstep(60.0, 260.0, height_m)) * 0.25, 0.0, 1.0);
-			vec3 straw = mix(straw_color, straw_green_color, greenv * 0.8);
-			vec3 nat = mix(mix(straw, dry_grass_color, painted), scrub_color, scrub);
+			vec3 straw = mix(mix(straw_color, straw_green_color, greenv * 0.8), dirt_color, FAR_BARE_SHARE);
+			vec3 chap = chaparral_color * FAR_CHAP_TONE;
+			vec3 nat = mix(straw, chap, stands);
 			// Individual bushes, but only once they are bigger than a couple of pixels.
 			float bush = smoothstep(7.0, 2.0, fp) * smoothstep(0.45, 0.85, vnoise(w * 0.33));
 			// Only in the painted band: the near hills' tiles have no such speckle, and it
 			// darkened the plane where it meets them.
-			nat = mix(nat, scrub_color * 0.8, bush * 0.45 * painted);
+			nat = mix(nat, chap * 0.9, bush * 0.45 * painted);
 			// Drainage. The fractal's LOW values are its valleys, so they are already where the
 			// water would run; streak a noise that is six times longer downhill than across
-			// along the fall line, and green up what it finds.
+			// along the fall line, and brush up what it finds.
 			vec2 fall = normalize(grad + vec2(0.0001, 0.0));
 			vec2 across = vec2(-fall.y, fall.x);
 			float streak = vnoise(vec2(dot(w, fall) * 0.0032, dot(w, across) * 0.021));
@@ -431,34 +411,36 @@ void fragment() {
 			// And the canyons the height field itself was cut with, which hold the densest brush
 			// and the oaks.
 			gully = max(gully, smoothstep(0.35, 0.95, mdrain) * gully_amount * 0.7);
-			// Painted band only, like the bushes: the tiles' canyons come from the same
-			// drainage through the coverage (drain_brush) and drain_shade below, and this on top
-			// counted them twice where the two meet.
-			nat = mix(nat, scrub_color * 0.85, gully * painted);
-			// Rock on the steep faces, with bedding planes picked out by world height, and a
-			// scree fan in the band just below where the rock takes over.
-			// Beside the tiles, their dirt and rock slopes (on the land's own slope); out in the
-			// painted band the steeper, craggier bands this plane was tuned with.
-			float rocky = mix(smoothstep(tile_rock_slope_start, tile_rock_slope_end, cslope),
-				smoothstep(rock_slope_start, rock_slope_end, slope), painted);
+			// Painted band only: the tiles' canyons come from the same drainage through the
+			// stand rule (drain_brush) and drain_shade below, and this on top counted them twice
+			// where the two meet.
+			nat = mix(nat, chap * 0.92, gully * painted);
+			// Dirt and rock: the splat's own rules on the land's slope (the cuts, the scree down
+			// the steep gullies, outcrops breaking through, rock along the spur crests - crest_rock,
+			// broken by the 48 m outcrop field while it resolves, a share of rock past it); out in
+			// the painted band the crags' faces too, scree below and bare rock above.
+			float crag = mix(0.5, vnoiset(w * 0.021 + 29.0), f48);
+			float rocky = max(hill_rocky(cslope, crag, patchy, mdrain, 0.5),
+				smoothstep(far_rock_slope_start, far_rock_slope_end, slope) * painted);
+			float bare = max(hill_bare(cslope, patchy, mdrain, 0.0),
+				smoothstep(far_rock_slope_start * 0.45, far_rock_slope_start, slope) * painted * 0.7) * (1.0 - rocky);
+			nat = mix(nat, dirt_color * (0.82 + 0.36 * vnoise(w * 0.05)), bare);
+			// Bedding picked out by world height, faint: at full strength it drew every range as
+			// a stack of contour lines.
 			float strata = vnoise(vec2(dot(w, across) * 0.006, height_m * 0.055));
-			float scree = mix(smoothstep(tile_dirt_slope_start, tile_dirt_slope_end, cslope),
-				smoothstep(rock_slope_start * 0.45, rock_slope_start, slope), painted) * (1.0 - rocky);
-			nat = mix(nat, scree_color * (0.82 + 0.36 * vnoise(w * 0.05)), scree * 0.7);
-			// Faint: bedding picked out by height at full strength drew every range as a stack
-			// of contour lines.
 			nat = mix(nat, rock_color * (0.88 + 0.24 * strata), rocky);
 			// Snow above the treeline, and not on the near-vertical faces, where it slides off.
 			float snow = smoothstep(snow_line, snow_line + 270.0, height_m)
 				* (1.0 - smoothstep(0.45, 0.8, slope));
 			nat = mix(nat, snow_color, snow);
-			// Keep some of the baked map's own colour so beaches, the port apron and the
-			// district tints still show through rather than every flat becoming the same gold.
-			// Dark canyons, lighter spur crests (terrain.gdshader's drain_shade and erosion_shade).
+			// Dark canyons, lighter spur crests (the splat's drain_shade, terrain.gdshader's
+			// erosion_shade).
 			nat *= mix(1.0, 1.0 - drain_shade, smoothstep(0.15, 0.9, mdrain)) * (1.0 + drain_shade * 0.3 * smoothstep(0.2, 0.8, -mdrain));
 			nat *= 1.0 - 0.2 * clamp(ero.z, -0.5, 1.0);
 			// And the tiles' hillside-scale variation, so no two slopes are one flat tone.
 			nat *= 1.0 + (hillv - 0.5) * 2.0 * macro_variation + (patchy - 0.5) * macro_variation * 0.6;
+			// Keep some of the baked map's own colour low down, so beaches, the port apron and the
+			// district tints still show through rather than every flat becoming the same gold.
 			float natural_mix = smoothstep(0.004, 0.06, m.a) * 0.88 + 0.12;
 			base = mix(base, nat, land * natural_mix);
 			base_e = mix(base_e, nat * paint_gain, land * natural_mix);

@@ -43,18 +43,12 @@ uniform float mottle_mean_luma = 0.126;
 // the same two textures: keep them equal.)
 uniform float dirt_mean_luma = 0.203;
 uniform float rock_mean_luma = 0.072;
-// Decomposed granite and dirt (LINEAR), and how much of the dirt texture's own orange survives.
-uniform vec3 dirt_color = vec3(0.150, 0.126, 0.094);
+// How much of the dirt texture's own orange survives (dirt_color is the splat's).
 uniform float dirt_keep_hue : hint_range(0.0, 1.0) = 0.25;
 // How much bare ground shows between the thinnest grass tufts, up close.
 uniform float bare_between : hint_range(0.0, 1.0) = 0.7;
-// Rock outcrops, buff sandstone going grey (LINEAR), and how much of the texture's hue stays.
-uniform vec3 rock_color = vec3(0.112, 0.106, 0.096);
+// How much of the rock texture's hue stays (rock_color is the splat's).
 uniform float rock_keep_hue : hint_range(0.0, 1.0) = 0.15;
-// How much darker a canyon's floor is than the slopes, and how much lighter the spur crests:
-// the brush is densest and tallest down there and the light gets in least. It draws the
-// drainage network at every distance, even front-lit at noon when the slopes shade flat.
-uniform float drain_shade : hint_range(0.0, 1.0) = 0.3;
 // Metres of canopy relief a stand of brush has (its bushes and the gaps between them), and of
 // leaf clumps on the bushes. They go into the normal, which is what makes brush read as bushes
 // from across a canyon instead of a dark stain on a smooth slope.
@@ -69,11 +63,8 @@ uniform float detail_normal : hint_range(0.0, 2.0) = 1.0;
 uniform float erosion_amp = 7.0;
 uniform float erosion_cell = 55.0;
 uniform float erosion_shade : hint_range(0.0, 1.0) = 0.2;
-// Brightness swing between one hillside and the next, so a range is never one tile.
-uniform float macro_variation : hint_range(0.0, 1.0) = 0.12;
-// Metres above sea level the snow starts: the far ground's `snow_line`, keep them equal.
-uniform vec3 snow_color = vec3(0.58, 0.60, 0.66);
-uniform float snow_line = 1150.0;
+// (dirt_color, rock_color, drain_shade, macro_variation, snow_color and snow_line are the splat's,
+// hill_splat.gdshaderinc, which the horizon plane reads too.)
 // Same second fetch as the road shader, and the same global switch: the grass is sampled again
 // rotated and at another scale and cross-faded on slow noise, which kills the visible tiling.
 global uniform float ground_detail;
