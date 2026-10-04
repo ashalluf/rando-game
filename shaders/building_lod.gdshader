@@ -12,7 +12,7 @@ render_mode cull_back, skip_vertex_transform;
 // bands, mullions, corner piers, a crown, a parapet) so the eye reads floors and columns rather
 // than a printed grid.
 //
-// THE FAR CITY'S BUILDINGS (2026-10-04, docs/HANDOFF.md 9av): every Building part is a CODED
+// THE FAR CITY'S BUILDINGS (2026-10-04, docs/HANDOFF.md 9az): every Building part is a CODED
 // box (INSTANCE_CUSTOM.a -1, FarBuilding): its basis carries the near building's own facade data
 // in its off-diagonals - window style, finish, roof covering, the palette entries of its glass
 // tint, lit colour and frame paint, storefront and shop runs, bays and storeys (the near walls'
@@ -893,38 +893,9 @@ void fragment() {
 			rough = mix(0.5, 0.95, patch);
 		}
 
-		// Rooftop plant: air handlers, cooling towers, duct runs and stair bulkheads, printed
-		// as boxes with a cast shadow toward the sun's far side. A flat grey roof is the
-		// loudest tell that a mid-distance city is a set of extruded rectangles.
-		vec2 sun_xz = sun_n.xz;
-		float sun_len = length(sun_xz);
-		vec2 sh_dir = sun_len > 1e-3 ? -sun_xz / sun_len : vec2(0.7, 0.7);
-		vec2 cellf = p / clutter_cell;
-		vec2 cell = floor(cellf);
-		vec2 f = fract(cellf);
-		float ch = hash21(cell * 1.7 + bseed * 57.0);
-		if (ch < clutter_density && edge > parapet_width + 0.6) {
-			vec2 c0 = vec2(hash21(cell + 1.3), hash21(cell + 7.7)) * 0.30 + 0.35;
-			float wide = step(0.74, hash21(cell + 4.1));
-			vec2 hs = vec2(0.07 + 0.10 * hash21(cell + 3.3), 0.07 + 0.10 * hash21(cell + 9.1));
-			// One in four is a long duct run rather than a unit.
-			hs = mix(hs, vec2(0.26, 0.045), wide);
-			vec2 sh_off = sh_dir * clutter_shadow;
-			vec2 ds = abs(f - c0 - sh_off);
-			float shadow = step(ds.x, hs.x) * step(ds.y, hs.y);
-			vec2 d = abs(f - c0);
-			float inside = step(d.x, hs.x) * step(d.y, hs.y);
-			float fade = detail(clutter_cell * 0.30, mpp);
-			// Galvanised plant reads brighter than membrane and far brighter than bitumen: it
-			// is the sparkle on a roof deck, so it must not end up darker than what it sits on.
-			vec3 unit = mix(vec3(0.62, 0.62, 0.60), vec3(0.80, 0.79, 0.76), hash21(cell + 11.3));
-			// A darker lip round the unit reads as its shaded side without cutting the box in
-			// half on a diagonal, which looked like a hole punched in the roof.
-			float lip = 1.0 - step(max(d.x - hs.x * 0.72, d.y - hs.y * 0.72), 0.0);
-			surface = mix(surface, unit * mix(1.0, 0.76, lip), inside * fade);
-			surface *= mix(1.0, 0.62, clamp(shadow - inside, 0.0, 1.0) * fade);
-			rough = mix(rough, 0.52, inside * fade);
-		}
+		// Rooftop plant, printed (a flat grey roof is the loudest tell that a mid-distance city is
+		// a set of extruded rectangles). The coded parts build theirs instead (FarBuilding).
+		print_plant(p, edge, bseed, clutter_density, sun_n, mpp, surface, rough);
 
 		// Parapet cap, and the shade it throws on the deck just inside it.
 		vec3 cap = mix(c, vec3(0.72, 0.71, 0.69), 0.5) * 1.04;
