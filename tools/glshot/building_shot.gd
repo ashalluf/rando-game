@@ -8,7 +8,7 @@ extends SceneTree
 ##
 ## Env: OUT (png path), BSEED (building seed), FINISH (Building.Finish index), LOT (meters),
 ## HMIN / HMAX (height range), KIT=0 (no facade kit), CAM_POS / CAM_LOOK / CAM_FOV (an exact
-## close-up; see below), NIGHT=1 (after dark). This is the Compatibility renderer, like the web build: lighting is
+## close-up; see below), NIGHT=1 (after dark), BENCH=n (time n frames). This is the Compatibility renderer, like the web build: lighting is
 ## flat, judge geometry and materials. ~20 s per shot on llvmpipe.
 func _initialize() -> void:
 	var root3d := Node3D.new()
@@ -79,6 +79,14 @@ func _initialize() -> void:
 		sun.light_energy = 0.05
 	for i in 10:
 		await process_frame
+	# BENCH=n: n more frames timed, for the cost of a shader change on a frame full of facade
+	# (llvmpipe runs the fragment shaders on the CPU inside the frame, so wall time is GPU time).
+	var bench := _env_int("BENCH", 0)
+	if bench > 0:
+		var t0 := Time.get_ticks_usec()
+		for i in bench:
+			await process_frame
+		print("BENCH ms/frame ", snappedf(float(Time.get_ticks_usec() - t0) / 1000.0 / float(bench), 0.1))
 	var out := OS.get_environment("OUT")
 	if out == "":
 		out = "building_shot.png"

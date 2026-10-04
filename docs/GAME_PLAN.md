@@ -278,6 +278,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-04 Shops have rooms behind their glass, traced, not modelled (VISUAL_ROADMAP #14).**
+  Each storefront is one room the width of the shop with its fittings (shelves, racks, tables,
+  washers, barber chairs, a teller line; a double-height lobby with a lift bank in towers over
+  30 m), ray-traced against boxes and rows of boxes in `shaders/shop_interior.gdshaderinc`, and
+  it is the room the shop's NAME says (a BAKERY has a counter and tables). Chosen over real
+  low-poly interiors behind the glass: the traced room has true parallax at zero triangles and
+  zero draw calls (the frame-cost budget is the binding constraint downtown), and nothing has to
+  stream or fade. Cost is ALU on storefront glass pixels only. docs/HANDOFF.md 9at.
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
