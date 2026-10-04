@@ -241,8 +241,10 @@ vec3 shop_interior(vec3 ro, vec3 rd, float wide, float high, float deep, uint ke
 	float var_k = shop_unit(key, 43u);
 
 	// The fittings, kind by kind. Rows sit a pitch in from the side walls so the end of a row
-	// never sticks into a wall.
-	if (kind == ROOM_RETAIL) {
+	// never sticks into a wall. Past `shop_fittings_distance` they are a few pixels and the
+	// room alone is traced (the far storefronts of a long street cost what they did).
+	if (dist > shop_fittings_distance) {
+	} else if (kind == ROOM_RETAIL) {
 		shop_box(ro, rd, inv, vec3(0.25, 0.0, D - 0.45), vec3(W - 0.25, 2.15, D), SI_SHELF, best, bn, bid, bcell);
 		float gp = mix(2.2, 2.7, var_k);
 		float n_g = max(floor((W - 1.0) / gp), 1.0);

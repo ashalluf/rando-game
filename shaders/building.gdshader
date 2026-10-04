@@ -163,6 +163,8 @@ uniform bool interior_enabled = true;
 // bright its fittings' practical lights (pendants, chillers, tills, lift indicators) are.
 uniform float shop_day_light = 0.30;
 uniform float shop_glow = 1.0;
+// Past this distance (metres to the glass) a shop's fittings are not traced, only its room.
+uniform float shop_fittings_distance = 80.0;
 
 // A building's box parts merged into ONE mesh under ONE material (Building._commit_parts()): the
 // values that differ part to part come from the vertices instead of the uniforms above, as 32-bit
