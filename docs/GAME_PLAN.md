@@ -83,6 +83,9 @@ What only the owner can supply, and why each one multiplies everything below:
 - [ ] **G5. People (2-4 months).** Properly rigged humans with finger and face bones, a real
   animation library (about fifty clips: idles, turns, phone, talking, waiting to cross), foot
   placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
+  (Crowd life 2026-10-04: 14 everyday clips from Quaternius' CC0 Universal Animation Library
+  retargeted onto every crowd rig - talking in groups, the phone, texting, benches, leaning,
+  smoking, window shopping, coffee and bags carried, joggers, dog walkers - near the camera.)
 - [ ] **G6. Cars (1-2 months).** Interiors, real glass, damage, lights; extend tools/make_*.
   (Lights done 2026-10-04: real headlights near the camera, brake / indicator / hazard /
   reversing lamps on every running car, parked cars dark.)
@@ -92,7 +95,7 @@ What only the owner can supply, and why each one multiplies everything below:
   block, the horizon - with view-weighted streaming; see the decisions log. Done 2026-10-04:
   the far city's buildings are coded copies of the near ones instead of guessed shaded boxes -
   the near building's own facade, roof, lit offices and roof plant - which beat baked impostors
-  for a city of unique boxes; docs/HANDOFF.md 9az. Still to do: cut-corner geometry on the far
+  for a city of unique boxes; docs/HANDOFF.md 9bd. Still to do: cut-corner geometry on the far
   boxes, the landmark towers' far meshes checked against their near ones the same way.)
 - [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
 
@@ -299,8 +302,72 @@ already mapped so milestone 2 is script-only.
   (`Building.roof_plan()`), and is drawn as boxes (all of it in the LOD ring, the silhouettes in
   the far city); lit offices and spandrels roll from integers shared by both shaders
   (`window_lights.gdshaderinc`). The near roofs and office lights got a new random arrangement
-  once. Per-block dissolve unchanged; draws unchanged (no new MultiMesh). docs/HANDOFF.md 9az,
+  once. Per-block dissolve unchanged; draws unchanged (no new MultiMesh). docs/HANDOFF.md 9bd,
   CLAUDE.md "Far buildings are coded copies of the near ones".
+- **2026-10-04 The freeways read like the 110 / 101 / 10 (VISUAL_ROADMAP #43).** (owner: "make
+  the graphics a million times better"; agent branch `wt/freeway-kit`, docs/HANDOFF.md 9ba.)
+  `FreewayKit` builds every deck segment: a box girder, New Jersey barriers at the edges and down
+  a median, bents with flared columns, caps, bearing pads, downpipes and under-deck lights, truss
+  gantries with green guide and exit signs, median light standards whose pools light the deck at
+  night, call boxes, CCTV poles, postmile paddles and tyre debris; Botts' dots and raised markers
+  that glint in a cone ahead of the camera at night, worn paint, the carpool lane's double yellow
+  and diamonds, expansion joints and scupper grates (rust runs down the fascia under each).
+  Decisions: **route numbers on the shields are this game's own** (`FreewayKit.ROUTE_NUMBERS`:
+  Coast 47, Century 58, Hollywood 21, Harbor 33, Santa Monica 14) and the shield an original
+  crest; destinations are invented (plus "Downtown"), exits name the plan's streets. **Four lanes
+  each way** (`Freeway.lane_layout()`), the inner one a carpool lane; traffic now drives the
+  painted lanes (it drove two each way between the old dashes). The deck is four meshes a chunk
+  (the night pools are the fourth, additive). Lettering is geometry at FULL chunks only. No
+  barrier collision was added (the deck's one box per segment is unchanged).
+
+- **2026-10-04 No bare ground outside downtown and midtown either** (agent branch, the yard
+  pass; docs/HANDOFF.md 9az). Beach-town lots are houses with yards (driveways, front gardens,
+  low walls and pickets, lot-line fences, back yards, courtyards) and some blocks a walk street;
+  campus blocks are quads, walks, a car park and service yards; the freeway's right of way in
+  every district is ivy, hedge and tree rows, sound walls and the odd maintenance yard (`YardFill`).
+  Measured by `GroundCoverage` / `tools/lot_coverage.gd`, checked by the smoke test. Three calls
+  made on the way, each reversible: **the beach town is two and three storeys** (DISTRICTS
+  BEACHTOWN height 5.5-12.5 m, was 6-18: the brief was "low stucco houses", and four- and
+  five-storey blocks on every lot read as a downtown by the sea; finishes mostly FLAT, the
+  stucco); **a PLAZA rolled across the street from a landmark's site is buildings**
+  (`CityPlan.block()` `"was_plaza"`, after the roll: the 100 x 180 m square of bare paving south
+  of MacArthur Park was "the empty block south-east of MacArthur Park"); and **the campus hall's
+  sixteen ball-on-a-stick trees are the chunk's street tree** when a chunk builds it.
+
+- **2026-10-04 The airport is a major international field, all of it original.** (lead brief
+  from the owner's "make the graphics a million times better" and "commercial jets taking off and
+  landing at LAX"; agent branch `wt/airport`, docs/HANDOFF.md 9bb.) Before: one 740 x 390 m slab
+  of grey tarmac with three faint runways, a box terminal, a cylinder tower and a saucer on
+  sticks. Now a big field's FORMS with invented names: the parallel runway pair 27L / 27R (the old
+  third runway, which nothing flew from, is the parallel taxiway), cross taxiways, infield grass,
+  a curved concourse of nine gates with jet bridges docked to parked airliners in six invented
+  liveries, a head house under a wing roof that reaches out over the drop-off, a control tower,
+  an arch landmark, a multi-storey car park and a rental lot, ground service equipment and crew
+  at every attended gate, full apron / taxiway / runway paint, fences, blast fences and navaids,
+  and at night every airfield light (edges, centre lines, thresholds, stop bars, an approach
+  light system with its sequenced flasher, PAPI, floodlight masts, the rotating beacon) in one
+  billboard mesh. The airfield's ground is a partition, never stacked slabs (stacked, every
+  runway z-fought into grey streaks from the air). Found on the way: every "all-round" billboard
+  light in the game (aircraft nav lights, strobes, tower obstruction lights) only faced north,
+  because Godot stores a zero normal as (0, 0, -1); aimed lights now flag themselves in UV2.y.
+  Layout in `Airport`, buildings in `AirportTerminal`, hardware in `AirportKit` (CLAUDE.md
+  "Airport").
+- **2026-10-04 The crowd lives near the camera (G5).** Within `Pedestrian.life_range` (60 m)
+  of the player people stop to talk in twos and threes (facing each other, a speaker that
+  changes every few seconds, nods), stand on the phone or texting, sit on the chunk's benches
+  and the bus-stop benches, lean on a wall, smoke (an ember at night), look in a shop window,
+  carry a coffee or a shopping bag, wait at the crossing shifting their weight; joggers and dog
+  walkers (a CC0 Shiba Inu on a lead) are commoner in the suburbs, the beach town and on the
+  Esplanade. Every roll is from the person's seed; far people only walk; panic ends it all.
+  The clips are Quaternius' Universal Animation Library 1 and 2 (CC0), retargeted IN GODOT
+  (`tools/crowd/life_clips.gd`), not in Blender: Blender's glTF import re-orients bones, and a
+  clip exported from that skeleton would be relative to other bone frames than the game's. The
+  retarget is retarget_lib's world-delta method, so the library's T-pose rest and the crowd's
+  lowered-arm bind never have to agree (the lesson of `fix_arm_pose()`). Two fixes at retarget
+  time: the jog's leg swing scaled to 0.55 (authored at 5.7 m/s, it turned over in slow motion
+  under a 3 m/s jogger) and the standing clips' legs settled 60 % toward the rig's own stance
+  (the library stands every idle in a knee-bent fighting stance). Sitters' hips are put on the
+  bench by a two-bone leg solve, since the library's chair is higher than a bench.
 
 - **2026-10-04 The crowd wears our own garments, modelled and painted, not photographed.**
   The crowd-detail pass found the ceiling of shader work on MakeHuman's library clothes (soft

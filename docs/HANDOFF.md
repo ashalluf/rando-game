@@ -91,6 +91,11 @@ section, not the build):
 `tools/crowd/garment_paint.py`; eight of the twelve people wear them. The patch that carried them
 (`docs/wip/crowd-garments.patch`) is gone.
 
+**Landed (9az):** no bare ground outside downtown and midtown either - `YardFill` gives
+beach-town lots yards and walk streets, campus blocks quads, walks and service yards, and the
+freeway's right of way ivy, hedges, tree rows, sound walls and maintenance yards; beach town
+56 % bare -> 4 %, campus 74 % -> 1 %.
+
 **Needs the owner's eyes on the Mac (Forward+)** - none of this can be judged in the opengl3
 stills: the motion blur's strength and the aim / wheel depth of field; car fire and smoke at night;
 the crowd's skin subsurface and wet eyes; the parking decks' exposure and the car parks'
@@ -101,7 +106,8 @@ decals. Ask for screenshots with the HUD's FULL mode (F1) so the frame-time line
 - `Explosion.blast()` shoves a car once per collision shape, so rockets throw cars 2-3x harder
   than `launch_speed` says. That is feel, not a bug; change it only if the owner asks.
 - The SUPER body's wheel arches render empty in `car_shot.gd` (seen by the car-damage pass).
-- Beach town blocks (~67 % bare ground) and campus blocks were left out of the lot fill.
+- Beach town blocks (~67 % bare ground) and campus blocks were left out of the lot fill (filled
+  since: 9az, YardFill).
 - Retail podium roofs have no mechanical plant; crowd_j still shows a small sliver of skin at
   the shirt front; the lot fill's cheap code car is plain up close.
 
@@ -1804,7 +1810,17 @@ session needs to know:
   5 pooled one-shot voices, 3 traffic voices, 2 pass-by voices. The survey measured 0.9 ms
   headless; per frame it only eases gains and moves at most nine voices. Bus effects: one reverb,
   two low-passes (switched off when open), one compressor.
-- **Not done / not verified.** The web build plays the plain mix (sample playback skips bus
+- **Tools and checks.** `tools/lot_coverage.gd` (`FILL=0|lot|1`, rows per district, FREEWAY,
+ROW_CELLS, MACARTHUR_SE); `tools/glshot/block_shot.tscn` (a few FULL blocks alone, `EYE`,
+`SHOTS`, `BLOCKS`, `GEO=1`, `YARD_FILL=0`); `still_shot.gd` `YARD_FILL=0` (the A/B; `SPLIT=1`
+counts `YardGround` / `YardWalls` in the LotFill line). `tests/lot_fill_checks.gd` (25 checks in
+the smoke test): bare share before and after round the bookmarks, the right of way out to its
+cells, the shader kind tables, the campus plan, the MacArthur plaza, the beach plans (walk
+streets, drives, house heights, no yard piece under a house or on another), one mesh each on the
+right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
+meshes, and a beach and a freeway block built with the fill off being the same block.
+
+**Not done / not verified.** The web build plays the plain mix (sample playback skips bus
   effects: no reverb, no muffle, no ducker). Traffic voices ride only the TrafficManager's street
   and freeway cars - parked cars, police and the airport loop are silent unless driven (the police
   have sirens). The pass-by timing is maths on positions sampled every 0.15 s; it has never been
@@ -1877,7 +1893,17 @@ the table is `ReplicaAreas.ESPLANADE`. What a next session needs to know:
   free camera; heights are the road top + 2.5 m (a Street View lens), recomputed if the profile
   changes. Frame cost: `tools/geo_count.gd` at `--spawn=-449.3,3375.8,-173,-5` with and without
   `-- --no-replica` (MacroMap then builds the seeded city in its place).
-- **Not done / not verified.** The Knob Hill end is a kerb and
+- **Tools and checks.** `tools/lot_coverage.gd` (`FILL=0|lot|1`, rows per district, FREEWAY,
+ROW_CELLS, MACARTHUR_SE); `tools/glshot/block_shot.tscn` (a few FULL blocks alone, `EYE`,
+`SHOTS`, `BLOCKS`, `GEO=1`, `YARD_FILL=0`); `still_shot.gd` `YARD_FILL=0` (the A/B; `SPLIT=1`
+counts `YardGround` / `YardWalls` in the LotFill line). `tests/lot_fill_checks.gd` (25 checks in
+the smoke test): bare share before and after round the bookmarks, the right of way out to its
+cells, the shader kind tables, the campus plan, the MacArthur plaza, the beach plans (walk
+streets, drives, house heights, no yard piece under a house or on another), one mesh each on the
+right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
+meshes, and a beach and a freeway block built with the fill off being the same block.
+
+**Not done / not verified.** The Knob Hill end is a kerb and
   a pavement (the grid's streets run past it); north of it the pier plaza is the seeded
   landmark's. The roundabout's inside (west) corner, where the ocean-side lines of a right turn
   fold, is covered by the ring's planting rather than modelled. The car park's sea wall is ~5 m
@@ -1960,7 +1986,17 @@ session needs to know:
   at dusk 3.7 M / 2,321, plaza at night 3.1 M / 1,570. The same-camera before/after (`tools/horizon_probe.gd`, 800x600, spawn
   352,405 facing the arena) has only its before side, 5.33 M / 4,054 draws on the parent
   commit: the after run was OOM-killed and then timed out on the shared box. Take it first.
-- **Not done / not verified.** Only judged on the opengl3 path (Compatibility): no Forward+
+- **Tools and checks.** `tools/lot_coverage.gd` (`FILL=0|lot|1`, rows per district, FREEWAY,
+ROW_CELLS, MACARTHUR_SE); `tools/glshot/block_shot.tscn` (a few FULL blocks alone, `EYE`,
+`SHOTS`, `BLOCKS`, `GEO=1`, `YARD_FILL=0`); `still_shot.gd` `YARD_FILL=0` (the A/B; `SPLIT=1`
+counts `YardGround` / `YardWalls` in the LotFill line). `tests/lot_fill_checks.gd` (25 checks in
+the smoke test): bare share before and after round the bookmarks, the right of way out to its
+cells, the shader kind tables, the campus plan, the MacArthur plaza, the beach plans (walk
+streets, drives, house heights, no yard piece under a house or on another), one mesh each on the
+right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
+meshes, and a beach and a freeway block built with the fill off being the same block.
+
+**Not done / not verified.** Only judged on the opengl3 path (Compatibility): no Forward+
   render yet, so SSR on the steel and glass, SDFGI under the arena's canopy and the night
   floodlights under AgX are unseen. A detailed landmark is built in ONE chunk step. Warm
   (caches full) on this shared, loaded box: museum 68 ms (its veil is 12.9k triangles), arena
@@ -3862,7 +3898,8 @@ draws.
 - Look at it on the Mac (Forward+): the garage interior's exposure by day and its lamps at
   night, the chain-link's dither under TAA, the plaza lawns' colour.
 - Retail podium roofs carry no mechanical plant now; a few packaged units among the planters
-  would be truer. Beach town (67 % bare) and campus blocks were left as they were.
+  would be truer. Beach town (67 % bare) and campus blocks were left as they were (since filled:
+  9az).
 - The code car is still a code car up close; a real ~2k-triangle parked-car body with LODs
   would be the next step for car parks seen from the pavement.
 
@@ -4814,8 +4851,484 @@ night; kelp only where `ground_detail` is on.
 - The far plane (past ~470 m) still paints its own surf band from the bake; there is no
   breaking surf in the far tier.
 
+## 9az. No bare ground outside downtown and midtown: yards, the campus, the freeway's right of way, 2026-10-04 (agent branch `worktree-agent-afdcc0e44305064bc`, the brief's `wt/lot-fill-2`)
 
-## 9az. The far city's buildings: coded copies of the near ones, 2026-10-04 (agent branch; GAME_PLAN G7, VISUAL_ROADMAP #43)
+The brief (00000): fill the beach town (9am's "not done"), the campus blocks, the freeway sides
+and the empty block south-east of MacArthur Park, each the way the real place looks. This redoes
+a branch lost to a container restart. Measured with `tools/lot_coverage.gd`, which now runs on
+`GroundCoverage` (`scripts/world/ground_coverage.gd`, the same code the smoke test calls):
+`FILL=lot` is the city before this branch (LotFill on, YardFill off), `FILL=1` after, `FILL=0`
+neither. Replica blocks (the Esplanade's: ReplicaBuilder builds them) are left out now; the
+campus hall's footprint counts as built.
+
+Whole basin, seed 1337 (`RECT=-3000,-3000,8000,8000`), bare share of the blocks' ground inside
+the pavement ring:
+
+| Row | bare before (`FILL=lot`) | bare after (`FILL=1`) | what covers it after |
+|---|---|---|---|
+| Beach town (71 seeded blocks) | 56.0 % | 3.7 % | built 38.3, garden 47.5, parking 3.6, row 4.1, yard 2.9 |
+| Campus (6 blocks) | 74.3 % | 1.2 % | built 25.7 (incl. the hall), garden 61.2, parking 12.0 |
+| Freeway blocks (166, any district) | 17.7 % | 6.3 % | row 46.7; what is left is suburban lawn and industrial yard beside the right of way |
+| The right of way's own cells (ROW_CELLS) | 23.1 % | 0.0 % | row 100 |
+| MacArthur SE (the plaza, 1 block) | 96.7 % | 7.0 % | built 35.8, forecourt 44.9, yard 12.2 |
+| Downtown core / rest / midtown (LotFill's) | 2.2 / 2.4 / 5.0 % | 1.2 / 1.5 / 3.5 % | the right of way through them |
+
+The old tool on the base commit gave the beach town 62.5 % over 106 blocks (35 of them the
+Esplanade replica's, which ReplicaBuilder builds) and the campus 93.1 % (the hall's own ground
+counted as bare). Suburbs (82.5 %, the plain block lawn) and industrial (39.7 %) were not in the
+brief and are as they were apart from the right of way.
+
+**What it does** (`YardFill`, `scripts/world/yard_fill.gd`; the rules are the CLAUDE.md bullet
+after LotFill's):
+- **Beach town.** Every lot with a house gets its yard out to its grid cell, planned in the lot's
+  street frame from the plan and the house's ground footprint: a driveway on one side of the
+  frontage (32 % of lots; a static car in some), a front walk to the middle of the house, the
+  front garden (lawn 34 %, decomposed granite with gazania 40 %, brick or saltillo 18 %, paved
+  the rest) with a mulch bed of shrubs along the house, the street line edged with a low stucco
+  wall (cap course in a lighter trim), white pickets or a clipped hedge, open at the drive and the
+  walk; timber (or stucco) fences down the lot lines from the house front back and along the
+  back; the back yard lawn, deck, tile, concrete or decomposed granite (a pool in the few deep
+  enough); an L's inner corner a saltillo courtyard with a fountain and two palms (the courtyard
+  apartment); wheelie bins in the side yard. 29 of the 67 non-replica beach blocks get a **walk
+  street**: the row boundary along x where every column leaves the widest gap between its two
+  rows of houses (at least `WALK_MIN`), a brick or concrete path with lamps down it, the houses
+  along it fronting it with their gardens and low walls. The cells the boardwalk's, the piers'
+  and the mall's squares dropped are beach car parks (LotFill's) or pocket parks (lawn, a walk,
+  palms, benches, a clipped hedge), trimmed off the sand and the boardwalk's shops.
+- **The beach town is lower** (DISTRICTS BEACHTOWN height 5.5-12.5 m, was 6-18; finishes mostly
+  FLAT): "low stucco houses" - the old band put four- and five-storey blocks on every lot.
+- **Campus.** The campus hall's square drops every lot of the four blocks round it, which were
+  plain lawn; now its free ground (less `Landmarks.campus_footprint()`) is quads (walks corner to
+  corner as ribbons and one across, trees along them, lamps, benches round the crossing, shrubs
+  along the edges), one surface car park a block (no longer than `CAMPUS_PARK_MAX`), service
+  yards (a block-wall dumpster bay, a transformer, pallets) and small lawns with a tree; every
+  campus building gets an entry walk from its street face to the pavement, an apron at the door
+  and shrubs either side. The hall's sixteen primitive ball trees are the chunk's street tree.
+- **The freeway's right of way** (every district): the corridor lots' cells, not just the lots
+  (the gaps between them were bare paving), in ivy that fades to compacted dirt in the deck's
+  shade (per vertex, `BARE_FADE`); oleander hedge rows `HEDGE_OFFSET` beyond the deck edge and a
+  tree row at `ROW_TREE_OFFSET`, off the ramps; shrub clumps further out; a 4.2 m split-face
+  sound wall in 6 m panels between pilasters (creeping fig up its foot) on every cell edge that
+  meets a house lot in the residential districts, chain-link on the street side and elsewhere;
+  in 40 % of blocks a maintenance yard under the deck (gravel, k-rail, a container, a crew
+  truck, a light). It replaces `_build_corridor_lot`'s ivy slab per lot (a ground-grid NODE, a
+  draw each - block -6,0 had 21) and its eight-species shrub scatter.
+- **MacArthur SE.** The empty block was a PLAZA roll south of the park's east half: 100 x 180 m
+  of paving with one fountain and no beds (the beds' rule never fits that shape). A plaza rolled
+  across the street from a landmark's site is buildings now (`CityPlan.block()`, after the roll,
+  `"was_plaza"`), filled like the rest of midtown - Westlake is dense apartments and shops round
+  the park, not a second square.
+
+**Cost.** opengl3, 1280x720, `--quality=0`, noon, clear; before = the base commit (28105b5) from a
+snapshot, after = this branch; each a live frame, so the traffic and the crowd differ by a few
+cars and people between the two. `still_shot.gd` (the stills' own GEO line, free camera):
+
+| Bookmark (`EYE`, y over the ground) | triangles before -> after | draws before -> after |
+|---|---|---|
+| Beach street `-652,2,95,70,-5` | 7,560,781 -> 7,678,515 (+1.6 %) | 2,670 -> 2,680 (+0.4 %) |
+| Beach air `-610,110,210,35,-39.3` | 6,637,558 -> 6,906,284 (+4.0 %) | 6,176 -> 6,139 (-0.6 %) |
+| Campus street `-545,2,-405,36.3,-3` | 9,270,150 -> 7,066,094 (-23.8 %) | 1,970 -> 1,971 |
+| Campus air `-480,140,-330,37.9,-31.5` | 2,369,945 -> 2,456,929 (+3.7 %) | 1,645 -> 1,654 (+0.5 %) |
+| Freeway street `-461,2,195,30.4,-3` | 8,599,037 -> 7,924,945 (-7.8 %) | 4,385 -> 4,362 (-0.5 %) |
+| Freeway air `-420,100,220,35.3,-34.2` | 5,479,307 -> 5,556,345 (+1.4 %) | 5,093 -> 5,031 (-1.2 %) |
+| MacArthur SE street `412,2,404,145.6,-3` | 5,107,407 -> 6,286,138 (+23.1 %) | 3,171 -> 3,784 (+19.3 %) |
+| MacArthur SE air `560,160,700,31.3,-30.7` | 3,549,857 -> 3,690,498 (+4.0 %) | 2,538 -> 2,905 (+14.5 %) |
+
+`tools/geo_count.gd` (the player standing there, `--spawn=x,z,yaw,pitch`, 90 frames after the
+load, the player camera):
+
+| Bookmark (`--spawn`) | triangles before -> after | draws before -> after | objects before -> after |
+|---|---|---|---|
+| Beach town `-648,60,140,-3` | 8,779,945 -> 8,855,948 (+0.9 %) | 3,706 -> 3,802 (+2.6 %) | 3,780 -> 3,881 (+2.7 %) |
+| Campus `-545,-405,36.3,-3` | 10,083,563 -> 5,012,178 (-50.3 %) | 2,837 -> 2,856 (+0.7 %) | 2,855 -> 2,874 (+0.7 %) |
+| Freeway side `-461,195,30.4,-3` | 9,025,099 -> 8,255,749 (-8.5 %) | 5,447 -> 5,408 (-0.7 %) | 5,564 -> 5,520 (-0.8 %) |
+| MacArthur SE `412,404,145.6,-3` | 6,135,755 -> 7,032,002 (+14.6 %) | 4,595 -> 5,535 (+20.5 %) | 4,665 -> 5,592 (+19.9 %) |
+
+The MacArthur "after" ran once main's shop interiors and hills were merged in; main itself (040beaf,
+from a snapshot) measures 6,091,389 / 4,583 / 4,653 at the same spawn, within 1 % of the base, so
+the rise is this branch's.
+
+The stills render the same frame twice to the triangle (the after beach shots were rendered
+twice, an hour apart: identical GEO lines), so these differences are the change, not noise.
+
+The campus and freeway street frames got cheaper: the walks, car parks and the right of way's
+cells keep the block lawn's blade grass off them (`_lot_rects`), and the corridor's ivy is now in
+the yard mesh instead of a ground-grid node per lot. MacArthur's rise is new content - a block of
+midtown buildings, forecourts and parked cars where there was one empty square - not the yards.
+The yards themselves cost two draws a FULL chunk (the ground, the walls) plus the walls' shadow
+casters, and their planting rides batches the chunk mostly has already.
+
+**Traps.**
+- Godot's front faces are clockwise to the viewer: a quad listed counter-clockwise from outside
+  is laid 0-2-1, 0-3-2 (`_wall_tris`), and the ribbon tests the cross product's sign.
+- Ground pieces must never overlap (identical surfaces at the same height z-fight once the
+  variants differ): the campus entry walk stops where its apron starts, a pocket park's lawn is
+  cut round its walk, the walk street's gardens run up to the path rather than under a strip.
+- A beach block's twenty-odd yards dressed in one build step would be one long step: the walls,
+  planting and props run through `CityChunk._run_or_defer()` in 2.5 ms slices before the finish
+  (headless, a FULL beach block's build is ~0-75 ms longer with the yards, its slowest step the
+  same as without; LOD +3-8 ms).
+- The hedge took three passes: plain grass texture and flat lighting read as a painted green box,
+  60 cm noise lumps and an 11 cm normal jitter as camouflage; it is fine leaves, faint lumps and a
+  7 cm jitter now (in the last block shots, `hedge3*.png`; the city stills show the second).
+- A patterned texture (brick, planks) must not go through `tiled()`'s rotated second sample: it
+  crosses the courses with a diagonal hatch.
+- A Godot `RandomNumberGenerator.randf_range(a, b)` with a > b still returns a value (between
+  them): STEPPED's 15 m floor over the beach town's 12.5 m top gives 12.5-15 m.
+- `as Array[Rect2]` on an array literal is not a safe way to make a typed argument; a typed local
+  is (`_less()`, `_defer1()`).
+
+**Tools and checks.** `tools/lot_coverage.gd` (`FILL=0|lot|1`, rows per district, FREEWAY,
+ROW_CELLS, MACARTHUR_SE); `tools/glshot/block_shot.tscn` (a few FULL blocks alone, `EYE`,
+`SHOTS`, `BLOCKS`, `GEO=1`, `YARD_FILL=0`); `still_shot.gd` `YARD_FILL=0` (the A/B; `SPLIT=1`
+counts `YardGround` / `YardWalls` in the LotFill line). `tests/lot_fill_checks.gd` (25 checks in
+the smoke test): bare share before and after round the bookmarks, the right of way out to its
+cells, the shader kind tables, the campus plan, the MacArthur plaza, the beach plans (walk
+streets, drives, house heights, no yard piece under a house or on another), one mesh each on the
+right shader for a beach, a campus and a freeway block, the budgets, a LOD build with no yard
+meshes, and a beach and a freeway block built with the fill off being the same block.
+
+**Not done / not verified.** Looked at in opengl3 stills only (city `still_shot.gd`, `tools/glshot/block_shot.tscn`): the
+walls, hedges, tile, decks, ivy and dirt on the Mac's Forward+ are not judged (the paint goes in
+linear there, `PropFactory.has_reflections()`; the hedge's leaf normals and the concrete and
+brick normal maps only show in real light).
+- PLAZA blocks elsewhere (`_build_plaza` / `_furnish_plaza`) still read as big squares of paving
+  from the air - the beach town has several; only the one beside MacArthur Park was turned into
+  buildings. The suburbs (the plain block lawn, 82.5 % "bare" by the probe) and the industrial
+  yards (39.7 %) were not in the brief.
+- Sound walls run along the lot cells' edges (axis-aligned, stepping where the deck runs on a
+  diagonal), not parallel to the deck; the ground is flat (no ivy berms, no embankment slopes).
+  In the base stills the elevated deck's underside does not seem to draw from below (cars over a
+  street look as if they float) - seen, not investigated, not touched.
+- The beach houses are still `Building` boxes with flat roofs and the storefront band; no pitched
+  roofs, garage doors where the drives end, porches or mailboxes. Pools are rare (3 in 735 lots:
+  the back yards are shallow, as real beach-town lots are).
+- Nobody walks the walk streets (the block's walkers keep to its pavement ring).
+- The far tiers get the lawns and the ivy only; from 200 m up a beach-town block is pale
+  concrete and paving between the roofs, which is roughly true.
+- **Seen, not fixed (9ae's code, on main too):** a `--spawn` at the MacArthur SE bookmark builds
+  downtown encampments inside `CityStreamer._ready()`. There `CampFigure.mesh_for()` cannot add
+  its bake host to the root ("Parent node is busy setting up children"), `_bake()` then logs
+  `is_inside_tree()` errors (13 in main's geo_count run, 17 in this branch's; the block itself
+  is midtown and has no camp), and since the host stays valid but out of the tree it is never
+  added again, so every later bake fails the same way and that session has no posed camp
+  figures. Any `--spawn` with a camp in the first FULL ring does it; the default start (the
+  origin) and the smoke test's spawn do not, or the check's `is_inside_tree` tripwire would
+  fail. Fix there: re-add the host whenever it is not inside the tree, and when that fails
+  (the root busy) return null without caching the key, so the loading screen's warm-up bakes it.
+
+## 9ba. LA freeways as a 2026 game shows them, 2026-10-04 (agent branch `wt/freeway-kit`; VISUAL_ROADMAP #43)
+
+The brief (lead, from the owner's "make the graphics a million times better"): make the decks
+read like the 110 / 101 / 10 - overhead guide signs, Botts' dots and markers that glint in
+headlights, worn paint and the carpool diamond, barriers with grime and scuffs, expansion
+joints, scuppers with rust, pillar detail, light standards that light the deck, roadside
+furniture, and the underside from the street. CLAUDE.md's Freeways bullet ("The freeway kit")
+is the reference; this is the story.
+
+**What was there.** Per 24 m segment: a flat deck top, an underside and two fascias as one
+1.4 m slab, two box barriers, six painted strips (a yellow pair down the middle, white dashes),
+square-ish columns (built as parallelograms off the world X axis, so a diagonal route's columns
+were sheared), and every 340 m two posts, a beam and two blank green boards. No median barrier,
+no lights, nothing on the shoulders. Traffic drove two lanes each way between dashes that did
+not line up with it. (Main's e85f2c7, which landed while this was in flight, turned the old
+underside and barriers to face the right way and squared the columns; the kit replaces all of
+that code, so on the rebase its `_build_freeway()` / `_pillar()` / `_bar()` changes were dropped
+in favour of FreewayKit. The bent-cap bug below was still there.)
+
+**What it is now** (`scripts/world/freeway_kit.gd`, `shaders/freeway_structure.gdshader`,
+`shaders/freeway_paint.gdshader`; `CityChunk._build_freeway()` keeps only the collision):
+- Cross section: a box girder (fascia 0.55 m, cantilever soffit, inclined web, bottom slab at
+  the old 1.4 m), New Jersey barriers 0.95 m at both edges (outer face flush with the fascia)
+  and a double-sided one down the median. Board-formed soffit (plywood seams, tie holes, soot
+  toward the edges, efflorescence at the segment joints), barrier joints every 6.1 m, grime at
+  the foot, black tyre scuffs in runs along the faces the traffic sees, drip streaks, rust down
+  the fascia under each scupper grate (every 12 m at the barrier toe; same phase in the shader).
+- Lanes (`Freeway.lane_layout()`): four each way, 3.2-3.6 m, the inner one a carpool lane behind
+  a double yellow with a diamond every 192 m; yellow left edge line with yellow markers, Botts'
+  dots (four dots and a marker every 7.32 m) on the next line, a dashed stripe with a marker in
+  each gap on the last (Caltrans's newer practice), white right edge line, all worn. An
+  expansion joint (steel finger plate) across the deck every third bent. Traffic now drives
+  `Freeway.lane_fraction()`: the cars sit in the painted lanes, four of them.
+- Bents every 72 m: two 1.6 m columns square to the route (StreetWear's column tags follow),
+  flared heads, a 1.6 m bent cap, five bearing pads, a downpipe, two under-deck lights and the
+  pool each throws on the street below at night. Streaks run down the columns from the cap,
+  splash dirt at the foot.
+- Light standards on the median every 48 m: tapered pole, twin arms, cobra heads with a glowing
+  drop lens, and a broad pool on each carriageway (`pool_material()`, light_pool.gdshader at a
+  flat 0.75 falloff - at the city lamps' falloff a 34 m pool was a small hot spot that read as a
+  headlight beam). Sodium amber on the 110, 101 and 10, LED white on the 405 and 105.
+- Gantries every 340 m: laced box truss on laced posts, a catwalk with sign lights, and per
+  carriageway a guide sign (route shield, direction, one or two destinations, a down arrow per
+  lane) and, where an off-ramp lies within 1.5 km on that side, an exit sign (the street, 1/4 to
+  1 MILE or a yellow EXIT ONLY band, the exit tab "EXIT 4B" - the number is the route's mile).
+  The other carriageway, which only has on-ramps in this map, gets a second guide sign. Sign
+  faces are lit at night by their sign lights and by headlights (retroreflective sheeting).
+- At FULL chunks, on the shoulders: call boxes (yellow, a blue SOS plate) about every 500 m,
+  CCTV poles about every 900 m, postmile paddles every ~170 m, tyre treads and the odd board.
+- Off-ramps use the same slab, barrier and edge-line pieces (`ramp_piece()`).
+- Retroreflection is the night look: markers, paint beads and sign sheeting light up in a cone
+  ahead of the CAMERA (taken as the headlights) with `lamp_factor`, and a marker the cone
+  reaches never draws under about a pixel, so a dashed line of glints runs on up the road.
+
+**Names.** Shield numbers are this game's own (Coast 47, Century 58, Hollywood 21, Harbor 33,
+Santa Monica 14; the check fails if one matches the real route), on an original crest shield.
+Destinations are invented (`DESTINATIONS`), plus "Downtown" when the carriageway heads for it;
+exit signs name the plan's streets (public names downtown, seeded ones elsewhere).
+
+**Stills** (opengl3, 1280x720, `still_shot.gd`, one load, `--spawn=1989,160,-6,-3,12 --hour=13
+--weather=clear --nohud`, `EYE=1989,12.0,160,-6,-3`, `SHOTS=` as in the shots branch README): on the 110
+by downtown heading north at noon and 22:00; the guide signs at (1986.7, 55.6) from 26 m
+(`1990,12.5,82,-6,10@13@40`); the southbound exit sign at noon and night
+(`1980.5,12.1,27,174,10@13@45`, `@22@45`); the deck from 5th St (`2045,1.7,2,60,10`) at noon
+and night. Before/after pairs on the `shots/freeway-kit` branch (README there).
+
+**Cost.** `tools/geo_count.gd` (opengl3, 1280x720, `AB='Freeway*,Ramp*'`: the same frozen frame
+counted with and without every freeway and ramp node), on the 110 by downtown
+(`--spawn=1989,160,-6,-3,12 --weather=clear`), main 306274c against this branch rebased on it:
+
+| | main: freeway nodes | branch: freeway nodes |
+|---|---|---|
+| 13:00 | 14,208 tris, 76 draws (59 nodes) | 28,249 tris, 49 draws (75 nodes) |
+| 22:00 | 14,208 tris, 76 draws | 28,249 tris, 49 draws |
+
+So +14k triangles on a 3.6 M frame (+0.4 %) and 27 FEWER draws: the old paint mesh cast
+shadows (a StandardMaterial, opaque), the new paint and pool meshes do not. The whole frame
+moved by the traffic's own noise (3.72 M / 3,168 draws on main, 3.63 M / 3,125 here, with
+different cars). Per segment (the smoke check's own count over a chunk): a FULL deck chunk with a
+gantry 955 triangles a segment (budget 1,400), an LOD one 271 (budget 420). The stills' GEO lines (the whole frame, traffic and people included, so a
+few percent is noise), before -> after: drive noon 6.00 M / 3,168 draws -> 5.68 M / 3,103;
+drive night 5.94 M / 3,154 -> 5.82 M / 3,103; guide sign 4.41 M / 1,707 -> 4.18 M / 1,620;
+exit sign noon 3.86 M / 1,832 -> 3.73 M / 1,797; exit sign night 3.26 M / 1,443 -> 3.21 M /
+1,426; under noon 5.58 M / 2,858 -> 5.59 M / 2,808.
+The freeway bookmark (`--spawn=200,1088,-90,-4,30 --hour=13`, the 105 from the west, whole
+frame, one count each): 3,461,955 tris / 3,321 draws on main, 3,474,657 / 3,325 here (+0.37 %,
++4 draws). Its AB pass (the frozen second count) did not finish inside geo_count's 15 minutes
+on either side, nor did the 22:00 pair, so that bookmark has no freeway-only split.
+ALU: the structure shader is one triplanar fetch (three taps) plus a few value noises, the paint
+shader a handful of noises and one cone test; nothing runs per pixel that the old StandardMaterial
+did not already pay for in texture fetches, except on sign faces and marker strips.
+
+**Not done / not verified.**
+- Forward+ (Mac): the sign wash (`sign_light`), the glint energy and the pool strength are tuned
+  on opengl3 only; Forward+ lights the lit pieces in linear with auto exposure on top. Judge on
+  the Mac at night on the 110 by downtown.
+- The glint is lit from the camera, so walking on the deck at night the markers still glint;
+  traffic's own headlights do not light them.
+- No barrier collision (as before): the deck's one box per segment is all there is, so a car
+  can still drive through a barrier. Adding it is a gameplay change for the owner to ask for.
+- Pigeon spikes and soffit-mounted underpass fixtures (optional in the brief) are not modelled;
+  the under-deck lights hang off the bent caps.
+- The far city (Skyline) still draws the decks as plain boxes; no lights there at night.
+- **Found on the way: every old bent cap stood in the wrong place.** The old `_pillar()` put its
+  headstock at `Vector3(base.x, cap_y - 1.1, base.y)` - `base.y` is the ground height, so every
+  cap in the city stood at z = ground - 1, in a row along z 0. From 5th St downtown they read as
+  a staircase of floating beams over the street (the `under_noon_before` still). The kit's caps
+  sit on their columns.
+- The gantry chunk is the heavy one: lettering is most of its triangles (coarse curves,
+  FULL only); the smoke check holds a FULL deck chunk to 1,400 triangles a segment and an LOD
+  one to 420.
+## 9bb. The airport as a major international field, 2026-10-04 (agent branch `wt/airport`; VISUAL_ROADMAP #44)
+
+The brief (lead, from the owner's "make the graphics a million times better" and "commercial jets
+taking off and landing at LAX"): the airport as a 2026 game shows one, from the ground and from
+the air - terminals, airside clutter, the field's lights at night, landside. Everything original
+(invented airlines and names), a big field's real FORMS. CLAUDE.md's "Airport" note is the
+reference; this is the story.
+
+**What was there.** One 740 x 390 m slab of road-shader asphalt at a tint of 1.25 (from the air a
+pale grey sheet), three 55 m "runways" as flat-colour boxes 2 cm proud of it that barely showed,
+a box hall with ribbon windows, a cylinder tower, a saucer on four sticks behind the hall, four
+grey boxes for jet bridges with nothing docked, three flyable jets parked sideways, three street
+lamps, hangars - and nothing at night: the whole field was black from the air.
+
+**What it is now** (three files; layout, buildings, hardware):
+- **Layout** (`Airport`, everything from MacroMap's numbers): the runways are the parallel pair
+  27R (z 870) and 27L (z 955, moved from 960 so its south edge lights stand inside the fence),
+  45 m wide; the old third runway at z 780, which nothing flew from, is the parallel taxiway
+  (`MacroMap.taxiway_z`); `departure_runway` names 27R (AirTraffic read `zs[1]`). Three cross
+  taxiways (`CONNECTOR_XS`), infield grass between (lawn shader, very dry), concrete apron. The
+  concourse is an arc convex to the apron (`ARC_CENTRE` (-350, -330), radius 1030 m to its centre
+  line, x -575 .. -125) with nine gates 46 m apart (stands 11-19; 17 empty, its bridge parked back).
+- **Ground** is a PARTITION (`Airport.ground_pieces()`): every feature edge cuts the chunk into a
+  grid, each cell takes the highest feature, runs merge into strips. The first pass laid runways
+  ON an apron slab, 3 cm apart, and from 300 m up every runway was grey streaks (the depth
+  buffer's step there is tens of centimetres: measured, see the top-down still in the shots).
+  Runway paint at LOD is lifted 3 cm for the same reason.
+- **Buildings** (`AirportTerminal`, landmarks, far copies kept): the head house - a glazed hall
+  whose roof rises off the airside and sweeps out over the drop-off lanes like a wing on
+  branching tree columns standing on the curb, a slatted soffit lit at night, the name on the
+  fascia, lit DEPARTURES boards on the trunks; the two concourse halves (service level, glazed
+  departures level with curtain_glass's lit interior, steel fins every 9 m and a louvre band,
+  a clerestory, the gate numbers lit); a jet bridge at every gate (rotunda, two telescoping
+  sections sloping down to the cab at the forward-left door, drive column and bogie); the parked
+  airliners as ONE MultiMesh of the airliner model on `airliner_livery.gdshader`; the control
+  tower (ribbed shaft, lit glass cab with consoles, rotating beacon); the "skyhook" - two
+  parabolic arches crossing over a lit glass disc restaurant, floodlit, on a palm-ringed plaza
+  (the saucer's idea done properly); the multi-storey car park and the rental lot (ArenaGrounds).
+- **Liveries**: the Meshy airliner texture reads as camouflage, so the livery shader ignores it
+  and paints by region in the model's own units (white top, belly, cheatline, a window row each
+  side, doors, cockpit glazing, the fin and its mark, nacelles, grey wings) - six invented
+  airlines. The air traffic's airliners and the flyable one wear them too.
+- **Airside** (`AirportKit`, code-built, real sizes, one shader): pushback, belt loader, baggage
+  tug and its carts, catering truck with its box lifted to the rear door, fuel truck, GPU,
+  cones, at every attended gate (`gates()[i].service` picks the trucks), staging rows at the
+  concourse ends, 2-3 `ApronCrew` in hi-vis per gate; floodlight masts with night pools; the
+  perimeter fence with barbed outriggers and the airside line either side of the terminal; blast
+  fences at the runway ends, the localizer array, the glide-slope mast, windsocks, the PAPI.
+  Paint: thresholds, designators, touchdown zones, aiming points, centre and edge lines, rubber;
+  taxiway centre / edge lines, lead-off curves, hold-short bars; lead-in lines, stop bars, stand
+  numbers, red restraint envelopes, the service road.
+- **Night**: ~640 field lights in ONE billboard mesh on aircraft_lights.gdshader (new kinds:
+  field light, the approach lights' rabbit, rotating beacon, PAPI whose colour is the eye's angle).
+- **Found on the way, game-wide**: every "all-round" billboard light faced NORTH. The aircraft
+  lights shader read "zero normal = all round", but Godot cannot store a zero normal (a probe:
+  `SurfaceTool.set_normal(Vector3.ZERO)` comes back (0, 0, -1)), so nav lights, strobes and every
+  downtown tower's obstruction lights showed at full only from the north and at 6 % elsewhere. An
+  aimed light now adds 100 to its UV2.y code (AmbientCraft, Airport); all-round lights leave it.
+  Also: AIR=final stills fade the staged jet in at once (`AirTraffic._shown()`), and the still's
+  AIR line prints world positions.
+
+**Stills** (shots/airport branch; same cameras before and after, opengl3, 1600 x 900):
+the apron at noon `EYE=-360,1.7,762,42,4`; the terminal from the drop-off
+`-330,1.7,606,195,12`; the aerial `-260,330,1230,8,-36`; night with an airliner on final
+`EYE=1100,200,1250,71,-8 AIR=final AIR_DIST=480 --hour=22 FOV=50`; and two more at night: short
+final over the approach lights `EYE=420,160,1120,70,-14 AIR=final AIR_DIST=200 FOV=55`, the apron
+from over the taxiway `EYE=-262,40,812,42,-17`.
+
+**Frame cost** (still_shot.gd GEO on opengl3 1600 x 900, the same frames on main 96f86f1 and
+this branch; triangles / draw calls, camera + shadow passes):
+
+| View | main | wt/airport | change |
+|---|---|---|---|
+| apron at noon, standing | 1.853 M / 1,706 | 2.032 M / 1,766 | +9.7 % / +3.5 % |
+| terminal from the drop-off | 3.032 M / 855 | 3.180 M / 972 | +4.9 % / +13.7 % |
+| aerial over the field | 1.346 M / 856 | 1.404 M / 943 | +4.3 % / +10.2 % |
+| night, airliner on final (1.4 km) | 0.905 M / 285 | 0.919 M / 310 | +1.5 % / +8.8 % |
+| apron at night from 40 m | 1.739 M / 1,509 | 1.874 M / 1,593 | +7.8 % / +5.6 % |
+| night, short final (close) | 1.421 M / 1,081 | 1.473 M / 1,143 | +3.7 % / +5.7 % |
+
+A gate's trucks are one instance of one mesh per service variant and a chunk's painted texts one
+mesh per colour (the first pass was eight batches and a dozen TextMesh nodes a chunk: the
+drop-off view was +22 % draws). The field's ~640 lights are one draw. The parked airliners are
+one MultiMesh per concourse half (8k-triangle model with its imported LODs).
+
+**Checks**: `tests/airport_checks.gd` (layout, flyable jets' clearances, painted runway under the
+touchdown, the lights mesh and its kinds, far copies and parked jets, a FULL chunk's paint and
+trucks, the crew); smoke test's airport chunk check reads the ground partition; distance checks
+pick a field block no cross taxiway cuts.
+
+**Not done / open**: no taxiing jets or pushbacks in motion (the parked jets are static meshes;
+the flyable ones are where they were, on the taxiway and the remote stands); no cargo apron;
+gate signs and the terminal name are TextMesh (a draw each, detailed only); the concourse
+interior is curtain_glass's generic trace (no gate lounges); the arrival jet's approach path is
+lifted to ~60 m over the city by the clearance field, higher than a 3 degree slope near the
+fence. NEEDS MAC CHECK: the glass interiors' exposure, the livery shader on Forward+, the field
+lights' size and glow under AgX and auto exposure (all judged on opengl3 only).
+## 9bc. Crowd life: people who do things, 2026-10-04 (agent branch `wt/crowd-life`; GAME_PLAN G5)
+
+The brief (lead, from the owner's "make the graphics a million times better"): make the street
+feel inhabited the way RDR2 / GTA V does - pairs and threes talking, people on the phone,
+waiting at the crossing, sitting on benches, leaning on walls and smoking, window shopping,
+coffee and bags, joggers on the beach paths and dog walkers. CLAUDE.md's "Crowd life" note is
+the reference; this is the story.
+
+**The clips.** Quaternius' Universal Animation Library 1 and 2 (CC0, the free Standard files,
+`tools/crowd/fetch_life_clips.sh`; itch.io's free download is a CSRF-token POST, scripted there)
+give 14 we use: Idle_Loop, Idle_Talking_Loop, the three sitting clips and Sitting_Exit,
+Jog_Fwd_Loop, Idle_Torch_Loop (only to have it: the cup is now aimed, see below),
+Idle_TalkingPhone_Loop, Idle_FoldArms_Loop, Consume (a sip, a drag), Yes (a nod), Idle_No_Loop,
+Idle_Rail_Loop (kept for a railing lean; not used yet). No smoking or wall-lean clip exists in
+either free library: a smoker stands or leans with the idle and takes the Consume clip to the
+mouth; a wall-leaner folds their arms with their back 30 cm off the wall. `life_clips.gd`
+retargets them **in Godot** onto all twelve rigs (two seconds a rig): Blender's glTF import
+re-orients bones (its bone heuristic), so a clip exported from that skeleton is keyed against
+other bone frames than the ones the game imported. The method is retarget_lib's world delta
+(`R = D * arc(target rest dir -> source rest dir) * target rest`, parent-first), so the
+library's T-pose rest and the crowd's lowered-arm bind never need to agree - every retargeted
+bone direction matched the source to the hundredth (DEBUG=1 prints them). Then two fixes and
+compression:
+- the jog is authored at ~5.7 m/s (a 2.6 m step): under a 3 m/s jogger its legs turned over in
+  slow motion. Each leg bone's rotation is scaled 0.55 about its clip mean: ~3.0 m/s now
+  (`clip_probe.tscn CLIPS=life/jog`, 2.3-3.7 per foot over the rigs).
+- the library stands every idle wide, knees bent, one foot forward - a game hero's ready stance;
+  on a pavement every idler looked about to fight. The legs of the standing clips are settled
+  60 % toward the rig's own stance (retarget_lib's `settle_legs` idea).
+- `Animation.compress()`: 6.2 -> 2.0 MB of clips in memory for twelve rigs, 200 -> 55 KB a file.
+
+**The behaviour** (`Pedestrian` "Life" section, `CrowdLife` for the shared data): who stops, for
+what, how long, is all rolled per person (`hash([seed, "life"])`). Near the player (60 m) at the
+end of a walk (`life_chance` 0.32) or as soon as they appear (`life_spawn_chance` 0.5: a street
+you fly into is already busy), a person TALKs (recruits one or two free walkers on the same
+ring within 14 m into a circle; the speaker is worked out from the clock so the group needs no
+leader; listeners nod and look at the speaker), STANDs (phone clip on a call, the TEXT arms
+with the head down, a coffee with sips, idle / folded arms), SITs (the chunk's benches and the
+bus-stop benches register two places each, `CrowdLife.add_seat()`), LEANs or looks in a
+WINDOW (one world-layer ray to the buildings; no wall, no lean). At the crossing, waiting
+people play the same standing clips. What a walker carries is laid over the walk (a frame of
+the phone clip at the ear; a frame of the talk clip for texting; the coffee forearm aimed
+forward at the waist; a bag held plumb) with a prop in the hand. Joggers (14 % in the suburbs,
+beach town and on the Esplanade, 3 % elsewhere) jog at any range; dog walkers (12 % / 3 %) walk
+a Shiba Inu (Quaternius' Ultimate Animated Animals, CC0) on a red lead to the left hand and stop
+now and then while it sniffs. Panic (`_scare()`) ends every stop at once; out of range a stop
+just ends. Officers and rough sleepers are untouched (`_lives()`).
+
+**Traps, each cost a round:**
+- All life timing is the physics clock (`_life_now_ms()`): on the real clock the 4 s
+  "just appeared" window expired during a slow software render and no still ever showed
+  anyone doing anything (it also keeps the weapon wheel's slow motion honest).
+- A bench is 0.45 m; the clip's chair puts adult hips 10-20 cm higher (and a child's lower).
+  `_sit_pose()` moves the hips onto the bench and re-solves each leg (two-bone, in the plane
+  the clip bent the knee in) so the feet stay where the clip planted them. Checked: hips 0.56 m
+  over the pavement, toe 4 cm.
+- The props are built in a GRIP frame (x thumb, y fingers, z out of the palm) measured on the
+  rigs' rest pose (identical on all twelve to a hundredth): built in the bone frame directly,
+  the phone stood past the fingertips and the bag hung upward from the fist.
+- `fix_arm_pose()` rebuilds the arms of every clip in the player it is given: the life library
+  must be added after it (it is: `_setup_life()` runs after `_add_model()`).
+- The smoke test's outfit tally read `cloth_hue` off every ShaderMaterial on a pedestrian: the
+  props' material has none (it is skipped now).
+
+**Cost.** CPU, `crowd_lab.tscn MODE=bench` (ms per physics tick per 100 people, three runs,
+median; the bench's people all appear at once, so half start a stop): near 6.05 -> 5.48
+(people stopped skip move_and_slide), 50 m 1.84 -> 2.39 (carry overlays and sitters' leg
+solves; the life range is 60 m), 100 m 1.17 -> 1.28, 200 m 0.75 -> 0.77. Memory: +2.0 MB of
+clips, +1.3 MB the dog. Frame (`still_shot.gd` GEO, opengl3 1280x720, the same EYE
+with `CROWD_LIFE=0` and without): the avenue's east pavement 7,755,044 -> 7,783,186 tris
+(+0.4 %), 3,625 -> 3,638 draws; the west pavement 4,202,917 -> 4,306,147 (+2.5 %), 1,719 -> 1,732
+(more people stand inside the shadow range at once); the plaza bench 4,855,309 -> 4,896,898
+(+0.9 %), 1,992 -> 1,997; the Esplanade bookmark identical (2,585,908 / 1,709). A prop is one
+draw, unshadowed, culled past 60 m; a dog ~4k triangles and a skeleton of 46 bones.
+
+**Where to look in the game (motion is the point; stills cannot show it):**
+- Downtown, the avenue under the towers (Flower at Olympic; desktop `-- --spawn=2359.4,880,0,12,2`):
+  walk the east pavement north from the corner - talking groups, people on the phone, a
+  smoker taking drags (an ember after dark), coffee carriers; the west pavement has pairs under
+  the street trees and a bench by the bus stop with people sitting down and getting up.
+- Any bus stop: people sit on its bench, a pair on one bench sometimes talk (sit_talk).
+- The Esplanade (beach path south of the piers; `-- --spawn=-441.7,3534.6,-178,-1.5`): joggers
+  and dog walkers along the ocean-side walkway; the suburbs and beach town blocks have them too.
+- Any signalised crossing: the people waiting shift their weight, fold their arms, check phones.
+- Fire a shot: every group, sitter and leaner bolts at once.
+
+**Not done / next:** no wall-lean or smoking clip exists in the free CC0 libraries (folded arms
+and the Consume clip stand in); Idle_Rail_Loop is in the library unused (the Esplanade's railing
+would suit it); props are dropped, not thrown, when someone is knocked down (they vanish with the
+walker); sitting is benches only (low walls and planters are not registered as seats); the dog is
+the pack's low-poly Shiba, flat-shaded, and walks through people; the lead is a straight
+cylinder. Stills: `shots/crowd-life` (README lists them). The lead in a dog walker's hand only draws
+within the 26 m look range, which a frozen still does not refresh after `LIFE_FOCUS` moves the
+camera: the dog still has no lead in F_dog. `still_shot.gd` gained `LIFE_REPORT=1` (who is
+doing what near the camera, true world positions) and `LIFE_FOCUS=jog|dog|talk|sit|...` (frames
+the nearest such person).
+
+**At merge (lead):** dog walkers are switched OFF (`Pedestrian.dog_share` = 0; the roll is
+still made, so no other person changes). The Shiba is the pack's low-poly flat-shaded model and
+the owner's rule is realistic, high-poly; dog walkers come back with a realistic dog (Blender-
+built like the hero, or a CC0 scan), `CrowdDog.MODEL` swapped and `dog_share` back to (0.12, 0.03).
+
+
+## 9bd. The far city's buildings: coded copies of the near ones, 2026-10-04 (agent branch; GAME_PLAN G7, VISUAL_ROADMAP #46)
 
 G7's last open item was "real impostors for the far city's towers instead of shaded boxes". Every
 building past the FULL ring (the LOD chunks, and the far city, which captures their build) was its

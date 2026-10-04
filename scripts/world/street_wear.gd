@@ -821,7 +821,7 @@ static func _utility_poles(ctx: Dictionary, district: int) -> void:
 
 ## The freeway columns this chunk builds (the same test as CityChunk._build_freeway: a segment
 ## belongs to the chunk its midpoint is in, a bent every PILLAR_SPACING, 1.6 x 1.6 m columns at
-## +-0.26 of the deck width): big tags, buffs in unmatched grey, and posters, on their faces.
+## +-0.26 of the deck width, square to the route - FreewayKit._bent()): big tags, buffs in unmatched grey, and posters, on their faces.
 static func _pillars(ctx: Dictionary) -> void:
 	var chunk: CityChunk = ctx.chunk
 	var plan: CityPlan = chunk.plan
@@ -850,7 +850,8 @@ static func _pillars(ctx: Dictionary) -> void:
 				continue
 			var rng := _rng_for([plan.seed, "wear_pillar", int(p.x * 10.0), int(p.z * 10.0)])
 			var w3 := Vector3(nrm.x, 0.0, nrm.y) * 0.8
-			var corners := [p - Vector3(0.8, 0, 0) - w3, p - Vector3(0.8, 0, 0) + w3, p + Vector3(0.8, 0, 0) + w3, p + Vector3(0.8, 0, 0) - w3]
+			var d3 := Vector3(dir.x, 0.0, dir.y) * 0.8
+			var corners := [p - d3 - w3, p - d3 + w3, p + d3 + w3, p + d3 - w3]
 			for i in 4:
 				if rng.randf() > odds:
 					continue

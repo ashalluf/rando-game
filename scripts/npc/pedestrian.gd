@@ -264,6 +264,10 @@ func setup(block_rect: Rect2, sidewalk: float, seed_value: int) -> void:
 	_sidewalk = sidewalk
 	_way.seed = hash([seed_value, "way"])
 	_route_pending = true
+	_life_seed = seed_value
+
+
+var _life_seed: int = 0
 
 
 var _sidewalk: float = 4.0
@@ -287,8 +291,11 @@ func _ready() -> void:
 	add_child(shape)
 	_visual = Node3D.new()
 	add_child(_visual)
+	if _lives() and life_enabled:
+		_roll_life(_life_seed)
 	if _add_model():
 		_add_hit_area()
+		_setup_life()
 		return
 	_part(Vector3(0.5, 0.65, 0.3), Vector3(0.0, 1.05, 0.0), shirt)
 	_part(Vector3(0.2, 0.7, 0.2), Vector3(-0.14, 0.38, 0.0), pants)
@@ -388,7 +395,13 @@ func _animate_gait() -> void:
 	if _anim == null:
 		return
 	var rate := _gait
-	if _pivoting and _speed < 0.35 and _has_walk:
+	if _life_clip != "" and _speed < 0.12 and not _pivoting:
+		_set_clip(_life_clip, 0.25 if _life_clip in CrowdLife.ONE_SHOTS else 0.5)
+		rate = 1.0
+	elif _jogger and _life_ok and _panic_left <= 0.0 and _speed > 1.2:
+		_set_clip(CrowdLife.JOG, 0.3)
+		rate = _speed / (CrowdLife.JOG_CLIP_SPEED * _stride)
+	elif _pivoting and _speed < 0.35 and _has_walk:
 		_set_clip(WALK_CLIP, 0.3)
 		rate = pivot_cadence
 	elif _speed > run_clip_from - (0.4 if _clip == RUN_CLIP else 0.0) and _has_run:
@@ -429,6 +442,8 @@ func _set_clip(clip: String, blend: float) -> void:
 	elif clip == WALK_CLIP:
 		var cycle := float(_anim_rng.randi() % int(WALK_CYCLES))
 		_anim.seek(fposmod((maxf(phase, 0.0) + cycle) / WALK_CYCLES + WALK_LEFT_DOWN, 1.0) * length, false)
+	elif clip in CrowdLife.ONE_SHOTS:
+		_anim.seek(0.0, false)
 	else:
 		_anim.seek(_anim_rng.randf() * length, false)
 
@@ -1444,6 +1459,8 @@ func _physics_process(delta: float) -> void:
 	_animate_gait()
 	if _look_near:
 		_post_pose(delta)
+	if _life_ok:
+		_life_pose(delta)
 
 
 func _walk(delta: float) -> void:
@@ -1478,6 +1495,12 @@ func _walk(delta: float) -> void:
 			velocity.y -= 30.0 * delta
 			move_and_slide()
 		return
+	if _act != CrowdLife.Act.NONE and _stage != Stage.GOING:
+		if panicking:
+			_end_act()
+		else:
+			_do_act(delta)
+			return
 	if _cross == Cross.WAIT:
 		_wait_at_kerb(delta)
 		return
@@ -1497,26 +1520,32 @@ func _walk(delta: float) -> void:
 		goal = _target if _route.is_empty() else _route[0]
 		to_target = goal - here
 	# A leg that ends standing (a kerb, a pause) is walked into slowly and ended close.
-	var stops := _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0)
+	var stops := _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0 or _act != CrowdLife.Act.NONE)
 	if to_target.length() < (0.35 if stops else 1.0):
 		if _cross == Cross.TO_KERB:
 			_arrive_at_kerb()
+			return
+		if _act != CrowdLife.Act.NONE and not panicking:
+			_arrive_act()
 			return
 		if panicking:
 			_go_to(_flee_point())
 		elif _way.randf() < cross_chance and plan_crossing(-1):
 			pass
+		elif _life_near and _life.randf() < life_chance and _try_life(false):
+			if _stage != Stage.GOING:
+				return
 		else:
 			_go_to(_random_ring_point(_sidewalk))
 			if _pause_next > 0.0:
 				_pause_left = _pause_next
 				_pause_next = 0.0
 			# Rolled now, taken at the end of the new leg, so the walker slows into it.
-			if _has_idle and _style.randf() < pause_chance:
+			if _has_idle and _style.randf() < pause_chance and not _jogger:
 				_pause_next = _style.randf_range(pause_seconds.x, pause_seconds.y)
 		goal = _target if _route.is_empty() else _route[0]
 		to_target = goal - here
-		stops = _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0)
+		stops = _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0 or _act != CrowdLife.Act.NONE)
 	var want := _run_pace if panicking else walk_speed
 	if stops:
 		want = minf(want, sqrt(2.0 * stop_decel * maxf(to_target.length() - 0.2, 0.0)) + 0.15)
@@ -1531,6 +1560,7 @@ func _walk(delta: float) -> void:
 			_walk_stuck_t += delta
 			if _walk_stuck_t > 0.8:
 				_walk_stuck_t = 0.0
+				_end_act(true)
 				_go_to(_flee_point() if panicking else _random_ring_point(_sidewalk))
 		else:
 			_walk_stuck_t = 0.0
@@ -1544,7 +1574,7 @@ func _walk(delta: float) -> void:
 func _move(v: Vector2, delta: float) -> void:
 	velocity.x = v.x
 	velocity.z = v.y
-	if _kinematic:
+	if _kinematic or _act == CrowdLife.Act.SIT:
 		# Out of reach of the player: walk the pavement directly, on the chunk's own ground
 		# height, with no collision solve. The ring is open pavement, so the path is the same
 		# one move_and_slide would have taken.
@@ -1618,6 +1648,9 @@ func _pick_look() -> void:
 	_look_point = Vector3.INF
 	if _look_hold > 0.0 and _look_threat != Vector3.INF:
 		_look_point = _look_threat
+		return
+	if _life_look != Vector3.INF and _act != CrowdLife.Act.NONE:
+		_look_point = _life_look
 		return
 	var me := global_position
 	var best := look_car_range * look_car_range
@@ -1757,6 +1790,11 @@ func _update_lod() -> void:
 	# and the crowd's scripts were 12 ms of every physics step at every-step-to-60-metres.
 	_lod_stride = 1 if d < physics_range else (2 if d < lod_mid else (4 if d < lod_far else 8))
 	_look_near = d < look_range and _head_skel != null and _head_look_ok()
+	if _life_ok:
+		var near := d < life_range and not _down
+		if near != _life_near:
+			_life_near = near
+			_life_range_changed(near)
 	var kinematic := d > physics_range and not _down
 	if kinematic != _kinematic:
 		_kinematic = kinematic
@@ -2155,6 +2193,8 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 
 
 func _scare(at: Vector3) -> void:
+	_end_act(true)
+	_life_clip = ""
 	var calm := _panic_left <= 0.0
 	_panic_left = _rng.randf_range(panic_seconds.x, panic_seconds.y)
 	# `at` is a scene position; the ring is in the parent's (a chunk's: the true world).
@@ -2345,6 +2385,9 @@ func _arrive_at_kerb() -> void:
 	_cross = Cross.WAIT
 	_cross_wait = 0.0
 	velocity = Vector3.ZERO
+	# Waiting for the light: shifting weight, arms folded, on the phone.
+	if _life_ok and _life_near:
+		_life_clip = _stand_clip()
 
 
 ## Standing at the kerb: at a signal until the walking figure comes up, at a stop sign for a
@@ -2367,11 +2410,14 @@ func _wait_at_kerb(delta: float) -> void:
 		_start_crossing()
 	elif _cross_wait > 75.0:
 		_cross = Cross.NONE
+		_life_clip = ""
 		_go_to(_random_ring_point(_sidewalk))
 
 
 func _start_crossing() -> void:
 	_cross = Cross.CROSSING
+	if _act == CrowdLife.Act.NONE:
+		_life_clip = ""
 	if not _on_crosswalk:
 		_on_crosswalk = true
 		_crosswalks[_cross_key] = int(_crosswalks.get(_cross_key, 0)) + 1
@@ -2422,6 +2468,7 @@ func _walk_crossing(delta: float, panicking: bool) -> void:
 
 func _exit_tree() -> void:
 	_leave_crosswalk()
+	_end_act(true)
 
 
 ## The spot on this block's pavement ring farthest from the threat, out of a handful: fleeing
@@ -2478,3 +2525,662 @@ func shot(at: Vector3, dir: Vector3, impulse: Vector3, strength: float = 1.0) ->
 		_doll.shot(at, dir, Vector3.ZERO, strength)
 	else:
 		WeaponFX.blood(self, at, dir, strength, self)
+
+
+# --- Life (GAME_PLAN G5) ---------------------------------------------------------------------
+# Near the camera, people do more than walk: they stop to talk in twos and threes, take a call,
+# text, sit on a bench, lean on a wall with a cigarette, look in a shop window, carry a coffee
+# or shopping bags; joggers run the beach paths and some people walk a dog. All of it from the
+# "life" clips (CrowdLife), all of it rolled from the person's seed, and only within life_range
+# of the player in a FULL chunk: far people walk as before. Panic overrides everything.
+
+@export_group("Life")
+## People do things only this close to the player (metres); past it they just walk.
+@export var life_range: float = 60.0
+## Chance, at the end of each walk, that someone near the player stops to do something.
+@export var life_chance: float = 0.32
+## Chance a person near the player is already doing something when they appear (their chunk
+## streamed in), so a street you fly into is not all walkers.
+@export var life_spawn_chance: float = 0.5
+## How long each kind of stop lasts (seconds, min and max).
+@export var stand_seconds: Vector2 = Vector2(8.0, 30.0)
+@export var talk_seconds: Vector2 = Vector2(14.0, 45.0)
+@export var sit_seconds: Vector2 = Vector2(20.0, 75.0)
+@export var lean_seconds: Vector2 = Vector2(15.0, 45.0)
+@export var window_seconds: Vector2 = Vector2(5.0, 14.0)
+## How far a walker looks for people to talk to, and for a free seat (metres).
+@export var talk_reach: float = 14.0
+@export var seat_reach: float = 30.0
+## Shares of the crowd who carry each thing (rolled once per person).
+@export var call_share: float = 0.07
+@export var text_share: float = 0.1
+@export var cup_share: float = 0.09
+@export var bag_share: float = 0.11
+@export var smoke_share: float = 0.07
+## Joggers and dog walkers: the share in the suburbs, beach town and on the Esplanade, and in
+## the rest of the city.
+@export var jogger_share: Vector2 = Vector2(0.14, 0.03)
+## Dog walkers are OFF (lead, 2026-10-04): the only CC0 rigged dog is Quaternius' low-poly,
+## flat-shaded Shiba, which breaks the realism rule. Put (0.12, 0.03) back once
+## `CrowdDog.MODEL` is a realistic dog; the roll is still made, so nothing else moves.
+@export var dog_share: Vector2 = Vector2.ZERO
+## A jogger's pace (m/s).
+@export var jog_pace: Vector2 = Vector2(2.6, 3.4)
+@export_group("")
+
+## The whole layer on or off (CROWD_LIFE=0 in the environment: the A/B for stills).
+static var life_enabled: bool = OS.get_environment("CROWD_LIFE") != "0"
+var _life_ok: bool = false
+var _life_near: bool = false
+var _life_rolled: bool = false
+var _born_ms: int = 0
+var _life := RandomNumberGenerator.new()
+var _carry: int = CrowdLife.Carry.NONE
+var _jogger: bool = false
+var _dog_walker: bool = false
+var _dog: Node3D
+## The current stop (CrowdLife.Act) and its stage.
+var _act: int = CrowdLife.Act.NONE
+enum Stage { GOING, SETTLE, DOING, LEAVING }
+var _stage: int = Stage.GOING
+var _act_left: float = 0.0
+var _act_face: float = 0.0
+var _act_spot := Vector2.ZERO
+var _act_beat: float = 0.0
+var _life_clip: String = ""
+var _life_base: String = ""
+var _one_shot_left: float = 0.0
+var _life_look := Vector3.INF
+var _seat: Dictionary = {}
+var _seat_drop: float = 0.0
+var _group: Dictionary = {}
+var _carry_w: float = 0.0
+var _props: Dictionary = {}
+var _skel_unit: float = 100.0
+var _hip_bone: int = -1
+var _leg_bones := PackedInt32Array()
+
+
+## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same
+## city has the same people). Called from _ready, once the chunk (and so the district) is known.
+func _roll_life(seed_value: int) -> void:
+	_life.seed = hash([seed_value, "life"])
+	var r := _life.randf()
+	var shares := [call_share, text_share, cup_share, bag_share, smoke_share]
+	var kinds := [CrowdLife.Carry.CALL, CrowdLife.Carry.TEXT, CrowdLife.Carry.CUP, CrowdLife.Carry.BAG, CrowdLife.Carry.SMOKE]
+	for i in shares.size():
+		if r < shares[i]:
+			_carry = kinds[i]
+			break
+		r -= shares[i]
+	var leisure := _leisure_place()
+	_jogger = _life.randf() < (jogger_share.x if leisure else jogger_share.y)
+	_dog_walker = not _jogger and _life.randf() < (dog_share.x if leisure else dog_share.y)
+	if _jogger:
+		_carry = CrowdLife.Carry.NONE
+		walk_speed = _life.randf_range(jog_pace.x, jog_pace.y)
+		_speed = walk_speed
+	elif _dog_walker:
+		walk_speed = minf(walk_speed, _life.randf_range(1.0, 1.25))
+		_speed = walk_speed
+		if _carry == CrowdLife.Carry.BAG:
+			_carry = CrowdLife.Carry.NONE
+
+
+## The suburbs, the beach town and the Esplanade, where people jog and walk dogs.
+func _leisure_place() -> bool:
+	if self is ReplicaWalker:
+		return true
+	var plan := _city_plan()
+	if plan == null:
+		return false
+	var d := plan.district_at(Vector2(position.x, position.z))
+	return d == CityPlan.District.SUBURBS or d == CityPlan.District.BEACHTOWN
+
+
+## Game time in milliseconds (physics ticks, so a slow render or the weapon wheel's slow motion
+## stretches it with everything else).
+static func _life_now_ms() -> int:
+	return Engine.get_physics_frames() * 1000 / Engine.physics_ticks_per_second
+
+
+## Only the plain crowd lives this way: officers and rough sleepers run their own behaviour.
+func _lives() -> bool:
+	var s: Script = get_script()
+	return s != null and (s.resource_path.ends_with("/pedestrian.gd") or s.resource_path.ends_with("/replica_walker.gd"))
+
+
+## After _add_model: the rig gets its life clips, and the bones the life poses touch are found.
+func _setup_life() -> void:
+	_born_ms = _life_now_ms()
+	if not _lives() or not life_enabled or _anim == null or _head_skel == null:
+		return
+	_life_ok = CrowdLife.attach(_anim, _model_path)
+	if not _life_ok:
+		_jogger = false
+		return
+	var node: Node3D = _head_skel
+	var unit := 1.0
+	while node != null and node != _visual:
+		unit *= node.transform.basis.get_scale().y
+		node = node.get_parent() as Node3D
+	_skel_unit = 1.0 / maxf(unit, 1e-5)
+	_hip_bone = _head_skel.find_bone("Hips")
+	for b in ["LeftUpLeg", "LeftLeg", "LeftFoot", "RightUpLeg", "RightLeg", "RightFoot"]:
+		_leg_bones.append(_head_skel.find_bone(b))
+	if -1 in _leg_bones:
+		_leg_bones.clear()
+	if _dog_walker:
+		_dog = CrowdDog.make(self, _life.randi())
+
+
+## Whether this person could start something now (and join a group).
+func _life_free() -> bool:
+	return _life_ok and _life_near and not _down and _act == CrowdLife.Act.NONE and _panic_left <= 0.0 \
+		and _cross == Cross.NONE and not _jogger and _pause_left <= 0.0
+
+
+## At the end of a walk, near the player: maybe stop and do something. True when it did.
+func _try_life(at_spawn: bool) -> bool:
+	if not _life_free() or _dog_walker:
+		if _dog_walker and _life_ok and _life_near and _life.randf() < 0.35:
+			# The dog stops to sniff and the owner waits for it.
+			_start_stand(_life.randf_range(4.0, 10.0))
+			return true
+		return false
+	var r := _life.randf()
+	# What kind of person this is decides what they stop for.
+	if _carry == CrowdLife.Carry.SMOKE and r < 0.75:
+		return _plan_wall(CrowdLife.Act.LEAN, at_spawn) or _start_stand(_life.randf_range(stand_seconds.x, stand_seconds.y))
+	if _carry == CrowdLife.Carry.CALL or _carry == CrowdLife.Carry.TEXT:
+		if r < 0.65:
+			return _start_stand(_life.randf_range(stand_seconds.x, stand_seconds.y))
+		r = _life.randf()
+	if r < 0.36:
+		if _plan_talk(at_spawn):
+			return true
+	elif r < 0.6:
+		if _plan_sit(at_spawn):
+			return true
+	elif r < 0.75:
+		if _plan_wall(CrowdLife.Act.WINDOW, at_spawn):
+			return true
+	elif r < 0.85:
+		if _plan_wall(CrowdLife.Act.LEAN, at_spawn):
+			return true
+	if r < 0.95 or _carry != CrowdLife.Carry.NONE:
+		return _start_stand(_life.randf_range(stand_seconds.x, stand_seconds.y) * 0.6)
+	return false
+
+
+func _start_stand(seconds: float) -> bool:
+	_act = CrowdLife.Act.STAND
+	_stage = Stage.DOING
+	_act_left = seconds
+	_act_face = _visual.rotation.y
+	_life_base = _stand_clip()
+	_life_clip = _life_base
+	_act_beat = _life.randf_range(3.0, 8.0)
+	return true
+
+
+## What someone standing about plays, by what they carry.
+func _stand_clip() -> String:
+	match _carry:
+		CrowdLife.Carry.CALL:
+			return CrowdLife.PHONE
+		CrowdLife.Carry.TEXT, CrowdLife.Carry.CUP, CrowdLife.Carry.BAG, CrowdLife.Carry.SMOKE:
+			# The cigarette is in the left hand, which folded arms would hide.
+			return CrowdLife.IDLE
+	return CrowdLife.IDLE if _life.randf() < 0.7 else CrowdLife.FOLD
+
+
+## Recruits one or two free walkers on this block nearby and gathers them round a spot.
+func _plan_talk(at_spawn: bool) -> bool:
+	var parent := get_parent()
+	if parent == null:
+		return false
+	var here := Vector2(position.x, position.z)
+	var want := 1 if _life.randf() < 0.65 else 2
+	var mates: Array[Pedestrian] = []
+	for n in parent.get_children():
+		var p := n as Pedestrian
+		if p == null or p == self or not p._life_free() or p._dog_walker or p.ring != ring:
+			continue
+		if not at_spawn and (p._carry == CrowdLife.Carry.CALL):
+			continue
+		if Vector2(p.position.x, p.position.z).distance_to(here) < talk_reach:
+			mates.append(p)
+			if mates.size() >= want:
+				break
+	if mates.is_empty():
+		return false
+	var members: Array = [self]
+	members.append_array(mates)
+	var dir := Vector2(-sin(_visual.rotation.y), -cos(_visual.rotation.y))
+	var centre := here + dir * 0.6
+	var radius := 0.55 if members.size() == 2 else 0.68
+	var spin := _life.randf() * TAU
+	var group := {
+		"centre": centre, "members": members, "seed": _life.randi(),
+		"until": _life_now_ms() + int(1000.0 * _life.randf_range(talk_seconds.x, talk_seconds.y)),
+	}
+	for i in members.size():
+		var m: Pedestrian = members[i]
+		var a := spin + TAU * float(i) / float(members.size())
+		var slot := centre + Vector2(cos(a), sin(a)) * radius
+		m._join_talk(group, slot, at_spawn)
+	return true
+
+
+func _join_talk(group: Dictionary, slot: Vector2, at_once: bool) -> void:
+	_act = CrowdLife.Act.TALK
+	_group = group
+	_act_spot = slot
+	var to: Vector2 = (group.centre as Vector2) - slot
+	_act_face = atan2(-to.x, -to.y)
+	_act_beat = _life.randf_range(2.0, 6.0)
+	_life_base = CrowdLife.IDLE if _life.randf() < 0.6 else CrowdLife.FOLD
+	if at_once:
+		_place_at(slot, _act_face)
+		_stage = Stage.DOING
+		_life_clip = _life_base
+	else:
+		_stage = Stage.GOING
+		_go_to(slot)
+
+
+## A free seat on this chunk's benches within seat_reach.
+func _plan_sit(at_spawn: bool) -> bool:
+	var parent := get_parent()
+	var seat := CrowdLife.free_seat(parent, Vector2(position.x, position.z), seat_reach * (0.5 if at_spawn else 1.0))
+	if seat.is_empty() or _sit_clip_info().is_empty():
+		return false
+	_act = CrowdLife.Act.SIT
+	_seat = seat
+	seat.taken = self
+	var info := _sit_clip_info()
+	var face := Vector2(-sin(float(seat.yaw)), -cos(float(seat.yaw)))
+	# The clip carries the hips back onto the seat as they sit: stand that far in front of it.
+	_act_spot = (seat.p as Vector2) + face * float(info.back) * _visual.scale.z
+	_act_face = float(seat.yaw)
+	# The library's chair is the clip's; a bench is CrowdLife.SEAT_HEIGHT. The hips are moved to
+	# sit on the bench and the legs re-solved so the feet stay where they were (_sit_pose()).
+	_seat_drop = float(info.hips) * _visual.scale.y - (CrowdLife.SEAT_HEIGHT + CrowdLife.HIP_OVER_SEAT)
+	_act_left = _life.randf_range(sit_seconds.x, sit_seconds.y)
+	_act_beat = _life.randf_range(4.0, 10.0)
+	if at_spawn:
+		_place_at(_act_spot, _act_face)
+		_stage = Stage.DOING
+		_life_base = CrowdLife.SIT
+		_life_clip = CrowdLife.SIT
+	else:
+		_stage = Stage.GOING
+		_go_to(_act_spot)
+	return true
+
+
+## The sitting clips' numbers for this rig: how far back the hips go and how high they sit
+## (metres, at the rig's own scale), cached per model.
+static var _sit_info: Dictionary = {}
+func _sit_clip_info() -> Dictionary:
+	if _sit_info.has(_model_path):
+		return _sit_info[_model_path]
+	var out := {}
+	if _anim and _anim.has_animation(CrowdLife.SIT_DOWN) and _anim.has_animation(CrowdLife.SIT):
+		var down := _anim.get_animation(CrowdLife.SIT_DOWN)
+		var path := NodePath("Armature/Skeleton3D:Hips")
+		var t0 := down.find_track(path, Animation.TYPE_POSITION_3D)
+		var sit := _anim.get_animation(CrowdLife.SIT)
+		var t1 := sit.find_track(path, Animation.TYPE_POSITION_3D)
+		if t0 >= 0 and t1 >= 0:
+			var a := down.position_track_interpolate(t0, 0.0)
+			var b := sit.position_track_interpolate(t1, 0.0)
+			out = {"back": (a.z - b.z) / _skel_unit, "hips": b.y / _skel_unit, "stand": a.y / _skel_unit}
+	_sit_info[_model_path] = out
+	return out
+
+
+## A wall on the building side of the pavement within a few metres (one ray): lean on it, or
+## look in its window. False when this stretch has no wall (a forecourt, a plaza, a car park).
+func _plan_wall(kind: int, at_spawn: bool) -> bool:
+	var here := Vector2(position.x, position.z)
+	var inward := _inward(here)
+	if inward == Vector2.ZERO or not is_inside_tree():
+		return false
+	var parent := get_parent() as Node3D
+	if parent == null:
+		return false
+	var from := parent.to_global(Vector3(here.x, position.y + 1.3, here.y))
+	var to := parent.to_global(Vector3(here.x + inward.x * 5.0, position.y + 1.3, here.y + inward.y * 5.0))
+	var q := PhysicsRayQueryParameters3D.create(from, to, 1)
+	q.exclude = [get_rid()]
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	if hit.is_empty():
+		return false
+	var n: Vector3 = hit.normal
+	if absf(n.y) > 0.3:
+		return false
+	var wall := parent.to_local(hit.position)
+	var out := Vector2(n.x, n.z).normalized()
+	_act = kind
+	_act_spot = Vector2(wall.x, wall.z) + out * (0.3 if kind == CrowdLife.Act.LEAN else 0.65)
+	# Back to the wall to lean, facing it to look in the window.
+	var face := out if kind == CrowdLife.Act.LEAN else -out
+	_act_face = atan2(-face.x, -face.y)
+	_act_left = _life.randf_range(lean_seconds.x, lean_seconds.y) if kind == CrowdLife.Act.LEAN \
+		else _life.randf_range(window_seconds.x, window_seconds.y)
+	_life_base = CrowdLife.FOLD if kind == CrowdLife.Act.LEAN and _carry != CrowdLife.Carry.SMOKE else CrowdLife.IDLE
+	_act_beat = _life.randf_range(2.0, 6.0)
+	if kind == CrowdLife.Act.WINDOW:
+		_life_look = hit.position + Vector3(0.0, -0.2, 0.0)
+	if at_spawn:
+		_place_at(_act_spot, _act_face)
+		_stage = Stage.DOING
+		_life_clip = _life_base
+	else:
+		_stage = Stage.GOING
+		_go_to(_act_spot)
+	return true
+
+
+## The way to the buildings from a pavement point: away from the nearest kerb of the ring.
+func _inward(p: Vector2) -> Vector2:
+	if ring.size == Vector2.ZERO:
+		return Vector2.ZERO
+	var d := [p.x - ring.position.x, ring.end.x - p.x, p.y - ring.position.y, ring.end.y - p.y]
+	var dirs := [Vector2.RIGHT, Vector2.LEFT, Vector2.DOWN, Vector2.UP]
+	var best := 0
+	for i in 4:
+		if d[i] < d[best]:
+			best = i
+	return dirs[best]
+
+
+func _place_at(spot: Vector2, yaw: float) -> void:
+	position = Vector3(spot.x, _ground_y(spot.x, spot.y, position.y), spot.y)
+	_visual.rotation.y = yaw
+	_faced = true
+	_speed = 0.0
+	velocity = Vector3.ZERO
+
+
+## Arrived where the stop happens: turn to face the right way, then do it.
+func _arrive_act() -> void:
+	_stage = Stage.SETTLE
+	_speed = 0.0
+
+
+## One tick of a stop (anything but walking to it).
+func _do_act(delta: float) -> void:
+	if _speed > 0.02:
+		# The last step or two into a stop rolled at the end of a walk.
+		_speed = move_toward(_speed, 0.0, stop_decel * delta)
+		_move(Vector2(-sin(_visual.rotation.y), -cos(_visual.rotation.y)) * _speed, delta)
+		return
+	_speed = 0.0
+	velocity.x = 0.0
+	velocity.z = 0.0
+	if not _kinematic and not is_on_floor() and _act != CrowdLife.Act.SIT:
+		velocity.y -= 30.0 * delta
+		move_and_slide()
+	if _one_shot_left > 0.0:
+		_one_shot_left -= delta
+		if _one_shot_left <= 0.0:
+			if _life_clip == CrowdLife.STAND_UP:
+				_end_act()
+				return
+			_life_clip = _life_base
+	match _stage:
+		Stage.SETTLE:
+			_turn_on_spot(_act_face, delta)
+			if absf(angle_difference(_visual.rotation.y, _act_face)) < 0.12:
+				_pivoting = false
+				_stage = Stage.DOING
+				if _act == CrowdLife.Act.SIT:
+					_place_at(_act_spot, _act_face)
+					_life_base = CrowdLife.SIT
+					_one_shot(CrowdLife.SIT_DOWN)
+				else:
+					_life_clip = _life_base
+			return
+		Stage.LEAVING:
+			return
+	_act_left -= delta
+	_act_beat -= delta
+	match _act:
+		CrowdLife.Act.TALK:
+			if _group.is_empty() or _life_now_ms() > int(_group.until):
+				_end_act()
+				return
+			_talk_beat()
+		CrowdLife.Act.SIT:
+			if _seat.is_empty() or bool((_seat.record as Dictionary).get("dead", false) if _seat.record is Dictionary else false):
+				_end_act()
+				return
+			if _act_left <= 0.0:
+				_stage = Stage.LEAVING
+				_one_shot(CrowdLife.STAND_UP)
+				return
+			if _act_beat <= 0.0:
+				_act_beat = _life.randf_range(5.0, 12.0)
+				var other := CrowdLife.neighbour(get_parent(), _seat)
+				var base := CrowdLife.SIT_TALK if other != null and _life.randf() < 0.6 else CrowdLife.SIT
+				if base != _life_base and _one_shot_left <= 0.0:
+					_life_base = base
+					_life_clip = base
+				_life_look = (other as Node3D).global_position + Vector3.UP * 1.1 if other != null else Vector3.INF
+		_:
+			if _act_left <= 0.0:
+				_end_act()
+				return
+			if _act_beat <= 0.0:
+				_act_beat = _life.randf_range(4.0, 9.0)
+				# A sip, a drag, or a shift of weight now and then.
+				if _carry == CrowdLife.Carry.CUP or (_carry == CrowdLife.Carry.SMOKE and _act != CrowdLife.Act.WINDOW):
+					_one_shot(CrowdLife.DRINK)
+				elif _act == CrowdLife.Act.WINDOW and _life_look != Vector3.INF:
+					# Along the window to the next thing in it.
+					var along := Vector3(cos(_act_face), 0.0, -sin(_act_face)) * _life.randf_range(-1.6, 1.6)
+					_life_look = _life_look + along * 0.5
+	if _dog_walker and _act == CrowdLife.Act.STAND and _dog:
+		_life_look = _dog.global_position + Vector3.UP * 0.3
+
+
+## Who talks in a group is worked out from the clock, the same answer for every member, so the
+## group needs no leader: a speaker for a few seconds, then the next.
+func _talk_beat() -> void:
+	var members: Array = _group.members
+	var live: Array = members.filter(func(m): return is_instance_valid(m) and (m as Pedestrian)._group == _group)
+	if live.size() < 2:
+		_end_act()
+		return
+	var turn := int((_life_now_ms() + int(_group.seed) % 5000) / 4200)
+	var speaker: Pedestrian = live[hash([_group.seed, turn]) % live.size()]
+	if _one_shot_left <= 0.0:
+		var want := CrowdLife.TALK if speaker == self else _life_base
+		if want != _life_clip:
+			_life_clip = want
+		elif speaker != self and _act_beat <= 0.0:
+			_act_beat = _life.randf_range(3.0, 8.0)
+			if _life.randf() < 0.45:
+				_one_shot(CrowdLife.NOD)
+			elif _carry == CrowdLife.Carry.CUP:
+				_one_shot(CrowdLife.DRINK)
+	var look_at: Pedestrian = speaker
+	if speaker == self:
+		look_at = live[(live.find(self) + 1 + turn) % live.size()]
+		if look_at == self:
+			look_at = live[0]
+	_life_look = look_at.global_position + Vector3.UP * 1.55 * look_at._visual.scale.y
+
+
+func _one_shot(clip: String) -> void:
+	if _anim == null or not _anim.has_animation(clip):
+		return
+	_life_clip = clip
+	_one_shot_left = _anim.get_animation(clip).length - 0.15
+
+
+## Back to walking: from where they are (a cancelled or finished stop) to a new spot.
+func _end_act(silent: bool = false) -> void:
+	if _act == CrowdLife.Act.NONE:
+		return
+	if not _seat.is_empty() and _seat.taken == self:
+		_seat.taken = null
+	_seat = {}
+	_group = {}
+	_act = CrowdLife.Act.NONE
+	_stage = Stage.GOING
+	_life_clip = ""
+	_life_base = ""
+	_one_shot_left = 0.0
+	_life_look = Vector3.INF
+	if _hip_bone >= 0 and _head_skel:
+		_head_skel.reset_bone_pose(_hip_bone)
+	if not silent and _panic_left <= 0.0:
+		_go_to(_random_ring_point(_sidewalk))
+
+
+## Called from _update_lod: the person came within life_range (or left it).
+func _life_range_changed(near: bool) -> void:
+	if not near:
+		# Out of sight a stop just ends: whoever was sitting is walking again.
+		if _act != CrowdLife.Act.NONE:
+			_end_act()
+		return
+	if not _life_rolled:
+		_life_rolled = true
+		if _life_now_ms() - _born_ms < 4000 and _life.randf() < life_spawn_chance:
+			_try_life(true)
+
+
+## After the clip has posed the rig: what a walker carries laid over the arms, a sitter's hips
+## put on the bench, the props shown or hidden.
+func _life_pose(delta: float) -> void:
+	if not _life_ok or _head_skel == null:
+		return
+	var running := _clip == RUN_CLIP or _clip == CrowdLife.JOG
+	var over := (_carry in CrowdLife.CARRY_POSES or _carry == CrowdLife.Carry.CUP) and _life_near and not running and not _down \
+		and (_act == CrowdLife.Act.NONE or (_act == CrowdLife.Act.STAND and _carry != CrowdLife.Carry.CALL)) \
+		and not (_life_clip in CrowdLife.ONE_SHOTS)
+	_carry_w = move_toward(_carry_w, 1.0 if over else 0.0, delta * 2.5)
+	if _carry_w > 0.001:
+		var w := smoothstep(0.0, 1.0, _carry_w)
+		var pose := CrowdLife.carry_pose(_model_path, _head_skel, _carry)
+		for b: int in pose:
+			_head_skel.set_bone_pose_rotation(b, _head_skel.get_bone_pose_rotation(b).slerp(pose[b], w))
+		if _carry == CrowdLife.Carry.TEXT:
+			_posture_pitch = lerpf(_posture_pitch, -0.45, w)
+		elif _carry == CrowdLife.Carry.CUP:
+			var fore := _head_skel.find_bone("LeftForeArm")
+			var hand := _head_skel.find_bone("LeftHand")
+			if fore >= 0 and hand >= 0:
+				var f := _head_skel.get_bone_global_pose(fore)
+				var now := (_head_skel.get_bone_global_pose(hand).origin - f.origin).normalized()
+				var turn := Quaternion(now, CrowdLife.CUP_FOREARM.normalized())
+				_set_global_rot(fore, Basis(Quaternion.IDENTITY.slerp(turn, w)) * f.basis)
+	if _act == CrowdLife.Act.SIT and _stage != Stage.GOING and _stage != Stage.SETTLE:
+		_sit_pose()
+	_show_props()
+
+
+## A sitter's hips lowered (or raised) from the clip's chair to the bench, and the legs re-solved
+## so the feet stay planted where the clip put them: a two-bone solve per leg in skeleton space.
+func _sit_pose() -> void:
+	if _hip_bone < 0 or _leg_bones.size() != 6 or absf(_seat_drop) < 0.005:
+		return
+	var info := _sit_clip_info()
+	var sk := _head_skel
+	var hips := sk.get_bone_pose_position(_hip_bone)
+	# How far down the sit it is (0 standing, 1 seated): the drop comes in with the hips.
+	var stand_y := float(info.stand) * _skel_unit
+	var sit_y := float(info.hips) * _skel_unit
+	var w := clampf((stand_y - hips.y) / maxf(stand_y - sit_y, 1.0), 0.0, 1.0)
+	if w <= 0.0:
+		return
+	var feet := [sk.get_bone_global_pose(_leg_bones[2]), sk.get_bone_global_pose(_leg_bones[5])]
+	var drop := _seat_drop / _visual.scale.y * _skel_unit * w
+	sk.set_bone_pose_position(_hip_bone, hips - Vector3(0.0, drop, 0.0))
+	for side in 2:
+		var up := _leg_bones[side * 3]
+		var knee := _leg_bones[side * 3 + 1]
+		var foot := _leg_bones[side * 3 + 2]
+		var a := sk.get_bone_global_pose(up)
+		var k := sk.get_bone_global_pose(knee)
+		var f := sk.get_bone_global_pose(foot)
+		var target: Vector3 = (feet[side] as Transform3D).origin
+		var l1 := a.origin.distance_to(k.origin)
+		var l2 := k.origin.distance_to(f.origin)
+		var to := target - a.origin
+		var d := clampf(to.length(), absf(l1 - l2) + 0.01, (l1 + l2) * 0.999)
+		var dir := to.normalized()
+		# The knee stays in the plane the clip bent it in.
+		var pole := (k.origin - a.origin) - dir * (k.origin - a.origin).dot(dir)
+		if pole.length_squared() < 1e-6:
+			pole = Vector3(0.0, 0.0, 1.0)
+		pole = pole.normalized()
+		var cos_a := clampf((l1 * l1 + d * d - l2 * l2) / (2.0 * l1 * d), -1.0, 1.0)
+		var k_new := a.origin + (dir * cos_a + pole * sqrt(1.0 - cos_a * cos_a)) * l1
+		var r1 := Quaternion((k.origin - a.origin).normalized(), (k_new - a.origin).normalized())
+		_set_global_rot(up, Basis(r1) * a.basis)
+		var k2 := sk.get_bone_global_pose(knee)
+		var f2 := sk.get_bone_global_pose(foot)
+		var r2 := Quaternion((f2.origin - k2.origin).normalized(), (a.origin + dir * d - k2.origin).normalized())
+		_set_global_rot(knee, Basis(r2) * k2.basis)
+		_set_global_rot(foot, (feet[side] as Transform3D).basis)
+
+
+func _set_global_rot(bone: int, global_basis: Basis) -> void:
+	var p := _head_skel.get_bone_parent(bone)
+	var pb := _head_skel.get_bone_global_pose(p).basis if p >= 0 else Basis.IDENTITY
+	_head_skel.set_bone_pose_rotation(bone, (pb.orthonormalized().inverse() * global_basis.orthonormalized()).get_rotation_quaternion())
+
+
+## What is in their hands right now.
+func _show_props() -> void:
+	var want := {}
+	if _life_near and not _down:
+		match _carry:
+			CrowdLife.Carry.CALL, CrowdLife.Carry.TEXT:
+				want[CrowdLife.Prop.PHONE] = true
+			CrowdLife.Carry.CUP:
+				want[CrowdLife.Prop.CUP] = true
+			CrowdLife.Carry.BAG:
+				want[CrowdLife.Prop.BAG] = _act != CrowdLife.Act.SIT
+			CrowdLife.Carry.SMOKE:
+				want[CrowdLife.Prop.CIGARETTE] = _act == CrowdLife.Act.LEAN or _act == CrowdLife.Act.STAND
+	for kind: int in want:
+		if want[kind] and not _props.has(kind):
+			_props[kind] = _hold(kind)
+	for kind: int in _props:
+		var mi: Node3D = _props[kind]
+		if is_instance_valid(mi):
+			mi.visible = want.get(kind, false)
+	# A bag hangs plumb from the fist, whatever the wrist is doing.
+	var bag: Node3D = _props.get(CrowdLife.Prop.BAG)
+	if bag != null and bag.visible and bag.get_child_count() > 0:
+		var mi := bag.get_child(0) as Node3D
+		var yaw := _visual.global_rotation.y
+		mi.global_transform = Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, PI) * Basis.from_scale(_visual.scale),
+			bag.global_position)
+
+
+## A prop in the hand that holds it (CrowdLife.PROP_HAND), built in the grip frame
+## (CrowdLife.grip_basis()) and scaled up through the rig's centimetre skeleton.
+
+
+func _hold(kind: int) -> Node3D:
+	var bone: String = CrowdLife.PROP_HAND[kind]
+	var att := BoneAttachment3D.new()
+	_head_skel.add_child(att)
+	att.bone_name = bone
+	var mi := MeshInstance3D.new()
+	mi.mesh = CrowdLife.prop_mesh(kind)
+	mi.material_override = CrowdLife.prop_material()
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+	mi.visibility_range_end = life_range
+	mi.transform = Transform3D(CrowdLife.grip_basis(bone) * Basis.from_scale(Vector3.ONE * _skel_unit), Vector3.ZERO)
+	att.add_child(mi)
+	return att

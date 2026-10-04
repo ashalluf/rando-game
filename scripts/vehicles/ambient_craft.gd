@@ -369,6 +369,10 @@ func _build_lights(specs: Array) -> void:
 	for spec: Array in specs:
 		var kind: int = spec[3]
 		var code := float(kind) * 10.0 + phase * 9.0
+		# +100 marks a light aimed along its normal (aircraft_lights.gdshader: a zero normal
+		# cannot be stored, so all-round lights must say so by leaving it off).
+		if (spec[4] as Vector3) != Vector3.ZERO:
+			code += 100.0
 		for k in [0, 1, 2, 0, 2, 3]:
 			st.set_color(spec[1])
 			st.set_uv(corners[k])

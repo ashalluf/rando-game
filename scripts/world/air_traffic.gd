@@ -216,7 +216,8 @@ func _measure_landmarks(city: Node) -> void:
 		var first := true
 		for n in (holder as Node3D).find_children("*", "MeshInstance3D", true, false):
 			var mi := n as MeshInstance3D
-			if mi.mesh == null:
+			# The field's lights span the whole airport and its approach: not an obstacle.
+			if mi.mesh == null or mi.has_meta("air_ignore"):
 				continue
 			var b: AABB = mi.global_transform * mi.get_aabb()
 			box = b if first else box.merge(b)
@@ -231,7 +232,7 @@ func _build_routes() -> void:
 	var rect := macro.airport_rect
 	var zs := macro.runway_zs
 	var arrive_z: float = zs[clampi(macro.arrival_runway, 0, zs.size() - 1)]
-	var depart_z: float = zs[mini(1, zs.size() - 1)]
+	var depart_z: float = zs[clampi(macro.departure_runway, 0, zs.size() - 1)]
 	var east := rect.end.x
 	var west := rect.position.x
 	var aim := Vector2(east - aim_inset, arrive_z)
@@ -823,10 +824,10 @@ func stage(kind: String, cam: Camera3D, dist: float, side: float = 0.0) -> Ambie
 					best_d2 = d2
 					best = d
 				d += 10.0
-			return spawn_arrival(Aircraft.Kind.AIRLINER, aim - best, "arrival_south")
+			return _shown(spawn_arrival(Aircraft.Kind.AIRLINER, aim - best, "arrival_south"))
 		"takeoff":
 			var name := "departure_%d_left" % Aircraft.Kind.AIRLINER
-			return spawn_departure(Aircraft.Kind.AIRLINER, float(routes[name].marks.liftoff) + dist, true)
+			return _shown(spawn_departure(Aircraft.Kind.AIRLINER, float(routes[name].marks.liftoff) + dist, true))
 		"news":
 			var at := spot + Vector3.UP * maxf(dist * 0.35, 25.0)
 			var h := spawn_helicopter(Helicopter.Role.NEWS, at, "cover")
@@ -849,6 +850,16 @@ func stage(kind: String, cam: Camera3D, dist: float, side: float = 0.0) -> Ambie
 			h.snap_gear()
 			return h
 	return null
+
+
+## A staged aircraft fully faded in at once: a still's few frames are seconds of wall clock but
+## a fraction of a second of game time, and the jet used to be caught at the start of its fade -
+## invisible in every AIR=final still.
+func _shown(c: AmbientCraft) -> AmbientCraft:
+	if c:
+		c.fade = 0.0
+		c._apply_fade()
+	return c
 
 
 ## Clears the sky (tests, stills).

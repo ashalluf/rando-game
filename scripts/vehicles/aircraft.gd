@@ -148,6 +148,10 @@ func _add_plane_model() -> bool:
 	inst.rotation.y = (KIND_MODEL_YAW.get(kind, 0.0) if along_x else 0.0)
 	var center := aabb.get_center()
 	inst.position = -(inst.transform.basis * Vector3(center.x, aabb.position.y, center.z)) + Vector3(0.0, model_bottom_y, 0.0)
+	if kind == Kind.AIRLINER:
+		# The player's airliner wears the first invented livery (AirportTerminal.livery_material()).
+		for mi in inst.find_children("*", "MeshInstance3D", true, false):
+			(mi as MeshInstance3D).material_override = AirportTerminal.livery_material(0)
 	var holder := Node3D.new()
 	holder.name = "BodyModel"
 	holder.add_child(inst)

@@ -764,11 +764,16 @@ func _test_city() -> void:
 		await _test_downtown(city, plan, player)
 		# Downtown at 1:1 (DowntownReal): the real grid, the real distances, the real frame.
 		await load("res://tests/downtown_checks.gd").new().run(self, city)
-		var runway := Vector2(-300.0, 760.0)
+		var runway := Vector2(-300.0, macro.runway_zs[0])
 		player.global_position = _world_state().to_local(Vector3(runway.x, 2.0, runway.y))
 		city.update_streaming(true)
 		var airport_chunk: Node3D = city.chunks.get(plan.block_index_at(runway))
-		_check(airport_chunk != null and airport_chunk.zone == MacroMap.Zone.AIRPORT and airport_chunk.has_node("Runway") and airport_chunk.building_count == 0, "airport chunk has a runway and no buildings")
+		# The field's ground is a partition merged into the chunk's boxes (Airport.ground_pieces()).
+		var has_runway := false
+		if airport_chunk:
+			for piece: Array in Airport.ground_pieces(macro, airport_chunk.owned_rect()):
+				has_runway = has_runway or int(piece[2]) == Airport.G_RUNWAY
+		_check(airport_chunk != null and airport_chunk.zone == MacroMap.Zone.AIRPORT and has_runway and airport_chunk.building_count == 0, "airport chunk has a runway and no buildings")
 		# The terminal drop-off: a loop of crawling cars and a crowd on the curb.
 		var curb_c: Vector2 = macro.terminal_curb.get_center()
 		player.global_position = _world_state().to_local(Vector3(curb_c.x, 2.0, curb_c.y + 20.0))
@@ -1273,7 +1278,8 @@ func _test_city() -> void:
 			var ov := (mi as MeshInstance3D).material_override
 			if str(mi.name).begins_with("Hair"):
 				continue # a crowd rig's hair cards, on their own shader
-			if ov is ShaderMaterial:
+			if ov is ShaderMaterial and ov.get_shader_parameter("cloth_hue") != null:
+				# (not a held prop's material: CrowdLife.prop_material())
 				shaded += 1
 				outfits[Vector3(ov.get_shader_parameter("cloth_hue"), ov.get_shader_parameter("cloth_sat"), ov.get_shader_parameter("cloth_strength"))] = true
 		var vis: Node3D = (ped as Node).get("_visual")
@@ -1590,6 +1596,8 @@ func _test_city() -> void:
 	await load("res://tests/street_life_checks.gd").new().run(self, city)
 	# Crowd animation (VISUAL_ROADMAP #28): starts, stops, turns, stride and head look.
 	await load("res://tests/crowd_anim_checks.gd").new().run(self, city)
+	# Crowd life (GAME_PLAN G5): talking, sitting, carrying, panic over all of it.
+	await load("res://tests/crowd_life_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
@@ -1663,6 +1671,9 @@ func _test_city() -> void:
 	# Air traffic: its checks live in their own file, loaded here so it compiles after the
 	# autoloads (tests/air_traffic_checks.gd).
 	await load("res://tests/air_traffic_checks.gd").new().run(self, city)
+	# The airport (tests/airport_checks.gd): gates, flyable jets, runways, the field's lights,
+	# the terminal landmarks and a FULL airport chunk's apron.
+	await load("res://tests/airport_checks.gd").new().run(self, city)
 	# Car damage (tests/car_damage_checks.gd): holes, glass, lamps, crashes, a rocket to a wreck,
 	# blame, the caps, the driven car, a pooled cruiser - on a deck high over the street.
 	await load("res://tests/car_damage_checks.gd").new().run(self, city)
@@ -1681,6 +1692,9 @@ func _test_city() -> void:
 	# The surf and the beach (tests/surf_checks.gd): the surf model against the weather, no swell
 	# through the sand, the shader mirrors, the piers' lights, a shoreline chunk's sand and spray.
 	await load("res://tests/surf_checks.gd").new().run(self, city)
+	# The freeway kit (tests/freeway_kit_checks.gd): the lane layout traffic drives, the signs,
+	# dots, markers, lamps and pools a deck chunk builds, FULL and LOD, inside their budgets.
+	await load("res://tests/freeway_kit_checks.gd").new().run(self, city)
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)
@@ -1701,6 +1715,10 @@ func _test_city() -> void:
 	# Street-level wear (tests/street_wear_checks.gd): tags, posters and stickers on downtown
 	# blocks as one batch a chunk, none near a place of worship, nothing else in the block moved.
 	load("res://tests/street_wear_checks.gd").new().run(self, city)
+	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
+	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
+	# nothing else in the block moved.
+	load("res://tests/lot_fill_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

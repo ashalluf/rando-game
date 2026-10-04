@@ -297,6 +297,24 @@ game, drawn by `shaders/container.gdshader` / `port_steel.gdshader` from the str
 | Container ship hull, accommodation, hatch covers | `PortKit.ship_mesh()` | see `_ship_level()` | `cargo_ship` landmark | 2026-09-27 |
 | High mast, bollard, cell fender | `PortKit.mast_mesh()` etc. | 158, 110, 52 | yard and quay | 2026-09-27 |
 
+## Airport kit (built in code)
+
+The airport's hardware and markings (2026-10-04) are generated at run time - no model files, no
+textures, no external input. `scripts/world/airport_kit.gd` builds the ground service equipment
+and field hardware at real size on `shaders/airport_kit.gdshader`; `scripts/world/airport.gd`
+lays the paint (the street paint batch) and the field's lights (one billboard mesh on
+`shaders/aircraft_lights.gdshader`); `scripts/world/airport_terminal.gd` builds the buildings
+with `LandmarkGeo` on the landmark shaders and the CC0 sets above (`concrete`, `planks`). The six
+airlines' liveries (`shaders/airliner_livery.gdshader`, painted on the existing
+`jet_airliner.glb` by region of the model) and the terminal's name (RANDO INTERNATIONAL) are
+invented for this game; no real carrier's scheme, mark or name.
+
+| Mesh | Built by | Triangles | Used for | Added |
+|---|---|---|---|---|
+| Pushback tug, baggage tug, baggage cart, belt loader, catering truck (scissor lift raised), fuel truck, ground power unit | `AirportKit.vehicle()` | 400, 418, 432, 400, 442, 466, 356 | round every attended gate | 2026-10-04 |
+| Cone, apron floodlight mast, elevated edge light, inset light | `AirportKit.cone()` etc. | 90, 178, 76, 50 | the apron, the runways and taxiways | 2026-10-04 |
+| Perimeter fence (post + barbed outrigger, chain-link panel), blast fence panel, localizer element, glide-slope mast, windsock, PAPI unit | `AirportKit.fence_post()` etc. | 72 + 4, 88, 106, 222, 170, 54 | the field's edges and navaids | 2026-10-04 |
+
 ## The hero (Blender + MPFB2, CC0 assets)
 
 `assets/models/hero.glb` (and the `hero_hero_*` textures Godot extracts from it, plus the
@@ -338,6 +356,9 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | Skin blends, garment dyes, printed logos painted out, the painted scalp and crops, skin relief maps, the atlases, relaxed hands, bind pose, the region colours | Our own scripts (`tools/crowd/*.py`) | ours |
 | Our own garments (tee, jeans / slim / chinos / leggings / denim shorts, button shirt, zip jacket): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
 | Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` (`tools/hero/retarget_lib.py`) | ours |
+| Everyday "life" clips (`assets/models/crowd_life/crowd_*_life.res`, one AnimationLibrary per rig): `Idle_Loop`, `Idle_Talking_Loop`, `Sitting_Enter`, `Sitting_Idle_Loop`, `Sitting_Talking_Loop`, `Sitting_Exit`, `Jog_Fwd_Loop`, `Idle_Torch_Loop` from Universal Animation Library [Standard]; `Idle_TalkingPhone_Loop`, `Idle_FoldArms_Loop`, `Consume`, `Yes`, `Idle_No_Loop`, `Idle_Rail_Loop` from Universal Animation Library 2 [Standard] (Quaternius; the free Standard downloads, License.txt in each zip: CC0 1.0). Retargeted in Godot by `tools/crowd/life_clips.gd` (the jog's leg swing scaled to a jogger's stride, the standing clips' legs settled to the rig's stance); the sources are fetched by `tools/crowd/fetch_life_clips.sh` into the ignored `build/ual_src/` and do not ship | https://quaternius.itch.io/universal-animation-library , https://quaternius.itch.io/universal-animation-library-2 | CC0 1.0 (added 2026-10-04) |
+| The dog (`assets/models/dog_shiba.glb`, `CrowdDog`): `ShibaInu.gltf` from Quaternius' Ultimate Animated Animals (glTF folder; License.txt in the pack: CC0 1.0), rewritten as a .glb by Godot's GLTFDocument, unchanged | https://quaternius.com/packs/ultimateanimatedanimals.html | CC0 1.0 (added 2026-10-04) |
+| Held props (phone, paper coffee cup, shopping bag, cigarette) | Built in code (`CrowdLife.prop_mesh()`) | ours |
 
 | Model | Person | MakeHuman assets |
 |---|---|---|

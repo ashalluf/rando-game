@@ -1,5 +1,5 @@
 extends RefCounted
-## The far city's buildings (docs/HANDOFF.md 9az): checks for tests/smoke_test.gd that a far box
+## The far city's buildings (docs/HANDOFF.md 9bd): checks for tests/smoke_test.gd that a far box
 ## carries its near building, field for field. Loaded at run time, so it compiles after the
 ## autoloads and can name Building, FarBuilding, CityChunk and Skyline. Bookkeeping and source
 ## reads only - under --headless no shader runs, so these guard the contract (the code, the

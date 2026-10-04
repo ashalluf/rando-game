@@ -34,7 +34,11 @@ const DISTRICT_COLORS := [COLORS.downtown, COLORS.midtown, COLORS.suburbs, COLOR
 
 const LANDMARK_NAMES := {
 	"sign": "Shalluferwood Sign", "hills_sign": "Shallufer Hills", "pier": "Rando Pier", "observatory": "Observatory",
-	"terminal": "Airport", "hangars": "Hangars", "port": "Port", "campus_hall": "Rando U",
+	"terminal": "Rando International", "hangars": "Hangars", "port": "Port", "campus_hall": "Rando U",
+	# The airport (AirportTerminal, Airport): original names.
+	"concourse_w": "Gates 11-14", "concourse_e": "Gates 15-19", "control_tower": "Control Tower",
+	"skyhook": "Skyhook", "airport_garage": "Airport Parking", "rental_lot": "Rental Cars",
+	"airfield_lights": "Runways 27L / 27R",
 	"venice_boardwalk": "Venice Boardwalk", "manhattan_pier": "Manhattan Pier",
 	"redondo_pier": "Redondo Pier", "south_bay_mall": "South Bay Mall",
 	"verde_cafe": "Verde Cafe", "masjid_omar": "Masjid Omar ibn Al-Khattab",
@@ -186,6 +190,15 @@ func _draw() -> void:
 				var b := world_to_map(Vector2(ar.end.x - 20.0, rz), center)
 				draw_line(a, b, COLORS.road_edge, macro.runway_width * scale + 2.0, true)
 				draw_line(a, b, COLORS.road, macro.runway_width * scale, true)
+			# The parallel taxiway and the concourse's arc (Airport).
+			var ta := world_to_map(Vector2(ar.position.x + 20.0, macro.taxiway_z), center)
+			var tb := world_to_map(Vector2(Airport.HANGAR_WEST_X - 10.0, macro.taxiway_z), center)
+			draw_line(ta, tb, COLORS.road, macro.taxiway_width * scale, true)
+			var arc := PackedVector2Array()
+			for i in 17:
+				var t := lerpf(-Airport.CONCOURSE_ARC, Airport.CONCOURSE_ARC, float(i) / 16.0)
+				arc.append(world_to_map(Airport.arc_point(t, Airport.CONCOURSE_RADIUS), center))
+			draw_polyline(arc, COLORS.road_edge, Airport.CONCOURSE_HALF * 2.0 * scale, true)
 
 	# Hill roads (not on the grid).
 	if plan.macro and plan.macro.hill_roads:

@@ -804,7 +804,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Checks: `tests/car_cabin_checks.gd`.
 - Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
-  `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
+  `MacroMap.apron_spots` (position, kind, optional yaw) from the airport chunk. Every airliner -
+  the flyable one, the air traffic's, the parked gate jets - wears an invented livery painted
+  from the model's own shape (`shaders/airliner_livery.gdshader`, see the Airport note): the
+  Meshy texture read as camouflage. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
   (bit 5) and the player's under-terrain ray uses only that layer.
 - Air traffic (owner, 2026-09-24: "helicopters, police choppers, news choppers, private jets
   flying thru the sky, commercial jets taking off and landing at LAX"): `AirTraffic`
@@ -817,8 +820,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   overhead, the far landmarks' bounds, trees, port cranes; 50 m cells, cached). The east range
   stands two kilometres from the airport fence, so arrivals come up the basin from the south
   (`downwind_x`), turn onto a 3 degree final over the city and land WESTBOUND on the south
-  runway (`MacroMap.arrival_runway`); departures line up on the middle runway (the hangars
-  stand across the east ends of the other two) and climb out west over the sea.
+  runway, 27L (`MacroMap.arrival_runway`); departures line up on the north runway, 27R
+  (`MacroMap.departure_runway`; the hangars stand across its east end) and climb out west over
+  the sea.
   `MacroMap.runway_clear_zone()` keeps lots out from under the last 700 m of the final
   (`CityPlan.lots()`): midtown lots put 20 m buildings where the glide path is 15 m up. News:
   `Explosion.blast_count` / `last_blast_world` are polled; a blast within
@@ -836,7 +840,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `wreck_seconds`, a replacement later. Lights are one additive billboard mesh per aircraft
   (`shaders/aircraft_lights.gdshader`: nav, strobes, beacon, landing lights), never drawn
   smaller than a few pixels and pulled inside the camera's far plane (12 km), so a night approach
-  reads across the basin. Above `disc_rpm` the rotor blades are swapped for
+  reads across the basin. **A light is aimed only if its UV2.y code has 100 added** (the landing
+  lights): Godot cannot store a zero normal (it comes back (0, 0, -1)), so the old "zero normal
+  = all round" made every nav light, strobe and tower obstruction light face NORTH and show at
+  6 % from anywhere else. Above `disc_rpm` the rotor blades are swapped for
   `shaders/rotor_disc.gdshader` (real blades strobe). Sound: Sfx `jet_loop` / `rotor_loop`,
   real CC0 recordings, with a long falloff and a cheap Doppler. **Trap:** give an aircraft its
   transform BEFORE `add_child()` (`AirTraffic._place_before_entry()`). Godot derives a kinematic
@@ -844,8 +851,62 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   two kilometres away moved at ~170 km/s for a step, and a player standing at the origin took
   that as platform velocity and left the map. The checks (`tests/air_traffic_checks.gd`, loaded
   by the smoke test) step aircraft with `advance(dt)` in a loop - minutes of flight in a frame.
-  Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd`. The helicopter
-  model is `tools/make_helicopter.py` (Blender, headless; ASSETS.md).
+  Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd` (the staged jet is
+  faded in at once, `AirTraffic._shown()`). The helicopter model is `tools/make_helicopter.py`
+  (Blender, headless; ASSETS.md).
+- Airport (2026-10-04, "a major international airport, ground and air"; original - invented
+  airlines, no real names or logos, a big field's FORMS). Three files. **`Airport`**
+  (`scripts/world/airport.gd`, static) is the LAYOUT, all derived from MacroMap's numbers:
+  `runway_zs` is the parallel pair (870 = 27R / 09L, 960 = 27L / 09R, 45 m wide; the old third
+  runway at z 780 is `taxiway_z`, the parallel taxiway), `CONNECTOR_XS` the cross taxiways, the
+  grass between (`grass_rects()`), the concourse ARC (`ARC_CENTRE`, `CONCOURSE_RADIUS`, a = 0
+  due south of the centre; `arc_point()` / `arc_normal()` / `arc_tangent()`), `gates()` (9
+  stands: nose, centre, yaw, the jet bridge's rotunda, the forward-left door, livery, which
+  trucks attend it; stand 17 is empty), `mast_spots()`, `runways()` (ends, designators),
+  `papi_spots()`, `windsock_spots()`, and the landside rects (`HEAD_HOUSE`, `TOWER_AT`,
+  `SKYHOOK_AT`, `GARAGE_RECT`, `RENTAL_RECT`). `Airport.build_chunk()` (from
+  `CityChunk._build_airport()`) lays the ground as a **partition** (`ground_pieces()`: apron
+  concrete, asphalt taxiways and runways, grass, side by side - never one slab over another,
+  which z-fights from a few hundred metres up and drew every runway as grey streaks; one
+  collision box under it), which the far city's capture records; then FULL and LOD get the
+  floodlight masts with their night pools, the perimeter fence (`AirportKit.fence_panel()` on
+  the chain-link shader) and the navaids (blast fences, localizer, glide slope, windsocks,
+  PAPI), and FULL the paint (runway thresholds, designators as flat TextMesh, touchdown zone,
+  aiming points, centre and edge lines, rubber; taxiway centre and edge lines, lead-off curves,
+  hold-short bars; stand lead-in lines, stop bars, numbers, red equipment-restraint envelopes,
+  the service road; the texts - designators, stand numbers - ONE mesh per colour a chunk,
+  `Airport.merged_text()`), the light fixtures and every attended gate's ground service equipment
+  (pushback, belt loader, baggage tug and carts, catering truck on its scissor lift, fuel
+  truck, GPU, cones) as ONE instance of `AirportKit.gate_set(variant)` (one mesh per service
+  variant, built in the stand's frame through `AirportKit._xf`; never `append_from()`, a
+  read-back), the staging rows at the concourse ends (`staging_set()`), and 2-3 `ApronCrew` (`scripts/npc/apron_crew.gd`, a Pedestrian in hi-vis
+  on a small ring by the jet, crowd-capped, never crosses). Every roll is a hash, never the
+  block rng. **The field's lights** are ONE billboard mesh (`Airport.lights_mesh()`, ~640
+  lights) on `aircraft_lights.gdshader`, worn by the `airfield_lights` landmark near and far
+  alike (meta `air_ignore`: AirTraffic's clearance field skips it): runway edges (yellow over
+  the last 200 m), centre lines (red toward the end), green thresholds and red ends (aimed),
+  touchdown zone bars, the approach light system 450 m out east over the long-term parking with
+  its crossbar, red side rows and sequenced flasher, the PAPI, blue taxiway edges, green centre
+  lines, red stop bars, the masts' floods, red obstruction lights and the tower's rotating
+  beacon. Kinds 4-7 in the shader: field light (nothing by day, `field_day`), rabbit, rotating
+  beacon, PAPI (white or red by the eye's angle). **`AirportTerminal`**
+  (`scripts/world/airport_terminal.gd`) builds the landmarks (each its own entry in
+  `Landmarks.all()`, far copy kept, so the chunk round each builds it in detail): `terminal`
+  (the head house: a glazed hall under a wing roof that sweeps out over the drop-off on
+  branching tree columns, its slatted soffit lit at night; plus `Landmarks._build_dropoff()`'s
+  road and lit DEPARTURES boards), `concourse_w` / `concourse_e` (the arc's halves: service
+  level, glazed departures level on `curtain_glass` with its lit interior, clerestory, jet
+  bridges docked at each gate, and ONE MultiMesh of the airliner model at the gates on
+  `airliner_livery.gdshader`, the livery in INSTANCE_CUSTOM.r * 8), `control_tower` (ribbed
+  shaft, lit glass cab, beacon at `TOWER_TOP`), `skyhook` (two crossing parabolic arches over a
+  lit disc restaurant, floodlit), `airport_garage` (`ArenaGrounds.garage()`), `rental_lot`
+  (`ArenaGrounds.surface_lot()` and a pavilion). **`AirportKit`**
+  (`scripts/world/airport_kit.gd`) is the hardware, code-built at real size on
+  `shaders/airport_kit.gdshader` (part kind in the vertex alpha: paint, lamp, glass, rubber,
+  metal; a vehicle's livery in INSTANCE_CUSTOM). Liveries: six invented airlines in
+  `airliner_livery.gdshader`, painted by region of the model in its own units (fuselage, belly,
+  cheatline, windows, doors, cockpit, fin and its mark, nacelles, wings, gear). Checks:
+  `tests/airport_checks.gd`. Stills: the four in docs/HANDOFF.md 9bb.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the
@@ -1137,8 +1198,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_WEAR=0` in the environment turns it off (the A/B); `SHOTS=` on `still_shot.gd` takes
   several EYE views and hours from one load. Checks: `tests/street_wear_checks.gd`.
   **Ground nobody builds on is never left as bare paving** (from the air it read as empty tan
-  squares): a freeway corridor lot (`_under_freeway` / `_lot_under_freeway`) gets ivy ground cover
-  and shrubs off the deck's footprint (`_build_corridor_lot`), a PLAZA block raised beds, tree rows
+  squares): a freeway corridor lot (`_under_freeway` / `_lot_under_freeway`) is the right of way,
+  filled out to its cell by YardFill (below; `_build_corridor_lot` hands it over and keeps the old
+  ivy-and-shrubs only for `YardFill.enabled` false), a PLAZA block raised beds, tree rows
   and benches round its fountain (`_furnish_plaza`), and the strip under the airport's final
   approach (`MacroMap.runway_clear_zone()`, where `CityPlan.lots()` drops every lot) is long-term
   parking (`_build_approach_parking`: stall rows, ArenaGrounds' cheap static cars, half as many
@@ -1171,6 +1233,49 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (the forecourt paving reads as pavement from there) and the podium boxes come with the parts.
   AirTraffic skips car-park lots. Look at it with `tools/glshot/still_shot.gd` (`SPLIT=1` has a
   LotFill line) and measure it with `tools/lot_coverage.gd`.
+  **Nor are the yards outside them** (`YardFill`, `scripts/world/yard_fill.gd`, 2026-10-04; beach
+  town 56 % bare -> 4 %, campus 74 % -> 1 %, the right of way's cells 23 % -> 0, docs/HANDOFF.md 9az). A BEACHTOWN lot's cell less its
+  house is a yard planned in the lot's street frame (u along the street, v back from it): a
+  driveway to the kerb (`DRIVE_*`, a static car in some), a front walk, a front garden (lawn,
+  decomposed granite with gazania, brick or saltillo; a mulch bed of shrubs along the house), a
+  low stucco wall / white pickets / clipped hedge on the street line, timber or stucco fences down
+  the lot lines from the house front back (built by the lot on the -x / -z side of a shared line,
+  so once), a back yard (lawn, deck, tile, concrete; a pool now and then), an L's inner corner a
+  tiled courtyard with a fountain; a **walk street** (`WALK_*`) cuts some blocks along x between
+  two rows of houses that front it; the cells a landmark's square dropped are beach car parks
+  (LotFill's) or pocket parks (`beach_dropped()`, trimmed off the sand and the boardwalk's shops).
+  A CAMPUS block's free ground (the campus hall's square drops most lots; `Landmarks.campus_footprint()`)
+  is quads (diagonal walks as ribbons, a cross walk, trees along them, lamps, benches), one car
+  park a block (`CAMPUS_PARK_MAX`), service yards (block-wall bays, dumpsters, a transformer), and
+  every building gets an entry walk to the pavement with an apron and shrubs by the door. The
+  freeway's **right of way** in every district is its corridor lots' cells: ivy, fading to bare
+  dirt in the deck's shade (per vertex, `BARE_FADE`), oleander hedge rows and a tree row parallel
+  to the deck, a split-face sound wall (`SOUND_WALL`, creeping fig up its foot) where it meets a
+  house lot in `SOUND_DISTRICTS`, chain-link elsewhere and on the street, and in some blocks a
+  maintenance yard (gravel, k-rail, a container, a crew truck). **Plans are pure** (`beach_block()`,
+  `campus_block()`, `corridor_block()`: the plan, the block, each lot's ground footprint), which
+  is how `GroundCoverage` (`scripts/world/ground_coverage.gd`, behind `tools/lot_coverage.gd`:
+  `FILL=0|lot|1`) and the smoke test ask the chunk's own question; the chunk records its lots'
+  footprints (`record_lot()`) and runs `block_step()` after the lots, laying the ground at once
+  (the lawn's grass keeps off it through `_lot_rects`) and the walls, planting and props as
+  time-sliced steps before the finish (`_defer()`, so the block's own props keep their ids).
+  Every roll is a hash of seed + lot / block, never the chunk rng. A FULL chunk's yard ground is
+  ONE mesh (`YardGround`, `shaders/lot_yard.gdshader`, kind in COLOR.r, a variant in COLOR.g, no
+  shadow) and everything upright ONE casting mesh (`YardWalls`, `shaders/lot_walls.gdshader`,
+  kind in COLOR.a, paint in COLOR.rgb as written, UV in face metres, UV2.x the height); pickets
+  and chain-link are cut out by the shader. Both shaders include `color_space.gdshaderinc` and do
+  their arithmetic in display numbers (`disp()` takes Forward+'s decoded textures and tints back,
+  `to_lit()` hands the result over), so the Mac draws the albedo the opengl3 stills show. Two shaders, not more kinds in
+  `lot_ground`: one shader sampling both texture sets passes what the Compatibility renderer
+  leaves a material. Planting goes in batches a chunk already has, under per-chunk budgets
+  (`MAX_SHRUBS` / `SHRUB_TRIS` - one shrub species a chunk, LotFill's pick where it runs too and
+  else one of the cheap two, `CHEAP_BUSHES` -, `MAX_TREES` of the block's street tree,
+  `MAX_PALMS` of one variant, `FLOWER_TRIS` of one flower). LOD chunks and the far city get the
+  lawns and the ivy as slabs, nothing else. A PLAZA rolled across the street from a landmark's
+  site is buildings (`CityPlan.block()` `"was_plaza"`: the empty square south of MacArthur Park).
+  `YARD_FILL=0` on `still_shot.gd` and `tools/glshot/block_shot.tscn` (a few FULL blocks alone,
+  a minute or two a shot) is the A/B; it does not undo the beach town's lower heights
+  (DISTRICTS) or the plaza. Checks: `tests/lot_fill_checks.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
@@ -1307,8 +1412,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   and Valley - as seeded polylines with a smoothed, grade-limited deck height, exactly the shape
   of data `HillRoads` uses (`segments_in()`, `ramps_in()`, `blocks()`, a cell index). The deck
   rides `DECK_RISE` above the ground on pillars, with barriers, lane paint, overhead sign gantries
-  and off-ramps down to the surface streets. `CityChunk._build_freeway()` builds it in three
-  meshes per chunk (asphalt top, vertex-coloured structure, unshaded paint) plus a `FreewayBody`
+  and off-ramps down to the surface streets. `CityChunk._build_freeway()` builds it with
+  `FreewayKit` (see the Freeway kit note) in four meshes per chunk (asphalt top, structure, paint
+  and sign faces, night light pools) plus a `FreewayBody`
   with one tilted box per segment, and deliberately bypasses `_batch`, because the batch adds the
   ground relief to every instance and the deck is nine metres above it. A segment is built by the
   chunk its **midpoint** falls in, so the deck is built exactly once. `_under_freeway()` keeps
@@ -1323,11 +1429,49 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   two grade-feasible profiles is still grade-feasible, so the deck provably clears the ground
   everywhere and stays drivable. Smoothing and grade-limiting alone do not - they never look at
   the ground, so a rise they cannot follow leaves the deck inside the hillside.
-  **Winding trap:** `CityChunk._ribbon()`'s plain vertex order makes a *horizontal* quad face
-  DOWN. The deck top is built with its own order (`l0, r1, r0`) and faces up; anything flat laid
-  on it - `_bar_flat()`'s lane paint, the cap on `_bar()`'s barriers - has to pass `flip = true`
-  to match, or it is back-facing and culled and you get a deck with no markings at all. That
-  looks exactly like a missing mesh or a z-fight, and is neither.
+  **Winding trap:** the old `CityChunk._ribbon()`'s plain vertex order made a *horizontal* quad
+  face DOWN, so the lane paint was once back-facing and culled - a deck with no markings at all,
+  which looks exactly like a missing mesh or a z-fight. `FreewayKit.tri()` / `quad()` now take
+  the direction each face must face and fix the winding and the normal themselves (LandmarkGeo's
+  rule); never add freeway geometry any other way. The deck top keeps its own order
+  (`l0, r1, r0`).
+  **The freeway kit** (VISUAL_ROADMAP #43, 2026-10-04, `scripts/world/freeway_kit.gd`): per deck
+  segment, a box girder (fascia, cantilever soffit, inclined web, bottom slab), New Jersey
+  barriers at both edges and down the median, and on whole-STEP spacings: bents (`PILLAR_SPACING`:
+  two 1.6 m columns square to the route with flared heads, the bent cap, five bearing pads, a
+  downpipe, two under-deck lights with a pool on the street below), median light standards
+  (`LIGHT_EVERY` segments: a tapered pole, twin arms, cobra heads with a glowing drop lens, a pool
+  on each carriageway - sodium amber or LED white per route), sign gantries (`GANTRY_SPACING`:
+  laced box truss on two laced posts, a catwalk and sign lights, and per carriageway a guide sign
+  - shield, direction, destinations, a down arrow per lane - and an exit sign where an off-ramp
+  is within 1.5 km on that side: street, distance or EXIT ONLY, the exit tab), expansion joints
+  (`JOINT_EVERY_BENTS`), scupper grates every `SCUPPER_SPACING`, the carpool diamond
+  (`DIAMOND_EVERY`), and at FULL only call boxes, CCTV poles, postmile paddles and tyre debris
+  on the shoulders. **Lanes are `Freeway.lane_layout(width)`**: four each way (`LANES`), lane 0
+  by the median the carpool lane behind a double yellow, yellow left edge line with yellow
+  markers, Botts' dots (4 dots and a marker every `BOTTS_CYCLE`) on the next line, a dashed
+  stripe with a marker in each gap on the last, white right edge line; `TrafficManager` drives
+  `Freeway.lane_fraction()` - keep the two together. What a vertex is rides in its colour's
+  alpha (`kind / KIND_SCALE`, `S_*` on `shaders/freeway_structure.gdshader`, `P_*` on
+  `shaders/freeway_paint.gdshader`), its colour sRGB in the rgb (both shaders decode it and work
+  in linear, `color_space.gdshaderinc`). Structure UV is (metres along the route, metres up the
+  feature), which is what puts the barrier joints, the tyre scuffs, the drip streaks, the rust
+  under each scupper (the same `SCUPPER_SPACING` phase as the grates) and the column streaks
+  where they belong. **Retroreflection** (markers, paint beads, sign sheeting) is lit by
+  `lamp_factor` in a cone ahead of the CAMERA (`glint_reach`, `glint_cone`): the headlights are
+  taken to be at the camera, so a free camera at night glints too; markers the cone reaches
+  never draw under about a pixel. Sign faces are also washed by their sign lights at night
+  (`sign_light`). Signs: route numbers are this game's own (`ROUTE_NUMBERS`, never the real
+  route's), destinations invented (`DESTINATIONS`, "Downtown" when the carriageway heads for it),
+  street names the plan's (`sign_case()`); lettering is TextMesh geometry merged into the paint
+  mesh (`text_geo()`, cached per string, coarse curves - it is most of a gantry's triangles), FULL
+  only; an LOD chunk keeps the deck, barriers, bents, blank boards, lights and pools and plain
+  dashed lines (`tests/freeway_kit_checks.gd` holds both to a triangle budget per segment). Off-
+  ramps use `FreewayKit.ramp_piece()` (slab, barriers, edge lines). Hashes only (seed, route,
+  segment), no rng. StreetWear's column tags read the same column frame (`_pillars()`). Stills:
+  the 110 by downtown, `EYE=1989,12.0,160,-6,-3` (north), the gantry at (1986.7, 55.6)
+  `1990,12.5,82,-6,10@13@40` (guide signs) and `1980.5,12.1,27,174,10@13@45` (exit sign), under
+  it on 5th St `2045,1.7,2,60,10` - `--hour=22` for the lights (HANDOFF 9ba).
   Traffic: `TrafficManager` drives the decks from `Freeway.point_at()` / `length_of()` /
   `nearest_on()`, which are distance-parameterised (the route's points are a fixed step along
   the *drawn* curve, not along the ground). Cars carry a signed direction and are recycled at
@@ -2134,6 +2278,49 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   stay smooth for the same reason - measure the pedestrians' `SPLIT=1` line after it.
   **Shader files use `//` comments, not `##`** - a `##` line is a syntax error and Godot falls
   back to a blank white material, which looks like a missing texture rather than a broken shader.
+- Crowd life (GAME_PLAN G5, 2026-10-04: "make the street feel inhabited"): within
+  `Pedestrian.life_range` (60 m) of the player people do more than walk - the "Life" section of
+  `pedestrian.gd`, with the shared data in `CrowdLife` (`scripts/npc/crowd_life.gd`). At the end
+  of a walk (`life_chance`), or at once when they appear (`life_spawn_chance`, so a street you
+  arrive in is already busy), someone stops (`_act`, `CrowdLife.Act`): TALK (`_plan_talk()`
+  recruits one or two free walkers on the same ring within `talk_reach` round a spot, facing
+  its middle; who speaks is worked out from the clock, so the group needs no leader; listeners
+  nod and look at the speaker), STAND (the phone, texting, a coffee, idle, folded arms), SIT
+  (`CrowdLife.add_seat()` registers both places of every FULL chunk bench and bus-stop bench on
+  the chunk; `_plan_sit()` takes the nearest free one, sit_down / sit / sit_talk / stand_up, the
+  hips put on the bench by a two-bone leg solve in `_sit_pose()` because the clip's chair is
+  10-20 cm higher than `SEAT_HEIGHT`), LEAN and WINDOW (one world-layer ray toward the
+  buildings, `_plan_wall()`: no wall, no lean). Each person rolls what they carry
+  (`_carry`: CALL, TEXT, CUP, BAG, SMOKE; `*_share`) and whether they jog or walk a dog
+  (`jogger_share` / `dog_share`, the higher share in SUBURBS, BEACHTOWN and on the Esplanade) on
+  their own stream (`_life`, `hash([seed, "life"])`). Carrying is an arm pose laid over the walk
+  in `_life_pose()` (a frame of the phone or talk clip, or the coffee forearm aimed forward,
+  `CrowdLife.CUP_FOREARM`) and a prop on a BoneAttachment3D (`_hold()`: `CrowdLife.prop_mesh()`
+  in the GRIP frame - x thumb, y fingers, z out of the palm, `grip_basis()` measured on the rigs
+  - on `shaders/crowd_prop.gdshader`, the screen glowing and the cigarette's ember lit by
+  `lamp_factor`; the bag is set plumb every tick). Joggers play `life/jog`
+  (`CrowdLife.JOG_CLIP_SPEED` 3.0) at any range; dog walkers have a `CrowdDog`
+  (`scripts/npc/crowd_dog.gd`, a child of the owner's node, Quaternius' CC0 Shiba Inu,
+  `assets/models/dog_shiba.glb`, a lead to the owner's left hand within the look range).
+  **Dog walkers are off** (`dog_share` 0, lead's call at merge): that Shiba is low-poly and
+  flat-shaded, which breaks the realism rule; turn them back on with a realistic dog.
+  Rules: out of range a stop just ends (`_life_range_changed()`); `_scare()` ends it at once;
+  only plain Pedestrians and ReplicaWalkers live (`_lives()`), never officers or rough
+  sleepers; all life timing is the physics clock (`_life_now_ms()`), never the wall clock (a
+  slow render or the wheel's slow motion). **The clips**: `tools/crowd/life_clips.gd` retargets
+  14 clips from Quaternius' Universal Animation Library 1 and 2 (CC0; `tools/crowd/
+  fetch_life_clips.sh` puts the free Standard files in the ignored `build/ual_src/`) onto every
+  crowd rig IN GODOT, writing `assets/models/crowd_life/<rig>_life.res`, which `CrowdLife.attach()`
+  adds to the rig's AnimationPlayer as the "life" library AFTER `fix_arm_pose()` and the loop
+  loop (never let fix_arm_pose see these clips). Do not retarget in Blender: its glTF import
+  re-orients the bones. The method is retarget_lib's world delta, so neither rest pose matters;
+  per clip it scales the legs' swing about their mean (the jog, 0.55) or settles them toward the
+  rig's stance (every standing clip, 0.6: the library's idles stand like a fighter). Rerun it
+  (two seconds a rig) whenever a crowd rig is rebuilt; add a clip by a row in `CLIPS`. The body
+  contract is untouched (no new bones, the same Body and welded bodies). `CROWD_LIFE=0` in the
+  environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
+  (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
+  `tests/crowd_life_checks.gd`; time it with MODE=bench.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and
@@ -2450,7 +2637,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `PropFactory.building_lod_material()`): it was declared and never set, so the whole far city
   was drawn 1.4-4.3x brighter than the same buildings up close on the Mac.
   **Far buildings are coded copies of the near ones** (2026-10-04, GAME_PLAN G7, docs/HANDOFF.md
-  9az): `FarBuilding` (`scripts/world/far_building.gd`) turns a planned Building into the LOD
+  9bd): `FarBuilding` (`scripts/world/far_building.gd`) turns a planned Building into the LOD
   chunk's `lod_box` instances (which the far city captures as they are): each part one box with
   the near building's whole facade in its CODE - window style, finish, roof covering, wall
   texture set, palette indices of its glass tint, lit colour and frame paint, storefront and
@@ -2469,7 +2656,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   off-diagonal entries carry 20-bit codes as code * 2^-28 (exact in float32, and a 4 mm shear the
   bounds can ignore), and the shader rebuilds the box from the diagonal (`skip_vertex_transform`)
   - because Compatibility hands INSTANCE_CUSTOM and COLOR over as half floats. Proven bit-exact on
-  both renderers (HANDOFF 9az). Rules: never rotate a coded part (houses and estates use the old
+  both renderers (HANDOFF 9bd). Rules: never rotate a coded part (houses and estates use the old
   path, INSTANCE_CUSTOM.a 0); anything the near and far shaders must agree on rolls from INTEGERS
   (`shaders/window_lights.gdshaderinc`: lit offices, spandrels; the shop rolls) - a float hash of
   the same inputs is only as exact as two compilers' instruction scheduling; a colour the far shader
@@ -2534,9 +2721,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   invocation in its header: it must run under `--rendering-driver opengl3` with Xvfb, never
   `--headless`. `AB=Batch_sig_*,BatchShadow_sig_*` counts the same frozen frame again with the
   matching nodes hidden, so one kind of geometry's cost comes out of one run. Measure a geometry change before and after with it rather than arguing about it.
-- Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building) and
-  `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real OpenGL renderer under
-  Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.
+- Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
+  `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
+  furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real
+  OpenGL renderer under Xvfb + llvmpipe in ~20 s; usage lines in the files. Use these before the web harness.
   **Those are the Compatibility renderer**, though - no SDFGI, no SSR, no TAA, no volumetric fog,
   flat lighting - so they are NOT what the owner's Mac draws, and judging a lighting or material
   change on one is judging the wrong renderer. `tools/glshot/forward_shot.sh` runs the real

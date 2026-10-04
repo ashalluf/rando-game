@@ -51,7 +51,21 @@ static func _list() -> Array[Dictionary]:
 		{"id": "pier", "anchor": Vector2(-940.0, -350.0), "radius": 200.0},
 		{"id": "observatory", "anchor": Vector2(260.0, -1320.0), "radius": 60.0},
 		{"id": "campus_hall", "anchor": Vector2(-620.0, -520.0), "radius": 95.0},
-		{"id": "terminal", "anchor": Vector2(-350.0, 715.0), "radius": 120.0},
+		# The airport (Airport / AirportTerminal): the head house on the drop-off, the two halves of
+		# the curved concourse with their jet bridges and parked airliners, the control tower, the
+		# arches over the landside, the car park and the rental lot, and the field's lights - each
+		# its own landmark so the chunk round each builds it in detail and the rest stay far.
+		# Radii stay inside the airport rect (z 590 up): a radius is a square of city lots dropped
+		# (CityPlan.lots()), and the airport is flat anyway - at 120 the terminal's square ate the
+		# blocks north of the drop-off.
+		{"id": "terminal", "anchor": Vector2(-350.0, 660.0), "radius": 60.0},
+		{"id": "concourse_w", "anchor": Vector2(-480.0, 690.0), "radius": 40.0},
+		{"id": "concourse_e", "anchor": Vector2(-220.0, 690.0), "radius": 40.0},
+		{"id": "control_tower", "anchor": Airport.TOWER_AT, "radius": 15.0},
+		{"id": "skyhook", "anchor": Airport.SKYHOOK_AT, "radius": 30.0},
+		{"id": "airport_garage", "anchor": Airport.GARAGE_RECT.get_center(), "radius": 25.0},
+		{"id": "rental_lot", "anchor": Airport.RENTAL_RECT.get_center(), "radius": 28.0},
+		{"id": "airfield_lights", "anchor": Vector2(-300.0, 915.0), "radius": 1.0},
 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
 		# Moored along the port's south quay in San Pedro Bay (MacroMap.port_rect / harbor_rect), on
 		# the headland's east flank where the real Port of Los Angeles is.
@@ -202,6 +216,19 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			_build_campus_hall(lm.anchor, parent, statics, detailed)
 		"terminal":
 			_build_terminal(lm.anchor, parent, statics, plan, detailed)
+		"concourse_w", "concourse_e":
+			AirportTerminal.build_concourse(parent, statics, plan.macro if plan else null, detailed, lm.id == "concourse_w")
+		"control_tower":
+			AirportTerminal.build_tower(parent, statics, plan.macro if plan else null, detailed)
+		"skyhook":
+			AirportTerminal.build_skyhook(parent, statics, plan.macro if plan else null, detailed)
+		"airport_garage":
+			AirportTerminal.build_garage(parent, statics, plan.macro if plan else null, detailed)
+		"rental_lot":
+			AirportTerminal.build_rental(parent, statics, plan.macro if plan else null, detailed)
+		"airfield_lights":
+			if plan and plan.macro:
+				Airport.build_lights(parent, plan.macro)
 		"hangars":
 			_build_hangars(lm.anchor, parent, statics, detailed)
 		"cargo_ship":
@@ -517,6 +544,17 @@ const PLINTH := Color(0.62, 0.60, 0.58)
 const BRICK_RED := Color(0.62, 0.32, 0.24)
 const CAMPUS_TEXT := "RANDO U"
 
+## What the campus hall stands on, in world XZ (Rect2() for any other landmark): the hall and its
+## towers, the steps, the quad and the sign wall in front, the bell tower - _build_campus_hall()'s
+## own extents. Its square (`radius`) drops every lot it touches, and YardFill lays the campus's
+## walks, quads and car parks on what this leaves of them.
+static func campus_footprint(lm: Dictionary) -> Rect2:
+	if lm.id != "campus_hall":
+		return Rect2()
+	var a: Vector2 = lm.anchor
+	return Rect2(a.x - 62.0, a.y - 60.0, 124.0, 134.0)
+
+
 ## The heart of the campus: a brick main hall with twin towers and a dome, grand steps, a quad
 ## with paths and a fountain in front, a bell tower and a lettered sign. Original design.
 static func _build_campus_hall(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
@@ -577,10 +615,19 @@ static func _build_campus_hall(anchor: Vector2, parent: Node3D, statics: StaticB
 	_box(parent, statics, Vector3(30.0, 2.4, 1.2), sign_at + Vector3(0.0, 1.2, 0.0), stone, true)
 	_text(CAMPUS_TEXT, 0.5, sign_at + Vector3(0.0, 2.8, 0.0), parent, Color(0.2, 0.22, 0.3))
 	if detailed:
-		# Trees along the quad edges.
+		# Trees along the quad edges: the chunk's own street tree (its batch, LotFill._tree) when a
+		# chunk builds the hall - sixteen ball-on-a-stick primitives read as a model railway beside
+		# the campus's real planting (YardFill) - and the old primitives only when nothing else can.
+		var chunk := parent as CityChunk
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([anchor, "campus_quad_trees"])
 		for i in 8:
 			for dz: float in [-1.0, 1.0]:
-				_tree(parent, base + Vector3(-52.0 + i * 15.0, 0.3, 30.0 + dz * 36.0))
+				var at := base + Vector3(-52.0 + i * 15.0, 0.3, 30.0 + dz * 36.0)
+				if chunk != null and chunk.level == CityChunk.Level.FULL and not chunk.capturing:
+					LotFill._tree(chunk, at, rng)
+				else:
+					_tree(parent, at)
 
 
 static func _cone(parent: Node3D, radius: float, height: float, pos: Vector3, color: Color) -> void:
@@ -639,37 +686,19 @@ static func _text(text: String, cell: float, center: Vector3, parent: Node3D, co
 
 # --- Airport terminal and cargo ship ---------------------------------------------------------
 
-## Terminal hall, control tower, and a saucer-shaped restaurant on crossed arches.
-static func _build_terminal(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
+## The terminal's head house (AirportTerminal) and the drop-off loop in front of it.
+static func _build_terminal(_anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: CityPlan, detailed: bool) -> void:
 	var macro: MacroMap = plan.macro if plan else null
-	var base := Vector3(anchor.x, macro.tarmac_top if macro else 0.1, anchor.y)
-	_facade_box(parent, statics, Vector3(160.0, 12.0, 40.0), base + Vector3(0.0, 6.0, -60.0), Color(0.80, 0.80, 0.78), Building.Finish.PANELS, Building.WindowStyle.RIBBON, 0.0)
-	# Control tower.
-	_cyl(parent, statics, 4.0, 46.0, base + Vector3(-100.0, 23.0, -60.0), Color(0.85, 0.85, 0.83))
-	_cyl(parent, statics, 9.0, 6.0, base + Vector3(-100.0, 49.0, -60.0), Color(0.25, 0.4, 0.55))
-	_cyl(parent, null, 9.5, 0.8, base + Vector3(-100.0, 52.4, -60.0), Color(0.85, 0.85, 0.83))
-	# Saucer restaurant on four crossed arches, beside the hall (clear of the apron taxi lane).
-	var sc := base + Vector3(0.0, 0.0, -34.0)
-	for i in 4:
-		var a := PI * 0.25 + i * PI * 0.5
-		var leg := _box(parent, null, Vector3(2.0, 34.0, 2.0), sc + Vector3(cos(a) * 12.0, 15.0, sin(a) * 12.0), Color(0.92, 0.92, 0.9), false)
-		leg.rotation.z = -cos(a) * 0.55
-		leg.rotation.x = sin(a) * 0.55
-	_cyl(parent, statics, 2.5, 28.0, sc + Vector3(0.0, 14.0, 0.0), Color(0.6, 0.6, 0.62))
-	_cyl(parent, statics, 14.0, 4.0, sc + Vector3(0.0, 28.0, 0.0), Color(0.92, 0.92, 0.9))
-	_cyl(parent, null, 12.0, 3.0, sc + Vector3(0.0, 31.5, 0.0), Color(0.25, 0.4, 0.55))
-	_dome(parent, null, 4.0, sc + Vector3(0.0, 33.0, 0.0), Color(0.92, 0.92, 0.9))
-	# Jet bridges reaching from the hall toward the apron (the flyable jets park below them).
-	for i in 4:
-		_box(parent, statics, Vector3(3.0, 3.0, 18.0), base + Vector3(-60.0 + i * 40.0, 5.5, -31.0), Color(0.7, 0.72, 0.75), detailed)
-		_box(parent, null, Vector3(2.0, 4.0, 2.0), base + Vector3(-60.0 + i * 40.0, 2.0, -24.0), Color(0.5, 0.5, 0.52), false)
+	if macro == null:
+		return
+	AirportTerminal.build_head_house(parent, statics, macro, detailed)
 	# The kerb and the road come from MacroMap, which is also where TrafficManager reads the lane
 	# paths that have to sit on them.
 	_build_dropoff(parent, statics, macro, detailed)
 
 
 ## The drop-off loop in front of the terminal: a dark two-way road with a median, lane lines,
-## a raised curb strip along the hall with pillars and "DEPARTURES" signs. Traffic crawls the
+## a raised curb strip along the hall (the lit DEPARTURES boards are the head house's). Traffic crawls the
 ## loop lanes from MacroMap.terminal_loops; the crowd on the curb comes from the airport chunk.
 static func _build_dropoff(parent: Node3D, statics: StaticBody3D, macro: MacroMap, detailed: bool) -> void:
 	if macro == null:
@@ -688,22 +717,12 @@ static func _build_dropoff(parent: Node3D, statics: StaticBody3D, macro: MacroMa
 		_box(parent, null, Vector3(road.size.x - 34.0, 0.012, 0.14), Vector3(rc.x, y + 0.068, lz), Color(0.95, 0.95, 0.95), false)
 	for lz: float in [623.6, 596.4]:
 		_box(parent, null, Vector3(road.size.x - 30.0, 0.012, 0.14), Vector3(rc.x, y + 0.068, lz), Color(0.9, 0.9, 0.9), false)
-	# Curb strip along the hall, a step up, with pillars carrying a canopy and the signs.
+	# Curb strip along the hall, a step up; the head house's roof overhangs it and the lanes, on
+	# tree columns standing in it (AirportTerminal), and the departures signs hang under it.
 	var cc := curb.get_center()
 	var strip := _box(parent, statics, Vector3(curb.size.x + 20.0, 0.24, curb.size.y + 1.0), Vector3(cc.x, y + 0.12, cc.y + 0.5), Color(0.8, 0.79, 0.76), detailed)
 	strip.material_override = PropFactory.pbr("sidewalk", 3.0, Color(0.95, 0.95, 0.95))
-	for i in 7:
-		var px := curb.position.x - 6.0 + i * (curb.size.x + 12.0) / 6.0
-		_box(parent, statics, Vector3(0.7, 6.0, 0.7), Vector3(px, y + 3.2, curb.position.y + 1.2), Color(0.6, 0.62, 0.66), detailed)
-	_box(parent, null, Vector3(curb.size.x + 20.0, 0.5, 9.0), Vector3(cc.x, y + 6.4, curb.position.y + 4.0), Color(0.85, 0.86, 0.88), false)
-	if detailed:
-		for sx: float in [cc.x - 50.0, cc.x, cc.x + 50.0]:
-			var sign := MeshInstance3D.new()
-			sign.mesh = PropFactory.text_mesh("DEPARTURES", 1.1)
-			sign.material_override = PropFactory.material(Color(1.0, 0.85, 0.2), 0.5, true)
-			sign.position = Vector3(sx, y + 5.4, curb.position.y - 0.3)
-			sign.rotation.y = PI # TextMesh reads from +Z; the road is on the -Z side
-			parent.add_child(sign)
+	# The DEPARTURES boards hang on the head house's tree columns (AirportTerminal).
 
 
 ## Three hangars with barrel roofs, a fuel farm and a beacon at the east end of the field.

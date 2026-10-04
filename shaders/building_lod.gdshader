@@ -12,7 +12,7 @@ render_mode cull_back, skip_vertex_transform;
 // bands, mullions, corner piers, a crown, a parapet) so the eye reads floors and columns rather
 // than a printed grid.
 //
-// THE FAR CITY'S BUILDINGS (2026-10-04, docs/HANDOFF.md 9az): every Building part is a CODED
+// THE FAR CITY'S BUILDINGS (2026-10-04, docs/HANDOFF.md 9bd): every Building part is a CODED
 // box (INSTANCE_CUSTOM.a -1, FarBuilding): its basis carries the near building's own facade data
 // in its off-diagonals - window style, finish, roof covering, the palette entries of its glass
 // tint, lit colour and frame paint, storefront and shop runs, bays and storeys (the near walls'

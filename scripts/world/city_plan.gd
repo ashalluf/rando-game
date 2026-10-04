@@ -85,10 +85,13 @@ const DISTRICTS := {
 	## small and the setbacks nearly nothing, so it is DENSER than the suburbs while being much
 	## lower, and that combination is what makes one read as a beach town from the street. Salt
 	## air means heavy weathering, and it is the palmiest district on the map.
+	## (2026-10-04, the yard pass: "low stucco houses and courtyard apartments") Two and three
+	## storeys, median about 8 m - it was 6-18 m, four- and five-storey blocks on every lot, which
+	## read as a downtown by the sea - and stucco nearly everywhere (FLAT is the painted render).
 	District.BEACHTOWN: {
-		"height": Vector2(6.0, 18.0), "lot": Vector2(13.0, 24.0), "gap": Vector2(2.0, 6.0),
+		"height": Vector2(5.5, 12.5), "lot": Vector2(13.0, 24.0), "gap": Vector2(2.0, 6.0),
 		"shapes": [Building.Shape.SLAB, Building.Shape.SLAB, Building.Shape.L_SHAPE, Building.Shape.STEPPED],
-		"finishes": [Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.PANELS, Building.Finish.BRICK],
+		"finishes": [Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.FLAT, Building.Finish.PANELS],
 		"lit": Vector2(0.25, 0.55), "park": 0.07, "plaza": 0.09, "trees": 0.8, "courtyard": 0.3,
 		"cafes": 3, "planters": 3, "clutter": 2, "weathering": Vector2(0.35, 0.85), "line_white": 0.45,
 		"paving": [["sidewalk", 3.0, Color(1.54, 1.53, 1.47)], ["pavers", 2.5, Color(1.13, 1.10, 1.03)]],
@@ -353,7 +356,17 @@ func block(ix: int, iz: int) -> Dictionary:
 	if (kind == BlockKind.MALL or kind == BlockKind.BIGBOX) and macro and macro.freeway \
 			and macro.freeway.blocks_rect(rect, 3.0):
 		kind = BlockKind.BUILDINGS
+	# A plaza rolled on a block across the street from a landmark's site (MacArthur Park) is
+	# buildings: the park is the neighbourhood's open space, and the 100 x 180 m square of bare
+	# paving the roll put south of it was the emptiest block in Westlake (2026-10-04, the yard pass).
+	# After the roll, like the overrides above, so the seed and every lot are what they were.
+	var was_plaza := false
+	if kind == BlockKind.PLAZA and macro and _beside_site(ix, iz):
+		kind = BlockKind.BUILDINGS
+		was_plaza = true
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
+	if was_plaza:
+		result["was_plaza"] = true
 	# Ground a landmark owns outright (a replica area's site): the chunk builds that instead.
 	var site := site_at_block(ix, iz)
 	if not site.is_empty():
@@ -433,6 +446,15 @@ func _snap_site(id: String, spec: Dictionary) -> Dictionary:
 	return {"id": id, "ix0": ix0, "ix1": ix1, "iz0": iz0, "iz1": iz1, "keep_z": keep,
 		"rect": Rect2(x0, z0, x1 - x0, z1 - z0), "halves": halves, "keep_rects": keep_rects,
 		"streets": spec.get("streets", {})}
+
+
+## True when block (ix, iz) is across one of a site's boundary roads (corners included), not in it.
+func _beside_site(ix: int, iz: int) -> bool:
+	for s: Dictionary in sites():
+		var inside := ix >= int(s.ix0) and ix < int(s.ix1) and iz >= int(s.iz0) and iz < int(s.iz1)
+		if not inside and ix >= int(s.ix0) - 1 and ix <= int(s.ix1) and iz >= int(s.iz0) - 1 and iz <= int(s.iz1):
+			return true
+	return false
 
 
 ## The site whose blocks include block (ix, iz), or {}.
