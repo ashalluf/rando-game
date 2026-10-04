@@ -59,7 +59,9 @@
 #                  zip_pull_color
 #   trousers       style jeans|slim|chinos|leggings|shorts, rise, waist_tilt, hem_height (full
 #                  length), above_knee (shorts), above_ankle (cropped / leggings), shoe_clear,
-#                  wash / fade_color (denim), thread
+#                  wash / fade_color (denim), thread, ankle_stack / ankle_reach (the fold field's
+#                  break over the shoe, read by crowd_atlas.py: 0.4 / 0.12 m, slim 0.3 / 0.1,
+#                  leggings 0.2 / 0.08; the hero's track pant is 1.0 / 0.2)
 #   tops also take layer_clear (over the trousers, 10 mm) and hem_hips (how much of the hem's
 #   thigh weight moves to the hips, 0.25).
 import json

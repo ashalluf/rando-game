@@ -204,6 +204,14 @@ if os.path.exists(C.work(NAME, "folds.npz")):
     import folds as FF  # noqa: E402  (tools/hero)
     Z = np.load(C.work(NAME, "folds.npz"))
     L = json.load(open(C.work(NAME, "fold_landmarks.json")))
+    # Our own trousers (garments.py) are hemmed, not gathered: a break or two over the shoe, not
+    # the track pant's ring stack, which read as jogger cuffs on every pair of jeans. Read from
+    # today's outfit ("ankle_stack" / "ankle_reach" on the trousers override the style's).
+    for _g in _CFG.get("outfit", []):
+        if _g.get("type") == "trousers":
+            _st, _re = {"leggings": (0.2, 0.08), "slim": (0.3, 0.1)}.get(_g.get("style", "jeans"), (0.4, 0.12))
+            L["ankle_stack"] = _g.get("ankle_stack", _st)
+            L["ankle_reach"] = _g.get("ankle_reach", _re)
     NS = PLAN["normal_size"]
     Pm = np.zeros((NS, NS, 3), np.float32)
     Nm = np.zeros((NS, NS, 3), np.float32)
