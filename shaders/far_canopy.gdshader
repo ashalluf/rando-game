@@ -141,7 +141,8 @@ void fragment() {
 	}
 	// rigid_color is a source_color uniform, already in the renderer's own space.
 	ALBEDO = (rigid ? tint * shade : cs_out(tint * shade)) * (1.0 - rim);
-	EMISSION = sky_tint.rgb * rim;
+	// sky_tint arrives raw on both renderers; the sky it fades into is decoded on Forward+.
+	EMISSION = cs_out(cs_srgb_to_linear(sky_tint.rgb)) * rim;
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;
 }

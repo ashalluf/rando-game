@@ -725,7 +725,13 @@ void fragment() {
 
 	float rim = smoothstep(edge_start, edge_end, length(world_pos.xz - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xz));
 	albedo *= 1.0 - rim;
-	emission = mix(emission, sky_tint.rgb, rim);
+	// The sky's horizon in this renderer's space: `sky_tint` (a color global) arrives raw on both,
+	// and the sky shader's own horizon is decoded on Forward+ - the plane and the far canopy fade
+	// to the same (HANDOFF 9at).
+	vec3 sky_rim = instance_color_is_srgb
+		? mix(sky_tint.rgb / 12.92, pow((sky_tint.rgb + vec3(0.055)) / 1.055, vec3(2.4)), step(vec3(0.04045), sky_tint.rgb))
+		: sky_tint.rgb;
+	emission = mix(emission, sky_rim, rim);
 	ALBEDO = albedo;
 	ROUGHNESS = rough;
 	METALLIC = 0.0;

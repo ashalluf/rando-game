@@ -115,11 +115,11 @@ uniform float cloud_speed = 7.0;
 // Until 2026-10-04 this plane kept copies of those colours AS source_color uniforms, so Forward+
 // decoded the linear numbers a second time (0.150 straw arrived as 0.020) and the far mountains
 // drew near-black olive on the Mac against the near hills' straw, while Compatibility, which
-// decodes nothing, looked right in every opengl3 still (HANDOFF 9ap).
+// decodes nothing, looked right in every opengl3 still (HANDOFF 9at).
 //
 // The painted band's light is this shader's own (sun_strength and the fill above); this scales
 // its albedo so the band past paint_end comes out as bright as the renderer lights the band
-// before paint_start (measured on Forward+ with paint_debug, HANDOFF 9ap).
+// before paint_start (measured on Forward+ with paint_debug, HANDOFF 9at).
 uniform float paint_gain : hint_range(0.3, 1.5) = 0.66;
 // Metres (from the camera) over which the plane hands from lit by the renderer, like the
 // streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
@@ -268,9 +268,13 @@ void fragment() {
 	vec3 bounce_c = cs_in(bounce_color);
 	vec3 city_light_c = cs_in(city_light_color);
 	vec3 smog_c = cs_in(smog_color);
-	// The sky's horizon colour, as the renderer has it (for the rim, which hands over to the sky
-	// itself) and as linear light (for the fill).
-	vec3 sky_ws = sky_tint.rgb;
+	// The sky's horizon colour as linear light (for the fill) and in the renderer's own space (for
+	// the rim, which hands over to the sky itself). `sky_tint` is a `color` global, and those
+	// arrive RAW on both renderers (probe, HANDOFF 9at) while the sky shader's own horizon is a
+	// source_color uniform that Forward+ decodes: raw, the rim faded to a colour a stop brighter
+	// than the sky it meets, and the fill was that much too bright.
+	vec3 sky_lin = cs_srgb_to_linear(sky_tint.rgb);
+	vec3 sky_ws = cs_out(sky_lin);
 
 	vec3 eye = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	vec3 view = normalize(world_pos - eye);
@@ -287,7 +291,7 @@ void fragment() {
 	float fp = max(dist * pixel_angle * graze, 0.02);
 	bool rich = ground_detail > 0.5;
 	vec3 L = normalize(sun_dir);
-	vec3 sky = mix(cs_in(sky_ws), vec3(1.0), 0.12);
+	vec3 sky = mix(sky_lin, vec3(1.0), 0.12);
 	float water = 1.0 - step(0.0005, m.a);
 	float near = (1.0 - smoothstep(near_fade_start, near_fade_end, dist)) * (1.0 - water);
 	// How much of this point is painted by hand rather than lit by the renderer (see the split

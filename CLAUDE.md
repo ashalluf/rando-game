@@ -1274,12 +1274,18 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   0.5 and roughness 0.93 - at 0.15 Godot reads the F0 as occluded and drops the grazing sky
   reflection, and with the same albedo and normal the plane lit at two thirds of the tiles (found
   by emitting albedo, normals, coverage and a flat grey on both in a debug render) - draws the
-  tiles' own stands (terrain.gdshader's threshold on the same noise at the same world point, its
-  straw, dirt and rock slopes, off the bake's smooth slope rather than the crag normal), and
-  takes the ridge shadows it marches off its direct share (`shade`), since the renderer's shadow
-  maps stop at 500 m. The bush speckle and gully streaks are painted-band only. Numbers copied
-  from terrain.gdshader (`straw_color`, `topo_weight`, `tile_*_slope_*`, `macro_variation`) must
-  stay equal to its own.
+  tiles' own stands, and takes the ridge shadows it marches off its direct share (`shade`), since
+  the renderer's shadow maps stop at 500 m. **The plane paints the tiles' own field**: it
+  includes `shaders/hill_splat.gdshaderinc` - the stand rule, `hill_rocky()` / `hill_bare()`
+  and the colours (`straw_color`, `chaparral_color`, `dirt_color`, `rock_color`, `snow_color`,
+  `drain_shade`, `macro_variation` all live there) - with every octave a far pixel cannot
+  resolve at its mean and the stand edge widened by what it spread, and the tiles' far average
+  of straw and brush (`FAR_CHAP_TONE`, `FAR_BARE_SHARE`); off the bake's smooth slope in the lit
+  band, the full crag normal in the painted one (which is what mottles a range kilometres out).
+  There are no copies left to keep equal (`tests/hill_air_checks.gd` fails on one). The bush
+  speckle, gully streaks and craggy-face rock (`far_rock_slope_*`) are painted-band only.
+  `paint_gain` scales the painted band's albedo to the lit band's brightness (`paint_debug`
+  forces the whole plane one way; `hill_ground_shot.gd PAINT_AB=1` measures it).
   **The plane and its collision are separate nodes** (`Ground`, drawn, slides with the player;
   `GroundBody`, a 14 km box, moved only when the player is `GROUND_BODY_REACH` of it from its
   centre). Moving a static body makes Godot Physics wake every body touching it - on any
@@ -1357,10 +1363,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   lone shrub on open grass, nothing on rock, cuts or trails. Their tints are OVER 1 (1.4-2.2):
   both leaf atlases are mostly black background, which the mip chain averages into the leaves,
   so tinted below 1 a stand drew black from twenty metres. The far tier
-  (`Skyline._add_hills`) asks the same field on a 30 m height lattice: low draped chaparral
-  mounds on the stands, taller dark oaks in the hollows, colours lifted from the
-  terrain's `chaparral_color` (`HILL_BRUSH_COLOR`). Past that, `macro_ground.gdshader` biases its scrub to
-  the north faces (`north_scrub`) the way the near ground does.
+  (`Skyline._add_hills`) asks the same field on a 30 m height lattice and plants ONLY the oaks
+  and sycamores in the hollows. It also drew a low chaparral mound on every stand until
+  2026-10-04: from the air each was a 6 x 3 pixel blob, lit by the renderer against a far ground
+  that paints its own light, and the ranges were covered in dark dashes. The brush out there is
+  the ground's (the LOD tiles' and the horizon plane's stands, the same field).
   **The near hill ground grows out of the paint (hill shells).** The splat's maths lives in
   `shaders/hill_splat.gdshaderinc` (uniforms, noise, `hill_stand_threshold()`, `hill_brush()`,
   `hill_bare()`, `hill_rocky()`, `hill_crowns()`), included by `terrain.gdshader` AND by
@@ -2216,8 +2223,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (the lawn texture's blades recoloured by luminance, the `hill` scan as a large-tile mottle),
   dark olive chaparral in ragged stands and far thicker on north-facing slopes, dirt / decomposed granite (`hill_dirt`) on the steep
   quarter and on a few trails, rock outcrops (`hill_outcrop`) on the steepest tenth, hillside-scale
-  brightness swings, snow only above the far ground's `snow_line`. Its colours are LINEAR and sit
-  in `macro_ground.gdshader`'s natural range so a range matches across the horizon handoff, and
+  brightness swings, snow only above `snow_line`. Its colours are LINEAR, in plain uniforms in
+  `hill_splat.gdshaderinc`, which the horizon plane reads too, so a range is one ground across
+  the handoff; the shader works in linear on both renderers (`color_space.gdshaderinc`: the
+  textures through `cs_in()`, the albedo out through `cs_out()` - see the measurement traps), and
   it reads TRUE world XZ (`world_offset`, pushed by `CityStreamer`) so nothing jumps on a
   re-centre. The stands follow the land (`topo_weight`: aspect, the erosion's drainage in
   COLOR.g, gentle ground; the patch noise only rags their edges - at 0.45 it drew camouflage
@@ -2232,7 +2241,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   3 m value noise cut by a threshold is itself round blobs, and from 150 m, once the shrub
   crowns are gone, that WAS the leopard. As each octave fades it widens the edge by its spread
   (`hill_stand_edge()`), so a hillside too far off to resolve it draws the brush SHARE as a tone.
-  `macro_ground.gdshader` copies the result for its lit band. Canyons are shaded darker (`drain_shade`,
+  `macro_ground.gdshader` paints the same field (it includes the splat).
+  **The ranges' look** (2026-10-04, "real LA ranges from the air"): gold grass on the open south
+  slopes and their spurs, dusty grey-green chaparral in the folds and on the north faces, pale
+  rock along the crests. `south_grass` 0.35 and `drain_brush` 0.6 split a south face into gold
+  ribs and dark gullies (front range: south faces 86 % -> 54 % brush; gullies 97 %, mid-slopes
+  51 %, spurs 6 %; north faces stay ~89 %); straw (0.200, 0.158, 0.076), chaparral (0.046, 0.058,
+  0.040), dirt (0.205, 0.176, 0.133) and rock (0.172, 0.164, 0.150), linear. HillPlanting
+  mirrors the two numbers. Canyons are shaded darker (`drain_shade`,
   `erosion_shade`), and the detail is lit: **the terrain mesh has no UVs and so no tangents,
   and a NORMAL_MAP without tangents does nothing** - every hillside was smooth plastic between
   its vertices. The shader works its detail out as world-XZ slopes (the ground textures' normal
@@ -2269,7 +2285,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Far buildings (`shaders/building_lod.gdshader`) get a cheap version of the same depth: the
   window grid is sampled with a view-direction offset, so the panes parallax as if recessed,
   plus per-room brightness, a slab-edge band each floor, reveal shading and a vertical gradient.
-- **Three measurement traps, each of which has already cost a session.** All fail by reporting
+- **Four measurement traps, each of which has already cost a session.** All fail by reporting
   success, which is the worst way to fail.
   1. **Godot serves a CACHED import of a `.glb`.** Rebuild a model, render it, and you are
      looking at the *old* file. Run `godot --headless --path . --import` between writing the
@@ -2293,6 +2309,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
      every other LOD'd batch. Compare foliage with `TREE_AB` on `still_shot.gd`, whose `TRUE`
      lines count every instance at the LOD the renderer picks (frustum-culled, shadows per
      cascade).
+  4. **The two renderers disagree about colour space, and every opengl3 still hides it.**
+     Forward+ (the Mac) decodes `source_color` uniforms - their defaults too - and `source_color`
+     textures from sRGB, and lights in linear; Compatibility (the web, every opengl3 still)
+     decodes nothing and lights the raw numbers. Plain uniforms, vertex colours and MultiMesh
+     instance colours arrive raw on both. So a linear number in a `source_color` uniform is
+     decoded TWICE on the Mac and looks right in every still: the horizon plane's whole palette
+     was that (0.150 straw drew as 0.020, the far mountains near-black olive against the near
+     hills), and so were the far boxes before them (`instance_color_is_srgb`). Any shader that does
+     arithmetic on colours includes `shaders/color_space.gdshaderinc` and works in linear on both
+     (`cs_in()` on every `source_color` input, plain uniforms written linear, `cs_out()` on
+     ALBEDO / EMISSION / BACKLIGHT): the hill ground, the shells, the plane and the far canopy do.
+     Prove a colour change on Forward+ with a SMALL scene under lavapipe
+     (`tools/glshot/hill_ground_shot.tscn GROUND=1 MASKS=1 NOFOG=1` for the hills; the city does
+     not fit), never on the opengl3 stills alone.
   `tools/geo_count.gd` counts triangles, draw calls and objects for one frame and has the working
   invocation in its header: it must run under `--rendering-driver opengl3` with Xvfb, never
   `--headless`. `AB=Batch_sig_*,BatchShadow_sig_*` counts the same frozen frame again with the

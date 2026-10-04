@@ -2,12 +2,17 @@
 // than pass one straight through.
 //
 // The two renderers disagree (the repo's two-renderer probe, foliage_tex.gdshader's header,
-// re-run for the hills on 2026-10-04 - HANDOFF 9ap):
+// re-run for the hills on 2026-10-04 - HANDOFF 9at):
 //   * Forward+ (the Mac) decodes `source_color` uniforms (their defaults too) and `source_color`
 //     textures from sRGB to linear, and lights in linear.
 //   * Compatibility (the web build, the opengl3 stills) hands both over RAW and lights the raw
 //     numbers: it works in sRGB.
-//   * Plain uniforms, vertex colours and MultiMesh instance colours arrive raw on both.
+//   * Plain uniforms' DEFAULTS, vertex colours, MultiMesh instance colours and `color` shader
+//     globals (sky_tint) arrive raw on both. But a Color SET from script is decoded on Forward+
+//     even into a plain vec3 uniform (only a Vector3 is not).
+//   (Probe, 2026-10-04, one quad per case read back: 0.5 drew 127 where it was decoded and 187
+//   where it was not on Forward+, 128 for everything on Compatibility. Lit, both renderers give
+//   albedo x light energy x N.L, no 1/pi.)
 // So a number in a plain uniform means a LINEAR albedo on Forward+ and an sRGB one on
 // Compatibility, and a `source_color` uniform written as a linear number is decoded a SECOND
 // time on Forward+: 0.150 becomes 0.020, seven times darker and far more saturated. That was the

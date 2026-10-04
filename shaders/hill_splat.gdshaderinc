@@ -15,15 +15,16 @@
 // Straw on a pale, burnt hillside and on a greener, later-drying one (LINEAR albedo): late-summer
 // wild oats, pale gold (2026-10-04: a third brighter and yellower; the old 0.150 / 0.124 / 0.074
 // was a tan that read brown beside the city's concrete once the Mac drew it at its real value).
-uniform vec3 straw_color = vec3(0.196, 0.157, 0.083);
+uniform vec3 straw_color = vec3(0.200, 0.158, 0.076);
 uniform vec3 straw_green_color = vec3(0.138, 0.127, 0.076);
 // Chaparral: the brush with the shade between the bushes (LINEAR). Dusty grey-green - chamise,
-// scrub oak and ceanothus under a summer's dust - not the olive-black it was (0.050 / 0.056 /
-// 0.036): more blue in it and a little lighter.
-uniform vec3 chaparral_color = vec3(0.055, 0.061, 0.045);
+// scrub oak and ceanothus under a summer's dust - not the olive-brown it was (0.050 / 0.056 /
+// 0.036): greener against the red, more blue in it. Lit by a warm low sun on the Mac it still
+// reads grey-brown if green is not clearly over red.
+uniform vec3 chaparral_color = vec3(0.046, 0.058, 0.040);
 // The sage and buckwheat dotted through the grass: grey-green and paler than the chaparral
 // (LINEAR). Painted in the chaparral's colour they were dark polka dots across the straw.
-uniform vec3 sage_color = vec3(0.092, 0.096, 0.076);
+uniform vec3 sage_color = vec3(0.085, 0.097, 0.075);
 // Decomposed granite and dirt on the cuts and trails, and rock outcrops, buff sandstone going grey
 // (LINEAR albedos; terrain.gdshader carries the textures' grain on them).
 // Pale decomposed granite and grey sandstone / granite, as the fire roads and outcrops of the
@@ -52,7 +53,7 @@ uniform float gentle_grass : hint_range(0.0, 1.0) = 0.55;
 // How much brush the sunny side loses: the open south slopes and their spurs are gold grass, the
 // folds between them brush (with drain_brush). At 0.08 (and drain_brush 0.45) the front range's
 // south faces - what the whole basin looks at - were 86 % brush and every range one olive-brown
-// tone; now 54 %: gullies 97 %, mid-slopes 51 %, spurs 6 % (front range, HANDOFF 9ap).
+// tone; now 54 %: gullies 97 %, mid-slopes 51 %, spurs 6 % (front range, HANDOFF 9at).
 uniform float south_grass : hint_range(0.0, 1.0) = 0.35;
 // Scree and dirt down the steep gullies, and rock breaking out along the spur crests.
 uniform float gully_scree : hint_range(0.0, 1.0) = 0.5;
