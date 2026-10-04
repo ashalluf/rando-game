@@ -78,11 +78,14 @@ What only the owner can supply, and why each one multiplies everything below:
   puddles, decals, tyre marks, dense street clutter, alleys, car parks, better trees and weeds.
 - [ ] **G4. Lighting art direction (1-2 months, alongside).** Reflection probes per block, wet
   roads, volumetric clouds, neon and storefronts that light the street, headlights that cast
-  light, and a grade tuned per hour against the G1 references.
+  light, and a grade tuned per hour against the G1 references. (Headlights that cast light:
+  done 2026-10-04, CarLights - Forward+ spot lights on the nearest cars.)
 - [ ] **G5. People (2-4 months).** Properly rigged humans with finger and face bones, a real
   animation library (about fifty clips: idles, turns, phone, talking, waiting to cross), foot
   placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
 - [ ] **G6. Cars (1-2 months).** Interiors, real glass, damage, lights; extend tools/make_*.
+  (Lights done 2026-10-04: real headlights near the camera, brake / indicator / hazard /
+  reversing lamps on every running car, parked cars dark.)
 - [ ] **G7. Performance, throughout.** Generated occluders, far-building impostors, texture
   streaming, profiled on the owner's Mac every push: the look at 60 fps, not 15. (Done
   2026-09-24: the level-of-detail hierarchy - FULL, LOD, a whole-basin far city handed over per
@@ -286,6 +289,15 @@ already mapped so milestone 2 is script-only.
   low-poly interiors behind the glass: the traced room has true parallax at zero triangles and
   zero draw calls (the frame-cost budget is the binding constraint downtown), and nothing has to
   stream or fade. Cost is ALU on storefront glass pixels only. docs/HANDOFF.md 9at.
+- **2026-10-04 Car lights light the world (G4 / G6).** On Forward+ the player's car and up to
+  six running traffic cars within 60 m carry real SpotLight3D headlights (`CarLights`: budgeted
+  by Quality, faded by distance and on hand-over, shadows only on the player's car, which also
+  carries the low-beam cookie and a red glow behind); everything else - the web, Compatibility,
+  cars further off - keeps the additive lamp mesh, which now also shows brake lights (traffic
+  slowing or standing), indicators for the turn traffic rolled, hazards on a knocked-out car and
+  reversing lamps, as shared state materials (one draw a car still). Parked cars' lamps are off.
+  An unshadowed spot cannot carry a projector in Godot (it draws nothing), so traffic beams are
+  soft plain cones. docs/HANDOFF.md 9au; CLAUDE.md "Car lights".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

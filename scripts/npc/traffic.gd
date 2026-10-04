@@ -431,6 +431,9 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	var to_centre := (cross_pos - along) * float(dir)
 	# Where the nose has to stop for this intersection: > 0 while it is still short of the line.
 	var to_line := to_centre - cw * 0.5 - stop_line_back - half
+	# The car's indicators read it (Vehicle._traffic_signal()): they come on for a rolled turn
+	# within Vehicle.TURN_SIGNAL_DISTANCE of the junction.
+	t.to_c = to_centre
 	if t.get("node", Vector2i(-999999, -999999)) != node:
 		# A new intersection coming up: roll the turn once, forget the last one's lights.
 		t.node = node

@@ -55,7 +55,9 @@ extends SceneTree
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
 ## STOREFRONT_KIT=0 builds the buildings without ShopfrontKit's storefront pieces, awnings and
 ## curtain-wall caps (the A/B of that kit). CAR_GLASS=0 puts every car back on its model's own
-## opaque glass with nobody inside (CarCabin's A/B). MERGE_STATIC=0 builds the chunks'
+## opaque glass with nobody inside (CarCabin's A/B). CAR_LIGHTS=1 runs CarLights' real headlights
+## on opengl3 too (Forward+ only in the game); every GEO line is followed by a LIGHTS line (car
+## spot lights and street-lamp lights, on and in view). MERGE_STATIC=0 builds the chunks'
 ## solid boxes and the far landmarks one node per box again (CityChunk.merge_boxes,
 ## MultiMeshBatch.merge_enabled), the "before" side of that measurement.
 ## LIGHT_WORLD=1 loads a smaller world (far city LIGHT_FAR m, default 2500; LOD ring LIGHT_LOD
@@ -91,6 +93,10 @@ func _initialize() -> void:
 	if OS.get_environment("STOREFRONT_KIT") == "0":
 		(load("res://scripts/world/shopfront_kit.gd") as GDScript).set("enabled", false)
 	# CAR_GLASS=0: every car on its model's own opaque glass, nobody inside (CarCabin's A/B).
+	# CAR_LIGHTS=1: CarLights' real headlights on the Compatibility renderer too (they are
+	# Forward+ only in the game), so an opengl3 still shows where they fall.
+	if OS.get_environment("CAR_LIGHTS") == "1":
+		(load("res://scripts/vehicles/car_lights.gd") as GDScript).set("force", true)
 	if OS.get_environment("CAR_GLASS") == "0":
 		(load("res://scripts/vehicles/car_cabin.gd") as GDScript).set("enabled", false)
 	if OS.get_environment("MERGE_STATIC") == "0":
@@ -673,7 +679,34 @@ func _geo_report(label: String) -> Array:
 	var c := _geo_counts()
 	print("%s tris=%d draws=%d objects=%d | camera tris=%d draws=%d | shadow tris=%d draws=%d" % [
 		label, c[0], c[1], c[2], c[3], c[5], c[4], c[6]])
+	_light_report(label)
 	return c
+
+
+## The real lights in the frame: CarLights' spots (and how many of them are in view), the street
+## lamps' omni lights in view (their whole range box against the frustum, as the renderer culls).
+func _light_report(label: String) -> void:
+	var cam := get_root().get_camera_3d()
+	if cam == null:
+		return
+	var frustum := cam.get_frustum()
+	var counts := [0, 0, 0, 0] # car lights on, car lights in view, lamps on, lamps in view
+	for n in get_root().find_children("*", "Light3D", true, false):
+		var l := n as Light3D
+		if not l.is_visible_in_tree() or l.light_energy <= 0.0 or l is DirectionalLight3D:
+			continue
+		var car := String(l.get_parent().name) == "CarLights"
+		var reach := (l as SpotLight3D).spot_range if l is SpotLight3D else (l as OmniLight3D).omni_range if l is OmniLight3D else 0.0
+		var inside := true
+		for plane: Plane in frustum:
+			if plane.distance_to(l.global_position) > reach:
+				inside = false
+				break
+		var k := 0 if car else 2
+		counts[k] += 1
+		if inside:
+			counts[k + 1] += 1
+	print("LIGHTS %s car=%d (in view %d) lamps=%d (in view %d)" % [label, counts[0], counts[1], counts[2], counts[3]])
 
 
 const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
