@@ -106,17 +106,37 @@ static func report(seed_value: int, area: Rect2, fill: int, grid: float = 1.0) -
 	return {"lines": lines, "rows": rows_out}
 
 
-## The blocks the MACARTHUR_SE row counts: the block across both of the park's site's boundary
-## roads at its south-east corner, and the block south of the site's east half (a plaza on the
-## default seed: one fountain in 100 x 180 m of paving).
+## The blocks the MACARTHUR_SE row counts: the ones across the street from MacArthur Park's site
+## that rolled a plaza (on the default seed, the 100 x 180 m square of paving south of the park's
+## east half) - buildings since the yard pass (CityPlan.block() "was_plaza").
 static func macarthur_se_blocks(plan: CityPlan) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var s := plan.site_by_id("macarthur_park")
 	if s.is_empty():
 		return out
-	out.append(Vector2i(int(s.ix1), int(s.iz1)))
-	out.append(Vector2i(int(s.ix1) - 1, int(s.iz1)))
+	for bx in range(int(s.ix0) - 1, int(s.ix1) + 1):
+		for bz in range(int(s.iz0) - 1, int(s.iz1) + 1):
+			if plan.block(bx, bz).get("was_plaza", false):
+				out.append(Vector2i(bx, bz))
 	return out
+
+
+## A plaza block as CityChunk._build_plaza() / _furnish_plaza() lay it, on the coverage grid: its
+## fountain built, its four raised beds garden, the rest bare paving.
+static func _plaza(box: Array, rect: Rect2) -> void:
+	var inner := rect.grow(-2.0)
+	var center := inner.get_center()
+	var basin_r := minf(inner.size.x, inner.size.y) * 0.12
+	_paint(box, Rect2(center - Vector2(basin_r, basin_r), Vector2(basin_r, basin_r) * 2.0), BUILT)
+	var keep := basin_r + 9.0
+	var bw := clampf(inner.size.x * 0.24, 8.0, 26.0)
+	var bd := clampf(inner.size.y * 0.24, 8.0, 26.0)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			var c := center + Vector2(sx * maxf(keep + bw * 0.5, inner.size.x * 0.26), sz * maxf(keep * 0.7 + bd * 0.5, inner.size.y * 0.26))
+			var bed := Rect2(c - Vector2(bw, bd) * 0.5, Vector2(bw, bd))
+			if inner.grow(-7.0).encloses(bed):
+				_paint(box, bed, GARDEN)
 
 
 ## One block: {"row" (district name, DOWNTOWN split), "freeway" (a corridor lot stands in it),
@@ -127,6 +147,8 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 	var brect: Rect2 = b.rect
 	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or plan.zone_at(brect.get_center()) != MacroMap.Zone.CITY:
 		return {}
+	# Before the yard pass a plaza beside MacArthur Park was a plaza.
+	var as_plaza: bool = fill < 2 and b.get("was_plaza", false)
 	# A block a landmark claims whole (the civic set) is the landmark's own ground.
 	if Landmarks.claims(brect):
 		return {}
@@ -159,7 +181,9 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 	var building_scene: PackedScene = load("res://scenes/props/building.tscn")
 	var entries: Array = []
 	var corridor: Array = []
-	for lot: Dictionary in plan.lots(bx, bz):
+	if as_plaza:
+		_plaza(box, brect)
+	for lot: Dictionary in ([] if as_plaza else plan.lots(bx, bz)):
 		var size: Vector2 = lot.size
 		var lot_rect := Rect2((lot.center as Vector2) - size * 0.5, size)
 		var cell: Rect2 = lot.get("cell", lot_rect)
@@ -212,7 +236,7 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 		out.shapes[sk][0] += 1
 		out.shapes[sk][1] += minf(ground / (size.x * size.y), 1.0)
 		bld.free()
-	if filled:
+	if filled and not as_plaza:
 		# What a landmark's square dropped, less the landmark (LotFill.leftovers()).
 		var holes: Array[Rect2] = []
 		for lm in Landmarks.all():

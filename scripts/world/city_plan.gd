@@ -356,7 +356,17 @@ func block(ix: int, iz: int) -> Dictionary:
 	if (kind == BlockKind.MALL or kind == BlockKind.BIGBOX) and macro and macro.freeway \
 			and macro.freeway.blocks_rect(rect, 3.0):
 		kind = BlockKind.BUILDINGS
+	# A plaza rolled on a block across the street from a landmark's site (MacArthur Park) is
+	# buildings: the park is the neighbourhood's open space, and the 100 x 180 m square of bare
+	# paving the roll put south of it was the emptiest block in Westlake (2026-10-04, the yard pass).
+	# After the roll, like the overrides above, so the seed and every lot are what they were.
+	var was_plaza := false
+	if kind == BlockKind.PLAZA and macro and _beside_site(ix, iz):
+		kind = BlockKind.BUILDINGS
+		was_plaza = true
 	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
+	if was_plaza:
+		result["was_plaza"] = true
 	# Ground a landmark owns outright (a replica area's site): the chunk builds that instead.
 	var site := site_at_block(ix, iz)
 	if not site.is_empty():
@@ -436,6 +446,15 @@ func _snap_site(id: String, spec: Dictionary) -> Dictionary:
 	return {"id": id, "ix0": ix0, "ix1": ix1, "iz0": iz0, "iz1": iz1, "keep_z": keep,
 		"rect": Rect2(x0, z0, x1 - x0, z1 - z0), "halves": halves, "keep_rects": keep_rects,
 		"streets": spec.get("streets", {})}
+
+
+## True when block (ix, iz) is across one of a site's boundary roads (corners included), not in it.
+func _beside_site(ix: int, iz: int) -> bool:
+	for s: Dictionary in sites():
+		var inside := ix >= int(s.ix0) and ix < int(s.ix1) and iz >= int(s.iz0) and iz < int(s.iz1)
+		if not inside and ix >= int(s.ix0) - 1 and ix <= int(s.ix1) and iz >= int(s.iz0) - 1 and iz <= int(s.iz1):
+			return true
+	return false
 
 
 ## The site whose blocks include block (ix, iz), or {}.

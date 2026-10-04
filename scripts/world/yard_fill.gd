@@ -169,6 +169,8 @@ const MAX_PALMS := 8
 const MAX_CARS := 26
 const FLOWER_TRIS := 160000
 const FLOWER_DISTANCE := 120.0
+## Microseconds of dressing a deferred build step does before it hands the frame back.
+const DRESS_BUDGET_US := 2500
 
 
 static func wanted(ch: CityChunk, district: int) -> bool:
@@ -638,10 +640,36 @@ static func _build_beach(ch: CityChunk, bp: Dictionary) -> void:
 	var corridor_cells := {}
 	for lot: Dictionary in ch._yard_corridor:
 		corridor_cells[cell_index(grid, lot.center)] = true
+	var jobs: Array[Callable] = []
 	for lp: Dictionary in bp.lots:
-		_dress_beach_lot(ch, lp, grid, corridor_cells)
+		jobs.append(_dress_beach_lot.bind(ch, lp, grid, corridor_cells))
 	if walk.size.x > 0.0:
-		_dress_walk(ch, walk, walk_path)
+		jobs.append(_dress_walk.bind(ch, walk, walk_path))
+	_defer(ch, jobs)
+
+
+## The dressing (walls, planting, props) as build steps of their own, queued before the finish
+## (CityChunk._run_or_defer()) and run a few milliseconds at a time: a beach block's twenty-odd
+## yards in one step were the slowest step of its build. The ground is laid in the block step
+## itself, before the lawn's grass, which keeps off it. Last in the build, so the block's own props
+## keep the ids they had.
+static func _defer1(ch: CityChunk, job: Callable) -> void:
+	var jobs: Array[Callable] = [job]
+	_defer(ch, jobs)
+
+
+static func _defer(ch: CityChunk, jobs: Array[Callable]) -> void:
+	if jobs.is_empty():
+		return
+	var next := [0]
+	ch._run_or_defer(func() -> bool:
+		var t0 := Time.get_ticks_usec()
+		while next[0] < jobs.size():
+			jobs[next[0]].call()
+			next[0] += 1
+			if Time.get_ticks_usec() - t0 > DRESS_BUDGET_US:
+				break
+		return next[0] >= jobs.size())
 
 
 ## A beach-town pocket park: lawn, a walk across it, palms down it, benches, a hedge round it.
@@ -668,7 +696,7 @@ static func _pocket_park(ch: CityChunk, r: Rect2, rng: RandomNumberGenerator, fu
 				_shrub(ch, p, rng, 1.0)
 		if i % 2 == 1:
 			var bp := Vector2(lerpf(r.position.x, r.end.x, t), c.y - w * 0.5 - 0.6) if long_x else Vector2(c.x - w * 0.5 - 0.6, lerpf(r.position.y, r.end.y, t))
-			ch._add_bench(Vector3(bp.x, base, bp.y), 0.0 if long_x else PI * 0.5)
+			ch._add_bench(Vector3(bp.x, base, bp.y), PI if long_x else -PI * 0.5)
 	# A low clipped hedge round the lawn, open at the walk's two ends.
 	for e in 4:
 		var line := _edge_line(r.grow(-0.5), e)
@@ -1059,8 +1087,11 @@ static func _build_campus(ch: CityChunk, cp: Dictionary) -> void:
 	for r: Rect2 in cp.parks:
 		LotFill._car_park(ch, r, hash([ch.ix, ch.iz, r.position, "campus_park"]))
 		ch._lot_rects.append(r)
-	if not full:
-		return
+	if full:
+		_defer1(ch, _dress_campus.bind(ch, cp))
+
+
+static func _dress_campus(ch: CityChunk, cp: Dictionary) -> void:
 	var rng := _rng(ch.plan, "campus", [ch.ix, ch.iz])
 	for r: Rect2 in cp.quads:
 		_dress_quad(ch, r, cp.strips, rng)
@@ -1262,18 +1293,20 @@ static func _build_corridor(ch: CityChunk, cp: Dictionary) -> void:
 	for r: Rect2 in cp.cells:
 		ch._lot_rects.append(r)
 		if r == yard and full:
-			_ground(ch, r.grow(-0.3), G_GRAVEL, 0.6)
-			ch._yard_ivy.append(r.grow(-0.3))
+			_ground(ch, r, G_GRAVEL, 0.6)
 			continue
 		if full:
 			ch._yard_ivy.append(r)
 		elif maxf(r.size.x, r.size.y) >= 6.0:
 			ch._add_slab(Vector3(r.get_center().x, CityChunk.SIDEWALK_TOP + 0.02, r.get_center().y), Vector3(r.size.x, 0.04, r.size.y),
 				IVY_FAR, false, PropFactory.lawn(CityChunk.CORRIDOR_IVY, hash([ch.plan.seed, "corridor_ivy"]), 0.0, 0.0))
-	if not full:
-		return
+	if full:
+		_defer1(ch, _dress_corridor.bind(ch, cp))
+
+
+static func _dress_corridor(ch: CityChunk, cp: Dictionary) -> void:
+	var yard: Rect2 = cp.yard
 	var rng := _rng(ch.plan, "row", [ch.ix, ch.iz])
-	var base := CityChunk.SIDEWALK_TOP + LIFT
 	# The boundary: a sound wall toward a house lot, chain-link toward the street and anything else.
 	for w: Array in cp.walls:
 		var a: Vector2 = w[0]

@@ -20,6 +20,7 @@ func run(t: Node, city: Node3D) -> void:
 	_coverage(plan)
 	_shader_ids()
 	_campus_plan(plan)
+	_macarthur(plan)
 	var beach := _find(plan, CityPlan.District.BEACHTOWN, Vector2(-687.0, 100.0), false)
 	var campus := _find(plan, CityPlan.District.CAMPUS, Vector2(-620.0, -500.0), false)
 	var freeway := _find(plan, -1, Vector2(-503.0, 100.0), true)
@@ -107,6 +108,31 @@ func _campus_plan(plan: CityPlan) -> void:
 					under += 1
 	_t._check(n.quads >= 1 and n.parks >= 1 and n.strips >= 2 and under == 0,
 		"the campus round its hall has quads, walks and a car park, none under the hall (%s)" % [n])
+
+
+## The plaza the roll put across the street from MacArthur Park (a 100 x 180 m square of bare
+## paving) is a block of buildings now, filled like the rest of midtown; no block inside the site
+## or away from it changed kind.
+func _macarthur(plan: CityPlan) -> void:
+	var blocks := GroundCoverage.macarthur_se_blocks(plan)
+	var before := 0.0
+	var after := 0.0
+	for k: Vector2i in blocks:
+		var b0 := GroundCoverage.block(plan, k.x, k.y, 1, 1.0)
+		var b1 := GroundCoverage.block(plan, k.x, k.y, 2, 1.0)
+		before += float(b0.k[GroundCoverage.BARE]) / float(b0.cells) / float(blocks.size())
+		after += float(b1.k[GroundCoverage.BARE]) / float(b1.cells) / float(blocks.size())
+	var s := plan.site_by_id("macarthur_park")
+	var stray := 0
+	if not s.is_empty():
+		for bz in range(int(s.iz0) - 3, int(s.iz1) + 3):
+			for bx in range(int(s.ix0) - 3, int(s.ix1) + 3):
+				var b := plan.block(bx, bz)
+				var beside := bx >= int(s.ix0) - 1 and bx <= int(s.ix1) and bz >= int(s.iz0) - 1 and bz <= int(s.iz1) and not b.has("site")
+				if b.get("was_plaza", false) and not beside:
+					stray += 1
+	_t._check(not blocks.is_empty() and before > 0.6 and after < 0.12 and stray == 0,
+		"the empty plaza beside MacArthur Park is buildings: bare %.1f %% -> %.1f %% (%d blocks)" % [100.0 * before, 100.0 * after, blocks.size()])
 
 
 ## The kinds YardFill writes are the ones its shaders read (their header comments list them).
