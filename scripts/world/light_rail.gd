@@ -124,6 +124,9 @@ var street := PackedFloat32Array()
 var half := PackedFloat32Array()
 var mode := PackedByteArray()
 var length := 0.0
+## The overhead line's poles (s of each, ascending): every POLE_SPACING from the portal's mouth,
+## each slid off any junction (a pole in the median must not stand in a crossing).
+var poles := PackedFloat32Array()
 ## Stations: {"name", "s" (centre), "pos", "mode", "terminus", "width" (platform), "y" (rail)}.
 var stations: Array[Dictionary] = []
 ## At-grade crossings: {"node": Vector2i, "s", "pos": Vector2, "axis" (of the road crossed),
@@ -145,6 +148,8 @@ var trip_t: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Arra
 var trip_s: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array()]
 var trip_dwell: Array[PackedByteArray] = [PackedByteArray(), PackedByteArray()]
 var trip_len := [0.0, 0.0]
+## Per direction, [station index, arrival, departure] (seconds into the trip) for every stop.
+var dwells: Array = [[], []]
 var phase := [0.0, 0.0]
 var fleet := 1
 var headway := TARGET_HEADWAY
@@ -190,7 +195,7 @@ func _resolve(p: CityPlan) -> void:
 	# The centre line, sampled every STEP: south down the avenue, the curve, west.
 	var poly := PackedVector2Array()
 	var z := z0
-	while z < boulevard_z - r:
+	while z < boulevard_z - r - 1.0:
 		poly.append(Vector2(avenue_x, z))
 		z += STEP
 	var arc_len := r * PI * 0.5
@@ -220,6 +225,7 @@ func _resolve(p: CityPlan) -> void:
 	_place_stations()
 	_find_crossings()
 	_index()
+	_place_poles()
 	_timetable()
 
 
@@ -488,6 +494,54 @@ func nearest_s(pos: Vector2) -> float:
 	return bs
 
 
+func _place_poles() -> void:
+	poles.clear()
+	var s := mouth_s + 6.0
+	while s < length - 2.0:
+		var t := s
+		for step in 12:
+			if not in_junction(sample(t).pos, 3.0):
+				break
+			t += 4.0 * (1.0 if step % 2 == 0 else -1.0) * float(step + 1)
+		if poles.is_empty() or t > poles[poles.size() - 1] + 10.0:
+			poles.append(clampf(t, mouth_s, length - 2.0))
+		s += POLE_SPACING
+
+
+## Whether a world XZ is inside a road junction (both roads' carriageways), grown by `pad`.
+func in_junction(p: Vector2, pad: float) -> bool:
+	var k := plan.block_index_at(p)
+	for dx in range(0, 2):
+		for dz in range(0, 2):
+			var rx := plan.road_pos(CityPlan.AXIS_X, k.x + dx)
+			var rz := plan.road_pos(CityPlan.AXIS_Z, k.y + dz)
+			var wx := plan.road_width(CityPlan.AXIS_X, k.x + dx) * 0.5 + pad
+			var wz := plan.road_width(CityPlan.AXIS_Z, k.y + dz) * 0.5 + pad
+			if absf(p.x - rx) < wx and absf(p.y - rz) < wz:
+				return true
+	return false
+
+
+## The poles either side of `s`: [s behind, s ahead, index behind].
+func span_at(s: float) -> Array:
+	var n := poles.size()
+	if n < 2:
+		return [s - POLE_SPACING, s + POLE_SPACING, 0]
+	var lo := 0
+	var hi := n - 1
+	if s <= poles[0]:
+		return [poles[0] - POLE_SPACING, poles[0], -1]
+	if s >= poles[hi]:
+		return [poles[hi], poles[hi] + POLE_SPACING, hi]
+	while hi - lo > 1:
+		var mid := (lo + hi) >> 1
+		if poles[mid] <= s:
+			lo = mid
+		else:
+			hi = mid
+	return [poles[lo], poles[hi], lo]
+
+
 func _index() -> void:
 	_cells.clear()
 	for i in pts.size():
@@ -633,14 +687,22 @@ func _timetable() -> void:
 		var ss := PackedFloat32Array()
 		var dw := PackedByteArray()
 		var t := 0.0
+		var dws: Array = []
 		for k in stops.size() - 1:
 			var a := stops[k]
 			var b := stops[k + 1]
-			# The dwell (the first stop's is the turn-round at the terminus).
+			# The dwell (the first stop's is the turn-round at the terminus): two entries at the
+			# same position, so the train stands still between them.
+			var st_index := k if d == 0 else stations.size() - 1 - k
 			ts.append(t)
 			ss.append(a)
 			dw.append(1)
+			var t_arr := t
 			t += TURNAROUND if k == 0 else DWELL
+			ts.append(t)
+			ss.append(a)
+			dw.append(1)
+			dws.append([st_index, t_arr, t])
 			# The hop, on a 1 m grid.
 			var hop := absf(b - a)
 			var m := maxi(ceili(hop), 2)
@@ -665,8 +727,11 @@ func _timetable() -> void:
 				var vm := maxf((v[j - 1] + v[j]) * 0.5, 0.05)
 				t += ds / vm
 				ts.append(t)
-				ss.append(a + sign * hop * float(j) / m)
+				ss.append(b if j == m else a + sign * hop * float(j) / m)
 				dw.append(1 if j == m else 0)
+		# The arrival at the far terminus (its dwell is the other direction's turn-round).
+		dws.append([stations.size() - 1 if d == 0 else 0, t, t])
+		dwells[d] = dws
 		trip_t[d] = ts
 		trip_s[d] = ss
 		trip_dwell[d] = dw
@@ -748,6 +813,33 @@ func trip_time_at(d: int, s: float) -> float:
 	return lerpf(ts[lo], ts[hi], clampf((s - ss[lo]) / span, 0.0, 1.0))
 
 
+## A clock (near `near`) at which a train running `d` (0 outbound, 1 inbound) is `offset` seconds
+## from the middle of its dwell at station `i`: for stills and the smoke test.
+func clock_at_station(i: int, d: int, offset: float = 0.0, near: float = 3600.0) -> float:
+	var t := 0.0
+	for w: Array in dwells[d]:
+		if int(w[0]) == i:
+			t = (float(w[1]) + float(w[2])) * 0.5 + offset
+	# The far terminus: this direction only arrives there; the other direction's turn-round is
+	# the same train standing there.
+	if (d == 0 and i == stations.size() - 1) or (d == 1 and i == 0):
+		return clock_at_station(i, 1 - d, offset, near)
+	var n := roundi((near - float(phase[d]) - t) / headway)
+	return float(phase[d]) + float(n) * headway + t
+
+
+## A clock (near `near`) `before` seconds before a train running `d` reaches crossing `k`.
+func clock_at_crossing(k: int, d: int, before: float = 6.0, near: float = 3600.0) -> float:
+	return clock_at_s(float(crossings[k].s), d, before, near)
+
+
+## A clock (near `near`) `before` seconds before the nose of a train running `d` reaches `s`.
+func clock_at_s(s_at: float, d: int, before: float = 0.0, near: float = 3600.0) -> float:
+	var t := trip_time_at(d, s_at) - before
+	var n := roundi((near - float(phase[d]) - t) / headway)
+	return float(phase[d]) + float(n) * headway + t
+
+
 ## Whether crossing `c` is closed at clock `t`: some train due within GATE_LEAD, or on it.
 func crossing_state(c: Dictionary, t: float) -> bool:
 	var s_c: float = c.s
@@ -769,6 +861,42 @@ func crossing_state(c: Dictionary, t: float) -> bool:
 			if tau >= t_in - GATE_LEAD and tau <= t_out + GATE_TRAIL and tau >= 0.0 and tau < tl:
 				return true
 	return false
+
+
+## How long crossing `c` has been closed at clock `t` (seconds, > 0), or minus how long it has
+## been open (capped at 120): the gates are worked out from it, never ticked (RailGate.pose()).
+func crossing_phase(c: Dictionary, t: float) -> float:
+	var s_c: float = c.s
+	var spans: Array = []
+	for d in 2:
+		var sign := 1.0 if d == 0 else -1.0
+		var t_in := trip_time_at(d, s_c)
+		if t_in < 0.0:
+			continue
+		var t_out := trip_time_at(d, s_c + sign * TRAIN_LENGTH)
+		if t_out < 0.0:
+			t_out = t_in + 30.0
+		var ph: float = phase[d]
+		var n_lo := floori((t - 130.0 - ph - t_out - GATE_TRAIL) / headway)
+		var n_hi := floori((t - ph - t_in + GATE_LEAD) / headway) + 1
+		for n in range(n_lo, n_hi + 1):
+			var base := ph + float(n) * headway
+			spans.append([base + t_in - GATE_LEAD, base + t_out + GATE_TRAIL])
+	spans.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+	# Merge, then find t.
+	var merged: Array = []
+	for sp: Array in spans:
+		if not merged.is_empty() and float(sp[0]) <= float(merged[merged.size() - 1][1]):
+			merged[merged.size() - 1][1] = maxf(float(merged[merged.size() - 1][1]), float(sp[1]))
+		else:
+			merged.append([float(sp[0]), float(sp[1])])
+	var open_since := t - 120.0
+	for sp: Array in merged:
+		if t >= float(sp[0]) and t <= float(sp[1]):
+			return maxf(t - float(sp[0]), 0.001)
+		if float(sp[1]) < t:
+			open_since = maxf(open_since, float(sp[1]))
+	return -(t - open_since)
 
 
 ## TrafficManager's question: is the line closing the junction `node` to traffic on `axis`?

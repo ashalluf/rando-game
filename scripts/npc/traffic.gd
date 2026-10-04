@@ -342,6 +342,8 @@ const SPAWN_CLEARANCE := 14.0
 func place_car(axis: int, index: int, dir: int, lane_n: int, along: float, speed: float, turns: bool = true, kind: int = -1) -> Vehicle:
 	var width := plan.road_width(axis, index)
 	var lanes := 2 if width > plan.street_width + 1.0 else 1
+	if _rail_street(axis, index):
+		lane_n = lanes - 1
 	var side := -dir if axis == CityPlan.AXIS_X else dir
 	var lane := side * CityPlan.lane_center(width, lanes, clampi(lane_n, 0, lanes - 1))
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
@@ -403,8 +405,17 @@ func _lane_offset(axis: int, index: int, dir: int) -> float:
 	var width := plan.road_width(axis, index)
 	var lanes := 2 if width > plan.street_width + 1.0 else 1
 	var n := _rng.randi_range(1, lanes)
+	# A light rail street keeps its traffic to the outer lane, clear of the trackway down the
+	# middle (LightRail.street_rail()).
+	if _rail_street(axis, index):
+		n = lanes
 	var side := -dir if axis == CityPlan.AXIS_X else dir
 	return side * CityPlan.lane_center(width, lanes, n - 1)
+
+
+func _rail_street(axis: int, index: int) -> bool:
+	var rail := LightRail.of(plan)
+	return rail != null and rail.street_rail(axis, index)
 
 
 func _heading(axis: int, dir: int) -> float:
@@ -532,7 +543,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		room = minf(room, gap - 0.4)
 		if lead_v < 0.3:
 			still = minf(still, gap - min_gap)
-	if to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir)):
+	if to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir) or LightRail.crossing_closed(node, axis)):
 		acc = minf(acc, _idm(v, v0, to_line, 0.0, 0.3))
 		room = minf(room, to_line + 0.3)
 		still = minf(still, to_line - 0.3)

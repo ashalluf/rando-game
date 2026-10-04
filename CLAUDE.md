@@ -673,6 +673,91 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   of the junction ahead of the camera, walkers on the crosswalk in front of it; `--hour=21` for
   the heads at night). Checks: `tests/street_life_checks.gd`, loaded by the smoke test like the
   air traffic's.
+- Light rail (2026-10-04, "a light rail line, like LA Metro's, with its own original name, colour
+  and livery"): the **Coral Line** of the invented **Basin Metro** (coral `LightRail.LINE_COLOR`,
+  bullet "C"). **The line is a DATA TABLE** (`LightRail`, `scripts/world/light_rail.gd`: `ROUTE`,
+  `PORTAL`, `STATIONS`, the speeds and timetable numbers), resolved once per plan
+  (`LightRail.of(plan)`, cached; `RAIL=0` in the environment turns it off): downtown it is the real
+  Flower St corridor at 1:1 (`DowntownReal`) - underground from a terminus at 7th St, a portal
+  ramp in the median south of 11th St (`PORTAL.daylight`), at grade down the middle of Flower
+  past Pico, then onto an aerial structure that climbs over the 10, curves west (radius 28 m) onto
+  the seeded boulevard that plays Exposition (the first AXIS_Z road south of `turn.south_of` at
+  least `min_width` wide: River Blvd on the default seed), crosses over the 110 and the 105 on the
+  structure, comes down to grade and runs down the boulevard's median to a terminus in the beach
+  town. Samples every `STEP` 2 m: `pts`, `dirs`, `run` (s), `rail` (rail top), `street`, `half`
+  (half the track spacing: 2.1, spread round each island platform), `mode` (TUNNEL, TRENCH, GRADE,
+  AERIAL). **The structure is the upper envelope of MAX_GRADE (5.8 %) cones** from every point it
+  must clear (each freeway deck crossed at grade, `AERIAL_CLEAR` over the deck top, across the
+  deck's whole width however oblique) and from each aerial station (held level over the
+  platform), eased, never under the street - grade-limited by construction, like the freeway's
+  `_clear_ground()`. Stations: `name` fixed or "<street> / <nearest crossing road>"; an at-grade
+  one is slid into the nearest block that holds the platform and its ramps clear of the crosswalks
+  (`_fit_in_block()`). Crossings: every junction the line crosses at grade (`crossings`: node,
+  axis of the road crossed, gates outside downtown, signal pre-emption inside). Poles every
+  `POLE_SPACING`, slid off junctions (`poles`, `span_at()`). Queries: `sample(s)`,
+  `track_point(s, side)` (right-hand running: a train running +s uses side +1), `indices_in(rect)`
+  (segments by midpoint, built once), `street_rail(axis, index)`, `blocks_rect()` (lots keep off
+  the structure: `CityChunk._lot_under_freeway()` asks it), `cut_rects()` / `cuts_in()` (the
+  trench: `CityChunk._road_slab()` lays the road round it in pieces and `_mark_road()` paints
+  nothing over it). **The timetable is worked out, never ticked**: per direction a trip of
+  (time, nose s) from the speed limits (`_limit()`: tunnel, trench, street downtown and out, the
+  structure, the curve) by a forward accelerate / backward brake pass, `DWELL` at each station and
+  `TURNAROUND` at the start; the fleet fills the round trip at about `TARGET_HEADWAY` and the
+  two directions' phases make the train that arrives at a terminus the one that leaves it
+  (double-ended cars, the pantographs on the ends that swap). `trains_at(clock)` (id, dir, s, v,
+  dwell, doors), `crossing_state()` / `crossing_phase()` (seconds closed, or minus seconds open:
+  the gates are posed from it), `clock_at_station()` / `clock_at_crossing()` / `clock_at_s()`
+  (tests and stills). `LightRail.clock` is the shared clock; `LightRail.closed` the crossings closed
+  this tick (node -> axis of the road stopped). **`LightRailKit`** (`scripts/world/light_rail_kit.gd`,
+  extends FreewayKit for its tri/quad/box/prism/letters and its structure, paint and pool
+  materials; `CityChunk._build_light_rail()`, a step after the freeway, never in capture mode):
+  at grade a concrete trackway a hair over the asphalt with the rails' heads and flangeways
+  flush in it; the trench (U-walls with a parapet, a headwall and a dark bore at the mouth, wall
+  collision); the box-girder structure with parapets, a ballast bed, concrete sleepers and RAIL
+  PROFILES (`RAIL_PROFILE`, a 115 lb section, FULL only), round columns with hammerhead caps every
+  `COLUMN_SPACING` (never in a junction or over a freeway: the span grows), deck collision;
+  centre poles with cantilevers, stays and registration arms, the messenger sagging between
+  poles, droppers and the contact wire staggered +-0.2 m pole to pole (FULL); island platforms
+  (tactile edges, ramps to the crosswalks with handrails, or a lift tower on the structure), a
+  canopy on a row of columns with a coral band and lit strips, benches, ticket machines, a lit map
+  case, a lit name pylon and hanging name signs (lettering in the paint mesh), light pools; the
+  underground terminus as two stair kiosks in Flower's median; level crossing masts (flasher
+  hoods, crossbuck, bell, mechanism) with a `RailGate` node each (`scripts/world/rail_gate.gd`:
+  the striped arm on its pivot, its lamps and the alternating flashers - posed from the phase,
+  arm down `PRE_FLASH` after the lamps start, over `ARM_SECONDS`); traction substations under the
+  structure; and `RailRider`s waiting on the platform (`scripts/npc/rail_rider.gd`, a Pedestrian
+  that drifts along the island and mostly stands, on the platform's deck height, in the crowd
+  cap). Three meshes a chunk (RailStructure, RailSigns, RailGlow) plus RailBody and the gates; LOD
+  chunks keep the structure, the trackway, poles as boxes, platforms and canopies, no wires.
+  **`LightRailSystem`** (`scripts/world/light_rail_system.gd`, the `LightRail` Node3D in city.tscn)
+  advances the clock each physics tick (`RAIL_HOLD=1` holds it; `RAIL_AT=<station>:<dir>[:<s>]`,
+  `RAIL_CROSS=<crossing>:<dir>[:<s before>]`, `RAIL_S=<s>:<dir>` set it for stills) and works out
+  the rest: the nearest `max_detailed` trains within `detail_range` are pooled `LightRailTrain`s
+  (`scripts/vehicles/light_rail_train.gd`: two cars of two sections of `assets/models/light_rail_car.glb`
+  from `tools/make_light_rail.py`, Blender headless - see its header for the node and slot
+  contract - each section a `RailSection` AnimatableBody3D on the props layer, mask 0, laid on its
+  two bogie pivots by `section_world()`, bogies turned to the track, the platform-side doors
+  (the train's left) sliding open while it dwells, the lead cab's headlights, display and a
+  SpotLight3D on Forward+, the rear's tail lights, windows on `shaders/lrv_glass.gdshader` (the
+  saloon traced in model space: seats, ceiling strip, far windows; emitted mirror), the interior
+  box on `lrv_interior.gdshader`, a rolling loop); the rest within `far_range` are lit boxes in one
+  MultiMesh (`lrv_far.gdshader`, windows glowing after dark); trains in the tunnel are drawn by
+  nobody. It closes the crossings near the player (`LightRail.closed`, which TrafficManager's stop
+  rule reads beside the signals - `LightRail.crossing_closed(node, axis)`; and `_lane_offset()` /
+  `place_car()` keep a rail street's traffic to its outer lane), poses every `RailGate`, rings a
+  bell at the nearest closed ones, sounds the horn at a player ahead and the gong before a
+  crossing, sends waiting riders to the open doors and lets others off (`_passengers()`), knocks
+  down whoever stands in front of a moving train (the player launched and hurt; pedestrians
+  knocked, never the player's crime: `Police.innocent`), and draws the line itself past the
+  streamed chunks (`_build_far_line()`, `shaders/light_rail_far_line.gdshader`, dithered in from
+  `far_line_start`; it is not a Skyline capture, because the line is not a block). Weapons hit a
+  train like anything with `take_hit()`; WeaponFX calls the `rail_vehicle` group metal (sparks,
+  the ping, holes parented to the section); it keeps running. Sfx `rail_bell`, `rail_horn`,
+  `rail_gong`, `rail_roll`. Probe: `tools/light_rail/probe.gd` prints the line (modes, stations,
+  crossings, flyovers, the timetable); `tools/light_rail/compile.gd` compiles the scripts in
+  seconds. Checks: `tests/light_rail_checks.gd`. Known gaps: police cruisers still drive lane 0
+  (over the trackway) on a rail street; the player can stand on the invisible GroundBody plane in
+  the trench.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and

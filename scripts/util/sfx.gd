@@ -494,6 +494,12 @@ func _build_synth() -> void:
 	_put("jet_loop", _jet_loop(1.6), true)
 	_put("rotor_loop", _rotor_loop(1.2), true)
 	_put("generator", _engine_loop(0.5), true)
+	# The light rail (LightRailSystem, LightRailTrain): a crossing bell, the horn, the street gong,
+	# the train rolling. Fallbacks for the CC0 takes in SAMPLES.
+	_put("rail_bell", _bell_loop(1.0), true)
+	_put("rail_horn", _horn(1.1))
+	_put("rail_gong", _gong(1.2))
+	_put("rail_roll", _rail_roll(1.6), true)
 	# Synthesised only (no CC0 take yet): a burning car (CarDamage).
 	_put("fire_loop", _fire_loop(2.4), true)
 	# A spent rifle case hitting the ground (BrassCasings) and bullet impacts by surface.
@@ -635,6 +641,47 @@ func _horn(seconds: float) -> PackedFloat32Array:
 		var b := sin(TAU * 554.0 * t)
 		var buzz := sin(TAU * 880.0 * t) * 0.2 + sin(TAU * 1108.0 * t) * 0.15
 		out[i] = (a * 0.4 + b * 0.35 + buzz) * env * 0.6
+	return out
+
+
+## A level crossing bell: two strikes a second on a bright bell, as a loop.
+func _bell_loop(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := fmod(float(i) / MIX_RATE, 0.5)
+		var v := sin(TAU * 1380.0 * t) * 0.6 + sin(TAU * 2760.0 * t) * 0.25 + sin(TAU * 3720.0 * t) * 0.12
+		out[i] = v * exp(-7.0 * t) * 0.7
+	return out
+
+
+## The street gong of a light rail car: two strikes, low and ringing.
+func _gong(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	for i in n:
+		var t := float(i) / MIX_RATE
+		var v := 0.0
+		for strike: float in [0.0, 0.42]:
+			var u := t - strike
+			if u >= 0.0:
+				v += (sin(TAU * 620.0 * u) * 0.6 + sin(TAU * 1490.0 * u) * 0.25 + sin(TAU * 2260.0 * u) * 0.1) * exp(-5.5 * u)
+		out[i] = v * 0.6
+	return out
+
+
+## A train rolling: wheel-on-rail noise with the traction motors' whine over it.
+func _rail_roll(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var last := 0.0
+	for i in n:
+		var t := float(i) / MIX_RATE
+		last = lerpf(last, _rng.randf_range(-1.0, 1.0), 0.05)
+		out[i] = last * 0.7 + sin(TAU * 420.0 * t) * 0.05 + sin(TAU * 840.0 * t) * 0.025
 	return out
 
 

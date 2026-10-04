@@ -4,7 +4,7 @@ extends Node3D
 ## hoods into the chunk's mesh; this node is the part that moves): the striped arm on its pivot
 ## with three lamps along it, and the two flasher lamps that alternate. LightRailSystem drives
 ## every gate in the "rail_gate" group from the crossing state it works out from the clock
-## (LightRail.closed): `drive(closed, delta, blink)`. Nothing here decides anything.
+## (LightRail.crossing_phase()): `pose_at(phase, blink)`. Nothing here is ticked or decided.
 
 ## Seconds for the arm to come down or go up (a real gate takes 10-15; a game wants it seen).
 const ARM_SECONDS := 6.0
@@ -24,7 +24,6 @@ var _lamps: Array[MeshInstance3D] = []
 var _arm_lamps: Array[MeshInstance3D] = []
 ## 0 = up (vertical), 1 = down (across the lanes).
 var lowered := 0.0
-var _closed_for := 0.0
 
 
 static func make(g: Dictionary, full: bool) -> RailGate:
@@ -142,13 +141,17 @@ static func lamp_material(on: bool) -> StandardMaterial3D:
 	return _lamp_on if on else _lamp_off
 
 
-## One tick: the arm eases toward where the crossing wants it, the lamps flash while it is closed.
-func drive(closed: bool, delta: float, blink: bool) -> void:
-	_closed_for = _closed_for + delta if closed else 0.0
-	var want := 1.0 if closed and _closed_for > PRE_FLASH else 0.0
-	lowered = move_toward(lowered, want, delta / ARM_SECONDS)
+## The gate at crossing phase `phase` (LightRail.crossing_phase(): seconds closed, or minus the
+## seconds open): the lamps flash from the moment it closes, the arm starts down PRE_FLASH later
+## and takes ARM_SECONDS, and goes back up as soon as it opens. Worked out, never ticked.
+func pose_at(phase: float, blink: bool) -> void:
+	if phase > 0.0:
+		lowered = clampf((phase - PRE_FLASH) / ARM_SECONDS, 0.0, 1.0)
+	else:
+		# Up from wherever it was when the crossing opened (fully down for any real train).
+		lowered = clampf(1.0 + phase / ARM_SECONDS, 0.0, 1.0)
 	_pose()
-	var flashing := closed or lowered > 0.02
+	var flashing := phase > 0.0 or lowered > 0.02
 	for i in _lamps.size():
 		_lamps[i].material_override = lamp_material(flashing and ((i == 0) == blink))
 	for i in _arm_lamps.size():

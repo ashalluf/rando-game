@@ -719,7 +719,7 @@ static func classify(collider: Object, at: Vector3, normal: Vector3) -> Surface:
 	var node := collider as Node
 	if node == null:
 		return Surface.CONCRETE
-	if node.is_in_group("vehicle"):
+	if node.is_in_group("vehicle") or node.is_in_group("rail_vehicle"):
 		return Surface.METAL
 	if node.is_in_group("pedestrian") or node is CharacterBody3D or node.has_method("knock"):
 		return Surface.FLESH

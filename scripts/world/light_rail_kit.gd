@@ -378,36 +378,9 @@ func _headwall() -> void:
 
 # --- Overhead line ---------------------------------------------------------------------------
 
-## The span a position falls in: [s of the pole behind, s of the pole ahead] (poles every
-## POLE_SPACING of s, moved off junctions by _pole_ok()).
-func _pole_at(k: int) -> float:
-	var s := float(k) * LightRail.POLE_SPACING + 8.0
-	for step in 12:
-		if _pole_ok(s):
-			return s
-		s += 4.0 * (1.0 if step % 2 == 0 else -1.0) * float(step + 1)
-	return float(k) * LightRail.POLE_SPACING + 8.0
-
-
-func _pole_ok(s: float) -> bool:
-	if s < line.mouth_s - 2.0 or s > line.length - 2.0:
-		return false
-	var p: Vector2 = line.sample(s).pos
-	return not _in_junction(p, 3.0)
-
-
-## Whether a world XZ is inside a road junction (both roads' carriageways), grown by `pad`.
+## Whether a world XZ is inside a road junction, grown by `pad` (LightRail.in_junction()).
 func _in_junction(p: Vector2, pad: float) -> bool:
-	var k := plan.block_index_at(p)
-	for dx in range(0, 2):
-		for dz in range(0, 2):
-			var rx := plan.road_pos(CityPlan.AXIS_X, k.x + dx)
-			var rz := plan.road_pos(CityPlan.AXIS_Z, k.y + dz)
-			var wx := plan.road_width(CityPlan.AXIS_X, k.x + dx) * 0.5 + pad
-			var wz := plan.road_width(CityPlan.AXIS_Z, k.y + dz) * 0.5 + pad
-			if absf(p.x - rx) < wx and absf(p.y - rz) < wz:
-				return true
-	return false
+	return line.in_junction(p, pad)
 
 
 ## Contact wire and messenger over both tracks for segment i (FULL).
@@ -434,16 +407,7 @@ func _wires(i: int) -> void:
 
 
 func _span(s: float) -> Array:
-	var k := floori((s - 8.0) / LightRail.POLE_SPACING)
-	var s0 := _pole_at(k)
-	var s1 := _pole_at(k + 1)
-	if s < s0:
-		s1 = s0
-		s0 = _pole_at(k - 1)
-	elif s >= s1:
-		s0 = s1
-		s1 = _pole_at(k + 2)
-	return [s0, s1, k]
+	return line.span_at(s)
 
 
 ## [contact point, messenger point] over track `track` at s.
@@ -494,7 +458,7 @@ func _pole(s: float) -> void:
 	var r3 := Vector3(r.x, 0.0, r.y)
 	var my := y + LightRail.CONTACT_HEIGHT + LightRail.SYSTEM_HEIGHT
 	var cy := y + LightRail.CONTACT_HEIGHT
-	var k := floori((s - 8.0 + 0.5) / LightRail.POLE_SPACING)
+	var k: int = line.span_at(s + 0.01)[2]
 	var stagger := 0.2 * (1.0 if posmod(k, 2) == 0 else -1.0)
 	for track: float in [-1.0, 1.0]:
 		var c := _v3(p, 0.0)
@@ -517,12 +481,7 @@ func _owns(p: Vector2) -> bool:
 func _features(area: Rect2) -> bool:
 	var any := false
 	# Poles.
-	var k0 := floori((0.0 - 8.0) / LightRail.POLE_SPACING)
-	var k1 := ceili(line.length / LightRail.POLE_SPACING)
-	for k in range(k0, k1 + 1):
-		var s := _pole_at(k)
-		if s < line.mouth_s or s > line.length:
-			continue
+	for s: float in line.poles:
 		if _owns(line.sample(s).pos):
 			_pole(s)
 			any = true
@@ -627,7 +586,7 @@ func _station(st: Dictionary) -> void:
 	var half_w: float = float(st.width) * 0.5
 	var L := LightRail.PLATFORM_LENGTH
 	var rail_y: float = smp.y
-	var deck := rail_y + LightRail.PLATFORM_HEIGHT - 0.168
+	var deck := rail_y + LightRail.PLATFORM_HEIGHT
 	var ground := _street(p)
 	var foot := ground if m == LightRail.Mode.GRADE else rail_y - 0.6
 	var c := _v3(p, 0.0)
@@ -637,8 +596,8 @@ func _station(st: Dictionary) -> void:
 	for k in n_seg:
 		var t0 := -L * 0.5 + L * float(k) / n_seg
 		var t1 := -L * 0.5 + L * float(k + 1) / n_seg
-		var y0 := float(line.sample(s + t0).y) + LightRail.PLATFORM_HEIGHT - 0.168
-		var y1 := float(line.sample(s + t1).y) + LightRail.PLATFORM_HEIGHT - 0.168
+		var y0 := float(line.sample(s + t0).y) + LightRail.PLATFORM_HEIGHT
+		var y1 := float(line.sample(s + t1).y) + LightRail.PLATFORM_HEIGHT
 		var a := c + d3 * t0
 		var b := c + d3 * t1
 		var inner := half_w - 0.6
@@ -690,7 +649,7 @@ func _station(st: Dictionary) -> void:
 	var n_col := 6
 	for k in n_col:
 		var t := -canopy_l * 0.5 + canopy_l * (float(k) + 0.5) / n_col
-		var y := float(line.sample(s + t).y) + LightRail.PLATFORM_HEIGHT - 0.168
+		var y := float(line.sample(s + t).y) + LightRail.PLATFORM_HEIGHT
 		var base := c + d3 * t + Vector3.UP * y
 		if full:
 			prism(body, base, base + Vector3.UP * (roof_y - y - 0.1), 0.11, 0.09, 8, _col(Color(0.26, 0.27, 0.29), S_PAINTED))
@@ -724,22 +683,41 @@ func _station(st: Dictionary) -> void:
 	# Furniture: benches, ticket machines and a map case at the near end, bins.
 	for k in 3:
 		var t := -canopy_l * 0.33 + canopy_l * 0.33 * float(k)
-		var y := float(line.sample(s + t).y) + LightRail.PLATFORM_HEIGHT - 0.168
+		var y := float(line.sample(s + t).y) + LightRail.PLATFORM_HEIGHT
 		var bc := c + d3 * (t + 2.5) + Vector3.UP * y
 		_bench(bc, d3, r3)
 	var end_t := L * 0.5 - 4.5
-	var ye := float(line.sample(s + end_t).y) + LightRail.PLATFORM_HEIGHT - 0.168
+	var ye := float(line.sample(s + end_t).y) + LightRail.PLATFORM_HEIGHT
 	for q in 2:
 		var mc := c + d3 * (end_t - float(q) * 1.1) + r3 * (half_w - 1.25) + Vector3.UP * ye
 		_ticket_machine(mc, d3, r3)
 	_map_case(c + d3 * (end_t - 3.2) - r3 * (half_w - 1.2) + Vector3.UP * ye, d3, r3)
 	_pylon(c + d3 * (end_t + 2.6) + Vector3.UP * ye, d3, r3, str(st.name))
+	_riders(st)
 	# Hanging name signs under the canopy, one facing each track.
 	for side: float in [-1.0, 1.0]:
 		for t: float in [-canopy_l * 0.25, canopy_l * 0.25]:
 			var y := float(line.sample(s + t).y) - rail_y
 			var sc := c + d3 * t + r3 * side * (half_w - 0.55) + Vector3.UP * (roof_y + y - 0.75)
 			_hanging_sign(sc, d3 * side, r3 * side, str(st.name))
+
+
+## People waiting on the platform (RailRider), inside the crowd cap; hash-seeded.
+func _riders(st: Dictionary) -> void:
+	if chunk.capturing or chunk.level != CityChunk.Level.FULL:
+		return
+	var idx := line.stations.find(st)
+	var n := 3 + int(hash01([plan.seed, "riders", idx]) * 4.0)
+	for k in n:
+		if not chunk._take_crowd_room():
+			return
+		var ped := RailRider.new()
+		ped.line = line
+		ped.station = idx
+		ped.setup(Rect2(), 3.0, hash([plan.seed, "rider", idx, k]))
+		var p := ped._random_ring_point(3.0)
+		ped.position = Vector3(p.x, ped._ground_y(p.x, p.y, 0.0), p.y)
+		chunk.add_child(ped)
 
 
 func _bench(c: Vector3, d3: Vector3, r3: Vector3) -> void:
