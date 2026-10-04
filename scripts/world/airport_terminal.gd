@@ -35,7 +35,7 @@ static var _jet_mat: ShaderMaterial = null
 
 static func _glass(key: String, y0: float, storey: float, depth: float) -> ShaderMaterial:
 	return LandmarkMats.glass("airport_" + key, {"glass_tint": Color(0.17, 0.24, 0.28), "frame_color": Color(0.74, 0.76, 0.79),
-		"grid": Vector2(1.8, storey * 0.5), "frame_width": 0.07, "room_depth": depth, "storey": storey, "floor_y": y0,
+		"grid": Vector2(1.8, minf(storey * 0.5, 3.4)), "frame_width": 0.07, "room_depth": depth, "storey": storey, "floor_y": y0,
 		"interior_color": Color(1.0, 0.88, 0.70), "interior_day": 0.16, "interior_night": 1.9, "spandrel_every": 0.0})
 
 

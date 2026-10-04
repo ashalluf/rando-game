@@ -99,6 +99,7 @@ const K_PAPI := 7
 
 static var _gates: Array[Dictionary] = []
 static var _lights: ArrayMesh = null
+static var _lights_for: int = 0
 static var _light_mat: ShaderMaterial = null
 
 
@@ -635,7 +636,7 @@ static func _masts(ch: CityChunk, area: Rect2, macro: MacroMap) -> void:
 		# The pool on the concrete, out in front of the floods.
 		var pool_at := p + fwd * 14.0
 		ch._batch.add("ap_pool", PropFactory.light_pool(Color(1.0, 0.88, 0.66), 0.9, 1.6),
-			Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(80.0, 80.0, 1.0)), Vector3(pool_at.x, y + 0.05, pool_at.y)))
+			Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled_local(Vector3(80.0, 80.0, 1.0)), Vector3(pool_at.x, y + 0.05, pool_at.y)))
 	ch._batch.set_no_shadow("ap_pool")
 
 
@@ -971,8 +972,11 @@ static func _field_light_specs(macro: MacroMap) -> Array:
 
 ## Every light the airfield shows at night, in ONE billboard mesh (see the class header). Built once.
 static func lights_mesh(macro: MacroMap) -> ArrayMesh:
-	if _lights != null:
+	# Per map: the approach lights stand on the ground, whose relief is the seed's (a Rebuild with
+	# another seed makes a new MacroMap).
+	if _lights != null and _lights_for == macro.get_instance_id():
 		return _lights
+	_lights_for = macro.get_instance_id()
 	var specs := _field_light_specs(macro)
 	var y: float = macro.tarmac_top
 	# The apron floodlight masts' lamps, and a red obstruction light on top of each.
