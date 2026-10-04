@@ -152,12 +152,18 @@ func _full_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	for c in chunk.get_children():
 		if c is Building:
 			buildings += 1
-	var trailers := 0
+	# The trailers, rail cars, pallets and tanks are written into the walls mesh (no batch of their
+	# own); the dock lights' pools are one batch that casts nothing.
+	var trailers := int(chunk._ind.counts.get("trailers", 0))
+	var batches_ok := true
 	for c in chunk.get_children():
-		if String(c.name).begins_with("Batch_ind_trailer_"):
-			trailers += ((c as MultiMeshInstance3D).multimesh.instance_count)
-	_t._check(houses >= 1 and buildings <= others and trailers >= 1 and (chunk._ind.foot as Array).size() == houses,
-		"industrial block %s: %d warehouses built as Industrial's (no Building), %d trailers at the docks" % [k, houses, trailers])
+		var nm := String(c.name)
+		if nm.begins_with("Batch_ind_") and nm != "Batch_ind_pool" or nm.begins_with("BatchShadow_ind_"):
+			batches_ok = false
+		if nm == "Batch_ind_pool" and (c as GeometryInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF:
+			batches_ok = false
+	_t._check(houses >= 1 and buildings <= others and trailers >= 1 and (chunk._ind.foot as Array).size() == houses and batches_ok,
+		"industrial block %s: %d warehouses built as Industrial's (no Building), %d trailers at the docks, the props in the walls mesh" % [k, houses, trailers])
 	var feet := StreetDetail._footprints(chunk)
 	var all_in := true
 	for r: Rect2 in chunk._ind.foot:

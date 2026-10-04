@@ -41,6 +41,24 @@ const KIND_COUNT := 21
 
 static var _material: ShaderMaterial
 static var _cache: Dictionary = {}
+## Record mode (place()): the props are written straight into a chunk's walls mesh, moved by
+## `_xf` and painted by `_tint` (what a batch's instance transform and colour would do), so a
+## chunk's trailers, rail cars, pallets and tanks cost no draw of their own.
+static var _into: SurfaceTool = null
+static var _xf: Transform3D = Transform3D()
+static var _tint: Color = Color.WHITE
+
+
+## Writes the prop `build` makes (a call of one of the mesh functions below) into `st`, placed by
+## `xf` and tinted by `tint`, instead of returning a cached mesh.
+static func place(st: SurfaceTool, xf: Transform3D, tint: Color, build: Callable) -> void:
+	_into = st
+	_xf = xf
+	_tint = tint
+	build.call()
+	_into = null
+	_xf = Transform3D()
+	_tint = Color.WHITE
 
 
 static func walls_material() -> ShaderMaterial:
@@ -59,7 +77,7 @@ static func walls_material() -> ShaderMaterial:
 
 
 static func kind_color(kind: int, paint: Color) -> Color:
-	return Color(paint.r, paint.g, paint.b, (float(kind) + 0.5) / 32.0)
+	return Color(paint.r * _tint.r, paint.g * _tint.g, paint.b * _tint.b, (float(kind) + 0.5) / 32.0)
 
 
 # --- Writers ----------------------------------------------------------------------------------
@@ -81,6 +99,7 @@ const FACES := [
 ## faces left out (FACES' order: 1 +x, 2 -x, 4 +z, 8 -z, 16 top, 32 bottom; the bottom is left out
 ## unless asked for).
 static func box(st: SurfaceTool, xf: Transform3D, size: Vector3, kind: int, paint: Color, param: float = 0.0, skip: int = 32) -> void:
+	xf = _xf * xf
 	var col := kind_color(kind, paint)
 	for f in 6:
 		if skip & (1 << f):
@@ -112,6 +131,7 @@ static func box(st: SurfaceTool, xf: Transform3D, size: Vector3, kind: int, pain
 
 ## An upright cylinder (axis +y in `xf`), `segs` sided, foot at xf's origin, with its top cap.
 static func cyl(st: SurfaceTool, xf: Transform3D, r: float, h: float, kind: int, paint: Color, segs: int = 12, cap: bool = true) -> void:
+	xf = _xf * xf
 	var col := kind_color(kind, paint)
 	var circ := TAU * r
 	for i in segs:
@@ -164,6 +184,7 @@ static func cyl_z(st: SurfaceTool, xf: Transform3D, r: float, length: float, kin
 
 ## A cone from radius `r` at the foot to a point `h` above (a tank's roof).
 static func cone(st: SurfaceTool, xf: Transform3D, r: float, h: float, kind: int, paint: Color, segs: int = 12) -> void:
+	xf = _xf * xf
 	var col := kind_color(kind, paint)
 	var tip := xf * Vector3(0.0, h, 0.0)
 	var slope := Vector2(h, r).normalized()
@@ -187,6 +208,8 @@ static func cone(st: SurfaceTool, xf: Transform3D, r: float, h: float, kind: int
 
 
 static func _begin() -> SurfaceTool:
+	if _into != null:
+		return _into
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st.set_smooth_group(-1)
@@ -194,6 +217,8 @@ static func _begin() -> SurfaceTool:
 
 
 static func _commit(key: String, st: SurfaceTool, shadow: Array = []) -> Mesh:
+	if _into != null:
+		return null
 	st.set_material(walls_material())
 	var mesh := st.commit()
 	_cache[key] = mesh
@@ -223,7 +248,7 @@ static func _wheel(st: SurfaceTool, at: Vector3, r: float, w: float) -> void:
 ## reefer (a refrigeration unit on the nose).
 static func trailer(kind: int = 0) -> Mesh:
 	var key := "trailer_%d" % kind
-	if _cache.has(key):
+	if _into == null and _cache.has(key):
 		return _cache[key]
 	var st := _begin()
 	var length := 16.15 if kind != 2 else 12.2
@@ -274,7 +299,7 @@ static func trailer(kind: int = 0) -> Mesh:
 ## rear. `with_sleeper` false is a day cab (6.2 m). Paint is the instance colour.
 static func tractor(with_sleeper: bool = true) -> Mesh:
 	var key := "tractor_%s" % with_sleeper
-	if _cache.has(key):
+	if _into == null and _cache.has(key):
 		return _cache[key]
 	var st := _begin()
 	var white := Color(1.0, 1.0, 1.0)
@@ -329,7 +354,7 @@ static func tractor(with_sleeper: bool = true) -> Mesh:
 ## the ribbed sides, the sliding door and the reporting marks are the shader's (K_BOXCAR, UV2.y =
 ## the body length). Paint is the instance colour. Rail top at y 0.
 static func boxcar() -> Mesh:
-	if _cache.has("boxcar"):
+	if _into == null and _cache.has("boxcar"):
 		return _cache["boxcar"]
 	var st := _begin()
 	var length := 15.2
@@ -352,7 +377,7 @@ static func boxcar() -> Mesh:
 
 ## A tank car (17.4 m, a 3 m barrel), black with a walkway and a dome.
 static func tank_car() -> Mesh:
-	if _cache.has("tank_car"):
+	if _into == null and _cache.has("tank_car"):
 		return _cache["tank_car"]
 	var st := _begin()
 	var length := 16.2
@@ -387,7 +412,7 @@ static func _truck(st: SurfaceTool, z: float) -> void:
 ## of wrapped loads, 3 cardboard cartons on a pallet. 1.2 x 1.0 m.
 static func pallets(kind: int) -> Mesh:
 	var key := "pallets_%d" % kind
-	if _cache.has(key):
+	if _into == null and _cache.has(key):
 		return _cache[key]
 	var st := _begin()
 	var wood := Color(0.62, 0.5, 0.36)
@@ -410,7 +435,7 @@ static func pallets(kind: int) -> Mesh:
 
 ## A cluster of four 55-gallon drums on a pallet (paint the instance colour: blue, black, grey).
 static func drums() -> Mesh:
-	if _cache.has("drums"):
+	if _into == null and _cache.has("drums"):
 		return _cache["drums"]
 	var st := _begin()
 	box(st, Transform3D(Basis(), Vector3(0.0, 0.07, 0.0)), Vector3(1.2, 0.144, 1.2), K_WOOD, Color(0.55, 0.45, 0.33), 0.144)
@@ -423,7 +448,7 @@ static func drums() -> Mesh:
 ## A front-load dumpster (3 yd, 1.8 x 1.2 m) or, `big`, a 30-yard roll-off (6.7 x 2.4 x 1.8 m).
 static func bin(big: bool) -> Mesh:
 	var key := "bin_%s" % big
-	if _cache.has(key):
+	if _into == null and _cache.has(key):
 		return _cache[key]
 	var st := _begin()
 	if big:
@@ -441,7 +466,7 @@ static func bin(big: bool) -> Mesh:
 ## roof, a caged ladder.
 static func storage_tank(r: float, h: float) -> Mesh:
 	var key := "tank_%.1f_%.1f" % [r, h]
-	if _cache.has(key):
+	if _into == null and _cache.has(key):
 		return _cache[key]
 	var st := _begin()
 	cyl(st, Transform3D(Basis(), Vector3(0.0, 0.0, 0.0)), r + 0.15, 0.3, K_CONCRETE, Color(0.7, 0.69, 0.66), 18, true)
@@ -456,7 +481,7 @@ static func storage_tank(r: float, h: float) -> Mesh:
 ## An elevated steel water tower: four raked legs with cross bracing, a cylindrical tank with a
 ## cone roof and a catwalk round its waist. ~28 m to the top.
 static func water_tower() -> Mesh:
-	if _cache.has("water_tower"):
+	if _into == null and _cache.has("water_tower"):
 		return _cache["water_tower"]
 	var st := _begin()
 	var paint := Color(0.86, 0.86, 0.84)

@@ -5490,3 +5490,98 @@ level the far city is mostly hidden: 0.5 % of pixels move.
   boundary on Compatibility; TAA settles it on Forward+).
 - Shadow cost of the LOD ring's roof units: they cast with the rest of the `lod_box` batch; the
   geo_count shadow lines above are what it costs at these three views.
+## 9ba. The industrial district as Los Angeles industry, 2026-10-04 (agent branch `wt/industrial`; VISUAL_ROADMAP #43)
+
+The brief: INDUSTRIAL (east of the 110 below z 2300 down to the port, and the Arts District east
+of Vignes) was `Building` WAREHOUSEs - boxes with ribbon windows, offices in all but name - and
+slabs standing on bare paving, 40 % of the district's block ground. Make it read like Vernon, the
+Alameda corridor and the Arts District. All of it is `Industrial` (`scripts/world/industrial.gd`)
+and `IndustrialKit` (`scripts/world/industrial_kit.gd`); the rules are the CLAUDE.md bullet after
+YardFill's.
+
+**What a block is now.**
+- A WAREHOUSE lot is Industrial's own tilt-up warehouse (the Building is planned for its height
+  and shape, then freed): concrete panels with joints, reveals, an accent wainscot and parapet
+  band, buffed-out graffiti patches, lifting inserts, dirt run down from the coping; a parapet and
+  coping; a membrane roof with seams, ponding, skylights and rooftop units; a glazed office corner
+  with a canopy; on the end walls a steel man door, wall packs and downspouts. Facing the street it
+  is deepest from (`lot_side()`), a lot at least 44 m deep gets a TRUCK COURT (20-30 m): dock
+  doors every 4.25 m (roll-up, seal head and side pads, bumpers, a plate, an arm-mounted dock
+  light, a light pool), a grade-level door at the far end with yellow bollards, trailers backed on
+  to 55 % of the docks (a 53 ft van, a skirted one or a 40 ft reefer; a tractor still coupled to a
+  fifth of them where the court has room), a concrete apron, stall stripes, chain-link with barbed
+  wire on outriggers along the street with a gate open. A shallower lot gets two or three
+  grade-level doors and an employee car park or a weed strip in its setback.
+- In the Arts District 80 % of the warehouses are BRICK (the photographed courses sooted up the
+  wall, steel factory sash - 4 x 5 panes, a few painted out or broken - in every bay at each
+  4.6 m floor, a third of them lit warm at night) standing at the back of the pavement, and the
+  Building lots there take brick finishes; three in four street-facing end walls carry a MURAL
+  (and some fronts), and a tilt-up wall elsewhere now and then (8 %). The murals are invented in
+  the shader (`mural()` in `industrial_walls.gdshader`: six palettes, a waved two-colour ground,
+  rays from a disc, ringed discs, a band of stripes, outlined blobs, dots, a zig-zag, dark ink
+  outlines, the paint chipped back to the concrete and faded at the foot) - abstract, no lettering,
+  no figure, nobody's work.
+- Every lot cell less its building is spoken for (`block_plan()`): the court and apron, drive
+  strips down the sides (cracked asphalt, weedy dirt or gravel; a dumpster or a roll-off, a row of
+  pallet loads), the back (a storage yard when it is over 7 m: pallets - empties, wrapped loads,
+  doubles, cartons -, drums, a PortKit container, a corrugated shed with a mono-pitch roof and a
+  roll-up door, or two to four storage tanks in a concrete containment wall), the front setback.
+  Half the blocks with two rows of lots and 5.6 m between them have a RAIL SPUR down the middle
+  (ballast with creosoted ties drawn by the ground shader, two rails, yellow bumper stops, a string
+  of boxcars - ribbed, a sliding door, rust, a block of invented marks - and black or white tank
+  cars on 80 % of them), and the warehouses backing onto it get rail doors. One block in eleven
+  with a big enough yard has an elevated steel water tower.
+- Nothing industrial stands under a freeway deck or ramp (`clear_of_freeway()`): the first full
+  check failed on boxcars under the 110 (`downtown_checks`' "no deck through a building" holds
+  every captured far box to it), so a string of cars now stops short of a deck.
+
+**How it is drawn.** A FULL chunk's industrial geometry is two meshes and a batch: the ground
+(`IndustrialGround`, `shaders/industrial_ground.gdshader`, no shadow: asphalt oxidised in broad
+patches, alligator-cracked where it has failed with weeds in the wider cracks, darker patches,
+hairline long cracks, oil; concrete apron slabs with saw joints and stains; gravel; dirt with weed
+clumps; ballast and ties; worn stall paint), everything upright (`IndustrialWalls`,
+`shaders/industrial_walls.gdshader`, casting: the warehouses, docks, fences, rails AND every prop -
+trailers, tractors, rail cars, pallets, drums, bins, tanks, the tower - written straight into the
+mesh by `IndustrialKit.place()`), and the dock and wall-pack light pools (`ind_pool`, additive, no
+shadow). The first version had a MultiMesh batch per prop kind (15-20 a chunk, each with its
+shadow cascades); at the court bookmark that was +497 draws over the old district, so the props
+went into the walls mesh. Containers stay PortKit's (`container` batch), the parked cars
+ArenaGrounds' (`apark_car_*`). LOD chunks and the far city (capture mode) get the warehouses,
+trailers, rail cars, tanks and the tower as plain `lod_box`es (custom alpha 1: no windows) and the
+yards as ground slabs - their LOD steps are a few milliseconds.
+
+**Coverage** (`tools/lot_coverage.gd`, whole district, seed 1337, `RECT=2150,-1700,3000,7700`;
+`FILL=yard` is the city before this branch, the default now runs Industrial too; a new kind,
+`works`):
+
+| Row | bare before | bare after | what covers it after |
+|---|---|---|---|
+| INDUSTRIAL (943 blocks, 2,098 lots) | 40.0 % | 0.0 % | built 46.6, works 46.0, row 7.4 |
+
+The warehouses cover 69 % of their lots now (81 % as Building boxes): the court is the difference.
+
+**Build time** (`tools/industrial_bench/industrial_bench.tscn`, headless, warm, Industrial on vs
+off, four blocks: a Vernon court block, a spur block, two Arts District blocks): FULL 163-193 ms vs
+162-225 ms in 59-84 steps, slowest step 44-62 ms vs 48-65 ms (the slowest step is not Industrial's:
+it is the same with it off); LOD 17-19 ms vs 14-15 ms, slowest step 5-7 ms either way.
+
+**Traps.**
+- `Basis(Vector3.FORWARD, PI * 0.5)` takes a cylinder's +y to +x (a wheel's axle); the first
+  wheels were offset by their own width.
+- `PortKit.container_xform()` lays a box along x; turned for a long-x yard it lay across the rail
+  spur.
+- An additive light pool 4 cm over the yard z-fights it at a grazing angle (the dusk still lit the
+  court in diagonal stripes): pools stand 15 cm up.
+- A still's `EYE` y is absolute: give `EYE_AGL=1` or the camera is in the ground on any relief
+  (the first "before" set was).
+- Hour 19.45 is full night; the lamps are on and the sky still lit at about 18.4.
+
+**Tools and checks.** `tests/industrial_checks.gd` (13 checks in the smoke test): bare share
+before and after round Vernon, both shaders' kind tables, the plans over Vernon and the Arts
+District (warehouses in their cells, no yard piece under a building, outside its block, on another
+piece or on the spur; warehouses, courts, docks, spurs, brick, murals and storage yards all
+present), a FULL chunk (one mesh each on the right shaders, no Building for a warehouse lot,
+trailers at the docks, no prop batches, the pools shadowless, the warehouses in the encampments'
+wall list), the block built with Industrial off keeps every pavement prop where it was, a LOD build
+and the far city's capture draw the warehouses as far boxes. `INDUSTRIAL=0` on `still_shot.gd`,
+`block_shot.tscn` and `tools/geo_count.gd` is the A/B; `industrial_bench.tscn` times the builds.

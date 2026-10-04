@@ -730,6 +730,24 @@ static func _warehouse(ch: CityChunk, lp: Dictionary) -> void:
 		var u := u0 + pw * float(i) + pw * 0.5
 		_fb(cx, u, front_v - 0.12, h - 1.4, Vector3(0.36, 0.26, 0.22), IndustrialKit.K_LAMP, Color(1.0, 0.95, 0.85))
 		_pool(ch, _at(cx, u, v0 - 5.0, 0.0), 11.0, Color(1.0, 0.94, 0.84), 0.55)
+	# The end walls: a steel man door near the front, wall packs and downspouts down the side.
+	for e in 2:
+		var ue := u0 - 0.04 if e == 0 else u1 + 0.04
+		var out := -1.0 if e == 0 else 1.0
+		var side_basis := basis * Basis(Vector3.UP, PI * 0.5)
+		var door_v := v0 + 3.0 + _h01([s, "ind_mandoor", e]) * minf(6.0, d * 0.3)
+		_wbox(ch, Transform3D(side_basis, _at(cx, ue, door_v, 1.08)), Vector3(1.0, 2.16, 0.05), IndustrialKit.K_STEEL, (door_paint as Color).darkened(0.15))
+		_wbox(ch, Transform3D(side_basis, _at(cx, ue + out * 0.06, door_v, 2.35)), Vector3(1.4, 0.08, 0.12), IndustrialKit.K_STEEL, Color(0.3, 0.3, 0.31))
+		var ns := maxi(1, roundi((d - WALL * 2.0) / _panel_w(brick, d - WALL * 2.0)))
+		var spw := (d - WALL * 2.0) / float(ns)
+		for i in range(1, ns):
+			var vv := v0 + WALL + spw * float(i)
+			if i % 2 == 0:
+				_wbox(ch, Transform3D(side_basis, _at(cx, ue + out * 0.08, vv, h * 0.5)), Vector3(0.14, h, 0.12), IndustrialKit.K_GALV, Color(0.62, 0.63, 0.62))
+			else:
+				_wbox(ch, Transform3D(side_basis, _at(cx, ue + out * 0.12, vv, h - 1.6)), Vector3(0.36, 0.26, 0.22), IndustrialKit.K_LAMP, Color(1.0, 0.95, 0.85))
+				var pp := _at(cx, ue + out * 4.0, vv, 0.0)
+				_pool(ch, pp, 9.0, Color(1.0, 0.94, 0.84), 0.45)
 	# Downspouts on every other front and back joint.
 	for i in range(2, np, 2):
 		for vv: float in [v0 - 0.08, v1 + 0.08]:
@@ -791,7 +809,7 @@ static func _dock_traffic(ch: CityChunk, lp: Dictionary, u: float) -> void:
 	var paint: Color = _pick(TRAILER_PAINTS, [s, "ind_trl_p", int(u * 10.0)])
 	if not clear_of_freeway(ch.plan, _box_rect(centre, out_dir, length, 2.6)):
 		return
-	ch._batch.add("ind_trailer_%d" % kind, IndustrialKit.trailer(kind), Transform3D(Basis(Vector3.UP, yaw), Vector3(centre.x, CityChunk.SIDEWALK_TOP + LIFT, centre.y)), paint)
+	_prop(ch, Vector3(centre.x, CityChunk.SIDEWALK_TOP + LIFT, centre.y), yaw, paint, IndustrialKit.trailer.bind(kind))
 	ch._add_shape(Vector3(2.6, 3.0, length), Vector3(centre.x, CityChunk.SIDEWALK_TOP + ch._gy(centre.x, centre.y) + 2.55, centre.y), yaw)
 	if court - APRON - length > 8.0 and _h01([s, "ind_trc", int(u * 10.0)]) < TRACTOR_ODDS:
 		var sleeper := _h01([s, "ind_trc_s", int(u * 10.0)]) < 0.6
@@ -800,8 +818,7 @@ static func _dock_traffic(ch: CityChunk, lp: Dictionary, u: float) -> void:
 		var tc := centre + out_dir * (length * 0.5 - 1.2 + tl * 0.5 - 1.35)
 		if not clear_of_freeway(ch.plan, _box_rect(tc, out_dir, tl, 2.5)):
 			return
-		ch._batch.add("ind_tractor_%s" % sleeper, IndustrialKit.tractor(sleeper), Transform3D(Basis(Vector3.UP, yaw), Vector3(tc.x, CityChunk.SIDEWALK_TOP + LIFT, tc.y)),
-			_pick(TRACTOR_PAINTS, [s, "ind_trc_p", int(u * 10.0)]))
+		_prop(ch, Vector3(tc.x, CityChunk.SIDEWALK_TOP + LIFT, tc.y), yaw, _pick(TRACTOR_PAINTS, [s, "ind_trc_p", int(u * 10.0)]), IndustrialKit.tractor.bind(sleeper))
 		ch._add_shape(Vector3(2.5, 2.8, tl), Vector3(tc.x, CityChunk.SIDEWALK_TOP + ch._gy(tc.x, tc.y) + 1.6, tc.y), yaw)
 
 
@@ -825,10 +842,20 @@ static func _far_trailers(ch: CityChunk, lp: Dictionary) -> void:
 			_pick(TRAILER_PAINTS, [s, "ind_trl_p", int(u * 10.0)]) * 0.8, Color(0.0, 0.0, 0.0, 1.0))
 
 
+## A prop (one of IndustrialKit's mesh functions) written into the chunk's walls mesh at `at`
+## (relief added here), turned by `yaw`, painted by `tint`: no draw of its own.
+static func _prop(ch: CityChunk, at: Vector3, yaw: float, tint: Color, build: Callable) -> void:
+	IndustrialKit.place(_walls(ch), Transform3D(Basis(Vector3.UP, yaw), at + Vector3(0.0, ch._gy(at.x, at.z), 0.0)), tint, build)
+
+
 ## A light pool on the ground (additive, nothing by day), at a chunk-space point.
-static func _pool(ch: CityChunk, at: Vector3, size: float, tint: Color, strength: float) -> void:
-	var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(at.x, CityChunk.SIDEWALK_TOP + LIFT + 0.04, at.z))
-	ch._batch.add("ind_pool_%d" % tint.to_rgba32(), PropFactory.light_pool(tint, strength, 1.6), xf)
+static func _pool(ch: CityChunk, at: Vector3, size: float, _tint: Color, _strength: float) -> void:
+	# 15 cm over the yard: at a few centimetres the additive quad z-fought the asphalt at a grazing
+	# angle and lit the court in stripes.
+	var xf := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(at.x, CityChunk.SIDEWALK_TOP + LIFT + 0.15, at.z))
+	# One batch a chunk whatever the lamp (the tint is the dock lights' warm white; the strength
+	# rides the pool's size).
+	ch._batch.add("ind_pool", PropFactory.light_pool(Color(1.0, 0.9, 0.74), 0.7, 1.6), xf)
 
 
 ## The block step, after every lot is down (any tier): the yards, the spur, fences, the water tower.
@@ -860,7 +887,7 @@ static func block_step(ch: CityChunk, block: Dictionary) -> void:
 	if bp.tower != null:
 		var t: Vector2 = bp.tower
 		if full:
-			ch._batch.add("ind_water_tower", IndustrialKit.water_tower(), Transform3D(Basis(Vector3.UP, _h01([ch.plan.seed, ch.ix, ch.iz, "ind_tw_yaw"]) * TAU), Vector3(t.x, CityChunk.SIDEWALK_TOP + LIFT, t.y)))
+			_prop(ch, Vector3(t.x, CityChunk.SIDEWALK_TOP + LIFT, t.y), _h01([ch.plan.seed, ch.ix, ch.iz, "ind_tw_yaw"]) * TAU, Color.WHITE, IndustrialKit.water_tower)
 			ch._add_shape(Vector3(9.0, 20.0, 9.0), Vector3(t.x, CityChunk.SIDEWALK_TOP + ch._gy(t.x, t.y) + 10.0, t.y))
 		else:
 			ch._batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(8.4, 7.5, 8.4)), Vector3(t.x, CityChunk.SIDEWALK_TOP + 24.5, t.y)), Color(0.8, 0.8, 0.78), Color(0.0, 0.0, 0.0, 1.0))
@@ -988,8 +1015,7 @@ static func _spur(ch: CityChunk, sp: Dictionary, full: bool) -> void:
 		if tank:
 			paint = Color(0.13, 0.13, 0.13) if _h01([s, "tp", i]) < 0.7 else Color(0.82, 0.82, 0.8)
 		if full:
-			ch._batch.add("ind_tank_car" if tank else "ind_boxcar", IndustrialKit.tank_car() if tank else IndustrialKit.boxcar(),
-				Transform3D(Basis(Vector3.UP, yaw), Vector3(mid.x, rail_top, mid.y)), paint)
+			_prop(ch, Vector3(mid.x, rail_top, mid.y), yaw, paint, IndustrialKit.tank_car if tank else IndustrialKit.boxcar)
 			ch._add_shape(Vector3(3.2, 4.2, cl) , Vector3(mid.x, rail_top + ch._gy(mid.x, mid.y) + 2.6, mid.y), yaw)
 		else:
 			var sz := Vector3(cl, 4.4, 3.1) if axis == 0 else Vector3(3.1, 4.4, cl)
@@ -1062,7 +1088,7 @@ static func _dress(ch: CityChunk, pc: Array, bp: Dictionary) -> void:
 				var big := _h01([s, "bin_big"]) < 0.3 and maxf(r.size.x, r.size.y) > 9.0 and minf(r.size.x, r.size.y) >= 3.4
 				var yaw := 0.0 if not long_x else PI * 0.5
 				var p := c + (Vector2((_h01([s, "bx"]) - 0.5) * maxf(r.size.x - 8.0, 0.0), 0.0) if long_x else Vector2(0.0, (_h01([s, "bx"]) - 0.5) * maxf(r.size.y - 8.0, 0.0)))
-				ch._batch.add("ind_bin_%s" % big, IndustrialKit.bin(big), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, base, p.y)), _pick(BIN_PAINTS, [s, "binp"]))
+				_prop(ch, Vector3(p.x, base, p.y), yaw, _pick(BIN_PAINTS, [s, "binp"]), IndustrialKit.bin.bind(big))
 				ch._add_shape(Vector3(2.4, 1.8, 6.7) if big else Vector3(1.8, 1.3, 1.2), Vector3(p.x, base + ch._gy(p.x, p.y) + 0.8, p.y), yaw)
 			if minf(r.size.x, r.size.y) >= 2.0 and _h01([s, "pal"]) < 0.4:
 				_pallet_row(ch, r, s, 3)
@@ -1100,7 +1126,7 @@ static func _store(ch: CityChunk, r: Rect2, s: int, kind: int) -> void:
 			var p: Vector2 = t[0]
 			var rad: float = t[1]
 			var th: float = t[2]
-			ch._batch.add("ind_tank_%.1f_%.1f" % [rad, th], IndustrialKit.storage_tank(rad, th), Transform3D(Basis(Vector3.UP, _h01([s, p]) * TAU), Vector3(p.x, base, p.y)), paint)
+			_prop(ch, Vector3(p.x, base, p.y), _h01([s, p]) * TAU, paint, IndustrialKit.storage_tank.bind(rad, th))
 			ch._add_shape(Vector3(rad * 1.8, th, rad * 1.8), Vector3(p.x, base + ch._gy(p.x, p.y) + th * 0.5, p.y))
 			var tr := Rect2(p - Vector2(rad + 1.0, rad + 1.0), Vector2(rad + 1.0, rad + 1.0) * 2.0)
 			hull = tr if hull.size == Vector2.ZERO else hull.merge(tr)
@@ -1150,7 +1176,7 @@ static func _store(ch: CityChunk, r: Rect2, s: int, kind: int) -> void:
 		_pallet_row(ch, left, s, 10)
 	if _h01([s, "drums"]) < 0.5 and minf(left.size.x, left.size.y) >= 2.0 and _count(ch, "drums", 20):
 		var p := left.end - Vector2(1.2, 1.2)
-		ch._batch.add("ind_drums", IndustrialKit.drums(), Transform3D(Basis(Vector3.UP, _h01([s, "dy"]) * 0.4), Vector3(p.x, base, p.y)), _pick(DRUM_PAINTS, [s, "dp"]))
+		_prop(ch, Vector3(p.x, base, p.y), _h01([s, "dy"]) * 0.4, _pick(DRUM_PAINTS, [s, "dp"]), IndustrialKit.drums)
 
 
 ## A row of pallet loads along a piece's long side.
@@ -1167,7 +1193,7 @@ static func _pallet_row(ch: CityChunk, r: Rect2, s: int, most: int) -> void:
 		var p := Vector2(r.position.x + t, r.position.y + 0.8) if long_x else Vector2(r.position.x + 0.8, r.position.y + t)
 		var k := absi(hash([s, "pal_k", i])) % 4
 		var yaw := (0.0 if long_x else PI * 0.5) + (_h01([s, "pal_y", i]) - 0.5) * 0.15
-		ch._batch.add("ind_pallets_%d" % k, IndustrialKit.pallets(k), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, base, p.y)))
+		_prop(ch, Vector3(p.x, base, p.y), yaw, Color.WHITE, IndustrialKit.pallets.bind(k))
 
 
 ## A corrugated shed: four walls, a mono-pitch roof falling to the back, a roll-up door.
@@ -1215,6 +1241,8 @@ static func ground_material() -> ShaderMaterial:
 static func commit(ch: CityChunk) -> void:
 	if ch._ind.is_empty():
 		return
+	# The pools are light, not things: they cast nothing.
+	ch._batch.set_no_shadow("ind_pool")
 	if not ch._ind.ground.is_empty() or not ch._ind.paint.is_empty():
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
