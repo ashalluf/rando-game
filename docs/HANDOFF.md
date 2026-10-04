@@ -5638,3 +5638,273 @@ Building boxes with nothing else moved. `tests/lot_fill_checks.gd`'s beach plan 
   high aerial's increase is not split by category.
 - Nobody walks the drives or the walk streets; parked cars in the drives are the yard's
   (LotFill's static cars).
+
+
+## 9bg. Real headwear, fitted to each head, 2026-10-04 (agent branch `worktree-agent-a4d942dcfd8aa9ccb`; GAME_PLAN G5, VISUAL_ROADMAP #49)
+
+The brief (lead): the crowd's caps and beanies read as plastic bowls perched on the crown - a
+smooth half-dome with a thin flat peak in flat saturated blue / green - the most toy-like thing
+on a person in crowd-life's stills; make real headwear that fits each rig. CLAUDE.md's
+"Headwear" note is the reference; this is the story.
+
+**What was wrong, measured.** The old `_add_accessory()` hung one fixed tube + half-dome (cap
+240 triangles, beanie 220, police cap 200) at one offset from the Head bone, levelled in the walk
+clip's first frame. The crowd rigs' heads sit at different heights over that bone: on most of
+them the cap's peak came out at eye level with the crown pushed back on the skull, the police cap
+floated a few centimetres over the head, and the cap kept its hair cards on, which stood out
+through it. Stills (not committed, the session's scratchpad `caps/`): `before2/close_*.png` (the same
+framings as `after5/close_*.png`, drawn with the old code pasted into a scratch copy of
+crowd_lineup) and `before/lineup_street.png` (the old hats at street range).
+
+**The fit.** `tools/crowd/hat_fit.gd` (opengl3 under Xvfb; it needs mesh data) skins each crowd
+rig's Body and Hair at rest into the HEAD FRAME (metres, skeleton axes, origin at the Head bone's
+rest) and measures: the eye centre (the region colour's eye vertices), the ear tops, a centre C
+at eye height half way between the back of the skull and the forehead and centred on the eyes
+across (the Head bone is up to 3 mm off the head's middle), the skull's radius from C on a 17 x 32
+grid of directions (four jittered rays a direction at the head-weighted triangles, outermost hit
+kept - a ray down the mirror seam slipped between triangles and found the inside of the face),
+the ears put back on the skull (only the samples within 35 degrees of each ear, near eye height,
+that stand 2 mm proud of the chord over the window: a whole-ring fit "removed" the nose and the
+occiput too), the two sides averaged, a light blur; and the hair's thickness over it from rays at
+the Hair cards less the brows and lashes. `scripts/npc/crowd_hat_table.gd` holds it (52 KB for
+twelve rigs). `REPORT=1` builds every hat on every rig from the table and casts from outside in
+through every covered head vertex to the hat's outer surface: 0 through on all 48 rig x kind
+pairs, the outside 0.0-6.5 mm off the skin at its closest, the band 0.5-17 mm (the larger numbers
+are the beanie's knit over pressed hair).
+
+**The hats** (`scripts/npc/crowd_hat.gd`, `CrowdHat`, all code): a grid shell round the head - per
+column round the head the band edge's elevation (a height over the eyes per kind, the front and
+back in `EDGE`, the sides never under the ear tops + `EAR_CLEAR`), rows up to the crown, each
+point the skull radius there plus `standoff()` (cloth, room for the pressed hair, a loft, the
+cap's structured front panels, each panel puffed between its seams, the beanie's slouch to the
+back) - and parts on it:
+- cap: six panels (seams on columns), a button, a sweatband 28 mm up the inside, a rolled edge,
+  the opening at the back (a rounded arch) with a strap tucked under the panels and a slide
+  buckle, the bill: 7 cm reach for a 20 cm head, 12 degrees down, its sides curved down 2 cm, a
+  crown across its depth, 3.4 mm thick, a taped edge rolled round it, its root tucked under the
+  band;
+- beanie: the knit to the crown (a slouch toward the back), a 52 mm 2x2-rib cuff 3.6 mm proud,
+  its lower edge folded under and its top rolled back onto the knit;
+- bucket: four side panels (seams 45 degrees off the front), a quarter-round corner, a round top,
+  a 52 mm brim sloping and waving, a taped edge;
+- police: a straight black braid band, a crown flaring to a rim (higher at the front), a domed
+  top, a patent peak (52 mm, 29 degrees down), a chin strap on two buttons, a shield badge laid
+  on the crown's slope.
+LOD: the levels are the same grids at every 1st, 2nd and 4th row and column, one vertex buffer
+(cap 1,812 / 464 / 121 triangles, beanie 1,656 / 432 / 107, bucket 1,980 / 522 / 153, police
+1,636 / 454 / 139; edges `LEVEL_EDGES` 0 / 1.8 / 5.5 mm). Normals and windings are decided per
+GRID (vote, then one way for all): turned vertex by vertex, the police flare's first row had
+every other triangle facing in (a sawtooth of lining showing at the band's top).
+
+**The cloth** (`shaders/crowd_hat.gdshader`): everything a close look reads is drawn on the
+mesh's coordinates (UV in metres round and up; part id, occlusion, parameter and ring radius in
+the vertex colour): twill and slubs, panel seams as a valley with the cloth puffed either side and
+topstitching 3.2 mm off, embroidered eyelets, eight rows of stitching round the bill, a taped
+edge's stitch line, the ribbed sweatband, stockinette knit (Vs up each column, a heather), the
+cuff's 2x2 rib, the crown's six decrease lines, a bucket's metal vent eyelets, three original
+embroidered marks (a ring and dot, a ridge line, a wave; half the caps plain) or a woven label on
+a third of the beanies, the police band's braid, patent with a clearcoat. Each pattern fades to
+its average under a pixel. Both faces drawn (`cull_disabled`): the back faces are the lining
+(dark, unlit by the sky), so the inside of a crown under a bill, through the cap's opening and
+up into a bucket needs no geometry. The relief tilts the normal in a frame worked out from the
+screen derivatives of UV (no tangents in the mesh). Linear on both renderers
+(`color_space.gdshaderinc`). Colourways are muted and team-less (`CAP_COLORS`, `BEANIE_COLORS`,
+`BUCKET_COLORS`; the police navy = `PoliceOfficer.CAP_COLOR`); one material per colourway and
+mark (~60 at most).
+
+**The hair is pressed, not hidden** (`pressed_hair()`, one copy per hair mesh, rig and kind):
+every hair vertex under the crown moved inside the hat's inner surface, easing out over 3.5 cm
+below the band so the hair comes out from under it at the back and sides; a strand more than
+2.6-4 cm off the scalp left alone (crowd_d's ponytail goes out through the cap's opening); the
+triangles left wholly inside dropped (crowd_d's 3,830 hair triangles are 2,250 under the cap,
+crowd_i's 3,829 are 1,565, crowd_k's 3,831 are 3,193); the importer's hair LODs kept, less the same triangles. A fringe
+(a hair card that starts under the crown and hangs in front of the face) is dropped whole, as if
+tucked up under the hat. Three other ways were tried and each was worse: pressed only where it
+was under the hat it bunched into a dark slab over one eye, laid flat on the skin it was an eye
+patch, and slid in whole (by the most any of its vertices stood out of the hat) it still poked
+out through the front of the crown and hung over an eye. Dropped, the scalp painted under it can
+show as a soft smudge of the hair colour on the forehead, which reads as hair under the band
+(`caps/after5/close_front.png`: crowd_h and crowd_c, over one brow). A "card" is a connected piece
+of the hair mesh, and on four rigs (crowd_c, g, h, l: short crops) the whole scalp of hair is one
+piece that reaches both under the crown and down the forehead, so under any hat it all goes and
+the painted scalp is the hair at the back and sides (it reads as a short crop from behind,
+`after5/close_back.png`); the rigs with separate cards (b, d, e, f, i, k) keep theirs below the
+band. crowd_a and crowd_j have no scalp hair, only brows. No mesh data (the headless check) hides the
+cards as before; a rig whose hair is too thick to press can be marked `"hide"` by the tool (none
+is: crowd_e's natural hair is ~2 cm and presses).
+
+**In the game.** `Pedestrian._add_accessory()` makes the same three `_style` rolls as before (the
+chance, the kind, one colour roll; CampFigure.seed_for() and everything rolled after depend on
+them) - a bucket hat is the top tenth of the old cap roll; the pack is unchanged.
+`Pedestrian.knock()` dresses the ragdoll in the same hat (`_dress_doll()`; a decapitating gib
+takes it with the head bone). `PoliceOfficer._add_cap()` is `CrowdHat.Kind.PEAKED` (the tactical
+unit still goes bare-headed), on the officer and on their ragdoll. Rough sleepers wear hats from
+the same roll in a worn colourway (dulled toward grey-brown, the top sun-faded, grime in blotches
+at the band: `CrowdHat.material(kind, pick, true)`, `RoughSleeper._wear_hat()`); camp figures'
+seeds still avoid them. The loading screen builds every hat and
+pressed hair (`CrowdHat.warm()` from `Pedestrian.warm_far_mesh()`, which already has the rig
+instanced): **~0.8 s here** for twelve rigs (41 hats at ~10-13 ms, the hair ~10 ms a kind) - the
+people's share of the loading screen grows by about that.
+
+**Cost per wearer.** One draw (the hat), no shadow pass, no GI, gone past
+`accessory_distance` - as before. Triangles 1.6-2k near, ~430-520 from a couple of metres, ~110-150
+from ~4 m (the old ones were 200-240 at every range). The hair under a beanie or the police cap is
+drawn again (it was hidden; it is the person's own draw, the one they have without a hat), with
+the triangles inside the hat dropped. Memory: ~3 MB of hat meshes, ~6 MB of pressed hair copies.
+
+**Judged** (opengl3 lineups, `crowd_lineup.gd HATS=...`, and one Forward+ lavapipe lineup):
+`after5/close_*.png` (four kinds at 1.4-1.9 m: 3/4, front, profile, back, from below),
+`after5/street_*.png` (eight people at 6 and 16 m), `fwd/close_*.png` (Forward+); pairs in
+`pairs/`. At street range a cap is a cap - crown down on the forehead, the bill's curve and the
+button read - and a beanie a beanie; up close the seams, the bill's stitching, the knit and the
+rib read, the hair comes out under the band. Not seen on the owner's Mac.
+
+**Traps:** `posmod()` is integer-only - on a float angle it truncated, and the whole skull
+lookup was constant over a radian (the first "48 % of the head through the cap" report);
+`Array[PackedInt32Array]`'s element appended through the subscript is the stored one, but
+`var x := arr[i]` then `x.append()` is a copy; the fit tool's TriangleMesh rays down the mirror
+seam miss or go through (jitter them); a class_name file the editor has not imported is not
+declared to other scripts (`--import` after adding one); the cap's sweatband and rolled edge at
+half the crown's columns cut the corners of the back opening's arch and came 0.4 mm through the
+skin there (they now take the crown's columns: the report's last two contacts).
+
+**Not done / next:** the hats cast no shadow (the brief's rule): the brim does not shade the
+eyes, which is now the biggest tell left up close - a SHADOWS_ONLY twin of the bill within ~15 m
+would cost one shadow draw per near wearer; a dropped fringe leaves the painted scalp as a dark
+smudge over a brow on crowd_h and crowd_c (the character shader could fade the hair region under
+a hat's front edge, or the brim's shadow would hide it); a one-piece head of hair (c, g, h, l)
+goes whole - splitting a piece by region (drop the part in front of the face below the band,
+press the rest) would keep their hair at the back and sides; the cards of very thick hair would need `"hide"` (no rig has it); hats never come off (shot or
+blasted off, a cap could be debris); the warm could run on worker threads during the city build
+instead of adding ~0.8 s; no cap is worn backwards or tilted; the bucket hat's brim does not
+droop with the wind. Rerun `tools/crowd/hat_fit.gd` whenever a crowd rig is rebuilt.
+## 9bh. The industrial district as Los Angeles industry, 2026-10-04 (agent branch `wt/industrial`; VISUAL_ROADMAP #48)
+
+The brief: INDUSTRIAL (east of the 110 below z 2300 down to the port, and the Arts District east
+of Vignes) was `Building` WAREHOUSEs - boxes with ribbon windows, offices in all but name - and
+slabs standing on bare paving, 40 % of the district's block ground. Make it read like Vernon, the
+Alameda corridor and the Arts District. All of it is `Industrial` (`scripts/world/industrial.gd`)
+and `IndustrialKit` (`scripts/world/industrial_kit.gd`); the rules are the CLAUDE.md bullet after
+YardFill's.
+
+**What a block is now.**
+- A WAREHOUSE lot is Industrial's own tilt-up warehouse (the Building is planned for its height
+  and shape, then freed): concrete panels with joints, reveals, an accent wainscot and parapet
+  band, buffed-out graffiti patches, lifting inserts, dirt run down from the coping; a parapet and
+  coping; a membrane roof with seams, ponding, skylights and rooftop units; a glazed office corner
+  with a canopy; on the end walls a steel man door, wall packs and downspouts. Facing the street it
+  is deepest from (`lot_side()`), a lot at least 44 m deep gets a TRUCK COURT (20-30 m): dock
+  doors every 4.25 m (roll-up, seal head and side pads, bumpers, a plate, an arm-mounted dock
+  light, a light pool), a grade-level door at the far end with yellow bollards, trailers backed on
+  to 55 % of the docks (a 53 ft van, a skirted one or a 40 ft reefer; a tractor still coupled to a
+  fifth of them where the court has room), a concrete apron, stall stripes, chain-link with barbed
+  wire on outriggers along the street with a gate open. A shallower lot gets two or three
+  grade-level doors and an employee car park or a weed strip in its setback.
+- In the Arts District 80 % of the warehouses are BRICK (the photographed courses sooted up the
+  wall, steel factory sash - 4 x 5 panes, a few painted out or broken - in every bay at each
+  4.6 m floor, a third of them lit warm at night) standing at the back of the pavement, and the
+  Building lots there take brick finishes; three in four street-facing end walls carry a MURAL
+  (and some fronts), and a tilt-up wall elsewhere now and then (8 %). The murals are invented in
+  the shader (`mural()` in `industrial_walls.gdshader`: six palettes, a waved two-colour ground,
+  rays from a disc, ringed discs, a band of stripes, outlined blobs, dots, a zig-zag, dark ink
+  outlines, the paint chipped back to the concrete and faded at the foot) - abstract, no lettering,
+  no figure, nobody's work.
+- Every lot cell less its building is spoken for (`block_plan()`): the court and apron, drive
+  strips down the sides (cracked asphalt, weedy dirt or gravel; a dumpster or a roll-off, a row of
+  pallet loads), the back (a storage yard when it is over 7 m: pallets - empties, wrapped loads,
+  doubles, cartons -, drums, a PortKit container, a corrugated shed with a mono-pitch roof and a
+  roll-up door, or two to four storage tanks in a concrete containment wall), the front setback.
+  Half the blocks with two rows of lots and 5.6 m between them have a RAIL SPUR down the middle
+  (ballast with creosoted ties drawn by the ground shader, two rails, yellow bumper stops, a string
+  of boxcars - ribbed, a sliding door, rust, a block of invented marks - and black or white tank
+  cars on 80 % of them), and the warehouses backing onto it get rail doors. One block in eleven
+  with a big enough yard has an elevated steel water tower.
+- Nothing industrial stands under a freeway deck or ramp (`clear_of_freeway()`): the first full
+  check failed on boxcars under the 110 (`downtown_checks`' "no deck through a building" holds
+  every captured far box to it), so a string of cars now stops short of a deck.
+
+**How it is drawn.** A FULL chunk's industrial geometry is two meshes and a batch: the ground
+(`IndustrialGround`, `shaders/industrial_ground.gdshader`, no shadow: asphalt oxidised in broad
+patches, alligator-cracked where it has failed with weeds in the wider cracks, darker patches,
+hairline long cracks, oil; concrete apron slabs with saw joints and stains; gravel; dirt with weed
+clumps; ballast and ties; worn stall paint), everything upright (`IndustrialWalls`,
+`shaders/industrial_walls.gdshader`, casting: the warehouses, docks, fences, rails AND every prop -
+trailers, tractors, rail cars, pallets, drums, bins, tanks, the tower - written straight into the
+mesh by `IndustrialKit.place()`), and the dock and wall-pack light pools (`ind_pool`, additive, no
+shadow). The first version had a MultiMesh batch per prop kind (15-20 a chunk, each with its
+shadow cascades); at the court bookmark that was +497 draws over the old district, so the props
+went into the walls mesh. Containers stay PortKit's (`container` batch), the parked cars
+ArenaGrounds' (`apark_car_*`). LOD chunks and the far city (capture mode) get the warehouses,
+trailers, rail cars, tanks and the tower as plain `lod_box`es (custom alpha 1: no windows) and the
+yards as ground slabs - their LOD steps are a few milliseconds.
+
+**Coverage** (`tools/lot_coverage.gd`, whole district, seed 1337, `RECT=2150,-1700,3000,7700`;
+`FILL=yard` is the city before this branch, the default now runs Industrial too; a new kind,
+`works`):
+
+| Row | bare before | bare after | what covers it after |
+|---|---|---|---|
+| INDUSTRIAL (943 blocks, 2,098 lots) | 40.0 % | 0.0 % | built 46.6, works 46.0, row 7.4 |
+
+The warehouses cover 69 % of their lots now (81 % as Building boxes): the court is the difference.
+
+**Cost.** opengl3, 1280x720, `--quality=0`, clear; before = `INDUSTRIAL=0` (the district as it
+was), after = this branch. `still_shot.gd` (free camera, `EYE_AGL=1`; GEO, triangles / draws):
+
+| Still | before | after |
+|---|---|---|
+| Vernon street `2610,1.7,3290,180,-1` 13:00 | 2,210,272 / 1,519 | 2,199,371 / 1,426 (-0.5 % / -6.1 %) |
+| Vernon court `2630,2.2,3300,-139,-4` 18:24 | 1,802,370 / 1,585 | 2,184,489 / 1,866 (+21.2 % / +17.7 %) |
+| Vernon aerial `2580,85,3250,-139,-38` 13:00 | 2,085,334 / 1,956 | 1,988,603 / 1,781 (-4.6 % / -8.9 %) |
+| Arts District mural `3992,1.7,345,-142,10` 15:00 | 2,787,490 / 2,153 | 2,761,376 / 2,050 (-0.9 % / -4.8 %) |
+| Arts District street `4277,1.7,610,8,3` 15:00 | 3,653,900 / 2,142 | 3,552,417 / 1,934 (-2.8 % / -9.7 %) |
+| Arts District aerial `4180,110,760,0,-38` 15:00 | 2,764,053 / 2,635 | 2,677,944 / 2,396 (-3.1 % / -9.1 %) |
+
+`tools/geo_count.gd` (the player camera at `--spawn`, 90 frames, noon):
+
+| Spawn | triangles | draws | objects |
+|---|---|---|---|
+| Vernon street `2610,3290,180,-1` | 2,348,512 -> 2,289,138 (-2.5 %) | 2,594 -> 2,474 (-4.6 %) | 18,637 -> 18,511 |
+| Vernon court `2620,3330,-90,-3` | 2,257,745 -> 2,737,407 (+21.2 %) | 2,722 -> 3,090 (+13.5 %) | 18,767 -> 19,133 |
+| Arts District street `4277,610,8,3` | 3,190,092 -> 3,088,019 (-3.2 %) | 3,407 -> 3,192 (-6.3 %) | 19,463 -> 19,237 |
+
+A warehouse is now a few hundred boxes in its chunk's ONE walls mesh (2-6k triangles a FULL
+chunk, every prop included: `industrial_bench`'s count) where a Building was walls, frames,
+details, roof plant and kit nodes; so most views got cheaper. The court views are the exception
+and it is what they see, not what is built: before, the camera stood against an office block's
+wall (the Building filled 90 % of the lot) and the wall hid the city; now it looks across an open
+court and down the streets beyond. (`geo_count.gd`'s `AB=` second count hung at that spawn twice -
+the `Engine.time_scale = 0` frames never came back - so the split is from the bench, not an A/B.)
+
+**Build time** (`tools/industrial_bench/industrial_bench.tscn`, headless, warm, Industrial on vs
+off, four blocks: a Vernon court block, a spur block, two Arts District blocks): FULL 163-193 ms vs
+162-225 ms in 59-84 steps, slowest step 44-62 ms vs 48-65 ms (the slowest step is not Industrial's:
+it is the same with it off); LOD 17-19 ms vs 14-15 ms, slowest step 5-7 ms either way.
+
+**Traps.**
+- `Basis(Vector3.FORWARD, PI * 0.5)` takes a cylinder's +y to +x (a wheel's axle); the first
+  wheels were offset by their own width.
+- `PortKit.container_xform()` lays a box along x; turned for a long-x yard it lay across the rail
+  spur.
+- The night courts were striped (three wrong guesses first: shadow acne, the far city, big
+  triangles in the additive light passes). It was the street lamp's own light pool
+  (`CityChunk._add_lamp()`), laid 5 cm over the pavement - exactly the height of the yard ground
+  beside it - so the two z-fought inside the pool. The pool is 9 cm up now (additive, no depth: it
+  looks the same everywhere); this fixes YardFill's yards beside a lamp too. The industrial light
+  pools stand 15 cm up for the same reason.
+- The asphalt's crack network was thinner than a pixel at a grazing view and aliased; cracks now
+  fade by the pixel's LONGER footprint axis (`length(dFdx(p)), length(dFdy(p))`) to the tone they
+  average to, and the patch mask is smooth noise (quantised to 0.5 m it drew stair-stepped edges).
+- A still's `EYE` y is absolute: give `EYE_AGL=1` or the camera is in the ground on any relief
+  (the first "before" set was).
+- Hour 19.45 is full night; the lamps are on and the sky still lit at about 18.4.
+
+**Tools and checks.** `tests/industrial_checks.gd` (13 checks in the smoke test): bare share
+before and after round Vernon, both shaders' kind tables, the plans over Vernon and the Arts
+District (warehouses in their cells, no yard piece under a building, outside its block, on another
+piece or on the spur; warehouses, courts, docks, spurs, brick, murals and storage yards all
+present), a FULL chunk (one mesh each on the right shaders, no Building for a warehouse lot,
+trailers at the docks, no prop batches, the pools shadowless, the warehouses in the encampments'
+wall list), the block built with Industrial off keeps every pavement prop where it was, a LOD build
+and the far city's capture draw the warehouses as far boxes. `INDUSTRIAL=0` on `still_shot.gd`,
+`block_shot.tscn` and `tools/geo_count.gd` is the A/B; `industrial_bench.tscn` times the builds.

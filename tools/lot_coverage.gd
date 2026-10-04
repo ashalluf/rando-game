@@ -16,7 +16,9 @@ extends SceneTree
 ##             on it
 ## With FILL=0 the lot fill and the yard fill are left out (what the city was before them: no
 ## podiums, and forecourt, parking, garden and row are bare - a corridor lot's old ivy is "yard");
-## FILL=lot keeps LotFill and leaves YardFill out (the city before the yards).
+## FILL=lot keeps LotFill and leaves YardFill out (the city before the yards); FILL=yard keeps
+## both and leaves Industrial out (the industrial district before its warehouses and yards; "works"
+## is its yards).
 ## Replica blocks (the Esplanade's: ReplicaBuilder builds them) are left out.
 ## Rows: one per district (DOWNTOWN split into _core and _rest), FREEWAY (every block a corridor lot
 ## stands in, whatever its district: the same blocks again), ROW_CELLS (only the ground inside
@@ -33,7 +35,7 @@ func _initialize() -> void:
 	await process_frame
 	var report: Dictionary = (load("res://scripts/world/ground_coverage.gd") as GDScript).call("report",
 		int(OS.get_environment("SEED")) if OS.get_environment("SEED") != "" else 1337,
-		_rect(), 0 if OS.get_environment("FILL") == "0" else (1 if OS.get_environment("FILL") == "lot" else 2),
+		_rect(), {"0": 0, "lot": 1, "yard": 2}.get(OS.get_environment("FILL"), 3),
 		float(OS.get_environment("GRID")) if OS.get_environment("GRID") != "" else 1.0)
 	for line: String in report.lines:
 		print(line)

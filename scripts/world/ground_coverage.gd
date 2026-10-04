@@ -16,9 +16,11 @@ extends RefCounted
 ##   garden    a house's yard, a courtyard, a walk street, a pocket park, the campus's walks, quads,
 ##             lawns and service yards (YardFill)
 ##   row       the freeway's right of way, out to its cells (YardFill)
+##   works     an industrial block's truck courts, dock aprons, storage yards, drive strips,
+##             setbacks and rail spur (Industrial)
 ## A pad lot (Commercial.build_pad(), rolled from the chunk's own rng) is counted as its building.
 
-const KINDS := ["bare", "built", "yard", "forecourt", "parking", "garden", "row"]
+const KINDS := ["bare", "built", "yard", "forecourt", "parking", "garden", "row", "works"]
 const BARE := 0
 const BUILT := 1
 const YARD := 2
@@ -26,6 +28,7 @@ const FORECOURT := 3
 const PARKING := 4
 const GARDEN := 5
 const ROW := 6
+const WORKS := 7
 const DISTRICT_NAMES := ["DOWNTOWN", "MIDTOWN", "SUBURBS", "INDUSTRIAL", "CAMPUS", "BEACHTOWN"]
 const SHAPE_NAMES := ["SLAB", "TOWER", "STEPPED", "PODIUM_TOWER", "L_SHAPE", "SETBACK", "CROWN", "WAREHOUSE"]
 
@@ -43,7 +46,8 @@ static func make_plan(seed_value: int) -> CityPlan:
 ## Every BUILDINGS block whose centre is in `area`: one line per row (district, FREEWAY, ROW_CELLS,
 ## MACARTHUR_SE), then the shapes and the podiums. {"lines": [String], "rows": {row: {"blocks",
 ## "lots_n", "frac": {kind: 0..1}}}}.
-## `fill`: 0 neither fill (the city before LotFill), 1 LotFill only (before YardFill), 2 both.
+## `fill`: 0 neither fill (the city before LotFill), 1 LotFill only (before YardFill), 2 both
+## (before Industrial), 3 all three.
 static func report(seed_value: int, area: Rect2, fill: int, grid: float = 1.0) -> Dictionary:
 	var plan := make_plan(seed_value)
 	var lo: Vector2i = plan.block_index_at(area.position)
@@ -69,7 +73,7 @@ static func report(seed_value: int, area: Rect2, fill: int, grid: float = 1.0) -
 				rows.append("MACARTHUR_SE")
 			for row in rows:
 				if not tot.has(row):
-					tot[row] = {"blocks": 0, "cells": 0, "lots": 0.0, "lots_n": 0, "lot_built": 0.0, "k": [0, 0, 0, 0, 0, 0, 0]}
+					tot[row] = {"blocks": 0, "cells": 0, "lots": 0.0, "lots_n": 0, "lot_built": 0.0, "k": [0, 0, 0, 0, 0, 0, 0, 0]}
 				var t: Dictionary = tot[row]
 				t.blocks += 1
 				t.lots += float(res.lots)
@@ -162,6 +166,7 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 	var row: String = DISTRICT_NAMES[district]
 	if district == CityPlan.District.DOWNTOWN:
 		row += "_core" if boost > 0.55 else "_rest"
+	var industrial: bool = fill >= 3 and district == CityPlan.District.INDUSTRIAL
 	var filled: bool = fill >= 1 and district in LotFill.DISTRICTS
 	var yards: bool = fill >= 2 and district in YardFill.DISTRICTS
 	var rows: bool = fill >= 2
@@ -185,6 +190,12 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 	var corridor: Array = []
 	if as_plaza:
 		_plaza(box, brect)
+	# The industrial district: Industrial's warehouses (their own footprints) and its yards.
+	var ind_entries: Array = Industrial.block_entries(plan, bx, bz) if industrial else []
+	var ind_plans := {}
+	for e: Dictionary in ind_entries:
+		if not (e.plan as Dictionary).is_empty():
+			ind_plans[int(e.lot.seed)] = e.plan
 	var all_lots: Array = [] if as_plaza else plan.lots(bx, bz)
 	# The cells the lot grid left empty hold a house of their own since the house pass.
 	if fill >= 2 and not as_plaza and HouseKit.enabled and district in HouseKit.DISTRICTS:
@@ -238,9 +249,14 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 		fi.assign(CityPlan.lot_finishes(district, boost))
 		bld.finish_options = fi
 		bld.podium_lot = filled
+		if industrial and Industrial.arts(plan, lot.center):
+			var bf: Array[int] = [Building.Finish.BRICK, Building.Finish.BRICK, Building.Finish.BRICK, Building.Finish.PANELS]
+			bld.finish_options = bf
 		bld.plan_only()
 		var ground := 0.0
 		var parts := YardFill.ground_parts(lot, bld)
+		if ind_plans.has(int(lot.seed)):
+			parts = [ind_plans[int(lot.seed)].rect]
 		for r: Rect2 in parts:
 			_paint(box, r, BUILT)
 			ground += r.size.x * r.size.y
@@ -294,13 +310,19 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 		# rest of its cell is the block's lawn with its foundation planting and trees.
 		for e: Dictionary in entries:
 			_paint(box, e.lot.get("cell", Rect2()), GARDEN)
-	var counts := [0, 0, 0, 0, 0, 0, 0]
+	if industrial:
+		var bp := Industrial.block_plan(plan, bx, bz, ind_entries)
+		for pc: Array in bp.pieces:
+			_paint(box, pc[0], WORKS)
+		if not (bp.spur as Dictionary).is_empty():
+			_paint(box, bp.spur.rect, WORKS)
+	var counts := [0, 0, 0, 0, 0, 0, 0, 0]
 	var painted: PackedByteArray = box[0]
 	for k in painted.size():
 		counts[painted[k]] += 1
 	out["k"] = counts
 	# The same counted inside the right of way's cells alone (the ROW row).
-	var row_k := [0, 0, 0, 0, 0, 0, 0]
+	var row_k := [0, 0, 0, 0, 0, 0, 0, 0]
 	if not corridor.is_empty():
 		var grid_info := YardFill.lot_grid(plan, bx, bz, plan.lots(bx, bz))
 		var cells_r: Array[Rect2] = []

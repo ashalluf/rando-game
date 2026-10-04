@@ -57,6 +57,8 @@ extends SceneTree
 ## true world positions to frame an EYE on; LIFE_FOCUS=jog|dog|talk|sit|stand|lean|window frames the
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
+## INDUSTRIAL=0 builds the industrial district without Industrial (Building warehouses on bare
+## paving: the A/B of the warehouses, docks and yards).
 ## HOUSES=0 builds the suburbs' and the beach town's house lots as Building boxes again (HouseKit's
 ## A/B). YARD_FILL=0 builds the city without YardFill (beach-town yards, the campus's ground, the
 ## freeway's right of way: the A/B; SPLIT counts its two meshes in the LotFill line).
@@ -105,6 +107,9 @@ func _initialize() -> void:
 	if OS.get_environment("STOREFRONT_KIT") == "0":
 		(load("res://scripts/world/shopfront_kit.gd") as GDScript).set("enabled", false)
 	# YARD_FILL=0: the city without YardFill's yards, campus ground and right of way (the A/B).
+	# INDUSTRIAL=0: the industrial district as it was before Industrial (the A/B).
+	if OS.get_environment("INDUSTRIAL") == "0":
+		(load("res://scripts/world/industrial.gd") as GDScript).set("enabled", false)
 	if OS.get_environment("YARD_FILL") == "0":
 		(load("res://scripts/world/yard_fill.gd") as GDScript).set("enabled", false)
 	# HOUSES=0: the suburbs' and the beach town's house lots as Building boxes (HouseKit's A/B).

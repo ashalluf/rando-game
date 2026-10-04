@@ -1319,6 +1319,45 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   lot rects (`YardFill.walk_for()`, pure), so a house knows it fronts one before the block step.
   `HouseKit.enabled` false (the A/B; `HOUSES=0` on `still_shot.gd`) builds `Building` boxes on
   the house lots again. Checks: `tests/house_checks.gd`.
+  **Nor is an industrial block** (`Industrial`, `scripts/world/industrial.gd` +
+  `IndustrialKit`, `scripts/world/industrial_kit.gd`, 2026-10-04; INDUSTRIAL bare 40 % -> 0 %,
+  docs/HANDOFF.md 9bh). East of the 110 down to the port (Vernon, the Alameda corridor) and east
+  of Vignes (the Arts District, `Industrial.arts()`). A lot whose planned Building is a WAREHOUSE
+  is built by Industrial instead (`build_lot()`, called by `_build_lot()` once the Building is set
+  up; it frees it): a tilt-up concrete warehouse planned in the lot's street frame
+  (`lot_plan()`: u along the street, v in from it; `lot_side()` faces it to the street it is
+  deepest from) - panels with joints and reveals, an accent wainscot, a parapet and coping, a
+  membrane roof with skylights and rooftop units, a glazed office corner with a canopy, and where
+  the lot is `COURT_MIN_LOT` deep a TRUCK COURT in front: dock doors every `DOCK_PITCH` with seals,
+  bumpers and dock lights (`lamp_factor` lit, light pools), trailers backed on (`TRAILER_ODDS`, a
+  tractor on some), a concrete apron, stall stripes, chain-link with barbed wire and an open gate
+  along the street; a shallow lot gets grade-level roll-up doors. In the Arts District 80 % are
+  BRICK (steel multi-pane windows, lit lofts at night, no court: they stand at the back of the
+  pavement) and street-facing walls carry MURALS (`MURAL_ARTS`; invented in the shader, abstract:
+  never an artist's work, lettering or a brand); the Building lots there get brick finishes. Any
+  other lot keeps its Building. `block_step()` (after YardFill's) lays the block's ground from
+  `block_plan()`: every lot cell less its building is a court, apron, storage yard, drive strip or
+  setback (`G_*`: cracked asphalt with weeds, concrete, gravel, dirt, weeds), some blocks get a RAIL
+  SPUR between their two rows of lots (`spur()`: ballast and ties, rails, bumper stops, boxcars and
+  tank cars, rail doors on the warehouses backing onto it), storage yards hold pallets, drums,
+  bins, PortKit containers, a corrugated shed or storage tanks in a containment wall, now and then
+  a water tower. Nothing of it stands under a freeway (`clear_of_freeway()`; downtown_checks holds
+  every far box to that). **Plans are pure** (`lot_plan()`, `block_plan()`, `block_entries()`:
+  GroundCoverage asks the same question, `FILL=yard` on `tools/lot_coverage.gd` is the before);
+  every roll is a hash of seed + lot / block, never a chunk, block or Building rng. A FULL chunk
+  is ONE ground mesh (`IndustrialGround`, `shaders/industrial_ground.gdshader`, kind in COLOR.r,
+  no shadow) and ONE
+  upright mesh (`IndustrialWalls`, `shaders/industrial_walls.gdshader`, kind in COLOR.a in 32nds,
+  paint in COLOR.rgb as written, UV metres in the face's frame, UV2 = height, a per-box
+  parameter) that also holds every prop - trailers, tractors, rail cars, pallets, drums, bins,
+  tanks, the tower - written into it by `IndustrialKit.place()` (a batch per prop kind was 15-20
+  batches and their shadow cascades a chunk); the light pools are one shadowless batch
+  (`ind_pool`), containers PortKit's batch. LOD chunks and the far city get the warehouses, trailers, rail
+  cars, tanks and the tower as plain `lod_box`es and the yards as ground slabs. The warehouses are
+  in `StreetDetail._footprints()` (encampments and service drops see their walls) and the
+  occluder. Both shaders work in display numbers (`disp()` / `to_lit()`, like YardFill's). A/B:
+  `INDUSTRIAL=0` on `still_shot.gd`, `block_shot.tscn` and `tools/geo_count.gd`; build times:
+  `tools/industrial_bench/industrial_bench.tscn`; checks: `tests/industrial_checks.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
@@ -2244,7 +2283,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   its own hair colours (`hair_strength` 0 on those looks). Everything that swaps a rig's
   material, cuts limbs, welds the middle / far bodies or bakes a camp figure works on the body
   and skips `Pedestrian.is_hair()`; past `mid_body_range` the hair is hidden (the painted scalp
-  is the hair out there), under a beanie or a police cap too; `plain_hair()` puts the
+  is the hair out there), and under a hat it is pressed flat or hidden (see Headwear); `plain_hair()` puts the
   photographed colour back for a uniform or a rough sleeper (dulled, `WORN_HAIR`). Judge rigs
   with `tools/glshot/crowd_lineup.gd` (several side by side, `SHOTS=` for several views from one
   load, `BODY=mid|far`, `LIGHT=street` for AgX and a tarmac ground) as well as
@@ -2364,6 +2403,42 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
   (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
   `tests/crowd_life_checks.gd`; time it with MODE=bench.
+- Headwear (2026-10-04: the old box caps "read as plastic bowls"): `CrowdHat`
+  (`scripts/npc/crowd_hat.gd`) builds a six-panel cotton baseball cap (button, sweatband, a bill
+  with a taped edge, a strap and slide buckle across the opening at the back), a cuffed 2x2-rib
+  beanie with a little slouch, a twill bucket hat and the police peaked cap (black braid band,
+  flared navy crown, patent peak, chin strap, badge), each **modelled round the rig's own head**:
+  `tools/crowd/hat_fit.gd` (opengl3 under Xvfb, never --headless: it needs mesh data; seconds)
+  measures every crowd rig into `scripts/npc/crowd_hat_table.gd` (`CrowdHatTable`: eye centre,
+  ear tops, a centre, the skull's radius on a 17 x 32 grid of directions with the ears put back
+  on the skull, the hair's thickness over it), and the hats are built in the HEAD FRAME (metres,
+  skeleton axes, origin at the Head bone's rest) from it: the band edge at a height over the eyes
+  per kind (`EDGE`, never below the ear tops plus `EAR_CLEAR`), the cloth `standoff()` off the
+  skull (cloth, room for the pressed hair, the cap's structured front, the beanie's slouch).
+  **Rerun hat_fit.gd whenever a crowd rig is rebuilt** (`REPORT=1` builds every hat on every
+  rig and measures it against the real head: how close the outside comes to the skin, the gap at
+  the band; the smoke test fails when the table misses a rig). Everything up close is
+  `shaders/crowd_hat.gdshader` on the mesh's coordinates - twill, panel seams with topstitching
+  and eyelets, rows of stitching round a bill, the stockinette knit and rib, the crown's
+  decreases, a bucket's vent eyelets, one of three small original embroidered marks (never a team
+  or a brand) or a woven label - each faded to its average under a pixel, both faces drawn (the
+  inside is the lining: no inner geometry), colourways muted (`CAP_COLORS` ...). A hat is one
+  mesh per rig and kind with three levels in one buffer (every 1st / 2nd / 4th row and column of
+  its grids, `LEVEL_EDGES`; cap 1,812 / 464 / 121 triangles, the others 1.6-2k / 430-520 / 110-150), one material per colourway, one draw
+  per wearer, never in a shadow pass, gone past `accessory_distance`. **The hair is pressed, not
+  hidden** (`pressed_hair()`): vertices under the crown moved inside it, easing out over a few
+  centimetres below the band so hair shows at the back and sides, strands far off the scalp (a
+  ponytail through the opening, a braid) left alone, triangles left wholly inside and the cards
+  that would hang in front of the face (a fringe) dropped; one copy per hair mesh, rig and kind.
+  No mesh data (the headless check) or a rig marked `"hide"` (hair too thick to press) hides the
+  cards as before. `Pedestrian._add_accessory()` makes the same three `_style` rolls as the box
+  hats did (CampFigure.seed_for() depends on them; a bucket hat is the top tenth of the old cap
+  roll), the ragdoll a hatted person becomes wears it too (`_dress_doll()`), a rough sleeper's is
+  the worn colourway (`material(kind, pick, true)`: dulled, faded, grime), `PoliceOfficer` uses
+  `CrowdHat.Kind.PEAKED`. The loading screen builds them all (`CrowdHat.warm()` from
+  `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
+  `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
+  checks: `tests/crowd_hat_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

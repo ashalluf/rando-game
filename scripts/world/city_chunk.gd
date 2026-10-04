@@ -153,6 +153,9 @@ var _yard_trees: int = 0
 var _yard_palms: int = 0
 var _yard_flowers: int = 0
 var _yard_cars: int = 0
+## Industrial's (the INDUSTRIAL district's warehouses and yards): its lot entries, footprints and
+## the meshes and counts it is building (Industrial._state()).
+var _ind: Dictionary = {}
 
 ## Dissolve state, driven by CityStreamer when this chunk is being replaced by a detailed one.
 ## Block index the streaming window was centred on when this chunk was built. Only used to
@@ -465,6 +468,7 @@ func _finish_build() -> void:
 	LotFill.commit(self)
 	YardFill.commit(self)
 	HouseKit.commit(self)
+	Industrial.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	_mm_nodes = _batch.build(self)
@@ -2210,6 +2214,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# freeway's right of way in any district, once every lot is down (YardFill; hash-seeded,
 			# the block's rng untouched).
 			steps.append(func() -> void: YardFill.block_step(self, block))
+			# The industrial district's yards, rail spurs and fences (Industrial; hash-seeded).
+			steps.append(func() -> void: Industrial.block_step(self, block))
 			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
 			# whole block, so the footprints the lots just recorded are what the grass has to
 			# stay out of; a suburb whose lawns are flat green paint is the tell.
@@ -2477,7 +2483,8 @@ func _lot_steps(_rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 	var steps: Array[Callable] = [func() -> void:
 		_lot_rects.clear()
 		_yard_lots.clear()
-		_yard_corridor.clear()]
+		_yard_corridor.clear()
+		_ind = {}]
 	for lot in plan.lots(ix, iz):
 		steps.append(_build_lot.bind(lot, params, rng))
 	# The cells the lot grid's gap roll left too small for a lot: a house of their own in the
@@ -2560,6 +2567,11 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.plinth_depth = g - gmin + SIDEWALK_TOP + 0.6
 	var base := Vector3(center.x, SIDEWALK_TOP, center.y)
 	building.position = base + Vector3(0.0, g, 0.0)
+	# An INDUSTRIAL warehouse is Industrial's own tilt-up building (hash-seeded; no roll moves).
+	if Industrial.wanted(self, district) and Industrial.build_lot(self, lot, building):
+		building.free()
+		building_count += 1
+		return
 	if level == Level.FULL:
 		# Its plinth joins the chunk's merged boxes (Building.plinth_in_chunk).
 		building.plinth_in_chunk = merge_boxes and not _boxes_committed
@@ -3357,7 +3369,10 @@ func _add_lamp(at: Vector3) -> void:
 	# X and Z, so the size goes in x and z and the 1.0 goes in y (the normal). Written the
 	# obvious way round, (SIZE, SIZE, 1.0), the second SIZE was spent on the normal of an
 	# unshaded shader and every lamp in the city threw a 13 x 1 m bar instead of a 13 m disc.
-	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LAMP_POOL_SIZE, 1.0, LAMP_POOL_SIZE)), at + Vector3(0.0, 0.05, 0.0))
+	# 9 cm up: at 5 cm it lay exactly on the yard ground beside the pavement (YardFill's and
+	# Industrial's, both 5 cm over it) and z-fought it in stripes at night. Additive and drawing
+	# no depth, it looks the same wherever it lies.
+	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LAMP_POOL_SIZE, 1.0, LAMP_POOL_SIZE)), at + Vector3(0.0, 0.09, 0.0))
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
 		["lamp_pool", PropFactory.light_pool(), pool],

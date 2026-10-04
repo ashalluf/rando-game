@@ -85,7 +85,9 @@ What only the owner can supply, and why each one multiplies everything below:
   placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
   (Crowd life 2026-10-04: 14 everyday clips from Quaternius' CC0 Universal Animation Library
   retargeted onto every crowd rig - talking in groups, the phone, texting, benches, leaning,
-  smoking, window shopping, coffee and bags carried, joggers, dog walkers - near the camera.)
+  smoking, window shopping, coffee and bags carried, joggers, dog walkers - near the camera.
+  Headwear 2026-10-04: caps, beanies, bucket hats and the police cap modelled round each rig's
+  own head, CrowdHat.)
 - [ ] **G6. Cars (1-2 months).** Interiors, real glass, damage, lights; extend tools/make_*.
   (Lights done 2026-10-04: real headlights near the camera, brake / indicator / hazard /
   reversing lamps on every running car, parked cars dark.)
@@ -287,6 +289,21 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-04 The crowd's hats are modelled round each rig's own head, in code (G5).** The
+  old caps and beanies were a fixed tube and half-dome hung at one offset from the Head bone, so
+  on most rigs the cap's band sat across the eyes or the crown perched on top, in flat saturated
+  colour. `tools/crowd/hat_fit.gd` now measures every crowd rig's head once (the eyes, the ear
+  tops, the skull's radius on a grid of directions with the ears taken out, the hair's thickness
+  over it) into `CrowdHatTable`, and `CrowdHat` builds from it a six-panel cotton cap (bill,
+  button, sweatband, strap and buckle across the back opening), a cuffed rib beanie, a twill bucket
+  hat and the police peaked cap, down on the forehead and over the ear tops with the cloth 2-6 mm
+  off the skin. The seams, topstitching, eyelets, rows of stitching round the bill, the knit and
+  the rib are drawn by `shaders/crowd_hat.gdshader` on the mesh's own coordinates, so a hat is
+  1.6-2k triangles near (three LOD levels in one buffer), one draw, no shadow pass, no texture.
+  The hair is pressed under the hat instead of hidden, so it shows below the band. Code, not
+  Blender: the fit has to be per rig and is measured from the rig, which a modelled .glb per rig
+  and kind (48 files to rebuild with every crowd change) would not be. Cost: ~0.8 s more on the
+  loading screen here (the hats and the pressed hair for 12 rigs, built once). See HANDOFF 9bg.
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
   (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed
@@ -335,6 +352,18 @@ already mapped so milestone 2 is script-only.
   (the night pools are the fourth, additive). Lettering is geometry at FULL chunks only. No
   barrier collision was added (the deck's one box per segment is unchanged).
 
+- **2026-10-04 The industrial district is Los Angeles industry, built by Industrial, not Building**
+  (agent branch `wt/industrial`; docs/HANDOFF.md 9bh). A WAREHOUSE lot east of the 110 and east of
+  Vignes is a tilt-up warehouse with docks and a truck court (trailers, tractors, chain-link and
+  barbed wire), brick with steel windows and original murals in the Arts District; every block's
+  ground is courts, aprons, storage yards and drive strips, some blocks a rail spur with freight
+  cars. Calls made, each reversible: **Industrial replaces the Building for a warehouse lot** (a
+  `Building` WAREHOUSE was a ribbon-windowed box; its massing - the planned height - is kept, the
+  footprint leaves room for the court), so the far boxes follow Industrial's footprint; **the Arts
+  District's buildings are brick** (Building lots there take brick finishes; its warehouses stand
+  at the back of the pavement with no court); **murals are invented in the shader** (abstract
+  shapes and palettes, no lettering - never a real artist's work); **nothing industrial stands under
+  a freeway deck** (rail cars stop short of one). `Industrial.enabled` false is the old district.
 - **2026-10-04 No bare ground outside downtown and midtown either** (agent branch, the yard
   pass; docs/HANDOFF.md 9az). Beach-town lots are houses with yards (driveways, front gardens,
   low walls and pickets, lot-line fences, back yards, courtyards) and some blocks a walk street;

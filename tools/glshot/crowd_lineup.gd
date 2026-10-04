@@ -15,7 +15,7 @@ extends SceneTree
 ## camera orbits; 90 is the side), CAM_DIST / CAM_Y / AIM_Y / FOV, BODY=mid|far (the welded middle
 ## / far bodies, hair cards hidden, as the game draws them past mid_body_range), SUN_YAW, SKY=1 for
 ## a brighter outdoor fill, TURN (degrees every person turns in place: 90 is the row in profile),
-## MAT_PARAM=name=value[;...] to A/B a character-shader uniform, LIGHT=street for a darker ground and AgX nearer the game's grade, SHOTS="name,yaw,dist,cam_y,aim_y,fov,aim_x;..." for several views from one
+## MAT_PARAM=name=value[;...] to A/B a character-shader uniform, HATS=cap,beanie,bucket,police,none (and HAT_PICKS=n,... the colourways) for the crowd's headwear (CrowdHat.dress), LIGHT=street for a darker ground and AgX nearer the game's grade, SHOTS="name,yaw,dist,cam_y,aim_y,fov,aim_x;..." for several views from one
 ## load (OUT_<name>.png each; empty fields keep the values above). Applies the rigs exactly as the game does (Pedestrian.prepare_rig and
 ## fix_arm_pose), loaded dynamically because this compiles before the autoloads exist.
 func _initialize() -> void:
@@ -102,8 +102,21 @@ func _initialize() -> void:
 				ap.play(clip)
 				ap.seek(ap.get_animation(clip).length * float(rec[3]), true)
 				ap.pause()
+		# HATS=cap,beanie,bucket,police,none (one per person, in turn) puts the crowd's headwear on
+		# exactly as Pedestrian does (CrowdHat.dress), HAT_PICKS=n,... its colourway.
+		var hats := OS.get_environment("HATS").split(",", false)
+		if not hats.is_empty():
+			var at := insts.find(rec)
+			var kinds := {"cap": 0, "beanie": 1, "bucket": 2, "police": 3}
+			var hk := String(hats[at % hats.size()]).strip_edges()
+			var picks := OS.get_environment("HAT_PICKS").split(",", false)
+			var pick := int(picks[at % picks.size()]) if not picks.is_empty() else at * 7 + 3
+			if kinds.has(hk):
+				load("res://scripts/npc/crowd_hat.gd").dress(inst, rec[1], kinds[hk], pick, 200.0)
 		for node in inst.find_children("*", "MeshInstance3D", true, false):
 			var mi := node as MeshInstance3D
+			if mi.name == "Hat":
+				continue
 			# MAT_PARAM=name=value[;name=value]: set character-shader uniforms on every body (A/B);
 			# a value with commas is a colour.
 			for kv in OS.get_environment("MAT_PARAM").split(";", false):
