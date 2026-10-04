@@ -335,6 +335,18 @@ already mapped so milestone 2 is script-only.
   (the night pools are the fourth, additive). Lettering is geometry at FULL chunks only. No
   barrier collision was added (the deck's one box per segment is unchanged).
 
+- **2026-10-04 The industrial district is Los Angeles industry, built by Industrial, not Building**
+  (agent branch `wt/industrial`; docs/HANDOFF.md 9bh). A WAREHOUSE lot east of the 110 and east of
+  Vignes is a tilt-up warehouse with docks and a truck court (trailers, tractors, chain-link and
+  barbed wire), brick with steel windows and original murals in the Arts District; every block's
+  ground is courts, aprons, storage yards and drive strips, some blocks a rail spur with freight
+  cars. Calls made, each reversible: **Industrial replaces the Building for a warehouse lot** (a
+  `Building` WAREHOUSE was a ribbon-windowed box; its massing - the planned height - is kept, the
+  footprint leaves room for the court), so the far boxes follow Industrial's footprint; **the Arts
+  District's buildings are brick** (Building lots there take brick finishes; its warehouses stand
+  at the back of the pavement with no court); **murals are invented in the shader** (abstract
+  shapes and palettes, no lettering - never a real artist's work); **nothing industrial stands under
+  a freeway deck** (rail cars stop short of one). `Industrial.enabled` false is the old district.
 - **2026-10-04 No bare ground outside downtown and midtown either** (agent branch, the yard
   pass; docs/HANDOFF.md 9az). Beach-town lots are houses with yards (driveways, front gardens,
   low walls and pickets, lot-line fences, back yards, courtyards) and some blocks a walk street;

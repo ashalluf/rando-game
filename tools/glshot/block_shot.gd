@@ -16,9 +16,12 @@ extends Node
 ## default 1), SHOTS="x,y,z,yaw,pitch;..." more eyes from the same run (OUT_1.png, ...), GEO=1
 ## prints each frame's triangles and draws, YARD_FILL=0 builds without YardFill (the A/B), HOUSES=0
 ## the house lots as Building boxes (HouseKit's A/B).
+## INDUSTRIAL=0 builds the industrial district without Industrial.
 
 func _ready() -> void:
 	await get_tree().process_frame
+	if OS.get_environment("INDUSTRIAL") == "0":
+		(load("res://scripts/world/industrial.gd") as GDScript).set("enabled", false)
 	if OS.get_environment("YARD_FILL") == "0":
 		(load("res://scripts/world/yard_fill.gd") as GDScript).set("enabled", false)
 	if OS.get_environment("HOUSES") == "0":

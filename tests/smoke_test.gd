@@ -1722,6 +1722,10 @@ func _test_city() -> void:
 	# The suburbs' and the beach town's houses (tests/house_checks.gd): pure plans inside their
 	# yards, the drive ending at the garage door, one mesh per material, roof slabs for the far city.
 	load("res://tests/house_checks.gd").new().run(self, city)
+	# The industrial district (tests/industrial_checks.gd): tilt-up warehouses with docks and
+	# trucks, yards and rail spurs - bare share before and after, the plans, one mesh each, nothing
+	# else in the block moved, the far boxes.
+	load("res://tests/industrial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

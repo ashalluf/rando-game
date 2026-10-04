@@ -9,10 +9,15 @@ extends SceneTree
 ## It must run under a real renderer. `--headless` uses the dummy rendering server, where every
 ## Performance monitor reads zero and a change of any size looks like no change at all.
 ##
+## INDUSTRIAL=0 builds the industrial district without Industrial (the A/B).
+##
 ## AB=Batch_sig_*,BatchShadow_sig_* counts the frame, hides every node whose name matches one of
 ## those patterns, and counts the same frame again, so the cost of one kind of geometry comes out
 ## of a single run with the traffic, the crowd and the camera exactly where they were.
 func _initialize() -> void:
+	# INDUSTRIAL=0: the industrial district without Industrial (the before of that measurement).
+	if OS.get_environment("INDUSTRIAL") == "0":
+		(load("res://scripts/world/industrial.gd") as GDScript).set("enabled", false)
 	var scene: PackedScene = load("res://scenes/levels/city.tscn")
 	root.add_child(scene.instantiate())
 	await process_frame
