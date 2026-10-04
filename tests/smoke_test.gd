@@ -1717,6 +1717,10 @@ func _test_city() -> void:
 	# Street-level wear (tests/street_wear_checks.gd): tags, posters and stickers on downtown
 	# blocks as one batch a chunk, none near a place of worship, nothing else in the block moved.
 	load("res://tests/street_wear_checks.gd").new().run(self, city)
+	# Street vendors (tests/street_vendors_checks.gd): taco trucks at night and carts by day round
+	# downtown, a batch per kind, the truck unbreakable and clear of parked cars, a cart that tips
+	# over and stays gone, queues and vendors, and nothing else in the block moved.
+	load("res://tests/street_vendors_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
