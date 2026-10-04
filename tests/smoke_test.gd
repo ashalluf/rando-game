@@ -1667,6 +1667,9 @@ func _test_city() -> void:
 	# Car glass and who sits behind it (tests/car_cabin_checks.gd): the shared cabin glass, the
 	# traffic's drivers, the player at the wheel, a cruiser's crew, the tints.
 	await load("res://tests/car_cabin_checks.gd").new().run(self, city)
+	# Car lamps and headlights (tests/car_lights_checks.gd): parked dark, brake, indicators,
+	# hazards, reverse, and CarLights' budgeted spot lights.
+	await load("res://tests/car_lights_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)

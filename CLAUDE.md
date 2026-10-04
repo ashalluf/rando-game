@@ -860,6 +860,43 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `uv_shift`), and `UV.y > 1.5` is how the shader knows to draw a fan that widens and fades
   along the road instead of a round pool; drawn as a pool, a beam laid flat on the street read
   as a long white smear.
+- Car lights (GAME_PLAN G4 / G6, 2026-10-04): the lamp mesh is `PropFactory.vehicle_lights()`
+  on `shaders/car_lights.gdshader` (it replaced light_pool for cars): head and tail glows, the
+  beam fan, amber indicators at all four corners, reversing lamps and a red wash on the road
+  behind. Which part a quad is rides in its u (shifted by 2 x the part, `PropFactory.LIGHT_*`;
+  the beam keeps its v + 2). What the car is DOING is the MATERIAL:
+  `PropFactory.vehicle_light_material(brake, signal, phase, reverse)`, one shared copy per
+  combination (blink phase in four buckets so a queue does not flash in step), so a car is still
+  one draw and a street a handful of materials - never instance uniforms (the Compatibility
+  global buffer, see Car glass). `Vehicle._tick_lights()` (from `_update_wheels`, which every
+  driving path calls) works the state out: the player's brake pedal / handbrake (`brake` > 5)
+  and reverse; a traffic car's brake from its speed falling (> 0.8 m/s2) or standing, held
+  0.35 s; its indicator from the turn TrafficManager rolled (`t.turn`, and `t.to_c`, the
+  distance to that junction, within `Vehicle.TURN_SIGNAL_DISTANCE`), a U-turn signalling left;
+  hazards on a car knocked out of traffic with its driver in. Past PhysicsBudget's
+  `vehicle_script_radius` a car's own step is off, so `TrafficManager._place()` ticks the lamps
+  of the cars it places whose script is off (they froze, blinking or braking for good).
+  **A parked car's lamps are off**
+  (`lights_running()`: somebody in the cabin, not a wreck); they used to burn like a moving
+  car's. Brake, indicator and reversing lamps show by day (`day_glow`), head / tail / beam
+  follow `lamp_factor` as before. **Real lights**: `CarLights` (`scripts/vehicles/car_lights.gd`,
+  one node under the tree root, made by the first Vehicle; Forward+ only, never the web or
+  Compatibility unless `CarLights.force`) keeps a pool of SpotLight3Ds on the nearest running
+  traffic cars within `reach` (60 m; `budget` 6 / 3 / 0 / 0 by Quality level), faded by distance
+  and on every hand-over, plus the player's car (longer, brighter, shadowed at HIGH) and a small
+  red OmniLight3D behind it for the brake / reverse. Positions are set from the cars' global
+  transforms each frame, so origin shifts do not touch it; it reads `DayNight.lamp_now` (never
+  the global back from the server). **Trap: a spot's `light_projector` is mapped through its
+  shadow matrix, which an unshadowed spot never gets - a cookie on an unshadowed spot draws
+  NOTHING** (measured on lavapipe Forward+). So only the shadowed player light carries the
+  low-beam cookie (`CarLights.low_beam_cookie()`: flat cut-off with the kick up on the right);
+  traffic lights are soft plain cones (`spot_softness`), dipped more. Compatibility ignores
+  projectors too. Look with `tools/glshot/car_light_shot.gd` (a small street, lavapipe in a
+  minute: `VIEW=chase|side|top|rear`, `NOLIGHTS=1` the before, `BRAKE=1`, `REVERSE=1`,
+  `PSHADOW=0`, `NOCOOKIE=1`, `AHEAD=1` a car driving away, `OLDMAT=1` the old light_pool
+  material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
+  opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
+  lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -

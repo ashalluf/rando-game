@@ -431,6 +431,9 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	var to_centre := (cross_pos - along) * float(dir)
 	# Where the nose has to stop for this intersection: > 0 while it is still short of the line.
 	var to_line := to_centre - cw * 0.5 - stop_line_back - half
+	# The car's indicators read it (Vehicle._traffic_signal()): they come on for a rolled turn
+	# within Vehicle.TURN_SIGNAL_DISTANCE of the junction.
+	t.to_c = to_centre
 	if t.get("node", Vector2i(-999999, -999999)) != node:
 		# A new intersection coming up: roll the turn once, forget the last one's lights.
 		t.node = node
@@ -704,6 +707,11 @@ func _relief_sample(i: int, j: int) -> float:
 ## and caliper meshes - to the renderer and the physics server. Same result, a quarter of the work.
 func _place(car: Vehicle, pos: Vector3, yaw: float, pitch: float) -> void:
 	car.global_transform = Transform3D(Basis.from_euler(Vector3(pitch, yaw, 0.0)), pos)
+	# Past PhysicsBudget.vehicle_script_radius a car's own per-step script is off, and with it the
+	# lamps' state (Vehicle._tick_lights): a car that left the radius braking kept its brake lights,
+	# or its indicator, for good. The traffic drives it every tick anyway, so it ticks them here.
+	if not car.is_physics_processing():
+		car._tick_lights(get_physics_process_delta_time())
 
 
 # --- Airport drop-off loop -----------------------------------------------------------------

@@ -194,6 +194,11 @@ func _apply_render() -> void:
 	var dn := get_parent().get_node_or_null("DayNight")
 	if dn:
 		dn.lamp_scale = 1.0 if level <= Level.MEDIUM else 0.0
+	# Real headlights on the nearest cars (CarLights, Forward+ only): six and the player's car
+	# shadowed at HIGH, three at MEDIUM, only the player's car at LOW, none at LOWEST.
+	CarLights.budget = [6, 3, 0, 0][int(level)]
+	CarLights.player_light = level <= Level.LOW
+	CarLights.player_shadow = level == Level.HIGH
 	var viewport := get_viewport()
 	if viewport:
 		viewport.mesh_lod_threshold = lod_threshold[i]
