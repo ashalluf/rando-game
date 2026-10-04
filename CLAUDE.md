@@ -1410,7 +1410,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   segment), no rng. StreetWear's column tags read the same column frame (`_pillars()`). Stills:
   the 110 by downtown, `EYE=1989,12.0,160,-6,-3` (north), the gantry at (1986.7, 55.6)
   `1990,12.5,82,-6,10@13@40` (guide signs) and `1980.5,12.1,27,174,10@13@45` (exit sign), under
-  it on 5th St `2050,1.7,10,90,9` - `--hour=22` for the lights (HANDOFF 9ba).
+  it on 5th St `2045,1.7,2,60,10` - `--hour=22` for the lights (HANDOFF 9ba).
   Traffic: `TrafficManager` drives the decks from `Freeway.point_at()` / `length_of()` /
   `nearest_on()`, which are distance-parameterised (the route's points are a fixed step along
   the *drawn* curve, not along the ground). Cars carry a signed direction and are recycled at

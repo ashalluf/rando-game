@@ -5016,3 +5016,112 @@ brick normal maps only show in real light).
   origin) and the smoke test's spawn do not, or the check's `is_inside_tree` tripwire would
   fail. Fix there: re-add the host whenever it is not inside the tree, and when that fails
   (the root busy) return null without caching the key, so the loading screen's warm-up bakes it.
+
+## 9ba. LA freeways as a 2026 game shows them, 2026-10-04 (agent branch `wt/freeway-kit`; VISUAL_ROADMAP #43)
+
+The brief (lead, from the owner's "make the graphics a million times better"): make the decks
+read like the 110 / 101 / 10 - overhead guide signs, Botts' dots and markers that glint in
+headlights, worn paint and the carpool diamond, barriers with grime and scuffs, expansion
+joints, scuppers with rust, pillar detail, light standards that light the deck, roadside
+furniture, and the underside from the street. CLAUDE.md's Freeways bullet ("The freeway kit")
+is the reference; this is the story.
+
+**What was there.** Per 24 m segment: a flat deck top, an underside and two fascias as one
+1.4 m slab, two box barriers, six painted strips (a yellow pair down the middle, white dashes),
+square-ish columns (built as parallelograms off the world X axis, so a diagonal route's columns
+were sheared), and every 340 m two posts, a beam and two blank green boards. No median barrier,
+no lights, nothing on the shoulders. Traffic drove two lanes each way between dashes that did
+not line up with it.
+
+**What it is now** (`scripts/world/freeway_kit.gd`, `shaders/freeway_structure.gdshader`,
+`shaders/freeway_paint.gdshader`; `CityChunk._build_freeway()` keeps only the collision):
+- Cross section: a box girder (fascia 0.55 m, cantilever soffit, inclined web, bottom slab at
+  the old 1.4 m), New Jersey barriers 0.95 m at both edges (outer face flush with the fascia)
+  and a double-sided one down the median. Board-formed soffit (plywood seams, tie holes, soot
+  toward the edges, efflorescence at the segment joints), barrier joints every 6.1 m, grime at
+  the foot, black tyre scuffs in runs along the faces the traffic sees, drip streaks, rust down
+  the fascia under each scupper grate (every 12 m at the barrier toe; same phase in the shader).
+- Lanes (`Freeway.lane_layout()`): four each way, 3.2-3.6 m, the inner one a carpool lane behind
+  a double yellow with a diamond every 192 m; yellow left edge line with yellow markers, Botts'
+  dots (four dots and a marker every 7.32 m) on the next line, a dashed stripe with a marker in
+  each gap on the last (Caltrans's newer practice), white right edge line, all worn. An
+  expansion joint (steel finger plate) across the deck every third bent. Traffic now drives
+  `Freeway.lane_fraction()`: the cars sit in the painted lanes, four of them.
+- Bents every 72 m: two 1.6 m columns square to the route (StreetWear's column tags follow),
+  flared heads, a 1.6 m bent cap, five bearing pads, a downpipe, two under-deck lights and the
+  pool each throws on the street below at night. Streaks run down the columns from the cap,
+  splash dirt at the foot.
+- Light standards on the median every 48 m: tapered pole, twin arms, cobra heads with a glowing
+  drop lens, and a broad pool on each carriageway (`pool_material()`, light_pool.gdshader at a
+  flat 0.75 falloff - at the city lamps' falloff a 34 m pool was a small hot spot that read as a
+  headlight beam). Sodium amber on the 110, 101 and 10, LED white on the 405 and 105.
+- Gantries every 340 m: laced box truss on laced posts, a catwalk with sign lights, and per
+  carriageway a guide sign (route shield, direction, one or two destinations, a down arrow per
+  lane) and, where an off-ramp lies within 1.5 km on that side, an exit sign (the street, 1/4 to
+  1 MILE or a yellow EXIT ONLY band, the exit tab "EXIT 4B" - the number is the route's mile).
+  The other carriageway, which only has on-ramps in this map, gets a second guide sign. Sign
+  faces are lit at night by their sign lights and by headlights (retroreflective sheeting).
+- At FULL chunks, on the shoulders: call boxes (yellow, a blue SOS plate) about every 500 m,
+  CCTV poles about every 900 m, postmile paddles every ~170 m, tyre treads and the odd board.
+- Off-ramps use the same slab, barrier and edge-line pieces (`ramp_piece()`).
+- Retroreflection is the night look: markers, paint beads and sign sheeting light up in a cone
+  ahead of the CAMERA (taken as the headlights) with `lamp_factor`, and a marker the cone
+  reaches never draws under about a pixel, so a dashed line of glints runs on up the road.
+
+**Names.** Shield numbers are this game's own (Coast 47, Century 58, Hollywood 21, Harbor 33,
+Santa Monica 14; the check fails if one matches the real route), on an original crest shield.
+Destinations are invented (`DESTINATIONS`), plus "Downtown" when the carriageway heads for it;
+exit signs name the plan's streets (public names downtown, seeded ones elsewhere).
+
+**Stills** (opengl3, 1280x720, `still_shot.gd`, one load, `--spawn=1989,160,-6,-3,12 --hour=13
+--weather=clear --nohud`, `EYE=1989,12.0,160,-6,-3`, `SHOTS=` as in the shots branch README): on the 110
+by downtown heading north at noon and 22:00; the guide signs at (1986.7, 55.6) from 26 m
+(`1990,12.5,82,-6,10@13@40`); the southbound exit sign at noon and night
+(`1980.5,12.1,27,174,10@13@45`, `@22@45`); the deck from 5th St (`2045,1.7,2,60,10`) at noon
+and night. Before/after pairs on the `shots/freeway-kit` branch (README there).
+
+**Cost.** `tools/geo_count.gd` (opengl3, 1280x720, `AB='Freeway*,Ramp*'`: the same frozen frame
+counted with and without every freeway and ramp node), on the 110 by downtown
+(`--spawn=1989,160,-6,-3,12 --weather=clear`), main 306274c against this branch rebased on it:
+
+| | main: freeway nodes | branch: freeway nodes |
+|---|---|---|
+| 13:00 | 14,208 tris, 76 draws (59 nodes) | 28,249 tris, 49 draws (75 nodes) |
+| 22:00 | 14,208 tris, 76 draws | 28,249 tris, 49 draws |
+
+So +14k triangles on a 3.6 M frame (+0.4 %) and 27 FEWER draws: the old paint mesh cast
+shadows (a StandardMaterial, opaque), the new paint and pool meshes do not. The whole frame
+moved by the traffic's own noise (3.72 M / 3,168 draws on main, 3.63 M / 3,125 here, with
+different cars). Per segment (the smoke check's own count over a chunk): a FULL deck chunk with a
+gantry 955 triangles a segment (budget 1,400), an LOD one 271 (budget 420). The stills' GEO lines (the whole frame, traffic and people included, so a
+few percent is noise), before -> after: drive noon 6.00 M / 3,168 draws -> 5.68 M / 3,103;
+drive night 5.94 M / 3,154 -> 5.82 M / 3,103; guide sign 4.41 M / 1,707 -> 4.18 M / 1,620;
+exit sign noon 3.86 M / 1,832 -> 3.73 M / 1,797; exit sign night 3.26 M / 1,443 -> 3.21 M /
+1,426; under noon 5.58 M / 2,858 -> 5.59 M / 2,808.
+The freeway bookmark (`--spawn=200,1088,-90,-4,30 --hour=13`, the 105 from the west, whole
+frame, one count each): 3,461,955 tris / 3,321 draws on main, 3,474,657 / 3,325 here (+0.37 %,
++4 draws). Its AB pass (the frozen second count) did not finish inside geo_count's 15 minutes
+on either side, nor did the 22:00 pair, so that bookmark has no freeway-only split.
+ALU: the structure shader is one triplanar fetch (three taps) plus a few value noises, the paint
+shader a handful of noises and one cone test; nothing runs per pixel that the old StandardMaterial
+did not already pay for in texture fetches, except on sign faces and marker strips.
+
+**Not done / not verified.**
+- Forward+ (Mac): the sign wash (`sign_light`), the glint energy and the pool strength are tuned
+  on opengl3 only; Forward+ lights the lit pieces in linear with auto exposure on top. Judge on
+  the Mac at night on the 110 by downtown.
+- The glint is lit from the camera, so walking on the deck at night the markers still glint;
+  traffic's own headlights do not light them.
+- No barrier collision (as before): the deck's one box per segment is all there is, so a car
+  can still drive through a barrier. Adding it is a gameplay change for the owner to ask for.
+- Pigeon spikes and soffit-mounted underpass fixtures (optional in the brief) are not modelled;
+  the under-deck lights hang off the bent caps.
+- The far city (Skyline) still draws the decks as plain boxes; no lights there at night.
+- **Found on the way: every old bent cap stood in the wrong place.** The old `_pillar()` put its
+  headstock at `Vector3(base.x, cap_y - 1.1, base.y)` - `base.y` is the ground height, so every
+  cap in the city stood at z = ground - 1, in a row along z 0. From 5th St downtown they read as
+  a staircase of floating beams over the street (the `under_noon_before` still). The kit's caps
+  sit on their columns.
+- The gantry chunk is the heavy one: lettering is most of its triangles (coarse curves,
+  FULL only); the smoke check holds a FULL deck chunk to 1,400 triangles a segment and an LOD
+  one to 420.
