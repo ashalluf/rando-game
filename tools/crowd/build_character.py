@@ -1055,7 +1055,9 @@ for o in body_parts:
     if rec:
         # our own: the painter gets every non-lip triangle; the fold field only the shells
         gspec = CFG["outfit"][rec["gid"]]
-        gain = gspec.get("fold_gain", 1.0) * CFG.get("fold_gain", 1.0) if rec["part"] == "shell" else 0.0
+        # 0.7 by default (the library tees ran 0.75): at 1.0 the cuff and ankle stacking rang
+        # round every long sleeve like a Michelin man's
+        gain = gspec.get("fold_gain", 0.7) * CFG.get("fold_gain", 1.0) if rec["part"] == "shell" else 0.0
         ga = me.attributes.get("crowd_guv")
         # which part of a top each face is (0 torso, 1 left sleeve, 2 right sleeve; garments.py)
         za = me.attributes.get("zone")

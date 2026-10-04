@@ -11,25 +11,57 @@
 #   jacket    zip jacket: stand collar and zip, rib cuffs and hem band
 #
 # How each is made:
-#  - a SHELL grown off the body's own faces, so it inherits the body's UVs (the atlas takes its
-#    island like any garment's) and skin weights. The shell is offset for the garment's fit and
-#    then shaped the way cloth hangs, which is what stops a garment reading as painted-on skin:
-#    each horizontal slice of the torso is bridged to its convex hull (the fabric spans the
-#    breastbone, the spine and the hollow between the breasts), then the torso HANGS - below the
-#    chest the cloth may only come in toward the body at a set slope, so a tee falls from the
-#    chest and belly instead of following the waist - and sleeves and trouser legs are rounded
-#    into tubes round the limb (straight-leg jeans hang from the knee).
+#  - a SHELL grown off the body's own faces (a smoothed copy of the body: Body.Vs), so it
+#    inherits the body's UVs (the atlas takes its island like any garment's) and skin weights.
+#    The shell is offset for the garment's fit and then shaped the way cloth hangs, which is what
+#    stops a garment reading as painted-on skin: the torso and the pelvis are laid onto an
+#    Envelope - each 1 cm slice of the body bridged to its convex hull (the fabric spans the
+#    breastbone, the spine and the hollows either side), HUNG from the chest (below it the cloth
+#    comes in no faster than a set slope, so a tee falls from the chest and belly instead of
+#    following the waist), blurred so no cell steps against the next - and sleeves and trouser
+#    legs are rounded into tubes round the limb (sleeves close over the cap and ease toward the
+#    hem; straight-leg jeans hang from the knee). Full-length trousers hang to `hem_height` and
+#    are lifted over the shoe they meet (lift_over), the hem line smoothed along itself.
 #  - every garment edge is CUT by planes (sector planes round the neck, like the tracksuit's
-#    neck ring), never picked face by face, and then HEMMED: a turned lip with the fabric's
-#    thickness and an inner face runs round every opening, so an edge has a real cross-section
-#    and a sleeve or a hem never shows a knife edge or the dark inside of the shell.
+#    neck ring; a shirt's tail by sector planes tangent to its curve), never picked face by
+#    face, and then HEMMED: a turned lip with the fabric's thickness and an inner face runs round
+#    every opening, so an edge has a real cross-section and a sleeve or a hem never shows a knife
+#    edge or the dark inside of the shell.
 #  - collars, cuffs, waistbands, the shirt's placket and the jacket's zip are swept bands with a
 #    profile (stand, rolled lip, inner face; a shirt collar's stand, fold and fall with points).
-#    Buttons and the zip's metal are small separate parts that keep their own colour.
+#    Buttons and the zip's teeth and pull are small separate parts in the "other" region, which
+#    keep their own colour through every recolour.
+#  - layers: a top is held clear of the trousers under it by a SMOOTH push (push_smooth), and
+#    what the top hides of the trousers is deleted (hide_under), the margin left under it taking
+#    the top's weights so the two move together.
 #  - the body under a garment is deleted by build_character.py's cover test, one ring kept and
-#    tucked, as for the library clothes.
+#    tucked, as for the library clothes (with our garments the torso's skin also counts as covered
+#    from the torso's axis, and a lone miss among covered neighbours does too: the armpits).
+#  - three traps, each of which looked like a modelling fault: a push-out ray cast from outside
+#    back in jumps a fold (the crotch, the armpit) and throws the cloth past the other side, so
+#    push_out only trusts the surface right under a point; a corner attribute added to a mesh
+#    reallocates its corner data, so layer handles are looked up again by name afterwards
+#    (mesh_with_local_uv); and a vertex moved across the midline keeps its own leg's weights
+#    (flatten_crotch never lets one cross).
 # Everything a garment needs to be painted (its cut planes, edge lines, seams and landmarks) is
 # written to WORK/<name>/garments.json; crowd_atlas.py paints the texels (garment_paint.py).
+#
+# A character's "outfit" in crowd_config.json is a list of garments (trousers are built first,
+# tops over them); its "clothes" then list only the shoes. Keys (metres unless said; colours
+# sRGB 0-255; garment_paint.py reads the colour keys again on every atlas run):
+#   every garment  type, color, fabric (jersey / denim / woven), fold_gain, tris (shell budget)
+#   tee            sleeve short|long, fit fitted|regular|loose, hem (from the hip joint), heather,
+#                  collar_h, neck_front / neck_back, sleeve_t, sleeve_ease / sleeve_flare
+#   shirt          sleeve long|rolled, fit, tail (shirt-tail depth), pattern {type stripes|check,
+#                  color, period, width, strength, aspect, cross}, pocket, yoke, thread, stand_h,
+#                  fall, collar_gap, placket_w, button_spacing, cuff_len / roll_w, buttons_color
+#   jacket         band_len / band_pull, cuff_len / cuff_pull, collar_h, rib_fabric, zip_color,
+#                  zip_pull_color
+#   trousers       style jeans|slim|chinos|leggings|shorts, rise, waist_tilt, hem_height (full
+#                  length), above_knee (shorts), above_ankle (cropped / leggings), shoe_clear,
+#                  wash / fade_color (denim), thread
+#   tops also take layer_clear (over the trousers, 10 mm) and hem_hips (how much of the hem's
+#   thigh weight moves to the hips, 0.25).
 import json
 import math
 import os
@@ -359,13 +391,30 @@ def bvh_of(objs):
     return BVHTree.FromPolygons(verts, polys)
 
 
-def cut(o, plane_co, plane_no, region, kill_side, zone=None):
+def near_arm(B, side, reach=0.085):
+    """Whether a point is within `reach` of one upper arm's axis: with the sleeve's own zone, the
+    faces a sleeve's end cut works on. By zone alone, the web under a heavy body's arm (zoned
+    torso: its weights are the torso's) escaped the cut and notched the hem where it met the
+    side; by 13 cm of the whole arm, the cut holed that body's side."""
+    a = Vector(B.B(side + "Arm"))
+    b = Vector(B.B(side + "ForeArm"))
+
+    def f(c):
+        t = max(0.0, min(1.0, (c - a).dot(b - a) / max((b - a).length_squared, 1e-9)))
+        return (c - (a + (b - a) * t)).length < reach
+    return f
+
+
+def cut(o, plane_co, plane_no, region, kill_side, zone=None, zone_or=False):
     """Bisect `region` faces of o by a plane and delete what lies on kill_side(centre) of it
-    (only faces whose "zone" face attribute is `zone`, when given)."""
+    (only faces whose "zone" face attribute is `zone`, when given; with zone_or, faces in that
+    zone OR in the region)."""
     bm = bmesh.new()
     bm.from_mesh(o.data)
     zl = bm.faces.layers.int.get("zone")
-    if zone is not None and zl is not None:
+    if zone is not None and zl is not None and zone_or:
+        reg = lambda f: f[zl] == zone or region(f.calc_center_median())  # noqa: E731
+    elif zone is not None and zl is not None:
         reg = lambda f: f[zl] == zone and region(f.calc_center_median())  # noqa: E731
     else:
         reg = lambda f: region(f.calc_center_median())  # noqa: E731
@@ -878,63 +927,6 @@ def mark(o, garment, part, region, fabric, gid):
 # =================================================================================================
 # Shaping: how cloth hangs
 # =================================================================================================
-class Slices:
-    """Horizontal slices of the torso's body vertices: each slice's convex hull (x, y) and its
-    centre, for bridging a garment over the body's hollows."""
-
-    def __init__(self, V, z0, z1, step=0.01):
-        self.z0, self.step = z0, step
-        self.n = max(2, int(math.ceil((z1 - z0) / step)) + 1)
-        self.hulls, self.centres = [], []
-        for k in range(self.n):
-            zc = z0 + k * step
-            sel = V[np.abs(V[:, 2] - zc) < step * 0.9]
-            if len(sel) < 6:
-                self.hulls.append(None)
-                self.centres.append(None)
-                continue
-            pts = [Vector((p[0], p[1])) for p in sel]
-            idx = MG.convex_hull_2d(pts)
-            poly = np.array([[pts[i].x, pts[i].y] for i in idx])
-            self.hulls.append(poly)
-            self.centres.append(poly.mean(0))
-        # fill gaps
-        for k in range(self.n):
-            if self.hulls[k] is None:
-                near = min((j for j in range(self.n) if self.hulls[j] is not None), key=lambda j: abs(j - k), default=None)
-                if near is not None:
-                    self.hulls[k] = self.hulls[near]
-                    self.centres[k] = self.centres[near]
-
-    def index(self, z):
-        return int(min(max(round((z - self.z0) / self.step), 0), self.n - 1))
-
-    def centre(self, z):
-        return self.centres[self.index(z)]
-
-    def hull_radius(self, z, theta):
-        """Radius of the slice's hull from its centre toward azimuth theta (0 = front, -y)."""
-        k = self.index(z)
-        poly, c = self.hulls[k], self.centres[k]
-        if poly is None:
-            return 0.0
-        d = np.array([math.sin(theta), -math.cos(theta)])
-        best = 0.0
-        m = len(poly)
-        for i in range(m):
-            a, b = poly[i] - c, poly[(i + 1) % m] - c
-            # ray t*d hits segment a + s (b - a)
-            e = b - a
-            den = d[0] * (-e[1]) - d[1] * (-e[0])
-            if abs(den) < 1e-12:
-                continue
-            t = (a[0] * (-e[1]) - a[1] * (-e[0])) / den
-            s = (d[0] * a[1] - d[1] * a[0]) / den
-            if t > 0 and -1e-6 <= s <= 1 + 1e-6:
-                best = max(best, t)
-        return best
-
-
 def _ray_poly(c, theta, poly):
     """Distance from c along azimuth theta (0 = front, -y) to the far boundary of a 2D polygon."""
     d = np.array([math.sin(theta), -math.cos(theta)])
@@ -1030,54 +1022,6 @@ class Envelope:
         g = ((self.G[t0, z0] * (1 - ft) + self.G[(t0 + 1) % self.nth, z0] * ft) * (1 - fz)
              + (self.G[t0, z1] * (1 - ft) + self.G[(t0 + 1) % self.nth, z1] * ft) * fz)
         return np.array([c[0] + math.sin(th) * g, c[1] - math.cos(th) * g, p[2]])
-
-
-def hang(P, centre_fn, z_top, z_bottom, slope, sel, src=None, nth=72, dz=0.01):
-    """Below z_top the cloth may only come in toward the body at `slope` (metres per metre down):
-    the cylindrical radius of each selected point is raised to the running maximum from above,
-    less the slope. Only points of `src` (default `sel`) below z_top feed the maximum - a
-    shoulder or a sleeve root above it would hang the whole front off itself."""
-    out = P.copy()
-    src = sel if src is None else src
-    nz = int(math.ceil((z_top - z_bottom) / dz)) + 2
-    R = np.full((nth, nz), -1.0)
-
-    def cell(i):
-        c = centre_fn(P[i, 2])
-        dx, dy = P[i, 0] - c[0], P[i, 1] - c[1]
-        th = math.atan2(dx, -dy)
-        zi = int(min(max((z_top - P[i, 2]) / dz, 0), nz - 1))
-        ti = int((th + math.pi) / (2 * math.pi) * nth) % nth
-        return ti, zi, math.hypot(dx, dy), c
-    for i in np.where(src & (P[:, 2] <= z_top))[0]:
-        ti, zi, r, _ = cell(i)
-        R[ti, zi] = max(R[ti, zi], r)
-    # Empty cells take the row's neighbours; the profile is blurred round the body, so a 5-degree
-    # cell never steps against the next one.
-    for k in range(nz):
-        row = R[:, k]
-        ok = row > 0
-        if ok.any() and not ok.all():
-            xs = np.where(ok)[0]
-            row[~ok] = np.interp(np.where(~ok)[0], np.concatenate([xs - nth, xs, xs + nth]), np.tile(row[ok], 3))
-    R = (R + np.roll(R, 1, 0) + np.roll(R, -1, 0) + 0.5 * (np.roll(R, 2, 0) + np.roll(R, -2, 0))) / 4.0
-    Rs = R.copy()
-    for k in range(1, nz):
-        Rs[:, k] = np.maximum(R[:, k], Rs[:, k - 1] - slope * dz)
-    # A point is held only by the cloth ABOVE it (the row over its own, less the slope over the
-    # distance down from it, interpolated in z). Raised to its own cell's maximum, every point of
-    # a sloping cell - the underside of the pecs - stepped out to the cell's outermost one.
-    for i in np.where(sel & (P[:, 2] <= z_top))[0]:
-        ti, zi, r, c = cell(i)
-        if zi == 0:
-            continue
-        zrow = z_top - (zi - 0.5) * dz
-        want = Rs[ti, zi - 1] - slope * max(zrow - P[i, 2], 0.0)
-        if want > r and r > 1e-4:
-            f = want / r
-            out[i, 0] = c[0] + (P[i, 0] - c[0]) * f
-            out[i, 1] = c[1] + (P[i, 1] - c[1]) * f
-    return out
 
 
 def limb_frame(p, a, b):
@@ -1431,7 +1375,7 @@ def cut_top(ctx, o, L, neck_hole=True):
     for k, (side, sg) in enumerate(SIDES):
         e = L["ends"][side]
         co, no = Vector(e["co"]), Vector(e["no"])
-        cut(o, co, no, lambda c: True, lambda c, co=co, no=no: no.dot(c - co) > 0, zone=k + 1)
+        cut(o, co, no, near_arm(ctx.body, side), lambda c, co=co, no=no: no.dot(c - co) > 0, zone=k + 1, zone_or=True)
     # a sleeve face on the torso's side of the hem plane (the forearm hangs past it) stays
     keep_largest_part(o)
 
@@ -1471,7 +1415,7 @@ def tee(ctx, g, gid):
         # a little more over the layer under it, which is skinned differently
         clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), smooth=True)
     L["hems"] = top_lips(ctx, o, L, hem=(0.003, 0.018), sleeve=(0.003, 0.016))
-    smooth_weights(o, 6, where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.13,
+    smooth_weights(o, g.get("shoulder_blur", 12), where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.17,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
     off_the_head(o, 0.35)
     # the hem follows the thighs about as the waistband under it does (moved to the hips, the
@@ -1723,7 +1667,7 @@ def shirt(ctx, g, gid):
     for k, (side, sg) in enumerate(SIDES):
         e = L["ends"][side]
         co, no = Vector(e["co"]), Vector(e["no"])
-        cut(o, co, no, lambda c: True, lambda c, co=co, no=no: no.dot(c - co) > 0, zone=k + 1)
+        cut(o, co, no, near_arm(ctx.body, side), lambda c, co=co, no=no: no.dot(c - co) > 0, zone=k + 1, zone_or=True)
     cut_curve(o, B_torso_y(B), zfn, z_side - tail * 1.3 - 0.03, z_side + 0.03, zone=0)
     keep_largest_part(o)
     axis, cut_z, radius, ring = neck_ring_fn(ctx, L["neck_back"], L["neck_front"], L["off"] + g.get("neck_flare", 0.012))
@@ -1753,7 +1697,7 @@ def shirt(ctx, g, gid):
                 return ("sleeve_" + side, 0.0025, 0.012)
         return None
     L["hems"] = add_lips(o, spec)
-    smooth_weights(o, 6, where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.13,
+    smooth_weights(o, g.get("shoulder_blur", 12), where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.17,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
     off_the_head(o, 0.35)
     move_weight(o, list(LEG_UP), "Hips", g.get("hem_hips", 0.25))
@@ -1852,7 +1796,7 @@ def jacket(ctx, g, gid):
         # a little more over the layer under it, which is skinned differently
         clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), smooth=True)
     L["hems"] = top_lips(ctx, o, L, hem=(0.003, 0.012), sleeve=(0.003, 0.012))
-    smooth_weights(o, 6, where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.13,
+    smooth_weights(o, g.get("shoulder_blur", 12), where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.17,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
     off_the_head(o, 0.35)
     move_weight(o, list(LEG_UP), "Hips", g.get("hem_hips", 0.25))
@@ -1944,7 +1888,6 @@ def trousers(ctx, g, gid):
     crotch = B.crotch_z
     # where the legs end: full length just above the shoe's collar, shorts above the knee
     ends = {}
-    collars = {}
     for side, sg in SIDES:
         hip, kn, an = B.B(side + "UpLeg"), B.B(side + "Leg"), B.B(side + "Foot")
         if style == "shorts":
@@ -1957,7 +1900,6 @@ def trousers(ctx, g, gid):
             # 23 cm behind the ankle (shoes05): a hem "just over the collar" stopped mid-shin
             # there. Leggings and cropped styles stop at "above_ankle" instead.
             col = ctx.shoe_collar(side, sg)
-            collars[side] = col
             if style != "leggings" and "above_ankle" not in g:
                 z_end = g.get("hem_height", 0.085)
                 if col is not None:

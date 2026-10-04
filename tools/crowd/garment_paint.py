@@ -856,8 +856,11 @@ def paint(name, size):
         lin[selg] = pt.lin[selg]
         H[selg] = pt.h[selg]
     # ambient occlusion (rest pose, against the whole character), as the library clothes' AO maps
-    k = cfg.get("garment_ao", 0.55)
-    lin *= (1.0 - k * (1.0 - np.clip(X.ao, 0.0, 1.0)))[:, None]
+    # Gentler than the library clothes' maps, and with a floor: it is baked per vertex on a coarse
+    # shell in the bind pose, where the 45-degree arm darkens the armpit and the seat the shirt's
+    # tail; with the arm hanging, that patch sat on the chest as a blue-grey blotch.
+    k = cfg.get("own_ao", 0.32)
+    lin *= (1.0 - k * (1.0 - np.clip(X.ao, 0.5, 1.0)))[:, None]
     alb = np.zeros((size, size, 3), np.float32)
     alb[X.iy, X.ix] = T.lin_to_srgb(np.clip(lin, 0.0, 1.0))
     # normals from the height field's slope at each texel's metric scale

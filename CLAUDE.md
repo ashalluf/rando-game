@@ -1922,6 +1922,34 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   load, `BODY=mid|far`, `LIGHT=street` for AgX and a tarmac ground) as well as
   `character_shot.gd`. Adding a person: a row in crowd_config.json, `build.sh <name>`, add it to
   `MODELS`; `FROM=crowd_atlas build.sh` redoes only the atlases and the export.
+  **Our own garments** (2026-10-04; the shader work on MakeHuman's photographed clothes had hit
+  its ceiling): a row with an `"outfit"` in crowd_config.json (its `"clothes"` then list only the
+  shoes) wears garments modelled on its own body by `tools/crowd/garments.py` - a crew-neck
+  **tee** (short or long sleeves, fitted / regular / loose), **trousers** (jeans, slim, chinos,
+  leggings, denim shorts), a **button shirt** (stand-and-fall collar with points, placket and
+  buttons, shirt-tail hem, cuffs or rolled sleeves, stripes or a check) and a **zip jacket**
+  (stand collar, zip, rib cuffs and hem band); the keys are in its header. Each is a shell grown
+  off a smoothed copy of the body (its UVs and weights), shaped by an `Envelope` (slice hulls,
+  hung from the chest, blurred) and limb tubes, cut by planes and hemmed with a turned lip;
+  collars, cuffs, bands, placket and zip are swept bands. They have no source photo: their atlas
+  rects are "virtual" and `tools/crowd/garment_paint.py` paints every texel from what the garment
+  is there in 3D (seams, topstitching, hems, waistband and belt loops, pockets, yoke, fly, denim
+  wear and whiskers, rib wales, woven patterns box-filtered per texel) with a height field for the
+  normal map; it re-reads the outfit, so colours and patterns need only `FROM=crowd_atlas`. The
+  contract holds unchanged: the garments join the ONE Body surface with R / G at their fabric's
+  level, buttons and the zip's teeth and pull are the "other" region (no colour, never
+  recoloured), and the mid / far welds, camp figures, limb cuts and the police recolour see an
+  ordinary rig. Rules that cost a debugging round each: a push-out ray must start at the point
+  (cast from outside it jumps a fold - crotch, armpit - and throws the cloth past the far side);
+  a top's push off the trousers is a smooth field (`push_smooth`) and the trousers under a top
+  are cut away with their margin taking the top's weights (`hide_under`), or they poke through
+  at every stride; the male crotch is flattened without letting a vertex cross the midline (its
+  weights are its own leg's); the cover test counts torso skin outward from the torso's axis
+  and a lone miss among covered neighbours (the armpits) as covered; and the garments' AO is
+  gentle with a floor (`own_ao`), being baked on a coarse shell in a pose the game never shows.
+  Judge with `tools/crowd/preview.sh` first (Blender Cycles, no render lock, seconds: `FLAT=1`
+  geometry only, `REGION=1` which mesh is which - green on a top is the trousers, black is skin)
+  and finish with `crowd_lineup.gd` (`TURN=90` shows a row in profile).
   **Close-up detail** (owner, 2026-09-27: faces and garments at 2-4 m): faces are not the
   average MakeHuman head - `build_character.py` rolls MPFB's own face targets (nose, jaw, chin,
   cheeks, eyes, mouth, ears, brows, forehead; `FACE_PAIRS`, `face_var`, `face_seed`, explicit
