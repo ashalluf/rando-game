@@ -1029,7 +1029,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   ~1.3k triangles near, a dual PAIR one mesh), each rig carrying its own near/far mesh at [6]/[7].
   `_dims()` `tyre_r` for these is the PHYSICS radius, set so a parked one stands where traffic
   stands it (car_shot.gd CONTACT). Lettering is a shared TextMesh per (name, size, colour) on each
-  side, 70 m, not on the web. **Lines and stops are worked out, never placed**:
+  side, 55 m, not on the web. **Lines and stops are worked out, never placed**:
   `route_of(plan, axis, index)` (half the avenues, a hash), `block_stop(plan, axis, index, k,
   dir)` (where the nose stops on the block between crossings k and k+1, far side, about every
   other block), `in_stop_zone()` (the chunk's parked cars keep off the stop's kerb, after their
