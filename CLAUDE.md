@@ -804,7 +804,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Checks: `tests/car_cabin_checks.gd`.
 - Aircraft: `Aircraft` (`scripts/vehicles/aircraft.gd`) extends `Vehicle`; kinds PRIVATE and
   AIRLINER, flight numbers are exports at the top, models in `MODELS`. Jets spawn at
-  `MacroMap.apron_spots` from the airport chunk. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
+  `MacroMap.apron_spots` (position, kind, optional yaw) from the airport chunk. Every airliner -
+  the flyable one, the air traffic's, the parked gate jets - wears an invented livery painted
+  from the model's own shape (`shaders/airliner_livery.gdshader`, see the Airport note): the
+  Meshy texture read as camouflage. Terrain bodies carry `CityChunk.TERRAIN_LAYER`
   (bit 5) and the player's under-terrain ray uses only that layer.
 - Air traffic (owner, 2026-09-24: "helicopters, police choppers, news choppers, private jets
   flying thru the sky, commercial jets taking off and landing at LAX"): `AirTraffic`
@@ -817,8 +820,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   overhead, the far landmarks' bounds, trees, port cranes; 50 m cells, cached). The east range
   stands two kilometres from the airport fence, so arrivals come up the basin from the south
   (`downwind_x`), turn onto a 3 degree final over the city and land WESTBOUND on the south
-  runway (`MacroMap.arrival_runway`); departures line up on the middle runway (the hangars
-  stand across the east ends of the other two) and climb out west over the sea.
+  runway, 27L (`MacroMap.arrival_runway`); departures line up on the north runway, 27R
+  (`MacroMap.departure_runway`; the hangars stand across its east end) and climb out west over
+  the sea.
   `MacroMap.runway_clear_zone()` keeps lots out from under the last 700 m of the final
   (`CityPlan.lots()`): midtown lots put 20 m buildings where the glide path is 15 m up. News:
   `Explosion.blast_count` / `last_blast_world` are polled; a blast within
@@ -836,7 +840,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `wreck_seconds`, a replacement later. Lights are one additive billboard mesh per aircraft
   (`shaders/aircraft_lights.gdshader`: nav, strobes, beacon, landing lights), never drawn
   smaller than a few pixels and pulled inside the camera's far plane (12 km), so a night approach
-  reads across the basin. Above `disc_rpm` the rotor blades are swapped for
+  reads across the basin. **A light is aimed only if its UV2.y code has 100 added** (the landing
+  lights): Godot cannot store a zero normal (it comes back (0, 0, -1)), so the old "zero normal
+  = all round" made every nav light, strobe and tower obstruction light face NORTH and show at
+  6 % from anywhere else. Above `disc_rpm` the rotor blades are swapped for
   `shaders/rotor_disc.gdshader` (real blades strobe). Sound: Sfx `jet_loop` / `rotor_loop`,
   real CC0 recordings, with a long falloff and a cheap Doppler. **Trap:** give an aircraft its
   transform BEFORE `add_child()` (`AirTraffic._place_before_entry()`). Godot derives a kinematic
@@ -844,8 +851,62 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   two kilometres away moved at ~170 km/s for a step, and a player standing at the origin took
   that as platform velocity and left the map. The checks (`tests/air_traffic_checks.gd`, loaded
   by the smoke test) step aircraft with `advance(dt)` in a loop - minutes of flight in a frame.
-  Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd`. The helicopter
-  model is `tools/make_helicopter.py` (Blender, headless; ASSETS.md).
+  Stills: `AIR=final|takeoff|news|police` on `tools/glshot/still_shot.gd` (the staged jet is
+  faded in at once, `AirTraffic._shown()`). The helicopter model is `tools/make_helicopter.py`
+  (Blender, headless; ASSETS.md).
+- Airport (2026-10-04, "a major international airport, ground and air"; original - invented
+  airlines, no real names or logos, a big field's FORMS). Three files. **`Airport`**
+  (`scripts/world/airport.gd`, static) is the LAYOUT, all derived from MacroMap's numbers:
+  `runway_zs` is the parallel pair (870 = 27R / 09L, 960 = 27L / 09R, 45 m wide; the old third
+  runway at z 780 is `taxiway_z`, the parallel taxiway), `CONNECTOR_XS` the cross taxiways, the
+  grass between (`grass_rects()`), the concourse ARC (`ARC_CENTRE`, `CONCOURSE_RADIUS`, a = 0
+  due south of the centre; `arc_point()` / `arc_normal()` / `arc_tangent()`), `gates()` (9
+  stands: nose, centre, yaw, the jet bridge's rotunda, the forward-left door, livery, which
+  trucks attend it; stand 17 is empty), `mast_spots()`, `runways()` (ends, designators),
+  `papi_spots()`, `windsock_spots()`, and the landside rects (`HEAD_HOUSE`, `TOWER_AT`,
+  `SKYHOOK_AT`, `GARAGE_RECT`, `RENTAL_RECT`). `Airport.build_chunk()` (from
+  `CityChunk._build_airport()`) lays the ground as a **partition** (`ground_pieces()`: apron
+  concrete, asphalt taxiways and runways, grass, side by side - never one slab over another,
+  which z-fights from a few hundred metres up and drew every runway as grey streaks; one
+  collision box under it), which the far city's capture records; then FULL and LOD get the
+  floodlight masts with their night pools, the perimeter fence (`AirportKit.fence_panel()` on
+  the chain-link shader) and the navaids (blast fences, localizer, glide slope, windsocks,
+  PAPI), and FULL the paint (runway thresholds, designators as flat TextMesh, touchdown zone,
+  aiming points, centre and edge lines, rubber; taxiway centre and edge lines, lead-off curves,
+  hold-short bars; stand lead-in lines, stop bars, numbers, red equipment-restraint envelopes,
+  the service road; the texts - designators, stand numbers - ONE mesh per colour a chunk,
+  `Airport.merged_text()`), the light fixtures and every attended gate's ground service equipment
+  (pushback, belt loader, baggage tug and carts, catering truck on its scissor lift, fuel
+  truck, GPU, cones) as ONE instance of `AirportKit.gate_set(variant)` (one mesh per service
+  variant, built in the stand's frame through `AirportKit._xf`; never `append_from()`, a
+  read-back), the staging rows at the concourse ends (`staging_set()`), and 2-3 `ApronCrew` (`scripts/npc/apron_crew.gd`, a Pedestrian in hi-vis
+  on a small ring by the jet, crowd-capped, never crosses). Every roll is a hash, never the
+  block rng. **The field's lights** are ONE billboard mesh (`Airport.lights_mesh()`, ~640
+  lights) on `aircraft_lights.gdshader`, worn by the `airfield_lights` landmark near and far
+  alike (meta `air_ignore`: AirTraffic's clearance field skips it): runway edges (yellow over
+  the last 200 m), centre lines (red toward the end), green thresholds and red ends (aimed),
+  touchdown zone bars, the approach light system 450 m out east over the long-term parking with
+  its crossbar, red side rows and sequenced flasher, the PAPI, blue taxiway edges, green centre
+  lines, red stop bars, the masts' floods, red obstruction lights and the tower's rotating
+  beacon. Kinds 4-7 in the shader: field light (nothing by day, `field_day`), rabbit, rotating
+  beacon, PAPI (white or red by the eye's angle). **`AirportTerminal`**
+  (`scripts/world/airport_terminal.gd`) builds the landmarks (each its own entry in
+  `Landmarks.all()`, far copy kept, so the chunk round each builds it in detail): `terminal`
+  (the head house: a glazed hall under a wing roof that sweeps out over the drop-off on
+  branching tree columns, its slatted soffit lit at night; plus `Landmarks._build_dropoff()`'s
+  road and lit DEPARTURES boards), `concourse_w` / `concourse_e` (the arc's halves: service
+  level, glazed departures level on `curtain_glass` with its lit interior, clerestory, jet
+  bridges docked at each gate, and ONE MultiMesh of the airliner model at the gates on
+  `airliner_livery.gdshader`, the livery in INSTANCE_CUSTOM.r * 8), `control_tower` (ribbed
+  shaft, lit glass cab, beacon at `TOWER_TOP`), `skyhook` (two crossing parabolic arches over a
+  lit disc restaurant, floodlit), `airport_garage` (`ArenaGrounds.garage()`), `rental_lot`
+  (`ArenaGrounds.surface_lot()` and a pavilion). **`AirportKit`**
+  (`scripts/world/airport_kit.gd`) is the hardware, code-built at real size on
+  `shaders/airport_kit.gdshader` (part kind in the vertex alpha: paint, lamp, glass, rubber,
+  metal; a vehicle's livery in INSTANCE_CUSTOM). Liveries: six invented airlines in
+  `airliner_livery.gdshader`, painted by region of the model in its own units (fuselage, belly,
+  cheatline, windows, doors, cockpit, fin and its mark, nacelles, wings, gear). Checks:
+  `tests/airport_checks.gd`. Stills: the four in docs/HANDOFF.md 9bb.
 - Shop signs: storefront sign bands carry real names. `Building` picks how many window bays
   make one shop per face (`_shop_spans()`, hashed from the seed, never from `_rng`) and passes
   it to the shader as `shop_span`, so the bands the shader draws and the `TextMesh` names the

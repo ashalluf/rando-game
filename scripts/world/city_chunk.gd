@@ -562,63 +562,21 @@ func owned_rect() -> Rect2:
 
 func _build_airport() -> void:
 	var area := owned_rect()
-	var c := area.get_center()
-	# Through the wear shader rather than a plain tiled material: a car park is a big flat area
-	# and the tile grid is the first thing the eye finds on one.
-	# An apron is concrete, not a night street. 0.44 tinting an already dark asphalt set put the
-	# whole airport at an albedo of 0.014 - several chunks of continuous flat ground reading as
-	# a void in every wide shot that includes it.
-	_add_slab(Vector3(c.x, 0.05, c.y), Vector3(area.size.x, 0.1, area.size.y), style.tarmac, level == Level.FULL, PropFactory.road("asphalt", 8.0, Color(1.25, 1.25, 1.27), hash([plan.seed, ix, iz, "lot"]), 0.0, 0.85))
 	var macro: MacroMap = plan.macro
+	# The field over this chunk: concrete apron, taxiways, grass, runways (also in the far city's
+	# capture), and at LOD / FULL the masts, fences and navaids, at FULL the paint, the light
+	# fixtures and the ground crews at the gates (Airport; the buildings are landmarks).
+	Airport.build_chunk(self)
+	if capturing:
+		return
 	if level == Level.FULL and area.has_point(macro.terminal_curb.get_center()):
 		# The drop-off curb in front of the terminal is packed (owner: "jampacked").
 		var curb_rng := RandomNumberGenerator.new()
 		curb_rng.seed = plan.seed ^ 0x7e5
 		_spawn_crowd(macro.terminal_curb, 4.0, style.airport_crowd, curb_rng)
-	for rz in macro.runway_zs:
-		var band := Rect2(area.position.x, rz - macro.runway_width * 0.5, area.size.x, macro.runway_width)
-		var strip := band.intersection(area)
-		if strip.size.y <= 0.0:
-			continue
-		var sc := strip.get_center()
-		if capturing:
-			# The far city lays the runway into its plate (Skyline._add_plate); nothing below
-			# this rolls the rng at the LOD level, so skipping it changes no later roll.
-			captured.ground.append([strip, style.runway, 0.14, PropFactory.far_albedo(PropFactory.material(style.runway, 0.95), Color.BLACK)])
-			continue
-		var runway := MeshInstance3D.new()
-		runway.name = "Runway"
-		var box := BoxMesh.new()
-		box.size = Vector3(strip.size.x, 0.04, strip.size.y)
-		runway.mesh = box
-		runway.material_override = PropFactory.material(style.runway, 0.95)
-		runway.position = Vector3(sc.x, 0.12, sc.y)
-		add_child(runway)
-		if level != Level.FULL:
-			continue
-		# Center line dashes and edge lines.
-		var x := strip.position.x + 6.0
-		while x < strip.end.x - 6.0:
-			# The stripe mesh is 0.6 m across by 3 m long in ITS OWN Z, and the yaw turns that
-			# length onto world X. Basis.scaled() then scales the WORLD axes, so the 3x
-			# lengthening goes in x. Written (1, 1, 3) it landed on world Z instead and every
-			# centre-line dash came out 3 m long and 1.8 m wide - stubby blocks, not a runway.
-			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(3.0, 1.0, 1.0)), Vector3(x, 0.15, rz)))
-			x += 24.0
-		for side: float in [-1.0, 1.0]:
-			# Same again, and much worse: the runway-length factor was landing on the stripe's
-			# 0.6 m width, so each edge line was a white slab a couple of hundred metres across
-			# the runway and three metres along it, instead of a thin line down its whole length.
-			_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(strip.size.x / 3.0, 1.0, 1.0)), Vector3(sc.x, 0.15, rz + side * (macro.runway_width * 0.5 - 1.0))))
 	if level == Level.FULL:
-		var rng := RandomNumberGenerator.new()
-		rng.seed = hash([ix, iz, 5])
-		for i in 3:
-			var p := Vector2(rng.randf_range(area.position.x + 5.0, area.end.x - 5.0), area.position.y + 4.0)
-			if not _on_runway(p) and not _near_apron(p):
-				_add_lamp(Vector3(p.x, 0.1, p.y))
-		# Flyable jets on the apron, owned like parked cars (city root, freed with the chunk
-		# unless someone flew them away).
+		# Flyable jets on the taxiway and the remote stands, owned like parked cars (city root,
+		# freed with the chunk unless someone flew them away).
 		for spot in macro.apron_spots:
 			var sp: Vector2 = spot[0]
 			if not area.has_point(sp):
@@ -627,23 +585,20 @@ func _build_airport() -> void:
 			jet.setup_aircraft(spot[1] as Aircraft.Kind)
 			var holder: Node = get_parent() if get_parent() else self
 			jet.position = WorldState.to_local(Vector3(sp.x, 1.0, sp.y)) if holder != self else Vector3(sp.x, 1.0, sp.y)
-			jet.rotation.y = -PI * 0.5
+			jet.rotation.y = float(spot[2]) if (spot as Array).size() > 2 else -PI * 0.5
 			holder.add_child(jet)
 			_cars.append(jet)
 
 
-func _near_apron(p: Vector2) -> bool:
-	for spot in plan.macro.apron_spots:
-		if (spot[0] as Vector2).distance_to(p) < 45.0:
-			return true
-	return false
-
-
-func _on_runway(p: Vector2) -> bool:
-	for rz in plan.macro.runway_zs:
-		if absf(p.y - rz) < plan.macro.runway_width * 0.5 + 6.0:
-			return true
-	return false
+## Ground crew at a gate (Airport._crew()): an ApronCrew on a small ring, under the crowd cap.
+func _spawn_apron_crew(ring: Rect2, rng: RandomNumberGenerator) -> void:
+	if not _take_crowd_room():
+		return
+	var ped := ApronCrew.new()
+	ped.setup(ring, 2.0, rng.randi())
+	var start := ped._random_ring_point(2.0)
+	ped.position = Vector3(start.x, plan.macro.tarmac_top + 0.1, start.y)
+	add_child(ped)
 
 
 ## The container terminal (PortKit builds the pieces). The yard's rows, columns, skipped truck

@@ -309,7 +309,9 @@ func _initialize() -> void:
 			var dist := float(OS.get_environment("AIR_DIST")) if OS.get_environment("AIR_DIST") != "" else 300.0
 			var side := float(OS.get_environment("AIR_SIDE")) if OS.get_environment("AIR_SIDE") != "" else 0.0
 			var placed: Node = air.call("stage", air_env, air_cam, dist, side)
-			print("AIR staged ", placed.name if placed else "nothing", " at ", (placed as Node3D).global_position if placed else Vector3.ZERO)
+			var ws_air := root.get_node("/root/WorldState")
+			print("AIR staged ", placed.name if placed else "nothing", " at world ", ws_air.call("to_world", (placed as Node3D).global_position) if placed else Vector3.ZERO,
+				" camera world ", ws_air.call("to_world", air_cam.global_position), " visible ", (placed as Node3D).is_visible_in_tree() if placed else false)
 			for i in _env_int("AIR_FRAMES", 4):
 				await process_frame
 				_pose(player, anchor, hold, boost, fov)
