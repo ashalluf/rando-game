@@ -17,7 +17,8 @@ extends Node
 ## GROUND=1 adds the horizon plane (CityStreamer's own material and bake) so the seam between the
 ## tiles and the far ground can be judged without the city (small enough for lavapipe), HILLS_ONLY=1
 ## builds only the hill blocks of the ring, PAINT_AB=1 saves each frame again with the plane all lit
-## and all painted (_lit, _painted: its paint_gain), NOSHELLS=1 hides
+## and all painted (_lit, _painted: its paint_gain), MASKS=1 saves it again without the plane and
+## without the chunks (_noground, _nochunks: which pixel is which tier), NOSHELLS=1 hides
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
 ## triangles and draws, SHELL_DEBUG=1 draws
@@ -150,6 +151,23 @@ func _ready() -> void:
 					await get_tree().process_frame
 				get_viewport().get_texture().get_image().save_png(file.get_basename() + ("_lit.png" if mode == 0 else "_painted.png"))
 			ground_mat.set_shader_parameter("paint_debug", -1)
+		# MASKS=1 (with GROUND=1): the same frame again without the plane (<name>_noground.png) and
+		# without the chunks (<name>_nochunks.png), so a script can tell which pixels are which tier.
+		if ground and OS.get_environment("MASKS") == "1":
+			ground.visible = false
+			for i in 3:
+				await get_tree().process_frame
+			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_noground.png")
+			ground.visible = true
+			for ch: Node3D in built.values():
+				ch.visible = false
+			for i in 3:
+				await get_tree().process_frame
+			get_viewport().get_texture().get_image().save_png(file.get_basename() + "_nochunks.png")
+			for ch: Node3D in built.values():
+				ch.visible = true
+			for i in 3:
+				await get_tree().process_frame
 		# AB=1: the same frame again without the shells, saved beside it (<name>_noshells.png).
 		if OS.get_environment("AB") == "1":
 			get_tree().call_group("hill_shells", "set_visible", false)
