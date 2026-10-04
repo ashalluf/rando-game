@@ -119,12 +119,15 @@ uniform float cloud_speed = 7.0;
 //
 // The painted band's light is this shader's own (sun_strength and the fill above); this scales
 // its albedo so the band past paint_end comes out as bright as the renderer lights the band
-// before paint_start (measured on Forward+ with paint_debug, HANDOFF 9at).
-uniform float paint_gain : hint_range(0.3, 1.5) = 0.66;
+// before paint_start. Measured on Forward+ under the game's own day light (hill_ground_shot
+// DAYNIGHT=1 PAINT_AB=1, 14:00, the front range from 400 m and 900 m up): at the old 0.66 the
+// painted band drew 0.63-0.73 of the lit one (HANDOFF 9at). It was tuned on opengl3 stills,
+// against a plane whose colours Forward+ was decoding twice.
+uniform float paint_gain : hint_range(0.3, 1.5) = 0.97;
 // The same for the Compatibility renderer alone (the web, the opengl3 stills), on top of
 // paint_gain: it lights the band before paint_start in sRGB numbers and treats EMISSION its own
 // way, so the two bands need their own ratio there (measured the same way, HANDOFF 9at).
-uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.0;
+uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.28;
 // Metres (from the camera) over which the plane hands from lit by the renderer, like the
 // streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
 // edge lit two different ways: at 200 - 600 m the hand-over fell inside it, and from the air the
@@ -191,6 +194,10 @@ uniform float sea_swell = 46.0;
 // its thinnest tufts (bare_between 0.7 of a faded tuft's 0.19).
 const float FAR_CHAP_TONE = 0.806;
 const float FAR_BARE_SHARE = 0.13;
+// And what is left between that estimate and the LOD tiles the plane meets, measured: with the
+// two above alone the plane drew 1.10 of the tiles beside it on both renderers (the tiles' texture
+// light and dark average a little under their means once mipped).
+const float FAR_TONE = 0.91;
 
 varying vec3 world_pos;
 
@@ -452,6 +459,7 @@ void fragment() {
 			nat *= 1.0 - 0.2 * clamp(ero.z, -0.5, 1.0);
 			// And the tiles' hillside-scale variation, so no two slopes are one flat tone.
 			nat *= 1.0 + (hillv - 0.5) * 2.0 * macro_variation + (patchy - 0.5) * macro_variation * 0.6;
+			nat *= FAR_TONE;
 			// Keep some of the baked map's own colour low down, so beaches, the port apron and the
 			// district tints still show through rather than every flat becoming the same gold.
 			float natural_mix = smoothstep(0.004, 0.06, m.a) * 0.88 + 0.12;
