@@ -4358,10 +4358,13 @@ night; kelp only where `ground_detail` is on.
   the stills hold TIME nearly still); judge it on the Mac at the beach.
 - The surf runs wherever there is a shore distance: the headland's cliffs get it too (plausible),
   the harbour basin by the port may show a faint surf line near the bay's north shore.
-- Where the sea plane met the sand they z-fought in a dashed band along every beach (a flat
-  plane over a 3.7 % ramp, centimetres apart for metres). Fixed twice over: the sand falls
-  faster for its last 3.5 m under the water (`CityChunk.SAND_STEEP_*`) and the sea plane dips
-  0.35 m under the sand landward of the waterline (down only - it can never lift water through
-  the beach). A thin line can still show at very grazing angles.
+- The waterline was striped in nested zigzags for most of the session, and it was not
+  z-fighting, though it looked exactly like it: the whitewater read the interpolated surf phase,
+  which was 0 on vertices outside the zone and hundreds of periods inside, and the foam texture
+  projected world positions onto an interpolated shore tangent. Fixed (phase on every vertex,
+  foam on true-world z). Along the way: the sea is held over the ground follower near the shore,
+  the surf is flat for its last 3 m, and the sand falls away under the water - all three were
+  real, smaller problems. A dip of the sea plane under the sand was tried and made a sawtooth;
+  it is not in.
 - The far plane (past ~470 m) still paints its own surf band from the bake; there is no
   breaking surf in the far tier.

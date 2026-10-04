@@ -335,7 +335,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   MultiMesh of quads per FULL shoreline chunk (two per `SPRAY_STEP`: tall spray off the lip and
   low drifting mist), carried by `shaders/surf_spray.gdshader` out to the break point and puffed
   when a wave breaks there; transparent between waves, one draw a chunk, no particles. Stills:
-  the bookmarks in docs/HANDOFF.md 9au; checks: `tests/surf_checks.gd`.
+  the bookmarks in docs/HANDOFF.md 9au; checks: `tests/surf_checks.gd`. **Traps, each found by
+  a striped waterline:** a varying the fragment wraps (`fract(surf_phi)`) must be set on EVERY
+  vertex, never 0 outside the zone; never project world positions (hundreds of metres) onto an
+  interpolated direction (the foam is laid out on true-world z); near the shore the sea is held
+  over the ground follower (y 0, which is drawn as land up to a bake texel out to sea); and the
+  sand under the water falls to `SAND_STEEP_Y` / `SAND_LOW` so no trough meets it.
 - Look (owner, 2026-09-20: "as realistic as possible, like an industry giant made it"). The
   realism settings are deliberate, not defaults: **AgX** filmic tonemapping (not ACES, which
   clips highlights hard), **sky-source ambient** so shadows take the sky's colour instead of a
