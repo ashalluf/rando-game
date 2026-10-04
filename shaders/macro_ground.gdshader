@@ -127,8 +127,9 @@ uniform float cloud_speed = 7.0;
 uniform float paint_gain : hint_range(0.3, 2.0) = 1.42;
 // The same for the Compatibility renderer alone (the web, the opengl3 stills), on top of
 // paint_gain: it lights the band before paint_start in sRGB numbers and treats EMISSION its own
-// way, so the two bands need their own ratio there (measured the same way, HANDOFF 9au).
-uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.05;
+// way, so the two bands need their own ratio there (measured the same way, HANDOFF 9au; there
+// paint_gain is applied before the sRGB curve, so it moves the picture less than this does).
+uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.36;
 // Metres (from the camera) over which the plane hands from lit by the renderer, like the
 // streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
 // edge lit two different ways: at 200 - 600 m the hand-over fell inside it, and from the air the
