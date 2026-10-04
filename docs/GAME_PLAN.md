@@ -296,7 +296,7 @@ already mapped so milestone 2 is script-only.
   stays about where it was. The south face toward the city stays bare: it is steeper than 45
   degrees nearly everywhere, where no graded bank can ever meet the ground; the drives are in the
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
-  walls that follow the ground and pools beside the house. docs/HANDOFF.md 9at.
+  walls that follow the ground and pools beside the house. docs/HANDOFF.md 9au.
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
