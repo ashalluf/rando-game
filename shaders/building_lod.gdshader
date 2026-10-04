@@ -182,8 +182,10 @@ uniform float small_plant_density = 0.45;
 uniform float mast_min_px = 0.75;
 // How bright a lit office and an open shop glow on a coded part: what building.gdshader's traced
 // rooms come to on average (room paint ~0.4 x its lamps ~0.6 x lit_strength 0.8 x 2.0; a shop at
-// x 2.5 in its own tone). Measured against it with tools/glshot/far_building_shot.gd NIGHT=1.
-uniform float lit_room_level = 0.40;
+// x 2.5 in its own tone). Measured against it with tools/glshot/far_building_shot.gd NIGHT=1 at
+// 200 m: at 0.40 the far row came to 1.27x the near one's light on Forward+ and 0.94x on
+// opengl3 (the near rooms light in each renderer's own space); 0.34 favours the Mac.
+uniform float lit_room_level = 0.34;
 uniform float lit_shop_level = 0.18;
 uniform float beacon_energy = 3.0;
 
@@ -288,6 +290,17 @@ vec3 wall_tex_mean(int i) {
 	else if (i == 13) { lin = vec3(0.124, 0.185, 0.075); raw = vec3(0.382, 0.464, 0.293); }
 	else { return vec3(1.0); }
 	return (cs_linear_renderer() ? lin : raw) * gain;
+}
+
+// A shop's frame finish (building.gdshader shop_frame_color() / shop_frame_index(), salt 14;
+// Building.SHOP_FRAME_COLORS): black anodised, dark bronze, clear anodised, white, champagne.
+vec3 shop_frame_far(uint shop) {
+	uint b = wl_hash(shop, 14u) >> 24u;
+	if (b < 77u) return vec3(0.07, 0.07, 0.075);
+	if (b < 141u) return vec3(0.20, 0.15, 0.11);
+	if (b < 205u) return vec3(0.58, 0.59, 0.60);
+	if (b < 230u) return vec3(0.86, 0.86, 0.84);
+	return vec3(0.62, 0.55, 0.43);
 }
 
 // An open shop's light (building.gdshader shop_tone(), the same integer rolls).
@@ -585,6 +598,7 @@ void fragment() {
 			bool reveal = false;
 			bool fascia = false;
 			bool bulkhead = false;
+			bool shop_frame = false;
 			bool g_open = false;
 			bool g_column = false;
 			bool shop_open = true;
@@ -615,6 +629,8 @@ void fragment() {
 				glass = fv > low && fv < 0.74 && abs(fu - 0.5) < 0.44;
 				fascia = fv >= 0.76 && fv < 0.93;
 				bulkhead = fv < low - 0.045 / sf_h && abs(fu - 0.5) < 0.46;
+				// The framing between two bays, the sill and the head, in the shop's frame finish.
+				shop_frame = !glass && !bulkhead && fv < 0.74 + 0.06 / sf_h && fv >= low - 0.045 / sf_h;
 				shop_open = (wl_hash(shop_key, 1u) >> 24u) < 158u;
 				if (tall) {
 					// Building.shop_is_lobby(): the middle unit of a tall tower's face, lit all night.
@@ -627,6 +643,7 @@ void fragment() {
 					shutter = fv < 0.745 && abs(fu - 0.5) < 0.46;
 					glass = glass && !shutter;
 					bulkhead = bulkhead && !shutter;
+					shop_frame = shop_frame && !shutter;
 				}
 				glaze_frac = 0.52;
 			} else if (ws == 0) {
@@ -832,6 +849,9 @@ void fragment() {
 				vec3 base_col = mix(vec3(0.20, 0.19, 0.18), vec3(0.42, 0.34, 0.28), hash21(vec2(shop_seed, 13.7)));
 				cell = mix(base_col, vec3(0.30, 0.33, 0.36), step(0.7, hash21(vec2(shop_seed, 19.3))));
 				rough = 0.6;
+			} else if (shop_frame) {
+				cell = cs_as_uniform(shop_frame_far(shop_key));
+				rough = 0.42;
 			} else if (shutter) {
 				cell = vec3(0.42, 0.42, 0.40);
 				rough = 0.7;

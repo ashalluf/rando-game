@@ -182,7 +182,8 @@ func _shaders_agree() -> void:
 	_t._check(shared and not near.contains("hash31(vec3(floor(col / 3.0), row"), "the near walls and the far boxes light the same offices (window_lights.gdshaderinc, integer rolls)")
 	var scale_ok := far.contains("268435456.0") and is_equal_approx(FarBuilding.CODE_SCALE * 268435456.0, 1.0)
 	var why := ""
-	for pair: Array in [["window_tint_srgb(int i)", Building.WINDOW_TINTS], ["lit_srgb(int i)", Building.LIT_COLORS]]:
+	for pair: Array in [["window_tint_srgb(int i)", Building.WINDOW_TINTS], ["lit_srgb(int i)", Building.LIT_COLORS],
+			["shop_frame_far(uint shop)", Building.SHOP_FRAME_COLORS]]:
 		var got := _colours(far, pair[0])
 		if got != pair[1]:
 			why += " %s" % pair[0]
