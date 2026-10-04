@@ -3392,6 +3392,9 @@ func _add_bench(at: Vector3, yaw: float) -> void:
 	_add_prop("bench", at, Color(0.5, 0.36, 0.22), [
 		["bench", PropFactory.model_bench(), Transform3D(basis, at)],
 	], [[Vector3(1.9, 0.9, 0.7), at + Vector3(0.0, 0.45, 0.0), yaw]])
+	# Its two seats, for the walkers on this chunk to sit on (Pedestrian's life, CrowdLife).
+	if not prop_records.is_empty() and prop_records.back().kind == "bench" and level == Level.FULL:
+		CrowdLife.add_seat(self, at + Vector3(0.0, _gy(at.x, at.z), 0.0), yaw, prop_records.back())
 
 
 ## District clutter on the sidewalk ring: cafe tables downtown, planters on leafy blocks, barrels,

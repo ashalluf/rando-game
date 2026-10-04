@@ -11,7 +11,7 @@ extends Node3D
 ## Measure the crowd's CPU per physics tick (headless is fine, nothing here renders):
 ##   MODE=bench N=100 godot --headless --path . tools/crowd/crowd_lab.tscn
 ##
-## SCENARIO: turn (walk, then an about-turn; side-on camera over a 0.5 m grid, so a sliding
+## SCENARIO: life (people talking, sitting, leaning, on the phone: CrowdLife), turn (walk, then an about-turn; side-on camera over a 0.5 m grid, so a sliding
 ## foot shows against the lines), look (people at the kerb as a car passes, the player walks
 ## by and a shot goes off), crowd (thirty people wandering a block's pavement), start (a
 ## standing person sets off and stops again). STEP (ticks between frames, default 12), FRAMES
@@ -25,6 +25,7 @@ var _ground: StaticBody3D
 var _player: Node3D
 var _car: Node3D
 var _peds: Array = []
+var _props_rows: Array = []
 var _tick: int = 0
 var _tail: Node
 
@@ -154,6 +155,15 @@ func _camera(pos: Vector3, look: Vector3, fov: float = 40.0) -> void:
 	var cam := Camera3D.new()
 	cam.fov = fov
 	add_child(cam)
+	# CAM=x,y,z and LOOK=x,y,z override any scenario's camera (FOV too).
+	if OS.get_environment("CAM") != "":
+		var c := OS.get_environment("CAM").split_floats(",")
+		pos = Vector3(c[0], c[1], c[2])
+	if OS.get_environment("LOOK") != "":
+		var l := OS.get_environment("LOOK").split_floats(",")
+		look = Vector3(l[0], l[1], l[2])
+	if OS.get_environment("FOV") != "":
+		cam.fov = float(OS.get_environment("FOV"))
 	cam.position = pos
 	cam.look_at(look, Vector3.UP)
 	cam.current = true
@@ -194,6 +204,18 @@ func _film() -> void:
 			add_child(_car)
 			_player.position = Vector3(14.0, 0.0, 9.0)
 			_camera(Vector3(0.0, 2.6, 7.5), Vector3(0.0, 1.2, 0.0), 34.0)
+		"props":
+			# One person per carry, standing in a row facing the camera (WALK=1: walking at it).
+			var kinds := [CrowdLife.Carry.CALL, CrowdLife.Carry.TEXT, CrowdLife.Carry.CUP, CrowdLife.Carry.BAG, CrowdLife.Carry.SMOKE]
+			for i in kinds.size():
+				var p := _spawn(rect, Vector2(-2.4 + 1.2 * i, 0.0), 70 + i * 5, (model + i * 2) % Pedestrian.MODELS.size())
+				p.life_spawn_chance = 0.0
+				_props_rows.append([p, kinds[i]])
+			_player.position = Vector3(0.0, 0.0, -10.0)
+			_camera(Vector3(0.0, 1.4, -4.2), Vector3(0.0, 1.0, 0.0), 40.0)
+		"life":
+			_stage_life(rect)
+			_camera(Vector3(0.0, 2.2, -9.0), Vector3(0.0, 1.0, 1.5), 50.0)
 		"crowd":
 			var rng := RandomNumberGenerator.new()
 			rng.seed = 5
@@ -208,6 +230,16 @@ func _film() -> void:
 	# Everyone faces the way they will walk from the first frame.
 	for i in 6:
 		await get_tree().physics_frame
+	for row: Array in _props_rows:
+		var p: Pedestrian = row[0]
+		p._carry = row[1]
+		if OS.get_environment("WALK") == "1":
+			p.set("_visual", p._visual)
+		else:
+			p._visual.rotation.y = 0.0
+			p._start_stand(1000.0)
+			if row[1] == CrowdLife.Carry.SMOKE:
+				p._act = CrowdLife.Act.LEAN
 	var leg := 0
 	for f in frames:
 		for t in step:
@@ -231,6 +263,49 @@ func _film() -> void:
 		var img := get_viewport().get_texture().get_image()
 		img.save_png("%s/f%03d.png" % [out, f])
 	print("crowd_lab: %d frames to %s" % [frames, out])
+
+
+## The life scenario (CrowdLife): a pavement along z = 0 with a shop wall behind it (the ring's
+## inside is +z) and a bench against the wall, and N people (default 8, LIFE_SEED) who all start
+## doing something at once (life_spawn_chance 1): talking, on the phone, sitting, leaning,
+## looking in the window. The camera looks at the wall from the road. TIME_SCALE to fast-forward.
+func _stage_life(rect: Rect2) -> void:
+	var wall := StaticBody3D.new()
+	wall.collision_layer = 1
+	var ws := CollisionShape3D.new()
+	var wb := BoxShape3D.new()
+	wb.size = Vector3(40.0, 4.0, 1.0)
+	ws.shape = wb
+	wall.add_child(ws)
+	var wm := MeshInstance3D.new()
+	var bm := BoxMesh.new()
+	bm.size = wb.size
+	wm.mesh = bm
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.55, 0.5, 0.45)
+	wm.material_override = mat
+	wall.add_child(wm)
+	wall.position = Vector3(0.0, 2.0, 3.5)
+	add_child(wall)
+	for bx in [-4.0, 5.0]:
+		var bench := MeshInstance3D.new()
+		bench.mesh = PropFactory.model_bench()
+		bench.position = Vector3(bx, 0.0, 2.4)
+		add_child(bench)
+		CrowdLife.add_seat(self, bench.position, 0.0, null)
+	var n := int(_env("N", "8"))
+	var seed0 := int(_env("LIFE_SEED", "40"))
+	for i in n:
+		var p := Pedestrian.new()
+		p.setup(rect, 4.0, seed0 + i * 13)
+		p.life_spawn_chance = 1.0
+		p.position = Vector3(-7.0 + 14.0 * float(i) / maxf(n - 1, 1), 0.0, 0.6)
+		add_child(p)
+		_peds.append(p)
+	_player.position = Vector3(0.0, 0.0, -12.0)
+	Engine.time_scale = float(_env("TIME_SCALE", "1"))
+	if _env("DBG", "") != "":
+		add_child(load(_env("DBG", "")).new())
 
 
 ## The look scenario's events, by tick: a car passes close (ticks 0-260), the player walks by
