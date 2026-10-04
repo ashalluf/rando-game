@@ -5490,7 +5490,7 @@ level the far city is mostly hidden: 0.5 % of pixels move.
   boundary on Compatibility; TAA settles it on Forward+).
 - Shadow cost of the LOD ring's roof units: they cast with the rest of the `lod_box` batch; the
   geo_count shadow lines above are what it costs at these three views.
-## 9ba. The industrial district as Los Angeles industry, 2026-10-04 (agent branch `wt/industrial`; VISUAL_ROADMAP #43)
+## 9be. The industrial district as Los Angeles industry, 2026-10-04 (agent branch `wt/industrial`; VISUAL_ROADMAP #47)
 
 The brief: INDUSTRIAL (east of the 110 below z 2300 down to the port, and the Arts District east
 of Vignes) was `Building` WAREHOUSEs - boxes with ribbon windows, offices in all but name - and

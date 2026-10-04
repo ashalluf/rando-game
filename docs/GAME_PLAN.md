@@ -321,7 +321,7 @@ already mapped so milestone 2 is script-only.
   barrier collision was added (the deck's one box per segment is unchanged).
 
 - **2026-10-04 The industrial district is Los Angeles industry, built by Industrial, not Building**
-  (agent branch `wt/industrial`; docs/HANDOFF.md 9ba). A WAREHOUSE lot east of the 110 and east of
+  (agent branch `wt/industrial`; docs/HANDOFF.md 9be). A WAREHOUSE lot east of the 110 and east of
   Vignes is a tilt-up warehouse with docks and a truck court (trailers, tractors, chain-link and
   barbed wire), brick with steel windows and original murals in the Arts District; every block's
   ground is courts, aprons, storage yards and drive strips, some blocks a rail spur with freight

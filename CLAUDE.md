@@ -1278,7 +1278,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (DISTRICTS) or the plaza. Checks: `tests/lot_fill_checks.gd`.
   **Nor is an industrial block** (`Industrial`, `scripts/world/industrial.gd` +
   `IndustrialKit`, `scripts/world/industrial_kit.gd`, 2026-10-04; INDUSTRIAL bare 40 % -> 0 %,
-  docs/HANDOFF.md 9ba). East of the 110 down to the port (Vernon, the Alameda corridor) and east
+  docs/HANDOFF.md 9be). East of the 110 down to the port (Vernon, the Alameda corridor) and east
   of Vignes (the Arts District, `Industrial.arts()`). A lot whose planned Building is a WAREHOUSE
   is built by Industrial instead (`build_lot()`, called by `_build_lot()` once the Building is set
   up; it frees it): a tilt-up concrete warehouse planned in the lot's street frame
