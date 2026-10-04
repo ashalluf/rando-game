@@ -145,6 +145,18 @@ static func _h01(parts: Array) -> float:
 	return float(absi(hash(parts)) % 100003) / 100003.0
 
 
+## True when nothing of the freeway (deck, pillars, ramps) is within a metre of `r`: rail cars,
+## trailers, tanks and the water tower stay out from under the decks (tests/downtown_checks.gd
+## holds every far box to that).
+static func clear_of_freeway(plan: CityPlan, r: Rect2) -> bool:
+	return plan.macro == null or plan.macro.freeway == null or not plan.macro.freeway.blocks_rect(r, 1.0)
+
+
+static func _box_rect(c: Vector2, along: Vector2, length: float, width: float) -> Rect2:
+	var half := Vector2(absf(along.x) * length + absf(along.y) * width, absf(along.y) * length + absf(along.x) * width) * 0.5
+	return Rect2(c - half, half * 2.0)
+
+
 static func _pick(list: Array, parts: Array) -> Variant:
 	return list[absi(hash(parts)) % list.size()]
 
@@ -450,7 +462,8 @@ static func block_plan(plan: CityPlan, bx: int, bz: int, entries: Array) -> Dict
 		var best := 0.0
 		for pc: Array in pieces:
 			var r: Rect2 = pc[0]
-			if pc[1] == "store" and minf(r.size.x, r.size.y) >= 11.5 and r.get_area() > best:
+			if pc[1] == "store" and minf(r.size.x, r.size.y) >= 11.5 and r.get_area() > best \
+					and clear_of_freeway(plan, Rect2(r.get_center() - Vector2(6.0, 6.0), Vector2(12.0, 12.0))):
 				best = r.get_area()
 				tower = r.get_center()
 	return {"pieces": pieces, "spur": sp, "fences": fences, "tower": tower, "inner": inner}
@@ -776,6 +789,8 @@ static func _dock_traffic(ch: CityChunk, lp: Dictionary, u: float) -> void:
 	var out_dir := -(f.n as Vector2)
 	var yaw := yaw_to(out_dir) + (_h01([s, "ind_trl_y", int(u * 10.0)]) - 0.5) * 0.02
 	var paint: Color = _pick(TRAILER_PAINTS, [s, "ind_trl_p", int(u * 10.0)])
+	if not clear_of_freeway(ch.plan, _box_rect(centre, out_dir, length, 2.6)):
+		return
 	ch._batch.add("ind_trailer_%d" % kind, IndustrialKit.trailer(kind), Transform3D(Basis(Vector3.UP, yaw), Vector3(centre.x, CityChunk.SIDEWALK_TOP + LIFT, centre.y)), paint)
 	ch._add_shape(Vector3(2.6, 3.0, length), Vector3(centre.x, CityChunk.SIDEWALK_TOP + ch._gy(centre.x, centre.y) + 2.55, centre.y), yaw)
 	if court - APRON - length > 8.0 and _h01([s, "ind_trc", int(u * 10.0)]) < TRACTOR_ODDS:
@@ -783,6 +798,8 @@ static func _dock_traffic(ch: CityChunk, lp: Dictionary, u: float) -> void:
 		var tl := 7.4 if sleeper else 6.2
 		# Kingpin 1.2 m behind the trailer's nose over the fifth wheel 1.35 m ahead of the tractor's tail.
 		var tc := centre + out_dir * (length * 0.5 - 1.2 + tl * 0.5 - 1.35)
+		if not clear_of_freeway(ch.plan, _box_rect(tc, out_dir, tl, 2.5)):
+			return
 		ch._batch.add("ind_tractor_%s" % sleeper, IndustrialKit.tractor(sleeper), Transform3D(Basis(Vector3.UP, yaw), Vector3(tc.x, CityChunk.SIDEWALK_TOP + LIFT, tc.y)),
 			_pick(TRACTOR_PAINTS, [s, "ind_trc_p", int(u * 10.0)]))
 		ch._add_shape(Vector3(2.5, 2.8, tl), Vector3(tc.x, CityChunk.SIDEWALK_TOP + ch._gy(tc.x, tc.y) + 1.6, tc.y), yaw)
@@ -801,6 +818,8 @@ static func _far_trailers(ch: CityChunk, lp: Dictionary) -> void:
 		var kind := 2 if _h01([s, "ind_trl_k", int(u * 10.0)]) < 0.15 else 0
 		var length := 16.15 if kind != 2 else 12.2
 		var centre := fp(f, u, float(lp.v0) - 0.4 - length * 0.5)
+		if not clear_of_freeway(ch.plan, _box_rect(centre, -(f.n as Vector2), length, 2.6)):
+			continue
 		var sz := Vector3(2.6, 4.0, length) if (f.n as Vector2).y != 0.0 else Vector3(length, 4.0, 2.6)
 		ch._batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(sz), Vector3(centre.x, CityChunk.SIDEWALK_TOP + 2.1, centre.y)),
 			_pick(TRAILER_PAINTS, [s, "ind_trl_p", int(u * 10.0)]) * 0.8, Color(0.0, 0.0, 0.0, 1.0))
@@ -892,7 +911,7 @@ static func _far_yards(ch: CityChunk, bp: Dictionary) -> void:
 		if pc[1] != "store":
 			continue
 		var s := absi(hash([ch.plan.seed, r.position, "ind_dress"]))
-		var tanks := _tank_spots(r, s)
+		var tanks := _tank_spots(ch.plan, r, s)
 		for t: Array in tanks:
 			var p: Vector2 = t[0]
 			var rad: float = t[1]
@@ -902,7 +921,7 @@ static func _far_yards(ch: CityChunk, bp: Dictionary) -> void:
 
 
 ## A storage yard's tanks, when it rolls them: [[centre, radius, height]] (pure).
-static func _tank_spots(r: Rect2, s: int) -> Array:
+static func _tank_spots(plan: CityPlan, r: Rect2, s: int) -> Array:
 	var out: Array = []
 	if minf(r.size.x, r.size.y) < 13.0 or r.get_area() < 260.0 or _h01([s, "tanks"]) >= TANK_ODDS:
 		return out
@@ -914,7 +933,10 @@ static func _tank_spots(r: Rect2, s: int) -> Array:
 	var c := r.get_center()
 	for i in n:
 		var o := (float(i) - float(n - 1) * 0.5) * step
-		out.append([c + (Vector2(o, 0.0) if along_x else Vector2(0.0, o)), rad, th])
+		var p := c + (Vector2(o, 0.0) if along_x else Vector2(0.0, o))
+		if not clear_of_freeway(plan, Rect2(p - Vector2(rad, rad), Vector2(rad, rad) * 2.0)):
+			return []
+		out.append([p, rad, th])
 	return out
 
 
@@ -958,6 +980,9 @@ static func _spur(ch: CityChunk, sp: Dictionary, full: bool) -> void:
 		if pos + cl > length - 2.0:
 			break
 		var mid := p0 + dir * (pos + cl * 0.5)
+		if not clear_of_freeway(ch.plan, _box_rect(mid, dir, cl, 3.2)):
+			# The string of cars stops short of a deck over the spur.
+			break
 		var yaw := yaw_to(dir)
 		var paint: Color = _pick(BOXCAR_PAINTS, [s, "paint", i])
 		if tank:
@@ -1067,7 +1092,7 @@ static func _stalls(ch: CityChunk, r: Rect2, s: int, cars: bool) -> void:
 ## containers and a roll-off.
 static func _store(ch: CityChunk, r: Rect2, s: int, kind: int) -> void:
 	var base := CityChunk.SIDEWALK_TOP + LIFT
-	var tanks := _tank_spots(r, s)
+	var tanks := _tank_spots(ch.plan, r, s)
 	if not tanks.is_empty():
 		var paint: Color = _pick(TANK_PAINTS, [s, "tank_p"])
 		var hull := Rect2()
@@ -1091,7 +1116,7 @@ static func _store(ch: CityChunk, r: Rect2, s: int, kind: int) -> void:
 		return
 	var left := r
 	# A corrugated shed in one end.
-	if minf(r.size.x, r.size.y) >= 7.0 and maxf(r.size.x, r.size.y) >= 12.0 and _h01([s, "shed"]) < SHED_ODDS:
+	if minf(r.size.x, r.size.y) >= 7.0 and maxf(r.size.x, r.size.y) >= 12.0 and _h01([s, "shed"]) < SHED_ODDS and clear_of_freeway(ch.plan, r):
 		var long_x := r.size.x >= r.size.y
 		var sl := minf(maxf(r.size.x, r.size.y) * 0.4, 14.0)
 		var sd := minf(minf(r.size.x, r.size.y) - 1.5, 9.0)
@@ -1105,7 +1130,7 @@ static func _store(ch: CityChunk, r: Rect2, s: int, kind: int) -> void:
 			left = Rect2(r.position.x, r.position.y + sl + 2.0 if at_start else r.position.y, r.size.x, r.size.y - sl - 2.0)
 		_shed(ch, sr, s, long_x)
 	# Containers on gravel or asphalt yards, pallets in rows, drums.
-	if minf(left.size.x, left.size.y) >= 4.0 and _h01([s, "cont"]) < 0.45 and _count(ch, "containers", MAX_CONTAINERS):
+	if minf(left.size.x, left.size.y) >= 4.0 and _h01([s, "cont"]) < 0.45 and clear_of_freeway(ch.plan, left) and _count(ch, "containers", MAX_CONTAINERS):
 		var long_x := left.size.x >= left.size.y
 		if maxf(left.size.x, left.size.y) >= 14.0:
 			var cr := RandomNumberGenerator.new()

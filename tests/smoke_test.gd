@@ -1719,6 +1719,10 @@ func _test_city() -> void:
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
 	load("res://tests/lot_fill_checks.gd").new().run(self, city)
+	# The industrial district (tests/industrial_checks.gd): tilt-up warehouses with docks and
+	# trucks, yards and rail spurs - bare share before and after, the plans, one mesh each, nothing
+	# else in the block moved, the far boxes.
+	load("res://tests/industrial_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

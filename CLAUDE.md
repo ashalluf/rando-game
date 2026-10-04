@@ -1276,6 +1276,43 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `YARD_FILL=0` on `still_shot.gd` and `tools/glshot/block_shot.tscn` (a few FULL blocks alone,
   a minute or two a shot) is the A/B; it does not undo the beach town's lower heights
   (DISTRICTS) or the plaza. Checks: `tests/lot_fill_checks.gd`.
+  **Nor is an industrial block** (`Industrial`, `scripts/world/industrial.gd` +
+  `IndustrialKit`, `scripts/world/industrial_kit.gd`, 2026-10-04; INDUSTRIAL bare 40 % -> 0 %,
+  docs/HANDOFF.md 9ba). East of the 110 down to the port (Vernon, the Alameda corridor) and east
+  of Vignes (the Arts District, `Industrial.arts()`). A lot whose planned Building is a WAREHOUSE
+  is built by Industrial instead (`build_lot()`, called by `_build_lot()` once the Building is set
+  up; it frees it): a tilt-up concrete warehouse planned in the lot's street frame
+  (`lot_plan()`: u along the street, v in from it; `lot_side()` faces it to the street it is
+  deepest from) - panels with joints and reveals, an accent wainscot, a parapet and coping, a
+  membrane roof with skylights and rooftop units, a glazed office corner with a canopy, and where
+  the lot is `COURT_MIN_LOT` deep a TRUCK COURT in front: dock doors every `DOCK_PITCH` with seals,
+  bumpers and dock lights (`lamp_factor` lit, light pools), trailers backed on (`TRAILER_ODDS`, a
+  tractor on some), a concrete apron, stall stripes, chain-link with barbed wire and an open gate
+  along the street; a shallow lot gets grade-level roll-up doors. In the Arts District 80 % are
+  BRICK (steel multi-pane windows, lit lofts at night, no court: they stand at the back of the
+  pavement) and street-facing walls carry MURALS (`MURAL_ARTS`; invented in the shader, abstract:
+  never an artist's work, lettering or a brand); the Building lots there get brick finishes. Any
+  other lot keeps its Building. `block_step()` (after YardFill's) lays the block's ground from
+  `block_plan()`: every lot cell less its building is a court, apron, storage yard, drive strip or
+  setback (`G_*`: cracked asphalt with weeds, concrete, gravel, dirt, weeds), some blocks get a RAIL
+  SPUR between their two rows of lots (`spur()`: ballast and ties, rails, bumper stops, boxcars and
+  tank cars, rail doors on the warehouses backing onto it), storage yards hold pallets, drums,
+  bins, PortKit containers, a corrugated shed or storage tanks in a containment wall, now and then
+  a water tower. Nothing of it stands under a freeway (`clear_of_freeway()`; downtown_checks holds
+  every far box to that). **Plans are pure** (`lot_plan()`, `block_plan()`, `block_entries()`:
+  GroundCoverage asks the same question, `FILL=yard` on `tools/lot_coverage.gd` is the before);
+  every roll is a hash of seed + lot / block, never a chunk, block or Building rng. A FULL chunk
+  is ONE ground mesh (`IndustrialGround`, `shaders/industrial_ground.gdshader`, kind in COLOR.r,
+  no shadow) and ONE upright mesh (`IndustrialWalls`, `shaders/industrial_walls.gdshader`, kind
+  in COLOR.a in 32nds, paint in COLOR.rgb as written, UV metres in the face's frame, UV2 = height,
+  a per-box parameter) plus a batch per prop (`ind_trailer_*`, `ind_tractor_*`, `ind_boxcar`,
+  `ind_tank_car`, pallets, drums, bins, tanks, the water tower: IndustrialKit meshes on the same
+  material, box shadow twins). LOD chunks and the far city get the warehouses, trailers, rail
+  cars, tanks and the tower as plain `lod_box`es and the yards as ground slabs. The warehouses are
+  in `StreetDetail._footprints()` (encampments and service drops see their walls) and the
+  occluder. Both shaders work in display numbers (`disp()` / `to_lit()`, like YardFill's). A/B:
+  `INDUSTRIAL=0` on `still_shot.gd`, `block_shot.tscn` and `tools/geo_count.gd`; build times:
+  `tools/industrial_bench/industrial_bench.tscn`; checks: `tests/industrial_checks.gd`.
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
