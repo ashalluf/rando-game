@@ -18,7 +18,8 @@ extends Node
 ## tiles and the far ground can be judged without the city (small enough for lavapipe), HILLS_ONLY=1
 ## builds only the hill blocks of the ring, PAINT_AB=1 saves each frame again with the plane all lit
 ## and all painted (_lit, _painted: its paint_gain), MASKS=1 saves it again without the plane and
-## without the chunks (_noground, _nochunks: which pixel is which tier), NOSHELLS=1 hides
+## without the chunks (_noground, _nochunks: which pixel is which tier), NOFOG=1 turns the scene's
+## fog off (DayNight is not here to set it), NOSHELLS=1 hides
 ## the hill shells, AB=1 saves every frame again without them (<name>_noshells.png), DEBUG_SEQ=1,3
 ## saves it again in those shell debug modes (<name>_dbgN.png), GEO=1 prints each frame's
 ## triangles and draws, SHELL_DEBUG=1 draws
@@ -45,6 +46,13 @@ func _ready() -> void:
 			city.remove_child(n)
 			n.owner = null
 			add_child(n)
+	# NOFOG=1: no distance or volumetric fog (DayNight is not here to set them, and the scene's own
+	# values haze a measurement of the ground's colours).
+	var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
+	if we and we.environment and OS.get_environment("NOFOG") == "1":
+		we.environment = we.environment.duplicate()
+		we.environment.fog_enabled = false
+		we.environment.volumetric_fog_enabled = false
 	var sun := get_node_or_null("Sun") as DirectionalLight3D
 	var sun_env := OS.get_environment("SUN")
 	# The streamer turns the sun in its _ready (the scene's own rotation is level, shining north,
