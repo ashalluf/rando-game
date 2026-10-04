@@ -180,6 +180,7 @@ uniform float small_plant_density = 0.45;
 // A mast is drawn at least this many pixels wide (its true width is a fifth of one a kilometre
 // out), and its aviation beacon glows this bright after dark (the near one is an unshaded red).
 uniform float mast_min_px = 0.75;
+uniform float mast_max_width = 3.0;
 // How bright a lit office and an open shop glow on a coded part: what building.gdshader's traced
 // rooms come to on average (room paint ~0.4 x its lamps ~0.6 x lit_strength 0.8 x 2.0; a shop at
 // x 2.5 in its own tone). Measured against it with tools/glshot/far_building_shot.gd NIGHT=1 at
@@ -386,8 +387,12 @@ void vertex() {
 		// in a perspective view: the shadow maps keep its real width.
 		if (INSTANCE_CUSTOM.a > 3.5 && INSTANCE_CUSTOM.r > 0.5 && INSTANCE_CUSTOM.r < 2.5 && PROJECTION_MATRIX[3][3] < 0.5) {
 			float d = length(MODEL_MATRIX[3].xyz - INV_VIEW_MATRIX[3].xyz);
-			float mpp = 2.0 * d / max(PROJECTION_MATRIX[1][1] * VIEWPORT_SIZE.y, 1.0);
-			float w = mast_min_px * mpp;
+			// VIEWPORT_SIZE reads 0 in the vertex stage here (a first version divided by it and drew
+			// every mast in the city a kilometre and a half wide): a 1080-line screen when it is not
+			// there, and never more than `mast_max_width` whatever it says.
+			float vh = VIEWPORT_SIZE.y > 16.0 ? VIEWPORT_SIZE.y : 1080.0;
+			float mpp = 2.0 * d / max(PROJECTION_MATRIX[1][1] * vh, 1.0);
+			float w = min(mast_min_px * mpp, mast_max_width);
 			v_local.xz *= vec2(max(box_size.x, w) / max(box_size.x, 1e-4), max(box_size.z, w) / max(box_size.z, 1e-4));
 		}
 		world = (MODEL_MATRIX * vec4(v_local, 1.0)).xyz;
