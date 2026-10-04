@@ -119,16 +119,18 @@ void fragment() {
 		}
 		albedo *= 1.0 - 0.18 * foot;
 	} else if (kind < 4.5) {
-		// A clipped hedge: dense leaves with dark gaps between them, lumpy where the shears
+		// A clipped hedge: small leaves with dark gaps between them, faint lumps where the shears
 		// missed, the normal jittered leaf by leaf so the face breaks up in the light, the sheared
-		// top a little lighter.
-		float lumps = vnoise(uv * 1.6) * 0.5 + vnoise(uv * 4.3) * 0.3 + vnoise(uv * 11.0) * 0.2;
-		float leaves = vnoise(uv * 23.0);
-		float gaps = smoothstep(0.42, 0.18, leaves) * smoothstep(0.08, 0.02, fwidth(uv.x) * 4.0);
-		vec3 g = texture(grass_tex, uv / 0.9).rgb;
-		albedo = paint * (0.45 + 0.85 * g) * (0.5 + 0.8 * lumps) * (1.0 - 0.65 * gaps) * (top ? 1.12 : 1.0);
-		vec3 jitter = vec3(vnoise(uv * 9.0 + 3.1), vnoise(uv * 9.0 + 7.7), vnoise(uv * 9.0 + 1.3)) - 0.5;
-		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(world_n + jitter * 0.9), 0.0)).xyz);
+		// top a little lighter. (Kept fine and low in contrast: at 60 cm the lumps read as
+		// camouflage paint.)
+		float lumps = vnoise(uv * 2.1) * 0.6 + vnoise(uv * 5.3) * 0.4;
+		float leaves = vnoise(uv * 31.0) * 0.6 + vnoise(uv * 67.0) * 0.4;
+		float px = smoothstep(0.06, 0.015, fwidth(uv.x) * 4.0);
+		float gaps = smoothstep(0.42, 0.22, leaves) * px;
+		float g = dot(texture(grass_tex, uv / 0.35).rgb, vec3(0.33));
+		albedo = paint * (0.7 + 0.6 * g) * (0.82 + 0.3 * lumps) * (1.0 - 0.45 * gaps) * (top ? 1.1 : 1.0);
+		vec3 jitter = vec3(vnoise(uv * 27.0 + 3.1), vnoise(uv * 27.0 + 7.7), vnoise(uv * 27.0 + 1.3)) - 0.5;
+		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(world_n + jitter * 0.7 * px), 0.0)).xyz);
 		rough = 0.92;
 		wet_k = 0.3;
 	} else if (kind < 5.5) {

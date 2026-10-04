@@ -4212,7 +4212,22 @@ a branch lost to a container restart. Measured with `tools/lot_coverage.gd`, whi
 neither. Replica blocks (the Esplanade's: ReplicaBuilder builds them) are left out now; the
 campus hall's footprint counts as built.
 
-COVERAGE_TABLE
+Whole basin, seed 1337 (`RECT=-3000,-3000,8000,8000`), bare share of the blocks' ground inside
+the pavement ring:
+
+| Row | bare before (`FILL=lot`) | bare after (`FILL=1`) | what covers it after |
+|---|---|---|---|
+| Beach town (71 seeded blocks) | 56.0 % | 3.7 % | built 38.3, garden 47.5, parking 3.6, row 4.1, yard 2.9 |
+| Campus (6 blocks) | 74.3 % | 1.2 % | built 25.7 (incl. the hall), garden 61.2, parking 12.0 |
+| Freeway blocks (166, any district) | 17.7 % | 6.3 % | row 46.7; what is left is suburban lawn and industrial yard beside the right of way |
+| The right of way's own cells (ROW_CELLS) | 23.1 % | 0.0 % | row 100 |
+| MacArthur SE (the plaza, 1 block) | 96.7 % | 7.0 % | built 35.8, forecourt 44.9, yard 12.2 |
+| Downtown core / rest / midtown (LotFill's) | 2.2 / 2.4 / 5.0 % | 1.2 / 1.5 / 3.5 % | the right of way through them |
+
+The old tool on the base commit gave the beach town 62.5 % over 106 blocks (35 of them the
+Esplanade replica's, which ReplicaBuilder builds) and the campus 93.1 % (the hall's own ground
+counted as bare). Suburbs (82.5 %, the plain block lawn) and industrial (39.7 %) were not in the
+brief and are as they were apart from the right of way.
 
 **What it does** (`YardFill`, `scripts/world/yard_fill.gd`; the rules are the CLAUDE.md bullet
 after LotFill's):
@@ -4270,4 +4285,21 @@ after LotFill's):
 - `as Array[Rect2]` on an array literal is not a safe way to make a typed argument; a typed local
   is (`_less()`, `_defer1()`).
 
-**Not done / not verified.** NOTDONE
+**Not done / not verified.** Looked at in opengl3 stills only (city `still_shot.gd`, `tools/glshot/block_shot.tscn`): the
+walls, hedges, tile, decks, ivy and dirt on the Mac's Forward+ are not judged (the paint goes in
+linear there, `PropFactory.has_reflections()`; the hedge's leaf normals and the concrete and
+brick normal maps only show in real light).
+- PLAZA blocks elsewhere (`_build_plaza` / `_furnish_plaza`) still read as big squares of paving
+  from the air - the beach town has several; only the one beside MacArthur Park was turned into
+  buildings. The suburbs (the plain block lawn, 82.5 % "bare" by the probe) and the industrial
+  yards (39.7 %) were not in the brief.
+- Sound walls run along the lot cells' edges (axis-aligned, stepping where the deck runs on a
+  diagonal), not parallel to the deck; the ground is flat (no ivy berms, no embankment slopes).
+  In the base stills the elevated deck's underside does not seem to draw from below (cars over a
+  street look as if they float) - seen, not investigated, not touched.
+- The beach houses are still `Building` boxes with flat roofs and the storefront band; no pitched
+  roofs, garage doors where the drives end, porches or mailboxes. Pools are rare (3 in 735 lots:
+  the back yards are shallow, as real beach-town lots are).
+- Nobody walks the walk streets (the block's walkers keep to its pavement ring).
+- The far tiers get the lawns and the ivy only; from 200 m up a beach-town block is pale
+  concrete and paving between the roofs, which is roughly true.
