@@ -570,10 +570,14 @@ void fragment() {
 				row = floor(vv / floor_hp);
 				fv = fract(vv / floor_hp);
 			}
-			// A window frame's least width in metres: about 0.8 px while a bay is several pixels
-			// (the near walls' real frame quads read as a full line there), its painted width once
-			// the cells are going to their average anyway.
-			float frame_px = mpp * 0.6 * (1.0 - smoothstep(0.3, 0.8, mpp));
+			// A ribbon's mullions and a curtain wall's mullions and transoms, as COVERAGE, antialiased:
+			// at least a pixel wide while a bay is several pixels (the near walls' real frame quads
+			// read as a full line on every bay there), their painted width with distance, never a
+			// fifth of a pixel of paint that hits one bay in three and sparkles.
+			float frame_px = mpp * (1.0 - smoothstep(0.3, 0.8, mpp));
+			float frame_cov = 0.0;
+			// The frames' share of a cell at their painted width, for the cell's average.
+			float frame_share = 0.0;
 			bool glass = false;
 			bool frame = false;
 			bool spandrel = false;
@@ -630,16 +634,24 @@ void fragment() {
 				glaze_frac = 0.27;
 			} else if (ws == 1) {
 				glass = abs(fv - 0.55) < 0.27;
-				frame = glass && abs(fu - 0.5) > 0.5 - max(0.03, frame_px / pitch * 0.5);
-				glass = glass && !frame;
+				// The mullion between two bays of the band (building.gdshader: 0.03 of a bay each side).
+				float du = min(fu, 1.0 - fu) * pitch;
+				frame_cov = glass ? clamp((max(0.03 * pitch, 0.5 * frame_px) - du) / max(mpp, 1e-4) + 0.5, 0.0, 1.0) : 0.0;
+				frame_share = 0.06 * 0.54;
 				glaze_frac = 0.51;
 			} else if (ws == 2) {
 				// The curtain wall: vision glass between thin transoms, the spandrel panel over
-				// each slab edge, a mullion every bay.
-				float fw_v = max(0.0125, frame_px / floor_hp * 0.5);
-				frame = fu < max(0.05, frame_px / pitch) || abs(fv - 0.08) < fw_v || abs(fv - 0.93) < fw_v;
-				spandrel = !frame && (fv < 0.0675 || fv > 0.9425);
-				glass = !frame && !spandrel;
+				// each slab edge, a mullion every bay (building.gdshader: fu < 0.05, transoms 0.025
+				// of a storey at 0.08 and 0.93).
+				float fu_c = fract(fu - 0.025 + 1.0);
+				float du = min(fu_c, 1.0 - fu_c) * pitch;
+				float dv = min(abs(fv - 0.08), abs(fv - 0.93)) * floor_hp;
+				float cov_u = clamp((max(0.025 * pitch, 0.5 * frame_px) - du) / max(mpp, 1e-4) + 0.5, 0.0, 1.0);
+				float cov_v = clamp((max(0.0125 * floor_hp, 0.5 * frame_px) - dv) / max(mpp, 1e-4) + 0.5, 0.0, 1.0);
+				frame_cov = max(cov_u, cov_v);
+				frame_share = 0.10;
+				spandrel = fv < 0.0675 || fv > 0.9425;
+				glass = !spandrel;
 				glaze_frac = 0.78;
 			} else {
 				glass = abs(fu - 0.5) < 0.16 && abs(fv - 0.5) < 0.40;
@@ -786,9 +798,6 @@ void fragment() {
 					cell = mix(cell, cell * 0.35, on);
 					e_cell += light * on;
 				}
-			} else if (frame) {
-				cell = ws == 2 ? frame_c : accent;
-				rough = 0.6;
 			} else if (spandrel) {
 				float pale = spandrel_pale(sd) ? 1.0 : 0.0;
 				cell = mix(c * 0.62 + vec3(0.012), c * 1.02 + vec3(0.075), pale);
@@ -820,12 +829,18 @@ void fragment() {
 				cell = vec3(0.42, 0.42, 0.40);
 				rough = 0.7;
 			}
+			// The frames over whatever they stand in front of.
+			vec3 frame_col = ws == 2 ? frame_c : accent;
+			if (frame_cov > 0.0 && !plinth && !parapet_band && !pier) {
+				cell = mix(cell, frame_col, frame_cov);
+				e_cell *= 1.0 - frame_cov;
+			}
 			// Past a few pixels a cell is its own average: the glazing share of the glass over
 			// the wall round it, and of the light - a storey's share of its lit offices, not
 			// whichever one the pixel's centre landed on. This is the mipmap the grid lacks.
 			if (!plinth && !parapet_band && !pier) {
 				vec3 mean_glass = parking ? c * 0.08 : glass_col;
-				vec3 mean_cell = mix(wall, mean_glass, glaze_frac);
+				vec3 mean_cell = mix(mix(wall, mean_glass, glaze_frac), frame_col, frame_share);
 				albedo = mix(mean_cell, cell, mix(0.25, 1.0, band_fade));
 				vec3 e_mean;
 				if (parking) {
