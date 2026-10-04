@@ -460,6 +460,7 @@ func _finish_build() -> void:
 	_add_shop_spill()
 	LotFill.commit(self)
 	YardFill.commit(self)
+	HouseKit.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	_mm_nodes = _batch.build(self)
@@ -2475,6 +2476,12 @@ func _lot_steps(_rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 		_yard_corridor.clear()]
 	for lot in plan.lots(ix, iz):
 		steps.append(_build_lot.bind(lot, params, rng))
+	# The cells the lot grid's gap roll left too small for a lot: a house of their own in the
+	# suburbs and the beach town (HouseKit.extra_lots(); hash-seeded, after every rolled lot).
+	var district: int = plan.block(ix, iz).district
+	if HouseKit.wanted(self, district):
+		for lot: Dictionary in HouseKit.extra_lots(plan, ix, iz):
+			steps.append(_build_house.bind(lot, district))
 	return steps
 
 
@@ -2504,6 +2511,12 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		return
 	if pad:
 		Commercial.build_pad(self, lot, rng)
+		return
+	# The suburbs' and the beach town's houses (HouseKit: real houses, planned purely from the lot).
+	if HouseKit.wanted(self, district):
+		# The lawn's blades and the street trees keep off the house, not the whole lot.
+		_lot_rects.pop_back()
+		_build_house(lot, district)
 		return
 	var building := BUILDING_SCENE.instantiate() as Building
 	building.seed = lot.seed
@@ -2593,6 +2606,17 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 			YardFill.record_lot(self, lot, building)
 		building.free()
 		building_count += 1
+
+
+## One house (HouseKit) on a lot of the plan's, or on a cell the lot grid left empty.
+func _build_house(lot: Dictionary, district: int) -> void:
+	var house := HouseKit.plan_house(plan, ix, iz, lot, district)
+	for r: Rect2 in HouseKit.ground_parts(house):
+		_lot_rects.append(r.grow(0.3))
+	HouseKit.build(self, house)
+	building_count += 1
+	if YardFill.wanted(self, district):
+		_yard_lots.append(HouseKit.yard_entry(lot, house))
 
 
 ## A skipped inner lot becomes a pocket garden: lawn, a few trees and shrubs, a bench.

@@ -1721,6 +1721,9 @@ func _test_city() -> void:
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
 	load("res://tests/lot_fill_checks.gd").new().run(self, city)
+	# The suburbs' and the beach town's houses (tests/house_checks.gd): pure plans inside their
+	# yards, the drive ending at the garage door, one mesh per material, roof slabs for the far city.
+	load("res://tests/house_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -135,6 +135,12 @@ func _beach_plan(plan: CityPlan) -> void:
 			for lot: Dictionary in plan.lots(bx, bz):
 				if lot.yard or YardFill.is_corridor(plan, lot):
 					continue
+				# The beach town's houses are HouseKit's (tests/house_checks.gd has the rest of them).
+				if HouseKit.enabled:
+					var hp := HouseKit.plan_house(plan, bx, bz, lot, CityPlan.District.BEACHTOWN)
+					heights.append(float(hp.height))
+					entries.append(HouseKit.yard_entry(lot, hp))
+					continue
 				var bld: Building = scene.instantiate()
 				bld.seed = lot.seed
 				bld.lot_size = lot.size

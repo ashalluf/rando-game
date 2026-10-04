@@ -321,6 +321,21 @@ already mapped so milestone 2 is script-only.
   (`window_lights.gdshaderinc`). The near roofs and office lights got a new random arrangement
   once. Per-block dissolve unchanged; draws unchanged (no new MultiMesh). docs/HANDOFF.md 9bd,
   CLAUDE.md "Far buildings are coded copies of the near ones".
+- **2026-10-04 Real houses in the suburbs and the beach town (VISUAL_ROADMAP #47).** (owner: "make
+  the graphics a million times better"; agent branch `wt/houses`, docs/HANDOFF.md 9be.) Every house
+  lot there was a flat-roofed `Building` box with a storefront band. `HouseKit` plans a Los Angeles
+  house per lot and `HouseBuild` builds it in code, ReplicaHouses-style (walls cut round openings,
+  reveals, framed glass, garage doors, porches, chimneys, clay or shingle roofs, vents, solar).
+  Decisions: **six types** - ranch, Spanish revival, craftsman bungalow, mid-century, two-storey
+  stucco box, and the beach town's dingbat - with their own odds per district; **the plan is pure**
+  (seed + lot hashes), so the yard, the coverage probe and the tests see the very house the chunk
+  builds; **the yard follows the house** (YardFill's driveway ends at the garage door, the walk at
+  the porch); **the suburbs get YardFill too**, with the block's lawn as the lawn; **empty cells of
+  the lot grid get houses** (`HouseKit.extra_lots()`: the suburbs were two cells in five of bare
+  lawn); **one mesh per material per chunk**; the far tiers get a box per wing plus tilted roof
+  slabs in the same `lod_box` batch (no Skyline code). Suburbs bare 82.5 % -> 4.6 %.
+  `HouseKit.enabled` / `HOUSES=0` is the A/B.
+
 - **2026-10-04 The freeways read like the 110 / 101 / 10 (VISUAL_ROADMAP #43).** (owner: "make
   the graphics a million times better"; agent branch `wt/freeway-kit`, docs/HANDOFF.md 9ba.)
   `FreewayKit` builds every deck segment: a box girder, New Jersey barriers at the edges and down

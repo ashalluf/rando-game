@@ -185,7 +185,11 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 	var corridor: Array = []
 	if as_plaza:
 		_plaza(box, brect)
-	for lot: Dictionary in ([] if as_plaza else plan.lots(bx, bz)):
+	var all_lots: Array = [] if as_plaza else plan.lots(bx, bz)
+	# The cells the lot grid left empty hold a house of their own since the house pass.
+	if fill >= 2 and not as_plaza and HouseKit.enabled and district in HouseKit.DISTRICTS:
+		all_lots.append_array(HouseKit.extra_lots(plan, bx, bz))
+	for lot: Dictionary in all_lots:
 		var size: Vector2 = lot.size
 		var lot_rect := Rect2((lot.center as Vector2) - size * 0.5, size)
 		var cell: Rect2 = lot.get("cell", lot_rect)
@@ -204,6 +208,22 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 			continue
 		if filled and lot.get("parking", false):
 			_paint(box, cell, PARKING)
+			continue
+		# A house of the suburbs or the beach town (HouseKit, the same pure plan the chunk builds).
+		if fill >= 2 and HouseKit.enabled and district in HouseKit.DISTRICTS:
+			var house := HouseKit.plan_house(plan, bx, bz, lot, district)
+			var hground := 0.0
+			for r: Rect2 in HouseKit.ground_parts(house):
+				_paint(box, r, BUILT)
+				hground += r.size.x * r.size.y
+			out.lot_built += minf(hground, size.x * size.y)
+			if yards:
+				entries.append(HouseKit.yard_entry(lot, house))
+			var hk: String = row + " house_" + HouseKit.STYLE_NAMES[int(house.style)]
+			if not out.shapes.has(hk):
+				out.shapes[hk] = [0, 0.0]
+			out.shapes[hk][0] += 1
+			out.shapes[hk][1] += minf(hground / (size.x * size.y), 1.0)
 			continue
 		var bld: Building = building_scene.instantiate()
 		bld.seed = lot.seed
@@ -251,7 +271,7 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 		for cell: Rect2 in plan.dropped_cells(bx, bz):
 			for piece: Rect2 in LotFill._minus(cell, holes, 0.0):
 				_paint(box, piece, FORECOURT)
-	if yards and district == CityPlan.District.BEACHTOWN:
+	if yards and (district == CityPlan.District.BEACHTOWN or district == CityPlan.District.SUBURBS):
 		var bp := YardFill.beach_block(plan, bx, bz, entries)
 		for lp: Dictionary in bp.lots:
 			for pc: Array in lp.pieces:
