@@ -105,23 +105,27 @@ void fragment() {
 		vec3 a = disp(texture(asphalt_tex, p / 4.0).rgb);
 		float age = fbm(p * 0.05 + 3.0);
 		albedo = a * mix(0.68, 0.86, age) * vec3(1.0, 0.995, 0.98);
-		float patch_n = fbm(floor(p / 0.5) * 0.5 * 0.09 + variant * 17.0);
-		float patch_ = smoothstep(0.66, 0.67, patch_n);
+		float patch_n = fbm(p * 0.045 + variant * 17.0);
+		float patch_ = smoothstep(0.655, 0.675, patch_n);
 		float failed = smoothstep(0.52, 0.66, fbm(p * 0.06 + 11.0 + variant * 5.0)) * (1.0 - patch_);
+		// The pixel's footprint on the ground: the LONGER axis, since a grazing view stretches it.
+		float foot = length(vec2(length(dFdx(p)), length(dFdy(p))));
 		float cd = crack_dist(p + vec2(vnoise(p * 0.8), vnoise(p * 0.8 + 3.0)) * 0.5, 0.9);
 		float crack_w = mix(0.006, 0.022, smoothstep(0.5, 0.9, vnoise(p * 0.3 + 9.0)));
-		float fade = 1.0 - smoothstep(0.015, 0.06, px);
-		float crack = (1.0 - smoothstep(crack_w, crack_w + px, cd)) * fade * failed;
-		// A few long cracks across the rest: a coarse network, hairline.
+		// A crack thinner than a pixel aliases into stripes at a grazing angle: past that it fades
+		// to the tone it averages to (a few percent darker where the asphalt has failed).
+		float fade = 1.0 - smoothstep(0.006, 0.025, foot);
+		float crack = (1.0 - smoothstep(crack_w, crack_w + foot, cd)) * fade * failed;
 		float cd2 = crack_dist(p * vec2(1.0, 0.35), 7.0);
-		crack = max(crack, (1.0 - smoothstep(0.008, 0.008 + px, cd2)) * fade * 0.7 * (1.0 - patch_));
+		crack = max(crack, (1.0 - smoothstep(0.008, 0.008 + foot, cd2)) * fade * 0.7 * (1.0 - patch_));
 		albedo *= 1.0 - 0.55 * crack;
+		albedo *= 1.0 - 0.06 * failed * (1.0 - fade);
 		float tuft = smoothstep(0.45, 0.8, vnoise(p * 4.0)) * (1.0 - smoothstep(crack_w + 0.03, crack_w + 0.12, cd)) * failed;
-		albedo = mix(albedo, weed * (0.6 + 0.7 * vnoise(p * 17.0)), tuft * 0.75);
+		albedo = mix(albedo, weed * (0.6 + 0.7 * vnoise(p * 17.0)), tuft * mix(0.35, 0.75, fade));
 		albedo = mix(albedo, a * 0.55, patch_ * 0.85);
 		float oil = smoothstep(0.64, 0.8, fbm(p * 0.3 + 21.0));
 		albedo *= 1.0 - 0.3 * oil;
-		rough = mix(0.9, 0.6, oil);
+		rough = mix(0.9, 0.78, oil);
 	} else if (kind < 1.5) {
 		// Concrete apron: 4.5 m slabs with saw joints, darker drips under the trailers' doors,
 		// rust rings from the landing gear, cracks across a few slabs.
@@ -134,7 +138,8 @@ void fragment() {
 		float stain = smoothstep(0.55, 0.85, fbm(p * 0.3 + 7.0));
 		albedo *= 1.0 - 0.3 * stain;
 		float cd = crack_dist(p, 3.0);
-		float crack = (1.0 - smoothstep(0.008, 0.008 + px, cd)) * step(0.7, hash12(slab + 3.1)) * (1.0 - smoothstep(0.02, 0.08, px));
+		float foot = length(vec2(length(dFdx(p)), length(dFdy(p))));
+		float crack = (1.0 - smoothstep(0.008, 0.008 + foot, cd)) * step(0.7, hash12(slab + 3.1)) * (1.0 - smoothstep(0.006, 0.025, foot));
 		albedo *= 1.0 - 0.4 * crack;
 		rough = 0.85;
 	} else if (kind < 2.5) {

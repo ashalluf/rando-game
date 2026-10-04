@@ -29,7 +29,7 @@ extends RefCounted
 ## or the block rng), so nothing else in the city moves; every plan is PURE (lot_plan(),
 ## block_plan(): the plan, the block, each lot and its planned building), which is how
 ## GroundCoverage asks the chunk's own question. A FULL chunk's industrial geometry is TWO meshes
-## (the ground on shaders/industrial_ground.gdshader, its stall paint lifted in it; everything
+## (the ground on shaders/industrial_ground.gdshader, no shadow, its stall paint lifted in it; everything
 ## upright on shaders/industrial_walls.gdshader, every prop - trailers, tractors, rail cars,
 ## pallets, drums, bins, tanks, the water tower - written into it by IndustrialKit.place()) and one
 ## shadowless batch of light pools; containers are PortKit's batch. LOD
@@ -1265,7 +1265,7 @@ static func ground_material() -> ShaderMaterial:
 	return mat
 
 
-## The FULL chunk's industrial ground (one mesh), its paint (in the same mesh, lifted)
+## The FULL chunk's industrial ground (one mesh, no shadow), its paint (in the same mesh, lifted)
 ## and its upright geometry (one mesh, casting). After the batches are added, before they build.
 static func commit(ch: CityChunk) -> void:
 	if ch._ind.is_empty():
@@ -1283,8 +1283,7 @@ static func commit(ch: CityChunk) -> void:
 		mi.name = "IndustrialGround"
 		mi.mesh = st.commit()
 		mi.material_override = ground_material()
-		# It casts (into its own shadow, as any ground does): left out of the shadow map, it took the
-		# shadow of the pavement slab 5 cm under it, and a low sun striped the courts with acne.
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ch.add_child(mi)
 	if ch._ind.walls != null:
 		var st: SurfaceTool = ch._ind.walls
@@ -1303,11 +1302,12 @@ static func commit(ch: CityChunk) -> void:
 static func _ground_rect(st: SurfaceTool, ch: CityChunk, r: Rect2, top: float, kind: int, variant: float, skirt: bool, blue: float = 0.0) -> void:
 	if r.size.x < 0.05 or r.size.y < 0.05:
 		return
-	var nx := 1
-	var nz := 1
-	if not LotFill._planar(ch, r):
-		nx = clampi(ceili(r.size.x / 4.0), 1, 32)
-		nz = clampi(ceili(r.size.y / 4.0), 1, 32)
+	# Never one quad for a whole court: on the Compatibility renderer every lamp is an additive pass
+	# that must land on the same depth, and a 60 m triangle clipped at the near plane does not - the
+	# lamp-lit part of a court was striped at night. 8 m cells, 4 m where the relief bends.
+	var step := 8.0 if LotFill._planar(ch, r) else 4.0
+	var nx := clampi(ceili(r.size.x / step), 1, 32)
+	var nz := clampi(ceili(r.size.y / step), 1, 32)
 	var col := Color(float(kind) / 16.0 + 0.5 / 16.0, variant, blue, 1.0)
 	var pts := PackedVector3Array()
 	pts.resize((nx + 1) * (nz + 1))

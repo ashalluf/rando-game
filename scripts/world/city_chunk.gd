@@ -3341,7 +3341,10 @@ func _add_lamp(at: Vector3) -> void:
 	# X and Z, so the size goes in x and z and the 1.0 goes in y (the normal). Written the
 	# obvious way round, (SIZE, SIZE, 1.0), the second SIZE was spent on the normal of an
 	# unshaded shader and every lamp in the city threw a 13 x 1 m bar instead of a 13 m disc.
-	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LAMP_POOL_SIZE, 1.0, LAMP_POOL_SIZE)), at + Vector3(0.0, 0.05, 0.0))
+	# 9 cm up: at 5 cm it lay exactly on the yard ground beside the pavement (YardFill's and
+	# Industrial's, both 5 cm over it) and z-fought it in stripes at night. Additive and drawing
+	# no depth, it looks the same wherever it lies.
+	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LAMP_POOL_SIZE, 1.0, LAMP_POOL_SIZE)), at + Vector3(0.0, 0.09, 0.0))
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
 		["lamp_pool", PropFactory.light_pool(), pool],

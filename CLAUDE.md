@@ -1302,8 +1302,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   every far box to that). **Plans are pure** (`lot_plan()`, `block_plan()`, `block_entries()`:
   GroundCoverage asks the same question, `FILL=yard` on `tools/lot_coverage.gd` is the before);
   every roll is a hash of seed + lot / block, never a chunk, block or Building rng. A FULL chunk
-  is ONE ground mesh (`IndustrialGround`, `shaders/industrial_ground.gdshader`, kind in COLOR.r;
-  it casts - out of the shadow map it took the 5 cm lower pavement slab's shadow as acne) and ONE
+  is ONE ground mesh (`IndustrialGround`, `shaders/industrial_ground.gdshader`, kind in COLOR.r,
+  no shadow) and ONE
   upright mesh (`IndustrialWalls`, `shaders/industrial_walls.gdshader`, kind in COLOR.a in 32nds,
   paint in COLOR.rgb as written, UV metres in the face's frame, UV2 = height, a per-box
   parameter) that also holds every prop - trailers, tractors, rail cars, pallets, drums, bins,

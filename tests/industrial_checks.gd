@@ -8,7 +8,7 @@ extends RefCounted
 ## brick and murals in the Arts District; every warehouse inside its cell and on no other lot's
 ## ground, no yard piece under a warehouse, outside its block or on another piece (identical
 ## surfaces at one height z-fight). Then a FULL chunk of a block with a court: the ground is ONE
-## mesh on the ground shader and everything upright ONE casting mesh on the walls
+## shadowless mesh on the ground shader and everything upright ONE casting mesh on the walls
 ## shader, no Building for a warehouse lot, trailers at the docks, the warehouses in the
 ## encampments' wall list; built with Industrial off, every pavement prop is where it was; a LOD
 ## build and the far city's capture carry the warehouses as far boxes and build no meshes.
@@ -134,8 +134,9 @@ func _full_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	chunk.build()
 	var grounds := chunk.find_children("IndustrialGround", "MeshInstance3D", false, false)
 	var walls := chunk.find_children("IndustrialWalls", "MeshInstance3D", false, false)
-	_t._check(grounds.size() == 1 and (grounds[0] as MeshInstance3D).material_override == Industrial.ground_material(),
-		"industrial block %s: its yards are one mesh on the ground shader (%d)" % [k, grounds.size()])
+	_t._check(grounds.size() == 1 and (grounds[0] as MeshInstance3D).cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		and (grounds[0] as MeshInstance3D).material_override == Industrial.ground_material(),
+		"industrial block %s: its yards are one shadowless mesh on the ground shader (%d)" % [k, grounds.size()])
 	_t._check(walls.size() == 1 and (walls[0] as MeshInstance3D).material_override == IndustrialKit.walls_material()
 		and (walls[0] as MeshInstance3D).cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF,
 		"industrial block %s: its warehouses, docks and fences are one casting mesh on the walls shader (%d)" % [k, walls.size()])

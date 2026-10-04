@@ -5536,7 +5536,7 @@ YardFill's.
   every captured far box to it), so a string of cars now stops short of a deck.
 
 **How it is drawn.** A FULL chunk's industrial geometry is two meshes and a batch: the ground
-(`IndustrialGround`, `shaders/industrial_ground.gdshader`, casting - left out of the shadow map it took the shadow of the pavement slab 5 cm below it, and a low sun striped every court with acne -: asphalt oxidised in broad
+(`IndustrialGround`, `shaders/industrial_ground.gdshader`, no shadow: asphalt oxidised in broad
 patches, alligator-cracked where it has failed with weeds in the wider cracks, darker patches,
 hairline long cracks, oil; concrete apron slabs with saw joints and stains; gravel; dirt with weed
 clumps; ballast and ties; worn stall paint), everything upright (`IndustrialWalls`,
@@ -5560,6 +5560,34 @@ yards as ground slabs - their LOD steps are a few milliseconds.
 
 The warehouses cover 69 % of their lots now (81 % as Building boxes): the court is the difference.
 
+**Cost.** opengl3, 1280x720, `--quality=0`, clear; before = `INDUSTRIAL=0` (the district as it
+was), after = this branch. `still_shot.gd` (free camera, `EYE_AGL=1`; GEO, triangles / draws):
+
+| Still | before | after |
+|---|---|---|
+| Vernon street `2610,1.7,3290,180,-1` 13:00 | 2,210,272 / 1,519 | 2,199,371 / 1,426 (-0.5 % / -6.1 %) |
+| Vernon court `2630,2.2,3300,-139,-4` 18:24 | 1,802,370 / 1,585 | 2,184,489 / 1,866 (+21.2 % / +17.7 %) |
+| Vernon aerial `2580,85,3250,-139,-38` 13:00 | 2,085,334 / 1,956 | 1,988,603 / 1,781 (-4.6 % / -8.9 %) |
+| Arts District mural `3992,1.7,345,-142,10` 15:00 | 2,787,490 / 2,153 | 2,761,376 / 2,050 (-0.9 % / -4.8 %) |
+| Arts District street `4277,1.7,610,8,3` 15:00 | 3,653,900 / 2,142 | 3,552,417 / 1,934 (-2.8 % / -9.7 %) |
+| Arts District aerial `4180,110,760,0,-38` 15:00 | 2,764,053 / 2,635 | 2,677,944 / 2,396 (-3.1 % / -9.1 %) |
+
+`tools/geo_count.gd` (the player camera at `--spawn`, 90 frames, noon):
+
+| Spawn | triangles | draws | objects |
+|---|---|---|---|
+| Vernon street `2610,3290,180,-1` | 2,348,512 -> 2,289,138 (-2.5 %) | 2,594 -> 2,474 (-4.6 %) | 18,637 -> 18,511 |
+| Vernon court `2620,3330,-90,-3` | 2,257,745 -> 2,737,407 (+21.2 %) | 2,722 -> 3,090 (+13.5 %) | 18,767 -> 19,133 |
+| Arts District street `4277,610,8,3` | 3,190,092 -> 3,088,019 (-3.2 %) | 3,407 -> 3,192 (-6.3 %) | 19,463 -> 19,237 |
+
+A warehouse is now a few hundred boxes in its chunk's ONE walls mesh (2-6k triangles a FULL
+chunk, every prop included: `industrial_bench`'s count) where a Building was walls, frames,
+details, roof plant and kit nodes; so most views got cheaper. The court views are the exception
+and it is what they see, not what is built: before, the camera stood against an office block's
+wall (the Building filled 90 % of the lot) and the wall hid the city; now it looks across an open
+court and down the streets beyond. (`geo_count.gd`'s `AB=` second count hung at that spawn twice -
+the `Engine.time_scale = 0` frames never came back - so the split is from the bench, not an A/B.)
+
 **Build time** (`tools/industrial_bench/industrial_bench.tscn`, headless, warm, Industrial on vs
 off, four blocks: a Vernon court block, a spur block, two Arts District blocks): FULL 163-193 ms vs
 162-225 ms in 59-84 steps, slowest step 44-62 ms vs 48-65 ms (the slowest step is not Industrial's:
@@ -5570,8 +5598,15 @@ it is the same with it off); LOD 17-19 ms vs 14-15 ms, slowest step 5-7 ms eithe
   wheels were offset by their own width.
 - `PortKit.container_xform()` lays a box along x; turned for a long-x yard it lay across the rail
   spur.
-- An additive light pool 4 cm over the yard z-fights it at a grazing angle (the dusk still lit the
-  court in diagonal stripes): pools stand 15 cm up.
+- The night courts were striped (three wrong guesses first: shadow acne, the far city, big
+  triangles in the additive light passes). It was the street lamp's own light pool
+  (`CityChunk._add_lamp()`), laid 5 cm over the pavement - exactly the height of the yard ground
+  beside it - so the two z-fought inside the pool. The pool is 9 cm up now (additive, no depth: it
+  looks the same everywhere); this fixes YardFill's yards beside a lamp too. The industrial light
+  pools stand 15 cm up for the same reason.
+- The asphalt's crack network was thinner than a pixel at a grazing view and aliased; cracks now
+  fade by the pixel's LONGER footprint axis (`length(dFdx(p)), length(dFdy(p))`) to the tone they
+  average to, and the patch mask is smooth noise (quantised to 0.5 m it drew stair-stepped edges).
 - A still's `EYE` y is absolute: give `EYE_AGL=1` or the camera is in the ground on any relief
   (the first "before" set was).
 - Hour 19.45 is full night; the lamps are on and the sky still lit at about 18.4.
