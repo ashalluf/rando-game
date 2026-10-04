@@ -121,13 +121,14 @@ uniform float cloud_speed = 7.0;
 // its albedo so the band past paint_end comes out as bright as the renderer lights the band
 // before paint_start. Measured on Forward+ under the game's own day light (hill_ground_shot
 // DAYNIGHT=1 PAINT_AB=1, 14:00, the front range from 400 m and 900 m up): at the old 0.66 the
-// painted band drew 0.63-0.73 of the lit one (HANDOFF 9at). It was tuned on opengl3 stills,
+// painted band drew 0.63-0.73 of the lit one, at 0.97 still 0.81-0.83 (AgX compresses: the
+// picture moves about half as far as the albedo) (HANDOFF 9at). It was tuned on opengl3 stills,
 // against a plane whose colours Forward+ was decoding twice.
-uniform float paint_gain : hint_range(0.3, 1.5) = 0.97;
+uniform float paint_gain : hint_range(0.3, 2.0) = 1.42;
 // The same for the Compatibility renderer alone (the web, the opengl3 stills), on top of
 // paint_gain: it lights the band before paint_start in sRGB numbers and treats EMISSION its own
 // way, so the two bands need their own ratio there (measured the same way, HANDOFF 9at).
-uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.28;
+uniform float compat_paint_gain : hint_range(0.3, 4.0) = 1.05;
 // Metres (from the camera) over which the plane hands from lit by the renderer, like the
 // streamed chunks, to painted by hand. Past the streamed ring, so the two never meet at a chunk
 // edge lit two different ways: at 200 - 600 m the hand-over fell inside it, and from the air the
