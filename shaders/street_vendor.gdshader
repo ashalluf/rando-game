@@ -123,10 +123,12 @@ void fragment() {
 		base *= 0.94 + 0.06 * sv_noise(UV * 7.0 + v_seed * 31.0);
 	} else if (code == 2) {
 		// Brushed stainless: grain running along the panel, a few scuffs.
-		float g = sv_noise(vec2(UV.x * 1.2, UV.y * 160.0) + v_seed * 11.0);
+		// Fine grain fades to its mean once a streak is under a pixel (it aliased into bands).
+		float fw = fwidth(UV.y) * 60.0;
+		float g = mix(sv_noise(vec2(UV.x * 1.2, UV.y * 60.0) + v_seed * 11.0), 0.5, smoothstep(0.3, 1.0, fw));
 		float scuff = smoothstep(0.75, 0.95, sv_noise(UV * 5.0 + 3.0 + v_seed * 7.0));
 		rough = clamp(rough + (g - 0.5) * steel_grain * 0.5 + scuff * 0.2, 0.08, 0.9);
-		base *= 0.9 + 0.12 * g;
+		base *= 0.95 + 0.06 * g;
 	} else if (code == 4) {
 		// Umbrella canvas: eight panels round the pole, alternating the two colours, a lighter
 		// edge band at the rim (the valance).

@@ -354,6 +354,7 @@ static func _place_truck(chunk: CityChunk, rect: Rect2, edge: Array, e: int, v: 
 	var pool_size := Vector3(7.5, 1.0, 4.0) if e == 1 else Vector3(4.0, 1.0, 7.5)
 	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(pool_size), Vector3(pool_at.x, CityChunk.SIDEWALK_TOP + 0.06, pool_at.y))
 	chunk._batch.add("shop_spill", PropFactory.shop_spill(), pool, TRUCK_POOL)
+	chunk.set_meta("vendor_pools", int(chunk.get_meta("vendor_pools", 0)) + 1)
 	_add_light(chunk, xf * Vector3(1.9, 2.35, 0.6), 7.5, Color(1.0, 0.93, 0.82))
 	_add_generator_sound(chunk, xf * Vector3(0.0, 0.8, 3.95))
 	# The cook in the window, on the truck's floor, facing out; the customers on the pavement in
@@ -439,6 +440,7 @@ static func _place_cart(chunk: CityChunk, edge: Array, v: Dictionary, occupied: 
 	if kind == Kind.HOTDOG:
 		var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(5.0, 1.0, 5.0)), at + Vector3(0.0, 0.06, 0.0))
 		chunk._batch.add("shop_spill", PropFactory.shop_spill(), pool, BULB_POOL)
+		chunk.set_meta("vendor_pools", int(chunk.get_meta("vendor_pools", 0)) + 1)
 		_add_light(chunk, xf * Vector3(0.0, 2.0, 0.0), 5.0, Color(1.0, 0.75, 0.45))
 	# The vendor, on the kerb side facing the pavement (or beside the flowers).
 	var side := dir * (0.0 if kind != Kind.FLOWERS else 1.3)
@@ -593,7 +595,7 @@ static func truck(variant: int) -> Mesh:
 	var black := Color(0.05, 0.05, 0.055)
 	var rubber := Vector2(0.88, 0.0)
 	var steel := Color(0.66, 0.67, 0.68, A_STEEL)
-	var rm_steel := Vector2(0.3, 1.0)
+	var rm_steel := Vector2(0.3, 0.85)
 	var dark_steel := Color(0.16, 0.16, 0.17)
 	var glass := Color(0.035, 0.045, 0.05, A_GLASS)
 	var rm_glass := Vector2(0.05, 0.0)
@@ -720,23 +722,23 @@ static func truck(variant: int) -> Mesh:
 		var a := TAU * k / 6.0
 		_sphere(st, Vector3(cx + cos(a) * 0.06, WY0 + 0.09, WZ1 - 0.5 + sin(a) * 0.06), 0.035, Color(0.3, 0.55, 0.12, A_FOOD), Vector2(0.4, 0.0), 6)
 	# The awning flap, propped up and out over the window, on two struts, an LED strip under it.
-	var hinge := Vector3(TW, WY1 + 0.07, (WZ0 + WZ1) * 0.5)
-	var tilt := deg_to_rad(18.0)
+	var hinge := Vector3(TW, WY1 + 0.04, (WZ0 + WZ1) * 0.5)
+	var tilt := deg_to_rad(5.0)
 	var flap_b := Basis(Vector3.BACK, tilt)
 	var out := flap_b * Vector3.RIGHT
 	var flap_len := WZ1 - WZ0 + 0.3
-	_xbox(st, Transform3D(flap_b, hinge + out * 0.5), Vector3(1.0, 0.04, flap_len), 0.01, paint, rm_paint)
-	_xbox(st, Transform3D(flap_b, hinge + out * 0.96 + Vector3(0.0, -0.04, 0.0)), Vector3(0.04, 0.05, flap_len), 0.0, Color(0.95, 0.96, 1.0, A_LED), Vector2(0.3, 0.0))
+	_xbox(st, Transform3D(flap_b, hinge + out * 0.45), Vector3(0.9, 0.04, flap_len), 0.01, paint, rm_paint)
+	_xbox(st, Transform3D(flap_b, hinge + out * 0.86 + Vector3(0.0, -0.04, 0.0)), Vector3(0.04, 0.05, flap_len), 0.0, Color(0.95, 0.96, 1.0, A_LED), Vector2(0.3, 0.0))
 	_xbox(st, Transform3D(flap_b, hinge + out * 0.12 + Vector3(0.0, -0.035, 0.0)), Vector3(0.03, 0.03, flap_len - 0.2), 0.0, Color(0.95, 0.96, 1.0, A_LED), Vector2(0.3, 0.0))
 	for s: float in [-1.0, 1.0]:
 		var zz := hinge.z + s * (flap_len * 0.5 - 0.15)
-		StreetClutter._tube(st, [Vector3(TW, WY1 - 0.55, zz), hinge + out * 0.85 + Vector3(0.0, -0.03, zz - hinge.z)], 0.014, 6, steel, rm_steel)
+		StreetClutter._tube(st, [Vector3(TW, WY1 - 0.55, zz), hinge + out * 0.78 + Vector3(0.0, -0.03, zz - hinge.z)], 0.014, 6, steel, rm_steel)
 	# The menu board on the rear quarter: a lightbox, the photos, the lettering.
 	var mz0 := WZ1 + 0.18
 	var mz1 := TZ1 - 0.15
 	var my0 := 1.42
 	var my1 := 2.85
-	var mx := TW + 0.035
+	var mx := TW + 0.044
 	_box(st, Vector3(TW + 0.015, (my0 + my1) * 0.5, (mz0 + mz1) * 0.5), Vector3(0.05, my1 - my0 + 0.06, mz1 - mz0 + 0.06), 0.01, Color(0.08, 0.08, 0.09), Vector2(0.4, 0.5))
 	StreetClutter._quad(st, Vector3(mx, my0, mz0), Vector3(mx, my0, mz1), Vector3(mx, my1, mz1), Vector3(mx, my1, mz0), Vector3(1.0, 0.0, 0.0), Color(0.98, 0.96, 0.88, A_GLOW), Vector2(0.3, 0.0))
 	var menu: Array = lv.menu
@@ -754,8 +756,8 @@ static func truck(variant: int) -> Mesh:
 		StreetClutter._page(st, Vector3(mx + 0.003, py, pz), Vector3(mx + 0.003, py, pz + 0.24), Vector3(mx + 0.003, py - 0.26, pz + 0.24), Vector3(mx + 0.003, py - 0.26, pz),
 			Vector3(1.0, 0.0, 0.0), A_PHOTO, Vector2(float(variant * 3 + k), 0.0), Vector2(0.3, 0.0))
 	# The name, along the top of the serving side and big on the street side, with the band.
-	_box(st, Vector3(TW + 0.004, 2.58, zm), Vector3(0.006, 0.07, length - 0.1), 0.0, lv.band, rm_paint)
-	_text(st, String(lv.name), 0.3, Transform3D(face, Vector3(TW + 0.008, 2.85, zm)), lv.ink, length - 0.5)
+	_box(st, Vector3(TW + 0.004, 2.62, zm), Vector3(0.006, 0.05, length - 0.1), 0.0, lv.band, rm_paint)
+	_text(st, String(lv.name), 0.28, Transform3D(face, Vector3(TW + 0.008, 2.88, zm)), lv.ink, length - 0.5)
 	var face_l := Basis(Vector3.UP, -PI * 0.5)
 	_box(st, Vector3(-TW - 0.004, 1.3, zm), Vector3(0.006, 0.12, length - 0.1), 0.0, lv.band, rm_paint)
 	_box(st, Vector3(-TW - 0.004, 1.12, zm), Vector3(0.006, 0.05, length - 0.1), 0.0, lv.ink, rm_paint)
@@ -795,8 +797,8 @@ static func cart(kind: int) -> Mesh:
 
 ## A stainless cart body on two wheels and two legs, a shelf under it, the push handle.
 static func _cart_body(st: SurfaceTool, half_x: float, half_z: float, top: float) -> void:
-	var steel := Color(0.68, 0.69, 0.7, A_STEEL)
-	var rm := Vector2(0.28, 1.0)
+	var steel := Color(0.72, 0.73, 0.74, A_STEEL)
+	var rm := Vector2(0.34, 0.8)
 	var paint := Color(1, 1, 1, 1)
 	_box(st, Vector3(0.0, (top + 0.32) * 0.5, 0.0), Vector3(half_x * 2.0, top - 0.32, half_z * 2.0), 0.02, steel, rm)
 	# A painted band round the top edge, the vendor's colour.

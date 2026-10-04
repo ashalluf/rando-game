@@ -2439,6 +2439,35 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
   `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
   checks: `tests/crowd_hat_checks.gd`.
+- Street vendors (VISUAL_ROADMAP #47, 2026-10-04: "taco trucks at night, fruit carts under
+  umbrellas"): `StreetVendors` (`scripts/world/street_vendors.gd`, static) - taco trucks at the
+  kerb with a lit menu board, the serving window open under its propped flap, a lit kitchen
+  inside, a generator on the back (Sfx `generator`, a real CC0 loop); fruit and elote carts under
+  striped market umbrellas; bacon-wrapped hot dog carts with a string of bulbs; paleta push carts;
+  flower and balloon sellers at corners. Every mesh is code at real size on ONE shader
+  (`shaders/street_vendor.gdshader`: what a face is in the vertex alpha - steel, paint from
+  INSTANCE_CUSTOM.rgb, canvas stripes by the angle round the pole, lightbox, food pictures, lit
+  interior, bulbs, glass, food, LED; codes 0.05 apart), one batch per kind a chunk (`vend_*`),
+  lettering from TextMesh merged in (invented names and menus, `TRUCKS`). **The instance COLOR
+  multiplies every vertex colour** (it would tint the umbrella's pole), so the canvas's second
+  stripe is the shader's `CANVAS2[INSTANCE_CUSTOM.a * 8]` copy of `CANVAS` (checked). Placement
+  is pure (`plan_block(plan, ix, iz, hour)`): by place (`Place`: downtown, midtown, industrial
+  lunch trucks, parks, the faces across from MacArthur Park, round the arena, the beach town) and
+  face (`ODDS`), by the hour the chunk is built at (`SCHEDULE`, hashed shifts, trucks at night,
+  carts by day; `force_hour` for tests), all hashes of seed + block + face + kind. A FULL block's
+  step after the camps: a truck parks in this chunk's own parking lane (+x / +z faces only),
+  serving side to the kerb, as a `_add_prop` that never breaks (rounds spark off it as metal; its
+  collision leaves the window open, so a round through it finds the cook); the parked cars skip
+  its stretch AFTER all their rolls and count it as parked (`blocks_parking()`), so the block's
+  stream is unmoved. A cart is an `EncampmentItem` (tips over as a real body, stays gone). Night:
+  pools in the chunk's `shop_spill` batch and one `lamp_light` omni per truck / hot dog cart.
+  People: `StreetVendor` (`scripts/npc/street_vendor.gd`, a Pedestrian with the life clips) at
+  the stand, talking to whoever waits; a cart vendor flees gunfire and walks back; a truck's cook
+  is kinematic on the truck floor (`lift`) and ducks. Customers are walkers: chunk meta
+  `vendor_queue` spots, taken by `Pedestrian._plan_queue()` (no roll on a chunk without vendors).
+  `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
+  alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
+  `tests/street_vendors_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

@@ -1425,6 +1425,9 @@ func _test_city() -> void:
 		# Not `is CityChunk`: the test must not name a class that uses an autoload (CLAUDE.md).
 		if (b as Node).get_parent() != null and (b as Node).get_parent().has_method("build_step"):
 			spill_want += (b.get("shop_pools") as Array).size()
+	# The street vendors' trucks and hot dog carts light the pavement through the same batch.
+	for k in city.chunks:
+		spill_want += int((city.chunks[k] as Node).get_meta("vendor_pools", 0))
 	# At most: a chunk still building has its buildings but not yet its batches.
 	_check(spill > 10 and spill <= spill_want, "open shops spill light on the pavement (%d of %d)" % [spill, spill_want])
 	# Every car carries its headlights, tail lights and road beam as one mesh (one draw, not

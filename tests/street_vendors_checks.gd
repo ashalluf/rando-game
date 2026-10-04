@@ -142,11 +142,19 @@ func _truck_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	var cooks := people.filter(func(s: Dictionary) -> bool: return bool(s.truck))
 	_t._check(queue.size() >= 4 and not cooks.is_empty() and float(cooks[0].floor) > 0.6,
 		"the truck has a queue on the pavement and a cook on its floor (%d spots)" % queue.size())
-	var vendors := 0
-	for c in chunk.get_children():
-		if c is StreetVendor:
-			vendors += 1
-	_t._check(vendors >= 1 or people.size() == 0, "the stands' vendors are spawned (%d of %d)" % [vendors, people.size()])
+	# The cook (made here: the city's crowd cap may already be spent by the streamed city).
+	var cook_ok := false
+	if not cooks.is_empty():
+		var c: Dictionary = cooks[0]
+		var ped := StreetVendor.new()
+		ped.setup_vendor(c.rect, int(c.seed), c.at, float(c.yaw), true, float(c.floor))
+		var at: Vector2 = c.at
+		ped.position = Vector3(at.x, chunk.ground_y(at.x, at.y) + float(c.floor), at.y)
+		chunk.add_child(ped)
+		cook_ok = ped._act == CrowdLife.Act.STAND and ped.collision_mask == 0 \
+			and absf(ped.position.y - (chunk.ground_y(at.x, at.y) + 0.1 + float(c.floor))) < 0.05 \
+			and Vector2(ped.position.x, ped.position.z).distance_to(at) < 0.05
+	_t._check(cook_ok, "a truck's cook stands at work on the truck's floor, out of its collision")
 	# A queue spot is handed out once.
 	var spot := StreetVendors.free_queue(chunk, queue[0].p if not queue.is_empty() else Vector2.ZERO, 50.0)
 	if not spot.is_empty():
