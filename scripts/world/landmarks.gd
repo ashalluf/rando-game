@@ -55,13 +55,16 @@ static func _list() -> Array[Dictionary]:
 		# the curved concourse with their jet bridges and parked airliners, the control tower, the
 		# arches over the landside, the car park and the rental lot, and the field's lights - each
 		# its own landmark so the chunk round each builds it in detail and the rest stay far.
-		{"id": "terminal", "anchor": Vector2(-350.0, 660.0), "radius": 120.0},
-		{"id": "concourse_w", "anchor": Vector2(-480.0, 690.0), "radius": 60.0},
-		{"id": "concourse_e", "anchor": Vector2(-220.0, 690.0), "radius": 60.0},
-		{"id": "control_tower", "anchor": Airport.TOWER_AT, "radius": 20.0},
-		{"id": "skyhook", "anchor": Airport.SKYHOOK_AT, "radius": 36.0},
-		{"id": "airport_garage", "anchor": Airport.GARAGE_RECT.get_center(), "radius": 60.0},
-		{"id": "rental_lot", "anchor": Airport.RENTAL_RECT.get_center(), "radius": 60.0},
+		# Radii stay inside the airport rect (z 590 up): a radius is a square of city lots dropped
+		# (CityPlan.lots()), and the airport is flat anyway - at 120 the terminal's square ate the
+		# blocks north of the drop-off.
+		{"id": "terminal", "anchor": Vector2(-350.0, 660.0), "radius": 60.0},
+		{"id": "concourse_w", "anchor": Vector2(-480.0, 690.0), "radius": 40.0},
+		{"id": "concourse_e", "anchor": Vector2(-220.0, 690.0), "radius": 40.0},
+		{"id": "control_tower", "anchor": Airport.TOWER_AT, "radius": 15.0},
+		{"id": "skyhook", "anchor": Airport.SKYHOOK_AT, "radius": 30.0},
+		{"id": "airport_garage", "anchor": Airport.GARAGE_RECT.get_center(), "radius": 25.0},
+		{"id": "rental_lot", "anchor": Airport.RENTAL_RECT.get_center(), "radius": 28.0},
 		{"id": "airfield_lights", "anchor": Vector2(-300.0, 915.0), "radius": 1.0},
 		{"id": "hangars", "anchor": Vector2(30.0, 830.0), "radius": 90.0},
 		# Moored along the port's south quay in San Pedro Bay (MacroMap.port_rect / harbor_rect), on
