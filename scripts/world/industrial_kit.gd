@@ -47,6 +47,8 @@ static var _cache: Dictionary = {}
 static var _into: SurfaceTool = null
 static var _xf: Transform3D = Transform3D()
 static var _tint: Color = Color.WHITE
+## Triangles written since start (every writer counts; tools/industrial_bench reads it).
+static var tris: int = 0
 
 
 ## Writes the prop `build` makes (a call of one of the mesh functions below) into `st`, placed by
@@ -104,6 +106,7 @@ static func box(st: SurfaceTool, xf: Transform3D, size: Vector3, kind: int, pain
 	for f in 6:
 		if skip & (1 << f):
 			continue
+		tris += 2
 		var fc: Array = FACES[f]
 		var n: Vector3 = fc[0]
 		var q: Array = fc[1]
@@ -133,6 +136,7 @@ static func box(st: SurfaceTool, xf: Transform3D, size: Vector3, kind: int, pain
 static func cyl(st: SurfaceTool, xf: Transform3D, r: float, h: float, kind: int, paint: Color, segs: int = 12, cap: bool = true) -> void:
 	xf = _xf * xf
 	var col := kind_color(kind, paint)
+	tris += segs * (3 if cap else 2)
 	var circ := TAU * r
 	for i in segs:
 		var a0 := TAU * float(i) / float(segs)
@@ -186,6 +190,7 @@ static func cyl_z(st: SurfaceTool, xf: Transform3D, r: float, length: float, kin
 static func cone(st: SurfaceTool, xf: Transform3D, r: float, h: float, kind: int, paint: Color, segs: int = 12) -> void:
 	xf = _xf * xf
 	var col := kind_color(kind, paint)
+	tris += segs
 	var tip := xf * Vector3(0.0, h, 0.0)
 	var slope := Vector2(h, r).normalized()
 	for i in segs:
@@ -260,7 +265,14 @@ static func trailer(kind: int = 0) -> Mesh:
 	var dark := Color(0.09, 0.09, 0.1)
 	var steel := Color(0.32, 0.33, 0.34)
 	# The box (paint multiplied by the instance colour; the rear face is the doors).
-	box(st, Transform3D(Basis(), Vector3(0.0, (floor_y + top) * 0.5, 0.0)), Vector3(w, top - floor_y, length), K_TRAILER, white, length, 32)
+	# Sides and top (UV2.y the length: the posts and rivets), the rear face (-1: the doors) and the
+	# nose (0: plain skin) as separate faces, so the shader needs no object-space normal (a prop
+	# written into a chunk's mesh has none).
+	var body := Transform3D(Basis(), Vector3(0.0, (floor_y + top) * 0.5, 0.0))
+	var bs := Vector3(w, top - floor_y, length)
+	box(st, body, bs, K_TRAILER, white, length, 4 | 8 | 32)
+	box(st, body, bs, K_TRAILER, white, -1.0, 1 | 2 | 4 | 16 | 32)
+	box(st, body, bs, K_TRAILER, white, 0.0, 1 | 2 | 8 | 16 | 32)
 	# The underside rails and cross members (one dark slab), the rear frame and bumper.
 	box(st, Transform3D(Basis(), Vector3(0.0, floor_y - 0.12, 0.0)), Vector3(w - 0.1, 0.24, length - 0.1), K_STEEL, dark)
 	box(st, Transform3D(Basis(), Vector3(0.0, 0.62, -hl + 0.12)), Vector3(w - 0.3, 0.12, 0.12), K_STEEL, Color(0.6, 0.12, 0.08))
@@ -361,7 +373,10 @@ static func boxcar() -> Mesh:
 	var hl := length * 0.5
 	var w := 3.2
 	var dark := Color(0.1, 0.09, 0.09)
-	box(st, Transform3D(Basis(), Vector3(0.0, 2.95, 0.0)), Vector3(w, 3.5, length), K_BOXCAR, Color(1.0, 1.0, 1.0), length, 32)
+	# The sides (UV2.y the length: posts, the door, the marks) and the ends and roof (0) apart.
+	var body := Transform3D(Basis(), Vector3(0.0, 2.95, 0.0))
+	box(st, body, Vector3(w, 3.5, length), K_BOXCAR, Color(1.0, 1.0, 1.0), length, 4 | 8 | 16 | 32)
+	box(st, body, Vector3(w, 3.5, length), K_BOXCAR, Color(1.0, 1.0, 1.0), 0.0, 1 | 2 | 32)
 	# Underframe, the end platforms and couplers.
 	box(st, Transform3D(Basis(), Vector3(0.0, 1.05, 0.0)), Vector3(w - 0.4, 0.3, length + 0.4), K_STEEL, dark)
 	for e: float in [-1.0, 1.0]:

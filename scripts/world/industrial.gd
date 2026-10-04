@@ -28,10 +28,11 @@ extends RefCounted
 ## Every roll is a hash of the plan seed and the lot or block (never the chunk rng, Building's own
 ## or the block rng), so nothing else in the city moves; every plan is PURE (lot_plan(),
 ## block_plan(): the plan, the block, each lot and its planned building), which is how
-## GroundCoverage asks the chunk's own question. A FULL chunk's industrial geometry is THREE meshes
-## (the ground on shaders/industrial_ground.gdshader, no shadow; everything upright on
-## shaders/industrial_walls.gdshader; the paint) plus a batch per repeated prop (trailers,
-## tractors, boxcars, tank cars, pallets, drums, bins, tanks), all on the walls material. LOD
+## GroundCoverage asks the chunk's own question. A FULL chunk's industrial geometry is TWO meshes
+## (the ground on shaders/industrial_ground.gdshader, its stall paint lifted in it; everything
+## upright on shaders/industrial_walls.gdshader, every prop - trailers, tractors, rail cars,
+## pallets, drums, bins, tanks, the water tower - written into it by IndustrialKit.place()) and one
+## shadowless batch of light pools; containers are PortKit's batch. LOD
 ## chunks and the far city's capture get the warehouses, trailers, rail cars, tanks and the water
 ## tower as plain far boxes and the yards as ground slabs - nothing else.
 
@@ -456,6 +457,12 @@ static func block_plan(plan: CityPlan, bx: int, bz: int, entries: Array) -> Dict
 				fences.append([mid + dir * 4.0 + inset, bb + inset])
 			else:
 				fences.append([a + inset, bb + inset])
+	# The spur runs out to the street through a gap in every fence.
+	if spur_rect.size != Vector2.ZERO:
+		var cut: Array = []
+		for fe: Array in fences:
+			cut.append_array(_clip_segment(fe[0], fe[1], spur_rect.grow(0.6)))
+		fences = cut
 	# A water tower in the biggest storage yard, now and then.
 	var tower: Variant = null
 	if _h01([plan.seed, bx, bz, "ind_tower"]) < TOWER_ODDS:
@@ -508,6 +515,28 @@ static func block_entries(plan: CityPlan, bx: int, bz: int) -> Array:
 		else:
 			out.append({"lot": lot, "parts": parts, "plan": {}})
 		bld.free()
+	return out
+
+
+## An axis-aligned segment less the part of it inside `hole`: [[a, b], ...].
+static func _clip_segment(a: Vector2, b: Vector2, hole: Rect2) -> Array:
+	var along_x := absf(b.x - a.x) >= absf(b.y - a.y)
+	var lo := minf(a.x, b.x) if along_x else minf(a.y, b.y)
+	var hi := maxf(a.x, b.x) if along_x else maxf(a.y, b.y)
+	var cross := a.y if along_x else a.x
+	var h_lo := hole.position.x if along_x else hole.position.y
+	var h_hi := hole.end.x if along_x else hole.end.y
+	var c_lo := hole.position.y if along_x else hole.position.x
+	var c_hi := hole.end.y if along_x else hole.end.x
+	if cross < c_lo or cross > c_hi or h_hi <= lo or h_lo >= hi:
+		return [[a, b]]
+	var out: Array = []
+	var mk := func(t0: float, t1: float) -> Array:
+		return [Vector2(t0, cross), Vector2(t1, cross)] if along_x else [Vector2(cross, t0), Vector2(cross, t1)]
+	if h_lo - lo > 0.5:
+		out.append(mk.call(lo, h_lo))
+	if hi - h_hi > 0.5:
+		out.append(mk.call(h_hi, hi))
 	return out
 
 
@@ -1236,7 +1265,7 @@ static func ground_material() -> ShaderMaterial:
 	return mat
 
 
-## The FULL chunk's industrial ground (one mesh, no shadow), its paint (in the same mesh, lifted)
+## The FULL chunk's industrial ground (one mesh), its paint (in the same mesh, lifted)
 ## and its upright geometry (one mesh, casting). After the batches are added, before they build.
 static func commit(ch: CityChunk) -> void:
 	if ch._ind.is_empty():
@@ -1254,7 +1283,8 @@ static func commit(ch: CityChunk) -> void:
 		mi.name = "IndustrialGround"
 		mi.mesh = st.commit()
 		mi.material_override = ground_material()
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		# It casts (into its own shadow, as any ground does): left out of the shadow map, it took the
+		# shadow of the pavement slab 5 cm under it, and a low sun striped the courts with acne.
 		ch.add_child(mi)
 	if ch._ind.walls != null:
 		var st: SurfaceTool = ch._ind.walls

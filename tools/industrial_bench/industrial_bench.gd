@@ -5,7 +5,8 @@ extends Node
 ##   godot --headless --path . res://tools/industrial_bench/industrial_bench.tscn
 ##
 ## BLOCKS="bx,bz;..." (default a Vernon truck-court block, a spur block and two Arts District
-## blocks). Prints each build's total and its slowest step, in milliseconds.
+## blocks). Prints each build's total and its slowest step, in milliseconds, the triangles in the
+## industrial walls mesh (IndustrialKit.tris) and the chunk's node count.
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -40,6 +41,8 @@ func _ready() -> void:
 				ch.level = level
 				ch.style = style
 				add_child(ch)
+				var kit: GDScript = load("res://scripts/world/industrial_kit.gd")
+				kit.set("tris", 0)
 				ch.begin_build()
 				var total := 0.0
 				var worst := 0.0
@@ -53,7 +56,9 @@ func _ready() -> void:
 					steps += 1
 					if done:
 						break
-				print("BENCH industrial=%s block %s %s: %.1f ms in %d steps, slowest %.1f ms" % [on, k, "FULL" if level == 0 else "LOD", total, steps, worst])
+				var walls := ch.get_node_or_null("IndustrialWalls")
+				print("BENCH industrial=%s block %s %s: %.1f ms in %d steps, slowest %.1f ms; walls mesh %d tris, %d chunk children" % [on, k, "FULL" if level == 0 else "LOD", total, steps, worst,
+					int(kit.get("tris")) if walls else 0, ch.get_child_count()])
 				remove_child(ch)
 				ch.free()
 	city.free()

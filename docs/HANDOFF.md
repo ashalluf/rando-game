@@ -5536,7 +5536,7 @@ YardFill's.
   every captured far box to it), so a string of cars now stops short of a deck.
 
 **How it is drawn.** A FULL chunk's industrial geometry is two meshes and a batch: the ground
-(`IndustrialGround`, `shaders/industrial_ground.gdshader`, no shadow: asphalt oxidised in broad
+(`IndustrialGround`, `shaders/industrial_ground.gdshader`, casting - left out of the shadow map it took the shadow of the pavement slab 5 cm below it, and a low sun striped every court with acne -: asphalt oxidised in broad
 patches, alligator-cracked where it has failed with weeds in the wider cracks, darker patches,
 hairline long cracks, oil; concrete apron slabs with saw joints and stains; gravel; dirt with weed
 clumps; ballast and ties; worn stall paint), everything upright (`IndustrialWalls`,

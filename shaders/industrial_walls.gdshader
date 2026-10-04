@@ -29,7 +29,6 @@ global uniform vec4 sky_tint;
 
 varying float kind;
 varying vec3 world_n;
-varying vec3 obj_n;
 varying vec3 world_p;
 
 #include "res://shaders/color_space.gdshaderinc"
@@ -160,7 +159,6 @@ vec3 mural(vec2 m, vec2 size, vec2 seed, out float ink) {
 
 void vertex() {
 	kind = floor(COLOR.a * 32.0);
-	obj_n = NORMAL;
 	world_n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	world_p = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
@@ -387,8 +385,9 @@ void fragment() {
 	} else if (kind < 12.5) {
 		// A trailer: aluminium skin between posts every 1.2 m, rivet rows top and bottom, the
 		// rear doors (split, lock rods, hinges) on the back face, road grime low down.
-		float side = abs(obj_n.x);
-		float rear = step(0.5, -obj_n.z);
+		// UV2.y: the length on the sides, -1 on the rear doors, 0 on the nose.
+		float side = step(0.5, param);
+		float rear = step(param, -0.5);
 		vec3 skin = paint * (0.92 + 0.08 * vnoise(uv * vec2(0.3, 2.0)));
 		if (top) {
 			albedo = vec3(0.78, 0.79, 0.8) * (0.8 + 0.25 * vnoise(uv * 0.5));
@@ -420,7 +419,8 @@ void fragment() {
 	} else if (kind < 13.5) {
 		// A boxcar: exterior posts every 0.9 m, a sliding door mid-side, rust bleeding from every
 		// seam, a block of invented marks in white low on the left (shapes, not letters).
-		float side = abs(obj_n.x);
+		// UV2.y: the length on the sides, 0 on the ends and the roof.
+		float side = step(0.5, param);
 		float len = max(param, 8.0);
 		albedo = paint * (0.85 + 0.2 * vnoise(uv * vec2(0.6, 2.0)));
 		if (side > 0.5) {

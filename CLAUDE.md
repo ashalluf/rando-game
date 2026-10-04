@@ -1302,12 +1302,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   every far box to that). **Plans are pure** (`lot_plan()`, `block_plan()`, `block_entries()`:
   GroundCoverage asks the same question, `FILL=yard` on `tools/lot_coverage.gd` is the before);
   every roll is a hash of seed + lot / block, never a chunk, block or Building rng. A FULL chunk
-  is ONE ground mesh (`IndustrialGround`, `shaders/industrial_ground.gdshader`, kind in COLOR.r,
-  no shadow) and ONE upright mesh (`IndustrialWalls`, `shaders/industrial_walls.gdshader`, kind
-  in COLOR.a in 32nds, paint in COLOR.rgb as written, UV metres in the face's frame, UV2 = height,
-  a per-box parameter) plus a batch per prop (`ind_trailer_*`, `ind_tractor_*`, `ind_boxcar`,
-  `ind_tank_car`, pallets, drums, bins, tanks, the water tower: IndustrialKit meshes on the same
-  material, box shadow twins). LOD chunks and the far city get the warehouses, trailers, rail
+  is ONE ground mesh (`IndustrialGround`, `shaders/industrial_ground.gdshader`, kind in COLOR.r;
+  it casts - out of the shadow map it took the 5 cm lower pavement slab's shadow as acne) and ONE
+  upright mesh (`IndustrialWalls`, `shaders/industrial_walls.gdshader`, kind in COLOR.a in 32nds,
+  paint in COLOR.rgb as written, UV metres in the face's frame, UV2 = height, a per-box
+  parameter) that also holds every prop - trailers, tractors, rail cars, pallets, drums, bins,
+  tanks, the tower - written into it by `IndustrialKit.place()` (a batch per prop kind was 15-20
+  batches and their shadow cascades a chunk); the light pools are one shadowless batch
+  (`ind_pool`), containers PortKit's batch. LOD chunks and the far city get the warehouses, trailers, rail
   cars, tanks and the tower as plain `lod_box`es and the yards as ground slabs. The warehouses are
   in `StreetDetail._footprints()` (encampments and service drops see their walls) and the
   occluder. Both shaders work in display numbers (`disp()` / `to_lit()`, like YardFill's). A/B:
