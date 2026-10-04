@@ -184,7 +184,7 @@ uniform float mast_min_px = 0.75;
 // rooms come to on average (room paint ~0.4 x its lamps ~0.6 x lit_strength 0.8 x 2.0; a shop at
 // x 2.5 in its own tone). Measured against it with tools/glshot/far_building_shot.gd NIGHT=1.
 uniform float lit_room_level = 0.40;
-uniform float lit_shop_level = 0.45;
+uniform float lit_shop_level = 0.18;
 uniform float beacon_energy = 3.0;
 
 varying vec3 local_pos;
@@ -795,6 +795,12 @@ void fragment() {
 				float on = storefront ? lamp_factor : night_factor;
 				if (lit && on > 0.001) {
 					vec3 light = storefront ? cs_as_uniform(shop_tone_far(shop_key)) * lit_shop_level : lit_c * window_glow(sd, face_id, row, col) * lit_room_level;
+					if (!storefront) {
+						// A lit office is lit from its ceiling (building.gdshader's traced room: the
+						// panels, the bright upper wall, a dim floor): brighter toward the head of the
+						// pane, the same on average, while the pane is still a few pixels.
+						light *= mix(1.0, 0.35 + 1.3 * smoothstep(0.25, 0.85, fv), cell_fade);
+					}
 					cell = mix(cell, cell * 0.35, on);
 					e_cell += light * on;
 				}
