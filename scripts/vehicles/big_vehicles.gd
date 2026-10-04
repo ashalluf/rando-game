@@ -73,6 +73,10 @@ const STOP_FROM_CORNER := 19.0
 ## of parked cars behind the nose (m).
 const DWELL := Vector2(7.0, 13.0)
 const STOP_ZONE := 16.0
+## ...and ahead of it, where the bus pulls out again (m).
+const STOP_CLEAR_AHEAD := 9.0
+## How far a bus pulls over toward the kerb at a stop (m): out of its lane into the cleared kerb.
+const STOP_SHIFT := 1.4
 ## Lettering draws to here (m): a TextMesh is glyph outlines, a few hundred triangles a letter.
 const LETTER_DISTANCE := 70.0
 
@@ -523,7 +527,7 @@ static func in_stop_zone(plan: CityPlan, p: Vector2) -> bool:
 			if is_nan(stop):
 				continue
 			var back := (stop - along) * float(dir)
-			if back > -2.0 and back < STOP_ZONE:
+			if back > -STOP_CLEAR_AHEAD and back < STOP_ZONE:
 				return true
 	return false
 

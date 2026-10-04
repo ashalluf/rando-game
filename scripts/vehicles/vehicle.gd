@@ -42,6 +42,8 @@ const BODY_ODDS := {
 	BodyType.SEDAN: 250, BodyType.PICKUP: 150, BodyType.VAN: 115, BodyType.SPORTS: 145,
 	BodyType.SUPER: 45, BodyType.SPIDER: 25, BodyType.HYPER: 30, BodyType.TRACK: 20,
 	BodyType.CROSSOVER: 220,
+	# Never rolled: the traffic spawns its buses and trucks on purpose (BigVehicles).
+	BodyType.BUS: 0, BodyType.BOX_TRUCK: 0, BodyType.SEMI: 0,
 }
 ## Where a generated wheel sits in body space, per body type: `x` half-track, `front` / `rear`
 ## the axle positions along the car, `y` the hub height, `r` the tyre radius and `w` the section
@@ -1621,6 +1623,9 @@ func _cabin_seats() -> int:
 		return 1
 	if not _npc_driver or _abandoned():
 		return 0
+	if body_type == BodyType.BUS:
+		# The driver alone up front; the passengers are the bus's rows (CarCabin).
+		return 1
 	return 3 if CarCabin.npc_look(_occupant_seed).passenger else 1
 
 

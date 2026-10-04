@@ -64,6 +64,13 @@ const COWL_TO_SEAT := 0.95
 const DASH_TO_SEAT := 0.72
 const DASH_DEPTH := 0.42
 
+## A bus's cabin (cabin()): the first row of pairs behind the driver's seat (m; the front door is
+## between), the row pitch, the share of seats taken, and its lights' strength after dark.
+const BUS_FIRST_ROW := 2.7
+const BUS_ROW_PITCH := 0.80
+const BUS_FILL := 0.42
+const BUS_LAMP := 1.0
+
 ## One in this many traffic cars carries a front passenger (Los Angeles drives alone).
 const PASSENGER_SHARE := 0.22
 
@@ -136,6 +143,7 @@ static func context(car: Vehicle, mesh_to_car: Transform3D, has_model: bool = tr
 		"scale": maxf(mesh_to_car.basis.get_scale().x, 1e-4),
 		"privacy": PRIVACY_BODIES.has(car.body_type),
 		"two_seat": TWO_SEATERS.has(car.body_type),
+		"bus": car.body_type == Vehicle.BodyType.BUS,
 	}
 
 
@@ -357,6 +365,15 @@ static func cabin(panes: Array, ctx: Dictionary) -> Dictionary:
 	out.driver_side = signf(left.x) if absf(left.x) > 0.5 else -1.0
 	var privacy: bool = ctx.get("privacy", false)
 	out.side_t = Vector2(FRONT_SIDE_T, (PRIVACY_T if privacy else REAR_SIDE_T) if rear_seats else FRONT_SIDE_T)
+	if ctx.get("bus", false):
+		# A bus: rows of pairs either side of the aisle from behind the front door back to the
+		# bench (the rear seat row), its glass all one tint, and its own lights on after dark.
+		var first := front_row + back * BUS_FIRST_ROW / scale
+		var pitch := BUS_ROW_PITCH / scale
+		var n := floori(absf(rear_row - first) / pitch)
+		out.bus_rows = Vector4(first, pitch, float(n), BUS_FILL)
+		out.side_t = Vector2(FRONT_SIDE_T, FRONT_SIDE_T)
+		out.interior_lamp = BUS_LAMP
 	return out
 
 
@@ -414,6 +431,8 @@ static func apply(mat: ShaderMaterial, data: Dictionary, states: PackedFloat32Ar
 	mat.set_shader_parameter("seat_z", data.seat_z)
 	mat.set_shader_parameter("driver_side", data.driver_side)
 	mat.set_shader_parameter("side_t", data.side_t)
+	mat.set_shader_parameter("bus_rows", data.get("bus_rows", Vector4.ZERO))
+	mat.set_shader_parameter("interior_lamp", float(data.get("interior_lamp", 0.0)))
 	var panes: Array = data.panes
 	mat.set_shader_parameter("pane_count", panes.size())
 	if panes.is_empty():
