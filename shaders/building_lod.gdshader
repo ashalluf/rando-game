@@ -571,8 +571,9 @@ void fragment() {
 				fv = fract(vv / floor_hp);
 			}
 			// A ribbon's mullions and a curtain wall's mullions and transoms, as COVERAGE, antialiased:
-			// at least half a pixel wide while a bay is several pixels (the near walls' frame quads
-			// read as a full line on every bay there), their painted width with distance, never a
+			// at least half a pixel wide while a bay is several pixels (about what the near tower's
+			// frame quads, fins and floor bands come to at the LOD line; a full pixel on every bay
+			// measured busier and brighter than it), their painted width with distance, never a
 			// fifth of a pixel of paint that hits one bay in three and sparkles.
 			float frame_px = mpp * 0.5 * (1.0 - smoothstep(0.3, 0.8, mpp));
 			float frame_cov = 0.0;
