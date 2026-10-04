@@ -322,6 +322,13 @@ func _openings(i: int, w: Dictionary, which: String, fo: Vector2, t: Vector2, le
 			taken.append(Vector2(da - dw * 0.5 - 0.5, da + dw * 0.5 + 0.5))
 		for fl in storeys:
 			var fy := float(fl) * st
+			# The doors below take the ground floor's room, not the floors above them.
+			if fl > 0:
+				taken = hidden.duplicate()
+				if fl == 1 and w.get("balcony", false):
+					var sw := minf(length * 0.4 - 0.4, 2.6)
+					out.append([length * 0.5 - sw * 0.5, length * 0.5 + sw * 0.5, fy + 0.05, fy + 2.3, "slider"])
+					taken.append(Vector2(length * 0.3 - 0.3, length * 0.7 + 0.3))
 			if role == "garage":
 				if fl > 0:
 					_fill(out, taken, length, fy + 0.95, fy + 2.3, face_rng, 1.2, 1.6, 3.2)
@@ -344,7 +351,7 @@ func _openings(i: int, w: Dictionary, which: String, fo: Vector2, t: Vector2, le
 				HouseKit.Style.CRAFTSMAN:
 					_fill(out, taken, length, fy + 0.85, fy + 2.3, face_rng, 1.8, 2.3, 2.9, "grid")
 				HouseKit.Style.RANCH:
-					_fill(out, taken, length, fy + 0.95, fy + 2.25, face_rng, 1.8, 2.6, 3.4, "window")
+					_fill(out, taken, length, fy + 0.95, fy + 2.25, face_rng, 1.6, 2.4, 2.7, "window")
 				_:
 					_fill(out, taken, length, fy + 0.9, fy + 2.3, face_rng, 1.1, 1.6, 2.8, "window")
 	elif which == "back":
@@ -514,15 +521,22 @@ func _opening(fo: Vector2, t: Vector2, n: Vector2, hl: Array, mat: String, cl: C
 			var door: Color = col.garage
 			var gy0 := maxf(y0, -HouseKit.FLOOR_LIFT)
 			_quad("h_door", L(q0, gy0), L(q1, gy0), L(q1, y1), L(q0, y1), nw, door)
-			# Sectional panels: four seams across, raised panels in bays; a row of lights on top
-			# on a craftsman's or a Spanish house's (carriage style).
+			# Sectional: four sections with a dark joint between them, raised panels in bays across
+			# each (a lighter face just proud of the door, its lower edge a hairline of shadow).
+			var bays := maxi(2, int(round((a1 - a0) / 0.9)))
 			for k in range(1, 4):
 				var y := gy0 + (y1 - gy0) * k / 4.0
-				_quad("h_door", L(q0 + n * 0.005, y - 0.016), L(q1 + n * 0.005, y - 0.016), L(q1 + n * 0.005, y + 0.016), L(q0 + n * 0.005, y + 0.016), nw, door.darkened(0.4))
-			var bays := maxi(2, int(round((a1 - a0) / 0.75)))
-			for k in range(1, bays):
-				var pa := q0.lerp(q1, float(k) / bays) + n * 0.006
-				_quad("h_door", L(pa - t * 0.012, gy0), L(pa + t * 0.012, gy0), L(pa + t * 0.012, y1), L(pa - t * 0.012, y1), nw, door.darkened(0.22))
+				_quad("h_door", L(q0 + n * 0.004, y - 0.012), L(q1 + n * 0.004, y - 0.012), L(q1 + n * 0.004, y + 0.012), L(q0 + n * 0.004, y + 0.012), nw, door.darkened(0.45))
+			for row in 4:
+				var sy0 := gy0 + (y1 - gy0) * row / 4.0
+				var sy1 := gy0 + (y1 - gy0) * (row + 1) / 4.0
+				for k in bays:
+					var pa := q0.lerp(q1, (float(k) + 0.1) / bays) + n * 0.014
+					var pb := q0.lerp(q1, (float(k) + 0.9) / bays) + n * 0.014
+					var py0 := lerpf(sy0, sy1, 0.2)
+					var py1 := lerpf(sy0, sy1, 0.8)
+					_quad("h_door", L(pa, py0), L(pb, py0), L(pb, py1), L(pa, py1), nw, door.lightened(0.05))
+					_quad("h_door", L(pa, py0 - 0.012), L(pb, py0 - 0.012), L(pb, py0), L(pa, py0), nw, door.darkened(0.3))
 			if h.style == HouseKit.Style.CRAFTSMAN or h.style == HouseKit.Style.SPANISH:
 				var ly0 := gy0 + (y1 - gy0) * 0.78
 				for k in bays:

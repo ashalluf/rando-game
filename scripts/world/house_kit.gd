@@ -44,7 +44,7 @@ enum Style { RANCH, SPANISH, CRAFTSMAN, MIDCENTURY, STUCCO_BOX, DINGBAT }
 const STYLE_NAMES := ["ranch", "spanish", "craftsman", "midcentury", "stucco_box", "dingbat"]
 ## Cumulative odds of each type, per district.
 const SUBURB_STYLES := [[Style.RANCH, 0.34], [Style.SPANISH, 0.56], [Style.CRAFTSMAN, 0.72], [Style.MIDCENTURY, 0.85], [Style.STUCCO_BOX, 1.0]]
-const BEACH_STYLES := [[Style.STUCCO_BOX, 0.32], [Style.SPANISH, 0.52], [Style.MIDCENTURY, 0.66], [Style.CRAFTSMAN, 0.78], [Style.DINGBAT, 0.93], [Style.RANCH, 1.0]]
+const BEACH_STYLES := [[Style.STUCCO_BOX, 0.32], [Style.SPANISH, 0.54], [Style.MIDCENTURY, 0.66], [Style.CRAFTSMAN, 0.8], [Style.DINGBAT, 0.91], [Style.RANCH, 1.0]]
 
 # --- Sizes (metres) ---------------------------------------------------------------------------
 const STOREY := 3.0
@@ -443,7 +443,7 @@ static func _plan_box(h: Dictionary, ps: int, s: int, u0: float, u1: float, v0: 
 	if beach and target > 9.6:
 		storeys = 3
 	var roll := _h01([ps, s, "roof"])
-	var roof := "hip" if roll < (0.45 if beach else 0.7) else "flat"
+	var roof := "hip" if roll < (0.62 if beach else 0.72) else "flat"
 	h.roof_mat = "h_roof" if _h01([ps, s, "roofmat"]) < 0.7 else "h_shingle"
 	h.shingle_kind = 1
 	h.pitch = _range(Vector2(0.28, 0.36), [ps, s, "pitch"])
