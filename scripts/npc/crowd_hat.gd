@@ -1237,7 +1237,7 @@ static func _press_hair(inst: Node3D, skel: Skeleton3D, rig: String, kind: int, 
 ## The hair mesh of `hmi` with every card under the crown of a `kind` hat pressed inside its
 ## inner surface (fully above the band edge, easing out over the few centimetres below it, so
 ## the hair shows where it comes out from under the band), the triangles left wholly inside the
-## hat dropped, and a fringe hanging from under it slid in whole. Strands standing far
+## hat dropped, and a fringe hanging from under it dropped whole. Strands standing far
 ## off the scalp (a ponytail out through the opening, a braid) are left as they are. Shared per
 ## hair mesh, rig and kind; null without mesh data (the headless check), where dress() hides the
 ## hair instead.
@@ -1347,14 +1347,13 @@ static func _press(hmi: MeshInstance3D, skel: Skeleton3D, rig: String, kinds: Ar
 		var inside := PackedByteArray()
 		inside.resize(n)
 		# Which cards start under the crown, and which hang in front of the face below the band:
-		# a card that does both is a fringe, and it slides in under the hat whole - every vertex
-		# moved in by the most any of its vertices under the crown stands out of the hat - so it
-		# keeps its shape and still hangs where the hair style hangs it. Pressed only where it is
-		# under the hat it bunched into a dark slab over the eyes; laid flat on the skin it was an
-		# eye patch; dropped, it left the scalp painted under it showing as a smudge.
+		# a card that does both is a fringe, and it is dropped whole (tucked up under the hat).
+		# Pressed only where it was under the hat it bunched into a dark slab over the eyes; laid
+		# flat on the skin it was an eye patch; slid in whole it still poked out through the
+		# front of the crown and hung over an eye. Dropped, the scalp painted under it can show as
+		# a soft smudge of the hair colour on the forehead, which reads as hair tucked under.
 		var under := {}
 		var front := {}
-		var lift := {}
 		# Per vertex: how much it is under the hat (w) and the room inside the hat over it.
 		var ws := PackedFloat32Array()
 		var rooms := PackedFloat32Array()
@@ -1369,7 +1368,6 @@ static func _press(hmi: MeshInstance3D, skel: Skeleton3D, rig: String, kinds: Ar
 				rooms[v] = skull[v] + standoff(h, kind, ths[v], ph, s) - FABRIC - 0.0012
 			if ph >= pe:
 				under[root[v]] = true
-				lift[root[v]] = maxf(float(lift.get(root[v], 0.0)), rads[v] - rooms[v])
 			elif absf(ths[v]) < 1.0 and ys[v] > h.eye_y - 0.03:
 				front[root[v]] = true
 		for v in n:
@@ -1377,8 +1375,7 @@ static func _press(hmi: MeshInstance3D, skel: Skeleton3D, rig: String, kinds: Ar
 			if r < 0.02:
 				continue
 			if under.has(root[v]) and front.has(root[v]):
-				var r2 := maxf(r - clampf(float(lift.get(root[v], 0.0)), 0.0, 0.012), skull[v] + 0.0008)
-				out_v[v] = from_frame * (h.c + dirs[v] * minf(r, r2))
+				inside[v] = 1
 				continue
 			var w := ws[v]
 			if w <= 0.0:

@@ -5653,7 +5653,7 @@ clip's first frame. The crowd rigs' heads sit at different heights over that bon
 them the cap's peak came out at eye level with the crown pushed back on the skull, the police cap
 floated a few centimetres over the head, and the cap kept its hair cards on, which stood out
 through it. Stills (not committed, the session's scratchpad `caps/`): `before2/` (the same framings as
-`after4/`, drawn with the old code pasted into a scratch copy of crowd_lineup).
+`after5/` and `after4/street_*`, drawn with the old code pasted into a scratch copy of crowd_lineup).
 
 **The fit.** `tools/crowd/hat_fit.gd` (opengl3 under Xvfb; it needs mesh data) skins each crowd
 rig's Body and Hair at rest into the HEAD FRAME (metres, skeleton axes, origin at the Head bone's
@@ -5717,10 +5717,12 @@ below the band so the hair comes out from under it at the back and sides; a stra
 2.6-4 cm off the scalp left alone (crowd_d's ponytail goes out through the cap's opening); the
 triangles left wholly inside dropped (crowd_d's 3,830 hair triangles are 2,519 under the cap,
 crowd_i's 3,829 are 1,801); the importer's hair LODs kept, less the same triangles. A fringe
-(a hair card that starts under the crown and hangs in front of the face) slides in WHOLE, by the
-most any of its vertices stands out of the hat: pressed only where it was under the hat it
-bunched into a dark slab over one eye, laid flat on the skin it was an eye patch, and dropped it
-left the scalp painted under it showing as a smudge. No mesh data (the headless check) hides the
+(a hair card that starts under the crown and hangs in front of the face) is dropped whole, as if
+tucked up under the hat. Three other ways were tried and each was worse: pressed only where it
+was under the hat it bunched into a dark slab over one eye, laid flat on the skin it was an eye
+patch, and slid in whole (by the most any of its vertices stood out of the hat) it still poked
+out through the front of the crown and hung over an eye. Dropped, the scalp painted under it can
+show as a soft smudge of the hair colour on the forehead, which reads as hair under the band. No mesh data (the headless check) hides the
 cards as before; a rig whose hair is too thick to press can be marked `"hide"` by the tool (none
 is: crowd_e's natural hair is ~2 cm and presses).
 
@@ -5744,7 +5746,7 @@ drawn again (it was hidden; it is the person's own draw, the one they have witho
 the triangles inside the hat dropped. Memory: ~3 MB of hat meshes, ~6 MB of pressed hair copies.
 
 **Judged** (opengl3 lineups, `crowd_lineup.gd HATS=...`, and one Forward+ lavapipe lineup):
-`after4/close_*.png` (four kinds at 1.4-1.9 m: 3/4, front, profile, back, from below),
+`after5/close_*.png` (four kinds at 1.4-1.9 m: 3/4, front, profile, back, from below),
 `after4/street_*.png` (eight people at 6 and 16 m), `fwd/close_*.png` (Forward+); pairs in
 `pairs/`. At street range a cap is a cap - crown down on the forehead, the bill's curve and the
 button read - and a beanie a beanie; up close the seams, the bill's stitching, the knit and the
