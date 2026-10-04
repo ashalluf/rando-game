@@ -565,7 +565,7 @@ static func _cap(b: Buf, h: Head) -> void:
 			cs[i * cols + j] = _c(PART_CROWN, 1.0, s, r * cos(ph))
 	b.grid(rows, cols, p, uvs, cs, h.c, false, true)
 	# The sweatband inside, the lowest 28 mm, and the edge rolled between it and the crown.
-	var ci := 6 * 3 + 1
+	var ci := cols
 	var sb := PackedVector3Array()
 	var sb_uv := PackedVector2Array()
 	var sb_c := PackedColorArray()

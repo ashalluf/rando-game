@@ -5490,3 +5490,130 @@ level the far city is mostly hidden: 0.5 % of pixels move.
   boundary on Compatibility; TAA settles it on Forward+).
 - Shadow cost of the LOD ring's roof units: they cast with the rest of the `lod_box` batch; the
   geo_count shadow lines above are what it costs at these three views.
+
+
+## 9bf. Real headwear, fitted to each head, 2026-10-04 (agent branch `worktree-agent-a4d942dcfd8aa9ccb`; GAME_PLAN G5)
+
+The brief (lead): the crowd's caps and beanies read as plastic bowls perched on the crown - a
+smooth half-dome with a thin flat peak in flat saturated blue / green - the most toy-like thing
+on a person in crowd-life's stills; make real headwear that fits each rig. CLAUDE.md's
+"Headwear" note is the reference; this is the story.
+
+**What was wrong, measured.** The old `_add_accessory()` hung one fixed tube + half-dome (cap
+240 triangles, beanie 220, police cap 200) at one offset from the Head bone, levelled in the walk
+clip's first frame. The crowd rigs' heads sit at different heights over that bone: on most of
+them the cap's peak came out at eye level with the crown pushed back on the skull, the police cap
+floated a few centimetres over the head, and the cap kept its hair cards on, which stood out
+through it. Stills (not committed, the session's scratchpad `caps/`): `before2/` (the same framings as
+`after4/`, drawn with the old code pasted into a scratch copy of crowd_lineup).
+
+**The fit.** `tools/crowd/hat_fit.gd` (opengl3 under Xvfb; it needs mesh data) skins each crowd
+rig's Body and Hair at rest into the HEAD FRAME (metres, skeleton axes, origin at the Head bone's
+rest) and measures: the eye centre (the region colour's eye vertices), the ear tops, a centre C
+at eye height half way between the back of the skull and the forehead and centred on the eyes
+across (the Head bone is up to 3 mm off the head's middle), the skull's radius from C on a 17 x 32
+grid of directions (four jittered rays a direction at the head-weighted triangles, outermost hit
+kept - a ray down the mirror seam slipped between triangles and found the inside of the face),
+the ears put back on the skull (only the samples within 35 degrees of each ear, near eye height,
+that stand 2 mm proud of the chord over the window: a whole-ring fit "removed" the nose and the
+occiput too), the two sides averaged, a light blur; and the hair's thickness over it from rays at
+the Hair cards less the brows and lashes. `scripts/npc/crowd_hat_table.gd` holds it (52 KB for
+twelve rigs). `REPORT=1` builds every hat on every rig from the table and casts from outside in
+through every covered head vertex to the hat's outer surface: 0 through on all 48 rig x kind
+pairs, the outside 0.0-6.5 mm off the skin at its closest, the band 0.5-17 mm (the larger numbers
+are the beanie's knit over pressed hair).
+
+**The hats** (`scripts/npc/crowd_hat.gd`, `CrowdHat`, all code): a grid shell round the head - per
+column round the head the band edge's elevation (a height over the eyes per kind, the front and
+back in `EDGE`, the sides never under the ear tops + `EAR_CLEAR`), rows up to the crown, each
+point the skull radius there plus `standoff()` (cloth, room for the pressed hair, a loft, the
+cap's structured front panels, each panel puffed between its seams, the beanie's slouch to the
+back) - and parts on it:
+- cap: six panels (seams on columns), a button, a sweatband 28 mm up the inside, a rolled edge,
+  the opening at the back (a rounded arch) with a strap tucked under the panels and a slide
+  buckle, the bill: 7 cm reach for a 20 cm head, 12 degrees down, its sides curved down 2 cm, a
+  crown across its depth, 3.4 mm thick, a taped edge rolled round it, its root tucked under the
+  band;
+- beanie: the knit to the crown (a slouch toward the back), a 52 mm 2x2-rib cuff 3.6 mm proud,
+  its lower edge folded under and its top rolled back onto the knit;
+- bucket: four side panels (seams 45 degrees off the front), a quarter-round corner, a round top,
+  a 52 mm brim sloping and waving, a taped edge;
+- police: a straight black braid band, a crown flaring to a rim (higher at the front), a domed
+  top, a patent peak (52 mm, 29 degrees down), a chin strap on two buttons, a shield badge laid
+  on the crown's slope.
+LOD: the levels are the same grids at every 1st, 2nd and 4th row and column, one vertex buffer
+(cap 1,812 / 464 / 121 triangles, beanie 1,656 / 432 / 107, bucket 1,980 / 522 / 153, police
+1,636 / 454 / 139; edges `LEVEL_EDGES` 0 / 1.8 / 5.5 mm). Normals and windings are decided per
+GRID (vote, then one way for all): turned vertex by vertex, the police flare's first row had
+every other triangle facing in (a sawtooth of lining showing at the band's top).
+
+**The cloth** (`shaders/crowd_hat.gdshader`): everything a close look reads is drawn on the
+mesh's coordinates (UV in metres round and up; part id, occlusion, parameter and ring radius in
+the vertex colour): twill and slubs, panel seams as a valley with the cloth puffed either side and
+topstitching 3.2 mm off, embroidered eyelets, eight rows of stitching round the bill, a taped
+edge's stitch line, the ribbed sweatband, stockinette knit (Vs up each column, a heather), the
+cuff's 2x2 rib, the crown's six decrease lines, a bucket's metal vent eyelets, three original
+embroidered marks (a ring and dot, a ridge line, a wave; half the caps plain) or a woven label on
+a third of the beanies, the police band's braid, patent with a clearcoat. Each pattern fades to
+its average under a pixel. Both faces drawn (`cull_disabled`): the back faces are the lining
+(dark, unlit by the sky), so the inside of a crown under a bill, through the cap's opening and
+up into a bucket needs no geometry. The relief tilts the normal in a frame worked out from the
+screen derivatives of UV (no tangents in the mesh). Linear on both renderers
+(`color_space.gdshaderinc`). Colourways are muted and team-less (`CAP_COLORS`, `BEANIE_COLORS`,
+`BUCKET_COLORS`; the police navy = `PoliceOfficer.CAP_COLOR`); one material per colourway and
+mark (~60 at most).
+
+**The hair is pressed, not hidden** (`pressed_hair()`, one copy per hair mesh, rig and kind):
+every hair vertex under the crown moved inside the hat's inner surface, easing out over 3.5 cm
+below the band so the hair comes out from under it at the back and sides; a strand more than
+2.6-4 cm off the scalp left alone (crowd_d's ponytail goes out through the cap's opening); the
+triangles left wholly inside dropped (crowd_d's 3,830 hair triangles are 2,519 under the cap,
+crowd_i's 3,829 are 1,801); the importer's hair LODs kept, less the same triangles. A fringe
+(a hair card that starts under the crown and hangs in front of the face) slides in WHOLE, by the
+most any of its vertices stands out of the hat: pressed only where it was under the hat it
+bunched into a dark slab over one eye, laid flat on the skin it was an eye patch, and dropped it
+left the scalp painted under it showing as a smudge. No mesh data (the headless check) hides the
+cards as before; a rig whose hair is too thick to press can be marked `"hide"` by the tool (none
+is: crowd_e's natural hair is ~2 cm and presses).
+
+**In the game.** `Pedestrian._add_accessory()` makes the same three `_style` rolls as before (the
+chance, the kind, one colour roll; CampFigure.seed_for() and everything rolled after depend on
+them) - a bucket hat is the top tenth of the old cap roll; the pack is unchanged.
+`Pedestrian.knock()` dresses the ragdoll in the same hat (`_dress_doll()`; a decapitating gib
+takes it with the head bone). `PoliceOfficer._add_cap()` is `CrowdHat.Kind.PEAKED` (the tactical
+unit still goes bare-headed), on the officer and on their ragdoll. Rough sleepers wear hats from
+the same roll in a worn colourway (dulled toward grey-brown, the top sun-faded, grime in blotches
+at the band: `CrowdHat.material(kind, pick, true)`, `RoughSleeper._wear_hat()`); camp figures'
+seeds still avoid them. The loading screen builds every hat and
+pressed hair (`CrowdHat.warm()` from `Pedestrian.warm_far_mesh()`, which already has the rig
+instanced): **~0.8 s here** for twelve rigs (41 hats at ~10-13 ms, the hair ~10 ms a kind) - the
+people's share of the loading screen grows by about that.
+
+**Cost per wearer.** One draw (the hat), no shadow pass, no GI, gone past
+`accessory_distance` - as before. Triangles 1.6-2k near, ~430-520 from a couple of metres, ~110-150
+from ~4 m (the old ones were 200-240 at every range). The hair under a beanie or the police cap is
+drawn again (it was hidden; it is the person's own draw, the one they have without a hat), with
+the triangles inside the hat dropped. Memory: ~3 MB of hat meshes, ~6 MB of pressed hair copies.
+
+**Judged** (opengl3 lineups, `crowd_lineup.gd HATS=...`, and one Forward+ lavapipe lineup):
+`after4/close_*.png` (four kinds at 1.4-1.9 m: 3/4, front, profile, back, from below),
+`after4/street_*.png` (eight people at 6 and 16 m), `fwd/close_*.png` (Forward+); pairs in
+`pairs/`. At street range a cap is a cap - crown down on the forehead, the bill's curve and the
+button read - and a beanie a beanie; up close the seams, the bill's stitching, the knit and the
+rib read, the hair comes out under the band. Not seen on the owner's Mac.
+
+**Traps:** `posmod()` is integer-only - on a float angle it truncated, and the whole skull
+lookup was constant over a radian (the first "48 % of the head through the cap" report);
+`Array[PackedInt32Array]`'s element appended through the subscript is the stored one, but
+`var x := arr[i]` then `x.append()` is a copy; the fit tool's TriangleMesh rays down the mirror
+seam miss or go through (jitter them); a class_name file the editor has not imported is not
+declared to other scripts (`--import` after adding one); the cap's sweatband and rolled edge at
+half the crown's columns cut the corners of the back opening's arch and came 0.4 mm through the
+skin there (they now take the crown's columns: the report's last two contacts).
+
+**Not done / next:** the hats cast no shadow (the brief's rule): the brim does not shade the
+eyes, which is now the biggest tell left up close - a SHADOWS_ONLY twin of the bill within ~15 m
+would cost one shadow draw per near wearer; the cards of very thick hair would need `"hide"` (no rig has it); hats never come off (shot or
+blasted off, a cap could be debris); the warm could run on worker threads during the city build
+instead of adding ~0.8 s; no cap is worn backwards or tilted; the bucket hat's brim does not
+droop with the wind. Rerun `tools/crowd/hat_fit.gd` whenever a crowd rig is rebuilt.

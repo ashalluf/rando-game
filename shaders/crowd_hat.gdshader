@@ -184,7 +184,7 @@ void fragment() {
 			}
 		}
 		if (kind == 3) {
-			// The police crown has no panels: only its piping at the rim reads.
+			// The police crown is one piece of wool: no panel seams.
 			ds = 1.0;
 		}
 		float ks = keep(0.0025, px);

@@ -2342,7 +2342,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   or a brand) or a woven label - each faded to its average under a pixel, both faces drawn (the
   inside is the lining: no inner geometry), colourways muted (`CAP_COLORS` ...). A hat is one
   mesh per rig and kind with three levels in one buffer (every 1st / 2nd / 4th row and column of
-  its grids, `LEVEL_EDGES`; ~1.7k / 450 / 130 triangles), one material per colourway, one draw
+  its grids, `LEVEL_EDGES`; cap 1,812 / 464 / 121 triangles, the others 1.6-2k / 430-520 / 110-150), one material per colourway, one draw
   per wearer, never in a shadow pass, gone past `accessory_distance`. **The hair is pressed, not
   hidden** (`pressed_hair()`): vertices under the crown moved inside it, easing out over a few
   centimetres below the band so hair shows at the back and sides, strands far off the scalp (a
@@ -2351,7 +2351,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   No mesh data (the headless check) or a rig marked `"hide"` (hair too thick to press) hides the
   cards as before. `Pedestrian._add_accessory()` makes the same three `_style` rolls as the box
   hats did (CampFigure.seed_for() depends on them; a bucket hat is the top tenth of the old cap
-  roll), the ragdoll a hatted person becomes wears it too (`_dress_doll()`), `PoliceOfficer` uses
+  roll), the ragdoll a hatted person becomes wears it too (`_dress_doll()`), a rough sleeper's is
+  the worn colourway (`material(kind, pick, true)`: dulled, faded, grime), `PoliceOfficer` uses
   `CrowdHat.Kind.PEAKED`. The loading screen builds them all (`CrowdHat.warm()` from
   `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
   `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);

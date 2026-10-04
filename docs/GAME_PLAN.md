@@ -299,7 +299,7 @@ already mapped so milestone 2 is script-only.
   hat and the police peaked cap, down on the forehead and over the ear tops with the cloth 2-6 mm
   off the skin. The seams, topstitching, eyelets, rows of stitching round the bill, the knit and
   the rib are drawn by `shaders/crowd_hat.gdshader` on the mesh's own coordinates, so a hat is
-  ~1.7k triangles near (three LOD levels in one buffer), one draw, no shadow pass, no texture.
+  1.6-2k triangles near (three LOD levels in one buffer), one draw, no shadow pass, no texture.
   The hair is pressed under the hat instead of hidden, so it shows below the band. Code, not
   Blender: the fit has to be per rig and is measured from the rig, which a modelled .glb per rig
   and kind (48 files to rebuild with every crowd change) would not be. Cost: ~0.8 s more on the
