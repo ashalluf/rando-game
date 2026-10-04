@@ -44,6 +44,21 @@ varying vec3 local_normal;
 varying float kind;
 varying float variant;
 
+#include "res://shaders/color_space.gdshaderinc"
+
+// The arithmetic below is tuned in display (sRGB) numbers, which is what Compatibility hands a
+// shader. Forward+ decodes the textures and the `source_color` tints first, so they go back to
+// display numbers here (disp()) and the result goes out in the renderer's own space (to_lit()):
+// both renderers draw the same albedo (CLAUDE.md, the colour-space trap).
+vec3 disp(vec3 c) {
+	return cs_linear_renderer() ? cs_linear_to_srgb(c) : c;
+}
+
+
+vec3 to_lit(vec3 c) {
+	return cs_linear_renderer() ? cs_srgb_to_linear(c) : c;
+}
+
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33);
@@ -60,12 +75,12 @@ float vnoise(vec2 p) {
 // A texture sampled twice, the second rotated and scaled, cross-faded on slow noise: a yard's
 // worth of one 1K tile shows its grid otherwise.
 vec3 tiled(sampler2D tex, vec2 p, float scale) {
-	vec3 a = texture(tex, p / scale).rgb;
+	vec3 a = disp(texture(tex, p / scale).rgb);
 	if (ground_detail < 0.5) {
 		return a;
 	}
 	vec2 q = mat2(vec2(0.8, 0.6), vec2(-0.6, 0.8)) * p / (scale * 1.37) + vec2(0.31, 0.77);
-	vec3 b = texture(tex, q).rgb;
+	vec3 b = disp(texture(tex, q).rgb);
 	return mix(a, b, smoothstep(0.35, 0.65, vnoise(p * 0.07)) * 0.5);
 }
 
@@ -107,7 +122,7 @@ void fragment() {
 		// A lawn: watered green to summer-dry by the variant, in patches.
 		vec3 g = tiled(grass_tex, p, 2.6);
 		float dry = clamp(variant * 0.9 + 0.35 * (vnoise(p * 0.21 + 3.0) - 0.5), 0.0, 1.0);
-		albedo = g * mix(lawn_tint, lawn_dry, dry) * mottle;
+		albedo = g * mix(disp(lawn_tint), disp(lawn_dry), dry) * mottle;
 		rough = 0.95;
 		wet_k = 0.4;
 	} else if (kind < 1.5) {
@@ -115,7 +130,7 @@ void fragment() {
 		// neighbours (poured on different days), darker toward the lot's old oil and leaf stains.
 		vec2 cell = floor(p / joint_spacing);
 		float slab = hash12(cell + floor(variant * 31.0));
-		vec3 c = tiled(concrete_tex, p, 3.2) * concrete_tint * (0.9 + 0.14 * slab);
+		vec3 c = tiled(concrete_tex, p, 3.2) * disp(concrete_tint) * (0.9 + 0.14 * slab);
 		float stain = smoothstep(0.6, 0.85, vnoise(p * 0.45 + 11.0 + variant * 5.0));
 		c *= 1.0 - 0.22 * stain - 0.18 * variant;
 		float j = joints(p, joint_spacing, 0.012);
@@ -125,7 +140,7 @@ void fragment() {
 		rough = 0.8;
 	} else if (kind < 2.5) {
 		// Decomposed granite: the tan crushed stone of a drought-tolerant yard.
-		albedo = tiled(dirt_tex, p, 2.2) * dg_tint * mix(vec3(1.0), vec3(1.06, 1.0, 0.92), variant) * mottle;
+		albedo = tiled(dirt_tex, p, 2.2) * disp(dg_tint) * mix(vec3(1.0), vec3(1.06, 1.0, 0.92), variant) * mottle;
 		rough = 0.95;
 		wet_k = 0.7;
 	} else if (kind < 3.5) {
@@ -133,7 +148,7 @@ void fragment() {
 		// (Sampled once: the rotated second sample tiled() blends in crosses a pattern like this
 		// with a diagonal hatch.)
 		vec2 q = variant > 0.5 ? p.yx : p;
-		albedo = texture(brick_tex, q / 1.6).rgb * brick_tint * mottle;
+		albedo = disp(texture(brick_tex, q / 1.6).rgb) * disp(brick_tint) * mottle;
 		nm = texture(brick_nrm, q / 1.6).rgb;
 		if (variant > 0.5) {
 			nm.xy = nm.yx;
@@ -146,21 +161,21 @@ void fragment() {
 		vec2 t = floor(p / tile_size);
 		float h = hash12(t + 17.0);
 		vec3 base = tiled(concrete_tex, p, 2.0);
-		vec3 clay = tile_tint * mix(vec3(0.82, 0.86, 0.9), vec3(1.15, 1.06, 0.96), h) * (0.75 + 0.5 * dot(base, vec3(0.33)));
+		vec3 clay = disp(tile_tint) * mix(vec3(0.82, 0.86, 0.9), vec3(1.15, 1.06, 0.96), h) * (0.75 + 0.5 * dot(base, vec3(0.33)));
 		float g = joints(p, tile_size, 0.014);
 		albedo = mix(clay, vec3(0.62, 0.58, 0.52), g) * mottle;
 		rough = mix(0.62, 0.9, g);
 	} else if (kind < 5.5) {
 		// A timber deck: boards along x or z by the variant, silvered toward the edges of the yard.
 		vec2 q = variant > 0.5 ? p.yx : p;
-		vec3 w = texture(planks_tex, vec2(q.x / 2.4, q.y / 0.6)).rgb;
+		vec3 w = disp(texture(planks_tex, vec2(q.x / 2.4, q.y / 0.6)).rgb);
 		float gap = joint1(q.y + 0.05, 0.14, 0.008);
-		albedo = w * deck_tint * (1.0 - 0.55 * gap) * mottle;
+		albedo = w * disp(deck_tint) * (1.0 - 0.55 * gap) * mottle;
 		rough = 0.78;
 	} else if (kind < 6.5) {
 		// Bark mulch under the shrubs: dark chips on the dirt.
 		float chips = vnoise(p * 9.0) * 0.6 + vnoise(p * 23.0) * 0.4;
-		albedo = tiled(dirt_tex, p, 1.4) * mulch_tint * (0.7 + 0.6 * chips) * mottle;
+		albedo = tiled(dirt_tex, p, 1.4) * disp(mulch_tint) * (0.7 + 0.6 * chips) * mottle;
 		rough = 0.96;
 		wet_k = 0.6;
 	} else if (kind < 7.5) {
@@ -168,8 +183,8 @@ void fragment() {
 		// keeps it off (variant up to 1 right under it) the bare compacted dirt Caltrans leaves.
 		vec3 g = tiled(grass_tex, p, 1.3);
 		float clumps = vnoise(p * 1.7) * 0.65 + vnoise(p * 5.3) * 0.35;
-		vec3 ivy = g * ivy_tint * (0.55 + 0.9 * clumps);
-		vec3 dirt = tiled(dirt_tex, p, 2.4) * dirt_tint * mottle;
+		vec3 ivy = g * disp(ivy_tint) * (0.55 + 0.9 * clumps);
+		vec3 dirt = tiled(dirt_tex, p, 2.4) * disp(dirt_tint) * mottle;
 		float bare = smoothstep(0.25, 0.75, variant + 0.35 * (vnoise(p * 0.6 + 9.0) - 0.5));
 		albedo = mix(ivy, dirt, bare);
 		rough = mix(0.9, 0.97, bare);
@@ -183,7 +198,7 @@ void fragment() {
 	} else {
 		// A gravel yard (a service yard, a maintenance yard under the freeway).
 		float stones = vnoise(p * 14.0) * 0.5 + vnoise(p * 31.0) * 0.5;
-		albedo = tiled(dirt_tex, p, 1.8) * gravel_tint * (0.8 + 0.4 * stones) * mottle;
+		albedo = tiled(dirt_tex, p, 1.8) * disp(gravel_tint) * (0.8 + 0.4 * stones) * mottle;
 		float oil = smoothstep(0.66, 0.85, vnoise(p * 0.3 + 4.0));
 		albedo *= 1.0 - 0.35 * oil * variant;
 		rough = 0.93;
@@ -191,7 +206,7 @@ void fragment() {
 	float wet = clamp(road_wetness, 0.0, 1.0) * wet_k;
 	albedo *= 1.0 - 0.35 * wet;
 	rough = mix(rough, 0.14, wet * 0.85);
-	ALBEDO = albedo;
+	ALBEDO = to_lit(albedo);
 	ROUGHNESS = rough;
 	// The detail normal as a slope on the ground plane (these meshes have no tangents). Tops only.
 	if (local_normal.y > 0.9 && nm_depth > 0.0) {

@@ -1121,8 +1121,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Every roll is a hash of seed + lot / block, never the chunk rng. A FULL chunk's yard ground is
   ONE mesh (`YardGround`, `shaders/lot_yard.gdshader`, kind in COLOR.r, a variant in COLOR.g, no
   shadow) and everything upright ONE casting mesh (`YardWalls`, `shaders/lot_walls.gdshader`,
-  kind in COLOR.a, paint in COLOR.rgb - linear on Forward+ - UV in face metres, UV2.x the
-  height); pickets and chain-link are cut out by the shader. Two shaders, not more kinds in
+  kind in COLOR.a, paint in COLOR.rgb as written, UV in face metres, UV2.x the height); pickets
+  and chain-link are cut out by the shader. Both shaders include `color_space.gdshaderinc` and do
+  their arithmetic in display numbers (`disp()` takes Forward+'s decoded textures and tints back,
+  `to_lit()` hands the result over), so the Mac draws the albedo the opengl3 stills show. Two shaders, not more kinds in
   `lot_ground`: one shader sampling both texture sets passes what the Compatibility renderer
   leaves a material. Planting goes in batches a chunk already has, under per-chunk budgets
   (`MAX_SHRUBS` / `SHRUB_TRIS` - one shrub species a chunk, LotFill's pick where it runs too and

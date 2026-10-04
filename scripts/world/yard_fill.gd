@@ -1677,9 +1677,8 @@ static func commit(ch: CityChunk) -> void:
 	if not ch._yard_walls.is_empty():
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		var linear := PropFactory.has_reflections()
 		for w: Array in ch._yard_walls:
-			_wall_tris(st, w[0], w[1], int(w[2]), w[3], float(w[4]), linear)
+			_wall_tris(st, w[0], w[1], int(w[2]), w[3], float(w[4]))
 		var mi := MeshInstance3D.new()
 		mi.name = "YardWalls"
 		mi.mesh = st.commit()
@@ -1817,8 +1816,10 @@ static func _ground_box_tris(st: SurfaceTool, size: Vector3, at: Vector3, kind: 
 ## An upright box into the walls mesh: its faces (no bottom) with UV in metres in the face's own
 ## frame - x along the face (world-continuous, so a run of boxes reads as one wall), y up from the
 ## box's foot - and UV2.x the height its courses and rails are laid out on.
-static func _wall_tris(st: SurfaceTool, size: Vector3, c: Vector3, kind: int, paint: Color, h: float, linear: bool) -> void:
-	var col := paint.srgb_to_linear() if linear else paint
+static func _wall_tris(st: SurfaceTool, size: Vector3, c: Vector3, kind: int, paint: Color, h: float) -> void:
+	# The paint as written (sRGB) on both renderers: vertex colours arrive raw on both, and the
+	# shader works in display numbers (lot_walls.gdshader, disp() / to_lit()).
+	var col := paint
 	col.a = float(kind) / 16.0
 	var lo := c - size * 0.5
 	var hi := c + size * 0.5

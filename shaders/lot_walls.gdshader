@@ -23,6 +23,20 @@ global uniform float road_wetness;
 varying float kind;
 varying vec3 world_n;
 
+#include "res://shaders/color_space.gdshaderinc"
+
+// Tuned in display (sRGB) numbers - what Compatibility hands a shader, and what the paint in
+// COLOR is on both renderers. Forward+ decodes the textures and `fig_tint` first, so they go back
+// to display numbers (disp()) and the result goes out in the renderer's own space (to_lit()).
+vec3 disp(vec3 c) {
+	return cs_linear_renderer() ? cs_linear_to_srgb(c) : c;
+}
+
+
+vec3 to_lit(vec3 c) {
+	return cs_linear_renderer() ? cs_srgb_to_linear(c) : c;
+}
+
 float hash12(vec2 p) {
 	vec3 p3 = fract(vec3(p.xyx) * 0.1031);
 	p3 += dot(p3, p3.yzx + 33.33);
@@ -70,7 +84,7 @@ void fragment() {
 	float foot = top ? 0.0 : 1.0 - smoothstep(0.0, 0.35, uv.y);
 	if (kind < 0.5) {
 		// Painted stucco, sand-floated, the paint chalking and stained by sprinklers at the foot.
-		vec3 s = texture(plaster_tex, uv / 2.4).rgb;
+		vec3 s = disp(texture(plaster_tex, uv / 2.4).rgb);
 		albedo = paint * (0.55 + 0.6 * s) * (top ? 1.06 : 1.0);
 		albedo *= 1.0 - 0.25 * foot;
 		rough = 0.9;
@@ -78,7 +92,7 @@ void fragment() {
 		// A timber fence: vertical boards (the planks texture turned upright), each a little off
 		// its neighbour, gaps between them, weathered grey toward the top.
 		float board = floor(uv.x / 0.14);
-		vec3 w = texture(planks_tex, vec2(uv.y / 1.8, uv.x / 0.56 + hash12(vec2(board, 3.0)))).rgb;
+		vec3 w = disp(texture(planks_tex, vec2(uv.y / 1.8, uv.x / 0.56 + hash12(vec2(board, 3.0)))).rgb);
 		float gap = course(uv.x, 0.14, 0.012);
 		albedo = paint * (0.6 + 0.8 * w) * (0.9 + 0.2 * hash12(vec2(board, 7.0))) * (1.0 - 0.6 * gap);
 		albedo = mix(albedo, vec3(dot(albedo, vec3(0.33))) * 1.05, 0.35 * v);
@@ -105,7 +119,7 @@ void fragment() {
 		float row = floor(uv.y / 0.203);
 		float u = uv.x + (mod(row, 2.0) > 0.5 ? 0.203 : 0.0);
 		float blk = hash12(vec2(floor(u / 0.406), row));
-		vec3 c = texture(concrete_tex, uv / 1.7).rgb;
+		vec3 c = disp(texture(concrete_tex, uv / 1.7).rgb);
 		float split = vnoise(uv * vec2(11.0, 17.0)) * 0.6 + vnoise(uv * 37.0) * 0.4;
 		albedo = paint * (0.6 + 0.5 * c) * (0.86 + 0.18 * blk) * (0.85 + 0.3 * split);
 		float j = max(course(uv.y, 0.203, 0.012), course(u, 0.406, 0.012));
@@ -114,7 +128,7 @@ void fragment() {
 			float reach = 0.8 + 2.6 * vnoise(vec2(uv.x * 0.35, 1.7)) + 0.9 * vnoise(vec2(uv.x * 1.3, 4.1));
 			float leaves = vnoise(uv * 6.0) * 0.6 + vnoise(uv * 15.0) * 0.4;
 			float fig = smoothstep(reach, reach - 0.6, uv.y) * smoothstep(0.25, 0.55, leaves + 0.25 * (1.0 - v));
-			albedo = mix(albedo, fig_tint * (0.6 + 0.8 * leaves), fig);
+			albedo = mix(albedo, disp(fig_tint) * (0.6 + 0.8 * leaves), fig);
 			rough = mix(0.92, 0.8, fig);
 		}
 		albedo *= 1.0 - 0.18 * foot;
@@ -128,7 +142,7 @@ void fragment() {
 		float leaves = vnoise(uv * 19.0) * 0.6 + vnoise(uv * 43.0) * 0.4;
 		float px = smoothstep(0.14, 0.035, fwidth(uv.x) * 4.0);
 		float gaps = smoothstep(0.42, 0.2, leaves) * px;
-		float g = dot(texture(grass_tex, uv / 0.35).rgb, vec3(0.33));
+		float g = dot(disp(texture(grass_tex, uv / 0.35).rgb), vec3(0.33));
 		albedo = paint * (0.7 + 0.6 * g) * (0.9 + 0.18 * lumps) * (1.0 - 0.38 * gaps) * (top ? 1.1 : 1.0);
 		vec3 jitter = vec3(vnoise(uv * 16.0 + 3.1), vnoise(uv * 16.0 + 7.7), vnoise(uv * 16.0 + 1.3)) - 0.5;
 		NORMAL = normalize((VIEW_MATRIX * vec4(normalize(world_n + jitter * 0.4 * (0.4 + 0.6 * px)), 0.0)).xyz);
@@ -136,11 +150,11 @@ void fragment() {
 		wet_k = 0.3;
 	} else if (kind < 5.5) {
 		// Concrete: k-rail, a kerb, a pad.
-		vec3 c = texture(concrete_tex, uv / 2.2).rgb;
+		vec3 c = disp(texture(concrete_tex, uv / 2.2).rgb);
 		albedo = paint * (0.6 + 0.5 * c) * (1.0 - 0.3 * foot);
 		rough = 0.85;
 	} else if (kind < 6.5) {
-		vec3 b = texture(brick_tex, uv / 1.2).rgb;
+		vec3 b = disp(texture(brick_tex, uv / 1.2).rgb);
 		albedo = paint * b * 1.25 * (top ? 0.9 : 1.0);
 		rough = 0.85;
 	} else if (kind < 7.5) {
@@ -174,7 +188,7 @@ void fragment() {
 	}
 	float wet = clamp(road_wetness, 0.0, 1.0) * wet_k * (top ? 1.0 : 0.5);
 	albedo *= 1.0 - 0.3 * wet;
-	ALBEDO = albedo;
+	ALBEDO = to_lit(albedo);
 	ROUGHNESS = mix(rough, 0.2, wet * 0.7);
 	METALLIC = metal;
 }
