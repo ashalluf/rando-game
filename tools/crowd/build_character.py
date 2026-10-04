@@ -323,11 +323,51 @@ if cover:
     bm.normal_update()
     bm.verts.ensure_lookup_table()
     covered = [False] * len(bm.verts)
+    # Our own garments: skin on the torso also counts as covered when cloth lies outward of it
+    # from the torso's axis. The armpits face into the gap between arm and torso, their normals
+    # missed the cloth, the skin was kept, and with the arm down it pushed out through the back
+    # of every long-sleeved top. Arm skin is left to its normal (below a sleeve it shows).
+    torso_skin = None
+    if OWN:
+        _bones = {b.name for b in arm.data.bones}
+        _gn = {g.index: g.name for g in body.vertex_groups if g.name in _bones}
+        _torso = ("Hips", "Spine02", "Spine01", "Spine", "LeftShoulder", "RightShoulder")
+        _zs = [(arm.matrix_world @ arm.data.bones[b].head_local) for b in ("Hips", "Spine01", "Spine", "neck")]
+        _dl = bm.verts.layers.deform.active
+
+        def torso_skin(v):
+            ws = {_gn[g]: w for g, w in v[_dl].items() if g in _gn}
+            return bool(ws) and max(ws, key=ws.get) in _torso
+
+        _zy = sorted((p.z, p.y) for p in _zs)
+
+        def axis_y(z):
+            if z <= _zy[0][0]:
+                return _zy[0][1]
+            for (z0, y0), (z1, y1) in zip(_zy[:-1], _zy[1:]):
+                if z <= z1:
+                    return y0 + (y1 - y0) * (z - z0) / max(z1 - z0, 1e-6)
+            return _zy[-1][1]
     for v in bm.verts:
         w = body.matrix_world @ v.co
         n = (body.matrix_world.to_3x3() @ v.normal).normalized()
         hit = bvh.ray_cast(w + n * 0.0005, n, reach)
         covered[v.index] = hit[0] is not None
+        if not covered[v.index] and torso_skin is not None and torso_skin(v):
+            r = Vector((w.x, w.y - axis_y(w.z), 0.0))
+            if r.length > 1e-6:
+                r.normalize()
+                covered[v.index] = bvh.ray_cast(w + r * 0.0005, r, reach)[0] is not None
+    if OWN:
+        # and a miss among covered neighbours is covered too: at the apex of each armpit the
+        # normals point across the crease, four vertices missed the cloth, and the ring kept
+        # round them was the whole armpit (a garment's real edge has plenty of misses round it)
+        nbv = [[e.other_vert(v).index for e in v.link_edges] for v in bm.verts]
+        for _i in range(2):
+            flip = [i for i in range(len(covered)) if not covered[i] and nbv[i]
+                    and sum(1 for j in nbv[i] if covered[j]) >= 0.7 * len(nbv[i])]
+            for i in flip:
+                covered[i] = True
     # keep every face with a visible corner, then one more ring round those
     keep_v = set()
     for f in bm.faces:

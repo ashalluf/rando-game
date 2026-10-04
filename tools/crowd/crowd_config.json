@@ -508,7 +508,7 @@
        96,
        150
       ],
-      "period": 0.009,
+      "period": 0.011,
       "width": 0.3,
       "strength": 0.85
      }
@@ -640,17 +640,6 @@
       132,
       168
      ],
-     "pattern": {
-      "type": "check",
-      "color": [
-       128,
-       154,
-       186
-      ],
-      "period": 0.0016,
-      "width": 0.5,
-      "strength": 0.25
-     },
      "pocket": true
     }
    ]

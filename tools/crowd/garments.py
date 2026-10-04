@@ -275,14 +275,36 @@ def vertex_normals(o):
     return n.reshape(-1, 3).astype(np.float64)
 
 
-def clear_of(o, bvhs, clearance, where=None):
+def clear_of(o, bvhs, clearance, where=None, smooth=False):
     """After subdividing (Catmull-Clark pulls a convex tube in by millimetres) and decimating: every
-    vertex at least `clearance` out along its own normal from what it covers."""
+    vertex at least `clearance` out along its own normal from what it covers (with `smooth`, as a
+    smooth field: see push_smooth)."""
     P, nbr, bound = mesh_arrays(o)
     N = vertex_normals(o)
     if where is not None:
         N = np.where(where(P)[:, None], N, 0.0)
-    set_positions(o, push_out(P, bvhs, clearance, dirs=N, reach=0.05))
+    if smooth:
+        set_positions(o, push_smooth(P, nbr, bvhs, clearance, N, reach=0.05))
+    else:
+        set_positions(o, push_out(P, bvhs, clearance, dirs=N, reach=0.05))
+
+
+def push_smooth(P, nbr, bvhs, clearance, dirs, reach=0.08, grow=3, blur=4):
+    """push_out over a layer underneath, as a smooth field: how far each point has to move out is
+    grown a few rings and blurred, so the cloth eases out over the layer's edge instead of
+    stepping at it (a tee pushed off the jeans point by point had a scalloped crease all round
+    the belly where the jeans end under it). Never less than the push each point needs."""
+    P1 = push_out(P, bvhs, clearance, dirs=dirs, reach=reach)
+    D = np.linalg.norm(P1 - P, axis=1)
+    G = D.copy()
+    for _ in range(grow):
+        G = np.maximum(G, np.array([G[n].max() if n else G[i] for i, n in enumerate(nbr)]))
+    for _ in range(blur):
+        G = 0.5 * G + 0.5 * np.array([G[n].mean() if n else G[i] for i, n in enumerate(nbr)])
+    G = np.maximum(G, D)
+    N = np.asarray(dirs, np.float64)
+    N = N / np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+    return P + N * G[:, None]
 
 
 def smooth_edge(P, nbr, bound, mask, iters):
@@ -1387,7 +1409,7 @@ def build_top_shell(ctx, g, gid, kind):
     # 4. clear the (smoothed) body and whatever the top goes over
     Pn = push_out(Pn, [B.bvh_s], 0.006, dirs=nrm)
     if ctx.layers:
-        Pn = push_out(Pn, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), dirs=nrm)
+        Pn = push_smooth(Pn, nbr, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), nrm)
     set_positions(o, Pn)
     # which part of the top each face is (0 torso, 1 left sleeve, 2 right sleeve), for the cuts
     zl = o.data.attributes.new("zone", 'INT', 'FACE')
@@ -1447,7 +1469,7 @@ def tee(ctx, g, gid):
     clear_of(o, [B.bvh], 0.005)
     if ctx.layers:
         # a little more over the layer under it, which is skinned differently
-        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010))
+        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), smooth=True)
     L["hems"] = top_lips(ctx, o, L, hem=(0.003, 0.018), sleeve=(0.003, 0.016))
     smooth_weights(o, 6, where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.13,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
@@ -1714,7 +1736,7 @@ def shirt(ctx, g, gid):
     clear_of(o, [B.bvh], 0.005)
     if ctx.layers:
         # a little more over the layer under it, which is skinned differently
-        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010))
+        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), smooth=True)
     P, nbr, bound = mesh_arrays(o)
     set_positions(o, smooth_edge(P, nbr, bound, P[:, 2] < CHEST[2] - 0.1, 6))
     L["z_side"] = z_side
@@ -1828,7 +1850,7 @@ def jacket(ctx, g, gid):
     clear_of(o, [B.bvh], 0.006)
     if ctx.layers:
         # a little more over the layer under it, which is skinned differently
-        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010))
+        clear_of(o, [bvh_of(ctx.layers)], g.get("layer_clear", 0.010), smooth=True)
     L["hems"] = top_lips(ctx, o, L, hem=(0.003, 0.012), sleeve=(0.003, 0.012))
     smooth_weights(o, 6, where=lambda c: min((c - Vector(B.B("LeftArm"))).length, (c - Vector(B.B("RightArm"))).length) < 0.13,
                    names=["LeftShoulder", "RightShoulder", "LeftArm", "RightArm", "Spine", "Spine01", "neck"])
@@ -2154,7 +2176,7 @@ def hide_under(lower, uppers, axis_y, reach=0.05, margin=0.06):
         for i in np.where(covered)[0]:
             far[i] = np.min(np.linalg.norm(show - P[i], axis=1)) > margin
     # What stays under the upper layer moves with it: its weights blended toward the nearest
-    # upper vertex's, fully by `margin` under the edge. With their own (the thighs'), the jeans'
+    # upper vertex's, fully 2.5 cm under the edge. With their own (the thighs'), the jeans'
     # front pockets pushed out through the tee at every stride.
     depth = np.zeros(len(P))
     if len(show):
@@ -2168,7 +2190,7 @@ def hide_under(lower, uppers, axis_y, reach=0.05, margin=0.06):
             UW.append({names[g.group]: g.weight for g in v.groups if g.group in names})
     lnames = {g.index: g.name for g in lower.vertex_groups}
     for i in (int(k) for k in np.where(covered & ~far)[0]):
-        t = float(smoothstep(0.0, margin, depth[i]))
+        t = float(smoothstep(0.0, 0.025, depth[i]))
         if t <= 0.0:
             continue
         j = int(np.argmin(np.linalg.norm(UP - P[i], axis=1)))

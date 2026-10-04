@@ -312,7 +312,9 @@ def paint_top_seams(pt, B, X, sel, L, spec, thread, kind):
             d = np.where(m, P[:, 1] - (B.B("neck")[1] + 0.012), 1.0)
             _seam_into(pt, sel, d, mpp, rows=(), side=-1.0, thread=thread, along=P[:, 0])
         # armhole: the plane across the arm at the joint, round the shoulder
-        near = on_side & (np.linalg.norm(P - B.B(side + "Arm"), axis=1) < 0.16)
+        # only round the arm's root: the plane square to a 45-degree bind-pose arm also runs
+        # diagonally across the chest, and drew a seam there
+        near = on_side & (np.linalg.norm(P - B.B(side + "Arm"), axis=1) < 0.16) & (rl < 0.09)
         if near.any():
             d = np.where(near, arm_s, 1.0)
             _seam_into(pt, sel, d, mpp, rows=(0.006,) if kind == "shirt" else (), side=-1.0, thread=thread, along=P[:, 2])
@@ -646,8 +648,10 @@ def body_uv(B, P, zone):
     return u, v
 
 
-def pattern(pt, B, P, spec, zone):
-    """Stripes or a check woven into the cloth (colours sRGB), on body-following coordinates."""
+def pattern(pt, B, P, spec, zone, mpp):
+    """Stripes or a check woven into the cloth (colours sRGB), on body-following coordinates,
+    each bar box-filtered over the texel it lands in: hard-edged, the stripes aliased into moire
+    wherever the body's UV island lies diagonal to the atlas (the shirt's back)."""
     pat = spec.get("pattern")
     if not pat:
         return
@@ -658,9 +662,15 @@ def pattern(pt, B, P, spec, zone):
     w = pat.get("width", 0.35)
 
     def bars(x, period, width):
-        f = (x / period) % 1.0
-        e = 0.06
-        return sstep(0.0, e, f) * (1.0 - sstep(width, width + e, f))
+        # the integral of a bar of duty `width` per period, differenced over the footprint
+        # capped: where the shell is stretched far past its body UVs (the sleeve's root) the
+        # full footprint blurred the stripes to a flat smear; a little aliasing reads better
+        W = np.clip(1.6 * mpp / period, 1e-3, 0.45)
+        t = x / period
+
+        def F(t):
+            return np.floor(t) * width + np.minimum(t - np.floor(t), width)
+        return np.clip((F(t + W * 0.5) - F(t - W * 0.5)) / W, 0.0, 1.0)
     if kind == "stripes":
         pt.tint(bars(u, per, w), c2, pat.get("strength", 0.9))
     else:
@@ -681,7 +691,7 @@ def paint_shirt(pt, B, X, pidx, parts, L, spec):
     zone = X.zone[sel_all].copy()
     cuffs = np.isin(X.part[sel_all], [k for k in pidx if parts[k]["part"] == "cuff"])
     zone[cuffs] = np.where(P[cuffs, 0] > 0, 1, 2)
-    pattern(sub, B, P, spec, zone)
+    pattern(sub, B, P, spec, zone, X.mpp[sel_all])
     sub.shade(1.0 + 0.04 * fbm(P, 0.025, 2, seed=51))
     sub.commit()
     thread = spec.get("thread")
@@ -695,7 +705,7 @@ def paint_shirt(pt, B, X, pidx, parts, L, spec):
     back = np.cos(th) < -0.15
     seam(sub, np.where(back & (np.abs(P[:, 0]) < abs(B.B("LeftArm")[0]) * 0.95), P[:, 2] - zy, 1.0), mpp, side=1.0, along=P[:, 0], rows=(0.004,), thread=thread)
     # chest pocket on the figure's left
-    if spec.get("pocket", True):
+    if spec.get("pocket", not spec.get("pattern")):
         ch = B.B("Spine")
         top = ch[2] + 0.035
         m = (np.cos(th) > 0.3) & (P[:, 0] > 0.02) & (P[:, 0] < 0.2) & (np.abs(P[:, 2] - top + 0.06) < 0.09)
