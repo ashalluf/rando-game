@@ -82,6 +82,8 @@ func _parts_carry_the_building() -> void:
 			var paints: Array = Building.FRAME_PAINTS.get(b.finish, Building.FRAME_PAINTS[Building.Finish.FLAT])
 			if paints[d.frame] != b.frame_paint():
 				why += " frame"
+			if FarBuilding.WALL_SETS[d.wall_set] != (style.wall_set as Array)[0]:
+				why += " wall set"
 			for f in 4:
 				if int(d.spans[f]) != int(b._shop_spans()[f]):
 					why += " spans"
@@ -190,6 +192,13 @@ func _shaders_agree() -> void:
 		+ Building.FRAME_PAINTS[Building.Finish.GLASS] + Building.FRAME_PAINTS[Building.Finish.FLAT]
 	if paints != want:
 		why += " frame_paint_srgb"
+	# The wall texture means, linear then raw per set, in FarBuilding.WALL_SETS order.
+	var means := _colours(far, "vec3 wall_tex_mean(int i)")
+	var want_means: Array = []
+	for key: String in FarBuilding.WALL_SETS:
+		want_means.append_array(Building.WALL_TEXTURE_MEAN[key])
+	if means != want_means or FarBuilding.WALL_SETS.size() != Building.WALL_TEXTURE_MEAN.size():
+		why += " wall_tex_mean"
 	_t._check(scale_ok and why == "", "the far shader decodes FarBuilding's scale and copies Building's palettes exactly (%s)" % ("all match" if why == "" else "differ:" + why))
 
 

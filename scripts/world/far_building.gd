@@ -55,6 +55,11 @@ enum Plant { UNIT, MAST, BEACON_MAST, GLAZING, PANEL }
 const SILHOUETTE := ["bulkhead", "water_tower", "cooling_tower", "billboard", "spire", "antenna"]
 ## Concrete of the plinth folded into the ground parts (what the LOD plinth box was drawn in).
 const PLINTH_COLOR := Color(0.66, 0.66, 0.66)
+## The wall texture sets, in the order the code numbers them (keys of Building.WALL_TEXTURE_MEAN;
+## building_lod.gdshader's wall_tex_mean() lists their means in the same order).
+const WALL_SETS := ["brick_red", "brick_mossy", "brick_factory", "brick", "plaster_painted", "plaster_beige",
+	"plaster_white", "concrete_painted", "concrete_cracked", "concrete_layers", "concrete", "metal",
+	"metal_corrugated", "metal_factory"]
 ## Bounds of the integer fields (their bit widths below), checked by the smoke test.
 const MAX_COLS := 127
 const MAX_ROWS := 127
@@ -76,6 +81,11 @@ static func boxes(building: Building, style: Dictionary, plinth: float) -> Array
 	var tall := building.height > 30.0
 	var paints: Array = Building.FRAME_PAINTS.get(building.finish, Building.FRAME_PAINTS[Building.Finish.FLAT])
 	var frame_idx := maxi(paints.find(building.frame_paint()), 0)
+	var wall_set: Array = style.get("wall_set", [])
+	var wall_idx := WALL_SETS.find(wall_set[0]) if wall_set.size() == 2 else -1
+	# 15: no set (the shader's untextured wall).
+	if wall_idx < 0:
+		wall_idx = 15
 	var bseed := float(building.seed % 997) / 997.0
 	var rises: Array[float] = []
 	for part: Dictionary in building.parts:
@@ -97,7 +107,7 @@ static func boxes(building: Building, style: Dictionary, plinth: float) -> Array
 		b |= (1 if float(grid.cut_x) > 0.0 else 0) << 18
 		b |= (1 if float(grid.crown) >= 0.0 else 0) << 19
 		var cc := lit_q | ((1 if tall else 0) << 16) | (frame_idx << 17)
-		var d := mini(int(grid.cols_x), MAX_COLS) | (mini(int(grid.cols_z), MAX_COLS) << 7)
+		var d := mini(int(grid.cols_x), MAX_COLS) | (mini(int(grid.cols_z), MAX_COLS) << 7) | (wall_idx << 14)
 		var e := mini(int(grid.rows), MAX_ROWS) | (clampi(roundi(float(grid.base_h) * 10.0), 0, 255) << 7)
 		var f2 := clampi(roundi(ext * 100.0), 0, 2047) | (clampi(roundi(rise * 100.0), 0, 127) << 11)
 		# The box: the part, down over the plinth and up over the parapet.
@@ -189,7 +199,7 @@ static func decode(b: Basis) -> Dictionary:
 		"tint": c[1] & 7, "weathering": float((c[1] >> 3) & 31) / 31.0, "spans": spans,
 		"storefront": (c[1] >> 16) & 1, "parking": (c[1] >> 17) & 1, "chamfer": (c[1] >> 18) & 1, "crown": (c[1] >> 19) & 1,
 		"lit_ratio": float(c[2] & 65535) / 65535.0, "tall": (c[2] >> 16) & 1, "frame": (c[2] >> 17) & 7,
-		"cols_x": c[3] & 127, "cols_z": (c[3] >> 7) & 127, "rows": c[4] & 127, "base_h": float((c[4] >> 7) & 255) / 10.0,
+		"cols_x": c[3] & 127, "cols_z": (c[3] >> 7) & 127, "wall_set": (c[3] >> 14) & 15, "rows": c[4] & 127, "base_h": float((c[4] >> 7) & 255) / 10.0,
 		"ext": float(c[5] & 2047) / 100.0, "rise": float((c[5] >> 11) & 127) / 100.0,
 	}
 

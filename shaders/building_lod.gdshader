@@ -259,6 +259,32 @@ vec3 frame_paint_srgb(int finish, int i) {
 	return vec3(0.78, 0.75, 0.68);
 }
 
+// The mean of a wall texture set's colour map times building.gdshader's gain on it (1.3; 1.35 on
+// brick): the near wall is the facade colour times its photographed texture, so its average is
+// the facade times this - linear on Forward+, raw on Compatibility, as each renderer hands the
+// texture over (Building.WALL_TEXTURE_MEAN, sets in FarBuilding.WALL_SETS order; 15 = none).
+vec3 wall_tex_mean(int i) {
+	vec3 lin;
+	vec3 raw;
+	float gain = 1.3;
+	if (i == 0) { lin = vec3(0.277, 0.138, 0.086); raw = vec3(0.557, 0.403, 0.315); gain = 1.35; }
+	else if (i == 1) { lin = vec3(0.319, 0.176, 0.096); raw = vec3(0.588, 0.435, 0.314); gain = 1.35; }
+	else if (i == 2) { lin = vec3(0.155, 0.100, 0.083); raw = vec3(0.417, 0.327, 0.295); gain = 1.35; }
+	else if (i == 3) { lin = vec3(0.406, 0.253, 0.200); raw = vec3(0.652, 0.472, 0.391); gain = 1.35; }
+	else if (i == 4) { lin = vec3(0.407, 0.366, 0.351); raw = vec3(0.670, 0.638, 0.626); }
+	else if (i == 5) { lin = vec3(0.340, 0.262, 0.188); raw = vec3(0.618, 0.549, 0.471); }
+	else if (i == 6) { lin = vec3(0.272, 0.246, 0.199); raw = vec3(0.556, 0.531, 0.480); }
+	else if (i == 7) { lin = vec3(0.634, 0.499, 0.358); raw = vec3(0.807, 0.722, 0.616); }
+	else if (i == 8) { lin = vec3(0.514, 0.444, 0.347); raw = vec3(0.733, 0.684, 0.606); }
+	else if (i == 9) { lin = vec3(0.207, 0.196, 0.177); raw = vec3(0.491, 0.479, 0.456); }
+	else if (i == 10) { lin = vec3(0.482, 0.482, 0.482); raw = vec3(0.723, 0.723, 0.723); }
+	else if (i == 11) { lin = vec3(0.061, 0.068, 0.070); raw = vec3(0.271, 0.286, 0.290); }
+	else if (i == 12) { lin = vec3(0.403, 0.451, 0.428); raw = vec3(0.666, 0.701, 0.684); }
+	else if (i == 13) { lin = vec3(0.124, 0.185, 0.075); raw = vec3(0.382, 0.464, 0.293); }
+	else { return vec3(1.0); }
+	return (cs_linear_renderer() ? lin : raw) * gain;
+}
+
 // An open shop's light (building.gdshader shop_tone(), the same integer rolls).
 vec3 shop_tone_far(uint shop) {
 	uint b = wl_hash(shop, 2u) >> 24u;
@@ -637,20 +663,25 @@ void fragment() {
 			vec3 glass_col = mix(room, sky_ref, mirror * (1.0 - reflect_emit)) + glare;
 			// The wall's finish (building.gdshader: brick and panels round their mean, a glass
 			// building's opaque panels at 0.6 of its colour) and its rows, faded with distance.
-			vec3 wall = c;
+			// The near wall is the facade times its photographed texture (building.gdshader), so
+			// its average here is the facade times that texture's mean (wall_tex_mean()).
+			int set_i = int((cd >> 14u) & 15u);
+			vec3 wt = wall_tex_mean(set_i);
+			vec3 wall = c * wt;
 			if (fin == 1) {
+				// Brick: the texture carries its own mortar; without one, the near shader's coursing.
 				float brow = floor(vp / 0.25);
 				float bu = fract((uq + mod(brow, 2.0) * 0.3) / 0.6);
-				float mortar = clamp(step(bu, 0.06) + step(fract(vp / 0.25), 0.14), 0.0, 1.0) * detail(0.25, mpp);
-				wall = mix(c * mix(1.0, 0.85 + 0.3 * hash21(vec2(floor((uq + mod(brow, 2.0) * 0.3) / 0.6), brow) + sd), detail(0.6, mpp)), accent, mortar);
+				float mortar = set_i < 15 ? 0.0 : clamp(step(bu, 0.06) + step(fract(vp / 0.25), 0.14), 0.0, 1.0) * detail(0.25, mpp);
+				wall = mix(c * wt * mix(1.0, 0.85 + 0.3 * hash21(vec2(floor((uq + mod(brow, 2.0) * 0.3) / 0.6), brow) + sd), detail(0.6, mpp)), accent, mortar);
 				rough = 0.95;
 			} else if (fin == 2) {
 				float joint = clamp(step(fu, 0.03) + step(fv, 0.04), 0.0, 1.0) * cell_fade;
-				wall = mix(c * mix(1.0, 0.9 + 0.2 * hash21(vec2(col, row) + sd), cell_fade), accent, joint);
+				wall = mix(c * wt * mix(1.0, 0.9 + 0.2 * hash21(vec2(col, row) + sd), cell_fade), accent, joint);
 				rough = 0.8;
 			} else if (fin == 3) {
 				float joint = clamp(step(fu, 0.04) + step(fv, 0.05), 0.0, 1.0) * cell_fade;
-				wall = mix(c * 0.6, accent, joint);
+				wall = mix(c * 0.6 * wt, accent, joint);
 				rough = 0.35;
 				spec = 0.34;
 			} else {
@@ -779,7 +810,6 @@ void fragment() {
 				albedo = cell;
 				emission += e_cell;
 			}
-			albedo *= mix(0.88, 1.07, clamp(vp / max(part_h, 1.0), 0.0, 1.0));
 		}
 	} else if (custom.a > 3.5) {
 		// ------------------------------------------------------- Roof plant (FarBuilding) ---
