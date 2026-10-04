@@ -287,7 +287,7 @@ already mapped so milestone 2 is script-only.
   twelve people wear them, dressed the way their rows say (a, d, e, f, h, i, j, k, l). The
   overalls (b), the blouse and skirt (c) and the suit (g) stay MakeHuman's until there is a
   garment of ours for each. The crowd contract is unchanged (one Body surface, region colours,
-  the hair mesh, 24 bones and three clips), so no game code changed. docs/HANDOFF.md 9at,
+  the hair mesh, 24 bones and three clips), so no game code changed. docs/HANDOFF.md 9av,
   CLAUDE.md "Our own garments".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,

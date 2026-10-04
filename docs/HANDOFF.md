@@ -4202,7 +4202,7 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   out: a round through an empty frame passes them, and a carjacked NPC simply vanishes when the
   player takes the seat.
 
-## 9at. The crowd in our own garments, 2026-10-04 (agent branch `worktree-agent-ab30bcf7c66c96fb9`)
+## 9av. The crowd in our own garments, 2026-10-04 (agent branch `worktree-agent-ab30bcf7c66c96fb9`)
 
 After 9aj the crowd's faces held up at 2 m and its clothes did not: MakeHuman's library garments
 are soft photographs (one V-neck on every tee, the same jeans wash on half the crowd), and the
