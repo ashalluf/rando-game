@@ -133,6 +133,22 @@ var _fill_ground: Dictionary = {}
 var _fill_boxes: Array = []
 var _fill_trees: int = 0
 var _fill_cars: int = 0
+## YardFill's (the yards outside downtown and midtown): the lots of a yard district and the
+## freeway's right of way as the lot steps leave them, for the block step; then the yard ground's
+## rects, walks, boxes and ivy cells and the upright boxes (merged at the finish, FULL only), and
+## what the planting and parked cars have spent of the chunk's budgets.
+var _yard_lots: Array = []
+var _yard_corridor: Array = []
+var _yard_ground: Array = []
+var _yard_strips: Array = []
+var _yard_boxes: Array = []
+var _yard_ivy: Array[Rect2] = []
+var _yard_walls: Array = []
+var _yard_shrubs: int = 0
+var _yard_trees: int = 0
+var _yard_palms: int = 0
+var _yard_flowers: int = 0
+var _yard_cars: int = 0
 
 ## Dissolve state, driven by CityStreamer when this chunk is being replaced by a detailed one.
 ## Block index the streaming window was centred on when this chunk was built. Only used to
@@ -443,6 +459,7 @@ func _finish_build() -> void:
 			_batch.set_no_shadow(text_key)
 	_add_shop_spill()
 	LotFill.commit(self)
+	YardFill.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	_mm_nodes = _batch.build(self)
@@ -2032,6 +2049,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# round it or a car park (LotFill; its own rolls).
 			if LotFill.wanted(self, district):
 				steps.append(func() -> void: LotFill.leftovers(self, block))
+			# Beach-town yards and walk streets, the campus's walks, quads and service yards, and the
+			# freeway's right of way in any district, once every lot is down (YardFill; hash-seeded,
+			# the block's rng untouched).
+			steps.append(func() -> void: YardFill.block_step(self, block))
 			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
 			# whole block, so the footprints the lots just recorded are what the grass has to
 			# stay out of; a suburb whose lawns are flat green paint is the tell.
@@ -2296,7 +2317,10 @@ func _exit_tree() -> void:
 ## Lots come from the PLAN, seeded per block, so the far skyline can ask for exactly the same
 ## buildings (see CityPlan.lots()). One build step per lot.
 func _lot_steps(_rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) -> Array[Callable]:
-	var steps: Array[Callable] = [func() -> void: _lot_rects.clear()]
+	var steps: Array[Callable] = [func() -> void:
+		_lot_rects.clear()
+		_yard_lots.clear()
+		_yard_corridor.clear()]
 	for lot in plan.lots(ix, iz):
 		steps.append(_build_lot.bind(lot, params, rng))
 	return steps
@@ -2378,6 +2402,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		building_count += 1
 		if fill:
 			LotFill.after_building(self, lot, building)
+		elif YardFill.wanted(self, district):
+			YardFill.record_lot(self, lot, building)
 	else:
 		# Far away: just the boxes, in the facade color, no props. They do get plain box
 		# collision so a fast car cannot drive into a footprint and get shot through the
@@ -2399,6 +2425,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 			_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
 		if fill:
 			LotFill.after_building(self, lot, building)
+		elif YardFill.wanted(self, district):
+			YardFill.record_lot(self, lot, building)
 		building.free()
 		building_count += 1
 
@@ -2507,6 +2535,12 @@ func _build_park(rect: Rect2, rng: RandomNumberGenerator) -> void:
 ## shrubs everywhere except under the deck itself (shade and pillars). A private rng from the
 ## lot's own seed, so neither the chunk rng nor anything built after this moves.
 func _build_corridor_lot(lot: Dictionary) -> void:
+	# The right of way is YardFill's now (ivy over the whole cell, the deck's shade bare, hedge and
+	# tree rows along the deck, sound walls, a maintenance yard): laid by its block step, once every
+	# lot of the block is down. What follows is the old ground, kept for YardFill.enabled = false.
+	if YardFill.enabled and zone == MacroMap.Zone.CITY:
+		_yard_corridor.append(lot)
+		return
 	var size: Vector2 = lot.size
 	var center: Vector2 = lot.center
 	_add_slab(Vector3(center.x, SIDEWALK_TOP + 0.02, center.y), Vector3(maxf(size.x - 1.0, 0.5), 0.04, maxf(size.y - 1.0, 0.5)),

@@ -517,6 +517,17 @@ const PLINTH := Color(0.62, 0.60, 0.58)
 const BRICK_RED := Color(0.62, 0.32, 0.24)
 const CAMPUS_TEXT := "RANDO U"
 
+## What the campus hall stands on, in world XZ (Rect2() for any other landmark): the hall and its
+## towers, the steps, the quad and the sign wall in front, the bell tower - _build_campus_hall()'s
+## own extents. Its square (`radius`) drops every lot it touches, and YardFill lays the campus's
+## walks, quads and car parks on what this leaves of them.
+static func campus_footprint(lm: Dictionary) -> Rect2:
+	if lm.id != "campus_hall":
+		return Rect2()
+	var a: Vector2 = lm.anchor
+	return Rect2(a.x - 62.0, a.y - 60.0, 124.0, 134.0)
+
+
 ## The heart of the campus: a brick main hall with twin towers and a dome, grand steps, a quad
 ## with paths and a fountain in front, a bell tower and a lettered sign. Original design.
 static func _build_campus_hall(anchor: Vector2, parent: Node3D, statics: StaticBody3D, detailed: bool) -> void:
@@ -577,10 +588,19 @@ static func _build_campus_hall(anchor: Vector2, parent: Node3D, statics: StaticB
 	_box(parent, statics, Vector3(30.0, 2.4, 1.2), sign_at + Vector3(0.0, 1.2, 0.0), stone, true)
 	_text(CAMPUS_TEXT, 0.5, sign_at + Vector3(0.0, 2.8, 0.0), parent, Color(0.2, 0.22, 0.3))
 	if detailed:
-		# Trees along the quad edges.
+		# Trees along the quad edges: the chunk's own street tree (its batch, LotFill._tree) when a
+		# chunk builds the hall - sixteen ball-on-a-stick primitives read as a model railway beside
+		# the campus's real planting (YardFill) - and the old primitives only when nothing else can.
+		var chunk := parent as CityChunk
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([anchor, "campus_quad_trees"])
 		for i in 8:
 			for dz: float in [-1.0, 1.0]:
-				_tree(parent, base + Vector3(-52.0 + i * 15.0, 0.3, 30.0 + dz * 36.0))
+				var at := base + Vector3(-52.0 + i * 15.0, 0.3, 30.0 + dz * 36.0)
+				if chunk != null and chunk.level == CityChunk.Level.FULL and not chunk.capturing:
+					LotFill._tree(chunk, at, rng)
+				else:
+					_tree(parent, at)
 
 
 static func _cone(parent: Node3D, radius: float, height: float, pos: Vector3, color: Color) -> void:

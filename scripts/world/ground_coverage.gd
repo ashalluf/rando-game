@@ -1,0 +1,287 @@
+class_name GroundCoverage
+extends RefCounted
+## What covers the city's ground, block by block (tools/lot_coverage.gd prints it; the smoke test
+## checks it). Each block's inner rect (inside the pavement ring) is rasterised on a `grid` m grid,
+## every lot's building laid out exactly as CityChunk._build_lot() lays it (Building.plan_only(),
+## no nodes, podium_lot where LotFill runs) and the fills asked the same questions the chunk asks
+## (LotFill's forecourts, car parks and leftovers; YardFill's yards, walk streets, campus ground and
+## the freeway's right of way). Pure data: no chunk, no nodes but a building planned and freed.
+## Kinds, in order:
+##   bare      the block's plain paving (or a campus or suburban block's plain lawn): nothing on it
+##   built     under a building part standing on the ground (podiums included), a downtown tower or
+##             the campus hall (its quad, steps and sign wall too)
+##   yard      a pocket garden (lawn); a corridor lot's old ivy when the fills are off
+##   forecourt a lot's ground a downtown or midtown building leaves, out to its cell (LotFill)
+##   parking   a surface car park (LotFill; YardFill's beach and campus car parks)
+##   garden    a house's yard, a courtyard, a walk street, a pocket park, the campus's walks, quads,
+##             lawns and service yards (YardFill)
+##   row       the freeway's right of way, out to its cells (YardFill)
+## A pad lot (Commercial.build_pad(), rolled from the chunk's own rng) is counted as its building.
+
+const KINDS := ["bare", "built", "yard", "forecourt", "parking", "garden", "row"]
+const BARE := 0
+const BUILT := 1
+const YARD := 2
+const FORECOURT := 3
+const PARKING := 4
+const GARDEN := 5
+const ROW := 6
+const DISTRICT_NAMES := ["DOWNTOWN", "MIDTOWN", "SUBURBS", "INDUSTRIAL", "CAMPUS", "BEACHTOWN"]
+const SHAPE_NAMES := ["SLAB", "TOWER", "STEPPED", "PODIUM_TOWER", "L_SHAPE", "SETBACK", "CROWN", "WAREHOUSE"]
+
+
+## A plan on its own map, as the city builds it.
+static func make_plan(seed_value: int) -> CityPlan:
+	var plan := CityPlan.new()
+	plan.seed = seed_value
+	plan.macro = MacroMap.new()
+	plan.macro.seed = seed_value
+	plan.macro.setup()
+	return plan
+
+
+## Every BUILDINGS block whose centre is in `area`: one line per row (district, FREEWAY,
+## MACARTHUR_SE), then the shapes and the podiums. {"lines": [String], "rows": {row: {"blocks",
+## "lots_n", "frac": {kind: 0..1}}}}.
+## `fill`: 0 neither fill (the city before LotFill), 1 LotFill only (before YardFill), 2 both.
+static func report(seed_value: int, area: Rect2, fill: int, grid: float = 1.0) -> Dictionary:
+	var plan := make_plan(seed_value)
+	var lo: Vector2i = plan.block_index_at(area.position)
+	var hi: Vector2i = plan.block_index_at(area.end)
+	var tot := {}
+	var shape_cov := {}
+	var podiums := {}
+	var se := macarthur_se_blocks(plan)
+	for bx in range(lo.x, hi.x + 1):
+		for bz in range(lo.y, hi.y + 1):
+			var b: Dictionary = plan.block(bx, bz)
+			var rect: Rect2 = b.rect
+			if not area.has_point(rect.get_center()):
+				continue
+			var res := block(plan, bx, bz, fill, grid)
+			if res.is_empty():
+				continue
+			var rows: Array[String] = [res.row]
+			if res.freeway:
+				rows.append("FREEWAY")
+			if se.has(Vector2i(bx, bz)):
+				rows.append("MACARTHUR_SE")
+			for row in rows:
+				if not tot.has(row):
+					tot[row] = {"blocks": 0, "cells": 0, "lots": 0.0, "lots_n": 0, "lot_built": 0.0, "k": [0, 0, 0, 0, 0, 0, 0]}
+				var t: Dictionary = tot[row]
+				t.blocks += 1
+				t.cells += int(res.cells)
+				t.lots += float(res.lots)
+				t.lots_n += int(res.lots_n)
+				t.lot_built += float(res.lot_built)
+				for k in KINDS.size():
+					t.k[k] += int(res.k[k])
+			for sk: String in res.shapes:
+				if not shape_cov.has(sk):
+					shape_cov[sk] = [0, 0.0]
+				shape_cov[sk][0] += int(res.shapes[sk][0])
+				shape_cov[sk][1] += float(res.shapes[sk][1])
+			for pk: String in res.podiums:
+				podiums[pk] = int(podiums.get(pk, 0)) + int(res.podiums[pk])
+	var lines: Array[String] = []
+	var rows_out := {}
+	for row: String in tot:
+		var t: Dictionary = tot[row]
+		var frac := {}
+		var line := "COVER %s blocks %d lots %d | buildings cover %.1f %% of their lots |" % [row, t.blocks, t.lots_n, 100.0 * t.lot_built / maxf(t.lots, 1.0)]
+		for k in KINDS.size():
+			frac[KINDS[k]] = float(t.k[k]) / maxf(float(t.cells), 1.0)
+			line += " %s %.1f %%" % [KINDS[k], 100.0 * frac[KINDS[k]]]
+		lines.append(line)
+		rows_out[row] = {"blocks": t.blocks, "lots_n": t.lots_n, "frac": frac}
+	var keys := shape_cov.keys()
+	keys.sort()
+	for k: String in keys:
+		lines.append("SHAPE %s n %d mean lot cover %.1f %%" % [k, shape_cov[k][0], 100.0 * shape_cov[k][1] / shape_cov[k][0]])
+	var pk := podiums.keys()
+	pk.sort()
+	for k: String in pk:
+		lines.append("PODIUM %s %d" % [k, podiums[k]])
+	return {"lines": lines, "rows": rows_out}
+
+
+## The blocks the MACARTHUR_SE row counts: the block across both of the park's site's boundary
+## roads at its south-east corner, and the block south of the site's east half (a plaza on the
+## default seed: one fountain in 100 x 180 m of paving).
+static func macarthur_se_blocks(plan: CityPlan) -> Array[Vector2i]:
+	var out: Array[Vector2i] = []
+	var s := plan.site_by_id("macarthur_park")
+	if s.is_empty():
+		return out
+	out.append(Vector2i(int(s.ix1), int(s.iz1)))
+	out.append(Vector2i(int(s.ix1) - 1, int(s.iz1)))
+	return out
+
+
+## One block: {"row" (district name, DOWNTOWN split), "freeway" (a corridor lot stands in it),
+## "cells", "k" [count per kind], "lots", "lots_n", "lot_built", "shapes" {name: [n, cover]},
+## "podiums" {name: n}} - {} for a block that is not a CITY block of buildings.
+static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0) -> Dictionary:
+	var b: Dictionary = plan.block(bx, bz)
+	var brect: Rect2 = b.rect
+	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or plan.zone_at(brect.get_center()) != MacroMap.Zone.CITY:
+		return {}
+	# A block a landmark claims whole (the civic set) is the landmark's own ground.
+	if Landmarks.claims(brect):
+		return {}
+	# A replica area's block is the replica's own build (ReplicaBuilder), not the seeded block's.
+	if plan.macro.replica and plan.macro.replica.block_role(plan, bx, bz) != 0:
+		return {}
+	var district: int = b.district
+	var boost: float = plan.macro.skyline_boost(brect.get_center())
+	var row: String = DISTRICT_NAMES[district]
+	if district == CityPlan.District.DOWNTOWN:
+		row += "_core" if boost > 0.55 else "_rest"
+	var filled: bool = fill >= 1 and district in LotFill.DISTRICTS
+	var yards: bool = fill >= 2 and district in YardFill.DISTRICTS
+	var rows: bool = fill >= 2
+	var inner: Rect2 = brect.grow(-plan.sidewalk_width)
+	var gx := maxi(1, int(inner.size.x / grid))
+	var gz := maxi(1, int(inner.size.y / grid))
+	var cells := PackedByteArray()
+	cells.resize(gx * gz)
+	var box := [cells, inner, grid, gx, gz]
+	# The box is the grid's only holder: a packed array written with two holders is copied.
+	cells = PackedByteArray()
+	var out := {"row": row, "freeway": false, "cells": gx * gz, "lots": 0.0, "lots_n": 0, "lot_built": 0.0, "shapes": {}, "podiums": {}}
+	for lm in Landmarks.all():
+		var fp := Landmarks.campus_footprint(lm)
+		if LandmarkDowntown.is_tower(str(lm.id)):
+			fp = LandmarkDowntown.footprint(lm)
+		if fp.size.x > 0.0 and fp.intersects(inner):
+			_paint(box, fp, BUILT)
+	var building_scene: PackedScene = load("res://scenes/props/building.tscn")
+	var entries: Array = []
+	var corridor: Array = []
+	for lot: Dictionary in plan.lots(bx, bz):
+		var size: Vector2 = lot.size
+		var lot_rect := Rect2((lot.center as Vector2) - size * 0.5, size)
+		var cell: Rect2 = lot.get("cell", lot_rect)
+		out.lots += size.x * size.y
+		out.lots_n += 1
+		if lot.yard:
+			_paint(box, lot_rect, YARD)
+			continue
+		if YardFill.is_corridor(plan, lot):
+			out.freeway = true
+			corridor.append(lot)
+			if rows:
+				_paint(box, cell, ROW)
+			else:
+				_paint(box, lot_rect, YARD)
+			continue
+		if filled and lot.get("parking", false):
+			_paint(box, cell, PARKING)
+			continue
+		var bld: Building = building_scene.instantiate()
+		bld.seed = lot.seed
+		bld.lot_size = size
+		var target: float = plan.lot_height(lot.seed, district, boost)
+		bld.min_height = target * 0.88
+		bld.max_height = target
+		var sh: Array[int] = []
+		sh.assign(CityPlan.lot_shapes(district, boost))
+		bld.shape_options = sh
+		var fi: Array[int] = []
+		fi.assign(CityPlan.lot_finishes(district, boost))
+		bld.finish_options = fi
+		bld.podium_lot = filled
+		bld.plan_only()
+		var ground := 0.0
+		var parts := YardFill.ground_parts(lot, bld)
+		for r: Rect2 in parts:
+			_paint(box, r, BUILT)
+			ground += r.size.x * r.size.y
+		out.lot_built += minf(ground, size.x * size.y)
+		if filled:
+			_paint(box, cell, FORECOURT)
+		if yards:
+			entries.append({"lot": lot, "parts": parts})
+		if int(bld.podium_kind) > 0:
+			var pk := row + (" parking" if int(bld.podium_kind) == 2 else " retail")
+			out.podiums[pk] = int(out.podiums.get(pk, 0)) + 1
+		var sk: String = row + " " + SHAPE_NAMES[int(bld.shape)]
+		if not out.shapes.has(sk):
+			out.shapes[sk] = [0, 0.0]
+		out.shapes[sk][0] += 1
+		out.shapes[sk][1] += minf(ground / (size.x * size.y), 1.0)
+		bld.free()
+	if filled:
+		# What a landmark's square dropped, less the landmark (LotFill.leftovers()).
+		var holes: Array[Rect2] = []
+		for lm in Landmarks.all():
+			if lm.get("area") is Dictionary:
+				continue
+			var r: float = lm.radius
+			var sq := Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r * 2.0, r * 2.0))
+			if sq.intersects(brect):
+				holes.append(LandmarkDowntown.footprint(lm).grow(4.0) if LandmarkDowntown.is_tower(str(lm.id)) else sq)
+		for cell: Rect2 in plan.dropped_cells(bx, bz):
+			for piece: Rect2 in LotFill._minus(cell, holes, 0.0):
+				_paint(box, piece, FORECOURT)
+	if yards and district == CityPlan.District.BEACHTOWN:
+		var bp := YardFill.beach_block(plan, bx, bz, entries)
+		for lp: Dictionary in bp.lots:
+			for pc: Array in lp.pieces:
+				_paint(box, pc[0], GARDEN)
+		if (bp.walk as Rect2).size.x > 0.0:
+			_paint(box, bp.walk, GARDEN)
+		for d: Array in bp.dropped:
+			_paint(box, d[0], PARKING if d[1] == "parking" else GARDEN)
+	elif yards and district == CityPlan.District.CAMPUS:
+		var cp := YardFill.campus_block(plan, bx, bz, entries)
+		for r: Rect2 in cp.parks:
+			_paint(box, r, PARKING)
+		for pc: Array in cp.pieces:
+			_paint(box, pc[0], GARDEN)
+		for r: Rect2 in cp.quads:
+			_paint(box, r, GARDEN)
+		for r: Rect2 in cp.lawns:
+			_paint(box, r, GARDEN)
+		# A building's own lot on campus: its walk, apron and service yard are painted above; the
+		# rest of its cell is the block's lawn with its foundation planting and trees.
+		for e: Dictionary in entries:
+			_paint(box, e.lot.get("cell", Rect2()), GARDEN)
+	var counts := [0, 0, 0, 0, 0, 0, 0]
+	var painted: PackedByteArray = box[0]
+	for k in painted.size():
+		counts[painted[k]] += 1
+	out["k"] = counts
+	return out
+
+
+## Paints a world rect into a block's grid (`box` = [cells, inner, grid, gx, gz]) with a kind, only
+## over bare ground - built paints over anything.
+static func _paint(box: Array, r: Rect2, kind: int) -> void:
+	if r.size.x <= 0.0 or r.size.y <= 0.0:
+		return
+	var cells: PackedByteArray = box[0]
+	box[0] = null
+	var inner: Rect2 = box[1]
+	var grid: float = box[2]
+	var gx: int = box[3]
+	var gz: int = box[4]
+	var i0 := clampi(int((r.position.x - inner.position.x) / grid), 0, gx)
+	var i1 := clampi(int(ceil((r.end.x - inner.position.x) / grid)), 0, gx)
+	var j0 := clampi(int((r.position.y - inner.position.y) / grid), 0, gz)
+	var j1 := clampi(int(ceil((r.end.y - inner.position.y) / grid)), 0, gz)
+	for j in range(j0, j1):
+		var cz := inner.position.y + (j + 0.5) * grid
+		if cz < r.position.y or cz > r.end.y:
+			continue
+		for i in range(i0, i1):
+			var cx := inner.position.x + (i + 0.5) * grid
+			if cx < r.position.x or cx > r.end.x:
+				continue
+			var k := j * gx + i
+			if cells[k] == BUILT:
+				continue
+			if kind == BUILT or cells[k] == BARE:
+				cells[k] = kind
+	box[0] = cells
