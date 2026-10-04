@@ -1598,6 +1598,8 @@ func _test_city() -> void:
 	await load("res://tests/crowd_anim_checks.gd").new().run(self, city)
 	# Crowd life (GAME_PLAN G5): talking, sitting, carrying, panic over all of it.
 	await load("res://tests/crowd_life_checks.gd").new().run(self, city)
+	# The crowd's headwear (CrowdHat): measured heads, fitted hats, one draw each, kept on a body.
+	await load("res://tests/crowd_hat_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
@@ -1969,6 +1971,10 @@ func _test_police(city: Node3D, player: Player) -> void:
 			if ov and ov.get_shader_parameter("cloth_strength") != null and float(ov.get_shader_parameter("cloth_value")) < 0.3 and absf(float(ov.get_shader_parameter("cloth_hue")) - 0.62) < 0.06:
 				navy = true
 		_check(o.is_in_group("police") and not o.is_in_group("pedestrian") and navy, "officers wear navy and are not part of the crowd")
+		var cap := o.find_child("Hat", true, false) as MeshInstance3D
+		var cap_mat := cap.material_override as ShaderMaterial if cap else null
+		_check(bool(o.get("heavy")) or (cap_mat != null and int(cap_mat.get_shader_parameter("kind")) == 3),
+			"an officer wears the peaked cap fitted to their head (CrowdHat)")
 	var officer_script: GDScript = load("res://scripts/npc/police_officer.gd")
 	_check(hurt, "officers shoot and the player takes damage (%.0f of %.0f; %d rounds, %d hit)" % [float(health.health), float(health.max_health), int(officer_script.get("rounds_fired")), int(officer_script.get("rounds_hit"))])
 	_check(caps_ok, "the units on the street stay inside the star caps")

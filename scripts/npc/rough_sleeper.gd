@@ -203,6 +203,7 @@ func _ready() -> void:
 		if src and src.albedo_texture and not is_hair(mi):
 			mi.material_override = worn_material(src.albedo_texture, _look)
 	plain_hair(_visual, WORN_HAIR)
+	_wear_hat(_visual)
 	_fit_shape()
 	if _skel == null or _anim == null:
 		return
@@ -624,11 +625,20 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 				if src and src.albedo_texture and mi.skin and not is_hair(mi):
 					mi.material_override = worn_material(src.albedo_texture, _look)
 			plain_hair(doll._rig, WORN_HAIR)
+			_wear_hat(doll._rig)
 
 
 ## A crowd look worn down by months outdoors: the garments muted to greys, browns and faded
 ## darks, grime through the cloth (heaviest at the cuffs, the knees and the seat), rougher. The
 ## person's own face, skin and hair are left exactly as they are.
+## A hat on someone living outdoors is not new: the worn colourway of the one they rolled.
+func _wear_hat(rig: Node) -> void:
+	if _hat == Accessory.NONE or rig == null:
+		return
+	for hat in rig.find_children("Hat", "MeshInstance3D", true, false):
+		(hat as MeshInstance3D).material_override = CrowdHat.material(HAT_KIND[_hat], _hat_pick, true)
+
+
 ## How dull and dry a crowd rig's hair cards go on someone living outdoors (Pedestrian.plain_hair).
 const WORN_HAIR := 0.6
 

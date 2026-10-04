@@ -61,9 +61,9 @@ const RUN_LEFT_DOWN := 0.17
 @export var gait_spread: Vector2 = Vector2(0.84, 1.20)
 ## How far the torso leans, in degrees. Positive stoops forward. Rolled per character.
 @export var lean_spread: Vector2 = Vector2(-1.5, 4.5)
-## Fraction of the crowd wearing a cap, a beanie or a backpack. Each is one extra draw call and
-## only within `accessory_distance`, and a changed silhouette separates two people far harder
-## than another shirt colour does.
+## Fraction of the crowd wearing a cap, a beanie, a bucket hat or a backpack (CrowdHat for the
+## hats). Each is one extra draw call and only within `accessory_distance`, and a changed
+## silhouette separates two people far harder than another shirt colour does.
 @export var accessory_chance: float = 0.42
 ## Metres past which a pedestrian's accessory stops drawing.
 @export var accessory_distance: float = 60.0
@@ -491,43 +491,48 @@ func _turn_on_spot(yaw: float, delta: float) -> void:
 		position += Vector3(f.x, 0.0, f.y)
 
 
-## Caps, beanies and backpacks, built in code the way the street props are and hung off the rig's
-## own bones so they ride the head and the back. The mesh is built once per kind and shared, the
-## material is cached per colour, so a wearer costs one draw call, and nothing draws past
-## `accessory_distance`. A changed silhouette separates two people at fifty metres; a fourth
-## shirt colour does not.
-enum Accessory {NONE, CAP, BEANIE, PACK}
-const ACC_BONE := {Accessory.CAP: "Head", Accessory.BEANIE: "Head", Accessory.PACK: "Spine01"}
-## Where the accessory sits relative to that bone, in metres, in skeleton space (Y up, the rig
-## facing +Z). Measured out from the bone rather than from the model origin, so the same numbers
-## land on both rigs even though their heads sit 2 cm apart.
-const ACC_OFFSET := {
-	Accessory.CAP: Vector3(0.0, 0.0, -0.012),
-	Accessory.BEANIE: Vector3(0.0, 0.0, -0.012),
-	Accessory.PACK: Vector3(0.0, 0.0, 0.0),
-}
-const HAT_COLORS := [
-	Color(0.10, 0.11, 0.14), Color(0.60, 0.15, 0.14), Color(0.14, 0.24, 0.46),
-	Color(0.86, 0.86, 0.83), Color(0.20, 0.36, 0.24), Color(0.56, 0.43, 0.23),
-	Color(0.34, 0.34, 0.37), Color(0.80, 0.55, 0.15),
-]
+## Caps, beanies, bucket hats and backpacks. The headwear is CrowdHat's: a real cap, beanie or
+## bucket hat modelled round this rig's own head (tools/crowd/hat_fit.gd measures it), sitting
+## down on the forehead and over the ear tops, with the hair pressed under it and showing below
+## the band. The pack is built here in code, the way the street props are, and hung off the
+## spine. Each is one mesh shared by every wearer of that rig (the hats) or every wearer (the
+## pack), one material per colourway, one draw call, no shadow pass, nothing past
+## `accessory_distance`. A changed silhouette separates two people at fifty metres; a fourth shirt
+## colour does not.
+enum Accessory {NONE, CAP, BEANIE, PACK, BUCKET}
+## The hat each Accessory is (CrowdHat.Kind).
+const HAT_KIND := {Accessory.CAP: CrowdHat.Kind.CAP, Accessory.BEANIE: CrowdHat.Kind.BEANIE,
+	Accessory.BUCKET: CrowdHat.Kind.BUCKET}
 const PACK_COLORS := [
 	Color(0.13, 0.14, 0.16), Color(0.19, 0.27, 0.40), Color(0.36, 0.27, 0.18),
 	Color(0.45, 0.16, 0.16), Color(0.22, 0.34, 0.26), Color(0.55, 0.53, 0.50),
 ]
-static var _acc_meshes: Dictionary = {}
+static var _pack_mesh: Mesh
+## The hat this person wears (an Accessory, NONE for none) and its colourway, so the ragdoll
+## they become wears it too.
+var _hat: int = Accessory.NONE
+var _hat_pick: int = 0
 
 
 func _add_accessory(inst: Node3D) -> void:
 	if _style.randf() >= accessory_chance:
 		return
+	# The rolls are the ones the old box hats made, in the old order (CampFigure.seed_for() and
+	# everything rolled after this depend on them): what to wear, then one colour roll.
 	var roll := _style.randf()
-	var kind: int = Accessory.PACK if roll < 0.38 else (Accessory.BEANIE if roll < 0.60 else Accessory.CAP)
+	var kind: int = Accessory.PACK if roll < 0.38 else (Accessory.BEANIE if roll < 0.60 else
+		(Accessory.CAP if roll < 0.90 else Accessory.BUCKET))
 	var skel := inst.find_child("Skeleton3D", true, false) as Skeleton3D
 	if skel == null:
 		return
-	var bone: String = ACC_BONE[kind]
-	var idx := skel.find_bone(bone)
+	if kind != Accessory.PACK:
+		if skel.find_bone("Head") < 0:
+			return
+		_hat = kind
+		_hat_pick = _style.randi()
+		CrowdHat.dress(inst, _model_path, HAT_KIND[kind], _hat_pick, _accessory_reach())
+		return
+	var idx := skel.find_bone("Spine01")
 	if idx < 0:
 		return
 	# The rig's skeleton works in centimetres under a 0.01 armature, so anything hung off a bone
@@ -541,82 +546,58 @@ func _add_accessory(inst: Node3D) -> void:
 	unit = 1.0 / maxf(unit, 0.0001)
 	var att := BoneAttachment3D.new()
 	skel.add_child(att)
-	att.bone_name = bone
+	att.bone_name = "Spine01"
 	var mi := MeshInstance3D.new()
-	mi.mesh = _accessory_mesh(kind)
-	var palette: Array = PACK_COLORS if kind == Accessory.PACK else HAT_COLORS
-	mi.material_override = PropFactory.material(palette[_style.randi() % palette.size()], 0.72)
-	mi.visibility_range_end = accessory_distance * (0.6 if OS.has_feature("web") else 1.0)
-	# No shadow pass and no global illumination: a cap's own shadow falls on a head that is
-	# already under it, and paying a second draw call per wearer for that is not worth it.
+	mi.mesh = _pack()
+	mi.material_override = PropFactory.material(PACK_COLORS[_style.randi() % PACK_COLORS.size()], 0.72)
+	mi.visibility_range_end = _accessory_reach()
+	# No shadow pass and no global illumination: a second draw call per wearer is not worth it.
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
-	# A beanie is pulled down over the hair: the crowd rigs' hair cards would stand out through it.
-	if kind == Accessory.BEANIE:
-		for hmi in inst.find_children("Hair*", "MeshInstance3D", true, false):
-			(hmi as MeshInstance3D).visible = false
-			hmi.set_meta("under_hat", true)
 	# The bone as it stands in the walk clip, not as it stands in the bind pose (see _add_model).
 	var pose := skel.get_bone_global_pose(idx)
-	var at: Vector3 = pose.origin + (ACC_OFFSET[kind] as Vector3) * unit
-	# Built level in skeleton space and then pushed back through that pose, so a cap sits flat
-	# on the skull whatever angle the head bone happens to hold (the two rigs differ by ten
-	# degrees there), and still rides the head once the clip moves on.
-	mi.transform = pose.affine_inverse() * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), at)
+	# Built level in skeleton space and then pushed back through that pose, so the pack hangs
+	# plumb on the back whatever angle the spine holds, and still rides it once the clip moves on.
+	mi.transform = pose.affine_inverse() * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), pose.origin)
 	att.add_child(mi)
 
 
-## One shared mesh per accessory kind, built in metres about the bone it hangs from. Part
-## colours go in the vertex colour and the per-character colour multiplies them, so one mesh
-## covers every colourway.
-static func _accessory_mesh(kind: int) -> Mesh:
-	if _acc_meshes.has(kind):
-		return _acc_meshes[kind]
+func _accessory_reach() -> float:
+	return accessory_distance * (0.6 if OS.has_feature("web") else 1.0)
+
+
+## The ragdoll this person became wears their hat too (its rig is a fresh copy of the model).
+func _dress_doll(doll: Ragdoll) -> void:
+	if _hat != Accessory.NONE and doll._rig:
+		CrowdHat.dress(doll._rig, _model_path, HAT_KIND[_hat], _hat_pick, _accessory_reach())
+
+
+## The backpack: one shared mesh, built in metres about the spine bone. Part colours go in the
+## vertex colour and the per-character colour multiplies them, so one mesh covers every colourway.
+static func _pack() -> Mesh:
+	if _pack_mesh != null:
+		return _pack_mesh
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var white := Color(1.0, 1.0, 1.0)
-	match kind:
-		Accessory.CAP:
-			# A tall band from just above the brow with a shallow dome on top: the skull is
-			# still 10 cm wide two centimetres from its crown (it is carrying hair), so a plain
-			# hemisphere the height of a cap pinches in and lets the head through its sides.
-			st.set_smooth_group(0)
-			_acc_tube(st, 0.095, 0.150, 0.108, 0.124, white, 20)
-			_acc_dome(st, Vector3(0.0, 0.150, 0.0), Vector3(0.108, 0.062, 0.124), white, 20, 4)
-			st.set_smooth_group(0xFFFFFFFF)
-			_acc_brim(st, 0.100, 0.185, 0.104, 0.018, 0.012, Color(0.84, 0.84, 0.84), 12)
-			_acc_box(st, Vector3(0.0, 0.211, 0.0), Vector3(0.022, 0.012, 0.022), Color(0.84, 0.84, 0.84))
-		Accessory.BEANIE:
-			st.set_smooth_group(0)
-			_acc_dome(st, Vector3(0.0, 0.132, 0.0), Vector3(0.110, 0.084, 0.126), white, 20, 5)
-			_acc_tube(st, 0.082, 0.132, 0.112, 0.128, Color(0.82, 0.82, 0.82), 20)
-		Accessory.PACK:
-			# Sunk a centimetre into the back rather than floated off it: the front face is
-			# never seen, and a gap between a pack and a spine is.
-			st.set_smooth_group(0xFFFFFFFF)
-			_acc_box(st, Vector3(0.0, -0.020, -0.218), Vector3(0.285, 0.390, 0.160), white)
-			_acc_box(st, Vector3(0.0, 0.168, -0.226), Vector3(0.270, 0.050, 0.146), Color(0.86, 0.86, 0.86))
-			_acc_box(st, Vector3(0.0, -0.112, -0.303), Vector3(0.185, 0.125, 0.030), Color(0.74, 0.74, 0.74))
-			for side: float in [-1.0, 1.0]:
-				_acc_beam(st, Vector3(side * 0.086, 0.135, -0.148), Vector3(side * 0.103, 0.222, -0.020),
-						0.048, 0.026, Color(0.72, 0.72, 0.72))
+	# Sunk a centimetre into the back rather than floated off it: the front face is never seen,
+	# and a gap between a pack and a spine is.
+	st.set_smooth_group(0xFFFFFFFF)
+	_acc_box(st, Vector3(0.0, -0.020, -0.218), Vector3(0.285, 0.390, 0.160), white)
+	_acc_box(st, Vector3(0.0, 0.168, -0.226), Vector3(0.270, 0.050, 0.146), Color(0.86, 0.86, 0.86))
+	_acc_box(st, Vector3(0.0, -0.112, -0.303), Vector3(0.185, 0.125, 0.030), Color(0.74, 0.74, 0.74))
+	for side: float in [-1.0, 1.0]:
+		_acc_beam(st, Vector3(side * 0.086, 0.135, -0.148), Vector3(side * 0.103, 0.222, -0.020),
+				0.048, 0.026, Color(0.72, 0.72, 0.72))
 	st.generate_normals()
-	var mesh := st.commit()
-	_acc_meshes[kind] = mesh
-	return mesh
+	_pack_mesh = st.commit()
+	return _pack_mesh
 
 
 ## Winding matches the rest of the project: vertices clockwise seen from outside, so
 ## generate_normals() points them out of the solid.
 static func _acc_quad(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, d: Vector3, colour: Color) -> void:
 	for v: Vector3 in [a, b, c, a, c, d]:
-		st.set_color(colour)
-		st.set_uv(Vector2.ZERO)
-		st.add_vertex(v)
-
-
-static func _acc_tri(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3, colour: Color) -> void:
-	for v: Vector3 in [a, b, c]:
 		st.set_color(colour)
 		st.set_uv(Vector2.ZERO)
 		st.add_vertex(v)
@@ -651,55 +632,6 @@ static func _acc_beam(st: SurfaceTool, a: Vector3, b: Vector3, width: float, thi
 	# Right-handed: ex cross ey has to come out along ez.
 	_acc_prism(st, (a + b) * 0.5, side * (width * 0.5), forward.cross(side) * (thick * 0.5),
 			forward * (length * 0.5), colour)
-
-
-## An open elliptical band (the side wall of a hat). No caps: the head fills one end and the
-## crown the other.
-static func _acc_tube(st: SurfaceTool, y0: float, y1: float, rx: float, rz: float, colour: Color, seg: int) -> void:
-	for s in seg:
-		var u0 := TAU * float(s) / float(seg)
-		var u1 := TAU * float(s + 1) / float(seg)
-		var a := Vector3(sin(u0) * rx, 0.0, cos(u0) * rz)
-		var b := Vector3(sin(u1) * rx, 0.0, cos(u1) * rz)
-		_acc_quad(st, a + Vector3(0.0, y0, 0.0), a + Vector3(0.0, y1, 0.0),
-				b + Vector3(0.0, y1, 0.0), b + Vector3(0.0, y0, 0.0), colour)
-
-
-static func _acc_dome_at(centre: Vector3, r: Vector3, u: float, v: float) -> Vector3:
-	return centre + Vector3(sin(u) * cos(v) * r.x, sin(v) * r.y, cos(u) * cos(v) * r.z)
-
-
-## The top half of an ellipsoid, equator to pole. The last ring is a fan so there are no
-## zero-area triangles at the pole for generate_normals() to choke on.
-static func _acc_dome(st: SurfaceTool, centre: Vector3, r: Vector3, colour: Color, seg: int, rings: int) -> void:
-	var top := centre + Vector3(0.0, r.y, 0.0)
-	for ring in rings:
-		var v0 := PI * 0.5 * float(ring) / float(rings)
-		var v1 := PI * 0.5 * float(ring + 1) / float(rings)
-		for s in seg:
-			var u0 := TAU * float(s) / float(seg)
-			var u1 := TAU * float(s + 1) / float(seg)
-			var p00 := _acc_dome_at(centre, r, u0, v0)
-			var p10 := _acc_dome_at(centre, r, u1, v0)
-			if ring == rings - 1:
-				_acc_tri(st, p00, top, p10, colour)
-			else:
-				_acc_quad(st, p00, _acc_dome_at(centre, r, u0, v1), _acc_dome_at(centre, r, u1, v1), p10, colour)
-
-
-## A cap peak: half an ellipse reaching forward (+Z) from the band, drooping by `drop` at the tip.
-static func _acc_brim(st: SurfaceTool, y: float, reach: float, half_width: float, drop: float,
-		thick: float, colour: Color, seg: int) -> void:
-	var down := Vector3(0.0, -thick, 0.0)
-	var hub := Vector3(0.0, y, 0.0)
-	var pts: Array[Vector3] = []
-	for i in seg + 1:
-		var a := -PI * 0.5 + PI * float(i) / float(seg)
-		pts.append(Vector3(sin(a) * half_width, y - drop * cos(a), cos(a) * reach))
-	for i in seg:
-		_acc_tri(st, hub, pts[i + 1], pts[i], colour)
-		_acc_tri(st, hub + down, pts[i] + down, pts[i + 1] + down, colour)
-		_acc_quad(st, pts[i], pts[i + 1], pts[i + 1] + down, pts[i] + down, colour)
 
 
 ## Arm retarget. The generated clips were authored for a skeleton whose arms hang straight, but
@@ -2087,8 +2019,9 @@ static func _unweld(w: Dictionary, index: PackedInt32Array, material: Material) 
 
 
 ## Makes the far body of a model now (the loading screen), so no pedestrian walking out past
-## lod_far stalls the frame building it.
-static func warm_far_mesh(path: String, host: Node) -> void:
+## lod_far stalls the frame building it - and its hats with the hair pressed under each
+## (CrowdHat.warm; the police cap too for an `officer` rig), from the same instance.
+static func warm_far_mesh(path: String, host: Node, officer: bool = false) -> void:
 	if not ResourceLoader.exists(path):
 		return
 	var inst := (load(path) as PackedScene).instantiate() as Node3D
@@ -2099,6 +2032,7 @@ static func warm_far_mesh(path: String, host: Node) -> void:
 			far_mesh(mesh, mid_triangles)
 			far_mesh(mesh, far_triangles)
 			_welds.erase(mesh)
+	CrowdHat.warm(inst, path, officer)
 	inst.queue_free()
 
 
@@ -2507,6 +2441,8 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 	get_parent().add_child(doll)
 	if _model_path == "" or not doll.build_from_rig(_model_path, _look):
 		doll.build(shirt, pants, skin)
+	else:
+		_dress_doll(doll)
 	PhysicsBudget.register_debris(doll)
 	doll.fling(impulse)
 	_doll = doll
