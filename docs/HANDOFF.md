@@ -4201,3 +4201,141 @@ was a sealed toy, and traffic drove itself with nobody at the wheel. Now:
   windscreen - there is no glass elsewhere to draw them on. Occupants are not shot or thrown
   out: a round through an empty frame passes them, and a carjacked NPC simply vanishes when the
   player takes the seat.
+
+## 9at. The crowd in our own garments, 2026-10-04 (agent branch `worktree-agent-ab30bcf7c66c96fb9`)
+
+After 9aj the crowd's faces held up at 2 m and its clothes did not: MakeHuman's library garments
+are soft photographs (one V-neck on every tee, the same jeans wash on half the crowd), and the
+shader had nothing left to pull out of them. Nine of the twelve people now wear garments modelled
+on their own bodies and painted texel by texel; the patch that started it
+(`docs/wip/crowd-garments.patch`) is gone, its code is `tools/crowd/garments.py` and
+`tools/crowd/garment_paint.py`.
+
+### Who wears what
+
+| rig | outfit |
+| --- | --- |
+| a | white crew tee (regular), mid-wash indigo jeans |
+| d | rust fitted tee, black slim jeans with a grey fade and grey thread |
+| e | mustard tee, washed denim shorts above the knee |
+| f | olive zip jacket (jersey rib collar, cuffs and band), khaki chinos |
+| h | white button shirt with blue pinstripes, long sleeves and cuffs, grey washed jeans |
+| i | heather-grey fitted tee, black leggings |
+| j | chambray shirt, sleeves rolled, chest pocket, loose; dark jeans |
+| k | teal fitted tee, light stonewash jeans |
+| l | burgundy long-sleeved tee, charcoal chinos |
+
+b (overalls), c (blouse and skirt) and g (suit) stay in MakeHuman's clothes: there is no garment
+of ours for a bib, a skirt or a tailored jacket yet. A row opts in with an `"outfit"` list in
+`tools/crowd/crowd_config.json` (its `"clothes"` then hold only the shoes); the keys are in the
+header of garments.py.
+
+### How
+
+- **Shape** (`garments.py`, inside `build_character.py`'s Blender run, before the cover test).
+  Every garment is a shell grown off a Taubin-smoothed copy of the body (its UVs and weights
+  carried), so it moves with the rig for free. An `Envelope` (a convex hull per centimetre slice
+  about a fitted axis, hung from the chest by a slope, blurred over azimuth and height) gives a
+  top its drape over the chest and shoulder blades instead of the skin's every dip; sleeves and
+  legs are tubes measured on the limb's own vertices. Planes cut the hems, the neck and the
+  sleeves (the sleeve cut only takes faces that are both past the plane and near the upper arm,
+  or a heavy torso lost its side), and every hem is turned in as a lip. Collars (crew rib,
+  stand-and-fall with points, stand), cuffs, rib bands, the placket, the zip tape and teeth are
+  swept bands along a curve; buttons and the zip pull are discs. The shirt tail is a curved cut
+  from tangent planes round the hips.
+- **Layers.** A top is pushed off the trousers by a grown, blurred displacement field
+  (`push_smooth`), the trousers under a top are deleted with a margin whose weights blend to the
+  top's (`hide_under`), and everything clears the body by a few millimetres along rays cast FROM
+  the point. Weights are blurred round the shoulders and the crotch before the trousers are cut.
+- **Paint** (`garment_paint.py`, called by `crowd_atlas.py`). A garment has no source photo: its
+  atlas rect is "virtual" and every texel is painted from what it is in 3D - rasterised from the
+  triangles `build_character.py` dumps (`own.npz`: position, normal, part, zone, AO) -: twin-needle
+  hems, neck coverstitch, rib wales, heathered jersey; on trousers the waistband, belt loops, fly
+  J-stitch, yoke, patch and slant pockets, out- and inseams, hem roping, denim wash with whiskers
+  and knee honeycombs, slub, chino welts and a crease; on shirts the yoke, placket rows, button
+  band stitching, a chest pocket, woven stripes or checks; on the jacket welts, rib wales and zip
+  teeth. A height field gives the normal map at its real scale in metres; 9aj's fold field is
+  added on top (`fold_gain` 0.7). Patterns are box-filtered per texel in metres (`mpp`), which is
+  what keeps a 1.1 cm pinstripe from turning into moire. Colours and patterns re-read the
+  outfit, so a recolour needs only `FROM=crowd_atlas`.
+- **The contract is unchanged.** The garments join the ONE Body surface; R / G carry the top and
+  bottom fabric levels, B the hair, A the skin, and buttons, the zip's teeth and pull are the
+  "other" region (all zero, never recoloured). The welded mid / far bodies, the camp-figure
+  bakes, limb cutting and the police recolour see an ordinary rig: no game code changed. The
+  crowd-rig contract checks pass on all twelve.
+- **Preview without the lock.** `tools/crowd/preview.sh out.png crowd_a,crowd_h front,side,back`
+  renders the built rigs in Blender Cycles in seconds a view (`FLAT=1` geometry only, `REGION=1`
+  the region colours - green on a top is trousers showing through, black is skin; views include
+  `torso` and `sleeve_r`). It is how every fix here was judged before the Godot lineup, because the
+  opengl3 render lock was queued for an hour at a time.
+
+### Cost
+
+Body triangles per rig (LOD 0, the hair unchanged): a 12,215 -> 12,537, d 11,954 -> 12,505,
+e 12,735 -> 12,851, f 10,985 -> 13,093, h 11,071 -> 12,611, i 11,421 -> 12,407, j 11,061 ->
+12,841, k 11,954 -> 12,515, l 10,526 -> 11,662 (b, c, g untouched). The shells are decimated to
+per-garment budgets and kept smooth (the 9aj lesson: a step in a crowd body is what the importer's
+LODs keep). Downtown bookmark (`tools/geo_count.gd --spawn=2359.4,880,0,12,2 --quality=0`,
+800x600, opengl3, `AB=Body,Hair`, the same frozen frame with every Body and Hair node hidden),
+the 28105b5 rigs swapped in against these:
+
+| | frame triangles | draws | objects | the crowd's share (Body + Hair) |
+| --- | --- | --- | --- | --- |
+| before | 5,969,405 | 4,196 | 20,280 | 270,432 triangles, 315 draws |
+| after | 5,997,007 | 4,196 | 20,280 | 298,034 triangles, 315 draws |
+
++27,602 triangles, 0.46 % of the frame (the crowd's own share +10 %), draws and objects
+unchanged; the welded mid / far bodies are capped by `mid_triangles` / `far_triangles` as before,
+so the difference is the near people. If it has to be zero, the lever is each garment's `tris`
+(1,800-1,900 a shell today) - a full Blender rebuild of the rows that change.
+
+### Judged
+
+Every fix in Cycles previews first (front, side, back, torso, sleeves, feet; flat, region and
+textured), then `crowd_lineup.gd` (`LIGHT=street`) against the 28105b5 rigs: a close shot per
+person front and side (`SHOTS=`, `TURN=90`) and the whole crowd front and side. What reads at
+2-4 m: turned hems, crew rib collars, the shirt's collar points, placket and buttons, the rolled
+sleeves, the jacket's rib bands and zip, the jeans' wash, pockets, yoke and inseam, a break over
+the shoe. The police recolour (look 1 with `uniform_material()`'s numbers through `MAT_PARAM`)
+turns a, d, f, h and j navy as before; h's pinstripe shows through the navy as the old h's
+stripes did. The lead's review of the first shirt (blue swirl bands across chest and back) was
+the painter's sleeve test - fixed by the `zone` attribute below; the dark V nicks at the tee hem
+were the jeans poking through - fixed by `hide_under`.
+
+### Traps (each cost a round)
+
+- **A push-out ray must start at the point.** Cast inward from outside the cloth, it hits the
+  far side of a fold (crotch, armpit, under the breasts) and throws the vertex through it - the
+  nipple tents and the navel dent were this.
+- **Trousers under a top poke through at every stride** unless they are cut away and their
+  margin takes the top's weights (`hide_under`); clearance alone is not enough, the two layers
+  are skinned to different bones at the hem. Blur weights BEFORE that cut, or the blur pulls the
+  cut edge's weights back to the legs.
+- **The crotch.** Flatten it only on the front and never let a vertex cross the midline: its
+  weights are its own leg's, and one that crossed was dragged by the other leg into a spike.
+- **Stripes swirled** because the painter read sleeve and body from 3D distance (the armpit
+  folds give it both); the shell now writes a `zone` per face (body, left / right sleeve) that
+  the painter reads, and the pattern runs in body coordinates from the torso axis.
+- **The cover test** treated skin in the armpit as uncovered and kept it (pale slivers). For our
+  garments it counts torso skin outward from the torso's axis, and a lone miss among covered
+  neighbours as covered.
+- **AO is baked on a coarse shell in the rest pose** the game never shows, so it is gentle with
+  a floor (`own_ao` 0.32), and the hem lips are left out of its rays (they made zigzags).
+- **The ankle.** 9aj's fold field stacks rings over the ankle, which is right for the hero's
+  gathered track pant and read as jogger cuffs on every hemmed pair in the first lineup.
+  `tools/hero/folds.py` takes `ankle_stack` / `ankle_reach` from the landmarks (absent for the
+  hero: 1.0 / 0.2) and crowd_atlas.py sets them from the trousers' style. Gold thread on black
+  jeans read as a track stripe down the inseam; d has grey.
+- **Blender:** adding a corner attribute reallocates the others, so re-fetch layer handles after
+  each; the glTF importer multiplies the texture by COLOR_0 (the region colours) - a preview has
+  to unplug it; two imports of rigs share datablock names, so preview.py loads each rig into a
+  fresh file.
+
+### Not done / next
+
+- b, c and g: an overall bib, a skirt and a blazer would finish the set.
+- Long-sleeved tops show faint horizontal creases across the shoulder blades (the fold field
+  over the shell's own shading), the ankle stacking on jeans is a little regular, and e's back
+  hem has a small step where the tail meets the side. None reads past 3 m.
+- The garments' AO and folds are baked for the rest pose; nothing moves the fabric in a stride
+  beyond the skinning.
