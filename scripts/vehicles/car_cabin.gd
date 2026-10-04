@@ -54,6 +54,9 @@ const REAR_SEATS_SPAN := 1.35
 ## it lets nothing through and does not size the cabin (the exotics' mirror glass is in their
 ## glass slot, a metre out from the cabin).
 const TINY_PANE := 0.3
+## Glass at either end below the glasshouse is a lamp cover only up to this size (m, the box's
+## diagonal): a bus's windscreen comes down to its bumper.
+const LAMP_MAX := 1.2
 ## The front seat backs stand this far behind the windscreen's foot (m), inside the side glass.
 ## The old rule - just behind the middle of the side glass - assumed two rows of doors: it sat the
 ## saloon's driver behind the B-pillar (only his arms showed in the front window) and put the
@@ -238,10 +241,11 @@ static func _components(verts: PackedVector3Array, idx: PackedInt32Array, ctx: D
 		var along := (c - center).dot(fwd)
 		var kind := KIND_TEMPERED
 		var body_c := to_mesh.affine_inverse() * c
-		if absf(along) > ends - 0.45 / scale and body_c.y < ride + (top - ride) * 0.75:
+		# (A big piece of glass at the very end is a bus's windscreen, not a lamp.)
+		if absf(along) > ends - 0.45 / scale and body_c.y < ride + (top - ride) * 0.75 and box.size.length() * scale < LAMP_MAX:
 			# Lamp glass, at either end below the glasshouse.
 			kind = KIND_LAMP
-		elif along > 0.0 and n.y > 0.1:
+		elif along > 0.0 and (n.y > 0.1 or n.dot(fwd) > 0.9):
 			# The windscreen: the biggest pane ahead of the middle that faces forward (raked
 			# screens face mostly up: the sedan's is 24 degrees off the roof's normal).
 			var score := n.dot(fwd) * sqrt(box.size.x * maxf(box.size.y, box.size.z))

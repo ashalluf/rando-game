@@ -475,9 +475,10 @@ def bus_details(s, sec, surf, body, parts):
                        for r in range(2) for c in range(3)]
                 oriented_grid(leaf, pts, [Vector((1, 0, 0))] * len(pts), 2, 3, mat)
             stile_y = lo if k == 0 else hi
-            box_into(leaf, x1 - 0.01, x1 + 0.012, stile_y - 0.015, stile_y + 0.015, fz0, fz1 - 0.02, TRIM)
-            # A grab bar inside.
-            tube(leaf, [(x0 - 0.03, (lo + hi) * 0.5, 0.9), (x0 - 0.03, (lo + hi) * 0.5, 2.2)], 0.016, CHROME, n=6)
+            # The rubber down the meeting stile and a grab bar inside, in the dark glass's slot: a
+            # leaf is its own node, and two surfaces (paint, glass) keep it two draws.
+            box_into(leaf, x1 - 0.01, x1 + 0.012, stile_y - 0.015, stile_y + 0.015, fz0, fz1 - 0.02, GLASS_DOOR)
+            tube(leaf, [(x0 - 0.03, (lo + hi) * 0.5, 0.9), (x0 - 0.03, (lo + hi) * 0.5, 2.2)], 0.016, GLASS_DOOR, n=6)
             tidy(leaf)
             ob = new_object("door_%s%s" % (name, "ab"[k]), leaf)
             # Origin on the hinge (the leaf's outer edge, at the opening's edge, skin side).

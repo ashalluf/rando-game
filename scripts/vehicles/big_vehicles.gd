@@ -78,7 +78,7 @@ const STOP_CLEAR_AHEAD := 9.0
 ## How far a bus pulls over toward the kerb at a stop (m): out of its lane into the cleared kerb.
 const STOP_SHIFT := 1.4
 ## Lettering draws to here (m): a TextMesh is glyph outlines, a few hundred triangles a letter.
-const LETTER_DISTANCE := 70.0
+const LETTER_DISTANCE := 55.0
 
 static var _wheel_cache: Dictionary = {}
 static var _sign_tex: Dictionary = {}

@@ -1442,9 +1442,11 @@ func _dims() -> Dictionary:
 			return {"length": 5.944, "width": 2.03, "lamp_y": 0.674, "tail_y": 0.864, "chassis_h": 0.8, "cabin": Vector2(-2.0, 4.4), "cabin_h": 1.2, "wheel_z": 1.65, "wheel_front": 1.95, "wheel_rear": 1.67, "track": 1.70, "tyre_r": 0.36, "ride": -0.176, "road": -0.196}
 		BodyType.BUS:
 			return {"length": 12.704, "width": 2.59, "lamp_y": 0.48, "tail_y": 1.0, "chassis_h": 1.0, "cabin": Vector2(-6.1, 12.2), "cabin_h": 1.3, "wheel_z": 3.4, "wheel_front": 3.587, "wheel_rear": 3.263, "track": 2.07, "tyre_r": 0.461, "ride": -0.273, "road": -0.300,
+					"light_len": 12.36, "light_z": 0.11,
 					"letter_at": Vector3(1.297, 2.40, -1.39), "letter_size": 0.22}
 		BodyType.BOX_TRUCK:
 			return {"length": 8.946, "width": 2.46, "lamp_y": 0.89, "tail_y": 0.92, "chassis_h": 1.0, "cabin": Vector2(-4.4, 8.8), "cabin_h": 1.4, "wheel_z": 2.9, "wheel_front": 3.397, "wheel_rear": 2.403, "track": 1.72, "tyre_r": 0.424, "ride": -0.236, "road": -0.260,
+					"light_len": 8.82, "light_z": 0.063,
 					"letter_at": Vector3(1.236, 2.30, 1.22), "letter_size": 0.42}
 		BodyType.SEMI:
 			# The tractor is the body (its origin, its length); the trailer hangs off the kingpin
