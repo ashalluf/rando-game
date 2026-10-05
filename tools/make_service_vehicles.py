@@ -129,6 +129,24 @@ def bevelled(name, bm, width=0.025, segments=2, angle=40.0):
     return ob
 
 
+def rig_bev(name, bm, pivot, width=0.010, segments=2, angle=35.0):
+    """rig() with the part's sharp edges bevelled first (bv.smooth_bevel)."""
+    ob = bv.smooth_bevel(name, bm, width=width, segments=segments, angle=angle)
+    ob.data.transform(Matrix.Translation((-pivot[0], -pivot[1], -pivot[2])))
+    ob.location = pivot
+    return ob
+
+
+def bulged(sec, z0, z1, bulge):
+    """A section whose flat sides bow out by `bulge` at mid-height (a pressed panel, not a slab)."""
+    out = []
+    for x, z in sec:
+        t = min(max((z - z0) / max(z1 - z0, 1e-6), 0.0), 1.0)
+        k = math.sin(math.pi * t) * min(1.0, abs(x) / 0.5)
+        out.append((x + math.copysign(bulge * k, x), z))
+    return out
+
+
 def rig(name, bm, pivot):
     """A moving part: its mesh moved so the object's origin is `pivot` (the game's node origin)."""
     tidy(bm)
@@ -215,25 +233,34 @@ def garbage_details(s, sec, surf, body, parts):
     yh0, yh1 = GB_HOPPER
     z0 = 1.08
     # Packer body: a rounded section lofted from the hopper back to the tailgate seam.
-    sec_main = _section(hw, z0, 3.42, 0.46, 0.06, 6)
+    sec_main = bulged(_section(hw, z0, 3.42, 0.52, 0.10, 8), z0, 3.42, 0.025)
+    sec_front = bulged(_section(hw - 0.03, z0, 3.36, 0.56, 0.10, 8), z0, 3.36, 0.020)
     bm = bmesh.new()
-    loft(bm, [(yh1, sec_main, 0.0, 1.0), (-3.62, sec_main, 0.0, 1.0)], PAINT)
-    parts.append(bevelled("packer", bm, 0.03, 2, 35.0))
+    # Four rings: the front edge rolled in over the hopper, the sides bowed, the rear seam band.
+    loft(bm, [(yh1, sec_front, 0.0, 1.0), (yh1 - 0.10, sec_main, 0.0, 1.0),
+              (-3.52, sec_main, 0.0, 1.0), (-3.62, bulged(_section(hw - 0.015, z0, 3.40, 0.52, 0.10, 8), z0, 3.40, 0.022), 0.0, 1.0)], PAINT)
+    parts.append(bv.smooth_bevel("packer", bm, 0.03, 3, 30.0))
     # Tailgate: the same section, its back eased in and rounded over.
     tg = bmesh.new()
     sec_tg = _section(hw - 0.02, z0 + 0.04, 3.40, 0.48, 0.06, 6)
     loft(tg, [(-3.66, sec_tg, 0.0, 1.0), (-4.02, sec_tg, -0.02, 0.995), (-4.24, _section(hw - 0.10, z0 + 0.25, 3.18, 0.42, 0.10, 6), 0.0, 1.0),
               (-4.32, _section(hw - 0.22, z0 + 0.45, 2.98, 0.32, 0.10, 6), 0.0, 1.0)], PAINT)
-    parts.append(bevelled("tailgate", tg, 0.02, 2, 30.0))
+    parts.append(bv.smooth_bevel("tailgate", tg, 0.025, 3, 30.0))
     # Hopper: a floor, a high street-side wall, a low kerb-side wall (the arm tips over it), the
     # front bulkhead behind the cab and the packer's front face with its opening above the walls.
     hp = bmesh.new()
     box_into(hp, -hw, hw, yh1, yh0, z0, z0 + 0.10, PAINT)
     box_into(hp, -hw, -hw + 0.06, yh1, yh0, z0, 2.95, PAINT)
-    box_into(hp, hw - 0.06, hw, yh1, yh0, z0, 2.05, PAINT)
+    # The kerb-side wall flares out as it rises (a chamfered loading lip the arm tips over).
+    loft(hp, [(yh0, [(hw - 0.06, z0), (hw, z0), (hw, 1.62), (hw + 0.09, 2.03), (hw + 0.03, 2.05), (hw - 0.06, 1.64)], 0.0, 1.0),
+              (yh1, [(hw - 0.06, z0), (hw, z0), (hw, 1.62), (hw + 0.09, 2.03), (hw + 0.03, 2.05), (hw - 0.06, 1.64)], 0.0, 1.0)], PAINT)
+    # Chamfers where the floor meets the walls (a real hopper is a welded tub, not a box).
+    for sx in (1.0, -1.0):
+        loft(hp, [(yh0, [(sx * (hw - 0.06), z0 + 0.10), (sx * (hw - 0.06), z0 + 0.32), (sx * (hw - 0.28), z0 + 0.10)], 0.0, 1.0),
+                  (yh1, [(sx * (hw - 0.06), z0 + 0.10), (sx * (hw - 0.06), z0 + 0.32), (sx * (hw - 0.28), z0 + 0.10)], 0.0, 1.0)], PAINT)
     box_into(hp, -hw, hw, yh0 - 0.06, yh0, z0, 3.05, PAINT)
     # The hopper's rolled top edges and a lip over the kerb side wall.
-    tube(hp, [(hw - 0.02, yh1, 2.05), (hw - 0.02, yh0, 2.05)], 0.045, PAINT, n=10)
+    tube(hp, [(hw + 0.06, yh1, 2.05), (hw + 0.06, yh0, 2.05)], 0.045, PAINT, n=12)
     tube(hp, [(-hw + 0.03, yh1, 2.95), (-hw + 0.03, yh0, 2.95)], 0.04, PAINT, n=10)
     tube(hp, [(-hw, yh0 - 0.03, 3.05), (hw, yh0 - 0.03, 3.05)], 0.04, PAINT, n=10)
     # The packer blade inside the hopper (seen over the low wall): a slanted dark plate.
@@ -244,7 +271,7 @@ def garbage_details(s, sec, surf, body, parts):
         ribs(hp, side, hw - 0.04, ys, z0 + 0.12, 3.00)
         box_into(hp, min(side * (hw - 0.01), side * (hw + 0.035)), max(side * (hw - 0.01), side * (hw + 0.035)), -3.62, yh1, z0 + 0.02, z0 + 0.16, TRIM)
     ribs(hp, -1.0, hw - 0.02, [yh1 + 0.40, yh0 - 0.35], z0 + 0.12, 2.90)
-    parts.append(bevelled("hopper", hp, 0.012, 1, 50.0))
+    parts.append(bv.smooth_bevel("hopper", hp, 0.016, 3, 35.0))
 
     tr = bmesh.new()
     # Tailgate hinges at the top, the lift cylinders down each side, the locks, the sill.
@@ -283,7 +310,7 @@ def garbage_details(s, sec, surf, body, parts):
     xbox(tr, 0.20, hw + 0.04, GB_ARM_Y + 0.13, GB_ARM_Y + 0.17, GB_BOOM_Z - 0.12, GB_BOOM_Z + 0.16, TRIM)
     # A camera pod at the hopper's kerb corner (the driver watches the arm on a screen).
     xbox(tr, hw - 0.02, hw + 0.08, yh0 - 0.18, yh0 - 0.06, 2.10, 2.22, TRIM)
-    parts.append(bevelled("garbage_trims", tr, 0.006, 1, 50.0))
+    parts.append(bv.smooth_bevel("garbage_trims", tr, 0.008, 2, 40.0))
     s["rig_nodes"] = garbage_arm()
     s["points"] = [("arm_pivot", GB_PIVOT), ("grab", (GB_PIVOT[0], GB_ARM_Y, GB_PIVOT[2] - GB_LEVER))]
 
@@ -295,21 +322,30 @@ def garbage_arm():
     px, py, pz = GB_PIVOT
     bm = bmesh.new()
     # Boom: outer and inner sections, the mast, its gusset, the hose loop.
-    xbox(bm, 0.22, px - 0.02, py - 0.11, py + 0.11, GB_BOOM_Z - 0.10, GB_BOOM_Z + 0.08, SATIN)
-    xbox(bm, px - 0.30, px + 0.10, py - 0.13, py + 0.13, GB_BOOM_Z - 0.12, GB_BOOM_Z + 0.10, TRIM)
+    # The telescoping beam: a rounded box section swept along the boom, a heavier collar outboard.
+    zc = GB_BOOM_Z - 0.01
+    rc.sweep(bm, [Vector((0.22, py, zc)), Vector((px - 0.02, py, zc))],
+             [(b, a) for a, b in bv.rounded_rect(-0.11, 0.11, -0.09, 0.09, 0.025, 2)], SATIN,
+             normals=[Vector((0, 0, 1))] * 2)
+    rc.sweep(bm, [Vector((px - 0.30, py, GB_BOOM_Z - 0.01)), Vector((px + 0.10, py, GB_BOOM_Z - 0.01))],
+             [(b, a) for a, b in bv.rounded_rect(-0.13, 0.13, -0.11, 0.11, 0.03, 2)], TRIM,
+             normals=[Vector((0, 0, 1))] * 2)
     xbox(bm, px - 0.02, px + 0.10, py - 0.12, py + 0.12, GB_BOOM_Z - 0.12, pz + 0.10, TRIM)
     xbox(bm, px - 0.20, px - 0.02, py - 0.03, py + 0.03, GB_BOOM_Z + 0.10, GB_BOOM_Z + 0.40, TRIM)
     tube(bm, [(px + 0.11, py - 0.07, GB_BOOM_Z), (px + 0.20, py - 0.07, (GB_BOOM_Z + pz) * 0.5), (px + 0.11, py - 0.07, pz - 0.15)], 0.016, TYRE, n=6)
     # The lift cylinder up the mast.
     tube(bm, [(px + 0.13, py + 0.06, GB_BOOM_Z + 0.05), (px + 0.13, py + 0.06, pz - 0.35)], 0.045, TRIM, n=10)
     tube(bm, [(px + 0.13, py + 0.06, pz - 0.35), (px + 0.13, py + 0.06, pz - 0.10)], 0.022, CHROME, n=8)
-    boom = rig("rig_boom", bm, (0.22, py, GB_BOOM_Z))
+    boom = rig_bev("rig_boom", bm, (0.22, py, GB_BOOM_Z), width=0.012, segments=2)
     lm = bmesh.new()
     # Lift: the lever (a box beam with the pivot boss), the grabber frame and two claws.
     cylinder(lm, py, px, pz, 0.075, py - 0.16, py + 0.16, CHROME, n=14, axis="x") if False else None
     _ycyl(lm, px, pz, 0.08, py - 0.17, py + 0.17, CHROME)
     gz = pz - GB_LEVER
-    xbox(lm, px + 0.10, px + 0.24, py - 0.07, py + 0.07, gz + 0.05, pz, SATIN)
+    # The lever: a box beam swept from the pivot to the grabber, deeper at the pivot.
+    lp = [Vector((px + 0.17, py, pz - 0.02 - (pz - gz - 0.07) * k / 6)) for k in range(7)]
+    rc.sweep(lm, lp, lambda i: bv.rounded_rect(-0.075 + 0.012 * i / 6, 0.075 - 0.012 * i / 6, -0.07, 0.07, 0.02, 2),
+             SATIN, normals=[Vector((0, 1, 0))] * len(lp))
     # Grabber frame: a crossbar along the truck at the lever's foot, the claws off its ends
     # curving outward round where the bin will be (a 0.62 m bin centred 0.40 m out).
     xbox(lm, px + 0.18, px + 0.30, py - 0.42, py + 0.42, gz - 0.10, gz + 0.12, TRIM)
@@ -322,7 +358,7 @@ def garbage_arm():
         prof = [(-0.025, -0.06), (0.025, -0.06), (0.025, 0.06), (-0.025, 0.06)]
         rc.sweep(lm, [Vector(p) for p in pts], prof, TRIM)
         tube(lm, [Vector(p) + Vector((0, 0, 0.065)) for p in pts], 0.012, TYRE, n=6)
-    lift = rig("rig_lift", lm, GB_PIVOT)
+    lift = rig_bev("rig_lift", lm, GB_PIVOT, width=0.010, segments=2)
     return [boom, lift]
 
 
@@ -364,13 +400,26 @@ def sweeper_details(s, sec, surf, body, parts):
     z0 = 1.10
     # Debris hopper: a rounded box with a raked rear face (it tips back to dump).
     bm = bmesh.new()
-    sh = _section(hw, z0, 3.02, 0.36, 0.08, 6)
-    loft(bm, [(2.02, sh, 0.0, 1.0), (-2.30, sh, 0.0, 1.0), (-2.55, _section(hw - 0.04, z0 + 0.12, 2.92, 0.34, 0.08, 6), 0.0, 1.0)], PAINT)
-    parts.append(bevelled("hopper", bm, 0.03, 2, 35.0))
+    sh = bulged(_section(hw, z0, 3.02, 0.42, 0.10, 8), z0, 3.02, 0.020)
+    sh_in = bulged(_section(hw - 0.05, z0 + 0.03, 2.96, 0.44, 0.10, 8), z0 + 0.03, 2.96, 0.016)
+    # The hopper's front edge rolled in (it sits behind the cab), the raked back face.
+    loft(bm, [(2.02, sh_in, 0.0, 1.0), (1.94, sh, 0.0, 1.0), (-2.30, sh, 0.0, 1.0),
+              (-2.55, bulged(_section(hw - 0.04, z0 + 0.12, 2.92, 0.40, 0.10, 8), z0 + 0.12, 2.92, 0.014), 0.0, 1.0)], PAINT)
+    parts.append(bv.smooth_bevel("hopper", bm, 0.03, 3, 30.0))
+    # A fairing from the cab roof up to the hopper's top (a wedge cowl), and side skirts low on
+    # the body between the axles, their bottom edges rolled under.
+    fr = bmesh.new()
+    loft(fr, [(2.26, _section(0.98, 2.50, 2.56, 0.04, 0.02, 3), 0.0, 1.0),
+              (2.06, _section(1.10, 2.50, 2.98, 0.30, 0.04, 6), 0.0, 1.0)], PAINT)
+    for side in (1.0, -1.0):
+        x0, x1 = sorted((side * (hw - 0.02), side * (hw + 0.025)))
+        loft(fr, [(1.0, [(side * (hw - 0.04), 0.62), (side * (hw + 0.025), 0.66), (side * (hw + 0.025), 1.10), (side * (hw - 0.04), 1.10)], 0.0, 1.0),
+                  (-1.55, [(side * (hw - 0.04), 0.62), (side * (hw + 0.025), 0.66), (side * (hw + 0.025), 1.10), (side * (hw - 0.04), 1.10)], 0.0, 1.0)], PAINT)
+    parts.append(bv.smooth_bevel("fairings", fr, 0.02, 3, 30.0))
     wt = bmesh.new()
     # Water tank across the back, lower and darker, a fill neck and a ladder.
     loft(wt, [(-2.62, _section(hw, z0 - 0.05, 2.30, 0.20, 0.10, 5), 0.0, 1.0), (-4.15, _section(hw, z0 - 0.05, 2.30, 0.20, 0.10, 5), 0.0, 1.0)], PAINT)
-    parts.append(bevelled("tank", wt, 0.02, 2, 35.0))
+    parts.append(bv.smooth_bevel("tank", wt, 0.025, 3, 30.0))
     tr = bmesh.new()
     _vcyl(tr, -0.6, -3.4, 2.30, 0.12, 0.10, TRIM)
     for k in range(4):
@@ -430,7 +479,7 @@ def sweeper_details(s, sec, surf, body, parts):
     tube(tr, [(-0.6, 1.6, 3.10), (-0.6, -1.2, 3.10), (-0.2, -1.6, 3.10), (0.4, -1.6, 3.10)], 0.10, TYRE, n=12)
     for y in (1.2, 0.0, -1.0):
         xbox(tr, -0.75, -0.45, y - 0.04, y + 0.04, 3.00, 3.12, CHROME)
-    parts.append(bevelled("sweeper_trims", tr, 0.006, 1, 50.0))
+    parts.append(bv.smooth_bevel("sweeper_trims", tr, 0.008, 2, 40.0))
     parts.append(box_obj("sweeper_lamps", lb))
     s["rig_nodes"] = sweeper_brooms()
 
@@ -521,6 +570,7 @@ def tow_details(s, sec, surf, body, parts):
     bv.box_truck_details(s, sec, surf, body, parts)
     strip_box_parts(parts)
     tr = bmesh.new()
+    tbx = bmesh.new()
     # Subframe and the tilt cylinders (shown at rest), the toolboxes either side.
     for sx in (0.50, -0.50):
         xbox(tr, sx - 0.07, sx + 0.07, -4.20, 1.95, 0.92, 1.12, TRIM)
@@ -528,7 +578,9 @@ def tow_details(s, sec, surf, body, parts):
         tube(tr, [(side * 0.30, 0.6, 0.98), (side * 0.30, -1.6, 1.10)], 0.07, TRIM, n=10)
         tube(tr, [(side * 0.30, -1.6, 1.10), (side * 0.30, -2.0, 1.12)], 0.035, CHROME, n=8)
         xb0, xb1 = sorted((side * 0.62, side * 1.20))
-        box_into(tr, xb0, xb1, 0.15, 1.80, 0.52, 1.12, SATIN)
+        box_into(tbx, xb0, xb1, 0.15, 1.80, 0.52, 1.12, SATIN)
+        # The toolbox lid's seam and its piano hinge.
+        xbox(tbx, side * 1.20, side * 1.212, 0.18, 1.77, 1.04, 1.055, TRIM)
         # Toolbox lids' latches, the grab handle.
         for y in (0.55, 1.40):
             xbox(tr, side * 1.20, side * 1.22, y - 0.06, y + 0.06, 1.00, 1.04, CHROME)
@@ -549,7 +601,8 @@ def tow_details(s, sec, surf, body, parts):
     for side in (1.0, -1.0):
         xbox(tr, side * 0.70, side * 0.92, -4.74, -4.58, 0.78, 1.00, SATIN)
     bv.underride(tr, -4.30, 0.55, 1.10)
-    parts.append(bevelled("tow_trims", tr, 0.006, 1, 50.0))
+    parts.append(bv.smooth_bevel("tow_trims", tr, 0.008, 2, 40.0))
+    parts.append(bv.smooth_bevel("toolboxes", tbx, 0.025, 3, 35.0))
     parts.append(box_obj("tow_lamps", lb))
     s["rig_nodes"] = [tow_bed()]
 
@@ -570,7 +623,11 @@ def tow_bed():
         xbox(bm, -hw + 0.12, hw - 0.12, y - 0.04, y + 0.04, z - 0.22, z - 0.05, TRIM)
     # Side rails (the deck's edges) with tie-down slots, a stake pocket every metre.
     for side in (1.0, -1.0):
-        xbox(bm, side * (hw - 0.10), side * hw, y1 + 0.05, y0, z - 0.26, z + 0.06, PAINT)
+        # The rail: a rounded channel swept down the deck's edge, dipping at the tail ramp.
+        rp = [Vector((side * (hw - 0.05), y0, z - 0.10)), Vector((side * (hw - 0.05), y1 + 0.40, z - 0.10)),
+              Vector((side * (hw - 0.05), y1 + 0.05, z - 0.20))]
+        rc.sweep(bm, rp, bv.rounded_rect(-0.05, 0.05, -0.16, 0.16, 0.025, 2), PAINT,
+                 normals=[Vector((0, 0, 1))] * len(rp))
         n = int((y0 - y1) / 0.40)
         for k in range(1, n):
             y = y1 + 0.2 + (y0 - y1 - 0.4) * k / n
@@ -584,10 +641,11 @@ def tow_bed():
         xbox(bm, side * (hw - 0.004), side * (hw + 0.018), y0 - 0.30, y0 - 0.20, z - 0.14, z - 0.08, LIGHT_F)
     # Headboard: a frame with a mesh panel (a grid of bars) and a light bar on top.
     hz1 = z + 1.15
-    for side in (1.0, -1.0):
-        xbox(bm, side * (hw - 0.10), side * hw, y0 - 0.10, y0, z, hz1, PAINT)
-    xbox(bm, -hw, hw, y0 - 0.10, y0, hz1 - 0.10, hz1, PAINT)
-    xbox(bm, -hw, hw, y0 - 0.10, y0, z, z + 0.12, PAINT)
+    # The frame: a rounded tube section swept round the headboard's outline (radiused top corners).
+    fp = [Vector((a, y0 - 0.05, b)) for a, b in bv.rounded_rect(-hw + 0.05, hw - 0.05, z + 0.06, hz1 - 0.05, 0.16, 4)]
+    fp.append(fp[0])
+    rc.sweep(bm, fp, bv.rounded_rect(-0.05, 0.05, -0.05, 0.05, 0.02, 2), PAINT, normals=[Vector((0, 1, 0))] * len(fp))
+    xbox(bm, -hw + 0.05, hw - 0.05, y0 - 0.10, y0, z, z + 0.12, PAINT)
     for k in range(1, 9):
         x = -hw + 2 * hw * k / 9
         xbox(bm, x - 0.012, x + 0.012, y0 - 0.06, y0 - 0.04, z + 0.12, hz1 - 0.10, TRIM)
@@ -605,7 +663,7 @@ def tow_bed():
     xbox(bm, -0.42, 0.42, y0 - 0.55, y0 - 0.10, z, z + 0.06, TRIM)
     tube(bm, [(bx, y0 - 0.45, z + 0.12), (bx, y0 - 1.20, z + 0.03)], 0.008, CHROME, n=5)
     xbox(bm, -0.05, 0.05, y0 - 1.30, y0 - 1.18, z, z + 0.07, TRIM)
-    return rig("rig_bed", bm, TOW_PIVOT)
+    return rig_bev("rig_bed", bm, TOW_PIVOT, width=0.008, segments=2, angle=40.0)
 
 
 rc.SPECS["tow"] = tow
