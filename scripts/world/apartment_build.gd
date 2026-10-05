@@ -488,6 +488,9 @@ func _name_sign() -> void:
 
 ## The court's ground and planting, and in midtown the whole lot's ground (no yard pass runs there).
 func _ground() -> void:
+	# The court and the lot ground are yard ground (YardFill's mesh): off with the yard fill's A/B.
+	if not YardFill.enabled:
+		return
 	var f: Dictionary = h.f
 	var court: Rect2 = h.court
 	var rng := RandomNumberGenerator.new()

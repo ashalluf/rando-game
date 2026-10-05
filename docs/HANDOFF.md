@@ -8571,3 +8571,56 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Apartment buildings: walk-ups, bungalow courts, Spanish courts and podium blocks, 2026-10-05 (agent branch `wt/apartments`; VISUAL_ROADMAP #?)
+
+G2's first per-style kit: Los Angeles stucco apartments in MIDTOWN and the inner SUBURBS. Before,
+every midtown low-rise lot was a `Building` box with a storefront band and the inner suburbs were
+all single houses.
+
+**The four kinds** (`Apartments.Kind`, `scripts/world/apartments.gd`):
+- WALKUP: a two- or three-storey bar running back from the street, its units opening off
+  cantilevered galleries (concrete slab, accent fascia, iron pickets or a stucco half wall, steel
+  posts to the ground, a canopy over the top one) along a side court, reached by open steel stairs
+  (stringers, concrete treads, pipe rails, a landing per floor, flights in a straight run). Flat
+  roof behind a parapet or a low hip in clay or shingle. Wall air conditioners with drip stains.
+- BUNGALOW_COURT: two rows of one-storey cottages facing across a planted court (centre walk,
+  lawns, mulch beds, palms at the mouth and the end), a wider cottage across the end; stoops with
+  little canopies; stucco or siding, gable or hip roofs.
+- SPANISH_COURT: two or three storeys of white stucco in a U round a tiled court with
+  YardFill's fountain, clay hip roofs, arched windows on the ground floor, casement grids with
+  wrought-iron balconies above, arched doors, a stucco street wall with an arch and a lantern.
+- PODIUM (midtown only): four storeys, the parking level behind a steel-bar garage gate and
+  breeze-block vents, three floors of flats with sliders and iron balconies, wall ACs.
+- Names in metal letters on a flat parapet (`Apartments.NAMES`, invented: "Los Robles", "Casa
+  Linda"...), merged into the house metal mesh (`FreewayKit.text_geo()`).
+
+**How it hooks in (all after every existing roll):**
+- The plan has HouseKit's shape (frame, wings, door, garage, drive), plus `galleries`, `stairs`,
+  `court`, `extra_ground`, `own_ground`. It is PURE (hashes of seed + lot).
+- Suburbs: `HouseKit.plan_house()` asks `Apartments.plan_house()` first, so the chunk, YardFill's
+  yards, GroundCoverage and the checks all see the same building. `HouseKit.ground_parts()` adds
+  the court and stairs (YardFill keeps off them); `HouseKit.build()` uses `ApartmentBuild` for an
+  apartment plan.
+- Midtown: one hook in `CityChunk._build_lot()` after the pad roll (`Apartments.claims()`), which
+  builds it through `_build_house()`. A midtown claim lays its own lot ground (no yard pass runs
+  there) through YardFill's ground and planting helpers.
+- Odds: midtown lots under `MIDTOWN_MAX_H` (24 m) at `MIDTOWN_ODDS` (0.45); suburbs within
+  `INNER_RING` (900 m) of the midtown ring or the westside centre, odds falling from `INNER_ODDS`
+  (0.5) to 0. Each kind needs a yard of at least `MIN_YARD`.
+- FULL: everything in the chunk's house meshes (one per material, no new materials or shaders),
+  collision on the Houses body (gallery slabs, stair ramps, landings, balconies). LOD and the far
+  city: HouseBuild's coded wing boxes and roof slabs, plus a thin box per gallery floor.
+- `APARTMENTS=0` is the A/B.
+
+**Numbers (seed 1337, 2.6 km round downtown):** 883 buildings (podium 284, walk-up 307, Spanish
+court 200, bungalow court 92), plans pure, ~0.45 s to plan them all.
+
+**Tools:** `tools/apartments/probe.gd` (counts, EYEs for `block_shot.tscn`; skips lots a pad may
+take), `tools/apartments/compile.gd`. Checks: `tests/apartments_checks.gd` (`house_checks.gd` now
+skips apartment lots).
+
+**Known gaps:** no interiors behind the glass (house_glass's traced room only); the Spanish courts'
+upper floors have no modelled stair; podium entries are a plain door; a pad (Commercial) can still
+take an edge lot the probe predicted as an apartment (the chunk's own rng); nothing lit at night
+beyond the house kit's lamps and windows.

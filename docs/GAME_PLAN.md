@@ -289,6 +289,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Apartments: the first per-style kit (G2; HANDOFF "Apartment buildings").** Midtown's
+  low-rise lots and the inner suburbs get LA stucco apartments - walk-ups with galleries and open
+  stairs, bungalow courts, Spanish courts, podium blocks - instead of storefront boxes and single
+  houses. Decisions: the plan takes HouseKit's shape so the house kit's emitters, YardFill's yards,
+  the LOD boxes and the coverage probe all work unchanged (one hook in plan_house, one in
+  _build_lot); claims come after every existing roll and are hashes of the lot; no new materials.
+  Midtown keeps 55 % of its low lots as storefront Buildings so street life keeps its shops.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
