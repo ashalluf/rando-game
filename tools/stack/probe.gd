@@ -38,5 +38,16 @@ func _initialize() -> void:
 	var mains := {st.low: [fw.routes[st.low].points, fw.routes[st.low].heights, FreewayStack._runs(fw.routes[st.low].points), float(fw.routes[st.low].width)],
 		st.high: [fw.routes[st.high].points, fw.routes[st.high].heights, FreewayStack._runs(fw.routes[st.high].points), float(fw.routes[st.high].width)]}
 	print("verify ", st.verify_all(mains, st.links))
+	# EYEs for stills: on each connector, a driver's eye a third of the way along, looking ahead.
+	for k in st.links.size():
+		var l: Dictionary = st.links[k]
+		for frac: float in [0.35, 0.5]:
+			var i := int((l.points as PackedVector2Array).size() * frac)
+			var s: float = l.run[i]
+			var f := FreewayStack.frame(l, i)
+			var d: Vector2 = f[3]
+			var r: Vector2 = f[1]
+			var p: Vector3 = (f[0] as Vector3) + Vector3(r.x * -2.5, -2.5 * float(f[2]) + 1.3, r.y * -2.5)
+			print("EYE link %d at %.0f: %.2f,%.2f,%.2f,%.1f,%.1f" % [k, s, p.x, p.y, p.z, rad_to_deg(atan2(-d.x, -d.y)), -3.0])
 	print("ramps near ", fw.ramps_in(Rect2(st.centre - Vector2.ONE * 600, Vector2.ONE * 1200)).size())
 	quit()
