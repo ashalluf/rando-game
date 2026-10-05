@@ -1,7 +1,7 @@
 class_name Marina
 extends RefCounted
 ## The small-craft marina on the coast between the beach town and the airport (VISUAL_ROADMAP
-## #59): the form of Los Angeles' big man-made marina - a basin dredged out of the land behind the
+## #61): the form of Los Angeles' big man-made marina - a basin dredged out of the land behind the
 ## beach, a main fairway along its seaward side, rows of floating docks on pilings filled with
 ## hundreds of boats, an entrance channel cut through the sand to the sea between two rubble
 ## jetties with a light on each end, and a detached rubble breakwater offshore - with waterfront
