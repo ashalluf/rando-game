@@ -8736,3 +8736,18 @@ older than this pass (the pad roll is untouched) but means the far city can show
 not there up close. No people work the pads (no attendants, mechanics, diners at the booths); the
 car wash brushes do not spin; no pump-side customers. The fast-food building itself is still a
 fairly plain box.
+
+**Wave 2 review (fleet session "roadside", 2026-10-05).** Merged `origin/fleet/base` and
+`origin/main` into the branch (only the docs and `smoke_test.gd` conflicted; both sides kept,
+this section and its roadmap row renumbered `?` for the lead). Fixes from the code review:
+`RoadsideKit.warm()` was never called, so the first pad built the kit's ten meshes inside a chunk
+step - the loading screen now warms it (`loading_screen.gd`, at the end of its list); "EL TORO
+TIRES" painted "EL TIRES" on its side wall (the short name now keeps a second word when the first
+is three letters or fewer); a price of x.996 printed "x.009" (the cents now carry into the dollar).
+The A/B check (`ROADSIDE=0` builds the same buildings and parked cars) failed in the full gate
+only: `_park_car()` stops at `PhysicsBudget.can_spawn()`, and late in the smoke test the city is
+near that cap, so the OFF build, made while the ON chunk's cars are still queued for freeing, got
+fewer cars ("car 9 on (...), off <null>"). It passes alone; the checks now lift the cap for their
+own builds, and the label names the first building or car that differs. `tools/roadside/checks.tscn`
+runs the roadside checks alone in a few minutes. Stills on the merged tree are the `merged_*`
+files on `shots/roadside` (same EYEs as above). Still open: everything under "Not done" above.
