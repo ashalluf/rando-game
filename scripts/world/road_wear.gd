@@ -54,7 +54,7 @@ const PORT_REACH := 900.0
 const PORT_EXTRA := 0.45
 ## Stamps per 100 m of a two-lane street at level 1, and how much of them falls in clusters along
 ## the wheel paths (the rest: the kerb, the parking lane, cracks across, utility cuts).
-const PER_100M := 11.0
+const PER_100M := 20.0
 ## Potholes: the chance a wheel-path cluster has one at level 1 (scaled by level squared, so a
 ## fresh street has none and a bad industrial one several a block).
 const POTHOLE_ODDS := 0.16
@@ -73,6 +73,10 @@ const AGES := 8
 const PAIR_SHARE := 0.35
 ## Deep potholes deeper than this (m) bump a car (bump_for()).
 const BUMP_DEPTH := 0.035
+## The jolt: metres a second taken off the corner per unit of depth gain, and the slowest a car
+## feels it at.
+const BUMP_GAIN := 0.32
+const BUMP_MIN_SPEED := 2.0
 
 const KEY := "road_wear"
 
@@ -109,6 +113,8 @@ const KINDS := {
 ## Off: build() adds nothing (ROAD_WEAR=0 in the environment; the "before" of the A/B).
 static var enabled: bool = OS.get_environment("ROAD_WEAR") != "0"
 
+## RW_LIST=1 prints every stamp laid (tools/road_wear/chunk_probe.gd finds stills with it).
+static var _list: bool = OS.get_environment("RW_LIST") == "1"
 static var _mesh: ArrayMesh = null
 static var _index: Dictionary = {}
 ## Deep potholes for the car bump: Vector2i cell (BUMP_CELL m) -> [[true-world XZ, radius, depth,
@@ -124,6 +130,7 @@ static var _bumps: Dictionary = {}
 static func build(chunk: CityChunk) -> void:
 	if not enabled or chunk.level != CityChunk.Level.FULL or chunk.capturing:
 		return
+	_announce()
 	if chunk.zone != MacroMap.Zone.CITY and chunk.zone != MacroMap.Zone.BEACH:
 		return
 	var plan: CityPlan = chunk.plan
@@ -176,6 +183,17 @@ static func car_park(chunk: CityChunk, r: Rect2, top: float, key: int) -> void:
 		var p := Vector2(rng.randf_range(r.position.x + 1.0, r.end.x - 1.0), rng.randf_range(r.position.y + 1.0, r.end.y - 1.0))
 		_stamp(ctx, rng, name, p, top + LIFT, rng.randf() * TAU, tint, age, false)
 	_finish(ctx)
+
+
+static var _announced := false
+
+## Tells road.gdshader the stamps are on (its own procedural cracks and patches step back near
+## the camera, where the stamps are).
+static func _announce() -> void:
+	if _announced:
+		return
+	_announced = true
+	RenderingServer.global_shader_parameter_set("road_stamp_near", 1.0)
 
 
 # --- Roads ---------------------------------------------------------------------------------------
@@ -241,7 +259,7 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 			var lc := CityPlan.lane_center(w, lanes, n)
 			for g: float in [-0.86, 0.86]:
 				wheel_paths.append(side * (lc + g))
-	var clusters := int(round(budget * 0.45 / 3.0))
+	var clusters := int(round(budget * 0.5 / 2.5))
 	for k in clusters:
 		var v := rng.randf_range(1.0, length - 1.0)
 		if rng.randf() > stretch.call(v) * 0.75:
@@ -272,7 +290,7 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 			_stamp(ctx, rng, name, p, top, along_yaw + (0.0 if travel_sign > 0.0 else PI), tint, _age(rng, age_bias), true)
 	# 2. The kerb lanes: edge break-up and ravelling against the gutter, oil in the parking lane.
 	for side: float in [-1.0, 1.0]:
-		var n_kerb := int(round(budget * 0.14 * rng.randf_range(0.6, 1.4) * 0.5))
+		var n_kerb := int(round(budget * 0.1 * rng.randf_range(0.6, 1.4) * 0.5))
 		for k in n_kerb:
 			var v := rng.randf_range(1.5, length - 1.5)
 			if rng.randf() > stretch.call(v) * 0.8:
@@ -290,7 +308,7 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 				u = side * half
 			_stamp(ctx, rng, name, at.call(u, v), top, yaw, tint, _age(rng, age_bias), true, name == "edge_break")
 		# The parking lane: drips under where cars stand.
-		var n_oil := int(round(length / 6.5 * 0.4 * clampf(level, 0.4, 1.4)))
+		var n_oil := int(round(length / 6.5 * 0.16 * clampf(level, 0.4, 1.4)))
 		for k in n_oil:
 			var v := rng.randf_range(2.0, length - 2.0)
 			var u := side * (half - CityPlan.PARKING_LANE * 0.5 + rng.randf_range(-0.4, 0.4))
@@ -316,7 +334,7 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 			_stamp(ctx, rng, name, p, top, xf_yaw, tint, _age(rng, age_bias), true, false, width)
 		v1 += rng.randf_range(9.0, 24.0) / maxf(level, 0.3)
 	# 5. Utility cuts and old patches anywhere on the carriageway.
-	var n_cut := int(round(budget * 0.12 * rng.randf_range(0.5, 1.5)))
+	var n_cut := int(round(budget * 0.07 * rng.randf_range(0.5, 1.5)))
 	for k in n_cut:
 		var roll := rng.randf()
 		var name := "sawcut_patch" if roll < 0.35 else ("trench_strip" if roll < 0.55 else ("patch_raised" if roll < 0.7 else ("block_crack" if roll < 0.85 else ("tar_network" if roll < 0.95 else "paint_ghost"))))
@@ -462,6 +480,8 @@ static func _stamp(ctx: Dictionary, rng: RandomNumberGenerator, name: String, p:
 	chunk._batch.tilt_keys[KEY] = true
 	chunk._batch.add(KEY, mesh(), Transform3D(basis, Vector3(p.x, y, p.y)), col, custom)
 	ctx.count = int(ctx.count) + 1
+	if _list:
+		print("RW_STAMP %s %.1f,%.1f size=%.1fx%.1f yaw=%.0f thr=%d age=%.2f pair=%d" % [name, p.x, p.y, size.x, size.y, rad_to_deg(yaw), thr_a, age, int(custom_r) / 32 - 1])
 	(ctx.points as PackedVector2Array).append(p)
 	ctx.kinds[name] = int((ctx.kinds as Dictionary).get(name, 0)) + 1
 	# A deep pothole the car feels.
@@ -489,7 +509,8 @@ static func _finish(ctx: Dictionary) -> void:
 	for k: String in ctx.kinds:
 		kinds[k] = int(kinds.get(k, 0)) + int(ctx.kinds[k])
 	chunk.set_meta("road_wear_kinds", kinds)
-	if not chunk.tree_exiting.is_connected(_forget.bind(chunk.key)):
+	if not chunk.has_meta("road_wear_forget"):
+		chunk.set_meta("road_wear_forget", true)
 		chunk.tree_exiting.connect(_forget.bind(chunk.key))
 
 
@@ -553,6 +574,10 @@ static func material() -> ShaderMaterial:
 	_material.set_shader_parameter("height_range", RoadWearTable.HEIGHT_RANGE)
 	_material.set_shader_parameter("fade_start", DRAW_DISTANCE * 0.62)
 	_material.set_shader_parameter("fade_end", DRAW_DISTANCE * 0.95)
+	if OS.get_environment("RW_POM") != "":
+		_material.set_shader_parameter("pom_distance", float(OS.get_environment("RW_POM")))
+	if OS.get_environment("RW_DEBUG") != "":
+		_material.set_shader_parameter("debug_mode", int(OS.get_environment("RW_DEBUG")))
 	return _material
 
 
@@ -587,6 +612,32 @@ static func bump_for(p: Vector2) -> float:
 		if d < float(e[1]):
 			return float(e[2]) * (1.0 - d / float(e[1]) * 0.5)
 	return 0.0
+
+
+## The driven car's wheels dropping into a deep pothole (Vehicle._physics_process, the player's car
+## only): a jolt down at that corner, once as the wheel enters, which the suspension throws back.
+## A dictionary lookup a wheel a tick, nothing when no pothole is near.
+static func bump(car: Vehicle) -> void:
+	if _bumps.is_empty() or not car.is_inside_tree():
+		return
+	var speed := car.linear_velocity.length()
+	var inside: Array = car.get_meta("rw_in", [])
+	inside.resize(car.wheels.size())
+	for k in car.wheels.size():
+		var w := car.wheels[k]
+		if not is_instance_valid(w) or not w.is_in_contact():
+			continue
+		var wp: Vector3 = WorldState.to_world(w.global_position)
+		var depth := bump_for(Vector2(wp.x, wp.z))
+		var was: bool = inside[k] == true
+		inside[k] = depth > 0.0
+		if depth <= 0.0 or was or speed < BUMP_MIN_SPEED:
+			continue
+		var kick := car.mass * BUMP_GAIN * clampf(depth / 0.06, 0.4, 2.0) * clampf(speed / 14.0, 0.3, 1.3)
+		car.hold_crash_watch(3)
+		car.apply_impulse(Vector3.DOWN * kick, w.global_position - car.global_position)
+		Sfx.play("hit_concrete", w.global_position, -14.0 + depth * 60.0, 0.55)
+	car.set_meta("rw_in", inside)
 
 
 ## How many deep potholes are indexed (tests).

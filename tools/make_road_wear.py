@@ -259,10 +259,16 @@ def edge_fade(margin=0.06):
     return smoothstep(0.0, margin, d)
 
 
+# The road's own tint, as the stamps are read against it: the road draws its scan times a tint
+# around 0.81 (sRGB; ~0.63 linear), so asphalt cut from the same scan is taken down by as much to
+# sit level with it, and the shader pulls it toward each road's own tint.
+ROAD_REF = 0.63
+
+
 def asphalt(w, h, rng, dark=1.0, aerial=False):
     name, tile = ("AerialAsphalt01", AERIAL_TILE) if aerial else ("Asphalt033", ASPHALT_TILE)
     off = (rng.random(), rng.random())
-    return lin_color(name, w, h, tile, off) * dark, scan_height(name, w, h, tile, off, 0.003), sample(name, "Roughness", w, h, tile, off)[..., 0]
+    return lin_color(name, w, h, tile, off) * dark * ROAD_REF, scan_height(name, w, h, tile, off, 0.003), sample(name, "Roughness", w, h, tile, off)[..., 0]
 
 
 def finish_cracks(st, cov, val, depth, dark=0.25, rough=0.95):
@@ -320,7 +326,7 @@ def pothole(name, w, depth, rng, kind):
     grey = dirt.mean(-1, keepdims=True)
     dirt = dirt * 0.35 + grey * 0.65  # LA dust is grey-brown, not orange
     mixn = smoothstep(0.4, 0.6, fbm((S, S), 6, rng))[..., None]
-    floor_col = (dirt * mixn + gravel * (1 - mixn)) * 0.55
+    floor_col = (dirt * mixn + gravel * (1 - mixn)) * 0.38
     # The wall: the asphalt's cross-section, dark with aggregate.
     a_col, a_h, a_r = asphalt(w, w, rng, 0.55)
     wall_band = smoothstep(0.55, 0.85, t) * inside
@@ -423,7 +429,7 @@ def alligator(rng):
     st = Stamp("alligator", 2.5, 3.5, 0.015)
     f1, f2, idx, seeds = voronoi(rng, 70, warp=0.03, aspect=2.5 / 3.5)
     edge = f2 - f1
-    width = 0.006 + 0.004 * fbm((S, S), 8, rng)
+    width = 0.0028 + 0.0035 * fbm((S, S), 8, rng) ** 2 * 2.0
     line = smoothstep(width * 1.6, width * 0.5, edge)
     # The patch it covers: an oval where the wheels ran, ragged.
     u, v = grid()
@@ -435,10 +441,10 @@ def alligator(rng):
     o = rank[idx] * 0.6 + 0.4 * smoothstep(1.0, 0.2, blob)
     st.order = np.clip(o, 0.02, 1.0).astype(np.float32)
     # A few of the polygons have lost their surface (the first stage of a pothole).
-    lost = (rank[idx] > 0.93) & (area > 0.6)
+    lost = (rank[idx] > 0.95) & (area > 0.6)
     lost_m = blur(lost.astype(np.float32), 1.2) * area
     a_col, a_h, _ = asphalt(2.5, 3.5, rng, 0.85)
-    agg = lin_color("GravelConcrete03", 2.5, 3.5, GRAVEL_TILE, (0.4, 0.1)) * 0.6
+    agg = lin_color("GravelConcrete03", 2.5, 3.5, GRAVEL_TILE, (0.4, 0.1)) * 0.32
     st.albedo = crack_albedo(st, rng) * (1 - lost_m[..., None]) + agg * lost_m[..., None]
     st.cover = np.clip(np.maximum(cov, lost_m), 0, 1)
     st.height = -0.012 * cov - 0.02 * lost_m
@@ -460,14 +466,14 @@ def block_crack(rng):
     for i in range(1, nx):
         x = i / nx + rng.uniform(-0.05, 0.05)
         pts = [(x + rng.normal(0, 0.006) + 0.01 * math.sin(j * 0.7), j / 40) for j in range(41)]
-        paths.append((pts, [3.0 + rng.random() * 1.5] * 41, rng.uniform(0.4, 1.0)))
+        paths.append((pts, [1.8 + rng.random() * 1.0] * 41, rng.uniform(0.4, 1.0)))
     for j in range(1, ny):
         y = j / ny + rng.uniform(-0.05, 0.05)
         # Transverse lines often stop at a longitudinal one.
         x0 = rng.choice([0.0, rng.uniform(0.1, 0.5)])
         x1 = rng.choice([1.0, rng.uniform(0.5, 0.9)])
         pts = [(x0 + (x1 - x0) * i / 40, y + rng.normal(0, 0.006)) for i in range(41)]
-        paths.append((pts, [2.5 + rng.random() * 1.5] * 41, rng.uniform(0.25, 0.9)))
+        paths.append((pts, [1.5 + rng.random() * 1.0] * 41, rng.uniform(0.25, 0.9)))
     for k in range(6):
         paths += crack_tree(rng, (rng.random(), rng.random()), rng.random() * math.tau, rng.uniform(0.05, 0.15), 2.2, rng.uniform(0.1, 0.4), max_depth=1)
     cov, val = stroke_layer(paths)
@@ -485,15 +491,15 @@ def crack_long(rng, name="crack_long", w=0.8, h=6.0, across=False):
     else:
         start = (0.5 + rng.uniform(-0.1, 0.1), 0.02)
         heading = math.pi / 2
-    paths = crack_tree(rng, start, heading, 1.0, 4.5, 1.0, max_depth=2, branch_p=0.35, pull=heading, wander=0.22)
+    paths = crack_tree(rng, start, heading, 1.0, 9.0 if not across else 8.0, 1.0, max_depth=2, branch_p=0.35, pull=heading, wander=0.22)
     # A second, finer crack running alongside part of the way (they often double up).
     s2 = (start[0] + (0 if across else 0.08), start[1] + (0.08 if across else 0))
-    paths += crack_tree(rng, s2, heading, rng.uniform(0.3, 0.6), 2.5, 0.45, max_depth=1, pull=heading, wander=0.25)
+    paths += crack_tree(rng, s2, heading, rng.uniform(0.3, 0.6), 5.0 if not across else 4.5, 0.45, max_depth=1, pull=heading, wander=0.25)
     cov, val = stroke_layer(paths)
     st.albedo = crack_albedo(st, rng)
     st.order[:] = 0.02
     # The edges of an old crack ravel: a lighter frayed band either side.
-    fray = np.clip(blur(cov, 3.0) * 3.0 - cov, 0, 1) * 0.5
+    fray = np.clip(blur(cov, 4.0) * 3.0 - cov, 0, 1) * 0.6
     agg = lin_color("Asphalt033", w, h, ASPHALT_TILE * 0.6, (0.5, 0.2)) * 1.25
     st.albedo = st.albedo * cov[..., None] / np.maximum(cov[..., None] + fray[..., None], 1e-4) + agg * fray[..., None] / np.maximum(cov[..., None] + fray[..., None], 1e-4)
     finish_cracks(st, cov, val, 0.015)
@@ -526,7 +532,7 @@ def tar_snake(rng, name="tar_snake", w=1.0, h=6.0, network=False):
     st.albedo = tar.astype(np.float32)
     st.cover = band
     st.height = 0.0015 * band
-    st.rough = (0.38 + 0.2 * n).astype(np.float32)
+    st.rough = (0.62 + 0.15 * n).astype(np.float32)
     st.ao = 1 - 0.05 * band
     st.water = band * 0.0
     return st
@@ -572,11 +578,11 @@ def patch(rng, name, w, h, lift, aerial=False, saw=False, strip=False):
         e = e + edge_n
         d = (1.0 - e) * min(w, h) * 0.42
         inside = smoothstep(-0.01, 0.01, d)
-        cut = smoothstep(0.05, 0.0, np.abs(d)) * 0.6
+        cut = smoothstep(0.025, 0.0, np.abs(d)) * 0.5
     col, ah, ar = asphalt(w, h, rng, 0.62 if lift >= 0 else 0.7, aerial)
     if aerial:
         # The coarser set is lighter and violet: a utility crew's hot mix is near black, and greys.
-        col = (col * 0.35 + col.mean(-1, keepdims=True) * 0.65) * 0.5
+        col = (col * 0.35 + col.mean(-1, keepdims=True) * 0.65) * 0.55
     # A patch's surface is denser and finer than the old road: smooth it a little.
     st.albedo = col.astype(np.float32)
     rim = smoothstep(0.08 if not saw else 0.02, 0.0, d) * inside
@@ -637,7 +643,7 @@ def rut(rng):
     # Shoulders: the asphalt pushed up a little either side of the rut.
     shoulder = np.exp(-(np.abs(across) - 1.1) ** 2 * 6) * along
     st.height = -st.depth * k + 0.004 * shoulder
-    st.rough = (0.82 - 0.4 * polish).astype(np.float32)
+    st.rough = (0.85 - 0.22 * polish).astype(np.float32)
     st.ao = 1 - 0.1 * k
     st.water = smoothstep(0.4, 0.95, k) * 0.95
     st.order = np.clip(k * 1.3, 0.02, 1)
@@ -667,7 +673,7 @@ def edge_break(rng):
     base = base * 0.3 + base.mean(-1, keepdims=True) * 0.7
     gravel = lin_color("GravelConcrete03", 1.4, 5.0, GRAVEL_TILE * 0.6, (0.3, 0.3))
     mixn = smoothstep(0.4, 0.6, fbm((S, S), 8, rng))[..., None]
-    hole_col = (base * mixn + gravel * (1 - mixn)) * 0.55
+    hole_col = (base * mixn + gravel * (1 - mixn)) * 0.3
     st.albedo = hole_col * chunk_gone[..., None] + crack_albedo(st, rng) * (1 - chunk_gone[..., None])
     # Debris washed into the gutter.
     st.cover = np.clip(np.maximum(chunk_gone, cov), 0, 1)
@@ -696,7 +702,7 @@ def shoving(rng):
     col = a_col * (1 - 0.45 * crest[..., None]) + np.array([0.11, 0.105, 0.095]) * 0.25 * trough[..., None]
     st.albedo = col.astype(np.float32)
     st.cover = np.clip(area * 0.9, 0, 1)
-    st.rough = (0.85 - 0.35 * crest).astype(np.float32)
+    st.rough = (0.88 - 0.2 * crest).astype(np.float32)
     st.ao = 1 - 0.25 * trough
     st.water = trough * 0.8
     paths = []
@@ -736,7 +742,7 @@ def oil(rng):
     halo = blur(acc, 18) * 1.6
     st.albedo = np.where(acc[..., None] > 0.01, tint, np.array([0.03, 0.028, 0.025])).astype(np.float32)
     st.cover = np.clip(np.maximum(acc, halo * 0.45), 0, 1)
-    st.rough = (0.82 - 0.5 * acc).astype(np.float32)
+    st.rough = (0.85 - 0.25 * acc).astype(np.float32)
     st.order = np.clip(np.maximum(order, halo * 0.5), 0.02, 1)
     st.water = acc * 0.0
     return st
@@ -771,7 +777,7 @@ def burnout(rng):
             order = np.maximum(order, band * fade)
     st.albedo = np.full((S, S, 3), 0.011, np.float32)
     st.cover = np.clip(acc, 0, 1)
-    st.rough = (0.8 - 0.3 * acc).astype(np.float32)
+    st.rough = (0.85 - 0.15 * acc).astype(np.float32)
     st.order = np.clip(order, 0.02, 1)
     return st
 
@@ -811,7 +817,7 @@ def bleeding(rng):
     st.albedo = np.full((S, S, 3), 0.014, np.float32) + (n * 0.006)[..., None]
     st.cover = np.clip(k, 0, 1)
     st.height = 0.0006 * k
-    st.rough = (0.6 - 0.32 * k).astype(np.float32)
+    st.rough = (0.75 - 0.2 * k).astype(np.float32)
     st.order = np.clip(k * 1.2 + (n - 0.5) * 0.3, 0.02, 1)
     return st
 
@@ -900,8 +906,8 @@ def build_all():
     add(ravelling(R(11)), 0)
     add(patch(R(12), "patch_raised", 1.8, 2.4, 0.012), 0)
     add(patch(R(13), "patch_sunken", 1.6, 2.0, -0.018), POOLS)
-    add(patch(R(14), "sawcut_patch", 2.4, 3.0, 0.004, aerial=True, saw=True), ALIGN)
-    add(patch(R(15), "trench_strip", 1.0, 8.0, -0.006, aerial=True, saw=True, strip=True), ALIGN | POOLS)
+    add(patch(R(14), "sawcut_patch", 2.4, 3.0, 0.004, aerial=False, saw=True), ALIGN)
+    add(patch(R(15), "trench_strip", 1.0, 8.0, -0.006, aerial=False, saw=True, strip=True), ALIGN | POOLS)
     add(rut(R(16)), ALIGN | POOLS)
     add(edge_break(R(17)), ALIGN | KERB | POOLS | DEEP)
     add(shoving(R(18)), ALIGN | POOLS)
@@ -958,7 +964,9 @@ def main():
         nrm[y0:y0 + S, x0:x0 + S, 2] = ao
         data[y0:y0 + S, x0:x0 + S, 0] = np.clip(0.5 + st.height * fade / (2 * HEIGHT_RANGE), 0, 1)
         data[y0:y0 + S, x0:x0 + S, 1] = np.clip(st.rough, 0, 1)
-        data[y0:y0 + S, x0:x0 + S, 2] = np.clip(st.water, 0, 1)
+        # Water: 0..0.8 how readily it holds rain, exactly 1.0 holding it even dry - far apart, so the
+        # 5-bit channels of a compressed texture never round one into the other.
+        data[y0:y0 + S, x0:x0 + S, 2] = np.where(st.water > 0.97, 1.0, np.clip(st.water, 0, 0.92) * 0.8 / 0.92)
         data[y0:y0 + S, x0:x0 + S, 3] = np.clip(st.order, 0, 1)
         print("%2d %-16s %4.1f x %4.1f m  depth %.3f  cover %.2f  height %.3f..%.3f" % (
             i, st.name, st.w, st.h, st.depth, cover.mean(), st.height.min(), st.height.max()))

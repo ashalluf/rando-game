@@ -37,11 +37,13 @@ uniform float fade_end = 105.0;
 // Compatibility alike (`ground_detail` off - the web, the low levels - takes one offset step).
 uniform float pom_distance = 28.0;
 uniform int pom_steps = 14;
-// Water: how dark the bed under it goes, and the sky it mirrors by day (emitted, scaled on
+// Water (data.b: 0..0.8 how readily the texel holds rain, 1.0 holding it even dry): how dark the bed under it goes, and the sky it mirrors by day (emitted, scaled on
 // Forward+ where the renderer's own reflections add to it).
 uniform float water_dark = 0.45;
 uniform float sky_mirror = 0.55;
 uniform float sky_mirror_forward = 0.25;
+// 1 draws every quad flat magenta, 2 its coverage as grey (RW_DEBUG=1|2 in the environment).
+uniform int debug_mode = 0;
 
 global uniform float road_wetness;
 global uniform float rain_intensity;
@@ -53,7 +55,6 @@ global uniform vec4 sky_tint;
 #include "res://shaders/color_space.gdshaderinc"
 
 varying vec3 local_pos;
-varying vec3 cam_local;
 varying vec3 world_pos;
 varying flat vec4 inst;
 varying vec4 inst_col;
@@ -62,9 +63,6 @@ varying vec4 inst_col;
 void vertex() {
 	local_pos = VERTEX;
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	// The camera in the instance's own frame: x and z in stamp units (the scale is the stamp's
-	// size), y in metres, so a ray through the quad marches straight into the stamp's height.
-	cam_local = (inverse(MODEL_MATRIX) * vec4(CAMERA_POSITION_WORLD, 1.0)).xyz;
 	inst = INSTANCE_CUSTOM;
 	inst_col = COLOR;
 }
@@ -134,7 +132,14 @@ void fragment() {
 	// Parallax occlusion for the deep stamps (potholes, the broken kerb edge): march the view ray
 	// down through the stamp's height field and draw what it reaches.
 	if (deep > 0.5 && dist < pom_distance) {
-		vec3 d = local_pos - cam_local;
+		// The view ray in the instance's own frame: x and z in stamp units (the scale is the
+		// stamp's size), y in metres, so it marches straight into the stamp's height. The basis
+		// is orthogonal (a turn, the ground's tilt, a scale per axis), so each axis is a dot.
+		vec3 dw = world_pos - CAMERA_POSITION_WORLD;
+		vec3 bx = MODEL_MATRIX[0].xyz;
+		vec3 by = MODEL_MATRIX[1].xyz;
+		vec3 bz = MODEL_MATRIX[2].xyz;
+		vec3 d = vec3(dot(dw, bx) / dot(bx, bx), dot(dw, by) / dot(by, by), dot(dw, bz) / dot(bz, bz));
 		if (d.y < -1.0e-4) {
 			float depth_max = height_range * 0.95;
 			vec2 per_m = d.xz / -d.y;
@@ -156,7 +161,7 @@ void fragment() {
 				float h = (da.r - 0.5) * 2.0 * height_range * smoothstep(thr_a, thr_a + 0.2, da.a) * inside01(q);
 				if (h >= y) {
 					// Between the last step above the surface and this one.
-					float t = (prev_h - prev_y) / max((prev_h - prev_y) - (h - y), 1.0e-5);
+					float t = clamp((prev_y - prev_h) / max((prev_y - prev_h) + (h - y), 1.0e-5), 0.0, 1.0);
 					hit = p + per_m * -mix(prev_y, y, t);
 					break;
 				}
@@ -215,13 +220,34 @@ void fragment() {
 	// fades into the road.
 	float lum = dot(alb, vec3(0.3, 0.55, 0.15));
 	vec3 dusty = vec3(lum) * vec3(1.32, 1.28, 1.2) + (cs_linear_renderer() ? vec3(0.006) : vec3(0.05));
-	alb = mix(alb, dusty, age * 0.55);
+	alb = mix(alb, dusty, age * 0.4);
 	rough = mix(rough, max(rough, 0.9), age * 0.7);
 	cov *= 1.0 - surface * age * 0.55;
 	alb *= mix(1.0, ao, 0.7);
 
 	// Far away the stamp fades out (the road's own procedural wear carries the distance).
 	cov *= 1.0 - smoothstep(fade_start, fade_end, dist);
+	if (debug_mode == 1) {
+		cov = 1.0;
+		alb = vec3(1.0, 0.0, 1.0);
+	} else if (debug_mode == 2) {
+		cov = 1.0;
+		alb = vec3(ca.a, da.a, thr_a);
+	} else if (debug_mode == 4) {
+		alb = vec3(1.0, 0.0, 0.0);
+		cov = max(cov, 0.0);
+	} else if (debug_mode == 5) {
+		alb = ca.rgb;
+		cov = step(0.3, cov);
+	} else if (debug_mode == 6) {
+		rough = 1.0;
+	} else if (debug_mode == 7) {
+		cov = 1.0;
+		alb = vec3(p, deep);
+	} else if (debug_mode == 3) {
+		cov = 1.0;
+		alb = vec3(p, stamp_a / 25.0);
+	}
 	if (cov < 0.004) {
 		discard;
 	}
@@ -230,14 +256,15 @@ void fragment() {
 	float wet = clamp(road_wetness, 0.0, 1.0);
 	vec2 fd = vec2(wet);
 	if (wet > 0.01 && ground_detail > 0.5 && road_drying > 0.0) {
-		fd = wet_film_damp(wet, wet_hold_noise(world_pos.xz) + water * 0.5);
+		fd = wet_film_damp(wet, wet_hold_noise(world_pos.xz) + min(water, 0.8) * 0.6);
 	}
 	// Water a pothole holds: the more the stamp holds (data.b), the less rain it takes; drying,
 	// the deepest hold it longest. 1.0 holds it even on a dry day.
 	float drying = clamp(road_drying, 0.0, 1.0);
 	float pw = mix(wet, sqrt(wet) * smoothstep(0.01, 0.1, wet), drying);
-	float standing = smoothstep(1.0 - pw * 0.9, 1.06 - pw * 0.9, water) * step(0.01, wet);
-	standing = max(standing, smoothstep(0.96, 0.99, water));
+	float hold = clamp(water / 0.8, 0.0, 1.0);
+	float standing = smoothstep(1.0 - pw * 0.9, 1.06 - pw * 0.9, hold) * step(0.01, wet);
+	standing = max(standing, smoothstep(0.88, 0.95, water));
 	alb *= mix(1.0, 0.62, fd.y);
 	alb *= mix(1.0, water_dark, standing);
 	rough = mix(mix(rough, 0.07, fd.x), 0.02, standing);

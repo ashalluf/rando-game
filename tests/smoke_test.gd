@@ -1851,6 +1851,9 @@ func _test_city() -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# Road wear (tests/road_wear_checks.gd): the 25-stamp library and its atlas, thousands of looks,
+	# wear by district and road age, one batch a chunk, potholes rarer than cracks, the car bump.
+	load("res://tests/road_wear_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
