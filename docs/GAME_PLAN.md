@@ -289,8 +289,8 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 A small-craft marina between the beach town and the airport (VISUAL_ROADMAP #59,
-  HANDOFF 9bq).** The coast had no harbour for small boats. `Marina` (a pure plan from the coast
+- **2026-10-05 A small-craft marina between the beach town and the airport (VISUAL_ROADMAP #61,
+  HANDOFF 9bs).** The coast had no harbour for small boats. `Marina` (a pure plan from the coast
   and the street grid) and `MarinaBuild` (a chunk's share) lay out the form of LA's big marina on
   nine blocks south of Venice's boardwalk: a basin behind the sand on a raised terrace with
   bulkheads, docks on pilings with ~160 code-built boats (BoatMesh: sailboats, motor yachts,

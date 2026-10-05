@@ -6916,3 +6916,89 @@ the lifeguard still up), and the
   next chunk's riders. Riders do not give way to people on the path.
 - The beach under the Esplanade's bluff and the boardwalk get no path or court (their own
   ground); the boardwalk's stretch and the piers' get no people.
+## 9bs. A small-craft marina between the beach town and the airport, 2026-10-05 (agent branch `wt/marina`; VISUAL_ROADMAP #61)
+
+Number is provisional (the next free one after 9br when this was rebased; the lead renumbers).
+
+**The brief** (lead): a marina in the form of LA's big man-made one, between the beach town and the
+airport - a basin behind a rubble breakwater with a channel to the sea and lights on the jetty
+ends, calm water, floating docks on pilings, hundreds of boats bobbing, towers, restaurants, car
+parks, a boat yard with a travel lift, boats motoring in the channel, and a cheap far copy (the
+mast forest from the hills and from the planes). Names invented; canals (Venice) is another
+session's, so the site starts south of the boardwalk's blocks.
+
+**Where.** The real one sits between Venice and Playa del Rey, north of the airport. Here: the
+whole blocks between the roads nearest x -824 / -546 and z 0 / 404 (`Marina.SITE_*`; Lake Blvd,
+Birch Ave, 5th St and 7th St on the default seed - x -812..-553, z 10..394), behind the sand, west
+of the 405 (no deck crosses it, checked), 200 m north of the airport fence. The coast slants 100 m
+across the site, so the basin's west seawall is a straight line a promenade (bank 5 m + 13 m)
+behind the sand's inland edge; the north, east and south walls are straight bulkheads.
+
+**The land** is a terrace at QUAY_Y 1.9 m of relief (pavement 2.15, water 0.15), folded into
+`MacroMap._relief_at()` like the river's, faded over 40 m outside the site and never on the sand:
+the beach and the coast highway on it keep their heights; a planted bank climbs from the sand's
+edge (0.5) to the promenade. **The water** stands at the sea's 0.15 over the GroundBody (y 0): you
+wade in the basin as you do in the sea - no sunk floor, no collision exceptions (the MacArthur Park
+lake's trick was not worth it here). `MacroMap.bake()` marks it water so the horizon plane sinks
+under it.
+
+**The channel** runs west from the basin's south-west corner (zc 284 on this seed) out 58 m past
+the waterline between two rubble jetties (crest 3.2 m, 1:1.6 faces, Poly Haven boulders on top);
+the beach's sand is cut out of its band (`MarinaBuild.sand_rects()` in `_build_beach`, the palms'
+and lifeguard tower's rolls still made). A detached breakwater (300 m, crest 4 m) stands 175 m
+offshore, a red-banded lighthouse on the south (starboard coming in) jetty head, a green light on
+the north one, white flashers on the breakwater's ends (aircraft_lights billboards, kind 2). The
+ocean shader still breaks surf on the beach inside the breakwater (it knows nothing of it).
+
+**The coast highway** runs on the sand across the channel's line. It crosses on MarinaBuild's
+bridge: HillRoads' strip is gapped (`pch_gap()`, snapped to its own 26 m points so the strip ends
+where the ramps begin; `filter_segments()` in `CityChunk._hill_segments()`; HillRoads' segments
+carry no name, so `is_pch()` finds the highway by its line and width), and the bridge deck
+follows `bridge_y()` - ramps on fill between walls, a girder span on three-column piers just
+outside the jetties, 3.9 m clear over the water. Only the runabouts pass; the sailboats and
+flybridge boats stay in (decided: a fixed span keeps the highway drivable; a bascule is a later
+job). The streets' beach ends under the ramps and across the channel are closed
+(`Marina.road_open()`, through `CityPlan.road_open()`).
+
+**Docks and boats.** Main docks every 38 m run west from the east headwalk and stop 44 m short of
+the west seawall (the fairway), fingers both sides at 4.8 m, piles at every other finger tip and
+along the docks, gangways with gates down from the quays, utility pedestals with lamps and light
+pools; the west headwalk takes side-tied yachts. Default seed: 163 boats in the water (sail 75,
+motor 27, sport fisher 17, runabout 22-ish by `TYPE_ODDS`), 34 on stands in the yard, 180 dock
+pieces. `BoatMesh` builds each type in code at real size (lofted sections, cabins with window
+bands, masts, booms, sail covers, furled jibs, stays and shrouds, pulpits, lifelines, flybridges,
+hardtops, a tuna tower, outboards), 1.4-2.1k / 0.5-0.65k / 0.11-0.14k triangles; `boat.gdshader`
+paints by region (hull paint, boot stripe, scum line, antifouling, non-skid, teak, canvas,
+glass), bobs each boat about its waterline phased by its true world position, and after dark
+lights a fifth of the cabins and a seventh of the anchor lights. Boats are MultiMeshes per type,
+variant and 60 x 44 m cell, three nodes each with visibility ranges (70 / 230 m), so a group's
+LOD fits its spread; one box shape a boat. **On land**: three apartment towers (Building, glass
+or panels, balconies on every floor) on the east quay between car parks, three restaurants on the
+north quay with umbrella terraces, the boat yard (rows of boats on jack stands, the travel lift
+straddling its well with a sport fisher in the slings, a shed, a car park), palms, street lamps
+(`lamp_light`), benches, a red bike path down the west promenade. **MarinaTraffic**: three
+runabouts on a closed loop (fairway, channel, round in the lee of the breakwater) with a foam wake.
+
+**Far.** LOD chunks: water, land, docks as slabs, FAR boats, masts as `lod_box` MASTs (drawn a
+pixel wide at any range - the mast forest from the hills), coded far towers, lights. The capture:
+land slabs, car parks, docks, hulls, masts, towers, the jetties, breakwater and bridge deck as
+boxes; Skyline's plate for a marina block is the water at the water.
+
+**Frame cost** (still_shot GEO, opengl3 1280x720, `MARINA=0` against the marina, same EYEs): from
+the tower 6.90 M / 1,928 draws -> 2.13 M / 1,393; on a dock at 21:00 3.19 M / 1,335 -> 2.26 M /
+1,053; the far aerial 1.64 M / 1,753 -> 0.78 M / 671 (the nine blocks build no houses or yards).
+Close among the boats (the sailboat still) 3.91 M / 1,833: the NEAR boats within 70 m dominate.
+
+**Tools.** `tools/marina/probe.gd` (the plan, headless, seconds), `tools/marina/area_probe.gd`
+(zones, districts, roads and freeways round the coast), `tools/marina/marina_check.tscn` (the
+marina's checks alone against a loaded city, a minute). Checks: `tests/marina_checks.gd` (19).
+Stills on `shots/marina` (golden hour from a tower, docks at 21:00, a sailboat close up, the
+jetty light at night, the far aerial, before/after).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the water's sky mirror and SSR, the boat
+gelcoat and anchor lights under AgX. No minimap drawing (another session's file). No swimming or
+sinking (the basin is wadeable like the sea); boats are static colliders, not drivable. The surf
+still breaks inside the breakwater. Sailboats cannot leave (fixed bridge). Shadows of the NEAR
+boats are the full mesh (no lighter twin). No pedestrians on the quays or docks beyond what the
+neighbouring blocks send. Golden hour from the planes on final was not shot (the approach is from
+the east, south of the marina).

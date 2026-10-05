@@ -1916,7 +1916,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
   `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
   9bp). Checks: `tests/la_river_checks.gd`.
-- The marina (VISUAL_ROADMAP #59, 2026-10-05, docs/HANDOFF.md 9bq): the small-craft marina
+- The marina (VISUAL_ROADMAP #61, 2026-10-05, docs/HANDOFF.md 9bs): the small-craft marina
   between the beach town and the airport, the form of LA's big man-made one, names invented.
   **Data**: `Marina` (`scripts/world/marina.gd`, `MacroMap.marina`, built in `setup()` after the
   river, before the hill roads), a pure plan from the coast and the seed's grid: the site is the
