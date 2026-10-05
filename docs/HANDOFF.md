@@ -75,7 +75,7 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
   - The crowd-cap trim skips walkers marked `no_trim` (the loading screen's rehearsal, the dog
     check), which it freed under them a frame after they were placed.
 
-- **Batch 6 is on `main`** (16:45): batch 5 + fwd-review-a's follow-up, utility-poles, churches,
+- **Batch 6 is on `main`** (with batch 7, 17:00): batch 5 + fwd-review-a's follow-up, utility-poles, churches,
   police-night, ref-cameras, color-grade, street-life-2 (street errands), road-wear (the owner's
   "25 wear stamps into thousands"), estate-night (rebuilt on HillHomeKit's plan), chinatown,
   historic-core and film-studio. Gate: 2,282 passed in 3 shards; the one failure, "the far city
@@ -94,10 +94,18 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
     (main's CI 351 failed on a jet being replaced at the end of its track).
   - historic-core's handoff section was renumbered 9eo (two branches were both given 9em), and
     `tools/fleet/merge_branch.py` now skips ids already in use.
-- **Queued (batch 7):** olvera, shop-vinyl, roadside (each green on its own). street-signs is
-  renaming its `SignKit` (collides with BoulevardSigns') and dropping its duplicate kerb plates;
-  street-lamps is merging the paramedic fix; apartments (walk-ups read as flat boxes) and
-  tower-gondolas (share towers with Rooftops' window-washing rig) wait.
+- **Batch 7 is on `main`** (17:00): batch 6 + olvera (the marketplace lane and plaza by the
+  station), shop-vinyl (real words on shop glass) and roadside (drive-thrus, car washes, motels
+  on the boulevards). Gate: 2,345 passed, 0 failed in 3 shards. **Main's CI failed three times
+  in a row on flaky checks**, one each, all fixed: the paramedic spawn under the kerb (run 350),
+  a contrail jet replaced at the end of its track (351), and the driving checks comparing the
+  skid marks still showing rather than the marks laid (352, `DrivingFX.marks_laid`). With ~2,300
+  checks, any check that compares a live count before and after, or reads a moving object at an
+  arbitrary moment, will fail on some run: count events, and pin what you read.
+- **Queued:** street-signs is renaming its `SignKit` (collides with BoulevardSigns') and dropping
+  its duplicate kerb plates; street-lamps is merging the paramedic fix; apartments (walk-ups read
+  as flat boxes) and tower-gondolas (share towers with Rooftops' window-washing rig) wait. The
+  car parks' pale soft rectangles (LotFill's lot ground, on main) need a look.
 - **Usage limit, 12:42-13:09:** 20 sessions stopped on the account's five-hour limit with the
   seven-day one at a warning; the lead resumed the eight nearest done (road-wear, olvera,
   shop-vinyl, historic-core, roadside, film-studio, chinatown, street-lamps) and left the rest.

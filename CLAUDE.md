@@ -11,9 +11,10 @@ cemetery, kerbs), integration-b (12 branches, through oom-fix's memory fix), bat
 (fwd-review-a, road-detail, perf-audit, reservoir, ridges, service-vehicles), batch 4
 (service-vehicles' rebuilt bodies, farmers-market, freight-trains, fwd-review-b), batch 5 (15
 branches: memory, load time, shader warm-up, occluders, gate shards, scooters, traffic AI, driving
-effects, civic buildings, ...) and batch 6 (road wear, Chinatown, the historic core, the film
+effects, civic buildings, ...), batch 6 (road wear, Chinatown, the historic core, the film
 studio, night estates, churches, utility poles, police stations at night, the hourly grade,
-street errands, reference cameras). More are queued (docs/HANDOFF.md 0000000).
+street errands, reference cameras) and batch 7 (the marketplace lane, shop-window vinyl,
+roadside businesses). More are queued (docs/HANDOFF.md 0000000).
 `SHARDS=3 tests/headless_check.sh` runs the smoke test in three processes (~10 min, ~2.4 GB each).
 A fleet of 100 sessions is running (`fleet/brief`: BRIEF.md, tasks.tsv, sessions.tsv; each on
 `wt/<slug>`, stills on `shots/<slug>`). Start at docs/HANDOFF.md section 0000000; the fleet
