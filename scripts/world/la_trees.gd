@@ -1213,7 +1213,8 @@ static func _emit(d: TreeData, lv: Dictionary) -> Array:
 
 
 static func _emit_tube(g: G, t: Tube, lv: Dictionary) -> void:
-	if t.radii.size() < 2 or t.radii[0] < float(lv.min_r):
+	# Green stalks are what a clump stands on: kept at every level.
+	if t.radii.size() < 2 or (t.radii[0] < float(lv.min_r) and t.kind != B_STEM):
 		return
 	var sides := maxi(3, roundi(float(t.sides) * float(lv.sides)))
 	# Every k-th ring, the ends kept.
@@ -1274,6 +1275,10 @@ static func _leaf_quad(g: G, base: Vector3, dir: Vector3, side: Vector3, length:
 
 static func _emit_cluster(g: G, c: Cluster, lv: Dictionary) -> void:
 	var stride: int = lv.stride
+	if c.card_kind == L_PADDLE:
+		# A bird of paradise IS its few big leaves: merging them halves it at most, and the
+		# card levels keep a third and a quarter of the blades at their own places.
+		stride = mini(stride, 2) if stride > 0 else (3 if int(lv.cards) == 2 else 4)
 	if stride > 0:
 		var n := c.leaves.size()
 		var i := 0
