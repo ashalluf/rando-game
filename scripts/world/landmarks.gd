@@ -132,6 +132,9 @@ static func _list() -> Array[Dictionary]:
 	# The canal neighbourhood behind the boardwalk (Canals): a site like the park's.
 	if Canals.enabled:
 		list.append(Canals.entry())
+	# The marketplace lane and plaza by the station (PuebloLane): a civic block site.
+	if PuebloLane.enabled:
+		list.append(CivicSites.entry(PuebloLane.ID))
 	return list
 
 
@@ -180,6 +183,8 @@ static func crowds(lm: Dictionary, plan: CityPlan) -> Array:
 static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
 	if lm.id == "pier":
 		return PierPark.people_steps(lm.anchor, chunk)
+	if lm.id == PuebloLane.ID:
+		return PuebloLane.people_steps(lm, chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -270,7 +275,7 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 		"macarthur_park":
 			LandmarkMacArthurPark.build(lm.anchor, parent, statics, plan, detailed)
 		# Downtown LA civic set (see all() and CivicSites).
-		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
+		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station", "pueblo_lane":
 			CivicSites.build(lm.id, parent, statics, plan, detailed)
 		_:
 			if LandmarkDowntown.is_tower(lm.id):

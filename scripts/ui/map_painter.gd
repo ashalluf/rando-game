@@ -70,6 +70,7 @@ const GLYPHS := {
 	"masjid_omar": "dome", "ziggurat_hall": "civic", "arena": "venue", "live_plaza": "venue",
 	"live_hotel": "tower", "convention_center": "civic", "civic_park": "tree", "concert_hall": "venue",
 	"lattice_museum": "civic", "pueblo_station": "rail", "macarthur_park": "tree",
+	"pueblo_lane": "civic",
 }
 ## Glyph ring colours by symbol.
 const GLYPH_COLORS := {
