@@ -1969,6 +1969,8 @@ func _city_crowd(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/crowd_anim_checks.gd").new().run(self, city)
 	# Crowd life (GAME_PLAN G5): talking, sitting, carrying, panic over all of it.
 	await load("res://tests/crowd_life_checks.gd").new().run(self, city)
+	# Street errands: bus queues, shop doors, parked cars, jaywalkers (StreetErrands).
+	await load("res://tests/street_errands_checks.gd").new().run(self, city)
 	# The crowd's headwear (CrowdHat): measured heads, fitted hats, one draw each, kept on a body.
 	await load("res://tests/crowd_hat_checks.gd").new().run(self, city)
 

@@ -7917,6 +7917,77 @@ chunks and the far city do not know about it). The crater is a mark plus slabs, 
 road mesh. No glass crunch underfoot. Smoke columns are built only round fires near the player
 (the fires themselves live in the streamed chunks); they do not cast shadows.
 
+## 9ei. Street errands: the pavement's comings and goings, 2026-10-05 (agent branch `wt/street-life-2`; VISUAL_ROADMAP #129)
+
+The brief (lead): crowd life (9bc) made people stop and do things, but nobody ever went anywhere.
+Bus passengers who wait and board, people getting into parked cars that drive off and drivers who
+park and get out, jaywalkers, people in and out of shop doors, deliveries. CLAUDE.md's "Street
+errands" note is the reference; this is the story.
+
+**What it is.** `StreetErrands` (`scripts/npc/street_errands.gd`, static), `ErrandCar`
+(`scripts/npc/errand_car.gd`, a Node on a car while somebody gets in or out) and `ErrandProps`
+(`scripts/npc/errand_props.gd`: the driver's door panel and the hand truck, code-built at real
+size). Hooks, each a line or a few: `Pedestrian` (`errand` var, `_walk`, `_try_life`,
+`_exit_tree`, the pose after `_life_pose`), `TrafficManager._drive_street` (the `park_at` stop and
+the jaywalker brake), `Building` (shop doors beside `ShopfrontKit.storefront_face()`),
+`BigVehicles.build_bus_stops()` (the stop's queue). No mesh or batch in any chunk: the only
+geometry is a door panel on a car while it opens and a hand truck in a delivery driver's hands.
+
+**How it plays** (within `Pedestrian.life_range`, 60 m, of the player):
+- A walker near a shelter on their own block stands in its queue (six slots by the kerb, facing
+  the road and the oncoming bus); when the bus stops with its doors open they board in order
+  through the front door and vanish; the bus is held at the stop while anybody is still getting
+  on. At a later stop riders whose time is up, and a few people from inside the shops near it,
+  come down the rear steps and walk off.
+- A walker goes into a shop through its door bay - the same `ShopfrontKit.door_index()` roll the
+  kit and building.gdshader place the door with - and comes out of it later, a third with a bag.
+  Closed shops are skipped at night.
+- A walker walks round the tail of a parked car on their block to its driver's door (the road
+  side), the door swings open, they get in, it shuts, the cabin trace shows them at the wheel and
+  the lamps come on, and the car pulls out: it IS the traffic car (wheels off before the freeze,
+  `shift` starting at the kerb space so the TrafficManager eases it into the lane).
+- Every 10-24 s a street car in a kerb lane 16-70 m from the player pulls into a free kerb space
+  ahead (the chunk's stall grid, a box query): a stop like a bus's, so the queue behind it waits
+  while it slows and eases over. Standing in it, it becomes a parked physics car, its door opens
+  and its driver gets out and walks round onto the pavement. A box truck's driver takes a hand
+  truck of three boxes from the back, wheels it to a shop door, goes in, comes out with it empty,
+  and drives off; a delivery van's driver (and 30 % of other drivers) carries a bag in and out.
+- Mid-block, 14 m from the corners, a walker looks both ways and crosses where both parking lanes
+  have a gap and nothing is due for the crossing time (a third run). Traffic brakes for anybody
+  registered in the road (jaywalkers and drivers walking to their doors) and honks now and then.
+
+**Nobody is made or lost.** Going into a shop, a bus or a car hides a walker (no draw, collision
+layer 0, hit zone off) and they come out of a door later. A parked car's driver is one of those
+people if any is near, else a walker from out of sight (past 95 m of the player), else a new one
+under the crowd cap. So the crowd count and the cap are what they were.
+
+**Traps, each cost a round:**
+- `get_tree().current_scene` is the test scene in the smoke test: the traffic is found by walking
+  up from the walker or the car.
+- A walker sent along the pavement to a point 0.6 m from the kerb walks into the lamp and signal
+  posts on the kerb line and stands there for ever: a goto now ends at a point on the walking band
+  and placed steps take them the last metre, and a goto that stops gaining for 1.5 s within 3.5 m
+  is taken as arrived.
+- ErrandCar ended its "driver gets out" before it had opened the door (a time test that ran before
+  the door's own delay): it now waits for the try.
+- Retiring a traffic car twice (once by the traffic for a closed road, once by a test) puts it in
+  the pool and queues it for freeing: the next car built is freed under the traffic's feet.
+
+**Cost** (`still_shot.gd` GEO, opengl3 1280x720, `--quality=0`, the bus still's EYE with and
+without `STREET_ERRANDS=0`, no staging): 6,521,721 -> 6,519,195 tris (-0.04 %, the crowd standing in different places), 3,304 -> 3,306 draws, 3,346 -> 3,348 objects - flat. CPU: one static call a tick for each walker in the life
+range (a frame-gated world tick and a dictionary test); the errand people themselves are placed,
+not move_and_slid.
+
+**Stills** (`shots/street-life-2`): `bus` (line 159 at its stop on Flower, doors open, the queue),
+`car` (a walker at a parked car's open door), `jay` (a jaywalker mid-road, a car braking), `shop`
+(going in, coming out with a bag), `deliver` (a box truck at the kerb, the hand truck of boxes).
+
+**Not done / not verified.** The Mac (Forward+) look of the door panel and the hand truck. The
+open door is a panel over the body's own closed door (a welded body has no door to move). No
+door animation on the shops (the person passes the closed door's plane). Bus riders are not
+tracked across chunks that stream out (they return to the hidden pool). Nobody is shown sitting
+in the bus seat they took (the cabin trace draws its own passengers).
+
 ## 9ce. Climbing plants: bougainvillea, ivy, fig, jasmine, vines and garden accents, 2026-10-05 (agent branch `wt/climbing-plants`; VISUAL_ROADMAP #73)
 
 **What.** The planting that grows ON things - what makes LA walls and fences look lived in.
@@ -12995,3 +13066,32 @@ by the weights; Santa Ana not rendered. The night opengl3 street is dark (p50 24
 nights read murky, lift NIGHT's `gamma` toward 0.95 before touching the toe. The sky keeps its
 violet twilight band at 18:18 (it is the sky's colour, not the grade's; the city under it is
 blue now). Photo mode's filters are built from the curve of the hour they were picked at.
+
+## 9ej. Street errands back on: the two checks that failed after the merge, 2026-10-05 (agent branch `wt/street-life-2`, fleet wave 2)
+
+The lead merged `wt/street-life-2` (9ei) and reverted it (d1c7427): on main its own checks failed,
+the jaywalker "ends on its own block" alone and "two walkers stand in the bus stop's queue" in the
+full smoke test. The branch now merges `origin/fleet/base` and reverts that revert, then fixes:
+
+- **The jaywalker (a feature bug).** The walker stood in the errand's first goto for the whole
+  check, in a crowd-life TALK. A walker's spawn life roll comes ~0.5 s after it appears
+  (`_life_range_changed()` -> `_try_life(true)`), and a neighbour's talk recruits any free walker
+  on the ring, so a walker given an errand at birth (the check's, or a parked car's driver made
+  under the cap) could still be stopped, and the goto waited behind the act until its 90 s
+  timeout. `Pedestrian._life_free()` now needs `errand.is_empty()`, and `StreetErrands.walk()`
+  ends any act that began anyway. It only showed after the merge because fleet/base's eight new
+  crowd rigs moved the life rolls.
+- **The bus queue (the check, plus a feature hole).** The check's bus, placed at its block's stop
+  with a dwell set, was DRIVEN by the traffic, which dwells a bus at its stop and opens its doors
+  itself (`TrafficManager._bus_dwell()`); the queue then boarded at once - right in the game,
+  wrong for a check that opens the doors itself. Alone, the freshly built bus did not dwell in
+  time; in the full run the pooled bus did. The check now keeps the bus out of
+  `TrafficManager.cars` until the queue stands. The feature hole it showed: the errands took any
+  bus whose doors were over half open, which counts doors swinging shut and a bus back out of the
+  pool (its `BusFittings` do not run out of the tree, so `open` can come back stale) - now the
+  doors must be wanted open too (`fit.want_open`).
+- **140 SCRIPT ERRORs** ("assign invalid previously freed instance", `_do_ride`): a typed
+  `var bus: Vehicle = step.bus` when the bus had been freed. `_do_ride`, `_do_board` and
+  `_bus_at` read it untyped first.
+
+`tools/street_errands/run_checks.tscn` runs the 28 errand checks alone in about a minute.

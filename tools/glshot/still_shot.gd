@@ -66,6 +66,9 @@ extends SceneTree
 ## SERVICE=garbage|sweeper|tow|ice_cream|delivery stages a service vehicle at work ahead of the
 ## camera and moves a free camera to frame it (ServiceFleet.stage_for_shot; SERVICE_EYE=0 keeps
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
+## ERRAND=bus|car|jay|shop|deliver stages a street errand ahead of the camera (StreetErrands; see
+## tools/street_errands/stage.gd for ERRAND_PICK and the framing knobs); STREET_ERRANDS=0 turns
+## the errands off (the A/B).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
 ## TEX_REPORT=1 prints the frame's textures and their video memory (tools/texture_budget/tex_census.gd).
@@ -484,6 +487,18 @@ func _initialize() -> void:
 	# DrivingFX's skid marks, smoke, sparks and sand spray (tools/glshot/drive_fx_stage.gd).
 	if OS.get_environment("DRIVE") != "" and get_root().get_camera_3d():
 		await load("res://tools/glshot/drive_fx_stage.gd").stage(self, OS.get_environment("DRIVE"), get_root().get_camera_3d())
+	# ERRAND=bus|car|jay|shop|deliver: a street errand staged in front of the camera and framed by
+	# a free camera (tools/street_errands/stage.gd; STREET_ERRANDS=0 is the A/B).
+	var errand_env := OS.get_environment("ERRAND")
+	if errand_env != "" and current_scene:
+		var er_eye: String = await load("res://tools/street_errands/stage.gd").new().stage(current_scene, errand_env, get_root().get_camera_3d())
+		if er_eye != "":
+			OS.set_environment("EYE", er_eye)
+		print("ERRAND %s eye %s" % [errand_env, er_eye])
+		_eye(player, fov)
+		for i in _env_int("ERRAND_FRAMES", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.
