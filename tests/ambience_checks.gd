@@ -256,12 +256,14 @@ func _ducks(amb: Ambience) -> void:
 	var ambb := AudioServer.get_bus_index(&"Ambience")
 	var car_on := AudioServer.is_bus_effect_enabled(ambb, 0)
 	amb.scene = {"in_car": 0.0, "cover": 0.0, "canyon": 1.0}
+	amb.space = {"canyon": 1.0} # the reverb follows the space (space_for(), tests/audio_checks.gd)
 	for i in 100:
 		amb.step(0.1)
 	var world := AudioServer.get_bus_index(&"World")
 	var verb := AudioServer.get_bus_effect(world, 0) as AudioEffectReverb
 	var canyon_wet := verb.wet
 	amb.scene = {"in_car": 0.0, "cover": 0.0, "canyon": 0.0}
+	amb.space = {"open": 1.0}
 	for i in 100:
 		amb.step(0.1)
 	_t._check(car_cut < 2000.0 and car_on and amb.ambience_cutoff >= 19000.0 and not AudioServer.is_bus_effect_enabled(ambb, 0),

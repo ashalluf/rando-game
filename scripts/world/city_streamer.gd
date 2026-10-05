@@ -240,6 +240,12 @@ func _ready() -> void:
 		replica_traffic.plan = plan
 		replica_traffic.rep = plan.macro.replica
 		add_child(replica_traffic)
+	# The four-level stack's connectors carry their own cars, handed to and from Traffic.
+	if plan.macro and plan.macro.freeway and plan.macro.freeway.stack:
+		var stack_traffic := StackTraffic.new()
+		stack_traffic.name = "StackTraffic"
+		stack_traffic.plan = plan
+		add_child(stack_traffic)
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	_apply_spawn_override()
 	update_streaming(true)

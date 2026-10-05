@@ -37,6 +37,8 @@ render_mode cull_disabled, depth_prepass_alpha;
 // ---------------------------------------------------------------------------------------------
 
 global uniform float wind_factor;
+// A steady wind blowing one way (Weather: the Santa Ana), world XZ, length its strength 0..1.
+global uniform vec2 wind_lean;
 /// Weather's wet-surface amount, 0 dry to 1 soaked. Wet leaves go glossy and a little darker.
 global uniform float road_wetness;
 /// Points TOWARDS the sun (published by DayNight). Drives the leaf-glow lobe.
@@ -218,6 +220,13 @@ void vertex() {
 	float bend = h * h * branch_bend * w;
 	VERTEX.x += bend * gust_x;
 	VERTEX.z += bend * gust_z;
+	// The steady wind lays the crown over downwind, breathing with the gusts (model space: the
+	// instance may be turned and scaled).
+	if (dot(wind_lean, wind_lean) > 1e-6) {
+		vec3 lean_dir = transpose(mat3(MODEL_MATRIX)) * vec3(wind_lean.x, 0.0, wind_lean.y);
+		float lean = h * h * branch_bend * 3.0 * length(wind_lean) * (0.75 + 0.25 * sin(TIME * 0.7 + phase));
+		VERTEX.xz += normalize(lean_dir.xz + vec2(1e-6)) * lean;
+	}
 
 	// 2. Leaf flutter. Quick, tiny, and keyed to how far the vertex hangs off the trunk axis, so
 	//    leaf tips shiver while the branch carrying them is still halfway through its swing.
