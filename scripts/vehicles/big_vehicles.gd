@@ -141,6 +141,10 @@ static func tune(car: Vehicle) -> void:
 	car.top_speed = 30.0
 	car.enter_radius = 6.0
 	car.crash_min_dv = 6.0
+	# A bus's windscreen is two metres of glass with the cabin behind it: its far twin (no glass
+	# slot) drew it as a black slab from the 30 m a car's hands over at.
+	if car.body_type == BUS:
+		car.body_far_distance = 60.0
 
 
 ## After the body model is placed (Vehicle._add_body_model): the trailer onto its pivot, the bus's

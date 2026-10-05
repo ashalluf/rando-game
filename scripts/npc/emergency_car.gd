@@ -38,7 +38,7 @@ enum Mode { DISPATCH, ON_SCENE, LEAVING }
 @export var stop_brake: float = 4.5
 ## The lights: flash rate (cycles a second) and how bright a lit lens is (HDR).
 @export var flash_rate: float = 1.35
-@export var lens_energy: float = 6.0
+@export var lens_energy: float = 2.6
 ## The roof light thrown on the street at night (desktop only).
 @export var scene_light_energy: float = 2.4
 @export var scene_light_range: float = 14.0
@@ -61,7 +61,9 @@ const ENGINE_WHITE := Color(0.93, 0.93, 0.91)
 const AMBULANCE_WHITE := Color(0.94, 0.94, 0.93)
 const AMBULANCE_RED := Color(0.72, 0.05, 0.05)
 ## Lens colours (linear).
-const LENS_RED := Vector3(1.0, 0.03, 0.02)
+## Red keeps its green at a tenth: through AgX a red-heavy HDR colour turns salmon pink (the
+## car fire's lesson, CLAUDE.md Car damage), so a lit lens is held to ~2.5x and the glow does the rest.
+const LENS_RED := Vector3(1.0, 0.10, 0.05)
 const LENS_WHITE := Vector3(1.0, 0.92, 0.82)
 ## Retroreflective striping: gold on the engine, red on the ambulance (the `stripe` slot).
 const STRIPE_ENGINE := Color(0.88, 0.70, 0.22)
@@ -83,6 +85,8 @@ var crew_aboard: int = 2:
 var crew_alive: int = 2
 var unseen_time: float = 0.0
 var unit_number: int = 0
+## Lights on whatever the unit is doing (tools: a close-up of a unit with nobody driving it).
+var lights_forced: bool = false
 
 var _plan: CityPlan
 var _lens_mats: Array[ShaderMaterial] = []
@@ -181,7 +185,7 @@ func _wire_lenses() -> void:
 					mat.set_shader_parameter("lens_color", LENS_RED if red else LENS_WHITE)
 					mat.set_shader_parameter("rate", flash_rate)
 					mat.set_shader_parameter("phase", _phase)
-					mat.set_shader_parameter("energy", lens_energy * (1.0 if red else 0.8))
+					mat.set_shader_parameter("energy", lens_energy * (1.0 if red else 1.4))
 					mat.set_shader_parameter("duty", 0.11 if red else 0.07)
 					# The model's long axis is its longest horizontal one.
 					var along_x := box.size.x > box.size.z
@@ -246,6 +250,8 @@ func _process(delta: float) -> void:
 func lights_running_emergency() -> bool:
 	if is_wreck():
 		return false
+	if lights_forced:
+		return true
 	if _stolen:
 		return driver != null
 	return service != null and mode != Mode.LEAVING

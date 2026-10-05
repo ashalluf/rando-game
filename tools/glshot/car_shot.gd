@@ -180,6 +180,12 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			var rng := RandomNumberGenerator.new()
 			car = load("res://scripts/npc/police_car.gd").call("make", heavy, rng)
 			car.set("police", null)
+		elif types[i] >= 12:
+			# The fire engine (12) and the ambulance (13): EmergencyCar on scene, lights running
+			# (kinematic, stood at its ride height like a cruiser).
+			var erng := RandomNumberGenerator.new()
+			car = load("res://scripts/npc/emergency_car.gd").call("make", types[i] - 12, erng)
+			car.set("lights_forced", OS.get_environment("LIGHTS") != "0")
 		elif types[i] >= 9:
 			# The big vehicles (BUS 9, BOX_TRUCK 10, SEMI 11) in their own liveries.
 			car = load("res://scripts/vehicles/big_vehicles.gd").call("make", types[i], OS.get_environment("LOOK").to_int())
@@ -191,7 +197,7 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 		# Parked, like a street car: a physics body left to settle on its springs. A cruiser is
 		# kinematic until it engages, so it is stood on the road at its ride height instead.
 		car.position = Vector3((float(i) - float(types.size() - 1) * 0.5) * spacing,
-				float(car.call("road_lift")) if police else 0.9, 0.0)
+				float(car.call("road_lift")) if police or types[i] >= 12 else 0.9, 0.0)
 		world.add_child(car)
 		cars.append(car)
 	var occupant := OS.get_environment("OCCUPANT")

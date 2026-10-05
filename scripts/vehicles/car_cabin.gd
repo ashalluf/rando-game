@@ -73,6 +73,10 @@ const BUS_FIRST_ROW := 2.7
 const BUS_ROW_PITCH := 0.80
 const BUS_FILL := 0.42
 const BUS_LAMP := 1.0
+## A bus's cabin is daylit: a white ceiling and a wall of windows down each side light it far
+## more than a car's (cabin_light times this, and the glass lets more of it through). At the car's
+## level its whole front read as a black slab from the pavement at noon (HANDOFF 9bi's bus_stop_day).
+const BUS_DAYLIGHT := 2.2
 
 ## One in this many traffic cars carries a front passenger (Los Angeles drives alone).
 const PASSENGER_SHARE := 0.22
@@ -378,6 +382,7 @@ static func cabin(panes: Array, ctx: Dictionary) -> Dictionary:
 		out.bus_rows = Vector4(first, pitch, float(n), BUS_FILL)
 		out.side_t = Vector2(FRONT_SIDE_T, FRONT_SIDE_T)
 		out.interior_lamp = BUS_LAMP
+		out.cabin_gain = BUS_DAYLIGHT
 	return out
 
 
@@ -437,6 +442,11 @@ static func apply(mat: ShaderMaterial, data: Dictionary, states: PackedFloat32Ar
 	mat.set_shader_parameter("side_t", data.side_t)
 	mat.set_shader_parameter("bus_rows", data.get("bus_rows", Vector4.ZERO))
 	mat.set_shader_parameter("interior_lamp", float(data.get("interior_lamp", 0.0)))
+	var gain := float(data.get("cabin_gain", 1.0))
+	if gain != 1.0:
+		mat.set_shader_parameter("cabin_light", 4.0 * gain)
+		mat.set_shader_parameter("through_light", 0.45 * minf(gain, 1.6))
+		mat.set_shader_parameter("through_light_compat", 0.9 * minf(gain, 1.3))
 	var panes: Array = data.panes
 	mat.set_shader_parameter("pane_count", panes.size())
 	if panes.is_empty():

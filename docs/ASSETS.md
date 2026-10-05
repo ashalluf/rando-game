@@ -195,6 +195,8 @@ class instead.
 | `tools/make_road_cars.py` | `road_crossover.glb` | 50k tris + 8k far twin | `BodyType.CROSSOVER` | 2026-09-27 |
 | `tools/make_road_cars.py` | `road_pickup.glb` | 56k tris + 8k far twin (reworked the same day: tall square cab, high flat bonnet, 1.71 m bed) | `BodyType.PICKUP` | 2026-09-27 |
 | `tools/make_road_cars.py` | `road_van.glb` | 51k tris + 8k far twin | `BodyType.VAN` (and the police tactical van) | 2026-09-27 |
+| `tools/make_emergency_vehicles.py` | `road_fire_engine.glb` | 35k tris + 10k far twin (Type 1 pumper: crew cab, pump panel, roll-ups, hose bed, ladders, light bar, Q-siren; original, no department's marks) | `BodyType.FIRE_ENGINE` (EmergencyCar) | 2026-10-04 |
+| `tools/make_emergency_vehicles.py` | `road_ambulance.glb` | 23k tris + 10k far twin (Type III: cutaway cab, modular box, striping, chevrons, warning lamps; original) | `BodyType.AMBULANCE` (EmergencyCar) | 2026-10-04 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position
