@@ -998,8 +998,10 @@ func _air_flock(f: Flock, dt: float, eye: Vector3, k: Dictionary) -> void:
 	if alive > 0:
 		f.center = sum / float(alive)
 	if f.landing and all_down:
-		f.state = FlockState.PERCHED if f.land_perch else FlockState.GROUND
-		f.home = f.land_slots[0] if f.land_perch else f.home
+		# A flock shot down to nobody chose its landing with no birds, so a perch can have no slots.
+		var perch := f.land_perch and not f.land_slots.is_empty()
+		f.state = FlockState.PERCHED if perch else FlockState.GROUND
+		f.home = f.land_slots[0] if perch else f.home
 		f.ground_y = f.home.y
 		f.center = f.home
 		f.landing = false
