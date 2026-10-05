@@ -1543,6 +1543,12 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   kerb in front of a gate (`keeps_clear()`). `POLICE_STATIONS=0` in the environment turns them off
   (the A/B). Stills: `tools/glshot/block_shot.tscn` EYEs and `tools/glshot/police_station_shot.gd`
   (the gate sequence); checks: `tests/police_station_checks.gd`.
+- Police stations at night (2026-10-05, HANDOFF "Police stations at night"): an OmniLight3D per
+  floodlight pole (`FLOOD_*`, lamp group, desktop only), lit lettering
+  (`police_station_letters.gdshader`), glass that traces its offices and lobby hall
+  (`police_station_glass.gdshader`, `trace`). Judge a block at night with
+  `tools/glshot/station_night_shot.tscn` (the city's real DayNight, lamps on; block_shot's NIGHT=1
+  never switches the lamps on). `POLICE_NIGHT=0` is the A/B; checks `tests/police_night_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
