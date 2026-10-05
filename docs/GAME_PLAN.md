@@ -289,6 +289,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The hills get what stands on them: power lines, an antenna farm, fire roads,
+  tanks, a lookout and domes (VISUAL_ROADMAP #63, HANDOFF 9bu).** Two 220 kV lines out of a
+  substation in Vernon, one east over the east range across the river, one north-east up onto it
+  and along it; lattice towers placed by a dynamic programme that keeps every conductor clear of
+  the ground; the antenna farm on benches along the crest of the summit north of downtown (the
+  higher front-range summits are spikes), its masts lit red at night; fire roads walked along the
+  crests and down the spurs as fire breaks (the ranges are too steep for graded roads off their
+  crests), gated; tanks on knolls above the estates. Everything carved is carved last in
+  MacroMap.setup() and every lot taken is taken after every roll, so nothing else moved. The far
+  tier draws every wire and every tower's lattice as fine lines. CLAUDE.md "Ridges".
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

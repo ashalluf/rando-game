@@ -76,7 +76,9 @@ func _lines(r: Ridges, plan: CityPlan) -> void:
 	for t: Dictionary in r.towers:
 		var p: Vector2 = t.pos
 		var lo := minf(minf(t.legs[0], t.legs[1]), minf(t.legs[2], t.legs[3]))
-		if float(t.base) - lo > Ridges.MAX_LEG_EXT + 2.0:
+		# On a peak a tower straddles the spike on long leg extensions (PEAK_LEG_EXT, measured on a
+		# 58 m tower's base; a 72 m one stands wider).
+		if float(t.base) - lo > Ridges.PEAK_LEG_EXT + 6.0:
 			bad.append("t%d legs %.1f" % [t.id, float(t.base) - lo])
 		if plan.macro.freeway and plan.macro.freeway.blocks(p, 15.0):
 			bad.append("t%d freeway" % t.id)

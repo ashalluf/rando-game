@@ -1,6 +1,6 @@
 class_name Ridges
 extends RefCounted
-## What stands on Los Angeles's hills (roadmap #59): the high-voltage transmission lines marching
+## What stands on Los Angeles's hills (roadmap #63): the high-voltage transmission lines marching
 ## over the ranges and down through the industrial district to a substation, the antenna farm on
 ## the front range's highest summit, the dirt fire roads along the crests and down the spurs, a
 ## fire lookout, round green water tanks on the knolls above the estates, and radar / weather
@@ -68,6 +68,8 @@ const EXTRA_CREST_SUMMITS := 6
 ## Summits kept from the coarse search per range (the highest), refined to their true tops.
 const SUMMITS_KEPT := 30
 const TANK_SPACING := 520.0
+## Estates looked round for a knoll before the search gives up.
+const TANK_TRIES := 60
 const FIRE_WIDTH := 5.0
 const FIRE_GRADE := 0.75
 ## Step along a fire road walk, metres.
@@ -156,11 +158,22 @@ func build_terrain(m: MacroMap, seed_value: int) -> void:
 		return
 	var t0 := Time.get_ticks_usec()
 	_cache_on = true
+	var tt: Array[int] = [Time.get_ticks_usec()]
 	_find_summits()
+	tt.append(Time.get_ticks_usec())
 	_place_farm()
+	tt.append(Time.get_ticks_usec())
 	_place_east_sites()
+	tt.append(Time.get_ticks_usec())
 	_crest_roads()
+	tt.append(Time.get_ticks_usec())
 	_place_tanks()
+	tt.append(Time.get_ticks_usec())
+	if OS.get_environment("RIDGE_DEBUG") != "":
+		var parts: Array[int] = []
+		for i in range(1, tt.size()):
+			parts.append((tt[i] - tt[i - 1]) / 1000)
+		print("RIDGES terrain parts (summits, farm, east sites, fire roads, tanks) ms: ", parts)
 	_cache_on = false
 	_gcache.clear()
 	_ucache.clear()
@@ -180,6 +193,29 @@ func _raw(p: Vector2) -> float:
 		v = macro.raw_height_at(Vector2(k) * 5.0)
 		_gcache[k] = v
 	return v
+
+
+## Adds the hill roads' newest road to their cell index (HillRoads._index() does every road, which
+## is most of the planning's time when it runs after each pad and fire road), and forgets the
+## carved heights cached round it.
+func _index_last() -> void:
+	var hr := macro.hill_roads
+	var ri := hr.roads.size() - 1
+	var pts: PackedVector2Array = hr.roads[ri].points
+	var reach: float = float(hr.roads[ri].width) * 0.5 + HillRoads.BANK_REACH
+	var cell := HillRoads.CELL
+	for si in pts.size() - 1:
+		var a := pts[si]
+		var b := pts[si + 1]
+		var lo := Vector2(minf(a.x, b.x), minf(a.y, b.y)) - Vector2.ONE * reach
+		var hi := Vector2(maxf(a.x, b.x), maxf(a.y, b.y)) + Vector2.ONE * reach
+		for cx in range(floori(lo.x / cell), floori(hi.x / cell) + 1):
+			for cz in range(floori(lo.y / cell), floori(hi.y / cell) + 1):
+				var key := Vector2i(cx, cz)
+				if not hr._cells.has(key):
+					hr._cells[key] = []
+				hr._cells[key].append(Vector2i(ri, si))
+	_hcache.clear()
 
 
 ## The carved ground, cached on a 5 m lattice while planning (cleared whenever something is carved).
@@ -353,8 +389,7 @@ func _add_pad(p: Vector2, axis: Vector2, half: Vector2, name: String) -> float:
 		var a1 := p + axis * maxf(half.x - half.y, 0.5)
 		macro.hill_roads.roads.append({"name": name, "points": PackedVector2Array([a0, a1]), "heights": PackedFloat32Array([h, h]),
 			"width": half.y * 2.0, "mansions": false, "planned_points": PackedVector2Array([a0, a1]), "draw": false, "pad": true})
-		macro.hill_roads._index()
-		_hcache.clear()
+		_index_last()
 		return h
 	return NAN
 
@@ -614,8 +649,7 @@ func _add_fire_road(name: String, pts: PackedVector2Array, start_h: float, min_l
 		return -1
 	hr.roads.append({"name": name, "points": pts.slice(0, keep), "heights": hs.slice(0, keep), "width": FIRE_WIDTH,
 		"mansions": false, "planned_points": pts.slice(0, keep), "draw": false, "fire": true})
-	hr._index()
-	_hcache.clear()
+	_index_last()
 	fire_roads.append(hr.roads.size() - 1)
 	return hr.roads.size() - 1
 
@@ -708,8 +742,9 @@ func _place_tanks() -> void:
 		order.append([_h01([seed, "tank_order", mi]), mi])
 	order.sort()
 	var n := 0
+	var tried := 0
 	for o: Array in order:
-		if n >= TANK_MAX:
+		if n >= TANK_MAX or tried >= TANK_TRIES:
 			break
 		var m: Dictionary = hr.mansions[int(o[1])]
 		var mp: Vector2 = m.pos
@@ -721,13 +756,14 @@ func _place_tanks() -> void:
 			continue
 		var best := Vector2.INF
 		var bh := mh + 25.0
-		for a in 16:
-			for dist: float in [90.0, 140.0, 190.0, 240.0]:
-				var q := mp + Vector2.from_angle(TAU * a / 16.0 + _h01([seed, "tank_a", o[1]])) * dist
+		for a in 12:
+			for dist: float in [100.0, 170.0, 240.0]:
+				var q := mp + Vector2.from_angle(TAU * a / 12.0 + _h01([seed, "tank_a", o[1]])) * dist
 				var qh := _raw(q)
 				if qh > bh and qh < mh + 140.0:
 					bh = qh
 					best = q
+		tried += 1
 		if best == Vector2.INF:
 			continue
 		# Up to the knoll's top.
@@ -785,7 +821,7 @@ func _tank_track(p: Vector2, h: float, rim: float) -> void:
 			return
 	hr.roads.append({"name": "Tank Rd", "points": pts, "heights": hs, "width": FIRE_WIDTH - 0.8, "mansions": false,
 		"planned_points": pts, "draw": false, "fire": true})
-	hr._index()
+	_index_last()
 	fire_roads.append(hr.roads.size() - 1)
 	gates.append({"pos": b - dir * 2.0, "base": hs[n], "yaw": atan2(-dir.x, -dir.y), "w": FIRE_WIDTH - 0.8, "road": hr.roads.size() - 1})
 
@@ -1473,6 +1509,18 @@ func gates_in(rect: Rect2) -> Array[Dictionary]:
 		if rect.has_point(g.pos):
 			out.append(g)
 	return out
+
+
+## The highest thing the ridges stand in `rect` (world y), 0 when none: AirTraffic's obstacle field.
+func top_in(rect: Rect2) -> float:
+	var top := 0.0
+	for m: Dictionary in masts:
+		if rect.grow(float(m.h) * 0.6).has_point(m.pos):
+			top = maxf(top, float(m.base) + float(m.h) + 10.0)
+	for t: Dictionary in towers:
+		if rect.grow(12.0).has_point(t.pos):
+			top = maxf(top, float(t.base) + float(t.h) + 8.0)
+	return top
 
 
 ## Every id the far tier can hide under a FULL chunk: towers 0.., then masts, then sites.
