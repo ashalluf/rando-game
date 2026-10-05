@@ -634,6 +634,14 @@ already mapped so milestone 2 is script-only.
   a crime like anyone). Bodies Blender-built on the big-vehicle pipeline. Names invented. Also:
   a bus's windscreen shows its daylit cabin instead of a black slab. docs/HANDOFF.md 9bm;
   CLAUDE.md "Emergency services".
+- **2026-10-05 The night aerial: traffic and lamps past the streamed range are worked out in
+  the far shaders, never simulated or placed (VISUAL_ROADMAP #62).** Moving head and tail lights
+  on every far freeway deck and boulevard (`far_traffic.gdshaderinc`, per pixel from the time, a
+  hash and the place; white toward the camera, red away), lamp heads as points, sodium or LED in
+  patches (the near lamps follow the same integer roll), flashing beacons on far masts, traffic
+  and lit offices by the hour (`city_hour` global). No new node per block: an additive skin per
+  LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
+  aerial".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

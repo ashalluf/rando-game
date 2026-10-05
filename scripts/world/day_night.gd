@@ -451,6 +451,8 @@ func _apply() -> void:
 				l.remove_meta("dark_hidden")
 	RenderingServer.global_shader_parameter_set("night_factor", night_factor)
 	RenderingServer.global_shader_parameter_set("lamp_factor", lamp_factor)
+	# The clock, for what changes with the hour after dark (the far traffic, lit offices).
+	RenderingServer.global_shader_parameter_set("city_hour", hour)
 	lamp_now = lamp_factor
 	# Published for anything that needs to reflect the sky without owning a copy of it (the
 	# ocean, and whatever else wants it): the colour the sky meets the horizon with, and the

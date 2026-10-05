@@ -11,6 +11,26 @@
 // same way by both shaders. Salts 60-64; the shop rolls (Building.shop_byte) use 1-45 on other keys.
 // Shader includes use // comments.
 
+#ifndef CITY_HOUR_DECLARED
+#define CITY_HOUR_DECLARED
+global uniform float city_hour;
+#endif
+
+
+// How many of the offices that light up at all are still lit at this hour (DayNight's clock,
+// `city_hour`): fuller in the evening, emptying toward three in the morning, back before dawn.
+// Both shaders scale the building's lit ratio by it, so near and far keep the same windows.
+// Keys every two hours from midnight; NightCity.WINDOW_KEYS is the GDScript copy.
+float window_hour_scale() {
+	float k[13] = float[13](0.66, 0.46, 0.38, 0.52, 0.90, 1.0, 1.0, 1.0, 1.05, 1.25, 1.18, 1.04, 0.66);
+	float f = mod(city_hour, 24.0) * 0.5;
+	int i = int(floor(f));
+	float t = f - float(i);
+	t = t * t * (3.0 - 2.0 * t);
+	return mix(k[clamp(i, 0, 12)], k[clamp(i + 1, 0, 12)], t);
+}
+
+
 uint wl_hash(uint key, uint salt) {
 	uint h = key * 747796405u + salt * 2891336453u;
 	h ^= h >> 16u;
@@ -46,7 +66,7 @@ bool window_lit(float b_seed, float face, float row, float col, float ratio_in) 
 	float floor_k = wl_roll(sd * 256u + uint(clamp(row, 0.0, 255.0)), 60u);
 	// 0 on a dark floor, about double on a busy one, 1 on an ordinary one.
 	float floor_mul = floor_k < 0.20 ? 0.0 : (floor_k > 0.88 ? 2.3 : 1.0);
-	float ratio = clamp(ratio_in * floor_mul, 0.0, 1.0);
+	float ratio = clamp(ratio_in * floor_mul * window_hour_scale(), 0.0, 1.0);
 	uint fr = wl_face_row(b_seed, face, row);
 	float run_k = wl_roll(fr + uint(clamp(floor(col / 3.0), 0.0, 255.0)), 61u);
 	float k = wl_roll(fr + uint(clamp(col, 0.0, 255.0)), 62u);

@@ -3516,7 +3516,7 @@ func _add_lamp(at: Vector3) -> void:
 	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(LAMP_POOL_SIZE, 1.0, LAMP_POOL_SIZE)), at + Vector3(0.0, 0.09, 0.0))
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		["lamp", PropFactory.model_lamp(), Transform3D(Basis(Vector3.UP, fmod(absf(at.x * 7.3 + at.z * 3.1), TAU)), at), _lamp_tint],
-		["lamp_pool", PropFactory.light_pool(), pool],
+		["lamp_pool", PropFactory.light_pool(), pool, NightCity.pool_color(Vector2(at.x, at.z))],
 	], [[Vector3(0.3, 3.9, 0.3), at + Vector3(0.0, 1.95, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
 	if level != Level.FULL:
@@ -3527,7 +3527,8 @@ func _add_lamp(at: Vector3) -> void:
 	light.position = at + Vector3(0.0, LAMP_LIGHT_HEIGHT + _gy(at.x, at.z), 0.0)
 	light.omni_range = 11.0
 	light.omni_attenuation = 1.4
-	light.light_color = Color(1.0, 0.86, 0.62)
+	# Sodium or LED by where it stands, as the far streets' glow says (NightCity.lamp_led()).
+	light.light_color = NightCity.lamp_light(Vector2(at.x, at.z))
 	light.light_energy = 0.0
 	light.shadow_enabled = false
 	light.distance_fade_enabled = true

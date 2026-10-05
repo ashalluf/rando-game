@@ -40,6 +40,8 @@ global uniform float night_factor;
 // Points TOWARDS the sun (DayNight publishes the sun's +Z). Drives the glare lobe on glazing
 // and the direction rooftop plant throws its shadow.
 global uniform vec3 sun_direction;
+// Scene + origin_shift = true world (WorldState.world_offset): the plates' traffic runs in it.
+global uniform vec3 origin_shift;
 // The sky colour DayNight is currently showing. What the glazing mirrors.
 global uniform vec4 sky_tint;
 // Colour space. This shader draws what building.gdshader draws, and that one works in each
@@ -161,10 +163,18 @@ uniform vec3 plate_road_color = vec3(0.033, 0.033, 0.040);
 uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
 uniform vec3 deck_road_color = vec3(0.040, 0.040, 0.044);
+// The far streets' lamp glow against the near road's (street_glow.gdshaderinc): from a hill the
+// lit carriageway is most of what a street is, and at 1.0 the grid was a faint brown hatching
+// under moonlit roofs. A junction square is lit evenly in the pattern, so it is held under the
+// pools beside it or it reads as a flat orange tile.
+// far_ground.gdshader carries the same two numbers.
+uniform float far_glow_gain = 2.6;
+uniform float junction_glow = 0.75;
 #include "res://shaders/street_glow.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
 // The lit offices and the pale or dark spandrels, rolled exactly as building.gdshader rolls them.
 #include "res://shaders/window_lights.gdshaderinc"
+#include "res://shaders/far_traffic.gdshaderinc"
 
 // --- Coded parts (FarBuilding) ---
 // Building's numbers the code does not carry: its storefront height (Building.storefront_height),
@@ -201,6 +211,8 @@ varying vec3 world_tangent;
 // A coded part's six codes (FarBuilding.codes()), exact integers, flat.
 varying flat vec3 codes0;
 varying flat vec3 codes1;
+// The instance's true world XZ (an aviation beacon's flash phase).
+varying flat vec2 inst_xz;
 
 
 float hash21(vec2 p) {
@@ -361,6 +373,7 @@ void vertex() {
 	local_pos = VERTEX;
 	local_normal = NORMAL;
 	custom = INSTANCE_CUSTOM;
+	inst_xz = MODEL_MATRIX[3].xz + origin_shift.xz;
 	tint = COLOR;
 	// Matches how `u` is measured below: local Z on the +-X faces, local X on the +-Z faces.
 	vec3 t_local = abs(NORMAL.x) > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
@@ -881,7 +894,7 @@ void fragment() {
 					// About 62 % of the shops open, in their own light, and their sign boards.
 					e_mean = vec3(1.0, 0.92, 0.80) * (lit_shop_level * 0.32 + 0.20) * lamp_factor + refl_emit * glaze_frac;
 				} else {
-					e_mean = lit_c * 0.78 * lit_room_level * lit_ratio_p * 0.98 * glaze_frac * night_factor + refl_emit * glaze_frac;
+					e_mean = lit_c * 0.78 * lit_room_level * lit_ratio_p * window_hour_scale() * 0.98 * glaze_frac * night_factor + refl_emit * glaze_frac;
 				}
 				emission += mix(e_mean, e_cell, band_fade);
 			} else {
@@ -933,7 +946,14 @@ void fragment() {
 		if (kind == 2 && box_size.y - (local_pos.y + 0.5) * box_size.y < 0.6) {
 			// The beacon on the tip, unshaded red like the near one, and brighter after dark.
 			albedo = vec3(0.05);
-			emission += vec3(1.0, 0.25, 0.2) * (0.9 + beacon_energy * night_factor);
+			// After dark most flash (a medium-intensity red obstruction light: 30-40 a minute, a
+			// lamp that swells and fades), a few burn steady; each mast on its own phase.
+			float ph = hash21(floor(inst_xz * 0.5) + 7.3);
+			float period = 1.5 + 0.7 * fract(ph * 13.7);
+			float cyc = fract(TIME / period + ph);
+			float flash = smoothstep(0.0, 0.12, cyc) * (1.0 - smoothstep(0.38, 0.62, cyc));
+			float on = ph < 0.18 ? 1.0 : mix(1.0, 0.08 + 0.92 * flash * 1.25, night_factor);
+			emission += vec3(1.0, 0.25, 0.2) * (0.9 + beacon_energy * night_factor) * on;
 		}
 	} else if (custom.a > 1.5) {
 		// --------------------------------------------------- Ground: plate / freeway deck ---
@@ -960,6 +980,14 @@ void fragment() {
 			if (lamp_factor > 0.001) {
 				vec3 g = street_glow(vec2(0.0, (local_pos.z + 0.5) * box_size.z), vec2(local_pos.x + 0.5), 1);
 				emission += mix(glow_mean, g, glow_detail) * street_glow_level();
+				// The traffic on it (far_traffic.gdshaderinc): .g is where this segment starts in
+				// the light pattern's period, .b the route. The basis's z runs backward along the
+				// route, so +s is toward local -z; Freeway.lane_layout()'s lanes.
+				float s_along = custom.g + (0.5 - local_pos.z) * box_size.z;
+				vec2 fwd = -normalize(MODEL_MATRIX[2].xz);
+				float lane_w = min(3.6, (half_w - 0.42 - 1.2 - 1.305) / 4.0);
+				emission += traffic_lights(s_along, local_pos.x * box_size.x, 1.305, lane_w, 4.0, fwd, -to_frag,
+					mpp, traffic_level(city_hour), 27.0, custom.b) * lamp_factor;
 			}
 		} else {
 			// Metres from the plate's -X,-Z corner; the roads run along its +X and +Z edges.
@@ -977,11 +1005,27 @@ void fragment() {
 			albedo = mix(albedo, c * 1.25, max(kerb_x, kerb_z) * 0.35 * detail(1.2, mpp));
 			rough = 0.95;
 			if (lamp_factor > 0.001 && road > 0.01) {
-				// A junction square is lit evenly, a road along its own length.
+				// A junction square is lit evenly, a road along its own length. Along the TRUE
+				// world axis, so the lamps and the traffic run on from plate to plate and into the
+				// LOD chunks' ground (far_ground.gdshader) at the same places; sodium or LED by
+				// where it is (lamp_ratio()), the heads as points (street_lamp_heads()).
 				int axis = (in_x > 0.5 && in_z > 0.5) ? 0 : (in_x > in_z ? 1 : 2);
 				float across = axis == 1 ? (p.x - (box_size.x - rx)) / max(rx, 0.01) : (p.y - (box_size.z - rz)) / max(rz, 0.01);
-				vec3 g = street_glow(p, vec2(across), axis);
-				emission += mix(glow_mean, g, glow_detail) * street_glow_level() * road;
+				vec2 tw = world_pos.xz + origin_shift.xz;
+				vec3 lr = lamp_ratio(tw);
+				vec3 g = street_glow(tw, vec2(across), axis);
+				float lvl = street_glow_level() * road * far_glow_gain * (axis == 0 ? junction_glow : 1.0);
+				emission += mix(glow_mean, g, glow_detail) * lr * lvl;
+				if (axis != 0) {
+					float w = axis == 1 ? rx : rz;
+					float along = axis == 1 ? tw.y : tw.x;
+					emission += street_glow_color * lr * street_lamp_heads(along, across * w, w, mpp) * street_glow_level() * road;
+					// The traffic down it (far_traffic.gdshaderinc): busier and quicker on the
+					// wide roads.
+					float centre = (axis == 1 ? p.x - (box_size.x - rx * 0.5) : p.y - (box_size.z - rz * 0.5));
+					emission += street_traffic(along, axis == 1 ? -centre : centre,
+						w, axis == 1 ? vec2(0.0, 1.0) : vec2(1.0, 0.0), -to_frag, mpp, floor((axis == 1 ? tw.x : tw.y) - centre + 0.5)) * lamp_factor * road;
+				}
 			}
 		}
 		spec = 0.12;

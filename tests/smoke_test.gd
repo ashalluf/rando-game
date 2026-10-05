@@ -1786,6 +1786,9 @@ func _test_city() -> void:
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
 	await load("res://tests/la_river_checks.gd").new().run(self, city)
+	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
+	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
+	load("res://tests/night_city_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
