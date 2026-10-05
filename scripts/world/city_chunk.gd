@@ -2552,7 +2552,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 		return
 	var car := Vehicle.random_car(rng)
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
@@ -2651,6 +2651,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	# A fire station's lot (FireStation: one lot in a cell, hash-seeded; the pad roll above is made).
 	if FireStation.claims(plan, ix, iz, lot):
 		FireStation.build_lot(self, lot)
+		return
+	# A police station's lots (PoliceStation: a run of lots on one street, hash-seeded; the pad roll is made).
+	if PoliceStation.claims(plan, ix, iz, lot):
+		PoliceStation.build_lot(self, lot)
 		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
