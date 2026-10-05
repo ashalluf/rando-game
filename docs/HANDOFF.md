@@ -7117,4 +7117,4 @@ ends at buffer stops. Alameda's left-turners may still cross the median tracks a
 in life). The covered way's interior is not modelled (nothing is drawn past the mouth). Block
 signals are static (always clear). Pedestrians never board, and trains never derail. On this 4-core
 box `tests/headless_check.sh`'s 900 s timeout is too short for the whole smoke test; it was run
-directly (see the push message for the count).
+directly (the smoke test passed 1,022 checks on the rebased branch; one earlier run failed two downtown blood-pool checks on timing, which passed on the rerun).
