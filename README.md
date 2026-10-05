@@ -17,3 +17,10 @@ opengl3 (Compatibility) stills, 1600x900, `tools/glshot/still_shot.gd` with `DIF
 
 Note: the before/after pairs from the multi-shot runs streamed slightly differently (the aerial
 pair most visibly); the frame-cost numbers in HANDOFF come from single-view SPLIT runs.
+
+## After merging origin/fleet/base (2026-10-05, wave 2)
+
+Same views and settings as above (opengl3, 1600x900 scaled to 1280, `DIFF=1 EYE_AGL=1`), re-shot on
+the merged branch: 10 = 01, 11 = 02, 12 = 03, 13 = 04, 14 = 05, 15 = 06, 16 = 07, 17 = 08, 18 = 09
+(`*_merged_before_*` with `DECO=0`). The aerial pair streamed differently between the two runs
+(not comparable for cost).
