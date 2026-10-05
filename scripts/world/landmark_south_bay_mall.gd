@@ -174,6 +174,14 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 		_lot_markings(parent, base, batch)
 		_lot_planting(parent, statics, base, batch, rng)
 		_pylon_sign(parent, statics, base)
+	else:
+		# The lot's islands, palms and light poles far as well, shadowless: their heads are the
+		# lot's light at night, and the palms most of its silhouette from the ring road.
+		var lot_rng := RandomNumberGenerator.new()
+		lot_rng.seed = SEED_SALT + int(anchor.x) * 7919 + int(anchor.y) * 104729 + 1
+		_lot_planting(parent, null, base, batch, lot_rng)
+		for key: String in batch.keys():
+			batch.set_no_shadow(key)
 	batch.build(parent)
 
 
@@ -249,6 +257,7 @@ static func _pave(parent: Node3D, statics: StaticBody3D, size: Vector3, pos: Vec
 static func _retail_bar(parent: Node3D, statics: StaticBody3D, base: Vector3, batch: MultiMeshBatch, rng: RandomNumberGenerator, detailed: bool) -> void:
 	# The blank box. A mall has no windows on the outside; that blankness IS the look.
 	var wall := Landmarks._box(parent, statics, Vector3(BAR_LENGTH, BAR_HEIGHT, BAR_DEPTH), base + Vector3(0.0, BAR_HEIGHT * 0.5, 0.0), STUCCO, true)
+	LandmarkArenaDistrict._occluder(parent, [[base + Vector3(0.0, BAR_HEIGHT * 0.5, 0.0), Vector3(BAR_LENGTH, BAR_HEIGHT, BAR_DEPTH)]], 1 if detailed and statics else 0)
 	wall.material_override = PropFactory.pbr("plaster_beige", 9.0, Color(0.96, 0.92, 0.84))
 	# Parapet ring: four thin boxes standing proud of the roof edge.
 	var py := BAR_HEIGHT + PARAPET_HEIGHT * 0.5
@@ -322,6 +331,7 @@ static func _vault(parent: Node3D, base: Vector3, detailed: bool) -> void:
 static func _anchor_store(parent: Node3D, statics: StaticBody3D, base: Vector3, offset_x: float, tone: Color, detailed: bool) -> void:
 	var c := base + Vector3(offset_x, 0.0, 0.0)
 	var body := Landmarks._box(parent, statics, Vector3(ANCHOR_WIDTH, ANCHOR_HEIGHT, ANCHOR_DEPTH), c + Vector3(0.0, ANCHOR_HEIGHT * 0.5, 0.0), tone, true)
+	LandmarkArenaDistrict._occluder(parent, [[c + Vector3(0.0, ANCHOR_HEIGHT * 0.5, 0.0), Vector3(ANCHOR_WIDTH, ANCHOR_HEIGHT, ANCHOR_DEPTH)]], 1 if detailed and statics else 0)
 	body.material_override = PropFactory.pbr("concrete_painted", 8.0, tone * 1.18)
 	# Crown band and parapet.
 	Landmarks._box(parent, statics, Vector3(ANCHOR_WIDTH + 1.4, 2.4, ANCHOR_DEPTH + 1.4), c + Vector3(0.0, ANCHOR_HEIGHT - 1.2, 0.0), tone.darkened(0.35), false)

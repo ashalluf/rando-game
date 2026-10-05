@@ -63,6 +63,10 @@ global uniform float rain_intensity;
 // 0 turns off the second texture fetch that breaks up the tiling. Quality clears it on the web
 // and at the low levels, where roads fill the screen and every fetch counts.
 global uniform float ground_detail;
+// 1 while RoadWear lays its stamps on the FULL chunks' roads: near the camera they carry the
+// cracks and patches, so the procedural ones below step back there (a uniform net of thin cracks
+// over every street read as dried mud). 0 (ROAD_WEAR=0, the web's far roads) keeps them all.
+global uniform float road_stamp_near;
 
 varying vec3 world_pos;
 varying vec2 plan_pos;
@@ -227,6 +231,7 @@ void fragment() {
 
 	// Resurfacing patches on a jittered grid. Each patch has its own tone and smoothness, and a
 	// darker seam where the new asphalt meets the old.
+	float stamps = road_stamp_near * (1.0 - smoothstep(70.0, 110.0, length(VERTEX))) * (1.0 - step(0.01, joint_spacing));
 	vec2 cell = floor(w / patch_size);
 	vec2 jitter = (hash22(cell + seed) - 0.5) * 0.55;
 	vec2 local = fract(w / patch_size) - 0.5 - jitter;
@@ -234,7 +239,7 @@ void fragment() {
 	if (patch_roll < patch_amount) {
 		float half_w = 0.30 + 0.16 * hash12(cell + 5.1);
 		float half_h = 0.30 + 0.16 * hash12(cell + 9.7);
-		float inside = step(abs(local.x), half_w) * step(abs(local.y), half_h);
+		float inside = step(abs(local.x), half_w) * step(abs(local.y), half_h) * (1.0 - stamps);
 		float edge = max(abs(local.x) / half_w, abs(local.y) / half_h);
 		float seam = inside * smoothstep(0.78, 1.0, edge);
 		float shade = 0.84 + 0.26 * hash12(cell + 13.3);
@@ -247,7 +252,7 @@ void fragment() {
 	// what decides whether this reads as a crack or as a dried-mud pattern: at 0.75 the lines
 	// wandered over several metres and were a hand's width across.
 	float ridge = 1.0 - abs(fbm(w * 1.7 + 17.0 + seed) * 2.0 - 1.0);
-	float crack = smoothstep(0.955, 0.999, ridge) * crack_amount;
+	float crack = smoothstep(0.955, 0.999, ridge) * crack_amount * (1.0 - 0.55 * stamps);
 	base *= 1.0 - 0.34 * crack;
 	rough = mix(rough, 1.0, crack * 0.6);
 

@@ -53,6 +53,8 @@ extends Node3D
 @export var spawn_max: float = 230.0
 @export var despawn_distance: float = 330.0
 @export var pool_size: int = 4
+## An ambulance parked in a hospital's bay goes back into the pool after this long unseen (s).
+@export var park_seconds: float = 45.0
 ## Web builds: fewer of everything.
 @export var web_scale: float = 0.5
 
@@ -381,7 +383,19 @@ func _door_spot(car: EmergencyCar, i: int) -> Vector3:
 		base + side * half + fwd * (length * 0.12),
 		base - side * half + fwd * (length * 0.12),
 	]
-	return spots[i % spots.size()] + Vector3.UP * 0.05
+	return _on_surface(spots[i % spots.size()]) + Vector3.UP * 0.05
+
+
+## `p` brought down (or up) onto the world-layer surface under it: a door spot is worked out at
+## road height, and the kerb side's is on the pavement - since Kerbs, a trimesh ring a kerb higher
+## that a body put just under it falls straight through, five metres down to the GroundBody where
+## the street stands on relief (the stretcher medic of the paramedic check, on every branch).
+func _on_surface(p: Vector3) -> Vector3:
+	if not is_inside_tree():
+		return p
+	var q := PhysicsRayQueryParameters3D.create(p + Vector3.UP * 1.5, p - Vector3.UP * 1.0, 1)
+	var hit := get_world_3d().direct_space_state.intersect_ray(q)
+	return hit.position if not hit.is_empty() else p
 
 
 ## A crew member back in their unit. With all of them in, it leaves.
@@ -412,6 +426,13 @@ func _finish(car: EmergencyCar) -> void:
 			inc[slot] = null
 		inc.done = true
 		_release(inc)
+	# An ambulance with a patient aboard takes them to the nearest hospital (Hospital).
+	if car.kind == EmergencyCar.Kind.AMBULANCE and bool(inc.get("loaded", false)):
+		var wp := WorldState.to_world(car.global_position)
+		var lay := Hospital.nearest(plan, Vector2(wp.x, wp.z))
+		if not lay.is_empty():
+			car.to_hospital(lay)
+			return
 	car.leave(_away_point(car))
 
 
@@ -495,8 +516,13 @@ func _upkeep(step: float) -> void:
 			retire = true
 		if not retire and car.crew_alive <= 0 and car.unseen_time > 4.0:
 			retire = true
-		if not retire and car.mode != EmergencyCar.Mode.LEAVING and not crew_out and car.incident.get("done", false):
+		if not retire and (car.mode == EmergencyCar.Mode.DISPATCH or car.mode == EmergencyCar.Mode.ON_SCENE) and not crew_out and car.incident.get("done", false):
 			car.leave(_away_point(car))
+		# Parked in a hospital's bay: back to the pool once it has stood a while unseen.
+		if car.mode == EmergencyCar.Mode.PARKED:
+			car.parked_t += step
+			if car.parked_t > park_seconds and car.unseen_time > 3.0:
+				retire = true
 		if retire:
 			_retire(car)
 	for cc in crews.duplicate():

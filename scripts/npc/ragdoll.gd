@@ -487,7 +487,7 @@ static func warm_limbs(path: String, host: Node) -> void:
 ## in one pass over its skin (reading a mesh back and walking 18k vertices is the expensive
 ## part, and it was being paid once per limb), then every later one is a lookup.
 static func _limb_mesh(source: MeshInstance3D, skel: Skeleton3D, limb: String) -> Array:
-	var model := "%s|%s" % [source.mesh.resource_path, source.mesh.get_rid()]
+	var model := PropFactory.mesh_key(source.mesh)
 	if not _limb_cache.has(model + "|" + limb):
 		_cut_limbs(source, skel, model)
 	return _limb_cache.get(model + "|" + limb, [])

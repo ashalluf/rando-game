@@ -3,6 +3,9 @@ extends RigidBody3D
 ## Knock-over-able street trash can (Poly Haven metal can, clean or rusty). Joins the physics_prop
 ## group so PhysicsBudget manages it. Set `rusty` before adding it to the tree.
 
+## How far a prop draws (metres), see _ready().
+const DRAW_DISTANCE := 140.0
+
 ## Rusty variant of the model.
 var rusty: bool = false
 
@@ -24,5 +27,10 @@ func _init() -> void:
 func _ready() -> void:
 	var mesh := MeshInstance3D.new()
 	mesh.mesh = PropFactory.model_trash_can(rusty)
+	# A node each (one draw, and one per shadow cascade): past DRAW_DISTANCE a can or a tyre is
+	# a few pixels, so it stops drawing (a few hundred stood in every street frame).
+	mesh.visibility_range_end = DRAW_DISTANCE
+	mesh.visibility_range_end_margin = DRAW_DISTANCE * 0.1
+	mesh.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	add_child(mesh)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)

@@ -67,6 +67,15 @@ const GATE_TIME := 2.6
 const GATE_HOLD := 9.0
 ## Parked cruisers draw to here (m).
 const CAR_RANGE := 220.0
+## Night: each floodlight pole's real light (desktop): height, reach, falloff, colour.
+const FLOOD_LIGHT_Y := 8.2
+const FLOOD_RANGE := 26.0
+const FLOOD_ATTENUATION := 0.7
+const FLOOD_COLOR := Color(0.86, 0.92, 1.0)
+## The lettering's light after dark (police_station_letters.gdshader energy; 0 = unlit).
+const LETTER_GLOW := 2.4
+## The floodlights' additive pools where the poles carry real lights (0.75 without them).
+const FLOOD_POOL_LIT := 0.3
 
 const CONCRETE := Color(0.84, 0.83, 0.79)
 const CONCRETE_DARK := Color(0.52, 0.52, 0.51)
@@ -74,6 +83,9 @@ const NAVY := Color(0.05, 0.08, 0.16)
 
 ## Off (POLICE_STATIONS=0 in the environment): no stations, the lots keep their buildings.
 static var enabled: bool = OS.get_environment("POLICE_STATIONS") != "0"
+## Off (POLICE_NIGHT=0): the station's night as it was - one light over the car park, unlit
+## lettering, flat lit rooms behind the glass (the A/B for the night pass).
+static var night_detail: bool = OS.get_environment("POLICE_NIGHT") != "0"
 static var _cache: Dictionary = {}
 static var _hq_cache: Dictionary = {}
 ## Gates asked open (station key -> ticks msec they close), so a station built after the ask
@@ -115,7 +127,7 @@ static func for_cell(plan: CityPlan, cell: Vector2i) -> Dictionary:
 		var b := plan.block(bi.x, bi.y)
 		if _cell_of((b.rect as Rect2).get_center()) != cell:
 			continue
-		if not DISTRICTS.has(int(b.district)) or int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds"):
+		if not DISTRICTS.has(int(b.district)) or int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds") or b.has("hospital"):
 			continue
 		if plan.macro.skyline_boost((b.rect as Rect2).get_center()) > 0.3:
 			continue
@@ -150,7 +162,7 @@ static func hq(plan: CityPlan) -> Dictionary:
 	var hall := CivicSites.anchor("ziggurat_hall")
 	var bi := plan.block_index_at(hall) + Vector2i(0, 1)
 	var b := plan.block(bi.x, bi.y)
-	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds") or Landmarks.claims(b.rect) or plan.river_block(bi.x, bi.y):
+	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds") or b.has("hospital") or Landmarks.claims(b.rect) or plan.river_block(bi.x, bi.y):
 		return out
 	var s := _site(plan, bi, true, [plan.seed, "hq"])
 	if s.is_empty():
@@ -940,6 +952,17 @@ static func _cruiser_paint(src: StandardMaterial3D, box: AABB) -> ShaderMaterial
 	return mat
 
 
+## The lit lettering: metal letters by day, glowing after dark (lamp_factor).
+static func letter_material() -> ShaderMaterial:
+	if _mats.has("letters"):
+		return _mats.letters
+	var m := ShaderMaterial.new()
+	m.shader = load("res://shaders/police_station_letters.gdshader")
+	m.set_shader_parameter("energy", LETTER_GLOW)
+	_mats.letters = m
+	return m
+
+
 ## The parked cruisers' light bars: dark lenses (the police lights shader with its lights off).
 static func bar_material() -> ShaderMaterial:
 	if _mats.has("bar"):
@@ -985,7 +1008,10 @@ static func _lights(node: Node3D, s: Dictionary, P: Callable, floods: Array[Vect
 	var lay: Dictionary = s.layout
 	var pools := MultiMesh.new()
 	pools.transform_format = MultiMesh.TRANSFORM_3D
-	pools.mesh = PropFactory.light_pool(Color(0.86, 0.92, 1.0), 0.75)
+	# Where the poles carry real lights (desktop) the additive pools are only the hot spot under
+	# each head; at full strength on top of the lights they read as white discs on the asphalt.
+	var lit_poles := night_detail and not OS.has_feature("web")
+	pools.mesh = PropFactory.light_pool(Color(0.86, 0.92, 1.0), FLOOD_POOL_LIT if lit_poles else 0.75)
 	var spots: Array[Transform3D] = []
 	for fs in floods:
 		var mid := (float(lay.pv0) + float(lay.pv1)) * 0.5
@@ -1011,18 +1037,34 @@ static func _lights(node: Node3D, s: Dictionary, P: Callable, floods: Array[Vect
 	node.add_child(wmi)
 	if OS.has_feature("web"):
 		return
-	for spec: Array in [[P.call(bu, GROUND_H + 1.2, float(lay.sb) - 4.5), Color(1.0, 0.82, 0.6), 16.0],
-			[P.call(float(lay.L) * 0.5, 8.0, (float(lay.pv0) + float(lay.pv1)) * 0.5), Color(0.85, 0.92, 1.0), 30.0]]:
+	# The entrance under the canopy, and one light per floodlight pole a little in front of its
+	# heads (they aim into the car park): the floodlit asphalt, the stall lines and the parked
+	# cruisers' white doors are what reads a station's car park at night, and one light in the
+	# middle left the cars at its edges black. Sodium-free cool white, like the heads' lenses.
+	var specs: Array = [[P.call(bu, GROUND_H + 1.2, float(lay.sb) - 4.5), Color(1.0, 0.82, 0.6), 16.0, 1.0]]
+	var mid_v := (float(lay.pv0) + float(lay.pv1)) * 0.5
+	if not night_detail:
+		specs.append([P.call(float(lay.L) * 0.5, 8.0, mid_v), Color(0.85, 0.92, 1.0), 30.0, 1.0])
+	var lit_floods: Array[Vector2] = []
+	if night_detail:
+		lit_floods = floods
+	for fs in lit_floods:
+		specs.append([P.call(fs.x, FLOOD_LIGHT_Y, fs.y + signf(mid_v - fs.y) * 4.0), FLOOD_COLOR, FLOOD_RANGE, FLOOD_ATTENUATION])
+	for spec: Array in specs:
 		var l := OmniLight3D.new()
 		l.position = spec[0]
 		l.light_color = spec[1]
 		l.omni_range = spec[2]
+		l.omni_attenuation = spec[3]
 		l.light_energy = 0.0
 		l.shadow_enabled = false
 		l.distance_fade_enabled = true
 		l.distance_fade_begin = 120.0
 		l.distance_fade_length = 40.0
+		# Dark until DayNight's lamp tick lights it: hidden as DayNight hides a dark lamp, so its
+		# tick shows it again (it leaves a light anything else hid alone).
 		l.visible = false
+		l.set_meta("dark_hidden", true)
 		l.add_to_group("lamp_light")
 		node.add_child(l)
 
@@ -1043,9 +1085,13 @@ static func _texts(node: Node3D, s: Dictionary, P: Callable, sx: float) -> void:
 		[DEPT, 0.2, Color(0.9, 0.88, 0.8), P.call(float(lay.ub0) + 4.5, 0.62, 1.48), 0.0, 60.0],
 		["SALLY PORT", 0.34, Color(0.95, 0.78, 0.1), P.call(float(lay.ub1) - 4.25, 4.95, float(lay.sb) + float(lay.db) + SALLY_D + 0.02), PI, 60.0],
 	]
-	for it: Array in items:
+	for i in items.size():
+		var it: Array = items[i]
 		var mi := MeshInstance3D.new()
 		mi.mesh = BigVehicles.text_mesh(it[0], it[1], it[2])
+		# The name over the canopy and the monument sign's are lit channel letters after dark.
+		if i < 3 and night_detail:
+			mi.material_override = letter_material()
 		mi.position = it[3]
 		mi.rotation.y = float(it[4])
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -1204,6 +1250,9 @@ static func material(key: String) -> Material:
 			gm.shader = load("res://shaders/police_station_glass.gdshader")
 			gm.set_shader_parameter("cell", Vector2(1.6, UPPER_H) if key == "glass" else Vector2(1.5, 2.6))
 			gm.set_shader_parameter("lobby", 1.0 if key == "lobby" else 0.0)
+			gm.set_shader_parameter("storey_origin", fmod(GROUND_H, UPPER_H))
+			gm.set_shader_parameter("lobby_room", Vector3(0.15, GROUND_H + 1.4, 7.5))
+			gm.set_shader_parameter("trace", 1.0 if night_detail else 0.0)
 			m = gm
 		"chain":
 			m = LotFill.chain_link_panel().surface_get_material(0)

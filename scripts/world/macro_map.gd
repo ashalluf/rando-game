@@ -201,7 +201,10 @@ var approach_clear_half_width: float = 45.0
 ## nose toward +X). The gates along the concourse hold the parked airliners (Airport.gates(),
 ## static): these are the ones the player can take - on the parallel taxiway (a straight 550 m
 ## run east, clear of every gate's tail) and on the remote stands either end of the concourse.
-var apron_spots: Array = [[Vector2(-560.0, 780.0), 0], [Vector2(-75.0, 712.0), 1], [Vector2(-614.0, 716.0), 0, PI]]
+## The first waits at the taxiway's EAST end facing west (a 590 m run, past the east connector
+## the departures turn into): at its west end it stood in the way of every arrival taxiing in from
+## the west connector to the stands (AirportGround).
+var apron_spots: Array = [[Vector2(-12.0, 780.0), 0, PI * 0.5], [Vector2(-75.0, 712.0), 1], [Vector2(-614.0, 716.0), 0, PI]]
 
 ## Roads and mansion pads carved into the hills (built in setup()).
 var hill_roads: HillRoads
@@ -210,8 +213,13 @@ var hill_roads: HillRoads
 var river: LaRiver
 ## The marina between the beach town and the airport (Marina); null when it is off or has no room.
 var marina: Marina
+## The reservoir in the front range (Reservoir): carved into raw_height_at(), so null while it is
+## being worked out.
+var reservoir: Reservoir
 ## The freeway system: curved elevated routes across the basin (see scripts/world/freeway.gd).
 var freeway: Freeway
+## What stands on the hills (Ridges): fire roads and pads carved here, the lines planned with the plan.
+var ridges: Ridges
 
 var _noise: FastNoiseLite
 ## Erosion on the three ranges (not the headland, which is shaped to photographs): erosion
@@ -268,6 +276,14 @@ var relief_fade_height: float = 60.0
 var relief_frequency: float = 0.0026
 var _relief: FastNoiseLite
 var _landmarks: Array[Dictionary] = []
+## The oil field (OilField), or null.
+var oil: OilField = null
+## The landmarks whose relief-flattening box (radius + 150 m, or a flat_rect and its margin)
+## reaches each LM_CELL square, in Landmarks.all()'s order: _relief_natural() runs for every ground
+## sample a chunk lays, and looping all ~100 landmarks with two dictionary reads each was most of a
+## sample's cost (a FULL block's pavement was 60-200 ms in one build step).
+var _lm_grid: Dictionary = {}
+const LM_CELL := 400.0
 
 
 func setup() -> void:
@@ -288,6 +304,22 @@ func setup() -> void:
 	_relief.fractal_octaves = 3
 	_relief.fractal_gain = 0.45
 	_landmarks = Landmarks.all()
+	_lm_grid = {}
+	for lm in _landmarks:
+		# The square a landmark flattens: its own flat ground and margin (the film studio lot), or
+		# the disc round its anchor plus the 150 m box test below.
+		var cover: Rect2
+		if lm.has("flat_rect"):
+			cover = (lm.flat_rect as Rect2).grow(float(lm.flat_margin))
+		else:
+			var reach: float = float(lm.radius) + 150.0
+			cover = Rect2((lm.anchor as Vector2) - Vector2(reach, reach), Vector2(reach, reach) * 2.0)
+		for cz in range(floori(cover.position.y / LM_CELL), floori(cover.end.y / LM_CELL) + 1):
+			for cx in range(floori(cover.position.x / LM_CELL), floori(cover.end.x / LM_CELL) + 1):
+				var ck := Vector2i(cx, cz)
+				if not _lm_grid.has(ck):
+					_lm_grid[ck] = []
+				(_lm_grid[ck] as Array).append(lm)
 	_calm_spots = []
 	for lm in _landmarks:
 		if raw_height_at(lm.anchor) > 3.0:
@@ -302,34 +334,65 @@ func setup() -> void:
 	# part is then fitted to the headland's terrain, which needs the coast.
 	# `-- --no-replica` leaves it out (the seeded city in its place), for measuring what it costs.
 	if not OS.get_cmdline_user_args().has("--no-replica"):
+		LoadClock.start("macro: replica")
 		var rep := ReplicaAreas.new()
 		rep.build(self, seed)
 		replica = rep
 		rep.fit_hill_profile()
+		LoadClock.stop("macro: replica")
 	# The river: its land level is sampled from the relief without it, then folded in.
 	# `-- --no-river` leaves it out (the A/B; RIVER=0 in the environment does the same).
 	river = null
 	if not OS.get_cmdline_user_args().has("--no-river") and OS.get_environment("RIVER") != "0":
+		LoadClock.start("macro: river")
 		var rv := LaRiver.new()
 		rv.build(self, seed)
 		river = rv
+		LoadClock.stop("macro: river")
 	# The marina (Marina): a pure plan from the coast and the street grid. MARINA=0 leaves it out.
 	marina = null
 	if OS.get_environment("MARINA") != "0":
+		LoadClock.start("macro: marina")
 		var mr := Marina.new()
 		if mr.build(self, seed):
 			marina = mr
+		LoadClock.stop("macro: marina")
+	LoadClock.start("macro: oil field, reservoir")
+	# The oil field's hill (OilField): a landmark area whose relief is folded in by _relief_at().
+	oil = null
+	oil = OilField.make(self, seed)
+	# The reservoir: its level and dam are fitted to the natural range, then its carve is folded
+	# into raw_height_at() for everything after (the hill roads plan on the carved ground).
+	# RESERVOIR=0 in the environment (or `-- --no-reservoir`) leaves it out (the A/B).
+	reservoir = null
+	if not OS.get_cmdline_user_args().has("--no-reservoir") and OS.get_environment("RESERVOIR") != "0":
+		var res := Reservoir.new()
+		res.build(self)
+		reservoir = res
+	LoadClock.stop("macro: oil field, reservoir")
+	LoadClock.start("macro: hill roads")
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
+	LoadClock.stop("macro: hill roads")
 	# After the hill roads: the freeway's deck height follows height_at(), which needs them.
+	LoadClock.start("macro: freeway")
 	var fw := Freeway.new()
 	fw.build(self, seed)
 	freeway = fw
+	LoadClock.stop("macro: freeway")
 	# Then the front range's switchback drives and estates, which keep clear of the freeway.
+	LoadClock.start("macro: switchbacks")
 	hr.add_switchbacks(seed, fw)
+	LoadClock.stop("macro: switchbacks")
+	LoadClock.start("macro: ballpark, ridges")
 	# Last: the ballpark's two roads (Ballpark), so nothing above moves.
 	Ballpark.add_roads(self)
+	# Then the ridges' fire roads and pads (Ridges), carved after everything above is laid out.
+	ridges = Ridges.new() if Ridges.enabled() else null
+	if ridges:
+		ridges.build_terrain(self, seed)
+	LoadClock.stop("macro: ballpark, ridges")
 
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.
@@ -441,9 +504,16 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 		var tr := river.terrace(pos)
 		if tr.y > 0.0:
 			h = lerpf(h, tr.x, tr.y)
+	# The freight corridor's land level (FreightRail.terrace()): Alameda and the yard held level.
+	var ft := FreightRail.terrace(pos)
+	if ft.y > 0.0:
+		h = lerpf(h, ft.x, ft.y)
 	# The marina's land is a terrace a bulkhead's height over the water (Marina.terrace()).
 	if marina:
 		h = marina.terrace(pos, h)
+	# The oil field's hill, its lease roads and pads graded in (OilField.apply()).
+	if oil:
+		h = oil.apply(pos, h)
 	return h
 
 
@@ -484,7 +554,14 @@ func _relief_natural(pos: Vector2, raw: float) -> float:
 		fade *= _rect_fade(pos, r, 160.0)
 		if fade <= 0.0:
 			return base
-	for lm in _landmarks:
+	for lm: Dictionary in _lm_grid.get(Vector2i(floori(pos.x / LM_CELL), floori(pos.y / LM_CELL)), []):
+		# A landmark that names its own flat ground (a rect and a margin: the film studio lot)
+		# flattens that rather than a disc round its anchor.
+		if lm.has("flat_rect"):
+			fade *= _rect_fade(pos, lm.flat_rect, float(lm.flat_margin))
+			if fade <= 0.0:
+				return base
+			continue
 		var radius: float = lm.radius
 		var a: Vector2 = lm.anchor
 		# A cheap box test first: this runs for every ground sample in the city (and the whole
@@ -581,7 +658,10 @@ func raw_height_at(pos: Vector2) -> float:
 		var rise := smoothstep(0.0, shelf_width, inland)
 		var bench := lerpf(minf(h, shelf_height + 14.0 * n2), h, rise)
 		h = lerpf(h, bench, north)
-	return maxf(h, 0.0) * _shore_mask(pos)
+	h = maxf(h, 0.0) * _shore_mask(pos)
+	if reservoir:
+		h = reservoir.carve(pos, h)
+	return h
 
 
 ## -1..1: spur crest to gully line at `pos` (see last_drain).
@@ -963,6 +1043,8 @@ const BAKE_FREEWAY_MARGIN := 18.0
 ## The river's concrete channel from the air, and its low-flow line (LaRiver).
 const BAKE_RIVER := Color(0.60, 0.59, 0.56)
 const BAKE_RIVER_LOW := Color(0.30, 0.33, 0.29)
+## The reservoir's water, seen from across the basin (deep, dark, a little of the sky in it).
+const BAKE_LAKE := Color(0.10, 0.15, 0.17)
 ## Metres that alpha 1.0 stands for in the baked map. The horizon plane lifts its vertices by
 ## this, so it has to cover the highest peak the back range can throw up.
 const BAKE_HEIGHT_SCALE := 1600.0
@@ -1068,6 +1150,9 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 				# The freeways, drawn last so they cross districts and hills alike.
 				if freeway and freeway.blocks(pos, BAKE_FREEWAY_MARGIN):
 					col = Color(BAKE_FREEWAY.r, BAKE_FREEWAY.g, BAKE_FREEWAY.b, col.a)
+				# The reservoir's water (Reservoir).
+				elif reservoir and reservoir.wet(pos):
+					col = Color(BAKE_LAKE.r, BAKE_LAKE.g, BAKE_LAKE.b, col.a)
 				# The river's channel: pale concrete banks and bed, the low-flow line darker.
 				elif river and river.in_corridor(pos, -LaRiver.CORRIDOR):
 					var nr := river.nearest(pos, 120.0)

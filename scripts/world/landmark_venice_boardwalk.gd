@@ -45,8 +45,8 @@ extends RefCounted
 ## a 215 m radius and the beach chunk next door spends 150,000 - 350,000 on its palms alone.
 ## The big line items detailed are the palms (about 16,000 across four MultiMeshes), the
 ## weights area, the shop strip, the bowl and snake run, the walk and its inlay, the stalls and
-## the two courts. PALM_FRONDS, PALM_SPACING, SKIRT_BLADES, BOWL_SEGMENTS and
-## COURT_ARC_SEGMENTS are the dials that move it most.
+## the two courts. PALM_SPACING, BOWL_SEGMENTS and COURT_ARC_SEGMENTS are the dials that move it
+## most. The far copy draws the same palms (their LOD ladder thins them), shadowless.
 ##
 ## The footprint reaches 220 m from the anchor (the inland corner of the shop strip), inside
 ## the 230 m radius `Landmarks.all()` declares for it.
@@ -114,17 +114,6 @@ const PALM_SPACING := 15.0
 ## Shortest and tallest palm, in metres.
 const PALM_MIN_H := 12.0
 const PALM_MAX_H := 19.5
-## Fronds on one palm, detailed and far. Each frond is two boxes, one rising out of the crown
-## and one arching over and down, so this is most of the palm's cost.
-const PALM_FRONDS := 9
-const PALM_FRONDS_FAR := 4
-## Length of one frond, in metres.
-const PALM_FROND_LEN := 3.6
-## Blades in the brown skirt of dead fronds under the crown. Detailed only: it is the thing
-## that makes a Washingtonia read as one close up, and invisible at LOD range.
-const SKIRT_BLADES := 6
-## Trunk radius at the foot, in metres.
-const PALM_TRUNK_R := 0.34
 
 # --- Vendor stalls -----------------------------------------------------------------------------
 
@@ -241,10 +230,6 @@ const CONCRETE_DARK := Color(0.45, 0.44, 0.42)
 const SAND_PAD := Color(0.80, 0.72, 0.55)
 const STEEL := Color(0.56, 0.58, 0.60)
 const SHUTTER_GREY := Color(0.52, 0.54, 0.55)
-const PALM_TRUNK_C := Color(0.54, 0.47, 0.37)
-const PALM_FROND_C := Color(0.27, 0.46, 0.24)
-const PALM_CROWN_C := Color(0.33, 0.40, 0.23)
-const PALM_SKIRT_C := Color(0.44, 0.34, 0.21)
 const COURT_BLUE := Color(0.20, 0.32, 0.42)
 const RUBBER_BLACK := Color(0.11, 0.11, 0.12)
 ## Bright canvas for the stall canopies, picked per stall.
@@ -273,6 +258,9 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	var batch := MultiMeshBatch.new()
 	if not detailed:
 		_far(anchor, parent, plan, batch)
+		# The art wall's murals, the same panels (its rolls are the first `rng` makes in both
+		# copies): a band of colour down the walk that reads from the beach and the pier.
+		_art_wall(anchor, parent, null, plan, rng)
 		batch.build(parent)
 		return
 	_walk(anchor, parent, statics, plan, batch)
@@ -287,8 +275,8 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	batch.build(parent)
 
 
-## The far copy: the walk slab in eight pieces, half the palms with four fronds and no dead
-## skirt, and the shop boxes. About 4,100 triangles.
+## The far copy: the walk slab in eight pieces, the palm rows (the same palms, shadowless) and the
+## shop strip less its small parts.
 static func _far(anchor: Vector2, parent: Node3D, plan: CityPlan, batch: MultiMeshBatch) -> void:
 	# Pieces, not one 400 m box: the walk follows the coast now, and a single straight slab
 	# would be forty metres off it at the ends.
@@ -339,15 +327,11 @@ static func _walk(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 
 # --- Palms -------------------------------------------------------------------------------------
 
-## The double row. Both rows walk the same index sequence in the far copy so the two versions
-## agree; the far copy just skips every other palm and drops the frond count.
+## The double row, the same palms in the same places in both copies: PropFactory.palm(), whose LOD
+## ladder thins it to a few hundred triangles at range, so the far copy needs no palm of its own
+## (it used to draw every other palm as a box-and-cylinder stick with four fronds, and the row
+## halved and turned to sticks at the hand-over). The far copy's cast no shadow.
 static func _palm_rows(anchor: Vector2, parent: Node3D, plan: CityPlan, batch: MultiMeshBatch, detailed: bool) -> void:
-	var fronds := PALM_FRONDS if detailed else PALM_FRONDS_FAR
-	var trunk := _cmesh(PALM_TRUNK_R, PALM_TRUNK_R * 0.55, 1.0, 7, PropFactory.material(PALM_TRUNK_C, 0.9))
-	var crown := _bmesh(Vector3(1.05, 0.95, 1.05), PropFactory.material(PALM_CROWN_C, 0.9))
-	# Half a frond: `_palm()` places two of these end to end with a bend between them.
-	var frond := _bmesh(Vector3(0.55, 0.09, PALM_FROND_LEN * 0.5), PropFactory.material(PALM_FROND_C, 0.85))
-	var skirt: Mesh = _bmesh(Vector3(0.42, 0.07, PALM_FROND_LEN * 0.62), PropFactory.material(PALM_SKIRT_C, 0.95)) if detailed else null
 	var count := int(LENGTH / PALM_SPACING)
 	for row in PALM_ROW_X.size():
 		var rng := RandomNumberGenerator.new()
@@ -356,60 +340,23 @@ static func _palm_rows(anchor: Vector2, parent: Node3D, plan: CityPlan, batch: M
 		for i in count:
 			var h := rng.randf_range(PALM_MIN_H, PALM_MAX_H)
 			var yaw := rng.randf_range(0.0, TAU)
-			var lean := rng.randf_range(-0.05, 0.05)
+			rng.randf_range(-0.05, 0.05) # the old stick palm's lean: kept so the rolls after it stay put
 			var jitter := rng.randf_range(-0.8, 0.8)
-			# Each palm's own crown detail draws from its own stream. Sharing the row's stream
-			# means the far copy - fewer fronds, no skirt, every other palm skipped - leaves it
-			# somewhere else, and every palm after the first comes out a different height and a
-			# metre down the row from its detailed twin. The swap is visible: the streamer
-			# hides the far copy the moment the chunk builds the detailed one.
+			# Each palm's own detail draws from its own stream.
 			var detail_seed := rng.randi()
-			if not detailed and i % 2 == 1:
-				continue
 			var z := -LENGTH * 0.5 + (float(i) + 0.5 + float(row) * 0.5) * PALM_SPACING + jitter
 			if absf(z) > LENGTH * 0.5:
 				continue
 			var prng := RandomNumberGenerator.new()
 			prng.seed = detail_seed
-			if detailed:
-				# Up close, the city's own palm (PropFactory.palm(): a real trunk and feathered,
-				# folded fronds that sway). The box-and-cylinder palm below is fine as a speck
-				# on the horizon, but in the owner's first store still the boardwalk rows read
-				# as black spiders against the sunset next to the street palms beside them.
-				# Same batch key as the street palms, so it costs no extra draw call.
-				var variant := prng.randi() % PropFactory.PALM_VARIANTS
-				var ps := clampf(h / 14.0, 0.8, 1.4)
-				batch.add("palm_%d" % variant, PropFactory.palm(variant),
-					Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(ps, ps, ps)), _at(anchor, plan, x, z, 0.0)))
-			else:
-				_palm(batch, _at(anchor, plan, x, z, 0.0), h, yaw, lean, fronds, trunk, crown, frond, skirt, prng)
-
-
-## One palm: a tapered 7-sided trunk, a crown, a ring of two-piece fronds that leave the crown
-## rising and then break over and hang, and (detailed only, when `skirt` is given) the brown
-## petticoat of dead fronds under the crown. A ring of straight spokes reads as a cardboard
-## star from any distance; the bend and the skirt are what make it a palm. About 320 triangles
-## detailed and 140 far, and every part is batched, so a row of fifty is a handful of draws.
-static func _palm(batch: MultiMeshBatch, at: Vector3, height: float, yaw: float, lean: float, fronds: int, trunk: Mesh, crown: Mesh, frond: Mesh, skirt: Mesh, rng: RandomNumberGenerator) -> void:
-	var tilt := Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, lean)
-	batch.add("vbw_palm_trunk", trunk, Transform3D(tilt * Basis.from_scale(Vector3(1.0, height, 1.0)), at + tilt * Vector3(0.0, height * 0.5, 0.0)))
-	var top := at + tilt * Vector3(0.0, height, 0.0)
-	batch.add("vbw_palm_crown", crown, Transform3D(tilt, top))
-	if skirt != null:
-		for i in SKIRT_BLADES:
-			var sa := yaw + TAU * (float(i) + 0.5) / float(SKIRT_BLADES)
-			var sb := Basis(Vector3.UP, sa) * Basis(Vector3.RIGHT, rng.randf_range(1.16, 1.42))
-			batch.add("vbw_palm_skirt", skirt, Transform3D(sb, top + sb * Vector3(0.0, 0.0, PALM_FROND_LEN * 0.3)))
-	for i in fronds:
-		var a := yaw + TAU * float(i) / float(fronds)
-		var rise := rng.randf_range(-0.36, 0.08)
-		var fall := rise + rng.randf_range(0.85, 1.4)
-		var inner := Basis(Vector3.UP, a) * Basis(Vector3.RIGHT, rise)
-		var outer := Basis(Vector3.UP, a) * Basis(Vector3.RIGHT, fall)
-		var knee := top + inner * Vector3(0.0, 0.0, PALM_FROND_LEN * 0.5)
-		batch.add("vbw_palm_frond", frond, Transform3D(inner, top + inner * Vector3(0.0, 0.0, PALM_FROND_LEN * 0.25)))
-		# The hanging half is narrower, so the frond tapers toward its tip.
-		batch.add("vbw_palm_frond", frond, Transform3D(outer * Basis.from_scale(Vector3(0.66, 1.0, 1.0)), knee + outer * Vector3(0.0, 0.0, PALM_FROND_LEN * 0.25)))
+			# The city's own palm (a real trunk and feathered, folded fronds that sway), under the
+			# same batch key as the street palms, so it costs no extra draw call.
+			var variant := prng.randi() % PropFactory.PALM_VARIANTS
+			var ps := clampf(h / 14.0, 0.8, 1.4)
+			batch.add("palm_%d" % variant, PropFactory.palm(variant),
+				Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(ps, ps, ps)), _at(anchor, plan, x, z, 0.0)))
+	if not detailed:
+		ArenaGrounds._far_shadows(batch)
 
 
 # --- Beachfront shop strip ---------------------------------------------------------------------
@@ -440,12 +387,10 @@ static func _shop_strip(anchor: Vector2, parent: Node3D, statics: StaticBody3D, 
 		var rng := RandomNumberGenerator.new()
 		rng.seed = int(span.seed)
 		var facade: Color = FACADE[rng.randi() % FACADE.size()]
-		if not detailed:
-			var rot := Vector3(0.0, yaw, 0.0)
-			_obox(parent, null, Vector3(SHOP_DEPTH, h, w), pos, rot, PropFactory.material(facade), false)
-			_obox(parent, null, Vector3(SHOP_DEPTH + 0.5, 0.6, w + 0.4), pos + Vector3(0.0, h * 0.5 + 0.3, 0.0), rot, PropFactory.material(facade.darkened(0.25)), false)
-			continue
-		_shop(parent, statics, batch, pos, yaw, w, h, storeys, facade, rng)
+		# The far copy is the same shop less its small parts (shutter ribs, sign lettering, the
+		# counter, roof vents): it used to be a plain painted box, which at the hand-over was a
+		# row of pale blocks turning into shopfronts with windows, awnings, signs and murals.
+		_shop(parent, statics, batch, pos, yaw, w, h, storeys, facade, rng, not detailed)
 
 
 ## One unit-length shutter rib and one unit sign block, built once for the whole strip. A
@@ -477,7 +422,7 @@ static func _glyph() -> Mesh:
 ## band and seeds its window pattern off the world position; it is only turned about its own
 ## origin. Everything else hangs off a pivot turned the same way, in shop-local metres: -X
 ## faces the walk, +Z runs along the frontage, and y 0 is the middle of the box.
-static func _shop(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, pos: Vector3, yaw: float, w: float, h: float, storeys: int, facade: Color, rng: RandomNumberGenerator) -> void:
+static func _shop(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, pos: Vector3, yaw: float, w: float, h: float, storeys: int, facade: Color, rng: RandomNumberGenerator, far: bool = false) -> void:
 	var finish := Building.Finish.FLAT if rng.randf() < 0.7 else Building.Finish.BRICK
 	var style := Building.WindowStyle.PUNCHED if storeys > 1 else Building.WindowStyle.RIBBON
 	Landmarks._facade_box(parent, null, Vector3(SHOP_DEPTH, h, w), pos, facade, finish, style, SHUTTER_H).rotation.y = yaw
@@ -498,14 +443,15 @@ static func _shop(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, 
 	var shutter_h := SHUTTER_H if not open else SHUTTER_H * 0.35
 	var shutter_y := foot + (SHUTTER_H - shutter_h * 0.5) if open else foot + shutter_h * 0.5
 	Landmarks._box(pv, null, Vector3(0.16, shutter_h, shutter_w), Vector3(front - 0.09, shutter_y, 0.0), SHUTTER_GREY, false)
-	var ribs := maxi(2, int(shutter_h / 0.45))
+	var ribs := 0 if far else maxi(2, int(shutter_h / 0.45))
 	for i in ribs:
 		var ry := shutter_y - shutter_h * 0.5 + (float(i) + 0.5) * shutter_h / float(ribs)
 		batch.add("vbw_shutter_rib", _rib(), Transform3D(b * Basis.from_scale(Vector3(1.0, 1.0, shutter_w - 0.1)), pos + b * Vector3(front - 0.18, ry, 0.0)))
 	if open:
 		# The dark recess of an open unit, with a counter across it.
 		Landmarks._box(pv, null, Vector3(0.4, SHUTTER_H - 0.4, shutter_w), Vector3(front + 0.2, foot + (SHUTTER_H - 0.4) * 0.5, 0.0), Color(0.13, 0.12, 0.12), false)
-		Landmarks._box(pv, null, Vector3(0.5, 0.12, shutter_w * 0.9), Vector3(front - 0.15, foot + 1.02, 0.0), Color(0.55, 0.42, 0.28), false)
+		if not far:
+			Landmarks._box(pv, null, Vector3(0.5, 0.12, shutter_w * 0.9), Vector3(front - 0.15, foot + 1.02, 0.0), Color(0.55, 0.42, 0.28), false)
 	# Awning over the shopfront, tilted down toward the walk.
 	if rng.randf() < 0.7:
 		var canvas: Color = CANVAS[rng.randi() % CANVAS.size()]
@@ -514,11 +460,15 @@ static func _shop(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, 
 	# Sign board above the shopfront: a painted board with abstract colour blocks for lettering.
 	var board: Color = PAINT[rng.randi() % PAINT.size()]
 	var sign_y := foot + SHUTTER_H + 1.35
-	Landmarks._box(pv, null, Vector3(0.22, 1.1, w * 0.7), Vector3(front - 0.14, sign_y, 0.0), board, false).material_override = WeaponFX.unshaded(board)
+	Landmarks._box(pv, null, Vector3(0.22, 1.1, w * 0.7), Vector3(front - 0.14, sign_y, 0.0), board, false).material_override = PropFactory.material(board, 0.85, true)
 	var blocks := rng.randi_range(4, 7)
 	var ink: Color = Color(0.08, 0.08, 0.1) if board.get_luminance() > 0.4 else Color(0.97, 0.95, 0.9)
 	for i in blocks:
 		var gz := -w * 0.24 + (float(i) + 0.5) * (w * 0.48 / float(blocks))
+		if far:
+			rng.randf()
+			rng.randf()
+			continue
 		batch.add("vbw_sign_glyph", _glyph(), Transform3D(b * Basis.from_scale(Vector3(1.0, rng.randf_range(0.7, 1.0), rng.randf_range(0.5, 1.2))), pos + b * Vector3(front - 0.27, sign_y, gz)), ink)
 	# Mural on the upper wall, a few flat colour fields with a bar across them.
 	if storeys > 1 and rng.randf() < 0.65:
@@ -528,18 +478,18 @@ static func _shop(parent: Node3D, statics: StaticBody3D, batch: MultiMeshBatch, 
 			var c: Color = PAINT[rng.randi() % PAINT.size()]
 			var fw := mural_w / float(fields)
 			var mz := -mural_w * 0.5 + (float(i) + 0.5) * fw
-			Landmarks._box(pv, null, Vector3(0.1, STOREY_H * 0.72, fw - 0.15), Vector3(front - 0.07, foot + STOREY_H + STOREY_H * 0.5, mz), c, false).material_override = WeaponFX.unshaded(c)
+			Landmarks._box(pv, null, Vector3(0.1, STOREY_H * 0.72, fw - 0.15), Vector3(front - 0.07, foot + STOREY_H + STOREY_H * 0.5, mz), c, false).material_override = PropFactory.material(c, 0.85, true)
 		var stripe: Color = PAINT[rng.randi() % PAINT.size()]
-		Landmarks._box(pv, null, Vector3(0.12, 0.5, mural_w), Vector3(front - 0.09, foot + STOREY_H + STOREY_H * 0.72, 0.0), stripe, false).material_override = WeaponFX.unshaded(stripe)
+		Landmarks._box(pv, null, Vector3(0.12, 0.5, mural_w), Vector3(front - 0.09, foot + STOREY_H + STOREY_H * 0.72, 0.0), stripe, false).material_override = PropFactory.material(stripe, 0.85, true)
 	# A rooftop hoarding on a few units, and a vent box on the rest. Both hang off `top`, not
 	# off a bare storey height: the sand is not always at y 0, and these used to float when the
 	# ground under the shop was not exactly zero.
 	if rng.randf() < 0.3:
 		var hoard: Color = PAINT[rng.randi() % PAINT.size()]
-		Landmarks._box(pv, null, Vector3(0.2, 2.2, w * 0.6), Vector3(front + 1.2, top + 1.3, 0.0), hoard, false).material_override = WeaponFX.unshaded(hoard)
+		Landmarks._box(pv, null, Vector3(0.2, 2.2, w * 0.6), Vector3(front + 1.2, top + 1.3, 0.0), hoard, false).material_override = PropFactory.material(hoard, 0.85, true)
 		for side: float in [-1.0, 1.0]:
 			Landmarks._box(pv, null, Vector3(0.14, 1.4, 0.14), Vector3(front + 1.2, top + 0.4, side * w * 0.27), STEEL, false)
-	else:
+	elif not far:
 		Landmarks._box(pv, null, Vector3(1.6, 0.9, 1.4), Vector3(2.0, top + 0.8, rng.randf_range(-3.0, 3.0)), CONCRETE_GREY, false)
 
 
@@ -615,9 +565,9 @@ static func _art_wall(anchor: Vector2, parent: Node3D, statics: StaticBody3D, pl
 			var c: Color = PAINT[rng.randi() % PAINT.size()]
 			var fw := (wide - 0.4) / float(fields)
 			var fz := z - (WALL_PANEL - 0.4) * 0.5 + (float(f) + 0.5) * fw * cos(yaw)
-			_obox(parent, null, Vector3(0.09, h * rng.randf_range(0.5, 0.86), fw - 0.12), _at(anchor, plan, face + 0.04, fz, h * 0.48), rot, WeaponFX.unshaded(c), false)
+			_obox(parent, null, Vector3(0.09, h * rng.randf_range(0.5, 0.86), fw - 0.12), _at(anchor, plan, face + 0.04, fz, h * 0.48), rot, PropFactory.material(c, 0.85, true), false)
 		var stripe: Color = PAINT[rng.randi() % PAINT.size()]
-		_obox(parent, null, Vector3(0.11, 0.35, wide - 0.3), _at(anchor, plan, face + 0.05, z, h * 0.22), rot, WeaponFX.unshaded(stripe), false)
+		_obox(parent, null, Vector3(0.11, 0.35, wide - 0.3), _at(anchor, plan, face + 0.05, z, h * 0.22), rot, PropFactory.material(stripe, 0.85, true), false)
 	# The word, facing +X (the walk). A yawed pivot turns Landmarks._text(), which draws along
 	# its parent's +X and faces its parent's +Z, to look down the beach.
 	var mid := (WALL_Z_FROM + WALL_Z_TO) * 0.5

@@ -180,12 +180,41 @@ bool dmg_teeth(vec2 p, vec2 hs, float s) {
 	return ed < tooth;
 }
 
+// The hole's colours are display (sRGB) numbers, tuned on the Compatibility renderer, which lights
+// and writes them as they are. Forward+ lights in linear, and read as linear the room drew pale and
+// the night's smoulder (which grows with the room's brightness) a washed beige blob through AgX
+// (fwd-review-b, 2026-10-05). So the result is handed over in the renderer's own space: decoded on
+// Forward+, the part of an emission over 1 kept linear so the embers still bloom.
+vec3 dmg_srgb_to_linear(vec3 c) {
+	return mix(c / 12.92, pow((max(c, vec3(0.0)) + 0.055) / 1.055, vec3(2.4)), step(vec3(0.04045), c));
+}
+
+vec3 dmg_to_lit(vec3 c) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return c;
+#else
+	vec3 lo = min(c, vec3(1.0));
+	return dmg_srgb_to_linear(lo) + (c - lo);
+#endif
+}
+
+vec3 dmg_to_display(vec3 c) {
+#if CURRENT_RENDERER == RENDERER_COMPATIBILITY
+	return c;
+#else
+	c = clamp(c, vec3(0.0), vec3(1.0));
+	return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(vec3(0.0031308), c));
+#endif
+}
+
 // The room behind a hole, traced from the hole's face along `ray` (x along the wall, y up, z into
 // the building): first the broken edge through the wall's thickness, then a burnt-out room. The
 // colour comes back as `alb` (lit by the renderer, kept small) and `emit` (the day falling in
 // through the hole, and embers at night).
 void dmg_hole_room(vec4 hole, vec3 ray, int finish, vec3 wall_col, float px, float day, float sky_now,
 		out vec3 alb, out vec3 emit, out float rough) {
+	// The facade colour arrives in the renderer's space (a decoded uniform on Forward+).
+	wall_col = dmg_to_display(wall_col);
 	vec2 q = hole.xy;
 	float r = hole.z;
 	float s = hole.w;
@@ -227,6 +256,8 @@ void dmg_hole_room(vec4 hole, vec3 ray, int finish, vec3 wall_col, float px, flo
 		alb = core * 0.6;
 		emit = core * (0.10 + 0.45 * day) * sky_now * mix(1.0, 0.55, tt / thick);
 		rough = 0.95;
+		alb = dmg_to_lit(alb);
+		emit = dmg_to_lit(emit);
 		return;
 	}
 	// The room: floor a little under the hole's foot, ceiling over its head, 5 m deep.
@@ -289,4 +320,6 @@ void dmg_hole_room(vec4 hole, vec3 ray, int finish, vec3 wall_col, float px, flo
 	float smoulder = (1.0 - day) * (1.0 - smoothstep(floor_y, ceil_y, h.y) * 0.5) * (1.0 - 0.6 * depth01);
 	emit += vec3(1.0, 0.40, 0.12) * smoulder * (0.35 + 2.4 * dot(col, vec3(0.333))) * (0.85 + 0.15 * sin(TIME * 2.3 + s));
 	rough = 0.95;
+	alb = dmg_to_lit(alb);
+	emit = dmg_to_lit(emit);
 }

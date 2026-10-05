@@ -24,6 +24,8 @@ extends CanvasLayer
 ## Frames to hold each warm-up batch on screen. One is enough for the compile; two is insurance
 ## against a driver that defers.
 @export var warm_frames: int = 2
+## Shaders drawn together in one warm-up batch (each batch holds `warm_frames` frames).
+@export var shader_batch: int = 16
 
 signal finished
 
@@ -32,6 +34,18 @@ var _bar: ColorRect
 var _fill: ColorRect
 var _shade: ColorRect
 var _progress: float = 0.0
+## Only the shader files whose names contain one of these (empty: all). For the first-use probe
+## (tools/shader_warm/), which cannot fit every shader's pipelines in lavapipe's memory.
+static var only_shaders: PackedStringArray = []
+## WARM_LOG=1 in the environment: print what each warm-up step costs (tools/shader_warm/).
+var _warm_log := OS.get_environment("WARM_LOG") == "1"
+## Frames the screen has waited out and the time they took (LoadClock's report: on a software
+## renderer a frame of the city is seconds, on the Mac a few milliseconds).
+var frames_waited: int = 0
+## Milliseconds of work between two frames of the bar in the baking loops (see _due()).
+@export var bar_interval_ms: int = 350
+var _last_frame: int = 0
+var frame_usec: int = 0
 
 
 func _ready() -> void:
@@ -83,32 +97,40 @@ func _step(text: String, fraction: float) -> void:
 func run(city: Node3D) -> void:
 	await _frames(2)
 	_step("Compiling shaders", 0.05)
+	LoadClock.start("screen: shaders and effects")
 	await _warm_shaders()
+	LoadClock.stop("screen: shaders and effects")
 	# The people at the camps who sit, lie or slump are baked static figures (CampFigure), one
 	# per model and pose: a few tens of milliseconds each, done here rather than by the first
 	# downtown chunks.
 	var kinds: Array = CampFigure.kinds()
 	var t_camp := Time.get_ticks_usec()
+	LoadClock.start("screen: camp figures")
 	for i in kinds.size():
-		if i % 6 == 0:
+		if _due():
 			_step("Preparing people", 0.3 + 0.25 * float(i) / float(maxi(kinds.size(), 1)))
 			await _frames(1)
 		var k: Array = kinds[i]
 		CampFigure.mesh_for(CampFigure.seed_for(k[0], k[1], k[2]), k[1])
 	t_camp = Time.get_ticks_usec() - t_camp
+	LoadClock.stop("screen: camp figures")
 	# The beach's people (BeachFigure): every beach rig in every beach pose, and the cyclists'
 	# pedalling flipbooks, so the first beach chunk does not bake them.
 	var t_beach := Time.get_ticks_usec()
+	LoadClock.start("screen: beach figures")
 	var beach := BeachFigure.kinds()
 	for i in beach.size():
-		if i % 8 == 0:
+		if _due():
 			_step("Preparing the beach", 0.3 + 0.25 * float(i) / float(maxi(beach.size(), 1)))
 			await _frames(1)
 		BeachFigure.warm_kind(beach[i])
 	print("LOADING beach: %d figures and flipbooks %d ms" % [beach.size(), (Time.get_ticks_usec() - t_beach) / 1000])
+	LoadClock.stop("screen: beach figures")
 	_step("Building the city", 0.55)
 	await _frames(1)
+	LoadClock.start("screen: preload world")
 	_preload_world(city)
+	LoadClock.stop("screen: preload world")
 	await _frames(2)
 	# The far city for the whole basin (Skyline), so the first look round from a rooftop sees
 	# every block out to the horizon rather than watching the far half fill in.
@@ -117,8 +139,13 @@ func run(city: Node3D) -> void:
 	if city.has_method("finish_far_city"):
 		city.call("finish_far_city")
 	await _frames(1)
+	# The rehearsal (WarmRehearsal): the real cars, people and effects drawn once behind the shade,
+	# so their pipelines exist before play; and the decal atlas packed for good.
+	await WarmRehearsal.run(city, get_viewport().get_camera_3d(),
+			func(f: float, text: String) -> void: _step(text, 0.8 + 0.08 * f), _warm_log)
 	# The hills' shrubs and oaks, cut to their triangle budgets (tenths of a second the first
 	# time), so the first hill block after the spawn does not pay for it mid-flight.
+	LoadClock.start("screen: trees")
 	PropFactory.model_chaparral()
 	for v in PropFactory.HILL_OAKS.size():
 		PropFactory.model_hill_oak(v)
@@ -130,13 +157,16 @@ func run(city: Node3D) -> void:
 		PropFactory.model_tree(v)
 	for v in PropFactory.HILL_TREES.size():
 		PropFactory.model_hill_tree(v)
+	LoadClock.stop("screen: trees")
+	LoadClock.start("screen: rigs")
 	# Cutting a character's limbs apart takes tens of milliseconds the first time for each
 	# model, which is a hitch on the first rocket into a crowd; here it is part of the wait.
 	var models: Array = Pedestrian.MODELS
 	var t_rigs := 0
 	for i in models.size():
-		_step("Preparing people (%d/%d)" % [i + 1, models.size()], 0.9 + 0.1 * float(i) / float(maxi(models.size(), 1)))
-		await _frames(1)
+		if _due():
+			_step("Preparing people (%d/%d)" % [i + 1, models.size()], 0.9 + 0.1 * float(i) / float(maxi(models.size(), 1)))
+			await _frames(1)
 		var t0 := Time.get_ticks_usec()
 		Ragdoll.warm_limbs(models[i], self)
 		# The welded bodies, and the hats fitted to this rig's head (the police cap too for the
@@ -145,17 +175,35 @@ func run(city: Node3D) -> void:
 		t_rigs += Time.get_ticks_usec() - t0
 	# The people's share of the wait (the camp figures, then every rig's limbs, welded bodies and
 	# hats), for measuring a change of models: the rest of the loading screen does not depend on them.
+	# The dogs' meshes (DogMesh, built in code: every breed's three levels and fur shells).
+	var t_dogs := Time.get_ticks_usec()
+	DogMesh.warm()
+	print("LOADING dogs: %d ms" % ((Time.get_ticks_usec() - t_dogs) / 1000))
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
+	LoadClock.stop("screen: rigs")
 	_step("Ready", 1.0)
 	await _frames(2)
 	await _fade_out()
+	print("LOADING screen frames: %d waited, %d ms" % [frames_waited, frame_usec / 1000])
+	LoadClock.loaded(get_tree())
 	finished.emit()
 	queue_free()
 
 
 func _frames(n: int) -> void:
+	var t0 := Time.get_ticks_usec()
 	for i in n:
 		await get_tree().process_frame
+	frames_waited += n
+	frame_usec += Time.get_ticks_usec() - t0
+	_last_frame = Time.get_ticks_usec()
+
+
+## True once `bar_interval_ms` of work has gone by since the last frame: the loops that bake
+## people hand the bar a frame by the clock, not every few items (each frame draws the city behind
+## the screen, which a fixed count paid for 40 times over for a few seconds of work).
+func _due() -> bool:
+	return Time.get_ticks_usec() - _last_frame >= bar_interval_ms * 1000
 
 
 ## Draws one surface per shader in front of the camera for a couple of frames. Uniform VALUES do
@@ -185,8 +233,16 @@ func _warm_shaders() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		holder.add_child(mi)
 		i += 1
-		_step("Compiling shaders (%d/%d)" % [i, files.size()], 0.05 + 0.45 * float(i) / float(maxi(files.size(), 1)))
-		await _frames(warm_frames)
+		# A batch of shaders a draw: every quad of it is drawn in the same frames, so each shader
+		# still compiles here, but the frames waited out (a whole city frame each, behind the
+		# screen) are `warm_frames` a batch rather than a shader - 250 frames were 18 minutes on a
+		# software renderer and several seconds on the Mac. WARM_LOG times them one at a time.
+		if i % (1 if _warm_log else shader_batch) == 0 or i == files.size():
+			_step("Compiling shaders (%d/%d)" % [i, files.size()], 0.05 + 0.45 * float(i) / float(maxi(files.size(), 1)))
+			var t_shader := Time.get_ticks_usec()
+			await _frames(warm_frames)
+			if _warm_log:
+				print("WARM shader %s %d ms rss %d MB" % [path.get_file(), (Time.get_ticks_usec() - t_shader) / 1000, OS.get_static_memory_usage() / 1048576])
 	# The effect materials are StandardMaterial3D, not .gdshader files, so the loop above never
 	# drew them, and a particle system draws through a MultiMesh - its own pipeline variant. The
 	# first rocket used to compile all of it mid-blast. Drawn here once as a one-instance
@@ -204,18 +260,30 @@ func _warm_shaders() -> void:
 	effects.append_array(PortKit.warm())
 	# The street vendors' trucks, carts and umbrellas (StreetVendors), built in code.
 	effects.append_array(StreetVendors.warm())
+	effects.append_array(BoulevardSigns.warm())
+	FarmersMarketKit.warm()
+	effects.append(FarmersMarketKit.material())
 	# The billboards' faces and steel (Billboards), only ever drawn through the chunks' batches.
 	effects.append_array(Billboards.warm())
 	# The beach's towels, umbrellas, chairs, boards, the net and the tower (BeachLife).
 	effects.append_array(BeachLife.warm())
 	# The pier park's meshes (PierPark), built here rather than by the chunk that streams it in.
 	effects.append_array(PierPark.warm())
+	# The code-built Los Angeles trees and accents (LaTrees): built here, ~2 s of GDScript.
+	effects.append_array(LaTrees.warm())
+	# The utility poles' hardware (UtilityPoles), built in code.
+	effects.append_array(UtilityPoles.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
+	# The hillside houses' glass, pool water and site materials (HillHomeKit).
+	effects.append_array(HillHomeKit.warm())
 	# The boost's streaks of air (BoostTrail), so the first boost does not stall.
 	effects.append(BoostTrail.streak_material())
 	# What a blast leaves (BlastAftermath): the crater's maps, the slabs, the leaves.
 	effects.append_array(BlastAftermath.warm())
+	# The roadside pads' repeated pieces (RoadsideKit), built here so the first pad does not stall.
+	if Roadside.enabled:
+		effects.append_array(RoadsideKit.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
@@ -255,9 +323,18 @@ func _shader_files() -> PackedStringArray:
 	for f in dir.get_files():
 		# Exported builds see .remap; the editor sees the file itself.
 		var name := f.trim_suffix(".remap")
+		if not only_shaders.is_empty() and not _wanted(name):
+			continue
 		if name.ends_with(".gdshader"):
 			out.append("res://shaders/" + name)
 	return out
+
+
+func _wanted(file: String) -> bool:
+	for k in only_shaders:
+		if file.contains(k):
+			return true
+	return false
 
 
 ## Builds a much wider area than the streamer's normal window, so the opening minute of driving
