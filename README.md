@@ -17,3 +17,16 @@ night (lamp globals on, no DayNight). Not Forward+.
 | 09_after_district_aerial_noon.jpg | after |
 | 10_after_plaza_aerial_night.jpg | the plaza from the air at night |
 | 11_after_side_street_noon.jpg | a shop's side and blade sign from a side street |
+
+## Final set (after: deferred build jobs, side windows, stepped-back deep lots, court rows, the plaza crowd)
+
+| file | what |
+|---|---|
+| 12_final_broadway_gate_noon.jpg | up Broadway through the gate, EYE=2994,1.7,-1755,0,14 |
+| 13_final_broadway_gate_night.jpg | the same at night (lanterns, signs, shops, light pools) |
+| 14_final_plaza_hall_with_people_noon.jpg | the Hall of Spring Wind from the walk, people in the court |
+| 15_final_plaza_hall_night.jpg | the same at night |
+| 16_final_plaza_aerial_noon.jpg | the plaza from the air: hall, rows round the court, gates, pond, masts |
+| 17_final_district_aerial_noon.jpg | the district's south blocks from the air |
+| 18_final_side_street_noon.jpg | a side street: a shop's side windows and blade sign |
+| 19_final_side_street_night.jpg | the same at night |
