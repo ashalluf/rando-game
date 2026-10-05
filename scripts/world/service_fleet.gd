@@ -987,6 +987,10 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 					for i in 480:
 						await get_tree().physics_frame
 					_take_wreck(wreck)
+					# What is left of its fire and smoke (puffs from a long-retired emitter linger in
+					# a still's frozen clock): a towed wreck is cold.
+					for pnode in wreck.find_children("*", "CPUParticles3D", true, false) + wreck.find_children("*", "GPUParticles3D", true, false):
+						(pnode as Node3D).visible = false
 					wreck.global_transform = (gear as ServiceVehicles.TowBed).deck(0.0) * Transform3D(Basis(), Vector3(0.0, wreck.road_lift(), 0.0))
 					_tows.append({"car": car, "wreck": wreck, "state": "carry", "t": 0.0})
 					return _eye(kerb_pt - along_v * float(dir) * 9.5 + across * side * 1.0, 1.7, at + across * side * 1.5 - along_v * float(dir) * 1.0, 1.6)
