@@ -970,8 +970,9 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 					dmg.become_wreck()
 					await get_tree().physics_frame
 					dmg.extinguish()
-					# Long enough for the last flames to die and the steam to go.
-					for i in 150:
+					# Long enough for the last flames to die and the steam to go (the retired puffs
+					# live on for their lifetimes, seconds of game time).
+					for i in 480:
 						await get_tree().physics_frame
 					_take_wreck(wreck)
 					wreck.global_transform = (gear as ServiceVehicles.TowBed).deck(0.0) * Transform3D(Basis(), Vector3(0.0, wreck.road_lift(), 0.0))
