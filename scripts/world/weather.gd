@@ -683,6 +683,7 @@ func _process(delta: float) -> void:
 		# Raindrops ringing the puddles and the gutter run (road.gdshader).
 		RenderingServer.global_shader_parameter_set("rain_intensity", rain)
 	rain_level = rain
+	RainCrowd.level = rain
 	RenderingServer.global_shader_parameter_set("wave_scale", waves)
 	_push_surf(waves)
 	RenderingServer.global_shader_parameter_set("wind_factor", 1.0 + 3.0 * rain + (2.0 if state == State.STORM else 0.0) * blend + santa_ana_wind * santa_ana_weight)

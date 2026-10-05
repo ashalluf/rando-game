@@ -103,6 +103,8 @@ extends SceneTree
 ## TREE_AB=2 adds the parts: no instance bias, lower shadow-twin bias, old shadows, per group.
 ## DRIVE=burnout|drift|donut|scrape|sand drives a car badly in front of the camera for the driving
 ## effects (tools/glshot/drive_fx_stage.gd: DRIVE_DIST, DRIVE_SIDE, DRIVE_YAW, DRIVE_TIME, ...).
+## RAIN_STAGE=<level> settles the crowd as that rain leaves it (tools/rain_crowd/stage.gd:
+## RAIN_FOCUS=umbrella|hood|shelter, RAIN_REPORT=1; RAIN_CROWD=0 the A/B; --weather=storm too).
 ## MOTION_BLUR=1 leaves the camera's motion blur on (Forward+ only; off by default so a still
 ## is sharp). Traffic is allowed to build freely during the warm-up, so the streets look the way they do a
 ## minute into play rather than the first second of it.
@@ -497,6 +499,17 @@ func _initialize() -> void:
 		print("ERRAND %s eye %s" % [errand_env, er_eye])
 		_eye(player, fov)
 		for i in _env_int("ERRAND_FRAMES", 12):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# RAIN_STAGE=<level>: the crowd as the rain leaves it (tools/rain_crowd/stage.gd: umbrellas,
+	# hoods, doorways, shelters; RAIN_FOCUS frames one; RAIN_CROWD=0 is the A/B).
+	if OS.get_environment("RAIN_STAGE") != "" and current_scene:
+		var rc_eye: String = load("res://tools/rain_crowd/stage.gd").stage(self, float(OS.get_environment("RAIN_STAGE")), get_root().get_camera_3d())
+		if rc_eye != "":
+			OS.set_environment("EYE", rc_eye)
+			print("RAIN eye %s" % rc_eye)
+			_eye(player, fov)
+		for i in _env_int("RAIN_FRAMES", 6):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at

@@ -1398,6 +1398,8 @@ func _physics_process(delta: float) -> void:
 	if _lod_timer >= 0.5:
 		_lod_timer = 0.0
 		_update_lod()
+	if rain != null and rain.indoors(delta):
+		return
 	_lod_tick += 1
 	if _lod_stride > 1 and _lod_tick % _lod_stride != 0:
 		return
@@ -1410,6 +1412,8 @@ func _physics_process(delta: float) -> void:
 		_post_pose(delta)
 	if _life_ok:
 		_life_pose(delta)
+		if rain != null:
+			rain.pose(delta)
 	if not errand.is_empty():
 		StreetErrands.pose(self, delta)
 
@@ -1484,6 +1488,8 @@ func _walk(delta: float) -> void:
 			return
 		if panicking:
 			_go_to(_flee_point())
+		elif rain != null and _life_near and rain.on_walk_end():
+			pass
 		elif _way.randf() < cross_chance and plan_crossing(-1):
 			pass
 		elif _life_near and _life.randf() < life_chance and _try_life(false):
@@ -1501,6 +1507,8 @@ func _walk(delta: float) -> void:
 		to_target = goal - here
 		stops = _route.is_empty() and not panicking and (_cross == Cross.TO_KERB or _pause_next > 0.0 or _act != CrowdLife.Act.NONE)
 	var want := _run_pace if panicking else walk_speed
+	if rain != null:
+		want *= rain.pace(panicking)
 	if stops:
 		want = minf(want, sqrt(2.0 * stop_decel * maxf(to_target.length() - 0.2, 0.0)) + 0.15)
 	var v := _steer(to_target, want, delta, panicking)
@@ -2577,6 +2585,8 @@ var _hip_bone: int = -1
 var _leg_bones := PackedInt32Array()
 ## The errand under way (StreetErrands: its steps and where it is in them), {} for none.
 var errand: Dictionary = {}
+## The crowd in the rain (RainCrowd: umbrellas, hoods, hurrying, shelter), null for nobody.
+var rain: RainCrowd
 
 
 ## Rolls what this person carries and whether they jog or walk a dog (from the seed, so the same
@@ -2640,6 +2650,7 @@ func _setup_life() -> void:
 	if not _life_ok:
 		_jogger = false
 		return
+	rain = RainCrowd.make(self, _life.seed)
 	var node: Node3D = _head_skel
 	var unit := 1.0
 	while node != null and node != _visual:
