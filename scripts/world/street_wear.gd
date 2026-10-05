@@ -723,7 +723,11 @@ static func _props(ctx: Dictionary, edges: Array, district: int) -> void:
 			var xf: Transform3D = (data[inst[0]].xforms as Array)[inst[1]]
 			added = _cabinet(ctx, rng, pos, xf.basis.orthonormalized(), mean)
 		else:
+			var lamp_key := String(r.instances[0][0]) if kind == "lamp" else ""
 			var radius := func(y: float) -> float:
+				var kit := StreetLamps.shaft_radius(lamp_key, y)
+				if kit > 0.0:
+					return kit
 				return 0.098 - 0.0152 * y if kind == "lamp" else 0.168 - 0.05 * (y - 0.44) / 7.1
 			added = _pole(ctx, rng, pos, radius, mean * rng.randf_range(0.4, 1.6), kind == "lamp")
 		for index: int in added:

@@ -17,6 +17,7 @@ func _initialize() -> void:
 	var sl: GDScript = load("res://scripts/world/street_lamps.gd")
 	var reach := float(OS.get_environment("R")) if OS.get_environment("R") != "" else 500.0
 	var each := int(OS.get_environment("EACH")) if OS.get_environment("EACH") != "" else 2
+	var skip := int(OS.get_environment("SKIP")) if OS.get_environment("SKIP") != "" else 0
 	var spacing := 24.0
 	var names := ["cobra", "twin", "lantern", "post", "mast"]
 	var counts := {}
@@ -48,13 +49,24 @@ func _initialize() -> void:
 					var d := str(plan.district_at(p))
 					var key := "%s %s" % [d, names[ty]]
 					counts[key] = counts.get(key, 0) + 1
-					if shown.get(ty, 0) < each and t > 20.0 and t < length - 20.0:
+					if shown.get(ty, 0) < each + skip and t > 20.0 and t < length - 20.0:
 						shown[ty] = shown.get(ty, 0) + 1
+						if shown[ty] <= skip:
+							t += spacing
+							continue
 						var eye := p - dir * 14.0 + inward * 1.2
 						var look := (p - eye).normalized()
 						var yaw := rad_to_deg(atan2(-look.x, -look.y))
 						var g: float = plan.height_at(eye)
-						print("LAMP %s district %s at %.1f,%.1f facing %s  EYE=%.1f,%.1f,%.1f,%.0f,8" % [names[ty], d, p.x, p.y, -inward, eye.x, g + 1.7, eye.y, yaw])
+						# And from the far kerb, a little up the street, which clears the poles and
+						# trees on the lamp's own pavement.
+						var st: Array = sl.call("street_of", plan, p, -inward)
+						var w: float = plan.road_width(st[0], st[1])
+						var xe := p - inward * (w + 2.4) - dir * 9.0
+						var xl := (p - xe).normalized()
+						var xg: float = plan.height_at(xe)
+						print("LAMP %s district %s at %.1f,%.1f facing %s  EYE=%.1f,%.1f,%.1f,%.0f,8  XEYE=%.1f,%.1f,%.1f,%.0f,14" % [names[ty], d, p.x, p.y, -inward, eye.x, g + 1.7, eye.y, yaw,
+							xe.x, xg + 1.7, xe.y, rad_to_deg(atan2(-xl.x, -xl.y))])
 					t += spacing
 	var keys := counts.keys()
 	keys.sort()

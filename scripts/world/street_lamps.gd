@@ -28,6 +28,9 @@ const TYPES := [
 	{"node": "sl_post", "lights": [Vector2(0.0, 4.65)], "box": Vector3(0.3, 4.8, 0.3), "pool": 11.0, "range": 10.0},
 	{"node": "sl_mast", "lights": [Vector2(3.36, 9.12)], "box": Vector3(0.38, 9.45, 0.38), "pool": 19.0, "range": 17.0},
 ]
+## Each type's shaft for things wrapped round it (StreetWear's stickers): [y0, r0, y1, r1], the
+## lathe profile's radius (m) at two heights; linear between and beyond.
+const SHAFT := [[0.44, 0.165, 3.0, 0.142], [0.8, 0.16, 2.4, 0.15], [0.56, 0.11, 2.0, 0.1], [0.06, 0.122, 4.26, 0.085], [0.5, 0.185, 3.5, 0.155]]
 ## The model's height per type (top of the tallest part), for the checks.
 const HEIGHTS := [8.91, 5.37, 5.19, 5.07, 9.45]
 ## Cast-iron paints (sRGB): the ornamentals take one per street.
@@ -122,6 +125,16 @@ static func pick(plan: CityPlan, at: Vector2, facing: Vector2) -> int:
 			if wide:
 				return Type.MAST if led and h < 0.35 else Type.COBRA
 			return Type.POST if h < 0.65 else Type.COBRA
+
+
+## The radius of the shaft of the lamp in batch `key` (a place() key) at `y` over its foot, or -1
+## for a key that is not one of the kit's.
+static func shaft_radius(key: String, y: float) -> float:
+	for t in TYPES.size():
+		if key == "lamp_" + str(TYPES[t].node).trim_prefix("sl_"):
+			var sh: Array = SHAFT[t]
+			return lerpf(sh[1], sh[3], (y - float(sh[0])) / (float(sh[2]) - float(sh[0])))
+	return -1.0
 
 
 ## A car park's light pole: the tall arm types, the arm turned by the old hashed yaw.
