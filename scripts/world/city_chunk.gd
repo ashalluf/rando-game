@@ -2972,8 +2972,8 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 		_batch.add("bush_%d" % b, PropFactory.model_bush(b), Transform3D(basis, at), tint)
 
 
-## Blade grass over a lawn: PropFactory.grass_blade() tufts in the shared "grass" batch, which
-## is one draw call however many of them there are - a lawn is one draw whether it has a hundred
+## Blade grass over a lawn: PropFactory.grass_blade() tufts in the "grass_<cx>_<cz>" batches (one
+## per GRASS_CELL of true world), each one draw call however many tufts it holds - a lawn is one draw whether it has a hundred
 ## tufts on it or twenty thousand, which is what makes real grass affordable at all.
 ##
 ## `blockers` are rects the grass has to keep out of (the house footprints on a suburban block,

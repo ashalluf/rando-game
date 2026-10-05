@@ -7293,7 +7293,11 @@ The DIFF pairs (cars, people, particles hidden; 1280x720; `img_diff.py`):
    downtown: FULL -4 %, LOD -10 %, `_block_surface` -9 %. (Smaller than hoped: building the slab's
    mesh, not the relief, is most of that step.)
 
-Checks: `tests/perf_audit_checks.gd` (8, one line in smoke_test.gd).
+Checks: `tests/perf_audit_checks.gd` (8, one line in smoke_test.gd). The full headless check passes (987
+after the rebase on 1425723). Once, with two renders running beside it, two emergency checks failed
+("the other brings the stretcher", "the ambulance leaves": the stretcher medic stood still short of
+the ambulance's back); the same tree passed 930 / 930 on a quiet box, and so did every run since.
+Worth watching: it looks like a load-dependent flake in emergency_checks.gd, not this branch.
 
 ### The CPU side
 
