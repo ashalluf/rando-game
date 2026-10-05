@@ -1229,7 +1229,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   PATIENT (kneels at the body with a bag for `treat_seconds`), STRETCHER (fetches the cot from the
   back, pushes it to the body, loads it - the ragdoll is freed, a blanketed patient lies on the cot -
   and wheels it back). Uniforms through the character shader's garment split
-  (`uniform_material()`: turnout tan, paramedic blue / navy) on PoliceOfficer's rigs; kneel, hose
+  (`uniform_material()`: turnout khaki, paramedic navy) on PoliceOfficer's rigs, plus the TRIM
+  (2026-10-05, docs/HANDOFF.md 9bs): `EmergencyCrew.trim_mesh()` bakes, once per rig, where each
+  vertex sits on the body (CUSTOM2: metres above the soles, metres along its arm or leg from the
+  shoulder / hip - continuous over elbow and knee -, the limb code + the rig's height / 10, the
+  upper segment's length + the limb's in cm; CUSTOM3: facing forward, facing out, metres off the
+  midline, the trousers' waist), keeping the mesh's LODs (`_surface_lods()`, read back from the
+  RenderingServer) and handing the welded middle / far bodies over unbaked; `character.gdshader`
+  `uniform_kind` (1 turnout, 2 paramedic; 0 everyone else, who skip it) draws from it: turnout
+  bulk (the coat stands `turnout_bulk` cm off the body and covers bare forearms), the lime /
+  silver / lime triple trim round sleeves, chest, hem and shins - retroreflective at night,
+  `lamp_factor` x a cone ahead of the camera x facing (`trim_retro`, `trim_reach`) -, a darker yoke
+  and wristlets, knee patches, gloves; the paramedics' shoulder patch (original: a heartbeat trace,
+  never a real emblem), placket, buttons, badge, cargo pockets and duty belt; black boots for both.
+  The code is a `flat` varying: interpolated across a joint it passes through the codes between.
+  An unbaked mesh (the headless check) gets the plain recolour. `crowd_lineup.gd CREW=fire|medic
+  [NIGHT=1]` shows them in seconds. Kneel, hose
   and push are RoughSleeper-style aim tables solved per rig over the idle (`POSES`); a CharacterBody
   does not step, so a crew member blocked while moving steps up 0.34 m when there is room (kerbs).
   The helmet is **`FireHelmet`** (`scripts/npc/fire_helmet.gd`): a shell with a ridge, a duckbill
@@ -2854,17 +2869,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   **Models** are built in code (`BirdMesh`, `scripts/world/bird_mesh.gd`: lofted body along a
   curved spine, eyes, legs and toes, feather cards cut from painted feathers - secondaries,
   tertials, primaries fanned to the tip, alula, a covert sheet, the tail fan - at real size;
-  NEAR ~2.1k / MID ~450 / FAR ~100 triangles) with TWO poses per vertex: VERTEX in flight,
+  NEAR ~2.5k / MID ~450 / FAR ~100 triangles; the near loft is 28 x 22 with its normals welded
+  and averaged, `_smooth_normals()`, and the folded feathers and coverts take the body's flank
+  normal, `flank_normal()`, so the wing shades as part of the bird) with TWO poses per vertex: VERTEX in flight,
   CUSTOM0.xyz on the ground (wings folded onto the flanks by `_snap()`, primaries crossed flat
   over the rump, tail closed, legs standing), CUSTOM1 that normal and a weight. Code, not
   Blender: a glTF cannot carry the second pose. `shaders/bird.gdshader` blends them by
   INSTANCE_CUSTOM.x, flaps (shoulder + wrist, hand sweep on the upstroke), pecks and bobs the head,
   walks the legs, recolours pigeon morphs (COLOR.rgb, sRGB, black = the painted bird) and adds the
-  neck / crow sheen; linear on both renderers. Plumage is `tools/birds/make_bird_textures.py`
+  neck / crow sheen; a wing or tail card's BACK face is the underwing (`under_cov` /
+  `under_flight` / `under_keep` / `under_mix` per species in `BirdMesh.LOOKS`: grey on a pigeon,
+  white on a gull, the crow's own black); linear on both renderers. Plumage is `tools/birds/make_bird_textures.py`
   (original procedural art; its atlas layout and spine landmarks are a contract with
   `BirdMesh.SLOTS` / `S_*`, checked). ONE MultiMesh per species and LOD (12 nodes), the whole
   buffer written each frame, `custom_aabb` from the birds; FAR casts no shadow. Look with
-  `tools/glshot/bird_shot.gd` (the lineup, seconds; `LOD`, `YAW`, `MORPHS=1`, `CAM`/`LOOK`) and
+  `tools/glshot/bird_shot.gd` (the lineup, seconds; `LOD`, `YAW`, `MORPHS=1`, `CAM`/`LOOK`, `ONLY=<pose>` one bird close up) and
   `still_shot.gd BIRD=ground|flush|wire` (`BIRD_SPECIES`, `BIRD_DIST`, `BIRD_COUNT`, `BIRD_FLY`;
   staging calms the flock against the player, whom a free camera drags along). `BIRDS=0` in the
   environment removes them. Ambience's gull one-shots come from a real gull when one is in earshot

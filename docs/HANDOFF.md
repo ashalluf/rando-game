@@ -6916,3 +6916,79 @@ the lifeguard still up), and the
   next chunk's riders. Riders do not give way to people on the path.
 - The beach under the Esplanade's bluff and the boardwalk get no path or court (their own
   ground); the boardwalk's stretch and the piers' get no people.
+
+## 9bs. NPC polish: pigeons up close, turnout gear, paramedic uniforms, the bus windscreen, 2026-10-05 (agent branch `wt/npc-polish`; VISUAL_ROADMAP #61)
+
+The brief (lead, reviewing 9bl and 9bm): pigeons at 1-3 m read as pale low-poly facets and are
+pale from below; firefighters wear a flat tan; paramedics wear street clothes; confirm the bus's
+windscreen at noon and dusk. Each item has a before / after pair from the same camera (branch
+`shots/npc-polish`).
+
+- **Pigeons** (`BirdMesh`, `bird.gdshader`, `make_bird_textures.py`). The near body loft is 28 x 22
+  (was 24 x 18) and its normals are welded and averaged over the faces round each POSITION
+  (`_smooth_normals()`): the analytic ellipse normals were only approximate where the radii change
+  fast (breast, nape, cere), and each quad lit on its own. The folded feathers and the covert
+  sheet take the body's flank normal (`flank_normal()`, a little lifted toward the top) instead of
+  a fixed `(side, 0.4, 0)`, so the folded wing shades as part of the bird and no longer catches
+  the sky as a pale sheet. The body's scallop relief is softer (normal depth 0.4 on the body, 0.7
+  on feathers). The underwing: a wing or tail card's BACK face draws the species' underside
+  (`under_cov` coverts, `under_flight` flight feathers, `under_keep` how much of the upper
+  pattern's luminance shows, `under_mix`; in `BirdMesh.LOOKS`): a pigeon's mid-grey, a gull's
+  white with the dark tips, a sparrow's buff; the crow keeps its black. Pigeon belly srgb 0.44 ->
+  0.38, wing feather grey 0.56 -> 0.51 (atlas repainted; the white is the rump alone, where a
+  feral pigeon has it). Near pigeon 2,146 -> 2,518 triangles (budget 2,600; MID / FAR unchanged).
+- **Turnout gear and the paramedics' uniform** (`EmergencyCrew`, `character.gdshader`). The shader
+  needed to know where on the BODY a pixel is, which the crowd rigs do not carry (UV2 is metres
+  of surface per atlas rect, nothing positional). `EmergencyCrew.trim_mesh()` bakes it once per
+  rig from the bind pose (CUSTOM2 / CUSTOM3, see CLAUDE.md "Emergency services"), keeps the mesh's
+  LOD index lists by reading them back from the RenderingServer (`_surface_lods()`: a/d/f/h/j all
+  keep their 4-5 levels), costs ~35 ms a rig and is warmed on the loading screen
+  (`Pedestrian.warm_far_mesh(officer = true)`); the welded middle / far bodies are handed over
+  from the plain mesh (no stripes past 50 m: they are a few pixels there). `uniform_kind` 1:
+  khaki (TURNOUT 0.40 / 0.345 / 0.22), lime / silver / lime triple trim round both arm segments,
+  chest and back, the coat's hem and the shins, a darker yoke and wristlets, black knee patches,
+  leather gloves, the coat's sleeves over any bare forearm (half the rigs wear tees), bulk
+  (`turnout_bulk` 1.4 cm). The trim is retroreflective: at night it is emitted by `lamp_factor` x a
+  cone ahead of the camera x how squarely it faces it (`trim_retro` 1.8, `trim_reach` 45 m) -
+  the freeway kit's glint on a body. `uniform_kind` 2: navy shirt and trousers with most of the
+  rig's own pattern flattened (`cloth_shade_keep` 0.35: crowd_h's stripes read as street
+  clothes), a shoulder patch on each upper arm (gold border, blue field, a white heartbeat trace -
+  ours, not a real emblem), placket and buttons, a badge, cargo pockets with flaps on the thighs, a
+  duty belt with a buckle. Both services get black boots. The limb code is a `flat` varying:
+  interpolated, the knee between thigh (4) and shin (5) passed through every code between and drew
+  jagged lightning lines; the distance along a limb now runs on over the elbow and knee.
+- **The bus**: the 9bm fix holds. From the pavement at noon (`BIG=bus --hour=12`, both the stop's own
+  eye and a clear one 8 m on, `EYE=2392.06,1.7,814.99,72.86,0`) the windscreen shows the daylit
+  cabin, the driver and the first rows - not a black slab. At dusk and at night it was a dull
+  grey: the cabin's own lamps followed `night_factor` at `BUS_LAMP` 1.0. Now they follow
+  `lamp_factor` (dusk and storms) at 2.0 - a modest lift of the ceiling and seats behind the glass
+  (`bus_front_*_before_after`). It reads as a bus with its lights on, not yet as a bright
+  fluorescent box: the next step would be the cabin's own lit ceiling strips in the trace.
+- **Tools**: `crowd_lineup.gd CREW=fire|medic|fire,medic NIGHT=1`; `bird_shot.gd ONLY=<pose>` (one
+  bird at the origin for a close-up); `still_shot.gd SHOTS=@21.5` (an empty camera keeps the last
+  one: the same frame at another hour from one load).
+- **Frame cost** (opengl3): `tools/geo_count.gd --spawn=2800,180,0,-5,2` (Pershing Square, the
+  survey's own flocks), before and after: 2,984,199 tris / 3,092 draws both. A staged medic scene
+  (`EMERGENCY=medic --hour=12.5`): 4,987,861 / 2,500 -> 4,978,920 / 2,502 (flat: the trim mesh keeps
+  every LOD). The bus at its stop: 5,445,409 / 2,665 both. The hose scene is not comparable (the
+  wreck had burnt out before the before-shot and was still burning in the after-shot):
+  4.26 M -> 4.49 M. Per near pigeon +372 triangles (30 staged pigeons ~ +11 k). The trim bake is
+  ~35 ms per crew rig, once, on the loading screen.
+- **Checks**: bird_checks (welded body normals, an underwing for pigeon / gull / sparrow, grey
+  pigeon coverts), emergency_checks (the crews on a call wear the trim material, the two uniforms
+  are told apart, navy, the trim's night and flat-code code paths, the bake keeps the mesh when
+  there is no mesh data, the limb chains).
+- **Stills** (`shots/npc-polish`, opengl3): `pigeon_close_before_after`, `pigeon_underwing_before_after`,
+  `bird_lineup_after`; `turnout_before_after`, `turnout_night_before_after` (crowd_lineup.gd, the
+  same rigs and pose), `medic_front_before_after`, `medic_side_before_after`; the city:
+  `hose_day_before` / `hose_day_after`, `hose_night_after`, `medic_scene_before` / `_after`;
+  `bus_9bm_fix_noon`, `bus_9bm_fix_dusk_blocked` (the stop's own eye, a pedestrian in the way at
+  dusk), `bus_front_noon|dusk|night_before_after`.
+- **Not done / not verified**: everything was judged on opengl3 only - NEEDS MAC CHECK: the trim's
+  glint under AgX on Forward+ (it is emitted; `trim_retro` is the knob), the navy under the Mac's
+  exposure, the pigeons' plumage. The paramedics' shirts are still the rigs' own garments (a crew
+  neck tee on crowd_a / d reads as a uniform tee, not a collared shirt): a real collar needs
+  geometry (tools/crowd/garments.py). No radio on the belt (painted gear reads flat). The turnout
+  coat ends where the rig's top ends (at the waist), not at mid-thigh. Birds: the MID and FAR
+  meshes and the gull / crow / sparrow bodies are unchanged; the feral pigeon's underwing is
+  greyer than a wild rock dove's (the lead's call).

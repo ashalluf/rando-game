@@ -615,6 +615,15 @@ already mapped so milestone 2 is script-only.
   unless a new body took its slice, and the taxis are exactly the sedans that were taxis before.
   docs/HANDOFF.md 9bq; CLAUDE.md "More everyday bodies".
 
+- **2026-10-05 Responders look the part; pigeons hold up at a metre (VISUAL_ROADMAP #61).**
+  Firefighters wear turnout gear drawn by the character shader from a per-rig bake of where each
+  vertex sits on the body: darker khaki, the lime / silver / lime triple trim round sleeves, chest,
+  hem and shins that lights up toward the camera at night (retroreflective), a darker yoke, knee
+  patches, gloves, sleeves over bare forearms, bulk. Paramedics wear navy: a shoulder patch of our
+  own (no real emblem), placket, badge, cargo pockets, a duty belt; both services black boots. The
+  pigeon's near body is a denser loft with welded normals, its folded wing shades with the body,
+  and every wing and tail has an underside of its own (a pigeon's grey underwing, a gull's white).
+  docs/HANDOFF.md 9bs.
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
   station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street
