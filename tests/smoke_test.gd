@@ -1826,6 +1826,9 @@ func _test_city() -> void:
 	# Public schools (tests/schools_checks.gd): placement, pure plans, the closed street, one school
 	# mesh a chunk, partitioned far slabs, the school bus parked and at the bell.
 	await load("res://tests/schools_checks.gd").new().run(self, city)
+	# The map (tests/minimap_checks.gd): the basin's map data, GPS routes on open streets, the
+	# full-screen map, the waypoint, its beacon and its route.
+	await load("res://tests/minimap_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

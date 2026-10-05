@@ -443,6 +443,17 @@ already mapped so milestone 2 is script-only.
   follows from it, replacing the fixed `moon_offset_hours`; moonlight's energy scales with the
   phase, normalised so the default gibbous night is unchanged; the light dome is worked out from
   the map round the camera (zones on three rings, pulled toward downtown), not authored.
+- **2026-10-05 The map: one painter for the minimap and a full-screen map, a waypoint and a GPS
+  (VISUAL_ROADMAP #78, HANDOFF 9cj).** The minimap drew blocks, roads and pins, and had no
+  freeways, rail or hill shading; there was no full map. Now `MapPainter` draws both from
+  CityPlan data at any scale, with the mountains and sea painted by a canvas shader from the
+  horizon plane's own basin bake (not a second bake). The full map pauses the game, like GTA's.
+  Decisions: (1) the map's key is M and the pad's Back. Respawn's pad button moves from Back to
+  L3, since the brief asked for Back and respawn is rare. (2) The GPS uses the street grid only.
+  The freeways are drawn but not routed: the grid is the graph StreetRoute and
+  traffic already use, and routing onto a deck would need its ramps linked into it. (3) Shields carry the game's own route numbers (`FreewayKit.ROUTE_NUMBERS`) on an
+  original teal badge. (4) The waypoint beacon ignores fog and widens with distance so it reads
+  across the basin; it is world-space, not HUD, so the hidden-HUD stills still show it.
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real

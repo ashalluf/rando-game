@@ -20,6 +20,7 @@ const CONTROLS := [
 	["1  2  3 / wheel", "Switch weapon"],
 	["Hold Tab", "Weapon wheel (slows time)"],
 	["E", "Get in or out of a car"],
+	["M", "Map: click sets a waypoint"],
 	["R", "Respawn"],
 	["P", "Photo mode"],
 	["F1", "HUD: clean, full, hidden"],

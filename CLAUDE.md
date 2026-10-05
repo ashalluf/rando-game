@@ -552,6 +552,40 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"`.
   A midday city frame wants a p5/p50/p95 spread like 87/123/175; 78/103/137 is the washed-out
   look the grade was added to fix.
+- The map (2026-10-05, "a minimap and a full-screen map with a GPS, GTA style"): the minimap and
+  the full-screen map draw the same thing through `MapPainter` (`scripts/ui/map_painter.gd`,
+  static; a `MapPainter.View` says where: world-to-canvas transform, pixels per metre, the
+  canvas rotation): `draw_geo()` the ground plan (blocks by district and kind, rec-park and
+  school facilities from `Parks.plan_for()`, streets as rects with casings - avenues are roads
+  at least `avenue_width - 1` wide, so downtown's 18-22 m streets are streets - hill roads, the
+  Esplanade, MacArthur's lake, the river, runways, piers, freeways and their ramps, the Coral
+  Line solid in the open and dashed underground), `draw_marks()` what stays upright and screen
+  sized (freeway shields with `FreewayKit.route_number()`, rail stations, landmark glyphs by
+  `GLYPHS` with names, district names and street names on the full map), then the GPS route,
+  units (police and `emergency_unit` blips) and the player arrow. Widths are metres with a floor
+  in pixels (`View.w()`). The mountains and the sea under it are `shaders/map_relief.gdshader` on
+  a ColorRect, painted from the horizon plane's own bake textures (`relief_material()` reads
+  them off CityStreamer's `_ground_material`): hill shading, 100 m contours, sand, surf. The
+  blocks come from `MapData` (`scripts/ui/map_data.gd`, `MapData.of(plan)`): the basin's land
+  blocks and their two roads as records with a 500 m cell index, built a slice a frame by the
+  HUD from load (`warm()`, ~1 s in all), `ensure_rect()` for the minimap's own neighbourhood
+  first; it rolls nothing. **Trap: a PackedInt32Array in a Dictionary is a value**, appending
+  to `dict[k]` appends to a copy (the first index was empty). `WorldMap`
+  (`scripts/ui/world_map.gd`, a CanvasLayer at 4 that DebugHud adds, group `world_map`) is the
+  `map` action (M / pad Back; respawn's pad button moved to L3): it pauses the game, draws the
+  plan ONCE into a Node2D in world metres that pan and zoom only move (redrawn when the zoom
+  moves 35 % or the view leaves what was drawn), the marks as a screen overlay, and glass
+  panels (`glass_hud.gdshader` mode 1) for the title, the legend and the controls. Drag / wheel
+  / click (stick / triggers / A) pan, zoom and set or clear the waypoint. The waypoint lives
+  there map open or not: `GpsRoute` (`scripts/ui/gps_route.gd`: A* on a binary heap over the
+  intersection grid, edges `StreetRoute.drivable()` and `CityPlan.road_open()`, avenues at
+  `AVENUE_COST`, both ends snapped to the nearest open stretch and entering at either end of it;
+  time-sliced, `route_budget_us` a frame), recomputed past `off_route` m, cleared within
+  `arrive` m; and a beacon in the world (`shaders/waypoint_beacon.gdshader`: an additive,
+  fog-free beam and ground ring, widened with distance; a Node3D under the CanvasLayer placed
+  from true world coordinates each frame, so origin shifts never touch it). Stills:
+  `tools/minimap/map_shot.gd` (`SHOTS=mini;map:x,z,ppm;beacon`, `WAYPOINT=`); probe:
+  `tools/minimap/probe.gd`; checks: `tests/minimap_checks.gd`.
 - Weapon wheel (owner, 2026-09-24: "GTA style ... slows everything ... apple glass style"):
   `WeaponWheel` (`scripts/ui/weapon_wheel.gd`) is its own CanvasLayer (3) in the HUD scene, so it
   draws over the HUD and still works in HIDDEN (a nested layer ignores its parent's visibility).
@@ -603,6 +637,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `next_weapon`, `prev_weapon` (mouse wheel only), `weapon_1..3`, `weapon_wheel` (Tab / gamepad
   LB: a quick LB tap is still "previous weapon", see the weapon wheel note), `interact` (E / gamepad Y),
   `respawn`, `toggle_mouse`, `toggle_hud`, `photo_mode` (P / right stick click). Add new actions there. There is no sprint; boost replaced it. In a
+  `respawn`, `toggle_mouse`, `toggle_hud`, `map` (M / pad Back). Add new actions there. There is no sprint; boost replaced it. In a
   jet: boost = throttle up, alt_fire = throttle down, move axes = pitch and roll.
 - NPCs: `Pedestrian` (wanders a block's sidewalk ring, going round it by its corners -
   `_ring_route()` - and now and then across a crosswalk to the next block, see Street life;
