@@ -170,6 +170,7 @@ func fire_ray(from: Vector3, dir: Vector3) -> Dictionary:
 			# A hole in the paint, a crazed or shattered window, a broken lamp (CarDamage).
 			(hit.collider as Vehicle).take_hit(hit.get("shape", -1), bullet_damage, dir, hit.position, Vehicle.HIT_BULLET)
 		WeaponFX.impact(self, hit.position)
+		BuildingDamage.bullet(hit, dir) # a crazed pane, a pane falling out, a scar in the wall
 		_mark(hit.collider)
 	# A bird on the line drops (Birds; no crime, nobody saw a pigeon).
 	if Birds.hit_ray(from, end):
