@@ -132,7 +132,7 @@ static func _mast(ch: CityChunk, r: Ridges, m: Dictionary) -> void:
 	for g: Vector2 in m.guys:
 		var y := ch.plan.height_at(g)
 		var d := (p - g).normalized()
-		acc.box("concrete", Transform3D(Basis(Vector3.UP, atan2(d.x, d.y)).scaled(Vector3(2.4, 1.0, 1.4)), Vector3(g.x, y + 0.1, g.y)), Color.WHITE)
+		acc.box("concrete", Transform3D(Basis(Vector3.UP, atan2(d.x, d.y)) * Basis.from_scale(Vector3(2.4, 1.0, 1.4)), Vector3(g.x, y + 0.1, g.y)), Color.WHITE)
 		for k in (m.levels as Array).size():
 			var off := Vector3(d.x, 0.0, d.y) * (float(k) - 1.0) * 0.25
 			acc.cyl("steel", Vector3(g.x, y + 0.5, g.y) + off, Vector3(g.x, y + 0.5, g.y) + off + (Vector3(p.x, base + float(m.levels[k]), p.y) - Vector3(g.x, y, g.y)).normalized() * 1.6, 0.04, 0.04, 6, RidgeKit.STEEL_DARK)

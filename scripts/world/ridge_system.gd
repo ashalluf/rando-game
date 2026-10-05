@@ -283,10 +283,10 @@ func _build_solids() -> void:
 					acc.tri("solid", c + (tr[0] as Vector3) * float(s.r), c + (tr[1] as Vector3) * float(s.r), c + (tr[2] as Vector3) * float(s.r),
 						(tr[0] as Vector3) + (tr[1] as Vector3) + (tr[2] as Vector3), Color(0.92, 0.92, 0.9))
 			Ridges.Site.HUT:
-				acc.box("solid", Transform3D(Basis(Vector3.UP, float(s.yaw)).scaled(Vector3(float(s.r) * 2.0, float(s.h), float(s.r) * 1.3)), o + Vector3(0.0, float(s.h) * 0.5 + 0.15, 0.0)), RidgeKit.HUT)
+				acc.box("solid", Transform3D(Basis(Vector3.UP, float(s.yaw)) * Basis.from_scale(Vector3(float(s.r) * 2.0, float(s.h), float(s.r) * 1.3)), o + Vector3(0.0, float(s.h) * 0.5 + 0.15, 0.0)), RidgeKit.HUT)
 			Ridges.Site.LOOKOUT:
-				acc.box("solid", Transform3D(Basis(Vector3.UP, float(s.yaw)).scaled(Vector3(5.2, 2.0, 5.2)), o + Vector3(0.0, 14.1, 0.0)), Color(0.5, 0.46, 0.4))
-				acc.box("solid", Transform3D(Basis(Vector3.UP, float(s.yaw)).scaled(Vector3(6.2, 1.2, 6.2)), o + Vector3(0.0, 15.6, 0.0)), Color(0.36, 0.3, 0.26))
+				acc.box("solid", Transform3D(Basis(Vector3.UP, float(s.yaw)) * Basis.from_scale(Vector3(5.2, 2.0, 5.2)), o + Vector3(0.0, 14.1, 0.0)), Color(0.5, 0.46, 0.4))
+				acc.box("solid", Transform3D(Basis(Vector3.UP, float(s.yaw)) * Basis.from_scale(Vector3(6.2, 1.2, 6.2)), o + Vector3(0.0, 15.6, 0.0)), Color(0.36, 0.3, 0.26))
 		for k in (acc.tris() - before) * 3:
 			ids.append(float(r.far_id("site", i) + 1))
 	if not r.substation.is_empty():
