@@ -44,6 +44,8 @@ var _lead_on: bool = true
 
 
 static func make(ped: Pedestrian, seed_value: int) -> CrowdDog:
+	if not Dog.enabled:
+		return null
 	var dog := CrowdDog.new()
 	dog.owner_ped = ped
 	dog.roll(seed_value)

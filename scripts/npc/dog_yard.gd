@@ -61,7 +61,7 @@ static func patch_for(plan: CityPlan, lp: Dictionary, edged: bool) -> Dictionary
 
 ## From YardFill._dress_beach_lot: maybe a dog in this lot's yard.
 static func consider(ch: CityChunk, lp: Dictionary, edged: bool) -> void:
-	if not enabled or ch.level != CityChunk.Level.FULL or ch.capturing:
+	if not enabled or not Dog.enabled or ch.level != CityChunk.Level.FULL or ch.capturing:
 		return
 	var n: int = ch.get_meta("yard_dogs", 0)
 	if n >= MAX_PER_CHUNK:

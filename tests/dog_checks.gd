@@ -153,12 +153,17 @@ func _crowd_dog(city: Node3D, chunk: Node3D) -> void:
 	p.look_range = 100000.0
 	p.position = Vector3(x0, chunk.ground_y(x0, z) + 0.1, z)
 	chunk.add_child(p)
+	# The player beside them, or the walker is a far LOD that moves every few ticks.
+	var player: Node3D = _tree.get_first_node_in_group("player")
+	var saved: Vector3 = player.global_position
+	player.global_position = chunk.to_global(p.position + Vector3(0.0, 0.5, -6.0))
 	await _ticks(40)
 	var dog: CrowdDog = p._dog as CrowdDog
 	_check(dog != null and is_instance_valid(dog) and dog.is_inside_tree() and dog.get_parent() == p.get_parent(),
 		"dogs: a dog walker has a dog, a sibling of its owner under the chunk")
 	if dog == null or not is_instance_valid(dog):
 		p.queue_free()
+		player.global_position = saved
 		return
 	var d := Vector2(dog.position.x - p.position.x, dog.position.z - p.position.z).length()
 	_check(d < 1.6 and dog.is_in_group("dog"), "dogs: the dog walks at its owner's side (%.2f m)" % d)
@@ -197,6 +202,7 @@ func _crowd_dog(city: Node3D, chunk: Node3D) -> void:
 	var dog2: CrowdDog = q._dog as CrowdDog
 	if dog2 == null or not is_instance_valid(dog2):
 		_check(false, "dogs: the second walker has a dog")
+		player.global_position = saved
 		return
 	# A gunshot nearby: it barks with its tail tucked.
 	Police.innocent = true
@@ -215,6 +221,7 @@ func _crowd_dog(city: Node3D, chunk: Node3D) -> void:
 		_check(is_instance_valid(dog2) and dog2.position.distance_to(at) > 1.0, "dogs: a bolting dog runs")
 		if is_instance_valid(dog2):
 			dog2.queue_free()
+	player.global_position = saved
 	await _ticks(2)
 
 

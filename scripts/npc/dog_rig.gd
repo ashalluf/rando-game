@@ -260,22 +260,30 @@ func _pose(delta: float) -> void:
 	var bobw := _moving * (0.6 + 0.4 * _trot)
 	# The body: anchored between the hips and the chest when standing, at the chest when sitting.
 	var bob := (-cos(ph * TAU * 2.0) * h * lerpf(0.008, 0.016, _trot) - 0.012 * h * _gallop * cos(ph * TAU)) * bobw
-	var pitch := s_sit * deg_to_rad(36.0) - s_sniff * 0.08 + _gallop * 0.06 * sin(ph * TAU) * _moving
+	var pitch := s_sit * deg_to_rad(50.0) - s_sniff * 0.08 + _gallop * 0.06 * sin(ph * TAU) * _moving
 	var low := fear * 0.06 * h + s_sniff * 0.05 * h
 	var flex := (sin(ph * TAU) * 0.05 * (1.0 - _trot) + turn * 0.05) * _moving
 	var roll := sin(ph * TAU) * 0.03 * _moving * (1.0 - _gallop) - clampf(turn * v * 0.02, -0.12, 0.12)
-	var body := _ry(clampf(turn * 0.04, -0.2, 0.2)) * _rx(pitch) * _rz(roll)
+	# Sitting bends the spine: the pelvis takes the whole pitch, the chest a fifth of it, so the
+	# shoulders stay over the front paws.
+	var yaw_b := _ry(clampf(turn * 0.04, -0.2, 0.2))
+	var rp := yaw_b * _rx(pitch) * _rz(roll) * _ry(flex)
+	var rs := yaw_b * _rx(pitch * lerpf(1.0, 0.5, s_sit)) * _rz(roll)
+	var rc := yaw_b * _rx(pitch * lerpf(1.0, 0.16, s_sit)) * _rz(roll) * _ry(-flex)
+	# The chain from the pelvis, then shifted so the anchor (between the hips and the chest when
+	# standing, the chest when sitting) is where it should be.
 	var k := lerpf(0.5, 1.0, s_sit)
 	var anchor_rest := r[DogMesh.B_PELVIS].lerp(r[DogMesh.B_CHEST], k)
-	var anchor := anchor_rest + Vector3(0.0, bob - low + s_sit * 0.02 * h, s_sit * 0.03 * h)
-	var pel_pos := anchor - body * (anchor_rest - r[DogMesh.B_PELVIS])
-	var rp := body * _ry(flex)
-	var rs := body
-	var rc := body * _ry(-flex)
-	_g[DogMesh.B_PELVIS] = Transform3D(rp, pel_pos)
+	var anchor := anchor_rest + Vector3(0.0, bob - low - s_sit * 0.01 * h, s_sit * 0.02 * h)
+	var pel_pos := r[DogMesh.B_PELVIS]
 	var spine_pos := pel_pos + rp * (r[DogMesh.B_SPINE] - r[DogMesh.B_PELVIS])
-	_g[DogMesh.B_SPINE] = Transform3D(rs, spine_pos)
 	var chest_pos := spine_pos + rs * (r[DogMesh.B_CHEST] - r[DogMesh.B_SPINE])
+	var shift := anchor - pel_pos.lerp(chest_pos, k)
+	pel_pos += shift
+	spine_pos += shift
+	chest_pos += shift
+	_g[DogMesh.B_PELVIS] = Transform3D(rp, pel_pos)
+	_g[DogMesh.B_SPINE] = Transform3D(rs, spine_pos)
 	_g[DogMesh.B_CHEST] = Transform3D(rc, chest_pos)
 	# The head: looks at its target, the neck taking part of the turn.
 	var neck_pos := chest_pos + rc * (r[DogMesh.B_NECK] - r[DogMesh.B_CHEST])
@@ -367,11 +375,14 @@ func _paw_target(li: int, stride: float) -> Array:
 		var z := 0.0
 		var y := 0.0
 		var f := 0.0
+		# In stance the paw stays put while the body passes over it: it sweeps back by the distance
+		# the body covers in that share of the stride.
+		var sweep := stride * duty
 		if phi < duty:
-			z = -stride * 0.5 + stride * (phi / duty)
+			z = -sweep * 0.5 + sweep * (phi / duty)
 		else:
 			var u := (phi - duty) / (1.0 - duty)
-			z = stride * 0.5 - stride * smoothstep(0.0, 1.0, u)
+			z = sweep * 0.5 - sweep * smoothstep(0.0, 1.0, u)
 			y = sin(u * PI) * h * (0.09 + 0.04 * float(g))
 			f = sin(minf(u * 1.4, 1.0) * PI) * (1.25 if li < 2 else 0.6)
 		out += Vector3(0.0, y, z) * w

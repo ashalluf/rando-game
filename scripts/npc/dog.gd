@@ -10,6 +10,10 @@ extends Node3D
 ## Sounds: Sfx `bark_big` (a big dog close up) or `bark_small` (a small dog's yap) by size,
 ## pitched by size and per dog; `dog_yelp`. CC0 recordings, docs/ASSETS.md.
 
+## Off: no dogs at all, on leads or in yards (DOGS=0 in the environment: the A/B for stills and
+## tools/geo_count.gd). The walkers still roll; they just walk alone.
+static var enabled: bool = OS.get_environment("DOGS") != "0"
+
 ## Withers height under which a dog yaps instead of barking.
 const SMALL_DOG := 0.36
 
