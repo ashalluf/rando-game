@@ -129,6 +129,9 @@ static func _list() -> Array[Dictionary]:
 	if LandmarkMacArthurPark.enabled:
 		list.append(LandmarkMacArthurPark.entry())
 	# --- end of Westlake ------------------------------------------------------------------------
+	# The valley's golf course (GolfCourse): an area like MacArthur Park's, nine holes and a range.
+	if GolfCourse.enabled:
+		list.append(GolfCourse.entry())
 	return list
 
 
@@ -188,6 +191,8 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 	match site_id:
 		"macarthur_park":
 			return LandmarkMacArthurPark.site_steps(chunk)
+		GolfCourse.ID:
+			return GolfBuild.site_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 

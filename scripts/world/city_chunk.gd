@@ -442,7 +442,10 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 		MacroMap.Zone.CITY:
 			# A replica block or a landmark's site does not build the seeded block, so the far
 			# city must not record one there either.
-			if replica_role == 0 and not block.has("site"):
+			if String(block.get("site", "")) == GolfCourse.ID:
+				# The golf course's capture: its ground's colour and its buildings (GolfBuild).
+				_steps.append_array(GolfBuild.capture_steps(self))
+			elif replica_role == 0 and not block.has("site"):
 				if plan.river_block(ix, iz):
 					_steps.append(RiverBuild.capture.bind(self))
 				else:
