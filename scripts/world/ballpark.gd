@@ -202,8 +202,7 @@ static func shell_marks(area: Rect2) -> Array:
 	var out: Array = []
 	if not enabled():
 		return out
-	var probe := area.grow(SITE_U + 40.0)
-	if not probe.has_point(anchor()):
+	if not area.grow(40.0).intersects(bounds()):
 		return out
 	var v := SITE_V0 + 30.0
 	while v < SITE_V1:
@@ -218,12 +217,20 @@ static func shell_marks(area: Rect2) -> Array:
 	return out
 
 
+## The site's world XZ bounding rect (its outline's corners).
+static func bounds() -> Rect2:
+	var r := Rect2(world(-SITE_U, SITE_V0), Vector2.ZERO)
+	for c: Vector2 in [Vector2(SITE_U, SITE_V0), Vector2(SITE_U, SITE_V1), Vector2(-SITE_U, SITE_V1)]:
+		r = r.expand(world(c.x, c.y))
+	return r
+
+
 # --- The roads -----------------------------------------------------------------------------
 
 ## The north drive (to the valley floor) and Stadium Way (down the south face to Hill St), world
 ## XZ polylines. Their heights are worked out in add_roads() from the site's level at the start
 ## and the ground at the end, grade-limited.
-const NORTH_DRIVE := [Vector2(-60.0, 300.0), Vector2(-60.0, 345.0)]
+const NORTH_DRIVE := [Vector2(-60.0, 290.0), Vector2(-60.0, 360.0)]
 const NORTH_END := Vector2(1955.0, -3345.0)
 ## Stadium Way, from the upper terrace east of home to Hill St (DowntownReal: x 2864.4).
 const STADIUM_WAY := [
@@ -295,15 +302,24 @@ static func _add_road(hr: HillRoads, macro: MacroMap, road_name: String, pts: Pa
 			acc += ground[k]
 			w += 1.0
 		hs[i] = acc / w
-	hs[0] = level(local(pts[0]))
+	# On the site (and a road's width past its edge) the road is the site's ground.
+	var pinned := PackedByteArray()
+	pinned.resize(n)
+	for i in n:
+		var q := local(pts[i])
+		if site_sd(q) < ROAD_WIDTH:
+			hs[i] = level(q)
+			pinned[i] = 1
 	hs[n - 1] = ground[n - 1]
 	for _pass in 6:
 		for i in range(1, n):
-			var g := ROAD_GRADE * pts[i].distance_to(pts[i - 1])
-			hs[i] = clampf(hs[i], hs[i - 1] - g, hs[i - 1])
+			if pinned[i] == 0:
+				var g := ROAD_GRADE * pts[i].distance_to(pts[i - 1])
+				hs[i] = clampf(hs[i], hs[i - 1] - g, hs[i - 1])
 		for i in range(n - 2, -1, -1):
-			var g := ROAD_GRADE * pts[i].distance_to(pts[i + 1])
-			hs[i] = clampf(hs[i], hs[i + 1], hs[i + 1] + g)
+			if pinned[i] == 0:
+				var g := ROAD_GRADE * pts[i].distance_to(pts[i + 1])
+				hs[i] = clampf(hs[i], hs[i + 1], hs[i + 1] + g)
 	hr.roads.append({"name": road_name, "points": pts, "heights": hs, "width": ROAD_WIDTH,
 		"mansions": false, "planned_points": pts, "ballpark": true})
 

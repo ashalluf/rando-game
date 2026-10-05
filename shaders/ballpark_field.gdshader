@@ -10,7 +10,7 @@ render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/ballpark_common.gdshaderinc"
 
-uniform float flood_energy = 3.0;
+uniform float flood_energy = 0.42;
 uniform float base = 27.432;
 uniform float rubber = 18.44;
 uniform float mound_r = 2.74;

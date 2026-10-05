@@ -69,7 +69,8 @@ func _ground(macro: MacroMap) -> void:
 		u += 30.0
 	_t._check(samples > 300 and hills == samples and off < 0.05,
 		"the site (%d samples) is all hill ground, cut to its levels (worst %.2f m off)" % [samples, off])
-	# The banks: no cliff steeper than the cut slope plus the shoulder's roll, all the way round.
+	# The banks: no steeper than the cut slope (plus the shoulder's roll and the terrace's own
+	# fall along the edge) anywhere the hills themselves are not, all the way round.
 	var worst := 0.0
 	for i in 720:
 		var a := TAU * i / 720.0
@@ -78,13 +79,18 @@ func _ground(macro: MacroMap) -> void:
 		var q := Vector2(0.0, 35.0)
 		while Ballpark.site_sd(q + dir * r) < 0.0:
 			r += 4.0
-		var prev := macro.height_at(Ballpark.world(q.x + dir.x * r, q.y + dir.y * r))
+		var p0 := Ballpark.world(q.x + dir.x * r, q.y + dir.y * r)
+		var prev := macro.height_at(p0)
+		var prev_n := macro.raw_height_at(p0) + macro.relief_at(p0)
 		for k in 30:
 			var rr := r + 2.0 + k * 2.0
-			var h := macro.height_at(Ballpark.world(q.x + dir.x * rr, q.y + dir.y * rr))
-			worst = maxf(worst, absf(h - prev) / 2.0)
+			var pk := Ballpark.world(q.x + dir.x * rr, q.y + dir.y * rr)
+			var h := macro.height_at(pk)
+			var hn := macro.raw_height_at(pk) + macro.relief_at(pk)
+			worst = maxf(worst, absf(h - prev) / 2.0 - absf(hn - prev_n) / 2.0)
 			prev = h
-	_t._check(worst < 1.9, "the banks round the site are graded (steepest %.2f m per metre)" % worst)
+			prev_n = hn
+	_t._check(worst < 1.5, "the banks round the site are graded (at most %.2f m per metre steeper than the hills)" % worst)
 	var p := Ballpark.world(0.0, 60.0)
 	_t._check(Ballpark.covers(p) and not Ballpark.covers(Ballpark.world(0.0, Ballpark.SITE_V1 + 40.0))
 		and Ballpark.shell_marks(Rect2(p - Vector2(50.0, 50.0), Vector2(100.0, 100.0))).size() > 5,

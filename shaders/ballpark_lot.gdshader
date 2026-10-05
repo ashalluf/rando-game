@@ -10,8 +10,8 @@ render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/ballpark_common.gdshaderinc"
 
-uniform float pool_energy = 1.6;
-uniform float spill_energy = 0.9;
+uniform float pool_energy = 0.22;
+uniform float spill_energy = 0.14;
 // Ballpark's copies.
 uniform float lot_v0 = -260.0;
 uniform float lot_u0 = -290.0;
@@ -124,7 +124,7 @@ void fragment() {
 	float pr = length(q);
 	if (kind == 1) {
 		// Plaza: pale pavers in a 1.5 m grid.
-		col = vec3(0.42, 0.40, 0.37) * (0.9 + 0.15 * n);
+		col = vec3(0.21, 0.205, 0.19) * (0.9 + 0.15 * n);
 		col *= 1.0 - 0.18 * max(line(fract(q.x / 1.5 + 0.5) - 0.5, 0.03), line(fract(q.y / 1.5 + 0.5) - 0.5, 0.03));
 		rough = 0.8;
 		emit += col * bp_flood() * spill_energy * smoothstep(plaza_r(q) + 10.0, 60.0, pr);
@@ -186,7 +186,7 @@ void fragment() {
 		float pm = floor((q.y - lot_v0 - stall_d) / (module * 2.0) + 0.5);
 		vec2 pole = vec2(lot_u0 + (floor((q.x - lot_u0 - block_u * 0.5) / block_u + 0.5) + 0.5) * block_u, lot_v0 + pm * module * 2.0 + stall_d);
 		float d = length(q - pole);
-		emit += vec3(1.0, 0.88, 0.7) * pool_energy * lamp_factor * exp(-d * d / 160.0) * (0.12 + col.g * 2.0);
+		emit += vec3(1.0, 0.88, 0.7) * pool_energy * lamp_factor * exp(-d * d / 110.0) * (0.06 + col.g * 1.6);
 	}
 	if (kind == 2) {
 		// The ring drive: a dashed centre line.

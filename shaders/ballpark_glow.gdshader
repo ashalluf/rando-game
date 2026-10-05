@@ -10,7 +10,7 @@ render_mode unshaded, blend_add, cull_front, depth_draw_never, depth_test_disabl
 
 uniform sampler2D depth_texture : hint_depth_texture, filter_nearest, repeat_disable;
 uniform vec3 radii = vec3(170.0, 90.0, 170.0);
-uniform float density = 0.0035;
+uniform float density = 0.0006;
 uniform float scale_height = 26.0;
 uniform vec3 glow_color = vec3(1.0, 0.93, 0.8);
 
@@ -61,6 +61,7 @@ void fragment() {
 		float h = max(p.y - (centre.y - radii.y * 0.15), 0.0);
 		vec3 rel = (p - centre) / radii;
 		float r = clamp(1.0 - dot(rel.xz, rel.xz), 0.0, 1.0);
+		r *= r;
 		acc += exp(-h / scale_height) * r;
 	}
 	float glow = acc * 0.25 * (t1 - t0) * density * level;

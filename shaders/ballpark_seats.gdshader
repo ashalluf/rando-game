@@ -14,7 +14,7 @@ render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/ballpark_common.gdshaderinc"
 
-uniform float flood_energy = 2.0;
+uniform float flood_energy = 0.26;
 uniform float seat_pitch = 0.5;
 uniform float aisle_every = 14.0;
 uniform float aisle_width = 1.3;
@@ -28,7 +28,7 @@ void vertex() {
 	fill = COLOR.a;
 }
 
-vec3 shirt(float h) {
+vec3 shirt_raw(float h) {
 	// Mostly a home crowd in blue and white, the rest anything.
 	if (h < 0.30) return vec3(0.04, 0.12, 0.42);
 	if (h < 0.48) return vec3(0.78, 0.8, 0.82);
@@ -40,6 +40,12 @@ vec3 shirt(float h) {
 	if (h < 0.88) return vec3(0.06, 0.25, 0.12);
 	if (h < 0.93) return vec3(0.45, 0.32, 0.2);
 	return vec3(0.6, 0.2, 0.4);
+}
+
+// Shirts, a little muted: a crowd seen across a ballpark is a mosaic, not confetti.
+vec3 shirt(float h) {
+	vec3 c = shirt_raw(h);
+	return mix(c, vec3(dot(c, vec3(0.3, 0.55, 0.15))), 0.3);
 }
 
 vec3 skin(float h) {

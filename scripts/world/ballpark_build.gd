@@ -28,6 +28,8 @@ const C_INNER := Color(0.6, 0.59, 0.56)
 const C_CREAM := Color(0.9, 0.88, 0.82)
 const C_STEEL := Color(0.2, 0.22, 0.25)
 const C_ROOF := Color(0.86, 0.87, 0.86)
+## The roofs' undersides: white-painted steel.
+const C_SOFFIT := Color(0.78, 0.79, 0.79)
 const C_NAVY := Color(0.1, 0.17, 0.3)
 const C_PAD := Color(0.08, 0.2, 0.35)
 const C_YELLOW := Color(0.96, 0.82, 0.12)
@@ -53,7 +55,7 @@ const BANK_ROWS := 3
 const LENS := 0.95
 ## Parked 3D cars: within this reach of home (the painted ones carry the rest), tiles of this size
 ## each drawn to CAR_DRAW.
-const CAR_REACH := 235.0
+const CAR_REACH := 165.0
 const CAR_TILE := 80.0
 const CAR_DRAW := 120.0
 
@@ -565,7 +567,7 @@ static func _pavilion(st: Acc, seats: Acc, glare: Acc, coll: PackedVector3Array,
 		var f1 := _w(_at(s1, r_front), yf + ridge1)
 		st.quad(b0, b1, f1, f0, Vector3.UP, Vector2(0.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 12.0), Vector2(0.0, 12.0), _kc(C_ROOF, K_ROOF))
 		var dn := Vector3.DOWN * 0.35
-		st.quad(b0 + dn, b1 + dn, f1 + dn, f0 + dn, Vector3.DOWN, Vector2(0.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 12.0), Vector2(0.0, 12.0), _kc(C_STEEL, K_STEEL))
+		st.quad(b0 + dn, b1 + dn, f1 + dn, f0 + dn, Vector3.DOWN, Vector2(0.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 12.0), Vector2(0.0, 12.0), _kc(C_SOFFIT, K_STEEL))
 		st.quad(f0, f1, f1 + dn, f0 + dn, -outw, Vector2(0.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 0.35), Vector2(0.0, 0.35), _kc(C_CREAM, K_PAINT))
 		if j % 2 == 0:
 			var yr := y0 + (r_front / dep) * rise
@@ -620,7 +622,7 @@ static func _scoreboard(st: Acc, at: Vector2, dir: Vector2, y0: float, w: float,
 		# The frame's face, the screen inset behind it, the back, the rim.
 		st.quad(p.call(a, 0.0), p.call(b, 0.0), p.call(bi, 0.0), p.call(ai, 0.0), face, Vector2.ZERO, Vector2.ONE, Vector2.ONE, Vector2.ZERO, frame)
 		var su := func(q: Vector2) -> Vector2:
-			return Vector2((q.x + w * 0.45) / (w * 0.9), (q.y - h * 0.05) / (h * 0.9))
+			return Vector2(1.0 - (q.x + w * 0.45) / (w * 0.9), (q.y - h * 0.05) / (h * 0.9))
 		st.tri(p.call(c, 0.15), p.call(ai, 0.15), p.call(bi, 0.15), face, su.call(c), su.call(ai), su.call(bi), screen)
 		st.tri(p.call(c, 1.2), p.call(a, 1.2), p.call(b, 1.2), -face, Vector2.ZERO, Vector2.ONE, Vector2.ONE, frame)
 		var m := (a + b) * 0.5 - c
@@ -718,7 +720,7 @@ static func _roof_banks(st: Acc, glare: Acc, near: bool) -> void:
 		var f1 := _w(_at(s1, r_front), y_top + 1.8 + ridge1)
 		st.quad(b0, b1, f1, f0, Vector3.UP, Vector2(0.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 12.0), Vector2(0.0, 12.0), _kc(C_ROOF, K_ROOF))
 		var dn := Vector3.DOWN * 0.35
-		st.quad(b0 + dn, b1 + dn, f1 + dn, f0 + dn, Vector3.DOWN, Vector2(0.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 12.0), Vector2(0.0, 12.0), _kc(C_STEEL, K_STEEL))
+		st.quad(b0 + dn, b1 + dn, f1 + dn, f0 + dn, Vector3.DOWN, Vector2(0.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 12.0), Vector2(0.0, 12.0), _kc(C_SOFFIT, K_STEEL))
 		st.quad(f0, f1, f1 + dn, f0 + dn, -outw, Vector2(0.0, 0.0), Vector2(3.0, 0.0), Vector2(3.0, 0.35), Vector2(0.0, 0.35), _kc(C_CREAM, K_PAINT))
 		st.quad(b0, b1, _w(_at(s1, d_back + 0.5), y_top), _w(_at(s0, d_back + 0.5), y_top), outw, Vector2.ZERO, Vector2.ONE, Vector2.ONE, Vector2.ZERO, _kc(C_CONCRETE, K_FACADE))
 	# The light banks along the roof's back: six round the bowl.

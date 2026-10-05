@@ -7040,3 +7040,86 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+
+## 9b?. The ballpark in the ravine north of downtown, 2026-10-05 (agent branch `wt/stadium`; VISUAL_ROADMAP #59)
+
+Number is provisional (the lead renumbers on merge).
+
+**The brief** (lead): a baseball stadium in a ravine north of downtown - the FORM of LA's famous
+hillside ballpark in its real relation to downtown, every name invented (no team, sponsor or
+logo): the tiered bowl wrapping the infield, the zig-zag roofed outfield pavilions, the hexagonal
+scoreboards, light standards on the roof lines (a night game glowing from the hills is the icon),
+the field, the seats coloured by tier, a crowd, the terraced car park with light poles, access
+roads and palms; a far copy for downtown's towers and the hills. CLAUDE.md's "The ballpark in the
+ravine" note is the reference; this is the story.
+
+**Where.** Home plate's real point (34.07328, -118.24065) through `DowntownReal.game_xz()` is
+(2008, -2778): 2.9 km grid-north of Pershing Square at 1:1 (checked against the real distance),
+north of the civic centre and the 101, on the embayed front range (`MacroMap.embay_*`, the low
+hills above the 110 / 101 junction, 100-240 m high there) between downtown's north edge and the
+valley plateau (~133 m). The real field faces a compass 31 degrees (home to centre field); after
+the grid's turn that is game north, 6.4 degrees west (`Ballpark.FWD`). Nothing else stood there:
+no hill road, estate or freeway within 700 m (the 110's north end is at z -1616).
+
+**The ravine is cut, at fixed levels.** `Ballpark.carve()` is folded into `MacroMap.height_at()`
+(after the relief, before the hill roads' carve), so the hill chunks' terrain, the far ground's
+bake, Skyline's far hills and every height query see it with no code of their own. The site is a
+rounded rectangle in the park's frame (u -290..290, v -260..330, about 580 x 590 m): the lower
+pad at PAD_Y 142 m (field, plaza, outfield lots) and the upper terrace 22 m higher behind home
+and down the lines (the loge level, where three bridges cross into the stands), joined by a planted
+slope 33 m wide; outside, 1:1 cut and 1:1.5 fill banks out to 170 m. Fixed levels, not read off the
+seed's terrain, so the stadium, its far copy and the checks agree on every seed. On the default
+seed the deepest cut is 124 m (the hills either side are what make it a ravine), the deepest fill
+54 m. The hills' own scatter, planting, shells and Skyline's far oaks keep off the site
+(`Ballpark.covers()`, `shell_marks()`: one-line hooks in `CityChunk._near_pad()`,
+`_shell_marks()` and `Skyline._on_hill_road()`).
+
+**Roads.** Two, appended to `macro.hill_roads.roads` after everything HillRoads built (no roll
+moves) and re-indexed, so the hill chunks draw their asphalt strips and carve their beds:
+Sunridge Dr north from the pad to the valley floor (280 m, flat), and Stadium Way from the upper
+terrace east of home, switchbacking down the south face to Hill St at downtown's north edge (1.93 km,
+10.5 % at most). The profile follows the ground smoothed along the road and is held to the grade by
+passes from both ends, never climbing on the way down: the first version (a straight fall) put a
+126 m cut through the peak at x 2300; rerouted east of it and ground-following, the worst is a 38 m
+fill. `tools/stadium/probe.gd ROADS=1` prints bed against ground every 60 m.
+
+**The stadium** (`BallparkBuild`, world space, cached per level; the near set is built on the
+loading screen alongside the far copy, ~350 ms, so the chunk that streams it in does not stall).
+The bowl is four tiers (`Ballpark.TIERS`): field level (28 rows, to the foul poles), loge (20),
+reserve (22) and top deck (22), each a path of stations along the two foul lines' parallels joined
+by an arc round home (`path()`), each row offset `D` out from the lines, so the rows are true
+parallels wrapping the infield. Per tier: stepped rows (a riser and a tread per row - real
+geometry, 17k triangles in all), the parapet (navy at field level, cream fascias above), the
+soffit under an upper deck rising with the rake, the concourse behind the last row with its lit
+stands, and outside a storeyed wall to the ground at field level and, higher up, each tier's back
+as a band in the air (deck edge, parapet, the open concourse between columns) stepping out over
+the one below on columns; end walls are the tier's section, triangulated. The top deck carries a
+folded-plate roof with six light banks on masts; the pavilions fan round the outfield fence
+(17-43.5 degrees each side) under zig-zag folded plates on columns, two banks each, and the
+stretched-hexagon scoreboards stand on legs over them (left a video board, right a line score with
+digits drawn in the shader). The field is a polar grid out to the pavilions and the stands' wall;
+the outfield wall (padding with the yellow line), corner returns, foul poles with screens, dugouts,
+the backstop net, the batter's eye, three bridges from the upper terrace into the facade on piers.
+
+**The crowd is a shader** (`ballpark_seats`): from the field you see risers and the front of each
+tread, which is where a SEATED person of the row below is, so a riser draws the torso of whoever
+sits in the row below (or that seat's back), the tread's front their head, its back the seat or a
+lap; occupancy and shirt / skin by an integer hash per seat and row, aisles every 14 m, under a
+pixel the tier's colour and its crowd averaged by how full it is. The tiers' pastel bands (yellow,
+orange, turquoise, sky blue) read through it.
+
+**The lots** are one grid following the levels (`_lot`), and `ballpark_lot` lays it out: the plaza
+round the bowl, the ring drive, stall modules (double rows and an aisle, every fourth a planted
+median with palms), cross aisles, the planted slope and the site's planted edge, light pools under
+the pole grid at night - and the parked cars painted into the stalls `Ballpark.stall_car()` fills.
+Near home (`CAR_REACH`) the same stalls get ArenaGrounds' 3D code cars, in 80 m tiles drawn to
+120 m; the painted ones lie under them, so the hand-over cannot be seen. Palms
+(`Ballpark.palm_spots()`): along the planted slope, round the plaza, down the medians.
+
+**The night game is emitted.** Every surface the light banks see adds its albedo times a flood term
+off `lamp_factor` (`bp_flood()`): the field brightest, the seats and the inner concrete less; the
+lenses blaze; each lens has a glare sprite on `aircraft_lights.gdshader` (a field light, kind 4,
+aimed: nothing by day, visible across the basin); the haze over the bowl is `ballpark_glow`, the
+back faces of an ellipsoid integrating a haze that thins with height along the view ray, cut by the
+depth texture. Three OmniLights in `lamp_light` light the player and the cars on the field
+(desktop; DayNight and Quality drive them with the street lamps).

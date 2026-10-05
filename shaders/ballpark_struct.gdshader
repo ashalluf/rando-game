@@ -14,9 +14,9 @@ render_mode cull_back, diffuse_burley, specular_schlick_ggx;
 
 #include "res://shaders/ballpark_common.gdshaderinc"
 
-uniform float flood_energy = 2.2;
-uniform float screen_energy = 2.6;
-uniform float concourse_energy = 3.0;
+uniform float flood_energy = 0.26;
+uniform float screen_energy = 1.6;
+uniform float concourse_energy = 1.2;
 uniform float lens_energy = 14.0;
 uniform float bay = 8.4;
 uniform float storey = 6.2;
