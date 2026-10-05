@@ -91,6 +91,8 @@ func _ground(macro: MacroMap) -> void:
 			prev = h
 			prev_n = hn
 	_t._check(worst < 1.5, "the banks round the site are graded (at most %.2f m per metre steeper than the hills)" % worst)
+	_t._check(Ballpark.CARVE_BOX.encloses(Ballpark.bounds().grow(Ballpark.BANK_REACH * 1.11)),
+		"carve()'s quick box holds the whole cut and its banks")
 	var p := Ballpark.world(0.0, 60.0)
 	_t._check(Ballpark.covers(p) and not Ballpark.covers(Ballpark.world(0.0, Ballpark.SITE_V1 + 40.0))
 		and Ballpark.shell_marks(Rect2(p - Vector2(50.0, 50.0), Vector2(100.0, 100.0))).size() > 5,

@@ -56,6 +56,10 @@ const CUT_SLOPE := 1.0
 const FILL_SLOPE := 0.67
 const BANK_SHOULDER := 8.0
 const BANK_REACH := 170.0
+## The world XZ box carve() can change anything in: the site's bounds grown by BANK_REACH (worked
+## out from the frame and the outline: a local reach of BANK_REACH is up to 1.11 of it in world x
+## or z here; tests/ballpark_checks.gd holds it to bounds()).
+const CARVE_BOX := Rect2(1490.0, -3330.0, 1030.0, 1040.0)
 
 ## The field (metres, real): 90 ft bases, 60 ft 6 in to the rubber, the mound 18 ft across,
 ## the infield arc 95 ft from the rubber, 330 ft down the lines, 375 in the alleys, 395 to centre.
@@ -175,6 +179,9 @@ static func covers(p: Vector2, margin: float = 0.0) -> bool:
 ## the nearest edge, rolled in over BANK_SHOULDER and handed back to the hills by BANK_REACH.
 static func carve(p: Vector2, h: float) -> float:
 	if _enabled == 0:
+		return h
+	# Every height query in the game comes through here: a world-space box test first.
+	if p.x < CARVE_BOX.position.x or p.y < CARVE_BOX.position.y or p.x > CARVE_BOX.end.x or p.y > CARVE_BOX.end.y:
 		return h
 	var q := local(p)
 	if absf(q.x) > SITE_U + BANK_REACH or q.y < SITE_V0 - BANK_REACH or q.y > SITE_V1 + BANK_REACH:
