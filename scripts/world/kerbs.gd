@@ -101,7 +101,7 @@ const GLYPH_H := 0.084
 const GLYPH_PITCH := 0.072
 
 ## Kinds in the marks mesh's COLOR.a (kind / 16 + half a step).
-enum Kind { PAINT, DOMES, PLATE, GLYPH, DIRT, GRATE, CRACK }
+enum Kind { PAINT, DOMES, PLATE, GLYPH, DIRT, GRATE, CRACK, APRON }
 
 ## The ring's collision triangles while it is built (a packed array held in a Dictionary is a
 ## value: appending to it there appends to a copy).
@@ -1015,6 +1015,8 @@ static func _paint_rest(ctx: Dictionary, block: Dictionary) -> void:
 	for n: Dictionary in ctx.notches:
 		if int(n.kind) == 0:
 			_dome_pad(ctx, n)
+		else:
+			_apron(ctx, n)
 	for w: Rect2 in ctx.get("wells", []):
 		_dirt(ctx, w)
 	for c: Array in ctx.get("cracks", []):
@@ -1194,6 +1196,39 @@ static func _dome_pad(ctx: Dictionary, n: Dictionary) -> void:
 	var len_v := (v1 - v0) * sqrt(1.0 + slope * slope)
 	_mquad(ctx, _v3(ctx, p00, h0), _v3(ctx, p10, h0), _v3(ctx, p11, h1), _v3(ctx, p01, h1), nrm, Kind.DOMES, DOME_YELLOW,
 		Vector2(0.0, 0.0), Vector2(a * 2.0, 0.0), Vector2(a * 2.0, len_v), Vector2(0.0, len_v), Vector2(_h01([uc, e, "pad"]), 0.0))
+
+
+## A driveway apron's newer, paler concrete over its cut (broom-finished, scored at its edges):
+## the apron and its two flares, 2 mm over them.
+static func _apron(ctx: Dictionary, n: Dictionary) -> void:
+	var e: int = n.e
+	var uc: float = n.uc
+	var a: float = n.a
+	var f: float = n.f
+	var run: float = n.run
+	var lo := ROAD + float(n.lip) + 0.002
+	var hi := TOP + 0.002
+	var col := Color(0.66, 0.64, 0.6)
+	var seed := _h01([uc, e, "apron"])
+	var p0 := _pt(ctx, e, uc - a - f, 0.0)
+	var p1 := _pt(ctx, e, uc - a, 0.0)
+	var p2 := _pt(ctx, e, uc + a, 0.0)
+	var p3 := _pt(ctx, e, uc + a + f, 0.0)
+	var q1 := _pt(ctx, e, uc - a, run)
+	var q2 := _pt(ctx, e, uc + a, run)
+	var w := a * 2.0 + f * 2.0
+	# UV: metres along the kerb from the apron's start, metres in from the kerb; UV2.y its length.
+	var uv := func(u: float, v: float) -> Vector2: return Vector2(u, v)
+	var strips := maxi(1, ceili(a * 2.0 / 1.2))
+	for s in strips:
+		var t0 := float(s) / strips
+		var t1 := float(s + 1) / strips
+		_mquad(ctx, _v3(ctx, p1.lerp(p2, t0), lo), _v3(ctx, p1.lerp(p2, t1), lo), _v3(ctx, q1.lerp(q2, t1), hi), _v3(ctx, q1.lerp(q2, t0), hi),
+			Vector3.UP, Kind.APRON, col, uv.call(f + a * 2.0 * t0, 0.0), uv.call(f + a * 2.0 * t1, 0.0), uv.call(f + a * 2.0 * t1, run), uv.call(f + a * 2.0 * t0, run), Vector2(seed, w))
+	_mquad(ctx, _v3(ctx, p0, hi), _v3(ctx, p1, lo), _v3(ctx, q1, hi), _v3(ctx, q1, hi), Vector3.UP, Kind.APRON, col,
+		uv.call(0.0, 0.0), uv.call(f, 0.0), uv.call(f, run), uv.call(f, run), Vector2(seed, w))
+	_mquad(ctx, _v3(ctx, p2, lo), _v3(ctx, p3, hi), _v3(ctx, q2, hi), _v3(ctx, q2, hi), Vector3.UP, Kind.APRON, col,
+		uv.call(w - f, 0.0), uv.call(w, 0.0), uv.call(w - f, run), uv.call(w - f, run), Vector2(seed, w))
 
 
 ## The dirt in a bare well.

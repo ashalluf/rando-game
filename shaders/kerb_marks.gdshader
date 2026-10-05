@@ -224,6 +224,18 @@ void fragment() {
 		ao = mix(1.0, 0.6, slot * detail);
 		rough = mix(0.62, 0.95, slot);
 		rough = mix(rough, 0.45, polish);
+	} else if (kind == 7) {
+		// A driveway apron: newer, paler concrete, broom lines across the slope, a scored line round
+		// it and down its middle, tyre stains where wheels roll.
+		float seed = UV2.x * 37.0;
+		float w = UV2.y;
+		float broom = km_noise(vec2(UV.x * 140.0, UV.y * 3.0) + seed) * (1.0 - smoothstep(0.003, 0.008, px));
+		float score_px = max(px * 0.8, 0.006);
+		float score = 1.0 - smoothstep(score_px, score_px * 2.0, min(min(UV.x, w - UV.x), abs(UV.x - w * 0.5)));
+		float tyre = smoothstep(0.55, 0.8, km_noise(vec2(UV.x * 1.3, UV.y * 0.4) + seed)) * 0.25;
+		base = paint * (0.92 + 0.12 * km_fbm(UV * 4.0 + seed) + 0.06 * (broom - 0.5));
+		base *= (1.0 - 0.45 * score) * (1.0 - tyre);
+		rough = 0.85;
 	} else {
 		// A hairline crack: a jagged dark line, its edges chipped. Held at a pixel wide at range
 		// and faded by the coverage it would really have.
