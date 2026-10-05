@@ -9,6 +9,9 @@ extends LandmarkGeo
 
 var xf := Transform3D.IDENTITY
 var uv2 := Vector2.ZERO
+## A second geo for what casts no shadow (lanterns, wires, lettering, the goods): committed as its
+## own shadowless mesh. Builders write those parts through ChinatownKit.fine(g).
+var fine: ChinatownGeo = null
 
 
 func use(key: String, mat: Material) -> void:

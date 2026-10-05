@@ -1797,6 +1797,9 @@ func _test_city() -> void:
 	# Broadway's theatre district (tests/broadway_checks.gd): palaces on their real addresses, one
 	# sign surface each, the lanterns, goods and clock, the far boxes, nothing else in the block moved.
 	load("res://tests/broadway_checks.gd").new().run(self, city)
+	# Chinatown (tests/chinatown_checks.gd): the site table on two seeds, the gate and the plaza, the
+	# street-facing shop buildings, one mesh a block, the LOD boxes, nothing moved with it off.
+	load("res://tests/chinatown_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.

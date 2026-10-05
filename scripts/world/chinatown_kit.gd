@@ -109,6 +109,8 @@ static func _state(ch: CityChunk) -> Dictionary:
 		return ch.get_meta("ct_state")
 	var g := ChinatownGeo.new()
 	g.use(KEY, material())
+	g.fine = ChinatownGeo.new()
+	g.fine.use(KEY, material())
 	var st := {"geo": g, "shapes": []}
 	ch.set_meta("ct_state", st)
 	return st
@@ -152,7 +154,11 @@ static func commit(ch: CityChunk) -> void:
 	node.name = "Chinatown"
 	node.add_to_group("chinatown")
 	ch.add_child(node)
+	var f := g.fine
 	g.commit(node, "ChinatownMesh")
+	if f:
+		f.xf = Transform3D.IDENTITY
+		f.commit(node, "ChinatownFine", false)
 	if not (st.shapes as Array).is_empty():
 		var body := StaticBody3D.new()
 		body.name = "ChinatownBody"
@@ -170,6 +176,14 @@ static func commit(ch: CityChunk) -> void:
 
 
 # --- Geometry helpers ---------------------------------------------------------------------------
+
+## Where a builder writes what casts no shadow: the geo's shadowless twin (or itself).
+static func fine(g: ChinatownGeo) -> ChinatownGeo:
+	if g.fine == null:
+		return g
+	g.fine.xf = g.xf
+	return g.fine
+
 
 static func box(g: ChinatownGeo, center: Vector3, size: Vector3, col: Color, basis: Basis = Basis()) -> void:
 	g.box(KEY, center, size, col, basis)
@@ -214,7 +228,7 @@ static func painted_beam(g: ChinatownGeo, c: Vector3, length: float, h: float, d
 ## Text in the frame's XY plane at `at`, facing `want` (+Z or -Z).
 static func text(g: ChinatownGeo, s: String, at: Vector3, height: float, fit: float, col: Color, back: bool = false) -> void:
 	var b := Basis(Vector3.UP, PI) if back else Basis()
-	BroadwayTheatre.text(g, s, Transform3D(b, at), height, fit, col, Vector3.FORWARD if back else Vector3.BACK)
+	BroadwayTheatre.text(fine(g), s, Transform3D(b, at), height, fit, col, Vector3.FORWARD if back else Vector3.BACK)
 
 
 # --- Roofs ---------------------------------------------------------------------------------------
@@ -388,14 +402,15 @@ static func pent(g: ChinatownGeo, x0: float, x1: float, y: float, out: float, dr
 # --- Lanterns -----------------------------------------------------------------------------------
 
 ## A silk lantern hanging `hang` metres under a point, its body `h` tall, swaying (UV2).
-static func lantern(g: ChinatownGeo, pivot: Vector3, hang: float, h: float, col: Color, phase: float) -> void:
+static func lantern(g0: ChinatownGeo, pivot: Vector3, hang: float, h: float, col: Color, phase: float) -> void:
+	var g := fine(g0)
 	var top := pivot - Vector3(0, hang, 0)
 	var rad := h * 0.42
 	g.uv2 = Vector2(maxf(hang * 0.5, 0.01), phase)
 	beam(g, pivot, top + Vector3(0, 0.06 * h, 0), 0.012, 0.012, kc(WIRE, K_WIRE))
 	g.uv2 = Vector2(hang + h * 0.5, phase)
 	var sides := 8
-	var vs := [0.0, 0.14, 0.32, 0.5, 0.68, 0.86, 1.0]
+	var vs := [0.0, 0.2, 0.5, 0.8, 1.0]
 	var prof := func(v: float) -> float:
 		return rad * (0.5 + 0.5 * sin(PI * v))
 	var sc := kc(col, K_SILK)
@@ -418,15 +433,16 @@ static func lantern(g: ChinatownGeo, pivot: Vector3, hang: float, h: float, col:
 			var u0 := float(i) / float(sides)
 			var u1 := float(i + 1) / float(sides)
 			g.quad_n(KEY, p00, p10, p11, p01, na, nb, nc, nd, Vector2(u0, 1.0 - va), Vector2(u1, 1.0 - va), Vector2(u1, 1.0 - vb), Vector2(u0, 1.0 - vb), sc)
-	g.cylinder(KEY, top - Vector3(0, 0.02, 0), rad * 0.55, 0.07 * h, 8, kc(GOLD, K_GOLD))
-	g.cylinder(KEY, top - Vector3(0, h + 0.05 * h, 0), rad * 0.5, 0.07 * h, 8, kc(GOLD, K_GOLD))
+	g.cylinder(KEY, top - Vector3(0, 0.02, 0), rad * 0.55, 0.07 * h, 6, kc(GOLD, K_GOLD))
+	g.cylinder(KEY, top - Vector3(0, h + 0.05 * h, 0), rad * 0.5, 0.07 * h, 6, kc(GOLD, K_GOLD))
 	box(g, top - Vector3(0, h + 0.05 * h + 0.18 * h, 0), Vector3(0.04, 0.32 * h, 0.04), kc(LANTERN_RED * 0.8, K_PAINT))
 	g.uv2 = Vector2.ZERO
 
 
 ## A wire from a to b sagging `sag`, with lanterns every STRING_STEP.
-static func string_lanterns(g: ChinatownGeo, a: Vector3, b: Vector3, sag: float, seed_value: int) -> void:
-	var segs := 12
+static func string_lanterns(g0: ChinatownGeo, a: Vector3, b: Vector3, sag: float, seed_value: int) -> void:
+	var g := fine(g0)
+	var segs := 10
 	var at := func(t: float) -> Vector3:
 		return a.lerp(b, t) - Vector3(0, sag * 4.0 * t * (1.0 - t), 0)
 	for i in segs:
@@ -807,12 +823,13 @@ static func _blade(g: ChinatownGeo, u: Dictionary, x0: float, x1: float, top: fl
 		var y := y1 - 0.25 - (float(i) + 0.5) * step
 		for sx: float in [-1.0, 1.0]:
 			var b := Basis(Vector3.UP, sx * PI * 0.5)
-			BroadwayTheatre.text(g, ch, Transform3D(b, Vector3(bx + sx * 0.09, y - step * 0.28, 0.55)), minf(step * 0.62, 0.5), 0.7,
+			BroadwayTheatre.text(fine(g), ch, Transform3D(b, Vector3(bx + sx * 0.09, y - step * 0.28, 0.55)), minf(step * 0.62, 0.5), 0.7,
 				kc(ink, K_INK), Vector3(sx, 0, 0))
 
 
 ## The shop's goods on the pavement in front of it (z 0.2 .. 1.6), leaving the door clear.
-static func _goods(g: ChinatownGeo, u: Dictionary, x0: float, x1: float) -> void:
+static func _goods(g0: ChinatownGeo, u: Dictionary, x0: float, x1: float) -> void:
+	var g := fine(g0)
 	var door_x := x0 + 1.2 if u.door_left else x1 - 1.2
 	var a := x0 + 0.4
 	var b := x1 - 0.4

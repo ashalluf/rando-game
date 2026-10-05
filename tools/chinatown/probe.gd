@@ -3,7 +3,7 @@ extends Node
 ## the plaza, the gate, how many lots each block gives the shop buildings, then each block built
 ## FULL and LOD the real way (CityChunk), with its build time, triangles and collision - and EYEs
 ## for still_shot.gd / block_shot.tscn.
-##   godot --headless --path . res://tools/chinatown_probe.tscn [-- --seed=N] [BUILD=0]
+##   godot --headless --path . res://tools/chinatown/probe.tscn [-- --seed=N] [BUILD=0]
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -23,6 +23,21 @@ func _ready() -> void:
 	plan.macro = MacroMap.new()
 	plan.macro.seed = seed_value
 	plan.macro.setup()
+	for s in ["JADE MOON TEA HOUSE", "D", Chinatown.NAME]:
+		var geo := ShopfrontKit._text_geo(s, 0.42)
+		var idx = geo[2]
+		print("CT text '%s' tris %d" % [s, (idx.size() if idx != null else (geo[0] as PackedVector3Array).size()) / 3])
+	var gt0 := ChinatownGeo.new()
+	gt0.use("sign", ChinatownKit.material())
+	ChinatownKit.lantern(gt0, Vector3.ZERO, 0.1, 0.5, Color.RED, 0.0)
+	print("CT lantern tris %d" % gt0.triangles)
+	var gt1 := ChinatownGeo.new()
+	gt1.use("sign", ChinatownKit.material())
+	var u := ChinatownKit.plan_units(1, 2, 9.0)
+	u[0].goods = -1
+	u[0].blade = false
+	ChinatownKit.shop_unit(gt1, u[0], 14.0, false)
+	print("CT unit tris %d (%s, %d storeys)" % [gt1.triangles, u[0].roof, u[0].storeys])
 	var ext := Chinatown.extent()
 	print("CT extent ", ext, " enabled ", Chinatown.enabled)
 	var a := plan.block_index_at(ext.position)
