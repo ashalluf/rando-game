@@ -483,6 +483,11 @@ static func _dress_face(ch: CityChunk, part: Dictionary, bld: Building, face: in
 				var cell: int = pool[absi(hash(hb + ["cell"])) % pool.size()]
 				var p := StreetWear._face_point(part, face, u, v) + n * 0.01
 				_add_flat(ch, K_VINYL, SignKit.vinyl(), p, n, Vector2(s, s), Color(float(cell), 0.0, 0.0, _h01(hb)))
+				# Where the vinyl went (true world, with its facing), for framing stills (tools/sign_probe.gd).
+				var spots: Array = ch.get_meta("sg_vinyl_spots", [])
+				if spots.size() < 64:
+					spots.append([p, n])
+					ch.set_meta("sg_vinyl_spots", spots)
 				counts.vinyl = int(counts.vinyl) + 1
 				placed += 1
 				# Now and then a second, smaller piece in the same window.

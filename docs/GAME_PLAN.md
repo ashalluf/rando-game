@@ -289,6 +289,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Boulevard signs: pole signs, window vinyl, banners and street plates (HANDOFF
+  "Boulevard signs").** LA's commercial streets read as signs everywhere and ours had shop bands
+  and billboards only. Pole signs stand in the gap between two buildings (or a car park's front
+  corner), 0.35 m behind the pavement, their heads along the gap, so no facade can meet one and no
+  rng is touched; one atlas of invented art and one shader for every kind, one batch per kind a
+  chunk, FULL only except the tall signs' lit heads in the far city. Scripts other than Latin are
+  random glyph runs, never words.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

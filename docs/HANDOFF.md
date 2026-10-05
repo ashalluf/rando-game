@@ -7040,3 +7040,65 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9bu. Boulevard signs: pole signs, motel neon, window vinyl, banners and street plates, 2026-10-05 (agent branch `wt/signage`; VISUAL_ROADMAP #63)
+
+The brief: the visual noise of LA's commercial boulevards. Billboards (9bo), shop sign bands,
+blade signs and channel letters (Building / ShopfrontKit) and A-frames (StreetClutter) already
+existed; the plazas' own pylon is Commercial's (the roadside session's file, untouched). New:
+
+- **`BoulevardSigns`** (`scripts/world/boulevard_signs.gd`, static) places, **`SignKit`**
+  (`scripts/world/sign_kit.gd`) builds the meshes in code at real size, ONE shader
+  (`shaders/boulevard_sign.gdshader`) draws everything, ONE atlas
+  (`assets/textures/boulevard_signs/sign_atlas.png`, 2048 x 3072, alpha for the vinyl, drawn by
+  `tools/make_sign_art.py`, which also writes `scripts/world/sign_art_table.gd`) holds the art in
+  six families of equal cells (tenant panels, sign heads, vinyl, banners, lamp banners, plates).
+  CityChunk has two hook lines: `BoulevardSigns.build` as the last FULL step (after StreetWear)
+  and `BoulevardSigns.block_step` in `_block_steps()` (far boxes, LOD / capture only).
+- **Pole signs** (`plan_poles()`, pure): MIDTOWN BUILDINGS blocks on boulevard faces, in the gap
+  between two buildings (both sides clear by MIN_GAP) or at the front corner of a surface car
+  park; SUBURBS / MIDTOWN plazas and big boxes get a second one at the other front corner. The
+  pole stands 0.35 m into the lot behind the pavement, the head along the gap (faces up and down
+  the street), so it can never meet a facade. Kinds: a strip-mall tenant pylon (plaza header and
+  five lit tenant panels: nails, donuts, pho, boba, seguros, dental, laundry, tax, mattresses,
+  phones, pizza, teriyaki, vape, cleaners, taqueria, Korean BBQ / Armenian bakery / Thai food with
+  random glyph runs, carnicería, mariscos - all invented), five Googie motels (slanted board, a
+  neon starburst, a bent arrow and the board's top ringed with CHASING BULBS, a VACANCY box with
+  TextMesh neon letters whose NO lights by a flag, COLOR TV / FREE WIFI or WEEKLY RATES / POOL
+  plates on chains), a liquor / check-cashing cabinet with gooseneck lamps, a tyre shop's with a
+  giant tyre on top. Breakable props (400 hp), dropped in FULL where a street tree stands within
+  TREE_CLEAR along the kerb, never within 1 m of a freeway deck or ramp.
+- **Window vinyl and banners**: StreetWear's `_ground_parts()`; on each storefront face that
+  looks onto the pavement, per shop (Building.shop_names / shop_key, ShopfrontKit.door_index and
+  its glass / transom / fascia fractions), 1-3 vinyl pieces on display bays (picked by the shop:
+  phone offers on PHONE FIX, menu pictures on TACOS, EBT / LOTTERY on LIQUOR, ...), now and then
+  a GRAND OPENING / LIQUIDATION banner tied over the sign band. The vinyl sits 1 cm in front of
+  the wall plane; the traced glass is 12 cm behind it, so at a grazing angle it reads as stuck on
+  the outside of the pane.
+- **Lamp-post banners**: a hash picks banner boulevards (LAMPB_ODDS by district); every lamp on
+  them gets a pair of banners on arms (an invented event alternating with an invented district
+  name every 30 m), the fabric swaying by `wind_factor`; the instances join the lamp's prop record,
+  so they fall with it.
+- **Street plates**: posts every PLATE_SPACING along every BUILDINGS kerb, one time limit and one
+  street-cleaning day per frontage (boulevards sometimes TOW-AWAY / NO STOPPING ANYTIME), arrows
+  now and then; a BASIN TRANSIT bus-zone post (BUS STOP, routes, NO STOPPING BUS ZONE) beside
+  every shelter; wayfinding signs on some boulevard frontages.
+- **Far**: LOD chunks and the far city's capture keep only the tenant pylons' and motels' heads as
+  lit PANEL boxes in their art's mean colour plus a MAST (like a billboard's).
+- **Tools**: `tools/glshot/sign_shot.gd` (every kit piece in a row, seconds; `NIGHT=1`, `MOTEL`,
+  `FLAGS`), `tools/sign_probe.gd -- --spawn=x,z` (the pole signs round a point with EYEs).
+  `BOULEVARD_SIGNS=0` in the environment is the A/B. Checks: `tests/signage_checks.gd`.
+- **Frame cost** (`still_shot.gd` GEO, opengl3 1280x720, `--quality=0`, `BOULEVARD_SIGNS=0` vs on,
+  same frame): midtown boulevard noon `EYE=568,4.0,1565,0,3 EYE_AGL=1` 6.756 M tris / 4,026 draws ->
+  6.857 M / 4,056 (+1.5 % / +0.7 %); the same at 21:00 6.744 M / 4,020 -> 6.845 M / 4,050; a
+  shopfront `626.4,1.6,1290.0,66,4` 3.653 M / 1,923 -> 3.761 M / 1,957 (+3.0 % / +1.8 %). Meshes:
+  tenant pylon 220 triangles, motel 5,968 (bulbs and neon text are most of it), box sign 372, tyre
+  sign 964; a chunk adds up to ~10 batches plus shadow twins for the poles, posts and banners.
+- **Stills** (`shots/signage`): boulevard noon / night with `_before`, the motel sign close at
+  21:00, a shopfront with window vinyl and `_before`, the kit alone by day / night (taken before
+  the neon was turned down to 2.6), the atlas.
+- **Not done / not verified**: no Forward+ look (neon, bulbs and lightboxes under AgX + auto
+  exposure NEED A MAC CHECK; they were turned down after the first opengl3 night still washed the
+  neon to white). No motels as buildings - a motel sign stands in a gap or a car park, not over a
+  motor court. Pole signs in SUBURBS only beside plazas and big boxes (the suburbs' lots are
+  houses). The vinyl floats 12 cm in front of the traced glass (seen at a grazing angle). Signs do
+  not light the street (emission only). Banner and plate posts are not in the LOD/far city.
