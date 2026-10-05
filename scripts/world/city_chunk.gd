@@ -506,6 +506,7 @@ func _finish_build() -> void:
 	Parks.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
+	FreightKit.clear_road_decals(self)
 	_mm_nodes = _batch.build(self)
 	for paint_key: String in PAINT_KEYS:
 		if _mm_nodes.has(paint_key):
@@ -3297,6 +3298,11 @@ func _build_intersection(inter: Dictionary) -> void:
 func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
 	var style_id := absi(kind_seed) % 3
 	var step := 1.4 if style_id == 0 else 1.9
+	# No stripe over the freight trench (FreightRail.cuts_in()): the road is not there.
+	var holes: Array = []
+	var freight := FreightRail.of(plan)
+	if freight != null:
+		holes = freight.cuts_in(Rect2(pos - size * 0.5, size).grow(4.0))
 	var bar := Basis().scaled(Vector3(1.0 if style_id == 0 else 1.6, 1.0, 1.0))
 	for side: float in [-1.0, 1.0]:
 		var z := pos.y + side * (size.y * 0.5 + 1.8)
@@ -3307,23 +3313,34 @@ func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
 			# factor in z. The two branches of this function had each other's basis: these
 			# rails ran along z instead, and the ones below came out a hundred metres wide.
 			for edge: float in [-1.4, 1.4]:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(size.x / 3.0, 1.0, 0.4)), Vector3(pos.x, ROAD_TOP + 0.015, z + edge)))
+				if not _in_holes(holes, Vector2(pos.x, z + edge), size.x * 0.5):
+					_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(size.x / 3.0, 1.0, 0.4)), Vector3(pos.x, ROAD_TOP + 0.015, z + edge)))
 		else:
 			var x := pos.x - size.x * 0.5 + 1.2
 			while x < pos.x + size.x * 0.5 - 0.6:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5) * bar, Vector3(x, ROAD_TOP + 0.015, z)))
+				if not _in_holes(holes, Vector2(x, z)):
+					_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5) * bar, Vector3(x, ROAD_TOP + 0.015, z)))
 				x += step
 		var xx := pos.x + side * (size.x * 0.5 + 1.8)
 		if style_id == 2:
 			# On the x sides the rails run along z, which is the stripe's own length axis, so
 			# no yaw and the factors are already in the right places.
 			for edge: float in [-1.4, 1.4]:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis().scaled(Vector3(0.4, 1.0, size.y / 3.0)), Vector3(xx + edge, ROAD_TOP + 0.015, pos.y)))
+				if not _in_holes(holes, Vector2(xx + edge, pos.y)):
+					_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis().scaled(Vector3(0.4, 1.0, size.y / 3.0)), Vector3(xx + edge, ROAD_TOP + 0.015, pos.y)))
 		else:
 			var zz := pos.y - size.y * 0.5 + 1.2
 			while zz < pos.y + size.y * 0.5 - 0.6:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(bar, Vector3(xx, ROAD_TOP + 0.015, zz)))
+				if not _in_holes(holes, Vector2(xx, zz)):
+					_batch.add("stripe", PropFactory.stripe(), Transform3D(bar, Vector3(xx, ROAD_TOP + 0.015, zz)))
 				zz += step
+
+
+static func _in_holes(holes: Array, p: Vector2, half_x: float = 0.0) -> bool:
+	for h: Rect2 in holes:
+		if h.grow(0.6).intersects(Rect2(p.x - half_x, p.y, half_x * 2.0 + 0.001, 0.001)):
+			return true
+	return false
 
 
 ## Heights on a signal pole (metres above the pavement): the side-mount head's bracket, the

@@ -81,6 +81,34 @@ static var _timber_mesh: ArrayMesh
 static var _track_mat: ShaderMaterial
 
 
+## Road decals (patches, oil, paint, crosswalk bars) the street furniture laid over the open
+## trench, where there is no road, are collapsed before the chunk's batches build. Only flat things
+## at road height: a prop's index stays valid (it is scaled to nothing, never removed).
+static func clear_road_decals(c: CityChunk) -> void:
+	if c.capturing:
+		return
+	var fr := FreightRail.of(c.plan)
+	if fr == null:
+		return
+	var holes := fr.cuts_in(c.owned_rect().grow(8.0))
+	if holes.is_empty():
+		return
+	var batches: Dictionary = c._batch.data()
+	for key: String in batches:
+		if key.begins_with("fr_"):
+			continue
+		var xforms: Array = batches[key].xforms
+		for i in xforms.size():
+			var xf: Transform3D = xforms[i]
+			var p := Vector2(xf.origin.x, xf.origin.z)
+			if xf.origin.y - c._gy(p.x, p.y) > CityChunk.ROAD_TOP + 0.12:
+				continue
+			for h: Rect2 in holes:
+				if h.grow(0.3).has_point(p):
+					xforms[i] = Transform3D(Basis().scaled(Vector3.ZERO), xf.origin)
+					break
+
+
 ## The steps a chunk runs for the line (and the yard) in its owned rect; none where it has nothing.
 static func attach(c: CityChunk) -> Array[Callable]:
 	var out: Array[Callable] = []

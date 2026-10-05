@@ -346,6 +346,11 @@ func _system(city: Node3D, plan: CityPlan, line: FreightRail) -> void:
 		var fwd := -xf.basis.z.normalized()
 		player.global_position = ws.to_local(xf.origin + fwd * 12.0 + Vector3.UP * 0.9)
 		player.velocity = Vector3.ZERO
+		# At full health: a player worn down by the checks before this one would be put down by
+		# the hit (which stops them dead), and one already down takes no hit at all.
+		var hp: Variant = player.get("health")
+		if hp != null and not hp.downed:
+			hp.health = hp.max_health
 		sys.focus = xf.origin + fwd * 12.0 + Vector3.UP * 0.9
 		sys._struck_at = -10.0
 		sys.step()
