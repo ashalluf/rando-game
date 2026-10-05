@@ -8571,3 +8571,75 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. The historic core: beaux-arts banks and offices on Spring St and Main St, 2026-10-05 (agent branch `wt/historic-core`)
+
+Downtown's old financial row - Spring St ("the Wall Street of the West") and Main St between 2nd
+and 9th St, both pinned 1:1 by DowntownReal (x 3113 and 3236 on every seed) - was the historic
+core's generic 14-80 m masonry boxes. Now every lot fronting either avenue in that stretch is a
+beaux-arts bank or office block: glazed terracotta or pressed brick, a rusticated two-storey base
+with round-arched windows, a giant order of fluted pilasters or engaged columns, an entablature
+with the building's (invented) name on the frieze, a heavy bracketed cornice, a panelled attic
+with urns and a cartouche, bronze shopfronts, and a lit entrance with lanterns.
+
+**How** (the existing Building route, not a new building): `HistoricCore`
+(`scripts/world/historic_core.gd`) picks the lots (`block_fronts()`, `lot_avenue()`: a BUILDINGS
+block in DOWNTOWN whose edge is on the avenue, the lot's edge on that pavement) and `dress()`es
+the Building CityChunk._build_lot() has already set up (every roll of the chunk made), from one
+line after `Broadway.dress()`: a SLAB filling its lot (`Building.fill_lot`), FLAT terracotta from
+`TERRACOTTA` or BRICK from `PRESSED_BRICK` (`palette_override`, the same roll), PUNCHED windows
+(`window_style_force`), Spring St 24-40 m / Main St 13-30 m (the old 150 ft limit), no chamfer,
+balconies, bays, canopy or string courses, no kit surround or cornice (`kit_*_force "none"`), no
+stone base course or box cornice / crown bands (`allow_base_course`, `roof_bands`), and every
+shop's frame dark bronze (`shop_frame_force` 1: building.gdshader's new `shop_frame_force` uniform
+and ShopfrontKit). A lot running through to Broadway keeps Broadway's shop names. Everything is a
+hash of the seed and the lot (`spec_for()`: brick share, pilasters or columns, the palette, the
+name - `name_for()` walks the name list along each side of the avenue so neighbours never share).
+
+The building is still a Building, so its walls, interior-mapped windows, shops and lit offices,
+damage and the far city's CODED boxes (FarBuilding) are exactly as before; the ornament is laid on
+its window grid. `HistoricFacade` (`scripts/world/historic_facade.gd`) reads the one part's grid
+(`layout()`: storefront height, storey height, rows, bay pitch per face, from what `_build_part()`
+left on the part, or `part_grid()` for LOD) and, per STREET face (`street_faces()`: the lot edges on
+the block's pavement ring), builds into two LandmarkGeo meshes on the landmark facade shader
+(`LandmarkMats.facade`, plaster texture as detail, a low floodlight over the base after dark):
+- the base: the first floor in channelled rustication (courses with a recessed joint, broken
+  round each window), every first-floor window under a round arch (nine voussoirs, a deeper
+  keystone, a dark fanlight with bronze glazing bars, a bronze transom bar), stone sills, a moulded
+  belt course (`BELT`) under the second floor's sills;
+- the composition (`layout()`): seven storeys and more is base / shaft / capital - the shaft's
+  windows in architrave surrounds with sills and alternating hoods and keystones, a string course,
+  the giant order over the top two storeys; four to six storeys the order spans every storey over
+  the base; the order is a pilaster on every bay line (every other below a 2.3 m pitch) and inside
+  each street corner, fluted (the facade shader's vertical joints), on a base, under a capital with
+  a flared bell, acanthus tips, volutes and an abacus; 40 % of Spring St's (15 % of Main St's) are
+  engaged columns with entasis; spandrel panels with a lozenge between the order's storeys;
+- the entablature in the wall between the order's heads and the attic's sills (`heights()`):
+  architrave (`ARCHITRAVE`), frieze with the name in bronze letters on the main front, and the
+  cornice (`CORNICE`: bed moulding, dentils, modillion brackets every 0.64 m under a 1.08 m
+  corona, a cyma, 1.28 m out) - mitred round street corners, returned 2 m onto side walls, a box
+  collision ledge you can stand on; with no attic it caps the wall in front of the parapet;
+- the attic: panelled piers with lozenges on the order's lines, a coping cornice at the roof, urns
+  on the parapet over the street corners, a cartouche on the main front;
+- brick fronts: stone quoins up the street corners;
+- the entrance, on the main front's middle bay, standing out past the shop piers' cladding: two
+  engaged columns on pedestals, an entablature block with the name, a segmental pediment with a
+  lozenge, a lit soffit, two bronze lanterns on scroll brackets
+  (`shaders/historic_lamp.gdshader`: frosted glass glowing with `lamp_factor`), one lamp-group
+  OmniLight and a light pool on the pavement.
+`HistoricMain` (cornices, belts, order shafts, entablature: casts shadows, drawn to 380 m) and
+`HistoricFine` (rustication, arches, surrounds, capitals, modillions, dentils, panels, letters,
+lanterns: no shadow, 170 m). Built one street face per build step (`CityChunk._run_or_defer()`).
+LOD chunks and the far city: each street face's cornice and belt course as plain far boxes
+(`lod_box`, no windows) beside the building's coded boxes.
+
+**Shared files touched**: building.gd (inert hooks: `palette_override`, `fill_lot`,
+`kit_surround_force`, `kit_cornice_force`, `window_style_force`, `allow_base_course`,
+`roof_bands`, `shop_frame_force`), building.gdshader (`shop_frame_force`), shopfront_kit.gd (one
+line), city_chunk.gd (three hook lines), smoke_test.gd (one line).
+
+**A/B**: `HISTORIC_CORE=0` in the environment. Probe: `tools/historic/probe.gd` (every lot with
+its spec and an EYE). Checks: `tests/historic_core_checks.gd`.
+
+**Stills** (`shots/historic-core`): see the README there. EYEs on Spring St at 7th:
+`3108,1.7,232,-55,14` (the corner), `3112,1.7,240,-75,14` (an entrance), Main St `3240,1.7,300,135,12`.

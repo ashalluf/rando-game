@@ -862,6 +862,14 @@ already mapped so milestone 2 is script-only.
   pass at the grade limit from there: both main lines are held level through the stack (raise
   only). docs/HANDOFF.md (the stack section); CLAUDE.md "The four-level stack".
 
+- **2026-10-05 Downtown's historic core is beaux-arts (Spring St and Main St).** Every lot
+  fronting either street between 2nd and 9th St is a terracotta or brick bank / office block:
+  rusticated base with arched windows, giant order, entablature with an invented name, a heavy
+  bracketed cornice, attic, bronze shopfronts, a lit entrance. It stays a Building (dressed by
+  hooks, so its windows, shops, damage and coded far boxes are unchanged) with the ornament as
+  real geometry on its window grid; the old 150 ft limit holds. docs/HANDOFF.md "The historic
+  core"; CLAUDE.md "Historic core".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

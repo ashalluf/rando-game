@@ -2853,6 +2853,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
   `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
   `tests/broadway_checks.gd`.
+- Historic core (2026-10-05, docs/HANDOFF.md "The historic core"): `HistoricCore`
+  (`scripts/world/historic_core.gd`) dresses every Building fronting Spring St or Main St between
+  2nd and 9th St (one line after `Broadway.dress()`: a SLAB filling its lot, terracotta or brick,
+  PUNCHED, 13-40 m, bronze shop frames - inert hooks on Building: `palette_override`, `fill_lot`,
+  `kit_surround_force` / `kit_cornice_force`, `window_style_force`, `allow_base_course`,
+  `roof_bands`, `shop_frame_force`); `HistoricFacade` (`scripts/world/historic_facade.gd`) models
+  the ornament on its STREET faces on the shader's window grid (rusticated first floor with arched
+  windows, belt, giant order, entablature + modillioned cornice with a ledge collision, attic,
+  quoins on brick, the lit entrance; two LandmarkGeo meshes, built one face per deferred step);
+  LOD / far: the cornice and belt as plain far boxes. Hashes of seed + lot only. `HISTORIC_CORE=0`
+  is the A/B; probe `tools/historic/probe.gd`; checks `tests/historic_core_checks.gd`.
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
   **The park is ON** (`LandmarkMacArthurPark.enabled`, since 2026-09-24 evening; it was held off
