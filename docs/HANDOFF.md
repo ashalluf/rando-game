@@ -8694,6 +8694,19 @@ version used a 205 m radius, which is a disc reaching 355 m from the anchor: it 
 range's foot and the switchback drives grown there fell from 10 to 5 (88 estates to 39) - the
 smoke test's switchback check caught it. Without any flattening the lot sat on 15 m of relief.
 
+**Lead review (shots 330f540), fixed:** the backlot street's parked cars are real `Vehicle` bodies
+(`FilmStudio._park()`, CityChunk._park_car()'s way: under the city root, hidden with the chunk,
+asleep; a private rng of seed and spot) - the ArenaGrounds static cars read as grey boxes from the
+pavement. The office block is a stucco frame (piers, a spandrel at every floor) over recessed
+glass on `curtain_glass.gdshader` (`FilmStudioKit.glass_material()`, `StudioGlass`): mullions,
+mirrored sky, offices traced in parallax and lit after dark, instead of the flat lit/unlit
+checkerboard. The stages: two in five clad in ribbed metal siding (`K_CORR`, kind 17) over a
+concrete wainscot, the rest stucco with control joints every 3.25 m and reveals at the base band
+and frieze; elephant doors set back in a reveal, each leaf framed by stiffeners with a brace,
+hangers and brackets on the track, rollers, bollards at the jambs; the red light in a cage with
+its bell and a STAGE n / RED LIGHT: DO NOT ENTER plate; package air handlers on platforms on the
+roof. Checks 24 -> 26 (real cars in the backlot chunk, curtain glass on the offices).
+
 **Trap found:** `IndustrialKit.cyl()` (and its cone) wind the walls so they face INWARD: drawn
 with back-face culling, a cylinder shows only the inside of its far half (the first water tower
 was a curved shell with no front). The kit has its own `cyl()` / `cone()` built on `quad()`; the

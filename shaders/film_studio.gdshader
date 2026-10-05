@@ -13,6 +13,7 @@ shader_type spatial;
 //    7 stone (ashlar courses)   8 plywood / timber   9 canvas (UV2.y the stripe width)
 //   10 sign paint (lettering, matte, chipped)   11 concrete   12 gilt letters (lit after dark)
 //   13 rubber   14 chrome   15 trailer skin (UV2.y the stripe colour index)   16 roofing felt
+//   17 ribbed metal siding (a stage clad in it)
 // Everything is invented: no studio's name, mark or livery.
 
 uniform sampler2D concrete_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
@@ -115,6 +116,13 @@ void fragment() {
 			vec2 pf = fract(uv / vec2(3.1, 2.2));
 			float patch_m = step(0.86, patch_n) * step(0.12, pf.x) * step(pf.x, 0.8) * step(0.15, pf.y) * step(pf.y, 0.75);
 			albedo *= mix(1.0, 1.035 + 0.03 * (patch_n - 0.9) * 10.0, patch_m);
+			// The plasterer's control joints every 3.25 m and the reveals of a stage's base band and
+			// frieze (only on a wall over 8 m: the stages, the gate, the office block).
+			float tall = step(8.0, h);
+			float joint = lines(uv.x, 3.25, 0.018) * tall;
+			float reveal = (band(uv.y, 1.2, 0.022) + band(uv.y, h - 1.4, 0.022)) * tall;
+			albedo *= 1.0 - 0.32 * clamp(joint + reveal, 0.0, 1.0);
+			albedo *= mix(1.0, 0.93, step(uv.y, 1.2) * tall);
 			albedo *= 1.0 - 0.22 * streaks(uv, h, seedv * 11.0);
 			albedo *= 1.0 - 0.14 * smoothstep(h - 1.0, h, uv.y) * (0.6 + 0.4 * vnoise(uv * vec2(2.0, 0.5)));
 			albedo *= 1.0 - 0.3 * foot * (0.65 + 0.35 * vnoise(uv * vec2(2.5, 1.0)));
@@ -293,6 +301,22 @@ void fragment() {
 		}
 		rough = 0.42;
 		spec = 0.6;
+	} else if (kind > 16.5) {
+		// Ribbed metal siding: 200 mm box ribs (the normal swings across each), painted, the laps
+		// every 0.9 m wide sheet, rain streaks and a little rust low down.
+		float rib = fract(uv.x / 0.2);
+		float lap = lines(uv.x, 0.9, 0.012);
+		albedo = paint * (0.9 + 0.12 * vnoise(uv * vec2(0.5, 3.0))) * (1.0 - 0.15 * lap);
+		albedo *= 1.0 - 0.2 * streaks(uv, h, seedv * 7.0);
+		float rust = smoothstep(0.85, 1.0, vnoise(uv * vec2(1.2, 0.2) + seedv * 4.0)) * (0.3 + 0.7 * foot);
+		albedo = mix(albedo, vec3(0.42, 0.26, 0.16), clamp(rust, 0.0, 0.5));
+		metal = 0.45;
+		rough = 0.5;
+		if (!top && !bottom) {
+			vec3 t = normalize(cross(world_n, vec3(0.0, 1.0, 0.0)));
+			float fade = 1.0 - smoothstep(0.01, 0.06, fwidth(uv.x));
+			nrm_world = normalize(world_n + t * (smoothstep(0.0, 0.08, rib) - smoothstep(0.42, 0.5, rib) - 0.5) * 0.7 * fade);
+		}
 	} else {
 		// Roofing felt on the bungalows' and booths' flat roofs: dark, gritty.
 		albedo = paint * (0.75 + 0.35 * vnoise(uv * 3.0)) * (0.9 + 0.1 * vnoise(uv * 23.0));

@@ -27,6 +27,8 @@ const K_RUBBER := 13
 const K_CHROME := 14
 const K_TRAILER := 15
 const K_FELT := 16
+## Ribbed metal siding (a stage clad in it rather than stucco).
+const K_CORR := 17
 
 const STUDIO_NAME := "SUNSPIRE PICTURES"
 const SHORT_NAME := "SUNSPIRE"
@@ -224,6 +226,10 @@ static func stage(st: SurfaceTool, xf: Transform3D, size: Vector3, number: int, 
 	var dpaint: Color = DOOR_PAINTS[(seed / 3) % DOOR_PAINTS.size()]
 	var T := 0.4
 	var rise := W * 0.11
+	# Two in five stages are clad in ribbed metal siding over a concrete wainscot; the rest stucco.
+	var wk := K_CORR if (seed / 11) % 5 < 2 else K_STUCCO
+	if wk == K_CORR:
+		paint = paint.lerp(Color(0.8, 0.79, 0.74), 0.5)
 	# Plinth.
 	box(st, xf * Transform3D(Basis(), Vector3(0.0, 0.22, 0.0)), Vector3(W + 0.16, 0.44, L + 0.16), K_CONCRETE, Color(0.66, 0.64, 0.6))
 	# Long walls, cut round the elephant doors.
@@ -238,11 +244,11 @@ static func stage(st: SurfaceTool, xf: Transform3D, size: Vector3, number: int, 
 		for c: Array in cuts + [[L * 0.5, L * 0.5, 0.0]]:
 			var z0 := maxf(float(c[0]), z)
 			if z0 - z > 0.05:
-				box(st, xf * Transform3D(Basis(), Vector3(x, H * 0.5, (z + z0) * 0.5)), Vector3(T, H, z0 - z), K_STUCCO, paint)
+				box(st, xf * Transform3D(Basis(), Vector3(x, H * 0.5, (z + z0) * 0.5)), Vector3(T, H, z0 - z), wk, paint)
 			var z1 := float(c[1])
 			if z1 - z0 > 0.05:
 				var dh := float(c[2])
-				box(st, xf * Transform3D(Basis(), Vector3(x, (dh + H) * 0.5, (z0 + z1) * 0.5)), Vector3(T, H - dh, z1 - z0), K_STUCCO, paint)
+				box(st, xf * Transform3D(Basis(), Vector3(x, (dh + H) * 0.5, (z0 + z1) * 0.5)), Vector3(T, H - dh, z1 - z0), wk, paint)
 			z = maxf(z, z1)
 		# Pilasters every ~6.5 m clear of the doors, the corner piers, the coping band.
 		var n := maxi(2, int(round(L / 6.5)))
@@ -259,7 +265,7 @@ static func stage(st: SurfaceTool, xf: Transform3D, size: Vector3, number: int, 
 					box(st, xf * Transform3D(Basis(), Vector3(side * (W * 0.5 + 0.1), H * 0.5, pz + 0.6)), Vector3(0.14, H, 0.14), K_STEEL, paint * 0.8)
 		box(st, xf * Transform3D(Basis(), Vector3(side * (W * 0.5 + 0.02), H + 0.25, 0.0)), Vector3(T + 0.5, 0.5, L + 0.5), K_STUCCO, paint * 0.93)
 	for sz: float in [1.0, -1.0]:
-		box(st, xf * Transform3D(Basis(), Vector3(0.0, H * 0.5, sz * (L * 0.5 - T * 0.5))), Vector3(W - 2.0 * T, H, T), K_STUCCO, paint)
+		box(st, xf * Transform3D(Basis(), Vector3(0.0, H * 0.5, sz * (L * 0.5 - T * 0.5))), Vector3(W - 2.0 * T, H, T), wk, paint)
 		for sx: float in [1.0, -1.0]:
 			box(st, xf * Transform3D(Basis(), Vector3(sx * (W * 0.5 - 0.1), (H + 0.6) * 0.5, sz * (L * 0.5 - 0.1))), Vector3(1.3, H + 0.6, 1.3), K_STUCCO, paint * 0.97)
 		# The gable: a triangle of wall to the ridge, its rakes capped.
@@ -267,12 +273,12 @@ static func stage(st: SurfaceTool, xf: Transform3D, size: Vector3, number: int, 
 		var p0 := xf * Vector3(-W * 0.5, H, sz * L * 0.5)
 		var p1 := xf * Vector3(W * 0.5, H, sz * L * 0.5)
 		var p2 := xf * Vector3(0.0, H + rise, sz * L * 0.5)
-		quad(st, p0, p1, p2, p2, g, K_STUCCO, paint, [Vector2(0.0, H), Vector2(W, H), Vector2(W * 0.5, H + rise), Vector2(W * 0.5, H + rise)], H + rise)
+		quad(st, p0, p1, p2, p2, g, wk, paint, [Vector2(0.0, H), Vector2(W, H), Vector2(W * 0.5, H + rise), Vector2(W * 0.5, H + rise)], H + rise)
 		var back := xf * Vector3(0.0, 0.0, -sz * 0.4)
 		var q0 := p0 - (g * 0.4)
 		var q1 := p1 - (g * 0.4)
 		var q2 := p2 - (g * 0.4)
-		quad(st, q0, q1, q2, q2, -g, K_STUCCO, paint, [Vector2(0.0, H), Vector2(W, H), Vector2(W * 0.5, H + rise), Vector2(W * 0.5, H + rise)], H + rise)
+		quad(st, q0, q1, q2, q2, -g, wk, paint, [Vector2(0.0, H), Vector2(W, H), Vector2(W * 0.5, H + rise), Vector2(W * 0.5, H + rise)], H + rise)
 		for s2: float in [-1.0, 1.0]:
 			var e0 := xf * Vector3(s2 * (W * 0.5 + 0.25), H + 0.4, sz * (L * 0.5 + 0.05))
 			var e1 := xf * Vector3(0.0, H + rise + 0.45, sz * (L * 0.5 + 0.05))
@@ -298,9 +304,38 @@ static func stage(st: SurfaceTool, xf: Transform3D, size: Vector3, number: int, 
 	for k in nv:
 		var vz := -L * 0.5 + L * (float(k) + 0.5) / float(nv)
 		cyl(st, xf * Transform3D(Basis(), Vector3(0.0, H + rise + 0.3, vz)), 0.45, 1.1, K_STEEL, Color(0.62, 0.63, 0.63), 10, true)
+	# Package air handlers on steel platforms down the roof, each with its fans and a duct
+	# into the roof - a stage is a huge, sealed, air-conditioned box.
+	var nu_roof := 2 if L < 52.0 else 3
+	for k in nu_roof:
+		var rz := -L * 0.5 + L * (float(k) + 0.5) / float(nu_roof) + L * 0.08
+		var sx := (1.0 if (seed + k) % 2 == 0 else -1.0)
+		var rx := sx * W * 0.24
+		var ry := H + 0.45 + (rise + 0.05) * (1.0 - absf(rx) / (W * 0.5 + 0.35))
+		box(st, xf * Transform3D(Basis(), Vector3(rx, ry + 0.55, rz)), Vector3(3.6, 0.14, 2.8), K_STEEL, Color(0.34, 0.35, 0.36))
+		for c: Vector2 in [Vector2(-1.6, -1.2), Vector2(1.6, -1.2), Vector2(-1.6, 1.2), Vector2(1.6, 1.2)]:
+			box(st, xf * Transform3D(Basis(), Vector3(rx + c.x, ry + 0.2, rz + c.y)), Vector3(0.12, 0.9, 0.12), K_STEEL, Color(0.34, 0.35, 0.36))
+		box(st, xf * Transform3D(Basis(), Vector3(rx, ry + 1.42, rz)), Vector3(3.2, 1.6, 2.4), K_STEEL, Color(0.78, 0.79, 0.78))
+		for f in 2:
+			cyl(st, xf * Transform3D(Basis(), Vector3(rx + (float(f) - 0.5) * 1.5, ry + 2.22, rz)), 0.55, 0.12, K_RUBBER, Color(0.1, 0.1, 0.1), 12, true)
+		box(st, xf * Transform3D(Basis(), Vector3(rx - sx * 2.0, ry + 0.8, rz)), Vector3(1.2, 0.9, 1.0), K_STEEL, Color(0.7, 0.71, 0.7))
+	if wk == K_CORR:
+		# The concrete wainscot, stopped at every door.
+		for side: float in [1.0, -1.0]:
+			var spans: Array = []
+			for d: Array in doors:
+				if float(d[0]) == side:
+					spans.append([float(d[1]) - float(d[2]) * 0.5 - 0.3, float(d[1]) + float(d[2]) * 0.5 + 0.3])
+			spans.sort_custom(func(a: Array, b: Array) -> bool: return float(a[0]) < float(b[0]))
+			var z := -L * 0.5
+			for sp: Array in spans + [[L * 0.5, L * 0.5]]:
+				var z0 := float(sp[0])
+				if z0 - z > 0.1:
+					box(st, xf * Transform3D(Basis(), Vector3(side * (W * 0.5 + 0.06), 0.65, (z + z0) * 0.5)), Vector3(0.12, 1.3, z0 - z), K_CONCRETE, Color(0.7, 0.69, 0.66))
+				z = maxf(z, float(sp[1]))
 	# The elephant doors.
 	for d: Array in doors:
-		_elephant_door(st, xf, float(d[0]), float(d[1]), float(d[2]), float(d[3]), W, H, dpaint, rolling and d == doors[0], seed)
+		_elephant_door(st, xf, float(d[0]), float(d[1]), float(d[2]), float(d[3]), W, H, dpaint, rolling and d == doors[0], seed, number)
 	# The painted number: high on both long walls toward one end, and on each gable.
 	var label := str(number)
 	var nh := clampf(H * 0.3, 3.2, 5.6)
@@ -343,27 +378,74 @@ static func stage(st: SurfaceTool, xf: Transform3D, size: Vector3, number: int, 
 	_stair(st, xf, W, H, L, seed)
 
 
-static func _elephant_door(st: SurfaceTool, xf: Transform3D, side: float, zc: float, w: float, dh: float, W: float, H: float, paint: Color, rolling: bool, seed: int) -> void:
+static func _elephant_door(st: SurfaceTool, xf: Transform3D, side: float, zc: float, w: float, dh: float, W: float, H: float, paint: Color, rolling: bool, seed: int, number: int) -> void:
 	var out := Basis(Vector3(0.0, 0.0, -side), Vector3.UP, Vector3(side, 0.0, 0.0))
 	var face := W * 0.5
-	# The leaves, a little behind the wall face, closed; two leaves on a narrow door, three wider.
+	# The leaves, set back in the wall's depth, closed; two leaves on a narrow door, three wider.
 	var leaves := 2 if w < 9.5 else 3
-	box(st, xf * Transform3D(out, Vector3(side * (face - 0.18), dh * 0.5, zc)), Vector3(w, dh, 0.2), K_DOOR, paint, w / float(leaves), 32 | 16)
+	var lw := w / float(leaves)
+	var plane := face - 0.32
+	box(st, xf * Transform3D(out, Vector3(side * plane, dh * 0.5, zc)), Vector3(w, dh, 0.16), K_DOOR, paint, lw, 32 | 16)
+	# Each leaf's frame of stiffeners standing proud of its skin: stiles at its edges, rails at
+	# the foot, the head and every 2.5 m, a diagonal brace, the hangers on the track above.
+	for k in leaves:
+		var lz := zc - w * 0.5 + lw * (float(k) + 0.5)
+		for e: float in [-1.0, 1.0]:
+			box(st, xf * Transform3D(Basis(), Vector3(side * (plane + 0.13), dh * 0.5, lz + e * (lw * 0.5 - 0.09))), Vector3(0.1, dh, 0.16), K_STEEL, paint * 0.88)
+		var ry := 0.18
+		while ry < dh:
+			box(st, xf * Transform3D(Basis(), Vector3(side * (plane + 0.12), ry, lz)), Vector3(0.08, 0.14, lw - 0.3), K_STEEL, paint * 0.9)
+			ry += 2.5
+		box(st, xf * Transform3D(Basis(), Vector3(side * (plane + 0.12), dh - 0.12, lz)), Vector3(0.08, 0.16, lw - 0.3), K_STEEL, paint * 0.9)
+		beam(st, xf * Vector3(side * (plane + 0.11), 0.3, lz - lw * 0.5 + 0.2), xf * Vector3(side * (plane + 0.11), minf(dh - 0.3, 2.5 * floor(dh / 2.5)), lz + lw * 0.5 - 0.2), 0.12, 0.06, K_STEEL, paint * 0.86, xf.basis * Vector3(side, 0.0, 0.0))
+		for e: float in [-1.0, 1.0]:
+			box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.12), dh + 0.32, lz + e * lw * 0.3)), Vector3(0.12, 0.4, 0.22), K_STEEL, Color(0.25, 0.25, 0.26))
+		# Rollers in the guide at the foot.
+		box(st, xf * Transform3D(Basis(), Vector3(side * (plane + 0.1), 0.06, lz)), Vector3(0.2, 0.12, lw - 0.1), K_STEEL, Color(0.2, 0.2, 0.21))
+	# The reveal: the wall's returns into the opening and its head, so the door sits in depth.
+	for s2: float in [-1.0, 1.0]:
+		box(st, xf * Transform3D(Basis(), Vector3(side * (face - 0.2), dh * 0.5, zc + s2 * (w * 0.5 + 0.02))), Vector3(0.4, dh, 0.04), K_STUCCO, Color(0.7, 0.66, 0.58))
 	# The jambs and the head: a steel frame.
 	for s2: float in [-1.0, 1.0]:
 		box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.05), dh * 0.5, zc + s2 * (w * 0.5 + 0.12))), Vector3(0.24, dh, 0.24), K_STEEL, TRIM)
+		# Bollards guarding the jambs.
+		cyl(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.6), 0.0, zc + s2 * (w * 0.5 + 0.35))), 0.14, 1.1, K_STEEL, Color(0.86, 0.72, 0.12), 10, true)
 	box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.05), dh + 0.12, zc)), Vector3(0.24, 0.24, w + 0.48), K_STEEL, TRIM)
-	# The track the leaves slide on, running past the opening to the side they stack.
+	# The track the leaves slide on, on brackets, running past the opening to the side they stack.
 	var dir := 1.0 if seed % 2 == 0 else -1.0
-	box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.22), dh + 0.42, zc + dir * w * 0.5)), Vector3(0.22, 0.3, w * 2.0), K_STEEL, Color(0.3, 0.3, 0.3))
-	# A wicket door in one leaf.
-	box(st, xf * Transform3D(out, Vector3(side * (face - 0.06), 1.15, zc - w * 0.25)), Vector3(1.0, 2.2, 0.06), K_STEEL, paint * 0.85)
-	# The red light and its bell over the door; a work light at the head.
-	box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.2), dh + 1.4, zc - w * 0.5 + 0.5)), Vector3(0.3, 0.42, 0.42), K_LAMP, Color(1.0, 0.08, 0.04), 1.0 if rolling else 0.0)
-	cyl(st, xf * Transform3D(Basis(Vector3.FORWARD, PI * 0.5 * side), Vector3(side * face, dh + 1.4, zc - w * 0.5 + 1.2)), 0.18, 0.22, K_CHROME, Color(0.7, 0.62, 0.38), 10, true)
-	box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.25), dh + 0.95, zc)), Vector3(0.4, 0.22, 0.6), K_LAMP, Color(1.0, 0.88, 0.7))
+	box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.24), dh + 0.6, zc + dir * w * 0.5)), Vector3(0.22, 0.3, w * 2.0), K_STEEL, Color(0.3, 0.3, 0.3))
+	var t0 := zc + dir * w * 0.5 - w
+	var bz := t0
+	while bz <= t0 + w * 2.0 + 0.01:
+		box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.12), dh + 0.6, bz)), Vector3(0.24, 0.12, 0.12), K_STEEL, Color(0.3, 0.3, 0.3))
+		bz += 1.5
+	# A wicket door in one leaf, with its handle.
+	box(st, xf * Transform3D(out, Vector3(side * (plane + 0.1), 1.15, zc - w * 0.25)), Vector3(1.0, 2.2, 0.06), K_STEEL, paint * 0.82)
+	box(st, xf * Transform3D(Basis(), Vector3(side * (plane + 0.16), 1.1, zc - w * 0.25 + 0.35)), Vector3(0.06, 0.04, 0.16), K_CHROME, Color(0.7, 0.7, 0.7))
+	# The red light over the door in its cage, the bell beside it, the warning sign under them.
+	var rz := zc - w * 0.5 - 0.9
+	box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.1), dh + 1.2, rz)), Vector3(0.2, 0.7, 0.7), K_STEEL, Color(0.12, 0.12, 0.12))
+	cyl(st, xf * Transform3D(Basis(Vector3.FORWARD, PI * 0.5 * side), Vector3(side * (face + 0.2), dh + 1.2, rz)), 0.24, 0.34, K_LAMP, Color(1.0, 0.06, 0.03), 12, true)
+	for k in 3:
+		var a := TAU * float(k) / 3.0
+		beam(st, xf * Vector3(side * (face + 0.2), dh + 1.2 + cos(a) * 0.27, rz + sin(a) * 0.27), xf * Vector3(side * (face + 0.56), dh + 1.2 + cos(a) * 0.2, rz + sin(a) * 0.2), 0.025, 0.025, K_STEEL, Color(0.1, 0.1, 0.1))
+	if rolling:
+		_lamp_flag(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.38), dh + 1.2, rz)))
+	cyl(st, xf * Transform3D(Basis(Vector3.FORWARD, PI * 0.5 * side), Vector3(side * face, dh + 1.2, rz - 0.9)), 0.2, 0.2, K_CHROME, Color(0.72, 0.62, 0.36), 12, true)
+	var sign := Transform3D(out, Vector3(side * (face + 0.03), dh - 0.1, rz))
+	box(st, xf * sign * Transform3D(Basis(), Vector3(0.0, 0.0, 0.0)), Vector3(1.5, 0.75, 0.03), K_STUCCO, Color(0.93, 0.92, 0.88))
+	var face_xf := xf * sign * Transform3D(Basis(), Vector3(0.0, 0.12, 0.02))
+	letters(st, "STAGE %d" % number, 0.16, face_xf, K_SIGN, Color(0.12, 0.12, 0.12))
+	letters(st, "RED LIGHT: DO NOT ENTER", 0.075, face_xf * Transform3D(Basis(), Vector3(0.0, -0.22, 0.0)), K_SIGN, Color(0.75, 0.08, 0.05))
+	# A work light at the head.
+	box(st, xf * Transform3D(Basis(), Vector3(side * (face + 0.25), dh + 1.05, zc + 0.6)), Vector3(0.4, 0.22, 0.6), K_LAMP, Color(1.0, 0.88, 0.7))
 	# A concrete apron in front.
 	box(st, xf * Transform3D(Basis(), Vector3(side * (face + 1.6), 0.04, zc)), Vector3(3.2, 0.08, w + 1.0), K_CONCRETE, Color(0.72, 0.71, 0.68))
+
+
+## A lit lens's halo cap (a slightly larger, always-lit disc) for a rolling stage's red light.
+static func _lamp_flag(st: SurfaceTool, xf: Transform3D) -> void:
+	box(st, xf, Vector3(0.04, 0.36, 0.36), K_LAMP, Color(1.0, 0.1, 0.05), 1.0)
 
 
 static func _stair(st: SurfaceTool, xf: Transform3D, W: float, H: float, L: float, seed: int) -> void:
@@ -573,46 +655,72 @@ static func wall(st: SurfaceTool, a: Vector2, b: Vector2, y: float, phase: float
 
 # --- The office block ------------------------------------------------------------------------------
 
-## The studio's office block, its front toward +z, foot centre at xf's origin: `size` x storeys of
-## stucco with ribbon windows between piers, a canopy over the entrance and the name over it.
-static func offices(st: SurfaceTool, xf: Transform3D, size: Vector3, storeys: int) -> void:
+## The studio's office block, its front toward +z, foot centre at xf's origin: `size` x storeys.
+## A stucco frame - corner piers, a pier on every bay line, a spandrel band at every floor -
+## standing in front of glass set back in it. The glass goes into `gst`, which wears
+## curtain_glass (glass_material()): mullions, the sky mirrored, and the offices behind it traced
+## in parallax (floors, light panels, the back wall), dim by day and lit after dark. A canopy over
+## the entrance and the name over it.
+static func offices(st: SurfaceTool, gst: SurfaceTool, xf: Transform3D, size: Vector3, storeys: int) -> void:
 	var paint := Color(0.92, 0.88, 0.8)
 	var W := size.x
 	var D := size.z
-	var fh := size.y / float(storeys)
-	box(st, xf * Transform3D(Basis(), Vector3(0.0, size.y * 0.5, 0.0)), Vector3(W, size.y, D), K_STUCCO, paint)
-	box(st, xf * Transform3D(Basis(), Vector3(0.0, size.y + 0.45, 0.0)), Vector3(W + 0.3, 0.9, D + 0.3), K_STUCCO, paint * 0.95)
-	# Window bands on the four faces: glass set proud of the wall between pilasters.
+	var H := size.y
+	var fh := H / float(storeys)
+	var inset := 0.45
+	# The core: what is behind the glass and the roof.
+	box(st, xf * Transform3D(Basis(), Vector3(0.0, H * 0.5, 0.0)), Vector3(W - inset * 2.0 - 0.1, H, D - inset * 2.0 - 0.1), K_STUCCO, paint * 0.9)
+	box(st, xf * Transform3D(Basis(), Vector3(0.0, H + 0.45, 0.0)), Vector3(W + 0.3, 0.9, D + 0.3), K_STUCCO, paint * 0.95)
 	for f in 4:
 		var turn := Basis(Vector3.UP, PI * 0.5 * float(f))
 		var face_w := W if f % 2 == 0 else D
 		var face_d := D if f % 2 == 0 else W
 		var bays := maxi(2, int(face_w / 3.6))
 		var bw := face_w / float(bays)
-		for s in storeys:
-			var y0 := fh * float(s) + (1.0 if s > 0 else 1.2)
-			var wh := fh - (1.6 if s > 0 else 1.4)
-			if s == 0 and f == 0:
-				continue
-			box(st, xf * Transform3D(turn, turn.inverse() * Vector3(0.0, 0.0, 0.0) + turn * Vector3(0.0, y0 + wh * 0.5, face_d * 0.5 + 0.03)), Vector3(face_w - 1.2, wh, 0.1), K_GLASS, Color(0.3, 0.34, 0.36), bw * 0.5)
+		# The glass, set back `inset` in the frame, its UV metres along the face and world height.
+		var gz := face_d * 0.5 - inset
+		var gy0 := 0.55
+		var gy1 := H - 0.15
+		var a := xf * (turn * Vector3(-face_w * 0.5 + 0.3, gy0, gz))
+		var b := xf * (turn * Vector3(face_w * 0.5 - 0.3, gy0, gz))
+		var c := xf * (turn * Vector3(face_w * 0.5 - 0.3, gy1, gz))
+		var d := xf * (turn * Vector3(-face_w * 0.5 + 0.3, gy1, gz))
+		var n := xf.basis * (turn * Vector3(0.0, 0.0, 1.0))
+		var u0 := 0.3
+		var u1 := face_w - 0.3
+		quad(gst, a, b, c, d, n, K_GLASS, Color.WHITE, [Vector2(u0, a.y), Vector2(u1, b.y), Vector2(u1, c.y), Vector2(u0, d.y)], H)
+		# The frame: the base, a spandrel at every floor, the piers, the corners.
+		var fz := face_d * 0.5 - 0.2
+		box(st, xf * Transform3D(turn, turn * Vector3(0.0, 0.3, fz)), Vector3(face_w, 0.6, 0.4), K_STUCCO, paint * 0.94)
+		for k in range(1, storeys + 1):
+			var sy := fh * float(k)
+			var hgt := 1.1 if k < storeys else 1.4
+			box(st, xf * Transform3D(turn, turn * Vector3(0.0, sy - hgt * 0.5 + (0.0 if k < storeys else 0.15), fz + 0.02)), Vector3(face_w, hgt, 0.44), K_STUCCO, paint)
 		for k in range(0, bays + 1):
 			var px := -face_w * 0.5 + bw * float(k)
-			box(st, xf * Transform3D(turn, turn * Vector3(px, size.y * 0.5, face_d * 0.5 + 0.12)), Vector3(0.5, size.y, 0.3), K_STUCCO, paint * 0.97)
-	# The entrance on the front: a glass storefront, a canopy, the name in gilt over it.
-	box(st, xf * Transform3D(Basis(), Vector3(0.0, 1.6, D * 0.5 + 0.05)), Vector3(minf(10.0, W * 0.5), 3.0, 0.1), K_GLASS, Color(0.3, 0.34, 0.36), 1.5)
-	box(st, xf * Transform3D(Basis(), Vector3(0.0, 3.6, D * 0.5 + 1.6)), Vector3(minf(13.0, W * 0.6), 0.3, 3.2), K_STUCCO, paint * 0.94)
-	for s: float in [-1.0, 1.0]:
-		box(st, xf * Transform3D(Basis(), Vector3(s * minf(6.0, W * 0.28), 1.8, D * 0.5 + 2.9)), Vector3(0.25, 3.6, 0.25), K_STEEL, TRIM)
-	var face := Transform3D(Basis(), Vector3(0.0, 4.35, D * 0.5 + 0.03))
-	var t := text2d(STUDIO_NAME, 0.7)
+			var pw := 0.9 if k == 0 or k == bays else 0.42
+			box(st, xf * Transform3D(turn, turn * Vector3(clampf(px, -face_w * 0.5 + pw * 0.5, face_w * 0.5 - pw * 0.5), H * 0.5, fz + 0.04)), Vector3(pw, H, 0.48), K_STUCCO, paint * 0.98)
+	# The entrance: a canopy on posts and the name in gilt over it.
+	box(st, xf * Transform3D(Basis(), Vector3(0.0, 3.4, D * 0.5 + 1.6)), Vector3(minf(13.0, W * 0.6), 0.3, 3.2), K_STUCCO, paint * 0.94)
+	for s2: float in [-1.0, 1.0]:
+		box(st, xf * Transform3D(Basis(), Vector3(s2 * minf(6.0, W * 0.28), 1.7, D * 0.5 + 2.9)), Vector3(0.25, 3.4, 0.25), K_STEEL, TRIM)
+	box(st, xf * Transform3D(Basis(), Vector3(0.0, 3.2, D * 0.5 + 1.6)), Vector3(1.2, 0.06, 0.6), K_LAMP, Color(1.0, 0.9, 0.72))
+	var face := Transform3D(Basis(), Vector3(0.0, fh + 0.2, D * 0.5 + 0.07))
+	var t := text2d(STUDIO_NAME, 0.62)
 	var scale := minf(1.0, (W - 2.0) / maxf(float(t[1]), 0.1))
 	var pts: PackedVector2Array = t[0]
-	for i in pts.size():
-		pts[i] *= scale
+	for i2 in pts.size():
+		pts[i2] *= scale
 	flat2d(st, pts, xf * face, K_GILT, GILT)
 	# Roof plant.
-	box(st, xf * Transform3D(Basis(), Vector3(W * 0.2, size.y + 1.4, 0.0)), Vector3(3.0, 1.8, 2.4), K_STEEL, Color(0.72, 0.73, 0.72))
-	box(st, xf * Transform3D(Basis(), Vector3(-W * 0.25, size.y + 1.6, -D * 0.15)), Vector3(4.0, 2.2, 3.0), K_STUCCO, paint * 0.9)
+	box(st, xf * Transform3D(Basis(), Vector3(W * 0.2, H + 1.4, 0.0)), Vector3(3.0, 1.8, 2.4), K_STEEL, Color(0.72, 0.73, 0.72))
+	box(st, xf * Transform3D(Basis(), Vector3(-W * 0.25, H + 1.6, -D * 0.15)), Vector3(4.0, 2.2, 3.0), K_STUCCO, paint * 0.9)
+
+
+## The office glass (curtain_glass: traced offices behind mullions, lit after dark).
+static func glass_material() -> ShaderMaterial:
+	return LandmarkMats.glass("studio_offices", {"glass_tint": Color(0.2, 0.26, 0.28), "frame_color": Color(0.3, 0.3, 0.3),
+		"grid": Vector2(1.2, 4.5), "storey": 4.5, "floor_y": 0.25, "room_depth": 7.0, "interior_day": 0.12, "interior_night": 1.3})
 
 
 # --- The backlot's false fronts --------------------------------------------------------------------

@@ -40,6 +40,7 @@ func run(t: Node, city: Node3D) -> void:
 				most = n
 				best = Vector2i(ix, iz)
 	_full_chunk(city, plan, best)
+	_backlot_and_front(city, plan, lay)
 	_lod_chunk(city, plan, best)
 	_capture(city, plan, best)
 
@@ -193,3 +194,31 @@ func _capture(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	_t._check(ground >= 1 and (boxes.get("xforms", []) as Array).size() >= 2,
 		"the far city records the lot's ground (%d slabs) and its stages (%d far boxes)" % [ground, (boxes.get("xforms", []) as Array).size()])
 	cap.free()
+
+
+func _backlot_and_front(city: Node3D, plan: CityPlan, lay: Dictionary) -> void:
+	var k := plan.chunk_index_at((lay.backlot_street as Rect2).get_center())
+	var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
+	chunk.build()
+	var real := 0
+	for car in chunk._cars:
+		if car is Vehicle:
+			real += 1
+	_t._check(real >= 2, "the backlot street's parked cars are real Vehicle bodies (%d)" % real)
+	for car in chunk._cars:
+		if is_instance_valid(car):
+			car.free()
+	chunk._cars.clear()
+	chunk.get_parent().remove_child(chunk)
+	chunk.free()
+	var kf := plan.chunk_index_at(lay.offices.c)
+	var front: CityChunk = city._new_chunk(kf, CityChunk.Level.FULL)
+	front.build()
+	var glass: MeshInstance3D = front.get_node_or_null("StudioGlass")
+	_t._check(glass != null and (glass.material_override as ShaderMaterial).shader.resource_path.ends_with("curtain_glass.gdshader"),
+		"the office block's windows are curtain glass with its traced offices")
+	for car in front._cars:
+		if is_instance_valid(car):
+			car.free()
+	front.get_parent().remove_child(front)
+	front.free()

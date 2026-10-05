@@ -436,6 +436,7 @@ class Acc:
 	var ground: SurfaceTool
 	var walk: SurfaceTool
 	var lawn: SurfaceTool
+	var glass: SurfaceTool
 	var shapes: int = 0
 
 
@@ -451,6 +452,8 @@ static func _acc(ch: CityChunk) -> Acc:
 		a.walk.begin(Mesh.PRIMITIVE_TRIANGLES)
 		a.lawn = SurfaceTool.new()
 		a.lawn.begin(Mesh.PRIMITIVE_TRIANGLES)
+		a.glass = SurfaceTool.new()
+		a.glass.begin(Mesh.PRIMITIVE_TRIANGLES)
 		ch.set_meta("studio_acc", a)
 	return ch.get_meta("studio_acc")
 
@@ -474,6 +477,9 @@ static func site_steps(ch: CityChunk) -> Array[Callable]:
 			steps.append(_backlot.bind(ch, lay, area, i, i + 4))
 		for i in range(0, lay.parking.size(), 8):
 			steps.append(_vehicles.bind(ch, lay, area, i, i + 8))
+		for i in range(0, lay.cars.size(), 2):
+			if area.has_point(lay.cars[i].at) or (i + 1 < lay.cars.size() and area.has_point(lay.cars[i + 1].at)):
+				steps.append(_park.bind(ch, lay, area, i, i + 2))
 	else:
 		steps.append(_stages.bind(ch, lay, area))
 		steps.append(_front.bind(ch, lay, area))
@@ -685,7 +691,7 @@ static func _front(ch: CityChunk, lay: Dictionary, area: Rect2) -> void:
 		var sz: Vector3 = of.size
 		var y := BASE_Y - 0.05 + ch._gy(c.x, c.y)
 		if full:
-			FilmStudioKit.offices(acc.st, Transform3D(Basis(), Vector3(c.x, y, c.y)), sz, int(of.storeys))
+			FilmStudioKit.offices(acc.st, acc.glass, Transform3D(Basis(), Vector3(c.x, y, c.y)), sz, int(of.storeys))
 			ch._add_shape(sz, Vector3(c.x, y + sz.y * 0.5, c.y))
 			ch._occluder_boxes.append([Transform3D(Basis(), Vector3.ZERO), Vector3(c.x, y + sz.y * 0.5, c.y), sz - Vector3(1.0, 1.0, 1.0)])
 		else:
@@ -732,14 +738,27 @@ static func _backlot(ch: CityChunk, lay: Dictionary, area: Rect2, i0: int = 0, i
 			var c3 := xf * Vector3(w * 0.5, h * 0.5, 0.15)
 			var col := Color(0.62, 0.42, 0.34) if int(f.style) != FilmStudioKit.Facade.LIMESTONE else Color(0.8, 0.76, 0.66)
 			ch._batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis(Vector3.UP, yaw).scaled_local(Vector3(w, h, 0.5)), c3), col, Color(0.25, 0.3, float(int(f.seed) % 997) / 997.0, 0.0))
-	if full and i0 == 0:
-		for car: Dictionary in lay.cars:
-			var p: Vector2 = car.at
-			if not area.has_point(p):
-				continue
-			var v := 0 if h01([car.seed, "v"]) < 0.55 else (3 if h01([car.seed, "v2"]) < 0.5 else 2)
-			ch._batch.add("apark_car_%d" % v, ArenaGrounds.car_mesh(v), Transform3D(Basis(Vector3.UP, float(car.yaw)), Vector3(p.x, BASE_Y + 0.005, p.y)),
-				ArenaGrounds.CAR_PAINTS[int(car.seed) % ArenaGrounds.CAR_PAINTS.size()])
+
+
+## The backlot street's parked cars (FULL): real Vehicle bodies - the street is seen from the
+## pavement, where the cheap static cars read as grey boxes - parked and asleep like the city's
+## (CityChunk._park_car(): under the city root, hidden with the chunk until it is shown, freed
+## when it retires). Their rolls are a private rng of the seed and the spot.
+static func _park(ch: CityChunk, lay: Dictionary, area: Rect2, i0: int, i1: int) -> void:
+	for car: Dictionary in (lay.cars as Array).slice(i0, i1):
+		var p: Vector2 = car.at
+		if not area.has_point(p) or not PhysicsBudget.can_spawn():
+			continue
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([ch.plan.seed, "studio_car", int(car.seed)])
+		var v := Vehicle.random_car(rng)
+		var holder: Node = ch.get_parent() if ch.get_parent() else ch
+		var spot := Vector3(p.x, BASE_Y + 0.3 + ch._gy(p.x, p.y), p.y)
+		v.position = WorldState.to_local(spot) if holder != ch else spot
+		v.rotation.y = float(car.yaw)
+		holder.add_child(v)
+		v.visible = ch.visible
+		ch._cars.append(v)
 
 
 ## Basecamp, golf carts, gear.
@@ -857,7 +876,8 @@ static func _commit(ch: CityChunk) -> void:
 		_walk_mat = PropFactory.road("sidewalk", 3.0, Color(1.45, 1.43, 1.38), 7713, 1.5, 0.35)
 		_lawn_mat = PropFactory.lawn(Color(0.86, 0.98, 0.72), 5521, 0.25, 3.0)
 	var parts := [["StudioLot", acc.st, FilmStudioKit.material(), true], ["StudioGround", acc.ground, Industrial.ground_material(), false],
-		["StudioPavement", acc.walk, _walk_mat, false], ["StudioLawn", acc.lawn, _lawn_mat, false]]
+		["StudioPavement", acc.walk, _walk_mat, false], ["StudioLawn", acc.lawn, _lawn_mat, false],
+		["StudioGlass", acc.glass, FilmStudioKit.glass_material(), true]]
 	for p: Array in parts:
 		var st: SurfaceTool = p[1]
 		var mesh := st.commit()
