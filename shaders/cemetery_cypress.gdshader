@@ -11,6 +11,8 @@ render_mode cull_back;
 #include "res://shaders/color_space.gdshaderinc"
 
 global uniform float wind_factor;
+// Off on the web and the low Quality levels: the clumps' 27-tap cell search is skipped there.
+global uniform float ground_detail;
 
 uniform vec3 leaf_color = vec3(0.030, 0.052, 0.024);
 uniform vec3 tip_color = vec3(0.075, 0.105, 0.040);
@@ -65,9 +67,9 @@ void fragment() {
 		ROUGHNESS = 0.9;
 	} else {
 		vec3 q = v_obj * clump_scale * vec3(1.0, 0.55, 1.0);
-		vec4 c = cp_cells(q);
 		float px = length(fwidth(q));
-		float fade = 1.0 - smoothstep(0.5, 1.6, px);
+		float fade = (1.0 - smoothstep(0.5, 1.6, px)) * step(0.5, ground_detail);
+		vec4 c = fade > 0.0 ? cp_cells(q) : vec4(0.0, 0.0, 0.0, 0.6);
 		// A clump: lit as a dome round its centre, dark at its rim.
 		vec3 bump = normalize(-c.xyz) * fade;
 		vec3 n = normalize(NORMAL + (VIEW_MATRIX * vec4(bump, 0.0)).xyz * 0.55);
