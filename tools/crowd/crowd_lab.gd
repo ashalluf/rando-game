@@ -11,7 +11,7 @@ extends Node3D
 ## Measure the crowd's CPU per physics tick (headless is fine, nothing here renders):
 ##   MODE=bench N=100 godot --headless --path . tools/crowd/crowd_lab.tscn
 ##
-## SCENARIO: life (people talking, sitting, leaning, on the phone: CrowdLife), turn (walk, then an about-turn; side-on camera over a 0.5 m grid, so a sliding
+## SCENARIO: dog (two dog walkers; FOLLOW=1 walks the camera beside the first), life (people talking, sitting, leaning, on the phone: CrowdLife), turn (walk, then an about-turn; side-on camera over a 0.5 m grid, so a sliding
 ## foot shows against the lines), look (people at the kerb as a car passes, the player walks
 ## by and a shot goes off), crowd (thirty people wandering a block's pavement), start (a
 ## standing person sets off and stops again). STEP (ticks between frames, default 12), FRAMES
@@ -267,6 +267,10 @@ func _film() -> void:
 					leg += 1
 			for p: Pedestrian in _dog_legs:
 				_steer(p, Vector2(30.0, p.position.z))
+			if _scenario == "dog" and OS.get_environment("FOLLOW") == "1" and not _dog_legs.is_empty():
+				# A camera walking alongside the first walker, at the dog's side (FOLLOW=1).
+				var w: Pedestrian = _dog_legs[0]
+				_camera(w.position + Vector3(0.6, 1.05, -3.4), w.position + Vector3(0.4, 0.55, -0.6), 38.0)
 			if _scenario == "look":
 				_stage_look(_tick)
 				if OS.get_environment("DEBUG") == "1" and _tick % 30 == 0:

@@ -137,6 +137,11 @@ const SAMPLES := {
 	# Parked cars' alarms after a blast or a hit (CarAlarm): a pulsing electronic siren, a
 	# multi-tone warble cycle and a horn honking in time, real recordings (CC0), each looped.
 	"car_alarm": ["car_alarm_0.ogg", "car_alarm_1.ogg", "car_alarm_2.ogg"],
+	# The dogs (Dog): a big dog's bark close up, a small dog's yap, a yelp when one is hit. CC0
+	# recordings (docs/ASSETS.md); the dogs pitch them by size.
+	"bark_big": ["bark_big_0.ogg", "bark_big_1.ogg", "bark_big_2.ogg", "bark_big_3.ogg", "bark_big_4.ogg", "bark_big_5.ogg"],
+	"bark_small": ["bark_small_0.ogg", "bark_small_1.ogg", "bark_small_2.ogg", "bark_small_3.ogg", "bark_small_4.ogg"],
+	"dog_yelp": ["dog_yelp_0.ogg", "dog_yelp_1.ogg", "dog_yelp_2.ogg"],
 }
 
 ## Loudest-50 ms level of every take above, in dB, in the same order, measured off the committed
@@ -199,6 +204,9 @@ const SAMPLE_LOUDNESS_DB := {
 	"rail_chime": [-9.14, -8.53],
 	"ball_dribble": [-14.33, -14.77, -14.27, -14.01],
 	"car_alarm": [-13.47, -9.24, -12.05],
+	"bark_big": [-5.26, -4.88, -4.79, -3.41, -5.46, -5.02],
+	"bark_small": [-16.59, -17.13, -17.65, -16.79, -18.89],
+	"dog_yelp": [-11.57, -10.06, -6.64],
 }
 
 ## Sample names that have to loop. Set on the stream in code rather than in the .import file, so
@@ -725,6 +733,9 @@ func _build_synth() -> void:
 	_put("rail_hum", _wire_hum(2.0), true)
 	# A parked car's alarm (CarAlarm): an electronic wail is what a real one is.
 	_put("car_alarm", _siren_wail(2.0), true)
+	_put("bark_big", _bark(0.6))
+	_put("bark_small", _chirps(0.3, 2, 900.0, 1400.0))
+	_put("dog_yelp", _yelp(0.45))
 
 
 func _put(key: String, samples: PackedFloat32Array, looping: bool = false) -> void:

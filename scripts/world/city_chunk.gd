@@ -283,6 +283,9 @@ func build() -> void:
 ## is spread over a few frames instead of all landing in one - and it is the same city either
 ## way, because the steps run in the same order with the same random rolls as build().
 func build_step() -> bool:
+	# At the finish, the steps that must follow every deferred one (_run_last) go in, one at a time.
+	if _step == _steps.size() - 1 and not _last_steps.is_empty():
+		_steps.insert(_step, _last_steps.pop_front())
 	if _step < _steps.size():
 		# A step that returns false has more to do and runs again next time (see _run_or_defer).
 		if _steps[_step].call() != false:
@@ -300,6 +303,15 @@ func _run_or_defer(work: Callable) -> void:
 		return
 	while work.call() != true:
 		pass
+
+
+## Runs `step` after every step the build has deferred (_run_or_defer, crowds, YardFill's walls),
+## just before the finish, in the order these calls were made. For the passes that read what the
+## deferred steps laid (ClimbingPlants, Murals). Each of them used to move itself behind whatever
+## step still stood before the finish, and two of them did that to each other forever: the build
+## never ended and grew its step list until the box ran out of memory.
+func _run_last(step: Callable) -> void:
+	_last_steps.append(step)
 
 
 ## `step` with the batch's relief lift switched off while it runs. The hill steps place their
@@ -322,6 +334,8 @@ func _on_map_ground(step: Callable) -> Callable:
 ## is small next to the old all-in-one build, which was a hundred milliseconds on a slow machine.
 var _steps: Array[Callable] = []
 var _step: int = 0
+## Steps queued by _run_last(), put in front of the finish one by one when it is reached.
+var _last_steps: Array[Callable] = []
 
 
 func begin_build() -> void:
@@ -339,6 +353,7 @@ func begin_build() -> void:
 	zone = plan.zone_at((block.rect as Rect2).get_center())
 	_steps.clear()
 	_step = 0
+	_last_steps.clear()
 	# A block the replica area's corridor runs through builds the replica's own content in place
 	# of the seeded block (ReplicaAreas.block_role(), ReplicaBuilder).
 	var replica: ReplicaAreas = plan.macro.replica if plan.macro else null
@@ -430,6 +445,8 @@ func begin_build() -> void:
 	_steps.append(_build_freeway)
 	# The light rail (LightRail, LightRailKit): track, structure, overhead, stations, gates.
 	_steps.append(_build_light_rail)
+	# What stands on the hills (RidgeBuild): towers, masts, tanks, fire roads, the right of way.
+	_steps.append_array(RidgeBuild.attach(self))
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
 	if level == Level.FULL:
@@ -439,6 +456,10 @@ func begin_build() -> void:
 		# Bougainvillea, ivy, fig, jasmine, vines and accent plants on what the build laid
 		# (ClimbingPlants: hash-seeded, moves itself behind the deferred steps).
 		_steps.append(ClimbingPlants.build.bind(self))
+		# Murals, ghost signs, painted crosswalks and cabinets (Murals): hash-seeded, last.
+		_steps.append(Murals.build.bind(self))
+		# Pole signs, window vinyl, banners and street plates (BoulevardSigns; hash-seeded, last).
+		_steps.append(BoulevardSigns.build.bind(self))
 	_steps.append(_finish_build)
 
 
@@ -457,11 +478,17 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 		MacroMap.Zone.CITY:
 			# A replica block or a landmark's site does not build the seeded block, so the far
 			# city must not record one there either.
-			if replica_role == 0 and not block.has("site"):
+			if String(block.get("site", "")) == GolfCourse.ID:
+				# The golf course's capture: its ground's colour and its buildings (GolfBuild).
+				_steps.append_array(GolfBuild.capture_steps(self))
+			elif replica_role == 0 and not block.has("site"):
 				if plan.river_block(ix, iz):
 					_steps.append(RiverBuild.capture.bind(self))
 				else:
 					_steps.append_array(_block_steps(block))
+			elif block.get("site", "") == OilField.ID:
+				# The oil field's hill, pumpjacks, tanks and masts (OilFieldBuild).
+				_steps.append_array(OilFieldBuild.capture_steps(self))
 			elif block.has("site"):
 				_steps.append_array(Landmarks.capture_steps(block.site, self))
 		MacroMap.Zone.PORT:
@@ -512,10 +539,14 @@ func _finish_build() -> void:
 	LotFill.commit(self)
 	YardFill.commit(self)
 	HouseKit.commit(self)
+	HillHomeKit.commit(self)
 	Industrial.commit(self)
+	VacantLots.commit(self)
 	Parks.commit(self)
 	Alleys.commit(self)
 	DecoBoulevard.commit(self)
+	Construction.commit(self)
+	StreetShadowReach.apply(self)
 	_commit_far_ground()
 	_commit_boxes()
 	var fire_trees := TreeFire.collect(self, _batch)
@@ -1642,6 +1673,9 @@ func _scatter_hills() -> bool:
 		var h := _terrain_height(p)
 		if h < 1.5:
 			continue
+		# Not under the reservoir, on its bathtub ring or trail (Reservoir.keep_clear()).
+		if plan.macro.reservoir and plan.macro.reservoir.keep_clear(p, h):
+			continue
 		var hx := _terrain_height(p + Vector2(1.0, 0.0)) - _terrain_height(p - Vector2(1.0, 0.0))
 		var hz := _terrain_height(p + Vector2(0.0, 1.0)) - _terrain_height(p - Vector2(0.0, 1.0))
 		var slope := Vector2(hx, hz).length() * 0.5
@@ -1725,6 +1759,9 @@ func _shell_marks(area: Rect2) -> Array:
 		if r > 0.0 and not SHELL_FREE_LANDMARKS.has(lm.id) and area.grow(r + SHELL_CLEAR_SPAN).has_point(at):
 			marks.append([at, at, r])
 	marks.append_array(Ballpark.shell_marks(area))
+	# The reservoir's shore, bathtub ring, trail, dam and spillway (Reservoir.shell_marks()).
+	if plan.macro and plan.macro.reservoir:
+		marks.append_array(plan.macro.reservoir.shell_marks(area.grow(SHELL_CLEAR_SPAN + 12.0)))
 	return marks
 
 
@@ -1857,6 +1894,8 @@ func _plant_hills() -> bool:
 			var h := _terrain_height(p)
 			if h < 1.5:
 				continue
+			if plan.macro.reservoir and plan.macro.reservoir.keep_clear(p, h):
+				continue
 			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
 				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25
 			# The drainage off the tile's own grid, as the shader gets it through the vertex colour.
@@ -1875,7 +1914,9 @@ func _plant_hills() -> bool:
 				# metres a canopy tinted below 1 drew as a black hole in the hillside.
 				var tint := Color(1.35, 1.4, 0.85).lerp(Color(1.6, 1.62, 1.0), tone)
 				var variety := Color(rng.randf(), rng.randf(), rng.randf_range(0.0, 0.5), 0.0)
-				_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
+				# A California sycamore in the wettest hollows (LaTrees, hashes only).
+				if not LaTrees.gully_tree(self, at - Vector3(0.0, 0.1, 0.0), yaw, wet):
+					_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
 				hill_planting.oak += 1
 				points.append([p, "oak"])
 				continue
@@ -2026,6 +2067,14 @@ func _build_mansions() -> void:
 	drive_st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var drives := 0
 	for m in plan.macro.hill_roads.mansions_in(owned_rect()):
+		if HillHomeKit.enabled:
+			# The house, its pad, walls and site (HillHomeKit); the driveway is drawn here.
+			var gate_at := HillHomeKit.build(self, m)
+			var drive_from: Vector2 = m.get("drive_from", m.pos)
+			if level == Level.FULL and drive_from.distance_to(gate_at) > 1.0:
+				_drive_strip(drive_st, drive_from, gate_at, ESTATE_DRIVE_WIDTH)
+				drives += 1
+			continue
 		var pos: Vector2 = m.pos
 		var h: float = m.height
 		var yaw: float = m.yaw
@@ -2314,7 +2363,7 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 		var t := mh.randf_range(a + 4.0, b - 4.0)
 		var lane := (width * 0.25) * (1.0 if mh.randf() < 0.5 else -1.0)
 		var pos := Vector3(center + lane, ROAD_TOP - 0.025, t) if along_z else Vector3(t, ROAD_TOP - 0.025, center + lane)
-		if _in_cuts(cuts, pos):
+		if _in_cuts(cuts, pos) or RoadHardware.enabled:
 			continue
 		_batch.add("manhole", PropFactory.model_manhole(), Transform3D(Basis(Vector3.UP, mh.randf_range(0.0, TAU)), pos))
 	if avenue:
@@ -2371,7 +2420,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	if CemeteryBuild.wanted(self, block):
 		steps.append_array(CemeteryBuild.steps(self, block))
 		return steps
-	match block.kind:
+	# A hospital campus (Hospital; its own hash-seeded layout) in place of the block's own build.
+	match -1 if Hospital.is_hospital(block) else int(block.kind):
+		-1:
+			steps.append_array(HospitalBuild.steps(self, block))
 		CityPlan.BlockKind.PARK:
 			if Parks.wanted(self, block):
 				# A rec park (Parks: its own hash-seeded layout). The lawn roll is still made, so the
@@ -2418,6 +2470,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void:
 				if _lawn_rect.size.x > 1.0:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
+	# The tall pole signs' far boxes (BoulevardSigns; LOD and the far city's capture only).
+	steps.append(func() -> void: BoulevardSigns.block_step(self, block))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
 		# Midtown's deco boulevard: mature palms on its kerbs, the night pools (DecoBoulevard), after
@@ -2444,6 +2498,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: StreetVendors.build_block(self, block))
 			for i in StreetVendors.MAX_PER_BLOCK:
 				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
+		# Road works in the kerb lane and the building sites' crews (Construction; hash-seeded),
+		# before the parked cars, which keep out of a closure.
+		if Construction.wanted(self, block):
+			steps.append_array(Construction.steps(self, block))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
@@ -2649,7 +2707,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Kerbs.blocks_parking(self, spot[0]):
+			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
@@ -2661,7 +2719,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
-	if StreetVendors.blocks_parking(self, spot[0]):
+	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]) \
+			or KerbBins.blocks_parking(plan, spot[0], float(car._dims().length)):
 		car.free()
 		count[0] += 1
 		return
@@ -2722,7 +2781,8 @@ func _lot_steps(_rect: Rect2, params: Dictionary, rng: RandomNumberGenerator) ->
 	var district: int = plan.block(ix, iz).district
 	if HouseKit.wanted(self, district):
 		for lot: Dictionary in HouseKit.extra_lots(plan, ix, iz):
-			steps.append(_build_house.bind(lot, district))
+			if not CarDealers.covers(plan, ix, iz, lot.center):
+				steps.append(_build_house.bind(lot, district))
 	return steps
 
 
@@ -2757,6 +2817,16 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if Broadway.claims(plan, ix, iz, lot):
 		Broadway.build_lot(self, lot)
 		return
+	# A car dealership's site (CarDealers: a run of edge lots on an auto row, hash-seeded; the pad
+	# roll above is made, so no other lot moves).
+	if CarDealers.claims(plan, ix, iz, lot):
+		CarDealers.build_lot(self, lot)
+		return
+	# A single pumpjack behind a fence (OilField.lot_well(): a hash of the lot; the rolls above are made).
+	var well := OilField.lot_well(plan, lot, district)
+	if not well.is_empty():
+		OilFieldBuild.claim_lot(self, lot, well, district)
+		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false):
@@ -2764,6 +2834,9 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		return
 	if pad:
 		Commercial.build_pad(self, lot, rng)
+		return
+	# A vacant lot or a gravel car park (VacantLots: a hash of seed + lot, after every roll above).
+	if VacantLots.build_lot(self, lot):
 		return
 	# The suburbs' and the beach town's houses (HouseKit: real houses, planned purely from the lot).
 	if HouseKit.wanted(self, district):
@@ -2818,6 +2891,12 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.plinth_depth = g - gmin + SIDEWALK_TOP + 0.6
 	var base := Vector3(center.x, SIDEWALK_TOP, center.y)
 	building.position = base + Vector3(0.0, g, 0.0)
+	# A tower going up (Construction: a hash of seed + block, after every roll; the Building's own
+	# rolls never run).
+	if Construction.build_lot(self, lot):
+		building.free()
+		building_count += 1
+		return
 	# An INDUSTRIAL warehouse is Industrial's own tilt-up building (hash-seeded; no roll moves).
 	if Industrial.wanted(self, district) and Industrial.build_lot(self, lot, building):
 		building.free()
@@ -2884,7 +2963,9 @@ func _build_house(lot: Dictionary, district: int) -> void:
 	var house := HouseKit.plan_house(plan, ix, iz, lot, district)
 	for r: Rect2 in HouseKit.ground_parts(house):
 		_lot_rects.append(r.grow(0.3))
-	HouseKit.build(self, house)
+	# A timber frame going up on the house's own plan (Construction; a hash of seed + lot).
+	if not Construction.build_house(self, lot, house):
+		HouseKit.build(self, house)
 	building_count += 1
 	if YardFill.wanted(self, district):
 		_yard_lots.append(HouseKit.yard_entry(lot, house))
@@ -3087,9 +3168,9 @@ func _add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 		_batch.add("bush_%d" % b, PropFactory.model_bush(b), Transform3D(basis, at), tint)
 
 
-## Blade grass over a lawn: PropFactory.grass_blade() tufts in the shared "grass" batch, which
-## is one draw call however many of them there are - a lawn is one draw whether it has a hundred
-## tufts on it or twenty thousand, which is what makes real grass affordable at all.
+## Blade grass over a lawn: PropFactory.grass_blade() tufts in the "grass_<cx>_<cz>" batches, one
+## per GRASS_CELL of true world, each one draw call however many tufts it holds - a hundred tufts
+## or twenty thousand, which is what makes real grass affordable at all.
 ##
 ## `blockers` are rects the grass has to keep out of (the house footprints on a suburban block,
 ## which the lawn slab runs underneath). They are rasterised into an occupancy grid first,
@@ -3123,6 +3204,7 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 	# A big lawn is twenty thousand tufts, so it is planted GRASS_SLICE at a time as build steps
 	# of its own. Its random stream is its own too, so the lawn comes out identical either way.
 	var done := [0]
+	var keys := {}
 	_run_or_defer(func() -> bool:
 		var stop := mini(count, done[0] + GRASS_SLICE)
 		for k in range(done[0], stop):
@@ -3138,17 +3220,25 @@ func _add_grass(rect: Rect2, density: float = 1.0, keep_out: float = 0.0, blocke
 			var sc := rng.randf_range(0.55, 1.6)
 			var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc * rng.randf_range(0.85, 1.2), sc * rng.randf_range(0.7, 1.35), sc * rng.randf_range(0.85, 1.2)))
 			var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
-			_batch.add("grass", blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
+			var key := "grass_%d_%d" % [floori(p.x / GRASS_CELL), floori(p.y / GRASS_CELL)]
+			keys[key] = true
+			_batch.add(key, blade, Transform3D(basis, Vector3(p.x, SIDEWALK_TOP + 0.05, p.y)), tint, Color(rng.randf(), 0.0, 0.0))
 		done[0] = stop
 		if stop < count:
 			return false
-		_batch.set_no_shadow("grass")
-		_batch.set_draw_distance("grass", grass_distance)
+		for key: String in keys:
+			_batch.set_no_shadow(key)
+			_batch.set_draw_distance(key, grass_distance)
 		return true)
 
 
 ## Grass tufts planted per build step (see _add_grass).
 const GRASS_SLICE := 800
+## The grass is batched in cells this many metres across (true world, so a cell is the same for
+## every lawn of the chunk): a batch's draw distance is measured to the centre of its bounds, so as
+## ONE batch a chunk drew every tuft it had while its centre was inside grass_distance - in the beach
+## town 3.4 million triangles of blades in six draws, 43 % of the frame.
+const GRASS_CELL := 32.0
 
 
 ## Flowering ground cover and grass clumps scattered over a patch of lawn. This is where the
@@ -3775,6 +3865,9 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 	# the carriageway and stood in the lanes. Skipped after every roll it makes, so the rng
 	# stream, and so everything planted after it, is the same as before.
 	if _under_freeway(Vector2(at.x, at.z), TREE_FREEWAY_MARGIN):
+		return
+	# Los Angeles' own species for a share of blocks, parks and planters (LaTrees, hashes only).
+	if LaTrees.street_or_park(self, at, yaw, tint, lean_to):
 		return
 	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
 
