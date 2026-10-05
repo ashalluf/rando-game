@@ -605,7 +605,7 @@ already mapped so milestone 2 is script-only.
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
-- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #63).**
   A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
   (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
   back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky
@@ -642,6 +642,16 @@ already mapped so milestone 2 is script-only.
   and lit offices by the hour (`city_hour` global). No new node per block: an additive skin per
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
+- **2026-10-05 Murals, ghost signs, painted crosswalks and cabinets (VISUAL_ROADMAP #63).** The
+  pictures are painted procedurally in one shader from a seed (landscapes, botanical, folk
+  geometry, waves; no faces, no artist's work, no lettering) rather than drawn into an atlas,
+  because a 60 m sound wall needs centimetre detail an atlas cannot hold; only the ghost signs'
+  lettering is an atlas (invented period names). Decision: murals go only where the wall is
+  really blank (sound, yard and campus walls, freeway columns, the clear bands StreetWear's
+  `_paintable()` finds on a Building) - never over glass, so a Building gets ghost signs and
+  friezes in its bands, not wall-sized murals (no Building face is windowless). Transparent, drawn
+  before the street wear so tags land on top; FULL chunks only. docs/HANDOFF.md 9b? (murals);
+  CLAUDE.md "Murals".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

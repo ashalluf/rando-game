@@ -1056,6 +1056,26 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   in linear (color_space). `BILLBOARDS=0` in the environment is the A/B; `BB_DEBUG=1` prints
   each face with an EYE; `tools/billboard_probe.tscn -- --spawn=x,z` counts the boards round a
   point. Checks: `tests/billboard_checks.gd`.
+- Murals (2026-10-05, VISUAL_ROADMAP #63, docs/HANDOFF.md 9b? murals): `Murals`
+  (`scripts/world/murals.gd`, static; one build step after StreetWear that queues its work as the
+  last step before the finish, so YardFill's deferred walls exist) paints big scenes on walls that
+  are really blank - YardFill's tall stucco / sound / concrete / brick walls (`ch._yard_walls`,
+  grouped into runs, one design panel by panel between the pilasters, on the public side) and the
+  freeway columns (StreetWear's frame) -, ghost signs (brick in the historic core and the Arts
+  District) and folk friezes in the clear bands `StreetWear._paintable()` finds on a Building
+  (`_bands()`; no Building face is windowless, so never a wall-sized mural there), painted
+  crosswalks (`crosswalk_rule()`: one pattern per district from a hash, then `CROSSWALK_ODDS`) and
+  painted signal cabinets (the wrap rides the prop's record). Every roll a hash of seed + wall /
+  bent / junction / prop; nothing near a place of worship. ONE MultiMesh ("mural") a FULL chunk on
+  `shaders/mural.gdshader`: transparent, `render_priority` -1 (StreetWear's tags land on top), no
+  shadow, `DRAW_DISTANCE`; it PAINTS each scene from the seed (coast with palms, mountains and
+  poppies, desert and saguaros, botanical, folk bands, waves; no faces, no artist's work, no
+  lettering) in sRGB palettes through `color_space.gdshaderinc`, with brush edges, outlines, fade,
+  flaking and the wall's grain off the screen; ghost signs from `assets/textures/murals/
+  ghost_signs.png` (`tools/make_murals.py`, invented period names). Instance data (half-float
+  safe) in the shader header. `MURALS=0` is the A/B. Look: `tools/glshot/mural_shot.gd` (seconds),
+  `MURAL_DEBUG=1 tools/murals/probe.gd -- --spawn=x,z` (placements with EYEs). Checks:
+  `tests/murals_checks.gd`.
 - Night lighting: the city has no real lights except the sun, so at night it was pitch black.
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick

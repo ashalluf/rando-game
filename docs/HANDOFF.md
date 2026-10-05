@@ -6766,7 +6766,7 @@ channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL onl
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
 
-## 9bq. More everyday car bodies: hatchback, SUV, minivan, taxi, beater, 2026-10-05 (agent branch `wt/more-cars`; VISUAL_ROADMAP #59)
+## 9bq. More everyday car bodies: hatchback, SUV, minivan, taxi, beater, 2026-10-05 (agent branch `wt/more-cars`; VISUAL_ROADMAP #63)
 
 The brief: a real LA street is full of compact hatchbacks, full-size SUVs, minivans, taxis and a
 beater or two; traffic had four Blender bodies (sedan, crossover, pickup, van), the exotics and
@@ -7040,3 +7040,66 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9b?. Murals, ghost signs, painted crosswalks and cabinets, 2026-10-05 (agent branch `wt/murals`; VISUAL_ROADMAP #63)
+
+LA is a city of murals; the city had the Arts District's abstract warehouse murals (Industrial)
+and StreetWear's tags and posters, and nothing else painted. `Murals`
+(`scripts/world/murals.gd`, static) adds the rest, one build step of every FULL chunk after
+StreetWear (`CityChunk.begin_build()`, one line), which queues its real work as the LAST step
+before the finish so YardFill's deferred walls exist (`_work()` re-queues itself while anything
+was deferred after it).
+
+**Where (all hashes of seed + wall / bent / junction / prop; no chunk, block or Building rng, so
+nothing else moves - the checks build blocks with it off and on):**
+- **Yard, campus and sound walls**: YardFill's wall boxes (`ch._yard_walls`, read before
+  `YardFill.commit()` clears them) of kinds stucco, sound, concrete, brick at least `MIN_WALL_H`
+  tall, grouped into runs on one line; a run that wins `WALL_ODDS[district]` is ONE design painted
+  panel by panel between the pilasters (each instance carries its left edge in the design, so the
+  scene runs on across them), on the side the public sees (a sound wall's right of way, from
+  `YardFill.corridor_block()`'s cells; any other wall the side nearer the block edge).
+- **Freeway columns**: StreetWear's column frame; a bent that wins `PILLAR_ODDS` gets a tall panel
+  on the two faces along the route of both columns (scenes that read tall: palms, botanical,
+  folk, waves).
+- **Buildings**: every Building face is glazed by building.gdshader and its kit frames stand proud,
+  so a true blank side wall does not exist (`tools/murals/wall_probe.gd` measured it: the biggest
+  clear rectangles are full-width bands 0.5-2 m tall between window rows, the tallest usually the
+  one over the storefront). `_bands()` finds those bands with `StreetWear._paintable()` (one window
+  column sampled finely, then the ends), above the storefront, from the pavement. In a clear band:
+  a **ghost sign** (brick in the historic core - downtown off the skyline boost - and the Arts
+  District, `GHOST_BRICK`; other masonry `GHOST_OTHER`; the highest band that holds one, under
+  `GHOST_MAX_V`, buildings under `GHOST_MAX_TOP`), else a **frieze** of folk geometry the length of
+  the stretch (`FRIEZE_ODDS`), or a full mural where a band is 2.8 m+ (rare).
+- **Painted crosswalks**: `crosswalk_rule(plan, district)` - one rule per district from a hash
+  (none, rainbow, folk, waves, flowers; industrial always none) - and then `CROSSWALK_ODDS[district]`
+  of that district's signal / stop junctions; each crosswalk in 4 m strips tilted to the relief, a
+  hair over the white bars, which show through where the paint is worn.
+- **Signal cabinets**: `CABINET_ODDS`; a scene wrapped round all four faces, the instances added
+  to the prop's record so the wrap goes with the cabinet.
+- Never within a place of worship's reach (StreetWear's `_worship_near`), cap `MAX_PER_CHUNK`.
+
+**Drawn**: ONE quad mesh, ONE MultiMesh ("mural") a FULL chunk on `shaders/mural.gdshader`,
+transparent with `render_priority` -1 (so StreetWear's tags land on top of a mural), no shadows,
+faded by `DRAW_DISTANCE` (230 m: past the FULL ring anyway; nothing in LOD chunks or the far
+city). The shader PAINTS every picture from the seed - sunset coast with palms and a striped sun,
+layered mountains over a poppy field, desert mesas and saguaros, a botanical field (split leaves,
+flowers, citrus), bands of folk geometry (zigzag, stepped fret, diamonds, sawtooth, rosettes),
+scalloped waves; palettes in sRGB taken through `color_space.gdshaderinc`; brush-wobbled edges,
+dark outlines, stroke texture, a painted folk frame on some, sun fade, flaking (the wall shows
+through), and the wall's own grain read off the screen like the street wear. No faces, no artist's
+work, no lettering but the ghost signs. Ghost signs are `assets/textures/murals/ghost_signs.png`
+(`tools/make_murals.py`, PIL: sixteen INVENTED period ads as R field / G lettering / B shadow and
+rules masks), coloured in faded period paints, flaking off, part painted over in the wall's own
+colour. Instance data in the shader header (half-float safe). `MURALS=0` is the A/B.
+
+**Look / measure**: `tools/glshot/mural_shot.gd` (every scene, ghost signs, crosswalks and
+cabinets on test walls, seconds; SEED, AGE, WEAR); `MURAL_DEBUG=1 tools/murals/probe.gd -- --spawn=x,z`
+lists every placement round a point with an EYE for `still_shot.gd`. Stills (default seed, noon):
+ghost sign `EYE=2990.0,1.7,-174.1,-90,20`, crosswalks from above `2610,26,-178,0,-55`, cabinet
+`2596.2,1.7,-184.4,0,-12@12@60`, frieze `2801.5,1.8,412,0,14`, freeway columns
+`2029.9,4.8,-263.7,174,-4`, sound wall `1622.6,10.4,2450,-90,-6`. Checks: `tests/murals_checks.gd`.
+
+**Not done**: painted benches (the bench is a Poly Haven model with no flat back to paint) and
+utility boxes (there is no utility-box prop yet besides the signal cabinet); murals on the LA River's
+banks and under the bridges (the river has its own graffiti); a coarse tint of big murals in LOD
+chunks. NEEDS MAC CHECK: the paint under Forward+ (colours go through color_space, judged on
+opengl3 only).

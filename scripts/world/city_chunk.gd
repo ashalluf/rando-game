@@ -429,6 +429,8 @@ func begin_build() -> void:
 		# Tags, buffs, posters and stickers (StreetWear) on the walls, poles and freeway columns
 		# everything above built. Hash-seeded: the block's rng is untouched.
 		_steps.append(StreetWear.build.bind(self))
+		# Murals, ghost signs, painted crosswalks and cabinets (Murals): hash-seeded, last.
+		_steps.append(Murals.build.bind(self))
 	_steps.append(_finish_build)
 
 
