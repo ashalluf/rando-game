@@ -992,7 +992,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `airliner_livery.gdshader`, painted by region of the model in its own units (fuselage, belly,
   cheatline, windows, doors, cockpit, fin and its mark, nacelles, wings, gear). Checks:
   `tests/airport_checks.gd`. Stills: the four in docs/HANDOFF.md 9bb.
-- Airport ground life (2026-10-05, "taxiing jets, apron vehicles moving"; HANDOFF 9b?):
+- Airport ground life (2026-10-05, "taxiing jets, apron vehicles moving"; HANDOFF 9bu):
   `AirportGround` (`scripts/world/airport_ground.gd`), a child of AirTraffic built in its
   `_setup()` (`AIRPORT_GROUND=0` in the environment: none of it, the A/B). **The stands are static
   state** (`g_state` EMPTY / INBOUND / PARKED / PUSHING, livery, bridge extension, turnaround
@@ -1166,7 +1166,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
   opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
   lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
-- More everyday bodies (2026-10-05, "the street stops repeating"; HANDOFF 9bq):
+- More everyday bodies (2026-10-05, "the street stops repeating"; HANDOFF 9bu):
   `tools/make_more_cars.py` (imports `make_road_cars.py`; `blender -b --factory-startup -P
   tools/make_more_cars.py -- hatchback suv minivan taxi beater [--render]`, then `--import`) adds
   a 5-door compact HATCHBACK, a full-size three-row SUV (flat roof on the van's ninth anchor,

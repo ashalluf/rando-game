@@ -782,6 +782,9 @@ func _tend_jets(dt: float) -> void:
 			_release_jet(j)
 			continue
 		var gi: int = _jet_gate.get(j, -1)
+		if j.life != AmbientCraft.Life.FLYING:
+			# Shot down on the ground: it burns where it stands and clears itself away.
+			continue
 		match j.phase:
 			AmbientJet.Phase.PARKED:
 				# Docked: once the bridge is on, the jet becomes the stand's instance.

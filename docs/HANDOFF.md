@@ -6577,6 +6577,11 @@ itself; a FULL rec park and school: one ground mesh, one walls mesh, no Building
 shadowless, a kit budget, people's spawn steps; LOD builds no meshes; the far city's capture lays
 partitioned slabs (0 overlaps) covering the site and far boxes.
 
+**Frame cost** (geo_count, opengl3 800x600, `--spawn=-420,820,0,-5 --hour=10`, on the apron facing the
+concourse, before any live jet): `AIRPORT_GROUND=0` 1,639,227 tris / 2,044 draws / 14,261 objects;
+with it 1,670,767 / 2,096 / 14,313 (+1.9 % triangles, +52 draws: the nine posable bridges and the
+vehicles). A live jet on the ground is one AmbientJet as before (model, shadow twin, lights).
+
 **Not done / not verified**: no Forward+ look (the pool trace, the floodlight glow, the acrylic
 and turf under AgX: NEEDS A MAC CHECK); no children or swimmers; the playground structure and
 the people's "games" are simple (pickup players run between spots, fielders stand; nobody
@@ -7041,9 +7046,9 @@ ALU in shaders that were already running.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
 
-## 9bq. The airport's ground comes alive: taxiing jets, pushbacks, jet bridges, apron vehicles, 2026-10-05 (agent branch `wt/airport-life`)
+## 9bu. The airport's ground comes alive: taxiing jets, pushbacks, jet bridges, apron vehicles, 2026-10-05 (agent branch `wt/airport-life`; VISUAL_ROADMAP #63)
 
-Number is provisional (the next free one after 9bp; the lead renumbers on merge).
+Number is provisional (the next free one after 9bt; the lead renumbers on merge).
 
 **The brief** (lead): the airport (9bb) had jets in the air and a static apron - arrivals faded
 out at the runway's west end, departures faded in lined up, every stand's airliner and trucks
@@ -7137,6 +7142,11 @@ stopped behind stand 13, the catering truck up at stand 12's door), `AIR=taxi ..
 `godot --headless --path . --script tools/airport_life/run_checks.gd`). air_traffic_checks' arrival
 now accepts either ending (to a stand, or faded at the runway end); airport_checks counts an
 instance for every stand.
+
+**Frame cost** (geo_count, opengl3 800x600, `--spawn=-420,820,0,-5 --hour=10`, on the apron facing the
+concourse, before any live jet): `AIRPORT_GROUND=0` 1,639,227 tris / 2,044 draws / 14,261 objects;
+with it 1,670,767 / 2,096 / 14,313 (+1.9 % triangles, +52 draws: the nine posable bridges and the
+vehicles). A live jet on the ground is one AmbientJet as before (model, shadow twin, lights).
 
 **Not done / not verified**: Forward+ (the shimmer was judged on opengl3 only, where it reads the
 same screen texture); the follow-me car and the crash tender are AirportKit-style boxes like the

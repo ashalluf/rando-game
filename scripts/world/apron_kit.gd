@@ -6,7 +6,7 @@ extends RefCounted
 ## body, the scissor lift between them, rebuilt as it rises), a follow-me car, the field's crash
 ## tender (ARFF: a six-wheel airport fire truck with roof and bumper turrets) and the open
 ## apparatus shed it stands in. Every mesh faces -Z, stands on y 0 and is cached (the scissor
-## by height, rounded to a centimetre... and only while it moves).
+## by its height, in 2 cm steps).
 
 const C_LIME := Color(0.48, 0.62, 0.02)
 const C_CHECK := Color(0.02, 0.02, 0.02)

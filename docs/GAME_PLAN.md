@@ -289,6 +289,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The airport's ground comes alive (VISUAL_ROADMAP #63, HANDOFF 9bu).** Landed
+  airliners taxi to a free stand and dock, departures push back and taxi out to the runway,
+  baggage trains, fuel and catering trucks and a follow-me car work the apron, the jet bridges
+  swing to the doors. Decisions worth knowing: the stands are STATIC state (`AirportGround`) that
+  every copy of the concourse and every chunk's gate set registers with, because those are built
+  before the controller exists and in two copies; a live jet swaps with the stand's instance
+  whenever it is due (same model, place and livery), the static trucks only while nobody looks;
+  the ground flow is one way (west connector in, east connector out) with one owner of the
+  departure runway, so jets never meet head on; the player's flyable private jet moved from the
+  taxiway's west end (across every arrival's path) to its east end, facing west; and the final
+  approach is no longer swept sideways over the runway protection zone, which had held every
+  arrival level to the fence and put its touchdown at the far end of the runway.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
