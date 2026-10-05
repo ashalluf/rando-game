@@ -24,3 +24,4 @@ Stills for the service vehicles (branch `wt/service-vehicles`, HANDOFF 9bs). All
 - `16_wave2_delivery_hazards_1000.jpg` - SERVICE=delivery: double-parked with its hazards on.
 
 Frame cost (tools/geo_count.gd, opengl3, 800x600, same spawn): SERVICE_VEHICLES=0 3.586 M tris / 2,695 draws -> on 3.717 M / 2,702 (+3.7 %).
+- `17_wave2_closeup_fullres_t20..t24_*.jpg` - the same close-ups at full 1280x720 (the composite in 13 is downscaled to 640x360 tiles). Bodies are Blender-built by tools/make_service_vehicles.py on make_big_vehicles / make_road_cars (loft, booleans, raycast parts, slots, far twin), 22-29k tris each; SERVICE_WORK=0.6, opengl3.
