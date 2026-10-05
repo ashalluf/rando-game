@@ -4279,6 +4279,55 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `StreetVendor`s and `MarketShopper`s, `CityChunk.market_road` puts them on the asphalt).
   `FARMERS_MARKET=0` the A/B, `MARKET_DAY=1`, `MARKET_HOUR=h`. Probe:
   `tools/farmers_market/probe.gd`; checks: `tests/farmers_market_checks.gd`.
+- Micromobility (2026-10-05, docs/HANDOFF.md "Micromobility": "the 2026 LA street"):
+  `Micromobility` (`scripts/world/micromobility.gd`, static) lays out, from hashes only (seed +
+  block / face / road / crossing, never a chunk or block rng; a FULL chunk's step after the
+  vendors, before the parked cars), shared e-scooters of two invented operators (SKOOTA teal,
+  KWIKR amber) in clusters at the pavement edge - on their kickstands, `FALLEN_SHARE` knocked
+  over, one in the gutter (the parked car there keeps away), one leaning on a street tree -,
+  BASIN BIKE share stations (a solar kiosk with a lit screen and map panel, a row of docks, bikes
+  in some; a dock that meets a lamp is left out of the row), inverted-U racks at corners with a
+  bike locked to some, and **bike lanes**: `road_has_lane()` per road (a hash, avenues more, the
+  real downtown streets in `LANE_STREETS` always), `lane_on()` per stretch between crossings
+  (open city road, ordinary blocks either side: no site, replica, river block or industrial).
+  A lane takes the parking lane: the parked cars skip it after their rolls
+  (`blocks_parking()`, counted as parked) and its stall paint is not laid (`lane_by_chunk()`).
+  Its paint is `bike_lane` pieces of `PIECE` metres (the batch lifts each to the relief) on
+  `shaders/bike_lane.gdshader`: green (whole, or dashes in the conflict zone before a crossing),
+  the line, a hatched buffer, the bike stencil and arrow drawn in the shader for the rider
+  coming up the lane (INSTANCE_CUSTOM r/g/b; the dashes and hatching on TRUE world distance via
+  `origin_shift`); delineators every `POST_EVERY` on protected roads (no collision). Every mesh
+  is code at real size (`MicroMesh`, `scripts/world/micro_mesh.gd`: laced 700c / 26" wheels, a
+  10" scooter wheel, 172.5 mm cranks, drop bars, a sprung cruiser saddle, a longtail's deck and
+  kid seat, the share bike's basket and skirt guard) on ONE shader
+  (`shaders/micromobility.gdshader`: kind in the vertex alpha, the bike's paint from
+  INSTANCE_CUSTOM or the rider's `paint_uniform` Vector3 - a Color uniform is decoded on Forward+ -,
+  lamps, screens, the map, solar cells, retroreflectors); one batch per kind a chunk (`mm_*`). A
+  scooter or a docked or racked bike is an `EncampmentItem` named `Micro_*` (knocked over as a real
+  body, gone for good; the westlake camp check skips them). **Riders**: `Cyclists`
+  (`scripts/npc/cyclists.gd`, a Node3D in city.tscn: its space is the true world) keeps up to
+  `max_riders` on the lanes within `spawn_radius` of the player (spawned out of sight, dropped past
+  `despawn_radius`, none at LOWEST): right-hand running on `ride_offset()`, the crossing ahead's
+  signal (`TrafficSignals.light`, stop line `JUNCTION_GAP` short), a look at stop signs and
+  roundabouts, following the rider ahead, braking for whatever stands in the lane (a shape query
+  on player / props / npc, a quarter second apart; after 5 s stuck it swerves round), riding off
+  flat out when scared; at the end of a lane it waits and goes once unseen. `BikeRider`
+  (`scripts/npc/bike_rider.gd`) extends Pedestrian (so shot, knocked, ragdolled, a crime): the
+  crowd rig is posed on the bike every step by its own solve over the idle's base pose - hips on
+  the saddle, chest leaned by the kind (`GEO.lean`, more for a short-armed rider: `_fit_reach()`),
+  two-bone solves to the pedals going round and the grips (knees forward, elbows out), feet along
+  the pedals, the head up; the bike is sized to the rider (`_fit_bike()`). 0.11 ms a pose on the
+  build box; every tick only near the player, a stride further out, and not while off screen.
+  Helmets on some (`BikeHelmet`, `scripts/npc/bike_helmet.gd`, fitted from CrowdHatTable like
+  FireHelmet), never over a hat. A knock throws the bike as a PhysicsProp debris body. At night the
+  lamps glow and throw a pool ahead. `MICROMOBILITY=0` turns it all off (the A/B). Stills:
+  `tools/glshot/micro_shot.gd` (the kit and the riders alone, seconds; `RIDERS=1`, `NIGHT=1`,
+  `FALLEN=1`), `tools/micro_probe.gd` (lanes and items round a point, with EYEs), and on
+  `still_shot.gd` `MICRO_RIDERS="axis,index,dir,s,kind,speed[,seed];..."` (`MICRO_HOLD=1` keeps
+  them in place, `MICRO_ONLY=1` no others). Pavement items keep off Broadway's goods and clock
+  and the fire / police stations' fronts (`_occupied_more()`); no lane beside a school (its
+  buses stand in the parking lane); shadows by `set_shadow_reach()` (code meshes have no twin).
+  Checks: `tests/micromobility_checks.gd`.
 - City birds (VISUAL_ROADMAP #54, 2026-10-04: "nothing alive in the city but people"):
   `Birds` (`scripts/world/birds.gd`, a Node3D in `city.tscn`, so origin shifts carry it; birds
   live in its own space). **Nothing is per chunk**: every `survey_interval` it plans flocks round

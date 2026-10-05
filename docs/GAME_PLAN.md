@@ -1296,6 +1296,15 @@ already mapped so milestone 2 is script-only.
   picture twice. Texture memory falls by about a quarter (397 -> 294 MB downtown) with the frame
   unchanged; the hero keeps his 2K maps. docs/HANDOFF.md "Texture budget".
 
+- **2026-10-05 Micromobility on the street.** Shared e-scooters of two
+  invented operators (SKOOTA, KWIKR), BASIN BIKE share stations, racks, and green bike lanes on a
+  hashed share of roads (the real downtown 7th, Spring, Main, Figueroa, Los Angeles and 1st St
+  always), with cyclists and scooter riders on them. Decisions: a bike lane TAKES THE PARKING
+  LANE (no parked cars there, after their rolls) rather than squeezing a travel lane, so the
+  riders never share a lane with TrafficManager's cars, which do not know about them; riders
+  stay on bike lanes (no kerb-lane riding, no turns yet); a rider is a Pedestrian posed by our
+  own per-frame solve on the crowd rigs, not a clip, so every rig fits every bike; FULL chunks
+  only, nothing far. `MICROMOBILITY=0` is the A/B.
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

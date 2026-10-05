@@ -12421,3 +12421,122 @@ trucks are static (no truck drives a route, none can be stolen); the parked cars
 static ones. No interiors you can walk into (the rooms are traced in the glass). The far boxes
 draw the coded facade grid, not the arches or the tower. A suburban site leaves its neighbours'
 fence lines to them (YardFill fences the shared line from the -x / -z lot, which may be this one).
+
+## 9eb. Micromobility: scooters, share bikes, bike lanes and the people riding them, 2026-10-05 (agent branch `wt/scooters`)
+
+Number is provisional (the lead renumbers on merge).
+
+**The brief** (lead, "the 2026 LA street"): shared e-scooters of two invented operators parked
+in clusters, some knocked over, in the gutter, against a tree; share bikes docked at stations
+with a solar kiosk and a map panel; green bike lanes with stencils, arrows and buffer hatching,
+delineators on some, racks at corners; cyclists (road bikes, cruisers, a cargo bike with a kid
+seat) and scooter riders on the lanes, stopping at reds, a crowd rig in a riding pose with real
+pedalling, helmets on some, knocked off into a ragdoll and a thrown bike; code-built vehicles at
+real size, lights at night; hashes only, FULL chunks only. CLAUDE.md's "Micromobility" note is
+the reference; this is the story.
+
+**What it is.** Four new scripts and two shaders:
+- `MicroMesh` (`scripts/world/micro_mesh.gd`): every mesh, in code, on
+  `shaders/micromobility.gdshader`. Road bike (700c deep-section wheels, 24 laced spokes, drop
+  bars with hoods and levers, 73.5 degree seat tube, a bottle) 5.3k triangles; beach cruiser
+  (swoop top tube, balloon tyres, fenders, sprung saddle, swept bars, bell) 5.1k; longtail cargo
+  bike (20" wheels, step-through frame with its battery, a bamboo deck, running boards, a yellow
+  kid seat with its harness) 5.1k; the BASIN BIKE share bike (fat step-through frame, basket,
+  skirt guard and number plate lettered, dynamo lamps, the dock's nose) 5.8k; the two scooters
+  (deck with grip tape and the operator's name, fender and tail lamp, folding stem with the name
+  up it, the QR plate, headlight, display, throttle, bell, kickstand) 3.2k / 3.1k; the dock 372,
+  the solar kiosk (cabinet, lit screen, keypad, card reader, lit map case, the panel on its pole)
+  1.5k, the rack 540, the delineator 344. Riders get the same vehicles in parts (frame, wheels,
+  crank, pedals) so the wheels turn and the cranks go round.
+- `Micromobility` (`scripts/world/micromobility.gd`): the plan (pure) and the chunk step. Faces
+  roll scooter clusters (2-7 scooters, 16 % knocked over, a quarter of clusters with one in the
+  gutter, some with one leaning on a street tree), one station a block at most, racks at corners
+  with a bike locked to half. Roads roll lanes (32 % of avenues, 10 % of streets; 7th, Spring,
+  Main, Figueroa, Los Angeles and 1st St always), checked per stretch between crossings. Round
+  downtown's 9 x 9 blocks: 218 clusters, 45 stations, 169 racks.
+- `BikeRider` (`scripts/npc/bike_rider.gd`) and `BikeHelmet` (`scripts/npc/bike_helmet.gd`).
+- `Cyclists` (`scripts/npc/cyclists.gd`, the `Cyclists` node in city.tscn).
+
+**Bike lanes take the parking lane.** The decision that made the rest simple: a lane in the
+2.6 m parking strip (gutter 0.3 m bare, 1.55 m green, its line, a 0.5 m hatched buffer, its line)
+means the riders never share a lane with TrafficManager's cars, which know nothing of them, and
+the parked cars on those stretches go (after all their rolls, counted as parked, like the taco
+trucks), along with their stall paint. The paint is one batch of 6 m pieces (`bike_lane`, the
+batch tilts each to the relief) on its own shader: the stencil and arrow are drawn analytically
+from the piece's UV (no texture), the dash pattern and hatching run on true-world distance
+(`origin_shift`) so they line up piece to piece and do not jump on a re-centre. Wear cuts holes
+through to the road rather than blending to a colour (the first pass blended to a dark asphalt
+and drew black blotches).
+
+**The riders' pose.** No clip: the base is the rig's idle at a fixed moment, and each step the
+pelvis and chest are leaned by the bike's angle, the hips' joints set a hand over the saddle,
+then two-bone solves in skeleton space put the ankles over the pedals (the ball of the foot on
+the pedal, ankling through the back of the stroke, knees forward) and the wrists a palm short of
+the grips (elbows out and down), and the head is brought back up. The solve keeps each limb's
+hinge in its bend plane (a frame alignment, not the least rotation), so knees and elbows bend
+the way they bend. The bike is sized to the rider (`_fit_bike()`: the leg at 93 % of its length
+at the bottom of the stroke) and a short-armed rider leans further (`_fit_reach()`): every one of
+the twelve rigs reaches the bars on every bike (worst wrist 0.09-0.10 m from its grip, which is
+the palm by design). 0.11 ms a pose (it was 0.23 before a turn re-ran only its subtree);
+every step only near the player, a stride further out, never off screen.
+
+**How they ride.** Cyclists keeps up to 12 (4 on the web, 0 at LOWEST) within 165 m, spawned out
+of sight at 45 m+, by district mix (downtown: scooters and share bikes most, the beach town
+cruisers). They hold the lane's line, stop at a red or an amber they can stop for (the test: a
+cruiser stops 0.3 m short of the line), look at a stop sign or a roundabout, follow the rider
+ahead, brake for anything in the lane (a quarter-second shape query: a bus at its stop, a car
+left there, a walker; a lying scooter or a debris bike is gone round after 5 s), and ride away
+flat out when scared. At the end of a lane they wait at the line and go once unseen. Hit, a
+rider is a Pedestrian: the ragdoll, the crime, the blood, and the bike thrown as a PhysicsProp.
+
+**Cost** (`still_shot.gd` GEO, opengl3 1280 x 720, `--quality=0`, the same EYE with
+`MICROMOBILITY=0`; the "on" frames have three hand-placed riders, MICRO_ONLY):
+the Grand Ave lane view 6,410,276 -> 6,008,756 triangles (-6 %), 3,340 -> 3,248 draws - fewer,
+because the parked cars that stood in the lane's stretch are gone and each is a few thousand
+triangles and several draws; the station view 4,910,106 -> 5,335,163 (+8.7 %), 2,334 -> 2,322
+draws (eight docked share bikes, a kiosk, docks, scooters and racks in view, at 5-6k a bike).
+The frames are not DIFF-held (the crowd and the traffic differ run to run), so read them as
+"close to flat". A chunk adds at most one draw per kind (scooter A / B, share bike, dock, kiosk,
+rack, two locked-bike kinds, delineator, the lane paint) plus the shadow twins inside 40 m;
+a rider is a crowd body plus 5-6 bike draws and 0.11 ms of pose. Not measured with geo_count.gd.
+
+**Stills** (`shots/scooters`): `lane_day` (Grand Ave's green lane with delineators, a cyclist
+and a scooter rider, noon), `station` (a BASIN BIKE station: kiosk, docks, bikes), `pile` (a
+cluster with knocked-over scooters by a tree), `gutter` (a cluster with one in the gutter),
+`scooter_night` (a SKOOTA rider in the lane at 21:00, lamp lit, its pool on the road), the
+`*_before` frames with `MICROMOBILITY=0`, and `riders_row` / `road_bike` (`micro_shot.gd`, every
+kind ridden).
+
+**Traps.**
+- A `--script` tool that names `MicroMesh` or `BikeRider` compiles them before the autoloads:
+  load them by path (micro_shot.gd does).
+- The wrist offset was first divided by the skeleton's unit instead of multiplied: a
+  centimetre rig takes metres x 100.
+- A rolled-over scooter rested on its mesh's box floated 30 cm: the box's corners reach far
+  past the scooter once it is turned. It rests on its own points now (`_support_points()`).
+- Scooters, docked and racked bikes are EncampmentItems: the westlake camp check counted them as
+  camps until it skipped `Micro_*` (as it skips `Vendor_*`).
+
+**Not done / not verified.** The Mac (Forward+): the lane green and the lamps under AgX, the
+night pools. Riders only ride bike lanes (no kerb-lane riding: traffic does not yield to them),
+never turn, and stand on the pedals rather than put a foot down when stopped. No bell, no
+freewheel sound. No children on the kid seat (no child rigs). Lanes and fleets are FULL chunks
+only, so a green lane appears as its chunk goes FULL (the brief's "LOD nothing"). Docked bikes
+can be knocked out of their docks. The frame cost at a station with many bikes and riders close
+by was not measured separately.
+
+**Merged with fleet/base and main (wave 2, 2026-10-05).** Conflicts were only in the docs and
+the smoke test's list (both sides kept; this section renumbered `9eb`, its roadmap row `?`). What
+the merge itself needed: scooters, docks and racks now keep off Broadway's goods and street clock
+and the fire and police stations' fronts (`Micromobility._occupied_more()`, what Encampment keeps
+clear of); a stretch beside a school block has no lane (`lane_on()`: Schools' buses stand in the
+parking lane); crowd_r (headscarf, `Pedestrian.NO_HAT_MODELS`) takes no helmet. Review found one
+cost bug: the batches used `set_shadow_distance()`, which only reaches a lighter twin, so every
+scooter, dock and bike cast into every cascade; they use `set_shadow_reach(40 m)` now. The eight
+new rigs (crowd_m..t) ride every kind with the same solve (stills `merged_riders_crowd_*`).
+Gate: 1,382 of 1,383 on the merge with fleet/base (the one the known closed-road map check), peak
+3.17 GB RSS. Cost (`still_shot.gd` GEO, opengl3 1280 x 720, `--quality=0`, not DIFF-held,
+`MICROMOBILITY=0` -> on): Wilshire lane view `2623.8,2.2,312.7,-90,-8` 5.68 -> 5.33 M triangles,
+3,731 -> 3,556 draws (the parked cars leave the lane); Hill St `2864.4,2.2,12.0,180,-8` 6.62 ->
+7.09 M; the station `2727.0,1.7,34.7,-22,-14` 6.60 -> 7.47 M (+0.75 M of it shadows within 40 m);
+a scooter cluster `2827.2,1.7,13.6,68,-14` 5.11 -> 5.54 M. Stills on `shots/scooters` (`merged_*`).

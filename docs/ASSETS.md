@@ -679,6 +679,17 @@ The dogs (`DogMesh`, `DogRig`; 2026-10-05) are built in code: no model file. The
 | bark yelp dog small int.flac | https://freesound.org/s/452180/ | CC0 1.0 | `dog_yelp_0` 0.73-1.28 s | 2026-10-05 |
 | Dog's Yelping 7 | https://freesound.org/s/160478/ | CC0 1.0 | `dog_yelp_1` 3.13-3.75 s; `dog_yelp_2` 7.73-8.33 s | 2026-10-05 |
 
+## Micromobility (built in code)
+
+The shared e-scooters, the BASIN BIKE share bikes, docks and solar kiosk, the bike racks, the bike
+lanes' delineator posts and the riders' road bike, beach cruiser and longtail cargo bike
+(2026-10-05) are generated at run time by `scripts/world/micro_mesh.gd` on
+`shaders/micromobility.gdshader`, and the lane paint (green, lines, hatching, the bike stencil and
+arrow) is drawn by `shaders/bike_lane.gdshader` - no model files, no textures. The riders' helmets
+are built round each crowd rig's head by `scripts/npc/bike_helmet.gd` from CrowdHatTable. The
+scooter operators (SKOOTA, KWIKR) and the share scheme (BASIN BIKE) are invented for this game;
+no real operator's name, colours or mark.
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |
