@@ -1048,6 +1048,20 @@ already mapped so milestone 2 is script-only.
 
 - **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #65).**
 - **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #77).**
+- **2026-10-05 The city's working vehicles do their jobs (VISUAL_ROADMAP ?).** On collection
+  day (a hash per street and weekday) every house puts its black, blue and green carts in the
+  gutter; a side-loader garbage truck per colour works down the street, stopping with its arm at
+  each cart, which it grabs, lifts over the hopper, tips, and sets back - all posed parts, no
+  bones. A sweeper crawls along a kerb with its brooms spinning, water spraying and dust lifting;
+  an ice-cream truck cruises the suburbs and the beach town playing an original chime and stops
+  with its flashers on; delivery vans stop double-parked with their hazards on; a rollback tow
+  truck comes for a burnt-out wreck the player has left (once the fire is out), slides its bed
+  down, winches the wreck on and drives off with it. Decisions: the trucks are ordinary traffic
+  cars with a `work` job (one hook in TrafficManager), not a parallel driving system; carts stand
+  on the stall lines between parking bays so parked cars fit round them (only a long car keeps
+  off); sounds are synthesised (the tune is written for the game). Names invented.
+  docs/HANDOFF.md 9dm; CLAUDE.md "Service vehicles".
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
   A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
   (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
   back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky

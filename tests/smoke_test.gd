@@ -1754,6 +1754,7 @@ func _test_city() -> void:
 	await load("res://tests/police_station_checks.gd").new().run(self, city)
 	# Hospitals (tests/hospital_checks.gd): placement, the campus chunk, an ambulance backing in.
 	await load("res://tests/hospital_checks.gd").new().run(self, city)
+	await load("res://tests/service_vehicle_checks.gd").new().run(self, city)  # service vehicles at work
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)

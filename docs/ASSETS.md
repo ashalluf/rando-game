@@ -204,6 +204,12 @@ class instead.
 | `tools/make_emergency_vehicles.py` | `road_fire_engine.glb` | 35k tris + 10k far twin (Type 1 pumper: crew cab, pump panel, roll-ups, hose bed, ladders, light bar, Q-siren; original, no department's marks) | `BodyType.FIRE_ENGINE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_emergency_vehicles.py` | `road_ambulance.glb` | 23k tris + 10k far twin (Type III: cutaway cab, modular box, striping, chevrons, warning lamps; original) | `BodyType.AMBULANCE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_school_bus.py` | `road_school_bus.glb` | 54k tris + 10k far twin (Type D transit-style school bus: split-sash windows, eight-way warning lamps, rub rails, STOP arm, crossing arm, rear emergency door, the invented RANDO UNIFIED SCHOOL DISTRICT lettering; Blender's built-in font; original, no maker's shapes or badges) | `BodyType.SCHOOL_BUS` (Schools) | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_garbage.glb` | 29k tris + 10k far twin (side loader on the box truck's cab: hopper, ribbed packer body, tailgate, the arm as `rig_boom` / `rig_lift`; original, no fleet's marks) | `BodyType.GARBAGE_TRUCK` (ServiceVehicles) | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_sweeper.glb` | 29k tris + 10k far twin (debris hopper, water tank, gutter brooms `rig_brush_r/l`, main broom `rig_broom`; original) | `BodyType.STREET_SWEEPER` | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_tow.glb` | 26k tris + 10k far twin (rollback deck `rig_bed` with headboard and winch, toolboxes, wheel-lift; original) | `BodyType.TOW_TRUCK` | 2026-10-05 |
+| `tools/make_service_vehicles.py` | `road_ice_cream.glb` | 22k tris + 10k far twin (the ambulance's cutaway cab with a box: serving window, awning, menu boards, cone sign, horn; original) | `BodyType.ICE_CREAM_TRUCK` | 2026-10-05 |
+| code (`ServiceSounds`) | the service vehicles' sounds | synthesised at load: hydraulic whine, a cart's bang, brushes, winch, and the ice-cream chime - an original tune (`ServiceSounds.TUNE`) | ServiceVehicles | 2026-10-05 |
+| code (`KerbBins.mesh()`) | the wheelie carts | 582 / 24 tris, built in code, `shaders/kerb_bin.gdshader` | ServiceFleet | 2026-10-05 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position

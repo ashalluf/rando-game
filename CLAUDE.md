@@ -1663,6 +1663,57 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Stills: `HOSPITAL=front|bay|roof|aerial` (`HOSPITAL_AT=medical`, `HOSPITAL_T` how far into the
   bay) on `still_shot.gd` (`HospitalStage`); probe `tools/hospital/probe.tscn` (every hospital
   and its EYEs); checks `tests/hospital_checks.gd`.
+- Service vehicles (2026-10-05, "the city's working vehicles doing their jobs"; HANDOFF 9dm):
+  `ServiceVehicles` (`scripts/vehicles/service_vehicles.gd`) - a side-loader garbage truck, a
+  street sweeper, a rollback tow truck, an ice-cream truck and a delivery van (BodyType
+  GARBAGE_TRUCK, STREET_SWEEPER, TOW_TRUCK, ICE_CREAM_TRUCK, DELIVERY_VAN, appended, `BODY_ODDS` 0,
+  `BigVehicles.is_big()`, so the pools, CarDamage, CarCabin, CarLights all work; `DIMS` holds
+  their `_dims()`). Bodies: `tools/make_service_vehicles.py` (Blender; imports
+  `make_emergency_vehicles.py` / `make_big_vehicles.py`: the first three on the box truck's cab
+  and chassis, the ice-cream truck on the ambulance's cutaway; the van is `road_van.glb`; run
+  `blender -b --factory-startup -P tools/make_service_vehicles.py -- garbage sweeper tow
+  ice_cream [--render]`, then `--import`; it prints WHEEL_POSE, `_dims()` and every RIG pivot).
+  **Moving parts are bone-free**: objects named `rig_*` with their origin on the pivot
+  (`Vehicle._add_body_model()` passes them to `fit()` like the bus's doors): the garbage arm
+  (`GarbageArm`: `rig_boom` slides out along +X, `rig_lift` is reparented under it and turns
+  about Z - outward, up and over the hopper, the cart upside down, lid falling open - a code
+  box stands in for the telescopic inner section), the sweeper's `rig_brush_r/l` and `rig_broom`
+  (`SweeperGear`, water and dust from WeaponFX's smoke material), the tow's `rig_bed`
+  (`TowBed.pose(u)`: slide, then tilt; `deck()` is where a load rides). Slots beyond the big
+  vehicles': `beacon_amber` (`shaders/service_beacon.gdshader`: a double-flash walking left /
+  right / front / back from the lens's model position, one shared material; the ice-cream
+  truck's pair swaps to the `active` one while it stands), `menu` / `canvas`
+  (`shaders/ice_cream_menu.gdshader`: picture tiles of original treats, no words; the awning's
+  stripes), `brush`, `cone`, `scoop`. Names are invented (RANDO CITY SANITATION / STREETS, tow,
+  ice-cream and courier fleets). **The kerb carts** are `KerbBins` (`scripts/world/kerb_bins.gd`,
+  pure): every house lot (HouseKit's districts, `plan.lots()` + `HouseKit.extra_lots()`) puts
+  black / blue / green carts in the gutter where it fronts its street, snapped to the stall line
+  between two parking bays; a street's day is `hash(seed, axis, index, weekday)` (`OUT_PERCENT`);
+  `CityChunk._park_car()` skips a long car next to a set (`blocks_parking()`, after its rolls,
+  counted as parked), and every car along a street swept today (`swept()`, `SWEEP_PERCENT`,
+  never a collection street; `KerbBins.weekday` is ServiceFleet's day) - the sweeper runs those
+  streets in the gutter (`sweep_shift()`). The cart mesh is code (moulded body, rim, lid on its hinge, wheels, axle,
+  handle; ~580 / 24 triangles) on `shaders/kerb_bin.gdshader`. **`ServiceFleet`**
+  (`scripts/world/service_fleet.gd`, a Node3D in city.tscn) draws the carts round the player
+  (two MultiMeshes, near / far), keeps the weekday (it turns over at midnight), and every
+  `spawn_interval` sends through `TrafficManager.place_car()` (kerb lane, `t.work` set): a
+  garbage truck per colour down a street with its carts out, a sweeper, an ice-cream truck in
+  the suburbs and the beach town, delivery vans, and a tow truck for a CarDamage wreck whose fire
+  is out once the player is `tow_leave` away (`send_tow()`: the wreck leaves `_wrecks` and the
+  debris clock; at the bed it loses its wheels BEFORE it is frozen, goes kinematic with no
+  collision and rides `TowBed.deck()`; freed with the truck). **The traffic hook** is one block
+  in `TrafficManager._drive_street()`: `ServiceFleet.work_stop()` returns (distance to the next
+  stop, kerb shift) and runs the stop. Trap: the traffic stands a car still once it is within
+  ~1.2 m of something standing still, short of an exact stop, so `_approach()` keeps a creeping
+  gap until the car is there and then gives it no room. `Vehicle._traffic_signal()` returns 2
+  (hazards) for `traffic.hazard`. Sounds are synthesised (`ServiceSounds`: hydraulic whine, the
+  cart's bang - with Sfx `hit_metal` -, brushes, winch, and the ice-cream chime, an ORIGINAL
+  tune in `TUNE`). The smoke test keeps the fleet's dispatch off (`ServiceFleet.enabled`, off
+  when a `SmokeTest` node is the root's) except in `tests/service_vehicle_checks.gd`. Stills:
+  `SERVICE=garbage|sweeper|tow|ice_cream|delivery` on `still_shot.gd` (`ServiceFleet
+  .stage_for_shot()`, `SERVICE_LIFT`); close-ups `car_shot.gd --each=20,21,22,23,24` with
+  `SERVICE_WORK=<0..1>` (every gear shown at work: the arm that far through a lift, the bed that
+  far down, the brooms and spray on, the flashers on). `SERVICE_VEHICLES=0` is the A/B.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
