@@ -17,8 +17,17 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
     once it is ready: its BusFittings only exist after its `_ready()`, so every newly built bus
     drove with dark signs; the big-vehicle check caught it when the run order handed it a fresh
     bus);
-  - CLOSED_ROAD_NOTE
+  - Schools keys its closed roads by seed (`Schools._closed`, Vector4i(seed, axis, road, block)).
+    The smoke test builds plans on other seeds, and a school one seed placed closed the
+    same-numbered road in the main city, so `road_open()` disagreed with the map: the
+    order-dependent "the map draws no closed road (1)". `Schools.late_closed` records any road
+    closed after it was answered open, and the map check prints any closed road it draws.
+  - Gate on this tree: 1,362 passed, 0 failed, peak 3.2 GB, 31 minutes.
 - **`fleet/base`** is where wave 2 started (main at the merge, before the closed-road fix).
+- **integration-b's memory** was a build livelock, found by `oom-fix`: Murals and
+  ClimbingPlants each moved their step to just before a chunk's finish whenever a step stood
+  between them and it, so merged together they leapfrogged forever (`wt/oom-fix`,
+  `CityChunk._run_last()`; 11 GB killed -> 1.44 GB).
 - **`fleet/brief`** holds `BRIEF.md` (the shared rules), `tasks.tsv` (slug, kind, task) and
   `sessions.tsv` (slug, session id). Every session works on `wt/<slug>` and puts stills on
   `shots/<slug>`.
