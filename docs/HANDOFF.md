@@ -8729,7 +8729,7 @@ station's lots (PoliceStation, new in base) gets no alley, as a fire station's d
 and yard reach past its lots. Broadway's palaces and schools needed nothing (an unrecorded lot is a
 whole-lot obstacle to the run; a school block has grounds). Probe on the merged tree: 319 of 532
 midtown and 124 of 274 downtown BUILDINGS blocks have an alley (326 of 540 and 130 of 274
-before the merge; base's new block uses take a few). Gate: 1,386 passed, 1 failed (the known minimap closed-road line).
+before the merge; base's new block uses take a few). Gate: 1,386 passed, 1 failed (the known minimap closed-road line); after merging origin/main (its fix), 1,387 passed, 0 failed.
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the concrete's tone and the lamp pools
 under AgX need eyes. No traffic or police drives the alleys (they are not in the street graph);
