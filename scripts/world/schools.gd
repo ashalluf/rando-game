@@ -115,6 +115,9 @@ const FAR_ROOF := Color(0.64, 0.64, 0.62)
 
 static var _cells: Dictionary = {}
 static var _plans: Dictionary = {}
+## Vector4i(seed, axis, road index, block index across it) -> closed by a school. Keyed by the seed
+## like _cells: the smoke test builds plans on other seeds, and a road one seed had answered "open"
+## was read back for another without its cells being decided (the map drew a closed road).
 static var _closed: Dictionary = {}
 static var _deciding: bool = false
 ## Why cells came out empty (tools/schools/probe.gd prints it).
@@ -190,7 +193,7 @@ static func decide(plan: CityPlan, cell: Vector2i) -> Dictionary:
 		_mark(cache[k], out)
 	for i in (out.roads as Array).size():
 		var k: Vector2i = out.blocks[i]
-		var ck := Vector3i(int(out.axis), int(out.roads[i]), k.y if int(out.axis) == 0 else k.x)
+		var ck := Vector4i(plan.seed, int(out.axis), int(out.roads[i]), k.y if int(out.axis) == 0 else k.x)
 		# A road answered "open" before the cell that closes it was decided: an order bug.
 		if _closed.has(ck) and not bool(_closed[ck]):
 			late_closed.append([ck, cell])
@@ -359,7 +362,7 @@ static func road_closed(plan: CityPlan, axis: int, index: int, along: float) -> 
 	# Every road a school closed is registered when its cell is decided; a cell nobody has asked
 	# about is decided here, from the two blocks the road runs between at `along`.
 	var other := plan._index_at(1 - axis, along)
-	var key := Vector3i(axis, index, other)
+	var key := Vector4i(plan.seed, axis, index, other)
 	if _closed.has(key):
 		return _block_span(plan, axis, index, other, along)
 	var probe := Vector2(plan.road_pos(axis, index) - 1.0, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) - 1.0)
@@ -379,7 +382,7 @@ static func road_closed(plan: CityPlan, axis: int, index: int, along: float) -> 
 
 ## Whether `along` lies along a closed road's block (not in the open crossings at its ends).
 static func _block_span(plan: CityPlan, axis: int, index: int, other: int, along: float) -> bool:
-	if not _closed[Vector3i(axis, index, other)]:
+	if not _closed[Vector4i(plan.seed, axis, index, other)]:
 		return false
 	var o := 1 - axis
 	var lo := plan.road_pos(o, other) + plan.road_width(o, other) * 0.5
