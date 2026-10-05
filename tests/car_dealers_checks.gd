@@ -97,15 +97,14 @@ func _sites(plan: CityPlan) -> Dictionary:
 func _chunk(city: Node3D, plan: CityPlan, k: Vector2i, used: bool) -> void:
 	var s := CarDealers.site(plan, k.x, k.y)
 	var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
-	# The real cars are skipped while PhysicsBudget is full, and in the full smoke test the checks
-	# before this one leave it full: give this build room (the budget is not what is checked here).
+	# The real cars (and the block's parked cars) are skipped while PhysicsBudget is full, and in
+	# the full smoke test the checks before this one leave it full: give both builds here room
+	# (the budget is not what is checked), put back at the end of this function.
 	var budget: Node = _t.get_tree().root.get_node_or_null("PhysicsBudget")
 	var cap: int = int(budget.get("max_active_bodies")) if budget else 0
 	if budget:
-		budget.set("max_active_bodies", maxi(cap, int(budget.call("active_body_count")) + 64))
+		budget.set("max_active_bodies", maxi(cap, int(budget.call("active_body_count")) + 200))
 	chunk.build()
-	if budget:
-		budget.set("max_active_bodies", cap)
 	var node: Node3D = null
 	for c in chunk.get_children():
 		if c.is_in_group("car_dealer"):
@@ -167,6 +166,8 @@ func _chunk(city: Node3D, plan: CityPlan, k: Vector2i, used: bool) -> void:
 	_t._check(bare_sig == sig, "a dealer rolls nothing from its block: built without it the rest of the block is the same (%d / %d things)" % [sig.size(), bare_sig.size()])
 	bare.get_parent().remove_child(bare)
 	_free(bare)
+	if budget:
+		budget.set("max_active_bodies", cap)
 
 
 func _lod(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
