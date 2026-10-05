@@ -58,7 +58,7 @@ const MIN_LOT := 12.0
 ## A vacant lot's pieces: odds of a demolished building's slab, a privacy screen on a street run,
 ## a FOR LEASE / SALE sign, a lone tree (a palm for this share of them), an old fence on a side.
 const SLAB_ODDS := 0.65
-const SCREEN_ODDS := 0.6
+const SCREEN_ODDS := 0.45
 const SIGN_ODDS := 0.8
 const TREE_ODDS := 0.45
 const PALM_SHARE := 0.35
@@ -68,8 +68,8 @@ const TUFT_DENSITY := 0.55
 const MAX_TUFTS := 1400
 const MAX_MUSTARD := 260
 const MAX_FENNEL := 90
-const TUFT_DISTANCE := 80.0
-const TALL_WEED_DISTANCE := 120.0
+const TUFT_DISTANCE := 110.0
+const TALL_WEED_DISTANCE := 150.0
 ## Car parks: a stall, the aisle between rows, the fill of cars.
 const STALL := Vector2(2.7, 5.4)
 const AISLE := 7.0

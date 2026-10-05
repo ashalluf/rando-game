@@ -25,7 +25,7 @@ func run(t: Node, city: Node3D) -> void:
 	var k: Vector2i = found[0]
 	var lot: Dictionary = found[1]
 	_full_chunk(city, k, lot)
-	_same_block(city, k, (lot.cell as Rect2).grow(0.5))
+	_same_block(city, k, (lot.cell as Rect2).grow(2.0))
 	_lod_chunk(city, plan, k, lot)
 
 
@@ -183,11 +183,13 @@ func _same_block(city: Node3D, k: Vector2i, cell: Rect2) -> void:
 	off.get_parent().remove_child(off)
 	off.free()
 	var missing := 0
+	var which := ""
 	for s: String in without:
 		if not with.has(s):
 			missing += 1
+			which += " [%s]" % s
 	_t._check(none and missing == 0 and with.size() >= without.size(),
-		"vacant block %s built without VacantLots keeps its street furniture (%d of %d moved)" % [k, missing, without.size()])
+		"vacant block %s built without VacantLots keeps its street furniture (%d of %d moved%s)" % [k, missing, without.size(), which])
 
 
 ## The trash cans and props of the block, less what stood on the lot itself (a building's forecourt

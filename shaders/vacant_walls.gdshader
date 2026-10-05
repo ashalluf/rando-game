@@ -112,7 +112,7 @@ void fragment() {
 		vec2 f = abs(fract(d) - 0.5);
 		float dist = 0.5 - max(f.x, f.y);
 		float dw = max(fwidth(d.x), fwidth(d.y));
-		float wire = 0.085;
+		float wire = 0.05;
 		float line = 1.0 - smoothstep(wire, wire + dw, dist);
 		float avg = 1.0 - (1.0 - 2.0 * wire) * (1.0 - 2.0 * wire);
 		float cover = mix(line, avg * 0.8, smoothstep(0.25, 0.7, dw));
@@ -130,8 +130,7 @@ void fragment() {
 		// Privacy screen: an 85 % knit shade cloth zip-tied to the chain-link, its grommets along the
 		// hems, half-moon wind slits cut in rows, sun-faded on top, torn here and there.
 		vec2 q = uv;
-		float hem = max(lines(q.y, 100.0, 0.05) * step(q.y, 0.06), step(h - 0.05, q.y));
-		hem = max(1.0 - smoothstep(0.04, 0.05 + fw, q.y), 1.0 - smoothstep(0.04, 0.05 + fw, h - q.y));
+		float hem = max(1.0 - smoothstep(0.04, 0.05 + fw, q.y), 1.0 - smoothstep(0.04, 0.05 + fw, h - q.y));
 		float knit = 0.82 + 0.18 * sin(q.x * 380.0) * sin(q.y * 300.0) * (1.0 - smoothstep(0.004, 0.01, fw));
 		albedo = paint * knit;
 		albedo = mix(albedo, albedo * 1.35 + vec3(0.04), smoothstep(0.2, 1.0, q.y / h) * 0.35);
@@ -144,12 +143,14 @@ void fragment() {
 		// Wind slits: half-moons in staggered rows.
 		vec2 sl = vec2(fract(q.x / 1.2 + floor(q.y / 0.7) * 0.5) - 0.5, fract(q.y / 0.7) - 0.5);
 		float slit = step(length(sl * vec2(1.2, 0.7) * vec2(6.0, 9.0)) , 0.6) * step(sl.y, 0.0) * step(0.15, q.y) * step(q.y, h - 0.15);
-		// Tears: ragged holes from noise, larger on old runs (param).
-		float tear = smoothstep(0.82 - param * 0.12, 0.84 - param * 0.12, fbm(q * vec2(0.9, 1.4) + seedv * 31.0)) * step(0.12, q.y);
-		float holes = max(slit, tear);
-		// The screen is a mesh: some light comes through, and from far off it is just a dark sheet.
-		float through = 0.08 * (1.0 - smoothstep(0.004, 0.02, fw));
-		if (holes > 0.5 || (sin(q.x * 380.0) * sin(q.y * 300.0) > 0.8 && bayer4(FRAGCOORD.xy) < through * 4.0)) {
+		// Tears: a few panels ripped from a grommet, ragged-edged (warped noise), the old runs more.
+		float panel = floor(q.x / 3.0);
+		float torn = step(0.62 - param * 0.3, hash12(vec2(panel, seedv * 17.0)));
+		vec2 tc = vec2(panel * 3.0 + 0.6 + 1.8 * hash12(vec2(panel, 3.0)), mix(h - 0.1, 0.25, step(0.5, hash12(vec2(panel, 7.0)))));
+		vec2 w = q + (vec2(fbm(q * 3.1 + 2.0), fbm(q * 3.1 + 9.0)) - 0.5) * 0.45;
+		float rad = (0.18 + 0.4 * hash12(vec2(panel, 11.0))) * (0.75 + 0.5 * fbm(q * 7.0));
+		float tear = torn * step(length((w - tc) * vec2(0.8, 1.3)), rad);
+		if (max(slit, tear) > 0.5) {
 			discard;
 		}
 		rough = 0.8;

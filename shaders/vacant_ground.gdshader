@@ -112,7 +112,7 @@ vec3 lot_dirt(vec2 p, float var, float foot, out float grass) {
 	vec3 green = vec3(0.36, 0.38, 0.2);
 	vec3 gcol = mix(straw, green, smoothstep(0.62, 0.85, vnoise(p * 0.21 + var * 5.0)) * 0.6) * (0.55 + 0.9 * gl);
 	float gn = fbm(p * 0.16 + var * 13.0) * 0.75 + vnoise(p * 1.7) * 0.25;
-	grass = smoothstep(0.47, 0.6, gn) * (1.0 - gpatch * 0.6);
+	grass = smoothstep(0.42, 0.56, gn) * (1.0 - gpatch * 0.6);
 	d = mix(d, gcol, grass);
 	// Scatter: paper and plastic scraps, broken glass glinting, small stones.
 	vec2 cell = floor(p / 0.7);
@@ -180,7 +180,7 @@ void fragment() {
 		vec3 c = disp(texture(concrete_tex, p / 3.0).rgb);
 		vec2 bay = floor(q / 4.0);
 		float bt = 0.88 + 0.16 * hash12(bay + var * 7.0);
-		albedo = c * vec3(1.0, 0.98, 0.94) * bt * 0.86;
+		albedo = c * vec3(1.0, 0.97, 0.92) * bt * 0.7;
 		float age = fbm(p * 0.12 + 9.0);
 		albedo *= 0.78 + 0.3 * age;
 		float joint = max(lines(q.x, 4.0, 0.02), lines(q.y, 4.0, 0.02));
@@ -209,6 +209,11 @@ void fragment() {
 		// Painted marks from the old floor: a faded yellow line, now and then.
 		float stripe = lines(q.x + 1.3, 9.0 + 4.0 * var, 0.1) * step(0.5, var) * smoothstep(0.3, 0.7, fbm(p * 0.8));
 		albedo = mix(albedo, vec3(0.78, 0.66, 0.3), stripe * 0.5);
+		// Windblown dirt and dry grass have taken over parts of the slab.
+		float g3;
+		vec3 drift = lot_dirt(p, var + 0.37, foot, g3);
+		float over = smoothstep(0.58, 0.7, fbm(p * 0.11 + var * 7.0 + 3.0));
+		albedo = mix(albedo, drift, over * 0.9);
 		// The broken edge: the slab crumbles back to dirt over a jagged half metre.
 		float edge = min(min(q.x, size.x - q.x), min(q.y, size.y - q.y));
 		float jag = 0.15 + 0.6 * fbm(p * 1.6 + 2.0);

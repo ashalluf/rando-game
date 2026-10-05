@@ -7040,3 +7040,90 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9b?. Vacant lots and gravel car parks, 2026-10-05 (agent branch `wt/vacant-lots`; VISUAL_ROADMAP #63)
+
+The brief: the in-between land that makes a city real. Los Angeles has vacant lots everywhere;
+here every lot was built or filled (LotFill, YardFill, Industrial). All of it is `VacantLots`
+(`scripts/world/vacant_lots.gd`, the plan and the chunk build) and `VacantKit`
+(`scripts/world/vacant_kit.gd`, the geometry); the rules are the CLAUDE.md bullet before the Port.
+
+**Which lots.** `VacantLots.kind_of(plan, bx, bz, lot)` (pure): an EDGE lot (never a courtyard or
+an inner lot - a vacant lot needs a street for its fence, gate and sign) of at least 12 x 12 m on a
+BUILDINGS block that is not a landmark's, a replica area's, a rec park's or a school's, in MIDTOWN
+(6 %), INDUSTRIAL (5.5 %) or DOWNTOWN where the skyline boost is under 0.3 (7.5 %); within 750 m of
+the arena +10 % and mostly car parks (`ARENA_PARKING` 85 %); not a corridor lot, a fire station's or
+under a freeway. Of the rest, `PARKING_SHARE` are gravel car parks (downtown 60 %, midtown 12 %).
+Measured (`tools/vacant_probe.gd`, seed 1337, x 0-4200, z -1800-3800): midtown 213 of 5,801 lots
+(3.7 %), downtown 146 of 2,799 (5.2 %, most of the car parks round the arena), industrial 20 of 614
+(3.3 %); none elsewhere. `tools/lot_coverage.gd` (downtown's extent): DOWNTOWN_rest built 49.3 ->
+45.7 %, parking 8.5 -> 12.4 %; DOWNTOWN_core built 60.1 -> 55.2 % (the arena's event parking - the
+arena is inside the core), bare unchanged (1.7 / 1.2 %: a vacant lot paints as "yard" or "parking").
+
+**Where it hooks in.** `CityChunk._build_lot()` calls `VacantLots.build_lot()` right after the pad
+roll (`Commercial.build_pad`), so the corridor / fire station / car park checks and the pad roll
+are all made first and nothing on the block rng moves; the Building is never instantiated.
+`CityChunk` commits with one line after `Industrial.commit()`; the chunk's state is the meta
+`vacant_lots`. `Industrial.block_entries()` and `GroundCoverage.block()` skip / paint vacant lots
+(one line each). Nothing else on the block changes: the A/B check builds the same block with
+VacantLots off and compares every pavement prop.
+
+**A vacant lot** (`plan_lot()`, pure, hashes of seed + lot; the layout in the lot's street frame,
+Industrial's `frame()` / `lot_side()`):
+- ground: tan dirt (the hill_dirt scan, sun-baked), gravel spread in patches, mats of dry grass,
+  litter specks, and TYRE RUTS - two packed tracks running in from the gate that wander off and
+  end in a turning loop, darker and polished, holding water in the rain; on 65 % a demolished
+  building's SLAB (4 m pours, joints, cracks with weeds, rust rings on the column grid, a burned
+  patch, a faded painted line, windblown dirt over parts of it, the edge crumbling back to dirt)
+  with broken stem walls round it, rebar out of the broken ends, and heaved pieces of it;
+- rubble piles (an earth mound with broken concrete and brick), dumped junk mostly just inside the
+  street fence (sofa, armchair, mattress flat or leaning on the fence, stacked or scattered tyres,
+  a television, a shopping cart upright or tipped);
+- a lone weed tree (a city broadleaf standing in for ailanthus) or a palm toward the back;
+- chain-link (6 ft, posts every 3 m, a top rail) on every street side, a privacy screen on 45 % of
+  the runs (knit shade cloth, grommets, wind slits, sun fade, panels torn or gone), an old rusty
+  run on half the neighbour sides; a padlocked double gate where the ruts come in;
+- an invented broker's board (`BROKERS`: HALVERSON LAND CO., CALDERA COMMERCIAL, ...): FOR LEASE
+  or FOR SALE, the acreage worked out from the cell, a pitch line, the broker in their colour, a
+  (213 / 323 / 310 / 818 / 562) 555 number; NO TRESPASSING on the gate;
+- weeds: tufts of dry grass and foxtail over the open dirt (fewer on the slab, none in the ruts),
+  wild mustard stands in yellow flower, fennel clumps.
+
+**A gravel car park**: crushed stone with packed aisles, oil under the stalls, potholes that fill in
+the rain; rows of stalls parallel to the street with concrete wheel stops and ArenaGrounds' static
+cars (35-80 % full, 70-95 % by the arena); an open entrance with cones; a hand-painted plywood
+PARKING $10 / ALL DAY board ($20 EVENT by the arena); the attendant's booth (painted sheet metal,
+windows on three sides lit after dark, a lamp, a cash box, an overhanging roof).
+
+**How it is drawn.** A FULL chunk: `VacantGround` (one mesh, `shaders/vacant_ground.gdshader`, no
+shadow; kind in COLOR.r 8ths; UV world metres; UV2 the ruts' frame or the slab's own rect),
+`VacantWalls` (one casting mesh, `shaders/vacant_walls.gdshader`, IndustrialKit's box / cylinder /
+cone writers with VacantKit's kinds in COLOR.a 32nds; a torus writer for tyres; the boards'
+lettering is FreewayKit.text_geo outlines merged straight into the mesh), and three weed batches
+(`vac_tuft_0/1`, `vac_mustard`, `vac_fennel`: code-built meshes on `shaders/vacant_weeds.gdshader`,
+linear vertex colours through color_space, a height-squared sway, BACKLIGHT translucency; no
+shadow, 110 / 150 m draw distances; budgets 1,400 / 260 / 90 a chunk). The walls mesh of a block
+with one vacant lot is ~5k triangles. LOD chunks and the far city's capture: ONE slab per lot in
+its dirt or gravel colour, which is what makes the gaps read from the air.
+
+**Cost** (opengl3 1280x720, `--quality=0`, noon; before = `VACANT_LOTS=0`): FILLED IN BELOW.
+
+**Traps.**
+- Chain-link seen from 3 m: a wire fraction that reads right from 20 m (Industrial's 0.09 of the
+  half cell, ~30 % cover) is a grey wall up close; the lots use 0.05.
+- A privacy screen is opaque, so a lot behind one cannot be seen from the pavement - realistic,
+  but frame stills through the gate or from a corner, or pick a lot with `front_screen=false` in
+  the probe's output.
+- `still_shot.gd` GEO before/after at a pavement EYE compares a wall (the old building) with a view
+  across an open lot: use the aerial, or `geo_count.gd`, for cost.
+
+**Tools and checks.** `tools/vacant_probe.gd` (headless, seconds: every vacant lot in a RECT with
+its items, `front_screen`, and EYE lines for `still_shot.gd`); `tests/vacant_lots_checks.gd` (the
+shaders and kind table, the share per district and none elsewhere / inner / in the core, car parks
+by the arena, every plan partitioning its cell, off = none, a FULL chunk's two meshes and
+shadowless weed batches, the A/B keeping the block's props, LOD and capture). `VACANT_LOTS=0` in
+the environment is the A/B for every tool.
+
+**Not done.** No attendant in the booth (a StreetVendor-style person would fit); no billboard pole
+on a vacant lot (Billboards owns poles - left to it); the weeds are code-built, not scanned; no
+graffiti on the screens (StreetWear reads Building parts, which a vacant lot has none of). The
+ground's tone and the weeds' translucency are judged on opengl3 only (NEEDS MAC CHECK).

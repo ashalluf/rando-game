@@ -394,7 +394,8 @@ static func fence_run(st: SurfaceTool, a: Vector3, b: Vector3, out: Vector3, scr
 		var g := minf(q0.y, q1.y)
 		box(st, Transform3D(basis, Vector3(m.x, g + FENCE_H * 0.5 + 0.02, m.z)), Vector3(seg, FENCE_H, 0.02), K_CHAIN, steel, 1.0 if rusty else 0.0, 32 | 16)
 		box(st, Transform3D(basis, Vector3(m.x, g + FENCE_H + 0.03, m.z)), Vector3(seg, 0.042, 0.042), K_GALV, steel)
-		if screen:
+		# A panel of screen gone (blown off, cut away) now and then, more on a worn run.
+		if screen and float(absi(hash([a, i, "gone"])) % 1000) / 1000.0 >= 0.12 + 0.3 * wear:
 			box(st, Transform3D(basis, Vector3(m.x, g + FENCE_H * 0.5 + 0.05, m.z) + out * 0.03), Vector3(seg - 0.04, FENCE_H - 0.12, 0.012), K_SCREEN, screen_paint, wear, 32 | 16)
 	for i in n + 1:
 		if not posts_at_ends and (i == 0 or i == n):

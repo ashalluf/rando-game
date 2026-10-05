@@ -56,7 +56,11 @@ func _initialize() -> void:
 				var names := []
 				for it: Dictionary in lp.items:
 					names.append(it.t)
-				print("VACANT %s block (%d,%d) district %d cell %s slab %s items %s" % [["", "lot", "PARKING"][k], bx, bz, d, cell, (lp.slab as Rect2).size, names])
+				var front_screen := false
+				for fe: Dictionary in lp.fences:
+					if (fe.gate as Vector2).x >= 0.0:
+						front_screen = fe.screen
+				print("VACANT %s front_screen=%s block (%d,%d) district %d cell %s slab %s items %s" % [["", "lot", "PARKING"][k], front_screen, bx, bz, d, cell, (lp.slab as Rect2).size, names])
 				print("  EYE=%.1f,1.7,%.1f,%.0f,-2   AIR EYE=%.1f,45,%.1f,%.0f,-30" % [eye.x, eye.y, yaw, air.x, air.y, yaw])
 	for d in counts:
 		print("DISTRICT %d: %d lots, %d vacant, %d car parks (%.1f %%)" % [d, counts[d][0], counts[d][1], counts[d][2], 100.0 * float(counts[d][1] + counts[d][2]) / maxf(float(counts[d][0]), 1.0)])
