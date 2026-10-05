@@ -1851,6 +1851,8 @@ func _test_city() -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# The texture budget (tests/texture_budget_checks.gd): imports, size limits, no duplicates.
+	load("res://tests/texture_budget_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()

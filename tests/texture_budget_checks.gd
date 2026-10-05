@@ -13,14 +13,14 @@ const IMAGE_EXT := ["png", "jpg", "jpeg", "webp", "tga", "bmp", "exr", "hdr"]
 const EXEMPT := ["res://assets/models/thumbs/", "res://assets/models/pedestrian_a_mask.png",
 	"res://assets/models/pedestrian_c_mask.png"]
 
-var _t: Node
+var _t: Object
 
 
 func _check(ok: bool, label: String) -> void:
 	_t._check(ok, label)
 
 
-func run(t: Node) -> void:
+func run(t: Object) -> void:
 	_t = t
 	var rules := _budget()
 	_check(rules.size() >= 4, "the texture budget has its rules (%d)" % rules.size())
