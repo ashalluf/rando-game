@@ -244,14 +244,23 @@ func _headlights(player: Player) -> void:
 	await _ticks(2)
 	mine.driver = player
 	player.vehicle = mine
-	await _frames(40)
+	# A fresh pick now that every car stands with its lamps on: CarLights picks every
+	# pick_interval of game time, and a pick that fell before a car's first lamp tick leaves a
+	# slot empty until the next one, which a fast run's 40 frames may not reach (CI run 357).
+	mgr.set("_pick_t", 0.0)
 	var lit := 0
 	var far_lit := false
-	for slot: Array in mgr._slots:
-		if slot[1] != null and (slot[0] as SpotLight3D).visible:
-			lit += 1
-			if slot[1] == far:
-				far_lit = true
+	for i in 160:
+		await _tree.process_frame
+		lit = 0
+		far_lit = false
+		for slot: Array in mgr._slots:
+			if slot[1] != null and (slot[0] as SpotLight3D).visible:
+				lit += 1
+				if slot[1] == far:
+					far_lit = true
+		if i >= 40 and lit == 3 and CarLights.active_count == 4:
+			break
 	_check(lit == 3 and not far_lit, "the nearest traffic cars get a headlight up to the budget (%d of 3), none past the reach" % lit)
 	var ps: SpotLight3D = mgr._player_spot
 	_check(ps.visible and ps.shadow_enabled and ps.light_energy > 0.0 and ps.light_projector != null,
