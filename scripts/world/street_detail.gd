@@ -186,7 +186,7 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 			for k in 3:
 				var q := p + dir * (k - 1) * 0.8
 				chunk._add_prop("rack", Vector3(q.x, top, q.y), Color(0.3, 0.3, 0.32), [
-					["rack", PropFactory.bike_rack(), Transform3D(basis, Vector3(q.x, top, q.y))],
+					["rack", StreetFurniture.rack_mesh(), Transform3D(basis, Vector3(q.x, top, q.y)), Color.WHITE, StreetFurniture.rack_custom(plan.seed, Vector3(q.x, top, q.y))],
 				], [[Vector3(0.9, 0.9, 0.1), Vector3(q.x, top + 0.45, q.y), yaw]])
 		if rng.randf() < news_odds:
 			# The rolls stay exactly as they were (the parked cars and the crowd draw from this
@@ -219,6 +219,9 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 		var dir := (b - a).normalized()
 		var p := a + dir * rng.randf_range(12.0, a.distance_to(b) - 12.0) + inward * 2.0
 		_bus_shelter(chunk, p, inward, dir)
+	# Residential carts out on the block's collection day (StreetFurniture, hash-seeded, ids of
+	# their own).
+	StreetFurniture.build_carts(chunk, edges, district)
 	# News boxes, A-frame boards and gutter litter (StreetClutter), last: they keep clear of
 	# everything above and roll nothing from `rng`.
 	StreetClutter.build_block(chunk, rect, edges, district, news)
@@ -647,11 +650,13 @@ static func _parking_meters(chunk: CityChunk, edges: Array, district: int) -> vo
 		while t < length - 8.0:
 			var p := a + dir * t + inward * METER_INSET
 			var at := Vector3(p.x, top, p.y)
+			# A meter head or a pay station (StreetFurniture: hash-seeded, the same prop).
 			chunk._add_prop("meter", at, Color(0.32, 0.33, 0.34), [
-				["meter", _meter_mesh(), Transform3D(Basis(Vector3.UP, yaw), at)],
+				StreetFurniture.meter_instance(chunk.plan.seed, at, yaw, _meter_mesh()),
 			], [[Vector3(0.2, 1.4, 0.2), at + Vector3(0.0, 0.7, 0.0), yaw]])
 			t += METER_SPACING
 	chunk._batch.set_draw_distance("meter", METER_DRAW_DISTANCE)
+	chunk._batch.set_draw_distance("pay_station", METER_DRAW_DISTANCE)
 
 
 ## Oil where cars park and the spray-painted locate marks a resurfaced street keeps for years.
@@ -844,6 +849,17 @@ static func _bus_shelter(chunk: CityChunk, p: Vector2, inward: Vector2, dir: Vec
 	var at := Vector3(p.x, top, p.y)
 	var back := Vector3(inward.x, 0.0, inward.y) * 0.9
 	var along := Vector3(dir.x, 0.0, dir.y)
+	# Half the stops are a bench with a painted ad back and the sign, no shelter (StreetFurniture,
+	# hash-seeded): the same prop, its id and the seat where it was.
+	if StreetFurniture.bench_stop(chunk.plan.seed, at):
+		chunk._add_prop("bus_stop", at, Color(0.3, 0.3, 0.32), [
+			StreetFurniture.ad_bench_instance(chunk.plan.seed, Transform3D(Basis(Vector3.UP, yaw + PI), at + back * 0.55)),
+			["sign_post", PropFactory.sign_post(), Transform3D(Basis(), at + along * 2.6 + Vector3(0.0, 1.4, 0.0))],
+			["bus_sign", PropFactory.bus_sign(), Transform3D(basis, at + along * 2.6 + Vector3(0.0, 2.7, 0.0))],
+		], [[Vector3(1.9, 1.1, 0.6), at + back * 0.55 + Vector3(0.0, 0.55, 0.0), yaw]])
+		if not chunk.prop_records.is_empty() and chunk.prop_records.back().kind == "bus_stop" and chunk.level == CityChunk.Level.FULL:
+			CrowdLife.add_seat(chunk, at + back * 0.55, yaw + PI, chunk.prop_records.back())
+		return
 	var instances := [
 		["shelter_post", PropFactory.shelter_post(), Transform3D(basis, at + back + along * 1.8 + Vector3(0.0, 1.25, 0.0))],
 		["shelter_post", PropFactory.shelter_post(), Transform3D(basis, at + back - along * 1.8 + Vector3(0.0, 1.25, 0.0))],

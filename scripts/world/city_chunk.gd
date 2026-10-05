@@ -3294,14 +3294,16 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		if e == hydrant_edge:
 			var p := a + dir * rng.randf_range(6.0, length - 6.0) + inward
 			var aged := rng.randf() < 0.4
-			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), [
-				["hydrant_aged" if aged else "hydrant", PropFactory.model_hydrant(aged), Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)), Vector3(p.x, SIDEWALK_TOP, p.y))],
-			], [[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
+			# StreetFurniture's LA wet barrel (the rolled spin is still drawn).
+			var spin := rng.randf_range(0.0, TAU)
+			_add_prop("hydrant", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.85, 0.15, 0.12), StreetFurniture.hydrant_instances(plan.seed, aged, spin, Vector3(p.x, SIDEWALK_TOP, p.y), inward),
+				[[Vector3(0.3, 0.8, 0.3), Vector3(p.x, SIDEWALK_TOP + 0.4, p.y), 0.0]])
 		if cans_left > 0 and rng.randf() < 0.6 and PhysicsBudget.can_spawn():
 			cans_left -= 1
 			var p := a + dir * rng.randf_range(4.0, length - 4.0) + inward * 1.3
 			var can := TrashCan.new()
 			can.rusty = rng.randf() < 0.35
+			can.style = StreetFurniture.bin_style(block_district)
 			can.position = Vector3(p.x, SIDEWALK_TOP + 0.02 + _gy(p.x, p.y), p.y)
 			can.rotation.y = rng.randf_range(0.0, TAU)
 			add_child(can)
@@ -3651,9 +3653,8 @@ func _build_clutter(_rect: Rect2, edges: Array, params: Dictionary, rng: RandomN
 		var e: Array = edges[rng.randi() % 4]
 		var yaw := atan2(-e[2].x, -e[2].y)
 		var p: Vector2 = _edge_point(e, rng, 5.0) + e[2] * 2.4
-		_add_prop("planter", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.45, 0.32, 0.2), [
-			["planter", PropFactory.model_planter(), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, SIDEWALK_TOP, p.y))],
-		], [[Vector3(0.95, 0.45, 0.45), Vector3(p.x, SIDEWALK_TOP + 0.22, p.y), yaw]])
+		_add_prop("planter", Vector3(p.x, SIDEWALK_TOP, p.y), Color(0.45, 0.32, 0.2), StreetFurniture.planter_instances(plan.seed, Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, SIDEWALK_TOP, p.y))),
+			[[Vector3(0.95, 0.45, 0.45), Vector3(p.x, SIDEWALK_TOP + 0.22, p.y), yaw]])
 	for i in clutter:
 		var e: Array = edges[rng.randi() % 4]
 		var yaw := atan2(-e[2].x, -e[2].y) + rng.randf_range(-0.3, 0.3)

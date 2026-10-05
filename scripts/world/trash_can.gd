@@ -5,6 +5,8 @@ extends RigidBody3D
 
 ## Rusty variant of the model.
 var rusty: bool = false
+## 1: StreetFurniture's perforated downtown bin instead of the Poly Haven can (set by the chunk).
+var style: int = 0
 
 
 func _init() -> void:
@@ -22,7 +24,22 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	var mesh := MeshInstance3D.new()
-	mesh.mesh = PropFactory.model_trash_can(rusty)
-	add_child(mesh)
+	if style == 1:
+		# The perforated bin, a MultiMesh of one so it gets its paint and wear (instance custom).
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.use_custom_data = true
+		mm.mesh = StreetFurniture.mesh_bin()
+		mm.instance_count = 1
+		mm.set_instance_transform(0, Transform3D.IDENTITY)
+		mm.set_instance_color(0, Color.WHITE)
+		mm.set_instance_custom_data(0, StreetFurniture.bin_custom(position))
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = mm
+		add_child(mmi)
+	else:
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = PropFactory.model_trash_can(rusty)
+		add_child(mesh)
 	set_meta("spawn_time", Time.get_ticks_msec() / 1000.0)
