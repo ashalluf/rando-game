@@ -32,10 +32,32 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
     on and off, and the first build's parked cars (which live under the city root) outlived its
     chunk, so the second build met PhysicsBudget's cap and parked six fewer. It frees each build's
     cars now; with the cap forced 16 above the city's count the old check fails and the new passes.
-- **Queued:** `fleet/batch2` = batch 1 + integration-b through `wt/oom-fix` (its four sections
-  renumbered 9cv-9cy, rows #91-#94); `fleet/batch3` = batch 2 + fwd-review-a, road-detail,
-  perf-audit (grass in cells: the "grass" batch is "grass_<cx>_<cz>" now), reservoir, ridges,
-  service-vehicles (first head, before its cab rebuild).
+- **Batches 2 and 3 are on `main`** (14:45): `fleet/batch2` = batch 1 + integration-b through
+  `wt/oom-fix` (its four sections renumbered 9cv-9cy, rows #91-#94); `fleet/batch3` = batch 2 +
+  fwd-review-a, road-detail, perf-audit (grass in cells: the "grass" batch is "grass_<cx>_<cz>"
+  now), reservoir, ridges and service-vehicles (its first head; the rebuilt cab-over bodies are in
+  batch 4). Gate: 1,799 passed, 0 failed, peak 3.7 GB. Four fixes came with it:
+  - Ridges' fire roads and pads keep off the ballpark's cut and its graded banks
+    (`Ridges._add_fire_road()` stops short of `Ballpark.covers(p, BANK_REACH + FIRE_WIDTH)`,
+    `_site_ok()` refuses a pad there): a fire road ran down into the ravine's bank.
+  - Boulevard sign posts keep out of the corner ramps and driveway aprons Kerbs will cut, asked of
+    the plan (`Kerbs.possible_cuts()`, pure: the same polygons `_notch_poly()` cuts), so the props
+    are the same with `KERBS` on or off - which a kerbs check holds.
+  - The blood-pool check counts a body as on the street only within 0.6 m of the ground under its
+    hips, the ragdoll's own rule for pooling (a body that lands on a car roof never pools).
+  - A terrain preview the ridges branch committed by mistake is gone.
+- **Queued:** `fleet/batch4` = batch 3 + service-vehicles' rebuilt bodies, farmers-market,
+  freight-trains and fwd-review-b. **estate-night was taken out of it**: it redraws the far
+  estates (EstateFar), but hill-homes' `HillHomeKit` owns every estate's house now (FULL, LOD and
+  the far city), and `_build_mansions()` / `Skyline._add_hills()` go to HillHomeKit first, so
+  EstateFar never drew and two of its checks failed; its session builds it on HillHomeKit's plan.
+  `fleet/batch5` = batch 4 + road-detail's follow-up, memory-audit (a 4,000 MB peak budget for the
+  merged city), shader-warm, load-time (a disk cache keyed on every script's md5), occluders,
+  gate-speed (`SHARDS=n` on headless_check.sh), texture-budget, reflection-probes, web-build,
+  fwd-review-c, far-landmarks, civic-buildings, scooters, driving-fx and traffic-ai.
+- **Usage limit, 12:42-13:09:** 20 sessions stopped on the account's five-hour limit with the
+  seven-day one at a warning; the lead resumed the eight nearest done (road-wear, olvera,
+  shop-vinyl, historic-core, roadside, film-studio, chinatown, street-lamps) and left the rest.
 - **`fleet/base`** is where wave 2 started (main at the merge, before the closed-road fix).
 - **integration-b's memory** was a build livelock, found by `oom-fix`: Murals and
   ClimbingPlants each moved their step to just before a chunk's finish whenever a step stood
