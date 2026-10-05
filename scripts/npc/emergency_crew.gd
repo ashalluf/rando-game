@@ -40,10 +40,21 @@ enum Job { NOZZLE, BACKUP, PUMP, PATIENT, STRETCHER }
 @export_group("")
 
 ## Turnout gear and the paramedics' uniform, as the character shader's garment colours.
-const TURNOUT := Color(0.47, 0.40, 0.26)
-const TURNOUT_TROUSERS := Color(0.42, 0.36, 0.24)
-const MEDIC_TOP := Color(0.17, 0.27, 0.46)
-const MEDIC_TROUSERS := Color(0.06, 0.075, 0.13)
+## Turnout is a darker khaki than new canvas (worn, sooted); the paramedics wear navy.
+const TURNOUT := Color(0.40, 0.345, 0.22)
+const TURNOUT_TROUSERS := Color(0.37, 0.32, 0.21)
+const MEDIC_TOP := Color(0.09, 0.115, 0.21)
+const MEDIC_TROUSERS := Color(0.075, 0.085, 0.14)
+## The limbs the uniform trim is laid out along (trim_mesh): bone -> [the bone at its far end, the
+## limb's code in the character shader (1 an arm, 4 a leg), 0 the upper segment / 1 the lower].
+## Distance along a limb runs on from the upper segment into the lower, so it is continuous over
+## the elbow and the knee.
+const TRIM_SEGMENTS := {
+	"LeftArm": ["LeftForeArm", 1, 0], "RightArm": ["RightForeArm", 1, 0],
+	"LeftForeArm": ["LeftHand", 1, 1], "RightForeArm": ["RightHand", 1, 1],
+	"LeftUpLeg": ["LeftLeg", 4, 0], "RightUpLeg": ["RightLeg", 4, 0],
+	"LeftLeg": ["LeftFoot", 4, 1], "RightLeg": ["RightFoot", 4, 1],
+}
 ## The hose's jacket and the bag's nylon.
 const HOSE_COLOR := Color(0.78, 0.70, 0.48)
 const BAG_COLOR := Color(0.72, 0.12, 0.07)
@@ -117,6 +128,7 @@ static var _uniform_mats: Dictionary = {}
 static var _hose_mat: StandardMaterial3D
 static var _water_mat: ShaderMaterial
 static var _meshes_cache: Dictionary = {}
+static var _trim_meshes: Dictionary = {}
 
 
 func setup_crew(s: Emergency, c: EmergencyCar, r: Role, index: int, seed_value: int) -> void:
@@ -165,6 +177,7 @@ func _add_model() -> bool:
 		var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh else null
 		if src and src.albedo_texture and not is_hair(mi):
 			mi.material_override = uniform_material(src.albedo_texture, role)
+			_wear_trim_mesh(mi)
 	plain_hair(inst)
 	_visual.scale = Vector3.ONE * _style.randf_range(0.96, 1.05)
 	_stride = _visual.scale.z
@@ -208,11 +221,209 @@ static func uniform_material(albedo: Texture2D, r: Role) -> ShaderMaterial:
 	mat.set_shader_parameter("pants_strength", 0.96)
 	mat.set_shader_parameter("hair_strength", 0.0)
 	mat.set_shader_parameter("skin_tint", Color(1, 1, 1))
-	# Turnout gear is heavy canvas: rough, stiff (few of the source garment's creases kept).
-	mat.set_shader_parameter("cloth_roughness", 0.9 if r == Role.FIRE else 0.78)
-	mat.set_shader_parameter("cloth_shade_keep", 0.5 if r == Role.FIRE else 0.65)
+	# Turnout gear is heavy canvas: rough, stiff (few of the source garment's creases kept). A
+	# uniform shirt is plain: little of the rig's own stripes or check shows through.
+	mat.set_shader_parameter("cloth_roughness", 0.9 if r == Role.FIRE else 0.8)
+	mat.set_shader_parameter("cloth_shade_keep", 0.5 if r == Role.FIRE else 0.35)
+	# The trim, patches and belt (character.gdshader uniform_kind, on trim_mesh's coordinates).
+	mat.set_shader_parameter("uniform_kind", 1.0 if r == Role.FIRE else 2.0)
 	_uniform_mats[key] = mat
 	return mat
+
+
+## The rig's body mesh with the uniform trim's coordinates baked in (trim_mesh); the welded
+## middle and far bodies stay the model's own (the trim is under a few pixels past 50 m), so they
+## are handed over rather than welded again.
+static func _wear_trim_mesh(mi: MeshInstance3D) -> void:
+	var skel := mi.get_parent() as Skeleton3D
+	if skel == null:
+		skel = mi.find_parent("Skeleton3D") as Skeleton3D
+	var src := mi.mesh
+	if mi.has_meta("near_mesh"):
+		src = mi.get_meta("near_mesh")
+	var baked := trim_mesh(src, mi.skin, skel)
+	if baked == src:
+		return
+	if not _far_meshes.has(baked):
+		_far_meshes[baked] = {mid_triangles: far_mesh(src, mid_triangles), far_triangles: far_mesh(src, far_triangles)}
+	mi.set_meta("near_mesh", baked)
+	mi.mesh = baked
+
+
+## A copy of a rig's skinned body with where every vertex sits on the body in CUSTOM2 / CUSTOM3,
+## worked out from the bind pose (so the trim rides the cloth whatever the clip does), for the
+## character shader's uniform trim: CUSTOM2 = (metres above the soles, metres along its limb from
+## the shoulder or hip, the limb's code (TRIM_SEGMENTS: 1 arm, 4 leg; 0 torso, 3 hand, 6 foot, 7
+## head) + the rig's height / 10, the upper segment's length + the whole limb's in centimetres
+## (0.31 + 58: upper arm 0.31 m, arm 0.58 m)), CUSTOM3 = (how far the surface faces
+## forward, how far it faces out to its own side, metres across from the midline, the height of
+## the trousers' waist). The mesh's LODs are kept. Cached per source mesh; the source itself when
+## there is no mesh data (the headless check's dummy renderer).
+static func trim_mesh(src: Mesh, skin: Skin, skel: Skeleton3D) -> Mesh:
+	if src == null or skin == null or skel == null or src.get_surface_count() != 1:
+		return src
+	if _trim_meshes.has(src):
+		return _trim_meshes[src]
+	_trim_meshes[src] = src
+	var arrays := src.surface_get_arrays(0)
+	if arrays.is_empty() or arrays[Mesh.ARRAY_BONES] == null or arrays[Mesh.ARRAY_WEIGHTS] == null:
+		return src
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	var colors: PackedColorArray = arrays[Mesh.ARRAY_COLOR] if arrays[Mesh.ARRAY_COLOR] != null else PackedColorArray()
+	if verts.is_empty() or bones.size() % verts.size() != 0:
+		return src
+	var per := bones.size() / verts.size()
+	var rig_xf := Ragdoll._rig_space_of_skel(skel)
+	var hips := skel.find_bone("Hips")
+	var mid := rig_xf * skel.get_bone_global_rest(hips).origin if hips >= 0 else Vector3.ZERO
+	# Per skin bind: its rest transform into rig space, its code and, for a limb, its segment.
+	var bind_xf: Array[Transform3D] = []
+	var codes := PackedInt32Array()
+	var segs: Array = []
+	for i in skin.get_bind_count():
+		var bname := String(skin.get_bind_name(i))
+		var bone := skel.find_bone(bname)
+		var rest := skel.get_bone_global_rest(bone) if bone >= 0 else Transform3D.IDENTITY
+		bind_xf.append(rig_xf * rest * skin.get_bind_pose(i))
+		var code := 0
+		var seg: Variant = null
+		if TRIM_SEGMENTS.has(bname) and bone >= 0:
+			var spec: Array = TRIM_SEGMENTS[bname]
+			code = int(spec[1])
+			# [origin, axis, distance along the limb at the origin, side, upper length, limb length]
+			var chain: Array = [bname, spec[0], TRIM_SEGMENTS[spec[0]][0]] if int(spec[2]) == 0 else [_upper_of(bname), bname, spec[0]]
+			var j := []
+			for bn: String in chain:
+				var b := skel.find_bone(bn)
+				j.append(rig_xf * skel.get_bone_global_rest(b).origin if b >= 0 else Vector3.INF)
+			if not (j[0] as Vector3).is_finite() or not (j[1] as Vector3).is_finite() or not (j[2] as Vector3).is_finite():
+				pass
+			else:
+				var upper := (j[0] as Vector3).distance_to(j[1])
+				var whole := upper + (j[1] as Vector3).distance_to(j[2])
+				var o: Vector3 = j[0] if int(spec[2]) == 0 else j[1]
+				var e: Vector3 = j[1] if int(spec[2]) == 0 else j[2]
+				seg = [o, (e - o).normalized(), 0.0 if int(spec[2]) == 0 else upper, signf(o.x - mid.x), upper, whole]
+		elif bname.ends_with("Hand"):
+			code = 3
+		elif bname.ends_with("Foot") or bname.ends_with("ToeBase"):
+			code = 6
+		elif bname.begins_with("Head") or bname.begins_with("Neck") or bname.begins_with("head"):
+			code = 7
+		codes.append(code)
+		segs.append(seg)
+	var pos := PackedVector3Array()
+	pos.resize(verts.size())
+	var best_bind := PackedInt32Array()
+	best_bind.resize(verts.size())
+	var lo := INF
+	var hi := -INF
+	for v in verts.size():
+		var p := Vector3.ZERO
+		var total := 0.0
+		var by_code := PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0])
+		var best_w := PackedFloat32Array([0, 0, 0, 0, 0, 0, 0, 0])
+		var best_i := PackedInt32Array([-1, -1, -1, -1, -1, -1, -1, -1])
+		for k in per:
+			var w := weights[v * per + k]
+			var bi := bones[v * per + k]
+			if w <= 0.0 or bi < 0 or bi >= bind_xf.size():
+				continue
+			p += bind_xf[bi] * verts[v] * w
+			total += w
+			var c := codes[bi]
+			by_code[c] += w
+			if w > best_w[c]:
+				best_w[c] = w
+				best_i[c] = bi
+		p /= maxf(total, 0.0001)
+		pos[v] = p
+		var top := 0
+		for c in 8:
+			if by_code[c] > by_code[top]:
+				top = c
+		best_bind[v] = best_i[top] if top != 0 else -1
+		lo = minf(lo, p.y)
+		hi = maxf(hi, p.y)
+	var tall := clampf(hi - lo, 0.5, 2.4)
+	# The trousers' waist: the top of the bottom garment's vertices (G), less the odd stray.
+	var waist_ys := PackedFloat32Array()
+	for v in verts.size():
+		if v < colors.size() and colors[v].g > 0.5 and colors[v].r < 0.2:
+			waist_ys.append(pos[v].y - lo)
+	waist_ys.sort()
+	var waist := waist_ys[int(waist_ys.size() * 0.985)] if waist_ys.size() > 20 else tall * 0.55
+	var c2 := PackedFloat32Array()
+	c2.resize(verts.size() * 4)
+	var c3 := PackedFloat32Array()
+	c3.resize(verts.size() * 4)
+	for v in verts.size():
+		var p := pos[v]
+		var bi := best_bind[v]
+		var code := codes[bi] if bi >= 0 else 0
+		var along := 0.0
+		var length := 0.0
+		var radial := Vector3(p.x - mid.x, 0.0, p.z - mid.z)
+		var side := signf(p.x - mid.x)
+		if bi >= 0 and segs[bi] != null:
+			var sg: Array = segs[bi]
+			var o: Vector3 = sg[0]
+			var ax: Vector3 = sg[1]
+			var t := (p - o).dot(ax)
+			along = float(sg[2]) + t
+			# The upper segment's length in the fraction, the limb's in whole centimetres.
+			length = minf(float(sg[4]), 0.999) + floorf(float(sg[5]) * 100.0)
+			radial = (p - o) - ax * t
+			side = sg[3]
+		var rn := radial.normalized() if radial.length_squared() > 1e-10 else Vector3.FORWARD
+		c2[v * 4] = p.y - lo
+		c2[v * 4 + 1] = along
+		c2[v * 4 + 2] = float(code) + tall / 10.0
+		c2[v * 4 + 3] = length
+		c3[v * 4] = rn.z
+		c3[v * 4 + 1] = rn.x * side
+		c3[v * 4 + 2] = p.x - mid.x
+		c3[v * 4 + 3] = waist
+	arrays[Mesh.ARRAY_CUSTOM2] = c2
+	arrays[Mesh.ARRAY_CUSTOM3] = c3
+	var flags := (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM2_SHIFT) | (Mesh.ARRAY_CUSTOM_RGBA_FLOAT << Mesh.ARRAY_FORMAT_CUSTOM3_SHIFT)
+	if per == 8:
+		flags |= Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], _surface_lods(src, (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size()), flags)
+	mesh.surface_set_material(0, src.surface_get_material(0))
+	mesh.custom_aabb = src.get_aabb()
+	_trim_meshes[src] = mesh
+	return mesh
+
+
+static func _upper_of(lower: String) -> String:
+	for k: String in TRIM_SEGMENTS:
+		if TRIM_SEGMENTS[k][0] == lower:
+			return k
+	return ""
+
+
+## The renderer's LOD index lists of a mesh's first surface, as add_surface_from_arrays takes them
+## ({edge length: indices}), so a copy keeps its LODs ({} when the renderer keeps no data).
+static func _surface_lods(src: Mesh, index_count: int) -> Dictionary:
+	var out := {}
+	var surf := RenderingServer.mesh_get_surface(src.get_rid(), 0)
+	var main: PackedByteArray = surf.get("index_data", PackedByteArray())
+	if main.is_empty() or index_count <= 0:
+		return out
+	var wide := main.size() / index_count >= 4
+	for lod: Dictionary in surf.get("lods", []):
+		var data: PackedByteArray = lod.get("index_data", PackedByteArray())
+		var n := data.size() / (4 if wide else 2)
+		var idx := PackedInt32Array()
+		idx.resize(n)
+		for i in n:
+			idx[i] = data.decode_u32(i * 4) if wide else data.decode_u16(i * 2)
+		out[float(lod.get("edge_length", 0.0))] = idx
+	return out
 
 
 ## Not frightened off by gunfire: they are working.
@@ -745,6 +956,7 @@ func knock(impulse: Vector3, gibs: int = 0) -> void:
 					var src := mi.mesh.surface_get_material(0) as StandardMaterial3D if mi.mesh else null
 					if src and src.albedo_texture and mi.skin and not is_hair(mi):
 						mi.material_override = uniform_material(src.albedo_texture, role)
+						_wear_trim_mesh(mi)
 				plain_hair(doll._rig)
 				if role == Role.FIRE:
 					FireHelmet.dress(doll._rig, _model_path, false)

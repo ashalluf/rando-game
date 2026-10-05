@@ -286,6 +286,8 @@ uint shop_frame_index(uint shop) {
 #include "res://shaders/shop_interior.gdshaderinc"
 // Which offices are lit and which spandrels are pale, rolled exactly as the far boxes roll them.
 #include "res://shaders/window_lights.gdshaderinc"
+// Broken panes, blast holes and soot (scripts/world/building_damage.gd).
+#include "res://shaders/building_damage.gdshaderinc"
 
 // A door's framing, painted: `p` in metres from the opening's corner at the pavement on
 // ShopfrontKit's low edge (the high end of `u`), `w` the opening's width. The members of the
@@ -752,6 +754,16 @@ void fragment() {
 	// face really has, so it is lit as the surface it is.
 	bool reveal_face = false;
 	vec3 reveal_normal = vec3(0.0, 1.0, 0.0);
+	// Damage (building_damage.gdshaderinc): this pane's state (0 whole, 1 crazed, 2 gone), where
+	// its cracks start and its seed, whether this point is in a blast hole, and the soot on it.
+	float dmg_state = 0.0;
+	vec2 dmg_impact = vec2(0.0);
+	float dmg_pseed = 0.0;
+	vec2 dmg_half = vec2(1.0);
+	bool dmg_in_hole = false;
+	vec4 dmg_hole = vec4(0.0);
+	float dmg_soot = 0.0;
+	vec2 dmg_pock = vec2(0.0);
 
 	if (abs(n.y) > 0.5) {
 		// Roof, with a lighter parapet ring around the edge.
@@ -1078,7 +1090,34 @@ void fragment() {
 			}
 		}
 
-		if (garage_open) {
+		// ---- Damage -------------------------------------------------------------------------
+		// Only a building somebody has shot has records (BuildingDamage); the rest skip this.
+		if (damage_count > 0 && !chamfer) {
+			mat4 to_model = inverse(MODEL_MATRIX);
+			vec3 mp = (to_model * vec4(world_pos, 1.0)).xyz;
+			vec3 mn = normalize((to_model * vec4(world_normal, 0.0)).xyz);
+			vec3 mu = normalize((to_model * vec4(world_tangent, 0.0)).xyz) * u_sign;
+			dmg_in_hole = dmg_wall(mp, mu, mn, dmg_hole, dmg_soot, dmg_pock);
+			if ((glass || reveal_face) && !dmg_in_hole) {
+				float cell_d = storefront ? sf_h : pt_floor;
+				vec3 pc = mp + mu * ((win_c.x - fu) * pitch) + vec3(0.0, (win_c.y - fv) * cell_d, 0.0);
+				dmg_half = win_h * vec2(pitch, cell_d);
+				dmg_state = dmg_pane_state(pc, mu, mn, dmg_half, dmg_impact, dmg_pseed);
+			}
+		}
+
+		if (dmg_in_hole) {
+			// A blast hole: the break through the wall and the burnt room behind it, traced.
+			vec3 eye_h = (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+			vec3 to_h = normalize(world_pos - eye_h);
+			vec3 tan_h = normalize(world_tangent - world_normal * dot(world_tangent, world_normal)) * u_sign;
+			vec3 ray_h = vec3(dot(to_h, tan_h), to_h.y, -dot(to_h, world_normal));
+			float sky_h = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
+			dmg_hole_room(dmg_hole, ray_h, facade_finish, facade_color, px_m, 1.0 - night_factor, sky_h, albedo, emission, rough);
+			metal = 0.0;
+			glass = false;
+			reveal_face = false;
+		} else if (garage_open) {
 			// The deck behind the open side, traced (garage_interior()). Under a deck the sun
 			// does not reach, so almost none of it is lit as paint: what is seen is the day
 			// coming in at the sides, the far side's opening, and the lamps, which run day and
@@ -1128,6 +1167,8 @@ void fragment() {
 			float room_seed = hash31(vec3(col, row, face_id * 17.0 + seed)) * 97.0;
 			albedo = window_tint * (0.30 + 0.15 * hash31(vec3(row, col, face_id + seed)));
 			vec3 to_frag = normalize(world_pos - (INV_VIEW_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz);
+			// The room as seen with no glass in the way, for a pane that is gone.
+			vec3 dmg_room = albedo * 0.3;
 
 			if (interior_enabled) {
 				// Where we are inside the opening, and the view ray in wall space.
@@ -1149,7 +1190,8 @@ void fragment() {
 						px_m, length(VERTEX), depth_t, room_lamp, room_glow);
 				} else {
 					// Offices are full of blinds.
-					room = room_interior(w, ray, wide, high, room_depth, room_seed, 0.72, depth_t, room_lamp);
+					// A pane blown out took the blind with it.
+					room = room_interior(w, ray, wide, high, room_depth, room_seed, dmg_state > 1.5 ? 0.0 : 0.72, depth_t, room_lamp);
 				}
 				room_raw = room;
 				// Daylight outside is many stops brighter than anything indoors, so the room
@@ -1168,6 +1210,7 @@ void fragment() {
 					room *= vec3(1.10, 1.03, 0.92);
 				}
 				// The glass still carries its own tint; the room shows through it.
+				dmg_room = room;
 				albedo = mix(room, albedo * 0.5, 0.28);
 			} else {
 				// Fallback: a soft vertical gradient behind the glass.
@@ -1349,6 +1392,33 @@ void fragment() {
 				vec3 nc = neon_color(shop_byte(shop_key, 6u) % 5u) * (1.0 - shop_bars) * shop_on;
 				emission += nc * (core * 7.0 + halo * 0.45);
 				albedo = mix(albedo, nc, core * 0.6);
+			}
+			if (dmg_state > 0.5) {
+				// Broken glass. A crazed pane is a white web that kills the view through it and
+				// breaks up the mirror; a pane that is gone shows the room plainly, but for the
+				// teeth of glass still in the frame.
+				vec2 wd2 = pane_w.x >= 0.0 ? pane_w : clamp((vec2(fu, fv) - (win_c - win_h)) / (2.0 * win_h), vec2(0.0), vec2(1.0));
+				vec2 pp = (wd2 - 0.5) * 2.0 * dmg_half;
+				bool tempered = storefront || window_style == 2;
+				float sky_d = clamp(dot(sky_tint.rgb, vec3(0.299, 0.587, 0.114)) / 0.74, 0.0, 1.5);
+				if (dmg_state > 1.5 && !dmg_teeth(pp, dmg_half, dmg_pseed)) {
+					albedo = dmg_room * 0.35;
+					emission = emission * 1.15 + dmg_room * 2.2 * sky_d * (1.0 - night_factor);
+					reflected = vec3(0.0);
+					rough = 0.85;
+					metal = 0.0;
+				} else {
+					float ck = dmg_cracks(pp, dmg_impact, dmg_half, dmg_pseed, px_m, tempered);
+					if (dmg_state > 1.5) {
+						ck = max(ck, 0.45);
+					}
+					albedo = mix(albedo, vec3(0.62, 0.66, 0.66), ck * 0.75);
+					reflected *= 1.0 - 0.6 * ck;
+					// The cracks scatter whatever light is behind them: frosty lines over a lit room.
+					float behind = dot(emission, vec3(0.333));
+					emission = emission * (1.0 - 0.6 * ck) + vec3(behind * 1.3) * ck + sky_tint.rgb * ck * 0.22 * (1.0 - 0.8 * night_factor);
+					rough = mix(rough, 0.6, ck);
+				}
 			}
 			emission += reflected;
 		} else if (shutter && shop_byte(shop_key, 26u) < 90u) {
@@ -1610,6 +1680,19 @@ void fragment() {
 			albedo = mix(albedo, albedo * vec3(0.46, 0.44, 0.42), dirt);
 			rough = min(1.0, rough + 0.18 * dirt);
 		}
+	}
+
+	// Soot round a blast (building_damage.gdshaderinc): black where it burnt, grey further out.
+	if (dmg_soot > 0.0 && !dmg_in_hole) {
+		albedo *= 1.0 - 0.9 * dmg_soot;
+		emission *= 1.0 - dmg_soot;
+		rough = mix(rough, 1.0, dmg_soot);
+	}
+	if (dmg_pock.x + dmg_pock.y > 0.0 && !dmg_in_hole) {
+		// A bullet scar: the face spalled off paler round a dark pit.
+		albedo = mix(albedo, mix(albedo, vec3(0.62, 0.60, 0.56), 0.55) * 1.1, dmg_pock.y);
+		albedo = mix(albedo, albedo * 0.22, dmg_pock.x);
+		rough = mix(rough, 1.0, max(dmg_pock.x, dmg_pock.y));
 	}
 
 	// ---- Macro breakup -------------------------------------------------------------------

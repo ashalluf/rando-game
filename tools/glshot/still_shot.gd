@@ -37,11 +37,13 @@ extends SceneTree
 ## the police on the minimap.
 ## STREET=queue|crossing stages the signalised junction ahead of the camera: a queue waiting at
 ## its red, and for `crossing` people out on the crosswalk in front of it (see _stage_street for
-## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES). With --hour=21 it is the lit heads
+## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES; STREET_MIX=14,15,16,17,18 makes the
+## queue's cars those body types in turn). With --hour=21 it is the lit heads
 ## at night. STREET_EYE=1 then moves a free camera onto the pavement behind the queue, looking up
 ## it (STREET_EYE_BACK, _SIDE, _TURN, _HEIGHT, _PITCH).
 ## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
-## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost).
+## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost). An empty camera ("@21.5") is the last
+## shot's camera at another hour.
 ## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
 ## above the ground there.
 ## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
@@ -56,6 +58,8 @@ extends SceneTree
 ## LIFE_REPORT=1 lists the people within 80 m of the camera doing something (crowd life), with
 ## true world positions to frame an EYE on; LIFE_FOCUS=jog|dog|talk|sit|stand|lean|window frames the
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
+## AFTERMATH=palms|burning|charred|column|crater stages what a blast leaves by the nearest palm
+## row (tools/glshot/aftermath_stage.gd: AF_FIND, AF_TIME, AF_EYE_DIST, AF_FAR, ...).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
@@ -385,6 +389,24 @@ func _initialize() -> void:
 		for i in _env_int("EMERGENCY_FRAMES", 30):
 			await process_frame
 			_pose(player, anchor, hold, boost, fov)
+	# AFTERMATH=palms|burning|charred|column|crater: what a blast leaves behind, staged by the
+	# nearest palm row and framed by a free camera (tools/glshot/aftermath_stage.gd), then AF_TIME
+	# seconds of it at FX_SCALE.
+	var af_env := OS.get_environment("AFTERMATH")
+	if af_env != "" and current_scene:
+		var af_eye: String = load("res://tools/glshot/aftermath_stage.gd").stage(self, af_env, get_root().get_camera_3d())
+		if af_eye != "":
+			OS.set_environment("EYE", af_eye)
+		print("AFTERMATH %s eye %s" % [af_env, af_eye])
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		Engine.time_scale = _env_float("FX_SCALE", 0.375)
+		var af_t := 0.0
+		while af_t < _env_float("AF_TIME", 0.3):
+			await process_frame
+			af_t += get_root().get_process_delta_time()
+			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.
@@ -539,7 +561,9 @@ func _initialize() -> void:
 	for entry in shots_env.split(";", false):
 		k += 1
 		var bits := entry.split("@")
-		OS.set_environment("EYE", bits[0])
+		# An empty camera ("@21.5") keeps the last one: the same frame at another hour.
+		if bits[0] != "":
+			OS.set_environment("EYE", bits[0])
 		if bits.size() > 1 and day and bits[1] != "":
 			day.set("hour", bits[1].to_float())
 		Engine.time_scale = 1.0
@@ -849,7 +873,7 @@ func _light_report(label: String) -> void:
 	print("LIGHTS %s car=%d (in view %d) lamps=%d (in view %d)" % [label, counts[0], counts[1], counts[2], counts[3]])
 
 
-const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "Billboards", "Vendors", "PhysProps", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
 func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
@@ -876,6 +900,49 @@ func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov
 		print("SPLIT %-12s nodes %5d  tris %9d (%4.1f%%)  draws %5d  objects %5d  | shadow tris %9d draws %5d" % [
 			c, list.size(), base[0] - hidden[0], 100.0 * (base[0] - hidden[0]) / maxf(base[0], 1),
 			base[1] - hidden[1], base[2] - hidden[2], base[4] - hidden[4], base[6] - hidden[6]])
+	# OSPLIT=1: the Other and StreetProps categories again by node name stem, the 30 stems with
+	# the most estimated triangles (LOD 0 x instances) hidden one at a time.
+	if OS.get_environment("OSPLIT") == "1":
+		var stems := {}
+		var est := {}
+		for c in ["Other", "StreetProps", "LightRail", "River", "Parks", "Houses", "Industrial"]:
+			for gi: GeometryInstance3D in nodes[c]:
+				if not is_instance_valid(gi):
+					continue
+				var stem: String = c + "/" + String(gi.name).rstrip("0123456789_").replace("BatchShadow_", "Batch_")
+				if not stems.has(stem):
+					stems[stem] = []
+					est[stem] = 0
+				(stems[stem] as Array).append(gi)
+				est[stem] += _est_tris(gi)
+		var order := stems.keys()
+		order.sort_custom(func(a, b): return est[a] > est[b])
+		for k: String in order.slice(0, 30):
+			var list: Array = stems[k]
+			for gi: GeometryInstance3D in list:
+				gi.visible = false
+			var hidden := await _geo_report("  (hidden %s)" % k)
+			for gi: GeometryInstance3D in list:
+				gi.visible = true
+			if k.contains("@"):
+				var by := {}
+				for gi: GeometryInstance3D in list:
+					var mat: Material = gi.material_override
+					if mat == null and gi is MeshInstance3D and (gi as MeshInstance3D).mesh and (gi as MeshInstance3D).mesh.get_surface_count() > 0:
+						mat = (gi as MeshInstance3D).mesh.surface_get_material(0)
+					var mk := ""
+					if mat is ShaderMaterial and (mat as ShaderMaterial).shader:
+						mk = (mat as ShaderMaterial).shader.resource_path.get_file()
+					elif mat:
+						mk = mat.get_class()
+					var pk := "%s %s" % [String(gi.get_parent().name).rstrip("0123456789_-"), mk]
+					by[pk] = int(by.get(pk, 0)) + _est_tris(gi)
+				var pks := by.keys()
+				pks.sort_custom(func(a, b): return by[a] > by[b])
+				for pk in pks.slice(0, 8):
+					print("OSPLIT   by %-40s est tris %d" % [pk, by[pk]])
+			print("OSPLIT %-36s nodes %5d  tris %9d  draws %5d  objects %5d  | shadow tris %9d draws %5d" % [
+				k, list.size(), base[0] - hidden[0], base[1] - hidden[1], base[2] - hidden[2], base[4] - hidden[4], base[6] - hidden[6]])
 	# The Building category again, by the kind of node under a Building: its box parts, the
 	# facade MultiMeshes, the kit batches, the shop names, the roof plant.
 	var sub := {}
@@ -1006,6 +1073,37 @@ static func _building_part_kind(gi: GeometryInstance3D) -> String:
 	return "mesh " + nm.rstrip("0123456789")
 
 
+static var _est_cache := {}
+
+
+## A rough triangle estimate (LOD 0 times instances) to rank the OSPLIT stems.
+static func _est_tris(gi: GeometryInstance3D) -> int:
+	var mesh: Mesh = null
+	var count := 1
+	if gi is MultiMeshInstance3D:
+		var mm := (gi as MultiMeshInstance3D).multimesh
+		if mm == null:
+			return 0
+		mesh = mm.mesh
+		count = mm.visible_instance_count if mm.visible_instance_count >= 0 else mm.instance_count
+	elif gi is MeshInstance3D:
+		mesh = (gi as MeshInstance3D).mesh
+	if mesh == null:
+		return 0
+	if _est_cache.has(mesh):
+		return int(_est_cache[mesh]) * count + 50
+	var t := 0
+	for i in mesh.get_surface_count():
+		var arr: Array = mesh.surface_get_arrays(i) if mesh is ArrayMesh else []
+		if arr.is_empty():
+			t += 100
+			continue
+		var idx = arr[Mesh.ARRAY_INDEX]
+		t += (idx.size() if idx != null else (arr[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()) / 3
+	_est_cache[mesh] = t
+	return t * count + 50
+
+
 func _split_category(gi: GeometryInstance3D) -> String:
 	var n: Node = gi
 	while n != null:
@@ -1013,10 +1111,17 @@ func _split_category(gi: GeometryInstance3D) -> String:
 		match cls:
 			"Building":
 				return "Building"
-			"Vehicle", "Aircraft", "PoliceCar", "AmbientJet", "Helicopter":
+			"Vehicle", "Aircraft", "PoliceCar", "AmbientJet", "Helicopter", "EmergencyCar":
 				return "Vehicle"
-			"Pedestrian", "Ragdoll", "Avatar", "Player", "PoliceOfficer", "RoughSleeper", "ReplicaWalker":
+			"Pedestrian", "Ragdoll", "Avatar", "Player", "PoliceOfficer", "RoughSleeper", "ReplicaWalker", \
+					"ApronCrew", "EmergencyCrew", "ParkGoer", "RailRider", "StreetVendor", "CrowdDog":
 				return "Pedestrian"
+			"LightRailSystem", "LightRailTrain", "RailSection", "RailGate":
+				return "LightRail"
+			"Birds":
+				return "Birds"
+			"TrashCan", "PhysicsProp":
+				return "PhysProps"
 			"Skyline":
 				return "FarCity"
 			"CampFigureMesh":
@@ -1039,6 +1144,20 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				if nm.begins_with("LotFill") or nm.begins_with("Yard") or nm.contains("apark_car") or nm.contains("pstripe") or nm.contains("fence_") \
 						or nm.contains("fill_bronze"):
 					return "LotFill"
+				if nm.begins_with("Houses") or nm.begins_with("House") or nm.begins_with("Batch_h_") or nm.begins_with("h_"):
+					return "Houses"
+				if nm.begins_with("Industrial") or nm.contains("ind_"):
+					return "Industrial"
+				if nm.begins_with("Park") or nm.contains("park_"):
+					return "Parks"
+				if nm.begins_with("River") or nm.contains("rv_"):
+					return "River"
+				if nm.begins_with("Rail") or nm.contains("rail_"):
+					return "LightRail"
+				if nm.contains("bb_"):
+					return "Billboards"
+				if nm.contains("vend_") or nm.begins_with("Vendor"):
+					return "Vendors"
 				if nm.begins_with("Batch"):
 					return "StreetProps"
 				return "Other"
@@ -1198,11 +1317,29 @@ func _stage_street(kind: String) -> void:
 	var per := int(ceil(float(_env_int("STREET_CARS", 6)) / float(lanes)))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([node, "street_shot"])
+	# STREET_MIX=14,15,...: the queue's ordinary cars are these body types in turn (the second
+	# wave of road cars; the taxi, 17, in its livery), handed to place_car() through the pool.
+	var mix := PackedInt32Array()
+	for t in OS.get_environment("STREET_MIX").split(",", false):
+		mix.append(t.to_int())
+	var mixed := 0
 	for n in lanes:
 		var nose := line - float(dir) * (0.6 + 2.5 * float(n))
 		for k in per:
 			# STREET_BIG=<body type>: the second car of the kerb lane is that big vehicle.
 			var big_kind := _env_int("STREET_BIG", -1) if (k == 1 and n == lanes - 1) else -1
+			if big_kind < 0 and not mix.is_empty():
+				var vs: GDScript = load("res://scripts/vehicles/vehicle.gd")
+				var t := mix[mixed % mix.size()]
+				mixed += 1
+				var mc: Node = vs.call("random_car", rng)
+				if t == 17:
+					mc.call("setup", t, Color(0.96, 0.73, 0.03), 0)
+					mc.call("setup_look", 0, 3, Color(0.07, 0.07, 0.08))
+				else:
+					mc.call("setup", t, mc.get("paint"), 0)
+					mc.call("setup_look", 1, 0, Color(0.92, 0.92, 0.93))
+				(traffic.get("_pool") as Array).append(mc)
 			var car: Node = traffic.call("place_car", axis, index, dir, n, line, 10.0, false, big_kind)
 			car.traffic.v = 0.0
 			car.set("traffic_speed", 0.0)

@@ -31,7 +31,7 @@ const KIND_LAMP := 2
 
 ## How much of the cabin a pane lets through head on (before Fresnel): the windscreen clearest,
 ## the front side glass lightly tinted, the rear side glass and the rear screen a little darker,
-## privacy glass (the crossover, pickup and van behind the front seats) dark, and a mid-engined
+## privacy glass (the crossover, pickup, van, SUV and minivan behind the front seats) dark, and a mid-engined
 ## car's engine cover almost black.
 const SCREEN_T := 0.8
 const FRONT_SIDE_T := 0.6
@@ -44,7 +44,8 @@ const ENGINE_T := 0.1
 ## one connected piece of glass).
 const SIDE_BY_SEAT := -1.0
 ## Bodies with privacy glass behind the front seats.
-const PRIVACY_BODIES := [Vehicle.BodyType.CROSSOVER, Vehicle.BodyType.PICKUP, Vehicle.BodyType.VAN]
+const PRIVACY_BODIES := [Vehicle.BodyType.CROSSOVER, Vehicle.BodyType.PICKUP, Vehicle.BodyType.VAN,
+		Vehicle.BodyType.SUV, Vehicle.BodyType.MINIVAN]
 ## The two-seat exotics: no back seats, and the glass behind the cabin is an engine cover.
 const TWO_SEATERS := [Vehicle.BodyType.SUPER, Vehicle.BodyType.SPIDER, Vehicle.BodyType.HYPER, Vehicle.BodyType.TRACK]
 ## A car whose side glass is shorter than this (m) has no back seats either (the panel van's
@@ -72,7 +73,9 @@ const DASH_DEPTH := 0.42
 const BUS_FIRST_ROW := 2.7
 const BUS_ROW_PITCH := 0.80
 const BUS_FILL := 0.42
-const BUS_LAMP := 1.0
+## (2.0, 2026-10-05: at 1.0 a bus at dusk still read as a dark windscreen from the pavement; the
+## lights come on with lamp_factor - dusk, or a storm - not night_factor.)
+const BUS_LAMP := 2.0
 ## A bus's cabin is daylit: a white ceiling and a wall of windows down each side light it far
 ## more than a car's (cabin_light times this, and the glass lets more of it through). At the car's
 ## level its whole front read as a black slab from the pavement at noon (HANDOFF 9bi's bus_stop_day).
@@ -150,7 +153,9 @@ static func context(car: Vehicle, mesh_to_car: Transform3D, has_model: bool = tr
 		"scale": maxf(mesh_to_car.basis.get_scale().x, 1e-4),
 		"privacy": PRIVACY_BODIES.has(car.body_type),
 		"two_seat": TWO_SEATERS.has(car.body_type),
-		"bus": car.body_type == Vehicle.BodyType.BUS,
+		"bus": car.body_type == Vehicle.BodyType.BUS or car.body_type == Vehicle.BodyType.SCHOOL_BUS,
+		# A school bus's rows are empty (no children are drawn anywhere: Schools).
+		"empty_rows": car.body_type == Vehicle.BodyType.SCHOOL_BUS,
 	}
 
 
@@ -379,7 +384,7 @@ static func cabin(panes: Array, ctx: Dictionary) -> Dictionary:
 		var first := front_row + back * BUS_FIRST_ROW / scale
 		var pitch := BUS_ROW_PITCH / scale
 		var n := floori(absf(rear_row - first) / pitch)
-		out.bus_rows = Vector4(first, pitch, float(n), BUS_FILL)
+		out.bus_rows = Vector4(first, pitch, float(n), 0.0 if ctx.get("empty_rows", false) else BUS_FILL)
 		out.side_t = Vector2(FRONT_SIDE_T, FRONT_SIDE_T)
 		out.interior_lamp = BUS_LAMP
 		out.cabin_gain = BUS_DAYLIGHT

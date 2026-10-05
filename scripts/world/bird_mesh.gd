@@ -61,16 +61,19 @@ const TEXTURE_DIR := "res://assets/textures/birds/"
 const LOOKS := {
 	"pigeon": {"irid_a": Vector3(0.03, 0.2, 0.08), "irid_b": Vector3(0.2, 0.04, 0.17), "irid_strength": 0.8,
 		"morph_ref": 0.343, "flap_angle": 1.0, "flap_bias": 0.2, "hand_flex": 0.45, "hand_sweep": 0.55,
-		"glide_arm": 0.24, "glide_hand": 0.0, "peck_angle": 1.2, "stride_angle": 0.55},
+		"glide_arm": 0.24, "glide_hand": 0.0, "peck_angle": 1.2, "stride_angle": 0.55,
+		"under_cov": Vector3(0.18, 0.2, 0.24), "under_flight": Vector3(0.13, 0.145, 0.185), "under_keep": 0.45, "under_mix": 1.0},
 	"gull": {"irid_a": Vector3.ZERO, "irid_b": Vector3.ZERO, "irid_strength": 0.0,
 		"morph_ref": 0.3, "flap_angle": 0.62, "flap_bias": 0.1, "hand_flex": 0.35, "hand_sweep": 0.3,
-		"glide_arm": 0.14, "glide_hand": -0.24, "peck_angle": 0.8, "stride_angle": 0.45},
+		"glide_arm": 0.14, "glide_hand": -0.24, "peck_angle": 0.8, "stride_angle": 0.45,
+		"under_cov": Vector3(0.78, 0.78, 0.76), "under_flight": Vector3(0.66, 0.67, 0.66), "under_keep": 0.7, "under_mix": 1.0},
 	"crow": {"irid_a": Vector3(0.012, 0.018, 0.05), "irid_b": Vector3(0.035, 0.014, 0.05), "irid_strength": 0.4,
 		"morph_ref": 0.01, "flap_angle": 0.8, "flap_bias": 0.12, "hand_flex": 0.4, "hand_sweep": 0.45,
 		"glide_arm": 0.08, "glide_hand": -0.06, "peck_angle": 1.0, "stride_angle": 0.5},
 	"sparrow": {"irid_a": Vector3.ZERO, "irid_b": Vector3.ZERO, "irid_strength": 0.0,
 		"morph_ref": 0.1, "flap_angle": 1.1, "flap_bias": 0.25, "hand_flex": 0.5, "hand_sweep": 0.6,
-		"glide_arm": 0.1, "glide_hand": 0.0, "peck_angle": 1.2, "stride_angle": 0.4},
+		"glide_arm": 0.1, "glide_hand": 0.0, "peck_angle": 1.2, "stride_angle": 0.4,
+		"under_cov": Vector3(0.42, 0.39, 0.33), "under_flight": Vector3(0.2, 0.18, 0.15), "under_keep": 0.5, "under_mix": 0.85},
 }
 
 
@@ -403,8 +406,10 @@ class _Builder:
 		return [p, n.normalized()]
 
 	func _body() -> void:
-		var rings: int = [24, 12, 6][level]
-		var around: int = [18, 10, 6][level]
+		# The near loft is dense enough that its outline stays round at a metre (24 x 18 drew the
+		# breast and the crown as facets), and its normals are welded and averaged below.
+		var rings: int = [28, 12, 6][level]
+		var around: int = [22, 10, 6][level]
 		var base := verts.size()
 		var head_w := func(s: float) -> float: return smoothstep(S_NECK - 0.02, S_HEAD, s)
 		for r in rings + 1:
@@ -426,6 +431,7 @@ class _Builder:
 				var d := c + 1
 				_tri_facing(a, c, b)
 				_tri_facing(b, c, d)
+		_smooth_normals(base, verts.size())
 		# Cap the tail end (it sits under the tail fan).
 		var cap := _add(verts[base] + Vector3(0, 0, 0.002), Vector3(0, 0, 1), uvs[base], verts[base] + Vector3(0, 0, 0.002), Vector3(0, 0, 1), PART_BODY, 0.0)
 		for k in around:
@@ -434,6 +440,57 @@ class _Builder:
 		for r in 41:
 			var s := float(r) / 40.0 * S_NECK
 			_flank_rows.append(_spine_at(s))
+
+	## Every body vertex takes the area-weighted mean of the faces round its POSITION (the loft's
+	## seam column and the beak tip are several vertices at one point): the analytic ellipse
+	## normal is only approximate where the radii change fast (breast, nape, cere), and the
+	## difference lit each quad on its own - the faceting a near bird showed at a metre.
+	func _smooth_normals(from: int, to: int) -> void:
+		var acc := {}
+		var first_index := idx.size()
+		# The body's triangles are the last ones added.
+		while first_index >= 3 and idx[first_index - 3] >= from:
+			first_index -= 3
+		for k in range(first_index, idx.size(), 3):
+			var i0 := idx[k]
+			var i1 := idx[k + 1]
+			var i2 := idx[k + 2]
+			var fn := (verts[i1] - verts[i0]).cross(verts[i2] - verts[i0])
+			# Faces wound to face outward: the cross product points the other way (clockwise).
+			if fn.dot(norms[i0] + norms[i1] + norms[i2]) < 0.0:
+				fn = -fn
+			for i in [i0, i1, i2]:
+				var key := _pos_key(verts[i])
+				acc[key] = acc.get(key, Vector3.ZERO) + fn
+		for i in range(from, to):
+			var n: Vector3 = acc.get(_pos_key(verts[i]), Vector3.ZERO)
+			if n.length_squared() > 1e-20:
+				n = n.normalized()
+				norms[i] = n
+				fold_n[i] = n
+
+	static func _pos_key(p: Vector3) -> Vector3i:
+		return Vector3i(roundi(p.x * 1e5), roundi(p.y * 1e5), roundi(p.z * 1e5))
+
+	## The body's outward normal at a ground-pose point on the flank (`side` the wing's side):
+	## a folded feather lying on the flank shades as the body under it does, so the wing reads
+	## as part of the bird and not as a pale sheet stood off it.
+	func flank_normal(p: Vector3, side: float) -> Vector3:
+		for i in _flank_rows.size() - 1:
+			var a: Array = _flank_rows[i]
+			var b: Array = _flank_rows[i + 1]
+			var za := float(a[0])
+			var zb := float(b[0])
+			if (p.z <= za and p.z >= zb) or (p.z >= za and p.z <= zb):
+				var k := (p.z - za) / (zb - za) if absf(zb - za) > 1e-6 else 0.0
+				var cy := lerpf(a[1], b[1], k)
+				var dy := p.y - cy
+				var ry: float = lerpf(a[2], b[2], k) if dy > 0.0 else lerpf(a[3], b[3], k)
+				var rx: float = lerpf(a[4], b[4], k)
+				var x := maxf(absf(p.x), rx * 0.2)
+				var n := Vector3(side * x / (rx * rx), dy / (ry * ry), 0.0)
+				return (n.normalized() + Vector3(side, 0.35, 0.0).normalized() * 0.25).normalized()
+		return Vector3(side, 0.4, 0.0).normalized()
 
 	## Half the body's width at height y, at depth z (0 off the body).
 	func flank(y: float, z: float) -> float:
@@ -479,10 +536,13 @@ class _Builder:
 				var camber := (1.0 - a * a) * width * 0.08
 				var p := base + dir * (t * length) + wdir * (a * width * 0.5) + up * (camber - droop * t * t * length)
 				var fp := fbase + fdir * (t * flength) + fwdir * (a * width * 0.5) + fup * camber * 0.5
+				var fn := fup
 				if fsnap:
 					fp = _snap(fp, side, layer)
+					# Over the rump the folded primaries lie flat on the back: keep their own up.
+					fn = flank_normal(fp, side).lerp(fup, smoothstep(0.55, 0.9, absf(fup.y))).normalized()
 				var uv := BirdMesh._uv(rect, (a + 1.0) * 0.5, 1.0 - t)
-				_add(p, up, uv, fp, fup, prt, hand)
+				_add(p, up, uv, fp, fn, prt, hand)
 		var row := across + 1
 		for i in along:
 			for j in across:
@@ -607,7 +667,7 @@ class _Builder:
 				gp = _snap(gp, side, 0.0095)
 				var uv := BirdMesh._uv(COV_SHEET_RECT, fx, c)
 				var hand := smoothstep(wrist_x - 0.01, wrist_x + 0.01, x)
-				_add(p, Vector3.UP, uv, gp, Vector3(side, 0.4, 0.0), PART_WING, hand)
+				_add(p, Vector3.UP, uv, gp, flank_normal(gp, side), PART_WING, hand)
 		var row := rows + 1
 		for i in cols:
 			for j in rows:

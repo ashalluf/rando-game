@@ -90,6 +90,12 @@ var recall_crew: bool = false
 var roadblock: bool = false
 ## Seconds since this cruiser was on screen (the Police node retires the ones nobody sees).
 var unseen_time: float = 0.0
+## The police station this cruiser came out of or is heading back to (a PoliceStation entry),
+## or {} from off the map.
+var station: Dictionary = {}
+## Driven by the Police node along a station's drive (out through the gate, or back in): its own
+## driving is off while this is set.
+var scripted: bool = false
 
 var _plan: CityPlan
 var _siren: AudioStreamPlayer3D
@@ -328,6 +334,9 @@ func _night_level() -> float:
 # --- Driving -----------------------------------------------------------------------------------
 
 func _physics_process(delta: float) -> void:
+	if scripted and driver == null:
+		_update_wheels(delta)
+		return
 	if driver != null:
 		if not _stolen:
 			_stolen = true
@@ -858,6 +867,8 @@ func strip_for_pool() -> void:
 	recall_crew = false
 	roadblock = false
 	unseen_time = 0.0
+	station = {}
+	scripted = false
 	_stolen = false
 	_stuck_count = 0
 	_reverse_t = 0.0

@@ -200,6 +200,36 @@ uniform vec4 hat_face_rect = vec4(0.0, 0.0, 1.0, 1.0);
 uniform sampler2D hat_face_mask : hint_default_black, filter_linear;
 uniform vec3 hat_face_u = vec3(1.0, 0.0, 0.0);
 uniform vec3 hat_face_v = vec3(0.0, 1.0, 0.0);
+// A responder's uniform (EmergencyCrew.uniform_material): 0 none (everyone else, who skips the
+// branch), 1 structural turnout gear, 2 the paramedics' uniform. Laid out from the body
+// coordinates EmergencyCrew.trim_mesh() bakes into the rig's mesh (CUSTOM2: metres above the
+// soles, metres along the limb from the shoulder or hip, the limb's code + the rig's height / 10,
+// the upper segment's length + the whole limb's length in centimetres; CUSTOM3: the surface's
+// facing forward and outward, metres across from the body's midline, the trousers' waist
+// height). Codes: 0 torso, 1 arm, 3 hand, 4 leg, 6 foot, 7 head and neck - per triangle (flat):
+// interpolated across a joint the code passes through the ones between. A mesh without the bake
+// reads zeros and gets the plain recolour.
+uniform float uniform_kind = 0.0;
+// Turnout: how far the coat and trousers stand off the body (the rig's units, cm), the reflective
+// triple trim (lime / silver / lime, gamma space), the darker yoke and knee reinforcement, the
+// gloves, and the trim's retroreflection at night - lit by lamp_factor in a cone ahead of the
+// camera, which is where the headlights and the torches are (the freeway kit's glint, on a body).
+uniform float turnout_bulk = 1.4;
+uniform vec3 trim_lime = vec3(0.80, 0.93, 0.22);
+uniform vec3 trim_silver = vec3(0.66, 0.67, 0.68);
+uniform float trim_width = 0.025;
+uniform vec3 yoke_color = vec3(0.21, 0.18, 0.12);
+uniform vec3 knee_color = vec3(0.10, 0.09, 0.075);
+uniform vec3 glove_color = vec3(0.30, 0.22, 0.12);
+uniform float trim_retro = 1.8;
+uniform float trim_reach = 45.0;
+// The paramedics' uniform: the shoulder patch's field, border and trace, the duty belt and its
+// buckle, the badge, the placket and buttons.
+uniform vec3 patch_field = vec3(0.10, 0.22, 0.52);
+uniform vec3 patch_border = vec3(0.86, 0.72, 0.30);
+uniform vec3 belt_color = vec3(0.045, 0.045, 0.05);
+uniform vec3 metal_color = vec3(0.72, 0.72, 0.70);
+global uniform float lamp_factor;
 
 // Height up the body, 0 at the soles and 1 at the crown.
 varying float v_height;
@@ -207,6 +237,10 @@ varying vec3 v_pipe;
 varying vec3 v_bind;
 // The posed vertex in skeleton space, for the wound stains.
 varying vec3 v_skel;
+// The uniform trim's body coordinates (CUSTOM2 / CUSTOM3, see uniform_kind).
+varying vec4 v_trim_a;
+varying vec4 v_trim_b;
+varying flat float v_code;
 
 
 vec3 rgb_to_hsv(vec3 c) {
@@ -284,6 +318,35 @@ void vertex() {
 	v_pipe = CUSTOM0.xyz;
 	v_bind = CUSTOM1.xyz;
 	v_skel = VERTEX;
+	v_trim_a = CUSTOM2;
+	v_trim_b = CUSTOM3;
+	v_code = floor(CUSTOM2.z);
+	if (uniform_kind > 0.5 && region_mask > 0.5) {
+		// Turnout gear is thick: the coat and trousers stand off the body, the arms with them
+		// (the coat's sleeves cover any bare forearm, trim_mesh's codes 1-2), and gloves a little.
+		float code = floor(CUSTOM2.z);
+		float cloth = smoothstep(0.12, 0.2, COLOR.r + COLOR.g);
+		float arm = COLOR.a * step(0.5, code) * step(code, 1.5);
+		float hand = COLOR.a * step(2.5, code) * step(code, 3.5);
+		float bulk = uniform_kind < 1.5 ? turnout_bulk : 0.25;
+		float cover = uniform_kind < 1.5 ? max(cloth, arm) : cloth;
+		VERTEX += NORMAL * bulk * (cover + hand * 0.3 * step(uniform_kind, 1.5));
+	}
+}
+
+
+// The reflective triple trim across a band centred `d` metres away (lime / silver / lime): x the
+// silver, y the lime, each anti-aliased by `fw`.
+vec2 triple_trim(float d, float w, float fw) {
+	float a = abs(d);
+	float silver = 1.0 - smoothstep(w * 0.5 - fw, w * 0.5 + fw, a);
+	float all3 = 1.0 - smoothstep(w * 1.5 - fw, w * 1.5 + fw, a);
+	return vec2(silver, max(all3 - silver, 0.0));
+}
+
+
+vec3 to_space(vec3 c, float lin) {
+	return lin > 0.5 ? to_linear(c) : c;
 }
 
 
@@ -369,6 +432,20 @@ void fragment() {
 		// plane across the hips reads as a seam in the wrong place on a body of the wrong height.
 		lower = 1.0 - smoothstep(waist - waist_blend, waist + waist_blend, v_height);
 	}
+	// A turnout coat's sleeves cover the forearms whatever the rig wears under it, and gloves
+	// the hands.
+	float arm_cover = 0.0;
+	float glove = 0.0;
+	if (uniform_kind > 0.5 && uniform_kind < 1.5 && region_mask > 0.5) {
+		float code = v_code;
+		arm_cover = is_skin * step(0.5, code) * step(code, 1.5);
+		glove = is_skin * step(2.5, code) * step(code, 3.5);
+		is_cloth = max(is_cloth, arm_cover);
+		lower *= 1.0 - arm_cover;
+		fabric = mix(fabric, 2.0, arm_cover);
+		is_skin = max(is_skin - arm_cover - glove, 0.0);
+		is_other = max(is_other, glove);
+	}
 	// Recolour rather than hue-rotate. The source outfits are mostly grey and olive, and
 	// rotating the hue of a desaturated pixel changes nothing, so a rotation left every
 	// character wearing the same clothes.
@@ -421,6 +498,118 @@ void fragment() {
 		stripe *= smoothstep(0.55, 0.85, v_pipe.y) * smoothstep(0.3, 0.6, v_pipe.z) * (1.0 - is_skin) * (1.0 - head) * piping;
 		albedo = mix(albedo, piping_color * clamp(0.62 + 0.55 * gz, 0.6, 1.05), stripe);
 	}
+	vec3 trim_emit = vec3(0.0);
+	float trim_rough = -1.0;
+	// Only on a baked mesh (trim_mesh): an unbaked one reads zeros, and its layout would be nonsense.
+	if (uniform_kind > 0.5 && region_mask > 0.5 && fract(v_trim_a.z) > 0.05) {
+		float code = v_code;
+		float tall = fract(v_trim_a.z) * 10.0;
+		float h = v_trim_a.x;
+		float along = v_trim_a.y;
+		float upper = fract(v_trim_a.w);
+		float whole = floor(v_trim_a.w) * 0.01;
+		bool is_arm = code > 0.5 && code < 1.5;
+		bool is_leg = code > 3.5 && code < 4.5;
+		float front = v_trim_b.x;
+		float lat = v_trim_b.y;
+		float mid_x = v_trim_b.z;
+		float waist_top = v_trim_b.w;
+		float cloth = is_cloth * (1.0 - keep);
+		float lin = value_is_linear;
+		// Black boots for both services, whatever the rig wore (its shoes are 'other' on the feet).
+		float boot = max(is_other, 1.0 - is_skin - is_cloth - is_hair) * (1.0 - smoothstep(0.15, 0.17, h));
+		albedo = mix(albedo, to_space(vec3(0.035, 0.034, 0.033) * mix(0.8, 1.4, gz), lin), boot);
+		if (uniform_kind < 1.5) {
+			// Structural turnout gear. The bare forearms take the coat flat (their skin shading
+			// is not a sleeve's), the hands the gloves.
+			vec3 coat = to_space(hsv_to_rgb(vec3(cloth_hue, cloth_sat, cloth_value)), lin);
+			albedo = mix(albedo, coat * (0.9 + 0.1 * smoothstep(0.0, 1.0, gz)), arm_cover);
+			albedo = mix(albedo, to_space(glove_color * mix(0.75, 1.15, gz), lin), glove);
+			// The yoke over the shoulders and upper back, and the cuffs' darker wristlets.
+			float yoke = cloth * (1.0 - lower) * (code < 0.5 ? smoothstep(tall * 0.785, tall * 0.8, h) * (smoothstep(-0.2, 0.3, -front) * 0.7 + 0.3 * smoothstep(tall * 0.81, tall * 0.83, h)) : (is_arm ? 1.0 - smoothstep(0.05, 0.07, along) : 0.0));
+			float wristlet = is_arm ? cloth * smoothstep(whole - 0.04, whole - 0.035, along) : 0.0;
+			// Knee reinforcement on the front of the trousers.
+			float knee = is_leg ? cloth * (1.0 - smoothstep(0.075, 0.09, abs(along - upper - 0.01))) * smoothstep(0.1, 0.45, front) : 0.0;
+			vec3 dk = albedo * 0.45 + to_space(yoke_color, lin) * 0.4;
+			albedo = mix(albedo, dk, max(yoke, wristlet));
+			albedo = mix(albedo, to_space(knee_color, lin) * mix(0.8, 1.2, gz), knee);
+			// The reflective trim: round each forearm and upper arm, round the chest and back,
+			// round the coat's hem, round each shin.
+			float w = trim_width;
+			float fa = max(fwidth(along), 1e-4);
+			vec2 t = vec2(0.0);
+			if (is_arm) {
+				t = max(triple_trim(along - upper * 0.6, w, fa), triple_trim(along - (whole - 0.1), w, fa));
+			} else if (code < 0.5) {
+				vec2 chest = triple_trim(h - tall * 0.715, w, max(fwidth(h), 1e-4));
+				vec2 hem = triple_trim(h - (waist_top + 0.065), w, max(fwidth(h), 1e-4));
+				t = max(chest, hem) * (1.0 - lower);
+			} else if (is_leg) {
+				t = triple_trim(along - (upper + (whole - upper) * 0.5), w, fa);
+			}
+			t *= cloth;
+			// Worn and grimy: the trim is never showroom bright, and soot greys it.
+			float dirt = 0.85 + 0.15 * stain_noise(v_skel * 0.35);
+			vec3 lime = to_space(trim_lime * dirt, lin);
+			vec3 silver = to_space(trim_silver * dirt, lin);
+			albedo = mix(albedo, silver, t.x);
+			albedo = mix(albedo, lime, t.y);
+			// Retroreflection: back toward the light, which at night is the camera's side.
+			float dist = length(VERTEX);
+			float cone = smoothstep(0.75, 0.97, -VERTEX.z / max(dist, 1e-3));
+			float facing = smoothstep(0.15, 0.75, dot(NORMAL, VIEW));
+			float reach = 1.0 / (1.0 + pow(dist / trim_reach, 2.0));
+			float lit = clamp(lamp_factor, 0.0, 1.0) * cone * facing * reach * trim_retro;
+			trim_emit = (silver * t.x + lime * t.y * 0.8) * lit;
+			trim_rough = max(t.x, t.y);
+		} else {
+			// The paramedics: a navy uniform shirt (the pattern of whatever the rig wore is
+			// mostly gone: cloth_shade_keep), a shoulder patch on each upper arm, a placket with
+			// buttons and a badge, navy cargo trousers, a duty belt.
+			float top = cloth * (1.0 - lower);
+			// The shoulder patch: an oval on the outside of the upper arm.
+			float ang = atan(front, lat);
+			vec2 pq = vec2((along - 0.085) / 0.04, ang / 0.62);
+			float pr = length(pq);
+			float pfw = max(fwidth(pr), 1e-3);
+			float on_patch = (is_arm ? 1.0 : 0.0) * top * (1.0 - smoothstep(1.0 - pfw, 1.0 + pfw, pr)) * step(0.0, lat);
+			float border = smoothstep(0.78 - pfw, 0.78 + pfw, pr);
+			// A white heartbeat trace across the field (original art).
+			float px = pq.y;
+			float trace = abs(px) < 0.18 ? (abs(px) < 0.06 ? 0.55 : -0.35) * (1.0 - abs(px) / 0.18) : 0.0;
+			float on_trace = 1.0 - smoothstep(0.07, 0.11, abs(-pq.x - trace));
+			vec3 pc = mix(mix(patch_field, vec3(0.92), on_trace * step(pr, 0.7)), patch_border, border);
+			albedo = mix(albedo, to_space(pc, lin), on_patch);
+			// The placket and buttons down the front, the badge on the left chest.
+			float torso_top = top * step(code, 0.5) * step(0.6, front) * step(h, tall * 0.8);
+			float placket = torso_top * (1.0 - smoothstep(0.009, 0.012, abs(mid_x)));
+			float seam = torso_top * (1.0 - smoothstep(0.0, 0.0025, abs(abs(mid_x) - 0.011)));
+			float bh = mod(h - waist_top, 0.085);
+			float button = placket * (1.0 - smoothstep(0.0045, 0.006, length(vec2(mid_x, bh - 0.042))));
+			albedo *= 1.0 - 0.35 * seam;
+			albedo = mix(albedo, to_space(vec3(0.05, 0.06, 0.09), lin), button);
+			vec2 bq = vec2((mid_x - 0.095) / 0.022, (h - tall * 0.72) / 0.03);
+			float badge = torso_top * (1.0 - smoothstep(0.9, 1.05, length(bq) + max(bq.y, 0.0) * 0.4));
+			albedo = mix(albedo, to_space(metal_color * vec3(1.0, 0.9, 0.6), lin), badge);
+			// Cargo pockets on the outside of each thigh: a darker patch, a seam round it, the flap.
+			float oang = atan(front, lat);
+			float on_thigh = is_leg ? cloth * lower : 0.0;
+			float pk = on_thigh * step(0.18, along) * step(along, 0.36) * step(abs(oang), 0.75);
+			float pedge = on_thigh * step(0.175, along) * step(along, 0.365) * step(abs(oang), 0.78) * (1.0 - pk);
+			float flap = pk * (1.0 - smoothstep(0.0, 0.004, abs(along - 0.225)));
+			// The pocket stands proud of the leg and catches more light; its seams and the flap's
+			// edge are shadow lines, the flap's topstitching a thread lighter.
+			float stitch = pk * (1.0 - smoothstep(0.0, 0.002, abs(along - 0.231)));
+			albedo *= 1.0 + 0.1 * pk - 0.5 * max(pedge, flap) + 0.35 * stitch;
+			// The duty belt round the waist, its buckle in front.
+			float belt = cloth * step(code, 0.5) * (1.0 - smoothstep(0.019, 0.023, abs(h - (waist_top - 0.006))));
+			belt = max(belt, (is_leg ? cloth : 0.0) * (1.0 - smoothstep(0.019, 0.023, abs(h - (waist_top - 0.006)))));
+			float buckle = belt * step(0.92, front) * (1.0 - smoothstep(0.022, 0.026, abs(mid_x)));
+			albedo = mix(albedo, to_space(belt_color, lin), belt);
+			albedo = mix(albedo, to_space(metal_color, lin), buckle);
+			trim_rough = max(belt * 0.6, max(buckle, badge));
+		}
+	}
 	// The tiling detail: skin on the skin (and the painted scalp), the garment's fabric on cloth,
 	// nothing on eyes and shoes. One fetch: the tile is picked per pixel, and the gradients come
 	// from the unwrapped coordinates so a tile's edge never drops a mip level.
@@ -466,6 +655,11 @@ void fragment() {
 	ROUGHNESS = min(ROUGHNESS + grimed * 0.08, 1.0);
 	// Soaked cloth is wet, and wet is glossy.
 	ROUGHNESS = mix(ROUGHNESS, 0.24, soak);
+	if (trim_rough > 0.0) {
+		// Trim, belt leather and metal are smoother than the canvas round them.
+		ROUGHNESS = mix(ROUGHNESS, 0.45, trim_rough);
+		EMISSION = trim_emit;
+	}
 	METALLIC = 0.0;
 	// Godot builds a dielectric's F0 as 0.16 * SPECULAR^2, so the old 0.45 / 0.32 meant F0 0.032
 	// for cloth and 0.016 for skin - skin reflected less than water does (0.020), which is what

@@ -404,7 +404,7 @@ void fragment() {
 	if (lamp_axis > 0 && lamp_factor > 0.001 && side < 0.5) {
 		float far = smoothstep(street_glow_near, street_glow_far, length(VERTEX));
 		if (far > 0.0) {
-			glow = street_glow(plan_pos, slab_uv, lamp_axis) * street_glow_level() * far;
+			glow = street_glow(plan_pos, slab_uv, lamp_axis) * lamp_ratio(plan_pos) * street_glow_level() * far;
 		}
 	}
 	// The lit city standing in the water at night. Screen-space reflections only mirror what is

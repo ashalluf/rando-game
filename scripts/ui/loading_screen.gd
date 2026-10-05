@@ -96,6 +96,16 @@ func run(city: Node3D) -> void:
 		var k: Array = kinds[i]
 		CampFigure.mesh_for(CampFigure.seed_for(k[0], k[1], k[2]), k[1])
 	t_camp = Time.get_ticks_usec() - t_camp
+	# The beach's people (BeachFigure): every beach rig in every beach pose, and the cyclists'
+	# pedalling flipbooks, so the first beach chunk does not bake them.
+	var t_beach := Time.get_ticks_usec()
+	var beach := BeachFigure.kinds()
+	for i in beach.size():
+		if i % 8 == 0:
+			_step("Preparing the beach", 0.3 + 0.25 * float(i) / float(maxi(beach.size(), 1)))
+			await _frames(1)
+		BeachFigure.warm_kind(beach[i])
+	print("LOADING beach: %d figures and flipbooks %d ms" % [beach.size(), (Time.get_ticks_usec() - t_beach) / 1000])
 	_step("Building the city", 0.55)
 	await _frames(1)
 	_preload_world(city)
@@ -196,10 +206,16 @@ func _warm_shaders() -> void:
 	effects.append_array(StreetVendors.warm())
 	# The billboards' faces and steel (Billboards), only ever drawn through the chunks' batches.
 	effects.append_array(Billboards.warm())
+	# The beach's towels, umbrellas, chairs, boards, the net and the tower (BeachLife).
+	effects.append_array(BeachLife.warm())
+	# The pier park's meshes (PierPark), built here rather than by the chunk that streams it in.
+	effects.append_array(PierPark.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
 	# The boost's streaks of air (BoostTrail), so the first boost does not stall.
 	effects.append(BoostTrail.streak_material())
+	# What a blast leaves (BlastAftermath): the crater's maps, the slabs, the leaves.
+	effects.append_array(BlastAftermath.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D

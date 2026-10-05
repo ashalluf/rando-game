@@ -29,7 +29,21 @@ const MODELS := [
 	"res://assets/models/crowd_j.glb",
 	"res://assets/models/crowd_k.glb",
 	"res://assets/models/crowd_l.glb",
+	# 2026-10-05: eight more so a busy pavement stops repeating faces and builds - the old and the
+	# young, very short and very tall, heavier builds, more complexions and more clothes (see
+	# docs/ASSETS.md and tools/crowd/crowd_config.json for who each one is).
+	"res://assets/models/crowd_m.glb",
+	"res://assets/models/crowd_n.glb",
+	"res://assets/models/crowd_o.glb",
+	"res://assets/models/crowd_p.glb",
+	"res://assets/models/crowd_q.glb",
+	"res://assets/models/crowd_r.glb",
+	"res://assets/models/crowd_s.glb",
+	"res://assets/models/crowd_t.glb",
 ]
+## Rigs that never wear a hat: their head is already covered (crowd_r's headscarf). The hat rolls
+## are still made for them, so every roll after them is the same as anyone's.
+const NO_HAT_MODELS := ["res://assets/models/crowd_r.glb"]
 ## Ground speed (m/s) the walk clip is authored for at speed_scale 1: how fast a planted foot
 ## travels backwards under the in-place clip (tools/crowd/clip_probe.tscn, 0.70-0.77 on every
 ## rig). It was taken as 1.3, so every walker's feet slid forward at half the body's speed.
@@ -527,6 +541,9 @@ func _add_accessory(inst: Node3D) -> void:
 		return
 	if kind != Accessory.PACK:
 		if skel.find_bone("Head") < 0:
+			return
+		if _model_path in NO_HAT_MODELS:
+			_style.randi()
 			return
 		_hat = kind
 		_hat_pick = _style.randi()
@@ -2032,6 +2049,9 @@ static func warm_far_mesh(path: String, host: Node, officer: bool = false) -> vo
 			far_mesh(mesh, mid_triangles)
 			far_mesh(mesh, far_triangles)
 			_welds.erase(mesh)
+			if officer:
+				# The responders wear these rigs too: their uniform trim's bake (~35 ms a rig).
+				load("res://scripts/npc/emergency_crew.gd").trim_mesh(mesh, (mi as MeshInstance3D).skin, mi.get_parent() as Skeleton3D)
 	CrowdHat.warm(inst, path, officer)
 	inst.queue_free()
 
@@ -2305,7 +2325,7 @@ func _crossable(plan: CityPlan, rect: Rect2, far_kerb: Vector2) -> bool:
 		return false
 	# Not onto a river block: its pavement ring runs into the channel.
 	var kb := plan.chunk_index_at(rect.get_center())
-	if plan.river_block(kb.x, kb.y):
+	if plan.river_block(kb.x, kb.y) or plan.marina_block(kb.x, kb.y):
 		return false
 	return not Landmarks.covers(plan, far_kerb, 1.0)
 

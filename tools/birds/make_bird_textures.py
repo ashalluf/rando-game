@@ -106,7 +106,9 @@ class Noise:
 
 def pigeon_body(a, s, n):
     grey = srgb(0.54, 0.56, 0.61)
-    belly = srgb(0.44, 0.46, 0.52)
+    # The belly and vent a shade darker than the back (a feral pigeon is darkest underneath, the
+    # wing shield its palest part); the white is the rump alone, hidden under the folded wings.
+    belly = srgb(0.38, 0.40, 0.46)
     rump = srgb(0.72, 0.73, 0.76)
     neck = srgb(0.30, 0.32, 0.38)
     head = srgb(0.40, 0.42, 0.48)
@@ -190,7 +192,7 @@ def lerp_c(c0, c1, k):
 
 
 def pigeon_feather(kind):
-    grey = srgb(0.56, 0.58, 0.63)
+    grey = srgb(0.51, 0.53, 0.58)
     dark = srgb(0.17, 0.17, 0.19)
     black = srgb(0.07, 0.07, 0.08)
 

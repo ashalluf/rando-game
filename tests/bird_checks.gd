@@ -55,6 +55,26 @@ func _meshes() -> void:
 		if c0[i + 3] > 0.5 and c0[i + 3] < 1.5:
 			widest = maxf(widest, absf(c0[i]))
 	_t._check(widest > 0.0 and widest < 0.052 + 0.02, "birds: the pigeon's folded wings lie on its flanks (%.3f m out)" % widest)
+	# The near body's normals are welded: every body vertex at one point (the loft's seam, the
+	# beak tip) has one normal, so the loft shades smooth rather than in facets.
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var norms: PackedVector3Array = arr[Mesh.ARRAY_NORMAL]
+	var seen := {}
+	var split := 0
+	for i in verts.size():
+		if c0[i * 4 + 3] > 0.5:
+			continue
+		var key := Vector3i(roundi(verts[i].x * 1e5), roundi(verts[i].y * 1e5), roundi(verts[i].z * 1e5))
+		if seen.has(key) and (seen[key] as Vector3).dot(norms[i]) < 0.999:
+			split += 1
+		seen[key] = norms[i]
+	_t._check(split == 0, "birds: the near pigeon's body normals are welded (%d split)" % split)
+	# An underwing of its own (the wing and tail cards' back faces), not the top seen through.
+	for sp in ["pigeon", "gull", "sparrow"]:
+		var mat := BirdMesh.material(sp)
+		_t._check(float(mat.get_shader_parameter("under_mix")) > 0.5, "birds: the %s has its own underwing" % sp)
+	var pu: Vector3 = BirdMesh.material("pigeon").get_shader_parameter("under_cov")
+	_t._check(pu.length() < 0.5, "birds: a pigeon's underwing coverts are grey, not white (%s)" % pu)
 
 
 ## The atlas regions and spine landmarks are a contract with the painter.

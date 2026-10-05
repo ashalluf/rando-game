@@ -16,7 +16,10 @@ extends SceneTree
 ## / far bodies, hair cards hidden, as the game draws them past mid_body_range), SUN_YAW, SKY=1 for
 ## a brighter outdoor fill, TURN (degrees every person turns in place: 90 is the row in profile),
 ## MAT_PARAM=name=value[;...] to A/B a character-shader uniform, HATS=cap,beanie,bucket,police,none (and HAT_PICKS=n,... the colourways) for the crowd's headwear (CrowdHat.dress), LIGHT=street for a darker ground and AgX nearer the game's grade, SHOTS="name,yaw,dist,cam_y,aim_y,fov,aim_x;..." for several views from one
-## load (OUT_<name>.png each; empty fields keep the values above). Applies the rigs exactly as the game does (Pedestrian.prepare_rig and
+## load (OUT_<name>.png each; empty fields keep the values above). CREW=fire|medic|fire,medic dresses
+## every rig (in turn) in the responders' uniform exactly as EmergencyCrew does (uniform_material,
+## the trim mesh, a fire helmet); NIGHT=1 dims the sun and sky and puts lamp_factor to 1 (the
+## turnout trim's retroreflection). Applies the rigs exactly as the game does (Pedestrian.prepare_rig and
 ## fix_arm_pose), loaded dynamically because this compiles before the autoloads exist.
 func _initialize() -> void:
 	var ped_script = load("res://scripts/npc/pedestrian.gd")
@@ -64,6 +67,17 @@ func _initialize() -> void:
 	sun.light_energy = 1.3
 	sun.shadow_enabled = true
 	root.add_child(sun)
+	if OS.get_environment("NIGHT") == "1":
+		sun.light_energy = 0.05
+		e.ambient_light_energy = 0.08
+		e.background_color = Color(0.02, 0.025, 0.04)
+		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+		var lamp := OmniLight3D.new()
+		lamp.position = Vector3(-3.0, 5.0, 2.0)
+		lamp.omni_range = 14.0
+		lamp.light_energy = 1.6
+		lamp.light_color = Color(1.0, 0.75, 0.45)
+		root.add_child(lamp)
 	var ground := MeshInstance3D.new()
 	var plane := PlaneMesh.new()
 	plane.size = Vector2(40.0, 40.0)
@@ -113,6 +127,20 @@ func _initialize() -> void:
 			var pick := int(picks[at % picks.size()]) if not picks.is_empty() else at * 7 + 3
 			if kinds.has(hk):
 				load("res://scripts/npc/crowd_hat.gd").dress(inst, rec[1], kinds[hk], pick, 200.0)
+		var crews := OS.get_environment("CREW").split(",", false)
+		if not crews.is_empty():
+			var crew_script = load("res://scripts/npc/emergency_crew.gd")
+			var ck := String(crews[insts.find(rec) % crews.size()]).strip_edges()
+			var role: int = 0 if ck == "fire" else 1
+			for node in inst.find_children("*", "MeshInstance3D", true, false):
+				var cm := node as MeshInstance3D
+				var src := cm.mesh.surface_get_material(0) as StandardMaterial3D if cm.mesh else null
+				if src and src.albedo_texture and not ped_script.is_hair(cm):
+					cm.material_override = crew_script.uniform_material(src.albedo_texture, role)
+					crew_script._wear_trim_mesh(cm)
+			ped_script.plain_hair(inst)
+			if role == 0:
+				load("res://scripts/npc/fire_helmet.gd").dress(inst, rec[1], false)
 		for node in inst.find_children("*", "MeshInstance3D", true, false):
 			var mi := node as MeshInstance3D
 			if mi.name == "Hat":
