@@ -6766,7 +6766,282 @@ channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL onl
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
 
-## 9bq. Street errands: the pavement's comings and goings, 2026-10-05 (agent branch `wt/street-life-2`; VISUAL_ROADMAP #59)
+## 9bq. More everyday car bodies: hatchback, SUV, minivan, taxi, beater, 2026-10-05 (agent branch `wt/more-cars`; VISUAL_ROADMAP #59)
+
+The brief: a real LA street is full of compact hatchbacks, full-size SUVs, minivans, taxis and a
+beater or two; traffic had four Blender bodies (sedan, crossover, pickup, van), the exotics and
+the Meshy sports car, so the street repeated. CLAUDE.md "More everyday bodies" is the reference;
+this is the story.
+
+- **Bodies** (`tools/make_more_cars.py`, imports `make_road_cars.py` like the big vehicles do;
+  about 80 s for all five, `--render` for Cycles previews; the beater adds `close` and `dent`
+  views). The four lofted bodies are specs plus DATA for one detail builder,
+  `everyday_details()` (`spec["d"]`: lamps - blades with DRL and projector eyes, round lamps, or
+  an old car's sealed lens with an amber corner -, grille mouth with an egg-crate or chrome bars
+  and a chrome surround, lower intake, fogs, bumpers, door and hatch gaps, B/C/D pillars, belt
+  trim, rocker, rub strip, roof rails, sliding-door tracks, spoiler, tail lamp pieces, mirrors,
+  dents, an `extra` callback). `overhangs()` + `remap()` rescale a spec's overhangs without
+  touching the wheelbase (how the first, too-long hatch, minivan and beater were brought to size).
+  Hatchback 4.36 m (51k + 7.9k far), SUV 5.51 m x 1.87 m (48k + 7.9k), minivan 5.18 m (52k +
+  7.9k), beater 4.79 m (51k + 7.9k), taxi = the sedan + sign (54k + 7.9k): inside the road cars'
+  budget. The taxi's sign is a ninth slot `taxi_sign` (a bevelled lightbox on a black base and
+  feet, a chrome cap line); the run prints its box (TAXI SIGN), which `taxi_sign.gdshader`'s
+  `sign_center` / `sign_size` copy.
+- **Rolls**. `BODY_ODDS` is now the shares (hatchback 70, SUV 80, minivan 55, beater 35; sports
+  145 -> 85, van 115 -> 75, sedan 250 -> 210, pickup 150 -> 120, crossover 220 -> 190, the
+  exotics a third less) and `Vehicle.ROLL_MAP` the 0-999 ranges: each old type keeps the START of
+  its old range, so a seed's parked sedan stays a sedan unless its roll fell in the slice the
+  hatchbacks took (the avenue bookmark's parked white sports car is a hatchback now, the rest of
+  the row unchanged). `random_car()` makes the same rng calls (checked against a replay of them).
+  The taxi is NOT in the table: the sedan's taxi roll (`TAXI_SHARE`, unchanged) now builds
+  `BodyType.TAXI`, so the old taxis are exactly the new ones and no `LiveryProp` box sign is made
+  for them. `look_seed` keeps random_car()'s look on the car (fleet number, beater door).
+- **Taxi**: TAXI livery paint (yellow, checker band), lettering (`_add_taxi_lettering()`:
+  BASIN CAB on the front doors, a number on the rear, BigVehicles' shared TextMeshes, 55 m, not
+  on the web), the sign shader (cream lightbox, "TAXI" in stroked capitals front and back, read
+  the right way from either end, emission `glow_day` + `glow_night` x lamp_factor), and a fare:
+  `_cabin_seats()` returns 5 for `TAXI_FARE_SHARE` of traffic taxis. **CarCabin seat bit 2** is
+  new (the bench behind the passenger, the passenger's colours); `person()` takes the seat
+  back's z; bit 1 is now tested as a bit (it was `seats > 1.5`); the occupant key's shifts moved
+  up a bit to make room.
+- **Beater**: 1990s notchback proportions (upright screens, short flat deck, thick C-pillar,
+  sealed-beam lamps, slot grille, chrome strips, narrow tyres, black plastic bumpers). Geometry
+  wear: `BEATER_DENT` pushed into the right rear door after everything else is built; the right
+  tail lamp is four red pieces with dark cracks between, a broken corner showing the housing and
+  silver tape across. Paint wear (`car_paint.gdshaderinc`, `wear` > 0 only on a beater, so every
+  other car pays one uniform branch): the left front door in another colour (`BEATER_DOOR` in the
+  body mesh's space; colour from `BEATER_DOORS` by look seed, never the car's own), a feathered
+  primer patch on the right front wing, the clear coat faded everywhere and chalky in patches on
+  what faces the sky, rust low on the sills. Works on the damage variant too (same include).
+- **Contracts**: kinematic traffic, `go_physical()`, CarDamage, CarCabin (measured per body; SUV
+  and minivan have privacy glass), CarLights (`lamp_y` / `tail_y` per body), pools (ordinary
+  cars), PhysicsBudget, parked cars - all through the existing paths; `tyre_r` tuned so a parked
+  one settles where traffic stands it (car_shot CONTACT within ~1 cm).
+- **Frame cost** (`still_shot.gd` GEO, opengl3 1280x720, the avenue `--spawn=2359.4,880,0,12,2`,
+  main a0ee161 vs this branch; traffic and parked cars differ between the runs): 7.53 M tris /
+  3,720 draws -> 7.39 M / 3,805 (-1.9 % / +2.3 %). Build: 1.4 ms warm in the check (headless);
+  the first load of each .glb is the importer's, as for every body.
+- **Tools**: `car_shot.gd` now routes only 12-13 to EmergencyCar and 9-11 to BigVehicles (it
+  sent every type >= 12 to EmergencyCar), shows the taxi (17) in its livery and takes `LOOK=`
+  for the taxi and beater; `still_shot.gd STREET=queue STREET_MIX=14,15,17,16,18` queues the
+  new bodies.
+- **Checks**: `tests/more_cars_checks.gd` (the roll table against BODY_ODDS and the old ranges,
+  the rng stream, builds with glass / far twin / lamps / wheels, the parked stance, a traffic SUV,
+  hits to physics and CarDamage, the pool, the taxi's sign, lettering and fare, the beater's
+  wear and nobody else's).
+- **Not done / not verified**: no Forward+ look (the taxi sign's glow and the beater's chalky
+  coat under AgX NEED A MAC CHECK); the beater's odd door and primer are always the same panels
+  (per-car colour only); the minivan's sliding doors do not open; the SUV has two rows of traced
+  seats, not three (CarCabin's cabin has a front row and one bench); the taxi is always the
+  yellow checker livery; the hatch, minivan and SUV faces are plainer than a 2026 car's (one
+  egg-crate or bar grille each).
+
+## 9br. The beach on a warm afternoon, 2026-10-05 (agent branch `wt/beach-life`; VISUAL_ROADMAP #60)
+
+Number is provisional (the lead renumbers on merge).
+
+**The brief** (lead, from the owner's "make the graphics a million times better"): the sand, the
+surf and the piers were there and the beach was empty. Fill it - sunbathers, swimmers and surfers,
+volleyball, a bike path with cyclists, a lifeguard - placed from seed + chunk + hour, scattering at
+gunfire, and dots of colour from the air. CLAUDE.md's "Beach life" note is the contract; this is
+the story.
+
+**What it is.**
+- `BeachLife` (`scripts/world/beach_life.gd`, static): the plan (`plan_stretch()`, pure, world
+  cells of 6.5 m of shore, groups of 1-4 in eight bands across the sand, the front rows first,
+  `density()` by hour, `weather_factor()`), the props built in code at real size (towel, beach
+  umbrella, low chair, cooler, tote, boogie board, surfboard, volleyball net and tapes, the LA
+  lifeguard tower, the ball, a skateboard, the beach cruiser), the bike path (one strip a chunk),
+  the court, the LOD dots. One shader, `shaders/beach_props.gdshader`.
+- `BeachGoer` (`scripts/npc/beach_goer.gd`, extends RoughSleeper): swimwear on the crowd rigs
+  (`swim_mesh()`: per triangle by rest-pose height, the garment bands stay garment and are coloured
+  as the suit, the rest is skin on one texel of the person's neck; border vertices split so the
+  suit's edge is clean and nothing interpolates across the atlas), the beach poses in
+  RoughSleeper's table format, the cyclist's `ride_pose()` (two-bone IK of both legs onto the
+  pedals, measured: ankles within 2 mm of their targets round the crank), volleyball moves.
+- `BeachFigure` / `BeachFigureMesh` (`scripts/world/`): the camps' static figures for the beach,
+  each (rig, pose) baked once and each suit a copy with the suit's look; merged in 32 m cells with
+  a near (middle body) and a far (far body) mesh, so ~120 people a chunk are a handful of draws.
+- `BeachActivity` (`scripts/world/beach_activity.gd`, one per FULL beach chunk): swimmers, surfers
+  (sit in the lineup past the break, paddle in, ride a wave side-on along the shore, paddle back),
+  riders and skaters (`BeachRider`, `scripts/npc/beach_rider.gd`), the volleyball rally (four live
+  BeachGoers and the ball), walkers (`BeachWalker`, boards under the arm), the scatter.
+
+**Decisions.**
+- Swimwear by rewriting the regions rather than new garments in tools/crowd/garments.py: no
+  Blender runs, no new atlases, and every system that reads the crowd rigs (welds, bakes, limb
+  cuts, ragdolls, hats) sees an ordinary rig. The cost: a bare torso is the old shirt's shell (a
+  few millimetres proud of where the body was), which nobody sees past a few metres.
+- A beach's people are figures, not rigs. Live rigs only for the volleyball players, the walkers
+  and anyone woken. Gunfire wakes the nearest up to 16 (3 a tick) and they run up the beach and
+  walk back, the way the camps do.
+- Cyclists are flipbooks (12 crank angles), each frame a bake with the bike built round it, so
+  the crank, the pedals and the feet always agree; no skeleton ticks on the path.
+- Courts are world cells of 26 m of shore with their own hash, so a court belongs to one chunk and
+  its neighbours keep their people off it too.
+- The block's own rolls are untouched: the palms are where they were (one rolled onto the path
+  is moved just off it, after its roll), the tower is where it was and keeps its roll, but is now a
+  real tower turned to the sea.
+
+**Frame cost** (opengl3 1280x720, `still_shot.gd` GEO, `--quality=0`, BEACH_LIFE=0 vs on, the
+same frame):
+
+| frame | before (BEACH_LIFE=0) | after | |
+|---|---|---|---|
+| from the sand, 15:00 (`EYE=-725,1.7,610,160,-6`) | 1,323,727 tris, 349 draws | 1,620,191 tris, 417 draws | +22 % tris, +68 draws |
+| aerial over a busy stretch (`EYE=-735,55,330,160,-32`) | 3,023,490 tris, 584 draws | 3,227,125 tris, 693 draws | +7 %, +109 draws |
+| sunset 17:45 (`EYE=-725,1.7,610,160,-4`) | 1,290,853 tris, 332 draws | 1,361,609 tris, 387 draws | +5 %, +55 draws |
+
+A beach frame was among the cheapest in the game (1.3 M against 5-8 M downtown) and stays well
+under a city frame. The draws are the prop batches (towel, umbrella, chair, cooler, tote, boards,
+net, tower - one each a chunk, umbrellas, chairs, coolers and the net with a shadow twin), the
+figure cells (a draw per rig per cell, four rigs per 200 m of shore, near or far, plus a shadow),
+and one or two per rider, surfer and swimmer. If they need to come down: merge the water people
+into their chunk's cells, and drop the coolers' and chairs' shadow twins.
+
+**Stills** (`shots/beach-life`): `beach_1500` (from the sand at 15:00, the lifeguard on his
+tower), `aerial` (a busy stretch from 55 m), `volleyball`, `bike_path` (cyclists on cruisers),
+`bike_close`, `surfers` (one riding a wave in, the lineup behind), `sunset` (17:45, a few left,
+the lifeguard still up), and the
+`*_before` frames with BEACH_LIFE=0.
+
+**Not done / not verified.**
+- Forward+ (the Mac) not seen: skin subsurface on the bare backs, the canvas backlight.
+- The far city (Skyline, past the LOD ring) draws no dots: beach blocks are not captured there.
+- Swimmers do not swim (they tread water and turn); surfers ride on their own clock, not exactly on
+  the shader's wave (it is close: the same period and speed). Nobody goes in or out of the water.
+- A bare torso is the shirt's shell; a one-piece is a band, not a cut; long hair is the painted
+  scalp on the figures (the hair cards are on the live people).
+- Cyclists and skaters ride a fixed stretch round their chunk and wrap; they do not cross into the
+  next chunk's riders. Riders do not give way to people on the path.
+- The beach under the Esplanade's bluff and the boardwalk get no path or court (their own
+  ground); the boardwalk's stretch and the piers' get no people.
+
+## 9bs. NPC polish: pigeons up close, turnout gear, paramedic uniforms, the bus windscreen, 2026-10-05 (agent branch `wt/npc-polish`; VISUAL_ROADMAP #61)
+
+The brief (lead, reviewing 9bl and 9bm): pigeons at 1-3 m read as pale low-poly facets and are
+pale from below; firefighters wear a flat tan; paramedics wear street clothes; confirm the bus's
+windscreen at noon and dusk. Each item has a before / after pair from the same camera (branch
+`shots/npc-polish`).
+
+- **Pigeons** (`BirdMesh`, `bird.gdshader`, `make_bird_textures.py`). The near body loft is 28 x 22
+  (was 24 x 18) and its normals are welded and averaged over the faces round each POSITION
+  (`_smooth_normals()`): the analytic ellipse normals were only approximate where the radii change
+  fast (breast, nape, cere), and each quad lit on its own. The folded feathers and the covert
+  sheet take the body's flank normal (`flank_normal()`, a little lifted toward the top) instead of
+  a fixed `(side, 0.4, 0)`, so the folded wing shades as part of the bird and no longer catches
+  the sky as a pale sheet. The body's scallop relief is softer (normal depth 0.4 on the body, 0.7
+  on feathers). The underwing: a wing or tail card's BACK face draws the species' underside
+  (`under_cov` coverts, `under_flight` flight feathers, `under_keep` how much of the upper
+  pattern's luminance shows, `under_mix`; in `BirdMesh.LOOKS`): a pigeon's mid-grey, a gull's
+  white with the dark tips, a sparrow's buff; the crow keeps its black. Pigeon belly srgb 0.44 ->
+  0.38, wing feather grey 0.56 -> 0.51 (atlas repainted; the white is the rump alone, where a
+  feral pigeon has it). Near pigeon 2,146 -> 2,518 triangles (budget 2,600; MID / FAR unchanged).
+- **Turnout gear and the paramedics' uniform** (`EmergencyCrew`, `character.gdshader`). The shader
+  needed to know where on the BODY a pixel is, which the crowd rigs do not carry (UV2 is metres
+  of surface per atlas rect, nothing positional). `EmergencyCrew.trim_mesh()` bakes it once per
+  rig from the bind pose (CUSTOM2 / CUSTOM3, see CLAUDE.md "Emergency services"), keeps the mesh's
+  LOD index lists by reading them back from the RenderingServer (`_surface_lods()`: a/d/f/h/j all
+  keep their 4-5 levels), costs ~35 ms a rig and is warmed on the loading screen
+  (`Pedestrian.warm_far_mesh(officer = true)`); the welded middle / far bodies are handed over
+  from the plain mesh (no stripes past 50 m: they are a few pixels there). `uniform_kind` 1:
+  khaki (TURNOUT 0.40 / 0.345 / 0.22), lime / silver / lime triple trim round both arm segments,
+  chest and back, the coat's hem and the shins, a darker yoke and wristlets, black knee patches,
+  leather gloves, the coat's sleeves over any bare forearm (half the rigs wear tees), bulk
+  (`turnout_bulk` 1.4 cm). The trim is retroreflective: at night it is emitted by `lamp_factor` x a
+  cone ahead of the camera x how squarely it faces it (`trim_retro` 1.8, `trim_reach` 45 m) -
+  the freeway kit's glint on a body. `uniform_kind` 2: navy shirt and trousers with most of the
+  rig's own pattern flattened (`cloth_shade_keep` 0.35: crowd_h's stripes read as street
+  clothes), a shoulder patch on each upper arm (gold border, blue field, a white heartbeat trace -
+  ours, not a real emblem), placket and buttons, a badge, cargo pockets with flaps on the thighs, a
+  duty belt with a buckle. Both services get black boots. The limb code is a `flat` varying:
+  interpolated, the knee between thigh (4) and shin (5) passed through every code between and drew
+  jagged lightning lines; the distance along a limb now runs on over the elbow and knee.
+- **The bus**: the 9bm fix holds. From the pavement at noon (`BIG=bus --hour=12`, both the stop's own
+  eye and a clear one 8 m on, `EYE=2392.06,1.7,814.99,72.86,0`) the windscreen shows the daylit
+  cabin, the driver and the first rows - not a black slab. At dusk and at night it was a dull
+  grey: the cabin's own lamps followed `night_factor` at `BUS_LAMP` 1.0. Now they follow
+  `lamp_factor` (dusk and storms) at 2.0 - a modest lift of the ceiling and seats behind the glass
+  (`bus_front_*_before_after`). It reads as a bus with its lights on, not yet as a bright
+  fluorescent box: the next step would be the cabin's own lit ceiling strips in the trace.
+- **Tools**: `crowd_lineup.gd CREW=fire|medic|fire,medic NIGHT=1`; `bird_shot.gd ONLY=<pose>` (one
+  bird at the origin for a close-up); `still_shot.gd SHOTS=@21.5` (an empty camera keeps the last
+  one: the same frame at another hour from one load).
+- **Frame cost** (opengl3): `tools/geo_count.gd --spawn=2800,180,0,-5,2` (Pershing Square, the
+  survey's own flocks), before and after: 2,984,199 tris / 3,092 draws both. A staged medic scene
+  (`EMERGENCY=medic --hour=12.5`): 4,987,861 / 2,500 -> 4,978,920 / 2,502 (flat: the trim mesh keeps
+  every LOD). The bus at its stop: 5,445,409 / 2,665 both. The hose scene is not comparable (the
+  wreck had burnt out before the before-shot and was still burning in the after-shot):
+  4.26 M -> 4.49 M. Per near pigeon +372 triangles (30 staged pigeons ~ +11 k). The trim bake is
+  ~35 ms per crew rig, once, on the loading screen.
+- **Checks**: bird_checks (welded body normals, an underwing for pigeon / gull / sparrow, grey
+  pigeon coverts), emergency_checks (the crews on a call wear the trim material, the two uniforms
+  are told apart, navy, the trim's night and flat-code code paths, the bake keeps the mesh when
+  there is no mesh data, the limb chains).
+- **Stills** (`shots/npc-polish`, opengl3): `pigeon_close_before_after`, `pigeon_underwing_before_after`,
+  `bird_lineup_after`; `turnout_before_after`, `turnout_night_before_after` (crowd_lineup.gd, the
+  same rigs and pose), `medic_front_before_after`, `medic_side_before_after`; the city:
+  `hose_day_before` / `hose_day_after`, `hose_night_after`, `medic_scene_before` / `_after`;
+  `bus_9bm_fix_noon`, `bus_9bm_fix_dusk_blocked` (the stop's own eye, a pedestrian in the way at
+  dusk), `bus_front_noon|dusk|night_before_after`.
+- **Not done / not verified**: everything was judged on opengl3 only - NEEDS MAC CHECK: the trim's
+  glint under AgX on Forward+ (it is emitted; `trim_retro` is the knob), the navy under the Mac's
+  exposure, the pigeons' plumage. The paramedics' shirts are still the rigs' own garments (a crew
+  neck tee on crowd_a / d reads as a uniform tee, not a collared shirt): a real collar needs
+  geometry (tools/crowd/garments.py). No radio on the belt (painted gear reads flat). The turnout
+  coat ends where the rig's top ends (at the waist), not at mid-thigh. Birds: the MID and FAR
+  meshes and the gull / crow / sparrow bodies are unchanged; the feral pigeon's underwing is
+  greyer than a wild rock dove's (the lead's call).
+
+## 9bt. The night aerial: light rivers, lamp heads, sodium and LED, 2026-10-05 (agent branch `wt/night-city`; VISUAL_ROADMAP #62)
+
+The money shot of LA is the basin at night from a hill or a plane. Before this pass the far city
+at 21:00-23:00 (opengl3 stills, `shots/night-city` before_*.jpg) had: freeway decks as dark grey
+threads with no traffic past the streamed range; the street grid a faint brown hatching (far
+glow mean ~0.05) under moonlit roofs, with the far plates' and LOD ground's streets mostly black;
+no lamp heads; far roof beacons steady; lit offices the same at 19:00 and 03:00. The airport's
+field lights and the arena already read well and were left alone.
+
+**What it is now** (rules in CLAUDE.md "Night aerial"):
+- `shaders/far_traffic.gdshaderinc`: moving head and tail lights per pixel - `FT_CELL` 14 m
+  cells, 32 to a period (`NightCity.PERIOD` 448 m), a hash per cell and lane, moving at 27 m/s on
+  freeways (10-15 on streets), right-hand traffic, white toward the camera and red away; lamps
+  drawn at least 0.9 px with a soft bloom gain, the lane's mean x `FT_FAR_BLOOM` once a car is
+  under a couple of pixels. Decks (building_lod deck mode, Skyline passes the phase and route),
+  far plates and the LOD ground (`street_traffic()`: lanes from the width, busier on avenues),
+  and an additive skin on LOD freeway chunks (`FreewayTraffic`, `far_traffic.gdshader`) faded in
+  past `freeway_range`, so the cars hand over to the lights.
+- `street_glow.gdshaderinc`: sodium or LED by 420 m patch (`lamp_led()`, integer roll, LED 72 %
+  within 2 km of downtown falling to 38 % past 6.5 km), lamp heads as points; far plates and LOD
+  ground at `far_glow_gain` 2.6, junction squares at 0.75. The near lamps take the patch's
+  colour (`NightCity.lamp_light()`, `pool_color()` in `CityChunk._add_lamp()`), and road.gdshader's
+  far glow too.
+- Hours: `city_hour` global (DayNight); `traffic_level()` (0.12 at 04:00 to 0.95 in the peaks,
+  ~0.55 at 21:00, ~0.39 at 23:00) and `window_hour_scale()` (x1.25 at 18:00, x0.66 at midnight,
+  x0.38 at 04:00) - the latter inside `window_lit()`, so near and far keep the same windows.
+- Far roof masts' red beacons flash (1.5-2.2 s, own phase; 18 % steady).
+
+**Stills** (opengl3 1280x720, `tools/glshot/still_shot.gd`, `--spawn=1500,300 --hour=22`, one
+load, on `shots/night-city`): basin from the front range `EYE=420,330,-1180,-119,-9` (22:00),
+over downtown at 400 m `2300,400,1700,0,-22@21`, the 110 and the 10 from the south
+`2100,260,3700,0,-10@23`, the airport `600,180,780,90,-12@22`. before_*, after_* (a2).
+
+**Cost** (GEO lines of the same four frames, before -> after): 1,864,233 / 466 draws -> same;
+3,134,111 / 1,117 -> 3,134,145 / 1,120; 2,959,671 / 764 -> 2,959,707 / 768; 902,919 / 379 ->
+902,951 / 383. The new draws are the LOD freeway skins (one a deck chunk); everything else is
+ALU in shaders that were already running.
+
+**Not done / not verified.**
+- The Mac (Forward+, AgX, auto exposure, glow): the streams' level is tuned on opengl3 and may
+  bloom harder there. Knobs: `FT_HEAD`, `FT_TAIL`, `FT_FAR_BLOOM` (far_traffic.gdshaderinc),
+  `far_glow_gain`, `lamp_head_energy`.
+- The near (FULL) roofs' beacons still burn steady; parking lots and the port are not floodlit in
+  the far city (only where their LOD pools are); dark parks and hills were already dark.
+- The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
+- The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
+  run in the period; the far box is 0.4 m long at the joints).
+
+## 9b?. Street errands: the pavement's comings and goings, 2026-10-05 (agent branch `wt/street-life-2`; VISUAL_ROADMAP #??)
 
 The brief (lead): crowd life (9bc) made people stop and do things, but nobody ever went anywhere.
 Bus passengers who wait and board, people getting into parked cars that drive off and drivers who

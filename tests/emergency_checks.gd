@@ -56,6 +56,7 @@ func run(t: Node, city: Node3D) -> void:
 	await _dispatch(player)
 	_em.clear()
 	_sounds()
+	_uniforms()
 
 	for c in _made:
 		if is_instance_valid(c):
@@ -225,6 +226,38 @@ func _station_chunk() -> void:
 
 ## A wreck burning on the street, an engine pulled up at the kerb: the hose goes on, the fire
 ## goes out, the crew climbs back in and the engine leaves.
+## The uniforms (character.gdshader uniform_kind, EmergencyCrew.uniform_material / trim_mesh).
+func _uniforms() -> void:
+	var tex := load("res://assets/models/crowd_a_body.jpg") as Texture2D
+	if tex == null:
+		for f in DirAccess.get_files_at("res://assets/models"):
+			if f.begins_with("crowd_a") and f.ends_with(".jpg"):
+				tex = load("res://assets/models/" + f) as Texture2D
+				break
+	_check(tex != null, "a crowd rig's body texture to dress")
+	if tex == null:
+		return
+	var fire := EmergencyCrew.uniform_material(tex, EmergencyCrew.Role.FIRE)
+	var medic := EmergencyCrew.uniform_material(tex, EmergencyCrew.Role.MEDIC)
+	_check(fire.get_shader_parameter("uniform_kind") == 1.0 and medic.get_shader_parameter("uniform_kind") == 2.0,
+		"turnout gear and the paramedics' uniform are told apart in the character shader")
+	_check(EmergencyCrew.MEDIC_TOP.v < 0.25 and EmergencyCrew.MEDIC_TOP.b > EmergencyCrew.MEDIC_TOP.r * 1.8,
+		"the paramedics wear navy (%s)" % EmergencyCrew.MEDIC_TOP)
+	var code := (fire.shader as Shader).code
+	_check(code.contains("lamp_factor") and code.contains("triple_trim") and code.contains("varying flat float v_code"),
+		"the turnout trim is retroreflective at night and laid out per limb")
+	# The bake needs mesh data, which the headless renderer keeps none of: it must hand back the
+	# model's own mesh, not crash or drop it.
+	var box := BoxMesh.new()
+	_check(EmergencyCrew.trim_mesh(box, Skin.new(), Skeleton3D.new()) == box, "with no mesh data the trim bake keeps the model's mesh")
+	# Every limb segment names a real crowd bone chain.
+	var ok := true
+	for k: String in EmergencyCrew.TRIM_SEGMENTS:
+		var spec: Array = EmergencyCrew.TRIM_SEGMENTS[k]
+		ok = ok and (int(spec[2]) == 1 or EmergencyCrew.TRIM_SEGMENTS.has(spec[0]))
+	_check(ok, "the trim's limbs run shoulder to wrist and hip to ankle")
+
+
 func _fire_call(player: Player) -> void:
 	var at := _road_point(-45.0, 5.0)
 	player.global_position = _ws.to_local(_road_point(-80.0, -6.0)) + Vector3.UP * 1.0
@@ -242,6 +275,14 @@ func _fire_call(player: Player) -> void:
 		return
 	var kerb: float = (unit.global_position - (_ws.to_local(at) as Vector3)).length()
 	_check(kerb > 6.0 and kerb < 40.0, "it stands off the fire (%.1f m)" % kerb)
+	var dressed := 0
+	for c in _em.crews:
+		for node in (c as Node).find_children("*", "MeshInstance3D", true, false):
+			var sm := (node as MeshInstance3D).material_override as ShaderMaterial
+			if sm and sm.get_shader_parameter("uniform_kind") == 1.0:
+				dressed += 1
+				break
+	_check(dressed == 3, "the firefighters wear turnout gear with its trim (%d of 3)" % dressed)
 	var hosed := false
 	var out_at := -1
 	var left := false

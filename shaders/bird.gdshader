@@ -46,6 +46,15 @@ uniform float irid_strength = 0.75;
 uniform float morph_ref = 0.33;
 // Light through the thin flight and tail feathers.
 uniform float feather_backlight = 0.2;
+// The underside (a wing or tail card's back face): a bird's underwing is its own plumage, not
+// the upper side seen through - a pigeon's grey underwing coverts and paler grey flight
+// feathers, a gull's white underwing under its grey mantle. Linear colours, under_keep how much
+// of the upper side's pattern shows through (as a luminance ratio to morph_ref: the tips' dark
+// stays, the bars mostly go), under_mix 0 draws the upper side on both faces (the crow).
+uniform vec3 under_cov = vec3(0.18, 0.2, 0.24);
+uniform vec3 under_flight = vec3(0.13, 0.145, 0.185);
+uniform float under_keep = 0.45;
+uniform float under_mix = 0.0;
 
 varying vec3 v_tint;
 varying float v_morph;
@@ -141,6 +150,16 @@ void fragment() {
 	vec4 alb = texture(albedo_tex, UV);
 	vec3 base = cs_in(alb.rgb);
 	vec3 m = texture(mask_tex, UV).rgb;
+	if (v_thin > 0.5 && !FRONT_FACING && under_mix > 0.0) {
+		// Coverts: the atlas's second feather row and the covert sheet, and the leading third of
+		// the far wing's chord; the rest of a card is a flight or tail feather.
+		vec2 apx = UV * 1024.0;
+		float cov = step(512.0, apx.x) * step(448.0, apx.y) * (1.0 - step(704.0, apx.y));
+		cov = max(cov, step(512.0, apx.x) * step(704.0, apx.y) * (1.0 - step(960.0, apx.y)) * (1.0 - smoothstep(780.0, 800.0, apx.y)));
+		float ul = dot(base, vec3(0.2126, 0.7152, 0.0722));
+		vec3 under = mix(under_flight, under_cov, cov) * clamp(pow(max(ul, 1e-4) / morph_ref, under_keep), 0.2, 1.4);
+		base = mix(base, min(under, vec3(0.85)), under_mix);
+	}
 	// A colour morph keeps the painted pattern as a ratio to the main grey, flattened toward a
 	// white bird's faint bars.
 	float lum = dot(base, vec3(0.2126, 0.7152, 0.0722));
@@ -166,6 +185,8 @@ void fragment() {
 	ROUGHNESS = m.b;
 	SPECULAR = 0.4;
 	NORMAL_MAP = texture(normal_tex, UV).rgb;
-	NORMAL_MAP_DEPTH = 0.7;
+	// The body's contour-feather scallops softer than the feathers' barbs: at full depth a near
+	// bird's breast read as a field of hard little facets.
+	NORMAL_MAP_DEPTH = mix(0.4, 0.7, v_thin);
 	BACKLIGHT = cs_out(base * feather_backlight * v_thin);
 }

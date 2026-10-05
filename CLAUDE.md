@@ -168,7 +168,7 @@ scripts/               player, weapons, world, vehicles, npc, util, ui
 shaders/
 assets/                textures/ (CC0 sets) and models/ (Meshy .glb + .json)
 tests/                 headless smoke test and check script
-tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_cars.py, webshot/ (screenshot harness)
+tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_cars.py, make_more_cars.py, webshot/ (screenshot harness)
 ```
 
 ## Conventions
@@ -1126,6 +1126,58 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
   opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
   lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
+- More everyday bodies (2026-10-05, "the street stops repeating"; HANDOFF 9bq):
+  `tools/make_more_cars.py` (imports `make_road_cars.py`; `blender -b --factory-startup -P
+  tools/make_more_cars.py -- hatchback suv minivan taxi beater [--render]`, then `--import`) adds
+  a 5-door compact HATCHBACK, a full-size three-row SUV (flat roof on the van's ninth anchor,
+  chrome-barred grille, roof rails), a MINIVAN (sliding doors, their tracks under the rear glass),
+  the TAXI (the sedan + a lit roof sign) and an older BEATER (a 1990s notchback), body types
+  14-18. The four lofted bodies' details are DATA (`spec["d"]`) for one builder,
+  `everyday_details()`; `overhangs()` / `remap()` rescale a spec's overhangs keeping the
+  wheelbase. **Rolls**: `Vehicle.ROLL_MAP` maps the 0-999 roll in ranges, every old type keeping
+  the START of its old range and giving its end to a new type (`BODY_ODDS` is the shares, the
+  smoke test checks they agree), so a seed's parked car changes only where a new type took the
+  slice; `random_car()` still spends the caller's rng exactly as before. **The taxi is not
+  rolled**: a sedan whose look rolls a taxi job (`TAXI_SHARE`) becomes `BodyType.TAXI`, so every
+  seed's taxi is still a taxi. Its `taxi_sign` slot wears `shaders/taxi_sign.gdshader` (shared,
+  "TAXI" stroked front and back in mesh space from the box the run prints, lit by
+  `lamp_factor`), `Vehicle._add_taxi_lettering()` puts the invented company BASIN CAB and a fleet
+  number (`look_seed`, random_car()'s look) on the doors, and `_cabin_seats()` gives a traffic
+  taxi a fare on the back bench (`TAXI_FARE_SHARE`): **CarCabin seat bit 2** (value 4, the bench
+  behind the passenger, drawn in the passenger's colours; `person()` now takes its seat back's z).
+  **The beater's wear**: geometry where it is the truth (a dent in the right rear door,
+  `BEATER_DENT`; the right tail lamp in pieces with a broken corner and silver tape) and paint
+  wear in `car_paint.gdshaderinc` (`wear`, `wear_door` / `_side` / `_color`: another car's door
+  in the body MESH's space; `wear_primer`; the clear coat chalky on what faces the sky; rust low
+  on the sills) set only on a BEATER (`Vehicle.BEATER_DOOR`, `BEATER_PRIMER`, `BEATER_PAINTS`,
+  `BEATER_DOORS`); every other car skips it on `wear == 0`. SUV and minivan have privacy glass
+  (`CarCabin.PRIVACY_BODIES`). `car_shot.gd --each=14,15,16,17,18` (the taxi comes in its livery;
+  `LOOK=n` a beater's door / a taxi's number). Checks: `tests/more_cars_checks.gd`.
+- Night aerial (2026-10-05, VISUAL_ROADMAP #62, docs/HANDOFF.md "The night aerial"): past the
+  streamed range the city's night is worked out per pixel in the far shaders, never simulated
+  or placed. **Traffic lights**: `shaders/far_traffic.gdshaderinc` (`traffic_lights()`,
+  `street_traffic()`): cars in `FT_CELL` cells along a road's `s`, a hash per cell / lane decides
+  one is there (`traffic_level(city_hour)`), moving with TIME; keep right (+x of +s moves +s);
+  headlights toward the camera, tail lights away; drawn at least `FT_MIN_PX` and dimmed by less
+  than their area, then the lane's mean once a car is under a couple of pixels (times
+  `FT_FAR_BLOOM`). Worn by the far city's freeway decks (building_lod deck mode: Skyline puts
+  the segment's start in the pattern's period in custom.g, `NightCity.PERIOD`, the route in
+  .b), its block plates (along the TRUE world axis via the `origin_shift` global, so streams
+  run on plate to plate), the LOD ground past `traffic_fade_start` (`far_ground.gdshader`, the
+  road's width from the slab UV's derivatives like road.gdshader) and the LOD freeway decks
+  (`FreewayKit._traffic_skin()`, an additive `FreewayTraffic` mesh on
+  `shaders/far_traffic.gdshader`, faded in past TrafficManager's `freeway_range`; FULL decks
+  have none). **Lamps**: `street_glow.gdshaderinc` adds `lamp_led()` / `lamp_ratio()` (sodium or
+  LED per `LAMP_CELL` patch of true world, an integer roll, LED likelier near `LAMP_CENTRE`) and
+  `street_lamp_heads()` (the heads as points where the pools are); the far plates and LOD ground
+  multiply their glow by `far_glow_gain` and hold junction squares at `junction_glow` (a flat
+  orange tile otherwise); the near lamps' OmniLight3D and pool colours come from
+  `NightCity.lamp_light()` / `pool_color()`, the same roll in GDScript (`tests/night_city_checks.gd`
+  holds it bit-exact). **Hours**: DayNight publishes `city_hour`; `traffic_level()` and
+  `window_hour_scale()` (window_lights.gdshaderinc, scales every building's lit ratio near and
+  far alike) are key tables mirrored by `NightCity.LEVEL_KEYS` / `WINDOW_KEYS`. Far roof masts'
+  beacons flash on their own phase (building_lod, kind 2); near ones still burn steady. Stills:
+  the four EYEs in the HANDOFF section.
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
   BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on
@@ -1202,7 +1254,22 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   PATIENT (kneels at the body with a bag for `treat_seconds`), STRETCHER (fetches the cot from the
   back, pushes it to the body, loads it - the ragdoll is freed, a blanketed patient lies on the cot -
   and wheels it back). Uniforms through the character shader's garment split
-  (`uniform_material()`: turnout tan, paramedic blue / navy) on PoliceOfficer's rigs; kneel, hose
+  (`uniform_material()`: turnout khaki, paramedic navy) on PoliceOfficer's rigs, plus the TRIM
+  (2026-10-05, docs/HANDOFF.md 9bs): `EmergencyCrew.trim_mesh()` bakes, once per rig, where each
+  vertex sits on the body (CUSTOM2: metres above the soles, metres along its arm or leg from the
+  shoulder / hip - continuous over elbow and knee -, the limb code + the rig's height / 10, the
+  upper segment's length + the limb's in cm; CUSTOM3: facing forward, facing out, metres off the
+  midline, the trousers' waist), keeping the mesh's LODs (`_surface_lods()`, read back from the
+  RenderingServer) and handing the welded middle / far bodies over unbaked; `character.gdshader`
+  `uniform_kind` (1 turnout, 2 paramedic; 0 everyone else, who skip it) draws from it: turnout
+  bulk (the coat stands `turnout_bulk` cm off the body and covers bare forearms), the lime /
+  silver / lime triple trim round sleeves, chest, hem and shins - retroreflective at night,
+  `lamp_factor` x a cone ahead of the camera x facing (`trim_retro`, `trim_reach`) -, a darker yoke
+  and wristlets, knee patches, gloves; the paramedics' shoulder patch (original: a heartbeat trace,
+  never a real emblem), placket, buttons, badge, cargo pockets and duty belt; black boots for both.
+  The code is a `flat` varying: interpolated across a joint it passes through the codes between.
+  An unbaked mesh (the headless check) gets the plain recolour. `crowd_lineup.gd CREW=fire|medic
+  [NIGHT=1]` shows them in seconds. Kneel, hose
   and push are RoughSleeper-style aim tables solved per rig over the idle (`POSES`); a CharacterBody
   does not step, so a crew member blocked while moving steps up 0.34 m when there is room (kerbs).
   The helmet is **`FireHelmet`** (`scripts/npc/fire_helmet.gd`): a shell with a ridge, a duckbill
@@ -2861,21 +2928,72 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   **Models** are built in code (`BirdMesh`, `scripts/world/bird_mesh.gd`: lofted body along a
   curved spine, eyes, legs and toes, feather cards cut from painted feathers - secondaries,
   tertials, primaries fanned to the tip, alula, a covert sheet, the tail fan - at real size;
-  NEAR ~2.1k / MID ~450 / FAR ~100 triangles) with TWO poses per vertex: VERTEX in flight,
+  NEAR ~2.5k / MID ~450 / FAR ~100 triangles; the near loft is 28 x 22 with its normals welded
+  and averaged, `_smooth_normals()`, and the folded feathers and coverts take the body's flank
+  normal, `flank_normal()`, so the wing shades as part of the bird) with TWO poses per vertex: VERTEX in flight,
   CUSTOM0.xyz on the ground (wings folded onto the flanks by `_snap()`, primaries crossed flat
   over the rump, tail closed, legs standing), CUSTOM1 that normal and a weight. Code, not
   Blender: a glTF cannot carry the second pose. `shaders/bird.gdshader` blends them by
   INSTANCE_CUSTOM.x, flaps (shoulder + wrist, hand sweep on the upstroke), pecks and bobs the head,
   walks the legs, recolours pigeon morphs (COLOR.rgb, sRGB, black = the painted bird) and adds the
-  neck / crow sheen; linear on both renderers. Plumage is `tools/birds/make_bird_textures.py`
+  neck / crow sheen; a wing or tail card's BACK face is the underwing (`under_cov` /
+  `under_flight` / `under_keep` / `under_mix` per species in `BirdMesh.LOOKS`: grey on a pigeon,
+  white on a gull, the crow's own black); linear on both renderers. Plumage is `tools/birds/make_bird_textures.py`
   (original procedural art; its atlas layout and spine landmarks are a contract with
   `BirdMesh.SLOTS` / `S_*`, checked). ONE MultiMesh per species and LOD (12 nodes), the whole
   buffer written each frame, `custom_aabb` from the birds; FAR casts no shadow. Look with
-  `tools/glshot/bird_shot.gd` (the lineup, seconds; `LOD`, `YAW`, `MORPHS=1`, `CAM`/`LOOK`) and
+  `tools/glshot/bird_shot.gd` (the lineup, seconds; `LOD`, `YAW`, `MORPHS=1`, `CAM`/`LOOK`, `ONLY=<pose>` one bird close up) and
   `still_shot.gd BIRD=ground|flush|wire` (`BIRD_SPECIES`, `BIRD_DIST`, `BIRD_COUNT`, `BIRD_FLY`;
   staging calms the flock against the player, whom a free camera drags along). `BIRDS=0` in the
   environment removes them. Ambience's gull one-shots come from a real gull when one is in earshot
   (`Birds.gull_at()`). Checks: `tests/bird_checks.gd`.
+- Beach life (VISUAL_ROADMAP #60, 2026-10-05: "a Los Angeles beach on a warm afternoon"):
+  `BeachLife` (`scripts/world/beach_life.gd`, static) fills the sand `CityChunk._build_beach()`
+  lays. **Everything is a hash of seed + a WORLD cell of shore (`CELL_Z` 6.5 m) + the hour the
+  chunk is built at** (`hour_now()`, `force_hour`; `density()`: nobody before 6:30 or after 20:30,
+  full 13:00-16:30, a few at dusk; `weather_factor()`: half on a grey day, nearly none in rain),
+  never the block rng: `_build_beach`'s palms and tower roll exactly as before (a palm rolled onto
+  the bike path is nudged off it after its roll). `plan_stretch(plan, z0, z1, dens, obstacles)` is
+  pure (people, props, the court) and world-anchored: two halves plan what the whole does; groups
+  of 1-4 by `BANDS` across the sand, the front rows first (`shape()`), poses from `POSE_ODDS`,
+  towels, umbrellas, low chairs, coolers, totes, boogie boards, surfboards. Nothing within
+  `KEEP_OFF` of the boardwalk and the piers; the replica's coast gets people but no path or court.
+  **People are `BeachFigure`s** (`scripts/world/beach_figure.gd`, extends CampFigure): each
+  (crowd rig, pose) is baked once on a real `BeachGoer` (the camps' trick) and each suit is that
+  bake with the suit's look; a chunk's figures merge into `BeachFigureMesh` (32 m cells along the
+  shore, the middle bodies inside `near_range` 42 m, the far bodies past it and as the shadow), so
+  a chunk of ~120 people is a draw per rig per cell. Woken (shot, knocked, `CampFigure.wake_near()`
+  from an alarm, or `BeachActivity._scatter()`: up to `scatter_max` of the nearest, a few a tick)
+  they become a live `BeachGoer` (`scripts/npc/beach_goer.gd`, extends RoughSleeper) that runs up
+  the beach and walks back. **Swimwear** is `BeachGoer.swim_mesh()`: a copy of the crowd body, each
+  triangle by its rest-pose height (`TRUNKS_BAND`, `BOTTOM_BAND`, `TOP_BAND`) left in its garment
+  region (the suit: `swim_material()` colours both regions from `SUITS`) or turned into skin (the
+  skin region on one texel of the person's own neck), border vertices split; shoes are bare feet.
+  `STYLE_OF` (trunks, bikini, one-piece) per rig in `BEACH_MODELS`; no new bones or surfaces, so
+  the welds, the ragdoll (`knock()` dresses the doll again) and limb cuts work. Poses: RoughSleeper's
+  table format, `BEACH_POSES` (on the back, front, hands behind the head, sitting leaning back, a
+  low beach chair, astride a board, paddling, riding a wave side-on, skating, the volleyball arms).
+  **`BeachActivity`** (`scripts/world/beach_activity.gd`, a node per FULL beach chunk): swimmers
+  (standing bakes sunk to the chest) and surfers on boards past `Surf.break_distance()` who sit,
+  paddle in, ride a wave in side-on along the face (`Surf.crest_height()`) and paddle back out;
+  riders on the path (`BeachRider`, `scripts/npc/beach_rider.gd`: an AnimatableBody3D on the npc
+  layer, a cyclist is a flipbook of `BeachGoer.RIDE_FRAMES` bakes from `BeachFigure.ride_meshes()`
+  - each frame `BeachGoer.ride_pose()` solves both legs onto the pedals by two-bone IK and the
+  cruiser `BeachLife.bike_mesh()` is built round that frame's saddle, crank, pedals and grips - a
+  skater one bake with the board); a volleyball game on the chunk's court (four live BeachGoers
+  with `volley_home`, the ball on parabolas: pass, set, attack, misses, serves); walkers
+  (`BeachWalker`, `scripts/npc/beach_walker.gd`) carrying boards to the water and strolling the
+  wet sand; the lifeguard (a figure on the tower's deck, `LIFEGUARD_*`). A shot rider becomes a
+  live BeachGoer and the bike is thrown as an EncampmentItem. The tower is `BeachLife.tower_mesh()`
+  turned to the sea; the path a strip mesh at `PATH_AT` (`path_x()`), joints and centre line in
+  `shaders/beach_props.gdshader` (one shader for all of it; codes in the vertex alpha, paint in
+  INSTANCE_CUSTOM, `CANVAS2` mirrored and checked). `ground_at()` / `sand_y()` are the sand mesh's
+  own rows (not `_sand_y()`'s curve). LOD chunks: towels and umbrellas as dots (`build_lod()`),
+  the path and the court tapes. The loading screen bakes every rig in every pose and the riders'
+  flipbooks (`BeachFigure.kinds()`). `BEACH_LIFE=0` is the A/B; `BEACH_STAGE=z` on `still_shot.gd`
+  gathers riders and surfers there; `tools/beach/probe.gd` walks the coast (`PEOPLE=1`),
+  `tools/beach/chunks.gd` lists the built chunks, `tools/beach/checks.gd` runs the checks alone.
+  Checks: `tests/beach_life_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

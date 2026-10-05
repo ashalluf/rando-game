@@ -1713,6 +1713,10 @@ func _test_city() -> void:
 	# The big vehicles (tests/big_vehicle_checks.gd): the bus, the box truck and the semi built,
 	# hit, the trailer's swing, the bus lines and stops, a bus at its stop, a queue behind a semi.
 	await load("res://tests/big_vehicle_checks.gd").new().run(self, city)
+	# The second wave of everyday bodies (tests/more_cars_checks.gd): the hatchback, SUV, minivan,
+	# taxi and beater - the roll table, the rng stream, builds, hits, the taxi's sign and fare,
+	# the beater's wear.
+	await load("res://tests/more_cars_checks.gd").new().run(self, city)
 	# The light rail (tests/light_rail_checks.gd): the line's table, timetable, crossings, the
 	# traffic's lane and stop rules, a station chunk, the trains on the track, a strike.
 	await load("res://tests/light_rail_checks.gd").new().run(self, city)
@@ -1759,6 +1763,10 @@ func _test_city() -> void:
 	# downtown, a batch per kind, the truck unbreakable and clear of parked cars, a cart that tips
 	# over and stays gone, queues and vendors, and nothing else in the block moved.
 	load("res://tests/street_vendors_checks.gd").new().run(self, city)
+	# The beach (tests/beach_life_checks.gd): sunbathers by the hour, a pure world-anchored plan,
+	# the front rows first, batches and figures on a FULL chunk, woken people, gunfire scattering
+	# them, the block's palms unmoved, the LOD dots, nobody at night, the cyclist's legs on the pedals.
+	load("res://tests/beach_life_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
@@ -1780,6 +1788,9 @@ func _test_city() -> void:
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
 	await load("res://tests/la_river_checks.gd").new().run(self, city)
+	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
+	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
+	load("res://tests/night_city_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

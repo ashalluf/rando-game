@@ -195,6 +195,11 @@ class instead.
 | `tools/make_road_cars.py` | `road_crossover.glb` | 50k tris + 8k far twin | `BodyType.CROSSOVER` | 2026-09-27 |
 | `tools/make_road_cars.py` | `road_pickup.glb` | 56k tris + 8k far twin (reworked the same day: tall square cab, high flat bonnet, 1.71 m bed) | `BodyType.PICKUP` | 2026-09-27 |
 | `tools/make_road_cars.py` | `road_van.glb` | 51k tris + 8k far twin | `BodyType.VAN` (and the police tactical van) | 2026-09-27 |
+| `tools/make_more_cars.py` | `road_hatchback.glb` | 51k tris + 8k far twin | `BodyType.HATCHBACK` | 2026-10-05 |
+| `tools/make_more_cars.py` | `road_suv.glb` | 48k tris + 8k far twin | `BodyType.SUV` | 2026-10-05 |
+| `tools/make_more_cars.py` | `road_minivan.glb` | 52k tris + 8k far twin | `BodyType.MINIVAN` | 2026-10-05 |
+| `tools/make_more_cars.py` | `road_taxi.glb` | 54k tris + 8k far twin (the sedan + a lit roof sign, `taxi_sign` slot) | `BodyType.TAXI` | 2026-10-05 |
+| `tools/make_more_cars.py` | `road_beater.glb` | 51k tris + 8k far twin (a dent and a cracked, taped tail lamp in the geometry) | `BodyType.BEATER` | 2026-10-05 |
 | `tools/make_emergency_vehicles.py` | `road_fire_engine.glb` | 35k tris + 10k far twin (Type 1 pumper: crew cab, pump panel, roll-ups, hose bed, ladders, light bar, Q-siren; original, no department's marks) | `BodyType.FIRE_ENGINE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_emergency_vehicles.py` | `road_ambulance.glb` | 23k tris + 10k far twin (Type III: cutaway cab, modular box, striping, chevrons, warning lamps; original) | `BodyType.AMBULANCE` (EmergencyCar) | 2026-10-04 |
 

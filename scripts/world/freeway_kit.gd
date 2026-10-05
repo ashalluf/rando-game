@@ -111,6 +111,7 @@ static var _text_cache := {}
 static var _structure_mat: ShaderMaterial
 static var _paint_mat: ShaderMaterial
 static var _pool_mat: ShaderMaterial
+static var _traffic_mat: ShaderMaterial
 
 var chunk: CityChunk
 var plan: CityPlan
@@ -119,6 +120,9 @@ var top := SurfaceTool.new()
 var body := SurfaceTool.new()
 var paint := SurfaceTool.new()
 var glow := SurfaceTool.new()
+## LOD chunks only: the decks' far traffic lights (far_traffic.gdshader), an additive skin.
+var traffic := SurfaceTool.new()
+var _traffic_any := false
 var _glow_any := false
 var _paint_any := false
 
@@ -127,7 +131,7 @@ func _init(c: CityChunk) -> void:
 	chunk = c
 	plan = c.plan
 	full = c.level == CityChunk.Level.FULL
-	for st: SurfaceTool in [top, body, paint, glow]:
+	for st: SurfaceTool in [top, body, paint, glow, traffic]:
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
 
 
@@ -147,6 +151,32 @@ static func paint_material() -> ShaderMaterial:
 		_paint_mat = ShaderMaterial.new()
 		_paint_mat.shader = load("res://shaders/freeway_paint.gdshader")
 	return _paint_mat
+
+
+## The LOD decks' traffic lights (far_traffic.gdshader): past TrafficManager.freeway_range the
+## decks carry the same moving head and tail lights as the far city's.
+static func traffic_material() -> ShaderMaterial:
+	if _traffic_mat == null:
+		_traffic_mat = ShaderMaterial.new()
+		_traffic_mat.shader = load("res://shaders/far_traffic.gdshader")
+	return _traffic_mat
+
+
+## A copy of a deck segment's top a hand over it, for the traffic lights: UV (metres along the
+## route in the lights' period, metres across from the median), the route and the half width in
+## UV2 and +s in the colour (x, z as 0..1).
+func _traffic_skin(l0: Vector3, r0: Vector3, l1: Vector3, r1: Vector3, dir: Vector2, half: float, run0: float, seg_len: float, ri: int) -> void:
+	var s0 := fmod(run0, NightCity.PERIOD)
+	var lift := Vector3(0.0, 0.12, 0.0)
+	var col := Color(dir.x * 0.5 + 0.5, dir.y * 0.5 + 0.5, 0.0, 1.0)
+	var corners := {"l0": [l0, Vector2(s0, -half)], "r0": [r0, Vector2(s0, half)],
+		"l1": [l1, Vector2(s0 + seg_len, -half)], "r1": [r1, Vector2(s0 + seg_len, half)]}
+	for k: String in ["l0", "r1", "r0", "l0", "l1", "r1"]:
+		traffic.set_color(col)
+		traffic.set_uv(corners[k][1])
+		traffic.set_uv2(Vector2(float(ri) + 1.0, half))
+		traffic.add_vertex(corners[k][0] + lift)
+	_traffic_any = true
 
 
 ## The light pools' material: light_pool.gdshader with a broad, flat falloff. A road light is
@@ -470,6 +500,8 @@ func build_segments(segs: Array[Dictionary], area: Rect2) -> int:
 		var r1 := Vector3(b.x + e.x, hb, b.y + e.y)
 		for v: Vector3 in [l0, r1, r0, l0, l1, r1]:
 			top.add_vertex(v)
+		if not full:
+			_traffic_skin(l0, r0, l1, r1, dir, half, run0, seg_len, ri)
 
 		_girder(a3, b3, nrm, half, run0, run1)
 		_barriers(a3, b3, nrm, half, run0, run1)
@@ -1004,6 +1036,9 @@ func commit(road_mat: Material, prefix := "Freeway") -> void:
 	if _glow_any:
 		var gi := _add(prefix + "Glow", glow.commit(), pool_material())
 		gi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	if _traffic_any:
+		var ti := _add(prefix + "Traffic", traffic.commit(), traffic_material())
+		ti.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _add(node_name: String, mesh: Mesh, mat: Material) -> MeshInstance3D:

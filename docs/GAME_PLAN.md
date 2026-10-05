@@ -289,8 +289,8 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Street errands: the pavement's comings and goings (VISUAL_ROADMAP #59, HANDOFF
-  9bq).** Crowd life (G5) gave people things to do where they stood; nobody ever went anywhere.
+- **2026-10-05 Street errands: the pavement's comings and goings (VISUAL_ROADMAP #??, HANDOFF
+  9b?).** Crowd life (G5) gave people things to do where they stood; nobody ever went anywhere.
   `StreetErrands` sends walkers near the player into the bus that stops at their shelter, into
   shops by the storefront's own door bay, into parked cars that then pull out into the traffic,
   and across the road mid-block; traffic cars pull into free kerb spaces and their drivers get out,
@@ -417,6 +417,21 @@ already mapped so milestone 2 is script-only.
   species and LOD for the whole city. (4) Dead birds are no crime. (5) Sounds are public-domain
   field recordings (freesound is blocked from the build box). Cost and numbers: HANDOFF 9bl.
 
+- **2026-10-05 The beach has people: sunbathers in swimwear, surfers, a volleyball game, a bike
+  path with cyclists, a lifeguard (VISUAL_ROADMAP #60).** The sand was empty. `BeachLife` plans a
+  stretch of shore as a pure function of seed, a world cell of shore and the hour the chunk is
+  built at (busy mid-afternoon, a few at sunset, nobody at night, fewer on a grey day): groups on
+  towels by the waterline thinning toward the back, umbrellas, chairs, coolers, totes, boards.
+  The people are the camps' static figures (posed once, baked, merged per chunk in cells with a
+  near and a far body), woken into live `BeachGoer`s when shot, knocked or near gunfire - and a
+  burst of fire on the sand wakes the nearest dozen and they run. **Swimwear is a rewrite of the
+  crowd body's own regions, not new garments**: per triangle by rest-pose height the shirt and
+  trousers become skin (one texel of the person's own skin) except the swimsuit's bands, which the
+  material colours; no new bones, surfaces or Blender runs, so every crowd system still works.
+  Cyclists are a flipbook of bakes, each with both legs solved onto the pedals by two-bone IK and
+  the cruiser built round that frame's crank. The block's own rolls (palms, the tower) are
+  untouched; the tower is a real LA lifeguard tower turned to the sea. docs/HANDOFF.md 9br;
+  CLAUDE.md "Beach life".
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
   (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed
@@ -605,6 +620,25 @@ already mapped so milestone 2 is script-only.
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
+  A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
+  (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
+  back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky
+  clear coat, a dent and a cracked, taped tail lamp). Same Blender pipeline as the other road
+  cars (tools/make_more_cars.py). Shares: hatchback 7 %, SUV 8 %, minivan 5.5 %, beater 3.5 %,
+  taken mostly from the sports car (14.5 -> 8.5 %) and the panel van; a roll keeps its old body
+  unless a new body took its slice, and the taxis are exactly the sedans that were taxis before.
+  docs/HANDOFF.md 9bq; CLAUDE.md "More everyday bodies".
+
+- **2026-10-05 Responders look the part; pigeons hold up at a metre (VISUAL_ROADMAP #61).**
+  Firefighters wear turnout gear drawn by the character shader from a per-rig bake of where each
+  vertex sits on the body: darker khaki, the lime / silver / lime triple trim round sleeves, chest,
+  hem and shins that lights up toward the camera at night (retroreflective), a darker yoke, knee
+  patches, gloves, sleeves over bare forearms, bulk. Paramedics wear navy: a shoulder patch of our
+  own (no real emblem), placket, badge, cargo pockets, a duty belt; both services black boots. The
+  pigeon's near body is a denser loft with welded normals, its folded wing shades with the body,
+  and every wing and tail has an underside of its own (a pigeon's grey underwing, a gull's white).
+  docs/HANDOFF.md 9bs.
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
   station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street
@@ -615,6 +649,14 @@ already mapped so milestone 2 is script-only.
   a crime like anyone). Bodies Blender-built on the big-vehicle pipeline. Names invented. Also:
   a bus's windscreen shows its daylit cabin instead of a black slab. docs/HANDOFF.md 9bm;
   CLAUDE.md "Emergency services".
+- **2026-10-05 The night aerial: traffic and lamps past the streamed range are worked out in
+  the far shaders, never simulated or placed (VISUAL_ROADMAP #62).** Moving head and tail lights
+  on every far freeway deck and boulevard (`far_traffic.gdshaderinc`, per pixel from the time, a
+  hash and the place; white toward the camera, red away), lamp heads as points, sodium or LED in
+  patches (the near lamps follow the same integer roll), flashing beacons on far masts, traffic
+  and lit offices by the hour (`city_hour` global). No new node per block: an additive skin per
+  LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
+  aerial".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

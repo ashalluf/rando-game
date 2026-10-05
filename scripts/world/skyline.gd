@@ -727,7 +727,8 @@ func _add_freeway(k: Vector2i) -> void:
 		xforms.append(Transform3D(basis, Vector3(mid.x, (ha + hb) * 0.5 - t + (t + 1.05) * 0.5, mid.y)))
 		colors.append(concrete)
 		# Deck flag: building_lod.gdshader draws an asphalt carriageway on top, not a roof.
-		customs.append(Color(float(seg.width), 0.0, 0.0, DECK_FLAG))
+		# .g where the segment starts in the traffic lights' period, .b the route (far_traffic).
+		customs.append(Color(float(seg.width), fmod(float(seg.index) * Freeway.STEP, NightCity.PERIOD), float(seg.route) + 1.0, DECK_FLAG))
 		if int(seg.index) % pillar_every == 0:
 			var ground := _plan.height_at(a)
 			if macro.river:

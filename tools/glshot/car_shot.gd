@@ -7,7 +7,8 @@ extends SceneTree
 ##     --display-driver x11 --audio-driver Dummy --path . --script tools/glshot/car_shot.gd \
 ##     --resolution 1280x720 -- --type=0 --views=front3,rear3,side
 ##
-## Writes $OUT_<view>.png per view. `--type=N` body type (0 sedan; see Vehicle.BodyType),
+## Writes $OUT_<view>.png per view. `--type=N` body type (0 sedan; see Vehicle.BodyType; the taxi,
+## 17, comes in its livery, and it and the beater, 18, take their per-car look from `LOOK=n`),
 ## `--views` any of front3 rear3 side front rear top close (the front wheel) far (44 m out,
 ## narrow lens: the far twin), `--cam=x,y,z
 ## --look=x,y,z` for one custom view (the car's nose points -Z, its centre is the origin),
@@ -180,24 +181,32 @@ func _shoot(world: Node3D, cam: Camera3D, types: Array[int], views: PackedString
 			var rng := RandomNumberGenerator.new()
 			car = load("res://scripts/npc/police_car.gd").call("make", heavy, rng)
 			car.set("police", null)
-		elif types[i] >= 12:
+		elif types[i] == 12 or types[i] == 13:
 			# The fire engine (12) and the ambulance (13): EmergencyCar on scene, lights running
 			# (kinematic, stood at its ride height like a cruiser).
 			var erng := RandomNumberGenerator.new()
 			car = load("res://scripts/npc/emergency_car.gd").call("make", types[i] - 12, erng)
 			car.set("lights_forced", OS.get_environment("LIGHTS") != "0")
-		elif types[i] >= 9:
+		elif types[i] >= 9 and types[i] <= 11:
 			# The big vehicles (BUS 9, BOX_TRUCK 10, SEMI 11) in their own liveries.
 			car = load("res://scripts/vehicles/big_vehicles.gd").call("make", types[i], OS.get_environment("LOOK").to_int())
 		else:
 			car = load("res://scripts/vehicles/vehicle.gd").new()
-			car.call("setup", types[i], paint, 0)
-			if finish >= 0 or livery > 0:
+			if types[i] == 17:
+				# The taxi (17) in its company's livery, as random_car() turns it out.
+				car.call("setup", types[i], Color(0.96, 0.73, 0.03), 0)
+				car.call("setup_look", 0, 3, Color(0.07, 0.07, 0.08))
+				car.set("look_seed", OS.get_environment("LOOK").to_int())
+			else:
+				car.call("setup", types[i], paint, 0)
+				if types[i] == 18:
+					car.set("look_seed", OS.get_environment("LOOK").to_int())
+			if types[i] != 17 and (finish >= 0 or livery > 0):
 				car.call("setup_look", maxi(finish, 1), livery, Color(0.07, 0.07, 0.08))
 		# Parked, like a street car: a physics body left to settle on its springs. A cruiser is
 		# kinematic until it engages, so it is stood on the road at its ride height instead.
 		car.position = Vector3((float(i) - float(types.size() - 1) * 0.5) * spacing,
-				float(car.call("road_lift")) if police or types[i] >= 12 else 0.9, 0.0)
+				float(car.call("road_lift")) if police or types[i] == 12 or types[i] == 13 else 0.9, 0.0)
 		world.add_child(car)
 		cars.append(car)
 	var occupant := OS.get_environment("OCCUPANT")
