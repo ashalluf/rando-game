@@ -70,9 +70,9 @@ void fragment() {
 		alb *= 1.0 - 0.5 * ground;
 		// Old staples and flyer paper scraps at hand height.
 		float band = step(1.0, uv.y) * step(uv.y, 2.6);
-		float staple = step(0.985, h12(floor(uv * vec2(60.0, 40.0)))) * band * fine;
-		alb = mix(alb, vec3(0.35), staple);
-		metal = staple * 0.8;
+		float staple = step(0.994, h12(floor(uv * vec2(90.0, 70.0)))) * band * fine;
+		alb = mix(alb, vec3(0.12, 0.1, 0.08), staple);
+		metal = staple * 0.5;
 		rough = mix(0.88, 0.75, silver * 0.2);
 	} else if (v_kind < 1.5) {
 		// The crossarm: Douglas fir, grain along it, weathered paler than the pole.

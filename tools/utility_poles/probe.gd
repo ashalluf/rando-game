@@ -38,7 +38,7 @@ func _initialize() -> void:
 				var p0: Vector3 = poles[0].pin
 				var run_dir: Vector3 = r.run_dir
 				var street: Vector3 = r.street
-				var y := p0.y + plan.macro.relief_at(Vector2(p0.x, p0.z))
+				var y: float = p0.y + plan.macro.relief_at(Vector2(p0.x, p0.z))
 				var e1 := p0 - run_dir * 14.0 + street * 0.4
 				var yaw1 := rad_to_deg(atan2(-run_dir.x, -run_dir.z))
 				var e2 := p0 + street * 14.0 + run_dir * 6.0

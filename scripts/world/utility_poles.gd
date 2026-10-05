@@ -240,6 +240,7 @@ static func street_run(ch: CityChunk, rect: Rect2, axis: int, index: int, side: 
 	var district: int = plan.district_at((rect as Rect2).get_center())
 	var drops := not walls.is_empty()
 	var into := -street
+	var sm := summary(ch)
 	var points: Array[Vector3] = []
 	var breaks: Array[bool] = []
 	for pole: Dictionary in poles:
@@ -251,13 +252,17 @@ static func street_run(ch: CityChunk, rect: Rect2, axis: int, index: int, side: 
 		var tone := _h01([plan.seed, "upole_tone", axis, index, k])
 		var custom := Color(_h01([plan.seed, "upole_age", axis, index, k]), tone, 0.0, 0.0)
 		batch.add("upole", shaft_mesh(), Transform3D(basis, foot + Vector3(0.0, StreetDetail.POLE_HEIGHT * 0.5, 0.0)), Color.WHITE, custom)
+		sm.poles += 1
 		batch.add("up_head", head_mesh(), Transform3D(basis, foot), Color.WHITE, custom)
 		if StreetDetail._hash01([plan.seed, "xfmr", axis, index, k]) < StreetDetail.TRANSFORMER_ODDS:
 			batch.add("up_xfmr", transformer_mesh(), Transform3D(basis, foot), Color.WHITE, custom)
+			sm.xfmrs += 1
 		if _h01([plan.seed, "ulight", axis, index, k]) < float(LIGHT_ODDS[district]):
 			_street_light(ch, p, street, zl, basis, foot)
+			sm.lights += 1
 		if _h01([plan.seed, "uriser", axis, index, k]) < RISER_ODDS:
 			batch.add("up_riser", riser_mesh(), Transform3D(basis, foot), Color.WHITE, custom)
+			sm.risers += 1
 		# A pole you can crash a car into, and the arm (bullets spark off it; the birds' ray
 		# down at a span's end finds it).
 		ch._add_shape(Vector3(0.34, StreetDetail.POLE_HEIGHT, 0.34), foot + Vector3(0.0, StreetDetail.POLE_HEIGHT * 0.5 + ch._gy(foot.x, foot.z), 0.0), yaw)
@@ -271,6 +276,7 @@ static func street_run(ch: CityChunk, rect: Rect2, axis: int, index: int, side: 
 				var top := StreetDetail._lift(ch, wall, StreetDetail.SERVICE_DROP_HEIGHT + 0.55)
 				_wall_head(ch, wall, top, street)
 				add_wire(batch, secondary_point(ch, p, street, zl), top - Vector3(0.0, 0.18, 0.0), DROP_SAG, Wire.DROP, R_DROP)
+				sm.wall_drops += 1
 	var n := points.size()
 	for i in n - 1:
 		if breaks[i + 1]:
@@ -294,6 +300,14 @@ static func street_run(ch: CityChunk, rect: Rect2, axis: int, index: int, side: 
 		if ends:
 			guy(ch, points[i], zl, run_dir)
 	_batch_settings(batch)
+
+
+## What the chunk built (the checks read it): counts, and every middle primary span [a, b, sag].
+static func summary(ch: CityChunk) -> Dictionary:
+	if not ch.has_meta("utility_poles"):
+		ch.set_meta("utility_poles", {"poles": 0, "xfmrs": 0, "lights": 0, "risers": 0, "guys": 0, "splices": 0,
+			"coils": 0, "wall_drops": 0, "houses": 0, "house_drops": 0, "wires": 0, "wire_tris": 0, "mid": [], "drop_fronts": []})
+	return ch.get_meta("utility_poles")
 
 
 static func _batch_settings(batch: MultiMeshBatch) -> void:
@@ -321,7 +335,11 @@ static func span(ch: CityChunk, a: Vector3, b: Vector3, street: Vector3, zl: Vec
 	var pin_y: float = StreetDetail.POWER_ARM_HEIGHT + 0.2
 	for i in 3:
 		var o := street * float(i - 1) * PIN_SPREAD
-		add_wire(batch, StreetDetail._lift(ch, a + o, pin_y), StreetDetail._lift(ch, b + o, pin_y), StreetDetail.POWER_SAG * k2, Wire.PRIMARY, R_PRIMARY)
+		var wa := StreetDetail._lift(ch, a + o, pin_y)
+		var wb := StreetDetail._lift(ch, b + o, pin_y)
+		add_wire(batch, wa, wb, StreetDetail.POWER_SAG * k2, Wire.PRIMARY, R_PRIMARY)
+		if i == 1:
+			(summary(ch).mid as Array).append([wa, wb, StreetDetail.POWER_SAG * k2])
 	add_wire(batch, secondary_point(ch, a, street, zl), secondary_point(ch, b, street, zl), SECONDARY_SAG * k2, Wire.SECONDARY, R_SECONDARY)
 	for c in 2:
 		var la := at_pole(ch, a, street, zl, Vector3(COMM_OUT, COMM_HEIGHTS[c], 0.0))
@@ -333,11 +351,13 @@ static func span(ch: CityChunk, a: Vector3, b: Vector3, street: Vector3, zl: Vec
 			var at := catenary_point(la, lb, sag, t)
 			var dir := (catenary_point(la, lb, sag, t + 0.01) - at).normalized()
 			_put_along(batch, "up_splice", splice_mesh(), at - Vector3(0.0, 0.09, 0.0), dir)
+			summary(ch).splices += 1
 		if c == 1 and _h01(key + ["ucoil"]) < COIL_ODDS:
 			var t := clampf(4.5 / maxf(length, 1.0), 0.05, 0.4)
 			var at := catenary_point(la, lb, sag, t)
 			var dir := (catenary_point(la, lb, sag, t + 0.01) - at).normalized()
 			_put_along(batch, "up_coil", coil_mesh(), at, dir)
+			summary(ch).coils += 1
 
 
 ## A guy from the arm's level down to an anchor GUY_LEAD out along `dir`, with its guard.
@@ -351,6 +371,7 @@ static func guy(ch: CityChunk, pin: Vector3, zl: Vector3, dir: Vector3) -> void:
 	var d := (top - anchor).normalized()
 	_put_along(batch, "up_guard", guard_mesh(), anchor + d * (GUARD_LENGTH * 0.5 + 0.12), d)
 	_put_along(batch, "up_anchor", anchor_mesh(), anchor, d)
+	summary(ch).guys += 1
 
 
 ## A cobra head on an upswept arm over the street, its lens glowing and its pool on the road.
@@ -432,7 +453,9 @@ static func _house_drops(ch: CityChunk) -> void:
 	ch.remove_meta("up_houses")
 	var batch: MultiMeshBatch = ch._batch
 	var plan: CityPlan = ch.plan
+	var sm := summary(ch)
 	for h: Dictionary in houses:
+		sm.houses += 1
 		var att := house_attachment(ch, h)
 		if att.is_empty():
 			continue
@@ -461,6 +484,8 @@ static func _house_drops(ch: CityChunk) -> void:
 		batch.add("up_whead", weatherhead_mesh(), Transform3D(hb, Vector3(wall.x, mast_top - g, wall.z)))
 		var end := Vector3(wall.x, mast_top - 0.22, wall.z) + to_pole * 0.05
 		add_wire(batch, secondary_point(ch, pin, src[1], src[2]), end, DROP_SAG + 0.012 * Vector2(pin.x, pin.z).distance_to(at), Wire.DROP, R_DROP)
+		sm.house_drops += 1
+		(sm.drop_fronts as Array).append((Vector2(pin.x, pin.z) - at).dot(out))
 	_batch_settings(batch)
 
 
@@ -531,6 +556,9 @@ static func commit(ch: CityChunk) -> void:
 	var mesh := ribbon_mesh(wires)
 	if mesh == null:
 		return
+	var sm := summary(ch)
+	sm.wires = wires.size()
+	sm.wire_tris = mesh.surface_get_array_index_len(0) / 3
 	var mi := MeshInstance3D.new()
 	mi.name = "UtilityWires"
 	mi.mesh = mesh
@@ -811,10 +839,10 @@ static func _pin_insulator(g: Geo, base: Vector3, col: Color) -> void:
 	# conductor is tied in and the crown. The groove's top is 0.1425 m over the arm's top, so the
 	# conductor lies at POWER_ARM_HEIGHT + 0.2 over the pavement.
 	g.tube(base, base + Vector3(0.0, 0.04, 0.0), 0.012, 6, GALV, K_GALV)
-	var p := [Vector2(0.026, 0.0), Vector2(0.062, 0.12), Vector2(0.064, 0.2), Vector2(0.034, 0.3),
-		Vector2(0.052, 0.48), Vector2(0.054, 0.56), Vector2(0.03, 0.64), Vector2(0.026, 0.8),
-		Vector2(0.033, 0.88), Vector2(0.026, 0.97), Vector2(0.0, 1.0)]
-	g.lathe(base + Vector3(0.0, 0.01, 0.0), base + Vector3(0.0, 0.1525, 0.0), p, 10, col, K_PORCELAIN, true, false)
+	var p := [Vector2(0.026, 0.0), Vector2(0.063, 0.14), Vector2(0.034, 0.3),
+		Vector2(0.053, 0.5), Vector2(0.03, 0.64), Vector2(0.026, 0.8),
+		Vector2(0.033, 0.88), Vector2(0.024, 0.97), Vector2(0.0, 1.0)]
+	g.lathe(base + Vector3(0.0, 0.01, 0.0), base + Vector3(0.0, 0.1525, 0.0), p, 9, col, K_PORCELAIN, true, false)
 
 
 static func _build_head() -> Mesh:

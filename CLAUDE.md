@@ -2541,6 +2541,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (it asked `height_at()` ~1,000 times in one step: a 60 ms hitch per hill chunk). Judge any of it fast with `tools/glshot/hill_ground_shot.tscn` (the real hill chunks
   round an EYE, lit by the city's environment, a minute a shot; `SHELL_DEBUG`, `NOSHELLS`,
   `PROFILE` under Forward+) and time the steps with `tools/hill_step_bench/hill_step_bench.tscn`.
+- Overhead utilities (2026-10-05, docs/HANDOFF.md "Overhead utilities"): `UtilityPoles`
+  (`scripts/world/utility_poles.gd`) builds the line StreetDetail decides on (`_pole_run()` hands
+  it over): tapered wooden poles, a crossarm on the pole's face with braces and porcelain pins, a
+  spool rack, comm bundles with splice cases and coils, transformers with cutouts, cobra heads,
+  risers, guys with guards and anchors, drops to the buildings behind and to EVERY house in the
+  suburbs and the beach town (meter, mast, weatherhead; `feeder()`: the nearest pole in front).
+  Code-built on one shader (`utility_pole.gdshader`, kind in COLOR.a) through the chunk's batch
+  (`upole` is still the shaft) with shadow-proxy twins. **The middle primary IS Birds' span
+  polyline** (the pole stands `POLE_FACE` behind the old pole point; CABLE_SEGMENTS is 10). Every
+  wire of a chunk is ONE ribbon mesh (`UtilityWires`, `commit()` before the batch builds;
+  StreetDetail._catenary() / _cable() feed it) widened in `utility_wire.gdshader` to face the
+  camera, at least `min_px`, thinner wires in alpha. Trap: on Compatibility PROJECTION_MATRIX[1][1]
+  is negative (use abs()). `UTILITY_POLES=0` is the A/B; `tools/utility_poles/pole_shot.gd` the kit
+  alone in seconds; checks `tests/utility_poles_checks.gd`.
 - Climbing plants (2026-10-05, "planting that grows ON things"): `ClimbingPlants`
   (`scripts/world/climbing_plants.gd`, static) - bougainvillea (magenta, orange, white) domed out
   from walls and spilling over their coping with canes hanging, ivy and creeping fig climbing,

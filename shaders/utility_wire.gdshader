@@ -19,6 +19,8 @@ uniform float min_px = 1.15;
 // Wires fade out between these distances (metres).
 uniform float fade_start = 230.0;
 uniform float fade_end = 340.0;
+// 1: every wire drawn solid red at full alpha (the ribbon's real footprint).
+uniform float debug_solid = 0.0;
 
 varying vec3 v_side;
 varying vec3 v_toc;
@@ -35,9 +37,10 @@ void vertex() {
 	side = sl > 1e-5 ? side / sl : vec3(1.0, 0.0, 0.0);
 	float depth = max(-c.z, 0.05);
 	// Metres per pixel at this depth. VIEWPORT_SIZE has read 0 in a vertex stage before (the far
-	// city's masts): fall back to 1080 lines.
-	float vh = VIEWPORT_SIZE.y > 2.0 ? VIEWPORT_SIZE.y : 1080.0;
-	float px = 2.0 * depth / (max(PROJECTION_MATRIX[1][1], 0.1) * vh);
+	// city's masts) and small garbage on Compatibility: fall back to 1080 lines.
+	float vh = VIEWPORT_SIZE.y > 120.0 ? VIEWPORT_SIZE.y : 1080.0;
+	// [1][1] is negative on Compatibility (its projection is flipped in y).
+	float px = 2.0 * depth / (max(abs(PROJECTION_MATRIX[1][1]), 0.1) * vh);
 	float r = UV2.x;
 	float w = max(r, 0.5 * min_px * px);
 	v_alpha = (r / w) * (1.0 - smoothstep(fade_start, fade_end, depth));
@@ -101,4 +104,8 @@ void fragment() {
 	ROUGHNESS = rough;
 	METALLIC = metal;
 	ALPHA = clamp(v_alpha, 0.0, 1.0);
+	if (debug_solid > 0.5) {
+		ALBEDO = vec3(1.0, 0.0, 0.0);
+		ALPHA = 1.0;
+	}
 }
