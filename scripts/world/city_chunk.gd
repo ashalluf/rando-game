@@ -2760,20 +2760,25 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 		return
 	var car := Vehicle.random_car(rng)
+	var flip := rng.randf() < 0.5
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or CivicBuildings.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
-		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
-		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
+		# After the rolls, so the chunk rng runs the same whether or not the spot is used, and it
+		# counts as a car, as the vendors' and the market's spots below do: a kerb kept clear that
+		# another feature moves (a driveway apron when a market closes the street) must not shift
+		# every car after it. A bus stop's kerb is kept clear for the bus (BigVehicles), a fire
+		# station's for its engines.
 		car.free()
+		count[0] += 1
 		return
 	var holder: Node = get_parent() if get_parent() else self
 	var spot_pos: Vector3 = spot[0] + Vector3(0.0, 0.3 + _gy(spot[0].x, spot[0].z), 0.0)
 	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
-	car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
+	car.rotation.y = spot[1] + (PI if flip else 0.0)
 	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
