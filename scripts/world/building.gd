@@ -1421,6 +1421,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 			if _kit != null and ShopfrontKit.enabled:
 				ShopfrontKit.storefront_face(self, _kit, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom,
 					storefront, spans[face_index], stops, masonry, floor_h, top, accent.lightened(0.05))
+			# Where people go in and out of the shops (StreetErrands), off the same shop rolls.
+			StreetErrands.note_shop_doors(self, face_index + 1, fc, a, n, size_u, cols, pitch, cut, bottom, spans[face_index])
 		# Shop signs. The sign band is drawn by the shader on the storefront; this puts the
 		# actual name on it, lined up with the same shop runs (`shop_span`). One per face:
 		# every run would be four names on a wall the player can only read one of.
