@@ -6394,7 +6394,15 @@ same load both ways): noon 6.15 M triangles / 3,406 draws with `BROADWAY=0`, 6.4
 (+4.7 % / +0.7 %); 21:00 (different loads) 7.46 M / 4,811 -> 7.42 M / 4,582. A palace is about 15k
 triangles in one mesh of ~7 surfaces. Stills on `shots/broadway` (README there).
 
-**Not done / not verified**: no Forward+ look (the LED signs and the lit bus cabin at night
+**Night** (after the lead's review): the base carries its own light - a bronze wall lantern
+every three or four bays over the shop signs (`_sconce()`), a pool of light under each and
+under the entrance (`HistoricPools`, one shadowless MultiMesh of light_pool a building), the
+base's flood at 0.8. Spring St at 7th at 21:00 in the city: p5/p50/p95 7/44/175 (the near-black
+block_shot still was its crude night without street lamps). One Forward+ still (lavapipe,
+block_shot by day, `23_forwardplus_...`): underexposed in that scene (no city fill, the face in
+shade); the terracotta and the wall agree in tone.
+
+**Not done / not verified**: no Forward+ look in the full city (the LED signs and the lit bus cabin at night
   NEED A MAC CHECK); the bus's door openings show a black interior (no stairwell or floor); the
   front indicators are clear lenses; turns are snapped (a real turning radius for long vehicles
   would need the street traffic to drive arcs); no bus stops in the Esplanade replica's own
