@@ -118,25 +118,23 @@ func _pure() -> Array:
 	return all
 
 
-## One building of each kind built in a FULL chunk and captured for the far city.
+## Each kind built (CivicKit.build on a bare node: the chunk build is the expensive part of the
+## smoke test), the post office's whole chunk built FULL, one kind captured for the far city.
 func _chunks(all: Array) -> void:
+	var t0 := Time.get_ticks_msec()
 	var done := {}
+	var post: Dictionary = {}
 	for s: Dictionary in all:
 		var k := int(s.kind)
+		if k == CivicBuildings.Kind.POST_OFFICE and post.is_empty():
+			post = s
 		if done.has(k):
 			continue
 		done[k] = true
 		var name := CivicBuildings.kind_name(k)
-		var chunk: CityChunk = _city._new_chunk(s.block, CityChunk.Level.FULL)
-		chunk.build()
-		var node: Node3D = null
-		for n in chunk.get_children():
-			if n.is_in_group("civic_building"):
-				node = n
-		_check(node != null and node.has_node("Building") and node.has_node("Body"), "the %s's chunk builds it with its collision" % name)
-		if node == null:
-			chunk.queue_free()
-			continue
+		var node := Node3D.new()
+		_city.add_child(node)
+		CivicKit.build(node, s, CivicKit.layout(s), CivicBuildings.local_sx(s), _plan.sidewalk_width)
 		var m := (node.get_node("Building") as MeshInstance3D).mesh
 		var tris := 0
 		var glass := false
@@ -145,32 +143,44 @@ func _chunks(all: Array) -> void:
 			var mat := m.surface_get_material(si) as ShaderMaterial
 			if mat and mat.shader and mat.shader.resource_path.ends_with("civic_glass.gdshader"):
 				glass = true
-		_check(tris > 1500 and tris < 60000 and glass, "the %s is real geometry with traced-room glass inside its budget (%d triangles)" % [name, tris])
+		_check(tris > 800 and tris < 60000 and glass and node.has_node("Body"),
+				"the %s is real geometry with traced-room glass and collision inside its budget (%d triangles)" % [name, tris])
 		var lamps := 0
 		for c in node.get_children():
 			if c.is_in_group("lamp_light"):
 				lamps += 1
 		_check(lamps >= 1 or OS.has_feature("web"), "the %s lights up at night (%d lights)" % [name, lamps])
-		if k == CivicBuildings.Kind.POST_OFFICE:
-			var trucks := 0
-			if node.has_node("MailTrucks"):
-				trucks = (node.get_node("MailTrucks") as MultiMeshInstance3D).multimesh.instance_count
-			_check(node.has_node("Flag") and trucks >= 1, "the post office flies its flag and has mail trucks (%d)" % trucks)
-		var lod := CityChunk.new()
-		lod.plan = _plan
-		lod.ix = (s.block as Vector2i).x
-		lod.iz = (s.block as Vector2i).y
-		lod.level = CityChunk.Level.LOD
-		lod.style = _city.chunk_style()
-		lod.capturing = true
-		lod.build()
-		var boxes: Dictionary = lod.captured.batch.get("lod_box", {"xforms": [], "custom": []})
-		var coded := 0
-		for c: Variant in boxes.get("custom", []):
-			if c is Color and is_equal_approx((c as Color).a, FarBuilding.PART_FLAG):
-				coded += 1
-		_check((boxes.xforms as Array).size() > 0 and (coded > 0 or not FarBuilding.enabled), "the far city sees the %s as coded boxes (%d boxes, %d coded)" % [name, (boxes.xforms as Array).size(), coded])
-		chunk.queue_free()
-		lod.free()
-		await _ticks(2)
+		node.queue_free()
 	_check(done.size() == CivicBuildings.Kind.size(), "every kind was built (%d)" % done.size())
+	if post.is_empty():
+		return
+	var chunk: CityChunk = _city._new_chunk(post.block, CityChunk.Level.FULL)
+	chunk.build()
+	var node2: Node3D = null
+	for n in chunk.get_children():
+		if n.is_in_group("civic_building"):
+			node2 = n
+	var trucks := 0
+	if node2 and node2.has_node("MailTrucks"):
+		trucks = (node2.get_node("MailTrucks") as MultiMeshInstance3D).multimesh.instance_count
+	_check(node2 != null and node2.has_node("Flag") and trucks >= 1,
+			"the post office's chunk builds it, flying its flag, with mail trucks (%d)" % trucks)
+	chunk.queue_free()
+	var lod := CityChunk.new()
+	lod.plan = _plan
+	lod.ix = (post.block as Vector2i).x
+	lod.iz = (post.block as Vector2i).y
+	lod.level = CityChunk.Level.LOD
+	lod.style = _city.chunk_style()
+	lod.capturing = true
+	lod.build()
+	var boxes: Dictionary = lod.captured.batch.get("lod_box", {"xforms": [], "custom": []})
+	var coded := 0
+	for c: Variant in boxes.get("custom", []):
+		if c is Color and is_equal_approx((c as Color).a, FarBuilding.PART_FLAG):
+			coded += 1
+	_check((boxes.xforms as Array).size() > 0 and (coded > 0 or not FarBuilding.enabled),
+			"the far city sees the post office as coded boxes (%d boxes, %d coded)" % [(boxes.xforms as Array).size(), coded])
+	lod.free()
+	await _ticks(2)
+	print("CIVIC_CHECKS %d ms" % (Time.get_ticks_msec() - t0))

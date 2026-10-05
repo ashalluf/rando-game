@@ -8638,6 +8638,13 @@ kind's finish, window style, rows, pitch, wall set), the clay roofs as slabs ove
 (HouseBuild.lod()'s shape). Parked cars keep off the post office's drive and kerb truck
 (`keeps_clear()`), camps off a frontage (`keep_clear_points()`).
 
+**Frame cost** (block_shot.tscn GEO, opengl3 1280x720, `CIVIC=0` against on, same eyes): the
+Spanish library from across its street `EYE=483.7,1.7,486.3,-98,8` 1.60 M -> 1.52 M triangles,
+951 -> 893 draws; the beach-town post office `-548.4,1.7,343.1,-100,8` 2.87 M -> 2.47 M,
+2,405 -> 2,051; the library from 16 m up `470.0,16,510.3,-73,-20` 1.79 M -> 1.74 M, 1,103 ->
+1,036 (a civic building replaces several lots' buildings, yards and props). A building's own
+mesh is 1.5-9 k triangles; a mail truck 1.1 k. Smoke test peak RSS ~3.2 GB.
+
 **Switch:** `CIVIC=0` in the environment (the A/B). **Probe:** `tools/civic/probe.gd` (every
 building within `--radius` of `--at`, its kind, name, site and two EYEs for block_shot / still_shot;
 seconds, headless). **Checks:** `tests/civic_buildings_checks.gd`.
