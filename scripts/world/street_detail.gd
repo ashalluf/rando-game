@@ -165,7 +165,9 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 	# mesh to its middle, leaving the crossarm and the wires floating four metres above it.
 	_overhead_lines(chunk, rect)
 	# Painted kerbs and parking meters.
-	_kerb_paint(chunk, edges, district)
+	# (Kerbs paints a block whose kerb ring it builds; its own rolls, so skipping this moves nothing.)
+	if not chunk.has_meta("kerbs"):
+		_kerb_paint(chunk, edges, district)
 	_parking_meters(chunk, edges, district)
 	# Sidewalk furniture by district.
 	var corner_count := 0
