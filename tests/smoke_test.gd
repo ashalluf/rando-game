@@ -1740,6 +1740,8 @@ func _test_city() -> void:
 	# The light rail (tests/light_rail_checks.gd): the line's table, timetable, crossings, the
 	# traffic's lane and stop rules, a station chunk, the trains on the track, a strike.
 	await load("res://tests/light_rail_checks.gd").new().run(self, city)
+	# The freight line (tests/freight_checks.gd): the Alameda corridor, its yard and its trains.
+	await load("res://tests/freight_checks.gd").new().run(self, city)
 	# The city's birds (tests/bird_checks.gd): meshes, survey, a flock flushed and landing,
 	# alarms, shots and blasts.
 	await load("res://tests/bird_checks.gd").new().run(self, city)

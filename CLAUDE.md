@@ -923,6 +923,71 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   seconds. Checks: `tests/light_rail_checks.gd`. Known gaps: police cruisers still drive lane 0
   (over the trackway) on a rail street; the player can stand on the invisible GroundBody plane in
   the trench.
+- Freight rail (2026-10-05, "freight trains on the industrial rail"; HANDOFF 9do): the **Arroyo
+  Pacific's Harbor Subdivision** (invented railroad, mark APXR) down ALAMEDA ST (a pinned real
+  street that runs the whole map). **The line is a DATA TABLE** (`FreightRail`,
+  `scripts/world/freight_rail.gd`: `ROUTE`, the depths, grades, speeds), resolved once per plan
+  (`FreightRail.of(plan)`, guarded against CityPlan asking it while it resolves; `FREIGHT=0` turns
+  it off). North to south, s from the yard's buffer stop: the YARD (the blocks between the
+  avenue and Vignes St between ROUTE.yard's two junctions, plus Alameda's own roadway, closed there
+  through `CityPlan.road_open()` -> `FreightRail.road_open()`; `CityPlan.lots()` empty on
+  `yard_block()`s), the TRENCH (rail `TRENCH_DEPTH` under the street, grade-limited by a lower
+  envelope of `DEEP_GRADE` cones met by `RAMP_GRADE` ramps), the GRADE stretch (median, gated
+  crossings) and a ramp to the portal of a covered way (TUNNEL: nothing drawn past the mouth; the
+  trains go on underground to "the port" and turn there unseen). Every AXIS_Z road the line meets
+  is a `Junction`: YARD, BRIDGE (the junction slab is the deck: `_road_slab()` cuts the trench out
+  of every road piece except bridged junction squares, `cut_rects()`), CLOSED (the ramps: the cross
+  street is severed `SEVER_REACH` past the kerbs, so `junction_closed()` drops its crosswalks and
+  signals and TrafficManager forces turns), CROSSING (gates) or COVERED. **The corridor's land is
+  held level** (`FreightRail.terrace()`, folded into `MacroMap._relief_at()` after the river's,
+  `TERRACE_LEVEL` 10.7 m) so the open trench's floor stays over the GroundBody (y 0) with no
+  horizon-plane cut. **The timetable is worked out, never ticked**: trip n leaves the port at n x
+  `headway`, runs north on the east track (head-end locomotives leading), stands `DWELL_YARD` at the
+  buffer, then runs back with its distributed power unit leading, wrong-road on the east track as
+  far as the crossover (`s_xo`, past the longest train's rear) and over to the west track; `headway`
+  is the time a trip holds that shared stretch (at least `MIN_HEADWAY`). The at-grade stretch starts
+  past `BUFFER + MAX_LEN + XO_LEN`, so no train ever stands on a crossing. `trips_for(len)` (cached by
+  50 m class: accelerate / brake passes on a 1 m grid, the limit the least over the whole train),
+  `train_state(n, t)` / `trains_at(t)` ({n, phase, sA (end A, the north end), v, dir, len,
+  consist}), `offset_at(st, s)` (east track, the crossover's S-curve), `crossing_phase()` (RailGate's
+  contract), `consist(n)` (60-120 cars by hash: stack, manifest, autorack; 3-4 head-end units and
+  1-2 DPU), `clock_at_crossing()` / `clock_at_s()` / `clock_at_yard()` (`FREIGHT_KIND` picks a
+  consist kind). **`FreightKit`** (`scripts/world/freight_kit.gd`, extends FreewayKit for its
+  structure, paint and pool materials; `FreightKit.attach(chunk)` returns time-sliced steps, FULL and
+  LOD, never capture): the trench (floor, drains, walls to a parapet with chain-link, wall lights and
+  pools), decks under bridged junctions (girders, soffit, fascias, edge barriers, a light), the
+  median at grade (kerbs, ballast), crossing panels, gate assemblies with `RailGate` nodes moved from
+  the "rail_gate" group to "freight_gate" (LightRailSystem poses every "rail_gate"), K-rail and ROAD
+  CLOSED boards on severed streets, block signals (`FreightKit.signals()`, pure), buffer stops, the
+  portal; track as real geometry on `shaders/freight_track.gdshader` (ballast stones, concrete or
+  timber ties as one MultiMesh a chunk each, swept 115 lb rail profiles at FULL). **`FreightYard`**
+  (`scripts/world/freight_yard.gd`, `layout()` pure and cached): Industrial's ground and walls meshes
+  for the ground, fence, tower and gate; a ladder into six storage and two loading tracks; standing
+  cuts (`fr_car_<type>` batches) and stack cars with their boxes (`well_boxes()`, shared with the
+  trains); PortKit yard gantries over the loading tracks; container stacks and trailer rows; high
+  masts with pools and `lamp_light` omnis; far boxes at LOD and in the far city (`capture()`).
+  **`FreightStock`** (`scripts/vehicles/freight_stock.gd`): the locomotive and five car types built on
+  `PortKit.Buf` with a two-level LOD ladder each, on `shaders/freight_stock.gdshader`; vertex part in
+  UV2.x, **paint is a PALETTE index in INSTANCE_CUSTOM.r** (index x 16 + wear: Godot multiplies the
+  instance colour into every vertex colour, so it stays white; the shader's copy is checked), lamps
+  in .b (1 lead cab end, 0.5 rear end, -1 a car), the number in .a (digits drawn with
+  port_lettering's stroke font). **`FreightRailSystem`** (`scripts/world/freight_rail_system.gd`, the
+  `FreightRail` Node3D in city.tscn): advances `FreightRail.clock`, places every visible car on its
+  two truck points (`car_xform()`), detailed within `detail_range` (a MultiMesh per type and one of
+  containers, written as whole buffers), boxes to `far_range`; closes crossings (`FreightRail.closed`,
+  TrafficManager's stop rule beside the light rail's), poses the gates, rings `rail_bell`, sounds the
+  horn pattern (`freight_horn`, one CC0 take of a five-chime horn) from 18 s before each crossing and
+  at a player on the track, the clatter and engines at the nearest cars; strikes the player, people
+  and cars in front of a lead unit (`Police.innocent`); a pool of `freight_car_body.gd` boxes on the
+  nearest cars (props layer, "rail_vehicle" group: bullets spark, the player can ride). Stills:
+  `FREIGHT_CROSS=<k>:<dir>:<s before>`, `FREIGHT_S=`, `FREIGHT_YARD=`, `FREIGHT_HOLD=1`,
+  `FREIGHT_KIND=0|1|2` on still_shot.gd. Probe: `tools/freight/probe.gd`; compile:
+  `tools/freight/compile.gd`; the checks alone: `tools/freight/checks.gd`. Checks:
+  `tests/freight_checks.gd`. A strike lands once per collider (`_struck`), a car's velocity SET,
+  never added each tick (that was a wreck every time). The river yard's standing cars are
+  FreightStock's too (`RiverBuild._track_run()`). Known gaps: the river's own
+  rail-bridge spur (LaRiver) is not joined to this line; Alameda's left-turners may still cross
+  the median tracks at a gated crossing; the covered way's interior is not modelled.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and

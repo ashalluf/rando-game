@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="Script" path="res://scripts/world/city_streamer.gd" id="1_city"]
 [ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="2_player"]
@@ -16,6 +16,7 @@
 [ext_resource type="Script" path="res://scripts/npc/emergency.gd" id="13_emergency"]
 [ext_resource type="Script" path="res://scripts/world/ridge_system.gd" id="14_ridges"]
 [ext_resource type="Script" path="res://scripts/world/service_fleet.gd" id="14_service"]
+[ext_resource type="Script" path="res://scripts/world/freight_rail_system.gd" id="14_freight"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("6_sky")
@@ -125,6 +126,9 @@ script = ExtResource("10_air")
 
 [node name="LightRail" type="Node3D" parent="."]
 script = ExtResource("12_rail")
+
+[node name="FreightRail" type="Node3D" parent="."]
+script = ExtResource("14_freight")
 
 [node name="Ambience" type="Node" parent="."]
 script = ExtResource("11_ambience")

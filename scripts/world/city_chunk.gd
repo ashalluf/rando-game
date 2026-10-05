@@ -420,6 +420,7 @@ func begin_build() -> void:
 					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
 				_steps.append(_build_freeway)
 				_steps.append(_build_light_rail)
+				_steps.append_array(FreightKit.attach(self))
 				if level == Level.FULL and plan.macro:
 					_steps.append(_build_landmarks)
 				_steps.append(_finish_build)
@@ -433,6 +434,10 @@ func begin_build() -> void:
 				_steps.append_array(RiverBuild.attach(self, block))
 				if level == Level.FULL:
 					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
+			elif replica_role == 0 and FreightYard.claims(plan, ix, iz):
+				# The freight yard's blocks (FreightRail.yard_block()): its own ground and works.
+				_steps.append(_build_roads.bind(block))
+				_steps.append_array(FreightYard.attach(self))
 			elif replica_role == 0:
 				_steps.append(_build_roads.bind(block))
 				_steps.append_array(_block_steps(block))
@@ -453,6 +458,8 @@ func begin_build() -> void:
 	_steps.append(_build_light_rail)
 	# What stands on the hills (RidgeBuild): towers, masts, tanks, fire roads, the right of way.
 	_steps.append_array(RidgeBuild.attach(self))
+	# The freight line (FreightRail, FreightKit): track, trench, decks, crossings, the yard's tracks.
+	_steps.append_array(FreightKit.attach(self))
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
 	if level == Level.FULL:
@@ -490,6 +497,8 @@ func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 			elif replica_role == 0 and not block.has("site"):
 				if plan.river_block(ix, iz):
 					_steps.append(RiverBuild.capture.bind(self))
+				elif FreightYard.claims(plan, ix, iz):
+					_steps.append(FreightYard.capture.bind(self))
 				else:
 					_steps.append_array(_block_steps(block))
 			elif block.get("site", "") == OilField.ID:
@@ -555,6 +564,7 @@ func _finish_build() -> void:
 	StreetShadowReach.apply(self)
 	_commit_far_ground()
 	_commit_boxes()
+	FreightKit.clear_road_decals(self)
 	var fire_trees := TreeFire.collect(self, _batch)
 	_mm_nodes = _batch.build(self)
 	TreeFire.attach(self, fire_trees, _mm_nodes)
@@ -2278,7 +2288,7 @@ func _build_roads(block: Dictionary) -> void:
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
-		_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, look_x.material)
+		_road_slab(Rect2(rx - wx * 0.5, rz - wz * 0.5, wx, wz), asphalt, look_x.material)
 	if level == Level.FULL:
 		if open_x:
 			_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
@@ -2293,16 +2303,31 @@ func _road_slab(r: Rect2, asphalt: Color, material: Material) -> void:
 	var cuts: Array[Rect2] = []
 	if rail != null and not capturing and level == Level.FULL:
 		cuts = rail.cuts_in(r)
+	# The freight trench too (FreightRail.cuts_in()), at FULL and LOD: it is seen from the air.
+	var freight := FreightRail.of(plan)
+	if freight != null and not capturing:
+		cuts.append_array(freight.cuts_in(r))
 	if cuts.is_empty():
 		_add_slab(Vector3(r.get_center().x, ROAD_TOP * 0.5, r.get_center().y), Vector3(r.size.x, ROAD_TOP, r.size.y), asphalt, true, material)
 		return
-	var hole := cuts[0].intersection(r)
-	var pieces: Array[Rect2] = [
-		Rect2(r.position.x, r.position.y, hole.position.x - r.position.x, r.size.y),
-		Rect2(hole.end.x, r.position.y, r.end.x - hole.end.x, r.size.y),
-		Rect2(hole.position.x, r.position.y, hole.size.x, hole.position.y - r.position.y),
-		Rect2(hole.position.x, hole.end.y, hole.size.x, r.end.y - hole.end.y),
-	]
+	var pieces: Array[Rect2] = [r]
+	for cut in cuts:
+		var hole := cut.intersection(r)
+		if hole.size.x <= 0.0 or hole.size.y <= 0.0:
+			continue
+		var next: Array[Rect2] = []
+		for q in pieces:
+			var h := hole.intersection(q)
+			if h.size.x <= 0.0 or h.size.y <= 0.0:
+				next.append(q)
+				continue
+			next.append_array([
+				Rect2(q.position.x, q.position.y, h.position.x - q.position.x, q.size.y),
+				Rect2(h.end.x, q.position.y, q.end.x - h.end.x, q.size.y),
+				Rect2(h.position.x, q.position.y, h.size.x, h.position.y - q.position.y),
+				Rect2(h.position.x, h.end.y, h.size.x, q.end.y - h.end.y),
+			])
+		pieces = next
 	for p in pieces:
 		if p.size.x > 0.05 and p.size.y > 0.05:
 			_add_slab(Vector3(p.get_center().x, ROAD_TOP * 0.5, p.get_center().y), Vector3(p.size.x, ROAD_TOP, p.size.y), asphalt, true, material)
@@ -2367,6 +2392,9 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 	var cuts: Array[Rect2] = []
 	if rail != null:
 		cuts = rail.cuts_in(Rect2(center - width, a, width * 2.0, b - a) if along_z else Rect2(a, center - width, b - a, width * 2.0))
+	var freight := FreightRail.of(plan)
+	if freight != null:
+		cuts.append_array(freight.cuts_in(Rect2(center - width, a, width * 2.0, b - a) if along_z else Rect2(a, center - width, b - a, width * 2.0)))
 	# One or two manhole covers in a lane, seeded by the road position.
 	var mh := RandomNumberGenerator.new()
 	mh.seed = hash([center, a, along_z])
@@ -2684,14 +2712,16 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 		var t := rect.position.y + 8.0
 		while t < rect.end.y - 8.0:
 			spots.append([Vector3(x, 0.4, t), 0.0, side])
-			# Painted stall line between spots.
-			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis().scaled(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
+			# Painted stall line between spots (none on a road the freight yard closes).
+			if not FreightRail.keeps_clear(plan, Vector2(x, t)):
+				_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis().scaled(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
 			t += 8.0
 		var z := rz + side * CityPlan.parking_offset(wz)
 		t = rect.position.x + 8.0
 		while t < rect.end.x - 8.0:
 			spots.append([Vector3(t, 0.4, z), PI * 0.5, side])
-			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
+			if not FreightRail.keeps_clear(plan, Vector2(t, z)):
+				_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
 			t += 8.0
 	# Seeded from the block, not the global generator: `Array.shuffle()` put different cars in
 	# different spots every run, which broke "same seed, same city" (and made every A/B render
@@ -2721,7 +2751,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
+			or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
@@ -3499,6 +3530,11 @@ func _build_intersection(inter: Dictionary) -> void:
 func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
 	var style_id := absi(kind_seed) % 3
 	var step := 1.4 if style_id == 0 else 1.9
+	# No stripe over the freight trench (FreightRail.cuts_in()): the road is not there.
+	var holes: Array = []
+	var freight := FreightRail.of(plan)
+	if freight != null:
+		holes = freight.cuts_in(Rect2(pos - size * 0.5, size).grow(4.0))
 	var bar := Basis().scaled(Vector3(1.0 if style_id == 0 else 1.6, 1.0, 1.0))
 	for side: float in [-1.0, 1.0]:
 		var z := pos.y + side * (size.y * 0.5 + 1.8)
@@ -3509,23 +3545,34 @@ func _add_crosswalks(pos: Vector2, size: Vector2, kind_seed: int = 0) -> void:
 			# factor in z. The two branches of this function had each other's basis: these
 			# rails ran along z instead, and the ones below came out a hundred metres wide.
 			for edge: float in [-1.4, 1.4]:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(size.x / 3.0, 1.0, 0.4)), Vector3(pos.x, ROAD_TOP + 0.015, z + edge)))
+				if not _in_holes(holes, Vector2(pos.x, z + edge), size.x * 0.5):
+					_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled(Vector3(size.x / 3.0, 1.0, 0.4)), Vector3(pos.x, ROAD_TOP + 0.015, z + edge)))
 		else:
 			var x := pos.x - size.x * 0.5 + 1.2
 			while x < pos.x + size.x * 0.5 - 0.6:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5) * bar, Vector3(x, ROAD_TOP + 0.015, z)))
+				if not _in_holes(holes, Vector2(x, z)):
+					_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis(Vector3.UP, PI * 0.5) * bar, Vector3(x, ROAD_TOP + 0.015, z)))
 				x += step
 		var xx := pos.x + side * (size.x * 0.5 + 1.8)
 		if style_id == 2:
 			# On the x sides the rails run along z, which is the stripe's own length axis, so
 			# no yaw and the factors are already in the right places.
 			for edge: float in [-1.4, 1.4]:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis().scaled(Vector3(0.4, 1.0, size.y / 3.0)), Vector3(xx + edge, ROAD_TOP + 0.015, pos.y)))
+				if not _in_holes(holes, Vector2(xx + edge, pos.y)):
+					_batch.add("stripe", PropFactory.stripe(), Transform3D(Basis().scaled(Vector3(0.4, 1.0, size.y / 3.0)), Vector3(xx + edge, ROAD_TOP + 0.015, pos.y)))
 		else:
 			var zz := pos.y - size.y * 0.5 + 1.2
 			while zz < pos.y + size.y * 0.5 - 0.6:
-				_batch.add("stripe", PropFactory.stripe(), Transform3D(bar, Vector3(xx, ROAD_TOP + 0.015, zz)))
+				if not _in_holes(holes, Vector2(xx, zz)):
+					_batch.add("stripe", PropFactory.stripe(), Transform3D(bar, Vector3(xx, ROAD_TOP + 0.015, zz)))
 				zz += step
+
+
+static func _in_holes(holes: Array, p: Vector2, half_x: float = 0.0) -> bool:
+	for h: Rect2 in holes:
+		if h.grow(0.6).intersects(Rect2(p.x - half_x, p.y, half_x * 2.0 + 0.001, 0.001)):
+			return true
+	return false
 
 
 ## Heights on a signal pole (metres above the pavement): the side-mount head's bracket, the
