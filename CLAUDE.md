@@ -1991,7 +1991,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   rolls and collision as the old pieces; pay stations, bench stops and carts are hashes; carts
   are props with their own ids (`cart_<n>`, `_own_prop()`). `STREET_FURNITURE=0` is the A/B,
   `CARTS=all` every block's carts out. Look with `tools/glshot/furniture_shot.gd` (seconds;
-  `OLD=1` the before), find pieces with `tools/street_furniture_probe.gd`; checks
+  `OLD=1` the before), find pieces with `tools/street_furniture/probe.gd`; checks
   `tests/street_furniture_checks.gd`.
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.

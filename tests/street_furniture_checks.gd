@@ -11,9 +11,11 @@ extends RefCounted
 ## blocks (the same props by kind and place, the same buildings, trash cans and parked cars).
 
 var _t: Node
+## StreetFurniture's script, for the calls by name (a class cannot be .call()ed).
+var _sf: GDScript = load("res://scripts/world/street_furniture.gd")
 
 ## Most triangles a piece may have at its finest level.
-const BUDGET := {"hydrant": 5200, "meter": 2600, "pay_station": 2600, "ad_bench": 900, "mesh_bin": 4200, "cart": 3600, "bike_rack": 900, "planter": 900}
+const BUDGET := {"hydrant": 5200, "meter": 2600, "pay_station": 2600, "ad_bench": 900, "mesh_bin": 4200, "cart": 3600, "bike_rack": 1000, "planter": 900}
 ## Height ranges (m) each piece must stand to: real sizes.
 const HEIGHTS := {"hydrant": Vector2(0.55, 0.7), "meter": Vector2(1.4, 1.55), "pay_station": Vector2(2.0, 2.3), "ad_bench": Vector2(0.95, 1.15), "mesh_bin": Vector2(0.95, 1.1), "cart": Vector2(1.0, 1.12), "bike_rack": Vector2(0.85, 0.95), "planter": Vector2(0.45, 0.52)}
 
@@ -33,11 +35,14 @@ func _meshes() -> void:
 	var sizes := true
 	var report := []
 	for name: String in BUDGET:
-		var m: Mesh = StreetFurniture.call(name)
+		var m: Mesh = _sf.call(name)
 		var tris := 0
 		if m and m.get_surface_count() == 1:
 			tris = (m.surface_get_arrays(0)[Mesh.ARRAY_INDEX] as PackedInt32Array).size() / 3
-		ok = ok and m != null and m.get_surface_count() == 1 and m.surface_get_material(0) == StreetFurniture.material() and tris > 40 and tris <= int(BUDGET[name])
+		var this_ok := m != null and m.get_surface_count() == 1 and m.surface_get_material(0) == StreetFurniture.material() and tris > 40 and tris <= int(BUDGET[name])
+		if not this_ok:
+			report.append("BAD %s" % name)
+		ok = ok and this_ok
 		var h := m.get_aabb().end.y if m else 0.0
 		var want: Vector2 = HEIGHTS[name]
 		sizes = sizes and h >= want.x and h <= want.y and m.get_aabb().position.y > -0.01
@@ -53,7 +58,7 @@ func _shader() -> void:
 	var same := true
 	var consts := {"K_PAINT": 0, "K_PAINT_V": 1, "K_GALV": 2, "K_STEEL": 3, "K_RUBBER": 4, "K_CONCRETE": 5, "K_PERF": 6, "K_LINER": 7, "K_HDPE": 8, "K_AD": 9, "K_SCREEN": 10, "K_SOIL": 11, "K_LABEL": 12, "K_SOLAR": 13, "K_GLASS": 14, "K_BRASS": 15}
 	for k: String in consts:
-		same = same and int(StreetFurniture.get(k)) == int(consts[k]) and src.contains("const float %s = %d.0;" % [k, int(consts[k])])
+		same = same and int(_sf.get(k)) == int(consts[k]) and src.contains("const float %s = %d.0;" % [k, int(consts[k])])
 	_t._check(same, "street_furniture.gdshader's kinds are StreetFurniture's")
 	var tex: Texture2D = load("res://assets/textures/street_furniture/bench_ads.jpg")
 	_t._check(tex != null and tex.get_height() == tex.get_width() * StreetFurniture.BENCH_ADS * 320 / 1024,

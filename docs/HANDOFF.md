@@ -8631,6 +8631,7 @@ Round the kind in the fragment (`floor(v_kind + 0.5)`).
 
 **Look and measure.** `tools/glshot/furniture_shot.gd` lines every piece up on a pavement in
 seconds (`OLD=1` the old meshes in the same places, `NIGHT=1`, `WEAR`, `WET`, `AD`, `DEBUG=1
-CULL=0` paints front faces by normal and back faces red). `tools/street_furniture_probe.gd` lists
+CULL=0` paints front faces by normal and back faces red). `tools/street_furniture/probe.gd` lists
 the pieces of the FULL chunks round a point with an EYE for each. Checks:
-`tests/street_furniture_checks.gd`.
+`tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.tscn` runs them alone in a
+minute).

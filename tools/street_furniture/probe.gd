@@ -1,6 +1,6 @@
 extends SceneTree
 ## Lists the street furniture (StreetFurniture) of the FULL chunks round a point, for framing stills:
-##   godot --headless --path . --script tools/street_furniture_probe.gd -- --spawn=x,z,0,0
+##   godot --headless --path . --script tools/street_furniture/probe.gd -- --spawn=x,z,0,0
 ## R=blocks (default 2), KIND=meter|pay_station|bench_stop|hydrant|cart|rack|planter to filter,
 ## CARTS=all to put every block's carts out. Each line: the piece, its true-world point and an EYE
 ## for still_shot.gd 5 m along the pavement and 1.5 m in, looking at it. Classes are loaded at run

@@ -614,7 +614,7 @@ static func bike_rack() -> Mesh:
 		path.append(Vector3(w - pr - pr * cos(a), 0.9 - 0.024 - pr + pr * sin(a), 0.0))
 	path.append(Vector3(w, 0.36, 0.0))
 	path.append(Vector3(w, 0.008, 0.0))
-	g.tube(path, 0.024, 12, steel, K_GALV)
+	g.tube(path, 0.024, 10, steel, K_GALV)
 	# End caps welded on, the flanges and their anchor bolts.
 	for sx in [-w, w]:
 		g.lathe(Vector3(sx, 0.0, 0.0), Basis(), [Vector2(0.0, 0.0), Vector2(0.07, 0.0), Vector2(0.07, 0.008), Vector2(0.03, 0.012), Vector2(0.0, 0.012)], 16, steel, K_GALV, false)
