@@ -8601,7 +8601,7 @@ stand-in jumped:
 
 | landmark | IoU before -> after | far / near brightness, noon | 21:00 |
 |---|---|---|---|
-| venice_boardwalk | 0.58 -> 0.91 | 1.62 -> 0.99 | 0.44 -> 1.00 |
+| venice_boardwalk | 0.58 -> 0.90 | 1.62 -> 0.99 | 0.44 -> 1.00 |
 | verde_cafe | 0.76 -> 0.87 | 3.41 -> 0.96 | 0.98 -> 1.10 |
 | lattice_museum | 0.72 -> 0.97 | 0.41 -> 0.90 | 0.50 -> 0.99 |
 | masjid_omar | 0.77 -> 0.90 | 1.43 -> 1.22 | 1.52 -> 1.35 |
