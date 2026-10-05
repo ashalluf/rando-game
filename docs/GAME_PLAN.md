@@ -868,6 +868,7 @@ already mapped so milestone 2 is script-only.
   miss is only a slower launch; the loading screen batches its shader warm-up (16 a batch, not two
   frames each). Not cached: anything that reads the hour, the weather or WorldState, and the FULL
   chunks (nodes, not data). LOAD_CACHE=0 is the A/B. HANDOFF "Load time".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
