@@ -7107,3 +7107,18 @@ four engines; the jets carry no lights at night. The flying player can climb int
 drawn correctly from inside and above) but nothing fogs the near view there. The moon's lunar
 north is not tilted with latitude. The weather session (weather.gd) drives cloud_coverage /
 cloud_extra as before; a marine-layer stratus look would sit on top of `strat` in `cumulus()`.
+
+**Follow-up from review (2026-10-05, "the cumulus read stylised"):** the shape is now the noise,
+not a dome with bites. `cumulus()` remaps two octaves of the Perlin-Worley by the dome (Schneider):
+a column's core keeps every billow (so the density, and the shading, vary inside a body) and its
+margin and crown keep only the billows' peaks (turrets, cauliflower, a heap rather than a ball).
+The margin is then remapped again by two octaves of Worley fbm scaled to about three pixels at
+that distance (`fp`, the march's metres a pixel), so edges tear into wisps near and far; a second,
+four-times-bigger read of the weather map moves the coverage by region and the heights are mostly
+small (G squared) with towers where the field is rich, so sizes range from fragments to heaps. The
+soft scattering octaves are weaker and a dense core takes a third of the ambient, which greys the
+bodies and leaves the sunlit rims bright (grey-violet bodies at golden hour). Cost unchanged within
+the bench's noise (lavapipe sky-only 1280x720: before 833 ms, after 791-809 ms over two runs).
+Stills on shots/sky: `12`-`19`, midday and golden hour from the street and from 1,250 m, before and
+after. Note: the sky is the background, so a camera ABOVE the deck (over 3.15 km) never sees it
+below the horizon; the ground draws over it.

@@ -245,51 +245,71 @@ float rise_t(float up, float dh) {
 
 // The cumulus field at a point (km, world xz, altitude y). `detail` adds the fine erosion; the
 // light march leaves it out. Returns density 0..1.
-float cumulus(vec3 p, float lod, float detail, float coverage) {
+float cumulus(vec3 p, float lod, float detail, float coverage, float fp) {
 	float hn = (p.y - cloud_base) / cloud_depth;
 	if (hn <= 0.0 || hn >= 1.0) {
 		return 0.0;
 	}
 	vec2 wuv = p.xz / weather_tile;
 	vec3 w = textureLod(cloud_weather, wuv, lod).rgb;
+	// Fields: the same map four times bigger moves the coverage up and down by region, so one
+	// stretch of sky has a few big heaps, the next a scatter of fragments, the next nothing -
+	// one scale of cloud everywhere was the cotton-ball look.
+	float field = textureLod(cloud_weather, wuv * 0.27 + vec2(0.37, 0.71), lod).b;
+	float cov = coverage + (field - 0.5) * 0.42 * (1.0 - smoothstep(0.7, 0.9, coverage));
 	// Where a cloud stands: coverage takes the threshold down. Overcast (above ~0.8) fills the
 	// map, and the columns go flat-topped and full height: a stratus ceiling.
-	float thr = 1.0 - coverage;
-	float col = smoothstep(thr, thr + 0.40, w.r);
+	float thr = 1.0 - cov;
+	float col = smoothstep(thr, thr + 0.28, w.r);
 	if (col <= 0.0) {
 		return 0.0;
 	}
 	float strat = smoothstep(0.72, 0.95, coverage);
-	// How tall this one grows: the weather map's G, and the core of a field stands taller.
-	float top = mix(mix(0.35, 1.0, w.g) * (0.5 + 0.5 * col), 1.0, strat);
+	// How tall this one grows: mostly small (G squared), a few towers where the field is rich.
+	float g = w.g * w.g;
+	float top = mix(mix(0.18, 1.0, g) * (0.45 + 0.55 * col) * mix(0.7, 1.25, field), 1.0, strat);
 	float rel = hn / max(top, 0.05);
 	if (rel >= 1.0) {
 		return 0.0;
 	}
 	// A dome over a flat base: higher up only the column's core survives, and the base is cut
-	// sharp, which is the condensation level every cumulus in a field shares.
-	// A dome: the column's cover falls off from its middle roughly as a paraboloid, so cutting
-	// it at rel^2 gives a rounded crown (cutting at rel drew every cloud as a tent).
+	// sharp, the condensation level every cumulus in a field shares (cutting at rel, not rel^2,
+	// drew every cloud as a tent).
 	float rr = rel * rel;
 	float d = clamp((sqrt(col) - rr) / max(1.0 - rr, 0.05), 0.0, 1.0);
-	d *= smoothstep(0.0, 0.035, hn);
-	// Billows: the Perlin-Worley takes bites out of it, more the higher up (the cauliflower top),
-	// hardly any at the base (which stays flat).
+	d *= smoothstep(0.0, 0.03, hn);
+	// Billows: two octaves of the Perlin-Worley take bites out of it, more the higher up (the
+	// cauliflower top), hardly any at the base (which stays flat). Far out they are under a
+	// pixel (the volume has no mips), so they hand over to the same noise five times coarser.
 	vec3 q = vec3(p.x, p.y * 1.6, p.z) / billow_tile;
-	float b = textureLod(cloud_shape, q, 0.0).r;
-	// Far out the billows are under a pixel (the volume has no mips): they fade to their mean,
-	// or every far cloud grows a comb of aliased spikes.
-	// What is left out there is the big lumps: the same noise five times coarser.
+	float b = textureLod(cloud_shape, q, 0.0).r * 0.65
+		+ textureLod(cloud_shape, q * 2.3 + vec3(0.13, 0.41, 0.27), 0.0).r * 0.35;
 	float b_far = textureLod(cloud_shape, q * 0.22 + vec3(0.5, 0.0, 0.3), 0.0).r;
 	b = mix(mix(0.5, b_far, 0.8), b, clamp(detail * 1.5, 0.0, 1.0));
-	float bite = (1.0 - b) * mix(0.28, 0.9, smoothstep(0.0, 0.6, rel)) * mix(1.0, 0.45, strat);
-	d = clamp((d - bite) / max(1.0 - bite, 0.1), 0.0, 1.0);
-	if (detail > 0.67 && d > 0.0 && d < 0.45) {
-		float e = textureLod(cloud_shape, q * 2.1 + vec3(0.31, 0.17, 0.53), 0.0).g;
-		// Wispy at the base (inverted), billowed above. Only as strong as the march near the
-		// camera resolves: finer than its steps, it turns every edge into a comb.
-		e = mix(1.0 - e, e, smoothstep(0.05, 0.3, hn));
-		d = clamp(d - (1.0 - e) * 0.22 * (detail - 0.67) * 3.0 * (1.0 - d / 0.45), 0.0, 1.0);
+	// The noise IS the cloud and the dome only says how much of it survives (Schneider's
+	// remap): in a column's core every billow stays (and the density inside varies with them,
+	// which is what shades a body unevenly); toward its margin and its crown only the billows'
+	// peaks get through, so the silhouette is a heap of turrets, not a smooth dome.
+	float dome = d;
+	float nb = mix(b, 1.0, 0.18 * (1.0 - smoothstep(0.0, 0.25, rel)));
+	d = clamp((nb - (1.0 - dome)) / max(dome, 0.05), 0.0, 1.0);
+	d = clamp(d * 1.7, 0.0, 1.0);
+	d = mix(d, dome, strat * 0.6);
+	// Ragged edges: Worley fbm eats the thin margin of every cloud, at the finest scale the pixel
+	// can still hold here (fp, km a pixel), so an edge frays into wisps near and far alike rather
+	// than ending in a clean outline. Inverted at the base (wisps hang under it), billowed above.
+	if (d > 0.0 && d < 0.85 && fp > 0.0) {
+		// The G channel's finest cells are an eighth of the tile: scale them to about three
+		// pixels here, then a second octave at 2.3x for the fringe.
+		float m = clamp(billow_tile / (fp * 8.0 * 3.0), 1.0, 14.0);
+		vec3 qe = q * m + vec3(0.31, 0.17, 0.53);
+		float e = textureLod(cloud_shape, qe, 0.0).g * 0.62
+			+ textureLod(cloud_shape, qe * 2.3 + vec3(0.7), 0.0).g * 0.38;
+		e = mix(1.0 - e, e, smoothstep(0.04, 0.25, hn));
+		// Remapped, not subtracted (Schneider): the noise's low values cut right through the
+		// margin, which leaves holes, tatters and wisps instead of a shrunken smooth outline.
+		float k = (1.0 - e) * 0.9 * (1.0 - d / 0.85) * mix(1.0, 0.5, strat);
+		d = clamp((d - k) / max(1.0 - k, 0.1), 0.0, 1.0);
 	}
 	return d;
 }
@@ -354,7 +374,7 @@ vec4 cumulus_march(vec3 dir, vec3 ldir, vec3 lcol, vec3 amb_top, vec3 amb_bot, v
 		float lod = log2(max(t * pix / weather_tile * 256.0, 1.0)) + 0.5;
 		// How much of the fine structure a pixel resolves at this distance (1 near, 0 far).
 		float detail = 1.0 - smoothstep(0.025, 0.1, t * pix);
-		float d = cumulus(p, lod, detail, coverage);
+		float d = cumulus(p, lod, detail, coverage, t * pix);
 		if (d > 0.002 && fine == 0) {
 			// Just came into a cloud on a coarse step: back up and come in again finely, or the
 			// edge lands wherever this pixel's dither put the step (a comb along every top).
@@ -371,17 +391,18 @@ vec4 cumulus_march(vec3 dir, vec3 ldir, vec3 lcol, vec3 amb_top, vec3 amb_bot, v
 			float lt = 0.05;
 			for (int j = 0; j < 4; j++) {
 				vec3 lp = p + ldir * lt;
-				od += cumulus(lp, lod, 0.67, coverage) * lt * 0.9;
+				od += cumulus(lp, lod, 0.67, coverage, 0.0) * lt * 0.9;
 				lt *= 2.2;
 			}
 			od *= cloud_extinction;
 			// Multiple scattering in three octaves (Wrenninge): each softer and less directional.
-			float ls = exp(-od) * ph + exp(-od * 0.3) * 0.42 * ph2 + exp(-od * 0.09) * 0.14;
+			float ls = exp(-od) * ph + exp(-od * 0.25) * 0.30 * ph2 + exp(-od * 0.08) * 0.07;
 			// Powder: a cloud's sun side is darker in the first metres it is lit through.
 			float powder = 1.0 - exp(-d * cloud_extinction * 0.18);
 			ls *= mix(0.55, 1.0, powder);
 			vec3 amb = mix(amb_bot, amb_top, smoothstep(0.0, 0.9, hn)) * cloud_ambient;
-			vec3 S = lcol * ls + amb * (1.0 - 0.45 * d);
+			// The ambient reaches a dense core far less than a wisp: the bodies go grey.
+			vec3 S = lcol * ls + amb * mix(1.0, 0.35, d);
 			float tr = exp(-d * cloud_extinction * dt);
 			vec3 add = T * S * (1.0 - tr);
 			L += add;

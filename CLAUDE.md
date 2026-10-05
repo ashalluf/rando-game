@@ -283,7 +283,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`render_mode use_half_res_pass`, guarded by `CURRENT_RENDERER`; the full pass composites
   `HALF_RES_COLOR`, rgb premultiplied, a = transmittance), dithered per frame (TAA resolves it).
   Shape: a weather map (`assets/textures/sky/cloud_weather.png`, R where, G how tall) gives each
-  column, a dome over a flat base, eaten by a 64^3 Perlin-Worley (`cloud_shape3d.png`; both by
+  column, a dome over a flat base that REMAPS a 64^3 Perlin-Worley (the noise is the cloud; the dome says how much survives, so margins and crowns are turrets), its margin torn by Worley fbm scaled to ~3 pixels at that distance, coverage moved by region (a 4x read of the map) (`cloud_shape3d.png`; both by
   `tools/sky/make_cloud_noise.py`, imported as Images and turned into textures by
   `SkyExtras.textures()`); light: four taps toward the sun (or the moon), three octaves of multiple
   scattering, a dual-lobe phase, powder, ambient from the sky above and the ground / city below;
