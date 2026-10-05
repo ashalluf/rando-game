@@ -1,8 +1,8 @@
 shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_back, shadows_disabled;
 // The water a window-washing cradle leaves on the glass (TowerGondolas / GondolaRig): one quad
-// on the facade, a few centimetres off it, moved with the cradle. UV is metres: x along the face
-// from the cradle's centre, y up from the cradle's floor (negative below it).
+// on the facade, a few centimetres off it, moved with the cradle, read in its own metres (local_m:
+// x along the face from the cradle's centre, y up from the cradle's floor, negative below it).
 //   above the cradle: the washed glass still wet - a thin film, glossier and a little darker than
 //     the dry pane, drying unevenly upward, with runs where the squeegee's ends left water;
 //   at the cradle: the soap on the pane they are working (`soap`, 0..1 by the stop's progress);
@@ -18,6 +18,13 @@ uniform float soap = 0.0;
 // Half the width washed (metres).
 uniform float half_width = 2.4;
 uniform float seed = 0.0;
+
+// Metres in the quad's plane: x along the face from the cradle's centre, y up from its floor.
+varying vec2 local_m;
+
+void vertex() {
+	local_m = VERTEX.xy;
+}
 
 float hash11(float x) {
 	return fract(sin(x * 127.1 + seed * 31.7) * 43758.5453);
@@ -35,8 +42,8 @@ float vnoise(vec2 p) {
 }
 
 void fragment() {
-	float x = UV.x;
-	float y = UV.y;
+	float x = local_m.x;
+	float y = local_m.y;
 	float edge = 1.0 - smoothstep(half_width - 0.35, half_width, abs(x));
 	// Runs: thin vertical lines in 3 cm columns, each its own strength, wavering a little.
 	float colw = 0.035;
@@ -55,10 +62,14 @@ void fragment() {
 		// The squeegee's ends leave a water line at the stroke edges, the band's own edges.
 		float band_edge = smoothstep(0.25, 0.0, half_width - abs(x)) * (1.0 - dry);
 		alpha = film * 0.16 + runs * 0.14 + band_edge * 0.16;
-		// Soap on the pane at the cradle's working height, wiped off as the stop goes on.
-		float suds = vnoise(vec2(x * 9.0, y * 9.0)) * 0.6 + vnoise(vec2(x * 23.0, y * 23.0)) * 0.4;
-		float band = smoothstep(0.45, 0.7, y) * (1.0 - smoothstep(2.0, 2.5, y));
-		foam = band * soap * smoothstep(0.35, 0.65, suds);
+		// Soap on the pane at the cradle's working height: a thin wash of fine suds over the part
+		// not yet squeegeed (the clean part grows across the band as the stop goes on, its edge
+		// the S of the last stroke).
+		float suds = vnoise(vec2(x * 22.0, y * 22.0)) * 0.6 + vnoise(vec2(x * 55.0, y * 55.0)) * 0.4;
+		float band = smoothstep(0.45, 0.7, y) * (1.0 - smoothstep(2.0, 2.4, y));
+		float done = (1.0 - soap) * 2.0 * half_width - half_width + 0.12 * sin(y * 5.0);
+		float left = smoothstep(done - 0.04, done + 0.04, x);
+		foam = band * step(0.001, soap) * left * (0.55 + 0.45 * smoothstep(0.25, 0.75, suds));
 	} else {
 		// Drips from the rollers and the strokes: a few columns, a drop running down each.
 		float dc = floor(x / 0.09);
@@ -81,5 +92,5 @@ void fragment() {
 	ROUGHNESS = mix(0.03, 0.75, clamp(foam * 1.4, 0.0, 1.0));
 	METALLIC = 0.0;
 	SPECULAR = 0.9;
-	ALPHA = clamp(max(alpha, foam * 0.85), 0.0, 0.9);
+	ALPHA = clamp(max(alpha, foam * 0.42), 0.0, 0.9);
 }

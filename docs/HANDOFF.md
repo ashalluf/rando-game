@@ -8734,3 +8734,82 @@ washers' cradles carry no workers. Pads on the downtown towers whose plan is a s
 small lot often do not fit (the deck shrinks to 11 m and then gives up). The near pieces draw only
 in FULL chunks (240 m); past that the far boxes carry them, so a helicopter is not seen from the
 LOD ring. No sound (a helicopter on a pad is silent and never takes off).
+
+## 9d?. Window-washing gondolas on the downtown towers, 2026-10-05 (agent branch `wt/tower-gondolas`)
+
+**What.** Suspended window-washing cradles on the downtown glass towers: a 4.6 m cradle (grating
+floor, toe boards, top and mid rails, mesh panels with the invented contractor BASIN HEIGHTS
+WINDOW CO., an end stirrup at each end with its traction hoist, rollers against the glass, a
+bucket, a hose coil, a spare squeegee) hanging on four wire ropes from a pair of roof davits or a
+building maintenance unit's jib, two workers in workwear and hard hats on orange lanyards to the
+roof, one squeegeeing the pane in S strokes while the other holds the rail. It works its way down
+the face a floor at a time (`STEP` 3.6 m at `DOWN_SPEED` 0.22 m/s, `WASH_SECONDS` 34 at each
+stop), the washed glass wet above it, drips below, soap on the pane being worked; at the foot it is
+winched back up (`UP_SPEED`) and the crew moves the davits to the next lane. A 216 m drop is about
+an hour. On the roofs: davit sockets with stowed arms along a hung face and, on some towers, a
+parked BMU on another face (Rooftops' own `_bmu()` geometry, cradle parked).
+
+**Builds on wt/rooftops** (lead's note): Rooftops' window-washing machine on a glass infill tower
+with `hang` no longer draws its static cradle; its jib heads carry the live one
+(`TowerGondolas.building_bmu()`, one hook line in `Rooftops.build()` and one branch in `_bmu()`).
+The drop runs down past every part the cradle's column does not meet to the first roof it would
+land on (min 4 m). `GONDOLAS=0` puts the static cradle back.
+
+**Where (pure).** `TowerGondolas.faces(tiers, hulls)` over a LandmarkDowntown tower: every flat
+prism tier (`TowerMesh.tiers`, recorded by one line in `prism()` and handed out by
+`LandmarkDowntown.tower()`) with a parapet, each straight edge at least `MIN_FACE` 7 m with roof at
+least 3 m deep behind it, nothing (any collision hull, the landmark's helipad) on the davit spots,
+the drop carried down through flush tiers below and stopped over anything standing out of the face
+(the column `GAP + 0.3` out, both cradle ends, against every hull), at least `MIN_DROP` 24 m.
+`landmark_sites(id, seed)` picks by hash (`TOWER_SHARE`, up to `MAX_PER_TOWER` faces facing
+different ways, a parked BMU on `PARKED_BMU_SHARE` where the face is axis-aligned and the roof 7 m
+deep) and lays lanes `LANE_PITCH` apart along the face. Default seed: 7 cradles on 5 towers (black
+twins x2, bronze slab x2 - one on a chamfer -, granite slab, park b, park c); the round, sloped and
+crowned towers carry none.
+
+**Live only near the camera.** One `GondolaRig` node per site (identity under the tower's landmark
+node or the Building, so origin shifts and chunk unloads carry it), polling the camera a few times
+a second: the cradle, ropes, davits and water within `BUILD_RANGE` 420 m (at most `MAX_LIVE` 6),
+the crew within `WORKER_RANGE` 160 m (at most `max_workers()` 4 rigs, 2 on the web); freed again
+60 / 30 m past. Nothing in the LOD ring or the far city (the landmark towers are FULL-only here;
+Rooftops' far boxes still draw a static cradle box for the infill at its old depth - a jump at the
+FULL/LOD line, a few pixels).
+
+**The swing.** The cradle is an AnimatableBody3D on the props layer (mask 0, `sync_to_physics`
+off so a re-centre is not a velocity, group "rail_vehicle": metal sparks and pings). `take_hit()`
+(rifle 10, pellets, a rocket's blast up to 120) kicks a pendulum out from the glass and along it
+(period from the rope length: ~28 s on 200 m of rope), a quicker twist (1.5 rad/s) and a roll
+between the hoists (2.3 rad/s), all lightly damped; the rollers stop it at the glass (it bounces
+off, never through) and the twist is limited by how far out it hangs. While it is shaken the crew
+crouch 22 cm with both hands on the front rail (two-bone IK on both arms and legs, feet held on the
+floor) and one of them yells (Sfx `scream`, a 4 s cooldown). They never fall: the world is
+realistic, the player is the chaos. Shooting a worker hits the cradle's body (their own boxes on
+it), so it swings too.
+
+**Workers.** Crowd rigs with trousers (`WORKER_MODELS`; crowd_s keeps its own hi-vis vest) in
+workwear through the character shader's garment split (`uniform_material()`: grey-blue or hi-vis
+orange shirt, dark work trousers), the idle held near its start (the clip swings the shoulders 60
+degrees), a hard hat modelled round each rig's own head from CrowdHatTable through FireHelmet's
+shell (`hat_mesh()`: a ridge, a short front peak, a narrow rim; white, yellow, orange), hair
+hidden under it. Facing the glass: the rigs face +Z, so the worker's root turns PI and its left
+is +X in the root's frame (the elbow and knee poles depend on it).
+
+**Water.** One quad on the facade (`shaders/gondola_streaks.gdshader`, blend mix, no shadow):
+the wet film above (darker and glossier, drying unevenly upward, runs where the squeegee's ends
+left water), soap on the pane being worked (`soap` from the stop's progress), drips running down
+below (`drip_len`), faded out by 120 m. Linear on both renderers (color_space include).
+
+**Tools.** `tools/gondolas/gondola_shot.gd` (one landmark tower alone with its rigs forced live, a
+sun and a sky, under a minute: `TOWER`, `SITE`, `VIEW=near|side|below|roof|far|close` or
+`CAM=out,up,along`, `T` the clock, `HIT=n|blast`, `SHOT_AFTER`, `NIGHT=1`; `LIST=1 T=` prints every
+tower's sites with a city EYE for each). `tools/gondolas/checks_only.gd` runs the checks alone
+(seconds). `GONDOLA_T=` sets the clock for stills. Trap found on the way: a RefCounted helper that
+`await`s must be held by something, or it is freed mid-await and never resumes (the shot tool hung
+silently).
+
+**Checks** (`tests/tower_gondolas_checks.gd`, 13): sites pure and on real faces (on a tier's
+edge, roof behind, every lane's column clear of every hull); 3+ towers / 4+ cradles on the default
+seed; the descent stays on the face, only ever goes down within a drop, uses all three states; a
+forced rig builds on the props layer as metal, with two workers; a blast swings it out without
+ever passing the glass and the crew braces; the swing settles; the ropes hang; a far rig frees
+everything; `GONDOLAS=0` builds nothing; a glass infill tower's hanging BMU carries a live cradle.
