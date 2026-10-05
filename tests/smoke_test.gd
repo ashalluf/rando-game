@@ -1829,6 +1829,9 @@ func _test_city() -> void:
 	# The map (tests/minimap_checks.gd): the basin's map data, GPS routes on open streets, the
 	# full-screen map, the waypoint, its beacon and its route.
 	await load("res://tests/minimap_checks.gd").new().run(self, city)
+	# Los Angeles weather (tests/weather_la_checks.gd): the marine layer's clock and deck, the Santa
+	# Ana's wind and brush fire, the heat haze, rain off car roofs, the roll and the pause menu.
+	load("res://tests/weather_la_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -8,7 +8,9 @@ extends CanvasLayer
 
 ## Time-of-day presets: label and hour.
 const TIMES := [["Sunrise", 6.6], ["Morning", 9.0], ["Noon", 12.0], ["Golden hour", 17.7], ["Night", 21.5]]
-const WEATHERS := ["Auto", "Clear", "Cloudy", "Rain", "Storm"]
+## Weather chips: Auto, then Weather.State in order (index - 1 is the state). Two rows.
+const WEATHERS := ["Auto", "Clear", "Cloudy", "Rain", "Storm", "Marine layer", "Santa Ana"]
+const WEATHER_ROW := 4
 const GRAPHICS := ["Auto", "High", "Medium", "Low"]
 ## The controls card: key, what it does.
 const CONTROLS := [
@@ -247,6 +249,9 @@ func _build() -> void:
 	var weathers := _row()
 	var wgroup := ButtonGroup.new()
 	for i in WEATHERS.size():
+		if i == WEATHER_ROW:
+			column.add_child(weathers)
+			weathers = _row()
 		var b := _chip(WEATHERS[i], true)
 		b.button_group = wgroup
 		var idx := i
