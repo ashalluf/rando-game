@@ -303,6 +303,40 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `light_volumetric_fog_energy` down in bad weather - rain thickens the volumetric fog seventy
   times, and lit by the moonlight fill it hung over the street as a pale grey veil. At 88 %
   cloud the sky IS the clouds, so the night cloud colour is what decides it.
+- Los Angeles weather (2026-10-05, "beyond clear / overcast / rain / storm"): `Weather.State`
+  gains MARINE ("June gloom") and SANTA_ANA (appended: every per-state table has six rows, the
+  pause menu's chips are Auto + one per state in order, `--weather=marine|santa_ana`, aliases in
+  `Weather.STATE_ALIASES`). The auto roll takes `odds_at(hour)`: the marine layer
+  `marine_morning_gain` x overnight and in the morning, `marine_day_gain` x in the afternoon;
+  both states last `*_length_gain` x longer. **Where the deck is is ONE number**,
+  `LaWeather.edge_x()` (`scripts/world/la_weather.gd`, pure): the stratus covers everything WEST
+  of it (`edge_offset(hour)` from the coast plus `edge_wobble(z)`, which
+  `shaders/marine_layer.gdshader` mirrors - checked): overnight far inland, burning off inland
+  first (downtown ~10:30, the beach ~12:00), an offshore bank all afternoon, rolling back in from
+  16:30 (a wall ~600 m off the beach at 18:30, `bank_amount()`), over the city by 22:00.
+  `MarineLayer` (Weather's child) draws the deck's underside (`DECK_BASE` 255 m) and top
+  (`DECK_TOP` 520 m) as two camera-following planes and the evening bank as a ribbon stood on the
+  edge in the vertex shader; three transparent draws, shadowless. Under the deck at the camera
+  (`marine_here` = weight x cover x `under_deck(cam y)`) Weather adds cool haze and switches
+  Godot's height fog to a NEGATIVE density from `FOG_START` (thicker going up: tower tops and
+  hill crests fade into the deck), and DayNight's `marine` hook greys the sky, cuts the sun
+  (`marine_sun_cut`), softens its shadows (`shadow_opacity`) and lifts the sky fill; above the
+  deck it is a sunny day over a white sea. SANTA_ANA: `fog_by_state` ~0 (long views), DayNight's
+  `santa_ana` hook (deep zenith, dusty horizon and fog, warm sun, no smog, fewer clouds),
+  `wind_factor` + `santa_ana_wind` and the new `wind_lean` global (vec2, world XZ toward the
+  south-west, `LaWeather.SANTA_ANA_DIR`) that `foliage.gdshader` / `foliage_tex.gdshader` add as a
+  steady lean in model space; `SantaAnaFx` drives a litter-and-leaves pool and low dust round the
+  player and a brush fire at `LaWeather.fire_site()` (a hash-picked crest of the front range):
+  a CPUParticles3D smoke column in LOCAL coords (it rides the origin shift) on
+  `shaders/brush_smoke.gdshader` (lit as balls by script colours, the fire's glow on its
+  underside after dark), an upright additive glow and flame line (`shaders/fire_glow.gdshader`)
+  and, on Forward+ desktop, an OmniLight on the slope. Purely visual. `HeatHaze`
+  (`shaders/heat_haze.gdshader`): one full-screen quad reading the screen at render_priority MIN
+  (the explosion shimmer's rule), displacing grazing rays past `near` m on hot afternoons
+  (`Weather.heat`: clear, Santa Ana, a burnt-off marine day); built only on Forward+ desktop and
+  shown only at HIGH / MEDIUM. `RoofRain`: one MultiMesh of crown splashes animated in GDScript on
+  the roofs (`Vehicle._model_top_y` over the cabin) of the nearest cars while it rains. Checks:
+  `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md (LA weather section).
 - Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
   `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
   by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L

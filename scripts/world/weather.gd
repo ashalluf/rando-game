@@ -6,18 +6,35 @@ extends Node
 ## that flashes the world as well as the sky (with thunder that arrives late by the distance of
 ## the strike), streets that soak through and dry out again, grass wind, and the ocean's waves,
 ## wind and weather darkening through shader globals and the ocean material.
-## Debug: ?weather=storm on the web, -- --weather=storm on desktop (clear, overcast, rain, storm).
+## Two Los Angeles states besides (LaWeather has their numbers): the MARINE layer ("June gloom": a
+## low stratus deck that hides the tower tops and the hills, burns off inland-first by early
+## afternoon and rolls back in off the sea as a fog bank at evening - MarineLayer) and the SANTA
+## ANA (hot dry offshore wind: deep clear air, warm dusty light, trees laid over, leaves and dust
+## blowing, a brush fire on a ridge - SantaAnaFx). Hot afternoons shimmer (HeatHaze), and rain
+## splashes off the roofs of the cars round the player (RoofRain).
+## Debug: ?weather=storm on the web, -- --weather=storm on desktop (clear, overcast, rain, storm,
+## marine, santa_ana).
 
-enum State { CLEAR, OVERCAST, RAIN, STORM }
-const STATE_NAMES := ["Clear", "Overcast", "Rain", "Storm"]
+enum State { CLEAR, OVERCAST, RAIN, STORM, MARINE, SANTA_ANA }
+const STATE_NAMES := ["Clear", "Overcast", "Rain", "Storm", "Marine layer", "Santa Ana"]
+## The names --weather= / ?weather= take, by state (and the aliases after them).
+const STATE_KEYS := ["clear", "overcast", "rain", "storm", "marine", "santa_ana"]
+const STATE_ALIASES := {"cloudy": 1, "gloom": 4, "marine_layer": 4, "fog": 4, "santaana": 5, "santa-ana": 5, "santa": 5, "wind": 5}
 ## Metres per second sound travels: the gap between a strike and its thunder is this and nothing
 ## else, so a far strike rumbles many seconds after its flash.
 const SOUND_SPEED := 343.0
 
 ## Seconds a weather state lasts before rolling again (real seconds).
 @export var state_length: Vector2 = Vector2(70.0, 160.0)
-## Odds of each state on a roll: clear, overcast, rain, storm.
-@export var odds: PackedFloat32Array = PackedFloat32Array([0.42, 0.22, 0.18, 0.18])
+## Odds of each state on a roll: clear, overcast, rain, storm, marine layer, Santa Ana. The marine
+## layer's are scaled by the hour (`marine_morning_gain` overnight and in the morning, when June
+## gloom is what an LA day starts in; `marine_day_gain` through the afternoon).
+@export var odds: PackedFloat32Array = PackedFloat32Array([0.36, 0.17, 0.13, 0.12, 0.17, 0.05])
+@export var marine_morning_gain: float = 2.2
+@export var marine_day_gain: float = 0.35
+## The marine layer and the Santa Ana are spells, not showers: how many times longer they last.
+@export var marine_length_gain: float = 4.0
+@export var santa_ana_length_gain: float = 3.0
 ## Seconds to blend between states.
 @export var blend_seconds: float = 12.0
 @export_group("Rain")
@@ -61,7 +78,7 @@ const SOUND_SPEED := 343.0
 @export var tsunami_seconds: float = 40.0
 @export_group("Waves")
 ## Wave scale per state (multiplies the ocean shader's base height).
-@export var wave_scale_by_state: PackedFloat32Array = PackedFloat32Array([1.0, 1.8, 3.2, 6.0])
+@export var wave_scale_by_state: PackedFloat32Array = PackedFloat32Array([1.0, 1.8, 3.2, 6.0, 0.9, 1.0])
 ## The breaking surf follows the same wave scale (Surf.params(): a clear day is two- to
 ## three-foot surf breaking ~40 m out, a storm three metres breaking ~100 m out). This scales its
 ## height alone, everywhere at once (0 flattens the surf, 1.5 is a big swell day).
@@ -73,7 +90,9 @@ const SOUND_SPEED := 343.0
 ## what a clear LA day looks like, and it is the only term in the whole haze stack with a
 ## distance gradient in it. Clear is 0.0001 (about 39 km): at 0.00012 the Forward+ beach frame
 ## had its darkest 5 % lifted to 57 of 255, the milky look, with the aerial perspective on top.
-@export var fog_by_state: PackedFloat32Array = PackedFloat32Array([0.0001, 0.0004, 0.0009, 0.0013])
+## The marine layer's own entry is its haze with the deck burnt off; under the deck `marine_fog`
+## is added. A Santa Ana scours the basin: about 110 km of visibility.
+@export var fog_by_state: PackedFloat32Array = PackedFloat32Array([0.0001, 0.0004, 0.0009, 0.0013, 0.00016, 0.000035])
 ## Volumetric fog per state. Godot clamps the froxel lookup at volumetric_fog_length, so past
 ## that distance the term stops growing and becomes a FLAT curtain carrying no distance at all.
 ## At the old 0.0025 over a 220 m volume that curtain was 42 % over everything beyond 220 m,
@@ -85,7 +104,22 @@ const SOUND_SPEED := 343.0
 ## than depth fog, and what puts a halo round a low sun and shafts between the towers. At 0.0004
 ## it reaches 30 % at 900 m and 8 % at 200 m: the basin gets the warm-blue layer a city sits in
 ## and the street in front of you stays clear.
-@export var volumetric_by_state: PackedFloat32Array = PackedFloat32Array([0.00014, 0.004, 0.010, 0.018])
+@export var volumetric_by_state: PackedFloat32Array = PackedFloat32Array([0.00014, 0.004, 0.010, 0.018, 0.0004, 0.00005])
+@export_group("Marine layer")
+## Depth fog and volumetric fog added under the deck (cool grey haze, ~5 km), and more again where
+## the evening bank has rolled in at street level.
+@export var marine_fog: float = 0.00022
+@export var marine_volumetric: float = 0.0012
+@export var marine_bank_fog: float = 0.0016
+@export_group("Santa Ana")
+## Wind added to `wind_factor` and the steady lean (`wind_lean` global, 0..1) at full strength.
+@export var santa_ana_wind: float = 5.0
+@export var santa_ana_lean: float = 1.0
+@export_group("Heat haze")
+## Shimmer at the height of a hot afternoon: clear, Santa Ana, a marine day once it has burnt off.
+@export var heat_clear: float = 0.5
+@export var heat_santa_ana: float = 1.0
+@export var heat_marine: float = 0.35
 
 var state: State = State.CLEAR
 var blend: float = 0.0        # 0 = previous state fully, 1 = current state fully
@@ -141,6 +175,18 @@ var _quality: Node
 var _quality_level: int = -1
 var _quality_tick: float = 0.0
 var _low_detail: bool = false
+## This frame's weights of the two LA states and how much deck is over the camera (for tests).
+var marine_weight: float = 0.0
+var santa_ana_weight: float = 0.0
+var marine_here: float = 0.0
+var heat: float = 0.0
+var _marine_layer: MarineLayer
+var _santa: SantaAnaFx
+var _haze: HeatHaze
+var _roof_rain: RoofRain
+var _fog_height0: float = 16.0
+var _fog_height_density0: float = 0.0006
+var _lean_now: Vector2 = Vector2(1.0e9, 0.0)
 
 
 func _ready() -> void:
@@ -153,6 +199,9 @@ func _ready() -> void:
 		_env = we.environment
 		if _env and _env.sky:
 			_sky = _env.sky.sky_material as ShaderMaterial
+		if _env:
+			_fog_height0 = _env.fog_height
+			_fog_height_density0 = _env.fog_height_density
 	_ocean = PropFactory.ocean_material()
 	# Deferred: a child's _ready() runs before its parent's, and CityStreamer._ready() is what
 	# creates `plan`, so calling this directly reads null and silently pushes nothing. The shader's
@@ -167,6 +216,17 @@ func _ready() -> void:
 	_build_curtain()
 	_build_lens()
 	_build_flash_light()
+	_marine_layer = MarineLayer.new()
+	_marine_layer.name = "MarineLayer"
+	add_child(_marine_layer)
+	_santa = SantaAnaFx.new()
+	_santa.name = "SantaAna"
+	add_child(_santa)
+	if HeatHaze.supported():
+		_haze = HeatHaze.new()
+		add_child(_haze)
+	_roof_rain = RoofRain.new()
+	add_child(_roof_rain)
 	_apply_override()
 	_timer = _rng.randf_range(state_length.x, state_length.y)
 	blend = 1.0
@@ -212,7 +272,10 @@ func _apply_override() -> void:
 		for arg in OS.get_cmdline_user_args():
 			if arg.begins_with("--weather="):
 				text = arg.trim_prefix("--weather=")
-	var idx := ["clear", "overcast", "rain", "storm"].find(text.to_lower())
+	var key := text.to_lower()
+	var idx: int = STATE_KEYS.find(key)
+	if idx < 0:
+		idx = int(STATE_ALIASES.get(key, -1))
 	if idx >= 0:
 		state = idx as State
 		_previous = state
@@ -602,7 +665,10 @@ func _process(delta: float) -> void:
 	if _daynight:
 		_daynight.set("cloud_extra", cloud)
 		_daynight.set("weather_darken", dark)
+	_update_la(delta, fog, vol)
 	if _env:
+		fog += _marine_fog_add
+		vol += _marine_vol_add
 		# DayNight's fog_gain thickens the clear-weather haze at golden hour (the low sun lights
 		# a longer path of the basin's smog); it is 1 by day, by night and under weather.
 		_env.fog_density = fog * (_daynight.get("fog_gain") if _daynight else 1.0)
@@ -610,6 +676,8 @@ func _process(delta: float) -> void:
 		# it can carry the whole basin with a low sun, and at noon that same volume lit from
 		# overhead is a white veil over everything.
 		_env.volumetric_fog_density = vol * (_daynight.get("haze_gain") if _daynight else 1.0)
+		if _marine_layer:
+			_marine_layer.fog_density = _env.fog_density
 	wave_scale = waves
 	if absf(rain - rain_level) > 0.001 or (rain == 0.0 and rain_level != 0.0):
 		# Raindrops ringing the puddles and the gutter run (road.gdshader).
@@ -617,7 +685,7 @@ func _process(delta: float) -> void:
 	rain_level = rain
 	RenderingServer.global_shader_parameter_set("wave_scale", waves)
 	_push_surf(waves)
-	RenderingServer.global_shader_parameter_set("wind_factor", 1.0 + 3.0 * rain + (2.0 if state == State.STORM else 0.0) * blend)
+	RenderingServer.global_shader_parameter_set("wind_factor", 1.0 + 3.0 * rain + (2.0 if state == State.STORM else 0.0) * blend + santa_ana_wind * santa_ana_weight)
 	# The sea is lit by the sky above it, and DayNight publishes the clear-sky horizon colour
 	# whatever the weather, so the ocean is told how dark it is here.
 	if _ocean:
@@ -722,6 +790,9 @@ func _update_quality() -> void:
 		want = want * 45 / 100
 	if _splash and _splash.amount != want:
 		_splash.amount = maxi(1, want)
+	# Heat shimmer at HIGH and MEDIUM only.
+	if _haze:
+		_haze.allowed = level <= 1
 
 
 ## Splash rings sit on the ground the player is standing on, not on the player: the height comes
@@ -783,16 +854,26 @@ func _update_flash(delta: float) -> void:
 			_flash_light.light_energy = flash * flash_light_energy
 
 
+## The odds of each state for a roll at `hour`: the marine layer is common overnight and in the
+## morning, rare in the afternoon.
+func odds_at(hour: float) -> PackedFloat32Array:
+	var o := odds.duplicate()
+	var h := fposmod(hour, 24.0)
+	o[State.MARINE] *= marine_morning_gain if (h < 10.5 or h > 17.5) else marine_day_gain
+	return o
+
+
 func _roll() -> void:
 	_previous = state
+	var o := odds_at(_hour())
 	var total := 0.0
-	for o in odds:
-		total += o
+	for v in o:
+		total += v
 	var r := _rng.randf() * total
 	var acc := 0.0
 	var next := State.CLEAR
-	for i in odds.size():
-		acc += odds[i]
+	for i in o.size():
+		acc += o[i]
 		if r <= acc:
 			next = i as State
 			break
@@ -801,6 +882,10 @@ func _roll() -> void:
 	state = next
 	blend = 0.0
 	_timer = _rng.randf_range(state_length.x, state_length.y)
+	if state == State.MARINE:
+		_timer *= marine_length_gain
+	elif state == State.SANTA_ANA:
+		_timer *= santa_ana_length_gain
 	if state == State.STORM:
 		_next_flash = 2.0
 		_next_tsunami = _rng.randf_range(8.0, 20.0)
@@ -836,12 +921,98 @@ func is_forced() -> bool:
 
 
 static func _rain_level(s: State) -> float:
-	return [0.0, 0.0, 0.7, 1.0][s]
+	return [0.0, 0.0, 0.7, 1.0, 0.0, 0.0][s]
 
 
 static func _cloud(s: State) -> float:
-	return [0.0, 0.3, 0.42, 0.5][s]
+	return [0.0, 0.3, 0.42, 0.5, 0.0, 0.0][s]
 
 
 static func _dark(s: State) -> float:
-	return [0.0, 0.25, 0.5, 0.72][s]
+	return [0.0, 0.25, 0.5, 0.72, 0.0, 0.0][s]
+
+
+## How much of state `s` is in force now (the blend between the previous state and this one).
+func weight_of(s: State) -> float:
+	return lerpf(1.0 if _previous == s else 0.0, 1.0 if state == s else 0.0, blend)
+
+
+func _hour() -> float:
+	return float(_daynight.get("hour")) if _daynight else 12.0
+
+
+func _coast_x() -> float:
+	var plan: Variant = _streamer.get("plan") if _streamer else null
+	var macro: Variant = plan.get("macro") if plan else null
+	return float(macro.get("coast_base_x")) if macro else -900.0
+
+
+var _marine_fog_add: float = 0.0
+var _marine_vol_add: float = 0.0
+
+
+## The marine layer, the Santa Ana, the heat and the roof splashes, each frame. Sets the hooks on
+## DayNight, the height fog, and what `_process()` adds to the fog (`_marine_fog_add` / `_vol_add`).
+func _update_la(delta: float, _fog: float, _vol: float) -> void:
+	marine_weight = weight_of(State.MARINE)
+	santa_ana_weight = weight_of(State.SANTA_ANA)
+	var hour := _hour()
+	var coast := _coast_x()
+	var cam := get_viewport().get_camera_3d() if is_inside_tree() else null
+	var cam_w := WorldState.to_world(cam.global_position) if cam else Vector3.ZERO
+	var cover := LaWeather.cover_at(coast, hour, cam_w.x, cam_w.z)
+	var bank := LaWeather.bank_amount(hour)
+	marine_here = marine_weight * cover * LaWeather.under_deck(cam_w.y)
+	_marine_fog_add = marine_here * (marine_fog + marine_bank_fog * bank)
+	_marine_vol_add = marine_here * marine_volumetric
+	if _env:
+		# Godot's height fog: positive density thickens it DOWN from fog_height (the ground haze
+		# city.tscn sets), negative thickens it UP from it - the deck. Each half of the blend only
+		# runs its own density down to nothing, so the switch of fog_height in the middle is unseen.
+		if marine_here < 0.5:
+			_env.fog_height = _fog_height0
+			_env.fog_height_density = _fog_height_density0 * (1.0 - marine_here * 2.0)
+		else:
+			_env.fog_height = LaWeather.FOG_START
+			_env.fog_height_density = LaWeather.FOG_DENSITY * (marine_here * 2.0 - 1.0)
+	var light := 1.0
+	var moon := 0.0
+	var dusk := 0.0
+	var sun_col := Color(1.0, 0.94, 0.82)
+	var sun_dir := Vector3.UP
+	if _daynight:
+		_daynight.set("marine", marine_here)
+		_daynight.set("santa_ana", santa_ana_weight)
+		light = float(_daynight.get("daylight_now"))
+		moon = float(_daynight.get("moonlight_now"))
+		dusk = float(_daynight.get("dusk_now"))
+		sun_col = _daynight.get("sun_color_now")
+		sun_dir = _daynight.get("sun_dir")
+	var lamp := DayNight.lamp_now
+	# The deck lit: its top in the sun's colour, its underside grey, both falling to the night's
+	# dark, the underside carrying the city's sodium light after dark (linear).
+	var lit := Color(0.86, 0.87, 0.89).lerp(sun_col * Color(1.0, 0.8, 0.68), dusk * 0.85) * (0.18 + 0.82 * light)
+	lit = lit.lerp(Color(0.035, 0.04, 0.055), moon)
+	var shade := Color(0.25, 0.28, 0.33).lerp(Color(0.30, 0.24, 0.25), dusk * 0.7) * (0.3 + 0.7 * light)
+	shade = shade.lerp(Color(0.022, 0.022, 0.026), moon)
+	var glow := Color(0.075, 0.048, 0.024) * lamp * moon
+	if _marine_layer:
+		_marine_layer.drive(marine_weight, coast + LaWeather.edge_offset(hour), bank, lit, shade, glow, sun_dir,
+			_env.fog_light_color if _env else Color(0.6, 0.62, 0.65), delta)
+	# The Santa Ana.
+	var lean := Vector2(LaWeather.SANTA_ANA_DIR) * santa_ana_lean * santa_ana_weight
+	if lean.distance_to(_lean_now) > 0.002:
+		_lean_now = lean
+		RenderingServer.global_shader_parameter_set("wind_lean", lean)
+	if _santa:
+		var amb := Color(0.22, 0.25, 0.30).lerp(Color(0.02, 0.022, 0.03), moon)
+		_santa.drive(santa_ana_weight, _streamer.get("plan") if _streamer else null, maxf(DayNight.lamp_now, moon),
+			sun_col * (0.15 + 0.85 * light) * (1.0 - moon), amb, sun_dir, _player)
+	# Heat over the asphalt on a hot afternoon (none under the deck, in rain, or at night).
+	heat = LaWeather.afternoon_heat(hour) * (1.0 - moon) \
+		* (heat_clear * weight_of(State.CLEAR) + heat_santa_ana * santa_ana_weight + heat_marine * marine_weight * (1.0 - cover))
+	if _haze:
+		_haze.strength = heat
+	if _roof_rain:
+		_roof_rain.rain = rain_level
+		_roof_rain.low_detail = _low_detail

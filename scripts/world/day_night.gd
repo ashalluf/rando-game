@@ -107,6 +107,23 @@ extends Node
 @export var golden_pale_horizon: float = 0.45
 ## How far the far land under the smog lid goes into it (0..1; macro_ground.gdshader `smog`).
 @export var ground_smog: float = 0.7
+@export_group("Marine layer and Santa Ana")
+## Under the marine layer by day: the deck overhead, the horizon, the cool grey haze.
+@export var marine_top: Color = Color(0.43, 0.49, 0.58)
+@export var marine_horizon: Color = Color(0.60, 0.65, 0.72)
+@export var marine_fog: Color = Color(0.53, 0.59, 0.67)
+## The sun's light through the deck: cool and white.
+@export var marine_sun: Color = Color(0.86, 0.91, 1.0)
+## How much of the sun's direct light the deck takes, and how much of its shadow it softens.
+@export var marine_sun_cut: float = 0.74
+@export var marine_shadow_cut: float = 0.72
+## Sky fill gain under it (the whole grey sky is the light).
+@export var marine_ambient_gain: float = 0.6
+## A Santa Ana day: the deep blue the wind leaves, a dusty warm horizon and haze, a warm sun.
+@export var santa_top: Color = Color(0.03, 0.19, 0.70)
+@export var santa_horizon: Color = Color(0.80, 0.74, 0.62)
+@export var santa_fog: Color = Color(0.76, 0.60, 0.43)
+@export var santa_sun: Color = Color(1.0, 0.82, 0.60)
 @export_group("Moon")
 ## Hours the moon trails the sun. 12 is a full moon rising exactly at sunset; less than that puts
 ## it up for most of the night as a gibbous, which is a far more interesting shape.
@@ -160,6 +177,17 @@ extends Node
 ## Weather hooks (set by the Weather node every frame): extra cloud cover and how dark it is.
 var cloud_extra: float = 0.0
 var weather_darken: float = 0.0
+## Los Angeles weather hooks (Weather, LaWeather): how much marine layer is over the camera (0..1:
+## soft grey shadowless light, a grey sky, cool haze) and how much Santa Ana is blowing (0..1:
+## deep clear sky, warm dusty light, no smog). Both 0 leaves every number below as it was.
+var marine: float = 0.0
+var santa_ana: float = 0.0
+## This frame's light, for the weather's own geometry (MarineLayer, SantaAnaFx): 0..1 daylight,
+## the slow night ramp, the golden-hour tint and the sun's colour.
+var daylight_now: float = 1.0
+var moonlight_now: float = 0.0
+var dusk_now: float = 0.0
+var sun_color_now: Color = Color(1.0, 0.94, 0.82)
 
 ## Hour of the day, 0..24.
 var hour: float = 9.0
@@ -307,7 +335,7 @@ func _apply() -> void:
 	# The smog as the sky draws it: thinner at sunrise, gone under cloud (weather brings its own
 	# grey, and an orange lid under an overcast sky reads as a bug).
 	var smog := golden * smog_amount * (smog_morning if hour < 12.0 else 1.0) \
-		* (1.0 - clampf(weather_darken * 1.6, 0.0, 1.0))
+		* (1.0 - clampf(weather_darken * 1.6, 0.0, 1.0)) * (1.0 - marine) * (1.0 - 0.5 * santa_ana)
 	fog_gain = lerpf(1.0, golden_fog_gain, smog / maxf(smog_amount, 0.001))
 	# The layer is lit air, so it dims with the light: full with the sun up, a fifth of that
 	# once it is eight degrees under.
@@ -322,6 +350,10 @@ func _apply() -> void:
 	var sun_high := smoothstep(0.0, 0.12, elevation)
 	var dusk_top := dusk * (1.0 - golden_blue_top * sun_high)
 	var dusk_rim := dusk * (1.0 - golden_pale_horizon * sun_high)
+	daylight_now = daylight
+	moonlight_now = moonlight
+	dusk_now = dusk
+	sun_color_now = day_sun_color.lerp(dusk_sun_color, dusk)
 	# Where the sun and the moon actually are. The sky shader needs the sun's direction even
 	# after it has set (the twilight bands are anchored to it), so it is never special-cased.
 	var sun_basis := _arc_basis(t)
@@ -341,9 +373,13 @@ func _apply() -> void:
 			var to_moon := _look_basis(lit).get_rotation_quaternion()
 			light_basis = Basis(sun_basis.get_rotation_quaternion().slerp(to_moon, moon_mix))
 		_sun.basis = light_basis
-		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(night_sun_color, moonlight)
+		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(santa_sun, 0.45 * santa_ana * (1.0 - dusk)) \
+			.lerp(marine_sun, 0.6 * marine).lerp(night_sun_color, moonlight)
 		var flash: float = _sun.get_meta("weather_flash", 0.0)
-		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) + flash * 2.5
+		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) \
+			* (1.0 - marine_sun_cut * marine) * (1.0 + 0.06 * santa_ana) + flash * 2.5
+		# Under the deck the light is the whole grey sky: shadows go soft and faint.
+		_sun.shadow_opacity = 1.0 - marine_shadow_cut * marine
 		# A rainy night's haze is lit by the street lamps, not by a moon behind the cloud. Rain
 		# thickens the volumetric fog seventy-fold, and lit by the moonlight fill it hung over
 		# the whole street as a pale grey veil, so a rainy night read as a grey dusk.
@@ -360,21 +396,34 @@ func _apply() -> void:
 		# grey at every hour, so a rainy night had a pale grey sky and read as dusk.
 		var storm_top := Color(0.16, 0.17, 0.2).lerp(night_storm_top, moonlight)
 		var storm_horizon := Color(0.3, 0.31, 0.34).lerp(night_storm_horizon, moonlight)
-		_sky.set_shader_parameter("sky_top", day_sky_top.lerp(dusk_sky_top, dusk_top).lerp(night_sky_top, night_factor).lerp(storm_top, weather_darken))
-		_sky.set_shader_parameter("sky_horizon", horizon.lerp(storm_horizon, weather_darken))
+		var top := day_sky_top.lerp(dusk_sky_top, dusk_top).lerp(night_sky_top, night_factor)
+		var rim := horizon
+		if santa_ana > 0.0:
+			# The wind clears the basin: a deeper zenith, a dusty horizon, only by day.
+			var day_share := santa_ana * (1.0 - night_factor)
+			top = top.lerp(santa_top, 0.55 * day_share * (1.0 - dusk))
+			rim = rim.lerp(santa_horizon, 0.5 * day_share * (1.0 - 0.6 * dusk))
+			_horizon_now = _horizon_now.lerp(rim, day_share)
+		if marine > 0.0:
+			# Under the deck the sky is the deck: grey by day, the city's light on it at night.
+			top = top.lerp(marine_top.lerp(night_storm_top, moonlight), marine)
+			rim = rim.lerp(marine_horizon.lerp(night_storm_horizon, moonlight), marine)
+			_horizon_now = _horizon_now.lerp(rim, marine)
+		_sky.set_shader_parameter("sky_top", top.lerp(storm_top, weather_darken))
+		_sky.set_shader_parameter("sky_horizon", rim.lerp(storm_horizon, weather_darken))
 		_sky.set_shader_parameter("cloud_color", day_cloud.lerp(dusk_cloud, dusk))
-		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra, 0.0, 0.98))
+		_sky.set_shader_parameter("cloud_coverage", clampf(cloud_coverage + 0.12 * sin(hour * 0.9) + cloud_extra + 0.5 * marine - 0.32 * santa_ana, 0.0, 0.98))
 		_sky.set_shader_parameter("cloud_shadow", day_cloud_shadow.lerp(dusk_cloud_shadow, dusk).lerp(Color(0.2, 0.2, 0.24), weather_darken))
 		# After dark: moonlit cloud on a clear night, the city's own light on an overcast one.
 		var overcast := clampf(weather_darken * 1.6, 0.0, 1.0)
 		_sky.set_shader_parameter("night_cloud_light", lerpf(0.12, 0.025, overcast))
 		_sky.set_shader_parameter("night_glow", Vector3(0.02, 0.025, 0.04).lerp(night_storm_glow, overcast))
-		_sky.set_shader_parameter("mid_amount", clampf(mid_cloud + cloud_extra * 0.6, 0.0, 1.0))
+		_sky.set_shader_parameter("mid_amount", clampf(mid_cloud + cloud_extra * 0.6 - 0.4 * santa_ana, 0.0, 1.0))
 		# Stars on the slow ramp, squared: night_factor is already 1.0 three degrees after sunset,
 		# which had a full star field out over a still-lit dusk sky at 18:24.
 		_sky.set_shader_parameter("stars", moonlight * moonlight)
 		_sky.set_shader_parameter("milky_way", milky_way * (1.0 - weather_darken))
-		_sky.set_shader_parameter("haze", lerpf(day_haze, dusk_haze, dusk))
+		_sky.set_shader_parameter("haze", lerpf(lerpf(day_haze, dusk_haze, dusk) * (1.0 - 0.6 * santa_ana), 0.75, marine))
 		_sky.set_shader_parameter("sun_glow", lerpf(0.9, 1.6, dusk))
 		_sky.set_shader_parameter("smog", smog)
 		_sky.set_shader_parameter("smog_color", smog_side)
@@ -423,9 +472,14 @@ func _apply() -> void:
 		_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 		_env.ambient_light_sky_contribution = lerpf(1.0, 0.35, moonlight)
 		_env.ambient_light_color = day_ambient.lerp(night_ambient, moonlight)
-		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, moonlight) * (1.0 - 0.35 * weather_darken)
+		_env.ambient_light_energy = lerpf(day_ambient_energy, night_ambient_energy, moonlight) * (1.0 - 0.35 * weather_darken) \
+			* (1.0 + marine_ambient_gain * marine * (1.0 - moonlight))
 		# Rain haze is grey by day and, like the cloud above it, lit by the streets at night.
 		_env.fog_light_color = _env.fog_light_color.lerp(Color(0.35, 0.37, 0.4).lerp(night_storm_fog, moonlight), weather_darken)
+		if santa_ana > 0.0:
+			_env.fog_light_color = _env.fog_light_color.lerp(santa_fog, 0.7 * santa_ana * (1.0 - moonlight) * (1.0 - dusk))
+		if marine > 0.0:
+			_env.fog_light_color = _env.fog_light_color.lerp(marine_fog.lerp(night_storm_fog, moonlight), marine)
 	# Street lamps. Setting hundreds of lights every frame is wasteful, but only refreshing when
 	# the value moves leaves every lamp that streamed in since the last change sitting at zero,
 	# which is why the streets stayed black the first time. Refresh on a slow tick instead, so

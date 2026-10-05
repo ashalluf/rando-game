@@ -21,6 +21,8 @@ render_mode cull_disabled;
 // Compatibility renderer the web build uses.
 
 global uniform float wind_factor;
+// A steady wind blowing one way (Weather: the Santa Ana), world XZ, length its strength 0..1.
+global uniform vec2 wind_lean;
 /// Weather's wet-surface amount, 0 dry to 1 soaked. Wet fronds go glossy.
 global uniform float road_wetness;
 /// Points TOWARDS the sun (published by DayNight). Drives the frond-glow lobe.
@@ -84,6 +86,13 @@ void vertex() {
 	float bend = h * h * bend_scale * w;
 	VERTEX.x += bend * gust_x;
 	VERTEX.z += bend * gust_z;
+	// The steady wind lays the crown over downwind, breathing with the gusts (model space: the
+	// instance may be turned and scaled).
+	if (dot(wind_lean, wind_lean) > 1e-6) {
+		vec3 lean_dir = transpose(mat3(MODEL_MATRIX)) * vec3(wind_lean.x, 0.0, wind_lean.y);
+		float lean = h * h * bend_scale * 4.0 * length(wind_lean) * (0.75 + 0.25 * sin(TIME * 0.7 + phase));
+		VERTEX.xz += normalize(lean_dir.xz + vec2(1e-6)) * lean;
+	}
 
 	// 2. Leaflets: quick, tiny, keyed to how far out along the frond the vertex sits, so the tips
 	//    shiver while the rib carrying them is still halfway through its swing.
