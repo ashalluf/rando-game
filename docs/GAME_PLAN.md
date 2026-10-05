@@ -624,6 +624,7 @@ already mapped so milestone 2 is script-only.
   queued in its lanes. All of it is worked out from a clock, never simulated, so it costs a few
   MultiMesh draws; LOD chunks keep the still poses. Lamps, beacons and deck lights at night; the
   clanks come from the real cranes. docs/HANDOFF.md (port life); CLAUDE.md "Port life".
+
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
   station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street

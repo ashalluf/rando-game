@@ -6916,3 +6916,59 @@ the lifeguard still up), and the
   next chunk's riders. Riders do not give way to people on the path.
 - The beach under the Esplanade's bluff and the boardwalk get no path or court (their own
   ground); the boardwalk's stretch and the piers' get no people.
+## 9b?. The container terminal at work (port life, VISUAL_ROADMAP #61)
+
+**What.** The port moves. `PortLife` (`scripts/world/port_life.gd`) works every moving part out
+from a clock (`PortLife.clock`, physics time), so the same second always shows the same picture
+and nothing is simulated:
+- **The ship-to-shore cranes over the moored ship dual-cycle.** The three working cranes (within
+  95 m of the ship, gantried up to 32 m to the bay they work) are built at FULL as
+  `PortKit.sts_frame_mesh()` - the posed crane less its trolley, cab, ropes and spreader; the
+  split pieces add up to the old mesh triangle for triangle (checked) - plus a marker
+  (`port_crane`). One cycle (~270-280 s) is two halves: a yard tractor pulls in under the crane
+  with an export box, the spreader lifts it, the trolley runs out, sets it into slot A in the
+  bay, picks slot B's box and sets it back on the same chassis; the tractor drives off round the
+  yard as the crane's second tractor pulls in; the next half swaps A and B. A and B are the top
+  boxes of two rows of the bay, hidden from the ship's own batch while the crane works
+  (`ship_boxes()` replays Landmarks._build_cargo_ship's rolls exactly).
+- **Yard tractors** (`PortLifeKit`: a terminal tractor and a 40 ft skeletal chassis, code-built,
+  the chassis on the path HITCH metres behind so it articulates) loop the yard on the aisles
+  between the port's chunks (`grid()`), 610-890 m loops, accelerating, cruising and braking.
+- **Yard gantries** shuffle a 40 ft top box to the next column's lowest pile and back
+  (`rtg_plan()`), the box's instance in the chunk's container batch hidden while it is away.
+- **Straddle carriers** (9.6 x 4.9 x 13.4 m, legs, sills, eight wheels, cab up front, engine on
+  top, lamps, ladder) loop the interior blocks clockwise, most with a box; 9 on the default seed.
+- **The truck gate** (`PortGate`): the north-west port chunk holds no stacks (after the rolls)
+  but eight lanes (six in, two out), booths on islands, an OCR / radiation portal with lane
+  numbers, a canopy with the invented name BASIN HARBOR TERMINAL, a gate office, and up to
+  eleven drayage semis (BigVehicles SEMI parked Vehicles, dry van hidden, a chassis and box hitched;
+  some bobtails) at the booths, queued under the portal and leaving.
+- **Night**: beacons (amber, flashing), head / work lamps and red lamps on the machines
+  (`port_steel.gdshader` parts 11-13), pools of light under the working trolleys, ahead of the
+  tractors and straddles, and on the ship's deck (and deck floodlights on its lashing bridges).
+- **Sound**: Sfx `crane` at every spreader lock / release within 320 m; Ambience's crane
+  one-shots come from a working spreader when one is in earshot (`PortLife.clank_at()`).
+
+**Cost.** All the moving parts are one MultiMesh per kind (trolley, spreader, rope, gantry frame,
+gantry trolley, straddle, tractor, chassis, box, light pool), drawn within 650 m of the camera;
+machines within 140 m of the player carry an AnimatableBody3D (props layer, mask 0). Frame cost
+(opengl3 still_shot GEO, 1280x720, `PORT_LIFE=0` against on, same EYE, clock held): the quay
+under the cranes 802k / 321 draws -> 812k / 355; an aisle of the yard 792k / 474 -> 815k / 512;
+the gate 1.09 M / 758 -> 1.30 M / 993 (the eleven semis are real Vehicles: about 20 draws each).
+
+**Stills** (shots/port-life): a crane lifting a box off a chassis and one lowering a box into the
+ship's bay from the quay, straddle carriers in an aisle, the cranes and tractors from above, the
+gate queue, the yard from the air, the quay at 21:00, the whole terminal at 21:00 from the air and
+from the west; and the PORT_LIFE=0 before of the quay and the gate.
+
+**Tools.** `tools/port_life_probe.gd` (headless, seconds: cranes, their step times, poses and the
+straddles' positions at `T=`), `PORT_T=<s>` / `PORT_HOLD=1` on still_shot.gd to frame a moment,
+`PORT_LIFE=0` the A/B. Checks: `tests/port_life_checks.gd` (18).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the lamps' glow and the pools under AgX
+need eyes. The tractors and straddles do not yield to each other or to the player at crossings
+(loops can cross), and do not stop for a car in the way; a tractor's chassis box changes look out
+of sight on the far side of its loop. The gate's semis stand still (parked Vehicles: drivable and
+stealable, lights off); the queue does not advance. No second ship with tugs. LOD chunks keep
+the old posed cranes and static gantries, so a crane's trolley can jump at the FULL/LOD handoff.
+The straddles carry their box under a spreader one size too long (the STS spreader).
