@@ -64,6 +64,9 @@ void fragment() {
 		r *= r;
 		acc += exp(-h / scale_height) * r;
 	}
-	float glow = acc * 0.25 * (t1 - t0) * density * level;
+	// A haze is what the bowl wears seen from the hills; from inside it, it would only veil
+	// the game, so it fades in with the eye's distance from the bowl.
+	float away = smoothstep(150.0, 450.0, length(cam - centre));
+	float glow = acc * 0.25 * (t1 - t0) * density * level * away;
 	ALBEDO = cs_out(glow_color * min(glow, 1.5));
 }

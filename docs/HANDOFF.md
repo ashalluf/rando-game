@@ -7125,3 +7125,43 @@ aimed: nothing by day, visible across the basin); the haze over the bowl is `bal
 back faces of an ellipsoid integrating a haze that thins with height along the view ray, cut by the
 depth texture. Three OmniLights in `lamp_light` light the player and the cars on the field
 (desktop; DayNight and Quality drive them with the street lamps).
+
+**Cost** (opengl3 GEO at 1280 x 720, the same EYEs with `BALLPARK=0` - the hills as they were - and
+with the park; triangles / draws):
+
+| shot | before | after |
+|---|---|---|
+| aerial over the site, noon (far copy) | 716 k / 139 | 613 k / 63 |
+| top of the stands toward downtown, 17:36 | 3.52 M / 928 | 3.47 M / 759 |
+| night game from the west hill, 21:30 | 1.34 M / 415 | 1.22 M / 291 |
+| the field from home plate, 15:00 | 1.21 M / 502 | 1.50 M / 253 |
+| the bowl from centre field, 15:00 | 3.12 M / 854 | 3.45 M / 629 |
+| the bowl from centre field, 21:30 | 3.09 M / 808 | 3.44 M / 626 |
+
+Draws fall everywhere (the hillside's rocks, shrubs, tufts and chaparral it replaces were a batch
+each); triangles rise by up to a quarter inside the bowl (the stepped rows, 17 k, and the 3D cars,
+`CAR_REACH` 165 m in 80 m tiles drawn to 120 m). The far copy is ~8 k triangles in 6 draws plus
+the glow. Mesh build: near 350 ms, far 60 ms, both on the loading screen.
+
+**Stills** (opengl3; the `shots/stadium` branch has them with the before of each): `aerial_noon`
+(EYE 2150,360,-2560,29,-35), `stands_to_downtown_golden` (2017.9,198,-2690,-164,-3 at 17.6, fov
+55), `night_game_from_hills` (1560,250,-2905,-97.5,-9 at 21.5, fov 40), `field_from_home_plate`
+(2008.2,143.9,-2776,6.4,1 at 15), `bowl_from_centre_field` and `_night`
+(1997.4,153,-2872.4,-173.6,6 at 15 and 21.5).
+
+**Checks** (`tests/ballpark_checks.gd`): home plate at the real point and facing (0.3 m, 0.07
+degrees), the real distance from Pershing Square (2988 m against 2987), the field's regulation
+numbers, the whole site on hill ground and cut to its levels, banks no steeper than the hills plus
+1.5, the hills' planting / shells kept off, no freeway, estate or other hill road on the site, both
+roads' grades and ends, every number the field and lot shaders copy, the stall hash against
+lowbias32 reference values, the meshes' budgets and collision, a FULL chunk at the anchor building
+the detailed park (collision, cars, lights), and no real team, venue or person's name in the code.
+
+**Not done / not verified.** Everything here was judged on opengl3 stills: the night game's flood
+emission, the glow and the lenses under AgX and auto exposure on the Mac (Forward+) are the first
+thing to look at - the knobs are `flood_energy` on the four shaders, `ballpark_glow`'s `density`,
+`ballpark_lot`'s `pool_energy`, `ballpark_struct`'s `lens_energy`. The tiers stand ~55 m over the
+field at the roof (real-ish for five decks, but nobody measured the real one); the exterior has no
+ramp towers; there are no players on the field and no traffic on the two roads (HillRoads are not
+driven); the crowd is a shader (no people at the gates or on the concourses); the scoreboards' line
+score is random digits. The upper terrace's slope is planted ground (the lot shader), not trees.
