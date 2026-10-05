@@ -10,8 +10,12 @@ echo "== Smoke test"
 LOG="$(mktemp)"
 set +e
 # A hang guard, not a budget: the merged city runs ~1,500 checks in 15-17 min on a 4-core box,
-# and 900 s cut three fleet branches' runs short (2026-10-05).
-timeout 2400 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
+# and 900 s cut three fleet branches' runs short (2026-10-05). tools/peak_rss.py prints the run's
+# peak resident memory ("PEAK RSS n MB") at the end; the smoke test itself fails past its budget
+# (tests/memory_audit_checks.gd).
+RUN=()
+command -v python3 >/dev/null && RUN=(python3 tools/peak_rss.py --)
+"${RUN[@]}" timeout 2400 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
 STATUS=${PIPESTATUS[0]}
 set -e
 if [ "$STATUS" = "124" ]; then

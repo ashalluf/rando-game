@@ -450,6 +450,9 @@ static func build(im: ImporterMesh, entry: Dictionary, planted: float = 1.0) -> 
 				shadow_lods[float(levels[i][3])] = level_idx[i]
 			shadow_lods[COUNTER_EDGE] = _counter_copy(level_idx[-1])
 			shadow_saves = true
+			# Only the vertices the shadow levels use (the full levels' and thinned copies' are
+			# never drawn by it).
+			shadow_arrays = MeshCompact.compact(shadow_arrays, shadow_lods)
 		else:
 			shadow_lods = lods
 		shadow.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, shadow_arrays, [], shadow_lods)

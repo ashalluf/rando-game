@@ -1910,7 +1910,7 @@ func _tuck_model_wheels(inst: Node3D) -> void:
 				local = (node as Node3D).transform * local
 			node = node.get_parent()
 		to_body = to_body * local
-		var key := "body_tuck_%d_%s" % [body_type, m.mesh.get_rid()]
+		var key := "body_tuck_%d_%s" % [body_type, PropFactory.mesh_key(m.mesh)]
 		# Radially inside the brake disc, and far enough INBOARD to sit behind the dust shield
 		# as well (_wheel_face puts that at 0.52 half-widths in), so there is no line of sight to
 		# it through the spokes from any angle the player can stand at.

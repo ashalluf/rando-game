@@ -379,6 +379,14 @@ already mapped so milestone 2 is script-only.
   Godot flips a cull_disabled back face's NORMAL itself, so no shader does; a feature tuned on
   opengl3 in display numbers inside a renderer-space host shader (the blast hole in
   building.gdshader) converts its result with a local helper rather than retuning the host.
+- **2026-10-05 Memory audit: a peak-RSS budget and no RID-keyed caches (HANDOFF "Memory
+  audit").** The merged city's smoke test was creeping up (3.1 GB on integration-a, an OOM at
+  10.9 GB on integration-b). Decisions: the smoke test fails when its peak resident memory passes
+  a budget (3,600 MB, `MEMORY_BUDGET_MB`), so the next feature that adds a city-sized cache is
+  caught at its own gate; derived meshes are cached by the source's resource path, never its RID
+  (a reloaded model got a fresh copy each time - 80 MB of car bodies over a 2 km drive); a shadow
+  twin holds only the vertices it draws; weld data goes once the crowd's far bodies are built. No
+  eviction of the per-block plan caches: measured, they are all under 1 MB.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

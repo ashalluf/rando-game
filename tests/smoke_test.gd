@@ -1925,6 +1925,8 @@ func _test_city() -> void:
 	load("res://tests/farmers_market_checks.gd").new().run(self, city)
 	# Forward+ review traps (tests/fwd_review_b_checks.gd): back-face normals, normal-map green, sky_tint.
 	load("res://tests/fwd_review_b_checks.gd").new().run(self, city)
+	# Memory (tests/memory_audit_checks.gd): the peak resident memory budget, and the audit's cuts.
+	load("res://tests/memory_audit_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
