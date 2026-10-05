@@ -102,10 +102,20 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
   skid marks still showing rather than the marks laid (352, `DrivingFX.marks_laid`). With ~2,300
   checks, any check that compares a live count before and after, or reads a moving object at an
   arbitrary moment, will fail on some run: count events, and pin what you read.
-- **Queued:** street-signs is renaming its `SignKit` (collides with BoulevardSigns') and dropping
-  its duplicate kerb plates; street-lamps is merging the paramedic fix; apartments (walk-ups read
-  as flat boxes) and tower-gondolas (share towers with Rooftops' window-washing rig) wait. The
-  car parks' pale soft rectangles (LotFill's lot ground, on main) need a look.
+- **Build 354** (17:47) is main with batches 1-7 and the car parks' oil stains fixed (they were
+  glossy and mirrored the sky at the grazing angle a car park is seen from: pale soft squares).
+- **Batch 8 is on `main`** (18:15): street-signs (real sign models; its kit is `StreetSignKit`,
+  BoulevardSigns keeps `SignKit` and owns the kerb parking plates) and street-lamps (cobra, twin
+  globe, lantern, post-top and mast LED lamps, `StreetLamps.pick()`), plus the tow check waiting
+  on the fleet's own `_process` tick. Plain gate 2,342 passed, 0 failed, peak 3.16 GB. **Known
+  shard-order failure**: with `SHARDS=3` on this tree three traffic-AI checks (double-parking,
+  the lane-change gap, the swerve round the player) fail in shard 1 and pass alone, in the pair
+  with street_signs_checks and in the plain run - something an earlier part of that shard leaves
+  behind; untraced. Gate on the plain run when the shards disagree.
+- **Waiting:** apartments (walk-ups read as flat stucco boxes) and tower-gondolas (share towers
+  with Rooftops' window-washing rig) were stopped by the usage limit and not resumed. Notes from
+  the sessions: HillHomeKit's far walls read pale under moonlight (estate-night: a lamp_factor dim
+  in far_canopy's estate branch); `IndustrialKit.cyl` winds its walls inward (film-studio).
 - **Usage limit, 12:42-13:09:** 20 sessions stopped on the account's five-hour limit with the
   seven-day one at a warning; the lead resumed the eight nearest done (road-wear, olvera,
   shop-vinyl, historic-core, roadside, film-studio, chinatown, street-lamps) and left the rest.
