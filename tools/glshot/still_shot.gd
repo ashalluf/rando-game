@@ -62,6 +62,7 @@ extends SceneTree
 ## row (tools/glshot/aftermath_stage.gd: AF_FIND, AF_TIME, AF_EYE_DIST, AF_FAR, ...).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
+## TEX_REPORT=1 prints the frame's textures and their video memory (tools/texture_budget/tex_census.gd).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
 ## INDUSTRIAL=0 builds the industrial district without Industrial (Building warehouses on bare
 ## paving: the A/B of the warehouses, docks and yards).
@@ -520,6 +521,8 @@ func _initialize() -> void:
 	# category at a time, the world held still, as tools/tri_split.gd does - so every bookmark
 	# still also gives a cost table for the exact frame it shot.
 	await _geo_report("GEO")
+	if OS.get_environment("TEX_REPORT") == "1":
+		load("res://tools/texture_budget/tex_census.gd").report(get_root(), "TEX")
 	if OS.get_environment("ROOF_TRIS") == "1":
 		_roof_unit_tris()
 	if OS.get_environment("PALM_AB") == "1":
