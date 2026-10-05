@@ -1398,7 +1398,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (contact point, normal and body, skid info) and works the slip out itself: the contact's
   sideways speed, a lock-up under a hard brake or the handbrake at speed, and a BURNOUT from the
   driver's throttle on a car under `burnout_speed` (Godot's wheels roll with the ground and never
-  spin, so wheelspin is inferred, `burnout_slip`). Surfaces: hill terrain (its layer) is dirt, the
+  spin, so wheelspin is inferred, `burnout_slip`; full against the handbrake or on nitro, `launch_spin` of it on a plain pull-away). Surfaces: hill terrain (its layer) is dirt, the
   BEACH zone sand, the rest asphalt. **Skid marks** are ONE MultiMesh ring of `mark_capacity`
   flat quads (`shaders/skid_mark.gdshader`, a lit alpha-blended film of rubber, lit and shadowed
   like the road; a wet road shows less of it. NOT `blend_mul`: Compatibility tonemaps every

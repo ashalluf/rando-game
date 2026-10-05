@@ -8632,3 +8632,21 @@ player's exhaust.
 **The traps that cost a round each:** `blend_mul` on Compatibility (above); and `ensure()` is called by every car a chunk builds in one frame and
 `add_child` is deferred, so "made, not yet added" has to count as made - the first version made a
 DrivingFX per car, each switching every car's contact reports on.
+
+**Review after the merge with fleet/base (wave 2, session `driving-fx`).** The branch was cut from
+main two commits before the fleet stopped and never reviewed. Merged `origin/fleet/base`: the
+conflicts were Sfx's sample tables (both sides' clips kept; `scrape` added to the merged
+`LOOPING`), `still_shot.gd` (AFTERMATH and DRIVE staging both kept) and the docs (this section and
+the roadmap row renumbered `?` for the lead; roadmap #63 is City acoustics now). Fixed in review:
+- `ensure()` took a parentless DrivingFX for "made, add pending" for ever. If the level it was
+  added to was freed before the deferred add ran, no later level ever got one. Now one still
+  parentless a frame after it was made is freed and made again (`_made_frame`; checked).
+- Every full-throttle pull-away from rest counted as a full burnout (13 m/s of slip: full smoke and
+  rubber whenever the player set off). A plain launch now gets `launch_spin` (0.45) of it - a
+  chirp of rubber and a puff; the brake stand (handbrake held) and a nitro launch are still full
+  burnouts.
+- `_wheel_state` and `_prev_force` grew with every car freed while it was watched; both are now
+  rebuilt for the watched cars on each scan.
+Gate: 1,386 pass, 1 fail (the known "the map draws no closed road (1)" of fleet/base). On this
+4-core box the smoke test alone takes longer than `headless_check.sh`'s 900 s timeout; run it with a
+longer `timeout` to see the end. Stills on `shots/driving-fx` (README "After the merge").
