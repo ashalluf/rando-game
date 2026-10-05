@@ -31,7 +31,7 @@ extends RefCounted
 ## tests and the probes ask the same question.
 ##
 ## FULL chunks: the real building, its forecourt, lamps and pools, real lights (lamp_light), a few
-## people (CivicVisitor), the mail trucks (CivicKit.mail_truck_mesh(), parked, static). LOD chunks
+## people (CivicVisitor), the mail trucks (CivicKit.mail_truck(): the Blender-built van in the service's livery, parked, static). LOD chunks
 ## and the far city: the building as CODED far boxes (FarBuilding's code: the far shader draws the
 ## same window grid, finish and lit rooms) and its pitched roofs as slabs, like HouseBuild.lod().
 ##

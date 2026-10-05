@@ -8661,8 +8661,11 @@ geometry built in code at real size (`scripts/world/civic_buildings.gd` places t
   `shaders/civic_flag.gdshader`, waving with `wind_factor`), two blue collection boxes at the
   kerb with a mail truck pulled up beside them; behind it a drive down the side, the loading dock
   (platform, canopy, roll-up doors, bumpers, steps) and a fenced yard of parked mail trucks.
-  `CivicKit.mail_truck_mesh()`: a code-built right-hand-drive delivery van (~1.1k triangles):
-  white, navy and red bands, an envelope mark, raked screen, mirrors on arms, wheels.
+  `CivicKit.mail_truck()`: the Blender-built high-roof panel van (Vehicle's VAN body, its far
+  twin, as the police stations park their cruisers) in the service's own livery - warm white
+  over a deep teal belt band (car_paint's fleet band) with CONTINENTAL POST on both flanks; no
+  real postal service's colours or emblem. (A first, code-built boxy truck was dropped after the
+  lead's review: it read as a primitive up close.) Up to five in the yard, three at the dock.
 - **City services** (RANDO CITY SERVICES CENTER: permits, water and power, parking): two or three
   storeys of concrete, the ground floor glazed behind a colonnade of square piers, ribbon windows
   above behind a screen of vertical fins, three flags (the national one between two of the city's
@@ -8708,7 +8711,7 @@ Spanish library from across its street `EYE=483.7,1.7,486.3,-98,8` 1.60 M -> 1.5
 951 -> 893 draws; the beach-town post office `-548.4,1.7,343.1,-100,8` 2.87 M -> 2.47 M,
 2,405 -> 2,051; the library from 16 m up `470.0,16,510.3,-73,-20` 1.79 M -> 1.74 M, 1,103 ->
 1,036 (a civic building replaces several lots' buildings, yards and props). A building's own
-mesh is 1.5-9 k triangles; a mail truck 1.1 k. Smoke test peak RSS ~3.2 GB.
+mesh is 1.5-9 k triangles; a mail truck is the van's ~8 k-triangle far twin. Smoke test peak RSS ~3.2 GB.
 
 **Switch:** `CIVIC=0` in the environment (the A/B). **Probe:** `tools/civic/probe.gd` (every
 building within `--radius` of `--at`, its kind, name, site and two EYEs for block_shot / still_shot;

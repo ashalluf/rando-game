@@ -8,8 +8,11 @@ extends RefCounted
 
 const WALL_H_SPANISH := 6.4
 const PO_FLOOR := 0.48
-## The mail truck (CivicKit.mail_truck_mesh()): length, width, height (m).
-const TRUCK := Vector3(1.92, 2.3, 4.6)
+## The mail truck (CivicKit.mail_truck()): its footprint for layouts (width, height, length; m),
+## and the invented livery: warm white over a deep teal belt band.
+const TRUCK := Vector3(2.0, 2.6, 5.4)
+const TRUCK_WHITE := Color(0.93, 0.92, 0.88)
+const TRUCK_TEAL := Color(0.02, 0.36, 0.40)
 const TRUCK_RANGE := 220.0
 const FLAG_SIZE := Vector2(1.83, 0.96)
 
@@ -744,11 +747,11 @@ static func _post_office(g: CivicGeo, s: Dictionary, lay: Dictionary, res: Dicti
 		var tv := D - 0.9 - TRUCK.z * 0.5
 		var tu := 2.0
 		var n := 0
-		while tu < du - dw * 0.5 - 1.2 and n < 8:
+		while tu < du - dw * 0.5 - 1.2 and n < 5:
 			if _h01([s.builder, n, "truck"]) < 0.85:
 				res.trucks.append(Transform3D(Basis(Vector3.UP, PI), g.P(tu, 0.035, tv)))
 			g.box("paint_white", tu + 1.3, tu + 1.4, 0.035, 0.045, tv - 2.4, tv + 2.4)
-			tu += 2.8
+			tu += 3.0
 			n += 1
 		# Chain-link round the yard, an open gate leaf folded back by the drive.
 		g.box("steel", 0.3, 0.36, 0.0, 2.4, v1, D - 0.3)
@@ -1036,14 +1039,27 @@ static func _flags(node: Node3D, _g: CivicGeo, res: Dictionary) -> void:
 
 static func _trucks(node: Node3D, _g: CivicGeo, res: Dictionary) -> void:
 	var list: Array = res.trucks
-	if list.is_empty():
+	var van := mail_truck()
+	if list.is_empty() or van.is_empty():
 		return
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.mesh = mail_truck_mesh()
+	mm.mesh = van.mesh
 	mm.instance_count = list.size()
+	var size: Vector3 = van.size
 	for i in list.size():
-		mm.set_instance_transform(i, list[i])
+		var t: Transform3D = list[i]
+		mm.set_instance_transform(i, t * Transform3D(Basis(), van.offset))
+		if OS.has_feature("web"):
+			continue
+		# The service's name on both flanks, on the band.
+		for side: float in [-1.0, 1.0]:
+			var tm := MeshInstance3D.new()
+			tm.mesh = BigVehicles.text_mesh(CivicBuildings.POST, 0.2, Color(0.97, 0.96, 0.92))
+			tm.transform = t * Transform3D(Basis(Vector3.UP, side * PI * 0.5), Vector3(side * (size.x * 0.5 + 0.03), size.y * 0.58, 0.2))
+			tm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			tm.visibility_range_end = 45.0
+			node.add_child(tm)
 	var mmi := MultiMeshInstance3D.new()
 	mmi.name = "MailTrucks"
 	mmi.multimesh = mm
@@ -1112,89 +1128,72 @@ static func flag_material(kind: int) -> ShaderMaterial:
 	return m
 
 
-## The mail truck: a right-hand-drive delivery van of the invented postal service at real size
-## (TRUCK), nose toward -Z, wheels on y 0: a tall white body with the service's navy and red
-## bands and mark, a short sloped bonnet, a big raked windscreen, side windows, the sliding door,
-## the rear roll-up, mirrors on arms, bumpers, lamps, four wheels. ~1.1k triangles, one mesh with
-## a surface per material.
-static func mail_truck_mesh() -> Mesh:
+## The mail truck: the Blender-built high-roof panel van (Vehicle's VAN body, its ~8k-triangle far
+## twin, as the police stations park their cruisers) in the invented CONTINENTAL POST livery: a
+## warm white body with a deep teal belt band (car_paint's fleet band, stripe_mode 3) - not any
+## real postal service's colours - and the name on both flanks (_trucks()). {"mesh", "offset"
+## (the model's origin from a van standing on y 0, nose -Z), "size"} or {} without the model.
+static func mail_truck() -> Dictionary:
 	if _mesh_cache.has("truck"):
 		return _mesh_cache.truck
-	# A frame with L 0 and sx 1: (u, y, v) -> (u, y, -v); the nose is at +v (local -Z).
-	var g := CivicGeo.new(0.0, 1.0, 7)
-	var hw := TRUCK.x * 0.5
-	var r0 := -2.3
-	var nose := 2.3
-	var cab0 := 0.95
-	var hood := 1.75
-	var top := TRUCK.y
-	# The lower body and the cargo box.
-	g.box("truck_white", -hw, hw, 0.42, 1.05, r0, hood)
-	g.box("truck_white", -hw, hw, 1.05, top - 0.08, r0, cab0)
-	g.box("truck_white", -hw + 0.06, hw - 0.06, top - 0.08, top, r0 + 0.06, cab0 - 0.04)
-	# The cab: sides as quads, the raked windscreen, the roof.
-	var wy := 1.1
-	var cab_top := top - 0.35
-	for sd: float in [-1.0, 1.0]:
-		g.quad("truck_white", Vector3(sd, 0, 0), Vector3(sd * hw, 1.05, cab0), Vector3(sd * hw, 1.05, hood), Vector3(sd * hw, cab_top, cab0 + 0.38), Vector3(sd * hw, cab_top, cab0))
-		g.quad("truck_glass", Vector3(sd, 0, 0), Vector3(sd * (hw + 0.005), 1.3, cab0 + 0.08), Vector3(sd * (hw + 0.005), 1.3, hood - 0.25), Vector3(sd * (hw + 0.005), cab_top - 0.1, cab0 + 0.36), Vector3(sd * (hw + 0.005), cab_top - 0.1, cab0 + 0.08))
-	var wn := Vector3(0, 0.39, 0.92).normalized()
-	g.quad("truck_glass", wn, Vector3(-hw + 0.08, wy, hood - 0.02), Vector3(hw - 0.08, wy, hood - 0.02), Vector3(hw - 0.08, cab_top - 0.04, cab0 + 0.4), Vector3(-hw + 0.08, cab_top - 0.04, cab0 + 0.4))
-	g.quad("truck_white", wn, Vector3(-hw, 1.05, hood), Vector3(hw, 1.05, hood), Vector3(hw, wy, hood - 0.02), Vector3(-hw, wy, hood - 0.02))
-	g.quad("truck_white", Vector3.UP, Vector3(-hw, cab_top, cab0), Vector3(hw, cab_top, cab0), Vector3(hw, cab_top, cab0 + 0.38), Vector3(-hw, cab_top, cab0 + 0.38))
-	g.box("truck_white", -hw, hw, cab_top, top, cab0 - 0.02, cab0 + 0.12)
-	# The bonnet, sloping down to the grille and bumper.
-	var bn := Vector3(0, 0.95, 0.3).normalized()
-	g.quad("truck_white", bn, Vector3(-hw, 1.05, hood), Vector3(hw, 1.05, hood), Vector3(hw, 0.95, nose - 0.05), Vector3(-hw, 0.95, nose - 0.05))
-	g.quad("truck_white", Vector3(0, 0, 1), Vector3(-hw, 0.42, nose - 0.05), Vector3(hw, 0.42, nose - 0.05), Vector3(hw, 0.95, nose - 0.05), Vector3(-hw, 0.95, nose - 0.05))
-	for sd: float in [-1.0, 1.0]:
-		g.quad("truck_white", Vector3(sd, 0, 0), Vector3(sd * hw, 0.42, hood), Vector3(sd * hw, 0.42, nose - 0.05), Vector3(sd * hw, 0.95, nose - 0.05), Vector3(sd * hw, 1.05, hood))
-	g.box("trim_black", -hw + 0.35, hw - 0.35, 0.55, 0.82, nose - 0.06, nose - 0.03)
-	for gy in range(5):
-		g.box("chrome", -hw + 0.4, hw - 0.4, 0.58 + 0.05 * float(gy), 0.6 + 0.05 * float(gy), nose - 0.03, nose - 0.02)
-	for sd: float in [-1.0, 1.0]:
-		g.box("lamp_head", sd * (hw - 0.28) - 0.15, sd * (hw - 0.28) + 0.15, 0.66, 0.84, nose - 0.06, nose - 0.02)
-		g.box("lamp_amber", sd * (hw - 0.06) - 0.05, sd * (hw - 0.06) + 0.05, 0.66, 0.78, nose - 0.3, nose - 0.04)
-	g.box("trim_black", -hw - 0.03, hw + 0.03, 0.3, 0.55, nose - 0.08, nose + 0.12)
-	g.box("trim_black", -hw - 0.03, hw + 0.03, 0.3, 0.55, r0 - 0.12, r0 + 0.08)
-	g.box("trim_black", -hw - 0.02, hw + 0.02, 0.38, 0.45, r0, nose)
-	# The livery: a navy band with a red pinstripe along both sides and the back, the mark (an
-	# envelope in a circle) on the doors and the box.
-	for sd: float in [-1.0, 1.0]:
-		var x := sd * (hw + 0.004)
-		g.quad("truck_navy", Vector3(sd, 0, 0), Vector3(x, 0.98, r0), Vector3(x, 0.98, nose - 0.6), Vector3(x, 1.12, nose - 0.6), Vector3(x, 1.12, r0))
-		g.quad("truck_red", Vector3(sd, 0, 0), Vector3(x, 0.92, r0), Vector3(x, 0.92, nose - 0.6), Vector3(x, 0.96, nose - 0.6), Vector3(x, 0.96, r0))
-		var mx := sd * (hw + 0.008)
-		for mc: float in [-0.9, cab0 + 0.3]:
-			g.quad("truck_navy", Vector3(sd, 0, 0), Vector3(mx, 1.4, mc - 0.32), Vector3(mx, 1.4, mc + 0.32), Vector3(mx, 1.9, mc + 0.32), Vector3(mx, 1.9, mc - 0.32))
-			var ex := sd * (hw + 0.012)
-			g.quad("paint_white", Vector3(sd, 0, 0), Vector3(ex, 1.52, mc - 0.2), Vector3(ex, 1.52, mc + 0.2), Vector3(ex, 1.78, mc + 0.2), Vector3(ex, 1.78, mc - 0.2))
-			g.quad_tri("truck_navy", Vector3(sd, 0, 0), Vector3(sd * (hw + 0.016), 1.78, mc - 0.2), Vector3(sd * (hw + 0.016), 1.78, mc + 0.2), Vector3(sd * (hw + 0.016), 1.64, mc))
-	g.quad("truck_navy", Vector3(0, 0, -1), Vector3(-hw, 0.98, r0 - 0.004), Vector3(hw, 0.98, r0 - 0.004), Vector3(hw, 1.12, r0 - 0.004), Vector3(-hw, 1.12, r0 - 0.004))
-	# The sliding door's seams on the kerb side and the rear roll-up's slats.
-	for dz: float in [cab0 - 0.05, cab0 - 1.05]:
-		g.box("trim_black", hw - 0.01, hw + 0.006, 1.08, top - 0.15, dz - 0.01, dz + 0.01)
-	g.box("rollup", -hw + 0.12, hw - 0.12, 0.5, top - 0.2, r0 - 0.02, r0 - 0.004)
-	for sd: float in [-1.0, 1.0]:
-		g.box("lamp_tail", sd * (hw - 0.12) - 0.08, sd * (hw - 0.12) + 0.08, 0.7, 1.15, r0 - 0.03, r0)
-	# Mirrors on arms, both sides, the big round convex one on the driver's side.
-	for sd: float in [-1.0, 1.0]:
-		var mx2 := sd * (hw + 0.36)
-		g.beam("trim_black", Vector3(sd * hw, 1.45, hood - 0.1), Vector3(mx2, 1.55, hood - 0.1), 0.03)
-		g.box("trim_black", mx2 - 0.1, mx2 + 0.1, 1.45, 1.8, hood - 0.14, hood - 0.06)
-		g.box("chrome", mx2 - 0.08, mx2 + 0.08, 1.47, 1.78, hood - 0.06, hood - 0.05)
-	# Wheels: tyres with steel hubs, dark wheel arches over them.
-	for wz: float in [r0 + 0.85, hood - 0.32]:
-		for sd: float in [-1.0, 1.0]:
-			var a := sd * (hw - 0.22)
-			var b := sd * (hw + 0.02)
-			g.hcyl("tyre", minf(a, b), maxf(a, b), 0.34, wz, 0.34, 12)
-			var hb := sd * (hw + 0.025)
-			g.hcyl("chrome", minf(hb, sd * (hw - 0.02)), maxf(hb, sd * (hw - 0.02)), 0.34, wz, 0.17, 10)
-			g.box("trim_black", sd * hw - 0.02, sd * hw + 0.02, 0.42, 0.82, wz - 0.45, wz + 0.45)
-	var mesh := g.commit(material)
-	_mesh_cache.truck = mesh
-	return mesh
+	var out := {}
+	_mesh_cache.truck = out
+	var path: String = Vehicle.BODY_MODELS.get(Vehicle.BodyType.VAN, "")
+	if path == "" or not ResourceLoader.exists(path):
+		return out
+	var inst := (load(path) as PackedScene).instantiate()
+	var far: ArrayMesh = null
+	var near_box := AABB()
+	for mi in inst.find_children("*", "MeshInstance3D", true, false):
+		var m := mi as MeshInstance3D
+		if String(m.name).ends_with("_far"):
+			far = m.mesh as ArrayMesh
+		elif m.mesh:
+			near_box = m.mesh.get_aabb()
+	inst.free()
+	if far == null or far.get_surface_count() == 0:
+		return out
+	var mesh := far.duplicate() as ArrayMesh
+	for si in mesh.get_surface_count():
+		var src := mesh.surface_get_material(si) as StandardMaterial3D
+		if src == null:
+			continue
+		if String(src.resource_name).begins_with("paint"):
+			mesh.surface_set_material(si, _truck_paint(src, near_box if near_box.size != Vector3.ZERO else far.get_aabb()))
+		else:
+			var pm := Vehicle._part_material(src)
+			if pm != null:
+				mesh.surface_set_material(si, pm)
+	var box := far.get_aabb()
+	out.mesh = mesh
+	out.offset = Vector3(-box.get_center().x, -box.position.y, -box.get_center().z)
+	out.size = box.size
+	return out
+
+
+## The livery's paint: car_paint with a fleet belt band.
+static func _truck_paint(src: StandardMaterial3D, box: AABB) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = Vehicle.PAINT_SHADER
+	mat.set_shader_parameter("albedo_tex", src.albedo_texture)
+	mat.set_shader_parameter("paint", TRUCK_WHITE)
+	if src.normal_texture:
+		mat.set_shader_parameter("normal_tex", src.normal_texture)
+		mat.set_shader_parameter("has_normal", true)
+	var f: Dictionary = Vehicle.FINISHES[Vehicle.Finish.GLOSS]
+	mat.set_shader_parameter("paint_metallic", f.metallic)
+	mat.set_shader_parameter("paint_roughness", f.roughness)
+	mat.set_shader_parameter("clearcoat_amount", f.clearcoat)
+	mat.set_shader_parameter("clearcoat_roughness_value", f.cc_rough)
+	mat.set_shader_parameter("flake_strength", 0.0)
+	mat.set_shader_parameter("stripe_color", TRUCK_TEAL)
+	mat.set_shader_parameter("stripe_mode", 3)
+	mat.set_shader_parameter("stripe_height", 0.36)
+	mat.set_shader_parameter("stripe_width", 0.05)
+	mat.set_shader_parameter("body_min", box.position)
+	mat.set_shader_parameter("body_size", box.size)
+	mat.set_shader_parameter("length_is_x", box.size.x >= box.size.z)
+	return mat
 
 
 # --- Materials -----------------------------------------------------------------------------------
@@ -1285,21 +1284,6 @@ static func material(key: String) -> Material:
 			var br := ShaderMaterial.new()
 			br.shader = load("res://shaders/house_breeze.gdshader")
 			m = br
-		"truck_white", "truck_navy", "truck_red":
-			var tm := StandardMaterial3D.new()
-			tm.albedo_color = {"truck_white": Color(0.92, 0.92, 0.9), "truck_navy": Color(0.05, 0.10, 0.28), "truck_red": Color(0.66, 0.06, 0.06)}[key]
-			tm.roughness = 0.32
-			tm.metallic = 0.1
-			tm.clearcoat_enabled = true
-			tm.clearcoat = 0.6
-			tm.clearcoat_roughness = 0.2
-			m = tm
-		"truck_glass":
-			var gm := StandardMaterial3D.new()
-			gm.albedo_color = Color(0.03, 0.04, 0.05)
-			gm.roughness = 0.05
-			gm.metallic = 0.6
-			m = gm
 		"steel", "steel_dark", "iron", "brass", "bronze", "gold", "anodized", "anodized_gold", "chrome", "copper", "pole":
 			var mm := StandardMaterial3D.new()
 			mm.albedo_color = {"steel": Color(0.62, 0.63, 0.64), "steel_dark": Color(0.16, 0.17, 0.17), "iron": Color(0.07, 0.07, 0.07),
