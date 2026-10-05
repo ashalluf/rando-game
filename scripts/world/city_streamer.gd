@@ -525,15 +525,17 @@ func ensure_loaded_at(local_pos: Vector3) -> void:
 
 ## Height of solid ground at a local position (terrain, or the sidewalk top in the city).
 ## Frees the pedestrians farthest from the player until the count is under max_pedestrians
-## (Quality lowers the cap at run time).
+## (Quality lowers the cap at run time). A walker with meta "no_trim" (one a test or the loading
+## screen's rehearsal staged, which uses it a frame later) counts but is never freed here.
 func trim_pedestrians() -> void:
 	var peds := get_tree().get_nodes_in_group("pedestrian")
 	var over := peds.size() - max_pedestrians
 	if over <= 0 or _player == null:
 		return
+	peds = peds.filter(func(n: Node) -> bool: return not n.has_meta("no_trim"))
 	var pp := _player.global_position
 	peds.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_squared_to(pp) > b.global_position.distance_squared_to(pp))
-	for i in over:
+	for i in mini(over, peds.size()):
 		(peds[i] as Node).queue_free()
 	_crowd_frame = -1
 

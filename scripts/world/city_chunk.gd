@@ -2809,10 +2809,7 @@ func reveal() -> void:
 ## goes now, exactly when it went before there was a dissolve: its parked cars and its people, its
 ## trash cans, and its collision - nothing should walk, drive or be hit in a block that is fading.
 func retire() -> void:
-	for car in _cars:
-		if is_instance_valid(car) and not car.has_meta("driven"):
-			car.queue_free()
-	_cars.clear()
+	_drop_cars()
 	for child in get_children():
 		if child.is_in_group("pedestrian") or child.is_in_group("physics_prop"):
 			child.queue_free()
@@ -2823,8 +2820,17 @@ func retire() -> void:
 
 
 func _exit_tree() -> void:
+	_drop_cars()
+
+
+## Frees this chunk's parked cars (they live under the city root, not under the chunk), all but
+## one somebody drove. They leave PhysicsBudget's count at once: queue_free() takes them at the end
+## of the frame, and a block built in the same frame (a rebuild, a test's A/B) met a budget still
+## holding them, and spawned fewer trash cans and parked cars than the same block built fresh.
+func _drop_cars() -> void:
 	for car in _cars:
 		if is_instance_valid(car) and not car.has_meta("driven"):
+			(car as Node).remove_from_group(PhysicsBudget.PROP_GROUP)
 			car.queue_free()
 	_cars.clear()
 
