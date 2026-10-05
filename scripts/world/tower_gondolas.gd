@@ -91,6 +91,11 @@ static var live: int = 0
 static var workers_live: int = 0
 
 static var _site_cache: Dictionary = {}
+
+
+## Cradles with their crews at once (half on the web).
+static func max_workers() -> int:
+	return MAX_WORKERS / 2 if OS.has_feature("web") else MAX_WORKERS
 static var _hat_meshes: Dictionary = {}
 static var _hat_mats: Dictionary = {}
 static var _cradle_meshes: Dictionary = {}

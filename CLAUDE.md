@@ -3185,6 +3185,23 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   penthouse|mast|bmu`, `NIGHT=1`, `GOLDEN=1`, seconds), find them in the city with
   `tools/rooftops/find.gd -- --at=x,z --radius=m` (an EYE per pad and pool), count with
   `tools/rooftop_probe.gd`. Checks: `tests/rooftops_checks.gd`.
+- Window-washing gondolas (2026-10-05, fleet "tower-gondolas"): `TowerGondolas`
+  (`scripts/world/tower_gondolas.gd`, static: sites, the clock-driven descent `pose_at()`, the
+  cradle / davit / squeegee / hard-hat meshes) and `GondolaRig` (`scripts/world/gondola_rig.gd`,
+  one node per site under the tower or Building, identity in its parent). Sites are PURE: on a
+  LandmarkDowntown tower every flat prism tier's long straight faces (`TowerMesh.tiers`, one hook
+  line in `prism()`), roof behind, the davit spots and the column outside the face clear of every
+  collision hull, the drop carried down through flush tiers (`faces()`, `landmark_sites()`); on the
+  infill, Rooftops' hanging BMU hands its jib over (`building_bmu()`, and Rooftops then draws no
+  static cradle). Built only near the camera (`BUILD_RANGE` 420 m, crews within `WORKER_RANGE`
+  160 m, `MAX_LIVE`, `max_workers()`), freed past them. The cradle is an AnimatableBody3D on the
+  props layer, mask 0, `sync_to_physics` off, "rail_vehicle" (metal): a hit kicks a pendulum
+  swing off the rope length plus a twist and a roll, the rollers stop it at the glass, and the two
+  workers (crowd rigs in workwear, `uniform_material()`, hard hats from CrowdHatTable) crouch with
+  both hands on the rail (two-bone IK on arms and legs). Wet glass and drips: one quad on the
+  facade, `shaders/gondola_streaks.gdshader`. `GONDOLAS=0` is the A/B (`GONDOLA_T=` sets the
+  clock). Stills: `tools/gondolas/gondola_shot.gd` (one tower alone, seconds; `VIEW`, `HIT`,
+  `LIST=1`); checks `tests/tower_gondolas_checks.gd` (`tools/gondolas/checks_only.gd` alone).
 - Characters: every rig (pedestrians, ragdolls, the player) renders through
   `shaders/character.gdshader` via `Pedestrian.prepare_rig(inst, look)`. The source models ship
   one flat 1K colour texture and a glTF material with full white emission and double specular,

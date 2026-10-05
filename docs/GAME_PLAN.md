@@ -868,6 +868,13 @@ already mapped so milestone 2 is script-only.
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
 
+- **2026-10-05 Window washers work the downtown towers.** Suspended cradles with two workers
+  hang from davits on the landmark towers' flat faces and from the BMU jibs Rooftops puts on glass
+  infill towers, and wash their way down floor by floor on the clock (a drop takes about an hour),
+  leaving the glass wet behind them. Shooting one swings it; the crew crouches and hangs on - they
+  do not fall (the world is realistic, the player is the chaos). Only built near the camera.
+  docs/HANDOFF.md "Window-washing gondolas"; CLAUDE.md "Window-washing gondolas".
+
 - **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
   real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the
   101 level 4, with the four left-turn connectors on levels 2 and 3, banked, on single hammerhead

@@ -90,7 +90,7 @@ func _manage() -> void:
 	elif built and d > TowerGondolas.BUILD_RANGE + 60.0:
 		_drop()
 		return
-	if built and not has_workers and d < TowerGondolas.WORKER_RANGE and (force or TowerGondolas.workers_live < TowerGondolas.MAX_WORKERS):
+	if built and not has_workers and d < TowerGondolas.WORKER_RANGE and (force or TowerGondolas.workers_live < TowerGondolas.max_workers()):
 		_add_workers()
 	elif has_workers and d > TowerGondolas.WORKER_RANGE + 30.0:
 		_drop_workers()
@@ -115,6 +115,9 @@ func _build() -> void:
 	_body.collision_layer = 4
 	_body.collision_mask = 0
 	_body.add_to_group("rail_vehicle")
+	# Teleported, not driven: an origin re-centre moves it thousands of metres in one step, which a
+	# synced kinematic body would hand anyone standing on it as a velocity.
+	_body.sync_to_physics = false
 	# Placed BEFORE it enters the tree (a kinematic body's first move would read as a velocity).
 	_body.transform = _frame(_pose.lane, _pose.y)
 	var mi := MeshInstance3D.new()
