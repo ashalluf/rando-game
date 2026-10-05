@@ -19,3 +19,14 @@ not the Mac's Forward+. Docs: docs/HANDOFF.md, the freight rail section (VISUAL_
 
 The thin stripe over the trench in trench_close is the far city's plate still dithering out under
 the still's frozen clock, not geometry.
+
+## Wave-2 review pass (after merging fleet/base; opengl3 stills, 1280x720)
+
+| File | What | How |
+|---|---|---|
+| 12_after_merge_crossing_gates_down_1500.jpg | A stack train over Maple St on the merged city, gates down | `FREIGHT_CROSS=0:0:-25 FREIGHT_HOLD=1 EYE=3424,12.6,4446,90,-2`, 15:00 |
+| 13_after_river_yard_freightstock_cars_1500.jpg | The LA River yard's freight track: the line's own FreightStock tank car, boxcar and hopper | `EYE=4425,9,4345,31,-8`, 15:00 |
+| 14_before_river_yard_old_boxcars_FREIGHT0_1500.jpg | The same view with `FREIGHT=0`: the old IndustrialKit boxes | same EYE |
+| 15_after_merge_trench_from_above_1500.jpg | The trench and its decks on the merged city | `EYE=3412,38,3640,20,-28` |
+| 16_after_bridged_street_over_trench_1500.jpg | Pacific Blvd crossing Alameda on its deck (its invisible trench walls are gone; collision, not visible) | `EYE=3355,12.6,3089,-90,-2` |
+| 17_after_merge_yard_night_2130.jpg | The yard at night | `EYE=3500,62,2850,12,-24`, 21:30 |
