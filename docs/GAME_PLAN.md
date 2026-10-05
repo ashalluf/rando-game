@@ -315,6 +315,19 @@ already mapped so milestone 2 is script-only.
   drawn by the shader from the facility's own frame** (no paint geometry), and **the pool is
   traced** like the windows (tank, tiles, lane lines, absorption, emitted sky). `PARKS=0` is the A/B.
 
+- **2026-10-04 Billboards and supergraphics, built in code, with invented ads (VISUAL_ROADMAP
+  #57).** LA's streets and freeways are lined with outdoor advertising and ours had one box on a
+  roof. `Billboards` builds 14 x 48 ft bulletins on I-beam legs on low MIDTOWN / downtown-edge
+  roofs (most of them on hash-picked "strip" avenues, some digital), real 12 x 24 ft posters where
+  Building's roof-plant billboard roll always stood, V-shaped monopoles in the freeways' right of
+  way facing each carriageway, perforated vinyl supergraphics on glass and panel towers, and a
+  lightbox ad at every bus shelter: face, trim, back sheet, stringers, X-bracing, grated catwalk
+  and rail, lighting arms and fixtures, all at real size. The art is ONE atlas drawn by
+  `tools/make_billboard_art.py` (twelve invented campaigns, never a real brand; the airline is
+  the airport's own SUNCREST AIR); the face shader adds paper seams, misregistration, fade,
+  tears that show the poster under them, the vinyl's sheen, LED slides and the fixtures' night
+  wash. One batch per kind per chunk, each board a breakable prop; LOD chunks and the far city
+  keep every face as a lit far box. Hash-seeded and placed last, so nothing else moves.
 - **2026-10-04 The crowd's hats are modelled round each rig's own head, in code (G5).** The
   old caps and beanies were a fixed tube and half-dome hung at one offset from the Head bone, so
   on most rigs the cap's band sat across the eyes or the crown perched on top, in flat saturated

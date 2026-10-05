@@ -6589,3 +6589,53 @@ error in `StreetVendors.free_queue()` (`rec is Dictionary` on a freed node) once
 branch (one line in scripts/world/street_vendors.gd; the vendors' owner may want to look). The
 light rail's structure keeps parks and schools off its blocks (`LightRail.blocks_rect()` /
 `cuts_in()` in `role_for()`).
+## 9bo. Billboards and supergraphics, 2026-10-04 (agent branch `wt/billboards`; VISUAL_ROADMAP #57)
+
+The brief: LA's streets and freeways are lined with billboards and the city had one roof-plant box.
+Now `Billboards` (`scripts/world/billboards.gd`; CLAUDE.md "Billboards" is the reference) builds,
+in code at real sizes, rooftop bulletins (14 x 48 ft) on I-beam legs with a kicker and a ladder,
+real posters (12 x 24 ft) where Building's own roof-plant billboard roll always stood, V-shaped
+monopoles in the freeways' right of way, perforated vinyl supergraphics on glass and panel
+towers, and a double-sided lightbox at every bus shelter. Each face is a unit of one frame kit:
+face, trim, back sheet with panel lines, stringers, uprights, X-bracing, a grated catwalk with a
+rail, five (three) lighting arms with fixtures.
+
+- **Placement** is hashes only and happens last: `on_building()` after each Building in
+  `_build_lot()` (both levels), `block_step()` after Industrial's, and `commit()` in a deferred
+  step before the finish (every board one breakable `"billboard"` prop, 300 hp, collision on
+  StreetProps). The block's other props keep their positions and ids (checked with Billboards on
+  and off). Rooftop bulletins only on lots on the pavement (`lot.edge`): the first pass put boards
+  on lots deep inside midtown's big blocks, 150 m behind the street. Monopoles: a corridor lot, both
+  face ends and the faces' whole footprint clear of every deck (the downtown freeway check reads
+  the far boxes' axis-aligned footprints - it caught the first V at 2.3 m from the deck edge),
+  140 m apart.
+- **Far**: LOD chunks and the far city's capture keep each face as the roof plant's PANEL far box
+  in its ad's mean colour (`BillboardTable`), lit after dark, LED boards self-lit, and the pole as
+  a MAST; `building_lod.gdshader`'s PANEL branch draws the frame round the face.
+- **Art**: `tools/make_billboard_art.py` (PIL, seconds) - twelve invented campaigns (THE LAST
+  ORBIT, FIZZLY, LUMEN X, RAMIREZ & KOLB with a 555 number, ZAPWOLF, SAND & SMOKE on HALCYON+,
+  SUNCREST AIR - the airport's sunset carrier -, STARDUST DRIVE-IN, CASA LUNARA, CORVO ARIA, 104.1
+  THE DRIFT, THE HOLLOW HOUSE) and STRIDE CO. on the portraits. The face shader does the wear per
+  instance: paper sheets a hair off register with seams, sun fade (reds first), torn patches with a
+  white fringe showing the poster under them, the vinyl's sheen and edge ripples, mesh vinyl's
+  perforations, welds and hem, rain run-off, the lightbox, LED slides every 8 s with the dot pitch,
+  and the fixtures' night wash.
+- **Frame cost** (`tools/geo_count.gd`, opengl3 800x600, `BILLBOARDS=0` vs on): midtown bulletin
+  block `--spawn=1030,1662,52,20,2` 4.894 M tris / 4,392 draws -> 4.914 M / 4,434 (+0.4 % / +1.0 %);
+  by the 110 `--spawn=1893,640,0,14,2` 3.624 M / 3,574 -> 3.636 M / 3,618 (+0.3 % / +1.2 %). A
+  bulletin unit is ~1.9k triangles (frame) + 0.5k (legs) + 2 (face); a chunk with boards adds 3-9
+  batches plus their shadow passes.
+- **Tools**: `tools/billboard_probe.tscn -- --spawn=x,z` (headless: counts the boards in the far
+  captures round a point, lists the monopoles, the strip roads and the shelters, and with
+  `BB_DEBUG=1` every face with an EYE); `tools/glshot/block_shot.tscn` gained `NIGHT=1` (a crude
+  night with the lamp globals on).
+- **Checks**: `tests/billboard_checks.gd` (atlas and table, the shader's grid, boards as props in
+  one batch per kind, LOD/far boxes, monopoles pure and clear, nothing else in the block moved).
+- **Stills** (`shots/billboards`): midtown rooftop bulletin by day and night, its profile, the
+  110 with a monopole by day and night (one digital), a supergraphic on a glass tower, bus
+  shelter lightboxes, the atlas.
+- **Not done / not verified**: no Forward+ look (the night wash and LED brightness under AgX and
+  auto exposure NEED A MAC CHECK); the "strip" avenues are rare in midtown (22 % of wide roads;
+  `STRIP_SHARE`), so a Sunset-Strip-dense stretch is not guaranteed near any bookmark; landmark
+  towers' blank uv_facade walls carry no supergraphics (only Building towers); boards do not cast
+  light on the street (emission only); the face's night wash is drawn, not a light.

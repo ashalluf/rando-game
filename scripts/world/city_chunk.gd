@@ -101,7 +101,7 @@ const GROUND_RIM_TOP := 0.5
 @export var ocean_subdiv: int = 72
 @export var ocean_subdiv_lod: int = 32
 
-const PROP_HEALTH := {"lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "signal_cabinet": 50.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0, "rack": 15.0, "newsbox": 10.0, "mailbox": 20.0, "bollard": 40.0, "street_sign": 12.0, "bus_stop": 40.0}
+const PROP_HEALTH := {"billboard": 300.0, "lamp": 30.0, "hydrant": 20.0, "bench": 20.0, "stop_sign": 10.0, "signal": 60.0, "signal_cabinet": 50.0, "barrier": 80.0, "cafe": 15.0, "planter": 25.0, "rack": 15.0, "newsbox": 10.0, "mailbox": 20.0, "bollard": 40.0, "street_sign": 12.0, "bus_stop": 40.0}
 
 var plan: CityPlan
 var ix: int = 0
@@ -133,6 +133,9 @@ var _mm_nodes: Dictionary = {}
 var _statics: StreetProps
 ## Footprints of the lots this chunk built on, so lawn grass can keep out of the houses.
 var _lot_rects: Array[Rect2] = []
+## The billboards a FULL build has planned (Billboards.on_building() / block_step()), placed as
+## props by Billboards.commit() in a step just before the finish.
+var billboard_jobs: Array = []
 ## LotFill's state while building: the fill ground by kind (merged at the finish, FULL only), and
 ## the trees and parked cars its forecourts and car parks have spent of their caps.
 var _fill_ground: Dictionary = {}
@@ -2284,6 +2287,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: YardFill.block_step(self, block))
 			# The industrial district's yards, rail spurs and fences (Industrial; hash-seeded).
 			steps.append(func() -> void: Industrial.block_step(self, block))
+			# Billboards: the freeway's monopoles, then every board the lots planned (Billboards;
+			# hash-seeded, placed in a step before the finish so the block's props keep their ids).
+			steps.append(func() -> void: Billboards.block_step(self, block))
 			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
 			# whole block, so the footprints the lots just recorded are what the grass has to
 			# stay out of; a suburb whose lawns are flat green paint is the tell.
@@ -2675,6 +2681,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 			LotFill.after_building(self, lot, building)
 		elif YardFill.wanted(self, district):
 			YardFill.record_lot(self, lot, building)
+		Billboards.on_building(self, lot, building, district)
 	else:
 		# Far away: just the boxes, in the facade color, no props. They do get plain box
 		# collision so a fast car cannot drive into a footprint and get shot through the
@@ -2710,6 +2717,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 			LotFill.after_building(self, lot, building)
 		elif YardFill.wanted(self, district):
 			YardFill.record_lot(self, lot, building)
+		Billboards.on_building(self, lot, building, district)
 		building.free()
 		building_count += 1
 

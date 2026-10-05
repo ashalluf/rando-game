@@ -853,6 +853,9 @@ static func _bus_shelter(chunk: CityChunk, p: Vector2, inward: Vector2, dir: Vec
 		["sign_post", PropFactory.sign_post(), Transform3D(Basis(), at + along * 2.6 + Vector3(0.0, 1.4, 0.0))],
 		["bus_sign", PropFactory.bus_sign(), Transform3D(basis, at + along * 2.6 + Vector3(0.0, 2.7, 0.0))],
 	]
+	# The ad panel at the shelter's end (Billboards: a double-sided lightbox, its own batch).
+	if Billboards.enabled:
+		instances.append(Billboards.shelter_instance(chunk.plan.seed, at, back, along))
 	chunk._add_prop("bus_stop", at, Color(0.3, 0.3, 0.32), instances, [[Vector3(4.2, 2.6, 1.0), at + back + Vector3(0.0, 1.3, 0.0), yaw]])
 	# People waiting for the bus sit on its bench (Pedestrian's life, CrowdLife).
 	if not chunk.prop_records.is_empty() and chunk.prop_records.back().kind == "bus_stop" and chunk.level == CityChunk.Level.FULL:

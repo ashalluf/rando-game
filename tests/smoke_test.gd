@@ -1771,6 +1771,9 @@ func _test_city() -> void:
 	# Rec parks and school campuses (tests/park_checks.gd): roles, pure plans at regulation sizes,
 	# one ground and one walls mesh a chunk, people under the cap, partitioned far slabs.
 	load("res://tests/park_checks.gd").new().run(self, city)
+	# Billboards (tests/billboard_checks.gd): the atlas, the boards as props in one batch per kind,
+	# the far boxes, the monopoles pure and clear of the decks, nothing else in the block moved.
+	load("res://tests/billboard_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -165,7 +165,14 @@ static func plant(prop: Array, building_height: float) -> Array:
 		"billboard":
 			var yaw: float = rolls.get("yaw", 0.0)
 			var paint: Color = rolls.get("color", Color(0.8, 0.76, 0.68))
-			_unit(out, at, big, Vector3(6.0, 3.0, 0.24), Basis(Vector3.UP, yaw) * Vector3(0.0, 4.0, 0.0), paint, Plant.PANEL, yaw)
+			if Billboards.enabled:
+				# The poster Billboards builds there: its face in the ad's colour, lit at night.
+				var ad: int = rolls.get("ad", 0)
+				_unit(out, at, big, Vector3(Billboards.POSTER.x, Billboards.POSTER.y, 0.6), Basis(Vector3.UP, yaw) * Vector3(0.0, Billboards.LEG_POSTER + Billboards.POSTER.y * 0.5, -0.3),
+					Billboards.far_color(Billboards.Fmt.POSTER, ad), Plant.PANEL, yaw)
+				out.back()[2] = Color(float(Plant.PANEL), big, 1.0, PLANT_FLAG)
+			else:
+				_unit(out, at, big, Vector3(6.0, 3.0, 0.24), Basis(Vector3.UP, yaw) * Vector3(0.0, 4.0, 0.0), paint, Plant.PANEL, yaw)
 	return out
 
 

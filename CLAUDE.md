@@ -1018,6 +1018,44 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   additive batch per chunk (`PropFactory.shop_spill()`, `light_pool.gdshader`), knobs
   `shop_spill_*` on Building. All of it runs off `lamp_factor`. The palettes are written in
   both places; the smoke test reads the shader's copies back.
+- Billboards (2026-10-04, VISUAL_ROADMAP #57, docs/HANDOFF.md 9bo): `Billboards`
+  (`scripts/world/billboards.gd`, static) builds LA's outdoor advertising in code at real sizes:
+  14 x 48 ft BULLETINS (`BULLETIN` 14.63 x 4.27 m) on I-beam legs on low (5-17 m) MIDTOWN,
+  downtown-edge (skyline boost 0) and a few INDUSTRIAL roofs, facing the street or standing across
+  it back to back (`ROOF_CHANCE`; a "strip" - `is_strip()`, a hash of a wide road - raises it to
+  `STRIP_CHANCE` and makes `STRIP_DIGITAL` of them LED); 12 x 24 ft POSTERS where Building's
+  roof-plant "billboard" roll stood (Building keeps every roll and adds `rolls.ad`, a hash, and
+  draws nothing there when Billboards is on; FarBuilding's far box is the poster's); V-shaped
+  MONOPOLES (`monopoles()`, pure: every `POLE_EVERY` deck segments by hash, `POLE_OFFSET` past the
+  deck edge, only inside a corridor lot, both faces' ends clear of every deck and of any lot whose
+  building reaches them, the faces `POLE_FACE_RISE` over the deck, the V's point toward the road);
+  perforated vinyl SUPERGRAPHICS on the street face of GLASS / PANELS towers over
+  `SUPER_MIN_HEIGHT`; and a double-sided lightbox in every bus shelter (`shelter_instance()`, one
+  more instance of StreetDetail's bus-stop prop). Every face is a unit of a frame kit in its own
+  frame (face plane z 0 facing +Z, bottom at y 0): trim, back sheet, stringers, uprights,
+  X-bracing, grated catwalk and rail, lighting arms and fixtures (`frame_mesh()`), legs with a
+  kicker and a ladder (`legs_mesh()`), a monopole's head, column (unit tube scaled) and base.
+  Meshes are built once in code (`Billboards.Geo`, flat-shaded, clockwise front faces like
+  FreewayKit's); ONE batch per kind per chunk (`bb_face_b/_p/_super`, `bb_frame_*`, `bb_legs_*`,
+  `bb_head`, `bb_pole`, `bb_base`, `bb_shelter`). FULL builds plan in `on_building()` (called by
+  `_build_lot()` after each Building, both levels) and `block_step()` (after Industrial's), and
+  `commit()` places every board as a breakable `"billboard"` prop (collision on StreetProps) in a
+  deferred step before the finish, so the block's props keep their ids; LOD chunks and the far
+  city's capture lay each face as the roof plant's PANEL far box (`building_lod.gdshader`:
+  custom.b 1 lit at night, 2 LED, 0.5 unlit) and a pole as a MAST. **The art** is ONE atlas,
+  `assets/textures/billboards/billboard_ads.jpg` (2048 x 3072: 12 bulletins 1024 x 298, 12 posters
+  512 x 256, 6 portraits 341 x 512), drawn by `tools/make_billboard_art.py` (PIL; twelve INVENTED
+  campaigns, 555 phone numbers, SUNCREST AIR is the airport's sunset carrier; never a real brand),
+  which also writes `scripts/world/billboard_table.gd` (each cell's linear mean, for the far
+  boxes). `shaders/billboard_face.gdshader` wears it per instance (INSTANCE_CUSTOM: ad / 32,
+  format / 4, wear, lit; exact as half floats): paper sheets a hair off register with seams, sun
+  fade, torn patches showing the poster under them; the vinyl's sheen and edge pull; the mesh
+  vinyl's perforations, welds and hem; the lightbox; LED slides (`slide_seconds`) with the dot
+  pitch; the fixtures' night wash (`lit_energy` x `lamp_factor`). The steel is
+  `shaders/billboard_steel.gdshader` (kind in the vertex alpha; lenses lit at night). Both work
+  in linear (color_space). `BILLBOARDS=0` in the environment is the A/B; `BB_DEBUG=1` prints
+  each face with an EYE; `tools/billboard_probe.tscn -- --spawn=x,z` counts the boards round a
+  point. Checks: `tests/billboard_checks.gd`.
 - Night lighting: the city has no real lights except the sun, so at night it was pitch black.
   Every street lamp now carries an `OmniLight3D` in the `lamp_light` group (FULL chunks only,
   distance-faded, no shadows) whose energy `DayNight` sets from `night_factor` on a 0.35 s tick

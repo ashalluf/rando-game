@@ -16,7 +16,7 @@ extends Node
 ## default 1), SHOTS="x,y,z,yaw,pitch;..." more eyes from the same run (OUT_1.png, ...), GEO=1
 ## prints each frame's triangles and draws, YARD_FILL=0 builds without YardFill (the A/B), HOUSES=0
 ## the house lots as Building boxes (HouseKit's A/B).
-## INDUSTRIAL=0 builds the industrial district without Industrial.
+## INDUSTRIAL=0 builds the industrial district without Industrial. NIGHT=1 a crude night (lamps on).
 
 func _ready() -> void:
 	await get_tree().process_frame
@@ -48,6 +48,22 @@ func _ready() -> void:
 	if sun:
 		sun.rotation_degrees = city.get("sun_rotation_degrees")
 		RenderingServer.global_shader_parameter_set("sun_direction", sun.global_basis.z)
+	# NIGHT=1: a crude night (no DayNight here) - the lamp globals on, the sun down to a moon and
+	# the sky's light dimmed - enough to judge what lights itself (signs, lamps, billboards).
+	if OS.get_environment("NIGHT") == "1":
+		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
+		RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+		if sun:
+			sun.light_energy = 0.06
+			sun.light_color = Color(0.6, 0.7, 1.0)
+		var we := get_node_or_null("WorldEnvironment") as WorldEnvironment
+		if we and we.environment:
+			we.environment.ambient_light_energy = 0.05
+			we.environment.background_mode = Environment.BG_COLOR
+			we.environment.background_color = Color(0.01, 0.015, 0.03)
+			we.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+			we.environment.ambient_light_color = Color(0.05, 0.06, 0.09)
+			we.environment.fog_enabled = false
 	var style: Dictionary = city.chunk_style()
 	var eyes: Array = [OS.get_environment("EYE")]
 	for e in OS.get_environment("SHOTS").split(";", false):
