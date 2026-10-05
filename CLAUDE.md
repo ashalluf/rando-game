@@ -3945,6 +3945,13 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   invocation in its header: it must run under `--rendering-driver opengl3` with Xvfb, never
   `--headless`. `AB=Batch_sig_*,BatchShadow_sig_*` counts the same frozen frame again with the
   matching nodes hidden, so one kind of geometry's cost comes out of one run. Measure a geometry change before and after with it rather than arguing about it.
+- Two more renderer traps (fwd-review-b, 2026-10-05, probed on both renderers; HANDOFF "Forward+
+  review b"): **`sky_tint` and every `color` shader global arrive as raw sRGB numbers on BOTH**
+  (never decoded) - a linear-on-both shader takes `cs_srgb_to_linear(sky_tint.rgb)`, a display-number
+  shader (`disp()` / `to_lit()`) takes it as it is, never through `disp()`; and **on a `cull_disabled`
+  material Godot has already turned NORMAL toward the camera on a back face** - never flip it again
+  with `FRONT_FACING`. A generated normal map is OpenGL-style: green = the row BELOW minus the row
+  above (WeaponFX's blood maps). `tests/fwd_review_b_checks.gd` holds the three.
 - Native screenshots without a browser: `tools/glshot/building_shot.gd` (one building),
   `tools/glshot/block_shot.tscn` (a few FULL city blocks alone, no far city: a block's ground and
   furniture) and `tools/glshot/city_shot.gd` (the city at a `--spawn`) render with the real

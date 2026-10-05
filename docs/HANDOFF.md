@@ -8571,3 +8571,63 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Forward+ review b: the marina, the blast aftermath, climbing plants, building damage, the new crowd rigs, the schools, 2026-10-05 (fleet session `fwd-review-b`, branch `wt/fwd-review-b`)
+
+None of these six features had been seen on Forward+ (the owner's Mac). Each was rendered on the
+real Forward+ pipeline under lavapipe in a SMALL scene (never the whole city: one `block_shot.tscn`
+eye peaks at ~10 GB on lavapipe) and compared with opengl3, then the shaders were read for the
+renderer traps. Stills on `shots/fwd-review-b` (README there).
+
+**Two probes first** (one quad each, read back, both renderers): a `cull_disabled` back face's
+NORMAL already points at the camera before `fragment()` runs (Forward+ and Compatibility alike);
+and a `color` global set to 0.5 (`sky_tint`) draws 187 unshaded on Forward+ and 128 on
+Compatibility - raw sRGB numbers on both, never decoded.
+
+**Fixed (each in the feature's own file):**
+- `boat.gdshader` flipped NORMAL again on back faces: every inside face (open cockpits, canvas
+  undersides, single-sided panels) was lit as if facing away.
+- `BlastAftermath.crater_textures()` wrote the normal map's green the DirectX way (row above minus
+  row below; WeaponFX's blood maps are OpenGL): the pit read as a dome. Still 01.
+- `building_damage.gdshaderinc`, the blast hole's room: its colours are display numbers tuned on
+  opengl3, inside building.gdshader, which works in the renderer's own space; Forward+ read them as
+  linear, so the room was pale by day and the night smoulder (which grows with the room's
+  brightness) a washed beige blob through AgX. `dmg_hole_room()` now takes the facade colour back to
+  display, works as tuned, and decodes its result on Forward+ (`dmg_to_lit()`: the over-1 part of
+  an emission stays linear so embers bloom). Stills 02-04: Forward+ now matches opengl3.
+- `smoke_column.gdshader` and `marina_water.gdshader` work in linear and took `sky_tint` as linear:
+  the column's sky fill and the basin's emitted mirror were 1.7x too strong on both renderers. Now
+  `cs_srgb_to_linear(sky_tint)`. Stills 05, 06, 08.
+- `marina_water.gdshader` at night: the city glow's floor (0.4 of `night_glow` on every grazing
+  pixel) drew the whole basin as one orange-brown sheet on Forward+; the glow now follows the
+  chop's sparkle (`0.08 + 0.92 * sparkle^2`). Still 07.
+- `school_walls.gdshader`, `park_ground.gdshader`, `park_walls.gdshader` (the schools' meshes):
+  `disp(sky_tint)` re-encoded a colour that was never decoded, so the glass and pool mirrors were
+  brighter on the Mac than in every opengl3 still. Now `sky_tint.rgb` as is. Still 10 (small at
+  that angle: the traced classroom dominates).
+
+**Looked at, nothing to fix:** the eight new crowd rigs (still 11: skin, garments, the hi-vis vest
+and the headscarf consistent across renderers), the climbing plants (still 12; their atlas normal
+map and card binormal sign agree with OpenGL), crazed and shattered shop glass (still 13), the
+charred palm and tree materials (still 14), the climbers' and smoke column's back faces.
+
+**Not mine, same trap, reported:** `industrial_walls.gdshader` lines 263 and 341 also run
+`disp(sky_tint)`. `foliage.gdshader`'s charcoal (`coal` 0.028) is renderer-space like its palms:
+near black in the stills, dark grey on the Mac (left; physically closer on the Mac).
+
+**Tools:** `/home/user/bin/fshot`-style wrapper is not in the repo: Godot under lavapipe saves the
+still and then hangs at exit holding ~10 GB, so kill it once `saved` is printed (never with
+`pkill -f`, which matches the calling shell). The probe scenes (crater alone, the four boat types,
+palm / charred palm / smoke column) were scratch files, not committed.
+
+**Frame cost:** shader-only changes, no node, mesh, draw or triangle added or removed (geo_count not
+re-run). The blast hole adds two `#if` branches per damaged-building fragment; the marina water two
+multiplies.
+
+**Checks:** `tests/fwd_review_b_checks.gd` (no shader of these flips a back face's NORMAL, no display
+shader passes sky_tint through disp(), the crater map's pit walls lean the OpenGL way).
+
+**Not verified:** the Mac itself (lavapipe is Forward+ but not the Mac's exposure and frame rate);
+the marina at night with DayNight's real exposure (block_shot's NIGHT=1 is a crude night); the
+schools' stadium lights at night; the smoke column from across the basin with the city's AgX and
+auto exposure.
