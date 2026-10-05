@@ -3135,6 +3135,49 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Every roll is a hash of the seed and the lot. `CANALS=0` in the environment is the A/B (no site,
   the blocks are ordinary beach town). Probe: `tools/canals/probe.gd` (layout, styles, bridges,
   road closures). Checks: `tests/canals_checks.gd`.
+- The golf course (VISUAL_ROADMAP #89, 2026-10-05; docs/HANDOFF.md, golf section): Valley Oaks
+  Golf Club (invented), nine holes, a range, a clubhouse, on the valley floor (x -389..298,
+  z -3131..-2544, default seed). A landmark AREA like MacArthur Park (`GolfCourse.entry()`'s
+  "area", appended at the end of `Landmarks.all()`): CityPlan snaps it to whole blocks, closes the
+  roads inside (`road_open()`), its blocks carry `"site": "golf_course"` and no lots, and its chunks
+  run `GolfBuild.site_steps()`. **The layout is PURE** (`GolfCourse.layout(plan)`, cached per plan):
+  the routing is the hand-drawn `ROUTE` template (nine holes in a 660 x 580 m frame, a loop out of
+  the clubhouse and back), mirrored by a hash, every point jittered by a hash (`JITTER`) and checked
+  (`hole_gaps()` >= `MIN_GAP`, else less jitter); par from the yardage; three tee boxes, a fairway
+  narrowing to the green, green + collar + pin, bunkers (greenside and at the landing area, kept off
+  the path and water), the pond (`POND`, water level under the lowest ground round it), the creek
+  (`CREEK`, falling to the pond), the cart path (offset down each hole, pushed off greens, tees,
+  water and the range, Chaikin-smoothed), bridges, trees in the rough, signs, washers, benches,
+  yardage posts. **Everything on the ground is a distance field** (metres, negative inside):
+  `gather(lay, rect)` bins the features that can reach a rect on a `BIN` grid, `field(sub, p)`
+  returns [fairway, green, bunker, tee, water, path, mow.x, mow.y, water level], `shape()` makes the
+  ground from them (mounds in the rough, crowned greens, raised tee pads, dug bunkers with a lip,
+  banks down to the water). Everything `shape()` reads saturates inside `FIELD_REACH` (8 m), or
+  two chunks would disagree at their border (`tests/golf_checks.gd` measures the seam). **FULL**:
+  ONE turf mesh a chunk (`GolfTurf`, a 1.6 m grid, the fields in COLOR / UV / UV2, collision from
+  the same triangles) on `shaders/golf_turf.gdshader` (thresholds the fields per pixel: path,
+  water's edge, raked sand with a sod line, cross-cut green and collar, striped tees, diagonal
+  fairway stripes whose sheen flips with the view, first cut, rough, native grass far from play;
+  linear via color_space); the pond and creek on `lake.gdshader` (own material instances); props
+  in ONE mesh on `Parks.walls_material()` through ParkKit's writers; the flags one batch
+  (`golf_flag`, `shaders/golf_flag.gdshader`: cloth waving with `wind_factor`); trees in the city
+  tree / hill tree batches, palms, a hedge; the clubhouse and the pro shop are synthetic HouseKit
+  plans (`GolfBuild.clubhouse_plan()`, Spanish style) built by HouseBuild; the car park is
+  `LotFill._car_park()`. **LOD**: the turf at 3.5 m, the water, half the trees, the buildings'
+  LOD boxes, a relief floor. **Far**: the capture records the rough's colour for the plate
+  (`GolfFar.ROUGH_FAR`) and HouseKit's boxes; Skyline calls `GolfFar.add()` (plate-flagged turf
+  boxes, canopies) instead of kerb rows; `_add_plate()` paints no carriageway over a road a site
+  closes. **Life** (`GolfLife`, one node under the streamer, made by the first FULL course chunk):
+  golfer groups at tees, fairways and greens and a line down the range (pure: `groups()`,
+  `range_spots()`; by day, `PLAY_HOURS`), carts on the path from a clock (AnimatableBody3D on the
+  props layer, seated riders), sprinklers along the fairways at dawn (`SPRINKLER_HOURS`).
+  `Golfer` (`scripts/npc/golfer.gd`, a Pedestrian in a polo and chinos): swing / putt / ride poses
+  solved per rig like RoughSleeper's, plus a spine `twist`; a swing is a timeline (`SWING`,
+  `PUTT`) eased bone by bone; the club is placed from the hands along a direction per pose
+  (`CLUB_DIRS`), the ball flies at impact; frightened, they drop the stance and run. `GOLF=0` in
+  the environment removes the course (the A/B), `GOLF_LIFE=0` its life. Probe:
+  `tools/golf/probe.gd` (`OUT=map.png` a top-down map of the fields); poses:
+  `tools/golf/golfer_lab.tscn`; checks: `tests/golf_checks.gd`.
 - Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six
   photos, "give it an interior", and "make it impossible for the character to shoot anything at
   it"): `LandmarkMasjidOmar` (`scripts/world/landmark_masjid_omar.gd`), a replica of the real

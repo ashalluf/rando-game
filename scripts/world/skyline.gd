@@ -586,7 +586,10 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 		colors.append(Color(c.r, c.g, c.b, 1.0))
 		customs.append(Color(0.0, 0.0, float(absi(hash([k, xforms.size()])) % 997) / 997.0, 1.0))
 	# A river block plants no street trees (RiverBuild lays pavement and a rail yard).
-	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and not _plan.marina_block(k.x, k.y):
+	# The golf course's turf, pond and trees (GolfFar) instead of the kerb rows of its closed roads.
+	if String(b.get("site", "")) == GolfCourse.ID:
+		GolfFar.add(_plan, k, ch, _work)
+	elif zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and not _plan.marina_block(k.x, k.y):
 		_add_city_trees(k, b, ch)
 	# Container stacks in the port yard.
 	if batch.has("container"):
@@ -615,7 +618,8 @@ func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 	var roads := zone == MacroMap.Zone.CITY
 	var wx: float = _plan.road_width(CityPlan.AXIS_X, k.x + 1) if roads else 0.0
 	var wz: float = _plan.road_width(CityPlan.AXIS_Z, k.y + 1) if roads else 0.0
-	# A street a high school closed (Schools) is campus, not asphalt, from afar too.
+	# A street a high school or a landmark's site closed (Schools, CityPlan.road_open()) is that
+	# ground, not asphalt, from afar too.
 	if roads and not _plan.road_open(CityPlan.AXIS_X, k.x + 1, area.get_center().y):
 		wx = 0.0
 	if roads and not _plan.road_open(CityPlan.AXIS_Z, k.y + 1, area.get_center().x):

@@ -132,6 +132,9 @@ static func _list() -> Array[Dictionary]:
 	# The canal neighbourhood behind the boardwalk (Canals): a site like the park's.
 	if Canals.enabled:
 		list.append(Canals.entry())
+	# The valley's golf course (GolfCourse): an area like MacArthur Park's, nine holes and a range.
+	if GolfCourse.enabled:
+		list.append(GolfCourse.entry())
 	return list
 
 
@@ -202,6 +205,8 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 			return LandmarkMacArthurPark.site_steps(chunk)
 		Canals.SITE_ID:
 			return Canals.site_steps(chunk)
+		GolfCourse.ID:
+			return GolfBuild.site_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 

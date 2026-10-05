@@ -1755,6 +1755,9 @@ func _test_city() -> void:
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)
+	# The valley golf course (tests/golf_checks.gd): the site and its closed roads, the layout, the
+	# turf mesh and its seams, LOD and far, the golfers and the carts.
+	await load("res://tests/golf_checks.gd").new().run(self, city)
 	# The distance (tests/distance_checks.gd): every tier of detail present, no gap ring between
 	# them out to the horizon, no block drawn twice, consistent handoff distances, and a streaming
 	# queue ordered by the view.

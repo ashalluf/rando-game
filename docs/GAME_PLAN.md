@@ -514,6 +514,18 @@ already mapped so milestone 2 is script-only.
   taxiway's west end (across every arrival's path) to its east end, facing west; and the final
   approach is no longer swept sideways over the runway protection zone, which had held every
   arrival level to the fence and put its touchdown at the far end of the runway.
+- **2026-10-05 A public golf course in the valley (VISUAL_ROADMAP #89).** Valley Oaks Golf Club
+  (invented): nine holes, par 33, ~2,200 yd, a driving range, a Spanish revival clubhouse with its
+  car park and a pro shop, on the rolling valley floor north of the front range (x -389..298,
+  z -3131..-2544 on the default seed). It is a landmark AREA like MacArthur Park: CityPlan snaps it
+  to whole blocks and closes the roads inside, so no seed, block or roll elsewhere moves (the
+  neighbouring blocks lose a rec-park or plaza roll by Parks' and CityPlan's own beside-a-site
+  rules). The routing is a hand-drawn template mirrored and jittered by a hash and validated,
+  not a solver: a template reads as a designed course; a solver would need much more care to
+  avoid nonsense holes. The turf is ONE distance-field mesh per chunk so edges stay crisp on a
+  1.6 m grid and the whole course is one draw. Golfers are crowd rigs with solved poses (no new
+  clips); carts are scripted on the path, not vehicles.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
