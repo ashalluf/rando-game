@@ -1353,6 +1353,15 @@ already mapped so milestone 2 is script-only.
   lettering and its glass traces lit rooms with parallax. `POLICE_NIGHT=0` is the A/B.
   docs/HANDOFF.md (police stations at night).
 
+- **2026-10-05 The grade follows the hour (G4).** The look LUT was one curve for every hour, so
+  golden hour came out mauve, the blue hour magenta and the night's shadows lavender-blue. Now
+  `HourGrade` blends seven looks (day, golden hour, blue hour, night, overcast, marine layer,
+  Santa Ana) over the same base gradient from the numbers DayNight already lights with. Chosen
+  over separate LUT images per hour: the curves are code over the scene's own gradient, so a
+  tweak to the base still moves every hour, and AgX with `adjustment_contrast` 1.0 stays as the
+  Look note asks. Night's blacks go deeper (p5 7 -> 3 on opengl3, 23 -> 14 on Forward+).
+  docs/HANDOFF.md "A grade per hour".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

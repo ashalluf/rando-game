@@ -620,6 +620,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `python3 -c "from PIL import Image; import numpy as np; g=np.asarray(Image.open('shot.png').convert('L')).astype(float); print([round(float(np.percentile(g,p))) for p in (1,5,50,95,99)])"`.
   A midday city frame wants a p5/p50/p95 spread like 87/123/175; 78/103/137 is the washed-out
   look the grade was added to fix.
+- The grade per hour (G4, 2026-10-05, docs/HANDOFF.md "A grade per hour"): the look LUT is no
+  longer one curve. `HourGrade` (`scripts/world/hour_grade.gd`, made by `DayNight._ready()`, fed
+  from `_apply()`) puts its own GradientTexture1D on the Environment and rebuilds it (33 points)
+  whenever the blend moves, from the city.tscn gradient as the BASE: seven `LOOKS` (DAY crisp,
+  GOLDEN warm, BLUE cool, NIGHT deep toe with red and blue pulled down - the lavender -, MARINE grey
+  and flat, OVERCAST, SANTA_ANA) weighted by `weights()` from the sun's elevation, `golden`, the
+  weather hooks; each is saturation, an S-curve mix, per-channel mid gamma, a toe gain ((1-v)^5)
+  and a highlight tint that keeps white white. Still AgX, still `adjustment_contrast` 1.0. Photo
+  mode's filter (a curve that is not ours) is left alone. `HOUR_GRADE=0` is the old curve (the
+  A/B), `GRADE_RAW=1` the tonemapper's own output (measure, then grade offline: a still graded in
+  numpy matches the engine within 1-2 levels). `tools/glshot/grade_shot.tscn` (3 x 3 FULL blocks,
+  the city's DayNight, `HOURS=`) is the Forward+ view on lavapipe (11 GB at `BLOCKS=1`; never
+  more). Checks: `tests/color_grade_checks.gd`.
 - The map (2026-10-05, "a minimap and a full-screen map with a GPS, GTA style"): the minimap and
   the full-screen map draw the same thing through `MapPainter` (`scripts/ui/map_painter.gd`,
   static; a `MapPainter.View` says where: world-to-canvas transform, pixels per metre, the

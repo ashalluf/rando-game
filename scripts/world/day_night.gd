@@ -227,6 +227,8 @@ var _lamp_timer: float = 0.0
 ## The sky's horizon colour this frame, published as the `sky_tint` shader global.
 var _horizon_now: Color = Color(0.66, 0.75, 0.88)
 var _sky: ShaderMaterial
+## The look LUT per hour and weather (HourGrade; null with HOUR_GRADE=0).
+var grade: HourGrade
 var _paused: bool = false
 ## Whole days gone by since the start (the date), and the moon's age now (days since new).
 var day_count: int = 0
@@ -246,6 +248,8 @@ func _ready() -> void:
 		_env = we.environment
 		if _env and _env.sky:
 			_sky = _env.sky.sky_material as ShaderMaterial
+		if _env and HourGrade.enabled:
+			grade = HourGrade.new(_env)
 	_apply_override()
 	if _sky:
 		var extras := SkyExtras.new()
@@ -489,6 +493,8 @@ func _apply() -> void:
 			streamer.set_ground_smog(smog * ground_smog, smog_side)
 	if _env:
 		_env.tonemap_exposure = lerpf(day_exposure, night_exposure, moonlight)
+		if grade:
+			grade.update(elevation, golden, weather_darken, marine, santa_ana)
 		_env.sdfgi_energy = lerpf(day_gi_energy, night_gi_energy, moonlight)
 		# At golden hour the distance goes the smog's brown-grey rather than dusk_fog's orange:
 		# the orange belongs to the air toward the sun, which fog_sun_scatter already adds.

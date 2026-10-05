@@ -2294,6 +2294,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/worship_checks.gd").new().run(self, city)
 	# The reference cameras (tests/ref_cameras_checks.gd): the table and the shot script.
 	load("res://tests/ref_cameras_checks.gd").new().run(self, city)
+	# The per-hour grade (tests/color_grade_checks.gd): the look LUT follows the hour and weather.
+	load("res://tests/color_grade_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
