@@ -289,6 +289,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Forward+ review of the weather, Broadway, the stack and the map (fleet session
+  fwd-review-c, HANDOFF "Forward+ review").** Decisions: HUD pieces size themselves from the
+  viewport's height (1 at 1080 lines, WeaponHud's 0.7..2.0) and are drawn at 1080 lines and SCALED
+  rather than re-laid out in pixels, so every line and font inside scales with them; shop glass that
+  lights itself at night does so unevenly and only for open shops, since auto exposure lifts any
+  even emission to the facade's brightness; a review on Forward+ is done in small scenes with the
+  real DayNight and Weather (the city does not fit lavapipe).
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

@@ -8571,3 +8571,67 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Forward+ review: weather, Broadway, the stack, the map, 2026-10-05 (fleet session `wt/fwd-review-c`)
+
+**Why.** None of the four features (9ck weather, 9cl Broadway, 9cm the stack, 9cj the map) had been
+seen on Forward+, the Mac's renderer: every still was opengl3. This session rendered each through
+the real Forward+ pipeline (Vulkan on lavapipe) and looked for colour-space errors (measurement
+trap 4), missing Compatibility fallbacks, z-fighting, wrong normals, AgX blowouts and UI scaling at
+1080p and 4K. Stills: branch `shots/fwd-review-c` (README lists the EYEs).
+
+**The tool.** The whole city does not fit lavapipe, and `block_shot.tscn` has no sky or weather.
+`tools/glshot/fwd_block_shot.tscn` is block_shot plus the city scene's DayNight and Weather nodes
+(moved out of city.tscn; the tool node carries `plan` and `world_seed` like CityStreamer, and a
+stand-in in group `player` sits at the eye), so `--hour=` and `--weather=` work as in the game.
+About 10 minutes and 11 GB a run (three EYEs from one load with `SHOTS=`); it kills itself after the
+last shot, because tearing the scene down under lavapipe took minutes. No far city, horizon plane or
+ocean: past the built blocks is sky.
+
+**Found and fixed.**
+- **The map at 4K.** The minimap was a fixed 260 px canvas whatever the window: at 4K, or on a
+  Retina Mac's maximised ~2,234-line window, a quarter of its 1080-line size, with the health bar
+  pinned to the 260 px numbers. The full map's panels scaled, but its marks (shields, glyphs,
+  landmark and street names, the arrow) did not: specks at 4K. Now `scripts/ui/minimap_frame.gd`
+  lays the frame out at 1080 lines and scales it (and MinimapBorder) about its corner by
+  `hud_scale()` (WeaponHud's rule, 0.7..2.0); the minimap keeps its 260 px canvas inside, so every
+  line, glyph and font scales with it. WantedHud puts the bar over `screen_rect()`, scaled. WorldMap
+  draws the marks on a layer sized `view / s` and scaled `s` (`_screen_view()` in 1080-line pixels)
+  and its plan's line floors in 1080-line pixels. Text stays crisp (Godot oversamples scaled
+  fonts). Stills 17-25.
+- **Broadway's shop windows at night.** The palace's display glass emitted one even 0.1 warm light;
+  the night's auto exposure lifted it to the floodlit stone's own brightness (measured 126/103/77
+  against 126/103/77), so every shop read as a flat warm-grey board. The glass is now a dark
+  dielectric (metal 0, albedo 0.012), about half the shops are shut (`shop_lit` hash in
+  BroadwayTheatre, the level carried in the glass's vertex red), and an open one is lit from its
+  ceiling in pools; doors, booth and the arched window keep a faint glow. Stills 01-06.
+- **Roof splashes** (`roof_splash.gdshader`) wrote `sky_tint`'s sRGB numbers as linear on Forward+:
+  a stop too pale. Decoded and handed over with `cs_out()` now (not seen in a still: it needs rain
+  on a car roof).
+
+**Seen and left as they are.**
+- Marine layer (stills 07-09): the grey ceiling, the towers into it and the shadowless light read
+  right. From above, the deck top is warm off-white (193/187/173), the same as the volumetric
+  cumulus beside it: that is the look LUT and AgX on any white at 09:00, not the deck.
+- Santa Ana (10-13): no colour-space fault. The brush fire's flame line holds its yellow-orange
+  (no salmon) and the glow reads behind downtown. The heat shimmer cannot be judged in one still
+  (it is motion); it is built and drawn on Forward+.
+- The stack (14-16): no z-fighting at the touch runs, normals and banking read right, the
+  connectors' undersides take the shade. The dirt under the decks measures a warm brown
+  (151/116/77), plausible for the right of way's bare ground.
+- Broadway's neon and bulbs at night: no AgX salmon on the reds at this exposure; bulbs read warm
+  white, the crest letters spell out as designed.
+
+**Not done / not verified.** The evening fog bank from the beach (the tool builds no ocean, so the
+sea is the sky's under-horizon colour there; the opengl3 stills of 9ck stand). The heat shimmer
+in motion. Broadway at noon on Forward+ (the glass change only darkens it by day). The loading
+screen's text is fixed-pixel too (tiny at 4K): not this feature's, left alone. Rain splashes on
+roofs not rendered.
+
+**Checks** (`tests/fwd_review_c_checks.gd`): the HUD scale at 1080 lines and 4K, the minimap and
+its ring scaled about the corner with their margin, the minimap's canvas kept at 260, the health
+bar over the scaled minimap, the full map's marks layer scaled to the window and a mark landing
+where the map draws its place, and the splash shader's colour-space lines.
+
+**Frame cost.** No geometry added or removed (a vertex colour and shader lines on Broadway, a 2D
+transform on the HUD): see the GEO numbers in the session's final report.
