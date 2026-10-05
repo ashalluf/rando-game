@@ -79,7 +79,7 @@ func _ready() -> void:
 	if m:
 		for p: Vector2 in [Vector2(300, 600), Vector2(-500, 2000), Vector2(400, -2600), Vector2(2800, 100)]:
 			var t0 := Time.get_ticks_usec()
-			m.rebuild(p)
+			m.update(p)
 			print("MOUNTAIN at %s: %d triangles, %.1f ms" % [p, m.triangles, (Time.get_ticks_usec() - t0) / 1000.0])
 	else:
 		print("MOUNTAIN none")

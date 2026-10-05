@@ -12,41 +12,46 @@ extends Node3D
 ##   * so each cell of this sheet takes the lowest texel within WINDOW texels of it (its own
 ##     texels, a plane vertex either way, the spline's reach), each vertex the lowest of its cells,
 ##     less DROP (crags, sink and a margin).
-## Only cells between INNER and REACH metres of the camera, rebuilt every REBUILD_STEP metres it
-## travels: inside INNER the streamed chunks draw the ground and the plane sinks under them (the
-## chunks' own terrain occluders, Occluders._terrain(), cover that). Flat cells are left out:
-## they hide only what is buried. Disabled while the camera is below the plane where it stands (a
-## deep canyon the bake averages over), where a sheet under the plane is not under the picture.
-## OCCLUDERS=0 builds none of it.
+## The sheet is cut into TILE_CELLS-square tiles, each its own OccluderInstance3D built once at
+## load; a tile is on only while all of it is between INNER and REACH of the camera: inside INNER
+## the streamed chunks draw the ground and the plane sinks under them (the chunks' own terrain
+## occluders, Occluders._terrain(), cover that), past REACH is the plane's edge. Toggling a tile
+## is all the runtime does. Flat cells are left out: they hide only what is buried. All of it is
+## off while the camera is below the plane where it stands (a deep canyon the bake averages
+## over), where a sheet under the plane is not under the picture. OCCLUDERS=0 builds none of it.
 
 ## Bake texels a cell spans, and how many texels round it its height is the lowest of.
 const CELL_TEXELS := 4
 const WINDOW := 5
+## Cells a tile spans (4 x 125 m on the 512 px bake).
+const TILE_CELLS := 4
 ## Metres under the lowest texel: the crags' half amplitude (23), the far sink (5), a margin.
 const DROP := 40.0
 ## A cell whose window spans fewer metres than this is flat ground (the valley floor, the basin).
 const MIN_RELIEF := 60.0
-## Metres from the camera the sheet starts and ends (the plane is 14 km across), and how far the
-## camera may go before it is rebuilt round it again.
-const INNER := 1500.0
-const REACH := 6500.0
-const REBUILD_STEP := 250.0
-## How far from the camera the plane has stopped sinking (macro_relief's far_ground_sink).
+## Metres from the camera a tile must keep all of itself beyond, and within (the plane is 14 km
+## across, centred on the player).
+const INNER := 1250.0
+const REACH := 6800.0
+## How far from the camera the plane has stopped sinking (macro_relief's far_ground_sink): INNER
+## must stay past it.
 const SINK_CLEAR := 1150.0
+## Seconds between looks at the camera.
+const LOOK_EVERY := 0.2
 
 var _span: float = 16000.0
 var _res: int = 0
 var _cells: int = 0
-## Per cell: the lowest texel of its window (metres) and whether it has relief. Vertex heights.
+## Vertex heights of the sheet ((cells + 1)^2), the bake's heights (metres, row by row), and
+## whether each cell is kept.
 var _vh := PackedFloat32Array()
-## The bake's heights (metres), row by row.
 var _hgt := PackedFloat32Array()
 var _keep := PackedByteArray()
-var _built_at := Vector2(INF, INF)
+## [OccluderInstance3D, Rect2 in true world XZ, triangles] per tile with any kept cell.
+var _tiles: Array = []
 var _below := false
-var _check := 0.0
-var _node: OccluderInstance3D
-## Triangles in the current sheet (the checks read it).
+var _look := 0.0
+## Triangles switched on now (the checks and the probe read it).
 var triangles: int = 0
 
 
@@ -67,10 +72,13 @@ func _setup(img: Image, span: float) -> void:
 	_res = img.get_width()
 	_cells = _res / CELL_TEXELS
 	_hgt.resize(_res * _res)
-
-	for y in _res:
-		for x in _res:
-			_hgt[y * _res + x] = img.get_pixel(x, y).r * MacroMap.BAKE_HEIGHT_SCALE
+	var src := img
+	if src.get_format() != Image.FORMAT_RGF:
+		src = img.duplicate()
+		src.convert(Image.FORMAT_RGF)
+	var data := src.get_data().to_float32_array()
+	for i in _res * _res:
+		_hgt[i] = data[i * 2] * MacroMap.BAKE_HEIGHT_SCALE
 	# Separable min and max over each cell's window: rows, then columns.
 	var lo_r := PackedFloat32Array()
 	var hi_r := PackedFloat32Array()
@@ -112,34 +120,54 @@ func _setup(img: Image, span: float) -> void:
 					if cy >= 0 and cy < _cells and cx >= 0 and cx < _cells:
 						h = minf(h, lo[cy * _cells + cx])
 			_vh[vy * (_cells + 1) + vx] = h - DROP
+	_build_tiles()
 
 
-## The sheet's height at a vertex (world XZ of vertex vx, vy) - for the checks.
-func vertex_world(vx: int, vy: int) -> Vector3:
+func _build_tiles() -> void:
 	var step := _span / float(_cells)
-	return Vector3(-_span * 0.5 + vx * step, _vh[vy * (_cells + 1) + vx], -_span * 0.5 + vy * step)
+	var origin := -_span * 0.5
+	var nt := ceili(float(_cells) / TILE_CELLS)
+	for ty in nt:
+		for tx in nt:
+			var verts := PackedVector3Array()
+			var idx := PackedInt32Array()
+			for cy in range(ty * TILE_CELLS, mini(_cells, (ty + 1) * TILE_CELLS)):
+				for cx in range(tx * TILE_CELLS, mini(_cells, (tx + 1) * TILE_CELLS)):
+					if _keep[cy * _cells + cx] == 0:
+						continue
+					var o := verts.size()
+					for v: Vector2i in [Vector2i(cx, cy), Vector2i(cx + 1, cy), Vector2i(cx + 1, cy + 1), Vector2i(cx, cy + 1)]:
+						verts.append(Vector3(origin + v.x * step, _vh[v.y * (_cells + 1) + v.x], origin + v.y * step))
+					idx.append_array(PackedInt32Array([o, o + 1, o + 2, o, o + 2, o + 3]))
+			if idx.is_empty():
+				continue
+			var occ := ArrayOccluder3D.new()
+			occ.set_arrays(verts, idx)
+			var node := OccluderInstance3D.new()
+			node.name = "Tile_%d_%d" % [tx, ty]
+			node.occluder = occ
+			node.visible = false
+			add_child(node)
+			var size := step * TILE_CELLS
+			_tiles.append([node, Rect2(origin + tx * size, origin + ty * size, size, size), idx.size() / 3])
 
 
 func _process(delta: float) -> void:
+	_look -= delta
+	if _look > 0.0:
+		return
+	_look = LOOK_EVERY
 	var cam := get_viewport().get_camera_3d()
 	if cam == null:
 		return
 	var w := WorldState.to_world(cam.global_position)
-	var at := Vector2(w.x, w.z)
-	_check -= delta
-	if _check <= 0.0:
-		_check = 0.5
-		var below := w.y < _plane_ceiling(at)
-		if below != _below:
-			_below = below
-			if _node:
-				_node.visible = not _below
-	if at.distance_to(_built_at) > REBUILD_STEP:
-		rebuild(at)
+	_below = w.y < _plane_ceiling(Vector2(w.x, w.z))
+	update(Vector2(w.x, w.z))
 
 
 ## The highest the plane can stand where the camera is: the most of the texels the spline there
-## weighs, plus the crags' half amplitude (ignoring the sink, which only lowers it).
+## weighs, less the sink right under the camera (34 + 5 m: far_ground_sink at distance 0), with no
+## crags (they fade in from lift_start, 900 m off).
 func _plane_ceiling(at: Vector2) -> float:
 	var step := _span / float(_res)
 	var tx := int(floor((at.x + _span * 0.5) / step))
@@ -148,42 +176,19 @@ func _plane_ceiling(at: Vector2) -> float:
 	for y in range(ty - 3, ty + 4):
 		for x in range(tx - 3, tx + 4):
 			h = maxf(h, _hgt[clampi(y, 0, _res - 1) * _res + clampi(x, 0, _res - 1)])
-	return h + 23.0
+	return h - 39.0
 
 
-## The sheet's cells between INNER and REACH of `at` (true world XZ).
-func rebuild(at: Vector2) -> void:
-	_built_at = at
-	var step := _span / float(_cells)
-	var origin := -_span * 0.5
-	var verts := PackedVector3Array()
-	var idx := PackedInt32Array()
-	var c0 := Vector2i(clampi(int((at.x - REACH - origin) / step), 0, _cells - 1), clampi(int((at.y - REACH - origin) / step), 0, _cells - 1))
-	var c1 := Vector2i(clampi(int((at.x + REACH - origin) / step), 0, _cells - 1), clampi(int((at.y + REACH - origin) / step), 0, _cells - 1))
-	for cy in range(c0.y, c1.y + 1):
-		for cx in range(c0.x, c1.x + 1):
-			if _keep[cy * _cells + cx] == 0:
-				continue
-			var r := Rect2(origin + cx * step, origin + cy * step, step, step)
-			var near := Vector2(clampf(at.x, r.position.x, r.end.x), clampf(at.y, r.position.y, r.end.y))
-			var far := maxf(absf(at.x - r.get_center().x), absf(at.y - r.get_center().y)) + step * 0.5
-			if near.distance_to(at) < INNER or far > REACH:
-				continue
-			var o := verts.size()
-			for v: Vector2i in [Vector2i(cx, cy), Vector2i(cx + 1, cy), Vector2i(cx + 1, cy + 1), Vector2i(cx, cy + 1)]:
-				verts.append(Vector3(origin + v.x * step, _vh[v.y * (_cells + 1) + v.x], origin + v.y * step))
-			idx.append_array(PackedInt32Array([o, o + 1, o + 2, o, o + 2, o + 3]))
-	triangles = idx.size() / 3
-	if idx.is_empty():
-		if _node:
-			_node.queue_free()
-			_node = null
-		return
-	var occ := ArrayOccluder3D.new()
-	occ.set_arrays(verts, idx)
-	if _node == null:
-		_node = OccluderInstance3D.new()
-		_node.name = "Sheet"
-		add_child(_node)
-		_node.visible = not _below
-	_node.occluder = occ
+## Switches on the tiles wholly between INNER and REACH of `at` (true world XZ), the rest off.
+func update(at: Vector2) -> void:
+	triangles = 0
+	for t: Array in _tiles:
+		var r: Rect2 = t[1]
+		var near := Vector2(clampf(at.x, r.position.x, r.end.x), clampf(at.y, r.position.y, r.end.y)).distance_to(at)
+		var far := Vector2(maxf(absf(at.x - r.position.x), absf(at.x - r.end.x)), maxf(absf(at.y - r.position.y), absf(at.y - r.end.y))).length()
+		var on := not _below and near >= INNER and far <= REACH
+		var node: OccluderInstance3D = t[0]
+		if node.visible != on:
+			node.visible = on
+		if on:
+			triangles += int(t[2])

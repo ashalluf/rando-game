@@ -139,16 +139,23 @@ func _mountains(city: Node3D) -> void:
 		_t._check(false, "the city has a MountainOccluder")
 		return
 	var at := Vector2(300.0, 600.0)
-	m.rebuild(at)
-	var node := m.get_node_or_null("Sheet") as OccluderInstance3D
-	var occ := node.occluder as ArrayOccluder3D if node else null
+	var plan: CityPlan = city.plan
+	var street: float = plan.height_at(at) + 1.7
+	_t._check(street > m._plane_ceiling(at) and plan.height_at(at) - 60.0 < m._plane_ceiling(at),
+		"a camera on a basin street is above the horizon plane (sheet on), one 60 m under the ground is not (sheet off)")
+	m._below = false
+	m.update(at)
+	var verts := PackedVector3Array()
+	for node in m.get_children():
+		if node is OccluderInstance3D and (node as OccluderInstance3D).visible:
+			verts.append_array(((node as OccluderInstance3D).occluder as ArrayOccluder3D).vertices)
 	var span: float = m._span
 	var res: int = m._res
 	var tstep := span / float(res)
 	var worst := -INF
 	var nearest := INF
-	if occ:
-		for p in occ.vertices:
+	if true:
+		for p in verts:
 			nearest = minf(nearest, Vector2(p.x, p.z).distance_to(at))
 			# The plane is never under the lowest of the 4 x 4 texels its spline weighs at any of
 			# its vertices round here, less 23 m of crag and 5 m of sink.
@@ -159,7 +166,7 @@ func _mountains(city: Node3D) -> void:
 				for x in range(tx - 4, tx + 5):
 					lo = minf(lo, m._hgt[clampi(y, 0, res - 1) * res + clampi(x, 0, res - 1)])
 			worst = maxf(worst, p.y - (lo - 28.0))
-	_t._check(m.triangles > 50 and worst < 0.0 and nearest >= MountainOccluder.INNER - span / float(m._cells),
+	_t._check(m.triangles > 50 and worst < 0.0 and nearest >= MountainOccluder.INNER and MountainOccluder.INNER > MountainOccluder.SINK_CLEAR,
 		"the far mountains' occluder (%d triangles round the basin) is under the horizon plane (at most %.1f m over its floor) and keeps %.0f m off the camera" % [m.triangles, worst, nearest])
 
 
