@@ -16,7 +16,8 @@ var _t: Node
 const BUDGET := {"shaft": 420, "head": 1000, "xfmr": 1000, "light": 400, "riser": 200, "splice": 220,
 	"coil": 220, "guard": 80, "anchor": 120, "meter": 160, "mast": 40, "whead": 160}
 ## Batch keys that are the line's own (left out when the block is compared with the line off).
-const OWN := ["upole", "up_head", "up_xfmr", "up_light", "up_lens", "up_riser", "up_splice", "up_coil", "up_guard",
+## "wear" is StreetWear's batch: its flyers on the poles are keyed by the pole's foot, which moved.
+const OWN := ["wear", "upole", "up_head", "up_xfmr", "up_light", "up_lens", "up_riser", "up_splice", "up_coil", "up_guard",
 	"up_anchor", "up_meter", "up_mast", "up_whead", "crossarm", "insulator", "transformer", "cable", "lamp_pool"]
 
 
@@ -56,9 +57,12 @@ func run(t: Node, city: Node3D) -> void:
 		drops += int(sm.house_drops)
 		for f: float in (sm.drop_fronts as Array):
 			fronts_ok = fronts_ok and f >= UtilityPoles.HOUSE_DROP_FRONT - 0.01
-		var data: Dictionary = chunk._batch.data()
-		heads_ok = heads_ok and data.has("upole") and data.has("up_head") and (data["upole"].xforms as Array).size() == (data["up_head"].xforms as Array).size() \
-			and not data.has("cable") and not data.has("crossarm")
+		# The batch is consumed by the finish: read the nodes it built.
+		var shafts := chunk.get_node_or_null("Batch_upole") as MultiMeshInstance3D
+		var heads := chunk.get_node_or_null("Batch_up_head") as MultiMeshInstance3D
+		heads_ok = heads_ok and shafts != null and heads != null and shafts.multimesh.instance_count == heads.multimesh.instance_count \
+			and shafts.multimesh.instance_count == int(sm.poles) and shafts.multimesh.mesh == UtilityPoles.shaft_mesh() \
+			and chunk.get_node_or_null("Batch_cable") == null and chunk.get_node_or_null("Batch_crossarm") == null
 		var wires := chunk.get_node_or_null("UtilityWires") as MeshInstance3D
 		nodes_ok = nodes_ok and wires != null and wires.mesh.get_surface_count() == 1 and wires.material_override == UtilityPoles.wire_material() \
 			and wires.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and int(sm.wires) > 0
@@ -107,7 +111,7 @@ func run(t: Node, city: Node3D) -> void:
 	_t._check(off_same, "utility poles: the line rolls nothing from the block (built with it off, the rest is the same block)")
 	var lod: CityChunk = city._new_chunk(keys[0], CityChunk.Level.LOD)
 	lod.build()
-	_t._check(lod.get_node_or_null("UtilityWires") == null and not lod._batch.data().has("upole"), "utility poles: a LOD chunk hangs no line")
+	_t._check(lod.get_node_or_null("UtilityWires") == null and lod.get_node_or_null("Batch_upole") == null and lod.get_node_or_null("Batch_up_head") == null, "utility poles: a LOD chunk hangs no line")
 	_free(lod)
 
 
@@ -183,18 +187,19 @@ func _try(plan: CityPlan, k: Vector2i, district: int, out: Array[Vector2i]) -> v
 	out.append(k)
 
 
-## What the block built, less the line: every other batch's instance count, the children.
+## What the block built, less the line: every other batch's instance count (from the nodes the
+## batch built: its data is consumed by the finish), the other children.
 func _signature(ch: CityChunk) -> Array:
 	var out: Array = []
-	var data: Dictionary = ch._batch.data()
-	for key: String in data:
-		if key in OWN:
-			continue
-		out.append("%s:%d" % [key, (data[key].xforms as Array).size()])
 	var kids := 0
 	for c in ch.get_children():
+		var n := String(c.name)
+		if n.begins_with("Batch_"):
+			var key := n.trim_prefix("Batch_")
+			if not key in OWN:
+				out.append("%s:%d" % [key, (c as MultiMeshInstance3D).multimesh.instance_count])
 		# Climbers grow trumpet vines up some poles by a hash of the pole's foot, which moved.
-		if String(c.name) != "UtilityWires" and not String(c.name).begins_with("Batch") and not String(c.name).begins_with("Climbe"):
+		elif n != "UtilityWires" and not n.begins_with("BatchShadow") and not n.begins_with("Climbe"):
 			kids += 1
 	out.append("children:%d" % kids)
 	out.sort()
