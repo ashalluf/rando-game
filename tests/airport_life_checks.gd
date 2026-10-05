@@ -150,10 +150,6 @@ func _arrival(air: AirTraffic, ground: AirportGround) -> void:
 		if i != gi and AirportGround.g_state[i] == AirportGround.G.EMPTY:
 			AirportGround.g_state[i] = AirportGround.G.INBOUND
 	AirportGround._apply_jet(gi)
-	var rr: AirRoute = air.routes["arrival_south"]
-	for i in rr.xz.size():
-		if rr.xz[i].x < 1400.0 and absf(rr.xz[i].y - 955.0) < 5.0 and i % 3 == 0:
-			print("ROUTE x ", rr.xz[i].x, " y ", rr.y[i], " top ", air.obstacle_top(rr.xz[i]), " swept ", air._swept_top(rr, i, 30.0), " L ", air.obstacle_top(rr.xz[i] + Vector2(0, 30)), " R ", air.obstacle_top(rr.xz[i] - Vector2(0, 30)))
 	var jet := air.spawn_arrival(Aircraft.Kind.AIRLINER, 2600.0, "arrival_south")
 	await _tree.physics_frame
 	var t := 0.0
@@ -166,13 +162,9 @@ func _arrival(air: AirTraffic, ground: AirportGround) -> void:
 	var hw := macro.runway_width * 0.5
 	var parked_at := Vector2.INF
 	var parked_yaw := 0.0
-	var last_phase := -1
 	while t < 400.0 and is_instance_valid(jet) and not jet.done:
 		_step(air, ground, dt, [jet])
 		t += dt
-		if jet.phase != last_phase:
-			last_phase = jet.phase
-			print("PHASE ", jet.phase, " at ", jet.world_pos, " speed ", jet.speed, " t ", t)
 		if jet.phase == AmbientJet.Phase.GROUND:
 			claimed = true
 			top_speed = maxf(top_speed, jet.speed)

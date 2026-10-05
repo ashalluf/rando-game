@@ -102,8 +102,9 @@ static var _set_regs: Array = []
 static var clock: float = 0.0
 
 
-## Resets the stands for a new map (a Rebuild makes a new MacroMap): every stand but the empty
-## one parked, its livery and its turnaround rolled from the seed.
+## Resets the stands for the game's map (AirportGround.setup(); a Rebuild makes a new MacroMap):
+## every stand but the empty one parked, its livery and its turnaround rolled from the seed. The
+## registrations stay (the far concourse registers before this runs); the freed ones are dropped.
 static func ensure(macro: MacroMap) -> void:
 	if macro == null:
 		return
@@ -111,9 +112,15 @@ static func ensure(macro: MacroMap) -> void:
 	if id == _for_map and not g_state.is_empty():
 		return
 	_for_map = id
-	_jet_regs.clear()
-	_set_regs.clear()
 	clock = 0.0
+	_init_state()
+	for i in g_state.size():
+		_apply_jet(i)
+		_apply_set(i)
+
+
+## The stands as at load (registration calls it too, before any AirportGround exists).
+static func _init_state() -> void:
 	g_state.clear()
 	g_livery.clear()
 	g_jet_shown.clear()
@@ -135,6 +142,11 @@ static func ensure(macro: MacroMap) -> void:
 		g_ready_at[i] = float(hash([i, "ready"]) % 1000) / 1000.0 * 140.0 + 20.0
 
 
+static func _ensure_state() -> void:
+	if g_state.is_empty():
+		_init_state()
+
+
 static func gate_count() -> int:
 	return g_state.size()
 
@@ -148,17 +160,17 @@ static func bridge_amount(i: int) -> float:
 
 
 ## A concourse half's MultiMesh of parked jets: instance k is stand `gates[k]`.
-static func register_gate_jets(node: MultiMeshInstance3D, gates: PackedInt32Array, y0: float, macro: MacroMap) -> void:
-	ensure(macro)
+static func register_gate_jets(node: MultiMeshInstance3D, gates: PackedInt32Array, y0: float, _macro: MacroMap) -> void:
+	_ensure_state()
 	_jet_regs.append([node, gates, y0])
 	for k in gates.size():
 		_apply_jet_instance(node, k, gates[k], y0)
 
 
 ## A stand's ground service set: instance `index` of the chunk's batch `key`.
-static func register_gate_set(chunk: Node, key: String, index: int, gate: int, xform: Transform3D, macro: MacroMap) -> void:
-	ensure(macro)
-	_set_regs.append([chunk, key, index, gate, xform])
+static func register_gate_set(chunk: Node, key: String, index: int, gate: int, xform: Transform3D, _macro: MacroMap) -> void:
+	_ensure_state()
+	_set_regs.append([chunk, key, index, gate, xform, false])
 
 
 static func _apply_jet_instance(node: MultiMeshInstance3D, k: int, gate: int, y0: float) -> void:
@@ -187,9 +199,10 @@ static func _with_twin(node: MultiMeshInstance3D) -> Array[MultiMeshInstance3D]:
 static func _apply_jet(i: int) -> void:
 	var live: Array = []
 	for reg: Array in _jet_regs:
-		var node: MultiMeshInstance3D = reg[0]
-		if not is_instance_valid(node):
+		# Checked before it is typed: assigning a freed node to a typed variable is an error.
+		if not is_instance_valid(reg[0]):
 			continue
+		var node: MultiMeshInstance3D = reg[0]
 		live.append(reg)
 		var gates: PackedInt32Array = reg[1]
 		for k in gates.size():
@@ -202,9 +215,9 @@ static func _apply_jet(i: int) -> void:
 static func _apply_set(i: int) -> void:
 	var live: Array = []
 	for reg: Array in _set_regs:
-		var chunk: Node = reg[0]
-		if not is_instance_valid(chunk):
+		if not is_instance_valid(reg[0]):
 			continue
+		var chunk: Node = reg[0]
 		live.append(reg)
 		if int(reg[3]) != i:
 			continue
@@ -218,13 +231,19 @@ static func _apply_set(i: int) -> void:
 		for mm_node: MultiMeshInstance3D in _with_twin(node):
 			if int(reg[2]) < mm_node.multimesh.instance_count:
 				mm_node.multimesh.set_instance_transform(int(reg[2]), xf)
+		reg[5] = true
 	_set_regs = live
 
 
-## Re-applies every registered set (a chunk's batch nodes appear only when it finishes building).
-static func _apply_all_sets() -> void:
-	for i in g_set_shown.size():
-		_apply_set(i)
+## Applies the stands' sets to chunks that finished building since (a chunk registers its sets as
+## it lays them out, but its batch nodes appear only at its finish step).
+static func _apply_new_sets() -> void:
+	for reg: Array in _set_regs:
+		if bool(reg[5]) or not is_instance_valid(reg[0]):
+			continue
+		var nodes: Variant = (reg[0] as Node).get("_mm_nodes")
+		if nodes is Dictionary and (nodes as Dictionary).has(reg[1]):
+			_apply_set(int(reg[3]))
 
 
 # --- Layout ------------------------------------------------------------------------------------
@@ -395,7 +414,6 @@ func claim_arrival(jet: AmbientJet) -> bool:
 		return false
 	var cxw: float = Airport.CONNECTOR_XS[0]
 	var here := Vector2(jet.world_pos.x, jet.world_pos.z)
-	print("CLAIM at ", here, " speed ", jet.speed, " touchdown ", jet.touchdown_world)
 	# Room for the turn off the runway (the exit's arc takes R_EXIT before the connector).
 	if here.x < cxw + R_EXIT / 0.9 + 4.0:
 		return false
@@ -787,7 +805,7 @@ func _tend_jets(dt: float) -> void:
 
 ## Every half second: the gate sets that may change (nobody looking), the trucks' tug at a stand.
 func _tend_stands() -> void:
-	_apply_all_sets()
+	_apply_new_sets()
 	for i in g_state.size():
 		var g: Dictionary = Airport.gates()[i]
 		if bool(g.empty):
@@ -1185,7 +1203,7 @@ func _tend_tugs() -> void:
 		node.visible = true
 		var mover: Mover = tug.mover
 		var jet := _pushing_jet(i)
-		if jet != null and jet.phase == AmbientJet.Phase.GROUND and (jet.ground_leg == 0 or (jet.ground_leg == 1 and jet.ground_wait > 0.0)):
+		if tug.mode != "returning" and jet != null and jet.phase == AmbientJet.Phase.GROUND and (jet.ground_leg == 0 or (jet.ground_leg == 1 and jet.ground_wait > 0.0)):
 			# Under the nose, facing the tail: pushing, then disconnecting.
 			var fwd := Vector2(-sin(jet.yaw), -cos(jet.yaw))
 			var nose := Vector2(jet.world_pos.x, jet.world_pos.z) + fwd * (jet.length * 0.5 - TUG_AT_NOSE.z)
@@ -1238,8 +1256,12 @@ func _tug_home(tug: Dictionary, i: int, from: Vector2, yaw: float) -> void:
 	m.steps.clear()
 	m.home = Vector3(w.x, 0.0, w.y)
 	m.drive(AirRoute.from_waypoints(PackedVector2Array([from, b]), PackedFloat32Array([0.0, 0.0]), "tug_back", LEG_STEP), 2.0, true)
-	var side := (g.t as Vector2) * TUG_WAITING.x
-	m.drive(AirRoute.from_waypoints(PackedVector2Array([b, Vector2(c.x + side.x + 8.0, b.y), c + side + (g.n as Vector2) * -6.0, w]), PackedFloat32Array([0.0, 6.0, 5.0, 0.0]), "tug_home", LEG_STEP, 0.6), 4.0)
+	var fwd := Vector2(-sin(yaw), -cos(yaw))
+	var p1 := b + fwd * 4.0 + Vector2(0.0, -1.5)
+	var p2 := Vector2(p1.x, macro.taxiway_z - 14.0)
+	var p3 := stand_point(g, Vector3(TUG_WAITING.x, 0.0, 12.0))
+	m.drive(AirRoute.from_waypoints(PackedVector2Array([b, p1, p2, p3, w]), PackedFloat32Array([0.0, 3.5, 6.0, 4.0, 0.0]), "tug_home", LEG_STEP, 0.6), 4.0)
+	var _c := c
 	tug.mode = "returning"
 
 
@@ -1280,10 +1302,10 @@ func _tend_follow() -> void:
 			_place(_follow.node, pose.pos, pose.yaw)
 		1:
 			# Pulled out, waiting at the join for its jet to come up behind it, then leading.
-			var j := _follow_jet
-			if j == null or not is_instance_valid(j) or j.done or j.phase != AmbientJet.Phase.GROUND:
+			if _follow_jet == null or not is_instance_valid(_follow_jet) or _follow_jet.done or _follow_jet.phase != AmbientJet.Phase.GROUND:
 				_follow_back()
 				return
+			var j := _follow_jet
 			var lead_s := _lead_point(j, FOLLOW_LEAD)
 			if lead_s.is_empty():
 				var pose := _follow.pose_at(clock)
@@ -1439,10 +1461,12 @@ func _send_fuel(gi: int) -> void:
 	var m := _fuel
 	m.steps.clear()
 	var home := Vector2(m.home.x, m.home.z)
-	var out := home + Airport.arc_normal(Airport.CONCOURSE_ARC) * 10.0
-	# Out of the depot, west along the outer lane to the stand, in under the right wing.
-	var pts := _road_to(out, gi, 12.8, false)
-	pts.insert(0, home)
+	var a_dep := Airport.CONCOURSE_ARC + 0.026
+	var out := home + Airport.arc_normal(a_dep) * 12.0
+	# Backs out of the depot, then west along the outer lane to the stand, in under the right wing.
+	m.drive(AirRoute.from_waypoints(PackedVector2Array([home, out]), PackedFloat32Array([0.0, 0.0]), "fuel_back", LEG_STEP), 2.5, true)
+	var pts := _road_to(out - Airport.arc_normal(a_dep) * 3.0 - Airport.arc_tangent(a_dep) * 9.0, gi, 12.8, false)
+	pts.insert(0, out)
 	pts.append(stand_point(g, Vector3(12.8, 0.0, 30.0)))
 	pts.append(stand_point(g, Vector3(12.8, 0.0, 17.0)))
 	m.drive(AirRoute.from_waypoints(pts, _radii(pts.size(), 6.0), "fuel_in", LEG_STEP, 0.6), 6.0)
@@ -1464,10 +1488,13 @@ func _send_catering(gi: int) -> void:
 	var m := _catering
 	m.steps.clear()
 	var home := Vector2(m.home.x, m.home.z)
-	var out := home + Airport.arc_normal(-Airport.CONCOURSE_ARC) * 10.0
-	# East along the inner lane, in beside the rear fuselage, a left turn to face the rear door.
-	var pts := _road_to(out, gi, 11.0, true)
-	pts.insert(0, home)
+	var a_dep := -(Airport.CONCOURSE_ARC + 0.026)
+	var out := home + Airport.arc_normal(a_dep) * 12.0
+	# Backs out of the depot, east along the inner lane, in beside the rear fuselage, a left turn
+	# to face the rear door.
+	m.drive(AirRoute.from_waypoints(PackedVector2Array([home, out]), PackedFloat32Array([0.0, 0.0]), "catering_back_out", LEG_STEP), 2.5, true)
+	var pts := _road_to(out - Airport.arc_normal(a_dep) * 3.0 + Airport.arc_tangent(a_dep) * 9.0, gi, 11.0, true)
+	pts.insert(0, out)
 	pts.append(stand_point(g, Vector3(11.0, 0.0, 29.0)))
 	pts.append(stand_point(g, Vector3(4.6, 0.0, 29.0)))
 	var radii := _radii(pts.size(), 6.0)

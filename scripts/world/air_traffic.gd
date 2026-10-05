@@ -205,10 +205,13 @@ func _setup() -> bool:
 	runway_top = macro.tarmac_top + 0.04
 	_measure_landmarks(city)
 	_build_routes()
-	ground = AirportGround.new()
-	ground.name = "AirportGround"
-	add_child(ground)
-	ground.setup(self)
+	# AIRPORT_GROUND=0 in the environment: no ground traffic (the A/B; arrivals fade out at the
+	# runway end and departures fade in lined up, as before).
+	if OS.get_environment("AIRPORT_GROUND") != "0":
+		ground = AirportGround.new()
+		ground.name = "AirportGround"
+		add_child(ground)
+		ground.setup(self)
 	_ready_done = true
 	_populate()
 	return true
@@ -273,7 +276,11 @@ func _arrival_route(route_name: String, pts: PackedVector2Array, radii: PackedFl
 			req[i] = 0.0
 			continue
 		var clearance := lerpf(approach_clearance.x, approach_clearance.y, smoothstep(200.0, 2500.0, s))
-		req[i] = _swept_top(r, i, 30.0 if s < 3000.0 else 0.0) + clearance
+		# Not swept sideways over the runway protection zone: it is kept clear of lots for the
+		# approach's whole width, and a sweep of 30 m reached the 50 m blocks beside it, which held
+		# the final level at 60 m until the fence and put every touchdown at the far end.
+		var side := 30.0 if s < 3000.0 and not macro.runway_clear_zone().has_point(r.xz[i]) else 0.0
+		req[i] = _swept_top(r, i, side) + clearance
 	r.clear(req, 0.0, tan(deg_to_rad(max_descent_deg)))
 	return r
 

@@ -9,8 +9,9 @@ extends Node3D
 ## real bridge waits between flights. The mesh is rebuilt only while the bridge moves (a few
 ## dozen boxes); the walkway's collision box moves with it.
 
-## Off: the near concourse keeps static bridges, docked or parked as at load (the A/B).
-static var posable: bool = true
+## Off: the near concourse keeps static bridges, docked or parked as at load (the A/B;
+## AIRPORT_GROUND=0 in the environment turns it off with the rest of AirportGround).
+static var posable: bool = OS.get_environment("AIRPORT_GROUND") != "0"
 
 var gate: int = 0
 var y0: float = 0.1

@@ -157,6 +157,9 @@ func setup_numbers(k: Aircraft.Kind) -> void:
 		sound_unit_size = 26.0
 		sound_range = 1400.0
 	else:
+		# A firm autobrake on this short runway: down to taxi speed with room to turn off into
+		# the west connector (AirportGround) from a touchdown 150-250 m past the aim point.
+		rollout_decel = 4.6
 		health = 140.0
 		crash_radius = 18.0
 		crash_launch = 38.0

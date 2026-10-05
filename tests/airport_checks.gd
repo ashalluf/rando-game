@@ -122,7 +122,9 @@ func _landmarks(city: Node3D) -> void:
 	var parked := 0
 	for g in Airport.gates():
 		parked += 0 if bool(g.empty) else 1
-	_t._check(jets == parked and parked >= 7, "the far concourses park an airliner at every occupied gate (%d of %d)" % [jets, parked])
+	# Every stand has an instance (the empty one collapsed): AirportGround swaps them as jets come
+	# and go (tests/airport_life_checks.gd).
+	_t._check(jets == Airport.gates().size() and parked >= 7, "the far concourses hold an airliner instance for every stand (%d of %d, %d parked)" % [jets, Airport.gates().size(), parked])
 	var lights := city.get_node_or_null("FarLandmark_airfield_lights")
 	var ignored := false
 	if lights:
