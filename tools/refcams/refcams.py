@@ -40,10 +40,11 @@ ROOT = os.path.normpath(os.path.join(HERE, "..", ".."))
 CAMERAS = os.path.join(HERE, "cameras.json")
 
 # Default tolerances for compare: a shot is FLAGGED when any is passed. Luminance in 0-255 levels,
-# saturation in HSV S, temperature in kelvin, cost in percent; pixel = mean |RGB| difference.
+# saturation in HSV S, temperature in mireds (1e6 / K: even steps to the eye, and steady where a
+# dark frame's kelvin swing by thousands), cost in percent; pixel = mean |RGB| difference.
 TOL = {
 	"lum_p50": 6.0, "lum_p5": 8.0, "lum_p95": 8.0, "lum_p1": 10.0, "lum_p99": 10.0,
-	"sat_mean": 0.03, "cct": 400.0, "clip_pct": 2.0, "crush_pct": 3.0,
+	"sat_mean": 0.03, "mired": 10.0, "clip_pct": 2.0, "crush_pct": 3.0,
 	"tris_pct": 10.0, "draws_pct": 10.0, "pixel_mad": 6.0,
 }
 
@@ -122,7 +123,7 @@ def build_report(run_dir):
 		"commit": _git("rev-parse", "--short", "HEAD"),
 		"renderer": meta.get("renderer"), "method": meta.get("method"),
 		"resolution": meta.get("resolution"), "load_ms": meta.get("load_ms"),
-		"strict": meta.get("strict", False),
+		"strict": meta.get("strict", False), "live_time": meta.get("live_time", True),
 		"peak_rss_mb": _run_meta(run_dir).get("peak_rss_mb"),
 		"shots": shots,
 	}
@@ -237,8 +238,9 @@ def compare(dir_a, dir_b, out_dir, tol):
 				flags.append("%s %+g" % (k, d[k]))
 		if a.get("cct") and b.get("cct"):
 			d["cct"] = b["cct"] - a["cct"]
-			if abs(d["cct"]) > tol["cct"]:
-				flags.append("cct %+dK" % d["cct"])
+			d["mired"] = round(1e6 / b["cct"] - 1e6 / a["cct"], 1)
+			if abs(d["mired"]) > tol["mired"]:
+				flags.append("colour %+.1f mired (%dK -> %dK)" % (d["mired"], a["cct"], b["cct"]))
 		ga, gb = a.get("geo", {}), b.get("geo", {})
 		for k, t in (("tris", "tris_pct"), ("draws", "draws_pct")):
 			if k in ga and k in gb:
@@ -282,14 +284,14 @@ def compare_text(result):
 	lines = ["refcams compare %s (%s) -> %s (%s)" % (result["before"], result["before_commit"],
 		result["after"], result["after_commit"])]
 	lines.append("%-16s %6s %6s %6s %7s %6s %7s %7s %6s  %s" % ("shot", "dp5", "dp50", "dp95", "dsat",
-		"dCCT", "tris%", "draws%", "pix", "flags"))
+		"dmired", "tris%", "draws%", "pix", "flags"))
 	for r in result["shots"]:
 		if r.get("missing"):
 			lines.append("%-16s MISSING" % r["name"])
 			continue
 		d = r["delta"]
 		lines.append("%-16s %+6.1f %+6.1f %+6.1f %+7.3f %+6s %+7.1f %+7.1f %6.2f  %s" % (
-			r["name"], d["lum_p5"], d["lum_p50"], d["lum_p95"], d["sat_mean"], d.get("cct", "-"),
+			r["name"], d["lum_p5"], d["lum_p50"], d["lum_p95"], d["sat_mean"], d.get("mired", "-"),
 			d.get("tris_pct", 0.0), d.get("draws_pct", 0.0), d["pixel_mad"],
 			"FLAG: " + "; ".join(r["flags"]) if r["flags"] else "ok"))
 	lines.append("%d of %d shots flagged%s" % (len(result["flagged"]), len(result["shots"]),
@@ -331,7 +333,7 @@ def _ensure_report(run_dir):
 
 # ---------------------------------------------------------------- shooting
 
-def run(out_dir, only=None, strict=False, timeout=3600):
+def run(out_dir, only=None, strict=False, timeout=3600, live=False):
 	godot = os.environ.get("GODOT")
 	if not godot:
 		sys.exit("set GODOT to the Godot 4.7.2 binary")
@@ -344,6 +346,8 @@ def run(out_dir, only=None, strict=False, timeout=3600):
 		env["ONLY"] = ",".join(only)
 	if strict:
 		env["STRICT"] = "1"
+	if live:
+		env["LIVE_TIME"] = "1"
 	lock = os.environ.get("LOCK", "/tmp/rando_render_gl.lock")
 	cmd = ["flock", "-o", lock, "timeout", str(timeout), "xvfb-run", "-a", "-s", "-screen 0 1280x720x24",
 		godot, "--rendering-driver", "opengl3", "--display-driver", "x11", "--audio-driver", "Dummy",
@@ -371,6 +375,7 @@ def main():
 	p.add_argument("out")
 	p.add_argument("--only", default="")
 	p.add_argument("--strict", action="store_true")
+	p.add_argument("--live", action="store_true", help="let shader TIME run (water, clouds move)")
 	p.add_argument("--timeout", type=int, default=3600)
 	p = sub.add_parser("report")
 	p.add_argument("dir")
@@ -386,7 +391,7 @@ def main():
 		p.add_argument("--" + k.replace("_", "-"), type=float, default=v)
 	a = ap.parse_args()
 	if a.cmd == "run":
-		run(a.out, [n for n in a.only.split(",") if n], a.strict, a.timeout)
+		run(a.out, [n for n in a.only.split(",") if n], a.strict, a.timeout, a.live)
 	elif a.cmd == "report":
 		build_report(a.dir)
 		contact_sheet(a.dir)

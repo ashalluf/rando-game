@@ -12,8 +12,9 @@ extends "res://tools/glshot/still_shot.gd"
 ## Env: OUT_DIR (default build/refcams/latest), REFCAMS_JSON (default the committed table), ONLY=
 ## a comma list of names, FRAMES warm-up frames of the load (default 45), SHOT_FRAMES frames each
 ## camera streams and adapts for (default 30), SETTLE frames with the clock all but stopped
-## (default 6). STRICT=1 is still_shot's DIFF mode: shader TIME held at zero and people, cars,
-## aircraft, particles and the player hidden, so two runs of one tree differ by a pixel or two.
+## (default 6). Shader TIME is held at zero (water, surf, clouds stand still) unless LIVE_TIME=1.
+## STRICT=1 is still_shot's DIFF mode as well: people, cars, aircraft, particles and the player
+## hidden, so two runs of one tree differ by a pixel or two.
 ## Writes <OUT_DIR>/<name>.png per camera and <OUT_DIR>/frames.json (each shot's GEO counts,
 ## hour, weather, the eye it used and how long it took). The --spawn should be the first
 ## camera's x,z: the load builds round it.
@@ -23,8 +24,12 @@ var _out_dir := "build/refcams/latest"
 
 func _initialize() -> void:
 	Engine.set_meta("postfx_motion_blur", 0.0)
-	if OS.get_environment("STRICT") == "1":
+	# Shader TIME is held at its first instant (still_shot's DIFF trick) unless LIVE_TIME=1: the sea,
+	# the surf and the clouds run off it, and with it running the beach and the pier moved by a
+	# third of their pixels between two runs of one tree. The world itself (people, cars) moves.
+	if OS.get_environment("LIVE_TIME") != "1":
 		ProjectSettings.set_setting("rendering/limits/time/time_rollover_secs", 0.000001)
+	if OS.get_environment("STRICT") == "1":
 		seed(12345)
 	_audit_toggles()
 	if OS.get_environment("OUT_DIR") != "":
@@ -114,7 +119,8 @@ func _write_frames(load_ms: int, shots: Array) -> void:
 	var out := {"renderer": RenderingServer.get_current_rendering_driver_name(),
 		"method": ProjectSettings.get_setting("rendering/renderer/rendering_method"),
 		"resolution": [get_root().size.x, get_root().size.y], "load_ms": load_ms,
-		"strict": OS.get_environment("STRICT") == "1", "shots": shots}
+		"strict": OS.get_environment("STRICT") == "1", "live_time": OS.get_environment("LIVE_TIME") == "1",
+		"shots": shots}
 	var f := FileAccess.open(_out_dir.path_join("frames.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, "\t"))
 	f.close()

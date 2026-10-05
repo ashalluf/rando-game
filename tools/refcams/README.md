@@ -52,13 +52,15 @@ it tells a warm frame from a cool one; it is not the light's temperature), and t
 python3 tools/refcams/refcams.py compare build/refcams/main build/refcams/wt-foo [--out dir]
 ```
 
-Prints each shot's change (luminance p5/p50/p95, saturation, CCT, triangles %, draws %, mean
+Prints each shot's change (luminance p5/p50/p95, saturation, colour temperature in mireds, triangles %, draws %, mean
 pixel difference) and FLAGS every shot past a tolerance (defaults in `TOL` at the top of
 refcams.py, every one overridable: `--lum-p50 4 --tris-pct 5` ...). Writes compare.json,
 compare.txt, `compare.jpg` (before over after, flagged shots outlined red) and a difference
 heat map `diff_<name>.jpg` per flagged shot. Exit code 1 when anything is flagged.
 
-Two plain runs of the same tree are NOT identical: traffic, people, birds and clouds move. The
+Shader TIME is held at its first instant in every run (water, surf, clouds stand still; `--live`
+lets it run): with it running the beach and the pier moved by a third of their pixels between two
+runs of one tree. Two runs are still NOT identical: traffic, people and birds move. The
 tolerances are set above that noise (see the noise run in docs/HANDOFF.md, the refcams section);
 use `--strict` on both sides when a change should be pixel-small.
 
