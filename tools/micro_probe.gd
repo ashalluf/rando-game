@@ -43,8 +43,15 @@ func _initialize() -> void:
 				var eye := p + inward * 2.6 + dir * 6.5
 				var look := p - eye
 				var yaw := rad_to_deg(atan2(-look.x, -look.y))
-				print("MICRO %s block=%d,%d face=%d at=%.1f,%.1f n=%s EYE=%.1f,1.7,%.1f,%.0f,-14" % [
-					kind, ix, iz, int(v.face), p.x, p.y, str(v.get("n", v.get("docks", ""))), eye.x, eye.y, yaw])
+				var extra := ""
+				if kind == "scooter":
+					var fallen := 0
+					for i in int(v.n):
+						if mm.call("_h01", [plan.seed, ix, iz, String(v.id), i, "fall"]) < mm.get("FALLEN_SHARE"):
+							fallen += 1
+					extra = " fallen=%d gutter=%s tree=%s" % [fallen, str(v.gutter), str(v.tree)]
+				print("MICRO %s block=%d,%d face=%d at=%.1f,%.1f n=%s%s EYE=%.1f,1.7,%.1f,%.0f,-14" % [
+					kind, ix, iz, int(v.face), p.x, p.y, str(v.get("n", v.get("docks", ""))), extra, eye.x, eye.y, yaw])
 			# The bike lanes on the block's +x and +z roads.
 			for axis in 2:
 				var index: int = ix + 1 if axis == 0 else iz + 1

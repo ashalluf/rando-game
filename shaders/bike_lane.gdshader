@@ -25,10 +25,10 @@ uniform float line_width = 0.12;
 // The paint (linear).
 uniform vec3 green = vec3(0.022, 0.14, 0.045);
 uniform vec3 white = vec3(0.72, 0.72, 0.69);
-uniform vec3 asphalt = vec3(0.045, 0.045, 0.048);
+uniform vec3 asphalt = vec3(0.1, 0.1, 0.1);
 // How worn: the green down the middle where the wheels run, everything at random.
-uniform float wear = 0.22;
-uniform float wheel_wear = 0.35;
+uniform float wear = 0.16;
+uniform float wheel_wear = 0.18;
 
 varying vec3 v_world;
 varying vec2 v_size;
@@ -153,13 +153,14 @@ void fragment() {
 	paint *= keep_green;
 	whites *= keep_white;
 	float cover = max(paint, whites);
-	if (cover < 0.04) {
+	// Worn through is a hole (the road shows); thinning paint goes toward the road's grey first.
+	if (cover < 0.5) {
 		discard;
 	}
 	vec3 base = mix(col, white, whites);
-	// Grit and tyre grime in the paint, thinner paint showing the asphalt's grey.
+	// Grit and tyre grime in the paint, thin paint showing the asphalt's grey.
 	base *= 0.86 + 0.2 * grain;
-	base = mix(asphalt, base, smoothstep(0.04, 0.6, cover));
+	base = mix(asphalt, base, smoothstep(0.5, 0.85, cover) * 0.6 + 0.4);
 	float wet = clamp(road_wetness, 0.0, 1.0);
 	ALBEDO = cs_out(base * mix(1.0, 0.85, wet));
 	ROUGHNESS = mix(mix(0.62, 0.55, whites), 0.12, wet);

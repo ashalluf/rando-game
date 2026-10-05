@@ -380,7 +380,7 @@ static func _place_cluster(chunk: CityChunk, edge: Array, v: Dictionary, occupie
 		if _h01(sid + ["along"]) < 0.15:
 			heading = dir
 		var yaw := atan2(-heading.x, -heading.y) + (_h01(sid + ["yaw"]) - 0.5) * 0.5
-		var roll := -0.11
+		var roll := 0.1
 		if pose == Pose.FALLEN:
 			yaw += (_h01(sid + ["fyaw"]) - 0.5) * 1.6
 			roll = 1.38 if _h01(sid + ["side"]) < 0.5 else -1.38
@@ -423,14 +423,39 @@ static func _place_cluster(chunk: CityChunk, edge: Array, v: Dictionary, occupie
 		occupied.append([q, 0.3])
 
 
-## How far up a mesh turned by `basis` must sit for its lowest point to touch the ground.
-static func _rest_lift(mesh: Mesh, basis: Basis) -> float:
-	var box := mesh.get_aabb()
+## How far up a scooter turned by `basis` must sit for its lowest point to touch the ground:
+## the lowest of the points it can rest on (the tyres' rims all round, the bar's ends, the
+## deck's edges, the stem's top, the kickstand's foot). The mesh's box would float it: its
+## corners reach far past the scooter once it is rolled over.
+static func _rest_lift(_mesh: Mesh, basis: Basis) -> float:
 	var lo := INF
-	for i in 8:
-		var c := box.get_endpoint(i)
-		lo = minf(lo, (basis * c).y)
+	for p: Vector3 in _support_points():
+		lo = minf(lo, (basis * p).y)
 	return -lo if lo != INF else 0.0
+
+
+static var _support: PackedVector3Array
+
+
+static func _support_points() -> PackedVector3Array:
+	if not _support.is_empty():
+		return _support
+	var g: Dictionary = MicroMesh.GEO[MicroMesh.Kind.SCOOTER_A]
+	var r: float = g.r
+	for c: Vector3 in [g.front, g.rear]:
+		for k in 16:
+			var a := TAU * float(k) / 16.0
+			for x: float in [-0.028, 0.028]:
+				_support.append(c + Vector3(x, cos(a) * r, sin(a) * r))
+	var grip: Vector3 = g.grip
+	for sx: float in [-1.0, 1.0]:
+		_support.append(Vector3(sx * (grip.x + 0.04), grip.y + 0.0, grip.z))
+		for z: float in [-0.33, 0.29]:
+			_support.append(Vector3(sx * 0.09, float(g.deck) - 0.06, z))
+			_support.append(Vector3(sx * 0.09, float(g.deck), z))
+	_support.append(Vector3(0.0, 1.1, -0.34))
+	_support.append(Vector3(-0.17, 0.0, 0.11))
+	return _support
 
 
 ## A share station along face `edge`: its kiosk, a row of docks, bikes in some of them.
