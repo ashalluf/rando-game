@@ -853,7 +853,7 @@ func _light_report(label: String) -> void:
 	print("LIGHTS %s car=%d (in view %d) lamps=%d (in view %d)" % [label, counts[0], counts[1], counts[2], counts[3]])
 
 
-const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "Billboards", "Vendors", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
+const SPLIT_CATEGORIES := ["Vehicle", "Pedestrian", "Building", "Trees", "Grass", "Camp", "LotFill", "Houses", "Industrial", "Parks", "River", "LightRail", "Birds", "Billboards", "Vendors", "PhysProps", "StreetProps", "FarCity", "FarGround", "Landmark", "Other"]
 
 
 func _geo_split(player: Node3D, anchor: Vector3, hold: Vector3, boost: bool, fov: float) -> void:
@@ -1100,6 +1100,8 @@ func _split_category(gi: GeometryInstance3D) -> String:
 				return "LightRail"
 			"Birds":
 				return "Birds"
+			"TrashCan", "PhysicsProp":
+				return "PhysProps"
 			"Skyline":
 				return "FarCity"
 			"CampFigureMesh":
