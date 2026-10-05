@@ -13,3 +13,9 @@ These are what a browser draws, not the Mac's Forward+.
 - `06_web_marina_carpark_band_1200.jpg` / `07_native_opengl3_marina_carpark_band_1200.jpg` - the marina car park
   looking north (`spawn=-735,30,0,-20`): a flat purple/teal band over the lower half. Identical on the native
   Compatibility renderer, so not a web bug; reported to the lead (a face right in front of the spawn camera).
+- `08_web_pier_beach_1500.jpg` / `09_native_opengl3_pier_beach_1500.jpg` - the beach by Rando Pier at 15:00
+  (`spawn=-925,-310,62,-4`): the pier park and its coaster draw; browser and native Compatibility identical
+  (the flat stall tables and the empty sand in this view are the scene, not the web).
+- `10_web_airport_apron_1200.jpg` - the airport apron: concourse, gate jets in their liveries. Console clean.
+- `11_web_final_export_downtown_noon.jpg` - the FINAL export (pck 643.5 MB, retired rigs and thumbnails left out):
+  loads and draws as before, console clean.
