@@ -1,4 +1,4 @@
-# shots/stadium - the ballpark in the ravine (wt/stadium, HANDOFF 9bs)
+# shots/stadium - the ballpark in the ravine (wt/stadium, HANDOFF 9bu)
 
 opengl3 stills at 1280 x 720 (tools/glshot/still_shot.gd). `_before` is the same EYE with
 `BALLPARK=0` (the hills as they were), `_after` with the park.
