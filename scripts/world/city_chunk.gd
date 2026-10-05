@@ -466,6 +466,8 @@ func _build_landmarks() -> void:
 			rng.seed = hash([plan.seed, lm.id, crowd[0]])
 			for step in _crowd_steps(crowd[0], crowd[1], crowd[2], rng):
 				_steps.insert(_steps.size() - 1, step)
+		for step in Landmarks.people_steps(lm, self):
+			_steps.insert(_steps.size() - 1, step)
 
 
 ## Batches that are paint on the road (shaders/road_paint.gdshader wears them).
