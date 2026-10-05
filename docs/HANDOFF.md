@@ -8693,3 +8693,108 @@ lavapipe). The fractus and the finest erosion octave are a few pixels and rely o
 resolve (in the 1 fps harness some read as specks). The cirrus and mid deck are still the painted
 sheets. No cloud shadows on the ground. The fragments have no light march of their own beyond the
 shared one.
+
+## 9co. Service alleys down the backs of downtown and midtown blocks, 2026-10-05 (agent branch `wt/alleys`)
+
+**What.** Los Angeles' commercial and downtown blocks are two rows of lots back to back with a
+service alley down the middle. Here that strip was LotFill's forecourt paving, planters and
+benches, and the buildings wore shops on all four faces, so the back of a block read as a
+pedestrian mall. Now about half the eligible blocks (116 of 240 round the downtown core on the
+default seed; the probe counts 326 of 540 midtown and 130 of 274 downtown BUILDINGS blocks, nearly
+all through-alleys, mean width ~5 m) have an alley: cracked concrete or patched asphalt round a
+concrete V-gutter ribbon, cast-iron drains, dug-up patches with tar sealant, oil in the wheel
+paths, grit and leaves at the walls, speed bumps, NO PARKING stencils, driveway aprons across the
+pavement with a wedge down to the road; the buildings' backs on it (no storefront, shop names,
+awnings or canopy on that face); steel back doors under caged bulkhead lamps (light pools at
+night, a few real lights), loading docks with steel stairs and a roll-up door, fire escapes with
+their drop ladders, condensers on wall brackets, electrical panels and conduit, gas meter
+manifolds; along the walls dumpsters stencilled with invented haulers (BASIN HAULING, ARROYO
+DISPOSAL, MESA WASTE CO, SEPULVEDA ROLL-OFF, TOLUCA SANITATION, all 555 numbers), grease bins,
+wheeled carts, pallets, milk crates, now and then an old mattress; chain-link gates swung open at
+some mouths; a box van backed in (invented fleets); wooden power poles with crossarms,
+transformers, sagging wires and service drops; StreetWear's tags, posters and grime on the alley
+walls; a cook on a smoke break by a back door.
+
+**How.** `Alleys` (`scripts/world/alleys.gd`): the pure band (`spec()`: the lot grid's seam across
+the block's long axis, `HALF_BAND` 3.6 m either side, `ODDS` 0.85 downtown outside the financial
+core / 0.75 midtown, a hash) and the hooks that keep the lots' own builders off it while they are
+built (`trim()`, `keep_out()`, `back_strip()`, `keeps_clear()`, `in_mouth()`, `back_face()`); the
+runs from what the lots really stood up (`record()` from `LotFill.after_building()`, every level;
+`runs()` walks from each mouth while a straight `MIN_WIDTH` 3.2 m fits, up to `WIDTH` 6.1);
+the block step (after the lots, before the finish); the ground mesh writer (`_g_alley()`,
+`_g_apron()`, `_g_bump()`, `_g_text()`, `_g_flat()`) and `commit()`. `AlleyKit`
+(`scripts/world/alley_kit.gd`): the props in code at real size, in a local frame (x along the wall,
+z out of it), written through `IndustrialKit.place()` with its K_* kinds into ONE upright mesh on
+IndustrialKit's material; `dress()` decides a run in ~2 ms and queues each prop's writes as a build
+step of its own (one step was 40-90 ms); `poles()` on StreetDetail's batches (`upole`, `crossarm`,
+`insulator`, `transformer`, `cable`); `wear()` hands the alley's centre line to
+`StreetWear._walls()` as a kerb either side, sharing the chunk's wear cap. `AlleyCook`
+(`scripts/npc/alley_cook.gd`): a StreetVendor with a cigarette (CrowdLife SMOKE), idling and
+folding their arms; gunfire sends them off and they walk back. `shaders/alley_ground.gdshader`:
+kinds alley / apron / old concrete (or a service yard's asphalt) / bump / paint; works in display
+numbers like the industrial ground.
+
+**Shared files touched** (small and local): `lot_fill.gd` (after_building: record, paving on the
+trimmed cell less the back strip, forecourt keeps off both; surface_lot: the trimmed cell),
+`city_chunk.gd` (the block step, the commit, `building.back_face`, the parked-car skip, lamps /
+trees / bushes skipped across a mouth - trees and bushes planted into a scratch MultiMeshBatch so
+the block rng runs the same), `building.gd` (`back_face`: the face's vertices carry no storefront
+flag, and that face gets no piers, kit storefront, shop names, spill, awnings or canopy; the old
+awnings' `_rng` roll is still made; the canopy's two bands moved to their own list),
+`tests/smoke_test.gd` (one line).
+
+**Rules / traps.** The band must be pure (LotFill needs it before the block step); the run must
+not be (only the built footprints say where 6 m fits - nothing moves a lot or trims a building).
+Never roll on the block rng for alley things: the parked cars and the pavement's trees roll before
+they are skipped. The dressing writes tens of thousands of SurfaceTool vertices: keep decisions
+and writes apart. `pkill -f probe.tscn` kills the shell that runs it.
+
+**Checks** (`tests/alley_checks.gd`): a downtown and a midtown alley found; only BUILDINGS blocks of
+those districts; the band pure and inside the inner rect; LotFill's seam cells trimmed off it; a
+FULL chunk has one shadowless ground mesh on the alley shader and one upright mesh on the
+industrial material, runs 3.2-6.1 m wide inside the band clear of every building, no parked car
+or street lamp across a mouth; the far city's capture lays the band; the dressing has dumpsters,
+doors and lamps (and more kinds), the lamp cap holds, buildings have their back_face; built with
+`ALLEYS=0` the block's buildings, hydrant and trash cans are where they were.
+
+**Tools.** `tools/alleys/probe.tscn` (headless, seconds): the alleys in an AREA by district
+(`WALLED=0.6` lists the walled-in ones with an EYE each), `BUILD=bx,bz` builds one FULL chunk and
+prints its props by kind, runs, wear and upright triangles (`ALLEY_TIME=1` the steps' times).
+`ALLEYS=0` in the environment is the A/B (still_shot.gd, block_shot.tscn, geo_count.gd).
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `ALLEYS=0` against the alleys, same
+spawn): at the downtown alley (`--spawn=2886,-508.6,-90,-3`) 2.490 M -> 2.484 M triangles, 2,864
+-> 2,823 draws (the forecourt furniture and the back faces' shop pieces the alley replaces cost
+about what it adds; the upright mesh casts from a twin that stops at `SHADOW_REACH` 140 m - before
+the twin it was +5.6 % triangles); midtown (`--spawn=-235.5,-120,180,-3`, measured before the
+twin) 5.04 M -> 5.19 M (+3.0 %), +23 draws. The still_shot frames: the downtown alley at noon
+3.59 M / 2,613 draws with the alleys, 3.61 M / 2,637 without. A FULL alley chunk: one ground and
+one upright mesh (~14-22 k triangles of props), one shadow twin, the alley pools in one batch,
+0-5 lamp lights. Build: the block step and the decisions ~2 ms a run, then one build step per
+prop (the biggest, a fire escape, a few ms); a cook is a step of its own (a rig, ~30 ms cold, as
+the vendors'). LOD / capture: a handful of slabs.
+
+**Stills** (branch `shots/alleys`; opengl3, not the Mac's Forward+): down the downtown alley at noon
+and 22:00 and back toward its mouth, the mouth from across the street by day and night, a midtown
+asphalt alley at noon and night, midtown from 260 m; `before_*` the same frames with `ALLEYS=0`.
+
+**Merged with fleet/base (2026-10-05, wave 2).** Conflicts were all hook lines: the parked-car
+test now asks FireStation, PoliceStation, Schools and Alleys; the pavement lamp is skipped across a
+mouth before Broadway is asked for its own lamp (`not Alleys.in_mouth() and not Broadway.lamp()`,
+neither rolls); the alley checks run last in the smoke test. One fix: a block with a police
+station's lots (PoliceStation, new in base) gets no alley, as a fire station's does - its apron
+and yard reach past its lots. Broadway's palaces and schools needed nothing (an unrecorded lot is a
+whole-lot obstacle to the run; a school block has grounds). Probe on the merged tree: 319 of 532
+midtown and 124 of 274 downtown BUILDINGS blocks have an alley (326 of 540 and 130 of 274
+before the merge; base's new block uses take a few). Gate: 1,386 passed, 1 failed (the known minimap closed-road line); after merging origin/main (its fix), 1,387 passed, 0 failed.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the concrete's tone and the lamp pools
+under AgX need eyes. No traffic or police drives the alleys (they are not in the street graph);
+the player can drive them. The van and dumpsters are static (dumpsters do not tip or roll); the
+gates are always open. The buildings' backs are their ordinary windows down to the ground (no
+real back-of-house wall treatment: blank wainscot, barred windows) and the far city's coded boxes
+still draw shops on that face. Fire escapes are only on parts 11 m tall or more and do not reach
+the roof. Midtown's pocket gardens (yard lots) can line an alley on both sides, so some alleys
+run between lawns. The alley pools are one warm tint whatever the lamp's lens; the real lights take
+NightCity's district colour. Cooks wear the crowd's clothes (no whites or apron). The grate's
+slots run across the flow at a grazing angle as a faint dotted line. Birds were another session's.

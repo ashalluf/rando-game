@@ -514,6 +514,7 @@ func _finish_build() -> void:
 	HouseKit.commit(self)
 	Industrial.commit(self)
 	Parks.commit(self)
+	Alleys.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	var fire_trees := TreeFire.collect(self, _batch)
@@ -2401,6 +2402,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# Billboards: the freeway's monopoles, then every board the lots planned (Billboards;
 			# hash-seeded, placed in a step before the finish so the block's props keep their ids).
 			steps.append(func() -> void: Billboards.block_step(self, block))
+			# The service alley down the seam of the lot grid (Alleys; hash-seeded, after the lots).
+			steps.append(func() -> void: Alleys.block_step(self, block))
 			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
 			# whole block, so the footprints the lots just recorded are what the grass has to
 			# stay out of; a suburb whose lawns are flat green paint is the tell.
@@ -2626,7 +2629,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	var car := Vehicle.random_car(rng)
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
@@ -2756,6 +2759,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.podium_lot = fill
 	if fill:
 		building.street_face = LotFill.street_face(self, lot)
+	# Its back on the block's service alley, if it has one (Alleys: pure, no roll).
+	building.back_face = Alleys.back_face(plan, ix, iz, lot)
 	# Downtown core: the skyline climbs toward the center (supertalls in the middle).
 	var boost := plan.macro.skyline_boost(center) if plan.macro else 0.0
 	# Handing the whole district band to each building made every lot an independent uniform
@@ -3276,7 +3281,7 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		var t := lamp_spacing * (0.5 if e % 2 == 0 else 0.25)
 		while t < length - 4.0:
 			var p := a + dir * t + inward
-			if not Broadway.lamp(self, p, inward):
+			if not Alleys.in_mouth(plan, ix, iz, p) and not Broadway.lamp(self, p, inward):
 				_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y))
 			t += lamp_spacing
 		t = tree_spacing * 0.75
@@ -3285,11 +3290,24 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 				# 1.3 rather than 1.6: every 30 cm back toward the kerb is 30 cm of crown that
 				# is over the street instead of inside the building on the lot line.
 				var p := a + dir * t + inward * 1.3
+				if Alleys.in_mouth(plan, ix, iz, p):
+					# Not across an alley's mouth (Alleys): the tree's rolls are still made, into a
+					# batch nobody builds, so the block's stream is the same.
+					var real := _batch
+					_batch = MultiMeshBatch.new()
+					_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng, -inward)
+					_batch = real
+					t += tree_spacing
+					continue
 				_batch.add("tree_grate", PropFactory.box("tree_grate", Vector3(1.6, 0.03, 1.6), Color(0.12, 0.12, 0.13)), Transform3D(Basis(), Vector3(p.x, SIDEWALK_TOP + 0.005, p.y)))
 				_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng, -inward)
 			elif rng.randf() < tree_chance * 0.5:
 				var p := a + dir * (t + tree_spacing * 0.4) + inward * 2.2
+				var real := _batch
+				if Alleys.in_mouth(plan, ix, iz, p):
+					_batch = MultiMeshBatch.new()
 				_add_bush(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
+				_batch = real
 			t += tree_spacing
 		if e == hydrant_edge:
 			var p := a + dir * rng.randf_range(6.0, length - 6.0) + inward
