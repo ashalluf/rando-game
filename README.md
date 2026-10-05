@@ -18,3 +18,9 @@ After the lead's review (tag lines keyed to the shop's room kind; the BANK no lo
 - 17 the same, cropped and enlarged
 - 18 the street at noon
 - 19 a restaurant-kind shop with a GRAND OPENING promo
+
+Every face direction reads left to right (one building, tools/glshot/building_shot.gd BSEED=7, a camera 4.5 m out from each wall):
+- 20 the +Z wall: DRY CLEAN
+- 21 the -Z wall: BANK, street number 7199
+- 22 the +X wall: PET SHOP
+- 23 the -X wall: PHARMACY, BOOKS, 50% OFF
