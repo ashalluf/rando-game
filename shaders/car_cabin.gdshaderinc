@@ -80,7 +80,7 @@ const float cabin_fire = 0.0;
 #endif
 
 // Who is in the car (CarCabin.seat()): top's colour (linear) and in .a the seats taken (bit 0
-// the driver's, bit 1 the front passenger's); skin and in .a the hair style (0 short, 1 long,
+// the driver's, bit 1 the front passenger's, bit 2 the bench behind the passenger); skin and in .a the hair style (0 short, 1 long,
 // 2 shaved, 3 a cap); hair (or the cap) and in .a a 0..1 seed; the passenger's top and in .a
 // their skin tone (0 fair .. 1 dark), plus 2 when they wear the driver's cap (a uniform).
 // Plain uniforms on a per-car copy of the material, not `instance uniform`s: every instance that
@@ -299,11 +299,11 @@ float ring_hit(vec3 o, vec3 d, vec3 c, vec3 n, float rad, float rw, float tw, ou
 // `wv`, radius `wr`) or resting in the lap. Laid out from the side glass down, the way a person
 // shows in a car window: the crown just under the top of the glass, the shoulders a hand over the
 // door line, the neck whatever is between (a low car's driver sits low); `fs` scales the build
-// (narrower in a small cabin, and by the seed). `who` 0 the driver, 1 the passenger.
-void person(vec3 o, vec3 d, vec3 inv, float sx, float back, float fs, float who, bool drive, bool close_up, vec3 wc, vec3 wu, vec3 wv, float wr, inout float best, inout vec3 best_n, inout float best_shade, inout int best_mat, inout vec4 best_aux) {
-	// The cushion's top and the seat back's face.
+// (narrower in a small cabin, and by the seed). `who` 0 the driver, 1 the passenger. `zb` is the
+// seat back's face: seat_z.x for the front row, seat_z.y for the bench (a taxi's fare).
+void person(vec3 o, vec3 d, vec3 inv, float sx, float back, float fs, float who, bool drive, bool close_up, vec3 wc, vec3 wu, vec3 wv, float wr, float zb, inout float best, inout vec3 best_n, inout float best_shade, inout int best_mat, inout vec4 best_aux) {
+	// The cushion's top.
 	float yc = belt_y - 0.42;
-	float zb = seat_z.x;
 	float fw = -back;
 	// The crown: under the top of the side glass (further under in a low cabin, whose window top
 	// slopes down fast behind its highest point), never higher than a real person's.
@@ -558,11 +558,16 @@ vec3 cabin_view(vec3 o, vec3 d, float dist) {
 		float fs = clamp((side_top - belt_y) / 0.42, 0.8, 1.0) * mix(0.94, 1.04, occupant_hair.a);
 		float bit0 = mod(seats, 2.0);
 		if (bit0 > 0.5) {
-			person(o, d, inv, sx, back, fs, 0.0, true, close_up, wc, wu, wv, wr, best, best_n, best_shade, best_mat, best_aux);
+			person(o, d, inv, sx, back, fs, 0.0, true, close_up, wc, wu, wv, wr, seat_z.x, best, best_n, best_shade, best_mat, best_aux);
 		}
-		if (seats > 1.5) {
-			float px = cx - driver_side * (half_w + 0.03) * 0.5;
-			person(o, d, inv, px, back, fs * 0.97, 1.0, false, close_up, wc, wu, wv, wr, best, best_n, best_shade, best_mat, best_aux);
+		float px = cx - driver_side * (half_w + 0.03) * 0.5;
+		if (mod(floor(seats * 0.5), 2.0) > 0.5) {
+			person(o, d, inv, px, back, fs * 0.97, 1.0, false, close_up, wc, wu, wv, wr, seat_z.x, best, best_n, best_shade, best_mat, best_aux);
+		}
+		if (seats > 3.5) {
+			// Bit 2: somebody on the bench behind the front passenger (a taxi's fare), in the
+			// passenger's colours.
+			person(o, d, inv, px, back, fs * 0.95, 1.0, false, close_up, wc, wu, wv, wr, seat_z.y, best, best_n, best_shade, best_mat, best_aux);
 		}
 	}
 	// Light in a cabin comes in through the windows: the tops of things catch it, the sides

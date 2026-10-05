@@ -150,6 +150,18 @@ vec3 cd_dent_offset(vec3 p) {
 }
 #endif
 
+// An old car's wear (the beater: Vehicle.BEATER_*), 0 on every other car, which skips all of it.
+// Positions are the body MESH's own space (x across, y up, z along with the nose at -z): a door
+// from another car (`wear_door`: z0, z1, y0, y1 on the side whose x has the sign of
+// `wear_door_side`, in `wear_door_color`), a patch of grey primer (`wear_primer`: z, y, radius,
+// side), the clear coat gone chalky on what faces the sky, and rust low on the sills.
+uniform float wear = 0.0;
+uniform vec4 wear_door = vec4(0.0);
+uniform float wear_door_side = -1.0;
+uniform vec3 wear_door_color : source_color = vec3(0.5);
+uniform vec4 wear_primer = vec4(0.0, 0.0, 0.0, 1.0);
+varying vec3 paint_rest;
+
 varying vec3 world_pos;
 // x = along the car, y = up, z = across, all 0..1 over the body's bounding box.
 varying vec3 body_uv;
@@ -163,6 +175,17 @@ float hash13(vec3 p) {
 	p = fract(p * 0.1031);
 	p += dot(p, p.yzx + 33.33);
 	return fract((p.x + p.y) * p.z);
+}
+
+
+float wear_noise(vec3 p) {
+	vec3 i = floor(p);
+	vec3 f = fract(p);
+	f = f * f * (3.0 - 2.0 * f);
+	return mix(mix(mix(hash13(i), hash13(i + vec3(1, 0, 0)), f.x),
+			mix(hash13(i + vec3(0, 1, 0)), hash13(i + vec3(1, 1, 0)), f.x), f.y),
+		mix(mix(hash13(i + vec3(0, 0, 1)), hash13(i + vec3(1, 0, 1)), f.x),
+			mix(hash13(i + vec3(0, 1, 1)), hash13(i + vec3(1, 1, 1)), f.x), f.y), f.z);
 }
 
 
@@ -190,6 +213,7 @@ void vertex() {
 	}
 #endif
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	paint_rest = rest_pos;
 	vec3 n = (rest_pos - body_min) / max(body_size, vec3(0.001));
 	vec3 nrm = normalize(rest_nrm);
 	body_uv = length_is_x ? n : vec3(n.z, n.y, n.x);
@@ -281,6 +305,37 @@ void fragment() {
 		float fres = pow(1.0 - clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0), pearl_power);
 		coat = mix(coat, pearl_color, fres * pearl_amount * (1.0 - livery));
 	}
+	// The beater's wear: which of its paint is another car's door, primer, chalky or rusty.
+	float worn_rough = 0.0;
+	float worn_coat = 0.0;
+	if (wear > 0.0) {
+		vec3 q = paint_rest;
+		float aa = max(fwidth(q.z) + fwidth(q.y), 0.002);
+		float door = step(0.0, q.x * wear_door_side)
+			* smoothstep(wear_door.x - aa, wear_door.x + aa, q.z) * (1.0 - smoothstep(wear_door.y - aa, wear_door.y + aa, q.z))
+			* smoothstep(wear_door.z - aa, wear_door.z + aa, q.y) * (1.0 - smoothstep(wear_door.w - aa, wear_door.w + aa, q.y));
+		coat = mix(coat, wear_door_color, door * wear);
+		// The rest of the car's own paint has faded toward a chalky pale of itself; the newer
+		// door has not.
+		float n1 = wear_noise(q * 2.3);
+		float n2 = wear_noise(q * 9.0 + 3.1);
+		float up = smoothstep(0.35, 0.85, body_ny);
+		float chalk = up * smoothstep(0.38, 0.62, n1 * 0.75 + n2 * 0.25) * (1.0 - door) * wear;
+		coat = mix(coat, mix(coat, vec3(dot(coat, vec3(0.3, 0.59, 0.11))), 0.5) * 0.85 + 0.12, 0.35 * (1.0 - door) * wear);
+		coat = mix(coat, coat * 0.55 + vec3(0.30, 0.29, 0.27), chalk * 0.75);
+		// A patch of grey primer with a sanded, feathered rim.
+		vec2 pd = vec2(q.z, q.y) - wear_primer.xy;
+		float pr = wear_primer.z * (0.8 + 0.4 * wear_noise(q * 6.0));
+		float primer = step(0.0, q.x * wear_primer.w) * (1.0 - smoothstep(pr * 0.85, pr, length(pd * vec2(0.8, 1.25)))) * wear;
+		float feather = step(0.0, q.x * wear_primer.w) * (1.0 - smoothstep(pr, pr * 1.25, length(pd * vec2(0.8, 1.25)))) * wear;
+		coat = mix(coat, coat * 0.7 + 0.08, (feather - primer) * 0.6);
+		coat = mix(coat, mix(vec3(0.36, 0.36, 0.34), vec3(0.44, 0.43, 0.41), n2), primer);
+		// Rust blooms low on the sills and the arch edges.
+		float rust = (1.0 - smoothstep(0.10, 0.20, body_uv.y)) * smoothstep(0.58, 0.78, wear_noise(q * 7.0) * 0.6 + n2 * 0.4) * wear;
+		coat = mix(coat, mix(vec3(0.20, 0.08, 0.035), vec3(0.32, 0.15, 0.06), n2), rust);
+		worn_rough = max(max(chalk, primer), rust);
+		worn_coat = mix(0.55 * (1.0 - door), 1.0, worn_rough) * wear;
+	}
 	vec3 painted = coat * (0.55 + 0.45 * lum * paint_brightness);
 	vec3 dark = base.rgb * 0.6;
 	ALBEDO = mix(dark, painted, body);
@@ -296,6 +351,9 @@ void fragment() {
 	// Panels are never perfectly uniform: a slow ripple in roughness reads as real sheet metal
 	// rather than a CG surface.
 	rough *= 1.0 + 0.10 * (hash13(floor(world_pos * 6.0)) - 0.5);
+	rough = mix(rough, max(rough * 1.6, 0.42), worn_coat * body);
+	rough = mix(rough, 0.78, worn_rough * body);
+	metal = mix(metal, 0.0, worn_rough * body);
 
 #ifdef CAR_DAMAGE
 	// --- Damage (scripts/vehicles/car_damage.gd). Clearcoat and specular are scaled at the end.
@@ -438,7 +496,7 @@ void fragment() {
 #ifdef CAR_DAMAGE
 		flake *= cc_keep;
 #endif
-		ALBEDO += vec3(flake * flake_strength * body * near);
+		ALBEDO += vec3(flake * flake_strength * body * near * (1.0 - worn_rough));
 	}
 
 	// The lacquer: a second, much sharper specular lobe over everything painted, and over glass.
@@ -450,7 +508,8 @@ void fragment() {
 	float rise = reflect(-w_view, w_normal).y;
 	float open_sky = mix(canyon_reflect, 1.0, smoothstep(0.0, canyon_rise, rise));
 	CLEARCOAT = max(clearcoat_amount * body, glass_clearcoat * glass * mix(1.0, 0.6, shape_glass)) * open_sky;
-	CLEARCOAT_ROUGHNESS = clearcoat_roughness_value;
+	CLEARCOAT *= 1.0 - worn_coat * body;
+	CLEARCOAT_ROUGHNESS = mix(clearcoat_roughness_value, 0.25, worn_coat);
 #ifdef CAR_DAMAGE
 	CLEARCOAT *= cc_keep;
 #endif
