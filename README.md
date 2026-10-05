@@ -14,3 +14,9 @@ All opengl3 (Compatibility renderer, what the web build draws), not the Mac's Fo
 | 08_after_downtown_twin_globe_noon.jpg | The same, after: the twin-globe ornamental |
 | 09_before_downtown_pavement_2100.jpg | Downtown at 21:00, before |
 | 10_after_downtown_twin_globe_2100.jpg | Downtown at 21:00, after (an LED patch) |
+| 11_after_midtown_lantern_noon.jpg | Midtown side street: the single-lantern ornamental |
+| 12_after_midtown_lantern_2100.jpg | The same at 21:00 (sodium) |
+| 13_after_beachtown_street_posttops_noon.jpg | Beach town from the far kerb: post-tops along the side street |
+| 14_after_beachtown_street_posttops_2100.jpg | The same at 21:00 (an LED patch) |
+| 15_after_beachtown_down_the_street_cobras_noon.jpg | Beach town, down a bigger street: cobra-heads on the far kerb |
+| 16_after_beachtown_down_the_street_cobras_2100.jpg | The same at 21:00 |
