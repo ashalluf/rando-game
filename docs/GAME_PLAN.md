@@ -431,6 +431,18 @@ already mapped so milestone 2 is script-only.
   in street traffic near schools at the morning and afternoon bell only; (5) every name is
   invented (school names, mascots, RANDO UNIFIED SCHOOL DISTRICT); a mural wall is left primed for
   the murals pass.
+- **2026-10-05 An AAA sky (VISUAL_ROADMAP #77, HANDOFF 9ci sky).** The cumulus were one painted
+  fbm layer; they are now a raymarched VOLUME on Forward+ (a slab 1.45-3.15 km up, a weather map
+  and a Perlin-Worley volume made by `tools/sky/make_cloud_noise.py`, a light march toward the sun
+  or the moon), run in Godot's half-resolution sky pass so it costs a few per cent of a frame.
+  Decisions: the Compatibility renderer (web) and Forward+ below MEDIUM keep the painted deck (no
+  half-res pass there, and the march is too heavy for one web thread); the high jets are the
+  sky's own (SkyExtras), not AirTraffic's, which fly under 1.5 km where no trail forms; a trail is
+  one straight segment worked out from the jet's track and the wind, never a list of points; the
+  moon's phase comes from an in-game date (`DayNight.moon_age_days`, `day_count`) and its place
+  follows from it, replacing the fixed `moon_offset_hours`; moonlight's energy scales with the
+  phase, normalised so the default gibbous night is unchanged; the light dome is worked out from
+  the map round the camera (zones on three rings, pulled toward downtown), not authored.
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
@@ -749,6 +761,7 @@ already mapped so milestone 2 is script-only.
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
 - **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #65).**
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #77).**
   A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
   (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
   back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky

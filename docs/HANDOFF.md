@@ -8073,3 +8073,71 @@ not judged: the traced classrooms, the brick and the stadium lights under AgX ne
 school claimed a block that a fire station's cell may have wanted (FireStation then finds no lot
 there and its cell has no station). Skyline's far plate under a school is one average colour
 (red track, asphalt), as a rec park's is. The murals pass paints the primed walls (`K_MURAL`).
+
+## 9ci. An AAA sky: volumetric cumulus, contrails, a dated moon, stars and the light dome, 2026-10-05 (agent branch `wt/sky`; VISUAL_ROADMAP #77)
+
+**What changed.** `shaders/sky.gdshader` (rewritten round the old one: every old block is kept),
+`scripts/world/day_night.gd` (the date and the moon), a new `SkyExtras` node
+(`scripts/world/sky_extras.gd`, made by DayNight as its child), `tools/sky/` (the noise generator
+and a sky-only shot tool), `assets/textures/sky/` (two noise images), `tests/sky_checks.gd`.
+- **Cumulus as a volume (Forward+, `cloud_detail` on).** A march through a slab 1.45-3.15 km up in
+  Godot's half-resolution sky pass (`use_half_res_pass`, guarded by `CURRENT_RENDERER`; the full
+  pass composites `HALF_RES_COLOR`). Columns from a 30 km weather map (R where, G how tall), a dome
+  over a flat base, eaten by a 64^3 Perlin-Worley; light: four taps toward the sun (the moon after
+  dark), three octaves of multiple scattering, a dual-lobe phase (silver linings), powder, sky
+  ambient above and ground / city bounce below; aerial haze by distance. Coverage over 0.8 turns
+  it into a flat stratus ceiling (the weather states). Two traps found on the way: a fixed number of
+  steps through the slab, and coarse steps entering a cloud, both draw every edge as a COMB of
+  per-pixel spikes - steps now grow with distance and back up to fine steps on entering a cloud;
+  and the billows (no mips in a 3D texture) fade to a five-times-coarser copy where a pixel spans
+  them. Compatibility (web) and Forward+ below MEDIUM keep the old painted deck
+  (`painted_cumulus()`); the mid deck is thinned next to the volume.
+- **Crepuscular rays** in the same half pass (`sky_rays()`: eight weather-map fetches toward the
+  sun, the light through the gaps streaming down the line), golden hour strongest. Forward+ only.
+- **Contrails.** SkyExtras flies `contrail_jets` (4) airliners straight across at 9-12 km (not
+  AirTraffic's, which stay under 1.5 km). A trail is one segment: head minus (heading x speed -
+  wind) x age; the shader intersects the view ray with its height, spreads it with the square root
+  of age, fades it over the jet's `trail_life` (45-700 s), breaks it where the air is drier, lights
+  it from the sun after the street's sunset (pink), and draws the jet as a glint. `CONTRAILS=n` /
+  `--contrails=n`.
+- **The moon.** `DayNight.moon_age_days` (default 11.7, the old fixed 9.5 h offset) plus
+  `day_count` (turns over at midnight) plus the hour give its age; it trails the sun by age / 29.53
+  of a day, so its phase and place come from the date (`--moonage=14.8` full, `4` a crescent;
+  `?moonage=` on the web). The face: the near side's seas as a table of ellipses, crater relief lit
+  by the real sun direction, Tycho's rays, Lommel-Seeliger shading (a full moon is flat-bright to
+  its limb), earthshine on a crescent. Moonlight's energy scales with the phase (unchanged at the
+  default gibbous) and lights the night cloud edges (the march's key light).
+- **Stars and the light dome.** Three star layers of round, antialiased points, many faint and few
+  bright, thinned by `sky_dark` (how much city surrounds the camera), washed out under the dome
+  and round a bright moon; the milky way only where it is dark (over the ocean, up a mountain).
+  SkyExtras surveys the map zones on rings at 1.5 / 4.5 / 10 km every 1.5 s and pulls toward
+  downtown: `city_dir`, `city_wrap` (how much of the horizon it wraps), and `city_glow` (from
+  `lamp_factor`, brighter under overcast) - an orange glow climbing from the horizon that also
+  lights the cloud bases. Compatibility gets it raised to its sRGB-added equivalent.
+
+**Cost.** Sky-only frame, 1280x720, lavapipe Forward+ (`tools/sky/sky_shot.gd BENCH=8`, noon,
+looking north, ~60 % of the frame sky): old shader 710 ms, new with the volume 778 ms (+9.5 %),
+new with the painted path (`DETAIL=0`, what MEDIUM-off and the web run) 658 ms. A city frame has
+far less of its time in the sky. No geometry: the city's triangles and draws are unchanged (the
+stills' GEO lines are the same frames' as before).
+
+**Tools.** `tools/sky/sky_shot.gd` (the city's own Environment and DayNight, no city: seconds on
+opengl3, a minute or two on lavapipe; HOUR, YAW, PITCH, FOV, MOONAGE, COVERAGE, CONTRAILS, DOME,
+DETAIL=0, SHADER= another sky for the A/B, BENCH), `tools/sky/make_cloud_noise.py` (numpy, PIL).
+
+**Stills** (shots/sky): Forward+ sky-only (`sky_shot.gd`): midday cumulus before / after, golden
+hour toward the sun with rays before / after, a contrail sky, the full moon at 23:00, a crescent
+at 19:40 under a forced dome; opengl3 city stills (the Compatibility path: painted clouds, the
+moon, stars, the dome): the full moon from the pier at 23:00, the dome over the city from the
+pier, a crescent over downtown, midday over the hills.
+
+**Not done / not verified.** The volume has never been seen in the city on Forward+: the whole
+city (and even LIGHT_WORLD with a 900 m far city) is OOM-killed under lavapipe on this box, so the
+volumetric stills are sky-only over a flat ground. NEEDS MAC CHECK: the march's dither under real
+TAA at 60 fps (some small teeth remain on cloud tops in a no-TAA frame), night cloud brightness
+under the player camera's auto exposure, the dome's strength, the frame cost at HIGH on the Mac.
+The cumulus cast no shadows on the ground. Contrails are thin lines, never a double trail from
+four engines; the jets carry no lights at night. The flying player can climb into the deck (it is
+drawn correctly from inside and above) but nothing fogs the near view there. The moon's lunar
+north is not tilted with latitude. The weather session (weather.gd) drives cloud_coverage /
+cloud_extra as before; a marine-layer stratus look would sit on top of `strat` in `cumulus()`.

@@ -304,6 +304,42 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   zenith and horizon keep most of their day colour (`golden_blue_top`, `golden_pale_horizon`)
   and the violet earth's-shadow band is off (`twilight_band_gain`) - at 17:36 the sky used to be
   a full sunset already, and the ambient, which is the sky, turned every shadow lavender.
+- Sky (2026-10-05, "an AAA sky"; HANDOFF 9ci): `sky.gdshader` plus `SkyExtras`
+  (`scripts/world/sky_extras.gd`, made by DayNight as its child). **The cumulus are a volume on
+  Forward+** (`cloud_volume` 1 once SkyExtras hands over the noise; `cloud_detail` on): a march
+  through a slab `cloud_base` 1.45 km up, `cloud_depth` 1.7 km deep, in Godot's HALF-RES sky pass
+  (`render_mode use_half_res_pass`, guarded by `CURRENT_RENDERER`; the full pass composites
+  `HALF_RES_COLOR`, rgb premultiplied, a = transmittance), dithered per frame (TAA resolves it).
+  Shape: a weather map (`assets/textures/sky/cloud_weather.png`, R where, G how tall) gives each
+  column, a dome over a flat base, eaten by a 64^3 Perlin-Worley (`cloud_shape3d.png`; both by
+  `tools/sky/make_cloud_noise.py`, imported as Images and turned into textures by
+  `SkyExtras.textures()`); light: four taps toward the sun (or the moon), three octaves of multiple
+  scattering, a dual-lobe phase, powder, ambient from the sky above and the ground / city below;
+  aerial haze by distance. Steps grow with distance and go fine (x0.3) after **backing up** on
+  entering a cloud: a fixed count, or no back-up, drew every edge as a comb. Billows fade to a
+  coarser copy where a pixel spans more than they do (the volume has no mips). Coverage over 0.8
+  turns the columns into a flat stratus ceiling (weather). Compatibility and Forward+ below
+  MEDIUM keep the painted 2D cumulus (`painted_cumulus()`), and the mid deck is thinned next to the
+  volume. Cost on lavapipe, 1280x720 sky-only: +0 to +4 % of the frame (`tools/sky/sky_shot.gd`
+  BENCH, `SHADER=` the A/B). The half pass also carries the sky-space crepuscular rays
+  (`sky_rays()`: eight weather fetches toward the sun; Forward+ only). **Contrails**: SkyExtras
+  flies `contrail_jets` airliners straight across at 9-12 km (not AirTraffic's, which fly under
+  1.5 km); a trail is ONE segment (head minus (heading x speed - wind) x age), passed as
+  `trail_a/b/c` (camera-relative km), intersected with its height in the shader, spreading and
+  fading over `trail_life`, sunlit after the street's sunset; `CONTRAILS=n` / `--contrails=n`.
+  **The moon's date**: `DayNight.moon_age_days` (+ `day_count` + the hour) puts the moon age /
+  29.53 of a day behind the sun, so phases come from the date (`--moonage=` / `?moonage=`); its
+  light energy scales with the phase (unchanged at the default gibbous). The face: maria as the
+  near side's seas, crater relief lit by the real sun direction, Tycho's rays, Lommel-Seeliger
+  shading, earthshine on a crescent; it lights the night cloud edges (the march's key light).
+  **Night**: three star layers, round antialiased points, thinned by `sky_dark` (the city round
+  the camera) and washed out under the light dome and round a bright moon; the milky way only
+  from a dark sky. **The light dome** (`city_glow`, `city_dir`, `city_wrap`): SkyExtras surveys
+  the map's zones on three rings round the camera every 1.5 s (`_survey()`) and pulls the dome
+  toward downtown; orange on the horizon, lighting the cloud bases, `lamp_factor`-driven, brighter
+  under overcast. Look in seconds with `tools/sky/sky_shot.gd` (the city's Environment and
+  DayNight, no city; HOUR, YAW, PITCH, MOONAGE, COVERAGE, CONTRAILS, DOME, DETAIL=0 the painted
+  path, BENCH). Checks: `tests/sky_checks.gd`.
 - Weather: `Weather` node in the city scene (`scripts/world/weather.gd`): states clear, overcast,
   rain, storm; drives DayNight (`cloud_extra`, `weather_darken`), fog, rain particles, wet roads
   (`PropFactory.set_wetness`), the `wind_factor`, `wave_scale` and `tsunami_scale` shader globals,
