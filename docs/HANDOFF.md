@@ -8571,7 +8571,7 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
-## 9d?. The web build after the October wave, 2026-10-05 (agent branch `wt/web-build`; VISUAL_ROADMAP #59)
+## 9d?. The web build after the October wave, 2026-10-05 (agent branch `wt/web-build`; VISUAL_ROADMAP "?")
 
 **What was asked.** Dozens of systems landed since anyone last opened the web build (the
 Compatibility renderer in a browser, deployed to GitHub Pages): make sure it loads, runs and
