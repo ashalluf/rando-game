@@ -6028,6 +6028,10 @@ this branch: houses, industry and headwear in), "after" = the defaults. Pixel di
 | hills `300,-650,0,-6,260` | 1,919,420 (1,815,050 / 104,368) / 1,104 | the same | 0 | 7 (what two DIFF runs differ by) |
 | esplanade (the bookmark's EYE, FOV 44) | 2,476,372 (1,352,891 / 1,123,479) / 1,760 | 2,469,892 (1,352,891 / 1,116,999) / 1,760 | -0.3 % | 28, all by 1/255 |
 
+Again on the merged head 07f2669 (buses and trucks, the vendors and the Coral Line in), downtown:
+7,206,949 (3,888,059 / 3,318,888) / 3,424 -> 6,504,301 (3,888,059 / 2,616,240) / 3,373, -9.7 %
+(shadow -21 %), 1,157 pixels moved (54 > 8, 5 > 32) - the same cut on a frame that grew.
+
 The camera pass is identical to the triangle in every view: everything came out of the shadow
 passes. Per cut (the other two off): downtown, the ground rule -175,548 shadow triangles (1,130
 pixels moved, 53 > 8) and the roofline reach -527,100; the masjid, ground -183,784 (3,406 px, 167 >

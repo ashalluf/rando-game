@@ -104,10 +104,10 @@ const LIT_COLORS := [Color(1.0, 0.82, 0.50), Color(1.0, 0.92, 0.70), Color(0.85,
 @export var kit_roof_distance: float = 320.0
 ## The roofline mouldings (cornices, the parapet coping) cast their shadow only while some part of
 ## the roofline is within this many metres of the camera (MultiMeshBatch.set_shadow_reach()).
-## Past it the shadow cascades are 10-15 cm a texel, so the coping's 6 cm
-## drip line cannot be drawn, and the cornice's shadow is cast by the box band sized to sit
-## inside the moulding (KIT_CORNICE_CORE), which stays. 0 casts them to their draw distance, as
-## before (HANDOFF 9bf: a quarter of the downtown frame's shadow triangles).
+## Past it the shadow cascades are 10-15 cm a texel, so the coping's 6 cm drip line cannot be
+## drawn, and the cornice's shadow is cast by the box band sized to sit inside the moulding
+## (KIT_CORNICE_CORE), which stays. 0 casts them to their draw distance, as before (they were a
+## quarter of the downtown frame's shadow triangles, HANDOFF 9bf).
 @export var kit_roofline_shadow_reach: float = 80.0
 ## Share of punched windows on a residential block with an air conditioner in them.
 @export var kit_ac_chance: float = 0.07
