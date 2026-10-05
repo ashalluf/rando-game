@@ -319,11 +319,22 @@ func _build_near() -> void:
 	_strut(Vector3(CRANK.x - 1.2, 0.8, -0.72), Vector3(CRANK.x - 1.6, 2.2, -0.72), 0.06, 0.06, K_SAFETY, SAFETY)
 	# The motor on its slide rails, the sheaves and the belt guard down the left side.
 	_box(Vector3(-9.75, 0.86, 0.0), Vector3(1.2, 0.2, 1.0), K_PAINT_DARK)
-	_cyl(Vector3(-9.75, 1.36, -0.45), Vector3(-9.75, 1.36, 0.35), 0.38, 14, K_PLAIN, Color(0.28, 0.34, 0.36))
-	for i in 5:
-		var z := -0.35 + float(i) * 0.16
-		_cyl(Vector3(-9.75, 1.36, z), Vector3(-9.75, 1.36, z + 0.05), 0.42, 14, K_PLAIN, Color(0.25, 0.3, 0.32), false)
-	_box(Vector3(-9.75, 1.86, -0.05), Vector3(0.36, 0.22, 0.3), K_PLAIN, Color(0.24, 0.28, 0.3))
+	# The motor: a finned frame between two end bells, its fan cowl, feet and terminal box.
+	var mc := Vector3(-9.75, 1.36, 0.0)
+	var motor := Color(0.28, 0.34, 0.36)
+	_cyl(mc + Vector3(0, 0, -0.42), mc + Vector3(0, 0, 0.3), 0.34, 14, K_PLAIN, motor)
+	for i in 10:
+		var a := TAU * (float(i) + 0.5) / 10.0
+		if sin(a) < -0.5:
+			continue
+		var d := Vector3(cos(a), sin(a), 0.0)
+		_box(mc + d * 0.37, Vector3(0.06, 0.06, 0.62), K_PLAIN, motor * 0.92, Basis(Vector3(0, 0, 1), a))
+	_cyl(mc + Vector3(0, 0, 0.3), mc + Vector3(0, 0, 0.38), 0.37, 14, K_PLAIN, motor * 0.85)
+	_cyl(mc + Vector3(0, 0, -0.62), mc + Vector3(0, 0, -0.42), 0.36, 14, K_PLAIN, Color(0.2, 0.22, 0.23))
+	for s: float in [-1.0, 1.0]:
+		_box(mc + Vector3(0.22 * s, -0.34, -0.06), Vector3(0.16, 0.12, 0.62), K_PLAIN, motor * 0.8)
+	_box(mc + Vector3(0, 0.42, -0.05), Vector3(0.3, 0.2, 0.28), K_PLAIN, Color(0.24, 0.28, 0.3))
+	_cyl(mc + Vector3(0, 0.52, -0.05), mc + Vector3(0.0, 0.52, -0.05) + Vector3(-0.9, -0.2, 0.0), 0.03, 6, K_STEEL, GALV)
 	_box(Vector3(-8.75, 1.45, 0.7), Vector3(2.5, 1.25, 0.18), K_PAINT_DARK)
 	_cyl(Vector3(-9.75, 1.36, 0.36), Vector3(-9.75, 1.36, 0.58), 0.2, 10, K_STEEL, DARK)
 	# The wellhead: casing, flanges, the flow tee with its valves, the stuffing box, the flowline.

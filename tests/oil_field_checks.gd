@@ -197,7 +197,7 @@ func _chunks(city: Node3D, plan: CityPlan, f: OilField) -> void:
 		var rc: CityChunk = city._new_chunk(rig, CityChunk.Level.FULL)
 		rc.build()
 		var rw := rc.get_node_or_null("OilWalls") as MeshInstance3D
-		var tris := rw.mesh.surface_get_array_len(0) / 3 if rw else 0
+		var tris: int = rw.mesh.surface_get_array_len(0) / 3 if rw else 0
 		_t._check(rw != null and tris > 3000 and rc.get_node_or_null("Batch_oil_pool") != null,
 			"the rig's chunk %s: mast, substructure and racks in the one hardware mesh (%d triangles), light pools" % [rig, tris])
 		rc.get_parent().remove_child(rc)
@@ -220,7 +220,7 @@ func _chunks(city: Node3D, plan: CityPlan, f: OilField) -> void:
 	var nodes := cap.get_child_count()
 	cap.free()
 	var lights := OilFieldBuild.lights_mesh(plan.macro)
-	var nl := lights.surface_get_array_len(0) / 6 if lights else 0
+	var nl: int = lights.surface_get_array_len(0) / 6 if lights else 0
 	_t._check(lod_ok and boxes > 20 and nodes == 0 and nl > 20,
 		"LOD keeps the nodding far pumpjacks; the far city captures %d boxes and no nodes; %d field lights" % [boxes, nl])
 

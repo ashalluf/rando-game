@@ -57,6 +57,7 @@ const LANDMARK_NAMES := {
 	"convention_center": "Convention Center", "civic_park": "Civic Park",
 	"concert_hall": "Symphony Hall", "lattice_museum": "The Lattice", "pueblo_station": "Pueblo Station",
 	"macarthur_park": "MacArthur Park",
+	"oil_field": "Basin Crest Oil Field",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.
