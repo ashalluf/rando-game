@@ -237,9 +237,13 @@ static func _ground_storey(g: LandmarkGeo, spec: Dictionary, w: float, tw: float
 			var inner := bw - 0.7
 			# Bulkhead, display glass, transom, sign board.
 			g.box("sign", Vector3(cx, 0.32, -0.25), Vector3(inner, 0.64, 0.3), kc(IRON, K_IRON))
-			g.box("sign", Vector3(cx, 2.35, -0.32), Vector3(inner, 3.4, 0.06), kc(Color.BLACK, K_GLASS))
+			# The display's light after dark rides in the glass's red (broadway_sign.gdshader):
+			# about half the shops are shut for the night (a trace of light from the back).
+			var lit := Broadway.h01([seed_value, "shop_lit", shop_i])
+			var glass := Color(0.06 if lit < 0.45 else 0.55 + 0.45 * lit, 0.0, 0.0)
+			g.box("sign", Vector3(cx, 2.35, -0.32), Vector3(inner, 3.4, 0.06), kc(glass, K_GLASS))
 			g.box("sign", Vector3(cx, 4.12, -0.3), Vector3(inner, 0.08, 0.14), kc(BRASS, K_BRASS))
-			g.box("sign", Vector3(cx, 4.55, -0.32), Vector3(inner, 0.8, 0.06), kc(Color.BLACK, K_GLASS))
+			g.box("sign", Vector3(cx, 4.55, -0.32), Vector3(inner, 0.8, 0.06), kc(glass, K_GLASS))
 			# Mullions in the display glass.
 			for mu: float in [-0.33, 0.33]:
 				g.box("sign", Vector3(cx + mu * inner, 2.35, -0.27), Vector3(0.06, 3.4, 0.08), kc(BRASS, K_BRASS))

@@ -161,12 +161,21 @@ void fragment() {
 		rough = 0.25 + 0.15 * noise2(UV * 6.0);
 		metal = 1.0;
 	} else if (k < 9.5) {
-		albedo = vec3(0.04, 0.05, 0.06);
+		// Dark glass: a dielectric (its mirror is the renderer's Fresnel), never a lit slab.
+		albedo = vec3(0.012, 0.014, 0.016);
 		rough = 0.05;
-		metal = 0.5;
-		// Lit behind after dark, unevenly (displays, a lamp, the back of the shop).
-		float glow = 0.35 + 0.65 * noise2(UV * vec2(0.6, 0.4) + seed * 5.0);
-		emit = vec3(1.0, 0.78, 0.5) * 0.1 * glow * night;
+		metal = 0.0;
+		// Lit behind after dark. A shop window's paint carries its shop's light level in red
+		// (BroadwayTheatre: 0 closed, else how bright the display is); every other pane (doors,
+		// booth, the arched window) keeps the old faint glow. Either way the light comes from
+		// the ceiling - bright under the transom, falling to the floor - in pools along the
+		// window: one even 0.1 emission was lifted by the night's auto exposure to the
+		// floodlit stone's own brightness, and every shop read as a flat warm-grey board.
+		float level = v_paint.r > 0.002 ? cs_linear_to_srgb(vec3(v_paint.r)).r : 0.2;
+		float fall = mix(0.18, 1.0, smoothstep(0.4, 4.0, UV.y));
+		float pools = 0.55 + 0.45 * noise2(vec2(UV.x * 0.9, seed * 5.0));
+		float glow = (0.6 + 0.4 * noise2(UV * vec2(0.6, 0.4) + seed * 5.0)) * fall * pools;
+		emit = vec3(1.0, 0.74, 0.44) * 0.05 * level * glow * night;
 	} else if (k < 10.5) {
 		// A one-sheet: a field, a figure block, a title band - all invented shapes.
 		float cell = floor(UV.x / 1.3);
