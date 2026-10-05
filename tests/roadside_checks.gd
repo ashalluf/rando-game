@@ -28,6 +28,12 @@ func run(t: Node, city: Node3D) -> void:
 	_tables()
 	_picks(plan)
 	var pads := _capture(city, plan)
+	# The A/B compares parked cars, which PhysicsBudget caps city-wide: late in the smoke test the
+	# city is near that cap, and the OFF build (made while the ON chunk's cars are still queued for
+	# freeing) would get fewer. Lift the cap for the checks' own builds.
+	var budget := t.get_node("/root/PhysicsBudget")
+	var cap: int = budget.max_active_bodies
+	budget.max_active_bodies = 1 << 30
 	var kinds := {}
 	for e: Dictionary in pads:
 		kinds[int(e.kind)] = true
@@ -43,6 +49,7 @@ func run(t: Node, city: Node3D) -> void:
 		tried += 1
 		_full(city, plan, e, seen)
 	_t._check(seen.has(Roadside.Kind.GAS), "a gas station was built at FULL and checked (%d pads tried)" % tried)
+	budget.max_active_bodies = cap
 
 
 func _tables() -> void:
