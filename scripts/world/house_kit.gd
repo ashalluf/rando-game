@@ -109,7 +109,7 @@ const BRICK := Color(1.0, 1.0, 1.0)
 const MATS := ["h_wall", "h_siding", "h_brick", "h_trim", "h_door", "h_metal", "h_dark", "h_roof", "h_shingle",
 	"h_flat", "glass", "h_solar", "h_breeze"]
 ## Surfaces whose shadow is only cascade fill (they lie on or in something that casts already).
-const NO_SHADOW := ["glass", "h_solar", "h_dark", "h_breeze"]
+const NO_SHADOW := ["glass", "h_solar", "h_dark", "h_breeze", "h_rail"]
 
 
 static func wanted(ch: CityChunk, district: int) -> bool:
@@ -670,6 +670,9 @@ static func material(name: String) -> Material:
 	match name:
 		"h_wall", "h_trim", "h_door", "h_metal", "h_dark", "h_flat", "glass":
 			m = ReplicaHouses.material(name)
+		"h_rail":
+			# An apartment's pickets and bars (ApartmentBuild): the metal, drawn without a shadow.
+			m = ReplicaHouses.material("h_metal")
 		"h_roof":
 			var sm := ReplicaHouses.material(name) as StandardMaterial3D
 			# HouseKit writes roof UVs in metres (along the eave, up the slope).

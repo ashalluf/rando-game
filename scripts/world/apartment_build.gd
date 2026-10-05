@@ -179,8 +179,7 @@ func _opening(fo: Vector2, t: Vector2, n: Vector2, hl: Array, mat: String, cl: C
 	var q1 := fo + t * a1 - n * 0.12
 	var bars := int((a1 - a0) / 0.13)
 	for k in bars + 1:
-		var p := q0.lerp(q1, float(k) / maxf(bars, 1))
-		_box("h_metal", p, gy0, y1 - 0.05, t, n, Vector2(0.012, 0.012), rail)
+		_picket(q0.lerp(q1, float(k) / maxf(bars, 1)), gy0, y1 - 0.05, t, n, 0.012, rail)
 	for yy: float in [gy0 + 0.1, (gy0 + y1) * 0.5, y1 - 0.12]:
 		_bar("h_metal", q0, q1, yy - 0.03, yy + 0.03, 0.025, rail)
 	_box("h_metal", q0.lerp(q1, 0.5) + n * 0.05, gy0 + 1.0, gy0 + 1.3, t, n, Vector2(0.09, 0.04), rail.darkened(0.2))
@@ -200,7 +199,7 @@ func full() -> void:
 			_stoops(w)
 	for b: Array in _balconies:
 		var hw: float = float(b[6]) * 0.5
-		_balcony(b[0], b[1], b[2], float(b[3]) - hw, float(b[3]) + hw, float(b[4]), float(b[5]))
+		_iron_balcony(b[0], b[1], b[2], float(b[3]) - hw, float(b[3]) + hw, float(b[4]), float(b[5]))
 		acc.shapes.append(_balcony_shape(b))
 	for a: Array in _acs:
 		_ac(a)
@@ -269,8 +268,14 @@ func _rail(a: Vector2, b: Vector2, y: float, kind: String, rail_c: Color) -> voi
 	_bar("h_metal", a, b, y + 0.08, y + 0.11, 0.015, rail_c)
 	var cnt := int(len / 0.13)
 	for k in cnt + 1:
-		var p := a.lerp(b, float(k) / maxf(cnt, 1))
-		_box("h_metal", p, y + 0.08, y + 1.0, t, n, Vector2(0.009, 0.009), rail_c)
+		_picket(a.lerp(b, float(k) / maxf(cnt, 1)), y + 0.08, y + 1.0, t, n, 0.009, rail_c)
+
+
+## A thin bar as two faces back to back (4 triangles; a box is 10, and a rail is hundreds of them).
+func _picket(p: Vector2, y0: float, y1: float, t: Vector2, n: Vector2, r: float, cl: Color) -> void:
+	for sg: float in [1.0, -1.0]:
+		var q := p + n * (r * sg)
+		_quad("h_rail", L(q - t * r, y0), L(q + t * r, y0), L(q + t * r, y1), L(q - t * r, y1), N(n * sg), cl)
 
 
 ## An open stair flight: steel stringers, concrete treads, pipe rails, the landing at its top.
@@ -384,6 +389,24 @@ func _stoops(w: Dictionary) -> void:
 		_box("h_trim", p + n * 0.5, 2.45, 2.55, t, n, Vector2(0.85, 0.5), col.trim, true)
 		for sx: float in [-0.75, 0.75]:
 			_bar("h_trim", p + t * sx + n * 0.08, p + t * sx + n * 0.92, 2.25, 2.45, 0.03, col.trim)
+
+
+## HouseBuild._balcony() with the pickets as _picket() strips: a slab out from the wall, an iron rail.
+func _iron_balcony(fo: Vector2, t: Vector2, n: Vector2, a0: float, a1: float, y: float, depth: float) -> void:
+	var mid := fo + t * ((a0 + a1) * 0.5) + n * (depth * 0.5)
+	_box("h_trim", mid, y - 0.18, y, t, n, Vector2((a1 - a0) * 0.5, depth * 0.5), col.trim, true)
+	var e0 := fo + t * a0 + n * (depth - 0.04)
+	var e1 := fo + t * a1 + n * (depth - 0.04)
+	var w0 := fo + t * a0 + n * 0.02
+	var w1 := fo + t * a1 + n * 0.02
+	for pair: Array in [[e0, e1], [w0 + t * 0.04, e0 + t * 0.04], [w1 - t * 0.04, e1 - t * 0.04]]:
+		var a: Vector2 = pair[0]
+		var b: Vector2 = pair[1]
+		_bar("h_metal", a, b, y + 1.0, y + 1.05, 0.025, HouseKit.IRON)
+		var d := (b - a).normalized()
+		var cnt := int(a.distance_to(b) / 0.14)
+		for k in cnt + 1:
+			_picket(a.lerp(b, float(k) / maxf(cnt, 1)), y, y + 1.0, d, Vector2(-d.y, d.x), 0.01, HouseKit.IRON)
 
 
 ## A wall air conditioner: a sleeve through the wall under the window, its grille facing out.
