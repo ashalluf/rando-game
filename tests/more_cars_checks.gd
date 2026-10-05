@@ -273,7 +273,7 @@ func _taxi() -> void:
 				sign_ok = mat != null and mat.shader == Vehicle.TAXI_SIGN_SHADER
 	var letters := 0
 	for c in car.get_children():
-		if String(c.name).contains("Lettering"):
+		if c is MeshInstance3D and (c as MeshInstance3D).mesh is TextMesh:
 			letters += 1
 	_check(sign_ok, "the taxi wears its lit roof sign (taxi_sign slot on shaders/taxi_sign.gdshader)")
 	_check(letters == 4 or OS.has_feature("web"), "the taxi carries BASIN CAB and its fleet number on both sides (%d)" % letters)
