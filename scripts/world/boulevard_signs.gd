@@ -578,6 +578,7 @@ static func _plates(ch: CityChunk, block: Dictionary, district: int, counts: Dic
 	var rect: Rect2 = block.rect
 	var edges := CityChunk._sidewalk_edges(rect)
 	var occupied := StreetClutter._occupied(ch)
+	var cuts := Kerbs.possible_cuts(ch, rect, district)
 	var spacing := float(PLATE_SPACING[district])
 	if int(block.kind) != CityPlan.BlockKind.BUILDINGS and int(block.kind) != CityPlan.BlockKind.MALL:
 		spacing = 0.0
@@ -598,7 +599,7 @@ static func _plates(ch: CityChunk, block: Dictionary, district: int, counts: Dic
 			var t := (p2 - a).dot(dir)
 			for off: float in [5.5, -5.5, 7.0, -7.0]:
 				var q := a + dir * (t + off) + inward * POST_IN
-				if StreetVendors._clear(occupied, q, 0.45) and not _in_kerb_cut(ch, q, 0.3):
+				if StreetVendors._clear(occupied, q, 0.45) and not _in_kerb_cut(cuts, q, 0.3):
 					_post(ch, q, inward, [9, 10, 11], counts, occupied)
 					break
 			break
@@ -636,7 +637,7 @@ static func _plates(ch: CityChunk, block: Dictionary, district: int, counts: Dic
 					var q := a + dir * (t + slide) + inward * POST_IN
 					if not StreetWear.allowed(q):
 						break
-					if StreetVendors._clear(occupied, q, 0.5) and not _in_kerb_cut(ch, q, 0.3):
+					if StreetVendors._clear(occupied, q, 0.5) and not _in_kerb_cut(cuts, q, 0.3):
 						if plan.road_open(road[0], road[1], q.y if road[0] == CityPlan.AXIS_X else q.x):
 							_post(ch, q, inward, plates, counts, occupied)
 						break
@@ -646,7 +647,7 @@ static func _plates(ch: CityChunk, block: Dictionary, district: int, counts: Dic
 		if boulevard and _h01(hs + ["way"]) < float(WAYFIND_ODDS[district]):
 			for slide: float in [7.0, 9.0, 11.0]:
 				var q := a + dir * slide + inward * 0.75
-				if StreetVendors._clear(occupied, q, 0.6) and not _in_kerb_cut(ch, q, 0.3):
+				if StreetVendors._clear(occupied, q, 0.6) and not _in_kerb_cut(cuts, q, 0.3):
 					var x := Vector3(dir.x, 0.0, dir.y)
 					var basis := Basis(x, Vector3.UP, x.cross(Vector3.UP))
 					var at := Vector3(q.x, CityChunk.SIDEWALK_TOP, q.y)
@@ -661,21 +662,14 @@ static func _plates(ch: CityChunk, block: Dictionary, district: int, counts: Dic
 					break
 
 
-## True when XZ `q` is inside one of the chunk's kerb ramps or driveway aprons (Kerbs cuts them
-## before this runs, round the props already standing), or within `margin` of one: a post there
-## would stand in the slope.
-static func _in_kerb_cut(ch: CityChunk, q: Vector2, margin: float) -> bool:
-	if not ch.has_meta("kerbs"):
-		return false
-	var built: Dictionary = (ch.get_meta("kerbs") as Dictionary).get("built", {})
-	for n: Dictionary in built.get("notches", []):
-		var poly: PackedVector2Array = n.poly
+## True when XZ `q` is inside, or within `margin` of, one of `cuts` (Kerbs.possible_cuts(): the
+## corner ramps and driveway aprons the kerb ring may cut): a post there would stand in the slope.
+static func _in_kerb_cut(cuts: Array, q: Vector2, margin: float) -> bool:
+	for poly: PackedVector2Array in cuts:
 		if Geometry2D.is_point_in_polygon(q, poly):
 			return true
-		for i in poly.size():
-			var p0 := poly[i]
-			var p1 := poly[(i + 1) % poly.size()]
-			if Geometry2D.get_closest_point_to_segment(q, p0, p1).distance_to(q) < margin:
+		for k in poly.size():
+			if Geometry2D.get_closest_point_to_segment(q, poly[k], poly[(k + 1) % poly.size()]).distance_to(q) < margin:
 				return true
 	return false
 
