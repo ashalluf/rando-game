@@ -3088,7 +3088,12 @@ func _check_crowd_rigs() -> void:
 		if why != "":
 			bad.append(path.get_file() + ":" + why)
 		rig.queue_free()
-	_check(rigs >= 8 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	_check(rigs >= 20 and bad.is_empty(), "the %d crowd rigs keep the contract (24 bones, clips, masked body with detail UV2, cut-out hair, <= 20k triangles)%s" % [rigs, "" if bad.is_empty() else " " + str(bad)])
+	# a rig whose head is covered (the headscarf) is one of the crowd, and never wears a hat
+	var no_hat_ok := true
+	for path: String in ped_script.NO_HAT_MODELS:
+		no_hat_ok = no_hat_ok and path in ped_script.MODELS
+	_check(no_hat_ok and not ped_script.NO_HAT_MODELS.is_empty(), "the hatless rigs (%s) are crowd rigs" % [ped_script.NO_HAT_MODELS])
 
 
 ## The Blender-built hero (tools/hero/): the rig contract the clips and the gun hands rely on,

@@ -349,7 +349,7 @@ the tiling `hero_x_skin_detail` (pores, stubble) and `hero_x_pile` (velour).
 
 ## The crowd (Blender + MPFB2, CC0 assets)
 
-`assets/models/crowd_a.glb` .. `crowd_l.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
+`assets/models/crowd_a.glb` .. `crowd_t.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
 `_hair.png` Godot extracts from them) are the pedestrians (`Pedestrian.MODELS`), built by
 `tools/crowd/` with the hero's toolchain: Blender 4.2 LTS, the MPFB 2.0.17 add-on and the CC0
 MakeHuman system asset pack, which `tools/hero/setup.sh` downloads into the ignored
@@ -361,7 +361,7 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | Base mesh, body/face shape targets, "mixamo" rig and weights | MPFB 2.0.17 | CC0 |
 | Skins, eyes (`low-poly` + an eye material), eyebrows, eyelashes, clothes (`male_casualsuit01..06`, `male_elegantsuit01`, `male_worksuit01`, `female_casualsuit01/02`, `female_elegantsuit01`, `female_sportsuit01`), shoes (`shoes01..06`), hair (`afro01`, `braid01`, `long01`, `ponytail01`, `short01..04`) and their textures | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
 | Skin blends, garment dyes, printed logos painted out, the painted scalp and crops, skin relief maps, the atlases, relaxed hands, bind pose, the region colours | Our own scripts (`tools/crowd/*.py`) | ours |
-| Our own garments (tee, jeans / slim / chinos / leggings / denim shorts, button shirt, zip jacket): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
+| Our own garments (tee, jeans / slim / chinos / leggings / denim shorts / joggers, button shirt and polo, zip jacket / hoodie / cardigan, skirt, hi-vis vest, headscarf): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
 | Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` (`tools/hero/retarget_lib.py`) | ours |
 | Everyday "life" clips (`assets/models/crowd_life/crowd_*_life.res`, one AnimationLibrary per rig): `Idle_Loop`, `Idle_Talking_Loop`, `Sitting_Enter`, `Sitting_Idle_Loop`, `Sitting_Talking_Loop`, `Sitting_Exit`, `Jog_Fwd_Loop`, `Idle_Torch_Loop` from Universal Animation Library [Standard]; `Idle_TalkingPhone_Loop`, `Idle_FoldArms_Loop`, `Consume`, `Yes`, `Idle_No_Loop`, `Idle_Rail_Loop` from Universal Animation Library 2 [Standard] (Quaternius; the free Standard downloads, License.txt in each zip: CC0 1.0). Retargeted in Godot by `tools/crowd/life_clips.gd` (the jog's leg swing scaled to a jogger's stride, the standing clips' legs settled to the rig's stance); the sources are fetched by `tools/crowd/fetch_life_clips.sh` into the ignored `build/ual_src/` and do not ship | https://quaternius.itch.io/universal-animation-library , https://quaternius.itch.io/universal-animation-library-2 | CC0 1.0 (added 2026-10-04) |
 | The dog (`assets/models/dog_shiba.glb`, `CrowdDog`): `ShibaInu.gltf` from Quaternius' Ultimate Animated Animals (glTF folder; License.txt in the pack: CC0 1.0), rewritten as a .glb by Godot's GLTFDocument, unchanged | https://quaternius.com/packs/ultimateanimatedanimals.html | CC0 1.0 (added 2026-10-04) |
@@ -381,10 +381,18 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | `crowd_j.glb` | white man in his fifties, heavy, close-cropped: chambray shirt with the sleeves rolled, dark jeans, brown shoes | middleage_caucasian_male, eyes `low-poly` + blue, eyebrow011, eyelashes01, shoes01, no hair mesh (a painted crop); our own shirt and jeans |
 | `crowd_k.glb` | young Latina woman: fitted teal tee, light-wash jeans, navy sneakers, braid | young_caucasian_female 45% + young_african_female 35% + young_asian_female 20%, eyes `low-poly` + brown, eyebrow002, eyelashes01, shoes06, braid01; our own tee and jeans |
 | `crowd_l.glb` | East Asian man in his seventies: maroon long-sleeve tee, charcoal chinos, black shoes, short grey hair | old_asian_male, eyes `low-poly` + brown, eyebrow008, eyelashes01, shoes04, short01; our own long-sleeve tee and chinos |
+| `crowd_m.glb` | white man in his seventies, tall and thin, a little stooped: navy windbreaker, stone chinos, brown shoes, thin grey hair | old_caucasian_male, eyes `low-poly` + lightblue, eyebrow005, eyelashes01, shoes01, short02; our own zip jacket (as a windbreaker) and chinos (added 2026-10-05) |
+| `crowd_n.glb` | South Asian woman in her sixties, short and heavy: buttoned crew-neck cardigan, mid-calf A-line skirt, flat shoes, short grey-streaked hair | middleage_asian_female 45% + middleage_african_female 30% + middleage_caucasian_female 25%, eyes `low-poly` + brown, eyebrow009, eyelashes01, shoes04, short03; our own cardigan and skirt |
+| `crowd_o.glb` | Black teenage boy, slim: pullover hoodie (hood down, drawcords, kangaroo pocket), black joggers with rib cuffs, grey sneakers, short hair | young_african_male, eyes `low-poly` + brown, eyebrow002, eyelashes01, shoes02, short02; our own hoodie and joggers |
+| `crowd_p.glb` | white teenage girl, slim: fitted lilac tee, olive A-line skirt above the knee, white sneakers, auburn ponytail | young_caucasian_female2, eyes `low-poly` + green, eyebrow006, eyelashes01, shoes05, ponytail01; our own tee and skirt |
+| `crowd_q.glb` | Latino man in his thirties, tall and heavy: navy pique polo, khaki chino shorts, grey sneakers, short black hair | young_caucasian_male 40% + young_african_male 30% + young_asian_male 30%, eyes `low-poly` + brown, eyebrow010, eyelashes01, shoes02, short04; our own polo and shorts |
+| `crowd_r.glb` | young North African woman: dusty rose headscarf worn hijab-style, long cream tee, navy wide trousers, navy sneakers | young_caucasian_female 60% + young_african_female 28% + young_asian_female 12%, eyes `low-poly` + brown, eyebrow001, eyelashes01, shoes06, no hair mesh (the headscarf covers it); our own headscarf, tee and trousers |
+| `crowd_s.glb` | Filipino man in his thirties, very short and stocky: hi-vis safety vest over a heather-grey tee, charcoal work trousers, boots, short black hair | young_asian_male 70% + young_african_male 20% + young_caucasian_male 10%, eyes `low-poly` + brown, eyebrow004, eyelashes01, shoes03, short01; our own vest, tee and trousers |
+| `crowd_t.glb` | very tall Black woman in her thirties: red-striped white shirt with the sleeves rolled, black slim trousers, white sneakers, a braid | young_african_female, eyes `low-poly` + brown, eyebrow003, eyelashes01, shoes05, braid01; our own shirt and slim trousers |
 
-Each is ONE skinned `Body` (skin, eyes, clothes, shoes; 10.5-12.7k triangles, one 2K colour atlas
+Each is ONE skinned `Body` (skin, eyes, clothes, shoes; 10.5-13.8k triangles, one 2K colour atlas
 and a 1K normal atlas, the vertex colour carrying the skin / top / bottom / hair split) and a
-`Hair` mesh of cut-out cards, brows and lashes (0.4-3.8k triangles, one 1K RGBA atlas): 11-16.6k
+`Hair` mesh of cut-out cards, brows and lashes (0.4-3.8k triangles, one 1K RGBA atlas): 11-17.7k
 triangles a person, 24 bones, the three clips. The MakeHuman T-shirts carry the MakeHuman logo;
 it is painted out of every atlas (`crowd_config.json` "garments" -> "erase").
 
