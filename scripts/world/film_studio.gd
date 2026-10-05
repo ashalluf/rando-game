@@ -40,6 +40,12 @@ const WEST_X := 568.4
 const EAST_X := 803.5
 const NORTH_Z := -776.8
 const SOUTH_Z := -403.4
+## The entry's radius (the minimap pin, lots near it). The relief is NOT flattened by it but over
+## the area itself (`flat_rect`, MacroMap._relief_at()), out to FLAT_MARGIN: a disc big enough to
+## flatten the lot (205 m, + 150 m of fade) reached the front range's foot and the switchback
+## drives grown there lost half their length (tests/smoke_test.gd's switchback check).
+const RADIUS := 30.0
+const FLAT_MARGIN := 70.0
 
 # --- The section (metres) -----------------------------------------------------------------------
 ## The public pavement round the lot, inside the perimeter kerbs.
@@ -71,7 +77,8 @@ static var _layouts: Dictionary = {}
 ## The entry Landmarks.all() lists: id, anchor, a radius (relief flattening) and the area CityPlan
 ## snaps to the grid. No kept roads: the streets inside are the studio's.
 static func entry() -> Dictionary:
-	return {"id": SITE_ID, "anchor": ANCHOR, "radius": 205.0,
+	return {"id": SITE_ID, "anchor": ANCHOR, "radius": RADIUS,
+		"flat_rect": Rect2(WEST_X - 15.0, NORTH_Z - 15.0, EAST_X - WEST_X + 30.0, SOUTH_Z - NORTH_Z + 30.0), "flat_margin": FLAT_MARGIN,
 		"area": {"west_x": WEST_X, "east_x": EAST_X, "north_z": NORTH_Z, "south_z": SOUTH_Z, "keep_z": [], "streets": {}}}
 
 

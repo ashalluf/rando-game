@@ -481,6 +481,13 @@ func _relief_natural(pos: Vector2, raw: float) -> float:
 		if fade <= 0.0:
 			return base
 	for lm in _landmarks:
+		# A landmark that names its own flat ground (a rect and a margin: the film studio lot)
+		# flattens that rather than a disc round its anchor.
+		if lm.has("flat_rect"):
+			fade *= _rect_fade(pos, lm.flat_rect, float(lm.flat_margin))
+			if fade <= 0.0:
+				return base
+			continue
 		var radius: float = lm.radius
 		var a: Vector2 = lm.anchor
 		# A cheap box test first: this runs for every ground sample in the city (and the whole
