@@ -64,6 +64,12 @@ const SITES := {
 		"footprint": Vector2(400.0, 250.0), "yaw": 0, "tolerance": 90.0,
 		"faces": "west: the forecourt, the arch and the clock tower; the platforms behind to the east",
 		"real_size": Vector3(260.0, 38.0, 70.0), "real_faces": 270.0},
+	# The marketplace lane and its plaza across Alameda from the station (PuebloLane): the whole
+	# block between Main and Alameda, Arcadia and Cesar Chavez; the real plaza's kiosk is the point.
+	"pueblo_lane": {"real": "pueblo_plaza", "latlon": PuebloLane.KIOSK_LATLON, "radius": 30.0,
+		"footprint": Vector2(150.0, 460.0), "yaw": 0, "tolerance": 45.0,
+		"faces": "the lane runs north from the plaza; the church faces the plaza from its south-west",
+		"real_size": Vector3(60.0, 14.0, 180.0), "real_faces": 0.0},
 }
 
 ## Yaw by id, in degrees, overriding the table (the smoke test turns a landmark to prove the turn
@@ -72,7 +78,7 @@ static var yaw_override: Dictionary = {}
 
 ## The ids in the order Landmarks.all() lists them.
 const ORDER := ["arena", "live_plaza", "live_hotel", "convention_center",
-	"ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station"]
+	"ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station", "pueblo_lane"]
 
 
 ## The Landmarks.all() entry for one site.
@@ -174,6 +180,8 @@ static func build(id: String, parent: Node3D, statics: StaticBody3D, plan: CityP
 		"arena", "live_plaza", "live_hotel", "convention_center":
 			LandmarkArenaDistrict.build(id, info.local, info.y0, pivot, body, detailed)
 			ArenaGrounds.build_leftovers(plan, id, info, pivot, body, detailed)
+		"pueblo_lane":
+			PuebloLane.build(info, pivot, body, detailed)
 		_:
 			LandmarkCivicCenter.build(id, info.local, info.y0, pivot, body, detailed)
 	ctx = {}
@@ -186,6 +194,8 @@ static func crowds(id: String, plan: CityPlan) -> Array:
 	match id:
 		"arena", "live_plaza", "live_hotel", "convention_center":
 			local = LandmarkArenaDistrict.crowds(id, info.local)
+		"pueblo_lane":
+			local = PuebloLane.crowds(info)
 		_:
 			local = LandmarkCivicCenter.crowds(id, info.local)
 	var out := []

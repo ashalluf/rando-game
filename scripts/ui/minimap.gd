@@ -69,6 +69,7 @@ const LANDMARK_NAMES := {
 	"oil_field": "Basin Crest Oil Field",
 	# The reservoir in the front range (Reservoir): an invented name.
 	"reservoir": "Lake Shallufer",
+	"pueblo_lane": "Paseo de las Golondrinas",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.

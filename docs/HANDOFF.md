@@ -13679,3 +13679,94 @@ crews at work (no camera dolly, no shoot - that is the film-shoot session's area
 ordinary pedestrians. The stage interiors are not built (doors closed). The site is a fixed area
 (not a seed roll). The first commit on shots/film-studio carried the whole tree by mistake; the
 second removes it (no force-push), so that branch's history is heavy.
+
+## 9ep. Paseo de las Golondrinas: a historic marketplace lane and plaza by Pueblo Station, 2026-10-05 (agent branch `wt/olvera`; VISUAL_ROADMAP #135)
+
+**What it is.** The FORM of the real historic lane and plaza across Alameda from Union Station,
+with an invented name (PASEO DE LAS GOLONDRINAS; the plaza PLAZA VIEJA, the church IGLESIA DE LA
+PALOMA). A civic block site (`CivicSites.SITES["pueblo_lane"]`, id neutral) that takes the whole
+block between Main and Alameda, Arcadia and Cesar Chavez (pinned streets, so every seed): the
+plaza's kiosk stands on the real kiosk's point (`PuebloLane.KIOSK_LATLON`, 0.0 m off on the
+default seed), which is where the real one is from the station - 245 m grid-west, 26 m
+grid-south (checked). The real church stands across Main; here it is inside the block on the
+plaza's south-west side, facing it.
+
+**Files.** `scripts/world/pueblo_lane.gd` (`PuebloLane`: `layout()` pure from the site rect and the
+kiosk's real point, the build, crowds, vendors), `scripts/world/pueblo_market.gd` (`PuebloMarket`:
+the stalls, goods, papel picado, bulb strings, lanterns into two accumulators),
+`shaders/pueblo_market.gdshaderinc` + `pueblo_market.gdshader` (solid, culled) +
+`pueblo_market_thin.gdshader` (both sides, cut out, BACKLIGHT), `tests/pueblo_lane_checks.gd`,
+`tools/pueblo_lane/probe.tscn`. Hooks (one or two lines each): `CivicSites` (the row, ORDER, the
+build and crowds dispatch), `Landmarks` (the entry when enabled, the build match, people_steps),
+`DowntownReal.POINTS` (`pueblo_plaza`), `Minimap.LANDMARK_NAMES`, `MapPainter.GLYPHS`, the smoke
+test's line.
+
+**The layout** (the site's own frame, x east, z south): the plaza (52 m square of brick, a disc of
+terracotta tiles, brick rings) with the octagonal KIOSK in the middle (stucco base with a tile
+band and steps north and south, eight slender iron columns, balustrade, arched iron frieze, a
+bell-cast octagonal tile roof with a lantern and a gilt finial, bulbs round the eave), ten shade
+trees on a ring with grates and ring benches, eight timber poles round the edge carrying papel
+picado from the kiosk's eave and bulb strings rim to rim, lamps with pools. The LANE runs 118 m
+north from the plaza's middle, 13 m between fronts, brick-paved, under a timber PERGOLA (posts
+every 4 m, beams, joists) grown over with grape and wisteria cards from ClimbingPlants' atlas and
+shader (~5,700 cards, ragged by a slow patch field so the sun comes through; a shadows-only twin of
+every third card so the lane is dappled), papel picado strung across every 5.5 m and two bulb
+strings down its length. Down its middle, 72 PUESTOS back to back in runs of five with gaps to
+cross: painted timber stalls with counters, shelves, a sloped board roof, a striped awning on iron
+arms with a scalloped valance, a bulb; each sells one of eight goods (folded and hanging sarapes,
+glazed and bare pottery and plates, star pinatas with crepe tassels and maracas, straw sombreros
+and belts, embroidered dresses, candy in jars on tiers, silver under a case and tin mirrors,
+leather bags and huaraches). The buildings either side are 16 segments of 10-20 m: one- and
+two-storey stucco (tinted from a palette) and brick, ground floors built round recessed openings
+(arched or square, lit shop windows on `curtain_glass`, timber doors), upper windows the facade
+shader's, tiled eaves or parapets, iron balconies, wall lanterns; the east row's middle segment is
+the ADOBE (thick limewashed walls, small deep windows, viga ends, a corredor of posts under a tiled
+lean-to). A big timber cross on a stone base at the lane's mouth (the real lane has one). The
+CHURCH (15 x 38 m nave under clay tiles, buttresses, a stepped bell gable with three bells and a
+cross, an arched door with a moulded surround, pilasters, a round window, lanterns, its name) is
+a SANCTUARY: `Sanctuary.add_zone` over the nave, the gable and the forecourt (far copy too) and
+its collision on its own `ChurchBody` in Sanctuary's group. Round them: the old brick firehouse
+east of the plaza, a three-storey arcaded hotel block south of it, the adobe's courtyard, a grove
+(`ArenaGrounds.bosque`) south-west, palm beds and a gateway with the lane's name at the north end,
+and three surface car parks (`ArenaGrounds.surface_lot`).
+
+**People.** Crowds (`CivicSites.crowds`): 22 walkers on a ring down the lane's two aisles (between
+the awnings and the adobe's posts, checked), 16 round the plaza outside the trees, 6 in the grove.
+Every third stall has its seller (`StreetVendor`, the life clips, standing inside the stall), and
+every stall two `vendor_queue` spots in front, which the walkers' life layer fills.
+
+**Cost.** The near build is ~0.7 s of GDScript (the stalls 0.17 s, the vines 0.16 s, the rest
+geometry), so `PuebloLane.build()` builds each version ONCE into a template (`_templates`, built
+when the far copy is built at load) and every chunk that streams the site in gets `duplicate()`s
+sharing its meshes and shapes: 5-7 ms. Near: buildings and ground 16.9k triangles (LandmarkGeo),
+the market 126k - of which 110k are the goods, bulbs, strings, lanterns and balcony bars in a mesh
+that casts NO shadow (`PuebloGoods`, 170 m) and 16k the stall frames, awnings and kiosk ironwork
+that do (`PuebloMarket`, 220 m) -, paper and canvas 5.6k (no shadow, 170 m), the vines (~7k cards,
+4 triangles each) and their shadow twin; 201 collision shapes. Far: 4.9k + 0.5k.
+
+**Frame cost** (`still_shot.gd` GEO lines, opengl3, 1280x720, `PUEBLO_LANE=0` the before; taken
+before the goods were split off the shadow, which takes ~0.4 M shadow triangles off the lane view):
+the plaza 15:30 5.56 M -> 5.76 M triangles, 2,650 -> 2,753 draws; down the lane 5.35 M -> 6.24 M,
+2,279 -> 2,693 draws (the market and the people in view: it is the densest view there is); from
+the air 4.80 M -> 3.71 M, 2,467 -> 1,978 (the seeded office blocks it replaces were taller). The
+final head (goods off the shadow, the counters' risers, merged with main): the lane 6.27 M, 2,762
+draws (shadow 2.81 M); the stall close-up 3.49 M; the night plaza 6.02 M.
+
+**The static trap.** The first sarapes drew as RGB static: a per-piece seed carried in UV2.x and
+interpolated came out a few ulps apart from pixel to pixel, and every hash that took it turned
+that into per-pixel colour. The seed and the kind are `flat` varyings now (and the seed is
+quantised); a pattern finer than a pixel is faded to its mean (`pm_keep()`), the pinstripes are
+box-filtered exactly. `tools/pueblo_lane/stall_shot.gd` (one stall of each kind of goods, seconds,
+`DEBUG=1|2|3|4` the UV, the kind, the seed) is how it was found.
+
+**Stills** (shots/olvera; opengl3): 01/02 the plaza before / after, 03/04b the lane, 05/06 the air,
+07b the church, 08b the puestos close up, 09b a sarape stall, 10 the lane at 20:50, 11 the plaza at
+20:50.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the papel picado's BACKLIGHT, the bulbs
+and lit shops through AgX and bloom, the vines' dapple. The stalls are not breakable (bullets hit
+their collision box). The pergola's vines read thin from straight above (the cards lie flat and
+their atlas cells are mostly cut away). The kiosk is not walkable inside past its deck (its roof
+is one box of collision). The church has no interior. No sound of its own (a marimba, the church
+bells at the hour would be the next step). The block's leftover ground is car parks and a grove,
+not the real block's other historic buildings.

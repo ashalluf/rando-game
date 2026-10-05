@@ -173,6 +173,7 @@ const POINTS := {
 	"100_n_central": Vector2(34.0496133, -118.2386120),
 	"1000_vin_scully": Vector2(34.0736255, -118.2398452),
 	"four_level_interchange": Vector2(34.0626710, -118.2488172),
+	"pueblo_plaza": Vector2(34.0572200, -118.2381600),
 }
 
 ## The freeways round the area, in grid metres (u, v), from the geocoded motorway points

@@ -324,6 +324,15 @@ already mapped so milestone 2 is script-only.
   not on new poles; everything of a block is one mesh on one shader plus a shadowless twin for the
   small parts; names invented, English only on the signs (no CJK font), nothing caricatured.
 
+- **2026-10-05 A historic marketplace lane and plaza by Pueblo Station (HANDOFF "Paseo de las
+  Golondrinas").** The form of the real lane and plaza across Alameda from Union Station, every
+  name invented. Decisions: it is a civic block site (CivicSites) on the block between Main and
+  Alameda, the kiosk on the real plaza's geocoded point (so it is where the real one is relative
+  to the station); the real church, across Main, is put inside the block facing the plaza and is
+  a sanctuary; the stalls, goods and paper are code-built at real size into two meshes on one
+  shader family (kind in the vertex alpha) rather than a batch per prop; the pergola's vines reuse
+  ClimbingPlants' atlas; the whole near build (~0.7 s of GDScript) is made once at load into a
+  template and duplicated per chunk. `PUEBLO_LANE=0` turns it off.
 - **2026-10-05 Tower roofs: helipads, pool decks, roof gardens, penthouses, masts and window
   washers (VISUAL_ROADMAP #59, HANDOFF "Tower roofs").** Roofs are what the player sees most while
   flying, and every tower top was the same scatter of units. `Rooftops` plans each tall

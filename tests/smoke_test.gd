@@ -2312,6 +2312,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/road_wear_checks.gd").new().run(self, city)
 	# The hillside estates past the FULL chunks (tests/estate_night_checks.gd): parts, lamps, seat.
 	load("res://tests/estate_night_checks.gd").new().run(self, city)
+	# The marketplace lane by Pueblo Station (tests/pueblo_lane_checks.gd): the site, the layout,
+	# near and far builds under budget, the church's sanctuary, the vendors.
+	await load("res://tests/pueblo_lane_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

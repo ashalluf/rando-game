@@ -135,6 +135,9 @@ static func _list() -> Array[Dictionary]:
 	# The film studio lot in midtown (FilmStudio): an area site like the canals'.
 	if FilmStudio.enabled:
 		list.append(FilmStudio.entry())
+	# The marketplace lane and plaza by the station (PuebloLane): a civic block site.
+	if PuebloLane.enabled:
+		list.append(CivicSites.entry(PuebloLane.ID))
 	# The ballpark in the ravine north of downtown (Ballpark: real form, real place, invented name).
 	if Ballpark.enabled():
 		list.append(Ballpark.entry())
@@ -194,6 +197,8 @@ static func crowds(lm: Dictionary, plan: CityPlan) -> Array:
 static func people_steps(lm: Dictionary, chunk: CityChunk) -> Array[Callable]:
 	if lm.id == "pier":
 		return PierPark.people_steps(lm.anchor, chunk)
+	if lm.id == PuebloLane.ID:
+		return PuebloLane.people_steps(lm, chunk)
 	var none: Array[Callable] = []
 	return none
 
@@ -298,7 +303,7 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 		OilField.ID:
 			OilFieldBuild.build_lights(parent, plan)
 		# Downtown LA civic set (see all() and CivicSites).
-		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
+		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station", "pueblo_lane":
 			CivicSites.build(lm.id, parent, statics, plan, detailed)
 		_:
 			if LandmarkDowntown.is_tower(lm.id):
