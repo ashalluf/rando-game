@@ -8755,6 +8755,7 @@ be texture size (the hero's 2K maps, the 2K crowd atlases).
 **Harness lesson.** A webshot needs the box to itself: alongside the headless gate on 4 cores the
 tab got its first frame at ~190 s and the screenshot timed out waiting for the next one; alone it
 takes ~8-14 minutes a bookmark (7 minutes of streaming in the WAIT). Two at once is fine on
-16 GB. Headless check: 1374 PASS, 1 FAIL (the known `minimap_checks` closed-road line on
-fleet/base). Frame cost: no game code changed (an export filter and a check), so none was
+16 GB. Headless check after merging origin/main: SMOKE TEST PASSED (1375 checks), peak RSS
+3.17 GB (one earlier run lost "one shotgun blast throws a crate" at 0.28 m against a 0.30 m floor:
+a random pellet cone; the re-run threw it 2.30 m - worth a wider margin some day). Frame cost: no game code changed (an export filter and a check), so none was
 measured. Stills on `shots/web-build`.
