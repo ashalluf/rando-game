@@ -140,7 +140,7 @@ static func _spec(plan: CityPlan, bx: int, bz: int) -> Dictionary:
 	if lots.size() < 2:
 		return {}
 	for lot: Dictionary in lots:
-		if YardFill.is_corridor(plan, lot) or FireStation.claims(plan, bx, bz, lot):
+		if YardFill.is_corridor(plan, lot) or FireStation.claims(plan, bx, bz, lot) or PoliceStation.claims(plan, bx, bz, lot):
 			return {}
 	var cell: Vector2 = (lots[0].cell as Rect2).size
 	var nx := roundi(inner.size.x / cell.x)

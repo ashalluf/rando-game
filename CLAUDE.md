@@ -1985,8 +1985,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Alleys` (`scripts/world/alleys.gd`) and `AlleyKit` (`scripts/world/alley_kit.gd`). **The band
   is pure**: `Alleys.spec(plan, bx, bz)` (cached) puts it on the lot grid's seam across the
   block's long axis (`HALF_BAND` 3.6 m either side; `ODDS` per district, a hash; never on a site,
-  a landmark's square, the runway clear zone, a block with a freeway corridor lot or a fire
-  station), from `CityPlan.lots()` alone, so the lots' own builders keep off it while they are
+  a landmark's square, the runway clear zone, a block with a freeway corridor lot, a fire
+  or a police station), from `CityPlan.lots()` alone, so the lots' own builders keep off it while they are
   built: `LotFill.after_building()` lays its paving on `Alleys.trim()` of the cell and keeps its
   forecourt furniture off `keep_out()` and the lot's `back_strip()` (the building's back to the
   band: the alley's service ground), `LotFill.surface_lot()` trims the car park, the parked cars
