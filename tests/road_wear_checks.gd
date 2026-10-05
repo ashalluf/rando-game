@@ -150,7 +150,7 @@ func _chunks(city: Node3D, plan: CityPlan) -> void:
 	a.free()
 	var b: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	b.build()
-	var same := b.get_meta("road_wear", PackedVector2Array()) == pa and pa.size() > 0
+	var same: bool = b.get_meta("road_wear", PackedVector2Array()) == pa and pa.size() > 0
 	var depth_here := RoadWear.bump_for(probe) if probe != Vector2.INF else -1.0
 	b.get_parent().remove_child(b)
 	b.free()

@@ -861,6 +861,15 @@ already mapped so milestone 2 is script-only.
   barrier; traffic turns onto them. The stack is tall (~26-50 m) because the 101 climbs to the
   pass at the grade limit from there: both main lines are held level through the stack (raise
   only). docs/HANDOFF.md (the stack section); CLAUDE.md "The four-level stack".
+- **2026-10-05 Road wear is 25 stamps multiplied, not a texture (owner: "25 max different
+  pavement wear and tears ... variations up to thousands").** One atlas of 25 stamps cut from the
+  repo's CC0 scans and procedural shapes (tools/make_road_wear.py), laid as one MultiMesh a FULL
+  chunk with every variation per instance from a hash (turn, mirror, scale, age, erosion
+  threshold, tint, a paired stamp): ~17.6 k single looks, ~139 M with pairs. Placement follows
+  the street (district, road age, bus lines, the port's trucks, wheel paths, kerb and parking
+  lanes, stop lines); potholes far rarer than cracks. Near the camera the road shader's own
+  rectangular patch grid and crack net step back for them. docs/HANDOFF.md (road wear); CLAUDE.md
+  "Road wear".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

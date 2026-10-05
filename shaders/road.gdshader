@@ -252,7 +252,7 @@ void fragment() {
 	// what decides whether this reads as a crack or as a dried-mud pattern: at 0.75 the lines
 	// wandered over several metres and were a hand's width across.
 	float ridge = 1.0 - abs(fbm(w * 1.7 + 17.0 + seed) * 2.0 - 1.0);
-	float crack = smoothstep(0.955, 0.999, ridge) * crack_amount * (1.0 - 0.75 * stamps);
+	float crack = smoothstep(0.955, 0.999, ridge) * crack_amount * (1.0 - 0.55 * stamps);
 	base *= 1.0 - 0.34 * crack;
 	rough = mix(rough, 1.0, crack * 0.6);
 

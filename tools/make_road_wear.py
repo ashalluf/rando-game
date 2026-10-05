@@ -427,9 +427,9 @@ def pothole_cluster(rng):
 
 def alligator(rng):
     st = Stamp("alligator", 2.5, 3.5, 0.015)
-    f1, f2, idx, seeds = voronoi(rng, 70, warp=0.03, aspect=2.5 / 3.5)
+    f1, f2, idx, seeds = voronoi(rng, 150, warp=0.025, aspect=2.5 / 3.5)
     edge = f2 - f1
-    width = 0.0028 + 0.0035 * fbm((S, S), 8, rng) ** 2 * 2.0
+    width = 0.0018 + 0.0028 * fbm((S, S), 8, rng) ** 2 * 2.0
     line = smoothstep(width * 1.6, width * 0.5, edge)
     # The patch it covers: an oval where the wheels ran, ragged.
     u, v = grid()
@@ -443,8 +443,10 @@ def alligator(rng):
     # A few of the polygons have lost their surface (the first stage of a pothole).
     lost = (rank[idx] > 0.95) & (area > 0.6)
     lost_m = blur(lost.astype(np.float32), 1.2) * area
-    a_col, a_h, _ = asphalt(2.5, 3.5, rng, 0.85)
-    agg = lin_color("GravelConcrete03", 2.5, 3.5, GRAVEL_TILE, (0.4, 0.1)) * 0.32
+    # Where a piece has come out: the binder course under it, darker and coarser, with grit.
+    a_col, a_h, _ = asphalt(2.5, 3.5, rng, 0.55)
+    grit = smoothstep(0.6, 0.8, fbm((S, S), 70, rng))[..., None]
+    agg = a_col * (1 - 0.5 * grit) + np.array([0.05, 0.048, 0.044]) * grit
     st.albedo = crack_albedo(st, rng) * (1 - lost_m[..., None]) + agg * lost_m[..., None]
     st.cover = np.clip(np.maximum(cov, lost_m), 0, 1)
     st.height = -0.012 * cov - 0.02 * lost_m
@@ -639,7 +641,7 @@ def rut(rng):
     streak = blur(streak, 0) * 0.5 + 0.5 * np.repeat(rng.random((1, S)), S, 0)
     col = col * (1 - 0.15 * polish[..., None] * streak[..., None])
     st.albedo = col.astype(np.float32)
-    st.cover = np.clip(k * 0.95, 0, 1)
+    st.cover = np.clip(k * 0.6, 0, 1)
     # Shoulders: the asphalt pushed up a little either side of the rut.
     shoulder = np.exp(-(np.abs(across) - 1.1) ** 2 * 6) * along
     st.height = -st.depth * k + 0.004 * shoulder
@@ -813,7 +815,7 @@ def bleeding(rng):
     centre = 0.5 + 0.04 * np.sin(v * 5 + rng.random() * 6)
     prof = np.exp(-((u - centre) / 0.22) ** 2)
     n = fbm((S, S), 8, rng)
-    k = prof * smoothstep(0.35, 0.6, n * 0.7 + prof * 0.5) * smoothstep(0.0, 0.1, v) * smoothstep(1.0, 0.9, v)
+    k = smoothstep(0.52, 0.58, n * 0.7 + prof * 0.45) * smoothstep(0.0, 0.1, v) * smoothstep(1.0, 0.9, v)
     st.albedo = np.full((S, S, 3), 0.014, np.float32) + (n * 0.006)[..., None]
     st.cover = np.clip(k, 0, 1)
     st.height = 0.0006 * k

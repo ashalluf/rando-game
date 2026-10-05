@@ -651,3 +651,9 @@ and 733737, measured as perfectly steady synthesized tones, so making our own wa
 |---|---|---|---|---|
 | Coordinates of 40 landmark points (40 queries, 68 results, the first of each used) and 517 street / freeway centre-line points (53 queries) in downtown Los Angeles (93 Nominatim search queries in all, cached in `tools/downtown_relay/geocode_cache.json`) | https://nominatim.openstreetmap.org (OpenStreetMap) | © OpenStreetMap contributors (ODbL 1.0) | the fitted downtown street grid and landmark positions in `scripts/world/downtown_real.gd` | 2026-09-24 |
 | Footprint (7-point outline), height 15.7 m and start date 1993 of Masjid Omar ibn Al-Khattab, OSM way 412475901 (one Nominatim lookup) | https://nominatim.openstreetmap.org (OpenStreetMap) | © OpenStreetMap contributors (ODbL 1.0) | the replica's plan and heights in `scripts/world/landmark_masjid_omar.gd` (`W_*`, `E_*`, `REAL_LATLON`); the detail is modelled from the owner's six photographs | 2026-09-24 |
+
+## Road wear stamps (our own generator, from CC0 scans in the repo)
+
+| Asset | Source | License | Used for | Added |
+|---|---|---|---|---|
+| `assets/textures/road_wear/road_wear_color.png`, `_nrm.png`, `_data.png` (25 stamps, 2048 px atlas) | `tools/make_road_wear.py`: cut and recoloured from Asphalt033, GravelConcrete03, DryGroundRocks and Concrete034 (rows above: ambientCG / Poly Haven, CC0) plus procedural shapes (cracks, potholes, ruts, ripples, stains, tyre marks, paint ghosts) | CC0 sources; generated art ours | RoadWear (road, pavement and car-park wear) | 2026-10-05 |

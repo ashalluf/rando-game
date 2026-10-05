@@ -42,19 +42,21 @@ extends RefCounted
 ## How worn a road is by CityPlan.District (DOWNTOWN, MIDTOWN, SUBURBS, INDUSTRIAL, CAMPUS, BEACHTOWN).
 const DISTRICT_LEVEL := [0.45, 1.0, 0.55, 1.4, 0.4, 0.75]
 ## Downtown's avenues are repaved far more often than its side streets.
-const DOWNTOWN_AVENUE := 0.45
+const DOWNTOWN_AVENUE := 0.55
 ## A road's own age: this share of roads was resurfaced lately (FRESH_LEVEL of the wear), the rest
 ## spread between OLD_RANGE.
 const FRESH_SHARE := 0.16
-const FRESH_LEVEL := 0.2
+const FRESH_LEVEL := 0.35
 const OLD_RANGE := Vector2(0.6, 1.45)
+## Even a new street has oil, a utility cut or two and a crack: the least a road is.
+const MIN_LEVEL := 0.3
 ## Extra wear on a bus line (the stops and the kerb lane) and within PORT_REACH of the port.
 const BUS_LINE := 0.3
 const PORT_REACH := 900.0
 const PORT_EXTRA := 0.45
 ## Stamps per 100 m of a two-lane street at level 1, and how much of them falls in clusters along
 ## the wheel paths (the rest: the kerb, the parking lane, cracks across, utility cuts).
-const PER_100M := 20.0
+const PER_100M := 32.0
 ## Potholes: the chance a wheel-path cluster has one at level 1 (scaled by level squared, so a
 ## fresh street has none and a bad industrial one several a block).
 const POTHOLE_ODDS := 0.16
@@ -62,7 +64,7 @@ const POTHOLE_ODDS := 0.16
 const PAVEMENT_PER_M := 0.035
 ## Car parks: stamps per 100 m2 at level 1.
 const CAR_PARK_PER_100M2 := 1.1
-const MAX_PER_CHUNK := 320
+const MAX_PER_CHUNK := 480
 const DRAW_DISTANCE := 110.0
 ## Metres over the road top: over the old patches (0.003), under the oil (0.0055) and the paint.
 const LIFT := 0.0042
@@ -142,7 +144,7 @@ static func build(chunk: CityChunk) -> void:
 	var block := plan.block(chunk.ix, chunk.iz)
 	var rect: Rect2 = block.rect
 	var district := int(block.district)
-	var ctx := {"chunk": chunk, "plan": plan, "count": int(chunk.get_meta("road_wear_count", 0)), "points": PackedVector2Array(), "kinds": {}}
+	var ctx := {"chunk": chunk, "plan": plan, "count": int(chunk.get_meta("road_wear_count", 0)), "points": [], "kinds": {}}
 	var rx := plan.road_pos(CityPlan.AXIS_X, chunk.ix + 1)
 	var wx := plan.road_width(CityPlan.AXIS_X, chunk.ix + 1)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, chunk.iz + 1)
@@ -167,7 +169,7 @@ static func car_park(chunk: CityChunk, r: Rect2, top: float, key: int) -> void:
 		return
 	var plan: CityPlan = chunk.plan
 	var district := int(plan.block(chunk.ix, chunk.iz).district)
-	var ctx := {"chunk": chunk, "plan": plan, "count": int(chunk.get_meta("road_wear_count", 0)), "points": PackedVector2Array(), "kinds": {}}
+	var ctx := {"chunk": chunk, "plan": plan, "count": int(chunk.get_meta("road_wear_count", 0)), "points": [], "kinds": {}}
 	var rng := _rng([plan.seed, "rw_park", chunk.ix, chunk.iz, key])
 	var level: float = DISTRICT_LEVEL[district] * lerpf(OLD_RANGE.x, OLD_RANGE.y, rng.randf())
 	var n := int(round(r.get_area() / 100.0 * CAR_PARK_PER_100M2 * level))
@@ -214,7 +216,7 @@ static func road_level(plan: CityPlan, axis: int, index: int, district: int) -> 
 		var d := absf(at.x - clampf(at.x, port.position.x, port.end.x)) if axis == CityPlan.AXIS_X else absf(plan.road_pos(axis, index) - clampf(plan.road_pos(axis, index), port.position.y, port.end.y))
 		if d < PORT_REACH and district == CityPlan.District.INDUSTRIAL:
 			level += PORT_EXTRA * (1.0 - d / PORT_REACH)
-	return level
+	return maxf(level, MIN_LEVEL)
 
 
 ## The road's tint as _road_look picks it (sRGB), brightened for the coarser asphalt set, which
@@ -266,7 +268,7 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 			continue
 		var u: float = wheel_paths[rng.randi() % wheel_paths.size()]
 		var travel_sign := -signf(u) # right-hand traffic: u < 0 runs toward +v
-		var count := rng.randi_range(1, 4)
+		var count := rng.randi_range(2, 5)
 		for m in count:
 			var du := rng.randf_range(-0.35, 0.35)
 			var dv := rng.randf_range(-3.0, 3.0)
@@ -326,7 +328,7 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 	while v1 < length - 2.0:
 		if rng.randf() < 0.55 * level:
 			var side := -1.0 if rng.randf() < 0.5 else 1.0
-			var sealed := rng.randf() < 0.45
+			var sealed := rng.randf() < 0.6
 			var name := "tar_snake" if sealed else "crack_trans"
 			var width := half - 0.3
 			var p: Vector2 = at.call(side * width * 0.5, v1)
@@ -334,7 +336,7 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 			_stamp(ctx, rng, name, p, top, xf_yaw, tint, _age(rng, age_bias), true, false, width)
 		v1 += rng.randf_range(9.0, 24.0) / maxf(level, 0.3)
 	# 5. Utility cuts and old patches anywhere on the carriageway.
-	var n_cut := int(round(budget * 0.07 * rng.randf_range(0.5, 1.5)))
+	var n_cut := int(round(budget * 0.14 * rng.randf_range(0.5, 1.5)))
 	for k in n_cut:
 		var roll := rng.randf()
 		var name := "sawcut_patch" if roll < 0.35 else ("trench_strip" if roll < 0.55 else ("patch_raised" if roll < 0.7 else ("block_crack" if roll < 0.85 else ("tar_network" if roll < 0.95 else "paint_ghost"))))
@@ -346,7 +348,16 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 		if name == "paint_ghost":
 			u = side_line(w, lanes, rng)
 		_stamp(ctx, rng, name, at.call(u, v), top, yaw, tint, _age(rng, age_bias), true)
-	# 6. The approach to each junction: shoving and ruts before the stop line in the lanes that stop
+	# 6. Sealed cracks anywhere on the carriageway: LA's black tar snakes and sealed networks.
+	var n_seal := int(round(budget * 0.14 * rng.randf_range(0.4, 1.6)))
+	for k in n_seal:
+		var v := rng.randf_range(2.0, length - 2.0)
+		if rng.randf() > stretch.call(v) * 0.85:
+			continue
+		var name := "tar_snake" if rng.randf() < 0.6 else "tar_network"
+		var yaw := along_yaw + (PI if rng.randf() < 0.5 else 0.0) + (PI * 0.5 if rng.randf() < 0.25 else 0.0)
+		_stamp(ctx, rng, name, at.call(rng.randf_range(-half + 1.0, half - 1.0), v), top, yaw, tint, _age(rng, age_bias), true)
+	# 7. The approach to each junction: shoving and ruts before the stop line in the lanes that stop
 	# there (right-hand traffic: u < 0 stops at the far end, u > 0 at the near end).
 	for end in 2:
 		if rng.randf() > 0.25 + 0.5 * level:
@@ -482,7 +493,9 @@ static func _stamp(ctx: Dictionary, rng: RandomNumberGenerator, name: String, p:
 	ctx.count = int(ctx.count) + 1
 	if _list:
 		print("RW_STAMP %s %.1f,%.1f size=%.1fx%.1f yaw=%.0f thr=%d age=%.2f pair=%d" % [name, p.x, p.y, size.x, size.y, rad_to_deg(yaw), thr_a, age, int(custom_r) / 32 - 1])
-	(ctx.points as PackedVector2Array).append(p)
+	# An Array, not a PackedVector2Array: a packed array in a Dictionary is a value, and appending
+	# to it appends to a copy.
+	(ctx.points as Array).append(p)
 	ctx.kinds[name] = int((ctx.kinds as Dictionary).get(name, 0)) + 1
 	# A deep pothole the car feels.
 	if name.begins_with("pothole") and float(row[2]) * s >= BUMP_DEPTH and thr_a < 16:
@@ -502,7 +515,7 @@ static func _finish(ctx: Dictionary) -> void:
 	chunk._batch.set_no_shadow(KEY)
 	chunk._batch.set_draw_distance(KEY, DRAW_DISTANCE)
 	var pts: PackedVector2Array = chunk.get_meta("road_wear", PackedVector2Array())
-	pts.append_array(ctx.points)
+	pts.append_array(PackedVector2Array(ctx.points))
 	chunk.set_meta("road_wear", pts)
 	chunk.set_meta("road_wear_count", int(ctx.count))
 	var kinds: Dictionary = chunk.get_meta("road_wear_kinds", {})
