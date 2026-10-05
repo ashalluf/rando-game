@@ -2957,6 +2957,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Every roll is a hash of the seed and the lot. `CANALS=0` in the environment is the A/B (no site,
   the blocks are ordinary beach town). Probe: `tools/canals/probe.gd` (layout, styles, bridges,
   road closures). Checks: `tests/canals_checks.gd`.
+- The marketplace lane (2026-10-05, docs/HANDOFF.md "Paseo de las Golondrinas"): `PuebloLane`
+  (`scripts/world/pueblo_lane.gd`), the FORM of the real historic lane and plaza across Alameda
+  from the station, invented names, a civic block site (`CivicSites.SITES["pueblo_lane"]`, the
+  block between Main and Alameda; the kiosk on the real plaza's point). `layout()` is pure (site
+  rect + the kiosk's real point): plaza with an octagonal kiosk, a brick lane north under a vine
+  pergola (ClimbingPlants' atlas), 72 puestos back to back (`PuebloMarket`, code-built stalls and
+  goods on `shaders/pueblo_market*.gdshader`, kind in COLOR.a, papel picado cut out in the thin
+  shader), adobe / stucco / brick fronts, a church that is a SANCTUARY (zone + `ChurchBody`).
+  Built once into templates (`_templates`, at load with the far copy) and `duplicate()`d per chunk.
+  Vendors in the stalls via `Landmarks.people_steps()`. `PUEBLO_LANE=0` is the A/B; probe
+  `tools/pueblo_lane/probe.tscn`; checks `tests/pueblo_lane_checks.gd`.
 - Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six
   photos, "give it an interior", and "make it impossible for the character to shoot anything at
   it"): `LandmarkMasjidOmar` (`scripts/world/landmark_masjid_omar.gd`), a replica of the real

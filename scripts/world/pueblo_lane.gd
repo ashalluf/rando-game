@@ -284,6 +284,7 @@ static func _build_into(info: Dictionary, parent: Node3D, statics: StaticBody3D,
 		_plaza_detail(g, batch, solid, thin, statics, L, y0)
 		_tick("plaza")
 		_lane_detail(g, solid, thin, statics, L, y0)
+		_lane_pools(batch, L, y0)
 		_tick("lane")
 		for st: Dictionary in L.stalls:
 			var xf: Transform3D = st.xf
@@ -354,7 +355,7 @@ static func _materials(g: LandmarkGeo, y0: float) -> void:
 		{"tint": Color(0.96, 0.93, 0.86), "roughness": 0.96, "texture_contrast": 1.2, "grime": 0.55, "base_y": y0,
 		"flood_strength": 0.25, "flood_base_y": y0, "flood_reach": 5.0, "flood_floor": 0.2, "flood_spacing": 3.0}))
 	g.use("brick", LandmarkMats.facade("pueblo_brick", "brick_red", 2.2,
-		{"tint": Color(0.95, 0.85, 0.8), "roughness": 0.9, "grime": 0.35, "base_y": y0,
+		{"tint": Color(0.6, 0.31, 0.22), "roughness": 0.9, "grime": 0.35, "base_y": y0,
 		"win_pitch": Vector2(3.3, 4.2), "win_size": Vector2(0.34, 0.55), "win_sill": 0.18, "win_band": Vector2(y0 + 4.6, y0 + 12.6),
 		"win_reveal": 0.2, "lit_ratio": 0.45, "lit_color": Color(1.0, 0.78, 0.5)}))
 	g.use("church", LandmarkMats.facade("pueblo_church", "plaster_white", 3.0,
@@ -370,6 +371,7 @@ static func _materials(g: LandmarkGeo, y0: float) -> void:
 		"grid": Vector2(0.6, 0.8), "frame_width": 0.04, "room_depth": 6.0, "storey": 4.0, "floor_y": y0, "interior_day": 0.45, "interior_night": 2.2,
 		"interior_color": Color(1.0, 0.76, 0.46)}))
 	g.use("door", LandmarkMats.plain("pueblo_door", Color(0.34, 0.2, 0.12), 0.7))
+	g.use("roof", LandmarkMats.paving("concrete", 3.0, Color(0.58, 0.55, 0.5), SEED_BASE + 9, 0.0, 0.6))
 
 
 ## The ground: paving over the whole site, brick down the lane, tiles on the plaza with a brick
@@ -504,15 +506,17 @@ static func _row_building(g: LandmarkGeo, solid: PuebloMarket.Acc, statics: Stat
 		# A lantern beside every other opening.
 		if detailed and b % 2 == 1:
 			PuebloMarket.lantern(solid, Vector3(fx, y0 + gf - 1.1, bz0 + 0.3), n)
-	# The roof line.
+	# The roof line: a flat roof behind a parapet (brick with a corbelled cornice, the adobe's low
+	# one), or a tiled gable along the lane, or a tiled eave over the front.
+	var foot := Rect2(Vector2(minf(fx, back), z0), Vector2(depth, length))
 	if kind == Kind.BRICK2:
-		# A corbelled brick cornice and a parapet.
 		g.box("brick", Vector3(fx - f * 0.05, y0 + hgt + 0.25, zc), Vector3(0.6, 0.5, length), Color.WHITE, Basis(), 0.05 if detailed else 0.0)
 		g.box("trim", Vector3(fx - f * 0.15, y0 + hgt + 0.55, zc), Vector3(0.75, 0.12, length + 0.1), Color(0.82, 0.8, 0.74))
+		_flat_roof(g, foot, y0 + hgt, "brick", Color.WHITE, 0.5)
 	elif kind == Kind.ADOBE:
 		# A low parapet, viga ends out of the wall, and the corredor: posts, a beam and a tiled
 		# lean-to roof out over the lane's edge.
-		g.box("adobe", Vector3(fx - f * depth * 0.5, y0 + hgt + 0.25, zc), Vector3(depth, 0.5, length), col)
+		_flat_roof(g, foot, y0 + hgt, "adobe", col, 0.5)
 		if detailed:
 			var nv := int(length / 0.9)
 			for i in nv:
@@ -527,13 +531,16 @@ static func _row_building(g: LandmarkGeo, solid: PuebloMarket.Acc, statics: Stat
 		g.box("timber", Vector3(cx, y0 + 3.1, zc), Vector3(0.24, 0.24, length), Color.WHITE)
 		_lean_to(g, "tile", fx, cx + f * 0.4, z0, z1, y0 + 3.9, y0 + 3.2)
 	else:
-		# A tiled eave out over the front, or a stepped parapet.
-		if h01([sd, "eave"]) < 0.6:
+		var r := h01([sd, "eave"])
+		if r < 0.45:
+			# A low tiled gable, its ridge along the lane, eaves out over the front and the back.
+			LandmarkCivicCenter._gable(g, "tile", key, foot.grow_individual(0.6, 0.0, 0.6, 0.0), y0 + hgt, 2.2, true, statics)
+		elif r < 0.75:
 			_lean_to(g, "tile", fx - f * 0.6, fx + f * 0.9, z0, z1, y0 + hgt + 0.5, y0 + hgt - 0.15)
-			g.box(key, Vector3(fx - f * depth * 0.5, y0 + hgt + 0.15, zc), Vector3(depth - 1.0, 0.3, length), col)
+			_flat_roof(g, foot, y0 + hgt, key, col, 0.55)
 		else:
-			g.box(key, Vector3(fx - f * 0.15, y0 + hgt + 0.4, zc), Vector3(0.3, 0.8, length), col)
-			g.box("trim", Vector3(fx - f * 0.15, y0 + hgt + 0.84, zc), Vector3(0.42, 0.08, length + 0.06), Color(0.86, 0.84, 0.78))
+			_flat_roof(g, foot, y0 + hgt, key, col, 0.85)
+			g.box("trim", Vector3(fx - f * 0.15, y0 + hgt + 0.88, zc), Vector3(0.42, 0.08, length + 0.06), Color(0.86, 0.84, 0.78))
 	# An iron balcony on a two-storey front.
 	if storeys == 2 and detailed and h01([sd, "balc"]) < 0.55:
 		var bw := minf(length - 1.0, 3.3 * float(maxi(1, int(bays / 2))))
@@ -561,6 +568,16 @@ static func _lean_to(g: LandmarkGeo, key: String, x_hi: float, x_lo: float, z0: 
 	g.quad(key, a, b, c, d, n, Vector2(0, slope), Vector2(z1 - z0, slope), Vector2(z1 - z0, 0), Vector2(0, 0))
 	g.quad("timber", a + Vector3(0, -0.06, 0), d + Vector3(0, -0.06, 0), c + Vector3(0, -0.06, 0), b + Vector3(0, -0.06, 0), -n, Vector2(0, 0), Vector2(slope, 0), Vector2(slope, 1), Vector2(0, 1), Color(0.8, 0.8, 0.8))
 	g.box("timber", Vector3(x_lo, y_lo - 0.08, (z0 + z1) * 0.5), Vector3(0.06, 0.18, z1 - z0), Color.WHITE)
+
+
+## A flat roof over `r` at height `y`: a gravel-and-membrane deck behind a parapet `par` high.
+static func _flat_roof(g: LandmarkGeo, r: Rect2, y: float, key: String, col: Color, par: float) -> void:
+	g.cap("roof", LandmarkGeo.ccw(_poly(r.grow(-0.2))), y + 0.03)
+	var t := 0.3
+	var c := r.get_center()
+	for sg: float in [-1.0, 1.0]:
+		g.box(key, Vector3(c.x, y + par * 0.5, c.y + sg * (r.size.y * 0.5 - t * 0.5)), Vector3(r.size.x, par, t), col)
+		g.box(key, Vector3(c.x + sg * (r.size.x * 0.5 - t * 0.5), y + par * 0.5, c.y), Vector3(t, par, r.size.y - 2.0 * t), col)
 
 
 # --- The church -----------------------------------------------------------------------------------------
@@ -639,6 +656,14 @@ static func _church(g: LandmarkGeo, solid: PuebloMarket.Acc, parent: Node3D, sta
 			# Pilasters at the corners and a pair framing the door.
 			for px: float in [fw * 0.5 - 0.4, dw * 0.5 + 1.6]:
 				g.box("church", Vector3(cx + sg * px, y0 + (h + 2.0) * 0.5, zf - 0.12), Vector3(0.7, h + 2.0, 0.3), Color(0.98, 0.97, 0.93))
+		# A stone plinth along the foot of the front, a tiled hood over the door on carved corbels,
+		# a niche with a lantern glow over it.
+		g.box("trim", Vector3(cx, y0 + 0.45, zf - 0.08), Vector3(fw + 0.1, 0.9, 0.3), Color(0.78, 0.72, 0.64))
+		LandmarkCivicCenter._gable(g, "tile", "church", Rect2(Vector2(cx - dw * 0.5 - 1.0, zf - 1.3), Vector2(dw + 2.0, 1.3)), y0 + dh + 0.7, 0.55, false, null)
+		for sg: float in [-1.0, 1.0]:
+			g.box("timber", Vector3(cx + sg * (dw * 0.5 + 0.7), y0 + dh + 0.45, zf - 0.6), Vector3(0.25, 0.5, 1.2), Color(0.8, 0.8, 0.8))
+		g.box("dark", Vector3(cx, y0 + 10.6, zf - 0.02), Vector3(1.0, 1.5, 0.05), Color.WHITE)
+		g.box("trim", Vector3(cx, y0 + 9.75, zf - 0.15), Vector3(1.4, 0.18, 0.35), Color(0.92, 0.9, 0.84))
 		# The round window over the door.
 		g.cylinder("dark", Vector3(cx, y0 + 8.3, zf), 0.9, 0.1, 16)
 		var ring := 16
@@ -651,7 +676,7 @@ static func _church(g: LandmarkGeo, solid: PuebloMarket.Acc, parent: Node3D, sta
 		# The name over the door.
 		var batch_name := MultiMeshBatch.new()
 		batch_name.add("church_name", Signage.text_mesh(CHURCH_NAME, 0.42, Signage.Letters.PRINT),
-			Transform3D(LandmarkArenaDistrict._face(PI, 1.0), Vector3(cx, y0 + 6.5, zf - 0.13)), Color(0.32, 0.24, 0.16))
+			Transform3D(LandmarkArenaDistrict._face(0.0, 1.0), Vector3(cx, y0 + 6.5, zf - 0.13)), Color(0.32, 0.24, 0.16))
 		batch_name.set_no_shadow("church_name")
 		batch_name.build(parent)
 	# The sanctuary zone: the nave, the front and the forecourt to the plaza's edge.
@@ -672,6 +697,7 @@ static func _firehouse(g: LandmarkGeo, solid: PuebloMarket.Acc, statics: StaticB
 	g.box("trim", Vector3(fx - 0.12, y0 + 4.6, c.z), Vector3(0.24, 0.4, 4.6), Color(0.88, 0.86, 0.8))
 	g.box("trim", Vector3(fx - 0.12, y0 + h + 0.2, c.z), Vector3(0.5, 0.4, r.size.y + 0.3), Color(0.88, 0.86, 0.8))
 	g.box("brick", Vector3(fx + 0.3, y0 + h + 1.0, c.z), Vector3(0.6, 1.6, 6.0), Color.WHITE)
+	_flat_roof(g, r, y0 + h, "brick", Color.WHITE, 0.6)
 	if detailed:
 		PuebloMarket.lantern(solid, Vector3(fx, y0 + 4.2, c.z - 3.2), Vector3(-1, 0, 0))
 		PuebloMarket.lantern(solid, Vector3(fx, y0 + 4.2, c.z + 3.2), Vector3(-1, 0, 0))
@@ -695,6 +721,11 @@ static func _hotel(g: LandmarkGeo, solid: PuebloMarket.Acc, statics: StaticBody3
 	for yy: float in [4.2, 8.4]:
 		g.box("trim", Vector3(c.x, y0 + yy, zf - 0.08), Vector3(r.size.x + 0.2, 0.24, 0.3), Color(0.9, 0.88, 0.8))
 	g.box("trim", Vector3(c.x, y0 + h + 0.25, c.z), Vector3(r.size.x + 1.0, 0.5, r.size.y + 1.0), Color(0.88, 0.86, 0.8), Basis(), 0.06 if detailed else 0.0)
+	_flat_roof(g, r, y0 + h + 0.5, "stucco", Color(1.0, 0.9, 0.74), 0.7)
+	# Roof plant: a stair bulkhead, two condensers.
+	g.box("stucco", Vector3(r.position.x + 5.0, y0 + h + 1.9, c.z), Vector3(4.0, 2.8, 4.0), Color(1.0, 0.9, 0.74))
+	for i in 2:
+		g.box("trim", Vector3(r.end.x - 6.0 - 4.0 * float(i), y0 + h + 1.1, c.z + 4.0), Vector3(2.2, 1.2, 1.4), Color(0.7, 0.7, 0.7))
 
 
 # --- The kiosk ------------------------------------------------------------------------------------------
@@ -868,6 +899,18 @@ static func _lane_detail(g: LandmarkGeo, solid: PuebloMarket.Acc, thin: PuebloMa
 			PuebloMarket.bulbs(solid, Vector3(x, y0 + PERGOLA_H - 0.25, z0), Vector3(x, y0 + PERGOLA_H - 0.25, z0 + PERGOLA_PITCH), 0.35, 0.65, SEED_BASE * 11 + i * 2 + int(x))
 
 
+## Warm pools of light down the lane's two aisles (the bulbs' light on the bricks, after dark).
+static func _lane_pools(batch: MultiMeshBatch, L: Dictionary, y0: float) -> void:
+	var lane: Rect2 = L.lane
+	var pool := PropFactory.light_pool(Color(1.0, 0.72, 0.42), 0.9)
+	var n := int(lane.size.y / 5.0)
+	for i in n:
+		var z := lane.position.y + 2.5 + 5.0 * float(i)
+		for x: float in [lane.position.x + 2.6, lane.end.x - 2.6]:
+			batch.add("pueblo_lane_pool", pool, Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(6.5, 1.0, 6.5)), Vector3(x, y0 + 0.1, z)))
+	batch.set_no_shadow("pueblo_lane_pool")
+
+
 ## The pergola: posts at the lane's edges, beams across, joists along, the vines on top (grape and
 ## wisteria from ClimbingPlants' atlas), and its leaves' shadow twin.
 static func _pergola(parent: Node3D, g: LandmarkGeo, statics: StaticBody3D, L: Dictionary, y0: float) -> void:
@@ -909,7 +952,7 @@ static func _pergola(parent: Node3D, g: LandmarkGeo, statics: StaticBody3D, L: D
 			# Patches: a slow noise over the lane decides where the vine is thick or open.
 			var patch := 0.5 + 0.5 * sin(pz * 0.37 + sin(px * 0.9) * 1.3) * cos(pz * 0.13 + 1.7)
 			var wisteria := sin(pz * 0.045 + 2.0) > 0.55
-			if h01(hsh + ["keep"]) < 0.35 + 0.6 * patch:
+			if h01(hsh + ["keep"]) < 0.55 + 0.45 * patch:
 				var ang := TAU * h01(hsh + ["a"])
 				var tilt := Vector3(h01(hsh + ["tx"]) - 0.5, 0.0, h01(hsh + ["tz"]) - 0.5) * 0.8
 				var axes := ClimbingPlants._flat_axes(Vector3(1, 0, 0), (Vector3.UP + tilt).normalized(), ang)

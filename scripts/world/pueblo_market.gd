@@ -464,7 +464,7 @@ static func _pot_profile(rad: float, hgt: float, shape: int) -> Array:
 ## A sombrero's profile [r, y], `rad` the brim's radius: crown, then the upturned brim.
 static func _sombrero(rad: float) -> Array:
 	return [Vector2(0.0, 0.22), Vector2(rad * 0.18, 0.21), Vector2(rad * 0.3, 0.12), Vector2(rad * 0.33, 0.03),
-		Vector2(rad * 0.7, 0.0), Vector2(rad * 0.95, 0.035), Vector2(rad, 0.06), Vector2(rad * 0.97, 0.07), Vector2(rad * 0.7, 0.02), Vector2(rad * 0.34, 0.045)]
+		Vector2(rad * 0.7, 0.0), Vector2(rad * 0.95, 0.035), Vector2(rad, 0.06), Vector2(rad * 0.97, 0.07), Vector2(rad * 0.7, 0.02), Vector2(rad * 0.34, 0.045), Vector2(0.0, 0.05)]
 
 
 ## A star pinata: a ball with seven cones and a tassel of crepe at each tip, hanging on a cord.
