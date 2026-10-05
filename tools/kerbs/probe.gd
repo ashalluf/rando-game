@@ -113,6 +113,11 @@ func _ready() -> void:
 		for w: Rect2 in built.wells_at:
 			print("  EYE_well %s" % _eye_down(plan, w.get_center()))
 			break
+		if ch._batch.data().has("tree_grate"):
+			for xf: Transform3D in ch._batch.data()["tree_grate"].xforms:
+				if xf.basis.get_scale().x > 0.5:
+					print("  EYE_grate %s" % _eye_down(plan, Vector2(xf.origin.x, xf.origin.z)))
+					break
 		for h: Array in built.heaves_at:
 			print("  EYE_heave %s" % _eye_down(plan, (h[0] as Rect2).get_center()))
 			break
