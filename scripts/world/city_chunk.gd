@@ -516,6 +516,8 @@ func _finish_build() -> void:
 	HouseKit.commit(self)
 	Industrial.commit(self)
 	Parks.commit(self)
+	Alleys.commit(self)
+	DecoBoulevard.commit(self)
 	StreetSigns.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
@@ -1725,6 +1727,7 @@ func _shell_marks(area: Rect2) -> Array:
 		var at: Vector2 = lm.anchor
 		if r > 0.0 and not SHELL_FREE_LANDMARKS.has(lm.id) and area.grow(r + SHELL_CLEAR_SPAN).has_point(at):
 			marks.append([at, at, r])
+	marks.append_array(Ballpark.shell_marks(area))
 	return marks
 
 
@@ -1939,6 +1942,8 @@ func _near_hill_road(p: Vector2, segs: Array[Dictionary], margin: float) -> bool
 
 
 func _near_pad(p: Vector2, pads: Array[Dictionary], margin: float) -> bool:
+	if Ballpark.covers(p, margin):
+		return true
 	for m in pads:
 		if p.distance_to(m.pos) < HillRoads.PAD_RADIUS + margin:
 			return true
@@ -2365,6 +2370,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var steps: Array[Callable] = [_block_surface.bind(block, params, rng)]
+	# A memorial park (Cemetery): its own hash-seeded plan replaces everything else of the block.
+	if CemeteryBuild.wanted(self, block):
+		steps.append_array(CemeteryBuild.steps(self, block))
+		return steps
 	match block.kind:
 		CityPlan.BlockKind.PARK:
 			if Parks.wanted(self, block):
@@ -2404,6 +2413,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# Billboards: the freeway's monopoles, then every board the lots planned (Billboards;
 			# hash-seeded, placed in a step before the finish so the block's props keep their ids).
 			steps.append(func() -> void: Billboards.block_step(self, block))
+			# The service alley down the seam of the lot grid (Alleys; hash-seeded, after the lots).
+			steps.append(func() -> void: Alleys.block_step(self, block))
 			# Front and side lawns, in the gaps the houses leave. The lawn slab runs under the
 			# whole block, so the footprints the lots just recorded are what the grass has to
 			# stay out of; a suburb whose lawns are flat green paint is the tell.
@@ -2412,6 +2423,11 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		# Midtown's deco boulevard: mature palms on its kerbs, the night pools (DecoBoulevard), after
+		# the furniture they keep clear of.
+		steps.append(func() -> void: DecoBoulevard.block_step(self, block))
+		# The kerb: the pavement's cut ring, its paint and house numbers (Kerbs; hash-seeded).
+		steps.append_array(Kerbs.steps(self, block))
 		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
 		if Broadway.block_side(plan, ix, iz) != 0:
 			steps.append(func() -> void: Broadway.block_step(self, rect))
@@ -2492,7 +2508,13 @@ func _block_surface(block: Dictionary, params: Dictionary, rng: RandomNumberGene
 	_lamp_tint = params.get("lamp_tint", Color.WHITE)
 	# Pavement: the same wear shader as the road, but with expansion joints and far less
 	# patching and staining, so a sidewalk reads as poured slabs rather than a grey plane.
-	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45))
+	var paving_mat := PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45)
+	# A FULL block's outer ring of pavement is Kerbs' (cut for ramps, aprons and tree wells).
+	var pave := rect
+	if Kerbs.takes(self, rect):
+		Kerbs.begin(self, rect, paving_mat)
+		pave = Kerbs.inner(rect)
+	_add_slab(Vector3(pave.get_center().x, SIDEWALK_TOP * 0.5, pave.get_center().y), Vector3(pave.size.x, SIDEWALK_TOP, pave.size.y), style.sidewalk, true, paving_mat)
 
 
 ## `sidewalk` narrows the strip the walkers keep to (a block with encampments along its walls);
@@ -2629,7 +2651,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	var car := Vehicle.random_car(rng)
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
+			or Kerbs.blocks_parking(self, spot[0]):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
@@ -2751,6 +2774,9 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		_lot_rects.pop_back()
 		_build_house(lot, district)
 		return
+	# A deco building on a midtown boulevard (DecoBoulevard: hash-seeded, the pad roll is made).
+	if DecoBoulevard.build_lot(self, lot):
+		return
 	var building := BUILDING_SCENE.instantiate() as Building
 	building.seed = lot.seed
 	building.lot_size = lot.size
@@ -2759,6 +2785,8 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.podium_lot = fill
 	if fill:
 		building.street_face = LotFill.street_face(self, lot)
+	# Its back on the block's service alley, if it has one (Alleys: pure, no roll).
+	building.back_face = Alleys.back_face(plan, ix, iz, lot)
 	# Downtown core: the skyline climbs toward the center (supertalls in the middle).
 	var boost := plan.macro.skyline_boost(center) if plan.macro else 0.0
 	# Handing the whole district band to each building made every lot an independent uniform
@@ -3279,7 +3307,7 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 		var t := lamp_spacing * (0.5 if e % 2 == 0 else 0.25)
 		while t < length - 4.0:
 			var p := a + dir * t + inward
-			if not Broadway.lamp(self, p, inward):
+			if not Alleys.in_mouth(plan, ix, iz, p) and not Broadway.lamp(self, p, inward):
 				_add_lamp(Vector3(p.x, SIDEWALK_TOP, p.y))
 			t += lamp_spacing
 		t = tree_spacing * 0.75
@@ -3288,11 +3316,24 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 				# 1.3 rather than 1.6: every 30 cm back toward the kerb is 30 cm of crown that
 				# is over the street instead of inside the building on the lot line.
 				var p := a + dir * t + inward * 1.3
+				if Alleys.in_mouth(plan, ix, iz, p):
+					# Not across an alley's mouth (Alleys): the tree's rolls are still made, into a
+					# batch nobody builds, so the block's stream is the same.
+					var real := _batch
+					_batch = MultiMeshBatch.new()
+					_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng, -inward)
+					_batch = real
+					t += tree_spacing
+					continue
 				_batch.add("tree_grate", PropFactory.box("tree_grate", Vector3(1.6, 0.03, 1.6), Color(0.12, 0.12, 0.13)), Transform3D(Basis(), Vector3(p.x, SIDEWALK_TOP + 0.005, p.y)))
 				_add_tree(Vector3(p.x, SIDEWALK_TOP, p.y), rng, -inward)
 			elif rng.randf() < tree_chance * 0.5:
 				var p := a + dir * (t + tree_spacing * 0.4) + inward * 2.2
+				var real := _batch
+				if Alleys.in_mouth(plan, ix, iz, p):
+					_batch = MultiMeshBatch.new()
 				_add_bush(Vector3(p.x, SIDEWALK_TOP, p.y), rng)
+				_batch = real
 			t += tree_spacing
 		if e == hydrant_edge:
 			var p := a + dir * rng.randf_range(6.0, length - 6.0) + inward
