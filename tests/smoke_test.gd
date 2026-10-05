@@ -1721,6 +1721,8 @@ func _test_city() -> void:
 	# The city's birds (tests/bird_checks.gd): meshes, survey, a flock flushed and landing,
 	# alarms, shots and blasts.
 	await load("res://tests/bird_checks.gd").new().run(self, city)
+	# The sky (tests/sky_checks.gd): cloud noise, the moon's date, contrails, the light dome.
+	await load("res://tests/sky_checks.gd").new().run(self, city)
 	# The fire department and the ambulances (tests/emergency_checks.gd): both units, putting a car
 	# fire out, the fire stations, an engine at a burning wreck, an ambulance at a body, a unit sent
 	# through the streets with its siren.

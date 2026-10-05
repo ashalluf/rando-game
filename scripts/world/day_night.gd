@@ -108,9 +108,11 @@ extends Node
 ## How far the far land under the smog lid goes into it (0..1; macro_ground.gdshader `smog`).
 @export var ground_smog: float = 0.7
 @export_group("Moon")
-## Hours the moon trails the sun. 12 is a full moon rising exactly at sunset; less than that puts
-## it up for most of the night as a gibbous, which is a far more interesting shape.
-@export var moon_offset_hours: float = 9.5
+## The moon's age (days since new) when the game starts. It grows a day each game day through a
+## 29.53-day month, and where it stands follows: it trails the sun by age / 29.53 of a day, so a
+## full moon (14.8) rises at sunset and a crescent hangs over the sunset. 11.7 is a gibbous, up
+## for most of the night. Debug: ?moonage=14.8 on the web, -- --moonage=14.8 on desktop.
+@export var moon_age_days: float = 11.7
 @export var moon_color: Color = Color(0.94, 0.95, 1.0)
 ## Apparent radius of the moon in radians. The real one is about 0.0045; a little larger reads
 ## better on a 16:9 screen without turning into a second sun.
@@ -198,6 +200,10 @@ var _lamp_timer: float = 0.0
 var _horizon_now: Color = Color(0.66, 0.75, 0.88)
 var _sky: ShaderMaterial
 var _paused: bool = false
+## Whole days gone by since the start (the date), and the moon's age now (days since new).
+var day_count: int = 0
+var moon_age: float = 0.0
+const SYNODIC_MONTH := 29.53
 
 
 func _exit_tree() -> void:
@@ -213,12 +219,21 @@ func _ready() -> void:
 		if _env and _env.sky:
 			_sky = _env.sky.sky_material as ShaderMaterial
 	_apply_override()
+	if _sky:
+		var extras := SkyExtras.new()
+		extras.name = "SkyExtras"
+		add_child(extras)
+		var streamer := get_parent()
+		extras.setup(_sky, int(streamer.get("world_seed")) if streamer and streamer.get("world_seed") != null else 0)
 	_apply()
 
 
 func _process(delta: float) -> void:
 	if not _paused:
-		hour = fmod(hour + delta * 24.0 / day_length_seconds, 24.0)
+		var next := hour + delta * 24.0 / day_length_seconds
+		if next >= 24.0:
+			day_count += 1
+		hour = fmod(next, 24.0)
 	_apply()
 
 
@@ -233,18 +248,26 @@ func clock_text() -> String:
 ## Debug: ?hour=21 on the web, -- --hour=21 on desktop.
 func _apply_override() -> void:
 	var text := ""
+	var age := ""
 	if OS.has_feature("web"):
 		var search: Variant = JavaScriptBridge.eval("window.location.search", true)
 		if search is String:
 			for part in (search as String).trim_prefix("?").split("&"):
 				if part.begins_with("hour="):
 					text = part.trim_prefix("hour=")
+				elif part.begins_with("moonage="):
+					age = part.trim_prefix("moonage=")
 	else:
 		for arg in OS.get_cmdline_user_args():
 			if arg.begins_with("--hour="):
 				text = arg.trim_prefix("--hour=")
+			elif arg.begins_with("--moonage="):
+				age = arg.trim_prefix("--moonage=")
 	if not text.is_empty():
 		hour = fmod(text.to_float(), 24.0)
+	if not age.is_empty():
+		# The age at the hour the game starts at, whatever that is.
+		moon_age_days = age.to_float() - (hour - start_hour) / 24.0
 
 
 ## The arc a body rides across the sky. `u` is 0 at its rise, 0.5 at its peak and 1 at its set,
@@ -326,6 +349,9 @@ func _apply() -> void:
 	# after it has set (the twilight bands are anchored to it), so it is never special-cased.
 	var sun_basis := _arc_basis(t)
 	sun_dir = sun_basis.z
+	# The date: the moon ages a day every game day, and trails the sun by its age's share of one.
+	moon_age = fposmod(moon_age_days + float(day_count) + (hour - start_hour) / 24.0, SYNODIC_MONTH)
+	var moon_offset_hours := moon_age / SYNODIC_MONTH * 24.0
 	var moon_basis := _arc_basis((hour - 6.0 - moon_offset_hours) / 12.0)
 	moon_dir = moon_basis.z
 	if _sun:
@@ -343,7 +369,10 @@ func _apply() -> void:
 		_sun.basis = light_basis
 		_sun.light_color = day_sun_color.lerp(dusk_sun_color, dusk).lerp(night_sun_color, moonlight)
 		var flash: float = _sun.get_meta("weather_flash", 0.0)
-		_sun.light_energy = lerpf(night_sun_energy, day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) + flash * 2.5
+		# The moon lights the night by its phase: a new-moon night is darker than a full one
+		# (about 1 at the default gibbous, so the night grade keeps its level).
+		var moon_lit := 0.5 - 0.5 * sun_dir.dot(moon_dir)
+		_sun.light_energy = lerpf(night_sun_energy * lerpf(0.45, 1.05, moon_lit), day_sun_energy, daylight) * (1.0 - 0.75 * weather_darken) + flash * 2.5
 		# A rainy night's haze is lit by the street lamps, not by a moon behind the cloud. Rain
 		# thickens the volumetric fog seventy-fold, and lit by the moonlight fill it hung over
 		# the whole street as a pale grey veil, so a rainy night read as a grey dusk.
