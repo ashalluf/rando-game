@@ -439,6 +439,8 @@ static func _occupied(chunk: CityChunk) -> Array:
 	var apron := FireStation.apron_point(chunk.plan, chunk.ix, chunk.iz)
 	if apron != Vector2.INF:
 		out.append([apron, 12.0])
+	# So do a police station's forecourt and gate (PoliceStation).
+	out.append_array(PoliceStation.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
 	return out
 
 

@@ -56,7 +56,7 @@ const AISLE := 6.6
 const FENCE_H := 2.5
 ## Share of stalls with a cruiser in them, and the most a station parks (each is a far-twin body
 ## of ~8k triangles: the car park is the station's biggest cost).
-const FILL := 0.55
+const FILL := 0.78
 const MAX_CARS := 14
 const HQ_MAX_CARS := 18
 const MAST_H := 34.0
@@ -331,6 +331,20 @@ static func keeps_clear(plan: CityPlan, p: Vector2) -> bool:
 	var along := d.y if axis == CityPlan.AXIS_X else d.x
 	var lat := d.x if axis == CityPlan.AXIS_X else d.y
 	return absf(along) < 10.0 and absf(lat) < plan.road_width(axis, int(s.road[1])) * 0.5 + 1.5
+
+
+## [point (true world XZ), reach] along the pavement in front of the station on block (bx, bz)
+## (its whole frontage): what Encampment keeps its camps off.
+static func keep_clear_points(plan: CityPlan, bx: int, bz: int) -> Array:
+	var s := station_on(plan, bx, bz)
+	if s.is_empty():
+		return []
+	var out: Array = []
+	var L: float = (s.layout as Dictionary).L
+	var n := maxi(2, ceili(L / 6.0))
+	for i in n + 1:
+		out.append([world_xz(s, L * float(i) / float(n), -plan.sidewalk_width * 0.5), 6.0])
+	return out
 
 
 ## A point of the station's frame (u along the street, v in from the site's street edge) as true
