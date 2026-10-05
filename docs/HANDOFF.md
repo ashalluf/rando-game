@@ -8636,3 +8636,68 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. The gate in shards: tests/headless_check.sh SHARDS=3, 2026-10-05 (agent branch `wt/gate-speed`)
+
+The fleet's gate (import + `tests/smoke_test.tscn`) took ~14 minutes on the 4-core, 15 GB fleet
+box (25-30 on a busier one), one process, 3.1 GB. **`SHARDS=3 tests/headless_check.sh` runs it in
+about 6**, three processes of at most 2.3 GB each (6.7 GB together), and the pass / fail lines of
+the three together are the plain run's (`tools/gate/compare.py`: same checks, same results; the
+city's 16 setup checks repeat once per shard).
+
+**Where the time went** (`SMOKE_PROFILE=1`, `tools/gate/profile.py`; 808 s on fleet/base): 8 s to
+start, ~20 s of test room, 56 s loading the city, 341 s of the city's own inline checks (the second
+city a pending seed builds is 43 s of it) and 382 s of check files (emergency 81, police stations
+65, big vehicles 35, Westlake 22, distance 22, port life 21 ...). About 300 s of it is game-time
+waits, but those are already condition polls with timeouts (a fire has to burn `douse_seconds`
+before it goes out); the frames are compute-bound or paced by the 60 Hz physics clock, never
+sleeping on a fixed wall time. `--fixed-fps 60` (frames not paced to the wall clock) was tried and
+is worse: 861 s, because the heavy frames then take one physics step each instead of several, and
+eight checks that work on the real clock (the weapon wheel's slow motion, the far city's build
+budget seen from the hills) fail. So the cut is parallelism.
+
+**Parts.** `_test_city()` is now its setup (load the city, the counts round the spawn) and a
+dispatcher calling `_city_streaming()`, `_city_terrain()`, `_city_landmarks()`, `_city_cars()`,
+`_city_people()`, `_city_polish()`, `_city_crowd()`, `_city_menu()`, `_city_files()` in the old
+order: the old body cut at top-level comments into functions, no line re-indented (other branches'
+edits inside them still merge), each taking the setup's locals it uses. `city_cars` empties the
+street of traffic and `city_people` puts the cap back; a share with one and not the other puts it
+back itself. `_city_files()` is the list of `await load("res://tests/x_checks.gd").new().run(...)`
+lines, unchanged: a run that does not own a file swaps it, before the list runs, for a GDScript
+with an empty `run()` taken over at the file's path (`take_over_path()`, so `load()` returns it),
+and a file it owns for a proxy that first calls `stage_home()` (the player at the spawn, the camera
+at the yaw and pitch the city loaded with, streaming settled, 30 ticks) and then the real file.
+A city part whose predecessor ran in another share is staged the same way. Without that, a 4-way
+deal failed six checks that pass in one process: the crowd-animation walker within crowd-life
+range of the player (now `life_range = 0` on it, the state it always ran in), a park and the
+roads looked for round wherever the last part left the player, a GPS route asked for from a
+rooftop, ground crew counted from far off, a rocket fired down the view at a helicopter into a
+building. Files the list does not await are data checks and are not staged (a plain call does not
+wait for a coroutine).
+
+**The deal.** `SMOKE_SHARD=i/n`: every part and every `tests/*_checks.gd` not called from inside a
+part (`INLINE_FILES`) is a job; longest first by `PART_COST` (measured, seconds; a file not in the
+table counts `DEFAULT_COST`), each to the share that would finish first counting a city load
+(`CITY_LOAD_COST`) the first time a share takes a city job. Deterministic, so each process deals
+the same. A new check file needs nothing (it is dealt at the default cost); refresh `PART_COST`
+from a `SMOKE_PROFILE=1` run's `PART` lines when a part grows a lot.
+
+| run on the fleet box | smoke wall | peak memory | checks (fail) |
+|---|---|---|---|
+| plain, fleet/base (before) | 808 s | 3.1 GB | 1362 (1: the minimap's, known) |
+| plain, this branch | 808-842 s | 3.1 GB | 1362, same list |
+| SHARDS=2 | 515 s | 5.0 GB (2.6 each) | same list (+16 repeated setup) |
+| SHARDS=3 | 341 s | 6.7 GB (2.3 each) | same list (+32) |
+| SHARDS=4 | 326 s | 8.3 GB (2.2 each) | same list (+48) |
+
+Import adds 14 s to each (a cached `.godot`; a fresh clone ~1 min). Four shares are no faster
+than three on four cores: every share pays 8 s of start and 60 s of city load, and the fourth
+process takes the core the engine's worker threads were using. The plain run still takes ~14
+minutes and stays the default (CI keeps it: the private repo's runners are small).
+
+**Use**: `SHARDS=3 GODOT=... tests/headless_check.sh` (logs per shard in `SMOKE_LOG_DIR`, or a temp
+directory it names); `SMOKE_PARTS=bird_checks,city_cars` in the environment of a plain
+`godot --headless --path . res://tests/smoke_test.tscn` runs just those (a file alone is ~70 s of
+city load plus the file); `SMOKE_PROFILE=1` prints `TIME` after every check and `PART` per part
+and file; `SMOKE TIME` at the end has the wall time and peak RSS. Not done: the city load itself
+(60 s a process, the load-time session's area) is now the floor of every share.

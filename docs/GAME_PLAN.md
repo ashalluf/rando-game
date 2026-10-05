@@ -854,6 +854,14 @@ already mapped so milestone 2 is script-only.
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
 
+- **2026-10-05 The gate runs in shards.** `SHARDS=3 tests/headless_check.sh` splits the smoke
+  test into three processes (~6 min instead of ~14 on the fleet box, 2.3 GB each) with the same
+  pass / fail list; the plain run stays the default and what CI runs. Waits were already
+  condition polls, and unpacing the physics clock (`--fixed-fps`) made it slower and broke the
+  real-clock checks, so the speed is parallelism. A check must not depend on where an earlier
+  one left the player: a share's parts and files start at the spawn. docs/HANDOFF.md "The gate
+  in shards".
+
 - **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
   real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the
   101 level 4, with the four left-turn connectors on levels 2 and 3, banked, on single hammerhead
