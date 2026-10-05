@@ -97,8 +97,9 @@ What only the owner can supply, and why each one multiplies everything below:
   block, the horizon - with view-weighted streaming; see the decisions log. Done 2026-10-04:
   the far city's buildings are coded copies of the near ones instead of guessed shaded boxes -
   the near building's own facade, roof, lit offices and roof plant - which beat baked impostors
-  for a city of unique boxes; docs/HANDOFF.md 9bd. Still to do: cut-corner geometry on the far
-  boxes, the landmark towers' far meshes checked against their near ones the same way.)
+  for a city of unique boxes; docs/HANDOFF.md 9bd. Done 2026-10-05: cut-corner geometry on the far
+  boxes, three pieces of the same unit box reshaped from the code; docs/HANDOFF.md "Cut corners on
+  the far boxes". Still to do: the landmark towers' far meshes checked against their near ones the same way.)
 - [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
 
 ## Owner requests queued
@@ -303,6 +304,19 @@ already mapped so milestone 2 is script-only.
   tiers get a painted pad and pool on their boxes (FarBuilding.Plant HELIPAD / POOL); (4) the
   landmark towers whose real roofs are flat get a pad from a row in their table, keeping their
   real crowns; (5) bar names and helicopter liveries are invented.
+- **2026-10-05 Cut corners on the far boxes are three instances of the unit box, not a new mesh
+  (G7, HANDOFF "Cut corners on the far boxes").** A chamfered near part (Building.part_grid()'s
+  cut, one bay off each corner) was a plain box past the FULL ring with the corner bays painted as
+  piers. Decisions: the cut part's own far entry becomes the middle (narrowed one bay at each x
+  end) and two end pieces are appended after the plant, each a trapezoid; building_lod.gdshader
+  reshapes all three in the vertex stage from the bays already in the code and gives the cut faces
+  their true normals, so the sun lights them. A dedicated octagon mesh for every far box would have
+  doubled the far city's 1.12 M box triangles (most instances are plates, decks and roof plant);
+  a second batch for cut parts only would have added a draw per LOD chunk and per far tile, plus
+  their shadow passes. Three pieces: +24 triangles a cut part (far city +58 k, +5 %), no draw.
+  Part i stays box i (the end pieces go last), so every check on the far boxes holds.
+  `FAR_CORNERS=0` is the A/B. Notches and setbacks needed nothing: an L and every tier are parts.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

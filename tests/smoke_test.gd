@@ -1777,6 +1777,8 @@ func _test_city() -> void:
 	# own facade, grid, plinth and parapet, its roof plant is the near one, both shaders light the
 	# same offices, the tiers take their share of the plant.
 	load("res://tests/far_city_checks.gd").new().run(self, city)
+	# Cut corners on the far boxes (tests/far_corners_checks.gd): three pieces per cut part, the near prism.
+	load("res://tests/far_corners_checks.gd").new().run(self, city)
 	# Masjid Omar ibn Al-Khattab and the sanctuary rule (tests/masjid_checks.gd): it streams in
 	# modelled and enterable, and no gun fires at it, across it or inside it.
 	await load("res://tests/masjid_checks.gd").new().run(self, city)

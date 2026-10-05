@@ -9126,3 +9126,60 @@ merged branch, `EYE=690,1.7,318,-70,4` noon: 5.33 M / 3,078 draws (`DECO=0`) -> 
 corner `715,1.7,312,-147,10`: 4.62 M / 2,086 -> 4.70 M / 1,874. Stills 10-18 on `shots/wilshire-deco`.
 Not done: deco walls take no BuildingDamage (they are not `Building` nodes, so rounds leave no
 crazed panes on them); still unseen on Forward+.
+
+## 9cs. Cut corners on the far boxes, 2026-10-05 (fleet wave 2, far-corners; GAME_PLAN G7)
+
+G7's open item: "cut-corner geometry on the far boxes". The near Building cuts one window bay
+off each corner of a part on 30 % of buildings (`chamfer_chance`, `part_grid()`'s `cut_x` /
+`cut_z`, a prism of eight walls); past the FULL ring the far tiers (the LOD chunks' `lod_box`
+batch and the far city, which captures it) drew every part as a plain box with that corner bay
+PAINTED as a lighter pier. The notched and setback outlines needed nothing: an L is two parts,
+every setback tier and podium is its own part, and the parapet already rises the box.
+
+**What it is now.** A cut part is three instances of the same unit box (`FarBuilding.boxes()`,
+`corners`):
+- its own entry, now the MIDDLE piece (INSTANCE_CUSTOM.r = `PIECE_MIDDLE`), narrowed by one bay
+  at each x end;
+- two END pieces (`PIECE_PLUS_X`, `PIECE_MINUS_X`) appended after the roof plant, so part i is
+  still box i for everything that indexes them; each is a trapezoid: its inner face at the
+  middle's end, its outer corners pulled in by one bay in z, its two pulled faces the diagonal
+  cut faces.
+`building_lod.gdshader` reshapes them in the vertex stage (the first branch of `vertex()`), the
+bays from the code it already decodes (`cols_x` / `cols_z`), and gives the cut faces their real
+outward normal `(end * cut_z, sz * cut_x)` (in metres) and a tangent along them, so the sun and
+the sky light them as faces. Every piece computes a shared corner with the same expression
+(`sign * (0.5 - 1 / cols)`), so the three meet without a crack. The wall code needed no change:
+on a cut face the column it computes is the end bay, which it already drew as the pier (now not
+lightened, the light does that), and the real walls no longer reach the end bays. The roof's
+parapet ring follows the cut (distance to the cut line in metres).
+
+**Why not a mesh.** A chamfer-capable mesh for every far box (degenerate cut faces where there is
+no cut) is 24 triangles instead of 12 for all 93 k far city instances, most of which are plates,
+decks, containers and roof plant: 1.12 M -> 2.24 M box triangles. A separate batch for the cut
+parts only is one more draw (and its shadow passes) per LOD chunk and per far tile. Three
+pieces: +24 triangles a cut part, no new draw, no change in CityChunk, Skyline or any other
+builder (the capture takes them as they come).
+
+**Cost** (tools/far_census.gd, eye (1900, 500), radius 7 km): far city box instances 93,481 ->
+98,345 (2,432 cut parts), box triangles 1,121,808 -> 1,180,176 (+5.2 %), 283 tiles, same
+meshes; LOD ring 14,444 -> 15,556 instances, 173,328 -> 186,672 triangles. Build time within
+noise (36.5 / 37.4 s for the whole basin). geo_count, opengl3 800x600, the south-west aerial
+(`--spawn=1450,2150,-38,4,140`): 3,322,824 -> 3,343,992 triangles (+0.6 %), 3,197 -> 3,197
+draws, 3,883 -> 3,883 objects.
+still_shot.gd's GEO lines for the stills (shots/far-corners, opengl3 1280x720, the skyline from
+3 km south-west, 160 m up): wide 2,273,460 -> 2,315,316 triangles, telephoto 1,155,542 ->
+1,184,486, downtown from 1.2 km 720,558 -> 741,702 (+1.8 to +2.9 %); draws identical in every one
+(559, 180, 127). These views are nearly all far city, which is where the pieces are.
+
+**A/B and tools.** `FAR_CORNERS=0` in the environment draws the old boxes with painted piers.
+`tools/glshot/far_building_shot.gd CHAMFER=1` (every building cut; `DOWNTOWN=1` for towers) is
+the near/far pair in seconds. Checks: `tests/far_corners_checks.gd` (part i stays box i, two end
+pieces per cut part and none when off, the reshape mirrored in GDScript tiles the near
+`_footprint_polygon()` to 0.0001 m2 with outward cut normals, the shader still carries the
+reshape, captured blocks keep the pieces).
+
+**Not done / not verified.** Forward+ (the Mac): the cut faces' lighting there is unseen (the
+stills are opengl3); the change is geometry and normals only, no colour arithmetic. The far
+boxes' parapets are still the box raised to the parapet's top with a painted ring (the roof deck
+is not dropped inside it): from 2-5 km a 1 m parapet is under a pixel. The landmark towers'
+far meshes are another session's (far-landmarks).
