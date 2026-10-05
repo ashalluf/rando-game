@@ -2114,7 +2114,17 @@ static func bus_sign() -> Mesh:
 	bm.size = Vector3(0.5, 0.5, 0.03)
 	st.append_from(bm, 0, Transform3D())
 	var mesh := st.commit()
-	var tm := text_mesh("BUS", 0.16)
+	# Its own lettering, not text_mesh(): at the default half-pixel curve step "BUS" was 2,400
+	# triangles on a 50 cm plate (125k downtown). Three-pixel steps at 48 px are 1 cm on 16 cm
+	# letters.
+	var tm := TextMesh.new()
+	tm.text = "BUS"
+	tm.font_size = 48
+	tm.pixel_size = 0.16 / 48.0
+	tm.depth = 0.01
+	tm.curve_step = 3.0
+	tm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tm.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	var st2 := SurfaceTool.new()
 	st2.begin(Mesh.PRIMITIVE_TRIANGLES)
 	st2.set_material(material(Color.WHITE, 0.6))
