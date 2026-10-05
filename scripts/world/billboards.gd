@@ -1,6 +1,6 @@
 class_name Billboards
 extends RefCounted
-## Los Angeles billboards and supergraphics (2026-10-04, VISUAL_ROADMAP #52; docs/HANDOFF.md 9bj).
+## Los Angeles billboards and supergraphics (2026-10-04, VISUAL_ROADMAP #54; docs/HANDOFF.md 9bl).
 ##
 ## LA's streets and freeways are lined with outdoor advertising, and ours had one box on a roof.
 ## Now, all built in code at real sizes:
@@ -50,11 +50,13 @@ const LEG_POSTER := 2.47
 ## the route's centre line past the deck edge, and the V's half opening.
 const POLE_RADIUS := 0.55
 const POLE_FACE_RISE := 4.0
-const POLE_OFFSET := 9.5
+const POLE_OFFSET := 11.0
 const V_ANGLE := 0.19
 ## One monopole every this many deck segments of a route (Freeway.STEP 24 m), by hash.
-const POLE_EVERY := 11
+const POLE_EVERY := 7
 const POLE_DIGITAL := 0.3
+## No two monopoles of a block closer than this.
+const POLE_SPACING := 140.0
 
 ## Rooftop bulletins: the chance a qualifying building carries one, by district; on a strip.
 const ROOF_CHANCE := {CityPlan.District.MIDTOWN: 0.2, CityPlan.District.DOWNTOWN: 0.12, CityPlan.District.INDUSTRIAL: 0.06}
@@ -377,6 +379,11 @@ static func monopoles(plan: CityPlan, ix: int, iz: int, block: Dictionary) -> Ar
 		var dir := (bpt - a).normalized()
 		var nrm := Vector2(-dir.y, dir.x)
 		var first := 1.0 if _h01([plan.seed, s.route, s.index, "bb_pole_side"]) < 0.5 else -1.0
+		var near := false
+		for o: Dictionary in out:
+			near = near or Vector2((o.anchor as Vector3).x, (o.anchor as Vector3).z).distance_to(mid) < POLE_SPACING
+		if near:
+			continue
 		for side: float in [first, -first]:
 			var job := _pole_at(plan, fw, s, mid, dir, nrm * side, inner, corridor, others)
 			if not job.is_empty():
@@ -413,6 +420,15 @@ static func _pole_at(plan: CityPlan, fw: Freeway, s: Dictionary, mid: Vector2, d
 		var xf := Transform3D(pole_basis, Vector3(p.x, face_y, p.y)) * local
 		units.append(_unit(xf, Fmt.DIGITAL if digital else Fmt.BULLETIN, (ad + k * 7) % ADS, true, wear))
 		# Both faces' ends clear of every deck, and of any lot whose building reaches them.
+		# The face's whole footprint (its axis-aligned box, as the downtown freeway check reads the
+		# far boxes) clear of every deck and ramp.
+		var foot := Rect2(Vector2(xf.origin.x, xf.origin.z), Vector2.ZERO)
+		for cx: float in [-0.5, 0.5]:
+			for cz: float in [-0.9, 0.0]:
+				var q := xf * Vector3(BULLETIN.x * cx, 0.0, cz)
+				foot = foot.expand(Vector2(q.x, q.z))
+		if fw.blocks_rect(foot, 0.5):
+			return {}
 		for t: float in [-0.5, 0.0, 0.5]:
 			var e3 := xf * Vector3(BULLETIN.x * t, 0.0, 0.0)
 			var e := Vector2(e3.x, e3.z)
@@ -457,6 +473,11 @@ static func commit(ch: CityChunk) -> void:
 			"super":
 				var xf: Transform3D = job.xf
 				var sz: Vector2 = job.size
+				if _debug:
+					var nz := xf.basis.z.normalized()
+					var eye := xf.origin + nz * (sz.y * 1.1 + 20.0)
+					print("  FACE super ad %d at %s size %s EYE=%.1f,1.7,%.1f,%.0f,%.0f (EYE_AGL=1)" % [job.ad, xf.origin.snapped(Vector3.ONE * 0.1), sz,
+						eye.x, eye.z, rad_to_deg(atan2(nz.x, nz.z)), rad_to_deg(atan2(xf.origin.y + sz.y * 0.5, sz.y * 1.1 + 20.0)) * 0.8])
 				inst.append(_inst(ch, "bb_face_super", super_mesh(), xf, Fmt.PORTRAIT, int(job.ad), false, float(job.wear)))
 				var c := xf * Vector3(0.0, 0.5, -0.1)
 				shapes.append([Vector3(sz.x, sz.y, 0.2), c - Vector3(0.0, g, 0.0), xf.basis.orthonormalized().get_euler().y])

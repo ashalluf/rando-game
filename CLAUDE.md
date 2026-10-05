@@ -1018,7 +1018,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   additive batch per chunk (`PropFactory.shop_spill()`, `light_pool.gdshader`), knobs
   `shop_spill_*` on Building. All of it runs off `lamp_factor`. The palettes are written in
   both places; the smoke test reads the shader's copies back.
-- Billboards (2026-10-04, VISUAL_ROADMAP #52, docs/HANDOFF.md 9bj): `Billboards`
+- Billboards (2026-10-04, VISUAL_ROADMAP #54, docs/HANDOFF.md 9bl): `Billboards`
   (`scripts/world/billboards.gd`, static) builds LA's outdoor advertising in code at real sizes:
   14 x 48 ft BULLETINS (`BULLETIN` 14.63 x 4.27 m) on I-beam legs on low (5-17 m) MIDTOWN,
   downtown-edge (skyline boost 0) and a few INDUSTRIAL roofs, facing the street or standing across

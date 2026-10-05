@@ -467,12 +467,12 @@ def ad_suncrest(img, w, h, fmt, rnd):
     navy = (16, 30, 70, 255)
     if fmt == "q":
         text(img, (w * 0.5, h * 0.12), "SUNCREST AIR", SANS_B, w * 0.9, h * 0.06, navy, "mm")
-        text(img, (w * 0.5, h * 0.7), "HONOLULU", SANS_B, w * 0.8, h * 0.07, (255, 255, 255, 255), "mm", shadow=(2, 3, (20, 40, 90, 160), 5))
-        text(img, (w * 0.5, h * 0.78), "from $129", LIB_B, w * 0.6, h * 0.05, (255, 210, 60, 255), "mm", shadow=(2, 3, (20, 40, 90, 160), 5))
+        text(img, (w * 0.5, h * 0.7), "HONOLULU", SANS_B, w * 0.8, h * 0.07, navy, "mm", shadow=(0, 0, (255, 255, 255, 230), 6))
+        text(img, (w * 0.5, h * 0.79), "from $129", LIB_B, w * 0.6, h * 0.05, (200, 40, 10, 255), "mm", shadow=(0, 0, (255, 255, 255, 230), 5))
     else:
         text(img, (w * 0.04, h * 0.2), "SUNCREST AIR", SANS_B, w * 0.32, h * 0.13, navy, "lm")
-        text(img, (w * 0.04, h * 0.52), "Honolulu", LIB_SERIF_I, w * 0.3, h * 0.28, (255, 255, 255, 255), "lm", shadow=(3, 4, (20, 40, 90, 170), 6))
-        text(img, (w * 0.045, h * 0.8), "NONSTOP FROM $129", SANS_C, w * 0.3, h * 0.1, (255, 210, 60, 255), "lm", shadow=(2, 3, (20, 40, 90, 160), 5))
+        text(img, (w * 0.04, h * 0.52), "Honolulu", LIB_SERIF_I, w * 0.3, h * 0.28, navy, "lm", shadow=(0, 0, (255, 255, 255, 220), 8))
+        text(img, (w * 0.045, h * 0.8), "NONSTOP FROM $129", SANS_C, w * 0.3, h * 0.1, (200, 40, 10, 255), "lm", shadow=(0, 0, (255, 255, 255, 220), 6))
 
 
 def ad_comet(img, w, h, fmt, rnd):

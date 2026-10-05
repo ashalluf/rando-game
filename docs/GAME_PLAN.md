@@ -301,7 +301,7 @@ already mapped so milestone 2 is script-only.
   pass unchanged; 0-0.6 % of pixels move by a few levels in thin lines. Kept out: rooftop units
   from the shadow proxy (no measurable change), roads without shadow (paint edges lightened).
 - **2026-10-04 Billboards and supergraphics, built in code, with invented ads (VISUAL_ROADMAP
-  #52).** LA's streets and freeways are lined with outdoor advertising and ours had one box on a
+  #54).** LA's streets and freeways are lined with outdoor advertising and ours had one box on a
   roof. `Billboards` builds 14 x 48 ft bulletins on I-beam legs on low MIDTOWN / downtown-edge
   roofs (most of them on hash-picked "strip" avenues, some digital), real 12 x 24 ft posters where
   Building's roof-plant billboard roll always stood, V-shaped monopoles in the freeways' right of

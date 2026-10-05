@@ -69,6 +69,8 @@ func _ready() -> void:
 		var chunk: CityChunk = city.call("_new_chunk", k, CityChunk.Level.FULL)
 		chunk.build()
 		for rec: Dictionary in chunk.prop_records:
+			if rec.kind == "bus_stop":
+				print("  SHELTER %s at %s" % [k, (rec.position as Vector3).snapped(Vector3.ONE * 0.1)])
 			if rec.kind != "billboard":
 				continue
 			var at: Vector3 = rec.position
