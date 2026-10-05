@@ -510,11 +510,35 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   streets at once; Auto lets it roll); GRAPHICS (`Quality.force_level()`; Auto adapts again);
   the seed and Rebuild (`WorldState.pending_seed` + `reload_current_scene()`); Quit - and a
   CONTROLS card on the right. `post_room_shot.gd MODE=pause` shows it in seconds.
+- Photo mode (2026-10-05, `PhotoMode`, `scripts/ui/photo_mode.gd`, a CanvasLayer (6) the pause
+  menu adds beside itself in the city scene): `photo_mode` (P / right stick click) pauses the tree
+  AND sets `Engine.time_scale` 0 - the render step is scaled by it, so shader TIME stops too
+  (clouds, water, sway, grain hold) - re-set every frame at `process_priority` 1000 because the
+  weapon wheel puts time back to 1 every frame the tree is paused. It never opens over the pause
+  menu (`can_open()`: not while paused) and eats Esc / P itself in `_input`. Its OWN Camera3D
+  (the camera in force copied, attributes duplicated), so its depth of field (near + far round
+  `_focus`, width 3.5 % of the distance per f-stop; Forward+ only, the section hidden on
+  Compatibility) and `exposure_multiplier` never touch the player's CameraPost. Free flight on
+  the REAL clock (WASD / left stick, Q / E or triggers, Z / C or bumpers roll, Shift / Alt,
+  right mouse held to look), clamped to `max_radius` of the player and above
+  `ground_height_at()`. Panel (`shaders/photo_panel.gdshader`, screen-mip glass): FOV, roll,
+  speed, DOF, exposure, the hour (`DayNight._apply()`), the weather (`force_state()` + a
+  `weather_settle_seconds` run with the Weather node ALWAYS and time back at 1, so rain fills
+  the air), filters (`GRADES`: the scene's own look LUT re-written per channel by
+  `grade_texture()` plus `adjustment_saturation`; Noir / Mono are saturation 0), CityStreamer's
+  Vignette layer's strength and grain, letterbox bars (part of the photo), hide the player.
+  TAKE PHOTO hides the panel two frames, reads the root viewport back and saves a PNG to
+  Pictures/Rando Game (user://photos fallback; `JavaScriptBridge.download_buffer` on the web).
+  Leaving restores the snapshot: camera, time scale, pause, hour, Weather's `WEATHER_KEYS` and
+  process mode, the env's adjustment fields, vignette / grain, player visibility, every HUD
+  layer it hid (all CanvasLayers 0..127; < 0 is part of the picture). Stills:
+  `tools/glshot/photo_shot.gd` (`ROOM=1` the test room for a Forward+ DOF shot); checks:
+  `tests/photo_mode_checks.gd`.
 - Input actions live in `project.godot` under `[input]`. Current actions: `move_forward/back/left/right`,
   `jump`, `boost` (Shift / gamepad B), `look_left/right/up/down` (right stick), `fire`, `alt_fire`,
   `next_weapon`, `prev_weapon` (mouse wheel only), `weapon_1..3`, `weapon_wheel` (Tab / gamepad
   LB: a quick LB tap is still "previous weapon", see the weapon wheel note), `interact` (E / gamepad Y),
-  `respawn`, `toggle_mouse`, `toggle_hud`. Add new actions there. There is no sprint; boost replaced it. In a
+  `respawn`, `toggle_mouse`, `toggle_hud`, `photo_mode` (P / right stick click). Add new actions there. There is no sprint; boost replaced it. In a
   jet: boost = throttle up, alt_fire = throttle down, move axes = pitch and roll.
 - NPCs: `Pedestrian` (wanders a block's sidewalk ring, going round it by its corners -
   `_ring_route()` - and now and then across a crosswalk to the next block, see Street life;

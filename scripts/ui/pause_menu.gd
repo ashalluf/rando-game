@@ -21,6 +21,7 @@ const CONTROLS := [
 	["Hold Tab", "Weapon wheel (slows time)"],
 	["E", "Get in or out of a car"],
 	["R", "Respawn"],
+	["P", "Photo mode"],
 	["F1", "HUD: clean, full, hidden"],
 	["F11", "Fullscreen"],
 	["In a car", "W / S drive, Space jumps, Shift nitro"],
@@ -49,6 +50,11 @@ func _ready() -> void:
 	_medium = _load_font(FONT_MEDIUM)
 	_build()
 	_root.visible = false
+	# Photo mode (scripts/ui/photo_mode.gd) lives beside the menu in the city scene.
+	if get_parent() and get_parent().get_node_or_null("PhotoMode") == null:
+		var photo := PhotoMode.new()
+		photo.name = "PhotoMode"
+		get_parent().add_child.call_deferred(photo)
 	var city := get_tree().get_first_node_in_group("city")
 	if city:
 		seed_edit.text = str(city.get("world_seed"))

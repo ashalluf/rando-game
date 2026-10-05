@@ -1623,6 +1623,8 @@ func _test_city() -> void:
 	await load("res://tests/crowd_life_checks.gd").new().run(self, city)
 	# The crowd's headwear (CrowdHat): measured heads, fitted hats, one draw each, kept on a body.
 	await load("res://tests/crowd_hat_checks.gd").new().run(self, city)
+	# Photo mode: frozen world, its own camera, its settings, a PNG, and everything put back.
+	await load("res://tests/photo_mode_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
