@@ -486,7 +486,7 @@ static func block_entries(plan: CityPlan, bx: int, bz: int) -> Array:
 	var boost: float = plan.macro.skyline_boost((b.rect as Rect2).get_center()) if plan.macro else 0.0
 	var scene: PackedScene = load("res://scenes/props/building.tscn")
 	for lot: Dictionary in plan.lots(bx, bz):
-		if lot.yard or YardFill.is_corridor(plan, lot):
+		if lot.yard or YardFill.is_corridor(plan, lot) or VacantLots.kind_of(plan, bx, bz, lot) != VacantLots.NONE:
 			continue
 		var bld: Building = scene.instantiate()
 		bld.seed = lot.seed

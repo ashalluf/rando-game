@@ -857,6 +857,11 @@ static func _wheel_queue(g: PierMesh, detailed: bool) -> void:
 
 # --- Light pools, real lights, collision -------------------------------------------------------
 
+## The deck's light pools: centre brightness and how fast they fall off toward the rim.
+const POOL_STRENGTH := 0.75
+const POOL_FALLOFF := 2.2
+
+
 static func _pool_mesh() -> ArrayMesh:
 	var v := PackedVector3Array()
 	var uv := PackedVector2Array()
@@ -872,10 +877,10 @@ static func _pool_mesh() -> ArrayMesh:
 		var x := LAMP_FROM - float(i) * LAMP_STEP
 		for zs: float in [-1.0, 1.0]:
 			add.call(Vector3(x, DECK_TOP + 0.03, zs * (LAMP_Z - 1.5)), 7.0, Color(1.0, 0.85, 0.6))
-	add.call(Vector3(ARCADE.get_center().x, DECK_TOP + 0.03, ARCADE.end.y + 4.0), 14.0, Color(0.9, 0.5, 1.0))
+	add.call(Vector3(ARCADE.get_center().x, DECK_TOP + 0.03, ARCADE.end.y + 4.0), 14.0, Color(0.95, 0.72, 1.0))
 	add.call(Vector3(BUMPER.get_center().x, DECK_TOP + 0.03, BUMPER.get_center().y), 13.0, Color(1.0, 0.85, 0.6))
 	add.call(Vector3(CAROUSEL_AT.x, DECK_TOP + 0.03, CAROUSEL_AT.y), 15.0, Color(1.0, 0.8, 0.5))
-	add.call(Vector3(WHEEL_AT.x, DECK_TOP + 0.03, WHEEL_AT.y), 16.0, Color(0.8, 0.6, 1.0))
+	add.call(Vector3(WHEEL_AT.x, DECK_TOP + 0.03, WHEEL_AT.y), 16.0, Color(0.88, 0.78, 1.0))
 	for s: Array in STANDS:
 		add.call(Vector3(s[0], DECK_TOP + 0.03, s[1]), 5.0, Color(1.0, 0.85, 0.6))
 	for b: Array in BOOTHS:
@@ -887,7 +892,14 @@ static func _pool_mesh() -> ArrayMesh:
 	arrays[Mesh.ARRAY_COLOR] = col
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	mesh.surface_set_material(0, PropFactory.light_pool_material())
+	# Its own copy of the street lamps' pool material: these pools are 7-16 m across and
+	# overlap, and at the lamps' strength (1.6) with their falloff they drew as flat, clipped
+	# discs on Forward+ (auto exposure opens up over the dark deck): the arcade's a solid magenta
+	# ellipse. Dimmer, and falling off toward the rim, they read as light on the boards.
+	var mat := PropFactory.light_pool_material().duplicate() as ShaderMaterial
+	mat.set_shader_parameter("strength", POOL_STRENGTH)
+	mat.set_shader_parameter("falloff", POOL_FALLOFF)
+	mesh.surface_set_material(0, mat)
 	return mesh
 
 

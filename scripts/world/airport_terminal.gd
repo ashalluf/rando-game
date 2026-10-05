@@ -276,15 +276,22 @@ static func build_concourse(parent: Node3D, statics: StaticBody3D, macro: MacroM
 		g.wall("base", e0, e1, y0, y0 + DEPARTURE_LEVEL, Color.WHITE, col)
 		g.wall("glass", e0, e1, y0 + DEPARTURE_LEVEL, y0 + h - 0.6, Color.WHITE, col)
 	# Jet bridges and the parked airliners at this half's gates.
+	# Every stand gets an instance, the empty one too (collapsed): AirportGround shows, hides and
+	# repaints each as jets arrive and leave (register_gate_jets(), below).
 	var jets := MultiMeshBatch.new()
-	for gate in Airport.gates():
+	var jet_gates := PackedInt32Array()
+	var gate_list := Airport.gates()
+	for gi in gate_list.size():
+		var gate: Dictionary = gate_list[gi]
 		var a: float = gate.a
 		if (a < 0.0) != west:
 			continue
-		_jet_bridge(g, statics, gate, y0, detailed)
-		if not bool(gate.empty):
-			var xf := jet_transform(gate.centre, gate.yaw, y0)
-			jets.add("gate_jet", jet_mesh(), xf, Color.WHITE, Color(float(gate.livery) / 8.0, 0.0, 0.0, 1.0))
+		_jet_bridge(g, statics, gate, y0, detailed, parent, gi)
+		var xf := jet_transform(gate.centre, gate.yaw, y0)
+		if bool(gate.empty):
+			xf = Transform3D(Basis().scaled(Vector3.ZERO), Vector3(0.0, -10000.0, 0.0))
+		jets.add("gate_jet", jet_mesh(), xf, Color.WHITE, Color(float(gate.livery) / 8.0, 0.0, 0.0, 1.0))
+		jet_gates.append(gi)
 	# Gate signs over the doors on the apron face (the number lit at night).
 	g.commit(parent, "ConcourseW" if west else "ConcourseE")
 	g.commit_collision(statics)
@@ -294,6 +301,8 @@ static func build_concourse(parent: Node3D, statics: StaticBody3D, macro: MacroM
 		var twin: Node = (nodes["gate_jet"] as Node).get_meta("shadow_twin", null) if (nodes["gate_jet"] as Node).has_meta("shadow_twin") else null
 		if twin:
 			(twin as MultiMeshInstance3D).material_override = jet_material()
+		if macro:
+			AirportGround.register_gate_jets(nodes["gate_jet"], jet_gates, y0, macro)
 	if detailed:
 		# The gate numbers over the apron face, lit: one mesh for the half.
 		var items: Array = []
@@ -373,9 +382,10 @@ static func livery_material(livery: int) -> ShaderMaterial:
 
 ## A jet bridge: the rotunda at the concourse face, a two-section telescoping tunnel sloping down
 ## to the cab docked at the parked jet's forward door, the drive column with its wheel bogie.
-static func _jet_bridge(g: LandmarkGeo, statics: StaticBody3D, gate: Dictionary, y0: float, detailed: bool) -> void:
-	g.use("bridge", LandmarkMats.facade("airport_bridge", "", 1.0, {"tint": Color(0.80, 0.81, 0.83), "roughness": 0.4, "metallic": 0.4,
-		"joint_spacing": Vector2(0.22, 0.0), "joint_width": 0.02, "joint_dark": 0.18, "flood_strength": 0.0}))
+static func _jet_bridge(g: LandmarkGeo, statics: StaticBody3D, gate: Dictionary, y0: float, detailed: bool, parent: Node3D = null, gate_index: int = -1) -> void:
+	var bridge_mat := LandmarkMats.facade("airport_bridge", "", 1.0, {"tint": Color(0.80, 0.81, 0.83), "roughness": 0.4, "metallic": 0.4,
+		"joint_spacing": Vector2(0.22, 0.0), "joint_width": 0.02, "joint_dark": 0.18, "flood_strength": 0.0})
+	g.use("bridge", bridge_mat)
 	var n: Vector2 = gate.n
 	var t: Vector2 = gate.t
 	var rot: Vector2 = gate.rotunda
@@ -387,6 +397,15 @@ static func _jet_bridge(g: LandmarkGeo, statics: StaticBody3D, gate: Dictionary,
 	# The rotunda: a short drum on a column.
 	g.cylinder("bridge", Vector3(rot.x, y0, rot.y), 0.7, DEPARTURE_LEVEL - 0.4, 8, Color(0.6, 0.6, 0.62))
 	g.cylinder("bridge", Vector3(rot.x, floor_r - 0.4, rot.y), 2.3, 3.4, 12 if detailed else 6, Color.WHITE)
+	if detailed and parent != null and gate_index >= 0 and JetBridge.posable:
+		# Near: the tunnels, cab and drive column are a JetBridge, posed from the stand's state
+		# (AirportGround); the far copy keeps the static bridge below.
+		var jb := JetBridge.new()
+		jb.name = "JetBridge%d" % gate_index
+		var mats: Array[Material] = [bridge_mat, LandmarkMats.plain("airport_dark", Color(0.06, 0.065, 0.07), 0.5, 0.3), LandmarkMats.plain("airport_metal", Color(0.78, 0.79, 0.81), 0.35, 0.6)]
+		jb.setup(gate_index, y0, detailed, mats)
+		parent.add_child(jb)
+		return
 	# The cab sits off the door on the port side (-t), facing the fuselage.
 	var cab := door - Vector3(t.x, 0.0, t.y) * 1.9
 	cab.y = y0 + door.y - 0.6

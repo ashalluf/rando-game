@@ -97,8 +97,9 @@ What only the owner can supply, and why each one multiplies everything below:
   block, the horizon - with view-weighted streaming; see the decisions log. Done 2026-10-04:
   the far city's buildings are coded copies of the near ones instead of guessed shaded boxes -
   the near building's own facade, roof, lit offices and roof plant - which beat baked impostors
-  for a city of unique boxes; docs/HANDOFF.md 9bd. Still to do: cut-corner geometry on the far
-  boxes, the landmark towers' far meshes checked against their near ones the same way.)
+  for a city of unique boxes; docs/HANDOFF.md 9bd. Done 2026-10-05: cut-corner geometry on the far
+  boxes, three pieces of the same unit box reshaped from the code; docs/HANDOFF.md "Cut corners on
+  the far boxes". Still to do: the landmark towers' far meshes checked against their near ones the same way.)
 - [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
 
 ## Owner requests queued
@@ -289,6 +290,95 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Tower roofs: helipads, pool decks, roof gardens, penthouses, masts and window
+  washers (VISUAL_ROADMAP #59, HANDOFF "Tower roofs").** Roofs are what the player sees most while
+  flying, and every tower top was the same scatter of units. `Rooftops` plans each tall
+  building's top roof from hashes of its seed and the plant Building already put there, and
+  stands its pieces IN PLACE of the small plant (units, ducts, solar, skylights) rather than
+  moving any of it: the plant still rolls exactly as before (no seed's city moves), the covered
+  props are just not drawn, near or far. Decisions: (1) the helipad is RAISED on steel over the
+  plant - which is how LA's retrofitted pads stand - so it only has to keep off spires and tanks,
+  and it takes a plain antenna down where it lands; (2) a pool is TRACED in the shader (tank,
+  tiles, caustics, sky by Fresnel, lights at night), not modelled as a basin, so it costs one
+  quad; (3) the pieces are one mesh per building on one shader plus a glass surface, and the far
+  tiers get a painted pad and pool on their boxes (FarBuilding.Plant HELIPAD / POOL); (4) the
+  landmark towers whose real roofs are flat get a pad from a row in their table, keeping their
+  real crowns; (5) bar names and helicopter liveries are invented.
+- **2026-10-05 Cut corners on the far boxes are three instances of the unit box, not a new mesh
+  (G7, HANDOFF "Cut corners on the far boxes").** A chamfered near part (Building.part_grid()'s
+  cut, one bay off each corner) was a plain box past the FULL ring with the corner bays painted as
+  piers. Decisions: the cut part's own far entry becomes the middle (narrowed one bay at each x
+  end) and two end pieces are appended after the plant, each a trapezoid; building_lod.gdshader
+  reshapes all three in the vertex stage from the bays already in the code and gives the cut faces
+  their true normals, so the sun lights them. A dedicated octagon mesh for every far box would have
+  doubled the far city's 1.12 M box triangles (most instances are plates, decks and roof plant);
+  a second batch for cut parts only would have added a draw per LOD chunk and per far tile, plus
+  their shadow passes. Three pieces: +24 triangles a cut part (far city +58 k, +5 %), no draw.
+  Part i stays box i (the end pieces go last), so every check on the far boxes holds.
+  `FAR_CORNERS=0` is the A/B. Notches and setbacks needed nothing: an L and every tier are parts.
+
+- **2026-10-05 Memorial parks (fleet task "cemetery"; HANDOFF, the memorial park section).** A
+  lawn cemetery on a gentle hill in the suburbs. Decisions: a park takes a 2 x 2 (or 2 x 1) group
+  of blocks and closes the streets between them (a single suburban block is ~50 x 80 m, too small
+  for a rise with a loop drive, a chapel and a mausoleum); WHERE is decided from hashes and the
+  road grid alone, never from `CityPlan.block()`, so no load order can change it, and Schools see
+  the mark before they decide; the rise is the park's own lawn mesh over the block's pavement (no
+  change to the map's relief: the streets round it stay where they were); every stone is one of
+  eleven code-built meshes on one shader in one batch per kind (flat bronze markers flush with the
+  turf, an old section of marble, gothic and granite stones round obelisks, columns and family
+  monuments); the Italian cypress is code-built (the hill fir narrowed read as a stick); the park
+  is a sanctuary, as the masjid is: no shot at it, into it or from inside it, and nothing in it
+  breaks. Names invented. `CEMETERY=0` is the A/B.
+- **2026-10-05 Kerbs are cut, not painted on (fleet "kerbs"; HANDOFF "Kerbs").** A FULL block's
+  pavement keeps its inner slab and Kerbs builds the outer 2.6 m ring itself, so ramps, driveway
+  aprons, tree wells and heaved slabs are real geometry you can drive and walk into; the kerb
+  paint, stencils and house numbers are one marks mesh per 64 m tile. Chosen over a shader-only
+  kerb because a ramp that is not a dip reads as paint. Everything hash-seeded; the old
+  `_kerb_paint` runs only where Kerbs does not. LOD / far chunks keep the plain slab.
+- **2026-10-05 Steps that must run after the deferred ones go through `CityChunk._run_last()`
+  (HANDOFF "The integration-b OOM").** Murals and ClimbingPlants each moved their own build step
+  behind any step still waiting before the finish; merged, each found the other there and they
+  swapped forever, so integration-b's city never finished building and was OOM-killed past 10.9 GB.
+  Decision: one queue on the chunk, drained one step at a time when the finish is reached; no pass
+  re-inserts itself. City load peak 1.44 GB.
+
+- **2026-10-05 Road hardware is code on one shader, hash-placed per road (HANDOFF "Road
+  hardware").** The carriageway carried one scanned manhole and box grates. Decisions: covers,
+  valves, inlets, cuts, plates, markers and Botts' dots are built in code at real size (a glTF per
+  piece would be nine materials and no shared wet look) on one shader with the kind in the vertex
+  alpha and the pattern / height / size per instance, one shadowless batch per kind a chunk; a
+  cover's proud or sunk height is one mesh moved by UV2 weights; the cast patterns are shader
+  relief, not geometry; avenues' lane lines are Botts' dots (LA's classic unpainted lanes) because
+  the game never painted them; placement is a hash of seed + road + slot, kept clear of the road
+  ends (crosswalks, stop lines, arrows) and the rail trackway; with it on the old grates, inlets
+  and scanned manholes are skipped (their rolls were private). `ROAD_DETAIL=0` is the A/B.
+- **2026-10-05 A weekly farmers' market on a closed street (VISUAL_ROADMAP, farmers-market).**
+  Decisions: the market is a STREET, not a block - one local street per 1.7 km cell by hash, its
+  neighbours plain residential or midtown blocks nobody else claims; it is closed to cars every
+  day (bollards, CityPlan.road_open()), because road closures are pure plan data that traffic,
+  GPS and the map cache, and a closure that came and went with the hour would not be; the
+  closure starts 2.5 m past each crossing so the junctions keep their signals. What stands there is
+  worked out from the hour and the day of the week the chunk is built at (each stall's own hours,
+  each market's own day), like the street vendors. Everything is a hash of seed + market + stall.
+  The kit is code-built on one shader with a far level in every mesh as its LOD and shadow twin.
+
+- **2026-10-05 Freight trains run the Alameda corridor (VISUAL_ROADMAP #109).** The invented
+  Arroyo Pacific's double track runs down Alameda St, the real corridor's street, from a covered way
+  at the port north through the industrial district: at street level in the median past gated
+  crossings, then in a ten-metre trench under every cross street (decks; the ramps sever a few
+  streets at Alameda, as the real ones do), to an intermodal yard east of Alameda in Vernon. The
+  trains are worked out from a clock like the Coral Line's: 60-120 cars (double stacks, manifests,
+  autoracks), head-end locomotives north and a distributed power unit leading back south, a crew
+  change at the yard, never standing on a crossing. The corridor's land is held level (a relief
+  terrace, like the river's) so the trench never digs under the city's ground plane. Chosen over a
+  right of way through the blocks: Alameda is pinned on every seed and runs past the port, its
+  junctions give TrafficManager's stop rule something to hold, and no lot moves outside the yard.
+- **2026-10-05 Forward+ review of six features (fwd-review-b, HANDOFF "Forward+ review b").**
+  Small lavapipe scenes only. Decided: a colour global (`sky_tint`) is raw sRGB on both renderers
+  and is decoded where a shader works in linear and used as is where it works in display numbers;
+  Godot flips a cull_disabled back face's NORMAL itself, so no shader does; a feature tuned on
+  opengl3 in display numbers inside a renderer-space host shader (the blast hole in
+  building.gdshader) converts its result with a local helper rather than retuning the host.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
@@ -468,6 +558,192 @@ already mapped so milestone 2 is script-only.
   buildings keep every roll and are only dressed (masonry, 46 m limit, a shop-name pool appended
   after the old 30 names so no other building's sign moves); (4) its lamps reuse the chunk's lamp
   slot, so prop ids and destruction memory are unchanged.
+- **2026-10-05 Service alleys down the backs of downtown and midtown blocks (VISUAL_ROADMAP ?,
+  HANDOFF "Service alleys").** Los Angeles' commercial blocks are two rows of lots back to back with an alley
+  between; here that strip was LotFill's forecourt paving and planters, and every building wore
+  shops on all four faces. Decisions: (1) the alley's BAND is pure (the lot grid's seam, from
+  `CityPlan.lots()` alone) so LotFill, the parked cars and the pavement props keep off it while
+  the lots are built, but the RUN inside it is worked out from the buildings the lots stood up (no
+  lot is moved or shrunk; where the buildings leave under 3.2 m the alley stops, a dead end);
+  (2) the buildings' alley faces are their backs (`Building.back_face`: no storefront, shop
+  names, awnings or canopy there) - a small local hook in building.gd, the one shared file this
+  needed besides LotFill and CityChunk's hook lines; (3) the furniture reuses IndustrialKit's
+  writers and material (one upright mesh a chunk, no new shader for it) and StreetDetail's pole
+  and wire batches; (4) LOD and the far city get the band as concrete slabs only; (5) the
+  dressing decides in a couple of milliseconds and writes each prop as its own build step (a
+  long alley's writes were 40-90 ms in one).
+- **2026-10-05 The ballpark in the ravine north of downtown (VISUAL_ROADMAP ?, HANDOFF "The ballpark in the ravine").**
+  The FORM of LA's famous hillside ballpark in its real relation to downtown: home
+  plate at the real one's point through DowntownReal (2.9 km grid-north of Pershing Square, on
+  the embayed hills above the 110 / 101 junction), facing the real centre field; every name
+  invented (SUNRIDGE BALLPARK), no team, sponsor or logo. Decisions worth knowing: the site is cut
+  into the hills at FIXED levels (a lower pad and an upper terrace 22 m over it, a planted slope
+  between, 1:1 cut / 1:1.5 fill banks), folded into `MacroMap.height_at()` before the hill roads,
+  so the hill chunks, the far ground's bake and the far tier all draw the ravine with no code of
+  their own, and the levels do not move with the seed; its two roads are appended to HillRoads
+  after everything else (no roll moves) and the hill chunks draw them; the crowd is a shader on
+  the stepped rows (a riser shows the torso of the row below), the lots' parked cars are painted
+  by the same integer hash that places the 3D cars near; the night game is EMITTED (a flood term
+  on everything the banks see, a glow integrated through an ellipsoid), with three real omni
+  lights on desktop. `BALLPARK=0` leaves it out.
+- **2026-10-05 Wilshire's deco boulevard (VISUAL_ROADMAP #86).** Midtown's boulevards were the
+  same seeded boxes as every street. A hash per boulevard-frontage lot (Wilshire 0.75, other
+  boulevards 0.3) builds a 1920s-30s building instead: zigzag tower, streamline corner, theatre
+  (a block in eight at most, one a block), deco flats, Spanish courtyard flats (`DecoBoulevard`,
+  `DecoBuild`). Decisions: (1) the walls stay on building.gdshader (outline mode plus per-vertex
+  part numbers), so the deco keeps the traced rooms, lit offices and storefronts every Building
+  has; everything deco about them is geometry and a new ornament shader on top, laid on the
+  shader's own bay grid. (2) Far: plain boxes of the massing on the old path - FarBuilding's code
+  has no deco facade, and a coded box would draw the wrong building; the silhouette (setbacks,
+  crown) is kept. (3) Hashes only, after the pad roll: nothing else on a block moves (checked).
+  (4) No medians: the plan has none, and adding them is a street-layout change outside this
+  feature. Names invented.
+- **2026-10-05 Construction: tower sites with cranes, house frames, road works (VISUAL_ROADMAP
+  #91, HANDOFF 9cv).** A real city is always being built, and the game's never was. `Construction`
+  claims a share of downtown and midtown blocks' best tall lot for a tower going up (its Building
+  is freed before its own rolls run), a share of HouseKit's lots for a timber frame on the house's
+  own plan, and at most one parking-lane closure a chunk for road works - every decision a hash of
+  seed + place taken after every existing roll, so no other building, prop or parked car moves
+  (checked by building the block with Construction off). Decisions worth knowing: road works only
+  ever close the PARKING lane, so TrafficManager needed no hook at all; the tower crane slews, runs
+  its trolley and drops its hook in its own vertex shader from TIME and where it stands (no CPU per
+  crane), and it only stands where the longest jib that fits swings clear of the freeway, every
+  landmark and, 7 m over, every planned building round it; lattice faces are cut-outs drawn SOLID
+  and darkened once their lacing is under a pixel or two (dithered without TAA, a far mast was a
+  faint dotted line); the obstruction lights ride aircraft_lights.gdshader so they never shrink
+  away. Workers reuse StreetVendor (a placed, standing pedestrian) with ApronCrew's hi-vis and a
+  hard hat modelled round each rig's head like FireHelmet.
+
+- **2026-10-05 Boulevard signs: pole signs, window vinyl, banners and street plates (VISUAL_ROADMAP #93,
+  HANDOFF 9cx).** LA's commercial streets read as signs everywhere and ours had shop bands
+  and billboards only. Pole signs stand in the gap between two buildings (or a car park's front
+  corner), 0.35 m behind the pavement, their heads along the gap, so no facade can meet one and no
+  rng is touched; one atlas of invented art and one shader for every kind, one batch per kind a
+  chunk, FULL only except the tall signs' lit heads in the far city. Scripts other than Latin are
+  random glyph runs, never words.
+- **2026-10-05 Car dealerships on the boulevards' auto rows (VISUAL_ROADMAP #96, HANDOFF 9da).**
+  `CarDealers` puts runs of new-car dealers and used lots along a few avenue-wide roads in
+  MIDTOWN and the SUBURBS. Decisions: (1) placement is three hashes (road, stretch of six blocks,
+  block) and a claim of a run of edge lots asked AFTER the pad roll and the fire station, like
+  FireStation.claims(), so no lot, roll or prop elsewhere moves (checked); (2) the middle of the
+  front row and the showroom floor are real Vehicles - shootable, burnable, stealable - and the rows behind are
+  ArenaGrounds' static car bodies as unbreakable props (sparks, never debris), because a lot of
+  40-120 real cars would be 40-120 physics bodies and car builds a chunk; (3) tube men and cloth
+  move entirely in the vertex shader (a chain integrated per vertex), never on the CPU; (4) brands
+  and lots are invented, their marks simple SDF shapes checked against the real makers' badges.
+
+- **2026-10-05 The airport's ground comes alive (VISUAL_ROADMAP #97, HANDOFF 9db).** Landed
+  airliners taxi to a free stand and dock, departures push back and taxi out to the runway,
+  baggage trains, fuel and catering trucks and a follow-me car work the apron, the jet bridges
+  swing to the doors. Decisions worth knowing: the stands are STATIC state (`AirportGround`) that
+  every copy of the concourse and every chunk's gate set registers with, because those are built
+  before the controller exists and in two copies; a live jet swaps with the stand's instance
+  whenever it is due (same model, place and livery), the static trucks only while nobody looks;
+  the ground flow is one way (west connector in, east connector out) with one owner of the
+  departure runway, so jets never meet head on; the player's flyable private jet moved from the
+  taxiway's west end (across every arrival's path) to its east end, facing west; and the final
+  approach is no longer swept sideways over the runway protection zone, which had held every
+  arrival level to the fence and put its touchdown at the far end of the runway.
+- **2026-10-05 A public golf course in the valley (VISUAL_ROADMAP #98).** Valley Oaks Golf Club
+  (invented): nine holes, par 33, ~2,200 yd, a driving range, a Spanish revival clubhouse with its
+  car park and a pro shop, on the rolling valley floor north of the front range (x -389..298,
+  z -3131..-2544 on the default seed). It is a landmark AREA like MacArthur Park: CityPlan snaps it
+  to whole blocks and closes the roads inside, so no seed, block or roll elsewhere moves (the
+  neighbouring blocks lose a rec-park or plaza roll by Parks' and CityPlan's own beside-a-site
+  rules). The routing is a hand-drawn template mirrored and jittered by a hash and validated,
+  not a solver: a template reads as a designed course; a solver would need much more care to
+  avoid nonsense holes. The turf is ONE distance-field mesh per chunk so edges stay crisp on a
+  1.6 m grid and the whole course is one draw. Golfers are crowd rigs with solved poses (no new
+  clips); carts are scripted on the path, not vehicles.
+- **2026-10-05 Dogs: built in code, six breeds, walkers back on, yard dogs (VISUAL_ROADMAP #99,
+  HANDOFF dogs section).** Dog walkers had been off since the only CC0 rigged dog was a low-poly,
+  flat-shaded Shiba. No CC0 dog at realistic quality exists (Poly Haven has none), so the dogs are
+  built in code like the birds: `DogMesh` lofts a body, head, legs, ears and tail per breed by real
+  proportions onto a 28-bone skeleton, with fur as shell layers on the skinned mesh and coats
+  painted by a script on a shared chart; `DogRig` poses it procedurally every tick (no clips: a
+  quadruped gait by phase with IK legs is fewer moving parts than retargeting animal clips that
+  do not exist in CC0 at this quality). Decisions worth knowing: a walker's dog is the owner's
+  SIBLING under the chunk, not its child (a knocked person's node is freed and the dog must
+  outlive it); a hit dog yelps and bolts, never bleeds or ragdolls (no gore on animals) and is
+  never a crime; yard dogs are a hash share of YardFill's lots through one hook line, so no roll
+  moves; `dog_share` is (0.12, 0.03) again.
+- **2026-10-05 The hillside estates get real houses (VISUAL_ROADMAP #100).** An estate was a pad,
+  walls, a pool and an 18 x 9 m Building slab with a storefront band. `HillHomeKit` plans a
+  house on every estate from a hash of the seed and the estate, facing the side the ground falls
+  off most (never the road's): a mid-century glass pavilion cantilevered over the slope on steel
+  columns with a deck and an infinity pool, a Spanish villa stepping down the bank in a loggia
+  wing with a tower, or stacked contemporary boxes; retaining walls, stairs, terraced gardens,
+  cypress and olives, a garage up at the road on stilts where the road is well above the pad.
+  Decisions worth knowing: the houses are built with HouseBuild's own emitters (extended, not
+  copied), so the hills and the suburbs share one house vocabulary; glass walls get their own
+  shader with a room traced at its real size, because house_glass maps one room onto a pane's
+  0..1 UV; the far city draws an estate as a few boxes plus a glass band that glows after dark,
+  which is what makes the ranges twinkle from the basin. The estates themselves are where
+  HillRoads put them (not moved), so most drops under a cantilever are 3-6 m. `HILL_HOMES=0`
+  is the A/B.
+- **2026-10-05 An urban oil field: pumpjacks on a bare hill in midtown, and single wells hidden in
+  the city (VISUAL_ROADMAP #101, HANDOFF 9df).** LA's oil fields - the Baldwin Hills, Signal Hill,
+  the pumpjacks behind fences in car parks and between houses - are one of the city's most
+  recognisable odd sights, and the game had none. Decisions: the field is a landmark AREA site
+  (its streets closed like MacArthur Park's) in midtown south of the 105, where the Baldwin Hills
+  stand relative to the airport and downtown; its hill is folded into the city's RELIEF (as the
+  river's terrace is) rather than built as terrain, so the perimeter streets, the far city and the
+  horizon follow it; the plan (roads held to 12.5 %, pads, wells) is pure from the seed; the
+  pumpjacks are ONE mesh whose crank, beam, pitman and rod are animated in the vertex shader from
+  a per-well phase and speed (nothing on the CPU, the shadows move too); everything else is code on
+  the industrial district's material; the operator is invented (BASIN CREST OIL CO.). Single wells
+  claim 3.5 % of industrial lots and 2 % of suburban ones by hash, after every roll.
+- **2026-10-05 The city has vacant lots and gravel car parks (VISUAL_ROADMAP #102).** (Fleet brief:
+  "the in-between land that makes a city real".) Every lot was built or filled; now 3-6 % of the
+  EDGE lots in midtown, the industrial district and downtown's edges stand empty, and the lots
+  round the arena are mostly event car parks. `VacantLots` claims a lot in `CityChunk._build_lot()`
+  after every roll it makes (the pad roll, the corridor, fire station and car park checks) from a
+  hash of seed + lot, so nothing a seed builds elsewhere moves and the Building is never made; the
+  plan is pure, so GroundCoverage and Industrial's block entries agree with the chunk. Decisions
+  worth knowing: inner lots and courtyards are never vacant (a vacant lot needs a street side for
+  its fence, gate and sign); the far city gets one dirt or gravel slab per lot, nothing else; all
+  of it is code at real size (no new assets) in ONE ground and ONE walls mesh a chunk plus three
+  weed batches, the pattern Industrial and YardFill set; broker names and phone numbers are
+  invented (555); no billboards are added (Billboards owns them).
+
+- **2026-10-05 Frame-cost audit after the light rail / birds / emergency / parks / billboards /
+  river wave: grass in cells, furniture shadows near the camera (VISUAL_ROADMAP #104, HANDOFF
+  9dj perf audit).** The new systems themselves turned out cheap (birds, rail, emergency within
+  the CPU noise; the river 0.1 M triangles). What had grown: the beach town's lawn grass - one
+  batch a chunk, drawn whole while the chunk's centre was in range, 3.35 M triangles, 43 % of the
+  frame - now in 32 m cells (beach town -37 %); and the street furniture's shadows and draws.
+  Decisions: small furniture casts within 40-60 m (`StreetShadowReach`); a shadow distance on a
+  code-built batch is a reach (it silently did nothing); multi-part models whose pieces share
+  materials are merged per material (bench, trash can; not trees, whose LOD ladders are per
+  surface); the light rail's wires cast no shadow but its rails and sleepers keep theirs (their
+  shadow edges read from the air). Left for the lead: TrafficManager's per-car plan lookups
+  (11 ms a physics step here), FULL chunk build steps far over the 4 ms budget, rooftop AC units
+  (two texture sets, one geometry: one MultiMesh a building), the far city and trees.
+- **2026-10-05 The reservoir in the hills: a lake in a canyon of the front range behind a
+  concrete arch-gravity dam (VISUAL_ROADMAP #105, HANDOFF 9dk).** The form of the reservoir behind
+  the famous sign, with an invented name ("Lake Shallufer"). Decisions worth knowing: the canyon
+  is the range's OWN (a natural gorge west of the sign on the default seed) and the lake is a
+  depression subtracted from the natural mountains along a few authored arms, not a bowl cut
+  to a fixed outline, so the shore follows the range's contours and the banks keep its spurs and
+  gullies; the carve lives at the end of `MacroMap.raw_height_at()` so every consumer of the
+  ground agrees without code of its own; the level is FITTED per seed (bisected until the flood
+  closes inside its box, then checked again with the dam and spillway in the ground), so no seed
+  spills water over a saddle; the dam is an arc fitted to where the ground stands over its crest,
+  and downstream a fill shelf meets the toe, because the natural gorge drops 50 m within 40 m of
+  it; the water mirrors the ridge round the lake from a traced table rather than relying on SSR,
+  so the web build and the opengl3 stills see the hills in it too; the bathtub ring is painted by
+  the shared terrain shader from a lake mask (one include, off everywhere else).
+
+- **2026-10-05 The hills get what stands on them: power lines, an antenna farm, fire roads,
+  tanks, a lookout and domes (VISUAL_ROADMAP #63, HANDOFF "Ridges").** Two 220 kV lines out of a
+  substation in Vernon, one east over the east range across the river, one north-east up onto it
+  and along it; lattice towers placed by a dynamic programme that keeps every conductor clear of
+  the ground; the antenna farm on benches along the crest of the summit north of downtown (the
+  higher front-range summits are spikes), its masts lit red at night; fire roads walked along the
+  crests and down the spurs as fire breaks (the ranges are too steep for graded roads off their
+  crests), gated; tanks on knolls above the estates. Everything carved is carved last in
+  MacroMap.setup() and every lot taken is taken after every roll, so nothing else moved. The far
+  tier draws every wire and every tower's lattice as fine lines. CLAUDE.md "Ridges".
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
@@ -487,6 +763,18 @@ already mapped so milestone 2 is script-only.
   chain-link, freight tracks with boxcars, storage yards and trailer drops. It is drivable: ramps
   down the banks, the bed and the low-flow channel have collision (a car down a ramp is a smoke
   check). Everything is code at real size; the far city gets boxes.
+
+- **2026-10-05 Hospitals: campuses the ambulances drive their patients to (HANDOFF 9cy).** The
+  ambulances had nowhere to go: a crew loaded the patient and the unit drove off to be pooled.
+  `Hospital` places a few campuses across the map (a hash of seed + 1.5 km cell, the first
+  suitable block among its candidates) and one medical centre in Westlake west of downtown, as
+  FireStation places its stations: pure geometry of the block, claimed in `CityPlan.block()` after
+  every roll, so no seed moves. A campus is a bed tower over a podium (a `Building` subclass, so
+  the facade shader, lit wards and the far tiers' coded boxes come for free), the glazed lobby
+  behind a drop-off canopy, the EMERGENCY entrance with a big lit red sign over a covered three-bay
+  ambulance court, a rooftop helipad (a plain H, never a cross: the red cross is a protected
+  emblem), a parking structure or a surface lot. An ambulance with a patient aboard now drives to
+  the nearest one, pulls past the court, backs into a free bay and parks. Names are invented.
 
 - **2026-10-05 Shadows are cast only where the shadow map can hold them; dark lights are hidden
   (VISUAL_ROADMAP #50).** (Frame-cost audit after the 2026-10-04 wave, docs/HANDOFF.md 9bf.) The
@@ -787,6 +1075,20 @@ already mapped so milestone 2 is script-only.
 
 - **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #65).**
 - **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #77).**
+- **2026-10-05 The city's working vehicles do their jobs (VISUAL_ROADMAP ?).** On collection
+  day (a hash per street and weekday) every house puts its black, blue and green carts in the
+  gutter; a side-loader garbage truck per colour works down the street, stopping with its arm at
+  each cart, which it grabs, lifts over the hopper, tips, and sets back - all posed parts, no
+  bones. A sweeper crawls along a kerb with its brooms spinning, water spraying and dust lifting;
+  an ice-cream truck cruises the suburbs and the beach town playing an original chime and stops
+  with its flashers on; delivery vans stop double-parked with their hazards on; a rollback tow
+  truck comes for a burnt-out wreck the player has left (once the fire is out), slides its bed
+  down, winches the wreck on and drives off with it. Decisions: the trucks are ordinary traffic
+  cars with a `work` job (one hook in TrafficManager), not a parallel driving system; carts stand
+  on the stall lines between parking bays so parked cars fit round them (only a long car keeps
+  off); sounds are synthesised (the tune is written for the game). Names invented.
+  docs/HANDOFF.md 9dm; CLAUDE.md "Service vehicles".
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
   A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
   (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
   back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky
@@ -834,6 +1136,14 @@ already mapped so milestone 2 is script-only.
   Kept as a short list of records per building in WorldState, read by building.gdshader, so a
   building keeps its damage through streaming and an undamaged one costs nothing. Never on a
   place of worship. docs/HANDOFF.md 9cf; CLAUDE.md "Building damage".
+- **2026-10-05 The trees that make it read as Los Angeles (VISUAL_ROADMAP #95).** Ten species
+  built in code (none exist on Poly Haven): eucalyptus, Italian cypress, olive, Indian laurel fig,
+  California sycamore, coral tree, and the accents bird of paradise, agave, yucca, dragon tree.
+  They join the city by swapping a share of what is already planted (whole blocks' kerb rows,
+  park and plaza trees by 30 m cell, yard and planter trees, the freeway tree row, gully oaks,
+  some shrubs) and by adding cypress pairs and garden accents to houses - hashes after every
+  existing roll, so nothing else a seed builds moves. docs/HANDOFF.md; CLAUDE.md "Los Angeles
+  trees".
 
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
@@ -853,7 +1163,22 @@ already mapped so milestone 2 is script-only.
   and lit offices by the hour (`city_hour` global). No new node per block: an additive skin per
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
+- **2026-10-05 Murals, ghost signs, painted crosswalks and cabinets (VISUAL_ROADMAP #101).** The
+  pictures are painted procedurally in one shader from a seed (landscapes, botanical, folk
+  geometry, waves; no faces, no artist's work, no lettering) rather than drawn into an atlas,
+  because a 60 m sound wall needs centimetre detail an atlas cannot hold; only the ghost signs'
+  lettering is an atlas (invented period names). Decision: murals go only where the wall is
+  really blank (sound, yard and campus walls, freeway columns, the clear bands StreetWear's
+  `_paintable()` finds on a Building) - never over glass, so a Building gets ghost signs and
+  friezes in its bands, not wall-sized murals (no Building face is windowless). Transparent, drawn
+  before the street wear so tags land on top; FULL chunks only. docs/HANDOFF.md 9cw (murals);
+  CLAUDE.md "Murals".
 
+- **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
+  bases at a shared condensation level, crowns thinned so the billows build them into turrets,
+  footprints warped and tops sheared, a second population of fragments, three-octave torn edges
+  and fractus, and a deeper light march with an occluded ambient so shaded sides and bases go
+  grey. Forward+ only; the web keeps the painted cumulus.
 - **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
   real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the
   101 level 4, with the four left-turn connectors on levels 2 and 3, banked, on single hammerhead

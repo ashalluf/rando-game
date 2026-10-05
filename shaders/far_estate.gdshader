@@ -2,19 +2,20 @@ shader_type spatial;
 render_mode cull_back;
 
 // The hillside estates past the FULL chunks (EstateFar, scripts/world/estate_far.gd): the far
-// city's (Skyline) and the LOD chunks' copy of every HillRoads estate, as a handful of unit boxes
-// each - the pad on its retaining walls with a lawn, a paved court, hedges, the house and its
-// roof, the pool - plus the lamps a lit estate shows at night across the basin: garden lights,
-// the pool's underwater light, the lamps on the gate piers, the porch.
+// city's (Skyline) and the LOD chunks' garden, court, pool glow and lamps of every HillRoads
+// estate, on HillHomeKit's plan (its house is drawn by HillHomeKit; with HILL_HOMES=0 this draws
+// the old villa too, kinds HOUSE and ROOF). Lamps grow to a pixel or two with distance and light
+// by lamp_factor, so a canyon of estates reads at night from across the basin.
 //
 // Each instance is one part. INSTANCE_CUSTOM (half floats on Compatibility, so no positions):
-//   .r  the part's origin above the estate's deck (metres)
+//   .r  the part's origin over its reference height (the pad top, or the real ground under a
+//       driveway lamp), plus EstateFar.FAR_SINK for a part that lies on the drawn ground
 //   .g  kind (EstateFar.K_*) + 8 when the part stands on the real terrain (a LOD chunk) + a
 //       variant in the fraction (0..0.99: window rolls, lamp colour)
-//   .ba the part's origin minus the estate's centre, world XZ metres
-// so every part of an estate seated on the far plane moves by the one amount: the plane's drawn
-// height under the estate's centre minus its deck. COLOR is the part's LINEAR tint, its alpha
-// Skyline's dissolve.
+//   .ba the part's origin minus the estate's centre, world XZ metres (for probes; not the seat)
+// A far-city part is seated by far_canopy.gdshader's estate rule exactly, so it stays on the
+// HillHomeKit house drawn there: moved by the drawn far plane under its OWN origin, its reference
+// height put `seat_sink` into it. COLOR is the part's LINEAR tint, its alpha Skyline's dissolve.
 #include "res://shaders/macro_relief.gdshaderinc"
 #include "res://shaders/color_space.gdshaderinc"
 #include "res://shaders/window_lights.gdshaderinc"
@@ -27,6 +28,8 @@ uniform float plane_half = 7000.0;
 uniform float plane_step = 43.61;
 uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
+// far_canopy.gdshader's estate sink (EstateFar.FAR_SINK; checked).
+uniform float seat_sink = 0.8;
 // Smallest angular size a lamp is drawn at (radians of view): about 1.5 pixels on a 720-line
 // frame at 55 degrees. Its brightness falls by the area it grew, but never under lamp_floor.
 uniform float lamp_min_angle = 0.0022;
@@ -90,10 +93,8 @@ void vertex() {
 	kind = k - (k >= 8 ? 8 : 0);
 	float shift = 0.0;
 	if (real < 0.5) {
-		// The estate's centre and deck, from this part's origin and its offsets.
-		vec2 centre = origin.xz - INSTANCE_CUSTOM.ba;
-		float deck = origin.y - INSTANCE_CUSTOM.r;
-		shift = plane_y + plane_height(centre, cam) - deck;
+		float ref = origin.y - INSTANCE_CUSTOM.r;
+		shift = plane_y + plane_height(origin.xz, cam) - ref - seat_sink;
 	}
 	tint = COLOR.rgb;
 	fade = COLOR.a;
