@@ -102,6 +102,8 @@ void fragment() {
 	// At night the city's warm glow on the water, broken up by the chop (a faint floor: the lamps'
 	// pools and, on Forward+, SSR carry the real reflections).
 	float sparkle = clamp(length(grad) * 6.0, 0.0, 1.0);
-	vec3 glow = night_glow * lamp_factor * (0.4 + 0.6 * sparkle);
+	// Mostly where the chop catches it: at 0.4 of it everywhere the whole basin drew as one flat
+	// orange-brown sheet on Forward+ at night (its night exposure lifts it).
+	vec3 glow = night_glow * lamp_factor * (0.08 + 0.92 * sparkle * sparkle);
 	EMISSION = cs_out(sky * fres * sky_emit + glow * fres);
 }
