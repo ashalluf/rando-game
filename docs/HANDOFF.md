@@ -7040,9 +7040,9 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
-## 9bq. The reservoir in the hills: a lake behind a concrete dam, 2026-10-05 (agent branch `wt/reservoir`; VISUAL_ROADMAP #59)
+## 9bu. The reservoir in the hills: a lake behind a concrete dam, 2026-10-05 (agent branch `wt/reservoir`; VISUAL_ROADMAP #63)
 
-Number is provisional (the next free one after 9bp; the lead renumbers on merge).
+Number is provisional (the next free one after 9bt; the lead renumbers on merge).
 
 **The brief** (lead): the form of the reservoir behind the famous sign in LA's hills, original
 names - a long irregular lake filling a canyon of the front range, held back by a concrete

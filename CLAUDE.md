@@ -1956,7 +1956,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
   `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
   9bp). Checks: `tests/la_river_checks.gd`.
-- The reservoir (VISUAL_ROADMAP #59, 2026-10-05, docs/HANDOFF.md 9bq): the FORM of the
+- The reservoir (VISUAL_ROADMAP #63, 2026-10-05, docs/HANDOFF.md 9bu): the FORM of the
   reservoir behind the famous sign - a long irregular lake filling a canyon of the front range,
   held back by a 1920s concrete arch-gravity dam that faces the basin - named "Lake Shallufer" on
   the minimap and nothing anywhere else. **Data**: `Reservoir` (`scripts/world/reservoir.gd`,

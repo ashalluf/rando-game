@@ -290,7 +290,7 @@ already mapped so milestone 2 is script-only.
 ## Decisions log
 
 - **2026-10-05 The reservoir in the hills: a lake in a canyon of the front range behind a
-  concrete arch-gravity dam (VISUAL_ROADMAP #59, HANDOFF 9bq).** The form of the reservoir behind
+  concrete arch-gravity dam (VISUAL_ROADMAP #63, HANDOFF 9bu).** The form of the reservoir behind
   the famous sign, with an invented name ("Lake Shallufer"). Decisions worth knowing: the canyon
   is the range's OWN (a natural gorge west of the sign on the default seed) and the lake is a
   depression subtracted from the natural mountains along a few authored arms, not a bowl cut
