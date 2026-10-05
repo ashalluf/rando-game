@@ -7071,8 +7071,13 @@ level - it follows the contour, with coves where gullies come down. A core floor
 along each axis and lets go up the bank (it used to end in a wall where the natural ground stood
 100 m higher). The level is fitted per seed: 265 m by design, bisected down until the flood from the
 arms closes inside the box, then checked again with the dam, the shelf and the spillway in the
-ground. Default seed: level 265 m, 6.7 ha, crest 269 m, the dam 61.5 m high and 290 m along its
-crest (the real dam: 59 m, 285 m); seeds 42 and 99001 hold at 235 m / 232 m with 6.0 / 5.8 ha.
+ground. Default seed: level 265 m, 6.5 ha, crest 269 m, the dam 46 m high and 254 m along its
+crest on a 240 m radius (the real dam: 59 m, 285 m, gently curved; a 160 m radius swung the dam's
+west wing south down the mountainside). Other seeds are fitted the same way (`SEED=` on the probe).
+Two traps: the inland valley's plateau base reaches the lake's north end and `height_at()` adds it
+AFTER `raw_height_at()`, so the reservoir works in full-height space and takes the plateau back
+off in `carve()`; and the natural ground is read on a 10 m lattice for speed, so near the waterline
+it is read again for real, or the flood disagreed with the tiles by a metre or two.
 
 The carve sits at the end of `MacroMap.raw_height_at()`, so the hill tiles and their collision,
 HillPlanting, Skyline, the far bake and `zone_at()` all read one surface (the lake bed is still
@@ -7101,8 +7106,26 @@ drain and the joints, lime, rust under the lanterns and damp at the toe; up the 
 waterline band. The far copy (CityStreamer) and the detailed one share the meshes; the detailed one
 adds one concave collision shape, the lantern lights (`lamp_light`, every second one) and their
 pools, the trail's decomposed granite ribbon, LotFill's chain-link on the lake side and pines up the
-bank. Triangles: water 6.9 k, dam and towers 7.8 k, trim 15.8 k, trail 1.1 k; ~0.55 s to build once
+bank. Triangles: water ~6.9 k, dam and towers ~8 k, trim ~14 k, trail ~1.1 k; ~0.55 s to build once
 (the ridge table is most of it).
+
+**Frame cost** (still_shot.gd GEO, opengl3, 1280x720, `RESERVOIR=0` against the reservoir, same
+EYE): on the crest 2.54 M / 870 draws -> 2.89 M / 857; under the downstream face 1.58 M / 633 ->
+1.95 M / 615; the aerial with the sign hills 2.65 M / 781 -> 2.70 M / 785; at night from the north
+hill 3.15 M / 1342 -> 3.26 M / 1350; from the basin at (-500, -300) 9.04 M / 3417 -> 9.11 M / 3424.
+The smoke test: 933 s without it, 951 s with it on this box (both over headless_check.sh's 900 s
+here; the baseline was already over).
+
+**Stills** (shots/reservoir, opengl3, not the Mac's Forward+): the crest at golden hour, the
+downstream face from the shelf, the aerial with the sign hills, the lake at night from the north
+hill, the dam in its notch from the basin, the night shore with the hills mirrored. EYEs:
+`-617.1,270.9,-1210.8,-58.5,-3` @17.6, `-516.1,223.4,-1193.4,6.9,22` @16 fov 70,
+`-950,520,-1150,-75,-22` @17.3, `-480,420,-1640,180,-14` @22, `-500,35,-300,0,6` @17.3.
+
+**Not done / not verified.** Forward+ not seen: the mirror with SSR on top, the concrete's tone
+and the lanterns' pools need the Mac. The player walks on the lake bed under the water (no
+swimming, no splash). No road reaches the crest (the player flies or drives up the canyon). The
+hills round the lake are the range's own look (shells and HillPlanting), nothing new.
 
 **The water** (reservoir_water.gdshader) is a mirror traced against a table, because the web build
 and the opengl3 stills have no SSR and a lake's whole look is what it mirrors: per azimuth from the

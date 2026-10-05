@@ -43,7 +43,7 @@ const FREEBOARD := 4.0
 ## Dam: where the upstream face crosses the gorge's axis, and the radius of its arc. The arc's
 ## centre is DAM_RADIUS south (downstream) of DAM_AT.
 const DAM_AT := Vector2(-494.0, -1250.0)
-const DAM_RADIUS := 160.0
+const DAM_RADIUS := 240.0
 ## The crest's width (road and both parapets) and how far the downstream face steps out per metre
 ## of height (an arch-gravity section: a near-vertical upstream face, a battered downstream one).
 const CREST_WIDTH := 9.0
@@ -75,8 +75,8 @@ const FALL := 125.0
 const FALL_AT_DAM := 22.0
 ## The dam's design span (radians each side of its middle), which the depression's fall near the
 ## dam is measured from (the fitted span depends on the depression), and the face arm's.
-const DESIGN_SPAN := 0.85
-const FACE_SPAN := 0.55
+const DESIGN_SPAN := 0.6
+const FACE_SPAN := 0.38
 ## Steepest a core bank gets over the waterline (rise per metre) where the depression alone would
 ## leave the shore further out.
 const CORE_BANK := 1.25
@@ -142,7 +142,7 @@ func build(m: MacroMap) -> void:
 	# apart, and a height in the eroded range costs 20-40 us.
 	for j in range(0, _nz, 2):
 		for i in range(0, _nx, 2):
-			_nat[j * _nx + i] = macro.raw_height_at(grid_point(i, j))
+			_nat[j * _nx + i] = _full_natural(grid_point(i, j))
 	for j in _nz:
 		for i in _nx:
 			if i % 2 == 0 and j % 2 == 0:
@@ -152,7 +152,7 @@ func build(m: MacroMap) -> void:
 			var i1 := mini(i0 + 2, (_nx - 1) - (_nx - 1) % 2)
 			var j1 := mini(j0 + 2, (_nz - 1) - (_nz - 1) % 2)
 			if i1 == i0 or j1 == j0:
-				_nat[j * _nx + i] = macro.raw_height_at(grid_point(i, j))
+				_nat[j * _nx + i] = _full_natural(grid_point(i, j))
 				continue
 			var fi := float(i - i0) / float(i1 - i0)
 			var fj := float(j - j0) / float(j1 - j0)
@@ -185,6 +185,32 @@ func build(m: MacroMap) -> void:
 		_fit_dam()
 		_plan_spillway()
 		_refresh_grid()
+	# The natural ground was read every other node and filled in: near the waterline read it for
+	# real, so the flood (and the water mesh) agree with the ground the tiles draw.
+	var fixed := 0
+	for c in _nx * _nz:
+		var i := c % _nx
+		var j := c / _nx
+		if (i % 2 == 0 and j % 2 == 0) or absf(ground_grid[c] - level) > 6.0:
+			continue
+		_nat[c] = _full_natural(grid_point(i, j))
+		ground_grid[c] = _carve(grid_point(i, j), _nat[c], level, true, _grid_terms[c])
+		fixed += 1
+	wet_grid = _flood(ground_grid, level, true)
+	if wet_grid.is_empty():
+		wet_grid.resize(_nx * _nz)
+	# The dam's ends run on until the ground the tiles draw stands over the crest at the face.
+	for side in 2:
+		var sgn := -1.0 if side == 0 else 1.0
+		for it in 20:
+			var a := (dam_a0 if side == 0 else dam_a1) + sgn * 6.0 / DAM_RADIUS
+			var p := arc_point(a, DAM_RADIUS + 3.0)
+			if carve(p, macro.raw_height_at(p)) + macro.plateau_at(p) > crest - 2.0:
+				break
+			if side == 0:
+				dam_a0 -= 2.0 / DAM_RADIUS
+			else:
+				dam_a1 += 2.0 / DAM_RADIUS
 	_plan_trail()
 	# Only the ground along the trail moved.
 	var done := {}
@@ -243,7 +269,14 @@ func _natural(p: Vector2) -> float:
 		var fj := clampf(j - j0, 0.0, 1.0)
 		var c := j0 * _nx + i0
 		return lerpf(lerpf(_nat[c], _nat[c + 1], fi), lerpf(_nat[c + _nx], _nat[c + _nx + 1], fi), fj)
-	return macro.raw_height_at(p)
+	return _full_natural(p)
+
+
+## The natural ground as height_at() stands it: the mountains plus the inland valley's plateau
+## base (which reaches the lake's north end). Everything here works in that space; carve() takes the
+## plateau back off, since MacroMap adds it after raw_height_at().
+func _full_natural(p: Vector2) -> float:
+	return macro.raw_height_at(p) + macro.plateau_at(p)
 
 
 ## World XZ of grid node (i, j).
@@ -269,7 +302,8 @@ func carve(pos: Vector2, h: float) -> float:
 	# The lake's depression fades out toward the edge of BOX (and is nothing outside it); the dam,
 	# its shelf and the spillway reach into the outer box round the dam.
 	var e := minf(minf(pos.x - BOX.position.x, BOX.end.x - pos.x), minf(pos.y - BOX.position.y, BOX.end.y - pos.y))
-	return _carve(pos, h, level, true, PackedFloat32Array(), smoothstep(0.0, EDGE_FADE, e))
+	var base := macro.plateau_at(pos)
+	return _carve(pos, h + base, level, true, PackedFloat32Array(), smoothstep(0.0, EDGE_FADE, e)) - base
 
 
 ## BOX and the square round the dam's arc (set once the dam is placed).

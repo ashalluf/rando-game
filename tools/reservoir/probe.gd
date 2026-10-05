@@ -27,6 +27,15 @@ func _ready() -> void:
 	for line in res.trail:
 		tl += Reservoir._length(line)
 	print("TRAIL %d lines, %.0f m" % [res.trail.size(), tl])
+	var bad := 0
+	for line in res.trail:
+		for k in range(0, line.size(), 4):
+			var hh := macro.height_at(line[k])
+			if absf(hh - (res.level + Reservoir.TRAIL_RISE)) >= 0.6 and bad < 12:
+				bad += 1
+				print("TRAIL_OFF %s height %.2f raw %.2f td %.2f spill %.1f" % [line[k], hh, macro.raw_height_at(line[k]), res.trail_distance(line[k]), res._spill_query(line[k]).x])
+	for a: float in [res.dam_a0 - 6.0 / Reservoir.DAM_RADIUS, res.dam_a1 + 6.0 / Reservoir.DAM_RADIUS]:
+		print("DAM_END %.3f height %.1f crest %.1f" % [a, macro.height_at(res.arc_point(a, Reservoir.DAM_RADIUS + 3.0)), res.crest])
 	var tp := Time.get_ticks_usec()
 	var prof := res.ridge_profile()
 	print("RIDGE %.0f ms" % ((Time.get_ticks_usec() - tp) / 1000.0))
