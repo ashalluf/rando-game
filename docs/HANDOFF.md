@@ -6429,7 +6429,15 @@ same load both ways): noon 6.15 M triangles / 3,406 draws with `BROADWAY=0`, 6.4
 (+4.7 % / +0.7 %); 21:00 (different loads) 7.46 M / 4,811 -> 7.42 M / 4,582. A palace is about 15k
 triangles in one mesh of ~7 surfaces. Stills on `shots/broadway` (README there).
 
-**Not done / not verified**: no Forward+ look (the LED signs and the lit bus cabin at night
+**Night** (after the lead's review): the base carries its own light - a bronze wall lantern
+every three or four bays over the shop signs (`_sconce()`), a pool of light under each and
+under the entrance (`HistoricPools`, one shadowless MultiMesh of light_pool a building), the
+base's flood at 0.8. Spring St at 7th at 21:00 in the city: p5/p50/p95 7/44/175 (the near-black
+block_shot still was its crude night without street lamps). One Forward+ still (lavapipe,
+block_shot by day, `23_forwardplus_...`): underexposed in that scene (no city fill, the face in
+shade); the terracotta and the wall agree in tone.
+
+**Not done / not verified**: no Forward+ look in the full city (the LED signs and the lit bus cabin at night
   NEED A MAC CHECK); the bus's door openings show a black interior (no stairwell or floor); the
   front indicators are clear lenses; turns are snapped (a real turning radius for long vehicles
   would need the street traffic to drive arcs); no bus stops in the Esplanade replica's own
@@ -13420,3 +13428,104 @@ With `HILL_HOMES=0` it draws the old villa's whole estate (`_box_parts()`), as b
   basin 1.752 M -> 1.767 M triangles, 382 -> 387 draws; Palos Verdes 1.181 M -> 1.207 M, 377 -> 389;
   the air 1.396 M -> 1.413 M, 191 -> 202; downtown eye 2.957 M -> 2.987 M, 1,478 -> 1,494. Stills on
   `shots/estate-night` (README there), the LOD ring from `822,300,-900,0,-26`.
+
+## 9em. The historic core: beaux-arts banks and offices on Spring St and Main St, 2026-10-05 (agent branch `wt/historic-core`)
+
+Downtown's old financial row - Spring St ("the Wall Street of the West") and Main St between 2nd
+and 9th St, both pinned 1:1 by DowntownReal (x 3113 and 3236 on every seed) - was the historic
+core's generic 14-80 m masonry boxes. Now every lot fronting either avenue in that stretch is a
+beaux-arts bank or office block: glazed terracotta or pressed brick, a rusticated two-storey base
+with round-arched windows, a giant order of fluted pilasters or engaged columns, an entablature
+with the building's (invented) name on the frieze, a heavy bracketed cornice, a panelled attic
+with urns and a cartouche, bronze shopfronts, and a lit entrance with lanterns.
+
+**How** (the existing Building route, not a new building): `HistoricCore`
+(`scripts/world/historic_core.gd`) picks the lots (`block_fronts()`, `lot_avenue()`: a BUILDINGS
+block in DOWNTOWN whose edge is on the avenue, the lot's edge on that pavement) and `dress()`es
+the Building CityChunk._build_lot() has already set up (every roll of the chunk made), from one
+line after `Broadway.dress()`: a SLAB filling its lot (`Building.fill_lot`), FLAT terracotta from
+`TERRACOTTA` or BRICK from `PRESSED_BRICK` (`palette_override`, the same roll), PUNCHED windows
+(`window_style_force`), Spring St 24-40 m / Main St 13-30 m (the old 150 ft limit), no chamfer,
+balconies, bays, canopy or string courses, no kit surround or cornice (`kit_*_force "none"`), no
+stone base course or box cornice / crown bands (`allow_base_course`, `roof_bands`), and every
+shop's frame dark bronze (`shop_frame_force` 1: building.gdshader's new `shop_frame_force` uniform
+and ShopfrontKit). A lot running through to Broadway keeps Broadway's shop names. Everything is a
+hash of the seed and the lot (`spec_for()`: brick share, pilasters or columns, the palette, the
+name - `name_for()` walks the name list along each side of the avenue so neighbours never share).
+
+The building is still a Building, so its walls, interior-mapped windows, shops and lit offices,
+damage and the far city's CODED boxes (FarBuilding) are exactly as before; the ornament is laid on
+its window grid. `HistoricFacade` (`scripts/world/historic_facade.gd`) reads the one part's grid
+(`layout()`: storefront height, storey height, rows, bay pitch per face, from what `_build_part()`
+left on the part, or `part_grid()` for LOD) and, per STREET face (`street_faces()`: the lot edges on
+the block's pavement ring), builds into two LandmarkGeo meshes on the landmark facade shader
+(`LandmarkMats.facade`, plaster texture as detail, a low floodlight over the base after dark):
+- the base: the first floor in channelled rustication (courses with a recessed joint, broken
+  round each window), every first-floor window under a round arch (nine voussoirs, a deeper
+  keystone, a dark fanlight with bronze glazing bars, a bronze transom bar), stone sills, a moulded
+  belt course (`BELT`) under the second floor's sills;
+- the composition (`layout()`): seven storeys and more is base / shaft / capital - the shaft's
+  windows in architrave surrounds with sills and alternating hoods and keystones, a string course,
+  the giant order over the top two storeys; four to six storeys the order spans every storey over
+  the base; the order is a pilaster on every bay line (every other below a 2.3 m pitch) and inside
+  each street corner, fluted (the facade shader's vertical joints), on a base, under a capital with
+  a flared bell, acanthus tips, volutes and an abacus; 40 % of Spring St's (15 % of Main St's) are
+  engaged columns with entasis; spandrel panels with a lozenge between the order's storeys;
+- the entablature in the wall between the order's heads and the attic's sills (`heights()`):
+  architrave (`ARCHITRAVE`), frieze with the name in bronze letters on the main front, and the
+  cornice (`CORNICE`: bed moulding, dentils, modillion brackets every 0.64 m under a 1.08 m
+  corona, a cyma, 1.28 m out) - mitred round street corners, returned 2 m onto side walls, a box
+  collision ledge you can stand on; with no attic it caps the wall in front of the parapet;
+- the attic: panelled piers with lozenges on the order's lines, a coping cornice at the roof, urns
+  on the parapet over the street corners, a cartouche on the main front;
+- brick fronts: stone quoins up the street corners;
+- the entrance, on the main front's middle bay, standing out past the shop piers' cladding: two
+  engaged columns on pedestals, an entablature block with the name, a segmental pediment with a
+  lozenge, a lit soffit, two bronze lanterns on scroll brackets
+  (`shaders/historic_lamp.gdshader`: frosted glass glowing with `lamp_factor`), one lamp-group
+  OmniLight and a light pool on the pavement.
+`HistoricMain` (cornices, belts, order shafts, entablature: casts shadows, drawn to 380 m) and
+`HistoricFine` (rustication, arches, surrounds, capitals, modillions, dentils, panels, letters,
+lanterns: no shadow, 170 m). Built as time-sliced build steps (`CityChunk._run_or_defer()`): one
+driver step runs jobs until `HistoricFacade.STEP_BUDGET_US` (2.5 ms) is spent; each face's four
+phases queue their loop bodies (`HistoricFacade._later()`: a course, an arch, a pilaster, a row of
+surrounds, a panel, eight dentils, a modillion, an attic pier, the lettering) to run next, in order,
+so the mesh is the same triangles cut into small jobs; then both meshes are committed with
+`LandmarkGeo.commit_sliced()` (SurfaceTool's index and tangents on `COMMIT_CHUNK` 800 triangles a
+call, the slices joined one array kind a call, then the surface added), and no surface holds over
+`SURFACE_TRIS` (12,000) triangles (`LandmarkGeo.max_surface_tris`: growing a vertex array to
+megabytes inside one step stalled 10-20 ms on its reallocation now and then).
+LOD chunks and the far city: each street face's cornice and belt course as plain far boxes
+(`lod_box`, no windows) beside the building's coded boxes.
+
+**Shared files touched**: building.gd (inert hooks: `palette_override`, `fill_lot`,
+`kit_surround_force`, `kit_cornice_force`, `window_style_force`, `allow_base_course`,
+`roof_bands`, `shop_frame_force`), building.gdshader (`shop_frame_force`), shopfront_kit.gd (one
+line), city_chunk.gd (three hook lines), smoke_test.gd (one line).
+
+**A/B**: `HISTORIC_CORE=0` in the environment. Probe: `tools/historic/probe.gd` (every lot with
+its spec and an EYE). Checks: `tests/historic_core_checks.gd`.
+
+**Cost** (`tools/geo_count.gd`, opengl3, 1280x720, `--spawn=3113,250,-20,6`, Spring St at 7th
+looking north): 5.50 M triangles / 3,478 draws with it, 5.52 M / 3,444 with `HISTORIC_CORE=0`;
+the ornament alone (`AB=Historic*`) is 378 k triangles and 135 draws - the plainer buildings it
+dresses (no curtain walls, kit surrounds or bands) give back about as much. A block of four
+buildings is ~97 k triangles of ornament (the checks print it); each face is built in four
+time-sliced steps. **Step times** (`tools/historic/steps.tscn`, headless, every historic block
+FULL, `HISTORIC_TIME=1` prints each step over 1 ms and the slowest job in it): 96 buildings, ~5,500
+steps, median 2.0 ms, p99 4.8 ms, worst 6.8-8.2 ms over three runs (the box's own noise: a 1 ms job
+measured up to 3.4-8.7 ms in the same runs); before the slicing a step ran 58-67 ms (the checks)
+and up to 153 ms (one big building's fine commit). The same 2,304,706 triangles either way; the
+surface cap costs 105 surfaces over the 96 buildings (594 -> 699, about one draw a building
+near). Gate on the branch merged with main's batches 2 and 3, sliced: 1,805 passed, 0 failed; longest
+historic step in the checks 6.4 ms; peak RSS 3.7 GB.
+
+**Not done / not verified**: no Forward+ look (the terracotta and the floodlit base through AgX,
+the lanterns' bloom: Mac eyes needed); the side and back walls are the plain Building (party
+walls, as on the real street); window air conditioners from the kit still hang in some
+punched windows; the far city keeps only the cornice and belt as boxes (the pilasters and arches
+are under a pixel there); the shader's shop sign board still draws behind the entrance's name
+block.
+
+**Stills** (`shots/historic-core`): see the README there. EYEs on Spring St at 7th:
+`3108,1.7,232,-55,14` (the corner), `3112,1.7,240,-75,14` (an entrance), Main St `3240,1.7,300,135,12`.
