@@ -289,7 +289,7 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Public schools and the school bus (VISUAL_ROADMAP #59, HANDOFF 9bq).** LA's
+- **2026-10-05 Public schools and the school bus (VISUAL_ROADMAP #63, HANDOFF 9bu).** LA's
   neighbourhoods are full of schools and the game had only Parks' few campuses. `Schools` puts one
   in most 640 m map cells of the suburbs, midtown and the beach town from a hash of seed + cell, on
   a block nobody else claimed, AFTER every roll (so no seed moves). Decisions: (1) an elementary

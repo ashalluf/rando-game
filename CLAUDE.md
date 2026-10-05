@@ -1694,7 +1694,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `PARKS=0` in the environment is the A/B (before the plan is made). Checks:
   `tests/park_checks.gd`; coverage: `tools/lot_coverage.gd` rows `REC` / `SCHOOL`, kind `sport`.
   **Public schools** (`Schools`, `scripts/world/schools.gd` + `SchoolKit`,
-  `scripts/world/school_kit.gd`, 2026-10-05, docs/HANDOFF.md 9bq): on top of Parks' campuses, a
+  `scripts/world/school_kit.gd`, 2026-10-05, docs/HANDOFF.md 9bu): on top of Parks' campuses, a
   school per `Schools.CELL` (640 m) map cell from a hash of seed + cell (FireStation's approach,
   `TRIES` points a cell): `CityPlan.block()` hands each block it makes to `Schools.apply()` AFTER
   every roll and Parks' role, and the cell's decision (`decide()`, cached by seed) marks its blocks

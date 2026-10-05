@@ -106,6 +106,10 @@ const COLOURS := [Color(0.55, 0.10, 0.12), Color(0.10, 0.20, 0.45), Color(0.08, 
 	Color(0.32, 0.12, 0.40), Color(0.85, 0.42, 0.08), Color(0.10, 0.36, 0.48), Color(0.45, 0.06, 0.10)]
 const PORTABLE_PAINTS := [Color(0.80, 0.74, 0.62), Color(0.74, 0.70, 0.60), Color(0.84, 0.80, 0.70), Color(0.70, 0.66, 0.56)]
 
+## Tree wells on the blacktop: their grid pitch (m) and the most a school gets.
+const TREE_WELL_STEP := 15.0
+const MAX_TREE_WELLS := 10
+
 ## Far colours (LOD chunks and the far city), as Parks' are tuned.
 const FAR_ROOF := Color(0.64, 0.64, 0.62)
 
@@ -307,6 +311,8 @@ static func _eligible(plan: CityPlan, b: Dictionary, site: Rect2) -> bool:
 		return false
 	if plan.river_block(ix, iz):
 		return false
+	if _fire_station_block(plan, Vector2i(ix, iz)):
+		return false
 	for lm in Landmarks.all():
 		if lm.get("area") is Dictionary:
 			continue
@@ -314,6 +320,20 @@ static func _eligible(plan: CityPlan, b: Dictionary, site: Rect2) -> bool:
 		if Rect2((lm.anchor as Vector2) - Vector2(r, r), Vector2(r, r) * 2.0).intersects(area):
 			return false
 	return true
+
+
+## Whether block `k` is the one its fire-station cell points at (FireStation.for_cell()'s target,
+## worked out from the hashes and the roads alone - asking FireStation would ask the plan for
+## blocks outside the deciding cell). A school never takes it, so no station moves.
+static func _fire_station_block(plan: CityPlan, k: Vector2i) -> bool:
+	if not FireStation.enabled:
+		return false
+	var c := FireStation._cell_of(_block_rect(plan, k).get_center())
+	if FireStation._h01([plan.seed, c.x, c.y, "fire_station"]) > FireStation.ODDS:
+		return false
+	var target := Vector2((float(c.x) + lerpf(0.25, 0.75, FireStation._h01([plan.seed, c.x, c.y, "fs_x"]))) * FireStation.CELL,
+			(float(c.y) + lerpf(0.25, 0.75, FireStation._h01([plan.seed, c.x, c.y, "fs_z"]))) * FireStation.CELL)
+	return plan.block_index_at(target) == k
 
 
 ## The decision whose blocks include block (bx, bz), or {}.
@@ -1333,6 +1353,31 @@ static func _finish_step(ch: CityChunk, pl: Dictionary) -> void:
 					break
 			if clear:
 				ch._add_tree(Vector3(p.x, CityChunk.SIDEWALK_TOP + Parks.LIFT, p.y), rng)
+		# Tree wells out on the blacktop (the greening every district is doing): a grid of shade
+		# trees in concrete rings wherever nothing is painted or built.
+		var st := Parks._walls(ch)
+		var step := TREE_WELL_STEP
+		var gx := int(yard.size.x / step)
+		var gz := int(yard.size.y / step)
+		var wells := 0
+		for i in gx:
+			for j in gz:
+				var p := yard.position + Vector2((float(i) + 0.5) * yard.size.x / float(gx), (float(j) + 0.5) * yard.size.y / float(gz))
+				if wells >= MAX_TREE_WELLS or not _mine(ch, p) or not yard.grow(-4.0).has_point(p):
+					continue
+				var clear := true
+				for h: Rect2 in holes:
+					if h.grow(1.5).has_point(p):
+						clear = false
+						break
+				if not clear:
+					continue
+				wells += 1
+				ch._add_tree(Vector3(p.x, CityChunk.SIDEWALK_TOP + Parks.LIFT, p.y), rng)
+				for e in 4:
+					var a := float(e) * PI * 0.5
+					var d := Vector2(cos(a), sin(a))
+					ParkKit.box(st, ParkKit.frame(_at(ch, p + d * 0.9, 0.06), Vector2(-d.y, d.x)), Vector3(2.0, 0.24, 0.2), ParkKit.K_CONCRETE, ParkKit.CONCRETE)
 	# The buses parked in the loading zone (the chunk that owns that kerb).
 	park_buses(ch, pl)
 	if full and ch._park.has("school"):

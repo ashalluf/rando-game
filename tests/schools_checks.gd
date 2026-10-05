@@ -74,6 +74,9 @@ func _placement(plan: CityPlan) -> Dictionary:
 					bad.append("off city ground %s" % [k])
 				if Landmarks.claims(b.rect) or b.has("site"):
 					bad.append("on a landmark's block %s" % [k])
+				var fs := FireStation.for_cell(plan, FireStation._cell_of((b.rect as Rect2).get_center()))
+				if not fs.is_empty() and fs.block == k:
+					bad.append("on a fire station's block %s" % [k])
 			var pl := Schools.plan_for_school(plan, d)
 			var site: Rect2 = pl.site
 			var fac: Array = pl.fac
@@ -102,7 +105,7 @@ func _placement(plan: CityPlan) -> Dictionary:
 				out.high = d.blocks[0]
 			if not d.high and not out.has("elem"):
 				out.elem = d.blocks[0]
-	_t._check(bad.is_empty(), "school placement: SCHOOL blocks with no lots, in their districts, on city ground, facilities inside their sites, nothing on anything, regulation sizes (%s)" % [bad.slice(0, 4)])
+	_t._check(bad.is_empty(), "school placement: SCHOOL blocks with no lots, in their districts, on city ground, no fire station's, facilities inside their sites, nothing on anything, regulation sizes (%s)" % [bad.slice(0, 4)])
 	_t._check(n.elem >= 8 and n.high >= 2, "schools across the basin (%s)" % [n])
 	return out
 
