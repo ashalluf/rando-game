@@ -92,6 +92,7 @@ var _collected: Dictionary = {}
 ## Carts knocked over (run into, blown away): gone from the kerb for the rest of the day.
 var _knocked: Dictionary = {}
 var _blasts_seen := 0
+var _thrown_this_frame := 0
 ## The carts drawn now: [set, k, true-world position] (for the arm and the tests).
 var shown: Array = []
 var _sets: Array = []
@@ -282,6 +283,7 @@ func _knock_carts() -> void:
 		mover = _player.get("vehicle")
 		vel = (mover as RigidBody3D).linear_velocity
 		reach = 1.6
+	_thrown_this_frame = 0
 	var blast := Explosion.blast_count != _blasts_seen
 	_blasts_seen = Explosion.blast_count
 	var at := WorldState.to_local(Explosion.last_blast_world)
@@ -309,8 +311,11 @@ func _knock_carts() -> void:
 
 
 func _throw_cart(xf: Transform3D, color: int, push: Vector3) -> void:
-	if not PhysicsBudget.make_room(1):
+	# Never make_room(): that frees the oldest debris, which can be the body an ambulance is on
+	# its way to. With no room the cart is simply gone.
+	if not PhysicsBudget.can_spawn() or _thrown_this_frame >= 4:
 		return
+	_thrown_this_frame += 1
 	var body := PhysicsProp.new()
 	var shape := BoxShape3D.new()
 	shape.size = Vector3(KerbBins.DEPTH, KerbBins.HEIGHT, KerbBins.WIDTH)
@@ -890,12 +895,14 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 					(gear as ServiceVehicles.SweeperGear).set_working(true)
 					for i in 40:
 						(gear as ServiceVehicles.SweeperGear)._process(1.0 / 60.0)
-					return _eye(kerb_pt + along_v * float(dir) * 11.0, 1.6, at + across * side * 2.5, 1.0)
+					# From the middle of the road ahead of it, onto its kerb-side corner and brooms.
+					return _eye(at - across * side * 0.8 + along_v * float(dir) * 11.0, 1.5, at + across * side * 4.2 + along_v * float(dir) * 1.0, 0.6)
 				"ice_cream":
 					car.traffic.hazard = false
 					(gear as ServiceVehicles.IceCreamGear).set_standing(true)
 					(gear as ServiceVehicles.IceCreamGear).set_music(true)
-					return _eye(kerb_pt + along_v * float(dir) * 6.5 + across * side * 0.5, 1.6, at + across * side * 2.6 - along_v * float(dir) * 1.0, 1.7)
+					# From the parking lane ahead of it, onto its kerb side: the window, the awning.
+					return _eye(at + across * side * (w * 0.5 - 0.9) + along_v * float(dir) * 9.0, 1.4, at + across * side * 2.8 - along_v * float(dir) * 1.2, 1.7)
 				"delivery":
 					car.traffic.hazard = true
 					return _eye(kerb_pt - along_v * float(dir) * 9.0, 1.6, at + across * side * 2.0, 1.2)
@@ -910,10 +917,13 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 					dmg.become_wreck()
 					await get_tree().physics_frame
 					dmg.extinguish()
+					# Long enough for the last flames to die and the steam to go.
+					for i in 150:
+						await get_tree().physics_frame
 					_take_wreck(wreck)
 					wreck.global_transform = (gear as ServiceVehicles.TowBed).deck(0.0) * Transform3D(Basis(), Vector3(0.0, wreck.road_lift(), 0.0))
 					_tows.append({"car": car, "wreck": wreck, "state": "carry", "t": 0.0})
-					return _eye(kerb_pt - along_v * float(dir) * 12.0 + across * side * 1.0, 1.7, at + across * side * 1.5 - along_v * float(dir) * 1.5, 1.4)
+					return _eye(kerb_pt - along_v * float(dir) * 9.5 + across * side * 1.0, 1.7, at + across * side * 1.5 - along_v * float(dir) * 1.0, 1.6)
 	return ""
 
 

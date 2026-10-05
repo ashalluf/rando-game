@@ -473,7 +473,7 @@ class SweeperGear extends Gear:
 		broom = rigs.get("rig_broom") as Node3D
 		var web := OS.has_feature("web")
 		for side: float in [1.0, -1.0]:
-			var p := _mist(Color(0.85, 0.88, 0.92, 0.5), 0.10, 0.35, 0.8 if not web else 0.5)
+			var p := _mist(Color(0.85, 0.88, 0.92, 0.6), 0.10, 0.35, 0.8 if not web else 0.5)
 			p.position = Vector3(side * 0.95, 0.25, -1.30)
 			p.direction = Vector3(side * 0.2, -1.0, -0.15)
 			p.spread = 18.0
@@ -481,7 +481,7 @@ class SweeperGear extends Gear:
 			p.initial_velocity_max = 4.0
 			p.gravity = Vector3(0, -9.0, 0)
 			water.append(p)
-		dust = _mist(Color(0.62, 0.58, 0.52, 0.32), 0.7, 1.6, 2.6 if not web else 1.2)
+		dust = _mist(Color(0.62, 0.58, 0.52, 0.42), 0.7, 1.6, 2.6 if not web else 1.2)
 		dust.position = Vector3(0.9, 0.2, -0.2)
 		dust.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
 		dust.emission_box_extents = Vector3(0.5, 0.1, 0.8)
