@@ -29,3 +29,4 @@ Frame cost (tools/geo_count.gd, opengl3, 800x600, same spawn): SERVICE_VEHICLES=
 ## Body rebuild (lead's review; tools/make_big_vehicles.py cab_hardware(), make_service_vehicles.py)
 - `18_rebuild_<type>_<view>_before_left_after_right.jpg` - in game (car_shot.gd, opengl3, SERVICE_WORK=0.6): box truck, garbage, sweeper, tow; front 3/4 and rear 3/4; the committed models on the left, the rebuild on the right.
 - `18_rebuild_blender_<type>_front3_{before,after}.jpg` - the generators' own Cycles previews (studio light), before and after.
+- `18_rebuild_street_garbage_{before,after}.jpg` - SERVICE=garbage at the suburb bookmark (`--spawn=-190,22,-90,-5 --hour=10`), same EYE: frame 4.449 M -> 4.470 M tris (+0.5 %), draws 2,740 both.
