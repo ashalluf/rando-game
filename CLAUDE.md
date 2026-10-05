@@ -1916,6 +1916,55 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
   `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
   9bp). Checks: `tests/la_river_checks.gd`.
+- The marina (VISUAL_ROADMAP #59, 2026-10-05, docs/HANDOFF.md 9bq): the small-craft marina
+  between the beach town and the airport, the form of LA's big man-made one, names invented.
+  **Data**: `Marina` (`scripts/world/marina.gd`, `MacroMap.marina`, built in `setup()` after the
+  river, before the hill roads), a pure plan from the coast and the seed's grid: the site is the
+  whole blocks between the roads nearest `SITE_*` (5th to 7th, Lake Blvd to Birch on the default
+  seed), a terrace at `QUAY_Y` (`terrace()`, folded into `MacroMap._relief_at()`, never on the
+  sand), a basin quad (west seawall following the coast a promenade behind the sand, straight
+  east / north / south bulkheads), an entrance channel band (`zc` +- `CHANNEL_HALF`) out past
+  the waterline between two rubble jetties, a detached breakwater offshore, main docks every
+  `DOCK_PITCH` with fingers both sides, a headwalk on each seawall, pilings, gangways, ~160
+  boats in slips and ~35 on stands in the boat yard (types SAIL / MOTOR / FISHER / RUNABOUT,
+  `TYPE_ODDS`, lengths and paints by hash), towers, restaurants, a shed, car parks, palms, lamps,
+  benches, the bike path, nav lights, the channel boats' loop. Every roll is `h01()` (seed +
+  key). The grid: `CityPlan.road_open()` asks `Marina.road_open()` (the site's inner roads, any
+  road across the channel, the streets' beach ends under the bridge's ramps), `marina_block()`
+  blocks build no lots, walkers never cross onto one, GroundCoverage skips them. **The coast
+  highway** crosses the channel on MarinaBuild's bridge: its strip has a gap (`pch_gap()`,
+  snapped to HillRoads' own points; `MarinaBuild.filter_segments()` in `_hill_segments()`;
+  segments carry no name, `is_pch()` finds them by their line), the deck follows
+  `bridge_y()` (`BRIDGE_CREST` 3.9 m clear: only runabouts pass, sailboats stay in). **Build**:
+  `MarinaBuild` (`scripts/world/marina_build.gd`), attached at the top of
+  `CityChunk.begin_build()` for a marina block whatever its zone (its roads, the sand where it
+  holds the shore, the PCH, water, land by ground kind, bulkheads with copings, the planted bank
+  up from the sand, docks, piles, gangways, boats, buildings, props, the yard and travel lift,
+  the extras, lights, commit), and `extras()` for any other chunk the channel, jetties,
+  breakwater or bridge reach (CityChunk appends it before the freeway); `_build_beach` cuts the
+  channel's band out of the sand (`sand_rects()`) and keeps the palms' and lifeguard tower's
+  rolls. One mesh per material a chunk, one trimesh `MarinaBody`; the water is
+  `shaders/marina_water.gdshader` at the sea's 0.15 (the GroundBody under it: you wade, as in
+  the sea; `MacroMap.bake()` marks it water so the horizon plane sinks). **Boats**: `BoatMesh`
+  (`scripts/world/boat_mesh.gd`), code-built at real size (lofted hull sections - round bilge to
+  deep V, flare, sheer spring, raked stem, transom -, deck, cabins with window bands, masts,
+  booms, sail covers, furled jibs, standing rigging, pulpits, lifelines, flybridges, hardtops,
+  tuna towers, outboards), NEAR / MID / FAR ~2k / 0.6k / 0.13k triangles; region in COLOR.a,
+  `shaders/boat.gdshader` paints by it (paint and canvas from INSTANCE_CUSTOM, the instance
+  colour white: it multiplies COLOR), bobs each boat about its waterline phased by its TRUE
+  world position (`origin_shift`), lights lit cabins and anchor lights after dark. Boats are
+  MultiMeshes grouped by type, variant and a 60 x 44 m cell, three nodes a group with
+  visibility ranges (a batch takes one LOD for all its instances); one box shape each on
+  `MarinaBoats`. Glows (anchor lights, dock pedestals, nav lights - red south / green north
+  jetty, white breakwater, flashing) are one billboard mesh on aircraft_lights.gdshader.
+  `MarinaTraffic` (child of the chunk holding the loop's start) runs three runabouts out the
+  channel and back. **Far**: LOD chunks build the water, land, docks as slabs, FAR boats and the
+  masts as `lod_box` MASTs (drawn at least a pixel wide: the mast forest from the hills); the
+  capture records land slabs, docks, hulls, masts, buildings, jetties, breakwater and the
+  bridge deck; Skyline's plate for a marina block is the water at the water. `MARINA=0` in the
+  environment is the A/B. Probe: `tools/marina/probe.gd` (headless, seconds); quick checks:
+  `tools/marina/marina_check.tscn` (the marina's checks alone, a minute); checks:
+  `tests/marina_checks.gd`.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is
