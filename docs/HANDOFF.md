@@ -11050,7 +11050,7 @@ substation's equipment is sparse next to a real one. No collision on wires; LOD 
 tower collision (the far lines stand in). The minimap draws the fire roads and the pads as hill
 roads. Planning adds ~3.5 s to the loading screen on this box.
 
-## 9dm. Service vehicles at work: garbage trucks, sweepers, tow trucks, ice-cream trucks, delivery vans, 2026-10-05 (agent branch `wt/service-vehicles`; VISUAL_ROADMAP ?)
+## 9dm. Service vehicles at work: garbage trucks, sweepers, tow trucks, ice-cream trucks, delivery vans, 2026-10-05 (agent branch `wt/service-vehicles`; VISUAL_ROADMAP #107)
 
 **What.** The city's working vehicles doing their jobs, as ordinary traffic cars with a job:
 
