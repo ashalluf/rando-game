@@ -18,3 +18,5 @@ Same harness (`tools/ridges/ridge_shot.tscn`, opengl3, not Forward+), after the 
 - `12_merged_tower_close_up_1030.jpg`: tower 4 from near its foot (`TOWER=4 DIST=28 AZ=200 UP=1.7 AIM=0.55 FOV=70`).
 - `13_merged_substation_1100.jpg`: the Vernon substation from the street (`SUB=1`).
 - `14_merged_antenna_farm_day_1530.jpg`: the farm's masts and guys (`MAST=0 DIST=160 UP=20 AIM=0.4`).
+- `15_city_line_east_range_1742.jpg` / `_BEFORE` (`RIDGES=0`): the whole city through `tools/glshot/still_shot.gd` (`EYE=5489,175,3383,-77,8 -- --hour=17.7`), the frame-cost bookmark: 0.410 M / 96 draws -> 0.459 M / 100.
+- `16_city_river_by_substation_line_1100.jpg`: `still_shot.gd EYE=4560,2,3340,-58,22 -- --hour=11` - the camera is in the LA River's channel by the substation; the Eastern line crosses the river overhead. 1.051 M / 496 -> 1.132 M / 521.
