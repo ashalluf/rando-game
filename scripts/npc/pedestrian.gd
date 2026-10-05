@@ -1810,6 +1810,10 @@ static func far_mesh(mesh: Mesh, cap: int = -1) -> Mesh:
 			break
 	var result := _unweld(w, base, mesh.surface_get_material(0))
 	per_cap[cap] = result
+	# Both bodies built: the weld (the model's arrays read back, the welded copy and its LOD
+	# chain, ~2 MB a rig) is only needed to build them. Kept, it was 40 MB of a city load.
+	if per_cap.has(mid_triangles) and per_cap.has(far_triangles):
+		_welds.erase(mesh)
 	return result
 
 

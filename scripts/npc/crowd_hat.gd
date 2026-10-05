@@ -1269,7 +1269,7 @@ static func pressed_hair(hmi: MeshInstance3D, skel: Skeleton3D, rig: String, kin
 
 
 static func _hair_key(mesh: Mesh, rig: String, kind: int) -> String:
-	return "%s|%d|%d" % [rig.get_file(), kind, mesh.get_rid().get_id()]
+	return "%s|%d|%s" % [rig.get_file(), kind, PropFactory.mesh_key(mesh)]
 
 
 ## The skeleton's scale chain up to the rig's root (0.01: centimetres under the armature).

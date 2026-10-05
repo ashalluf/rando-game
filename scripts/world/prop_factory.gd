@@ -6,6 +6,19 @@ extends RefCounted
 
 static var _cache: Dictionary = {}
 
+
+## A cache key for a mesh that survives the mesh being freed and loaded again: its resource path
+## (a model's sub-resource path, "res://...glb::ArrayMesh_x", is the same on every load), the RID
+## only for a mesh with no path. A key on the RID alone took a new copy of the derived mesh every
+## time the model was unloaded and loaded again (the car bodies' wheel tucks: 18 entries after
+## the load, 100 after a 2 km drive, ~80 MB).
+static func mesh_key(mesh: Resource) -> String:
+	if mesh == null:
+		return "null"
+	if mesh.resource_path != "":
+		return mesh.resource_path
+	return "rid%d" % mesh.get_rid().get_id()
+
 ## CC0 texture sets in assets/textures (see docs/ASSETS.md). Map names: Color, NormalGL, Roughness.
 const TEXTURE_SETS := {
 	"asphalt": "Asphalt033", "brick": "Bricks104", "concrete": "Concrete034", "grass": "Grass004",
@@ -1425,6 +1438,8 @@ static func _build_shadow_proxy(im: ImporterMesh, mesh: Mesh, leaf_share: float 
 		total += (base as PackedInt32Array).size() / 3
 		kept += best.size() / 3
 		arrays[Mesh.ARRAY_INDEX] = best
+		# The stand-in draws only the coarse LOD's triangles: keep only their vertices.
+		arrays = MeshCompact.compact(arrays)
 		out.add_surface(im.get_surface_primitive_type(s), arrays, [], {}, mat, im.get_surface_name(s))
 	# Not worth a second node for a small saving.
 	if kept > total * 0.8:

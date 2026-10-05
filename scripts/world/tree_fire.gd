@@ -99,6 +99,9 @@ static func collect(chunk: CityChunk, batch: MultiMeshBatch) -> Array:
 static func attach(chunk: CityChunk, entries: Array, nodes: Dictionary) -> void:
 	if entries.is_empty():
 		return
+	# Drop the records of chunks that are gone: nothing else does until a fire looks, and a
+	# drive across the city left tens of thousands of dead trees here.
+	_live()
 	var trees: Array = []
 	for e: Array in entries:
 		trees.append(_entry(e))
