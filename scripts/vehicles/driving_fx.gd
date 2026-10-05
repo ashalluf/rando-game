@@ -27,6 +27,8 @@ static var _inst: DrivingFX = null
 static var enabled: bool = true
 ## Stills only: every tyre reads this surface (Surface, -1 off) - the test room has no beach.
 static var force_surface: int = -1
+## The process frame `_inst` was made in (a deferred add that never ran is told by it).
+static var _made_frame: int = -10
 
 enum Surface { ASPHALT, DIRT, SAND }
 
@@ -164,9 +166,17 @@ static func ensure(from: Node) -> void:
 	if not enabled or OS.get_environment("DRIVING_FX") == "0":
 		return
 	# Made but not added yet (the add is deferred, and a chunk builds many cars in one frame), or
-	# already in a level: nothing to do.
-	if _inst != null and is_instance_valid(_inst) and (_inst.get_parent() == null or _inst.is_inside_tree()):
-		return
+	# already in a level: nothing to do. One still parentless a frame later was dropped with the
+	# level it was meant for (freed before the deferred add ran): free it and make another, or no
+	# level after that would ever get one.
+	if _inst != null and is_instance_valid(_inst):
+		if _inst.is_inside_tree():
+			return
+		if _inst.get_parent() == null:
+			if Engine.get_process_frames() <= _made_frame + 1:
+				return
+			_inst.free()
+		_inst = null
 	var tree := from.get_tree()
 	if tree == null:
 		return
@@ -179,6 +189,7 @@ static func ensure(from: Node) -> void:
 		host = tree.root
 	_inst = DrivingFX.new()
 	_inst.name = "DrivingFX"
+	_made_frame = Engine.get_process_frames()
 	host.add_child.call_deferred(_inst)
 
 
@@ -380,6 +391,19 @@ func _scan() -> void:
 			car.max_contacts_reported = maxi(car.max_contacts_reported, 4)
 			_monitored[id] = car
 	_cars = keep
+	# Per-wheel and per-car state only for the cars still watched: a car freed while watched (a
+	# pooled cruiser, a chunk's parked car) never came through `_forget_wheels()`.
+	var wheels_kept := {}
+	var cars_kept := {}
+	for car: Vehicle in keep:
+		cars_kept[car.get_instance_id()] = true
+		for w in car.wheels:
+			if is_instance_valid(w) and _wheel_state.has(w.get_instance_id()):
+				wheels_kept[w.get_instance_id()] = _wheel_state[w.get_instance_id()]
+	_wheel_state = wheels_kept
+	for id in _prev_force.keys():
+		if not cars_kept.has(id):
+			_prev_force.erase(id)
 
 
 func _unmonitor(car: Vehicle) -> void:
