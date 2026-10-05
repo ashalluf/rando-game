@@ -495,6 +495,7 @@ func _finish_build() -> void:
 	HouseKit.commit(self)
 	Industrial.commit(self)
 	Parks.commit(self)
+	Roadside.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	_mm_nodes = _batch.build(self)

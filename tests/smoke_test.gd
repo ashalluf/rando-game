@@ -1789,6 +1789,9 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# Roadside commerce (tests/roadside_checks.gd): the kinds by hash, gas stations, car washes,
+	# auto shops, the diner, drive-thrus and the giant-donut stand; one mesh a chunk, nothing moved.
+	load("res://tests/roadside_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
