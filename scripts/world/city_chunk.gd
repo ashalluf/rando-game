@@ -2878,6 +2878,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if PoliceStation.claims(plan, ix, iz, lot):
 		PoliceStation.build_lot(self, lot)
 		return
+	# A place of worship's lots (Worship: a run of lots on one street, hash-seeded; after the stations).
+	if Worship.claims(plan, ix, iz, lot):
+		Worship.build_lot(self, lot)
+		return
 	# A Broadway movie palace (Broadway: a table of real addresses; the rolls above are made).
 	if Broadway.claims(plan, ix, iz, lot):
 		Broadway.build_lot(self, lot)

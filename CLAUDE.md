@@ -3773,6 +3773,19 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   zone over each chunk's part at FULL and LOD; nothing breaks. `CEMETERY=0` is the A/B; probes
   `tools/cemetery/probe.gd` (`EYES=` heights on the rise) and `build_probe.gd`; checks
   `tests/cemetery_checks.gd` (`tools/cemetery/checks_only.tscn` alone).
+- Places of worship (2026-10-05, docs/HANDOFF.md "Places of worship"): `Worship`
+  (`scripts/world/worship.gd`, placement, pure) puts one per `CELL` (800 m) by a hash of seed +
+  cell - kind by the district's `KIND_WEIGHTS` (MISSION, MODERN, STOREFRONT, GREEK, TEMPLE,
+  SYNAGOGUE), a site of whole lot cells along one street sized by `SIZES` on a BUILDINGS block
+  nobody else claims - and `CityChunk._build_lot()` hands its lots over after the stations'
+  claims (`claims()` / `build_lot()`; `HouseKit.extra_lots()` asks `covers()`). `WorshipBuild`
+  builds it in code in the site's frame (x along the street, +z out) on the landmark shaders, cut
+  walls with real arches and reveals (`wall()`), `shaders/worship_glass.gdshader` (stained,
+  leaded, dalle de verre, plain; glowing after dark), grounds, lamps; LOD / far: `plan_of()`'s
+  boxes and tilted roof slabs. Every site is a Sanctuary (zone + `sanctuary` body); StreetWear
+  (`Worship.blocked_near()`) and the encampments (`near_rect()`, `WORSHIP_CLEAR`) keep off.
+  Names invented. `WORSHIP=0` is the A/B, `WORSHIP_KIND=` forces a kind; probe
+  `tools/worship/probe.gd` (EYEs); checks `tests/worship_checks.gd`.
 - Autoload `WorldState`: `world_offset` (local + offset = true world position, use `to_world()` /
   `to_local()`) and the destroyed-prop registry (`mark_destroyed`, `is_destroyed`).
 - Anything that must survive origin re-centering has to be a 3D child of the scene root (the

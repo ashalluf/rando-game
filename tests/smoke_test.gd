@@ -2288,6 +2288,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Overhead utilities (tests/utility_poles_checks.gd): hardware budgets, pure runs, the birds'
 	# spans on the middle primary, ribbon wires, a drop to nearly every house, nothing else rolled.
 	load("res://tests/utility_poles_checks.gd").new().run(self, city)
+	# Places of worship (tests/worship_checks.gd): placement, sanctuary zones, one chunk of each kind.
+	await load("res://tests/worship_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
