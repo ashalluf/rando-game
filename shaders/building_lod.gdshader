@@ -369,6 +369,33 @@ void vertex() {
 	// standing on costs no fragments at all.
 	if (COLOR.a < 0.004) {
 		VERTEX = vec3(0.0);
+	} else if (INSTANCE_CUSTOM.a < -0.5 && INSTANCE_CUSTOM.r > 0.5) {
+		// One of a cut part's three pieces (FarBuilding.corners): the middle narrowed by one bay
+		// at each x end, or an end piece whose outer corners come in one bay - the near part's
+		// octagonal prism between them. The bays are the part's own (its code's cols_x / cols_z);
+		// a corner's x and z are worked out by the same expressions in every piece, so the three
+		// meet without a crack. The pulled faces of an end piece are the diagonal cut faces.
+		vec3 bs = vec3(MODEL_MATRIX[0][0], MODEL_MATRIX[1][1], MODEL_MATRIX[2][2]);
+		uint cd = uint(round(MODEL_MATRIX[1][2] * 268435456.0) + 0.5);
+		float cxu = 1.0 / max(float(cd & 127u), 1.0);
+		float czu = 1.0 / max(float((cd >> 7u) & 127u), 1.0);
+		float sx = VERTEX.x > 0.0 ? 1.0 : -1.0;
+		if (INSTANCE_CUSTOM.r < 1.5) {
+			VERTEX.x = sx * (0.5 - cxu);
+		} else {
+			float end = INSTANCE_CUSTOM.r < 2.5 ? 1.0 : -1.0;
+			float sz = VERTEX.z > 0.0 ? 1.0 : -1.0;
+			if (sx != end) {
+				VERTEX.x = end * (0.5 - cxu);
+			} else {
+				VERTEX.z = sz * (0.5 - czu);
+			}
+			if (abs(NORMAL.z) > 0.5) {
+				// The cut face, from (end * (0.5 - cxu), sz * 0.5) to (end * 0.5, sz * (0.5 - czu))
+				// in metres: its outward normal is (end * cut_z, sz * cut_x), normalised.
+				NORMAL = normalize(vec3(end * czu * bs.z, 0.0, sign(NORMAL.z) * cxu * bs.x));
+			}
+		}
 	}
 	local_pos = VERTEX;
 	local_normal = NORMAL;
@@ -377,6 +404,10 @@ void vertex() {
 	tint = COLOR;
 	// Matches how `u` is measured below: local Z on the +-X faces, local X on the +-Z faces.
 	vec3 t_local = abs(NORMAL.x) > 0.5 ? vec3(0.0, 0.0, 1.0) : vec3(1.0, 0.0, 0.0);
+	if (abs(NORMAL.x) > 0.01 && abs(NORMAL.z) > 0.01) {
+		// A cut face (above): along it.
+		t_local = normalize(vec3(-NORMAL.z, 0.0, NORMAL.x));
+	}
 	vec3 world;
 	vec3 n_world;
 	if (INSTANCE_CUSTOM.a < -0.5) {
@@ -516,6 +547,12 @@ void fragment() {
 			vec2 p = local_pos.xz * box_size.xz;
 			vec2 e = box_size.xz * 0.5 - abs(p);
 			float edge = min(e.x, e.y);
+			if (custom.r > 0.5) {
+				// A cut part's roof (FarBuilding.corners): the parapet runs round the cut corners too.
+				float cxw = box_size.x / cols_x;
+				float czw = box_size.z / cols_z;
+				edge = min(edge, (e.x * czw + e.y * cxw - cxw * czw) / length(vec2(cxw, czw)));
+			}
 			float ring = 1.0 - smoothstep(0.7 - mpp * 0.5, 0.7 + mpp * 0.5, edge);
 			vec3 surface;
 			if (parking) {
@@ -815,8 +852,9 @@ void fragment() {
 				cell = cs_as_uniform(mix(c_raw, vec3(1.0), 0.06));
 				cell *= 1.0 - 0.18 * smoothstep(0.12, 0.0, box_size.y - ext - vp) * detail(0.4, mpp);
 			} else if (pier) {
-				// A cut corner's pier, lit as its own face would be: lighter, it turns to the sky.
-				cell = wall * 1.06;
+				// A cut corner's pier. As a real cut face (FarBuilding.corners) the sun lights it;
+				// painted on the box's end bay it is lightened, as its own face would be.
+				cell = wall * (custom.r > 0.5 ? 1.0 : 1.06);
 			} else if (g_open) {
 				// Inside the deck: dark by day but for the light at the far side, its lamps after dark.
 				cell = c * 0.08;
@@ -941,6 +979,50 @@ void fragment() {
 				float vv = local_pos.y + 0.5;
 				albedo = mix(c, c * vec3(0.55, 0.60, 0.70), step(0.45, vv) * step(vv, 0.78)) * top_lit;
 				rough = 0.5;
+			}
+		}
+		if ((kind == 5 || kind == 6) && n.y > 0.5) {
+			// Rooftops: a helipad's deck (5) and a pool deck (6), painted on the top face. Metres
+			// from the box's centre; custom.b turns the pad's paint a quarter (odd turns) and lays
+			// a pool along z (1) rather than x.
+			vec2 q = local_pos.xz * box_size.xz;
+			float tm = max(max(fwidth(q.x), fwidth(q.y)), 0.02);
+			if (kind == 5) {
+				if (fract(custom.b * 2.0) > 0.25) {
+					q = vec2(q.y, -q.x);
+				}
+				float s = box_size.x;
+				vec2 aq = abs(q);
+				float edge = abs(max(aq.x, aq.y) - (s * 0.5 - 0.65));
+				float ring = abs(length(q) - s * 0.31);
+				float hh = s * 0.17;
+				float hw = hh * 0.6;
+				float bar = hh * 0.16;
+				float hm = max(step(aq.y, hh) * (1.0 - smoothstep(bar - tm, bar + tm, abs(aq.x - hw))),
+					step(aq.x, hw) * (1.0 - smoothstep(bar - tm, bar + tm, aq.y)));
+				vec3 white = cs_as_uniform(vec3(0.86, 0.86, 0.84));
+				vec3 yellow = cs_as_uniform(vec3(0.86, 0.62, 0.06));
+				float pw = 0.15 + tm;
+				albedo = c;
+				albedo = mix(albedo, white, (1.0 - smoothstep(pw - tm, pw + tm, edge)) * 0.95);
+				albedo = mix(albedo, yellow, (1.0 - smoothstep(0.3, 0.3 + tm * 2.0, ring)));
+				albedo = mix(albedo, white, hm);
+				// The green perimeter lights after dark: a lit edge out here.
+				emission += vec3(0.15, 1.0, 0.3) * 1.6 * lamp_factor * (1.0 - smoothstep(0.0, 0.35 + tm, abs(max(aq.x, aq.y) - (s * 0.5 - 0.25))));
+				rough = 0.75;
+			} else {
+				vec2 qq = custom.b > 0.5 ? vec2(q.y, q.x) : q;
+				vec2 bs = custom.b > 0.5 ? box_size.zx : box_size.xz;
+				// The pool along the long axis, off-centre toward one end, on the -z side.
+				vec2 pc = vec2(-bs.x * 0.1, -bs.y * 0.12);
+				vec2 ph = vec2(bs.x * 0.36, bs.y * 0.27);
+				vec2 dq = abs(qq - pc) - ph;
+				float inside = 1.0 - smoothstep(-tm, tm, max(dq.x, dq.y));
+				vec3 water = cs_as_uniform(vec3(0.20, 0.62, 0.68));
+				albedo = mix(c, water, inside);
+				emission += inside * (vec3(0.10, 0.55, 0.62) * 1.6 * lamp_factor + sky_tint.rgb * 0.12);
+				rough = mix(0.8, 0.08, inside);
+				spec = mix(0.25, 0.5, inside);
 			}
 		}
 		if (kind == 2 && box_size.y - (local_pos.y + 0.5) * box_size.y < 0.6) {
