@@ -12,3 +12,7 @@ SUNSPIRE PICTURES, an invented Hollywood studio lot in midtown under the ridge s
 - 07_after_stage4_gable_1100: a stage gable with its painted number and roof stair.
 - 08_after_gate_night_2130: the gate at night, the gilt name and mark lit.
 - 09_after_aerial_wide_noon: the lot in its neighbourhood (north half in LOD).
+- 10_after_studio_street_bungalows_basecamp_1100: a closed street inside the lot: bungalows, the water tower, basecamp trailers along stage 10.
+- 11_after_backlot_night_2130: the New York street at night, lit windows and cast-iron lamps.
+- 12_after_aerial_golden_hour_backlot_bracing_1820: stages 4 and 8 and the backlot from the east, the false fronts' plywood backs and raked bracing.
+- 13_after_aerial_flat_lot_noon: the final build from the south-west (the lot flattened over its own rect).
