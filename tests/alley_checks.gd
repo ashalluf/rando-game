@@ -11,6 +11,9 @@ extends RefCounted
 ## last things the block rng places before the walkers - are where they were).
 
 var _t: Node
+var _props: Dictionary = {}
+var _lamp_cap_ok := true
+var _backs := 0
 
 
 func run(t: Node, city: Node3D) -> void:
@@ -27,6 +30,15 @@ func run(t: Node, city: Node3D) -> void:
 		_pure(plan, k)
 		_full(city, plan, k)
 		_capture(city, plan, k)
+	var kinds := ["dumpster", "door", "lamp", "cart", "grease", "condenser", "pole"]
+	var missing: Array = []
+	for kind: String in ["dumpster", "door", "lamp"]:
+		if int(_props.get(kind, 0)) == 0:
+			missing.append(kind)
+	var seen := kinds.filter(func(k: String) -> bool: return int(_props.get(k, 0)) > 0)
+	_t._check(missing.is_empty() and seen.size() >= 5, "the alleys are dressed: dumpsters, doors under lamps and more (%s)" % [_props])
+	_t._check(_lamp_cap_ok, "no chunk hangs more than %d alley lamps" % Alleys.MAX_LAMPS)
+	_t._check(_backs > 0, "the buildings backing onto an alley turn their back to it (%d with back_face)" % _backs)
 	if down.x != 99999:
 		_unmoved(city, down)
 
@@ -98,7 +110,7 @@ func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	for c in chunk.get_children():
 		if String(c.name).begins_with("AlleyGround"):
 			grounds += 1
-		if String(c.name).begins_with("AlleyWalls"):
+		if String(c.name) == "AlleyWalls":
 			uprights += 1
 	_t._check(ground != null and grounds == 1 and ground.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		and ground.material_override == Alleys.ground_material(), "the alley's ground is one shadowless mesh on the alley shader (block %d,%d)" % [k.x, k.y])
@@ -140,6 +152,13 @@ func _full(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 			if Alleys.in_mouth(plan, k.x, k.y, Vector2(p.x, p.z)):
 				lamps += 1
 	_t._check(lamps == 0, "no street lamp stands across an alley's mouth (%d)" % lamps)
+	var props: Dictionary = chunk.get_meta("alley_props", {})
+	for kind: String in props:
+		_props[kind] = int(_props.get(kind, 0)) + int(props[kind])
+	_lamp_cap_ok = _lamp_cap_ok and int(props.get("lamp", 0)) <= Alleys.MAX_LAMPS
+	for c in chunk.get_children():
+		if c is Building and int((c as Building).back_face) != 0:
+			_backs += 1
 	chunk.get_parent().remove_child(chunk)
 	chunk.free()
 

@@ -289,6 +289,21 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Service alleys down the backs of downtown and midtown blocks (VISUAL_ROADMAP #59,
+  HANDOFF 9bq).** Los Angeles' commercial blocks are two rows of lots back to back with an alley
+  between; here that strip was LotFill's forecourt paving and planters, and every building wore
+  shops on all four faces. Decisions: (1) the alley's BAND is pure (the lot grid's seam, from
+  `CityPlan.lots()` alone) so LotFill, the parked cars and the pavement props keep off it while
+  the lots are built, but the RUN inside it is worked out from the buildings the lots stood up (no
+  lot is moved or shrunk; where the buildings leave under 3.2 m the alley stops, a dead end);
+  (2) the buildings' alley faces are their backs (`Building.back_face`: no storefront, shop
+  names, awnings or canopy there) - a small local hook in building.gd, the one shared file this
+  needed besides LotFill and CityChunk's hook lines; (3) the furniture reuses IndustrialKit's
+  writers and material (one upright mesh a chunk, no new shader for it) and StreetDetail's pole
+  and wire batches; (4) LOD and the far city get the band as concrete slabs only; (5) the
+  dressing decides in a couple of milliseconds and writes each prop as its own build step (a
+  long alley's writes were 40-90 ms in one).
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

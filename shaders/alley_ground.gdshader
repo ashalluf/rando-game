@@ -195,10 +195,15 @@ void fragment() {
 		vec2 gq = vec2(s - gs, o);
 		if (hash12(vec2(cell, seed * 7.0 + 2.0)) < 0.7 && abs(gq.x) < 0.48 && abs(gq.y) < 0.33) {
 			float frame = step(0.42, abs(gq.x)) + step(0.27, abs(gq.y));
-			float slot = step(0.5, fract(gq.x / 0.06)) * step(abs(gq.y), 0.25);
-			vec3 iron = vec3(0.16, 0.15, 0.14) * (0.8 + 0.4 * vnoise(gq * 30.0));
-			albedo = mix(iron * mix(1.0, 0.25, slot * fade + 0.3 * (1.0 - fade)), vec3(0.22, 0.2, 0.18), clamp(frame, 0.0, 1.0));
-			rough = 0.6;
+			// Bars across the gutter every 9 cm, box-filtered to their average once a bar is under
+			// a few pixels (at a grazing angle they shimmered into a moire).
+			float sfw = max(fwidth(gq.x) / 0.09, 0.0005);
+			float bar = 1.0 - smoothstep(0.32 - sfw, 0.32 + sfw, abs(fract(gq.x / 0.09) - 0.5) * 2.0);
+			bar = mix(bar, 0.32, smoothstep(0.15, 0.45, sfw));
+			float slot = (1.0 - bar) * step(abs(gq.y), 0.25);
+			vec3 iron = vec3(0.13, 0.12, 0.11) * (0.8 + 0.4 * vnoise(gq * 30.0));
+			albedo = mix(iron * mix(1.0, 0.18, slot), vec3(0.2, 0.18, 0.16), clamp(frame, 0.0, 1.0));
+			rough = 0.75;
 		} else {
 			// A rust bloom on the concrete round it.
 			float rust = (1.0 - smoothstep(0.48, 0.9, length(max(abs(gq) - vec2(0.48, 0.33), 0.0)))) * step(hash12(vec2(cell, seed * 7.0 + 2.0)), 0.7);

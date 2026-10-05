@@ -59,6 +59,8 @@ const POLE_SPACING := 30.0
 ## Most props of a kind one chunk's alleys hold.
 const MAX_LAMPS := 18
 const MAX_LIGHTS := 5
+## How far (to the middle of a chunk's alley) its props cast shadows, metres.
+const SHADOW_REACH := 140.0
 ## Cooks on a smoke break by a back door: the most a chunk, and the odds a door has one.
 const MAX_COOKS := 2
 const COOK_ODDS := 0.18
@@ -546,7 +548,17 @@ static func commit(ch: CityChunk) -> void:
 		mi.name = "AlleyWalls"
 		mi.mesh = (st.walls as SurfaceTool).commit()
 		mi.material_override = IndustrialKit.walls_material()
+		# Its shadow from a twin that stops at SHADOW_REACH (measured to the mesh's centre): past
+		# that the cascades are 10 cm a texel and more, and a crate's shadow is under one.
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		ch.add_child(mi)
+		var sh := MeshInstance3D.new()
+		sh.name = "AlleyShadow"
+		sh.mesh = mi.mesh
+		sh.material_override = mi.material_override
+		sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		sh.visibility_range_end = SHADOW_REACH
+		ch.add_child(sh)
 	ch.set_meta("alley_runs", st.runs)
 	ch.remove_meta("alley")
 

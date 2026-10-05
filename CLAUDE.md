@@ -1696,6 +1696,47 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
+- Service alleys (2026-10-05, VISUAL_ROADMAP #59, docs/HANDOFF.md 9bq): the backs of downtown
+  (outside the financial core: skyline boost under `Alleys.MAX_BOOST`) and midtown blocks.
+  `Alleys` (`scripts/world/alleys.gd`) and `AlleyKit` (`scripts/world/alley_kit.gd`). **The band
+  is pure**: `Alleys.spec(plan, bx, bz)` (cached) puts it on the lot grid's seam across the
+  block's long axis (`HALF_BAND` 3.6 m either side; `ODDS` per district, a hash; never on a site,
+  a landmark's square, the runway clear zone, a block with a freeway corridor lot or a fire
+  station), from `CityPlan.lots()` alone, so the lots' own builders keep off it while they are
+  built: `LotFill.after_building()` lays its paving on `Alleys.trim()` of the cell and keeps its
+  forecourt furniture off `keep_out()` and the lot's `back_strip()` (the building's back to the
+  band: the alley's service ground), `LotFill.surface_lot()` trims the car park, the parked cars
+  skip `keeps_clear()` (red kerb at the mouths) and the pavement's lamps, trees and bushes skip
+  `in_mouth()` - **after their rolls** (a tree or bush is planted into a scratch MultiMeshBatch so
+  the block rng runs the same). `CityChunk` sets `Building.back_face` (`Alleys.back_face()`, 1 +X,
+  2 -X, 3 +Z, 4 -Z): that face's vertices carry no storefront flag (`_append_part()`), and it gets
+  no piers, kit storefront, shop names, spill, awnings or canopy - the alley face is the
+  building's back, not another row of shops. **The runs are not pure**: `Alleys.block_step()`
+  (after the lots, every level) walks the band from each mouth while the buildings LotFill
+  recorded (`record()`) leave `MIN_WIDTH` (3.2 m) clear on a straight line (`runs()`, up to
+  `WIDTH` 6.1), so a run can stop short (a dead end). FULL: ONE ground mesh (`AlleyGround`,
+  `shaders/alley_ground.gdshader`, no shadow; kinds `G_*` in COLOR.r 16ths, UV the alley's own
+  frame (along, across)): concrete or (a hash of the run) asphalt round a concrete V-gutter
+  ribbon, slab joints, cracks, dug-up patches with sealant, oil in the wheel paths, grit and
+  leaves at the walls, a cast-iron grate every ~24 m, speed bumps, NO PARKING stencils (TextMesh
+  triangles conformed to the crown), aprons across the pavement and a wedge down to the road;
+  and ONE casting upright mesh (`AlleyWalls`) on IndustrialKit's material and writers
+  (`IndustrialKit.place()`), dressed by `AlleyKit.dress()` along every building back within 16 m
+  of the run: steel doors under caged bulkhead lamps (`alley_pool` light pools, a few
+  `lamp_light` omnis, `MAX_LAMPS` / `MAX_LIGHTS`), docks with steel stairs and roll-ups, fire
+  escapes with drop ladders, condensers on brackets, panels, and on the ground a weighted walk -
+  dumpsters stencilled with invented haulers (`Alleys.HAULERS`), grease bins, carts, pallets,
+  crates, meters, a mattress - with a lane of `AlleyKit.LANE` kept clear; gates at some mouths;
+  a box van backed in; wooden poles, wires, transformers and service drops on StreetDetail's own
+  batches; StreetWear's tags and grime on the alley walls (`StreetWear._walls()` handed the
+  centre line as a kerb, one cap with the street's); a cook on a smoke break (`AlleyCook`, a
+  StreetVendor with a cigarette, in the crowd cap). dress() only DECIDES (a couple of ms) and
+  queues each prop's SurfaceTool writes as its own time-sliced build step. LOD chunks and the far
+  city's capture lay the band, the runs and the back strips as concrete slabs (`FAR_COLOR`).
+  Every roll is a hash of seed + block / run / face, never a chunk, block or Building rng.
+  `ALLEYS=0` in the environment is the A/B; `tools/alleys/probe.tscn` lists alleys (`WALLED=`
+  walled-in ones, an EYE each) and builds one block (`BUILD=bx,bz`: props by kind, triangles;
+  `ALLEY_TIME=1` the steps' times); checks `tests/alley_checks.gd`.
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck

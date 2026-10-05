@@ -1236,6 +1236,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		var base_h := _base_course_height(size, style, storefront, true)
 		if base_h > 0.0:
 			bands.append([bottom + base_h, 0.24, band_projection * 0.62, 0.10, accent])
+	# The canopy's two bands, on every face with shops (not the back on an alley, back_face).
+	var canopy_bands: Array = []
 	if has_canopy:
 		# One flat canopy over the pavement instead of separate awnings, with a fascia lip on
 		# its outer edge so it is not a bare slab. Its height has to agree with the shopfront
@@ -1246,8 +1248,8 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		# which the shader stops at fv 0.74 - which is where a real shop canopy goes anyway.
 		var canopy_y := bottom + storefront * canopy_height_frac
 		var reach: float = maxf(canopy_reach, 0.30)
-		bands.append([canopy_y, 0.16, reach, 0.10, accent.darkened(0.25)])
-		bands.append([canopy_y + 0.13, 0.30, reach + 0.04, -(reach - 0.22), awning_color])
+		canopy_bands.append([canopy_y, 0.16, reach, 0.10, accent.darkened(0.25)])
+		canopy_bands.append([canopy_y + 0.13, 0.30, reach + 0.04, -(reach - 0.22), awning_color])
 	# Parapet: a low wall standing on the roof edge. Nothing changes a roofline as much - a box
 	# cut off flat at the top is the oldest tell there is - and it hides the feet of the roof
 	# plant from the street. Its own list, because it is the one detail that is meant to stand
@@ -1317,6 +1319,9 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 		var band_len := size_u - 2.0 * cut + (0.7 if cut <= 0.0 else 0.12)
 		for b: Array in bands:
 			boxes.append([_band_xform(a, n, fc, band_len, b), b[4]])
+		if face_shops:
+			for b: Array in canopy_bands:
+				boxes.append([_band_xform(a, n, fc, band_len, b), b[4]])
 		for b: Array in cap_bands:
 			# The parapet and its cap run exactly their own projection past a square corner, so
 			# the two walls' boxes meet flush. With the bands' 0.35 m overlap they stood 0.3 m
@@ -1541,7 +1546,7 @@ func _add_facade_details(size: Vector3, center: Vector3, bottom: float, storefro
 				if dir.cross(Vector3.UP).dot(cn) < 0.0:
 					dir = -dir
 				var mid := (p1 + p2) * 0.5 + Vector3(center.x, 0.0, center.z)
-				for b: Array in bands:
+				for b: Array in bands + canopy_bands:
 					boxes.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
 				for b: Array in cap_bands:
 					caps.append([_band_xform(dir, cn, mid, clen + 0.30, b), b[4]])
