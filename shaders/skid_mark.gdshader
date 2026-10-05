@@ -1,13 +1,15 @@
 shader_type spatial;
 // Skid marks and tyre tracks (DrivingFX): one MultiMesh of flat quads laid along the path of a
-// sliding tyre, each instance one short segment. The mark MULTIPLIES what is under it (blend_mul),
-// so rubber darkens the lit road whatever the light - noon, a street lamp's pool, a headlight -
-// and costs no lighting at all. Instance COLOR is the tint (rubber black, a darker sand, damp
-// dirt, linear) and its alpha the strength; INSTANCE_CUSTOM.x is the minute it was laid, mod 30, .y
+// sliding tyre, each instance one short segment, drawn like a decal: a lit, alpha-blended film of
+// rubber over the road, so it takes the sun, the shadows, a street lamp's pool and a headlight
+// like the road does. (A blend_mul multiplier was tried first: right on Forward+, where it lands
+// in the linear HDR buffer, but the Compatibility renderer tonemaps every material's output, so
+// there the multiplier went through AgX and the look curve and every mark came out solid black.)
+// Instance COLOR is the tint (rubber, a darker sand, damp dirt, linear) and its alpha the strength; INSTANCE_CUSTOM.x is the minute it was laid, mod 30, .y
 // 1 while it is alive (0 once swept), .z 1 for a lone patch, .w 0.5 for a print in dirt and 1 in sand;
 // (half floats on Compatibility: 0.015 min resolution is plenty), and the mark fades out over
 // `life_min`. A wet road shows the rubber far less: the water film lies over it.
-render_mode unshaded, blend_mul, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
+render_mode blend_mix, depth_draw_never, cull_disabled;
 
 #include "res://shaders/color_space.gdshaderinc"
 
@@ -71,6 +73,9 @@ void fragment() {
 	float ends = mix(1.0, smoothstep(0.0, 0.35, UV.y) * (1.0 - smoothstep(0.65, 1.0, UV.y)), v_patch);
 	float a = v_col.a * edge * ends * tread * (0.7 + 0.3 * n) * v_fade;
 	a *= mix(1.0, wet_keep, clamp(road_wetness * 1.6, 0.0, 1.0));
-	vec3 mul = mix(vec3(1.0), v_col.rgb, clamp(a, 0.0, 1.0));
-	ALBEDO = cs_out(mul);
+	ALBEDO = cs_out(v_col.rgb);
+	ALPHA = clamp(a, 0.0, 1.0);
+	// Rubber is polished smoother than the tarmac it lies on; a print in sand is as rough as sand.
+	ROUGHNESS = mix(0.62, 0.95, v_soft);
+	SPECULAR = 0.35;
 }

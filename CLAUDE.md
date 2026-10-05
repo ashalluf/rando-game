@@ -1190,9 +1190,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   driver's throttle on a car under `burnout_speed` (Godot's wheels roll with the ground and never
   spin, so wheelspin is inferred, `burnout_slip`). Surfaces: hill terrain (its layer) is dirt, the
   BEACH zone sand, the rest asphalt. **Skid marks** are ONE MultiMesh ring of `mark_capacity`
-  flat quads (`shaders/skid_mark.gdshader`, `blend_mul`: rubber multiplies the lit road, so it is
-  right under the sun, a street lamp or a headlight and costs no lighting; a wet road shows less of
-  it), a segment every `mark_segment` metres per tyre, the minute it was laid (mod 30) in
+  flat quads (`shaders/skid_mark.gdshader`, a lit alpha-blended film of rubber, lit and shadowed
+  like the road; a wet road shows less of it. NOT `blend_mul`: Compatibility tonemaps every
+  material's output, so a multiplier went through AgX and every mark drew solid black there), a segment every `mark_segment` metres per tyre, the minute it was laid (mod 30) in
   INSTANCE_CUSTOM.x, faded over `mark_life` in the shader and switched off for good by a sweep
   (the clock wraps). Sand and dirt take a print at any speed. Not Decals: one draw for the city on
   both renderers. **Pools** (each emitter handed to the strongest demand of the tick, kept on the

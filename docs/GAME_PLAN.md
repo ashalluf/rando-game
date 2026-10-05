@@ -293,8 +293,8 @@ already mapped so milestone 2 is script-only.
   effects").** A car could drift, jump and roll without a trace. `DrivingFX` is one node per level
   that watches the few physical cars near the camera and gives them skid marks, tyre smoke, spray,
   dust, sparks, exhaust, backfires, heat haze and a real squeal. Decisions worth knowing: skid
-  marks are flat quads in ONE MultiMesh ring drawn with `blend_mul` (rubber multiplies whatever
-  light is on the road), not Decals - one draw on both renderers, and at a grazing angle a 2.5 cm
+  marks are flat quads in ONE MultiMesh ring, a lit alpha-blended film (not `blend_mul`, which
+  the Compatibility renderer tonemaps to black), not Decals - one draw on both renderers, and at a grazing angle a 2.5 cm
   lift holds; wheelspin is INFERRED from the driver's throttle on a slow car, because Godot's
   VehicleWheel3D rolls with the ground and never spins; kinematic traffic gets nothing but idling
   exhaust on a cold morning (it has no wheels and never slides), so a street of 150 cars costs

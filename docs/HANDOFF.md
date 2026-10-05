@@ -7065,8 +7065,11 @@ slower than `burnout_speed` (more against the handbrake). A tyre marks from `mar
 and smokes from `smoke_slip` (4.5).
 
 **Skid marks** are one MultiMesh ring of 3,000 flat quads (1,200 on the web), one per 32 cm of a
-sliding tyre, on `shaders/skid_mark.gdshader` with `blend_mul`: the rubber multiplies whatever is
-under it, so it reads right under the sun, a lamp's pool and a headlight, and needs no lighting.
+sliding tyre, on `shaders/skid_mark.gdshader`: a lit, alpha-blended film of rubber (albedo 0.02),
+lit and shadowed like the road. The first version was `blend_mul` (the rubber multiplying the road,
+no lighting at all): right on Forward+, but the Compatibility renderer tonemaps each material's
+output, so the multiplier went through AgX and the look curve and every mark in an opengl3 still
+was solid black tape.
 Soft shoulders, a faint tread, patchy along the road, faded over four minutes, a third as strong
 on a soaking road. Sand and dirt take a print at any rolling speed (sand / dirt tints). Decals
 were the alternative; the quads are one draw for the whole city on both renderers and hold at a
@@ -7094,6 +7097,6 @@ never smoke; a car on its roof sparks and grinds, and its contact reports go bac
 dropped; the ring wraps at capacity and the sweep clears old marks; a cold morning puffs the
 player's exhaust.
 
-**The trap that cost a round:** `ensure()` is called by every car a chunk builds in one frame and
+**The traps that cost a round each:** `blend_mul` on Compatibility (above); and `ensure()` is called by every car a chunk builds in one frame and
 `add_child` is deferred, so "made, not yet added" has to count as made - the first version made a
 DrivingFX per car, each switching every car's contact reports on.

@@ -16,8 +16,8 @@ extends Node3D
 ## `exhaust_reach`. Every effect is a small POOL of emitters handed to the strongest demand this
 ## tick, so a pile-up costs what one drift does.
 ##
-## Skid marks are ONE MultiMesh of flat quads (shaders/skid_mark.gdshader, blend_mul: rubber
-## darkens whatever light is on the road and costs no lighting), a ring of `mark_capacity`
+## Skid marks are ONE MultiMesh of flat quads (shaders/skid_mark.gdshader: a lit, alpha-blended
+## film of rubber, lit and shadowed like the road under it), a ring of `mark_capacity`
 ## segments, faded over `mark_life` seconds in the shader. Flat quads, not Decals: one draw for
 ## every mark in the city, the same on both renderers, and at a grazing angle a 2 cm lift holds.
 
@@ -57,13 +57,13 @@ enum Surface { ASPHALT, DIRT, SAND }
 @export var mark_segment: float = 0.32
 ## Seconds a mark takes to fade out.
 @export var mark_life: float = 240.0
-## Strength of fresh rubber at full slip (how far it darkens the road).
-@export var mark_strength: float = 0.72
-## Rubber, as a linear multiplier on the road.
-@export var rubber_tint: Color = Color(0.11, 0.1, 0.095)
+## Strength of fresh rubber at full slip (its opacity over the road).
+@export var mark_strength: float = 0.85
+## Rubber's albedo (linear).
+@export var rubber_tint: Color = Color(0.022, 0.02, 0.019)
 ## Tyre tracks: sand and dirt take a print at any speed.
-@export var sand_tint: Color = Color(0.55, 0.47, 0.36)
-@export var dirt_tint: Color = Color(0.5, 0.42, 0.33)
+@export var sand_tint: Color = Color(0.3, 0.25, 0.18)
+@export var dirt_tint: Color = Color(0.2, 0.16, 0.12)
 @export var track_strength: float = 0.4
 
 @export_group("Smoke")
