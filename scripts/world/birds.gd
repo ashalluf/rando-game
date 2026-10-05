@@ -1,6 +1,6 @@
 class_name Birds
 extends Node3D
-## The city's birds (VISUAL_ROADMAP #47, HANDOFF 9bh): pigeons on the plazas, parks, pavements and
+## The city's birds (VISUAL_ROADMAP #53, HANDOFF 9bk): pigeons on the plazas, parks, pavements and
 ## station forecourts, gulls on the beach, the piers and the port, crows on the suburbs' lawns and
 ## power lines, sparrows by the pavements. A Node3D in city.tscn, so the streamer's origin shifts
 ## carry it and everything under it; birds live in this node's own space.
@@ -83,6 +83,7 @@ var _survey_left := 0.0
 var _rng := RandomNumberGenerator.new()
 var _blast_seen := 0
 var _mm: Dictionary = {} # "species:lod" -> MultiMeshInstance3D
+var _shadow: Dictionary = {} # "species:0" -> the near batch's shadow twin
 var _frame := 0
 var _cap := 300
 var _dead: Array = [] # Bird corpses and falling birds, outside any flock
@@ -162,10 +163,29 @@ func _ready() -> void:
 			mmi.multimesh = mm
 			mmi.material_override = BirdMesh.material(sp)
 			mmi.name = "Birds_%s_%d" % [sp, lod]
-			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if lod == 2 else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
+			# Only the near birds cast (through the twin below): a 30 cm bird 20 m off throws a
+			# shadow of a pixel or two, into every cascade.
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			mmi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 			add_child(mmi)
 			_mm["%s:%d" % [sp, lod]] = mmi
+		# The near birds' shadow from the mid mesh (a fifth of the triangles, in every cascade):
+		# the near batch itself casts none.
+		var twin := MultiMeshInstance3D.new()
+		var tm := MultiMesh.new()
+		tm.transform_format = MultiMesh.TRANSFORM_3D
+		tm.use_colors = true
+		tm.use_custom_data = true
+		tm.mesh = BirdMesh.mesh(sp, 1)
+		tm.instance_count = 0
+		twin.multimesh = tm
+		twin.material_override = BirdMesh.material(sp)
+		twin.name = "BirdsShadow_%s" % sp
+		twin.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+		twin.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
+		add_child(twin)
+		_shadow["%s:0" % sp] = twin
+		(_mm["%s:0" % sp] as MultiMeshInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 
 func _exit_tree() -> void:
@@ -1267,10 +1287,13 @@ func _draw() -> void:
 		var mm := mmi.multimesh
 		var birds: Array = lists[key]
 		var n := birds.size()
+		var twin: MultiMeshInstance3D = _shadow.get(key)
 		if n == 0:
 			if mmi.visible:
 				mm.visible_instance_count = 0
 				mmi.visible = false
+			if twin and twin.visible:
+				twin.visible = false
 			continue
 		if mm.instance_count < n:
 			mm.instance_count = 0
@@ -1311,6 +1334,15 @@ func _draw() -> void:
 		mm.visible_instance_count = n
 		mmi.custom_aabb = AABB(lo, hi - lo).grow(1.0)
 		mmi.visible = true
+		if twin:
+			var tm := twin.multimesh
+			if tm.instance_count != mm.instance_count:
+				tm.instance_count = 0
+				tm.instance_count = mm.instance_count
+			tm.buffer = buf
+			tm.visible_instance_count = n
+			twin.custom_aabb = mmi.custom_aabb
+			twin.visible = true
 
 
 var _key_cache: Dictionary = {}
@@ -1324,6 +1356,8 @@ func _keys_for(sp: String) -> Array:
 func _draw_nothing() -> void:
 	for key: String in _mm:
 		(_mm[key] as MultiMeshInstance3D).visible = false
+	for key: String in _shadow:
+		(_shadow[key] as MultiMeshInstance3D).visible = false
 
 
 # --- For other systems and the checks -----------------------------------------------------------

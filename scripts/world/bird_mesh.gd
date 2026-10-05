@@ -1,6 +1,6 @@
 class_name BirdMesh
 extends RefCounted
-## The city's birds, built in code at real size (VISUAL_ROADMAP #47, HANDOFF 9bh): a lofted body
+## The city's birds, built in code at real size (VISUAL_ROADMAP #53, HANDOFF 9bk): a lofted body
 ## along a curved spine (breast, neck, head, beak in one surface), eyes, scaled legs and toes, and
 ## real feather cards - secondaries, tertials, primaries fanned to the wingtip, an alula, a covert
 ## sheet over their bases, a tail fan - each cut out of a painted feather in the species' atlas

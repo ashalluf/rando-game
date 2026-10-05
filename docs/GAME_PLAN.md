@@ -330,6 +330,20 @@ already mapped so milestone 2 is script-only.
   The block's own random stream is untouched: a parked car in a truck's stretch is skipped after
   its rolls and counted as parked. Trucks are not Vehicles (the big-vehicles work owns those), and
   they do not arrive or leave while a chunk stays built - the hour is read when it builds.
+- **2026-10-04 The city has birds, built in code, simulated only near the player (VISUAL_ROADMAP
+  #53).** Nothing in the city was alive but people. Now pigeons (rock doves in their feral colour
+  morphs) on plazas, parks, landmark sites and downtown pavements, gulls on the beach, the piers
+  and the port, crows on suburban lawns and power lines, sparrows by pavements. Decisions: (1) the
+  models are built in GDScript (`BirdMesh`), not Blender, because each vertex carries two poses
+  (flight in VERTEX, ground in CUSTOM0/1) that the shader blends - a glTF cannot carry the second
+  pose - and no CC0 photo-scanned bird exists in Poly Haven / ambientCG; the plumage is our own
+  procedural painting (`tools/birds/make_bird_textures.py`). (2) No physics bodies: a shot is a
+  segment test against the birds (`Birds.hit_ray()` from the guns' hit paths), so 200 birds cost no
+  broadphase. (3) Nothing per chunk: flocks are planned round the player from the plan by hashes,
+  so the same plaza always has its flock and the chunk build is untouched; one MultiMesh per
+  species and LOD for the whole city. (4) Dead birds are no crime. (5) Sounds are public-domain
+  field recordings (freesound is blocked from the build box). Cost and numbers: HANDOFF 9bk.
+
 - **2026-10-04 The far city's buildings are coded copies of the near ones, not impostors (G7).**
   Every building past the FULL ring was its parts as boxes on a shader that GUESSED the facade
   (typology from the colour, its own grid, lit-window hash and roof roll), so a building changed

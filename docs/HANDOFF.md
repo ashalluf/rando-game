@@ -6076,3 +6076,78 @@ read then), so standing at one corner across dusk does not bring the trucks in. 
 the boardwalk landmark itself or inside MacArthur Park (its edges only). The vendors wear the
 crowd's clothes (no apron or cap); customers do not carry food away; no steam off the elote pot
 or smoke off the griddle; the balloons are round foil only.
+
+
+## 9bk. City birds: pigeons, gulls, crows, sparrows, 2026-10-04 (agent branch `wt/birds`; VISUAL_ROADMAP #53)
+
+The brief (lead, from "make the graphics a million times better"): nothing in the city was alive
+but people. Pigeons on plazas, pavements and park lawns that walk, peck, bob and burst up when the
+player comes close, runs, fires or a car passes fast; gulls on the beach, the piers and the port;
+crows on suburban wires and lawns; sparrows if cheap; realistic, not low-poly; one MultiMesh per
+species; frame cost near flat. CLAUDE.md's "City birds" note is the reference; this is the story.
+
+**Models in code, not Blender.** No CC0 photo-scanned bird exists on Poly Haven or ambientCG, and
+a glTF cannot carry what the animation needs: every vertex has TWO poses, flight (VERTEX) and
+ground (CUSTOM0.xyz + its normal in CUSTOM1), blended in the vertex shader by the instance's
+`spread`. So `BirdMesh` builds each species at its real size in GDScript (as the palms and the
+port kit are): a body lofted round a curved spine (deep pigeon breast, long flat gull, heavy crow
+bill, round sparrow head; the spine's landmarks S_NECK / S_HEAD / S_EYE / S_BEAK are fixed
+fractions so one atlas layout serves every species), eyes, legs with toes (tucked back under the
+belly in flight), and real feather cards cut out of painted feathers: secondaries along the
+forearm, tertials, primaries fanned from the hand to the wingtip, an alula, a covert sheet with
+the greater coverts' scalloped edge, the tail fan (closed on the ground, spread in flight). The
+folded pose lays each feather on the flank (`_snap()`: the body's half width at that height and
+depth plus a layer, so primaries sit under secondaries under tertials under coverts - the order a
+real folded wing shows) and flattens the primaries over the rump above the closed tail. Three
+LODs: ~2.1k / ~450 / ~100 triangles. `tools/glshot/bird_shot.gd` is the fast loop (a lineup of
+every pose in seconds, opengl3).
+
+**Plumage**: `tools/birds/make_bird_textures.py` paints each species' 1024 atlas procedurally -
+every feather with its shaft, barbs, vane splits and down, the species' pattern (the pigeon's two
+black bars and tail band, the gull's black wingtip with white mirrors and white trailing edge,
+the sparrow's rufous edges and white wing bar), contour-feather scallops on the body, eyes,
+scaled legs, a whole wing from above for the far LOD; a mask (iridescence, morph region,
+roughness) and a normal map. Pigeons come in their feral morphs (blue-bar, checker, dark, white,
+red, mealy) through the instance colour; the neck and the crow carry a thin-film sheen.
+
+**Behaviour** (`Birds`): see CLAUDE.md. Things worth knowing: the ground is a ray from the PLAN's
+street height (the valley is a plateau 140 m up - rays from y 0 found nothing there); a flock
+staged for a still must not flush from the player, whom the free EYE camera drags along
+(`shot_calm`); kinematic traffic has no velocity, so the car check takes speed from position
+deltas between its 2 Hz shape queries; crows on wires sit on the polyline StreetDetail draws
+(`wire_point()`), rebuilt from StreetDetail's constants, and only where a ray finds the pole.
+
+**Sound**: freesound.org is blocked from this box (403 at the proxy), so the clips are
+public-domain field recordings (radio aporee on archive.org, Public Domain Mark 1.0, and one
+Wikimedia Commons file): coos, a balcony flock's wing claps, crows (three European takes and one
+American), sparrows, a gull close by (docs/ASSETS.md). Ambience still plays the far gull calls,
+but places them on a real gull when there is one (`Birds.gull_at()`). The coos have other coos
+under them (a balcony of pigeons); crow_0..2 are carrion crows, not American - swap them when a
+public-domain American crow can be fetched (Commons rate-limited the USGS one).
+
+**Cost.** CPU (`tools/bird_bench.tscn`, 220 pigeons all within 60 m, the cap, on this box with a
+render running beside it): simulate 0.35 ms on the ground / 0.69 ms in the air, buffer writes
+0.41 ms, per frame. First version 2.8 ms: appending to a packed array held in a dictionary copies
+it every time; now one pass by index, and ground flocks tick every 2nd frame past 20 m and every
+4th past 60 m. GPU (`still_shot.gd` GEO, opengl3 1280x720, Pershing Square looking north):
+birds off (`BIRDS=0`)
+5,761,480 tris / 2,755 draws; the survey's own flocks on 5,794,952 / 2,759 (+0.6 %, +4 draws);
+a staged flock of 30 pigeons 4-15 m in front of the camera 5,878,835 / 2,759 (+2.0 %, +4).
+Only the near birds cast a shadow, and that from the mid mesh (a shadows-only twin of the near
+batch): with every LOD casting, the staged flock was +5.7 %. The beach bookmark had no flock in
+view (identical numbers on and off).
+
+**Stills** (branch `shots/birds`): `plaza_ground` (30 pigeons on Pershing Square, morphs mixed),
+`plaza_flush` (the same flock a third of a second after the camera flushed it), `plaza_before`
+(BIRDS=0), `beach_gulls` (gulls on the sand between the two piers), `pier_gulls` (a flock
+lifting off by the pier), `wire_crows` (crows on a power span in the valley suburbs),
+`lineup` (`bird_shot.gd`: every species in every pose).
+
+**Not done / next:** sparrows do not hop (they walk); no perching on benches, fountain rims,
+statues or traffic signals (roof edges, wires and the ground only); gulls do not hang in the wind
+over the surf or follow the ships; pigeons do not come for food the player drops; no feathers left
+on the ground after a shot; flight paths do not avoid buildings (they circle 9-22 m up over open
+ground and usually clear the low ones; a flock circling a downtown plaza can pass through a tower's
+corner); the Forward+ look (SSS-less feathers, the sheen, backlight) is unjudged - only opengl3
+stills were taken. Needs the owner's eyes on the Mac: the plumage's brightness under AgX (the
+flying birds read very pale from below), and the flap rates at 60 fps.

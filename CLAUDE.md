@@ -2514,7 +2514,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
-- City birds (VISUAL_ROADMAP #47, 2026-10-04: "nothing alive in the city but people"):
+- City birds (VISUAL_ROADMAP #53, 2026-10-04: "nothing alive in the city but people"):
   `Birds` (`scripts/world/birds.gd`, a Node3D in `city.tscn`, so origin shifts carry it; birds
   live in its own space). **Nothing is per chunk**: every `survey_interval` it plans flocks round
   the player from the plan (`_spots_near()`, all hashes of seed + block / 60 m cell + slot, so a

@@ -542,7 +542,7 @@ side ("left/right" below), or by the loop against itself half a turn later (bird
 
 ## City birds (our own code and painter; public-domain recordings)
 
-The birds (`scripts/world/birds.gd`, VISUAL_ROADMAP #47) are built in code by
+The birds (`scripts/world/birds.gd`, VISUAL_ROADMAP #53) are built in code by
 `scripts/world/bird_mesh.gd` (lofted bodies, feather cards, legs, eyes at real size; no external
 model) and wear plumage atlases painted procedurally by `tools/birds/make_bird_textures.py`
 (original art, no source photos): `assets/textures/birds/<pigeon|gull|crow|sparrow>_albedo.png`,
