@@ -321,17 +321,25 @@ func _dispatch(player: Player) -> void:
 	if unit == null:
 		return
 	inc.engine = unit
-	await _ticks(10)
+	# Watched for the whole drive, not at one instant: the street it is sent along is a random one
+	# 160-230 m off, and in a full suite run (build 341's gate) the siren was not there at tick 10.
 	var heard := false
-	for s: Array in _traffic._siren_list():
-		heard = heard or (int(s[0]) == int(unit.traffic.axis) and int(s[1]) == int(unit.traffic.index))
-	_check(unit.siren_running() and heard, "on its way it runs its siren and the traffic sees it")
+	var under_way := 0
 	var arrived := false
 	for i in 60 * 50:
 		await _tree.physics_frame
+		if unit.siren_running():
+			under_way += 1
+			if not heard:
+				for s: Array in _traffic._siren_list():
+					heard = heard or (int(s[0]) == int(unit.traffic.axis) and int(s[1]) == int(unit.traffic.index))
 		if unit.mode == EmergencyCar.Mode.ON_SCENE:
 			arrived = true
 			break
+	if not heard:
+		print("dispatch: mode %d traffic %s driver %s wreck %s ticks with the siren %d sirens %s" % [unit.mode, unit.is_traffic(),
+			unit.driver, unit.is_wreck(), under_way, str(_traffic._siren_list())])
+	_check(heard, "on its way it runs its siren and the traffic sees it (%d ticks)" % under_way)
 	var at_l: Vector3 = _ws.to_local(at)
 	var d := Vector2(unit.global_position.x - at_l.x, unit.global_position.z - at_l.z).length()
 	_check(arrived and d < 45.0, "it drives the streets to the call and pulls up at the kerb (%.1f m off, %s)" % [d, arrived])
@@ -350,7 +358,7 @@ func _dispatch(player: Player) -> void:
 			for k in range(before - 1, parent.get_child_count()):
 				if parent.get_child(k) is Ragdoll:
 					doll = parent.get_child(k)
-			_check(doll != null and doll.has_meta("responder") and not _em.crews.has(crew),
+			_check(doll != null and doll.has_meta("responder") and not (is_instance_valid(crew) and _em.crews.has(crew)),
 					"a firefighter knocked down is a body like anyone's, not another call")
 
 
