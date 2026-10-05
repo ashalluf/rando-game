@@ -11500,3 +11500,7 @@ With `HILL_HOMES=0` it draws the old villa's whole estate (`_box_parts()`), as b
   in the moonlight on the Compatibility stills; the lamps and pools now say "lit estate" round
   them. If the Mac shows the same, dim far estate walls with `lamp_factor` in far_canopy's estate
   branch (HillHomeKit's file, so not done here).
+- Cost on fleet/batch4 (still_shot.gd GEO, same frames, ESTATE_NIGHT=0 -> 1): front range from the
+  basin 1.752 M -> 1.767 M triangles, 382 -> 387 draws; Palos Verdes 1.181 M -> 1.207 M, 377 -> 389;
+  the air 1.396 M -> 1.413 M, 191 -> 202; downtown eye 2.957 M -> 2.987 M, 1,478 -> 1,494. Stills on
+  `shots/estate-night` (README there), the LOD ring from `822,300,-900,0,-26`.
