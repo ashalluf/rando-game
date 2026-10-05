@@ -112,6 +112,12 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
   the lane-change gap, the swerve round the player) fail in shard 1 and pass alone, in the pair
   with street_signs_checks and in the plain run - something an earlier part of that shard leaves
   behind; untraced. Gate on the plain run when the shards disagree.
+- **CI 355 (batch 8) failed one check of 2,342**, in the traffic AI that came with batch 5 (it
+  passed CI 353 and 354): "live traffic ... never drives into another car (tightest -6.68 m)".
+  A car starting a lane change out of the kerb lane for a left turn stood alongside a bus's rear
+  half (`traffic ai: overlap` line in the log: the car at along -218.2, lc_p 0.21, v 0; the bus
+  at -215.7, rear 6.35 m). A real but rare collision, not batch 8's code; handed to the
+  traffic-ai session to reproduce and fix. This commit re-runs CI (the token cannot re-run jobs).
 - **Waiting:** apartments (walk-ups read as flat stucco boxes) and tower-gondolas (share towers
   with Rooftops' window-washing rig) were stopped by the usage limit and not resumed. Notes from
   the sessions: HillHomeKit's far walls read pale under moonlight (estate-night: a lamp_factor dim
