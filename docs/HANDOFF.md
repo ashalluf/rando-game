@@ -9464,11 +9464,11 @@ looking north): 5.50 M triangles / 3,478 draws with it, 5.52 M / 3,444 with `HIS
 the ornament alone (`AB=Historic*`) is 378 k triangles and 135 draws - the plainer buildings it
 dresses (no curtain walls, kit surrounds or bands) give back about as much. A block of four
 buildings is ~97 k triangles of ornament (the checks print it); each face is built in four
-deferred steps plus two commit steps; the longest is still 64.8 ms in the headless check
+deferred steps plus two commit steps; the longest is still 58-67 ms in the headless check
 (`HistoricCore.max_step_us`, printed by the checks), well over the streamer's 4 ms budget, so a
 hitch is possible when a Spring St block streams in: split the order / cornice phases finer
-(per few bays) if the Mac shows one. Gate on the merged tree: 1,368 passed, 0 failed; peak RSS
-3.2 GB.
+(per few bays) if the Mac shows one. Gate on the branch merged with main's batch 1: 1,509 passed, 0 failed; peak
+RSS 3.3 GB.
 
 **Not done / not verified**: no Forward+ look (the terracotta and the floodlit base through AgX,
 the lanterns' bloom: Mac eyes needed); the side and back walls are the plain Building (party
