@@ -289,6 +289,21 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Police stations the cruisers come out of (VISUAL_ROADMAP #59, HANDOFF 9b?).**
+  The police arrived from nowhere along a street. `PoliceStation` places a divisional station per
+  1.5 km cell (a hash of seed + cell; MIDTOWN or downtown off its tower core, never a landmark's,
+  the river's or the fire station's block, ground level within 0.9 m) on a run of whole lots along
+  one street, claimed after every existing roll, and the headquarters on the whole block across
+  1st St from City Hall (eight storeys; an original modernist slab, not the real building).
+  Decisions: (1) a site is whole lot-grid cells, so nothing half-overlaps a neighbour, and a site
+  never takes a courtyard lot (those build their garden before any claim is asked); (2) the
+  parked cruisers are the sedan's far twin in the livery in one MultiMesh, not Vehicles (a
+  Vehicle is ~35 ms to build and a physics body); (3) dispatch out of a gate is scripted, not
+  physics: the cruiser is driven along the station's drive (`PoliceCar.scripted`) and joins the
+  lane exactly where traffic would, so it never fights the fence; (4) only cruisers within
+  `station_reach` (520 m) of the player come from a station, one through a gate at a time - the
+  street arrival stays for everything else, so the response time is unchanged.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
