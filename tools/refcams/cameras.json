@@ -1,0 +1,16 @@
+{
+	"_doc": "The ten reference cameras (tools/refcams/README.md). eye = TRUE world x,y,z,yaw,pitch (yaw 0 looks north, 90 west; pitch degrees up); agl true = y is metres over the plan's ground there. weather is a Weather.STATE_KEYS name. Change a camera only on purpose: every run before the change stops being comparable for that shot.",
+	"resolution": [960, 540],
+	"cameras": [
+		{"name": "street_noon", "label": "Street, noon (Flower at Olympic)", "eye": [2359.4, 2.0, 880.0, 0.0, 2.0], "agl": true, "hour": 12.0, "weather": "clear", "fov": 55},
+		{"name": "street_night", "label": "Street, 21:30 rain", "eye": [2359.4, 2.0, 880.0, 0.0, 2.0], "agl": true, "hour": 21.5, "weather": "rain", "fov": 55},
+		{"name": "sunset", "label": "Esplanade sunset 18:36", "eye": [-441.66, 9.94, 3534.58, -178.0, -1.5], "agl": false, "hour": 18.6, "weather": "clear", "fov": 44},
+		{"name": "golden_aerial", "label": "Golden aerial, downtown from the SW 18:18", "eye": [1450.0, 140.0, 2150.0, -38.0, 4.0], "agl": true, "hour": 18.3, "weather": "clear", "fov": 55},
+		{"name": "downtown_aerial", "label": "Downtown aerial, civic centre noon", "eye": [2600.0, 60.0, -450.0, -50.0, -4.0], "agl": true, "hour": 12.5, "weather": "clear", "fov": 55},
+		{"name": "beach", "label": "Beach at the waterline 14:00", "eye": [-732.0, 2.1, 800.0, 105.0, -4.0], "agl": false, "hour": 14.0, "weather": "clear", "fov": 55},
+		{"name": "hills", "label": "Front range from 260 m, 15:00", "eye": [300.0, 260.0, -650.0, 0.0, -6.0], "agl": true, "hour": 15.0, "weather": "clear", "fov": 55},
+		{"name": "freeway", "label": "The 110 deck by downtown 13:00", "eye": [1989.0, 12.0, 160.0, -6.0, -3.0], "agl": false, "hour": 13.0, "weather": "clear", "fov": 55},
+		{"name": "macarthur", "label": "MacArthur Park from the south 11:00", "eye": [300.0, 120.0, 528.0, 0.0, -35.0], "agl": true, "hour": 11.0, "weather": "clear", "fov": 55},
+		{"name": "pier_night", "label": "The pier from the beach 21:00", "eye": [-945.0, 1.8, -235.0, 61.7, 7.0], "agl": false, "hour": 21.0, "weather": "clear", "fov": 55}
+	]
+}

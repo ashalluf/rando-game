@@ -1851,6 +1851,8 @@ func _test_city() -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# The reference cameras (tests/ref_cameras_checks.gd): the table and the shot script.
+	load("res://tests/ref_cameras_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
