@@ -36,7 +36,7 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> String:
 	var across := along.cross(Vector3.UP).normalized()
 	if _blocked(tree, centre + Vector3.UP * 1.5, across, 12.0):
 		across = -across
-	var blast_at := centre + across * 4.0 + Vector3.UP * 0.5
+	var blast_at := centre + across * _f("AF_BLAST_OUT", 4.0) + Vector3.UP * 0.5
 	var ground := _ground(tree, blast_at)
 	if ground != Vector3.INF:
 		blast_at = ground + Vector3.UP * 0.4

@@ -109,7 +109,9 @@ static func crater(node: Node, at: Vector3, normal: Vector3, radius: float, pit:
 		q.mesh = pm
 		q.material_override = mark_material(maps, pit)
 		q.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		q.position = Vector3(0.0, 0.025, 0.0)
+		# Over the drawn ground, which stands a few centimetres proud of its collision on the
+		# pavements and plazas (the slabs follow the relief, the box under them does not).
+		q.position = Vector3(0.0, 0.09, 0.0)
 		mark.add_child(q)
 	if pit:
 		_heave_slabs(mark, radius * crater_scale * 0.5)
@@ -165,11 +167,11 @@ static func _heave_slabs(mark: Node3D, pit_r: float) -> void:
 		var a := start + TAU * (float(i) + randf_range(-0.3, 0.3)) / float(n)
 		var dist := pit_r * randf_range(0.85, 1.25)
 		var out := Vector3(cos(a), 0.0, sin(a))
-		var s := randf_range(0.7, 1.35) * clampf(pit_r / 1.7, 0.5, 1.4)
+		var s := randf_range(0.9, 1.7) * clampf(pit_r / 1.7, 0.5, 1.4)
 		# Tipped up on the side toward the pit, the outer edge sunk in the road.
 		var b := Basis(Vector3.UP, -a) * Basis(Vector3.FORWARD, deg_to_rad(randf_range(12.0, 38.0)))
 		b = b * Basis(Vector3.UP, randf_range(-0.5, 0.5))
-		mm.set_instance_transform(i, Transform3D(b.scaled(Vector3(s, s, s)), out * dist + Vector3(0.0, 0.02, 0.0)))
+		mm.set_instance_transform(i, Transform3D(b.scaled(Vector3(s, s, s)), out * dist + Vector3(0.0, 0.06, 0.0)))
 	var mi := MultiMeshInstance3D.new()
 	mi.name = "Slabs"
 	mi.multimesh = mm
