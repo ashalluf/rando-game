@@ -6765,3 +6765,73 @@ Narrows into the valley. The far city's land slabs on a river block step every 8
 channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL only. The Coral Line
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
+
+## 9bq. More everyday car bodies: hatchback, SUV, minivan, taxi, beater, 2026-10-05 (agent branch `wt/more-cars`; VISUAL_ROADMAP #59)
+
+The brief: a real LA street is full of compact hatchbacks, full-size SUVs, minivans, taxis and a
+beater or two; traffic had four Blender bodies (sedan, crossover, pickup, van), the exotics and
+the Meshy sports car, so the street repeated. CLAUDE.md "More everyday bodies" is the reference;
+this is the story.
+
+- **Bodies** (`tools/make_more_cars.py`, imports `make_road_cars.py` like the big vehicles do;
+  about 80 s for all five, `--render` for Cycles previews; the beater adds `close` and `dent`
+  views). The four lofted bodies are specs plus DATA for one detail builder,
+  `everyday_details()` (`spec["d"]`: lamps - blades with DRL and projector eyes, round lamps, or
+  an old car's sealed lens with an amber corner -, grille mouth with an egg-crate or chrome bars
+  and a chrome surround, lower intake, fogs, bumpers, door and hatch gaps, B/C/D pillars, belt
+  trim, rocker, rub strip, roof rails, sliding-door tracks, spoiler, tail lamp pieces, mirrors,
+  dents, an `extra` callback). `overhangs()` + `remap()` rescale a spec's overhangs without
+  touching the wheelbase (how the first, too-long hatch, minivan and beater were brought to size).
+  Hatchback 4.36 m (51k + 7.9k far), SUV 5.51 m x 1.87 m (48k + 7.9k), minivan 5.18 m (52k +
+  7.9k), beater 4.79 m (51k + 7.9k), taxi = the sedan + sign (54k + 7.9k): inside the road cars'
+  budget. The taxi's sign is a ninth slot `taxi_sign` (a bevelled lightbox on a black base and
+  feet, a chrome cap line); the run prints its box (TAXI SIGN), which `taxi_sign.gdshader`'s
+  `sign_center` / `sign_size` copy.
+- **Rolls**. `BODY_ODDS` is now the shares (hatchback 70, SUV 80, minivan 55, beater 35; sports
+  145 -> 85, van 115 -> 75, sedan 250 -> 210, pickup 150 -> 120, crossover 220 -> 190, the
+  exotics a third less) and `Vehicle.ROLL_MAP` the 0-999 ranges: each old type keeps the START of
+  its old range, so a seed's parked sedan stays a sedan unless its roll fell in the slice the
+  hatchbacks took (the avenue bookmark's parked white sports car is a hatchback now, the rest of
+  the row unchanged). `random_car()` makes the same rng calls (checked against a replay of them).
+  The taxi is NOT in the table: the sedan's taxi roll (`TAXI_SHARE`, unchanged) now builds
+  `BodyType.TAXI`, so the old taxis are exactly the new ones and no `LiveryProp` box sign is made
+  for them. `look_seed` keeps random_car()'s look on the car (fleet number, beater door).
+- **Taxi**: TAXI livery paint (yellow, checker band), lettering (`_add_taxi_lettering()`:
+  BASIN CAB on the front doors, a number on the rear, BigVehicles' shared TextMeshes, 55 m, not
+  on the web), the sign shader (cream lightbox, "TAXI" in stroked capitals front and back, read
+  the right way from either end, emission `glow_day` + `glow_night` x lamp_factor), and a fare:
+  `_cabin_seats()` returns 5 for `TAXI_FARE_SHARE` of traffic taxis. **CarCabin seat bit 2** is
+  new (the bench behind the passenger, the passenger's colours); `person()` takes the seat
+  back's z; bit 1 is now tested as a bit (it was `seats > 1.5`); the occupant key's shifts moved
+  up a bit to make room.
+- **Beater**: 1990s notchback proportions (upright screens, short flat deck, thick C-pillar,
+  sealed-beam lamps, slot grille, chrome strips, narrow tyres, black plastic bumpers). Geometry
+  wear: `BEATER_DENT` pushed into the right rear door after everything else is built; the right
+  tail lamp is four red pieces with dark cracks between, a broken corner showing the housing and
+  silver tape across. Paint wear (`car_paint.gdshaderinc`, `wear` > 0 only on a beater, so every
+  other car pays one uniform branch): the left front door in another colour (`BEATER_DOOR` in the
+  body mesh's space; colour from `BEATER_DOORS` by look seed, never the car's own), a feathered
+  primer patch on the right front wing, the clear coat faded everywhere and chalky in patches on
+  what faces the sky, rust low on the sills. Works on the damage variant too (same include).
+- **Contracts**: kinematic traffic, `go_physical()`, CarDamage, CarCabin (measured per body; SUV
+  and minivan have privacy glass), CarLights (`lamp_y` / `tail_y` per body), pools (ordinary
+  cars), PhysicsBudget, parked cars - all through the existing paths; `tyre_r` tuned so a parked
+  one settles where traffic stands it (car_shot CONTACT within ~1 cm).
+- **Frame cost** (`still_shot.gd` GEO, opengl3 1280x720, the avenue `--spawn=2359.4,880,0,12,2`,
+  main a0ee161 vs this branch; traffic and parked cars differ between the runs): 7.53 M tris /
+  3,720 draws -> 7.39 M / 3,805 (-1.9 % / +2.3 %). Build: 1.4 ms warm in the check (headless);
+  the first load of each .glb is the importer's, as for every body.
+- **Tools**: `car_shot.gd` now routes only 12-13 to EmergencyCar and 9-11 to BigVehicles (it
+  sent every type >= 12 to EmergencyCar), shows the taxi (17) in its livery and takes `LOOK=`
+  for the taxi and beater; `still_shot.gd STREET=queue STREET_MIX=14,15,17,16,18` queues the
+  new bodies.
+- **Checks**: `tests/more_cars_checks.gd` (the roll table against BODY_ODDS and the old ranges,
+  the rng stream, builds with glass / far twin / lamps / wheels, the parked stance, a traffic SUV,
+  hits to physics and CarDamage, the pool, the taxi's sign, lettering and fare, the beater's
+  wear and nobody else's).
+- **Not done / not verified**: no Forward+ look (the taxi sign's glow and the beater's chalky
+  coat under AgX NEED A MAC CHECK); the beater's odd door and primer are always the same panels
+  (per-car colour only); the minivan's sliding doors do not open; the SUV has two rows of traced
+  seats, not three (CarCabin's cabin has a front row and one bench); the taxi is always the
+  yellow checker livery; the hatch, minivan and SUV faces are plainer than a 2026 car's (one
+  egg-crate or bar grille each).

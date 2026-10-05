@@ -37,7 +37,8 @@ extends SceneTree
 ## the police on the minimap.
 ## STREET=queue|crossing stages the signalised junction ahead of the camera: a queue waiting at
 ## its red, and for `crossing` people out on the crosswalk in front of it (see _stage_street for
-## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES). With --hour=21 it is the lit heads
+## STREET_AHEAD / STREET_CARS / STREET_PEDS / STREET_FRAMES; STREET_MIX=14,15,16,17,18 makes the
+## queue's cars those body types in turn). With --hour=21 it is the lit heads
 ## at night. STREET_EYE=1 then moves a free camera onto the pavement behind the queue, looking up
 ## it (STREET_EYE_BACK, _SIDE, _TURN, _HEIGHT, _PITCH).
 ## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
@@ -1198,11 +1199,29 @@ func _stage_street(kind: String) -> void:
 	var per := int(ceil(float(_env_int("STREET_CARS", 6)) / float(lanes)))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([node, "street_shot"])
+	# STREET_MIX=14,15,...: the queue's ordinary cars are these body types in turn (the second
+	# wave of road cars; the taxi, 17, in its livery), handed to place_car() through the pool.
+	var mix := PackedInt32Array()
+	for t in OS.get_environment("STREET_MIX").split(",", false):
+		mix.append(t.to_int())
+	var mixed := 0
 	for n in lanes:
 		var nose := line - float(dir) * (0.6 + 2.5 * float(n))
 		for k in per:
 			# STREET_BIG=<body type>: the second car of the kerb lane is that big vehicle.
 			var big_kind := _env_int("STREET_BIG", -1) if (k == 1 and n == lanes - 1) else -1
+			if big_kind < 0 and not mix.is_empty():
+				var vs: GDScript = load("res://scripts/vehicles/vehicle.gd")
+				var t := mix[mixed % mix.size()]
+				mixed += 1
+				var mc: Node = vs.call("random_car", rng)
+				if t == 17:
+					mc.call("setup", t, Color(0.96, 0.73, 0.03), 0)
+					mc.call("setup_look", 0, 3, Color(0.07, 0.07, 0.08))
+				else:
+					mc.call("setup", t, mc.get("paint"), 0)
+					mc.call("setup_look", 1, 0, Color(0.92, 0.92, 0.93))
+				(traffic.get("_pool") as Array).append(mc)
 			var car: Node = traffic.call("place_car", axis, index, dir, n, line, 10.0, false, big_kind)
 			car.traffic.v = 0.0
 			car.set("traffic_speed", 0.0)

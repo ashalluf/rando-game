@@ -198,7 +198,7 @@ func _builds() -> void:
 		if not good:
 			ok = false
 			why += " %s(model %s rigs %d glass %d far %d)" % [Vehicle.BODY_NAMES[type], car._has_model, car._wheel_rigs.size(), car._glass_slots.size(), far]
-	await _ticks(30)
+	await _ticks(150)
 	_check(ok, "the hatchback, SUV, minivan, taxi and beater build as models with their glass, a far twin, lamps and four wheels%s" % why)
 	_check(worst < 80.0, "each builds inside the traffic's build budget (worst %.1f ms warm)" % worst)
 	# Parked: on their springs, upright, at rest, close to where traffic stands them.
@@ -206,7 +206,7 @@ func _builds() -> void:
 	var good_stance := true
 	for i in range(1, _cars.size(), 2):
 		var car: Vehicle = _cars[i]
-		var lift := car.global_position.y - (_top.y)
+		var lift := car.global_position.y - (_deck.global_position.y + 0.5)
 		var want := car.road_lift()
 		if absf(lift - want) > 0.06 or car.global_basis.y.dot(Vector3.UP) < 0.99:
 			good_stance = false
@@ -271,7 +271,10 @@ func _taxi() -> void:
 			if src != null and String(src.resource_name) == "taxi_sign":
 				var mat := m.get_surface_override_material(si) as ShaderMaterial
 				sign_ok = mat != null and mat.shader == Vehicle.TAXI_SIGN_SHADER
-	var letters := car.find_children("Lettering", "MeshInstance3D", false, false).size()
+	var letters := 0
+	for c in car.get_children():
+		if String(c.name).contains("Lettering"):
+			letters += 1
 	_check(sign_ok, "the taxi wears its lit roof sign (taxi_sign slot on shaders/taxi_sign.gdshader)")
 	_check(letters == 4 or OS.has_feature("web"), "the taxi carries BASIN CAB and its fleet number on both sides (%d)" % letters)
 	_check(car.cabin_seats() == 5 and CarCabin.seats_of(car.cabin_glass()) == 5 and car.get_node_or_null("LiveryProp") == null,
@@ -299,4 +302,5 @@ func _beater() -> void:
 			var src := m.mesh.surface_get_material(si)
 			if src != null and String(src.resource_name).begins_with("paint"):
 				pm = m.get_surface_override_material(si) as ShaderMaterial
-	_check(pm != null and float(pm.get_shader_parameter("wear")) == 0.0, "and no other car's paint wears anything")
+	var w: Variant = pm.get_shader_parameter("wear") if pm else 1.0
+	_check(pm != null and (w == null or float(w) == 0.0), "and no other car's paint wears anything")

@@ -590,6 +590,16 @@ already mapped so milestone 2 is script-only.
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
+  A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
+  (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
+  back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky
+  clear coat, a dent and a cracked, taped tail lamp). Same Blender pipeline as the other road
+  cars (tools/make_more_cars.py). Shares: hatchback 7 %, SUV 8 %, minivan 5.5 %, beater 3.5 %,
+  taken mostly from the sports car (14.5 -> 8.5 %) and the panel van; a roll keeps its old body
+  unless a new body took its slice, and the taxis are exactly the sedans that were taxis before.
+  docs/HANDOFF.md 9bq; CLAUDE.md "More everyday bodies".
+
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
   station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street

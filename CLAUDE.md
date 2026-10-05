@@ -168,7 +168,7 @@ scripts/               player, weapons, world, vehicles, npc, util, ui
 shaders/
 assets/                textures/ (CC0 sets) and models/ (Meshy .glb + .json)
 tests/                 headless smoke test and check script
-tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_cars.py, webshot/ (screenshot harness)
+tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_cars.py, make_more_cars.py, webshot/ (screenshot harness)
 ```
 
 ## Conventions
@@ -1126,6 +1126,33 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
   opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
   lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
+- More everyday bodies (2026-10-05, "the street stops repeating"; HANDOFF 9bq):
+  `tools/make_more_cars.py` (imports `make_road_cars.py`; `blender -b --factory-startup -P
+  tools/make_more_cars.py -- hatchback suv minivan taxi beater [--render]`, then `--import`) adds
+  a 5-door compact HATCHBACK, a full-size three-row SUV (flat roof on the van's ninth anchor,
+  chrome-barred grille, roof rails), a MINIVAN (sliding doors, their tracks under the rear glass),
+  the TAXI (the sedan + a lit roof sign) and an older BEATER (a 1990s notchback), body types
+  14-18. The four lofted bodies' details are DATA (`spec["d"]`) for one builder,
+  `everyday_details()`; `overhangs()` / `remap()` rescale a spec's overhangs keeping the
+  wheelbase. **Rolls**: `Vehicle.ROLL_MAP` maps the 0-999 roll in ranges, every old type keeping
+  the START of its old range and giving its end to a new type (`BODY_ODDS` is the shares, the
+  smoke test checks they agree), so a seed's parked car changes only where a new type took the
+  slice; `random_car()` still spends the caller's rng exactly as before. **The taxi is not
+  rolled**: a sedan whose look rolls a taxi job (`TAXI_SHARE`) becomes `BodyType.TAXI`, so every
+  seed's taxi is still a taxi. Its `taxi_sign` slot wears `shaders/taxi_sign.gdshader` (shared,
+  "TAXI" stroked front and back in mesh space from the box the run prints, lit by
+  `lamp_factor`), `Vehicle._add_taxi_lettering()` puts the invented company BASIN CAB and a fleet
+  number (`look_seed`, random_car()'s look) on the doors, and `_cabin_seats()` gives a traffic
+  taxi a fare on the back bench (`TAXI_FARE_SHARE`): **CarCabin seat bit 2** (value 4, the bench
+  behind the passenger, drawn in the passenger's colours; `person()` now takes its seat back's z).
+  **The beater's wear**: geometry where it is the truth (a dent in the right rear door,
+  `BEATER_DENT`; the right tail lamp in pieces with a broken corner and silver tape) and paint
+  wear in `car_paint.gdshaderinc` (`wear`, `wear_door` / `_side` / `_color`: another car's door
+  in the body MESH's space; `wear_primer`; the clear coat chalky on what faces the sky; rust low
+  on the sills) set only on a BEATER (`Vehicle.BEATER_DOOR`, `BEATER_PRIMER`, `BEATER_PAINTS`,
+  `BEATER_DOORS`); every other car skips it on `wear == 0`. SUV and minivan have privacy glass
+  (`CarCabin.PRIVACY_BODIES`). `car_shot.gd --each=14,15,16,17,18` (the taxi comes in its livery;
+  `LOOK=n` a beater's door / a taxi's number). Checks: `tests/more_cars_checks.gd`.
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
   BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on

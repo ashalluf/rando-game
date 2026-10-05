@@ -295,8 +295,8 @@ const TAXI_TRIM := Color(0.07, 0.07, 0.08)
 const TAXI_COMPANY := "BASIN CAB"
 ## Where the lettering goes on the taxi body, in body space: the front doors' centre over the
 ## checker band, the fleet number on the rear doors, and the letter heights.
-const TAXI_NAME_AT := Vector3(0.912, 0.665, -0.40)
-const TAXI_NUMBER_AT := Vector3(0.912, 0.665, 0.62)
+const TAXI_NAME_AT := Vector3(0.912, 0.635, -0.42)
+const TAXI_NUMBER_AT := Vector3(0.935, 0.64, 0.93)
 const TAXI_LETTER_SIZE := 0.085
 ## One in this many taxis has a fare on the back seat (CarCabin bit 2).
 const TAXI_FARE_SHARE := 0.62
