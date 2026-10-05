@@ -8,6 +8,9 @@ stills, seed 1337; the night ones use block_shot's crude NIGHT=1 lighting (not D
 - 04 / 05: a beach-town street, before and after: the CONTINENTAL POST office with a mail truck at
   the kerb by the blue collection boxes.
 - 06: the post office wide: brick front, flag, lawn, kerb truck.
+- 05b / 06b: after the lead's review: the mail truck is now the Blender-built panel van (its
+  far twin) in the invented CONTINENTAL POST livery (warm white, a deep teal belt band, the name
+  on the flanks). 05, 06 and 12 show the first code-built truck, which was dropped.
 - 07: a mid-century branch library (glass pavilion, breeze block, stone name wall).
 - 08 / 08b: a community centre (hall with its gable variant, wing, entry canopy) and from above.
 - 09 / 10: a city services office (pier colonnade, fins, flags) from the street and above.
