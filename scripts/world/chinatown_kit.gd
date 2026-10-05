@@ -439,6 +439,16 @@ static func string_lanterns(g: ChinatownGeo, a: Vector3, b: Vector3, sag: float,
 		lantern(g, p, 0.12, 0.5 if not gold else 0.42, LANTERN_GOLD if gold else LANTERN_RED, h01([seed_value, i, "ph"]))
 
 
+## Round pools of the lanterns' light under a string (night; additive, in the chunk's batch).
+static func _string_pools(ch: CityChunk, a: Vector3, b: Vector3, y: float) -> void:
+	var l := Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))
+	var n := maxi(1, int(round(l / 8.0)))
+	for i in n:
+		var p := a.lerp(b, (float(i) + 0.5) / float(n))
+		var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(7.5, 1.0, 7.5)), Vector3(p.x, y, p.z))
+		ch._batch.add("ct_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6), pool, Color(1.0, 0.34, 0.15, 0.32))
+
+
 ## The district's strings over the roads this chunk owns, hung between facing street lamps (their
 ## columns, STRING_ATTACH up), zig-zag as the two sides' lamps are staggered, plus pools of light.
 static func _strings(ch: CityChunk, st: Dictionary, block: Dictionary) -> void:
@@ -510,12 +520,7 @@ static func _zigzag(ch: CityChunk, g: ChinatownGeo, side_a: Array, side_b: Array
 		var l := a.distance_to(b)
 		var sag := 0.35 + 0.035 * l
 		string_lanterns(g, a, b, sag, absi(hash([ch.plan.seed, tag, k])) % 1000)
-		# Their light on the street.
-		var mid := (a + b) * 0.5
-		var yaw := atan2(b.x - a.x, b.z - a.z)
-		var pool := Transform3D(Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(5.0, 1.0, l * 0.8)),
-			Vector3(mid.x, CityChunk.ROAD_TOP + 0.08, mid.z))
-		ch._batch.add("ct_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6), pool, Color(1.0, 0.36, 0.16, 0.45))
+		_string_pools(ch, a, b, CityChunk.ROAD_TOP + 0.08)
 		k += 1
 
 
@@ -624,11 +629,24 @@ static func shop_unit(g: ChinatownGeo, u: Dictionary, d: float, goods: bool) -> 
 	var field: Color = u.field
 	var top := hgt + (0.0 if roof == "sweep" else 0.9)
 	var wc := kc(wall, K_WALL)
-	# The body (sides and back) and the upper front wall.
-	box(g, Vector3(cx, (top - 1.2) * 0.5, -0.3 - (d - 0.3) * 0.5), Vector3(w, top + 1.2, d - 0.3), wc)
+	# The body (sides and back) to the roof, the upper front wall up to the parapet. A deep lot's
+	# back part is a storey lower (stepping back from the street, as the real blocks do).
+	var front_d := d if d < 18.0 else 14.0
+	var back_h := hgt if d < 18.0 else maxf(hgt - STOREY, GROUND_STOREY + STOREY)
+	box(g, Vector3(cx, (hgt - 1.2) * 0.5, -0.3 - (front_d - 0.3) * 0.5), Vector3(w, hgt + 1.2, front_d - 0.3), wc)
+	if d >= 18.0:
+		box(g, Vector3(cx, (back_h - 1.2) * 0.5, -front_d - (d - front_d) * 0.5), Vector3(w, back_h + 1.2, d - front_d), wc)
+		box(g, Vector3(cx, back_h + 0.03, -front_d - (d - front_d) * 0.5), Vector3(w - 0.3, 0.06, d - front_d - 0.3), kc(MEMBRANE, K_STONE))
+		# A low parapet round the back roof's edge and a rooftop unit.
+		box(g, Vector3(cx, back_h + 0.3, -d + 0.12), Vector3(w, 0.6, 0.24), wc)
+		box(g, Vector3(cx + w * 0.15, back_h + 0.55, -front_d - (d - front_d) * 0.5), Vector3(1.6, 1.1, 1.2), kc(Color(0.62, 0.62, 0.6), K_PAINT))
 	box(g, Vector3(cx, (GROUND_STOREY + top) * 0.5, -0.15), Vector3(w, top - GROUND_STOREY, 0.3), wc)
 	# The roof membrane behind the parapet (or behind the hip roof).
-	box(g, Vector3(cx, hgt + 0.03, -d * 0.5 - 0.15), Vector3(w - 0.3, 0.06, d - 0.6), kc(MEMBRANE, K_STONE))
+	box(g, Vector3(cx, hgt + 0.03, -front_d * 0.5 - 0.15), Vector3(w - 0.3, 0.06, front_d - 0.6), kc(MEMBRANE, K_STONE))
+	if roof != "sweep":
+		box(g, Vector3(cx, hgt + 0.3, -front_d + 0.12), Vector3(w, 0.6, 0.24), wc)
+		for sx2: float in [-1.0, 1.0]:
+			box(g, Vector3(cx + sx2 * (w * 0.5 - 0.12), hgt + 0.3, -front_d * 0.5), Vector3(0.24, 0.6, front_d - 0.3), wc)
 	_shopfront(g, u, x0, x1)
 	# Upper storeys: lattice-framed windows with surrounds and sills.
 	var storeys: int = u.storeys
@@ -656,13 +674,25 @@ static func shop_unit(g: ChinatownGeo, u: Dictionary, d: float, goods: bool) -> 
 		if not u.get("open_l" if sx < 0.0 else "open_r", false):
 			continue
 		var xs := cx + sx * (w * 0.5 + 0.03)
-		var nd := clampi(int(minf(d, 12.0) / 3.2), 1, 4)
+		var nd := maxi(1, int((d - 1.0) / 3.2))
 		for s in range(1, storeys):
 			var y0 := GROUND_STOREY + float(s - 1) * STOREY + 0.95
 			for i in nd:
 				var z := -1.8 - float(i) * 3.2
+				if z < -front_d and y0 + 1.8 > back_h:
+					continue
 				box(g, Vector3(xs, y0 + 0.85, z), Vector3(0.06, 1.7, 1.2), kc(trim, K_WINDOW))
 				box(g, Vector3(xs + sx * 0.03, y0 - 0.05, z), Vector3(0.12, 0.1, 1.4), kc(GRANITE, K_STONE))
+	# Windows in the back wall too (it faces the next street on a through lot).
+	var bm := maxi(1, int(round(w / 3.4)))
+	for s in range(1, storeys):
+		var y0 := GROUND_STOREY + float(s - 1) * STOREY + 0.95
+		if y0 + 1.8 > back_h:
+			continue
+		for i in bm:
+			var wx := x0 + (float(i) + 0.5) * w / float(bm)
+			box(g, Vector3(wx, y0 + 0.85, -d - 0.03), Vector3(1.2, 1.7, 0.06), kc(trim, K_WINDOW))
+			box(g, Vector3(wx, y0 - 0.05, -d - 0.06), Vector3(1.4, 0.1, 0.12), kc(GRANITE, K_STONE))
 	# Corner piers up the front.
 	for sx: float in [-1.0, 1.0]:
 		box(g, Vector3(cx + sx * (w * 0.5 - 0.2), (top + GROUND_STOREY) * 0.5, 0.06), Vector3(0.4, top - GROUND_STOREY, 0.12), kc(wall * 0.88, K_WALL))
@@ -999,14 +1029,27 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 	var seed_value := ch.plan.seed
 	var row_x0 := inner.position.x + 2.0
 	var row_x1 := inner.end.x - 2.0
-	var rows := [[float(L.north_face), Vector2(0, 1)], [float(L.south_face), Vector2(0, -1)]]
+	# The rows round the court: [face centre, facing, length]. North and south whole; west and east
+	# either side of the walk, leaving the gates their opening.
+	var rd: float = L.row_d
+	var nf: float = L.north_face
+	var sf: float = L.south_face
+	var gap := float(L.walk_w) * 0.5 + 3.0
+	var rows := [[Vector2((row_x0 + row_x1) * 0.5, nf), Vector2(0, 1), row_x1 - row_x0],
+		[Vector2((row_x0 + row_x1) * 0.5, sf), Vector2(0, -1), row_x1 - row_x0]]
+	for side: float in [-1.0, 1.0]:
+		var fx := (inner.position.x + rd) if side < 0.0 else (inner.end.x - rd)
+		for half: float in [-1.0, 1.0]:
+			var za := (nf + 0.5) if half < 0.0 else (walk_z + gap)
+			var zb := (walk_z - gap) if half < 0.0 else (sf - 0.5)
+			if zb - za > 8.0:
+				rows.append([Vector2(fx, (za + zb) * 0.5), Vector2(-side, 0), zb - za])
 	var hall: Vector2 = L.hall
 	if ch.level != CityChunk.Level.FULL:
 		for r: Array in rows:
-			var face: float = r[0]
 			var out2: Vector2 = r[1]
-			var xf := _row_frame(ch, Vector2((row_x0 + row_x1) * 0.5, face), out2)
-			_far_units(ch, xf, plan_units(seed_value, absi(hash([ch.ix, ch.iz, out2.y])), row_x1 - row_x0, true), float(L.row_d))
+			var xf := _row_frame(ch, r[0], out2)
+			_far_units(ch, xf, plan_units(seed_value, absi(hash([ch.ix, ch.iz, r[0]])), r[2], true), rd)
 		var hy := ch._gy(hall.x, hall.y) + CityChunk.SIDEWALK_TOP
 		var hxf := Transform3D(Basis(), Vector3(hall.x, hy, hall.y))
 		_lod_box(ch, hxf, Vector3(0, 0.45, 0), Vector3(20, 0.9, 16), GRANITE, Color(0, 0, 0, 1.0), true)
@@ -1018,15 +1061,18 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 	var st := _state(ch)
 	var g: ChinatownGeo = st.geo
 	for r: Array in rows:
-		var face: float = r[0]
 		var out2: Vector2 = r[1]
-		var xf := _row_frame(ch, Vector2((row_x0 + row_x1) * 0.5, face), out2)
-		_units(ch, st, xf, plan_units(seed_value, absi(hash([ch.ix, ch.iz, out2.y])), row_x1 - row_x0, true), float(L.row_d), true)
+		var xf := _row_frame(ch, r[0], out2)
+		_units(ch, st, xf, plan_units(seed_value, absi(hash([ch.ix, ch.iz, r[0]])), r[2], true), rd, true)
 	# The hall.
 	var hy := ch._gy(hall.x, hall.y) + CityChunk.SIDEWALK_TOP
 	var hxf := Transform3D(Basis(), Vector3(hall.x, hy, hall.y))
 	g.xf = hxf
 	hall_mesh(g, st, hxf)
+	for px: float in [-6.0, 0.0, 6.0]:
+		var hp := hxf * Vector3(px, 0.0, 9.5)
+		ch._batch.add("ct_pool", PropFactory.light_pool(Color(1.0, 1.0, 1.0), 1.3, 1.6),
+			Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(8.0, 1.0, 8.0)), Vector3(hp.x, CityChunk.SIDEWALK_TOP + 0.1, hp.z)), Color(1.0, 0.45, 0.2, 0.4))
 	# The gates at the walk's two ends.
 	for e: Vector2 in [L.gate_w, L.gate_e]:
 		var gy := ch._gy(e.x, e.y) + CityChunk.SIDEWALK_TOP
@@ -1060,6 +1106,7 @@ static func build_plaza(ch: CityChunk, block: Dictionary) -> void:
 		var q: Array = masts[i + 1]
 		if int(p[2]) != int(q[2]):
 			string_lanterns(g, p[1], q[1], 0.5, i + 17)
+			_string_pools(ch, p[1], q[1], CityChunk.SIDEWALK_TOP + 0.1)
 	# Trees in planters at the four quarters, and benches facing the pond and the hall.
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed_value, ch.ix, ch.iz, "ct_trees"])

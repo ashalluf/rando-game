@@ -2420,7 +2420,7 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: Broadway.block_step(self, rect))
 		# Downtown encampments (Encampment), after the furniture they keep clear of. Its own
 		# hash-seeded rolls: the block's rng is untouched, so the cars and the crowd are unmoved.
-		var camps: int = Encampment.block_flags(plan, ix, iz) if block.kind == CityPlan.BlockKind.BUILDINGS else 0
+		var camps: int = Encampment.block_flags(plan, ix, iz) if block.kind == CityPlan.BlockKind.BUILDINGS and not block.has("chinatown") else 0
 		if camps != 0:
 			var sleepers: Array = []
 			steps.append(func() -> void: Encampment.build_block(self, rect, _sidewalk_edges(rect), sleepers))

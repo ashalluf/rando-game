@@ -182,8 +182,11 @@ void fragment() {
 		vec3 silk = col * (0.85 + 0.15 * noise2(uv * vec2(40.0, 8.0)));
 		col = mix(silk, vec3(0.30, 0.03, 0.02), rib * 0.6);
 		col = mix(col, vec3(0.62, 0.42, 0.10), clamp(bands, 0.0, 1.0));
-		vec3 glow = v_paint * vec3(1.0, 0.78, 0.55) + vec3(0.25, 0.08, 0.0);
-		float lit = mix(lantern_day, lantern_night, night) * (0.45 + 0.55 * bulge) * (1.0 - rib * 0.55) * (1.0 - clamp(bands, 0.0, 1.0) * 0.8);
+		// Deep red through the silk, a warmer core where the lamp inside is nearest (a lantern
+		// glowing pale peach all over read as a paper ball, not silk).
+		float core = pow(bulge, 3.0) * pow(clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.0);
+		vec3 glow = mix(v_paint * vec3(1.0, 0.32, 0.18), v_paint * vec3(1.0, 0.62, 0.32) + vec3(0.12, 0.04, 0.0), core);
+		float lit = mix(lantern_day, lantern_night, night) * (0.35 + 0.65 * bulge) * (1.0 - rib * 0.6) * (1.0 - clamp(bands, 0.0, 1.0) * 0.8);
 		emit = glow * lit;
 		BACKLIGHT = cs_out(col * 0.6);
 		rough = 0.55;
@@ -295,7 +298,7 @@ void fragment() {
 	} else if (k == 15) {
 		float fres = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 3.0);
 		col = vec3(0.02, 0.05, 0.045);
-		emit = sky_tint.rgb * (0.08 + 0.55 * fres);
+		emit = sky_tint.rgb * (0.08 + 0.55 * fres) * (1.0 - night * 0.85);
 		float rip = noise2(uv * 3.0 + TIME * 0.2) - noise2(uv * 3.0 - TIME * 0.17 + 4.0);
 		nm = normalize(vec3(rip * 0.4, rip * 0.3, 1.0)) * 0.5 + 0.5;
 		rough = 0.05;
