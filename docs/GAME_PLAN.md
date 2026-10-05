@@ -510,6 +510,18 @@ already mapped so milestone 2 is script-only.
   down the banks, the bed and the low-flow channel have collision (a car down a ramp is a smoke
   check). Everything is code at real size; the far city gets boxes.
 
+- **2026-10-05 Hospitals: campuses the ambulances drive their patients to (HANDOFF 9cq).** The
+  ambulances had nowhere to go: a crew loaded the patient and the unit drove off to be pooled.
+  `Hospital` places a few campuses across the map (a hash of seed + 1.5 km cell, the first
+  suitable block among its candidates) and one medical centre in Westlake west of downtown, as
+  FireStation places its stations: pure geometry of the block, claimed in `CityPlan.block()` after
+  every roll, so no seed moves. A campus is a bed tower over a podium (a `Building` subclass, so
+  the facade shader, lit wards and the far tiers' coded boxes come for free), the glazed lobby
+  behind a drop-off canopy, the EMERGENCY entrance with a big lit red sign over a covered three-bay
+  ambulance court, a rooftop helipad (a plain H, never a cross: the red cross is a protected
+  emblem), a parking structure or a surface lot. An ambulance with a patient aboard now drives to
+  the nearest one, pulls past the court, backs into a free bay and parks. Names are invented.
+
 - **2026-10-05 Shadows are cast only where the shadow map can hold them; dark lights are hidden
   (VISUAL_ROADMAP #50).** (Frame-cost audit after the 2026-10-04 wave, docs/HANDOFF.md 9bf.) The
   shadow passes had grown to 46 % of the downtown frame (3.49 of 7.66 M triangles). Decisions:

@@ -286,7 +286,7 @@ static func _eligible(plan: CityPlan, b: Dictionary, site: Rect2) -> bool:
 	var rect: Rect2 = b.rect
 	if not (int(b.district) in SCHOOL_DISTRICTS):
 		return false
-	if b.has("site") or b.has("grounds") or b.get("was_plaza", false):
+	if b.has("site") or b.has("grounds") or b.has("hospital") or b.get("was_plaza", false):
 		return false
 	if int(b.kind) != CityPlan.BlockKind.BUILDINGS and int(b.kind) != CityPlan.BlockKind.PARK:
 		return false

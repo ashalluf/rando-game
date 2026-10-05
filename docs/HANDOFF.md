@@ -8669,3 +8669,83 @@ existed; the plazas' own pylon is Commercial's (the roadside session's file, unt
   motor court. Pole signs in SUBURBS only beside plazas and big boxes (the suburbs' lots are
   houses). The vinyl floats 12 cm in front of the traced glass (seen at a grazing angle). Signs do
   not light the street (emission only). Banner and plate posts are not in the LOD/far city.
+
+## 9cq. Hospitals: the ER the ambulances drive to, 2026-10-05 (agent branch `wt/hospital`; VISUAL_ROADMAP #85)
+
+**What.** The ambulances had nowhere to take anyone: a crew loaded the patient and the unit drove
+off to be pooled. Now a few hospital campuses stand across the map and one large medical centre
+(BASIN GENERAL MEDICAL CENTER) in Westlake between MacArthur Park and the 110, and an ambulance
+with a patient aboard drives to the nearest one, pulls past the ER court, backs into a free bay and
+parks. Names are invented (`Hospital.NAMES`).
+
+**Where (`Hospital`, scripts/world/hospital.gd).** FireStation's approach: 1.5 km cells, a hash of
+seed + cell for whether it has a hospital and up to 24 candidate points; the first whose block
+passes `_suitable()` - inner rect at least 56 x 70 m and at most 150, MIDTOWN / SUBURBS / BEACHTOWN /
+CAMPUS, level (relief within 2.5 m), all CITY, off DowntownReal's extent, landmarks (and 20 m round
+them) and their sites, freeways, the light rail, the river blocks, the runway clear zone and the
+replica. The medical centre is the suitable block nearest `MEDICAL_TARGET` (1180, 420). All of it is
+pure geometry of the block (road positions, `district_at`, the global claims) - never another
+block's `CityPlan.block()` - so `CityPlan.block()` asks `claims_block()` for the block it is
+building, AFTER every roll and override, Parks' included: `"hospital": true` (its own key; Parks
+owns `grounds`), kind BUILDINGS, `lots()` empty. On seed 1337: five - the medical centre (16
+storeys) at block (16, 1), and four more of 6-9 storeys (`tools/hospital/probe.tscn` lists them
+with EYEs for every view).
+
+**The campus (`Hospital.layout()`, `HospitalBuild`, `HospitalTower`).** Planned in a frame on the
+block's inner rect (u along the front street, the widest; v back; mirrored so the ER street - the
+wider side road - is always at u = W). The podium (13.2 m) and the bed tower (3.9 m storeys) are
+ONE `Building` (`HospitalTower`: RIBBON window bands in light panels, lit wards most of the night,
+no roof plant on the tower), so the facade shader, the occluder and FarBuilding's coded far boxes
+come with no code here. `HospitalBuild` adds: a ground partition (lawn, asphalt drives and court,
+paving; `Parks.minus`), kerb cuts (an apron over the pavement and a lip into the gutter), the glazed
+double-height lobby on `curtain_glass` (traced interior, lit at night) with sliding doors and the
+drop-off canopy on round columns with downlights, MAIN ENTRANCE and the name lit on the canopy and
+over the lobby, the name along the top of the tower, a monument sign in the loop's island; the ER
+canopy over three bays (wheel stops, AMBULANCE painted in each bay, a red fascia with AMBULANCE
+ENTRANCE, guard posts), sliding ER doors with lit transoms, the EMERGENCY sign (a red light box
+with white letters, `shaders/hospital_sign.gdshader`), an ambulance parked in bay 0 (the body's
+`_far` twin with baked wheels), the court's light pools and a red glow under the sign; the
+helipad (a steel deck on legs over the tower roof, yellow touchdown square, white circle and a
+PLAIN H - never a cross, a protected emblem -, the safety net, a ramp to the roof, a windsock,
+green edge lights, white floods and red beacons as Airport's aircraft-light billboards, so they
+read across the basin at night); the parking structure (`ArenaGrounds.garage`, four decks, its
+drive-in from the back street) where the block is deep enough, else a surface lot; raised beds,
+street trees, palms. LOD / far city: the tower's coded boxes, the garage, canopies and lobby as
+boxes, the sign as a lit red PANEL plant box, the deck and BEACON_MAST boxes; the LOD ring also
+gets the light billboards. Parked cars, poles, bike racks and mailboxes keep off the drives
+(`Hospital.keeps_clear()`).
+
+**The ambulance (emergency.gd / emergency_car.gd).** `Emergency._finish()`: an ambulance whose call
+is `loaded` goes `to_hospital(Hospital.nearest())` (within `TRANSPORT_REACH` 2.6 km; else it leaves
+as before). New modes: TRANSPORT (the lanes to `Hospital.er_goal()`, siren and lights,
+`transport_speed`), BACKING (a bay from `Hospital.take_bay()`, `Hospital.back_in_path()`: forward
+11 m past the court's mouth, then a Bezier reversing in, nose to the street; reversing lamps on),
+PARKED (lights off; Emergency pools it after `park_seconds` unseen). Units are still retired past
+`despawn_distance` from the player, so one only reaches the hospital if the player is near.
+
+**Checks** (`tests/hospital_checks.gd`, one line in the smoke test): pure placement, five on the
+seed, the blocks' role and lots, the layouts inside their blocks, a FULL chunk (tower, campus,
+sign, ambulance, helipad lights, collision; ~275 ms headless), the far capture's coded boxes and
+ER panel, the kerbs, and an ambulance driving from a call 70 m away into bay 1 (0.00 m off, facing
+the street), its lights off parked, pooled after. `emergency_checks.gd`'s "the ambulance leaves"
+now accepts TRANSPORT. Headless check: 941 passed.
+
+**Stills** (shots/hospital; opengl3, not the Mac's Forward+): the medical centre from the front
+street at noon and at 22:00, the ER bay at 22:00 with an ambulance backing in, the helipad from
+the air, the campus aerial. `HOSPITAL=front|bay|roof|aerial` on still_shot.gd (`HOSPITAL_AT=medical`,
+`HOSPITAL_T` how far along the bay path), `HOSPITALS=0` the A/B.
+
+**Frame cost** (still_shot.gd GEO, opengl3 1280x720, the same spawn, `HOSPITALS=0` against the
+hospitals): the medical centre from the front street at noon 5.04 M -> 5.22 M triangles (+3.6 %),
+2,832 -> 3,059 draws (+227: the campus mesh's surfaces, the lettering - one TextMesh node a sign -,
+the garage's and the planting's batches, the tower's kit; a FULL hospital chunk replaces a block of
+buildings); the campus aerial from 120 m 3.79 M -> 3.83 M (+0.8 %), 2,722 -> 2,797 draws. A FULL
+hospital chunk builds in ~275 ms over 9 steps headless (the tower Building and the garage the
+heaviest); LOD / the far city are a dozen boxes a hospital.
+
+**Not done / not verified.** No air ambulance (AirTraffic's helicopter landing on the pad was
+optional and is not in). Forward+ not seen: the sign's red, the lobby glass and the lit wards under
+AgX need eyes on the Mac. Nobody walks into or out of the hospital (the crowd keeps to the
+pavement ring; the patient is not unloaded). The court is a plain asphalt apron (no ambulance
+traffic of its own beyond the units Emergency sends). The tower is a light-panel slab with ribbon
+windows on every face; real bed towers have more articulation (a crown, mechanical floors).

@@ -2367,7 +2367,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	var steps: Array[Callable] = [_block_surface.bind(block, params, rng)]
-	match block.kind:
+	# A hospital campus (Hospital; its own hash-seeded layout) in place of the block's own build.
+	match -1 if Hospital.is_hospital(block) else int(block.kind):
+		-1:
+			steps.append_array(HospitalBuild.steps(self, block))
 		CityPlan.BlockKind.PARK:
 			if Parks.wanted(self, block):
 				# A rec park (Parks: its own hash-seeded layout). The lawn roll is still made, so the
@@ -2637,7 +2640,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	var car := Vehicle.random_car(rng)
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()

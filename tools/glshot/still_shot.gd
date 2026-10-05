@@ -407,6 +407,20 @@ func _initialize() -> void:
 			await process_frame
 			af_t += get_root().get_process_delta_time()
 			_pose(player, anchor, hold, boost, fov)
+	# HOSPITAL=front|bay|roof|aerial: the hospital nearest the camera (HOSPITAL_AT=medical: the
+	# medical centre), `bay` with an ambulance backing into the ER bay (HospitalStage).
+	var hosp_env := OS.get_environment("HOSPITAL")
+	if hosp_env != "" and current_scene:
+		var h_eye: String = load("res://scripts/world/hospital_stage.gd").stage(self, current_scene, hosp_env, get_root().get_camera_3d())
+		if h_eye != "":
+			OS.set_environment("EYE", h_eye)
+		print("HOSPITAL %s eye %s" % [hosp_env, h_eye])
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		for i in _env_int("HOSPITAL_FRAMES", 24):
+			await process_frame
+			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.
 	# Held still, TAA and the GI converge on one instant, as crisp as it is on the Mac.

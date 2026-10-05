@@ -115,7 +115,7 @@ static func for_cell(plan: CityPlan, cell: Vector2i) -> Dictionary:
 		var b := plan.block(bi.x, bi.y)
 		if _cell_of((b.rect as Rect2).get_center()) != cell:
 			continue
-		if not DISTRICTS.has(int(b.district)) or int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds"):
+		if not DISTRICTS.has(int(b.district)) or int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds") or b.has("hospital"):
 			continue
 		if plan.macro.skyline_boost((b.rect as Rect2).get_center()) > 0.3:
 			continue
@@ -150,7 +150,7 @@ static func hq(plan: CityPlan) -> Dictionary:
 	var hall := CivicSites.anchor("ziggurat_hall")
 	var bi := plan.block_index_at(hall) + Vector2i(0, 1)
 	var b := plan.block(bi.x, bi.y)
-	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds") or Landmarks.claims(b.rect) or plan.river_block(bi.x, bi.y):
+	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or b.has("grounds") or b.has("hospital") or Landmarks.claims(b.rect) or plan.river_block(bi.x, bi.y):
 		return out
 	var s := _site(plan, bi, true, [plan.seed, "hq"])
 	if s.is_empty():
