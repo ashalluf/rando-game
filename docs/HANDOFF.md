@@ -7040,3 +7040,78 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+
+## 9b?. Gullwing Park: an amusement park on Rando Pier, 2026-10-05 (agent branch `wt/pier`; VISUAL_ROADMAP #63)
+
+**What.** The `pier` landmark (Rando Pier, (-940, -350), the Santa Monica of this map) was a
+plank, two box arches, a Ferris wheel of box spokes turned by a node and a coaster "loop" of
+boxes. It is now `PierPark`: a timber pier (pile bents with X braces, fascia, stringers, a
+railing round the whole outline, a ramp to the sand, double-globe lamps where Weather's sea
+reflections already put them) with GULLWING PARK on a 140 x 50 m platform off its south side
+and a 98 x 20 m strip off its north side. Everything original: the park, the coaster (KELP
+CRACKER), the arcade (TOKEN TIDE ARCADE), BUMPER BAY, the stands (SALT & SPUD, PINK FOG CANDY,
+STICK SHACK, SQUEEZE PLAY, FUNNEL CLOUD), the games (RING TOSS, HOOP SHOT, BALLOON DARTS, WATER
+RACE, BOTTLE DROP).
+
+- **The Ferris wheel** (`FerrisWheel`, 26 m across, hub 16.8 m over the deck): two laced box
+  rims, twenty spokes a side to a flanged hub, cross ties with gondola pins, tubular A-frames on a
+  boarding platform with the drive tyres under the rim, twenty open oval gondolas under striped
+  canopies. Turns in the vertex shader (`pier_park.gdshader` ride 1, a turn in 150 s), the
+  gondolas translated with their pins so they hang plumb with a slow swing. After dark the LED
+  strips on every spoke and both rims run four chasing patterns crossfaded every 14 s (radial
+  runs, a rotating sweep, a spiral, a slow colour with sparkle) and the gondolas' canopy rims
+  glow. The far copy is the same wheel at low detail with 0.9 m LED strips: a lit disc from the
+  beach 500 m off and from the air.
+- **The coaster** (`PierCoaster`): a 267 m circuit round the platform - station, chain lift to
+  17 m, a turning first drop round the west end, camelbacks down the south side, a banked turn
+  and the brakes - on a tube spine with C-frame ties and two running rails, single columns where
+  the track is low and braced pairs where it is high, a lift catwalk, a station with a canopy and
+  gates. The five-car train is placed from a table worked out once (76 s a ride, 26 s of it in the
+  station, 17 m/s at the bottom of the drop); riders scream on the drop, the train rolls with the
+  light rail's rolling loop.
+- **The carousel** (`PierCarousel`): 28 carved horses (body, chest, haunch, neck, head, mane,
+  ears, eyes, prancing legs, tail, saddle, blanket, breast collar, stirrups - each its coat) on
+  brass poles in two rings, a striped canopy with a cream ceiling and rings of bulbs, a rounding
+  board with mirrors, scallops and bulbs, a mirrored column; turns and bobs in the shader.
+- **The midway**: the arcade (lit glass bays, a canopy, a neon name on a bulb-framed board),
+  BUMPER BAY (an open pavilion, pick-up grid, ten cars running loops over the floor in the
+  shader), five food stands with their giant fries / candy floss / corn dog / lemon / funnel cake
+  on the roof, five game booths with shelves of plush prizes, benches, picnic tables under
+  umbrellas, swagged strings of bulbs across the pier, the park's arch (GULLWING PARK) and the
+  pier's (RANDO PIER) in neon and bulbs, warm light pools, six real lamp_light omnis.
+- **People**: 48 `PierGoer`s (in the crowd cap, two in three starting on the midway) walk the
+  walk graph, sit on the benches and queue at the wheel, the coaster, the carousel, the bumper
+  cars, the stands and the booths (the life layer's vendor queue).
+- **Shooting**: the wheel, the track and the cars are metal (sparks, pings) and keep running.
+
+**Frame cost** (still_shot.gd GEO lines, opengl3 + Xvfb 1280x720, the same EYEs and spawn
+(-1000, -345), 12:30, base 885795c against this branch): the pier from the beach (EYE
+`-945,1.8,-235,61.7,7`) 1.057 M -> 1.273 M triangles, 780 -> 411 draws (camera 636 k -> 782 k,
+shadows 422 k -> 491 k); under the wheel (`-1065,8.1,-330,124,22`) 0.397 M -> 0.661 M, 252 ->
+197; down the deck (`-970,8.0,-353,90,-3`) 0.662 M -> 0.961 M, 627 -> 240 (most of the rise is
+the crowd the old pier did not have). The park near is ~121 k triangles (pier and midway ~57 k,
+the rides ~64 k) in 211 nodes with 173 collision shapes; the far copy 4 k triangles in 14 nodes.
+Draws fell because the old pier was a node per box. Shadow passes were cut by giving every light,
+pile, rail, lamp and string no shadow and drawing the wheel's and the track's shadows from their
+far meshes (shadows only): the beach view's shadow pass 596 k -> 491 k. Build: ~0.5 s of
+GDScript once, on the loading screen (`PierPark.warm()`); a pier chunk then only instances.
+
+**Stills** (shots/pier; opengl3, not the Mac's Forward+): the pier from the beach at noon and
+at 21:00 (`-945,1.8,-235,61.7,7`), the wheel close up from the deck by day and lit at night
+(`-1065,8.1,-330,124,22`), the train on the drop (`PIER_COASTER_S=78`, `-1090,8.1,-348,135,12`),
+the midway crowd by day and night (`-1006,8.2,-346,100,-4`), the carousel by day and night
+(`-1032,8.0,-314,104,-2`), and the far wheel from the beach 500 m south and from the air.
+
+**Tools.** `tools/pier/compile.gd` (headless, seconds): compiles the scripts, builds the park
+near and far and prints triangles / nodes / shapes, the coaster's ride, and runs the checks that
+need no city. Checks: `tests/pier_park_checks.gd`.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the LED and bulb brightness under AgX
+and auto exposure, the canvas and paint under SSIL. Nobody rides: the gondolas, the coaster and
+the carousel are empty and the queues never board (people queue, wait and leave). The bumper cars
+pass through each other (shader paths, no collision) and have no sparks on the grid. The coaster
+train has no collision with the player beyond its five boxes (it does not knock anyone down).
+The arcade has no interior (its glass glows). No carousel organ or midway music. Weather's sea
+reflections of the pier's lamps (`Weather.pier_light_lines()`) still use the old lamp numbers
+(+-11 m, 5.5 m up), within a few decimetres of the new ones. BeachLife does not keep its towels
+off the ground under the pier's ramp.

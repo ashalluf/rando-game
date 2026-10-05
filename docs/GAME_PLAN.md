@@ -289,6 +289,18 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Rando Pier becomes an amusement park, Gullwing Park (VISUAL_ROADMAP #63, HANDOFF
+  9b?).** The `pier` landmark (the map's Santa Monica) was primitives; it is now `PierPark`: a
+  timber pier with a park platform on its south side and a strip on its north side, a spoked
+  Ferris wheel, the KELP CRACKER steel coaster looping the platform, a carousel, an arcade,
+  bumper cars, stands, game booths, string lights and arches - a Santa Monica-style FORM with
+  every name invented. Decisions worth knowing: the rides move in the VERTEX SHADER from TIME
+  (wheel, carousel, bumper cars), so nothing ticks per frame and the far copy turns too; the
+  coaster's train is placed from a ride table worked out once (never integrated per car); the
+  layout is one set of constants in the park's frame that the checks hold apart, the crowd walks
+  a graph that never crosses a ride; everything is code on one shader with the surface kind per
+  vertex; shadows come from the rides' far meshes and lights cast none. The pier's deck height,
+  lamp line and anchor did not move.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
