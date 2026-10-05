@@ -80,13 +80,14 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> String:
 			for c: SmokeColumn in mgr.columns():
 				c.strength = 1.0
 				c._glow = 1.0
-				c.step(1.0, 1.0, 70.0, mgr._wind())
+				for k in 40:
+					c.step(1.0, 1.0, 70.0, mgr._wind())
 			var far := _f("AF_FAR", 1500.0)
 			var dir := (across + along * 0.4).normalized()
 			eye = centre + dir * far
 			var g2 := _ground(tree, eye)
 			eye.y = (g2.y if g2 != Vector3.INF else centre.y) + _f("AF_EYE_HEIGHT", 60.0)
-			look = centre + Vector3.UP * 140.0
+			look = centre + Vector3.UP * 220.0
 		"crater":
 			Explosion.blast(tree.current_scene, blast_at, 9.0, 30.0, 0.0)
 			eye = blast_at + across * 7.0 + along * 3.0 + Vector3.UP * 5.0

@@ -37,7 +37,7 @@ uniform float sun_gain = 1.6;
 uniform float sky_gain = 0.55;
 /// Opacity at the foot and at the top.
 uniform float density_base = 0.95;
-uniform float density_top = 0.22;
+uniform float density_top = 0.38;
 
 varying float v_alpha;
 varying float v_y;
@@ -53,18 +53,21 @@ void vertex() {
 	float y = height * (1.0 - pow(1.0 - age, 1.7));
 	float h01 = y / max(height, 1.0);
 	float r = mix(radius_base, radius_top, sqrt(h01));
-	vec3 centre = vec3(lean.x, 0.0, lean.y) * h01 * h01;
+	// The plume bends over: the wind takes it more the higher it is, and near the top it
+	// spreads out downwind into a long flattened sheet.
+	vec3 centre = vec3(lean.x, 0.0, lean.y) * pow(h01, 1.6);
+	centre.xz += lean * smoothstep(0.6, 1.0, h01) * (0.25 + 0.5 * rnd);
 	centre.y = y;
 	// The plume wanders: a slow sideways swing that grows with the puff, phase per puff.
 	float w = TIME * 0.21 + rnd * 6.2832 + y * 0.013;
 	centre.xz += vec2(sin(w), cos(w * 0.83)) * r * 0.32;
-	float size = r * (1.35 + 0.55 * rnd);
+	float size = r * (1.35 + 0.55 * rnd) * (1.0 + 0.5 * smoothstep(0.6, 1.0, h01));
 	vec2 corner = UV * 2.0 - 1.0;
 	// Billboard in the node's own space (TreeFire keeps it unrotated and unscaled).
 	vec3 right = (inverse(MODEL_MATRIX) * vec4(INV_VIEW_MATRIX[0].xyz, 0.0)).xyz;
 	vec3 up = (inverse(MODEL_MATRIX) * vec4(INV_VIEW_MATRIX[1].xyz, 0.0)).xyz;
 	VERTEX = centre + (right * corner.x + up * corner.y) * size;
-	float fade = smoothstep(0.0, 0.05, age) * (1.0 - smoothstep(0.72, 1.0, age));
+	float fade = smoothstep(0.0, 0.05, age) * (1.0 - smoothstep(0.8, 1.0, age));
 	v_alpha = fade * mix(density_base, density_top, h01) * strength;
 	v_y = y;
 	v_rot = rnd * 6.2832 + TIME * (rnd - 0.5) * 0.06;
