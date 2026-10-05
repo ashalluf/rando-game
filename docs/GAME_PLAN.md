@@ -289,6 +289,15 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The web build checked after the October wave (VISUAL_ROADMAP #59, HANDOFF 9bq).**
+  Exported and loaded in headless Chromium (WebGL2 on SwiftShader) at downtown by day and night,
+  the beach, the hills, the airport, the light rail, MacArthur Park and the showroom: every one
+  loads and draws, with no shader, WebGL or global-buffer error. The one web-only bug: `Quality`
+  never runs `apply_level()` on the web, so the two per-pixel extras the code drops "on the web"
+  (the sky's `cloud_detail`, the `ground_detail` global) stayed on in the browser; the web now
+  sets them in `Quality._apply_web()`. Nothing on the desktop changes. The size of the export
+  (a 616 MB pck, mostly S3TC textures) is left as it is: shrinking it means dropping or resizing
+  textures the desktop uses, which is the owner's call.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
