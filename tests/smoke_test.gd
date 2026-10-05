@@ -1847,6 +1847,9 @@ func _test_city() -> void:
 	load("res://tests/signage_checks.gd").new().run(self, city)
 	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
 	load("res://tests/la_trees_checks.gd").new().run(self, city)
+	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
+	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
+	load("res://tests/car_dealers_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -2052,6 +2052,35 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
+- Car dealerships (2026-10-05, "the auto rows of LA's boulevards"; HANDOFF 9cs): `CarDealers`
+  (`scripts/world/car_dealers.gd`, static). **Where is worked out, never placed**: an avenue-wide
+  road is an auto row by a hash (`ROW_ODDS`), a stretch of `RUN` blocks of it has dealers by a
+  second (`RUN_ODDS`), each MIDTOWN / SUBURBS buildings block on either side by a third
+  (`BLOCK_ODDS`); `site()` (pure, cached) takes a run of the block's edge lots along that road
+  (`MIN_FRONT`..`MAX_FRONT`, one row deep or two where the first is under `ROW_TWO_BELOW` and the
+  second has no pocket garden), never on a freeway, a landmark, the replica, downtown or the fire
+  station's block. `CityChunk._build_lot()` asks `CarDealers.claims()` after the pad roll and
+  FireStation (the anchor lot builds the dealer, the others nothing), and HouseKit's extra lots
+  keep out of a site (`covers()`), so no roll elsewhere moves. A NEW dealer (`USED_SHARE` are
+  used lots): a glass showroom on mullions under a deep white roof, a portal in the brand's colour
+  with its badge, a brand wall, lit ceiling and an OmniLight (`lamp_light`), a service bay with a
+  canopy, a brand pylon at the kerb (lightbox lit by `lamp_factor`), three brand flags, feather
+  flags; a USED lot: an office trailer, a hand-painted board, chain-link (LotFill's fence). Both:
+  rows of cars nose-out on LotFill asphalt - the middle of the front row and the showroom floor real
+  Vehicles (`FRONT_CARS`, `USED_REAL_CARS`, `SHOWROOM_CARS`, meta `for_sale`, named `ForSale`, in the
+  chunk's `_cars`; each real car is most of a dealer's frame cost, so keep these small), the
+  rest ArenaGrounds' static `car_mesh()` as unbreakable `dealer_car` props (rounds spark) with a
+  price on the windscreen (`shaders/price_sticker.gdshader`: a window card, or grease pencil on a
+  used car; `sticker_xform()` is the glass of each car_mesh body), LotFill's light poles plus
+  `dl_pool` LED pools, pennant strings / flags on `shaders/dealer_flag.gdshader` (flutter in the
+  vertex shader off `wind_factor`, one mesh a dealer), inflatable tube men
+  (`shaders/tube_man.gdshader`: the body a chain integrated per vertex, a fold every few seconds,
+  flailing arms; one batch `dl_tube`). Brands (VELMARA, QUENTIS, HALDRIC, ORIVO, SUNDALE,
+  BRAVENT) and lots are invented; their marks are SDF shapes in `shaders/dealer_sign.gdshader`.
+  FULL builds in deferred steps (`_run_or_defer`: the detail, then one real car a step); LOD and
+  the far city get roof-plant-style `lod_box`es (the pylon a lit face). `CAR_DEALERS=0` is the
+  A/B; `tools/car_dealers/probe.gd` lists the sites with STREET / ABOVE EYEs. Checks:
+  `tests/car_dealers_checks.gd`.
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck
