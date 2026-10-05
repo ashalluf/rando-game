@@ -3604,6 +3604,15 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/glshot/hero_moves_shot.gd` (several stills a load: a clip frozen or a staged move -
   fly, fall, hit_*, draw, land_<speed>, roll, idle_*; `STEP=1` for the foot IK); checks
   `tests/hero_moves_checks.gd`.
+- Memory (2026-10-05, docs/HANDOFF.md "Memory audit"): the smoke test fails past a peak-RSS
+  budget (`tests/memory_audit_checks.gd`, 3,600 MB, `MEMORY_BUDGET_MB`; it peaked at 2.94 GB).
+  **Never key a cache on a RID or instance id of something that can be unloaded** - a model's
+  PackedScene is freed with its last user and comes back with new RIDs, so the cache takes a
+  new copy every reload (the car wheel tucks: 100 copies, 80 MB); use `PropFactory.mesh_key()`
+  (the sub-resource path). A shadow twin keeps only the vertices it draws (`MeshCompact`,
+  `MESH_COMPACT=0` the A/B). Measure with `tools/memory_probe.gd` (load, 2 km drive, `HOPS=`
+  teleports; RSS, every static cache sized, the scene by owner, duplicate meshes) and
+  `tools/peak_rss.py --trace 5 -- <cmd>` (the box has no `/usr/bin/time`).
 - Performance: `Quality` node in the city scene (`scripts/util/quality.gd`) starts desktop at
   **HIGH** (owner, 2026-09-21: "I need it PS5 level graphics" - global illumination is the single
   biggest difference between this and a modern-looking game) and steps down to MEDIUM, LOW and

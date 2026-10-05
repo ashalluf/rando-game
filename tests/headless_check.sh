@@ -9,7 +9,11 @@ echo "== Import"; "$GODOT" --headless --path . --import
 echo "== Smoke test"
 LOG="$(mktemp)"
 set +e
-timeout 900 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
+# tools/peak_rss.py prints the run's peak resident memory ("PEAK RSS n MB") at the end; the
+# smoke test itself fails past its budget (tests/memory_audit_checks.gd).
+RUN=()
+command -v python3 >/dev/null && RUN=(python3 tools/peak_rss.py --)
+"${RUN[@]}" timeout 900 "$GODOT" --headless --path . res://tests/smoke_test.tscn 2>&1 | tee "$LOG"
 STATUS=${PIPESTATUS[0]}
 set -e
 if [ "$STATUS" = "124" ]; then

@@ -8571,3 +8571,91 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Memory audit: what a city load holds, the leaks it had, a peak-RSS budget, 2026-10-05 (agent branch `wt/memory-audit`; VISUAL_ROADMAP #?)
+
+**The ask.** Integration-a's headless smoke test peaked at ~3.1 GB and integration-b's at 10.9 GB
+(OOM): find what the static caches, the far city and the LOD ring hold, cut the waste without a
+visible change, measure before and after headless and under opengl3, and fail the gate when a
+city's peak grows past a budget.
+
+**Tools.**
+- `tools/memory_probe.gd` (`--script`, headless or opengl3): loads the city, settles, drives
+  `DRIVE` m (2000) along +X at `SPEED` m/s, then optional `HOPS="x,z;..."` teleports
+  (`update_streaming(true)` like the smoke test). Prints `RSS` lines (VmRSS / VmHWM and Godot's own
+  allocator, `MEMORY_STATIC`), `CACHE` lines (every `static var` under `res://scripts` that holds a
+  container or a resource, sized - meshes by their surfaces' vertex and index bytes - with the
+  biggest caches split by key family), `TREE` lines (meshes, MultiMesh buffers and collision per
+  top-level owner: FULL chunks, LOD chunks, the far city, traffic, ...) and `DUP` lines (separate
+  mesh objects with the same content). `EXCLUSIVE=1` empties each big cache at the end and prints
+  what that gives back (what only the cache keeps alive).
+- `tools/peak_rss.py [--budget-mb N] [--trace S] -- <command>`: peak RSS of a command (the box has
+  no `/usr/bin/time`), `RSSLOG` lines every S seconds interleaved with its output (so the smoke
+  test's growth lines up with its PASS lines). `tests/headless_check.sh` now runs the smoke test
+  through it and prints `PEAK RSS`.
+
+**What a city holds** (headless, default seed, spawn, after a 2 km drive, before the fixes):
+Godot's allocator 1.35 GB, RSS 1.58 GB. Meshes in the scene: FULL chunks ~235 MB, traffic ~95 MB,
+parked cars ~30 MB, LOD chunks 20-37 MB, the far city (Skyline) ~7 MB of MultiMesh buffers and the
+far landmarks ~10 MB - the far tiers are cheap. Static caches ~560 MB by the estimate (most of it
+meshes the scene also draws); what the caches ALONE kept alive (`EXCLUSIVE=1`): PropFactory._cache
+68 MB, the shadow proxies 37 MB, Pedestrian._welds 40 MB, Signage 26 MB, ShopfrontKit 15 MB, the
+pier coaster 11 MB. The per-block plan caches (Parks, Schools, Canals, LightRail, StreetRoute, ...)
+are all under 1 MB after a drive: not worth evicting. Under the dummy renderer every mesh's arrays
+are on the CPU (that IS its renderer); under opengl3 they are llvmpipe's buffers, also RSS.
+
+**Found and fixed.**
+- **Caches keyed by a mesh's RID leak a copy per reload.** A model's PackedScene is freed when the
+  last car (or person) using it goes, and the next load gives its meshes new RIDs. The car bodies'
+  wheel tucks (`Vehicle._tuck_model_wheels()`) were keyed `body_tuck_<type>_<RID>`: 18 after the
+  load, **100 after a 2 km drive (~80 MB)**, every one a full copy of a body. Same pattern in the
+  crowd's pressed hair (`CrowdHat._hair_key()`), the cars' traced triangles (`CarDamage._tri_for()`)
+  and the torn limbs (`Ragdoll._limb_mesh()`). All now key on `PropFactory.mesh_key(mesh)`: the
+  sub-resource path (`res://...glb::ArrayMesh_x`, the same on every load), the RID only for a mesh
+  with no path. **Rule: never key a cache on a RID or an instance id of something that can be
+  freed and loaded again.**
+- **The crowd's weld data is dropped** once a model's middle and far bodies are both built
+  (`Pedestrian.far_mesh()`): the model's arrays read back, the welded copy and its LOD chain,
+  ~2 MB a rig, 40 MB. The loading screen already dropped it; the lazy path (headless, beach swim
+  meshes) never did.
+- **Shadow twins keep only the vertices they draw** (`MeshCompact`, `scripts/util/mesh_compact.gd`,
+  `MESH_COMPACT=0` is the A/B): PropFactory's proxies and FoliageLod's shadow ladders were the whole
+  vertex buffer (FoliageLod's: every level's and thinned copy's vertices) with only coarse LODs'
+  indices. Compacted, same triangles and attributes: 83 of 83 twins leaner, 1.43 M vertices fewer,
+  the proxies 57.6 -> 28.6 MB. This one also saves video memory on the Mac.
+- **TreeFire forgets chunks that are gone** at each `attach()` (it only pruned when a fire looked:
+  41 k dead tree records after a drive; small, but unbounded).
+
+**Numbers.**
+| | before | after |
+|---|---|---|
+| Smoke test peak RSS, headless (whole run) | 3,102 MB | 2,942 MB (-160) |
+| Probe: load + 2 km drive, headless | 1,575 MB | 1,479 MB (-96) |
+| Probe allocator after the drive | 1,351 MB | 1,242 MB |
+| downtown_noon still, opengl3 + Xvfb (whole run) | 4,299 MB | 4,100 MB (-199) |
+| downtown_noon frame | 6.40 M tris, 3,418 draws | identical |
+| downtown_noon pixels (DIFF=1) | | 68 of 518,400 differ, by 1/255 |
+
+**The budget.** `tests/memory_audit_checks.gd` (one line in the smoke test, after the city's
+checks): VmHWM so far <= `BUDGET_MB` (3,600; `MEMORY_BUDGET_MB` overrides), plus checks that keep
+the cuts cut (a reloaded model's mesh key is the same, MeshCompact keeps exactly the used vertices
+and every attribute, every shadow twin is leaner than its mesh, no weld kept once both far bodies
+exist, TreeFire holds no more chunk records than chunks, no wheel tuck keyed by RID). Integration-b
+as it stands (10.9 GB) fails it, which is the point.
+
+**What else the trace shows** (`--trace 5` on the smoke test): RSS never comes down. It climbs
+with every teleport the checks make (load 1.2 GB; +450 MB through the first streaming checks;
++470 MB at the pedestrian / palm-ladder checks; +320 MB at the police station's far-city build),
+while Godot's own allocator goes down again when the player leaves an area (probe HOPS: 1,354 MB
+downtown, 1,153 MB at the port). The gap between them grows ~60 MB a round of hops: glibc keeps
+freed memory (fragmentation). `MALLOC_ARENA_MAX=2` bought only 30 MB. Real drift per round is
+~20-100 MB of allocator (the figure bakes and per-area caches filling up: camp and beach figures,
+CrowdHat, ShopfrontKit's name geometry, Signage's text meshes).
+
+**Not done / ideas.** No LRU on the text caches (Signage's TextMeshes, ShopfrontKit's name
+geometry, ~40 MB only the caches hold after a drive); the beach figures' ride flipbooks (37 MB) and
+camp / beach bakes stay for the whole session by design (the loading screen bakes them to avoid
+hitches); car wheels are 110 meshes (54 MB) because each body's radius and width build their own -
+sharing needs a scaled wheel, a visible change. Textures were not audited (the texture-budget
+session). The opengl3 probe run (`memory_probe.gd` under Xvfb) was not usable: the loading screen
+ran mid-probe and the run ended without a report; the bookmark still was used instead.

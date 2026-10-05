@@ -14,6 +14,9 @@ extends SceneTree
 ##   xvfb-run -a godot --rendering-driver opengl3 --path . --script tools/memory_probe.gd
 ##
 ## Knobs (environment): DRIVE, SPEED, SETTLE (frames, default 300), TOP (cache rows, 40),
+## HOPS="x,z;x,z;..." teleports there in turn after the drive (update_streaming(true), HOP_FRAMES
+## frames each, 120) and prints RSS at each - whether an area's memory comes back when you leave,
+## EXCLUSIVE=1 empties each big cache at the end and prints what that frees,
 ## CACHES=0 skips the cache census (it loads every script). Sizes are estimates of the CPU-side
 ## arrays; RSS is the truth. Under --headless the dummy renderer keeps every mesh's arrays on the
 ## CPU too, so a mesh held in a cache and drawn costs its bytes twice there.
@@ -70,6 +73,24 @@ func _run() -> void:
 		if _env("CACHES", "1") != "0":
 			_caches("after drive")
 		_tree(city, "after drive")
+	var hops := _env("HOPS", "")
+	if hops != "" and player != null:
+		# Teleports as the smoke test makes them (update_streaming(true) at each), and back to
+		# the first: whether what an area builds is given back when the player leaves it.
+		var ws: Node = root.get_node("/root/WorldState")
+		for pair in hops.split(";", false):
+			var xz := pair.split(",")
+			var w := Vector3(float(xz[0]), 0.0, float(xz[1]))
+			var local: Vector3 = ws.call("to_local", w)
+			local.y = float(city.call("ground_height_at", local)) + 3.0
+			player.global_position = local
+			city.call("update_streaming", true)
+			for i in int(_env("HOP_FRAMES", "120")):
+				await _frame()
+			_rss("hop %s" % pair)
+		if _env("CACHES", "1") != "0":
+			_caches("after hops")
+		_tree(city, "after hops")
 	print("RSS PEAK %d MB" % (_peak_rss / 1048576))
 	if _env("EXCLUSIVE", "0") != "0":
 		await _exclusive()
