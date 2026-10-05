@@ -1641,6 +1641,8 @@ func _test_city() -> void:
 	await load("res://tests/crowd_hat_checks.gd").new().run(self, city)
 	# Photo mode: frozen world, its own camera, its settings, a PNG, and everything put back.
 	await load("res://tests/photo_mode_checks.gd").new().run(self, city)
+	# The dogs (DogMesh, DogRig, CrowdDog, YardDog): built breeds, the gait, walkers, yards.
+	await load("res://tests/dog_checks.gd").new().run(self, city)
 	var menu: Node = city.get_node("PauseMenu")
 	menu.open()
 	_check(get_tree().paused and menu.is_open(), "pause menu pauses the game")
@@ -1717,6 +1719,8 @@ func _test_city() -> void:
 	# The airport (tests/airport_checks.gd): gates, flyable jets, runways, the field's lights,
 	# the terminal landmarks and a FULL airport chunk's apron.
 	await load("res://tests/airport_checks.gd").new().run(self, city)
+	# The airport's ground (tests/airport_life_checks.gd): taxiing, stands, pushbacks, the apron.
+	await load("res://tests/airport_life_checks.gd").new().run(self, city)
 	# Car damage (tests/car_damage_checks.gd): holes, glass, lamps, crashes, a rocket to a wreck,
 	# blame, the caps, the driven car, a pooled cruiser - on a deck high over the street.
 	await load("res://tests/car_damage_checks.gd").new().run(self, city)
@@ -1748,6 +1752,8 @@ func _test_city() -> void:
 	# Police stations (tests/police_station_checks.gd): placement, the HQ, the build, the gate, a
 	# cruiser out of the gate onto the lane and a recalled one back in.
 	await load("res://tests/police_station_checks.gd").new().run(self, city)
+	# Hospitals (tests/hospital_checks.gd): placement, the campus chunk, an ambulance backing in.
+	await load("res://tests/hospital_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)
@@ -1766,6 +1772,9 @@ func _test_city() -> void:
 	# MacArthur Park and the downtown encampments (tests/westlake_checks.gd): the park builds with
 	# water and collision, camps only downtown, the people at them hold their poses, caps hold.
 	await load("res://tests/westlake_checks.gd").new().run(self, city)
+	# The valley golf course (tests/golf_checks.gd): the site and its closed roads, the layout, the
+	# turf mesh and its seams, LOD and far, the golfers and the carts.
+	await load("res://tests/golf_checks.gd").new().run(self, city)
 	# The distance (tests/distance_checks.gd): every tier of detail present, no gap ring between
 	# them out to the horizon, no block drawn twice, consistent handoff distances, and a streaming
 	# queue ordered by the view.
@@ -1870,6 +1879,27 @@ func _test_city() -> void:
 	await load("res://tests/cemetery_checks.gd").new().run(self, city)
 	# Kerbs (tests/kerbs_checks.gd): the pavement's cut ring, ramps, aprons, wells, paint, numbers.
 	load("res://tests/kerbs_checks.gd").new().run(self, city)
+	# Building sites, house frames and road works (tests/construction_checks.gd).
+	load("res://tests/construction_checks.gd").new().run(self, city)
+	# Murals (tests/murals_checks.gd): ghost signs, friezes, wall and column murals, crosswalks, cabinets.
+	load("res://tests/murals_checks.gd").new().run(self, city)
+	# Boulevard signs (tests/signage_checks.gd): the atlas grid, pole signs as props in one batch
+	# per kind, plates and vinyl, nothing else in the block moved, the far boxes.
+	load("res://tests/signage_checks.gd").new().run(self, city)
+	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
+	load("res://tests/la_trees_checks.gd").new().run(self, city)
+	# Car dealerships (tests/car_dealers_checks.gd): auto rows of new-car dealers and used lots, pure
+	# sites inside their blocks, the lot cars, stickers, tube men and cars for sale, nothing else moved.
+	load("res://tests/car_dealers_checks.gd").new().run(self, city)
+	# The hillside houses (tests/hill_homes_checks.gd): pure plans on every estate, a FULL chunk's
+	# meshes and body, LOD boxes, the far city's lit glass bands, and the old slab with the kit off.
+	load("res://tests/hill_homes_checks.gd").new().run(self, city)
+	# The oil field (tests/oil_field_checks.gd): the site and its closed streets, the hill, level pads
+	# and graded lease roads, the pumpjack's linkage and mesh, the chunks, the city's single wells.
+	load("res://tests/oil_field_checks.gd").new().run(self, city)
+	# Vacant lots and gravel car parks (tests/vacant_lots_checks.gd): the pure plan's share per
+	# district, each plan inside its cell, a FULL chunk's two meshes and weed batches, the A/B, LOD.
+	load("res://tests/vacant_lots_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -3046,7 +3076,8 @@ func _check_switchbacks(plan: CityPlan, city: Node, hr) -> void:
 		if child is StaticBody3D and child.get("lot_size") != null:
 			names["Building"] = true
 	chunk.free()
-	_check(names.has("Driveways") and names.has("Building") and names.has("Boxes"),
+	# The house is HillHomeKit's (its meshes on one HillHomes body), or a Building with the kit off.
+	_check(names.has("Driveways") and (names.has("Building") or names.has("HillHomes")) and names.has("Boxes"),
 		"a chunk with an estate up a driveway builds its driveway, house and walls (%s)" % ", ".join(names.keys()))
 
 

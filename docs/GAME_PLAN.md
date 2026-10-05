@@ -335,6 +335,13 @@ already mapped so milestone 2 is script-only.
   paint, stencils and house numbers are one marks mesh per 64 m tile. Chosen over a shader-only
   kerb because a ramp that is not a dip reads as paint. Everything hash-seeded; the old
   `_kerb_paint` runs only where Kerbs does not. LOD / far chunks keep the plain slab.
+- **2026-10-05 Steps that must run after the deferred ones go through `CityChunk._run_last()`
+  (HANDOFF "The integration-b OOM").** Murals and ClimbingPlants each moved their own build step
+  behind any step still waiting before the finish; merged, each found the other there and they
+  swapped forever, so integration-b's city never finished building and was OOM-killed past 10.9 GB.
+  Decision: one queue on the chunk, drained one step at a time when the finish is reached; no pass
+  re-inserts itself. City load peak 1.44 GB.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
@@ -554,6 +561,113 @@ already mapped so milestone 2 is script-only.
   crown) is kept. (3) Hashes only, after the pad roll: nothing else on a block moves (checked).
   (4) No medians: the plan has none, and adding them is a street-layout change outside this
   feature. Names invented.
+- **2026-10-05 Construction: tower sites with cranes, house frames, road works (VISUAL_ROADMAP
+  #100, HANDOFF 9dd).** A real city is always being built, and the game's never was. `Construction`
+  claims a share of downtown and midtown blocks' best tall lot for a tower going up (its Building
+  is freed before its own rolls run), a share of HouseKit's lots for a timber frame on the house's
+  own plan, and at most one parking-lane closure a chunk for road works - every decision a hash of
+  seed + place taken after every existing roll, so no other building, prop or parked car moves
+  (checked by building the block with Construction off). Decisions worth knowing: road works only
+  ever close the PARKING lane, so TrafficManager needed no hook at all; the tower crane slews, runs
+  its trolley and drops its hook in its own vertex shader from TIME and where it stands (no CPU per
+  crane), and it only stands where the longest jib that fits swings clear of the freeway, every
+  landmark and, 7 m over, every planned building round it; lattice faces are cut-outs drawn SOLID
+  and darkened once their lacing is under a pixel or two (dithered without TAA, a far mast was a
+  faint dotted line); the obstruction lights ride aircraft_lights.gdshader so they never shrink
+  away. Workers reuse StreetVendor (a placed, standing pedestrian) with ApronCrew's hi-vis and a
+  hard hat modelled round each rig's head like FireHelmet.
+
+- **2026-10-05 Boulevard signs: pole signs, window vinyl, banners and street plates (VISUAL_ROADMAP #102,
+  HANDOFF 9df).** LA's commercial streets read as signs everywhere and ours had shop bands
+  and billboards only. Pole signs stand in the gap between two buildings (or a car park's front
+  corner), 0.35 m behind the pavement, their heads along the gap, so no facade can meet one and no
+  rng is touched; one atlas of invented art and one shader for every kind, one batch per kind a
+  chunk, FULL only except the tall signs' lit heads in the far city. Scripts other than Latin are
+  random glyph runs, never words.
+- **2026-10-05 Car dealerships on the boulevards' auto rows (VISUAL_ROADMAP #96, HANDOFF 9da).**
+  `CarDealers` puts runs of new-car dealers and used lots along a few avenue-wide roads in
+  MIDTOWN and the SUBURBS. Decisions: (1) placement is three hashes (road, stretch of six blocks,
+  block) and a claim of a run of edge lots asked AFTER the pad roll and the fire station, like
+  FireStation.claims(), so no lot, roll or prop elsewhere moves (checked); (2) the middle of the
+  front row and the showroom floor are real Vehicles - shootable, burnable, stealable - and the rows behind are
+  ArenaGrounds' static car bodies as unbreakable props (sparks, never debris), because a lot of
+  40-120 real cars would be 40-120 physics bodies and car builds a chunk; (3) tube men and cloth
+  move entirely in the vertex shader (a chain integrated per vertex), never on the CPU; (4) brands
+  and lots are invented, their marks simple SDF shapes checked against the real makers' badges.
+
+- **2026-10-05 The airport's ground comes alive (VISUAL_ROADMAP #97, HANDOFF 9db).** Landed
+  airliners taxi to a free stand and dock, departures push back and taxi out to the runway,
+  baggage trains, fuel and catering trucks and a follow-me car work the apron, the jet bridges
+  swing to the doors. Decisions worth knowing: the stands are STATIC state (`AirportGround`) that
+  every copy of the concourse and every chunk's gate set registers with, because those are built
+  before the controller exists and in two copies; a live jet swaps with the stand's instance
+  whenever it is due (same model, place and livery), the static trucks only while nobody looks;
+  the ground flow is one way (west connector in, east connector out) with one owner of the
+  departure runway, so jets never meet head on; the player's flyable private jet moved from the
+  taxiway's west end (across every arrival's path) to its east end, facing west; and the final
+  approach is no longer swept sideways over the runway protection zone, which had held every
+  arrival level to the fence and put its touchdown at the far end of the runway.
+- **2026-10-05 A public golf course in the valley (VISUAL_ROADMAP #98).** Valley Oaks Golf Club
+  (invented): nine holes, par 33, ~2,200 yd, a driving range, a Spanish revival clubhouse with its
+  car park and a pro shop, on the rolling valley floor north of the front range (x -389..298,
+  z -3131..-2544 on the default seed). It is a landmark AREA like MacArthur Park: CityPlan snaps it
+  to whole blocks and closes the roads inside, so no seed, block or roll elsewhere moves (the
+  neighbouring blocks lose a rec-park or plaza roll by Parks' and CityPlan's own beside-a-site
+  rules). The routing is a hand-drawn template mirrored and jittered by a hash and validated,
+  not a solver: a template reads as a designed course; a solver would need much more care to
+  avoid nonsense holes. The turf is ONE distance-field mesh per chunk so edges stay crisp on a
+  1.6 m grid and the whole course is one draw. Golfers are crowd rigs with solved poses (no new
+  clips); carts are scripted on the path, not vehicles.
+- **2026-10-05 Dogs: built in code, six breeds, walkers back on, yard dogs (VISUAL_ROADMAP #99,
+  HANDOFF dogs section).** Dog walkers had been off since the only CC0 rigged dog was a low-poly,
+  flat-shaded Shiba. No CC0 dog at realistic quality exists (Poly Haven has none), so the dogs are
+  built in code like the birds: `DogMesh` lofts a body, head, legs, ears and tail per breed by real
+  proportions onto a 28-bone skeleton, with fur as shell layers on the skinned mesh and coats
+  painted by a script on a shared chart; `DogRig` poses it procedurally every tick (no clips: a
+  quadruped gait by phase with IK legs is fewer moving parts than retargeting animal clips that
+  do not exist in CC0 at this quality). Decisions worth knowing: a walker's dog is the owner's
+  SIBLING under the chunk, not its child (a knocked person's node is freed and the dog must
+  outlive it); a hit dog yelps and bolts, never bleeds or ragdolls (no gore on animals) and is
+  never a crime; yard dogs are a hash share of YardFill's lots through one hook line, so no roll
+  moves; `dog_share` is (0.12, 0.03) again.
+- **2026-10-05 The hillside estates get real houses (VISUAL_ROADMAP #100).** An estate was a pad,
+  walls, a pool and an 18 x 9 m Building slab with a storefront band. `HillHomeKit` plans a
+  house on every estate from a hash of the seed and the estate, facing the side the ground falls
+  off most (never the road's): a mid-century glass pavilion cantilevered over the slope on steel
+  columns with a deck and an infinity pool, a Spanish villa stepping down the bank in a loggia
+  wing with a tower, or stacked contemporary boxes; retaining walls, stairs, terraced gardens,
+  cypress and olives, a garage up at the road on stilts where the road is well above the pad.
+  Decisions worth knowing: the houses are built with HouseBuild's own emitters (extended, not
+  copied), so the hills and the suburbs share one house vocabulary; glass walls get their own
+  shader with a room traced at its real size, because house_glass maps one room onto a pane's
+  0..1 UV; the far city draws an estate as a few boxes plus a glass band that glows after dark,
+  which is what makes the ranges twinkle from the basin. The estates themselves are where
+  HillRoads put them (not moved), so most drops under a cantilever are 3-6 m. `HILL_HOMES=0`
+  is the A/B.
+- **2026-10-05 An urban oil field: pumpjacks on a bare hill in midtown, and single wells hidden in
+  the city (VISUAL_ROADMAP #101, HANDOFF 9df).** LA's oil fields - the Baldwin Hills, Signal Hill,
+  the pumpjacks behind fences in car parks and between houses - are one of the city's most
+  recognisable odd sights, and the game had none. Decisions: the field is a landmark AREA site
+  (its streets closed like MacArthur Park's) in midtown south of the 105, where the Baldwin Hills
+  stand relative to the airport and downtown; its hill is folded into the city's RELIEF (as the
+  river's terrace is) rather than built as terrain, so the perimeter streets, the far city and the
+  horizon follow it; the plan (roads held to 12.5 %, pads, wells) is pure from the seed; the
+  pumpjacks are ONE mesh whose crank, beam, pitman and rod are animated in the vertex shader from
+  a per-well phase and speed (nothing on the CPU, the shadows move too); everything else is code on
+  the industrial district's material; the operator is invented (BASIN CREST OIL CO.). Single wells
+  claim 3.5 % of industrial lots and 2 % of suburban ones by hash, after every roll.
+- **2026-10-05 The city has vacant lots and gravel car parks (VISUAL_ROADMAP #102).** (Fleet brief:
+  "the in-between land that makes a city real".) Every lot was built or filled; now 3-6 % of the
+  EDGE lots in midtown, the industrial district and downtown's edges stand empty, and the lots
+  round the arena are mostly event car parks. `VacantLots` claims a lot in `CityChunk._build_lot()`
+  after every roll it makes (the pad roll, the corridor, fire station and car park checks) from a
+  hash of seed + lot, so nothing a seed builds elsewhere moves and the Building is never made; the
+  plan is pure, so GroundCoverage and Industrial's block entries agree with the chunk. Decisions
+  worth knowing: inner lots and courtyards are never vacant (a vacant lot needs a street side for
+  its fence, gate and sign); the far city gets one dirt or gravel slab per lot, nothing else; all
+  of it is code at real size (no new assets) in ONE ground and ONE walls mesh a chunk plus three
+  weed batches, the pattern Industrial and YardFill set; broker names and phone numbers are
+  invented (555); no billboards are added (Billboards owns them).
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
@@ -573,6 +687,18 @@ already mapped so milestone 2 is script-only.
   chain-link, freight tracks with boxcars, storage yards and trailer drops. It is drivable: ramps
   down the banks, the bed and the low-flow channel have collision (a car down a ramp is a smoke
   check). Everything is code at real size; the far city gets boxes.
+
+- **2026-10-05 Hospitals: campuses the ambulances drive their patients to (HANDOFF 9dg).** The
+  ambulances had nowhere to go: a crew loaded the patient and the unit drove off to be pooled.
+  `Hospital` places a few campuses across the map (a hash of seed + 1.5 km cell, the first
+  suitable block among its candidates) and one medical centre in Westlake west of downtown, as
+  FireStation places its stations: pure geometry of the block, claimed in `CityPlan.block()` after
+  every roll, so no seed moves. A campus is a bed tower over a podium (a `Building` subclass, so
+  the facade shader, lit wards and the far tiers' coded boxes come for free), the glazed lobby
+  behind a drop-off canopy, the EMERGENCY entrance with a big lit red sign over a covered three-bay
+  ambulance court, a rooftop helipad (a plain H, never a cross: the red cross is a protected
+  emblem), a parking structure or a surface lot. An ambulance with a patient aboard now drives to
+  the nearest one, pulls past the court, backs into a free bay and parks. Names are invented.
 
 - **2026-10-05 Shadows are cast only where the shadow map can hold them; dark lights are hidden
   (VISUAL_ROADMAP #50).** (Frame-cost audit after the 2026-10-04 wave, docs/HANDOFF.md 9bf.) The
@@ -920,6 +1046,14 @@ already mapped so milestone 2 is script-only.
   Kept as a short list of records per building in WorldState, read by building.gdshader, so a
   building keeps its damage through streaming and an undamaged one costs nothing. Never on a
   place of worship. docs/HANDOFF.md 9cf; CLAUDE.md "Building damage".
+- **2026-10-05 The trees that make it read as Los Angeles (VISUAL_ROADMAP #95).** Ten species
+  built in code (none exist on Poly Haven): eucalyptus, Italian cypress, olive, Indian laurel fig,
+  California sycamore, coral tree, and the accents bird of paradise, agave, yucca, dragon tree.
+  They join the city by swapping a share of what is already planted (whole blocks' kerb rows,
+  park and plaza trees by 30 m cell, yard and planter trees, the freeway tree row, gully oaks,
+  some shrubs) and by adding cypress pairs and garden accents to houses - hashes after every
+  existing roll, so nothing else a seed builds moves. docs/HANDOFF.md; CLAUDE.md "Los Angeles
+  trees".
 
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
@@ -939,6 +1073,16 @@ already mapped so milestone 2 is script-only.
   and lit offices by the hour (`city_hour` global). No new node per block: an additive skin per
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
+- **2026-10-05 Murals, ghost signs, painted crosswalks and cabinets (VISUAL_ROADMAP #101).** The
+  pictures are painted procedurally in one shader from a seed (landscapes, botanical, folk
+  geometry, waves; no faces, no artist's work, no lettering) rather than drawn into an atlas,
+  because a 60 m sound wall needs centimetre detail an atlas cannot hold; only the ghost signs'
+  lettering is an atlas (invented period names). Decision: murals go only where the wall is
+  really blank (sound, yard and campus walls, freeway columns, the clear bands StreetWear's
+  `_paintable()` finds on a Building) - never over glass, so a Building gets ghost signs and
+  friezes in its bands, not wall-sized murals (no Building face is windowless). Transparent, drawn
+  before the street wear so tags land on top; FULL chunks only. docs/HANDOFF.md 9de (murals);
+  CLAUDE.md "Murals".
 
 - **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
   bases at a shared condensation level, crowns thinned so the billows build them into turrets,

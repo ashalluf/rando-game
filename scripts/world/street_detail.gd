@@ -185,7 +185,8 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 		if rng.randf() < rack_odds:
 			var p := a + dir * rng.randf_range(8.0, length - 8.0) + inward * 1.2
 			var basis := Basis(Vector3.UP, yaw)
-			for k in 3:
+			# Not across a hospital's drive (Hospital; after the roll).
+			for k in (0 if Hospital.keeps_clear(plan, p) else 3):
 				var q := p + dir * (k - 1) * 0.8
 				chunk._add_prop("rack", Vector3(q.x, top, q.y), Color(0.3, 0.3, 0.32), [
 					["rack", PropFactory.bike_rack(), Transform3D(basis, Vector3(q.x, top, q.y))],
@@ -201,7 +202,8 @@ static func build_block(chunk: CityChunk, rect: Rect2, edges: Array, params: Dic
 			news.append([p + dir * 0.55, dir, inward, paints])
 		if rng.randf() < mail_odds:
 			var p := a + dir * rng.randf_range(10.0, length - 10.0) + inward * 1.1
-			chunk._add_prop("mailbox", Vector3(p.x, top, p.y), Color(0.15, 0.3, 0.25), [
+			if not Hospital.keeps_clear(plan, p):
+				chunk._add_prop("mailbox", Vector3(p.x, top, p.y), Color(0.15, 0.3, 0.25), [
 				["mailbox", PropFactory.mailbox(), Transform3D(Basis(Vector3.UP, yaw), Vector3(p.x, top, p.y))],
 			], [[Vector3(0.6, 1.3, 0.5), Vector3(p.x, top + 0.65, p.y), yaw]])
 		corner_count += 1
@@ -441,7 +443,7 @@ static func _span(chunk: CityChunk, a: Vector3, b: Vector3, arm: Vector3) -> voi
 ## guarantees MIN_CLEARANCE (4 m) over the ground, well under a pole's 9.25 m tip, so a pole in
 ## the corridor is through the deck - along with the solid box a car can hit.
 static func _pole_blocked(chunk: CityChunk, p: Vector3) -> bool:
-	return chunk._under_freeway(Vector2(p.x, p.z), FREEWAY_CLEARANCE)
+	return chunk._under_freeway(Vector2(p.x, p.z), FREEWAY_CLEARANCE) or Hospital.keeps_clear(chunk.plan, Vector2(p.x, p.z))
 
 
 ## The pole of the neighbouring block that a wire would meet across the junction, as a one-entry

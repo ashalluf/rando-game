@@ -217,6 +217,9 @@ static func _eligible(plan: CityPlan, k: Vector2i, rect: Rect2) -> bool:
 		return _no("river")
 	if Schools._fire_station_block(plan, k):
 		return _no("fire station")
+	# A hospital takes its block after every roll (Hospital.claims_block(), pure); never claim it too.
+	if Hospital.claims_block(plan, k.x, k.y):
+		return _no("hospital")
 	if Parks.enabled and Parks.role_for(plan, k.x, k.y, rect, district, _rolled_kind(plan, k, rect, district)) != "":
 		return _no("parks")
 	for lm in Landmarks.all():

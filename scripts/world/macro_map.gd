@@ -201,7 +201,10 @@ var approach_clear_half_width: float = 45.0
 ## nose toward +X). The gates along the concourse hold the parked airliners (Airport.gates(),
 ## static): these are the ones the player can take - on the parallel taxiway (a straight 550 m
 ## run east, clear of every gate's tail) and on the remote stands either end of the concourse.
-var apron_spots: Array = [[Vector2(-560.0, 780.0), 0], [Vector2(-75.0, 712.0), 1], [Vector2(-614.0, 716.0), 0, PI]]
+## The first waits at the taxiway's EAST end facing west (a 590 m run, past the east connector
+## the departures turn into): at its west end it stood in the way of every arrival taxiing in from
+## the west connector to the stands (AirportGround).
+var apron_spots: Array = [[Vector2(-12.0, 780.0), 0, PI * 0.5], [Vector2(-75.0, 712.0), 1], [Vector2(-614.0, 716.0), 0, PI]]
 
 ## Roads and mansion pads carved into the hills (built in setup()).
 var hill_roads: HillRoads
@@ -268,6 +271,8 @@ var relief_fade_height: float = 60.0
 var relief_frequency: float = 0.0026
 var _relief: FastNoiseLite
 var _landmarks: Array[Dictionary] = []
+## The oil field (OilField), or null.
+var oil: OilField = null
 
 
 func setup() -> void:
@@ -319,6 +324,9 @@ func setup() -> void:
 		var mr := Marina.new()
 		if mr.build(self, seed):
 			marina = mr
+	# The oil field's hill (OilField): a landmark area whose relief is folded in by _relief_at().
+	oil = null
+	oil = OilField.make(self, seed)
 	var hr := HillRoads.new()
 	hr.build(self, seed)
 	hill_roads = hr
@@ -444,6 +452,9 @@ func _relief_at(pos: Vector2, raw: float) -> float:
 	# The marina's land is a terrace a bulkhead's height over the water (Marina.terrace()).
 	if marina:
 		h = marina.terrace(pos, h)
+	# The oil field's hill, its lease roads and pads graded in (OilField.apply()).
+	if oil:
+		h = oil.apply(pos, h)
 	return h
 
 

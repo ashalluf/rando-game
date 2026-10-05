@@ -33,8 +33,11 @@ var name: String = ""
 
 ## The ground track through `points` (world XZ), each interior corner rounded with an arc of
 ## `radii[i]` metres (index as `points`; the first and last entries are unused). A radius too big
-## for its two legs is shrunk until the arc fits in the middle 90 % of the shorter leg.
-static func from_waypoints(points: PackedVector2Array, radii: PackedFloat32Array, route_name: String = "") -> AirRoute:
+## for its two legs is shrunk until the arc fits in the middle 90 % of the shorter leg. `step` is
+## the spacing of the samples (the airport's ground legs use a couple of metres: a taxi turn is
+## 20-30 m across, and at 20 m it was two chords). `room_share` is how much of the shorter leg an
+## arc may take (the ground legs have one corner each and use most of it).
+static func from_waypoints(points: PackedVector2Array, radii: PackedFloat32Array, route_name: String = "", step: float = STEP, room_share: float = 0.45) -> AirRoute:
 	var r := AirRoute.new()
 	r.name = route_name
 	var track := PackedVector2Array()
@@ -50,38 +53,38 @@ static func from_waypoints(points: PackedVector2Array, radii: PackedFloat32Array
 		var theta := acos(clampf(u.dot(v), -1.0, 1.0))
 		var rad: float = radii[i] if i < radii.size() else 0.0
 		if theta < 0.002 or rad <= 0.0:
-			_straight(track, cursor, p)
+			_straight(track, cursor, p, step)
 			cursor = p
 			continue
 		var t := rad * tan(theta * 0.5)
-		var room := minf(p.distance_to(cursor), p.distance_to(b)) * 0.45
+		var room := minf(p.distance_to(cursor), p.distance_to(b)) * room_share
 		if t > room:
 			t = room
 			rad = t / tan(theta * 0.5)
 		var s := p - u * t
 		var e := p + v * t
-		_straight(track, cursor, s)
+		_straight(track, cursor, s, step)
 		# In XZ, a positive cross turns the track toward (-u.y, u.x).
 		var side := signf(cross)
 		var centre := s + Vector2(-u.y, u.x) * side * rad
 		var a0 := (s - centre).angle()
 		var sweep := theta * side
-		var steps := maxi(2, ceili(absf(sweep) * rad / STEP))
+		var steps := maxi(2, ceili(absf(sweep) * rad / step))
 		for k in range(1, steps + 1):
 			var ang := a0 + sweep * float(k) / float(steps)
 			track.append(centre + Vector2(cos(ang), sin(ang)) * rad)
 		cursor = e
-	_straight(track, cursor, points[points.size() - 1])
+	_straight(track, cursor, points[points.size() - 1], step)
 	r._set_track(track)
 	return r
 
 
 ## Appends points from `from` (already in the track) to `to`, at most STEP apart.
-static func _straight(track: PackedVector2Array, from: Vector2, to: Vector2) -> void:
+static func _straight(track: PackedVector2Array, from: Vector2, to: Vector2, step: float = STEP) -> void:
 	var span := from.distance_to(to)
 	if span < 0.01:
 		return
-	var steps := maxi(1, ceili(span / STEP))
+	var steps := maxi(1, ceili(span / step))
 	for k in range(1, steps + 1):
 		track.append(from.lerp(to, float(k) / float(steps)))
 

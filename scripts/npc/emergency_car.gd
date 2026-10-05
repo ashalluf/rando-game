@@ -12,6 +12,12 @@ extends Vehicle
 ##             lights on, siren off, the crew out (Emergency.deploy_crew).
 ##   LEAVING   job done, crew back aboard: off along the lanes, lights off, until nobody sees it
 ##             and Emergency pools it.
+##   TRANSPORT an ambulance with a patient aboard: along the lanes to the nearest hospital's ER
+##             street (Hospital.er_goal), lights and siren going, and up to the kerb at the court.
+##   BACKING   pulled past the court's mouth, it backs into a free bay (Hospital.back_in_path),
+##             reversing lamps on.
+##   PARKED    in its bay, lights off: Emergency pools it once it has stood `park_seconds` and
+##             nobody is looking.
 ##
 ## Shot or blasted it goes physical like any car (Vehicle.drop_out_of_traffic) and stays where
 ## it ends up; Emergency puts it back on the lanes when it has to leave and can (_back_to_lanes),
@@ -23,7 +29,7 @@ extends Vehicle
 ## after dark an OmniLight3D on the roof throws red on the street in step with them (desktop).
 
 enum Kind { ENGINE, AMBULANCE }
-enum Mode { DISPATCH, ON_SCENE, LEAVING }
+enum Mode { DISPATCH, ON_SCENE, LEAVING, TRANSPORT, BACKING, PARKED }
 
 @export_group("Emergency unit")
 ## Cruising speed along the lanes on a call, and leaving (m/s). Heavier than a cruiser.
@@ -47,6 +53,10 @@ enum Mode { DISPATCH, ON_SCENE, LEAVING }
 @export var siren_distance: float = 420.0
 @export var horn_volume_db: float = 0.0
 @export var horn_every: Vector2 = Vector2(4.0, 9.0)
+## Driving a patient in (m/s), and backing into the bay: forward past the mouth and reversing.
+@export var transport_speed: float = 16.0
+@export var bay_pull_speed: float = 3.5
+@export var bay_reverse_speed: float = 2.2
 @export_group("")
 
 ## The department and the service: invented names, never a real one's.
@@ -102,6 +112,15 @@ var _dest: Dictionary = {}
 var _nodes: Array[Vector2i] = []
 var _route_t: float = 0.0
 var _route_goal := Vector2.INF
+## The hospital an ambulance is taking its patient to (Hospital.layout()), the bay it backs into,
+## the path in ([true world XZ, yaw, reversing] samples), how far along it is (m), and how long it
+## has stood parked (s; Emergency counts it).
+var hospital: Dictionary = {}
+var bay: int = -1
+var parked_t: float = 0.0
+var _back_path: Array = []
+var _back_s: float = 0.0
+var _reversing: bool = false
 
 
 ## A new unit, set up but not in the tree: kinematic until something knocks it off the lanes.
@@ -254,12 +273,12 @@ func lights_running_emergency() -> bool:
 		return true
 	if _stolen:
 		return driver != null
-	return service != null and mode != Mode.LEAVING
+	return service != null and mode != Mode.LEAVING and mode != Mode.PARKED
 
 
 ## True while the siren is going (the traffic pulls over for it, TrafficManager._siren_list).
 func siren_running() -> bool:
-	return service != null and driver == null and mode == Mode.DISPATCH and is_traffic() and not is_wreck()
+	return service != null and driver == null and (mode == Mode.DISPATCH or mode == Mode.TRANSPORT) and is_traffic() and not is_wreck()
 
 
 func _night_level() -> float:
@@ -298,8 +317,10 @@ func _physics_process(delta: float) -> void:
 		return
 	if is_traffic():
 		match mode:
-			Mode.DISPATCH, Mode.LEAVING:
+			Mode.DISPATCH, Mode.LEAVING, Mode.TRANSPORT:
 				_drive_lane(delta)
+			Mode.BACKING:
+				_back_in(delta)
 			_:
 				traffic_speed = 0.0
 		_update_wheels(delta)
@@ -309,7 +330,7 @@ func _physics_process(delta: float) -> void:
 
 ## Kept running while it drives itself, whatever PhysicsBudget's distance rule says.
 func set_script_active(on: bool) -> void:
-	super.set_script_active(on or (service != null and driver == null and mode != Mode.ON_SCENE))
+	super.set_script_active(on or (service != null and driver == null and mode != Mode.ON_SCENE and mode != Mode.PARKED))
 
 
 ## Starts it on a lane: `axis` / `index` the road, `dir` the direction along it.
@@ -355,10 +376,14 @@ func _drive_lane(delta: float) -> void:
 	var index: int = t.index
 	var wp := WorldState.to_world(global_position)
 	var along := wp.z if axis == CityPlan.AXIS_X else wp.x
-	var calling := mode == Mode.DISPATCH
+	var calling := mode == Mode.DISPATCH or mode == Mode.TRANSPORT
 	var stand := engine_stand_off if kind == Kind.ENGINE else ambulance_stand_off
+	if mode == Mode.TRANSPORT:
+		stand = 0.0
 	_route_update(goal, [axis, index, dir], along, delta, calling, stand)
 	var cruise := call_speed if calling else leave_speed
+	if mode == Mode.TRANSPORT:
+		cruise = transport_speed
 	var lateral: float = t.lane
 	var to_stop := INF
 	if calling and _on_dest(axis, index, dir):
@@ -418,6 +443,9 @@ func _drive_lane(delta: float) -> void:
 func _arrive(lateral: float) -> void:
 	traffic_speed = 0.0
 	traffic.lane = lateral
+	if mode == Mode.TRANSPORT:
+		_start_backing()
+		return
 	mode = Mode.ON_SCENE
 	if service:
 		service.unit_arrived(self)
@@ -540,8 +568,99 @@ func _back_to_lanes() -> bool:
 	return true
 
 
+## Off to `lay` (Hospital.layout()) with the patient: along the lanes to its ER street, put back
+## on them first if a hit knocked it off (and it can be).
+func to_hospital(lay: Dictionary) -> void:
+	mode = Mode.TRANSPORT
+	hospital = lay
+	goal = Hospital.er_goal(lay)
+	_clear_route()
+	if not is_traffic() and not _back_to_lanes():
+		leave(goal)
+
+
+## At the kerb by the court: takes a free bay and starts the path into it, or parks where it is.
+func _start_backing() -> void:
+	var wp := WorldState.to_world(global_position)
+	var fwd := -global_basis.z
+	var dir2 := Vector2(fwd.x, fwd.z).normalized()
+	bay = Hospital.take_bay(hospital, self)
+	if bay < 0:
+		mode = Mode.PARKED
+		parked_t = 0.0
+		return
+	_back_path = Hospital.back_in_path(hospital, bay, Vector2(wp.x, wp.z), dir2)
+	_back_s = 0.0
+	mode = Mode.BACKING
+
+
+## Along the back-in path: forward past the mouth, then reversing into the bay; parked at its end.
+func _back_in(delta: float) -> void:
+	if _back_path.size() < 2:
+		mode = Mode.PARKED
+		parked_t = 0.0
+		return
+	# Which sample we are past, and the one ahead (the path's samples are about a metre apart).
+	var i := 0
+	var acc := 0.0
+	var seg := 0.0
+	while i < _back_path.size() - 1:
+		seg = (_back_path[i][0] as Vector2).distance_to(_back_path[i + 1][0])
+		if acc + seg >= _back_s:
+			break
+		acc += seg
+		i += 1
+	if i >= _back_path.size() - 1:
+		var last: Array = _back_path[_back_path.size() - 1]
+		_place(Vector3((last[0] as Vector2).x, _bay_height(last[0]), (last[0] as Vector2).y), float(last[1]), 0.0)
+		traffic_speed = 0.0
+		mode = Mode.PARKED
+		parked_t = 0.0
+		return
+	var a: Array = _back_path[i]
+	var b: Array = _back_path[i + 1]
+	var reversing: bool = b[2]
+	_reversing = reversing
+	traffic_speed = bay_reverse_speed if reversing else bay_pull_speed
+	# Ease into the stop at the end of the forward run and at the bay.
+	var left := 0.0
+	for k in range(i, _back_path.size() - 1):
+		if bool(_back_path[k + 1][2]) != reversing:
+			break
+		left += (_back_path[k][0] as Vector2).distance_to(_back_path[k + 1][0])
+	traffic_speed = minf(traffic_speed, 0.5 + left * 0.9)
+	_back_s += traffic_speed * delta
+	var t := clampf((_back_s - acc) / maxf(seg, 0.001), 0.0, 1.0)
+	var p := (a[0] as Vector2).lerp(b[0], t)
+	var yaw := lerp_angle(float(a[1]), float(b[1]), t)
+	_place(Vector3(p.x, _bay_height(p), p.y), yaw, 0.0)
+
+
+## The height a wheel stands at on the way in: the road, or the court's floor inside the block.
+func _bay_height(p: Vector2) -> float:
+	var inner: Rect2 = hospital.get("inner", Rect2())
+	if inner.grow(-0.5).has_point(p):
+		return float(hospital.get("floor_gy", _relief(p))) + CityChunk.SIDEWALK_TOP + HospitalBuild.LIFT_ROAD + road_lift()
+	return _relief(p) + CityChunk.ROAD_TOP + road_lift()
+
+
+## The reversing lamps while it backs in (the traffic's lamps never reverse on their own).
+func _tick_lights(delta: float) -> void:
+	super._tick_lights(delta)
+	var rev := mode == Mode.BACKING and _reversing
+	if rev != light_reverse:
+		light_reverse = rev
+		_refresh_lights()
+
+
 ## Taken off the street for reuse: a wheel-less kinematic body, nothing playing, as new.
 func strip_for_pool() -> void:
+	if not hospital.is_empty():
+		Hospital.free_bay(hospital, self)
+	hospital = {}
+	bay = -1
+	parked_t = 0.0
+	_back_path = []
 	repair()
 	if _siren:
 		_siren.stop()
@@ -570,6 +689,8 @@ func strip_for_pool() -> void:
 ## Burnt out: the lights and siren die and Emergency lets it go.
 func _become_wreck() -> void:
 	super._become_wreck()
+	if not hospital.is_empty():
+		Hospital.free_bay(hospital, self)
 	if _siren:
 		_siren.stop()
 	if _light:
