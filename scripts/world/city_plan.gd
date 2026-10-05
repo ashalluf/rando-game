@@ -388,6 +388,10 @@ func block(ix: int, iz: int) -> Dictionary:
 	# blocks nobody else has claimed. A school block is SCHOOL with grounds "school_e" / "school_h".
 	if macro and Schools.enabled:
 		Schools.apply(self, result)
+	# Chinatown (Chinatown): its blocks marked, a mall or big box there made lots, the plaza's block
+	# its plaza - AFTER every roll above, on blocks nobody else has claimed.
+	if macro and Chinatown.enabled:
+		Chinatown.apply(self, result)
 	return result
 
 

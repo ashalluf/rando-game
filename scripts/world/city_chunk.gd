@@ -2377,7 +2377,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# A public school (Schools; its own hash-seeded plan, any level).
 			steps.append_array(Schools.steps(self, block))
 		CityPlan.BlockKind.PLAZA:
-			steps.append(_build_plaza.bind(rect, rng))
+			if block.get("chinatown", "") == "plaza":
+				steps.append(func() -> void: Chinatown.build_plaza(self, block))
+			else:
+				steps.append(_build_plaza.bind(rect, rng))
 		CityPlan.BlockKind.MALL:
 			steps.append(func() -> void: Commercial.build_mall(self, rect, rng))
 		CityPlan.BlockKind.BIGBOX:
@@ -2407,6 +2410,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void:
 				if _lawn_rect.size.x > 1.0:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
+	# Chinatown's lanterns over the roads, its gate and the block's one mesh (Chinatown; hash-seeded).
+	if Chinatown.wanted(self, block):
+		steps.append(func() -> void: Chinatown.block_step(self, block))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
 		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
@@ -2734,6 +2740,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if Broadway.claims(plan, ix, iz, lot):
 		Broadway.build_lot(self, lot)
 		return
+	# A Chinatown shop building (Chinatown: the district's street-facing lots, hash-seeded).
+	if Chinatown.claims(plan, ix, iz, lot):
+		Chinatown.build_lot(self, lot)
+		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false):
@@ -2779,6 +2789,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.finish_options.assign(CityPlan.lot_finishes(district, boost))
 	# Broadway's 1920s commercial blocks (masonry, the height limit, its own shop names).
 	Broadway.dress(self, lot, building)
+	Chinatown.dress(self, lot, building)
 	var g := _gy(center.x, center.y)
 	var gmin := g
 	var half: Vector2 = lot.size * 0.5
