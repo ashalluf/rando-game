@@ -1339,6 +1339,14 @@ already mapped so milestone 2 is script-only.
   stay on bike lanes (no kerb-lane riding, no turns yet); a rider is a Pedestrian posed by our
   own per-frame solve on the crowd rigs, not a clip, so every rig fits every bike; FULL chunks
   only, nothing far. `MICROMOBILITY=0` is the A/B.
+- **2026-10-05 Overhead utilities are real hardware, the wires ribbons.** The poles were a
+  cylinder, two boxes and stubs, the wires 3.5 cm boxes. Now wooden poles with a face-mounted
+  crossarm, pin insulators, transformers, cobra heads, comm bundles, guys and service drops to every
+  house in the suburbs and the beach town; every wire of a chunk is one camera-facing ribbon mesh
+  at its real radius (thinner than a pixel goes into alpha). Birds' span polyline stays the truth:
+  the middle primary hangs exactly on it. docs/HANDOFF.md (Overhead utilities); CLAUDE.md
+  "Overhead utilities".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

@@ -271,6 +271,8 @@ func _warm_shaders() -> void:
 	effects.append_array(PierPark.warm())
 	# The code-built Los Angeles trees and accents (LaTrees): built here, ~2 s of GDScript.
 	effects.append_array(LaTrees.warm())
+	# The utility poles' hardware (UtilityPoles), built in code.
+	effects.append_array(UtilityPoles.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
 	# The hillside houses' glass, pool water and site materials (HillHomeKit).

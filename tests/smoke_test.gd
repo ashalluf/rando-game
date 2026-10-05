@@ -2285,6 +2285,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/far_landmarks_checks.gd").new().run(self, city)
 	# The Forward+ review A fixes (tests/fwd_review_a_checks.gd): the canals' crossing water, the pier's pools.
 	load("res://tests/fwd_review_a_checks.gd").new().run(self, city)
+	# Overhead utilities (tests/utility_poles_checks.gd): hardware budgets, pure runs, the birds'
+	# spans on the middle primary, ribbon wires, a drop to nearly every house, nothing else rolled.
+	load("res://tests/utility_poles_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

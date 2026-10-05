@@ -12754,3 +12754,127 @@ these scenes.
   not reviewed here.
 
 Stills: `shots/fwd-review-a` (before/after of every fix, and the Forward+ set of each feature).
+
+## 9ef. Overhead utilities: wooden poles, real hardware, ribbon wires and service drops, 2026-10-05 (agent branch `wt/utility-poles`; VISUAL_ROADMAP #126)
+
+**What.** The overhead line StreetDetail hangs down most streets outside downtown was a cylinder
+pole, two box crossarms, six-sided insulator stubs, a grey cylinder for a transformer and 3.5 cm
+square boxes for every wire (five pieces a wire, five wires a span). Now (`UtilityPoles`,
+`scripts/world/utility_poles.gd`): a 9 m tapered, slightly faceted Douglas-fir pole (a 14-sided
+lathe with a chamfered top, the aluminium tag at eye height, the ground wire's moulding down the
+field side) whose wood is drawn in the shader (grain, drying checks, creosote brown weathering to
+silver in patches per pole, the dark wet band at the ground line, a few old staples at hand
+height); an 8 ft fir crossarm bolted to the pole's FACE (octagonal section, through-bolt and
+washer, two galvanised braces) carrying three porcelain pin insulators on steel pins; a spool
+rack for the secondary under the middle pin; two lashed communication bundles lower down on the
+street face on bolt-through strand clamps, with a splice case near some poles (30 %) and a storage
+coil on some (12 %); on 34 % of poles (the old roll) a transformer can on two hanger brackets
+(lid, lugs, a porcelain HV bushing, three LV bushings with their leads to the spool rack) and a
+fuse cutout and a polymer arrester on a bracket at the arm's field end, jumpered to the near
+primary; on 10-30 % of poles by district (`LIGHT_ODDS`) a cobra-head street light on an upswept
+tubular arm with a photocell, its lens glowing after dark (the shader, `lamp_factor`) plus a
+`lamp_face` quad under it and a `lamp_pool` on the road; a riser (U-guard and conduit with a
+weatherhead) on 12 %; down guys where a run really ends, from the arm's level to an anchor rod
+with an eye 4.2 m out, the low 2.4 m in a yellow guard; service drops (twisted triplex) to the
+buildings behind the line (the old roll and reach) ending on a short conduit with a weatherhead,
+and to EVERY house in the suburbs and the beach town: a grey meter with its glass dome on the main
+wing's front wall, a conduit mast up through the eave (0.95 m over a pitched roof's eave, 0.7 m
+over a flat roof's parapet) with a weatherhead turned to the pole, and the drop from the nearest
+pole's spool that stands at least 1.5 m in front of the house within 40 m - across the street when
+that is where the line is (`feeder()`, pure, over the house's block and the eight round it).
+
+**The birds' polyline is the truth.** Birds._wire_spans() rebuilds every in-block span from
+StreetDetail's constants: the pin line point at POWER_ARM_HEIGHT + 0.2 with POWER_SAG, drawn in
+StreetDetail.CABLE_SEGMENTS pieces (Birds.wire_point()). That is the MIDDLE primary here, exactly:
+the arm is bolted to the pole's face, so the pole stands `POLE_FACE` (0.18 m) behind the old pole
+point along the run and its middle pin is where the old axis was (`foot_of()`); the middle pin's
+groove carries the conductor at that height. CABLE_SEGMENTS went from 5 to 10 (the ribbons are two
+triangles a piece; Birds reads the constant, so it follows). Junction spans and every other wire
+sag with the square of their length (`span()`), which the birds never see. The pole's collision
+box moved with it, and the arm got a box of its own, so Birds._pole_there()'s ray down at a span's
+end still finds wood (and rounds spark off the arm). The checks hold every span Birds lists to a
+middle primary's polyline (1 cm, the sag to 1e-4).
+
+**Drawing.** The hardware is code-built (`UtilityPoles.Geo`: lathes, oriented boxes, bent pipes,
+flat or smooth normals, winding fixed per triangle, UV in metres, kind in COLOR.a) on ONE shader,
+`shaders/utility_pole.gdshader` (kinds: pole wood, arm wood, galvanised, porcelain, polymer, can
+paint, black plastic, the guard's yellow, the tag, the lens, glass; colour-space include; rain
+darkens and glosses it), through the chunk's MultiMeshBatch: `upole` is still the shaft (so
+StreetWear's flyers and ClimbingPlants' trumpet vines find it, at the moved foot), plus `up_head`
+on every pole, `up_xfmr`, `up_light` (+ `up_lens`, `lamp_pool`), `up_riser`, `up_splice`,
+`up_coil`, `up_guard`, `up_anchor`, `up_meter`, `up_mast`, `up_whead`. Every mesh has generated
+LODs (a batch takes the LOD of its nearest instance, so it helps the far FULL chunks); the shaft,
+head, transformer and light cast from lighter twins registered as PropFactory shadow proxies
+(a 6-sided prism, the arm as a box, the can as an 8-sided drum, the light as a tube); the small
+pieces cast nothing. Triangles: shaft 344, head 783, transformer 928, light 312, riser 140, splice
+184, coil 192, guard 64, anchor 92, meter 108, mast 16, weatherhead 128 (the checks hold budgets).
+**The wires are one mesh a chunk** (`UtilityWires`, `UtilityPoles.commit()` from
+CityChunk._finish_build(), before the batch is built): every wire of the chunk - StreetDetail's
+spans, junction spans, guys, drops, and anything else that still calls StreetDetail._catenary() /
+_cable() - goes into a list on the batch (`add_wire()`) and becomes a ribbon: each vertex ON the
+wire's centre line with the wire's direction in NORMAL, UV (side -1 / +1, metres along), UV2
+(radius, kind). `shaders/utility_wire.gdshader` (skip_vertex_transform) widens it in view space
+to face the camera, never thinner than `min_px` (1.15 px across) - below that the wire's real
+width goes into ALPHA, so a 14 mm conductor across the street is a hairline and not a dashed
+alias - shades it round (the normal swept across the ribbon), draws the stranded aluminium, the
+triplex twist with its bare neutral, the comm bundles' helical lashing wire and the guys' strand
+(detail fading under a few pixels), and fades out between `fade_start` 230 and `fade_end` 340 m.
+A sub-pixel wire's coverage goes into alpha through `coverage_gamma` (0.75: a hairline stays
+legible without being drawn thicker), and its normal turns toward the camera as it thins (swept
+across a 1 px ribbon, the grazing Fresnel rim was all a pixel held and the wire read pale against
+the night sky).
+No shadow, no GI, depth_draw_never (transparent), real radii (7 mm primaries, 13.5 mm secondary,
+24 / 17 mm comm, 9.5 mm drops, 5.5 mm guys). **Trap, paid for:** on Compatibility the
+PROJECTION_MATRIX's [1][1] is NEGATIVE (its projection is flipped in y); a `max(P[1][1], 0.1)`
+made every pixel 13x too big and every wire a pale 0.5 m band. Use `abs()`. VIEWPORT_SIZE in a
+vertex stage is guarded like building_lod's (under 120 lines: assume 1080).
+
+**Seeding.** StreetDetail still decides which streets hang a line, the side, the grid, the
+junction spans and the guys, with the same pure functions (`_has_poles`, the `pole_side` /
+`pole_phase` hashes, `_junction_pole`); `UtilityPoles.run_of()` / `block_runs()` are the same
+run worked out from the plan alone (cached per block), which the house drops and the probe use.
+The transformer and wall-drop rolls are the old ones (StreetDetail._hash01, same keys); light,
+riser, splice, coil, tone and age are new hashes of seed + road + slot; the house drops a pure
+function of the house plan. No rng is drawn, so nothing else in the block moves (checked: the
+block built with the line off is the same block, less the line's own batches).
+
+**Hooks (small, at list ends).** StreetDetail: `_pole_run()` hands the run to
+`UtilityPoles.street_run()`; `_catenary()` / `_cable()` route to ribbons; CABLE_SEGMENTS 10.
+CityChunk: `UtilityPoles.note_house()` in `_build_house()`, `UtilityPoles.commit()` in
+`_finish_build()`. PropFactory.upole() returns the new shaft. The loading screen calls
+`UtilityPoles.warm()` (all meshes, ~30 ms). The smoke test loads `tests/utility_poles_checks.gd`.
+`UTILITY_POLES=0` in the environment builds the old primitives (the A/B; its cables now in 10
+pieces).
+
+**The alley poles.** wt/alleys (not merged when this was written) builds its poles in
+`AlleyKit.poles()` on StreetDetail's batches by hand: `upole` (it gets the new shaft through
+PropFactory.upole()), the old `crossarm` / `insulator` / `transformer` meshes centred on the pole
+axis, and its spans, guys and drops through StreetDetail._span() / _catenary() / _guy(), which
+now draw ribbons. So on merge the alleys keep working, but with the old arm boxes on a new pole.
+To give them the real hardware, replace the per-pole block in AlleyKit.poles() with the street
+run's per-pole lines (`UtilityPoles.pole_basis()`, `foot_of()`, `up_head` / `up_xfmr` and the two
+collision boxes, as in `street_run()`) and its spans with `UtilityPoles.span(ch, a, b, street, zl,
+key)` and `guy(ch, pin, zl, dir)`, where `street` is the arm direction toward the alley's centre.
+
+**Tools.** `tools/utility_poles/compile.gd` (headless, seconds: compiles, builds every mesh,
+prints triangles); `tools/utility_poles/pole_shot.gd` (the kit alone - three poles, spans, a
+transformer, a light, a riser, a splice, a guy, a wall with a meter, mast and drop - opengl3, a few
+seconds a shot; CAM / LOOK / FOV or SHOTS="cam>look@fov;...", NIGHT=1, WIRE_DEBUG=1 paints the
+ribbons' real footprint solid); `tools/utility_poles/probe.gd` (lists the lines round a point
+with EYEs for still_shot.gd; DISTRICT=, R=). Stills: `shots/utility-poles`. The suburban
+bookmark: `EYE=1997.7,6.5,4240.4,157,12 --hour=15` (across the street at a transformer pole),
+`1994.7,12.4,4250.4,143,3` (the head close up).
+
+**Cost.** opengl3, 1280x720, the suburban bookmark across the street at 15:00 (the GEO line of
+still_shot.gd, the frame's whole cost): 4,953,347 triangles / 2,080 draws with UTILITY_POLES=0 ->
+4,897,857 / 2,104 with the kit (-55 k triangles: one ribbon mesh a chunk instead of 25 box
+instances a span and their shadow pass; +24 draws: the new batches and the wire mesh across the
+FULL chunks in view). The A/B's box cables are now in 10 pieces (CABLE_SEGMENTS), twice the old
+build's, so against the true old build the triangle saving is roughly half that: call it flat.
+The checks run alone in a few minutes: `tools/utility_poles/checks_only.tscn`.
+
+**Not done.** LOD chunks and the far city hang nothing (as before): from the hills a pole is
+under a pixel past the FULL ring and its wires are faded out by 340 m anyway. Not seen on
+Forward+ (the Mac): the wire alpha and the porcelain's gloss want a look there. Dead-end
+hardware (strain insulators) at a run's last pole, and crossarms per circuit (double arms,
+three-phase risers) are not modelled.

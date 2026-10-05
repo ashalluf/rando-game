@@ -37,8 +37,10 @@ const POLE_EDGE_MARGIN := 6.0
 ## Height above the pavement of the power crossarm and of the lower telecom arm.
 const POWER_ARM_HEIGHT := 8.15
 const TELCO_ARM_HEIGHT := 6.35
-## Straight pieces per cable span: more is a smoother catenary and more instances.
-const CABLE_SEGMENTS := 5
+## Straight pieces per cable span: more is a smoother catenary and more instances. Birds lands
+## crows on this very polyline (Birds.wire_point()). UtilityPoles' ribbons are two triangles a
+## piece (it was 5 when every piece was a box).
+const CABLE_SEGMENTS := 10
 ## Mid-span droop of the power and telecom cables, in metres. Telecom hangs slacker.
 const POWER_SAG := 1.1
 const TELCO_SAG := 1.7
@@ -339,6 +341,10 @@ static func _has_poles(plan: CityPlan, bix: int, biz: int, axis: int, index: int
 
 
 static func _pole_run(chunk: CityChunk, rect: Rect2, axis: int, index: int, side: int, walls: Array[Rect2]) -> void:
+	# Real hardware and ribbon wires (UtilityPoles); UTILITY_POLES=0 keeps the primitives below.
+	if UtilityPoles.enabled:
+		UtilityPoles.street_run(chunk, rect, axis, index, side, walls)
+		return
 	var plan: CityPlan = chunk.plan
 	var batch: MultiMeshBatch = chunk._batch
 	var top: float = CityChunk.SIDEWALK_TOP
@@ -539,6 +545,11 @@ static func _lift(chunk: CityChunk, at: Vector3, height: float) -> Vector3:
 
 ## A sagging wire from a to b, approximated with CABLE_SEGMENTS straight pieces on a parabola.
 static func _catenary(batch: MultiMeshBatch, a: Vector3, b: Vector3, sag: float) -> void:
+	if UtilityPoles.enabled:
+		var kind: int = UtilityPoles.Wire.COMM if sag >= TELCO_SAG else (UtilityPoles.Wire.PRIMARY if sag >= POWER_SAG else UtilityPoles.Wire.DROP)
+		var radius: float = UtilityPoles.R_COMM[0] if sag >= TELCO_SAG else (UtilityPoles.R_PRIMARY if sag >= POWER_SAG else UtilityPoles.R_DROP)
+		UtilityPoles.add_wire(batch, a, b, sag, kind, radius)
+		return
 	var prev := a
 	for i in range(1, CABLE_SEGMENTS + 1):
 		var s := float(i) / float(CABLE_SEGMENTS)
@@ -549,6 +560,9 @@ static func _catenary(batch: MultiMeshBatch, a: Vector3, b: Vector3, sag: float)
 
 ## One straight cable piece between two true world points.
 static func _cable(batch: MultiMeshBatch, a: Vector3, b: Vector3) -> void:
+	if UtilityPoles.enabled:
+		UtilityPoles.add_wire(batch, a, b, 0.0, UtilityPoles.Wire.GUY, UtilityPoles.R_GUY)
+		return
 	var length := a.distance_to(b)
 	if length < 0.01:
 		return

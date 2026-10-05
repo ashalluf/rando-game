@@ -566,6 +566,7 @@ func _finish_build() -> void:
 	DecoBoulevard.commit(self)
 	Construction.commit(self)
 	StreetShadowReach.apply(self)
+	UtilityPoles.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	FreightKit.clear_road_decals(self)
@@ -3031,6 +3032,7 @@ func _build_house(lot: Dictionary, district: int) -> void:
 	# A timber frame going up on the house's own plan (Construction; a hash of seed + lot).
 	if not Construction.build_house(self, lot, house):
 		HouseKit.build(self, house)
+	UtilityPoles.note_house(self, house)
 	building_count += 1
 	if YardFill.wanted(self, district):
 		_yard_lots.append(HouseKit.yard_entry(lot, house))
