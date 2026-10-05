@@ -9824,5 +9824,11 @@ itself once with `late` true. Order: climbers, then murals (each branch's own or
 draws is unchanged (both hash-seeded; neither consumes the block rng).
 
 **Numbers.** City load + 300 ticks, headless: killed at 11 GB before; peak RSS 1.44 GB after
-(`MEM end HWM 1477960 kB`). Full gate: see the wave-2 report (peak measured with a sampler over
-every Godot process).
+(`MEM end HWM 1477960 kB`). Full gate (tests/headless_check.sh, merged with main): 1,566 PASS,
+0 FAIL, exit 0, 14 min, peak RSS 3.35 GB (VmHWM sampled over every Godot process).
+
+**Two checks the merge exposed once the run got that far.** The car dealers' real cars are skipped
+while PhysicsBudget is full, and the checks before them leave it full, so the dealer check raises
+the cap round its own builds (both of them: the "rolls nothing" twin skipped its parked cars).
+The roof-rain check took the first car in the group, once a car an earlier check left tumbling
+1 km under the street; it now takes an upright one.
