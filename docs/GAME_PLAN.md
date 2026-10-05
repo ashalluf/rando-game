@@ -289,6 +289,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 What a big blast leaves behind (fleet task "explosions", VISUAL_ROADMAP #63).**
+  A rocket left a 14-second scorch. Now trees and palms catch (from the blast, a burning car, a
+  neighbour), burn and stay charred; big fires send smoke columns up hundreds of metres; a blast
+  leaves a crater, heaved slabs and rubble for minutes, dust off the roofs and leaves off the
+  trees; parked cars' alarms go off with their hazards. Decisions: (1) the trees are known from
+  the chunks' own batch data (no physics shapes, nothing per tree at rest); (2) a burnt tree is a
+  CHARRED COPY of the same mesh with burnt materials, swapped under the flames, rather than a new
+  model; persistence through WorldState like destroyed props; (3) a smoke column is one mesh
+  placed entirely in its shader, so a column visible across the basin is one draw; (4) car alarms
+  are real CC0 recordings (Freesound), not synthesised.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
@@ -605,7 +615,7 @@ already mapped so milestone 2 is script-only.
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
-- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #59).**
+- **2026-10-05 Five more everyday car bodies, so the street stops repeating (VISUAL_ROADMAP #63).**
   A 5-door compact hatchback, a full-size three-row SUV, a minivan with sliding doors, a taxi
   (the sedan with a lit roof sign, the invented company BASIN CAB on its doors and a fare in the
   back) and an older beater (a 1990s notchback with another car's door, a primer patch, a chalky
