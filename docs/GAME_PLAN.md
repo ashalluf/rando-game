@@ -289,6 +289,16 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 A weekly farmers' market on a closed street (VISUAL_ROADMAP, farmers-market).**
+  Decisions: the market is a STREET, not a block - one local street per 1.7 km cell by hash, its
+  neighbours plain residential or midtown blocks nobody else claims; it is closed to cars every
+  day (bollards, CityPlan.road_open()), because road closures are pure plan data that traffic,
+  GPS and the map cache, and a closure that came and went with the hour would not be; the
+  closure starts 2.5 m past each crossing so the junctions keep their signals. What stands there is
+  worked out from the hour and the day of the week the chunk is built at (each stall's own hours,
+  each market's own day), like the street vendors. Everything is a hash of seed + market + stall.
+  The kit is code-built on one shader with a far level in every mesh as its LOD and shadow twin.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
