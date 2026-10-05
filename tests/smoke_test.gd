@@ -2259,6 +2259,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/occluders_checks.gd").new().run(self, city)
 	# The texture budget (tests/texture_budget_checks.gd): imports, size limits, no duplicates.
 	load("res://tests/texture_budget_checks.gd").new().run(self)
+	# Reflection probes (tests/reflection_probes_checks.gd): street boxes from the plan, one render a
+	# slot, re-renders on light and re-centre, probe_reach, the street HDRI (Forward+ only).
+	await load("res://tests/reflection_probes_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

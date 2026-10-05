@@ -79,7 +79,8 @@ What only the owner can supply, and why each one multiplies everything below:
 - [ ] **G4. Lighting art direction (1-2 months, alongside).** Reflection probes per block, wet
   roads, volumetric clouds, neon and storefronts that light the street, headlights that cast
   light, and a grade tuned per hour against the G1 references. (Headlights that cast light:
-  done 2026-10-04, CarLights - Forward+ spot lights on the nearest cars.)
+  done 2026-10-04, CarLights - Forward+ spot lights on the nearest cars. Reflection probes per
+  block: done 2026-10-05, ReflectionProbes - Forward+ street probes round the camera.)
 - [ ] **G5. People (2-4 months).** Properly rigged humans with finger and face bones, a real
   animation library (about fifty clips: idles, turns, phone, talking, waiting to cross), foot
   placement on uneven ground, skin, hair and cloth shaders. The weakest area today.
@@ -185,7 +186,8 @@ What only the owner can supply, and why each one multiplies everything below:
   - [x] Push 3 (build 56): building facades: eleven Poly Haven wall sets picked per building,
     window reveals and inset shading, grime near the ground and streaks under windows.
   - [ ] Push 4: rooftop props, storefront awnings and signs as real assets.
-  - [ ] Push 5: a Poly Haven HDRI for the Mac build's reflections.
+  - [x] Push 5: a Poly Haven HDRI for the Mac build's reflections. (2026-10-05: the CC0 San
+    Giuseppe Bridge street HDRI under the sky's horizon, with the reflection probes.)
 
 ## Current state
 
@@ -289,6 +291,19 @@ Input actions for weapons (`fire`, `alt_fire`, `next_weapon`, `prev_weapon`, `we
 already mapped so milestone 2 is script-only.
 
 ## Decisions log
+
+- **2026-10-05 Reflection probes in the streets, a real street HDRI under the sky (G4,
+  HANDOFF 9dw).** On Forward+ nine (HIGH) / five (MEDIUM) box-projected probes stand on the
+  street segments and open blocks nearest the camera, worked out from the plan (never placed by
+  chunks), rendered once and one at a time (every 0.5 / 1 s, nearest first, again when the hour,
+  lamps or weather move); none on LOW / LOWEST, the web or Compatibility. Decisions: no shadows
+  inside the probes (lavapipe: +26 % a frame over a re-render with them, +5 % without); vehicles
+  are left out of them (a still would keep a car that drove off); car paint and building glass
+  hand their faked canyon / emitted reflections to the real one inside the probes' reach
+  (`probe_reach`), the glass as a tinted mirror under 30 m. The sky's cubemap pass mirrors Poly
+  Haven's CC0 San Giuseppe Bridge HDRI under its horizon at the old grey's mean brightness, so
+  reflections out of a probe's reach show a street, not a uniform grey. `REFLECTION_PROBES=0`
+  turns both off.
 
 - **2026-10-05 Tower roofs: helipads, pool decks, roof gardens, penthouses, masts and window
   washers (VISUAL_ROADMAP #59, HANDOFF "Tower roofs").** Roofs are what the player sees most while

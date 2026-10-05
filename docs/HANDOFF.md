@@ -23,6 +23,19 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
     order-dependent "the map draws no closed road (1)". `Schools.late_closed` records any road
     closed after it was answered open, and the map check prints any closed road it draws.
   - Gate on this tree: 1,362 passed, 0 failed, peak 3.2 GB, 31 minutes.
+- **Batch 1 is on `main`** (12:05): sky, alleys, stadium, rooftops, wilshire-deco, far-corners,
+  cemetery and kerbs, merged with `tools/fleet/merge_branch.py`. Gate: 1,503 passed, 0 failed,
+  ~13 minutes of smoke test. Two fixes came with it:
+  - `tests/headless_check.sh` gives the smoke test 2,400 s instead of 900: the merged city runs
+    ~1,500 checks in 13-17 minutes on a 4-core box, and three fleet branches' runs were cut short.
+  - The Wilshire deco check failed late in a long run only: it builds the same block with the deco
+    on and off, and the first build's parked cars (which live under the city root) outlived its
+    chunk, so the second build met PhysicsBudget's cap and parked six fewer. It frees each build's
+    cars now; with the cap forced 16 above the city's count the old check fails and the new passes.
+- **Queued:** `fleet/batch2` = batch 1 + integration-b through `wt/oom-fix` (its four sections
+  renumbered 9cv-9cy, rows #91-#94); `fleet/batch3` = batch 2 + fwd-review-a, road-detail,
+  perf-audit (grass in cells: the "grass" batch is "grass_<cx>_<cz>" now), reservoir, ridges,
+  service-vehicles (first head, before its cab rebuild).
 - **`fleet/base`** is where wave 2 started (main at the merge, before the closed-road fix).
 - **integration-b's memory** was a build livelock, found by `oom-fix`: Murals and
   ClimbingPlants each moved their step to just before a chunk's finish whenever a step stood
@@ -11945,3 +11958,80 @@ the knee-high plants one by one at 1-3 m.
   retargeted from `pedestrian_d_anim.glb`).
 - Texture streaming (mip 0 loaded only near the camera) is not something Godot 4.7 offers; the
   budget is the static half of it.
+
+## 9dw. Reflection probes in the streets and a real street HDRI, 2026-10-05 (agent branch `wt/reflection-probes`; VISUAL_ROADMAP #117)
+
+**What (GAME_PLAN G4, "reflection probes per block").** On Forward+ every car door, bonnet, shop
+window and glass tower used to mirror only the sky's radiance map, which knows nothing about the
+street (a flat warm grey under its horizon since 2026-09-23). Now:
+
+- **`ReflectionProbes`** (`scripts/world/reflection_probes.gd`, a plain Node CityStreamer adds
+  after the first streaming; Forward+ desktop only, `supported()`; `REFLECTION_PROBES=0` is the
+  A/B) keeps box-projected `ReflectionProbe`s round the camera. The boxes are worked out from
+  the plan, never placed by chunks (`candidates()`, pure): every street segment between two
+  crossings in the 5 x 5 blocks round the camera (the length of the block plus both crossings,
+  the road plus both pavements plus 5 m of shopfront, as tall as the district: 70 m downtown,
+  32 midtown, 14-22 elsewhere; only on `road_open()` roads), an open box over a PARK / PLAZA /
+  SCHOOL block, and off the street grid (beach, hills, port, airport) one 240 m open box on a
+  160 m grid round the camera. The `budget` nearest stand: 9 at HIGH, 5 at MEDIUM, none below.
+- **Rendering is budgeted.** UPDATE_ONCE (Godot renders one face a frame over six frames), never
+  more than one probe at a time: one render per `refresh_seconds` (0.5 s HIGH, 1 s MEDIUM),
+  nearest first: a new box, then each new probe once more `settle_seconds` (2 s) later, then
+  any probe whose light is stale (the hour moved 0.35 h, `lamp_factor` or the weather darkening
+  0.12: so dusk, night and storms re-render). A re-render in place is a 1 mm nudge (the
+  documented way). An origin re-centre strands every probe; they are freed and made again where
+  they stand, one a slot, nearest first. No shadows in the probes (cost, below).
+- **Vehicles are left out of the probes** (render layer 19, `VEHICLE_LAYER`, moved onto it for
+  the cars in a box when it renders; the probes' cull mask skips it): a probe is a still, so a
+  car would hang in every reflection after it drove off, and the car under the eye mirrored
+  itself. Camera, lights and shadows see every layer, so nothing else changes.
+- **The shaders hand over** through a new global, `probe_reach` (the radius to the far corner
+  of the furthest standing probe; 0 with none and always 0 on Compatibility):
+  `car_paint.gdshaderinc` drops its canyon dimming of the lacquer inside it (the real reflection
+  is already the dark street; dimmed again it went black), and `building.gdshader`'s glass, under
+  `probe_glass_top` (30 m) and inside the reach, gives `probe_glass_take` (60 %) of its emitted
+  fake city to a sharp, metallic lobe tinted `probe_glass_tint`: the real street through the
+  probe. (A white mirror read as a pale cage; the tint is how real coated glass looks.)
+- **The street HDRI.** Poly Haven's CC0 "San Giuseppe Bridge" (2K .hdr, a canal street with
+  facades, paving and a bridge; fetched from three.js's mirror on GitHub because polyhaven.com is
+  blocked here), cut by `tools/reflections/make_street_hdri.py` into
+  `assets/textures/sky/street_hdri.png`: rgb the scene relative to its street band's mean
+  (x 0.5, highlights rolled off), alpha where something stands (its own sky cut out).
+  `sky.gdshader`'s cubemap pass multiplies the old flat grey by it under the horizon and lets its
+  skyline in up to `street_hdri_rise` (8 degrees) over it: the same mean brightness, so the sky
+  ambient barely moves, but every reflection out of a probe's reach - the far city, the open
+  roads, the air - mirrors facades and paving instead of a uniform grey. Forward+ only in the
+  shader; `ReflectionProbes.street_sky()` hands it over (so `REFLECTION_PROBES=0` and the web keep
+  today's look).
+
+**Three traps, each found on lavapipe with a chrome ball** (`BALL=1` on the shot script):
+1. A ReflectionProbe that entered the tree HIDDEN never renders once shown (ONCE or ALWAYS). The
+   first version hid probes until placed; they drew nothing. Probes are now made in place.
+2. `blend_distance` fades a probe out within that distance of EVERY face of its box, the floor
+   included. With 4 m and the floor a metre under the street, a car got a fifth of its probe.
+   The floor is now `floor_drop` 2 m under the street, the blend 1.5 m.
+3. Godot compiles pipelines in the background and skips what is still compiling, so a probe's
+   first faces can miss the buildings; every new probe renders once more 2 s later.
+
+**Cost (lavapipe Forward+, `tools/reflections/probe_shot.gd VIEW=street BENCH=12`, 1280x720, the
+MEDIUM level's effects - lavapipe cannot render SDFGI in minutes; wall clock a frame):** no probe
+1410 ms; one standing probe 1426 ms (+1.1 %); the 12 frames over a probe's re-render 1483 ms
+(+5 % averaged, about +10 % on each of the six frames carrying a face); with probe shadows those
+were 1475 ms (+4.6 %) and 1781 ms (+26 %), which is why probes render unshadowed. In the game a
+re-render happens at most every 0.5 s (HIGH) while you move into new streets, and about every
+5 s standing still (nine probes, the hour moving 0.35 h every 42 s). The opengl3 / web frame is
+unchanged by construction (no probes, no HDRI, `probe_reach` 0), so `geo_count.gd` was not re-run.
+
+**Stills** (`shots/reflection-probes`, Forward+, 15:00): car door, bonnet, glass tower, street,
+chrome ball before / HDRI only / probe. Shot script: `tools/reflections/probe_shot.gd`
+(`VIEW=car|hood|tower|street|ball`, `PROBES=0`, `HDRI=0`, `BALL=1`, `PAINT=r,g,b`, `HOUR`,
+`BENCH=n`, `SHADOWS=1`, `HIGH=1` keeps SDFGI); `tools/reflections/probe_minimal.gd` is the
+two-walls sanity scene. Checks: `tests/reflection_probes_checks.gd` (25; alone in a minute or two
+with `tools/reflections/checks_only.tscn`).
+
+**NEEDS MAC CHECK:** the frame time with nine probes at HIGH while driving fast through downtown
+(one re-render every 0.5 s), how the probes look under SDFGI / SSR on the real GPU, the tower
+glass hand-over at the 30 m line and at `probe_reach`'s edge (a pane can step from real to faked
+reflection there), and dusk / night re-renders (lit windows and lamps in the mirrored street).
+Not done: probes inside the light-rail tunnel or under freeway decks are not special-cased (the
+eye at 4.2 m can sit under a deck); the hills' open box is a single 240 m box.

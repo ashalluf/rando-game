@@ -270,6 +270,8 @@ func _ready() -> void:
 		_loaded.call_deferred()
 		if LoadClock.quit_after_load():
 			LoadClock.loaded.call_deferred(get_tree())
+	# Box-projected reflection probes in the streets round the camera (Forward+ only).
+	ReflectionProbes.ensure(self)
 
 
 ## Cheap versions of every landmark, always present, so the sign and the wheel show from anywhere.
