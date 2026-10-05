@@ -57,8 +57,8 @@ const FENCE_H := 2.5
 ## Share of stalls with a cruiser in them, and the most a station parks (each is a far-twin body
 ## of ~8k triangles: the car park is the station's biggest cost).
 const FILL := 0.78
-const MAX_CARS := 14
-const HQ_MAX_CARS := 18
+const MAX_CARS := 18
+const HQ_MAX_CARS := 24
 const MAST_H := 34.0
 ## How far the sally port stands out into the car park (m).
 const SALLY_D := 6.0
@@ -555,7 +555,8 @@ static func _build_detail(node: Node3D, s: Dictionary, sx: float, sidewalk: floa
 	var fuel_u1 := fuel_u0 + 3.0 * STALL_W
 	var mast_u := du1 - 1.6
 	var mast_v := pv1 - 1.6
-	for ri in row_specs.size():
+	# From the back fence forward: the rows behind the building are the ones it hides.
+	for ri in range(row_specs.size() - 1, -1, -1):
 		var r: Array = row_specs[ri]
 		var v0: float = r[0]
 		var v1: float = r[1]
@@ -984,7 +985,7 @@ static func _lights(node: Node3D, s: Dictionary, P: Callable, floods: Array[Vect
 	var lay: Dictionary = s.layout
 	var pools := MultiMesh.new()
 	pools.transform_format = MultiMesh.TRANSFORM_3D
-	pools.mesh = PropFactory.light_pool(Color(0.86, 0.92, 1.0), 1.2)
+	pools.mesh = PropFactory.light_pool(Color(0.86, 0.92, 1.0), 0.75)
 	var spots: Array[Transform3D] = []
 	for fs in floods:
 		var mid := (float(lay.pv0) + float(lay.pv1)) * 0.5
