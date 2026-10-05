@@ -214,6 +214,8 @@ func _bus_pass() -> void:
 	await _ticks(2)
 	var lanes := TrafficAI.lanes_of(_plan, axis, index)
 	var bus := _traffic.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 9.0, 4.0, false, BigVehicles.BUS)
+	# Held at its stop for the whole check (the car behind spends seconds pulled over first).
+	bus.traffic.dwell_need = 60.0
 	var car := _traffic.place_car(axis, index, dir, lanes - 1, stop - float(dir) * 85.0, 11.0, false)
 	car.traffic.ai = true
 	# Pulled over for a siren for its first seconds: no lane change may start while it yields.
