@@ -8571,3 +8571,90 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. The film studio lot: SUNSPIRE PICTURES in midtown, 2026-10-05 (agent branch `wt/film-studio`; VISUAL_ROADMAP "?")
+
+**What.** A Hollywood studio lot, original throughout: SUNSPIRE PICTURES, its mark a half sun
+rising behind a spire. A stucco wall with pilasters round 3 x 2 midtown blocks under the ridge
+sign; the main gate on the south street (two pylons, the arch with the name in gilt letters and
+the mark over it, lit after dark; a guard booth on the island; striped barrier arms; the iron
+gates folded back); numbered SOUND STAGES (beige stucco sheds 14-19 m high with pilasters, a low
+gable roof of standing seam, two or three ELEPHANT DOORS on the long walls with their frame, track
+and wicket door, a red light over the first that is lit by day on the stages that are "rolling",
+work lights, the number painted big on both long walls and both gables with STAGE over it, HVAC
+units and ducts, a zig-zag steel stair to the roof); the front lot (the office block facing the
+gate with its name over the entrance, rows of office bungalows - HouseKit houses, Spanish revival
+and craftsman, no garages - on lawns, the WATER TOWER with the mark and name painted round the
+tank); the BACKLOT, a New York street of false fronts (brownstones with stoops, tenements with
+fire escapes, shopfronts with signs and awnings, limestone fronts; real window openings with glass
+set behind, cornices, a plywood back braced by raked struts to sandbags), pavements with kerbs,
+cast-iron lamps and parked cars; basecamp along the studio streets (star / makeup trailers,
+honeywagons with a row of doors, five-ton grip trucks with roll-up doors and lift gates), golf
+carts and equipment (road cases, a flag cart, a light on a stand) at the stage doors; lamps on
+the studio streets and light pools; crews walking the studio streets (ordinary pedestrians).
+
+**Where and how.** `FilmStudio` (`scripts/world/film_studio.gd`) is an "area" site exactly like
+the canals: its Landmarks entry (`landmarks.gd`, two hook lines plus the site/capture cases)
+carries WEST_X / EAST_X / NORTH_Z / SOUTH_Z, which CityPlan snaps to whole blocks and closes every
+road inside (they become the studio's streets: asphalt with a centre line, basecamp parked along
+one side, lamps on the other). `layout(plan)` is pure and cached per plan: each sub-block gets a
+role - "front" (the south-row sub-block nearest the middle: the gate is on the wall there),
+"backlot" (the one farthest from the gate that fits a street), "stages" (stages in a row along
+its long axis, as many as fit at 42-62 m with 11 m alleys, numbered across the lot from the
+north-west), else "yard" (a trailer park). Everything is a hash of the seed and the place. The
+area is fixed in world metres, not rolled from the seed, as the canals' and MacArthur Park's are:
+Landmarks.all() is built once before any seed is known.
+
+**Drawn.** `FilmStudioKit` (`scripts/world/film_studio_kit.gd`) builds everything in code at real
+size into ONE SurfaceTool a FULL chunk (`StudioLot`, casting) on `shaders/film_studio.gdshader`:
+kind in COLOR.a 32nds (IndustrialKit's box writer: stucco with a sand grain, standing-seam roof,
+elephant door, painted steel, glass with lit offices after dark, lamps, brick, ashlar stone,
+plywood with sheet joints and stencil marks, canvas stripes, sign paint, concrete, gilt, rubber,
+chrome, trailer gelcoat with a band, felt), paint in COLOR.rgb in display numbers, the arithmetic
+in display numbers and handed over with `to_lit()` (the industrial shaders' scheme). Lettering is
+FreewayKit.text_geo() flattened (`text2d()`), bent round the tank for the water tower
+(`flat2d(..., bend)`). The ground is Industrial's yard ground mesh (`StudioGround`, asphalt,
+concrete aprons round the stages, paint), the public pavement ring and the lawns their own
+shadowless meshes; collision is box shapes on the chunk's StreetProps body. FULL steps are
+time-sliced (a stage a step, four fronts, eight vehicles): the worst step measured 80 ms headless
+on this box, against 72-83 ms for the ordinary midtown chunks next door. LOD chunks and the far
+city's capture lay the ground as slabs and the stages, the ridge, the wall, the gate pylons, the
+office block, the tower and the fronts as `lod_box`es (old path, stages plain); the bungalows are
+HouseKit's own far boxes.
+
+**Trap found:** `IndustrialKit.cyl()` (and its cone) wind the walls so they face INWARD: drawn
+with back-face culling, a cylinder shows only the inside of its far half (the first water tower
+was a curved shell with no front). The kit has its own `cyl()` / `cone()` built on `quad()`; the
+industrial district's tanks and its water tower probably have the same fault (not touched here:
+another area).
+
+**Frame cost** (`still_shot.gd` GEO, opengl3 + Xvfb 1280x720, `DIFF=1`, `--spawn=687,-400`,
+noon, `FILM_STUDIO=0` against the lot): at the gate (`EYE=687,1.7,-388,18,4`) 4.47 M -> 2.24 M
+triangles, 2,700 -> 912 draws; from the air (`610,45,-360,-35,-18`) 4.95 M -> 3.14 M, 2,599 ->
+1,123 draws. The lot replaces six blocks of midtown buildings and is cheaper than they were.
+
+**A/B and tools.** `FILM_STUDIO=0` in the environment: no entry, no site (the blocks are
+ordinary midtown). Probe `tools/film_studio/probe.tscn` (headless, a minute: the site, roles,
+stages, counts, EYEs, every site chunk built FULL and LOD with its step times); checks alone
+`tools/film_studio/checks_only.tscn`. EYEs: the gate `687,1.7,-388,18,4`, the backlot
+`756.6,1.9,-632,0,4`, the water tower `650,6,-560,-40,22`, stage doors `700,2,-548,-115,10`, from
+the air `610,45,-360,-35,-18` (spawn near `700,-600`).
+
+**Checks** (`tests/film_studio_checks.gd`, 24): the lot in midtown, 3 x 2 blocks, the streets
+inside closed and the four round it open, no city lots or school / park grounds on its blocks, the
+gate on the south wall; at least five stages with unique numbers, inside the wall, apart, clear of
+the bungalows, offices, tower and backlot; the backlot's fronts; basecamp inside the wall and out
+of the stages; the tower; bungalows with no garage; the same layout planned twice; the name and
+mark set; a FULL chunk's one casting lot mesh on the studio shader under its triangle budget, its
+shadowless ground, collision, no Building; a LOD chunk's far boxes and no detail; the far city's
+record.
+
+**Stills** (shots/film-studio; opengl3, not the Mac's Forward+): before / after from the air at
+noon, the gate at noon and at night, the backlot street, the water tower, the stage doors at 17:00,
+a gable, the lot in its neighbourhood.
+
+**Not done / not verified.** Forward+ (the Mac) not seen. Golf carts are parked, not driven; no
+crews at work (no camera dolly, no shoot - that is the film-shoot session's area); the crew are
+ordinary pedestrians. The stage interiors are not built (doors closed). The site is a fixed area
+(not a seed roll). The first commit on shots/film-studio carried the whole tree by mistake; the
+second removes it (no force-push), so that branch's history is heavy.

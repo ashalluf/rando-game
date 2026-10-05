@@ -180,8 +180,14 @@ void fragment() {
 		vec3 mirror = disp(sky_tint.rgb) * (0.22 + 0.7 * fres) * (0.85 + 0.3 * vnoise(vec2(uv.x / pitch, 0.5) * 3.0));
 		albedo = mix(paint * 0.3, vec3(0.15, 0.15, 0.16), mull);
 		emit += mirror * 0.55 * (1.0 - mull) * (1.0 - night_factor * 0.7);
-		float lit = step(0.45, hash12(vec2(floor(uv.x / pitch), floor(world_p.y / 3.6)) + seedv * 9.0)) * lamp_factor;
-		emit += vec3(1.0, 0.84, 0.62) * 0.55 * lit * (1.0 - mull);
+		vec2 pane_id = vec2(floor(uv.x / pitch), floor(world_p.y / 3.6)) + seedv * 9.0;
+		float lit = step(0.45, hash12(pane_id)) * lamp_factor;
+		// A lit office: brighter toward its ceiling, each its own level and tint, a blind down in some.
+		float fy = fract(world_p.y / 3.6);
+		float level = 0.55 + 0.6 * hash12(pane_id + 3.7);
+		vec3 tint = mix(vec3(1.0, 0.84, 0.62), vec3(0.9, 0.95, 1.0), step(0.7, hash12(pane_id + 8.1)));
+		float blind = step(0.75, hash12(pane_id + 5.3)) * step(0.55, fy);
+		emit += tint * 0.55 * level * (0.65 + 0.5 * fy) * (1.0 - 0.7 * blind) * lit * (1.0 - mull);
 		rough = mix(0.06, 0.5, mull);
 		metal = 0.5 * mull;
 		spec = 0.7;

@@ -854,6 +854,14 @@ already mapped so milestone 2 is script-only.
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
 
+- **2026-10-05 A Hollywood film studio lot in midtown (fleet session film-studio).** SUNSPIRE
+  PICTURES (invented; its mark a half sun behind a spire) takes 3 x 2 midtown blocks under the
+  ridge sign as an area site like the canals: the interior roads are closed and become the studio
+  streets; numbered sound stages, the gate arch and guard booth, office bungalows (HouseKit), the
+  water tower, a backlot New York street of false fronts, basecamp. A fixed area rather than a
+  seed-rolled one, as the canals and MacArthur Park are (Landmarks.all() is built before any
+  seed); everything inside is hashed from the seed. docs/HANDOFF.md "The film studio lot".
+
 - **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
   real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the
   101 level 4, with the four left-turn connectors on levels 2 and 3, banked, on single hammerhead

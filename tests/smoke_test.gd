@@ -1827,6 +1827,9 @@ func _test_city() -> void:
 	# The canal neighbourhood (tests/canals_checks.gd): the site and its closed streets, the pure
 	# layout, the houses facing the water, the FULL / LOD chunks and the far city's record.
 	load("res://tests/canals_checks.gd").new().run(self, city)
+	# The film studio lot (tests/film_studio_checks.gd): the site in midtown, the pure layout of
+	# numbered stages, backlot, bungalows and basecamp, the FULL / LOD chunks and the far city's record.
+	load("res://tests/film_studio_checks.gd").new().run(self, city)
 	# The pier park (tests/pier_park_checks.gd): layout, the coaster's track and ride, the walks, the
 	# park in its chunk, solid decks and rides, shots, the train on the clock, the crowd, the far wheel.
 	await load("res://tests/pier_park_checks.gd").new().run(self, city)
