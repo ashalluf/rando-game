@@ -75,11 +75,11 @@ func _initialize() -> void:
 			head /= float(lights.size())
 			var size: float = 13.0 if old else float(spec.pool)
 			var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(size, 1.0, size)), Vector3(head.x, at.y + 0.09, head.z))
-			_place(stage, PF.light_pool(), pool, NC.pool_color(Vector2(2800, 100)) if led else Color.WHITE, Color.BLACK)
+			_place(stage, PF.light_pool(), pool, (NC.pool_color(Vector2(2800, 100)) if led else Color.WHITE) * Color(spec.get("gain", 1.0), spec.get("gain", 1.0), spec.get("gain", 1.0), 1.0), Color.BLACK)
 			var l := OmniLight3D.new()
 			l.position = head - Vector3(0.0, 0.25, 0.0)
 			l.omni_range = 13.0 if old else float(spec.range)
-			l.omni_attenuation = 1.4 * log(3.5) / log(maxf(head.y - at.y - 0.25, 3.5))
+			l.omni_attenuation = maxf(1.4 * log(3.5) / log(maxf(head.y - at.y - 0.25, 3.5)), 1.1)
 			l.light_energy = 1.6
 			l.light_color = NC.LED_LIGHT if led else NC.SODIUM_LIGHT
 			stage.add_child(l)

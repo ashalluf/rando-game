@@ -3641,7 +3641,7 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	var box: Vector3 = lp.box
 	_add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 		[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
-		["lamp_pool", PropFactory.light_pool(), pool, NightCity.pool_color(Vector2(at.x, at.z))],
+		["lamp_pool", PropFactory.light_pool(), pool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
 	], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 	_batch.set_no_shadow("lamp_pool")
 	if level != Level.FULL:
@@ -3649,9 +3649,10 @@ func _add_street_lamp(at: Vector3, facing: Vector2) -> void:
 	var light := OmniLight3D.new()
 	light.position = head + Vector3(0.0, _gy(at.x, at.z) - 0.25, 0.0)
 	light.omni_range = lp.range
-	# The same light on the pavement under the head as the old 3.5 m post gave: the inverse-square
-	# decay eased by the head's height (d^-a at h equal to 3.5^-1.4).
-	light.omni_attenuation = 1.4 * log(LAMP_LIGHT_HEIGHT) / log(maxf(head.y - at.y - 0.25, LAMP_LIGHT_HEIGHT))
+	# A high head: the decay eased toward the old 3.5 m post's light under it (d^-a at h equal to
+	# 3.5^-1.4), but never below 1.1 - eased all the way, a cobra's light reached two lanes at
+	# full strength and blew the road out.
+	light.omni_attenuation = maxf(1.4 * log(LAMP_LIGHT_HEIGHT) / log(maxf(head.y - at.y - 0.25, LAMP_LIGHT_HEIGHT)), 1.1)
 	light.light_color = NightCity.lamp_light(Vector2(at.x, at.z))
 	light.light_energy = 0.0
 	light.shadow_enabled = false

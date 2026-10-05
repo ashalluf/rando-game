@@ -8705,6 +8705,14 @@ was three surfaces, the kit is one).
 and at night (sodium and LED), close-ups of every head day and night, downtown's pavement before /
 after at noon and 21:00, the beach town and midtown.
 
+**Pool tuning after the lead's review** (16 read as a near-white blowout under a beach-town
+cobra): the tall types' pools shrank (cobra 17 -> 12 m, mast 19 -> 13 m) and carry a gain
+(`TYPES.gain`, rgb of the pool's instance colour: 0.55 for cobra and mast, 0.9 twin), their omni
+reach shortened (16 -> 13, 17 -> 14 m) and the eased decay floored at 1.1. Same load, same EYE
+(`-658.9,2.4,465.0,-109,14`, 21:00, an LED patch), bottom third of the frame p50/p95/p99: before the
+kit 48/101/122, first kit 75/196/208, tuned 55/142/164; whole frame p95/p99 79/114 -> 168/201 ->
+108/153. The pool stays white there because NightCity rolls that patch LED.
+
 **Not done / not verified.** Forward+ (the Mac) not seen: the globes' and lenses' bloom through AgX,
 the galvanised metal's reflections. LOD chunks and the far city draw no lamps (as before; the far
 streets' glow stands in). The lamps stand where the old ones stood, and on some suburban kerbs that

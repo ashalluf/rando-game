@@ -20,13 +20,15 @@ enum Type { COBRA, TWIN, LANTERN, POST, MAST }
 
 const MODEL := "res://assets/models/street_lamps.glb"
 ## Per type: the model's node, its light points in the model's frame (x along the arm, y up), the
-## collision box round the pole (size), the pool's diameter and the omni light's reach.
+## collision box round the pole (size), the pool's diameter, the omni light's reach and the pool's
+## gain (its instance colour's scale: a tall head spreads its light, so its pool is dimmer and,
+## being additive, must not blow the road out to white).
 const TYPES := [
-	{"node": "sl_cobra", "lights": [Vector2(2.54, 8.60)], "box": Vector3(0.34, 8.44, 0.34), "pool": 17.0, "range": 16.0},
-	{"node": "sl_twin", "lights": [Vector2(-0.62, 4.96), Vector2(0.62, 4.96)], "box": Vector3(0.6, 4.8, 0.6), "pool": 13.0, "range": 11.0},
-	{"node": "sl_lantern", "lights": [Vector2(0.0, 4.32)], "box": Vector3(0.46, 4.6, 0.46), "pool": 11.5, "range": 10.0},
-	{"node": "sl_post", "lights": [Vector2(0.0, 4.65)], "box": Vector3(0.3, 4.8, 0.3), "pool": 11.0, "range": 10.0},
-	{"node": "sl_mast", "lights": [Vector2(3.36, 9.12)], "box": Vector3(0.38, 9.45, 0.38), "pool": 19.0, "range": 17.0},
+	{"node": "sl_cobra", "lights": [Vector2(2.54, 8.60)], "box": Vector3(0.34, 8.44, 0.34), "pool": 12.0, "range": 13.0, "gain": 0.55},
+	{"node": "sl_twin", "lights": [Vector2(-0.62, 4.96), Vector2(0.62, 4.96)], "box": Vector3(0.6, 4.8, 0.6), "pool": 13.0, "range": 11.0, "gain": 0.9},
+	{"node": "sl_lantern", "lights": [Vector2(0.0, 4.32)], "box": Vector3(0.46, 4.6, 0.46), "pool": 11.5, "range": 10.0, "gain": 1.0},
+	{"node": "sl_post", "lights": [Vector2(0.0, 4.65)], "box": Vector3(0.3, 4.8, 0.3), "pool": 11.0, "range": 10.0, "gain": 1.0},
+	{"node": "sl_mast", "lights": [Vector2(3.36, 9.12)], "box": Vector3(0.38, 9.45, 0.38), "pool": 13.0, "range": 14.0, "gain": 0.55},
 ]
 ## Each type's shaft for things wrapped round it (StreetWear's stickers): [y0, r0, y1, r1], the
 ## lathe profile's radius (m) at two heights; linear between and beyond.
@@ -137,6 +139,14 @@ static func shaft_radius(key: String, y: float) -> float:
 	return -1.0
 
 
+## The pool's instance colour for a lamp at `at` of type `t`: NightCity's sodium / LED colour scaled
+## by the type's gain (rgb only: the pool's alpha is its coverage).
+static func pool_color(t: int, at: Vector2) -> Color:
+	var c := NightCity.pool_color(at)
+	var g := float(TYPES[t].gain)
+	return Color(c.r * g, c.g * g, c.b * g, c.a)
+
+
 ## A car park's light pole: the tall arm types, the arm turned by the old hashed yaw.
 static func car_park_type(at: Vector2) -> int:
 	return Type.MAST if NightCity.lamp_led(at) else Type.COBRA
@@ -186,5 +196,6 @@ static func place(plan: CityPlan, at: Vector3, facing: Vector2, force: int = -1)
 		"lights": lights,
 		"pool": float(spec.pool),
 		"range": float(spec.range),
+		"gain": float(spec.gain),
 		"box": box,
 	}

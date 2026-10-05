@@ -758,7 +758,7 @@ static func _lamp(ch: CityChunk, at: Vector3) -> void:
 		var box: Vector3 = lp.box
 		ch._add_prop("lamp", at, Color(0.28, 0.29, 0.32), [
 			[lp.key, lp.mesh, lp.xform, lp.paint, lp.custom],
-			["lamp_pool", PropFactory.light_pool(), lpool],
+			["lamp_pool", PropFactory.light_pool(), lpool, StreetLamps.pool_color(lp.type, Vector2(at.x, at.z))],
 		], [[box, at + Vector3(0.0, box.y * 0.5, 0.0), 0.0]])
 		return
 	var pool := Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(CityChunk.LAMP_POOL_SIZE * 1.3, 1.0, CityChunk.LAMP_POOL_SIZE * 1.3)), at + Vector3(0.0, 0.05, 0.0))
