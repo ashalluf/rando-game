@@ -54,7 +54,7 @@ for ((i = 0; i < SHARDS; i++)); do
   CHECKS=$(grep -cE "^(PASS|FAIL) " "$LOG" || true)
   TOTAL=$((TOTAL + CHECKS))
   echo "== Shard $i/$SHARDS: exit $CODE, $CHECKS checks, $(grep -m1 "^SMOKE PARTS" "$LOG" || echo "no parts line")"
-  grep -E "^FAIL |^SMOKE TEST|SMOKE TEST TIMED OUT" "$LOG" || true
+  grep -E "^FAIL |^SMOKE TEST|^SMOKE TIME|SMOKE TEST TIMED OUT" "$LOG" || true
   [ "$CODE" = "124" ] && echo "== Shard $i timed out"
   if grep -qE "$ERRORS" "$LOG"; then
     echo "== Script errors found in shard $i:"

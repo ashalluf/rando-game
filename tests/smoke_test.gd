@@ -13,6 +13,18 @@ var _checks := 0
 var _profile := OS.get_environment("SMOKE_PROFILE") == "1"
 
 
+## The most resident memory this process has had, in MB (Linux; 0 elsewhere).
+func _peak_rss_mb() -> int:
+	var f := FileAccess.open("/proc/self/status", FileAccess.READ)
+	if f == null:
+		return 0
+	while not f.eof_reached():
+		var line := f.get_line()
+		if line.begins_with("VmHWM:"):
+			return int(line.substr(6).strip_edges().split(" ")[0]) / 1024
+	return 0
+
+
 ## Resident memory of this process in MB (Linux; 0 elsewhere).
 func _rss_mb() -> int:
 	var f := FileAccess.open("/proc/self/status", FileAccess.READ)
@@ -58,12 +70,31 @@ const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_chec
 	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks"]
 ## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
 ## them as PART lines); a file missing here counts DEFAULT_COST. Only the deal depends on them.
-const PART_COST := {}
+const PART_COST := {
+	"room": 30.0, "city_streaming": 59.7, "city_terrain": 17.9, "city_landmarks": 39.0,
+	"city_cars": 64.5, "city_people": 8.8, "city_polish": 27.1, "city_crowd": 72.4,
+	"city_menu": 42.1, "civic_checks": 1.4, "air_traffic_checks": 3.3, "airport_checks": 11.8,
+	"car_damage_checks": 13.5, "car_cabin_checks": 1.5, "car_lights_checks": 9.7,
+	"big_vehicle_checks": 34.7, "more_cars_checks": 4.1, "light_rail_checks": 1.8,
+	"bird_checks": 0.4, "sky_checks": 0.0, "emergency_checks": 80.6,
+	"police_station_checks": 64.9, "ambience_checks": 0.5, "audio_checks": 2.2,
+	"replica_checks": 0.5, "surf_checks": 0.5, "freeway_kit_checks": 0.9, "westlake_checks": 22.3,
+	"distance_checks": 21.9, "hill_air_checks": 0.1, "far_city_checks": 0.3,
+	"masjid_checks": 15.3, "street_wear_checks": 9.9, "climbing_plants_checks": 1.4,
+	"street_vendors_checks": 1.1, "beach_life_checks": 0.9, "broadway_checks": 1.6,
+	"lot_fill_checks": 3.4, "house_checks": 1.7, "industrial_checks": 1.2, "park_checks": 0.5,
+	"billboard_checks": 4.1, "la_river_checks": 15.6, "night_city_checks": 3.0,
+	"port_life_checks": 20.8, "canals_checks": 0.8, "pier_park_checks": 17.7,
+	"marina_checks": 0.2, "explosion_aftermath_checks": 9.4, "building_damage_checks": 0.1,
+	"schools_checks": 1.3, "minimap_checks": 0.5, "weather_la_checks": 0.1,
+	"stack_interchange_checks": 6.0
+}
 const DEFAULT_COST := 6.0
 ## Every share pays for its own city load on top of its parts.
 const CITY_LOAD_COST := 60.0
 var _parts := {} # part or check file name -> true; empty = everything
 var _buildings_done := false
+var _ran := {} # the city parts this run has started, for _stage()
 var _proxies := {} # check file path -> [the real script, its name, run()'s argument count]
 
 
@@ -150,11 +181,34 @@ func _wants_city() -> bool:
 
 
 func _part_begin(part: String) -> int:
+	if not _parts.is_empty():
+		await _stage(part)
 	if part == "city_files" and not _parts.is_empty():
 		_stub_other_files()
 	elif part == "city_files" and _profile:
 		_time_files()
 	return Time.get_ticks_msec()
+
+
+## A share's part whose predecessor ran elsewhere starts from the spawn with the streaming
+## settled, as the city's first part does, not wherever this share's last part left the player.
+func _stage(part: String) -> void:
+	var order: Array = ["setup"]
+	order.append_array(CITY_PARTS)
+	order.append("city_files")
+	var before: String = order[order.find(part) - 1]
+	if before == "setup" or _ran.has(before):
+		_ran[part] = true
+		return
+	_ran[part] = true
+	var city: Node = get_tree().root.get_node_or_null("City")
+	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
+	if city == null or player == null:
+		return
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	city.update_streaming(true)
+	await _ticks(30)
 
 
 func _part_end(part: String, began: int) -> void:
@@ -371,41 +425,41 @@ func _test_city() -> void:
 	var traffic_mgr: Node3D = city.get_node("Traffic")
 	var traffic_cap: int = traffic_mgr.max_cars
 	if _want("city_streaming"):
-		var t_city_streaming := _part_begin("city_streaming")
+		var t_city_streaming: int = await _part_begin("city_streaming")
 		await _city_streaming(city, plan, player)
 		_part_end("city_streaming", t_city_streaming)
 	if _want("city_terrain"):
-		var t_city_terrain := _part_begin("city_terrain")
+		var t_city_terrain: int = await _part_begin("city_terrain")
 		await _city_terrain(city, plan, player, macro)
 		_part_end("city_terrain", t_city_terrain)
 	if _want("city_landmarks"):
-		var t_city_landmarks := _part_begin("city_landmarks")
+		var t_city_landmarks: int = await _part_begin("city_landmarks")
 		await _city_landmarks(city, plan, player, macro)
 		_part_end("city_landmarks", t_city_landmarks)
 	if _want("city_cars"):
-		var t_city_cars := _part_begin("city_cars")
+		var t_city_cars: int = await _part_begin("city_cars")
 		await _city_cars(city, plan, player, macro)
 		_part_end("city_cars", t_city_cars)
 		if not _want("city_people"):
 			traffic_mgr.max_cars = traffic_cap
 	if _want("city_people"):
-		var t_city_people := _part_begin("city_people")
+		var t_city_people: int = await _part_begin("city_people")
 		await _city_people(city, plan, player, traffic_cap, traffic_mgr)
 		_part_end("city_people", t_city_people)
 	if _want("city_polish"):
-		var t_city_polish := _part_begin("city_polish")
+		var t_city_polish: int = await _part_begin("city_polish")
 		await _city_polish(city, plan, player)
 		_part_end("city_polish", t_city_polish)
 	if _want("city_crowd"):
-		var t_city_crowd := _part_begin("city_crowd")
+		var t_city_crowd: int = await _part_begin("city_crowd")
 		await _city_crowd(city, plan, player)
 		_part_end("city_crowd", t_city_crowd)
 	if _want("city_menu"):
-		var t_city_menu := _part_begin("city_menu")
+		var t_city_menu: int = await _part_begin("city_menu")
 		await _city_menu(city, plan, player, packed)
 		_part_end("city_menu", t_city_menu)
 	if _want("city_files"):
-		var t_city_files := _part_begin("city_files")
+		var t_city_files: int = await _part_begin("city_files")
 		await _city_files(city, plan, player)
 		_part_end("city_files", t_city_files)
 	if not _want("city_files"):
@@ -3760,6 +3814,7 @@ func _check(ok: bool, label: String) -> void:
 
 
 func _finish() -> void:
+	printerr("SMOKE TIME %.1f s, peak rss %d MB" % [Time.get_ticks_msec() / 1000.0, _peak_rss_mb()])
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED (%d checks)" % _checks)
 		get_tree().quit(0)
