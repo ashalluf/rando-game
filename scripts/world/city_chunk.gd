@@ -2544,14 +2544,16 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 		var t := rect.position.y + 8.0
 		while t < rect.end.y - 8.0:
 			spots.append([Vector3(x, 0.4, t), 0.0, side])
-			# Painted stall line between spots.
-			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis().scaled(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
+			# Painted stall line between spots (none on a road the freight yard closes).
+			if not FreightRail.keeps_clear(plan, Vector2(x, t)):
+				_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis().scaled(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
 			t += 8.0
 		var z := rz + side * CityPlan.parking_offset(wz)
 		t = rect.position.x + 8.0
 		while t < rect.end.x - 8.0:
 			spots.append([Vector3(t, 0.4, z), PI * 0.5, side])
-			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
+			if not FreightRail.keeps_clear(plan, Vector2(t, z)):
+				_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
 			t += 8.0
 	# Seeded from the block, not the global generator: `Array.shuffle()` put different cars in
 	# different spots every run, which broke "same seed, same city" (and made every A/B render
@@ -2579,7 +2581,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 		return
 	var car := Vehicle.random_car(rng)
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()

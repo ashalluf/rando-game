@@ -56,8 +56,8 @@ const WALL_LIGHT_EVERY := 32.0
 ## Block signals this far apart along each track.
 const SIGNAL_EVERY := 520.0
 
-const BALLAST_COL := Color(0.52, 0.5, 0.47)
-const TIE_COL := Color(0.62, 0.61, 0.58)
+const BALLAST_COL := Color(0.36, 0.345, 0.325)
+const TIE_COL := Color(0.47, 0.46, 0.44)
 const TIMBER_COL := Color(0.24, 0.19, 0.15)
 const RAIL_COL := Color(0.4, 0.3, 0.24)
 const CONC := Color(0.70, 0.69, 0.66)

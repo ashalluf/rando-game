@@ -289,6 +289,17 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Freight trains run the Alameda corridor (VISUAL_ROADMAP #59).** The invented
+  Arroyo Pacific's double track runs down Alameda St, the real corridor's street, from a covered way
+  at the port north through the industrial district: at street level in the median past gated
+  crossings, then in a ten-metre trench under every cross street (decks; the ramps sever a few
+  streets at Alameda, as the real ones do), to an intermodal yard east of Alameda in Vernon. The
+  trains are worked out from a clock like the Coral Line's: 60-120 cars (double stacks, manifests,
+  autoracks), head-end locomotives north and a distributed power unit leading back south, a crew
+  change at the yard, never standing on a crossing. The corridor's land is held level (a relief
+  terrace, like the river's) so the trench never digs under the city's ground plane. Chosen over a
+  right of way through the blocks: Alameda is pinned on every seed and runs past the port, its
+  junctions give TrafficManager's stop rule something to hold, and no lot moves outside the yard.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

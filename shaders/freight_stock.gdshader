@@ -161,11 +161,12 @@ void fragment() {
 		emit = vc * 0.35 * night;
 	} else if (part == 11) {
 		// The autorack's perforated panels: punched round holes on a grid, dark behind.
-		vec2 g = vec2(mp.z, mp.y) / 0.11;
+		vec2 g = vec2(mp.z, mp.y) / 0.045;
+		g.x += step(1.0, mod(floor(g.y), 2.0)) * 0.5;
 		vec2 c = fract(g) - 0.5;
-		float hole = 1.0 - smoothstep(0.26, 0.32, length(c));
-		float fw = fwidth(g.x);
-		hole = mix(hole, 0.25, smoothstep(0.25, 0.7, fw));
+		float fw = max(fwidth(g.x), fwidth(g.y));
+		float hole = 1.0 - smoothstep(0.3 - fw, 0.3 + fw, length(c));
+		hole = mix(hole, 0.28, smoothstep(0.2, 0.55, fw));
 		alb = mix(vc * cs_srgb_to_linear(paint), vec3(0.02), hole * 0.85);
 		rough = 0.55;
 		metal = 0.15;

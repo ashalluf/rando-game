@@ -216,6 +216,11 @@ func _draw(cam: Vector3, pw: Vector3) -> void:
 				continue
 			var th: float = FreightRail.TRUCK_HALF[t]
 			var xf := car_xform(st, s_c, th, bool(car.flip))
+			# The leading unit's cab end lit (north: the first; south: the last); it strikes
+			# whatever is in front of it wherever the camera is.
+			var leading := t == FreightRail.Car.LOCO and ((j == 0 and phase < 2) or (j == cars.size() - 1 and phase == 2))
+			if leading:
+				lead_info.append([xf, st])
 			var d := cam.distance_to(xf.origin)
 			if d > far_range:
 				continue
@@ -224,12 +229,7 @@ func _draw(cam: Vector3, pw: Vector3) -> void:
 			var number := -1.0
 			if t == FreightRail.Car.LOCO:
 				number = float(int(car.loco_no) % 1000) / 1000.0
-				lamps = 0.0
-				# The leading unit's cab end lit (north: the first; south: the last).
-				var leading := (j == 0 and phase < 2) or (j == cars.size() - 1 and phase == 2)
-				if leading:
-					lamps = 1.0
-					lead_info.append([xf, st])
+				lamps = 1.0 if leading else 0.0
 			var custom := FreightStock.custom(t, look, lamps, number)
 			var paint := Color(1, 1, 1)
 			var lxf := to_local * Transform3D(xf.basis, WorldState.to_local(xf.origin))

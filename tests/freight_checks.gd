@@ -211,14 +211,24 @@ func _stock() -> void:
 		report += " %d" % tris
 	_check(ok, "the rolling stock is real geometry inside its budgets (triangles:%s)" % report)
 	_check(FreightStock.mesh(0).get_surface_count() == 1 and FreightStock.mesh(0).surface_get_material(0) is ShaderMaterial, "each type is one mesh on the stock shader")
-	# The shader's palette is FreightStock.PALETTE.
+	# The shader's palette is FreightStock.PALETTE (parsed back, in order).
 	var code: String = (load("res://shaders/freight_stock.gdshader") as Shader).code
 	var i := code.find("const vec3 PALETTE[")
-	var same := i >= 0
-	var body := code.substr(i, code.find(");", i) - i)
-	for col: Color in FreightStock.PALETTE:
-		same = same and body.contains("vec3(%s, %s, %s)" % [_num(col.r), _num(col.g), _num(col.b)])
-	_check(same, "the stock shader's palette is FreightStock.PALETTE")
+	var body := code.substr(i, code.find(");", i) - i) if i >= 0 else ""
+	var got: Array[Vector3] = []
+	var at := body.find("vec3(")
+	while at >= 0:
+		var close := body.find(")", at)
+		var nums := body.substr(at + 5, close - at - 5).split(",")
+		if nums.size() == 3:
+			got.append(Vector3(nums[0].to_float(), nums[1].to_float(), nums[2].to_float()))
+		at = body.find("vec3(", close)
+	var same := got.size() == FreightStock.PALETTE.size()
+	if same:
+		for k in got.size():
+			var col: Color = FreightStock.PALETTE[k]
+			same = same and got[k].distance_to(Vector3(col.r, col.g, col.b)) < 0.002
+	_check(same, "the stock shader's palette is FreightStock.PALETTE (%d of %d)" % [got.size(), FreightStock.PALETTE.size()])
 
 
 static func _num(v: float) -> String:

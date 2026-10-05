@@ -293,10 +293,23 @@ static func _loco(b: PortKit.Buf, lv: int) -> void:
 		var ze := e * hl
 		# Pilot: a sloped plate down to the snowplow, the anticlimber over it.
 		_paint(b, FRAME, P_FIXED, 0.8)
-		b.quad(Vector3(-1.5, 1.25, ze), Vector3(1.5, 1.25, ze), Vector3(1.5, 0.3, ze + e * 0.35), Vector3(-1.5, 0.3, ze + e * 0.35), Vector3(0, -0.3, e).normalized())
+		# The pilot sheet between the corner step wells (open at the corners so the steps show),
+		# the wells' inner walls behind it.
+		b.quad(Vector3(-0.95, 1.25, ze), Vector3(0.95, 1.25, ze), Vector3(0.95, 0.3, ze + e * 0.35), Vector3(-0.95, 0.3, ze + e * 0.35), Vector3(0, -0.3, e).normalized())
+		for sx: float in [-1.0, 1.0]:
+			b.quad(Vector3(sx * 0.95, 1.25, ze), Vector3(sx * 0.95, 0.3, ze + e * 0.35), Vector3(sx * 0.95, 0.3, ze - e * 0.9), Vector3(sx * 0.95, 1.25, ze - e * 0.9), Vector3(sx, 0, 0))
+			b.quad(Vector3(sx * 0.95, 1.25, ze - e * 0.9), Vector3(sx * 1.56, 1.25, ze - e * 0.9), Vector3(sx * 1.56, 0.3, ze - e * 0.9), Vector3(sx * 0.95, 0.3, ze - e * 0.9), Vector3(0, 0, e))
+		if lv == 0:
+			# Air hoses and MU cables hanging off the pilot either side of the coupler.
+			_paint(b, Color(0.03, 0.03, 0.03), P_BLACK, 0.7)
+			for hx: float in [-0.55, -0.4, 0.4, 0.55]:
+				b.beam(Vector3(hx, 1.05, ze + e * 0.08), Vector3(hx * 1.05, 0.62, ze + e * 0.32), 0.05, 0.05)
+			# The white reflective strip along the pilot's top edge.
+			_paint(b, Color(0.9, 0.9, 0.88), P_TAPE, 1.0)
+			b.quad(Vector3(-0.95, 1.12, ze + e * 0.03), Vector3(0.95, 1.12, ze + e * 0.03), Vector3(0.95, 1.2, ze + e * 0.01), Vector3(-0.95, 1.2, ze + e * 0.01), Vector3(0, 0, e))
 		b.box(Vector3(-1.45, deck - 0.12, ze + (0.0 if e > 0.0 else -0.18)), Vector3(1.45, deck + 0.04, ze + (0.18 if e > 0.0 else 0.0)))
 		# The snowplow wedge.
-		_paint(b, SAFETY, P_SAFETY, 0.8)
+		_paint(b, FRAME, P_FIXED, 0.7)
 		b.quad(Vector3(-1.45, 0.14, ze + e * 0.42), Vector3(0.0, 0.14, ze + e * 0.75), Vector3(0.0, 0.55, ze + e * 0.5), Vector3(-1.45, 0.55, ze + e * 0.32), Vector3(-0.3, 0.2, e).normalized())
 		b.quad(Vector3(0.0, 0.14, ze + e * 0.75), Vector3(1.45, 0.14, ze + e * 0.42), Vector3(1.45, 0.55, ze + e * 0.32), Vector3(0.0, 0.55, ze + e * 0.5), Vector3(0.3, 0.2, e).normalized())
 		_coupler(b, ze, e, 0.87)
@@ -363,13 +376,16 @@ static func _loco(b: PortKit.Buf, lv: int) -> void:
 	for sx: float in [-1.0, 1.0]:
 		b.quad(Vector3(sx * 0.0, 1.95, nz0 - 0.012), Vector3(sx * 1.2, 2.55, nz0 - 0.012), Vector3(sx * 1.2, 2.85, nz0 - 0.012), Vector3(sx * 0.0, 2.25, nz0 - 0.012), Vector3.FORWARD)
 	_paint(b, Color(0.2, 0.06, 0.04), P_FIXED, 0.8)
-	b.box(Vector3(-0.32, deck + 0.05, nz0 - 0.02), Vector3(0.32, 2.75, nz0 + 0.01), 32)
-	# Headlights on the nose top, under the windscreen.
-	_paint(b, Color(0.08, 0.08, 0.08), P_STEEL, 0.9)
-	b.box(Vector3(-0.42, 2.95, cab0 - 0.75), Vector3(0.42, 3.22, cab0 - 0.45))
+	b.box(Vector3(-0.32, deck + 0.05, nz0 - 0.02), Vector3(0.32, 2.5, nz0 + 0.01), 32)
+	if lv == 0:
+		_paint(b, Color(0.7, 0.7, 0.68), P_STEEL, 0.9)
+		b.box(Vector3(0.2, 1.95, nz0 - 0.05), Vector3(0.26, 2.15, nz0 - 0.01), 32 | 1 | 2)
+	# Headlights in a black housing on the nose face, over the door.
+	_paint(b, Color(0.06, 0.06, 0.06), P_STEEL, 0.9)
+	b.box(Vector3(-0.42, 2.56, nz0 - 0.08), Vector3(0.42, 2.9, nz0))
 	_paint(b, Color(1.0, 0.97, 0.88), P_HEAD, 1.0)
 	for sx: float in [-0.2, 0.2]:
-		b.cyl(Vector3(sx, 3.085, cab0 - 0.76), Vector3(sx, 3.085, cab0 - 0.79), 0.1, 12, true)
+		b.cyl(Vector3(sx, 2.73, nz0 - 0.08), Vector3(sx, 2.73, nz0 - 0.11), 0.11, 14, true)
 	# The cab box.
 	_paint(b, LOCO_RED, P_FIXED, 1.0)
 	b.box(Vector3(-1.55, deck, cab0), Vector3(1.55, 4.55, cab1), 1 | 2 | 16)
@@ -409,7 +425,7 @@ static func _loco(b: PortKit.Buf, lv: int) -> void:
 	for sx: float in [-1.0, 1.0]:
 		_paint(b, Color(0.08, 0.08, 0.08), P_STEEL, 0.9)
 		b.box(Vector3(sx * 1.2 - 0.28, 4.32, wz1 - 0.06), Vector3(sx * 1.2 + 0.28, 4.52, wz1 + 0.04))
-		_number_field(b, Vector3(sx * 1.2, 4.42, wz1 - 0.06), Vector3(1, 0, 0), Vector3(0, 0, -1), 0.5, 0.16, Color(0.95, 0.95, 0.9))
+		_number_field(b, Vector3(sx * 1.2, 4.42, wz1 - 0.06), Vector3(-1, 0, 0), Vector3(0, 0, -1), 0.5, 0.16, Color(0.95, 0.95, 0.9))
 	# Horn and antennas on the cab roof.
 	if lv == 0:
 		_paint(b, Color(0.12, 0.12, 0.12), P_STEEL, 0.9)
@@ -437,12 +453,14 @@ static func _loco(b: PortKit.Buf, lv: int) -> void:
 		var x := sx * (hw + 0.006)
 		b.quad(Vector3(x, 2.55, h0 + 0.3), Vector3(x, 2.55, rad0), Vector3(x, 3.35, rad0), Vector3(x, 3.35, h0 + 0.3), Vector3(sx, 0, 0))
 		_letters(b, FreightRail.RAILROAD, 0.5, Vector3(x, 2.95, (h0 + rad0) * 0.5 + 0.4), Vector3(0, 0, -sx), Vector3(sx, 0, 0), LOCO_RED)
-		# Access doors along the hood below the band (raised panels with a seam).
+		# Access doors along the hood: a dark seam between each pair, a latch on each.
 		if lv == 0:
-			_paint(b, Color(0.5, 0.14, 0.085), P_FIXED, 0.95)
 			var z := h0 + 0.6
-			while z < rad0 - 1.0:
-				b.box(Vector3(x - (0.012 if sx > 0.0 else 0.0), deck + 0.15, z), Vector3(x + (0.012 if sx < 0.0 else 0.0), 2.45, z + 0.95), 1 if sx > 0.0 else 2)
+			while z < rad0 - 0.5:
+				_paint(b, Color(0.08, 0.03, 0.02), P_FIXED, 0.8)
+				b.quad(Vector3(x + sx * 0.008, deck + 0.12, z - 0.015), Vector3(x + sx * 0.008, deck + 0.12, z + 0.015), Vector3(x + sx * 0.008, 2.5, z + 0.015), Vector3(x + sx * 0.008, 2.5, z - 0.015), Vector3(sx, 0, 0))
+				_paint(b, Color(0.12, 0.12, 0.12), P_STEEL, 0.9)
+				b.box(Vector3(x - 0.02, 1.95, z + 0.45), Vector3(x + 0.02, 2.02, z + 0.62), 1 | 2 | 4)
 				z += 1.1
 			_paint(b, LOCO_SAND, P_FIXED, 1.0)
 		# Air intake louvres behind the cab.
@@ -466,9 +484,15 @@ static func _loco(b: PortKit.Buf, lv: int) -> void:
 	var rt := 4.62
 	b.box(Vector3(-rw, deck, rad0), Vector3(rw, 3.3, h1), 1 | 2 | 16 | 32)
 	b.box(Vector3(-hw, 3.3, rad0), Vector3(hw, rt, h1), 16 | 32)
-	_paint(b, Color(0.07, 0.07, 0.07), P_GRILLE, 0.85)
 	for sx: float in [-1.0, 1.0]:
+		# The radiator wing: a red frame round a dark grille, angled in toward the roof.
+		_paint(b, LOCO_RED, P_FIXED, 1.0)
 		b.quad(Vector3(sx * rw, 3.3, rad0), Vector3(sx * rw, 3.3, h1), Vector3(sx * hw, rt, h1), Vector3(sx * hw, rt, rad0), Vector3(sx, 0.5, 0).normalized())
+		_paint(b, Color(0.17, 0.17, 0.17), P_GRILLE, 0.85)
+		var o := Vector3(sx, 0.5, 0).normalized() * 0.012
+		var f := 0.12
+		b.quad(Vector3(sx * lerpf(rw, hw, f), lerpf(3.3, rt, f), rad0 + 0.2) + o, Vector3(sx * lerpf(rw, hw, f), lerpf(3.3, rt, f), h1 - 0.2) + o,
+			Vector3(sx * lerpf(rw, hw, 1.0 - f), lerpf(3.3, rt, 1.0 - f), h1 - 0.2) + o, Vector3(sx * lerpf(rw, hw, 1.0 - f), lerpf(3.3, rt, 1.0 - f), rad0 + 0.2) + o, Vector3(sx, 0.5, 0).normalized())
 	_paint(b, LOCO_ROOF, P_FIXED, 1.0)
 	b.quad(Vector3(-hw, rt, rad0), Vector3(hw, rt, rad0), Vector3(hw, rt, h1), Vector3(-hw, rt, h1), Vector3.UP)
 	_paint(b, Color(0.05, 0.05, 0.05), P_GRILLE, 0.9)
@@ -483,7 +507,7 @@ static func _loco(b: PortKit.Buf, lv: int) -> void:
 	for sx: float in [-0.18, 0.18]:
 		b.cyl(Vector3(sx, 4.25, h1), Vector3(sx, 4.25, h1 + 0.04), 0.09, 12, true)
 	for sx: float in [-1.0, 1.0]:
-		_number_field(b, Vector3(sx * 0.8, 4.3, h1 + 0.01), Vector3(-1, 0, 0), Vector3(0, 0, 1), 0.5, 0.16, Color(0.95, 0.95, 0.9))
+		_number_field(b, Vector3(sx * 0.8, 4.3, h1 + 0.01), Vector3(1, 0, 0), Vector3(0, 0, 1), 0.5, 0.16, Color(0.95, 0.95, 0.9))
 	if lv == 0:
 		_ladder(b, Vector3(1.0, 0.0, h1), Vector3(0, 0, 1), Vector3(1, 0, 0), deck, 6, SAFETY)
 		for sx: float in [-1.0, 1.0]:
@@ -578,8 +602,8 @@ static func _well(b: PortKit.Buf, lv: int) -> void:
 	var hl := 10.65
 	var th := float(FreightRail.TRUCK_HALF[FreightRail.Car.WELL])
 	var hw := 1.42
-	_paint(b, WHITE, P_PAINT, 1.0)
 	for sx: float in [-1.0, 1.0]:
+		_paint(b, WHITE, P_PAINT, 1.0)
 		var x := sx * hw
 		# The side girder: deep between the trucks (its bottom low in the well), its top a rail.
 		b.box(Vector3(x - (0.0 if sx > 0.0 else 0.12), 0.32, -hl + 2.8), Vector3(x + (0.12 if sx > 0.0 else 0.0), 1.55, hl - 2.8))

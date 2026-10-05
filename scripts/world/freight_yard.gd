@@ -117,7 +117,7 @@ static func layout(f: FreightRail) -> Dictionary:
 	out.ground = [
 		[Rect2(ax - 12.0, gz0, 24.0, gz1 - gz0), Industrial.G_GRAVEL],
 		[Rect2(ax + 12.0, zn, track_x1 - ax - 12.0, zs - zn), Industrial.G_GRAVEL],
-		[Rect2(load_x0, zn, load_x1 - load_x0, zs - zn), Industrial.G_CONCRETE],
+		[Rect2(load_x0, zn, load_x1 - load_x0, zs - zn), Industrial.G_ASPHALT],
 		[Rect2(load_x1, zn, gx1 - load_x1, zs - zn), Industrial.G_ASPHALT],
 	]
 	# The ladder off the east main and the tracks it feeds.
@@ -180,45 +180,46 @@ static func layout(f: FreightRail) -> Dictionary:
 				stacks.append([Vector2(x, z + 6.2), PI * 0.5, tier, hh + tier * 7919, (hh >> 6) % 3 != 0])
 			z += 12.9
 			n += 1
-	# Storage blocks: rows of stacks along z, east of the loading strip, in a few blocks.
-	var bx0 := load_x1 + 10.0
-	var blocks := 0
-	var bx := bx0
-	while bx + 30.0 < gx1 - 40.0 and stacks.size() < STACK_MAX:
-		var hb := absi(hash([f.plan.seed, "yard_block", blocks]))
-		if hb % 3 != 0:
-			var rows := 6
-			for r in rows:
-				var x := bx + float(r) * 2.9
-				var z := zn + 18.0
-				var n := 0
-				while z < zs - 30.0 and stacks.size() < STACK_MAX:
-					var hh := absi(hash([f.plan.seed, "yard_stack", blocks, r, n]))
-					if hh % 11 != 0:
-						var tiers := 1 + hh % 4
-						for tier in tiers:
-							stacks.append([Vector2(x, z + 6.2), PI * 0.5, tier, hh + tier * 104729, (hh >> 5) % 4 != 0])
-					z += 13.4
-					n += 1
-			bx += 6.0 * 2.9 + 16.0
-		else:
-			bx += 34.0
-		blocks += 1
+	# East of the loading strip, in bands along x: two blocks of stacked boxes, the trailer park
+	# (striped stalls, two-thirds taken), the car shop (a long shed), and the trucks' staging lot by
+	# the gate.
+	var bx := load_x1 + 12.0
+	for blk in 2:
+		var rows := 6
+		for r in rows:
+			var x := bx + float(r) * 2.9
+			var z := zn + 18.0
+			var n := 0
+			while z < zs - 30.0 and stacks.size() < STACK_MAX:
+				var hh := absi(hash([f.plan.seed, "yard_stack", blk, r, n]))
+				if hh % 9 != 0:
+					var tiers := 1 + hh % 4
+					for tier in tiers:
+						stacks.append([Vector2(x, z + 6.2), PI * 0.5, tier, hh + tier * 104729, (hh >> 5) % 4 != 0])
+				z += 13.4
+				n += 1
+		bx += float(rows) * 2.9 + 18.0
 	out.stacks = stacks
-	# Trailers parked in rows in what is left east of the stacks.
 	var trailers: Array = []
-	var tx := bx + 6.0
+	var lots: Array = []
+	var park_x0 := bx + 6.0
 	var trow := 0
-	while tx < gx1 - 24.0:
+	var tx := park_x0
+	while trow < 6:
 		var z := zn + 12.0
+		lots.append(Rect2(tx - 9.0, zn + 10.0, 18.0, zs - zn - 24.0))
 		while z < zs - 14.0:
 			var hh := absi(hash([f.plan.seed, "yard_trailer", trow, int(z)]))
-			if hh % 5 != 0:
+			if hh % 3 != 0:
 				trailers.append([Vector2(tx, z), 0.0 if (hh >> 3) % 2 == 0 else PI, hh])
 			z += 3.6
-		tx += 20.0
+		tx += 24.0
 		trow += 1
 	out.trailers = trailers
+	var shop_x := tx + 10.0
+	out.shop = Rect2(shop_x, zn + 40.0, 42.0, minf(170.0, zs - zn - 80.0))
+	lots.append(Rect2(shop_x + 60.0, zn + 20.0, maxf(gx1 - 12.0 - shop_x - 60.0, 10.0), zs - zn - 40.0))
+	out.lots = lots
 	# High masts on a grid, kept off the tracks and the ladder.
 	var masts: Array = []
 	var mx := ax + 37.5
@@ -230,7 +231,7 @@ static func layout(f: FreightRail) -> Dictionary:
 			for t: Dictionary in tracks:
 				if absf(p.x - float(t.x)) < 4.0 and p.y > float(t.z0) - 6.0 and p.y < float(t.z1) + 6.0:
 					ok = false
-			if _ladder_distance(out.ladder, p) < 5.0:
+			if _ladder_distance(out.ladder, p) < 5.0 or (out.shop as Rect2).grow(4.0).has_point(p):
 				ok = false
 			if ok:
 				masts.append(p)
@@ -271,6 +272,12 @@ func setup(k: FreightKit) -> void:
 	full = k.full
 	lay = layout(fr)
 	Industrial._state(ch)
+
+
+## Nothing of its own to commit: the yard writes into Industrial's meshes, the chunk's batches and
+## FreightKit's surfaces, which their owners commit.
+func commit() -> void:
+	pass
 
 
 func steps() -> Array[Callable]:
@@ -481,6 +488,13 @@ func _works_step() -> void:
 	var gate: Rect2 = lay.gate
 	if area.has_point(gate.get_center()):
 		_gate(gate)
+	for r: Rect2 in lay.lots:
+		var c := _clip(r)
+		if c.size.x > 4.0 and c.size.y > 4.0:
+			Industrial._stalls(ch, c, absi(hash([plan.seed, "fy_lot", int(r.position.x)])), false)
+	var shop: Rect2 = lay.shop
+	if area.has_point(shop.get_center()):
+		_shop(shop)
 
 
 static func _clip_segment(a: Vector2, b: Vector2, r: Rect2) -> Array:
@@ -574,6 +588,33 @@ func _gate(r: Rect2) -> void:
 		var z := r.position.y + 7.0 + float(k) * 11.0
 		Industrial._wbox(ch, Transform3D(Basis(), Vector3(x0 + 8.0, base + g + 1.3, z)), Vector3(2.0, 2.6, 2.4), IndustrialKit.K_GLASS, Color(0.7, 0.72, 0.72))
 		ch._add_shape(Vector3(2.0, 2.6, 2.4), Vector3(x0 + 8.0, base + g + 1.3, z))
+
+
+## The car shop: a long tilt-up shed with a sawtooth of skylights, four roll-up doors at its south
+## end where the cars go in, offices along one side.
+func _shop(r: Rect2) -> void:
+	var base := CityChunk.SIDEWALK_TOP + Industrial.LIFT
+	var c := r.get_center()
+	var g := ch._gy(c.x, c.y)
+	var h := 13.5
+	if not full:
+		ch._batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(r.size.x, h, r.size.y)), Vector3(c.x, base + h * 0.5, c.y)), Color(0.74, 0.72, 0.68), Color(0.0, 0.0, 0.0, 1.0))
+		return
+	Industrial._wbox(ch, Transform3D(Basis(), Vector3(c.x, base + g + h * 0.5, c.y)), Vector3(r.size.x, h, r.size.y), IndustrialKit.K_TILTUP, Color(0.76, 0.74, 0.70), h)
+	Industrial._wbox(ch, Transform3D(Basis(), Vector3(c.x, base + g + h + 0.05, c.y)), Vector3(r.size.x - 0.6, 0.1, r.size.y - 0.6), IndustrialKit.K_ROOF, Color(0.82, 0.82, 0.8))
+	var k := 0
+	var z := r.position.y + 8.0
+	while z < r.end.y - 8.0:
+		Industrial._wbox(ch, Transform3D(Basis(Vector3.RIGHT, 0.5), Vector3(c.x, base + g + h + 0.9, z)), Vector3(r.size.x - 6.0, 0.1, 3.4), IndustrialKit.K_SKYLIGHT, Color(0.7, 0.75, 0.78))
+		z += 9.0
+		k += 1
+	for d in 4:
+		var dx := r.position.x + 6.0 + float(d) * (r.size.x - 12.0) / 3.0
+		Industrial._wbox(ch, Transform3D(Basis(), Vector3(dx, base + g + 3.4, r.end.y + 0.06)), Vector3(5.0, 6.8, 0.12), IndustrialKit.K_ROLLUP, Color(0.62, 0.64, 0.66))
+	Industrial._wbox(ch, Transform3D(Basis(), Vector3(r.end.x + 3.0, base + g + 2.0, c.y)), Vector3(6.0, 4.0, r.size.y * 0.4), IndustrialKit.K_TILTUP, Color(0.84, 0.8, 0.72), 4.0)
+	ch._add_shape(Vector3(r.size.x, h, r.size.y), Vector3(c.x, base + g + h * 0.5, c.y))
+	kit.box(kit.body, Vector3(c.x, base + g + h - 2.0, r.end.y + 0.13), Vector3(8.0, 0, 0), Vector3.UP * 0.7, Vector3(0, 0, 0.01), FreewayKit.kind_color(Color(0.86, 0.77, 0.56), FreewayKit.S_PAINTED))
+	kit._plate_text(FreightRail.RAILROAD, Vector3(c.x, base + g + h - 2.0, r.end.y + 0.15), Vector3(0, 0, 1), 0.8)
 
 
 ## The far city's yard (capture): the cars as long boxes per track, the stacks, the tower.

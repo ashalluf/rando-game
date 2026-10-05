@@ -605,3 +605,19 @@ Commons file. Cut, filtered, peak-normalised mono OGGs; loudest-50 ms levels in
 |---|---|---|---|---|
 | Coordinates of 40 landmark points (40 queries, 68 results, the first of each used) and 517 street / freeway centre-line points (53 queries) in downtown Los Angeles (93 Nominatim search queries in all, cached in `tools/downtown_relay/geocode_cache.json`) | https://nominatim.openstreetmap.org (OpenStreetMap) | © OpenStreetMap contributors (ODbL 1.0) | the fitted downtown street grid and landmark positions in `scripts/world/downtown_real.gd` | 2026-09-24 |
 | Footprint (7-point outline), height 15.7 m and start date 1993 of Masjid Omar ibn Al-Khattab, OSM way 412475901 (one Nominatim lookup) | https://nominatim.openstreetmap.org (OpenStreetMap) | © OpenStreetMap contributors (ODbL 1.0) | the replica's plan and heights in `scripts/world/landmark_masjid_omar.gd` (`W_*`, `E_*`, `REAL_LATLON`); the detail is modelled from the owner's six photographs | 2026-09-24 |
+
+## Freight rail audio and rolling stock (Wikimedia Commons CC0; code-built)
+
+The freight line's sounds (`Sfx` `freight_horn`, `freight_horn_blast`, `freight_roll`,
+`freight_engine`), added 2026-10-05. Each file's Commons page checked: licence field CC0. Cut with
+ffmpeg (mono 44.1 kHz Vorbis; the horn high-passed at 90 Hz and faded, the pass at 30-35 Hz);
+loudness in `Sfx.SAMPLE_LOUDNESS_DB` (the loops at their RMS, the horn at its loudest 50 ms). The
+horn recording is itself the grade-crossing pattern (long, long, short, long). The crossing bells
+are the light rail's `rail_bell`. The locomotives and cars (`scripts/vehicles/freight_stock.gd`)
+and the yard and track (`freight_kit.gd`, `freight_yard.gd`) are built in code: no external model.
+The containers are PortKit's. Railroad, marks and livery invented (Arroyo Pacific, APXR).
+
+| Recording (author) | Source URL | License | Clips (span used) | Added |
+|---|---|---|---|---|
+| Nathan M5 (HarveyHenkelmann, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:Nathan_M5.ogg | CC0 | `freight_horn_0` (0.35-16.9 s, the crossing pattern), `freight_horn_blast_0` (7.05-11.45 s) | 2026-10-05 |
+| Freight train passes Phelan, startles Canadian geese (Extemporalist, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:Freight_train_passes_Phelan,_startles_Canadian_geese.flac | CC0 | `freight_roll_0` (100-112 s, loop), `freight_roll_1` (266-278 s, loop), `freight_engine_0` (304-312 s, loop) | 2026-10-05 |

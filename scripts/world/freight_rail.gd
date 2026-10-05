@@ -61,6 +61,9 @@ const RAIL_ABOVE := 0.2
 const GAUGE := 1.435
 ## Rail top over the trench floor (ballast 0.3, ties 0.18, rail 0.172).
 const TRACK_DEPTH := 0.65
+## In the yard the track stands on the yard's ground (a pavement's height over the road, as
+## Industrial lays its yards): the rail top this far over the street.
+const YARD_ABOVE := 0.85
 ## The trench: inside faces this far out from the centre line, walls this thick; the rail top this
 ## far under the street where it is deep, under a deck at least CLEAR_UNDER (a double stack is
 ## 6.15 m over the rail, the deck 0.9 m), grades on the ramps and in the deep part.
@@ -288,7 +291,7 @@ func _profile() -> void:
 		env[i] = minf(env[i], env[i - 1] + DEEP_GRADE * STEP)
 	for i in range(n - 2, -1, -1):
 		env[i] = minf(env[i], env[i + 1] + DEEP_GRADE * STEP)
-	var y_a := _street_at(z0 + s_yard_end) + RAIL_ABOVE
+	var y_a := _street_at(z0 + s_yard_end) + YARD_ABOVE
 	var y_b := _street_at(z0 + s_grade0) + RAIL_ABOVE
 	var y_c := _street_at(z0 + s_grade1) + RAIL_ABOVE
 	for i in n:
@@ -298,9 +301,12 @@ func _profile() -> void:
 		var m := Mode.GRADE
 		if s <= s_yard_end:
 			m = Mode.YARD
+			top = street[i] + YARD_ABOVE
+			y = top
 		elif s < s_grade0:
 			y = maxf(env[i], maxf(y_a - RAMP_GRADE * (s - s_yard_end), y_b - RAMP_GRADE * (s_grade0 - s)))
 			m = Mode.TRENCH
+			top = street[i] + YARD_ABOVE
 		elif s > s_grade1:
 			y = maxf(env[i], y_c - RAMP_GRADE * (s - s_grade1))
 			m = Mode.TUNNEL if s >= s_mouth else Mode.TRENCH
@@ -412,6 +418,12 @@ func road_open(axis: int, index: int, along: float) -> bool:
 	if kind == Junction.CLOSED or index == yard_s:
 		return absf(along - avenue_x) > hw + SEVER_REACH
 	return true
+
+
+## Whether a parking spot (or a stall line) at world XZ `p` is on a road the yard has closed.
+static func keeps_clear(p_plan: CityPlan, p: Vector2) -> bool:
+	var f := of(p_plan)
+	return f != null and f.yard_rect.grow(2.0).has_point(p)
 
 
 ## True when the road (axis, index) carries the line down its median, so its traffic keeps to
@@ -759,10 +771,26 @@ func crossing_phase(c: Dictionary, t: float) -> float:
 	return -(t - open_since)
 
 
+## The trip nearest clock `near` (at least 1), of consist kind `kind` when it is 0..2 (stills:
+## FREIGHT_KIND in the environment picks the kind for every clock_at_* below).
+func trip_near(near: float, kind: int = -2) -> int:
+	if kind == -2:
+		var env := OS.get_environment("FREIGHT_KIND")
+		kind = env.to_int() if env != "" else -1
+	var n0 := maxi(roundi(near / headway), 1)
+	if kind < 0:
+		return n0
+	for k in 40:
+		for n: int in [n0 + k, n0 - k]:
+			if n >= 1 and int(consist(n).kind) == kind:
+				return n
+	return n0
+
+
 ## A clock (near `near`) at which trip n's leading end is `before` seconds short of crossing k
 ## (dir 0 northbound, 1 southbound): for stills and the checks.
 func clock_at_crossing(k: int, dir: int, before: float = 6.0, near: float = 5400.0) -> float:
-	var n := maxi(roundi(near / headway), 1)
+	var n := trip_near(near)
 	var c: Dictionary = crossings[clampi(k, 0, crossings.size() - 1)]
 	var tr := trips_for(float(consist(n).len))
 	var sA := float(c.s) if dir == 0 else float(c.s) - float(consist(n).len)
@@ -771,7 +799,7 @@ func clock_at_crossing(k: int, dir: int, before: float = 6.0, near: float = 5400
 
 ## A clock (near `near`) at which some trip's leading end is at s, `before` seconds early.
 func clock_at_s(s: float, dir: int, before: float = 0.0, near: float = 5400.0) -> float:
-	var n := maxi(roundi(near / headway), 1)
+	var n := trip_near(near)
 	var tr := trips_for(float(consist(n).len))
 	var sA := s if dir == 0 else s - float(consist(n).len)
 	return float(n) * headway + _trip_time(tr, dir, sA) - before
@@ -779,7 +807,7 @@ func clock_at_s(s: float, dir: int, before: float = 0.0, near: float = 5400.0) -
 
 ## A clock at which trip n (near `near`) stands at the yard (`into` seconds into the dwell).
 func clock_at_yard(into: float = 40.0, near: float = 5400.0) -> float:
-	var n := maxi(roundi(near / headway), 1)
+	var n := trip_near(near)
 	var tr := trips_for(float(consist(n).len))
 	return float(n) * headway + float(tr.T_nb) + into
 
