@@ -1786,6 +1786,9 @@ func _test_city() -> void:
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
 	await load("res://tests/la_river_checks.gd").new().run(self, city)
+	# The canal neighbourhood (tests/canals_checks.gd): the site and its closed streets, the pure
+	# layout, the houses facing the water, the FULL / LOD chunks and the far city's record.
+	load("res://tests/canals_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

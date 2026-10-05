@@ -129,6 +129,9 @@ static func _list() -> Array[Dictionary]:
 	if LandmarkMacArthurPark.enabled:
 		list.append(LandmarkMacArthurPark.entry())
 	# --- end of Westlake ------------------------------------------------------------------------
+	# The canal neighbourhood behind the boardwalk (Canals): a site like the park's.
+	if Canals.enabled:
+		list.append(Canals.entry())
 	return list
 
 
@@ -188,6 +191,16 @@ static func site_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
 	match site_id:
 		"macarthur_park":
 			return LandmarkMacArthurPark.site_steps(chunk)
+		Canals.SITE_ID:
+			return Canals.site_steps(chunk)
+	var none: Array[Callable] = []
+	return none
+
+
+## What the far city records of a site chunk (CityChunk.capturing): the canals' ground and houses.
+static func capture_steps(site_id: String, chunk: CityChunk) -> Array[Callable]:
+	if site_id == Canals.SITE_ID:
+		return Canals.capture_steps(chunk)
 	var none: Array[Callable] = []
 	return none
 
