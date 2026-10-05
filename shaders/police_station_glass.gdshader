@@ -19,7 +19,7 @@ uniform float lobby = 0.0;
 uniform float seed = 0.0;
 // Glass body colour (linear) and how much of the sky it mirrors.
 uniform vec3 tint = vec3(0.020, 0.032, 0.040);
-uniform float mirror = 0.55;
+uniform float mirror = 0.32;
 uniform float night_energy = 1.6;
 
 float h21(vec2 p) {
@@ -55,7 +55,7 @@ void fragment() {
 	float night = lamp_factor * night_energy * (lobby > 0.5 ? 2.2 : 1.0);
 	float day = lobby > 0.5 ? 0.12 : 0.0;
 	vec3 emit = room * lit * (night + day * (1.0 - lamp_factor));
-	emit += sky * (0.08 + 0.92 * fres) * mirror * (1.0 - 0.7 * lamp_factor) * (1.0 - mull);
+	emit += sky * (0.03 + 0.97 * fres) * mirror * (1.0 - 0.7 * lamp_factor) * (1.0 - mull);
 	ALBEDO = cs_out(albedo);
 	METALLIC = 0.2;
 	ROUGHNESS = mix(0.05, 0.4, mull);
