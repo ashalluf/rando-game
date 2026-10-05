@@ -185,7 +185,7 @@ func _full(city: Node3D, plan: CityPlan, e: Dictionary, seen: Dictionary) -> voi
 	for b: Dictionary in built:
 		wash = wash or int(b.kind) == Roadside.Kind.CAR_WASH
 	if wash or queued > 0:
-		_t._check((queued > 0 or not wash) and waiting_ok, "the pads' queued cars are parked Vehicles with a driver seated, brake lamps on, no hazards (%d)" % queued)
+		_t._check((queued > 0 or not wash) and waiting_ok, "the pads' queued cars are parked Vehicles with a driver seated, brake lamps on, no hazards (%d; asked, run, static, made %s)" % [queued, str(Roadside.queue_stats)])
 	var gas := false
 	for b: Dictionary in built:
 		gas = gas or int(b.kind) == Roadside.Kind.GAS

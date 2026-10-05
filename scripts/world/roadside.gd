@@ -66,6 +66,8 @@ static var enabled: bool = OS.get_environment("ROADSIDE") != "0"
 static var recording := false
 ## Queued cars as real Vehicles on FULL chunks (LIVE_QUEUE=0: the cheap static cars, the A/B).
 static var live_queue: bool = OS.get_environment("LIVE_QUEUE") != "0"
+## Tools and checks: queued cars asked for, deferred steps run, fallen back to static cars, made.
+static var queue_stats := [0, 0, 0, 0]
 static var record: Array = []
 ## Tools: the triangles written and the microseconds spent on FULL pads since the last reset.
 static var built_tris := 0
@@ -361,6 +363,7 @@ static func _car(s: Site, p: Vector2, yaw: float, paint: Color = Color(-1, 0, 0)
 ## asleep like any parked car), built in a step of its own before the finish - a car is ~35 ms of
 ## work; the cheap static car where the physics budget is spent or LIVE_QUEUE is off.
 static func _queue_car(s: Site, p: Vector2, yaw: float) -> void:
+	queue_stats[0] += 1
 	if not (s.full and live_queue):
 		_car(s, p, yaw)
 		return
@@ -373,9 +376,11 @@ static func _queue_car(s: Site, p: Vector2, yaw: float) -> void:
 	var paint: Color = ArenaGrounds.CAR_PAINTS[s.rng.randi() % ArenaGrounds.CAR_PAINTS.size()]
 	var fallback := Transform3D(Basis(Vector3.UP, world_yaw), Vector3(w.x, TOP + GROUND_LIFT + 0.005, w.z))
 	ch._run_or_defer(func() -> bool:
+		queue_stats[1] += 1
 		if not is_instance_valid(ch):
 			return true
 		if not PhysicsBudget.can_spawn():
+			queue_stats[2] += 1
 			var key := "apark_car_%d" % v
 			ch._batch.add(key, ArenaGrounds.car_mesh(v), fallback, paint, Color.BLACK)
 			ch._batch.set_shadow_distance(key, LotFill.CAR_SHADOW_DISTANCE)
@@ -392,6 +397,7 @@ static func _queue_car(s: Site, p: Vector2, yaw: float) -> void:
 		car.visible = ch.visible
 		car.seat_waiting_driver(seed)
 		ch._cars.append(car)
+		queue_stats[3] += 1
 		return true)
 
 
