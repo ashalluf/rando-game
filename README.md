@@ -25,3 +25,7 @@ Stills for the service vehicles (branch `wt/service-vehicles`, HANDOFF 9bs). All
 
 Frame cost (tools/geo_count.gd, opengl3, 800x600, same spawn): SERVICE_VEHICLES=0 3.586 M tris / 2,695 draws -> on 3.717 M / 2,702 (+3.7 %).
 - `17_wave2_closeup_fullres_t20..t24_*.jpg` - the same close-ups at full 1280x720 (the composite in 13 is downscaled to 640x360 tiles). Bodies are Blender-built by tools/make_service_vehicles.py on make_big_vehicles / make_road_cars (loft, booleans, raycast parts, slots, far twin), 22-29k tris each; SERVICE_WORK=0.6, opengl3.
+
+## Body rebuild (lead's review; tools/make_big_vehicles.py cab_hardware(), make_service_vehicles.py)
+- `18_rebuild_<type>_<view>_before_left_after_right.jpg` - in game (car_shot.gd, opengl3, SERVICE_WORK=0.6): box truck, garbage, sweeper, tow; front 3/4 and rear 3/4; the committed models on the left, the rebuild on the right.
+- `18_rebuild_blender_<type>_front3_{before,after}.jpg` - the generators' own Cycles previews (studio light), before and after.
