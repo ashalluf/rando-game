@@ -1748,6 +1748,8 @@ func _test_city() -> void:
 	# Police stations (tests/police_station_checks.gd): placement, the HQ, the build, the gate, a
 	# cruiser out of the gate onto the lane and a recalled one back in.
 	await load("res://tests/police_station_checks.gd").new().run(self, city)
+	# A police station at night (tests/police_night_checks.gd): its lights, lettering and glass.
+	await load("res://tests/police_night_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)

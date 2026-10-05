@@ -81,6 +81,9 @@ const NAVY := Color(0.05, 0.08, 0.16)
 
 ## Off (POLICE_STATIONS=0 in the environment): no stations, the lots keep their buildings.
 static var enabled: bool = OS.get_environment("POLICE_STATIONS") != "0"
+## Off (POLICE_NIGHT=0): the station's night as it was - one light over the car park, unlit
+## lettering, flat lit rooms behind the glass (the A/B for the night pass).
+static var night_detail: bool = OS.get_environment("POLICE_NIGHT") != "0"
 static var _cache: Dictionary = {}
 static var _hq_cache: Dictionary = {}
 ## Gates asked open (station key -> ticks msec they close), so a station built after the ask
@@ -1035,7 +1038,12 @@ static func _lights(node: Node3D, s: Dictionary, P: Callable, floods: Array[Vect
 	# middle left the cars at its edges black. Sodium-free cool white, like the heads' lenses.
 	var specs: Array = [[P.call(bu, GROUND_H + 1.2, float(lay.sb) - 4.5), Color(1.0, 0.82, 0.6), 16.0, 1.0]]
 	var mid_v := (float(lay.pv0) + float(lay.pv1)) * 0.5
-	for fs in floods:
+	if not night_detail:
+		specs.append([P.call(float(lay.L) * 0.5, 8.0, mid_v), Color(0.85, 0.92, 1.0), 30.0, 1.0])
+	var lit_floods: Array[Vector2] = []
+	if night_detail:
+		lit_floods = floods
+	for fs in lit_floods:
 		specs.append([P.call(fs.x, FLOOD_LIGHT_Y, fs.y + signf(mid_v - fs.y) * 4.0), FLOOD_COLOR, FLOOD_RANGE, FLOOD_ATTENUATION])
 	for spec: Array in specs:
 		var l := OmniLight3D.new()
@@ -1074,7 +1082,7 @@ static func _texts(node: Node3D, s: Dictionary, P: Callable, sx: float) -> void:
 		var mi := MeshInstance3D.new()
 		mi.mesh = BigVehicles.text_mesh(it[0], it[1], it[2])
 		# The name over the canopy and the monument sign's are lit channel letters after dark.
-		if i < 3:
+		if i < 3 and night_detail:
 			mi.material_override = letter_material()
 		mi.position = it[3]
 		mi.rotation.y = float(it[4])
@@ -1234,6 +1242,9 @@ static func material(key: String) -> Material:
 			gm.shader = load("res://shaders/police_station_glass.gdshader")
 			gm.set_shader_parameter("cell", Vector2(1.6, UPPER_H) if key == "glass" else Vector2(1.5, 2.6))
 			gm.set_shader_parameter("lobby", 1.0 if key == "lobby" else 0.0)
+			gm.set_shader_parameter("storey_origin", fmod(GROUND_H, UPPER_H))
+			gm.set_shader_parameter("lobby_room", Vector3(0.15, GROUND_H + 1.4, 7.5))
+			gm.set_shader_parameter("trace", 1.0 if night_detail else 0.0)
 			m = gm
 		"chain":
 			m = LotFill.chain_link_panel().surface_get_material(0)
