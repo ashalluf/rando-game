@@ -2897,6 +2897,43 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
   `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
   `tests/broadway_checks.gd`.
+- The ballpark in the ravine (2026-10-05, docs/HANDOFF.md "The ballpark in the ravine"): the FORM of LA's
+  famous hillside ballpark, in its real place - home plate's real point through
+  `DowntownReal.game_xz()`, 2.9 km grid-north of Pershing Square on the embayed hills above the
+  110 / 101 junction, facing the real centre field (game north, 6.4 degrees west) - with an
+  invented name (SUNRIDGE BALLPARK) and no team, sponsor or logo. **The data is `Ballpark`**
+  (`scripts/world/ballpark.gd`): the frame (`HOME`, `FWD`, `RIGHT`; `world(u, v)`, `local()`),
+  the regulation field (`BASE`, `RUBBER`, `fence_r()`: 330 / 375 / 395 ft), the four `TIERS`
+  (front offset from the foul lines, height, rows, rake, how far down the lines, the pastel seat
+  colour, how full), the pavilions and scoreboards, the SITE (a rounded rectangle in local u, v)
+  cut into the hills at fixed levels - the lower pad `PAD_Y` and the upper terrace
+  `TERRACE_RISE` over it behind home, joined by a planted slope - with 1:1 cut / 1:1.5 fill banks
+  out to `BANK_REACH` (`carve()`, folded into `MacroMap.height_at()` before the hill roads), and
+  the lots (`LOT_*`, `ground_kind()`, `stall_car()`, `poles()`, `palm_spots()`). `covers()` keeps
+  the hills' scatter, planting (`CityChunk._near_pad`), shells (`shell_marks()`) and Skyline's far
+  oaks off it. Two roads, appended to HillRoads after everything else (`Ballpark.add_roads()`, so
+  no roll moves; the hill chunks draw and carve them): Sunridge Dr north to the valley floor,
+  Stadium Way switchbacking down the south face to Hill St (ground-following, grade-limited to
+  `ROAD_GRADE`, never climbing on the way down). **The meshes are `BallparkBuild`**
+  (`scripts/world/ballpark_build.gd`), in world space, cached per level ("near" / "far", the near
+  set built on the loading screen with the far copy): the tiers' stepped rows (real geometry), parapets,
+  fascias, soffits, lit concourses, facades and end walls; the pavilions under zig-zag folded-plate
+  roofs, the stretched-hexagon scoreboards on legs, light banks on the roof lines with a glare
+  sprite per lens (`aircraft_lights.gdshader`, kind 4); the field as a polar grid; the outfield
+  wall, foul poles, dugouts, backstop net, batter's eye, bridges from the terrace; the plaza and
+  lots as one grid following the levels. Shaders: `ballpark_struct` (kind in the vertex alpha),
+  `ballpark_seats` (the crowd: a riser shows the torso of whoever sits in the row below, the
+  tread their head and the seat or a lap; under a pixel the tier's average), `ballpark_field`
+  (lines, dirt, the mow, analytic and box-filtered), `ballpark_lot` (stall rows, medians,
+  planting, the plaza, and the parked cars PAINTED into the very stalls `Ballpark.stall_car()`
+  fills with 3D cars near - the integer hash is the same lowbias32, checked), `ballpark_glow` (the
+  night game's haze, integrated along the view ray through an ellipsoid, cut by the depth
+  texture). **The night game is emitted**: every surface the banks see adds its albedo times the
+  flood term (`bp_flood()`, off `lamp_factor`); three OmniLights in `lamp_light` light the field
+  on desktop. Shader copies of Ballpark's numbers are checked (`tests/ballpark_checks.gd`).
+  `BALLPARK=0` in the environment leaves it out (the A/B; it also restores the hills).
+  Probe: `tools/stadium/probe.gd` (ground, cut and fill, the roads' earthwork), timing
+  `tools/stadium/bench.gd`.
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
   **The park is ON** (`LandmarkMacArthurPark.enabled`, since 2026-09-24 evening; it was held off

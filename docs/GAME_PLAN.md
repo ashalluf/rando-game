@@ -482,6 +482,20 @@ already mapped so milestone 2 is script-only.
   and wire batches; (4) LOD and the far city get the band as concrete slabs only; (5) the
   dressing decides in a couple of milliseconds and writes each prop as its own build step (a
   long alley's writes were 40-90 ms in one).
+- **2026-10-05 The ballpark in the ravine north of downtown (VISUAL_ROADMAP ?, HANDOFF "The ballpark in the ravine").**
+  The FORM of LA's famous hillside ballpark in its real relation to downtown: home
+  plate at the real one's point through DowntownReal (2.9 km grid-north of Pershing Square, on
+  the embayed hills above the 110 / 101 junction), facing the real centre field; every name
+  invented (SUNRIDGE BALLPARK), no team, sponsor or logo. Decisions worth knowing: the site is cut
+  into the hills at FIXED levels (a lower pad and an upper terrace 22 m over it, a planted slope
+  between, 1:1 cut / 1:1.5 fill banks), folded into `MacroMap.height_at()` before the hill roads,
+  so the hill chunks, the far ground's bake and the far tier all draw the ravine with no code of
+  their own, and the levels do not move with the seed; its two roads are appended to HillRoads
+  after everything else (no roll moves) and the hill chunks draw them; the crowd is a shader on
+  the stepped rows (a riser shows the torso of the row below), the lots' parked cars are painted
+  by the same integer hash that places the 3D cars near; the night game is EMITTED (a flood term
+  on everything the banks see, a glow integrated through an ellipsoid), with three real omni
+  lights on desktop. `BALLPARK=0` leaves it out.
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
