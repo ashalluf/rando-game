@@ -7043,6 +7043,8 @@ ALU in shaders that were already running.
 
 ## 9b?. The ballpark in the ravine north of downtown, 2026-10-05 (agent branch `wt/stadium`; VISUAL_ROADMAP #59)
 
+## 9bs. The ballpark in the ravine north of downtown, 2026-10-05 (agent branch `wt/stadium`; VISUAL_ROADMAP #61)
+
 Number is provisional (the lead renumbers on merge).
 
 **The brief** (lead): a baseball stadium in a ravine north of downtown - the FORM of LA's famous

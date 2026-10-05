@@ -289,8 +289,8 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 The ballpark in the ravine north of downtown (VISUAL_ROADMAP #59, HANDOFF "The
-  ballpark").** The FORM of LA's famous hillside ballpark in its real relation to downtown: home
+- **2026-10-05 The ballpark in the ravine north of downtown (VISUAL_ROADMAP #61, HANDOFF 9bs).**
+  The FORM of LA's famous hillside ballpark in its real relation to downtown: home
   plate at the real one's point through DowntownReal (2.9 km grid-north of Pershing Square, on
   the embayed hills above the 110 / 101 junction), facing the real centre field; every name
   invented (SUNRIDGE BALLPARK), no team, sponsor or logo. Decisions worth knowing: the site is cut
