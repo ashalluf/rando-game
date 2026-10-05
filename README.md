@@ -13,3 +13,14 @@ opengl3 (Compatibility) stills at 1280x720, not the Mac's Forward+. Same camera 
 - 08: the puestos close up: pinatas, maracas, pottery, sarapes, a vendor in her stall.
 - 09: a sarape stall from the aisle, 11:00 (taken before the weave's moire fix).
 - 10: the lane at 20:50: bulbs, warm pools on the bricks, the paper lit.
+
+Second batch (after the lead's review: the sarapes' RGB static was the per-piece seed interpolated
+a few ulps apart and hashed into per-pixel colour - now a flat varying; bands at real widths with
+box-filtered pinstripes, a weave bump, fringes; counters with a lip, raised panels, a kick board
+and a riser of goods; the church's lettering clear of its door hood):
+
+- 04b: down the lane, 15:30 (replaces 04).
+- 07b: the church (replaces 07).
+- 08b: the puestos close up, 16:30 (replaces 08).
+- 09b: a sarape stall from the aisle, 11:00 (replaces 09).
+- 11: the plaza at 20:50: the kiosk, bulbs and papel picado.
