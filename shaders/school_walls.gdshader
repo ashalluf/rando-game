@@ -36,6 +36,8 @@ global uniform float lamp_factor;
 global uniform float night_factor;
 global uniform float road_wetness;
 global uniform float wind_factor;
+// sRGB numbers, raw on BOTH renderers (a colour global is never decoded; probed 2026-10-05): it
+// is already a display colour here, so it never goes through disp() as the textures do.
 global uniform vec4 sky_tint;
 
 varying float kind;
@@ -186,7 +188,7 @@ void window(vec2 q, vec2 size, float mull, vec2 id, vec3 vd_w, vec3 n, vec3 t, i
 	vec3 slat = vec3(0.84, 0.80, 0.70) * (0.85 + 0.15 * lines(q.y, 0.025, 0.006)) * (0.25 + 0.75 * (light + 0.2));
 	inside = mix(slat, inside, under_blind);
 	float fres = pow(1.0 - clamp(dot(vd_w, n), 0.0, 1.0), 4.0);
-	vec3 sky = disp(sky_tint.rgb);
+	vec3 sky = sky_tint.rgb;
 	vec3 refl = sky * (0.08 + 0.85 * fres) * reflect_energy;
 	albedo = mix(albedo, alu, max(in_pane * m, (1.0 - in_pane) * box_in(q, vec2(0.0), size)));
 	albedo = mix(albedo, vec3(0.02, 0.025, 0.03), glass);
@@ -314,7 +316,7 @@ void fragment() {
 		float mul = max(lines(uv.x, 1.5, 0.06), lines(uv.y, 2.6, 0.08));
 		vec3 inside = vec3(0.70, 0.66, 0.58) * (0.18 * (1.0 - night_factor) + 0.6 * lamp_factor) * (0.8 + 0.2 * vnoise(uv * 0.5));
 		albedo = mix(vec3(0.03), vec3(0.6, 0.62, 0.64), mul);
-		emit = (inside + disp(sky_tint.rgb) * (0.1 + 0.8 * fres) * reflect_energy) * (1.0 - mul);
+		emit = (inside + sky_tint.rgb * (0.1 + 0.8 * fres) * reflect_energy) * (1.0 - mul);
 		rough = mix(0.05, 0.4, mul);
 		metal = mul * 0.6;
 	} else if (k == 6) {
@@ -323,7 +325,7 @@ void fragment() {
 		albedo = paint * (0.92 + 0.08 * vnoise(uv * 4.0));
 		float panel = box_in(uv, vec2(w * 0.62, 1.25), vec2(w * 0.86, 1.95));
 		albedo = mix(albedo, vec3(0.04, 0.05, 0.06), panel);
-		emit += disp(sky_tint.rgb) * 0.2 * panel;
+		emit += sky_tint.rgb * 0.2 * panel;
 		albedo = mix(albedo, vec3(0.75, 0.76, 0.77), box_in(uv, vec2(0.08, 0.98), vec2(w - 0.08, 1.06)));
 		albedo = mix(albedo, vec3(0.62, 0.63, 0.64), box_in(uv, vec2(0.04, 0.0), vec2(w - 0.04, 0.25)));
 		rough = mix(0.45, 0.1, panel);

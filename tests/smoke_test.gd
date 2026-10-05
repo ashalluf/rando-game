@@ -1916,6 +1916,8 @@ func _test_city() -> void:
 	# The farmers' market (tests/farmers_market_checks.gd): markets apart on closed local streets,
 	# the layout and hours, the busy and packed-up chunk, its people on the asphalt, nothing moved.
 	load("res://tests/farmers_market_checks.gd").new().run(self, city)
+	# Forward+ review traps (tests/fwd_review_b_checks.gd): back-face normals, normal-map green, sky_tint.
+	load("res://tests/fwd_review_b_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

@@ -94,7 +94,9 @@ void fragment() {
 	float lit = clamp(dot(n, to_sun) * 0.6 + 0.4, 0.0, 1.0);
 	// The billows' own shade (the texture is grey with its bumps in it), as linear light.
 	float shade = cs_in(tex.rgb).r * 1.6;
-	vec3 sky = max(sky_tint, vec3(0.02));
+	// sky_tint is the horizon colour as sRGB numbers, handed over raw on both renderers: as linear
+	// light it is decoded here (read as linear it lit the column 1.7 times too pale).
+	vec3 sky = max(cs_srgb_to_linear(sky_tint), vec3(0.004));
 	vec3 col = smoke_color * shade * (sky * sky_gain + vec3(1.0, 0.96, 0.9) * sun_gain * lit * day);
 	// At night the city's sodium light from below.
 	col += smoke_color * shade * vec3(0.9, 0.55, 0.3) * 0.5 * night_factor * (1.0 - n.y * 0.5);

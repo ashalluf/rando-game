@@ -321,7 +321,10 @@ static func crater_textures(kind: int = 0) -> Array:
 			var hr := height[y * n + mini(x + 1, n - 1)]
 			var hd := height[maxi(y - 1, 0) * n + x]
 			var hu := height[mini(y + 1, n - 1) * n + x]
-			var nv := Vector3((hl - hr) * depth, (hd - hu) * depth, 1.0).normalized()
+			# OpenGL-style map (green up, as WeaponFX's blood maps): the image's rows run down, so
+			# the Y slope is the row below minus the row above. It was the other way round, which
+			# lit every pit from the wrong side north-south on Forward+ (decal) and the web (quad).
+			var nv := Vector3((hl - hr) * depth, (hu - hd) * depth, 1.0).normalized()
 			nrm.set_pixel(x, y, Color(nv.x * 0.5 + 0.5, nv.y * 0.5 + 0.5, nv.z * 0.5 + 0.5, 1.0))
 	alb.generate_mipmaps()
 	nrm.generate_mipmaps()

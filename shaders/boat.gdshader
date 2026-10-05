@@ -107,10 +107,10 @@ void fragment() {
 	float metal = 0.0;
 	float spec = 0.5;
 	vec3 emit = vec3(0.0);
+	// Godot has already turned NORMAL toward the camera on a back face (cull_disabled; both
+	// renderers, probed 2026-10-05): flipping it again lit every inside face - an open cockpit, the
+	// underside of a canvas cover - as if it faced away from the light.
 	vec3 nrm = NORMAL;
-	if (!FRONT_FACING) {
-		nrm = -nrm;
-	}
 	if (region < 0.5) {
 		// The hull: gelcoat in the boat's paint above the waterline, a boot stripe on some, the
 		// waterline's scum, antifouling under it (the yard shows it).

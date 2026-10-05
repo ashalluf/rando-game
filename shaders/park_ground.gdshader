@@ -487,7 +487,7 @@ void fragment() {
 		float seg = fract(p.x / 0.24);
 		vec3 floats = abs(p.x) > h.x - 5.0 ? vec3(0.80, 0.12, 0.10) : (seg < 0.5 ? vec3(0.90, 0.90, 0.88) : vec3(0.12, 0.25, 0.65));
 		c = mix(body * (1.0 - fres), floats, rope);
-		vec3 sky = disp(sky_tint.rgb);
+		vec3 sky = sky_tint.rgb;
 		emit = mix(sky * fres * 0.9, vec3(0.0), rope);
 		// After dark the underwater lights.
 		emit += body * vec3(0.4, 0.9, 1.0) * lamp_factor * 0.25 * (1.0 - rope);

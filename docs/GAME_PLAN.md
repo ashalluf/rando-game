@@ -373,6 +373,12 @@ already mapped so milestone 2 is script-only.
   terrace, like the river's) so the trench never digs under the city's ground plane. Chosen over a
   right of way through the blocks: Alameda is pinned on every seed and runs past the port, its
   junctions give TrafficManager's stop rule something to hold, and no lot moves outside the yard.
+- **2026-10-05 Forward+ review of six features (fwd-review-b, HANDOFF "Forward+ review b").**
+  Small lavapipe scenes only. Decided: a colour global (`sky_tint`) is raw sRGB on both renderers
+  and is decoded where a shader works in linear and used as is where it works in display numbers;
+  Godot flips a cull_disabled back face's NORMAL itself, so no shader does; a feature tuned on
+  opengl3 in display numbers inside a renderer-space host shader (the blast hole in
+  building.gdshader) converts its result with a local helper rather than retuning the host.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
