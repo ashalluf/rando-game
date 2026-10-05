@@ -926,6 +926,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `ai`. `TRAFFIC_AI=0` is the A/B; `TrafficManager.drive_usec` is the traffic tick's cost. Stills:
   `TRAFFIC=bus|merge|pullout TRAFFIC_STEPS=s,s,...` on `still_shot.gd` (the staged traffic moves
   only by `advance_shot()`, saved `_t1`, `_t2`, ...). Checks: `tests/traffic_ai_checks.gd` (alone: `tools/traffic_ai/checks.tscn`).
+- Street signs (2026-10-05, docs/HANDOFF.md "The street's signs"): `StreetSigns`
+  (`scripts/world/street_signs.gd`) places them, `StreetSignKit` (`street_sign_kit.gd`; BoulevardSigns has the other `SignKit`) builds them in code at
+  real size (plates, sheeting border and legend a few mm proud, mill backs, round galvanised
+  posts, the cap bracket for two crossed name blades, mast-arm straps), `SignFont` (`sign_font.gd`)
+  is our own stroke font, ONE shader (`shaders/street_sign.gdshader`: kind in COLOR.a x 16, the
+  freeway signs' headlight cone for the retroreflective sheeting at night). Name blades on every
+  corner StreetDetail names (own post / on the stop post / on the signal pole top) and a name sign
+  on every mast arm (the street the approach crosses), lane-use or NO TURN ON RED on arms, stop
+  signs facing their approach with ALL WAY, yields at a share of unsigned junctions, speed limits,
+  school zones (the kerb's parking plates are BoulevardSigns') on a school's faces. Junction signs replace
+  the old props INSIDE the same `_add_prop` calls (a name post moved onto a pole spends its id);
+  the block's new signs are props with ids of their own (`ssign_<n>`), so no other id moves. One
+  mesh per assembly, cached by key (a street's blades are one mesh). `STREET_SIGNS=0` is the A/B;
+  `tools/street_signs/sign_shot.gd` the kit alone, `probe.gd` junctions with EYEs; checks
+  `tests/street_signs_checks.gd`.
 - Light rail (2026-10-04, "a light rail line, like LA Metro's, with its own original name, colour
   and livery"): the **Coral Line** of the invented **Basin Metro** (coral `LightRail.LINE_COLOR`,
   bullet "C"). **The line is a DATA TABLE** (`LightRail`, `scripts/world/light_rail.gd`: `ROUTE`,

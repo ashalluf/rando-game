@@ -2320,6 +2320,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Roadside commerce (tests/roadside_checks.gd): the kinds by hash, gas stations, car washes,
 	# auto shops, the diner, drive-thrus and the giant-donut stand; one mesh a chunk, nothing moved.
 	load("res://tests/roadside_checks.gd").new().run(self, city)
+	# The street's signs (tests/street_signs_checks.gd): the stroke font, the kit, stops facing their
+	# traffic, blades on the posts and poles, mast-arm name signs, school zones, nothing else moved.
+	load("res://tests/street_signs_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

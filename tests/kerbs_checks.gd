@@ -138,7 +138,8 @@ func _ab(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 		for i in on.prop_records.size():
 			var a: Dictionary = on.prop_records[i]
 			var b: Dictionary = off.prop_records[i]
-			same = same and a.id == b.id and (a.position as Vector3).is_equal_approx(b.position)
+			# The street's signs ("ssign_", StreetSigns) step out of the kerb cuts, so they follow them.
+			same = same and a.id == b.id and ((a.position as Vector3).is_equal_approx(b.position) or String(a.id).begins_with("ssign_"))
 	var counts := true
 	var don := on._batch.data()
 	var doff := off._batch.data()

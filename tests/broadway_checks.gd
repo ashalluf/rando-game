@@ -250,6 +250,9 @@ func _signature(chunk: CityChunk, _palace_lot: Dictionary) -> Array:
 		# across the block: the street's own props are what is compared.
 		if String(r.kind) in ["bench", "bollard", "planter", "aboard", "cafe"]:
 			continue
+		# The block's own signs (StreetSigns, ids "ssign_") step round that furniture, so they follow it.
+		if String(r.id).begins_with("ssign_"):
+			continue
 		if mine.call(q2) or (strip.grow(0.5).has_point(q2) and String(r.kind) != "lamp"):
 			continue
 		out.append("%s %.2f %.2f" % [r.kind, q.x, q.z])

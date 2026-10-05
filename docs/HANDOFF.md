@@ -13990,3 +13990,94 @@ brand pilasters, the dining room's windows on the way in, wall packs with pools 
 bollards; the order point a lit canopy; the stucco a trowel mottle, sand grain, patches and streaks
 (`merged_04b` / `merged_05b`). Gate on the final head below. Still open: everything under "Not
 done" above, and the parking-stall, lift and junk cars on the pads are still the static cars.
+
+## 9es. The street's signs as real models, 2026-10-05 (agent branch `wt/street-signs`; VISUAL_ROADMAP #138)
+
+The street's signs were a red cylinder for a stop sign (facing the junction's centre, diagonally),
+flat boxes with TextMesh names for the street-name plates and red-banded white boxes for the
+no-parking blades. Now they are real models, built in code at real size and placed where the plan
+already decides a sign belongs.
+
+### What there is
+
+- **`StreetSignKit`** (`scripts/world/street_sign_kit.gd`): every assembly is ONE mesh, origin at the foot of
+  its post (or on the mast arm's axis), main face toward +Z, cached by key. Plates are 3.2 mm
+  aluminium with rounded corners (`rounded()` keeps the point count, so an outline and its inset
+  join as a border ring); the sheeting's border and legend stand `LAYER` (1.6 mm) proud of the
+  face, one layer each (coplanar layers z-fight on the web's 24-bit depth a street away); backs
+  are bare aluminium with bolt heads; 2-3/8 in round galvanised posts with an anchor sleeve; two
+  clamp bands per sign; the cast cap bracket that carries two street-name blades crossed at a post
+  or signal pole top; strap brackets that hang a sign on a mast arm.
+  - Faces at their MUTCD-ish sizes: stop (30 in octagon, white border, STOP) with the ALL WAY
+    plaque, yield (36 in triangle), speed limit (24 x 30 in), LA's red NO PARKING ANY TIME
+    TOW-AWAY with its arrow, the fluorescent yellow-green school
+    crossing pentagon (two walking figures) over SCHOOL / SPEED LIMIT 25 WHEN CHILDREN ARE
+    PRESENT, the lane-use sign for a two-lane approach (left lane turns, right lane straight:
+    the painted arrows' layout), NO TURN ON RED.
+  - Name blades: LA's flat green blades, 9 in tall, 6 in capitals, the hundred-block number small
+    at the left end (`StreetSigns.block_number()`, from the crossing road's index), the suffix
+    small and raised (`split_name()`: BLVD -> BL, AVE -> AV), length from the name (0.75-1.7 m),
+    two-sided, each face reading the right way. The mast arm's name sign is the same at 18 in.
+- **`SignFont`** (`scripts/world/sign_font.gd`): our own stroke font - centre-line polylines per
+  glyph in a one-unit cell (A-Z, 0-9, . , - ' / : &), after the proportions of the road alphabets
+  (narrow, open bowls), nothing copied. `StreetSignKit.strokes()` draws them as mitred ribbons of one
+  pen width (cap / 6.5), square terminals run on a third of the pen; `text()` squeezes a line to
+  fit and mirrors it for a back face.
+- **`shaders/street_sign.gdshader`**: one material for every sign. Kind in COLOR.a x 16
+  (`StreetSignKit.K_*`: sheeting, mill aluminium, galvanised, hardware, black ink), colour sRGB in the
+  rgb (decoded, worked in linear, `cs_out()`), UV the face's metres, INSTANCE_CUSTOM.r a per-sign
+  roll (sun fade, grime). Retroreflection is the freeway signs' rule: the headlights are at the
+  camera, aimed along it, so sheeting in the cone glows (`sheet_retro`, `glint_reach`,
+  `glint_cone`), gated by `lamp_factor`; black ink is not reflective.
+- **`StreetSigns`** (`scripts/world/street_signs.gd`) places them:
+  - name blades on the corners StreetDetail names (+X +Z always, -X -Z by its old hash): on their
+    own post at an unsigned junction, on the stop sign's post at a four-way stop, on the signal
+    pole's top at a signalised junction;
+  - every mast arm: a name sign naming the street its approach crosses, between the pole and the
+    first head; the lane-use sign between an avenue's two heads; NO TURN ON RED by hash
+    (`NO_TURN_RED`) on a one-lane approach;
+  - stop signs on the near right corner of each approach (right-hand traffic: c.x == c.y corners
+    serve the north-south road), facing the traffic they stop, with the ALL WAY plaque;
+  - yields on the minor (narrower) road's two approaches at `YIELD_ODDS` of the unsigned
+    junctions, behind the crosswalk (`YIELD_BACK`) and never in a kerb cut (the block signs
+    also keep out of Kerbs' corner ramps and driveway aprons);
+  - per block face: a speed limit (`SPEED_AVENUE` / `SPEED_STREET`; `speed_for()`: 25 on streets,
+    30 downtown, 35 midtown, 40 suburbs and industrial on avenues) 14-24 m past the crossing the
+    kerb lane comes in from, facing it; the school zone sign instead on every face of or across
+    from a school block (`BlockKind.SCHOOL`, Parks' and Schools' alike); parking posts
+    (`PARKING_FACE` of the faces, every `PARKING_SPACING` m, not industrial or downtown avenues)
+    parallel to the kerb facing the street, two-sided, the cleaning day per side of a street;
+  - the no-parking blades StreetDetail rolls by its junctions, as LA's red plate.
+- **No prop id moves.** The junction signs replace the old props INSIDE the same `_add_prop`
+  calls (StreetDetail `_name_sign` / `_regulatory_signs`, CityChunk's stop branch and
+  `_add_signal_corner`, which appends the arm's signs to the pole's own prop so they break with
+  it). A name post moved onto a stop post or a signal pole spends its id (`_prop_counter += 1`).
+  The block's new signs are a build step after ClimbingPlants (`StreetSigns.build`) whose props
+  have ids of their own (`ssign_<n>`, `StreetSigns._add()`), so they can sit anywhere in the step
+  list. They keep `CLEAR` (1.3 m) of every prop and of the furniture batches (`OBSTACLE_KEYS`).
+- **Cost control.** Every assembly is one draw per chunk; sign batches draw to `DRAW` (160 m),
+  the mast-arm and pole-top ones to `ARM_DRAW` (240 m), and cast only within `SHADOW_REACH`
+  (30 m; `StreetSigns.commit()` from `_finish_build`). FULL chunks only (the LOD chunks and the
+  far city never drew signs). Triangles per assembly: name post ~1.3k, stop with blades ~1.9k,
+  yield ~0.3k, speed limit ~0.5k, no-parking ~0.9k,
+  school ~1.2k, arm name ~0.5k.
+
+### Not done / known gaps
+
+- **No ONE WAY signs**: the plan has no one-way streets, and a ONE WAY sign on a two-way street
+  lies. The face is a few lines of SignKit when one-way streets exist.
+- **Yield signs are scenery**: TrafficManager does not yield at unsigned junctions.
+- The mast-arm name signs are retroreflective, not internally lit (many real LA ones glow).
+- Signs on the replica areas (ReplicaSigns) and the freeway are untouched.
+- Not seen on Forward+ (the owner's Mac): the night glint through AgX, the aluminium's sheen.
+
+### Tools
+
+- `tools/street_signs/sign_shot.gd`: every assembly in a row, seconds a frame (`NIGHT=1`,
+  `BACK=1`, `CAM` / `LOOK`).
+- `tools/street_signs/probe.gd`: the junctions round a point (kind, district, names) with an EYE
+  on the named corner; `SCHOOLS=1` lists school blocks.
+- `SS_DEBUG=1` prints every block sign as it is placed with an EYE in front of it.
+- `STREET_SIGNS=0` builds the old signs (the A/B).
+- Checks: `tests/street_signs_checks.gd` (`CHECK=res://tests/street_signs_checks.gd godot
+  --headless --path . tools/marina/marina_check.tscn` runs them alone in a few minutes).

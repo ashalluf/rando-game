@@ -722,6 +722,9 @@ static func _junction_wear(chunk: CityChunk, pos: Vector2, d: Vector2, lane: Vec
 
 ## One street-name post: two plates crossed at the top, each with its name on both faces.
 static func _name_sign(chunk: CityChunk, corner: Vector2, name_x: String, name_z: String) -> void:
+	if StreetSigns.enabled:
+		StreetSigns.name_post(chunk, corner, name_x, name_z)
+		return
 	var top: float = CityChunk.SIDEWALK_TOP
 	var at := Vector3(corner.x, top, corner.y)
 	var instances := [
@@ -764,6 +767,9 @@ static func _regulatory_signs(chunk: CityChunk, pos: Vector2, size: Vector2) -> 
 		# The band sits proud of the plate along its facing direction; flat on it the two
 		# coplanar faces would z-fight and the sign would flicker from every angle.
 		var front := basis * Vector3(0.0, 0.0, -0.02)
+		if StreetSigns.enabled:
+			StreetSigns.no_parking(chunk, at, face_x, c, i)
+			continue
 		chunk._add_prop("street_sign", at, Color(0.3, 0.3, 0.32), [
 			["sign_post", PropFactory.sign_post(), Transform3D(Basis(), at + Vector3(0.0, 1.25, 0.0))],
 			["sign_plate", PropFactory.sign_plate(), Transform3D(plate, at + Vector3(0.0, 2.15, 0.0)), Color(0.95, 0.95, 0.93)],
