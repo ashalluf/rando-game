@@ -299,6 +299,10 @@ func build_near(eye: Vector2, metres: float) -> void:
 # launch lays them straight back: ~25 s of capture builds on the build box. Only build_near()
 # reads or writes it - tiles advance() builds in play are built as before.
 
+## Only while the game is loading (CityStreamer turns it off once it is playable): a launch's
+## state is the same every time, play's is not - destruction, the tests' switches - and a tile
+## recorded then would be laid back into the next launch.
+var use_disk: bool = true
 ## Tile -> what _commit_tile() took (or null for an empty tile), read from / written to disk.
 var _disk: Dictionary = {}
 var _disk_open: bool = false
@@ -313,7 +317,7 @@ func _disk_inputs() -> Array:
 
 
 func _open_disk() -> void:
-	if _disk_open or not LoadCache.enabled():
+	if _disk_open or not use_disk or not LoadCache.enabled():
 		return
 	_disk_open = true
 	var data: Variant = LoadCache.load_data("far_city", _disk_inputs())

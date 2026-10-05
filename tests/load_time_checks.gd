@@ -73,6 +73,16 @@ func _far_city(city: Node3D, plan: CityPlan) -> void:
 	while not fresh._work_step():
 		pass
 	var a: Variant = fresh._disk.get(tile)
+	if a != null:
+		for key in a:
+			if var_to_bytes(a[key]) != var_to_bytes(disk[tile][key]):
+				var msg := "far-city tile %s key %s: sizes %d / %d" % [tile, key, (a[key] as Variant).size(), (disk[tile][key] as Variant).size()]
+				if a[key] is Array:
+					for i in mini((a[key] as Array).size(), (disk[tile][key] as Array).size()):
+						if var_to_bytes(a[key][i]) != var_to_bytes(disk[tile][key][i]):
+							msg += ", first at %d: fresh %s cached %s" % [i, a[key][i], disk[tile][key][i]]
+							break
+				print("LOAD CHECK ", msg)
 	_check(a != null and var_to_bytes(a) == var_to_bytes(disk[tile]), "a far-city tile in the load cache is the tile built fresh now, byte for byte")
 	LoadCache.save_data("check_far", [plan.seed], a)
 	var back: Variant = LoadCache.load_data("check_far", [plan.seed])

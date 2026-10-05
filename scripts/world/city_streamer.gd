@@ -265,8 +265,11 @@ func _ready() -> void:
 	LoadClock.stop("spawn and first streaming")
 	# LOAD_QUIT=1 with no loading screen (headless, --noload): the load ends once the deferred far
 	# city is in (the loading screen reports its own end).
-	if LoadClock.quit_after_load() and get_node_or_null("LoadingScreen") == null:
-		LoadClock.loaded.call_deferred(get_tree())
+	if get_node_or_null("LoadingScreen") == null:
+		# After the deferred far city (--noload / --nohud), or at once (headless).
+		_loaded.call_deferred()
+		if LoadClock.quit_after_load():
+			LoadClock.loaded.call_deferred(get_tree())
 
 
 ## Cheap versions of every landmark, always present, so the sign and the wheel show from anywhere.
@@ -784,6 +787,12 @@ func _update_skyline(immediate: bool) -> void:
 	_skyline.trim(_eye)
 
 
+## The game is playable: from here on the far city builds without the load cache (Skyline.use_disk).
+func _loaded() -> void:
+	if _skyline:
+		_skyline.use_disk = false
+
+
 ## Builds the whole far city now. The loading screen calls it, so play starts with every block of
 ## the basin standing.
 func finish_far_city() -> void:
@@ -816,6 +825,7 @@ func _start_loading_screen() -> void:
 	var screen := LoadingScreen.new()
 	screen.name = "LoadingScreen"
 	add_child(screen)
+	screen.finished.connect(_loaded)
 	screen.call_deferred("run", self)
 
 
