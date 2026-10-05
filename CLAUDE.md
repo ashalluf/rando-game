@@ -3061,7 +3061,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   shader), adobe / stucco / brick fronts, a church that is a SANCTUARY (zone + `ChurchBody`).
   Built once into templates (`_templates`, at load with the far copy) and `duplicate()`d per chunk.
   Vendors in the stalls via `Landmarks.people_steps()`. `PUEBLO_LANE=0` is the A/B; probe
-  `tools/pueblo_lane/probe.tscn`; checks `tests/pueblo_lane_checks.gd`.
+  `tools/pueblo_lane/probe.tscn`, stalls alone `tools/pueblo_lane/stall_shot.gd`; checks
+  `tests/pueblo_lane_checks.gd`. Trap: a per-piece seed in a vertex attribute must be a `flat`
+  varying, or the hashes turn its interpolation noise into per-pixel colour.
 - Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six
   photos, "give it an interior", and "make it impossible for the character to shoot anything at
   it"): `LandmarkMasjidOmar` (`scripts/world/landmark_masjid_omar.gd`), a replica of the real
