@@ -2793,6 +2793,25 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   sharing `landmark_common.gdshaderinc`. Far versions are the same builders at low detail (a few
   draws each). Checks: `tests/civic_checks.gd`. Frame them with `tools/glshot/landmark_shot.gd`
   (free camera: `CAM`, `LOOK`, `FOV`).
+- Broadway's theatre district (2026-10-05, HANDOFF "Broadway"): `Broadway`
+  (`scripts/world/broadway.gd`) places eleven invented movie palaces by their REAL house numbers on
+  S Broadway (`THEATRES`, `address_z()` through the real cross streets) on the Broadway-fronting lot
+  of the seeded block there (`palaces()`, cached; `CityChunk._build_lot()` asks `claims()` after
+  the fire station, so no roll moves). `BroadwayTheatre` builds one in its frame (x along the
+  street, +z out): shopfronts, a recessed entrance with terrazzo, doors, poster cases and the
+  ticket booth, a FRENCH / SPANISH / DECO pavilion (`Style`), brick wings, the auditorium and fly
+  tower; the marquee (`marquee_plan()`: vee, flat, drum) and the blade sign with stacked letters.
+  Masonry on `landmark_facade`; the whole street front is ONE surface on
+  `shaders/broadway_sign.gdshader` (kind in COLOR.a x 16, `K_*`: bulbs chase, neon, letters spell
+  out row by row - UV.y carries 100 x the row -, boards, soffit, brass, glass, posters, terrazzo).
+  LOD / far: boxes plus the sign and marquee as lit PANEL plant boxes. `BroadwayStreet`: the lamps
+  on Broadway's pavements take the chunk's lamp slot (`Broadway.lamp()`, same prop kind and
+  counter) with an original cast-iron lantern; goods racks, gowns and sale tables (hashes); the
+  street clock (`broadway_clock.gdshader`, `ClockSync` sets the hour). `Broadway.dress()`:
+  masonry, `HEIGHT_LIMIT`, Spanish/English shop names via `Building.name_pool` (indices into
+  `SHOP_NAMES`, Broadway's appended after the first `BASE_SHOP_NAMES`; nothing else's roll moves).
+  `BROADWAY=0` is the A/B; `tools/broadway_probe.gd` lists the palaces with EYEs; checks
+  `tests/broadway_checks.gd`.
 - Westlake (owner, 2026-09-24: "MacArthur Park and a bunch of homeless tents up on random
   streets in downtown and people slumped over"): the first **replica area** on the street grid.
   **The park is ON** (`LandmarkMacArthurPark.enabled`, since 2026-09-24 evening; it was held off
