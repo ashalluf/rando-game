@@ -10,6 +10,7 @@ extends RefCounted
 ##   donut   - the same, tighter (radius 6, 9 m/s, 60 degrees): a ring of rubber.
 ##   scrape  - on its roof, sliding at DRIVE_SPEED: sparks, the grind (shoot it at night).
 ##   sand    - driving straight at DRIVE_SPEED with a little slide: sand spray and tracks (on a beach).
+## DRIVE_CHASE=back,height,side[,ahead] then moves the camera to frame where the car ended up.
 ## Loaded, not named, by still_shot.gd (it compiles before the autoloads); this one names Vehicle
 ## freely because it is loaded after they exist.
 
@@ -72,15 +73,29 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> void:
 				car.linear_velocity = Vector3(travel.x * speed, car.linear_velocity.y, travel.z * speed)
 				car.angular_velocity = Vector3(0.0, speed / radius, 0.0)
 			"scrape":
-				car.linear_velocity = Vector3(travel.x * speed, car.linear_velocity.y, travel.z * speed)
+				# Pressed onto the road, never launched off a kerb.
+				car.linear_velocity = Vector3(travel.x * speed, minf(car.linear_velocity.y, 0.0), travel.z * speed)
 			"sand":
 				var v := travel * speed + car.global_basis.x * 2.5
 				car.linear_velocity = Vector3(v.x, car.linear_velocity.y, v.z)
 		await tree.physics_frame
 		elapsed += dt
-	if kind == "burnout":
-		# Keep the throttle on through the frozen frames: the smoke keeps coming.
-		pass
+	# DRIVE_CHASE=back,height,side[,look_ahead]: frame the shot on where the car ended up, from
+	# `back` metres behind its path, `side` to the right, `height` up (EYE is set for the shot).
+	var chase := OS.get_environment("DRIVE_CHASE")
+	if chase != "":
+		var c := chase.split(",")
+		var dir := travel
+		var side_v := dir.cross(Vector3.UP)
+		var target := car.global_position + dir * (c[3].to_float() if c.size() > 3 else 0.0)
+		var eye := car.global_position - dir * c[0].to_float() + Vector3.UP * c[1].to_float() + side_v * c[2].to_float()
+		var look := (target - eye).normalized()
+		var w_eye := WorldState.to_world(eye)
+		var yaw := rad_to_deg(atan2(-look.x, -look.z))
+		var pitch := rad_to_deg(asin(clampf(look.y, -1.0, 1.0)))
+		OS.set_environment("EYE_AGL", "0")
+		OS.set_environment("EYE", "%.2f,%.2f,%.2f,%.1f,%.1f" % [w_eye.x, w_eye.y, w_eye.z, yaw, pitch])
+		print("DRIVE chase EYE=", OS.get_environment("EYE"))
 	print("DRIVE done: marks %d, smoke %d, dust %d, sparks %d; car now %s" % [int(fx.call("marks_alive")) if fx else -1,
 			int(fx.get("last_smoke")) if fx else -1, int(fx.get("last_dust")) if fx else -1, int(fx.get("last_sparks")) if fx else -1,
 			WorldState.to_world(car.global_position)])

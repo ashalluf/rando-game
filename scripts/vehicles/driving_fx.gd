@@ -64,7 +64,7 @@ enum Surface { ASPHALT, DIRT, SAND }
 ## Tyre tracks: sand and dirt take a print at any speed.
 @export var sand_tint: Color = Color(0.55, 0.47, 0.36)
 @export var dirt_tint: Color = Color(0.5, 0.42, 0.33)
-@export var track_strength: float = 0.55
+@export var track_strength: float = 0.4
 
 @export_group("Smoke")
 ## Smoke emitters in the pool (web half, none at Quality LOWEST).
@@ -566,7 +566,7 @@ func _lay(st: Dictionary, at: Vector3, n: Vector3, cv: Vector3, width: float, ti
 	_mark_count = mini(_mark_count + 1, _marks.instance_count)
 	_marks.set_instance_transform(i, xf)
 	_marks.set_instance_color(i, Color(tint.r, tint.g, tint.b, strength))
-	_marks.set_instance_custom_data(i, Color(fmod(_clock / 60.0, 30.0), 1.0, 1.0 if patch else 0.0, 0.0))
+	_marks.set_instance_custom_data(i, Color(fmod(_clock / 60.0, 30.0), 1.0, 1.0 if patch else 0.0, 0.0 if tint == rubber_tint else (1.0 if tint == sand_tint else 0.5)))
 	_mark_birth[i] = _clock
 	_marks.visible_instance_count = _mark_count
 	return 1
@@ -724,9 +724,10 @@ func _drive_dust(p: CPUParticles3D, d: Array) -> void:
 	var s: float = d[0]
 	var col: Color = d[4]
 	var kind: int = d[5] # 0 dirt, 1 wet spray, 2 sand
-	_aim(p, (d[2] as Vector3) + Vector3.UP * 0.08, -(d[3] as Vector3))
+	# Sand is thrown from higher up the tread: the beach's collision can sit under the drawn sand.
+	_aim(p, (d[2] as Vector3) + Vector3.UP * (0.4 if kind == 2 else 0.08), -(d[3] as Vector3))
 	p.color = Color(col.r, col.g, col.b, col.a * s)
-	p.gravity = Vector3(0.0, -7.0 if kind == 2 else (-4.0 if kind == 1 else -1.2), 0.0)
+	p.gravity = Vector3(0.0, -3.5 if kind == 2 else (-4.0 if kind == 1 else -1.2), 0.0)
 	p.initial_velocity_max = 2.5 + 6.0 * s
 
 

@@ -12,8 +12,8 @@ render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabl
 // HDR gain on the ramp's colour: sparks are brighter than anything lit.
 uniform float energy = 4.0;
 // Width and length of a spark at particle scale 1, in metres.
-uniform float width = 0.014;
-uniform float streak_length = 0.32;
+uniform float width = 0.026;
+uniform float streak_length = 0.5;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
