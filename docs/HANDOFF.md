@@ -6823,7 +6823,7 @@ under the crowd cap. So the crowd count and the cap are what they were.
   the pool and queues it for freeing: the next car built is freed under the traffic's feet.
 
 **Cost** (`still_shot.gd` GEO, opengl3 1280x720, `--quality=0`, the bus still's EYE with and
-without `STREET_ERRANDS=0`): COST_LINE. CPU: one static call a tick for each walker in the life
+without `STREET_ERRANDS=0`, no staging): 6,521,721 -> 6,519,195 tris (-0.04 %, the crowd standing in different places), 3,304 -> 3,306 draws, 3,346 -> 3,348 objects - flat. CPU: one static call a tick for each walker in the life
 range (a frame-gated world tick and a dictionary test); the errand people themselves are placed,
 not move_and_slid.
 
