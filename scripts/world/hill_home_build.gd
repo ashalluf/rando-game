@@ -34,7 +34,10 @@ func setup_hill(chunk: CityChunk, house: Dictionary) -> void:
 	Wp = h.Wp
 	Dp = h.Dp
 	m_pos = h.m_pos
-	# HouseBuild's openings read the house type (garage glazing, sills).
+	# HouseBuild's openings read the house type (garage glazing, sills) from "style"; the kit's own
+	# type stays in "kit_style".
+	if not h.has("kit_style"):
+		h["kit_style"] = h.style
 	h["style"] = h.hstyle
 
 
@@ -186,6 +189,14 @@ func _openings(i: int, w: Dictionary, which: String, fo: Vector2, t: Vector2, le
 	return out
 
 
+## An opening as HouseBuild cuts it; on a villa's upper floors some windows get a wrought-iron
+## balconette.
+func _opening(fo: Vector2, t: Vector2, n: Vector2, hl: Array, mat: String, cl: Color) -> void:
+	super._opening(fo, t, n, hl, mat, cl)
+	if int(h.kit_style) == HillHomeKit.Style.VILLA and String(hl[4]) == "grid" and float(hl[2]) > HouseKit.STOREY * 0.8 and _h([fo.x, fo.y, hl[0], "balconette"]) < 0.45:
+		_balcony(fo, t, n, float(hl[0]) - 0.15, float(hl[1]) + 0.15, float(hl[2]) - 0.1, 0.42)
+
+
 ## One opening from a0 to a1, split round `taken`.
 func _span(out: Array, taken: Array[Vector2], a0: float, a1: float, y0: float, y1: float, kind: String) -> void:
 	var spans: Array[Vector2] = taken.duplicate()
@@ -291,6 +302,7 @@ func _sbar(mat: String, a: Vector3, b: Vector3, r: float) -> void:
 	var l := d.length()
 	if l < 0.01:
 		return
+
 	var x := d / l
 	var up := Vector3.UP if absf(x.y) < 0.95 else Vector3(fu.x, 0.0, fu.y)
 	var z := x.cross(up).normalized()
@@ -325,6 +337,19 @@ func house_job() -> void:
 func frame_job() -> void:
 	_steel()
 	_pool()
+	_roof_terraces()
+
+
+## The flat roof of a lower level stepping down the slope is a terrace at the floor above it:
+## stone pavers over the membrane, inside the parapet.
+func _roof_terraces() -> void:
+	for w: Dictionary in h.wings:
+		if not w.get("terrace", false):
+			continue
+		var r: Rect2 = w.r
+		var y := g0 + float(w.y) + float(w.storeys) * HouseKit.STOREY
+		var c := r.get_center()
+		_sbox("stone", c.x, c.y, y, y + 0.06, r.size.x - 0.5, r.size.y - 0.5)
 
 
 func garden_job() -> void:
@@ -385,8 +410,8 @@ func _steel() -> void:
 			_sbox("concrete", cu, rv, gnd - 0.5, gnd + 0.35, 0.8, 0.8)
 			ch._add_shape_xf(Vector3(c * 2.0, y_beam - gnd, c * 2.0), Transform3D(Basis(), WY(cu, rv, (y_beam + gnd) * 0.5)))
 			var here := Vector3(cu, gnd, rv)
-			if prev != Vector3.INF:
-				# X bracing in the bay between this column and the last.
+			if prev != Vector3.INF and (k % 2 == 1 or n <= 2):
+				# X bracing in every other bay between this column and the last.
 				var lo := maxf(prev.y, gnd) + 0.7
 				var hi := y_beam - 0.25
 				if hi - lo > 1.5:
@@ -466,7 +491,9 @@ func _pool() -> void:
 		_sbar("cushion", WY(lu, lv - 0.6, top + 0.38), WY(lu, lv - 0.95, top + 0.85), 0.03)
 
 
-## Stairs down the bank to a lower level: solid steps with cheek walls.
+## Stairs down the bank to a lower level: treads on a concrete flight with cheek walls, solid to the
+## ground where the bank is close under it, on steel posts where it falls away, and a landing at
+## the foot.
 func _stairs() -> void:
 	for st: Array in h.stairs:
 		var a: Vector2 = st[0]
@@ -477,18 +504,31 @@ func _stairs() -> void:
 		var n := maxi(2, roundi((y0 - y1) / 0.17))
 		var dir := (b - a).normalized()
 		var side := Vector2(-dir.y, dir.x)
+		var run := a.distance_to(b) / n
 		for k in n:
 			var p := a.lerp(b, (float(k) + 0.5) / n)
 			var ty := lerpf(y0, y1, float(k + 1) / n)
 			var gnd := _ground(p.x, p.y)
-			var by := minf(gnd - 0.3, ty - 0.4)
-			var run := a.distance_to(b) / n
+			# Solid to the ground under it when that is near; a 0.35 m flight slab when it is not.
+			var by := gnd - 0.3 if ty - gnd < 1.6 else ty - 0.35
 			var su := absf(side.x) * wdt + absf(dir.x) * run
 			var sv := absf(side.y) * wdt + absf(dir.y) * run
 			_sbox("coping", p.x, p.y, by, ty, su, sv, k % 3 == 0)
 			for sg: float in [-1.0, 1.0]:
 				var cp := p + side * sg * (wdt * 0.5 + 0.1)
 				_sbox("concrete", cp.x, cp.y, by, ty + 0.9, absf(side.x) * 0.2 + absf(dir.x) * run, absf(side.y) * 0.2 + absf(dir.y) * run)
+			if ty - gnd >= 1.6 and k % 6 == 3:
+				for sg2: float in [-1.0, 1.0]:
+					var pp := p + side * sg2 * (wdt * 0.5)
+					_sbox("steel", pp.x, pp.y, gnd - 0.3, ty - 0.35, 0.16, 0.16)
+		# The landing at the foot.
+		var f := b + dir * 0.8
+		var ly := y1
+		var lg := _ground(f.x, f.y)
+		_sbox("stone", f.x, f.y, ly - 0.3, ly, absf(side.x) * (wdt + 0.6) + absf(dir.x) * 1.6, absf(side.y) * (wdt + 0.6) + absf(dir.y) * 1.6, true)
+		if ly - lg > 0.6:
+			for c: Vector2 in [f + side * (wdt * 0.5) + dir * 0.6, f - side * (wdt * 0.5) + dir * 0.6]:
+				_sbox("steel", c.x, c.y, lg - 0.3, ly - 0.3, 0.16, 0.16)
 
 
 ## Terraced gardens below the pad's free view edge: retaining walls stepping down the bank, each
@@ -607,7 +647,7 @@ func _pad(detail: bool) -> void:
 	if not detail:
 		return
 	ch.building_count += 1
-	var villa: bool = int(h.style) == HillHomeKit.Style.VILLA
+	var villa: bool = int(h.kit_style) == HillHomeKit.Style.VILLA
 	var stucco := PropFactory.material(col.wall, 0.9)
 	var retain: Material = HillHomeKit.site_material("retain_villa" if villa else ("board_concrete" if _h(["retain"]) < 0.5 else "concrete"))
 	var gate: Vector2 = h.gate

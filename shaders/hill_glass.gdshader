@@ -28,7 +28,7 @@ global uniform vec4 sky_tint;
 uniform float lit_share = 0.82;
 // The light in a lit room (linear) and how bright it reads through the glass.
 uniform vec3 lit_color = vec3(1.0, 0.72, 0.42);
-uniform float lit_energy = 1.35;
+uniform float lit_energy = 2.4;
 // The room: bay width along the wall, depth, ceiling height (metres).
 uniform float bay = 4.6;
 uniform float depth = 5.2;

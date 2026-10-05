@@ -1789,6 +1789,9 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# The hillside houses (tests/hill_homes_checks.gd): pure plans on every estate, a FULL chunk's
+	# meshes and body, LOD boxes, the far city's lit glass bands, and the old slab with the kit off.
+	load("res://tests/hill_homes_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
@@ -2965,7 +2968,8 @@ func _check_switchbacks(plan: CityPlan, city: Node, hr) -> void:
 		if child is StaticBody3D and child.get("lot_size") != null:
 			names["Building"] = true
 	chunk.free()
-	_check(names.has("Driveways") and names.has("Building") and names.has("Boxes"),
+	# The house is HillHomeKit's (its meshes on one HillHomes body), or a Building with the kit off.
+	_check(names.has("Driveways") and (names.has("Building") or names.has("HillHomes")) and names.has("Boxes"),
 		"a chunk with an estate up a driveway builds its driveway, house and walls (%s)" % ", ".join(names.keys()))
 
 

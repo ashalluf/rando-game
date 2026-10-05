@@ -74,7 +74,7 @@ const SLAB := 0.45
 ## along a row, the brace and the cable rail.
 const BEAM := 0.5
 const COLUMN := 0.14
-const COLUMN_SPACING := 4.6
+const COLUMN_SPACING := 6.5
 const BRACE := 0.05
 const RAIL_H := 1.05
 ## The deck at the end of a cantilever.
@@ -327,6 +327,7 @@ static func _plan_villa(h: Dictionary, ps: int, s: int, _plan: CityPlan) -> void
 	var Dp: float = h.Dp
 	var drop: float = h.drop
 	h.roof_mat = "h_roof"
+	h["rafters"] = true
 	h.pitch = _range(Vector2(0.27, 0.33), [ps, s, "pitch"])
 	h.eave = _range(Vector2(0.4, 0.55), [ps, s, "eave"])
 	var span := _main_span(h, _range(Vector2(0.62, 0.72), [ps, s, "width"]))

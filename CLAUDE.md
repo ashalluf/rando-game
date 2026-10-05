@@ -1774,7 +1774,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   ground. `tools/hill_road_probe/hill_road_probe.tscn` counts roads, hairpins and estates, the
   carved cells steeper than 60 degrees (`STEEP`) and the pieces that fall outside hill chunks, and
   draws a slope map with the roads (`OUT=`; `SB_DEBUG=1` adds every walk tried); seconds, headless.
-  Estates are built by `CityChunk._build_mansions()`: pad, walls, gate piers, gate, pool and
+  Estates are built by HillHomeKit (the Hill homes note); with it off (`HILL_HOMES=0`) by
+  `CityChunk._build_mansions()`'s old path: pad, walls, gate piers, gate, pool and
   coping are oriented boxes merged into the chunk's boxes (`_merge_box_xf()`), the driveways one
   strip a chunk, and each side's wall is what the ground beyond it makes it (garden wall, a
   retaining wall holding the cut, or one dropping down the fill). Hill road strips are mitred at
@@ -1824,6 +1825,54 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   elevation and `_relief_at()` starts from it, so `_gy()` lifts the whole city onto the plateau
   while `zone_at()` still says CITY. Keep those two separate: `raw_height_at()` drives `zone_at()`
   and the hill-road carving, `plateau_at()` drives where the blocks sit.
+- Hill homes (2026-10-05, the Hollywood Hills form; docs/HANDOFF.md, the hill homes section):
+  every HillRoads estate gets a real house from `HillHomeKit` (`scripts/world/hill_home_kit.gd`,
+  the plan) and `HillHomeBuild` (`scripts/world/hill_home_build.gd`, extends HouseBuild). Three
+  types, rolled per estate by how far the ground falls off the pad (`STYLES_STEEP` /
+  `STYLES_GENTLE`, `STEEP_DROP`): CANTILEVER (a mid-century glass pavilion on a deep flat overhang
+  jutting `cantilever` m out over the slope on a steel frame - edge beams, columns down to
+  footings, X bracing in alternate bays -, a deck with a cable rail, an infinity pool spilling into
+  a trough, a carport; a glazed lower level under the overhang on a steep drop), VILLA (two storeys
+  of stucco under clay hips with rafter tails, a three-storey tower with an arched loggia on top,
+  arched door and windows, iron balconettes, a loggia wing a storey down the bank whose roof is a
+  paved terrace, a second step on a steep drop, a garage wing) and CONTEMPORARY (a ground box -
+  white, stained boards or dark render - with an upper box slid sideways and cantilevered past it
+  and the pad). **The plan is pure** (`plan_home(plan, m)`: hashes of seed + the estate's seed,
+  the ground through `plan.height_at()`), laid in a frame on the pad (`o`, `fu`, `fv`: u across,
+  v from the pad's uphill edge to its VIEW edge at `Dp`; the view is the pad side, not the road's,
+  the carved ground falls off most past the pad's flat, and the pad runs out on that side to the
+  flat's edge as far as its corners stay off rising ground). A wing's `y` is its floor over
+  `floor` (pad top + FLOOR_LIFT; a lower level -3 or -6) and `base` how far its walls run below it
+  (into the pad, a slab edge, or down to the bank); HillHomeBuild sets HouseBuild's `g` / `base`
+  per wing, keeps upper volumes from hiding lower ones' windows, puts glass walls, ribbon windows
+  and arches in its own `_openings()`, and draws every pane on `shaders/hill_glass.gdshader` (UV
+  in METRES: a room traced at its real size - floor, rug, ceiling downlights, walls, a picture,
+  sofa, table, lamp, sheer curtains -, sky-lit by day, 82 % lit warm after dark; the mirror
+  emitted) and the pools on `shaders/hill_pool.gdshader` (tiled tank, caustics, lit underwater
+  after dark). The kit owns the estate's pad, walls (CityChunk's cut / fill / garden rule; the view
+  side flush where the house, deck, pool or a stair stand at the edge, a cable rail or a villa's
+  parapet elsewhere) and gate; `_build_mansions()` keeps the driveway strip (to the point
+  `HillHomeKit.build()` returns). A pad more than `ROAD_GARAGE_RISE` under its road gets its garage
+  up at the road on steel stilts with a stair down. Terraced gardens (`TERRACE_STEPS` retaining
+  walls with hedges) below the free view edge on a steep drop; cypress (the fir, narrowed to 0.3),
+  olives (`tree_0`, small, grey-green) and palms. FULL: time-sliced, a build step per piece (pad,
+  each wing, porch / chimney / collision, steel / pool / terraces, garden) queued with
+  `_run_or_defer(_on_map_ground(...))` - **the lambdas hold the builder itself**: a Callable to a
+  RefCounted's method does not keep it alive (it was freed and every step errored forever); every
+  house of the chunk is one mesh per material (`HillHomeKit.commit()` at the finish, `HillHome_*`,
+  collision on one `HillHomes` body), the site works in the chunk's merged boxes. LOD chunks: a
+  lod_box per wing (old path, windows lit 0.55), clay slabs and gable prisms, the pool, the
+  columns. The far city (`Skyline._add_hills`): `HillHomeKit.far_boxes()` - a box per wing, a clay
+  cap, the pool, and a glass band on each wing's view face that `far_canopy.gdshader` lights warm
+  after dark (INSTANCE_CUSTOM.a 1 marks an estate part, .b its lift over the pad / 100, every part
+  seated by the same amount; .g the glow, `HillHomeKit.far_lit()` leaves 16 % dark). **Trap:** a
+  pad whose ground has `raw_height_at()` <= 0.5 (the mountains' feet) is NOT carved there
+  (`MacroMap.height_at()` only carves where raw > 0.5), so part of such a pad floats over the
+  relief; its walls run down to the ground (fill walls to 9 m). `HILL_HOMES=0` in the environment is
+  the A/B (the old Building slab). Probe (styles, views, `VIEWS=` camera bookmarks for
+  `tools/glshot/hill_ground_shot.tscn`, a minute a shot): `tools/hill_homes/probe.tscn`; build
+  times `tools/hill_homes/bench.tscn`; the checks alone `tools/hill_homes/check_runner.tscn`;
+  checks: `tests/hill_homes_checks.gd`.
 - Freeways (owner, 2026-09-21: "every street is just straight, there's no highways"): `Freeway`
   (`scripts/world/freeway.gd`) plans three long **curved** routes across the basin - Coast, Cross
   and Valley - as seeded polylines with a smoothed, grade-limited deck height, exactly the shape

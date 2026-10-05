@@ -289,6 +289,21 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The hillside estates get real houses (VISUAL_ROADMAP #63).** An estate was a pad,
+  walls, a pool and an 18 x 9 m Building slab with a storefront band. `HillHomeKit` plans a
+  house on every estate from a hash of the seed and the estate, facing the side the ground falls
+  off most (never the road's): a mid-century glass pavilion cantilevered over the slope on steel
+  columns with a deck and an infinity pool, a Spanish villa stepping down the bank in a loggia
+  wing with a tower, or stacked contemporary boxes; retaining walls, stairs, terraced gardens,
+  cypress and olives, a garage up at the road on stilts where the road is well above the pad.
+  Decisions worth knowing: the houses are built with HouseBuild's own emitters (extended, not
+  copied), so the hills and the suburbs share one house vocabulary; glass walls get their own
+  shader with a room traced at its real size, because house_glass maps one room onto a pane's
+  0..1 UV; the far city draws an estate as a few boxes plus a glass band that glows after dark,
+  which is what makes the ranges twinkle from the basin. The estates themselves are where
+  HillRoads put them (not moved), so most drops under a cantilever are 3-6 m. `HILL_HOMES=0`
+  is the A/B.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

@@ -29,7 +29,7 @@ func _ready() -> void:
 			var kit: GDScript = load("res://scripts/world/hill_home_kit.gd")
 			var hp: Dictionary = kit.plan_home(plan, m)
 			styles[hp.style_name] = int(styles.get(hp.style_name, 0)) + 1
-			line += "  %s view %s drop %.1f over %.1f wings %d" % [hp.style_name, hp.view_side, hp.drop, hp.get("cantilever", 0.0), (hp.wings as Array).size()]
+			line += "  %s view %s fv %.2f,%.2f drop %.1f over %.1f wings %d" % [hp.style_name, hp.view_side, hp.fv.x, hp.fv.y, hp.drop, hp.get("cantilever", 0.0), (hp.wings as Array).size()]
 			if OS.get_environment("EYE") != "":
 				line += "  EYE=%s AGL=%s" % [hp.eye, hp.eye_agl]
 		print(line)

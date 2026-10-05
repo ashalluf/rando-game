@@ -874,6 +874,8 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 		return
 	var houses: Array = _work.houses
 	var house_colors: Array = _work.house_colors
+	if not _work.has("house_custom"):
+		_work["house_custom"] = []
 	for m in macro.hill_roads.mansions_in(rect):
 		if HillHomeKit.enabled:
 			# The house HillHomeKit plans on the pad, as a few boxes and a glass band per wing that
