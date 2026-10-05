@@ -1701,6 +1701,33 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Shopping plazas, big-box stores, fast-food and gas-station pads are `Commercial`
   (`scripts/world/commercial.gd`); block kinds `MALL` and `BIGBOX` and the `pads` odds live in
   `CityPlan.DISTRICTS`. Shop names are original, never brands.
+- Roadside commerce (2026-10-05, docs/HANDOFF.md 9bq): the commercial pads (`Commercial.build_pad`,
+  edge lots by the districts' `pads` odds) are `Roadside` (`scripts/world/roadside.gd`): gas
+  stations, car washes, auto repair and tyre shops, a Googie coffee shop, fast food with a
+  drive-thru and the giant-donut / giant-cup stand. **What a pad is is a hash** (`kind_for()`: seed
+  + lot, `ODDS`, then `FALLBACK` among the kinds its size fits, `MIN_SIZE`); the pad roll and
+  Commercial's two old rolls (name, fascia) are still made in the old order, so nothing after a
+  pad moves, and every roll inside a pad is a private rng of seed + lot. A pad is built in its own
+  frame (`Site`, `frame_of()`: x along the street it faces - the nearest edge of the block's inner
+  rect -, -z toward it, y from the relief at the lot centre; ground pieces take the relief under
+  each vertex, buildings stand on the one sample with a `SKIRT` under it). FULL: every pad of the
+  chunk is ONE casting mesh (`Roadside`) and ONE shadowless ground mesh (`RoadsideGround`), both
+  on `shaders/roadside.gdshader` (`RoadsideKit.K_*` in COLOR.a x 20: steel, concrete with joints
+  and oil, stucco, a traced shop room behind every window - store shelving and coolers, diner
+  booths, a workshop bay, a car wash tunnel, a donut case: `RoadsideKit.Room` in UV2.y, its depth
+  in UV2.x -, lightboxes, the canopy's LED soffit, seven-segment LED price digits (UV2.x the
+  digit), neon, chasing bulbs, tyre rubber, pump screens, car wash cloth, roll-up doors, painted
+  wall signs, stacked stone, donut glaze), committed by `Roadside.commit()` at the finish; the
+  repeated pieces are `RoadsideKit` meshes in `rs_*` batches on the same shader (dispensers - as
+  breakable `pump` props -, vacuum stations, tyres, menu boards, speaker posts, the air machine,
+  ice chest, propane cage, service stand, two-post lift), the brand paint in INSTANCE_CUSTOM.rgb;
+  cars are LotFill's static `apark_car_*` batch (the drive-thru queue, the car on the lift, the
+  junked car). Night: pools in the chunk's `shop_spill` batch and one `lamp_light` OmniLight3D a
+  pad (desktop). LOD and the far city's capture: `lod_box`es for the buildings and the canopy as
+  one `_add_slab`. Names and prices are invented (the smoke test holds them against a list of real
+  brands). `ROADSIDE=0` in the environment is the A/B (the old pads). Find pads with
+  `tools/roadside_probe.tscn` (`KIND=`, `FULL=n` times the FULL builds); checks:
+  `tests/roadside_checks.gd`.
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck

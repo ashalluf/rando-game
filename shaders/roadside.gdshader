@@ -23,7 +23,7 @@ global uniform float road_wetness;
 // A lightbox face (canopy fascia, pole sign cabinet, menu board): by day the printed face with a
 // little glow, after dark lit from behind.
 uniform float glow_day = 0.22;
-uniform float glow_night = 2.6;
+uniform float glow_night = 1.5;
 // The canopy's recessed LED panels: what makes a forecourt the brightest thing on a street.
 uniform float soffit_day = 0.9;
 uniform float soffit_night = 7.5;
@@ -228,8 +228,9 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 			float fh = fract(h / 0.38);
 			float item = floor(s / 0.22 + shelf * 3.1);
 			float hh = rs_hash(vec2(item, shelf + fit_top * 3.0));
-			vec3 prod = 0.5 + 0.5 * cos(6.2831 * (hh + vec3(0.0, 0.33, 0.67)));
-			col = mix(prod * 0.8, vec3(0.85, 0.85, 0.82), step(fh, 0.12));
+			vec3 prod = mix(vec3(0.5), 0.5 + 0.5 * cos(6.2831 * (hh + vec3(0.0, 0.33, 0.67))), 0.55);
+			prod *= 0.55 + 0.5 * rs_hash(vec2(item, 7.0));
+			col = mix(prod, vec3(0.8, 0.8, 0.78), step(fh, 0.12));
 			col = surf == 4 ? vec3(0.7, 0.7, 0.68) : col;
 		} else if (kind == 1 || kind == 3 || kind == 5) {
 			// The counter: a laminate front with a chrome rail, its top lit; pastry cases on the stand.
@@ -252,7 +253,7 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 			float door = fract(s / 0.75);
 			float frame = step(door, 0.06) + step(h, 0.25) + step(2.2, h);
 			float hh = rs_hash(vec2(floor(s / 0.12), floor(h / 0.33)));
-			vec3 bottles = (0.5 + 0.5 * cos(6.2831 * (hh + vec3(0.0, 0.33, 0.67)))) * 1.3;
+			vec3 bottles = mix(vec3(0.55), 0.5 + 0.5 * cos(6.2831 * (hh + vec3(0.0, 0.33, 0.67))), 0.6) * 1.1;
 			col = mix(bottles, vec3(0.15, 0.15, 0.16), clamp(frame, 0.0, 1.0));
 			col = mix(col, vec3(0.7, 0.7, 0.68), step(2.5, h));
 			lit = 1.5 - 0.6 * step(2.2, h);
@@ -261,10 +262,36 @@ vec3 rs_room(float s0, float h0, float ds, float dh, float dd, float depth, int 
 			float strip = step(1.9, h) * step(h, 2.5);
 			col = mix(vec3(0.6, 0.58, 0.55), rs_menu(vec2(fract(s / 3.0), (h - 1.9) / 0.6), floor(s / 3.0)), strip);
 			lit = 1.0 + strip * 0.8;
-		} else if (kind == 2 || kind == 4) {
-			// Pegboard and tool chests in a bay; the tunnel's far wall with its brushes' wash.
-			col = kind == 2 ? vec3(0.5, 0.45, 0.36) * (0.8 + 0.2 * step(0.5, fract(s * 4.0) * fract(h * 4.0) * 4.0)) : vec3(0.25, 0.35, 0.45);
-			col = kind == 2 ? mix(col, vec3(0.6, 0.06, 0.04), step(h, 1.0) * step(0.5, fract(s / 3.0))) : col;
+		} else if (kind == 4) {
+			// The tunnel: wraparound brushes and curtains of coloured cloth in a row, foam on
+			// them, the conveyor's lit sign strip along the top.
+			float cell = floor(s / 1.6);
+			float u = fract(s / 1.6);
+			float hh = rs_hash(vec2(cell, 5.0));
+			vec3 cloth = hh < 0.33 ? vec3(0.15, 0.45, 0.95) : (hh < 0.66 ? vec3(0.95, 0.3, 0.6) : vec3(0.98, 0.85, 0.2));
+			float brush = smoothstep(0.1, 0.2, u) * smoothstep(0.9, 0.8, u) * step(0.3, h) * step(h, 3.0);
+			float strands = 0.7 + 0.3 * rs_noise(vec2(s * 30.0, h * 2.0));
+			vec3 foam = vec3(0.9, 0.92, 0.95) * step(0.72, rs_noise(vec2(s * 4.0, h * 3.0)));
+			col = mix(vec3(0.3, 0.32, 0.34), mix(cloth * strands, foam, length(foam) > 0.1 ? 0.6 : 0.0), brush);
+			float strip = step(3.4, h) * step(h, 3.7);
+			col = mix(col, vec3(0.4, 0.8, 1.0) * 2.0, strip);
+			lit = 1.3;
+		} else if (kind == 2) {
+			// Pegboard and tool chests in a bay.
+			col = vec3(0.5, 0.45, 0.36) * (0.8 + 0.2 * step(0.5, fract(s * 4.0) * fract(h * 4.0) * 4.0));
+			col = mix(col, vec3(0.6, 0.06, 0.04), step(h, 1.0) * step(0.5, fract(s / 3.0)));
+		} else if (kind == 5) {
+			// The stand: wire racks of trays, rings of glazed and plain dough in rows, a menu
+			// strip above them.
+			vec2 c = fract(vec2(s / 0.26, h / 0.24)) - 0.5;
+			vec2 id = floor(vec2(s / 0.26, h / 0.24));
+			float ring = smoothstep(0.36, 0.3, length(c)) * smoothstep(0.08, 0.14, length(c));
+			vec3 glaze = mix(vec3(0.72, 0.45, 0.2), mix(vec3(0.95, 0.5, 0.65), vec3(0.35, 0.18, 0.1), step(0.6, rs_hash(id))), step(0.4, rs_hash(id + 3.0)));
+			float racks = step(0.8, h) * step(h, 2.0);
+			col = mix(vec3(0.85, 0.82, 0.76), mix(vec3(0.75, 0.75, 0.74), glaze, ring), racks);
+			float strip = step(2.25, h) * step(h, 2.75);
+			col = mix(col, rs_menu(vec2(fract(s / 2.5), (h - 2.25) / 0.5), floor(s / 2.5) + 9.0), strip);
+			lit = 1.2;
 		} else {
 			col = vec3(0.8, 0.76, 0.7);
 		}
@@ -405,6 +432,21 @@ void fragment() {
 		base *= 1.0 - 0.25 * smoothstep(0.9, 0.0, UV.y) * rs_noise(UV * 4.0);
 		metal = 0.5;
 		rough = 0.45;
+	} else if (code == 19) {
+		// Stacked-stone veneer (the coffee shop's walls and pylon): courses of rough flat stones in
+		// three tones, dark mortar between, faded to its mean under a pixel.
+		vec2 q = vec2(dot(v_world.xz, vec2(0.7071, 0.7071)) + UV.x * 0.0, v_world.y);
+		vec2 cs = vec2(0.42, 0.11);
+		float row = floor(q.y / cs.y);
+		vec2 g = vec2(q.x / cs.x + rs_hash(vec2(row, 1.0)) * 3.0, q.y / cs.y);
+		vec2 id = floor(g);
+		vec2 f = fract(g);
+		float mortar = smoothstep(0.0, 0.07, f.x) * smoothstep(1.0, 0.93, f.x) * smoothstep(0.0, 0.12, f.y) * smoothstep(1.0, 0.88, f.y);
+		float tone = rs_hash(id);
+		vec3 st = mix(base * 0.75, base * 1.2, tone) * (0.85 + 0.25 * rs_noise(q * 23.0));
+		float fade = smoothstep(0.02, 0.1, fwidth(q.y));
+		base = mix(mix(base * 0.45, st, mortar), base * 0.92, fade);
+		rough = 0.85;
 	} else if (code == 18) {
 		// Donut glaze with sprinkles (the giant donut).
 		vec2 sp = UV * vec2(9.0, 4.0);

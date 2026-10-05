@@ -298,7 +298,13 @@ static func _pool(s: Site, c: Vector2, size: Vector2, col: Color) -> void:
 	var p := s.at(Vector3(c.x, 0.0, c.y))
 	var a := s.xf.basis * Vector3(size.x, 0.0, 0.0)
 	var n := s.xf.basis * Vector3(0.0, 0.0, size.y)
-	var xf := Transform3D(Basis(a, n, a.normalized().cross(n.normalized())), Vector3(p.x, TOP + 0.08 + PAINT_LIFT, p.z))
+	# The quad's +Z must come out pointing up (it is culled from below), whichever way the pad
+	# is turned; the pool is symmetric, so flipping its depth axis costs nothing.
+	var up := a.normalized().cross(n.normalized())
+	if up.y < 0.0:
+		n = -n
+		up = -up
+	var xf := Transform3D(Basis(a, n, up), Vector3(p.x, TOP + 0.08 + PAINT_LIFT, p.z))
 	s.ch._batch.add("shop_spill", PropFactory.shop_spill(), xf, col)
 
 
@@ -372,7 +378,7 @@ static func _frontage(s: Site, drives: Array) -> void:
 	# The drives: concrete aprons over the pavement to the kerb.
 	var sw: float = s.ch.plan.sidewalk_width
 	for cut: Vector2 in drives:
-		_ground(s, Rect2(cut.x, -s.d * 0.5 - sw + 0.05, cut.y - cut.x, sw + 0.05), RoadsideKit.c(Color(0.72, 0.71, 0.68), RoadsideKit.K_CONCRETE), 0.012)
+		_ground(s, Rect2(cut.x, -s.d * 0.5 - sw + 0.05, cut.y - cut.x, sw + 0.05), RoadsideKit.c(Color(0.6, 0.59, 0.56), RoadsideKit.K_CONCRETE), 0.012)
 
 
 ## A box building of the frame: walls on a skirt, a parapet with coping, roof membrane, rooftop
@@ -472,8 +478,8 @@ static func _gas(s: Site) -> void:
 	var under := 4.9
 	var fascia := 1.15
 	_shell(s, store, 4.4, WALLS[s.rng.randi() % WALLS.size()], true)
-	_mass(s, Vector3(cc.x, under + fascia * 0.5, cc.y), Vector3(cw, fascia, cd), Color(0.93, 0.93, 0.92))
 	if not s.full:
+		# The canopy as one slab (LOD and the far city's capture).
 		s.ch._add_slab(Vector3(s.at(Vector3(cc.x, 0.0, cc.y)).x, TOP + under + fascia * 0.5, s.at(Vector3(cc.x, 0.0, cc.y)).z), Vector3(cw if absf(sin(s.yaw)) < 0.5 else cd, fascia, cd if absf(sin(s.yaw)) < 0.5 else cw), Color(0.92, 0.92, 0.92), true, PropFactory.material(Color(0.92, 0.92, 0.92), 0.5))
 		return
 	var pen := s.pen
@@ -657,14 +663,19 @@ static func _car_wash(s: Site) -> void:
 	# Accent band and the sign parapet with the name and CAR WASH.
 	pen.box(Vector3(tc.x, th - 0.4, tunnel.position.y - 0.04), Vector3(L, 0.5, 0.1), K.c(accent, K.K_FIXED), K.RM_PAINT)
 	pen.box(Vector3(tc.x, th + 1.0, tunnel.position.y + 0.25), Vector3(L * 0.6, 1.7, 0.4), col, K.RM_MATTE)
-	pen.box(Vector3(tc.x, th + 1.0, tunnel.position.y + 0.03), Vector3(L * 0.56, 1.4, 0.04), K.c(accent, K.K_LIGHTBOX), K.RM_PLASTIC)
-	_letters_flat(s, bname, Vector3(tc.x, th + 1.25, tunnel.position.y - 0.0), 0.75, Color(0.98, 0.98, 0.97), L * 0.5, Vector3(0, 0, -1))
-	_letters_flat(s, "CAR WASH", Vector3(tc.x, th + 0.55, tunnel.position.y - 0.0), 0.36, Color(0.98, 0.95, 0.6), L * 0.4, Vector3(0, 0, -1))
+	# A dark sign face with lit letters: the name in the brand colour, CAR WASH in white, a lit
+	# band in the brand colour along its foot.
+	pen.box(Vector3(tc.x, th + 1.0, tunnel.position.y + 0.03), Vector3(L * 0.56, 1.4, 0.04), K.c(Color(0.06, 0.08, 0.14), K.K_FIXED), K.RM_PAINT)
+	pen.box(Vector3(tc.x, th + 0.33, tunnel.position.y + 0.0), Vector3(L * 0.56, 0.1, 0.04), K.c(accent, K.K_NEON), K.RM_PLASTIC)
+	_letters_flat(s, bname, Vector3(tc.x, th + 1.25, tunnel.position.y - 0.0), 0.75, accent.lightened(0.25), L * 0.5, Vector3(0, 0, -1))
+	_letters_flat(s, "CAR WASH", Vector3(tc.x, th + 0.6, tunnel.position.y - 0.0), 0.36, Color(0.98, 0.98, 0.96), L * 0.4, Vector3(0, 0, -1))
 	# A band of windows along the front wall onto the tunnel (traced, the brushes' wash of light).
 	var nwin := int(L / 3.0)
 	for k in nwin:
 		var wx := tunnel.position.x + (k + 0.5) * L / nwin
 		pen.window(Vector3(wx, 0.0, tunnel.position.y - 0.01), Vector3(0, 0, -1), L / nwin - 0.4, 0.0, 1.4, 3.4, tw - 0.6, K.Room.TUNNEL)
+		pen.box(Vector3(wx - L / nwin * 0.5, 2.4, tunnel.position.y - 0.05), Vector3(0.4, 2.2, 0.1), K.c(Color(0.7, 0.71, 0.72), K.K_STEEL), K.RM_STEEL)
+		pen.box(Vector3(wx, 1.36, tunnel.position.y - 0.08), Vector3(L / nwin, 0.08, 0.16), K.c(Color(0.7, 0.71, 0.72), K.K_STEEL), K.RM_STEEL)
 	# Floor: the conveyor and guide rail, wet concrete.
 	_ground(s, Rect2(tunnel.position.x - 6.0, tunnel.position.y + 0.3, L + 10.0, tw - 0.6), K.c(Color(0.55, 0.56, 0.56), K.K_CONCRETE))
 	pen.box(Vector3(tc.x, 0.08, tc.y - 1.0), Vector3(L + 4.0, 0.12, 0.35), K.c(Color(0.6, 0.62, 0.64), K.K_STEEL), K.RM_STEEL)
@@ -732,7 +743,7 @@ static func _car_wash(s: Site) -> void:
 	# Cars waiting in the lane.
 	var nq := 1 + s.rng.randi() % 3
 	for k in nq:
-		_car(s, Vector2(lane_x, pay.y - 1.0 - k * 6.0), 0.0)
+		_car(s, Vector2(lane_x, pay.y - 1.0 - k * 6.0), PI)
 	# Vacuum stations in a row along the street side, a stall either side of each.
 	var vz := -hd + 5.5
 	var vx0 := lane_x + 5.5
@@ -833,7 +844,7 @@ static func _auto(s: Site) -> void:
 			pen.box(Vector3(cx, door_h - 0.05, front + 0.2), Vector3(door_w + 0.1, 0.1, 0.12), K.c(Color(0.4, 0.4, 0.42), K.K_STEEL), K.RM_STEEL)
 			s.ch._add_shape(Vector3(pitch, door_h, 0.3), s.at(Vector3(cx, door_h * 0.5, front + 0.3)), s.yaw)
 		# Bay numbers and a wall pack over each door.
-		pen.box(Vector3(cx, door_h + 0.75, front - 0.05), Vector3(0.36, 0.22, 0.12), K.c(Color(0.95, 0.9, 0.75), K.K_NEON), K.RM_PLASTIC)
+		pen.box(Vector3(cx, door_h + 0.17, front - 0.05), Vector3(0.3, 0.14, 0.12), K.c(Color(0.95, 0.9, 0.75), K.K_NEON), K.RM_PLASTIC)
 		_pool(s, Vector2(cx, front - 3.0), Vector2(door_w + 2.5, 6.0), Color(1.0, 0.86, 0.6, 0.7))
 	# The office: a shopfront window and a door.
 	var ox0 := bld.position.x + 0.3 if office_left else bx1
@@ -966,6 +977,16 @@ static func _diner(s: Site) -> void:
 			path.append(Vector3(ex, p.y - 0.34, p.x))
 		pen.tube(path, 0.03, K.c(neon, K.K_NEON), K.RM_PLASTIC, 6)
 	s.ch._add_shape(Vector3(xr - xl, 0.4, bd + lean + 4.0), s.at(Vector3(bld.get_center().x, hroof + 0.6, (bld.end.y + front - lean - 3.2) * 0.5)), s.yaw)
+	# Recessed downlights in the soffit over the glass and the walk, following the sweep.
+	for k in range(4, prof.size() - 1):
+		var a: Vector2 = prof[k]
+		var b: Vector2 = prof[k + 1]
+		var m := (a + b) * 0.5
+		var nl := maxi(int((xr - xl) / 2.4), 2)
+		for j in nl:
+			var lx2 := xl + (j + 0.5) * (xr - xl) / nl
+			var tilt := atan2(b.y - a.y, -(b.x - a.x))
+			pen.box(Vector3(lx2, m.y - 0.335, m.x), Vector3(0.32, 0.02, 0.32), K.c(Color(1.0, 0.92, 0.78), K.K_SOFFIT), Vector2(0.25, 0.0), 0.0, Basis(Vector3.RIGHT, tilt))
 	# A raked steel post props the lip at each corner; a stone pylon through the roof at the side.
 	for ex: float in [xl + 0.6, xr - 0.6]:
 		pen.tube([Vector3(ex, s.dy(ex, lip.x + 1.4), lip.x + 1.4), Vector3(ex, lip.y - 0.5, lip.x + 0.6)], 0.09, K.c(Color(0.92, 0.92, 0.9), K.K_FIXED), K.RM_PAINT, 8)
@@ -1024,7 +1045,7 @@ static func _googie_sign(s: Site, p: Vector2, bname: String, neon: Color, accent
 			pen.face(Vector3(cx + mid.x, y0 + mid.y, z), Vector3(cx + a.x, y0 + a.y, z), Vector3(cx + b.x, y0 + b.y, z), Vector3(cx + mid.x, y0 + mid.y, z),
 				[Vector2.ZERO, Vector2.ZERO, Vector2.ZERO, Vector2.ZERO], Vector3(0, 0, sd), K.c(accent if accent.v > 0.6 else Color(0.97, 0.95, 0.88), K.K_LIGHTBOX), Vector2(0.3, 0.0))
 		_letters_flat(s, bname, Vector3(cx + 0.1, y0 + 8.35, z + sd * 0.02), 0.95, Color(0.85, 0.1, 0.12) if accent.v > 0.6 else Color(0.1, 0.45, 0.5), 5.4, Vector3(0, 0, sd))
-		_letters_flat(s, "OPEN 24 HOURS", Vector3(cx + 0.3, y0 + 7.45, z + sd * 0.02), 0.32, Color(0.12, 0.12, 0.14), 3.6, Vector3(0, 0, sd))
+		_letters_flat(s, "OPEN 24 HOURS", Vector3(cx + 0.3, y0 + 7.68, z + sd * 0.02), 0.26, Color(0.12, 0.12, 0.14), 3.2, Vector3(0, 0, sd))
 	for k in outline.size():
 		var a: Vector2 = outline[k]
 		var b: Vector2 = outline[(k + 1) % outline.size()]
@@ -1120,13 +1141,13 @@ static func _fast_food(s: Site) -> void:
 	_letters_flat(s, "CLEARANCE 9 FT 6 IN", Vector3(lx, gy + 2.72, gz - 0.11), 0.1, Color(0.1, 0.1, 0.1), lane_w * 0.6, Vector3(0, 0, -1))
 	# Menu board and speaker on the back lane, facing it.
 	var mb := Vector2(rx - lane_w * 0.5 - 4.0, back_lane_z + lane_w * 0.5 + 0.9)
-	_inst(s, "rs_menu", RoadsideKit.menu_board(), Transform3D(Basis(Vector3.UP, PI), Vector3(mb.x, s.dy(mb.x, mb.y), mb.y)), Color(brand.r, brand.g, brand.b, 0.2))
+	_inst(s, "rs_menu", RoadsideKit.menu_board(), Transform3D(Basis(), Vector3(mb.x, s.dy(mb.x, mb.y), mb.y)), Color(brand.r, brand.g, brand.b, 0.2))
 	s.ch._add_shape(Vector3(3.0, 3.0, 0.5), s.at(Vector3(mb.x, 1.5, mb.y)), s.yaw)
 	var pre := Vector2(mb.x - 7.0, mb.y)
 	if pre.x > lx + 1.0:
-		_inst(s, "rs_menu", RoadsideKit.menu_board(), Transform3D(Basis(Vector3.UP, PI).scaled(Vector3(0.6, 0.8, 1.0)), Vector3(pre.x, s.dy(pre.x, pre.y), pre.y)), Color(brand.r, brand.g, brand.b, 0.7))
+		_inst(s, "rs_menu", RoadsideKit.menu_board(), Transform3D(Basis().scaled(Vector3(0.6, 0.8, 1.0)), Vector3(pre.x, s.dy(pre.x, pre.y), pre.y)), Color(brand.r, brand.g, brand.b, 0.7))
 	var spk := Vector2(mb.x + 2.4, back_lane_z + lane_w * 0.5 + 0.3)
-	_inst(s, "rs_spk", RoadsideKit.speaker_post(), Transform3D(Basis(Vector3.UP, PI), Vector3(spk.x, s.dy(spk.x, spk.y), spk.y)), Color(brand.r, brand.g, brand.b, 0.4))
+	_inst(s, "rs_spk", RoadsideKit.speaker_post(), Transform3D(Basis(), Vector3(spk.x, s.dy(spk.x, spk.y), spk.y)), Color(brand.r, brand.g, brand.b, 0.4))
 	_pool(s, Vector2(mb.x, back_lane_z), Vector2(6.0, 5.0), Color(1.0, 0.95, 0.85, 0.9))
 	# The pickup window on the right wall, under a small canopy, its room lit.
 	var wz := front + bd * 0.35
@@ -1160,7 +1181,7 @@ static func _fast_food(s: Site) -> void:
 				if into < 2.6 or float(lens[k]) - into < 2.6:
 					break
 				var pos := a + dir * into
-				_car(s, pos, atan2(-dir.x, -dir.y) + PI)
+				_car(s, pos, atan2(-dir.x, -dir.y))
 				break
 			acc += float(lens[k])
 	# Parking in front of the dining room, the pylon sign at the corner.
@@ -1254,7 +1275,13 @@ static func _stand(s: Site) -> void:
 				_car(s, Vector2(px, bld.position.y + 1.4), PI * 0.5 * sd)
 	_frontage(s, [Vector2(-hw + 1.5, -hw + 7.0), Vector2(hw - 7.0, hw - 1.5)])
 	_pool(s, Vector2(bc.x, bc.y), Vector2(bw + 8.0, bd + 8.0), Color(1.0, 0.9, 0.75, 1.0))
-	_light(s, Vector3(bc.x, h - 0.4, bld.position.y - 1.6), 12.0, Color(1.0, 0.9, 0.75))
+	_light(s, Vector3(bc.x, h + 2.5, bld.position.y - 3.0), 14.0, Color(1.0, 0.9, 0.75))
+	# Flood fixtures on the roof's corners, aimed up at the giant.
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			var fp := Vector3(bc.x + sx * (bw * 0.5 - 0.5), h + 0.75, bc.y + sz * (bd * 0.5 - 0.5))
+			pen.box(fp, Vector3(0.3, 0.22, 0.3), K.c(Color(0.25, 0.25, 0.27), K.K_FIXED), K.RM_PAINT, 0.03)
+			pen.box(fp + Vector3(-sx * 0.1, 0.1, -sz * 0.1), Vector3(0.2, 0.04, 0.2), K.c(Color(1.0, 0.95, 0.85), K.K_SOFFIT), Vector2(0.25, 0.0))
 
 
 ## The giant donut, upright, facing the street: a torus of dough, its front glazed with sprinkles.
