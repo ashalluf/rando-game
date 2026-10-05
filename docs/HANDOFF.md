@@ -6567,3 +6567,28 @@ boxes are the channel's banks, which the freeways cross).
 blocks, freeway crossings), `tools/la_river/river_bench.tscn` (a chunk's build steps, FULL / LOD /
 capture), `tools/la_river/river_shot.tscn` (the river's chunks alone, `CAR=1` a sedan rolling down
 a ramp), and still_shot.gd EYEs. `RIVER=0` in the environment (or `-- --no-river`) is the A/B.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `RIVER=0` against the river, same
+spawn): on the 1st St bridge 2.02 M -> 1.46 M triangles, 2,393 -> 1,606 draws; at the 6th St
+ribbon 2.56 M -> 1.42 M, 2,677 -> 1,768 (the river blocks build no buildings, and their channel,
+ground and fences are a handful of meshes a chunk); the default downtown spawn 7.06 M / 3,763 both
+ways. A FULL river chunk is ~1.6-7 k triangles of concrete (the 1st St chunk with its arch viaduct
+and the rail bridge 6.9 k plus the instanced balusters), 0.5-1 k of ground, one collision body;
+LOD 1.3-3.2 k; the far city 40-100 boxes a river block. Build: a FULL river chunk 140-280 ms over
+40-60 steps (the worst step 25-45 ms: the arch viaduct's core job, the fences), LOD 40-75 ms, the
+capture 3-8 ms (`tools/la_river/river_bench.tscn`).
+
+**Stills** (shots/la-river; opengl3, not the Mac's Forward+): from the 1st St viaduct along the
+channel by day and at dusk, down on the bed by the low-flow channel, a sedan rolling down an access
+ramp (river_shot.tscn), the river from the air south of downtown, and at night the arch viaduct's
+lanterns and the ribbon's LED arches from the bed.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the concrete's tone, the water's
+mirror and the lamps' glow under AgX need eyes. Traffic never drives the channel (it is a place
+for the player and the police chase; nothing routes into it). The bank roads are drivable but no
+traffic or police uses them. The yards' remainder is still mostly open gravel in the biggest river
+blocks. The north end stops at a headwall with box culverts rather than continuing up the Glendale
+Narrows into the valley. The far city's land slabs on a river block step every 8 m along the
+channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL only. The Coral Line
+(9bk, not on main when this was written) does not reach the river; the rail bridge carries a
+freight spur that ends at buffer stops past the bank roads.
