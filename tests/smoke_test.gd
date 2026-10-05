@@ -95,6 +95,7 @@ const CITY_LOAD_COST := 60.0
 var _parts := {} # part or check file name -> true; empty = everything
 var _buildings_done := false
 var _ran := {} # the city parts this run has started, for _stage()
+var _home_look := Vector2(INF, INF) # the camera's yaw and pitch when the city has loaded
 var _proxies := {} # check file path -> [the real script, its name, run()'s argument count]
 
 
@@ -183,10 +184,8 @@ func _wants_city() -> bool:
 func _part_begin(part: String) -> int:
 	if not _parts.is_empty():
 		await _stage(part)
-	if part == "city_files" and not _parts.is_empty():
-		_stub_other_files()
-	elif part == "city_files" and _profile:
-		_time_files()
+	if part == "city_files" and (_profile or not _parts.is_empty()):
+		_wrap_files()
 	return Time.get_ticks_msec()
 
 
@@ -197,16 +196,24 @@ func _stage(part: String) -> void:
 	order.append_array(CITY_PARTS)
 	order.append("city_files")
 	var before: String = order[order.find(part) - 1]
-	if before == "setup" or _ran.has(before):
-		_ran[part] = true
-		return
 	_ran[part] = true
+	if before != "setup" and not _ran.has(before):
+		await stage_home()
+
+
+## The player back at the spawn, streaming settled round it.
+func stage_home() -> void:
 	var city: Node = get_tree().root.get_node_or_null("City")
 	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
 	if city == null or player == null:
 		return
 	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
 	player.velocity = Vector3.ZERO
+	# Looking the way the city first set the camera (a file aims down the view: the rocket at a
+	# helicopter 55 m ahead hit whatever building the last file had the camera turned to).
+	var rig: Node = player.get_node_or_null("CameraRig")
+	if rig and _home_look.x != INF:
+		rig.call("set_look", rad_to_deg(_home_look.x), rad_to_deg(_home_look.y))
 	city.update_streaming(true)
 	await _ticks(30)
 
@@ -215,35 +222,44 @@ func _part_end(part: String, began: int) -> void:
 	printerr("PART %s %.1f s" % [part, (Time.get_ticks_msec() - began) / 1000.0])
 
 
-## SMOKE_PROFILE=1: every check file city_files loads is swapped for a proxy that runs the real
-## one and prints a PART line with its time (how PART_COST is measured).
-func _time_files() -> void:
+## Before city_files: every check file it loads is swapped for a script taken over at its path,
+## so load() returns that instead. In a share, a file of another share becomes a stub with an
+## empty run(), and a file of this share a proxy that first puts the player back at the spawn
+## (stage_home(): a file's result must not depend on which files the deal put before it) and
+## then runs the real one. With SMOKE_PROFILE=1 the proxy also prints a PART line with the file's
+## time (how PART_COST is measured).
+func _wrap_files() -> void:
+	var source: String = (get_script() as GDScript).source_code
 	for part in all_parts():
 		if part == "room" or CITY_PARTS.has(part):
 			continue
 		var path := "res://tests/%s.gd" % part
-		var real: GDScript = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
-		var argc := 2
-		for method in real.get_script_method_list():
-			if method.name == "run":
-				argc = method.args.size()
 		var proxy := GDScript.new()
-		# The proxy finds the real script through the smoke test, which every file is handed first.
-		proxy.source_code = "extends RefCounted\nfunc run(a = null, b = null, c = null, d = null) -> void:\n\tvar spec: Array = a._proxies[\"%s\"]\n\tvar t := Time.get_ticks_msec()\n\tawait spec[0].new().callv(\"run\", [a, b, c, d].slice(0, spec[2]))\n\tprinterr(\"PART %%s %%.1f s\" %% [spec[1], (Time.get_ticks_msec() - t) / 1000.0])\n" % path
+		if not _parts.is_empty() and not _parts.has(part):
+			proxy.source_code = "extends RefCounted\nfunc run(_a = null, _b = null, _c = null, _d = null) -> void:\n\tpass\n"
+		else:
+			var real: GDScript = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+			var argc := 2
+			for method in real.get_script_method_list():
+				if method.name == "run":
+					argc = method.args.size()
+			# Only a file the list awaits is staged: a plain call does not wait for a coroutine, and
+			# those files check data, not the world round the player.
+			var awaited: bool = source.contains('await load("%s")' % path)
+			_proxies[path] = [real, part, argc, awaited and not _parts.is_empty()]
+			# The proxy finds the real script through the smoke test, which every file is handed first.
+			proxy.source_code = """extends RefCounted
+func run(a = null, b = null, c = null, d = null) -> void:
+	var spec: Array = a._proxies["%s"]
+	if spec[3]:
+		await a.stage_home()
+	var t := Time.get_ticks_msec()
+	await spec[0].new().callv("run", [a, b, c, d].slice(0, spec[2]))
+	if a._profile:
+		printerr("PART %%s %%.1f s" %% [spec[1], (Time.get_ticks_msec() - t) / 1000.0])
+""" % path
 		proxy.reload()
 		proxy.take_over_path(path)
-		_proxies[path] = [real, part, argc]
-
-
-## Swaps every check file this run does not do for a stub with an empty run().
-func _stub_other_files() -> void:
-	for part in all_parts():
-		if part == "room" or CITY_PARTS.has(part) or _parts.has(part):
-			continue
-		var stub := GDScript.new()
-		stub.source_code = "extends RefCounted\nfunc run(_a = null, _b = null, _c = null, _d = null) -> void:\n\tpass\n"
-		stub.reload()
-		stub.take_over_path("res://tests/%s.gd" % part)
 
 
 func _run() -> void:
@@ -424,6 +440,9 @@ func _test_city() -> void:
 	# city_cars empties the street of traffic and city_people puts the cap back.
 	var traffic_mgr: Node3D = city.get_node("Traffic")
 	var traffic_cap: int = traffic_mgr.max_cars
+	var home_rig: Node = player.get_node_or_null("CameraRig")
+	if home_rig:
+		_home_look = Vector2(float(home_rig.get("_yaw")), float(home_rig.get("_pitch")))
 	if _want("city_streaming"):
 		var t_city_streaming: int = await _part_begin("city_streaming")
 		await _city_streaming(city, plan, player)
@@ -1130,6 +1149,9 @@ func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: Ma
 	# below), otherwise a passing car or a knocked pedestrian can pin the test car.
 	var traffic_mgr: Node3D = city.get_node("Traffic")
 	var traffic_cap: int = traffic_mgr.max_cars
+	var home_rig: Node = player.get_node_or_null("CameraRig")
+	if home_rig:
+		_home_look = Vector2(float(home_rig.get("_yaw")), float(home_rig.get("_pitch")))
 	traffic_mgr.max_cars = 0
 	for c in traffic_mgr.cars.duplicate():
 		if is_instance_valid(c):
