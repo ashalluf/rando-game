@@ -14,8 +14,8 @@ const TRUCK_RANGE := 220.0
 const FLAG_SIZE := Vector2(1.83, 0.96)
 
 const STUCCO_WHITE := Color(0.93, 0.90, 0.84)
-const STUCCO_TINTS := [Color(0.93, 0.90, 0.84), Color(0.95, 0.89, 0.78), Color(0.91, 0.86, 0.80), Color(0.88, 0.84, 0.74)]
-const COMMUNITY_TINTS := [Color(0.80, 0.55, 0.42), Color(0.68, 0.72, 0.60), Color(0.90, 0.80, 0.62), Color(0.74, 0.66, 0.60)]
+const STUCCO_TINTS := [Color(1.0, 0.98, 0.93), Color(1.0, 0.95, 0.85), Color(0.98, 0.94, 0.88), Color(0.97, 0.92, 0.82)]
+const COMMUNITY_TINTS := [Color(0.88, 0.56, 0.40), Color(0.98, 0.86, 0.62), Color(0.96, 0.93, 0.86), Color(0.86, 0.66, 0.52)]
 const CONCRETE := Color(0.82, 0.81, 0.77)
 
 static var _mats: Dictionary = {}
@@ -421,7 +421,7 @@ static func _library_spanish(g: CivicGeo, s: Dictionary, lay: Dictionary, res: D
 	_wall_lantern(g, res, cu - 2.2, 2.4, pv0, Vector3(0, 0, -1))
 	_wall_lantern(g, res, cu + 2.2, 2.4, pv0, Vector3(0, 0, -1))
 	g.box("lamp_warm", cu - 0.25, cu + 0.25, 4.35, 4.42, pv0 + 0.1, pv0 + 0.5)
-	res.texts.append(["PUBLIC LIBRARY", 0.36, Color(0.24, 0.20, 0.16), g.P(cu, 7.65, pv0 - 0.02), 120.0])
+	res.texts.append(["PUBLIC LIBRARY", 0.5, Color(0.20, 0.16, 0.12), g.P(cu, 7.6, pv0 - 0.02), 140.0])
 	# The corner tower: square, plain stucco, an arched belfry opening on each street side, a
 	# steep clay hip and a finial.
 	if lay.tower:
@@ -614,8 +614,10 @@ static func _library_modern(g: CivicGeo, s: Dictionary, lay: Dictionary, res: Di
 	_bench(g, res, cu - 5.0, v0 - ov - 4.2)
 	_bench(g, res, cu + 5.0, v0 - ov - 4.2)
 	_book_drop(g, cu + 2.6, 1.2)
-	_tree(g, res, 3.0, (v0 - ov) * 0.45, false)
-	_tree(g, res, L - 3.0, (v0 - ov) * 0.45, false)
+	if u0 - ov > 4.0:
+		_tree(g, res, (u0 - ov) * 0.5, v0 + 2.0, false)
+	if L - u1 - ov > 4.0:
+		_tree(g, res, (L + u1 + ov) * 0.5, v0 + 2.0, false)
 	_lamp_post(g, res, cu - 2.3, 1.1)
 	if lay.park:
 		_car_park(g, res, 1.0, L - 1.0, D - 6.6, true, 0.55, [s.builder, "lib_park"])
@@ -902,6 +904,15 @@ static func _community(g: CivicGeo, s: Dictionary, lay: Dictionary, res: Diction
 	var sops := [{"a0": 1.2, "a1": v1 - v0 - 1.2, "y0": 5.4, "y1": 7.3, "glass": "glass_hall", "depth": 0.2, "room_h": 7.8}]
 	_box_walls(g, "stucco_paint", "stucco_paint", hu0, hu1, v0, v1, 0.0, h, [hops, sops, [], sops])
 	g.box("concrete", hu0 - 0.05, hu1 + 0.05, 0.0, 0.6, v0 - 0.05, v1 + 0.05)
+	# Reveal lines in the stucco (control joints) and a contrasting band under the clerestory.
+	var accent := Color(0.12, 0.30, 0.38) if int(s.get("variant", 0)) % 2 == 0 else Color(0.55, 0.18, 0.12)
+	g.colors["accent"] = accent
+	g.box("accent", hu0 - 0.06, hu1 + 0.06, 4.7, 5.2, v0 - 0.06, v1 + 0.06)
+	var ju := hu0 + 3.0
+	while ju < hu1 - 1.0:
+		g.box("dark", ju - 0.02, ju + 0.02, 0.6, 4.7, v0 - 0.015, v0)
+		ju += 3.0
+	res.texts.append(["GYM", 0.9, Color(0.96, 0.95, 0.9), g.P((hu0 + hu1) * 0.5, 3.6, v0 - 0.02), 120.0])
 	if lay.bowstring:
 		var segs := 12
 		var rise := 2.4
@@ -1230,6 +1241,12 @@ static func material(key: String) -> Material:
 			m = sm2
 		"terracotta":
 			m = PropFactory.material(Color(0.66, 0.34, 0.22), 0.8)
+		"accent":
+			var am := StandardMaterial3D.new()
+			am.vertex_color_use_as_albedo = true
+			am.vertex_color_is_srgb = true
+			am.roughness = 0.6
+			m = am
 		"tile_blue":
 			m = PropFactory.material(Color(0.12, 0.30, 0.52), 0.35)
 		"soffit_wood", "door_oak", "wood_dark":

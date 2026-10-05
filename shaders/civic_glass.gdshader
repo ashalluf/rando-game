@@ -20,8 +20,8 @@ uniform int room = 0;
 // Opening hours (city hour): the lights are on inside them.
 uniform vec2 open_hours = vec2(8.5, 20.0);
 uniform float night_energy = 1.5;
-uniform vec3 tint = vec3(0.018, 0.026, 0.030);
-uniform float mirror = 0.34;
+uniform vec3 tint = vec3(0.012, 0.018, 0.022);
+uniform float mirror = 0.5;
 
 float h11(float x) {
 	return fract(sin(x * 91.17) * 43758.5453);
@@ -185,7 +185,7 @@ void fragment() {
 	float sky_l = dot(pow(max(sky_tint.rgb, vec3(0.0)), vec3(2.2)), vec3(0.3333));
 	float hr = city_hour;
 	float open = step(open_hours.x, hr) * step(hr, open_hours.y);
-	float day = (1.0 - lamp_factor) * sky_l * mix(0.55, 0.22, clamp(t / 8.0, 0.0, 1.0));
+	float day = (1.0 - lamp_factor) * sky_l * mix(0.32, 0.1, clamp(t / 8.0, 0.0, 1.0));
 	vec3 lamp = vec3(1.0, 0.9, 0.76) * (room == 2 || room == 1 ? vec3(0.92, 0.97, 1.05) : vec3(1.0));
 	float lights = (open * 0.85 + (1.0 - open) * 0.05 * step(0.6, rnd)) * (0.75 + 0.25 * smoothstep(0.0, room_h, wy + 0.5));
 	vec3 room_col = c * (day + lamp * lights * mix(0.18, night_energy, lamp_factor));

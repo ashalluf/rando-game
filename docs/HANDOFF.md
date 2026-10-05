@@ -8571,3 +8571,79 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Neighbourhood civic buildings: libraries, post offices, city services, community centres, 2026-10-05 (fleet branch `wt/civic-buildings`)
+
+**What.** The public buildings every LA neighbourhood has a few blocks away, five kinds, all
+geometry built in code at real size (`scripts/world/civic_buildings.gd` places them,
+`civic_kit.gd` builds them, `civic_geo.gd` is the geometry writer):
+- **Spanish revival branch library**: white stucco on a cast-stone water table, a clay-tile hip
+  roof with rafter tails, a projecting entrance pavilion with its gable to the street, an arched
+  oak door in a cast-stone archivolt and pilasters, a small arched window over it, wall lanterns,
+  tall arched reading-room windows with steel muntins and iron grilles; by hash a corner bell
+  tower (open belfry arches, a steep clay hip, a copper finial), a side loggia of three arches, a
+  children's wing at the back. A garden wall with terracotta caps along the street, palms either
+  side of the walk, benches, a book drop, lamp posts.
+- **Mid-century branch library**: a glass pavilion of floor-to-ceiling panes between aluminium
+  mullions on a stone base, stone-veneer side walls, a thin roof cantilevered 1.8 m all round
+  (flat with a gold fascia line, or a folded plate across the front), downlights in the soffit,
+  a stone feature wall with the name in gold, a breeze-block screen (HouseKit's shader), planters,
+  a car park behind when there is room.
+- **Post office** of the invented **CONTINENTAL POST**: stripped classical in brick or cream
+  stucco over a granite base, pilasters between tall multi-light windows with stone sills and
+  lintels, a stone cornice and parapet, the entrance up a granite stair with brass rails, a clock
+  over the doors, lantern standards; the flag on its pole on the lawn (stars and stripes,
+  `shaders/civic_flag.gdshader`, waving with `wind_factor`), two blue collection boxes at the
+  kerb with a mail truck pulled up beside them; behind it a drive down the side, the loading dock
+  (platform, canopy, roll-up doors, bumpers, steps) and a fenced yard of parked mail trucks.
+  `CivicKit.mail_truck_mesh()`: a code-built right-hand-drive delivery van (~1.1k triangles):
+  white, navy and red bands, an envelope mark, raked screen, mirrors on arms, wheels.
+- **City services** (RANDO CITY SERVICES CENTER: permits, water and power, parking): two or three
+  storeys of concrete, the ground floor glazed behind a colonnade of square piers, ribbon windows
+  above behind a screen of vertical fins, three flags (the national one between two of the city's
+  own invented flag), a monument sign, planters and benches, a car park behind.
+- **Community centre**: a tall hall (bowstring roof of standing-seam metal, or a low gable) with
+  a clerestory band and an accent band, a lower wing of classrooms, an entry canopy on steel
+  columns between them, picnic tables, a notice board, a drinking fountain, benches.
+
+**Where (pure).** `CivicBuildings.for_cell()`: the city is cut into `CELL` 640 m squares; a hash
+of seed + cell (`ODDS`, downtown only `DOWNTOWN_ODDS` of its cells) picks up to `TRIES` points;
+the first whose block is plain BUILDINGS in a civic district (SUBURBS, MIDTOWN, BEACHTOWN,
+downtown off the tower core), a city chunk (the block CENTRE's zone: a block at the foot of the
+hills is a hill chunk), not a landmark's / site's / grounds' / hospital's / the river's / the fire
+station's / a police station's / a beach walk street's, gives a SITE: a centred run of the
+block's lot-grid cells along one street (`SITE_TARGET` per kind, at least `SITE_MIN`), every
+cell's lot present, no courtyard lot or Broadway palace in it, clear of the freeways, within
+`MAX_RELIEF` 1.8 m (the ground boxes reach a metre down to meet the pavement on a slope), the
+road in front open. The kind is a hash weighted by district (`KIND_ODDS`). `CityChunk._build_lot()`
+asks `claims()` AFTER the fire station, the police station and Broadway (one hook, so no roll
+moves); the first claimed lot in lots() order builds it. Seed 1337: ~50 within 9 km.
+
+**Built.** FULL: one mesh a building (`CivicGeo`: walls cut round rectangular and arched
+openings with jambs, sills, heads and arch soffits; hip and gable roofs with UVs in metres for
+the clay; muntin grids), a `Body` of box shapes, TextMesh lettering (not on the web), flags,
+mail trucks (one MultiMesh), light pools and `lamp_light` omnis (not on the web), forecourt
+trees and palms on the chunk's own batches (a private rng), benches that seat the crowd
+(`CrowdLife.add_seat()`), a few `CivicVisitor`s (`scripts/npc/civic_visitor.gd`: a Pedestrian on
+a forecourt ring that never crosses; a postal carrier in blue-grey by the dock), static parked
+cars on LotFill's `apark_car_*` batch. **The glass** (`shaders/civic_glass.gdshader`) traces the
+room behind each pane with true parallax - book stacks and wall shelving (spines faded to their
+mean under a pixel), the post office's wall of brass-doored boxes and its counter, desks and
+partitions, the hall's maple floor and far wall, a lobby - lit by daylight falling off inward
+and, while open (`open_hours` on `city_hour`), by the ceiling lights after dark; night lights in
+a few panes otherwise. The pane's frame comes from the derivatives (the sites are mirrored, so a
+tangent cannot be baked); its sill and room height ride in COLOR.r / .g. LOD chunks and the far
+city: each mass as a CODED far box (`CivicBuildings._codes()`: FarBuilding's six codes with the
+kind's finish, window style, rows, pitch, wall set), the clay roofs as slabs over a gable prism
+(HouseBuild.lod()'s shape). Parked cars keep off the post office's drive and kerb truck
+(`keeps_clear()`), camps off a frontage (`keep_clear_points()`).
+
+**Switch:** `CIVIC=0` in the environment (the A/B). **Probe:** `tools/civic/probe.gd` (every
+building within `--radius` of `--at`, its kind, name, site and two EYEs for block_shot / still_shot;
+seconds, headless). **Checks:** `tests/civic_buildings_checks.gd`.
+
+**Not done / not verified.** Not seen on Forward+ (every still is opengl3 block_shot). The mail
+trucks are static (no truck drives a route, none can be stolen); the parked cars are LotFill's
+static ones. No interiors you can walk into (the rooms are traced in the glass). The far boxes
+draw the coded facade grid, not the arches or the tower. A suburban site leaves its neighbours'
+fence lines to them (YardFill fences the shared line from the -x / -z lot, which may be this one).

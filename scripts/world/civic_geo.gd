@@ -277,7 +277,9 @@ func _opening(key: String, o: Vector3, t: Vector3, n: Vector3, op: Dictionary, r
 		return o + t * a + Vector3(0.0, y, 0.0) - n * d
 	# Arch spandrels: the head band between the arc and the opening's rect corners.
 	var segs := 10
-	var arc: Array[Vector2] = _arc(op, segs) if arch else []
+	var arc: Array[Vector2] = []
+	if arch:
+		arc = _arc(op, segs)
 	if arch:
 		var mid := segs / 2
 		for k in segs:

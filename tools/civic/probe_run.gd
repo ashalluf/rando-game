@@ -37,14 +37,16 @@ func run(tree: SceneTree) -> void:
 		var n2: Vector2 = f.n
 		var front: Vector2 = s.front
 		var rw := plan.road_width(int(s.road[0]), int(s.road[1]))
-		var eye := front - n2 * (rw * 0.5 + 2.0)
-		var yaw := rad_to_deg(atan2(-n2.x, -n2.y))
-		var g := m.relief_at(eye)
 		var site: Rect2 = s.site
-		var far := front - n2 * (rw * 0.5 + 26.0) + (f.a as Vector2) * 14.0
-		var yaw2 := rad_to_deg(atan2(-(site.get_center() - far).x, -(site.get_center() - far).y))
-		print("CIVIC %-16s %-16s %s district %d lots %d site %.0fx%.0f at (%.0f, %.0f)  EYE=%.1f,%.1f,%.1f,%.0f,6  EYE2=%.1f,%.1f,%.1f,%.0f,-14" % [
+		var eye := front - n2 * (rw * 0.15) + (f.a as Vector2) * 6.0
+		var look := site.get_center() - eye
+		var yaw := rad_to_deg(atan2(-look.x, -look.y))
+		var g := m.relief_at(eye)
+		var far := front - n2 * (rw * 0.5 + 6.0) - (f.a as Vector2) * 18.0
+		var look2 := site.get_center() - far
+		var yaw2 := rad_to_deg(atan2(-look2.x, -look2.y))
+		print("CIVIC %-16s %-16s %s district %d lots %d site %.0fx%.0f at (%.0f, %.0f)  EYE=%.1f,%.1f,%.1f,%.0f,8  EYE2=%.1f,%.1f,%.1f,%.0f,-20" % [
 			CivicBuildings.kind_name(int(s.kind)), s.name, str(s.block), int(s.district), (s.lots as Array).size(), float(s.L), float(s.D),
-			site.get_center().x, site.get_center().y, eye.x, g + 1.7, eye.y, yaw, far.x, m.relief_at(far) + 14.0, far.y, yaw2])
+			site.get_center().x, site.get_center().y, eye.x, g + 1.7, eye.y, yaw, far.x, m.relief_at(far) + 16.0, far.y, yaw2])
 	print("REASONS ", CivicBuildings.reasons)
 	print("CIVIC_TOTAL %d in %.0f m of %s: %s (%.0f ms)" % [list.size(), radius, str(at), str(counts), float(Time.get_ticks_usec() - t0) / 1000.0])
