@@ -1153,6 +1153,8 @@ func _follow_traffic(eye: Vector3, _dt: float) -> void:
 			# The diesel: loud at idle, revving up a little as it pulls away; no tyre Doppler on top.
 			v.volume_db = float(_diesel[1]) + ambience_db + car_roll_db + 2.0 - clampf(speed * 0.15, 0.0, 3.0)
 			v.pitch_scale = clampf((0.95 + speed / 30.0) * doppler, 0.8, 1.6)
+			if EngineAudio.voiced(n):
+				v.volume_db -= 40.0 # its own engine voice carries it (EngineAudio)
 		for k in _passes.size():
 			if _pass_of[k] == car and _passes[k].playing:
 				v.volume_db -= 8.0 # the pass-by carries it for now
