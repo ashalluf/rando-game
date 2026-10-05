@@ -71,7 +71,9 @@ static func fingerprint() -> String:
 			args.append(a)
 	var extra := [Engine.get_version_info().get("hash", ""), OS.get_name(), OS.has_feature("web"), args]
 	for n: String in names:
-		extra.append([n, OS.get_environment(n)])
+		# The load's own switches (LOAD_CACHE, LOAD_QUIT, LOAD_PROFILE) change nothing it builds.
+		if not n.begins_with("LOAD_"):
+			extra.append([n, OS.get_environment(n)])
 	ctx.update(var_to_bytes(extra))
 	_fingerprint = ctx.finish().hex_encode()
 	print("LOADING cache fingerprint: %d scripts, %d assets, %d switches, %d ms" % [files.size(), assets.size(), names.size(),
