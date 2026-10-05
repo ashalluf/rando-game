@@ -5,8 +5,8 @@ You are a fresh Claude Code session on "Rando Game" (github.com/ashalluf/rando-g
 FIRST read, in full: CLAUDE.md (the rulebook), the top of docs/HANDOFF.md (section 000000 first, then the newest 9xx sections), VISUAL_ROADMAP.md and the docs sections your task points to. They are the source of truth. The owner's bar: AAA, like a real 2026 game; RDR2 / GTA V on PS5. Realistic and high-poly, never low-poly or cartoon. Tone of the game: silly, over the top, overpowered player; the WORLD is realistic.
 
 ## Your starting point
-- New work: `git fetch origin fleet/base main && git checkout -b wt/<slug> origin/fleet/base` (fleet/base is main plus the 19 branches of integration-a; main is fast-forwarded to it once its gate is green).
-- Updating an existing branch: `git fetch origin wt/<slug> main fleet/base && git checkout -b wt/<slug> origin/wt/<slug>` then MERGE `origin/fleet/base` (or origin/main if it is newer) into it. The repo clone may be shallow: `git fetch --unshallow` if a merge cannot find a base.
+- **Since 21:05 UTC (resumed sessions): start from `origin/main`**, which now holds integration-a plus wave 2's batches 1-8 (build 359). `git fetch origin main && git checkout -b wt/<slug> origin/main`. Ignore any older line (here or in your own prompt) that says fleet/base: it is stale.
+- Updating an existing branch: `git fetch origin wt/<slug> main && git checkout -b wt/<slug> origin/wt/<slug>` then MERGE `origin/main` into it. The repo clone may be shallow: `git fetch --unshallow` if a merge cannot find a base.
 
 ## Setup (nothing is preinstalled)
 - Godot (downloads.godotengine.org is BLOCKED by the network policy; use GitHub):
@@ -23,7 +23,8 @@ FIRST read, in full: CLAUDE.md (the rulebook), the top of docs/HANDOFF.md (secti
 - Every new system gets an environment switch `<NAME>=0` that turns it off (the A/B), like the existing ones.
 - Measure frame cost before and after with tools/geo_count.gd at a bookmark near your feature; keep it close to flat. FULL chunks real, LOD chunks and the far city cheap. Respect Quality levels and the web build (Compatibility renderer: no Forward+-only features without a fallback).
 - The full headless check (tests/headless_check.sh, 25-30 min) must pass before every push of code. Put your checks in a new tests/<slug>_checks.gd loaded by ONE line in tests/smoke_test.gd. Run it at most once an hour; iterate with small probes and tools/shader_check.gd.
-- **Gate cap (lead, 11:35):** headless_check.sh kills the smoke test at 900 s, and a merged city now runs 1,500 checks in 15-17 min on these boxes. If your run ends with "== Smoke test timed out", raise that `timeout 900` to `timeout 2400` in your branch (main gets the same change in the next push, so the merge is clean) and run again. A timeout is not a pass.
+- **The gate on main:** `tests/headless_check.sh` already allows the smoke test 2400 s; `SHARDS=3 tests/headless_check.sh` runs it in three processes (~10 min, ~2.4 GB each) and is the fast way to gate. A full run is ~2,375 checks. While you iterate, `SMOKE_PARTS=<part>,<file>_checks` runs just those parts (the names are in tests/smoke_test.gd). A timeout is not a pass.
+- **Live systems act on what your checks place** (main's CI failed four times on this): street errands park traffic cars and pull parked ones out, CarLights re-picks every 0.15 s, birds and crowd life roll on their own clocks. Stage your scene (`TrafficManager.staged`, place_car(), the env switches) and wait on conditions, not on fixed frame counts.
 - Assets: CC0 / free-for-commercial-use only (Poly Haven, ambientCG, Kenney, Quaternius, CC0 freesound), recorded in docs/ASSETS.md; or built in code / Blender scripts (tools/). Meshy is retired. Never commit secrets.
 - Original only: no real brand, company, team, artist, person, building, venue or agency name or logo anywhere (invent names). Public street names may appear. No children in the crowd.
 - Places of worship and cemeteries get the Sanctuary zone (CLAUDE.md, the masjid note): no shooting at or into them.
@@ -36,9 +37,6 @@ FIRST read, in full: CLAUDE.md (the rulebook), the top of docs/HANDOFF.md (secti
 - Put stills (jpg, 1280 px wide or less, under about 1 MB each) and a README.md listing them on an ORPHAN branch `shots/<slug>`: `git checkout --orphan shots/<slug>`, clear the tree, commit the images, push; then switch back to wt/<slug>. If that branch already exists from an earlier session, fetch it and add commits on top.
 - Push a FIRST batch as soon as you have something to show (a before and a first after), then the final set at the end. Name files so they read on their own (`01_before_street_noon.jpg`, `02_after_street_noon.jpg`, `03_after_night_2100.jpg`).
 - If pushing that branch is refused, commit the stills instead in ONE separate last commit on your own branch under .shots/<slug>/, with the subject "SHOTS (lead drops this commit)".
-
-## Known failure on fleet/base (do not fix it)
-The full gate on fleet/base passes 1,360 checks and fails ONE: "the map draws no closed road (1)" (tests/minimap_checks.gd). It depends on the order the run decides road closures in; the lead is fixing it on main. Ignore that one line in your gate result (report it), do not touch it, and merge origin/main before your final push to pick up the fix. Any OTHER failure is yours to fix.
 
 ## When you are done
 Finish your last message with: branch head, check result (number of checks passed and failed), peak memory of the check if you measured it, frame-cost numbers, the still names, and what is not done or not verified.
