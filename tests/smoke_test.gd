@@ -1863,6 +1863,9 @@ func _test_city() -> void:
 	# The oil field (tests/oil_field_checks.gd): the site and its closed streets, the hill, level pads
 	# and graded lease roads, the pumpjack's linkage and mesh, the chunks, the city's single wells.
 	load("res://tests/oil_field_checks.gd").new().run(self, city)
+	# Vacant lots and gravel car parks (tests/vacant_lots_checks.gd): the pure plan's share per
+	# district, each plan inside its cell, a FULL chunk's two meshes and weed batches, the A/B, LOD.
+	load("res://tests/vacant_lots_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

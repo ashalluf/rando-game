@@ -2121,6 +2121,32 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the far city get roof-plant-style `lod_box`es (the pylon a lit face). `CAR_DEALERS=0` is the
   A/B; `tools/car_dealers/probe.gd` lists the sites with STREET / ABOVE EYEs. Checks:
   `tests/car_dealers_checks.gd`.
+- Vacant lots (2026-10-05, the vacant-lots pass, docs/HANDOFF.md "vacant lots"): `VacantLots`
+  (`scripts/world/vacant_lots.gd`) + `VacantKit` (`scripts/world/vacant_kit.gd`). A small share of
+  EDGE lots in MIDTOWN (`ODDS` 6 %), INDUSTRIAL (5.5 %) and DOWNTOWN where `skyline_boost` <
+  `EDGE_BOOST` (7.5 %), more within `ARENA_REACH` of the arena, stand empty: VACANT (dry dirt and
+  gravel, tyre ruts in from the gate, dry grass, a demolished building's broken slab with stem
+  walls and rebar, rubble piles, a sofa / armchair / mattress / tyres / TV / shopping cart,
+  chain-link with a privacy screen and a padlocked gate on the street sides, an invented broker's
+  FOR LEASE / SALE board with a 555 number, NO TRESPASSING, a lone weed tree or palm, tufts of
+  foxtail, wild mustard and fennel) or a GRAVEL CAR PARK (`PARKING_SHARE`, mostly downtown and by
+  the arena: wheel stops, ArenaGrounds' static cars, an open gate with cones, a hand-painted
+  PARKING $10 board - $20 EVENT by the arena - and the attendant's booth). **Claimed in
+  `CityChunk._build_lot()` after the pad roll and the corridor / fire station / car park checks**
+  (`VacantLots.build_lot()`), so no roll moves and the Building is never made; `kind_of()` and
+  `plan_lot()` are pure (hashes of seed + lot; GroundCoverage and `Industrial.block_entries()` ask
+  them too). Never a courtyard, an inner lot, a landmark's / replica's / rec park's / school's
+  block, or under a freeway. FULL: ONE ground mesh (`VacantGround`, `shaders/vacant_ground.gdshader`,
+  no shadow; kind in COLOR.r 8ths, UV world metres, UV2 the piece's frame - the ruts run in the
+  lot's street frame from the gate, the slab's broken edge in its own rect), ONE casting upright
+  mesh (`VacantWalls`, `shaders/vacant_walls.gdshader`, IndustrialKit's box / cylinder layout,
+  kinds `VacantKit.K_*` in COLOR.a 32nds, lettering = FreewayKit.text_geo outlines merged in), and
+  the weeds in three shadowless batches (`vac_tuft_*`, `vac_mustard`, `vac_fennel`, code-built on
+  `shaders/vacant_weeds.gdshader`, linear vertex colours, sway). Chunk state lives in the meta
+  `vacant_lots` (no new CityChunk var). LOD and the far city: one slab per lot in its dirt or
+  gravel colour. No billboards are added (Billboards' own). Every colour shader includes
+  `color_space.gdshaderinc`. `VACANT_LOTS=0` in the environment is the A/B; `tools/vacant_probe.gd`
+  lists the lots with EYE lines; checks: `tests/vacant_lots_checks.gd`.
 - Port (roadmap #35, 2026-09-27): the container terminal (`MacroMap.port_rect`) is
   `CityChunk._build_port()` laying out `PortKit` (`scripts/world/port_kit.gd`), all built in code.
   **The old port's rolls stay** on the block rng in the old order (rows, columns, the 30 % truck

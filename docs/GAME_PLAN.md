@@ -563,6 +563,18 @@ already mapped so milestone 2 is script-only.
   a per-well phase and speed (nothing on the CPU, the shadows move too); everything else is code on
   the industrial district's material; the operator is invented (BASIN CREST OIL CO.). Single wells
   claim 3.5 % of industrial lots and 2 % of suburban ones by hash, after every roll.
+- **2026-10-05 The city has vacant lots and gravel car parks (VISUAL_ROADMAP #93).** (Fleet brief:
+  "the in-between land that makes a city real".) Every lot was built or filled; now 3-6 % of the
+  EDGE lots in midtown, the industrial district and downtown's edges stand empty, and the lots
+  round the arena are mostly event car parks. `VacantLots` claims a lot in `CityChunk._build_lot()`
+  after every roll it makes (the pad roll, the corridor, fire station and car park checks) from a
+  hash of seed + lot, so nothing a seed builds elsewhere moves and the Building is never made; the
+  plan is pure, so GroundCoverage and Industrial's block entries agree with the chunk. Decisions
+  worth knowing: inner lots and courtyards are never vacant (a vacant lot needs a street side for
+  its fence, gate and sign); the far city gets one dirt or gravel slab per lot, nothing else; all
+  of it is code at real size (no new assets) in ONE ground and ONE walls mesh a chunk plus three
+  weed batches, the pattern Industrial and YardFill set; broker names and phone numbers are
+  invented (555); no billboards are added (Billboards owns them).
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
