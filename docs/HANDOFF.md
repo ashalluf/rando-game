@@ -8685,9 +8685,9 @@ from a `SMOKE_PROFILE=1` run's `PART` lines when a part grows a lot.
 | run on the fleet box | smoke wall | peak memory | checks (fail) |
 |---|---|---|---|
 | plain, fleet/base (before) | 808 s | 3.1 GB | 1362 (1: the minimap's, known) |
-| plain, this branch | 808-842 s | 3.1 GB | 1362, same list |
+| plain, this branch (main merged: the minimap fix) | 781-842 s | 3.1 GB | 1362 (0), same list as SHARDS=3 |
 | SHARDS=2 | 515 s | 5.0 GB (2.6 each) | same list (+16 repeated setup) |
-| SHARDS=3 | 341 s | 6.7 GB (2.3 each) | same list (+32) |
+| SHARDS=3 | 341-375 s | 6.7 GB (2.4 each) | same list (+32) |
 | SHARDS=4 | 326 s | 8.3 GB (2.2 each) | same list (+48) |
 
 Import adds 14 s to each (a cached `.godot`; a fresh clone ~1 min). Four shares are no faster
