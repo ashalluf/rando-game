@@ -26,9 +26,6 @@ func _ready() -> void:
 			node.set("enabled", false)
 	for i in 30:
 		await get_tree().physics_frame
-	var suite: Variant = load(OS.get_environment("CHECK")).new().run(self, city)
-	if suite is Object:
-		pass
-	await suite
+	await load(OS.get_environment("CHECK")).new().run(self, city)
 	print("ONE_CHECK passed %d failed %d" % [passed, failed])
 	get_tree().quit()
