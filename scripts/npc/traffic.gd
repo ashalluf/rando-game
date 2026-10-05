@@ -386,6 +386,11 @@ func _board_line(car: Vehicle, axis: int, index: int, dir: int) -> void:
 	if fit:
 		fit.show_line(line, BigVehicles.destination(plan, axis, index, dir))
 		fit.set_doors(false)
+	elif not car.is_node_ready():
+		# A bus built just now gets its fittings in its _ready() (Vehicle._add_body_model ->
+		# BigVehicles.fit), which runs when _enter_at() adds it - after this - and would put its
+		# signs out again: board it once more as soon as it has them.
+		car.ready.connect(_board_line.bind(car, axis, index, dir), CONNECT_ONE_SHOT)
 
 
 ## True when nothing in lane (axis, index, dir, lane) is within `clear` metres of `along`.
