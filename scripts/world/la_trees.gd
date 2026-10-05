@@ -411,11 +411,20 @@ static func house(ch: CityChunk, h: Dictionary) -> void:
 		var gap := 1.5 + _h01([plan.seed, s, "la_cyp_gap"]) * 0.8
 		var vv := clampf(front - 1.0, 1.2, front - 0.8)
 		for side: float in [-1.0, 1.0]:
+			# Flanking the walk, or further along the front when the drive is there.
 			var u := door_u + side * gap
+			for step in 3:
+				if clear.call(u, 0.9):
+					break
+				u += side * 1.3
 			if n >= MAX_CYPRESS or not clear.call(u, 0.9):
 				continue
 			n += 1
 			var p := YardFill._fp(f, u, vv)
+			# Where they stand, for the checks and the probe (the door's side of the pair).
+			var at: Array = ch.get_meta("la_cypress_at", [])
+			at.append(Vector3(p.x, base, p.y))
+			ch.set_meta("la_cypress_at", at)
 			var hs := ht * (0.95 + 0.1 * _h01([plan.seed, s, side, "la_cyp_hs"]))
 			var sc := scale_for(Species.CYPRESS, hs)
 			_add(ch, Species.CYPRESS, v, Transform3D(Basis(Vector3.UP, _h01([plan.seed, s, side]) * TAU).scaled(Vector3(sc, sc, sc)), Vector3(p.x, base, p.y)), Color(1, 1, 1))
@@ -444,6 +453,11 @@ static func house(ch: CityChunk, h: Dictionary) -> void:
 
 
 static func _add(ch: CityChunk, sp: int, v: int, xf: Transform3D, tint: Color) -> void:
+	# What stands where (species, position), for the checks and the probe: the headless renderer
+	# keeps no instance data to read back.
+	var at: Array = ch.get_meta("la_at", [])
+	at.append([sp, xf.origin])
+	ch.set_meta("la_at", at)
 	ch._batch.add("la_%s_%d" % [NAMES[sp], v], mesh(sp, v), xf, tint)
 
 
@@ -482,7 +496,7 @@ static func _params(sp: int, v: int) -> Dictionary:
 				"crown_c": 0.62, "crown_r": Vector2(7.2, 8.0), "clumps": 15, "clump_r": 2.2, "clusters": 260, "shell": 0.6,
 				"cluster_r": 0.6, "leaves": 9, "leaf_len": 0.5, "leaf_w": 0.24, "leaf_kind": L_SPRIG, "sprig": 1, "mode": "hang", "leaf_segs": 2,
 				"droop": 0.25, "limbs": 7, "group": 5, "gnarl": 0.22, "twig_r": 0.011, "trunk_k": 3.8, "bark_kind": B_EUC,
-				"bark": Color(0.58, 0.55, 0.47), "leaf": [Color(0.15, 0.20, 0.16), Color(0.24, 0.29, 0.22)], "cluster_style": 1,
+				"bark": Color(0.63, 0.61, 0.55), "leaf": [Color(0.15, 0.20, 0.16), Color(0.24, 0.29, 0.22)], "cluster_style": 1,
 				"bend": 0.0011, "flutter": 0.05, "rough": 0.62, "spec": 0.38, "trans": 0.35, "under": Color(1.05, 1.08, 1.06), "strips": 9}
 		Species.CYPRESS:
 			return {"kind": "column", "height": 13.0, "radius": 0.85 + 0.15 * v, "clusters": 520, "cluster_r": 0.32, "leaves": 7,
@@ -496,7 +510,7 @@ static func _params(sp: int, v: int) -> Dictionary:
 				"crown_c": 0.64, "crown_r": Vector2(3.3, 2.2), "clumps": 0, "clusters": 170, "shell": 0.45,
 				"cluster_r": 0.4, "leaves": 9, "leaf_len": 0.3, "leaf_w": 0.18, "leaf_kind": L_SPRIG, "sprig": 2, "mode": "up", "leaf_segs": 1,
 				"droop": 0.0, "limbs": 6, "group": 5, "gnarl": 0.45, "twig_r": 0.008, "trunk_k": 3.6, "bark_kind": B_OLIVE,
-				"bark": Color(0.30, 0.28, 0.24), "leaf": [Color(0.19, 0.21, 0.15), Color(0.27, 0.29, 0.21)], "cluster_style": 0,
+				"bark": Color(0.42, 0.40, 0.35), "leaf": [Color(0.19, 0.21, 0.15), Color(0.27, 0.29, 0.21)], "cluster_style": 0,
 				"bend": 0.002, "flutter": 0.02, "rough": 0.7, "spec": 0.32, "trans": 0.25, "under": Color(1.75, 1.8, 1.7)}
 		Species.FIG:
 			# Indian laurel fig: the downtown street tree. Smooth grey trunk with a root flare,

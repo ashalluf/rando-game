@@ -25,6 +25,21 @@ func _initialize() -> void:
 	var start: Vector2i = plan.block_index_at(c)
 	var span := int(reach / 60.0) + 2
 	var found := 0
+	if mode == "chunk":
+		# K=ix,iz: build that block FULL and list its batches.
+		var kk := OS.get_environment("K").split(",")
+		var ch = current_scene.call("_new_chunk", Vector2i(kk[0].to_int(), kk[1].to_int()), 0)
+		ch.call("build")
+		for n in ch.get_children():
+			if n is MultiMeshInstance3D and String(n.name).begins_with("Batch_"):
+				print("BATCH %s %d" % [n.name, (n as MultiMeshInstance3D).multimesh.instance_count])
+		print("META cypress=%d accents=%d" % [int(ch.get_meta("la_cypress", 0)), int(ch.get_meta("la_accents", 0))])
+		for e: Array in ch.get_meta("la_at", []):
+			print("AT %s %.1f,%.1f" % [names[int(e[0])], (e[1] as Vector3).x, (e[1] as Vector3).z])
+		for p: Vector3 in ch.get_meta("la_cypress_at", []):
+			print("CYPRESS_AT %.1f,%.1f" % [p.x, p.z])
+		quit()
+		return
 	if mode == "row":
 		var fw = plan.macro.freeway
 		for s in fw.segments_in(Rect2(c - Vector2(reach, reach), Vector2(reach, reach) * 2.0)):

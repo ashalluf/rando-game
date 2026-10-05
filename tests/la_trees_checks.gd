@@ -168,7 +168,7 @@ func _suburbs(city: Node3D, plan: CityPlan) -> void:
 			break
 		for dz in range(-r, r + 1):
 			for dx in range(-r, r + 1):
-				if maxi(absi(dx), absi(dz)) != r or tried >= 8 or (cypress > 0 and accents > 0):
+				if maxi(absi(dx), absi(dz)) != r or tried >= 5 or (cypress > 0 and accents > 0):
 					continue
 				var k := start + Vector2i(dx * 3, dz * 3)
 				var b := plan.block(k.x, k.y)

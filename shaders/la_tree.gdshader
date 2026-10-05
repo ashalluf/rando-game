@@ -329,6 +329,21 @@ void fragment() {
 	} else {
 		k = sprig(uv, style, rnd);
 	}
+	if (kind > 10.5 && kind < 12.5 || kind > 18.5) {
+		// Leaves under a pixel only alias (a sprig's narrow leaves left their stems as glyphs):
+		// as they shrink, the card is kept by its average cover inside its outline, dithered per
+		// pixel (TAA resolves it), so a crown keeps its density and tone with distance.
+		float px = max(fwidth(uv.y), fwidth(uv.x) * 0.35);
+		float feature = kind > 18.5 ? (style < 0.5 ? 0.07 : 0.035) : (kind < 11.5 ? 0.05 : 0.08);
+		float cover = kind > 18.5 ? (style < 0.5 ? 0.5 : (style < 1.5 ? 0.38 : 0.45)) : (kind < 11.5 ? 0.6 : fract(v_rnd) * 0.9);
+		float detail = smoothstep(feature * 0.5, feature * 2.0, px);
+		float d1 = h21(FRAGCOORD.xy + rnd * 13.0);
+		if (d1 < detail) {
+			float env = 1.0 - length(vec2(uv.x, (uv.y - 0.5) / 0.5));
+			float d2 = h21(FRAGCOORD.yx * 1.37 + rnd * 7.0 + 3.1);
+			k = (env > 0.0 && d2 < cover / 0.78) ? 1.0 : -1.0;
+		}
+	}
 	float aa = max(fwidth(k), 1e-4);
 	ALPHA = clamp(k / aa + 0.5, 0.0, 1.0);
 	ALPHA_SCISSOR_THRESHOLD = 0.5;
