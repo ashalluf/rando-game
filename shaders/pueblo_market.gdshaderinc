@@ -30,11 +30,15 @@ uniform float sway = 0.07;
 uniform float sway_speed = 1.6;
 // Light through tissue paper and canvas (the sun behind a flag lights it from behind).
 uniform float paper_glow = 0.55;
+// Debug views (tools/pueblo_lane/stall_shot.gd DEBUG=n): 1 the UV, 2 the kind, 3 the seed.
+uniform int debug_mode = 0;
 // Detail under a pixel is averaged away from this many metres.
 uniform float detail_fade = 40.0;
 
-varying float v_kind;
-varying float v_seed;
+// Flat: interpolated, three equal values still come out a few ulps apart, and the hashes that
+// take the seed turn that into per-pixel colour noise (the sarapes drew as RGB static).
+varying flat float v_kind;
+varying flat float v_seed;
 varying vec3 v_paint;
 varying vec3 v_world;
 
@@ -78,7 +82,7 @@ vec3 pm_sway(vec3 wp, float free, float t) {
 // The body of vertex() (varyings may only be written there): kind, seed, paint, sway.
 #define PM_VERTEX \
 	v_kind = floor(COLOR.a * 16.0); \
-	v_seed = UV2.x; \
+	v_seed = floor(UV2.x * 4096.0 + 0.5) / 4096.0; \
 	v_paint = cs_srgb_to_linear(COLOR.rgb); \
 	vec3 pm_wp = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz; \
 	v_world = pm_wp; \
@@ -313,6 +317,15 @@ PmSurf pm_surface(vec2 uv, float dist, float px) {
 		s.albedo = cs_srgb_to_linear(vec3(0.82, 0.82, 0.84));
 		s.rough = 0.22;
 		s.metal = 1.0;
+	}
+	if (debug_mode == 1) {
+		s.albedo = vec3(fract(uv), 0.0);
+	} else if (debug_mode == 2) {
+		s.albedo = vec3(k / 16.0);
+	} else if (debug_mode == 3) {
+		s.albedo = vec3(v_seed);
+	} else if (debug_mode == 4) {
+		s.albedo = vec3(fract(v_seed * 91.0 + 3.0), pm_hash(vec2(1.0, v_seed * 91.0 + 3.0)), 0.0);
 	}
 	// The street gets wet; so does anything near the ground in the rain.
 	s.rough = mix(s.rough, s.rough * 0.55, wet * step(v_world.y, 0.4));

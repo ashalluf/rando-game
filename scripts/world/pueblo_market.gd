@@ -40,6 +40,10 @@ const STALL_PAINTS := [Color(0.12, 0.36, 0.55), Color(0.1, 0.45, 0.38), Color(0.
 ## Awning colours (the first stripe; the second is cream), sRGB.
 const AWNING_COLORS := [Color(0.82, 0.1, 0.12), Color(0.1, 0.42, 0.22), Color(0.95, 0.5, 0.08),
 	Color(0.12, 0.3, 0.7), Color(0.85, 0.18, 0.5), Color(0.92, 0.75, 0.12)]
+## A sarape's ground (the field between its bands), sRGB: natural, rust, deep red, indigo,
+## charcoal, ochre, turquoise.
+const SARAPE_GROUNDS := [Color(0.86, 0.8, 0.68), Color(0.62, 0.22, 0.1), Color(0.5, 0.06, 0.08),
+	Color(0.12, 0.14, 0.32), Color(0.16, 0.15, 0.15), Color(0.78, 0.55, 0.16), Color(0.1, 0.48, 0.5)]
 ## Papel picado, sRGB: the tissue colours.
 const PAPER_COLORS := [Color(0.95, 0.15, 0.55), Color(0.99, 0.55, 0.08), Color(0.98, 0.85, 0.15),
 	Color(0.35, 0.78, 0.2), Color(0.1, 0.7, 0.75), Color(0.18, 0.35, 0.9), Color(0.6, 0.25, 0.8),
@@ -324,16 +328,16 @@ static func _goods(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, l
 				var y := top
 				for j in 3 + int(_rr(s, "st", i) * 4.0):
 					var th := 0.05 + 0.02 * _rr(s, "th", i * 10 + j)
-					solid.set_look(Color(0.2, 0.08, 0.06), K_SARAPE, _rr(s, "pal", i * 10 + j))
+					solid.set_look(_ground(s, i * 10 + j), K_SARAPE, _rr(s, "pal", i * 10 + j))
 					solid.box(at.call(Vector3(x + (_rr(s, "jx", i * 10 + j) - 0.5) * 0.04, y + th * 0.5, -0.28)), Vector3(0.5, th, 0.36))
 					y += th
 			for i in 3:
-				thin.set_look(Color(0.15, 0.08, 0.05), K_SARAPE, _rr(s, "back", i))
+				thin.set_look(_ground(s, 100 + i), K_SARAPE, _rr(s, "back", i))
 				var bp := xf * Vector3(-hw + 0.12 + 0.75 * float(i), 2.3, -STALL_D + 0.07)
 				thin.sheet(bp, b * Vector3(1, 0, 0), Vector3.DOWN, 0.7, 1.35, front, 4, 0.0, 0.05)
 				_fringe(thin, bp + Vector3.DOWN * 1.35, b * Vector3(1, 0, 0), 0.7, front, 0.05)
 			for i in 2:
-				thin.set_look(Color(0.1, 0.06, 0.05), K_SARAPE, _rr(s, "hang", i))
+				thin.set_look(_ground(s, 200 + i), K_SARAPE, _rr(s, "hang", i))
 				var hp := xf * Vector3(-hw + 0.05 + (STALL_W - 0.85) * float(i), 2.2, 0.32)
 				thin.sheet(hp, b * Vector3(1, 0, 0), Vector3.DOWN, 0.8, 1.3, front, 5, 0.05, 0.6, false, 0.04)
 				_fringe(thin, hp + Vector3.DOWN * 1.3, b * Vector3(1, 0, 0), 0.8, front, 0.6)
@@ -485,6 +489,10 @@ static func _fringe(thin: Acc, p: Vector3, ax: Vector3, w: float, face: Vector3,
 
 static func _rr(s: int, k: String, i: int) -> float:
 	return h01([s, k, i])
+
+
+static func _ground(s: int, i: int) -> Color:
+	return SARAPE_GROUNDS[hash([s, "ground", i]) % SARAPE_GROUNDS.size()]
 
 
 static func _dye(s: int, i: int) -> Color:
