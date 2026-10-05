@@ -1227,13 +1227,20 @@ func _test_city() -> void:
 						if doll.bodies.is_empty() or doll.bleed <= 0.0:
 							continue
 						var rb: RigidBody3D = doll.bodies[0]
-						var on_street := not doll._ground_under(doll._pelvis()).is_empty()
+						# On the street means what Ragdoll._blood_step() pools on: ground on the world
+						# layer under the hips AND the hips within 0.6 m of it. The ray only sees the
+						# world layer, so a body draped over a car or a kerb cart has the road under it
+						# too, but lies too high to pool (by design).
+						var pel := doll._pelvis()
+						var gu: Dictionary = doll._ground_under(pel)
+						var lift := pel.y - float((gu.position as Vector3).y) if not gu.is_empty() else INF
+						var on_street := not gu.is_empty() and lift < 0.6
 						bled += 1
 						if not on_street:
 							off += 1
-						where += " ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, street under it %s;" % [
+						where += " ragdoll at %s, speed %.2f, age %.1f, bleed %.1f, hips %.2f m over the street, on it %s;" % [
 							str(rb.global_position.snapped(Vector3.ONE * 0.1)), rb.linear_velocity.length(),
-							float(n.get("_age")), doll.bleed, on_street]
+							float(n.get("_age")), doll.bleed, lift, on_street]
 					# A body that rests on a parked car, a bench or a planter has no street under
 					# it within reach, and by design gets no pool there (Ragdoll._ground_under).
 					# Which person the rifle drops, and where they land, depends on the frame
