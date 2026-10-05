@@ -1756,7 +1756,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   The surface street grid is still axis-aligned (`CityPlan.road_pos()` is scalar per axis and
   blocks, lots, traffic lanes and the minimap all assume axis-aligned rects); the freeways and the
   hill roads are the curved roads.
-- The Los Angeles River (VISUAL_ROADMAP #54, 2026-10-05, docs/HANDOFF.md 9bl): the concrete
+- The Los Angeles River (VISUAL_ROADMAP #56, 2026-10-05, docs/HANDOFF.md 9bn): the concrete
   flood channel, as data (`LaRiver`, `scripts/world/la_river.gd`, `MacroMap.river`, built in
   `MacroMap.setup()` after the replica and BEFORE the hill roads and the freeway) and a chunk
   builder (`RiverBuild`, `scripts/world/river_build.gd`; bridges `RiverBridges`,
@@ -1812,7 +1812,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `tools/la_river/probe.gd` (route, profile, bridges, ramps, rail, river blocks, freeway
   crossings; seconds); timing `tools/la_river/river_bench.tscn`; stills
   `tools/la_river/river_shot.tscn` (CAR=1 a car down a ramp) and `still_shot.gd` EYEs (HANDOFF
-  9bl). Checks: `tests/la_river_checks.gd`.
+  9bn). Checks: `tests/la_river_checks.gd`.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is

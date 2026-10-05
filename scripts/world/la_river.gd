@@ -1,6 +1,6 @@
 class_name LaRiver
 extends RefCounted
-## The Los Angeles River as its concrete flood channel (VISUAL_ROADMAP #54, 2026-10-05).
+## The Los Angeles River as its concrete flood channel (VISUAL_ROADMAP #56, 2026-10-05).
 ##
 ## A DATA TABLE and pure functions, like Freeway and ReplicaAreas: the route, its cross section,
 ## the land level along it, which streets bridge it and which end at the bank, where the access
