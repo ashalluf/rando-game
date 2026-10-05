@@ -140,6 +140,9 @@ static func lane_on(plan: CityPlan, axis: int, index: int, k: int) -> bool:
 		var block := plan.block(bx, bz)
 		if block.has("site") or int(block.get("district", 0)) == CityPlan.District.INDUSTRIAL:
 			return false
+		# A school's kerb is its bus zone (Schools: the buses stand in the parking lane).
+		if block.has("school"):
+			return false
 		if plan.river_block(bx, bz):
 			return false
 		if plan.macro != null and plan.macro.replica != null and plan.macro.replica.block_role(plan, bx, bz) != 0:
@@ -258,6 +261,7 @@ static func build_block(chunk: CityChunk, block: Dictionary) -> void:
 	var rect: Rect2 = block.rect
 	var edges := CityChunk._sidewalk_edges(rect)
 	var occupied := StreetVendors._occupied(chunk)
+	occupied.append_array(_occupied_more(chunk))
 	var trees: Array = []
 	var data: Dictionary = chunk._batch.data()
 	if data.has("tree_grate"):
@@ -278,6 +282,26 @@ static func build_block(chunk: CityChunk, block: Dictionary) -> void:
 	chunk._batch.set_no_shadow(K_POST)
 	chunk._batch.set_draw_distance(K_LANE, LANE_DRAW)
 	chunk.set_meta("micro_items", count[0])
+
+
+## What else stands on (or must stay clear on) this chunk's pavements that StreetVendors does not
+## list: a fire station's apron, a police station's forecourt (as Encampment keeps clear of), and
+## Broadway's goods outside the shops and its street clock.
+static func _occupied_more(chunk: CityChunk) -> Array:
+	var out: Array = []
+	var apron := FireStation.apron_point(chunk.plan, chunk.ix, chunk.iz)
+	if apron != Vector2.INF:
+		out.append([apron, 12.0])
+	out.append_array(PoliceStation.keep_clear_points(chunk.plan, chunk.ix, chunk.iz))
+	var data: Dictionary = chunk._batch.data()
+	for key: String in ["bw_rack", "bw_gown", "bw_table"]:
+		if data.has(key):
+			for x: Transform3D in data[key].xforms:
+				out.append([Vector2(x.origin.x, x.origin.z), 1.1])
+	for c in chunk.get_children():
+		if c is Node3D and String(c.name).begins_with("BroadwayClock"):
+			out.append([Vector2((c as Node3D).position.x, (c as Node3D).position.z), 0.9])
+	return out
 
 
 ## The bike lanes on the chunk's own roads (the +x and +z ones, as the parked cars).

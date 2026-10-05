@@ -222,6 +222,9 @@ func _dress() -> void:
 	var inst := _visual.get_child(0) as Node3D if _visual.get_child_count() > 0 else null
 	if inst == null or _model_path == "" or _hat != Accessory.NONE:
 		return
+	# A head already covered (Pedestrian.NO_HAT_MODELS: a headscarf) takes no helmet either.
+	if _model_path in Pedestrian.NO_HAT_MODELS:
+		return
 	var share := helmet_share.x if kind == MicroMesh.Kind.ROAD else helmet_share.y
 	if kind >= MicroMesh.Kind.SCOOTER_A:
 		share *= 0.35
