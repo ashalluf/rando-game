@@ -98,8 +98,9 @@ void fragment() {
 	METALLIC = 0.0;
 	SPECULAR = 0.5;
 	vec3 sky = sky_tint.rgb * (1.0 - 0.88 * night_factor);
-	// At night the chop breaks the shore's lights into long warm streaks toward the viewer.
-	float streak = mw_noise(vec2(p.x * 0.6, p.y * 0.08) + grad * 30.0);
-	vec3 glow = night_glow * lamp_factor * smoothstep(0.45, 0.9, streak) * 2.0;
-	EMISSION = cs_out(sky * fres * sky_emit + glow * fres * 4.0);
+	// At night the city's warm glow on the water, broken up by the chop (a faint floor: the lamps'
+	// pools and, on Forward+, SSR carry the real reflections).
+	float sparkle = clamp(length(grad) * 6.0, 0.0, 1.0);
+	vec3 glow = night_glow * lamp_factor * (0.4 + 0.6 * sparkle);
+	EMISSION = cs_out(sky * fres * sky_emit + glow * fres);
 }

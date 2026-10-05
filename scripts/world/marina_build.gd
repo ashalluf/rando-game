@@ -386,7 +386,7 @@ static func material(key: String) -> Material:
 		"bike":
 			m = PropFactory.road("asphalt", 6.0, Color(1.35, 0.78, 0.66), 4027, 0.0, 0.3)
 		"rock":
-			m = PropFactory.pbr("rock", 3.2, Color(0.82, 0.8, 0.76))
+			m = PropFactory.pbr("hill_outcrop", 2.6, Color(0.95, 0.93, 0.9))
 		"deck":
 			m = PropFactory.pbr("planks", 2.2, Color(0.82, 0.74, 0.64))
 		"float":
@@ -1075,7 +1075,7 @@ func _mound(a: Vector2, b: Vector2, side: float, crest: float, top: float, key: 
 				nrm = Vector3.UP
 			quad("rock", Vector3(p00.x, y0, p00.y), Vector3(p10.x, y0, p10.y), Vector3(p11.x, y1, p11.y), Vector3(p01.x, y1, p01.y), nrm)
 		# Boulders on the crest and the faces (FULL; a few at LOD for the silhouette).
-		var count := 6 if full else (1 if not capturing else 0)
+		var count := 9 if full else (2 if not capturing else 0)
 		for q in count:
 			var hk := [key, k, q]
 			var tt := lerpf(t0, t1, mr.h01(hk + ["t"]))
@@ -1084,11 +1084,11 @@ func _mound(a: Vector2, b: Vector2, side: float, crest: float, top: float, key: 
 			var off := lerpf(float(prof[0][0]) + water_run * 0.6, float(prof[3][0]) - water_run * 0.6, u)
 			var p := c + n * off
 			var h := _mound_y(off, prof)
-			var sc := lerpf(0.75, 1.5, mr.h01(hk + ["s"]))
+			var sc := lerpf(0.9, 1.9, mr.h01(hk + ["s"]))
 			var basis := Basis(Vector3.UP, mr.h01(hk + ["y"]) * TAU) * Basis(Vector3.RIGHT, (mr.h01(hk + ["r"]) - 0.5) * 0.9)
 			var v := 0 if mr.h01(hk + ["v"]) < 0.6 else 1
 			var at := Vector3(p.x, h - 0.4 * sc - ch._gy(p.x, p.y), p.y)
-			ch._batch.add("mr_rock%d" % v, PropFactory.model_rock(v), Transform3D(basis.scaled(Vector3.ONE * sc), at), Color(0.86, 0.84, 0.8))
+			ch._batch.add("mr_rock%d_%s" % [v, key], PropFactory.model_rock(v), Transform3D(basis.scaled(Vector3.ONE * sc), at), Color(0.86, 0.84, 0.8))
 	# The seaward head: a cone of rubble round the tip.
 	if _owns(b):
 		var segs := 10
