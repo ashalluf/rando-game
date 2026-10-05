@@ -112,6 +112,11 @@ const SAMPLES := {
 	"crow": ["crow_0.ogg", "crow_1.ogg", "crow_2.ogg", "crow_3.ogg"],
 	"sparrow": ["sparrow_0.ogg", "sparrow_1.ogg"],
 	"gull_close": ["gull_close_0.ogg", "gull_close_1.ogg"],
+	# The dogs (Dog): a big dog's bark close up, a small dog's yap, a yelp when one is hit. CC0
+	# recordings (docs/ASSETS.md); the dogs pitch them by size.
+	"bark_big": ["bark_big_0.ogg", "bark_big_1.ogg", "bark_big_2.ogg", "bark_big_3.ogg", "bark_big_4.ogg", "bark_big_5.ogg"],
+	"bark_small": ["bark_small_0.ogg", "bark_small_1.ogg", "bark_small_2.ogg", "bark_small_3.ogg", "bark_small_4.ogg"],
+	"dog_yelp": ["dog_yelp_0.ogg", "dog_yelp_1.ogg", "dog_yelp_2.ogg"],
 }
 
 ## Loudest-50 ms level of every take above, in dB, in the same order, measured off the committed
@@ -161,6 +166,9 @@ const SAMPLE_LOUDNESS_DB := {
 	"crow": [-11.77, -11.39, -10.98, -8.73],
 	"sparrow": [-12.15, -11.52],
 	"gull_close": [-10.40, -9.05],
+	"bark_big": [-5.26, -4.88, -4.79, -3.41, -5.46, -5.02],
+	"bark_small": [-16.59, -17.13, -17.65, -16.79, -18.89],
+	"dog_yelp": [-11.57, -10.06, -6.64],
 }
 
 ## Sample names that have to loop. Set on the stream in code rather than in the .import file, so
@@ -541,6 +549,9 @@ func _build_synth() -> void:
 	_put("crow", _sweep(0.35, 1300.0, 900.0, 0.5))
 	_put("sparrow", _chirps(0.8, 4, 3000.0, 4500.0))
 	_put("gull_close", _chirps(1.2, 3, 1400.0, 2200.0))
+	_put("bark_big", _bark(0.6))
+	_put("bark_small", _chirps(0.3, 2, 900.0, 1400.0))
+	_put("dog_yelp", _yelp(0.45))
 
 
 func _put(key: String, samples: PackedFloat32Array, looping: bool = false) -> void:

@@ -2102,6 +2102,8 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 		return
 	# The birds hear every shot and blast first (they startle further than people do).
 	Birds.startle(at, radius)
+	# And the dogs (Dog): a lead dog barks with its tail tucked, a yard dog runs for the house.
+	Dog.startle_all(tree, at, radius)
 	var now := Time.get_ticks_msec()
 	if not force and now - _last_alarm_ms < 250 and at.distance_to(_last_alarm_at) < 10.0:
 		return
@@ -2505,10 +2507,9 @@ func shot(at: Vector3, dir: Vector3, impulse: Vector3, strength: float = 1.0) ->
 ## Joggers and dog walkers: the share in the suburbs, beach town and on the Esplanade, and in
 ## the rest of the city.
 @export var jogger_share: Vector2 = Vector2(0.14, 0.03)
-## Dog walkers are OFF (lead, 2026-10-04): the only CC0 rigged dog is Quaternius' low-poly,
-## flat-shaded Shiba, which breaks the realism rule. Put (0.12, 0.03) back once
-## `CrowdDog.MODEL` is a realistic dog; the roll is still made, so nothing else moves.
-@export var dog_share: Vector2 = Vector2.ZERO
+## Dog walkers: the dogs are code-built now (DogMesh / DogRig, six breeds with fur shells), so
+## they are back on (they were off while the only dog was a low-poly Shiba).
+@export var dog_share: Vector2 = Vector2(0.12, 0.03)
 ## A jogger's pace (m/s).
 @export var jog_pace: Vector2 = Vector2(2.6, 3.4)
 @export_group("")
@@ -2959,7 +2960,7 @@ func _do_act(delta: float) -> void:
 					# Along the window to the next thing in it.
 					var along := Vector3(cos(_act_face), 0.0, -sin(_act_face)) * _life.randf_range(-1.6, 1.6)
 					_life_look = _life_look + along * 0.5
-	if _dog_walker and _act == CrowdLife.Act.STAND and _dog:
+	if _dog_walker and _act == CrowdLife.Act.STAND and is_instance_valid(_dog) and _dog.is_inside_tree():
 		_life_look = _dog.global_position + Vector3.UP * 0.3
 
 

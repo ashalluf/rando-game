@@ -2774,10 +2774,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   - on `shaders/crowd_prop.gdshader`, the screen glowing and the cigarette's ember lit by
   `lamp_factor`; the bag is set plumb every tick). Joggers play `life/jog`
   (`CrowdLife.JOG_CLIP_SPEED` 3.0) at any range; dog walkers have a `CrowdDog`
-  (`scripts/npc/crowd_dog.gd`, a child of the owner's node, Quaternius' CC0 Shiba Inu,
-  `assets/models/dog_shiba.glb`, a lead to the owner's left hand within the look range).
-  **Dog walkers are off** (`dog_share` 0, lead's call at merge): that Shiba is low-poly and
-  flat-shaded, which breaks the realism rule; turn them back on with a realistic dog.
+  (see the Dogs note: code-built breeds, a sibling of the owner's node, a lead to the owner's
+  left hand within the look range). Dog walkers are back on (`dog_share` (0.12, 0.03)).
   Rules: out of range a stop just ends (`_life_range_changed()`); `_scare()` ends it at once;
   only plain Pedestrians and ReplicaWalkers live (`_lives()`), never officers or rough
   sleepers; all life timing is the physics clock (`_life_now_ms()`), never the wall clock (a
@@ -2795,6 +2793,50 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   environment turns the layer off (the A/B). Look with `tools/crowd/crowd_lab.tscn` SCENARIO=life
   (a pavement, a wall, two benches), props, dog (CAM / LOOK / FOV place the camera); check with
   `tests/crowd_life_checks.gd`; time it with MODE=bench.
+- Dogs (2026-10-05, "realistic dogs, so the dog walkers can come back"; docs/HANDOFF.md, the
+  dogs section): built in CODE like the birds. **`DogMesh`** (`scripts/npc/dog_mesh.gd`) builds six
+  breeds by proportion - labrador, German shepherd, small terrier, chihuahua, pit bull mix,
+  husky; real withers heights and body lengths in `BREEDS` - as one skinned mesh each on a
+  28-bone skeleton (`BONES`: pelvis, spine, chest, neck, head, jaw, two ears, four tail, four
+  bones a leg; rests are pure translations, so binds are offsets): a torso loft along top and
+  under lines (rump to poll, the neck included), a head loft (occiput, stop, muzzle, nose leather;
+  the lower muzzle on the jaw), leg tubes down the joint chain with paws and pads, five ear kinds
+  (prick, bat, drop, button, rose) as two-sided cupped cards, a tapering tail on four bones, wet
+  eyes. Three levels (NEAR ~6.8k, MID ~2.5k, FAR ~0.8k triangles) and **fur shells**: the coat's
+  triangles again `SHELLS` (10 / 5 / 0) times, lifted along the normal by the coat length
+  (COLOR.g: ruff, short face and legs, plume tail), combed along TANGENT (the hair flow, which
+  skinning turns) and drooping, cut to strands in `shaders/dog_fur.gdshader` (elongated cells in
+  UV2 metres, dithered to their mean cover under a pixel - the hill shells' trick on a skinned
+  mesh); `shaders/dog.gdshader` is the skin (undercoat under shells, the coat's average at FAR,
+  cobbled wet nose, clearcoat eyes, pads, translucent inner ears). Coats: one 1024 JPG per
+  colourway (`assets/textures/dogs/`, 14 looks) painted by `tools/dogs/make_dog_coats.py` on a
+  chart every breed shares (`R_*` rects, torso / head rows as landmarks - mirrored in the
+  painter). **`DogRig`** (`scripts/npc/dog_rig.gd`) poses it every tick from a few numbers:
+  `speed` (walk / trot / gallop by a Froude-style speed, each paw planted then lifted and swung
+  by its phase, legs by two-bone IK with the pastern / hock at its own angle, body bob, roll,
+  spine flex, head nod), `sit`, `sniff`, `look_at`, `wag`, `fear` (ears back, tail tucked, low),
+  `bark` (a jaw pulse), `pant`, `turn`; and switches its levels by camera distance
+  (`near_range` / `mid_range`, scaled by size, hidden past `draw_range`). **`Dog`**
+  (`scripts/npc/dog.gd`) is what every dog shares: a `DogBody` hit box (AnimatableBody3D, npc
+  layer, mask 0) whose `knock()` / `shot()` go to `Dog.hit()` - a yelp (Sfx `dog_yelp`), a capped
+  scripted hop, then it bolts tail tucked round walls until out of sight and frees itself; never
+  blood, never a ragdoll, never a crime - barks (`bark_big` / `bark_small` by size, pitched per
+  dog) and `Dog.startle_all()` (called from `Pedestrian.alarm()` next to the birds).
+  **`CrowdDog`** is a SIBLING of its owner under the chunk (a knocked person's node is freed and
+  the dog must outlive it; `make()` adds it deferred and listens for the owner's `tree_exiting`:
+  down -> bolt, trimmed -> gone), walks at the owner's left, sniffs / sits and looks up / stands
+  at a stop, looks at the player close by (a small dog may yap), barks tail-tucked at a gunshot;
+  a collar on the neck bone and a sagging ribbon lead to the owner's LeftHand. **`YardDog`** +
+  **`DogYard`** (`scripts/npc/yard_dog.gd`, `dog_yard.gd`): `YardFill._dress_beach_lot()` asks
+  `DogYard.consider()` (one hook line) - a hash share (`FRONT_ODDS` of front gardens behind a
+  low wall or pickets, else `BACK_ODDS` of back yards without a pool), `MAX_PER_CHUNK`, FULL only;
+  the dog keeps to a patch in the lot's frame, pads about, sits, sniffs; the player within
+  `alert_range` sends it to the fence where he is nearest to bark in bursts; a gun sends it to
+  the far corner (COWER); hit, it stays in its yard. `DOG_YARDS=0` turns yard dogs off. The
+  meshes are built on the loading screen (`DogMesh.warm()`). Look with
+  `tools/glshot/dog_shot.gd` (a lineup: `BREEDS`, `VIEW` side / front / three / rear / top,
+  `POSE` stand / walk / trot / gallop / sit / sniff / look / bark / fear, `LOD`, `SEQ` frames)
+  and `tools/crowd/crowd_lab.tscn SCENARIO=dog`; checks: `tests/dog_checks.gd`.
 - Headwear (2026-10-04: the old box caps "read as plastic bowls"): `CrowdHat`
   (`scripts/npc/crowd_hat.gd`) builds a six-panel cotton baseball cap (button, sweatband, a bill
   with a taped edge, a strap and slide buckle across the opening at the back), a cuffed 2x2-rib

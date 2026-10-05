@@ -145,6 +145,10 @@ func run(city: Node3D) -> void:
 		t_rigs += Time.get_ticks_usec() - t0
 	# The people's share of the wait (the camp figures, then every rig's limbs, welded bodies and
 	# hats), for measuring a change of models: the rest of the loading screen does not depend on them.
+	# The dogs' meshes (DogMesh, built in code: every breed's three levels and fur shells).
+	var t_dogs := Time.get_ticks_usec()
+	DogMesh.warm()
+	print("LOADING dogs: %d ms" % ((Time.get_ticks_usec() - t_dogs) / 1000))
 	print("LOADING people: %d camp figures %d ms, %d rigs %d ms" % [kinds.size(), t_camp / 1000, models.size(), t_rigs / 1000])
 	_step("Ready", 1.0)
 	await _frames(2)
