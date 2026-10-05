@@ -7079,7 +7079,7 @@ windows, a window AC, a roof board with the lot's name), a hand-painted board on
 (name and a line: WE FINANCE, BAD CREDIT OK, ...), pennant strings criss-crossed to a mast in the
 middle and to timber posts at the back, chain-link (LotFill's fence) on the three inner sides.
 **Both**: LotFill asphalt over the site; rows of cars nose-out from 1.2 m inside the property line;
-the front row (up to 12 new, 4 used) and the showroom floor (2-3) are **real Vehicles** (meta
+the middle of the front row (4 new, 3 used) and the showroom floor (2) are **real Vehicles** (meta
 `for_sale`, in the chunk's `_cars`: shot, burnt, driven off; paints a lot would carry, no
 liveries); the rest are ArenaGrounds' static `car_mesh()` bodies as unbreakable `dealer_car` props
 (rounds spark off them as metal) each with its price on the windscreen
@@ -7114,3 +7114,26 @@ the cars are left to the FULL ring.
 **Tools.** `tools/car_dealers/probe.gd` (headless, seconds: every site round a point with a STREET
 and an ABOVE EYE for still_shot.gd), `tools/car_dealers/check_only.gd` (the checks alone against the
 city, minutes; `DIFF=1` prints what differs outside a site). `CAR_DEALERS=0` is the A/B.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `CAR_DEALERS=0` against on, same
+spawn). Across the auto row from a new dealer (`--spawn=918,-100,68,-3`, four dealers in view):
+3.97 M -> 3.99 M triangles, 3,961 -> 4,076 draws. From a used lot (`--spawn=905,-298,-60,-3`):
+4.23 M -> 4.41 M, 3,561 -> 3,799 (that run still had four real cars a used front row). The dealers'
+own geometry (`AB=Dealer_*,Batch_dl_*,BatchShadow_dl_*`) is ~41 k triangles and ~110 draws there;
+the real cars are the expensive part: the first cut with the whole front row real (12 a new lot)
+measured 5.34 M / 4,246, which is why only the middle of the front row is real now (a car is a body,
+glass, wheels, lamps and a shadow twin). The buildings a site replaces pay for most of the rest.
+
+**Stills** (shots/car-dealers; opengl3, not the Mac's Forward+): the auto row from across the street
+at noon (pennants, tube men, the brand portal, the real cars in the front row), along the lot from
+the pavement, the showroom and service bay at 21:00, the lot from above, a used lot from the street
+and from above (trailer, rainbow pennants, grease-pencil prices), the used lot at 21:00, and the same
+street with `CAR_DEALERS=0` (the before).
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the showroom glass, the lit badges, pylons
+and soffits under AgX, the floods' reach at night. Static lot cars are ArenaGrounds' ~400-triangle
+code car (boxy within ~15 m; the front row's middle is real to hide it from the pavement); the real
+cars carry no windscreen price (their glass differs per body). No salesmen or customers walk the
+lots (the crowd's ParkGoer-style roles were out of scope); the tube men's fans are silent. No
+dealers in the suburbs inside the probe's 2.5 km (the default seed's suburbs start further out;
+the rule is the same there). The brand flags are banded cloth without the badge printed on them.

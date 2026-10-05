@@ -293,8 +293,8 @@ already mapped so milestone 2 is script-only.
   `CarDealers` puts runs of new-car dealers and used lots along a few avenue-wide roads in
   MIDTOWN and the SUBURBS. Decisions: (1) placement is three hashes (road, stretch of six blocks,
   block) and a claim of a run of edge lots asked AFTER the pad roll and the fire station, like
-  FireStation.claims(), so no lot, roll or prop elsewhere moves (checked); (2) the front row and
-  the showroom floor are real Vehicles - shootable, burnable, stealable - and the rows behind are
+  FireStation.claims(), so no lot, roll or prop elsewhere moves (checked); (2) the middle of the
+  front row and the showroom floor are real Vehicles - shootable, burnable, stealable - and the rows behind are
   ArenaGrounds' static car bodies as unbreakable props (sparks, never debris), because a lot of
   40-120 real cars would be 40-120 physics bodies and car builds a chunk; (3) tube men and cloth
   move entirely in the vertex shader (a chain integrated per vertex), never on the CPU; (4) brands

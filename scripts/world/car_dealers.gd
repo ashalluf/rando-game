@@ -78,9 +78,9 @@ const ROW_PITCH := 5.9
 ## the matching size of their collision box.
 const CAR_BOX := [Vector3(1.86, 1.45, 4.7), Vector3(1.98, 1.7, 5.4), Vector3(1.98, 1.95, 4.9), Vector3(1.9, 1.3, 4.45)]
 ## Real Vehicles a dealer puts on its floor and in its front row (they cost a car build each).
-const SHOWROOM_CARS := 3
-const FRONT_CARS := 12
-const USED_REAL_CARS := 4
+const SHOWROOM_CARS := 2
+const FRONT_CARS := 4
+const USED_REAL_CARS := 3
 const CAR_SHADOW_DISTANCE := 70.0
 const TUBE_DRAW_DISTANCE := 320.0
 
@@ -307,7 +307,7 @@ static func layout(s: Dictionary) -> Dictionary:
 		else:
 			L.drive = sx - e * (sw * 0.5 + 4.5)
 		# The showroom floor's cars.
-		var nfloor := 3 if sw >= 20.0 else 2
+		var nfloor := SHOWROOM_CARS
 		for i in nfloor:
 			var fx := sx - sw * 0.5 + sw * (float(i) + 0.5) / float(nfloor)
 			var fz := back + sd * (0.42 + 0.1 * float(i % 2))
@@ -551,12 +551,14 @@ static func _build_detail(ch: CityChunk, s: Dictionary, L: Dictionary) -> void:
 			geo.box("wood", Vector3(float(p[0]), 2.3, float(p[1])), Vector3(0.18, 4.6, 0.18))
 		# Chain-link on the lot's inner sides (LotFill's fence), the street side open.
 		_fence_sides(ch, s)
-	# Low white bollards along the street edge with a gap for the drive.
+	# Low steel bollards along the street edge (concrete-filled pipe, painted, a domed cap) with a
+	# gap for the drive: one batch a chunk.
 	var hw := float(L.W) * 0.5
 	var bx := -hw + 0.8
+	var bollard := PropFactory.cylinder("dl_bollard_y" if s.used else "dl_bollard_w", 0.08, 0.78, Color(0.93, 0.93, 0.9) if not s.used else Color(0.95, 0.78, 0.1), -1.0, 12)
 	while bx < hw - 0.5:
 		if absf(bx - float(L.drive)) > 3.8 and not (not s.used and absf(bx - float((L.pylon as Array)[0])) < 1.6):
-			geo.box("bollard", Vector3(bx, 0.45, -0.25), Vector3(0.22, 0.9, 0.22))
+			ch._batch.add("dl_bollard_%d" % (1 if s.used else 0), bollard, Transform3D(Basis(), xf0 * Vector3(bx, lift + 0.39, -0.25)))
 		bx += 2.6
 	var mi := MeshInstance3D.new()
 	mi.name = "Dealer"
@@ -576,8 +578,24 @@ static func _build_detail(ch: CityChunk, s: Dictionary, L: Dictionary) -> void:
 		var w := xf0 * Vector3(float(p[0]), lift, float(p[1]))
 		LotFill._lamp(ch, w)
 		var pool_c := xf0 * Vector3(float(p[0]), lift, float(p[1]) - 6.0)
-		ch._batch.add("dl_pool", PropFactory.light_pool(Color(0.92, 0.96, 1.0), 1.15), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(15.0, 1.0, 15.0)), pool_c + Vector3(0.0, 0.06, 0.0)))
+		ch._batch.add("dl_pool", PropFactory.light_pool(Color(0.92, 0.96, 1.0), 1.5), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(18.0, 1.0, 18.0)), pool_c + Vector3(0.0, 0.06, 0.0)))
 	ch._batch.set_no_shadow("dl_pool")
+	# The floodlights: two LED floods over the lot (with the street lamps: DayNight, Quality).
+	var nf := 2 if float(L.W) > 36.0 else 1
+	for i in nf:
+		var fx := -float(L.W) * 0.5 + float(L.W) * (float(i) + 0.5) / float(nf)
+		var flood := OmniLight3D.new()
+		flood.position = xf * Vector3(fx, 7.5, -float(L.D) * 0.38)
+		flood.omni_range = 24.0
+		flood.omni_attenuation = 1.1
+		flood.light_color = Color(0.92, 0.96, 1.0)
+		flood.light_energy = 0.0
+		flood.shadow_enabled = false
+		flood.distance_fade_enabled = true
+		flood.distance_fade_begin = 110.0
+		flood.distance_fade_length = 30.0
+		flood.add_to_group("lamp_light")
+		ch.add_child(flood)
 	# Tube men on their fans.
 	for t: Array in L.tubes:
 		var w := xf0 * Vector3(float(t[0]), lift, float(t[1]))
@@ -658,6 +676,7 @@ static func _real_car(ch: CityChunk, s: Dictionary, local: Vector3, yaw_j: float
 	var out := xf0.basis.z
 	car.rotation.y = atan2(-out.x, -out.z) + yaw_j
 	car.set_meta("for_sale", true)
+	car.name = "ForSale"
 	holder.add_child(car)
 	car.visible = ch.visible
 	ch._cars.append(car)

@@ -1710,8 +1710,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   with its badge, a brand wall, lit ceiling and an OmniLight (`lamp_light`), a service bay with a
   canopy, a brand pylon at the kerb (lightbox lit by `lamp_factor`), three brand flags, feather
   flags; a USED lot: an office trailer, a hand-painted board, chain-link (LotFill's fence). Both:
-  rows of cars nose-out on LotFill asphalt - the front row and the showroom floor real Vehicles
-  (`FRONT_CARS`, `USED_REAL_CARS`, `SHOWROOM_CARS`, meta `for_sale`, in the chunk's `_cars`), the
+  rows of cars nose-out on LotFill asphalt - the middle of the front row and the showroom floor real
+  Vehicles (`FRONT_CARS`, `USED_REAL_CARS`, `SHOWROOM_CARS`, meta `for_sale`, named `ForSale`, in the
+  chunk's `_cars`; each real car is most of a dealer's frame cost, so keep these small), the
   rest ArenaGrounds' static `car_mesh()` as unbreakable `dealer_car` props (rounds spark) with a
   price on the windscreen (`shaders/price_sticker.gdshader`: a window card, or grease pencil on a
   used car; `sticker_xform()` is the glass of each car_mesh body), LotFill's light poles plus
