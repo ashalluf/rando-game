@@ -15,9 +15,9 @@ extends Node3D
 ##   * the horn and the gong as a train nears the player or a crossing.
 
 ## Trains within this distance (m, from the player to the train's middle) are drawn in full.
-@export var detail_range: float = 520.0
+@export var detail_range: float = 340.0
 ## At most this many detailed trains at once (the nearest).
-@export var max_detailed: int = 3
+@export var max_detailed: int = 2
 ## Far boxes out to here (m).
 @export var far_range: float = 7000.0
 ## Crossings within this distance of the player are worked out every tick (the rest stay open:
@@ -200,11 +200,15 @@ func _build_far() -> void:
 	add_child(_far)
 
 
-## The line itself past the streamed chunks (they build it out to their LOD ring): the structure,
-## its columns, the trackway, the stations' canopies, as one cheap mesh in true world space that
-## dithers in from `far_line_start` (light_rail_far_line.gdshader), so the line is there from the
-## air and from the hills. Its pieces sit a hair inside the chunks' own where both draw.
-@export var far_line_start: float = 880.0
+## The line itself wherever the FULL chunks do not build it (they build it in full detail; LOD
+## chunks and the far city build none): the structure (deck slab, parapets, girder, columns),
+## the trackway, the stations' canopies, as one cheap mesh in true world space that dithers in
+## from `far_line_start` (light_rail_far_line.gdshader), so the line is there from the air and
+## from the hills for one draw. Every piece sits a little INSIDE the FULL works' own (the deck
+## under the ballast bed, the girder inside the web, square columns inside the round ones, the
+## canopy inside its slab, the trackway under the detailed one), so where both draw only the
+## detail shows.
+@export var far_line_start: float = 150.0
 var _far_line: MeshInstance3D
 
 
@@ -212,9 +216,10 @@ func _build_far_line() -> void:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var conc := Color(0.66, 0.65, 0.62, 0.0)
+	var dark := Color(0.48, 0.47, 0.45, 0.0)
 	var track := Color(0.40, 0.395, 0.38, 0.0)
 	var n := line.pts.size()
-	var stride := 6
+	var stride := 4
 	var i := 0
 	while i < n - 1:
 		var j := mini(i + stride, n - 1)
@@ -224,37 +229,54 @@ func _build_far_line() -> void:
 		var rb := Vector2(-line.dirs[j].y, line.dirs[j].x)
 		var m: int = line.mode[i]
 		if m == LightRail.Mode.AERIAL or line.mode[j] == LightRail.Mode.AERIAL:
+			var ya: float = line.rail[i]
+			var yb: float = line.rail[j]
 			var wa: float = line.half[i] + 1.6
 			var wb: float = line.half[j] + 1.6
-			var ta: float = line.rail[i] - 0.5
-			var tb: float = line.rail[j] - 0.5
-			_far_quad(st, a - ra * wa, a + ra * wa, b + rb * wb, b - rb * wb, [ta, ta, tb, tb], Vector3.UP, conc)
+			# Deck slab with its parapets.
+			_far_quad(st, a - ra * wa, a + ra * wa, b + rb * wb, b - rb * wb, [ya - 0.62, ya - 0.62, yb - 0.62, yb - 0.62], Vector3.UP, dark)
 			for side: float in [-1.0, 1.0]:
-				var ea := a + ra * side * wa
-				var eb := b + rb * side * wb
-				_far_side(st, ea, eb, ta + 0.9, tb + 0.9, ta - 2.0, tb - 2.0, Vector3(ra.x, 0.0, ra.y) * side, conc)
+				var o3 := Vector3(ra.x, 0.0, ra.y) * side
+				var pa := a + ra * side * wa
+				var pb := b + rb * side * wb
+				var qa := a + ra * side * (wa - 0.14)
+				var qb := b + rb * side * (wb - 0.14)
+				_far_side(st, pa, pb, ya + 0.32, yb + 0.32, ya - 1.05, yb - 1.05, o3, conc)
+				_far_quad(st, qa, pa, pb, qb, [ya + 0.32, ya + 0.32, yb + 0.32, yb + 0.32], Vector3.UP, conc)
+				_far_side(st, qa, qb, ya + 0.32, yb + 0.32, ya - 0.62, yb - 0.62, -o3, conc)
+				# The girder below, inside the web.
+				var ga := a + ra * side * (line.half[i] - 0.6)
+				var gb := b + rb * side * (line.half[j] - 0.6)
+				_far_side(st, ga, gb, ya - 1.05, yb - 1.05, ya - 2.45, yb - 2.45, o3, conc)
+			_far_quad(st, a - ra * wa, a + ra * wa, b + rb * wb, b - rb * wb, [ya - 1.05, ya - 1.05, yb - 1.05, yb - 1.05], Vector3.DOWN, dark)
+			var ga2: float = line.half[i] - 0.6
+			var gb2: float = line.half[j] - 0.6
+			_far_quad(st, a - ra * ga2, a + ra * ga2, b + rb * gb2, b - rb * gb2, [ya - 2.45, ya - 2.45, yb - 2.45, yb - 2.45], Vector3.DOWN, dark)
 		elif m == LightRail.Mode.GRADE:
 			var wa2: float = line.half[i] + 1.3
 			var wb2: float = line.half[j] + 1.3
 			_far_quad(st, a - ra * wa2, a + ra * wa2, b + rb * wb2, b - rb * wb2,
-				[float(line.street[i]) + 0.01, float(line.street[i]) + 0.01, float(line.street[j]) + 0.01, float(line.street[j]) + 0.01], Vector3.UP, track)
+				[float(line.street[i]) - 0.02, float(line.street[i]) - 0.02, float(line.street[j]) - 0.02, float(line.street[j]) - 0.02], Vector3.UP, track)
 		i = j
-	# Columns under the structure.
+	# Columns under the structure (square, inside the round ones), where the FULL kit puts them.
 	var k := 0
-	while float(k) * 30.0 < line.length:
-		var smp := line.sample(float(k) * 30.0 + 5.0)
+	while float(k) * LightRailKit.COLUMN_SPACING < line.length:
+		var smp := line.sample(float(k) * LightRailKit.COLUMN_SPACING + 5.0)
 		k += 1
 		if int(smp.mode) != LightRail.Mode.AERIAL:
 			continue
 		var p: Vector2 = smp.pos
-		var top := float(smp.y) - 2.6
-		var foot := float(smp.street) - 0.5
-		if top - foot < 2.0:
+		var top := float(smp.y) - 2.45
+		var foot := float(smp.street) - 0.6
+		if top - foot < 2.6 or line.in_junction(p, 2.0):
 			continue
-		for e: Vector2 in [Vector2(0.8, 0.0), Vector2(0.0, 0.8), Vector2(-0.8, 0.0), Vector2(0.0, -0.8)]:
+		if plan.macro.freeway != null and plan.macro.freeway.blocks(p, 2.5):
+			continue
+		for e: Vector2 in [Vector2(0.62, 0.0), Vector2(0.0, 0.62), Vector2(-0.62, 0.0), Vector2(0.0, -0.62)]:
 			var q := Vector2(-e.y, e.x)
 			_far_side(st, p + e + q, p + e - q, top, top, foot, foot, Vector3(e.x, 0.0, e.y).normalized(), conc)
-	# Station canopies: a lit roof (vertex alpha 1 glows after dark) over a platform box.
+	# Station canopies: a shallow butterfly (inside the FULL canopy's slab) whose underside glows
+	# after dark (vertex alpha 1).
 	for s2 in line.stations:
 		if int(s2.mode) == LightRail.Mode.TUNNEL:
 			continue
@@ -262,12 +284,14 @@ func _build_far_line() -> void:
 		var d: Vector2 = c.dir
 		var r := Vector2(-d.y, d.x)
 		var p: Vector2 = c.pos
-		var hl := LightRail.PLATFORM_LENGTH * 0.4
-		var hw := float(s2.width) * 0.5 + 0.6
-		var roof := float(c.y) + LightRail.PLATFORM_HEIGHT + 3.6
-		_far_quad(st, p - d * hl - r * hw, p - d * hl + r * hw, p + d * hl + r * hw, p + d * hl - r * hw, [roof, roof, roof, roof], Vector3.UP, Color(0.86, 0.86, 0.84, 1.0))
-		_far_side(st, p - d * hl + r * hw, p + d * hl + r * hw, roof, roof, roof - 0.3, roof - 0.3, Vector3(r.x, 0, r.y), Color(0.93, 0.40, 0.30, 0.0))
-		_far_side(st, p + d * hl - r * hw, p - d * hl - r * hw, roof, roof, roof - 0.3, roof - 0.3, Vector3(-r.x, 0, -r.y), Color(0.93, 0.40, 0.30, 0.0))
+		var hl := LightRail.PLATFORM_LENGTH * 0.36
+		var hw := float(s2.width) * 0.5 + 0.35
+		var deck := float(c.y) + LightRail.PLATFORM_HEIGHT
+		var mid := deck + 3.45
+		var edge := deck + 3.8
+		for side: float in [-1.0, 1.0]:
+			_far_quad(st, p - d * hl, p + d * hl, p + d * hl + r * side * hw, p - d * hl + r * side * hw, [mid, mid, edge, edge], Vector3.UP, Color(0.86, 0.86, 0.84, 0.0))
+			_far_quad(st, p - d * hl, p + d * hl, p + d * hl + r * side * hw, p - d * hl + r * side * hw, [mid - 0.01, mid - 0.01, edge - 0.01, edge - 0.01], Vector3.DOWN, Color(0.86, 0.86, 0.84, 1.0))
 	var mesh := st.commit()
 	_far_line = MeshInstance3D.new()
 	_far_line.name = "FarLine"

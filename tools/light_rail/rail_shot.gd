@@ -115,5 +115,23 @@ func _ready() -> void:
 		print("saved ", file)
 		if OS.get_environment("GEO") == "1":
 			print("GEO_%d tris=%d draws=%d" % [k, Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
+		# RAIL_SPLIT=1: the frame again with each part of the line hidden in turn.
+		if OS.get_environment("RAIL_SPLIT") == "1":
+			var parts := {"trains": func(n: Node) -> bool: return n is LightRailTrain,
+				"riders": func(n: Node) -> bool: return n is RailRider,
+				"gates": func(n: Node) -> bool: return n is RailGate,
+				"works": func(n: Node) -> bool: return String(n.name).begins_with("Rail") and n is GeometryInstance3D,
+				"far": func(n: Node) -> bool: return n.name == "FarLine" or n.name == "FarTrains"}
+			for key: String in parts:
+				var hidden: Array = []
+				for n in get_tree().root.find_children("*", "", true, false):
+					if (parts[key] as Callable).call(n) and n is Node3D and (n as Node3D).visible:
+						(n as Node3D).visible = false
+						hidden.append(n)
+				for i in 3:
+					await get_tree().process_frame
+				print("SPLIT without %s (%d nodes): tris=%d draws=%d" % [key, hidden.size(), Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME), Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)])
+				for n in hidden:
+					(n as Node3D).visible = true
 	city.free()
 	get_tree().quit()

@@ -37,6 +37,9 @@ var sections: Array[RailSection] = []
 var _bogies: Array = []
 var _doors: Array = []
 var _bodies: Array[MeshInstance3D] = []
+var _merged_doors: Array = []
+var _interiors: Array = []
+var _doors_shown := -1
 var _sign: Label3D
 var _rear_sign: Label3D
 var _headlight: SpotLight3D
@@ -117,6 +120,8 @@ func _dress(inst: Node3D, k: int) -> void:
 		bellows.position = Vector3(0.0, 0.0, SECTION_HALF)
 	var bogie := inst.get_node_or_null("Bogie") as Node3D
 	var list: Array = []
+	if bogie is MeshInstance3D:
+		_set_slots(bogie as MeshInstance3D, role)
 	if bogie:
 		bogie.position = Vector3(0.0, 0.0, -CAB_BOGIE)
 		list.append([bogie, false])
@@ -133,6 +138,10 @@ func _dress(inst: Node3D, k: int) -> void:
 	var interior := inst.get_node_or_null("Interior") as MeshInstance3D
 	if interior:
 		_set_slots(interior, role)
+	for part in ["Pantograph", "Bellows"]:
+		var pm := inst.get_node_or_null(part) as MeshInstance3D
+		if pm:
+			_set_slots(pm, role)
 	# Doors on the platform side: the train's left is an A section's model left (L) and a B
 	# section's model right (R).
 	var side := "R" if b_section else "L"
@@ -148,7 +157,20 @@ func _dress(inst: Node3D, k: int) -> void:
 				var d := inst.get_node_or_null("Door_%s_%d_%s" % [s2, n, leaf]) as MeshInstance3D
 				if d:
 					_set_slots(d, role)
+					d.visible = false
+		var merged := inst.get_node_or_null("Doors" + s2) as MeshInstance3D
+		if merged:
+			_set_slots(merged, role)
 	_doors.append(leaves)
+	# Shut, a side's doors are its one merged mesh; the platform side swaps to its four leaves
+	# while they open (_show_doors()).
+	_merged_doors.append(inst.get_node_or_null("Doors" + side))
+	_interiors.append(interior)
+	# Only the body casts: doors, bogies, the pantograph and the bellows are inside its shadow or
+	# too thin to matter, and every caster is a draw per shadow cascade.
+	for n in inst.get_children():
+		if n is GeometryInstance3D and n.name != "Body":
+			(n as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# Destination displays: the lead cab names where it is going, the rear cab the line.
 	if role != 2:
 		var label := Label3D.new()
@@ -180,9 +202,10 @@ func _set_slots(mi: MeshInstance3D, role: int) -> void:
 		match nm:
 			"glass", "door_glass":
 				mi.set_surface_override_material(i, glass_material())
-			"interior", "interior_floor", "seat", "metal":
-				if mi.name == "Interior":
-					mi.set_surface_override_material(i, interior_material(nm, mat))
+			"body":
+				mi.set_surface_override_material(i, body_material())
+			"interior":
+				mi.set_surface_override_material(i, interior_material())
 			"lamp_head":
 				mi.set_surface_override_material(i, lamp_material("head", role == 0))
 			"lamp_tail":
@@ -198,16 +221,21 @@ static func glass_material() -> ShaderMaterial:
 	return _glass_mat
 
 
-static func interior_material(slot: String, src: Material) -> ShaderMaterial:
-	if not _interior_mats.has(slot):
+static func interior_material() -> ShaderMaterial:
+	if not _interior_mats.has("interior"):
 		var m := ShaderMaterial.new()
 		m.shader = load("res://shaders/lrv_interior.gdshader")
-		var col := Color(0.42, 0.42, 0.40)
-		if src is BaseMaterial3D:
-			col = (src as BaseMaterial3D).albedo_color
-		m.set_shader_parameter("albedo", Vector3(col.r, col.g, col.b))
-		_interior_mats[slot] = m
-	return _interior_mats[slot]
+		_interior_mats["interior"] = m
+	return _interior_mats["interior"]
+
+
+## Every painted, rubber and metal part: one material, its colours in the vertex colour.
+static func body_material() -> ShaderMaterial:
+	if not _interior_mats.has("body"):
+		var m := ShaderMaterial.new()
+		m.shader = load("res://shaders/lrv_body.gdshader")
+		_interior_mats["body"] = m
+	return _interior_mats["body"]
 
 
 static func lamp_material(kind: String, on: bool) -> StandardMaterial3D:
@@ -274,6 +302,16 @@ func pose(state: Dictionary, lamp: float) -> void:
 			bg.rotation = Vector3(0.0, yaw, 0.0)
 		# Doors.
 		var o := clampf(doors_open, 0.0, 1.0)
+		var show := 1 if o > 0.0 else 0
+		if show != _doors_shown:
+			var m := _merged_doors[k] as Node3D
+			if m:
+				m.visible = show == 0
+			for leaf: Array in _doors[k]:
+				(leaf[0] as Node3D).visible = show == 1
+			var inner := _interiors[k] as Node3D
+			if inner:
+				inner.visible = show == 1
 		var plug := minf(o * 4.0, 1.0) * DOOR_PLUG
 		var slide := clampf((o - 0.2) / 0.8, 0.0, 1.0) * DOOR_SLIDE
 		for leaf: Array in _doors[k]:
@@ -281,6 +319,7 @@ func pose(state: Dictionary, lamp: float) -> void:
 			var closed: Vector3 = leaf[1]
 			var way: float = leaf[2]
 			node.position = closed + Vector3(signf(closed.x) * plug, 0.0, way * slide)
+	_doors_shown = 1 if doors_open > 0.0 else 0
 	if _headlight:
 		_headlight.light_energy = 2.6 * clampf(lamp, 0.0, 1.0)
 		_headlight.visible = lamp > 0.05 and sections[0].visible

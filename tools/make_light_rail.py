@@ -42,12 +42,14 @@ Nodes:
   Interior    the box behind the doors (floor, walls, ceiling, seats, poles)
   Door_<side>_<n>_<leaf>   side R/L, door 0 (rear) / 1 (front), leaf A (toward the rear) / B;
               each leaf's origin at its closed position's centre; it opens along +-Y
+  DoorsL, DoorsR   each side's four leaves merged, shut (one draw for a side that is not opening)
   Pantograph  on the roof, its head at CONTACT (the game's LightRail.CONTACT_HEIGHT)
   Bogie       one bogie at the origin (the game instances it at each pivot)
   Bellows     the articulation's gangway bellows, centred at the origin
-Material slots, bound BY NAME: paint (white), band (coral), dark (window band, skirts), roof,
-trim (grey metal), glass, lamp_head, lamp_tail, sign (destination display), interior,
-interior_floor, seat, rubber, metal, door_glass.
+Materials, bound BY NAME: `body` (every painted, rubber and metal part, its colour and what it is
+in the vertex colour: rgb linear, alpha kind / 16 from KINDS - paint, band, dark, roof, trim,
+rubber, metal, sign; the game draws it with lrv_body.gdshader), `interior` (the same for the
+interior box: interior, interior_floor, seat, metal), glass, door_glass, lamp_head, lamp_tail.
 """
 
 import math
@@ -85,6 +87,7 @@ SLOTS = [
     ("rubber", (0.015, 0.015, 0.015), 0.0, 0.70),
     ("metal", (0.45, 0.45, 0.46), 1.0, 0.35),
     ("door_glass", (0.010, 0.012, 0.014), 0.0, 0.05),
+    ("body", (1.0, 1.0, 1.0), 0.0, 0.5),
 ]
 MI = {name: i for i, (name, _c, _m, _r) in enumerate(SLOTS)}
 
@@ -112,6 +115,15 @@ I_DHEAD = 10
 DOORS = [(-4.35, -2.95), (0.55, 1.95)]
 WINDOWS = [(-6.40, -5.50), (-5.42, -4.55), (-2.75, -1.70), (-1.62, -0.57), (-0.49, 0.35),
            (2.15, 3.50), (3.58, 4.95), (5.50, 6.05)]
+
+
+# What every opaque painted part IS, for the merged "body" material (vertex colour alpha =
+# kind / 16; the game's lrv_body.gdshader reads it for roughness and metal). One surface where
+# the slots used to be eight, so a section is a handful of draws.
+KINDS = {"paint": 1, "band": 2, "dark": 3, "roof": 4, "trim": 5, "rubber": 6, "metal": 7, "sign": 8,
+         "interior": 9, "interior_floor": 10, "seat": 11}
+# Slots that keep their own material in the game (shaders or switched lamps).
+KEEP = ("glass", "door_glass", "lamp_head", "lamp_tail")
 
 
 def reset_scene():
@@ -641,13 +653,55 @@ def build():
     doors = build_doors(mats)
     for d in doors:
         shade(d, 30.0)
+    # Each side's four leaves again as ONE closed mesh (DoorsL, DoorsR): the game draws the side
+    # that never opens, and the opening side's too while it is shut, as one draw.
+    merged = []
+    for sname in ("L", "R"):
+        parts = []
+        for d in doors:
+            if d.name.startswith("Door_%s_" % sname):
+                c = d.copy()
+                c.data = d.data.copy()
+                bpy.context.scene.collection.objects.link(c)
+                activate(c)
+                bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
+                parts.append(c)
+        m = join(parts, "Doors" + sname)
+        merged.append(m)
     panto = build_pantograph(mats)
     shade(panto, 40.0)
     bogie = build_bogie(mats)
     shade(bogie, 40.0)
     bellows = build_bellows(mats)
     shade(bellows, 40.0)
-    return [body, interior, panto, bogie, bellows] + doors
+    out = [body, interior, panto, bogie, bellows] + doors + merged
+    for ob in out:
+        bake_vertex_colors(ob, mats, "interior" if ob.name == "Interior" else "body")
+    return out
+
+
+def bake_vertex_colors(ob, mats, merged_slot):
+    """Every face whose slot is not in KEEP gets its slot's colour and kind in a vertex colour and
+    moves to `merged_slot` ("body" or "interior")."""
+    me = ob.data
+    if "Col" not in me.color_attributes:
+        me.color_attributes.new("Col", 'FLOAT_COLOR', 'CORNER')
+    col = me.color_attributes["Col"]
+    slot_names = [ms.material.name if ms.material else "" for ms in ob.material_slots]
+    target = slot_names.index(merged_slot)
+    table = {name: c for name, c, _m, _r in SLOTS}
+    for poly in me.polygons:
+        name = slot_names[poly.material_index]
+        if name in KEEP:
+            rgb = (1.0, 1.0, 1.0)
+            kind = 0
+        else:
+            rgb = table[name]
+            kind = KINDS.get(name, 1)
+            poly.material_index = target
+        for li in poly.loop_indices:
+            col.data[li].color = (rgb[0], rgb[1], rgb[2], kind / 16.0)
+    me.color_attributes.active_color = col
 
 
 def export(objs):
@@ -659,6 +713,7 @@ def export(objs):
         filepath=OUT, export_format='GLB', use_selection=True,
         export_apply=True, export_materials='EXPORT', export_yup=True,
         export_normals=True, export_texcoords=False, export_tangents=False,
+        export_vertex_color='ACTIVE', export_active_vertex_color_when_no_material=True,
         export_skins=False, export_animations=False, export_cameras=False,
         export_lights=False,
     )

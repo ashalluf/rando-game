@@ -2104,7 +2104,9 @@ func _build_roads(block: Dictionary) -> void:
 ## (LightRail.cuts_in(): the slab is laid round the hole in up to four pieces).
 func _road_slab(r: Rect2, asphalt: Color, material: Material) -> void:
 	var rail := LightRail.of(plan)
-	var cuts: Array[Rect2] = rail.cuts_in(r) if rail != null and not capturing else []
+	var cuts: Array[Rect2] = []
+	if rail != null and not capturing and level == Level.FULL:
+		cuts = rail.cuts_in(r)
 	if cuts.is_empty():
 		_add_slab(Vector3(r.get_center().x, ROAD_TOP * 0.5, r.get_center().y), Vector3(r.size.x, ROAD_TOP, r.size.y), asphalt, true, material)
 		return
@@ -2120,10 +2122,11 @@ func _road_slab(r: Rect2, asphalt: Color, material: Material) -> void:
 			_add_slab(Vector3(p.get_center().x, ROAD_TOP * 0.5, p.get_center().y), Vector3(p.size.x, ROAD_TOP, p.size.y), asphalt, true, material)
 
 
-## The light rail's works in this chunk (LightRailKit), after the freeway: never in the capture
-## build (the far city draws the line from LightRail.far_mesh()).
+## The light rail's works in this chunk (LightRailKit), after the freeway: FULL chunks only. An
+## LOD chunk, the far city's capture and everything past them see the line as LightRailSystem's
+## one far mesh (a little inside the FULL works, so where both draw only the detail shows).
 func _build_light_rail() -> void:
-	if capturing or LightRail.of(plan) == null:
+	if capturing or level != Level.FULL or LightRail.of(plan) == null:
 		return
 	if zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.BEACH:
 		return
@@ -2175,7 +2178,9 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 	var yaw := 0.0 if along_z else PI * 0.5
 	# Nothing painted over the light rail's portal trench (LightRail.cuts_in()).
 	var rail := LightRail.of(plan)
-	var cuts: Array[Rect2] = rail.cuts_in(Rect2(center - width, a, width * 2.0, b - a) if along_z else Rect2(a, center - width, b - a, width * 2.0)) if rail != null else []
+	var cuts: Array[Rect2] = []
+	if rail != null:
+		cuts = rail.cuts_in(Rect2(center - width, a, width * 2.0, b - a) if along_z else Rect2(a, center - width, b - a, width * 2.0))
 	# One or two manhole covers in a lane, seeded by the road position.
 	var mh := RandomNumberGenerator.new()
 	mh.seed = hash([center, a, along_z])

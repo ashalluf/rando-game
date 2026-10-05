@@ -3,15 +3,15 @@ render_mode cull_back;
 
 // The Coral Line past the streamed chunks (LightRailSystem._build_far_line()): the structure, its
 // columns, the trackway and the stations' canopies as plain vertex-coloured faces (sRGB in the
-// rgb; alpha 1 = a lit canopy roof, which glows after dark), dithered in from `fade_start` metres
-// from the camera so it takes over where the chunks' own line stops.
+// rgb; alpha 1 = a lit canopy soffit, which glows after dark), dithered in from `fade_start`
+// metres from the camera; inside the FULL chunks' own works wherever both draw.
 
 #include "res://shaders/color_space.gdshaderinc"
 
 global uniform float lamp_factor;
 
-uniform float fade_start = 880.0;
-uniform float fade_width = 120.0;
+uniform float fade_start = 150.0;
+uniform float fade_width = 60.0;
 
 varying vec3 wp;
 

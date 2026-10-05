@@ -246,7 +246,7 @@ func _chunks(city: Node3D, plan: CityPlan, line: LightRail) -> void:
 	_check(gates == 2, "a level crossing has a gate at each approach (%d)" % gates)
 	ck.get_parent().remove_child(ck)
 	ck.free()
-	# LOD: the structure without the wires.
+	# LOD: nothing of its own - the system's far line draws the line there.
 	var aerial_s := 0.0
 	for i in line.pts.size():
 		if line.mode[i] == LightRail.Mode.AERIAL:
@@ -254,7 +254,7 @@ func _chunks(city: Node3D, plan: CityPlan, line: LightRail) -> void:
 			break
 	var lod: CityChunk = city._new_chunk(plan.chunk_index_at(line.sample(aerial_s).pos), CityChunk.Level.LOD)
 	lod.build()
-	_check(lod.has_node("RailStructure"), "an LOD chunk builds the structure")
+	_check(not lod.has_node("RailStructure"), "an LOD chunk leaves the line to the far mesh")
 	lod.get_parent().remove_child(lod)
 	lod.free()
 	await _tree.process_frame
@@ -316,6 +316,7 @@ func _system(city: Node3D, plan: CityPlan, line: LightRail) -> void:
 			var t2 := line.track_point(s_d, tr.dir)
 			centre_side = centre_side and d.distance_to(c2) < Vector2(t2.x, t2.z).distance_to(c2)
 		_check(centre_side, "the doors open onto the island platform")
+	_check(sys._far_line != null and sys._far_line.mesh != null, "the line past the FULL chunks is one far mesh")
 	# Far trains: boxes for the rest.
 	_check(sys._far.multimesh.visible_instance_count > 0, "the trains out of detail range are boxes (%d sections)" % sys._far.multimesh.visible_instance_count)
 	# Strike: the player on the track in front of a moving train.

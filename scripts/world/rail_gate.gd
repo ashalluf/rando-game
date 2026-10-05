@@ -51,16 +51,13 @@ static func make(g: Dictionary, full: bool) -> RailGate:
 	arm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON if full else GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	pivot.add_child(arm)
 	if full:
-		for k in 3:
-			var l := MeshInstance3D.new()
-			l.mesh = lamp_mesh()
-			l.scale = Vector3.ONE * 0.6
-			l.position = Vector3(float(g.length) * (0.3 + 0.33 * float(k)), 0.1, -0.02)
-			l.rotation = Vector3(PI * 0.5, 0.0, 0.0)
-			l.material_override = lamp_material(false)
-			l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-			pivot.add_child(l)
-			gate._arm_lamps.append(l)
+		# The three lamps along the arm, one mesh (they light together).
+		var l := MeshInstance3D.new()
+		l.mesh = arm_lamps_mesh(float(g.length))
+		l.material_override = lamp_material(false)
+		l.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		pivot.add_child(l)
+		gate._arm_lamps.append(l)
 		# The flasher pair on the crossarm, facing the traffic (-z of the node).
 		for e: float in [0.48, -0.48]:
 			var lamp := MeshInstance3D.new()
@@ -117,6 +114,29 @@ static func _arm_material() -> StandardMaterial3D:
 	return _arm_mat
 
 
+static var _arm_lamp_meshes: Dictionary = {}
+
+
+## Three lamp discs along an arm of `length`, facing the traffic (-z).
+static func arm_lamps_mesh(length: float) -> ArrayMesh:
+	var key := snappedf(length, 0.1)
+	if _arm_lamp_meshes.has(key):
+		return _arm_lamp_meshes[key]
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k in 3:
+		var c := Vector3(length * (0.3 + 0.33 * float(k)), 0.1, -0.06)
+		for i in 10:
+			var a0 := TAU * float(i) / 10.0
+			var a1 := TAU * float(i + 1) / 10.0
+			for p: Vector3 in [c, c + Vector3(cos(a1), sin(a1), 0.0) * 0.09, c + Vector3(cos(a0), sin(a0), 0.0) * 0.09]:
+				st.set_normal(Vector3.FORWARD)
+				st.add_vertex(p)
+	var m := st.commit()
+	_arm_lamp_meshes[key] = m
+	return m
+
+
 static func lamp_mesh() -> CylinderMesh:
 	if _lamp_mesh == null:
 		_lamp_mesh = CylinderMesh.new()
@@ -154,8 +174,8 @@ func pose_at(phase: float, blink: bool) -> void:
 	var flashing := phase > 0.0 or lowered > 0.02
 	for i in _lamps.size():
 		_lamps[i].material_override = lamp_material(flashing and ((i == 0) == blink))
-	for i in _arm_lamps.size():
-		_arm_lamps[i].material_override = lamp_material(flashing and (i == 2 or ((i == 0) == blink)))
+	for l in _arm_lamps:
+		l.material_override = lamp_material(flashing)
 
 
 func _pose() -> void:
