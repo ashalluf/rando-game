@@ -6170,7 +6170,12 @@ the reference; this is the story.
   truck in the queue at a red (`STREET=queue STREET_BIG=10 STREET_EYE=1`), a semi on the 110
   (`BIG=semi BIG_ROUTE=110`), close-ups of each body (`car_shot.gd --each=9,10,11`), the bus's
   seat rows and passengers through the side glass (`OCCUPANT=npc`).
-- **Not done / not verified**: no Forward+ look (the LED signs and the lit bus cabin at night
+- **Frame cost** (`still_shot.gd` GEO, opengl3, Broadway south from 6th St `EYE=2985,1.7,205,180,5`,
+same load both ways): noon 6.15 M triangles / 3,406 draws with `BROADWAY=0`, 6.44 M / 3,431 with it
+(+4.7 % / +0.7 %); 21:00 (different loads) 7.46 M / 4,811 -> 7.42 M / 4,582. A palace is about 15k
+triangles in one mesh of ~7 surfaces. Stills on `shots/broadway` (README there).
+
+**Not done / not verified**: no Forward+ look (the LED signs and the lit bus cabin at night
   NEED A MAC CHECK); the bus's door openings show a black interior (no stairwell or floor); the
   front indicators are clear lenses; turns are snapped (a real turning radius for long vehicles
   would need the street traffic to drive arcs); no bus stops in the Esplanade replica's own
