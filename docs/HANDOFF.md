@@ -7163,6 +7163,6 @@ field at the roof (real-ish for five decks, but nobody measured the real one); t
 ramp towers; there are no players on the field and no traffic on the two roads (HillRoads are not
 driven); the crowd is a shader (no people at the gates or on the concourses); the scoreboards' line
 score is random digits. The upper terrace's slope is planted ground (the lot shader), not trees.
-The headless check on this box: the smoke test passes all 972 checks run without the script's 900 s
-cap (921 s, no error lines); under the cap it times out here, and so does `main` alone (779 checks
+The headless check on this box: the smoke test passes all its checks run without the script's 900 s
+cap (996 of 996 after the last rebase, 1056 s, no error lines); under the cap it times out here, and so does `main` alone (779 checks
 by 900 s on the same box), so the cap, not the park, is what this machine trips.
