@@ -42,4 +42,8 @@ func _initialize() -> void:
 	var loops: Array = pl.straddle_loops(plan)
 	for lp: Dictionary in loops:
 		print("STRADDLE loop %.0f m, %d cars, first corner %s" % [lp.path.length, (lp.cars as Array).size(), str((lp.path.pts as PackedVector2Array)[0])])
+		if t >= 0.0:
+			for car: Dictionary in lp.cars:
+				var at: Array = pl.path_at(lp.path, t * 5.6 + float(car.offset))
+				print("  straddle %s at T=%.1f: %s heading %s loaded=%s" % [car.id, t, str(at[0]), str(at[1]), str((car.look as Array).size() > 0)])
 	quit()
