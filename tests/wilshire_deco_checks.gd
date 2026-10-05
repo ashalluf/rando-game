@@ -166,6 +166,13 @@ func _full_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	var bare_sig := _signature(bare, lots)
 	DecoBoulevard.enabled = true
 	_t._check(sig == bare_sig and not sig.is_empty(), "the deco rolls nothing from the block: its parked cars and other buildings are unmoved (%d)" % sig.size())
+	if sig != bare_sig:
+		for x in sig:
+			if not bare_sig.has(x):
+				print("  deco on only:  ", x)
+		for x in bare_sig:
+			if not sig.has(x):
+				print("  deco off only: ", x)
 	_t._check(palms > bare_palms, "mature palms line the deco frontage (%d palms, %d without)" % [palms, bare_palms])
 	bare.get_parent().remove_child(bare)
 	bare.free()
