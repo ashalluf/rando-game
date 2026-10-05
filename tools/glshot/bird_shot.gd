@@ -10,7 +10,9 @@ extends SceneTree
 ## Env: OUT (png), SPECIES (comma list, default pigeon,gull,crow,sparrow), LOD (0 near, 1 mid,
 ## 2 far), CAM / LOOK (x,y,z; default a low three-quarter view down the row), FOV, MORPHS=1 (a
 ## row of pigeon colour morphs instead of poses), SCALE (multiplies every bird, to read the far
-## LODs up close), TRIS=1 prints each mesh's triangle count.
+## LODs up close), TRIS=1 prints each mesh's triangle count. ONLY=<pose index> draws that one
+## pose alone at the origin (a close-up: CAM / LOOK in metres round it, e.g. CAM=0.5,0.25,-0.6
+## LOOK=0,0.12,0 for a standing pigeon at a metre).
 const POSES := [
 	# [label, spread, phase, peck, walk, flap amplitude]
 	["stand", 0.0, 0.0, 0.0, 0.0, 0.0],
@@ -78,9 +80,16 @@ func _initialize() -> void:
 		var size: float = mesh.get_aabb().size.z * scale
 		if _first_size == 0.0:
 			_first_size = size
+		var only := int(OS.get_environment("ONLY")) if OS.get_environment("ONLY") != "" else -1
 		for i in POSES.size():
 			var p: Array = POSES[i]
 			var x := (float(i) - 2.5) * size * 1.6
+			if only >= 0:
+				# Every pose at the origin, all but the chosen one shrunk to nothing.
+				x = 0.0
+				if i != only:
+					mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * 0.0001), Vector3(0, -1, 0)))
+					continue
 			var lift := 0.0 if float(p[1]) < 0.5 else size * 0.9
 			var yaw := float(OS.get_environment("YAW")) if OS.get_environment("YAW") != "" else -60.0
 			var b := Basis(Vector3.UP, deg_to_rad(yaw)).scaled(Vector3.ONE * scale)
