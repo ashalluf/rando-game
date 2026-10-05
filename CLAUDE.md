@@ -867,7 +867,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`place_car`, `place_freeway_car`: `placed`) are NORMAL and change no lanes unless a check sets
   `ai`. `TRAFFIC_AI=0` is the A/B; `TrafficManager.drive_usec` is the traffic tick's cost. Stills:
   `TRAFFIC=bus|merge|pullout TRAFFIC_STEPS=s,s,...` on `still_shot.gd` (the staged traffic moves
-  only by `advance_shot()`, saved `_t1`, `_t2`, ...). Checks: `tests/traffic_ai_checks.gd`.
+  only by `advance_shot()`, saved `_t1`, `_t2`, ...). Checks: `tests/traffic_ai_checks.gd` (alone: `tools/traffic_ai/checks.tscn`).
 - Light rail (2026-10-04, "a light rail line, like LA Metro's, with its own original name, colour
   and livery"): the **Coral Line** of the invented **Basin Metro** (coral `LightRail.LINE_COLOR`,
   bullet "C"). **The line is a DATA TABLE** (`LightRail`, `scripts/world/light_rail.gd`: `ROUTE`,
