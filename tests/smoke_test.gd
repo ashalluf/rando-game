@@ -8,6 +8,34 @@ const LEVEL_PATH := "res://scenes/levels/test_box.tscn"
 
 var _failures: PackedStringArray = []
 var _checks := 0
+## SMOKE_PROFILE=1 prints a TIME line (wall seconds, resident memory, frame) after every check,
+## which is how the gate's time is split by section (tools/gate/profile.py).
+var _profile := OS.get_environment("SMOKE_PROFILE") == "1"
+
+
+## The most resident memory this process has had, in MB (Linux; 0 elsewhere).
+func _peak_rss_mb() -> int:
+	var f := FileAccess.open("/proc/self/status", FileAccess.READ)
+	if f == null:
+		return 0
+	while not f.eof_reached():
+		var line := f.get_line()
+		if line.begins_with("VmHWM:"):
+			return int(line.substr(6).strip_edges().split(" ")[0]) / 1024
+	return 0
+
+
+## Resident memory of this process in MB (Linux; 0 elsewhere).
+func _rss_mb() -> int:
+	var f := FileAccess.open("/proc/self/status", FileAccess.READ)
+	if f == null:
+		return 0
+	# Line by line: /proc reports a length of 0, so get_as_text() reads nothing.
+	while not f.eof_reached():
+		var line := f.get_line()
+		if line.begins_with("VmRSS:"):
+			return int(line.substr(6).strip_edges().split(" ")[0]) / 1024
+	return 0
 
 
 func _ready() -> void:
@@ -20,11 +48,226 @@ func _ready() -> void:
 	get_tree().create_timer(watchdog).timeout.connect(func():
 		printerr("SMOKE TEST TIMED OUT")
 		get_tree().quit(2))
+	_choose_parts()
 	# Deferred: the root is still busy adding this scene during _ready().
 	_run.call_deferred()
 
 
+## PARTS and shards. The run is cut into parts: "room" (the test room, the weapons, the building
+## samples), the city's own sections (_city_streaming() ... _city_files(), run in this order after
+## one city load) and, inside "city_files", every check file it loads (tests/*_checks.gd). A
+## whole run does all of them, exactly as before. SMOKE_SHARD=i/n (tests/headless_check.sh
+## SHARDS=n runs n of these side by side) does the i-th of n shares, dealt by PART_COST, longest
+## first, to the least loaded share: each share loads its own city, so the parts must not lean on
+## each other's state (the shards' pass / fail lists together are the whole run's).
+## SMOKE_PARTS=room,city_cars,bird_checks runs just those (a quick loop on one area).
+## A check file that is not in this share is swapped for a stub before city_files runs (a script
+## taken over at its path, so load() returns it), which leaves smoke_test's list of files as it is.
+const CITY_PARTS := ["city_streaming", "city_terrain", "city_landmarks", "city_cars", "city_people",
+	"city_polish", "city_crowd", "city_menu"]
+## Check files called from inside a city part (they go with that part, never on their own).
+const INLINE_FILES := ["downtown_checks", "hero_moves_checks", "street_life_checks",
+	"crowd_anim_checks", "crowd_life_checks", "crowd_hat_checks", "photo_mode_checks"]
+## Wall seconds each part took in a whole run on the 4-core fleet box (SMOKE_PROFILE=1 prints
+## them as PART lines); a file missing here counts DEFAULT_COST. Only the deal depends on them.
+const PART_COST := {
+	"room": 30.0, "city_streaming": 59.7, "city_terrain": 17.9, "city_landmarks": 39.0,
+	"city_cars": 64.5, "city_people": 8.8, "city_polish": 27.1, "city_crowd": 72.4,
+	"city_menu": 42.1, "civic_checks": 1.4, "air_traffic_checks": 3.3, "airport_checks": 11.8,
+	"car_damage_checks": 13.5, "car_cabin_checks": 1.5, "car_lights_checks": 9.7,
+	"big_vehicle_checks": 34.7, "more_cars_checks": 4.1, "light_rail_checks": 1.8,
+	"bird_checks": 0.4, "sky_checks": 0.0, "emergency_checks": 80.6,
+	"police_station_checks": 64.9, "ambience_checks": 0.5, "audio_checks": 2.2,
+	"replica_checks": 0.5, "surf_checks": 0.5, "freeway_kit_checks": 0.9, "westlake_checks": 22.3,
+	"distance_checks": 21.9, "hill_air_checks": 0.1, "far_city_checks": 0.3,
+	"masjid_checks": 15.3, "street_wear_checks": 9.9, "climbing_plants_checks": 1.4,
+	"street_vendors_checks": 1.1, "beach_life_checks": 0.9, "broadway_checks": 1.6,
+	"lot_fill_checks": 3.4, "house_checks": 1.7, "industrial_checks": 1.2, "park_checks": 0.5,
+	"billboard_checks": 4.1, "la_river_checks": 15.6, "night_city_checks": 3.0,
+	"port_life_checks": 20.8, "canals_checks": 0.8, "pier_park_checks": 17.7,
+	"marina_checks": 0.2, "explosion_aftermath_checks": 9.4, "building_damage_checks": 0.1,
+	"schools_checks": 1.3, "minimap_checks": 0.5, "weather_la_checks": 0.1,
+	"stack_interchange_checks": 6.0
+}
+const DEFAULT_COST := 6.0
+## Every share pays for its own city load on top of its parts.
+const CITY_LOAD_COST := 60.0
+var _parts := {} # part or check file name -> true; empty = everything
+var _buildings_done := false
+var _ran := {} # the city parts this run has started, for _stage()
+var _home_look := Vector2(INF, INF) # the camera's yaw and pitch when the city has loaded
+var _proxies := {} # check file path -> [the real script, its name, run()'s argument count]
+
+
+func _choose_parts() -> void:
+	var listed := OS.get_environment("SMOKE_PARTS")
+	var shard := OS.get_environment("SMOKE_SHARD")
+	if listed != "":
+		for part in listed.split(",", false):
+			_parts[part.strip_edges()] = true
+	elif shard != "":
+		var index := int(shard.get_slice("/", 0))
+		var count := maxi(int(shard.get_slice("/", 1)), 1)
+		var shares := shard_plan(count)
+		for part in shares[clampi(index, 0, count - 1)]:
+			_parts[part] = true
+	else:
+		return
+	var known := all_parts()
+	for part in _parts:
+		if not known.has(part):
+			_check(false, "SMOKE_PARTS names a part that does not exist: %s" % part)
+	printerr("SMOKE PARTS %s" % ",".join(_parts.keys()))
+
+
+## Every part, then every check file city_files loads, by name.
+static func all_parts() -> Array:
+	var names: Array = ["room"]
+	names.append_array(CITY_PARTS)
+	for file in DirAccess.get_files_at("res://tests"):
+		if file.ends_with("_checks.gd") and not INLINE_FILES.has(file.get_basename()):
+			names.append(file.get_basename())
+	return names
+
+
+## The n shares: the parts, longest first, each to the share that would finish first (a city part
+## or file also brings the share's city load). Deterministic, so every shard deals the same.
+static func shard_plan(count: int) -> Array:
+	var names := all_parts()
+	names.sort_custom(func(a, b):
+		var ca: float = PART_COST.get(a, DEFAULT_COST)
+		var cb: float = PART_COST.get(b, DEFAULT_COST)
+		return ca > cb or (ca == cb and a < b))
+	var shares: Array = []
+	var busy: Array = []
+	var has_city: Array = []
+	for i in count:
+		shares.append([])
+		busy.append(0.0)
+		has_city.append(false)
+	for part in names:
+		var cost: float = PART_COST.get(part, DEFAULT_COST)
+		var is_city: bool = part != "room"
+		var best := 0
+		var best_end := INF
+		for i in count:
+			var end: float = busy[i] + cost + (CITY_LOAD_COST if is_city and not has_city[i] else 0.0)
+			if end < best_end - 0.001:
+				best = i
+				best_end = end
+		shares[best].append(part)
+		busy[best] = best_end
+		has_city[best] = has_city[best] or is_city
+	return shares
+
+
+func _want(part: String) -> bool:
+	if _parts.is_empty():
+		return true
+	if part == "city_files":
+		for key in _parts:
+			if not CITY_PARTS.has(key) and key != "room":
+				return true
+		return false
+	return _parts.has(part)
+
+
+func _wants_city() -> bool:
+	if _parts.is_empty():
+		return true
+	for key in _parts:
+		if key != "room":
+			return true
+	return false
+
+
+func _part_begin(part: String) -> int:
+	if not _parts.is_empty():
+		await _stage(part)
+	if part == "city_files" and (_profile or not _parts.is_empty()):
+		_wrap_files()
+	return Time.get_ticks_msec()
+
+
+## A share's part whose predecessor ran elsewhere starts from the spawn with the streaming
+## settled, as the city's first part does, not wherever this share's last part left the player.
+func _stage(part: String) -> void:
+	var order: Array = ["setup"]
+	order.append_array(CITY_PARTS)
+	order.append("city_files")
+	var before: String = order[order.find(part) - 1]
+	_ran[part] = true
+	if before != "setup" and not _ran.has(before):
+		await stage_home()
+
+
+## The player back at the spawn, streaming settled round it.
+func stage_home() -> void:
+	var city: Node = get_tree().root.get_node_or_null("City")
+	var player := get_tree().get_first_node_in_group("player") as CharacterBody3D
+	if city == null or player == null:
+		return
+	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
+	player.velocity = Vector3.ZERO
+	# Looking the way the city first set the camera (a file aims down the view: the rocket at a
+	# helicopter 55 m ahead hit whatever building the last file had the camera turned to).
+	var rig: Node = player.get_node_or_null("CameraRig")
+	if rig and _home_look.x != INF:
+		rig.call("set_look", rad_to_deg(_home_look.x), rad_to_deg(_home_look.y))
+	city.update_streaming(true)
+	await _ticks(30)
+
+
+func _part_end(part: String, began: int) -> void:
+	printerr("PART %s %.1f s" % [part, (Time.get_ticks_msec() - began) / 1000.0])
+
+
+## Before city_files: every check file it loads is swapped for a script taken over at its path,
+## so load() returns that instead. In a share, a file of another share becomes a stub with an
+## empty run(), and a file of this share a proxy that first puts the player back at the spawn
+## (stage_home(): a file's result must not depend on which files the deal put before it) and
+## then runs the real one. With SMOKE_PROFILE=1 the proxy also prints a PART line with the file's
+## time (how PART_COST is measured).
+func _wrap_files() -> void:
+	var source: String = (get_script() as GDScript).source_code
+	for part in all_parts():
+		if part == "room" or CITY_PARTS.has(part):
+			continue
+		var path := "res://tests/%s.gd" % part
+		var proxy := GDScript.new()
+		if not _parts.is_empty() and not _parts.has(part):
+			proxy.source_code = "extends RefCounted\nfunc run(_a = null, _b = null, _c = null, _d = null) -> void:\n\tpass\n"
+		else:
+			var real: GDScript = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+			var argc := 2
+			for method in real.get_script_method_list():
+				if method.name == "run":
+					argc = method.args.size()
+			# Only a file the list awaits is staged: a plain call does not wait for a coroutine, and
+			# those files check data, not the world round the player.
+			var awaited: bool = source.contains('await load("%s")' % path)
+			_proxies[path] = [real, part, argc, awaited and not _parts.is_empty()]
+			# The proxy finds the real script through the smoke test, which every file is handed first.
+			proxy.source_code = """extends RefCounted
+func run(a = null, b = null, c = null, d = null) -> void:
+	var spec: Array = a._proxies["%s"]
+	if spec[3]:
+		await a.stage_home()
+	var t := Time.get_ticks_msec()
+	await spec[0].new().callv("run", [a, b, c, d].slice(0, spec[2]))
+	if a._profile:
+		printerr("PART %%s %%.1f s" %% [spec[1], (Time.get_ticks_msec() - t) / 1000.0])
+""" % path
+		proxy.reload()
+		proxy.take_over_path(path)
+
+
 func _run() -> void:
+	if not _want("room"):
+		if _wants_city():
+			await _test_city()
+		_finish()
+		return
 	var packed: PackedScene = load(LEVEL_PATH)
 	_check(packed != null, "level scene loads")
 	if packed == null:
@@ -96,7 +339,11 @@ func _run() -> void:
 	_test_buildings()
 	level.free() # Free now, so the city scene cannot pick up this level's player.
 	await get_tree().process_frame
-	await _test_city()
+	if _wants_city():
+		await _test_city()
+	# (In a whole run the building checks finish during the city's load; alone, wait for them.)
+	while not _buildings_done:
+		await get_tree().process_frame
 	_finish()
 
 
@@ -187,6 +434,59 @@ func _test_city() -> void:
 	_check(cans > 0, "trash cans are physics props (%d)" % cans)
 	_check_street_clutter(city)
 
+	# The rest of the city's checks are PARTS (see _want()): one function each, run in order,
+	# so a sharded run (tests/headless_check.sh SHARDS=n) can give each process its share.
+	var macro: MacroMap = plan.macro
+	# city_cars empties the street of traffic and city_people puts the cap back.
+	var traffic_mgr: Node3D = city.get_node("Traffic")
+	var traffic_cap: int = traffic_mgr.max_cars
+	var home_rig: Node = player.get_node_or_null("CameraRig")
+	if home_rig:
+		_home_look = Vector2(float(home_rig.get("_yaw")), float(home_rig.get("_pitch")))
+	if _want("city_streaming"):
+		var t_city_streaming: int = await _part_begin("city_streaming")
+		await _city_streaming(city, plan, player)
+		_part_end("city_streaming", t_city_streaming)
+	if _want("city_terrain"):
+		var t_city_terrain: int = await _part_begin("city_terrain")
+		await _city_terrain(city, plan, player, macro)
+		_part_end("city_terrain", t_city_terrain)
+	if _want("city_landmarks"):
+		var t_city_landmarks: int = await _part_begin("city_landmarks")
+		await _city_landmarks(city, plan, player, macro)
+		_part_end("city_landmarks", t_city_landmarks)
+	if _want("city_cars"):
+		var t_city_cars: int = await _part_begin("city_cars")
+		await _city_cars(city, plan, player, macro)
+		_part_end("city_cars", t_city_cars)
+		if not _want("city_people"):
+			traffic_mgr.max_cars = traffic_cap
+	if _want("city_people"):
+		var t_city_people: int = await _part_begin("city_people")
+		await _city_people(city, plan, player, traffic_cap, traffic_mgr)
+		_part_end("city_people", t_city_people)
+	if _want("city_polish"):
+		var t_city_polish: int = await _part_begin("city_polish")
+		await _city_polish(city, plan, player)
+		_part_end("city_polish", t_city_polish)
+	if _want("city_crowd"):
+		var t_city_crowd: int = await _part_begin("city_crowd")
+		await _city_crowd(city, plan, player)
+		_part_end("city_crowd", t_city_crowd)
+	if _want("city_menu"):
+		var t_city_menu: int = await _part_begin("city_menu")
+		await _city_menu(city, plan, player, packed)
+		_part_end("city_menu", t_city_menu)
+	if _want("city_files"):
+		var t_city_files: int = await _part_begin("city_files")
+		await _city_files(city, plan, player)
+		_part_end("city_files", t_city_files)
+	if not _want("city_files"):
+		city.queue_free()
+		_world_state().reset()
+
+
+func _city_streaming(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Breaking a lamp: it disappears, drops debris, and is remembered.
 	var home_key: Vector2i = plan.block_index_at(Vector2.ZERO)
 	var home_chunk: Node3D = city.chunks[home_key]
@@ -440,6 +740,8 @@ func _test_city() -> void:
 		var ground_there: float = macro.height_at(Vector2(lifted.x, lifted.z))
 		_check(lifted.y > ground_there - 3.0, "player under a hill is lifted onto it (y %.0f, ground %.0f)" % [lifted.y, ground_there])
 
+
+func _city_terrain(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: MacroMap) -> void:
 	# The basin is ringed by mountains, and the inland valley is a city floor at altitude.
 	if macro:
 		var front_h: float = macro.raw_height_at(Vector2(200.0, macro.hills_full_z))
@@ -732,6 +1034,9 @@ func _test_city() -> void:
 					table_why += " Quality.%s" % str(named[0])
 		_check(table_why == "", "every per-index table has a row per enum member%s" % table_why)
 		_check(city.has_node("FarLandmark_campus_hall"), "far version of the campus hall exists")
+
+
+func _city_landmarks(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: MacroMap) -> void:
 	# Landmarks: far versions always exist; the detailed one appears when its chunk is loaded.
 	if macro:
 		_check(city.has_node("FarLandmark_sign") and city.has_node("FarLandmark_pier") and city.has_node("FarLandmark_observatory"), "far versions of the sign, pier and observatory exist")
@@ -828,6 +1133,8 @@ func _test_city() -> void:
 						quay_cranes += 1
 		_check(quay_chunks == 0 or quay_cranes == quay_chunks * 2, "every quay chunk stands two gantry cranes (%d on %d)" % [quay_cranes, quay_chunks])
 
+
+func _city_cars(city: Node3D, plan: CityPlan, player: CharacterBody3D, macro: MacroMap) -> void:
 	# Cars: parked in the streets, drivable.
 	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
 	player.velocity = Vector3.ZERO
@@ -842,6 +1149,9 @@ func _test_city() -> void:
 	# below), otherwise a passing car or a knocked pedestrian can pin the test car.
 	var traffic_mgr: Node3D = city.get_node("Traffic")
 	var traffic_cap: int = traffic_mgr.max_cars
+	var home_rig: Node = player.get_node_or_null("CameraRig")
+	if home_rig:
+		_home_look = Vector2(float(home_rig.get("_yaw")), float(home_rig.get("_pitch")))
 	traffic_mgr.max_cars = 0
 	for c in traffic_mgr.cars.duplicate():
 		if is_instance_valid(c):
@@ -1058,6 +1368,9 @@ func _test_city() -> void:
 			player.velocity = Vector3.ZERO
 			city.update_streaming(true)
 			await _ticks(5)
+
+
+func _city_people(city: Node3D, plan: CityPlan, player: CharacterBody3D, traffic_cap: int, traffic_mgr: Node3D) -> void:
 	# Pedestrians and traffic.
 	traffic_mgr.max_cars = traffic_cap
 	player.global_position = _world_state().to_local(Vector3(0.0, 2.0, 0.0))
@@ -1416,6 +1729,8 @@ func _test_city() -> void:
 			await _ticks(2)
 			_check(not tcar.is_traffic() and not tcar.freeze, "a hit traffic car becomes a physics car")
 
+
+func _city_polish(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Polish: grass in parks, day/night, sounds, pause menu, seed rebuild.
 	var park_chunk: Node3D = null
 	for k in city.chunks:
@@ -1633,6 +1948,9 @@ func _test_city() -> void:
 		var reach: float = qual.shadow_distance[0]
 		_check(reach >= 500.0, "shadows reach across the city on HIGH (%.0f m)" % reach)
 	await _test_police(city, player)
+
+
+func _city_crowd(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Street life (signals, queues, crosswalks, the police's street routes): its own file, like
 	# the air traffic's, so it compiles after the autoloads (tests/street_life_checks.gd). Here,
 	# before the seed-rebuild check below: the second city it builds resets the shared
@@ -1646,6 +1964,9 @@ func _test_city() -> void:
 	await load("res://tests/crowd_life_checks.gd").new().run(self, city)
 	# The crowd's headwear (CrowdHat): measured heads, fitted hats, one draw each, kept on a body.
 	await load("res://tests/crowd_hat_checks.gd").new().run(self, city)
+
+
+func _city_menu(city: Node3D, plan: CityPlan, player: CharacterBody3D, packed: PackedScene) -> void:
 	# Photo mode: frozen world, its own camera, its settings, a PNG, and everything put back.
 	await load("res://tests/photo_mode_checks.gd").new().run(self, city)
 	# The dogs (DogMesh, DogRig, CrowdDog, YardDog): built breeds, the gait, walkers, yards.
@@ -1716,6 +2037,8 @@ func _test_city() -> void:
 		"lamp light pool is square in world space (%.1f x %.1f m, wants %.1f)" % [span_a.length(), span_b.length(), pool_size])
 	_check(absf(normal.length() - 1.0) < 0.01 and absf(normal.y) > 0.99, "lamp light pool lies flat with a unit normal")
 
+
+func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The downtown civic landmarks (arena district, civic centre): their own file, like the air
 	# traffic's (tests/civic_checks.gd).
 	await load("res://tests/civic_checks.gd").new().run(self, city)
@@ -2524,6 +2847,7 @@ func _test_buildings() -> void:
 	_check(a.footprint == c.footprint and a.height == c.height and a.shape == c.shape, "same seed gives the same building")
 	a.queue_free()
 	c.queue_free()
+	_buildings_done = true
 
 
 ## The real storefronts and curtain-wall caps (ShopfrontKit): they go on with the kit and only
@@ -3589,11 +3913,14 @@ func _check(ok: bool, label: String) -> void:
 	_checks += 1
 	# printerr: unbuffered, so progress is visible even if the run is killed.
 	printerr("%s %s" % ["PASS" if ok else "FAIL", label])
+	if _profile:
+		printerr("TIME %.2f s, rss %d MB, frame %d" % [Time.get_ticks_msec() / 1000.0, _rss_mb(), Engine.get_process_frames()])
 	if not ok:
 		_failures.append(label)
 
 
 func _finish() -> void:
+	printerr("SMOKE TIME %.1f s, peak rss %d MB" % [Time.get_ticks_msec() / 1000.0, _peak_rss_mb()])
 	if _failures.is_empty():
 		print("SMOKE TEST PASSED (%d checks)" % _checks)
 		get_tree().quit(0)

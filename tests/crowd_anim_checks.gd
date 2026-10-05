@@ -24,6 +24,9 @@ func run(t: Node, city: Node3D) -> void:
 	ped.pause_chance = 0.0
 	ped.cross_chance = 0.0
 	ped.look_range = 100000.0 # wherever the player stands
+	# Never a crowd-life stop (talk, phone, idle): those take over the clip, and they start only
+	# within life_range of the player, so where the run left the player decided the result.
+	ped.life_range = 0.0
 	# Along the north pavement, west to east, from a standstill.
 	var z := rect.position.y + 2.0
 	var a := Vector2(rect.position.x + 6.0, z)

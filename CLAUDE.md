@@ -87,6 +87,16 @@ It fails on any script error or NaN warning in the output. Gotchas: the test scr
 autoload or a class that uses one (`CityChunk`, `CityStreamer`) as a type there (look them up with
 `root.get_node("/root/WorldState")` and untyped vars); and `root.add_child()` from `_initialize()`
 is deferred, so await a frame before using the scene.
+
+**`SHARDS=3 tests/headless_check.sh`** is the fast gate (2026-10-05, docs/HANDOFF.md "The gate in
+shards"): ~6 min instead of ~14 on a 4-core box, three processes of ~2.2 GB each, the same
+pass / fail list. The smoke test is cut into PARTS (`room`, the city's `_city_*()` sections, every
+check file); `SMOKE_SHARD=i/n` deals them by `PART_COST`, a share stubs other shares' files and
+starts each of its own at the spawn (`stage_home()`), so a check must not lean on where an earlier
+one left the player. `SMOKE_PARTS=bird_checks` runs one area in a minute and a half;
+`SMOKE_PROFILE=1` times every check and part (`tools/gate/profile.py`), and
+`tools/gate/compare.py` compares two runs' lists. A new check file needs no wiring for shards.
+
 Download a Linux headless-capable build with:
 
 ```
