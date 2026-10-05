@@ -2409,6 +2409,8 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
+		# The kerb: the pavement's cut ring, its paint and house numbers (Kerbs; hash-seeded).
+		steps.append_array(Kerbs.steps(self, block))
 		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
 		if Broadway.block_side(plan, ix, iz) != 0:
 			steps.append(func() -> void: Broadway.block_step(self, rect))
@@ -2489,7 +2491,13 @@ func _block_surface(block: Dictionary, params: Dictionary, rng: RandomNumberGene
 	_lamp_tint = params.get("lamp_tint", Color.WHITE)
 	# Pavement: the same wear shader as the road, but with expansion joints and far less
 	# patching and staining, so a sidewalk reads as poured slabs rather than a grey plane.
-	_add_slab(Vector3(center.x, SIDEWALK_TOP * 0.5, center.y), Vector3(rect.size.x, SIDEWALK_TOP, rect.size.y), style.sidewalk, true, PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45))
+	var paving_mat := PropFactory.road(paving[0], paving[1], paving_tint, hash([plan.seed, ix, iz, "paving"]), rng.randf_range(1.2, 1.9), 0.45)
+	# A FULL block's outer ring of pavement is Kerbs' (cut for ramps, aprons and tree wells).
+	var pave := rect
+	if Kerbs.takes(self, rect):
+		Kerbs.begin(self, rect, paving_mat)
+		pave = Kerbs.inner(rect)
+	_add_slab(Vector3(pave.get_center().x, SIDEWALK_TOP * 0.5, pave.get_center().y), Vector3(pave.size.x, SIDEWALK_TOP, pave.size.y), style.sidewalk, true, paving_mat)
 
 
 ## `sidewalk` narrows the strip the walkers keep to (a block with encampments along its walls);
@@ -2626,7 +2634,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	var car := Vehicle.random_car(rng)
 	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)) \
 			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Kerbs.blocks_parking(self, spot[0]):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
