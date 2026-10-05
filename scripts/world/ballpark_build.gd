@@ -1001,7 +1001,9 @@ static func _poles(batch: MultiMeshBatch) -> void:
 	for p: Vector2 in Ballpark.poles():
 		batch.add("bp_pole", mesh, Transform3D(Basis(Vector3.UP, atan2(-Ballpark.RIGHT.x, -Ballpark.RIGHT.y)), _w(p, Ballpark.level(p) - Ballpark.PAD_Y + 0.1)))
 		count += 1
-	batch.set_shadow_distance("bp_pole", 120.0)
+	# set_shadow_reach, not set_shadow_distance: the pole is a code mesh with no lighter twin, and
+	# set_shadow_distance only reaches a twin (on this mesh it did nothing).
+	batch.set_shadow_reach("bp_pole", 120.0)
 	stats["poles"] = count
 
 

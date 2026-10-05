@@ -8612,6 +8612,15 @@ terrace east of home, switchbacking down the south face to Hill St at downtown's
 passes from both ends, never climbing on the way down: the first version (a straight fall) put a
 126 m cut through the peak at x 2300; rerouted east of it and ground-following, the worst is a 38 m
 fill. `tools/stadium/probe.gd ROADS=1` prints bed against ground every 60 m.
+After the merge with fleet/base (wave 2) the ends were found off the city they meet: the passes held
+the grade from the site down to the last point, so Sunridge Dr (never allowed to climb past the
+saddle) ended 7.7 m under the valley floor and Stadium Way 9 m over Hill St, a ditch and a step at
+the zone edge where the hill chunk's carve met the city chunk's ground. Now the run off the hills
+is pinned to the city's ground, only Stadium Way is held to never climb, and the checks hold the
+run within 0.6 m (0.0 on the default seed). `tools/stadium/clash_probe.gd` prints that and the site
+against the freeways and the four-level stack (1.4 km away, nothing within the banks' reach).
+`Ballpark.carve()` also asked the cached switch before anything had read it, so `BALLPARK=0` still
+carved the hills under the hill roads and the freeway; it reads `enabled()` now.
 
 **The stadium** (`BallparkBuild`, world space, cached per level; the near set is built on the
 loading screen alongside the far copy, ~350 ms, so the chunk that streams it in does not stall).
