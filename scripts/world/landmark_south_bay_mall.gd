@@ -174,6 +174,14 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 		_lot_markings(parent, base, batch)
 		_lot_planting(parent, statics, base, batch, rng)
 		_pylon_sign(parent, statics, base)
+	else:
+		# The lot's islands, palms and light poles far as well, shadowless: their heads are the
+		# lot's light at night, and the palms most of its silhouette from the ring road.
+		var lot_rng := RandomNumberGenerator.new()
+		lot_rng.seed = SEED_SALT + int(anchor.x) * 7919 + int(anchor.y) * 104729 + 1
+		_lot_planting(parent, null, base, batch, lot_rng)
+		for key: String in batch.keys():
+			batch.set_no_shadow(key)
 	batch.build(parent)
 
 

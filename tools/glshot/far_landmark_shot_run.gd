@@ -1,7 +1,7 @@
 extends RefCounted
 ## The work of far_landmark_shot.gd (compiled only once the autoloads are in; see there).
 
-const SKIP := ["airfield_lights", "macarthur_park", "marisol_canals"]
+const SKIP := ["airfield_lights", "marisol_canals", "venice_canals"]
 
 
 var tree: SceneTree
@@ -48,6 +48,7 @@ func run(t: SceneTree) -> void:
 	plan.macro.seed = plan.seed
 	plan.macro.setup()
 	city.free()
+	print("FAR_LANDMARK plan ready")
 
 	var ids: Array = []
 	if OS.get_environment("IDS") != "":
@@ -77,15 +78,18 @@ func run(t: SceneTree) -> void:
 		root3d.add_child(near)
 		var statics := StaticBody3D.new()
 		near.add_child(statics)
+		print("FAR_LANDMARK building ", id)
 		var t0 := Time.get_ticks_msec()
 		Landmarks.build(lm, near, statics, plan, true)
 		var t1 := Time.get_ticks_msec()
+		print("FAR_LANDMARK near built")
 		var far := Node3D.new()
 		far.name = "Far_" + id
 		root3d.add_child(far)
 		Landmarks.build(lm, far, null, plan, false)
 		MultiMeshBatch.merge_meshes(far)
 		var t2 := Time.get_ticks_msec()
+		print("FAR_LANDMARK far built")
 		var box := _bounds(near, lm.anchor, plan)
 		var c := box.get_center()
 		var r := maxf(box.size.length() * 0.5, 8.0)

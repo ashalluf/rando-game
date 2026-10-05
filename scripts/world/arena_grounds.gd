@@ -372,7 +372,7 @@ static func _edge_point(r: Rect2, side: int, f: float, inset: float) -> Vector2:
 ## metres down its long axis (0 for none), shrubs and flowering ground cover between them, and a
 ## bench on the kerb facing out on the long sides.
 static func bed(g: LandmarkGeo, batch: MultiMeshBatch, statics: StaticBody3D, r: Rect2, y0: float, seed_value: int,
-		tree_every: float = 11.0, palms: bool = false, benches: bool = true) -> void:
+		tree_every: float = 11.0, palms: bool = false, benches: bool = true, far: bool = false) -> void:
 	g.use("bed_kerb", _concrete(y0))
 	g.use("bed_soil", ground_cover())
 	var rng := RandomNumberGenerator.new()
@@ -401,6 +401,11 @@ static func bed(g: LandmarkGeo, batch: MultiMeshBatch, statics: StaticBody3D, r:
 				var sc := PropFactory.city_tree_scale(tv, rng.randf_range(7.0, 9.5))
 				batch.add("tree_%d" % tv, PropFactory.model_tree(tv), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), Vector3(p.x, y0 + h, p.y)),
 					Color.WHITE, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.5, 1.0)))
+	if far:
+		# The far copy (CityStreamer's far landmarks): the bed and its trees, which are what
+		# reads from a few hundred metres; the trees' own LOD ladders do the thinning.
+		_far_shadows(batch)
+		return
 	# Shrubs along the bed, flowers in drifts of one kind between them.
 	var area := inner.size.x * inner.size.y
 	var lead := rng.randi() % PropFactory.FLOWERS.size()
@@ -447,7 +452,7 @@ static func bed(g: LandmarkGeo, batch: MultiMeshBatch, statics: StaticBody3D, r:
 
 ## A bosque: trees on a grid over `r`, each in a dark iron grate with a ring bench on every
 ## other one - the shaded grove every Los Angeles plaza puts between its venues.
-static func bosque(g: LandmarkGeo, batch: MultiMeshBatch, r: Rect2, y0: float, spacing: float, seed_value: int) -> void:
+static func bosque(g: LandmarkGeo, batch: MultiMeshBatch, r: Rect2, y0: float, spacing: float, seed_value: int, far: bool = false) -> void:
 	g.use("grate", LandmarkMats.plain("bosque_grate", Color(0.13, 0.13, 0.14), 0.55, 0.6))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
@@ -457,13 +462,17 @@ static func bosque(g: LandmarkGeo, batch: MultiMeshBatch, r: Rect2, y0: float, s
 	for j in nz:
 		for i in nx:
 			var p := r.position + Vector2((float(i) + 0.5) * r.size.x / float(nx), (float(j) + 0.5) * r.size.y / float(nz))
-			g.box("grate", Vector3(p.x, y0 + 0.035, p.y), Vector3(1.8, 0.02, 1.8), Color.WHITE)
+			if not far:
+				g.box("grate", Vector3(p.x, y0 + 0.035, p.y), Vector3(1.8, 0.02, 1.8), Color.WHITE)
 			var tv := 1 + (i + j + seed_value) % 3
 			var sc := PropFactory.city_tree_scale(tv, rng.randf_range(7.5, 9.5))
 			batch.add("tree_%d" % tv, PropFactory.model_tree(tv), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), Vector3(p.x, y0 + 0.02, p.y)),
 				Color.WHITE, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.5, 1.0)))
-			if (i + j) % 2 == 0:
+			if (i + j) % 2 == 0 and not far:
 				batch.add("ring_bench", ring, Transform3D(Basis(Vector3.UP, rng.randf() * TAU), Vector3(p.x, y0 + 0.03, p.y)))
+	if far:
+		_far_shadows(batch)
+		return
 	for tv in range(1, 4):
 		batch.set_draw_distance("tree_%d" % tv, 280.0)
 
@@ -633,21 +642,19 @@ static func build_leftovers(plan: CityPlan, id: String, info: Dictionary, pivot:
 		var seed_value := 9001 + k * 131 + id.hash() % 1000
 		var toward_front := w.end.y <= site.position.y + 0.5 # north of the site: its front
 		if short < 14.0:
-			if detailed:
-				bed(g, batch, statics, r.grow(-1.5), y0, seed_value, 11.0, short < 9.0, false)
+			bed(g, batch, statics, r.grow(-1.5), y0, seed_value, 11.0, short < 9.0, false, not detailed)
 		elif id == "convention_center" and short >= 80.0:
 			_second_hall(g, batch, pivot, statics, r, y0, detailed, seed_value)
 		elif id == "arena" and toward_front:
-			if detailed:
-				_front_grove(g, batch, statics, r, y0, seed_value)
+			_front_grove(g, batch, statics, r, y0, seed_value, not detailed)
 		elif short >= 50.0 and not toward_front and id != "arena": # the arena has its own car park
 			var gr := Rect2(r.position + Vector2(4.0, 4.0), Vector2(minf(r.size.x - 8.0, 150.0), minf(r.size.y - 8.0, 100.0)))
 			garage(g, batch, pivot, statics, gr, 5, y0, detailed, seed_value, 3 if gr.position.x < 0.0 else 1)
 			var rest := Rect2(Vector2(gr.end.x + 6.0, r.position.y + 2.0), Vector2(r.end.x - gr.end.x - 8.0, r.size.y - 4.0))
-			if detailed and rest.size.x > 20.0:
-				surface_lot(g, batch, pivot, rest, y0, seed_value + 7)
-		elif detailed:
-			surface_lot(g, batch, pivot, r.grow(-2.0), y0, seed_value)
+			if rest.size.x > 20.0:
+				surface_lot(g, batch, pivot, rest, y0, seed_value + 7, not detailed)
+		else:
+			surface_lot(g, batch, pivot, r.grow(-2.0), y0, seed_value, not detailed)
 	g.commit(pivot, "Grounds")
 	g.commit_collision(statics)
 	batch.build(pivot)
@@ -655,9 +662,11 @@ static func build_leftovers(plan: CityPlan, id: String, info: Dictionary, pivot:
 
 ## The front of the arena block toward the plaza: paving, a grove in the west half, raised beds
 ## with palms along the street edge, bronze figures along the east half.
-static func _front_grove(g: LandmarkGeo, batch: MultiMeshBatch, statics: StaticBody3D, r: Rect2, y0: float, seed_value: int) -> void:
+static func _front_grove(g: LandmarkGeo, batch: MultiMeshBatch, statics: StaticBody3D, r: Rect2, y0: float, seed_value: int, far: bool = false) -> void:
 	var grove := Rect2(r.position + Vector2(4.0, 6.0), Vector2(r.size.x * 0.34, r.size.y - 12.0))
-	bosque(g, batch, grove, y0, 14.0, seed_value)
+	bosque(g, batch, grove, y0, 14.0, seed_value, far)
+	if far:
+		return
 	# East of the grove: low beds of shrubs and flowers (no trees - they are what a frame pays
 	# for) in two rows with walks between, and bronze figures on the walks.
 	var east := Rect2(Vector2(grove.end.x + 10.0, r.position.y + 5.0), Vector2(r.end.x - grove.end.x - 16.0, r.size.y - 10.0))
@@ -720,7 +729,7 @@ static func _second_hall(g: LandmarkGeo, batch: MultiMeshBatch, pivot: Node3D, s
 
 ## A surface car park over `r`: asphalt, double rows of stalls either side of drive aisles along
 ## x, planted islands at the row ends, light masts, a kerb of beds round it and some parked cars.
-static func surface_lot(g: LandmarkGeo, batch: MultiMeshBatch, pivot: Node3D, r: Rect2, y0: float, seed_value: int) -> void:
+static func surface_lot(g: LandmarkGeo, batch: MultiMeshBatch, pivot: Node3D, r: Rect2, y0: float, seed_value: int, far: bool = false) -> void:
 	if r.size.x < 20.0 or r.size.y < 14.0:
 		return
 	g.use("lot_asphalt", LandmarkMats.paving("asphalt", 4.0, Color(0.6, 0.6, 0.61), seed_value, 0.0, 0.45))
@@ -744,7 +753,8 @@ static func surface_lot(g: LandmarkGeo, batch: MultiMeshBatch, pivot: Node3D, r:
 			var zc := z + STALL.y * (0.5 + float(half))
 			for i in stalls + 1:
 				var x := x0 + float(i) * STALL.x
-				g.box("gar_paint", Vector3(x, y0 + 0.058, zc), Vector3(0.12, 0.02, STALL.y - 0.4), Color.WHITE)
+				if not far:
+					g.box("gar_paint", Vector3(x, y0 + 0.058, zc), Vector3(0.12, 0.02, STALL.y - 0.4), Color.WHITE)
 				if i < stalls and cars < LOT_MAX_CARS and rng.randf() < 0.4:
 					_car(batch, rng, Vector3(x + STALL.x * 0.5, y0 + 0.045, zc), (0.0 if half == 0 else PI) + rng.randf_range(-0.05, 0.05))
 					cars += 1
@@ -758,6 +768,16 @@ static func surface_lot(g: LandmarkGeo, batch: MultiMeshBatch, pivot: Node3D, r:
 			var sc := PropFactory.city_tree_scale(tv, rng.randf_range(6.5, 8.5))
 			batch.add("tree_%d" % tv, PropFactory.model_tree(tv), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc, sc)), Vector3(ic.x, y0 + 0.3, ic.y)),
 				Color.WHITE, Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.5, 1.0)))
-		if row % 2 == 0:
+		if row % 2 == 0 and not far:
 			LandmarkArenaDistrict._mast(batch, Vector3(r.get_center().x, y0, z + STALL.y), 10.0, mast)
 		z += pitch
+	if far:
+		_far_shadows(batch)
+
+
+## A far landmark copy's planting and parked cars cast no shadow: from where the far copy is
+## drawn they fall past the shadow cascades anyway, and the casters would cost every frame.
+static func _far_shadows(batch: MultiMeshBatch) -> void:
+	for key: String in batch.keys():
+		if key.begins_with("tree_") or key.begins_with("palm_") or key.begins_with("gar_car_"):
+			batch.set_no_shadow(key)

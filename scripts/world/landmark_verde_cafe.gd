@@ -22,9 +22,9 @@ extends RefCounted
 ## max(night_factor, weather_darken * 0.85), so the cafe costs nothing at noon, lights itself
 ## at dusk and lights itself in a storm too, without a single OmniLight.
 ##
-## Triangles, measured headless: 12,576 detailed, 413 nodes, 24 collision shapes; 72 triangles
-## and 6 nodes for the far copy. The two heaviest things left are the TextMesh sign words (~1.9k)
-## and the eighteen foliage balls (~2.2k). Cylinders go through _tube() and spheres through
+## Triangles, measured headless: 12,576 detailed, 413 nodes, 24 collision shapes; about 2,500
+## for the far copy (the pavement trees' lobes are most of it). The two heaviest things left
+## detailed are the TextMesh sign words (~1.9k) and the eighteen foliage balls (~2.2k). Cylinders go through _tube() and spheres through
 ## _leaf_mesh(), both cached and both built at the segment count the part actually needs -
 ## Landmarks._cyl() is fixed at 12 segments with the default ring count and a fresh mesh per
 ## call, which on its own was 11k triangles of railing posts and table legs.
@@ -258,7 +258,7 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	var ground: float = plan.height_at(anchor) if plan != null else 0.0
 	var base := Vector3(anchor.x, ground + DECK_LIFT, anchor.y)
 	if not detailed:
-		_far(parent, statics, base)
+		_far(parent, statics, base, anchor, plan)
 		return
 	var rng := RandomNumberGenerator.new()
 	rng.seed = SEED_SALT ^ (int(anchor.x) * 73856093) ^ (int(anchor.y) * 19349663)
@@ -275,26 +275,45 @@ static func build(anchor: Vector2, parent: Node3D, statics: StaticBody3D, plan: 
 	_street(parent, base, anchor, plan, rng)
 
 
-## The far copy: the silhouette only, 72 triangles in six boxes. It keeps collision on the
-## slab, the shell and the roof, so a player who flies out here lands on it instead of through
-## it; everything else is decoration and is dropped.
-static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3) -> void:
+## The far copy: the shell, roof and parapet in the detailed copy's own materials, the two glazed
+## elevations as one storefront-glass pane each over a sill, the sign band, the awnings and the
+## two pavement trees - what reads from the hand-over distance. It used to be six flat-white
+## boxes, three times as bright as the textured stucco and dark glass it stood in for. It keeps
+## collision on the slab, the shell and the roof, so a player who flies out here lands on it.
+static func _far(parent: Node3D, statics: StaticBody3D, base: Vector3, anchor: Vector2, plan: CityPlan) -> void:
 	var w := SHELL_X1 - SHELL_X0
 	var d := SHELL_Z1 - SHELL_Z0
 	var cx := (SHELL_X0 + SHELL_X1) * 0.5
 	var cz := (SHELL_Z0 + SHELL_Z1) * 0.5
+	var stucco := PropFactory.pbr("plaster_white", 3.2, STUCCO)
 	Landmarks._box(parent, statics, Vector3(PATIO_X1 - PAD_X0, PAD_T, PATIO_Z1 - PAD_Z0),
-			base + Vector3((PAD_X0 + PATIO_X1) * 0.5, -PAD_T * 0.5, (PAD_Z0 + PATIO_Z1) * 0.5), Color(0.78, 0.77, 0.74), true)
-	Landmarks._box(parent, statics, Vector3(w, WALL_H, d), base + Vector3(cx, WALL_H * 0.5, cz), STUCCO, true)
+			base + Vector3((PAD_X0 + PATIO_X1) * 0.5, -PAD_T * 0.5, (PAD_Z0 + PATIO_Z1) * 0.5), Color(0.78, 0.77, 0.74), true).material_override = \
+			PropFactory.pbr("paving", 2.4, Color(0.92, 0.9, 0.86))
+	Landmarks._box(parent, statics, Vector3(w, WALL_H, d), base + Vector3(cx, WALL_H * 0.5, cz), STUCCO, true).material_override = stucco
+	# The glazed runs: the shop's dark glass from sill to head on the +Z front and the +X side.
+	var glass := PropFactory.storefront_glass()
+	var gw := SHELL_X1 - CORNER_PIER - SHELL_X0
+	var gd := SHELL_Z1 - CORNER_PIER - SHELL_Z0
+	var gh := HEAD_H - SILL_H
+	Landmarks._box(parent, null, Vector3(gw, gh, 0.06), base + Vector3(SHELL_X0 + gw * 0.5, SILL_H + gh * 0.5, SHELL_Z1 + 0.04), STUCCO, false).material_override = glass
+	Landmarks._box(parent, null, Vector3(0.06, gh, gd), base + Vector3(SHELL_X1 + 0.04, SILL_H + gh * 0.5, SHELL_Z0 + gd * 0.5), STUCCO, false).material_override = glass
 	Landmarks._box(parent, statics, Vector3(w + ROOF_OVERHANG * 2.0, ROOF_T, d + ROOF_OVERHANG * 2.0),
-			base + Vector3(cx, WALL_H + ROOF_T * 0.5, cz), STUCCO.darkened(0.15), true)
+			base + Vector3(cx, WALL_H + ROOF_T * 0.5, cz), STUCCO.darkened(0.15), true).material_override = PropFactory.pbr("concrete", 2.6, Color(0.78, 0.76, 0.73))
 	Landmarks._box(parent, null, Vector3(w + ROOF_OVERHANG * 2.0, PARAPET_H, PARAPET_T),
-			base + Vector3(cx, WALL_H + ROOF_T + PARAPET_H * 0.5, SHELL_Z1 + ROOF_OVERHANG), STUCCO, false)
+			base + Vector3(cx, WALL_H + ROOF_T + PARAPET_H * 0.5, SHELL_Z1 + ROOF_OVERHANG), STUCCO, false).material_override = stucco
 	Landmarks._box(parent, null, Vector3(SIGN_BAND_W, SIGN_BAND_H, 0.2),
 			base + Vector3(cx, (HEAD_H + WALL_H) * 0.5, SHELL_Z1 + 0.1), TRIM, false)
 	var awn := Landmarks._box(parent, null, Vector3(w + 0.4, AWNING_T, AWNING_REACH),
 			base + Vector3(cx, AWNING_Y - AWNING_DROP * 0.5, SHELL_Z1 + AWNING_REACH * 0.5), TRIM, false)
 	awn.rotation.x = atan2(AWNING_DROP, AWNING_REACH)
+	var side := Landmarks._box(parent, null, Vector3(AWNING_REACH_SIDE, AWNING_T, d + 0.4),
+			base + Vector3(SHELL_X1 + AWNING_REACH_SIDE * 0.5, AWNING_Y - AWNING_DROP * 0.5, cz), TRIM, false)
+	side.rotation.z = -atan2(AWNING_DROP, AWNING_REACH_SIDE)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = SEED_SALT ^ (int(anchor.x) * 73856093) ^ (int(anchor.y) * 19349663)
+	_street(parent, base, anchor, plan, rng)
+	# The night glow on the glass, the patio and the sign (lamp_factor driven: nothing by day).
+	_night(parent, base)
 
 
 # --- Ground and shell ---------------------------------------------------------------------

@@ -20,9 +20,13 @@ extends SceneTree
 ## DayNight: judge the two frames against each other.
 
 
+## Held here: the runner awaits frames, and a RefCounted nobody holds is freed mid-coroutine.
+var _runner: RefCounted
+
+
 func _initialize() -> void:
 	# The landmark builders compile against the autoloads, which exist only after the first frames.
 	for i in 3:
 		await process_frame
-	var runner: RefCounted = load("res://tools/glshot/far_landmark_shot_run.gd").new()
-	runner.call("run", self)
+	_runner = load("res://tools/glshot/far_landmark_shot_run.gd").new()
+	_runner.call("run", self)

@@ -527,13 +527,16 @@ static func build_skyhook(parent: Node3D, statics: StaticBody3D, macro: MacroMap
 	g.ring_flat("metal", at, Vector2(DISC_R - 0.5, DISC_R - 0.5), Vector2(DISC_R + 0.2, DISC_R + 0.2), y0 + DISC_Y, 0.0, TAU, segs * 2, Color(0.8, 0.8, 0.82), col)
 	g.commit(parent, "Skyhook")
 	g.commit_collision(statics)
-	if detailed:
-		var batch := MultiMeshBatch.new()
-		for i in 8:
-			var ang := TAU * float(i) / 8.0 + 0.2
-			var p := at + Vector2(cos(ang), sin(ang)) * 29.0
-			batch.add("palm_%d" % (i % 3), PropFactory.palm(i % 3), Transform3D(Basis(Vector3.UP, ang).scaled(Vector3.ONE * (1.1 + 0.1 * float(i % 3))), Vector3(p.x, y0 + 0.18, p.y)))
-		batch.build(parent)
+	# The ring of palms, far too (shadowless there): from across the field they are half of what
+	# the plaza is.
+	var batch := MultiMeshBatch.new()
+	for i in 8:
+		var ang := TAU * float(i) / 8.0 + 0.2
+		var p := at + Vector2(cos(ang), sin(ang)) * 29.0
+		batch.add("palm_%d" % (i % 3), PropFactory.palm(i % 3), Transform3D(Basis(Vector3.UP, ang).scaled(Vector3.ONE * (1.1 + 0.1 * float(i % 3))), Vector3(p.x, y0 + 0.18, p.y)))
+	if not detailed:
+		ArenaGrounds._far_shadows(batch)
+	batch.build(parent)
 
 
 static func _circle(c: Vector2, r: float, n: int) -> PackedVector2Array:
@@ -572,11 +575,8 @@ static func build_rental(parent: Node3D, statics: StaticBody3D, macro: MacroMap,
 	var g := LandmarkGeo.new()
 	var batch := MultiMeshBatch.new()
 	var lot := Rect2(r.position + Vector2(30.0, 0.0), r.size - Vector2(30.0, 0.0))
-	if detailed:
-		ArenaGrounds.surface_lot(g, batch, parent, lot, y0, 4417)
-	else:
-		g.use("lot_asphalt", LandmarkMats.paving("asphalt", 4.0, Color(0.6, 0.6, 0.61), 4417, 0.0, 0.45))
-		g.cap("lot_asphalt", LandmarkGeo.ccw(LandmarkArenaDistrict._rect_poly(lot)), y0 + 0.045)
+	# Far as well (no stall paint or masts): the rows of parked cars are the lot's colour from afar.
+	ArenaGrounds.surface_lot(g, batch, parent, lot, y0, 4417, not detailed)
 	# The rental pavilion at the west end: a glass box under a deep flat roof, a canopy over the
 	# pick-up lane in front of it.
 	g.use("glass", _glass("rental", y0, 4.5, 8.0))
