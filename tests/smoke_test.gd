@@ -1851,6 +1851,8 @@ func _test_city() -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# Load time (tests/load_time_checks.gd): the disk cache's bakes byte for byte, the shader warm-up.
+	load("res://tests/load_time_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

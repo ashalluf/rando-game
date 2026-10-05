@@ -1016,7 +1016,19 @@ func _build_ground_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/macro_ground.gdshader")
 	var size := 160 if OS.has_feature("web") else 256
-	var img := plan.macro.bake(Vector2.ZERO, macro_span, size)
+	# The bake is the same every launch for the same code, seed and switches: from disk after the
+	# first (LoadCache; ~18 s of GDScript on the build box).
+	var bake_inputs := ["macro_bake", world_seed, macro_span, size, plan.block_size_range,
+			plan.street_width, plan.avenue_width, plan.sidewalk_width, plan.downtown_radius,
+			plan.midtown_radius]
+	var cached := LoadCache.load_images("macro_bake", bake_inputs)
+	var img: Image
+	if cached.size() == 2:
+		img = cached[0]
+		plan.macro.bake_height = cached[1]
+	else:
+		img = plan.macro.bake(Vector2.ZERO, macro_span, size)
+		LoadCache.save_images("macro_bake", bake_inputs, [img, plan.macro.bake_height])
 	var tex := ImageTexture.create_from_image(img)
 	var htex := ImageTexture.create_from_image(plan.macro.bake_height)
 	_canopy_material = ShaderMaterial.new()

@@ -24,6 +24,8 @@ extends CanvasLayer
 ## Frames to hold each warm-up batch on screen. One is enough for the compile; two is insurance
 ## against a driver that defers.
 @export var warm_frames: int = 2
+## Shaders drawn together in one warm-up batch (each batch holds `warm_frames` frames).
+@export var shader_batch: int = 16
 
 signal finished
 
@@ -206,8 +208,13 @@ func _warm_shaders() -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		holder.add_child(mi)
 		i += 1
-		_step("Compiling shaders (%d/%d)" % [i, files.size()], 0.05 + 0.45 * float(i) / float(maxi(files.size(), 1)))
-		await _frames(warm_frames)
+		# A batch of shaders a draw: every quad of it is drawn in the same frames, so each shader
+		# still compiles here, but the frames waited out (a whole city frame each, behind the
+		# screen) are `warm_frames` a batch rather than a shader - 250 frames were 18 minutes on a
+		# software renderer and several seconds on the Mac.
+		if i % shader_batch == 0 or i == files.size():
+			_step("Compiling shaders (%d/%d)" % [i, files.size()], 0.05 + 0.45 * float(i) / float(maxi(files.size(), 1)))
+			await _frames(warm_frames)
 	# The effect materials are StandardMaterial3D, not .gdshader files, so the loop above never
 	# drew them, and a particle system draws through a MultiMesh - its own pipeline variant. The
 	# first rocket used to compile all of it mid-blast. Drawn here once as a one-instance
