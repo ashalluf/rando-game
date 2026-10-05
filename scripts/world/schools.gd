@@ -355,10 +355,14 @@ static func road_closed(plan: CityPlan, axis: int, index: int, along: float) -> 
 	if _closed.has(key):
 		return _block_span(plan, axis, index, other, along)
 	var probe := Vector2(plan.road_pos(axis, index) - 1.0, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) - 1.0)
-	var k := plan.block_index_at(probe)
-	decide(plan, _cell_of(_block_rect(plan, k).get_center()))
-	var k2 := k + (Vector2i(1, 0) if axis == CityPlan.AXIS_X else Vector2i(0, 1))
-	decide(plan, _cell_of(_block_rect(plan, k2).get_center()))
+	# A high school's row runs up to two blocks either side of the block under its cell's target
+	# point, so the blocks beside this road may belong to the cell next door. Decide every cell
+	# round the road before answering: deciding only the two blocks' own cells cached "open" here,
+	# and a later decision of the neighbour closed it (the map then drew a closed road).
+	var c := _cell_of(probe)
+	for dx in range(-1, 2):
+		for dz in range(-1, 2):
+			decide(plan, c + Vector2i(dx, dz))
 	if not _closed.has(key):
 		_closed[key] = false
 		return false
