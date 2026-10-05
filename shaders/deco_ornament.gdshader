@@ -6,8 +6,8 @@ shader_type spatial;
 // speed lines, canopies, the theatre's marquee, readerboards and blade sign, the neon, the
 // courtyard apartments' clay roofs, tile and fountain. ONE material for a chunk's deco buildings.
 //
-// COLOR.rgb is the paint in display (sRGB) numbers; COLOR.a is the kind in 64ths, plus 32 for a
-// surface the night floodlights reach (a crown). UV is metres in the face's own frame (x along the
+// COLOR.rgb is the paint in display (sRGB) numbers; COLOR.a is a code in steps of 4/255 (so the
+// 8-bit channel keeps it): the kind, plus 32 for a surface the night floodlights reach (a crown). UV is metres in the face's own frame (x along the
 // face, y up it - for a floodlit surface, metres above the floodlights' foot); UV2 is a panel's
 // size in metres (chevrons, sunbursts, readerboards), 0 elsewhere. TANGENT is the face's +UV.x.
 //    0 cast stone / matte terracotta   1 glazed terracotta   2 chevron panel   3 sunburst panel
@@ -71,9 +71,9 @@ float joint(float x, float period, float w, float px) {
 }
 
 void vertex() {
-	float k = COLOR.a * 64.0 + 0.5;
-	flood_v = step(32.0, k);
-	kind_v = floor(mod(k, 32.0));
+	float k = floor(COLOR.a * 255.0 / 4.0 + 0.01);
+	flood_v = step(31.5, k);
+	kind_v = mod(k, 32.0);
 	world_p = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 }
@@ -126,7 +126,9 @@ void fragment() {
 	} else if (kind == 2) {
 		// Chevron spandrel: nested V's pointing down, stepped in relief, two tones.
 		vec2 c = uv - vec2(panel.x * 0.5, 0.0);
-		float rows = max(2.0, floor(panel.y / 0.22));
+		// Chevrons a quarter of the panel's width tall (0.22 m at least): a spandrel gets a few, a
+		// tall panel on a theatre front a stack you can read from across the street.
+		float rows = max(2.0, floor(panel.y / max(0.22, panel.x * 0.25)));
 		float t = (uv.y - abs(c.x) * 0.9) / (panel.y / rows);
 		float band = fract(t);
 		float which = mod(floor(t), 2.0);

@@ -71,7 +71,8 @@ class Orn:
 	var uv2 := PackedVector2Array()
 
 	static func col(paint: Color, kind: int, flood: bool = false) -> Color:
-		return Color(paint.r, paint.g, paint.b, (float(kind + (32 if flood else 0)) + 0.5) / 64.0)
+		# Four steps of the 8-bit channel a code (the middle one), so it survives the quantisation.
+		return Color(paint.r, paint.g, paint.b, (float(kind + (32 if flood else 0)) * 4.0 + 2.0) / 255.0)
 
 	## A triangle facing `want` (its winding is fixed to suit), in building space.
 	func tri(a: Vector3, b: Vector3, cc: Vector3, want: Vector3, colr: Color, ua: Vector2, ub: Vector2, uc: Vector2,
@@ -535,8 +536,8 @@ static func finial(o: Orn, cx: float, cz: float, wx: float, wz: float, y: float,
 
 
 ## Piers along one wall face, at every bay line from u 0 to the face's length: [a, b] its ends
-## ((x, z), the walls' order), y0..y1, then a finial each. Majors (`major_every`, and both ends)
-## are wider, prouder and climb higher. Returns nothing; writes into `o`.
+## ((x, z), the walls' order), y0..y1. Majors (`major_every`, and both ends) are wider, prouder and
+## climb on into a stepped finial. Returns nothing; writes into `o`.
 static func piers(o: Orn, a: Vector2, b: Vector2, y0: float, y1: float, pier: Color, major: Color, major_every: int,
 		finial_h: float, vbase: float, bay: float = BAY, skip_ends: bool = false) -> void:
 	var d := b - a
@@ -562,7 +563,8 @@ static func piers(o: Orn, a: Vector2, b: Vector2, y0: float, y1: float, pier: Co
 		var b3 := Basis(Vector3(dn.x, 0.0, dn.y), Vector3.UP, Vector3(out.x, 0.0, out.y))
 		var colr := major if is_major else pier
 		o.box(Vector3(c.x, (y0 + y1) * 0.5, c.y), Vector3(pw, y1 - y0, po), colr, b3, vbase)
-		var fh := finial_h * (1.6 if is_major else 1.0)
+		# Only the major piers rise into finials: a finial on every bay line reads as battlements.
+		var fh := finial_h * 1.6 if is_major else 0.0
 		if fh > 0.05:
 			var top := y1
 			for s in 3:

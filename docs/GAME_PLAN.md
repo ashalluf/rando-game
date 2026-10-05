@@ -289,6 +289,19 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Wilshire's deco boulevard (VISUAL_ROADMAP #59).** Midtown's boulevards were the
+  same seeded boxes as every street. A hash per boulevard-frontage lot (Wilshire 0.75, other
+  boulevards 0.3) builds a 1920s-30s building instead: zigzag tower, streamline corner, theatre
+  (a block in eight at most, one a block), deco flats, Spanish courtyard flats (`DecoBoulevard`,
+  `DecoBuild`). Decisions: (1) the walls stay on building.gdshader (outline mode plus per-vertex
+  part numbers), so the deco keeps the traced rooms, lit offices and storefronts every Building
+  has; everything deco about them is geometry and a new ornament shader on top, laid on the
+  shader's own bay grid. (2) Far: plain boxes of the massing on the old path - FarBuilding's code
+  has no deco facade, and a coded box would draw the wrong building; the silhouette (setbacks,
+  crown) is kept. (3) Hashes only, after the pad roll: nothing else on a block moves (checked).
+  (4) No medians: the plan has none, and adding them is a street-layout change outside this
+  feature. Names invented.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

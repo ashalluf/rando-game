@@ -108,10 +108,10 @@ const PALETTES := {
 	# The theatre: a cream front, the blade sign's enamel and neon.
 	"th_cream": {"key": "deco_th_cream", "wall": Color(0.86, 0.80, 0.66), "pier": Color(0.88, 0.83, 0.70), "crown": Color(0.80, 0.62, 0.28),
 		"span": Color(0.50, 0.12, 0.12), "trim": Color(0.82, 0.64, 0.30), "neon": Color(1.0, 0.30, 0.20), "sign": Color(0.50, 0.10, 0.10),
-		"tint": Color(0.20, 0.20, 0.22), "frame": Color(0.40, 0.30, 0.15), "base": Color(0.10, 0.08, 0.08)},
+		"tint": Color(0.20, 0.20, 0.22), "frame": Color(0.40, 0.30, 0.15), "base": Color(0.10, 0.08, 0.08), "wall_set": ["plaster_painted", 3.0]},
 	"th_blue": {"key": "deco_th_blue", "wall": Color(0.82, 0.80, 0.74), "pier": Color(0.84, 0.82, 0.77), "crown": Color(0.25, 0.42, 0.62),
 		"span": Color(0.14, 0.22, 0.42), "trim": Color(0.80, 0.80, 0.82), "neon": Color(0.30, 0.65, 1.0), "sign": Color(0.12, 0.20, 0.42),
-		"tint": Color(0.20, 0.20, 0.22), "frame": Color(0.60, 0.62, 0.64), "base": Color(0.06, 0.07, 0.10)},
+		"tint": Color(0.20, 0.20, 0.22), "frame": Color(0.60, 0.62, 0.64), "base": Color(0.06, 0.07, 0.10), "wall_set": ["plaster_painted", 3.0]},
 }
 const TOWER_PALETTES := ["jade", "jade", "turquoise", "buff", "ivory", "buff"]
 const CORNER_PALETTES := ["sl_white", "sl_white", "sl_peach", "sl_mint"]
@@ -546,23 +546,40 @@ static func block_step(ch: CityChunk, block: Dictionary) -> void:
 	var taken := PackedVector2Array()
 	var data: Dictionary = ch._batch.data()
 	for key: String in data:
-		if key in CityChunk.PAINT_KEYS or key.begins_with("text_") or key == "lod_box" or key == "shop_spill" or key == "patch":
+		if key in CityChunk.PAINT_KEYS or key.begins_with("text_") or key == "lod_box" or key == "shop_spill" or key == "deco_spill" or key == "patch":
 			continue
 		for xf: Transform3D in data[key].xforms:
 			var p := Vector2(xf.origin.x, xf.origin.z)
 			if rect.grow(1.0).has_point(p) and not rect.grow(-3.5).has_point(p):
 				taken.append(p)
-	var mesh_cache := {}
 	for lp: Dictionary in st.lots:
 		var f: Dictionary = lp.frame
-		var a: Vector2 = f.a
 		var nn: Vector2 = f.n
 		var sw: float = ch.plan.sidewalk_width
-		var foot: Rect2 = lp.foot
 		var u0: float = float(lp.u_mid) - float(lp.w) * 0.5
 		var u1: float = float(lp.u_mid) + float(lp.w) * 0.5
+		# The street trees on this frontage's pavement become mature palms where they stood (a tree
+		# is no prop - nothing holds its instance index - so its pending instance can go).
+		var strip := Industrial.fr(f, u0, -sw, u1, 0.0)
+		var spots := PackedVector2Array()
+		for key: String in data.keys():
+			if not key.begins_with("tree_") or key == "tree_grate":
+				continue
+			var b: Dictionary = data[key]
+			var xforms: Array = b.xforms
+			for i in range(xforms.size() - 1, -1, -1):
+				var o3: Vector3 = (xforms[i] as Transform3D).origin
+				var p := Vector2(o3.x, o3.z)
+				if strip.has_point(p):
+					spots.append(p)
+					xforms.remove_at(i)
+					(b.colors as Array).remove_at(i)
+					(b.custom as Array).remove_at(i)
+					for t in range(taken.size() - 1, -1, -1):
+						if taken[t].distance_squared_to(p) < 0.01:
+							taken.remove_at(t)
+		# And a palm every PALM_STEP where the pavement is clear.
 		var u := u0 + 3.0
-		var i := 0
 		while u < u1 - 2.0:
 			var at := Industrial.fp(f, u, -(sw - PALM_KERB))
 			var clear := true
@@ -570,23 +587,29 @@ static func block_step(ch: CityChunk, block: Dictionary) -> void:
 				if q.distance_squared_to(at) < PALM_CLEAR * PALM_CLEAR:
 					clear = false
 					break
-			var hp := _h01([ch.plan.seed, lp.seed, "deco_palm", i])
-			if clear and hp < 0.85 and not ch._under_freeway(at, CityChunk.PALM_FREEWAY_MARGIN):
-				var variant := absi(hash([ch.plan.seed, lp.seed, "deco_palm_v", i])) % PropFactory.PALM_VARIANTS
-				var s := lerpf(PALM_SCALE.x, PALM_SCALE.y, _h01([ch.plan.seed, lp.seed, "deco_palm_s", i]))
-				var lean := -nn
-				var yaw := atan2(lean.x, lean.y) - PropFactory.palm_lean(variant) + (hp - 0.5) * 0.8
-				var tint := Color(0.95 + 0.1 * hp, 1.0, 0.95)
-				ch._batch.add("palm_%d" % variant, PropFactory.palm(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)),
-					Vector3(at.x, CityChunk.SIDEWALK_TOP, at.y)), tint)
+			for q in spots:
+				if q.distance_squared_to(at) < PALM_STEP * PALM_STEP * 0.36:
+					clear = false
+					break
+			if clear and not ch._under_freeway(at, CityChunk.PALM_FREEWAY_MARGIN):
+				spots.append(at)
 				taken.append(at)
 			u += PALM_STEP
-			i += 1
+		for i in spots.size():
+			var at := spots[i]
+			var hp := _h01([ch.plan.seed, lp.seed, "deco_palm", i])
+			var variant := absi(hash([ch.plan.seed, lp.seed, "deco_palm_v", i])) % PropFactory.PALM_VARIANTS
+			var sc := lerpf(PALM_SCALE.x, PALM_SCALE.y, _h01([ch.plan.seed, lp.seed, "deco_palm_s", i]))
+			var lean := -nn
+			var yaw := atan2(lean.x, lean.y) - PropFactory.palm_lean(variant) + (hp - 0.5) * 0.8
+			ch._batch.add("palm_%d" % variant, PropFactory.palm(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(sc, sc, sc)),
+				Vector3(at.x, CityChunk.SIDEWALK_TOP, at.y)), Color(0.95 + 0.1 * hp, 1.0, 0.95))
 		# The night pools under a canopy, a marquee or an apartment's door.
 		for pool: Array in lp.get("pools", []):
 			var xf: Transform3D = pool[0]
-			ch._batch.add("shop_spill", PropFactory.shop_spill(), xf, pool[1])
-	ch._batch.set_no_shadow("shop_spill")
+			ch._batch.add("deco_spill", PropFactory.shop_spill(), xf, pool[1])
+	ch._batch.set_no_shadow("deco_spill")
+	ch._batch.set_draw_distance("deco_spill", CityChunk.SHOP_SPILL_DISTANCE)
 
 
 # --- The builders -------------------------------------------------------------------------------

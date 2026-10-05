@@ -116,8 +116,8 @@ func _shader_checks() -> void:
 		for flood: bool in [false, true]:
 			var a := DecoBuild.Orn.col(Color.WHITE, k, flood).a
 			var q := float(roundi(a * 255.0)) / 255.0
-			var back := int(floor(fmod(q * 64.0 + 0.5, 32.0)))
-			round_trip = round_trip and back == k and (q * 64.0 + 0.5 >= 32.0) == flood
+			var code := int(floor(q * 255.0 / 4.0 + 0.01))
+			round_trip = round_trip and code % 32 == k and (code >= 32) == flood
 	_t._check(round_trip, "every ornament kind and its floodlight flag survive an 8-bit vertex colour")
 
 
@@ -154,10 +154,7 @@ func _full_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 				if (lp.foot as Rect2).has_point(p):
 					on_deco += 1
 	_t._check(on_deco == 0, "no Building stands on a deco lot")
-	var palms := 0
-	for key: String in chunk._batch.data():
-		if key.begins_with("palm_"):
-			palms += (chunk._batch.data()[key].xforms as Array).size()
+	var palms := _palms(chunk)
 	var sig := _signature(chunk)
 	chunk.get_parent().remove_child(chunk)
 	chunk.free()
@@ -165,16 +162,21 @@ func _full_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	DecoBoulevard.enabled = false
 	var bare: CityChunk = city._new_chunk(k, CityChunk.Level.FULL)
 	bare.build()
-	var bare_palms := 0
-	for key: String in bare._batch.data():
-		if key.begins_with("palm_"):
-			bare_palms += (bare._batch.data()[key].xforms as Array).size()
+	var bare_palms := _palms(bare)
 	var bare_sig := _signature(bare, lots)
 	DecoBoulevard.enabled = true
 	_t._check(sig == bare_sig and not sig.is_empty(), "the deco rolls nothing from the block: its parked cars and other buildings are unmoved (%d)" % sig.size())
 	_t._check(palms > bare_palms, "mature palms line the deco frontage (%d palms, %d without)" % [palms, bare_palms])
 	bare.get_parent().remove_child(bare)
 	bare.free()
+
+
+func _palms(chunk: CityChunk) -> int:
+	var n := 0
+	for c in chunk.get_children():
+		if c is MultiMeshInstance3D and String(c.name).begins_with("Batch_palm_"):
+			n += (c as MultiMeshInstance3D).multimesh.instance_count
+	return n
 
 
 ## Parked cars, and the Buildings standing off the deco lots (`lots`: the plans whose lots a
@@ -198,12 +200,14 @@ func _signature(chunk: CityChunk, lots: Array = []) -> Array:
 
 
 func _lod_chunk(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
+	# The far city's capture runs the LOD build and keeps its batches (CityChunk.captured).
 	var chunk: CityChunk = city._new_chunk(k, CityChunk.Level.LOD)
+	chunk.capturing = true
 	chunk.build()
 	var lots := _deco_lots(plan, k)
 	var found := 0
 	var want := 0
-	var data: Dictionary = chunk._batch.data()
+	var data: Dictionary = chunk.captured.get("batch", {})
 	var xforms: Array = data["lod_box"].xforms if data.has("lod_box") else []
 	for lp: Dictionary in lots:
 		var xf := DecoBoulevard.frame_xform(lp, CityChunk.SIDEWALK_TOP)
