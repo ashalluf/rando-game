@@ -155,11 +155,18 @@ func _bus() -> void:
 		var p := _walker(shelter, 4100 + k)
 		riders.append(p)
 	await _ticks(2)
+	# Out of the traffic's hands while the queue forms: driven, a bus standing at its block's stop
+	# dwells there and opens its own doors (dwell is set above), and the queue boards at once -
+	# which is right, but not what this check is about. Back in once the queue stands.
+	_traffic.cars.erase(bus)
+	fit.set_doors(false)
+	fit.open = 0.0
 	for p in riders:
 		StreetErrands._start_bus(p, stop, true)
 	await _ticks(20)
 	var waiting := riders.all(func(p: Pedestrian) -> bool: return _step(p) == "wait_bus" and p.visible)
 	_check(waiting, "errands: two walkers stand in the bus stop's queue (steps %s %s, visible %s %s, act %d %d, panic %.1f %.1f)" % [_step(riders[0]), _step(riders[1]), riders[0].visible, riders[1].visible, riders[0]._act, riders[1]._act, riders[0]._panic_left, riders[1]._panic_left])
+	_traffic.cars.append(bus)
 	fit.set_doors(true)
 	var boarded := false
 	for i in 60 * 12:

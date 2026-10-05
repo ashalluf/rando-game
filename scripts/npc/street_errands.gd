@@ -641,8 +641,9 @@ static func _do_wait_bus(p: Pedestrian, step: Dictionary, delta: float) -> void:
 
 
 static func _do_board(p: Pedestrian, step: Dictionary, delta: float) -> void:
-	var bus: Vehicle = step.bus
-	if not is_instance_valid(bus) or not bus.is_traffic():
+	var bus_v: Variant = step.bus
+	var bus := bus_v as Vehicle if is_instance_valid(bus_v) else null
+	if bus == null or not bus.is_traffic():
 		_abort(p)
 		return
 	var fit := bus.get_node_or_null("BusFittings") as BigVehicles.BusFittings
@@ -666,8 +667,10 @@ static func _do_board(p: Pedestrian, step: Dictionary, delta: float) -> void:
 
 
 static func _do_ride(p: Pedestrian, step: Dictionary) -> void:
-	var bus: Vehicle = step.bus
-	if not is_instance_valid(bus) or not bus.is_inside_tree() or not bus.is_traffic() or _now() > int(step.until):
+	# Untyped until it is known to be alive: a freed bus assigned to a typed variable is an error.
+	var bus_v: Variant = step.bus
+	var bus := bus_v as Vehicle if is_instance_valid(bus_v) else null
+	if bus == null or not bus.is_inside_tree() or not bus.is_traffic() or _now() > int(step.until):
 		# Off the bus somewhere out of sight: one of the people inside, who come out of doors.
 		_next(p, {"do": "inside", "door": _near_door(p, p.ring.get_center(), 400.0), "until": _now() + 4000})
 		return
@@ -779,7 +782,9 @@ static func _tick_world(p: Pedestrian) -> void:
 		if car == null or not car.is_traffic() or not car.traffic.has("bus"):
 			continue
 		var fit := car.get_node_or_null("BusFittings") as BigVehicles.BusFittings
-		if fit == null or fit.open < 0.55:
+		# Open and staying open: a door still swinging shut (or left open by a bus that came back
+		# out of the pool, whose fittings do not run out of the tree) is not a bus to board.
+		if fit == null or fit.open < 0.55 or not fit.want_open:
 			continue
 		_buses.append(car)
 		var seen := float(car.get_meta("errand_dwell", -1.0))
@@ -1218,8 +1223,11 @@ static func _along(car: Node3D) -> Vector2:
 
 ## The bus standing at `stop` with its doors open, or [].
 static func _bus_at(stop: Dictionary) -> Array:
-	for bus: Vehicle in _buses:
-		if not is_instance_valid(bus) or not bus.is_traffic():
+	for b: Variant in _buses:
+		if not is_instance_valid(b):
+			continue
+		var bus := b as Vehicle
+		if bus == null or not bus.is_traffic():
 			continue
 		var t: Dictionary = bus.traffic
 		if int(t.axis) != int(stop.axis) or int(t.index) != int(stop.index) or int(t.dir) != int(stop.dir):
