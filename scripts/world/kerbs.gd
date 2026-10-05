@@ -496,7 +496,7 @@ static func possible_cuts(ch: CityChunk, rect: Rect2, district: int) -> Array:
 		out.append(_notch_poly(ctx, int(r.e), float(r.uc), CR_HALF, CR_FLARE, CR_RUN))
 	if district != CityPlan.District.SUBURBS and district != CityPlan.District.BEACHTOWN:
 		return out
-	if not YardFill.enabled or ch._yard_lots.is_empty():
+	if ch._yard_lots.is_empty():
 		return out
 	var bp := YardFill.beach_block(ch.plan, ch.ix, ch.iz, ch._yard_lots)
 	for lp: Dictionary in bp.lots:

@@ -2986,7 +2986,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		building_count += 1
 		if fill:
 			LotFill.after_building(self, lot, building)
-		elif YardFill.wanted(self, district):
+		elif YardFill.records(self, district):
 			YardFill.record_lot(self, lot, building)
 		Billboards.on_building(self, lot, building, district)
 	else:
@@ -3022,7 +3022,7 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 				_batch.add("lod_box", PropFactory.unit_box(), Transform3D(Basis().scaled(Vector3(fp.x + 0.3, building.plinth_depth, fp.y + 0.3)), base + Vector3(0.0, -building.plinth_depth * 0.5, 0.0)), Color(0.66, 0.66, 0.66), Color(0.0, 0.0, 0.0, 1.0))
 		if fill:
 			LotFill.after_building(self, lot, building)
-		elif YardFill.wanted(self, district):
+		elif YardFill.records(self, district):
 			YardFill.record_lot(self, lot, building)
 		Billboards.on_building(self, lot, building, district)
 		building.free()
@@ -3038,7 +3038,7 @@ func _build_house(lot: Dictionary, district: int) -> void:
 	if not Construction.build_house(self, lot, house):
 		HouseKit.build(self, house)
 	building_count += 1
-	if YardFill.wanted(self, district):
+	if YardFill.records(self, district):
 		_yard_lots.append(HouseKit.yard_entry(lot, house))
 
 

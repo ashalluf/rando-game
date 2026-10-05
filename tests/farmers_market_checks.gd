@@ -242,6 +242,14 @@ func _chunks(city: Node3D, plan: CityPlan, m: Dictionary) -> void:
 	FarmersMarket.enabled = true
 	FarmersMarket.reset()
 	_t._check(open, "with the market off (FARMERS_MARKET=0) its street is open to traffic")
+	if bare_sig != sig:
+		print("  market A/B: market axis %d index %d at %.1f, lo %.1f hi %.1f, rect %s" % [int(m.axis), int(m.index), plan.road_pos(int(m.axis), int(m.index)), float(m.lo), float(m.hi), m.rect])
+		for e in bare_sig:
+			if not sig.has(e):
+				print("  market A/B: only without it: %s" % e)
+		for e in sig:
+			if not bare_sig.has(e):
+				print("  market A/B: only with it: %s" % e)
 	_t._check(bare_sig == sig, "the market rolls nothing from the block: built without it the buildings stand where they stood")
 	FarmersMarket.force_hour = -1.0
 	FarmersMarket.force_market_day = OS.get_environment("MARKET_DAY") == "1"
