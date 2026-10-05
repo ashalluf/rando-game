@@ -613,10 +613,10 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 		var out2: Vector2 = -(f.n as Vector2)
 		var a2: Vector2 = f.a
 		var front: Vector2 = s.front
-		var e2 := front + out2 * 7.0 - a2 * 9.0
-		var target := front - out2 * 10.0
+		var e2 := front + out2 * 3.0 - a2 * 8.0
+		var target := front - out2 * 15.0
 		var gy := plan.height_at(e2)
-		return _eye_at(Vector3(e2.x, gy + 1.7, e2.y), Vector3(target.x, plan.height_at(target) + 4.5, target.y))
+		return _eye_at(Vector3(e2.x, gy + 1.7, e2.y), Vector3(target.x, plan.height_at(target) + 4.0, target.y))
 	var goal := Vector2(cw.x, cw.z) + fwd2 * 30.0
 	var kerb := StreetRoute.kerb_stop(plan, goal, 0.0)
 	if kerb.is_empty():
@@ -666,10 +666,22 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 			if not is_instance_valid(c):
 				continue
 			c._think()
-			if c.job == EmergencyCrew.Job.STRETCHER and c._stretcher == null:
+			if c.job == EmergencyCrew.Job.STRETCHER and c._stretcher == null and doll != null and is_instance_valid(doll):
+				# On its way in: across the body from the one kneeling, the cot's foot a metre short.
 				c._take_stretcher()
 				c._set_pose("push")
-			elif c._dest != Vector3.INF and c._pose != "kneel":
+				var b: Vector3 = doll.bodies[0].global_position
+				var kneel := b
+				for o in crews:
+					if is_instance_valid(o) and o.job == EmergencyCrew.Job.PATIENT:
+						kneel = o.global_position
+				var away := (b - kneel).slide(Vector3.UP)
+				away = away.normalized() if away.length() > 0.1 else Vector3.RIGHT
+				var at := b + away * 4.3
+				c.global_position = Vector3(at.x, c.global_position.y, at.z)
+				c._visual.rotation.y = atan2(away.x, away.z)
+				c._dest = c.global_position
+			elif c._dest != Vector3.INF and c._pose != "kneel" and c._stretcher == null:
 				c.global_position = c._dest + Vector3.UP * 0.05
 	var wl := WorldState.to_local(Vector3(wreck_xz.x, wh, wreck_xz.y))
 	match scene:

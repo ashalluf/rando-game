@@ -40,7 +40,13 @@ const TRIM_CREAM := Color(0.86, 0.83, 0.75)
 const DOOR_TIME := 3.5
 const DOOR_OPEN_HOLD := 14.0
 
+## Off (FIRE_STATIONS=0 in the environment): no stations anywhere, the lots keep their buildings
+## (the A/B for stills and frame counts).
+static var enabled: bool = OS.get_environment("FIRE_STATIONS") != "0"
 static var _cache: Dictionary = {}
+## Doors asked open (cell -> ticks msec they close again), so a station built after the ask (its
+## chunk streamed in later) comes up with them open.
+static var _open_until: Dictionary = {}
 static var _mats: Dictionary = {}
 
 
@@ -57,6 +63,8 @@ static func for_cell(plan: CityPlan, cell: Vector2i) -> Dictionary:
 		return _cache[key]
 	var out := {}
 	_cache[key] = out
+	if not enabled:
+		return out
 	if _h01([plan.seed, cell.x, cell.y, "fire_station"]) > ODDS:
 		return out
 	var target := Vector2((float(cell.x) + lerpf(0.25, 0.75, _h01([plan.seed, cell.x, cell.y, "fs_x"]))) * CELL,
@@ -141,6 +149,31 @@ static func nearest(plan: CityPlan, goal: Vector2, reach: float) -> Dictionary:
 				best_d = d
 				best = s
 	return best
+
+
+## The middle of the pavement in front of the bays of the station on block (bx, bz), or INF.
+static func apron_point(plan: CityPlan, bx: int, bz: int) -> Vector2:
+	var b := plan.block(bx, bz)
+	var s := for_cell(plan, _cell_of((b.rect as Rect2).get_center()))
+	if s.is_empty() or s.block != Vector2i(bx, bz):
+		return Vector2.INF
+	var n: Vector2 = (s.frame as Dictionary).n
+	var w := plan.road_width(int(s.road[0]), int(s.road[1]))
+	return (s.front as Vector2) + n * (w * 0.5 + plan.sidewalk_width * 0.5)
+
+
+## True when `p` (true world XZ) is on the kerb in front of a station's bays, which no parked car
+## may block (CityChunk._park_car asks, after its rolls).
+static func keeps_clear(plan: CityPlan, p: Vector2) -> bool:
+	var s := nearest(plan, p, 30.0)
+	if s.is_empty():
+		return false
+	var axis := int(s.road[0])
+	var front: Vector2 = s.front
+	var d := p - front
+	var along := d.y if axis == CityPlan.AXIS_X else d.x
+	var lat := d.x if axis == CityPlan.AXIS_X else d.y
+	return absf(along) < 11.0 and absf(lat) < plan.road_width(axis, int(s.road[1])) * 0.5 + 1.5
 
 
 ## Where a unit out of `station` joins the street: [axis, index, dir, point (true world XZ, the
@@ -319,11 +352,13 @@ static func _build_detail(node: Node3D, w: float, d: float, to_kerb: float, numb
 		door.position = Vector3(doors[i], 0.0, -0.12)
 		door.set_meta("closed_y", 0.0)
 		node.add_child(door)
+		if Time.get_ticks_msec() < int(_open_until.get(node.get_meta("cell"), 0)):
+			door.position.y = BAY_DOOR.y - 0.35
 	# The station's name and number over the doors.
 	if not OS.has_feature("web"):
 		var num := MeshInstance3D.new()
 		num.name = "StationNumber"
-		num.mesh = BigVehicles.text_mesh("STATION %d" % number, 0.62, TRIM_CREAM.darkened(0.75))
+		num.mesh = BigVehicles.text_mesh("STATION %d" % number, 0.62, TRIM_CREAM)
 		num.position = Vector3((doors[0] + doors[doors.size() - 1]) * 0.5, BAY_H - 0.75, 0.02)
 		num.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		num.visibility_range_end = 140.0
@@ -373,6 +408,7 @@ static func door_mesh() -> Mesh:
 static func open_door(tree: SceneTree, station: Dictionary) -> void:
 	if tree == null or station.is_empty():
 		return
+	_open_until[station.cell] = Time.get_ticks_msec() + int((DOOR_TIME * 2.0 + DOOR_OPEN_HOLD) * 1000.0)
 	for node in tree.get_nodes_in_group("fire_station"):
 		var n := node as Node3D
 		if n == null or n.get_meta("cell", Vector2i(-99999, -99999)) != station.cell:

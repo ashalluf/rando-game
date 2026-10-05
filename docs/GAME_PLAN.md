@@ -518,6 +518,17 @@ already mapped so milestone 2 is script-only.
   pass, along the inland foot and up the north flank. Estates got driveways, gates, retaining
   walls that follow the ground and pools beside the house. docs/HANDOFF.md 9ay.
 
+- **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #54).**
+  A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
+  station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street
+  out of sight sends an engine or an ambulance through the traffic with lights and siren (the
+  traffic pulls over); it pulls up at the kerb by the scene and its crew works: a hose line from
+  the pump panel puts the fire out (the wreck stays), paramedics kneel at the body and take it
+  away on a stretcher; then they climb back in and leave. Crews are Pedestrians (shot, knocked,
+  a crime like anyone). Bodies Blender-built on the big-vehicle pipeline. Names invented. Also:
+  a bus's windscreen shows its daylit cabin instead of a black slab. docs/HANDOFF.md 9bl;
+  CLAUDE.md "Emergency services".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old

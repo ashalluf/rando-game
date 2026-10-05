@@ -435,6 +435,10 @@ static func _occupied(chunk: CityChunk) -> Array:
 	for c in chunk.get_children():
 		if c is TrashCan or c is PhysicsProp:
 			out.append([Vector2((c as Node3D).position.x, (c as Node3D).position.z), PROP_CLEAR])
+	# A fire station's apron and ramp stay clear (FireStation).
+	var apron := FireStation.apron_point(chunk.plan, chunk.ix, chunk.iz)
+	if apron != Vector2.INF:
+		out.append([apron, 12.0])
 	return out
 
 

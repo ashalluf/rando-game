@@ -1129,7 +1129,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   BIG_ROUTE=110` on `still_shot.gd`, `STREET=queue STREET_BIG=10` (a box truck in the queue),
   `car_shot.gd --each=9,10,11` (`BUS_DOORS=1`). Checks: `tests/big_vehicle_checks.gd`.
 - Emergency services (2026-10-04, "fire engines and ambulances that answer the chaos"; HANDOFF
-  9bj). `Emergency` (`scripts/npc/emergency.gd`) is a node in `city.tscn` (group `emergency`),
+  9bl). `Emergency` (`scripts/npc/emergency.gd`) is a node in `city.tscn` (group `emergency`),
   built like Police: every `scan_interval` it opens CALLS within `call_radius` of the player -
   `fire` (a car in `CarDamage._burning` / `_wrecks` still `on_fire()`: an engine), `blast`
   (`Explosion.blast_count` moved, no fire call within `merge_radius`: an engine stands by

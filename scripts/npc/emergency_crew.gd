@@ -57,9 +57,9 @@ const POSES := {
 	"kneel": {
 		"hips_pitch": 12.0, "hips_y": 52.0,
 		"aim": {
-			"Spine02": Vector3(0.0, 0.88, 0.47), "Spine01": Vector3(0.0, 0.84, 0.54),
-			"Spine": Vector3(0.0, 0.78, 0.62), "neck": Vector3(0.0, 0.55, 0.83),
-			"Head": Vector3(0.0, 0.22, 0.97),
+			"Spine02": Vector3(0.0, 0.94, 0.34), "Spine01": Vector3(0.0, 0.91, 0.41),
+			"Spine": Vector3(0.0, 0.86, 0.51), "neck": Vector3(0.0, 0.70, 0.71),
+			"Head": Vector3(0.0, 0.42, 0.91),
 			"LeftUpLeg": Vector3(0.10, -0.97, 0.20), "LeftLeg": Vector3(0.02, -0.12, -0.99),
 			"LeftFoot": Vector3(0.0, -0.55, -0.83),
 			"RightUpLeg": Vector3(-0.14, -0.08, 0.99), "RightLeg": Vector3(-0.03, -0.99, 0.10),
@@ -433,7 +433,7 @@ func _think() -> void:
 				_set_pose("kneel")
 				_work_t += 0.3
 				if _bag:
-					_bag.position = Vector3(0.42, 0.14, -0.25)
+					_bag.position = Vector3(0.62, 0.14, 0.2)
 			else:
 				_set_pose("")
 		Job.STRETCHER:
@@ -596,7 +596,7 @@ func _start_water(target: Vector3) -> void:
 	if _water == null:
 		_water = CPUParticles3D.new()
 		_water.name = "HoseWater"
-		_water.amount = 110 if not OS.has_feature("web") else 50
+		_water.amount = 160 if not OS.has_feature("web") else 60
 		_water.lifetime = 0.85
 		_water.local_coords = false
 		_water.direction = Vector3(0.0, 0.0, -1.0)

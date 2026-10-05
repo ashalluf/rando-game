@@ -13,9 +13,9 @@ global uniform float night_factor;
 // Linear colour of the water (white with a little of the sky in it).
 uniform vec3 tint = vec3(0.78, 0.84, 0.90);
 // Full width and length of a streak at particle scale 1 (m), and its opacity.
-uniform float width = 0.075;
+uniform float width = 0.13;
 uniform float streak_length = 0.9;
-uniform float opacity = 0.62;
+uniform float opacity = 0.85;
 
 void vertex() {
 	vec3 origin = MODEL_MATRIX[3].xyz;
