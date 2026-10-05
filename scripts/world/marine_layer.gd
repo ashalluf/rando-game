@@ -19,6 +19,9 @@ extends Node3D
 var amount: float = 0.0
 ## The scene's depth fog density (Weather sets it): the deck fogs itself with it.
 var fog_density: float = 0.0003
+## The deck's underside and top this frame (LaWeather.deck_heights(): lower while the evening bank
+## is in; Weather sets it).
+var deck: Vector2 = Vector2(LaWeather.DECK_BASE, LaWeather.DECK_TOP)
 var _under: MeshInstance3D
 var _top: MeshInstance3D
 var _bank: MeshInstance3D
@@ -100,8 +103,8 @@ func drive(weight: float, edge_x: float, bank: float, lit: Color, shade: Color, 
 	var off := WorldState.world_offset
 	var sx := snappedf(at.x + off.x, snap) - off.x
 	var sz := snappedf(at.z + off.z, snap) - off.z
-	_under.global_transform = Transform3D(Basis(Vector3.RIGHT, PI), Vector3(sx, LaWeather.DECK_BASE, sz))
-	_top.global_position = Vector3(sx, LaWeather.DECK_TOP, sz)
+	_under.global_transform = Transform3D(Basis(Vector3.RIGHT, PI), Vector3(sx, deck.x, sz))
+	_top.global_position = Vector3(sx, deck.y, sz)
 	_bank.global_position = Vector3(0.0, 0.0, sz)
 	_bank.visible = bank > 0.003
 	var lit3 := Vector3(lit.r, lit.g, lit.b)
@@ -121,3 +124,5 @@ func drive(weight: float, edge_x: float, bank: float, lit: Color, shade: Color, 
 		mat.set_shader_parameter("drift", _drift)
 		mat.set_shader_parameter("fog_col", fog3)
 		mat.set_shader_parameter("fog_k", fog_density)
+		mat.set_shader_parameter("deck_base", deck.x)
+		mat.set_shader_parameter("deck_top", deck.y)

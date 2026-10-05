@@ -962,7 +962,8 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	var cam_w := WorldState.to_world(cam.global_position) if cam else Vector3.ZERO
 	var cover := LaWeather.cover_at(coast, hour, cam_w.x, cam_w.z)
 	var bank := LaWeather.bank_amount(hour)
-	marine_here = marine_weight * cover * LaWeather.under_deck(cam_w.y)
+	var deck := LaWeather.deck_heights(hour)
+	marine_here = marine_weight * cover * LaWeather.under_deck(cam_w.y, deck.y)
 	_marine_fog_add = marine_here * (marine_fog + marine_bank_fog * bank)
 	_marine_vol_add = marine_here * marine_volumetric
 	if _env:
@@ -973,7 +974,7 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 			_env.fog_height = _fog_height0
 			_env.fog_height_density = _fog_height_density0 * (1.0 - marine_here * 2.0)
 		else:
-			_env.fog_height = LaWeather.FOG_START
+			_env.fog_height = LaWeather.fog_start(hour)
 			_env.fog_height_density = LaWeather.FOG_DENSITY * (marine_here * 2.0 - 1.0)
 	var light := 1.0
 	var moon := 0.0
@@ -993,10 +994,13 @@ func _update_la(delta: float, _fog: float, _vol: float) -> void:
 	# dark, the underside carrying the city's sodium light after dark (linear).
 	var lit := Color(0.86, 0.87, 0.89).lerp(sun_col * Color(1.0, 0.8, 0.68), dusk * 0.85) * (0.18 + 0.82 * light)
 	lit = lit.lerp(Color(0.035, 0.04, 0.055), moon)
-	var shade := Color(0.25, 0.28, 0.33).lerp(Color(0.30, 0.24, 0.25), dusk * 0.7) * (0.3 + 0.7 * light)
+	# At dusk the shaded side takes the twilight sky's colour (DayNight's horizon this frame).
+	var horizon: Color = _daynight.get("_horizon_now") if _daynight else Color(0.6, 0.65, 0.72)
+	var shade := Color(0.25, 0.28, 0.33).lerp(horizon * Color(0.62, 0.62, 0.7), dusk * 0.75) * (0.32 + 0.68 * light)
 	shade = shade.lerp(Color(0.022, 0.022, 0.026), moon)
 	var glow := Color(0.075, 0.048, 0.024) * lamp * moon
 	if _marine_layer:
+		_marine_layer.deck = deck
 		_marine_layer.drive(marine_weight, coast + LaWeather.edge_offset(hour), bank, lit, shade, glow, sun_dir,
 			_env.fog_light_color if _env else Color(0.6, 0.62, 0.65), delta)
 	# The Santa Ana.

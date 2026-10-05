@@ -69,8 +69,9 @@ func _clock() -> void:
 		"marine layer: burns off downtown at %.1f h, then the beach at %.1f h" % [dt_clear, beach_clear])
 	_t._check(c.call(15.0, downtown) < 0.01 and c.call(15.0, beach) < 0.01 and c.call(15.0, sea) > 0.99,
 		"marine layer: in the afternoon the deck waits offshore as a bank")
-	_t._check(c.call(18.5, beach) < 0.05 and c.call(18.5, Vector2(coast - 1400.0, 0.0)) > 0.95 and LaWeather.bank_amount(18.5) > 0.99,
-		"marine layer: at 18:30 the fog bank stands off the beach and reads as a wall")
+	_t._check(c.call(18.5, beach) < 0.05 and c.call(18.5, Vector2(coast - 2400.0, 0.0)) > 0.95 and LaWeather.bank_amount(18.5) > 0.99
+		and LaWeather.deck_heights(18.5).y < 320.0 and LaWeather.deck_heights(9.0).y > 500.0,
+		"marine layer: at 18:30 the fog bank stands off the beach, low on the water, as a wall")
 	_t._check(c.call(23.0, downtown) > 0.9 and LaWeather.bank_amount(10.0) < 0.01,
 		"marine layer: it is back over the city by night, and the morning edge is no wall")
 
@@ -97,7 +98,7 @@ func _marine(_city: Node3D, weather: Node, day: Node) -> void:
 	var sun: DirectionalLight3D = weather.get("_sun")
 	_t._check(float(weather.get("marine_here")) > 0.9 and float(day.get("marine")) > 0.9,
 		"marine layer: at 06:30 the camera is under the deck (%.2f)" % float(weather.get("marine_here")))
-	_t._check(env == null or (env.fog_height_density < 0.0 and absf(env.fog_height - LaWeather.FOG_START) < 0.01),
+	_t._check(env == null or (env.fog_height_density < 0.0 and absf(env.fog_height - LaWeather.fog_start(6.5)) < 0.01),
 		"marine layer: the height fog thickens UP into the deck, fading the tower tops")
 	_t._check(layer != null and layer.visible, "marine layer: the deck is drawn")
 	_t._check(sun == null or sun.shadow_opacity < 0.5, "marine layer: the light under it is nearly shadowless")

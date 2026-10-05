@@ -13,11 +13,11 @@ extends Node3D
 ## Wind speed the litter and dust are carried at (m/s).
 @export var wind_speed: float = 13.0
 ## Smoke puffs in the column, how long one lives (s) and how fast it rises (m/s).
-@export var plume_puffs: int = 56
+@export var plume_puffs: int = 80
 @export var plume_life: float = 70.0
 @export var plume_rise: Vector2 = Vector2(9.0, 15.0)
 ## Puff size at birth and at the top (m).
-@export var plume_size: Vector2 = Vector2(90.0, 420.0)
+@export var plume_size: Vector2 = Vector2(150.0, 380.0)
 ## Width (m) of the fire's line and its glow's height.
 @export var fire_width: float = 520.0
 @export var glow_height: float = 260.0
@@ -206,7 +206,9 @@ func _build_plume() -> void:
 	var fade := Gradient.new()
 	fade.set_color(0, Color(1, 1, 1, 0))
 	fade.set_color(1, Color(1, 1, 1, 0))
-	fade.add_point(0.06, Color(1, 1, 1, 0.85))
+	# Faded in slowly: the young puffs low over the flames are the brightest, and seen whole they
+	# read as a string of glowing beads.
+	fade.add_point(0.16, Color(1, 1, 1, 0.75))
 	fade.add_point(0.55, Color(1, 1, 1, 0.55))
 	_plume.color_ramp = fade
 	# The red channel is a per-puff seed for the billow (brush_smoke.gdshader).
@@ -275,7 +277,7 @@ func drive(weight: float, plan: Variant, night: float, sun_col: Color, amb: Colo
 	_smoke_mat.set_shader_parameter("sun_dir", sun)
 	_smoke_mat.set_shader_parameter("light_col", Vector3(sun_col.r, sun_col.g, sun_col.b))
 	_smoke_mat.set_shader_parameter("amb_col", Vector3(amb.r, amb.g, amb.b))
-	_smoke_mat.set_shader_parameter("glow_col", Vector3(0.9, 0.28, 0.06) * (0.15 + 0.85 * night) * weight)
+	_smoke_mat.set_shader_parameter("glow_col", Vector3(0.42, 0.13, 0.03) * (0.1 + 0.9 * night) * weight)
 	_glow_mat.set_shader_parameter("level", weight * (0.12 + 0.88 * night))
 	if _light:
 		_light.global_position = local + Vector3(0.0, 120.0, 0.0)

@@ -9,14 +9,17 @@ extends RefCounted
 ## one number: `edge_x(hour, z)` - the deck covers everything WEST of it (the ocean side; the
 ## coast runs north-south at MacroMap.coast_base_x). Overnight the edge is far inland, so the
 ## whole basin is under it; through the morning it burns off from inland toward the coast
-## (downtown clears about 11:00, the beach about 12:30); in the afternoon it waits offshore as a
-## bank; from about 16:30 it rolls back in, standing a few hundred metres off the beach at 18:30
-## and over the city by 21:00.
+## (downtown clears about 10:30, the beach about 12:00); in the afternoon it waits offshore as a
+## bank; from 17:00 it rolls back in LOW (a fog bank on the water, its top `BANK_TOP`), standing
+## about a mile off the beach at 18:30, ashore by 20:30 and over the city by 22:00.
 
 ## Underside and top of the stratus deck (true world metres). Downtown's tallest towers (262-335 m)
 ## stand into it.
 const DECK_BASE := 255.0
 const DECK_TOP := 520.0
+## The evening fog bank's underside and top: it comes in off the water lower than the morning deck.
+const BANK_BASE := 130.0
+const BANK_TOP := 300.0
 ## Where the height fog starts thickening toward the deck (m): a tower fades from here up.
 const FOG_START := 195.0
 ## Height fog density under the deck (negative: thicker going UP, Godot's height fog).
@@ -30,8 +33,8 @@ const BANK_EDGE := -2600.0
 ## reaches the beach at ROLL_COAST and is NIGHT_EDGE inland by ROLL_END.
 const BURN_START := 9.3
 const BURN_END := 14.0
-const ROLL_START := 16.4
-const ROLL_COAST := 20.0
+const ROLL_START := 17.0
+const ROLL_COAST := 20.5
 const ROLL_END := 23.5
 ## Metres over which the deck thins out at its edge (either side of the line).
 const EDGE_SOFT := 320.0
@@ -87,10 +90,21 @@ static func bank_amount(hour: float) -> float:
 	return smoothstep(ROLL_START - 0.6, ROLL_START + 0.3, h) * (1.0 - smoothstep(ROLL_END - 1.5, ROLL_END, h))
 
 
+## The deck's underside and top at `hour`: the morning deck, or lower while the evening bank is in.
+static func deck_heights(hour: float) -> Vector2:
+	var b := bank_amount(hour)
+	return Vector2(lerpf(DECK_BASE, BANK_BASE, b), lerpf(DECK_TOP, BANK_TOP, b))
+
+
+## Where the height fog starts thickening toward the deck at `hour` (m).
+static func fog_start(hour: float) -> float:
+	return deck_heights(hour).x - (DECK_BASE - FOG_START)
+
+
 ## The camera's place relative to the deck: 1 under it, 1 inside it, falling to 0 once above
 ## the top (above June gloom it is a sunny day over a white sea).
-static func under_deck(cam_y: float) -> float:
-	return 1.0 - smoothstep(DECK_TOP - 40.0, DECK_TOP + 60.0, cam_y)
+static func under_deck(cam_y: float, top: float = DECK_TOP) -> float:
+	return 1.0 - smoothstep(top - 40.0, top + 60.0, cam_y)
 
 
 ## How hot the afternoon is for heat shimmer, 0..1 (none before 10:30 or after 18:00).

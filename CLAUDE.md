@@ -336,7 +336,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`Weather.heat`: clear, Santa Ana, a burnt-off marine day); built only on Forward+ desktop and
   shown only at HIGH / MEDIUM. `RoofRain`: one MultiMesh of crown splashes animated in GDScript on
   the roofs (`Vehicle._model_top_y` over the cabin) of the nearest cars while it rains. Checks:
-  `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md (LA weather section).
+  `tests/weather_la_checks.gd`; stills in docs/HANDOFF.md 9bu.
 - Surf and beach (2026-10-04, owner: "the Pacific and the beach, AAA"). One wave model,
   `shaders/surf.gdshaderinc`, included by the ocean, the sand and the spray, mirrored in GDScript
   by `Surf` (`scripts/world/surf.gd`): crests parallel to the shore at `phi = TAU * ((s + wob) / L

@@ -3,13 +3,11 @@ shader_type spatial;
 // fire line, upright (it turns about Y only), additive. A broad soft glow on the hillside and,
 // along its foot, a ragged line of flickering flame tongues. By day there is little of it (the
 // smoke is what shows); after dark it is the orange glow that a ridge fire is from ten miles off.
-// `level` carries the hour (script: lamp-style night ramp). Linear colours, cs_out() at the end.
+// `level` carries the hour (script: lamp-style night ramp).
 render_mode unshaded, cull_disabled, depth_draw_never, blend_add, shadows_disabled, fog_disabled;
 
-#include "res://shaders/color_space.gdshaderinc"
-
-uniform vec3 flame_col = vec3(4.0, 1.5, 0.35);
-uniform vec3 glow_col = vec3(1.2, 0.36, 0.08);
+uniform vec3 flame_col = vec3(3.2, 1.25, 0.3);
+uniform vec3 glow_col = vec3(0.55, 0.17, 0.04);
 uniform float level = 0.0;
 uniform float seed = 0.0;
 
@@ -40,7 +38,9 @@ void fragment() {
 	vec2 q = UV * 2.0 - 1.0; // x across, y DOWN (UV.y 0 at the top)
 	float up = 1.0 - UV.y;   // 0 at the foot, 1 at the top
 	// The glow: wide and soft, brightest low down.
-	float glow = exp(-up * 3.2) * (1.0 - smoothstep(0.55, 1.0, abs(q.x)));
+	// Faded to nothing on every edge of the card: an additive quad must never show its rectangle.
+	float glow = exp(-up * 4.5) * (1.0 - smoothstep(0.2, 1.0, abs(q.x))) * (1.0 - smoothstep(0.35, 0.95, up))
+		* smoothstep(0.0, 0.03, up);
 	// The fire line: tongues along the foot, each its own height, flickering.
 	float x = UV.x * 46.0;
 	float h = 0.05 + 0.13 * vnoise1(x * 0.7 + TIME * 0.9) + 0.06 * vnoise1(x * 2.3 - TIME * 2.7);
@@ -48,6 +48,9 @@ void fragment() {
 	float tongue = (1.0 - smoothstep(h * 0.4, h, up)) * smoothstep(0.0, 0.015, up) * run;
 	float flick = 0.75 + 0.25 * vnoise1(TIME * 7.0 + x);
 	vec3 col = glow_col * glow * 0.55 + flame_col * tongue * flick;
-	ALBEDO = cs_out(col * level);
+	// NOT through cs_out(): added light on the Compatibility renderer lands on a display-space
+	// buffer, where the sRGB curve would turn the glow's faint tail (0.03) into a bright 0.19 and
+	// draw the card's rectangle. The same numbers on both renderers keep the tail a tail.
+	ALBEDO = col * level;
 	ALPHA = 1.0;
 }

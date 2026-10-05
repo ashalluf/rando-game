@@ -289,6 +289,23 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Los Angeles weather: the marine layer, the Santa Ana, heat haze (VISUAL_ROADMAP
+  #63, HANDOFF 9bu).** Clear / overcast / rain / storm is any city's weather; LA's own is
+  June gloom and the Santa Ana. Decisions worth knowing: (1) the marine layer's position is ONE
+  number of the hour (`LaWeather.edge_x()`: the deck covers everything west of it), so the deck
+  shader, the Environment, DayNight and the tests agree, and its burn-off and evening return are
+  a schedule, not a simulation - inland first in the morning, back in off the sea as a LOW fog
+  bank at evening; (2) the deck is two camera-following planes plus a ribbon stood on the edge in
+  the vertex shader, fogging themselves (`fog_disabled`) because Godot's height fog is what fades
+  the towers into the deck and would otherwise erase the deck too; the height fog runs with a
+  NEGATIVE density under the deck (thicker going up) and is put back to city.tscn's ground haze
+  everywhere else; (3) the Santa Ana is mostly light and air (fog to almost nothing, a deep sky,
+  warm dust) plus a steady lean of every tree through a new `wind_lean` global, and its brush fire
+  is purely visual (a smoke column and a glow on a hash-picked crest of the front range); (4) the
+  heat haze reads the screen and so follows the explosion shimmer's rules: render_priority MIN,
+  Forward+ desktop only, HIGH and MEDIUM only; (5) the auto roll weights the marine layer by the
+  hour (common overnight and in the morning) and both new states last several rolls long.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

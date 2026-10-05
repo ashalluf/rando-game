@@ -7040,3 +7040,87 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9bu. Los Angeles weather: the marine layer, the Santa Ana, heat haze, 2026-10-05 (agent branch `wt/weather`; VISUAL_ROADMAP #63)
+
+**What.** Two LA states join clear / overcast / rain / storm (`Weather.State.MARINE`,
+`SANTA_ANA`, appended; every per-state table has six rows), plus heat shimmer and rain bursting on
+car roofs. Pause menu: WEATHER is now two rows of chips (Auto, Clear, Cloudy, Rain / Storm,
+Marine layer, Santa Ana). Debug: `--weather=marine|santa_ana` (web `?weather=`; aliases `gloom`,
+`santa`, ... in `Weather.STATE_ALIASES`). The auto roll uses `Weather.odds_at(hour)`: the marine
+layer x2.2 overnight and in the morning, x0.35 in the afternoon; the Santa Ana 5 %; both last
+3-4 rolls long (`marine_length_gain`, `santa_ana_length_gain`).
+
+**The marine layer ("June gloom").** Where the deck is, is ONE number of the hour:
+`LaWeather.edge_x()` (`scripts/world/la_weather.gd`, pure) - the stratus covers everything WEST of
+it (the coast runs north-south at `MacroMap.coast_base_x`), wobbled along the coast by
+`edge_wobble(z)`, which `shaders/marine_layer.gdshader` copies (checked). Overnight it is 9 km
+inland (the whole basin is under it); from 09:20 it burns off inland first (downtown clears about
+10:25, the beach about 12:00); all afternoon it waits ~2.3 km offshore as a bank; from 17:00 it
+rolls back in LOW (`deck_heights()`: 130-300 m instead of 255-520 m), standing about 1.5 km off the
+beach at 18:30, ashore by 20:30, over the city by 22:00. `MarineLayer` (a child of Weather) draws
+it: the underside and the top as two planes (8 km radius, snapped to 400 m in true world space,
+one face each) and the evening bank as a ribbon (16 km of it along the coast, stood on the edge,
+billowed and domed in the vertex shader). Three transparent draws, shadowless, hidden at weight
+0. The deck fogs itself (`fog_disabled`, the scene's fog colour and density handed over) because
+of the next point. **Under the deck at the camera** (`Weather.marine_here` = the state's weight x
+cover x `under_deck(cam y)` - above the deck top it is a sunny day over a white sea) Weather adds
+cool haze (`marine_fog`, `marine_volumetric`, more where the evening bank has come ashore) and
+switches Godot's height fog to a NEGATIVE density from `LaWeather.fog_start()` (thicker going
+UP): the tops of downtown's tallest towers and the hill crests fade into the deck. Each half of
+that blend runs its own density to zero before `fog_height` changes, and everywhere else the
+city.tscn ground haze (16 m, +0.0006) is put back. DayNight's new `marine` hook greys the sky
+(`marine_top` / `_horizon`, the city's sodium light on it at night), cuts the sun
+(`marine_sun_cut` 0.74) and cools it, softens its shadows (`shadow_opacity`, `marine_shadow_cut`
+0.72), lifts the sky fill (`marine_ambient_gain`), drops the golden-hour smog. All marine colours
+are pushed bluer than neutral: through the look LUT a neutral grey came out beige (measured
+150/148/141 on the first still).
+
+**The Santa Ana.** `fog_by_state` 0.000035 (about 110 km of visibility) and almost no volumetric
+haze; DayNight's `santa_ana` hook: a deeper zenith (`santa_top`), a dusty horizon and fog
+(`santa_horizon`, `santa_fog`), a warm sun (`santa_sun`), half the smog, fewer clouds.
+`wind_factor` + `santa_ana_wind` (5) and a NEW global `wind_lean` (vec2 world XZ, length 0..1,
+toward the south-west, `LaWeather.SANTA_ANA_DIR`): `foliage.gdshader` and `foliage_tex.gdshader`
+lay every palm and tree over downwind in model space (a 4-line block each after the sway; the
+global is declared in project.godot). `SantaAnaFx` (a child of Weather): dry leaves and scraps
+of paper tumbling past the player (90, alpha-cut billboards, half on the web) and low dust
+streaming over the ground (26 puffs), emitted upwind; and the **brush fire** on
+`LaWeather.fire_site()` - a crest of the front range north-west of downtown picked by a hash of
+the seed from the highest ground in `FIRE_WINDOW` (default seed: (-100, 470, -1400), on the ridge
+above the hill sign, ~3 km from Pershing Square): a smoke column of 80 camera-facing puffs
+(CPUParticles3D in LOCAL coords, so it rides the origin shift; `shaders/brush_smoke.gdshader`
+lights each as a ball from the script's sun and sky colours and glows its underside with the fire
+after dark), an upright additive card with a soft glow and a flickering flame line
+(`shaders/fire_glow.gdshader`, deliberately NOT through cs_out(): on the Compatibility renderer
+an additive glow's faint tail turned into a visible rectangle), and on Forward+ desktop an
+OmniLight that colours the slope at night. Purely visual: nothing burns or spreads.
+
+**Heat haze.** `HeatHaze` (`shaders/heat_haze.gdshader`): one full-screen quad at
+render_priority MIN reading the screen (the explosion shimmer's rule), displacing the picture by
+rising noise along grazing rays (`graze`, elevation under ~4 degrees) past `near` (30 m), full at
+`far` (450 m) and on the sky at the horizon; `discard` everywhere else, so the cost is the
+horizon band. `Weather.heat` = `LaWeather.afternoon_heat(hour)` (10:30-18:00) x (clear 0.5,
+Santa Ana 1.0, a burnt-off marine day 0.35). Built only where `HeatHaze.supported()` (Forward+,
+not the web, not headless) and shown only at HIGH and MEDIUM. **Never seen in a still**: every
+still here is opengl3, where it does not exist.
+
+**Rain on car roofs.** `RoofRain` (a child of Weather): one MultiMesh of 220 crown splashes
+(`shaders/roof_splash.gdshader`: eight droplets on ballistic arcs over a spreading ring, the sky's
+colour by day, lamp-lit at night), animated in GDScript on the roofs of the ten nearest cars
+within 26 m (`Vehicle._model_top_y` over the `_dims()` cabin), 34 a second per car at full rain.
+Drips off awnings were not done (the awnings are kit instances inside each building's batch; no
+cheap way to find their edges without a per-building query).
+
+**Files.** New: `scripts/world/la_weather.gd`, `marine_layer.gd`, `santa_ana_fx.gd`,
+`heat_haze.gd`, `roof_rain.gd`; `shaders/marine_layer.gdshader`, `brush_smoke.gdshader`,
+`fire_glow.gdshader`, `heat_haze.gdshader`, `roof_splash.gdshader`; `tests/weather_la_checks.gd`;
+`tools/weather_probe.gd` (the front range's heights, the fire site, palm-lined blocks round a
+`--spawn`). Touched: `weather.gd` (states, odds, `_update_la()`), `day_night.gd` (two hooks, an
+export group, the frame's light published), `pause_menu.gd`, `foliage.gdshader`,
+`foliage_tex.gdshader`, `project.godot` (`wind_lean`), `tests/smoke_test.gd` (one line).
+
+**Checks** (`tests/weather_la_checks.gd`, 25): the clock (covered overnight, downtown clears
+before the beach, the bank offshore in the afternoon, a low wall off the beach at 18:30, back by
+night), the shader's wobble mirror, forcing each state (DayNight hooks, negative height fog,
+shadowless light, the deck drawn / hidden, clearer air, the lean's direction, the fire on a
+front-range crest), heat by hour and weather and only where drawable, the roll's odds by hour, a
+splash on a car's roof, the menu's chips.

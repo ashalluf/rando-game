@@ -17,7 +17,7 @@ uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);
 // height it falls off from, over `glow_fall` metres.
 uniform vec3 glow_col = vec3(0.0);
 uniform float fire_y = 0.0;
-uniform float glow_fall = 380.0;
+uniform float glow_fall = 210.0;
 uniform float opacity = 0.0;
 
 varying vec3 wpos;
@@ -55,9 +55,11 @@ void fragment() {
 	float r = length(q);
 	// A billow: the disc's edge pushed in and out by noise, so a puff is never a round ball.
 	float seed = COLOR.r * 31.7;
-	float n = vnoise(q * 2.6 + seed) * 0.6 + vnoise(q * 6.1 - seed) * 0.4;
-	float edge = 1.0 - smoothstep(0.45 + n * 0.35, 0.95, r);
-	float a = edge * COLOR.a * opacity;
+	float n = vnoise(q * 2.6 + seed) * 0.55 + vnoise(q * 5.3 - seed) * 0.3 + vnoise(q * 11.0 + seed * 1.7) * 0.15;
+	// A soft, lumpy edge and a body that is thicker in some lumps than others: the puffs overlap
+	// into one column instead of a stack of discs.
+	float edge = 1.0 - smoothstep(0.05 + n * 0.45, 1.0, r + (n - 0.5) * 0.35);
+	float a = clamp(edge * edge * (0.6 + 0.65 * n), 0.0, 1.0) * COLOR.a * opacity;
 	// Lit as a ball: a normal out of the disc toward the camera.
 	vec3 nrm = normalize(axis_x * q.x + axis_y * -q.y + normalize(CAMERA_POSITION_WORLD - wpos) * sqrt(max(1.0 - r * r, 0.05)));
 	float lit = clamp(dot(nrm, sun_dir) * 0.55 + 0.45, 0.0, 1.0) * smoothstep(-0.12, 0.08, sun_dir.y);
