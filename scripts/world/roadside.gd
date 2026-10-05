@@ -635,8 +635,8 @@ static func _price_sign(s: Site, p: Vector2, bname: String, c1: Color, c2: Color
 			pen.box(lc, Vector3(cw * 0.42, row_h - 0.12, 0.02), K.c(Color(0.97, 0.97, 0.96), K.K_LIGHTBOX), K.RM_PLASTIC)
 			_letters_flat(s, g[0], lc + out * 0.014, 0.2, Color(0.1, 0.1, 0.12), cw * 0.38, out)
 			pen.box(dc, Vector3(cw * 0.52, row_h - 0.12, 0.02), K.c(Color(0.02, 0.02, 0.02), K.K_FIXED), K.RM_PLASTIC)
-			var v := base + float(g[1])
-			var digits := "%d.%02d9" % [int(v), int(round((v - floor(v)) * 100.0)) % 100]
+			var cents := int(round((base + float(g[1])) * 100.0))
+			var digits := "%d.%02d9" % [int(cents / 100.0), cents % 100]
 			pen.price(digits, dc - along * 0.62, out, 0.44, led, 3)
 
 
@@ -866,7 +866,10 @@ static func _auto(s: Site) -> void:
 	# Painted on the side wall too, big.
 	var sx := bld.position.x - 0.03 if office_left else bld.end.x + 0.03
 	var sout := Vector3(-1, 0, 0) if office_left else Vector3(1, 0, 0)
-	s.pen.text(names[0].split(" ")[0] + (" TIRES" if tyres_shop else " AUTO"), 1.1, Vector3(sx, h * 0.6, bld.get_center().y), sout, K.c(sign_col, K.K_SIGNPAINT), bd - 1.5)
+	# The side wall's short name: the first word, or two when the first is short ("EL TORO").
+	var words: PackedStringArray = String(names[0]).split(" ")
+	var short_name := words[0] if words[0].length() > 3 or words.size() < 2 else words[0] + " " + words[1]
+	s.pen.text(short_name + (" TIRES" if tyres_shop else " AUTO"), 1.1, Vector3(sx, h * 0.6, bld.get_center().y), sout, K.c(sign_col, K.K_SIGNPAINT), bd - 1.5)
 	# Tyres: stacks along the front wall either side of the doors and a rack at the side.
 	var stacks := 6 if tyres_shop else 3
 	var tyre := RoadsideKit.tyre()
