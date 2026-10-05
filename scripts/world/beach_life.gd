@@ -195,6 +195,9 @@ static func kept_off(plan: CityPlan, z: float, with_people: bool = false) -> boo
 	for k: Array in _keep_off:
 		if absf(z - float(k[0])) < float(k[1]):
 			return true
+	# The marina's channel cuts the beach (Marina): no towels, courts or path across its band.
+	if plan.macro and plan.macro.marina and absf(z - plan.macro.marina.zc) < Marina.CHANNEL_HALF + 8.0:
+		return true
 	if not with_people and plan.macro and plan.macro.replica:
 		var cr: Vector2 = plan.macro.replica.coast_range()
 		if z > cr.x - 60.0 and z < cr.y + 60.0:
