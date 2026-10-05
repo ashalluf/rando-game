@@ -1551,7 +1551,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `INDUSTRIAL=0` on `still_shot.gd`, `block_shot.tscn` and `tools/geo_count.gd`; build times:
   `tools/industrial_bench/industrial_bench.tscn`; checks: `tests/industrial_checks.gd`.
   **Nor is a park just a lawn** (`Parks`, `scripts/world/parks.gd` + `ParkKit`,
-  `scripts/world/park_kit.gd`, 2026-10-04, docs/HANDOFF.md 9bj): LA from the air is stamped with
+  `scripts/world/park_kit.gd`, 2026-10-04, docs/HANDOFF.md 9bl): LA from the air is stamped with
   diamonds, courts, fields, tracks and pools. Two block ROLES, rolled by `CityPlan.block()`
   through `Parks.role_for()` AFTER every other roll and override (a hash of seed + block, never the
   block rng): `"rec"` (`REC_ON_PARK` of the PARK blocks in SUBURBS / MIDTOWN / BEACHTOWN, and
