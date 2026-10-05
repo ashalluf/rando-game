@@ -8701,6 +8701,10 @@ width goes into ALPHA, so a 14 mm conductor across the street is a hairline and 
 alias - shades it round (the normal swept across the ribbon), draws the stranded aluminium, the
 triplex twist with its bare neutral, the comm bundles' helical lashing wire and the guys' strand
 (detail fading under a few pixels), and fades out between `fade_start` 230 and `fade_end` 340 m.
+A sub-pixel wire's coverage goes into alpha through `coverage_gamma` (0.75: a hairline stays
+legible without being drawn thicker), and its normal turns toward the camera as it thins (swept
+across a 1 px ribbon, the grazing Fresnel rim was all a pixel held and the wire read pale against
+the night sky).
 No shadow, no GI, depth_draw_never (transparent), real radii (7 mm primaries, 13.5 mm secondary,
 24 / 17 mm comm, 9.5 mm drops, 5.5 mm guys). **Trap, paid for:** on Compatibility the
 PROJECTION_MATRIX's [1][1] is NEGATIVE (its projection is flipped in y); a `max(P[1][1], 0.1)`
@@ -8742,6 +8746,14 @@ ribbons' real footprint solid); `tools/utility_poles/probe.gd` (lists the lines 
 with EYEs for still_shot.gd; DISTRICT=, R=). Stills: `shots/utility-poles`. The suburban
 bookmark: `EYE=1997.7,6.5,4240.4,157,12 --hour=15` (across the street at a transformer pole),
 `1994.7,12.4,4250.4,143,3` (the head close up).
+
+**Cost.** opengl3, 1280x720, the suburban bookmark across the street at 15:00 (the GEO line of
+still_shot.gd, the frame's whole cost): 4,953,347 triangles / 2,080 draws with UTILITY_POLES=0 ->
+4,897,857 / 2,104 with the kit (-55 k triangles: one ribbon mesh a chunk instead of 25 box
+instances a span and their shadow pass; +24 draws: the new batches and the wire mesh across the
+FULL chunks in view). The A/B's box cables are now in 10 pieces (CABLE_SEGMENTS), twice the old
+build's, so against the true old build the triangle saving is roughly half that: call it flat.
+The checks run alone in a few minutes: `tools/utility_poles/checks_only.tscn`.
 
 **Not done.** LOD chunks and the far city hang nothing (as before): from the hills a pole is
 under a pixel past the FULL ring and its wires are faded out by 340 m anyway. Not seen on
