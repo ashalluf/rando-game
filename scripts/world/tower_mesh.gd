@@ -45,6 +45,8 @@ var glow_material: Material
 var hulls: Array[PackedVector3Array] = []
 var occluders: Array[AABB] = []
 var lights: Array = []
+## Every prism tier as [outline, y0, y1, parapet, solid] (TowerGondolas finds the faces it hangs on).
+var tiers: Array = []
 ## The plan's extent in local XZ, grown by every prism (the footprint the landmark stands on).
 var extent := Rect2()
 var _extent_set := false
@@ -178,6 +180,7 @@ func prism(outline: PackedVector2Array, y0: float, y1: float, style: String = ""
 		parapet: bool = true, collide: bool = true) -> void:
 	var st: SurfaceTool = _facade(style)
 	var top_y := y1 + (PARAPET_HEIGHT if parapet else 0.0)
+	tiers.append([outline, y0, y1, parapet, solid])
 	_walls(st, outline, y0, y1, solid)
 	if parapet:
 		var ring := inset(outline, PARAPET_WIDTH)
