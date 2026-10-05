@@ -6916,3 +6916,50 @@ the lifeguard still up), and the
   next chunk's riders. Riders do not give way to people on the path.
 - The beach under the Esplanade's bluff and the boardwalk get no path or court (their own
   ground); the boardwalk's stretch and the piers' get no people.
+## 9b?. The night aerial: light rivers, lamp heads, sodium and LED, 2026-10-05 (agent branch `wt/night-city`; VISUAL_ROADMAP #61)
+
+The money shot of LA is the basin at night from a hill or a plane. Before this pass the far city
+at 21:00-23:00 (opengl3 stills, `shots/night-city` before_*.jpg) had: freeway decks as dark grey
+threads with no traffic past the streamed range; the street grid a faint brown hatching (far
+glow mean ~0.05) under moonlit roofs, with the far plates' and LOD ground's streets mostly black;
+no lamp heads; far roof beacons steady; lit offices the same at 19:00 and 03:00. The airport's
+field lights and the arena already read well and were left alone.
+
+**What it is now** (rules in CLAUDE.md "Night aerial"):
+- `shaders/far_traffic.gdshaderinc`: moving head and tail lights per pixel - `FT_CELL` 14 m
+  cells, 32 to a period (`NightCity.PERIOD` 448 m), a hash per cell and lane, moving at 27 m/s on
+  freeways (10-15 on streets), right-hand traffic, white toward the camera and red away; lamps
+  drawn at least 0.9 px with a soft bloom gain, the lane's mean x `FT_FAR_BLOOM` once a car is
+  under a couple of pixels. Decks (building_lod deck mode, Skyline passes the phase and route),
+  far plates and the LOD ground (`street_traffic()`: lanes from the width, busier on avenues),
+  and an additive skin on LOD freeway chunks (`FreewayTraffic`, `far_traffic.gdshader`) faded in
+  past `freeway_range`, so the cars hand over to the lights.
+- `street_glow.gdshaderinc`: sodium or LED by 420 m patch (`lamp_led()`, integer roll, LED 72 %
+  within 2 km of downtown falling to 38 % past 6.5 km), lamp heads as points; far plates and LOD
+  ground at `far_glow_gain` 2.6, junction squares at 0.75. The near lamps take the patch's
+  colour (`NightCity.lamp_light()`, `pool_color()` in `CityChunk._add_lamp()`), and road.gdshader's
+  far glow too.
+- Hours: `city_hour` global (DayNight); `traffic_level()` (0.12 at 04:00 to 0.95 in the peaks,
+  ~0.55 at 21:00, ~0.39 at 23:00) and `window_hour_scale()` (x1.25 at 18:00, x0.66 at midnight,
+  x0.38 at 04:00) - the latter inside `window_lit()`, so near and far keep the same windows.
+- Far roof masts' red beacons flash (1.5-2.2 s, own phase; 18 % steady).
+
+**Stills** (opengl3 1280x720, `tools/glshot/still_shot.gd`, `--spawn=1500,300 --hour=22`, one
+load, on `shots/night-city`): basin from the front range `EYE=420,330,-1180,-119,-9` (22:00),
+over downtown at 400 m `2300,400,1700,0,-22@21`, the 110 and the 10 from the south
+`2100,260,3700,0,-10@23`, the airport `600,180,780,90,-12@22`. before_*, after_* (a2).
+
+**Cost** (GEO lines of the same four frames, before -> after): 1,864,233 / 466 draws -> same;
+3,134,111 / 1,117 -> 3,134,145 / 1,120; 2,959,671 / 764 -> 2,959,707 / 768; 902,919 / 379 ->
+902,951 / 383. The new draws are the LOD freeway skins (one a deck chunk); everything else is
+ALU in shaders that were already running.
+
+**Not done / not verified.**
+- The Mac (Forward+, AgX, auto exposure, glow): the streams' level is tuned on opengl3 and may
+  bloom harder there. Knobs: `FT_HEAD`, `FT_TAIL`, `FT_FAR_BLOOM` (far_traffic.gdshaderinc),
+  `far_glow_gain`, `lamp_head_energy`.
+- The near (FULL) roofs' beacons still burn steady; parking lots and the port are not floodlit in
+  the far city (only where their LOD pools are); dark parks and hills were already dark.
+- The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
+- The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
+  run in the period; the far box is 0.4 m long at the joints).

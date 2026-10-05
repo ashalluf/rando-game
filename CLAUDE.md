@@ -1153,6 +1153,31 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `BEATER_DOORS`); every other car skips it on `wear == 0`. SUV and minivan have privacy glass
   (`CarCabin.PRIVACY_BODIES`). `car_shot.gd --each=14,15,16,17,18` (the taxi comes in its livery;
   `LOOK=n` a beater's door / a taxi's number). Checks: `tests/more_cars_checks.gd`.
+- Night aerial (2026-10-05, VISUAL_ROADMAP #61, docs/HANDOFF.md "The night aerial"): past the
+  streamed range the city's night is worked out per pixel in the far shaders, never simulated
+  or placed. **Traffic lights**: `shaders/far_traffic.gdshaderinc` (`traffic_lights()`,
+  `street_traffic()`): cars in `FT_CELL` cells along a road's `s`, a hash per cell / lane decides
+  one is there (`traffic_level(city_hour)`), moving with TIME; keep right (+x of +s moves +s);
+  headlights toward the camera, tail lights away; drawn at least `FT_MIN_PX` and dimmed by less
+  than their area, then the lane's mean once a car is under a couple of pixels (times
+  `FT_FAR_BLOOM`). Worn by the far city's freeway decks (building_lod deck mode: Skyline puts
+  the segment's start in the pattern's period in custom.g, `NightCity.PERIOD`, the route in
+  .b), its block plates (along the TRUE world axis via the `origin_shift` global, so streams
+  run on plate to plate), the LOD ground past `traffic_fade_start` (`far_ground.gdshader`, the
+  road's width from the slab UV's derivatives like road.gdshader) and the LOD freeway decks
+  (`FreewayKit._traffic_skin()`, an additive `FreewayTraffic` mesh on
+  `shaders/far_traffic.gdshader`, faded in past TrafficManager's `freeway_range`; FULL decks
+  have none). **Lamps**: `street_glow.gdshaderinc` adds `lamp_led()` / `lamp_ratio()` (sodium or
+  LED per `LAMP_CELL` patch of true world, an integer roll, LED likelier near `LAMP_CENTRE`) and
+  `street_lamp_heads()` (the heads as points where the pools are); the far plates and LOD ground
+  multiply their glow by `far_glow_gain` and hold junction squares at `junction_glow` (a flat
+  orange tile otherwise); the near lamps' OmniLight3D and pool colours come from
+  `NightCity.lamp_light()` / `pool_color()`, the same roll in GDScript (`tests/night_city_checks.gd`
+  holds it bit-exact). **Hours**: DayNight publishes `city_hour`; `traffic_level()` and
+  `window_hour_scale()` (window_lights.gdshaderinc, scales every building's lit ratio near and
+  far alike) are key tables mirrored by `NightCity.LEVEL_KEYS` / `WINDOW_KEYS`. Far roof masts'
+  beacons flash on their own phase (building_lod, kind 2); near ones still burn steady. Stills:
+  the four EYEs in the HANDOFF section.
 - Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
   (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
   BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on
