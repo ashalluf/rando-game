@@ -495,6 +495,8 @@ var _lamp_bits: int = 0
 var light_brake: bool = false
 var light_signal: int = 0
 var light_reverse: bool = false
+## Seconds a parked car's alarm still sounds (CarAlarm, which counts it down): its hazards flash.
+var alarm_left: float = 0.0
 ## Material key last put on the lamps, and the brake light's hold (s): a queue's stop-start
 ## creep would otherwise flicker it.
 var _light_key: int = -1
@@ -633,6 +635,7 @@ func take_hit(_shape_index: int, damage: float, dir: Vector3, at: Vector3 = Vect
 	if is_traffic() and kind != HIT_CRASH:
 		drop_out_of_traffic()
 	damage_state().hit(kind, at, dir, damage)
+	CarAlarm.on_hit(self, kind, damage)
 
 
 ## This car's damage, made now if it has none yet.
@@ -1054,7 +1057,7 @@ func _add_night_lights(dims: Dictionary) -> void:
 func lights_running() -> bool:
 	if has_meta("wreck") or is_wreck():
 		return false
-	return _cabin_seats() != 0
+	return _cabin_seats() != 0 or alarm_left > 0.0
 
 
 ## Works out what the lamps show this tick: the brake light from the brake pedal (the player)
@@ -1080,6 +1083,8 @@ func _tick_lights(delta: float) -> void:
 		sig = _traffic_signal()
 	elif _npc_driver:
 		braking = linear_velocity.length() < 1.0 or brake > 5.0
+		sig = 2
+	elif alarm_left > 0.0:
 		sig = 2
 	if braking:
 		_brake_hold = 0.35

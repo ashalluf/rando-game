@@ -1778,6 +1778,9 @@ func _test_city() -> void:
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.
 	await load("res://tests/la_river_checks.gd").new().run(self, city)
+	# What a blast leaves (tests/explosion_aftermath_checks.gd): trees alight, charred and kept
+	# charred, smoke columns, craters and rubble, leaves, car alarms with their hazards.
+	await load("res://tests/explosion_aftermath_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
