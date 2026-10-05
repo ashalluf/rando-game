@@ -777,7 +777,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 		var back_lane := _lane_offset(axis, index, -dir)
 		var at := cross_pos - dir * 0.5
 		var back_key := lane_key(axis, index, -dir, back_lane)
-		if _group_clear(groups, back_key, at, half + 4.4):
+		if _group_clear(groups, back_key, at, half + 4.4, car, -dir):
 			TrafficAI.end_move(t)
 			t.dir = -dir
 			t.lane = back_lane
@@ -800,7 +800,7 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			lane = TrafficAI.turn_lane(self, cross_axis, cross_index, new_dir, TrafficAI.turn_side(axis, dir, new_dir))
 		var at_along := wp.x if cross_axis == CityPlan.AXIS_Z else wp.z
 		var new_key := lane_key(cross_axis, cross_index, new_dir, lane)
-		if _group_clear(groups, new_key, at_along, half + 4.4):
+		if _group_clear(groups, new_key, at_along, half + 4.4, car, new_dir):
 			# Counted in its new lane at once: `groups` is built at the start of the tick, and a
 			# second car turning into the same lane in the same tick saw it empty.
 			t.along = at_along
@@ -918,9 +918,31 @@ func _join_group(groups: Dictionary, key: int, car: Vehicle) -> void:
 
 
 ## True when no car of lane group `key` is within `clear` metres of `along` (this tick's groups).
-func _group_clear(groups: Dictionary, key: int, along: float, clear: float) -> bool:
+## With `car` and the lane's `dir`, the test is between the cars' ends, not their centres: the
+## car's own half ahead and `rear` behind, the other's `rear` behind and half ahead, the gap the
+## old rule kept between two ordinary cars left between them. Centre to centre, a car turning in behind a bus (whose rear
+## is 6.4 m behind its centre) or a semi's trailer landed inside it (CI 355: -6.7 m).
+func _group_clear(groups: Dictionary, key: int, along: float, clear: float, car: Vehicle = null, dir: int = 0) -> bool:
+	var half := 0.0
+	var rear := 0.0
+	if car != null and dir != 0:
+		half = float(car.traffic.get("half", 2.4))
+		rear = float(car.traffic.get("rear", half))
 	for other in groups.get(key, []):
-		if absf(float((other as Vehicle).traffic.along) - along) < clear:
+		var ot: Dictionary = (other as Vehicle).traffic
+		if other == car:
+			continue
+		if car == null or dir == 0:
+			if absf(float(ot.along) - along) < clear:
+				return false
+			continue
+		var d := (float(ot.along) - along) * float(dir)
+		# The gap the centre-to-centre rule kept between two ordinary cars (2.4 m halves).
+		var margin := maxf(clear - half - 2.4, 1.0)
+		if d >= 0.0:
+			if d - half - float(ot.get("rear", ot.get("half", 2.4))) < margin:
+				return false
+		elif -d - float(ot.get("half", 2.4)) - rear < margin:
 			return false
 	return true
 
