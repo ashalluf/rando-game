@@ -258,6 +258,16 @@ static func stall(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, lo
 	solid.set_look(wood, K_WOOD)
 	solid.box(at.call(Vector3(0, COUNTER_H + 0.025, -COUNTER_D * 0.5)), Vector3(STALL_W - 0.12, 0.05, COUNTER_D + 0.06))
 	solid.box(at.call(Vector3(0, 1.55, -STALL_D + 0.2)), Vector3(STALL_W - 0.2, 0.04, 0.32))
+	# The counter's front: a lip proud of the top, two raised panels in a lighter coat, a dark kick
+	# board; a stepped riser at the back of the top for a row of goods.
+	solid.box(at.call(Vector3(0, COUNTER_H - 0.03, 0.03)), Vector3(STALL_W - 0.1, 0.09, 0.05))
+	solid.set_look(paint.lightened(0.25), K_PAINT)
+	for side: float in [-1.0, 1.0]:
+		solid.box(at.call(Vector3(side * (STALL_W * 0.25 - 0.05), COUNTER_H * 0.5 + 0.03, -0.02)), Vector3(STALL_W * 0.5 - 0.3, COUNTER_H - 0.38, 0.03))
+	solid.set_look(paint.darkened(0.55), K_PAINT)
+	solid.box(at.call(Vector3(0, 0.07, -0.015)), Vector3(STALL_W - 0.18, 0.14, 0.04))
+	solid.set_look(wood.lightened(0.1), K_WOOD)
+	solid.box(at.call(Vector3(0, COUNTER_H + 0.05 + 0.1, -COUNTER_D + 0.04)), Vector3(STALL_W - 0.2, 0.2, 0.16))
 	# The roof: timber boards on a slope down to the front, a fascia board in the stall's paint.
 	var front_y := STALL_H - 0.12
 	var back_y := STALL_H + 0.12
@@ -294,6 +304,8 @@ static func stall(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, lo
 	g_acc.set_look(Color(1.0, 0.78, 0.45), K_BULB, h01([s, "bulb"]))
 	g_acc.lathe(at.call(Vector3(0, front_y - 0.42, 0.45)), [Vector2(0.0, -0.05), Vector2(0.03, -0.04), Vector2(0.035, 0.0), Vector2(0.015, 0.03), Vector2(0.012, 0.05)], 6)
 	_goods(g_acc, thin, xf, goods, s, lod)
+	if lod == 0 and goods != Goods.CANDY:
+		_riser_row(g_acc, xf, goods, s, COUNTER_H + 0.05 + 0.2, -COUNTER_D + 0.04)
 
 
 ## The goods a stall sells, on its counter, its back wall and hanging from its awning and posts.
@@ -317,10 +329,14 @@ static func _goods(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, l
 					y += th
 			for i in 3:
 				thin.set_look(Color(0.15, 0.08, 0.05), K_SARAPE, _rr(s, "back", i))
-				thin.sheet(xf * Vector3(-hw + 0.12 + 0.75 * float(i), 2.3, -STALL_D + 0.07), b * Vector3(1, 0, 0), Vector3.DOWN, 0.7, 1.35, front, 4, 0.0, 0.05)
+				var bp := xf * Vector3(-hw + 0.12 + 0.75 * float(i), 2.3, -STALL_D + 0.07)
+				thin.sheet(bp, b * Vector3(1, 0, 0), Vector3.DOWN, 0.7, 1.35, front, 4, 0.0, 0.05)
+				_fringe(thin, bp + Vector3.DOWN * 1.35, b * Vector3(1, 0, 0), 0.7, front, 0.05)
 			for i in 2:
 				thin.set_look(Color(0.1, 0.06, 0.05), K_SARAPE, _rr(s, "hang", i))
-				thin.sheet(xf * Vector3(-hw + 0.05 + (STALL_W - 0.85) * float(i), 2.2, 0.32), b * Vector3(1, 0, 0), Vector3.DOWN, 0.8, 1.3, front, 5, 0.05, 0.6, false, 0.04)
+				var hp := xf * Vector3(-hw + 0.05 + (STALL_W - 0.85) * float(i), 2.2, 0.32)
+				thin.sheet(hp, b * Vector3(1, 0, 0), Vector3.DOWN, 0.8, 1.3, front, 5, 0.05, 0.6, false, 0.04)
+				_fringe(thin, hp + Vector3.DOWN * 1.3, b * Vector3(1, 0, 0), 0.8, front, 0.6)
 		Goods.POTTERY:
 			for i in 7:
 				var x := -hw + 0.22 + 0.32 * float(i)
@@ -426,6 +442,45 @@ static func _goods(solid: Acc, thin: Acc, xf: Transform3D, goods: int, s: int, l
 			for side: float in [-1.0, 1.0]:
 				solid.set_look(Color(0.4, 0.23, 0.1), K_LEATHER)
 				solid.box(at.call(Vector3(side * (hw + 0.1), 1.4, 0.0)), Vector3(0.05, 0.36, 0.3))
+
+
+## A row of small merchandise along the counter's riser at height `y`, depth `z` (stall frame).
+static func _riser_row(acc: Acc, xf: Transform3D, goods: int, s: int, y: float, z: float) -> void:
+	var b := xf.basis
+	var n := 9
+	for i in n:
+		var x := -STALL_W * 0.5 + 0.2 + (STALL_W - 0.4) * (float(i) + 0.5) / float(n)
+		var at := Transform3D(b, xf * Vector3(x, y, z))
+		var r := _rr(s, "riser", i)
+		match goods:
+			Goods.POTTERY:
+				acc.set_look(_pot_color(s, 40 + i, r < 0.7), K_GLAZE if r < 0.7 else K_CLAY, _rr(s, "rp", i))
+				acc.lathe(at, _pot_profile(0.045, 0.1 + 0.05 * r, i % 3), 8)
+			Goods.SARAPES, Goods.DRESSES:
+				acc.set_look(_dye(s, 60 + i) if goods == Goods.SARAPES else _cotton(s, 60 + i), K_SARAPE if goods == Goods.SARAPES else K_EMBROID, _rr(s, "rf", i))
+				acc.box(Transform3D(b, xf * Vector3(x, y + 0.04, z)), Vector3(0.18, 0.08, 0.14))
+			Goods.HATS:
+				acc.set_look(_straw(s, 60 + i), K_STRAW)
+				acc.lathe(at, _sombrero(0.09), 8)
+			Goods.SILVER:
+				acc.set_look(Color(0.9, 0.9, 0.92), K_SILVER)
+				acc.lathe(at, [Vector2(0.0, 0.0), Vector2(0.03, 0.0), Vector2(0.035, 0.05), Vector2(0.0, 0.06)], 6)
+			Goods.LEATHER:
+				acc.set_look(Color(0.36, 0.2, 0.1) * (0.8 + 0.4 * r), K_LEATHER)
+				acc.box(Transform3D(b, xf * Vector3(x, y + 0.04, z)), Vector3(0.16, 0.08, 0.1))
+			_:
+				acc.set_look(_dye(s, 70 + i), K_GLOSSY)
+				if i % 2 == 0:
+					acc.lathe(at, [Vector2(0.0, 0.0), Vector2(0.03, 0.0), Vector2(0.032, 0.09), Vector2(0.018, 0.1), Vector2(0.0, 0.11)], 6)
+				else:
+					acc.box(Transform3D(b, xf * Vector3(x, y + 0.035, z)), Vector3(0.12, 0.07, 0.09))
+
+
+## A sarape's fringe: a strip below its hem `p` (v from 0 down to -0.08, cut into threads by the
+## shader), `ax` along the hem for `w` metres.
+static func _fringe(thin: Acc, p: Vector3, ax: Vector3, w: float, face: Vector3, free: float) -> void:
+	var d := Vector3.DOWN * 0.08
+	thin.quad(p, p + ax * w, p + ax * w + d, p + d, face, Vector2(0, 0), Vector2(w, 0), Vector2(w, -0.08), Vector2(0, -0.08), free, free, minf(free + 0.2, 1.0), minf(free + 0.2, 1.0))
 
 
 static func _rr(s: int, k: String, i: int) -> float:

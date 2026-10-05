@@ -22,7 +22,7 @@ extends RefCounted
 ##   * the old firehouse east of the plaza, a three-storey hotel block south of it, gardens, the
 ##     adobe's courtyard and surface car parks filling the rest of the block.
 ##
-## Real place relative to the station: the real plaza is 245 m grid-west and 25 m grid-north of the
+## Real place relative to the station: the real plaza is 245 m grid-west and 26 m grid-south of the
 ## station's point, and so is this one (to within the block: CivicSites tolerance). The real
 ## church stands across Main; here it stands inside the block on the plaza's south-west side.
 ## Everything is laid out by `layout()` (pure, from the site rect and the kiosk's real point), so

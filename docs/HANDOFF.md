@@ -8579,8 +8579,8 @@ with an invented name (PASEO DE LAS GOLONDRINAS; the plaza PLAZA VIEJA, the chur
 PALOMA). A civic block site (`CivicSites.SITES["pueblo_lane"]`, id neutral) that takes the whole
 block between Main and Alameda, Arcadia and Cesar Chavez (pinned streets, so every seed): the
 plaza's kiosk stands on the real kiosk's point (`PuebloLane.KIOSK_LATLON`, 0.0 m off on the
-default seed), which is where the real one is from the station - 245 m grid-west, 25 m
-grid-north (checked). The real church stands across Main; here it is inside the block on the
+default seed), which is where the real one is from the station - 245 m grid-west, 26 m
+grid-south (checked). The real church stands across Main; here it is inside the block on the
 plaza's south-west side, facing it.
 
 **Files.** `scripts/world/pueblo_lane.gd` (`PuebloLane`: `layout()` pure from the site rect and the
@@ -8630,6 +8630,25 @@ every stall two `vendor_queue` spots in front, which the walkers' life layer fil
 **Cost.** The near build is ~0.7 s of GDScript (the stalls 0.17 s, the vines 0.16 s, the rest
 geometry), so `PuebloLane.build()` builds each version ONCE into a template (`_templates`, built
 when the far copy is built at load) and every chunk that streams the site in gets `duplicate()`s
-sharing its meshes and shapes: 5 ms. Near: buildings and ground 16.3k triangles (LandmarkGeo),
-the market 123k (solid; draws to 220 m, casts), paper and canvas 5.6k (no shadow, 170 m), vines
-~11k + shadow twin; 193 collision shapes. Far: 4.4k + 0.5k. Frame cost below.
+sharing its meshes and shapes: 5-7 ms. Near: buildings and ground 16.9k triangles (LandmarkGeo),
+the market 126k - of which 110k are the goods, bulbs, strings, lanterns and balcony bars in a mesh
+that casts NO shadow (`PuebloGoods`, 170 m) and 16k the stall frames, awnings and kiosk ironwork
+that do (`PuebloMarket`, 220 m) -, paper and canvas 5.6k (no shadow, 170 m), the vines (~7k cards,
+4 triangles each) and their shadow twin; 201 collision shapes. Far: 4.9k + 0.5k.
+
+**Frame cost** (`still_shot.gd` GEO lines, opengl3, 1280x720, `PUEBLO_LANE=0` the before; taken
+before the goods were split off the shadow, which takes ~0.4 M shadow triangles off the lane view):
+the plaza 15:30 5.56 M -> 5.76 M triangles, 2,650 -> 2,753 draws; down the lane 5.35 M -> 6.24 M,
+2,279 -> 2,693 draws (the market and the people in view: it is the densest view there is); from
+the air 4.80 M -> 3.71 M, 2,467 -> 1,978 (the seeded office blocks it replaces were taller).
+
+**Stills** (shots/olvera): before / after of the plaza, the lane and the air; the church; the
+puestos close up; a sarape stall; the lane at 20:50; the plaza at night.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the papel picado's BACKLIGHT, the bulbs
+and lit shops through AgX and bloom, the vines' dapple. The stalls are not breakable (bullets hit
+their collision box). The pergola's vines read thin from straight above (the cards lie flat and
+their atlas cells are mostly cut away). The kiosk is not walkable inside past its deck (its roof
+is one box of collision). The church has no interior. No sound of its own (a marimba, the church
+bells at the hour would be the next step). The block's leftover ground is car parks and a grove,
+not the real block's other historic buildings.

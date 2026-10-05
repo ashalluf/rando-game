@@ -12,6 +12,8 @@ void vertex() {
 
 void fragment() {
 	PmSurf s = pm_surface(UV, length(VERTEX), length(fwidth(UV)));
+	// Always (derivatives in a branch are undefined); a zero height leaves the normal as it is.
+	NORMAL = pm_bump(NORMAL, VERTEX, s.height);
 	ALBEDO = cs_out(s.albedo);
 	ROUGHNESS = s.rough;
 	METALLIC = s.metal;

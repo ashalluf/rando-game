@@ -93,6 +93,7 @@ struct PmSurf {
 	vec3 emit;
 	float through;
 	bool cut;
+	float height;
 };
 
 // The cut pattern of a papel picado flag, uv 0..1 (v down from the string), `pick` which of four
@@ -158,6 +159,7 @@ PmSurf pm_surface(vec2 uv, float dist, float px) {
 	s.emit = vec3(0.0);
 	s.through = 0.0;
 	s.cut = false;
+	s.height = 0.0;
 	float k = v_kind;
 	// How much fine pattern survives at this range (a pixel's worth of metres).
 	float fine = 1.0 - smoothstep(detail_fade * 0.5, detail_fade, dist);
@@ -182,21 +184,65 @@ PmSurf pm_surface(vec2 uv, float dist, float px) {
 		s.rough = 0.85;
 		s.through = 0.35;
 	} else if (k < 3.5) {
-		// A sarape: bands across v in vivid dyes, pinstripes between them, a weave texture, a
-		// fringe at the ends (u wraps the cloth's width, v its length).
-		float band = floor(uv.y / 0.09);
-		float h = pm_hash(vec2(band, v_seed * 97.0));
-		vec3 c = cs_srgb_to_linear(pm_dye(floor(h * 10.0 + v_seed * 13.0)));
-		float sub = fract(uv.y / 0.09);
-		if (sub < 0.12 || sub > 0.88) {
-			c = mix(c, cs_srgb_to_linear(pm_dye(mod(band + 8.0 + floor(v_seed * 3.0), 10.0))), pm_keep(1.0 / 0.011, px));
+		// A sarape: bands across v at their real widths (2-8 cm), mirrored about the cloth's middle
+		// like a woven blanket's, some of them pinstripe pairs, grounds between; a weave bump; the
+		// fringe below the hem (v < 0). Pinstripes and threads are box-filtered to their average under
+		// a pixel, and the whole pattern fades to its own mean before the bands themselves alias.
+		float period = 0.9 + 0.5 * v_seed;
+		float t = abs(fract(uv.y / period) - 0.5) * period;
+		float acc = 0.0;
+		vec3 c = v_paint;
+		vec3 mean = vec3(0.0);
+		float found = 0.0;
+		for (int i = 0; i < 12; i++) {
+			float hi = pm_hash(vec2(float(i), v_seed * 91.0 + 3.0));
+			float w = 0.02 + 0.06 * pm_hash(vec2(float(i) * 1.7, v_seed * 37.0 + 11.0));
+			vec3 a = cs_srgb_to_linear(pm_dye(floor(hi * 10.0)));
+			vec3 b = cs_srgb_to_linear(pm_dye(floor(fract(hi * 7.3) * 10.0)));
+			vec3 bandc;
+			float kind_i = fract(hi * 13.1);
+			if (kind_i < 0.3) {
+				// A ground: the cloth's own colour, wide.
+				w *= 1.8;
+				bandc = v_paint;
+			} else if (kind_i < 0.55) {
+				// A pinstripe pair, 4 mm stripes, box-filtered.
+				float sp = 0.008;
+				float lo = (t - acc) - px * 0.5;
+				float up = (t - acc) + px * 0.5;
+				float il = floor(lo / sp) * sp * 0.5 + max(fract(lo / sp) * sp - sp * 0.5, 0.0);
+				float iu = floor(up / sp) * sp * 0.5 + max(fract(up / sp) * sp - sp * 0.5, 0.0);
+				float cov = clamp((iu - il) / max(px, 1e-5), 0.0, 1.0);
+				bandc = mix(a, b, cov);
+				a = (a + b) * 0.5;
+			} else {
+				bandc = a;
+			}
+			mean += (kind_i < 0.3 ? v_paint : a) * w;
+			if (found < 0.5 && t < acc + w) {
+				c = bandc;
+				found = 1.0;
+			}
+			acc += w;
 		}
-		// Wide grounds every few bands (the dark or natural field of a real sarape).
-		if (pm_hash(vec2(floor(uv.y / 0.36), v_seed * 31.0)) < 0.35) {
-			c = mix(c, v_paint, 0.75);
+		if (found < 0.5) {
+			c = v_paint;
 		}
-		float weave = step(0.5, fract(uv.x * 160.0)) * 0.5 + step(0.5, fract(uv.y * 160.0)) * 0.5;
-		s.albedo = c * mix(1.0, 0.85 + 0.2 * weave, fine * pm_keep(160.0, px));
+		mean /= max(acc, 1e-4);
+		c = mix(mean, c, pm_keep(1.0 / 0.04, px));
+		// The weave: a fine basket bump and a little shade in it.
+		float wv = sin(uv.x * 754.0) * sin(uv.y * 754.0);
+		float keep_w = pm_keep(120.0, px);
+		s.height = 0.0006 * wv * keep_w;
+		s.albedo = c * (1.0 + 0.08 * wv * keep_w);
+		// The fringe: knotted threads below the hem, ragged ends.
+		if (uv.y < 0.0) {
+			float tp = 0.007;
+			float th = abs(fract(uv.x / tp) - 0.5) * 2.0;
+			float ragged = 0.045 + 0.03 * pm_hash(vec2(floor(uv.x / tp), v_seed * 5.0));
+			s.cut = (-uv.y > ragged) || (th > 0.55 && pm_keep(1.0 / tp, px) > 0.5);
+			s.albedo = mix(v_paint, c, 0.5) * 0.9;
+		}
 		s.rough = 0.92;
 		s.through = 0.2;
 	} else if (k < 4.5) {
@@ -271,4 +317,16 @@ PmSurf pm_surface(vec2 uv, float dist, float px) {
 	// The street gets wet; so does anything near the ground in the rain.
 	s.rough = mix(s.rough, s.rough * 0.55, wet * step(v_world.y, 0.4));
 	return s;
+}
+
+// A height (metres) on a surface with no tangents, as a bumped normal (Mikkelsen's unparametrized
+// bump mapping from screen derivatives). `n` and `p` view space.
+vec3 pm_bump(vec3 n, vec3 p, float h) {
+	vec3 dpdx = dFdx(p);
+	vec3 dpdy = dFdy(p);
+	vec3 r1 = cross(dpdy, n);
+	vec3 r2 = cross(n, dpdx);
+	float det = dot(dpdx, r1);
+	vec3 grad = sign(det) * (dFdx(h) * r1 + dFdy(h) * r2);
+	return normalize(abs(det) * n - grad);
 }

@@ -19,6 +19,8 @@ void fragment() {
 	if (!FRONT_FACING) {
 		NORMAL = -NORMAL;
 	}
+	// Always (derivatives in a branch are undefined); a zero height leaves the normal as it is.
+	NORMAL = pm_bump(NORMAL, VERTEX, s.height);
 	ALBEDO = cs_out(s.albedo);
 	ROUGHNESS = s.rough;
 	METALLIC = s.metal;

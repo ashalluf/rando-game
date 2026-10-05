@@ -49,11 +49,11 @@ func _site(plan: CityPlan, lm: Dictionary, info: Dictionary, L: Dictionary) -> v
 	var real := DowntownReal.game_xz(PuebloLane.KIOSK_LATLON)
 	var plaza := CivicSites.to_world(info, L.p)
 	_t._check(plaza.distance_to(real) < 12.0, "the plaza's kiosk stands on the real plaza's point (%.1f m off)" % plaza.distance_to(real))
-	# Where the real plaza is from the station: about 245 m grid-west and 25 m grid-north.
+	# Where the real plaza is from the station: about 245 m grid-west and 26 m grid-south.
 	var st := CivicSites.real_xz("pueblo_station")
 	var d := plaza - st
 	_t._check(d.x < -200.0 and d.x > -300.0 and absf(d.y) < 60.0,
-		"the plaza is where the real one is from the station (%.0f m west, %.0f m north)" % [-d.x, -d.y])
+		"the plaza is where the real one is from the station (%.0f m west, %.0f m south)" % [-d.x, d.y])
 	var fw: Freeway = plan.macro.freeway if plan.macro else null
 	_t._check(fw == null or not fw.blocks_rect(info.world, 0.0), "no freeway deck crosses the marketplace lane's site")
 	_t._check(Minimap.LANDMARK_NAMES.has(PuebloLane.ID) and not str(Minimap.LANDMARK_NAMES[PuebloLane.ID]).to_lower().contains("olvera"),
@@ -145,7 +145,8 @@ func _build(t: Node, plan: CityPlan, lm: Dictionary, info: Dictionary, L: Dictio
 				and int(tris.paper) > 3000 and int(tris.paper) < PAPER_BUDGET,
 				"the near marketplace lane is detailed and under budget (%s)" % [tris])
 			var shapes := 0
-			for c in body.get_children():
+			var civic := pivot.get_node_or_null("CivicBody")
+			for c in (civic.get_children() if civic else []):
 				if c is CollisionShape3D:
 					shapes += 1
 			_t._check(shapes > 100, "the marketplace lane has collision (%d shapes)" % shapes)
