@@ -32,6 +32,11 @@ var _bar: ColorRect
 var _fill: ColorRect
 var _shade: ColorRect
 var _progress: float = 0.0
+## Only the shader files whose names contain one of these (empty: all). For the first-use probe
+## (tools/shader_warm/), which cannot fit every shader's pipelines in lavapipe's memory.
+static var only_shaders: PackedStringArray = []
+## WARM_LOG=1 in the environment: print what each warm-up step costs (tools/shader_warm/).
+var _warm_log := OS.get_environment("WARM_LOG") == "1"
 
 
 func _ready() -> void:
@@ -117,6 +122,10 @@ func run(city: Node3D) -> void:
 	if city.has_method("finish_far_city"):
 		city.call("finish_far_city")
 	await _frames(1)
+	# The rehearsal (WarmRehearsal): the real cars, people and effects drawn once behind the shade,
+	# so their pipelines exist before play; and the decal atlas packed for good.
+	await WarmRehearsal.run(city, get_viewport().get_camera_3d(),
+			func(f: float, text: String) -> void: _step(text, 0.8 + 0.08 * f), _warm_log)
 	# The hills' shrubs and oaks, cut to their triangle budgets (tenths of a second the first
 	# time), so the first hill block after the spawn does not pay for it mid-flight.
 	PropFactory.model_chaparral()
@@ -186,7 +195,10 @@ func _warm_shaders() -> void:
 		holder.add_child(mi)
 		i += 1
 		_step("Compiling shaders (%d/%d)" % [i, files.size()], 0.05 + 0.45 * float(i) / float(maxi(files.size(), 1)))
+		var t_shader := Time.get_ticks_usec()
 		await _frames(warm_frames)
+		if _warm_log:
+			print("WARM shader %s %d ms rss %d MB" % [path.get_file(), (Time.get_ticks_usec() - t_shader) / 1000, OS.get_static_memory_usage() / 1048576])
 	# The effect materials are StandardMaterial3D, not .gdshader files, so the loop above never
 	# drew them, and a particle system draws through a MultiMesh - its own pipeline variant. The
 	# first rocket used to compile all of it mid-blast. Drawn here once as a one-instance
@@ -255,9 +267,18 @@ func _shader_files() -> PackedStringArray:
 	for f in dir.get_files():
 		# Exported builds see .remap; the editor sees the file itself.
 		var name := f.trim_suffix(".remap")
+		if not only_shaders.is_empty() and not _wanted(name):
+			continue
 		if name.ends_with(".gdshader"):
 			out.append("res://shaders/" + name)
 	return out
+
+
+func _wanted(file: String) -> bool:
+	for k in only_shaders:
+		if file.contains(k):
+			return true
+	return false
 
 
 ## Builds a much wider area than the streamer's normal window, so the opening minute of driving
