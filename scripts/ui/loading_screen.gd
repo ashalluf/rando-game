@@ -210,6 +210,8 @@ func _warm_shaders() -> void:
 	effects.append_array(BeachLife.warm())
 	# Car damage: the flames, the glass cubes and the engine smoke (CarDamage).
 	effects.append_array(CarDamage.warm_materials())
+	# The hillside houses' glass, pool water and site materials (HillHomeKit).
+	effects.append_array(HillHomeKit.warm())
 	# The boost's streaks of air (BoostTrail), so the first boost does not stall.
 	effects.append(BoostTrail.streak_material())
 	for mat: Material in effects:
