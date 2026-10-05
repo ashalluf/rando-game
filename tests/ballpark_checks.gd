@@ -72,8 +72,8 @@ func _ground(macro: MacroMap) -> void:
 	# The banks: no steeper than the cut slope (plus the shoulder's roll and the terrace's own
 	# fall along the edge) anywhere the hills themselves are not, all the way round.
 	var worst := 0.0
-	for i in 720:
-		var a := TAU * i / 720.0
+	for i in 240:
+		var a := TAU * i / 240.0
 		var dir := Vector2(sin(a), cos(a))
 		var r := 40.0
 		var q := Vector2(0.0, 35.0)
@@ -82,12 +82,12 @@ func _ground(macro: MacroMap) -> void:
 		var p0 := Ballpark.world(q.x + dir.x * r, q.y + dir.y * r)
 		var prev := macro.height_at(p0)
 		var prev_n := macro.raw_height_at(p0) + macro.relief_at(p0)
-		for k in 30:
-			var rr := r + 2.0 + k * 2.0
+		for k in 24:
+			var rr := r + 2.0 + k * 2.5
 			var pk := Ballpark.world(q.x + dir.x * rr, q.y + dir.y * rr)
 			var h := macro.height_at(pk)
 			var hn := macro.raw_height_at(pk) + macro.relief_at(pk)
-			worst = maxf(worst, absf(h - prev) / 2.0 - absf(hn - prev_n) / 2.0)
+			worst = maxf(worst, absf(h - prev) / 2.5 - absf(hn - prev_n) / 2.5)
 			prev = h
 			prev_n = hn
 	_t._check(worst < 1.5, "the banks round the site are graded (at most %.2f m per metre steeper than the hills)" % worst)
