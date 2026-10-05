@@ -6954,7 +6954,7 @@ canals took a block with a walk street). The blocks beside the site lose a rolle
 (`_beside_site`, as round MacArthur Park); no block seed moves.
 
 **Cost** (opengl3 stills, whole frame, same EYEs with `CANALS=0`): aerial 4.44 M tris / 2,333
-draws before -> 3.55 M / 1,907 with the canals; along a canal 5.87 M / 3,673 -> 4.67 M / 2,704
+draws before -> 3.85 M / 1,948 with the canals; along a canal 5.87 M / 3,673 -> 5.02 M / 2,766
 (the beach-town blocks it replaces had a car park, a plaza of palms and street cars). A FULL canal
 chunk's own meshes are within the check's 260 k budget.
 
