@@ -9,3 +9,5 @@ Hollycrest Memorial Park, default seed, blocks (17..18, 30..31), x 1606 z 4066. 
 - 05_after_aerial_noon.jpg: the whole park from 70 m.
 - 06_after_gate_night_2112.jpg: the gate after dark (lanterns; the bright lines on the posts were being fixed).
 - 07_after_drive_on_the_rise_blockshot.jpg: the loop drive on the rise (block_shot, no far city).
+- 08_after_gate_night_2112_fixed.jpg: the gate after dark with the post glow fixed.
+- 09_after_mausoleum_night_2112.jpg: the floodlit mausoleum and the rows at night (floodlight halved after this still).
