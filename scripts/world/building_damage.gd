@@ -87,7 +87,9 @@ static func bullet(hit: Dictionary, dir: Vector3, heavy: bool = false) -> void:
 		pane = pane_at(b, mp, mn)
 		is_glass = pane.has("centre")
 	else:
-		is_glass = WeaponFX.classify(hit.get("collider"), at, hit.normal) == WeaponFX.Surface.GLASS
+		# A tower: glass if its facade is a curtain wall or glass (the shader keeps a crack to a
+		# pane, so one landing on a mullion draws nothing).
+		is_glass = _tower_glass(t.mats)
 		if is_glass:
 			pane = {"key": "", "centre": mp, "half": Vector2(0.7, 1.0), "normal": mn, "mu": _mu(mn)}
 	if is_glass:
@@ -162,8 +164,8 @@ static func target_of(collider: Variant, shape: int) -> Dictionary:
 		return {}
 	if collider is Building:
 		var b := collider as Building
-		var walls := b.get_node_or_null("Walls") as MeshInstance3D
-		if walls == null or not (walls.material_override is ShaderMaterial):
+		var walls := walls_of(b)
+		if walls == null:
 			return {}
 		return {"key": key_of(b), "node": b, "mats": [walls.material_override], "building": b}
 	var co := collider as CollisionObject3D
@@ -179,6 +181,16 @@ static func target_of(collider: Variant, shape: int) -> Dictionary:
 			var id: String = body.get_meta("tower_id", "")
 			return {"key": "t:" + id, "node": body, "mats": _tower_mats(body), "building": null}
 	return {}
+
+
+## A Building's merged walls ("Walls", on the facade shader), skipping one a rebuild is freeing.
+static func walls_of(b: Building) -> MeshInstance3D:
+	for child: Node in b.get_children():
+		var mi := child as MeshInstance3D
+		if mi != null and not mi.is_queued_for_deletion() and mi.material_override is ShaderMaterial \
+				and (mi.material_override as ShaderMaterial).shader == Building.SHADER:
+			return mi
+	return null
 
 
 ## A building's key in WorldState: its seed and lot, which a rebuilt chunk gives it again.
@@ -201,6 +213,15 @@ static func _tower_mats(body: MeshInstance3D) -> Array:
 			body.set_surface_override_material(i, own)
 		out.append(own)
 	return out
+
+
+static func _tower_glass(mats: Array) -> bool:
+	for m: ShaderMaterial in mats:
+		var style: Variant = m.get_shader_parameter("window_style")
+		var fin: Variant = m.get_shader_parameter("facade_finish")
+		if (style != null and int(style) == Building.WindowStyle.CURTAIN) or (fin != null and int(fin) == Building.Finish.GLASS):
+			return true
+	return false
 
 
 ## The direction a wall's `u` runs along (building.gdshader's tangent times u_sign), model space.
@@ -513,7 +534,7 @@ static func _shatter_fx(t: Dictionary, pane: Dictionary, entry: Dictionary) -> v
 
 ## A pane's glass falling out of its frame: one CPUParticles3D burst of glinting shards.
 static func _shards(node: Node3D, pane: Dictionary) -> float:
-	var parent := WeaponFX.fx_parent(node) as Node3D
+	var parent := WeaponFX.fx_parent(node)
 	if parent == null:
 		return 0.0
 	var half: Vector2 = pane.half
@@ -553,7 +574,7 @@ static func _shards(node: Node3D, pane: Dictionary) -> float:
 
 ## Chunks of wall thrown out of a hole (rigid debris, PhysicsBudget), and a cloud of its dust.
 static func _rubble(src: Node, node: Node3D, p: Vector3, n: Vector3, hr: float, b: Building) -> void:
-	var parent := WeaponFX.fx_parent(src) as Node3D
+	var parent := WeaponFX.fx_parent(src)
 	if parent == null:
 		return
 	var at := node.to_global(p)

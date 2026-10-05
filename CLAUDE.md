@@ -833,6 +833,21 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   every frame drew nothing - change amounts in steps, only when they change; a crash watch
   without its contact ray takes every scripted velocity reset for a crash;
   `Explosion.blast()` still pushes a car once per collision shape (2-3x a rocket's 30 m/s).
+- Building damage (2026-10-05, docs/HANDOFF.md 9b?): `BuildingDamage`
+  (`scripts/world/building_damage.gd`) keeps up to `MAX_RECORDS` (32) records per building in
+  `WorldState.building_damage` (key: seed and lot) - a point in the building's own space and a kind
+  (CRACK, SHATTER, BLAST, HOLE, POCK) with a radius in `w` (kind * 100 + radius) - and writes them to
+  the facade material (`damage[32]`, `damage_count`); `shaders/building_damage.gdshaderinc` draws
+  them in `building.gdshader` (a pane's state from its own cell centre in model space, so boxes and
+  the towers' `uv_facade` walls alike; holes traced as a burnt room behind a broken edge; soot;
+  scars). `damage_count` 0 is one branch. A Building's facade material is its own; a tower's is
+  shared, so a damaged tower's detailed copy gets surface-override copies (never write the shared
+  one). Rims (`DamageRim`) and pavement glass (`DamageLitter`) are rebuilt from the records;
+  `hole_radius()` / `record_seed()` are the include's lines (checked). Hooks: the rifle, shotgun
+  and police rounds call `bullet()`, `Explosion.blast()` calls `blast()`, `Building._ready()`
+  `restore()`, `LandmarkDowntown.build()` `restore_tower()`. Sanctuaries take none; curtain walls
+  get no hole. `BUILDING_DAMAGE=0` is the A/B; stills `tools/glshot/damage_shot.gd`; checks
+  `tests/building_damage_checks.gd`.
 - Car glass and drivers (2026-09-28: "every car on the street reads as a sealed toy, and traffic
   drives itself"): `CarCabin` (`scripts/vehicles/car_cabin.gd`). Every body with a glass slot
   (the road_* bodies, the exotics; the Meshy sports car has its glass in the paint and stays

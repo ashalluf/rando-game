@@ -7040,3 +7040,52 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9b?. Buildings that take damage: crazed and shattered glass, blast holes, scars, 2026-10-05 (agent branch `wt/building-damage`; VISUAL_ROADMAP #63)
+
+**What.** A round in a window crazes it (a spider web out of the impact, rings, and on shop and
+curtain-wall glass a tempered dice net), a second round in the same pane takes it out: the
+shards fall out of the frame as a glinting burst with the glass Sfx, the frame is left empty but
+for teeth of glass round its edge, the room behind is seen plainly (no tint, no mirror, the blind
+gone), and the glass lies on the pavement under it. A round in stone, render or brick leaves a
+scar (a dark pit in a ring of paler spalled face) that stays - the bullet-hole decal fades and the
+web has none. A rocket (any `Explosion.blast()`, car explosions too) takes out every pane within
+0.7 of its radius on its side of the building and crazes them to 1.8x that, soots the wall, and
+within 0.36 of its radius of a solid wall punches a hole through it: a jagged outline, the break
+through the wall's thickness traced (brick courses, render over block, concrete), a burnt room
+behind it (rubble floor with embers, scorched paint, a doorway), soot round it and carried up the
+wall by the smoke, the window frames and kit pieces that stood there gone, broken blocks and bent
+rebar round the rim, chunks of wall thrown as debris and a cloud of dust. Downtown towers
+(LandmarkDowntown / TowerMesh, `uv_facade`) take the glass damage and the scars.
+
+**How.** `BuildingDamage` (`scripts/world/building_damage.gd`) keeps a list of at most 32 records
+per building - a point in the building's own space and a kind (CRACK, SHATTER, BLAST, HOLE, POCK)
+with a radius - in `WorldState.building_damage` (by `key_of()`: seed and lot), and writes them to
+the facade material as two uniforms (`damage[32]`, `damage_count`). `shaders/building_damage.gdshaderinc`
+does the rest in `building.gdshader`: the pane a pixel belongs to is worked out from its own cell
+(its centre in model space, `inverse(MODEL_MATRIX)` only on a damaged building), so the same records
+serve the boxes and the towers' outline walls. A building nobody shot pays one branch. A Building's
+facade material is already its own; a tower's is shared with its twin and its far copy, so a
+damaged tower's detailed copy gets its own copies as surface overrides (`_tower_mats()`). Caps:
+12 scars (oldest first), 6 holes, then the oldest crack goes. Real geometry rebuilt from the same
+records: `DamageRim` (one mesh a building: broken blocks or bricks in their courses round each
+outline, snapped rebar bent out; `hole_radius()` is the shader's outline line for line) and
+`DamageLitter` (one mesh: flat shards under every pane that fell, further out from higher up; the
+ground point is a ray at the moment, stored, so a restore needs no physics). `pane_at()` mirrors
+the shader's window grid for Buildings (WINDOW_RECTS, the storefront's bays, part by part), so a
+second round finds the same pane; towers match by distance. Hooks (one line each):
+`AssaultRifle.fire_ray()`, `Shotgun.fire_pellet()`, `PoliceOfficer`'s rounds, `Explosion.blast()`,
+`Building._ready()` (`restore()`), `LandmarkDowntown.build()` (`restore_tower()`). Never on a
+sanctuary (`Sanctuary.is_sanctuary()`); curtain walls and glass finishes get no hole (the blast
+takes their glass). `BUILDING_DAMAGE=0` in the environment is the A/B.
+
+**Tools.** `tools/glshot/damage_shot.gd` (one building on a slab, damage dealt through the real
+entry points, opengl3; `MODE=storefront|office|hole|none`, `NIGHT=1`, `LIT=1`, `NOSHOP=1`,
+`FINISH`, `BSEED`, `CAM_POS` / `CAM_LOOK`, `DEBUG=1` prints the records). Checks:
+`tests/building_damage_checks.gd`.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the crack web's sparkle, the shattered
+room's brightness and the hole's room under AgX and auto exposure need eyes. Holes do not cut the
+collision (you cannot walk in) or the shadow; the room behind is traced, not modelled, and the same
+for every hole of a building. Towers get no holes or rims; a tower's records go on its detailed
+copy only, so its far copy shows it whole. The roof takes no damage. Panes on a cut (chamfered)
+corner never break. Glass shards are not physics; the litter is laid at once for a blast.
