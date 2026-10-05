@@ -7126,7 +7126,14 @@ collection street): `--spawn=-190,22,-90,-5 --hour=10`. Close-ups of the bodies 
 work: arm mid-lift, brooms and dust, bed down, flashers). `SERVICE_VEHICLES=0` in the environment
 removes all of it (no carts, no dispatch, parked cars as before): the A/B.
 
-FRAMECOST
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, `SERVICE_VEHICLES=0` against
+the branch, same spawn): the suburb bookmark (`--spawn=-190,22,-90,-5 --hour=10`) 3.08 M -> 3.21 M
+triangles (+4.4 %: the carts round the player and a truck at work), draws 2,708 -> 2,699, objects
+13,509 -> 13,500 (a street swept today parks fewer cars); the default downtown spawn 3.60 M / 3,627
+draws -> 3.60 M / 3,586 (no carts downtown; run noise). A near cart is 582 triangles and casts
+within 45 m, a far one 24 and casts nothing; the carts are two MultiMesh draws. The bodies are
+22-29 k triangles with a 10 k far twin, the box truck's class. A service vehicle builds in ~60 ms
+headless (the check's budget is 1.5 s).
 
 **Not done / not verified.** Forward+ (the Mac) not seen: the paint, the amber flash and the menu
 boards under AgX. The courier on foot (street-life-2). The garbage truck works one kerb of one
