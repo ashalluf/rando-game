@@ -439,6 +439,8 @@ func begin_build() -> void:
 		# Bougainvillea, ivy, fig, jasmine, vines and accent plants on what the build laid
 		# (ClimbingPlants: hash-seeded, moves itself behind the deferred steps).
 		_steps.append(ClimbingPlants.build.bind(self))
+		# Speed limits, school zones, parking plates and yields along the block (StreetSigns).
+		_steps.append(StreetSigns.build.bind(self))
 	_steps.append(_finish_build)
 
 
@@ -514,6 +516,7 @@ func _finish_build() -> void:
 	HouseKit.commit(self)
 	Industrial.commit(self)
 	Parks.commit(self)
+	StreetSigns.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	var fire_trees := TreeFire.collect(self, _batch)
@@ -3337,7 +3340,9 @@ func _build_intersection(inter: Dictionary) -> void:
 	for c: Vector2 in corners:
 		var corner := pos + Vector2(c.x * (size.x * 0.5 + 1.2), c.y * (size.y * 0.5 + 1.2))
 		var at := Vector3(corner.x, SIDEWALK_TOP, corner.y)
-		if kind == CityPlan.Intersection.STOP_SIGNS:
+		if kind == CityPlan.Intersection.STOP_SIGNS and StreetSigns.enabled:
+			StreetSigns.stop_corner(self, at, c)
+		elif kind == CityPlan.Intersection.STOP_SIGNS:
 			var face := Basis(Vector3.RIGHT, PI * 0.5).rotated(Vector3.UP, atan2(-c.x, -c.y))
 			_add_prop("stop_sign", at, Color(0.8, 0.12, 0.1), [
 				["sign_pole", PropFactory.sign_pole(), Transform3D(Basis(), at + Vector3(0.0, 1.3, 0.0))],
@@ -3452,6 +3457,8 @@ func _add_signal_corner(at: Vector3, c: Vector2, size: Vector2) -> bool:
 		instances.append(["sig_ped", ped_mesh, Transform3D(Basis(Vector3.UP, atan2(face.x, face.z)), at + Vector3(0.0, SIGNAL_PED_Y, 0.0)), Color.WHITE, Color(off, float(crossing), 0.0, 0.0)])
 		var press := Vector3(0.0, 0.0, c.y) if across_x else Vector3(c.x, 0.0, 0.0)
 		instances.append(["sig_button", PropFactory.signal_part("sig_button"), Transform3D(Basis(Vector3.UP, atan2(press.x, press.z)), at + Vector3(0.0, SIGNAL_BUTTON_Y, 0.0))])
+	if StreetSigns.enabled:
+		StreetSigns.signal_extras(self, instances, at, c, on_x, arm_dir, facing, heads)
 	var pole_h := PropFactory.SIGNAL_POLE_HEIGHT
 	_add_prop("signal", at, Color(0.5, 0.51, 0.52), instances, [
 		[Vector3(0.34, pole_h, 0.34), at + Vector3(0.0, pole_h * 0.5, 0.0), 0.0],

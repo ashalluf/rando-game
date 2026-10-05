@@ -1851,6 +1851,9 @@ func _test_city() -> void:
 	# The four-level stack (tests/stack_interchange_checks.gd): levels, separations, grades, banks,
 	# columns, the chunk's meshes, and the connector traffic handed to and from the freeway's.
 	await load("res://tests/stack_interchange_checks.gd").new().run(self, city)
+	# The street's signs (tests/street_signs_checks.gd): the stroke font, the kit, stops facing their
+	# traffic, blades on the posts and poles, mast-arm name signs, school zones, nothing else moved.
+	load("res://tests/street_signs_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
