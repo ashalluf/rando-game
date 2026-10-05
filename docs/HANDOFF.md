@@ -8621,6 +8621,11 @@ run within 0.6 m (0.0 on the default seed). `tools/stadium/clash_probe.gd` print
 against the freeways and the four-level stack (1.4 km away, nothing within the banks' reach).
 `Ballpark.carve()` also asked the cached switch before anything had read it, so `BALLPARK=0` still
 carved the hills under the hill roads and the freeway; it reads `enabled()` now.
+Cost after the merge (opengl3 GEO, 1280 x 720, `BALLPARK=0` -> the park, triangles / draws, the
+same three EYEs from one load each): aerial noon 1.39 M / 552 -> 1.41 M / 322; the bowl from centre
+field at 15:00 3.50 M / 915 -> 3.48 M / 684; the night game from the west hill 1.45 M / 556 ->
+1.44 M / 524. The headless check after the merge: 1,380 of 1,381 (the one failure is fleet/base's
+known minimap line), 702 s, 3.2 GB peak.
 
 **The stadium** (`BallparkBuild`, world space, cached per level; the near set is built on the
 loading screen alongside the far copy, ~350 ms, so the chunk that streams it in does not stall).
