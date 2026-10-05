@@ -289,6 +289,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The web export leaves out what nothing loads (HANDOFF "The web build after the
+  October wave", wave 2 update).** On the merged wave-2 base the browser build still loads clean at
+  every bookmark; its pck had grown to 688 MB. The Web preset now excludes the retired Meshy
+  pedestrians and the editor thumbnails (-44.5 MB); the desktop export keeps everything. Shrinking
+  textures for the web stays the owner's call (Pages caps a site at 1 GB).
+
 - **2026-10-05 The web build checked after the October wave (HANDOFF "The web build after the October wave").**
   Exported and loaded in headless Chromium (WebGL2 on SwiftShader) at downtown by day and night,
   the beach, the hills, the airport, the light rail, MacArthur Park and the showroom: every one

@@ -8721,3 +8721,40 @@ browser on a GPU was not measured (SwiftShader cannot); 4,000 draws a downtown f
 occlusion culling is a lot for WebGL, and lowering the web's shadow distance (400 m, four
 cascades) or `mesh_lod_threshold` would be the next cuts if the owner reports it slow. Real
 street-lamp OmniLights stay on on the web (their cost there was not measured). Stills are on `shots/web-build` (before / after per bookmark).
+
+
+**Wave 2 update (fleet session web-build, 2026-10-05): the web build on the merged base.**
+`wt/web-build` merged `origin/fleet/base` (main plus integration-a's 19 branches: the sky's
+volume cumulus, the marina, the pier park, the canals, schools, the stack interchange, beach
+life, photo mode, building damage, weather, ...) and then `origin/main`; conflicts were docs and
+the smoke test's list only (both sides kept). Exported with the 4.7.2 `web_nothreads_release`
+template and loaded in headless Chromium (SwiftShader, WebGL 2.0) at downtown by day and at
+21:30, the Esplanade at dusk, the marina at 17:00, on the four-level stack's deck, the pier and
+beach at 15:00, the airport apron and the marina car park: **every bookmark loads and draws with
+the same two console lines as before** (the occlusion-culling build warning, Chrome's autoplay
+notice) - no shader, WebGL, global-buffer or script error. Statically: the new shaders stay
+within the web's texture units (most 7: lot_ground, lot_yard, terrain), none uses `instance
+uniform` (car_cabin / car_lights only say so in comments), and every Forward+-only addition is
+gated - the sky volume (`CURRENT_RENDERER`), heat haze (`OS.has_feature("web")`), the crater and
+scorch decals (`WeaponFX._decals()`). Two places that looked wrong were checked against a native
+opengl3 still of the same spawn and are identical there, so not web bugs: the marina car park
+looking north (`spawn=-735,30,0,-20`) has a flat purple / teal band over the lower half of the
+frame (a face right in front of the spawn camera; for the marina's owner), and the beach by the
+pier at 15:00 (`spawn=-925,-310,62,-4`) has flat-coloured primitive stall tables in the
+foreground and no sunbathers in that view.
+
+**The download got smaller.** The merged base's pck was 688.0 MB (617 before the wave). The Web
+preset now has `exclude_filter="assets/models/pedestrian_*, assets/models/thumbs/*"`: the nine
+retired Meshy pedestrians and their textures (nothing loads them; the police only compare a path
+string with `pedestrian_d_anim.glb`) and the editor thumbnails. pck 688.0 -> 643.5 MB (-44.5 MB,
+-6.5 %); the desktop export is untouched. `web_build_checks.gd` holds the filter and fails if any
+script or scene ever `load`s / references an excluded path. GitHub Pages refuses a site over 1 GB:
+at ~683 MB with the wasm there is room, but each wave adds ~70 MB, so the next real saving has to
+be texture size (the hero's 2K maps, the 2K crowd atlases).
+
+**Harness lesson.** A webshot needs the box to itself: alongside the headless gate on 4 cores the
+tab got its first frame at ~190 s and the screenshot timed out waiting for the next one; alone it
+takes ~8-14 minutes a bookmark (7 minutes of streaming in the WAIT). Two at once is fine on
+16 GB. Headless check: 1374 PASS, 1 FAIL (the known `minimap_checks` closed-road line on
+fleet/base). Frame cost: no game code changed (an export filter and a check), so none was
+measured. Stills on `shots/web-build`.
