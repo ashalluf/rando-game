@@ -19,3 +19,6 @@ DRIVE_RADIUS=80 DRIVE_DIST=8 DRIVE_CHASE=12,3.2,3,4`, overhead via `SHOTS="2353,
 
 - `02_after_drift_noon_street.jpg` - a sports car drifting up Flower St: tyre smoke rolling behind, rubber arcs on the asphalt, a spark where its flank clipped the parked car.
 - `03_after_drift_noon_above.jpg` - the same moment from 20 m up: four arcs of rubber and the smoke trail.
+- `01_before_drift_noon_street_DRIVING_FX0.jpg`, `01b_before_drift_noon_above_DRIVING_FX0.jpg` - the very same drift with `DRIVING_FX=0` (the A/B): the car goes the same way and leaves nothing.
+- `04_after_wet_drift_night_rain.jpg` - the drift at 21:30 in rain (`--hour=21.5 --weather=rain`): spray instead of smoke, the rubber barely shows on the soaked street, sparks off the parked car it clips.
+- `05_after_burnout_noon.jpg` - a brake-stand burnout (`DRIVE=burnout`): the rear tyres' smoke rolling over the car.
