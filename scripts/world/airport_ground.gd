@@ -669,8 +669,17 @@ func room_ahead(jet: AmbientJet) -> float:
 			var op := Vector2(o.world_pos.x, o.world_pos.z)
 			if q.distance_to(op) < mine + o.length * 0.5 + 3.0:
 				room = minf(room, maxf(ahead - step, 0.0))
+		# A flyable jet is measured in the frame of the path: ahead of or behind the jet's own
+		# length, or beside it within its half span (a circle the jet's length round every path
+		# point would have stopped the departures turning into the east connector 20 m short of
+		# the player's jet parked at the taxiway's end).
+		var qd := cr.yaw[cr.index_at(s)]
+		var dir := Vector2(-sin(qd), -cos(qd))
 		for f: Array in _flyables:
-			if q.distance_to(f[0]) < mine + float(f[1]):
+			var rel: Vector2 = (f[0] as Vector2) - q
+			var along := absf(rel.dot(dir))
+			var across := absf(rel.x * dir.y - rel.y * dir.x)
+			if along < jet.length * 0.5 + float(f[1]) and across < jet.wingspan * 0.5 + float(f[1]) * 0.6:
 				room = minf(room, maxf(ahead - step, 0.0))
 		if room < INF:
 			break
@@ -851,7 +860,7 @@ func _scan_flyables() -> void:
 		var w := WorldState.to_world(a.global_position)
 		if not rect.has_point(Vector2(w.x, w.z)) or w.y > 8.0:
 			continue
-		_flyables.append([Vector2(w.x, w.z), 22.0 if a.kind == Aircraft.Kind.AIRLINER else 12.0])
+		_flyables.append([Vector2(w.x, w.z), 20.0 if a.kind == Aircraft.Kind.AIRLINER else 10.0])
 		for j in _jets:
 			if is_instance_valid(j):
 				j.add_collision_exception_with(a)
@@ -1645,6 +1654,9 @@ func stage(kind: String, gate: int, along: float) -> AmbientJet:
 			_fast_forward(jet, along)
 			return jet
 		"apron":
+			# The clock set so that, `along` seconds on, the first train has just stopped behind
+			# stand 13 (its first stop) while the catering truck is up at stand 12's door.
+			clock = float(_train_plan[0][1]) + 5.0 - along
 			for k in 2:
 				var gi := 1 + k * 4
 				g_set_shown[gi] = false
@@ -1652,6 +1664,7 @@ func stage(kind: String, gate: int, along: float) -> AmbientJet:
 				g_ready_at[gi] = clock + 600.0
 			_send_catering(1)
 			_send_fuel(5)
+			run_vehicles(along)
 			return null
 	return null
 

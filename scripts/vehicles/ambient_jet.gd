@@ -607,7 +607,7 @@ func _build_shimmer() -> void:
 		# The cylinder's axis is Y: laid along +Z (aft), its top (the narrow end) at the nozzle.
 		var length_m := 26.0 * scale_k
 		var radius := 2.2 * scale_k
-		mi.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(radius, length_m, radius)), spot + Vector3(0.0, 0.0, length_m * 0.5))
+		mi.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled_local(Vector3(radius, length_m, radius)), spot + Vector3(0.0, 0.0, length_m * 0.5))
 		mi.visible = false
 		_visual.add_child(mi)
 		_shimmers.append(mi)

@@ -201,7 +201,10 @@ var approach_clear_half_width: float = 45.0
 ## nose toward +X). The gates along the concourse hold the parked airliners (Airport.gates(),
 ## static): these are the ones the player can take - on the parallel taxiway (a straight 550 m
 ## run east, clear of every gate's tail) and on the remote stands either end of the concourse.
-var apron_spots: Array = [[Vector2(-560.0, 780.0), 0], [Vector2(-75.0, 712.0), 1], [Vector2(-614.0, 716.0), 0, PI]]
+## The first waits at the taxiway's EAST end facing west (a 590 m run, past the east connector
+## the departures turn into): at its west end it stood in the way of every arrival taxiing in from
+## the west connector to the stands (AirportGround).
+var apron_spots: Array = [[Vector2(-12.0, 780.0), 0, PI * 0.5], [Vector2(-75.0, 712.0), 1], [Vector2(-614.0, 716.0), 0, PI]]
 
 ## Roads and mansion pads carved into the hills (built in setup()).
 var hill_roads: HillRoads
