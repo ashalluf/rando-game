@@ -11856,3 +11856,92 @@ directory it names); `SMOKE_PARTS=bird_checks,city_cars` in the environment of a
 city load plus the file); `SMOKE_PROFILE=1` prints `TIME` after every check and `PART` per part
 and file; `SMOKE TIME` at the end has the wall time and peak RSS. Not done: the city load itself
 (60 s a process, the load-time session's area) is now the floor of every share.
+
+## 9dv. Texture budget: every texture audited, duplicates gone, oversized atlases halved, 2026-10-05 (agent branch `wt/texture-budget`; VISUAL_ROADMAP #116)
+
+G7 asked for texture budgeting. What the city holds in video memory for textures, measured with
+the renderer's own counter (`RENDERING_INFO_TEXTURE_MEM_USED`, which also counts the render
+targets and shadow atlas) on the exact bookmark frame, opengl3 + Xvfb, 960x540, `--quality=0`:
+
+| bookmark | before (fleet/base) | after | change |
+|---|---|---|---|
+| downtown noon (`--spawn=2359.4,880,0,12,2`) | 397.4 MB | 294.4 MB | -103 MB (-26 %) |
+| freeway (`--spawn=200,1088,-90,-4,30`) | 417.7 MB | 306.7 MB | -111 MB (-27 %) |
+| masjid (`--spawn=1880.7,2809.6,-31.8,-23.7,32`) | 410.3 MB | 305.3 MB | -105 MB (-26 %) |
+| esplanade sunset (EYE) | 396.1 MB | 285.1 MB | -111 MB (-28 %) |
+| beach town (`--spawn=-700,600,90,-8,25`) | 403.6 MB | 296.6 MB | -107 MB (-27 %) |
+
+The frame is otherwise identical (GEO lines equal to the triangle at every bookmark; the stills
+differ only in the clouds, which run on shader time; with `DIFF=1` - time held, people and cars
+hidden - the downtown frame is pixel-identical, maximum difference 0). Stills on
+`shots/texture-budget`.
+
+### The audit
+
+- **Imports were already right.** 524 of 538 textures are `compress/mode=2`, mipmapped,
+  `detect_3d/compress_to=0`, normal maps flagged by name. The 14 others are the two Meshy
+  pedestrian masks and the twelve Meshy thumbnails (mode 0, nothing loads them) and the sky's two
+  noise images (imported as Image, turned into textures by SkyExtras). Nothing to fix there; the
+  new checks hold it.
+- **Code-made textures are small**: the biggest is the horizon bake's height (512 x 512 RGF,
+  2 MB); blood, crater, puff, flare, cookie, rain, LED and dust textures are 32-256 px, RGBA8,
+  mipmapped where they need it. Left alone.
+- **Duplicates**: five GLBs embedded the same picture more than once, and Godot extracts and
+  loads every embedded image as its own texture. tree_b carried six of tree_a's maps byte for
+  byte (leaves and branches), the jacaranda two (branch normal and ARM); plant_rooibos and
+  tree_searsia repeated their diffuse three times, prop_lamp and prop_streetlamp twice.
+  `tools/texture_budget/dedupe_glb_images.py` drops a repeat inside a file (textures point at the
+  first copy) and turns a repeat of an earlier file's image into an external `uri` to that file's
+  extracted texture (`tree_a_leaves_diff.jpg`), which Godot's glTF importer loads through the
+  ResourceLoader as the same resource. Meshes are untouched (same accessors and bytes; the
+  FoliageLod tables still match). The 14 orphaned extractions are deleted.
+- **What the frame holds** (`TEX_REPORT=1`, downtown before): 202 MB of the reachable textures were
+  `assets/models`, 107 MB of it the crowd: twenty 2048 x 2048 body atlases (2.7 MB each with
+  mips), twenty 1024 hair atlases (DXT5) and twenty 1024 body normals (RGTC). Then the hero
+  (21 MB: three 2048 normals, two 2048 colour maps), the birds (10 MB), the billboard atlas
+  (4 MB), street wear (5.3 MB), and the 1K ambientCG / Poly Haven sets at 0.9-1.3 MB each.
+
+### The budget
+
+`tools/texture_budget/budget.txt` holds a texture under a size by regex; `tools/fix_texture_imports.py`
+writes it as `process/size_limit` (0 for everything else), so a rebuilt rig or a fresh pack keeps
+its budget, and `tests/texture_budget_checks.gd` fails on an `.import` that disagrees. Sources stay
+at full size: delete a line and re-import to get mip 0 back.
+
+- **Crowd body atlases 1024** (from 2048). The arithmetic: 2048 puts ~1,200 texels on a metre of
+  body; a 1080p screen at 75 degrees gives a person 704 / d pixels a metre, so mip 0 of the 2048
+  atlas is only ever sampled within ~0.6 m (0.7 m at the Mac's 2.6 MP pixel budget). At 1024, mip 0
+  is sharper than the screen from 1.2 m, nearer than the chase or aim camera ever puts a
+  pedestrian. Faces at 1.1 m: no visible change (still 01).
+- **Crowd hair atlases and body normals 512**: same reasoning; at 1.4 m long hair, an afro and a
+  braid read the same (stills 02, 03).
+- **Bird atlases 512** (from 1024): a 30 cm pigeon on 1024 is 0.3 mm a texel. A pigeon at 1 m is
+  unchanged (still 06 / 07).
+- **Knee-high plants 512** (flowers, grass clumps, potted plants; FULL chunks only, gone by
+  80-95 m): pixel differences under 0.15 % at 1-3 m (stills 10 / 11).
+
+**Kept on purpose:** the hero's 2K maps (he is on screen every frame and photo mode puts a camera
+anywhere; 21 MB), the billboard atlas (a bulletin is 14.6 m and read from the street), the street
+wear atlases (small lettering), every 1K ambientCG set and tree / prop scan (CLAUDE.md's 1K rule;
+they tile or cover metres), and the hero-adjacent weapons.
+
+### Measuring
+
+`TEX_REPORT=1` on `tools/glshot/still_shot.gd` (after the GEO line) runs
+`tools/texture_budget/tex_census.gd`: `TEXMEM` (the renderer's texture, buffer and video totals),
+`TEXSUM` (the textures reachable from the scene - mesh and MultiMesh materials, overrides, decals,
+particles, light projectors, CanvasItems, the sky and the global shader parameters - and their
+estimated size), the biggest `TEX_TOP` rows and `TEXDIR` totals per folder. Trap:
+`CompressedTexture2D.has_mipmaps()` reads false even for a mipmapped import (it is not overridden),
+so the census asks the decoded image once per file. `tools/texture_budget/plant_lineup.gd` shoots
+the knee-high plants one by one at 1-3 m.
+
+### Not done
+
+- Not seen on Forward+ (lavapipe cannot hold the city); the change is resolution only, which the
+  two renderers sample the same way.
+- The Meshy leftovers (pedestrian_a..l textures, masks, thumbnails) still ship in the export though
+  nothing loads them; deleting them is the owner's call (the hero's and crowd's clips are
+  retargeted from `pedestrian_d_anim.glb`).
+- Texture streaming (mip 0 loaded only near the camera) is not something Godot 4.7 offers; the
+  budget is the static half of it.

@@ -68,6 +68,7 @@ extends SceneTree
 ## the camera, SERVICE_LIFT 0..1 how far up the garbage truck's arm has its cart).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
+## TEX_REPORT=1 prints the frame's textures and their video memory (tools/texture_budget/tex_census.gd).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
 ## INDUSTRIAL=0 builds the industrial district without Industrial (Building warehouses on bare
 ## paving: the A/B of the warehouses, docks and yards).
@@ -559,6 +560,8 @@ func _initialize() -> void:
 	await _geo_report("GEO")
 	if OS.get_environment("OCC_AB") == "1":
 		await _occ_ab(out)
+	if OS.get_environment("TEX_REPORT") == "1":
+		load("res://tools/texture_budget/tex_census.gd").report(get_root(), "TEX")
 	if OS.get_environment("ROOF_TRIS") == "1":
 		_roof_unit_tris()
 	if OS.get_environment("PALM_AB") == "1":

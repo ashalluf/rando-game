@@ -2257,6 +2257,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
 	# the far mountains, each inside what it stands for.
 	await load("res://tests/occluders_checks.gd").new().run(self, city)
+	# The texture budget (tests/texture_budget_checks.gd): imports, size limits, no duplicates.
+	load("res://tests/texture_budget_checks.gd").new().run(self)
 
 	city.queue_free()
 	_world_state().reset()

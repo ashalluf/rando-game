@@ -4822,6 +4822,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   manholes are not laid. `ROAD_DETAIL=0` is the A/B, `RD_DEBUG=1` prints placements with EYEs;
   probe `tools/road_detail/probe.tscn`; checks `tests/road_detail_checks.gd`
   (`tools/road_detail/checks.gd` alone).
+- Texture budget (2026-10-05, docs/HANDOFF.md "Texture budget"): `tools/texture_budget/budget.txt`
+  holds textures under a size by regex (`process/size_limit`, written by
+  `tools/fix_texture_imports.py`, so run it after any rebuild): crowd body atlases 1024, crowd hair
+  and body normals 512, bird atlases 512, knee-high plants 512. Sources stay full size; a limit
+  drops only mip 0, which a person, bird or plant reaches only inside a metre of the camera. Never
+  ship one picture twice: Godot loads each copy of a GLB's embedded image as its own texture, so
+  run `tools/texture_budget/dedupe_glb_images.py` on new packs (tree_b and the jacaranda read
+  tree_a's maps by uri). Measure with `TEX_REPORT=1` on `still_shot.gd`
+  (`tools/texture_budget/tex_census.gd`: the renderer's texture memory and every texture by size);
+  `CompressedTexture2D.has_mipmaps()` reads false even when mipmapped. Checks:
+  `tests/texture_budget_checks.gd`.
 - **Four measurement traps, each of which has already cost a session.** All fail by reporting
   success, which is the worst way to fail.
   1. **Godot serves a CACHED import of a `.glb`.** Rebuild a model, render it, and you are

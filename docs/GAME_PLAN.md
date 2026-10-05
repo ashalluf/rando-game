@@ -1228,6 +1228,13 @@ already mapped so milestone 2 is script-only.
   frames each). Not cached: anything that reads the hour, the weather or WorldState, and the FULL
   chunks (nodes, not data). LOAD_CACHE=0 is the A/B. HANDOFF "Load time".
 
+- **2026-10-05 Textures are budgeted by screen size, not by source size (G7).** A table
+  (`tools/texture_budget/budget.txt`) holds the crowd's body atlases at 1024 and its hair, body
+  normals, the birds and the knee-high plants at 512 at import; the sources stay full size. Mip 0
+  of what was cut is only reached inside a metre of the camera. Five GLBs no longer load the same
+  picture twice. Texture memory falls by about a quarter (397 -> 294 MB downtown) with the frame
+  unchanged; the hero keeps his 2K maps. docs/HANDOFF.md "Texture budget".
+
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north
   in the afternoon, backlighting the mountain faces the city looks at. Realism wins over the old
