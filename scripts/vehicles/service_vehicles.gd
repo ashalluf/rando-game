@@ -205,6 +205,16 @@ static func bin_material(color_index: int) -> ShaderMaterial:
 	return _bin_mats[color_index]
 
 
+## The sweeper's spray and dust: WeaponFX's smoke puff with a short soft-particle fade - at its
+## 1.2 m, puffs this close to the road faded out entirely.
+static func spray_material() -> Material:
+	if not _bin_mats.has("spray"):
+		var m := WeaponFX.smoke_material().duplicate() as StandardMaterial3D
+		m.proximity_fade_distance = 0.25
+		_bin_mats["spray"] = m
+	return _bin_mats["spray"]
+
+
 static func _ease(x: float) -> float:
 	x = clampf(x, 0.0, 1.0)
 	return x * x * (3.0 - 2.0 * x)
@@ -497,7 +507,7 @@ class SweeperGear extends Gear:
 	func _mist(color: Color, size0: float, size1: float, life: float) -> CPUParticles3D:
 		var p := CPUParticles3D.new()
 		var quad := QuadMesh.new()
-		quad.material = WeaponFX.smoke_material()
+		quad.material = ServiceVehicles.spray_material()
 		p.mesh = quad
 		p.amount = 24
 		p.lifetime = life

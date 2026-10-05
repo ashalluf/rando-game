@@ -51,9 +51,11 @@ static var enabled: bool = true
 @export var spawn_back: Vector2 = Vector2(80.0, 120.0)
 ## Never put one down nearer the player than this (m).
 @export var spawn_clear: float = 45.0
-## Pull toward the kerb (m) while working: the sweeper and the garbage truck stay clear of the
-## parked cars (lane centre + shift + half a truck < the parking lane), the others less.
+## Pull toward the kerb (m) while working: the garbage truck stays clear of the parked cars
+## (lane centre + shift + half a truck < the parking lane), the others less.
 @export var kerb_shift: float = 0.9
+## The sweeper runs this far off the kerb (m) down a street swept today (nothing parked there).
+@export var gutter_gap: float = 0.35
 ## Seconds a delivery or the ice-cream truck stands at a stop.
 @export var delivery_dwell: Vector2 = Vector2(22.0, 40.0)
 @export var ice_cream_dwell: Vector2 = Vector2(18.0, 30.0)
@@ -153,7 +155,8 @@ func _setup() -> bool:
 	day_night = city.get_node_or_null("DayNight")
 	_player = get_tree().get_first_node_in_group("player") as Node3D
 	if plan != null and _last_hour < 0.0:
-		weekday = posmod(hash([plan.seed, "weekday"]), 7)
+		weekday = KerbBins.today(plan)
+		KerbBins.weekday = weekday
 	return plan != null and plan.macro != null and traffic != null and _player != null
 
 
@@ -169,6 +172,7 @@ func _process(delta: float) -> void:
 	var h := hour()
 	if _last_hour >= 0.0 and h < _last_hour - 12.0:
 		weekday = posmod(weekday + 1, 7)
+		KerbBins.weekday = weekday
 		_collected.clear()
 		_knocked.clear()
 		_bins_dirty = true
@@ -349,7 +353,7 @@ func _work_stop(car: Vehicle, t: Dictionary, along: float, v: float, delta: floa
 			var g := ServiceVehicles.gear_of(car) as ServiceVehicles.SweeperGear
 			if g:
 				g.set_working(true)
-			return Vector2(INF, kerb_shift)
+			return Vector2(INF, float(t.get("sweep_shift", kerb_shift)))
 		"tow":
 			if not t.has("tow_at"):
 				return Vector2(INF, 0.0)
@@ -541,7 +545,7 @@ func _dispatch() -> void:
 			and (district == CityPlan.District.SUBURBS or district == CityPlan.District.BEACHTOWN) and _rng.randf() < 0.4:
 		_send_roaming(ServiceVehicles.ICE_CREAM, "ice_cream", p, ice_cream_speed)
 	if _in_hours(sweeper_hours) and _count(ServiceVehicles.SWEEPER) < max_sweepers and _rng.randf() < 0.3:
-		_send_roaming(ServiceVehicles.SWEEPER, "sweep", p, sweeper_speed)
+		_send_sweeper(p)
 	if _in_hours(delivery_hours) and _count(ServiceVehicles.DELIVERY) < max_delivery and _rng.randf() < 0.5:
 		_send_roaming(ServiceVehicles.DELIVERY, "delivery", p, delivery_speed)
 
@@ -589,6 +593,38 @@ func _send_garbage(p: Vector2) -> void:
 			car.traffic.work = "garbage"
 			car.traffic.stream = stream
 			return
+
+
+## A sweeper down a street round the player that is swept today (its kerbs clear of parked
+## cars), in the gutter: pulled over to `gutter_gap` off the kerb.
+func _send_sweeper(p: Vector2) -> void:
+	var center := plan.block_index_at(p)
+	var day := KerbBins.today(plan)
+	var picks: Array = []
+	for axis: int in [CityPlan.AXIS_X, CityPlan.AXIS_Z]:
+		var c := center.x if axis == CityPlan.AXIS_X else center.y
+		for index in range(c - 2, c + 3):
+			if KerbBins.swept(plan, axis, index, day):
+				picks.append([axis, index])
+	if picks.is_empty():
+		return
+	var pick: Array = picks[_rng.randi() % picks.size()]
+	var axis: int = pick[0]
+	var index: int = pick[1]
+	var dir := 1 if _rng.randf() < 0.5 else -1
+	var here := p.y if axis == CityPlan.AXIS_X else p.x
+	var car := _place(ServiceVehicles.SWEEPER, axis, index, dir, here - dir * _rng.randf_range(spawn_back.x, spawn_back.y), sweeper_speed)
+	if car != null:
+		car.traffic.work = "sweep"
+		car.traffic.sweep_shift = sweep_shift(axis, index)
+
+
+## How far a sweeper pulls over from its kerb lane to run `gutter_gap` off the kerb.
+func sweep_shift(axis: int, index: int) -> float:
+	var w := plan.road_width(axis, index)
+	var lanes := 2 if w > plan.street_width + 1.0 else 1
+	var half := float(ServiceVehicles.DIMS[ServiceVehicles.SWEEPER].width) * 0.5
+	return maxf(w * 0.5 - gutter_gap - half - CityPlan.lane_center(w, lanes, lanes - 1), kerb_shift)
 
 
 ## A roaming worker on a street round the player: the sweeper along a kerb, the ice-cream truck,
@@ -867,6 +903,23 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 			return _eye(e2, 1.6, tgt, 1.9)
 		"sweeper", "ice_cream", "tow", "delivery":
 			var ks := StreetRoute.kerb_stop(plan, look, 0.0)
+			if scene == "sweeper":
+				# A street swept today, nearest the view: nothing parks along it.
+				ks = {}
+				var best_d := INF
+				var day := KerbBins.today(plan)
+				for ax: int in [CityPlan.AXIS_X, CityPlan.AXIS_Z]:
+					var across := look.x if ax == CityPlan.AXIS_X else look.y
+					var i0 := plan._index_at(ax, across)
+					for i in range(i0 - 3, i0 + 4):
+						var dd := absf(plan.road_pos(ax, i) - across)
+						if dd < best_d and KerbBins.swept(plan, ax, i, day):
+							var al := look.y if ax == CityPlan.AXIS_X else look.x
+							al = KerbBins.snap_to_stall(plan, ax, i, al)
+							if is_nan(al):
+								continue
+							best_d = dd
+							ks = {"axis": ax, "index": i, "dir": 1, "along": al}
 			if ks.is_empty():
 				return ""
 			var axis: int = ks.axis
@@ -878,7 +931,7 @@ func stage_for_shot(scene: String, cam: Camera3D) -> String:
 			var car := traffic.place_car(axis, int(ks.index), dir, lanes - 1, along, 0.0, false, kind)
 			if car == null:
 				return ""
-			car.traffic.shift = kerb_shift if scene == "sweeper" else 0.6
+			car.traffic.shift = sweep_shift(axis, int(ks.index)) if scene == "sweeper" else 0.6
 			car.traffic.work = "staged"
 			_cars[car.get_instance_id()] = {"car": car, "kind": kind}
 			await get_tree().physics_frame

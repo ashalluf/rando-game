@@ -14,6 +14,9 @@ const COLORS := [Color(0.10, 0.10, 0.11), Color(0.10, 0.27, 0.62), Color(0.17, 0
 const STREAM_NAMES := ["trash", "recycling", "yard waste"]
 ## Share of residential streets (per weekday) with their bins out.
 const OUT_PERCENT := 40
+## Share of streets (per weekday) that are swept: no parking along them that day (the signs LA
+## posts), so the sweeper can run its brooms down the gutter. Never a collection street.
+const SWEEP_PERCENT := 12
 ## A cart: width across its front, depth front to back, height to the lid's top (m).
 const WIDTH := 0.62
 const DEPTH := 0.74
@@ -34,6 +37,9 @@ const LONG_CAR := 5.6
 ## SERVICE_VEHICLES=0 in the environment: no carts anywhere (the A/B; ServiceFleet reads it too).
 static var enabled: bool = OS.get_environment("SERVICE_VEHICLES") != "0"
 
+## Today, 0..6: ServiceFleet keeps it (it turns over at midnight); until then the seed's first day.
+static var weekday: int = -1
+
 static var _block_cache: Dictionary = {}
 static var _cache_seed: int = -1
 static var _meshes: Dictionary = {}
@@ -43,6 +49,31 @@ static var _material: ShaderMaterial = null
 ## True when road (axis, index) has its carts out on `weekday` (0..6).
 static func street_out(plan: CityPlan, axis: int, index: int, weekday: int) -> bool:
 	return absi(hash([plan.seed, axis, index, posmod(weekday, 7), "bins"])) % 100 < OUT_PERCENT
+
+
+## Today for `plan` (ServiceFleet's clock, or the seed's first day before it runs).
+static func today(plan: CityPlan) -> int:
+	return weekday if weekday >= 0 else posmod(hash([plan.seed, "weekday"]), 7)
+
+
+## True when road (axis, index) is swept on `day`: nothing parks along it.
+static func swept(plan: CityPlan, axis: int, index: int, day: int) -> bool:
+	if street_out(plan, axis, index, day):
+		return false
+	return absi(hash([plan.seed, axis, index, posmod(day, 7), "sweep"])) % 100 < SWEEP_PERCENT
+
+
+## The road whose parking lane `p` (true world XZ) stands in: [axis, index], or [] in none.
+static func parking_road(plan: CityPlan, p: Vector2) -> Array:
+	for axis: int in [CityPlan.AXIS_X, CityPlan.AXIS_Z]:
+		var across := p.x if axis == CityPlan.AXIS_X else p.y
+		var i0 := plan._index_at(axis, across)
+		for i: int in [i0, i0 + 1]:
+			var off := absf(across - plan.road_pos(axis, i))
+			var w := plan.road_width(axis, i)
+			if off <= w * 0.5 and off >= w * 0.5 - CityPlan.PARKING_LANE - 0.3:
+				return [axis, i]
+	return []
 
 
 ## Every house's cart set round block (bx, bz), whatever the day: [{"axis", "index", "side" (+1:
@@ -173,12 +204,17 @@ static func sets_near(plan: CityPlan, p: Vector2, radius: float) -> Array:
 
 
 ## A parked car in the bay at `spot` (true world, the bay's centre) `length` long would stand
-## in a cart set (any day's: a car parked overnight stays). CityChunk._park_car() asks, after its
-## rolls; a car of an ordinary length fits between two sets.
+## in a cart set (any day's: a car parked overnight stays), or the bay is on a street swept today.
+## CityChunk._park_car() asks, after its rolls; a car of an ordinary length fits between two sets.
 static func blocks_parking(plan: CityPlan, spot: Vector3, length: float) -> bool:
-	if length < LONG_CAR or not enabled:
+	if not enabled:
 		return false
 	var p := Vector2(spot.x, spot.z)
+	var road := parking_road(plan, p)
+	if not road.is_empty() and swept(plan, int(road[0]), int(road[1]), today(plan)):
+		return true
+	if length < LONG_CAR:
+		return false
 	for st: Dictionary in sets_near(plan, p, 8.0):
 		var c := cart_pos(plan, st, 1)
 		var d := c - p
