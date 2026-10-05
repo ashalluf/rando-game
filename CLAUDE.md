@@ -2969,7 +2969,8 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the water tower with the mark, a New York street of braced false fronts, basecamp trailers /
   honeywagons / grip trucks, golf carts and gear, lamps. FULL: one casting mesh a chunk
   (`StudioLot`), Industrial's ground mesh, pavement, lawns, time-sliced steps; LOD and the far
-  city: `lod_box`es. `IndustrialKit.cyl()` winds its walls inward (culled from outside), so the
+  city: `lod_box`es. The relief is flattened over the lot's `flat_rect` (a hook in
+  `MacroMap._relief_at()`), not a radius disc, which reached the hills' switchbacks. `IndustrialKit.cyl()` winds its walls inward (culled from outside), so the
   kit has its own `cyl()` / `cone()`. `FILM_STUDIO=0` is the A/B. Probe
   `tools/film_studio/probe.tscn`; checks `tests/film_studio_checks.gd`
   (`tools/film_studio/checks_only.tscn` alone).

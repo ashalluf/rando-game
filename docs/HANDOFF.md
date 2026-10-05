@@ -8687,6 +8687,13 @@ city's capture lay the ground as slabs and the stages, the ridge, the wall, the 
 office block, the tower and the fronts as `lod_box`es (old path, stages plain); the bungalows are
 HouseKit's own far boxes.
 
+**The relief.** The lot is flat: its entry names a `flat_rect` (the area grown 15 m) and a
+`flat_margin` (70 m), and `MacroMap._relief_at()` fades the city's rolling relief out over that
+rect instead of a disc round the anchor (a hook of five lines in the landmark loop). The first
+version used a 205 m radius, which is a disc reaching 355 m from the anchor: it touched the front
+range's foot and the switchback drives grown there fell from 10 to 5 (88 estates to 39) - the
+smoke test's switchback check caught it. Without any flattening the lot sat on 15 m of relief.
+
 **Trap found:** `IndustrialKit.cyl()` (and its cone) wind the walls so they face INWARD: drawn
 with back-face culling, a cylinder shows only the inside of its far half (the first water tower
 was a curved shell with no front). The kit has its own `cyl()` / `cone()` built on `quad()`; the
