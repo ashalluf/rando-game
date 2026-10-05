@@ -569,6 +569,7 @@ func _lay(st: Dictionary, at: Vector3, n: Vector3, cv: Vector3, width: float, ti
 	_marks.set_instance_custom_data(i, Color(fmod(_clock / 60.0, 30.0), 1.0, 1.0 if patch else 0.0, 0.0 if tint == rubber_tint else (1.0 if tint == sand_tint else 0.5)))
 	_mark_birth[i] = _clock
 	_marks.visible_instance_count = _mark_count
+	_marks_node.visible = true
 	return 1
 
 
@@ -585,11 +586,16 @@ func _sweep_marks(delta: float) -> void:
 		return
 	_mark_sweep = 10.0
 	var gone := _clock - mark_life - 1.0
+	var alive := 0
 	for i in _mark_count:
 		var b := _mark_birth[i]
 		if b >= 0.0 and b < gone:
 			_marks.set_instance_custom_data(i, Color(0.0, 0.0, 0.0, 0.0))
 			_mark_birth[i] = -1.0
+		elif b >= 0.0:
+			alive += 1
+	if alive == 0:
+		_marks_node.visible = false
 
 
 func _build_marks() -> void:
@@ -612,6 +618,8 @@ func _build_marks() -> void:
 	_marks_node.multimesh = _marks
 	_marks_node.material_override = _mark_mat
 	_marks_node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# Hidden until the first mark: no draw for a city nobody has skidded in.
+	_marks_node.visible = false
 	# One draw for every mark in the city; the bounds would have to follow every new segment.
 	_marks_node.custom_aabb = AABB(Vector3(-20000.0, -2000.0, -20000.0), Vector3(40000.0, 4000.0, 40000.0))
 	add_child(_marks_node)
@@ -694,12 +702,25 @@ func _serve(pool: Array, keys: Array, demand: Array, drive: Callable) -> void:
 	for i in pool.size():
 		var p: CPUParticles3D = pool[i]
 		if keys[i] == null:
-			if p.emitting:
-				p.emitting = false
+			_switch(p, false)
 			continue
 		drive.call(p, chosen[keys[i]])
+		_switch(p, true)
+
+
+## Starts or stops an emitter. A stopped one is hidden once its last puff has died: an idle
+## CPUParticles3D still draws its whole MultiMesh, which was 15 draw calls a frame for nothing.
+func _switch(p: CPUParticles3D, on: bool) -> void:
+	if on:
+		p.visible = true
 		if not p.emitting:
 			p.emitting = true
+		return
+	if p.emitting:
+		p.emitting = false
+		p.set_meta("off_at", _clock)
+	elif p.visible and _clock - float(p.get_meta("off_at", -100.0)) > p.lifetime * (1.0 + p.lifetime_randomness) + 0.1:
+		p.visible = false
 
 
 func _aim(p: Node3D, at: Vector3, back: Vector3) -> void:
@@ -874,16 +895,14 @@ func _tick_exhaust(delta: float) -> void:
 	for i in _exhaust.size():
 		var p := _exhaust[i]
 		if _exhaust_keys[i] == null:
-			if p.emitting:
-				p.emitting = false
+			_switch(p, false)
 			continue
 		var d: Array = chosen[_exhaust_keys[i]]
 		var car: Vehicle = d[2]
 		var t := car.global_transform
 		p.global_transform = Transform3D(t.basis.orthonormalized(), _exhaust_point(car))
 		p.color = Color(1.0, 1.0, 1.0, float(d[3]))
-		if not p.emitting:
-			p.emitting = true
+		_switch(p, true)
 
 
 func _tick_shimmer() -> void:
@@ -929,6 +948,7 @@ func backfire(car: Vehicle) -> void:
 	var at := _exhaust_point(car)
 	Sfx.play("backfire", at, backfire_db)
 	_flame.global_transform = Transform3D(car.global_basis.orthonormalized(), at)
+	_flame.visible = true
 	_flame.restart()
 	_flame.emitting = true
 	if _flame_light:
@@ -980,6 +1000,7 @@ func _base_emitter(name_: String, mesh: Mesh, amount: int, life: float) -> CPUPa
 	p.lifetime = life
 	p.local_coords = false
 	p.emitting = false
+	p.visible = false
 	p.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	p.angle_min = 0.0
 	p.angle_max = 360.0
