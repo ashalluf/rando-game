@@ -8571,3 +8571,73 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Street lamps (fleet wave 2, wt/street-lamps)
+
+**What.** The scanned Poly Haven post that stood on every pavement in the basin is replaced by a
+Blender-built kit of five Los Angeles street lights at real size, `tools/make_street_lamps.py` ->
+`assets/models/street_lamps.glb`, one node per type, arms along +x, origins on the pavement:
+
+| Type | Node | Tris | Light | What |
+| --- | --- | --- | --- | --- |
+| COBRA | `sl_cobra` | 2,908 | (2.54, 8.60) | 8.4 m tapered galvanised pole on a bolted base and cover, handhole, ID tag, a davit arm with a brace, the die-cast cobra head with its drop-glass refractor and photocell |
+| TWIN | `sl_twin` | 4,368 | (+-0.62, 4.96) | downtown ornamental: octagonal plinth with panels, fluted cast-iron post, leaf collar, scrolled cross-arm, two opal globes, finial |
+| LANTERN | `sl_lantern` | 1,504 | (0, 4.32) | midtown ornamental: fluted post, ring collar, hexagonal lantern (six panes, ribs, hipped roof) |
+| POST | `sl_post` | 1,408 | (0, 4.65) | residential: spun-concrete pole (exposed aggregate), prismatic cylinder post-top under a dark cap |
+| MAST | `sl_mast` | 2,556 | (3.36, 9.12) | 9.4 m galvanised pole, straight mast arm, slim LED head with fins, LED panel |
+
+**How it is drawn.** ONE material for all of them, `shaders/street_lamp.gdshader`: the part rides in
+UV2.x (0 galvanised, 1 painted iron, 2 aluminium, 3 concrete, 4 lens, 5 diffuser, 6 dark, 7 LED),
+a lit face's height in its diffuser in UV2.y; the paint is the instance COLOR (ornamentals: a
+cast-iron colour per street), INSTANCE_CUSTOM.r the LED flag (NightCity.lamp_led), .g a wear
+roll. Galvanising spangle and zinc-oxide patches, paint chips and dust, aggregate, prism ribs, LED
+dots, rain gloss from `road_wetness`; lenses, globes and LEDs emit by `lamp_factor`, sodium amber
+or LED white. Works in linear on both renderers (color_space). Meshes come through
+`PropFactory.model_mesh()`: generated LODs, a `TRI_BUDGET` per node, the shadow twin. A chunk
+draws one batch per type it has (`lamp_cobra`, `lamp_twin`, ...), one draw each.
+
+**Placement.** `StreetLamps.pick(plan, at, facing)`: a hash of seed + road (axis, index) + district,
+so both kerbs and the whole length of a street in a district carry the same lamp; NightCity's
+sodium / LED roll decides whether a tall lamp may be the mast-arm LED (only on LED patches, the
+same roll the far streets' glow and the omnis' colour use). Downtown 78 % twin-globe, the rest
+cobra / mast; midtown wide streets cobra / mast, side streets 55 % lantern; suburbs and the beach
+town post-tops on side streets (65 %), cobras / masts on the big ones; campus lantern / post;
+industrial cobra / mast; no street (parks, plazas, MacArthur, the river, the marina) the district's
+ornamental, else the post-top. `CityChunk._add_lamp(at, facing)` (one new argument, passed by
+`_build_sidewalk_props()` as -inward) calls `_add_street_lamp()`: the same `"lamp"` prop slot and
+id, the pool (sized per type, now under the head) and the `lamp_light` OmniLight3D (now in the
+head; its attenuation eased by the head's height so the pavement under it gets what the 3.5 m
+post gave, d^-a at h = 3.5^-1.4). LotFill's car-park poles use the cobra / mast. StreetWear's
+stickers wrap the real shafts (`StreetLamps.shaft_radius()`). Broadway keeps its own lanterns.
+No roll moves: nothing on the chunk rng, the same prop ids (checked with the kit off).
+
+**A/B and tools.** `STREET_LAMPS=0` in the environment is the old post. `tools/glshot/lamp_shot.gd`
+is the lineup in seconds (`NIGHT=1`, `LED=1`, `OLD=1`, `ONLY=n`, CAM / LOOK / FOV);
+`tools/street_lamps/probe.gd -- --spawn=x,z,0,0` lists the mix per district and EYEs (`XEYE` from
+the far kerb, which clears the lamp's own pavement's poles and trees); `tools/street_lamps/
+checks_only.tscn` runs the checks alone. No Blender install is needed: download.blender.org is
+blocked by this environment's network policy, but `pip install bpy==4.2.0` gives the same
+Blender as a Python module (a three-line wrapper runs the `blender -b --python` command lines).
+
+**Checks** (`tests/street_lamps_checks.gd`, 14): every type in the kit at its table's height, one
+surface on the lamp shader, under a budget, a shadow twin; lit by lamp_factor in linear; both kerbs
+of a street alike (4,942 pairs, 0 differ); masts only on LED patches; every type somewhere; every
+cobra and mast arm over the road (688 of 688); FULL chunks downtown and in the suburbs: the lamps
+are the kit's batches, every lamp keeps its pool and its omni (over 3.9 m), and the same lamp prop
+ids and places with the kit off.
+
+**Frame cost** (still_shot.gd's GEO, opengl3 + Xvfb 1280x720, downtown pavement
+`EYE=1867.8,1.7,635.4,175,8`, STREET_LAMPS=0 against the kit): noon 6.299 M -> 6.322 M triangles
+(+0.4 %), 3,762 -> 3,746 draws; 21:00 6.323 M -> 6.348 M, 3,793 -> 3,778 draws (the scanned post
+was three surfaces, the kit is one).
+
+**Stills** (shots/street-lamps; opengl3, not the Mac's Forward+): the lineup before / after, by day
+and at night (sodium and LED), close-ups of every head day and night, downtown's pavement before /
+after at noon and 21:00, the beach town and midtown.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the globes' and lenses' bloom through AgX,
+the galvanised metal's reflections. LOD chunks and the far city draw no lamps (as before; the far
+streets' glow stands in). The lamps stand where the old ones stood, and on some suburban kerbs that
+is beside a utility pole (StreetDetail's), which the old thin post hid better. No real light
+shaped like the cobra's cut-off (still an omni). Shot lamps break as before (debris box), no
+falling pole.
