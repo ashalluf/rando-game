@@ -85,7 +85,7 @@ void fragment() {
 		SPECULAR = 0.25;
 	} else {
 		// Grease pencil on the glass.
-		int price = 2995 + int(floor(v_seed * 90.0)) * 100;
+		int price = 2995 + int(floor(v_seed * 69.99)) * 100;
 		int year = 2004 + int(floor(fract(v_seed * 13.7) * 18.0));
 		float d = figures(uv, 0.08, 0.92, 0.12, 0.58, 4, price, 0.085);
 		d = min(d, figures(uv, 0.28, 0.72, 0.68, 0.9, 4, year, 0.07));
