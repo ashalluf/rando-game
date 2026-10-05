@@ -9,6 +9,9 @@ render_mode cull_back;
 //   6 cladding (panel seams and a louvre band)   7 ribbed girder (stiffeners every 2.4 m)
 //   8 red obstruction light   9 accommodation windows (lit at night)
 //   10 a ship's topsides: paint with the line's name and mark in big letters (UV = x, y)
+//   11 amber beacon (flashes day and night, phased per instance)   12 head lamp / work light
+//   (lit at night on every face)   13 tail / marker lamp (red, brighter at night)
+//   (11-13: PortLife's moving vehicles, scripts/world/port_life_kit.gd)
 // Weathering is a little dirt run down the faces and grime near the ground; UV2.y is AO.
 // Colour space as in container.gdshader (`color_space_probe`).
 
@@ -25,6 +28,7 @@ varying float v_ao;
 varying vec3 v_nrm;
 varying vec3 v_world;
 varying float v_fwd;
+varying flat float v_inst;
 
 #include "res://shaders/port_lettering.gdshaderinc"
 
@@ -65,6 +69,7 @@ void vertex() {
 	v_ao = UV2.y;
 	v_nrm = NORMAL;
 	v_world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_inst = float(INSTANCE_ID);
 }
 
 void fragment() {
@@ -139,12 +144,27 @@ void fragment() {
 			cov = max(cov, mark(0, mc, max(fwidth(mc.x), fwidth(mc.y))));
 		}
 		albedo = mix(albedo, col(vec3(0.92, 0.92, 0.9)), cov);
+	} else if (part == 11) {
+		// A rotating amber beacon seen from anywhere: two sharp pulses a turn.
+		float ph = fract(TIME * 1.1 + v_inst * 0.37);
+		float pulse = pow(abs(sin(ph * 3.14159265)), 12.0);
+		albedo = col(vec3(0.6, 0.35, 0.05));
+		rough = 0.2;
+		emit = col(vec3(1.0, 0.55, 0.05)) * (0.6 + 2.4 * lamp_factor) * pulse * 3.0;
+	} else if (part == 12) {
+		albedo = col(vec3(0.7, 0.7, 0.68));
+		rough = 0.15;
+		emit = col(vec3(1.0, 0.94, 0.82)) * lamp_factor * lamp_energy * 0.8;
+	} else if (part == 13) {
+		albedo = col(vec3(0.45, 0.04, 0.03));
+		rough = 0.2;
+		emit = col(vec3(1.0, 0.06, 0.03)) * (0.2 + 1.6 * lamp_factor);
 	} else if (part == 8) {
 		albedo = col(vec3(0.5, 0.05, 0.03));
 		emit = col(vec3(1.0, 0.08, 0.04)) * (0.8 + 3.0 * lamp_factor);
 	}
 	// Weathering: dirt run down the faces from every ledge, grime low down, dust on the tops.
-	if (part != 3 && part != 5 && part != 8) {
+	if (part != 3 && part != 5 && part != 8 && part < 11) {
 		float streak = noise(vec2((v_world.x + v_world.z) * 3.1, v_world.y * 0.35));
 		float runs = smoothstep(0.55, 0.9, streak) * float(vertical);
 		float low = 1.0 - smoothstep(0.0, 3.0, v_world.y);

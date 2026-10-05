@@ -1793,6 +1793,9 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# The container terminal at work (tests/port_life_checks.gd): the kit, the cranes' dual cycle,
+	# the tractors, gantries and straddle carriers, the gate and its trucks.
+	await load("res://tests/port_life_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

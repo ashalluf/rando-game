@@ -792,7 +792,9 @@ static func _build_cargo_ship(anchor: Vector2, parent: Node3D, statics: StaticBo
 					batch.add("container", PropFactory.container(), PortKit.container_xform(centre, true, false, kit.randf() < 0.5), look[0], look[1])
 			if statics:
 				_shape(statics, Vector3(12.0, 2.6 * height, 7.2), at + Vector3(x, 9.0 + 1.3 * height, z))
-	batch.build(parent)
+	var ship_boxes: Dictionary = batch.build(parent)
+	if detailed and ship_boxes.has("container"):
+		(ship_boxes.container as Node).add_to_group("port_ship_boxes") # PortLife hides what its cranes work
 
 
 # --- Building-shader helpers -----------------------------------------------------------------
