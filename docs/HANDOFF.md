@@ -7041,9 +7041,7 @@ ALU in shaders that were already running.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
 
-## 9b?. The ballpark in the ravine north of downtown, 2026-10-05 (agent branch `wt/stadium`; VISUAL_ROADMAP #59)
-
-## 9bs. The ballpark in the ravine north of downtown, 2026-10-05 (agent branch `wt/stadium`; VISUAL_ROADMAP #61)
+## 9bu. The ballpark in the ravine north of downtown, 2026-10-05 (agent branch `wt/stadium`; VISUAL_ROADMAP #63)
 
 Number is provisional (the lead renumbers on merge).
 

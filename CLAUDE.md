@@ -2363,7 +2363,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   sharing `landmark_common.gdshaderinc`. Far versions are the same builders at low detail (a few
   draws each). Checks: `tests/civic_checks.gd`. Frame them with `tools/glshot/landmark_shot.gd`
   (free camera: `CAM`, `LOOK`, `FOV`).
-- The ballpark in the ravine (2026-10-05, docs/HANDOFF.md 9bs): the FORM of LA's
+- The ballpark in the ravine (2026-10-05, docs/HANDOFF.md 9bu): the FORM of LA's
   famous hillside ballpark, in its real place - home plate's real point through
   `DowntownReal.game_xz()`, 2.9 km grid-north of Pershing Square on the embayed hills above the
   110 / 101 junction, facing the real centre field (game north, 6.4 degrees west) - with an
