@@ -1267,7 +1267,8 @@ static func _fast_food(s: Site) -> void:
 
 ## The drive-thru building's two side walls, which the lanes run along: a tile wainscot, brand
 ## pilasters, the dining room's windows on the way in (the left wall; the right has the pickup
-## window), wall packs, and a kerb with yellow bollards between the wall and the lane.
+## window), wall packs, and a kerb with yellow bollards between the wall and the lane; the back
+## wall along the order lane the same without the windows.
 static func _lane_walls(s: Site, bld: Rect2, h: float, brand: Color, front: float, pickup_z: float) -> void:
 	var K := RoadsideKit
 	var pen := s.pen
@@ -1312,6 +1313,35 @@ static func _lane_walls(s: Site, bld: Rect2, h: float, brand: Color, front: floa
 			pen.cyl(Vector3(kx, ky + 1.18, z), 0.09, 0.05, 0.06, yellow, K.RM_PAINT, 10)
 			pen.box(Vector3(kx, ky + 0.95, z), Vector3(0.19, 0.06, 0.19), K.c(Color(0.95, 0.95, 0.93), K.K_FIXED), K.RM_PAINT)
 			s.ch._add_shape(Vector3(0.18, 1.0, 0.18), s.at(Vector3(kx, ky + 0.68, z)), s.yaw)
+	# The back wall, along the order lane: the same wainscot, pilasters and wall packs, a kerb
+	# and bollards.
+	var bz := bld.end.y
+	var x0 := bld.position.x + 0.4
+	var x1 := bld.end.x - 0.4
+	var bspan := x1 - x0
+	var bxc := (x0 + x1) * 0.5
+	pen.box(Vector3(bxc, (0.95 - SKIRT) * 0.5, bz + 0.03), Vector3(bspan + 0.8, 0.95 + SKIRT, 0.06), tile, K.RM_MATTE)
+	pen.box(Vector3(bxc, 0.97, bz + 0.06), Vector3(bspan + 0.8, 0.06, 0.08), K.c(Color(0.8, 0.79, 0.76), K.K_FIXED), K.RM_PAINT)
+	var nbk := maxi(int(bspan / 3.2), 2)
+	for i in nbk + 1:
+		var x := x0 + bspan * i / nbk
+		pen.box(Vector3(x, (h + 0.9 - SKIRT) * 0.5, bz + 0.08), Vector3(0.45, h + 0.9 + SKIRT, 0.16), K.c(brand, K.K_FIXED), K.RM_PAINT, 0.02)
+		if i % 2 == 1:
+			pen.box(Vector3(x, 3.3, bz + 0.22), Vector3(0.3, 0.2, 0.14), K.c(Color(0.2, 0.2, 0.21), K.K_FIXED), K.RM_PAINT, 0.02)
+			pen.box(Vector3(x, 3.24, bz + 0.3), Vector3(0.22, 0.1, 0.02), K.c(Color(1.0, 0.95, 0.85), K.K_NEON), K.RM_PLASTIC)
+			_pool(s, Vector2(x, bz + 1.6), Vector2(3.5, 3.5), Color(1.0, 0.92, 0.8, 0.5))
+	var kz := bz + 0.45
+	var kyb := s.dy(bxc, kz)
+	pen.box(Vector3(bxc, kyb + 0.03, kz), Vector3(bspan + 1.2, 0.3, 0.6), K.c(Color(0.72, 0.71, 0.68), K.K_CONCRETE), K.RM_MATTE, 0.03)
+	pen.box(Vector3(bxc, kyb + 0.12, kz + 0.29), Vector3(bspan + 1.2, 0.12, 0.03), yellow, K.RM_PAINT)
+	s.ch._add_shape(Vector3(bspan + 1.2, 0.3, 0.6), s.at(Vector3(bxc, kyb + 0.03, kz)), s.yaw)
+	var nbb := maxi(int(bspan / 2.6), 2)
+	for i in range(1, nbb):
+		var x := x0 - 0.4 + (bspan + 0.8) * i / nbb
+		pen.cyl(Vector3(x, kyb + 0.18, kz), 0.09, 0.09, 1.0, yellow, K.RM_PAINT, 10)
+		pen.cyl(Vector3(x, kyb + 1.18, kz), 0.09, 0.05, 0.06, yellow, K.RM_PAINT, 10)
+		pen.box(Vector3(x, kyb + 0.95, kz), Vector3(0.19, 0.06, 0.19), K.c(Color(0.95, 0.95, 0.93), K.K_FIXED), K.RM_PAINT)
+		s.ch._add_shape(Vector3(0.18, 1.0, 0.18), s.at(Vector3(x, kyb + 0.68, kz)), s.yaw)
 
 
 ## A frame point's chunk XZ.
