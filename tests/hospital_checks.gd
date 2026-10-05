@@ -77,7 +77,7 @@ func _placement() -> Array[Vector2i]:
 		var rect: Rect2 = b.rect
 		if not Hospital.is_hospital(b) or not _plan.lots(bi.x, bi.y).is_empty() or int(b.kind) != CityPlan.BlockKind.BUILDINGS:
 			ok = false
-			why = "block %s: grounds %s, %d lots" % [bi, b.get("grounds", ""), _plan.lots(bi.x, bi.y).size()]
+			why = "block %s: hospital %s, %d lots" % [bi, b.get("hospital", false), _plan.lots(bi.x, bi.y).size()]
 		if DowntownReal.in_extent(rect.get_center()) or Landmarks.claims(rect) or b.has("site"):
 			ok = false
 			why = "block %s on downtown or a landmark" % bi
@@ -240,7 +240,15 @@ func _transport(bi: Vector2i) -> void:
 	# Parked long enough and unseen: back to the pool.
 	car.parked_t = _em.park_seconds + 1.0
 	car.unseen_time = 10.0
+	# Nobody looking: the camera turned away from it for the upkeep.
+	var cam := _tree.root.get_viewport().get_camera_3d()
+	var cam_was := cam.global_transform if cam else Transform3D()
+	if cam:
+		var away := (cam.global_position - car.global_position).slide(Vector3.UP).normalized()
+		cam.global_transform = Transform3D(Basis.looking_at(away if away.length() > 0.1 else Vector3.FORWARD), cam.global_position)
 	_em._upkeep(0.5)
+	if cam:
+		cam.global_transform = cam_was
 	_check(not _em.units.has(car), "parked a while unseen, it goes back to the pool")
 	await _restore(player, home, was, scan_was)
 

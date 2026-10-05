@@ -1298,6 +1298,44 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen (same pass): `CarCabin.BUS_DAYLIGHT` lights a bus's traced cabin 2.2x (and lets more of
   it through the glass) and a bus's far twin starts at 60 m (`BigVehicles.tune()`), since from the
   pavement at noon its front read as a black slab.
+- Hospitals (2026-10-05, "hospitals the ambulances go to"; HANDOFF 9b?). `Hospital`
+  (`scripts/world/hospital.gd`, static) is WHERE, worked out like FireStation's stations: the map
+  in `CELL` 1500 m squares, a hash of seed + cell picks up to `CANDIDATES` points, the first whose
+  block passes `_suitable()` (big enough - `MIN_INNER` inside the pavement -, MIDTOWN / SUBURBS /
+  BEACHTOWN / CAMPUS, level, all CITY, off DowntownReal's extent, landmarks and their sites, the
+  freeways, the light rail, the river, the runway clear zone, the replica) is the cell's hospital;
+  plus ONE medical centre (`MEDICAL_NAME`) on the suitable block nearest `MEDICAL_TARGET`
+  (Westlake, between MacArthur Park and the 110). **It is pure geometry of the block** - road
+  positions, `district_at`, the global claims, never `CityPlan.block()` of another block - so
+  `CityPlan.block()` asks `claims_block()` for the block it is building with no recursion, AFTER
+  every roll and override (Parks' too): `"hospital": true` (its own key: `grounds` is Parks'), no grounds, kind BUILDINGS, `lots()` empty.
+  `layout()` (cached) plans the campus in a frame on the inner rect (u along the front - the
+  widest road -, v back; mirrored so the ER street, the wider side road, is always at u = W):
+  podium, bed tower (6-11 storeys, the medical centre 14-16), the drop-off loop, the ambulance
+  court with three bays under a canopy, garage or surface lot, `floor_gy` (the one floor level).
+  `CityChunk._block_steps` hands a hospital block to `HospitalBuild.steps()` (a `-1` arm in the
+  match) in place of its own build. **The tower is a Building**: `HospitalTower`
+  (`scripts/world/hospital_tower.gd`) overrides `_layout_parts()` (podium + slab), the window
+  style (RIBBON: horizontal bands, the roll still made) and `_build_roof_props()` (the tower roof
+  is the helipad: the tower part is marked a podium for the pass), so it gets the facade shader,
+  lit wards at night and FarBuilding's coded far boxes with no code of its own. `HospitalBuild`
+  (`scripts/world/hospital_build.gd`): ground as a partition (`Parks.minus`), kerb cuts (apron +
+  gutter lip), the glazed lobby on `curtain_glass` and the drop-off canopy, the ER canopy, doors,
+  wheel stops, the lit red EMERGENCY sign (`shaders/hospital_sign.gdshader`: lit letters and
+  boxes, linear colours as Vector3, red held at green 0.1 for AgX), a parked ambulance (the
+  body's `_far` twin, baked wheels), the helipad (a plain H in a circle: NEVER a cross, a
+  protected emblem), the garage (`ArenaGrounds.garage`), beds and trees, the lights (Airport's
+  `aircraft_lights` billboards: green pad edge, white floods, red beacons). LOD and the far city:
+  coded tower boxes, the garage, canopies, a lit red PANEL plant box for the sign, the pad and
+  BEACON_MAST boxes. Parked cars, poles, racks and mailboxes keep off the drives
+  (`Hospital.keeps_clear()`). **The ambulance**: `Emergency._finish()` sends an ambulance whose
+  call is `loaded` to `Hospital.nearest()` (`EmergencyCar.to_hospital()`: mode TRANSPORT, lights
+  and siren, `transport_speed`), at the ER kerb it takes a bay (`Hospital.take_bay`), pulls past
+  the mouth and reverses in along `Hospital.back_in_path()` (BACKING, reversing lamps), PARKED with
+  its lights off, pooled by Emergency after `park_seconds` unseen. `HOSPITALS=0` is the A/B.
+  Stills: `HOSPITAL=front|bay|roof|aerial` (`HOSPITAL_AT=medical`, `HOSPITAL_T` how far into the
+  bay) on `still_shot.gd` (`HospitalStage`); probe `tools/hospital/probe.tscn` (every hospital
+  and its EYEs); checks `tests/hospital_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -

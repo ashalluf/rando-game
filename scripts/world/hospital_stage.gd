@@ -22,7 +22,7 @@ static func stage(tree: SceneTree, city: Node, scene: String, cam: Camera3D) -> 
 	if scene == "bay":
 		var em := city.get_node_or_null("Emergency") as Emergency
 		if em != null:
-			_stage_ambulance(tree, em, plan, lay, float(OS.get_environment("HOSPITAL_T")) if OS.get_environment("HOSPITAL_T") != "" else 0.72)
+			_stage_ambulance(tree, em, plan, lay, float(OS.get_environment("HOSPITAL_T")) if OS.get_environment("HOSPITAL_T") != "" else 0.55)
 	return eye_for(lay, scene)
 
 
@@ -86,6 +86,12 @@ static func _stage_ambulance(_tree: SceneTree, em: Emergency, plan: CityPlan, la
 	car._back_s = total * t
 	car.mode = EmergencyCar.Mode.BACKING
 	car._back_in(0.0)
+	# Held where it is for the still (a software frame takes seconds; it would be parked by the
+	# shot), reversing lamps on.
+	car.set_physics_process(false)
+	car._reversing = true
+	car.light_reverse = true
+	car._refresh_lights()
 
 
 static func _eye(e: Vector3, look_at: Vector3) -> String:

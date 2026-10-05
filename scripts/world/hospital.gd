@@ -18,7 +18,7 @@ extends RefCounted
 ## test, any size up from MEDICAL_MIN). Everything is pure geometry - the block's rect, district
 ## and the global claims - so CityPlan.block() can ask it for the block it is building without
 ## asking for any other block (no recursion), AFTER every roll and override of its own: the block
-## gets `"grounds": "hospital"`, its kind is BUILDINGS and CityPlan.lots() is empty, so the far
+## gets `"hospital": true`, its kind is BUILDINGS and CityPlan.lots() is empty, so the far
 ## city, AirTraffic and every tier see no seeded buildings there. No rng anywhere: hashes of seed
 ## + cell + block only.
 ##
@@ -177,7 +177,7 @@ static func claims_block(plan: CityPlan, ix: int, iz: int) -> bool:
 
 
 static func is_hospital(block: Dictionary) -> bool:
-	return String(block.get("grounds", "")) == "hospital"
+	return block.get("hospital", false)
 
 
 ## Every hospital block within `reach` of `p` (true world XZ).

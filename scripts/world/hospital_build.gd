@@ -582,10 +582,10 @@ static func _er_bay(ch: CityChunk, st: Dictionary) -> void:
 	# The EMERGENCY sign: a light box on the podium wall over the canopy, red letters lit.
 	var mid := (canopy.position.y + canopy.end.y) * 0.5
 	var sign_w := 15.5
-	var sy := y0 + BAY_CANOPY_H + 2.4
+	var sy := y0 + BAY_CANOPY_H + 4.3
 	_fbox(g, lay, "h_white", wall_u, mid - sign_w * 0.5, wall_u + 0.45, mid + sign_w * 0.5, sy - 1.2, sy + 1.25, Color.WHITE, 0.05)
 	var red := sign_material("red", SIGN_RED_FACE, SIGN_RED_GLOW, 2.6, 0.3)
-	var box_mat := sign_material("er_box", Vector3(0.9, 0.9, 0.88), Vector3(0.9, 0.92, 0.95), 0.9, 0.05, true)
+	var box_mat := sign_material("er_box", Vector3(0.9, 0.9, 0.88), Vector3(0.9, 0.92, 0.95), 0.45, 0.04, true)
 	var face := MeshInstance3D.new()
 	face.name = "ERSignFace"
 	var qm := QuadMesh.new()
@@ -891,7 +891,7 @@ static func _far(ch: CityChunk, st: Dictionary) -> void:
 	var court: Rect2 = lay.court
 	var mid := canopy.position.y + canopy.size.y * 0.5
 	var sr := _r(lay, court.position.x, mid - 7.75, court.position.x + 0.5, mid + 7.75)
-	_far_box(ch, Vector3(sr.get_center().x, y0 + BAY_CANOPY_H + 2.4, sr.get_center().y), Vector3(sr.size.x, 2.45, sr.size.y), Color(0.75, 0.06, 0.04),
+	_far_box(ch, Vector3(sr.get_center().x, y0 + BAY_CANOPY_H + 4.3, sr.get_center().y), Vector3(sr.size.x, 2.45, sr.size.y), Color(0.75, 0.06, 0.04),
 			Color(float(FarBuilding.Plant.PANEL), 1.0, 1.0, FarBuilding.PLANT_FLAG))
 	# The helipad deck and the beacons on the tower's corners.
 	var tower: Rect2 = lay.tower

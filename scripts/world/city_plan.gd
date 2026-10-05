@@ -375,10 +375,13 @@ func block(ix: int, iz: int) -> Dictionary:
 		elif grounds != "":
 			kind = BlockKind.PARK
 	# A hospital campus (Hospital: pure geometry of the block and the seed), after every roll above.
-	if macro and Hospital.claims_block(self, ix, iz):
-		grounds = "hospital"
+	var hospital := macro != null and Hospital.claims_block(self, ix, iz)
+	if hospital:
+		grounds = ""
 		kind = BlockKind.BUILDINGS
-	var result :={"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
+	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
+	if hospital:
+		result["hospital"] = true
 	if grounds != "":
 		result["grounds"] = grounds
 	if was_plaza:
@@ -644,7 +647,7 @@ func _lot_grid(ix: int, iz: int, dropped: Variant) -> Array[Dictionary]:
 	var b := block(ix, iz)
 	# A landmark's site builds its own ground; nothing of the block's is built there. Nor on a rec
 	# park or a school campus (Parks lays those out).
-	if b.has("site") or b.has("grounds"):
+	if b.has("site") or b.has("grounds") or b.has("hospital"):
 		return []
 	# Nor is anything built on a block the river's corridor reaches (RiverBuild lays it).
 	if river_block(ix, iz):

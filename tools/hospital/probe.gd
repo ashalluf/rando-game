@@ -36,8 +36,8 @@ func _ready() -> void:
 		var yaw_f := rad_to_deg(atan2(-(to - front).x, -(to - front).y))
 		var bay := Hospital.fp(lay, (lay.court as Rect2).position.x, (lay.canopy as Rect2).get_center().y)
 		var yaw_e := rad_to_deg(atan2(-(bay - er).x, -(bay - er).y))
-		print("%s %s grounds=%s kind=%d district=%d W=%.0f D=%.0f storeys=%d garage=%s lot=%s er_right=%s centre=(%.0f,%.0f) relief=%.2f" % [
-			bi, lay.name, b.get("grounds", ""), int(b.kind), int(b.district), lay.W, lay.D, lay.storeys, (lay.garage as Rect2).size.x > 0.0, (lay.lot as Rect2).size.x > 0.0, lay.er_right, c.x, c.y, gy])
+		print("%s %s hospital=%s kind=%d district=%d W=%.0f D=%.0f storeys=%d garage=%s lot=%s er_right=%s centre=(%.0f,%.0f) relief=%.2f" % [
+			bi, lay.name, b.get("hospital", false), int(b.kind), int(b.district), lay.W, lay.D, lay.storeys, (lay.garage as Rect2).size.x > 0.0, (lay.lot as Rect2).size.x > 0.0, lay.er_right, c.x, c.y, gy])
 		print("   EYE front %.1f,%.1f,%.1f,%.1f,8" % [front.x, gy + 1.8, front.y, yaw_f])
 		print("   EYE er    %.1f,%.1f,%.1f,%.1f,2" % [er.x, gy + 1.7, er.y, yaw_e])
 		for sc in ["front", "bay", "roof", "aerial"]:
