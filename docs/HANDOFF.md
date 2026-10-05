@@ -7111,13 +7111,19 @@ both ways and compare every other batch, prop and parked car).
 **Cost.** block_shot.tscn GEO, the same three eyes with LA_TREES 0 / 1: Spanish street
 5.14 / 5.20 M tris, 796 / 807 draws; downtown corner 2.41 / 2.49 M, 1,476 / 1,502; suburb
 aerial 2.92 / 2.95 M, 2,407 / 2,429 (+1-3 %; a new species is a batch and its shadow twin, so
-draws rise by a few per block). GEO counts a LOD'd batch once a draw (CLAUDE.md trap 3) on both
+draws rise by a few per block). In the whole city (still_shot.gd GEO, opengl3) on the fig street
+`EYE=2488,2,408,180,5 --hour=11`: 5.58 M tris / 2,907 draws without, 5.51 M / 2,902 with - the
+figs' ladders are cheaper than the scans they replace. GEO counts a LOD'd batch once a draw (CLAUDE.md trap 3) on both
 sides alike. TREE_AB in still_shot.gd does not know these meshes yet: the TRUE per-instance count
 is not measured.
 
 **Stills** (`shots/la-trees` branch): the lineup, the accents, a laurel fig street downtown, under
 the figs, a cypress pair by a Spanish house, eucalyptus along the freeway, a suburb with and
 without.
+
+**The smoke test** takes 15.5 min on the 4-core session box (the checks before these alone reach
+headless_check.sh's 900 s timeout there, with or without this branch); la_trees_checks.gd passes
+when run with a longer timeout.
 
 **Not done / to check.** NEEDS MAC CHECK: leaf tone, gloss and translucency on Forward+ (judged on
 opengl3 only; the fig's sky gloss read blue-grey before its specular came down). The far city's
