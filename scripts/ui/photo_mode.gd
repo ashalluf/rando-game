@@ -154,7 +154,18 @@ func is_open() -> bool:
 ## True when photo mode may open now: not over the pause menu (a paused tree), a camera to
 ## start from, not in the middle of a capture.
 func can_open() -> bool:
-	return not _open and not get_tree().paused and get_viewport().get_camera_3d() != null
+	return not _open and not get_tree().paused and get_viewport().get_camera_3d() != null and not _loading()
+
+
+## True while the loading screen (a CanvasLayer at 128) is up.
+func _loading() -> bool:
+	var scene := get_parent()
+	if scene == null:
+		return false
+	for n in scene.find_children("*", "CanvasLayer", true, false):
+		if (n as CanvasLayer).layer >= 128 and (n as CanvasLayer).visible:
+			return true
+	return false
 
 
 func _input(event: InputEvent) -> void:
@@ -240,7 +251,10 @@ func open() -> void:
 	camera.far = _prev_camera.far
 	camera.cull_mask = _prev_camera.cull_mask
 	camera.environment = _prev_camera.environment
-	var attrs := _prev_camera.attributes.duplicate() as CameraAttributes if _prev_camera.attributes else CameraAttributesPractical.new()
+	# Compatibility has neither auto exposure nor depth of field (setting either only warns).
+	var attrs: CameraAttributes = CameraAttributesPractical.new()
+	if _prev_camera.attributes and dof_supported():
+		attrs = _prev_camera.attributes.duplicate() as CameraAttributes
 	camera.attributes = attrs
 	camera.current = true
 	var e := camera.global_transform.basis.get_euler(EULER_ORDER_YXZ)
@@ -511,7 +525,7 @@ func _apply_focus() -> void:
 	if camera == null:
 		return
 	var attrs := camera.attributes as CameraAttributesPractical
-	if attrs == null:
+	if attrs == null or not dof_supported():
 		return
 	var w := _focus * 0.035 * _fstop
 	attrs.dof_blur_far_enabled = _dof_on

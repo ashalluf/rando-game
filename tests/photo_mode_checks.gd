@@ -74,10 +74,18 @@ func run(t: Node, city: Node3D) -> void:
 	photo.call("set_fstop", 2.0)
 	photo.call("set_exposure", 1.0)
 	var attrs := cam.attributes as CameraAttributesPractical if cam else null
-	_t._check(cam != null and absf(cam.fov - 32.0) < 0.01 and attrs != null and attrs.dof_blur_far_enabled
-		and attrs.dof_blur_near_enabled and attrs.dof_blur_far_distance > 20.0 and attrs.dof_blur_near_distance < 20.0
+	# Depth of field only where the renderer has it (not Compatibility, not the headless check):
+	# elsewhere photo mode leaves the fields alone (setting them only warns).
+	var dof_ok := false
+	if attrs:
+		if bool(photo.call("dof_supported")):
+			dof_ok = attrs.dof_blur_far_enabled and attrs.dof_blur_near_enabled and attrs.dof_blur_far_distance > 20.0 \
+				and attrs.dof_blur_near_distance < 20.0
+		else:
+			dof_ok = not attrs.dof_blur_far_enabled and not attrs.dof_blur_near_enabled
+	_t._check(cam != null and absf(cam.fov - 32.0) < 0.01 and dof_ok
 		and absf(attrs.exposure_multiplier - 2.0) < 0.001 and attrs != cam_before.attributes,
-		"field of view, depth of field round the focus and exposure are set on photo mode's own camera")
+		"field of view, depth of field (where the renderer has it) and exposure are set on photo mode's own camera")
 	photo.call("set_hour", 21.5)
 	photo.call("set_weather", 3)
 	photo.call("set_grade", 5)
