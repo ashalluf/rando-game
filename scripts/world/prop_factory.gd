@@ -2007,6 +2007,8 @@ static func _flat_polygon(key: String, points: PackedVector2Array, color: Color)
 
 
 static func upole() -> Mesh:
+	if UtilityPoles.enabled:
+		return UtilityPoles.shaft_mesh()
 	return cylinder("upole", 0.16, 9.0, Color(0.36, 0.28, 0.2), 0.13, 14)
 
 

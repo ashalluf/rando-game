@@ -514,6 +514,7 @@ func _finish_build() -> void:
 	HouseKit.commit(self)
 	Industrial.commit(self)
 	Parks.commit(self)
+	UtilityPoles.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	var fire_trees := TreeFire.collect(self, _batch)
@@ -2853,6 +2854,7 @@ func _build_house(lot: Dictionary, district: int) -> void:
 	for r: Rect2 in HouseKit.ground_parts(house):
 		_lot_rects.append(r.grow(0.3))
 	HouseKit.build(self, house)
+	UtilityPoles.note_house(self, house)
 	building_count += 1
 	if YardFill.wanted(self, district):
 		_yard_lots.append(HouseKit.yard_entry(lot, house))
