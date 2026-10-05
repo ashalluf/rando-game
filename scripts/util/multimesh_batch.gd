@@ -119,6 +119,12 @@ func build(parent: Node3D) -> Dictionary:
 			if proxy == null:
 				proxy = batch.mesh
 			batch.shadow_distance = reach + _instance_bounds(xforms, batch.mesh).size.length() * 0.5
+		elif proxy == null and not batch.no_shadow and float(batch.get("shadow_distance", 0.0)) > 0.0 and shadow_reach_enabled:
+			# A shadow distance on a batch with no lighter twin (a code-built mesh: the airport's
+			# fences and gate sets, the car parks' posts, the vendors' stands) used to do nothing -
+			# the distance only reaches a twin - so it is a reach: a twin of its own mesh.
+			proxy = batch.mesh
+			batch.shadow_distance = float(batch.shadow_distance) + _instance_bounds(xforms, batch.mesh).size.length() * 0.5
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF if batch.no_shadow or proxy else GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		var draw_distance: float = batch.get("draw_distance", 0.0)
 		_set_draw_distance(node, draw_distance)
