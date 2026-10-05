@@ -12,10 +12,10 @@ extends RefCounted
 ## (the IK, on a real rig's skeleton; the bakes themselves need mesh data, which the headless dummy
 ## renderer does not keep).
 
-var _t: Node
+var _t: Object
 
 
-func run(t: Node, city: Node3D) -> void:
+func run(t: Object, city: Node3D) -> void:
 	_t = t
 	var plan: CityPlan = city.plan
 	_tables()
@@ -71,7 +71,7 @@ func _plan(plan: CityPlan) -> void:
 	var n := (whole.people as Array).size()
 	_t._check(n > 60 and n == (again.people as Array).size() and str(whole.people) == str(again.people),
 		"a beach's people are a pure plan (%d over 300 m of shore at 15:00)" % n)
-	_t._check(absi(n - (a.people as Array).size() - (b.people as Array).size()) <= 6,
+	_t._check(n == (a.people as Array).size() + (b.people as Array).size(),
 		"the plan is world-anchored: two halves of the shore hold the whole's people (%d vs %d + %d)" % [n, (a.people as Array).size(), (b.people as Array).size()])
 	var front := 0
 	var back := 0

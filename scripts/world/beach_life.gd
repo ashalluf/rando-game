@@ -232,15 +232,14 @@ static func sand_y(ch: CityChunk, x: float, z: float) -> float:
 	return lerpf(ch._sand_y(z, CityChunk.SAND_BERM_AT), CityChunk.SAND_HIGH, clampf((d - berm) / maxf(inland - berm, 0.01), 0.0, 1.0))
 
 
-## The court on the stretch z0..z1 (a world cell range), or {}: {centre: Vector2, yaw}.
-static func court_in(plan: CityPlan, z0: float, z1: float) -> Dictionary:
-	# One possible court every 4 cells of shore, decided by the cell, so a court is never split
-	# between two chunks' plans.
-	var first := ceili(z0 / (CELL_Z * 4.0))
-	var last := floori(z1 / (CELL_Z * 4.0))
-	for k in range(first, last + 1):
-		var zc := (float(k) + 0.5) * CELL_Z * 4.0
-		if zc - COURT_SIZE.y * 0.5 - 2.0 < z0 or zc + COURT_SIZE.y * 0.5 + 2.0 > z1:
+## The courts whose centres lie in z0..z1 (world cells of 4 x CELL_Z, each rolled on its own, so a
+## court belongs to exactly one chunk whatever the chunk lines): [{centre: Vector2, yaw, k}].
+static func courts_in(plan: CityPlan, z0: float, z1: float) -> Array:
+	var out: Array = []
+	var span := CELL_Z * 4.0
+	for k in range(floori(z0 / span), floori(z1 / span) + 1):
+		var zc := (float(k) + 0.5) * span
+		if zc < z0 or zc >= z1:
 			continue
 		if _h([plan.seed, "beach_court", k]) >= COURT_ODDS or kept_off(plan, zc):
 			continue
@@ -249,8 +248,14 @@ static func court_in(plan: CityPlan, z0: float, z1: float) -> Dictionary:
 		var x := plan.macro.coast_x(zc) + plan.macro.beach_width_at(zc) * COURT_AT
 		# Turned with the shore, so the long side runs along it.
 		var slope := (plan.macro.coast_x(zc + 2.0) - plan.macro.coast_x(zc - 2.0)) / 4.0
-		return {"centre": Vector2(x, zc), "yaw": atan(slope), "k": k}
-	return {}
+		out.append({"centre": Vector2(x, zc), "yaw": atan(slope), "k": k})
+	return out
+
+
+## The court this stretch builds (the first whose centre is in it), or {}.
+static func court_in(plan: CityPlan, z0: float, z1: float) -> Dictionary:
+	var c := courts_in(plan, z0, z1)
+	return c[0] if not c.is_empty() else {}
 
 
 ## Everything a stretch of beach holds at `hour` (pure): `z0`..`z1` is the stretch of shore in
@@ -266,13 +271,15 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, dens: float, obst
 	out.court = court
 	if dens <= 0.0:
 		return out
+	# Every court near enough to matter, this stretch's or a neighbour's.
+	var courts := courts_in(plan, z0 - COURT_SIZE.y - 10.0, z1 + COURT_SIZE.y + 10.0)
 	var macro: MacroMap = plan.macro
 	var first := ceili(z0 / CELL_Z)
 	var last := floori((z1 - 0.01) / CELL_Z)
 	var group := 0
 	for cell in range(first, last + 1):
 		var zc := (float(cell) + 0.5) * CELL_Z
-		if zc < z0 + 1.5 or zc > z1 - 1.5 or kept_off(plan, zc, true):
+		if zc < z0 or zc >= z1 or kept_off(plan, zc, true):
 			continue
 		var cx := macro.coast_x(zc)
 		var w := macro.beach_width_at(zc)
@@ -292,7 +299,10 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, dens: float, obst
 			var centre := Vector2(cx + w * a, zc) + land * jit.x * 2.5 + along * jit.y * 2.0
 			var n := 1 + int(_h([hb, 3]) > 0.35) + int(_h([hb, 4]) > 0.62) + int(_h([hb, 5]) > 0.86)
 			var span := float(n) * 1.15
-			if not court.is_empty() and _near_court(court, centre, span * 0.5 + COURT_CLEAR):
+			var on_court := false
+			for c: Dictionary in courts:
+				on_court = on_court or _near_court(c, centre, span * 0.5 + COURT_CLEAR)
+			if on_court:
 				continue
 			if not _clear_of(obstacles, centre, span * 0.5 + 1.2):
 				continue
@@ -764,12 +774,34 @@ static func _cooler(st: SurfaceTool) -> void:
 		StreetClutter._bbox(st, Transform3D(Basis(), Vector3(sx, 0.27, 0.0)), Vector3(0.04, 0.03, 0.18), 0.008, Color(0.2, 0.2, 0.22, A_PLAIN), rm)
 
 
-## A beach tote slumped on the sand, a rolled towel sticking out of it.
+## A canvas beach tote standing on the sand, sagging at the top, its two handles, a rolled towel
+## sticking out of it.
 static func _bag(st: SurfaceTool) -> void:
 	var cloth := Color(1.0, 1.0, 1.0, A_PAINT)
-	StreetVendors._ellipsoid(st, Vector3(0.0, 0.13, 0.0), Vector3(0.24, 0.15, 0.12), Basis(Vector3.FORWARD, 0.15), cloth, Vector2(0.9, 0.0), 8, 4)
-	StreetClutter._tube(st, [Vector3(-0.12, 0.22, 0.0), Vector3(-0.05, 0.36, 0.0), Vector3(0.05, 0.36, 0.0), Vector3(0.12, 0.22, 0.0)], 0.012, 4, Color(0.3, 0.22, 0.15, A_PLAIN), Vector2(0.8, 0.0))
-	StreetVendors._ellipsoid(st, Vector3(0.05, 0.27, 0.02), Vector3(0.06, 0.1, 0.06), Basis(Vector3.FORWARD, -0.4), Color(0.95, 0.94, 0.9, A_PLAIN), Vector2(0.95, 0.0), 6, 3)
+	var rm := Vector2(0.9, 0.0)
+	# Wider at the mouth than the base, the long sides bowing a little.
+	var base_w := Vector2(0.17, 0.07)
+	var top_w := Vector2(0.22, 0.09)
+	var h := 0.32
+	var ring_lo: Array = []
+	var ring_hi: Array = []
+	for k in 8:
+		var a := TAU * float(k) / 8.0 + PI / 8.0
+		var d := Vector2(cos(a), sin(a))
+		d = d / maxf(absf(d.x), absf(d.y))
+		ring_lo.append(Vector3(d.x * base_w.x, 0.0, d.y * base_w.y))
+		ring_hi.append(Vector3(d.x * top_w.x, h - 0.03 * absf(d.x), d.y * top_w.y * 0.8))
+	for k in 8:
+		var a: Vector3 = ring_lo[k]
+		var b: Vector3 = ring_lo[(k + 1) % 8]
+		var c: Vector3 = ring_hi[(k + 1) % 8]
+		var d: Vector3 = ring_hi[k]
+		var out := ((a + b + c + d) * 0.25 * Vector3(1.0, 0.0, 1.0)).normalized()
+		StreetClutter._quad(st, a, b, c, d, out, cloth, rm)
+		StreetClutter._quad(st, a, b, c, d, -out, cloth, rm)
+	for sx: float in [-1.0, 1.0]:
+		StreetClutter._tube(st, [Vector3(-0.12, h - 0.03, sx * 0.07), Vector3(-0.06, h + 0.16, sx * 0.07), Vector3(0.06, h + 0.16, sx * 0.07), Vector3(0.12, h - 0.03, sx * 0.07)], 0.009, 4, Color(0.3, 0.22, 0.15, A_PLAIN), Vector2(0.8, 0.0))
+	StreetVendors._ellipsoid(st, Vector3(0.06, h + 0.02, 0.0), Vector3(0.07, 0.12, 0.06), Basis(Vector3.FORWARD, -0.35), Color(0.95, 0.94, 0.9, A_PLAIN), Vector2(0.95, 0.0), 6, 3)
 
 
 ## A board lying on its deck's outline: `length` along x, rounded nose, a pulled-in tail, a

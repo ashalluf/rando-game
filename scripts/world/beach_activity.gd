@@ -19,6 +19,10 @@ extends Node3D
 ## How far from the shot or blast sunbathers hear it (m).
 @export var scatter_reach: float = 85.0
 
+## Stills: BEACH_STAGE=z in the environment gathers the chunk's riders on the path round that z
+## and its surfers in the water off it, one of them riding a wave in.
+static var stage_z: float = float(OS.get_environment("BEACH_STAGE")) if OS.get_environment("BEACH_STAGE") != "" else INF
+
 var chunk: CityChunk
 var z0: float = 0.0
 var z1: float = 0.0
@@ -113,6 +117,19 @@ func _build_water() -> void:
 			"z_home": z, "yaw": PI * 0.5, "phase": _h(["surf_ph", i]) * TAU, "state": "sit",
 			"t": lerpf(4.0, 30.0, _h(["surf_wait", i])), "rides": rides, "meshes": {"sit": sit, "paddle": paddle, "ride": ride},
 			"dir_z": 1.0 if _h(["surf_dir", i]) < 0.5 else -1.0})
+	if stage_z >= z0 and stage_z < z1:
+		var k := 0
+		for w: Dictionary in _water:
+			if String(w.kind) != "surf":
+				continue
+			w.z = stage_z - 6.0 + float(k) * 9.0
+			w.z_home = w.z
+			if k == 0 and (w.meshes as Dictionary).ride != null:
+				w.state = "ride"
+				w.s = brk * 0.75
+				w.yaw = atan2(-float(w.dir_z) * 0.7, 0.85)
+				((w.node as Node3D).get_child(0) as MeshInstance3D).mesh = (w.meshes as Dictionary).ride
+			k += 1
 	for w: Dictionary in _water:
 		_place_water(w)
 
@@ -260,6 +277,8 @@ func _build_riders() -> void:
 		r.z_lo = lo
 		r.z_hi = hi
 		r.z = lerpf(lo, hi, _h(["ride_z", i]))
+		if stage_z >= z0 and stage_z < z1:
+			r.z = stage_z + 10.0 + float(i) * 7.0
 		chunk.add_child(r)
 		_riders.append(r)
 
@@ -431,12 +450,14 @@ func _physics_process(dt: float) -> void:
 		var zc := (z0 + z1) * 0.5
 		var pc := chunk.to_local(player.global_position)
 		near = Vector2(pc.x - plan_ref.macro.coast_x(zc), pc.z - zc).length() < active_range
+	# A staged still (BEACH_STAGE) holds the riders and the surfers where they were put.
+	var staged := stage_z >= z0 and stage_z < z1
 	for r in _riders:
 		if is_instance_valid(r):
-			r.advance(dt)
+			r.advance(0.0 if staged else dt)
 	if near:
 		for w: Dictionary in _water:
-			if String(w.kind) == "surf":
+			if String(w.kind) == "surf" and not staged:
 				_surf_tick(w, dt)
 			_place_water(w)
 		_volley_tick(dt)

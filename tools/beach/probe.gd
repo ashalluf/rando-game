@@ -33,6 +33,9 @@ func _initialize() -> void:
 			court = " court=%.1f,%.1f" % [(s.court.centre as Vector2).x, (s.court.centre as Vector2).y]
 		print("Z %.0f coast=%.1f width=%.1f path=%.1f people=%d props=%d kept=%s%s EYE=%.1f,1.7,%.1f,180,-6" % [
 			z, cx, w, bl.call("path_x", plan, z), ppl, (s.props as Array).size(), kept, court, cx + w * 0.62, z - 30.0])
+		if OS.get_environment("PEOPLE") == "1":
+			for q: Dictionary in s.people:
+				print("  PERSON %s at=%.1f,%.1f key=%s pose=%d model=%d group=%d" % [str(q.group), q.at.x, q.at.y, q.key, q.pose, q.model, q.group])
 		z += step
 	print("TOTAL people ", total)
 	quit()

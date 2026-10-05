@@ -102,8 +102,12 @@ void fragment() {
 		vec2 d = min(g, 1.0 - g);
 		float px = max(fwidth(UV.x), fwidth(UV.y)) / 0.1;
 		float cord = 1.0 - smoothstep(0.06, 0.06 + px * 1.5, min(d.x, d.y));
-		float keep = mix(cord, 0.35, smoothstep(0.08, 0.3, px));
-		if (keep < 0.5 && px < 0.3) {
+		// Past a few pixels a square the cords' share of the net (about a fifth) is kept as a
+		// dither, which the eye (and TAA) averages: a solid band read as a black bar.
+		float keep = mix(cord, 0.22, smoothstep(0.08, 0.3, px));
+		vec2 fc = floor(FRAGCOORD.xy);
+		float dither = fract(dot(fc, vec2(0.7548777, 0.5698403)) + 0.5 * fract(fc.x * 0.5));
+		if (keep < mix(0.5, dither, smoothstep(0.08, 0.3, px))) {
 			discard;
 		}
 		rough = 0.9;
