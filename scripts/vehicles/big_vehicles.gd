@@ -90,7 +90,7 @@ static var _letter_mat: Dictionary = {}
 
 static func is_big(type: int) -> bool:
 	return type == BUS or type == BOX_TRUCK or type == SEMI or type == Vehicle.BodyType.FIRE_ENGINE \
-			or type == Vehicle.BodyType.AMBULANCE or type == Vehicle.BodyType.SCHOOL_BUS
+			or type == Vehicle.BodyType.AMBULANCE or type == Vehicle.BodyType.SCHOOL_BUS \
 			or ServiceVehicles.is_service(type)
 
 

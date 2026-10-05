@@ -212,8 +212,8 @@ func _survey_bins() -> void:
 	var b := plan.block_index_at(p + Vector2(bin_radius, bin_radius))
 	var fresh := 0
 	var out_cache := {}
-	for bz in range(a.y - 1, b.y + 1):
-		for bx in range(a.x - 1, b.x + 1):
+	for bz in range(a.y - 1, b.y + 2):
+		for bx in range(a.x - 1, b.x + 2):
 			if not KerbBins._block_cache.has(Vector2i(bx, bz)) or KerbBins._cache_seed != plan.seed:
 				if fresh >= blocks_per_survey:
 					continue
@@ -226,9 +226,8 @@ func _survey_bins() -> void:
 					continue
 				if KerbBins.cart_pos(plan, st, 1).distance_to(p) <= bin_radius:
 					sets.append(st)
-	if fresh > 0 or sets.size() != _sets.size():
-		_bins_dirty = true
 	_sets = sets
+	# Redrawn every look: the carts' scene transforms move with every origin shift.
 	_bins_dirty = true
 
 
