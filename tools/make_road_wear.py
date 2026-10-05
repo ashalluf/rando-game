@@ -233,6 +233,13 @@ def voronoi(rng, n, warp=0.0, aspect=1.0, jitter=1.0, seeds=None):
     idx = np.argsort(d, axis=0)
     f1 = np.take_along_axis(d, idx[0:1], 0)[0]
     f2 = np.take_along_axis(d, idx[1:2], 0)[0]
+    # The true distance to the cell edge (the bisector of the two nearest seeds), not F2 - F1,
+    # which widens into dark wedges wherever three cells meet.
+    s1 = seeds[idx[0]]
+    s2 = seeds[idx[1]]
+    gap = np.hypot((s1[..., 0] - s2[..., 0]) * aspect, s1[..., 1] - s2[..., 1])
+    edge = (f2 * f2 - f1 * f1) / np.maximum(2.0 * gap, 1e-5)
+    voronoi.edge = edge
     return f1, f2, idx[0], seeds
 
 
@@ -359,7 +366,7 @@ def pothole(name, w, depth, rng, kind):
         # Filled by a crew with loose gravel and cold patch, a little proud of the floor.
         fill = smoothstep(0.95, 0.75, t)
         g = lin_color("GravelConcrete03", w, w, GRAVEL_TILE * 0.9, (rng.random(), rng.random()))
-        g = (g * 0.5 + g.mean(-1, keepdims=True) * 0.5) * (0.55 + 0.35 * fbm((S, S), 9, rng)[..., None])
+        g = (g * 0.5 + g.mean(-1, keepdims=True) * 0.5) * (0.35 + 0.25 * fbm((S, S), 9, rng)[..., None])
         cp, cph, _ = asphalt(w, w, rng, 0.45)
         cold = smoothstep(0.45, 0.6, fbm((S, S), 5, rng))[..., None]
         fillc = g * (1 - cold) + cp * cold
@@ -428,9 +435,9 @@ def pothole_cluster(rng):
 def alligator(rng):
     st = Stamp("alligator", 2.5, 3.5, 0.015)
     f1, f2, idx, seeds = voronoi(rng, 150, warp=0.025, aspect=2.5 / 3.5)
-    edge = f2 - f1
-    width = 0.0018 + 0.0028 * fbm((S, S), 8, rng) ** 2 * 2.0
-    line = smoothstep(width * 1.6, width * 0.5, edge)
+    edge = voronoi.edge
+    width = 0.0012 + 0.0022 * fbm((S, S), 14, rng) ** 2 * 2.0
+    line = smoothstep(width * 1.4, width * 0.4, edge) * (0.55 + 0.45 * smoothstep(0.3, 0.6, fbm((S, S), 24, rng)))
     # The patch it covers: an oval where the wheels ran, ragged.
     u, v = grid()
     blob = np.hypot((u - 0.5) / 0.42, (v - 0.5) / 0.46) + (fbm((S, S), 4, rng) - 0.5) * 0.6
@@ -514,9 +521,9 @@ def tar_snake(rng, name="tar_snake", w=1.0, h=6.0, network=False):
     st = Stamp(name, w, h, 0.0)
     if network:
         f1, f2, idx, seeds = voronoi(rng, 9, warp=0.04)
-        edge = f2 - f1
+        edge = voronoi.edge
         cov_crack = smoothstep(0.012, 0.004, edge)
-        band = smoothstep(0.012, 0.007, edge + (fbm((S, S), 16, rng) - 0.5) * 0.006)
+        band = smoothstep(0.011, 0.0065, edge + (fbm((S, S), 16, rng) - 0.5) * 0.008 + (fbm((S, S), 40, rng) - 0.5) * 0.004)
         rank = rng.random(len(seeds))
         st.order = np.clip(0.3 + 0.7 * rank[idx] * 0.6 + 0.4 * (1 - f1 * 3), 0.02, 1).astype(np.float32)
     else:
@@ -796,11 +803,11 @@ def paint_ghost(rng):
     scar = smoothstep(scar_w * 0.5 + 0.01, scar_w * 0.5 - 0.01, across) * smoothstep(0.0, 0.05, v) * smoothstep(1.0, 0.95, v)
     paint = smoothstep(line_w * 0.5 + 0.005, line_w * 0.5 - 0.005, across) * dashes * scar
     n = fbm((S, S), 30, rng)
-    left = paint * smoothstep(0.55, 0.9, n + value_noise((S, S), 80, rng) * 0.3) * 0.8
+    left = paint * smoothstep(0.6, 0.95, n + value_noise((S, S), 80, rng) * 0.3) * 0.6
     score = 0.5 + 0.5 * np.sin(v * 4.0 / 0.012)
     a_col, ah, ar = asphalt(0.6, 4.0, rng, 1.0)
     scar_col = a_col * (0.8 + 0.25 * score[..., None]) * 0.85
-    white = np.array([0.32, 0.32, 0.3]) if rng.random() < 0.6 else np.array([0.32, 0.25, 0.06])
+    white = np.array([0.22, 0.22, 0.21]) if rng.random() < 0.6 else np.array([0.22, 0.17, 0.05])
     st.albedo = (scar_col * (1 - left[..., None]) + white * left[..., None]).astype(np.float32)
     st.cover = np.clip(scar * 0.75 + left * 0.25, 0, 1)
     st.height = -0.002 * scar + 0.0005 * score * scar
@@ -815,7 +822,7 @@ def bleeding(rng):
     centre = 0.5 + 0.04 * np.sin(v * 5 + rng.random() * 6)
     prof = np.exp(-((u - centre) / 0.22) ** 2)
     n = fbm((S, S), 8, rng)
-    k = smoothstep(0.52, 0.58, n * 0.7 + prof * 0.45) * smoothstep(0.0, 0.1, v) * smoothstep(1.0, 0.9, v)
+    k = smoothstep(0.62, 0.68, n * 0.55 + prof * 0.5) * smoothstep(0.0, 0.1, v) * smoothstep(1.0, 0.9, v)
     st.albedo = np.full((S, S, 3), 0.014, np.float32) + (n * 0.006)[..., None]
     st.cover = np.clip(k, 0, 1)
     st.height = 0.0006 * k

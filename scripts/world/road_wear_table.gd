@@ -21,7 +21,7 @@ const STAMPS := [
 	["pothole_gravel", Vector2(1.10, 1.10), 0.030, 1],
 	["pothole_water", Vector2(1.60, 1.60), 0.090, 9],
 	["pothole_cluster", Vector2(2.40, 2.40), 0.060, 9],
-	["alligator", Vector2(2.50, 3.50), 0.030, 10],
+	["alligator", Vector2(2.50, 3.50), 0.026, 10],
 	["block_crack", Vector2(6.00, 6.00), 0.012, 0],
 	["crack_long", Vector2(0.80, 6.00), 0.015, 2],
 	["crack_trans", Vector2(3.50, 0.80), 0.015, 2],
