@@ -1361,6 +1361,7 @@ func _test_city() -> void:
 	var avatar: Node = player.get_node_or_null("Visual/Avatar")
 	_check(avatar != null and avatar.find_child("AnimationPlayer", true, false) != null and not player.get_node("Visual/Body").visible, "the player wears the animated character, capsule hidden")
 	_check_hero(avatar)
+	await load("res://tests/hero_moves_checks.gd").new().run(self, player)
 	_check_crowd_rigs()
 	var traffic_node: Node3D = city.get_node("Traffic")
 	var moving: int = traffic_node.cars.size()

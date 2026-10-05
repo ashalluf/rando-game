@@ -127,6 +127,10 @@ func _ready() -> void:
 	health = PlayerHealth.new()
 	health.name = "Health"
 	add_child(health)
+	# The hero flinches away from each round (Avatar.hit_from).
+	health.hit_taken.connect(func(amount: float, from: Vector3) -> void:
+		if avatar:
+			avatar.hit_from(from, amount))
 
 
 func _physics_process(delta: float) -> void:
@@ -177,7 +181,7 @@ func _physics_process(delta: float) -> void:
 	_track_jump_peak(on_floor, is_on_floor())
 	_update_visual(delta, move_dir)
 	if avatar:
-		avatar.drive(delta, horizontal_speed(), is_on_floor(), velocity.y, _boosting)
+		avatar.drive(delta, horizontal_speed(), is_on_floor(), velocity.y, _boosting, velocity)
 		var gun: Weapon = weapon_manager.current if weapon_manager and weapon_manager.visible else null
 		avatar.hold_gun(gun, _aim_timer > 0.0 or (lock_on != null and lock_on.aiming), delta)
 	_boost_fx.drive(_boosting, velocity, boost_max_speed)
@@ -186,6 +190,8 @@ func _physics_process(delta: float) -> void:
 	elif not _boosting and _boost_sound.playing:
 		_boost_sound.stop()
 	if is_on_floor() and not on_floor:
+		if avatar:
+			avatar.landed(fall_speed, horizontal_speed())
 		if fall_speed >= LandingFX.dust_speed:
 			LandingFX.land(self, global_position, get_floor_normal(), fall_speed)
 		elif velocity.length() > 1.0:
@@ -508,10 +514,14 @@ func _handle_jump(on_floor: bool) -> void:
 	if _jump_buffer_timer > 0.0:
 		if on_floor or _coyote_timer > 0.0:
 			_do_jump(jump_velocity())
+			if avatar:
+				avatar.jumped(false)
 		elif unlimited_air_jumps or air_jumps_left > 0:
 			if not unlimited_air_jumps:
 				air_jumps_left -= 1
 			_do_jump(double_jump_velocity())
+			if avatar:
+				avatar.jumped(true)
 	# Variable jump height: let go early to cut the jump short.
 	if Input.is_action_just_released("jump") and velocity.y > 0.0 and not _boosting:
 		velocity.y *= jump_cut_multiplier

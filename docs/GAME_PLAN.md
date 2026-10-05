@@ -289,6 +289,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The hero moves like a protagonist (VISUAL_ROADMAP #61, HANDOFF 9b?).** He had
+  three clips (idle, walk, run) and a frozen stride in the air. Now: the moves library
+  (`tools/hero/hero_clips.gd` retargets Quaternius' CC0 Universal Animation Library onto his
+  54-bone rig in Godot - the take-off, the air, the landing, the hero landing, the roll, the
+  sprint - and KEYS four idle variants over the library's idle, because the free files have none)
+  and `HeroMotion`, a procedural layer first in his skeleton's modifier stack (the flight and fall
+  poses, the hit flinch as a spring, foot IK). Decisions: the gun stays in his right hand through
+  every move (there is no holster mesh; the "draw" brings the new gun up from the hip), and the
+  LEFT arm got its own IK so a move can take it off the gun (the watch, the stretch, flight,
+  falling, rolling); a raised gun (aiming or firing) always wins over a move. Flight lays the
+  whole body along the velocity about the hips and banks it into turns; the right fist - the gun
+  - goes out ahead of the head. Landings follow LandingFX's scale: from 30 m/s the knees take it,
+  from 60 m/s the hero landing, and a hard landing at a run rolls. The police officers'
+  Avatars (crowd rigs) keep the old three clips.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
