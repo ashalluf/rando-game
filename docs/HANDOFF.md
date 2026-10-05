@@ -75,6 +75,29 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
   - The crowd-cap trim skips walkers marked `no_trim` (the loading screen's rehearsal, the dog
     check), which it freed under them a frame after they were placed.
 
+- **Batch 6 is on `main`** (16:45): batch 5 + fwd-review-a's follow-up, utility-poles, churches,
+  police-night, ref-cameras, color-grade, street-life-2 (street errands), road-wear (the owner's
+  "25 wear stamps into thousands"), estate-night (rebuilt on HillHomeKit's plan), chinatown,
+  historic-core and film-studio. Gate: 2,282 passed in 3 shards; the one failure, "the far city
+  keeps its tiles for the load cache", was another worktree's run evicting the shared
+  user://load_cache entry (two kept per kind), and passes alone. **Never run two worktrees'
+  smoke tests at once when one of them is the gate**: user:// is the project's, not the
+  checkout's. Fixes that came with it:
+  - Lamps that start hidden must carry DayNight's `dark_hidden` meta, or DayNight's lamp tick
+    (which only re-shows what it hid) never lights them: police stations, the film studio and the
+    civic buildings (on main since batch 5) were dark all night.
+  - TrafficAI's pull-out search skips freed cars in a chunk's list (a script error).
+  - `road_wear_nrm.png` is slope + AO (not a GL normal map): renamed `road_wear_slope.png`, so the
+    texture census does not ask for normal-map compression, which would drop the AO.
+  - Tests: worship counts indexed triangles (MeshCompact); the live grade check runs on a clear
+    day; the station lights check refreshes the lamp tick; the sky check flies a mid-track jet
+    (main's CI 351 failed on a jet being replaced at the end of its track).
+  - historic-core's handoff section was renumbered 9eo (two branches were both given 9em), and
+    `tools/fleet/merge_branch.py` now skips ids already in use.
+- **Queued (batch 7):** olvera, shop-vinyl, roadside (each green on its own). street-signs is
+  renaming its `SignKit` (collides with BoulevardSigns') and dropping its duplicate kerb plates;
+  street-lamps is merging the paramedic fix; apartments (walk-ups read as flat boxes) and
+  tower-gondolas (share towers with Rooftops' window-washing rig) wait.
 - **Usage limit, 12:42-13:09:** 20 sessions stopped on the account's five-hour limit with the
   seven-day one at a warning; the lead resumed the eight nearest done (road-wear, olvera,
   shop-vinyl, historic-core, roadside, film-studio, chinatown, street-lamps) and left the rest.
