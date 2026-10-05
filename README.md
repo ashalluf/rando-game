@@ -1,0 +1,19 @@
+# Chinatown stills (wt/chinatown)
+
+First batch, 2026-10-05. opengl3 (Compatibility) via tools/glshot/block_shot.tscn: only the
+FULL blocks round each eye are built (no far city, no traffic), NIGHT=1 is block_shot's crude
+night (lamp globals on, no DayNight). Not Forward+.
+
+| file | what |
+|---|---|
+| 01_before_broadway_north_of_cesar_chavez_noon.jpg | N Broadway north of Cesar Chavez before (CHINATOWN=0), EYE=2994,1.7,-1755,0,14 |
+| 02_after_broadway_gate_noon.jpg | the same eye after: the gate, lantern strings, tiled-roof shop rows (tents here were turned off afterwards) |
+| 03_after_broadway_gate_night.jpg | the same at night: lanterns lit, shops lit, light pools |
+| 04_before_plaza_block_aerial.jpg | the Hill-Broadway block before, EYE=2950,55,-2050,10,-35 |
+| 05_after_plaza_aerial_noon.jpg | the plaza: pagoda-roofed hall, shop rows round the court, two gates, pond, lantern masts |
+| 06_after_plaza_hall_from_walk_noon.jpg | the hall from the walk (before the court's side rows were added) |
+| 07_after_plaza_hall_night.jpg | the hall at night |
+| 08_before_district_aerial.jpg | the district's south blocks before, EYE=2940,55,-1850,10,-32 |
+| 09_after_district_aerial_noon.jpg | after |
+| 10_after_plaza_aerial_night.jpg | the plaza from the air at night |
+| 11_after_side_street_noon.jpg | a shop's side and blade sign from a side street |
