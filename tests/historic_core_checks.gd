@@ -97,6 +97,7 @@ func _full_block(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 	var ornate := 0
 	var lamps := 0
 	var ledges := 0
+	var lit_bases := 0
 	var why := ""
 	for b: Building in hist:
 		var spec: Dictionary = b.get_meta("historic")
@@ -128,10 +129,13 @@ func _full_block(city: Node3D, plan: CityPlan, k: Vector2i) -> void:
 					lamps += 1
 			ornate += 1
 		ok = ok and mats
+		var pools := node.get_node_or_null("HistoricPools") as MultiMeshInstance3D
+		if pools != null and pools.multimesh.instance_count >= 1:
+			lit_bases += 1
 		if b.get_node_or_null("HistoricLedge") != null:
 			ledges += 1
-	_t._check(ok and ornate == hist.size() and ledges == hist.size() and lamps >= 1 and tris > 2000 * hist.size(),
-		"block %s: %d beaux-arts buildings, each a slab with its ornament (%d triangles), ledges, %d lit entrances %s" % [k, hist.size(), tris, lamps, why])
+	_t._check(ok and ornate == hist.size() and ledges == hist.size() and lamps >= 1 and lit_bases >= 1 and tris > 2000 * hist.size(),
+		"block %s: %d beaux-arts buildings, each a slab with its ornament (%d triangles), ledges, %d lit entrances, %d with pools of light %s" % [k, hist.size(), tris, lamps, lit_bases, why])
 	print("HISTORIC longest ornament build step %.1f ms" % (float(HistoricCore.max_step_us) / 1000.0))
 	# Off: the rest of the block is where it was.
 	var sig := _signature(chunk)

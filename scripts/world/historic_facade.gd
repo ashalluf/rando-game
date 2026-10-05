@@ -109,7 +109,7 @@ static func jobs(b: Building, spec: Dictionary, streets: Array[Vector3], main_n:
 	var L := layout(b, {})
 	if L.is_empty():
 		return out
-	var st := {"main": LandmarkGeo.new(), "fine": LandmarkGeo.new(), "lamps": [], "layout": L}
+	var st := {"main": LandmarkGeo.new(), "fine": LandmarkGeo.new(), "lamps": [], "pools": [], "layout": L}
 	_use(st.main, spec)
 	_use(st.fine, spec)
 	# Each face in four phases (base, order, entablature, attic and entrance), so no build step
@@ -136,7 +136,7 @@ static func _use(g: LandmarkGeo, spec: Dictionary) -> void:
 	var p: int = spec.palette
 	var tint: Color = (HistoricCore.TERRACOTTA[p] as Color).lightened(0.05)
 	var common := {"tint": tint, "roughness": 0.5, "texture_contrast": 0.35, "grime": 0.35, "seed": float(p) * 3.0,
-		"flood_strength": 0.55, "flood_base_y": 0.3, "flood_reach": 9.0, "flood_floor": 0.04, "flood_spacing": 3.0}
+		"flood_strength": 0.8, "flood_base_y": 0.3, "flood_reach": 11.0, "flood_floor": 0.04, "flood_spacing": 3.0}
 	g.use("stone", LandmarkMats.facade("hc_stone_%d" % p, "plaster_white", 2.5, common))
 	var flute := common.duplicate()
 	flute.merge({"joint_spacing": Vector2(0.16, 0.0), "joint_width": 0.05, "joint_dark": 0.32}, true)
@@ -351,6 +351,14 @@ static func _face_job(b: Building, spec: Dictionary, L: Dictionary, n: Vector3, 
 	# --- The entrance ---------------------------------------------------------------------
 	if main and sf > 3.0:
 		_entrance(st, f, L, spec, cols, p)
+	# --- Wall lanterns along the base, over the shop signs, every few bays -----------------
+	if sf > 3.0:
+		var ci := cols / 2
+		var every := 3 if p >= 2.3 else 4
+		for k in range(every, cols, every):
+			if main and (k == ci or k == ci + 1):
+				continue
+			_sconce(st, f, u_lo + float(k) * p, sf + 0.42)
 	# Collision: the cornice is a ledge to stand on.
 	var depth := 1.28 * cs
 	var body := CollisionShape3D.new()
@@ -781,7 +789,7 @@ static func _entrance(st: Dictionary, f: Dictionary, L: Dictionary, spec: Dictio
 		_slab(fine, "bronze", f, lu - 0.22, lu + 0.22, ly + 0.42, ly + 0.48, lo - 0.22, lo + 0.22)
 		_slab(fine, "bronze", f, lu - 0.08, lu + 0.08, ly + 0.48, ly + 0.58, lo - 0.08, lo + 0.08)
 		(st.lamps as Array).append(_p(f, lu, ly + 0.2, lo + 0.4))
-	st.pool = [_p(f, uc, 0.05, 2.6), f.n, p + 4.0]
+	(st.pools as Array).append([_p(f, uc, 0.05, 2.6), f.n, p + 4.0, 5.0])
 
 
 ## An engaged column standing off the wall: a half cylinder whose axis is `o` out of the wall.
@@ -798,6 +806,21 @@ static func _half_column_at(g: LandmarkGeo, f: Dictionary, u: float, r: float, y
 		var c1 := _p(f, u, y1, o)
 		g.quad_n("stone", c0 + d0 * r, c1 + d0 * r * 0.92, c1 + d1 * r * 0.92, c0 + d1 * r, d0, d0, d1, d1,
 			Vector2(t0 * r, y0), Vector2(t0 * r, y1), Vector2(t1 * r, y1), Vector2(t1 * r, y0))
+
+
+## A bronze wall lantern on a scroll bracket at (u, y) on the wall: a backplate, the arm, the
+## glowing glass box (historic_lamp) in a bronze frame with a cap; a pool of light under it.
+static func _sconce(st: Dictionary, f: Dictionary, u: float, y: float) -> void:
+	var g: LandmarkGeo = st.fine
+	_slab(g, "bronze", f, u - 0.07, u + 0.07, y - 0.05, y + 0.32, -0.02, 0.03)
+	_slab(g, "bronze", f, u - 0.02, u + 0.02, y + 0.24, y + 0.28, 0.02, 0.30)
+	_slab(g, "bronze", f, u - 0.12, u + 0.12, y - 0.04, y, 0.18, 0.42)
+	_slab(g, "lamp", f, u - 0.10, u + 0.10, y, y + 0.3, 0.20, 0.40, false)
+	for cu: float in [-0.105, 0.105]:
+		_slab(g, "bronze", f, u + cu - 0.012, u + cu + 0.012, y, y + 0.3, 0.405, 0.425)
+	_slab(g, "bronze", f, u - 0.13, u + 0.13, y + 0.3, y + 0.35, 0.17, 0.43)
+	_slab(g, "bronze", f, u - 0.05, u + 0.05, y + 0.35, y + 0.42, 0.25, 0.35)
+	(st.pools as Array).append([_p(f, u, 0.04, 1.6), f.n, 4.5, 3.6])
 
 
 ## Bronze letters on the wall, centred at (u, y), `o` out of it, `h` their em, at most `fit` wide.
@@ -856,16 +879,26 @@ static func _commit(b: Building, st: Dictionary, part: int) -> void:
 		light.distance_fade_length = 20.0
 		light.add_to_group("lamp_light")
 		node.add_child(light)
-	if st.has("pool"):
-		var pl: Array = st.pool
-		var pool := MeshInstance3D.new()
-		pool.name = "EntrancePool"
-		pool.mesh = PropFactory.light_pool(LAMP_COLOR, 1.1, 1.8)
+	# The pools of light on the pavement (the entrance's and every wall lantern's): one
+	# shadowless MultiMesh a building, after dark only (light_pool reads lamp_factor).
+	var pools: Array = st.pools
+	if not pools.is_empty():
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
+		mm.mesh = PropFactory.light_pool(LAMP_COLOR, 1.1, 1.8)
+		mm.instance_count = pools.size()
+		for i in pools.size():
+			var pl: Array = pools[i]
+			var n: Vector3 = pl[1]
+			var xf := Transform3D(Basis(Vector3.UP, atan2(n.x, n.z)) * Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(float(pl[2]), 1.0, float(pl[3]))), pl[0])
+			mm.set_instance_transform(i, xf)
+			mm.set_instance_color(i, Color(1.0, 1.0, 1.0, 1.0))
+		var pool := MultiMeshInstance3D.new()
+		pool.name = "HistoricPools"
+		pool.multimesh = mm
 		pool.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var n: Vector3 = pl[1]
-		var d: float = pl[2]
-		pool.transform = Transform3D(Basis(Vector3.UP, atan2(n.x, n.z)) * Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(d, 1.0, 5.0)), pl[0])
-		pool.visibility_range_end = 120.0
+		pool.visibility_range_end = 140.0
 		node.add_child(pool)
 
 
