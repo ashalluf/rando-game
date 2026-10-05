@@ -384,6 +384,10 @@ func block(ix: int, iz: int) -> Dictionary:
 	if not site.is_empty():
 		result["site"] = site.id
 	_blocks[key] = result
+	# Public schools (Schools): from a hash of the seed and a map cell, AFTER every roll above, on
+	# blocks nobody else has claimed. A school block is SCHOOL with grounds "school_e" / "school_h".
+	if macro and Schools.enabled:
+		Schools.apply(self, result)
 	return result
 
 
@@ -483,6 +487,9 @@ func site_at_block(ix: int, iz: int) -> Dictionary:
 func road_open(axis: int, index: int, along: float) -> bool:
 	# A street the river crosses without a bridge ends at its bank (LaRiver.road_open()).
 	if macro and macro.river and not macro.river.road_open(self, axis, index, along):
+		return false
+	# A street between a high school's blocks is closed (Schools: the campus covers it).
+	if macro and Schools.enabled and Schools.road_closed(self, axis, index, along):
 		return false
 	for s: Dictionary in sites():
 		if axis == AXIS_X:

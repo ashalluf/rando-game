@@ -180,6 +180,9 @@ func _street_kind(axis: int, index: int, at: Vector2) -> int:
 	var roll := _rng.randf()
 	if BigVehicles.route_of(plan, axis, index) != 0 and roll < BigVehicles.BUS_SHARE_ON_ROUTE:
 		return BigVehicles.BUS
+	# A school bus near a school at the bell (Schools; the roll above, reused, spends no roll).
+	if Schools.traffic_bus(plan, at, fposmod(roll * 7.31, 1.0), Schools.hour_now(self)):
+		return Vehicle.BodyType.SCHOOL_BUS
 	roll = _rng.randf()
 	var k := 3.0 if plan.district_at(at) == CityPlan.District.INDUSTRIAL else 1.0
 	if roll < BigVehicles.STREET_SEMI_SHARE * k:

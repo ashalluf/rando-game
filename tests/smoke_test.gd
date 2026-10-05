@@ -1789,6 +1789,9 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# Public schools (tests/schools_checks.gd): placement, pure plans, the closed street, one school
+	# mesh a chunk, partitioned far slabs, the school bus parked and at the bell.
+	await load("res://tests/schools_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
