@@ -527,7 +527,7 @@ func _tick_wheels(car: Vehicle, wet: float, smoke: Array, dust: Array, screech: 
 		else:
 			var dk := clampf((rolling + slip - dust_speed) / maxf(dust_full_speed - dust_speed, 0.1), 0.0, 1.0)
 			if dk > 0.0:
-				var col := Color(0.86, 0.78, 0.62, 0.8) if surface == Surface.SAND else Color(0.6, 0.52, 0.42, 0.7)
+				var col := Color(0.9, 0.8, 0.62, 1.0) if surface == Surface.SAND else Color(0.6, 0.52, 0.42, 0.7)
 				dust.append([dk, key, cp, dir, col, 2 if surface == Surface.SAND else 0])
 		if surface == Surface.ASPHALT and k > 0.0:
 			squeal = maxf(squeal, k)
@@ -729,6 +729,8 @@ func _drive_dust(p: CPUParticles3D, d: Array) -> void:
 	p.color = Color(col.r, col.g, col.b, col.a * s)
 	p.gravity = Vector3(0.0, -3.5 if kind == 2 else (-4.0 if kind == 1 else -1.2), 0.0)
 	p.initial_velocity_max = 2.5 + 6.0 * s
+	# A rooster tail of sand is bigger and denser than road dust.
+	p.scale_amount_max = 3.6 if kind == 2 else 2.4
 
 
 func _drive_sparks(p: CPUParticles3D, d: Array) -> void:

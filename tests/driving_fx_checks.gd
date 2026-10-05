@@ -46,6 +46,13 @@ func run(t: Node, city: Node3D) -> void:
 		_check(_tree.get_nodes_in_group("vehicle").size() > 0 and _count_fx() == 1, "and only once")
 		_check(Sfx.has("skid") and Sfx.has("scrape") and Sfx.has("backfire"), "the squeal, scrape and backfire sounds are loaded")
 		first.queue_free()
+		# A dry street (earlier checks can leave it wet, and a wet slide throws spray, not smoke).
+		var weather: Node = city.get_node_or_null("Weather")
+		var hold: Variant = weather.get("_wet_hold") if weather else null
+		var wet: Variant = weather.get("wetness") if weather else null
+		if weather:
+			weather.set("_wet_hold", 0.0)
+			weather.set("wetness", 0.0)
 		await _drift()
 		await _wet_drift(city)
 		await _burnout(player)
@@ -53,6 +60,9 @@ func run(t: Node, city: Node3D) -> void:
 		await _scrape()
 		await _ring()
 		await _exhaust(player, city)
+		if weather:
+			weather.set("_wet_hold", hold)
+			weather.set("wetness", wet)
 
 	if player.is_driving():
 		player.exit_vehicle()
@@ -163,8 +173,6 @@ func _wet_drift(city: Node3D) -> void:
 	var weather: Node = city.get_node_or_null("Weather")
 	if weather == null:
 		return
-	var hold: float = weather.get("_wet_hold")
-	var wet: float = weather.get("wetness")
 	weather.set("_wet_hold", 0.85)
 	weather.set("wetness", 0.85)
 	var car := _car(Vector2(-20.0, 0.0))
@@ -178,12 +186,15 @@ func _wet_drift(city: Node3D) -> void:
 		spray[0] = maxi(spray[0], _fx.last_dust))
 	_check(smoke[0] == 0 and spray[0] > 0, "on a soaking street the slide throws spray, not smoke (smoke %d, spray %d)" % [smoke[0], spray[0]])
 	_check(_fx.marks_alive() > marks0, "and still marks the road")
-	weather.set("_wet_hold", hold)
-	weather.set("wetness", wet)
+	weather.set("_wet_hold", 0.0)
+	weather.set("wetness", 0.0)
 	await _clear()
 
 
 func _burnout(player: Player) -> void:
+	# Nothing left held by an earlier check: only the keys this one presses.
+	for action in ["move_back", "move_left", "move_right", "boost", "jump", "fire", "alt_fire", "move_forward"]:
+		Input.action_release(action)
 	var car := _car(Vector2(0.0, -10.0))
 	await _ticks(40)
 	player.enter_vehicle(car)
