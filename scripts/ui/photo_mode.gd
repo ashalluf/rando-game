@@ -45,7 +45,8 @@ extends CanvasLayer
 @export var toast_seconds: float = 4.5
 
 ## Filters: name, saturation (times the scene's), per-channel gain, lift, contrast (an S-curve
-## mix, negative flattens). Applied to the scene's own look LUT, so a grade is on top of the
+## mix, negative flattens) and, optionally, neutral (the scene's warm curve made grey, for a true
+## black and white; without it a saturation-0 grade keeps the look's warmth, which is Mono). Applied to the scene's own look LUT, so a grade is on top of the
 ## game's look, never instead of it.
 const GRADES := [
 	["Natural", 1.0, Color(1, 1, 1), Color(0, 0, 0), 0.0],
@@ -53,7 +54,7 @@ const GRADES := [
 	["Teal & orange", 1.12, Color(1.04, 0.99, 0.94), Color(-0.01, 0.012, 0.03), 0.22],
 	["Vivid", 1.3, Color(1, 1, 1), Color(0, 0, 0), 0.3],
 	["Faded film", 0.78, Color(0.97, 0.95, 0.9), Color(0.06, 0.055, 0.05), -0.25],
-	["Noir", 0.0, Color(1, 1, 1), Color(-0.01, -0.01, -0.01), 0.55],
+	["Noir", 0.0, Color(1, 1, 1), Color(-0.01, -0.01, -0.01), 0.55, true],
 	["Mono", 0.0, Color(1, 1, 1), Color(0.015, 0.015, 0.015), 0.1],
 ]
 ## Weather chips map to Weather.State (0 clear .. 3 storm).
@@ -583,19 +584,22 @@ func set_grade(i: int) -> void:
 		env.adjustment_enabled = true
 		env.adjustment_saturation = float(_prev_env["adjustment_saturation"]) * float(g[1])
 		env.adjustment_color_correction = _prev_env["adjustment_color_correction"] if _grade == 0 \
-				else grade_texture(_base_gradient, g[2], g[3], float(g[4]))
+				else grade_texture(_base_gradient, g[2], g[3], float(g[4]), g.size() > 5 and bool(g[5]))
 	_light_chips("grade", _grade)
 
 
 ## The look LUT with a grade on top: each channel of the scene's own curve through a gain, a
 ## lift and an S-curve (negative `contrast` flattens toward mid grey).
-static func grade_texture(base: Gradient, gain: Color, lift: Color, contrast: float) -> GradientTexture1D:
+static func grade_texture(base: Gradient, gain: Color, lift: Color, contrast: float, neutral: bool = false) -> GradientTexture1D:
 	var g := Gradient.new()
 	var offsets := PackedFloat32Array()
 	var colors := PackedColorArray()
 	for i in 33:
 		var x := i / 32.0
 		var c := base.sample(x) if base else Color(x, x, x)
+		if neutral:
+			var m := (c.r + c.g + c.b) / 3.0
+			c = Color(m, m, m)
 		var out := Color(1, 1, 1, 1)
 		for ch in 3:
 			var cv: float = c[ch]
