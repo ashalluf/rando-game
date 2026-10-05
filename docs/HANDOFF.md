@@ -8694,7 +8694,11 @@ segment loop; every kind's lines and promos fit it (VT_FITS) and, by a table wri
 itself, no trade's line (WASH & FOLD, SALE, WALK-INS WELCOME, FREE WIFI, ATM INSIDE, MON-FRI 9-5 ...)
 stands in another kind's window and FREE ESTIMATES nowhere; `shop_name_codes()` decodes to
 `shop_names()` on three seeds; building.gdshader includes the font, takes the codes, picks by kind
-and no longer has `fake_glyph`.
+and no longer has `fake_glyph`. The lettering reads left to right from outside on every wall: a check models the shader's u
+formulas (u grows to the left of someone facing the wall on +X, -X, +Z and -Z, and round a tower's
+positive-area outline) against the pane's x running from the high end of u; stills 20-23 show the
+four faces of one building. (A mirrored-letters report from another branch's still was the OLD
+fake_glyph code, which that branch still carries; it goes when this branch is merged.)
 
 **Frame cost.** No geometry, draws or textures added (geo_count unchanged by construction).
 Fragment cost on a frame filled with storefronts (`building_shot.gd BENCH=40`, llvmpipe, 1280x720,

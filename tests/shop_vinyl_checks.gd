@@ -19,6 +19,7 @@ func run(t: Node, _city: Node3D) -> void:
 		return
 	_names()
 	_kinds()
+	_reads_left_to_right()
 	_codes()
 	_shader()
 
@@ -130,6 +131,36 @@ func _kinds() -> void:
 	var sh := FileAccess.get_file_as_string("res://shaders/building.gdshader")
 	_t._check(sh.contains("VT_TAG[int(kind) * 8") and sh.contains("VT_PROMO[int(kind) * 8") and sh.contains("shop_door_i, room_kind)"),
 		"shop_decal() picks its lines from the shop's room kind")
+
+
+## The lettering reads left to right from the street on every wall: the vinyl's x runs from the
+## pane's high end of u (pk = (1 - wd.x) * width), so u must grow to the LEFT of someone outside
+## looking at the wall, on all four box faces (the shader's u formulas, read from its source) and on
+## a tower's walls (uv_facade: TowerMesh's UV.x grows along each edge of a positive-area outline).
+func _reads_left_to_right() -> void:
+	var sh := FileAccess.get_file_as_string("res://shaders/building.gdshader")
+	var formulas_ok := sh.contains("u = local_pos.z * sign(n.x) + pt_size.z * 0.5;") \
+		and sh.contains("u = local_pos.x * sign(-n.z) + pt_size.x * 0.5;") \
+		and sh.contains("vec2 pk = vec2((1.0 - wd.x) * pane_m.x, wd.y * pane_m.y);")
+	_t._check(formulas_ok, "building.gdshader's wall u and the vinyl's pane x are the ones this check models")
+	var bad := []
+	for n: Vector3 in [Vector3.RIGHT, Vector3.LEFT, Vector3.BACK, Vector3.FORWARD]:
+		# The gradient of u over (x, z), from the formulas above.
+		var grad := Vector3(0.0, 0.0, signf(n.x)) if absf(n.x) > 0.5 else Vector3(signf(-n.z), 0.0, 0.0)
+		# Someone outside looks along -n; their right hand points this way.
+		var right := (-n).cross(Vector3.UP)
+		# The text runs toward decreasing u.
+		if (-grad).dot(right) <= 0.5:
+			bad.append(n)
+	# A tower: a square outline cleaned to positive area; UV.x grows along each edge.
+	var outline := TowerMesh.clean(PackedVector2Array([Vector2(-10, 10), Vector2(10, 10), Vector2(10, -10), Vector2(-10, -10)]))
+	for i in outline.size():
+		var d := (outline[(i + 1) % outline.size()] - outline[i]).normalized()
+		var n := Vector3(d.y, 0.0, -d.x)
+		var right := (-n).cross(Vector3.UP)
+		if (-Vector3(d.x, 0.0, d.y)).dot(right) <= 0.5:
+			bad.append("tower edge %d" % i)
+	_t._check(bad.is_empty(), "window vinyl reads left to right from outside on the +X, -X, +Z and -Z walls and round a tower (mirrored: %s)" % [bad])
 
 
 func _codes() -> void:
