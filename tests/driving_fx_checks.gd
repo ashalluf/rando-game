@@ -218,26 +218,32 @@ func _burnout(player: Player) -> void:
 	_check(rear_smoke[0], "a burnout (throttle against the handbrake) smokes the rear tyres")
 	_check(_fx.marks_alive() > marks0 or moved < 3.0, "and the car stands (%.1f m/s) laying rubber (%d)" % [moved, _fx.marks_alive() - marks0])
 	Input.action_release("alt_fire")
-	# A hard lift-off at speed: full throttle, then nothing, at 15 m/s. Backfires every time here.
+	Input.action_release("move_forward")
+	# A hard lift-off at speed: full throttle one tick, nothing the next, at 15 m/s, with the
+	# chance at 1. Fed to DrivingFX directly, two calls in a row: through the input and the
+	# physics ticks the order of the car's and DrivingFX's steps decides which tick sees what.
 	var chance := _fx.backfire_chance
 	_fx.backfire_chance = 1.0
 	_fx._backfire_at = -100.0
-	var popped := [false]
-	var flamed := false
-	for i in 6:
-		car.hold_crash_watch(3)
-		car.linear_velocity = -car.global_basis.z * 15.0
-		await _tree.physics_frame
-	Input.action_release("move_forward")
-	for i in 6:
-		car.hold_crash_watch(3)
-		car.linear_velocity = -car.global_basis.z * 15.0
-		await _tree.physics_frame
-		if not popped[0] and _fx._backfire_at > 0.0:
-			popped[0] = true
-			flamed = _fx._flame.emitting
+	_fx._prev_force.erase(car.get_instance_id())
+	car.linear_velocity = -car.global_basis.z * 15.0
+	car.engine_force = -car.engine_power * 0.73
+	_fx._tick_backfire(car)
+	var quiet := _fx._backfire_at < 0.0
+	car.engine_force = 0.0
+	_fx._tick_backfire(car)
+	var popped := _fx._backfire_at > 0.0 and _fx._flame.emitting
+	# And no pop from a gentle lift-off.
+	_fx._backfire_at = -100.0
+	_fx._prev_force.erase(car.get_instance_id())
+	car.engine_force = -car.engine_power * 0.2
+	_fx._tick_backfire(car)
+	car.engine_force = 0.0
+	_fx._tick_backfire(car)
+	var gentle := _fx._backfire_at < 0.0
 	_fx.backfire_chance = chance
-	_check(popped[0] and flamed, "a hard lift-off at speed backfires (a flame out of the pipe)")
+	_check(quiet and popped, "a hard lift-off at speed backfires (a flame out of the pipe)")
+	_check(gentle, "a gentle one does not")
 	player.exit_vehicle()
 	await _clear()
 
