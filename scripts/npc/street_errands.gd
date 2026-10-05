@@ -145,6 +145,11 @@ static func walk(p: Pedestrian, delta: float, panicking: bool) -> bool:
 	if p._down:
 		release(p)
 		return false
+	if p._act != CrowdLife.Act.NONE:
+		# The errand owns the walker: a crowd-life stop that began anyway (the spawn roll comes
+		# half a second after a walker appears) is dropped, or the errand's goto waits on it for
+		# ever while they stand talking.
+		p._end_act(true)
 	if not hidden and (panicking or not _near(p)) and not step.get("road", false):
 		# A fright, or the player gone: whatever this was is off, from where they stand.
 		_abort(p)

@@ -159,7 +159,7 @@ func _bus() -> void:
 		StreetErrands._start_bus(p, stop, true)
 	await _ticks(20)
 	var waiting := riders.all(func(p: Pedestrian) -> bool: return _step(p) == "wait_bus" and p.visible)
-	_check(waiting, "errands: two walkers stand in the bus stop's queue")
+	_check(waiting, "errands: two walkers stand in the bus stop's queue (steps %s %s, visible %s %s, act %d %d, panic %.1f %.1f)" % [_step(riders[0]), _step(riders[1]), riders[0].visible, riders[1].visible, riders[0]._act, riders[1]._act, riders[0]._panic_left, riders[1]._panic_left])
 	fit.set_doors(true)
 	var boarded := false
 	for i in 60 * 12:
