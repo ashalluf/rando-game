@@ -25,3 +25,7 @@ city to wreck.
 - `merged_13_carwash_queue_lane.jpg` - its queue lane and pay canopy, `-444.6,11.6,-381,-165,-3`
 
 Frame cost (still_shot GEO, the gas EYE at noon): ROADSIDE=0 5,123,285 tris / 2,686 draws; on 5,084,623 / 2,559.
+
+After the lead's review (the queue's cars were grey static boxes, the side wall a flat slab):
+- `merged_04b_drivethru_queue_noon_real_cars.jpg` - same EYE as 04: the queued cars are real parked Vehicles with a driver seated and brake lamps on; the lane and back walls have a tile wainscot, brand pilasters, the dining room's windows, wall packs, a kerb with bollards; a lit canopy over the order point
+- `merged_05b_drivethru_night_2100_real_cars.jpg` - the same at 21:00 (brake lamps and their red wash on the lane)
