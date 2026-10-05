@@ -37,7 +37,7 @@ func _initialize() -> void:
 					continue
 				if want != "" and kind != want:
 					continue
-				var p: Vector3 = WorldState.to_world(r.position) if false else r.position
+				var p: Vector3 = r.position
 				var eye := Vector2(p.x, p.z) + Vector2(3.5, 3.5)
 				var look := Vector2(p.x, p.z) - eye
 				var yaw := rad_to_deg(atan2(-look.x, -look.y))

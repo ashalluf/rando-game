@@ -8700,3 +8700,32 @@ CULL=0` paints front faces by normal and back faces red). `tools/street_furnitur
 the pieces of the FULL chunks round a point with an EYE for each. Checks:
 `tests/street_furniture_checks.gd` (`tools/street_furniture/checks_only.tscn` runs them alone in a
 minute).
+
+**Frame cost** (`tools/geo_count.gd`, opengl3 + Xvfb, 800x600, noon; the traffic and the crowd are
+not frozen between runs, so a few percent is noise): downtown on the kerb under the 110
+(`--spawn=1918,795.5,97,-6,2`) 3.77 M -> 3.67 M triangles, 2,762 -> 2,505 draws (each piece is one
+surface where the scans had several); a suburban street on collection day (`CARTS=all`,
+`--spawn=-380,566,-14,-6,2`) 3.95 M -> 3.91 M, 2,876 -> 2,757. Building every mesh on the loading
+screen costs ~0.1 s (the hydrant ~70 ms, the rest a few ms each).
+
+**Checks** (`tests/street_furniture_checks.gd`, 17): the meshes (one surface on the shader, inside a
+triangle budget, at real height, shadow twins), the shader's kinds, the atlas's rows, the pay
+station and bench-stop shares, collection days Monday to Friday, the hydrant facing the street,
+the bin by district, a metered downtown block built the same with the furniture off (props by id,
+kind and place, buildings, trash cans, parked cars), collection day's carts as props with their own
+ids, a smashed cart staying gone across a rebuild, and the suburban block the same without them.
+
+**Stills** (shots/street-furniture; opengl3, not the Mac's Forward+): close-ups of every piece
+before and after (`furniture_shot.gd`, `OLD=1`), an aged hydrant, the night screens, the five
+planter plantings; city frames before / after (`still_shot.gd DIFF=1`, `STREET_FURNITURE=0`):
+downtown meters and racks under the freeway, a pay station, a hydrant, a bus stop (shelter -> ad
+bench), a suburban street on collection day and its kerb close up, downtown at 21:00.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the galvanising, the paint's sheen and the
+ad's colours want a Mac look. Break effects are prop-destruction's (a hydrant geyser etc.); these
+props still break into the chunk's generic debris boxes. The plaza and park benches (`_add_bench`)
+keep the Poly Haven kit bench; only bus stops got the ad bench. Suburban trash cans keep the
+corrugated scan (the carts are their bins on collection day). Carts are static props: knocked,
+they break rather than tumble (prop-destruction may make them physics). A cart can stand on a
+driveway apron (real, but nothing keeps it off). The bench ad art is eight flat designs at 1024 px
+a row; there is no portrait photography (no real people).

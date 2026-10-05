@@ -263,9 +263,9 @@ static func build_carts(chunk: CityChunk, edges: Array, district: int) -> void:
 			if h < CART_SHARE:
 				# Black always, then blue, then (often) green, side by side along the kerb.
 				var kinds := [0, 1] if h < CART_SHARE * 0.45 else ([0, 1, 2] if h < CART_SHARE * 0.85 else [1, 2])
-				var span := float(kinds.size()) * 0.8
+				var span := float(kinds.size()) * 0.84
 				for k in kinds.size():
-					var along := t + (float(k) - float(kinds.size() - 1) * 0.5) * 0.8
+					var along := t + (float(k) - float(kinds.size() - 1) * 0.5) * 0.84
 					var p := a + dir * along + inward * CART_INSET
 					if _blocked(keep, p, 0.75):
 						continue
