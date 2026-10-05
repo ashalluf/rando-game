@@ -7040,7 +7040,7 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
-## 9bs. Service vehicles at work: garbage trucks, sweepers, tow trucks, ice-cream trucks, delivery vans, 2026-10-05 (agent branch `wt/service-vehicles`; VISUAL_ROADMAP #61)
+## 9bu. Service vehicles at work: garbage trucks, sweepers, tow trucks, ice-cream trucks, delivery vans, 2026-10-05 (agent branch `wt/service-vehicles`; VISUAL_ROADMAP #63)
 
 **What.** The city's working vehicles doing their jobs, as ordinary traffic cars with a job:
 
