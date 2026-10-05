@@ -143,8 +143,8 @@ static func _live() -> Array:
 	var out: Array = []
 	for k: String in _chunks.keys():
 		var rec: Dictionary = _chunks[k]
-		var ch := (rec.chunk as WeakRef).get_ref() as CityChunk
-		if ch == null or not is_instance_valid(ch) or ch.is_queued_for_deletion():
+		var ch: Variant = (rec.chunk as WeakRef).get_ref()
+		if ch == null or not is_instance_valid(ch) or (ch as Node).is_queued_for_deletion():
 			_chunks.erase(k)
 			continue
 		rec.key = k
@@ -261,16 +261,17 @@ static func char_tree(rec: Dictionary, t: Dictionary) -> void:
 
 static func _mark_charred(rec: Dictionary, t: Dictionary) -> void:
 	rec.charred[t.id] = t
-	var node := (rec.nodes as Dictionary).get(t.key) as MultiMeshInstance3D
-	if node and is_instance_valid(node):
-		MultiMeshBatch.hide_instance(node, int(t.i))
+	var raw: Variant = (rec.nodes as Dictionary).get(t.key)
+	if raw != null and is_instance_valid(raw):
+		MultiMeshBatch.hide_instance(raw as MultiMeshInstance3D, int(t.i))
 
 
 ## The chunk's charred trees, one MultiMesh per batch key, drawn in the chunk's own space.
 static func _rebuild_charred(rec: Dictionary) -> void:
-	var ch := (rec.chunk as WeakRef).get_ref() as Node3D
-	if ch == null or not is_instance_valid(ch):
+	var ref: Variant = (rec.chunk as WeakRef).get_ref()
+	if ref == null or not is_instance_valid(ref):
 		return
+	var ch := ref as Node3D
 	var by_key := {}
 	for id: String in rec.charred:
 		var t: Dictionary = rec.charred[id]
