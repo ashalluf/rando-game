@@ -7300,3 +7300,65 @@ chunk's own meshes are within the check's 260 k budget.
 ducks or animals (birds only, as briefed). Boats are static (no bob). The canals end in a headwall
 at the pavement ring (no lagoon or tide gate). The minimap draws the site as park (no water).
 Bridges carry no name plates; canal names are in code only.
+
+## 9by. Photo mode, 2026-10-05 (agent branch `wt/photo-mode`)
+
+The owner shares screenshots from his Mac; photo mode is how he shows the game off.
+**`PhotoMode`** (`scripts/ui/photo_mode.gd`, a CanvasLayer at 6 that `pause_menu.gd` adds beside
+itself in the city scene - no edit to city.tscn). `photo_mode` (P / right stick click) opens it
+when the tree is not paused (never over the pause menu). It:
+
+- **Freezes the world**: `get_tree().paused` like the pause menu, and `Engine.time_scale` 0. The
+  render step Godot hands the RenderingServer is the process step times the time scale, so shader
+  TIME stops too (clouds, ocean, sway, grain), without the stills' rollover trick. The weapon
+  wheel sets the time scale back to 1 every frame the tree is paused, so photo mode re-sets it at
+  `process_priority` 1000 (the value left at the end of a frame is the next frame's).
+- **Flies its own camera**: a Camera3D copied from the one in force, its attributes DUPLICATED,
+  so its depth of field and exposure never touch the player's (CameraPost keeps easing on the
+  player's copy). Moved on the real clock; within `max_radius` (140 m) of the player (the city
+  does not stream while paused) and `ground_clearance` above `ground_height_at()`. WASD / left
+  stick, Q / E or the triggers, Z / C or the bumpers (roll), R level, Shift / Alt (pad: left
+  stick click), right mouse held to look (the mouse is free for the panel otherwise; with the
+  panel hidden by H the mouse always looks), wheel while looking = speed.
+- **The panel** (`shaders/photo_panel.gdshader`: the frame behind blurred down the screen mips,
+  smoked, a hairline rim, rounded by an SDF; the pause menu's chip style; 1080-line units scaled
+  to the window, in a ScrollContainer): field of view, roll, speed; depth of field (Off / On /
+  Focus on centre - a ray that hits the player too; focus distance; aperture: near and far blur
+  round the focus with a sharp band 3.5 % of the distance per f-stop, amount 0.35 / f; hidden on
+  Compatibility, which has none); exposure (`exposure_multiplier`, EV); the hour
+  (`DayNight._apply()`); the weather (`force_state()`, then for `weather_settle_seconds` the
+  Weather node runs ALWAYS with time at 1 so the rain fills the air, then it freezes again);
+  FILTER: seven grades (`GRADES`) written into the scene's own look LUT by `grade_texture()`
+  (per channel gain, lift and an S-curve over the base gradient) plus `adjustment_saturation`
+  (Noir and Mono are 0); vignette and film grain (CityStreamer's Vignette layer); FRAME
+  letterbox / pillarbox bars (2.39, 1.85, 4:5, 1:1; drawn, so they are in the photo); hide the
+  player.
+- **TAKE PHOTO** (F / Enter, pad A): hides the panel for two frames, reads the root viewport back
+  (the window's resolution, the 2D layers under it - bars, vignette, lens rain - included) and
+  writes `rando_<date>_<time>.png` to `OS.get_system_dir(PICTURES)/Rando Game`, else
+  `user://photos`; on the web `JavaScriptBridge.download_buffer()`. A white flash and a toast
+  with the path (`~` for home).
+- **Leaving** (Esc / P, pad B, or the button) restores the snapshot taken on opening: the camera
+  in force, the time scale, the pause, the hour, Weather's state / blend / wetness / drying /
+  forced / timer and its process mode, the env's adjustment fields, vignette and grain, the
+  player's visibility and every HUD CanvasLayer it hid (layers 0..127 that were visible; < 0 is
+  part of the picture, 128 is the loading screen). `_exit_tree()` closes it, so a reload never
+  leaves the engine frozen.
+
+**Checks** (`tests/photo_mode_checks.gd`, 13): built in the city; P bound; not over the pause
+menu; frozen (paused, time scale 0 two frames on, through the wheel's reset); own camera; HUD
+hidden; radius and ground clamp; FOV / DOF / exposure on its own attributes; clock, weather and a
+black-and-white grade; a neutral grade reproduces the look LUT; bars, vignette, hidden player;
+the storm settle; a PNG written and read back; a capture never left stuck; and leaving restores
+all of it. **Frame cost**: nothing while closed (one hidden CanvasLayer); open, one panel draw
+with two screen-mip taps per pixel. **Stills** (shots/photo-mode): the panel over downtown at
+golden hour (opengl3), the same view graded with the panel hidden, Noir letterboxed 2.39:1, the
+toast after TAKE PHOTO and the file it saved; and the test room on Forward+ (lavapipe) for the
+depth of field at f/1.4. `tools/glshot/photo_shot.gd` makes all of them from one load.
+
+**Not done / not verified.** Not seen on the Mac: the Forward+ DOF in the city, the exposure
+slider under auto exposure, and whether the grades read the same on the web (Compatibility's
+adjustment support is assumed, not measured). No gamepad navigation of the panel (A shoots, B
+leaves, Y hides it; the sliders need a mouse). Audio keeps playing (as under the pause menu).
+The city does not stream while frozen, hence the radius. On the web a browser only grants mouse
+capture after a click, so looking needs the right button pressed (which is that click).
