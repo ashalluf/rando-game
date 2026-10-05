@@ -494,6 +494,7 @@ func _finish_build() -> void:
 	YardFill.commit(self)
 	HouseKit.commit(self)
 	Industrial.commit(self)
+	VacantLots.commit(self)
 	Parks.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
@@ -2659,6 +2660,9 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 		return
 	if pad:
 		Commercial.build_pad(self, lot, rng)
+		return
+	# A vacant lot or a gravel car park (VacantLots: a hash of seed + lot, after every roll above).
+	if VacantLots.build_lot(self, lot):
 		return
 	# The suburbs' and the beach town's houses (HouseKit: real houses, planned purely from the lot).
 	if HouseKit.wanted(self, district):

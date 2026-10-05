@@ -226,6 +226,10 @@ static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0
 		if filled and lot.get("parking", false):
 			_paint(box, cell, PARKING)
 			continue
+		# A vacant lot or a gravel car park (VacantLots: the lot's whole cell).
+		if fill >= 3 and VacantLots.kind_of(plan, bx, bz, lot) != VacantLots.NONE:
+			_paint(box, cell, PARKING if VacantLots.kind_of(plan, bx, bz, lot) == VacantLots.PARKING else YARD)
+			continue
 		# A house of the suburbs or the beach town (HouseKit, the same pure plan the chunk builds).
 		if fill >= 2 and HouseKit.enabled and district in HouseKit.DISTRICTS:
 			var house := HouseKit.plan_house(plan, bx, bz, lot, district)
