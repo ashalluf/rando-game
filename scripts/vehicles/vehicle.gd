@@ -1184,6 +1184,10 @@ func _tick_lights(delta: float) -> void:
 ## The indicator for the turn a street car has rolled: -1 left, 1 right (a U-turn is a left,
 ## the roads drive on the right), 0 none or still far from the junction.
 func _traffic_signal() -> int:
+	# A lane change, a pull-out, an exit or hazards (TrafficAI's `sig`) before the turn.
+	var sig := int(traffic.get("sig", 0))
+	if sig != 0:
+		return sig
 	var turn := int(traffic.get("turn", 0))
 	if turn == 0 or not traffic.has("axis"):
 		return 0

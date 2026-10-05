@@ -1617,6 +1617,9 @@ func _test_city() -> void:
 	# re-centring check, and every position test after that point is in a frame that disagrees
 	# with the nodes.
 	await load("res://tests/street_life_checks.gd").new().run(self, city)
+	# Traffic that drives like people (tests/traffic_ai_checks.gd): moods, lane changes round a bus,
+	# turn lanes, a swerve, honks, a pull-out, freeway passing, merges and exits.
+	await load("res://tests/traffic_ai_checks.gd").new().run(self, city)
 	# Crowd animation (VISUAL_ROADMAP #28): starts, stops, turns, stride and head look.
 	await load("res://tests/crowd_anim_checks.gd").new().run(self, city)
 	# Crowd life (GAME_PLAN G5): talking, sitting, carrying, panic over all of it.

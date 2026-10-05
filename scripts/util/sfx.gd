@@ -112,6 +112,10 @@ const SAMPLES := {
 	"crow": ["crow_0.ogg", "crow_1.ogg", "crow_2.ogg", "crow_3.ogg"],
 	"sparrow": ["sparrow_0.ogg", "sparrow_1.ogg"],
 	"gull_close": ["gull_close_0.ogg", "gull_close_1.ogg"],
+	# Traffic honking (TrafficAI): close car horns cut from the far horns' CC0 recordings
+	# (tools/traffic_horns.py) - taps and double taps, and long leans on the horn.
+	"car_horn": ["car_horn_0.ogg", "car_horn_1.ogg", "car_horn_2.ogg", "car_horn_3.ogg", "car_horn_4.ogg"],
+	"car_horn_long": ["car_horn_long_0.ogg", "car_horn_long_1.ogg", "car_horn_long_2.ogg"],
 }
 
 ## Loudest-50 ms level of every take above, in dB, in the same order, measured off the committed
@@ -161,6 +165,8 @@ const SAMPLE_LOUDNESS_DB := {
 	"crow": [-11.77, -11.39, -10.98, -8.73],
 	"sparrow": [-12.15, -11.52],
 	"gull_close": [-10.40, -9.05],
+	"car_horn": [-9.55, -6.69, -7.36, -9.49, -9.55],
+	"car_horn_long": [-10.32, -9.55, -7.31],
 }
 
 ## Sample names that have to loop. Set on the stream in code rather than in the .import file, so
@@ -501,6 +507,8 @@ func _build_synth() -> void:
 	_put("glass", _noise_burst(0.34, 11.0, 0.7, 0.75))
 	_put("crash", _noise_burst(0.45, 8.0, 1.0, 0.15))
 	_put("horn", _horn(0.5))
+	_put("car_horn", _horn(0.35))
+	_put("car_horn_long", _horn(1.3))
 	_put("yelp", _yelp(0.4))
 	_put("scream", _yelp(1.1))
 	_put("gore", _noise_burst(0.3, 16.0, 0.8, 0.05))
