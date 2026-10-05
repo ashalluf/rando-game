@@ -132,7 +132,7 @@ static func _use(g: LandmarkGeo, spec: Dictionary) -> void:
 	var p: int = spec.palette
 	var tint: Color = (HistoricCore.TERRACOTTA[p] as Color).lightened(0.05)
 	var common := {"tint": tint, "roughness": 0.5, "texture_contrast": 0.35, "grime": 0.35, "seed": float(p) * 3.0,
-		"flood_strength": 0.3, "flood_base_y": 0.3, "flood_reach": 6.0, "flood_floor": 0.0, "flood_spacing": 3.0}
+		"flood_strength": 0.55, "flood_base_y": 0.3, "flood_reach": 9.0, "flood_floor": 0.04, "flood_spacing": 3.0}
 	g.use("stone", LandmarkMats.facade("hc_stone_%d" % p, "plaster_white", 2.5, common))
 	var flute := common.duplicate()
 	flute.merge({"joint_spacing": Vector2(0.16, 0.0), "joint_width": 0.05, "joint_dark": 0.32}, true)
@@ -705,37 +705,82 @@ static func _entrance(st: Dictionary, f: Dictionary, L: Dictionary, spec: Dictio
 	var ci := cols / 2
 	var u0 := -flen * 0.5 + float(ci) * p
 	var u1 := u0 + p
-	var r := 0.24
+	var uc := (u0 + u1) * 0.5
+	var r := 0.3
+	# Out past the shop piers' cladding, so the frontispiece stands in front of the shopfront.
+	var front := 0.68
 	var glass_top := sf * 0.74
 	for u: float in [u0, u1]:
-		# A pedestal, the column, a capital block.
-		_slab(fine, "stone", f, u - r - 0.08, u + r + 0.08, 0.0, 0.7, -0.02, r + 0.1)
-		_half_column(main_g, f, u, r, 0.7, glass_top - 0.25)
-		_slab(fine, "stone", f, u - r - 0.1, u + r + 0.1, glass_top - 0.25, glass_top, -0.02, r + 0.12)
-	# The entablature block over the door bay, the name on it, a cornice ledge and a crest.
+		# A pedestal, the column standing proud of the wall on a block, a capital block.
+		_slab(fine, "stone", f, u - r - 0.1, u + r + 0.1, 0.0, 0.85, -0.02, front + 0.06)
+		_slab(main_g, "stone", f, u - r * 0.8, u + r * 0.8, 0.85, glass_top - 0.3, -0.02, front - r)
+		_half_column_at(main_g, f, u, r, 0.85, glass_top - 0.3, front - r)
+		_slab(fine, "stone", f, u - r - 0.12, u + r + 0.12, glass_top - 0.3, glass_top, -0.02, front + 0.08)
+	# The entablature block over the door bay, the name on it, a cornice ledge, a crest.
 	var e0 := glass_top
-	var e1 := sf + 0.15
-	var ul := u0 - r - 0.18
-	var ur := u1 + r + 0.18
-	_slab(main_g, "stone", f, ul, ur, e0, e1, -0.02, r + 0.14)
-	_slab(main_g, "stone", f, ul - 0.1, ur + 0.1, e1, e1 + 0.16, -0.02, r + 0.3)
-	_text(fine, str(spec.name), f, (u0 + u1) * 0.5, (e0 + e1) * 0.5, r + 0.15, minf((e1 - e0) * 0.42, 0.3), ur - ul - 0.3)
-	_lozenge(fine, f, (u0 + u1) * 0.5, e1 + 0.45, 0.26, r + 0.05)
-	_slab(fine, "stone", f, (u0 + u1) * 0.5 - 0.5, (u0 + u1) * 0.5 + 0.5, e1 + 0.16, e1 + 0.24, -0.02, r + 0.1)
-	# The lit glass over the door (the transom), and the bronze soffit light.
-	_slab(fine, "lamp", f, u0 + r, u1 - r, e0 - 0.02, e0 + 0.05, -0.01, r + 0.15)
-	# Lanterns on scroll brackets, one on each column.
+	var e1 := sf + 0.5
+	var ul := u0 - r - 0.2
+	var ur := u1 + r + 0.2
+	_slab(main_g, "stone", f, ul, ur, e0, e1, -0.02, front + 0.1)
+	_slab(main_g, "stone", f, ul - 0.14, ur + 0.14, e1, e1 + 0.2, -0.02, front + 0.32)
+	_slab(fine, "stone", f, ul + 0.1, ur - 0.1, e0 - 0.08, e0, -0.02, front + 0.04)
+	_text(fine, str(spec.name), f, uc, (e0 + e1) * 0.5, front + 0.11, minf((e1 - e0) * 0.42, 0.42), ur - ul - 0.4)
+	# A segmental pediment over it: a shallow arc of stone with a lozenge in the tympanum.
+	var span := (ur - ul) * 0.5 + 0.1
+	var rise := 0.55
+	var py := e1 + 0.2
+	var segs := 10
+	for i in segs:
+		var t0 := float(i) / float(segs)
+		var t1 := float(i + 1) / float(segs)
+		var x0 := lerpf(-span, span, t0)
+		var x1 := lerpf(-span, span, t1)
+		var y0 := py + rise * (1.0 - pow(x0 / span, 2.0))
+		var y1 := py + rise * (1.0 - pow(x1 / span, 2.0))
+		# The tympanum (flat face) and the curved cap on top.
+		main_g.quad("stone", _p(f, uc + x0, py, front + 0.05), _p(f, uc + x0, y0, front + 0.05), _p(f, uc + x1, y1, front + 0.05),
+			_p(f, uc + x1, py, front + 0.05), f.n, Vector2(uc + x0, py), Vector2(uc + x0, y0), Vector2(uc + x1, y1), Vector2(uc + x1, py))
+		var up := (Vector3.UP + (f.a as Vector3) * (2.0 * rise * (x0 + x1) * 0.5 / (span * span))).normalized()
+		main_g.quad("stone", _p(f, uc + x0, y0, -0.02), _p(f, uc + x0, y0, front + 0.22), _p(f, uc + x1, y1, front + 0.22),
+			_p(f, uc + x1, y1, -0.02), up, Vector2(uc + x0, 0.0), Vector2(uc + x0, 0.6), Vector2(uc + x1, 0.6), Vector2(uc + x1, 0.0))
+		main_g.quad("stone", _p(f, uc + x0, y0, front + 0.22), _p(f, uc + x0, y0 - 0.14, front + 0.22), _p(f, uc + x1, y1 - 0.14, front + 0.22),
+			_p(f, uc + x1, y1, front + 0.22), f.n, Vector2(uc + x0, y0), Vector2(uc + x0, y0 - 0.14), Vector2(uc + x1, y1 - 0.14), Vector2(uc + x1, y1))
+	_lozenge(fine, f, uc, py + 0.24, 0.17, front + 0.07)
+	# The lit soffit under the block, over the door.
+	_slab(fine, "lamp", f, u0 + r, u1 - r, e0 - 0.1, e0 - 0.06, front - 0.4, front)
+	# Lanterns on scroll brackets, one on each column's outer side.
 	for u: float in [u0, u1]:
 		var side := -1.0 if u == u0 else 1.0
-		var lu := u + side * (r + 0.32)
-		var ly := 2.75
-		_slab(fine, "bronze", f, u + side * r * 0.4 - 0.025, lu + 0.025, ly + 0.32, ly + 0.36, 0.2, r + 0.36)
-		_slab(fine, "bronze", f, lu - 0.03, lu + 0.03, ly + 0.08, ly + 0.36, r + 0.33, r + 0.39)
-		_slab(fine, "bronze", f, lu - 0.15, lu + 0.15, ly - 0.42, ly - 0.36, r + 0.21, r + 0.51)
-		_slab(fine, "lamp", f, lu - 0.12, lu + 0.12, ly - 0.36, ly + 0.0, r + 0.24, r + 0.48, false)
-		_slab(fine, "bronze", f, lu - 0.16, lu + 0.16, ly, ly + 0.08, r + 0.20, r + 0.52)
-		(st.lamps as Array).append(_p(f, lu, ly - 0.2, r + 0.6))
-	st.pool = [_p(f, (u0 + u1) * 0.5, 0.05, 2.4), f.n, p + 3.5]
+		var lu := u + side * (r + 0.42)
+		var ly := 3.0
+		var lo := front + 0.05
+		_slab(fine, "bronze", f, minf(u + side * r, lu), maxf(u + side * r, lu), ly + 0.5, ly + 0.56, lo - 0.05, lo + 0.05)
+		_slab(fine, "bronze", f, lu - 0.03, lu + 0.03, ly + 0.36, ly + 0.56, lo - 0.03, lo + 0.03)
+		_slab(fine, "bronze", f, lu - 0.2, lu + 0.2, ly - 0.06, ly, lo - 0.2, lo + 0.2)
+		_slab(fine, "lamp", f, lu - 0.16, lu + 0.16, ly, ly + 0.42, lo - 0.16, lo + 0.16, false)
+		for cu: float in [-0.165, 0.165]:
+			_slab(fine, "bronze", f, lu + cu - 0.015, lu + cu + 0.015, ly, ly + 0.42, lo - 0.18, lo - 0.15)
+			_slab(fine, "bronze", f, lu + cu - 0.015, lu + cu + 0.015, ly, ly + 0.42, lo + 0.15, lo + 0.18)
+		_slab(fine, "bronze", f, lu - 0.22, lu + 0.22, ly + 0.42, ly + 0.48, lo - 0.22, lo + 0.22)
+		_slab(fine, "bronze", f, lu - 0.08, lu + 0.08, ly + 0.48, ly + 0.58, lo - 0.08, lo + 0.08)
+		(st.lamps as Array).append(_p(f, lu, ly + 0.2, lo + 0.4))
+	st.pool = [_p(f, uc, 0.05, 2.6), f.n, p + 4.0]
+
+
+## An engaged column standing off the wall: a half cylinder whose axis is `o` out of the wall.
+static func _half_column_at(g: LandmarkGeo, f: Dictionary, u: float, r: float, y0: float, y1: float, o: float) -> void:
+	var segs := 12
+	var a: Vector3 = f.a
+	var n: Vector3 = f.n
+	for i in segs:
+		var t0 := PI * float(i) / float(segs)
+		var t1 := PI * float(i + 1) / float(segs)
+		var d0 := a * cos(t0) + n * sin(t0)
+		var d1 := a * cos(t1) + n * sin(t1)
+		var c0 := _p(f, u, y0, o)
+		var c1 := _p(f, u, y1, o)
+		g.quad_n("stone", c0 + d0 * r, c1 + d0 * r * 0.92, c1 + d1 * r * 0.92, c0 + d1 * r, d0, d0, d1, d1,
+			Vector2(t0 * r, y0), Vector2(t0 * r, y1), Vector2(t1 * r, y1), Vector2(t1 * r, y0))
 
 
 ## Bronze letters on the wall, centred at (u, y), `o` out of it, `h` their em, at most `fit` wide.

@@ -14,7 +14,7 @@ global uniform float lamp_factor;
 
 uniform vec3 glass_day : source_color = vec3(0.70, 0.66, 0.58);
 uniform vec3 glow_color : source_color = vec3(1.0, 0.78, 0.48);
-uniform float glow_energy = 3.2;
+uniform float glow_energy = 5.0;
 // A little glow by day too: an entrance's lamps are often left on.
 uniform float day_glow = 0.12;
 
