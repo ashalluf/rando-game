@@ -643,10 +643,11 @@ static func _do_wait_bus(p: Pedestrian, step: Dictionary, delta: float) -> void:
 
 
 static func _do_board(p: Pedestrian, step: Dictionary, delta: float) -> void:
-	var bus: Vehicle = step.bus
-	if not is_instance_valid(bus) or not bus.is_traffic():
+	var bv: Variant = step.bus
+	if not is_instance_valid(bv) or not (bv as Vehicle).is_traffic():
 		_abort(p)
 		return
+	var bus: Vehicle = bv
 	var fit := bus.get_node_or_null("BusFittings") as BigVehicles.BusFittings
 	var t: Dictionary = bus.traffic
 	# Held at the stop while anybody is still getting on.
@@ -668,12 +669,12 @@ static func _do_board(p: Pedestrian, step: Dictionary, delta: float) -> void:
 
 
 static func _do_ride(p: Pedestrian, step: Dictionary) -> void:
-	var bus: Vehicle = step.bus
-	if not is_instance_valid(bus) or not bus.is_inside_tree() or not bus.is_traffic() or _now() > int(step.until):
+	var bv: Variant = step.bus
+	if not is_instance_valid(bv) or not (bv as Vehicle).is_inside_tree() or not (bv as Vehicle).is_traffic() or _now() > int(step.until):
 		# Off the bus somewhere out of sight: one of the people inside, who come out of doors.
 		_next(p, {"do": "inside", "door": _near_door(p, p.ring.get_center(), 400.0), "until": _now() + 4000})
 		return
-	var wp := WorldState.to_world(bus.global_position)
+	var wp := WorldState.to_world((bv as Vehicle).global_position)
 	p.position = Vector3(wp.x, wp.y, wp.z)
 
 
@@ -805,7 +806,10 @@ static func _let_off(bus: Vehicle) -> void:
 	var key := _stop_key(stop) if not stop.is_empty() else Vector4i.ZERO
 	var off: Array = []
 	for id: int in _hidden:
-		var p: Pedestrian = _hidden[id]
+		var pv: Variant = _hidden[id]
+		if not is_instance_valid(pv):
+			continue
+		var p: Pedestrian = pv
 		if not is_instance_valid(p) or p.errand.is_empty():
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]
@@ -815,7 +819,10 @@ static func _let_off(bus: Vehicle) -> void:
 	for id: int in _hidden.keys():
 		if extra <= 0:
 			break
-		var p: Pedestrian = _hidden[id]
+		var pv: Variant = _hidden[id]
+		if not is_instance_valid(pv):
+			continue
+		var p: Pedestrian = pv
 		if not is_instance_valid(p) or p.errand.is_empty() or off.has(p):
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]
@@ -1220,9 +1227,10 @@ static func _along(car: Node3D) -> Vector2:
 
 ## The bus standing at `stop` with its doors open, or [].
 static func _bus_at(stop: Dictionary) -> Array:
-	for bus: Vehicle in _buses:
-		if not is_instance_valid(bus) or not bus.is_traffic():
+	for bv: Variant in _buses:
+		if not is_instance_valid(bv) or not (bv as Vehicle).is_traffic():
 			continue
+		var bus: Vehicle = bv
 		var t: Dictionary = bus.traffic
 		if int(t.axis) != int(stop.axis) or int(t.index) != int(stop.index) or int(t.dir) != int(stop.dir):
 			continue
@@ -1448,7 +1456,10 @@ static func _honk(car: Node3D) -> void:
 ## Somebody hidden inside somewhere near `at` (true world XZ), taken out of the hidden pool.
 static func _from_pool(at: Vector2, reach: float) -> Pedestrian:
 	for id: int in _hidden.keys():
-		var p: Pedestrian = _hidden[id]
+		var pv: Variant = _hidden[id]
+		if not is_instance_valid(pv):
+			continue
+		var p: Pedestrian = pv
 		if not is_instance_valid(p) or p.errand.is_empty() or p._down:
 			continue
 		var s: Dictionary = (p.errand.steps as Array)[int(p.errand.i)]
