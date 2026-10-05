@@ -1688,6 +1688,44 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   loading screen (a crane pose is ~20 ms of GDScript). The ship (`cargo_ship`, now 7 m off the quay, not on it) is
   `PortKit.ship_mesh()`. Look at a change in seconds with `tools/glshot/port_shot.gd` (the kit
   alone; `SHIP=1`, `RAISED=1`, `LOD=n`, `WEAR`).
+- Port life (2026-10-05, "the container terminal comes alive"; docs/HANDOFF.md, the port-life
+  section): `PortLife` (`scripts/world/port_life.gd`, a plain Node the first FULL port chunk adds
+  under the city root, `PortLife.ensure()`) draws everything that moves, **worked out from the
+  clock** (`PortLife.clock`, physics time; `PORT_T=` sets it for stills, `PORT_HOLD=1` holds it),
+  never simulated. **Cranes**: a working STS crane (`_build_quay`: within 95 m of the moored ship,
+  gantried to the ship's nearest bay, `bay_x()`, BAY_REACH 32 m) is built at FULL as
+  `PortKit.sts_frame_mesh()` (the posed crane less its trolley, cab, ropes and spreader - the
+  split pieces add up to the old mesh, checked) plus a marker child (group `port_crane`, meta
+  `plan` = `crane_plan()`); LOD chunks keep the posed meshes. Its **dual cycle** (`crane_pose()`):
+  two half cycles, each a swap window (one tractor leaves, the next pulls in, `SWAP_WINDOW`), then
+  lift the chassis' export box, trolley out, set it in ship slot A, pick slot B's box, back,
+  set it on the chassis; the next half swaps A and B, so the cycle closes. The two slots are the
+  top boxes of two rows of the crane's bay in the ship's deck batch, replayed exactly by
+  `ship_boxes()` (seeds 4242 / 4243, Landmarks._build_cargo_ship's order) and HIDDEN from that
+  batch while the crane works (the ship's batch is in group `port_ship_boxes`); the boxes PortLife
+  draws there carry looks hashed per half cycle. Two yard tractors per crane (code-built
+  `PortLifeKit` tractor + 40 ft chassis, the chassis HITCH metres behind on the path, so it
+  articulates) alternate halves on a loop round the yard on the aisles between the port's chunks
+  (`grid()`: aisle centres from the chunks' stack layout), trapezoid speed profile (`drive_s()`).
+  **Gantries**: a FULL yard chunk's RTG is a marker (`mark_rtg()`, its piles from
+  `CityChunk._port_piles`, `pile()`), drawn as `rtg_frame_mesh()` + `rtg_trolley_mesh()` + spreader
+  and shuffling a 40 ft top box to the next column's lowest pile and back (`rtg_plan()` /
+  `rtg_pose()`); the box's instance in the chunk's container batch is hidden while it is away and
+  put back after. **Straddle carriers** (`PortLifeKit.straddle_mesh()`, 9.6 x 4.9 x 13.4 m) loop
+  the interior blocks clockwise on the aisles (`straddle_loops()`), most with a box. Drawn as one
+  MultiMesh per kind (`Layer`, buffers written whole each frame, true world -> `WorldState.to_local`),
+  nothing past `draw_range`; machines within `body_range` of the player get an AnimatableBody3D
+  (props layer, mask 0). Night: `port_steel.gdshader` parts 11 (amber beacon), 12 (head / work
+  lamp), 13 (red lamp), additive pools under the trolleys, ahead of the vehicles and on the ship's
+  deck. Sound: Sfx `crane` at every lock / release in `sound_range`; Ambience's crane one-shots
+  come from a working spreader (`PortLife.clank_at()`). **The gate** (`PortGate`,
+  `scripts/world/port_gate.gd`): the north-west port chunk (`PortLife.is_gate()`) builds no stacks
+  (after the rolls) but eight lanes (six in, two out), booths on islands, a canopy with the
+  invented terminal name, an OCR / radiation portal with lane numbers and an office, and drayage
+  semis (BigVehicles SEMI, parked Vehicles of the chunk, a build step each) with their dry van
+  hidden and a chassis and box hitched instead (some bobtails). LOD / far: boxes. A/B:
+  `PORT_LIFE=0`. Probe: `tools/port_life_probe.gd` (cranes, step times, poses at `T=`). Checks:
+  `tests/port_life_checks.gd`.
 - Map: `MacroMap` (`scripts/world/macro_map.gd`) decides zone (city, beach, ocean, hills, airport,
   port), land height and district for any world XZ. The city itself rolls: `relief_at()` is the
   gentle height field under the blocks (zero on beaches, flat zones, mountain hills and around

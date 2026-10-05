@@ -973,7 +973,9 @@ func _draw_rtg(r: Dictionary, view: Vector3, used: Dictionary) -> void:
 	var gx: float = pose.x
 	if Vector2(view.x, view.z).distance_to(Vector2(gx, b.z)) > draw_range + 100.0:
 		return
-	var marker: Node = r.marker
+	var marker: Variant = r.get("marker")
+	if marker == null or not is_instance_valid(marker):
+		return
 	var flip: bool = r.flip
 	var basis := Basis(Vector3.UP, PI) if flip else Basis()
 	var frame := Transform3D(basis, Vector3(gx, b.y, b.z))
@@ -986,7 +988,7 @@ func _draw_rtg(r: Dictionary, view: Vector3, used: Dictionary) -> void:
 	_put("spreader", Transform3D(Basis(), Vector3(gx, sy, tz)))
 	# The box: in its pile (the batch draws it), on the spreader, or on the target pile.
 	var src: Dictionary = r.src
-	var key := marker.get_instance_id()
+	var key: int = (marker as Node).get_instance_id()
 	if src.is_empty():
 		_body("rtg_%d" % key, "rtg", frame, Transform3D(), used)
 		return
