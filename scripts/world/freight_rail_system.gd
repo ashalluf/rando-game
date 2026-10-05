@@ -315,13 +315,15 @@ func _bodies(near: Array) -> void:
 			if t == FreightRail.Car.WELL:
 				h = 5.3
 			var local := global_transform.affine_inverse() * Transform3D(xf.basis, WorldState.to_local(xf.origin + xf.basis.y * (0.9 + h * 0.5)))
-			var cs: CollisionShape3D = body.get_child(0)
-			(cs.shape as BoxShape3D).size = Vector3(env.x, h, env.z - 0.5)
 			if _body_key[i] != key:
+				var cs: CollisionShape3D = body.get_child(0)
+				(cs.shape as BoxShape3D).size = Vector3(env.x, h, env.z - 0.5)
 				body.sync_to_physics = false
 				body.transform = local
 				_body_key[i] = key
-			else:
+			elif not body.transform.is_equal_approx(local):
+				# Moved only when the car moves: a body set where it already stands in a step of no
+				# time (Engine.time_scale 0) gets a velocity of 0 / 0.
 				body.sync_to_physics = true
 				body.transform = local
 			body.collision_layer = 4
