@@ -289,6 +289,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Frame-cost audit after the light rail / birds / emergency / parks / billboards /
+  river wave: grass in cells, furniture shadows near the camera (VISUAL_ROADMAP #63, HANDOFF
+  9b? perf audit).** The new systems themselves turned out cheap (birds, rail, emergency within
+  the CPU noise; the river 0.1 M triangles). What had grown: the beach town's lawn grass - one
+  batch a chunk, drawn whole while the chunk's centre was in range, 3.35 M triangles, 43 % of the
+  frame - now in 32 m cells (beach town -37 %); and the street furniture's shadows and draws.
+  Decisions: small furniture casts within 40-60 m (`StreetShadowReach`); a shadow distance on a
+  code-built batch is a reach (it silently did nothing); multi-part models whose pieces share
+  materials are merged per material (bench, trash can; not trees, whose LOD ladders are per
+  surface); the light rail's wires cast no shadow but its rails and sleepers keep theirs (their
+  shadow edges read from the air). Left for the lead: TrafficManager's per-car plan lookups
+  (11 ms a physics step here), FULL chunk build steps far over the 4 ms budget, rooftop AC units
+  (two texture sets, one geometry: one MultiMesh a building), the far city and trees.
+
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it

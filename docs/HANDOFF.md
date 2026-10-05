@@ -7194,3 +7194,168 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+
+## 9b?. Frame cost after the 2026-10-05 wave: the audit, and eight cuts, 2026-10-05 (agent branch `wt/perf-audit`; VISUAL_ROADMAP #63)
+
+The brief: the merged city's frame cost after vendors, the light rail, birds, emergency, parks,
+billboards and the LA River landed; measure every bookmark against 9bf, find the new top costs,
+cut the clear wins in small separate commits with before/after numbers and no visible change,
+and list the bigger items.
+
+### How it was measured
+
+`still_shot.gd` with `SPLIT=1` (opengl3 / llvmpipe, 960x540, `--quality=0`, 45 frames, each
+bookmark at its own hour; the same args before and after), on main 885795c ("before") and this
+branch ("after"). The SPLIT categories now include the new systems - Houses, Industrial, Parks,
+River, LightRail, Birds, Billboards, Vendors, PhysProps - which all fell into Other before, and
+`OSPLIT=1` splits Other and the street props by node name stem (an unnamed mesh by its parent and
+shader). Look changes were proven with `DIFF=1` pairs at 1280x720 and `tools/glshot/img_diff.py`.
+New tools: `tools/cpu_probe.gd` (each per-frame system's callbacks switched off in turn, headless),
+`tools/step_bench/step_bench.tscn` (every chunk round each bookmark built FULL / LOD / capture,
+step by step, the steps over `build_budget_ms` by name), `tools/load_probe.gd` (load time).
+The box ran two renders at once most of the time, so CPU milliseconds here are this box's under
+load: read them against each other.
+
+Bookmarks beyond bookmarks.sh's seven: beach town `-648,60,140,-3`, suburb `-290,307,-60,-3`,
+arena `2300,1150,138,-8,30`, MacArthur Park `300,528,0,-35,120`, the river (on the 1st St
+viaduct, looking down the channel) `4244,-777,180,-6,8`, the airport `EYE=-262,40,812,42,-17`,
+the port `3065,6300,0,-10,60`, Vernon `2610,3290,180,-1` - all noon, clear.
+
+### Every bookmark, before and after
+
+Triangles (camera / shadow) / draws / objects:
+
+| Bookmark | before (885795c) | after (this branch) | change |
+|---|---|---|---|
+| downtown_noon | 7.52 M (4.45 / 3.08) / 4,115 / 4,148 | 7.21 M (4.42 / 2.79) / 3,752 / 3,785 | -4.2 % tris, shadow -9.3 %, -363 draws |
+| downtown_night_rain | 7.56 M (4.46 / 3.11) / 4,122 / 4,155 | 7.25 M (4.43 / 2.82) / 3,761 / 3,794 | -4.1 %, shadow -9.1 %, -361 |
+| freeway | 6.00 M (4.27 / 1.73) / 3,939 / 3,995 | 5.78 M (4.25 / 1.54) / 3,599 / 3,655 | -3.6 %, shadow -11.1 %, -340 |
+| masjid | 8.61 M (4.78 / 3.83) / 5,197 / 5,224 | 8.15 M (4.74 / 3.42) / 4,544 / 4,571 | -5.3 %, shadow -10.8 %, -653 |
+| hills | 1.91 M (1.78 / 0.13) / 1,135 / 1,146 | the same | 0 |
+| esplanade_sunset | 2.62 M (1.43 / 1.19) / 1,949 / 1,950 | 2.60 M (1.43 / 1.17) / 1,902 / 1,903 | -0.6 %, -47 |
+| beach town | 7.73 M (5.81 / 1.91) / 2,128 / 2,134 | **4.87 M (3.05 / 1.82) / 1,883** / 1,889 | **-37.0 %**, camera -47 %, -245 |
+| suburb | 7.49 M (4.98 / 2.51) / 4,644 / 4,676 | 7.11 M (4.82 / 2.29) / 4,026 / 4,058 | -5.0 %, shadow -8.8 %, -618 |
+| arena | 3.52 M (1.78 / 1.73) / 1,991 / 1,997 | 3.29 M (1.76 / 1.53) / 1,684 / 1,690 | -6.5 %, shadow -11.9 %, -307 |
+| MacArthur Park (aerial) | 6.30 M (3.60 / 2.70) / 5,256 / 5,309 | 5.97 M (3.58 / 2.39) / 4,462 / 4,515 | -5.3 %, shadow -11.6 %, -794 |
+| river | 3.62 M (3.10 / 0.52) / 1,698 / 1,712 | RIVER_AFTER | |
+| airport | 1.87 M (1.28 / 0.59) / 1,174 / 1,176 | 1.82 M (1.28 / 0.54) / 1,082 / 1,084 | -2.6 %, shadow -7.5 %, -92 |
+| port | 3.20 M (3.04 / 0.16) / 1,326 / 1,338 | the same | 0 |
+| Vernon | 2.62 M (1.97 / 0.65) / 1,929 / 1,939 | 2.52 M (1.96 / 0.56) / 1,600 / 1,610 | -3.9 %, shadow -13.1 %, -329 |
+
+Against 9bf (its "after" on the merged head 07f2669, 1280x720 DIFF): downtown 6.50 M / 3,373 then,
+6.41 M / 3,413 on 885795c in the same DIFF setup now, 6.10 M / 3,050 after this branch - the
+last day's systems added little at the street bookmarks; what had grown was the beach town's
+grass (YardFill / houses lawns) and the furniture's shadows and draws.
+
+The DIFF pairs (cars, people, particles hidden; 1280x720; `img_diff.py`):
+
+| Bookmark | before | after | pixels that moved |
+|---|---|---|---|
+| downtown | 6,411,597 (3,792,115 / 2,619,480) / 3,413 | 6,098,733 (3,764,801 / 2,333,930) / 3,050 | 167 (0.018 %); 23 > 8, 9 > 32 |
+| masjid | 7,870,614 (4,233,076 / 3,637,536) / 4,627 | 7,411,616 (4,189,226 / 3,222,388) / 3,974 | 4,406 (0.48 %); 230 > 8, 65 > 32: the overhead wires' dotted shadow on the deck and the street, gone |
+| beach town | 7,401,405 (5,563,876 / 1,837,527) / 1,856 | 4,545,309 (2,800,214 / 1,745,093) / 1,611 | 67 (0.007 %); 16 > 8, 1 > 32 |
+
+### What was cut (one commit each)
+
+1. **Lawn grass in 32 m cells** (`CityChunk.GRASS_CELL`, keys `grass_<cx>_<cz>`). The blades were
+   ONE batch a chunk, and a batch's visibility range is measured to the centre of its bounds, so a
+   chunk drew every tuft it had while its centre was inside `grass_distance` (115 m): in the beach
+   town 3.35 M triangles of grass in 6 draws, 43 % of the frame. Each true-world cell is its own
+   batch now, same 115 m. Beach town grass 3.35 M -> 0.60 M (8 draws); the frame -37 %. The smoke
+   test's park check looks for `Batch_grass_*`.
+2. **Street furniture casts only near the camera** (`StreetShadowReach`, one hook line in
+   `CityChunk`): benches 60 m, bollards / bus plates / meters / hydrants 40 m, racks / news boxes /
+   mailboxes 50 m, cafe sets / planters 60 m, through `MultiMeshBatch.set_shadow_reach()`
+   (`SHADOW_REACH=0` is the A/B, as for the roofline). Downtown benches alone were 179k shadow
+   triangles, bollards 87k.
+3. **`set_shadow_distance()` works on code-built batches**: on a batch with no lighter twin it
+   did nothing (9bf's "found, not fixed"); it is now a reach on a SHADOWS_ONLY twin of the batch's
+   own mesh (plus half the instances' bounds, as a reach is). That takes in the airport's fences,
+   edge lights, gate sets and staging rows, the car parks' posts, the vendors' stands - as their
+   authors asked.
+4. **The bus-stop plate's "BUS"** (`PropFactory.bus_sign()`): its own TextMesh at curve step 3 -
+   2,496 -> 484 triangles a plate (125k downtown, 190k at the masjid, before the shadow cut).
+5. **The bench and the trash can are one surface per material** (`PropFactory.MERGE_BY_MATERIAL`,
+   `_merged_by_material()`): the bench kit was ten surfaces on four materials (230-380 draws a
+   street frame), each physics trash can four (four draws plus four per cascade, per can). Same
+   triangles. Not the trees (their ladders are measured per surface) and not the cafe set (merged,
+   it meets its budget and the simplified base mesh would change its look).
+6. **Trash cans, barrels and tyres stop drawing past 140 m** (a RigidBody3D each with its own
+   MeshInstance3D and no draw distance; 418 downtown).
+7. **The light rail's overhead wires cast no shadow** (`RailDetail`, the same material): no cascade
+   can draw a 6 mm wire; the dotted aliasing they threw on the street under the aerial structure is
+   gone. The rails and sleepers were taken out of the shadow pass too in a first version and put
+   back: their shadow edges on the ballast are visible from the air (`10_rail_sleepers_dropped_variant.jpg`
+   on shots/perf-audit, top before, bottom without).
+8. **The relief's landmark loop is a grid** (`MacroMap._lm_grid`, 400 m cells): every ground sample
+   looped all ~100 landmarks; same factors in the same order, 21,000 samples hash identical.
+   `relief_at` 27-50 -> 17-35 us a sample here; the build steps round the beach town, suburb and
+   downtown: FULL -4 %, LOD -10 %, `_block_surface` -9 %. (Smaller than hoped: building the slab's
+   mesh, not the relief, is most of that step.)
+
+Checks: `tests/perf_audit_checks.gd` (8, one line in smoke_test.gd).
+
+### The CPU side
+
+`tools/cpu_probe.gd` at the downtown spawn (headless; `Engine.max_fps` 60): the frame there ran
+the full 8 physics steps every frame (300 frames, 2,400 steps), i.e. this box is in the physics
+catch-up spiral, which multiplies anything per-step by eight. Switching each system off:
+
+| System off | headless frame (ms) | |
+|---|---|---|
+| all on | 293 | |
+| **Traffic** (TrafficManager) | **92** | -201 ms |
+| pedestrians (532) | 217 | -76 ms |
+| Birds, LightRail, Emergency, Police, Ambience, AirTraffic, Weather, DayNight, ReplicaTraffic, vehicles' own scripts (398), physics props (419) | 280-308 | all within the run-to-run noise (±15 ms) |
+
+Timed directly (`_drive_streets` called by hand, 220 traffic cars, 150 on the streets):
+**`TrafficManager._drive_streets` 11.3 ms a physics step**, `_drive_freeway` 1.35 ms,
+`_maintain` 4.6 ms and `_maintain_freeway` 4.6 ms every 0.5 s. Per car per tick it asks the plan
+for `_index_at`, `road_pos`, `road_width`, several `road_open`s and the crosswalks, all GDScript;
+everything about the next crossing could be kept per car until `t.node` changes. Not touched here:
+`traffic.gd` is the traffic-ai session's file. The new systems (birds, rail, emergency) are cheap.
+
+### Chunk builds and loading
+
+`step_bench.tscn` round the twelve bookmarks (108 FULL chunks): **no FULL chunk builds inside the
+4 ms budget** - 1,880 steps over it (17 a chunk on average; LOD chunks 2-4, capture ~0-1). The
+regular offenders, this box under load: `_block_surface` (the pavement slab and its rim, 30-220 ms,
+mean ~100), `_build_lot` (one whole Building a step, mean 30 ms, a tower 60-1,100 ms the first
+time a kind is built), `_build_roads` (mean 37), `_park_car` (a car build, ~39), `_build_park`
+(45), `_build_sidewalk_props` (31; 440-740 ms the first time it runs, the props' meshes and LODs
+being made). The streamer runs at least one step a frame whatever it costs, so on the Mac a FULL
+chunk arriving is a run of 10-60 ms frames. LOAD_LINE
+
+### The remaining top costs (after)
+
+1. **The far city** (Skyline): 0.7-2.2 M camera triangles, 90-230 draws - the biggest single
+   category at downtown, the freeway, the masjid, the suburb, the river and the hills.
+2. **Trees** 1.1-2.2 M, two thirds of it shadow (suburb 2.25 M / 983 draws, beach town 2.04 M,
+   MacArthur 1.86 M).
+3. **CPU: TrafficManager._drive_streets** (above) and the physics spiral it feeds.
+4. **FULL chunk build steps over budget** (above): split `_build_lot`, `_block_surface`,
+   `_build_roads` into smaller steps.
+5. **Rooftop AC units** (`Building` `RoofUnits` + `RoofUnitsRusted`): 0.3-0.55 M and 280-460
+   draws (MacArthur's aerial 545k / 462). The two models are the same geometry with two texture
+   sets (prop_ac.glb), so one MultiMesh per building with the rust picked per instance in a shader
+   would halve the draws; or a draw distance from the air.
+6. **The facade kit's other pieces** ("kit other": hvac, vents, tanks, fire escapes): 374-643
+   draws downtown / MacArthur - `kit_hvac` is three surfaces a building.
+7. **The roofline's shadow twins** inside the 80 m reach: 368k shadow triangles downtown.
+8. **Vehicles** 0.68 M downtown (322k shadow: the body twins within 70 m and the near wheels).
+9. **Houses' small parts in the shadow pass**: `h_trim` and `h_metal` (gutters, rails, trims)
+   cast 78k + 36k in the beach town; `h_wall` 82k.
+10. **The masjid and the light rail structure**: the masjid's merged meshes have no LOD (Exterior
+    203k, 152k shadow); RailStructure 198k (143k shadow) where the aerial structure passes - the
+    rails' 115 lb profile could drop to a box past ~60 m.
+
+### Not measured / not verified
+
+- **The web build**: not exported or measured here. The cuts apply there too (the grass cells, the
+  shadow reaches, the merged surfaces); the web plants 0.35 of the grass anyway.
+- **The Mac**: everything above is opengl3 counters and headless CPU on a loaded Linux box. A FULL
+  F1 stats screenshot downtown and in the beach town would show the real frame.
+- Forward+ was not rendered (the city does not fit lavapipe, 9bf).
+
+Stills on `shots/perf-audit` (README lists them): downtown, masjid and beach town before / after /
+diff heatmap from the DIFF pairs, and the dropped rail variant.

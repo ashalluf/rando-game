@@ -3163,6 +3163,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `LAMPS_AT_ZERO=1` on `still_shot.gd` and `gpu_profile.gd`. The whole city no longer fits
   lavapipe (12.7 GB, OOM-killed with another session's process): never render it there;
   `gpu_profile.gd LIGHT_WORLD=1` is for a bigger box.
+  **Batch extents decide what a range does** (perf audit 2026-10-05, HANDOFF 9b?): a batch's
+  draw and shadow ranges are measured to the centre of its bounds, so a chunk-wide batch of
+  something dense (the lawn grass) is drawn whole while its centre is in range - grass is batched
+  in `CityChunk.GRASS_CELL` (32 m) cells for that. Small street furniture casts only within 40-60 m
+  (`StreetShadowReach`, keys and reaches in one table; `SHADOW_REACH=0` the A/B), and
+  `MultiMeshBatch.set_shadow_distance()` on a batch with no lighter twin is a reach on a twin of its
+  own mesh. Multi-part glTF props whose nodes share materials go in `PropFactory.MERGE_BY_MATERIAL`
+  (one surface per material; never the trees). Measure with `still_shot.gd SPLIT=1` (the new
+  systems have their own lines; `OSPLIT=1` splits Other and the street props by name),
+  `tools/cpu_probe.gd` (per system, headless), `tools/step_bench/step_bench.tscn` (build steps over
+  budget, by name) and `tools/load_probe.gd`.
   **Static boxes are never a node each.** `CityChunk._add_slab()` merges a chunk's solid boxes
   (big-box walls, pilasters, parapets, planters, yard pads) into one mesh per material at the
   finish (`_commit_boxes()`), and `MultiMeshBatch.merge_meshes()` does the same for the far
