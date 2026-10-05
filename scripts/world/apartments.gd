@@ -127,6 +127,14 @@ static func plan_house(plan: CityPlan, bx: int, bz: int, lot: Dictionary, distri
 		return {}
 	var grid := YardFill.lot_grid(plan, bx, bz, [lot])
 	var front := YardFill.lot_front(plan, bx, bz, lot, grid)
+	if district == CityPlan.District.MIDTOWN:
+		# A deco boulevard's lot is DecoBoulevard's; a block's service alley keeps its band (Alleys).
+		if not DecoBoulevard.lot_plan(plan, bx, bz, lot).is_empty():
+			return {}
+		var yard := Alleys.trim(plan, bx, bz, front.yard)
+		if yard.size.x < 1.0 or yard.size.y < 1.0:
+			return {}
+		front.yard = yard
 	if front.walk_front:
 		return {}
 	var f := YardFill._frame(front.yard, int(front.side))
@@ -149,7 +157,7 @@ static func plan_for(plan: CityPlan, lot: Dictionary, district: int, front: Dict
 		"door_u": U * 0.5, "door_v": 2.0, "chimney": {}, "solar": false, "vents": 0, "breeze": Rect2(),
 		"roof_mat": "h_flat", "shingle_kind": 1, "pitch": 0.28, "eave": 0.45, "beach": false,
 		"apt": kind, "galleries": [], "stairs": [], "court": Rect2(), "extra_ground": [], "own_ground": midtown,
-		"cell": lot.get("cell", front.yard), "name": NAMES[absi(hash([ps, s, "apt_name"])) % NAMES.size()]}
+		"cell": lot.get("cell", front.yard), "lot": lot, "name": NAMES[absi(hash([ps, s, "apt_name"])) % NAMES.size()]}
 	match kind:
 		Kind.WALKUP:
 			_plan_walkup(h, ps, s, U, V, midtown)

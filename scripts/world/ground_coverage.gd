@@ -426,7 +426,7 @@ static func _grounds(plan: CityPlan, bx: int, bz: int, b: Dictionary, grid: floa
 				_paint(box, r, PARKING)
 			_:
 				_paint(box, r, SPORT)
-	if pl.role == "rec":
+	if pl.role == "rec" or String(b.get("grounds", "")) == "cemetery":
 		_paint(box, inner, GARDEN)
 	else:
 		_paint(box, inner, SPORT)

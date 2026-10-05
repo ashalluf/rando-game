@@ -14,6 +14,8 @@ const STOREY := HouseKit.STOREY
 ## Air conditioners and balconies found while laying the openings: [fo, t, n, a, y].
 var _acs: Array = []
 var _balconies: Array = []
+## The alley's back strip behind the building (frame rect), kept off the lot ground.
+var _back := Rect2()
 
 
 func _ap(parts: Array) -> float:
@@ -511,10 +513,22 @@ func _name_sign() -> void:
 
 ## The court's ground and planting, and in midtown the whole lot's ground (no yard pass runs there).
 func _ground() -> void:
+	var f: Dictionary = h.f
+	# A midtown block's service alley (Alleys) is routed round the wings and lays its own ground
+	# behind them (the back strip): tell it what stands here, at every level.
+	var lot: Dictionary = h.get("lot", {})
+	if h.get("own_ground", false) and not lot.is_empty():
+		var feet: Array[Rect2] = []
+		for w: Dictionary in h.wings:
+			var wr: Rect2 = w.r
+			feet.append(YardFill._fr(f, wr.position.x, wr.position.y, wr.end.x, wr.end.y))
+		Alleys.record(ch, lot, feet)
+		var back := Alleys.back_strip(ch.plan, ch.ix, ch.iz, lot, feet)
+		if back.size.x > 0.3 and back.size.y > 0.3:
+			_back = YardFill._to_frame(f, back)
 	# The court and the lot ground are yard ground (YardFill's mesh): off with the yard fill's A/B.
 	if not YardFill.enabled:
 		return
-	var f: Dictionary = h.f
 	var court: Rect2 = h.court
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([ps, seed, "apt_ground"])
@@ -572,9 +586,12 @@ func _ground() -> void:
 	if not h.get("own_ground", false):
 		return
 	# Midtown: the rest of the cell, the front a lawn with a walk to the entry, the sides and back
-	# concrete.
+	# concrete. A block's service alley (Alleys) routes round the wings and lays its own ground
+	# behind them (the back strip), which this keeps off.
 	var yard := Rect2(0.0, 0.0, float(f.U), float(f.V))
 	var holes2: Array[Rect2] = []
+	if _back.size.x > 0.0:
+		holes2.append(_back)
 	var front_v := float(f.V)
 	for w: Dictionary in h.wings:
 		holes2.append(w.r)
