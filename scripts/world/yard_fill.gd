@@ -1679,6 +1679,8 @@ static func _shrub(ch: CityChunk, at: Vector2, rng: RandomNumberGenerator, size:
 	var sc := size * rng.randf_range(0.8, 1.2)
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc * rng.randf_range(0.85, 1.15), sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
+	if LaTrees.accent_shrub(ch, Vector3(at.x, CityChunk.SIDEWALK_TOP + LIFT, at.y), LaTrees.SHRUB_ACCENT):
+		return
 	ch._batch.add("bush_%d" % pick, mesh, Transform3D(basis, Vector3(at.x, CityChunk.SIDEWALK_TOP + LIFT, at.y)), tint)
 
 

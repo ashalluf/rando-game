@@ -2674,6 +2674,43 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   they looked like spiders. `palm()` builds the tree at every level of `PALM_LEVELS` from one
   random stream (see the Performance note): anything added to it must draw its random numbers
   at every level, whether that level draws the part or not, or every frond after it moves.
+- Los Angeles trees (2026-10-05, docs/HANDOFF.md, "the trees that make it read as LA"):
+  `LaTrees` (`scripts/world/la_trees.gd`) builds ten species IN CODE at real size (Poly Haven has
+  none of them): eucalyptus, Italian cypress, olive, Indian laurel fig, California sycamore,
+  coral tree, and the accents bird of paradise, agave, yucca and dragon tree (dracaena); two
+  variants each, `mesh(species, variant)`. A variant is grown ONCE from its own seed (`_grow()`:
+  crown clusters sampled in an envelope or in clumps, limbs to groups of them by direction,
+  branches to k-means sub-groups, twigs to each; pipe-model radii; leaves round each twig end
+  laid "hang" / "up" / "spread"; AO baked into the vertex colour by depth in the crown) and every
+  LOD level is EMITTED from that one data (`_emit()`, `LEVELS`): leaves merged `stride` at a time
+  into one card of the same area, then each cluster as two and one cut cluster cards, thin tubes
+  dropped, fewer sides - one vertex buffer, the coarser levels its LODs at their `_edges()` in
+  metres plus the counter copy (`COUNTER_EDGE`), the shadow twin from `SHADOW_LEVEL` registered
+  in `PropFactory._shadow_proxies`, the mesh flagged `foliage_ladder` (MultiMeshBatch scales the
+  edges by its biggest instance). **Leaves are cut cards**: `shaders/la_tree.gdshader` cuts the
+  outline from the UV (lance, oval, palmate, trifoliate, cypress scale spray, sword, paddle,
+  flower, cluster card, and SPRIGS - a stem with its leaves on one card, the only way a code tree
+  fills a crown: single leaves left a fig a see-through net), AA'd by `fwidth` into the alpha
+  scissor; bark is drawn at real size from UV metres (eucalyptus shed patches and strips,
+  sycamore jigsaw, olive furrows, fibrous rings). Both faces keep the mesh normal (the shader
+  undoes Godot's back-face flip; bark winding is not guaranteed), the back face is the paler
+  underside (`underside`: olive silver). Colours are vertex colours, linear on both renderers.
+  **Placement is hooks AFTER every existing roll, hashes only**: `CityChunk._add_tree()` ->
+  `street_or_park()` (a share of blocks swap their kerb rows by `STREET` per district -
+  `street_species()`, pure - narrowed across the street to `STREET_ACROSS` and capped so the crown
+  keeps `STREET_REACH` off the building line; park trees by 30 m cell, `PARK`; raised planters and
+  roundabouts olives); `LotFill._tree()` -> `lot_tree()` (the freeway's right-of-way row within
+  `ROW_REACH` of a deck is eucalyptus, sized to keep its crown off the deck; yards olive / coral /
+  sycamore within `YARD_REACH`; campus sycamore and gum); `YardFill._shrub()` / `LotFill._shrub()`
+  -> `accent_shrub()` (one accent species a chunk); `HouseKit.build()` -> `house()` (a cypress pair
+  either side of the walk of most Spanish and many Craftsman houses, `CYPRESS_ODDS`, and front
+  garden accents; caps `MAX_CYPRESS` / `MAX_ACCENTS` a chunk in chunk meta); `CityChunk._plant_hills`
+  -> `gully_tree()` (sycamores in the wettest hollows). Each returns true when it planted, and the
+  caller then skips its own add - the caller's rng calls are all made first (LotFill._tree's yaw
+  was moved into a variable for that). `LA_TREES=0` in the environment is the A/B (the city exactly
+  as before). Built on the loading screen (`warm()`, ~2 s); `?showroom` lines them up. Look with
+  `tools/glshot/la_tree_shot.gd` (a lineup in seconds, `SPECIES=`, `LEVEL=n`, `CAM` / `LOOK`), find
+  them with `tools/la_trees_probe.gd` (`MODE=street|cypress|row`); checks: `tests/la_trees_checks.gd`.
 - Replica areas (see the technical rule): `ReplicaAreas` (`scripts/world/replica_areas.gd`,
   `MacroMap.replica`, built in `MacroMap.setup()` before the hill roads, `fit_hill_profile()`
   after) holds each area as a table - today only `ESPLANADE`: Knob Hill down the Redondo

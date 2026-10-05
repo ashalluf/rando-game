@@ -1845,6 +1845,8 @@ func _test_city() -> void:
 	# Boulevard signs (tests/signage_checks.gd): the atlas grid, pole signs as props in one batch
 	# per kind, plates and vinyl, nothing else in the block moved, the far boxes.
 	load("res://tests/signage_checks.gd").new().run(self, city)
+	# The code-built Los Angeles trees and accents (tests/la_trees_checks.gd).
+	load("res://tests/la_trees_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

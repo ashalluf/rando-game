@@ -8749,3 +8749,93 @@ AgX need eyes on the Mac. Nobody walks into or out of the hospital (the crowd ke
 pavement ring; the patient is not unloaded). The court is a plain asphalt apron (no ambulance
 traffic of its own beyond the units Emergency sends). The tower is a light-panel slab with ribbon
 windows on every face; real bed towers have more articulation (a crown, mechanical floors).
+
+## 9cr. The trees that make it read as Los Angeles, 2026-10-05 (agent branch `wt/la-trees`; VISUAL_ROADMAP #86)
+
+Number is provisional (the lead renumbers on merge).
+
+**The brief** (lead): five broadleaf street trees, the hill scans and the code palms are not Los
+Angeles. Add eucalyptus, Italian cypress, olive, Indian laurel fig, California sycamore, coral
+tree, and the accents (bird of paradise, agave, yucca, dracaena); place them where LA has them;
+keep the frame flat; nothing a seed builds may move. CLAUDE.md "Los Angeles trees" is the
+reference; this is the story.
+
+**Why code, not scans.** Poly Haven has none of the ten (its CC0 trees are island trees, a small
+tree, the jacaranda, fir, pine, quiver trees and searsia). So `LaTrees` grows them the way
+`PropFactory.palm()` builds a palm, at real size, two variants each, one mesh per variant.
+
+**How a tree is grown.** One pass of the variant's own rng builds the data (`_grow()`): for the
+broadleaves, cluster points sampled in a crown envelope pushed to its shell (fig, olive, coral) or
+in clumps (eucalyptus, sycamore: an open crown with sky between), limbs out of the trunk(s) toward
+groups of clusters by direction, branches to k-means sub-groups, a twig to each cluster, radii by
+the pipe model (a stem carries the sum of what it feeds), gnarl as noise on the polylines, ambient
+occlusion baked into the vertex colour by depth in the crown and the underside. The cypress is a
+column of upward scale sprays on a spindle profile; the agave a phyllotaxis rosette of channelled,
+keeled leaves; yucca and dragon tree stems (forking three times into an umbrella for the dragon
+tree) ending in sword rosettes, a yucca with a skirt of dead leaves; the bird of paradise a clump
+of paddles on stalks with beaked orange-and-blue flowers. Every LOD level is then EMITTED from that
+same data, so they are the same tree: L1 merges three leaf cards into one of the same area, L2
+eight, L3 draws each cluster as two crossed cut cards, L4 one; tubes lose sides and rings and the
+thin ones drop out. Full detail 6-17k triangles for a tree (palms are 24k), 0.8-3.5k for an
+accent; the coarsest 0.4-1.1k. Edges as the palms': the size change a merge makes.
+
+**Leaves are cut cards, and the crowns needed SPRIGS.** The first fig had 6,000 single leaves at
+their real 10 cm and read as a see-through net: a crown is opaque because every leaf overlaps
+others, and single cards at real size never get there. A sprig card (a stem with six to eight
+leaves drawn by the shader) of 30-50 cm fills a crown at a fifth of the triangles - the standard
+game answer. `la_tree.gdshader` cuts every outline from the UV (lance, oval, palmate with teeth,
+trifoliate, cypress spray, sword, paddle with wind tears, flower spikes, sprigs, cluster cards),
+anti-aliased through `fwidth` into the alpha scissor. Under a pixel, sprig and cluster cards are
+kept by their average cover inside their outline, dithered per pixel (the olive's narrow leaves
+broke up into stem "T" glyphs otherwise). Bark is drawn from UV metres: the eucalyptus' shed cream,
+grey-green and salmon patches with rough old bark at the foot (and hanging strips of shed bark as
+geometry), the sycamore's white jigsaw, the olive's twisting furrows, fibrous leaf-scar rings.
+Godot flips a back face's normal; the shader flips it back for everything (bark winding is not
+guaranteed, and a leaf's crown normal is the same from either side) and paints the back face as
+the underside (`underside`: silver on the olive).
+
+**Placement: swaps after every roll, plus additions by houses.** All hashes of seed + place,
+called at the end of the existing code so its rng stream is untouched (LotFill._tree's yaw was
+pulled into a variable before the hook, same order of calls):
+- `CityChunk._add_tree()` -> `street_or_park()`: a block's kerb rows swap as a whole by district
+  (`STREET`: downtown 55 % of blocks, 80 % of those laurel fig; midtown fig, coral, olive; the
+  suburbs sycamore, coral, olive, gum; industrial gum and fig; campus sycamore, gum, olive; the
+  beach town coral and fig), 88 % of the row. Street crowns are narrowed across the street
+  (`STREET_ACROSS` 0.72) and capped to reach `STREET_REACH` 2.9 m across the pavement, so no crown
+  goes through a facade - the scanned trees' problem the palms solved by leaning. Park trees swap
+  by 30 m cell (stands of gum and sycamore), raised planters and roundabouts become olives,
+  plazas are capped like yards. Jacaranda streets are left alone.
+- `LotFill._tree()` -> `lot_tree()`: the freeway's right-of-way tree row (within 12 m of a deck)
+  is eucalyptus, sized so its crown stays off the deck; yards olive / coral / sycamore; campus
+  sycamore and gum; forecourt planters olive and fig.
+- `YardFill._shrub()` / `LotFill._shrub()` -> `accent_shrub()`: a share become one accent species a
+  chunk (agave, bird of paradise, yucca, dracaena), capped `MAX_ACCENTS`.
+- `HouseKit.build()` -> `house()`: a cypress pair either side of the walk of 70 % of Spanish and
+  45 % of Craftsman houses (a few others), stepping along the front past the drive; one to three
+  accents in the front garden (a Craftsman's lush, a Spanish one's dry).
+- `CityChunk._plant_hills()` -> `gully_tree()`: sycamores in the wettest hollows.
+`LA_TREES=0` in the environment is the city exactly as before (the checks build a downtown block
+both ways and compare every other batch, prop and parked car).
+
+**Cost.** block_shot.tscn GEO, the same three eyes with LA_TREES 0 / 1: Spanish street
+5.14 / 5.20 M tris, 796 / 807 draws; downtown corner 2.41 / 2.49 M, 1,476 / 1,502; suburb
+aerial 2.92 / 2.95 M, 2,407 / 2,429 (+1-3 %; a new species is a batch and its shadow twin, so
+draws rise by a few per block). In the whole city (still_shot.gd GEO, opengl3) on the fig street
+`EYE=2488,2,408,180,5 --hour=11`: 5.58 M tris / 2,907 draws without, 5.51 M / 2,902 with - the
+figs' ladders are cheaper than the scans they replace. GEO counts a LOD'd batch once a draw (CLAUDE.md trap 3) on both
+sides alike. TREE_AB in still_shot.gd does not know these meshes yet: the TRUE per-instance count
+is not measured.
+
+**Stills** (`shots/la-trees` branch): the lineup, the accents, a laurel fig street downtown, under
+the figs, a cypress pair by a Spanish house, eucalyptus along the freeway, a suburb with and
+without.
+
+**The smoke test** takes 15.5 min on the 4-core session box (the checks before these alone reach
+headless_check.sh's 900 s timeout there, with or without this branch); la_trees_checks.gd passes
+when run with a longer timeout.
+
+**Not done / to check.** NEEDS MAC CHECK: leaf tone, gloss and translucency on Forward+ (judged on
+opengl3 only; the fig's sky gloss read blue-grey before its specular came down). The far city's
+canopy blobs do not know the species (a fig block far off is a green blob like any). Dog-walker and
+Skyline untouched. The freeway row only shows where YardFill builds a corridor lot. A Forward+
+(lavapipe) small-scene still was not taken.

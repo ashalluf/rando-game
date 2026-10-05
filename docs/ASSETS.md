@@ -646,6 +646,18 @@ and 733737, measured as perfectly steady synthesized tones, so making our own wa
 | `assets/textures/murals/ghost_signs.png` (sixteen invented period ads as field / lettering / shadow masks) | Our own script `tools/make_murals.py`; lettering rasterised from the system's DejaVu (Bitstream Vera licence) and Liberation (SIL OFL 1.1) fonts, no font file ships | ours | ghost signs on old brick (`scripts/world/murals.gd`, `shaders/mural.gdshader`) | 2026-10-05 |
 | Every mural scene, frieze, crosswalk pattern and cabinet wrap | Painted procedurally in `shaders/mural.gdshader` | ours | murals | 2026-10-05 |
 
+## Los Angeles trees and accents (built in code)
+
+Ten species built at run time by `scripts/world/la_trees.gd` (2026-10-05) - no model files, no
+textures: a seeded skeleton (trunk, limbs, branches, twigs), leaf cards whose outlines, bark
+patterns and flowers are drawn by `shaders/la_tree.gdshader`. Poly Haven has none of these
+species. Original work for this game.
+
+| Mesh | Built by | Triangles (full detail / coarsest) | Used for | Added |
+|---|---|---|---|---|
+| Eucalyptus (blue gum), Italian cypress, olive, Indian laurel fig, California sycamore, coral tree; two variants each | `LaTrees.mesh()` | 6k-17k / 0.4-1.1k | street rows, parks, plazas, yards, the freeway's right of way, hill gullies, cypress pairs by houses | 2026-10-05 |
+| Bird of paradise, agave (plain and variegated), yucca, dragon tree | `LaTrees.mesh()` | 0.8k-3.5k / 20-400 | front gardens, yard beds, forecourt planters | 2026-10-05 |
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |
