@@ -640,6 +640,7 @@ static func _cached(key: String, build: Callable) -> ArrayMesh:
 	var g := Geo.new()
 	build.call(g)
 	var m := g.mesh()
+	m.set_meta("ss_key", key)
 	_cache[key] = m
 	return m
 

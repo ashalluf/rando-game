@@ -46,4 +46,12 @@ func _initialize() -> void:
 				plan.road_name(0, ix + 1), plan.road_name(1, iz + 1), eye.x, eye.y, yaw])
 			found += 1
 	print("FOUND ", found)
+	# SIGNS=ix,iz builds that block's FULL chunk and prints its block signs (StreetSigns.debug).
+	if OS.get_environment("SIGNS") != "":
+		var k := OS.get_environment("SIGNS").split(",")
+		var ss: GDScript = load("res://scripts/world/street_signs.gd")
+		ss.set("debug", true)
+		var full: int = ((load("res://scripts/world/city_chunk.gd") as GDScript).get_script_constant_map().Level as Dictionary).FULL
+		var chunk = current_scene.call("_new_chunk", Vector2i(k[0].to_int(), k[1].to_int()), full)
+		chunk.call("build")
 	quit()

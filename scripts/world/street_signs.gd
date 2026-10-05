@@ -26,6 +26,8 @@ static var enabled: bool = OS.get_environment("STREET_SIGNS") != "0"
 ## Tests: commit() keeps each sign batch's transforms on the chunk (meta "ss_debug_xforms"), as
 ## the dummy renderer reads a MultiMesh's back as identity.
 static var keep_xforms: bool = false
+## SS_DEBUG=1 prints every block sign with an EYE for still_shot.gd 7 m in front of its face.
+static var debug: bool = OS.get_environment("SS_DEBUG") == "1"
 
 ## How far the signs draw (metres): plates and blades at the kerb, the mast-arm signs further, as
 ## they hang over the road where a driver reads them from a block back. Their shadows only near.
@@ -47,8 +49,11 @@ const PARKING_END := 16.0
 const KERB_IN := 0.55
 ## What a new sign keeps clear of (metres, centre to centre).
 const CLEAR := 1.3
-## Batch keys whose instances a sign must keep clear of (street furniture by name).
-const OBSTACLE_KEYS := ["lamp", "tree", "palm", "hydrant", "meter", "bench", "bus", "shelter", "rack", "newsbox", "mailbox", "bollard", "upole", "sig_", "trash", "planter", "cafe", "camp", "vend", "cabinet", "kiosk", "ss_"]
+## What a new sign keeps clear of: the street's own furniture, by batch key and by prop kind -
+## only the core furniture every block has, never another feature's (a vendor's cart, a
+## forecourt's bench), so switching a feature off never moves a sign and its checks stay exact.
+const OBSTACLE_KEYS := ["lamp", "tree", "palm", "hydrant", "meter", "bench", "bus", "shelter", "rack", "newsbox", "mailbox", "bollard", "upole", "sig_", "trash", "cabinet", "kiosk", "ss_"]
+const OBSTACLE_KINDS := ["lamp", "hydrant", "bench", "bus_stop", "signal", "signal_cabinet", "mailbox", "newsbox", "rack", "bollard", "street_sign", "stop_sign", "meter"]
 
 
 static func _h01(parts: Array) -> float:
@@ -329,6 +334,8 @@ static func _clear_spot(p: Vector2, dir: Vector2, obstacles: Array) -> Vector2:
 static func _obstacles(ch: CityChunk) -> Array:
 	var out: Array = []
 	for r: Dictionary in ch.prop_records:
+		if not OBSTACLE_KINDS.has(String(r.kind)):
+			continue
 		var p: Vector3 = r.position
 		out.append(Vector2(p.x, p.z))
 	var data: Dictionary = ch._batch.data()
@@ -355,6 +362,10 @@ static func _add(ch: CityChunk, kind: String, at: Vector3, instances: Array, sha
 		return
 	var g := ch._gy(at.x, at.z)
 	var record := {"id": id, "kind": kind, "position": at + Vector3(0.0, g, 0.0), "color": Color(0.3, 0.3, 0.32), "health": CityChunk.PROP_HEALTH.get(kind, 20.0), "instances": [], "shapes": [], "dead": false}
+	if debug:
+		var z: Vector3 = (instances[0][2] as Transform3D).basis.z
+		var eye := at + z * 7.0
+		print("SSIGN %s %s at=%.1f,%.1f EYE=%.1f,1.6,%.1f,%.0f,8" % [id, String((instances[0][1] as Mesh).get_meta("ss_key", "")), at.x, at.z, eye.x, eye.z, rad_to_deg(atan2(z.x, z.z))])
 	for inst: Array in instances:
 		var index: int = ch._batch.add(inst[0], inst[1], inst[2], inst[3], inst[4])
 		record.instances.append([inst[0], index])

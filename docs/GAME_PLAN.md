@@ -289,6 +289,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 The street's signs are real models (HANDOFF "The street's signs").** The signs
+  were a cylinder for a stop sign facing the junction diagonally, flat boxes with TextMesh names
+  and red-banded white boxes. Decisions: built in CODE at real size (SignKit), not Blender - every
+  street name is a different blade, so the geometry has to be made at run time anyway; one stroke
+  font of our own for every legend (SignFont: centre-line polylines drawn as ribbons, the way the
+  road alphabets are), raised a few millimetres off the face rather than coplanar (z-fighting on
+  the web's depth buffer); one material for every sign, the freeway's headlight cone for the
+  sheeting at night; each assembly one mesh cached by key. Placed only where the plan already
+  decides a sign belongs: the junction signs replace the old props inside the same `_add_prop`
+  calls so no prop id moves, the new block signs (speed limits, parking, school zones, yields)
+  get ids of their own. No ONE WAY signs: the plan has no one-way streets, and a sign that lies
+  is worse than none (the face is easy to add when it does). Yield signs are scenery: traffic
+  does not yield at unsigned junctions.
+
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
