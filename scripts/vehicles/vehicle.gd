@@ -1205,6 +1205,7 @@ func _tick_lights(delta: float) -> void:
 		var decel := (_prev_traffic_speed - v) / maxf(delta, 0.0001)
 		braking = v < 0.3 or decel > 0.8
 		_prev_traffic_speed = v
+		reversing = traffic.get("rev", false) # backing away from gunfire (CarPanic)
 		sig = _traffic_signal()
 	elif _npc_driver:
 		braking = linear_velocity.length() < 1.0 or brake > 5.0

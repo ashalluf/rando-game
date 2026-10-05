@@ -530,6 +530,9 @@ func _drive_streets(delta: float) -> void:
 
 func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictionary) -> void:
 	var t: Dictionary = car.traffic
+	# A driver reacting to gunfire or a blast (CarPanic) drives the car itself this tick.
+	if t.has("cp") and CarPanic.street_tick(self, car, leader, groups, delta):
+		return
 	var axis: int = t.axis
 	var dir: int = t.dir
 	var index: int = t.index

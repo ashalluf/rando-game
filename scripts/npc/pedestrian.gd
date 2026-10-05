@@ -2130,6 +2130,8 @@ static func alarm(tree: SceneTree, at: Vector3, radius: float, screams: int, for
 	Birds.startle(at, radius)
 	# And the dogs (Dog): a lead dog barks with its tail tucked, a yard dog runs for the house.
 	Dog.startle_all(tree, at, radius)
+	# And the drivers (CarPanic): brake, swerve, up the kerb, back away, or get out and run.
+	CarPanic.alarm(tree, at, radius, force)
 	var now := Time.get_ticks_msec()
 	if not force and now - _last_alarm_ms < 250 and at.distance_to(_last_alarm_at) < 10.0:
 		return

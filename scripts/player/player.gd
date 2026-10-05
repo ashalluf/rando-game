@@ -292,7 +292,7 @@ func _try_enter_vehicle() -> void:
 		var car := node as Vehicle
 		if car == null or car.driver != null:
 			continue
-		if car.is_traffic() or car.is_wreck():
+		if (car.is_traffic() and not CarPanic.is_abandoned(car)) or car.is_wreck():
 			continue
 		var d := car.global_position.distance_to(global_position) - maxf(car.enter_radius - enter_range, 0.0)
 		if d < best_d:
@@ -303,6 +303,7 @@ func _try_enter_vehicle() -> void:
 
 
 func enter_vehicle(car: Vehicle) -> void:
+	CarPanic.take(car) # a car its driver ran from leaves the traffic first (nobody's crime)
 	# Parked cars live under the city root; this tag stops their chunk from freeing a car that
 	# has been driven away from home.
 	car.set_meta("driven", true)
