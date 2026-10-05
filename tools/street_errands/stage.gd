@@ -284,7 +284,7 @@ func _shop(here: Vector2) -> String:
 	var out: Vector2 = door.out
 	var p := _borrow(pool, (door.p as Vector2) + out * 0.5, door.ring)
 	# Held at the door, reaching for it.
-	var at_door: Vector2 = (door.p as Vector2) + out * _envf("ERRAND_IN", 0.35)
+	var at_door: Vector2 = (door.p as Vector2) + out * _envf("ERRAND_IN", 0.9)
 	p.position = Vector3(at_door.x, StreetErrands._floor(p, at_door), at_door.y)
 	p.errand = {"steps": [{"do": "face", "yaw": atan2(out.x, out.y), "secs": 1e9}], "i": 0}
 	p._visual.rotation.y = atan2(out.x, out.y)

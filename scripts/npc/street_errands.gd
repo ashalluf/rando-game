@@ -461,9 +461,9 @@ static func _append_shop_visit(steps: Array, door: Dictionary, secs: float, truc
 	var out: Vector2 = door.out
 	var yaw := atan2(out.x, out.y)
 	steps.append({"do": "goto", "at": door.front})
-	steps.append({"do": "path", "pts": [at + out * (0.95 if truck else 0.5)], "keep_truck": truck})
+	steps.append({"do": "path", "pts": [at + out * (1.2 if truck else 0.9)], "keep_truck": truck})
 	steps.append({"do": "face", "yaw": yaw, "secs": 0.5, "keep_truck": truck})
-	steps.append({"do": "path", "pts": [at - out * 0.25], "pace": 0.8, "keep_truck": truck})
+	steps.append({"do": "path", "pts": [at + out * 0.15], "pace": 0.8, "keep_truck": truck})
 	steps.append({"do": "hide", "door": door, "secs": secs})
 
 
@@ -739,7 +739,7 @@ static func _do_inside(p: Pedestrian, step: Dictionary) -> void:
 		var out: Vector2 = d.out
 		var what: int = p.errand.get("delivery", DELIVER_NONE)
 		var steps: Array = [
-			{"do": "show", "at": (d.p as Vector2) - out * 0.2, "yaw": atan2(-out.x, -out.y)},
+			{"do": "show", "at": (d.p as Vector2) + out * 0.15, "yaw": atan2(-out.x, -out.y)},
 			{"do": "ring", "ring": d.ring},
 		]
 		if what == DELIVER_TRUCK:
@@ -748,7 +748,7 @@ static func _do_inside(p: Pedestrian, step: Dictionary) -> void:
 			steps.append({"do": "bag", "on": false})
 		elif _rng_of(p).randf() < BAG_SHARE and p._carry == CrowdLife.Carry.NONE:
 			steps.append({"do": "bag", "on": true})
-		steps.append({"do": "path", "pts": [(d.p as Vector2) + out * (1.0 if what == DELIVER_TRUCK else 0.7), d.front]})
+		steps.append({"do": "path", "pts": [(d.p as Vector2) + out * (1.2 if what == DELIVER_TRUCK else 0.9), d.front]})
 		steps.append_array((p.errand.steps as Array).slice(int(p.errand.i) + 1))
 		p.errand.steps = steps
 		p.errand.i = 0
