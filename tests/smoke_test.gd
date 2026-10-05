@@ -1931,6 +1931,9 @@ func _test_city() -> void:
 	await load("res://tests/shader_warm_checks.gd").new().run(self, city)
 	# Load time (tests/load_time_checks.gd): the disk cache's bakes byte for byte, the shader warm-up.
 	load("res://tests/load_time_checks.gd").new().run(self, city)
+	# The extra occluders (tests/occluders_checks.gd): hill terrain, decks, banks, sound walls and
+	# the far mountains, each inside what it stands for.
+	await load("res://tests/occluders_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

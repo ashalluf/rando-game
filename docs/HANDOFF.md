@@ -11677,3 +11677,117 @@ warm-up covering every shader.
   `last_drain` and several memo caches.
 - Not measured on the Mac. A Mac launch log (Console, or running the app from Terminal) gives
   the LOADING lines for real; the first launch after an update is cold.
+
+## 9dt. Occluders: the hills, the freeway decks, the river's banks, the sound walls and the far mountains, 2026-10-05 (agent branch `wt/occluders`)
+
+**Why.** Godot's occlusion culling (on since the building occluders went in) only knew the
+buildings: one `OccluderInstance3D` per chunk of building boxes, plus the downtown towers' and a
+few landmarks' own. A ridge, a freeway deck overhead or underfoot, the banks round a player down
+in the LA River and a sound wall along the freeway hid nothing from the culler.
+
+**What.**
+- `Occluders` (`scripts/world/occluders.gd`; two hook lines in `CityChunk._finish_build()`:
+  `collect()` before the commits clear YardFill's walls, `build()` after `_build_occluder()`)
+  gives every chunk one more occluder, "OccluderExtra":
+  - **hill terrain**: the tile's grid cut into ~26 m cells (4-6 a side); each sheet vertex is the
+    LOWEST fine sample of every cell round it, less `TERRAIN_DROP` (2.5 m: a mansion pool is a pit
+    in its pad). The drawn tile is linear between its fine samples, so it is never under the
+    lowest of them, and a sheet triangle is never over its highest vertex: the sheet is under the
+    ground everywhere, and a camera above the ground cannot see it without looking through the
+    ground. Flat cells (under `TERRAIN_MIN_RELIEF` 4 m) are left out. FULL and LOD alike.
+  - **freeway decks**: a box inside each deck segment's own collision box (the box girder),
+    `DECK_EDGE` in from the sides, `DECK_SKIN` in from the asphalt and the soffit, short of the
+    joints; the chunk that builds a segment builds its box. The stack's connectors are left out
+    (banked; StackBuild's own geometry).
+  - **river banks**: each bank slope of each centre-line segment the chunk builds (RiverBuild's
+    midpoint rule), pushed `BANK_PUSH` 0.5 m out into the earth and down, short of the coping;
+    none over a ramp's slot or where the bank is under `BANK_MIN_DEPTH` (the mouth).
+  - **sound walls**: a sheet in each panel's mid-plane (YardFill `W_SOUND` panels 3.5 m and up;
+    not the pilasters), short of its ends and its cap.
+- `MountainOccluder` (`scripts/world/mountain_occluder.gd`, one line in
+  `CityStreamer._build_ground()`): the ranges past the chunks. Out there the ground IS the
+  horizon plane, so the sheet goes under the plane's LOWEST possible surface: each 125 m cell
+  takes the lowest bake texel within 5 texels of it (its own four, the plane's 44 m vertex
+  spacing, the B-spline's reach), each vertex the lowest of its cells, less 40 m (crags' half
+  amplitude 23 m, the far sink 5 m, a margin). Cells whose window spans under 60 m are left out.
+  The sheet is cut into 500 m tiles built once at load (no runtime rebuild: an early version
+  rebuilt it every 250 m of travel, 4-10 ms of GDScript, a hitch in flight); a tile is on only
+  while all of it is between `INNER` (1,250 m, past where the plane sinks under the chunks) and
+  `REACH` (6,800 m, inside the plane's edge) of the camera, looked at five times a second. All of
+  it is off while the camera is under the plane where it stands (a deep canyon the bake averages
+  over), where a sheet under the plane is not under the picture.
+- **Landmarks.** The airport's head house and control tower occluders were never built: they went
+  through `LandmarkArenaDistrict._occluder()`, which read `CivicSites.ctx`, set only while a civic
+  site builds. It now takes the detailed flag (the civic sites still pass none and read the
+  context). The airport garage's is dropped on purpose: a car park's decks are open between the
+  spandrels. The mall (bar and anchors), the observatory, the campus hall and the hangars had
+  none and now do. Everything else checked (`tools/occluders/probe.tscn LANDMARKS=1` lists every
+  landmark's occluders): the downtown towers, the civic set, the arena district, fire / police
+  stations, Broadway's palaces, houses, warehouses and park buildings already had theirs. Not
+  given one: the masjid (walkable interior), the piers and the pier park (open structures), the
+  cargo ship (its mesh and its collision boxes disagree, and a wrong guess culls the port).
+
+**Measured** (`tools/occluders/measure.sh`, opengl3 + Xvfb, 1280x720, ONE load: each held frame
+counted with the building occluders only, with the new ones, and with no culling; separate loads
+stream different chunks by the same frame, chunk builds being time-budgeted):
+
+| camera | draws | triangles |
+|---|---|---|
+| down in the LA River (4584.8, 1191.5) | 873 -> 737 (-16 %) | 1.45 M -> 1.29 M (-11 %) |
+| suburban street by a sound wall (-527.9, 183.5) | 2,282 -> 2,070 (-9 %) | 5.30 M -> 4.94 M (-7 %) |
+| on the 110's deck (1989, 160) | 2,660 -> 2,554 (-4 %) | 4.78 M -> 4.64 M (-3 %) |
+| valley floor looking south at the range (300, -2900) | 3,433 -> 3,298 (-4 %) | 7.12 M -> 7.04 M (-1 %) |
+| front range looking north (420, -1500) | 710 -> 698 | 1.74 M -> 1.73 M |
+| hills bookmark from the air (300, -650, 260 up) | 620 -> 616 | 1.43 M -> 1.41 M |
+| under the 110 on 5th St (2045, 2) | 2,484 -> 2,476 | 4.61 M -> 4.60 M |
+| downtown, Flower at Olympic (2359.4, 880) | 2,943 -> 2,937 | 6.36 M -> 6.35 M |
+| basin street looking north (300, 600) | 3,044 -> 3,044 | 6.08 M (no change) |
+
+Where the street's own buildings already hide everything (downtown, the basin street) there is
+nothing left for them to cull; the wins are where the old culler had nothing to work with. In the
+valley view the building occluders alone culled 3 objects, the new ones 138.
+
+**Nothing visible is culled.** Each frame with the new occluders against the same held frame with
+culling off (`tools/glshot/img_diff.py`): the only differing pixels are on people and cars that
+keep moving between the captures (DIFF=1 does not freeze them), at the same rate as the building
+occluders' own pair (the stills' heat maps, shots/occluders). And the checks hold every occluder
+inside what it stands for by construction (below).
+
+**Cost.** OccluderExtra is ~128 triangles a hill tile, 12 a deck segment, 2 a bank segment or
+wall panel; the mountain sheet is ~4-8 k triangles switched on round the camera. The sheet's setup
+is 137 ms at load (372 tiles on the default seed) and switching its tiles 0.3-0.5 ms a look, five looks a second. Godot's occlusion raycasting is threaded (Embree) and its cost scales
+with the buffer, not the occluder count; a chunk's OccluderExtra is built in its finish step
+(under a millisecond). No-op on the web (no Embree there), and the mountain sheet is not built on
+the web at all.
+
+**Tools.** `tools/occluders/probe.tscn` (headless, a minute: a hill, a freeway, a river and a
+sound-wall chunk with their occluders and EYEs, the mountain sheet round four points;
+`CHECKS=1` the checks alone; `LANDMARKS=1` every landmark's occluders). `still_shot.gd`:
+`OCCLUSION=0` (culling off), `OCC_AB=1` (each shot's held frame again without the extra occluders
+and without culling, counted and saved `_noextra` / `_nocull`, then the occlusion buffer `_occ`).
+`OCCLUDERS=0` in the environment builds none of the new occluders (the A/B).
+
+**Checks** (`tests/occluders_checks.gd`, 9): a FULL and a LOD hill tile's sheet under its drawn
+ground at every vertex and at random points of every triangle; every deck box inside its
+segment's collision box; a river chunk's banks under `LaRiver.surface()`; a wall panel's sheet
+inside the panel either way round, none for a pilaster; a camera on a basin street above the
+plane's ceiling and one 60 m under ground below it; the mountain sheet under the plane's floor
+round the basin and never inside `INNER`; the five landmarks with occluders and their far copies
+without; `OCCLUDERS=0` builds none.
+
+**Stills** (shots/occluders): each camera above, the frame with the new occluders beside its
+difference against no culling.
+
+**Not done / not verified.** Forward+ (the Mac) not measured: the culler is the same code there,
+but the frame cost of what it removes is bigger. The terrain sheets are coarse (26 m cells, under
+the lowest sample), so a sharp ridge hides less than it could; the mountain sheet is lower still
+(a 437 m window's minimum). Hill tiles in a deep canyon switch the mountain sheet off (by design).
+Building-type occluders were not added for the cargo ship, the piers or the masjid (see above).
+Other branches that cut the ground (a reservoir, a stadium in a ravine) are fine as long as their
+cut is in `MacroMap.height_at()` (the tile's grid); anything drawn BELOW the hill tile's surface
+some other way would need its cells left out.
+
+**Gate** (merged with origin/main `9eecc00`): smoke test passed, 1,371 checks, 0 failed, no
+tripwire errors, peak RSS 3.18 GB. Note `tests/headless_check.sh`'s 900 s timeout is shorter than
+this box needs (it cut the run at 851 checks); the run above was the smoke scene with a 3600 s
+timeout.

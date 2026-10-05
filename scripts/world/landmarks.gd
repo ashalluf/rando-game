@@ -426,6 +426,8 @@ static func _build_observatory(anchor: Vector2, parent: Node3D, statics: StaticB
 	# Tall plinth so it never floats on the slope, then the main hall.
 	_box(parent, statics, Vector3(56.0, 30.0, 34.0), Vector3(anchor.x, base_y - 15.0 + 0.5, anchor.y), Color(0.75, 0.72, 0.68), true)
 	_box(parent, statics, Vector3(48.0, 10.0, 26.0), Vector3(anchor.x, base_y + 5.0, anchor.y), white, true)
+	LandmarkArenaDistrict._occluder(parent, [[Vector3(anchor.x, base_y - 15.0 + 0.5, anchor.y), Vector3(56.0, 30.0, 34.0)],
+		[Vector3(anchor.x, base_y + 5.0, anchor.y), Vector3(48.0, 10.0, 26.0)]], 1 if detailed and statics else 0)
 	# Center drum and dome, two side domes.
 	_cyl(parent, statics, 9.0, 8.0, Vector3(anchor.x, base_y + 14.0, anchor.y), white)
 	_dome(parent, statics, 9.0, Vector3(anchor.x, base_y + 18.0, anchor.y), copper)
@@ -484,6 +486,7 @@ static func _build_campus_hall(anchor: Vector2, parent: Node3D, statics: StaticB
 	# Main hall: brick, punched windows, a stone plinth and steps.
 	_facade_box(parent, statics, Vector3(76.0, 3.0, 34.0), base + Vector3(0.0, 1.5, -40.0), stone, Building.Finish.PANELS, Building.WindowStyle.NARROW, 0.0)
 	_facade_box(parent, statics, Vector3(72.0, 22.0, 30.0), base + Vector3(0.0, 3.0 + 11.0, -40.0), BRICK_RED, Building.Finish.BRICK, Building.WindowStyle.PUNCHED, 0.0)
+	LandmarkArenaDistrict._occluder(parent, [[base + Vector3(0.0, 3.0 + 11.0, -40.0), Vector3(72.0, 22.0, 30.0)]], 1 if detailed and statics else 0)
 	for i in 4:
 		_box(parent, statics, Vector3(24.0 - i * 4.0, 0.7, 6.0 - i * 1.2), base + Vector3(0.0, 0.35 + i * 0.7, -22.0 + i * 1.0), stone, true)
 	# Portico columns.
@@ -647,6 +650,7 @@ static func _build_hangars(anchor: Vector2, parent: Node3D, statics: StaticBody3
 	for i in 3:
 		var at := base + Vector3(0.0, 0.0, -60.0 + i * 60.0)
 		_box(parent, statics, Vector3(60.0, 12.0, 44.0), at + Vector3(0.0, 6.0, 0.0), wall, true)
+		LandmarkArenaDistrict._occluder(parent, [[at + Vector3(0.0, 6.0, 0.0), Vector3(60.0, 12.0, 44.0)]], 1 if detailed and statics else 0)
 		var roof := _cyl(parent, statics, 22.0, 60.0, at + Vector3(0.0, 12.0, 0.0), Color(0.6, 0.62, 0.66))
 		roof.rotation.z = PI * 0.5
 		# Big door face on the west side.

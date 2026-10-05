@@ -4623,6 +4623,20 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   Measure with `tools/shader_warm/run_probe.sh` (the test room under the city environment on
   lavapipe; `ENV_LITE=1`, or lavapipe runs out of memory - it keeps every pipeline it compiles).
   Checks: `tests/shader_warm_checks.gd`.
+- Occluders beyond the buildings (2026-10-05, docs/HANDOFF.md "Occluders"): `Occluders`
+  (`scripts/world/occluders.gd`, two hook lines in `CityChunk._finish_build()`) gives every chunk
+  one more `OccluderInstance3D` ("OccluderExtra"): a coarse sheet UNDER its hill terrain (each
+  vertex the lowest fine sample of the cells round it less `TERRAIN_DROP`, so a ridge hides the
+  canyon behind it), a box inside each freeway deck segment's collision box, the river's banks
+  pushed `BANK_PUSH` into the earth (none over a ramp), a sheet in each sound wall panel.
+  `MountainOccluder` (`scripts/world/mountain_occluder.gd`, under the streamer) lays the ranges
+  past the chunks under the horizon plane's LOWEST possible surface (the bake's window minimum
+  less the crags and the sink), in 500 m tiles built at load and switched on only between
+  `INNER` (past the plane's sink) and `REACH` of the camera, all off while the camera is below the
+  plane. The rule stays: an occluder lies INSIDE what it stands for, by construction, never
+  "about the size". `OCCLUDERS=0` is the A/B; `OCCLUSION=0` on `still_shot.gd` turns culling off
+  for a `DIFF=1` diff (`tools/occluders/measure.sh` shoots nine cameras three ways). Checks:
+  `tests/occluders_checks.gd`; probe `tools/occluders/probe.tscn` (`LANDMARKS=1` audits them).
 - Road surfaces use `shaders/road.gdshader` (via `PropFactory.road()`, picked in
   `CityChunk._road_look`): tiled asphalt plus world-space mottling, resurfacing patches on a
   jittered grid with darker seams, ridged-noise cracks and sparse oil staining, so the road never

@@ -44,6 +44,9 @@ extends SceneTree
 ## SHOTS="x,y,z,yaw,pitch@hour[@fov];..." then takes more EYE shots from the same load, saved as OUT
 ## with _1, _2, ... (SHOT_FRAMES frames each to stream in; GEO_n lines give each one's cost). An empty camera ("@21.5") is the last
 ## shot's camera at another hour.
+## OCCLUSION=0 renders with occlusion culling off; OCCLUDERS=0 without the extra occluders
+## (Occluders: hill terrain, freeway decks, river banks, sound walls, the far mountains);
+## OCC_AB=1 counts and saves every shot's held frame again without them and without culling.
 ## EYE=x,y,z,yaw,pitch puts a free camera at a true world point; with EYE_AGL=1 its y is metres
 ## above the ground there.
 ## Every shot also prints the frame's cost (GEO: triangles, draw calls, objects, split into the
@@ -109,6 +112,10 @@ func _initialize() -> void:
 	if OS.get_environment("DIFF") == "1":
 		ProjectSettings.set_setting("rendering/limits/time/time_rollover_secs", 0.000001)
 		seed(12345)
+	# OCCLUSION=0 renders without occlusion culling (city_shot.gd's switch): diffed with DIFF=1
+	# against a normal shot, anything in one and not the other was culled in plain sight.
+	if OS.get_environment("OCCLUSION") == "0":
+		get_root().use_occlusion_culling = false
 	# MERGE_STATIC=0: the chunks' solid boxes and the far landmarks' boxes one node each, as
 	# before they were merged (the A/B of that change). Through the script resources, not the
 	# class names: CityChunk uses autoloads, and this script compiles before they exist.
@@ -550,6 +557,8 @@ func _initialize() -> void:
 	# category at a time, the world held still, as tools/tri_split.gd does - so every bookmark
 	# still also gives a cost table for the exact frame it shot.
 	await _geo_report("GEO")
+	if OS.get_environment("OCC_AB") == "1":
+		await _occ_ab(out)
 	if OS.get_environment("ROOF_TRIS") == "1":
 		_roof_unit_tris()
 	if OS.get_environment("PALM_AB") == "1":
@@ -617,7 +626,42 @@ func _initialize() -> void:
 		get_root().get_texture().get_image().save_png(more)
 		print("saved ", more, " at ", bits[0], " hour ", bits[1] if bits.size() > 1 else "-")
 		await _geo_report("GEO_%d" % k)
+		if OS.get_environment("OCC_AB") == "1":
+			await _occ_ab(more, "_%d" % k)
 	quit()
+
+
+## OCC_AB=1: the same held frame again without the extra occluders (every OccluderExtra and the
+## MountainOccluder hidden: the building occluders alone, the before) and with occlusion culling
+## off, each counted (GEO<n> noextra / nocull) and saved beside the shot (_noextra / _nocull), so
+## one load gives the A/B and the pixel diffs (tools/glshot/img_diff.py: anything in the shot
+## missing from _nocull was culled in plain sight); then the occlusion buffer (_occ).
+func _occ_ab(path: String, tag: String = "") -> void:
+	var hidden: Array[Node3D] = []
+	for n in current_scene.find_children("OccluderExtra", "OccluderInstance3D", true, false):
+		if (n as Node3D).visible:
+			(n as Node3D).visible = false
+			hidden.append(n)
+	var mountains := current_scene.get_node_or_null("MountainOccluder") as Node3D
+	if mountains and mountains.visible:
+		mountains.visible = false
+		hidden.append(mountains)
+	await _geo_report("GEO%s noextra (%d hidden)" % [tag, hidden.size()])
+	get_root().get_texture().get_image().save_png(path.get_basename() + "_noextra.png")
+	for n in hidden:
+		n.visible = true
+	get_root().use_occlusion_culling = false
+	await _geo_report("GEO%s nocull" % tag)
+	get_root().get_texture().get_image().save_png(path.get_basename() + "_nocull.png")
+	get_root().use_occlusion_culling = true
+	await process_frame
+	# The occlusion buffer itself (what the culler sees: every occluder's depth), for the record.
+	get_root().debug_draw = Viewport.DEBUG_DRAW_OCCLUDERS
+	await process_frame
+	await process_frame
+	get_root().get_texture().get_image().save_png(path.get_basename() + "_occ.png")
+	get_root().debug_draw = Viewport.DEBUG_DRAW_DISABLED
+	await process_frame
 
 
 ## TREE_AB: every batch of a scanned plant on its FoliageLod ladder redrawn with the old mesh
