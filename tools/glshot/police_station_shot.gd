@@ -18,7 +18,17 @@ var _cam: Camera3D
 
 func _initialize() -> void:
 	Engine.set_meta("postfx_motion_blur", 0.0)
-	change_scene_to_file("res://scenes/levels/city.tscn")
+	# A lighter world than the game's (the far city, the LOD ring, the crowd and traffic caps
+	# down), so a whole-city frame fits a software renderer: what matters is the station's block.
+	var c: Node = (load("res://scenes/levels/city.tscn") as PackedScene).instantiate()
+	c.set("far_city_radius", 1500.0)
+	c.set("far_city_immediate_radius", 1500.0)
+	c.set("lod_radius_blocks", 3)
+	c.set("keep_radius_blocks", 3)
+	c.set("max_pedestrians", 80)
+	c.set("traffic_cars", 24)
+	root.add_child.call_deferred(c)
+	set_deferred("current_scene", c)
 	var frames := int(OS.get_environment("FRAMES")) if OS.get_environment("FRAMES") != "" else 40
 	for i in frames:
 		await process_frame
