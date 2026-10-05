@@ -348,6 +348,11 @@ func begin_build() -> void:
 	if capturing:
 		_begin_capture(block, replica_role)
 		return
+	# The marina's blocks (Marina) build the marina, whatever their zone (MarinaBuild).
+	if plan.marina_block(ix, iz):
+		_steps.append_array(MarinaBuild.attach(self, block))
+		_steps.append(_finish_build)
+		return
 	match zone:
 		MacroMap.Zone.OCEAN:
 			_steps.append(_build_water)
@@ -418,6 +423,8 @@ func begin_build() -> void:
 				_steps.append(_add_relief_floor)
 	if replica != null and ReplicaBuilder.wanted(self):
 		_steps.append_array(ReplicaBuilder.attach(self, replica_role))
+	# The marina's channel, jetties, breakwater and highway bridge where they reach this chunk.
+	_steps.append_array(MarinaBuild.extras(self))
 	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
 	# last so its deck lands on top of whatever the chunk laid down.
 	_steps.append(_build_freeway)
@@ -438,6 +445,11 @@ func begin_build() -> void:
 ## have far versions of their own) and everything the finish step makes (nodes).
 func _begin_capture(block: Dictionary, replica_role: int = 0) -> void:
 	captured = {"ground": [], "boxes": [], "batch": {}}
+	if plan.marina_block(ix, iz):
+		_steps.append(MarinaBuild.capture.bind(self))
+		_steps.append(func() -> void: captured.batch = _batch.data())
+		return
+	_steps.append_array(MarinaBuild.extras(self))
 	match zone:
 		MacroMap.Zone.CITY:
 			# A replica block or a landmark's site does not build the seeded block, so the far
@@ -1138,19 +1150,23 @@ func _build_beach(block: Dictionary) -> void:
 	# whole rect, flat at 0.15, sand or not). Over the strip the sand's landward edge dips under
 	# the road instead of standing on it (_build_sand's `strip_from`).
 	var life_z := Vector2(owned_rect().position.y, owned_rect().end.y)
+	# The marina's channel cuts the sand (MarinaBuild.sand_rects(): the rect less its band).
 	if _replica != null:
-		_build_sand(owned_rect())
+		for sr: Rect2 in MarinaBuild.sand_rects(self, owned_rect()):
+			_build_sand(sr)
 	else:
 		var r: Rect2 = block.rect
 		var own := owned_rect()
-		_build_sand(Rect2(r.position.x, r.position.y, r.size.x, maxf(own.end.y - r.position.y, r.size.y)), r.end.y)
+		for sr: Rect2 in MarinaBuild.sand_rects(self, Rect2(r.position.x, r.position.y, r.size.x, maxf(own.end.y - r.position.y, r.size.y))):
+			_build_sand(sr, r.end.y if sr.position.y < r.end.y - 0.5 else INF)
 		life_z = Vector2(r.position.y, maxf(own.end.y, r.end.y))
 	if level != Level.FULL:
 		# The beach's towels and umbrellas as dots of colour, the path and the courts (BeachLife).
 		if not capturing:
 			BeachLife.build_lod(self, life_z.x, life_z.y)
 		return
-	_build_surf_spray(owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y)))
+	for sr: Rect2 in MarinaBuild.sand_rects(self, owned_rect() if _replica != null else Rect2(block.rect.position, Vector2(block.rect.size.x, owned_rect().end.y - block.rect.position.y))):
+		_build_surf_spray(sr)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = block.seed
 	# The replica's beach under the Esplanade bluff has no palms on the sand (they are up on the
@@ -1172,7 +1188,14 @@ func _build_beach(block: Dictionary) -> void:
 		if path and absf(across - BeachLife.PATH_AT) < 0.05:
 			across = BeachLife.PATH_AT + (0.06 if across >= BeachLife.PATH_AT else -0.06)
 		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)
-		if not bare:
+		# Not in the marina's channel: the same six draws _add_palm() makes, so nothing moves.
+		if not bare and MarinaBuild.on_channel(self, at, 4.0):
+			for d in 6:
+				if d == 1:
+					rng.randi()
+				else:
+					rng.randf()
+		elif not bare:
 			_add_palm(at, rng)
 			obstacles.append([Vector2(at.x, at.z), 0.8])
 	var tower := {}
@@ -1181,7 +1204,9 @@ func _build_beach(block: Dictionary) -> void:
 		var across := rng.randf_range(0.1, 0.5)
 		var spin := rng.randf_range(0.0, TAU)
 		var at := Vector3(_dry_sand_x(z, across), _sand_y(z, across), z)
-		if BeachLife.enabled:
+		if MarinaBuild.on_channel(self, at, 8.0):
+			pass # Not in the marina's channel (its rolls are made).
+		elif BeachLife.enabled:
 			# Turned to the sea (a tower watches the water), its rolled spin only a little jitter.
 			var slope := (plan.macro.coast_x(z + 2.0) - plan.macro.coast_x(z - 2.0)) / 4.0 if plan.macro else 0.0
 			var yaw := atan2(1.0, -slope) + (spin / TAU - 0.5) * 0.3
@@ -1191,6 +1216,8 @@ func _build_beach(block: Dictionary) -> void:
 			_add_shape(Vector3(3.1, 4.8, 3.4), at + Basis(Vector3.UP, yaw) * Vector3(0.0, 2.4, 0.4), yaw)
 		else:
 			_add_lifeguard_tower(at, spin)
+	# The beach's people keep out of the marina's channel and off its jetties.
+	obstacles.append_array(MarinaBuild.beach_obstacles(self))
 	BeachLife.build(self, life_z.x, life_z.y, obstacles, tower)
 
 
@@ -1540,7 +1567,9 @@ func _build_terrain() -> void:
 func _hill_segments() -> Array[Dictionary]:
 	if plan.macro == null or plan.macro.hill_roads == null:
 		return []
-	return plan.macro.hill_roads.segments_in(owned_rect())
+	var segs: Array[Dictionary] = plan.macro.hill_roads.segments_in(owned_rect())
+	# The coast highway's bridge over the marina's channel replaces its strip there (MarinaBuild).
+	return MarinaBuild.filter_segments(self, segs)
 
 
 ## Asphalt strips following the carved road beds, clipped to this chunk.

@@ -2305,7 +2305,7 @@ func _crossable(plan: CityPlan, rect: Rect2, far_kerb: Vector2) -> bool:
 		return false
 	# Not onto a river block: its pavement ring runs into the channel.
 	var kb := plan.chunk_index_at(rect.get_center())
-	if plan.river_block(kb.x, kb.y):
+	if plan.river_block(kb.x, kb.y) or plan.marina_block(kb.x, kb.y):
 		return false
 	return not Landmarks.covers(plan, far_kerb, 1.0)
 

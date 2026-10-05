@@ -563,7 +563,8 @@ static func _build_path(ch: CityChunk, z0: float, z1: float) -> void:
 			var y := sand_y(ch, p.x, p.y)
 			var top := y + (PATH_LIFT if k == 1 or k == 2 else -0.04)
 			row.append([Vector3(p.x, top, p.y), off])
-		if i > 0:
+		# The path stops at the marina's channel (it crosses on the highway's bridge's footway).
+		if i > 0 and not MarinaBuild.on_channel(ch, Vector3(x, 0.0, z - 0.5 * (z1 - z0) / steps), 0.0):
 			for k in 3:
 				var a: Array = prev[k]
 				var b: Array = prev[k + 1]
