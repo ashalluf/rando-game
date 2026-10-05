@@ -749,7 +749,7 @@ def oil(rng):
         order = np.maximum(order, drop * rng.uniform(0.3, 1.0))
     # The soak: a wide faint halo round the drips.
     halo = blur(acc, 18) * 1.6
-    st.albedo = np.where(acc[..., None] > 0.01, tint, np.array([0.03, 0.028, 0.025])).astype(np.float32)
+    st.albedo = np.where(acc[..., None] > 0.01, tint, np.array([0.018, 0.017, 0.015])).astype(np.float32)
     st.cover = np.clip(np.maximum(acc, halo * 0.45), 0, 1)
     st.rough = (0.85 - 0.25 * acc).astype(np.float32)
     st.order = np.clip(np.maximum(order, halo * 0.5), 0.02, 1)

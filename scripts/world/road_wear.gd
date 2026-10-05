@@ -173,7 +173,8 @@ static func car_park(chunk: CityChunk, r: Rect2, top: float, key: int) -> void:
 	var rng := _rng([plan.seed, "rw_park", chunk.ix, chunk.iz, key])
 	var level: float = DISTRICT_LEVEL[district] * lerpf(OLD_RANGE.x, OLD_RANGE.y, rng.randf())
 	var n := int(round(r.get_area() / 100.0 * CAR_PARK_PER_100M2 * level))
-	var tint := Color(0.78, 0.77, 0.79)
+	# LotFill's car-park asphalt is darker than a street: the stamps are pulled down to it.
+	var tint := Color(0.38, 0.38, 0.39)
 	var age := clampf(level * 0.6, 0.0, 1.0)
 	for i in n:
 		var roll := rng.randf()
