@@ -885,6 +885,8 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 			var gy: float = _lattice_height(lat, p)
 			if gy < 1.5:
 				continue
+			if macro.reservoir and macro.reservoir.keep_clear(p, gy):
+				continue
 			var step: float = lat.step
 			var grad := Vector2(_lattice_height(lat, p + Vector2(step, 0.0)) - _lattice_height(lat, p - Vector2(step, 0.0)),
 				_lattice_height(lat, p + Vector2(0.0, step)) - _lattice_height(lat, p - Vector2(0.0, step))) / (2.0 * step)

@@ -2670,6 +2670,58 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   fenced rect to Industrial's / YardFill's block step as a footprint. The operator, BASIN CREST OIL
   CO., and the lease names are invented. `OIL_FIELD=0` is the A/B; `tools/oil_field/probe.tscn`
   prints the plan and EYEs; checks: `tests/oil_field_checks.gd`.
+- The reservoir (VISUAL_ROADMAP #105, 2026-10-05, docs/HANDOFF.md 9dk): the FORM of the
+  reservoir behind the famous sign - a long irregular lake filling a canyon of the front range,
+  held back by a 1920s concrete arch-gravity dam that faces the basin - named "Lake Shallufer" on
+  the minimap (which draws its water, `Reservoir.water_runs()` in MapPainter) and nothing anywhere else. **Data**: `Reservoir` (`scripts/world/reservoir.gd`,
+  `MacroMap.reservoir`, built in `MacroMap.setup()` after the river and BEFORE the hill roads;
+  `RESERVOIR=0` or `-- --no-reservoir` is the A/B). The canyon is the range's own (a natural gorge
+  at x -520 west of the sign on the default seed); the lake is a DEPRESSION subtracted from the
+  natural mountains along authored arms (`ARMS`: axis points, waterline half widths, bed depths)
+  plus an arm along the dam's upstream face, so the banks keep the range's spurs and gullies and
+  the shore is where that ground crosses the level - it follows the contour. A core floor holds
+  open water along every arm and lets go up the bank (`CORE_HOLD` / `CORE_RELEASE`, or it ends in
+  a wall). `carve()` is applied at the END of `MacroMap.raw_height_at()`, so the hill tiles, their
+  collision, the planting, Skyline, the bake and `zone_at()` see one surface (the lake bed is
+  still HILLS). The level is fitted per seed: `DESIGN_LEVEL`, bisected down until the flood from
+  the arms (on a 5 m grid over `BOX`) never reaches the box's edge, then re-checked with the dam
+  and spillway in the ground. The dam is an arc (`dam_centre`, `DAM_RADIUS`, convex upstream)
+  spanning the gorge between the angles where the ground first stands over the crest
+  (`dam_a0` / `dam_a1`, `ABUTMENT_KEY` into the rock); under it the ground is its foundation and
+  downstream a `SHELF` at the toe falls away as a fill slope to the natural gorge. The lake carve
+  fades out over `EDGE_FADE` inside `BOX`; the dam's terms reach the outer box round the arc
+  (`_outer`). A spillway (`spill`, a weir at `level + 0.6` so the flood never crosses it) and a
+  trail on a bench at `TRAIL_RISE` (the carved ground's own contour, smoothed) are cut into the
+  ground too. Queries: `wet()`, `keep_clear()` (CityChunk's `_scatter_hills` / `_plant_hills` and
+  Skyline's far oaks skip the water, the ring, the trail, the dam and the spillway),
+  `shell_marks()` (the hill shells keep off them, `_shell_marks()`), `mask_image()`,
+  `ridge_profile()`. **Build**: `LandmarkReservoir` (`scripts/world/landmark_reservoir.gd`), the
+  "reservoir" landmark at `Reservoir.ANCHOR`; the far copy and the detailed one share the same
+  meshes (`_parts()`, cached): the water (one quad per 5 m grid cell round the flood, at the level
+  - the ground stands over it past the shore, so the depth test draws the waterline exactly; COLOR.r
+  the depth), the dam (`shaders/reservoir_dam.gdshader` + `reservoir_concrete.gdshaderinc`: what a
+  face is in the vertex alpha, its face in COLOR.g, UV in metres along the arc and world height -
+  lifts, contraction joints, streaks from the arcade's drains, lime, rust under the lanterns, damp
+  at the toe, the waterline band upstream), the upstream face, crest road, cornice, an arcade of
+  round-headed blind arches, the string course, the battered downstream face with buttress ribs,
+  two intake towers with copper domes on footbridges, a gauge tower with a staff gauge, the stepped
+  spillway with its weir and service bridge, the apron; the trim (pierced balustrade panels on
+  `reservoir_railing.gdshader` - discard, its own material - posts, lantern standards) drawn to
+  `TRIM_DRAW` in the far copy. The detailed one adds one concave collision shape, an OmniLight3D in
+  `lamp_light` for every `LIGHT_EVERY`-th lantern and its pool, the trail ribbon, LotFill's
+  chain-link on the lake side and pines up the bank. **The water** (`shaders/reservoir_water.gdshader`)
+  is a traced mirror: the ridge round the lake is a table of (distance, height, is-the-dam) per
+  azimuth from the lake's middle, and each fragment walks its reflected ray out to it with its own
+  parallax; the sky from `sky_tint`, the city's glow low over the dam at night, the crest's
+  lanterns as streaks; EMITTED by Fresnel (`mirror_forward` on Forward+, where SSR adds its own).
+  **The bathtub ring** is the shared terrain material's (`shaders/reservoir_shore.gdshaderinc`,
+  included by `terrain.gdshader`, uniforms set by `LandmarkReservoir.apply_ground()`): pale rock
+  and dried silt `lake_ring` metres up from the level with old waterlines and a ragged top, dark
+  silt under the water, no brush on either; off where `lake_box` is zero. **Far**: the bake paints
+  the lake `BAKE_LAKE` and its height is the carved basin; `macro_relief.gdshaderinc`'s
+  `calm2_*` (set by CityStreamer) holds the crags off it. Probe: `tools/reservoir/probe.tscn`
+  (level, dam, lake, trail, walls, timings; `OUT=` a contour map; `SEED=`); compile check
+  `tools/reservoir/compile.gd`. Checks: `tests/reservoir_checks.gd`.
 - The horizon: everything outside the streamed chunks is the ground follower, a single plane
   14 km across (`CityStreamer.ground_size`) wearing `shaders/macro_ground.gdshader`. It is
   shaded from a 256 px image of the whole basin baked once at load by `MacroMap.bake()` (RGB is

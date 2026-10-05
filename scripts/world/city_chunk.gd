@@ -1671,6 +1671,9 @@ func _scatter_hills() -> bool:
 		var h := _terrain_height(p)
 		if h < 1.5:
 			continue
+		# Not under the reservoir, on its bathtub ring or trail (Reservoir.keep_clear()).
+		if plan.macro.reservoir and plan.macro.reservoir.keep_clear(p, h):
+			continue
 		var hx := _terrain_height(p + Vector2(1.0, 0.0)) - _terrain_height(p - Vector2(1.0, 0.0))
 		var hz := _terrain_height(p + Vector2(0.0, 1.0)) - _terrain_height(p - Vector2(0.0, 1.0))
 		var slope := Vector2(hx, hz).length() * 0.5
@@ -1754,6 +1757,9 @@ func _shell_marks(area: Rect2) -> Array:
 		if r > 0.0 and not SHELL_FREE_LANDMARKS.has(lm.id) and area.grow(r + SHELL_CLEAR_SPAN).has_point(at):
 			marks.append([at, at, r])
 	marks.append_array(Ballpark.shell_marks(area))
+	# The reservoir's shore, bathtub ring, trail, dam and spillway (Reservoir.shell_marks()).
+	if plan.macro and plan.macro.reservoir:
+		marks.append_array(plan.macro.reservoir.shell_marks(area.grow(SHELL_CLEAR_SPAN + 12.0)))
 	return marks
 
 
@@ -1885,6 +1891,8 @@ func _plant_hills() -> bool:
 				continue
 			var h := _terrain_height(p)
 			if h < 1.5:
+				continue
+			if plan.macro.reservoir and plan.macro.reservoir.keep_clear(p, h):
 				continue
 			var grad := Vector2(_terrain_height(p + Vector2(2.0, 0.0)) - _terrain_height(p - Vector2(2.0, 0.0)),
 				_terrain_height(p + Vector2(0.0, 2.0)) - _terrain_height(p - Vector2(0.0, 2.0))) * 0.25

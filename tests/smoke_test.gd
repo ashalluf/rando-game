@@ -1904,6 +1904,9 @@ func _test_city() -> void:
 	load("res://tests/road_detail_checks.gd").new().run(self, city)
 	# The perf audit's cuts (tests/perf_audit_checks.gd): shadow reaches, merged models, grass cells.
 	await load("res://tests/perf_audit_checks.gd").new().run(self, city)
+	# The reservoir in the front range (tests/reservoir_checks.gd): the lake held under its rim, its
+	# shore, dam, spillway and trail on the ground, the far and detailed copies, the bathtub ring.
+	load("res://tests/reservoir_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
