@@ -230,6 +230,9 @@ func _draw(cam: Vector3, pw: Vector3) -> void:
 			if t == FreightRail.Car.LOCO:
 				number = float(int(car.loco_no) % 1000) / 1000.0
 				lamps = 1.0 if leading else 0.0
+				# Sounding the horn for a crossing: the ditch lights alternate (the shader's 2).
+				if leading and int(st.n) == _horn_n and (_horn.playing or _horn_blast.playing):
+					lamps = 2.0
 			var custom := FreightStock.custom(t, look, lamps, number)
 			var paint := Color(1, 1, 1)
 			var lxf := to_local * Transform3D(xf.basis, WorldState.to_local(xf.origin))

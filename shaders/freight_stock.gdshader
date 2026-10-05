@@ -104,6 +104,10 @@ void fragment() {
 	} else if (part == 4 || part == 13 || part == 14) {
 		// Lamps: the cab end's (4, 13 the ditch lights) when it leads, the rear end's (14).
 		bool on = (part == 14) ? (lamps > 0.25 && lamps < 0.75) : (lamps > 0.75);
+		// Ditch lights alternate side to side while the horn sounds (lamps 2).
+		if (part == 13 && lamps > 1.5) {
+			on = fract(TIME * 1.1 + (mp.x > 0.0 ? 0.5 : 0.0)) < 0.5;
+		}
 		alb = vc * 0.3;
 		rough = 0.1;
 		emit = on ? vc * lamp_energy * (part == 13 ? 0.8 : 1.0) : vec3(0.0);
