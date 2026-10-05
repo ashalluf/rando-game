@@ -329,8 +329,9 @@ static func kerb_cuts(plan: CityPlan, lay: Dictionary) -> Array:
 	var out := []
 	for u: float in [loop.position.x + 3.5, loop.end.x - 3.5]:
 		out.append({"at": fp(lay, u, -sw), "road": lay.front_road, "width": 7.0})
+	# The ambulance court opens onto the ER street across its whole width.
 	var m: Vector2 = lay.court_mouth
-	out.append({"at": fp(lay, m.x + sw, m.y), "road": lay.er_road, "width": 9.0})
+	out.append({"at": fp(lay, m.x + sw, m.y), "road": lay.er_road, "width": (lay.court as Rect2).size.y})
 	return out
 
 
