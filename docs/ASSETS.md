@@ -44,6 +44,7 @@ Quaternius). Record every pack here.
 | Fabric040 | https://ambientcg.com/a/Fabric040 | CC0 1.0 | encampment kit: mattress ticking (`camp_ticking`) | 2026-09-24 |
 | Fabric031 | https://ambientcg.com/a/Fabric031 | CC0 1.0 | encampment kit: blankets and quilts (`camp_wool`) | 2026-09-24 |
 | Plastic006 | https://ambientcg.com/a/Plastic006 | CC0 1.0 | encampment kit: trash-bag film (`camp_plastic`) | 2026-09-24 |
+| Climbing plants and garden accents atlas (`assets/textures/climbers/climbers_albedo.png`, `climbers_normal.png`) | original, painted procedurally by `tools/make_climbers.py` (parametric leaf outlines, bracts, flowers, agave / aloe blades; no photo or third-party art) | project | `ClimbingPlants` (bougainvillea, ivy, creeping fig, star jasmine, wisteria, grape, trumpet vine, agave, aloe, red-hot poker, lavender, lantana) | 2026-10-05 |
 
 Texture sets are from ambientCG and Poly Haven (both CC0 1.0 Universal, no attribution required,
 attribution given anyway). Only the Color, NormalGL and Roughness maps at 1K are kept, under `assets/textures/<Set>/`.
@@ -202,6 +203,7 @@ class instead.
 | `tools/make_more_cars.py` | `road_beater.glb` | 51k tris + 8k far twin (a dent and a cracked, taped tail lamp in the geometry) | `BodyType.BEATER` | 2026-10-05 |
 | `tools/make_emergency_vehicles.py` | `road_fire_engine.glb` | 35k tris + 10k far twin (Type 1 pumper: crew cab, pump panel, roll-ups, hose bed, ladders, light bar, Q-siren; original, no department's marks) | `BodyType.FIRE_ENGINE` (EmergencyCar) | 2026-10-04 |
 | `tools/make_emergency_vehicles.py` | `road_ambulance.glb` | 23k tris + 10k far twin (Type III: cutaway cab, modular box, striping, chevrons, warning lamps; original) | `BodyType.AMBULANCE` (EmergencyCar) | 2026-10-04 |
+| `tools/make_school_bus.py` | `road_school_bus.glb` | 54k tris + 10k far twin (Type D transit-style school bus: split-sash windows, eight-way warning lamps, rub rails, STOP arm, crossing arm, rear emergency door, the invented RANDO UNIFIED SCHOOL DISTRICT lettering; Blender's built-in font; original, no maker's shapes or badges) | `BodyType.SCHOOL_BUS` (Schools) | 2026-10-05 |
 
 The `hifi_*` pair are a different construction from the `exo_*` ones and are the direction to
 carry forward. Each body is ONE all-quad control cage indexed by (longitudinal station, position
@@ -349,7 +351,7 @@ the tiling `hero_x_skin_detail` (pores, stubble) and `hero_x_pile` (velour).
 
 ## The crowd (Blender + MPFB2, CC0 assets)
 
-`assets/models/crowd_a.glb` .. `crowd_l.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
+`assets/models/crowd_a.glb` .. `crowd_t.glb` (and the `crowd_*_body.jpg`, `_body_nrm.jpg` and
 `_hair.png` Godot extracts from them) are the pedestrians (`Pedestrian.MODELS`), built by
 `tools/crowd/` with the hero's toolchain: Blender 4.2 LTS, the MPFB 2.0.17 add-on and the CC0
 MakeHuman system asset pack, which `tools/hero/setup.sh` downloads into the ignored
@@ -361,9 +363,10 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | Base mesh, body/face shape targets, "mixamo" rig and weights | MPFB 2.0.17 | CC0 |
 | Skins, eyes (`low-poly` + an eye material), eyebrows, eyelashes, clothes (`male_casualsuit01..06`, `male_elegantsuit01`, `male_worksuit01`, `female_casualsuit01/02`, `female_elegantsuit01`, `female_sportsuit01`), shoes (`shoes01..06`), hair (`afro01`, `braid01`, `long01`, `ponytail01`, `short01..04`) and their textures | MakeHuman system asset pack, https://files.makehumancommunity.org/asset_packs/makehuman_system_assets/makehuman_system_assets_cc0.zip | CC0 |
 | Skin blends, garment dyes, printed logos painted out, the painted scalp and crops, skin relief maps, the atlases, relaxed hands, bind pose, the region colours | Our own scripts (`tools/crowd/*.py`) | ours |
-| Our own garments (tee, jeans / slim / chinos / leggings / denim shorts, button shirt, zip jacket): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
+| Our own garments (tee, jeans / slim / chinos / leggings / denim shorts / joggers, button shirt and polo, zip jacket / hoodie / cardigan, skirt, hi-vis vest, headscarf): the meshes modelled on each body (`tools/crowd/garments.py`) and every texel of their colour and relief painted procedurally, no source images (`tools/crowd/garment_paint.py`) | Our own scripts | ours |
 | Idle / walk / run clips | Retargeted from our own `pedestrian_d_anim.glb` (`tools/hero/retarget_lib.py`) | ours |
 | Everyday "life" clips (`assets/models/crowd_life/crowd_*_life.res`, one AnimationLibrary per rig): `Idle_Loop`, `Idle_Talking_Loop`, `Sitting_Enter`, `Sitting_Idle_Loop`, `Sitting_Talking_Loop`, `Sitting_Exit`, `Jog_Fwd_Loop`, `Idle_Torch_Loop` from Universal Animation Library [Standard]; `Idle_TalkingPhone_Loop`, `Idle_FoldArms_Loop`, `Consume`, `Yes`, `Idle_No_Loop`, `Idle_Rail_Loop` from Universal Animation Library 2 [Standard] (Quaternius; the free Standard downloads, License.txt in each zip: CC0 1.0). Retargeted in Godot by `tools/crowd/life_clips.gd` (the jog's leg swing scaled to a jogger's stride, the standing clips' legs settled to the rig's stance); the sources are fetched by `tools/crowd/fetch_life_clips.sh` into the ignored `build/ual_src/` and do not ship | https://quaternius.itch.io/universal-animation-library , https://quaternius.itch.io/universal-animation-library-2 | CC0 1.0 (added 2026-10-04) |
+| The hero's moves (`assets/models/hero_moves.res`, one AnimationLibrary added to hero.glb's player as "moves"): `Idle_Loop`, `Jump_Start`, `Jump_Loop`, `Jump_Land`, `Roll`, `Sprint_Loop` from Universal Animation Library [Standard], `NinjaJump_Land` from Universal Animation Library 2 [Standard] (Quaternius, CC0 1.0), retargeted onto the hero's 54-bone rig in Godot by `tools/hero/hero_clips.gd`, with the hero Idle's own finger keys; the four idle variants (`idle_look`, `idle_neck`, `idle_watch`, `idle_stretch`) are keyed in that script over the library's idle. Sources fetched by `tools/crowd/fetch_life_clips.sh`, not shipped | https://quaternius.itch.io/universal-animation-library , https://quaternius.itch.io/universal-animation-library-2 | CC0 1.0 (added 2026-10-05) |
 | The dog (`assets/models/dog_shiba.glb`, `CrowdDog`): `ShibaInu.gltf` from Quaternius' Ultimate Animated Animals (glTF folder; License.txt in the pack: CC0 1.0), rewritten as a .glb by Godot's GLTFDocument, unchanged | https://quaternius.com/packs/ultimateanimatedanimals.html | CC0 1.0 (added 2026-10-04) |
 | Held props (phone, paper coffee cup, shopping bag, cigarette) | Built in code (`CrowdLife.prop_mesh()`) | ours |
 
@@ -381,10 +384,18 @@ the nine Meshy pedestrians (`pedestrian_d..l`, rows above), which are no longer 
 | `crowd_j.glb` | white man in his fifties, heavy, close-cropped: chambray shirt with the sleeves rolled, dark jeans, brown shoes | middleage_caucasian_male, eyes `low-poly` + blue, eyebrow011, eyelashes01, shoes01, no hair mesh (a painted crop); our own shirt and jeans |
 | `crowd_k.glb` | young Latina woman: fitted teal tee, light-wash jeans, navy sneakers, braid | young_caucasian_female 45% + young_african_female 35% + young_asian_female 20%, eyes `low-poly` + brown, eyebrow002, eyelashes01, shoes06, braid01; our own tee and jeans |
 | `crowd_l.glb` | East Asian man in his seventies: maroon long-sleeve tee, charcoal chinos, black shoes, short grey hair | old_asian_male, eyes `low-poly` + brown, eyebrow008, eyelashes01, shoes04, short01; our own long-sleeve tee and chinos |
+| `crowd_m.glb` | white man in his seventies, tall and thin, a little stooped: navy windbreaker, stone chinos, brown shoes, thin grey hair | old_caucasian_male, eyes `low-poly` + lightblue, eyebrow005, eyelashes01, shoes01, short02; our own zip jacket (as a windbreaker) and chinos (added 2026-10-05) |
+| `crowd_n.glb` | South Asian woman in her sixties, short and heavy: buttoned crew-neck cardigan, mid-calf A-line skirt, flat shoes, short grey-streaked hair | middleage_asian_female 45% + middleage_african_female 30% + middleage_caucasian_female 25%, eyes `low-poly` + brown, eyebrow009, eyelashes01, shoes04, short03; our own cardigan and skirt |
+| `crowd_o.glb` | Black teenage boy, slim: pullover hoodie (hood down, drawcords, kangaroo pocket), black joggers with rib cuffs, grey sneakers, short hair | young_african_male, eyes `low-poly` + brown, eyebrow002, eyelashes01, shoes02, short02; our own hoodie and joggers |
+| `crowd_p.glb` | white teenage girl, slim: fitted lilac tee, olive A-line skirt above the knee, white sneakers, auburn ponytail | young_caucasian_female2, eyes `low-poly` + green, eyebrow006, eyelashes01, shoes05, ponytail01; our own tee and skirt |
+| `crowd_q.glb` | Latino man in his thirties, tall and heavy: navy pique polo, khaki chino shorts, grey sneakers, short black hair | young_caucasian_male 40% + young_african_male 30% + young_asian_male 30%, eyes `low-poly` + brown, eyebrow010, eyelashes01, shoes02, short04; our own polo and shorts |
+| `crowd_r.glb` | young North African woman: dusty rose headscarf worn hijab-style, long cream tee, navy wide trousers, navy sneakers | young_caucasian_female 60% + young_african_female 28% + young_asian_female 12%, eyes `low-poly` + brown, eyebrow001, eyelashes01, shoes06, no hair mesh (the headscarf covers it); our own headscarf, tee and trousers |
+| `crowd_s.glb` | Filipino man in his thirties, very short and stocky: hi-vis safety vest over a heather-grey tee, charcoal work trousers, boots, short black hair | young_asian_male 70% + young_african_male 20% + young_caucasian_male 10%, eyes `low-poly` + brown, eyebrow004, eyelashes01, shoes03, short01; our own vest, tee and trousers |
+| `crowd_t.glb` | very tall Black woman in her thirties: red-striped white shirt with the sleeves rolled, black slim trousers, white sneakers, a braid | young_african_female, eyes `low-poly` + brown, eyebrow003, eyelashes01, shoes05, braid01; our own shirt and slim trousers |
 
-Each is ONE skinned `Body` (skin, eyes, clothes, shoes; 10.5-12.7k triangles, one 2K colour atlas
+Each is ONE skinned `Body` (skin, eyes, clothes, shoes; 10.5-13.8k triangles, one 2K colour atlas
 and a 1K normal atlas, the vertex colour carrying the skin / top / bottom / hair split) and a
-`Hair` mesh of cut-out cards, brows and lashes (0.4-3.8k triangles, one 1K RGBA atlas): 11-16.6k
+`Hair` mesh of cut-out cards, brows and lashes (0.4-3.8k triangles, one 1K RGBA atlas): 11-17.7k
 triangles a person, 24 bones, the three clips. The MakeHuman T-shirts carry the MakeHuman logo;
 it is painted out of every atlas (`crowd_config.json` "garments" -> "erase").
 
@@ -442,6 +453,8 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | airliner_ascend.aif (Heigh-hoo), a real airliner take-off | https://freesound.org/people/Heigh-hoo/sounds/51091/ | CC0 1.0 | `assets/audio/jet_loop_0` (19.6-29.6 s of the HQ preview, mono, crossfaded into a seamless loop) | 2026-09-24 |
 | cop helicopter flying (Atilio_Sanchez), a real police helicopter overhead | https://freesound.org/people/Atilio_Sanchez/sounds/721300/ | CC0 1.0 | `assets/audio/rotor_loop_0` (139.1-147.1 s, crossfaded loop; the 20 Hz blade-pass chop kept) | 2026-09-24 |
 | Generator Loop (YCbCr), "low frequency motor sound" | https://opengameart.org/content/generator-loop | CC0 1.0 | `assets/audio/generator_0` (the taco trucks' generators, StreetVendors): 0.05 s trimmed off each end, the last 0.8 s cross-faded into the first (it does not loop natively), levelled to -20 dBFS RMS, mono 44.1 kHz Vorbis | 2026-10-04 |
+| car alarm dying out (ramas26), a real car alarm cycling its tones | https://freesound.org/people/ramas26/sounds/165257/ | CC0 1.0 | `assets/audio/car_alarm_0` (15.3-22.6 s of the HQ preview: the pulsing tone) and `car_alarm_1` (24.6-57.2 s: the multi-tone warble cycle); high-passed 300 Hz, levelled to -20 dBFS RMS, the last 0.4 s cross-faded into the first, mono 44.1 kHz Vorbis (CarAlarm) | 2026-10-05 |
+| 230707 Car alarm horn honks, roof, EM272s Toronto (TRP) | https://freesound.org/people/TRP/sounds/717865/ | CC0 1.0 | `assets/audio/car_alarm_2` (1.4-38.4 s of the HQ preview: a horn honking in time), high-passed 200 Hz, levelled, cross-faded into a loop, mono 44.1 kHz Vorbis (CarAlarm) | 2026-10-05 |
 | American police siren in Washington DC (lezer, via pdsounds.org) | https://commons.wikimedia.org/wiki/File:American_police_siren_i.ogg | Public domain | `assets/audio/siren_0` (one wail cycle, 17.62-22.78 s of the recording, band-passed 380 Hz - 6 kHz, level flattened, cross-faded into a seamless loop, mono 44.1 kHz; the Ogg Skeleton track dropped) | 2026-09-24 |
 | jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
 | island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
@@ -593,6 +606,39 @@ Commons file. Cut, filtered, peak-normalised mono OGGs; loudest-50 ms levels in
 | File:American Crow.ogg (G McGrane) | https://commons.wikimedia.org/wiki/File:American_Crow.ogg | Public domain | `crow_3` 2.15-3.85 | 2026-10-04 |
 | Rue Keyenveld - Sparrows (Flavien Gillié) | https://archive.org/details/aporee_71526_83445 | Public Domain Mark 1.0 | `sparrow_0` 3.85-5.90; `sparrow_1` 8.95-10.95 | 2026-10-04 |
 | Seagull Chatter, The Hague (Thijs Geritz) | https://archive.org/details/aporee_10517_42365 | Public Domain Mark 1.0 | `gull_close_0` 60.55-62.60; `gull_close_1` 105.20-107.80 | 2026-10-04 |
+
+## City acoustics audio (Freesound CC0, Kenney CC0)
+
+The city's newer sounds (`Sfx` footsteps by surface, the bus, the light rail's chime, a basketball;
+`Ambience` river, fountain, playground and construction), added 2026-10-05. Every Freesound page
+checked by `tools/ambience_audio.py get` (its licence link the CC0 1.0 deed only, the description
+read: `415151`, a stream whose description adds a "Licence: Music by ..." credit line, was dropped
+for that). Cut by `tools/city_audio.py build` from the HQ previews (mono one-shots peak -1 dB at
+44.1 kHz; loops levelled to -22 dB RMS at 32 kHz, cross-faded; footsteps and bounces split at their
+onsets automatically, the loudest kept). Kenney's Impact Sounds (`kenney_impact-sounds.zip`,
+License.txt: CC0 1.0) re-encoded mono 44.1 kHz, peak -1 dB. The light rail's traction-motor whine
+(`rail_motor`) and wire hum (`rail_hum`) are synthesized in `Sfx` (two candidate uploads, 721022
+and 733737, measured as perfectly steady synthesized tones, so making our own was the same thing).
+`bus_kneel` reuses `bus_hiss_1` / `bus_hiss_2` (City ambience section). About 1.6 MB.
+
+| Recording (author) | Source URL | License | Clips (span used) | Added |
+|---|---|---|---|---|
+| Impact Sounds (Kenney) | https://kenney.nl/assets/impact-sounds | CC0 1.0 | `footstep_concrete_0..4` (footstep_concrete_000..004), `footstep_grass_0..4` (footstep_grass_000..004), `footstep_wood_0..4` (footstep_wood_000..004) | 2026-10-05 |
+| footsteps shoes walk road asphalt hard.flac (kyles) | https://freesound.org/s/637556/ | CC0 1.0 | `footstep_asphalt_0..3` (3.10-3.42, 4.30-4.62, 4.91-5.18, 5.46-5.68 s) | 2026-10-05 |
+| Foot_Step_grit_Sand.wav (savataivanov) | https://freesound.org/s/384082/ | CC0 1.0 | `footstep_sand_0..3` (1.67-1.87, 6.05-6.20, 9.34-9.53, 14.12-14.45 s) | 2026-10-05 |
+| Footsteps On Metal (IENBA) | https://freesound.org/s/834029/ | CC0 1.0 | `footstep_metal_0..3` (0.57-0.99, 1.09-1.51, 1.58-2.00, 3.71-4.13 s) | 2026-10-05 |
+| bus_door_opening and closing at bus stop .wav (13FPanska_Sychra_Petr) | https://freesound.org/s/379373/ | CC0 1.0 | `bus_door_0` 1.15-3.65 s (opening), `bus_door_1` 8.10-10.35 s (closing, under the warning beeper) | 2026-10-05 |
+| bus door (zombiechick) | https://freesound.org/s/380320/ | CC0 1.0 | `bus_door_2` 0.25-3.60 s | 2026-10-05 |
+| D# and F chime (Sadiquecat; a sine chime made by its author) | https://freesound.org/s/845146/ | CC0 1.0 | `bus_chime_0` 0.00-1.90 s, `bus_chime_1` 3.12-5.00 s | 2026-10-05 |
+| Bus Engine Idling (bikesnbassboi) | https://freesound.org/s/540398/ | CC0 1.0 | `diesel_idle_0` 1.0-9.3 s (7.5 s loop) | 2026-10-05 |
+| R142/R142A Door Chime (nickymastro25) | https://freesound.org/s/249835/ | CC0 1.0 | `rail_chime_0` 0.00-0.92 s | 2026-10-05 |
+| Subway MTA Door Close Chime (cbrews; a marimba chime played by its author) | https://freesound.org/s/434085/ | CC0 1.0 | `rail_chime_1` 0.00-1.70 s | 2026-10-05 |
+| basketball ext dribble bounce hard surface.flac (kyles) | https://freesound.org/s/453757/ | CC0 1.0 | `ball_dribble_0..3` (1.72-2.12, 3.25-3.65, 4.84-5.25, 22.66-23.07 s) | 2026-10-05 |
+| Stream River Water Up Close (jackthemurray) | https://freesound.org/s/433589/ | CC0 1.0 | `amb_river_0` 0.0-24.5 s (left) and 27.5-52.0 s (right) | 2026-10-05 |
+| fountain (martats) | https://freesound.org/s/156969/ | CC0 1.0 | `amb_fountain_0` 3.0-27.5 s (against itself half a turn later) | 2026-10-05 |
+| Kids Playing (brunoboselli) | https://freesound.org/s/469613/ | CC0 1.0 | `amb_playground_0` 22.0-50.5 s | 2026-10-05 |
+| Jack Hammer breaking up concrete (short burst) (thomaspettigrew) | https://freesound.org/s/273697/ | CC0 1.0 | `construction_0` 0.05-3.60 s, `construction_1` 3.90-7.60 s | 2026-10-05 |
+| hammering 2.wav (cognito perceptu) | https://freesound.org/s/17012/ | CC0 1.0 | `construction_2` 0.00-1.55 s | 2026-10-05 |
 
 ## Fonts
 

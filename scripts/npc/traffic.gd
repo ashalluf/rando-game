@@ -190,6 +190,9 @@ func _street_kind(axis: int, index: int, at: Vector2) -> int:
 	var roll := _rng.randf()
 	if BigVehicles.route_of(plan, axis, index) != 0 and roll < BigVehicles.BUS_SHARE_ON_ROUTE:
 		return BigVehicles.BUS
+	# A school bus near a school at the bell (Schools; the roll above, reused, spends no roll).
+	if Schools.traffic_bus(plan, at, fposmod(roll * 7.31, 1.0), Schools.hour_now(self)):
+		return Vehicle.BodyType.SCHOOL_BUS
 	roll = _rng.randf()
 	var k := 3.0 if plan.district_at(at) == CityPlan.District.INDUSTRIAL else 1.0
 	if roll < BigVehicles.STREET_SEMI_SHARE * k:
@@ -399,6 +402,11 @@ func _board_line(car: Vehicle, axis: int, index: int, dir: int) -> void:
 	if fit:
 		fit.show_line(line, BigVehicles.destination(plan, axis, index, dir))
 		fit.set_doors(false)
+	elif not car.is_node_ready():
+		# A bus built just now gets its fittings in its _ready() (Vehicle._add_body_model ->
+		# BigVehicles.fit), which runs when _enter_at() adds it - after this - and would put its
+		# signs out again: board it once more as soon as it has them.
+		car.ready.connect(_board_line.bind(car, axis, index, dir), CONNECT_ONE_SHOT)
 
 
 ## True when nothing in lane (axis, index, dir, lane) is within `clear` metres of `along`.

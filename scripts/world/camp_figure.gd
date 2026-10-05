@@ -329,7 +329,7 @@ static func _bake(ped: RoughSleeper, triangles: int) -> ArrayMesh:
 ## The kinds a chunk can draw: every model in every pose (and both ways of sitting).
 static func kinds() -> Array:
 	var out: Array = []
-	for m in Pedestrian.MODELS.size():
+	for m in mini(Pedestrian.MODELS.size(), Encampment.FIGURE_POOL):
 		for pk: int in [RoughSleeper.Pose.SIT, RoughSleeper.Pose.LIE, RoughSleeper.Pose.SLUMP, RoughSleeper.Pose.CHAIR]:
 			for v in (2 if pk == RoughSleeper.Pose.SIT else 1):
 				out.append([m, pk, v])
