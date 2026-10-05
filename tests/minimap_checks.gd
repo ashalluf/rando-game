@@ -81,6 +81,11 @@ func _map_data(plan: CityPlan) -> void:
 		var along := r.get_center().y if int(rd.axis) == CityPlan.AXIS_X else r.get_center().x
 		if not plan.road_open(int(rd.axis), int(rd.index), along):
 			bad += 1
+			var school := Schools.enabled and Schools.road_closed(plan, int(rd.axis), int(rd.index), along)
+			var river: bool = plan.macro.river != null and not plan.macro.river.road_open(plan, int(rd.axis), int(rd.index), along)
+			print("CLOSED ROAD ON THE MAP: axis %d index %d along %.1f (school %s, river %s)" % [rd.axis, rd.index, along, school, river])
+	if not Schools.late_closed.is_empty():
+		print("SCHOOLS CLOSED LATE: %s" % [Schools.late_closed])
 	_check(bad == 0, "the map draws no closed road (%d)" % bad)
 
 
