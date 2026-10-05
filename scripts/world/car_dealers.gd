@@ -59,7 +59,7 @@ const LINEUP := [Vehicle.BodyType.SEDAN, Vehicle.BodyType.CROSSOVER, Vehicle.Bod
 const NEW_PAINTS := [Color(0.92, 0.92, 0.91), Color(0.92, 0.92, 0.91), Color(0.06, 0.06, 0.07), Color(0.62, 0.63, 0.65),
 	Color(0.40, 0.41, 0.43), Color(0.72, 0.04, 0.05), Color(0.08, 0.30, 0.75), Color(0.24, 0.25, 0.27), Color(0.88, 0.89, 0.92)]
 const USED_PAINTS := [Color(0.85, 0.85, 0.83), Color(0.08, 0.08, 0.09), Color(0.55, 0.56, 0.58), Color(0.36, 0.08, 0.08),
-	Color(0.12, 0.17, 0.32), Color(0.52, 0.47, 0.40), Color(0.30, 0.32, 0.36), Color(0.14, 0.24, 0.17), Color(0.75, 0.56, 0.10),
+	Color(0.12, 0.17, 0.32), Color(0.52, 0.47, 0.40), Color(0.30, 0.32, 0.36), Color(0.14, 0.24, 0.17), Color(0.62, 0.55, 0.42),
 	Color(0.60, 0.60, 0.58), Color(0.25, 0.10, 0.06)]
 const USED_NAMES := ["LUCKY STAR AUTO", "BOULEVARD MOTORS", "ACE AUTO MART", "VALLEY VIEW MOTORS", "DOS AMIGOS AUTO SALES",
 	"BEST DEAL AUTOS", "GOLDEN ROAD CARS", "SUNSET CAR CORRAL", "BIG JOE'S AUTO", "PRIMO MOTORS"]
