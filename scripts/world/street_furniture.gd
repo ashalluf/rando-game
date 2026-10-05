@@ -328,10 +328,11 @@ static func _own_prop(chunk: CityChunk, kind: String, at: Vector3, color: Color,
 
 # --- The meshes ------------------------------------------------------------------------------
 
-## Builds every mesh now (the loading screen), so no chunk step pays for one.
-static func warm() -> void:
+## Builds every mesh now (the loading screen), so no chunk step pays for one; returns the
+## materials to draw once through a MultiMesh.
+static func warm() -> Array:
 	if not enabled:
-		return
+		return []
 	hydrant()
 	meter()
 	pay_station()
@@ -342,6 +343,7 @@ static func warm() -> void:
 	planter()
 	for i in PLANTER_PLANTS:
 		planter_plant(i)
+	return [material()]
 
 
 static func material() -> ShaderMaterial:

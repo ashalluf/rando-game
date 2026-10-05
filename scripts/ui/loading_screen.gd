@@ -216,6 +216,8 @@ func _warm_shaders() -> void:
 	effects.append(BoostTrail.streak_material())
 	# What a blast leaves (BlastAftermath): the crater's maps, the slabs, the leaves.
 	effects.append_array(BlastAftermath.warm())
+	# The street furniture's meshes and shader (StreetFurniture), only drawn through the batches.
+	effects.append_array(StreetFurniture.warm())
 	for mat: Material in effects:
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
