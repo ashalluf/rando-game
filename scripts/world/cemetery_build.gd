@@ -430,7 +430,7 @@ static func _gate(ch: CityChunk, st: Dictionary) -> void:
 		g.box("coping", Vector3(p.x, base + 0.25, p.y), Vector3(1.24, 0.5, 1.24), Color.WHITE, basis, 0.02)
 		_lantern(g, Vector3(p.x, base + pier_h + 0.2, p.y), basis, 1.0)
 		LandmarkGeo.shape_box(body, Vector3(p.x, base + pier_h * 0.5, p.y), Vector3(1.1, pier_h, 1.1), basis)
-		_light(ch, Vector3(p.x, base + pier_h + 0.6, p.y), 12.0)
+		_light(ch, Vector3(p.x, base + pier_h + 0.6, p.y), 12.0, base)
 		# A leaf, hinged on the pier's inner face and swung 70 degrees in.
 		var hinge := gate + a * s * half
 		var open := deg_to_rad(70.0)
@@ -504,7 +504,7 @@ static func _lantern(g: LandmarkGeo, at: Vector3, basis: Basis, s: float) -> voi
 
 
 ## A real light, in DayNight's lamp group (energy set by the hour; hidden while it is zero).
-static func _light(ch: CityChunk, at: Vector3, reach: float) -> void:
+static func _light(ch: CityChunk, at: Vector3, reach: float, ground: float = INF) -> void:
 	var light := OmniLight3D.new()
 	light.position = at
 	light.omni_range = reach
@@ -518,7 +518,7 @@ static func _light(ch: CityChunk, at: Vector3, reach: float) -> void:
 	light.add_to_group("lamp_light")
 	ch.add_child(light)
 	ch._batch.add("lamp_pool", PropFactory.light_pool(), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5).scaled(Vector3(9.0, 1.0, 9.0)),
-		Vector3(at.x, at.y - ch._gy(at.x, at.z) - 2.6, at.z)), NightCity.pool_color(Vector2(at.x, at.z)))
+		Vector3(at.x, (ground if ground != INF else at.y - 2.6) - ch._gy(at.x, at.z) + 0.09, at.z)), NightCity.pool_color(Vector2(at.x, at.z)))
 	ch._batch.set_no_shadow("lamp_pool")
 
 
@@ -731,7 +731,7 @@ static func _chapel(ch: CityChunk, st: Dictionary) -> void:
 	ch._occluder_boxes.append([Transform3D(fb, Vector3(c.x, 0.0, c.y)), Vector3(0.0, (lo + eave) * 0.5, 0.0), Vector3(w - 0.6, eave - lo - 0.6, d - 0.6)])
 	# A lamp over the door.
 	var lp: Vector2 = P.call(0.0, fz + 0.6)
-	_light(ch, Vector3(lp.x, floor_y + 3.9, lp.y), 10.0)
+	_light(ch, Vector3(lp.x, floor_y + 3.9, lp.y), 10.0, floor_y)
 	_lantern(g, Vector3(lp.x, floor_y + 3.6, lp.y) - Vector3(f.x, 0, f.y) * 0.4, fb, 0.8)
 
 
@@ -955,7 +955,7 @@ static func _lamps(ch: CityChunk, st: Dictionary) -> void:
 		g.cylinder("kit", Vector3(p.x, y + 0.3, p.y), 0.06, 2.6, 8, iron, 0.045)
 		_lantern(g, Vector3(p.x, y + 2.9, p.y), Basis(), 0.9)
 		if i % LIGHT_EVERY == 0:
-			_light(ch, Vector3(p.x, y + 3.1, p.y), 10.0)
+			_light(ch, Vector3(p.x, y + 3.1, p.y), 10.0, y)
 
 
 static func _commit(ch: CityChunk, st: Dictionary) -> void:

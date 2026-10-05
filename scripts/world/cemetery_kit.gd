@@ -35,7 +35,7 @@ static func material() -> ShaderMaterial:
 
 ## The vertex colour for a face of kind `k` (rgb white: the instance colour is the stone's).
 static func kc(k: int, rgb: Color = Color.WHITE) -> Color:
-	return Color(rgb.r, rgb.g, rgb.b, float(k) / 16.0)
+	return Color(rgb.r, rgb.g, rgb.b, (float(k) + 0.5) / 16.0)
 
 
 static func mesh(key: String) -> ArrayMesh:

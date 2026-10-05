@@ -5,7 +5,7 @@ render_mode cull_back;
 // obelisks, family monuments, the gate's lanterns and ironwork. One material for all of it, so
 // each kind of marker is one MultiMesh draw a chunk.
 //
-// * Vertex colour alpha says what a face is (k = round(alpha * 16)):
+// * Vertex colour alpha says what a face is (k = floor(alpha * 16), written as (k + 0.5) / 16):
 //     0 polished granite   1 sawn / rock-pitched granite   2 marble   3 bronze plaque
 //     4 polished granite with engraved lettering   5 flowers (vertex colour)   6 lantern glass
 //     7 black iron   8 plain (vertex colour, matte: soil, vase)
@@ -55,7 +55,7 @@ float cs_fbm(vec2 p) {
 
 void vertex() {
 	v_local = VERTEX;
-	v_kind = floor(COLOR.a * 16.0 + 0.5);
+	v_kind = floor(COLOR.a * 16.0);
 	v_custom = INSTANCE_CUSTOM;
 	v_color = COLOR.rgb;
 }
@@ -153,17 +153,20 @@ void fragment() {
 		metal = mix(0.35, 0.9, raised);
 		rough = mix(0.62, 0.32, raised);
 	} else if (k == 5) {
-		alb = inst * 0.0 + cs_srgb_to_linear(v_color);
-		alb *= 0.8 + 0.4 * cs_noise(v_local.xz * 60.0);
+		// The bunch's colour from INSTANCE_CUSTOM.a (eighths): red roses, yellow, white, pink, purple.
+		int f = int(floor(v_custom.a * 8.0 + 0.5));
+		vec3 bloom = f == 0 ? vec3(0.45, 0.02, 0.03) : (f == 1 ? vec3(0.75, 0.55, 0.05) : (f == 2 ? vec3(0.78, 0.76, 0.72)
+			: (f == 3 ? vec3(0.75, 0.25, 0.40) : vec3(0.30, 0.10, 0.45))));
+		alb = bloom * (0.75 + 0.5 * cs_noise(v_local.xz * 60.0 + v_local.y * 40.0));
 		rough = 0.7;
 	} else if (k == 6) {
 		alb = vec3(0.6, 0.55, 0.45);
 		rough = 0.15;
 		emit = lamp_color * lamp_energy * lamp_factor;
 	} else if (k == 7) {
-		alb = vec3(0.025);
-		rough = 0.45;
-		metal = 0.6;
+		alb = vec3(0.03);
+		rough = 0.62;
+		metal = 0.3;
 	} else {
 		alb = inst;
 		rough = 0.85;
