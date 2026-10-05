@@ -446,8 +446,8 @@ static func layout(site: Dictionary) -> Dictionary:
 				var hours := [float(HOURS[0]) + shift, float(HOURS[1]) + shift, float(HOURS[2]) + shift2, float(HOURS[3]) + shift2]
 				var canvas := 0
 				var cr := _h01(id + ["canvas"])
-				if cr > 0.72:
-					canvas = 1 + int((cr - 0.72) / 0.28 * 4.99)
+				if cr > 0.8:
+					canvas = 1 + int((cr - 0.8) / 0.2 * 4.99)
 				var s := {"i": n, "side": side, "t": t, "o": o, "kind": kind, "variant": variant, "canvas": canvas,
 					"name": _name_for(kind, _h01(id + ["name"])), "van": behind, "hours": hours, "row": row_index}
 				stalls.append(s)

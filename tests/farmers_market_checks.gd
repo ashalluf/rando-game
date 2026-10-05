@@ -11,10 +11,10 @@ extends RefCounted
 ## people standing on it, no parked car in it, the LOD canopies, and that with the market off the
 ## street is open and the block's buildings are the same.
 
-var _t: Node
+var _t: Object
 
 
-func run(t: Node, city: Node3D) -> void:
+func run(t: Object, city: Node3D) -> void:
 	_t = t
 	var plan: CityPlan = city.plan
 	_tables()

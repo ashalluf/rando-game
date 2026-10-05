@@ -40,8 +40,8 @@ const PEAK := 2.98
 const VALANCE := 0.24
 
 ## Canvas colours a canopy can be (instance custom rgb; 0 is the common white).
-const CANVAS := [Color(0.93, 0.93, 0.91), Color(0.16, 0.33, 0.62), Color(0.2, 0.44, 0.26), Color(0.7, 0.14, 0.11),
-	Color(0.8, 0.7, 0.52), Color(0.92, 0.76, 0.22)]
+const CANVAS := [Color(0.93, 0.93, 0.91), Color(0.2, 0.32, 0.52), Color(0.24, 0.4, 0.28), Color(0.62, 0.18, 0.14),
+	Color(0.78, 0.7, 0.55), Color(0.86, 0.72, 0.3)]
 ## Variants of each stall kind's goods table (FarmersMarket.Kind order).
 const VARIANTS := [6, 2, 2, 2]
 ## The table, its front edge and height (local: canopy centre on the ground, +z the aisle).
