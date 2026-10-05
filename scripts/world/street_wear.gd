@@ -171,6 +171,7 @@ static func _worship_near(_plan: CityPlan, rect: Rect2) -> Array:
 			var r := float(lm.radius) + WORSHIP_MARGIN
 			if rect.grow(r).has_point(lm.anchor):
 				out.append([lm.anchor, r])
+	out.append_array(Worship.blocked_near(_plan, rect, WORSHIP_MARGIN))
 	return out
 
 

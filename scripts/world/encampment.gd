@@ -273,7 +273,8 @@ static func _block_ok(plan: CityPlan, ix: int, iz: int) -> bool:
 			return false
 		if _is_worship(String(lm.id)) and rect.grow(WORSHIP_CLEAR + float(lm.get("radius", 0.0))).has_point(anchor):
 			return false
-	return true
+	# The places of worship on city lots (Worship) keep the same distance.
+	return Worship.near_rect(plan, rect, WORSHIP_CLEAR).is_empty()
 
 
 static func _is_worship(id: String) -> bool:
