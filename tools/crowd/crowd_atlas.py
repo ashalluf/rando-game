@@ -209,7 +209,7 @@ if os.path.exists(C.work(NAME, "folds.npz")):
     # today's outfit ("ankle_stack" / "ankle_reach" on the trousers override the style's).
     for _g in _CFG.get("outfit", []):
         if _g.get("type") == "trousers":
-            _st, _re = {"leggings": (0.2, 0.08), "slim": (0.3, 0.1)}.get(_g.get("style", "jeans"), (0.4, 0.12))
+            _st, _re = {"leggings": (0.2, 0.08), "slim": (0.3, 0.1), "joggers": (0.9, 0.18)}.get(_g.get("style", "jeans"), (0.4, 0.12))
             L["ankle_stack"] = _g.get("ankle_stack", _st)
             L["ankle_reach"] = _g.get("ankle_reach", _re)
     NS = PLAN["normal_size"]

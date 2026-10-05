@@ -1,0 +1,14 @@
+[remap]
+
+importer="image"
+type="Image"
+uid="uid://b4xuac6mnm4ih"
+path="res://.godot/imported/cloud_weather.png-6e8a483b17746a6b1a43231ef86f5aae.image"
+
+[deps]
+
+source_file="res://assets/textures/sky/cloud_weather.png"
+dest_files=["res://.godot/imported/cloud_weather.png-6e8a483b17746a6b1a43231ef86f5aae.image"]
+
+[params]
+

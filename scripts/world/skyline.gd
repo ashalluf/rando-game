@@ -586,7 +586,7 @@ func _add_captured(k: Vector2i, b: Dictionary, zone: int, ch: CityChunk) -> void
 		colors.append(Color(c.r, c.g, c.b, 1.0))
 		customs.append(Color(0.0, 0.0, float(absi(hash([k, xforms.size()])) % 997) / 997.0, 1.0))
 	# A river block plants no street trees (RiverBuild lays pavement and a rail yard).
-	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y):
+	if zone == MacroMap.Zone.CITY and not _plan.river_block(k.x, k.y) and not _plan.marina_block(k.x, k.y):
 		_add_city_trees(k, b, ch)
 	# Container stacks in the port yard.
 	if batch.has("container"):
@@ -615,6 +615,11 @@ func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 	var roads := zone == MacroMap.Zone.CITY
 	var wx: float = _plan.road_width(CityPlan.AXIS_X, k.x + 1) if roads else 0.0
 	var wz: float = _plan.road_width(CityPlan.AXIS_Z, k.y + 1) if roads else 0.0
+	# A street a high school closed (Schools) is campus, not asphalt, from afar too.
+	if roads and not _plan.road_open(CityPlan.AXIS_X, k.x + 1, area.get_center().y):
+		wx = 0.0
+	if roads and not _plan.road_open(CityPlan.AXIS_Z, k.y + 1, area.get_center().x):
+		wz = 0.0
 	var bands: Array = []
 	if not roads:
 		for i in range(1, ground.size()):
@@ -625,6 +630,11 @@ func _add_plate(k: Vector2i, zone: int, ground: Array, ch: CityChunk) -> void:
 	var col := _ground_colour(Rect2(area.position, area.size - Vector2(wx, wz)), zone, ground, bands)
 	# A river block (LaRiver): the plate goes down under the channel's bed, in the bed's colour;
 	# the capture's boxes are its land, streets, banks and bridges (RiverBuild._capture()).
+	# A marina block (Marina): the plate is the water, at the water; the capture's boxes are the
+	# land, docks and boats on it (MarinaBuild.capture()).
+	if _plan.marina_block(k.x, k.y):
+		_plate(k, area, MarinaBuild.FAR_WATER, 0.0, 0.0, ch, MarinaBuild.far_plate_drop(ch))
+		return
 	if roads and _plan.river_block(k.x, k.y):
 		_plate(k, area, RiverBuild.FAR_BED, 0.0, 0.0, ch, RiverBuild.far_plate_drop(ch))
 		return
@@ -729,7 +739,9 @@ func _add_freeway(k: Vector2i) -> void:
 		# Deck flag: building_lod.gdshader draws an asphalt carriageway on top, not a roof.
 		# .g where the segment starts in the traffic lights' period, .b the route (far_traffic).
 		customs.append(Color(float(seg.width), fmod(float(seg.index) * Freeway.STEP, NightCity.PERIOD), float(seg.route) + 1.0, DECK_FLAG))
-		if int(seg.index) % pillar_every == 0:
+		var stack: FreewayStack = macro.freeway.stack
+		if int(seg.index) % pillar_every == 0 and not seg.has("link") \
+				and not (stack and stack.skips_bent(_plan, int(seg.route), int(seg.index))):
 			var ground := _plan.height_at(a)
 			if macro.river:
 				ground = minf(ground, macro.river.channel_floor(a))
@@ -740,6 +752,23 @@ func _add_freeway(k: Vector2i) -> void:
 				xforms.append(Transform3D(pb, Vector3(a.x, ground - 1.0 + h * 0.5, a.y)))
 				colors.append(concrete * 0.94)
 				customs.append(Color(0.0, 0.0, 0.0, 1.0))
+	# The four-level stack's single columns and hammerheads (FreewayStack.columns()).
+	if macro.freeway.stack:
+		for c in macro.freeway.stack.columns(_plan):
+			var p: Vector2 = c.pos
+			if not area.has_point(p):
+				continue
+			var d: Vector2 = c.dir
+			var cr := Vector3(-d.y, 0.0, d.x)
+			var h := float(c.top) - float(c.base) + 1.0
+			xforms.append(Transform3D(Basis(cr * float(c.r) * 2.0, Vector3(0.0, h, 0.0), Vector3(d.x, 0.0, d.y) * float(c.r) * 2.0),
+				Vector3(p.x, float(c.base) - 1.0 + h * 0.5, p.y)))
+			colors.append(concrete * 0.94)
+			customs.append(Color(0.0, 0.0, 0.0, 1.0))
+			xforms.append(Transform3D(Basis(cr * float(c.cap_half) * 2.0, Vector3(0.0, 2.4, 0.0), Vector3(d.x, 0.0, d.y) * 2.2),
+				Vector3(p.x, float(c.top) - 1.2, p.y)))
+			colors.append(concrete * 0.94)
+			customs.append(Color(0.0, 0.0, 0.0, 1.0))
 
 
 ## The trees a FULL chunk plants on a city block, as canopies: rows along the kerbs at the

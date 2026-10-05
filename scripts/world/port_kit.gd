@@ -286,8 +286,13 @@ static func ladder(levels: Array, edges: Array, material: Material, first: int =
 	var arrays: Array = base.arrays().duplicate(true)
 	var lods := {}
 	var offset: int = (arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size()
+	var last_count: int = (arrays[Mesh.ARRAY_INDEX] as PackedInt32Array).size()
 	for l in range(first + 1, levels.size()):
 		var src: Array = (levels[l] as Buf).arrays()
+		# A level no lighter than the one before it is no LOD (the renderer refuses it).
+		if (src[Mesh.ARRAY_INDEX] as PackedInt32Array).size() >= last_count:
+			continue
+		last_count = (src[Mesh.ARRAY_INDEX] as PackedInt32Array).size()
 		for slot in Mesh.ARRAY_MAX:
 			if slot == Mesh.ARRAY_INDEX or arrays[slot] == null:
 				continue
@@ -317,6 +322,15 @@ static func warm() -> Array:
 	mast_mesh()
 	bollard_mesh()
 	fender_mesh()
+	# The moving terminal (PortLife): the working crane's frame and its running parts, the
+	# gantry's, the vehicles and the gate.
+	sts_frame_mesh()
+	sts_trolley_mesh()
+	sts_spreader_mesh()
+	rope_mesh()
+	rtg_frame_mesh()
+	rtg_trolley_mesh()
+	PortLifeKit.warm()
 	return [container_material(), steel_material()]
 
 
@@ -536,7 +550,71 @@ static func sts_mesh(raised: bool, trolley_z: float, spreader_y: float) -> Array
 	return mesh
 
 
-static func _sts_level(lv: int, raised: bool, trolley_z: float, spreader_y: float) -> Buf:
+## A working crane's frame without its trolley, cab, ropes and spreader: PortLife runs those
+## (sts_trolley_mesh(), sts_spreader_mesh(), rope_mesh()) on the crane's cycle.
+static func sts_frame_mesh() -> ArrayMesh:
+	if _cache.has("sts_frame"):
+		return _cache["sts_frame"]
+	var levels: Array = []
+	for lv in 3:
+		levels.append(_sts_level(lv, false, 0.0, 0.0, true))
+	var mesh := ladder(levels, STS_EDGES, steel_material())
+	_cache["sts_frame"] = mesh
+	return mesh
+
+
+## The trolley with its cab (crane frame heights, centred on z 0; place it at the trolley's z),
+## plus two floodlights under it that light the hatch it works.
+static func sts_trolley_mesh() -> ArrayMesh:
+	if _cache.has("sts_trolley"):
+		return _cache["sts_trolley"]
+	var levels: Array = []
+	for lv in 3:
+		var b := Buf.new()
+		_sts_trolley(b, lv, 0.0)
+		if lv <= 1:
+			b.color = GREY
+			b.part = S_LAMP
+			for fx: float in [-2.6, 2.6]:
+				b.box(Vector3(fx - 0.35, STS_PORTAL_Y + STS_GIRDER_D - 0.2, -4.4), Vector3(fx + 0.35, STS_PORTAL_Y + STS_GIRDER_D + 0.16, -3.6))
+		levels.append(b)
+	var mesh := ladder(levels, STS_EDGES, steel_material())
+	_cache["sts_trolley"] = mesh
+	return mesh
+
+
+## A spreader (the STS's and the gantries'), its underside at y 0, centred.
+static func sts_spreader_mesh() -> ArrayMesh:
+	if _cache.has("sts_spreader"):
+		return _cache["sts_spreader"]
+	var levels: Array = []
+	for lv in 3:
+		var b := Buf.new()
+		_sts_spreader(b, lv, Vector3.ZERO)
+		levels.append(b)
+	var mesh := ladder(levels, [0.0, 0.08, 0.4], steel_material())
+	_cache["sts_spreader"] = mesh
+	return mesh
+
+
+## Four hoist ropes one metre long hanging from y 0 to y -1 (scale y by the drop), the reeving
+## points of the STS trolley (x +-0.9, z +-1.8). Two levels: ropes, nothing.
+static func rope_mesh(spread_x: float = 0.9, spread_z: float = 1.8) -> ArrayMesh:
+	var key := "rope_%d_%d" % [roundi(spread_x * 10.0), roundi(spread_z * 10.0)]
+	if _cache.has(key):
+		return _cache[key]
+	var b := Buf.new()
+	b.color = Color(0.12, 0.12, 0.12)
+	b.part = S_PAINT
+	for rx: float in [-spread_x, spread_x]:
+		for rz: float in [-spread_z, spread_z]:
+			b.cyl(Vector3(rx, 0.0, rz), Vector3(rx, -1.0, rz), 0.035, 4)
+	var mesh := ladder([b], [0.0], steel_material())
+	_cache[key] = mesh
+	return mesh
+
+
+static func _sts_level(lv: int, raised: bool, trolley_z: float, spreader_y: float, moving: bool = false) -> Buf:
 	var b := Buf.new()
 	var gz := STS_GAUGE * 0.5
 	var lx := STS_LEG_X
@@ -751,59 +829,22 @@ static func _sts_level(lv: int, raised: bool, trolley_z: float, spreader_y: floa
 			for at: float in [hinge_z + 30.0, tip - 3.0]:
 				b.cyl(apex, boom * Vector3(sx * gx, gt, at), 0.2, 6)
 			b.cyl(apex, Vector3(sx * gx, gt + 0.2, back + 2.0), 0.22, 6)
-	# --- Trolley on the girders, the operator's cab hung under it, hoist ropes, the spreader.
-	var tpos := trolley_z
-	var on_boom := tpos > hinge_z
-	b.xf = boom if on_boom else Transform3D.IDENTITY
-	b.color = Color(0.8, 0.81, 0.8)
-	b.part = S_PAINT
-	b.box(Vector3(-gx - 0.9, gt + 0.16, tpos - 5.0), Vector3(gx + 0.9, gt + 2.6, tpos + 5.0))
-	if lv <= 1:
-		b.color = GREY
-		b.box(Vector3(-2.2, gt + 2.6, tpos - 3.0), Vector3(2.2, gt + 3.5, tpos + 2.0))
-	if lv == 0:
-		# Rope sheaves on the trolley deck and its wheels on the rails.
-		b.color = DARK
-		for rx: float in [-0.9, 0.9]:
-			for rz: float in [-1.8, 1.8]:
-				b.cyl(Vector3(rx - 0.25, gt + 2.6, tpos + rz), Vector3(rx + 0.25, gt + 2.6, tpos + rz), 0.55, 8, true)
-		for sx: float in [-1.0, 1.0]:
-			for wz: float in [-3.8, 3.8]:
-				b.cyl(Vector3(sx * gx - 0.15, gt + 0.45, tpos + wz), Vector3(sx * gx + 0.15, gt + 0.45, tpos + wz), 0.42, 8, true)
-	# The cab: glass on every side, a frame at roof and floor, hangers up to the trolley.
-	b.color = Color(0.8, 0.81, 0.8)
-	b.box(Vector3(0.2, py - 0.8, tpos + 1.5), Vector3(3.0, py - 0.3, tpos + 4.6))
-	b.box(Vector3(0.2, py - 3.6, tpos + 1.5), Vector3(3.0, py - 3.3, tpos + 4.6))
-	b.part = S_GLASS
-	b.color = Color(0.2, 0.24, 0.28)
-	b.box(Vector3(0.25, py - 3.3, tpos + 1.55), Vector3(2.95, py - 0.8, tpos + 4.55), 1 | 2 | 16 | 32)
-	if lv <= 1:
-		b.part = S_PAINT
-		b.color = GREY
-		for hz: float in [tpos + 1.8, tpos + 4.3]:
-			b.box(Vector3(1.0, py - 0.3, hz - 0.12), Vector3(2.2, gt + 0.2, hz + 0.12), 1 | 2 | 16 | 32)
-	if lv == 0:
-		b.color = Color(0.12, 0.12, 0.12)
-		b.part = S_PAINT
-		for rx: float in [-0.9, 0.9]:
-			for rz: float in [-1.8, 1.8]:
-				b.cyl(Vector3(rx, gt + 0.2, tpos + rz), Vector3(rx, spreader_y + 1.2, tpos + rz), 0.04, 4)
-	b.xf = Transform3D.IDENTITY
-	# The spreader hangs plumb whatever the boom does.
-	var sp := boom * Vector3(0.0, 0.0, tpos) if on_boom else Vector3(0.0, 0.0, tpos)
-	b.color = YELLOW
-	b.part = S_PAINT
-	b.box(Vector3(-1.2, spreader_y + 0.45, sp.z - 1.5), Vector3(1.2, spreader_y + 1.25, sp.z + 1.5))
-	b.box(Vector3(-6.1, spreader_y, sp.z - 0.35), Vector3(6.1, spreader_y + 0.45, sp.z + 0.35))
-	for ex: float in [-1.0, 1.0]:
-		b.box(Vector3(ex * 5.95 - 0.16, spreader_y, sp.z - 1.22), Vector3(ex * 5.95 + 0.16, spreader_y + 0.45, sp.z + 1.22))
+	# --- Trolley on the girders, the operator's cab hung under it, hoist ropes, the spreader
+	# (left out of a `moving` crane: PortLife draws them as nodes of their own and runs them).
+	if not moving:
+		var on_boom := trolley_z > hinge_z
+		b.xf = boom if on_boom else Transform3D.IDENTITY
+		_sts_trolley(b, lv, trolley_z)
 		if lv == 0:
-			# Flippers at the corners, turned down to guide it onto a box, and the motor housings.
-			for ez: float in [-1.0, 1.0]:
-				b.box(Vector3(ex * 6.08 - 0.08, spreader_y - 0.55, sp.z + ez * 1.22 - 0.25), Vector3(ex * 6.08 + 0.08, spreader_y + 0.1, sp.z + ez * 1.22 + 0.25))
-			b.color = GREY
-			b.box(Vector3(ex * 3.2 - 0.6, spreader_y + 0.45, sp.z - 0.5), Vector3(ex * 3.2 + 0.6, spreader_y + 0.95, sp.z + 0.5))
-			b.color = YELLOW
+			b.color = Color(0.12, 0.12, 0.12)
+			b.part = S_PAINT
+			for rx: float in [-0.9, 0.9]:
+				for rz: float in [-1.8, 1.8]:
+					b.cyl(Vector3(rx, gt + 0.2, trolley_z + rz), Vector3(rx, spreader_y + 1.2, trolley_z + rz), 0.04, 4)
+		b.xf = Transform3D.IDENTITY
+		# The spreader hangs plumb whatever the boom does.
+		var sp := boom * Vector3(0.0, 0.0, trolley_z) if on_boom else Vector3(0.0, 0.0, trolley_z)
+		_sts_spreader(b, lv, Vector3(0.0, spreader_y, sp.z))
 	# --- The lift shaft up the other landside leg (levels 0-1), its machine room on top.
 	if lv <= 1:
 		b.color = Color(0.7, 0.72, 0.72)
@@ -862,6 +903,63 @@ static func _sts_level(lv: int, raised: bool, trolley_z: float, spreader_y: floa
 	return b
 
 
+## The trolley and the operator's cab hung under it, at `tpos` along the girders (crane frame,
+## heights absolute). Shared by the merged crane and PortLife's moving trolley (tpos 0).
+static func _sts_trolley(b: Buf, lv: int, tpos: float) -> void:
+	var py := STS_PORTAL_Y
+	var gt := py + STS_GIRDER_D
+	var gx := STS_GIRDER_X
+	b.color = Color(0.8, 0.81, 0.8)
+	b.part = S_PAINT
+	b.box(Vector3(-gx - 0.9, gt + 0.16, tpos - 5.0), Vector3(gx + 0.9, gt + 2.6, tpos + 5.0))
+	if lv <= 1:
+		b.color = GREY
+		b.box(Vector3(-2.2, gt + 2.6, tpos - 3.0), Vector3(2.2, gt + 3.5, tpos + 2.0))
+	if lv == 0:
+		# Rope sheaves on the trolley deck and its wheels on the rails.
+		b.color = DARK
+		for rx: float in [-0.9, 0.9]:
+			for rz: float in [-1.8, 1.8]:
+				b.cyl(Vector3(rx - 0.25, gt + 2.6, tpos + rz), Vector3(rx + 0.25, gt + 2.6, tpos + rz), 0.55, 8, true)
+		for sx: float in [-1.0, 1.0]:
+			for wz: float in [-3.8, 3.8]:
+				b.cyl(Vector3(sx * gx - 0.15, gt + 0.45, tpos + wz), Vector3(sx * gx + 0.15, gt + 0.45, tpos + wz), 0.42, 8, true)
+	# The cab: glass on every side, a frame at roof and floor, hangers up to the trolley.
+	b.color = Color(0.8, 0.81, 0.8)
+	b.box(Vector3(0.2, py - 0.8, tpos + 1.5), Vector3(3.0, py - 0.3, tpos + 4.6))
+	b.box(Vector3(0.2, py - 3.6, tpos + 1.5), Vector3(3.0, py - 3.3, tpos + 4.6))
+	b.part = S_GLASS
+	b.color = Color(0.2, 0.24, 0.28)
+	b.box(Vector3(0.25, py - 3.3, tpos + 1.55), Vector3(2.95, py - 0.8, tpos + 4.55), 1 | 2 | 16 | 32)
+	if lv <= 1:
+		b.part = S_PAINT
+		b.color = GREY
+		for hz: float in [tpos + 1.8, tpos + 4.3]:
+			b.box(Vector3(1.0, py - 0.3, hz - 0.12), Vector3(2.2, gt + 0.2, hz + 0.12), 1 | 2 | 16 | 32)
+
+
+## The spreader with its underside at `at.y`, centred on (at.x, at.z): headblock, the telescopic
+## beam, end beams, flippers and motor housings.
+static func _sts_spreader(b: Buf, lv: int, at: Vector3) -> void:
+	var y := at.y
+	var z := at.z
+	b.color = YELLOW
+	b.part = S_PAINT
+	b.box(Vector3(at.x - 1.2, y + 0.45, z - 1.5), Vector3(at.x + 1.2, y + 1.25, z + 1.5))
+	b.box(Vector3(at.x - 6.1, y, z - 0.35), Vector3(at.x + 6.1, y + 0.45, z + 0.35))
+	for ex: float in [-1.0, 1.0]:
+		var x := at.x + ex * 5.95
+		b.box(Vector3(x - 0.16, y, z - 1.22), Vector3(x + 0.16, y + 0.45, z + 1.22))
+		if lv == 0:
+			# Flippers at the corners, turned down to guide it onto a box, and the motor housings.
+			for ez: float in [-1.0, 1.0]:
+				b.box(Vector3(at.x + ex * 6.08 - 0.08, y - 0.55, z + ez * 1.22 - 0.25), Vector3(at.x + ex * 6.08 + 0.08, y + 0.1, z + ez * 1.22 + 0.25))
+			b.color = GREY
+			b.box(Vector3(at.x + ex * 3.2 - 0.6, y + 0.45, z - 0.5), Vector3(at.x + ex * 3.2 + 0.6, y + 0.95, z + 0.5))
+			b.color = YELLOW
+
+
+
 # --- Rubber-tyred yard gantry -----------------------------------------------------------------
 
 static func rtg_mesh() -> ArrayMesh:
@@ -883,7 +981,7 @@ static func rtg_shadow_mesh() -> ArrayMesh:
 ## One level of the yard gantry: a teal sill beam on tyres each side, teal legs, white girders
 ## across the span, the trolley over the middle row with its spreader parked high, a diesel
 ## house on one sill and a stair up one leg.
-static func _rtg_level(lv: int) -> Buf:
+static func _rtg_level(lv: int, moving: bool = false) -> Buf:
 	var b := Buf.new()
 	var hz := RTG_SPAN * 0.5
 	var lx := RTG_LEG_X
@@ -935,30 +1033,8 @@ static func _rtg_level(lv: int) -> Buf:
 		b.color = DARK
 		for sx: float in [-1.0, 1.0]:
 			b.box(Vector3(sx * (lx - 0.3) - 0.07, gt, -hz - 0.8), Vector3(sx * (lx - 0.3) + 0.07, gt + 0.12, hz + 0.8), 1 | 2 | 4)
-	# Trolley with its machinery and the cab hung off its side.
-	b.color = WHITE
-	b.part = S_PAINT
-	b.box(Vector3(-lx - 0.3, gt + 0.12, -2.3), Vector3(lx + 0.3, gt + 2.0, 2.3))
-	b.color = TEAL
-	b.box(Vector3(-2.0, gt + 2.0, -1.6), Vector3(1.6, gt + 2.9, 1.4))
-	b.color = Color(0.8, 0.81, 0.8)
-	b.box(Vector3(lx + 0.3, h - 1.3, 0.3), Vector3(lx + 2.2, h - 1.0, 2.3))
-	b.box(Vector3(lx + 0.3, h + 1.2, 0.3), Vector3(lx + 2.2, h + 1.5, 2.3))
-	b.color = Color(0.2, 0.24, 0.28)
-	b.part = S_GLASS
-	b.box(Vector3(lx + 0.35, h - 1.0, 0.35), Vector3(lx + 2.15, h + 1.2, 2.25), 1 | 2 | 16 | 32)
-	b.part = S_PAINT
-	var spy := h - 5.5
-	if lv == 0:
-		b.color = Color(0.12, 0.12, 0.12)
-		for rx: float in [-0.7, 0.7]:
-			for rz: float in [-1.2, 1.2]:
-				b.cyl(Vector3(rx, gt + 0.1, rz), Vector3(rx, spy + 1.0, rz), 0.035, 4)
-	b.color = YELLOW
-	b.box(Vector3(-1.0, spy + 0.4, -1.3), Vector3(1.0, spy + 1.0, 1.3))
-	b.box(Vector3(-6.1, spy, -0.3), Vector3(6.1, spy + 0.4, 0.3))
-	for ex: float in [-1.0, 1.0]:
-		b.box(Vector3(ex * 5.95 - 0.14, spy, -1.22), Vector3(ex * 5.95 + 0.14, spy + 0.4, 1.22))
+	if not moving:
+		_rtg_trolley(b, lv, true)
 	# The diesel house outside one sill, louvred, and a stair up the leg next to it.
 	b.color = WHITE
 	b.part = S_HOUSE
@@ -990,6 +1066,63 @@ static func _rtg_level(lv: int) -> Buf:
 		for sz: float in [-1.0, 1.0]:
 			b.box(Vector3(-0.3, h - 0.65, sz * (hz - 0.2) - 0.25), Vector3(0.3, h - 0.25, sz * (hz - 0.2) + 0.25))
 	return b
+
+
+## A yard gantry's trolley with its cab, ropes and (`spreader`) its spreader parked high, in the
+## gantry frame (z 0 over the middle row).
+static func _rtg_trolley(b: Buf, lv: int, spreader: bool) -> void:
+	var lx := RTG_LEG_X
+	var h := RTG_H
+	var gt := h + 1.5
+	# Trolley with its machinery and the cab hung off its side.
+	b.color = WHITE
+	b.part = S_PAINT
+	b.box(Vector3(-lx - 0.3, gt + 0.12, -2.3), Vector3(lx + 0.3, gt + 2.0, 2.3))
+	b.color = TEAL
+	b.box(Vector3(-2.0, gt + 2.0, -1.6), Vector3(1.6, gt + 2.9, 1.4))
+	b.color = Color(0.8, 0.81, 0.8)
+	b.box(Vector3(lx + 0.3, h - 1.3, 0.3), Vector3(lx + 2.2, h - 1.0, 2.3))
+	b.box(Vector3(lx + 0.3, h + 1.2, 0.3), Vector3(lx + 2.2, h + 1.5, 2.3))
+	b.color = Color(0.2, 0.24, 0.28)
+	b.part = S_GLASS
+	b.box(Vector3(lx + 0.35, h - 1.0, 0.35), Vector3(lx + 2.15, h + 1.2, 2.25), 1 | 2 | 16 | 32)
+	b.part = S_PAINT
+	var spy := h - 5.5
+	if lv == 0 and spreader:
+		b.color = Color(0.12, 0.12, 0.12)
+		for rx: float in [-0.7, 0.7]:
+			for rz: float in [-1.2, 1.2]:
+				b.cyl(Vector3(rx, gt + 0.1, rz), Vector3(rx, spy + 1.0, rz), 0.035, 4)
+	if not spreader:
+		return
+	b.color = YELLOW
+	b.box(Vector3(-1.0, spy + 0.4, -1.3), Vector3(1.0, spy + 1.0, 1.3))
+	b.box(Vector3(-6.1, spy, -0.3), Vector3(6.1, spy + 0.4, 0.3))
+	for ex: float in [-1.0, 1.0]:
+		b.box(Vector3(ex * 5.95 - 0.14, spy, -1.22), Vector3(ex * 5.95 + 0.14, spy + 0.4, 1.22))
+
+
+## A moving gantry (PortLife): the frame without its trolley, and the trolley without its
+## spreader (PortLife hangs sts_spreader_mesh() on rope_mesh() under it).
+static func rtg_frame_mesh() -> ArrayMesh:
+	if _cache.has("rtg_frame"):
+		return _cache["rtg_frame"]
+	var mesh := ladder([_rtg_level(0, true), _rtg_level(1, true), _rtg_level(2, true)], RTG_EDGES, steel_material())
+	_cache["rtg_frame"] = mesh
+	return mesh
+
+
+static func rtg_trolley_mesh() -> ArrayMesh:
+	if _cache.has("rtg_trolley"):
+		return _cache["rtg_trolley"]
+	var levels: Array = []
+	for lv in 3:
+		var b := Buf.new()
+		_rtg_trolley(b, lv, false)
+		levels.append(b)
+	var mesh := ladder(levels, RTG_EDGES, steel_material())
+	_cache["rtg_trolley"] = mesh
+	return mesh
 
 
 # --- Container ship ---------------------------------------------------------------------------
@@ -1094,6 +1227,12 @@ static func _ship_level(lv: int) -> Buf:
 				b.box(Vector3(lx - 0.25, SHIP_DECK_Y, sz * 13.0 - 0.25), Vector3(lx + 0.25, SHIP_CARGO_Y + 5.2, sz * 13.0 + 0.25), 1 | 2 | 16 | 32)
 			b.part = S_GRATE
 			b.box(Vector3(lx - 0.5, SHIP_CARGO_Y + 5.2, -13.4), Vector3(lx + 0.5, SHIP_CARGO_Y + 5.4, 13.4))
+			# Deck floodlights under the bridge's walkway, lighting the bays at night (PortLife
+			# lays their pools).
+			b.part = S_LAMP
+			b.color = GREY
+			for sz: float in [-8.0, 8.0]:
+				b.box(Vector3(lx - 0.3, SHIP_CARGO_Y + 4.9, sz - 0.3), Vector3(lx + 0.3, SHIP_CARGO_Y + 5.2, sz + 0.3))
 			if lv == 0:
 				b.part = S_PAINT
 				b.color = YELLOW
