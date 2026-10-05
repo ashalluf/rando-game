@@ -2389,6 +2389,44 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   sitting and lying get up and FLEE (then RETURN and settle) and the slumped
   COWER in place. Worn clothes are `RoughSleeper.worn_material()` - the character shader's
   `grime` uniform (dirt low on the body, never on skin). Depict it as the street, never as a joke.
+- The canals (2026-10-05, "a canal neighbourhood in the beach town - the form of the Venice
+  canals"; docs/HANDOFF.md, the canals section): MARISOL CANALS, an original name, on the 2 x 2
+  blocks inland of the boardwalk (x -824..-645, z -403..0 on the default seed). `Canals`
+  (`scripts/world/canals.gd`) is a site like MacArthur Park's: its `Landmarks.all()` entry carries an
+  `"area"` with no kept roads, so CityPlan snaps it to the four perimeter streets (open, the
+  neighbourhood's residential ring) and closes every street inside (no cars). `layout(plan)` is
+  PURE and cached per plan: NS_COUNT canals north-south and EW_COUNT east-west, CANAL_W 15 m bank
+  top to bank top, a walk WALK_W each side, the islands between the bands cut into rows of
+  LOT_W lots that FACE their canal (an edge island one row backing onto the pavement ring, a
+  middle one two back to back), a bridge in the middle of every stretch, a dock for DOCK_ODDS of
+  the lots. The houses are HouseKit's (`HouseKit.plan_fronted()`, front = the canal, the canal's own
+  `STYLES` table, no garage - the garage wing becomes a room -, `glass_front` on modern boxes:
+  a wall of glass to the water in `HouseBuild._openings()`); a GARDEN strip in front of each yard
+  carries a picket / stucco / slat fence with a gate, a paver path to the door, flowers, a porch
+  lantern (`CanalKit.add_porch_light()`, its glass on `shaders/canal_lamp.gdshader`, a light pool).
+  The section: bed at FLOOR_Y -1.2 out to BED_HALF, a bank up to the coping (`bank_y()`), water at
+  WATER_Y -0.62, the walk at SIDEWALK_TOP. The banks are a height field per canal over the
+  section's breakpoints (crossings exact), `shaders/canal_bank.gdshader` (grass, a wet band,
+  algae); end walls and a railing where a canal meets the pavement. **The water is below the
+  GroundBody**: one Area3D a chunk (`CanalWater`, a box per piece) lets bodies through it
+  (`Canals._sink`, refcounted across chunks - a body in two chunks' volumes keeps its exception
+  until it leaves the last). **The water mirrors a canal that is not on screen**
+  (`shaders/canal_water.gdshader`): the reflected ray is followed to the bank, the fence line and
+  the row of house fronts (planes at known offsets), each drawn from a hash of the lot it lands
+  on - wall colour, windows lit at night, the porch light smeared down the water, the roof line -
+  and the sky above; EMITTED by Fresnel, at `mirror_forward` on Forward+ where SSR adds the real
+  thing. `CanalKit` (`scripts/world/canal_kit.gd`) builds in code: the arched footbridge (a
+  segmental deck, white spandrels and railings with pickets and newels, two lantern posts, ONE
+  mesh instanced per chunk, one `lamp_light` OmniLight each), the timber dock with steps and
+  pilings, the rowboat / kayak / canoe (lofted hulls, `shaders/canal_boat.gdshader`, paint in
+  INSTANCE_CUSTOM - the instance COLOR would tint the wood too), fences and railings straight into
+  the chunk's per-material meshes. FULL chunks: one mesh per material, ONE trimesh collision body
+  (`CanalGround`), batches for bridges, docks, boats, lanterns, reeds; LOD: ground slabs, the water
+  at y 0 out to the bank tops, the houses' far boxes; the far city: `Landmarks.capture_steps()`
+  (hooked in `CityChunk._begin_capture()` for site blocks) records the ground and the houses.
+  Every roll is a hash of the seed and the lot. `CANALS=0` in the environment is the A/B (no site,
+  the blocks are ordinary beach town). Probe: `tools/canals/probe.gd` (layout, styles, bridges,
+  road closures). Checks: `tests/canals_checks.gd`.
 - Masjid Omar ibn Al-Khattab (owner, 2026-09-24: "way more detailed and 1:1 accurate", six
   photos, "give it an interior", and "make it impossible for the character to shoot anything at
   it"): `LandmarkMasjidOmar` (`scripts/world/landmark_masjid_omar.gd`), a replica of the real

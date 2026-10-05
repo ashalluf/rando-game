@@ -37,10 +37,10 @@ uniform float fence_offset = 10.0;
 uniform float fence_height = 1.85;
 uniform float walk_height = 0.87;
 // The body of the water, LINEAR: dark, green, a little silty.
-uniform vec3 deep_color = vec3(0.010, 0.020, 0.014);
+uniform vec3 deep_color = vec3(0.008, 0.017, 0.011);
 uniform vec3 silt_color = vec3(0.030, 0.034, 0.020);
 uniform float mirror_forward = 0.55;
-uniform float mirror_gain = 1.0;
+uniform float mirror_gain = 0.9;
 uniform float ruffle = 0.35;
 
 varying vec3 v_local;

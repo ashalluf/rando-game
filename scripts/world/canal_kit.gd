@@ -76,7 +76,7 @@ static func wall_box(st: SurfaceTool, a: Vector2, b: Vector2, y0: float, y1: flo
 	if len < 0.01:
 		return
 	var mid := (a + b) * 0.5
-	var basis := Basis(Vector3.UP, atan2(-d.y, d.x)).scaled(Vector3(len, y1 - y0, t))
+	var basis := Basis(Vector3.UP, atan2(-d.y, d.x)) * Basis.from_scale(Vector3(len, y1 - y0, t))
 	obox(st, Transform3D(basis, Vector3(mid.x, (y0 + y1) * 0.5, mid.y)), col, true)
 
 
@@ -93,7 +93,7 @@ static func box_faces(mid: Vector2, span: Vector2, t: float, y0: float, y1: floa
 	var len := span.length()
 	if len < 0.01:
 		return out
-	var xf := Transform3D(Basis(Vector3.UP, atan2(-span.y, span.x)).scaled(Vector3(len, y1 - y0, t)), Vector3(mid.x, (y0 + y1) * 0.5, mid.y))
+	var xf := Transform3D(Basis(Vector3.UP, atan2(-span.y, span.x)) * Basis.from_scale(Vector3(len, y1 - y0, t)), Vector3(mid.x, (y0 + y1) * 0.5, mid.y))
 	var c := [Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5), Vector3(0.5, 0.5, -0.5), Vector3(-0.5, 0.5, -0.5),
 		Vector3(-0.5, -0.5, 0.5), Vector3(0.5, -0.5, 0.5), Vector3(0.5, 0.5, 0.5), Vector3(-0.5, 0.5, 0.5)]
 	for f: Array in [[0, 1, 2, 3], [5, 4, 7, 6], [4, 0, 3, 7], [1, 5, 6, 2], [3, 2, 6, 7]]:
@@ -143,7 +143,7 @@ static func picket_fence(st: SurfaceTool, a: Vector2, b: Vector2, y: float, h: f
 	for k in pk:
 		var p := a.lerp(b, (float(k) + 0.5) / pk) - side * 0.005
 		var basis := Basis(Vector3.UP, yaw)
-		obox(st, Transform3D(basis.scaled(Vector3(0.075, h - 0.06, 0.018)), Vector3(p.x, y + (h - 0.06) * 0.5 + 0.02, p.y)), col, true)
+		obox(st, Transform3D(basis * Basis.from_scale(Vector3(0.075, h - 0.06, 0.018)), Vector3(p.x, y + (h - 0.06) * 0.5 + 0.02, p.y)), col, true)
 		# The point: two sloped faces.
 		var top := Vector3(p.x, y + h + 0.05, p.y)
 		var l := Vector3(p.x, y + h - 0.04, p.y) - Vector3(dir.x, 0.0, dir.y) * 0.0375
@@ -668,7 +668,7 @@ static func boat_mesh(kind: int) -> Mesh:
 		var hs := _hull(0, 0.08)
 		obox(st, Transform3D(Basis().scaled(Vector3(0.5, 0.035, hs.x * 1.85)), Vector3(-L * 0.5 + 0.45, hs.z - 0.13, 0.0)), wood)
 		for sz: float in [-0.16, 0.18]:
-			obox(st, Transform3D(Basis(Vector3.UP, sz * 0.15).scaled(Vector3(2.6, 0.035, 0.05)), Vector3(0.05, 0.08, sz)), wood.lightened(0.1))
+			obox(st, Transform3D(Basis(Vector3.UP, sz * 0.15) * Basis.from_scale(Vector3(2.6, 0.035, 0.05)), Vector3(0.05, 0.08, sz)), wood.lightened(0.1))
 			obox(st, Transform3D(Basis().scaled(Vector3(0.5, 0.012, 0.13)), Vector3(1.15, 0.081, sz)), wood.lightened(0.1))
 		for sgn: float in [-1.0, 1.0]:
 			var hv := _hull(0, (0.15 + L * 0.5) / L)
