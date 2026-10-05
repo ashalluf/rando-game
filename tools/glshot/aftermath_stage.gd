@@ -46,9 +46,15 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> String:
 	var side := _f("AF_SIDE", 10.0)
 	var eye := centre + across * dist + along * side
 	# A spot with no crown between it and the row (trees have no collision to ray against).
-	for cand: Vector2 in [Vector2(dist, side), Vector2(dist, -side), Vector2(dist * 0.7, 0.0), Vector2(dist, side * 2.0),
-			Vector2(dist * 1.3, -side * 2.0), Vector2(dist * 0.55, side)]:
+	var cands: Array = []
+	for f: float in [1.0, 0.75, 0.55, 1.3, 0.4]:
+		for g: float in [1.0, -1.0, 0.0, 2.0, -2.0]:
+			cands.append(Vector2(dist * f, side * g))
+	for cand: Vector2 in cands:
 		var e := centre + across * cand.x + along * cand.y
+		var eg := _ground(tree, e)
+		if eg == Vector3.INF or absf(eg.y - centre.y) > 1.5:
+			continue
 		if _clear_view(e, centre):
 			eye = e
 			break
