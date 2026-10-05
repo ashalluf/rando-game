@@ -86,7 +86,7 @@ func _roles(plan: CityPlan) -> Array[Vector2i]:
 						bad.append("%s on %s at %s" % [f.t, g.t, Vector2i(bx, bz)])
 				match f.t:
 					"basketball":
-						if (f.L as float) < Parks.BB_COURT.x or (f.W as float) / float(f.n) < Parks.BB_COURT.y:
+						if absf(float(f.L) - Parks.BB_COURT.x - Parks.BB_CLEAR * 2.0) > 0.01 or (f.W as float) / float(f.n) < Parks.BB_COURT.y:
 							bad.append("short court %s" % [Vector2i(bx, bz)])
 					"tennis":
 						if absf(float(f.L) - Parks.TEN_ENCLOSURE.x) > 0.01:

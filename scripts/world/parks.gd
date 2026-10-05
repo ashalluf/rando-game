@@ -146,6 +146,11 @@ static func frect(f: Dictionary, a0: float, a1: float, b0: float, b1: float) -> 
 	return Rect2(lo, Vector2(maxf(p.x, q.x), maxf(p.y, q.y)) - lo)
 
 
+## Whether a rect's x side is the one `length` long (a row of courts runs its courts across it).
+static func _along_x(r: Rect2, length: float) -> bool:
+	return absf(r.size.x - length) < 0.01
+
+
 static func _fac(t: String, r: Rect2, long_x: bool, flip: bool = false) -> Dictionary:
 	var u := Vector2(1.0, 0.0) if long_x else Vector2(0.0, 1.0)
 	if flip:
@@ -349,7 +354,7 @@ static func rec_plan(plan: CityPlan, ix: int, iz: int) -> Dictionary:
 				for m in range(n, 0, -1):
 					var fit := _fit(work, placed, BB_COURT.x + BB_CLEAR * 2.0, (BB_COURT.y + BB_CLEAR * 2.0) * m, 2.5, true, toward.lerp(opposite, 0.5))
 					if not fit.is_empty():
-						f = _fac("basketball", fit.r, fit.long_x)
+						f = _fac("basketball", fit.r, _along_x(fit.r, BB_COURT.x + BB_CLEAR * 2.0))
 						f.n = m
 						f.pal = rng.randi() % BB_PALETTES.size()
 						break
@@ -358,7 +363,7 @@ static func rec_plan(plan: CityPlan, ix: int, iz: int) -> Dictionary:
 				for m in range(n, 0, -1):
 					var fit := _fit(work, placed, TEN_ENCLOSURE.x, TEN_ENCLOSURE.y * m, 2.5, true, opposite)
 					if not fit.is_empty():
-						f = _fac("tennis", fit.r, fit.long_x)
+						f = _fac("tennis", fit.r, _along_x(fit.r, TEN_ENCLOSURE.x))
 						f.n = m
 						f.pal = rng.randi() % TEN_PALETTES.size()
 						break
@@ -492,7 +497,7 @@ static func school_plan(plan: CityPlan, ix: int, iz: int) -> Dictionary:
 	var yard_area := rest.grow(-2.0)
 	var court := _fit(yard_area, placed, BB_COURT.x + BB_CLEAR * 2.0, (BB_COURT.y + BB_CLEAR * 2.0) * 2.0, 1.0, true, front_r.get_center())
 	if not court.is_empty():
-		var f := _fac("basketball", court.r, court.long_x)
+		var f := _fac("basketball", court.r, _along_x(court.r, BB_COURT.x + BB_CLEAR * 2.0))
 		f.n = 2
 		f.yard = true
 		f.pal = 0
@@ -901,7 +906,7 @@ static func _diamond_build(ch: CityChunk, pl: Dictionary, f: Dictionary) -> void
 	ParkKit.fence(st, _at(ch, fp(f, -5.0, 17.0)), _at(ch, fp(f, -5.0, fence - 0.5)), 1.2, false)
 	if pl.get("lit", false):
 		var aim := fp(f, fence * 0.42, fence * 0.42)
-		for q: Vector2 in [fp(f, -4.5, 7.0), fp(f, 7.0, -4.5), fp(f, -5.5, fence * 0.62), fp(f, fence * 0.62, -5.5), fp(f, fence * 0.8, fence * 0.8)]:
+		for q: Vector2 in [fp(f, -6.8, 30.0), fp(f, 30.0, -6.8), fp(f, -6.8, fence * 0.72), fp(f, fence * 0.72, -6.8), fp(f, fence * 0.8, fence * 0.8)]:
 			_flood(ch, q, aim, 20.0, 6, fence * 0.9)
 
 
@@ -1091,9 +1096,16 @@ static func _wing_build(ch: CityChunk, f: Dictionary) -> void:
 static func _track_build(ch: CityChunk, pl: Dictionary, f: Dictionary) -> void:
 	var lanes: int = f.lanes
 	var fb: float = f.football
-	_ground(ch, f, -f.L * 0.5, f.L * 0.5, -f.W * 0.5, f.W * 0.5, G_TRACK, float(lanes) / 10.0, (float(pl.get("colour_i", 0)) + 0.5) / 8.0, fb, Vector2(f.S * 0.5, f.R), FAR_TRACK)
 	if not _full(ch):
+		# From afar: the infield's turf (the oval's inside, squared off), the red ring round it.
+		var ia: float = f.S * 0.5 + f.R * 0.55
+		var ib: float = f.R * 0.8
+		var whole := Rect2(-f.L * 0.5, -f.W * 0.5, f.L, f.W)
+		_ground(ch, f, -ia, ia, -ib, ib, G_TURF, 0.0, 0.0, 1.0, Vector2.ONE, FAR_TURF)
+		for piece in minus(whole, [Rect2(-ia, -ib, ia * 2.0, ib * 2.0)]):
+			_ground(ch, f, piece.position.x, piece.end.x, piece.position.y, piece.end.y, G_TRACK, 0.0, 0.0, 1.0, Vector2.ONE, FAR_TRACK)
 		return
+	_ground(ch, f, -f.L * 0.5, f.L * 0.5, -f.W * 0.5, f.W * 0.5, G_TRACK, float(lanes) / 10.0, (float(pl.get("colour_i", 0)) + 0.5) / 8.0, fb, Vector2(f.S * 0.5, f.R), FAR_TRACK)
 	var st := _walls(ch)
 	var u: Vector2 = f.u
 	if fb > 0.0:

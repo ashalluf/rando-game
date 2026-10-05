@@ -161,10 +161,10 @@ static func backstop(st: SurfaceTool, xf: Transform3D) -> void:
 	var segs := 7
 	var pts: Array[Vector3] = []
 	for i in segs + 1:
-		var ang := deg_to_rad(-30.0 + 210.0 * float(i) / float(segs)) + PI * 0.5
-		# Round the back of home: the arc from down the first-base line's foul side to the third's.
-		var dir := Vector3(cos(ang + PI * 0.25), 0.0, sin(ang + PI * 0.25))
-		pts.append(xf * (-(Vector3(dir.x, 0.0, dir.z)) * r))
+		# Round the back of home: centred on the way away from the pitcher (225 degrees in the
+		# frame), from the first-base line's foul side round to the third's.
+		var ang := deg_to_rad(125.0 + 200.0 * float(i) / float(segs))
+		pts.append(xf * (Vector3(cos(ang), 0.0, sin(ang)) * r))
 	for i in segs:
 		fence(st, pts[i], pts[i + 1], h, false)
 		post(st, pts[i], 0.08, h + 0.3, K_GALV, GALV, 8)
