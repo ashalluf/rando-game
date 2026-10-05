@@ -31,6 +31,10 @@ const vec3 FT_TAIL = vec3(1.0, 0.07, 0.035) * 1.6;
 // by less than its area: the eye and the lens bloom a distant point light).
 const float FT_LAMP_R = 0.22;
 const float FT_MIN_PX = 0.9;
+// The mean of a lane a kilometre or more out, against its lamps' own share of the pixel: a
+// stream of headlights reads far brighter than its area (bloom, the eye), and at 1 the freeways
+// across the basin were dark threads.
+const float FT_FAR_BLOOM = 3.5;
 
 
 // Cars on the road through the day, 0..1 of the lanes' cells taken (an LA weekday: the morning
@@ -115,7 +119,7 @@ vec3 traffic_lights(float s, float x, float x0, float lane_w, float lanes, vec2 
 		float re = max(FT_LAMP_R, min(mpp, 4.0) * FT_MIN_PX);
 		float gain = pow(FT_LAMP_R / re, 1.05);
 		float area = 2.0 * 0.6 * re * re * 3.14159 * gain / (FT_CELL * lane_w);
-		col += (FT_HEAD * head_w + FT_TAIL * tail_w) * level * area * (1.0 - sharp);
+		col += (FT_HEAD * head_w + FT_TAIL * tail_w) * level * area * FT_FAR_BLOOM * (1.0 - sharp);
 	}
 	return col;
 }
