@@ -3896,6 +3896,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the LOD ring and times their build (`FAR_CODED=0|1`). The old path (no code) still draws the
   replica houses, estates, slabs and plates: its window grid sampled with a view-direction offset,
   per-room brightness, slab-edge bands, reveal shading and a vertical gradient.
+- Cut corners on the far boxes (2026-10-05, docs/HANDOFF.md "Cut corners on the far boxes"):
+  a chamfered part (`part_grid()` cut_x > 0) is three instances of the unit box in the `lod_box`
+  batch - its own entry as the middle piece, two end pieces appended after the plant (so part i
+  stays box i) - with the piece in INSTANCE_CUSTOM.r (`FarBuilding.PIECE_*`);
+  `building_lod.gdshader`'s vertex stage pulls the corners in by one bay (the code's cols) and
+  gives the cut faces their normals. Every piece computes a corner by the same expression, or the
+  roof cracks. No new mesh or draw (+24 triangles a cut part). `FAR_CORNERS=0` is the A/B;
+  `far_building_shot.gd CHAMFER=1`; checks `tests/far_corners_checks.gd` (mirror the reshape).
 - **Four measurement traps, each of which has already cost a session.** All fail by reporting
   success, which is the worst way to fail.
   1. **Godot serves a CACHED import of a `.glb`.** Rebuild a model, render it, and you are
