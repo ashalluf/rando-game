@@ -374,7 +374,11 @@ func block(ix: int, iz: int) -> Dictionary:
 			kind = BlockKind.SCHOOL
 		elif grounds != "":
 			kind = BlockKind.PARK
-	var result := {"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
+	# A hospital campus (Hospital: pure geometry of the block and the seed), after every roll above.
+	if macro and Hospital.claims_block(self, ix, iz):
+		grounds = "hospital"
+		kind = BlockKind.BUILDINGS
+	var result :={"rect": rect, "ix": ix, "iz": iz, "district": district, "kind": kind, "seed": rng.randi()}
 	if grounds != "":
 		result["grounds"] = grounds
 	if was_plaza:

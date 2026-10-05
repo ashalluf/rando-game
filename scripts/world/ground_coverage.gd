@@ -155,6 +155,9 @@ static func _plaza(box: Array, rect: Rect2) -> void:
 static func block(plan: CityPlan, bx: int, bz: int, fill: int, grid: float = 1.0) -> Dictionary:
 	var b: Dictionary = plan.block(bx, bz)
 	var brect: Rect2 = b.rect
+	# A hospital campus is its own build (Hospital), not counted here.
+	if Hospital.is_hospital(b):
+		return {}
 	if b.has("grounds") and fill >= 3 and plan.zone_at(brect.get_center()) == MacroMap.Zone.CITY:
 		return _grounds(plan, bx, bz, b, grid)
 	if int(b.kind) != CityPlan.BlockKind.BUILDINGS or b.has("site") or plan.zone_at(brect.get_center()) != MacroMap.Zone.CITY:
