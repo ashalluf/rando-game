@@ -97,8 +97,9 @@ What only the owner can supply, and why each one multiplies everything below:
   block, the horizon - with view-weighted streaming; see the decisions log. Done 2026-10-04:
   the far city's buildings are coded copies of the near ones instead of guessed shaded boxes -
   the near building's own facade, roof, lit offices and roof plant - which beat baked impostors
-  for a city of unique boxes; docs/HANDOFF.md 9bd. Still to do: cut-corner geometry on the far
-  boxes, the landmark towers' far meshes checked against their near ones the same way.)
+  for a city of unique boxes; docs/HANDOFF.md 9bd. Done 2026-10-05: cut-corner geometry on the far
+  boxes, three pieces of the same unit box reshaped from the code; docs/HANDOFF.md "Cut corners on
+  the far boxes". Still to do: the landmark towers' far meshes checked against their near ones the same way.)
 - [ ] **G8. Polish, ongoing.** Side-by-sides against the references; fix what reads fake first.
 
 ## Owner requests queued
@@ -300,6 +301,51 @@ already mapped so milestone 2 is script-only.
   omni's colour and the head's look never disagree; every existing lamp hook (prop slot and id,
   pool, `lamp_light` omni) is kept and only moved to the head. Broadway keeps its own lantern.
 
+- **2026-10-05 Tower roofs: helipads, pool decks, roof gardens, penthouses, masts and window
+  washers (VISUAL_ROADMAP #59, HANDOFF "Tower roofs").** Roofs are what the player sees most while
+  flying, and every tower top was the same scatter of units. `Rooftops` plans each tall
+  building's top roof from hashes of its seed and the plant Building already put there, and
+  stands its pieces IN PLACE of the small plant (units, ducts, solar, skylights) rather than
+  moving any of it: the plant still rolls exactly as before (no seed's city moves), the covered
+  props are just not drawn, near or far. Decisions: (1) the helipad is RAISED on steel over the
+  plant - which is how LA's retrofitted pads stand - so it only has to keep off spires and tanks,
+  and it takes a plain antenna down where it lands; (2) a pool is TRACED in the shader (tank,
+  tiles, caustics, sky by Fresnel, lights at night), not modelled as a basin, so it costs one
+  quad; (3) the pieces are one mesh per building on one shader plus a glass surface, and the far
+  tiers get a painted pad and pool on their boxes (FarBuilding.Plant HELIPAD / POOL); (4) the
+  landmark towers whose real roofs are flat get a pad from a row in their table, keeping their
+  real crowns; (5) bar names and helicopter liveries are invented.
+- **2026-10-05 Cut corners on the far boxes are three instances of the unit box, not a new mesh
+  (G7, HANDOFF "Cut corners on the far boxes").** A chamfered near part (Building.part_grid()'s
+  cut, one bay off each corner) was a plain box past the FULL ring with the corner bays painted as
+  piers. Decisions: the cut part's own far entry becomes the middle (narrowed one bay at each x
+  end) and two end pieces are appended after the plant, each a trapezoid; building_lod.gdshader
+  reshapes all three in the vertex stage from the bays already in the code and gives the cut faces
+  their true normals, so the sun lights them. A dedicated octagon mesh for every far box would have
+  doubled the far city's 1.12 M box triangles (most instances are plates, decks and roof plant);
+  a second batch for cut parts only would have added a draw per LOD chunk and per far tile, plus
+  their shadow passes. Three pieces: +24 triangles a cut part (far city +58 k, +5 %), no draw.
+  Part i stays box i (the end pieces go last), so every check on the far boxes holds.
+  `FAR_CORNERS=0` is the A/B. Notches and setbacks needed nothing: an L and every tier are parts.
+
+- **2026-10-05 Memorial parks (fleet task "cemetery"; HANDOFF, the memorial park section).** A
+  lawn cemetery on a gentle hill in the suburbs. Decisions: a park takes a 2 x 2 (or 2 x 1) group
+  of blocks and closes the streets between them (a single suburban block is ~50 x 80 m, too small
+  for a rise with a loop drive, a chapel and a mausoleum); WHERE is decided from hashes and the
+  road grid alone, never from `CityPlan.block()`, so no load order can change it, and Schools see
+  the mark before they decide; the rise is the park's own lawn mesh over the block's pavement (no
+  change to the map's relief: the streets round it stay where they were); every stone is one of
+  eleven code-built meshes on one shader in one batch per kind (flat bronze markers flush with the
+  turf, an old section of marble, gothic and granite stones round obelisks, columns and family
+  monuments); the Italian cypress is code-built (the hill fir narrowed read as a stick); the park
+  is a sanctuary, as the masjid is: no shot at it, into it or from inside it, and nothing in it
+  breaks. Names invented. `CEMETERY=0` is the A/B.
+- **2026-10-05 Kerbs are cut, not painted on (fleet "kerbs"; HANDOFF "Kerbs").** A FULL block's
+  pavement keeps its inner slab and Kerbs builds the outer 2.6 m ring itself, so ramps, driveway
+  aprons, tree wells and heaved slabs are real geometry you can drive and walk into; the kerb
+  paint, stencils and house numbers are one marks mesh per 64 m tile. Chosen over a shader-only
+  kerb because a ramp that is not a dip reads as paint. Everything hash-seeded; the old
+  `_kerb_paint` runs only where Kerbs does not. LOD / far chunks keep the plain slab.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the
@@ -479,6 +525,46 @@ already mapped so milestone 2 is script-only.
   buildings keep every roll and are only dressed (masonry, 46 m limit, a shop-name pool appended
   after the old 30 names so no other building's sign moves); (4) its lamps reuse the chunk's lamp
   slot, so prop ids and destruction memory are unchanged.
+- **2026-10-05 Service alleys down the backs of downtown and midtown blocks (VISUAL_ROADMAP ?,
+  HANDOFF "Service alleys").** Los Angeles' commercial blocks are two rows of lots back to back with an alley
+  between; here that strip was LotFill's forecourt paving and planters, and every building wore
+  shops on all four faces. Decisions: (1) the alley's BAND is pure (the lot grid's seam, from
+  `CityPlan.lots()` alone) so LotFill, the parked cars and the pavement props keep off it while
+  the lots are built, but the RUN inside it is worked out from the buildings the lots stood up (no
+  lot is moved or shrunk; where the buildings leave under 3.2 m the alley stops, a dead end);
+  (2) the buildings' alley faces are their backs (`Building.back_face`: no storefront, shop
+  names, awnings or canopy there) - a small local hook in building.gd, the one shared file this
+  needed besides LotFill and CityChunk's hook lines; (3) the furniture reuses IndustrialKit's
+  writers and material (one upright mesh a chunk, no new shader for it) and StreetDetail's pole
+  and wire batches; (4) LOD and the far city get the band as concrete slabs only; (5) the
+  dressing decides in a couple of milliseconds and writes each prop as its own build step (a
+  long alley's writes were 40-90 ms in one).
+- **2026-10-05 The ballpark in the ravine north of downtown (VISUAL_ROADMAP ?, HANDOFF "The ballpark in the ravine").**
+  The FORM of LA's famous hillside ballpark in its real relation to downtown: home
+  plate at the real one's point through DowntownReal (2.9 km grid-north of Pershing Square, on
+  the embayed hills above the 110 / 101 junction), facing the real centre field; every name
+  invented (SUNRIDGE BALLPARK), no team, sponsor or logo. Decisions worth knowing: the site is cut
+  into the hills at FIXED levels (a lower pad and an upper terrace 22 m over it, a planted slope
+  between, 1:1 cut / 1:1.5 fill banks), folded into `MacroMap.height_at()` before the hill roads,
+  so the hill chunks, the far ground's bake and the far tier all draw the ravine with no code of
+  their own, and the levels do not move with the seed; its two roads are appended to HillRoads
+  after everything else (no roll moves) and the hill chunks draw them; the crowd is a shader on
+  the stepped rows (a riser shows the torso of the row below), the lots' parked cars are painted
+  by the same integer hash that places the 3D cars near; the night game is EMITTED (a flood term
+  on everything the banks see, a glow integrated through an ellipsoid), with three real omni
+  lights on desktop. `BALLPARK=0` leaves it out.
+- **2026-10-05 Wilshire's deco boulevard (VISUAL_ROADMAP #86).** Midtown's boulevards were the
+  same seeded boxes as every street. A hash per boulevard-frontage lot (Wilshire 0.75, other
+  boulevards 0.3) builds a 1920s-30s building instead: zigzag tower, streamline corner, theatre
+  (a block in eight at most, one a block), deco flats, Spanish courtyard flats (`DecoBoulevard`,
+  `DecoBuild`). Decisions: (1) the walls stay on building.gdshader (outline mode plus per-vertex
+  part numbers), so the deco keeps the traced rooms, lit offices and storefronts every Building
+  has; everything deco about them is geometry and a new ornament shader on top, laid on the
+  shader's own bay grid. (2) Far: plain boxes of the massing on the old path - FarBuilding's code
+  has no deco facade, and a coded box would draw the wrong building; the silhouette (setbacks,
+  crown) is kept. (3) Hashes only, after the pad roll: nothing else on a block moves (checked).
+  (4) No medians: the plan has none, and adding them is a street-layout change outside this
+  feature. Names invented.
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
@@ -865,6 +951,11 @@ already mapped so milestone 2 is script-only.
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
 
+- **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
+  bases at a shared condensation level, crowns thinned so the billows build them into turrets,
+  footprints warped and tops sheared, a second population of fragments, three-octave torn edges
+  and fractus, and a deeper light march with an occluded ambient so shaded sides and bases go
+  grey. Forward+ only; the web keeps the painted cumulus.
 - **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
   real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the
   101 level 4, with the four left-turn connectors on levels 2 and 3, banked, on single hammerhead
