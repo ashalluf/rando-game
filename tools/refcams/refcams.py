@@ -25,6 +25,7 @@ mean linear colour, kelvin; tells a warm frame from a cool one, not a measuremen
 and the frame cost from the GEO counters (triangles, draws, objects, camera / shadow split).
 """
 import argparse
+import resource
 import json
 import os
 import subprocess
@@ -122,6 +123,7 @@ def build_report(run_dir):
 		"renderer": meta.get("renderer"), "method": meta.get("method"),
 		"resolution": meta.get("resolution"), "load_ms": meta.get("load_ms"),
 		"strict": meta.get("strict", False),
+		"peak_rss_mb": _run_meta(run_dir).get("peak_rss_mb"),
 		"shots": shots,
 	}
 	with open(os.path.join(run_dir, "report.json"), "w") as f:
@@ -133,9 +135,15 @@ def build_report(run_dir):
 	return report
 
 
+def _run_meta(run_dir):
+	path = os.path.join(run_dir, "run_meta.json")
+	return json.load(open(path)) if os.path.exists(path) else {}
+
+
 def report_text(report):
-	lines = ["refcams %s  commit %s  %s %s  %s%s" % (report["run"], report["commit"], report["renderer"],
-		report["method"], report["resolution"], "  STRICT" if report.get("strict") else "")]
+	lines = ["refcams %s  commit %s  %s %s  %s  load %s ms  peak %s MB%s" % (report["run"], report["commit"],
+		report["renderer"], report["method"], report["resolution"], report.get("load_ms"),
+		report.get("peak_rss_mb"), "  STRICT" if report.get("strict") else "")]
 	lines.append("%-16s %5s %-8s  %5s %5s %5s %5s %5s  %5s %5s  %5s %6s  %9s %6s %9s" % (
 		"shot", "hour", "weather", "p1", "p5", "p50", "p95", "p99", "clip%", "crsh%", "sat", "CCT",
 		"tris", "draws", "shadow"))
@@ -165,6 +173,13 @@ def _font(size):
 	return ImageFont.load_default()
 
 
+def _fit_size(draw, text, width, size):
+	"""The largest font size up to `size` at which `text` fits `width` pixels."""
+	while size > 7 and draw.textlength(text, font=_font(size)) > width:
+		size -= 1
+	return size
+
+
 def contact_sheet(run_dir, width=1920, out=None):
 	path = os.path.join(run_dir, "report.json")
 	report = json.load(open(path)) if os.path.exists(path) else build_report(run_dir)
@@ -175,7 +190,7 @@ def contact_sheet(run_dir, width=1920, out=None):
 	cap = max(30, cell_w // 7)
 	sheet = Image.new("RGB", (cell_w * cols, (cell_h + cap) * rows + cap), (18, 18, 20))
 	draw = ImageDraw.Draw(sheet)
-	f_big, f_small = _font(max(10, cap // 2 - 2)), _font(max(9, cap // 3))
+	f_big = _font(max(10, cap // 2 - 2))
 	draw.text((6, 4), "refcams %s  %s  %s" % (report["run"], report.get("commit") or "", report.get("renderer") or ""),
 		fill=(230, 230, 230), font=f_big)
 	for i, s in enumerate(shots[:cols * rows]):
@@ -183,10 +198,12 @@ def contact_sheet(run_dir, width=1920, out=None):
 		im = Image.open(os.path.join(run_dir, s["name"] + ".png")).convert("RGB").resize((cell_w - 4, cell_h - 4), Image.LANCZOS)
 		sheet.paste(im, (x + 2, y + 2))
 		g = s.get("geo", {})
-		draw.text((x + 4, y + cell_h), "%s  %05.2f %s" % (s["name"], s["hour"], s["weather"]), fill=(240, 240, 240), font=f_small)
-		draw.text((x + 4, y + cell_h + cap // 2 - 1), "L %d/%d/%d  sat %.2f  %sK  %.2fM tris %s dr" % (
-			s["lum_p5"], s["lum_p50"], s["lum_p95"], s["sat_mean"], s["cct"] or "-",
-			(g.get("tris") or 0) / 1e6, g.get("draws", "-")), fill=(170, 200, 230), font=f_small)
+		head = "%s  %05.2f %s" % (s["name"], s["hour"], s["weather"])
+		nums = "L %d/%d/%d  sat %.2f  %sK  %.2fM tris  %s draws" % (s["lum_p5"], s["lum_p50"], s["lum_p95"],
+			s["sat_mean"], s["cct"] or "-", (g.get("tris") or 0) / 1e6, g.get("draws", "-"))
+		size = _fit_size(draw, nums, cell_w - 8, cap // 2 - 2)
+		draw.text((x + 4, y + cell_h + 1), head, fill=(240, 240, 240), font=_font(min(size + 3, cap // 2 - 2)))
+		draw.text((x + 4, y + cell_h + cap // 2), nums, fill=(170, 200, 230), font=_font(size))
 	out = out or os.path.join(run_dir, "sheet.jpg")
 	sheet.save(out, quality=88)
 	print("sheet", out)
@@ -337,7 +354,10 @@ def run(out_dir, only=None, strict=False, timeout=3600):
 	log = os.path.join(out_dir, "godot.log")
 	with open(log, "w") as f:
 		code = subprocess.call(cmd, cwd=ROOT, env=env, stdout=f, stderr=subprocess.STDOUT)
-	print("godot exited %d after %d s (log %s)" % (code, time.time() - start, log))
+	peak_mb = resource.getrusage(resource.RUSAGE_CHILDREN).ru_maxrss // 1024
+	print("godot exited %d after %d s, peak RSS %d MB (log %s)" % (code, time.time() - start, peak_mb, log))
+	with open(os.path.join(out_dir, "run_meta.json"), "w") as f:
+		json.dump({"exit": code, "seconds": round(time.time() - start), "peak_rss_mb": peak_mb}, f)
 	if not os.path.exists(os.path.join(out_dir, "frames.json")):
 		sys.exit("no frames.json: the run failed, see " + log)
 	build_report(out_dir)

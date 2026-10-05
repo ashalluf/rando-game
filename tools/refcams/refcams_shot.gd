@@ -103,7 +103,14 @@ func _run() -> void:
 				"shadow_tris": c[4], "camera_draws": c[5], "shadow_draws": c[6]},
 			"shot_ms": Time.get_ticks_msec() - t0,
 		})
+		_write_frames(load_ms, shots)
 		print("REFCAM %s saved %s eye %s hour %.2f %s" % [cam.name, png, eye_text, float(cam.hour), cam.get("weather", "clear")])
+	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
+	quit()
+
+
+## frames.json, rewritten after every shot so a run that dies part way keeps what it shot.
+func _write_frames(load_ms: int, shots: Array) -> void:
 	var out := {"renderer": RenderingServer.get_current_rendering_driver_name(),
 		"method": ProjectSettings.get_setting("rendering/renderer/rendering_method"),
 		"resolution": [get_root().size.x, get_root().size.y], "load_ms": load_ms,
@@ -111,8 +118,6 @@ func _run() -> void:
 	var f := FileAccess.open(_out_dir.path_join("frames.json"), FileAccess.WRITE)
 	f.store_string(JSON.stringify(out, "\t"))
 	f.close()
-	print("REFCAMS done, %d shots in %d ms" % [shots.size(), Time.get_ticks_msec() - started])
-	quit()
 
 
 func _cameras() -> Dictionary:
