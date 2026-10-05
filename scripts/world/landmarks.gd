@@ -135,6 +135,9 @@ static func _list() -> Array[Dictionary]:
 	# The film studio lot in midtown (FilmStudio): an area site like the canals'.
 	if FilmStudio.enabled:
 		list.append(FilmStudio.entry())
+	# The ballpark in the ravine north of downtown (Ballpark: real form, real place, invented name).
+	if Ballpark.enabled():
+		list.append(Ballpark.entry())
 	return list
 
 
@@ -276,6 +279,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			LandmarkMasjidOmar.build(lm.anchor, parent, statics, plan, detailed)
 		"macarthur_park":
 			LandmarkMacArthurPark.build(lm.anchor, parent, statics, plan, detailed)
+		"ballpark":
+			BallparkBuild.build(parent, statics, detailed)
 		# Downtown LA civic set (see all() and CivicSites).
 		"arena", "live_plaza", "live_hotel", "convention_center", "ziggurat_hall", "civic_park", "concert_hall", "lattice_museum", "pueblo_station":
 			CivicSites.build(lm.id, parent, statics, plan, detailed)

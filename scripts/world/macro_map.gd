@@ -328,6 +328,8 @@ func setup() -> void:
 	freeway = fw
 	# Then the front range's switchback drives and estates, which keep clear of the freeway.
 	hr.add_switchbacks(seed, fw)
+	# Last: the ballpark's two roads (Ballpark), so nothing above moves.
+	Ballpark.add_roads(self)
 
 
 ## X of the coast at a given Z: a gentle bay curve, bulging west around the peninsula.
@@ -416,6 +418,8 @@ func height_at(pos: Vector2) -> float:
 	# walks on. Carving the bare mountain and adding relief afterwards lifts every road off its
 	# own bed by whatever the relief happens to be there.
 	var h := raw + _relief_at(pos, raw)
+	# The ballpark's pad and terraces cut into the hills north of downtown (Ballpark).
+	h = Ballpark.carve(pos, h)
 	if hill_roads and raw > 0.5:
 		h = hill_roads.carve(pos, h)
 	return h

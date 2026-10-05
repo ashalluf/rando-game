@@ -63,6 +63,8 @@ const LANDMARK_NAMES := {
 	"macarthur_park": "MacArthur Park",
 	"venice_canals": "Marisol Canals",
 	"film_studio": "Sunspire Pictures",
+	# The ballpark north of downtown (Ballpark): an invented name.
+	"ballpark": "Sunridge Ballpark",
 }
 
 ## Pixels a landmark pin needs clear of an already-labelled one to get its own name written.

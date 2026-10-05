@@ -795,6 +795,12 @@ func _add_city_trees(k: Vector2i, b: Dictionary, ch: CityChunk) -> void:
 		var n := int(inner.get_area() / PARK_TREE_AREA)
 		for i in n:
 			spots.append(_spot(inner, hash([_plan.seed, "park", k, i])))
+	# A memorial park's own trees (Cemetery's plan), where the chunk's part of the site is.
+	if String(b.get("grounds", "")) == "cemetery":
+		var own := _plan.owned_rect(k.x, k.y)
+		for t: Array in Cemetery.plan_for(_plan, k.x, k.y).get("trees", []):
+			if own.has_point(t[0]):
+				spots.append(t[0])
 	# Kerb rows on every block, parks and plazas included (the FULL build lines them all).
 	var odds: float = params.get("trees", 0.5)
 	var ring := rect.grow(-1.6)
@@ -920,6 +926,8 @@ func _spot(rect: Rect2, hs: int) -> Vector2:
 
 ## Is `p` on (or within a mound's reach of) a hill road or an estate pad?
 static func _on_hill_road(p: Vector2, segs: Array[Dictionary], pads: Array[Dictionary]) -> bool:
+	if Ballpark.covers(p, 6.0):
+		return true
 	for seg in segs:
 		var closest := Geometry2D.get_closest_point_to_segment(p, seg.a, seg.b)
 		if p.distance_to(closest) < float(seg.width) * 0.5 + 6.0:
