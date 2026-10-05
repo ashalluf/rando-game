@@ -47,6 +47,11 @@ func _canal_water(lay: Dictionary) -> void:
 				if int(canals[int(cross[i])].axis) == int(c.axis):
 					bad_area += 1
 		var band := Canals._canal_rect(c, half).get_area()
+		if int(c.axis) == 1:
+			# An east-west canal gives its crossings to the north-south canal's water.
+			for o: Dictionary in canals:
+				if int(o.axis) == 0:
+					band -= Canals._canal_rect(c, half).intersection(Canals._canal_rect(o, half)).get_area()
 		if absf(area - band) > band * 0.001:
 			bad_area += 1
 		if int(c.axis) == 0:
