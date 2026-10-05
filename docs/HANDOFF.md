@@ -7121,7 +7121,10 @@ with the truck. 37 checks, ~45 s.
 **Stills** (`SERVICE=garbage|sweeper|tow|ice_cream|delivery` on `tools/glshot/still_shot.gd`,
 `ServiceFleet.stage_for_shot()` - staged vehicles hold still with `traffic.work = "staged"`;
 `SERVICE_LIFT` 0..1 how far up the cart is). Bookmark (the suburb west of downtown with a
-collection street): `--spawn=-190,22,-90,-5 --hour=10`.
+collection street): `--spawn=-190,22,-90,-5 --hour=10`. Close-ups of the bodies alone:
+`SERVICE_WORK=0.6 ... car_shot.gd -- --each=19,20,21,22,23 --views=front3,rear3,side` (the gear at
+work: arm mid-lift, brooms and dust, bed down, flashers). `SERVICE_VEHICLES=0` in the environment
+removes all of it (no carts, no dispatch, parked cars as before): the A/B.
 
 FRAMECOST
 

@@ -1346,7 +1346,9 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   tune in `TUNE`). The smoke test keeps the fleet's dispatch off (`ServiceFleet.enabled`, off
   when a `SmokeTest` node is the root's) except in `tests/service_vehicle_checks.gd`. Stills:
   `SERVICE=garbage|sweeper|tow|ice_cream|delivery` on `still_shot.gd` (`ServiceFleet
-  .stage_for_shot()`, `SERVICE_LIFT`).
+  .stage_for_shot()`, `SERVICE_LIFT`); close-ups `car_shot.gd --each=19,20,21,22,23` with
+  `SERVICE_WORK=<0..1>` (every gear shown at work: the arm that far through a lift, the bed that
+  far down, the brooms and spray on, the flashers on). `SERVICE_VEHICLES=0` is the A/B.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
