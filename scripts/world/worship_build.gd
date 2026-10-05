@@ -56,11 +56,13 @@ static func plan_of(s: Dictionary) -> Dictionary:
 			p.far.append([Vector3(xc + W * 0.5 + 4.5, 13.0, -fz + 1.0), Vector3(3.0, 26.0, 6.0), Color(0.74, 0.73, 0.70)])
 			p.occluders.append([Vector3(xc, 1.6, z0), Vector3(W - 1.0, 3.0, nl - 1.0)])
 		Worship.Kind.STOREFRONT:
-			var W := L - 0.4
+			# A shopfront of its own width; a wider lot keeps the rest as its little car park.
+			var W := clampf(L - 0.4, 8.0, 15.0)
+			var bx := -L * 0.5 + 0.2 + W * 0.5 if L - W > 6.0 else 0.0
 			var bd := clampf(D - 2.0, 12.0, 20.0)
-			p.merge({"W": W, "BD": bd, "H": 5.4, "top": 7.0})
-			p.far.append([Vector3(0.0, 2.9, -bd * 0.5), Vector3(W, 5.8, bd), Color(0.80, 0.74, 0.64)])
-			p.occluders.append([Vector3(0.0, 2.6, -bd * 0.5), Vector3(W - 0.8, 5.0, bd - 0.8)])
+			p.merge({"W": W, "BX": bx, "BD": bd, "H": 5.4, "top": 7.0})
+			p.far.append([Vector3(bx, 2.9, -bd * 0.5), Vector3(W, 5.8, bd), Color(0.80, 0.74, 0.64)])
+			p.occluders.append([Vector3(bx, 2.6, -bd * 0.5), Vector3(W - 0.8, 5.0, bd - 0.8)])
 		Worship.Kind.GREEK:
 			var W := 15.0
 			var nl := clampf(D - 18.0, 20.0, 28.0)
@@ -76,8 +78,8 @@ static func plan_of(s: Dictionary) -> Dictionary:
 			p.far.append([Vector3(0.0, 29.5, -fz - 8.5), Vector3(1.6, 8.0, 1.6), Color(0.93, 0.93, 0.90)])
 			p.occluders.append([Vector3(0.0, 5.0, z0), Vector3(W - 1.0, 9.0, nl - 1.0)])
 		Worship.Kind.TEMPLE:
-			var W := clampf(L - 16.0, 16.0, 20.0)
-			var HD := 14.0
+			var W := clampf(L * 0.42, 16.0, 24.0)
+			var HD := clampf(D * 0.3, 13.0, 18.0)
 			var fz := clampf(D - HD - 8.0, 12.0, 22.0)
 			p.merge({"W": W, "HD": HD, "fz": fz, "xc": 0.0, "pod": 1.2, "eave": 6.4, "ridge": 12.5, "top": 14.0})
 			var z0 := -fz - HD * 0.5
@@ -127,12 +129,12 @@ static func build(ch: CityChunk, node: Node3D, body: StaticBody3D, s: Dictionary
 
 static func _use_mats(g: LandmarkGeo, p: Dictionary) -> void:
 	var flood := {"flood_strength": 0.85, "flood_reach": 8.0, "flood_floor": 0.18, "flood_spacing": 4.5, "grime": 0.3, "night_self": 0.02}
-	g.use("stucco", LandmarkMats.facade("wor_stucco", "plaster_white", 3.0, _with(flood, {"tint": Color(0.80, 0.77, 0.70), "texture_contrast": 1.4, "grime": 0.45})))
+	g.use("stucco", LandmarkMats.facade("wor_stucco", "plaster_white", 3.0, _with(flood, {"tint": Color(0.64, 0.60, 0.53), "texture_contrast": 1.6, "grime": 0.5})))
 	g.use("stucco_warm", LandmarkMats.facade("wor_stucco_warm", "plaster_beige", 3.0, _with(flood, {"tint": Color(0.92, 0.84, 0.72)})))
-	g.use("stone", LandmarkMats.facade("wor_stone", "plaster_beige", 3.0, _with(flood, {"tint": Color(0.86, 0.80, 0.68),
+	g.use("stone", LandmarkMats.facade("wor_stone", "plaster_beige", 3.0, _with(flood, {"tint": Color(0.70, 0.64, 0.54),
 		"joint_spacing": Vector2(1.2, 0.6), "joint_width": 0.012, "joint_dark": 0.3})))
-	g.use("trim", LandmarkMats.facade("wor_trim", "plaster_white", 2.0, _with(flood, {"tint": Color(0.84, 0.82, 0.77), "grime": 0.2})))
-	g.use("concrete", LandmarkMats.facade("wor_concrete", "concrete_layers", 2.5, _with(flood, {"tint": Color(0.78, 0.77, 0.74),
+	g.use("trim", LandmarkMats.facade("wor_trim", "plaster_white", 2.0, _with(flood, {"tint": Color(0.56, 0.50, 0.42), "grime": 0.3})))
+	g.use("concrete", LandmarkMats.facade("wor_concrete", "concrete_layers", 2.5, _with(flood, {"tint": Color(0.60, 0.59, 0.56),
 		"joint_spacing": Vector2(2.4, 0.15), "joint_width": 0.01, "joint_dark": 0.18, "flood_reach": 14.0})))
 	g.use("brick", LandmarkMats.facade("wor_brick", "brick_red", 2.4, _with(flood, {"tint": Color(0.95, 0.86, 0.80)})))
 	g.use("granite", LandmarkMats.facade("wor_granite", "concrete_cracked", 2.0, {"tint": Color(0.58, 0.58, 0.57),
@@ -149,6 +151,7 @@ static func _use_mats(g: LandmarkGeo, p: Dictionary) -> void:
 	g.use("bronze", LandmarkMats.plain("wor_bronze", Color(0.42, 0.28, 0.12), 0.35, 0.95))
 	g.use("gold", LandmarkMats.plain("wor_gold", Color(0.85, 0.65, 0.28), 0.3, 1.0))
 	g.use("dark", LandmarkMats.plain("wor_dark", Color(0.06, 0.06, 0.07), 0.8))
+	g.use("copper", LandmarkMats.plain("wor_copper", Color(0.36, 0.56, 0.47), 0.5, 0.35))
 	g.use("glow", _lamp_mat())
 	g.use("neon", _neon_mat())
 	g.use("glass_stained", _glass(0, int(p.seed) % 4, float(p.seed % 97)))
@@ -762,6 +765,11 @@ static func _mission(ctx: Dictionary) -> void:
 	wall(g, "stucco", Vector3(fx0, 0, zf + th), Vector3(1, 0, 0), Vector3(0, 0, 1), fw, fh, th + 0.3,
 		[["arch", fw * 0.5 - door_w * 0.5, fw * 0.5 + door_w * 0.5, 0.0, 5.0, "wood"],
 		["circle", fw * 0.5 - 1.15, fw * 0.5 + 1.15, 7.0, 9.3, "glass_stained"]], false, true, 0.0, 0.7)
+	# A painted base and a string course across the facade at the eaves.
+	g.box("trim", Vector3(xc, 0.45, zf + th + 0.04), Vector3(fw + 0.08, 0.9, 0.08))
+	g.box("trim", Vector3(xc, H + 0.1, zf + th + 0.1), Vector3(fw + 0.2, 0.28, 0.2), Color.WHITE, Basis(), 0.04)
+	for sx: float in [-1.0, 1.0]:
+		g.box("trim", Vector3(x0 + (0.0 if sx < 0.0 else W) + sx * 0.04, 0.45, (zf + zb) * 0.5), Vector3(0.08, 0.9, nl))
 	# The door's surround: a cast-stone moulding round the arch and pilasters each side.
 	for sx: float in [-1.0, 1.0]:
 		g.box("trim", Vector3(xc + sx * (door_w * 0.5 + 0.35), 2.0, zf + th + 0.08), Vector3(0.45, 4.0, 0.16))
@@ -1039,10 +1047,11 @@ static func _storefront(ctx: Dictionary) -> void:
 	var W: float = p.W
 	var bd: float = p.BD
 	var H: float = p.H
-	var x0 := -W * 0.5
+	var bx: float = p.BX
+	var x0 := bx - W * 0.5
 	var sd: int = p.seed
 	var wall_key := "stucco_warm" if sd % 2 == 0 else "stucco"
-	ctx.shapes = [[Vector3(0, H * 0.5, -bd * 0.5), Vector3(W, H, bd)]]
+	ctx.shapes = [[Vector3(bx, H * 0.5, -bd * 0.5), Vector3(W, H, bd)]]
 	# The shopfront: two plate windows (curtains drawn, lit inside) and the glass door between them.
 	var dw := 1.8
 	var holes := [["rect", W * 0.5 - dw * 0.5, W * 0.5 + dw * 0.5, 0.0, 2.6, "glass_plain"]]
@@ -1050,7 +1059,7 @@ static func _storefront(ctx: Dictionary) -> void:
 	if side_w > 1.2:
 		holes.append(["rect", 0.7, 0.7 + side_w, 0.5, 3.0, "glass_plain"])
 		holes.append(["rect", W - 0.7 - side_w, W - 0.7, 0.5, 3.0, "glass_plain"])
-	wall(g, wall_key, Vector3(x0, 0, 0.0), Vector3(1, 0, 0), Vector3(0, 0, 1), W, H, 0.4, holes, true, false, 0.0, 0.2)
+	wall(g, wall_key, Vector3(x0, 0, 0.0), Vector3(1, 0, 0), Vector3(bx, 0, 1), W, H, 0.4, holes, true, false, 0.0, 0.2)
 	# Storefront framing (aluminium mullions and a kick plate).
 	for hh: Array in holes:
 		var u0: float = hh[1]
@@ -1061,29 +1070,53 @@ static func _storefront(ctx: Dictionary) -> void:
 			g.box("bronze", Vector3(x0 + u, (v0 + v1) * 0.5, -0.18), Vector3(0.07, v1 - v0, 0.1))
 		g.box("bronze", Vector3(x0 + (u0 + u1) * 0.5, v1 - 0.03, -0.18), Vector3(u1 - u0, 0.07, 0.1))
 	# The other walls and the roof.
-	wall(g, wall_key, Vector3(x0, 0, -bd), Vector3(0, 0, 1), Vector3(-1, 0, 0), bd, H, 0.3, [], true, false)
-	wall(g, wall_key, Vector3(-x0, 0, 0.0), Vector3(0, 0, -1), Vector3(1, 0, 0), bd, H, 0.3, [], true, false)
-	wall(g, wall_key, Vector3(-x0, 0, -bd), Vector3(-1, 0, 0), Vector3(0, 0, -1), W, H, 0.3, [], true, false)
-	g.box("dark", Vector3(0, H - 0.6, -bd * 0.5), Vector3(W - 0.6, 0.1, bd - 0.6))
+	wall(g, wall_key, Vector3(x0, 0, -bd), Vector3(bx, 0, 1), Vector3(-1, 0, 0), bd, H, 0.3, [], true, false)
+	wall(g, wall_key, Vector3(x0 + W, 0, 0.0), Vector3(bx, 0, -1), Vector3(1, 0, 0), bd, H, 0.3, [], true, false)
+	wall(g, wall_key, Vector3(x0 + W, 0, -bd), Vector3(-1, 0, 0), Vector3(bx, 0, -1), W, H, 0.3, [], true, false)
+	g.box("dark", Vector3(bx, H - 0.6, -bd * 0.5), Vector3(W - 0.6, 0.1, bd - 0.6))
 	# The sign band over the windows: a painted board with the church's name, and a neon cross.
-	g.box("paint_white", Vector3(0, 3.95, 0.12), Vector3(W - 0.6, 1.1, 0.16), Color(0.94, 0.93, 0.9))
-	g.box("dark", Vector3(0, 3.95, 0.06), Vector3(W - 0.4, 1.3, 0.06))
-	g.box("trim", Vector3(0, H + 0.15, 0.0), Vector3(W + 0.1, 0.3, 0.5))
-	var nx := W * 0.5 - 1.1
+	var bands := [Color(0.10, 0.20, 0.48), Color(0.45, 0.07, 0.08), Color(0.08, 0.32, 0.22), Color(0.94, 0.92, 0.86)]
+	var band: Color = bands[sd % bands.size()]
+	var light_band := band.get_luminance() > 0.5
+	g.box("paint_white", Vector3(bx, 3.95, 0.12), Vector3(W - 0.6, 1.1, 0.16), band)
+	g.box("dark", Vector3(bx, 3.95, 0.06), Vector3(W - 0.4, 1.3, 0.06))
+	# A stepped parapet over the middle, and the coping.
+	var pw := minf(W * 0.45, 8.0)
+	g.box(wall_key, Vector3(bx, H + 0.6, -0.2), Vector3(pw, 1.2, 0.4))
+	g.box("trim", Vector3(bx, H + 1.26, -0.2), Vector3(pw + 0.2, 0.12, 0.55))
+	g.box("trim", Vector3(bx, H + 0.15, 0.0), Vector3(W + 0.1, 0.3, 0.5))
+	# A lit sign box with a cross on the parapet.
+	g.box("dark", Vector3(bx, H + 1.9, -0.2), Vector3(1.0, 1.2, 0.3))
+	g.box("glow", Vector3(bx, H + 1.9, -0.04), Vector3(0.12, 1.0, 0.04), Color(1.0, 0.95, 0.85))
+	g.box("glow", Vector3(bx, H + 2.1, -0.04), Vector3(0.62, 0.12, 0.04), Color(1.0, 0.95, 0.85))
+	var nx := bx + W * 0.5 - 1.1
 	var neon_c := Color(1.0, 0.12, 0.10) if sd % 3 != 0 else Color(0.2, 0.55, 1.0)
 	g.box("neon", Vector3(nx, 4.0, 0.26), Vector3(0.09, 1.0, 0.09), neon_c)
 	g.box("neon", Vector3(nx, 4.18, 0.26), Vector3(0.62, 0.09, 0.09), neon_c)
 	# A gooseneck lamp over the door and the hours on the glass.
-	g.box("iron", Vector3(0, 3.2, 0.3), Vector3(0.05, 0.05, 0.6))
-	g.box("glow", Vector3(0, 3.1, 0.55), Vector3(0.36, 0.12, 0.3))
-	ctx.pools.append([Vector3(0, 0.05, 1.6), Vector2(minf(W, 9.0), 4.0), 0.85])
-	ctx.lights.append([Vector3(0, 2.8, 1.4), 8.0])
-	ctx.text.append([String(ctx.s.name), Vector3(-0.4, 3.95, 0.21), 0.42, W - 3.2, Color(0.12, 0.16, 0.42) if sd % 2 == 0 else Color(0.5, 0.08, 0.06)])
-	ctx.text.append([_service_line(Worship.Kind.STOREFRONT, sd), Vector3(0, 2.75, 0.05), 0.08, minf(W - 1.0, 5.0), Color(0.95, 0.95, 0.9)])
-	ctx.text.append(["TODOS BIENVENIDOS  -  ALL WELCOME", Vector3(0, 0.25, 0.1), 0.07, minf(W - 1.0, 4.0), Color(0.95, 0.9, 0.7)])
-	# The yard behind (what is left of the lot): paving and a fence line, nothing tall.
+	g.box("iron", Vector3(bx, 3.2, 0.3), Vector3(0.05, 0.05, 0.6))
+	g.box("glow", Vector3(bx, 3.1, 0.55), Vector3(0.36, 0.12, 0.3))
+	ctx.pools.append([Vector3(bx, 0.05, 1.6), Vector2(minf(W, 9.0), 4.0), 0.85])
+	ctx.lights.append([Vector3(bx, 2.8, 1.4), 8.0])
+	ctx.text.append([String(ctx.s.name), Vector3(bx - 0.4, 3.95, 0.21), 0.5, W - 3.2, Color(0.12, 0.14, 0.3) if light_band else Color(0.97, 0.95, 0.88)])
+	ctx.text.append([_service_line(Worship.Kind.STOREFRONT, sd), Vector3(bx, 2.75, 0.05), 0.08, minf(W - 1.0, 5.0), Color(0.95, 0.95, 0.9)])
+	ctx.text.append(["TODOS BIENVENIDOS  -  ALL WELCOME", Vector3(bx, 0.25, 0.1), 0.07, minf(W - 1.0, 4.0), Color(0.95, 0.9, 0.7)])
+	# The yard behind (what is left of the lot) and, on a wide lot, the car park beside it: paving,
+	# stall lines, a low block wall on the street.
+	var L: float = p.L
 	if p.D - bd > 2.0:
-		ground(g, "paving", Rect2(x0, -p.D + 0.1, W, p.D - bd - 0.2), 0.05, 0.6, "plinth")
+		ground(g, "paving", Rect2(x0, -p.D + 0.1, W, p.D - bd - 0.2), 0.05, 1.0, "plinth")
+	var px0 := x0 + W + 0.2
+	var px1 := L * 0.5 - 0.2
+	if px1 - px0 > 4.0:
+		ground(g, "paving", Rect2(px0, -p.D + 0.1, px1 - px0, p.D - 0.2), 0.05, 1.0, "plinth")
+		var stalls := int((px1 - px0 - 0.4) / 2.7)
+		for k in stalls + 1:
+			var x := px0 + 0.2 + float(k) * 2.7
+			g.box("paint_white", Vector3(x, 0.07, -p.D + 3.0), Vector3(0.1, 0.01, 5.0))
+		for rn: Array in [[px0, px0 + 1.0], [px0 + 5.0, px1]]:
+			if float(rn[1]) - float(rn[0]) > 0.5:
+				g.box("stucco_warm", Vector3((float(rn[0]) + float(rn[1])) * 0.5, 0.45, -0.3), Vector3(float(rn[1]) - float(rn[0]), 0.9, 0.3))
 	ctx.p.top = H + 1.0
 
 
@@ -1463,8 +1496,8 @@ static func _synagogue(ctx: Dictionary) -> void:
 		g.box("trim", tc + Vector3(0, th_ + 0.2, 0), Vector3(tw + 0.5, 0.4, tw + 0.5), Color.WHITE, Basis(), 0.05)
 		var dc := tc + Vector3(0, th_ + 0.4, 0)
 		lathe(g, "stone", dc, [Vector2(tw * 0.42, 0.0), Vector2(tw * 0.42, 1.4), Vector2(tw * 0.47, 1.5), Vector2(tw * 0.47, 1.7)], 8)
-		lathe(g, "dark", dc + Vector3(0, 1.7, 0), [Vector2(tw * 0.43, 0.0), Vector2(tw * 0.47, 0.6), Vector2(tw * 0.44, 1.4), Vector2(tw * 0.32, 2.3),
-			Vector2(tw * 0.14, 2.9), Vector2(0.12, 3.3), Vector2(0.0, 3.4)], 16, Color(0.38, 0.62, 0.52))
+		lathe(g, "copper", dc + Vector3(0, 1.7, 0), [Vector2(tw * 0.43, 0.0), Vector2(tw * 0.47, 0.6), Vector2(tw * 0.44, 1.4), Vector2(tw * 0.32, 2.3),
+			Vector2(tw * 0.14, 2.9), Vector2(0.12, 3.3), Vector2(0.0, 3.4)], 16)
 		lathe(g, "gold", dc + Vector3(0, 5.05, 0), [Vector2(0.0, 0.0), Vector2(0.14, 0.1), Vector2(0.16, 0.3), Vector2(0.05, 0.5), Vector2(0.0, 0.9)], 10)
 		# A lamp on each tower's face by the steps.
 		g.box("glow", tc + Vector3(sx * -0.3, 3.2, tw * 0.5 + 0.18), Vector3(0.3, 0.45, 0.3))

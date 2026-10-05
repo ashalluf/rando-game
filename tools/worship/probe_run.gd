@@ -54,9 +54,24 @@ func run(_tree: SceneTree) -> void:
 		var out := -n
 		var yaw := rad_to_deg(atan2(out.x, out.y))
 		var e1 := front + out * (rw + plan.sidewalk_width + 1.0)
-		var e2 := front + out * (rw + 22.0) + Vector2(-out.y, out.x) * 14.0
+		var e2 := front + out * (rw + plan.sidewalk_width + 1.0) + Vector2(-out.y, out.x) * 10.0
 		var to_c := (front + n * float(s.D) * 0.45) - e2
 		var yaw2 := rad_to_deg(atan2(-to_c.x, -to_c.y))
 		var g := m.relief_at(front)
-		print("%-10s %-32s block %s site %s L %.0f D %.0f  EYE=%.1f,%.1f,%.1f,%.0f,8  EYE=%.1f,%.1f,%.1f,%.0f,-14" % [k, s.name, str(s.block),
-			str((s.site as Rect2).get_center().round()), s.L, s.D, e1.x, g + 1.9, e1.y, yaw, e2.x, g + 11.0, e2.y, yaw2])
+		if OS.get_environment("DEBUG") == "1":
+			debug_site(plan, s)
+		print("%-10s %-32s block %s site %s L %.0f D %.0f  EYE=%.1f,%.1f,%.1f,%.0f,8  EYE=%.1f,%.1f,%.1f,%.0f,-16" % [k, s.name, str(s.block),
+			str((s.site as Rect2).get_center().round()), s.L, s.D, e1.x, 1.8, e1.y, yaw, e2.x, 13.0, e2.y, yaw2])
+
+
+## DEBUG=1: why a site's chunk might not build it.
+static func debug_site(plan: CityPlan, s: Dictionary) -> void:
+	var bx: int = s.block.x
+	var bz: int = s.block.y
+	var role := plan.macro.replica.block_role(plan, bx, bz) if plan.macro.replica else -1
+	print("  DEBUG block %s replica role %d district %d kind %d site %s" % [str(s.block), role, int(plan.block(bx, bz).district), int(plan.block(bx, bz).kind), str(s.site)])
+	for lot: Dictionary in plan.lots(bx, bz):
+		if (s.lots as Array).has(int(lot.seed)):
+			var c: Vector2 = lot.center
+			var fw: bool = plan.macro.freeway != null and plan.macro.freeway.blocks_rect(Rect2(c - Vector2(14, 14), Vector2(28, 28)), 0.0)
+			print("    lot %s size %s yard %s builder %s freeway14 %s keys %s" % [str(c.round()), str((lot.size as Vector2).round()), str(lot.yard), str(int(lot.seed) == int(s.builder)), str(fw), str(lot.keys())])

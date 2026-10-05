@@ -32,8 +32,8 @@ const TRIES := 10
 ## Per district (CityPlan.District) the weight of each Kind, in Kind order. Missing: none there.
 const KIND_WEIGHTS := {
 	CityPlan.District.SUBURBS: [3.0, 2.0, 0.0, 0.6, 2.0, 1.2],
-	CityPlan.District.MIDTOWN: [1.4, 1.0, 2.6, 2.0, 1.0, 1.8],
-	CityPlan.District.DOWNTOWN: [1.0, 0.6, 2.6, 2.2, 0.5, 1.4],
+	CityPlan.District.MIDTOWN: [1.4, 1.0, 3.4, 2.0, 1.0, 1.8],
+	CityPlan.District.DOWNTOWN: [1.0, 0.6, 3.4, 2.2, 0.5, 1.4],
 	CityPlan.District.BEACHTOWN: [2.2, 1.2, 1.0, 0.0, 0.5, 0.6],
 	CityPlan.District.INDUSTRIAL: [0.0, 0.0, 1.0, 0.0, 0.0, 0.0],
 }
@@ -105,7 +105,8 @@ static func for_cell(plan: CityPlan, cell: Vector2i) -> Dictionary:
 		var bi := plan.block_index_at(target)
 		var b := plan.block(bi.x, bi.y)
 		var rect: Rect2 = b.rect
-		if _cell_of(rect.get_center()) != cell:
+		# The chunk builds lots only where its block's centre is city (CityChunk's zone).
+		if _cell_of(rect.get_center()) != cell or plan.zone_at(rect.get_center()) != MacroMap.Zone.CITY:
 			_why("cell")
 			continue
 		if not KIND_WEIGHTS.has(int(b.district)) or int(b.kind) != CityPlan.BlockKind.BUILDINGS:
@@ -344,6 +345,8 @@ static func site_xform(ch: CityChunk, s: Dictionary) -> Transform3D:
 ## the site build nothing. Called from CityChunk._build_lot in place of a Building.
 static func build_lot(ch: CityChunk, lot: Dictionary) -> void:
 	var s := site_on(ch.plan, ch.ix, ch.iz)
+	if _debug:
+		print("WORSHIP build_lot block %d,%d lot %d site %s builder %s level %d" % [ch.ix, ch.iz, int(lot.seed), str(not s.is_empty()), str(s.get("builder", -1) == int(lot.seed)), ch.level])
 	if s.is_empty():
 		return
 	ch._lot_rects.append(Rect2((lot.center as Vector2) - (lot.size as Vector2) * 0.5, lot.size))
