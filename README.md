@@ -12,3 +12,9 @@ stills of the city on the default seed, midtown around (900-970, 255-300); not t
 - 13 BANK close up at 21:00
 - 14 DRY CLEAN close up (tools/glshot/building_shot.gd), gold with keyline, OPEN and HOURS on the door
 - 15 the stroke font (tools/make_vinyl_font.py --preview)
+
+After the lead's review (tag lines keyed to the shop's room kind; the BANK no longer says FREE ESTIMATES):
+- 16 BANK close up at noon: "BANK" with "(213) 555-0172" under it
+- 17 the same, cropped and enlarged
+- 18 the street at noon
+- 19 a restaurant-kind shop with a GRAND OPENING promo
