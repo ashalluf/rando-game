@@ -643,7 +643,7 @@ already mapped so milestone 2 is script-only.
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
 
-- **2026-10-05 Micromobility on the street (VISUAL_ROADMAP #59).** Shared e-scooters of two
+- **2026-10-05 Micromobility on the street (VISUAL_ROADMAP #63).** Shared e-scooters of two
   invented operators (SKOOTA, KWIKR), BASIN BIKE share stations, racks, and green bike lanes on a
   hashed share of roads (the real downtown 7th, Spring, Main, Figueroa, Los Angeles and 1st St
   always), with cyclists and scooter riders on them. Decisions: a bike lane TAKES THE PARKING

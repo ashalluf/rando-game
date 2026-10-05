@@ -1,6 +1,6 @@
 class_name Micromobility
 extends RefCounted
-## The 2026 Los Angeles street's micromobility, laid out (VISUAL_ROADMAP #59): shared e-scooters
+## The 2026 Los Angeles street's micromobility, laid out (VISUAL_ROADMAP #63): shared e-scooters
 ## of two invented operators (SKOOTA, teal; KWIKR, amber) dropped in clusters at the pavement
 ## edge - most on their kickstands, some knocked over, one in the gutter, one leaning on a street
 ## tree; BASIN BIKE share stations (a solar kiosk with its screen and map panel, a row of docks

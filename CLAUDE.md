@@ -2864,7 +2864,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
   alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
   `tests/street_vendors_checks.gd`.
-- Micromobility (VISUAL_ROADMAP #59, 2026-10-05, docs/HANDOFF.md 9bq: "the 2026 LA street"):
+- Micromobility (VISUAL_ROADMAP #63, 2026-10-05, docs/HANDOFF.md 9bu: "the 2026 LA street"):
   `Micromobility` (`scripts/world/micromobility.gd`, static) lays out, from hashes only (seed +
   block / face / road / crossing, never a chunk or block rng; a FULL chunk's step after the
   vendors, before the parked cars), shared e-scooters of two invented operators (SKOOTA teal,
