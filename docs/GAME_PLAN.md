@@ -289,6 +289,20 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Tower roofs: helipads, pool decks, roof gardens, penthouses, masts and window
+  washers (VISUAL_ROADMAP #59, HANDOFF "Tower roofs").** Roofs are what the player sees most while
+  flying, and every tower top was the same scatter of units. `Rooftops` plans each tall
+  building's top roof from hashes of its seed and the plant Building already put there, and
+  stands its pieces IN PLACE of the small plant (units, ducts, solar, skylights) rather than
+  moving any of it: the plant still rolls exactly as before (no seed's city moves), the covered
+  props are just not drawn, near or far. Decisions: (1) the helipad is RAISED on steel over the
+  plant - which is how LA's retrofitted pads stand - so it only has to keep off spires and tanks,
+  and it takes a plain antenna down where it lands; (2) a pool is TRACED in the shader (tank,
+  tiles, caustics, sky by Fresnel, lights at night), not modelled as a basin, so it costs one
+  quad; (3) the pieces are one mesh per building on one shader plus a glass surface, and the far
+  tiers get a painted pad and pool on their boxes (FarBuilding.Plant HELIPAD / POOL); (4) the
+  landmark towers whose real roofs are flat get a pad from a row in their table, keeping their
+  real crowns; (5) bar names and helicopter liveries are invented.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

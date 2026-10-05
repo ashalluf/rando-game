@@ -1817,6 +1817,9 @@ func _test_city() -> void:
 	# Billboards (tests/billboard_checks.gd): the atlas, the boards as props in one batch per kind,
 	# the far boxes, the monopoles pure and clear of the decks, nothing else in the block moved.
 	load("res://tests/billboard_checks.gd").new().run(self, city)
+	# Tower roofs (tests/rooftops_checks.gd): helipads, pool decks, gardens, penthouses, masts and
+	# window-washing machines planned pure, off the plant they may not cover, near = far, no roll moved.
+	load("res://tests/rooftops_checks.gd").new().run(self, city)
 	# The Los Angeles River (tests/la_river_checks.gd): the route east of downtown to Long Beach, the
 	# freeways over it, the streets closed or bridged, no lot in the corridor, the chunk's meshes and
 	# one collision body, the far city's boxes, and a car on the bed and down a ramp.

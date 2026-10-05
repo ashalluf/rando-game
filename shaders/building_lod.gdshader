@@ -943,6 +943,50 @@ void fragment() {
 				rough = 0.5;
 			}
 		}
+		if ((kind == 5 || kind == 6) && n.y > 0.5) {
+			// Rooftops: a helipad's deck (5) and a pool deck (6), painted on the top face. Metres
+			// from the box's centre; custom.b turns the pad's paint a quarter (odd turns) and lays
+			// a pool along z (1) rather than x.
+			vec2 q = local_pos.xz * box_size.xz;
+			float tm = max(max(fwidth(q.x), fwidth(q.y)), 0.02);
+			if (kind == 5) {
+				if (fract(custom.b * 2.0) > 0.25) {
+					q = vec2(q.y, -q.x);
+				}
+				float s = box_size.x;
+				vec2 aq = abs(q);
+				float edge = abs(max(aq.x, aq.y) - (s * 0.5 - 0.65));
+				float ring = abs(length(q) - s * 0.31);
+				float hh = s * 0.17;
+				float hw = hh * 0.6;
+				float bar = hh * 0.16;
+				float hm = max(step(aq.y, hh) * (1.0 - smoothstep(bar - tm, bar + tm, abs(aq.x - hw))),
+					step(aq.x, hw) * (1.0 - smoothstep(bar - tm, bar + tm, aq.y)));
+				vec3 white = cs_as_uniform(vec3(0.86, 0.86, 0.84));
+				vec3 yellow = cs_as_uniform(vec3(0.86, 0.62, 0.06));
+				float pw = 0.15 + tm;
+				albedo = c;
+				albedo = mix(albedo, white, (1.0 - smoothstep(pw - tm, pw + tm, edge)) * 0.95);
+				albedo = mix(albedo, yellow, (1.0 - smoothstep(0.3, 0.3 + tm * 2.0, ring)));
+				albedo = mix(albedo, white, hm);
+				// The green perimeter lights after dark: a lit edge out here.
+				emission += vec3(0.15, 1.0, 0.3) * 1.6 * lamp_factor * (1.0 - smoothstep(0.0, 0.35 + tm, abs(max(aq.x, aq.y) - (s * 0.5 - 0.25))));
+				rough = 0.75;
+			} else {
+				vec2 qq = custom.b > 0.5 ? vec2(q.y, q.x) : q;
+				vec2 bs = custom.b > 0.5 ? box_size.zx : box_size.xz;
+				// The pool along the long axis, off-centre toward one end, on the -z side.
+				vec2 pc = vec2(-bs.x * 0.1, -bs.y * 0.12);
+				vec2 ph = vec2(bs.x * 0.36, bs.y * 0.27);
+				vec2 dq = abs(qq - pc) - ph;
+				float inside = 1.0 - smoothstep(-tm, tm, max(dq.x, dq.y));
+				vec3 water = cs_as_uniform(vec3(0.20, 0.62, 0.68));
+				albedo = mix(c, water, inside);
+				emission += inside * (vec3(0.10, 0.55, 0.62) * 1.6 * lamp_factor + sky_tint.rgb * 0.12);
+				rough = mix(0.8, 0.08, inside);
+				spec = mix(0.25, 0.5, inside);
+			}
+		}
 		if (kind == 2 && box_size.y - (local_pos.y + 0.5) * box_size.y < 0.6) {
 			// The beacon on the tip, unshaded red like the near one, and brighter after dark.
 			albedo = vec3(0.05);

@@ -8941,3 +8941,102 @@ score is random digits. The upper terrace's slope is planted ground (the lot sha
 The headless check on this box: the smoke test passes all its checks run without the script's 900 s
 cap (996 of 996 after the last rebase, 1056 s, no error lines); under the cap it times out here, and so does `main` alone (779 checks
 by 900 s on the same box), so the cap, not the park, is what this machine trips.
+
+## 9cq. Tower roofs: helipads, pool decks, roof gardens, penthouses, masts, window washers (wt/rooftops)
+
+Roofs are what the player sees most while flying, and every tower top was the same scatter of AC
+units. `Rooftops` (`scripts/world/rooftops.gd`) now puts on a building's highest roof (never a
+podium) what real Los Angeles towers carry:
+
+- **Helipads** on towers from 75 m (`PAD_SHARE` 0.8 of them; about half of all 75 m+ towers end up
+  with one - the rest have a spire or a water tank where it would go). A raised steel deck
+  (`PAD_RISE` 3.4 m) on a grid of columns that skip whatever plant stands under it, girders and
+  knee braces, the deck's paint drawn in the shader from UV (white perimeter line, dashed aiming
+  line, the yellow touchdown circle, the H, the weight box; scuffs and an oil stain where the skids
+  sit; turned a quarter on odd `turn`s), green perimeter lights and corner floods lit by
+  `lamp_factor` (the deck washed by them after dark), a safety-net shelf (netting cut out in the
+  shader, dithered to its coverage under a pixel) open where the stair comes up, a striped
+  windsock on its mast, a steel stair under the shelf (or a caged ladder where no side is clear), a
+  red extinguisher cabinet; on `HELI_SHARE` 0.32 of them the air traffic's helicopter parked in an
+  invented private livery (four colourways), merged into ONE mesh per livery (a surface per
+  material) - the model's nodes were 15 surfaces, 45 draws with their shadows. A plain antenna
+  where the pad lands is taken down (`hidden()`).
+- **Pool decks** (26-230 m, 0.3 of them): a raised deck (timber or porcelain) round a TRACED pool
+  (`K_WATER`: the view ray refracted into a 1.45 m tank of 12 cm mosaic, its lane line and wall
+  band, caustics by day, absorption to turquoise, the sky emitted by Fresnel, underwater lights at
+  night; the water quad's UV is building space from the pool's centre so the trace runs in the
+  mesh's own space), coping, a chrome ladder, loungers (teak or white, cushions, towels) and
+  umbrellas, a glass balustrade (its own transparent surface), steps up from the roof, a cabana bar
+  (counter, back bar with bottles, timber canopy, stools) with its lit invented name
+  (`BAR_NAMES`), string lights on four runs, potted palms, and two to four people
+  (`RoofGoer`, `scripts/npc/roof_goer.gd`, a Pedestrian kept to the deck, in the crowd cap).
+- **Roof gardens** (18-160 m, 0.3 of those without a pool or pad): pavers, a striped lawn, planter
+  boxes of shrubs (`model_shrub`, one MultiMeshBatch), a timber pergola over benches and a table,
+  string lights.
+- **Mechanical penthouses** (38 m+, 0.45): louvred screen walls (`K_LOUVRE`: blades by UV, the
+  normal tilted per blade), posts, a capped roof, a door, a fan and a stack.
+- **Telecom masts** (55 m+, 0.35): a tapered monopole, three sectors of panel antennas, one to
+  three microwave dishes, a cable ladder, a cabinet, a red beacon.
+- **Window-washing machines** on glass / curtain-wall towers (45 m+, 0.75): rails on sleepers along
+  an edge, the carriage, counterweight, turret and a jib over the parapet; on 0.45 of them the
+  cradle hangs part-way down the facade on its cables, else it is parked on the roof.
+- **Landmark towers** whose real roofs are flat carry a `"helipad"` row in
+  `LandmarkDowntown.TOWERS` (local centre on the roof, deck size, turn): the five drums, the black
+  twins (one of the pair), the bronze slab and the granite slab. Their real crowns are untouched;
+  `Rooftops.landmark_helipad()` builds the same pad (cached per row) with deck collision.
+
+**No roll moves.** The plan (`plan(b)`) is pure: the top part, the plant Building already put on
+that roof (`roof_props`, which the far boxes replay through `roof_plan()`) and hashes of seed +
+"rooftops"; never `_rng`, `_roof_rng` or a chunk rng. A piece keeps off the plant it may not cover
+(stair bulkheads, tanks, cooling towers, signs, spires; a raised pad only off spires and tanks) and
+stands IN PLACE of the small plant (`HIDEABLE`: units, ducts, solar, skylights): `hidden()` names
+those props, `clear_plant()` takes them off the generating building after `_build_roof_props()`
+(their primitives by `Building.roof_prim_starts`, their units, spots and collision), and
+`FarBuilding.boxes()` skips them. Their rolls are all still made. The facade kit's own roof plant
+(hvac, vents; a private stream) is handed the pieces' rects (`keep_out()`). Checked:
+`tests/rooftops_checks.gd` (the plan pure, every piece on its roof and off what it may not cover,
+all six kinds over 160 towers, 40 buildings' parts / colours / plant identical with the feature on
+and off, near plan = far plan, exactly the covered units gone, the pad's deck solid, the far boxes
+carrying the pad and the pool, the landmark pads inside their plans).
+
+**Drawn.** ONE mesh a building (`RooftopGeo`, flat normals and winding fixed per face, on
+`shaders/rooftop.gdshader`, kind in the vertex alpha /32, paint as written, UV metres; linear on
+both renderers) plus the glass surface, the planting in one MultiMeshBatch, the parked helicopter;
+collision boxes on the building (pad deck, pool deck round the water, penthouse). The far tiers get
+boxes (`far_boxes()`): the pad's deck (`FarBuilding.Plant.HELIPAD`, painted on the box top by
+`building_lod.gdshader`: perimeter, circle, H, and the green edge after dark) over a dark box for its
+structure, the pool deck (`Plant.POOL`: the deck colour with a turquoise pool, lit at night), the
+penthouse and the mast as silhouette boxes, the garden, the washing machine and a hanging cradle as
+small plant.
+
+**Frame cost.** Same frame, `tools/geo_count.gd` AB (opengl3, 800x600, `--spawn=2785,-30,45,-28,100`,
+looking over downtown's roofs): 2.47 M triangles / 2,689 draws in all; the rooftop meshes 61 k / 22
+draws (27 buildings), the planting 4 k / 10, the two parked helicopters 13 k / 90 before they were
+merged. Downtown from 500 m at noon (`still_shot.gd`, 1280x720, `ROOFTOPS=0` against on): 3.73 M /
+3,268 -> 3.82 M / 3,331 (+2.6 % / +1.9 %). Build: `tools/rooftop_probe.gd BUILD=1` - a pool deck
+about 6 ms, a pad 3.5 ms (with the helicopter), the rest under 1 ms; the plan for the far boxes
+runs only on buildings over 18 m and costs well under a millisecond.
+
+**Tools.** `tools/glshot/rooftop_shot.gd` (one building, seconds: `FEAT=helipad|pool|garden|
+penthouse|mast|bmu`, `HELI=1`, `HANG=1`, `NIGHT=1`, `GOLDEN=1`, `DIST`, `ELEV`, `YAW`),
+`tools/rooftops/find.gd -- --at=x,z --radius=m` (pads, pools and hanging cradles in the default
+seed's city with an EYE for each; `KIND=`), `tools/rooftop_probe.gd` (counts and build time over
+many planned towers). `ROOFTOPS=0` in the environment is the A/B. City stills used
+`EYE=2950,380,250,48.5,-39` (downtown from 500 m), `2799.1,99.0,-21.2,45,-28@11` (a pad with a
+helicopter), `2587.2,82.5,292.4,45,-28@17.6` / `@21.5` (a pool deck at golden hour and at night),
+spawn `--spawn=2700,0,45,-30,120`.
+
+**Merged with fleet/base (2026-10-05, wave 2).** Conflicts only in the docs and in
+`LandmarkDowntown.build()` (the helipad hook and BuildingDamage's `restore_tower()` both kept).
+Review fix: the pool's Fresnel sky read `sky_tint` through `cs_in()`, which leaves it undecoded
+on Forward+; the global is raw sRGB on both renderers, so it is now `cs_srgb_to_linear()` on both
+(the Mac drew the pool's sky reflection too bright). Gate on the merged tree: 1,381 passed, 1
+failed (the known minimap "closed road" check), peak 3.1 GB.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the pool's water and glare, the pad's
+lights, the string lights and the bar sign under AgX and glow need eyes. The deck people are plain
+walkers drifting about (no crowd-life clips: no drinks, no sitting on the loungers). The window
+washers' cradles carry no workers. Pads on the downtown towers whose plan is a slender TOWER on a
+small lot often do not fit (the deck shrinks to 11 m and then gives up). The near pieces draw only
+in FULL chunks (240 m); past that the far boxes carry them, so a helicopter is not seen from the
+LOD ring. No sound (a helicopter on a pad is silent and never takes off).
