@@ -2627,7 +2627,7 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   frame cost is ALU on storefront glass pixels only. Judge with `building_shot.gd` (`NIGHT=1`,
   `BENCH=n`) and `still_shot.gd` `EYE=`/`SHOTS=` from the pavement; `tools/glshot/shop_probe.gd`
   (headless) lists the storefronts near a point with an EYE for each face.
-- Wilshire deco (VISUAL_ROADMAP #59, 2026-10-05, docs/HANDOFF.md "Wilshire's deco boulevard"):
+- Wilshire deco (VISUAL_ROADMAP #63, 2026-10-05, docs/HANDOFF.md "Wilshire's deco boulevard"):
   `DecoBoulevard` (`scripts/world/deco_boulevard.gd`) gives midtown's boulevard frontage its
   1920s-30s character. A MIDTOWN BUILDINGS block's edge lot whose cell faces a road
   `BOULEVARD_WIDTH` (24 m) or wider is deco by a hash (`WILSHIRE_ODDS` 0.75 on Wilshire - pinned

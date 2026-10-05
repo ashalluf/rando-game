@@ -289,7 +289,7 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
-- **2026-10-05 Wilshire's deco boulevard (VISUAL_ROADMAP #59).** Midtown's boulevards were the
+- **2026-10-05 Wilshire's deco boulevard (VISUAL_ROADMAP #63).** Midtown's boulevards were the
   same seeded boxes as every street. A hash per boulevard-frontage lot (Wilshire 0.75, other
   boulevards 0.3) builds a 1920s-30s building instead: zigzag tower, streamline corner, theatre
   (a block in eight at most, one a block), deco flats, Spanish courtyard flats (`DecoBoulevard`,

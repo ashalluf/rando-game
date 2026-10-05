@@ -7040,3 +7040,77 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9b?. Wilshire's deco boulevard, 2026-10-05 (agent branch `wt/wilshire-deco`; VISUAL_ROADMAP #63)
+
+Midtown's boulevards were the same seeded boxes as every street. Now a share of the lots that
+front a boulevard build a 1920s-30s building instead of their `Building` (rules in CLAUDE.md,
+"Wilshire deco"): `DecoBoulevard` (`scripts/world/deco_boulevard.gd`: the pure plan, massing,
+the five builders, the chunk hooks) and `DecoBuild` (`scripts/world/deco_build.gd`: the two mesh
+accumulators and the shared pieces - piers, finials, spandrels, bands, gables, letters).
+
+**What stands there.** On Wilshire's midtown stretch (x ~500-1600, between MacArthur Park and the
+110; the 24 m pinned street) 75 % of the frontage lots, on any other boulevard 30 %:
+- zigzag moderne TOWERS (lots planned 26 m+): a three-storey base with storefronts, a granite
+  base course and a portal (nested stepped frames, bronze door screen, sunburst transom), a shaft
+  set back twice, piers on every bay line (majors every fourth bay and at the corners rise into
+  stepped finials), chevron spandrels between the windows, a zigzag frieze and coping at each
+  setback, a fluted lantern crown with slit windows and sunburst panels, ziggurat steps and a
+  spire; the upper tiers and the crown are floodlit after dark. Palettes jade, turquoise-and-gold,
+  buff with copper green, ivory with aluminium.
+- streamline moderne CORNERS on a block corner (lots under 30 m): the corner rounded in glass
+  block (lit from inside at night) with render mullions, ribbon windows, two speed lines under
+  every upper floor and three on the parapet, a canopy round the street faces with downlights and
+  a neon strip, a pylon fin on the corner's bisector with the building's name in neon up both
+  faces. White, peach or mint with sea-green, chocolate or dark green lines.
+- a THEATRE on an eighth of the blocks at most (one a block): plaster hall, a cream front of
+  fluted pilasters with stepped tops, tall chevron panels, a stepped glazed central tower with a
+  vertical blade sign (the name in neon, a chase of bulbs down its edge), a trapezoid marquee with
+  readerboards, bulbs on its edges and soffit and the name in neon on a crest, lobby doors and
+  poster cases, a pool of light on the pavement and an OmniLight under the marquee at night
+  (desktop). Broadway owns downtown's theatres; this is the boulevard's one.
+- deco APARTMENTS (4-7 storeys): a stepped centre bay with a pediment and a sunburst, fluting,
+  corner piers, chevron spandrels, a zigzag frieze, a portal with steps and a canopy edged in neon,
+  the name over the door in gilt letters that light up after dark.
+- Spanish COURTYARD apartments: two stucco wings and a back wing round a garden open to the
+  street, clay gable roofs with eaves, a tiled octagonal fountain, wooden balcony rails, a low
+  wall with an arched gate, wrought lanterns and the name on a tile plaque, LotFill's planting and
+  two palms inside.
+- Mature palms (1.35-1.7x the street palm) along every deco frontage: the street trees on that
+  pavement become palms where they stood, and gaps of a PALM_STEP clear of everything else get
+  one more. The plan has no medians, so none are built (that is a street-layout change).
+
+All names are invented (`*_NAMES`; the checks keep a list of the real boulevard's buildings out).
+
+**How it hangs together.** The walls are `building.gdshader` in outline mode with the part numbers
+in the vertices (`uv_facade` and `part_attributes` both on), one mesh per palette a chunk, so the
+deco keeps the traced rooms, lit offices, storefronts and glass mirror every Building has; the
+piers and spandrels are laid on the same bay grid (each face a whole number of bays; PUNCHED glass
+0.27-0.77 of a storey). Everything else is ONE ornament mesh a chunk on `deco_ornament.gdshader`
+(21 kinds in the vertex alpha, floodlit surfaces flagged). Collision is one `DecoBody` a chunk (a
+box per massing box), the occluder gets the massing boxes. LOD chunks and the far city draw the
+massing as plain `lod_box`es on building_lod's old path: the silhouette (setbacks, crowns, the
+theatre's tower) is kept, the coded facade is not (FarBuilding has no deco code). Hooks in
+`city_chunk.gd`: three lines (`build_lot` before the Building is made, `block_step` after the
+sidewalk furniture, `commit` at the finish).
+
+**Frame cost** (`still_shot.gd SPLIT=1 DIFF=1`, opengl3 1600x900, `DECO=0` against `DECO=1`, the
+streamline corner at Wilshire, `EYE=715,1.7,312,-147,10` with EYE_AGL=1, noon): 4.89 M -> 4.98 M
+triangles (+1.7 %), 2,367 -> 2,145 draws (-9 %). By category: Building 617 k / 682 draws -> 429 k /
+492 (deco lots no longer build a Building), Trees 1.52 M -> 1.84 M (the mature palms), Other
+394 k / 343 -> 422 k / 358 (the deco meshes: one ornament mesh and a walls mesh per palette a
+chunk), everything else within streaming noise. The noon street view east along Wilshire
+(`EYE=690,1.7,318,-70,4`): 5.33 M / 3,072 -> 5.01 M / 2,548. (Multi-shot SHOTS runs stream
+differently and are not comparable shot for shot.)
+
+**Stills** (`shots/wilshire-deco`; opengl3, not the Mac's Forward+): Wilshire at noon looking east
+along a run (theatre, streamline corner, deco tower, palms), the streamline corner at noon and at
+21:00 (glass block lit, neon fin and canopy strip), the street at 21:00 (floodlit theatre front,
+blade sign), the jade tower's crown at golden hour and at 21:00, the courtyard apartments, the deco
+apartments' portal, the stretch from the air; DECO=0 before stills of the same views.
+
+**Not done / not verified.** The Mac (Forward+): the glaze and gilt speculars, the floodlit crowns
+and the neon under AgX need eyes. Far: plain boxes (no coded deco facade). The shop names on the
+deco storefront sign bands are the shader's stand-in strips (no TextMesh names). No street wear,
+billboards or the facade kit on deco buildings. The theatre's auditorium side walls are plain
+plaster. Palms are planted per lot; a frontage split between deco and ordinary lots keeps its
+street trees on the ordinary part. No medians (the plan has none).
