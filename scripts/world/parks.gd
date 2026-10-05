@@ -183,6 +183,10 @@ static func role_for(plan: CityPlan, ix: int, iz: int, rect: Rect2, district: in
 		return ""
 	if macro.freeway and macro.freeway.blocks_rect(rect, 6.0):
 		return ""
+	# Nor where the light rail's aerial structure or trench crosses the block.
+	var rail := LightRail.of(plan)
+	if rail != null and (rail.blocks_rect(rect, 6.0) or not rail.cuts_in(rect).is_empty()):
+		return ""
 	if macro.runway_clear_zone().grow(60.0).intersects(rect):
 		return ""
 	if macro.replica and macro.replica._bounds.intersects(rect.grow(40.0)):

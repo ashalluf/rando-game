@@ -484,6 +484,9 @@ static func free_queue(chunk: Node, from: Vector2, reach: float) -> Dictionary:
 		if q.taken != null and is_instance_valid(q.taken):
 			continue
 		var rec: Variant = q.record
+		# A freed record (its prop shot away and the node gone): `is` on it is an error.
+		if typeof(rec) == TYPE_OBJECT and not is_instance_valid(rec):
+			continue
 		if rec is Dictionary and bool((rec as Dictionary).get("dead", false)):
 			continue
 		if rec is Object and (not is_instance_valid(rec) or (rec as Node).is_queued_for_deletion()):
