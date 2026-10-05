@@ -54,8 +54,10 @@ func _ready() -> void:
 					low = minf(low, q.y - r._ground(Vector2(q.x, q.z)))
 			var feet: Array = t.legs
 			var ext: float = t.base - minf(minf(feet[0], feet[1]), minf(feet[2], feet[3]))
-			print("  t%d (%.0f, %.0f) %s kind %d h %.0f base %.1f ext %.1f span %.0f clear %.1f" % [t.id, t.pos.x, t.pos.y,
-				MacroMap.zone_name(macro.zone_at(t.pos)), t.kind, t.h, t.base, ext, prev.distance_to(t.pos), low])
+			var pa: Vector3 = a[0]
+			var planner := r._span_clear(prev, minf(a[0].y, a[3].y), t.pos, float(t.base) + 0.605 * float(t.h) - Ridges.STRING)
+			print("  t%d (%.0f, %.0f) %s kind %d h %.0f base %.1f ext %.1f span %.0f clear %.1f (planner %.1f)" % [t.id, t.pos.x, t.pos.y,
+				MacroMap.zone_name(macro.zone_at(t.pos)), t.kind, t.h, t.base, ext, prev.distance_to(t.pos), low, planner])
 			prev = t.pos
 	var claimed := 0
 	for ix in range(20, 60):

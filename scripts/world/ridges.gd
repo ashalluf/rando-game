@@ -26,7 +26,7 @@ enum Mast { GUYED, LATTICE, MONOPOLE }
 # --- Towers ----------------------------------------------------------------------------------
 ## Tower heights the planner may pick, metres from the body's base to the earth-wire peak. A
 ## 220 kV double-circuit lattice tower in the hills round the basin stands 40-60 m.
-const HEIGHTS: Array[float] = [46.0, 52.0, 58.0, 66.0]
+const HEIGHTS: Array[float] = [46.0, 58.0, 72.0]
 ## Span limits, metres (a 220 kV line in rough country spans 250-500 m, longer over a canyon).
 const SPAN_MIN := 230.0
 const SPAN_MAX := 480.0
@@ -34,13 +34,19 @@ const CITY_SPAN_MAX := 340.0
 ## The shortest span the planner falls back to on a climb a long one cannot clear.
 const SPAN_SHORT := 90.0
 ## The spots the planner tries along a leg, metres apart.
-const DP_STEP := 20.0
+const DP_STEP := 25.0
+## The corridor raster the planner measures moved spans on: metres along, across, and its half width.
+const RASTER_U := 10.0
+const RASTER_V := 6.0
+const RASTER_V_HALF := 66.0
 ## Lowest conductor over the ground, metres, anywhere in a span.
 const CLEAR := 13.0
 ## Sag = SAG_K * span^2 (a 400 m span sags 11 m: an ACSR conductor at everyday tension).
 const SAG_K := 7.0e-5
 ## The longest a leg may be extended below the body's base on a slope.
 const MAX_LEG_EXT := 20.0
+## ... and on a peak.
+const PEAK_LEG_EXT := 32.0
 ## Half the right of way through the city, metres: no lot stands within it.
 const ROW_HALF := 16.0
 ## The substation yard's longest side, metres.
@@ -114,6 +120,7 @@ var _t_mark := 0
 var _t_dp_prep := 0
 var _t_dp := 0
 var _t_g := 0
+var _bad_spans := 0
 var _t_ok := 0
 var _gcache: Dictionary = {}
 
@@ -921,7 +928,7 @@ func _plan_lines(plan: CityPlan) -> void:
 	_ground_cache.clear()
 	_index_row()
 	if OS.get_environment("RIDGE_DEBUG") != "":
-		print("RIDGES lines: dp prep %d ms (ground %d, ok %d), dp %d ms" % [_t_dp_prep / 1000, _t_g / 1000, _t_ok / 1000, _t_dp / 1000])
+		print("RIDGES lines: dp prep %d ms (ground %d, ok %d), dp %d ms, %d spans the ground forced low" % [_t_dp_prep / 1000, _t_g / 1000, _t_ok / 1000, _t_dp / 1000, _bad_spans])
 
 
 ## The substation: the industrial block nearest a hashed point in Vernon, west of the river.
@@ -1112,7 +1119,17 @@ func _leg_ok(p: Vector2, yaw: float = 0.0) -> bool:
 	var feet := _feet(p, yaw, 58.0)
 	var hi := maxf(maxf(feet[0], feet[1]), maxf(feet[2], feet[3]))
 	var lo := minf(minf(feet[0], feet[1]), minf(feet[2], feet[3]))
-	return hi - lo < MAX_LEG_EXT
+	if hi - lo < MAX_LEG_EXT:
+		return true
+	# A tower straddles a peak on long leg extensions (the spot is the highest ground round it): the
+	# only place a span can get over a spike, and how the real lines over these hills stand.
+	if hi - lo < PEAK_LEG_EXT:
+		var g := _ground(p)
+		for a in 8:
+			if _ground(p + Vector2.from_angle(TAU * a / 8.0) * 25.0) > g + 1.0:
+				return false
+		return true
+	return false
 
 
 ## Lays a line out from the substation's gantry `gi` through the waypoints: an angle tower at each
@@ -1176,6 +1193,7 @@ func _leg_towers(plan: CityPlan, a: Vector2, b: Vector2, a_low: float, b_dir: Ve
 	var n := maxi(1, ceili(leg / DP_STEP))
 	var yaw := atan2(d.x, d.y)
 	var pos: Array[Vector2] = []
+	var nudged: Array[bool] = []
 	var ok: Array[bool] = []
 	var base := PackedFloat32Array()
 	var gmax := PackedFloat32Array()
@@ -1183,16 +1201,26 @@ func _leg_towers(plan: CityPlan, a: Vector2, b: Vector2, a_low: float, b_dir: Ve
 	for i in n + 1:
 		var q := a.lerp(b, float(i) / n)
 		# A spot a little to one side when the line itself is not one (a street, a lot line).
+		# A spot a little to one side when the line itself is not one (a street, a lot line, the
+		# flank of a spike). A span to or from a moved spot is measured along its true line.
+		var moved := false
 		if i > 0 and i < n and not (_tower_ok(plan, q) and _leg_ok(q, yaw)):
 			for off: float in [12.0, -12.0, 24.0, -24.0, 36.0, -36.0, 50.0, -50.0]:
 				if _tower_ok(plan, q + nrm * off) and _leg_ok(q + nrm * off, yaw):
 					q += nrm * off
+					moved = true
 					break
+		nudged.append(moved)
 		pos.append(q)
 		city.append(macro.zone_at(q) == MacroMap.Zone.CITY)
 		var t_a := Time.get_ticks_usec()
-		# The ground under all six conductors: the centre line and both outer phases.
-		gmax.append(maxf(_ground(q), maxf(_ground(q + nrm * 8.5), _ground(q - nrm * 8.5))))
+		# The ground under all six conductors: the centre line and both outer phases, at this spot and
+		# half way to its neighbours (a narrow crest between two spots is what a span hits).
+		var gm := -INF
+		for along: float in [-0.5, 0.0, 0.5]:
+			var qa := q + d * along * (leg / n)
+			gm = maxf(gm, maxf(_ground(qa), maxf(_ground(qa + nrm * 9.0), _ground(qa - nrm * 9.0))))
+		gmax.append(gm)
 		var t_b := Time.get_ticks_usec()
 		var valid := i == n or (i > 0 and _tower_ok(plan, q) and _leg_ok(q, yaw))
 		_t_g += t_b - t_a
@@ -1202,6 +1230,13 @@ func _leg_towers(plan: CityPlan, a: Vector2, b: Vector2, a_low: float, b_dir: Ve
 		base.append(maxf(maxf(feet[0], feet[1]), maxf(feet[2], feet[3])) + 0.35)
 	_t_dp_prep += Time.get_ticks_usec() - _t_mark
 	_t_mark = Time.get_ticks_usec()
+	# The ground of the corridor either side of the leg, for spans between moved spots.
+	var ru := maxi(2, ceili(leg / RASTER_U) + 1)
+	var rv := int(RASTER_V_HALF * 2.0 / RASTER_V) + 1
+	var raster := PackedFloat32Array()
+	raster.resize(ru * rv)
+	# Filled as it is read (most cells never are; a cell is a carved-ground sample, ~0.1 ms).
+	raster.fill(NAN)
 	var nh := HEIGHTS.size()
 	var cost := PackedFloat32Array()
 	var from := PackedInt32Array()
@@ -1214,35 +1249,65 @@ func _leg_towers(plan: CityPlan, a: Vector2, b: Vector2, a_low: float, b_dir: Ve
 			continue
 		var span_max := CITY_SPAN_MAX if city[j] else SPAN_MAX
 		var i0 := maxi(0, j - int(span_max / leg * n))
-		for hj in nh:
-			var hgt := HEIGHTS[hj]
-			var low_j := base[j] + 0.605 * hgt - STRING
-			var best := INF
-			var best_from := -1
-			for i in range(i0, j):
-				var span := float(j - i) * leg / n
-				if span < SPAN_SHORT and i > 0 and j < n:
+		for i in range(i0, j):
+			if i > 0 and not ok[i]:
+				continue
+			var span := pos[i].distance_to(pos[j])
+			if span < SPAN_SHORT and i > 0 and j < n:
+				continue
+			# The ground under this span, once for every pair of heights: along its true line when
+			# either end was moved, else the leg's own samples.
+			var ts := PackedFloat32Array()
+			var gs := PackedFloat32Array()
+			if nudged[i] or nudged[j]:
+				# Off the corridor raster: the true line, its outer phases 9 m either side.
+				var ui := (pos[i] - a).dot(d)
+				var vi := (pos[i] - a).dot(nrm)
+				var uj := (pos[j] - a).dot(d)
+				var vj := (pos[j] - a).dot(nrm)
+				var m := maxi(4, ceili(span / RASTER_U))
+				for k in range(1, m):
+					var t := float(k) / m
+					var cu := clampi(roundi(lerpf(ui, uj, t) / RASTER_U), 0, ru - 1)
+					var cv := lerpf(vi, vj, t)
+					var g0 := -INF
+					for dv: float in [-9.0, 0.0, 9.0]:
+						var iv := clampi(roundi((cv + dv + RASTER_V_HALF) / RASTER_V), 0, rv - 1)
+						var cell := cu * rv + iv
+						if is_nan(raster[cell]):
+							raster[cell] = _ground(a + d * (cu * RASTER_U) + nrm * (iv * RASTER_V - RASTER_V_HALF))
+						g0 = maxf(g0, raster[cell])
+					ts.append(t)
+					gs.append(g0)
+			else:
+				for k in range(i + 1, j):
+					ts.append(float(k - i) / float(j - i))
+					gs.append(gmax[k])
+			var sg := SAG_K * span * span
+			var extra := 0.35 if span < SPAN_MIN else 0.0
+			# The clearance only grows with either tower's height: when the shortest pair clears, all
+			# do, and when the tallest does not, none does - most spans are one or the other.
+			var base_i := a_low if i == 0 else base[i] + 0.605 * HEIGHTS[0] - STRING
+			var lo_j := base[j] + 0.605 * HEIGHTS[0] - STRING
+			var tall := 0.605 * (HEIGHTS[nh - 1] - HEIGHTS[0])
+			var w_short := _worst(ts, gs, base_i, lo_j, sg)
+			var w_tall := _worst(ts, gs, base_i + (0.0 if i == 0 else tall), lo_j + tall, sg)
+			for hi in (1 if i == 0 else nh):
+				var c0: float = 0.0 if i == 0 else cost[i * nh + hi]
+				if c0 >= INF:
 					continue
-				for hi in (1 if i == 0 else nh):
-					var c0: float = 0.0 if i == 0 else cost[i * nh + hi]
-					if c0 >= INF:
-						continue
-					var low_i := a_low if i == 0 else base[i] + 0.605 * HEIGHTS[hi] - STRING
-					var sg := SAG_K * span * span
-					var worst := INF
-					for k in range(i + 1, j):
-						var t := float(k - i) / float(j - i)
-						worst = minf(worst, lerpf(low_i, low_j, t) - 4.0 * sg * t * (1.0 - t) - gmax[k])
-					var c := c0 + 1.0 + (hgt - HEIGHTS[0]) * 0.012
-					if span < SPAN_MIN:
-						c += 0.35
+				var low_i := a_low if i == 0 else base[i] + 0.605 * HEIGHTS[hi] - STRING
+				for hj in nh:
+					var low_j := base[j] + 0.605 * HEIGHTS[hj] - STRING
+					var worst := w_short
+					if w_short < CLEAR:
+						worst = w_tall if w_tall < CLEAR else _worst(ts, gs, low_i, low_j, sg)
+					var c := c0 + 1.0 + (HEIGHTS[hj] - HEIGHTS[0]) * 0.012 + extra
 					if worst < CLEAR:
 						c += 25.0 + (CLEAR - worst) * 0.5
-					if c < best:
-						best = c
-						best_from = i * nh + hi
-			cost[j * nh + hj] = best
-			from[j * nh + hj] = best_from
+					if c < cost[j * nh + hj]:
+						cost[j * nh + hj] = c
+						from[j * nh + hj] = i * nh + hi
 	_t_dp += Time.get_ticks_usec() - _t_mark
 	var end := -1
 	var end_c := INF
@@ -1254,7 +1319,58 @@ func _leg_towers(plan: CityPlan, a: Vector2, b: Vector2, a_low: float, b_dir: Ve
 	while end >= 0 and end / nh > 0:
 		out.push_front([pos[end / nh], HEIGHTS[end % nh]])
 		end = from[end]
+	_fix_spans(plan, out, a, a_low, yaw, b_dir)
 	return out
+
+
+## The lowest conductor's clearance over the ground samples `gs` at fractions `ts` of a span.
+static func _worst(ts: PackedFloat32Array, gs: PackedFloat32Array, low_a: float, low_b: float, sg: float) -> float:
+	var worst := INF
+	for k in ts.size():
+		var t := ts[k]
+		worst = minf(worst, lerpf(low_a, low_b, t) - 4.0 * sg * t * (1.0 - t) - gs[k])
+	return worst
+
+
+## Every span of a leg checked along its true line (the towers may stand off the leg): a span that
+## does not clear raises its far tower (and is counted in `_bad_spans`).
+func _fix_spans(plan: CityPlan, out: Array, a: Vector2, a_low: float, yaw: float, b_dir: Vector2) -> void:
+	var prev := a
+	var prev_low := a_low
+	var i := 0
+	while i < out.size():
+		var p: Vector2 = out[i][0]
+		var last := i == out.size() - 1
+		var tyaw := atan2(b_dir.x, b_dir.y) if last else yaw
+		var h: float = out[i][1]
+		if _span_clear(prev, prev_low, p, _low_attach(p, tyaw, h).x) < CLEAR:
+			for hh in HEIGHTS:
+				if hh > h and _span_clear(prev, prev_low, p, _low_attach(p, tyaw, hh).x) >= CLEAR:
+					out[i][1] = hh
+					h = hh
+					break
+			if _span_clear(prev, prev_low, p, _low_attach(p, tyaw, h).x) < CLEAR:
+				_bad_spans += 1
+		prev = out[i][0]
+		prev_low = _low_attach(prev, tyaw, float(out[i][1])).x
+		i += 1
+
+
+## The lowest conductor's clearance over the ground under the whole span (centre line and both
+## outer phases), sampled every 8 m along its true line.
+func _span_clear(a: Vector2, ya: float, b: Vector2, yb: float) -> float:
+	var l := a.distance_to(b)
+	var s := sag(l)
+	var d := (b - a) / maxf(l, 0.01)
+	var nrm := Vector2(-d.y, d.x) * 9.0
+	var worst := INF
+	var n := maxi(4, ceili(l / 8.0))
+	for i in range(1, n):
+		var t := float(i) / n
+		var q := a.lerp(b, t)
+		var g := maxf(_ground(q), maxf(_ground(q + nrm), _ground(q - nrm)))
+		worst = minf(worst, lerpf(ya, yb, t) - 4.0 * s * t * (1.0 - t) - g)
+	return worst
 
 
 func _index_row() -> void:

@@ -323,47 +323,71 @@ static func dirt_material() -> ShaderMaterial:
 
 # --- The city: the right of way and the substation -------------------------------------------
 
-## The lots the right of way took (CityPlan.lots() asked Ridges.claims_lot()) are dry grass and
-## dirt with a chain-link fence along the street; under the substation, its yard.
+## The lots the right of way took (CityPlan.lots() asked Ridges.claims_lot()) are what such a strip
+## through Vernon is: fenced dirt and dry weeds, and in some cells a storage yard - trailers,
+## containers, pallets (Industrial's own `_store()`) - kept clear of the towers' feet. The
+## substation's yard is gravel inside the same chain-link. FULL lays them in Industrial's ground
+## mesh; LOD as plain slabs.
 static func _right_of_way(ch: CityChunk, r: Ridges, rect: Rect2) -> void:
 	ch.plan.lots(ch.ix, ch.iz)
 	var cells: Array = r.claimed_cells.get(Vector2i(ch.ix, ch.iz), [])
 	var sub_rect: Rect2 = r.substation.get("rect", Rect2())
-	var mat := PropFactory.lawn(ROW_GRASS, hash([r.seed, "row"]), 0.95, 0.0)
-	for cell: Rect2 in cells:
-		if sub_rect.size.x > 0.0 and sub_rect.grow(2.0).intersects(cell):
-			continue
-		ch._add_slab(Vector3(cell.get_center().x, CityChunk.SIDEWALK_TOP + 0.03, cell.get_center().y),
-			Vector3(maxf(cell.size.x - 0.6, 0.5), 0.04, maxf(cell.size.y - 0.6, 0.5)), ROW_GRASS, false, mat)
-	if ch.level != CityChunk.Level.FULL:
-		return
-	# A fence round the cells' outline (an edge two cells share is left out).
 	var block_rect: Rect2 = ch.plan.block(ch.ix, ch.iz).rect
-	var inner := block_rect.grow(-ch.plan.sidewalk_width)
+	var has_sub := sub_rect.size.x > 0.0 and sub_rect.intersects(block_rect)
+	if cells.is_empty() and not has_sub:
+		return
+	var full := ch.level == CityChunk.Level.FULL
+	if full:
+		Industrial._state(ch)
+	var feet: Array[Vector2] = []
+	for t: Dictionary in r.towers_in(block_rect.grow(30.0)):
+		feet.append(t.pos)
+	var k := 0
 	for cell: Rect2 in cells:
-		if sub_rect.size.x > 0.0 and sub_rect.grow(2.0).intersects(cell):
+		k += 1
+		if has_sub and sub_rect.grow(2.0).intersects(cell):
 			continue
-		var c := cell.grow(-0.4)
-		var edges := [[Vector2(c.position.x, c.position.y), Vector2(c.end.x, c.position.y), true],
-			[Vector2(c.position.x, c.end.y), Vector2(c.end.x, c.end.y), true],
-			[Vector2(c.position.x, c.position.y), Vector2(c.position.x, c.end.y), false],
-			[Vector2(c.end.x, c.position.y), Vector2(c.end.x, c.end.y), false]]
-		for e: Array in edges:
-			var mid: Vector2 = ((e[0] as Vector2) + (e[1] as Vector2)) * 0.5
-			var shared := false
-			for other: Rect2 in cells:
-				if other != cell and other.grow(1.5).has_point(mid):
-					shared = true
-			# Only the edges toward the street: those within a few metres of the block's inner edge.
-			var to_street := minf(minf(mid.x - inner.position.x, inner.end.x - mid.x), minf(mid.y - inner.position.y, inner.end.y - mid.y))
-			if shared or to_street > 3.0:
+		var c := cell.grow(-0.3)
+		if not full:
+			ch._add_slab(Vector3(c.get_center().x, CityChunk.SIDEWALK_TOP + 0.03, c.get_center().y), Vector3(c.size.x, 0.04, c.size.y), ROW_DIRT, false)
+			continue
+		var h := Ridges._h01([r.seed, "row", ch.ix, ch.iz, k])
+		ch._ind.ground.append([c, Industrial.G_WEEDS if h < 0.6 else Industrial.G_DIRT, h])
+		# A storage yard in some cells, away from the towers.
+		var clear := true
+		for f: Vector2 in feet:
+			clear = clear and not c.grow(14.0).has_point(f)
+		if clear and h > 0.35 and minf(c.size.x, c.size.y) > 14.0:
+			Industrial._store(ch, c.grow(-3.0), absi(hash([r.seed, "row_store", ch.ix, ch.iz, k])), Industrial.G_GRAVEL)
+	if full:
+		# A fence round the cells' outline toward the street (an edge two cells share is left out).
+		var inner := block_rect.grow(-ch.plan.sidewalk_width)
+		for cell: Rect2 in cells:
+			if has_sub and sub_rect.grow(2.0).intersects(cell):
 				continue
-			LotFill._fence(ch, mid, (e[0] as Vector2).distance_to(e[1]), bool(e[2]), CityChunk.SIDEWALK_TOP)
-	if sub_rect.size.x <= 0.0 or not sub_rect.intersects(block_rect):
+			var c := cell.grow(-0.4)
+			var edges := [[Vector2(c.position.x, c.position.y), Vector2(c.end.x, c.position.y), true],
+				[Vector2(c.position.x, c.end.y), Vector2(c.end.x, c.end.y), true],
+				[Vector2(c.position.x, c.position.y), Vector2(c.position.x, c.end.y), false],
+				[Vector2(c.end.x, c.position.y), Vector2(c.end.x, c.end.y), false]]
+			for e: Array in edges:
+				var mid: Vector2 = ((e[0] as Vector2) + (e[1] as Vector2)) * 0.5
+				var shared := false
+				for other: Rect2 in cells:
+					if other != cell and other.grow(1.5).has_point(mid):
+						shared = true
+				var to_street := minf(minf(mid.x - inner.position.x, inner.end.x - mid.x), minf(mid.y - inner.position.y, inner.end.y - mid.y))
+				if shared or to_street > 3.0:
+					continue
+				LotFill._fence(ch, mid, (e[0] as Vector2).distance_to(e[1]), bool(e[2]), CityChunk.SIDEWALK_TOP)
+	if not has_sub:
 		return
 	# The substation's yard: gravel inside a chain-link fence.
-	ch._add_slab(Vector3(sub_rect.get_center().x, CityChunk.SIDEWALK_TOP + 0.04, sub_rect.get_center().y),
-		Vector3(sub_rect.size.x, 0.06, sub_rect.size.y), Color(0.6, 0.58, 0.55), false, RidgeKit.material("gravel"))
+	if not full:
+		ch._add_slab(Vector3(sub_rect.get_center().x, CityChunk.SIDEWALK_TOP + 0.04, sub_rect.get_center().y),
+			Vector3(sub_rect.size.x, 0.06, sub_rect.size.y), Color(0.55, 0.54, 0.52), false)
+		return
+	ch._ind.ground.append([sub_rect, Industrial.G_GRAVEL, 0.5])
 	var g := sub_rect.grow(-0.5)
 	LotFill._fence(ch, Vector2(g.get_center().x, g.position.y), g.size.x, true, CityChunk.SIDEWALK_TOP)
 	LotFill._fence(ch, Vector2(g.get_center().x, g.end.y), g.size.x, true, CityChunk.SIDEWALK_TOP)
@@ -371,7 +395,7 @@ static func _right_of_way(ch: CityChunk, r: Ridges, rect: Rect2) -> void:
 	LotFill._fence(ch, Vector2(g.end.x, g.get_center().y), g.size.y, false, CityChunk.SIDEWALK_TOP)
 
 
-const ROW_GRASS := Color(0.47, 0.41, 0.25)
+const ROW_DIRT := Color(0.46, 0.41, 0.33)
 
 
 static func _substation(ch: CityChunk, r: Ridges, rect: Rect2) -> void:

@@ -153,9 +153,10 @@ func _unmoved(r: Ridges, plan: CityPlan) -> void:
 	for dj in range(-3, 4):
 		for di in range(-3, 4):
 			var k := sb + Vector2i(di, dj)
+			# lots() records what the ridges took (claimed_cells), so ask it first.
+			var a := plan.lots(k.x, k.y)
 			if r.claimed_cells.has(k) or k == sb:
 				continue
-			var a := plan.lots(k.x, k.y)
 			var b := p2.lots(k.x, k.y)
 			checked += 1
 			lots_same = lots_same and a.size() == b.size()
