@@ -30,13 +30,16 @@ uniform float edge_end = 6860.0;
 // Smallest angular size a lamp is drawn at (radians of view): about 1.5 pixels on a 720-line
 // frame at 55 degrees. Its brightness falls by the area it grew, but never under lamp_floor.
 uniform float lamp_min_angle = 0.0022;
-uniform float lamp_floor = 0.16;
+uniform float lamp_floor = 0.25;
 // Lamp, window and pool light (linear, before lamp_factor).
-uniform float lamp_energy = 7.0;
-uniform float window_energy = 2.6;
+uniform float lamp_energy = 10.0;
+uniform float window_energy = 1.2;
 uniform float pool_energy = 1.6;
 // Share of the house's windows lit early in the evening (scaled by the hour as the city's are).
-uniform float lit_ratio = 0.5;
+uniform float lit_ratio = 0.36;
+// What the windows' glow keeps once they are under a pixel: spread over the whole wall at full
+// strength, a far estate was a lit bar; a house that far is a few warm points, the lamps.
+uniform float far_window_mean = 0.3;
 global uniform vec4 sky_tint;
 global uniform float lamp_factor;
 
@@ -171,13 +174,14 @@ void fragment() {
 			float share = row < 0.5 ? 0.62 : 0.4;
 			float detail = 1.0 - smoothstep(0.35, 1.0, px / 2.6);
 			float g = mix(share, glass, detail);
-			float ratio = lit_ratio * window_hour_scale();
+			// Some houses all lit, some nearly dark: a row of estates is not a row of identical bars.
+			float ratio = lit_ratio * window_hour_scale() * mix(0.2, 1.7, fract(variant * 7.13 + 0.31));
 			float lit = roll(col + face * 31.0, row) < ratio ? 1.0 : 0.0;
 			lit = mix(ratio, lit, detail);
 			vec3 warm = mix(vec3(1.0, 0.62, 0.30), vec3(1.0, 0.80, 0.55), roll(col, row + 7.0));
 			albedo = mix(albedo, vec3(0.05, 0.06, 0.07), g * 0.85);
 			rough = mix(rough, 0.2, g);
-			emit = warm * window_energy * g * lit * lamp_factor;
+			emit = warm * window_energy * g * lit * lamp_factor * mix(far_window_mean, 1.0, detail);
 		}
 	} else if (kind == 3) {
 		// The pool: turquoise by day, its underwater light after dark.

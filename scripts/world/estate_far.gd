@@ -39,7 +39,8 @@ const DRIVE_MIN := 8.0
 ## Garden tops (LINEAR): watered lawn mostly, now and then a gravel and succulent garden.
 const LAWNS: Array[Color] = [Color(0.055, 0.10, 0.03), Color(0.07, 0.115, 0.035), Color(0.045, 0.085, 0.028), Color(0.19, 0.16, 0.115)]
 ## Walls (LINEAR): the stucco CityChunk paints the estates' walls, a little darker.
-const WALLS: Array[Color] = [Color(0.78, 0.74, 0.66), Color(0.70, 0.62, 0.50), Color(0.80, 0.78, 0.74), Color(0.58, 0.50, 0.40), Color(0.36, 0.33, 0.30)]
+## (At 0.8-0.9, like the old box's 0.92, a house glowed white in the moonlight across the basin.)
+const WALLS: Array[Color] = [Color(0.50, 0.46, 0.39), Color(0.44, 0.37, 0.28), Color(0.53, 0.51, 0.47), Color(0.34, 0.28, 0.21), Color(0.20, 0.18, 0.16)]
 ## Roofs (LINEAR): clay tile, dark gravel, grey membrane, dark standing seam.
 const ROOFS: Array[Color] = [Color(0.26, 0.085, 0.045), Color(0.22, 0.10, 0.06), Color(0.10, 0.095, 0.09), Color(0.32, 0.31, 0.29), Color(0.05, 0.05, 0.055)]
 ## The FULL estate's lawn (CityChunk._build_mansions): [centre over the deck, size] in the pad's

@@ -861,6 +861,13 @@ already mapped so milestone 2 is script-only.
   barrier; traffic turns onto them. The stack is tall (~26-50 m) because the 101 climbs to the
   pass at the grade limit from there: both main lines are held level through the stack (raise
   only). docs/HANDOFF.md (the stack section); CLAUDE.md "The four-level stack".
+- **2026-10-05 The hillside estates read as estates from the basin, day and night.** Past the
+  FULL chunks each estate was one pale box (on a pavers pad at LOD) and from 1-5 km at night the
+  hills were dotted with grey discs. Now every estate there is its parts and its lamps
+  (`EstateFar`, `far_estate.gdshader`): lawn, court, hedges, house with windows and a roof, pool,
+  trees, and after dark a few lit windows, garden and gate lights and the pool's glow, the lamps
+  drawn at least a pixel or two wide. docs/HANDOFF.md "Hillside estates at night"; CLAUDE.md
+  "Far estates".
 
 - **2026-09-28 The sun follows the real Los Angeles path** (east, south at noon 56 degrees up,
   west; `DayNight._arc_basis()` over `latitude_degrees` 34). It used to swing through the north

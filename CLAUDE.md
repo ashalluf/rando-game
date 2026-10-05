@@ -2146,6 +2146,16 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   elevation and `_relief_at()` starts from it, so `_gy()` lifts the whole city onto the plateau
   while `zone_at()` still says CITY. Keep those two separate: `raw_height_at()` drives `zone_at()`
   and the hill-road carving, `plateau_at()` drives where the blocks sit.
+- Far estates (2026-10-05, docs/HANDOFF.md "Hillside estates at night"): past the FULL chunks
+  (LOD chunks and Skyline) every HillRoads estate is `EstateFar.parts()` (pure, hashes of its
+  seed; the pool replays `_build_mansions`' first two rolls) - unit boxes on
+  `shaders/far_estate.gdshader`: kind + 8 when on the real terrain + a variant in
+  INSTANCE_CUSTOM.g, the part's height over the deck in .r and its offset from the estate's
+  centre in .ba, so a far-city estate seats on the drawn far plane as one piece (plane_height()
+  is far_canopy's, checked). Lamps grow to `lamp_min_angle` and light by `lamp_factor`; walls
+  stay dark-ish (pale stucco glowed in the moonlight). Trees go into Skyline's planting. The
+  FULL estate keeps its build plus a lawn (`LAWN_PIECES`). `ESTATE_NIGHT=0` is the A/B; probe
+  `tools/estate_night/probe.tscn` (estates and basin EYEs); checks `tests/estate_night_checks.gd`.
 - Freeways (owner, 2026-09-21: "every street is just straight, there's no highways"): `Freeway`
   (`scripts/world/freeway.gd`) plans three long **curved** routes across the basin - Coast, Cross
   and Valley - as seeded polylines with a smoothed, grade-limited deck height, exactly the shape
