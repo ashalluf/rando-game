@@ -11163,3 +11163,21 @@ carts' scene transforms move with each origin shift). Gate after merging origin/
 1,400 checks pass, peak RSS 3.2 GB. Frame cost re-measured at the suburb bookmark
 (`geo_count.gd`, 800x600): `SERVICE_VEHICLES=0` 3.586 M triangles / 2,695 draws -> 3.717 M / 2,702
 (+3.7 %). Stills: branch `shots/service-vehicles`, files 10-16.
+
+**Bodies rebuilt (wave 2, lead's review).** The cab-over's hardware in `tools/make_big_vehicles.py`
+(`cab_hardware()`, shared by the box truck, garbage truck, sweeper and tow truck) is now swept and
+bevelled instead of boxes: a wrap-around bumper turned back round the corners (tread pads, plate
+recess, fog lamps, tow hooks), a chrome grille bezel with louvres over the egg-crate, chrome lamp
+rings, rounded mirror heads with spot mirrors, a sun visor, entry steps in a shroud, grab and door
+handles, wheel-arch flares; the chassis is bevelled (`smooth_bevel()`: three segments under the
+35 degree crease). In `make_service_vehicles.py` the garbage packer is a bowed four-ring loft with
+a rolled front edge, the hopper a flared, chamfered tub, the arm's boom and lift lever swept
+rounded sections (`rig_bev()`); the sweeper's hopper has rolled ends, a fairing up from the cab
+roof and side skirts; the tow deck's rails are a swept channel dipping at the ramp, the headboard
+a radiused tube frame, the toolboxes bevelled. Lengths, axles, WHEEL_POSE and every rig pivot are
+unchanged, so no game numbers moved. Triangles: box truck 26k -> 38k, garbage 29k -> 44k, sweeper
+29k -> 47k, tow 26k -> 40k; far twins unchanged at ~10.3k. **Blender here:** download.blender.org
+is blocked by the network policy, so the generators ran on PyPI's `bpy` 4.2.0 module
+(`python3.11 -m venv bpyenv && bpyenv/bin/pip install bpy==4.2.0`, then
+`bpyenv/bin/python tools/make_big_vehicles.py -- box_truck [--render]`; it segfaults on exit
+AFTER writing the file - harmless). Stills: shots/service-vehicles 18_*.
