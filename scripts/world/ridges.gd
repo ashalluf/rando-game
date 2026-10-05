@@ -274,6 +274,8 @@ func _site_ok(p: Vector2, reach: float) -> bool:
 		return false
 	if macro.headland_dist(p) < 400.0:
 		return false
+	if Ballpark.covers(p, Ballpark.BANK_REACH + reach):
+		return false
 	for m: Dictionary in macro.hill_roads.mansions:
 		if p.distance_to(m.pos) < reach + 45.0:
 			return false
@@ -637,6 +639,10 @@ func _add_fire_road(name: String, pts: PackedVector2Array, start_h: float, min_l
 	var keep := pts.size()
 	for i in pts.size():
 		if i > 3 and absf(hs[i] - _uncarved(pts[i])) > FIRE_EARTHWORK:
+			keep = i
+			break
+		# The ballpark's cut and its graded banks are its own ground: a fire road stops short of them.
+		if Ballpark.covers(pts[i], Ballpark.BANK_REACH + FIRE_WIDTH):
 			keep = i
 			break
 	_why("road kept %d of %d" % [keep, pts.size()])
