@@ -1789,6 +1789,8 @@ func _test_city() -> void:
 	# The city at night from the air (tests/night_city_checks.gd): the far traffic and lit-office
 	# hours, the sodium / LED lamp patches near and far, the LOD decks' traffic skin.
 	load("res://tests/night_city_checks.gd").new().run(self, city)
+	# The perf audit's cuts (tests/perf_audit_checks.gd): shadow reaches, merged models, grass cells.
+	await load("res://tests/perf_audit_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
