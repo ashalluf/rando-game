@@ -18,3 +18,13 @@ opengl3 (Compatibility) renders, not the Mac's Forward+. Close-ups are `tools/gl
 | 11_after_closeup_night_meters_bench.jpg | night: the screens lit, the ad under a lamp |
 | 12_after_closeup_aged_hydrant.jpg | an aged hydrant: chalked paint, chips, rust |
 | 13_after_closeup_planter_plantings.jpg | the five planter plantings (aloe, lavender, lantana, agave, poker) |
+| 14 / 15 | downtown kerb under the freeway: old box meters and grey hoops / smart meters, galvanised U racks |
+| 16 / 17 | downtown, the same view: the old meter / a pay station among the meters |
+| 18 / 19 | downtown: the red scan hydrant / the LA wet barrel (an aged one, chalky) facing the street |
+| 20 / 21 | downtown bus stop: the old shelter / a concrete bench with a painted ad and the stop sign |
+| 22 / 23 | a suburban street at noon, `CARTS=all`: before / black, blue and green carts out at the kerb |
+| 24 / 25 | the same kerb closer |
+| 26 | downtown at 21:00: a pay station under a lamp |
+
+City stills: `tools/glshot/still_shot.gd` with `DIFF=1` (people, cars and particles hidden so both sides
+render the same frame), `STREET_FURNITURE=0` for every "before".
