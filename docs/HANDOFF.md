@@ -8571,3 +8571,71 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Hillside estates at night: what the basin sees of the hill estates, 2026-10-05 (agent branch `wt/estate-night`; VISUAL_ROADMAP #?)
+
+**The problem.** From the basin at night the HillRoads estates (402 on the default seed, 88 on
+the front range, most of the rest on the Palos Verdes headland) read as round grey blobs on the
+dark hills. Past the FULL chunks an estate was ONE box: in the far city (Skyline `_add_hills`) an
+18 x 7.5 x 13 m box tinted (0.92, 0.88, 0.80) LINEAR - near white - on the far-canopy shader,
+which has no windows and no light of its own, so the moon and the night ambient drew it pale grey;
+in a LOD chunk the same box as a `lod_box` on a 26 x 22 m pale pavers pad. By day the same pale
+blocks stood on the gold hills with nothing round them.
+
+**What it is now.** `EstateFar` (`scripts/world/estate_far.gd`) lays each estate past the FULL
+chunks as about a dozen unit boxes and 7-15 lamps on `shaders/far_estate.gdshader`, in the frame
+`CityChunk._build_mansions` builds the real one in (x across the pad, z toward the gate, the house
+4 m back):
+- the pad, its top the garden (watered lawn, now and then gravel: `LAWNS`), its sides the
+  retaining wall it stands on (6 m of skirt below the deck, so a pad seated on a sloping far plane
+  never shows daylight under its downhill side);
+- the motor court from the gate to the door, hedges down both sides;
+- the house (15.5-19 x 11-13.5 x 6.2-8.4 m, a lower wing on half of them) with windows: tall glass
+  on the ground floor, punched above, lit in the evening by a per-window roll scaled by the city's
+  hour (`window_hour_scale()`) and by a per-house share (some all lit, some nearly dark), faded to
+  their mean under a pixel and dimmed there (`far_window_mean`: spread over the wall at full
+  strength each far estate was a lit bar);
+- the roof (clay, dark gravel, grey membrane, dark seam: `ROOFS`), the pool with its coping where
+  the FULL estate puts it (its first two rolls on the estate's seed, replayed), lit from under the
+  water after dark;
+- lamps: two on the gate piers, two at the door, 3-6 garden lights round the lawn, and down a
+  driveway longer than 8 m one every 18 m on the real ground beside it. A lamp is a 0.3 m box that
+  the vertex shader grows to `lamp_min_angle` of the view (0.0022 rad, about 1.5 px on a 720-line
+  frame at 55 degrees) and dims by the area it grew, never under `lamp_floor`; by day it collapses.
+- the far city also plants 2-4 dark crowns round each estate in its planting (`EstateFar.trees()`,
+  Skyline's veg list: they stay under a LOD chunk, which plants none, and go under a FULL one).
+
+Walls are mid stucco (`WALLS`, linear 0.2-0.53): at 0.8-0.9 a house glowed white in the moonlight.
+The FULL estate is unchanged but for a lawn down both sides of its court and behind the house
+(`LAWN_PIECES`, merged boxes on `PropFactory.lawn()`, no rolls).
+
+**How it is drawn.** One MultiMesh per far-city tile (Skyline's `Estates_*` node, now on
+`EstateFar.material()`) and one batch per LOD hill chunk (`Batch_estate_far`, shadowless: the
+lamps grow in the vertex shader). INSTANCE_CUSTOM (half floats on Compatibility, so no
+positions): `.g` = kind + 8 when the part stands on the real terrain + a variant in the fraction,
+`.r` the part's origin over the estate's deck, `.ba` its offset from the estate's centre. A
+far-city part is moved by the far plane's drawn height under the estate's CENTRE minus the deck,
+so the whole estate moves as one (per part, a pad 26 m across on a 44 m plane triangle came apart).
+`plane_height()` / `corner_height()` are far_canopy.gdshader's, copied; the checks compare them
+character for character. CityStreamer hands the material the far plane's uniforms with the
+canopy's (four list entries). Colours are LINEAR, out through `cs_out()`.
+
+**Cost** (still_shot.gd GEO at the bookmarks, opengl3, 1280 x 720): front range from the basin
+1.62 M -> 1.64 M triangles, 367 draws both; Palos Verdes from the basin 1.055 M -> 1.094 M, 358 ->
+357 draws; from the air over the front range 1.269 M -> 1.295 M, 180 -> 177 draws; the downtown
+eye 2.857 M -> 2.903 M, 1,721 -> 1,722 draws. Instances, not draws: ~20-25 boxes an estate.
+
+**Look / measure.** `tools/estate_night/probe.tscn` (headless, seconds) lists every estate and
+the eight biggest clusters with an EYE in the basin looking at each. The stills (shots/estate-night):
+`EYE=900,160,300,2.5,-2.5` (the front range, 1.8 km), `2034,80,3291,166.5,2.5` (Palos Verdes,
+3.5 km), `822,400,-400,0,-19` (the air), `--hour=21` and `12`, FOV 35; `ESTATE_NIGHT=0` is the
+before. `tools/estate_night/compile.gd` compiles the touched scripts in seconds. Checks:
+`tests/estate_night_checks.gd` (pure parts, the pool where the FULL estate has it, codes through
+half floats, the seat copy, the LOD batch and the far tile on the material).
+
+**Not done / not verified.** Only the Compatibility renderer was looked at: the lamps' and
+windows' brightness through AgX and glow on Forward+ (the Mac) is unverified - `lamp_energy`,
+`window_energy`, `far_window_mean`, `pool_energy` are the knobs. The FULL estate (within ~240 m)
+has no garden lamps of its own (its Building has lit windows), so at night the lamps of a LOD
+estate go out at the hand-over to FULL. The roof colours do not follow the FULL Building's own
+roof (its flat SLAB roof), so a roof changes colour at 240 m.
