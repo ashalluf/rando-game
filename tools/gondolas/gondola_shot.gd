@@ -11,6 +11,11 @@ extends SceneTree
 ## roof | far | close (or CAM=dist,up,along relative to the cradle), FOV, T (GONDOLA_T: the clock),
 ## HIT=n rounds (a blast with HIT=blast) at the cradle before the shot, SHOT_AFTER seconds of
 ## simulated swing after the hit, NIGHT=1, LIST=1 prints every tower's sites and quits.
+var _run: RefCounted
+
+
 func _initialize() -> void:
 	await process_frame
-	load("res://tools/gondolas/gondola_shot_run.gd").new().call("run", self)
+	# Held here: a RefCounted freed mid-await never resumes.
+	_run = load("res://tools/gondolas/gondola_shot_run.gd").new()
+	_run.call("run", self)

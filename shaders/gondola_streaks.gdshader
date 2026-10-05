@@ -54,7 +54,7 @@ void fragment() {
 		float runs = line * (1.0 - smoothstep(0.0, wet_top * 1.2, y)) * 0.8;
 		// The squeegee's ends leave a water line at the stroke edges, the band's own edges.
 		float band_edge = smoothstep(0.25, 0.0, half_width - abs(x)) * (1.0 - dry);
-		alpha = film * 0.22 + runs * 0.35 + band_edge * 0.3;
+		alpha = film * 0.16 + runs * 0.14 + band_edge * 0.16;
 		// Soap on the pane at the cradle's working height, wiped off as the stop goes on.
 		float suds = vnoise(vec2(x * 9.0, y * 9.0)) * 0.6 + vnoise(vec2(x * 23.0, y * 23.0)) * 0.4;
 		float band = smoothstep(0.45, 0.7, y) * (1.0 - smoothstep(2.0, 2.5, y));
@@ -65,13 +65,15 @@ void fragment() {
 		float live = step(0.6, hash11(dc + 13.0));
 		float speed = 0.35 + hash11(dc + 7.0) * 0.5;
 		float d = fract(-y * 0.22 + TIME * speed * 0.18 + hash11(dc));
-		float trail = smoothstep(0.5, 0.15, abs(fract(x / 0.09) - 0.5) * 2.0);
+		float trail = smoothstep(0.22, 0.05, abs(fract(x / 0.09) - 0.5) * 2.0);
 		float reach = 1.0 - smoothstep(0.0, drip_len * (0.4 + 0.6 * hash11(dc + 3.0)), -y);
-		alpha = live * trail * reach * (0.25 + 0.5 * smoothstep(0.85, 1.0, d));
+		alpha = live * trail * reach * (0.06 + 0.3 * smoothstep(0.88, 1.0, d));
 		film = alpha;
 	}
-	alpha *= edge;
-	foam *= edge;
+	// Thin lines under a pixel only shimmer: gone by a hundred metres.
+	float fade = 1.0 - smoothstep(45.0, 120.0, length(VERTEX));
+	alpha *= edge * fade;
+	foam *= edge * fade;
 	// Wet glass: darker and glossier (the film mirrors the sky sharper); foam is white and matte.
 	vec3 water = vec3(0.012, 0.016, 0.02);
 	vec3 white = vec3(0.78, 0.80, 0.80);

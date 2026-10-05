@@ -225,9 +225,11 @@ func _add_workers() -> void:
 		var anim := inst.find_child("AnimationPlayer", true, false) as AnimationPlayer
 		if anim and anim.has_animation(Pedestrian.IDLE_CLIP):
 			anim.get_animation(Pedestrian.IDLE_CLIP).loop_mode = Animation.LOOP_LINEAR
+			# Held near the idle's start, square to the glass: the clip itself swings the shoulders
+			# round 60 degrees, and the IK does the moving.
 			anim.play(Pedestrian.IDLE_CLIP)
-			anim.seek(_rng.randf() * anim.current_animation_length, true)
-			anim.speed_scale = 0.8 + _rng.randf() * 0.3
+			anim.seek(0.4 + _rng.randf() * 0.4, true)
+			anim.speed_scale = 0.0
 		TowerGondolas.dress_hat(inst, path, absi(hash([s, "hat", i])) % TowerGondolas.HATS.size())
 		var w := {"root": root, "inst": inst, "x": wx, "phase": _rng.randf() * TAU, "rate": 0.8 + _rng.randf() * 0.4}
 		_rig_ik(w)
@@ -268,12 +270,13 @@ func _rig_ik(w: Dictionary) -> void:
 				root.transform * (inst.transform * (skel.transform * skel.get_bone_global_rest(fb).origin))
 		targets[side + "Foot"] = foot
 		var sh := skel.find_bone(side + "Arm")
-		var sgn := -1.0 if side == "Left" else 1.0
+		# In the root's frame the rig faces +Z, so its left is +X.
+		var sgn := 1.0 if side == "Left" else -1.0
 		var elbow := Node3D.new()
 		elbow.name = side + "ElbowPole"
 		root.add_child(elbow)
 		if sh >= 0:
-			elbow.position = inst.transform * (skel.transform * skel.get_bone_global_rest(sh).origin) + Vector3(sgn * 0.5, -0.7, -0.5)
+			elbow.position = inst.transform * (skel.transform * skel.get_bone_global_rest(sh).origin) + Vector3(sgn * 0.45, -0.6, -0.45)
 		var knee := Node3D.new()
 		knee.name = side + "KneePole"
 		root.add_child(knee)
@@ -458,7 +461,7 @@ func _pose_workers(now: float, cradle: Transform3D) -> void:
 		lh.transform = Transform3D(Basis(), Vector3(wx - 0.32, rail, -hd))
 		var ph: float = now * float(w.rate) + float(w.phase)
 		var work := 0.0 if not washing else 1.0 - _brace_w
-		var stroke := Vector3(wx + 0.12 + 0.32 * sin(ph), 1.55 + 0.32 * sin(ph * 0.5), -hd - 0.08)
+		var stroke := Vector3(wx + 0.1 + 0.3 * sin(ph), 1.3 + 0.22 * sin(ph * 0.5), -hd - 0.06)
 		var hold := Vector3(wx + 0.3, rail, -hd)
 		var p := hold.lerp(stroke, work)
 		# The squeegee leans up and in to the glass from the hand.
@@ -492,3 +495,4 @@ static func _set_rope(mi: MeshInstance3D, a: Vector3, b: Vector3, r: float) -> v
 	var xv := yv.cross(Vector3.FORWARD if absf(d.normalized().dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized() * r
 	var zv := xv.cross(yv).normalized() * r
 	mi.transform = Transform3D(Basis(xv, yv, zv), (a + b) * 0.5)
+

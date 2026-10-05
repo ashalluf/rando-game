@@ -125,7 +125,7 @@ static func clock() -> float:
 ##   heads   for a BMU: [left, right] head points (parent frame), else []
 ##   paint   cradle paint index; seed; phase (s)
 static func _site(m: Vector3, n: Vector3, lanes: Array, roof: float, top: float, bottom: float, seed_value: int) -> Dictionary:
-	return {"m": m, "n": n, "t": Vector3(-n.z, 0.0, n.x), "lanes": lanes, "roof": roof, "top": top, "bottom": bottom,
+	return {"m": m, "n": n, "t": Vector3(n.z, 0.0, -n.x), "lanes": lanes, "roof": roof, "top": top, "bottom": bottom,
 		"support": 0, "heads": [], "seed": seed_value,
 		"paint": int(_h(seed_value, "paint") * PAINTS.size()) % PAINTS.size(),
 		"phase": _h(seed_value, "phase") * 86400.0}
@@ -405,7 +405,7 @@ static func building_bmu(b: Node3D, f: Dictionary, origin: Vector3, p: Dictionar
 	# The drop runs down past every part the column outside the face does not meet (a flush or
 	# set-back tier below) to the first roof it would land on, or the street.
 	var col := xf * Vector3(0.3, 0.0, reach + GAP)
-	var along := Vector3(-n.z, 0.0, n.x)
+	var along := Vector3(n.z, 0.0, -n.x)
 	var bottom := 1.5
 	var parts: Array = b.get("parts")
 	for i in parts.size():
@@ -422,8 +422,6 @@ static func building_bmu(b: Node3D, f: Dictionary, origin: Vector3, p: Dictionar
 			var q := col + along * e
 			if r.has_point(Vector2(q.x, q.z)):
 				bottom = maxf(bottom, ptop + 1.0)
-	if OS.get_environment("GONDOLA_DEBUG") == "1":
-		print("GONDOLA bmu top %.1f bottom %.1f" % [top, bottom])
 	if top - bottom < 4.0:
 		return
 	var seed_value := hash([int(b.get("seed")), SALT, "bmu"])
