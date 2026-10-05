@@ -192,6 +192,11 @@ static func lot_plan(plan: CityPlan, bx: int, bz: int, lot: Dictionary) -> Dicti
 static func _plan_lot(plan: CityPlan, bx: int, bz: int, b: Dictionary, lot: Dictionary, theatre_taken: bool) -> Dictionary:
 	if lot.yard or lot.get("parking", false) or not lot.edge:
 		return {}
+	# A lot another feature already builds on (CityChunk._build_lot() asks them first): the plan
+	# leaves it, so a theatre is not spent on a lot that a station or a palace stands on.
+	if FireStation.claims(plan, bx, bz, lot) or PoliceStation.claims(plan, bx, bz, lot) \
+			or Broadway.claims(plan, bx, bz, lot):
+		return {}
 	var inner: Rect2 = (b.rect as Rect2).grow(-plan.sidewalk_width)
 	var cell: Rect2 = lot.cell
 	var on := [absf(cell.position.y - inner.position.y) < 0.6, absf(cell.end.y - inner.end.y) < 0.6,
