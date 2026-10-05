@@ -289,6 +289,12 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Kerbs are cut, not painted on (fleet "kerbs"; HANDOFF "Kerbs").** A FULL block's
+  pavement keeps its inner slab and Kerbs builds the outer 2.6 m ring itself, so ramps, driveway
+  aprons, tree wells and heaved slabs are real geometry you can drive and walk into; the kerb
+  paint, stencils and house numbers are one marks mesh per 64 m tile. Chosen over a shader-only
+  kerb because a ramp that is not a dip reads as paint. Everything hash-seeded; the old
+  `_kerb_paint` runs only where Kerbs does not. LOD / far chunks keep the plain slab.
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no
   footsteps, and the bus, the light rail, the river and the parks were silent. Decisions: the

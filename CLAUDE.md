@@ -1721,6 +1721,17 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   (`shaders/street_clutter.gdshader`: paint from INSTANCE_CUSTOM, printed front pages, covers and
   chalk from the vertex alpha), one draw per kind a chunk. StreetDetail still makes the news
   boxes' old rng rolls and hands them over; everything else is hash-seeded.
+  **Kerbs** (`Kerbs`, `scripts/world/kerbs.gd`, 2026-10-05): a FULL block's pavement is an
+  inner slab (`_block_surface`) plus a ring `RING` 2.6 m wide built by Kerbs in the pavement's own
+  material with one trimesh collision: corner ramps cut in line with the crosswalks (dome pads),
+  driveway aprons where YardFill's drives meet the kerb, dirt tree wells, root-heaved slabs; then
+  ONE marks mesh per 64 m tile (`shaders/kerb_marks.gdshader`: zone paint red / yellow / green /
+  white / blue with stencils, house numbers in SUBURBS / BEACHTOWN, domes, dirt, the `tree_grate`
+  batch's cast-iron grate, cracks). Built as steps after the pavement furniture; nothing is cut
+  under an upright prop; red kerbs and aprons keep this chunk's own parked cars off
+  (`blocks_parking()`); it replaces StreetDetail's `_kerb_paint` there. LOD and far keep the plain
+  slab. Hash-seeded. `KERBS=0` is the A/B; probe `tools/kerbs/probe.tscn`; checks
+  `tests/kerbs_checks.gd` (`tools/kerbs/checks_only.tscn` alone).
   **Street wear** (`StreetWear`, `scripts/world/street_wear.gd`, a build step of every FULL
   chunk after everything it lies on): spray tags, throw-ups and roller letters with buff-out
   patches over some, wheat-paste runs and flyers, stickers on lamp / signal / utility poles and
