@@ -87,12 +87,14 @@ void fragment() {
 		rough = 0.82;
 	} else if (kind < 4.5) {
 		albedo = tiled(asphalt_tex, p, asphalt_scale) * asphalt_tint * mottle;
-		// Oil down the middle of each stall and tyre polish, in slow blotches.
-		float oil = smoothstep(0.62, 0.8, vnoise(p * 0.35 + 17.0));
-		albedo *= 1.0 - 0.3 * oil;
+		// Oil down the middle of each stall and tyre polish, in slow blotches: two octaves, so they
+		// are not the value noise's soft squares, and dull, not glossy - a car park is seen at a
+		// grazing angle, where a glossy stain mirrors the sky and reads as a pale patch.
+		float oil = smoothstep(0.6, 0.82, vnoise(p * 0.35 + 17.0) * 0.65 + vnoise(p * 1.3 + 5.0) * 0.35);
+		albedo *= 1.0 - 0.32 * oil;
 		nm = texture(asphalt_nrm, p / asphalt_scale).rgb;
 		nm_depth = 0.6;
-		rough = mix(0.9, 0.6, oil);
+		rough = mix(0.9, 0.82, oil);
 	} else if (kind < 6.5) {
 		// Lawn and planted soil: the grass texture, mottled drier and greener in patches.
 		vec3 g = tiled(grass_tex, p, grass_scale);
