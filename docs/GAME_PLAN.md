@@ -301,8 +301,8 @@ already mapped so milestone 2 is script-only.
   pass unchanged; 0-0.6 % of pixels move by a few levels in thin lines. Kept out: rooftop units
   from the shadow proxy (no measurable change), roads without shadow (paint edges lightened).
 
-- **2026-10-04 Rec parks and school campuses, rolled per block (VISUAL_ROADMAP #52).** (agent
-  branch `wt/parks`; docs/HANDOFF.md 9bj.) LA from the air is diamonds, courts, fields, tracks and
+- **2026-10-04 Rec parks and school campuses, rolled per block (VISUAL_ROADMAP #56).** (agent
+  branch `wt/parks`; docs/HANDOFF.md 9bn.) LA from the air is diamonds, courts, fields, tracks and
   pools; ours was lawns and fountains. Calls made, each reversible: **a role is rolled after
   every other roll** (`Parks.role_for()` from `CityPlan.block()`, a hash of seed + block), so no
   block seed or lot moves; **a school is a new block kind** (`BlockKind.SCHOOL`, no lots) rather

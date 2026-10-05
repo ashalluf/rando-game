@@ -6466,7 +6466,7 @@ is the story.
   checked; there are no ladder trucks, police at fire scenes or traffic cones; the bus's daylit
   cabin is judged on opengl3 only.
 
-## 9bj. Rec parks, schoolyards and sports grounds, 2026-10-04 (agent branch `wt/parks`; VISUAL_ROADMAP #52)
+## 9bn. Rec parks, schoolyards and sports grounds, 2026-10-04 (agent branch `wt/parks`; VISUAL_ROADMAP #56)
 
 The brief: from the air real Los Angeles is stamped all over with baseball diamonds, basketball
 and tennis courts, soccer fields, school running tracks and public pools; ours had lawns, trees
