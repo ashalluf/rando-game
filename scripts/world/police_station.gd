@@ -74,6 +74,8 @@ const FLOOD_ATTENUATION := 0.7
 const FLOOD_COLOR := Color(0.86, 0.92, 1.0)
 ## The lettering's light after dark (police_station_letters.gdshader energy; 0 = unlit).
 const LETTER_GLOW := 2.4
+## The floodlights' additive pools where the poles carry real lights (0.75 without them).
+const FLOOD_POOL_LIT := 0.3
 
 const CONCRETE := Color(0.84, 0.83, 0.79)
 const CONCRETE_DARK := Color(0.52, 0.52, 0.51)
@@ -1006,7 +1008,10 @@ static func _lights(node: Node3D, s: Dictionary, P: Callable, floods: Array[Vect
 	var lay: Dictionary = s.layout
 	var pools := MultiMesh.new()
 	pools.transform_format = MultiMesh.TRANSFORM_3D
-	pools.mesh = PropFactory.light_pool(Color(0.86, 0.92, 1.0), 0.75)
+	# Where the poles carry real lights (desktop) the additive pools are only the hot spot under
+	# each head; at full strength on top of the lights they read as white discs on the asphalt.
+	var lit_poles := night_detail and not OS.has_feature("web")
+	pools.mesh = PropFactory.light_pool(Color(0.86, 0.92, 1.0), FLOOD_POOL_LIT if lit_poles else 0.75)
 	var spots: Array[Transform3D] = []
 	for fs in floods:
 		var mid := (float(lay.pv0) + float(lay.pv1)) * 0.5
