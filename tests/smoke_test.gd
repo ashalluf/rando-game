@@ -2283,6 +2283,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	await load("res://tests/fwd_review_c_checks.gd").new().run(self, city)
 	# The landmarks' far copies (tests/far_landmarks_checks.gd): the detailed copies' palms and trees.
 	load("res://tests/far_landmarks_checks.gd").new().run(self, city)
+	# The Forward+ review A fixes (tests/fwd_review_a_checks.gd): the canals' crossing water, the pier's pools.
+	load("res://tests/fwd_review_a_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

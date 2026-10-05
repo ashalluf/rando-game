@@ -58,6 +58,9 @@ func _ready() -> void:
 	if OS.get_environment("NIGHT") == "1":
 		RenderingServer.global_shader_parameter_set("lamp_factor", 1.0)
 		RenderingServer.global_shader_parameter_set("night_factor", 1.0)
+		# The sky's horizon colour, which DayNight would take down: mirrors (canal water, the
+		# beach's swash, glass) read it, and left at its day value they drew a lit street.
+		RenderingServer.global_shader_parameter_set("sky_tint", Color(0.03, 0.035, 0.05))
 		if sun:
 			sun.light_energy = 0.06
 			sun.light_color = Color(0.6, 0.7, 1.0)

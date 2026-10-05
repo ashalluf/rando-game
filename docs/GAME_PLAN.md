@@ -307,6 +307,13 @@ already mapped so milestone 2 is script-only.
   Haven's CC0 San Giuseppe Bridge HDRI under its horizon at the old grey's mean brightness, so
   reflections out of a probe's reach show a street, not a uniform grey. `REFLECTION_PROBES=0`
   turns both off.
+- **2026-10-05 Forward+ review A (HANDOFF "Forward+ review A").** Six integration-a features
+  (hero moves, port life, canals, photo mode, police stations, pier park) rendered on Forward+
+  under lavapipe in small scenes. Decisions: review with `block_shot.tscn` and the room tools,
+  never the whole city; fix in the features' own files only (canal water and layout, the pier's
+  pools); a feature that draws big additive pools gets its own copy of the shared pool material
+  rather than changing the street lamps'; the harness's crude night must darken every global a
+  mirror reads (`sky_tint`), or the review judges a daylit reflection.
 
 - **2026-10-05 Tower roofs: helipads, pool decks, roof gardens, penthouses, masts and window
   washers (VISUAL_ROADMAP #59, HANDOFF "Tower roofs").** Roofs are what the player sees most while

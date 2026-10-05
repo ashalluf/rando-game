@@ -131,13 +131,15 @@ vec3 mirrored(float a0, float b0, float ra, float rb, float ry, float canal, flo
 		float storey = floor(y / 3.0);
 		float fy = fract(y / 3.0);
 		float wide = wh(vec2(lot, 13.0 + s)) < 0.45 ? 1.0 : 0.0;
-		float in_x = wide > 0.5 ? step(0.14, u) * step(u, 0.86) : (step(0.14, u) * step(u, 0.38) + step(0.58, u) * step(u, 0.84));
-		float in_y = step(0.27, fy) * step(fy, 0.86);
+		// Real window sizes on an 11.5 m front: a 4 m picture window, or two of 1.4 m (the
+		// first pass had 8 m of glass a storey, which at night mirrored as slabs of light).
+		float in_x = wide > 0.5 ? step(0.32, u) * step(u, 0.67) : (step(0.18, u) * step(u, 0.30) + step(0.62, u) * step(u, 0.74));
+		float in_y = step(0.33, fy) * step(fy, 0.80);
 		float win = in_x * in_y * step(0.0, y);
 		if (win > 0.5) {
-			float lit = step(0.42, wh(vec2(lot * 7.0 + storey, s + canal))) * lamp_factor;
+			float lit = step(0.6, wh(vec2(lot * 7.0 + storey, s + canal))) * lamp_factor;
 			vec3 glass = mix(sky * 0.55, vec3(0.03, 0.035, 0.04), 0.35 + 0.4 * night_factor);
-			vec3 room = vec3(1.0, 0.62, 0.30) * (1.2 + 0.8 * wh(vec2(lot, storey + 4.0)));
+			vec3 room = vec3(1.0, 0.62, 0.30) * (0.7 + 0.5 * wh(vec2(lot, storey + 4.0)));
 			col = mix(glass, room, lit);
 		}
 		// The porch light by the door, smeared down the water by the ripples.

@@ -12702,3 +12702,55 @@ runs the checks alone against the city (~4 min headless). The whole smoke test t
 this box (local `timeout 900` in headless_check.sh trips; the traffic checks are ~143 s of it).
 New stills `2N_after_fleetbase_*` on shots/traffic-ai; the merge view shows a house poking through
 the freeway deck by the on-ramp (route 0) (houses / corridor, not this branch).
+
+## 9ee. Forward+ review A: hero moves, port life, canals, photo mode, police stations, pier park
+
+Fleet session fwd-review-a (2026-10-05). None of these six integration-a features had been seen
+on Forward+ (the owner's Mac). Each was rendered through the real Forward+ pipeline on lavapipe in
+a SMALL scene: `block_shot.tscn` (a few FULL blocks; ~10 minutes and ~12 GB a run) for the
+canals, the pier, the police station and the port; `hero_moves_shot.gd` and
+`photo_shot.gd ROOM=1` (the test room, ~2 minutes) for the hero and photo mode. Command:
+`VK_ICD_FILENAMES=/usr/share/vulkan/icd.d/lvp_icd.json xvfb-run -a godot --rendering-driver vulkan
+--display-driver x11 --audio-driver Dummy --path . res://tools/glshot/block_shot.tscn
+--resolution 960x540` with `EYE` / `SHOTS` / `NIGHT=1`. block_shot sometimes hangs on exit after
+its last save: kill it.
+
+**Found and fixed**
+- **Canal crossings mirrored a phantom house.** The square where two canals cross belonged to the
+  north-south canal's water, whose made-up mirror puts a house row 13.9 m across: looking down the
+  east-west canal from a crossing, the water showed a giant house front, with a hard seam where the
+  east-west canal's own water began. `Canals._water()` now cuts the crossings into their own
+  pieces (UV.y = offset across the cross canal, UV2.x = 2 + its index), and
+  `canal_water.gdshader` mirrors down whichever canal the reflected ray runs along, blended over
+  the diagonal.
+- **Canal water read `sky_tint` as linear.** The global arrives as sRGB numbers on both renderers;
+  decoded now (the mirrored sky was too bright on both, a stop hot on Compatibility).
+- **The canal mirror's windows were 8 m wide**, 58 % lit at up to 2x: at night slabs of orange in
+  the water. Now a 4 m picture window or two 1.4 m windows, 40 % lit, at the real windows'
+  brightness.
+- **The pier's light pools clipped to flat discs** on Forward+ (the street lamps' shared pool
+  material, strength 1.6, on 7-16 m pools: the arcade's a solid magenta ellipse). The pier uses its
+  own copy (`PierPark.POOL_STRENGTH` 0.75, `POOL_FALLOFF` 2.2) and softer tints.
+- **Harness**: block_shot's `NIGHT=1` left `sky_tint` at its day value, so every mirror (canal
+  water, the beach's swash, which drew the sand white at night) read a daylit street; it now sets a
+  night horizon. `PLAYER=1` stands a player in at each eye (PortLife only runs near one), and the
+  plan is a member so PortLife finds its city root.
+
+**Seen and fine on Forward+**: the hero's moves (idle, flight, fall, landing, roll, flinch; the
+skin, hair and velour shaders), photo mode (panel, depth of field, grades, letterbox, the saved
+PNG is clean), the police station by day and night (glass, lobby, lettering), the port by day and
+night (liveries, steel, crane at work, pools), the pier by day (wheel, coaster, canvas, paint) and
+its LEDs at night. No double-decoded `source_color`, no z-fighting or flipped normals found in
+these scenes.
+
+**Not fixed / not verified**
+- The roll and the hard landing put the rifle through the hero's thigh (pose, both renderers).
+- The street lamps' own pools (shared material) also read as discs under block_shot's crude night;
+  the real game has DayNight's exposure, so judge them in the city on the Mac (police-night owns
+  the station's).
+- The canal crossing still has a faint seam where the ripple-broken mirror switches frame; the
+  reflections are made-up planes, not the real houses at a crossing's corners.
+- Nothing was rendered through DayNight (block_shot has no sky cycle): golden hour and dusk are
+  not reviewed here.
+
+Stills: `shots/fwd-review-a` (before/after of every fix, and the Forward+ set of each feature).
