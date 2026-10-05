@@ -251,6 +251,17 @@ static func van_mesh(paint: int) -> Dictionary:
 			if pm != null:
 				mesh.surface_set_material(si, pm)
 	out.mesh = mesh
+	# Its shadow from a box of its size (the body is ~8k triangles in four cascades).
+	var shadow := BoxMesh.new()
+	shadow.size = box.size * Vector3(0.92, 0.94, 0.97)
+	var sm := ArrayMesh.new()
+	var sarr := shadow.get_mesh_arrays()
+	var verts: PackedVector3Array = sarr[Mesh.ARRAY_VERTEX]
+	for i in verts.size():
+		verts[i] += box.get_center() - Vector3(0.0, box.size.y * 0.03, 0.0)
+	sarr[Mesh.ARRAY_VERTEX] = verts
+	sm.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, sarr)
+	PropFactory._shadow_proxies[mesh] = sm
 	out.offset = Vector3(-box.get_center().x, -box.position.y, -box.get_center().z)
 	out.length_x = box.size.x > box.size.z
 	out.size = box.size

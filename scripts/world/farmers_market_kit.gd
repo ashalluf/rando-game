@@ -383,15 +383,18 @@ static func canopy_folded() -> Mesh:
 		var o := -0.08 + 0.032 * k
 		g.bar(Vector3(o, 0.35, 0.11), Vector3(o, h - 0.05, 0.11), 0.02, alu, Vector2(0.4, 0.9))
 		g.bar(Vector3(0.11, 0.35, o), Vector3(0.11, h - 0.05, o), 0.02, alu, Vector2(0.4, 0.9))
-	# The canvas, gathered over the top and hanging down the sides in folds.
-	g.ellipsoid(Transform3D(Basis(), Vector3(0, h + 0.02, 0)), Vector3(0.26, 0.16, 0.24), 10, 5, canvas, Vector2(0.85, 0.0), 5, 0.25)
-	g.ellipsoid(Transform3D(Basis(Vector3.UP, 0.6), Vector3(0.0, h - 0.35, 0.02)), Vector3(0.21, 0.4, 0.2), 9, 5, canvas, Vector2(0.85, 0.0), 4, 0.3)
+	# The canvas left on the frame: gathered at the hub on top and hanging down the bundle in deep
+	# folds to about half its height, a strap round it.
+	g.ellipsoid(Transform3D(Basis(), Vector3(0, h + 0.03, 0)), Vector3(0.2, 0.08, 0.19), 10, 4, canvas, Vector2(0.85, 0.0), 6, 0.2)
+	g.cyl(Vector3(0, h * 0.5, 0), 0.24, 0.2, h * 0.5 + 0.02, 14, canvas, Vector2(0.85, 0.0), false)
+	g.cyl(Vector3(0, h * 0.5 - 0.06, 0), 0.25, 0.24, 0.06, 14, canvas, Vector2(0.85, 0.0), false)
+	g.cyl(Vector3(0, h * 0.72, 0), 0.215, 0.215, 0.04, 12, dark, Vector2(0.6, 0.0), false)
 	g.mode = 2
 	g.abox(Vector3(0, h * 0.5, 0), Vector3(0.3, h, 0.3), alu, Vector2(0.4, 0.9))
 	g.abox(Vector3(0, h - 0.25, 0), Vector3(0.45, 0.6, 0.45), canvas, Vector2(0.85, 0.0))
 	g.mode = 0
-	# A rolled canopy bag lies at its foot.
-	g.ellipsoid(Transform3D(Basis(Vector3.UP, 0.4) * Basis(Vector3.FORWARD, PI * 0.5), Vector3(0.45, 0.13, 0.25)), Vector3(0.12, 0.6, 0.12), 8, 4, dark, Vector2(0.7, 0.0))
+	# Its wheeled carry bag, empty, folded flat against its foot.
+	g.box(Transform3D(Basis(Vector3.RIGHT, -0.12), Vector3(0.0, 0.42, -0.3)), Vector3(0.42, 0.8, 0.05), col(Color(0.12, 0.16, 0.13), C_CLOTH), Vector2(0.85, 0.0))
 	var mesh := g.commit(0.06)
 	_meshes.canopy_folded = mesh
 	return mesh
