@@ -385,6 +385,7 @@ func begin_build() -> void:
 				if level == Level.FULL:
 					_steps.append(_build_intersection.bind(plan.intersection(ix + 1, iz + 1)))
 				_steps.append(_build_freeway)
+				_steps.append(_build_light_rail)
 				if level == Level.FULL and plan.macro:
 					_steps.append(_build_landmarks)
 				_steps.append(_finish_build)
@@ -403,6 +404,8 @@ func begin_build() -> void:
 	# The freeway runs over every zone: city blocks, the beach, the hills, the lot. It is built
 	# last so its deck lands on top of whatever the chunk laid down.
 	_steps.append(_build_freeway)
+	# The light rail (LightRail, LightRailKit): track, structure, overhead, stations, gates.
+	_steps.append(_build_light_rail)
 	if level == Level.FULL and plan.macro:
 		_steps.append(_build_landmarks)
 	if level == Level.FULL:
@@ -2085,14 +2088,14 @@ func _build_roads(block: Dictionary) -> void:
 	# ground covers it. A closed segment is closed along the whole block.
 	var open_x := plan.road_open(CityPlan.AXIS_X, ix + 1, rect.get_center().y)
 	if open_x:
-		_add_slab(Vector3(rx, ROAD_TOP * 0.5, rect.get_center().y), Vector3(wx, ROAD_TOP, rect.size.y), asphalt, true, look_x.material)
+		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
 	# Horizontal road on the +Z side, spanning this block's X range.
 	var look_z := _road_look(CityPlan.AXIS_Z, iz + 1, params)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
 	var open_z := plan.road_open(CityPlan.AXIS_Z, iz + 1, rect.get_center().x)
 	if open_z:
-		_add_slab(Vector3(rect.get_center().x, ROAD_TOP * 0.5, rz), Vector3(rect.size.x, ROAD_TOP, wz), asphalt, true, look_z.material)
+		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
 		_add_slab(Vector3(rx, ROAD_TOP * 0.5, rz), Vector3(wx, ROAD_TOP, wz), asphalt, true, look_x.material)
@@ -2101,6 +2104,39 @@ func _build_roads(block: Dictionary) -> void:
 			_mark_road(true, rx, wx, rect.position.y, rect.end.y, look_x)
 		if open_z:
 			_mark_road(false, rz, wz, rect.position.x, rect.end.x, look_z)
+
+
+## A road's slab over `r`, less the light rail's portal trench where it runs down the middle
+## (LightRail.cuts_in(): the slab is laid round the hole in up to four pieces).
+func _road_slab(r: Rect2, asphalt: Color, material: Material) -> void:
+	var rail := LightRail.of(plan)
+	var cuts: Array[Rect2] = []
+	if rail != null and not capturing and level == Level.FULL:
+		cuts = rail.cuts_in(r)
+	if cuts.is_empty():
+		_add_slab(Vector3(r.get_center().x, ROAD_TOP * 0.5, r.get_center().y), Vector3(r.size.x, ROAD_TOP, r.size.y), asphalt, true, material)
+		return
+	var hole := cuts[0].intersection(r)
+	var pieces: Array[Rect2] = [
+		Rect2(r.position.x, r.position.y, hole.position.x - r.position.x, r.size.y),
+		Rect2(hole.end.x, r.position.y, r.end.x - hole.end.x, r.size.y),
+		Rect2(hole.position.x, r.position.y, hole.size.x, hole.position.y - r.position.y),
+		Rect2(hole.position.x, hole.end.y, hole.size.x, r.end.y - hole.end.y),
+	]
+	for p in pieces:
+		if p.size.x > 0.05 and p.size.y > 0.05:
+			_add_slab(Vector3(p.get_center().x, ROAD_TOP * 0.5, p.get_center().y), Vector3(p.size.x, ROAD_TOP, p.size.y), asphalt, true, material)
+
+
+## The light rail's works in this chunk (LightRailKit), after the freeway: FULL chunks only. An
+## LOD chunk, the far city's capture and everything past them see the line as LightRailSystem's
+## one far mesh (a little inside the FULL works, so where both draw only the detail shows).
+func _build_light_rail() -> void:
+	if capturing or level != Level.FULL or LightRail.of(plan) == null:
+		return
+	if zone != MacroMap.Zone.CITY and zone != MacroMap.Zone.BEACH:
+		return
+	LightRailKit.new(self).build_all()
 
 
 ## Asphalt sets and tints a road can wear; a road keeps one along its length.
@@ -2146,6 +2182,11 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 		return
 	var avenue := width >= plan.avenue_width - 0.1
 	var yaw := 0.0 if along_z else PI * 0.5
+	# Nothing painted over the light rail's portal trench (LightRail.cuts_in()).
+	var rail := LightRail.of(plan)
+	var cuts: Array[Rect2] = []
+	if rail != null:
+		cuts = rail.cuts_in(Rect2(center - width, a, width * 2.0, b - a) if along_z else Rect2(a, center - width, b - a, width * 2.0))
 	# One or two manhole covers in a lane, seeded by the road position.
 	var mh := RandomNumberGenerator.new()
 	mh.seed = hash([center, a, along_z])
@@ -2153,6 +2194,8 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 		var t := mh.randf_range(a + 4.0, b - 4.0)
 		var lane := (width * 0.25) * (1.0 if mh.randf() < 0.5 else -1.0)
 		var pos := Vector3(center + lane, ROAD_TOP - 0.025, t) if along_z else Vector3(t, ROAD_TOP - 0.025, center + lane)
+		if _in_cuts(cuts, pos):
+			continue
 		_batch.add("manhole", PropFactory.model_manhole(), Transform3D(Basis(Vector3.UP, mh.randf_range(0.0, TAU)), pos))
 	if avenue:
 		for side: float in [-0.3, 0.3]:
@@ -2162,7 +2205,8 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 				var piece := minf(4.0, b - t0)
 				var mid := t0 + piece * 0.5
 				var pos := Vector3(center + side, ROAD_TOP + 0.01, mid) if along_z else Vector3(mid, ROAD_TOP + 0.01, center + side)
-				_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, piece / 3.0)), pos), line)
+				if not _in_cuts(cuts, pos):
+					_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, piece / 3.0)), pos), line)
 				t0 += piece
 	elif solid:
 		var t0 := a
@@ -2170,14 +2214,24 @@ func _mark_road(along_z: bool, center: float, width: float, a: float, b: float, 
 			var piece := minf(4.0, b - t0)
 			var mid := t0 + piece * 0.5
 			var pos := Vector3(center, ROAD_TOP + 0.01, mid) if along_z else Vector3(mid, ROAD_TOP + 0.01, center)
-			_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, piece / 3.0)), pos), line)
+			if not _in_cuts(cuts, pos):
+				_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(1.0, 1.0, piece / 3.0)), pos), line)
 			t0 += piece
 	else:
 		var t := a + 1.5
 		while t < b - 1.5:
 			var pos := Vector3(center, ROAD_TOP + 0.01, t) if along_z else Vector3(t, ROAD_TOP + 0.01, center)
-			_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw), pos), line)
+			if not _in_cuts(cuts, pos):
+				_batch.add("dash", PropFactory.dash(), Transform3D(Basis(Vector3.UP, yaw), pos), line)
 			t += 6.0
+
+
+## Whether a point (world XYZ) falls in one of `cuts` (the rail trench's holes in the road).
+static func _in_cuts(cuts: Array[Rect2], pos: Vector3) -> bool:
+	for r in cuts:
+		if r.grow(0.6).has_point(Vector2(pos.x, pos.z)):
+			return true
+	return false
 
 
 # --- Block -----------------------------------------------------------------------------
@@ -2235,6 +2289,13 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			# The people at the camps, one a step, before the block's walkers take the crowd cap.
 			for i in Encampment.PEOPLE_STEPS:
 				steps.append(func() -> void: Encampment.spawn_sleeper(self, rect, sleepers, i))
+		# Street vendors (StreetVendors): carts, trucks and their people. Hash-seeded by block and
+		# face and by the hour; the block's rng is untouched. Before the parked cars, which keep
+		# out of a truck's stretch of kerb.
+		if StreetVendors.wanted(self, block):
+			steps.append(func() -> void: StreetVendors.build_block(self, block))
+			for i in StreetVendors.MAX_PER_BLOCK:
+				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
 	return steps
@@ -2429,14 +2490,22 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	if count[0] >= max_cars or rng.randf() > 0.55 or not PhysicsBudget.can_spawn():
 		return
 	var car := Vehicle.random_car(rng)
-	if plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0):
-		# After the rolls, so the chunk rng runs the same whether or not the spot is used.
+	if (plan.macro and Landmarks.covers(plan, Vector2(spot[0].x, spot[0].z), 3.0)) or BigVehicles.in_stop_zone(plan, Vector2(spot[0].x, spot[0].z)):
+		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
+		# stop's kerb is kept clear for the bus (BigVehicles).
 		car.free()
 		return
 	var holder: Node = get_parent() if get_parent() else self
 	var spot_pos: Vector3 = spot[0] + Vector3(0.0, 0.3 + _gy(spot[0].x, spot[0].z), 0.0)
 	car.position = WorldState.to_local(spot_pos) if holder != self else spot_pos
 	car.rotation.y = spot[1] + (PI if rng.randf() < 0.5 else 0.0)
+	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
+	# block's stream (and the walkers after it) runs the same with or without the truck.
+	# It counts as parked, so the cap (and with it the rolls) is the same too.
+	if StreetVendors.blocks_parking(self, spot[0]):
+		car.free()
+		count[0] += 1
+		return
 	holder.add_child(car)
 	# A chunk still being built is hidden until it is finished (CityStreamer), and its cars
 	# live under the city root rather than under it, so they are hidden with it by hand.
@@ -3085,6 +3154,8 @@ func _build_sidewalk_props(rect: Rect2, params: Dictionary, rng: RandomNumberGen
 			add_child(can)
 	_build_clutter(rect, edges, params, rng)
 	StreetDetail.build_block(self, rect, edges, params, block_district, rng)
+	# The shelters of the bus lines' stops on this block (hash-seeded, no rng).
+	BigVehicles.build_bus_stops(self, rect, edges)
 
 
 # --- Intersections ---------------------------------------------------------------------
@@ -3943,7 +4014,12 @@ func _lot_under_freeway(lot: Dictionary) -> bool:
 	if plan.macro == null or plan.macro.freeway == null:
 		return false
 	var size: Vector2 = lot.size
-	return plan.macro.freeway.blocks_rect(Rect2((lot.center as Vector2) - size * 0.5, size), LOT_FREEWAY_MARGIN)
+	var rect := Rect2((lot.center as Vector2) - size * 0.5, size)
+	# The light rail's structure keeps its lots clear the same way (LightRail.blocks_rect()).
+	var rail := LightRail.of(plan)
+	if rail != null and rail.blocks_rect(rect, 2.0):
+		return true
+	return plan.macro.freeway.blocks_rect(rect, LOT_FREEWAY_MARGIN)
 
 
 ## Deck segments of the freeway crossing this chunk.

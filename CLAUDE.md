@@ -673,6 +673,91 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   of the junction ahead of the camera, walkers on the crosswalk in front of it; `--hour=21` for
   the heads at night). Checks: `tests/street_life_checks.gd`, loaded by the smoke test like the
   air traffic's.
+- Light rail (2026-10-04, "a light rail line, like LA Metro's, with its own original name, colour
+  and livery"): the **Coral Line** of the invented **Basin Metro** (coral `LightRail.LINE_COLOR`,
+  bullet "C"). **The line is a DATA TABLE** (`LightRail`, `scripts/world/light_rail.gd`: `ROUTE`,
+  `PORTAL`, `STATIONS`, the speeds and timetable numbers), resolved once per plan
+  (`LightRail.of(plan)`, cached; `RAIL=0` in the environment turns it off): downtown it is the real
+  Flower St corridor at 1:1 (`DowntownReal`) - underground from a terminus at 7th St, a portal
+  ramp in the median south of 11th St (`PORTAL.daylight`), at grade down the middle of Flower
+  past Pico, then onto an aerial structure that climbs over the 10, curves west (radius 28 m) onto
+  the seeded boulevard that plays Exposition (the first AXIS_Z road south of `turn.south_of` at
+  least `min_width` wide: River Blvd on the default seed), crosses over the 110 and the 105 on the
+  structure, comes down to grade and runs down the boulevard's median to a terminus in the beach
+  town. Samples every `STEP` 2 m: `pts`, `dirs`, `run` (s), `rail` (rail top), `street`, `half`
+  (half the track spacing: 2.1, spread round each island platform), `mode` (TUNNEL, TRENCH, GRADE,
+  AERIAL). **The structure is the upper envelope of MAX_GRADE (5.8 %) cones** from every point it
+  must clear (each freeway deck crossed at grade, `AERIAL_CLEAR` over the deck top, across the
+  deck's whole width however oblique) and from each aerial station (held level over the
+  platform), eased, never under the street - grade-limited by construction, like the freeway's
+  `_clear_ground()`. Stations: `name` fixed or "<street> / <nearest crossing road>"; an at-grade
+  one is slid into the nearest block that holds the platform and its ramps clear of the crosswalks
+  (`_fit_in_block()`). Crossings: every junction the line crosses at grade (`crossings`: node,
+  axis of the road crossed, gates outside downtown, signal pre-emption inside). Poles every
+  `POLE_SPACING`, slid off junctions (`poles`, `span_at()`). Queries: `sample(s)`,
+  `track_point(s, side)` (right-hand running: a train running +s uses side +1), `indices_in(rect)`
+  (segments by midpoint, built once), `street_rail(axis, index)`, `blocks_rect()` (lots keep off
+  the structure: `CityChunk._lot_under_freeway()` asks it), `cut_rects()` / `cuts_in()` (the
+  trench: `CityChunk._road_slab()` lays the road round it in pieces and `_mark_road()` paints
+  nothing over it). **The timetable is worked out, never ticked**: per direction a trip of
+  (time, nose s) from the speed limits (`_limit()`: tunnel, trench, street downtown and out, the
+  structure, the curve) by a forward accelerate / backward brake pass, `DWELL` at each station and
+  `TURNAROUND` at the start; the fleet fills the round trip at about `TARGET_HEADWAY` and the
+  two directions' phases make the train that arrives at a terminus the one that leaves it
+  (double-ended cars, the pantographs on the ends that swap). `trains_at(clock)` (id, dir, s, v,
+  dwell, doors), `crossing_state()` / `crossing_phase()` (seconds closed, or minus seconds open:
+  the gates are posed from it), `clock_at_station()` / `clock_at_crossing()` / `clock_at_s()`
+  (tests and stills). `LightRail.clock` is the shared clock; `LightRail.closed` the crossings closed
+  this tick (node -> axis of the road stopped). **`LightRailKit`** (`scripts/world/light_rail_kit.gd`,
+  extends FreewayKit for its tri/quad/box/prism/letters and its structure, paint and pool
+  materials; `CityChunk._build_light_rail()`, a step after the freeway, never in capture mode):
+  at grade a concrete trackway a hair over the asphalt with the rails' heads and flangeways
+  flush in it; the trench (U-walls with a parapet, a headwall and a dark bore at the mouth, wall
+  collision); the box-girder structure with parapets, a ballast bed, concrete sleepers and RAIL
+  PROFILES (`RAIL_PROFILE`, a 115 lb section, FULL only), round columns with hammerhead caps every
+  `COLUMN_SPACING` (never in a junction or over a freeway: the span grows), deck collision;
+  centre poles with cantilevers, stays and registration arms, the messenger sagging between
+  poles, droppers and the contact wire staggered +-0.2 m pole to pole (FULL); island platforms
+  (tactile edges, ramps to the crosswalks with handrails, or a lift tower on the structure), a
+  canopy on a row of columns with a coral band and lit strips, benches, ticket machines, a lit map
+  case, a lit name pylon and hanging name signs (lettering in the paint mesh), light pools; the
+  underground terminus as two stair kiosks in Flower's median; level crossing masts (flasher
+  hoods, crossbuck, bell, mechanism) with a `RailGate` node each (`scripts/world/rail_gate.gd`:
+  the striped arm on its pivot, its lamps and the alternating flashers - posed from the phase,
+  arm down `PRE_FLASH` after the lamps start, over `ARM_SECONDS`); traction substations under the
+  structure; and `RailRider`s waiting on the platform (`scripts/npc/rail_rider.gd`, a Pedestrian
+  that drifts along the island and mostly stands, on the platform's deck height, in the crowd
+  cap). Three meshes a chunk (RailStructure, RailSigns, RailGlow) plus RailBody and the gates; LOD
+  chunks keep the structure, the trackway, poles as boxes, platforms and canopies, no wires.
+  **`LightRailSystem`** (`scripts/world/light_rail_system.gd`, the `LightRail` Node3D in city.tscn)
+  advances the clock each physics tick (`RAIL_HOLD=1` holds it; `RAIL_AT=<station>:<dir>[:<s>]`,
+  `RAIL_CROSS=<crossing>:<dir>[:<s before>]`, `RAIL_S=<s>:<dir>` set it for stills) and works out
+  the rest: the nearest `max_detailed` trains within `detail_range` are pooled `LightRailTrain`s
+  (`scripts/vehicles/light_rail_train.gd`: two cars of two sections of `assets/models/light_rail_car.glb`
+  from `tools/make_light_rail.py`, Blender headless - see its header for the node and slot
+  contract - each section a `RailSection` AnimatableBody3D on the props layer, mask 0, laid on its
+  two bogie pivots by `section_world()`, bogies turned to the track, the platform-side doors
+  (the train's left) sliding open while it dwells, the lead cab's headlights, display and a
+  SpotLight3D on Forward+, the rear's tail lights, windows on `shaders/lrv_glass.gdshader` (the
+  saloon traced in model space: seats, ceiling strip, far windows; emitted mirror), the interior
+  box on `lrv_interior.gdshader`, a rolling loop); the rest within `far_range` are lit boxes in one
+  MultiMesh (`lrv_far.gdshader`, windows glowing after dark); trains in the tunnel are drawn by
+  nobody. It closes the crossings near the player (`LightRail.closed`, which TrafficManager's stop
+  rule reads beside the signals - `LightRail.crossing_closed(node, axis)`; and `_lane_offset()` /
+  `place_car()` keep a rail street's traffic to its outer lane), poses every `RailGate`, rings a
+  bell at the nearest closed ones, sounds the horn at a player ahead and the gong before a
+  crossing, sends waiting riders to the open doors and lets others off (`_passengers()`), knocks
+  down whoever stands in front of a moving train (the player launched and hurt; pedestrians
+  knocked, never the player's crime: `Police.innocent`), and draws the line itself past the
+  streamed chunks (`_build_far_line()`, `shaders/light_rail_far_line.gdshader`, dithered in from
+  `far_line_start`; it is not a Skyline capture, because the line is not a block). Weapons hit a
+  train like anything with `take_hit()`; WeaponFX calls the `rail_vehicle` group metal (sparks,
+  the ping, holes parented to the section); it keeps running. Sfx `rail_bell`, `rail_horn`,
+  `rail_gong`, `rail_roll`. Probe: `tools/light_rail/probe.gd` prints the line (modes, stations,
+  crossings, flyovers, the timetable); `tools/light_rail/compile.gd` compiles the scripts in
+  seconds. Checks: `tests/light_rail_checks.gd`. Known gaps: police cruisers still drive lane 0
+  (over the trackway) on a rail street; the player can stand on the invisible GroundBody plane in
+  the trench.
 - Cars fly (owner, 2026-09-20: "easily fly cars around the way I fly the main character"). A
   car that leaves the ground goes into stabilised flight (`Vehicle._fly()`): it holds itself
   level instead of tumbling, the stick aims it (W/S nose down/up, A/D turn with a bank), and
@@ -1003,6 +1088,48 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   material on the lamps); in the city `CAR_LIGHTS=1` on `still_shot.gd` forces them onto an
   opengl3 still, and every GEO line there is followed by a `LIGHTS` line (car spots and street
   lamps, on and in view). Checks: `tests/car_lights_checks.gd`.
+- Big vehicles (2026-10-04, "buses and trucks in traffic"): `BigVehicles`
+  (`scripts/vehicles/big_vehicles.gd`) - a 40 ft city bus (`BodyType.BUS`, the invented agency
+  BASIN TRANSIT: white over a teal skirt), a cab-over box truck (`BOX_TRUCK`, invented fleets on
+  the box) and a sleeper semi with a 53 ft dry van (`SEMI`). They ARE Vehicles (appended to
+  `BodyType`, `BODY_ODDS` 0 so `random_car()` never rolls them; `BigVehicles.make(type, look)`
+  builds one), so kinematic traffic, `drop_out_of_traffic()` / `take_hit()`, CarDamage, CarCabin
+  glass and drivers, CarLights, PhysicsBudget and the pools all work unchanged; `tune()` scales
+  mass (x5.5-11) with engine, brakes and suspension. Bodies: `tools/make_big_vehicles.py`
+  (Blender; imports `make_road_cars.py` and reuses its loft, booleans, raycast parts, slots and
+  far twin - run `blender -b --factory-startup -P tools/make_big_vehicles.py -- bus box_truck
+  semi [--render]`, then `--import`; it prints the WHEEL_POSE / `_dims()` rows, the sign rects,
+  the door hinges and the kingpin). Two slots more: `sign` (the bus's LED destination signs,
+  `shaders/bus_sign.gdshader`, 5 x 7 glyphs from `LedScreen.GLYPHS`, one shared material per
+  line and destination, `BigVehicles.sign_material()`) and `glass_door` (plain glass: a door
+  leaf moves, the cabin trace works in the body's space). Extra nodes by name: `door_fa/fb/ra/rb`
+  (each leaf's origin its hinge; `BusFittings` swings them open at a stop and kneels the body
+  toward the kerb), `road_semi_trailer(_far)` (origin the kingpin; `Hitch` moves it onto a pivot
+  and drags the trailer's axle toward the kingpin each tick - a tractrix - so a snapped junction
+  turn swings it round behind, `MAX_ANGLE` 1.35 rad; physical, the rig straightens and is rigid;
+  the trailer's collision is one box on the car moved with the pivot). **The body is centred and
+  scaled without the trailer or the doors** (`_add_body_model()`); a semi's `_dims()` are the
+  tractor's, with `kingpin`, `trailer_rear` (TrafficManager's `rear` extent: a car queues behind
+  the END of the trailer) and `light_len` / `light_z` (the lamp mesh runs the whole rig). Wheels:
+  WHEEL_POSE `axles` ([z, dual]) and `trailer_axles` go to `BigVehicles.add_wheels()`: truck
+  wheels (`wheel_mesh()`: tyre, painted steel or polished disc with ten hand holes, hub, nuts;
+  ~1.3k triangles near, a dual PAIR one mesh), each rig carrying its own near/far mesh at [6]/[7].
+  `_dims()` `tyre_r` for these is the PHYSICS radius, set so a parked one stands where traffic
+  stands it (car_shot.gd CONTACT). Lettering is a shared TextMesh per (name, size, colour) on each
+  side, 55 m, not on the web. **Lines and stops are worked out, never placed**:
+  `route_of(plan, axis, index)` (half the avenues, a hash), `block_stop(plan, axis, index, k,
+  dir)` (where the nose stops on the block between crossings k and k+1, far side, about every
+  other block), `in_stop_zone()` (the chunk's parked cars keep off the stop's kerb, after their
+  rolls), `build_bus_stops()` (a shelter by the front door, from `_build_sidewalk_props`, no
+  rng). TrafficManager: `_street_kind()` (on a line `BUS_SHARE_ON_ROUTE` are buses, in the kerb
+  lane, no turns of their own, signs lit; box trucks and semis a few %, x3 in INDUSTRIAL),
+  `_new_car(kind)` pools by kind, a bus treats its stop as a standing car, pulls `STOP_SHIFT`
+  toward the kerb and dwells (`_bus_dwell`: doors, kneel, `DWELL`), freeway semis and box trucks
+  in the slow lane, gaps counting `rear`. CarCabin draws a bus's rows of seat pairs and
+  passengers (`bus_rows`, `interior_lamp`: the cabin lit after dark) and seats only its driver.
+  Stills: `BIG=bus` (a bus at the stop nearest the camera, doors open, a pavement EYE), `BIG=semi
+  BIG_ROUTE=110` on `still_shot.gd`, `STREET=queue STREET_BIG=10` (a box truck in the queue),
+  `car_shot.gd --each=9,10,11` (`BUS_DOORS=1`). Checks: `tests/big_vehicle_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
@@ -2433,7 +2560,11 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   ponytail through the opening, a braid) left alone, triangles left wholly inside and the cards
   that would hang in front of the face (a fringe) dropped; one copy per hair mesh, rig and kind.
   No mesh data (the headless check) or a rig marked `"hide"` (hair too thick to press) hides the
-  cards as before. `Pedestrian._add_accessory()` makes the same three `_style` rolls as the box
+  cards as before. A dropped fringe leaves the scalp painted under it (a black eye on crowd_h
+  and crowd_c), so a hat wearer's body draws on a copy of its material with `hat_face` on
+  (`CrowdHat.fit_face()` / `face_fix()`, docs/HANDOFF.md 9bg follow-up): below the band, a
+  texel less skin-like than its mirror image across the face takes the mirror's (the mirror is a
+  reflection in the atlas fitted per rig from the head's own mirror vertex pairs). `Pedestrian._add_accessory()` makes the same three `_style` rolls as the box
   hats did (CampFigure.seed_for() depends on them; a bucket hat is the top tenth of the old cap
   roll), the ragdoll a hatted person becomes wears it too (`_dress_doll()`), a rough sleeper's is
   the worn colourway (`material(kind, pick, true)`: dulled, faded, grime), `PoliceOfficer` uses
@@ -2441,6 +2572,35 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
   `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
   checks: `tests/crowd_hat_checks.gd`.
+- Street vendors (VISUAL_ROADMAP #52, 2026-10-04: "taco trucks at night, fruit carts under
+  umbrellas"): `StreetVendors` (`scripts/world/street_vendors.gd`, static) - taco trucks at the
+  kerb with a lit menu board, the serving window open under its propped flap, a lit kitchen
+  inside, a generator on the back (Sfx `generator`, a real CC0 loop); fruit and elote carts under
+  striped market umbrellas; bacon-wrapped hot dog carts with a string of bulbs; paleta push carts;
+  flower and balloon sellers at corners. Every mesh is code at real size on ONE shader
+  (`shaders/street_vendor.gdshader`: what a face is in the vertex alpha - steel, paint from
+  INSTANCE_CUSTOM.rgb, canvas stripes by the angle round the pole, lightbox, food pictures, lit
+  interior, bulbs, glass, food, LED; codes 0.05 apart), one batch per kind a chunk (`vend_*`),
+  lettering from TextMesh merged in (invented names and menus, `TRUCKS`). **The instance COLOR
+  multiplies every vertex colour** (it would tint the umbrella's pole), so the canvas's second
+  stripe is the shader's `CANVAS2[INSTANCE_CUSTOM.a * 8]` copy of `CANVAS` (checked). Placement
+  is pure (`plan_block(plan, ix, iz, hour)`): by place (`Place`: downtown, midtown, industrial
+  lunch trucks, parks, the faces across from MacArthur Park, round the arena, the beach town) and
+  face (`ODDS`), by the hour the chunk is built at (`SCHEDULE`, hashed shifts, trucks at night,
+  carts by day; `force_hour` for tests), all hashes of seed + block + face + kind. A FULL block's
+  step after the camps: a truck parks in this chunk's own parking lane (+x / +z faces only),
+  serving side to the kerb, as a `_add_prop` that never breaks (rounds spark off it as metal; its
+  collision leaves the window open, so a round through it finds the cook); the parked cars skip
+  its stretch AFTER all their rolls and count it as parked (`blocks_parking()`), so the block's
+  stream is unmoved. A cart is an `EncampmentItem` (tips over as a real body, stays gone). Night:
+  pools in the chunk's `shop_spill` batch and one `lamp_light` omni per truck / hot dog cart.
+  People: `StreetVendor` (`scripts/npc/street_vendor.gd`, a Pedestrian with the life clips) at
+  the stand, talking to whoever waits; a cart vendor flees gunfire and walks back; a truck's cook
+  is kinematic on the truck floor (`lift`) and ducks. Customers are walkers: chunk meta
+  `vendor_queue` spots, taken by `Pedestrian._plan_queue()` (no roll on a chunk without vendors).
+  `STREET_VENDORS=0` turns it off (the A/B). Look with `tools/glshot/vendor_shot.gd` (the stands
+  alone, seconds; `NIGHT=1`) and find them with `tools/vendor_probe.gd`; checks:
+  `tests/street_vendors_checks.gd`.
 - The hero (owner, 2026-09-24: "Blender with real fingers from scratch AAA studio level"):
   `assets/models/hero.glb`, built by **`tools/hero/`** in Blender 4.2 with MPFB2 from CC0
   MakeHuman assets plus our own tracksuit, rib tank, rope chain, watch, ring, laced sneakers and

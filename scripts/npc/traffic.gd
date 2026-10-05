@@ -155,13 +155,38 @@ func _run_spawns() -> void:
 
 ## A car for a spawn: a retired one from the pool when there is one, else a new build (counted
 ## against builds_per_frame).
-func _new_car() -> Vehicle:
-	while not _pool.is_empty():
-		var car: Vehicle = _pool.pop_back()
-		if is_instance_valid(car):
-			return car
+func _new_car(kind: int = -1) -> Vehicle:
+	# `kind` a big vehicle's body type (BigVehicles), or -1 for an ordinary car: a pooled one of
+	# the same sort when there is one.
+	for i in range(_pool.size() - 1, -1, -1):
+		var pooled: Vehicle = _pool[i]
+		if not is_instance_valid(pooled):
+			_pool.remove_at(i)
+			continue
+		if (kind < 0 and not BigVehicles.is_big(pooled.body_type)) or pooled.body_type == kind:
+			_pool.remove_at(i)
+			if pooled.has_node("Hitch"):
+				(pooled.get_node("Hitch") as BigVehicles.Hitch).straighten()
+			return pooled
 	_built_this_frame += 1
+	if kind >= 0:
+		return BigVehicles.make(kind, _rng.randi())
 	return Vehicle.random_car(_rng)
+
+
+## What a new street car on road (axis, index) is: a bus on a line (sometimes), now and then a box
+## truck or a semi (more of them in the industrial district), else -1 (an ordinary car).
+func _street_kind(axis: int, index: int, at: Vector2) -> int:
+	var roll := _rng.randf()
+	if BigVehicles.route_of(plan, axis, index) != 0 and roll < BigVehicles.BUS_SHARE_ON_ROUTE:
+		return BigVehicles.BUS
+	roll = _rng.randf()
+	var k := 3.0 if plan.district_at(at) == CityPlan.District.INDUSTRIAL else 1.0
+	if roll < BigVehicles.STREET_SEMI_SHARE * k:
+		return BigVehicles.SEMI
+	if roll < (BigVehicles.STREET_SEMI_SHARE + BigVehicles.STREET_BOX_SHARE) * k:
+		return BigVehicles.BOX_TRUCK
+	return -1
 
 
 ## Takes a traffic car off the road: into the pool if there is room, freed otherwise.
@@ -242,13 +267,24 @@ func _spawn_near(pw: Vector3, density: float = 1.0) -> void:
 	# checks the crossing after, and drove straight on into a road closed by a landmark's site.
 	if plan.zone_at(pos2) != MacroMap.Zone.CITY or _replica_blocks(pos2, 6.0) or not plan.road_open(axis, index, along) or not plan.road_open(axis, index, along + dir * 15.0):
 		return
+	var kind := _street_kind(axis, index, pos2)
+	if kind == BigVehicles.BUS:
+		# A bus runs in the kerb lane, where its stops are.
+		var width := plan.road_width(axis, index)
+		var lanes := 2 if width > plan.street_width + 1.0 else 1
+		lane = signf(lane) * CityPlan.lane_center(width, lanes, lanes - 1)
+		pos2 = Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
 	# Never inside a car already in that lane: the queue keeps cars apart, it cannot pull apart
 	# two that start inside each other.
-	if not _lane_clear(axis, index, dir, lane, along, SPAWN_CLEARANCE):
+	if not _lane_clear(axis, index, dir, lane, along, SPAWN_CLEARANCE + (16.0 if kind >= 0 else 0.0)):
 		return
-	var car := _new_car()
+	var car := _new_car(kind)
 	var speed := _rng.randf_range(speed_range.x, speed_range.y) * lerpf(1.0, dense_speed_factor, density)
-	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed, "v": speed * 0.8, "half": car_half_length(car)}
+	if kind >= 0:
+		speed *= 0.8
+	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed, "v": speed * 0.8, "half": car_half_length(car), "rear": car_rear_length(car)}
+	if kind == BigVehicles.BUS:
+		_board_line(car, axis, index, dir)
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
 	# Placed where it belongs before it enters the tree (_enter_at()).
@@ -302,16 +338,21 @@ const SPAWN_CLEARANCE := 14.0
 ## A street car put exactly here (tests and screenshots): on road (axis, index) driving `dir`, in
 ## lane `lane_n` (0 = beside the centre line), `along` metres along the road (true world), at
 ## `speed`. `turns` false keeps it straight on through every junction.
-func place_car(axis: int, index: int, dir: int, lane_n: int, along: float, speed: float, turns: bool = true) -> Vehicle:
+## `kind` a big vehicle's body type (BigVehicles; a bus is put on its road's line if it has one).
+func place_car(axis: int, index: int, dir: int, lane_n: int, along: float, speed: float, turns: bool = true, kind: int = -1) -> Vehicle:
 	var width := plan.road_width(axis, index)
 	var lanes := 2 if width > plan.street_width + 1.0 else 1
+	if _rail_street(axis, index):
+		lane_n = lanes - 1
 	var side := -dir if axis == CityPlan.AXIS_X else dir
 	var lane := side * CityPlan.lane_center(width, lanes, clampi(lane_n, 0, lanes - 1))
 	var pos2 := Vector2(plan.road_pos(axis, index) + lane, along) if axis == CityPlan.AXIS_X else Vector2(along, plan.road_pos(axis, index) + lane)
-	var car := _new_car()
-	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed, "v": speed, "half": car_half_length(car)}
+	var car := _new_car(kind)
+	car.traffic = {"axis": axis, "index": index, "dir": dir, "lane": lane, "speed": speed, "v": speed, "half": car_half_length(car), "rear": car_rear_length(car)}
 	if not turns:
 		car.traffic.no_turns = true
+	if kind == BigVehicles.BUS and BigVehicles.route_of(plan, axis, index) != 0:
+		_board_line(car, axis, index, dir)
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
 	_enter_at(car, WorldState.to_local(Vector3(pos2.x, _relief(pos2) + CityChunk.ROAD_TOP + car.road_lift(), pos2.y)), _heading(axis, dir), 0.0)
@@ -325,6 +366,25 @@ static func car_half_length(car: Vehicle) -> float:
 	return float(car._dims().length) * 0.5
 
 
+## How far a car reaches back from its origin (m): half its length, or a semi's whole trailer.
+static func car_rear_length(car: Vehicle) -> float:
+	var d := car._dims()
+	if d.has("trailer_rear"):
+		return float((d.kingpin as Vector3).z) + float(d.trailer_rear)
+	return float(d.length) * 0.5
+
+
+## A bus put on line (axis, index) heading `dir`: no turns of its own, its signs lit.
+func _board_line(car: Vehicle, axis: int, index: int, dir: int) -> void:
+	car.traffic.no_turns = true
+	var line := BigVehicles.route_of(plan, axis, index)
+	car.traffic.bus = line
+	var fit := car.get_node_or_null("BusFittings") as BigVehicles.BusFittings
+	if fit:
+		fit.show_line(line, BigVehicles.destination(plan, axis, index, dir))
+		fit.set_doors(false)
+
+
 ## True when nothing in lane (axis, index, dir, lane) is within `clear` metres of `along`.
 func _lane_clear(axis: int, index: int, dir: int, lane: float, along: float, clear: float) -> bool:
 	var key := lane_key(axis, index, dir, lane)
@@ -335,7 +395,7 @@ func _lane_clear(axis: int, index: int, dir: int, lane: float, along: float, cle
 		if not t.has("axis") or lane_key(int(t.axis), int(t.index), int(t.dir), float(t.lane)) != key:
 			continue
 		var wp := WorldState.to_world(other.global_position)
-		if absf((wp.z if axis == CityPlan.AXIS_X else wp.x) - along) < clear:
+		if absf((wp.z if axis == CityPlan.AXIS_X else wp.x) - along) < clear + float(t.get("rear", 2.4)) - 2.4:
 			return false
 	return true
 
@@ -345,8 +405,17 @@ func _lane_offset(axis: int, index: int, dir: int) -> float:
 	var width := plan.road_width(axis, index)
 	var lanes := 2 if width > plan.street_width + 1.0 else 1
 	var n := _rng.randi_range(1, lanes)
+	# A light rail street keeps its traffic to the outer lane, clear of the trackway down the
+	# middle (LightRail.street_rail()).
+	if _rail_street(axis, index):
+		n = lanes
 	var side := -dir if axis == CityPlan.AXIS_X else dir
 	return side * CityPlan.lane_center(width, lanes, n - 1)
+
+
+func _rail_street(axis: int, index: int) -> bool:
+	var rail := LightRail.of(plan)
+	return rail != null and rail.street_rail(axis, index)
 
 
 func _heading(axis: int, dir: int) -> float:
@@ -468,13 +537,13 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	var still := INF
 	if leader != null:
 		var lt: Dictionary = leader.traffic
-		var gap: float = (float(lt.along) - along) * dir - half - float(lt.get("half", 2.4))
+		var gap: float = (float(lt.along) - along) * dir - half - float(lt.get("rear", lt.get("half", 2.4)))
 		var lead_v := float(lt.get("v", 0.0))
 		acc = minf(acc, _idm(v, v0, gap, lead_v, min_gap))
 		room = minf(room, gap - 0.4)
 		if lead_v < 0.3:
 			still = minf(still, gap - min_gap)
-	if to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir)):
+	if to_line > -0.6 and (_must_stop(t, node, axis, to_line, v, delta) or Pedestrian.crosswalk_busy(node, axis, -dir) or LightRail.crossing_closed(node, axis)):
 		acc = minf(acc, _idm(v, v0, to_line, 0.0, 0.3))
 		room = minf(room, to_line + 0.3)
 		still = minf(still, to_line - 0.3)
@@ -494,6 +563,25 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 			acc = minf(acc, _idm(v, v0, to_prev_far, 0.0, 0.2))
 			room = minf(room, to_prev_far + 0.2)
 			still = minf(still, to_prev_far - 0.2)
+	# A bus pulls in to its stops (BigVehicles.block_stop()): the stop is something standing still
+	# in front of it until it has stood there with its doors open.
+	var bus_shift := 0.0
+	if t.has("bus"):
+		var k := plan._index_at(cross_axis, along)
+		var key := Vector3i(axis, index, k)
+		var stop := BigVehicles.block_stop(plan, axis, index, k, dir)
+		if not is_nan(stop) and t.get("served", Vector3i(0, 0, -999999)) != key:
+			var to_stop := (stop - along) * float(dir) - half
+			if to_stop < -1.5:
+				t.served = key
+			else:
+				acc = minf(acc, _idm(v, v0, to_stop, 0.0, 0.3))
+				room = minf(room, to_stop + 0.3)
+				still = minf(still, to_stop - 0.3)
+				if to_stop < 32.0:
+					bus_shift = BigVehicles.STOP_SHIFT
+				if v < 0.25 and to_stop < 1.2:
+					_bus_dwell(car, t, key, delta)
 	# The player, on foot or in a car, standing in this lane ahead.
 	if not _player_block.is_empty():
 		var rel: Vector3 = (_player_block[0] as Vector3) - (t.wp as Vector3)
@@ -514,7 +602,8 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	if yielding > 0.0:
 		t.yield_t = yielding - delta
 		acc = minf(acc, -minf(brake_comfort, v * 1.5))
-	t.shift = move_toward(float(t.get("shift", 0.0)), siren_shift if yielding > 0.0 else 0.0, delta * (1.4 if yielding > 0.0 else 0.7))
+	var want_shift := maxf(siren_shift if yielding > 0.0 else 0.0, bus_shift)
+	t.shift = move_toward(float(t.get("shift", 0.0)), want_shift, delta * (1.4 if want_shift > float(t.get("shift", 0.0)) else 0.7))
 	acc = maxf(acc, -brake_max)
 	var nv := maxf(v + acc * delta, 0.0)
 	# Closed up on something standing still: stand still too. The model on its own creeps the
@@ -591,6 +680,26 @@ func _drive_street(car: Vehicle, leader: Vehicle, delta: float, groups: Dictiona
 	var ahead_h := _relief(Vector2(new_wp.x + forward.x * 4.0, new_wp.z + forward.z * 4.0))
 	new_wp.y = here + CityChunk.ROAD_TOP + car.road_lift()
 	_place(car, WorldState.to_local(new_wp), _heading(axis, dir), atan2(ahead_h - here, 4.0))
+
+
+## A bus standing at its stop: the doors open, people get on and off (DWELL), the doors close,
+## and a moment later it is done with this stop (`served`) and the stop stops holding it.
+func _bus_dwell(car: Vehicle, t: Dictionary, key: Vector3i, delta: float) -> void:
+	var fit := car.get_node_or_null("BusFittings") as BigVehicles.BusFittings
+	var need: float = t.get("dwell_need", 0.0)
+	if need <= 0.0:
+		need = _rng.randf_range(BigVehicles.DWELL.x, BigVehicles.DWELL.y)
+		t.dwell_need = need
+	var d := float(t.get("dwell", 0.0)) + delta
+	t.dwell = d
+	if fit:
+		var open := d > 0.7 and d < need
+		if open != fit.want_open:
+			fit.set_doors(open)
+	if d > need + 1.6:
+		t.served = key
+		t.dwell = 0.0
+		t.dwell_need = 0.0
 
 
 ## The Intelligent Driver Model's acceleration toward something `gap` metres ahead of the nose
@@ -907,11 +1016,22 @@ func _fw_anchor(ri: int, here: Vector2) -> float:
 
 func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 	var fw := _freeway()
-	var lane: float = Freeway.lane_fraction(float(fw.routes[ri].width), _rng.randi() % Freeway.LANES) * float(dir)
-	var car := _new_car()
+	var width := float(fw.routes[ri].width)
+	var lane: float = Freeway.lane_fraction(width, _rng.randi() % Freeway.LANES) * float(dir)
+	var roll := _rng.randf()
+	var kind := -1
+	if roll < BigVehicles.FREEWAY_SEMI_SHARE:
+		kind = BigVehicles.SEMI
+	elif roll < BigVehicles.FREEWAY_SEMI_SHARE + BigVehicles.FREEWAY_BOX_SHARE:
+		kind = BigVehicles.BOX_TRUCK
+	if kind >= 0:
+		# Trucks keep to the two slow lanes, a little under the flow.
+		lane = Freeway.lane_fraction(width, Freeway.LANES - 1 - _rng.randi() % 2) * float(dir)
+	var car := _new_car(kind)
 	car.traffic = {
 		"fw": ri, "t": t, "dir": dir, "lane": lane,
-		"speed": freeway_speed * _rng.randf_range(0.88, 1.12),
+		"speed": freeway_speed * _rng.randf_range(0.88, 1.12) * (0.88 if kind >= 0 else 1.0),
+		"half": car_half_length(car), "rear": car_rear_length(car),
 	}
 	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
 	car.freeze = true
@@ -923,6 +1043,22 @@ func _spawn_freeway_car(ri: int, t: float, dir: int) -> void:
 	add_child(car)
 	car.traffic_speed = car.traffic.speed
 	freeway_cars.append(car)
+
+
+## A freeway car put exactly here (tests and screenshots): route `ri`, `t` metres along it,
+## heading `dir`, of `kind` (-1 an ordinary car), in its slow lane if it is a truck.
+func place_freeway_car(ri: int, t: float, dir: int, kind: int = -1, speed: float = -1.0) -> Vehicle:
+	var car := _new_car(kind)
+	var lane: float = Freeway.lane_fraction(float(_freeway().routes[ri].width), Freeway.LANES - 1 if kind >= 0 else 1) * float(dir)
+	car.traffic = {"fw": ri, "t": t, "dir": dir, "lane": lane,
+		"speed": freeway_speed if speed < 0.0 else speed, "half": car_half_length(car), "rear": car_rear_length(car)}
+	car.freeze_mode = RigidBody3D.FREEZE_MODE_KINEMATIC
+	car.freeze = true
+	car.transform = global_transform.affine_inverse() * _freeway_xform(car, _freeway())
+	add_child(car)
+	car.traffic_speed = car.traffic.speed
+	freeway_cars.append(car)
+	return car
 
 
 ## Put a car where its own (route, t, lane, dir) say it should be, on top of the deck.
@@ -976,7 +1112,9 @@ func _drive_freeway(delta: float) -> void:
 			if k + 1 < group.size():
 				var ahead: Vehicle = group[k + 1]
 				var gap: float = absf(float(ahead.traffic.t) - float(car.traffic.t))
-				speed = minf(speed, maxf(0.0, (gap - freeway_gap * 0.6) * 1.4))
+				# Lengths past a car's own: a semi in front is 18 m of trailer behind its origin.
+				var extra := float(car.traffic.get("half", 2.4)) + float(ahead.traffic.get("rear", 2.4)) - 4.8
+				speed = minf(speed, maxf(0.0, (gap - freeway_gap * 0.6 - extra) * 1.4))
 			car.traffic.t = float(car.traffic.t) + float(dir) * speed * delta
 			car.traffic_speed = speed
 			_place_freeway_car(car, fw)

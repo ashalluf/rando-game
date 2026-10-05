@@ -205,6 +205,14 @@ const float FAR_TONE = 0.91;
 
 varying vec3 world_pos;
 
+// The light rail's portal trench (LightRailSystem sets it, TRUE world x0, z0, x1, z1): the plane
+// sinks under it, so the street's hole shows the trench and not the plane at y 0. Its vertices
+// are 44 m apart, so the dip reaches `cut_reach` metres round the cut - all under the city's own
+// ground, which covers the plane everywhere else there.
+uniform vec4 cut_rect = vec4(0.0);
+uniform float cut_sink = 16.0;
+uniform float cut_reach = 60.0;
+
 // Is this texel built-up ground? MacroMap bakes every district and apron as a near-neutral
 // grey (a city from three kilometres up is roofs, asphalt and dust, and it is the one thing
 // out there with no colour in it) and every natural cover - grass, chaparral, rock, sand - with
@@ -245,6 +253,11 @@ void vertex() {
 			* smoothstep(urban_lift_start, urban_lift_end, d) * (1.0 - wet);
 	}
 	float off = lift - far_ground_sink(d, wet);
+	if (cut_rect.z > cut_rect.x) {
+		vec2 tw = wp.xz + world_offset;
+		vec2 cq = max(max(cut_rect.xy - tw, tw - cut_rect.zw), vec2(0.0));
+		off -= cut_sink * (1.0 - smoothstep(0.0, cut_reach, length(cq)));
+	}
 	VERTEX.y += off;
 	world_pos = wp + vec3(0.0, off, 0.0);
 }

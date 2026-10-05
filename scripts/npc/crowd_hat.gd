@@ -115,10 +115,25 @@ const BUCKET_COLORS := [
 const POLICE_NAVY := Color(0.07, 0.08, 0.14)
 const POLICE_GOLD := Color(0.78, 0.62, 0.30)
 
+## The face under a hat (face_fix()): the zone of the face the hat leaves bare where a dropped
+## fringe can have left its painted scalp - radians either side of the front, metres under and
+## over the eyes (the highest band edge is 4.6 cm over them; the hat covers the rest), and how far
+## in from the zone's edge the fix fades to nothing.
+const FACE_HALF := 1.15
+const FACE_LOW := 0.045
+const FACE_HIGH := 0.075
+const FACE_FADE := 0.012
+## Mask texels across the zone's UV rect, and the worst mirror fit used (UV units: 3 px of a 2K
+## atlas; a worse fit means the face island is not mirror-symmetric, and the fix is left off).
+const FACE_MASK := 128
+const FACE_MAX_RMS := 0.0015
+
 static var _heads: Dictionary = {}
 static var _meshes: Dictionary = {}
 static var _mats: Dictionary = {}
 static var _hair: Dictionary = {}
+static var _faces: Dictionary = {}
+static var _face_mats: Dictionary = {}
 
 
 ## A rig's head as measured by hat_fit.gd (or a generic one where the table has no row).
@@ -339,6 +354,8 @@ static func warm(inst: Node3D, rig: String, officer: bool) -> void:
 	var unit := _unit(inst, skel)
 	for hmi in inst.find_children("Hair*", "MeshInstance3D", true, false):
 		_press(hmi as MeshInstance3D, skel, rig, kinds, unit)
+	for body in _bodies(inst):
+		face_fix(body, skel, rig, unit)
 
 
 ## Triangles per level of a hat mesh (the fit report and the checks).
@@ -1217,6 +1234,7 @@ static func dress(inst: Node3D, rig: String, kind: int, pick: int, distance: flo
 	mi.transform = rest.affine_inverse() * Transform3D(Basis.IDENTITY.scaled(Vector3.ONE / maxf(unit, 1e-6)), rest.origin)
 	att.add_child(mi)
 	_press_hair(inst, skel, rig, kind, unit)
+	fit_face(inst, rig)
 	return mi
 
 
@@ -1428,3 +1446,301 @@ static func _drop_inside(idx: PackedInt32Array, inside: PackedByteArray) -> Pack
 		out.append(b)
 		out.append(c)
 	return out
+
+
+## The face a hat leaves bare. Where a fringe hung over one eye, the body's atlas has the scalp
+## painted in the hair colour under it (the far bodies' hair); with the fringe dropped under a hat
+## that paint read as a black eye at 2 m. So a hat wearer's body draws on a copy of its material
+## that, in the zone of the face below the band (a mask in the atlas, face_fix()), takes the texel
+## from the other side of the face (the face island is mirror-symmetric) wherever that side is
+## clearly lighter: asymmetric paint goes, anything symmetric - skin, brows, stubble - is untouched.
+## Does nothing where there is no mesh data (the headless check) or the mirror does not fit.
+static func fit_face(inst: Node3D, rig: String) -> void:
+	var skel := inst.find_child("Skeleton3D", true, false) as Skeleton3D
+	if skel == null or skel.find_bone("Head") < 0:
+		return
+	var unit := _unit(inst, skel)
+	for body in _bodies(inst):
+		var fix := face_fix(body, skel, rig, unit)
+		var mat := body.material_override as ShaderMaterial
+		if fix.is_empty() or mat == null:
+			continue
+		body.material_override = _face_material(mat, fix)
+
+
+## The skinned, non-hair meshes of a rig that draw on the character shader.
+static func _bodies(inst: Node3D) -> Array[MeshInstance3D]:
+	var out: Array[MeshInstance3D] = []
+	for node in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := node as MeshInstance3D
+		if mi.skin == null or mi.mesh == null or String(mi.name).begins_with("Hair"):
+			continue
+		var mat := mi.material_override as ShaderMaterial
+		if mat and mat.shader and mat.shader.resource_path.ends_with("character.gdshader"):
+			out.append(mi)
+	return out
+
+
+## The copy of a body material with the face fix on (one per source material).
+static func _face_material(mat: ShaderMaterial, fix: Dictionary) -> ShaderMaterial:
+	# An unset parameter reads back null, not its default.
+	var on: Variant = mat.get_shader_parameter("hat_face")
+	if on != null and float(on) > 0.5:
+		return mat
+	var id := mat.get_instance_id()
+	if not _face_mats.has(id):
+		var m := mat.duplicate() as ShaderMaterial
+		m.set_shader_parameter("hat_face", 1.0)
+		m.set_shader_parameter("hat_face_rect", fix.rect)
+		m.set_shader_parameter("hat_face_u", fix.u)
+		m.set_shader_parameter("hat_face_v", fix.v)
+		m.set_shader_parameter("hat_face_mask", fix.mask)
+		_face_mats[id] = m
+	return _face_mats[id]
+
+
+## The rig's face fix, measured once per rig at rest in the head frame: `rect` (the zone's UV
+## bounding box), `u` / `v` (the mirror across the face as an affine map of the atlas UV:
+## u' = dot(vec3(uv, 1), u)), `mask` (the zone over `rect`, faded in from its edge), `rms` (the
+## mirror's fit, UV units) and `pairs`. Empty without mesh data or when the mirror does not fit.
+static func face_fix(body: MeshInstance3D, skel: Skeleton3D, rig: String, unit: float) -> Dictionary:
+	var key := rig.get_file()
+	if _faces.has(key):
+		return _faces[key]
+	_faces[key] = {}
+	if body.mesh == null or body.skin == null:
+		return {}
+	var arrays := body.mesh.surface_get_arrays(0)
+	if arrays.is_empty() or arrays[Mesh.ARRAY_TEX_UV] == null or arrays[Mesh.ARRAY_BONES] == null \
+			or arrays[Mesh.ARRAY_INDEX] == null:
+		return {}
+	var hb := skel.find_bone("Head")
+	var hbind := -1
+	for i in body.skin.get_bind_count():
+		if String(body.skin.get_bind_name(i)) == "Head":
+			hbind = i
+	if hb < 0 or hbind < 0:
+		return {}
+	var rest := skel.get_bone_global_rest(hb)
+	var to_frame := Transform3D(Basis.IDENTITY.scaled(Vector3.ONE * unit), -rest.origin * unit) * rest * body.skin.get_bind_pose(hbind)
+	var h := head_for(rig)
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var cols := PackedColorArray()
+	if arrays[Mesh.ARRAY_COLOR] != null:
+		cols = arrays[Mesh.ARRAY_COLOR]
+	var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
+	var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
+	var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var n := verts.size()
+	var per := bones.size() / maxi(n, 1)
+	# The head's vertices (less the eyes) in the head frame, each with its zone weight.
+	var head := PackedByteArray()
+	var near := PackedByteArray()
+	var pos := PackedVector3Array()
+	var wz := PackedFloat32Array()
+	head.resize(n)
+	near.resize(n)
+	pos.resize(n)
+	wz.resize(n)
+	var grid := {}
+	var cell_size := 0.004
+	for v in n:
+		var w := 0.0
+		for k in per:
+			if bones[v * per + k] == hbind:
+				w += weights[v * per + k]
+		if w < 0.5 or (not cols.is_empty() and cols[v].b > 0.9 and cols[v].a > 0.9):
+			continue
+		head[v] = 1
+		var p := to_frame * verts[v]
+		pos[v] = p
+		var d := p - h.c
+		var lat := (FACE_HALF - absf(atan2(d.x, d.z))) * maxf(Vector2(d.x, d.z).length(), 0.05)
+		var e := minf(lat, minf(p.y - (h.eye_y - FACE_LOW), h.eye_y + FACE_HIGH - p.y))
+		wz[v] = smoothstep(0.0, FACE_FADE, e) if d.z > 0.0 else 0.0
+		# Just outside the zone too, so the triangles across its edge have mirrors at both ends.
+		near[v] = 1 if d.z > 0.0 and e > -0.01 else 0
+		var cell := Vector3i(floori(p.x / cell_size), floori(p.y / cell_size), floori(p.z / cell_size))
+		if not grid.has(cell):
+			grid[cell] = PackedInt32Array()
+		var list: PackedInt32Array = grid[cell]
+		list.append(v)
+		grid[cell] = list
+	# Mirror pairs: each vertex in (or just round) the zone off the midline and the head vertex
+	# nearest its mirror image.
+	var src := PackedVector2Array()
+	var dst := PackedVector2Array()
+	var pv := PackedInt32Array()
+	var pw := PackedInt32Array()
+	for v in n:
+		if head[v] == 0 or near[v] == 0:
+			continue
+		var p := pos[v]
+		if absf(p.x - h.c.x) < 0.0005:
+			continue
+		var q := Vector3(2.0 * h.c.x - p.x, p.y, p.z)
+		var qc := Vector3i(floori(q.x / cell_size), floori(q.y / cell_size), floori(q.z / cell_size))
+		var best := -1
+		var bd := 0.0025
+		for dx in [-1, 0, 1]:
+			for dy in [-1, 0, 1]:
+				for dz in [-1, 0, 1]:
+					var cand: PackedInt32Array = grid.get(qc + Vector3i(dx, dy, dz), PackedInt32Array())
+					for o in cand:
+						var dd := pos[o].distance_to(q)
+						if dd < bd:
+							bd = dd
+							best = o
+		if best >= 0:
+			src.append(uvs[v])
+			dst.append(uvs[best])
+			pv.append(v)
+			pw.append(best)
+	if src.size() < 24:
+		return {}
+	# The mirror in the atlas is a reflection across a line (the face island is laid out
+	# symmetric), fitted robustly: a least-squares affine was dragged off by the few pairs on a seam
+	# whose nearest mirror vertex is a copy on another island.
+	var fit := _fit_mirror(src, dst)
+	var rms: float = fit[2]
+	var used: int = fit[3]
+	if rms > FACE_MAX_RMS or used < src.size() / 2:
+		push_warning("CrowdHat: %s's face mirror does not fit (%.4f UV, %d of %d pairs); no face fix" % [key, rms, used, src.size()])
+		return {}
+	# The face island: the vertices whose mirror fits, and the midline's whose UV sits on the
+	# mirror's line. Anything else in the zone (a seam's copy on another island) is left out of the
+	# mask, which would otherwise send its texels to the mirror of a different island.
+	var inl: PackedByteArray = fit[4]
+	var ax: Vector2 = fit[5]
+	var off: float = fit[6]
+	var island := PackedByteArray()
+	island.resize(n)
+	for i in src.size():
+		if inl[i] == 1:
+			island[pv[i]] = 1
+			island[pw[i]] = 1
+	for v in n:
+		if head[v] == 1 and near[v] == 1 and absf(pos[v].x - h.c.x) < 0.0005 and absf(uvs[v].dot(ax) - off) < FACE_MAX_RMS * 2.0:
+			island[v] = 1
+	# Only the face itself: a small symmetric island elsewhere on the same mirror line (two rigs
+	# have one) is dropped, or the rect spans the atlas and the mask's texels grow ten times.
+	var us := PackedFloat32Array()
+	var vs := PackedFloat32Array()
+	for v in n:
+		if island[v] == 1 and wz[v] > 0.0:
+			us.append(uvs[v].x)
+			vs.append(uvs[v].y)
+	if us.is_empty():
+		return {}
+	us.sort()
+	vs.sort()
+	var mid := Vector2(us[us.size() / 2], vs[vs.size() / 2])
+	var lo := Vector2(INF, INF)
+	var hi := Vector2(-INF, -INF)
+	for v in n:
+		if island[v] == 0:
+			continue
+		if absf(uvs[v].x - mid.x) > 0.15 or absf(uvs[v].y - mid.y) > 0.25:
+			island[v] = 0
+		elif wz[v] > 0.0:
+			lo = lo.min(uvs[v])
+			hi = hi.max(uvs[v])
+	if hi.x <= lo.x or hi.y <= lo.y:
+		return {}
+	# The mask: the zone weight rasterised over its UV rect.
+	var pad := Vector2(0.002, 0.002)
+	lo -= pad
+	hi += pad
+	var size := hi - lo
+	var img := Image.create(FACE_MASK, FACE_MASK, false, Image.FORMAT_L8)
+	for t in idx.size() / 3:
+		var a := idx[t * 3]
+		var b := idx[t * 3 + 1]
+		var c := idx[t * 3 + 2]
+		# One corner on the face island puts the triangle there (an index buffer's triangle never
+		# spans two islands); asking all three left a hole wherever the decimation had moved a
+		# vertex off its mirror, and each hole kept a black speck of the paint.
+		if head[a] + head[b] + head[c] < 3 or island[a] + island[b] + island[c] == 0 or wz[a] + wz[b] + wz[c] <= 0.0:
+			continue
+		_raster(img, (uvs[a] - lo) / size, (uvs[b] - lo) / size, (uvs[c] - lo) / size, wz[a], wz[b], wz[c])
+	var out := {"rect": Vector4(lo.x, lo.y, size.x, size.y), "u": fit[0], "v": fit[1],
+		"mask": ImageTexture.create_from_image(img), "rms": rms, "pairs": used, "image": img}
+	_faces[key] = out
+	return out
+
+
+## The reflection across a line that takes `src` to `dst`: the line's normal from the pairs'
+## differences (a doubled-angle mean, so a difference and its negative agree), its offset from the
+## median of their midpoints along it, then both again over the pairs within FACE_MAX_RMS of the
+## first guess. Returns [u row, v row (Vector3s, as the shader's hat_face_u / _v), rms over the
+## inliers, the inlier count, which pairs are inliers, the line's normal, its offset].
+static func _fit_mirror(src: PackedVector2Array, dst: PackedVector2Array) -> Array:
+	var keep := PackedByteArray()
+	keep.resize(src.size())
+	keep.fill(1)
+	var n := Vector2.RIGHT
+	var c := 0.0
+	# A loose cut after the first guess (outliers tilt its normal a few degrees), then tight ones.
+	for tol: float in [0.01, FACE_MAX_RMS * 2.0, FACE_MAX_RMS * 2.0]:
+		var acc := Vector2.ZERO
+		for i in src.size():
+			var d := dst[i] - src[i]
+			if keep[i] == 1 and d.length() > 0.002:
+				var a := d.angle() * 2.0
+				acc += Vector2(cos(a), sin(a))
+		if acc.length() < 1e-6:
+			return [Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), INF, 0]
+		n = Vector2.from_angle(acc.angle() * 0.5)
+		var offs := PackedFloat32Array()
+		for i in src.size():
+			if keep[i] == 1:
+				offs.append(((src[i] + dst[i]) * 0.5).dot(n))
+		if offs.is_empty():
+			return [Vector3(1.0, 0.0, 0.0), Vector3(0.0, 1.0, 0.0), INF, 0]
+		offs.sort()
+		c = offs[offs.size() / 2]
+		for i in src.size():
+			keep[i] = 1 if _reflect(src[i], n, c).distance_to(dst[i]) <= tol else 0
+	var sq := 0.0
+	var used := 0
+	for i in src.size():
+		if keep[i] == 1:
+			sq += _reflect(src[i], n, c).distance_squared_to(dst[i])
+			used += 1
+	# uv' = uv - 2 (uv . n - c) n, as two rows of an affine map.
+	var u := Vector3(1.0 - 2.0 * n.x * n.x, -2.0 * n.x * n.y, 2.0 * c * n.x)
+	var v := Vector3(-2.0 * n.x * n.y, 1.0 - 2.0 * n.y * n.y, 2.0 * c * n.y)
+	return [u, v, sqrt(sq / maxf(used, 1)), used, keep, n, c]
+
+
+static func _reflect(p: Vector2, n: Vector2, c: float) -> Vector2:
+	return p - 2.0 * (p.dot(n) - c) * n
+
+
+## One triangle (corners in 0..1 of the image) into `img`, its weight interpolated, kept at the
+## brightest of what is already there.
+static func _raster(img: Image, a: Vector2, b: Vector2, c: Vector2, wa: float, wb: float, wc: float) -> void:
+	var s := float(img.get_width())
+	var pa := a * s
+	var pb := b * s
+	var pc := c * s
+	var area := (pb - pa).cross(pc - pa)
+	if absf(area) < 1e-9:
+		return
+	var x0 := clampi(floori(minf(pa.x, minf(pb.x, pc.x))), 0, img.get_width() - 1)
+	var x1 := clampi(ceili(maxf(pa.x, maxf(pb.x, pc.x))), 0, img.get_width() - 1)
+	var y0 := clampi(floori(minf(pa.y, minf(pb.y, pc.y))), 0, img.get_height() - 1)
+	var y1 := clampi(ceili(maxf(pa.y, maxf(pb.y, pc.y))), 0, img.get_height() - 1)
+	for y in range(y0, y1 + 1):
+		for x in range(x0, x1 + 1):
+			var p := Vector2(x + 0.5, y + 0.5)
+			var l1 := (pc - pb).cross(p - pb) / area
+			var l2 := (pa - pc).cross(p - pc) / area
+			var l3 := 1.0 - l1 - l2
+			# A texel's centre a little outside still counts, so the mask has no holes at its seams.
+			if l1 < -0.15 or l2 < -0.15 or l3 < -0.15:
+				continue
+			var w := clampf(l1 * wa + l2 * wb + l3 * wc, 0.0, 1.0)
+			if w > img.get_pixel(x, y).r:
+				img.set_pixel(x, y, Color(w, w, w))

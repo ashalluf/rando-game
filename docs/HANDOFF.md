@@ -5770,14 +5770,42 @@ skin there (they now take the crown's columns: the report's last two contacts).
 
 **Not done / next:** the hats cast no shadow (the brief's rule): the brim does not shade the
 eyes, which is now the biggest tell left up close - a SHADOWS_ONLY twin of the bill within ~15 m
-would cost one shadow draw per near wearer; a dropped fringe leaves the painted scalp as a dark
-smudge over a brow on crowd_h and crowd_c (the character shader could fade the hair region under
-a hat's front edge, or the brim's shadow would hide it); a one-piece head of hair (c, g, h, l)
+would cost one shadow draw per near wearer; a little of the painted hairline still shows under
+the bucket hat's front edge on crowd_c (symmetric paint, see the follow-up below); a one-piece head of hair (c, g, h, l)
 goes whole - splitting a piece by region (drop the part in front of the face below the band,
 press the rest) would keep their hair at the back and sides; the cards of very thick hair would need `"hide"` (no rig has it); hats never come off (shot or
 blasted off, a cap could be debris); the warm could run on worker threads during the city build
 instead of adding ~0.8 s; no cap is worn backwards or tilted; the bucket hat's brim does not
 droop with the wind. Rerun `tools/crowd/hat_fit.gd` whenever a crowd rig is rebuilt.
+
+**Follow-up, 2026-10-05: the black eye under a hat.** Where a fringe hung over one eye, the body
+atlas has the scalp painted in the hair colour under it (it is the far bodies' hair); with the
+fringe dropped under a hat, crowd_h (black) and crowd_c (grey) read as having a black eye at 2 m.
+A hat wearer's body now draws on a copy of its look material (`CrowdHat.fit_face()`, from
+`dress()` and RoughSleeper's `_wear_hat()`, which swaps in the worn look after the hat) with
+`character.gdshader`'s `hat_face` on: in the face's zone below the band (`FACE_HALF` / `_LOW` /
+`_HIGH` round the eyes, faded over `FACE_FADE`) a texel whose neighbourhood (three mips up)
+differs from its MIRROR IMAGE across the face and is the less skin-like (saturation x 1.5 plus
+value) takes the mirror's texel; symmetric paint (skin, brows, stubble, the hairline) is left
+alone. `face_fix()` measures it per rig once, at rest in the head frame: every head vertex near
+the zone paired with the vertex at its mirror position (the rigs are exactly symmetric: 0.0 mm),
+the mirror fitted as a reflection across a line in the atlas (a doubled-angle mean of the pairs'
+differences and the median of their midpoints, refitted on the inliers; 0.1-0.5 px RMS on all
+twelve rigs - a least-squares affine was dragged off by the few seam copies on other islands),
+the face island (inlier vertices, the midline's on the line, within 0.15 x 0.25 UV of their
+median - crowd_i and crowd_k have a small symmetric island elsewhere on the same line) and the
+zone rasterised into a 128 px mask over its UV rect (a triangle with one island corner counts:
+asking for three left holes, each a black speck). Uniforms `hat_face_rect`, `hat_face_mask`,
+`hat_face_u` / `_v`; one material copy per look material (~45 ms a rig on the loading screen,
+through `warm()`). Nothing changes without mesh data (headless) or where the mirror does not fit
+(a warning names the rig). The probe that lays the fix out on the atlas on the CPU and the
+previews are in the session's scratchpad (`caps/face_probe.gd`, `caps/face/`). Stills
+(before = the fringe dropped, after = this): `build/hat_face/face_h_front.jpg`,
+`face_c_front.jpg`, `face_h_up.jpg`, `face_c_up.jpg` and the whole lineup `close_front.jpg`,
+`close_up.jpg`, `close_q.jpg` in the worktree (ignored, not committed). Left: a faint seam on
+crowd_h's cheek where the mirrored skin meets the original, and on crowd_c the grey stipple of
+the hairline between the brows under the brim edge (symmetric, so nothing to mirror).
+
 ## 9bh. The industrial district as Los Angeles industry, 2026-10-04 (agent branch `wt/industrial`; VISUAL_ROADMAP #48)
 
 The brief: INDUSTRIAL (east of the 110 below z 2300 down to the port, and the Arts District east
@@ -6086,3 +6114,196 @@ The stills, heatmaps and logs of this pass are in the agent's scratchpad (`perfa
 **Not verified**: the Mac. The cuts are shadow-pass and light-cluster work, which only the Mac's
 GPU can time; the opengl3 counters show the triangles and the lavapipe bench the lights' per-pixel
 cost in a small scene. The look was judged on opengl3 (the pixel diffs above), not on Forward+.
+
+## 9bi. Buses and trucks in traffic, 2026-10-04 (agent branch `wt/big-vehicles`; VISUAL_ROADMAP #51)
+
+The brief: a real LA street has city buses, box trucks and delivery vans, and the freeways have
+semis; traffic was all cars. Now: a 40 ft city bus (the invented agency BASIN TRANSIT) running
+lines on the avenues and stopping at its stops, a cab-over box truck (invented fleets) and a
+sleeper semi with a 53 ft dry van, on the streets and the freeways. CLAUDE.md "Big vehicles" is
+the reference; this is the story.
+
+- **Bodies** (`tools/make_big_vehicles.py`, Blender 4.2 on `make_road_cars.py`'s pipeline - it
+  imports that module and reuses the loft, the booleans, the raycast parts, the slots and the far
+  twin; `--render` for Cycles previews). Bus: one flat-roofed loft (the van's ninth anchor and
+  pinned tangents) with the windscreen and the sign window cut into the domed nose cap, window
+  bands with posts and sliding vents, two plug doors on the kerb side (four leaves, own nodes),
+  roof pod, round lamps, a folded bike rack, bull-horn mirrors; 43k triangles + a 10k far twin.
+  Box truck: a cab-over loft plus a bevelled van body with rails, posts, a roll-up door, marker
+  and tail lamps, frame, tank, steps, underride bar; 26k + 10k. Semi: a long-bonnet sleeper loft
+  (the pickup's corners, the van's flat roof), chrome grille and bumper, tanks, stacks, fenders,
+  fifth wheel; 41.5k + 11k, and the trailer (swing doors with lock rods, landing gear, skirts,
+  tandem) as its own node on the kingpin, 1.8k + 3.6k. The cars' probe rays start 3-5 m out,
+  inside a 12 m bus: the module patches `Surface.end_hit` / `side_hit` / `top_hit` to start
+  further out (a dozen parts were dropped as "missed" before that).
+- **In the game** they are Vehicle body types 9-11, so nothing else needed to learn about them;
+  the work was in the contracts: the body is centred and scaled without the doors and the trailer
+  (otherwise the semi's origin sat mid-rig and a snapped turn swung the tractor 7 m sideways);
+  queues measure to a semi's trailer end (`rear`); `tyre_r` is the physics radius that makes a
+  parked one stand where traffic stands it (CONTACT -0.339 -> -0.298 for the bus); the cabin
+  measure called the bus's windscreen a LAMP (big glass at the very end below the belt) and saw no
+  windscreen at all (its normal is nearly level) - both fixed in `CarCabin`, cars unchanged.
+- **Lines and stops** are pure functions (no network, nothing streamed): `route_of()` gives about
+  half the avenues a line number, `block_stop()` a far-side stop on about every other block per
+  direction. The chunk asks the same function for the shelter and for its parked cars (none in the
+  stop's kerb zone, decided after their rolls so nothing moves); the traffic asks it where to pull
+  in. A bus at its stop: pulls 1.4 m toward the kerb, stands, doors swing open, kneels, dwells
+  7-13 s, closes, pulls out.
+- **Trailer**: a tractrix - the trailer's axle is dragged toward the kingpin each tick. Traffic
+  turns are still snapped at the junction's centre (for every vehicle), and this is what makes
+  the semi's look right: the tractor snaps, the trailer swings round behind it.
+- **Frame cost** (`tools/geo_count.gd`, opengl3 800x600, main 96f86f1 vs this branch; traffic
+  differs between runs, so part of the difference is which vehicles happen to be in view):
+  downtown avenue `--spawn=2359.4,880,0,12,2`: 4.56 M tris / 3,488 draws -> 4.92 M / 3,644
+  (+7.8 % / +4.5 %); west freeway `--spawn=200,1088,-90,-4,30`: 3.03 M / 2,923 -> 3.08 M /
+  2,949 (+1.6 % / +0.9 %); by the 110 `--spawn=1930,600,180,-5,14`: 3.72 M / 3,117 -> 3.91 M /
+  3,271 (+5.0 % / +4.9 %). Per vehicle: a near bus is ~43k + 4 wheel rigs (~1.3k each), the
+  lettering 2 draws to 55 m, door leaves 2 surfaces each (they were 4). Build: 2-3 ms warm
+  (smoke check), 40-80 ms the first time a model loads - inside `builds_per_frame` 1.
+- **Checks**: `tests/big_vehicle_checks.gd` (builds, budget, hit -> physics, the trailer's swing,
+  the pool, lines and stops, a bus at its stop, a car behind a semi at a red, a freeway semi).
+- **Stills** (`shots/big-vehicles`): bus at a stop downtown by day and night (`BIG=bus`), a box
+  truck in the queue at a red (`STREET=queue STREET_BIG=10 STREET_EYE=1`), a semi on the 110
+  (`BIG=semi BIG_ROUTE=110`), close-ups of each body (`car_shot.gd --each=9,10,11`), the bus's
+  seat rows and passengers through the side glass (`OCCUPANT=npc`).
+- **Not done / not verified**: no Forward+ look (the LED signs and the lit bus cabin at night
+  NEED A MAC CHECK); the bus's door openings show a black interior (no stairwell or floor); the
+  front indicators are clear lenses; turns are snapped (a real turning radius for long vehicles
+  would need the street traffic to drive arcs); no bus stops in the Esplanade replica's own
+  traffic (ReplicaTraffic has its own cars); the semi's lamp mesh runs straight behind the
+  tractor whatever the trailer's angle; the semis and box trucks never park.
+
+## 9bj. Street vendors: taco trucks, carts, umbrellas and the people at them, 2026-10-04 (agent branch `wt/vendors`; VISUAL_ROADMAP #52)
+
+The brief (lead, from the owner's "make the graphics a million times better"): nothing on our
+pavements sold anything. A real LA street has taco trucks at the kerb at night with a lit menu
+board, a serving window and a generator, fruit and elote carts under big striped umbrellas,
+bacon-wrapped hot dog carts outside the arena and the bars at night, paleta carts in the parks,
+flower and balloon sellers at the downtown corners. CLAUDE.md's "Street vendors" note is the
+reference; this is the story.
+
+**What it is.** `StreetVendors` (`scripts/world/street_vendors.gd`, static) builds every stand in
+code at real size - a 7 m step van (box cut round a 2.7 x 0.95 m serving window, propped flap
+with an LED strip, a lit kitchen inside: hood, plancha with meat on it, fridge, shelves; a steel
+counter outside with salsas, napkins and limes; a menu lightbox with three food pictures and
+real TextMesh lettering; the name along both sides; bonnet, grille, mirrors, wheels, tail lamps,
+a red generator on a rack behind the bumper), a fruit cart (ice tray of mango, watermelon,
+pineapple, cucumber, jicama and papaya spears, cups, chile-lime and chamoy, a cooler), an elote
+cart (the pot of corn with its lid tipped back, the esquites pot, mayo / chile / cotija / butter,
+a hand-lettered card), a hot dog cart (griddle under foil, three rows of bacon-wrapped dogs, a
+heap of onions and peppers, buns, bottles, a propane tank, a light pole with a string of bulbs, a
+cardboard sign), a paleta push cart (printed sides of ice pops, two lids, bells on the handle) and
+a flower stand (buckets of roses, sunflowers and the rest on a slatted stand, foil balloons on
+ribbons) - and a market umbrella shared by the carts. One shader (`street_vendor.gdshader`), one
+batch per kind a chunk. Names and menus are invented (`TRUCKS`: TACOS EL COMPA CHUY, MARISCOS EL
+FARO AZUL, TAQUERÍA LA ESTRELLITA, BIRRIA LA CHAPARRITA, LOS PRIMOS TACOS & MÁS, EL REY DEL
+ASADA). Triangles: truck 7.5k, fruit 4.1k, elote 2.2k, hot dog 3.9k, paleta 0.7k, flowers 7.5k.
+
+**Where and when.** `plan_block(plan, ix, iz, hour)` is pure: each face of a block is a place
+(downtown, midtown, industrial, a park, across from MacArthur Park, within 430 m of the arena, the
+beach town / near the boardwalk) and rolls each kind against `ODDS`; a hashed schedule per vendor
+(`SCHEDULE` +- 1 h; a quarter of trucks, most on the industrial blocks, work lunch) says whether it
+is working at the hour the chunk is built at. Round downtown (9 x 9 blocks) that is 28 trucks at
+21:00 and 7 at 13:00, 52 carts at 21:00 and 74 at 13:00 (smoke test). Trucks park in the chunk's
+own parking lane (+x / +z faces), serving side to the kerb, nose with the traffic; carts stand
+1.55 m in from the kerb, slid along the face to clear lamps, trees, cans and camps.
+
+**How it plays.** A shot truck sparks (a prop on StreetProps classifies as metal) and never
+breaks; a round through the window finds the cook. A cart is an `EncampmentItem`: rounds, a car or
+a blast tip it over as a real body and it stays gone. The cook (`StreetVendor`) stands on the
+truck floor (kinematic, out of the truck's collision) and ducks under the counter at gunfire; a
+cart vendor runs like anyone and walks back after. Walkers near a stand stop at its queue
+(`Pedestrian._plan_queue()`, `QUEUE_SHARE` 0.55, 12-40 s) and the vendor talks to them. After
+dark the truck lights the pavement (a pool in the chunk's `shop_spill` batch and a `lamp_light`
+omni), the hot dog cart's bulbs too. The truck's generator hums (`Sfx` "generator", a CC0 loop,
+38 m reach).
+
+**Traps.**
+- The MultiMesh instance COLOR multiplies every vertex colour in the vertex shader, so it cannot
+  carry the umbrella's second stripe without tinting the pole: the shader has the colours
+  (`CANVAS2`), picked by INSTANCE_CUSTOM.a, and the smoke test checks the copy.
+- A parked car skipped for a truck must still make every roll and count as parked: `_park_car`'s
+  cap short-circuits the rng, so a missing car moved every later roll (and the walkers after).
+- The menu lightbox face sat inside its own frame box and drew dark; and a flap tipped up 18
+  degrees hid the truck's name from the pavement (now 5).
+- The brushed-steel grain at 160 cycles a metre aliased into dark corrugation on every cart: it
+  fades to its mean under a pixel now.
+- The smoke test's shop-spill count and the camp check both counted the vendors (a pool in the
+  same batch; a cart is an EncampmentItem): the chunk now counts its pools (`vendor_pools`
+  meta) and the camp check skips `Vendor_*` items.
+
+**Cost** (`still_shot.gd` GEO, opengl3 1280x720, `--quality=0`, the same EYE with
+`STREET_VENDORS=0`): the night truck view 5,787,253 -> 5,868,306 tris (+1.4 %), 2,954 -> 2,974
+draws; the day fruit cart view 5,634,670 -> 5,860,288 (+4.0 %, mostly the vendor and the two
+customers standing in shadow range in front of the camera), 3,022 -> 3,061 draws. Cart draw
+distance then cut 150 -> 120 m and their shadows 70 -> 45 m afterwards (not re-measured). A chunk with
+vendors adds at most one draw per kind plus its shadow twin, one omni per truck or hot dog cart.
+
+**Stills** (`shots/vendors`): `truck_night` (EL REY DEL ASADA downtown at 21:00, people waiting
+at the window, the pool on the pavement), `fruit_day` (a fruit cart under its umbrella at noon,
+vendor and two customers), `paleta_park` (a paleta cart on a park's edge at 14:00, vendor and
+two customers), `stand_day` / `stand_night` / `stand_carts` (the stands alone,
+`tools/glshot/vendor_shot.gd`: the hot dog cart's bulbs and the lit truck at night), and the
+`*_before` frames with the vendors off. The arena hot dog still in the city was framed on a cart
+that its face's camp pieces had pushed out (no cart in frame); its reshoot was lost to a
+container restart - frame one with `tools/vendor_probe.gd KIND=hotdog --spawn=2300,1150,0,0`.
+
+**Not done / not verified.** The Mac (Forward+): the lightbox and kitchen emission under AgX
+and the umbrellas' backlight. Vendors appear and leave only when a chunk is built (the hour is
+read then), so standing at one corner across dusk does not bring the trucks in. No vendors on
+the boardwalk landmark itself or inside MacArthur Park (its edges only). The vendors wear the
+crowd's clothes (no apron or cap); customers do not carry food away; no steam off the elote pot
+or smoke off the griddle; the balloons are round foil only.
+## 9bk. The Coral Line: a light rail line, 2026-10-04 (agent branch `wt/light-rail`; VISUAL_ROADMAP #53)
+
+Number is provisional (9bf / 9bg reserved for local agents; the lead renumbers on merge).
+
+**What it is.** One light rail line, Basin Metro's Coral Line (original name, coral colour, "C"
+bullet, white / coral / black livery), as a DATA TABLE in `scripts/world/light_rail.gd`
+(`ROUTE`, `PORTAL`, `STATIONS`, speeds, timetable). Default seed: 5.2 km, 7 stations - 7TH ST /
+FLOWER (underground terminus, two stair kiosks in Flower's median), PICO / FLOWER (at grade),
+WILLOW / FLOWER and RIVER / GEORGIA (on the structure), RIVER / CREST, RIVER / LAKE, RIVER / HILL
+(at grade, the last a terminus in the beach town). Downtown on the real Flower St at 1:1: tunnel
+to a portal trench south of 11th St (s 916-1084), at grade past Pico, then the structure from
+south of Venice over the 10 (rail 28.0 m abs over a 20.5 m deck), round the corner (R 28 m) onto
+River Blvd (the default seed's 24 m boulevard that plays Exposition), over the 110 and the 105, down
+to grade at x 1381. 19 at-grade crossings, 17 gated. 4 trains (2-car articulated consists, 54.6 m),
+a 309 s headway, 618 s a trip. CLAUDE.md "Light rail" has the whole contract.
+
+**Files.** `scripts/world/light_rail.gd` (the line, pure), `light_rail_kit.gd` (a FULL chunk's works,
+extends FreewayKit), `light_rail_system.gd` (the `LightRail` node in city.tscn: clock, trains, far
+tiers, crossings, riders, strikes, sound), `rail_gate.gd`, `scripts/vehicles/light_rail_train.gd`,
+`rail_section.gd`, `scripts/npc/rail_rider.gd`; shaders `lrv_body`, `lrv_glass`, `lrv_interior`,
+`lrv_far`, `light_rail_far_line`; `tools/make_light_rail.py` (Blender, the car),
+`tools/light_rail/` (probe, compile, rail_shot); `tests/light_rail_checks.gd`. Small hooks in shared
+files: `city_chunk.gd` (`_road_slab()`, `_build_light_rail()`, `_lot_under_freeway()`,
+`_mark_road()`), `traffic.gd` (outer lane on a rail street, stop at a closed crossing),
+`weapon_fx.gd` (the `rail_vehicle` group is metal), `sfx.gd` (four names, synth fallbacks),
+`macro_ground.gdshader` (`cut_rect`: the plane sinks under the trench), `city.tscn`, `smoke_test.gd`.
+
+**Decisions worth knowing.** The structure's profile is the upper envelope of 5.8 % cones from
+every point it must clear, then eased - grade-limited by construction. Every freeway the line
+crosses at grade is crossed OVER (there was no crossing where the line "must" rise otherwise).
+Nothing per train is ticked: trips are (time, nose s) tables from the speed limits with dwells;
+the fleet fills the round trip and the phases make an arriving train the departing one (double-
+ended cars; pantographs on the swapping ends). Gates are posed from `crossing_phase()` (seconds
+closed / open), so a gate streamed in mid-closure is already down. LOD chunks build none of the
+line: the system's one far mesh draws it from 150 m out, every piece inside the FULL works'
+own, so where both draw only the detail shows. Trains past 340 m (3D) are lit boxes.
+
+**Frame cost** (opengl3 stills, `still_shot.gd`, RAIL=0 vs on, same frame): from the air over the
+line (EYE 2650,300,1500,153,-14 AGL) 2,293 -> 2,295 draws, 3.626 -> 3.632 M tris; on Flower at the
+Pico station with two trains in (EYE 2377,4,1532,32,-6) 1,989 -> 2,130 draws (+7 %), 5.52 -> 5.68 M
+tris (+3 %). rail_shot split there: works 170 k tris, riders ~35 draws, trains ~15 draws (one
+vertex-coloured body material, doors merged while shut, only the body casts).
+
+**Stills** (shots/light-rail): station by day and night with a train dwelling, a level crossing
+with the gates down and a train coming, the structure over the 110 seen from its deck, the portal
+trench, the line from the air by day and night.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the glass trace, the clearcoat body and
+the headlight spot need eyes. Police cruisers still drive lane 0 on a rail street (over the
+trackway). The trench has no collision floor of its own; the player standing in it stands on the
+GroundBody plane at y 0. Cars turning left across the line ignore it. The gong is a struck crossing
+bell (no CC0 tram gong found); nobody has listened to any clip yet. Riders board and alight but do
+not ride (they are gone at the door). The underground station has no platform below ground.

@@ -637,6 +637,9 @@ func _wear_hat(rig: Node) -> void:
 		return
 	for hat in rig.find_children("Hat", "MeshInstance3D", true, false):
 		(hat as MeshInstance3D).material_override = CrowdHat.material(HAT_KIND[_hat], _hat_pick, true)
+	# The worn look replaced the body's material after the hat went on: the face fix again.
+	if rig is Node3D:
+		CrowdHat.fit_face(rig as Node3D, _model_path)
 
 
 ## How dull and dry a crowd rig's hair cards go on someone living outdoors (Pedestrian.plain_hair).

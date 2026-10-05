@@ -434,6 +434,7 @@ to each `.glb` on import (`prop_<name>_<map>.jpg` + `.import`); those are commit
 | 8 wet squish, slurp impacts | https://opengameart.org/content/8-wet-squish-slurp-impacts | CC0 1.0 | `assets/audio/gore_5..6` | 2026-09-23 |
 | airliner_ascend.aif (Heigh-hoo), a real airliner take-off | https://freesound.org/people/Heigh-hoo/sounds/51091/ | CC0 1.0 | `assets/audio/jet_loop_0` (19.6-29.6 s of the HQ preview, mono, crossfaded into a seamless loop) | 2026-09-24 |
 | cop helicopter flying (Atilio_Sanchez), a real police helicopter overhead | https://freesound.org/people/Atilio_Sanchez/sounds/721300/ | CC0 1.0 | `assets/audio/rotor_loop_0` (139.1-147.1 s, crossfaded loop; the 20 Hz blade-pass chop kept) | 2026-09-24 |
+| Generator Loop (YCbCr), "low frequency motor sound" | https://opengameart.org/content/generator-loop | CC0 1.0 | `assets/audio/generator_0` (the taco trucks' generators, StreetVendors): 0.05 s trimmed off each end, the last 0.8 s cross-faded into the first (it does not loop natively), levelled to -20 dBFS RMS, mono 44.1 kHz Vorbis | 2026-10-04 |
 | American police siren in Washington DC (lezer, via pdsounds.org) | https://commons.wikimedia.org/wiki/File:American_police_siren_i.ogg | Public domain | `assets/audio/siren_0` (one wail cycle, 17.62-22.78 s of the recording, band-passed 380 Hz - 6 kHz, level flattened, cross-faded into a seamless loop, mono 44.1 kHz; the Ogg Skeleton track dropped) | 2026-09-24 |
 | jacaranda_tree | `tree_jacaranda.glb` | 60k tris, 10.2 MB | street and park trees; recoloured to lavender blossom (see shaders/foliage_tex.gdshader) | 2026-09-21 |
 | island_tree_03 | `tree_d.glb` | 38k tris, 3.6 MB | street and park trees | 2026-09-21 |
@@ -538,6 +539,29 @@ side ("left/right" below), or by the loop against itself half a turn later (bird
 | Car Passing (Johnnyfarmer) | https://freesound.org/s/209767/ | CC0 1.0 | `car_pass_2` 0.51-3.31 s | 2026-09-24 |
 | PassingCar01.wav (Pingel) | https://freesound.org/s/3179/ | CC0 1.0 | `car_pass_3` 3.45-6.25 s | 2026-09-24 |
 | Passing Car (Wet road) (Breviceps) | https://freesound.org/s/462862/ | CC0 1.0 | `car_pass_wet_0` 1.40-4.20 s | 2026-09-24 |
+
+## Light rail audio (Wikimedia Commons CC0, radio aporee public domain)
+
+The Coral Line's sounds (`Sfx` `rail_bell`, `rail_horn`, `rail_gong`, `rail_roll`), added 2026-10-04.
+Each file's own page checked: Commons' licence field CC0, the Internet Archive items marked Public
+Domain Mark 1.0. Processed like the city ambience (4th-order zero-phase band-pass; loops cross-faded
+0.5 s and levelled to -22 dB RMS, one-shots faded, peak -1 dB; 44.1 kHz mono Vorbis). No CC0 tram
+gong was found, so the gong is single strikes of a German crossing barrier bell; the rolling loop is
+recorded on board a tram.
+
+| Recording (author) | Source URL | License | Clips (span used) | Added |
+|---|---|---|---|---|
+| Level crossing Belgium 2022 (Bert76, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:Level_crossing_Belgium_2022.ogg | CC0 | `rail_bell_0` (8.50-12.96 s, loop), `rail_bell_1` (4.00-7.52 s, loop); 250 Hz-12 kHz | 2026-10-04 |
+| BÜ DE, Schrankensignal, 5 (Renardo la vulpo, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:B%C3%9C_DE,_Schrankensignal,_5.ogg | CC0 | `rail_gong_0` (0.12-2.32 s), `rail_gong_1` (2.51-4.71 s), `rail_gong_2` (4.91-7.11 s); 300 Hz-12 kHz | 2026-10-04 |
+| Xtrapolis 100 horn sound audio (MrActiniuM, Wikimedia Commons) | https://commons.wikimedia.org/wiki/File:Xtrapolis_100_horn_sound_audio.wav | CC0 | `rail_horn_0` (0-1.79 s); 120 Hz-10 kHz | 2026-10-04 |
+| light rail near miss, Baltimore (cenglish, radio aporee via Internet Archive) | https://archive.org/details/aporee_61665_70921 | Public Domain Mark 1.0 | `rail_horn_1` (63.05-64.10 s); 150 Hz-10 kHz | 2026-10-04 |
+| Poznan, PST line - line 12 (maciej janasik, radio aporee via Internet Archive) | https://archive.org/details/aporee_23637_27482 | Public Domain Mark 1.0 | `rail_roll_0` (18.0-25.0 s, loop), `rail_roll_1` (110.0-117.0 s, loop); 40 Hz-11 kHz | 2026-10-04 |
+
+## Light rail car (Blender, code-built)
+
+`assets/models/light_rail_car.glb` (one section of the Coral Line's articulated car, ~6.3k triangles
+with its doors, bogie and pantograph) is modelled from scratch by `tools/make_light_rail.py`; no
+external asset. Original design and livery.
 
 ## Fonts
 
