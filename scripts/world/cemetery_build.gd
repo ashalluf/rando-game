@@ -766,10 +766,10 @@ static func _mausoleum(ch: CityChunk, st: Dictionary) -> void:
 	var floor_y := base + float(steps) * step_h
 	g.use("m_stone", LandmarkMats.facade("cem_maus_" + k, "plaster_white", 2.0,
 		{"tint": Color(0.72, 0.71, 0.68), "roughness": 0.55, "joint_spacing": Vector2(1.4, 0.7), "joint_width": 0.008, "joint_dark": 0.6, "grime": 0.45,
-		"base_y": floor_y, "flood_strength": 1.0, "flood_base_y": floor_y + 0.2, "flood_reach": 8.0, "flood_floor": 0.3, "flood_spacing": 3.5, "seed": 5.0}))
+		"base_y": floor_y, "flood_strength": 0.45, "flood_base_y": floor_y + 0.2, "flood_reach": 8.0, "flood_floor": 0.2, "flood_spacing": 3.5, "seed": 5.0}))
 	g.use("m_plain", LandmarkMats.facade("cem_maus_plain_" + k, "plaster_white", 2.0,
 		{"tint": Color(0.74, 0.73, 0.70), "roughness": 0.5, "grime": 0.3,
-		"base_y": floor_y, "flood_strength": 1.0, "flood_base_y": floor_y + 0.2, "flood_reach": 8.0, "flood_floor": 0.3, "flood_spacing": 3.5, "seed": 5.0}))
+		"base_y": floor_y, "flood_strength": 0.45, "flood_base_y": floor_y + 0.2, "flood_reach": 8.0, "flood_floor": 0.2, "flood_spacing": 3.5, "seed": 5.0}))
 	g.use("m_bronze", LandmarkMats.plain("cem_door_bronze", Color(0.36, 0.25, 0.13), 0.45, 0.45))
 	var fb := Basis(Vector3(s.x, 0.0, s.y), Vector3.UP, Vector3(f.x, 0.0, f.y))
 	# The stepped base.

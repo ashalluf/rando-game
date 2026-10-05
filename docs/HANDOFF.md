@@ -8749,9 +8749,9 @@ with a vase 204, uprights 20-100, monuments 30-340).
 ### Not done / not verified
 
 - Not seen on Forward+ (the Mac): every still is opengl3. The night look (chapel windows, gate and
-  drive lanterns, floodlit mausoleum) needs a Forward+ look; the first night still showed bright
-  lines on the fence posts and the arch, which the last commits address (kind codes mid-band, rougher
-  iron) but no night still has been taken since.
+  drive lanterns, floodlit mausoleum) needs a Forward+ look. The bright lines the first night still
+  showed on the fence posts are gone (kind codes mid-band, rougher iron); the mausoleum's floodlight
+  read blown out on opengl3 and was halved (0.45) after the last night still.
 - The rise is the park's own lawn mesh: the far city and LOD chunks draw the park flat (a lawn slab),
   so a 5 m rise appears when the chunk turns FULL (two blocks out).
 - The far city's plates still paint the closed inner streets as roads under the lawn slab.
