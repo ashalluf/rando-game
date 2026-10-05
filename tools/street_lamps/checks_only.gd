@@ -1,6 +1,7 @@
 extends Node
 ## Runs tests/street_lamps_checks.gd alone against the city scene (a minute or two instead of the
 ## whole smoke test):  godot --headless --path . res://tools/street_lamps/checks_only.tscn
+## CHECKS=res://tests/<other>_checks.gd runs another checks file the same way (awaited).
 
 var fails := 0
 
@@ -14,7 +15,8 @@ func _ready() -> void:
 	get_tree().root.add_child(city)
 	for i in 30:
 		await get_tree().process_frame
-	load("res://tests/street_lamps_checks.gd").new().run(self, city)
+	var path := OS.get_environment("CHECKS")
+	await load(path if path != "" else "res://tests/street_lamps_checks.gd").new().run(self, city)
 	print("CHECKS_ONLY failures=%d" % fails)
 	get_tree().quit()
 
