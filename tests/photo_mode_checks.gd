@@ -125,15 +125,19 @@ func run(t: Node, city: Node3D) -> void:
 	_t._check(panel_ok, "a capture puts the panel back (or is still waiting for the frame)")
 
 	photo.call("close")
-	await tree.process_frame
+	# Read at once: the next frame the weather and the clock run on again.
 	var weather_back := true
 	for key in weather_before:
 		if weather.get(key) != weather_before[key]:
 			weather_back = false
+			printerr("photo mode: weather %s %s != %s" % [key, str(weather.get(key)), str(weather_before[key])])
+	var hour_back := absf(float(day.get("hour")) - hour_before) < 0.001
+	var mode_back := weather.process_mode == weather_mode
+	await tree.process_frame
 	_t._check(not tree.paused and Engine.time_scale == scale_before and city.get_viewport().get_camera_3d() == cam_before
 		and (not is_instance_valid(cam) or cam.is_queued_for_deletion()),
 		"leaving photo mode restores the pause, the time scale and the camera")
-	_t._check(absf(float(day.get("hour")) - hour_before) < 0.001 and weather_back and weather.process_mode == weather_mode,
+	_t._check(hour_back and weather_back and mode_back,
 		"leaving photo mode restores the clock and the weather")
 	_t._check(env.adjustment_saturation == sat_before and env.adjustment_color_correction == lut_before
 		and (vig == null or (vig.get_shader_parameter("strength") == vig_before and vig.get_shader_parameter("grain") == grain_before))

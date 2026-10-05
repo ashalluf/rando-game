@@ -119,6 +119,8 @@ var _toast_box: PanelContainer
 var _flash_rect: ColorRect
 var _focus_box: Control
 var _vignette_box: Control
+var _hour_box: Control
+var _weather_box: Control
 var _sliders := {}
 var _value_labels := {}
 var _chip_groups := {}
@@ -732,10 +734,8 @@ func _center_distance() -> float:
 	var from := cam.global_position
 	var to := from - cam.global_basis.z * 2000.0
 	var q := PhysicsRayQueryParameters3D.create(from, to)
-	q.collision_mask = 1 | 4 | 8
-	var player := _player() as CollisionObject3D
-	if player:
-		q.exclude = [player.get_rid()]
+	# The player too: a shot of the hero focuses on the hero.
+	q.collision_mask = 1 | 2 | 4 | 8
 	var hit := cam.get_world_3d().direct_space_state.intersect_ray(q)
 	return from.distance_to(hit.position) if not hit.is_empty() else 60.0
 
@@ -795,7 +795,9 @@ func _sync_ui() -> void:
 	if day:
 		(_sliders["hour"] as HSlider).set_value_no_signal(float(day.get("hour")))
 		_show_value("hour", String(day.call("clock_text")))
+	_hour_box.visible = day != null
 	var weather := _scene_node("Weather")
+	_weather_box.visible = weather != null
 	_light_chips("weather", int(weather.get("state")) if weather else -1)
 	_light_chips("grade", 0)
 	_light_chips("frame", 0)
@@ -904,8 +906,10 @@ func _build() -> void:
 	col.add_child(_spacer(4.0))
 	col.add_child(_section("LIGHT"))
 	col.add_child(_slider("exposure", "Exposure", -3.0, 3.0, 0.1, false, set_exposure))
-	col.add_child(_slider("hour", "Time of day", 0.0, 23.99, 0.05, false, set_hour))
-	col.add_child(_chips("weather", WEATHERS, set_weather))
+	_hour_box = _slider("hour", "Time of day", 0.0, 23.99, 0.05, false, set_hour)
+	col.add_child(_hour_box)
+	_weather_box = _chips("weather", WEATHERS, set_weather)
+	col.add_child(_weather_box)
 
 	col.add_child(_spacer(4.0))
 	col.add_child(_section("FILTER"))

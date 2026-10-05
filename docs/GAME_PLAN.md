@@ -289,6 +289,13 @@ already mapped so milestone 2 is script-only.
 
 ## Decisions log
 
+- **2026-10-05 Photo mode (VISUAL_ROADMAP #59, HANDOFF 9b?).** P (pad: right stick click)
+  freezes the world with the tree paused AND `Engine.time_scale` 0 (that is what stops shader
+  TIME at runtime), flies a camera of its own so the depth of field and exposure never touch the
+  player's, keeps it within 140 m of the player because nothing streams while frozen, and grades
+  by rewriting the scene's own look LUT rather than adding a post pass, so a grade is on top of
+  the game's look and costs nothing. Built by the pause menu beside itself (no city.tscn edit);
+  everything it changes is snapshotted on opening and put back on leaving.
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real
   river runs. `LaRiver` (data) and `RiverBuild` / `RiverBridges` (a river block's build) lay it
