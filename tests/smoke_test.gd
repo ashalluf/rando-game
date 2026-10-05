@@ -1927,6 +1927,8 @@ func _test_city() -> void:
 	load("res://tests/fwd_review_b_checks.gd").new().run(self, city)
 	# Memory (tests/memory_audit_checks.gd): the peak resident memory budget, and the audit's cuts.
 	load("res://tests/memory_audit_checks.gd").new().run(self, city)
+	# The loading screen's rehearsal (tests/shader_warm_checks.gd): it leaves nothing behind.
+	await load("res://tests/shader_warm_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()

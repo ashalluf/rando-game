@@ -11495,3 +11495,86 @@ hitches); car wheels are 110 meshes (54 MB) because each body's radius and width
 sharing needs a scaled wheel, a visible change. Textures were not audited (the texture-budget
 session). The opengl3 probe run (`memory_probe.gd` under Xvfb) was not usable: the loading screen
 ran mid-probe and the run ended without a report; the bookmark still was used instead.
+
+## 9dr. First-use stutters: the loading screen's rehearsal, 2026-10-05 (agent branch `wt/shader-warm`)
+
+**Ask:** find and remove first-use stutters on Forward+ - materials or pipelines compiled the
+first time a thing is seen (the first explosion, night, rain, blood, police car, landmark).
+
+**How Godot 4.7 compiles (read the source, `render_forward_clustered.cpp`,
+`pipeline_hash_map_rd.h`).** A pipeline is per shader AND vertex format AND pass (colour, colour
+with motion vectors, separate specular, depth with normal/roughness, SDFGI's two depth passes,
+the shadow atlas, ...). When a surface is created Godot queues its ubershader pipelines on the
+worker pool ("SURFACE" in the monitors); a draw that finds its pipeline still compiling WAITS for
+it (`get_pipeline(..., wait = true)`), and that wait is not counted anywhere - the DRAW monitor
+counts only pipelines nobody queued, and it read 0 in every run here. So the monitors say
+"nothing compiled at draw time" while the frame takes 16 times as long: measure frame times.
+The old warm-up drew one 2 cm quad per `.gdshader`: it compiled the shaders but only the quad's
+vertex format, so a car body, a skinned person or a particle system still built its own
+pipelines the frame it first appeared.
+
+**What changed:**
+- `WarmRehearsal` (`scripts/ui/warm_rehearsal.gd`), called by `LoadingScreen.run()` after the far
+  city: stages the REAL things in front of the camera behind the shade, three frames a stage -
+  every `Vehicle.BodyType` (police car and tactical van, fire engine and ambulance with their
+  lights, the big vehicles), the first one shot full of holes and blown up (damage paint, glass,
+  lamps, smoke, fire); eight people, one shot (ragdoll, stain, blood), one dismembered (limbs,
+  stumps); tracer, flash, impact, explosion, blood, gush, pool, smear, drip, a crater, leaves,
+  brass, a rocket hanging in the air, a shadowed spot with the low-beam cookie; and copies (no
+  script) of every particle system / hidden mesh under `Weather` and the player's `BoostTrail`,
+  emitting. Then it frees the holder and every scriptless node the effects parented to the scene,
+  with the master bus muted and `Police.innocent` set throughout (so no crime, no sound).
+- `keep_decal_atlas()`: one hidden Decal per texture the game decals or projects (bullet hole,
+  glass crack, scorch, landing crater, blast craters, five blood kinds, the headlight cookie),
+  kept for the session. Godot drops a texture from the decal atlas when its last decal goes and
+  repacks the WHOLE atlas when one is added (`TextureStorage::texture_add_to_decal_atlas`), so the
+  old warm-up's decals, freed after the loading screen, bought nothing: the first blood after the
+  last splat faded repacked again, and so did the player's headlight every time its shadow (and
+  so its cookie) switched. (Read from the source; the repack's cost was not measured here.)
+- `keep_models()`: every car body and crowd rig held loaded for the session - freed with the last
+  of its kind, the next one re-read the `.glb` and recompiled its mesh pipelines mid-frame.
+- `LoadingScreen.only_shaders` (a filter for the probe) and `WARM_LOG=1` (prints each shader's and
+  stage's cost). `WARM_REHEARSAL=0` turns the rehearsal off (the A/B).
+
+**Measured** with `tools/shader_warm/first_use_probe.tscn` (`run_probe.sh`): the test room under
+the city's own Environment and sun, Forward+ on lavapipe at 480x270, the shader and pipeline
+caches emptied first (a first launch), then each event timed frame by frame from its start.
+lavapipe keeps every pipeline it compiles (about 200 MB a shader at HIGH: the full warm-up does
+not fit 15 GB), so the A/B runs use `ENV_LITE=1` (no SDFGI, volumetric fog or SSIL) and start
+cold on both sides (`WARM=0`; the rehearsal compiles what it needs itself).
+
+| first time... | worst frame, before | after | time over 1.5x a frame, before | after |
+|---|---|---|---|---|
+| rifle burst | 10,643 ms | 1,296 | 10,589 | 0 |
+| rocket | 2,481 | 1,433 | 624 | 0 |
+| pedestrians | 7,629 | 2,360 | 5,772 | 545 |
+| shotgun into a person (ragdoll, blood) | 2,146 | 2,248 | 289 | 432 |
+| every car body | 20,018 | 4,433 | 18,160 | 2,618 |
+| ... with the models kept (second run) | 23,841 | 3,438 | 21,815 | 883 |
+| police cars | 3,054 | 3,089 | 1,197 | 1,274 |
+| fire engine, ambulance | 4,204 | 3,529 | 2,346 | 1,714 |
+| a car shot up and set on fire | 4,300 | 2,923 | 3,262 | 1,108 |
+| night (lamps, car lights, a shadowed spot) | 2,774 | 2,672 | 916 | 857 |
+| rain (Weather built mid-run) | 9,719 | 8,193 | 15,706 | 6,378 |
+| rain (Weather there from the start, as in the city) | 1,822 | 1,803 | 0 | 0 |
+
+A normal frame there is 1.2-1.7 s. Total over-base time 58.9 s -> 14.9 s in the first pair (the
+police and night rows were still reloading the sedan model, fixed by `keep_models()`). With the
+city's FULL environment and the OLD quad warm-up run first for the car and people shaders, the
+first cars still took 23.5 s and emergency 7.9 s: the quads compile the shader, not the car's
+pipelines. The rehearsal costs ~130-195 s on lavapipe; on a GPU it is the time to build ~22 cars
+(~35 ms each) plus a few frames - expect 1-3 s more loading screen (not measured on the Mac).
+
+**Not done / not verified:**
+- Nothing measured on a real GPU or Metal. Metal compiles pipelines differently (and Godot 4.5+
+  can bake shaders at export, `shader_baker/enabled` in the macOS preset, but only from an editor
+  running Forward+ - not the headless CI export, and Metal baking may need macOS: worth trying on
+  the Mac).
+- Landmarks streaming in were not measured: their far copies are built at load (CityStreamer), so
+  their materials' surfaces exist; the near build's vertex formats may differ. The landmark event
+  is in the probe (`EVENTS=landmarks`) but needs more memory than lavapipe has with the rest.
+- A `Quality` step at runtime (SDFGI or SSR switched off) changes the pipeline set for every
+  surface - a burst of background compiles; not addressed.
+- Shader variants of StandardMaterial3Ds made in code at runtime that are not in a rehearsal
+  stage still compile on first use (94 `StandardMaterial3D.new()` across 42 files; the ones the
+  stages reach are covered).
