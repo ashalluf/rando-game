@@ -298,7 +298,7 @@ func _build_volleyball() -> void:
 	add_child(_ball)
 	_ball.position = Vector3(c.x, y + 0.11, c.y)
 	var h := fposmod(_hour, 24.0)
-	if _dens < 0.25 or h < 8.5 or h > 19.0:
+	if _dens < 0.2 or h < 8.5 or h > 18.6:
 		return
 	# Two on two: the team on -z of the court and the team on +z, each player's spot and the way
 	# they face (the net).

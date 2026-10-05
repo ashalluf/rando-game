@@ -55,7 +55,7 @@ static func _num(v: float) -> String:
 func _curve() -> void:
 	var night := BeachLife.density(23.0) + BeachLife.density(3.0)
 	var peak := BeachLife.density(15.0)
-	var dusk := BeachLife.density(19.2)
+	var dusk := BeachLife.density(18.2)
 	var morning := BeachLife.density(9.0)
 	_t._check(night == 0.0 and absf(peak - 1.0) < 1e-4 and dusk > 0.0 and dusk < 0.35 and morning > 0.05 and morning < peak,
 		"the beach is empty at night, full at 15:00, a few left at dusk (%.2f) and filling in the morning (%.2f)" % [dusk, morning])
@@ -83,7 +83,7 @@ func _plan(plan: CityPlan) -> void:
 		else:
 			back += 1
 	_t._check(front > back * 1.4, "people crowd the front of the beach and thin toward the back (%d front, %d back)" % [front, back])
-	var dusk: Dictionary = BeachLife.plan_stretch(plan, z0, z1, BeachLife.density(19.2))
+	var dusk: Dictionary = BeachLife.plan_stretch(plan, z0, z1, BeachLife.density(18.2))
 	var night: Dictionary = BeachLife.plan_stretch(plan, z0, z1, BeachLife.density(23.0))
 	_t._check((dusk.people as Array).size() > 0 and (dusk.people as Array).size() < n / 3 and (night.people as Array).is_empty(),
 		"a few people at dusk (%d), nobody at night" % (dusk.people as Array).size())

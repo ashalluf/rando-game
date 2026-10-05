@@ -6765,3 +6765,69 @@ Narrows into the valley. The far city's land slabs on a river block step every 8
 channel's edge (under a pixel past ~500 m). Sediment bars and reeds are FULL only. The Coral Line
 (9bk, not on main when this was written) does not reach the river; the rail bridge carries a
 freight spur that ends at buffer stops past the bank roads.
+## 9bn. The beach on a warm afternoon, 2026-10-05 (agent branch `wt/beach-life`; VISUAL_ROADMAP #54)
+
+Number is provisional (the lead renumbers on merge).
+
+**The brief** (lead, from the owner's "make the graphics a million times better"): the sand, the
+surf and the piers were there and the beach was empty. Fill it - sunbathers, swimmers and surfers,
+volleyball, a bike path with cyclists, a lifeguard - placed from seed + chunk + hour, scattering at
+gunfire, and dots of colour from the air. CLAUDE.md's "Beach life" note is the contract; this is
+the story.
+
+**What it is.**
+- `BeachLife` (`scripts/world/beach_life.gd`, static): the plan (`plan_stretch()`, pure, world
+  cells of 6.5 m of shore, groups of 1-4 in eight bands across the sand, the front rows first,
+  `density()` by hour, `weather_factor()`), the props built in code at real size (towel, beach
+  umbrella, low chair, cooler, tote, boogie board, surfboard, volleyball net and tapes, the LA
+  lifeguard tower, the ball, a skateboard, the beach cruiser), the bike path (one strip a chunk),
+  the court, the LOD dots. One shader, `shaders/beach_props.gdshader`.
+- `BeachGoer` (`scripts/npc/beach_goer.gd`, extends RoughSleeper): swimwear on the crowd rigs
+  (`swim_mesh()`: per triangle by rest-pose height, the garment bands stay garment and are coloured
+  as the suit, the rest is skin on one texel of the person's neck; border vertices split so the
+  suit's edge is clean and nothing interpolates across the atlas), the beach poses in
+  RoughSleeper's table format, the cyclist's `ride_pose()` (two-bone IK of both legs onto the
+  pedals, measured: ankles within 2 mm of their targets round the crank), volleyball moves.
+- `BeachFigure` / `BeachFigureMesh` (`scripts/world/`): the camps' static figures for the beach,
+  each (rig, pose) baked once and each suit a copy with the suit's look; merged in 32 m cells with
+  a near (middle body) and a far (far body) mesh, so ~120 people a chunk are a handful of draws.
+- `BeachActivity` (`scripts/world/beach_activity.gd`, one per FULL beach chunk): swimmers, surfers
+  (sit in the lineup past the break, paddle in, ride a wave side-on along the shore, paddle back),
+  riders and skaters (`BeachRider`, `scripts/npc/beach_rider.gd`), the volleyball rally (four live
+  BeachGoers and the ball), walkers (`BeachWalker`, boards under the arm), the scatter.
+
+**Decisions.**
+- Swimwear by rewriting the regions rather than new garments in tools/crowd/garments.py: no
+  Blender runs, no new atlases, and every system that reads the crowd rigs (welds, bakes, limb
+  cuts, ragdolls, hats) sees an ordinary rig. The cost: a bare torso is the old shirt's shell (a
+  few millimetres proud of where the body was), which nobody sees past a few metres.
+- A beach's people are figures, not rigs. Live rigs only for the volleyball players, the walkers
+  and anyone woken. Gunfire wakes the nearest up to 16 (3 a tick) and they run up the beach and
+  walk back, the way the camps do.
+- Cyclists are flipbooks (12 crank angles), each frame a bake with the bike built round it, so
+  the crank, the pedals and the feet always agree; no skeleton ticks on the path.
+- Courts are world cells of 26 m of shore with their own hash, so a court belongs to one chunk and
+  its neighbours keep their people off it too.
+- The block's own rolls are untouched: the palms are where they were (one rolled onto the path
+  is moved just off it, after its roll), the tower is where it was and keeps its roll, but is now a
+  real tower turned to the sea.
+
+**Frame cost** (opengl3 1280x720, `still_shot.gd` GEO, `--quality=0`, BEACH_LIFE=0 vs on, the
+same frame): see the table at the end of this section.
+
+**Stills** (`shots/beach-life`): `beach_1500` (from the sand at 15:00, the lifeguard on his
+tower), `aerial` (a busy stretch from 55 m), `volleyball`, `bike_path` (cyclists on cruisers),
+`surfers` (one riding a wave in, the lineup behind), `sunset` (19:18, a few left), and the
+`*_before` frames with BEACH_LIFE=0.
+
+**Not done / not verified.**
+- Forward+ (the Mac) not seen: skin subsurface on the bare backs, the canvas backlight.
+- The far city (Skyline, past the LOD ring) draws no dots: beach blocks are not captured there.
+- Swimmers do not swim (they tread water and turn); surfers ride on their own clock, not exactly on
+  the shader's wave (it is close: the same period and speed). Nobody goes in or out of the water.
+- A bare torso is the shirt's shell; a one-piece is a band, not a cut; long hair is the painted
+  scalp on the figures (the hair cards are on the live people).
+- Cyclists and skaters ride a fixed stretch round their chunk and wrap; they do not cross into the
+  next chunk's riders. Riders do not give way to people on the path.
+- The beach under the Esplanade's bluff and the boardwalk get no path or court (their own
+  ground); the boardwalk's stretch and the piers' get no people.

@@ -133,21 +133,22 @@ static func hour_now(node: Node) -> float:
 
 
 ## How full the beach is at `hour` (0 nobody .. 1 a summer mid-afternoon): a few early walkers and
-## surfers, filling through the late morning, full from one to half past four, thinning toward
-## sunset, a few left at dusk, nobody at night.
+## surfers, filling through the late morning, full from one to four, thinning through the golden
+## hour, a few left at sunset (the sun is down at six on this map's Los Angeles path), nobody once
+## it is dark.
 static func density(hour: float) -> float:
 	var h := fposmod(hour, 24.0)
-	if h < 6.5 or h > 20.5:
+	if h < 6.5 or h > 19.5:
 		return 0.0
 	if h < 10.0:
 		return lerpf(0.06, 0.4, smoothstep(6.5, 10.0, h))
 	if h < 13.0:
 		return lerpf(0.4, 1.0, smoothstep(10.0, 13.0, h))
-	if h < 16.5:
+	if h < 16.0:
 		return 1.0
-	if h < 18.5:
-		return lerpf(1.0, 0.3, smoothstep(16.5, 18.5, h))
-	return lerpf(0.3, 0.0, smoothstep(18.5, 20.5, h))
+	if h < 17.8:
+		return lerpf(1.0, 0.25, smoothstep(16.0, 17.8, h))
+	return lerpf(0.25, 0.0, smoothstep(17.8, 19.5, h))
 
 
 ## The weather's share: a grey day thins the beach, rain clears it.
@@ -274,8 +275,10 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, dens: float, obst
 	# Every court near enough to matter, this stretch's or a neighbour's.
 	var courts := courts_in(plan, z0 - COURT_SIZE.y - 10.0, z1 + COURT_SIZE.y + 10.0)
 	var macro: MacroMap = plan.macro
-	var first := ceili(z0 / CELL_Z)
-	var last := floori((z1 - 0.01) / CELL_Z)
+	# Every cell whose centre is in z0..z1 (the test below), so two neighbours split the shore
+	# between them exactly.
+	var first := floori(z0 / CELL_Z) - 1
+	var last := floori(z1 / CELL_Z) + 1
 	var group := 0
 	for cell in range(first, last + 1):
 		var zc := (float(cell) + 0.5) * CELL_Z
@@ -324,7 +327,7 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, dens: float, obst
 					py = yaw + PI * 0.5 * (1.0 if i % 2 == 0 else -1.0) + (_h([hp, 1]) - 0.5)
 					at += land * 0.4
 				var person := {"at": at, "yaw": py, "pose": int(row[1]), "key": String(row[2]),
-					"model": BeachGoer.BEACH_MODELS[_hi([hp, 2]) % BeachGoer.BEACH_MODELS.size()], "group": group}
+					"model": model_at(plan, zc, _hi([hp, 2])), "group": group}
 				out.people.append(person)
 				if bool(row[3]):
 					# The towel under the body (lying: centred a little toward the feet, which point
@@ -353,6 +356,15 @@ static func plan_stretch(plan: CityPlan, z0: float, z1: float, dens: float, obst
 					"paint": BOARDS[_hi([hb, 21]) % BOARDS.size()], "pal": 0})
 			group += 1
 	return out
+
+
+## The crowd rig of person `pick` at shore z: each 200 m of shore uses MODELS_PER_STRETCH of the
+## beach rigs (each one material, so a cell of figures is that many draws), hashed per stretch.
+const MODELS_PER_STRETCH := 4
+static func model_at(plan: CityPlan, z: float, pick: int) -> int:
+	var n: int = BeachGoer.BEACH_MODELS.size()
+	var first := _hi([plan.seed, "beach_models", floori(z / 200.0)])
+	return BeachGoer.BEACH_MODELS[(first + (pick % MODELS_PER_STRETCH) * 2) % n]
 
 
 static func _near_court(court: Dictionary, p: Vector2, pad: float) -> bool:
@@ -404,7 +416,7 @@ static func build(ch: CityChunk, z0: float, z1: float, obstacles: Array, tower: 
 	_add_props(ch, stretch.props)
 	var people: Array = stretch.people.duplicate()
 	var h := fposmod(hour, 24.0)
-	if not tower.is_empty() and dens > 0.0 and h >= 9.0 and h <= 19.5:
+	if not tower.is_empty() and dens > 0.0 and h >= 9.0 and h <= 18.3:
 		# The lifeguard, on the deck at the rail watching the water, in the red trunks.
 		var ty: float = tower.yaw
 		var fwd := Vector2(-sin(ty), -cos(ty))
