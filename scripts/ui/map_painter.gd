@@ -387,8 +387,11 @@ static func _draw_hill_roads(ci: CanvasItem, v: View, hr: HillRoads) -> void:
 		var road: Dictionary = hr.roads[k]
 		if bool(road.get("drive", false)) and v.ppm < 0.35:
 			continue
+		# The ridges' pads are graded ground, not roads; their fire roads are dirt tracks (Ridges).
+		if bool(road.get("pad", false)) or (bool(road.get("fire", false)) and v.ppm < 0.35):
+			continue
 		var pts: PackedVector2Array = road.points
-		var wd: float = road.width
+		var wd: float = 1.5 if bool(road.get("fire", false)) else float(road.width)
 		var run := PackedVector2Array()
 		for i in pts.size():
 			var inside := reach.has_point(pts[i]) or (i > 0 and reach.has_point(pts[i - 1])) or (i + 1 < pts.size() and reach.has_point(pts[i + 1]))
