@@ -96,4 +96,6 @@ static func blast(node: Node3D, at: Vector3, radius: float, launch_speed: float,
 	Sfx.play("explosion", at, 4.0)
 	# Everyone for a block around runs; the ones nearest scream.
 	Pedestrian.alarm(node.get_tree(), at, maxf(55.0, radius * 6.0), 5, true)
+	# What it leaves behind: a crater and rubble, dust, leaves, trees alight, car alarms.
+	BlastAftermath.blast(node, at, radius, launch_speed, exclude)
 	return affected

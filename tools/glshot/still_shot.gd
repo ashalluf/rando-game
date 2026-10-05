@@ -58,6 +58,8 @@ extends SceneTree
 ## LIFE_REPORT=1 lists the people within 80 m of the camera doing something (crowd life), with
 ## true world positions to frame an EYE on; LIFE_FOCUS=jog|dog|talk|sit|stand|lean|window frames the
 ## nearest person doing that (LIFE_FOCUS_DIST metres off, default 5); CROWD_LIFE=0 turns the crowd's life off (the A/B).
+## AFTERMATH=palms|burning|charred|column|crater stages what a blast leaves by the nearest palm
+## row (tools/glshot/aftermath_stage.gd: AF_FIND, AF_TIME, AF_EYE_DIST, AF_FAR, ...).
 ## BIRD=ground|flush|wire stages birds ahead of the camera (BIRD_SPECIES, BIRD_DIST, BIRD_COUNT,
 ## BIRD_FLY; see the block before STREET); BIRDS=0 removes the birds (the A/B).
 ## ROOF_TRIS=1 prints what the rooftop units really cost (per instance, by the LOD rule).
@@ -386,6 +388,24 @@ func _initialize() -> void:
 			current_scene.call("update_streaming", true)
 		for i in _env_int("EMERGENCY_FRAMES", 30):
 			await process_frame
+			_pose(player, anchor, hold, boost, fov)
+	# AFTERMATH=palms|burning|charred|column|crater: what a blast leaves behind, staged by the
+	# nearest palm row and framed by a free camera (tools/glshot/aftermath_stage.gd), then AF_TIME
+	# seconds of it at FX_SCALE.
+	var af_env := OS.get_environment("AFTERMATH")
+	if af_env != "" and current_scene:
+		var af_eye: String = load("res://tools/glshot/aftermath_stage.gd").stage(self, af_env, get_root().get_camera_3d())
+		if af_eye != "":
+			OS.set_environment("EYE", af_eye)
+		print("AFTERMATH %s eye %s" % [af_env, af_eye])
+		_eye(player, fov)
+		if current_scene.has_method("update_streaming"):
+			current_scene.call("update_streaming", true)
+		Engine.time_scale = _env_float("FX_SCALE", 0.375)
+		var af_t := 0.0
+		while af_t < _env_float("AF_TIME", 0.3):
+			await process_frame
+			af_t += get_root().get_process_delta_time()
 			_pose(player, anchor, hold, boost, fov)
 	# Then all but freeze the clock for the last frames: a software frame takes seconds, and at
 	# normal speed everything that moves - people, traffic, leaves, fire - smears under TAA.

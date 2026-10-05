@@ -12,6 +12,9 @@ var world_offset: Vector3 = Vector3.ZERO:
 ## Seed the next city scene should use (set by the pause menu), or -1 for the scene's own.
 var pending_seed: int = -1
 var _destroyed: Dictionary = {}
+## Trees and palms burnt out (TreeFire), chunk key -> {"<batch key>:<instance>": true}: a chunk
+## rebuilt later draws them charred.
+var charred: Dictionary = {}
 
 
 func mark_destroyed(chunk_key: String, prop_id: String) -> void:
@@ -35,10 +38,12 @@ func reset() -> void:
 	world_offset = Vector3.ZERO
 	pending_seed = -1
 	_destroyed.clear()
+	charred.clear()
 
 
 func reset_destruction() -> void:
 	_destroyed.clear()
+	charred.clear()
 
 
 func to_world(local: Vector3) -> Vector3:

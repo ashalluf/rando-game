@@ -833,6 +833,39 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   every frame drew nothing - change amounts in steps, only when they change; a crash watch
   without its contact ray takes every scripted velocity reset for a crash;
   `Explosion.blast()` still pushes a car once per collision shape (2-3x a rocket's 30 m/s).
+- What a blast leaves behind (2026-10-05, fleet task "explosions", docs/HANDOFF.md, section at
+  the end): `Explosion.blast()` ends with ONE call, `BlastAftermath.blast()`
+  (`scripts/weapons/blast_aftermath.gd`): a CRATER where it hit the ground (generated albedo +
+  normal maps, `crater_textures()`; a Decal on Forward+, a lit cut-out quad on Compatibility; a
+  ring of broken asphalt slabs heaved up round it, one MultiMesh; `crater_seconds` 300,
+  `max_craters`), RUBBLE (RigidBody3D chunks, PhysicsBudget debris for `rubble_seconds` 180,
+  `max_rubble`), a low dust wave out along the ground, dust shaken off the roofs round it (rays
+  from above), leaves torn off the nearest trees (`leaf_burst()`), then `TreeFire.blast()` and
+  `CarAlarm.blast()`. A car's own blast (`exclude` a Vehicle) scorches but digs no pit.
+  **Trees burn**: `TreeFire` (`scripts/world/tree_fire.gd`) - every FULL chunk hands its
+  `tree_<n>` / `palm_<n>` batch instances over around `_batch.build()` (`collect()` before,
+  `attach()` after: two lines in CityChunk), so it knows every tree near the player with no
+  physics shape. A blast lights crowns in reach, a burning car (CarDamage._burning, polled) an
+  overhanging crown, a burning tree its neighbours (`spread_*`); `max_burning` 8. A burning
+  crown is the car fire's material scaled up (tongues, billows, burning bits falling, embers down
+  the wind, black smoke, a flickering light on desktop, `fire_loop`). At `char_share` of the burn,
+  under the flames, the instance is hidden (`MultiMeshBatch.hide_instance`) and drawn again from
+  a CHARRED copy in the chunk (`Charred_<key>`, `charred_mesh()`: the same mesh and LODs with
+  burnt materials - palms through `foliage.gdshader`'s `burnt` uniform, fronds burnt back to ribs;
+  street trees' leaves thinned by foliage_tex's own `thin_max` with the instance's custom.x 1,
+  bark x0.15). `WorldState.charred` keeps it across rebuilds (cleared with the destruction).
+  **Smoke columns**: TreeFire's node (one, under the scene root) clusters the fires every second;
+  a cluster of `column_weight` (a tree 2, a palm 1.5, a burning car 1) gets a `SmokeColumn`
+  (`scripts/world/smoke_column.gd` + `shaders/smoke_column.gdshader`): ONE mesh of 56 quads all
+  placed in the vertex shader from TIME, rising 150-420 m, leaning with Weather's `rain_wind`, lit
+  by hand (sun, sky, the city's glow at night, the fire on its foot), `max_columns` 4.
+  **Car alarms**: `CarAlarm` (`scripts/vehicles/car_alarm.gd`, a node made on the car when it goes
+  off): an empty parked car (`alarm_share` of them, a hash) near a blast or hit itself
+  (`Vehicle.take_hit()` -> `on_hit()`) sounds one of three real CC0 recordings (Sfx `car_alarm`)
+  for 24-46 s with its hazards (`Vehicle.alarm_left` -> `lights_running()` and `light_signal` 2),
+  staggered by distance, `max_alarms` 7. A/B: `TREE_FIRE=0`, `BLAST_AFTERMATH=0`,
+  `CAR_ALARMS=0` in the environment. Stills: `AFTERMATH=palms|burning|charred|column|crater` on
+  `still_shot.gd` (`tools/glshot/aftermath_stage.gd`). Checks: `tests/explosion_aftermath_checks.gd`.
 - Car glass and drivers (2026-09-28: "every car on the street reads as a sealed toy, and traffic
   drives itself"): `CarCabin` (`scripts/vehicles/car_cabin.gd`). Every body with a glass slot
   (the road_* bodies, the exotics; the Meshy sports car has its glass in the paint and stays
