@@ -448,6 +448,14 @@ already mapped so milestone 2 is script-only.
   do the thinning, no stand-in tree), the real shop fronts, the materials, the night glow -
   rather than a second hand-made model that drifts; far planting casts no shadow. The far copies
   cost more draws (they were nearly empty), noted in the handoff.
+- **2026-10-05 Neighbourhood civic buildings (HANDOFF "Neighbourhood civic buildings").**
+  Libraries, post offices, city services and community centres are placed the fire and police
+  stations' way - a hash of seed + 640 m cell picks a block and a run of its lots after every
+  existing roll and claim, so nothing a seed already builds moves - and built in code at real
+  size rather than as Building boxes: their character (arches, clay roofs, a folded-plate roof,
+  a granite stair, a pier colonnade) is geometry no facade code can draw. Names are invented
+  (RANDO CITY PUBLIC LIBRARY, CONTINENTAL POST, RANDO CITY SERVICES). The far tiers get coded
+  boxes, so the far shader draws their window grid and lit rooms. `CIVIC=0` is the A/B.
 
 - **2026-10-05 City acoustics: spaces, gunfire echo, footsteps by surface, the newest systems'
   sounds (HANDOFF "City acoustics").** The city had one street-canyon reverb, no echo, no

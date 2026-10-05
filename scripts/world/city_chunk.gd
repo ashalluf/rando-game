@@ -2757,7 +2757,8 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 			or FireStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or PoliceStation.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or Schools.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) or Alleys.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
 			or Kerbs.blocks_parking(self, spot[0]) or Hospital.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
-			or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
+			or FreightRail.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)) \
+			or CivicBuildings.keeps_clear(plan, Vector2(spot[0].x, spot[0].z)):
 		# After the rolls, so the chunk rng runs the same whether or not the spot is used. A bus
 		# stop's kerb is kept clear for the bus (BigVehicles), a fire station's for its engines.
 		car.free()
@@ -2877,6 +2878,11 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	var well := OilField.lot_well(plan, lot, district)
 	if not well.is_empty():
 		OilFieldBuild.claim_lot(self, lot, well, district)
+		return
+	# A neighbourhood civic building (CivicBuildings: a library, a post office, city services, a
+	# community center; a run of lots on one street, hash-seeded, after every roll above).
+	if CivicBuildings.claims(plan, ix, iz, lot):
+		CivicBuildings.build_lot(self, lot)
 		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).

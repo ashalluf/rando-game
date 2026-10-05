@@ -2087,6 +2087,9 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	# Hospitals (tests/hospital_checks.gd): placement, the campus chunk, an ambulance backing in.
 	await load("res://tests/hospital_checks.gd").new().run(self, city)
 	await load("res://tests/service_vehicle_checks.gd").new().run(self, city)  # service vehicles at work
+	# Neighbourhood civic buildings (tests/civic_buildings_checks.gd): placement, claims, each kind
+	# built near and far.
+	await load("res://tests/civic_buildings_checks.gd").new().run(self, city)
 	# The ambience mixer (tests/ambience_checks.gd): layers per place, hour and weather, fades,
 	# ducks, buses. Mixer state only - the Dummy audio driver plays nothing.
 	await load("res://tests/ambience_checks.gd").new().run(self, city)

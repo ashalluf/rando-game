@@ -1689,6 +1689,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen (same pass): `CarCabin.BUS_DAYLIGHT` lights a bus's traced cabin 2.2x (and lets more of
   it through the glass) and a bus's far twin starts at 60 m (`BigVehicles.tune()`), since from the
   pavement at noon its front read as a black slab.
+- Civic buildings (2026-10-05, HANDOFF "Neighbourhood civic buildings"): `CivicBuildings`
+  (`scripts/world/civic_buildings.gd`, static) places a Spanish or mid-century branch library, a
+  post office (invented CONTINENTAL POST: flag, collection boxes, dock, mail trucks), a city
+  services office or a community centre per 640 m cell by hash, on a run of a block's lots;
+  `CityChunk._build_lot()` asks `claims()` after Broadway. `CivicKit` builds them in code
+  (`CivicGeo`: walls cut round arched / square openings, hip and gable roofs) with
+  `shaders/civic_glass.gdshader` tracing the room behind each pane; LOD / far: coded boxes.
+  `CIVIC=0` the A/B; probe `tools/civic/probe.gd`; checks `tests/civic_buildings_checks.gd`.
 - Police stations (2026-10-05, "police stations the cruisers come out of"; HANDOFF 9bz):
   `PoliceStation` (`scripts/world/police_station.gd`, static). WHERE is worked out like
   FireStation's, never placed: `CELL` 1500 m squares, a hash of seed + cell, up to `TRIES` hashed
