@@ -45,6 +45,13 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> String:
 	var up := _f("AF_EYE_HEIGHT", 2.0)
 	var side := _f("AF_SIDE", 10.0)
 	var eye := centre + across * dist + along * side
+	# A spot with no crown between it and the row (trees have no collision to ray against).
+	for cand: Vector2 in [Vector2(dist, side), Vector2(dist, -side), Vector2(dist * 0.7, 0.0), Vector2(dist, side * 2.0),
+			Vector2(dist * 1.3, -side * 2.0), Vector2(dist * 0.55, side)]:
+		var e := centre + across * cand.x + along * cand.y
+		if _clear_view(e, centre):
+			eye = e
+			break
 	var e_ground := _ground(tree, eye)
 	eye.y = (e_ground.y if e_ground != Vector3.INF else centre.y) + up
 	var look := centre + Vector3.UP * 7.0
@@ -122,3 +129,20 @@ static func _blocked(tree: SceneTree, at: Vector3, dir: Vector3, reach: float) -
 static func _f(name: String, def: float) -> float:
 	var v := OS.get_environment(name)
 	return v.to_float() if v != "" else def
+
+
+## True when no tree's crown stands within its radius of the line from `eye` to `target` (xz),
+## other than at the target end.
+static func _clear_view(eye: Vector3, target: Vector3) -> bool:
+	var a := Vector2(eye.x, eye.z)
+	var b := Vector2(target.x, target.z)
+	var len := a.distance_to(b)
+	for h: Array in TreeFire.trees_near(eye, len):
+		var c := WorldState.to_local(h[1].crown)
+		var p := Vector2(c.x, c.z)
+		var t := clampf((p - a).dot(b - a) / maxf(len * len, 0.01), 0.0, 1.0)
+		if t > 0.8:
+			continue
+		if p.distance_to(a.lerp(b, t)) < float(h[1].r) + 1.0:
+			return false
+	return true
