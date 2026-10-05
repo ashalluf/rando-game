@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://scripts/world/light_rail_system.gd" id="12_rail"]
 [ext_resource type="Script" path="res://scripts/world/birds.gd" id="12_birds"]
 [ext_resource type="Script" path="res://scripts/npc/emergency.gd" id="13_emergency"]
+[ext_resource type="Script" path="res://scripts/npc/cyclists.gd" id="30_cyclists"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("6_sky")
@@ -138,6 +139,9 @@ script = ExtResource("9_police")
 
 [node name="Emergency" type="Node3D" parent="."]
 script = ExtResource("13_emergency")
+
+[node name="Cyclists" type="Node3D" parent="."]
+script = ExtResource("30_cyclists")
 
 [node name="DebugHud" parent="." instance=ExtResource("3_hud")]
 

@@ -1765,6 +1765,9 @@ func _test_city() -> void:
 	# the front rows first, batches and figures on a FULL chunk, woken people, gunfire scattering
 	# them, the block's palms unmoved, the LOD dots, nobody at night, the cyclist's legs on the pedals.
 	load("res://tests/beach_life_checks.gd").new().run(self, city)
+	# Micromobility (tests/micromobility_checks.gd): scooters, share stations, racks, bike lanes,
+	# the parked cars out of the lanes, and a rider posed on the bike, riding, stopping, knocked off.
+	await load("res://tests/micromobility_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.

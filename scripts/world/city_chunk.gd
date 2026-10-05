@@ -2355,6 +2355,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: StreetVendors.build_block(self, block))
 			for i in StreetVendors.MAX_PER_BLOCK:
 				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
+		# Micromobility (Micromobility): bike lanes on this chunk's roads, scooters, share stations,
+		# racks. Hash-seeded; after the vendors it keeps clear of, before the parked cars.
+		if Micromobility.wanted(self, block):
+			steps.append(func() -> void: Micromobility.build_block(self, block))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
@@ -2512,19 +2516,22 @@ func _park_car_steps(rect: Rect2, rng: RandomNumberGenerator, params: Dictionary
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
 	var spots: Array = []
+	# No stall paint where a bike lane took the parking lane (Micromobility; no roll here).
+	var lane_x := Micromobility.lane_by_chunk(plan, CityPlan.AXIS_X, ix, iz)
+	var lane_z := Micromobility.lane_by_chunk(plan, CityPlan.AXIS_Z, ix, iz)
 	for side: float in [-1.0, 1.0]:
 		var x := rx + side * CityPlan.parking_offset(wx)
 		var t := rect.position.y + 8.0
 		while t < rect.end.y - 8.0:
 			spots.append([Vector3(x, 0.4, t), 0.0, side])
 			# Painted stall line between spots.
-			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis().scaled(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
+			if not lane_x: _batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis().scaled(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(x, ROAD_TOP + 0.014, t + 4.0)))
 			t += 8.0
 		var z := rz + side * CityPlan.parking_offset(wz)
 		t = rect.position.x + 8.0
 		while t < rect.end.x - 8.0:
 			spots.append([Vector3(t, 0.4, z), PI * 0.5, side])
-			_batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
+			if not lane_z: _batch.add("pstripe", PropFactory.box("pstripe", Vector3(4.4, 0.01, 0.12), Color(0.95, 0.95, 0.92)), Transform3D(Basis(Vector3.UP, PI * 0.5).scaled_local(Vector3(STALL_SCALE, 1.0, 1.0)), Vector3(t + 4.0, ROAD_TOP + 0.014, z)))
 			t += 8.0
 	# Seeded from the block, not the global generator: `Array.shuffle()` put different cars in
 	# different spots every run, which broke "same seed, same city" (and made every A/B render
@@ -2565,6 +2572,11 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
 	if StreetVendors.blocks_parking(self, spot[0]):
+		car.free()
+		count[0] += 1
+		return
+	# A bike lane where the parking lane was (Micromobility): likewise after every roll.
+	if Micromobility.blocks_parking(self, spot[0]):
 		car.free()
 		count[0] += 1
 		return
