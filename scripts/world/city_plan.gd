@@ -494,6 +494,9 @@ func road_open(axis: int, index: int, along: float) -> bool:
 	# A street between a high school's blocks is closed (Schools: the campus covers it).
 	if macro and Schools.enabled and Schools.road_closed(self, axis, index, along):
 		return false
+	# Nor along a farmers' market's street (FarmersMarket: bollards at both ends).
+	if macro and FarmersMarket.enabled and FarmersMarket.road_closed(self, axis, index, along):
+		return false
 	for s: Dictionary in sites():
 		if axis == AXIS_X:
 			if index <= s.ix0 or index >= s.ix1:

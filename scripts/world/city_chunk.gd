@@ -210,7 +210,13 @@ var captured: Dictionary = {}
 ## slab and batch in the chunk, which is what pays for the finer ground grids and the much
 ## denser scatter below: they build FASTER than the coarse ones used to.
 ## The pavement height at (x, z) in this chunk's space: what a pedestrian walks on.
+## A farmers' market's street (FarmersMarketBuild): people standing on it stand on the asphalt.
+var market_road := Rect2()
+
+
 func ground_y(x: float, z: float) -> float:
+	if market_road.has_area() and market_road.has_point(Vector2(x, z)):
+		return ROAD_TOP + _gy(x, z)
 	return SIDEWALK_TOP + _gy(x, z)
 
 
@@ -2204,12 +2210,17 @@ func _build_roads(block: Dictionary) -> void:
 	var open_x := plan.road_open(CityPlan.AXIS_X, ix + 1, rect.get_center().y)
 	if open_x:
 		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
+	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_X):
+		# A farmers' market's street is closed to cars but still a street (FarmersMarket).
+		_road_slab(Rect2(rx - wx * 0.5, rect.position.y, wx, rect.size.y), asphalt, look_x.material)
 	# Horizontal road on the +Z side, spanning this block's X range.
 	var look_z := _road_look(CityPlan.AXIS_Z, iz + 1, params)
 	var rz := plan.road_pos(CityPlan.AXIS_Z, iz + 1)
 	var wz := plan.road_width(CityPlan.AXIS_Z, iz + 1)
 	var open_z := plan.road_open(CityPlan.AXIS_Z, iz + 1, rect.get_center().x)
 	if open_z:
+		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
+	elif FarmersMarket.paves(plan, ix, iz, CityPlan.AXIS_Z):
 		_road_slab(Rect2(rect.position.x, rz - wz * 0.5, rect.size.x, wz), asphalt, look_z.material)
 	# The intersection square at the +X +Z corner.
 	if plan.road_open(CityPlan.AXIS_X, ix + 1, rz) or plan.road_open(CityPlan.AXIS_Z, iz + 1, rx):
@@ -2407,6 +2418,9 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void:
 				if _lawn_rect.size.x > 1.0:
 					_add_grass(_lawn_rect, 0.85, 0.0, _lot_rects))
+	# The farmers' market on this chunk's street (FarmersMarketBuild; hash-seeded, by the hour and
+	# the day; the block's rng untouched). Before the walkers, so its people get the crowd's room.
+	steps.append_array(FarmersMarketBuild.steps(self, block))
 	if level == Level.FULL:
 		steps.append(_build_sidewalk_props.bind(rect, params, rng, district))
 		# Broadway's goods on the pavement and its street clock (Broadway; hash-seeded).
@@ -2638,7 +2652,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
-	if StreetVendors.blocks_parking(self, spot[0]):
+	if StreetVendors.blocks_parking(self, spot[0]) or FarmersMarket.blocks_parking(plan, spot[0]):
 		car.free()
 		count[0] += 1
 		return
