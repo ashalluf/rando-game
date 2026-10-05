@@ -52,6 +52,10 @@ uniform vec2 calm_axes = vec2(0.0);
 uniform vec2 calm_dir = vec2(1.0, 0.0);
 uniform float calm_keep : hint_range(0.0, 1.0) = 0.2;
 uniform float calm_fade = 0.35;
+// A second calm, round the reservoir in the front range (Reservoir; set by CityStreamer): its water
+// is a mesh at the lake's level, and crags on the bake's lowered basin would stand through it.
+uniform vec2 calm2_centre = vec2(0.0);
+uniform vec2 calm2_axes = vec2(0.0);
 
 
 const int MAX_OCTAVES = 10;
@@ -198,15 +202,25 @@ vec2 macro_uv(vec2 w) {
 }
 
 
+// 1 outside the reservoir's calm (axis-aligned), 0.05 inside it.
+float crag_calm2(vec2 w) {
+	if (calm2_axes.x <= 0.0) {
+		return 1.0;
+	}
+	float r = length((w - calm2_centre) / calm2_axes);
+	return mix(0.05, 1.0, smoothstep(1.0, 1.4, r));
+}
+
+
 // 1 outside the calm ellipse, calm_keep inside it (see the uniforms).
 float crag_calm(vec2 w) {
 	if (calm_axes.x <= 0.0 || calm_axes.y <= 0.0) {
-		return 1.0;
+		return crag_calm2(w);
 	}
 	vec2 q = w - calm_centre;
 	vec2 minor = vec2(-calm_dir.y, calm_dir.x);
 	float r = length(vec2(dot(q, calm_dir) / calm_axes.x, dot(q, minor) / calm_axes.y));
-	return mix(calm_keep, 1.0, smoothstep(1.0, 1.0 + calm_fade, r));
+	return mix(calm_keep, 1.0, smoothstep(1.0, 1.0 + calm_fade, r)) * crag_calm2(w);
 }
 
 

@@ -31,7 +31,10 @@ extends RefCounted
 ## The Landmarks.all() anchor: the lake's middle. The landmark chunk round it builds the detail.
 const ANCHOR := Vector2(-540.0, -1350.0)
 ## The box everything here touches (world XZ). carve() is the identity outside it.
-const BOX := Rect2(-790.0, -1650.0, 540.0, 490.0)
+const BOX := Rect2(-850.0, -1700.0, 640.0, 580.0)
+## The carve fades back to the natural ground over the last EDGE_FADE metres inside BOX, so no
+## depression reaching its edge leaves a cliff along it.
+const EDGE_FADE := 70.0
 ## The level the lake is designed for (m); lowered per seed until it holds (see _fit_level()).
 const DESIGN_LEVEL := 265.0
 const MIN_LEVEL := 150.0
@@ -49,6 +52,9 @@ const MIN_DAM_HEIGHT := 46.0
 const MAX_DAM_HEIGHT := 78.0
 ## How far the dam's ends run into the rock past where the ground meets the crest (m along the arc).
 const ABUTMENT_KEY := 7.0
+## The platform at the dam's toe (m deep) and the fill falling from it (m down per m).
+const SHELF := 24.0
+const FILL_SLOPE := 0.7
 ## The lake's arms: axis points (world XZ), waterline half widths (m) and bed depths under the
 ## level (m), all per point. The first arm starts at the dam.
 const ARMS := [
@@ -74,9 +80,12 @@ const FACE_SPAN := 0.55
 ## Steepest a core bank gets over the waterline (rise per metre) where the depression alone would
 ## leave the shore further out.
 const CORE_BANK := 1.25
-## The trail: a 3.2 m bench cut round the lake TRAIL_RISE over the water.
-const TRAIL_RISE := 7.0
-const TRAIL_HALF := 1.6
+## How far past the waterline the core holds (m) and over how far it lets go.
+const CORE_HOLD := 12.0
+const CORE_RELEASE := 70.0
+## The trail: a 4.8 m bench cut round the lake TRAIL_RISE over the water.
+const TRAIL_RISE := 6.0
+const TRAIL_HALF := 2.4
 const TRAIL_BLEND := 4.0
 ## Grid the level is fitted on and the water mesh / contours are worked out on (m).
 const CELL := 5.0
@@ -104,6 +113,7 @@ var _grid_terms: Array[PackedFloat32Array] = []
 var spill: PackedVector2Array = PackedVector2Array()
 var spill_floor: PackedFloat32Array = PackedFloat32Array()
 const SPILL_HALF := 5.0
+const SPILL_REACH := 90.0
 ## The trail: polylines (world XZ), from one abutment round the lake to the other.
 var trail: Array[PackedVector2Array] = []
 var _trail_cells: Dictionary = {}
@@ -165,6 +175,7 @@ func build(m: MacroMap) -> void:
 	_cache_terms()
 	_fit_level()
 	_fit_dam()
+	_outer = BOX.merge(Rect2(dam_centre - Vector2.ONE * (DAM_RADIUS + 20.0), Vector2.ONE * (DAM_RADIUS + 20.0) * 2.0))
 	_plan_spillway()
 	_refresh_grid()
 	# The full carve (dam, spillway) must still hold; lower it a metre at a time if it does not.
@@ -253,12 +264,19 @@ func arc_angle(p: Vector2) -> float:
 
 ## The ground at `pos` with the reservoir carved in, given the natural mountains `h` there.
 func carve(pos: Vector2, h: float) -> float:
-	if not BOX.has_point(pos):
+	if not _outer.has_point(pos):
 		return h
-	return _carve(pos, h, level, true)
+	# The lake's depression fades out toward the edge of BOX (and is nothing outside it); the dam,
+	# its shelf and the spillway reach into the outer box round the dam.
+	var e := minf(minf(pos.x - BOX.position.x, BOX.end.x - pos.x), minf(pos.y - BOX.position.y, BOX.end.y - pos.y))
+	return _carve(pos, h, level, true, PackedFloat32Array(), smoothstep(0.0, EDGE_FADE, e))
 
 
-func _carve(pos: Vector2, h: float, lv: float, full: bool, terms: PackedFloat32Array = PackedFloat32Array()) -> float:
+## BOX and the square round the dam's arc (set once the dam is placed).
+var _outer: Rect2 = BOX
+
+
+func _carve(pos: Vector2, h: float, lv: float, full: bool, terms: PackedFloat32Array = PackedFloat32Array(), lake_w: float = 1.0) -> float:
 	var q := pos - dam_centre
 	var rad := q.length()
 	var ang := atan2(q.x, -q.y)
@@ -268,7 +286,7 @@ func _carve(pos: Vector2, h: float, lv: float, full: bool, terms: PackedFloat32A
 	# depression would leave a step along the line of the arc beyond the dam's ends.
 	var past := maxf(maxf(dam_a0 - ang, ang - dam_a1), 0.0) * DAM_RADIUS
 	var band := 2.0 + clampf(past, 0.0, 60.0)
-	var upf := smoothstep(-band, band, up) if full else 1.0
+	var upf := (smoothstep(-band, band, up) if full else 1.0) * lake_w
 	var r := h
 	if upf > 0.0:
 		if terms.is_empty():
@@ -276,29 +294,38 @@ func _carve(pos: Vector2, h: float, lv: float, full: bool, terms: PackedFloat32A
 		r = lerpf(h, _lake(terms, h, lv), upf)
 	if not full:
 		return r
-	# The dam's footprint: held at its foundation across the gorge, so nothing pokes through it.
+	# The dam's footprint: held at its foundation across the gorge, cut down or filled up to it, so
+	# nothing pokes through the dam and nothing is open under it.
 	if ang > dam_a0 - 0.01 and ang < dam_a1 + 0.01 and up < 4.0 and up > -dam_base - 6.0:
-		r = minf(r, toe - 1.5)
-	# Downstream: the gorge led away from the toe, falling at 1 in 6 (the natural canyon is lower
-	# still on this seed and keeps its own floor).
-	elif up <= -dam_base - 6.0 and ang > dam_a0 - 0.3 and ang < dam_a1 + 0.3:
+		r = toe - 1.5
+	# Downstream: a shelf at the toe (the stilling basin's platform), SHELF metres deep, then a fill
+	# slope falling at 1 in FILL_SLOPE to wherever the natural gorge is, rising to the abutments at
+	# its sides. Cut where the ground stands higher, filled where the gorge drops away.
+	elif up <= -dam_base - 6.0 and up > -dam_base - 6.0 - 100.0 and ang > dam_a0 - 0.3 and ang < dam_a1 + 0.3:
 		var below := -up - dam_base - 6.0
 		var lat := maxf(maxf(dam_a0 + 0.05 - ang, ang - dam_a1 + 0.05), 0.0) * rad
-		r = minf(r, toe - 1.5 - below / 6.0 + lat * 1.1)
-	# The spillway's slot.
-	if spill.size() > 1:
-		var sd := _spill_query(pos)
-		if sd.x < SPILL_HALF + 8.0:
-			var floor_h := sd.y
-			var wall := floor_h + maxf(sd.x - SPILL_HALF, 0.0) * 2.5
-			r = minf(r, wall)
+		var shelf := toe - 1.5
+		var beyond := maxf(below - SHELF, 0.0)
+		# Both rise or fall fast enough to be past any ground by the edge of their region.
+		r = minf(r, shelf + lat * 3.0 + beyond * 0.4 + maxf(below - 70.0, 0.0) * 4.0)
+		var fill := shelf - minf(beyond, 36.0) * FILL_SLOPE - maxf(beyond - 36.0, 0.0) * 2.5 - lat * 2.5
+		r = maxf(r, fill)
 	# The trail's bench.
-	if _trail_on:
+	if _trail_on and up > 3.0:
 		var td := trail_distance(pos)
 		if td < TRAIL_HALF + TRAIL_BLEND:
 			var bench := level + TRAIL_RISE
 			var k := smoothstep(TRAIL_HALF + TRAIL_BLEND, TRAIL_HALF, td)
 			r = lerpf(r, bench, k)
+	# The spillway's slot.
+	if spill.size() > 1:
+		var sd := _spill_query(pos)
+		if sd.x < SPILL_REACH:
+			# Concrete walls 3 m up, then a cut bank at 1:1 that steepens on until it is over any
+			# ground (so the cut never ends in a step).
+			var e := maxf(sd.x - SPILL_HALF, 0.0)
+			var wall := sd.y + minf(e, 1.2) * 2.5 + maxf(e - 1.2, 0.0) * 1.0 + maxf(e - 14.0, 0.0) * 3.0
+			r = minf(r, wall)
 	return r
 
 
@@ -361,6 +388,7 @@ func _arc_distance(pos: Vector2) -> float:
 func _lake(terms: PackedFloat32Array, h: float, lv: float) -> float:
 	var dep := 0.0
 	var core := INF
+	var core_w := 0.0
 	for o in range(0, terms.size(), TERMS):
 		var sv := terms[o]
 		if sv < 0.0:
@@ -374,10 +402,14 @@ func _lake(terms: PackedFloat32Array, h: float, lv: float) -> float:
 			c = lv - terms[o + 2] * (1.0 - u * u)
 		else:
 			c = lv + (best - w) * CORE_BANK
-		core = minf(core, c)
+		if c < core:
+			core = c
+			# The core holds the water's edge; up the bank it hands back to the depressed ground,
+			# or where that stands far higher it would end in a wall.
+			core_w = 1.0 - smoothstep(w + CORE_HOLD, w + CORE_HOLD + CORE_RELEASE, best)
 	if core == INF:
 		return h - dep
-	return _smin(h - dep, core, 6.0)
+	return lerpf(h - dep, _smin(h - dep, core, 6.0), core_w)
 
 
 static func _smin(a: float, b: float, k: float) -> float:
@@ -532,9 +564,27 @@ func _refresh_grid() -> void:
 ## region, upstream of the dam, as polylines (Chaikin-smoothed, resampled every 3 m).
 func _plan_trail() -> void:
 	trail = []
-	var th := level + TRAIL_RISE
-	# Marching squares over the grid, only in cells near the lake (within 80 m of a wet cell) and
-	# upstream of the dam's arc.
+	for line: PackedVector2Array in contour(level + TRAIL_RISE, 120.0):
+		var sm := line
+		for it in 3:
+			sm = _chaikin(sm)
+		trail.append(_resample(sm, 3.0))
+	_trail_cells = {}
+	for li in trail.size():
+		var line: PackedVector2Array = trail[li]
+		for k in line.size() - 1:
+			var mid := (line[k] + line[k + 1]) * 0.5
+			var key := Vector2i(floori(mid.x / TRAIL_CELL), floori(mid.y / TRAIL_CELL))
+			if not _trail_cells.has(key):
+				_trail_cells[key] = []
+			(_trail_cells[key] as Array).append(Vector2i(li, k))
+	_trail_on = not trail.is_empty()
+
+
+## The contour of the carved ground at height `th` round the lake (within 80 m of its water and
+## upstream of the dam's arc), as polylines at least `min_length` long (marching squares on the
+## grid, unsmoothed).
+func contour(th: float, min_length: float) -> Array[PackedVector2Array]:
 	var near := _dilate(wet_grid, int(80.0 / CELL))
 	var segs: Array = []
 	for j in _nz - 1:
@@ -559,24 +609,45 @@ func _plan_trail() -> void:
 			elif cross.size() == 4:
 				segs.append([cross[0], cross[1]])
 				segs.append([cross[2], cross[3]])
-	var lines := _chain(segs)
-	for line: PackedVector2Array in lines:
-		if _length(line) < 120.0:
-			continue
-		var sm := line
-		for it in 3:
-			sm = _chaikin(sm)
-		trail.append(_resample(sm, 3.0))
-	_trail_cells = {}
-	for li in trail.size():
-		var line: PackedVector2Array = trail[li]
+	var out: Array[PackedVector2Array] = []
+	for line: PackedVector2Array in _chain(segs):
+		if _length(line) >= min_length:
+			out.append(line)
+	return out
+
+
+## The ring line: the contour just over the waterline (the bathtub ring's middle), every 10 m.
+var _ring_line: Array[PackedVector2Array] = []
+func ring_line() -> Array[PackedVector2Array]:
+	if _ring_line.is_empty():
+		for line in contour(level + 2.0, 20.0):
+			_ring_line.append(_resample(line, 10.0))
+	return _ring_line
+
+
+## Where CityChunk's hill shells must not grow inside `area` ([a, b, reach] like its other
+## marks): the bathtub ring and the shore, the trail, the dam and the spillway.
+func shell_marks(area: Rect2) -> Array:
+	var marks: Array = []
+	if not BOX.grow(20.0).intersects(area):
+		return marks
+	for line in ring_line():
 		for k in line.size() - 1:
-			var mid := (line[k] + line[k + 1]) * 0.5
-			var key := Vector2i(floori(mid.x / TRAIL_CELL), floori(mid.y / TRAIL_CELL))
-			if not _trail_cells.has(key):
-				_trail_cells[key] = []
-			(_trail_cells[key] as Array).append(Vector2i(li, k))
-	_trail_on = not trail.is_empty()
+			if area.has_point(line[k]) or area.has_point(line[k + 1]):
+				marks.append([line[k], line[k + 1], 7.0])
+	for line in trail:
+		for k in range(0, line.size() - 2, 2):
+			if area.has_point(line[k]) or area.has_point(line[k + 2]):
+				marks.append([line[k], line[k + 2], TRAIL_HALF + 1.5])
+	for k in spill.size() - 1:
+		marks.append([spill[k], spill[k + 1], SPILL_HALF + 3.0])
+	var n := maxi(2, int((dam_a1 - dam_a0) * DAM_RADIUS / 10.0))
+	for k in n:
+		var a := lerpf(dam_a0, dam_a1, float(k) / float(n - 1))
+		var mid := arc_point(a, DAM_RADIUS - dam_base * 0.5)
+		if area.grow(dam_base).has_point(mid):
+			marks.append([mid, mid, dam_base * 0.5 + 6.0])
+	return marks
 
 
 ## Distance from `pos` to the trail's centre line (INF when far from it).
@@ -704,7 +775,7 @@ func wet(pos: Vector2) -> bool:
 ## True where nothing should be planted or scattered: under the water, on the bathtub ring
 ## (`margin` metres over the level) or on the trail's bench, inside the lake's neighbourhood.
 func keep_clear(pos: Vector2, ground_h: float, margin: float = 6.0) -> bool:
-	if not BOX.has_point(pos):
+	if not _outer.has_point(pos):
 		return false
 	if ground_h < level + margin and near_lake(pos, 40.0):
 		return true
@@ -769,17 +840,19 @@ func mask_image(size: int, fade: float) -> Image:
 
 ## The ridge round the lake seen from its middle at the waterline: per azimuth (N_RIDGE of them,
 ## 0 north, clockwise seen from above toward +x), the tangent of the highest elevation angle,
-## and 1 where that ridge is the dam (for the water's mirror).
+## 1 where that ridge is the dam, and its distance (for the water's mirror): [tans, dams, dists].
 const N_RIDGE := 48
 func ridge_profile() -> Array:
 	var tans := PackedFloat32Array()
 	var dams := PackedFloat32Array()
+	var dists := PackedFloat32Array()
 	var c := lake_centre()
 	for k in N_RIDGE:
 		var az := TAU * float(k) / float(N_RIDGE)
 		var dir := Vector2(sin(az), -cos(az))
 		var best := 0.0
 		var is_dam := 0.0
+		var best_d := 600.0
 		var d := 30.0
 		while d < 2400.0:
 			var p := c + dir * d
@@ -792,11 +865,13 @@ func ridge_profile() -> Array:
 			var t := (h - level) / d
 			if t > best:
 				best = t
+				best_d = d
 				is_dam = 1.0 if on_dam else 0.0
 			d += 12.0 if d < 600.0 else 40.0
 		tans.append(best)
 		dams.append(is_dam)
-	return [tans, dams]
+		dists.append(best_d)
+	return [tans, dams, dists]
 
 
 ## Where the lake's mirror is measured from: the middle of the wet grid.

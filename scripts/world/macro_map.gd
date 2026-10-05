@@ -962,6 +962,8 @@ const BAKE_FREEWAY_MARGIN := 18.0
 ## The river's concrete channel from the air, and its low-flow line (LaRiver).
 const BAKE_RIVER := Color(0.60, 0.59, 0.56)
 const BAKE_RIVER_LOW := Color(0.30, 0.33, 0.29)
+## The reservoir's water, seen from across the basin (deep, dark, a little of the sky in it).
+const BAKE_LAKE := Color(0.10, 0.15, 0.17)
 ## Metres that alpha 1.0 stands for in the baked map. The horizon plane lifts its vertices by
 ## this, so it has to cover the highest peak the back range can throw up.
 const BAKE_HEIGHT_SCALE := 1600.0
@@ -1064,6 +1066,8 @@ func bake(centre: Vector2, span: float, size: int) -> Image:
 				if freeway and freeway.blocks(pos, BAKE_FREEWAY_MARGIN):
 					col = Color(BAKE_FREEWAY.r, BAKE_FREEWAY.g, BAKE_FREEWAY.b, col.a)
 				# The river's channel: pale concrete banks and bed, the low-flow line darker.
+				elif reservoir and reservoir.wet(pos):
+					col = Color(BAKE_LAKE.r, BAKE_LAKE.g, BAKE_LAKE.b, col.a)
 				elif river and river.in_corridor(pos, -LaRiver.CORRIDOR):
 					var nr := river.nearest(pos, 120.0)
 					col = Color(BAKE_RIVER.r, BAKE_RIVER.g, BAKE_RIVER.b, col.a)

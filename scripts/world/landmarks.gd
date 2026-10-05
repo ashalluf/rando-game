@@ -129,6 +129,8 @@ static func _list() -> Array[Dictionary]:
 	if LandmarkMacArthurPark.enabled:
 		list.append(LandmarkMacArthurPark.entry())
 	# --- end of Westlake ------------------------------------------------------------------------
+	# --- The reservoir in the front range (Reservoir, LandmarkReservoir) -------------------------
+	list.append({"id": "reservoir", "anchor": Reservoir.ANCHOR, "radius": 60.0})
 	return list
 
 
@@ -245,6 +247,8 @@ static func build(lm: Dictionary, parent: Node3D, statics: StaticBody3D, plan: C
 			LandmarkVerdeCafe.build(lm.anchor, parent, statics, plan, detailed)
 		"masjid_omar":
 			LandmarkMasjidOmar.build(lm.anchor, parent, statics, plan, detailed)
+		"reservoir":
+			LandmarkReservoir.build(lm.anchor, parent, statics, plan, detailed)
 		"macarthur_park":
 			LandmarkMacArthurPark.build(lm.anchor, parent, statics, plan, detailed)
 		# Downtown LA civic set (see all() and CivicSites).

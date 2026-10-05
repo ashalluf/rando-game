@@ -21,7 +21,7 @@ func _ready() -> void:
 	var tmp := Reservoir.new()
 	tmp.build(macro)
 	print("BUILD %.0f ms" % ((Time.get_ticks_usec() - t1) / 1000.0))
-	print("LEVEL %.1f  crest %.1f  toe %.1f  dam height %.1f  crest length %.1f m  base %.1f m" % [res.level, res.crest, res.toe, res.crest - res.toe, res.crest_length(), res.dam_base])
+	print("LEVEL %.1f  crest %.1f  toe %.1f  dam height %.1f  crest length %.1f m  base %.1f m  ends %.3f %.3f  centre %s" % [res.level, res.crest, res.toe, res.crest - res.toe, res.crest_length(), res.dam_base, res.dam_a0, res.dam_a1, res.dam_centre])
 	print("LAKE area %.0f m2 (%.1f ha)  centre %s" % [res.wet_area(), res.wet_area() / 10000.0, res.lake_centre()])
 	var tl := 0.0
 	for line in res.trail:
@@ -35,7 +35,41 @@ func _ready() -> void:
 	for q in OS.get_environment("PROBE").split(";", false):
 		var xy := q.split(",")
 		var pp := Vector2(xy[0].to_float(), xy[1].to_float())
-		print("PROBE %s height %.1f wet %s" % [pp, macro.height_at(pp), res.wet(pp)])
+		print("PROBE %s raw %.1f height %.1f wet %s" % [pp, macro.raw_height_at(pp), macro.height_at(pp), res.wet(pp)])
+	# Walls: 2 m cells in the outer box where the carve moved the ground by over a metre and the
+	# slope is over 60 degrees, and the steepest.
+	var steep := 0
+	var nat_steep := 0
+	var moved := 0
+	var worst := Vector3.ZERO
+	var ob: Rect2 = res._outer
+	var stp := 4.0
+	var sx := int(ob.size.x / stp)
+	var sz := int(ob.size.y / stp)
+	for j in sz:
+		for i in sx:
+			var p := ob.position + Vector2(i * stp, j * stp)
+			var hh := macro.height_at(p)
+			macro.reservoir = null
+			var nat := macro.height_at(p)
+			macro.reservoir = res
+			if absf(hh - nat) < 1.0:
+				continue
+			moved += 1
+			var gx := (macro.height_at(p + Vector2(2.0, 0.0)) - macro.height_at(p - Vector2(2.0, 0.0))) / 4.0
+			var gz := (macro.height_at(p + Vector2(0.0, 2.0)) - macro.height_at(p - Vector2(0.0, 2.0))) / 4.0
+			var sl := Vector2(gx, gz).length()
+			if sl > 1.73:
+				steep += 1
+			macro.reservoir = null
+			var ngx := (macro.height_at(p + Vector2(2.0, 0.0)) - macro.height_at(p - Vector2(2.0, 0.0))) / 4.0
+			var ngz := (macro.height_at(p + Vector2(0.0, 2.0)) - macro.height_at(p - Vector2(0.0, 2.0))) / 4.0
+			macro.reservoir = res
+			if Vector2(ngx, ngz).length() > 1.73:
+				nat_steep += 1
+			if sl > worst.z:
+				worst = Vector3(p.x, p.y, sl)
+	print("WALLS %d of %d carved cells over 60 degrees (%d before the carve); steepest %.0f degrees at (%.0f, %.0f)" % [steep, moved, nat_steep, rad_to_deg(atan(worst.z)), worst.x, worst.y])
 	var out := OS.get_environment("OUT")
 	if out != "":
 		var step := 2.5
