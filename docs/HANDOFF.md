@@ -7040,3 +7040,60 @@ ALU in shaders that were already running.
 - The night ambient (DayNight) still lights roofs a moonlit blue-grey on opengl3; not this pass.
 - The far deck's traffic pattern only roughly joins the LOD skin's (both start at the segment's
   run in the period; the far box is 0.4 m long at the joints).
+## 9b?. Driving effects: skid marks, tyre smoke, sparks, dust, exhaust, the squeal, 2026-10-05 (agent branch `wt/driving-fx`; VISUAL_ROADMAP #63)
+
+Number is provisional; the lead numbers it on merge.
+
+**The brief** (lead): the feel of driving fast and badly. Before this a car could drift, burn
+out, land a jump on its floor pan or grind down a wall and leave nothing behind and make no
+sound but the engine loop. CLAUDE.md's "Driving effects" note is the reference; this is the story.
+
+**Shape.** ONE node, `DrivingFX` (`scripts/vehicles/driving_fx.gd`), made by the first Vehicle
+(`DrivingFX.ensure()`, the only hook in vehicle.gd) as a child of the level root, so origin shifts
+carry the marks. It never runs per car: every 0.2 s it picks up to six physical cars near the
+camera (the player's first) and, each physics tick, reads their wheels and body contacts. Every
+effect is a pool: six smoke emitters, four dust/spray, four spark, three exhaust, two squeal and
+two grind voices, one backfire flame and light, one spark light, one shimmer quad - a pile-up costs
+what one drift does. Kinematic traffic has no wheels and never slides, so it only ever gets idle
+exhaust on a cold morning within 26 m.
+
+**Slip.** Godot's VehicleWheel3D never spins up: its rotation follows the ground. So the slip is
+worked out from the contact: the sideways speed at the contact point (drifts, donuts, a car
+shoved sideways), `(1 - skidinfo) x speed` (the physics' own loss of grip), a lock-up under a
+hard brake or the handbrake at speed, and a burnout INFERRED from the driver's throttle on a car
+slower than `burnout_speed` (more against the handbrake). A tyre marks from `mark_slip` (2.4 m/s)
+and smokes from `smoke_slip` (4.5).
+
+**Skid marks** are one MultiMesh ring of 3,000 flat quads (1,200 on the web), one per 32 cm of a
+sliding tyre, on `shaders/skid_mark.gdshader` with `blend_mul`: the rubber multiplies whatever is
+under it, so it reads right under the sun, a lamp's pool and a headlight, and needs no lighting.
+Soft shoulders, a faint tread, patchy along the road, faded over four minutes, a third as strong
+on a soaking road. Sand and dirt take a print at any rolling speed (sand / dirt tints). Decals
+were the alternative; the quads are one draw for the whole city on both renderers and hold at a
+grazing angle with a 2.5 cm lift.
+
+**What else.** Tyre smoke (lit puffs that roll out low and lift, thick on the rear tyres in a
+burnout) - on a street wetter than 0.15 the same slide throws spray instead (TyreSpray's look; its
+speed spray behind traffic is untouched). Dust off the hills' terrain (by its physics layer) and a
+sand rooster tail on the beach (the BEACH zone), heavier grains falling faster. Sparks where the
+body itself touches something while sliding faster than 4 m/s (contact_monitor is switched on for
+the watched cars only and restored when they are dropped) - streaks along their velocity, white
+to orange to red, an OmniLight on the strongest at night (desktop) - and dust instead of sparks
+on dirt and sand, nothing off people. Exhaust puffs at idle when the air is cold (mornings
+4:30-10:30, nights a little, wet weather more), pulsing like an idling engine. A backfire (30 %)
+on a hard lift-off from full throttle above 12 m/s: a bang, a lick of flame and a flash. Heat haze
+behind the player's exhaust on Forward+ desktop (a screen-reading quad at RENDER_PRIORITY_MIN).
+Sounds: real CC0 recordings (docs/ASSETS.md) - `skid` (three squeal loops of a sedan's tyres,
+volume and pitch by slip, the player's car first), `scrape` (light metal grinding, per scraping
+car), `backfire`.
+
+**Checks** (`tests/driving_fx_checks.gd`, on a deck 300 m up): the node is made once; a sideways
+slide lays marks, smokes from the pool and squeals; wet, it sprays instead and still marks; the
+burnout smokes the REAR tyres; a lift-off at speed backfires; dirt takes tracks and throws dust,
+never smoke; a car on its roof sparks and grinds, and its contact reports go back off when it is
+dropped; the ring wraps at capacity and the sweep clears old marks; a cold morning puffs the
+player's exhaust.
+
+**The trap that cost a round:** `ensure()` is called by every car a chunk builds in one frame and
+`add_child` is deferred, so "made, not yet added" has to count as made - the first version made a
+DrivingFX per car, each switching every car's contact reports on.

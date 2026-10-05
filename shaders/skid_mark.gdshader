@@ -44,7 +44,7 @@ float hash(vec2 p) {
 void fragment() {
 	// Across the tyre: soft shoulders and a faint tread of lines along the mark.
 	float across = UV.x * 2.0 - 1.0;
-	float edge = 1.0 - smoothstep(0.55, 1.0, abs(across));
+	float edge = 1.0 - smoothstep(0.7, 1.0, abs(across));
 	float tread = 0.82 + 0.18 * sin(UV.x * 34.0);
 	// Patchy along the road: rubber goes down in smears, not as a printed stripe.
 	vec2 w = v_world.xz * 1.7;

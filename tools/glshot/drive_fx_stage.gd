@@ -14,8 +14,8 @@ extends RefCounted
 ## freely because it is loaded after they exist.
 
 static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> void:
-	var scene := tree.current_scene
 	var player := tree.get_first_node_in_group("player") as Player
+	var scene: Node = tree.current_scene if tree.current_scene else player.get_parent()
 	var fwd := -cam.global_basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized()
@@ -27,6 +27,7 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> void:
 	var hit := space.intersect_ray(q)
 	if not hit.is_empty():
 		at = hit.position
+	print("DRIVE ground under %s: %s" % [at, hit.get("collider")])
 	var heading := fwd.rotated(Vector3.UP, -deg_to_rad(_f("DRIVE_YAW", 90.0)))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(_f("DRIVE_SEED", 7.0))
@@ -62,6 +63,9 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> void:
 		var dt := 1.0 / float(Engine.physics_ticks_per_second)
 		car.hold_crash_watch(3)
 		match kind:
+			"burnout":
+				# A brake stand: the handbrake does not hold a car against full throttle here.
+				car.linear_velocity = Vector3(car.linear_velocity.x * 0.2, car.linear_velocity.y, car.linear_velocity.z * 0.2)
 			"drift", "donut":
 				travel = travel.rotated(Vector3.UP, speed / radius * dt)
 				car.linear_velocity = Vector3(travel.x * speed, car.linear_velocity.y, travel.z * speed)

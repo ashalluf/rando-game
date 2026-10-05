@@ -25,6 +25,8 @@ extends Node3D
 static var _inst: DrivingFX = null
 ## Turns the whole layer off (`DRIVING_FX=0` in the environment is the A/B).
 static var enabled: bool = true
+## Stills only: every tyre reads this surface (Surface, -1 off) - the test room has no beach.
+static var force_surface: int = -1
 
 enum Surface { ASPHALT, DIRT, SAND }
 
@@ -41,6 +43,8 @@ enum Surface { ASPHALT, DIRT, SAND }
 @export var mark_slip: float = 2.4
 ## ... and at which the mark, the squeal and the smoke are at their fullest.
 @export var full_slip: float = 10.0
+## A tyre spinning on the spot lays a patch every this many metres of tread spun (m).
+@export var patch_spin: float = 1.6
 ## Throttle on a car slower than this (m/s) spins the driven wheels (a burnout).
 @export var burnout_speed: float = 9.0
 ## How much a full-throttle launch counts as slip (m/s at standstill).
@@ -54,7 +58,7 @@ enum Surface { ASPHALT, DIRT, SAND }
 ## Seconds a mark takes to fade out.
 @export var mark_life: float = 240.0
 ## Strength of fresh rubber at full slip (how far it darkens the road).
-@export var mark_strength: float = 0.78
+@export var mark_strength: float = 0.9
 ## Rubber, as a linear multiplier on the road.
 @export var rubber_tint: Color = Color(0.05, 0.045, 0.045)
 ## Tyre tracks: sand and dirt take a print at any speed.
@@ -68,11 +72,11 @@ enum Surface { ASPHALT, DIRT, SAND }
 ## Slip (m/s) from which a dry asphalt tyre smokes.
 @export var smoke_slip: float = 4.5
 ## Puffs per emitter, how long one lives (s) and its size at birth and death (m).
-@export var smoke_puffs: int = 44
-@export var smoke_life: float = 2.6
-@export var smoke_size: Vector2 = Vector2(0.5, 3.6)
+@export var smoke_puffs: int = 64
+@export var smoke_life: float = 3.2
+@export var smoke_size: Vector2 = Vector2(0.6, 4.4)
 ## Peak opacity of one puff at full slip.
-@export var smoke_alpha: float = 0.5
+@export var smoke_alpha: float = 0.7
 ## Above this street wetness a spinning tyre throws spray, not smoke.
 @export var wet_spray: float = 0.15
 
@@ -113,6 +117,7 @@ enum Surface { ASPHALT, DIRT, SAND }
 @export var backfire_db: float = 2.0
 
 var _cars: Array = [] # [Vehicle]
+var _exhaust_cars: Array = [] # cars near enough to puff exhaust, picked each scan
 var _scan_left: float = 0.0
 var _wheel_state: Dictionary = {} # wheel instance id -> {"last": Vector3 local or null, "carry": float}
 var _monitored: Dictionary = {} # car instance id -> car (contact_monitor switched on by us)
@@ -203,7 +208,7 @@ func _ready() -> void:
 		spark_emitters = mini(spark_emitters, 1)
 		exhaust_emitters = 0
 	_build_marks()
-	var smoke_mat := _puff_material(Color(0.8, 0.8, 0.82), 0.9)
+	var smoke_mat := _puff_material(Color(0.8, 0.79, 0.78), 0.9)
 	for i in smoke_emitters:
 		_smoke.append(_make_smoke(smoke_mat))
 		_smoke_keys.append(null)
@@ -335,9 +340,15 @@ func _scan() -> void:
 		return
 	var here := cam.global_position
 	var ranked: Array = []
+	_exhaust_cars.clear()
 	for node in get_tree().get_nodes_in_group("vehicle"):
 		var car := node as Vehicle
-		if car == null or car is Aircraft or not car.is_inside_tree() or car.freeze or car.is_traffic():
+		if car == null or car is Aircraft or not car.is_inside_tree():
+			continue
+		# Exhaust: any car near the camera, traffic included (checked each tick for idling).
+		if not _exhaust.is_empty() and (_is_player_car(car) or car.global_position.distance_squared_to(here) < exhaust_reach * exhaust_reach):
+			_exhaust_cars.append(car)
+		if car.freeze or car.is_traffic():
 			continue
 		if car.wheels.is_empty():
 			continue
@@ -399,6 +410,8 @@ func _wetness() -> float:
 
 ## What the ground under a wheel is: hill terrain (its own layer) is dirt, the beach zone sand.
 func _surface(car: Vehicle, body: Object, at: Vector3) -> Surface:
+	if force_surface >= 0:
+		return force_surface as Surface
 	if body is CollisionObject3D and ((body as CollisionObject3D).collision_layer & CityChunk.TERRAIN_LAYER) != 0:
 		return Surface.DIRT
 	# The zone, worked out once a scan per car (cheap MacroMap maths, but not per wheel per tick).
@@ -472,7 +485,9 @@ func _tick_wheels(car: Vehicle, wet: float, smoke: Array, dust: Array, screech: 
 		var lateral := absf(cv.dot(side))
 		var rolling := cv.length()
 		var slip := maxf(lateral, (1.0 - w.get_skidinfo()) * rolling)
-		var driven := w.use_as_traction
+		var rear := -car.global_basis.z.dot(cp - car.global_position) < 0.0
+		# Wheelspin is the rear tyres' (every body here is laid out like a rear-driven car).
+		var driven := w.use_as_traction and rear
 		if driven and spin > 0.0:
 			slip = maxf(slip, spin * burnout_slip)
 		if lock > 0.0 and (not w.use_as_steering or car.brake < car.handbrake_force * 0.9):
@@ -491,7 +506,13 @@ func _tick_wheels(car: Vehicle, wet: float, smoke: Array, dust: Array, screech: 
 			laid += _lay(st, cp + n * 0.025, n, cv, tyre_w, tint, strength)
 		else:
 			st["last"] = null
-		var rear := -car.global_basis.z.dot(cp - car.global_position) < 0.0
+		# A burnout on the spot goes nowhere, so lay a patch under the tyre every `patch_spin`
+		# metres of rubber it spins off: overlapping, they darken it as the burnout goes on.
+		if driven and spin > 0.3 and rolling < 2.0 and surface == Surface.ASPHALT:
+			st["spun"] = float(st.get("spun", 0.0)) + spin * burnout_slip / float(Engine.physics_ticks_per_second)
+			if float(st["spun"]) >= patch_spin:
+				st["spun"] = 0.0
+				laid += _patch(cp + n * 0.025, n, fwd, tyre_w, mark_strength * 0.5)
 		var dir := cv.normalized() if rolling > 0.5 else fwd
 		if surface == Surface.ASPHALT:
 			if slip > smoke_slip:
@@ -549,6 +570,12 @@ func _lay(st: Dictionary, at: Vector3, n: Vector3, cv: Vector3, width: float, ti
 	_mark_birth[i] = _clock
 	_marks.visible_instance_count = _mark_count
 	return 1
+
+
+## One short mark centred on `at` along `along` (a tyre spinning on the spot).
+func _patch(at: Vector3, n: Vector3, along: Vector3, width: float, strength: float) -> int:
+	var st := {"last": to_local(at - along * 0.3)}
+	return _lay(st, at + along * 0.3, n, along, width, rubber_tint, strength)
 
 
 ## Marks past their life are switched off for good (the shader's minute clock wraps at 30).
@@ -688,7 +715,7 @@ func _aim(p: Node3D, at: Vector3, back: Vector3) -> void:
 
 func _drive_smoke(p: CPUParticles3D, d: Array) -> void:
 	var s: float = d[0]
-	_aim(p, (d[2] as Vector3) + Vector3.UP * 0.12, -(d[3] as Vector3))
+	_aim(p, (d[2] as Vector3) + Vector3.UP * 0.35, -(d[3] as Vector3))
 	p.color = Color(1.0, 1.0, 1.0, s)
 	p.initial_velocity_max = 1.4 + 2.6 * s
 
@@ -803,9 +830,11 @@ func _tick_exhaust(delta: float) -> void:
 	if cold > 0.05:
 		var cam := get_viewport().get_camera_3d()
 		var here := cam.global_position if cam else Vector3.ZERO
-		for node in get_tree().get_nodes_in_group("vehicle"):
-			var car := node as Vehicle
-			if car == null or car is Aircraft or not car.is_inside_tree() or car.is_wreck():
+		for held: Variant in _exhaust_cars:
+			if not is_instance_valid(held) or not (held as Node).is_inside_tree():
+				continue
+			var car: Vehicle = held
+			if car.is_wreck():
 				continue
 			var mine := _is_player_car(car)
 			var idle: bool
@@ -963,13 +992,13 @@ func _make_smoke(mat: Material) -> CPUParticles3D:
 	p.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	p.emission_sphere_radius = 0.22
 	# Back along the slide and up, spreading wide: tyre smoke rolls out low then lifts.
-	p.direction = Vector3(0.0, 0.45, 1.0)
-	p.spread = 55.0
-	p.initial_velocity_min = 0.6
+	p.direction = Vector3(0.0, 0.22, 1.0)
+	p.spread = 70.0
+	p.initial_velocity_min = 0.8
 	p.initial_velocity_max = 3.0
-	p.gravity = Vector3(0.0, 0.55, 0.0)
-	p.damping_min = 0.8
-	p.damping_max = 1.6
+	p.gravity = Vector3(0.0, 0.28, 0.0)
+	p.damping_min = 1.0
+	p.damping_max = 2.0
 	p.scale_amount_min = smoke_size.y * 0.7
 	p.scale_amount_max = smoke_size.y
 	p.scale_amount_curve = _grow_curve(smoke_size.x / smoke_size.y)
