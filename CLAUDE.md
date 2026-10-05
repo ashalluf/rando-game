@@ -5131,6 +5131,14 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   the day value, canal water and the beach's swash drew a lit street at night). A big additive
   pool at the street lamps' shared strength clips to a flat disc on Forward+: give it its own
   copy (PierPark.POOL_*). Godot can hang on exit after block_shot's last save: kill it.
+- Reference cameras (G1, `tools/refcams/`, README there): ten fixed views (street noon, street
+  night in rain, sunset, golden aerial, downtown aerial, beach, hills, freeway, MacArthur Park,
+  the pier at night) in `cameras.json` (TRUE-world eye, hour, weather), shot from ONE city load
+  through opengl3 by `refcams_shot.gd` (extends still_shot.gd): `GODOT=... python3
+  tools/refcams/refcams.py run build/refcams/<label>` (~35 min, ~8.5 GB peak) writes the PNGs, a
+  report (luminance p1-p99, clip / crush, saturation, CCT, GEO cost) and a 2x5 sheet; `compare
+  <before> <after>` flags shots past `TOL` (exit 1). The lead runs it per merge. Change a camera
+  only on purpose.
 - Physics masks as constants on `Player`: `AIM_MASK` (world + props) and `BLAST_MASK` (player + props).
 - Forward is -Z. Yaw for a facing direction `d` is `atan2(-d.x, -d.z)`.
 - Commit messages: short imperative subject, body explains why and how to test. One task per

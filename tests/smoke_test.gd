@@ -2292,6 +2292,8 @@ func _city_files(city: Node3D, plan: CityPlan, player: CharacterBody3D) -> void:
 	load("res://tests/utility_poles_checks.gd").new().run(self, city)
 	# Places of worship (tests/worship_checks.gd): placement, sanctuary zones, one chunk of each kind.
 	await load("res://tests/worship_checks.gd").new().run(self, city)
+	# The reference cameras (tests/ref_cameras_checks.gd): the table and the shot script.
+	load("res://tests/ref_cameras_checks.gd").new().run(self, city)
 
 	city.queue_free()
 	_world_state().reset()
