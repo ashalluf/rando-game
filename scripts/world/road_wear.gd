@@ -317,12 +317,17 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 			var u := side * (half - CityPlan.PARKING_LANE * 0.5 + rng.randf_range(-0.4, 0.4))
 			_stamp(ctx, rng, "oil_drips" if rng.randf() < 0.9 else "burnout", at.call(u, v), top, along_yaw + rng.randf_range(-0.2, 0.2), tint, _age(rng, age_bias), false)
 	# 3. Longitudinal joint down the middle (where the two paving passes met), cracked and sealed.
+	# Short pieces that wander off the line and leave gaps: laid end to end on it they read as a
+	# line ruled down the road.
 	var v0 := 0.0
+	var drift := 0.0
 	while v0 < length - 2.0:
-		var piece := rng.randf_range(4.0, 9.0)
+		var piece := rng.randf_range(3.0, 7.0)
+		drift = clampf(drift + rng.randf_range(-0.45, 0.45), -0.9, 0.9)
 		if rng.randf() < 0.3 * level * stretch.call(v0):
 			var name := "tar_snake" if rng.randf() < 0.55 else "crack_long"
-			_stamp(ctx, rng, name, at.call(rng.randf_range(-0.25, 0.25), v0 + piece * 0.5), top, along_yaw + (PI if rng.randf() < 0.5 else 0.0), tint, _age(rng, age_bias), true)
+			_stamp(ctx, rng, name, at.call(drift, v0 + piece * 0.5), top, along_yaw + (PI if rng.randf() < 0.5 else 0.0) + rng.randf_range(-0.3, 0.3), tint, _age(rng, age_bias), true)
+			v0 += rng.randf_range(2.0, 6.0) # a gap after every sealed piece
 		v0 += piece
 	# 4. Transverse cracks right across a carriageway every so often (thermal), often sealed.
 	var v1 := rng.randf_range(3.0, 14.0)
@@ -332,9 +337,20 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 			var sealed := rng.randf() < 0.6
 			var name := "tar_snake" if sealed else "crack_trans"
 			var width := half - 0.3
-			var p: Vector2 = at.call(side * width * 0.5, v1)
-			var xf_yaw := along_yaw + PI * 0.5 if sealed else along_yaw
-			_stamp(ctx, rng, name, p, top, xf_yaw, tint, _age(rng, age_bias), true, false, width)
+			if sealed:
+				# A sealed crack across the road is a few short wandering runs with gaps, never one
+				# stamp stretched straight from the centre line to the kerb.
+				var u := side * rng.randf_range(0.2, 0.8)
+				var dv := 0.0
+				while absf(u) < width:
+					var run := rng.randf_range(1.2, 2.6)
+					dv += rng.randf_range(-0.5, 0.5)
+					var piece_at: Vector2 = at.call(u + side * run * 0.5, v1 + dv)
+					_stamp(ctx, rng, name, piece_at, top, along_yaw + PI * 0.5 + rng.randf_range(-0.35, 0.35), tint, _age(rng, age_bias), true, false, run)
+					u += side * (run + rng.randf_range(0.4, 1.6))
+			else:
+				var p: Vector2 = at.call(side * width * 0.5, v1)
+				_stamp(ctx, rng, name, p, top, along_yaw, tint, _age(rng, age_bias), true, false, width)
 		v1 += rng.randf_range(9.0, 24.0) / maxf(level, 0.3)
 	# 5. Utility cuts and old patches anywhere on the carriageway.
 	var n_cut := int(round(budget * 0.14 * rng.randf_range(0.5, 1.5)))
@@ -356,7 +372,7 @@ static func _road(ctx: Dictionary, axis: int, index: int, block_i: int, c: float
 		if rng.randf() > stretch.call(v) * 0.85:
 			continue
 		var name := "tar_snake" if rng.randf() < 0.6 else "tar_network"
-		var yaw := along_yaw + (PI if rng.randf() < 0.5 else 0.0) + (PI * 0.5 if rng.randf() < 0.25 else 0.0)
+		var yaw := along_yaw + (PI if rng.randf() < 0.5 else 0.0) + (PI * 0.5 if rng.randf() < 0.25 else 0.0) + rng.randf_range(-0.4, 0.4)
 		_stamp(ctx, rng, name, at.call(rng.randf_range(-half + 1.0, half - 1.0), v), top, yaw, tint, _age(rng, age_bias), true)
 	# 7. The approach to each junction: shoving and ruts before the stop line in the lanes that stop
 	# there (right-hand traffic: u < 0 stops at the far end, u > 0 at the near end).

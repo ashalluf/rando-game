@@ -221,12 +221,16 @@ def crack_tree(rng, start, heading, length, width, order, depth=0, max_depth=3, 
     return paths
 
 
-def voronoi(rng, n, warp=0.0, aspect=1.0, jitter=1.0, seeds=None):
-    """F1, F2 and the nearest seed index over the stamp, from n random seeds (or a given set)."""
+def voronoi(rng, n, warp=0.0, aspect=1.0, jitter=1.0, seeds=None, fine=0.0):
+    """F1, F2 and the nearest seed index over the stamp, from n random seeds (or a given set).
+    `fine` adds a second, finer warp, so the cell edges wander instead of running ruler-straight."""
     u, v = grid()
     if warp > 0:
         u = u + (fbm((S, S), 3, rng) - 0.5) * warp
         v = v + (fbm((S, S), 3, rng) - 0.5) * warp
+    if fine > 0:
+        u = u + (fbm((S, S), 9, rng) - 0.5) * fine
+        v = v + (fbm((S, S), 9, rng) - 0.5) * fine
     if seeds is None:
         seeds = rng.random((n, 2))
     d = np.stack([np.hypot((u - sx) * aspect, v - sy) for sx, sy in seeds], 0)
@@ -520,14 +524,36 @@ def crack_long(rng, name="crack_long", w=0.8, h=6.0, across=False):
 def tar_snake(rng, name="tar_snake", w=1.0, h=6.0, network=False):
     st = Stamp(name, w, h, 0.0)
     if network:
-        f1, f2, idx, seeds = voronoi(rng, 9, warp=0.04)
+        f1, f2, idx, seeds = voronoi(rng, 9, warp=0.12, fine=0.05)
         edge = voronoi.edge
         cov_crack = smoothstep(0.012, 0.004, edge)
         band = smoothstep(0.011, 0.0065, edge + (fbm((S, S), 16, rng) - 0.5) * 0.008 + (fbm((S, S), 40, rng) - 0.5) * 0.004)
         rank = rng.random(len(seeds))
         st.order = np.clip(0.3 + 0.7 * rank[idx] * 0.6 + 0.4 * (1 - f1 * 3), 0.02, 1).astype(np.float32)
     else:
-        paths = crack_tree(rng, (0.5, 0.02), math.pi / 2, 1.0, 2.0, 1.0, max_depth=1, branch_p=0.25, pull=math.pi / 2, wander=0.16)
+        # The crack meanders across the cell (a slow sum of sines, +-25 cm in a 1 m cell) and the
+        # sealant comes in runs with gaps where the crew lifted the squeegee: pulled straight down
+        # the cell, a stamp read as a line ruled across the lane.
+        ph = rng.uniform(0, math.tau, 3)
+        amp = rng.uniform(0.6, 1.0, 3)
+        def meander(y):
+            return 0.5 + 0.16 * amp[0] * math.sin(1.7 * math.tau * y + ph[0]) + 0.08 * amp[1] * math.sin(4.3 * math.tau * y + ph[1]) \
+                + 0.035 * amp[2] * math.sin(11.0 * math.tau * y + ph[2])
+        main = []
+        y = 0.02
+        while y < 0.98:
+            run = rng.uniform(0.18, 0.42)
+            ys = np.arange(y, min(y + run, 0.98), 0.01)
+            if len(ys) > 2:
+                main.append(([(meander(t) + rng.normal(0, 0.003), t) for t in ys], [2.0] * len(ys), rng.uniform(0.6, 1.0)))
+            y += run + rng.uniform(0.04, 0.12)
+        branches = []
+        for pts, widths, val in main:
+            if rng.random() < 0.35 and len(pts) > 8:
+                i = rng.integers(3, len(pts) - 3)
+                h = math.pi / 2 + rng.choice([-1, 1]) * rng.uniform(0.6, 1.2)
+                branches += crack_tree(rng, pts[i], h, rng.uniform(0.08, 0.2), 1.6, val * 0.7, max_depth=0, wander=0.3)
+        paths = main + branches
         # The overband: a squeegeed strip 5-8 cm wide over the crack (stroked at that width),
         # its edges feathered where the rubber thinned.
         wpx = 0.065 / w * S
