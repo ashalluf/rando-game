@@ -658,6 +658,20 @@ species. Original work for this game.
 | Eucalyptus (blue gum), Italian cypress, olive, Indian laurel fig, California sycamore, coral tree; two variants each | `LaTrees.mesh()` | 6k-17k / 0.4-1.1k | street rows, parks, plazas, yards, the freeway's right of way, hill gullies, cypress pairs by houses | 2026-10-05 |
 | Bird of paradise, agave (plain and variegated), yucca, dragon tree | `LaTrees.mesh()` | 0.8k-3.5k / 20-400 | front gardens, yard beds, forecourt planters | 2026-10-05 |
 
+## Dogs (built in code; CC0 recordings)
+
+The dogs (`DogMesh`, `DogRig`; 2026-10-05) are built in code: no model file. Their coats
+(`assets/textures/dogs/*.jpg`, 14 colourways) are painted by `tools/dogs/make_dog_coats.py`
+(numpy + PIL), original. The Quaternius Shiba (`dog_shiba.glb`) they replace is removed.
+
+| File | Source | License | Cut | Date |
+|---|---|---|---|---|
+| Dog Bark (aunrea) | https://freesound.org/s/495658/ | CC0 1.0 | `bark_big_0` 0.13-0.55 s; `bark_big_1` 1.43-1.88 s; `bark_big_2` 3.45-3.87 s | 2026-10-05 |
+| Barking Dog (SuperStudioBR) | https://freesound.org/s/180977/ | CC0 1.0 | `bark_big_3` 0.69-1.11 s; `bark_big_4` 2.51-2.91 s; `bark_big_5` 10.73-11.23 s | 2026-10-05 |
+| Pomeranian Small Dog Barking.mp3 (yunjish) | https://freesound.org/s/608732/ | CC0 1.0 | `bark_small_0..4` 6.89, 8.19, 11.65, 12.81, 9.43 s (0.32-0.36 s each) | 2026-10-05 |
+| bark yelp dog small int.flac | https://freesound.org/s/452180/ | CC0 1.0 | `dog_yelp_0` 0.73-1.28 s | 2026-10-05 |
+| Dog's Yelping 7 | https://freesound.org/s/160478/ | CC0 1.0 | `dog_yelp_1` 3.13-3.75 s; `dog_yelp_2` 7.73-8.33 s | 2026-10-05 |
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |

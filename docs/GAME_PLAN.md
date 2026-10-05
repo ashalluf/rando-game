@@ -525,6 +525,18 @@ already mapped so milestone 2 is script-only.
   avoid nonsense holes. The turf is ONE distance-field mesh per chunk so edges stay crisp on a
   1.6 m grid and the whole course is one draw. Golfers are crowd rigs with solved poses (no new
   clips); carts are scripted on the path, not vehicles.
+- **2026-10-05 Dogs: built in code, six breeds, walkers back on, yard dogs (VISUAL_ROADMAP #90,
+  HANDOFF dogs section).** Dog walkers had been off since the only CC0 rigged dog was a low-poly,
+  flat-shaded Shiba. No CC0 dog at realistic quality exists (Poly Haven has none), so the dogs are
+  built in code like the birds: `DogMesh` lofts a body, head, legs, ears and tail per breed by real
+  proportions onto a 28-bone skeleton, with fur as shell layers on the skinned mesh and coats
+  painted by a script on a shared chart; `DogRig` poses it procedurally every tick (no clips: a
+  quadruped gait by phase with IK legs is fewer moving parts than retargeting animal clips that
+  do not exist in CC0 at this quality). Decisions worth knowing: a walker's dog is the owner's
+  SIBLING under the chunk, not its child (a knocked person's node is freed and the dog must
+  outlive it); a hit dog yelps and bolts, never bleeds or ragdolls (no gore on animals) and is
+  never a crime; yard dogs are a hash share of YardFill's lots through one hook line, so no roll
+  moves; `dog_share` is (0.12, 0.03) again.
 
 - **2026-10-05 The Los Angeles River: a concrete flood channel east of downtown to Long Beach,
   with its bridges (VISUAL_ROADMAP #58, HANDOFF 9bp).** The game had nothing where the real

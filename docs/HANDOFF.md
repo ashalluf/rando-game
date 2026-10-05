@@ -9150,3 +9150,85 @@ residential windows and walls (its plaster reads stone-grey in shade); a clubhou
 putt and wait but do not walk to their ball); carts drive the path without stopping at tees and
 have no engine sound. Hedge planting draws from three of the bush scans; no grass blades or shells
 on the turf (the shader carries it). The aerating fountain and sprinklers are CPU particles.
+
+## 9cv. Dogs: six code-built breeds, walkers back on a lead, yard dogs, 2026-10-05 (agent branch `wt/dogs`; VISUAL_ROADMAP #90)
+
+**Why.** Dog walkers were switched off (`dog_share` 0) because the only CC0 rigged dog was
+Quaternius' low-poly, flat-shaded Shiba. Poly Haven has no dogs, and no CC0 dog at realistic
+quality was found, so the dogs are built in code, the way the birds are. The Shiba
+(`assets/models/dog_shiba.glb`) is removed.
+
+**What.**
+- `DogMesh` (`scripts/npc/dog_mesh.gd`): six breeds from a table of real proportions (withers
+  height, body length, chest depth and width, belly tuck, croup, neck length / radius / angle,
+  head length, skull width, muzzle share and width, dome, stop, ear kind, tail kind, leg and thigh
+  bulk, coat length by region, strand cell, eye size and colour, coat looks with odds): labrador
+  (0.57 m), German shepherd (0.62), terrier (0.31), chihuahua (0.20), pit bull mix (0.48), husky
+  (0.56). One skinned mesh each on a 28-bone skeleton: a torso loft along top and under lines with
+  a keel to the brisket and the neck up to the poll; a head loft (occiput, skull, brow, stop,
+  muzzle, nose leather; the lower muzzle weighted to the jaw); leg tubes down the joint chain
+  (upper arm / thigh tucked into the body, forearm / gaskin, pastern / hock) with domed paws and
+  pads; five ear kinds as cupped two-sided cards; a tapering four-bone tail; wet eyes. Three
+  levels: NEAR 6.8k, MID 2.5k, FAR 0.8k triangles. Fur is shells: the coat triangles again 10 (NEAR)
+  / 5 (MID) times, lifted along the normal by the coat length (vertex COLOR.g: a ruff, a plume
+  tail, short face and legs), combed along the hair flow (TANGENT, which skinning turns with the
+  body) and drooping under gravity; `shaders/dog_fur.gdshader` cuts strands out of elongated cells
+  (UV2 in metres), each strand tapering with its own tone and a sun-browned tip, and below a pixel
+  keeps each layer by its mean cover, dithered. `shaders/dog.gdshader` is the skin: the undercoat
+  under shells (the average coat at FAR), a short coat's hair ridges in the normal, cobbled wet
+  nose leather, clearcoat eyes with iris and pupil, pads, a translucent inner ear, lips and claws.
+- Coats: `tools/dogs/make_dog_coats.py` paints 14 colourways (lab yellow / black / chocolate,
+  shepherd black-and-tan / dark, terrier tan / tricolour, chihuahua fawn / black-and-tan, pit bull
+  blue / brindle / white, husky grey / red) onto a chart every breed shares, so a pattern is a
+  function of anatomy (torso rows rump..poll, head rows occiput..nose, legs round and down).
+- `DogRig` (`scripts/npc/dog_rig.gd`): the pose, worked out every tick from `speed`, `sit`, `sniff`,
+  `look_at`, `wag`, `fear`, `bark`, `pant`, `turn`. Walk (lateral sequence), trot (diagonal pairs)
+  and gallop (rotary) blended by a Froude-style speed; each paw planted for `duty` of the stride,
+  sweeping back by stride x duty while the body passes over it, then lifted and swung; two-bone IK
+  per leg with the pastern / hock at its own angle (folding in the swing), poles behind the elbow
+  and ahead of the stifle; body bob, roll, spine flex, head nod; the sit bends the spine (pelvis
+  50 degrees, chest a sixth of it) with the hocks on the ground; drop ears swing on a spring.
+  Levels by camera distance, scaled by size; hidden past `draw_range`.
+- `Dog` (`scripts/npc/dog.gd`): the hit box (`DogBody`, AnimatableBody3D on the npc layer, mask
+  0: bullets, blasts and bumpers find it), `hit()` (a yelp, a capped scripted hop, then it bolts
+  tail tucked, steering off walls, until out of sight, then frees itself; no blood, no ragdoll, no
+  crime), barks (`bark_big` / `bark_small` by size, pitched per dog), `startle_all()` from
+  `Pedestrian.alarm()`. `DOGS=0` in the environment removes every dog (the A/B).
+- `CrowdDog`: a SIBLING of its owner under the chunk (a knocked person's node is freed); walks at
+  the owner's left with a little wander, sniffs / sits looking up / stands at a stop, watches the
+  player close by (a small dog may yap), barks tail-tucked at gunfire, bolts when hit or when its
+  owner goes down, is freed with its owner otherwise. A nylon collar on the neck bone and a sagging
+  ribbon lead to the owner's left hand. `dog_share` is (0.12, 0.03) again.
+- `YardDog` + `DogYard`: one hook line at the end of `YardFill._dress_beach_lot()`. A hash share of
+  lots (30 % of front gardens behind a low wall or pickets, else 6 % of back yards without a pool),
+  3 a chunk at most, FULL only. The dog keeps to a patch in the lot's frame, pads about, sits,
+  sniffs; the player within 22 m sends it to the fence (its nose kept this side of it) to bark in
+  bursts; a gun sends it to the far corner; hit, it cowers and stays in its yard.
+- Sounds: CC0 Freesound recordings (docs/ASSETS.md "Dogs"): six big-dog barks, five small-dog
+  yaps, three yelps; synthesized fallbacks in Sfx.
+
+**Frame cost** (`tools/geo_count.gd`, opengl3, 800x600, beach town `--spawn=-592,-96,-63,-10`
+facing a yard dog, noon): 3,775,001 triangles / 3,194 draws / 11,164 objects with dogs against
+3,757,735 / 3,190 / 11,160 with `DOGS=0` (+17k, +0.5 %; +4 draws). A dog is 2 draws (skin + shells)
+plus its shadow; walkers' dogs past the owner's life range are hidden and frozen. Meshes for all
+breeds and levels are built on the loading screen (`DogMesh.warm()`, logged as `LOADING dogs`).
+
+**Tools.** `tools/glshot/dog_shot.gd` (a lineup of breeds alone: `BREEDS`, `VIEW`, `POSE`, `LOD`,
+`SEQ`); `tools/glshot/dog_city_shot.gd` (`MODE=walker`: a walker staged on the spawn block's
+pavement, filmed from the kerb; `MODE=yard`: the nearest front-yard dog barking over its fence);
+`tools/dog_probe.gd` (lists the dogs round a spawn with EYEs; `FIND=1` lists suburb and beach-town
+blocks); `tools/crowd/crowd_lab.tscn SCENARIO=dog FOLLOW=1`. Beach town with dogs:
+`--spawn=-593,-102` (walkers), `--spawn=-447,556` (a pit bull in a front garden). Checks:
+`tests/dog_checks.gd` (22 checks; staged beside the player, never moving him).
+
+**Stills** (shots/dogs; opengl3, not the Mac's Forward+): the six breeds three-quarter, side and
+front; a trot sequence; a dog walker on the beach town's pavement; a pit bull at a picket fence.
+
+**Not done / not verified.** Forward+ (the Mac) not seen: the fur shells' look under TAA and AgX
+need eyes (the opengl3 stills show them dithered). Up close the coats read as plush rather than
+photographic: no guard-hair cards, no per-breed fur clumping, the leg tubes meet the body at a
+visible crease under short coats, the pit bull's head is blunt. No lying-down pose, no jumping up
+at the fence, no tongue when panting (the jaw just hangs open). Dogs are not on the web's crowd
+budget separately (they follow the walkers). Yard dogs only in the suburbs and the beach town
+(YardFill's lots); hillside estates have none. The walker test of the lead runs headless (no
+mesh data), so the lead's ribbon is only seen in stills.
