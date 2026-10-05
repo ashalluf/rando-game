@@ -1231,6 +1231,41 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   windscreen (same pass): `CarCabin.BUS_DAYLIGHT` lights a bus's traced cabin 2.2x (and lets more of
   it through the glass) and a bus's far twin starts at 60 m (`BigVehicles.tune()`), since from the
   pavement at noon its front read as a black slab.
+- Police stations (2026-10-05, "police stations the cruisers come out of"; HANDOFF 9b?):
+  `PoliceStation` (`scripts/world/police_station.gd`, static). WHERE is worked out like
+  FireStation's, never placed: `CELL` 1500 m squares, a hash of seed + cell, up to `TRIES` hashed
+  points; the first block that is MIDTOWN or downtown off its tower core (skyline boost < 0.3),
+  BUILDINGS, not a landmark's, a park's, the river's or the fire station's, gives a SITE: a centred
+  run of its lot-grid cells along one street (`SITE_TARGET` 56 x 50 m, at least `SITE_MIN`, ground
+  within `MAX_RELIEF`, clear of the freeways, every cell's lot present). Every lot whose centre is
+  in the site is claimed (`claims()`, asked by `CityChunk._build_lot()` after FireStation's - the
+  pad roll is made either way) and the first of them in lots() order builds it (`build_lot()`); the
+  headquarters (`hq()`) is the whole block grid-south of City Hall, eight storeys. `layout(L, D)` is
+  the plan in the site's street frame (Industrial.frame: u along the street, v in from it):
+  forecourt `sb` deep, the building, a DRIVE_W driveway at the high-u end with the sliding gate on
+  the street fence line, the car park behind (`pv0..pv1`, one or two stall rows). FULL: ONE mesh
+  (a surface per material, `PoliceStation.Geo`: precast concrete with glass bands, spandrels and
+  full-height fins, `shaders/police_station_glass.gdshader` lit window by window after dark, a
+  glazed lobby pavilion lit all night under a cantilevered canopy with the name band, a stair tower,
+  roof plant, flagpoles, bollards, planters, the monument sign, palisade and barbed chain-link, the
+  fuel island, the sally port, floodlight poles, CCTV, the lattice radio mast with its blinking
+  beacon), the `Gate` node (`open_gate()` tweens it along behind the palisade; its AnimatableBody
+  moves with it), the parked cruisers as ONE MultiMesh of the sedan's far twin in the livery
+  (`cruiser_mesh()`, the car_paint shader with stripe_mode 5) plus their dark light bars, the
+  floodlit pools, two `lamp_light` omnis (not on the web), TextMesh lettering (not on the web), one
+  collision body. LOD and the far city: the building and the mast as `lod_box`es. Names are
+  invented (`DEPT` RANDO CITY POLICE, `DIVISIONS`). **Dispatch** (`Police`): within
+  `station_reach` (520 m) of the player, `_dispatch()` sends the cruiser out of the nearest
+  station's gate (`_dispatch_from_station()`: it starts in the car park, the gate opens, it is
+  driven along `PoliceStation.exit_path()` by `_tick_drives()` with `PoliceCar.scripted` set - its
+  own driving off - then dispatches from the lane like any other), one at a time per gate
+  (`_gate_busy()`); a cruiser out of a station is not despawned short of `station_reach + 150`. A
+  recalled one (`board()` with no stars) heads for the nearest station (`_home_for()`), turns in
+  along `enter_path()` once level with the gate (`_maybe_enter()`; a physical one is stripped and
+  frozen first, wheels before the freeze) and is pooled behind the gate. Parked cars keep off the
+  kerb in front of a gate (`keeps_clear()`). `POLICE_STATIONS=0` in the environment turns them off
+  (the A/B). Stills: `tools/glshot/block_shot.tscn` EYEs and `tools/glshot/police_station_shot.gd`
+  (the gate sequence); checks: `tests/police_station_checks.gd`.
 - Character arms: the generated clips were authored for arms that hang straight, but each
   generated rig is bound in whatever pose its mesh came out in (A-pose, or a palms-up shrug
   with the forearms raised), and the clips drive the arm bones as if that were the rest pose -
