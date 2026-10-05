@@ -1654,6 +1654,7 @@ func _shell_marks(area: Rect2) -> Array:
 		var at: Vector2 = lm.anchor
 		if r > 0.0 and not SHELL_FREE_LANDMARKS.has(lm.id) and area.grow(r + SHELL_CLEAR_SPAN).has_point(at):
 			marks.append([at, at, r])
+	marks.append_array(Ballpark.shell_marks(area))
 	return marks
 
 
@@ -1868,6 +1869,8 @@ func _near_hill_road(p: Vector2, segs: Array[Dictionary], margin: float) -> bool
 
 
 func _near_pad(p: Vector2, pads: Array[Dictionary], margin: float) -> bool:
+	if Ballpark.covers(p, margin):
+		return true
 	for m in pads:
 		if p.distance_to(m.pos) < HillRoads.PAD_RADIUS + margin:
 			return true

@@ -1765,6 +1765,9 @@ func _test_city() -> void:
 	# the front rows first, batches and figures on a FULL chunk, woken people, gunfire scattering
 	# them, the block's palms unmoved, the LOD dots, nobody at night, the cyclist's legs on the pedals.
 	load("res://tests/beach_life_checks.gd").new().run(self, city)
+	# The ballpark in the ravine (tests/ballpark_checks.gd): its real place and facing, the site cut
+	# into the hills, its roads, the shaders' copies, the meshes and a FULL chunk building it.
+	load("res://tests/ballpark_checks.gd").new().run(self, city)
 	# The ground outside downtown and midtown (tests/lot_fill_checks.gd): beach-town yards, the
 	# campus, the freeway's right of way - bare share before and after, one mesh each, budgets, and
 	# nothing else in the block moved.
