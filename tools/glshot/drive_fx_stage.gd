@@ -27,7 +27,8 @@ static func stage(tree: SceneTree, kind: String, cam: Camera3D) -> void:
 	var hit := space.intersect_ray(q)
 	if not hit.is_empty():
 		at = hit.position
-	print("DRIVE ground under %s: %s" % [at, hit.get("collider")])
+	var dfx: Node = DrivingFX.instance()
+	print("DRIVE ground under %s: %s, zone %s" % [at, hit.get("collider"), dfx.call("_zone_at", at) if dfx else "?"])
 	var heading := fwd.rotated(Vector3.UP, -deg_to_rad(_f("DRIVE_YAW", 90.0)))
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(_f("DRIVE_SEED", 7.0))

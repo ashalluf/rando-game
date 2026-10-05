@@ -3,7 +3,8 @@ shader_type spatial;
 // sliding tyre, each instance one short segment. The mark MULTIPLIES what is under it (blend_mul),
 // so rubber darkens the lit road whatever the light - noon, a street lamp's pool, a headlight -
 // and costs no lighting at all. Instance COLOR is the tint (rubber black, a darker sand, damp
-// dirt, linear) and its alpha the strength; INSTANCE_CUSTOM.x is the minute it was laid, mod 30
+// dirt, linear) and its alpha the strength; INSTANCE_CUSTOM.x is the minute it was laid, mod 30, .y
+// 1 while it is alive (0 once swept), .z 1 for a lone patch;
 // (half floats on Compatibility: 0.015 min resolution is plenty), and the mark fades out over
 // `life_min`. A wet road shows the rubber far less: the water film lies over it.
 render_mode unshaded, blend_mul, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
@@ -24,10 +25,13 @@ uniform float wet_keep = 0.35;
 
 varying vec4 v_col;
 varying float v_fade;
+// 1 for a lone patch (a burnout on the spot): its ends fade, a chain's segments meet edge to edge.
+varying float v_patch;
 varying vec3 v_world;
 
 void vertex() {
 	v_col = COLOR;
+	v_patch = INSTANCE_CUSTOM.z;
 	float age = mod(now_min - INSTANCE_CUSTOM.x + 30.0, 30.0);
 	// Fresh rubber is darkest; it greys out quickly at first, then lingers.
 	float t = clamp(age / max(life_min, 0.01), 0.0, 1.0);
@@ -52,7 +56,8 @@ void fragment() {
 	vec2 f = fract(w);
 	f = f * f * (3.0 - 2.0 * f);
 	float n = mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
-	float a = v_col.a * edge * tread * (0.7 + 0.3 * n) * v_fade;
+	float ends = mix(1.0, smoothstep(0.0, 0.35, UV.y) * (1.0 - smoothstep(0.65, 1.0, UV.y)), v_patch);
+	float a = v_col.a * edge * ends * tread * (0.7 + 0.3 * n) * v_fade;
 	a *= mix(1.0, wet_keep, clamp(road_wetness * 1.6, 0.0, 1.0));
 	vec3 mul = mix(vec3(1.0), v_col.rgb, clamp(a, 0.0, 1.0));
 	ALBEDO = cs_out(mul);

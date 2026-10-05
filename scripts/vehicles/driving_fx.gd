@@ -58,9 +58,9 @@ enum Surface { ASPHALT, DIRT, SAND }
 ## Seconds a mark takes to fade out.
 @export var mark_life: float = 240.0
 ## Strength of fresh rubber at full slip (how far it darkens the road).
-@export var mark_strength: float = 0.9
+@export var mark_strength: float = 0.72
 ## Rubber, as a linear multiplier on the road.
-@export var rubber_tint: Color = Color(0.05, 0.045, 0.045)
+@export var rubber_tint: Color = Color(0.11, 0.1, 0.095)
 ## Tyre tracks: sand and dirt take a print at any speed.
 @export var sand_tint: Color = Color(0.55, 0.47, 0.36)
 @export var dirt_tint: Color = Color(0.5, 0.42, 0.33)
@@ -208,7 +208,7 @@ func _ready() -> void:
 		spark_emitters = mini(spark_emitters, 1)
 		exhaust_emitters = 0
 	_build_marks()
-	var smoke_mat := _puff_material(Color(0.8, 0.79, 0.78), 0.9)
+	var smoke_mat := _puff_material(Color(0.86, 0.87, 0.9), 0.9)
 	for i in smoke_emitters:
 		_smoke.append(_make_smoke(smoke_mat))
 		_smoke_keys.append(null)
@@ -512,7 +512,7 @@ func _tick_wheels(car: Vehicle, wet: float, smoke: Array, dust: Array, screech: 
 			st["spun"] = float(st.get("spun", 0.0)) + spin * burnout_slip / float(Engine.physics_ticks_per_second)
 			if float(st["spun"]) >= patch_spin:
 				st["spun"] = 0.0
-				laid += _patch(cp + n * 0.025, n, fwd, tyre_w, mark_strength * 0.5)
+				laid += _patch(cp + n * 0.025, n, fwd, tyre_w, mark_strength * 0.3)
 		var dir := cv.normalized() if rolling > 0.5 else fwd
 		if surface == Surface.ASPHALT:
 			if slip > smoke_slip:
@@ -540,7 +540,7 @@ func _tick_wheels(car: Vehicle, wet: float, smoke: Array, dust: Array, screech: 
 
 
 ## Adds the segment from the wheel's last mark to `at` once the tyre has moved a segment.
-func _lay(st: Dictionary, at: Vector3, n: Vector3, cv: Vector3, width: float, tint: Color, strength: float) -> int:
+func _lay(st: Dictionary, at: Vector3, n: Vector3, cv: Vector3, width: float, tint: Color, strength: float, patch: bool = false) -> int:
 	var here := to_local(at)
 	var last: Variant = st.get("last")
 	if last == null:
@@ -566,7 +566,7 @@ func _lay(st: Dictionary, at: Vector3, n: Vector3, cv: Vector3, width: float, ti
 	_mark_count = mini(_mark_count + 1, _marks.instance_count)
 	_marks.set_instance_transform(i, xf)
 	_marks.set_instance_color(i, Color(tint.r, tint.g, tint.b, strength))
-	_marks.set_instance_custom_data(i, Color(fmod(_clock / 60.0, 30.0), 1.0, 0.0, 0.0))
+	_marks.set_instance_custom_data(i, Color(fmod(_clock / 60.0, 30.0), 1.0, 1.0 if patch else 0.0, 0.0))
 	_mark_birth[i] = _clock
 	_marks.visible_instance_count = _mark_count
 	return 1
@@ -574,8 +574,8 @@ func _lay(st: Dictionary, at: Vector3, n: Vector3, cv: Vector3, width: float, ti
 
 ## One short mark centred on `at` along `along` (a tyre spinning on the spot).
 func _patch(at: Vector3, n: Vector3, along: Vector3, width: float, strength: float) -> int:
-	var st := {"last": to_local(at - along * 0.3)}
-	return _lay(st, at + along * 0.3, n, along, width, rubber_tint, strength)
+	var st := {"last": to_local(at - along * 0.45)}
+	return _lay(st, at + along * 0.45, n, along, width, rubber_tint, strength, true)
 
 
 ## Marks past their life are switched off for good (the shader's minute clock wraps at 30).
