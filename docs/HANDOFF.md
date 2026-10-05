@@ -46,13 +46,13 @@ The owner asked for "100 parallel agents, Opus 5.5 strictly, screenshots along t
   - The blood-pool check counts a body as on the street only within 0.6 m of the ground under its
     hips, the ragdoll's own rule for pooling (a body that lands on a car roof never pools).
   - A terrain preview the ridges branch committed by mistake is gone.
-- **Queued:** `fleet/batch4` = batch 3 + service-vehicles' rebuilt bodies, farmers-market,
-  freight-trains and fwd-review-b. **estate-night was taken out of it**: it redraws the far
-  estates (EstateFar), but hill-homes' `HillHomeKit` owns every estate's house now (FULL, LOD and
-  the far city), and `_build_mansions()` / `Skyline._add_hills()` go to HillHomeKit first, so
+- **Batch 4 is on `main`** (15:00): batch 3 + service-vehicles' rebuilt bodies, farmers-market,
+  freight-trains and fwd-review-b. Gate: 1,880 passed, 0 failed, peak 3.7 GB. **estate-night was
+  taken out of it**: it redraws the far estates (EstateFar), but hill-homes' `HillHomeKit` owns
+  every estate's house now (FULL, LOD and the far city), and `_build_mansions()` / `Skyline._add_hills()` go to HillHomeKit first, so
   EstateFar never drew and two of its checks failed; its session builds it on HillHomeKit's plan.
-  `fleet/batch5` = batch 4 + road-detail's follow-up, memory-audit (a 4,000 MB peak budget for the
-  merged city), shader-warm, load-time (a disk cache keyed on every script's md5), occluders,
+- **Queued:** `fleet/batch5` = batch 4 + road-detail's follow-up, memory-audit (a 4,000 MB peak
+  budget for the merged city), shader-warm, load-time (a disk cache keyed on every script's md5), occluders,
   gate-speed (`SHARDS=n` on headless_check.sh), texture-budget, reflection-probes, web-build,
   fwd-review-c, far-landmarks, civic-buildings, scooters, driving-fx and traffic-ai.
 - **Usage limit, 12:42-13:09:** 20 sessions stopped on the account's five-hour limit with the
