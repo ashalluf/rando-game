@@ -387,7 +387,7 @@ func _begin_tile(t: Vector2i) -> void:
 		"t": t, "blocks": blocks, "next": 0, "ranges": {},
 		"xforms": [], "colors": [], "customs": [],
 		"veg": [], "veg_colors": [], "veg_custom": [],
-		"houses": [], "house_colors": [], "hills": {},
+		"houses": [], "house_colors": [], "house_custom": [], "hills": {},
 	}
 
 
@@ -482,10 +482,9 @@ func _commit_tile() -> void:
 			tile.veg = _planting_node("Planting_%d_%d" % [t.x, t.y], PropFactory.canopy_blob(), veg, veg_colors, veg_custom)
 			add_child(tile.veg)
 		if not houses.is_empty():
-			var house_custom: Array = []
-			house_custom.resize(houses.size())
-			house_custom.fill(Color(0.0, 0.0, 0.0, 0.0))
-			tile.house = _planting_node("Estates_%d_%d" % [t.x, t.y], PropFactory.unit_box(), houses, house_colors, house_custom)
+			tile.house = _planting_node("Estates_%d_%d" % [t.x, t.y], PropFactory.unit_box(), houses, house_colors, _work.house_custom)
+			if EstateFar.enabled:
+				tile.house.material_override = EstateFar.material()
 			add_child(tile.house)
 	_tiles[t] = tile
 	var hills: Dictionary = _work.hills
@@ -908,8 +907,20 @@ func _add_hills(rect: Rect2, macro: MacroMap) -> void:
 		# `height` is the pad's deck elevation (CityChunk._build_mansions builds on it), the house
 		# 4 m back on the pad, on its 0.4 m pad, 7.5 m tall.
 		var at := Vector3(pos.x, float(m.height), pos.y)
+		if EstateFar.enabled:
+			# The estate as its parts and lamps (EstateFar), its trees with the planting.
+			for part: Array in EstateFar.parts(m, false, macro.height_at):
+				houses.append(part[0])
+				house_colors.append(part[1])
+				(_work.house_custom as Array).append(part[2])
+			for tree: Array in EstateFar.trees(m):
+				veg.append(tree[0])
+				veg_colors.append(tree[1])
+				veg_custom.append(Color(0.0, 0.0, 0.0, 0.0))
+			continue
 		houses.append(Transform3D(basis.scaled_local(Vector3(18.0, 7.5, 13.0)), at + basis * Vector3(0.0, 4.15, -4.0)))
 		house_colors.append(Color(0.92, 0.88, 0.8))
+		(_work.house_custom as Array).append(Color(0.0, 0.0, 0.0, 0.0))
 
 
 func _spot(rect: Rect2, hs: int) -> Vector2:

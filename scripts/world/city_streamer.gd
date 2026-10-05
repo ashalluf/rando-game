@@ -988,7 +988,7 @@ func _build_ground_material() -> ShaderMaterial:
 	var htex := ImageTexture.create_from_image(plan.macro.bake_height)
 	_canopy_material = ShaderMaterial.new()
 	_canopy_material.shader = load("res://shaders/far_canopy.gdshader")
-	for m in [mat, _canopy_material]:
+	for m in [mat, _canopy_material, EstateFar.material()]:
 		m.set_shader_parameter("macro_tex", tex)
 		m.set_shader_parameter("macro_height_tex", htex)
 		m.set_shader_parameter("macro_centre", Vector2.ZERO)
@@ -1000,13 +1000,14 @@ func _build_ground_material() -> ShaderMaterial:
 			m.set_shader_parameter("calm_centre", plan.macro.peninsula_center)
 			m.set_shader_parameter("calm_axes", plan.macro.peninsula_axes * 1.08)
 			m.set_shader_parameter("calm_dir", plan.macro._headland_axes()[0])
-	_canopy_material.set_shader_parameter("plane_half", ground_size * 0.5)
-	_canopy_material.set_shader_parameter("plane_step", ground_step())
+	for m: ShaderMaterial in [_canopy_material, EstateFar.material()]:
+		m.set_shader_parameter("plane_half", ground_size * 0.5)
+		m.set_shader_parameter("plane_step", ground_step())
 	# The plane's rim hands over to the sky, and the far city fades out on the same numbers.
-	for m: ShaderMaterial in [mat, _canopy_material, PropFactory.building_lod_material(), PropFactory.building_lod_material(true)]:
+	for m: ShaderMaterial in [mat, _canopy_material, PropFactory.building_lod_material(), PropFactory.building_lod_material(true), EstateFar.material()]:
 		m.set_shader_parameter("edge_start", ground_size * 0.5 * GROUND_EDGE_FADE.x)
 		m.set_shader_parameter("edge_end", ground_size * 0.5 * GROUND_EDGE_FADE.y)
-	_far_ground_materials = [_canopy_material]
+	_far_ground_materials = [_canopy_material, EstateFar.material()]
 	mat.set_shader_parameter("near_albedo", PropFactory.texture("grass", "Color"))
 	mat.set_shader_parameter("near_normal", PropFactory.texture("grass", "NormalGL"))
 	return mat
