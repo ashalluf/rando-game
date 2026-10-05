@@ -854,6 +854,11 @@ already mapped so milestone 2 is script-only.
   LOD freeway chunk is the only new draw. docs/HANDOFF.md "The night aerial"; CLAUDE.md "Night
   aerial".
 
+- **2026-10-05 The cumulus read as photographs, not paintings (owner's review of wt/sky).** Flat
+  bases at a shared condensation level, crowns thinned so the billows build them into turrets,
+  footprints warped and tops sheared, a second population of fragments, three-octave torn edges
+  and fractus, and a deeper light march with an occluded ambient so shaded sides and bases go
+  grey. Forward+ only; the web keeps the painted cumulus.
 - **2026-10-05 The 110 and the 101 meet in a four-level stack (VISUAL_ROADMAP #81).** At the
   real four-level interchange the two decks used to just cross. Now the 110 is level 1 and the
   101 level 4, with the four left-turn connectors on levels 2 and 3, banked, on single hammerhead

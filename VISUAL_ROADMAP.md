@@ -131,3 +131,4 @@ Forward+-dependent looks never seen on the owner's Mac (the harness is opengl3 o
 
 - An F1 screenshot (FULL mode: the frame-time line) on the Mac downtown at noon and at night in
   rain, for the real frame rate against the 60 / 30 fps targets.
+| ? | Photographic cumulus: flat dark bases, turreted heaps of every size with fragments and fractus, torn three-octave edges, grey-violet shaded sides | Sky (sky.gdshader cumulus / march) | 4 | 3 | 1.0 | 6 | done (branch wt/sky) | HANDOFF 9d? (photographic cumulus). +2-10 % of a lavapipe sky-only frame. NEEDS MAC CHECK: the fine edges under real TAA, golden hour toward and away from the sun |

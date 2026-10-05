@@ -8586,3 +8586,45 @@ abrupt. A connector car spawned when nobody can be taken pops in (only farther t
 the player). Sound: no rolling-traffic emitter of its own (Ambience's freeway emitter reads
 segments_in(), so it does hear the connectors). The far city draws the connectors as unbanked
 deck boxes.
+
+## 9d?. Photographic cumulus, 2026-10-05 (agent branch `wt/sky`, fleet wave 2; VISUAL_ROADMAP row "?")
+
+**Why.** The owner's review of the last sky stills: the volumetric cumulus read stylised -
+smooth triangular puffs at golden hour, uniform blobs at noon.
+
+**What changed** (all in `cumulus()` / `cumulus_march()` in `shaders/sky.gdshader`, Forward+ only;
+the Compatibility painted cumulus is untouched):
+- **Flat bases.** The base is cut over ~20 m at the condensation level the whole field shares,
+  and near the base the billow noise is read at a fixed height (sideways only), so the margin is
+  cut into vertical walls and never rounds the underside. A body keeps its base's width for its
+  lower ~22 % (`smoothstep(0.22, 1.0, rel)`) before it rounds.
+- **Turreted crowns.** However strong the column, its envelope thins over the upper part
+  (`d_big *= 1 - 0.8 smoothstep(0.35, 1, rel)`), so the billows decide the crown: a heap of
+  domes. The column's top also varies with a 1.3 km noise (0.72-1.12x) and is capped at 0.97 of
+  the slab (towers used to be cut flat by its ceiling: boxes from the air).
+- **No symmetry.** The weather map is read through a warp (a slice of the billow noise, ~0.9 km),
+  and the tops lean downwind (`hc^2 x 0.22 km`).
+- **Size range.** A second population, the weather map four times finer (`fcol`), puts fragments
+  (humilis, 5-20 % of the slab tall, half density, torn harder) in the gaps between the heaps;
+  the field multiplier on the heaps' height is wider (0.6-1.35).
+- **Torn edges.** Three Worley octaves (G at ~2 px, G x2.17, B x4.7 where a pixel holds it),
+  offset by the billow sample (curl-like swirl), remap the margin; wispy below, billowy above.
+  Ragged fractus hangs up to ~100 m under the bases (the march slab now starts 6 % below the base).
+- **Shading.** The light march is five taps over 1.5 km (was four over 0.93), the multiple
+  scattering octaves are weaker (0.2 / 0.035, were 0.30 / 0.07) and the ambient is occluded in
+  dense cores, most of all low down in a heap (x0.28 at the base of a dense core, 0.7 at the top):
+  shaded sides go grey-violet, bases dark grey, rims stay bright.
+
+**Cost.** Sky-only 1280x720 on lavapipe (`sky_shot.gd BENCH=8`): noon 587-629 ms -> 640-644 ms
+(+2-10 %), golden hour toward the sun 599 -> 658 ms (+10 %), of a sky-only frame; the volume is the
+half-res sky pass, so in the game this is a small part of the frame. No geometry change.
+
+**Stills** (shots/sky, `20`-`34`): before / after at noon, golden hour toward and away from the
+sun, dusk both ways (from the street) and noon and golden hour from 1,250 m; `34` the opengl3
+(painted) path, unchanged.
+
+**Not done / NEEDS MAC CHECK.** Seen only on lavapipe sky-only scenes (the city does not fit
+lavapipe). The fractus and the finest erosion octave are a few pixels and rely on TAA at 60 fps to
+resolve (in the 1 fps harness some read as specks). The cirrus and mid deck are still the painted
+sheets. No cloud shadows on the ground. The fragments have no light march of their own beyond the
+shared one.

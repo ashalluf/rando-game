@@ -326,7 +326,10 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   turns the columns into a flat stratus ceiling (weather). Compatibility and Forward+ below
   MEDIUM keep the painted 2D cumulus (`painted_cumulus()`), and the mid deck is thinned next to the
   volume. Cost on lavapipe, 1280x720 sky-only: +0 to +4 % of the frame (`tools/sky/sky_shot.gd`
-  BENCH, `SHADER=` the A/B). The half pass also carries the sky-space crepuscular rays
+  BENCH, `SHADER=` the A/B). **Photographic shape** (HANDOFF 9d?): flat base cut at the
+  condensation level with sideways-only billows near it, crown thinned so billows make turrets,
+  warped footprints and downwind lean, a 4x-finer fragment population (`fcol`), three-octave
+  torn edges and fractus; five-tap light march and an ambient occluded in dense cores. The half pass also carries the sky-space crepuscular rays
   (`sky_rays()`: eight weather fetches toward the sun; Forward+ only). **Contrails**: SkyExtras
   flies `contrail_jets` airliners straight across at 9-12 km (not AirTraffic's, which fly under
   1.5 km); a trail is ONE segment (head minus (heading x speed - wind) x age), passed as

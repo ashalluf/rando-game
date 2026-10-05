@@ -56,6 +56,11 @@ func _source() -> void:
 			if not forward.has(true):
 				bad += 1
 	_t._check(bad == 0, "sky: every half-res reference is inside a Forward+ guard (%d outside)" % bad)
+	# The photographic cumulus (wave 2 review): a flat base, the fragments' population, three
+	# erosion octaves, the crown thinned so the billows make it.
+	_t._check(src.contains("d *= smoothstep(0.0, 0.012, hn);") and src.contains("float fcol = column(")
+		and src.contains("qe * 4.7") and src.contains("d_big *= 1.0 - 0.8 * smoothstep(0.35, 1.0, rel);"),
+		"sky: the cumulus keep their flat bases, fragments, three-octave edges and turreted crowns")
 
 
 func _noise(day: Node) -> void:
