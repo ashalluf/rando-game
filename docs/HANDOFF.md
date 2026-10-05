@@ -11474,3 +11474,29 @@ windows' brightness through AgX and glow on Forward+ (the Mac) is unverified - `
 has no garden lamps of its own (its Building has lit windows), so at night the lamps of a LOD
 estate go out at the hand-over to FULL. The roof colours do not follow the FULL Building's own
 roof (its flat SLAB roof), so a roof changes colour at 240 m.
+
+**Merged onto the hillside houses (fleet/batch4, `HillHomeKit`).** With `HILL_HOMES` on (the
+default) the house is HillHomeKit's at every range - its FULL geometry, its LOD boxes on a pavers
+pad, its far-city boxes with the lit glass band on far_canopy.gdshader - and EstateFar no longer
+draws a house of its own. It adds, from the very plan (`HillHomeKit.plan_home()`, so near and far
+agree): the pad's garden over the pavers (a lawn, a gravel garden now and then) on its retaining
+walls, the motor court inside the gate, the pool's underwater glow on the plan's pool, the lamps
+(gate piers, either side of the door at the door wing's height, garden lights round the lawn kept
+`HillHomeKit._clear()` of the wings and pool, a long driveway's), and in the far city the plan's
+cypress, olives and palms in the planting (at least 6 m tall: the far hills plant no low mounds).
+With `HILL_HOMES=0` it draws the old villa's whole estate (`_box_parts()`), as before.
+- **Seating**: far_canopy seats each far house part by the drawn plane under its OWN origin,
+  sinking the pad top 0.8 m (`- 0.8` in its estate branch). far_estate.gdshader now does exactly
+  that (`seat_sink` = `EstateFar.FAR_SINK`, checked against far_canopy's source), with `.r` the
+  part's height over its reference (pad top, or the real ground under a driveway lamp); parts that
+  lie on the ground (garden, court, pool, garden and drive lamps) carry FAR_SINK back in `.r`. The
+  garden's TOP is draped onto the drawn plane vertex by vertex (`garden_lift`): seated flat by its
+  centre it was buried on the uphill half of every sloping pad. Door and gate lamps ride the house.
+- **Skyline**: the parts are a FOURTH per-tile list (`est`, node `EstateLights_x_y` on
+  `EstateFar.material()`, block ranges `e0` / `en`, faded in `_apply_alpha()` like the rest), so
+  HillHomeKit's `Estates_*` node stays on far_canopy untouched. LOD chunks: `Batch_estate_far`
+  beside HillHomeKit's `lod_box`es.
+- Not done: HillHomeKit's far walls are its white stucco (0.92-0.97 sRGB), which still reads pale
+  in the moonlight on the Compatibility stills; the lamps and pools now say "lit estate" round
+  them. If the Mac shows the same, dim far estate walls with `lamp_factor` in far_canopy's estate
+  branch (HillHomeKit's file, so not done here).

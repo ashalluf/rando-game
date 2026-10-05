@@ -30,6 +30,8 @@ uniform float edge_start = 5040.0;
 uniform float edge_end = 6860.0;
 // far_canopy.gdshader's estate sink (EstateFar.FAR_SINK; checked).
 uniform float seat_sink = 0.8;
+// How far a far garden's draped top stands over the drawn ground.
+uniform float garden_lift = 0.08;
 // Smallest angular size a lamp is drawn at (radians of view): about 1.5 pixels on a 720-line
 // frame at 55 degrees. Its brightness falls by the area it grew, but never under lamp_floor.
 uniform float lamp_min_angle = 0.0022;
@@ -119,6 +121,13 @@ void vertex() {
 	if (fade < 0.004) {
 		VERTEX = vec3(0.0);
 	} else {
+		if (kind == 0 && real < 0.5 && VERTEX.y > 0.0) {
+			// The garden's top is draped on the drawn far plane vertex by vertex (it is wider than
+			// the plane's 44 m triangles are flat), so a pad on a slope is never buried uphill; its
+			// skirt below stays seated with the estate, the retaining wall it stands on.
+			vec3 wv = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+			shift = plane_y + plane_height(wv.xz, cam) + garden_lift - wv.y;
+		}
 		VERTEX += inverse(mat3(MODEL_MATRIX)) * vec3(0.0, shift, 0.0);
 	}
 }
