@@ -514,6 +514,7 @@ func _finish_build() -> void:
 	HouseKit.commit(self)
 	Industrial.commit(self)
 	Parks.commit(self)
+	Construction.commit(self)
 	_commit_far_ground()
 	_commit_boxes()
 	var fire_trees := TreeFire.collect(self, _batch)
@@ -2428,6 +2429,10 @@ func _block_steps(block: Dictionary) -> Array[Callable]:
 			steps.append(func() -> void: StreetVendors.build_block(self, block))
 			for i in StreetVendors.MAX_PER_BLOCK:
 				steps.append(func() -> void: StreetVendors.spawn_vendor(self, i))
+		# Road works in the kerb lane and the building sites' crews (Construction; hash-seeded),
+		# before the parked cars, which keep out of a closure.
+		if Construction.wanted(self, block):
+			steps.append_array(Construction.steps(self, block))
 		steps.append_array(_park_car_steps(rect, rng, params))
 		steps.append_array(_pedestrian_steps(rect, rng, params, Encampment.PATH_KEEP + 1.0 if camps & Encampment.FACES else -1.0))
 		# The rec park's or school's people (Parks; their own stream, after the block's walkers).
@@ -2638,7 +2643,7 @@ func _park_car(spot: Array, rng: RandomNumberGenerator, max_cars: int, count: Ar
 	# A street vendor's truck at this stretch of kerb (StreetVendors): after every roll, so the
 	# block's stream (and the walkers after it) runs the same with or without the truck.
 	# It counts as parked, so the cap (and with it the rolls) is the same too.
-	if StreetVendors.blocks_parking(self, spot[0]):
+	if StreetVendors.blocks_parking(self, spot[0]) or Construction.blocks_parking(self, spot[0]):
 		car.free()
 		count[0] += 1
 		return
@@ -2788,6 +2793,12 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	building.plinth_depth = g - gmin + SIDEWALK_TOP + 0.6
 	var base := Vector3(center.x, SIDEWALK_TOP, center.y)
 	building.position = base + Vector3(0.0, g, 0.0)
+	# A tower going up (Construction: a hash of seed + block, after every roll; the Building's own
+	# rolls never run).
+	if Construction.build_lot(self, lot):
+		building.free()
+		building_count += 1
+		return
 	# An INDUSTRIAL warehouse is Industrial's own tilt-up building (hash-seeded; no roll moves).
 	if Industrial.wanted(self, district) and Industrial.build_lot(self, lot, building):
 		building.free()
@@ -2852,7 +2863,9 @@ func _build_house(lot: Dictionary, district: int) -> void:
 	var house := HouseKit.plan_house(plan, ix, iz, lot, district)
 	for r: Rect2 in HouseKit.ground_parts(house):
 		_lot_rects.append(r.grow(0.3))
-	HouseKit.build(self, house)
+	# A timber frame going up on the house's own plan (Construction; a hash of seed + lot).
+	if not Construction.build_house(self, lot, house):
+		HouseKit.build(self, house)
 	building_count += 1
 	if YardFill.wanted(self, district):
 		_yard_lots.append(HouseKit.yard_entry(lot, house))

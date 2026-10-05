@@ -3375,6 +3375,46 @@ tools/                 meshy.py, shrink_glb.py, smooth_normals.py, make_road_car
   `Pedestrian.warm_far_mesh()`: ~12 ms a hat, ~10 ms of hair a kind on this box). Look with
   `tools/glshot/crowd_lineup.gd` `HATS=cap,beanie,bucket,police` (`HAT_PICKS=` the colourways);
   checks: `tests/crowd_hat_checks.gd`.
+- Construction (VISUAL_ROADMAP #82, 2026-10-05: "a real city is always being built"; HANDOFF
+  9cn). `Construction` (`scripts/world/construction.gd`, static) plans and builds three things,
+  every decision a hash of seed + place taken AFTER every roll the city makes: **tower sites**
+  (`tower_site(plan, bx, bz)`, pure, cached: `TOWER_BLOCK_ODDS` of DOWNTOWN / MIDTOWN BUILDINGS
+  blocks, the block's lot at least `TOWER_MIN_LOT` with a planned building over
+  `TOWER_MIN_HEIGHT`, clear of the freeway, the fire station and the landmarks; storeys built /
+  clad / total, the core, the hoist side, the gate and walkway sides, invented developer names),
+  built by `build_lot()` from `CityChunk._build_lot()` once the Building is set up (the chunk
+  frees it: its own rolls never run) - curtain wall up to `clad`, open slabs, columns and
+  guardrails above, netting round the top storeys, the top deck's edge forms, rebar mat and
+  starter bars, shores under it, the core with its jump form, a rack-and-pinion hoist, hoarding
+  on the street sides with the developer's graphics and names (the gate with signs, a covered
+  walkway over the pavement), chain-link elsewhere, a yard of cabins, a skip, toilets and stacks,
+  crew spots on the deck and at the gate; and a **tower crane** (`_fit_crane()`: the longest of
+  `JIBS` whose swing clears the freeway and every landmark, its ring `CRANE_CLEAR` over every
+  planned building under the swing, at most 70 m over the deck) - its own MeshInstance3D on
+  `ConstructionKit.crane_material()` whose vertex stage slews the jib, runs the trolley and
+  drops the hook from TIME and the node's true world position (codes in UV2.y, `CODE_*`; nothing
+  per crane on the CPU; it settles after dark), custom_aabb round the whole swing, red lamps lit
+  by `lamp_factor`; **house frames** (`house_site()`: `HOUSE_ODDS` of HouseKit lots, from
+  `CityChunk._build_house()` instead of `HouseKit.build()`, on HouseKit's own plan: slab, stud
+  walls with window openings, joists, trusses, OSB and wrap by a staged hash, a skip, a toilet,
+  lumber, a builder's pickup at the kerb - a parked Vehicle); **road works** (`road_works()`:
+  at most one closure a chunk in its own +X / +Z PARKING lane, `ROAD_ODDS` per district, kept off
+  bus stops, fire stations and vendor trucks: sign, cone taper, cones, drums, arrow board, trench
+  plates, excavator, barricade; `blocks_parking()` keeps the parked cars out after their rolls -
+  traffic never uses the parking lane, so TrafficManager is untouched). Drawn: a FULL chunk's
+  sites are ONE mesh (`ConstructionSite`) and one shadowless ground (`ConstructionGround`) on
+  ONE material (`shaders/construction.gdshader`, kind in COLOR.a 32nds, `ConstructionKit.K_*`;
+  lattice / net / rebar mat cut out and drawn solid-dark once under a pixel or two; works in
+  display numbers like industrial_walls) plus one node per crane and one `ConstructionBody`;
+  LOD chunks and the far city get the clad block, each open slab, the core and the crane
+  (`crane_far_boxes()`: a MAST and BEACON_MAST plant boxes) as lod_boxes, a frame as a lod_box
+  per wing. Crews: `ConstructionWorker` (extends StreetVendor: hi-vis through ApronCrew's garment
+  split, a `HardHat` built round the rig's head like FireHelmet, the flagger's STOP / SLOW paddle
+  in the right hand; they turn to look at trouble, they do not run), in the crowd cap, only in
+  `WORK_HOURS`. Hooks: five one-liners in city_chunk.gd. `CONSTRUCTION=0` is the A/B. Probes:
+  `tools/construction/probe.gd` (sites, closures and EYEs round a point), `chunk_probe.gd`,
+  `compile.gd`; stills `tools/construction/kit_shot.gd` (the kit alone, seconds). Checks:
+  `tests/construction_checks.gd`.
 - Street vendors (VISUAL_ROADMAP #52, 2026-10-04: "taco trucks at night, fruit carts under
   umbrellas"): `StreetVendors` (`scripts/world/street_vendors.gd`, static) - taco trucks at the
   kerb with a lit menu board, the serving window open under its propped flap, a lit kitchen
