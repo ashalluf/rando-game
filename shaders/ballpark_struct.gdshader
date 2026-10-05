@@ -19,7 +19,6 @@ uniform float screen_energy = 1.6;
 uniform float concourse_energy = 1.2;
 uniform float lens_energy = 14.0;
 uniform float bay = 8.4;
-uniform float storey = 6.2;
 
 varying flat int kind;
 varying vec3 paint;
@@ -76,15 +75,15 @@ void fragment() {
 		alb *= 1.0 - 0.16 * lines(uv.x, bay, 0.05);
 		alb *= 1.0 - 0.10 * smoothstep(0.5, 1.0, vnoise(vec2(uv.x * 1.3, uv.y * 0.08))) ;
 		if (kind == 0) {
-			// The facade: columns every bay, the concourse decks behind open bands every storey.
-			float col = lines(uv.x, bay, 1.1);
-			float band = smoothstep(0.42, 0.46, fract(uv.y / storey)) * (1.0 - smoothstep(0.86, 0.9, fract(uv.y / storey)));
-			float open = band * (1.0 - col) * step(3.0, uv.y);
-			vec3 inside = vec3(0.05, 0.05, 0.055);
-			alb = mix(alb, inside, open * 0.9);
-			// Lit concourses after dark: warm, dimmer toward the deck's back.
-			float lit = open * lamp_factor * (0.7 + 0.3 * vnoise(vec2(floor(uv.x / bay) * 3.1, floor(uv.y / storey))));
-			emit += vec3(1.0, 0.78, 0.5) * lit * concourse_energy * 0.6;
+			// The field level's outer wall: gates every other bay, a column between, reveals,
+			// and the cream band of the field concourse's parapet along the top.
+			float col = lines(uv.x, bay, 1.2);
+			float gate = step(0.5, fract(uv.x / (bay * 2.0))) * (1.0 - col) * (1.0 - step(4.6, uv.y));
+			vec3 inside = vec3(0.045, 0.043, 0.04) * (0.7 + 0.3 * smoothstep(0.0, 4.6, uv.y));
+			alb = mix(alb, inside, gate);
+			alb *= 1.0 - 0.12 * lines(uv.y, 2.3, 0.04) * (1.0 - gate);
+			alb = mix(alb, cs_srgb_to_linear(vec3(0.88, 0.86, 0.8)), smoothstep(12.55, 12.6, uv.y) * (1.0 - gate));
+			emit += vec3(1.0, 0.8, 0.55) * gate * lamp_factor * concourse_energy * 0.5;
 		} else {
 			emit += alb * flood * flood_energy * 0.55;
 		}
