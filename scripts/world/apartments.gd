@@ -37,7 +37,7 @@ const KIND_NAMES := ["walkup", "bungalow_court", "spanish_court", "podium"]
 ## Midtown: a lot whose massing (CityPlan.lot_height) is under this is low-rise, and MIDTOWN_ODDS of
 ## those are apartments (the rest keep their Building).
 const MIDTOWN_MAX_H := 24.0
-const MIDTOWN_ODDS := 0.62
+const MIDTOWN_ODDS := 0.45
 ## The inner suburbs: SUBURBS lots within INNER_RING m of the midtown ring (MacroMap.midtown_radius
 ## from downtown's extent) or of the westside centre's, at INNER_ODDS falling to 0 at the ring's end.
 const INNER_RING := 900.0

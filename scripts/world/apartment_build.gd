@@ -480,7 +480,7 @@ func _name_sign() -> void:
 		var tri: Array[Vector3] = []
 		for m in 3:
 			var v: Vector3 = verts[idx[k + m]]
-			var p := fo + t * (at + v.x) + n * 0.035
+			var p := fo + t * (at - v.x) + n * 0.035
 			tri.append(L(p, y + v.y))
 		_tri("h_metal", tri[0], tri[1], tri[2], nw, c)
 		k += 3

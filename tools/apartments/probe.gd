@@ -36,7 +36,9 @@ func _initialize() -> void:
 				counts[key] = int(counts.get(key, 0)) + 1
 				if not eyes.has(key):
 					eyes[key] = []
-				if (eyes[key] as Array).size() < 3:
+				# A pad (Commercial) may be rolled on an edge lot 18 m or more each way: not a lot to look at.
+				var pad_risk: bool = lot.edge and (lot.size as Vector2).x >= 18.0 and (lot.size as Vector2).y >= 18.0
+				if (eyes[key] as Array).size() < 3 and not pad_risk:
 					var f: Dictionary = ap.f
 					# Standing in the street, 18 m out from the lot's front, looking at it.
 					var front := (f.o as Vector2) + (f.u as Vector2) * float(f.U) * 0.5
