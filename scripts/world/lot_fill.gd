@@ -585,6 +585,8 @@ static func _shrub(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> vo
 	var sc := rng.randf_range(0.9, 1.4)
 	var basis := Basis(Vector3.UP, rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.0))
+	if LaTrees.accent_shrub(ch, at, LaTrees.PLANTER_ACCENT):
+		return
 	ch._batch.add("bush_%d" % pick, PropFactory.model_bush(pick), Transform3D(basis, at), tint)
 
 
@@ -595,7 +597,10 @@ static func _tree(ch: CityChunk, at: Vector3, rng: RandomNumberGenerator) -> voi
 	var s := PropFactory.city_tree_scale(variant, PropFactory.city_tree_height(variant, rng) * 0.8)
 	var tint := Color(rng.randf_range(0.85, 1.1), rng.randf_range(0.9, 1.1), rng.randf_range(0.85, 1.05))
 	var variety := Color(rng.randf(), rng.randf(), rng.randf(), rng.randf_range(0.25, 1.0))
-	ch._batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s, s)), at), tint, variety)
+	var yaw := rng.randf() * TAU
+	if LaTrees.lot_tree(ch, at, yaw, tint):
+		return
+	ch._batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
 
 
 ## A shallow reflecting pool over `r`: a stone kerb and a dark still surface (merged boxes).

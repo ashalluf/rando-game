@@ -616,6 +616,8 @@ static func build(ch: CityChunk, h: Dictionary) -> void:
 		b.acc = _acc(ch)
 		b.acc.count += 1
 		b.full()
+		# A cypress pair by the walk and the front garden's accents (LaTrees, hashes only).
+		LaTrees.house(ch, h)
 	else:
 		b.lod()
 

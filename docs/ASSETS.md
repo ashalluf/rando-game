@@ -593,6 +593,18 @@ Commons file. Cut, filtered, peak-normalised mono OGGs; loudest-50 ms levels in
 | Rue Keyenveld - Sparrows (Flavien Gillié) | https://archive.org/details/aporee_71526_83445 | Public Domain Mark 1.0 | `sparrow_0` 3.85-5.90; `sparrow_1` 8.95-10.95 | 2026-10-04 |
 | Seagull Chatter, The Hague (Thijs Geritz) | https://archive.org/details/aporee_10517_42365 | Public Domain Mark 1.0 | `gull_close_0` 60.55-62.60; `gull_close_1` 105.20-107.80 | 2026-10-04 |
 
+## Los Angeles trees and accents (built in code)
+
+Ten species built at run time by `scripts/world/la_trees.gd` (2026-10-05) - no model files, no
+textures: a seeded skeleton (trunk, limbs, branches, twigs), leaf cards whose outlines, bark
+patterns and flowers are drawn by `shaders/la_tree.gdshader`. Poly Haven has none of these
+species. Original work for this game.
+
+| Mesh | Built by | Triangles (full detail / coarsest) | Used for | Added |
+|---|---|---|---|---|
+| Eucalyptus (blue gum), Italian cypress, olive, Indian laurel fig, California sycamore, coral tree; two variants each | `LaTrees.mesh()` | 6k-17k / 0.4-1.1k | street rows, parks, plazas, yards, the freeway's right of way, hill gullies, cypress pairs by houses | 2026-10-05 |
+| Bird of paradise, agave (plain and variegated), yucca, dragon tree | `LaTrees.mesh()` | 0.8k-3.5k / 20-400 | front gardens, yard beds, forecourt planters | 2026-10-05 |
+
 ## Fonts
 
 | Font | Source URL | License | Used for | Added |

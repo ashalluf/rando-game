@@ -624,6 +624,15 @@ already mapped so milestone 2 is script-only.
   pigeon's near body is a denser loft with welded normals, its folded wing shades with the body,
   and every wing and tail has an underside of its own (a pigeon's grey underwing, a gull's white).
   docs/HANDOFF.md 9bs.
+- **2026-10-05 The trees that make it read as Los Angeles (VISUAL_ROADMAP #63).** Ten species
+  built in code (none exist on Poly Haven): eucalyptus, Italian cypress, olive, Indian laurel fig,
+  California sycamore, coral tree, and the accents bird of paradise, agave, yucca, dragon tree.
+  They join the city by swapping a share of what is already planted (whole blocks' kerb rows,
+  park and plaza trees by 30 m cell, yard and planter trees, the freeway tree row, gully oaks,
+  some shrubs) and by adding cypress pairs and garden accents to houses - hashes after every
+  existing roll, so nothing else a seed builds moves. docs/HANDOFF.md; CLAUDE.md "Los Angeles
+  trees".
+
 - **2026-10-04 The city answers the chaos with fire engines and ambulances (VISUAL_ROADMAP #55).**
   A burning car or wreck, a big blast or a body on the street opens a call; the nearest fire
   station (one per ~850 m cell, hash-placed on a real lot, bay doors that roll up) or a street

@@ -1804,7 +1804,9 @@ func _plant_hills() -> bool:
 				# metres a canopy tinted below 1 drew as a black hole in the hillside.
 				var tint := Color(1.35, 1.4, 0.85).lerp(Color(1.6, 1.62, 1.0), tone)
 				var variety := Color(rng.randf(), rng.randf(), rng.randf_range(0.0, 0.5), 0.0)
-				_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
+				# A California sycamore in the wettest hollows (LaTrees, hashes only).
+				if not LaTrees.gully_tree(self, at - Vector3(0.0, 0.1, 0.0), yaw, wet):
+					_batch.add("hill_oak_%d" % v, PropFactory.model_hill_oak(v), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at - Vector3(0.0, 0.1, 0.0)), tint, variety)
 				hill_planting.oak += 1
 				points.append([p, "oak"])
 				continue
@@ -3645,6 +3647,9 @@ func _add_tree(at: Vector3, rng: RandomNumberGenerator, lean_to: Vector2 = Vecto
 	# the carriageway and stood in the lanes. Skipped after every roll it makes, so the rng
 	# stream, and so everything planted after it, is the same as before.
 	if _under_freeway(Vector2(at.x, at.z), TREE_FREEWAY_MARGIN):
+		return
+	# Los Angeles' own species for a share of blocks, parks and planters (LaTrees, hashes only).
+	if LaTrees.street_or_park(self, at, yaw, tint, lean_to):
 		return
 	_batch.add("tree_%d" % variant, PropFactory.model_tree(variant), Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3(s, s, s)), at), tint, variety)
 
