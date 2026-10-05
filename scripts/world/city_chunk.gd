@@ -2580,6 +2580,10 @@ func _build_lot(lot: Dictionary, params: Dictionary, rng: RandomNumberGenerator)
 	if _under_freeway(center, 14.0) or _lot_under_freeway(lot):
 		_build_corridor_lot(lot)
 		return
+	# A fire station's lot (FireStation: one lot in a cell, hash-seeded; the pad roll above is made).
+	if FireStation.claims(plan, ix, iz, lot):
+		FireStation.build_lot(self, lot)
+		return
 	var fill := LotFill.wanted(self, district)
 	# A surface car park (CityPlan.lots() "parking"; the pad roll above is still made).
 	if fill and lot.get("parking", false):

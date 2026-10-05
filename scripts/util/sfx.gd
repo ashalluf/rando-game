@@ -501,6 +501,9 @@ func _build_synth() -> void:
 	_put("ambience_city", _city_loop(2.0), true)
 	_put("thunder", _thunder(3.2))
 	_put("siren", _siren_wail(4.0), true)
+	# The emergency services (Emergency): an ambulance's yelp and a fire engine's air horn.
+	_put("siren_yelp", _siren_yelp(2.0), true)
+	_put("fire_horn", _air_horn(1.4))
 	_put("jet_loop", _jet_loop(1.6), true)
 	_put("rotor_loop", _rotor_loop(1.2), true)
 	_put("generator", _engine_loop(0.5), true)
@@ -827,6 +830,49 @@ func _siren_wail(seconds: float) -> PackedFloat32Array:
 		phase += TAU * (lo + (hi - lo) * (0.5 - 0.5 * cos(TAU * t))) * fix / MIX_RATE
 		var s := sin(phase) + 0.30 * sin(3.0 * phase) + 0.15 * sin(5.0 * phase) + 0.06 * sin(2.0 * phase)
 		out[i] = tanh(s * 1.4) * 0.5
+	return out
+
+
+## A yelp: the wail's sweep run fast (about four a second), a whole number of sweeps a loop.
+func _siren_yelp(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var lo := 720.0
+	var hi := 1550.0
+	var sweeps := roundf(seconds * 3.8)
+	var total := 0.0
+	for i in n:
+		var t := float(i) / float(n)
+		total += TAU * (lo + (hi - lo) * (0.5 - 0.5 * cos(TAU * sweeps * t))) / MIX_RATE
+	var fix := (roundf(total / TAU) * TAU) / total
+	var phase := 0.0
+	for i in n:
+		var t := float(i) / float(n)
+		phase += TAU * (lo + (hi - lo) * (0.5 - 0.5 * cos(TAU * sweeps * t))) * fix / MIX_RATE
+		var s := sin(phase) + 0.30 * sin(3.0 * phase) + 0.15 * sin(5.0 * phase)
+		out[i] = tanh(s * 1.5) * 0.5
+	return out
+
+
+## A fire engine's air horn: two blaring reed tones a minor third apart, a hard attack, a held
+## blast and a short tail.
+func _air_horn(seconds: float) -> PackedFloat32Array:
+	var n := int(seconds * MIX_RATE)
+	var out := PackedFloat32Array()
+	out.resize(n)
+	var pa := 0.0
+	var pb := 0.0
+	for i in n:
+		var t := float(i) / MIX_RATE
+		var env := minf(t / 0.04, 1.0) * clampf((seconds - t) / 0.25, 0.0, 1.0)
+		var bend := 1.0 - 0.06 * exp(-t * 18.0)
+		pa += TAU * 196.0 * bend / MIX_RATE
+		pb += TAU * 233.0 * bend / MIX_RATE
+		# Reeds: a buzzy, odd-heavy wave each.
+		var a := fposmod(pa / TAU, 1.0) * 2.0 - 1.0
+		var b := fposmod(pb / TAU, 1.0) * 2.0 - 1.0
+		out[i] = tanh((a + b) * 1.6) * 0.45 * env
 	return out
 
 
