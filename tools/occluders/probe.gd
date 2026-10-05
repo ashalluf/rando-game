@@ -77,6 +77,11 @@ func _ready() -> void:
 	print("STATS ", occ.get("stats"))
 	var m = city.get_node_or_null("MountainOccluder")
 	if m:
+		var t1 := Time.get_ticks_usec()
+		var fresh = load("res://scripts/world/mountain_occluder.gd").new()
+		fresh._setup(plan.macro.bake_height, 16000.0)
+		print("MOUNTAIN setup %.0f ms, %d tiles" % [(Time.get_ticks_usec() - t1) / 1000.0, fresh._tiles.size()])
+		fresh.free()
 		for p: Vector2 in [Vector2(300, 600), Vector2(-500, 2000), Vector2(400, -2600), Vector2(2800, 100)]:
 			var t0 := Time.get_ticks_usec()
 			m.update(p)
